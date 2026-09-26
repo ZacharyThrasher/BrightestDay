@@ -111,12 +111,35 @@ swept arcs sampled every tick (no misses from low tick sampling). Animation driv
 | Shield | 6 / 12 (bash) | bash | hold = block 120° front (absorb; perfect-parry 150 ms reflects projectiles) |
 | Gauntlet | 11 / 13 | punch combo; with Grab: seize | uppercut launcher |
 | Whip | 7 / 6 | 12 m lash; hit player → yank toward you | lash terrain → acts as a **third tether** |
-| Gun | 5 / 3 per shot | auto fire 10/s | aim-down: tighter spread |
-| Bow | 6–22 charge | hold to draw, release arrow | — |
-| Cannon | 20 / 22 | slow heavy ball, recoil pushes you back (rocket-jump tech!) | — |
+| Gun | see §4b | archetype by phrase (hand cannon / super shotgun / minigun / rocket / railgun) | archetype alt-fire |
+| Bow | 8–30 charge | hold to draw, release a heavy arrow | — |
+| Cannon | 28 / 24 | slow heavy ball, big recoil (rocket-jump tech) | — |
 | Staff | 8 / 8 | element bolt | hold = Beam if tagged |
 | Disc | 8 / 8 | throw (always Returning, Ricochet ×2) | — |
-Ring blast (empty hand): 90 m/s bolt, 7 dmg, 5 kb, 0.25 s cd. Ring shove (empty RMB): 4 m cone push
+Ring blast (empty hand): a meaty fist of light — 75 m/s chunky bolt, 12 dmg, 9 kb, 0.4 s cadence, same
+fire/hit juice as guns (§4b).
+
+### 4b. Guns — DOOM feel, never pea shooters
+Principles: (1) every shot is an event — low cadence, high damage, big knockback; (2) **guns are
+movement tools** — recoil impulse opposite the aim on the shooter (air ×1.0, ground ×0.35), enabling
+shotgun-jumps, rocket-jumps and minigun hovering; projectiles inherit 100% of the shooter's velocity;
+the bounded momentum bonus (§0) uses projectile-vs-target closing speed; (3) visible chunky voxel
+projectiles with tracers (only the railgun is hitscan, lag-compensated); (4) fire is instant and
+client-predicted, the host confirms hits.
+| archetype (phrase → recipe) | cadence | per shot | recoil (m/s) | notes |
+|---|---|---|---|---|
+| Hand cannon (gun/pistol/revolver/rifle) | 0.35 s | 16 dmg, 11 kb, 140 m/s slug | 2.5 | small terrain chip |
+| Super shotgun (shotgun/blunderbuss; Gun + Shoots + count≥3) | 2 shots, 0.9 s reload-snap | 9 pellets × 8 dmg, 18 kb total point blank, falloff > 12 m | 9 | shotgun-jump; pairs with tethers (meathook combo) |
+| Minigun (minigun/gatling/machine gun; Gun + Spin) | 0.4 s spin-up, then 14/s | 5 dmg, 3 kb, 120 m/s | 1.2/s continuous | point down = hover; spin-down 0.3 s |
+| Rocket (rocket launcher/bazooka; Gun/Cannon + Explodes) | 0.8 s | 30 dmg center, r=3.5 m carve, 22 kb | 4 | rocket-jump (self kb, no self damage) |
+| Railgun (railgun/sniper/laser rifle; Gun + Pierce/Beam) | 0.5 s charge, 1.1 s cycle | 45 dmg, 20 kb, pierces 2 players + thin walls | 6 | hitscan, lag-compensated, lingering beam |
+Caliber scales with `scale` (giant gun: slower, heavier, more recoil); `payload` swaps the round
+(sharks, anvils: slow heavy novelty rounds); count 2 = dual wield (alternating).
+**Feel pipeline** — fire: viewmodel kick (pitch + push back, spring recovery ~150 ms; aim itself never
+drifts — no random recoil), 1-frame muzzle light that lights the world, voxel muzzle burst, ejected
+hard-light casings that tinkle and shatter, short camera punch, layered sound (transient + bass thump +
+distance tail). Hit: 20–50 ms hit-stop on heavy hits, crisp hit-confirm "thock", victim flinch + shove,
+voxel chips from terrain, onomatopoeia on big hits (BLAM, KA-CHUNK). Ring shove (empty RMB): 4 m cone push
 14 kb, 0 dmg, 1.5 s cd — a defensive reset.
 
 ### Worn (movement modifiers — must stay below skilled movement)
