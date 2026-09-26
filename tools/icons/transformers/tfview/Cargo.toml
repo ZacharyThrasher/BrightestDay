@@ -1,0 +1,15 @@
+[package]
+name = "tfview"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bd_core = { path = "../../../../crates/bd_core" }
+bd_shapes = { path = "../../../../crates/bd_shapes" }
+glam = { version = "0.30", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+ron = "0.10"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[workspace]

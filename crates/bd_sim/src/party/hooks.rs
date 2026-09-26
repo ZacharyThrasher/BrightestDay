@@ -70,7 +70,7 @@ const COPYCAT_COOLDOWN: f32 = 6.0;
 const PINATA_COOLDOWN: f32 = 0.75;
 const POPCORN_COOLDOWN: f32 = 0.12;
 const MAGNET_RADIUS: f32 = 12.0;
-const MAGNET_ACCEL: f32 = 10.0;
+const MAGNET_ACCEL: f32 = 14.0;
 const REVERSE_TURN: f32 = 5.0;
 const HONK_EVERY: f32 = 2.0;
 const GROWTH_STEPS: u32 = 4;
@@ -130,14 +130,14 @@ pub fn modify_cast(w: &mut World, i: usize, r: &mut Recipe) {
     // Wild Magic: the ring misfires into a random phrase.
     if hooks & hb::WILD_MAGIC != 0 {
         let chance = hook_param(party, id, |h| if let Hook::WildMagic { chance } = h { Some(*chance) } else { None }).unwrap_or(0.25);
-        if let Some(party) = w.party.as_mut() {
-            if party.rng.chance(chance) {
-                let seed = party.rng.next_u64();
-                let wild = party.phrase_source.as_ref().and_then(|s| s.random_recipe(seed)).unwrap_or_else(|| crate::fuzz::random_sane_recipe(&mut SimRng::new(seed)));
-                *r = validate_recipe(wild, &w.cfg.rules);
-                let pos = w.players[i].mv.pos;
-                fx(w, id, PartyFx::WildMagic, pos, None);
-            }
+        if let Some(party) = w.party.as_mut()
+            && party.rng.chance(chance)
+        {
+            let seed = party.rng.next_u64();
+            let wild = party.phrase_source.as_ref().and_then(|s| s.random_recipe(seed)).unwrap_or_else(|| crate::fuzz::random_sane_recipe(&mut SimRng::new(seed)));
+            *r = validate_recipe(wild, &w.cfg.rules);
+            let pos = w.players[i].mv.pos;
+            fx(w, id, PartyFx::WildMagic, pos, None);
         }
     }
     for e in &owned[..n.min(MAX_OWNED)] {

@@ -844,7 +844,8 @@ impl Construct {
                 let solid = self.forming_t <= 0.0 && !matches!(self.recipe.form, Form::Dome | Form::Cage);
                 (solid, true)
             }
-            FormCategory::Creature => (false, true),
+            // A Lazy creature sits down as a real roadblock (players collide with it).
+            FormCategory::Creature => (self.forming_t <= 0.0 && self.recipe.temperament == bd_core::mechanics::Temperament::Lazy, true),
             FormCategory::Object => (structure::object_is_solid(self), self.half.max_element() >= 0.4),
         };
         let mut c = Collider::new(self.center(), self.half, self.rot, ColliderId::Construct { id: self.id, part: 0 });

@@ -145,13 +145,32 @@ pub fn clash(items: &mut [Construct], ctx: &ConstructCtx, out: &mut ConstructOut
     let _ = ctx;
 }
 
+/// Weak points (joints, cockpit, nape) take this much from Blade (COMBAT.md §5d).
+pub const WEAK_POINT_MULT: f32 = 3.0;
+
+/// Is `p` on one of `c`'s weak points? Creatures (incl. kaiju) and piloted constructs have them:
+/// the nape (top rear), the cockpit/seat (top centre) and the knee joints (low, at the sides).
+/// Approximated from the collision box (the sim has no bd_shapes rig), in the body's local frame
+/// (−Z forward).
+pub fn weak_point(c: &Construct, p: Vec3) -> bool {
+    if !(c.category == FormCategory::Creature || c.pilot.is_some() || c.suit) || !p.is_finite() {
+        return false;
+    }
+    let l = c.rot.inverse() * (p - c.center());
+    let h = c.half;
+    let nape_or_seat = l.y > h.y * 0.55 && l.z > -h.z * 0.25;
+    let knees = l.y < -h.y * 0.3 && l.y > -h.y * 0.85 && l.x.abs() > h.x * 0.35;
+    nape_or_seat || knees
+}
+
 /// Integrity damage + counters. Returns true if the target shattered (or was sliced away).
 pub fn on_damage(store: &mut ConstructStore, hit: &ConstructHit, events: &mut Vec<GameEvent>) -> bool {
     let Some(c) = store.get_mut(hit.target) else { return false };
     if c.gone.is_some() || !hit.damage.is_finite() {
         return false;
     }
-    let dmg = hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 };
+    let weak = hit.blade && weak_point(c, hit.point);
+    let dmg = hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 } * if weak { WEAK_POINT_MULT } else { 1.0 };
     events.push(GameEvent::ConstructHit { id: c.id, source: hit.source, damage: dmg, point: hit.point });
     let impulse = if hit.impulse.is_finite() { hit.impulse } else { Vec3::ZERO };
     // Frozen = brittle: the next hit shatters it.

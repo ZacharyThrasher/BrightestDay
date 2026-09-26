@@ -54,6 +54,8 @@ for line in DATA.strip().splitlines():
     if line.startswith("##"):
         section = line[2:].strip()
         continue
+    if section == "Transformers":  # owned by transformers_names.txt
+        continue
     parts = [p.strip() for p in line.split("|")]
     name, aliases, hint = parts[0], parts[1], parts[2]
     title = parts[3][1:].strip() if len(parts) > 3 and parts[3].startswith("@") else None

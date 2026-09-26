@@ -1026,32 +1026,6 @@ cartoon bingo | bingo cartoon |  | hint: Quadruped + Playful
 bandit heeler |  |  | hint: Quadruped + Playful
 chilli heeler |  |  | hint: Quadruped + Protective
 cartoon muffin | muffin cartoon |  | hint: Quadruped + Chaotic
-starscream |  | Q909028 | hint: Vehicle + Flies, Shoots
-soundwave |  |  | hint: Biped + Swarm, Repel
-laserbeak | ravage |  | hint: Bird + Flies, Shoots
-shockwave |  |  | hint: Biped + Beam
-grimlock |  | Q652071 | hint: Kaiju + Breath, Fire
-dinobots |  |  | hint: Kaiju + Swarm, Charge
-transformers ironhide | ironhide transformers |  | hint: Vehicle + Shoots, Heavy
-transformers ratchet | ratchet transformers |  | hint: Vehicle + Protective
-transformers jazz | jazz transformers |  | hint: Vehicle + Fast
-transformers arcee | arcee transformers |  | hint: Vehicle + Fast
-sideswipe |  |  | hint: Vehicle + Blade
-unicron |  |  | hint: Ball + Attract, DropFromSky
-sentinel prime |  |  | hint: Biped + Guard, Heavy
-transformers scourge | scourge transformers |  | hint: Biped + Flies
-unicron's heralds |  |  | hint: Biped + Swarm
-the fallen |  |  | hint: Staff + Beam
-scorponok |  |  | hint: Arachnid + ArticulatedTail
-transformers sweeps | sweeps transformers |  | hint: Vehicle + Swarm
-optimus primal |  |  | hint: Biped + Blade
-rhinox |  |  | hint: Quadruped + Charge
-transformers mirage | mirage transformers |  | hint: Vehicle + Sneaky
-transformers wheeljack | wheeljack transformers |  | hint: Vehicle + Explodes
-transformers energon | energon transformers; energon cube |  | hint: Ball + Explodes, Electric
-allspark |  |  | hint: Ball + Grow, Electric
-matrix of leadership |  |  | hint: Ball + Light
-predaking |  |  | hint: Kaiju + Breath, Flies
 ecto-goggles |  |  | hint: Gauntlet + Sneaky
 ghost trap pedal |  |  | hint: Bomb + Trap
 zuul | terror dog |  | hint: Quadruped + Charge, Shadow

@@ -248,7 +248,7 @@ impl PartyState {
             round: 0,
             players: Vec::with_capacity(bd_core::MAX_PLAYERS),
             any_hooks: 0,
-            rng: SimRng::new(seed ^ 0x9A27_7E55_EFFE_C75u64),
+            rng: SimRng::new(seed ^ 0x09A2_77E5_5EFF_EC75),
             scheduled: Vec::with_capacity(32),
             companions: Vec::with_capacity(16),
             staged: Vec::with_capacity(16),

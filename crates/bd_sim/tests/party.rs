@@ -822,6 +822,27 @@ fn slippery_hiccups_sidekick_loud_magnetic_popcorn() {
     assert_eq!(fx_count(&evs, PartyFx::Popcorn), 1);
 }
 
+#[test]
+fn magnetic_personality_pulls_enemy_constructs() {
+    let drift = |effects: &[&str]| {
+        let mut w = live_with(effects);
+        let a = w.player(A).unwrap().mv.pos;
+        let aim = Aim::new(w.player(B).unwrap().eye(w.params()), Vec3::new(0.0, -0.2, 1.0).normalize());
+        w.player_mut(B).unwrap().willpower = 100.0;
+        let ball = w.cast(B, recipe("ball", Form::Ball, &[], Element::Light, 0.8), None, aim).unwrap();
+        {
+            let c = w.constructs.get_mut(ball).unwrap();
+            c.pos = a + Vec3::new(0.0, 0.5, -7.0);
+            c.vel = Vec3::ZERO;
+        }
+        let d0 = (w.constructs.get(ball).unwrap().center() - a).length();
+        run(&mut w, 90);
+        w.constructs.get(ball).map_or(0.0, |c| d0 - (c.center() - a).length())
+    };
+    let (m, n) = (drift(&["magnetic_personality"]), drift(&[]));
+    assert!(m > n + 0.5, "enemy constructs drift toward the cursed player ({m} vs {n})");
+}
+
 // ================================================================================ chaos
 
 #[test]
@@ -840,7 +861,8 @@ fn chaos_party_with_stacked_effects_is_deterministic() {
             assert!(r.invariant_error.is_none(), "seed {seed} tick {}: {:?}", r.tick, r.invariant_error);
             hash_events(&mut h, cw.world.events());
         }
-        assert!(cw.world.party().unwrap().players.iter().all(|p| p.n_effects >= 3));
+        // (chaos joins / leaves: newcomers start with nothing)
+        assert!(cw.world.party().unwrap().players.iter().filter(|p| p.n_effects >= 3).count() >= 4);
         (h.0, cw.world.state_hash())
     };
     for seed in [31u64, 32] {

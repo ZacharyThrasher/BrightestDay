@@ -798,5 +798,7 @@ E(["war rig", "mad max war rig", "fury road truck"],
 
 from ftlib import ROOT
 out_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "assets", "icons", "film_tv.ron")
+# Transformers are owned by assets/icons/transformers.ron (tools/icons/transformers) — never emit them here.
+ENTRIES[:] = [e for e in ENTRIES if "Transformers" not in repr(e)]
 names_count, shaped = emit(out_path, drop_same={"boxing glove construct", "toothless dragon"})
 print(names_count, "entries,", shaped, "shaped")

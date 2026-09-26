@@ -554,3 +554,22 @@ fn transforming_mid_air_lands_with_a_slam() {
     assert!(ev.iter().any(|e| matches!(e, GameEvent::Explosion { source: Some(s), element: Element::Earth, .. } if *s == A)), "landing slam shockwave");
     assert!(health(&w, B) < 100.0, "the slam hits B");
 }
+
+#[test]
+fn blade_on_a_kaiju_nape_is_a_weak_point() {
+    let mut w = duel(2);
+    place(&mut w, A, Vec3::new(0.0, G, 0.0));
+    place(&mut w, B, Vec3::new(0.0, G, -40.0));
+    run(&mut w, 30);
+    let kaiju = cast_at(&mut w, B, r("godzilla", Form::Kaiju, &[], Element::Light, 12.0), Vec3::new(0.0, G, -20.0), None);
+    run(&mut w, 160);
+    let k = w.constructs.get(kaiju).unwrap();
+    let (center, rot, half, i0) = (k.center(), k.rot, k.half, k.integrity);
+    // Belly vs nape (top rear), same blade hit.
+    w.apply_construct_hit(ConstructHit { target: kaiju, source: Some(A), damage: 5.0, impulse: Vec3::ZERO, blade: true, point: center });
+    let i1 = w.constructs.get(kaiju).unwrap().integrity;
+    let nape = center + rot * Vec3::new(0.0, half.y * 0.9, half.z * 0.5);
+    w.apply_construct_hit(ConstructHit { target: kaiju, source: Some(A), damage: 5.0, impulse: Vec3::ZERO, blade: true, point: nape });
+    let i2 = w.constructs.get(kaiju).unwrap().integrity;
+    assert!(((i1 - i2) - 3.0 * (i0 - i1)).abs() < 1e-3, "nape takes ×3: body {} nape {}", i0 - i1, i1 - i2);
+}

@@ -93,38 +93,38 @@ pub fn apply_graft(r: &mut Recipe, g: &StandingGraft) -> bool {
             changed = true;
         }
     }
-    if let Some(e) = g.element {
-        if r.element != e {
-            r.element = e;
-            changed = true;
-        }
+    if let Some(e) = g.element
+        && r.element != e
+    {
+        r.element = e;
+        changed = true;
     }
-    if let Some(t) = g.temperament {
-        if r.temperament != t {
-            r.temperament = t;
-            r.intensity = r.intensity.max(0.7);
-            changed = true;
-        }
+    if let Some(t) = g.temperament
+        && r.temperament != t
+    {
+        r.temperament = t;
+        r.intensity = r.intensity.max(0.7);
+        changed = true;
     }
-    if let Some(t) = g.forbid_temperament {
-        if r.temperament == t {
-            r.temperament = Temperament::Calm;
-            changed = true;
-        }
+    if let Some(t) = g.forbid_temperament
+        && r.temperament == t
+    {
+        r.temperament = Temperament::Calm;
+        changed = true;
     }
     let swarm_ok = fit_mechanic(Mechanic::Swarm, r.form).is_some();
-    if let Some(n) = g.count.filter(|_| swarm_ok) {
-        if r.count < n {
-            r.count = n;
-            changed = true;
-        }
+    if let Some(n) = g.count.filter(|_| swarm_ok)
+        && r.count < n
+    {
+        r.count = n;
+        changed = true;
     }
-    if let Some(s) = g.scale_mult.filter(|s| s.is_finite() && *s > 0.0) {
-        // Tiny copies only where copies happen (Clown Car on a held item does nothing).
-        if g.count.is_none() || swarm_ok {
-            r.scale *= s;
-            changed = true;
-        }
+    // Tiny copies only where copies happen (Clown Car on a held item does nothing).
+    if let Some(s) = g.scale_mult.filter(|s| s.is_finite() && *s > 0.0)
+        && (g.count.is_none() || swarm_ok)
+    {
+        r.scale *= s;
+        changed = true;
     }
     changed
 }
