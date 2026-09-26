@@ -125,9 +125,7 @@ fn feat_bits(names: &[String], warn: &mut Vec<String>) -> u64 {
 }
 
 fn elem_idx(n: Option<&str>) -> u8 {
-    n.and_then(element_from_name)
-        .map(element_index)
-        .unwrap_or(NONE8)
+    n.and_then(element_from_name).map(element_index).unwrap_or(NONE8)
 }
 
 struct Pool {
@@ -171,10 +169,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
     entries.dedup_by(|a, b| a.k == b.k);
     entries.retain(|e| !e.k.is_empty() && e.k.len() < 200);
 
-    let mut pool = Pool {
-        bytes: Vec::new(),
-        interned: HashMap::new(),
-    };
+    let mut pool = Pool { bytes: Vec::new(), interned: HashMap::new() };
     let mut recs = Vec::with_capacity(entries.len() * REC_SIZE);
     let mut keys = fst::MapBuilder::memory();
     let mut tok_rank: BTreeMap<String, f32> = BTreeMap::new();
@@ -198,8 +193,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
             key: key_ref,
             display: e.d.as_deref().map(|s| pool.add(s)).unwrap_or((0, 0)),
             form,
-            element: elem_idx(Some(e.e.as_str()))
-                .min(element_index(bd_core::mechanics::Element::Atomic)),
+            element: elem_idx(Some(e.e.as_str())).min(element_index(bd_core::mechanics::Element::Atomic)),
             mech: mech_bits(&e.m, &mut warn),
             graft: mech_bits(&e.g, &mut warn),
             feat: feat_bits(&e.ft, &mut warn),
@@ -212,15 +206,8 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
             rank: (e.r.max(0.0) * 25.0).min(255.0) as u8,
             graft_element: elem_idx(e.ge.as_deref()),
             flags: e.fl.min(u16::MAX as u32) as u16,
-            temper: e
-                .t
-                .as_deref()
-                .and_then(temperament_from_name)
-                .map(temperament_index)
-                .unwrap_or(NONE8),
-            accent: e
-                .a
-                .map(|a| [0, 1, 2].map(|i| (a[i].clamp(0.0, 1.0) * 255.0).round() as u8)),
+            temper: e.t.as_deref().and_then(temperament_from_name).map(temperament_index).unwrap_or(NONE8),
+            accent: e.a.map(|a| [0, 1, 2].map(|i| (a[i].clamp(0.0, 1.0) * 255.0).round() as u8)),
         };
         recs.extend_from_slice(&rec.encode());
         keys.insert(e.k.as_bytes(), id as u64).map_err(fst_err)?;
@@ -251,12 +238,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
             scale: if a.s > 0.0 { a.s } else { 1.0 },
             mass: if a.w > 0.0 { a.w } else { 1.0 },
             abs: a.abs.unwrap_or(0.0),
-            temper: a
-                .t
-                .as_deref()
-                .and_then(temperament_from_name)
-                .map(temperament_index)
-                .unwrap_or(NONE8),
+            temper: a.t.as_deref().and_then(temperament_from_name).map(temperament_index).unwrap_or(NONE8),
             conf: if a.c > 0.0 { a.c } else { 1.0 },
             why: a.x.first().cloned().unwrap_or_default(),
         })
@@ -266,16 +248,8 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         .iter()
         .map(|v| {
             let payload = v.p.as_ref().and_then(|p| {
-                let host = p
-                    .first()?
-                    .as_deref()
-                    .and_then(mechanic_from_name)
-                    .map(mechanic_index)?;
-                let pm = p
-                    .get(1)
-                    .and_then(|x| x.as_deref())
-                    .and_then(mechanic_from_name)
-                    .map(mechanic_index);
+                let host = p.first()?.as_deref().and_then(mechanic_from_name).map(mechanic_index)?;
+                let pm = p.get(1).and_then(|x| x.as_deref()).and_then(mechanic_from_name).map(mechanic_index);
                 Some((host, pm.unwrap_or(NONE8)))
             });
             VerbRec {
@@ -289,11 +263,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
             }
         })
         .collect();
-    for w in adjectives
-        .iter()
-        .map(|a| &a.k)
-        .chain(verbs.iter().map(|v| &v.k))
-    {
+    for w in adjectives.iter().map(|a| &a.k).chain(verbs.iter().map(|v| &v.k)) {
         for t in w.split(' ') {
             let r = tok_rank.entry(t.to_string()).or_insert(0.0);
             *r = r.max(5.0);
@@ -312,11 +282,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
             *r = r.max(6.0);
         }
     }
-    let blocked_tokens: Vec<String> = lex
-        .blocked
-        .iter()
-        .map(|b| b.trim_start_matches('*').to_string())
-        .collect();
+    let blocked_tokens: Vec<String> = lex.blocked.iter().map(|b| b.trim_start_matches('*').to_string()).collect();
     for b in &blocked_tokens {
         tok_rank.remove(b);
     }
@@ -385,14 +351,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         .pure
         .iter()
         .map(|(k, e, m)| {
-            (
-                k.clone(),
-                elem_idx(Some(e.as_str())),
-                m.as_deref()
-                    .and_then(mechanic_from_name)
-                    .map(mechanic_index)
-                    .unwrap_or(NONE8),
-            )
+            (k.clone(), elem_idx(Some(e.as_str())), m.as_deref().and_then(mechanic_from_name).map(mechanic_index).unwrap_or(NONE8))
         })
         .collect();
     let meta = Meta {
@@ -400,11 +359,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         n_entries: entries.len() as u32,
         adjectives,
         verbs,
-        collectives: lex
-            .collectives
-            .iter()
-            .map(|c| (c.k.clone(), c.n.clamp(1, 255) as u8, c.swarm))
-            .collect(),
+        collectives: lex.collectives.iter().map(|c| (c.k.clone(), c.n.clamp(1, 255) as u8, c.swarm)).collect(),
         intensifiers: lex.intensifiers.clone(),
         inflections: lex.inflections.clone(),
         blocked: lex.blocked.clone(),
@@ -413,8 +368,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         pure,
         top_prefix,
     };
-    let meta_bytes = bincode::serde::encode_to_vec(&meta, bincode::config::standard())
-        .map_err(|e| format!("meta: {e}"))?;
+    let meta_bytes = bincode::serde::encode_to_vec(&meta, bincode::config::standard()).map_err(|e| format!("meta: {e}"))?;
 
     let pairs = |v: &[(u32, u32)]| -> Vec<u8> {
         let mut b = Vec::with_capacity(v.len() * 8);
@@ -456,11 +410,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         dels.len()
     );
     for (tag, b) in sections {
-        summary.push_str(&format!(
-            "\n  {} {:.1} MB",
-            String::from_utf8_lossy(tag),
-            b.len() as f64 / 1e6
-        ));
+        summary.push_str(&format!("\n  {} {:.1} MB", String::from_utf8_lossy(tag), b.len() as f64 / 1e6));
         out.extend_from_slice(&b);
     }
     warn.sort();

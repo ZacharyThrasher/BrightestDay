@@ -101,6 +101,9 @@ pub struct Resolution {
     /// Power id whose incantation prefixed the phrase ("gomu gomu no pistol" -> "gomu_gomu"; the rest of
     /// the phrase resolved normally). The game applies that power's delivery if the caster holds it.
     pub incantation: Option<String>,
+    /// Every power whose incantation matched (several powers may share one: Luffy's Gomu Gomu and
+    /// Nika both use "gomu gomu no"); the game uses the one the caster holds. `incantation` = first.
+    pub incantation_powers: Vec<String>,
     /// Stand-rush punches typed ("ORA ORA ORA" / "MUDAMUDAMUDA" -> 3). When set with nothing else in
     /// the phrase, `kind` is Graft and the game should drive the caster's stand, not build anything.
     pub stand_rush: Option<u16>,
@@ -193,31 +196,16 @@ impl Lexicon {
     /// problems never fail the load — see [`Lexicon::load_warnings`].
     pub fn load(path: impl AsRef<Path>) -> Result<Lexicon, LoadError> {
         let path = path.as_ref();
-        let bytes = std::fs::read(path)?;
-        let data = data::LexData::parse(bytes)?;
+        let data = data::LexData::map_file(path)?;
         let files = path.parent().map(Self::icon_files).unwrap_or_default();
-        let powers = path
-            .parent()
-            .and_then(|d| std::fs::read_to_string(d.join("powers.ron")).ok());
-        Ok(Self::assemble(
-            Some(data),
-            icons::Icons::parse_files(&files),
-            powers.as_deref(),
-        ))
+        let powers = path.parent().and_then(|d| std::fs::read_to_string(d.join("powers.ron")).ok());
+        Ok(Self::assemble(Some(data), icons::Icons::parse_files(&files), powers.as_deref()))
     }
 
     /// Build from raw parts: lexicon.bin bytes, icon files `(name, ron)` in priority order, powers.ron.
-    pub fn from_parts(
-        bytes: Vec<u8>,
-        icon_files: &[(String, String)],
-        powers_ron: Option<&str>,
-    ) -> Result<Lexicon, LoadError> {
+    pub fn from_parts(bytes: Vec<u8>, icon_files: &[(String, String)], powers_ron: Option<&str>) -> Result<Lexicon, LoadError> {
         let data = data::LexData::parse(bytes)?;
-        Ok(Self::assemble(
-            Some(data),
-            icons::Icons::parse_files(icon_files),
-            powers_ron,
-        ))
+        Ok(Self::assemble(Some(data), icons::Icons::parse_files(icon_files), powers_ron))
     }
 
     /// Ids of the powers loaded from powers.ron (plus nothing else).
@@ -232,10 +220,8 @@ impl Lexicon {
             return false;
         }
         let unknown_words = res.ignored.iter().any(|w| !w.ends_with("(blocked)"));
-        let nothing = res.recipe.form == Form::Blob0
-            && res.graft.mechanics.is_empty()
-            && res.graft.element.is_none()
-            && res.incantation.is_none();
+        let nothing =
+            res.recipe.form == Form::Blob0 && res.graft.mechanics.is_empty() && res.graft.element.is_none() && res.incantation.is_none();
         nothing || unknown_words || res.confidence < 0.35
     }
 
@@ -247,17 +233,12 @@ impl Lexicon {
             out.push(("icons.ron".to_string(), s));
         }
         if let Ok(rd) = std::fs::read_dir(dir.join("icons")) {
-            let mut paths: Vec<_> = rd
-                .filter_map(|e| e.ok().map(|e| e.path()))
-                .filter(|p| p.extension().map(|x| x == "ron").unwrap_or(false))
-                .collect();
+            let mut paths: Vec<_> =
+                rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().map(|x| x == "ron").unwrap_or(false)).collect();
             paths.sort();
             for p in paths {
                 if let Ok(s) = std::fs::read_to_string(&p) {
-                    let name = p
-                        .file_name()
-                        .map(|n| format!("icons/{}", n.to_string_lossy()))
-                        .unwrap_or_default();
+                    let name = p.file_name().map(|n| format!("icons/{}", n.to_string_lossy())).unwrap_or_default();
                     out.push((name, s));
                 }
             }
@@ -266,16 +247,9 @@ impl Lexicon {
     }
 
     /// Build from raw bytes plus icon file contents `(name, ron)` in priority order.
-    pub fn from_bytes(
-        bytes: Vec<u8>,
-        icon_files: &[(String, String)],
-    ) -> Result<Lexicon, LoadError> {
+    pub fn from_bytes(bytes: Vec<u8>, icon_files: &[(String, String)]) -> Result<Lexicon, LoadError> {
         let data = data::LexData::parse(bytes)?;
-        Ok(Self::assemble(
-            Some(data),
-            icons::Icons::parse_files(icon_files),
-            None,
-        ))
+        Ok(Self::assemble(Some(data), icons::Icons::parse_files(icon_files), None))
     }
 
     /// Icons-only fallback (no lexicon.bin): curated names still resolve, everything else is a blob.
@@ -283,11 +257,14 @@ impl Lexicon {
         Self::assemble(None, icons::Icons::parse_files(icon_files), None)
     }
 
-    /// Parse every icon shape now (they are otherwise parsed lazily on first use) and report the ones
-    /// that are malformed — for tools/tests; the game never needs to call this.
+    /// Parse every icon recipe and shape now (they are otherwise parsed lazily on first use) and report
+    /// the ones that are malformed — for tools/tests; the game never needs to call this.
     pub fn validate_icon_shapes(&self) -> Vec<String> {
         let mut out = Vec::new();
         for d in &self.icons.defs {
+            if let Some(e) = d.recipe_error() {
+                out.push(format!("{}: [{}] recipe: {e}", d.file, d.id));
+            }
             for (what, s) in [("shape", &d.shape), ("alt_shape", &d.alt_shape)] {
                 if let Some(e) = s.parse_error() {
                     out.push(format!("{}: [{}] {what}: {e}", d.file, d.id));
@@ -297,16 +274,18 @@ impl Lexicon {
         out
     }
 
+    /// Informational load notes: aliases that yield to common words, power names that took over an
+    /// icon's name. Not problems; useful when authoring packs.
+    pub fn load_notes(&self) -> &[String] {
+        &self.icons.notes
+    }
+
     /// Non-fatal problems found while loading icon files (malformed entries, duplicate names).
     pub fn load_warnings(&self) -> &[String] {
         &self.icons.warnings
     }
 
-    fn assemble(
-        data: Option<data::LexData>,
-        icons: icons::Icons,
-        powers_ron: Option<&str>,
-    ) -> Lexicon {
+    fn assemble(data: Option<data::LexData>, icons: icons::Icons, powers_ron: Option<&str>) -> Lexicon {
         let mut t = Tables {
             adj: HashMap::new(),
             verb: HashMap::new(),
@@ -357,23 +336,13 @@ impl Lexicon {
         let mut incant: Vec<(Vec<String>, usize)> = powers
             .iter()
             .enumerate()
-            .flat_map(|(i, p)| {
-                p.incantations
-                    .iter()
-                    .map(move |s| (s.split(' ').map(String::from).collect(), i))
-            })
+            .flat_map(|(i, p)| p.incantations.iter().map(move |s| (s.split(' ').map(String::from).collect(), i)))
             .collect();
         incant.sort_by(|a: &(Vec<String>, usize), b| b.0.len().cmp(&a.0.len()).then(a.0.cmp(&b.0)));
         if let Some(d) = &data {
             shadow_domain_aliases(&mut icons, d);
         }
-        Lexicon {
-            data,
-            icons,
-            t,
-            powers,
-            incant,
-        }
+        Lexicon { data, icons, t, powers, incant }
     }
 
     /// Number of lexicon entries (not counting icons).
@@ -417,7 +386,7 @@ impl Lexicon {
     pub fn bias_prompt(&self, n: usize) -> String {
         let mut seen = HashSet::new();
         let mut out: Vec<String> = Vec::new();
-        let icon_names = self.icons.defs.iter().map(|d| d.recipe.name.clone());
+        let icon_names = self.icons.defs.iter().map(|d| d.name.clone());
         let bias = self.data.iter().flat_map(|d| d.meta.bias.iter().cloned());
         for s in icon_names.chain(bias) {
             if out.len() >= n {
@@ -454,22 +423,13 @@ impl Lexicon {
                 if t.is_empty() {
                     continue;
                 }
-                if self.t.blocked.contains(t)
-                    || t.strip_suffix('s')
-                        .map(|s| self.t.blocked.contains(s))
-                        .unwrap_or(false)
-                {
+                if self.t.blocked.contains(t) || t.strip_suffix('s').map(|s| self.t.blocked.contains(s)).unwrap_or(false) {
                     return true;
                 }
             }
             let squashed: String = k.chars().filter(|c| !c.is_whitespace()).collect();
             let squeezed = norm::squeeze2(&squashed);
-            if self
-                .t
-                .blocked_sub
-                .iter()
-                .any(|b| squashed.contains(b.as_str()) || squeezed.contains(b.as_str()))
-            {
+            if self.t.blocked_sub.iter().any(|b| squashed.contains(b.as_str()) || squeezed.contains(b.as_str())) {
                 return true;
             }
         }
@@ -478,29 +438,18 @@ impl Lexicon {
 
     pub(crate) fn rec_recipe(&self, key: &str, rec: &data::Rec) -> Recipe {
         let d = self.data.as_ref();
-        let display = d
-            .map(|d| d.pool_str(rec.display))
-            .filter(|s| !s.is_empty())
-            .unwrap_or(key);
+        let display = d.map(|d| d.pool_str(rec.display)).filter(|s| !s.is_empty()).unwrap_or(key);
         let temper = tables::ALL_TEMPERAMENT.get(rec.temper as usize).copied();
         Recipe {
             name: display.to_string(),
-            form: tables::ALL_FORM
-                .get(rec.form as usize)
-                .copied()
-                .unwrap_or(Form::Blob0),
+            form: tables::ALL_FORM.get(rec.form as usize).copied().unwrap_or(Form::Blob0),
             mechanics: parse::bits_to_mechs(rec.mech),
-            element: tables::ALL_ELEMENT
-                .get(rec.element as usize)
-                .copied()
-                .unwrap_or_default(),
+            element: tables::ALL_ELEMENT.get(rec.element as usize).copied().unwrap_or_default(),
             scale: rec.scale,
             mass: rec.mass,
             count: rec.count.max(1),
             accent: rec.accent.map(|a| a.map(|x| x as f32 / 255.0)),
-            model: ModelSource::Procedural {
-                seed: data::fnv64(key.as_bytes()) as u32,
-            },
+            model: ModelSource::Procedural { seed: data::fnv64(key.as_bytes()) as u32 },
             payload: None,
             grants: None,
             features: parse::bits_to_feats(rec.feat),
@@ -511,7 +460,7 @@ impl Lexicon {
     }
 
     pub(crate) fn icon_recipe(&self, d: &IconDef) -> Recipe {
-        let mut r = d.recipe.clone();
+        let mut r = d.recipe().clone();
         if r.temperament != Temperament::Calm && r.intensity <= 0.0 {
             r.intensity = 0.6;
         }
@@ -533,11 +482,8 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
         }
         if def.file == "powers.ron" {
             // power names keep everything except single very common words ("cream" stays food)
-            let common_single = !alias.contains(' ')
-                && d.entry_id(alias)
-                    .and_then(|id| d.rec(id))
-                    .map(|r| r.rank_f() >= 4.5)
-                    .unwrap_or(false);
+            let common_single =
+                !alias.contains(' ') && d.entry_id(alias).and_then(|id| d.rec(id)).map(|r| r.rank_f() >= 4.5).unwrap_or(false);
             if !common_single {
                 continue;
             }
@@ -546,8 +492,7 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
             continue;
         };
         let anchored = rec.flags & data::F_ANCHOR != 0;
-        let common = rec.flags & (data::F_ENTITY | data::F_POP | data::F_POKEMON) == 0
-            && rec.rank_f() >= 2.5;
+        let common = rec.flags & (data::F_ENTITY | data::F_POP | data::F_POKEMON) == 0 && rec.rank_f() >= 2.5;
         if anchored || common {
             drop.push(alias.clone());
         }
@@ -555,22 +500,11 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
     drop.sort();
     for a in drop {
         if let Some(idx) = icons.alias.remove(&a) {
-            let (id, file) = icons
-                .defs
-                .get(idx)
-                .map(|d| (d.id.clone(), d.file.clone()))
-                .unwrap_or_default();
-            icons.warnings.push(format!("{file}: alias \"{a}\" of [{id}] shadowed by the common word (use a more specific name)"));
+            let (id, file) = icons.defs.get(idx).map(|d| (d.id.clone(), d.file.clone())).unwrap_or_default();
+            icons.notes.push(format!("{file}: alias \"{a}\" of [{id}] yields to the common word (use a more specific name)"));
             icons.pretty.retain(|(_, k, _)| *k != a);
             let still_named = icons.alias.values().any(|v| *v == idx);
-            if !still_named {
-                for v in icons.phon.values_mut() {
-                    v.retain(|i| *i != idx);
-                }
-                for v in icons.phon_del.values_mut() {
-                    v.retain(|(i, _)| *i != idx);
-                }
-            }
+            let _ = still_named; // phonetic indexes are built lazily from the final alias set
         }
     }
 }

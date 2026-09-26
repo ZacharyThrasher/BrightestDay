@@ -183,9 +183,7 @@ pub fn key_variants(key: &str) -> Vec<String> {
             out.push(v);
         }
     }
-    out.into_iter()
-        .filter_map(|v| String::from_utf8(v).ok())
-        .collect()
+    out.into_iter().filter_map(|v| String::from_utf8(v).ok()).collect()
 }
 
 #[cfg(test)]

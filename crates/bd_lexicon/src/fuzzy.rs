@@ -21,9 +21,7 @@ pub fn dl_distance(a: &[u8], b: &[u8], max: usize) -> Option<usize> {
         let mut row_min = usize::MAX;
         for j in 1..=m {
             let cost = usize::from(a[i - 1] != b[j - 1]);
-            let mut v = (d[(i - 1) * w + j] + 1)
-                .min(d[i * w + j - 1] + 1)
-                .min(d[(i - 1) * w + j - 1] + cost);
+            let mut v = (d[(i - 1) * w + j] + 1).min(d[i * w + j - 1] + 1).min(d[(i - 1) * w + j - 1] + cost);
             if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
                 v = v.min(d[(i - 2) * w + j - 2] + 1);
             }
@@ -69,9 +67,7 @@ pub fn edits1(w: &str) -> Vec<String> {
             out.push(v);
         }
     }
-    out.into_iter()
-        .filter_map(|v| String::from_utf8(v).ok())
-        .collect()
+    out.into_iter().filter_map(|v| String::from_utf8(v).ok()).collect()
 }
 
 /// All single-character deletions.

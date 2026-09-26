@@ -45,9 +45,7 @@ fn coverage_report() {
     let mut icons = 0;
     for w in &words {
         let r = lex.resolve(w);
-        let meaningful = r.recipe.form != Form::Blob0
-            || !r.graft.mechanics.is_empty()
-            || r.graft.element.is_some();
+        let meaningful = r.recipe.form != Form::Blob0 || !r.graft.mechanics.is_empty() || r.graft.element.is_some();
         if meaningful && r.confidence >= 0.3 {
             hits += 1;
             if r.shape.is_some() {
@@ -60,11 +58,7 @@ fn coverage_report() {
         }
     }
     let rate = hits as f64 / words.len() as f64;
-    println!(
-        "\n=== bd_lexicon coverage: {hits}/{} words = {:.1}% (icons: {icons}) ===",
-        words.len(),
-        rate * 100.0
-    );
+    println!("\n=== bd_lexicon coverage: {hits}/{} words = {:.1}% (icons: {icons}) ===", words.len(), rate * 100.0);
     println!("low confidence: {weak:?}");
     println!("misses: {misses:?}");
     assert!(words.len() >= 300, "word list has {}", words.len());

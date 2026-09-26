@@ -73,10 +73,7 @@ pub fn normalize_key(s: &str) -> String {
             // possessive: <alnum>'s<non-alnum|end>
             let prev_alnum = i > 0 && chars[i - 1].is_ascii_alphanumeric();
             let next_s = chars.get(i + 1) == Some(&'s');
-            let after = chars
-                .get(i + 2)
-                .map(|c| c.is_ascii_alphanumeric())
-                .unwrap_or(false);
+            let after = chars.get(i + 2).map(|c| c.is_ascii_alphanumeric()).unwrap_or(false);
             if prev_alnum && next_s && !after {
                 i += 2;
                 continue;
@@ -128,10 +125,7 @@ pub fn tokenize(raw: &str) -> (Vec<Tok>, usize) {
             if t.is_empty() {
                 continue;
             }
-            toks.push(Tok {
-                text: t.to_string(),
-                caps,
-            });
+            toks.push(Tok { text: t.to_string(), caps });
             if toks.len() >= MAX_TOKENS {
                 return (toks, bangs);
             }
@@ -214,10 +208,7 @@ mod tests {
 
     #[test]
     fn normalize_examples() {
-        assert_eq!(
-            normalize_key("Captain America's Shield!"),
-            "captain america shield"
-        );
+        assert_eq!(normalize_key("Captain America's Shield!"), "captain america shield");
         assert_eq!(normalize_key("Farfetch'd"), "farfetchd");
         assert_eq!(normalize_key("Flabébé"), "flabebe");
         assert_eq!(normalize_key("Nidoran♀"), "nidoran f");

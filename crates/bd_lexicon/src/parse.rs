@@ -18,28 +18,14 @@ use crate::tables::*;
 use crate::{Graft, GraftAction, Lexicon, Resolution, ResolutionKind};
 
 /// Combiner names that "form X" / a bare "X" refer to (GraftAction::Combine).
-const COMBINERS: &[&str] = &[
-    "devastator",
-    "voltron",
-    "bruticus",
-    "superion",
-    "menasor",
-    "predaking",
-    "computron",
-    "defensor",
-    "megazord",
-    "combiner",
-    "gestalt",
-];
+const COMBINERS: &[&str] =
+    &["devastator", "voltron", "bruticus", "superion", "menasor", "predaking", "computron", "defensor", "megazord", "combiner", "gestalt"];
 
 /// Command phrases (already normalised; articles/fillers/pronouns/"make it" removed).
 fn action_of(phrase: &str) -> Option<GraftAction> {
     let p = phrase.trim();
-    let p = p
-        .strip_prefix("autobots ")
-        .or_else(|| p.strip_prefix("decepticons "))
-        .or_else(|| p.strip_prefix("constructicons "))
-        .unwrap_or(p);
+    let p =
+        p.strip_prefix("autobots ").or_else(|| p.strip_prefix("decepticons ")).or_else(|| p.strip_prefix("constructicons ")).unwrap_or(p);
     match p {
         "roll out"
         | "transform and roll out"
@@ -66,34 +52,24 @@ fn action_of(phrase: &str) -> Option<GraftAction> {
         | "transform into robot"
         | "transform into a robot"
         | "mode switch" => Some(GraftAction::Transform),
-        "combine" | "combine them" | "merge" | "merge them" | "unite" | "combine into one"
-        | "combiner" | "combine and form" | "gestalt" => Some(GraftAction::Combine),
+        "combine" | "combine them" | "merge" | "merge them" | "unite" | "combine into one" | "combiner" | "combine and form"
+        | "gestalt" => Some(GraftAction::Combine),
         _ => {
             let rest = p
                 .strip_prefix("form ")
                 .or_else(|| p.strip_prefix("combine into "))
                 .or_else(|| p.strip_prefix("combine to form "))
                 .or_else(|| p.strip_prefix("combine and form "))?;
-            COMBINERS
-                .contains(&rest.trim())
-                .then_some(GraftAction::Combine)
+            COMBINERS.contains(&rest.trim()).then_some(GraftAction::Combine)
         }
     }
 }
 
 pub(crate) fn bits_to_mechs(b: u64) -> Vec<Mechanic> {
-    ALL_MECHANIC
-        .iter()
-        .copied()
-        .filter(|m| b & (1u64 << mechanic_index(*m)) != 0)
-        .collect()
+    ALL_MECHANIC.iter().copied().filter(|m| b & (1u64 << mechanic_index(*m)) != 0).collect()
 }
 pub(crate) fn bits_to_feats(b: u64) -> Vec<Feature> {
-    ALL_FEATURE
-        .iter()
-        .copied()
-        .filter(|f| b & (1u64 << feature_index(*f)) != 0)
-        .collect()
+    ALL_FEATURE.iter().copied().filter(|f| b & (1u64 << feature_index(*f)) != 0).collect()
 }
 fn mbit(m: Mechanic) -> u64 {
     1u64 << mechanic_index(m)
@@ -321,37 +297,30 @@ pub(crate) const GRAMMAR_WORDS: &[&str] = &[
 fn gram_of(s: &str) -> Option<Gram> {
     use Gram::*;
     Some(match s {
-        "a" | "an" | "the" | "some" | "my" | "your" | "his" | "her" | "their" | "our" | "its"
-        | "this" | "these" | "those" | "any" | "another" | "ur" => Article,
-        "please" | "pls" | "plz" | "like" | "just" | "um" | "uh" | "er" | "erm" | "yo" | "hey"
-        | "okay" | "ok" | "now" | "lol" | "lmao" | "literally" | "basically" | "actually"
-        | "also" | "then" | "yeah" | "bro" | "dude" | "thing" | "things" | "stuff"
+        "a" | "an" | "the" | "some" | "my" | "your" | "his" | "her" | "their" | "our" | "its" | "this" | "these" | "those" | "any"
+        | "another" | "ur" => Article,
+        "please" | "pls" | "plz" | "like" | "just" | "um" | "uh" | "er" | "erm" | "yo" | "hey" | "okay" | "ok" | "now" | "lol" | "lmao"
+        | "literally" | "basically" | "actually" | "also" | "then" | "yeah" | "bro" | "dude" | "thing" | "things" | "stuff"
         | "something" | "kind of thing" => Filler,
-        "summon" | "cast" | "create" | "build" | "make" | "construct" | "conjure" | "spawn"
-        | "give" | "gimme" | "get" | "generate" | "manifest" | "craft" | "forge" | "produce"
-        | "bring" | "want" | "need" | "wanna" | "gonna" | "let" | "lets" | "i want" | "i need"
-        | "give me" | "make me" | "i wanna" | "can i have" | "can i get" | "let me have"
-        | "build me" => Cast,
-        "with" | "w" | "having" | "has" | "have" | "wielding" | "holding" | "wearing"
-        | "carrying" | "sporting" | "plus" | "armed with" | "equipped with" | "covered in"
-        | "covered with" | "filled with" | "full of" | "fitted with" | "loaded with" | "with a"
+        "summon" | "cast" | "create" | "build" | "make" | "construct" | "conjure" | "spawn" | "give" | "gimme" | "get" | "generate"
+        | "manifest" | "craft" | "forge" | "produce" | "bring" | "want" | "need" | "wanna" | "gonna" | "let" | "lets" | "i want"
+        | "i need" | "give me" | "make me" | "i wanna" | "can i have" | "can i get" | "let me have" | "build me" => Cast,
+        "with" | "w" | "having" | "has" | "have" | "wielding" | "holding" | "wearing" | "carrying" | "sporting" | "plus" | "armed with"
+        | "equipped with" | "covered in" | "covered with" | "filled with" | "full of" | "fitted with" | "loaded with" | "with a"
         | "that has" | "which has" | "who has" | "that have" => With,
         "of" => Of,
-        "made of" | "made out of" | "made from" | "built from" | "built of" | "carved from"
-        | "carved out of" | "forged from" | "formed of" | "composed of" | "consisting of"
-        | "out of" => MadeOf,
-        "that" | "which" | "who" | "whose" | "can" | "could" | "will" | "would" | "to"
-        | "i can" | "you can" | "that can" | "it can" | "which can" | "who can" | "that will"
-        | "able to" | "that i can" | "which i can" | "i could" | "we can" | "that could" => Clause,
+        "made of" | "made out of" | "made from" | "built from" | "built of" | "carved from" | "carved out of" | "forged from"
+        | "formed of" | "composed of" | "consisting of" | "out of" => MadeOf,
+        "that" | "which" | "who" | "whose" | "can" | "could" | "will" | "would" | "to" | "i can" | "you can" | "that can" | "it can"
+        | "which can" | "who can" | "that will" | "able to" | "that i can" | "which i can" | "i could" | "we can" | "that could" => Clause,
         "and" | "n" | "as well as" => And,
         "at" | "on" | "onto" | "into" | "towards" | "toward" | "against" | "for" => Stop,
-        "it" | "them" | "him" | "me" | "you" | "us" | "i" | "they" | "he" | "she" | "everyone"
-        | "everybody" | "enemy" | "enemies" | "opponent" | "target" => Pronoun,
-        "make it" | "make them" | "make that" | "give it" | "give them" | "let it" | "let them"
-        | "now make it" | "make this" | "make my" | "give that" => MakeIt,
-        "is" | "are" | "be" | "being" | "was" | "were" | "gets" | "becomes" | "become" | "goes"
-        | "moves" | "looks" | "seems" | "feels" | "acts" | "can be" | "that is" | "which is"
-        | "who is" => Copula,
+        "it" | "them" | "him" | "me" | "you" | "us" | "i" | "they" | "he" | "she" | "everyone" | "everybody" | "enemy" | "enemies"
+        | "opponent" | "target" => Pronoun,
+        "make it" | "make them" | "make that" | "give it" | "give them" | "let it" | "let them" | "now make it" | "make this"
+        | "make my" | "give that" => MakeIt,
+        "is" | "are" | "be" | "being" | "was" | "were" | "gets" | "becomes" | "become" | "goes" | "moves" | "looks" | "seems" | "feels"
+        | "acts" | "can be" | "that is" | "which is" | "who is" => Copula,
         "not" | "no" | "without" | "never" => Not,
         _ => return None,
     })
@@ -466,17 +435,10 @@ impl Default for Mods {
 impl Mods {
     fn element(&self) -> Option<(u8, u8)> {
         // highest priority wins; ties -> lowest enum index (deterministic, order-insensitive)
-        self.elems
-            .iter()
-            .copied()
-            .max_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)))
+        self.elems.iter().copied().max_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)))
     }
     fn temper(&self) -> Option<(u8, f32)> {
-        self.tempers.iter().copied().max_by(|a, b| {
-            a.1.partial_cmp(&b.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then(b.0.cmp(&a.0))
-        })
+        self.tempers.iter().copied().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal).then(b.0.cmp(&a.0)))
     }
     fn merge(&mut self, o: &Mods) {
         self.mech |= o.mech;
@@ -551,10 +513,7 @@ impl Lexicon {
         if self.icons.tokens.contains_key(t) || gram_of(t).is_some() || number_of(t).is_some() {
             return true;
         }
-        self.data
-            .as_ref()
-            .map(|d| d.token_id(t).is_some())
-            .unwrap_or(false)
+        self.data.as_ref().map(|d| d.token_id(t).is_some()).unwrap_or(false)
     }
 
     fn token_rank(&self, t: &str) -> u8 {
@@ -570,9 +529,7 @@ impl Lexicon {
             return true;
         }
         match self.entry(k) {
-            Some((_, r)) => {
-                r.rank_f() >= 3.0 || r.flags & (crate::data::F_POP | crate::data::F_POKEMON) != 0
-            }
+            Some((_, r)) => r.rank_f() >= 3.0 || r.flags & (crate::data::F_POP | crate::data::F_POKEMON) != 0,
             None => false,
         }
     }
@@ -586,22 +543,18 @@ impl Lexicon {
             return None;
         }
         let mut best: Option<(usize, u8, String)> = None;
-        let consider =
-            |cand: &str, dist: usize, rank: u8, best: &mut Option<(usize, u8, String)>| {
-                if self.is_blocked(cand) || rank < 20 {
-                    return;
-                }
-                let better = match best {
-                    None => true,
-                    Some((bd, br, bs)) => {
-                        (dist, std::cmp::Reverse(rank), cand)
-                            < (*bd, std::cmp::Reverse(*br), bs.as_str())
-                    }
-                };
-                if better {
-                    *best = Some((dist, rank, cand.to_string()));
-                }
+        let consider = |cand: &str, dist: usize, rank: u8, best: &mut Option<(usize, u8, String)>| {
+            if self.is_blocked(cand) || rank < 20 {
+                return;
+            }
+            let better = match best {
+                None => true,
+                Some((bd, br, bs)) => (dist, std::cmp::Reverse(rank), cand) < (*bd, std::cmp::Reverse(*br), bs.as_str()),
             };
+            if better {
+                *best = Some((dist, rank, cand.to_string()));
+            }
+        };
         for e in edits1(t) {
             if let Some(dd) = d
                 && let Some(id) = dd.token_id(&e)
@@ -683,12 +636,7 @@ impl Lexicon {
                     let mut upper = rev.clone();
                     upper.push('\u{7f}');
                     use fst::{IntoStreamer, Streamer};
-                    let mut st = d
-                        .rtok
-                        .range()
-                        .ge(rev.as_str())
-                        .lt(upper.as_str())
-                        .into_stream();
+                    let mut st = d.rtok.range().ge(rev.as_str()).lt(upper.as_str()).into_stream();
                     let mut n = 0;
                     while let Some((_, id)) = st.next() {
                         n += 1;
@@ -716,36 +664,23 @@ impl Lexicon {
         self.phonetic_match_opts(s, allow_dist1, false)
     }
 
-    fn phonetic_match_opts(
-        &self,
-        s: &str,
-        allow_dist1: bool,
-        icons_only: bool,
-    ) -> Option<(String, bool, usize, u32)> {
+    fn phonetic_match_opts(&self, s: &str, allow_dist1: bool, icons_only: bool) -> Option<(String, bool, usize, u32)> {
         let pk = phonetic_key(s);
         if pk.len() < 2 {
             return None;
         }
         let dist1 = allow_dist1 && pk.len() >= 4;
-        let q_dels = if dist1 {
-            crate::fuzzy::deletes1(&pk)
-        } else {
-            Vec::new()
-        };
+        let q_dels = if dist1 { crate::fuzzy::deletes1(&pk) } else { Vec::new() };
         // entries: exact code, plus (when loose) the query minus one symbol
         let mut keys = vec![(pk.clone(), 0usize)];
         if dist1 && !icons_only {
             keys.extend(q_dels.iter().cloned().map(|k| (k, 1)));
         }
         let mut best: Option<(String, bool, usize, u32)> = None;
-        let take = |cand: (String, bool, usize, u32),
-                    best: &mut Option<(String, bool, usize, u32)>| {
+        let take = |cand: (String, bool, usize, u32), best: &mut Option<(String, bool, usize, u32)>| {
             let better = match best {
                 None => true,
-                Some(b) => {
-                    (cand.2, std::cmp::Reverse(cand.3), &cand.0)
-                        < (b.2, std::cmp::Reverse(b.3), &b.0)
-                }
+                Some(b) => (cand.2, std::cmp::Reverse(cand.3), &cand.0) < (b.2, std::cmp::Reverse(b.3), &b.0),
             };
             if better {
                 *best = Some(cand);
@@ -753,36 +688,19 @@ impl Lexicon {
         };
         // icons: symmetric delete (exact, query has one extra symbol, icon has one extra, substitution)
         let mut icon_hits: Vec<(usize, usize)> = Vec::new();
-        for i in self
-            .icons
-            .phon
-            .get(&pk)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
-        {
+        let ph = self.icons.phon();
+        for i in ph.exact.get(&pk).map(|v| v.as_slice()).unwrap_or(&[]) {
             icon_hits.push((*i, 0));
         }
         if dist1 {
-            for (i, _) in self
-                .icons
-                .phon_del
-                .get(&pk)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[])
-            {
+            for (i, _) in ph.dels.get(&pk).map(|v| v.as_slice()).unwrap_or(&[]) {
                 icon_hits.push((*i, 1));
             }
             for d in &q_dels {
-                for i in self.icons.phon.get(d).map(|v| v.as_slice()).unwrap_or(&[]) {
+                for i in ph.exact.get(d).map(|v| v.as_slice()).unwrap_or(&[]) {
                     icon_hits.push((*i, 1));
                 }
-                for (i, full) in self
-                    .icons
-                    .phon_del
-                    .get(d)
-                    .map(|v| v.as_slice())
-                    .unwrap_or(&[])
-                {
+                for (i, full) in ph.dels.get(d).map(|v| v.as_slice()).unwrap_or(&[]) {
                     if full.len() == pk.len() {
                         icon_hits.push((*i, 1));
                     }
@@ -814,12 +732,7 @@ impl Lexicon {
                         && phonetic_key(&key) == *k
                         && !key.split(' ').any(|t| self.is_blocked(t))
                     {
-                        let bonus =
-                            if rec.flags & (crate::data::F_POKEMON | crate::data::F_ANCHOR) != 0 {
-                                40
-                            } else {
-                                0
-                            };
+                        let bonus = if rec.flags & (crate::data::F_POKEMON | crate::data::F_ANCHOR) != 0 { 40 } else { 0 };
                         take((key, false, *dist, rec.rank as u32 + bonus), &mut best);
                     }
                 }
@@ -839,8 +752,7 @@ impl Lexicon {
     /// Token repair cascade for typed/spoken input.
     fn repair(&self, toks: Vec<Tok>, cx: &mut Cx) -> Vec<Tok> {
         let mut out: Vec<Tok> = Vec::with_capacity(toks.len());
-        let mut seen_unknown: std::collections::HashMap<String, Vec<String>> =
-            std::collections::HashMap::new();
+        let mut seen_unknown: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
         let mut i = 0;
         while i < toks.len() {
             let t = &toks[i];
@@ -857,35 +769,16 @@ impl Lexicon {
                     continue;
                 }
                 let cat: String = toks[i..i + n].iter().map(|x| x.text.as_str()).collect();
-                let spaced: String = toks[i..i + n]
-                    .iter()
-                    .map(|x| x.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                if cat.len() < 5
-                    || self.icons.alias.contains_key(&spaced)
-                    || self.entry(&spaced).is_some()
-                {
+                let spaced: String = toks[i..i + n].iter().map(|x| x.text.as_str()).collect::<Vec<_>>().join(" ");
+                if cat.len() < 5 || self.icons.alias.contains_key(&spaced) || self.entry(&spaced).is_some() {
                     continue;
                 }
                 let any_unknown = toks[i..i + n].iter().any(|x| !self.known_token(&x.text));
-                let piece_rank = toks[i..i + n]
-                    .iter()
-                    .map(|x| self.token_rank(&x.text))
-                    .max()
-                    .unwrap_or(0);
+                let piece_rank = toks[i..i + n].iter().map(|x| self.token_rank(&x.text)).max().unwrap_or(0);
                 let cat_rank = self.entry(&cat).map(|(_, r)| r.rank).unwrap_or(0);
-                if self.popular_key(&cat)
-                    && (any_unknown
-                        || cx.spoken
-                        || self.icons.alias.contains_key(&cat)
-                        || cat_rank > piece_rank)
-                {
+                if self.popular_key(&cat) && (any_unknown || cx.spoken || self.icons.alias.contains_key(&cat) || cat_rank > piece_rank) {
                     cx.note(format!("{spaced} \u{2192} {cat} (merged)"));
-                    out.push(Tok {
-                        text: cat,
-                        caps: toks[i].caps,
-                    });
+                    out.push(Tok { text: cat, caps: toks[i].caps });
                     i += n;
                     merged = true;
                     break;
@@ -902,42 +795,24 @@ impl Lexicon {
             // unknown token: cascade (memoised per phrase: "qwxz qwxz qwxz" repairs once)
             if let Some(prev) = seen_unknown.get(s) {
                 for w in prev {
-                    out.push(Tok {
-                        text: w.clone(),
-                        caps: t.caps,
-                    });
+                    out.push(Tok { text: w.clone(), caps: t.caps });
                 }
                 i += 1;
                 continue;
             }
             let out_start = out.len();
             let caps = t.caps;
-            let push1 = |w: &str, out: &mut Vec<Tok>| {
-                out.push(Tok {
-                    text: w.to_string(),
-                    caps,
-                })
-            };
+            let push1 = |w: &str, out: &mut Vec<Tok>| out.push(Tok { text: w.to_string(), caps });
             let sq3 = squeeze3(s);
             let sq2 = squeeze2(s);
-            let typo = if self.known_token(&sq3) || self.known_token(&sq2) {
-                None
-            } else {
-                self.typo(s, cx.spoken)
-            };
+            let typo = if self.known_token(&sq3) || self.known_token(&sq2) { None } else { self.typo(s, cx.spoken) };
             if sq3 != s && self.known_token(&sq3) {
                 push1(&sq3, &mut out);
             } else if sq2 != s && self.known_token(&sq2) {
                 push1(&sq2, &mut out);
             } else if s.ends_with("in") && self.known_token(&format!("{s}g")) {
                 push1(&format!("{s}g"), &mut out);
-            } else if let Some(base) = self
-                .t
-                .infl
-                .get(s)
-                .cloned()
-                .or_else(|| singulars(s).into_iter().find(|x| self.known_token(x)))
-            {
+            } else if let Some(base) = self.t.infl.get(s).cloned().or_else(|| singulars(s).into_iter().find(|x| self.known_token(x))) {
                 // keep the plural surface form; chunking singularises and records plurality
                 let _ = base;
                 push1(s, &mut out);
@@ -954,9 +829,7 @@ impl Lexicon {
                 cx.note(format!("{s} \u{2192} {w} (typo)"));
                 cx.conf_mul *= if dist == 1 { 0.9 } else { 0.8 };
                 push1(&w, &mut out);
-            } else if let Some((k, _, dist, _)) =
-                self.phonetic_match(s, cx.spoken).filter(|_| s.len() >= 4)
-            {
+            } else if let Some((k, _, dist, _)) = self.phonetic_match(s, cx.spoken).filter(|_| s.len() >= 4) {
                 cx.note(format!("{s} \u{2192} {k} (sounds like)"));
                 cx.conf_mul *= if dist == 0 { 0.8 } else { 0.7 };
                 for w in k.split(' ') {
@@ -1009,16 +882,8 @@ impl Lexicon {
             let maxn = (toks.len() - i).min(6);
             let mut done = false;
             for n in (1..=maxn).rev() {
-                let span: String = toks[i..i + n]
-                    .iter()
-                    .map(|t| t.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                let mut c = Chunk {
-                    text: span.clone(),
-                    caps: toks[i..i + n].iter().all(|t| t.caps),
-                    ..Default::default()
-                };
+                let span: String = toks[i..i + n].iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
+                let mut c = Chunk { text: span.clone(), caps: toks[i..i + n].iter().all(|t| t.caps), ..Default::default() };
                 if n == 1 && self.is_blocked(&span) {
                     c.blocked = true;
                 }
@@ -1045,17 +910,12 @@ impl Lexicon {
                         && let Some(id) = c.entry
                     {
                         let first = toks[i].text.as_str();
-                        let first_mod = self.t.adj.contains_key(first)
-                            || self.t.intens.contains_key(first)
-                            || number_of(first).is_some();
+                        let first_mod = self.t.adj.contains_key(first) || self.t.intens.contains_key(first) || number_of(first).is_some();
                         let is_entity = self
                             .data
                             .as_ref()
                             .and_then(|d| d.rec(id))
-                            .map(|r| {
-                                r.flags & (F_ENTITY | crate::data::F_POP) != 0
-                                    && r.flags & crate::data::F_ANCHOR == 0
-                            })
+                            .map(|r| r.flags & (F_ENTITY | crate::data::F_POP) != 0 && r.flags & crate::data::F_ANCHOR == 0)
                             .unwrap_or(false);
                         if first_mod && is_entity {
                             c.entry = None;
@@ -1137,16 +997,16 @@ impl Lexicon {
         match h {
             Head::Icon(i) => {
                 if let Some(d) = self.icons.defs.get(i) {
-                    for x in &d.graft {
+                    for x in d.graft() {
                         m.mech |= mbit(*x);
                     }
-                    for f in &d.recipe.features {
+                    for f in &d.recipe().features {
                         m.feat |= 1u64 << feature_index(*f);
                     }
-                    if d.recipe.element != Element::Light {
-                        m.elems.push((prio, element_index(d.recipe.element)));
+                    if d.recipe().element != Element::Light {
+                        m.elems.push((prio, element_index(d.recipe().element)));
                     }
-                    cx.note(format!("+{} (graft)", d.recipe.name));
+                    cx.note(format!("+{} (graft)", d.recipe().name));
                 }
             }
             Head::Entry(id) => {
@@ -1160,20 +1020,9 @@ impl Lexicon {
                 if r.temper != NONE8 {
                     m.tempers.push((r.temper, 0.6));
                 }
-                let names: Vec<&str> = bits_to_mechs(r.graft)
-                    .iter()
-                    .map(|x| mechanic_name(*x))
-                    .collect();
+                let names: Vec<&str> = bits_to_mechs(r.graft).iter().map(|x| mechanic_name(*x)).collect();
                 let k = self.key_of_fast(id, &r);
-                cx.note(format!(
-                    "+{} \u{2192} {} (graft)",
-                    k,
-                    if names.is_empty() {
-                        "look".to_string()
-                    } else {
-                        names.join("+")
-                    }
-                ));
+                cx.note(format!("+{} \u{2192} {} (graft)", k, if names.is_empty() { "look".to_string() } else { names.join("+") }));
             }
         }
         m.n += 1;
@@ -1206,10 +1055,8 @@ impl Lexicon {
         let content: Vec<&Chunk> = chunks
             .iter()
             .filter(|c| {
-                !matches!(
-                    c.gram,
-                    Some(Gram::Article | Gram::Filler | Gram::Pronoun | Gram::Copula | Gram::Cast)
-                ) || c.is_noun() && c.text.contains(' ')
+                !matches!(c.gram, Some(Gram::Article | Gram::Filler | Gram::Pronoun | Gram::Copula | Gram::Cast))
+                    || c.is_noun() && c.text.contains(' ')
             })
             .collect();
         // head = last noun; a trailing collective after a noun is a count ("shark swarm")
@@ -1218,9 +1065,7 @@ impl Lexicon {
         for (i, c) in content.iter().enumerate().rev() {
             if c.is_noun() && c.number.is_none() {
                 if let Some((n, sw)) = c.coll {
-                    let earlier_noun = content[..i]
-                        .iter()
-                        .any(|x| x.is_noun() && x.coll.is_none() && x.adj.is_none());
+                    let earlier_noun = content[..i].iter().any(|x| x.is_noun() && x.coll.is_none() && x.adj.is_none());
                     let last = i + 1 == content.len();
                     if (earlier_noun || (followed_by_of && last)) && coll_after.is_none() {
                         coll_after = Some((n, sw, c.text.clone()));
@@ -1266,10 +1111,7 @@ impl Lexicon {
                 continue;
             }
             if let Some(v) = c.intens {
-                let next_is_mod = content
-                    .get(i + 1)
-                    .map(|x| x.adj.is_some() || x.intens.is_some())
-                    .unwrap_or(false);
+                let next_is_mod = content.get(i + 1).map(|x| x.adj.is_some() || x.intens.is_some()).unwrap_or(false);
                 if next_is_mod {
                     pending_int = Some((pending_int.map_or(v, |(p, _)| p.max(v)), c.caps));
                     continue;
@@ -1303,13 +1145,9 @@ impl Lexicon {
                 };
                 if head_i.is_some_and(|hi| i < hi) {
                     // adjunct noun before the head: payload for hosts ("shark cannon"), else a graft
-                    let head_text = head_i
-                        .and_then(|hi| content.get(hi))
-                        .map(|x| x.text.as_str())
-                        .unwrap_or("");
+                    let head_text = head_i.and_then(|hi| content.get(hi)).map(|x| x.text.as_str()).unwrap_or("");
                     let head_sing = singulars(head_text).into_iter().next().unwrap_or_default();
-                    if self.t.hosts.contains(head_text) || self.t.hosts.contains(head_sing.as_str())
-                    {
+                    if self.t.hosts.contains(head_text) || self.t.hosts.contains(head_sing.as_str()) {
                         if let Some((el, pm)) = self.pure_of(&c.text, Some(h)) {
                             if el != NONE8 && el != element_index(Element::Light) {
                                 np.mods.elems.push((3, el));
@@ -1369,11 +1207,7 @@ impl Lexicon {
             Head::Icon(i) => self.icon_recipe(self.icons.defs.get(i)?),
             Head::Entry(id) => {
                 let rec = self.data.as_ref()?.rec(id)?;
-                let key = if plural {
-                    self.key_of_fast(id, &rec)
-                } else {
-                    text.to_string()
-                };
+                let key = if plural { self.key_of_fast(id, &rec) } else { text.to_string() };
                 self.rec_recipe(&key, &rec)
             }
         };
@@ -1387,30 +1221,21 @@ impl Lexicon {
     pub(crate) fn resolve_mode(&self, text: &str, spoken: bool) -> Resolution {
         let (toks, bangs) = tokenize(text);
         // stand rush: "ORA ORA ORA", "MUDAMUDAMUDA" — each cry is one punch, not a construct
-        let cries: Vec<Option<u16>> = toks
-            .iter()
-            .map(|t| crate::powers::rush_count(&t.text))
-            .collect();
+        let cries: Vec<Option<u16>> = toks.iter().map(|t| crate::powers::rush_count(&t.text)).collect();
         let n_cry_toks = cries.iter().filter(|c| c.is_some()).count();
         let others: Vec<Tok> = toks
             .iter()
             .zip(&cries)
-            .filter(|(t, c)| {
-                c.is_none() && !matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler))
-            })
+            .filter(|(t, c)| c.is_none() && !matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler)))
             .map(|(t, _)| t.clone())
             .collect();
-        let punches: u16 = cries
-            .iter()
-            .flatten()
-            .fold(0u16, |a, b| a.saturating_add(*b));
+        let punches: u16 = cries.iter().flatten().fold(0u16, |a, b| a.saturating_add(*b));
         if n_cry_toks > 0 && (others.is_empty() || n_cry_toks >= 2) {
             let mut res = if others.is_empty() {
                 self.rush_resolution(punches)
             } else {
                 let mut r = self.resolve_body(others, bangs, spoken);
-                r.explanation
-                    .insert(0, format!("stand rush \u{00d7}{punches}"));
+                r.explanation.insert(0, format!("stand rush \u{00d7}{punches}"));
                 r
             };
             res.stand_rush = Some(punches);
@@ -1430,57 +1255,30 @@ impl Lexicon {
         Resolution {
             kind: ResolutionKind::Graft,
             recipe: recipe.normalized(),
-            graft: Graft {
-                mechanics: vec![Mechanic::Blunt, Mechanic::Fast],
-                scale_mul: 1.0,
-                ..Default::default()
-            },
+            graft: Graft { mechanics: vec![Mechanic::Blunt, Mechanic::Fast], scale_mul: 1.0, ..Default::default() },
             shape: None,
             alt_shape: None,
             incantation: None,
+            incantation_powers: Vec::new(),
             stand_rush: Some(punches),
             confidence: 1.0,
-            explanation: vec![format!(
-                "stand rush: {punches} punch{}",
-                if punches == 1 { "" } else { "es" }
-            )],
+            explanation: vec![format!("stand rush: {punches} punch{}", if punches == 1 { "" } else { "es" })],
             ignored: Vec::new(),
         }
     }
 
     /// Incantation prefix ("gomu gomu no <phrase>") then the normal (typed/spoken) resolution.
     fn resolve_body(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
-        let skip = toks
-            .iter()
-            .take_while(|t| {
-                matches!(
-                    gram_of(&t.text),
-                    Some(Gram::Article | Gram::Filler | Gram::Cast)
-                )
-            })
-            .count();
-        let whole: String = toks[skip.min(toks.len())..]
-            .iter()
-            .map(|t| t.text.as_str())
-            .collect::<Vec<_>>()
-            .join(" ");
+        let skip = toks.iter().take_while(|t| matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast))).count();
+        let whole: String = toks[skip.min(toks.len())..].iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
         // the power's own name ("gomu gomu no mi") is not an incantation; a curated icon for the full
         // move ("gomu gomu no pistol") resolves as that icon *and* keeps the incantation tag
-        let whole_icon = self
-            .icons
-            .alias
-            .get(&whole)
-            .and_then(|&i| self.icons.defs.get(i));
+        let whole_icon = self.icons.alias.get(&whole).and_then(|&i| self.icons.defs.get(i));
         let whole_is_power_name = whole_icon.map(|d| d.file == "powers.ron").unwrap_or(false);
         let whole_is_icon = whole_icon.is_some();
         for (words, pi) in self.incant.iter().filter(|_| !whole_is_power_name) {
             let n = words.len();
-            if toks.len() >= skip + n
-                && toks[skip..skip + n]
-                    .iter()
-                    .zip(words)
-                    .all(|(t, w)| t.text == *w)
-            {
+            if toks.len() >= skip + n && toks[skip..skip + n].iter().zip(words).all(|(t, w)| t.text == *w) {
                 let Some(p) = self.powers.get(*pi) else {
                     continue;
                 };
@@ -1496,10 +1294,9 @@ impl Lexicon {
                     self.resolve_mode_inner(rest, bangs, spoken)
                 };
                 res.incantation = Some(p.id.clone());
-                res.explanation.insert(
-                    0,
-                    format!("{} \u{2192} {} incantation", words.join(" "), p.id),
-                );
+                res.incantation_powers =
+                    self.incant.iter().filter(|(w, _)| w == words).filter_map(|(_, i)| self.powers.get(*i).map(|p| p.id.clone())).collect();
+                res.explanation.insert(0, format!("{} \u{2192} {} incantation", words.join(" "), p.id));
                 return res;
             }
         }
@@ -1512,34 +1309,22 @@ impl Lexicon {
             return res;
         }
         // spoken fallback: a window of words that *sounds like* a popular name ("mule near" -> mjolnir)
-        let weak =
-            res.confidence < 0.55 || !res.ignored.is_empty() || res.kind == ResolutionKind::Graft;
+        let weak = res.confidence < 0.55 || !res.ignored.is_empty() || res.kind == ResolutionKind::Graft;
         let mut best: Option<(f32, usize, usize, String, bool)> = None;
         if toks.len() > 8 {
             return res; // long utterances are sentences, not misheard names
         }
         for start in 0..toks.len() {
             for len in 1..=4usize.min(toks.len() - start) {
-                let cat: String = toks[start..start + len]
-                    .iter()
-                    .map(|t| t.text.as_str())
-                    .collect();
+                let cat: String = toks[start..start + len].iter().map(|t| t.text.as_str()).collect();
                 if cat.len() < 4 || phonetic_key(&cat).len() < 3 || (!weak && len < 2) {
                     continue;
                 }
-                let cands = [
-                    self.phonetic_match_opts(&cat, true, true),
-                    if weak {
-                        self.phonetic_match(&cat, cat.len() >= 6)
-                    } else {
-                        None
-                    },
-                ];
+                let cands =
+                    [self.phonetic_match_opts(&cat, true, true), if weak { self.phonetic_match(&cat, cat.len() >= 6) } else { None }];
                 for (key, is_icon, dist, rank) in cands.into_iter().flatten() {
                     // explaining more of what was heard beats matching a common short word
-                    let score = rank as f32 / 25.0 + if is_icon { 3.0 } else { 0.0 }
-                        - dist as f32 * 1.5
-                        + len as f32 * 1.5;
+                    let score = rank as f32 / 25.0 + if is_icon { 3.0 } else { 0.0 } - dist as f32 * 1.5 + len as f32 * 1.5;
                     if (weak || is_icon) && best.as_ref().is_none_or(|b| score > b.0) {
                         best = Some((score, start, len, key, is_icon));
                     }
@@ -1549,25 +1334,16 @@ impl Lexicon {
         if let Some((_, start, len, key, is_icon)) = best {
             let mut t2: Vec<Tok> = toks[..start].to_vec();
             let caps = toks[start].caps;
-            t2.extend(key.split(' ').map(|w| Tok {
-                text: w.to_string(),
-                caps,
-            }));
+            t2.extend(key.split(' ').map(|w| Tok { text: w.to_string(), caps }));
             t2.extend(toks[start + len..].iter().cloned());
             let mut alt = self.resolve_tokens(t2, bangs, spoken, 0);
             // a multi-word window that sounds like a curated icon wins over a literal reading
             // ("mule near" -> mjolnir); otherwise only replace weak literal readings
             let icon_window = is_icon && len >= 2 && alt.confidence >= res.confidence * 0.8;
-            let better = weak
-                && (alt.confidence >= res.confidence * 0.9
-                    || alt.ignored.len() < res.ignored.len());
+            let better = weak && (alt.confidence >= res.confidence * 0.9 || alt.ignored.len() < res.ignored.len());
             if icon_window || better {
-                let heard: Vec<&str> = toks[start..start + len]
-                    .iter()
-                    .map(|t| t.text.as_str())
-                    .collect();
-                alt.explanation
-                    .insert(0, format!("\"{}\" sounds like {key}", heard.join(" ")));
+                let heard: Vec<&str> = toks[start..start + len].iter().map(|t| t.text.as_str()).collect();
+                alt.explanation.insert(0, format!("\"{}\" sounds like {key}", heard.join(" ")));
                 return alt;
             }
         }
@@ -1575,45 +1351,25 @@ impl Lexicon {
     }
 
     fn resolve_tokens(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8) -> Resolution {
-        let mut cx = Cx {
-            spoken,
-            phrase: String::new(),
-            why: Vec::new(),
-            ignored: Vec::new(),
-            conf_mul: 1.0,
-            unknown: 0,
-        };
+        let mut cx = Cx { spoken, phrase: String::new(), why: Vec::new(), ignored: Vec::new(), conf_mul: 1.0, unknown: 0 };
         let toks = self.repair(toks, &mut cx);
         cx.phrase = toks
             .iter()
-            .filter(|t| {
-                !matches!(
-                    gram_of(&t.text),
-                    Some(Gram::Article | Gram::Filler | Gram::Cast | Gram::MakeIt | Gram::Pronoun)
-                )
-            })
+            .filter(|t| !matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast | Gram::MakeIt | Gram::Pronoun)))
             .map(|t| t.text.as_str())
             .collect::<Vec<_>>()
             .join(" ");
         let mut chunks = self.chunk(&toks);
         // a lone word that is both a verb and only a weak noun reads as the verb ("walk", "spin")
         let content: Vec<usize> = (0..chunks.len())
-            .filter(|&i| {
-                !matches!(
-                    chunks[i].gram,
-                    Some(Gram::Article | Gram::Filler | Gram::Cast | Gram::Pronoun | Gram::MakeIt)
-                )
-            })
+            .filter(|&i| !matches!(chunks[i].gram, Some(Gram::Article | Gram::Filler | Gram::Cast | Gram::Pronoun | Gram::MakeIt)))
             .collect();
         if let [only] = content[..] {
             let c = &mut chunks[only];
             if c.verb.is_some()
                 && c.icon.is_none()
-                && let Some(rec) = c
-                    .entry
-                    .and_then(|id| self.data.as_ref().and_then(|d| d.rec(id)))
-                && (rec.conf_f() < 0.55
-                    || (rec.flags & F_SPIRIT != 0 && rec.flags & crate::data::F_ANCHOR == 0))
+                && let Some(rec) = c.entry.and_then(|id| self.data.as_ref().and_then(|d| d.rec(id)))
+                && (rec.conf_f() < 0.55 || (rec.flags & F_SPIRIT != 0 && rec.flags & crate::data::F_ANCHOR == 0))
             {
                 c.entry = None;
             }
@@ -1642,25 +1398,15 @@ impl Lexicon {
         res.explanation.insert(
             0,
             match action {
-                GraftAction::Transform => {
-                    "transform \u{2192} toggle mode / add Transforms (graft)".to_string()
-                }
-                GraftAction::RollOut => {
-                    "roll out \u{2192} every Transforms construct switches mode".to_string()
-                }
-                GraftAction::Combine => {
-                    "combine \u{2192} merge owned transformers into a combiner".to_string()
-                }
+                GraftAction::Transform => "transform \u{2192} toggle mode / add Transforms (graft)".to_string(),
+                GraftAction::RollOut => "roll out \u{2192} every Transforms construct switches mode".to_string(),
+                GraftAction::Combine => "combine \u{2192} merge owned transformers into a combiner".to_string(),
             },
         );
         res.confidence = res.confidence.max(0.9);
         if action == GraftAction::Combine {
             // what the combination becomes: a named combiner if given, else Devastator, else a generic giant
-            let name = phrase
-                .rsplit(' ')
-                .next()
-                .filter(|w| COMBINERS.contains(w))
-                .unwrap_or("devastator");
+            let name = phrase.rsplit(' ').next().filter(|w| COMBINERS.contains(w)).unwrap_or("devastator");
             let giant = self.lookup(name).unwrap_or_else(|| {
                 let mut r = Recipe::unknown("combiner");
                 r.form = Form::Kaiju;
@@ -1682,9 +1428,7 @@ impl Lexicon {
                 giant.scale = giant.scale.max(20.0);
                 giant.mass = giant.mass.max(50_000.0);
             }
-            giant
-                .mechanics
-                .extend([Mechanic::Transforms, Mechanic::Stomp, Mechanic::Heavy]);
+            giant.mechanics.extend([Mechanic::Transforms, Mechanic::Stomp, Mechanic::Heavy]);
             res.recipe = giant.normalized();
         } else if res.recipe.form == Form::Blob0 || res.recipe.name.is_empty() {
             res.recipe.mechanics = vec![Mechanic::Transforms];
@@ -1718,41 +1462,20 @@ impl Lexicon {
             }
             // imperative verb: "ride a dragon", "drop an anvil", "throw a moon at him"
             if let Some(v) = c.verb {
-                let next_is_np = chunks
-                    .get(i + 1)
-                    .map(|n| n.gram == Some(Gram::Article) || n.is_noun() || n.is_modifier())
-                    .unwrap_or(false);
-                let base_form = self
-                    .data
-                    .as_ref()
-                    .and_then(|d| d.meta.verbs.get(v))
-                    .map(|vr| vr.k == vr.lemma)
-                    .unwrap_or(false);
-                if next_is_np
-                    && base_form
-                    && (!c.is_noun()
-                        || chunks
-                            .get(i + 1)
-                            .map(|n| n.gram == Some(Gram::Article))
-                            .unwrap_or(false))
-                {
-                    let lemma = self
-                        .data
-                        .as_ref()
-                        .and_then(|d| d.meta.verbs.get(v))
-                        .map(|vr| vr.lemma.clone())
-                        .unwrap_or_default();
+                let next_is_np =
+                    chunks.get(i + 1).map(|n| n.gram == Some(Gram::Article) || n.is_noun() || n.is_modifier()).unwrap_or(false);
+                let base_form = self.data.as_ref().and_then(|d| d.meta.verbs.get(v)).map(|vr| vr.k == vr.lemma).unwrap_or(false);
+                if next_is_np && base_form && (!c.is_noun() || chunks.get(i + 1).map(|n| n.gram == Some(Gram::Article)).unwrap_or(false)) {
+                    let lemma = self.data.as_ref().and_then(|d| d.meta.verbs.get(v)).map(|vr| vr.lemma.clone()).unwrap_or_default();
                     match lemma.as_str() {
-                        "throw" | "launch" | "fire" | "shoot" | "hurl" | "toss" | "fling"
-                        | "yeet" | "lob" | "chuck" | "summon" | "spawn" | "release" | "unleash" => {
+                        "throw" | "launch" | "fire" | "shoot" | "hurl" | "toss" | "fling" | "yeet" | "lob" | "chuck" | "summon"
+                        | "spawn" | "release" | "unleash" => {
                             cx.note(format!("{} (cast)", c.text));
                         }
                         _ => {
                             if let Some((pm, _)) = self.apply_verb(v, &mut lead, cx) {
                                 // "drop X" / "rain X": the construct itself falls
-                                if mech_at(pm) == Some(Mechanic::Shoots)
-                                    && matches!(lemma.as_str(), "drop" | "rain" | "shower")
-                                {
+                                if mech_at(pm) == Some(Mechanic::Shoots) && matches!(lemma.as_str(), "drop" | "rain" | "shower") {
                                     lead.mech &= !mbit(Mechanic::Shoots);
                                     lead.mech |= mbit(Mechanic::DropFromSky);
                                 }
@@ -1796,9 +1519,7 @@ impl Lexicon {
                 Some(Gram::Stop) if !multi_noun && c.adj.is_none() => {
                     // "at him", "on the enemy": the rest is targeting, not construct
                     let rest_is_target = chunks[i + 1..].iter().all(|x| {
-                        matches!(x.gram, Some(Gram::Pronoun | Gram::Article | Gram::Filler))
-                            || x.text == "guy"
-                            || x.text == "player"
+                        matches!(x.gram, Some(Gram::Pronoun | Gram::Article | Gram::Filler)) || x.text == "guy" || x.text == "player"
                     });
                     if rest_is_target || seen_noun {
                         stop = true;
@@ -1807,9 +1528,7 @@ impl Lexicon {
                 Some(Gram::Not) => {
                     // "without a handle": skip the next noun phrase
                     let mut j = i + 1;
-                    while j < chunks.len()
-                        && (chunks[j].gram == Some(Gram::Article) || chunks[j].is_modifier())
-                    {
+                    while j < chunks.len() && (chunks[j].gram == Some(Gram::Article) || chunks[j].is_modifier()) {
                         j += 1;
                     }
                     if j < chunks.len() {
@@ -1821,12 +1540,8 @@ impl Lexicon {
                 _ => {
                     // a verb right after the head noun starts a participle clause ("eeyore shooting lasers")
                     let is_verbish = c.verb.is_some() && {
-                        let inflected = self
-                            .data
-                            .as_ref()
-                            .and_then(|d| d.meta.verbs.get(c.verb.unwrap_or(0)))
-                            .map(|v| v.k != v.lemma)
-                            .unwrap_or(false);
+                        let inflected =
+                            self.data.as_ref().and_then(|d| d.meta.verbs.get(c.verb.unwrap_or(0))).map(|v| v.k != v.lemma).unwrap_or(false);
                         let payloadish = self
                             .data
                             .as_ref()
@@ -1834,14 +1549,9 @@ impl Lexicon {
                             .map(|v| v.payload.is_some())
                             .unwrap_or(false);
                         (inflected || (payloadish && !c.is_noun()))
-                            && !(c.adj.is_some()
-                                && chunks.get(i + 1).map(|n| n.is_noun()).unwrap_or(false))
+                            && !(c.adj.is_some() && chunks.get(i + 1).map(|n| n.is_noun()).unwrap_or(false))
                     };
-                    if cur == Seg::Main
-                        && seen_noun
-                        && is_verbish
-                        && !(c.is_noun() && c.text.contains(' '))
-                    {
+                    if cur == Seg::Main && seen_noun && is_verbish && !(c.is_noun() && c.text.contains(' ')) {
                         segs.push((Seg::Clause, vec![c.clone()]));
                     } else if let Some(s) = segs.last_mut() {
                         s.1.push(c.clone());
@@ -1877,13 +1587,8 @@ impl Lexicon {
                 }
                 Seg::Of | Seg::Made => {
                     let sub = self.np(cs, cx);
-                    let main_is_collective =
-                        np.head.is_none() && (np.collective.is_some() || np.mods.count.is_some());
-                    if *kind == Seg::Of
-                        && (np.head.is_none() || main_is_collective)
-                        && !of_head_used
-                        && sub.head.is_some()
-                    {
+                    let main_is_collective = np.head.is_none() && (np.collective.is_some() || np.mods.count.is_some());
+                    if *kind == Seg::Of && (np.head.is_none() || main_is_collective) && !of_head_used && sub.head.is_some() {
                         // "swarm of bees", "pair of swords", "army of angry skeletons"
                         of_head_used = true;
                         if let Some((n, sw, t)) = np.collective.take() {
@@ -1895,12 +1600,7 @@ impl Lexicon {
                         }
                         let mut m = sub.mods.clone();
                         m.merge(&np.mods);
-                        np = Np {
-                            head: sub.head,
-                            head_caps: sub.head_caps,
-                            mods: m,
-                            collective: None,
-                        };
+                        np = Np { head: sub.head, head_caps: sub.head_caps, mods: m, collective: None };
                         continue;
                     }
                     let mut m = sub.mods.clone();
@@ -1944,18 +1644,8 @@ impl Lexicon {
         let mut pending_int: Option<f32> = None;
         while i < cs.len() {
             let c = &cs[i];
-            if matches!(
-                c.gram,
-                Some(
-                    Gram::Article
-                        | Gram::Filler
-                        | Gram::Pronoun
-                        | Gram::Copula
-                        | Gram::And
-                        | Gram::Clause
-                        | Gram::Cast
-                )
-            ) && c.verb.is_none()
+            if matches!(c.gram, Some(Gram::Article | Gram::Filler | Gram::Pronoun | Gram::Copula | Gram::And | Gram::Clause | Gram::Cast))
+                && c.verb.is_none()
             {
                 i += 1;
                 continue;
@@ -1963,10 +1653,7 @@ impl Lexicon {
             if c.gram == Some(Gram::With) {
                 // "that has wings"
                 let mut j = i + 1;
-                while j < cs.len()
-                    && cs[j].gram != Some(Gram::And)
-                    && !(cs[j].verb.is_some() && !cs[j].is_noun())
-                {
+                while j < cs.len() && cs[j].gram != Some(Gram::And) && !(cs[j].verb.is_some() && !cs[j].is_noun()) {
                     j += 1;
                 }
                 let sub = self.np(&cs[i + 1..j.min(cs.len())], cx);
@@ -1979,19 +1666,13 @@ impl Lexicon {
                 i = j;
                 continue;
             }
-            if let Some(v) = c.verb.filter(|_| {
-                !(c.adj.is_some()
-                    && c.verb.is_some()
-                    && cs.get(i + 1).map(|n| n.is_noun()).unwrap_or(false)
-                    && i > 0)
-            }) {
+            if let Some(v) =
+                c.verb.filter(|_| !(c.adj.is_some() && c.verb.is_some() && cs.get(i + 1).map(|n| n.is_noun()).unwrap_or(false) && i > 0))
+            {
                 let payload = self.apply_verb(v, &mut m, cx);
                 // object noun phrase up to the next verb / "and"
                 let mut j = i + 1;
-                while j < cs.len()
-                    && cs[j].gram != Some(Gram::And)
-                    && !(cs[j].verb.is_some() && !cs[j].is_noun() && cs[j].adj.is_none())
-                {
+                while j < cs.len() && cs[j].gram != Some(Gram::And) && !(cs[j].verb.is_some() && !cs[j].is_noun() && cs[j].adj.is_none()) {
                     j += 1;
                 }
                 let obj = &cs[i + 1..j];
@@ -2005,16 +1686,13 @@ impl Lexicon {
                                     m.elems.push((3, el));
                                 }
                                 if pm != NONE8 {
-                                    if mech_at(pm) == Some(Mechanic::Beam)
-                                        && mech_at(host_m) == Some(Mechanic::Shoots)
-                                    {
+                                    if mech_at(pm) == Some(Mechanic::Beam) && mech_at(host_m) == Some(Mechanic::Shoots) {
                                         m.mech &= !mbit(Mechanic::Shoots);
                                     }
                                     m.mech |= 1u64 << pm;
                                 }
                                 cx.note(format!("emits {text}"));
-                                m.mech |= sub.mods.mech
-                                    & (mbit(Mechanic::Homing) | mbit(Mechanic::Explodes));
+                                m.mech |= sub.mods.mech & (mbit(Mechanic::Homing) | mbit(Mechanic::Explodes));
                             } else if depth == 0
                                 && let Some(mut p) = self.head_recipe(h, &text, plural)
                             {
@@ -2121,14 +1799,7 @@ impl Lexicon {
         }
     }
 
-    fn compose(
-        &self,
-        np: Np,
-        graft_mode: bool,
-        bangs: usize,
-        cx: &mut Cx,
-        _depth: u8,
-    ) -> Resolution {
+    fn compose(&self, np: Np, graft_mode: bool, bangs: usize, cx: &mut Cx, _depth: u8) -> Resolution {
         let mut mods = np.mods;
         if bangs >= 2 {
             for t in mods.tempers.iter_mut() {
@@ -2137,20 +1808,13 @@ impl Lexicon {
         }
         let head = np.head.clone();
         let alt_shape = match head {
-            Some((Head::Icon(i), _, _)) => self
-                .icons
-                .defs
-                .get(i)
-                .and_then(|d| d.alt_shape.get().cloned()),
+            Some((Head::Icon(i), _, _)) => self.icons.defs.get(i).and_then(|d| d.alt_shape.get().cloned()),
             _ => None,
         };
-        let (mut recipe, shape, head_conf, head_flags, head_graft, head_gelem) = match head.clone()
-        {
+        let (mut recipe, shape, head_conf, head_flags, head_graft, head_gelem) = match head.clone() {
             Some((Head::Icon(i), _, plural)) => {
                 let d = self.icons.defs.get(i);
-                let mut r = d
-                    .map(|d| self.icon_recipe(d))
-                    .unwrap_or_else(|| Recipe::unknown(""));
+                let mut r = d.map(|d| self.icon_recipe(d)).unwrap_or_else(|| Recipe::unknown(""));
                 if plural && r.count <= 1 {
                     r.count = 3;
                 }
@@ -2158,33 +1822,20 @@ impl Lexicon {
                     cx.why.insert(
                         0,
                         if d.source.is_empty() {
-                            format!("{} (icon)", d.recipe.name)
+                            format!("{} (icon)", d.recipe().name)
                         } else {
-                            format!("{} (icon, {})", d.recipe.name, d.source)
+                            format!("{} (icon, {})", d.recipe().name, d.source)
                         },
                     );
                 }
-                let g = d.map(|d| d.graft.clone()).unwrap_or_default();
-                let ge = d.map(|d| d.recipe.element).filter(|e| *e != Element::Light);
-                (
-                    r,
-                    d.and_then(|d| d.shape.get().cloned()),
-                    1.0f32,
-                    0u16,
-                    g,
-                    ge,
-                )
+                let g = d.map(|d| d.graft().to_vec()).unwrap_or_default();
+                let ge = d.map(|d| d.recipe().element).filter(|e| *e != Element::Light);
+                (r, d.and_then(|d| d.shape.get().cloned()), 1.0f32, 0u16, g, ge)
             }
             Some((Head::Entry(id), ref text, plural)) => {
                 let text = text.clone();
-                let rec = self
-                    .data
-                    .as_ref()
-                    .and_then(|d| d.rec(id))
-                    .unwrap_or_default();
-                let mut r = self
-                    .head_recipe(Head::Entry(id), &text, plural)
-                    .unwrap_or_else(|| Recipe::unknown(&text));
+                let rec = self.data.as_ref().and_then(|d| d.rec(id)).unwrap_or_default();
+                let mut r = self.head_recipe(Head::Entry(id), &text, plural).unwrap_or_else(|| Recipe::unknown(&text));
                 if plural && r.count <= 1 {
                     r.count = 3;
                 }
@@ -2196,23 +1847,12 @@ impl Lexicon {
                         cx.why.insert(k, l);
                     }
                 }
-                (
-                    r,
-                    None,
-                    rec.conf_f(),
-                    rec.flags,
-                    bits_to_mechs(rec.graft),
-                    elem_at(rec.graft_element),
-                )
+                (r, None, rec.conf_f(), rec.flags, bits_to_mechs(rec.graft), elem_at(rec.graft_element))
             }
             None => (Recipe::unknown(""), None, 0.0, 0, Vec::new(), None),
         };
         let head_is_part = head_flags & F_PART != 0;
-        let has_mods = mods.n > 0
-            || mods.mech != 0
-            || mods.feat != 0
-            || !mods.elems.is_empty()
-            || mods.payload.is_some();
+        let has_mods = mods.n > 0 || mods.mech != 0 || mods.feat != 0 || !mods.elems.is_empty() || mods.payload.is_some();
         let kind = if graft_mode || head.is_none() || (head_is_part && mods.payload.is_none()) {
             ResolutionKind::Graft
         } else {
@@ -2241,12 +1881,7 @@ impl Lexicon {
         let graft = Graft {
             mechanics: gm,
             element: gelem,
-            scale_mul: (mods.scale_mul
-                * mods
-                    .abs_size
-                    .map(|a| a / recipe.scale.max(0.1))
-                    .unwrap_or(1.0))
-            .clamp(0.05, 60.0),
+            scale_mul: (mods.scale_mul * mods.abs_size.map(|a| a / recipe.scale.max(0.1)).unwrap_or(1.0)).clamp(0.05, 60.0),
             count: mods.count,
             features: gfeat,
             temperament: gtemp.and_then(|(t, _)| ALL_TEMPERAMENT.get(t as usize).copied()),
@@ -2258,10 +1893,7 @@ impl Lexicon {
         if head.is_none() {
             recipe.form = Form::Blob0;
         }
-        if head_flags & F_SPIRIT != 0
-            && recipe.temperament == Temperament::Calm
-            && mods.tempers.is_empty()
-        {
+        if head_flags & F_SPIRIT != 0 && recipe.temperament == Temperament::Calm && mods.tempers.is_empty() {
             recipe.intensity = 0.0;
         }
         self.apply_mods_to(&mut recipe, &mods, cx, false);
@@ -2307,6 +1939,7 @@ impl Lexicon {
             shape,
             alt_shape,
             incantation: None,
+            incantation_powers: Vec::new(),
             stand_rush: None,
             confidence: confidence.clamp(0.0, 1.0),
             explanation: std::mem::take(&mut cx.why),
@@ -2338,11 +1971,7 @@ impl Lexicon {
             let span = words[j..].join(" ");
             let before = words[..j].join(" ");
             let join = |s: &str| {
-                if before.is_empty() {
-                    s.to_string()
-                } else {
-                    format!("{before} {s}")
-                }
+                if before.is_empty() { s.to_string() } else { format!("{before} {s}") }
             };
             let multi = j + 1 < n;
             for (pretty, pkey, i) in &self.icons.pretty {
@@ -2358,11 +1987,7 @@ impl Lexicon {
                     } else {
                         0.0
                     };
-                    push(
-                        12.0 + bonus - pretty.len() as f32 * 0.01,
-                        join(pretty),
-                        &mut cands,
-                    );
+                    push(6.0 + bonus - pretty.len() as f32 * 0.02, join(pretty), &mut cands);
                 }
             }
             if let Some(d) = self.data.as_ref() {
@@ -2378,12 +2003,7 @@ impl Lexicon {
                     use fst::{IntoStreamer, Streamer};
                     let mut upper = span.clone();
                     upper.push('\u{7f}');
-                    let mut st = d
-                        .keys
-                        .range()
-                        .ge(span.as_str())
-                        .lt(upper.as_str())
-                        .into_stream();
+                    let mut st = d.keys.range().ge(span.as_str()).lt(upper.as_str()).into_stream();
                     let mut scanned = 0;
                     let mut local: Vec<(f32, String)> = Vec::new();
                     while let Some((key, id)) = st.next() {
@@ -2400,22 +2020,13 @@ impl Lexicon {
                         }
                         local.push((r.rank_f() - ks.len() as f32 * 0.01, ks.to_string()));
                     }
-                    local.sort_by(|a, b| {
-                        b.0.partial_cmp(&a.0)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                            .then(a.1.cmp(&b.1))
-                    });
+                    local.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal).then(a.1.cmp(&b.1)));
                     for (s, key) in local.into_iter().take(k * 2) {
                         push(s, join(&key), &mut cands);
                     }
                 }
                 if !multi {
-                    let modifiers = d
-                        .meta
-                        .adjectives
-                        .iter()
-                        .map(|a| a.k.as_str())
-                        .chain(d.meta.intensifiers.iter().map(|x| x.0.as_str()));
+                    let modifiers = d.meta.adjectives.iter().map(|a| a.k.as_str()).chain(d.meta.intensifiers.iter().map(|x| x.0.as_str()));
                     for w in modifiers {
                         if w.starts_with(span.as_str()) && w.len() > span.len() {
                             push(5.2 - w.len() as f32 * 0.02, join(w), &mut cands);
@@ -2429,17 +2040,8 @@ impl Lexicon {
                 }
             }
         }
-        cands.sort_by(|a, b| {
-            b.0.partial_cmp(&a.0)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then(a.1.cmp(&b.1))
-        });
-        cands
-            .into_iter()
-            .map(|c| c.1)
-            .filter(|s| s.len() > prefix.trim().len().min(s.len()) || true)
-            .take(k)
-            .collect()
+        cands.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal).then(a.1.cmp(&b.1)));
+        cands.into_iter().map(|c| c.1).filter(|s| s.len() > prefix.trim().len().min(s.len()) || true).take(k).collect()
     }
 
     /// A deterministic random-but-real phrase for soak tests ("giant flaming hammer with rockets").
@@ -2470,56 +2072,26 @@ impl Lexicon {
             self.icons
                 .defs
                 .get((r % self.icons.defs.len().max(1) as u64) as usize)
-                .map(|d| d.recipe.name.to_lowercase())
+                .map(|d| d.recipe().name.to_lowercase())
                 .unwrap_or_else(|| "hammer".into())
         };
-        let adjs: Vec<&str> = self
-            .data
-            .as_ref()
-            .map(|d| d.meta.adjectives.iter().map(|a| a.k.as_str()).collect())
-            .unwrap_or_default();
+        let adjs: Vec<&str> = self.data.as_ref().map(|d| d.meta.adjectives.iter().map(|a| a.k.as_str()).collect()).unwrap_or_default();
         let verbs: Vec<&str> = self
             .data
             .as_ref()
-            .map(|d| {
-                d.meta
-                    .verbs
-                    .iter()
-                    .filter(|v| v.k == v.lemma && !v.k.contains(' '))
-                    .map(|v| v.k.as_str())
-                    .collect()
-            })
+            .map(|d| d.meta.verbs.iter().filter(|v| v.k == v.lemma && !v.k.contains(' ')).map(|v| v.k.as_str()).collect())
             .unwrap_or_default();
-        let adj = |r: u64| {
-            adjs.get((r % adjs.len().max(1) as u64) as usize)
-                .copied()
-                .unwrap_or("giant")
-        };
-        let verb = |r: u64| {
-            verbs
-                .get((r % verbs.len().max(1) as u64) as usize)
-                .copied()
-                .unwrap_or("explode")
-        };
+        let adj = |r: u64| adjs.get((r % adjs.len().max(1) as u64) as usize).copied().unwrap_or("giant");
+        let verb = |r: u64| verbs.get((r % verbs.len().max(1) as u64) as usize).copied().unwrap_or("explode");
         match next() % 8 {
             0 => pick_noun(next()),
             1 => format!("{} {}", adj(next()), pick_noun(next())),
             2 => format!("{} {} {}s", 2 + next() % 4, adj(next()), pick_noun(next())),
             3 => format!("{} with {}", pick_noun(next()), pick_noun(next())),
             4 => format!("{} that {}s", pick_noun(next()), verb(next())),
-            5 => format!(
-                "very {} {} shooting {}",
-                adj(next()),
-                pick_noun(next()),
-                pick_noun(next())
-            ),
+            5 => format!("very {} {} shooting {}", adj(next()), pick_noun(next()), pick_noun(next())),
             6 => format!("make it {}", verb(next())),
-            _ => format!(
-                "{} {} of {}",
-                adj(next()),
-                pick_noun(next()),
-                pick_noun(next())
-            ),
+            _ => format!("{} {} of {}", adj(next()), pick_noun(next()), pick_noun(next())),
         }
     }
 

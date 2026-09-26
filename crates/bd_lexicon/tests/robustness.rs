@@ -12,10 +12,7 @@ fn valid(lex: &bd_lexicon::Lexicon, s: &str) {
         assert!(rc.count >= 1);
         assert!(rc.intensity.is_finite() && (0.0..=1.0).contains(&rc.intensity));
         assert!(r.confidence.is_finite() && (0.0..=1.0).contains(&r.confidence));
-        assert!(
-            rc.mechanics.windows(2).all(|w| w[0] < w[1]),
-            "mechanics sorted/unique"
-        );
+        assert!(rc.mechanics.windows(2).all(|w| w[0] < w[1]), "mechanics sorted/unique");
         let _ = r.signature().key();
     }
     let _ = lex.complete(s);
@@ -54,12 +51,7 @@ fn hostile_inputs() {
     for c in &cases {
         let t = std::time::Instant::now();
         valid(lex, c);
-        assert!(
-            t.elapsed().as_millis() < 250,
-            "{:?} took {:?}",
-            c.chars().take(40).collect::<String>(),
-            t.elapsed()
-        );
+        assert!(t.elapsed().as_millis() < 250, "{:?} took {:?}", c.chars().take(40).collect::<String>(), t.elapsed());
     }
 }
 

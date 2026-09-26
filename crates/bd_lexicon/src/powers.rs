@@ -37,9 +37,7 @@ pub const RANDOM_FRUIT: &str = "random:devil_fruit";
 pub const RANDOM_STAND: &str = "random:stand";
 
 /// Stand-rush cries: each typed cry is one punch of the user's stand.
-const CRIES: &[&str] = &[
-    "ora", "muda", "dora", "ari", "wry", "wryy", "oraora", "mudamuda",
-];
+const CRIES: &[&str] = &["ora", "muda", "dora", "ari", "wry", "wryy", "oraora", "mudamuda"];
 
 /// Split a token into rush cries ("oraoraora" -> 3, "ORAAAA" -> 1, "wryyyy" -> 1); None if it isn't one.
 pub fn rush_count(tok: &str) -> Option<u16> {
@@ -129,9 +127,7 @@ pub(crate) fn fields(entry: &str) -> Vec<(String, String)> {
                     ident_start = Some(i);
                 }
             }
-            c if depth == 1 && val_start.is_none() && !c.is_ascii_whitespace() => {
-                ident_start = None
-            }
+            c if depth == 1 && val_start.is_none() && !c.is_ascii_whitespace() => ident_start = None,
             _ => {}
         }
         i += 1;
@@ -140,7 +136,7 @@ pub(crate) fn fields(entry: &str) -> Vec<(String, String)> {
 }
 
 /// All string literals in a value ("Some(\"x\")", "[\"a\", \"b\"]", "\"x\"").
-fn strings(v: &str) -> Vec<String> {
+pub(crate) fn strings(v: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut it = v.char_indices().peekable();
     while let Some((_, c)) = it.next() {
@@ -171,21 +167,12 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         let entry = entry.trim();
         // strip an optional struct name: `Power(` -> `(`
         let body = match entry.find('(') {
-            Some(p)
-                if entry[..p]
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '_') =>
-            {
-                &entry[p..]
-            }
+            Some(p) if entry[..p].chars().all(|c| c.is_ascii_alphanumeric() || c == '_') => &entry[p..],
             _ => entry,
         };
         let f = fields(body);
         let get = |k: &str| f.iter().find(|(n, _)| n == k).map(|(_, v)| v.as_str());
-        let Some(id) = get("id")
-            .and_then(|v| strings(v).into_iter().next())
-            .filter(|s| !s.is_empty())
-        else {
+        let Some(id) = get("id").and_then(|v| strings(v).into_iter().next()).filter(|s| !s.is_empty()) else {
             warnings.push(format!("powers.ron:{line}: entry without id: skipped"));
             continue;
         };
@@ -200,19 +187,10 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
             .map(|s| normalize_key(&s))
             .filter(|s| !s.is_empty())
             .collect();
-        let kind_text = ["kind", "family", "category", "type"]
-            .iter()
-            .filter_map(|k| get(k))
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_lowercase();
-        let has_companion = get("companion")
-            .map(|v| !v.trim().starts_with("None"))
-            .unwrap_or(false);
+        let kind_text = ["kind", "family", "category", "type"].iter().filter_map(|k| get(k)).collect::<Vec<_>>().join(" ").to_lowercase();
+        let has_companion = get("companion").map(|v| !v.trim().starts_with("None")).unwrap_or(false);
         let lower_names: Vec<String> = names.iter().map(|n| normalize_key(n)).collect();
-        let fruity = lower_names
-            .iter()
-            .any(|n| n.ends_with(" fruit") || n.ends_with(" no mi"));
+        let fruity = lower_names.iter().any(|n| n.ends_with(" fruit") || n.ends_with(" no mi"));
         let kind = if kind_text.contains("stand") || has_companion {
             PowerKind::Stand
         } else if kind_text.contains("fruit") || fruity || !incantations.is_empty() {
@@ -231,7 +209,8 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         }
         for inc in incantations.clone() {
             let with_mi = format!("{inc} mi");
-            if kind == PowerKind::Fruit && !lower_names.contains(&with_mi) && inc.ends_with(" no") {
+            // only invent "<prefix> mi" for fruits with no explicit names (Nika shares Luffy's prefix)
+            if kind == PowerKind::Fruit && lower_names.is_empty() && inc.ends_with(" no") {
                 names.push(with_mi);
             }
             // "gomu gomu no pistol" is also typed as "gomu gomu pistol"
@@ -245,25 +224,15 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         if names.is_empty() {
             names.push(id.replace('_', " "));
         }
-        out.push(PowerDef {
-            id,
-            names,
-            incantations,
-            kind,
-        });
+        out.push(PowerDef { id, names, incantations, kind });
     }
     (out, warnings)
 }
 
 /// The construct a power's name summons: an edible fruit, a stand, or a small token orb.
 pub fn power_entry(p: &PowerDef) -> IconEntry {
-    let display = p
-        .names
-        .iter()
-        .find(|n| n.to_lowercase().contains("fruit"))
-        .or_else(|| p.names.first())
-        .cloned()
-        .unwrap_or_else(|| p.id.clone());
+    let display =
+        p.names.iter().find(|n| n.to_lowercase().contains("fruit")).or_else(|| p.names.first()).cloned().unwrap_or_else(|| p.id.clone());
     let display = title_case(&display);
     IconEntry {
         names: p.names.iter().map(|n| n.to_lowercase()).collect(),
@@ -277,9 +246,7 @@ pub fn power_entry(p: &PowerDef) -> IconEntry {
 pub fn grant_recipe(name: &str, id: &str, kind: PowerKind) -> Recipe {
     let mut r = Recipe::unknown(name);
     r.grants = Some(id.to_string());
-    r.model = ModelSource::Procedural {
-        seed: crate::data::fnv64(id.as_bytes()) as u32,
-    };
+    r.model = ModelSource::Procedural { seed: crate::data::fnv64(id.as_bytes()) as u32 };
     match kind {
         PowerKind::Fruit => {
             r.form = Form::Ball;
@@ -307,15 +274,7 @@ pub fn grant_recipe(name: &str, id: &str, kind: PowerKind) -> Recipe {
 /// Built-in "random power" items (names are vocabulary; which power you get is the game's roll).
 pub fn random_entries() -> Vec<IconEntry> {
     let fruit = IconEntry {
-        names: [
-            "devil fruit",
-            "a devil fruit",
-            "random devil fruit",
-            "mystery fruit",
-            "akuma no mi",
-        ]
-        .map(String::from)
-        .to_vec(),
+        names: ["devil fruit", "a devil fruit", "random devil fruit", "mystery fruit", "akuma no mi"].map(String::from).to_vec(),
         recipe: grant_recipe("Devil Fruit", RANDOM_FRUIT, PowerKind::Fruit),
         shape: None,
         alt_shape: None,
@@ -326,15 +285,7 @@ pub fn random_entries() -> Vec<IconEntry> {
     arrow_recipe.mechanics = vec![Mechanic::Pierce];
     arrow_recipe.scale = 0.6;
     let arrow = IconEntry {
-        names: [
-            "stand arrow",
-            "the stand arrow",
-            "arrow of the stand",
-            "requiem arrow",
-            "random stand",
-        ]
-        .map(String::from)
-        .to_vec(),
+        names: ["stand arrow", "the stand arrow", "arrow of the stand", "requiem arrow", "random stand"].map(String::from).to_vec(),
         recipe: arrow_recipe.normalized(),
         shape: None,
         alt_shape: None,
@@ -389,10 +340,7 @@ mod tests {
         assert!(p[0].incantations.contains(&"gomu gomu no".to_string()));
         assert!(p[0].incantations.contains(&"gomu gomu".to_string()));
         assert_eq!(p[1].kind, PowerKind::Stand);
-        assert_eq!(
-            power_entry(&p[0]).recipe.grants.as_deref(),
-            Some("gomu_gomu")
-        );
+        assert_eq!(power_entry(&p[0]).recipe.grants.as_deref(), Some("gomu_gomu"));
         assert!(parse_powers("💥[[((").0.is_empty());
     }
 

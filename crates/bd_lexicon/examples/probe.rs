@@ -18,12 +18,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    eprintln!(
-        "loaded {} entries + {} icons in {:.1} ms",
-        lex.len(),
-        lex.icon_count(),
-        t.elapsed().as_secs_f64() * 1e3
-    );
+    eprintln!("loaded {} entries + {} icons in {:.1} ms", lex.len(), lex.icon_count(), t.elapsed().as_secs_f64() * 1e3);
     for w in lex.load_warnings().iter().take(10) {
         eprintln!("  icon warning: {w}");
     }
@@ -38,28 +33,17 @@ fn main() {
         }
     }
     if phrases.is_empty() {
-        phrases = std::io::stdin()
-            .lock()
-            .lines()
-            .map_while(Result::ok)
-            .collect();
+        phrases = std::io::stdin().lock().lines().map_while(Result::ok).collect();
     }
     for p in phrases {
         if complete {
             let t = Instant::now();
             let c = lex.complete(&p);
-            println!(
-                "{p:?} -> {c:?}  ({:.0} µs)",
-                t.elapsed().as_secs_f64() * 1e6
-            );
+            println!("{p:?} -> {c:?}  ({:.0} µs)", t.elapsed().as_secs_f64() * 1e6);
             continue;
         }
         let t = Instant::now();
-        let r = if spoken {
-            lex.resolve_spoken(&p)
-        } else {
-            lex.resolve(&p)
-        };
+        let r = if spoken { lex.resolve_spoken(&p) } else { lex.resolve(&p) };
         let us = t.elapsed().as_secs_f64() * 1e6;
         let rc = &r.recipe;
         println!(
@@ -76,22 +60,12 @@ fn main() {
             rc.intensity,
             r.confidence,
             us,
-            if r.shape.is_some() {
-                " [icon shape]"
-            } else {
-                ""
-            }
+            if r.shape.is_some() { " [icon shape]" } else { "" }
         );
         if let Some(pl) = &rc.payload {
-            println!(
-                "  payload: {} {:?} {:?} el={:?} n={}",
-                pl.name, pl.form, pl.mechanics, pl.element, pl.count
-            );
+            println!("  payload: {} {:?} {:?} el={:?} n={}", pl.name, pl.form, pl.mechanics, pl.element, pl.count);
         }
-        println!(
-            "  graft: {:?} el={:?} x{:.2} feat={:?}",
-            r.graft.mechanics, r.graft.element, r.graft.scale_mul, r.graft.features
-        );
+        println!("  graft: {:?} el={:?} x{:.2} feat={:?}", r.graft.mechanics, r.graft.element, r.graft.scale_mul, r.graft.features);
         for e in &r.explanation {
             println!("    - {e}");
         }

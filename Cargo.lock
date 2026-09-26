@@ -394,7 +394,12 @@ name = "bd_game"
 version = "0.1.0"
 dependencies = [
  "bd_core",
+ "bd_fx",
+ "bd_lexicon",
+ "bd_net",
+ "bd_shapes",
  "bd_sim",
+ "bd_voice",
  "bd_voxel",
  "bevy",
  "bytemuck",
@@ -410,6 +415,7 @@ dependencies = [
  "bincode",
  "fst",
  "glam 0.30.10",
+ "memmap2",
  "proptest",
  "ron 0.10.1",
  "serde",

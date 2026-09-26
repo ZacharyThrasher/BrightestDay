@@ -36,28 +36,12 @@ fn main() {
         eprintln!("write {dst}: {e}");
         std::process::exit(1);
     }
-    println!(
-        "packed {} -> {} ({:.1} MB) in {:.1}s\n{summary}",
-        src,
-        dst,
-        bytes.len() as f64 / 1e6,
-        t.elapsed().as_secs_f64()
-    );
+    println!("packed {} -> {} ({:.1} MB) in {:.1}s\n{summary}", src, dst, bytes.len() as f64 / 1e6, t.elapsed().as_secs_f64());
     let t = Instant::now();
     match bd_lexicon::Lexicon::load(&dst) {
         Ok(lex) => {
-            println!(
-                "reload: {} entries, {} icons in {:.1} ms",
-                lex.len(),
-                lex.icon_count(),
-                t.elapsed().as_secs_f64() * 1e3
-            );
-            for p in [
-                "maul",
-                "parachute",
-                "three flaming swords",
-                "giant eeyore shootin laser beams",
-            ] {
+            println!("reload: {} entries, {} icons in {:.1} ms", lex.len(), lex.icon_count(), t.elapsed().as_secs_f64() * 1e3);
+            for p in ["maul", "parachute", "three flaming swords", "giant eeyore shootin laser beams"] {
                 let r = lex.resolve(p);
                 println!("  {p:40} -> {} [{:.2}]", r.signature(), r.confidence);
             }

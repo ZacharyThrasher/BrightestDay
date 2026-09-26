@@ -85,10 +85,27 @@ pub struct Meta {
     pub top_prefix: Vec<(String, Vec<u32>)>,
 }
 
+/// The lexicon bytes: an owned buffer, or a read-only memory map of lexicon.bin (the default for
+/// `Lexicon::load`: the OS pages sections in on demand, so loading doesn't read 85 MB up front).
+pub enum Buf {
+    Owned(Vec<u8>),
+    Mapped(memmap2::Mmap),
+}
+
+impl std::ops::Deref for Buf {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            Buf::Owned(v) => v,
+            Buf::Mapped(m) => m,
+        }
+    }
+}
+
 /// Owned byte range usable as fst backing storage without copying.
 #[derive(Clone)]
 pub struct Bytes {
-    buf: Arc<Vec<u8>>,
+    buf: Arc<Buf>,
     start: usize,
     end: usize,
 }
@@ -197,11 +214,7 @@ impl Rec {
             graft_element: b.get(55).copied().unwrap_or(NONE8),
             flags: rd_u16(b, 56),
             temper: b.get(58).copied().unwrap_or(NONE8),
-            accent: if b.get(59).copied().unwrap_or(0) == 1 {
-                Some(rd::<3>(b, 60))
-            } else {
-                None
-            },
+            accent: if b.get(59).copied().unwrap_or(0) == 1 { Some(rd::<3>(b, 60)) } else { None },
         }
     }
 
@@ -215,7 +228,7 @@ impl Rec {
 
 /// Parsed container. Construction validates the header and every section bound; accessors never panic.
 pub struct LexData {
-    pub buf: Arc<Vec<u8>>,
+    pub buf: Arc<Buf>,
     pub meta: Meta,
     pub keys: fst::Map<Bytes>,
     pub toks: fst::Map<Bytes>,
@@ -254,14 +267,28 @@ fn fmt_err<T>(s: impl Into<String>) -> Result<T, LoadError> {
 
 impl LexData {
     pub fn parse(bytes: Vec<u8>) -> Result<LexData, LoadError> {
+        Self::parse_buf(Buf::Owned(bytes))
+    }
+
+    /// Memory-map a lexicon.bin file (falls back to reading it if mapping fails).
+    pub fn map_file(path: &std::path::Path) -> Result<LexData, LoadError> {
+        let file = std::fs::File::open(path)?;
+        // SAFETY: the map is read-only and every access is bounds-checked; lexicon.bin is a build
+        // artefact nobody writes while the game runs (a concurrent rewrite could at worst yield
+        // garbage bytes, which the parser treats like any corrupt data).
+        match unsafe { memmap2::Mmap::map(&file) } {
+            Ok(m) => Self::parse_buf(Buf::Mapped(m)),
+            Err(_) => Self::parse(std::fs::read(path)?),
+        }
+    }
+
+    fn parse_buf(bytes: Buf) -> Result<LexData, LoadError> {
         if bytes.len() < 12 || &bytes[0..4] != MAGIC {
             return fmt_err("bad magic (not a lexicon.bin)");
         }
         let ver = rd_u32(&bytes, 4);
         if ver != VERSION {
-            return fmt_err(format!(
-                "version {ver}, expected {VERSION} (rebuild with tools/lexicon_build)"
-            ));
+            return fmt_err(format!("version {ver}, expected {VERSION} (rebuild with tools/lexicon_build)"));
         }
         let n = rd_u32(&bytes, 8) as usize;
         if n > 64 || 12 + n * 20 > bytes.len() {
@@ -275,33 +302,23 @@ impl LexData {
             let len = rd_u64(&bytes, o + 12) as usize;
             let end = off.saturating_add(len);
             if end > bytes.len() {
-                return fmt_err(format!(
-                    "section {} out of bounds",
-                    String::from_utf8_lossy(&tag)
-                ));
+                return fmt_err(format!("section {} out of bounds", String::from_utf8_lossy(&tag)));
             }
             secs.insert(tag, (off, end));
         }
         let get = |t: &[u8; 4]| -> Result<(usize, usize), LoadError> {
-            secs.get(t).copied().ok_or_else(|| {
-                LoadError::Format(format!("missing section {}", String::from_utf8_lossy(t)))
-            })
+            secs.get(t).copied().ok_or_else(|| LoadError::Format(format!("missing section {}", String::from_utf8_lossy(t))))
         };
         let buf = Arc::new(bytes);
         let (ms, me) = get(b"META")?;
-        let meta: Meta =
-            match bincode::serde::decode_from_slice(&buf[ms..me], bincode::config::standard()) {
-                Ok((m, _)) => m,
-                Err(e) => return fmt_err(format!("META: {e}")),
-            };
+        let meta: Meta = match bincode::serde::decode_from_slice(&buf[ms..me], bincode::config::standard()) {
+            Ok((m, _)) => m,
+            Err(e) => return fmt_err(format!("META: {e}")),
+        };
         let mk = |t: &[u8; 4]| -> Result<fst::Map<Bytes>, LoadError> {
             let (s, e) = get(t)?;
-            fst::Map::new(Bytes {
-                buf: buf.clone(),
-                start: s,
-                end: e,
-            })
-            .map_err(|e| LoadError::Format(format!("{}: {e}", String::from_utf8_lossy(t))))
+            fst::Map::new(Bytes { buf: buf.clone(), start: s, end: e })
+                .map_err(|e| LoadError::Format(format!("{}: {e}", String::from_utf8_lossy(t))))
         };
         let keys = mk(b"KEYS")?;
         let toks = mk(b"TOKS")?;
@@ -318,18 +335,7 @@ impl LexData {
         if (toko.1 - toko.0) / TOKO_SIZE != toks.len() {
             return fmt_err("TOKO/TOKS count mismatch");
         }
-        Ok(LexData {
-            meta,
-            keys,
-            toks,
-            rtok,
-            recs,
-            pool: get(b"POOL")?,
-            toko,
-            dels: get(b"DELS")?,
-            phon: get(b"PHON")?,
-            buf,
-        })
+        Ok(LexData { meta, keys, toks, rtok, recs, pool: get(b"POOL")?, toko, dels: get(b"DELS")?, phon: get(b"PHON")?, buf })
     }
 
     pub fn n_entries(&self) -> usize {
@@ -350,10 +356,7 @@ impl LexData {
         if len == 0 || e > self.pool.1 {
             return "";
         }
-        self.buf
-            .get(s..e)
-            .and_then(|b| std::str::from_utf8(b).ok())
-            .unwrap_or("")
+        self.buf.get(s..e).and_then(|b| std::str::from_utf8(b).ok()).unwrap_or("")
     }
 
     /// Explanation string of a record: key-less templates ("\u{1}≈ mule (Wikidata)") get the key back.

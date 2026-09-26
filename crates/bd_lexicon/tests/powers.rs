@@ -40,18 +40,10 @@ fn fruits_and_stands_grant_powers() {
         ("stand arrow", "random:stand", Form::Spear),
     ] {
         let r = l.resolve(p);
-        assert_eq!(
-            r.recipe.grants.as_deref(),
-            Some(id),
-            "{p:?} -> {:?}",
-            r.explanation
-        );
+        assert_eq!(r.recipe.grants.as_deref(), Some(id), "{p:?} -> {:?}", r.explanation);
         assert_eq!(r.recipe.form, form, "{p:?}");
     }
-    assert!(
-        l.resolve("giant gum-gum fruit").recipe.scale > 0.5,
-        "modifiers still apply"
-    );
+    assert!(l.resolve("giant gum-gum fruit").recipe.scale > 0.5, "modifiers still apply");
     assert!(l.resolve("hammer").recipe.grants.is_none());
 }
 
@@ -61,11 +53,7 @@ fn incantations_prefix_any_phrase() {
     let r = l.resolve("gomu gomu no pistol");
     assert_eq!(r.incantation.as_deref(), Some("gomu_gomu"));
     // a curated "gomu gomu no pistol" icon (anime pack) may win over the generic pistol
-    assert!(
-        r.recipe.form == Form::Gun || r.shape.is_some() || r.recipe.form == Form::Gauntlet,
-        "{:?}",
-        r.explanation
-    );
+    assert!(r.recipe.form == Form::Gun || r.shape.is_some() || r.recipe.form == Form::Gauntlet, "{:?}", r.explanation);
     let r = l.resolve("gomu gomu no anvil");
     assert_eq!(r.incantation.as_deref(), Some("gomu_gomu"));
     assert_eq!(r.recipe.form, Form::Anvil);
@@ -79,13 +67,7 @@ fn incantations_prefix_any_phrase() {
 #[test]
 fn stand_rush() {
     let Some(l) = lex() else { return };
-    for (p, n) in [
-        ("ORA ORA ORA", 3),
-        ("MUDAMUDAMUDA", 3),
-        ("ora", 1),
-        ("DORARARA dora", 2),
-        ("WRYYYYY", 1),
-    ] {
+    for (p, n) in [("ORA ORA ORA", 3), ("MUDAMUDAMUDA", 3), ("ora", 1), ("DORARARA dora", 2), ("WRYYYYY", 1)] {
         let r = l.resolve(p);
         assert_eq!(r.stand_rush, Some(n), "{p:?}");
         assert_eq!(r.kind, ResolutionKind::Graft);
@@ -106,9 +88,39 @@ fn never_says_no_and_fallback_logging() {
     assert!(Lexicon::is_fallback(&l.resolve("")));
     assert!(Lexicon::is_fallback(&l.resolve("hammer qwxzvbnm")));
     assert!(!Lexicon::is_fallback(&l.resolve("hammer")));
-    assert!(!Lexicon::is_fallback(
-        &l.resolve("giant flaming hammer with rockets")
-    ));
+    assert!(!Lexicon::is_fallback(&l.resolve("giant flaming hammer with rockets")));
     assert!(!Lexicon::is_fallback(&l.resolve("roll out")));
     assert!(!Lexicon::is_fallback(&l.resolve("ORA ORA")));
+}
+
+#[test]
+fn real_powers_file_loads_cleanly() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+    let Ok(l) = Lexicon::load(dir.join("lexicon.bin")) else { return };
+    if !dir.join("powers.ron").exists() {
+        return;
+    }
+    assert!(!l.power_ids().is_empty());
+    let w: Vec<&String> = l.load_warnings().iter().filter(|w| w.starts_with("powers.ron")).collect();
+    assert!(w.is_empty(), "{w:#?}");
+    // shared incantations report every candidate power; own fruit names are never stolen
+    let r = l.resolve("gomu gomu no mi");
+    assert_eq!(r.recipe.grants.as_deref(), Some("gomu_gomu"));
+    let r = l.resolve("gomu gomu no anvil");
+    assert!(!r.incantation_powers.is_empty() && r.recipe.form == Form::Anvil, "{:?}", r.incantation_powers);
+}
+
+#[test]
+fn every_icon_pack_parses_without_problems() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+    let Ok(l) = Lexicon::load(dir.join("lexicon.bin")) else { return };
+    let bad = l.validate_icon_shapes();
+    assert!(bad.is_empty(), "{bad:#?}");
+    let malformed: Vec<&String> = l.load_warnings().iter().filter(|w| w.contains("malformed") || w.contains("no icon list")).collect();
+    assert!(malformed.is_empty(), "{malformed:#?}");
+    // packs landing later (e.g. icons/tmnt.ron) are covered automatically: 0 warnings of their own
+    for pack in ["icons/tmnt.ron", "icons/transformers.ron"] {
+        let own: Vec<&String> = l.load_warnings().iter().filter(|w| w.starts_with(pack)).collect();
+        assert!(own.is_empty(), "{pack}: {own:#?}");
+    }
 }

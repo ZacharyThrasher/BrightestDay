@@ -40,11 +40,7 @@ fn main() {
         let t0 = Instant::now();
         for p in set.iter() {
             let t = Instant::now();
-            std::hint::black_box(if spoken {
-                lex.resolve_spoken(p)
-            } else {
-                lex.resolve(p)
-            });
+            std::hint::black_box(if spoken { lex.resolve_spoken(p) } else { lex.resolve(p) });
             let e = t.elapsed().as_secs_f64();
             if e > 0.001 && !spoken {
                 println!("  slow {:.0} µs: {p:?}", e * 1e6);
@@ -62,8 +58,5 @@ fn main() {
     for p in phrases.iter().take(1000) {
         std::hint::black_box(lex.complete(&p[..p.len().min(6)]));
     }
-    println!(
-        "complete         n= 1000 avg {:7.1} µs",
-        t0.elapsed().as_secs_f64() * 1e6 / 1000.0
-    );
+    println!("complete         n= 1000 avg {:7.1} µs", t0.elapsed().as_secs_f64() * 1e6 / 1000.0);
 }
