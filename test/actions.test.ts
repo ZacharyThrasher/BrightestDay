@@ -47,7 +47,7 @@ const dmg = (e: { hp: number; maxHp: number }) => e.maxHp - e.hp;
 test('affordance table: every construct kind gets LMB/RMB labels; classification follows what it is', async () => {
   const { w, d } = await setup();
   const kinds: Record<string, string> = {};
-  for (const t of ['a hammer', 'a hand', 'a shield', 'a tank', 'a dog', 'a piano', 'a trampoline', 'a bomb', 'a fan', 'a sword']) {
+  for (const t of ['a hammer', 'a hand', 'a shield', 'a tank', 'a dog', 'a boulder', 'a trampoline', 'a bomb', 'a fan', 'a sword']) {
     const c = await make(w, d, t);
     kinds[t] = classify(c, w.player);
     assert.ok(AFFORDANCES[classify(c, w.player)].lmb, t);
@@ -59,7 +59,7 @@ test('affordance table: every construct kind gets LMB/RMB labels; classification
   assert.equal(kinds['a shield'], 'shield');
   assert.equal(kinds['a tank'], 'fire');
   assert.equal(kinds['a dog'], 'command');
-  assert.equal(kinds['a piano'], 'hurl');
+  assert.equal(kinds['a boulder'], 'hurl');
   assert.equal(kinds['a trampoline'], 'launch');
   assert.equal(kinds['a bomb'], 'detonate');
   assert.equal(kinds['a fan'], 'field');
@@ -197,34 +197,34 @@ test('dog: LMB sics it on the locked target', async () => {
   assert.ok(p1 < p0 - 5 || dmg(e) > 0);
 });
 
-test('universal fallback: a piano (no better affordance) is hurled and hits a target 20 m away', async () => {
+test('universal fallback: a boulder (no better affordance) is hurled and hits a target 20 m away', async () => {
   const { w, d, events } = await setup();
   look(w, new Vector3(-6, 0, -6));
-  const piano = await make(w, d, 'a piano');
+  const boulder = await make(w, d, 'a boulder');
   run(w, 2);
-  assert.equal(classify(piano, w.player), 'hurl');
+  assert.equal(classify(boulder, w.player), 'hurl');
   const e = target(w, new Vector3(3, 1.2, -20));
   click(w, () => new Vector3(3, 1.2, -20), 2.5);
-  const hit = events.find((x) => x.type === 'action_hit' && x.construct === piano.id);
+  const hit = events.find((x) => x.type === 'action_hit' && x.construct === boulder.id);
   console.log(events.filter((x) => x.type.startsWith('action') || x.type === 'equip').map((x) => JSON.stringify(x)).join('\n'));
-  console.log(`piano hurl: hit ${!!hit}, damage ${dmg(e).toFixed(0)}`);
-  assert.ok(hit && hit.target === e.id, 'the hurled piano hits');
+  console.log(`boulder hurl: hit ${!!hit}, damage ${dmg(e).toFixed(0)}`);
+  assert.ok(hit && hit.target === e.id, 'the hurled boulder hits');
   // RMB pulls it back and holds it in front of you
   press(w, { secondary: true }, 1 / 60, 1.2);
-  assert.ok(piano.insts[0].pos.distanceTo(w.player.pos) < 8, 'pulled back to the player');
+  assert.ok(boulder.insts[0].pos.distanceTo(w.player.pos) < 8, 'pulled back to the player');
 });
 
-test('an unusual tool landing the blow is a creative solution (hurled piano takes down a hostile)', async () => {
+test('an unusual tool landing the blow is a creative solution (hurled boulder takes down a hostile)', async () => {
   const { w, d, events } = await setup();
   look(w, new Vector3(-6, 0, -6));
-  const piano = await make(w, d, 'a piano');
+  const boulder = await make(w, d, 'a boulder');
   run(w, 2);
   const e = target(w, new Vector3(3, 1.2, -20), 40);
   click(w, () => new Vector3(3, 1.2, -20), 2);
-  const cs = events.find((x) => x.type === 'creative_solution' && x.construct === piano.id);
+  const cs = events.find((x) => x.type === 'creative_solution' && x.construct === boulder.id);
   console.log(`creative: ${cs ? cs.reason + ' +' + cs.bonus : 'none'}`);
   assert.ok(e.disabled, 'taken down');
-  assert.ok(cs, 'counted as a creative solution for the piano');
+  assert.ok(cs, 'counted as a creative solution for the boulder');
 });
 
 test('riding: LMB fires the machine you are in, RMB boosts; the equipped prompt follows the ride', async () => {
@@ -283,7 +283,7 @@ test('actions never hurt the owner or the owner\'s constructs', async () => {
   press(w, { secondary: true }, 1, 1, () => wall.insts[0].pos); // charged into your own wall
   await make(w, d, 'a bomb');
   click(w, undefined, 1); // detonate in hand
-  await make(w, d, 'a piano');
+  await make(w, d, 'a boulder');
   click(w, () => w.player.pos.clone().add(new Vector3(0, 30, 0)), 3); // hurl it straight up; it comes down
   console.log(`owner hp ${hp0} → ${w.player.hp}; wall ${wallHp} → ${wall.hp}`);
   assert.equal(w.player.hp, hp0);
