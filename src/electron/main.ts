@@ -31,6 +31,19 @@ if (smoke || flag('software-gl')) {
   app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 }
 
+// Uncapped frame rate (settings.json "fpsCap": "uncapped"): rendering is no longer tied to the display's
+// refresh, so the newest mouse input reaches the screen sooner (lower latency, possible tearing).
+// Must be decided before the app is ready, so settings.json is peeked at here.
+try {
+  const peek = [join(app.getPath('userData'), 'settings.json'), join(dirname(app.getPath('exe')), 'settings.json'), join(process.cwd(), 'settings.json')]
+    .filter((p) => existsSync(p)).map((p) => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return {}; } })
+    .reduce((a, b) => ({ ...a, ...b }), {} as Record<string, unknown>);
+  if (peek.fpsCap === 'uncapped' || flag('uncapped')) {
+    app.commandLine.appendSwitch('disable-frame-rate-limit');
+    app.commandLine.appendSwitch('disable-gpu-vsync');
+  }
+} catch { /* defaults */ }
+
 /** settings.json locations, lowest precedence first. */
 function settingsPaths(): string[] {
   const paths = [join(app.getPath('userData'), 'settings.json'), join(dirname(app.getPath('exe')), 'settings.json')];

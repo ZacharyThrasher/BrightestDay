@@ -1,3 +1,4 @@
+import { MouseFilter, radPerCount, requestRawPointerLock, DEFAULT_SENS } from './mouse.js';
 import { NO_INPUT, type PlayerInput } from '../sim/player.js';
 
 export type Action =
@@ -12,7 +13,7 @@ const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ControlLeft
 export class Input {
   yaw = 0;
   pitch = 0;
-  sensitivity = 1;
+  sensitivity = DEFAULT_SENS; // Source/Quake units
   invertY = false;
   /** When false (console open / menu), movement keys are ignored. */
   gameplay = true;
@@ -30,6 +31,9 @@ export class Input {
   private mouseLatch = [false, false, false];
   onAction: (a: Action, e?: KeyboardEvent) => void = () => {};
   locked = false;
+  /** 'raw' = unadjustedMovement (no OS acceleration), 'plain' = fallback */
+  lockMode: 'raw' | 'plain' | 'failed' | 'none' = 'none';
+  readonly mouseFilter = new MouseFilter();
 
   constructor(private target: HTMLElement) {
     window.addEventListener('keydown', (e) => this.keyDown(e));
@@ -37,10 +41,12 @@ export class Input {
     window.addEventListener('blur', () => { this.held.clear(); this.mouse = [false, false, false]; });
     document.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
-      const k = 0.0022 * this.sensitivity;
-      this.yaw -= e.movementX * k;
-      this.pitch -= e.movementY * k * (this.invertY ? -1 : 1);
-      this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch));
+      // raw counts, spike-filtered (see mouse.ts); applied immediately, no smoothing
+      const [dx, dy] = this.mouseFilter.filter(e.movementX, e.movementY, e.timeStamp || performance.now());
+      const k = radPerCount(this.sensitivity);
+      this.yaw -= dx * k;
+      this.pitch -= dy * k * (this.invertY ? -1 : 1);
+      this.pitch = Math.max(-1.55, Math.min(1.55, this.pitch));
     });
     target.addEventListener('mousedown', (e) => {
       if (!this.locked) return;
@@ -50,14 +56,16 @@ export class Input {
     window.addEventListener('mouseup', (e) => { if (e.button < 3) this.mouse[e.button] = false; });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('wheel', (e) => { if (this.locked && this.gameplay && e.deltaY !== 0) this.reelUntil = performance.now() + 180; }, { passive: true });
-    document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === this.target; if (!this.locked) this.mouse = [false, false, false]; });
+    document.addEventListener('pointerlockchange', () => {
+      this.locked = document.pointerLockElement === this.target;
+      if (this.locked) this.mouseFilter.onLock(performance.now());
+      else this.mouse = [false, false, false];
+    });
   }
 
   requestLock() {
-    try {
-      const p = this.target.requestPointerLock() as unknown as Promise<void> | undefined;
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch { /* ignored */ }
+    // raw, unaccelerated input where supported (Windows/ChromeOS); plain lock otherwise
+    void requestRawPointerLock(this.target).then((mode) => { this.lockMode = mode; });
   }
 
   private keyDown(e: KeyboardEvent) {

@@ -4,7 +4,7 @@ import {
 } from 'three';
 import type { World, GameEvent } from '../sim/world.js';
 import type { ConstructSpec } from '../sim/constructs/spec.js';
-import { G, groups } from '../sim/physics.js';
+import { G, groups, PLAYER_MOVE_FILTER } from '../sim/physics.js';
 import { QUALITY, HARDLIGHT_COLOR, ENTITY_COLORS, type RenderOptions } from './config.js';
 import { Environment } from './environment.js';
 import { buildStatics } from './statics.js';
@@ -82,7 +82,11 @@ export class GameRenderer {
   constructor(readonly canvas: HTMLCanvasElement, opts: Partial<RenderOptions> = {}) {
     this.opts = { quality: 'high', fov: 75, constructColor: HARDLIGHT_COLOR, ...opts };
     const q = QUALITY[this.opts.quality];
-    this.renderer = new WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: true });
+    // low-latency canvas: `desynchronized` lets the browser present without waiting on the compositor
+    // (lower mouse-to-photon latency; may tear like vsync-off). Falls back if the context can't be made.
+    const ctxAttrs = { antialias: false, alpha: false, powerPreference: 'high-performance' as const, stencil: false, depth: true, desynchronized: this.opts.lowLatency !== false };
+    const gl = canvas.getContext('webgl2', ctxAttrs) as WebGL2RenderingContext | null;
+    this.renderer = gl ? new WebGLRenderer({ canvas, context: gl, ...ctxAttrs }) : new WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: true });
     this.renderer.setPixelRatio(Math.min(this.opts.pixelRatio ?? window.devicePixelRatio ?? 1, q.maxPixelRatio));
     this.renderer.toneMapping = NoToneMapping;
     this.renderer.outputColorSpace = LinearSRGBColorSpace; // composite pass encodes sRGB itself
@@ -346,8 +350,25 @@ export class GameRenderer {
     this.time += frameDt;
     const dt = Math.min(0.1, frameDt);
     const P = w.player;
-    const pos = this.pPrev.clone().lerp(this.pCurr, alpha);
-    const vel = this.vPrev.clone().lerp(this.vCurr, alpha);
+    // Local player: show the LATEST sim state pushed forward by velocity (extrapolation) instead of
+    // blending the last two ticks — blending always shows you ~half a tick in the past, which reads as
+    // mushy. The forward push is clipped against geometry so the camera never pokes through walls.
+    let pos: Vector3, vel: Vector3;
+    if (this.opts.predictLocal !== false && !P.riding) {
+      vel = this.vCurr.clone();
+      pos = this.pCurr.clone();
+      const ahead = alpha * w.dt;
+      const len = vel.length() * ahead;
+      if (len > 1e-4) {
+        const dir = vel.clone().divideScalar(vel.length());
+        const hit = w.pw.castRay(new w.R.Ray(pos, dir), len + 0.45, true, undefined, PLAYER_MOVE_FILTER, undefined, P.body);
+        const free = hit ? Math.max(0, hit.timeOfImpact - 0.45) : len;
+        pos.addScaledVector(dir, Math.min(len, free));
+      }
+    } else {
+      pos = this.pPrev.clone().lerp(this.pCurr, alpha);
+      vel = this.vPrev.clone().lerp(this.vCurr, alpha);
+    }
     const speed = vel.length();
 
     // ---- camera: the canonical sim camera evaluated at the interpolated pose + live look

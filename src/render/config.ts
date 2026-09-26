@@ -13,6 +13,8 @@ export interface RenderOptions {
   fov: number; // base vertical FOV in degrees
   constructColor: string;
   pixelRatio?: number; // override devicePixelRatio (tests)
+  lowLatency?: boolean; // desynchronized (low-latency) canvas; default on
+  predictLocal?: boolean; // draw the local player at the latest tick + velocity (no half-tick lag); default on
 }
 
 export interface QualityPreset {

@@ -1,6 +1,7 @@
 {
   "_readme": "Copy to settings.json next to BrightestDay.exe (or in %APPDATA%/Brightest Day). All keys are optional.",
-  "mouseSensitivity": 1,
+  "mouseSensitivity": 5.7,
+  "sensUnits": "source",
   "invertY": false,
   "fov": 78,
   "constructColor": "#3dffa8",

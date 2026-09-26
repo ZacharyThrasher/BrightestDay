@@ -79,7 +79,7 @@ class App implements HardlightApp {
     this.settings = loadSettings();
     this.focus = new FocusMeter(this.settings.focusTimeScale, this.settings.focusSeconds);
     this.loadBests();
-    this.gr = new GameRenderer(canvas, { quality: this.settings.graphics, fov: this.settings.fov, constructColor: this.settings.constructColor });
+    this.gr = new GameRenderer(canvas, { quality: this.settings.graphics, fov: this.settings.fov, constructColor: this.settings.constructColor, lowLatency: this.settings.lowLatency });
     document.documentElement.style.setProperty('--hl', this.settings.constructColor);
     this.input = new Input(canvas);
     this.input.sensitivity = this.settings.mouseSensitivity;
@@ -435,7 +435,7 @@ class App implements HardlightApp {
         <button class="play">Click to play</button>
         <div class="scenes"></div>
         <div class="settings">
-          <label>Mouse sensitivity <input type="range" min="0.2" max="4" step="0.05" name="sens"><output></output></label>
+          <label>Mouse sensitivity <input type="range" min="0.5" max="20" step="0.1" name="sens"><output></output></label>
           <label>Field of view <input type="range" min="60" max="110" step="1" name="fov"><output></output></label>
           <label>Invert Y <input type="checkbox" name="inv"></label>
           <label>Construct colour <input type="color" name="color"></label>
@@ -458,7 +458,7 @@ class App implements HardlightApp {
     const focus = q<HTMLSelectElement>('select[name=focus]');
     const focusOpt = () => { const v = this.settings.focusTimeScale; return [...focus.options].reduce((a, o) => (Math.abs(Number(o.value) - v) < Math.abs(Number(a.value) - v) ? o : a)).value; };
     const sync = () => {
-      sens.value = String(this.settings.mouseSensitivity); (sens.nextElementSibling as HTMLOutputElement).value = this.settings.mouseSensitivity.toFixed(2);
+      sens.value = String(this.settings.mouseSensitivity); (sens.nextElementSibling as HTMLOutputElement).value = this.settings.mouseSensitivity.toFixed(1);
       fov.value = String(this.settings.fov); (fov.nextElementSibling as HTMLOutputElement).value = String(this.settings.fov);
       inv.checked = this.settings.invertY; color.value = this.settings.constructColor; gfx.value = this.settings.graphics; focus.value = focusOpt();
     };
