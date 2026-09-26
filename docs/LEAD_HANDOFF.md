@@ -96,6 +96,9 @@ Everything below is committed and green unless noted.
 - CAMERA: 1st/3rd person toggle as first-class modes (over-shoulder, collision, crosshair-truth aim
   convergence, "Allow third person" rule) + ADS in both (RMB with guns, accuracy only — movement
   untouched; ADS input bit after charge's in bd_core v1.4; AdsState resource read by the hands worker).
+- DOUBLE JUMP: one air jump (restored on land / tether attach / being hit), keeps momentum with a small
+  wish-direction redirect but NEVER adds horizontal speed; never fires from held-jump bhop; hard-light
+  step burst; bots use it for recovery.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
