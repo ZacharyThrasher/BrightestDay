@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { Quaternion } from 'three';
 import { makeWorld, run, Vector3 } from './helpers.js';
 import { defaultSpec, type ConstructSpec } from '../src/sim/constructs/spec.js';
-import { CATALOG, COMBAT_CATALOG, CATALOG_BY_ID, buildEntry } from '../src/sim/constructs/catalog/index.js';
+import { CATALOG, WEAPON_CATALOG as COMBAT_CATALOG, CATALOG_BY_ID, buildEntry } from '../src/sim/constructs/catalog/index.js';
 import { validateSpec } from '../src/sim/constructs/validate.js';
 import { buildForm } from '../src/sim/constructs/forms.js';
 import { specExtent } from '../src/sim/constructs/geom.js';
@@ -102,7 +102,7 @@ test('combat catalog: ≥ 40 entries, unique ids and names, lexicon knows them, 
     for (const w of e.behaviors) if (w.type === 'weapon' && w.group) assert.ok(groups.has(w.group), `${e.id}: weapon group ${w.group} exists`);
   }
   // earlier catalog entries (vehicles, creatures) keep their names
-  for (const e of CATALOG.slice(0, CATALOG.length - COMBAT_CATALOG.length)) for (const n of e.names) assert.ok(!names.has(n), `${n} stolen from ${e.id}`);
+  for (const e of CATALOG.filter((x) => !COMBAT_CATALOG.includes(x))) for (const n of e.names) assert.ok(!names.has(n), `${n} stolen from ${e.id}`);
   const cost = (id: string) => validateSpec(catSpec(id), 1e6).cost;
   const costs = COMBAT_CATALOG.map((e) => [e.id, cost(e.id)] as const);
   console.log('costs: ' + costs.map(([id, c]) => `${id} ${c.toFixed(1)}`).join(', '));
@@ -330,7 +330,7 @@ test('perf: 20 combat constructs active ≤ 3 ms/step p50', async () => {
   const ids = [
     'gatling_turret', 'rocket_pod', 'laser_turret', 'tesla_coil', 'flame_turret', 'crossbow_turret', 'blunderbuss', 'net_turret',
     'bear_trap', 'spike_floor', 'blade_wall', 'lava_floor', 'blade_pendulum', 'scythe_trap', 'minefield',
-    'trebuchet', 'field_cannon', 'bee_swarm', 'rolling_saw', 'wrecking_crane',
+    'trebuchet', 'field_cannon', 'bee_swarm', 'rolling_saw', 'mortar',
   ];
   ids.forEach((id, i) => spawn(w, catSpec(id), new Vector3(((i % 5) - 2) * 12, 0, -8 - Math.floor(i / 5) * 12)));
   assert.equal(w.constructs.list.size, 20);

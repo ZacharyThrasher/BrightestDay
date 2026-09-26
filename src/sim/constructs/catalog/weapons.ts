@@ -656,7 +656,7 @@ export const droneSwarm: CatalogEntry = {
 /** Bee swarm: a buzzing cloud of hard-light bees that chases its target and stings everything in reach. */
 export const beeSwarm: CatalogEntry = {
   id: 'bee_swarm',
-  names: ['bee swarm', 'killer bee swarm', 'hornet swarm', 'wasp swarm', 'beehive', 'bee hive', 'swarm of hornets', 'swarm of wasps', 'bee swarms', 'beeswarm', 'hornet swarms', 'hornets nest', "hornet's nest", 'murder hornets', 'angry swarm'],
+  names: ['killer bee swarm', 'swarm of hornets', 'swarm of wasps', 'bee swarms', 'beeswarm', 'hornet swarms', 'hornets nest', "hornet's nest", 'angry swarm'],
   cls: 'creature', motion: 'kinematic', at: 'ground_front', lifetime: 45,
   build() {
     const parts: Part[] = [P('sphere', [1.4, 1.4, 1.4], [0, 1.2, 0], { role: 'swarm_core', solid: false })];

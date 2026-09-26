@@ -242,4 +242,5 @@ export const cannonTower: CatalogEntry = {
 gunAtOrigin(ballista, 1.8);
 gunAtOrigin(cannonTower, 3.8);
 
-export const SIEGE: CatalogEntry[] = [trebuchet, ballista, fieldCannon, mortar, siegeTower, batteringRam, wreckingCrane, cannonTower];
+// wreckingCrane is superseded by the rides catalog's wrecking_crane (same id; that one ships)
+export const SIEGE: CatalogEntry[] = [trebuchet, ballista, fieldCannon, mortar, siegeTower, batteringRam, cannonTower];

@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, Vector3 } from './helpers.js';
 import { defaultSpec, type ConstructSpec } from '../src/sim/constructs/spec.js';
-import { COMBAT_CATALOG, CATALOG_BY_ID, buildEntry } from '../src/sim/constructs/catalog/index.js';
+import { CREATURE_CATALOG as COMBAT_CATALOG, CATALOG_BY_ID, buildEntry } from '../src/sim/constructs/catalog/index.js';
 import { validateSpec, LIMITS } from '../src/sim/constructs/validate.js';
 import { MACHINE_LIMITS, machineFunctions } from '../src/sim/constructs/machine-spec.js';
 import { buildForm } from '../src/sim/constructs/forms.js';
