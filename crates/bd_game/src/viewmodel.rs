@@ -4,7 +4,8 @@
 //!   meshed once per costume/corps change and parented to the gameplay camera. The ring on the right
 //!   hand is a small emissive torus + a point light that lights the glove.
 //! * **Willpower = ring glow**: brightness follows willpower; below ~20 % it dims and flickers; a cast
-//!   you can't afford makes it sputter (the diegetic "no"). Casting flares it on the key press
+//!   you can't afford still happens, scaled down (never refused) — the ring sputters with it (the
+//!   diegetic "that was all you had"). Casting flares it on the key press
 //!   ([`RingCue::Forming`]), the oath brightens it letter by letter, voice makes it breathe.
 //! * **Damage % (Smash model, COMBAT.md §1a) = ring colour + screen-edge light fractures**: the ring
 //!   shifts white/corps → gold → orange → red as % rises, and thin cracks of light creep in from the
@@ -375,10 +376,13 @@ fn vm_keys(
     focus: Res<UiFocus>,
     time: Res<Time<Real>>,
     active: Option<Res<ActiveWorld>>,
+    aim: Option<Res<crate::present::camera3p::AimRay>>,
     mut st: ResMut<VmState>,
     mut cmds: MessageWriter<SimCommand>,
 ) {
     let Some(a) = active else { return };
+    // CAMERA: power moves fly along the crosshair ray (third person: converged), like casts.
+    let aim = aim.as_deref().filter(|r| r.dir.is_finite() && r.dir.length_squared() > 0.5).map(|r| bd_sim::world::Aim::new(crate::util::core_v3(r.origin), crate::util::core_v3(r.dir)));
     if *state.get() != AppState::InGame || menu.0 || focus.typing {
         st.power_down = None;
         return;
@@ -397,12 +401,12 @@ fn vm_keys(
         if t >= HOLD && !st.power_long_sent {
             st.power_long_sent = true;
             if has_power {
-                cmds.write(SimCommand::local(Cmd::PowerMove(1)));
+                cmds.write(SimCommand::local(Cmd::PowerMove(1, aim)));
             }
         }
         if binds.just_released(Action::Power, &keys, &mouse) {
             if t < HOLD && has_power {
-                cmds.write(SimCommand::local(Cmd::PowerMove(0)));
+                cmds.write(SimCommand::local(Cmd::PowerMove(0, aim)));
             }
             st.power_down = None;
         }
@@ -513,12 +517,12 @@ fn vm_events(
                     st.kick_back.v += 2.4 * k;
                 }
             }
-            GameEvent::CastFailed { player, reason } if *player == local => {
-                if matches!(reason, bd_sim::events::CastError::NotEnoughWillpower { .. }) {
-                    st.sputter = 0.6;
-                    st.flare = 0.0;
-                    sfx.write(crate::audio::PlaySfx::new("willpower_low").gain(0.5));
-                }
+            // FREEDOM: casts are never refused for willpower — an unaffordable one sputters
+            // (`cflags::SPUTTER`, a scaled-down flickering construct) and the ring sputters with it.
+            GameEvent::ConstructSpawned { id, owner, .. } if *owner == local && bd_sim::freedom::is_sputtering(&a.world, *id) => {
+                st.sputter = 0.6;
+                st.flare = 0.0;
+                sfx.write(crate::audio::PlaySfx::new("willpower_low").gain(0.5));
             }
             GameEvent::OathFinished { player, .. } if *player == local => st.flare = 1.0,
             _ => {}

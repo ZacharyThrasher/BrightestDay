@@ -752,12 +752,24 @@ fn override_local_view(
     look: Res<LookAngles>,
     aim: Res<AimRay>,
     active: Option<Res<ActiveWorld>>,
+    prefs: Option<Res<UiPrefs>>,
     sim: Query<&PlayerSim, With<LocalPlayer>>,
     mut views: ResMut<WorldViews>,
     mut hands: ResMut<ThirdPersonHands>,
 ) {
     hands.active = false;
-    let (Some(a), Ok(sim)) = (active, sim.single()) else { return };
+    let Ok(sim) = sim.single() else { return };
+    let Some(a) = active else {
+        // Tutorial (no sim world, so no views): the local body is a synthetic view in third person.
+        if mode.third_person() {
+            let v = tutorial_view(sim, clock.alpha, yaw_pitch(aim.dir), prefs.as_ref().map_or(bd_core::corps::Corps::Willpower, |p| p.corps));
+            let (eye, rot, _) = super::constructs::body_frames(&v);
+            hands.world = [0, 1].map(|k| eye + rot * Vec3::new(if k == 0 { -0.35 } else { 0.35 }, -0.3, -0.2));
+            hands.active = true;
+            views.players.push(v);
+        }
+        return;
+    };
     let Some(id) = a.local else { return };
     let Ok(i) = views.players.binary_search_by_key(&id, |p| p.id) else { return };
     let v = &mut views.players[i];
@@ -802,6 +814,51 @@ fn override_local_view(
         let sz = v.size;
         hands.world = [0, 1].map(|k| eye + rot * Vec3::new(if k == 0 { -0.35 } else { 0.35 } * sz, -0.3 * sz, -0.2));
         hands.active = true;
+    }
+}
+
+/// Id of the tutorial's synthetic local body (no sim world there; nothing else uses ids then).
+pub const TUTORIAL_LOCAL: PlayerId = PlayerId(0);
+
+/// The tutorial's local player as a view (third person draws the body from `WorldViews`).
+pub fn tutorial_view(sim: &PlayerSim, alpha: f32, (yaw, pitch): (f32, f32), corps: bd_core::corps::Corps) -> crate::sim_bridge::PlayerView {
+    let s = &sim.state;
+    let mut flags = pflags::ALIVE;
+    for (on, bit) in [
+        (s.grounded, pflags::GROUNDED),
+        (s.crouched, pflags::CROUCHED),
+        (s.sliding, pflags::SLIDING),
+        (s.tumble > 0.0, pflags::TUMBLING),
+        (s.hooks[0].attached(), pflags::HOOK_L_ATTACHED),
+        (s.hooks[1].attached(), pflags::HOOK_R_ATTACHED),
+    ] {
+        if on {
+            flags |= bit;
+        }
+    }
+    let hooks = [0, 1].map(|h| match s.hooks[h].phase {
+        HookPhase::Idle => None,
+        HookPhase::Flying if sim.prev.hooks[h].phase == HookPhase::Flying => Some(v3(sim.prev.hooks[h].pos).lerp(v3(s.hooks[h].pos), alpha)),
+        _ => Some(v3(s.hooks[h].pos)),
+    });
+    crate::sim_bridge::PlayerView {
+        id: TUTORIAL_LOCAL,
+        corps,
+        is_local: true,
+        pos: sim.render_pos(alpha),
+        vel: v3(s.vel),
+        yaw,
+        pitch,
+        flags,
+        damage_pct: 0.0,
+        launch: 0.0,
+        stocks: 255,
+        willpower: 100.0,
+        status: 0,
+        size: 1.0,
+        hooks,
+        seat: None,
+        power: Default::default(),
     }
 }
 

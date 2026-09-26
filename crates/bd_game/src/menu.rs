@@ -1,10 +1,14 @@
 //! Menu shell (bevy_ui) — title, host / join / lobby, match rules (every `GameSettings` knob +
-//! presets), customize (name, corps, costume creator with turntable, loadout), settings (controls +
-//! rebindable keys, view, comfort, graphics, audio, voice, onomatopoeia) and the in-game Esc overlay.
+//! presets), customize (name, corps, costume creator with turntable, loadout), settings in tabs
+//! ([`SettingsTab`]: Gameplay / Controls (+ rebindable keys) / Video / Audio / Comfort / HUD) and the
+//! in-game Esc overlay.
 //!
-//! Keyboard first: ↑/↓ select, Enter/Space activate, ←/→ adjust, Esc back; text rows take typing
-//! directly (Ctrl+V pastes). Mouse: hover selects, click activates / steps up, right-click steps down,
-//! wheel scrolls long pages.
+//! Keyboard first: ↑/↓ select, Enter/Space activate, ←/→ adjust, Esc back, Q/E switch settings tabs
+//! (←/→ too on the tab strip); text rows take typing directly (Ctrl+V pastes). Mouse: hover selects,
+//! click activates / steps up, right-click steps down, wheel scrolls long pages, click a tab.
+//!
+//! Rebinding (Controls tab): an input another action holds is **swapped** (a toast names the moved
+//! action); reserved inputs (Esc, F3, F4, F11, LMB; RMB except for aim) are refused with a toast.
 //!
 //! Networking goes through NET's API only: `NetRequest` (Host / Join / UpdateProfile / SetSettings /
 //! SetReady / StartMatch / Leave) and `NetStatus` (lobby code, players, ready, banner). NET moves the
@@ -41,7 +45,6 @@ pub enum MenuPage {
     Customize,
     Costume,
     Settings,
-    Keys,
     Pause,
 }
 
@@ -64,7 +67,6 @@ enum Act {
     Start,
     Rules,
     Costume,
-    Keys,
     Randomize,
     ResetKeys,
     Copy,
@@ -86,6 +88,8 @@ enum Knob {
     Fov,
     InvertY,
     ThirdPerson,
+    /// CAMERA: over the left / right shoulder.
+    Shoulder,
     /// CAMERA: ADS hold / toggle, ADS sensitivity, ADS zoom speed.
     AdsMode,
     AdsSens,
@@ -107,6 +111,9 @@ enum Knob {
     Vsync,
     Fullscreen,
     Aa,
+    /// Startup-only render options (applied on the next launch).
+    LowLatency,
+    Pipelined,
     Volume,
     MusicVol,
     WorldVol,
@@ -170,7 +177,64 @@ enum Row {
     Text(Field),
     Key(Action),
     Header(&'static str),
+    /// The settings tab strip (always drawn at the top of the page).
+    Tabs,
 }
+
+/// Settings page tabs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SettingsTab {
+    #[default]
+    Gameplay,
+    Controls,
+    Video,
+    Audio,
+    Comfort,
+    Hud,
+}
+
+impl SettingsTab {
+    pub const ALL: [SettingsTab; 6] = [SettingsTab::Gameplay, SettingsTab::Controls, SettingsTab::Video, SettingsTab::Audio, SettingsTab::Comfort, SettingsTab::Hud];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SettingsTab::Gameplay => "GAMEPLAY",
+            SettingsTab::Controls => "CONTROLS",
+            SettingsTab::Video => "VIDEO",
+            SettingsTab::Audio => "AUDIO",
+            SettingsTab::Comfort => "COMFORT",
+            SettingsTab::Hud => "HUD",
+        }
+    }
+
+    /// `--menu <id>` (`keys` = controls).
+    pub fn from_id(s: &str) -> Option<Self> {
+        match s {
+            "gameplay" => Some(SettingsTab::Gameplay),
+            "controls" | "keys" => Some(SettingsTab::Controls),
+            "video" | "graphics" => Some(SettingsTab::Video),
+            "audio" | "sound" => Some(SettingsTab::Audio),
+            "comfort" => Some(SettingsTab::Comfort),
+            "hud" => Some(SettingsTab::Hud),
+            _ => None,
+        }
+    }
+
+    fn step(self, d: i32) -> Self {
+        cycle(&Self::ALL, self, d)
+    }
+}
+
+/// Key rows on the Controls tab, by section (every [`Action`] exactly once — tested).
+const KEY_SECTIONS: [(&str, &[Action]); 4] = [
+    ("MOVE", &[Action::Forward, Action::Back, Action::Left, Action::Right, Action::Jump, Action::Crouch, Action::Boost, Action::Dodge, Action::TetherL, Action::TetherR, Action::Reel]),
+    (
+        "RING",
+        &[Action::Console, Action::ConsoleAlt, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Oath, Action::Charge, Action::Power, Action::Transform, Action::Dismiss],
+    ),
+    ("VIEW / AIM", &[Action::ToggleView, Action::Shoulder, Action::Aim, Action::AltFire]),
+    ("OTHER", &[Action::Scoreboard]),
+];
 
 impl Row {
     fn selectable(self) -> bool {
@@ -240,7 +304,7 @@ impl Ctx<'_> {
     }
 }
 
-fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
+fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
     use Knob as K;
     use Row::*;
     match page {
@@ -282,12 +346,14 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             } else {
                 v.push(Value(K::KoTarget));
             }
-            v.extend([Value(K::TimeLimit), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands), Value(K::AllowThird)]);
+            v.push(Value(K::TimeLimit));
+            v.extend([Header("ARENA"), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
             v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Caps), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
             v.extend([Header("PHYSICS"), Value(K::Knockback), Value(K::Gravity), Value(K::GasRegen), Value(K::TetherHooks)]);
+            v.extend([Header("VIEW"), Value(K::AllowThird)]);
             if c.prefs.game.mode == SimMode::Party {
                 v.extend([
                     Header("PARTY"),
@@ -325,35 +391,46 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             v
         }
         MenuPage::Settings => {
-            let mut v = vec![Header("CONTROLS"), Value(K::Sensitivity), Value(K::InvertY), Value(K::AdsMode), Value(K::AdsSens), Button(Act::Keys, "KEY BINDINGS")];
-            v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent), Value(K::SummonPreview), Value(K::EnemyCompass)]);
-            v.extend([Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns)]);
-            v.extend([Header("COMFORT"), Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette), Value(K::AdsSpeed)]);
-            v.extend([Header("GRAPHICS"), Value(K::Vsync), Value(K::Fullscreen), Value(K::Aa)]);
-            v.extend([Header("SOUND"), Value(K::Volume), Value(K::MusicVol), Value(K::WorldVol), Value(K::AmbienceVol), Value(K::FeedbackVol), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono), Value(K::Ono), Value(K::OnoLang), Value(K::Shout)]);
-            if c.voice {
-                v.push(Value(K::Voice));
+            let mut v = vec![Tabs];
+            match tab {
+                SettingsTab::Gameplay => {
+                    v.extend([Header("VIEW"), Value(K::ThirdPerson), Value(K::Shoulder)]);
+                    v.extend([Header("AIM DOWN SIGHTS"), Value(K::AdsMode), Value(K::AdsSpeed)]);
+                    if c.voice {
+                        v.extend([Header("RING"), Value(K::Voice)]);
+                    }
+                }
+                SettingsTab::Controls => {
+                    v.extend([Header("MOUSE"), Value(K::Sensitivity), Value(K::AdsSens), Value(K::InvertY)]);
+                    for (title, actions) in KEY_SECTIONS {
+                        v.push(Header(title));
+                        for &a in actions {
+                            if a == Action::Voice && !c.voice {
+                                continue;
+                            }
+                            v.push(Key(a));
+                        }
+                    }
+                    v.push(Button(Act::ResetKeys, "RESET KEYS TO DEFAULTS"));
+                }
+                SettingsTab::Video => {
+                    v.extend([Header("DISPLAY"), Value(K::Fov), Value(K::Fullscreen), Value(K::Vsync), Value(K::Aa)]);
+                    v.extend([Header("LATENCY (NEXT LAUNCH)"), Value(K::LowLatency), Value(K::Pipelined)]);
+                }
+                SettingsTab::Audio => {
+                    v.extend([Header("VOLUME"), Value(K::Volume), Value(K::MusicVol), Value(K::WorldVol), Value(K::AmbienceVol), Value(K::FeedbackVol)]);
+                    v.extend([Header("MIX"), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono)]);
+                }
+                SettingsTab::Comfort => {
+                    v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
+                }
+                SettingsTab::Hud => {
+                    v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::ShowPercent)]);
+                    v.extend([Header("WORDS"), Value(K::Shout), Value(K::Ono), Value(K::OnoLang)]);
+                    v.extend([Header("SUMMONS"), Value(K::SummonPreview)]);
+                }
             }
             v.push(Button(Act::Back, "BACK"));
-            v
-        }
-        MenuPage::Keys => {
-            let mut v = vec![Header("MOVE")];
-            for a in [Action::Forward, Action::Back, Action::Left, Action::Right, Action::Jump, Action::Crouch, Action::Boost, Action::TetherL, Action::TetherR, Action::Reel] {
-                v.push(Key(a));
-            }
-            v.push(Header("RING"));
-            for a in [Action::Console, Action::ConsoleAlt, Action::Voice, Action::Oath, Action::Dismiss, Action::Power, Action::Transform, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Scoreboard] {
-                if a == Action::Voice && !c.voice {
-                    continue;
-                }
-                v.push(Key(a));
-            }
-            v.push(Header("VIEW / AIM"));
-            for a in [Action::ToggleView, Action::Shoulder, Action::Aim, Action::AltFire] {
-                v.push(Key(a));
-            }
-            v.extend([Button(Act::ResetKeys, "RESET TO DEFAULTS"), Button(Act::Back, "BACK")]);
             v
         }
         MenuPage::Pause => {
@@ -406,10 +483,11 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Sensitivity => (lbl("SENSITIVITY"), format!("{:.2}", s.sensitivity)),
         Knob::Fov => (lbl("FIELD OF VIEW"), format!("{:.0}", s.fov)),
         Knob::InvertY => (lbl("INVERT Y"), on_off(s.invert_y)),
-        Knob::ThirdPerson => (lbl("DEFAULT VIEW"), if c.prefs.camera.third.unwrap_or(c.prefs.third_person) { "THIRD".into() } else { "FIRST".into() }),
-        Knob::AdsMode => (lbl("AIM DOWN SIGHTS"), if c.prefs.camera.ads_toggle { "TOGGLE".into() } else { "HOLD".into() }),
-        Knob::AdsSens => (lbl("  ADS SENSITIVITY"), format!("{:.2}X", c.prefs.camera.ads_sens())),
-        Knob::AdsSpeed => (lbl("  ADS ZOOM SPEED"), format!("{:.2}X", c.prefs.camera.ads_speed())),
+        Knob::ThirdPerson => (lbl("DEFAULT VIEW"), if c.prefs.camera.third.unwrap_or(c.prefs.third_person) { "THIRD PERSON".into() } else { "FIRST PERSON".into() }),
+        Knob::Shoulder => (lbl("SHOULDER"), if c.prefs.camera.shoulder_left { "LEFT".into() } else { "RIGHT".into() }),
+        Knob::AdsMode => (lbl("ADS MODE"), if c.prefs.camera.ads_toggle { "TOGGLE".into() } else { "HOLD".into() }),
+        Knob::AdsSens => (lbl("ADS SENSITIVITY"), format!("{:.2}X", c.prefs.camera.ads_sens())),
+        Knob::AdsSpeed => (lbl("ADS ZOOM SPEED"), format!("{:.2}X", c.prefs.camera.ads_speed())),
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
         Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
         Knob::EnemyCompass => (lbl("ENEMY COMPASS"), on_off(c.prefs.enemy_compass)),
@@ -426,7 +504,9 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Vsync => (lbl("VSYNC"), on_off(s.vsync)),
         Knob::Fullscreen => (lbl("FULLSCREEN"), on_off(s.fullscreen)),
         Knob::Aa => (lbl("ANTI-ALIASING"), s.antialiasing.label().into()),
-        Knob::Volume => (lbl("VOLUME"), format!("{:.0}%", s.master_volume * 100.0)),
+        Knob::LowLatency => (lbl("LOW-LATENCY QUEUE"), on_off(s.low_latency)),
+        Knob::Pipelined => (lbl("PIPELINED RENDERING"), on_off(s.pipelined_rendering)),
+        Knob::Volume => (lbl("MASTER"), format!("{:.0}%", s.master_volume * 100.0)),
         Knob::MusicVol => (lbl("  MUSIC"), format!("{:.0}%", s.audio.music * 100.0)),
         Knob::WorldVol => (lbl("  WORLD"), format!("{:.0}%", s.audio.world * 100.0)),
         Knob::AmbienceVol => (lbl("  AMBIENCE"), format!("{:.0}%", s.audio.ambience * 100.0)),
@@ -528,6 +608,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             c.prefs.camera.third = Some(!third);
             game = false;
         }
+        Knob::Shoulder => {
+            c.prefs.camera.shoulder_left = !c.prefs.camera.shoulder_left;
+            game = false;
+        }
         Knob::AdsMode => {
             c.prefs.camera.ads_toggle = !c.prefs.camera.ads_toggle;
             game = false;
@@ -594,6 +678,14 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::Aa => {
             s.antialiasing = if dir > 0 { s.antialiasing.next() } else { s.antialiasing.prev() };
+            game = false;
+        }
+        Knob::LowLatency => {
+            s.low_latency = !s.low_latency;
+            game = false;
+        }
+        Knob::Pipelined => {
+            s.pipelined_rendering = !s.pipelined_rendering;
             game = false;
         }
         Knob::Volume => {
@@ -749,6 +841,8 @@ fn field_buf<'a>(f: Field, m: &'a mut MenuState, p: &'a mut UiPrefs) -> (&'a mut
 #[derive(Resource, Debug)]
 pub struct MenuState {
     pub page: MenuPage,
+    /// Settings tab (kept while the menu is closed / reopened).
+    pub tab: SettingsTab,
     stack: Vec<MenuPage>,
     cursor: usize,
     scroll: usize,
@@ -764,7 +858,7 @@ pub struct MenuState {
 
 impl Default for MenuState {
     fn default() -> Self {
-        Self { page: MenuPage::Title, stack: Vec::new(), cursor: 0, scroll: 0, join_code: String::new(), rebuild: true, caret_t: 0.0, capture: None, toast: None, title_t: 0.0 }
+        Self { page: MenuPage::Title, tab: SettingsTab::Gameplay, stack: Vec::new(), cursor: 0, scroll: 0, join_code: String::new(), rebuild: true, caret_t: 0.0, capture: None, toast: None, title_t: 0.0 }
     }
 }
 
@@ -791,6 +885,13 @@ impl MenuState {
         self.toast = Some((s.into(), 2.5));
         self.rebuild = true;
     }
+    fn set_tab(&mut self, tab: SettingsTab) {
+        self.tab = tab;
+        self.cursor = 0;
+        self.scroll = 0;
+        self.capture = None;
+        self.rebuild = true;
+    }
 }
 
 #[derive(Component)]
@@ -803,6 +904,8 @@ struct RowBar(usize);
 struct RowLabel(usize);
 #[derive(Component)]
 struct RowValue(usize);
+#[derive(Component)]
+struct TabButton(SettingsTab);
 #[derive(Component)]
 struct TitleVoxel {
     col: f32,
@@ -836,6 +939,12 @@ fn enter_menu(cli: Res<crate::cli::CliArgs>, net: Option<Res<NetStatus>>, mut m:
     if std::mem::replace(&mut *first_done, true) {
         return;
     }
+    let tab = cli.menu_page.as_deref().and_then(|p| SettingsTab::from_id(p.strip_prefix("settings:").unwrap_or(p)));
+    if let Some(tab) = tab {
+        m.goto(MenuPage::Settings);
+        m.tab = tab;
+        return;
+    }
     match cli.menu_page.as_deref() {
         Some("settings") => m.goto(MenuPage::Settings),
         Some("join") => m.goto(MenuPage::Join),
@@ -843,7 +952,6 @@ fn enter_menu(cli: Res<crate::cli::CliArgs>, net: Option<Res<NetStatus>>, mut m:
         Some("rules") => m.goto(MenuPage::Rules),
         Some("customize") => m.goto(MenuPage::Customize),
         Some("costume") => m.goto(MenuPage::Costume),
-        Some("keys") => m.goto(MenuPage::Keys),
         _ => {}
     }
 }
@@ -927,7 +1035,7 @@ fn net_pages(state: Res<State<AppState>>, net: Option<Res<NetStatus>>, time: Res
     if *state.get() == AppState::Menu && phase_changed {
         match &net.phase {
             NetPhase::Connecting | NetPhase::Lobby | NetPhase::Reconnecting { .. } => {
-                if !matches!(m.page, MenuPage::Lobby | MenuPage::Rules | MenuPage::Customize | MenuPage::Costume | MenuPage::Settings | MenuPage::Keys) {
+                if !matches!(m.page, MenuPage::Lobby | MenuPage::Rules | MenuPage::Customize | MenuPage::Costume | MenuPage::Settings) {
                     m.reset(MenuPage::Lobby);
                 }
             }
@@ -968,9 +1076,12 @@ impl MenuIo<'_> {
         let voice = bd_voice::ENABLED && self.voice.status != crate::voice_ui::VoiceStatus::Unavailable;
         Ctx { settings: &mut self.settings, prefs: &mut self.prefs, net: self.net.as_deref(), voice, in_game }
     }
-    fn rows(&mut self, page: MenuPage, in_game: bool) -> Vec<Row> {
-        let c = self.ctx(in_game);
-        page_rows(page, &c)
+    /// Read-only: must not flag `Settings` / `UiPrefs` as changed (that would hold off their
+    /// debounced autosave for as long as the menu is open).
+    fn rows(&mut self, page: MenuPage, tab: SettingsTab, in_game: bool) -> Vec<Row> {
+        let voice = bd_voice::ENABLED && self.voice.status != crate::voice_ui::VoiceStatus::Unavailable;
+        let c = Ctx { settings: self.settings.bypass_change_detection(), prefs: self.prefs.bypass_change_detection(), net: self.net.as_deref(), voice, in_game };
+        page_rows(page, tab, &c)
     }
 }
 
@@ -995,6 +1106,7 @@ fn activate(row: Row, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
             menu.capture = Some(a);
             menu.rebuild = true;
         }
+        Row::Tabs => menu.set_tab(menu.tab.step(1)),
         Row::Header(_) => {}
     }
 }
@@ -1010,7 +1122,6 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
         Act::Join => menu.goto(MenuPage::Join),
         Act::Customize => menu.goto(MenuPage::Customize),
         Act::Settings => menu.goto(MenuPage::Settings),
-        Act::Keys => menu.goto(MenuPage::Keys),
         Act::Rules => menu.goto(MenuPage::Rules),
         Act::Costume => menu.goto(MenuPage::Costume),
         Act::Lobby => menu.goto(MenuPage::Lobby),
@@ -1135,6 +1246,27 @@ fn next_selectable(rows: &[Row], from: usize, dir: i32) -> usize {
     from
 }
 
+/// Settings → Controls rebind: refuse reserved / wrong-kind inputs, swap with whoever held it, and
+/// say what moved.
+fn rebind(menu: &mut MenuState, binds: &mut KeyBinds, action: Action, b: Bind) {
+    let before: Vec<Option<Bind>> = crate::lobby::prefs::ALIASES.iter().map(|(a, _)| binds.alias(*a)).collect();
+    match binds.try_set(action, b) {
+        Err(()) if matches!(b, Bind::Mouse(_)) && action.keys_only() => menu.toast(format!("{} TAKES A KEY", action.label())),
+        Err(()) => menu.toast(format!("{} IS RESERVED", b.label())),
+        Ok(Some(other)) => {
+            let now = binds.get(other);
+            menu.toast(if now == Bind::Unbound { format!("{} IS NOW UNBOUND", other.label()) } else { format!("SWAPPED: {} IS NOW {}", other.label(), now.label()) });
+        }
+        Ok(None) => {
+            for ((a, alias), was) in crate::lobby::prefs::ALIASES.iter().zip(before) {
+                if was.is_some() && binds.alias(*a).is_none() {
+                    menu.toast(format!("{} NO LONGER DOES {}", alias.label(), a.label()));
+                }
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn menu_input(
     time: Res<Time<Real>>,
@@ -1154,7 +1286,7 @@ fn menu_input(
     let menu = &mut *menu;
     menu.caret_t += time.delta_secs();
     menu.title_t += time.delta_secs();
-    let rows = io.rows(menu.page, in_game);
+    let rows = io.rows(menu.page, menu.tab, in_game);
     let n = rows.len();
     if n == 0 {
         return;
@@ -1173,28 +1305,26 @@ fn menu_input(
             }
             match ev.key_code {
                 KeyCode::Escape => {}
-                KeyCode::Backspace | KeyCode::Delete => io.binds.set(action, Bind::Unbound),
-                k => {
-                    if let Some(b) = Bind::from_id(&format!("{k:?}")) {
-                        io.binds.set(action, b);
-                    }
+                KeyCode::Backspace | KeyCode::Delete => {
+                    io.binds.set(action, Bind::Unbound);
                 }
+                k => match Bind::from_id(&format!("{k:?}")) {
+                    Some(b) => rebind(menu, &mut io.binds, action, b),
+                    None => menu.toast(format!("{} IS RESERVED", Bind::Key(k).label())),
+                },
             }
             menu.capture = None;
             menu.rebuild = true;
             return;
         }
-        if !action.keys_only() {
-            for ev in mouse_btn.read() {
-                if ev.state == ButtonState::Pressed && !matches!(ev.button, MouseButton::Left) {
-                    io.binds.set(action, Bind::Mouse(ev.button));
-                    menu.capture = None;
-                    menu.rebuild = true;
-                    return;
-                }
+        for ev in mouse_btn.read() {
+            // LMB is how the row was clicked (and reserved): keep waiting.
+            if ev.state == ButtonState::Pressed && ev.button != MouseButton::Left {
+                rebind(menu, &mut io.binds, action, Bind::Mouse(ev.button));
+                menu.capture = None;
+                menu.rebuild = true;
+                return;
             }
-        } else {
-            mouse_btn.clear();
         }
         return;
     }
@@ -1271,6 +1401,17 @@ fn menu_input(
     let enter = !alt && (keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::NumpadEnter) || (!typing && keys.just_pressed(KeyCode::Space)));
     let fine = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
 
+    // Settings tabs: Q / E anywhere on the page, ←/→ on the tab strip.
+    if menu.page == MenuPage::Settings && !typing {
+        let on_strip = current == Row::Tabs;
+        let d = (keys.just_pressed(KeyCode::KeyE) || (on_strip && right)) as i32 - (keys.just_pressed(KeyCode::KeyQ) || (on_strip && left)) as i32;
+        if d != 0 {
+            menu.set_tab(menu.tab.step(d));
+            io.sfx.write(PlaySfx::new("ui_move"));
+            return;
+        }
+    }
+
     if up {
         menu.cursor = next_selectable(&rows, menu.cursor, -1);
         io.sfx.write(PlaySfx::new("ui_move"));
@@ -1308,6 +1449,7 @@ fn menu_input(
 
 #[allow(clippy::too_many_arguments)]
 fn menu_mouse(
+    tabs_q: Query<(&Interaction, &TabButton), Changed<Interaction>>,
     rows_q: Query<(&Interaction, &MenuRow), Changed<Interaction>>,
     all_rows: Query<(&Interaction, &MenuRow)>,
     mouse: Res<ButtonInput<MouseButton>>,
@@ -1321,7 +1463,14 @@ fn menu_mouse(
     }
     let in_game = *state.get() == AppState::InGame;
     let menu = &mut *menu;
-    let rows = io.rows(menu.page, in_game);
+    for (i, t) in &tabs_q {
+        if *i == Interaction::Pressed && menu.page == MenuPage::Settings && menu.tab != t.0 {
+            menu.set_tab(t.0);
+            io.sfx.write(PlaySfx::new("ui_select"));
+            return;
+        }
+    }
+    let rows = io.rows(menu.page, menu.tab, in_game);
     if scroll.delta.y.abs() > 0.0 && rows.len() > MAX_VISIBLE {
         let d = if scroll.delta.y > 0.0 { -1 } else { 1 };
         menu.cursor = next_selectable(&rows, menu.cursor, d);
@@ -1457,21 +1606,27 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
     if page == MenuPage::Title && roots.is_empty() {
         menu.title_t = 0.0;
     }
-    let rows = io.rows(page, in_game);
-    // Scroll window.
+    let rows = io.rows(page, menu.tab, in_game);
+    // Scroll window (a settings tab strip stays pinned above it).
     let n = rows.len();
-    if menu.cursor < menu.scroll {
-        menu.scroll = menu.cursor.saturating_sub(1);
+    let pinned = rows.first() == Some(&Row::Tabs);
+    let lo = usize::from(pinned);
+    let vis = MAX_VISIBLE - lo;
+    let cur = menu.cursor.max(lo);
+    menu.scroll = menu.scroll.max(lo);
+    if cur < menu.scroll {
+        menu.scroll = cur.saturating_sub(1).max(lo);
     }
-    if menu.cursor >= menu.scroll + MAX_VISIBLE {
-        menu.scroll = menu.cursor + 1 - MAX_VISIBLE;
+    if cur >= menu.scroll + vis {
+        menu.scroll = cur + 1 - vis;
     }
-    menu.scroll = menu.scroll.min(n.saturating_sub(MAX_VISIBLE));
-    let (from, to) = (menu.scroll, (menu.scroll + MAX_VISIBLE).min(n));
+    menu.scroll = menu.scroll.min(n.saturating_sub(vis).max(lo));
+    let (from, to) = (menu.scroll, (menu.scroll + vis).min(n));
+    let tab = menu.tab;
     let corps = crate::console::corps_color(io.prefs.corps);
     let glow = corps;
 
-    let settings_like_bd = matches!(page, MenuPage::Settings | MenuPage::Rules | MenuPage::Keys | MenuPage::Customize | MenuPage::HostSetup | MenuPage::Join | MenuPage::Lobby | MenuPage::Costume);
+    let settings_like_bd = matches!(page, MenuPage::Settings | MenuPage::Rules | MenuPage::Customize | MenuPage::HostSetup | MenuPage::Join | MenuPage::Lobby | MenuPage::Costume);
     let backdrop = if settings_like_bd {
         BackgroundGradient::from(LinearGradient::new(
             LinearGradient::TO_RIGHT,
@@ -1497,7 +1652,7 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
             ],
         ))
     };
-    let settings_like = matches!(page, MenuPage::Settings | MenuPage::Rules | MenuPage::Keys | MenuPage::Costume | MenuPage::Customize | MenuPage::HostSetup | MenuPage::Join | MenuPage::Lobby);
+    let settings_like = matches!(page, MenuPage::Settings | MenuPage::Rules | MenuPage::Costume | MenuPage::Customize | MenuPage::HostSetup | MenuPage::Join | MenuPage::Lobby);
     let prefs_snapshot = io.prefs.clone();
     let net = io.net.as_deref();
     let ctx_voice = bd_voice::ENABLED;
@@ -1531,7 +1686,6 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                 MenuPage::Customize => ("CUSTOMIZE", None),
                 MenuPage::Costume => ("COSTUME", Some("type anything".into())),
                 MenuPage::Settings => ("SETTINGS", None),
-                MenuPage::Keys => ("KEY BINDINGS", Some("enter = rebind   backspace = clear".into())),
                 MenuPage::Pause => ("PAUSED", None),
             };
             if page == MenuPage::Title {
@@ -1555,10 +1709,35 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                 lobby_panel(root, net, glow);
             }
 
-            if from > 0 {
+            // Settings tab strip: pinned above the scrolling rows.
+            if pinned {
+                let on_strip = menu_ref.cursor == 0;
+                root.spawn((Node { flex_direction: FlexDirection::Row, column_gap: px(6), margin: UiRect { left: px(17), bottom: px(6), ..default() }, ..default() },)).with_children(|strip| {
+                    for t in SettingsTab::ALL {
+                        let active = t == tab;
+                        let fg = if active { Color::WHITE } else { Color::srgba(1.0, 1.0, 1.0, 0.4) };
+                        let bg = if active { glow.with_alpha(if on_strip { 0.35 } else { 0.18 }) } else { Color::NONE };
+                        strip
+                            .spawn((
+                                TabButton(t),
+                                Button,
+                                Node { padding: UiRect::axes(px(10), px(4)), border: UiRect::bottom(px(2)), ..default() },
+                                BorderColor::all(if active { glow } else { Color::NONE }),
+                                BackgroundColor(bg),
+                            ))
+                            .with_children(|b| {
+                                b.spawn((Text::new(t.label()), TextFont::from_font_size(16.0), TextColor(fg), Pickable::IGNORE));
+                            });
+                    }
+                });
+            }
+            if from > lo {
                 root.spawn((Text::new("^"), TextFont::from_font_size(12.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.35)), Node { margin: UiRect::left(px(20)), ..default() }));
             }
             for (i, row) in rows.iter().enumerate().take(to).skip(from) {
+                if *row == Row::Tabs {
+                    continue;
+                }
                 if let Row::Header(h) = row {
                     root.spawn((
                         Text::new(*h),
@@ -1584,10 +1763,18 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                         (l, Some(format!("{v}{caret}")))
                     }
                     Row::Key(a) => {
-                        let v = if menu_ref.capture == Some(a) { "PRESS A KEY".to_string() } else { io.binds.get(a).label() };
+                        let v = if menu_ref.capture == Some(a) {
+                            "PRESS A KEY".to_string()
+                        } else {
+                            match io.binds.alias(a) {
+                                Some(alias) if io.binds.get(a) != Bind::Unbound => format!("{} / {}", io.binds.get(a).label(), alias.label()),
+                                Some(alias) => alias.label(),
+                                None => io.binds.get(a).label(),
+                            }
+                        };
                         (a.label().to_string(), Some(v))
                     }
-                    Row::Header(_) => unreachable!(),
+                    Row::Header(_) | Row::Tabs => unreachable!(),
                 };
                 let wide = settings_like;
                 let text_row = matches!(row, Row::Text(_));
@@ -1630,8 +1817,9 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
             }
             // Footer hints (controls only — never mechanics).
             let hint = match page {
-                MenuPage::Settings | MenuPage::Rules | MenuPage::Costume | MenuPage::HostSetup => Some("left/right adjust   shift = fine   esc back"),
-                MenuPage::Keys => Some("mouse side buttons keep firing tethers while you type"),
+                MenuPage::Settings if tab == SettingsTab::Controls => Some("q/e tab   enter = rebind   backspace = clear   esc back"),
+                MenuPage::Settings => Some("q/e tab   left/right adjust   shift = fine   esc back"),
+                MenuPage::Rules | MenuPage::Costume | MenuPage::HostSetup => Some("left/right adjust   shift = fine   esc back"),
                 MenuPage::Customize => Some("quick cast: the phrase your ring builds on 1-4"),
                 _ => None,
             };
@@ -1760,3 +1948,79 @@ pub fn costume_page_open(menu: &MenuState, state: &AppState, pause: &InGameMenu)
     menu_open(state, pause) && matches!(menu.page, MenuPage::Costume | MenuPage::Customize)
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn settings_rows(tab: SettingsTab, voice: bool) -> Vec<Row> {
+        let mut s = Settings::default();
+        let mut p = UiPrefs::default();
+        let c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice, in_game: false };
+        page_rows(MenuPage::Settings, tab, &c)
+    }
+
+    #[test]
+    fn every_action_is_rebindable_exactly_once() {
+        let rows = settings_rows(SettingsTab::Controls, true);
+        for a in Action::ALL {
+            let n = rows.iter().filter(|r| **r == Row::Key(a)).count();
+            assert_eq!(n, 1, "{a:?}");
+        }
+        // Key rows only live on the Controls tab.
+        for t in SettingsTab::ALL.into_iter().filter(|t| *t != SettingsTab::Controls) {
+            assert!(!settings_rows(t, true).iter().any(|r| matches!(r, Row::Key(_))), "{t:?}");
+        }
+    }
+
+    #[test]
+    fn every_setting_lives_in_exactly_one_tab() {
+        let all: Vec<Row> = SettingsTab::ALL.into_iter().flat_map(|t| settings_rows(t, true)).collect();
+        let knobs = [
+            Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
+            Knob::AdsSpeed, Knob::ShowPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
+            Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
+            Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
+            Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,
+            Knob::Voice, Knob::Ono, Knob::OnoLang, Knob::Shout,
+        ];
+        for k in knobs {
+            assert_eq!(all.iter().filter(|r| **r == Row::Value(k)).count(), 1, "{k:?}");
+        }
+        // Every tab starts with the strip and ends with BACK.
+        for t in SettingsTab::ALL {
+            let r = settings_rows(t, false);
+            assert_eq!(r.first(), Some(&Row::Tabs));
+            assert_eq!(r.last(), Some(&Row::Button(Act::Back, "BACK")));
+        }
+    }
+
+    #[test]
+    fn settings_knobs_are_local_and_step_both_ways() {
+        let mut s = Settings::default();
+        let mut p = UiPrefs::default();
+        let game = p.game.clone();
+        for t in SettingsTab::ALL {
+            for row in settings_rows(t, true) {
+                if let Row::Value(k) = row {
+                    let mut c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice: true, in_game: false };
+                    assert!(!step_knob(k, &mut c, 1, false), "{k:?} touched the lobby rules");
+                    step_knob(k, &mut c, -1, false);
+                }
+            }
+        }
+        assert_eq!(p.game, game);
+        // Settings still persist through the file format.
+        let text = ron::ser::to_string_pretty(&s, Default::default()).unwrap();
+        assert_eq!(ron::from_str::<Settings>(&text).unwrap(), s);
+    }
+
+    #[test]
+    fn tab_ids() {
+        for t in SettingsTab::ALL {
+            assert_eq!(SettingsTab::from_id(&t.label().to_lowercase()), Some(t));
+        }
+        assert_eq!(SettingsTab::from_id("keys"), Some(SettingsTab::Controls));
+        assert_eq!(SettingsTab::Hud.step(1), SettingsTab::Gameplay);
+    }
+}

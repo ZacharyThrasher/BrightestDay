@@ -76,6 +76,43 @@ impl Aim {
     }
 }
 
+/// Host rule `allow_third_person` off: the most a client-supplied aim may differ from the caster's
+/// replicated look (rad, ≈ 20°). First-person clients aim along their look; the slack absorbs
+/// sub-tick mouse motion and the input jitter buffer (commands apply on arrival, inputs a few ticks
+/// later). Clamped, never refused.
+pub const FIRST_PERSON_AIM_SLACK: f32 = 0.35;
+
+/// `dir` rotated toward `axis` until it is within `max` rad of it (both unit vectors).
+pub fn clamp_to_cone(dir: Vec3, axis: Vec3, max: f32) -> Vec3 {
+    let c = dir.dot(axis).clamp(-1.0, 1.0);
+    if c >= max.cos() {
+        return dir;
+    }
+    let perp = (dir - axis * c).normalize_or(axis.any_orthonormal_vector());
+    (axis * max.cos() + perp * max.sin()).normalize_or(axis)
+}
+
+impl World {
+    /// Host truth for a client-supplied aim of player index `i`: `(origin, dir)`. The origin must be
+    /// near the caster's eye (else the eye). CAMERA: when the host rule `allow_third_person` is off,
+    /// nothing camera-derived is honoured — the origin is the eye and the direction is clamped to
+    /// [`FIRST_PERSON_AIM_SLACK`] of the replicated look, so a client can't cast / power-move along
+    /// a converged over-the-shoulder ray the rule forbids. (Vision itself is the client's; the host
+    /// enforces what reaches the sim. Rule on: unchanged.)
+    pub fn resolve_aim(&self, i: usize, aim: &Aim) -> (Vec3, Vec3) {
+        let p = &self.players[i];
+        let eye = p.eye(&self.cfg.move_params);
+        let look = p.look();
+        let dir = if aim.dir.is_finite() && aim.dir.length_squared() > 1e-6 { aim.dir.normalize() } else { look };
+        if self.cfg.rules.allow_third_person {
+            let origin = if aim.origin.is_finite() && (aim.origin - eye).length() < 4.0 { aim.origin } else { eye };
+            (origin, dir)
+        } else {
+            (eye, clamp_to_cone(dir, look, FIRST_PERSON_AIM_SLACK))
+        }
+    }
+}
+
 impl World {
     // ---------------------------------------------------------------------------- ring (inputs)
 
@@ -86,8 +123,9 @@ impl World {
             if p.busy() || p.seat.is_some() || self.match_state.phase == crate::rules::MatchPhase::Ended {
                 continue;
             }
-            // A held construct (or one forming) owns the mouse buttons.
-            if self.constructs.held_by(p.id).is_some() {
+            // A held construct (or one forming) owns the mouse buttons — not one lying where it
+            // was thrown (`held::LINGER_SECS`: the hands are empty until it's picked up).
+            if self.constructs.held_by(p.id).is_some_and(|c| !(c.held.thrown && c.held.landed)) {
                 continue;
             }
             let id = p.id;
@@ -238,10 +276,7 @@ impl World {
         if p.status.stunned() || p.charge.active || p.seat.is_some_and(|s| !s.suit) {
             return Err(CastError::Busy);
         }
-        let base = self.cfg.move_params.clone();
-        let eye = p.eye(&base);
-        let origin = if aim.origin.is_finite() && (aim.origin - eye).length() < 4.0 { aim.origin } else { eye };
-        let dir = if aim.dir.is_finite() && aim.dir.length_squared() > 1e-6 { aim.dir.normalize() } else { p.look() };
+        let (origin, dir) = self.resolve_aim(i, &aim); // CAMERA: host-side aim validation
         let recipe = validate_recipe(recipe, &self.cfg.rules);
         // TUNING HOOK: autonomy pricing is decided on the recipe as typed, before power / party
         // grafts (standing grafts never raise a cast's price).

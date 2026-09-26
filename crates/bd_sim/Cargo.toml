@@ -22,7 +22,13 @@ bincode.workspace = true
 default = ["backrooms"]
 # BACKROOMS map (bd_voxel feature; the route example needs it).
 backrooms = ["bd_voxel/backrooms"]
+# TURTLE LAIR map (bd_voxel feature; the route example needs it).
+lair = ["bd_voxel/lair"]
 
 [[example]]
 name = "backrooms_routes"
 required-features = ["backrooms"]
+
+[[example]]
+name = "lair_routes"
+required-features = ["lair"]

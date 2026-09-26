@@ -60,6 +60,33 @@ pub struct ArenaInfo {
     /// `bd_sim::movement::surf_line`, the client draws them). Not voxels: a 0.5 m voxel staircase is
     /// walkable steps, not a surfable slope — and hard light can't be carved away.
     pub surf_lines: Vec<SurfLine>,
+    /// Flat water surfaces that are not voxels (Valley of the End's river and upper pool): the client
+    /// draws them and splashes; what's under them is the voxel bed. Empty on every other map (their
+    /// water is a KO plane or solid voxels).
+    pub water_sheets: Vec<WaterSheet>,
+    /// WATER-WALK (chakra walking): the tops of `water_sheets` are ground for players — run, hop,
+    /// slide on the river (`bd_sim::movement::push_water_colliders`, host and prediction alike).
+    /// Constructs, projectiles and hooks ignore it. `false` everywhere but the Valley.
+    pub water_walk: bool,
+}
+
+/// A flat water surface: a rectangle at height `center.y` spanning `half` metres along its local
+/// x / z axes, turned `yaw` radians about +Y (glam `Quat::from_rotation_y`), over `depth` metres of
+/// water down to the voxel bed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WaterSheet {
+    pub center: Vec3,
+    pub half: Vec2,
+    pub yaw: f32,
+    pub depth: f32,
+}
+
+impl WaterSheet {
+    /// Is the horizontal position of `p` over this sheet (within `margin` metres of its edges)?
+    pub fn covers(&self, p: Vec3, margin: f32) -> bool {
+        let q = glam::Quat::from_rotation_y(-self.yaw) * Vec3::new(p.x - self.center.x, 0.0, p.z - self.center.z);
+        q.x.abs() <= self.half.x + margin && q.z.abs() <= self.half.y + margin
+    }
 }
 
 /// A CS-style surf line: a triangular prism of hard light whose ridge runs from `a` to `b`
@@ -962,6 +989,8 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
         ambient: 0.38,
         gravity: None,
         surf_lines,
+        water_sheets: Vec::new(),
+        water_walk: false,
     };
     (w, info)
 }
@@ -1042,6 +1071,8 @@ pub fn generate_flat_test(size_m: f32) -> (VoxelWorld, ArenaInfo) {
         ambient: 0.38,
         gravity: None,
         surf_lines: Vec::new(),
+        water_sheets: Vec::new(),
+        water_walk: false,
     };
     (w, info)
 }

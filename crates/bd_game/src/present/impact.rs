@@ -119,6 +119,7 @@ fn present_hits(
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     arena: Option<Res<crate::arena::ArenaWorld>>,
+    ads: Option<Res<super::ads::AdsState>>,
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
     // Orbit presents top / bottom KOs itself (`present::space`: drift into the stars, re-entry).
@@ -131,6 +132,9 @@ fn present_hits(
     };
     let local = active.local;
     let eye = cam.single().map(|t| t.translation()).unwrap_or(Vec3::ZERO);
+    // ADS: hit words slide off the sight line (`ads::off_sight_line`).
+    let ads_blend = ads.map_or(0.0, |a| a.blend.clamp(0.0, 1.0));
+    let fwd = cam.single().map(|t| t.forward().as_vec3()).unwrap_or(Vec3::NEG_Z);
     let corps_of = |id: Option<PlayerId>| id.map_or(Corps::Life, |i| active.corps_of(i));
     let mut hit_sounds = 0;
     for ev in events.read() {
@@ -180,13 +184,15 @@ fn present_hits(
                 burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir, scale: 0.4 + strength * 0.8, color: Some(col) });
                 if let Some(w) = element_word(*element) {
                     burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir, scale: 0.5 + strength * 0.5, color: None });
-                    let mut o = SpawnOnomatopoeia::key(w, p, strength, col);
+                    let (wp, ws) = super::ads::off_sight_line(p, strength, eye, fwd, ads_blend);
+                    let mut o = SpawnOnomatopoeia::key(w, wp, ws, col);
                     o.dir = dir;
                     o.event_id = event_hash(ev.tick, target.0 as u64);
                     o.local_player = local_victim || local_attacker;
                     ono.write(o);
                 } else if fx.heavy || strength > 0.6 || *damage > 18.0 {
-                    let mut o = SpawnOnomatopoeia::key(if strength > 0.9 { "hit_heavy" } else { "hit_light" }, p, strength, col);
+                    let (wp, ws) = super::ads::off_sight_line(p, strength, eye, fwd, ads_blend);
+                    let mut o = SpawnOnomatopoeia::key(if strength > 0.9 { "hit_heavy" } else { "hit_light" }, wp, ws, col);
                     o.dir = dir;
                     o.event_id = event_hash(ev.tick, target.0 as u64);
                     o.local_player = local_victim || local_attacker;

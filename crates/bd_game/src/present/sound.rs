@@ -11,6 +11,10 @@
 //!   it abruptly (construct loops cut off on a KO).
 //! * [`MixDuck`]: `duck(secs)` requests the KO "negative space" duck (`ko_confirm` in
 //!   `assets/audio/mix.ron`, held for `secs`).
+//!
+//! Also here: the `view_toggle` UI cue whenever the first / third person view flips in play (the
+//! camera rig writes `CameraPrefs::third` on the toggle key; settings changes while paused are
+//! silent).
 
 use bevy::prelude::*;
 use std::borrow::Cow;
@@ -85,6 +89,25 @@ pub struct SoundPlugin;
 
 impl Plugin for SoundPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MixDuck>().add_message::<Sfx3d>();
+        app.init_resource::<MixDuck>().add_message::<Sfx3d>().add_systems(Update, view_toggle_cue);
+    }
+}
+
+/// `view_toggle` when the first / third person view flips during play.
+fn view_toggle_cue(
+    prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
+    state: Res<State<crate::state::AppState>>,
+    menu: Res<crate::state::InGameMenu>,
+    mut last: Local<Option<bool>>,
+    mut sfx: MessageWriter<Sfx3d>,
+) {
+    let Some(p) = prefs else { return };
+    if !p.is_changed() && last.is_some() {
+        return;
+    }
+    let third = p.camera.third.unwrap_or(p.third_person);
+    let playing = *state.get() == crate::state::AppState::InGame && !menu.0;
+    if last.replace(third).is_some_and(|was| was != third) && playing {
+        sfx.write(Sfx3d::ui("view_toggle").gain(0.8).pitch(if third { 0.94 } else { 1.06 }));
     }
 }

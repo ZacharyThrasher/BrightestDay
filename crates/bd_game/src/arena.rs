@@ -423,17 +423,25 @@ fn remesh_dirty_chunks(
     }
 }
 
+/// `BD_DEBUG_KEYS=1`: developer hotkeys that would otherwise collide with gameplay binds.
+fn debug_keys() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("BD_DEBUG_KEYS").is_ok_and(|v| v != "0"))
+}
+
 fn explode_at_crosshair(
     keys: Res<ButtonInput<KeyCode>>,
+    focus: Res<crate::input::UiFocus>,
     arena: Option<Res<ArenaWorld>>,
     look: Res<LookAngles>,
     cam: Query<&Transform, With<PlayerCamera>>,
     mut out: MessageWriter<Explode>,
     active: Option<Res<crate::sim_bridge::ActiveWorld>>,
 ) {
-    // G is the power key while a sim world runs; the debug explosion stays on Shift+G there.
+    // G is the power key (and Shift the boost) while a sim world runs: the debug explosion is
+    // Shift+G there only with `BD_DEBUG_KEYS=1`, and never while typing (a capital G is text).
     let shift = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
-    if !keys.just_pressed(KeyCode::KeyG) || (active.is_some() && !shift) {
+    if !keys.just_pressed(KeyCode::KeyG) || focus.typing || (active.is_some() && (!shift || !debug_keys())) {
         return;
     }
     let (Some(arena), Ok(cam)) = (arena, cam.single()) else { return };

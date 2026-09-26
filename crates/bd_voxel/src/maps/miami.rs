@@ -633,6 +633,8 @@ pub fn generate_miami(seed: u64) -> (VoxelWorld, MapInfo) {
             face_deg: 60.0,
             width: 8.0,
         }],
+        water_sheets: Vec::new(),
+        water_walk: false,
     };
     let districts = vec![
         District { name: "brickell", center: Vec3::new(-66.0, ROAD_Y, 20.0), area: [-96.0, -67.0, -36.0, 96.0] },

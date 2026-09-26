@@ -290,6 +290,15 @@ fn vertex(v: Vertex) -> VOut {
         }
     }
 
+    // Readability: chunky shatter cubes shrink away within ~1.5 m of the camera and big clustered
+    // ones are capped close to it (a 1 m cube in your face hides the fight). Not streaks, casings,
+    // flashes, beams or streams (those live next to your own hand in first person).
+    if kind == K_BALLISTIC && (flags & F_STRETCH) == 0u && size0 >= 0.1 {
+        let cd = distance(pos, view.world_position.xyz);
+        if cd < 3.0 {
+            size = min(size, 0.3 + 0.25 * cd + max(cd - 2.0, 0.0) * max(cd - 2.0, 0.0)) * smoothstep(0.35, 1.5, cd);
+        }
+    }
     if size <= 1e-4 {
         return dead();
     }

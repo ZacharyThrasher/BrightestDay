@@ -117,7 +117,28 @@ impl Bind {
             _ => None,
         }
     }
+
+    /// Inputs the game hard-wires, which no action may take: Esc (menu), F3 (perf), F4 (render),
+    /// F11 (fullscreen), LMB (primary). RMB is the hard-wired secondary, so only AIM (which RMB does
+    /// with a gun in hand) may hold it.
+    pub fn reserved_for(self, a: Action) -> bool {
+        match self {
+            Bind::Key(k) => matches!(k, KeyCode::Escape | KeyCode::F3 | KeyCode::F4 | KeyCode::F11),
+            Bind::Mouse(MouseButton::Left) => true,
+            Bind::Mouse(MouseButton::Right) => a != Action::Aim,
+            _ => false,
+        }
+    }
 }
+
+/// Hard-wired extra inputs (not listed as binds): C also crouches, the mouse side buttons also fire
+/// the tethers. Each is live only while no action is bound to that input (binding C to something
+/// else turns the C crouch off).
+pub const ALIASES: [(Action, Bind); 3] = [
+    (Action::Crouch, Bind::Key(KeyCode::KeyC)),
+    (Action::TetherL, Bind::Mouse(MouseButton::Back)),
+    (Action::TetherR, Bind::Mouse(MouseButton::Forward)),
+];
 
 /// Every rebindable action. Movement actions accept keys only (the shell samples them as keys).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -267,6 +288,15 @@ impl Action {
         )
     }
 
+    /// Can this action hold `b`? (Keys-only actions refuse mouse buttons; reserved inputs never.)
+    pub fn accepts(self, b: Bind) -> bool {
+        match b {
+            Bind::Unbound => true,
+            Bind::Mouse(_) if self.keys_only() => false,
+            _ => !b.reserved_for(self),
+        }
+    }
+
     pub fn default_bind(self) -> Bind {
         use KeyCode as K;
         Bind::Key(match self {
@@ -320,16 +350,66 @@ impl KeyBinds {
     pub fn get(&self, a: Action) -> Bind {
         self.0[a.index()]
     }
-    pub fn set(&mut self, a: Action, b: Bind) {
-        // One input, one action: steal it from whoever had it.
-        if b != Bind::Unbound {
-            for x in self.0.iter_mut() {
-                if *x == b {
-                    *x = Bind::Unbound;
+    /// One input, one action. Binding an input another action holds **swaps**: that action takes
+    /// `a`'s previous input (or none, when it can't take it). Returns the displaced action. Callers
+    /// refuse [`Bind::reserved_for`] inputs first ([`Self::try_set`]).
+    pub fn set(&mut self, a: Action, b: Bind) -> Option<Action> {
+        let old = self.get(a);
+        let mut displaced = None;
+        if b != Bind::Unbound && b != old {
+            for other in Action::ALL {
+                if other != a && self.get(other) == b {
+                    self.0[other.index()] = if other.accepts(old) { old } else { Bind::Unbound };
+                    displaced = Some(other);
                 }
             }
         }
         self.0[a.index()] = b;
+        displaced
+    }
+
+    /// Rebinding from the settings UI: refuses reserved / wrong-kind inputs.
+    pub fn try_set(&mut self, a: Action, b: Bind) -> Result<Option<Action>, ()> {
+        if !a.accepts(b) {
+            return Err(());
+        }
+        Ok(self.set(a, b))
+    }
+
+    /// The hard-wired alias of `a` ([`ALIASES`]) while it is live (no action holds that input).
+    pub fn alias(&self, a: Action) -> Option<Bind> {
+        ALIASES.iter().find(|(x, _)| *x == a).map(|(_, b)| *b).filter(|b| !self.0.contains(b))
+    }
+
+    /// Pairs of actions sharing an input (always empty for a table built through [`Self::set`]).
+    pub fn conflicts(&self) -> Vec<(Action, Action)> {
+        let mut out = Vec::new();
+        for (i, a) in Action::ALL.iter().enumerate() {
+            for b in &Action::ALL[i + 1..] {
+                if self.get(*a) != Bind::Unbound && self.get(*a) == self.get(*b) {
+                    out.push((*a, *b));
+                }
+            }
+        }
+        out
+    }
+
+    /// Hand-edited / old prefs files: reserved or wrong-kind inputs fall back to the default, and
+    /// an input held twice stays with the action whose default it is (the other gets its own
+    /// default when free, else nothing).
+    fn sanitized(mut self) -> Self {
+        for a in Action::ALL {
+            if !a.accepts(self.get(a)) {
+                self.0[a.index()] = a.default_bind();
+            }
+        }
+        while let Some(&(a, b)) = self.conflicts().first() {
+            let bind = self.get(a);
+            let loser = if b.default_bind() == bind && a.default_bind() != bind { a } else { b };
+            let d = loser.default_bind();
+            self.0[loser.index()] = if d != bind && !self.0.contains(&d) { d } else { Bind::Unbound };
+        }
+        self
     }
     pub fn pressed(&self, a: Action, k: &ButtonInput<KeyCode>, m: &ButtonInput<MouseButton>) -> bool {
         self.get(a).pressed(k, m)
@@ -353,7 +433,7 @@ impl KeyBinds {
                 out.0[a.index()] = b;
             }
         }
-        out
+        out.sanitized()
     }
 }
 
@@ -519,14 +599,14 @@ impl Plugin for PrefsPlugin {
     fn build(&self, app: &mut App) {
         let prefs = UiPrefs::load();
         let binds = KeyBinds::from_map(&prefs.binds);
-        app.insert_resource(prefs).insert_resource(binds).add_systems(PreUpdate, (autosave, mirror_ono))
+        app.insert_resource(prefs).insert_resource(binds).add_systems(PreUpdate, mirror_ono)
+            // `Last`: sees this frame's changes and an `AppExit` written this frame.
+            .add_systems(Last, autosave)
             .add_systems(Update, sync_binds.after(super::UiSet::Input).before(crate::tick::FrameSet::Input));
     }
 }
 
-/// KeyBinds → prefs map + shell `Bindings` (movement keys). While typing (console / oath) the
-/// keyboard tether + reel keys are parked on an unreachable key so letters never fire tethers; the
-/// mouse side buttons and the wheel keep working.
+/// KeyBinds → prefs map + shell `Bindings` (movement keys).
 fn sync_binds(kb: Res<KeyBinds>, focus: Res<crate::input::UiFocus>, mut prefs: ResMut<UiPrefs>, mut shell: ResMut<Bindings>) {
     if kb.is_changed() {
         let map = kb.to_map();
@@ -534,39 +614,41 @@ fn sync_binds(kb: Res<KeyBinds>, focus: Res<crate::input::UiFocus>, mut prefs: R
             prefs.binds = map;
         }
     }
+    let want = shell_bindings(&kb, focus.typing);
+    if *shell != want {
+        *shell = want;
+    }
+}
+
+/// The shell's device table for `kb`. While typing (console / oath) every keyboard key the shell
+/// reads except movement (masked per tick by `LocalInputState::next_tick`) is parked on an
+/// unreachable key so letters never fire tethers / reel / charge / dodge / the C crouch; the mouse
+/// side buttons and the wheel keep working.
+pub fn shell_bindings(kb: &KeyBinds, typing: bool) -> Bindings {
     // Unbound keys map to an unreachable key so nothing fires.
     let none = KeyCode::F24;
     let k = |a: Action| kb.get(a).key().unwrap_or(none);
-    let typing = focus.typing;
-    let want = Bindings {
+    let live = |a: Action| if typing { none } else { k(a) };
+    let mouse = |a: Action| match kb.alias(a) {
+        Some(Bind::Mouse(m)) => Some(m),
+        _ => None,
+    };
+    Bindings {
         forward: k(Action::Forward),
         back: k(Action::Back),
         left: k(Action::Left),
         right: k(Action::Right),
         jump: k(Action::Jump),
         crouch: k(Action::Crouch),
+        crouch_alt: if typing { none } else { kb.alias(Action::Crouch).and_then(Bind::key).unwrap_or(none) },
         boost: k(Action::Boost),
-        tether_l: if typing { none } else { k(Action::TetherL) },
-        tether_r: if typing { none } else { k(Action::TetherR) },
-        reel: if typing { none } else { k(Action::Reel) },
-        charge: if typing { none } else { k(Action::Charge) },
-        dodge: if typing { none } else { k(Action::Dodge) },
-    };
-    let s = &*shell;
-    let same = s.forward == want.forward
-        && s.back == want.back
-        && s.left == want.left
-        && s.right == want.right
-        && s.jump == want.jump
-        && s.crouch == want.crouch
-        && s.boost == want.boost
-        && s.tether_l == want.tether_l
-        && s.tether_r == want.tether_r
-        && s.reel == want.reel
-        && s.charge == want.charge
-        && s.dodge == want.dodge;
-    if !same {
-        *shell = want;
+        tether_l: live(Action::TetherL),
+        tether_r: live(Action::TetherR),
+        tether_l_mouse: mouse(Action::TetherL),
+        tether_r_mouse: mouse(Action::TetherR),
+        reel: live(Action::Reel),
+        charge: live(Action::Charge),
+        dodge: live(Action::Dodge),
     }
 }
 
@@ -585,13 +667,15 @@ fn mirror_ono(prefs: Res<UiPrefs>, ono: Option<ResMut<bd_fx::OnomatopoeiaSetting
     }
 }
 
-fn autosave(prefs: Res<UiPrefs>, time: Res<Time<Real>>, mut dirty: Local<Option<f32>>) {
+/// Debounced save 0.6 s after the last change, or right away when the app is quitting.
+fn autosave(prefs: Res<UiPrefs>, time: Res<Time<Real>>, mut exit: MessageReader<AppExit>, mut dirty: Local<Option<f32>>) {
     let now = time.elapsed_secs();
     if prefs.is_changed() && !prefs.is_added() {
         *dirty = Some(now);
     }
+    let quitting = exit.read().count() > 0;
     if let Some(t) = *dirty
-        && now - t > 0.6
+        && (now - t > 0.6 || quitting)
     {
         *dirty = None;
         if let Err(e) = prefs.save() {
@@ -611,9 +695,164 @@ mod tests {
             assert_eq!(Bind::from_id(&b.to_id()), Some(b), "{a:?}");
         }
         let mut kb = KeyBinds::default();
-        kb.set(Action::Oath, Bind::Key(KeyCode::KeyW));
-        assert_eq!(kb.get(Action::Forward), Bind::Unbound);
+        // Taking W swaps: FORWARD gets the oath's F.
+        assert_eq!(kb.set(Action::Oath, Bind::Key(KeyCode::KeyW)), Some(Action::Forward));
+        assert_eq!(kb.get(Action::Forward), Bind::Key(KeyCode::KeyF));
         assert_eq!(KeyBinds::from_map(&kb.to_map()), kb);
+        // A keys-only action can't take the displaced mouse button: it ends up unbound.
+        let mut kb = KeyBinds::default();
+        assert_eq!(kb.set(Action::Transform, Bind::Key(KeyCode::KeyQ)), Some(Action::TetherL));
+        assert_eq!(kb.get(Action::TetherL), Bind::Unbound);
+        assert!(kb.conflicts().is_empty());
+    }
+
+    #[test]
+    fn defaults_have_no_conflicts_and_no_caps_lock() {
+        let kb = KeyBinds::default();
+        assert!(kb.conflicts().is_empty(), "{:?}", kb.conflicts());
+        for a in Action::ALL {
+            let b = a.default_bind();
+            assert_ne!(b, Bind::Key(KeyCode::CapsLock), "{a:?}: caps lock is yelling, never a default");
+            assert!(a.accepts(b), "{a:?} default {b:?} is reserved / wrong kind");
+            // Hard-wired aliases stay live with the defaults.
+            assert!(!ALIASES.iter().any(|(_, x)| *x == b), "{a:?} default takes an alias");
+        }
+        for (a, b) in ALIASES {
+            assert_eq!(kb.alias(a), Some(b));
+        }
+    }
+
+    #[test]
+    fn intended_defaults() {
+        use KeyCode as K;
+        let k = |a: Action| KeyBinds::default().get(a);
+        let want = [
+            (Action::Forward, Bind::Key(K::KeyW)),
+            (Action::Jump, Bind::Key(K::Space)),
+            (Action::Crouch, Bind::Key(K::ControlLeft)),
+            (Action::Boost, Bind::Key(K::ShiftLeft)),
+            (Action::TetherL, Bind::Key(K::KeyQ)),
+            (Action::TetherR, Bind::Key(K::KeyE)),
+            (Action::Reel, Bind::Key(K::KeyR)),
+            (Action::Console, Bind::Key(K::Enter)),
+            (Action::ConsoleAlt, Bind::Key(K::KeyT)),
+            (Action::Voice, Bind::Key(K::KeyV)),
+            (Action::Oath, Bind::Key(K::KeyF)),
+            (Action::Charge, Bind::Key(K::KeyZ)),
+            (Action::Dodge, Bind::Key(K::AltLeft)),
+            (Action::Dismiss, Bind::Key(K::KeyX)),
+            (Action::Power, Bind::Key(K::KeyG)),
+            (Action::Transform, Bind::Mouse(MouseButton::Middle)),
+            (Action::Scoreboard, Bind::Key(K::Tab)),
+            (Action::Slot1, Bind::Key(K::Digit1)),
+            (Action::Slot4, Bind::Key(K::Digit4)),
+            (Action::ToggleView, Bind::Key(K::F5)),
+            (Action::Shoulder, Bind::Key(K::KeyB)),
+            (Action::Aim, Bind::Mouse(MouseButton::Right)),
+            (Action::AltFire, Bind::Key(K::KeyH)),
+        ];
+        for (a, b) in want {
+            assert_eq!(k(a), b, "{a:?}");
+        }
+    }
+
+    #[test]
+    fn reserved_inputs_refused() {
+        let mut kb = KeyBinds::default();
+        for b in [Bind::Key(KeyCode::F3), Bind::Key(KeyCode::F4), Bind::Key(KeyCode::F11), Bind::Key(KeyCode::Escape), Bind::Mouse(MouseButton::Left), Bind::Mouse(MouseButton::Right)] {
+            assert!(kb.try_set(Action::Power, b).is_err(), "{b:?}");
+        }
+        assert!(kb.try_set(Action::Jump, Bind::Mouse(MouseButton::Middle)).is_err());
+        assert_eq!(kb, KeyBinds::default());
+        assert!(kb.try_set(Action::Aim, Bind::Mouse(MouseButton::Right)).is_ok());
+    }
+
+    #[test]
+    fn binding_an_alias_input_turns_the_alias_off() {
+        let mut kb = KeyBinds::default();
+        kb.set(Action::AltFire, Bind::Key(KeyCode::KeyC));
+        assert_eq!(kb.alias(Action::Crouch), None);
+        let sh = shell_bindings(&kb, false);
+        assert_eq!(sh.crouch_alt, KeyCode::F24);
+        kb.set(Action::Transform, Bind::Mouse(MouseButton::Back));
+        assert_eq!(shell_bindings(&kb, false).tether_l_mouse, None);
+        assert_eq!(shell_bindings(&kb, false).tether_r_mouse, Some(MouseButton::Forward));
+    }
+
+    #[test]
+    fn old_or_hand_edited_binds_are_sanitized() {
+        // Old files: alt-fire on Alt (before dodge took it); a duplicate; a reserved key.
+        let mut m = KeyBinds::default().to_map();
+        m.insert("alt_fire".into(), "AltLeft".into());
+        m.insert("power".into(), "F4".into());
+        m.insert("dismiss".into(), "KeyW".into());
+        m.insert("oath".into(), "CapsLock".into());
+        m.remove("toggle_view");
+        let kb = KeyBinds::from_map(&m);
+        assert!(kb.conflicts().is_empty(), "{:?}", kb.conflicts());
+        assert_eq!(kb.get(Action::Dodge), Bind::Key(KeyCode::AltLeft));
+        assert_eq!(kb.get(Action::AltFire), Bind::Key(KeyCode::KeyH));
+        assert_eq!(kb.get(Action::Forward), Bind::Key(KeyCode::KeyW));
+        assert_eq!(kb.get(Action::Dismiss), Bind::Key(KeyCode::KeyX));
+        assert_eq!(kb.get(Action::Power), Bind::Key(KeyCode::KeyG));
+        assert_eq!(kb.get(Action::ToggleView), Bind::Key(KeyCode::F5));
+        // The player's own choice survives (caps lock is allowed when they pick it).
+        assert_eq!(kb.get(Action::Oath), Bind::Key(KeyCode::CapsLock));
+    }
+
+    #[test]
+    fn typing_parks_every_letter_the_shell_reads() {
+        let kb = KeyBinds::default();
+        let t = shell_bindings(&kb, true);
+        let f24 = KeyCode::F24;
+        for k in [t.tether_l, t.tether_r, t.reel, t.charge, t.dodge, t.crouch_alt] {
+            assert_eq!(k, f24);
+        }
+        // Mouse side buttons stay live while typing.
+        assert_eq!(t.tether_l_mouse, Some(MouseButton::Back));
+        assert_eq!(shell_bindings(&kb, false), crate::input::Bindings::default());
+    }
+
+    #[test]
+    fn old_prefs_file_loads() {
+        // A file from before the camera / outline / shout / compass settings existed.
+        let old = r#"(name: "Old", corps: Rage, voice: false, third_person: true, ono: Full, binds: {"jump": "Space", "alt_fire": "KeyC"})"#;
+        let p: UiPrefs = ron::from_str(old).unwrap();
+        assert_eq!(p.name, "Old");
+        assert!(p.third_person && !p.voice);
+        assert_eq!(p.shout, ShoutPref::On);
+        assert!(p.outlines && p.summon_preview && p.enemy_compass);
+        assert_eq!(p.camera, crate::present::camera3p::CameraPrefs::default());
+        let kb = KeyBinds::from_map(&p.binds);
+        assert_eq!(kb.get(Action::AltFire), Bind::Key(KeyCode::KeyC));
+        assert_eq!(kb.alias(Action::Crouch), None);
+    }
+
+    #[test]
+    fn every_pref_roundtrips() {
+        let mut p = UiPrefs::default();
+        p.shout = ShoutPref::Mine;
+        p.show_percent = true;
+        p.summon_preview = false;
+        p.enemy_compass = false;
+        p.outlines = false;
+        p.outline_width = 1.75;
+        p.outline_patterns = true;
+        p.ono = OnoPref::Full;
+        p.ono_manga = true;
+        p.voice = false;
+        p.camera.third = Some(true);
+        p.camera.shoulder_left = true;
+        p.camera.ads_toggle = true;
+        p.camera.ads_sens = 0.8;
+        p.camera.ads_speed = 2.0;
+        let mut kb = KeyBinds::default();
+        kb.set(Action::Dodge, Bind::Key(KeyCode::KeyC));
+        p.binds = kb.to_map();
+        let t = ron::ser::to_string_pretty(&p, Default::default()).unwrap();
+        let back: UiPrefs = ron::from_str(&t).unwrap();
+        assert_eq!(p, back);
+        assert_eq!(KeyBinds::from_map(&back.binds), kb);
     }
 
     #[test]

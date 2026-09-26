@@ -23,6 +23,30 @@ use bd_core::mechanics::FormCategory;
 use bd_sim::weapons::{GunArchetype, archetype_for};
 use bevy::prelude::*;
 
+/// ADS readability: a world word (shot / hit onomatopoeia) that would land on the sight line
+/// (within ~5° of the crosshair, plus its own half size) slides off it and shrinks, so aiming stays
+/// clear. `cam` = camera position + forward; `blend` = [`AdsState::blend`]. Returns (pos, size).
+pub fn off_sight_line(at: Vec3, size: f32, cam: Vec3, fwd: Vec3, blend: f32) -> (Vec3, f32) {
+    if blend <= 0.0 || !at.is_finite() {
+        return (at, size);
+    }
+    let to = at - cam;
+    let d = to.dot(fwd);
+    if d <= 0.3 {
+        return (at, size);
+    }
+    let perp = to - fwd * d;
+    let r = perp.length();
+    let lim = d * 0.09 + size * 0.6;
+    if r >= lim {
+        return (at, size);
+    }
+    // Away from the line (straight on it: to the lower right, where the own-shot words go).
+    let right = fwd.cross(Vec3::Y).normalize_or(Vec3::X);
+    let dir = if r > 1e-3 { perp / r } else { (right - Vec3::Y * 0.3).normalize() };
+    (at + dir * (lim - r) * blend, size * (1.0 - 0.3 * blend))
+}
+
 /// Default time to full zoom (s), divided by `CameraPrefs::ads_speed`.
 pub const ADS_SECS: f32 = 0.13;
 /// Over the shoulder, ADS zooms this much less (fraction of the extra zoom).
@@ -197,6 +221,26 @@ fn ads_blend(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Another player's shot / hit word right on the crosshair slides off the sight line while
+    /// aiming (and not at hip fire); words already off to the side stay put.
+    #[test]
+    fn words_slide_off_the_sight_line_while_aiming() {
+        let (cam, fwd) = (Vec3::new(0.0, 1.6, 0.0), Vec3::NEG_Z);
+        let on = Vec3::new(0.05, 1.6, -10.0);
+        let (p, s) = off_sight_line(on, 1.0, cam, fwd, 1.0);
+        let r = (p - cam - fwd * (p - cam).dot(fwd)).length();
+        assert!(r >= 10.0 * 0.09 + 0.6 - 1e-3, "pushed off the line: {r}");
+        assert!(s < 1.0);
+        assert_eq!(off_sight_line(on, 1.0, cam, fwd, 0.0), (on, 1.0), "hip fire: untouched");
+        let side = Vec3::new(4.0, 1.6, -10.0);
+        assert_eq!(off_sight_line(side, 1.0, cam, fwd, 1.0), (side, 1.0), "already clear");
+        let behind = Vec3::new(0.0, 1.6, 5.0);
+        assert_eq!(off_sight_line(behind, 1.0, cam, fwd, 1.0), (behind, 1.0));
+        // Dead on the line: lower right.
+        let (p, _) = off_sight_line(Vec3::new(0.0, 1.6, -10.0), 1.0, cam, fwd, 1.0);
+        assert!(p.x > 0.3 && p.y < 1.6);
+    }
 
     #[test]
     fn zoom_matched_sensitivity() {

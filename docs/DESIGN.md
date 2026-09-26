@@ -160,34 +160,52 @@ flares brighter per step + one corps-emblem pulse near the crosshair; no banner 
 - **Always-available ring blast** (LMB with no construct held): quick light bolt, low damage, some
   knockback — so nobody is ever helpless.
 
-## Controls (defaults, rebindable later)
+## Controls (defaults; every action rebindable in Settings → Controls)
 | input | action |
 |---|---|
 | mouse | look (raw, per-frame) |
 | WASD | move (Quake/Source accel; air-strafe gains speed) |
-| Space | jump (hold = auto-hop within buffer window) |
-| Ctrl | crouch / slide at speed |
+| Space | jump (hold = auto-hop within buffer window; one air jump) |
+| Ctrl (+ C alias) | crouch / slide at speed |
 | Shift | gas boost (meter) |
-| Q / E (and Mouse4/5) | left / right tether — hold to stay attached, release to fling |
+| Left Alt | dodge (short intangible burst; never Caps Lock — CAPS in the console means yelling) |
+| Q / E (+ Mouse4/5 aliases) | left / right tether — hold to stay attached, release to fling |
 | Mouse wheel / R | reel in while tethered |
 | LMB / RMB | use construct primary / secondary (ring blast when empty) |
-| Enter or T | open ring console: type a construct, Enter to cast (mouse aim + tethers stay live; momentum preserved) |
+| RMB with a gun | aim down sights (hold or toggle; accuracy only, movement untouched) |
+| H | a held gun's alt-fire (RMB aims guns) |
+| Enter or T | open ring console: type a construct, Enter to cast (mouse aim + side-button tethers stay live; momentum preserved) |
 | 1–4 | quick-cast loadout slots (words chosen in lobby) |
-| V (hold) | *experimental* voice cast: say the phrase, release to cast (local Whisper on CPU → same lexicon resolver) |
-| F | recite oath (willpower recharge typing test) |
+| V (hold) | voice cast: say the phrase, release to cast (local Whisper on CPU → same lexicon resolver) |
+| F | recite oath (willpower recharge typing test; can be yelled via voice) |
 | Z (hold) | charge: slow willpower refill; can't act, feet planted, a hit breaks it (COMBAT.md §2) |
+| G (tap / hold) | player power moves |
+| Mouse3 | transform |
+| E while seated | eject |
 | X | dismiss your constructs |
+| F5 / B | first ⇄ third person / swap shoulder |
 | Tab | scoreboard |
+| Esc · F3 · F11 (Alt+Enter) | menu · perf overlay · fullscreen (reserved: never bindable; F4 = dev tonemapper cycle) |
+
+Rules: one input, one action — rebinding an input another action holds swaps the two (toast names
+the moved action); aliases (C, Mouse4/5) switch off when their input is bound elsewhere. While the
+ring console or oath is open every letter is text: no bound key fires (movement zeroed, keyboard
+tethers/reel/charge/dodge parked, view/shoulder/alt-fire/power/quick-cast ignored).
 
 ## Motion comfort (a playtester gets motion sick)
 Defaults for everyone: the camera **never rolls** (tumble spins the body, not the view), no motion blur,
-no head-bob, stable high fps, an always-visible small centre dot. Settings → **Comfort preset** (one
-click; each item individually adjustable): camera shake off/slider, speed-FOV and FOV punches off,
-landing dip/camera kick off, **comfort vignette** (edge darkening scaled by speed/swing angular
-velocity, strength slider), wider default FOV, screen flashes off (also photosensitivity), portal
-transition fade, and a **third-person over-the-shoulder camera** (shares the piloting camera rig;
-crosshair raycast from the camera, projectiles corrected toward the camera aim point; shows the
-character costume).
+no head-bob, stable high fps, an always-visible small centre dot. Settings → Comfort → **Comfort
+preset** (one click; each item individually adjustable): camera shake off/slider, speed-FOV and FOV
+punches off, landing dip/camera kick off, **comfort vignette** (edge darkening scaled by speed/swing
+angular velocity, strength slider), screen flashes off (also photosensitivity), portal transition
+fade, and view switches / ADS zoom become instant cuts. Wider FOV is in Settings → Video.
+
+**Third person is a first-class view, not a comfort mode**: F5 toggles first ⇄ third at any time
+(Settings → Gameplay → Default view; B swaps the shoulder), with an over-the-shoulder camera that shares
+the piloting rig, camera collision, crosshair-truth aim convergence (the crosshair raycast from the
+camera is what you hit; projectiles are corrected toward it), ADS in both views, and the character
+costume visible. Hosts can forbid it (rule "Allow third person"). Many players still find it the more
+comfortable view.
 
 ## Robustness (how the big structure stays solid)
 - **Contract freeze:** `bd_core` is v1. Changes only via the lead with an explicit version note.

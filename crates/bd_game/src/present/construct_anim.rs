@@ -22,13 +22,15 @@
 //! Also here (weight pass): footfalls of walking constructs → camera shake by distance + dust +
 //! a stomp cue for kaiju-sized feet. Sound hooks are `Sfx3d` cue names (missing cues are silent):
 //! `assemble_click` (pitch rises per stage), `assemble_lock`, `hatch_open`, `hatch_close`,
-//! `rotor_spinup`, `exhaust_puff`, `kaiju_step`, `footstep_heavy`.
+//! `rotor_spinup`, `exhaust_puff`, `kaiju_step`, `footstep_heavy`; plus a `rotor_loop`
+//! [`SfxLoopEmitter`] on a child of every construct with spinning rotors (gain / pitch follow the
+//! spin, so it swells in behind `rotor_spinup`; cut on dismiss like the other construct loops).
 //!
 //! The summon assembly is exposed to other effects through `bd_fx::ConstructAssembly` (the
 //! shout-words hook: letter voxels can stream into the ring beam and land as the next brick).
 
 use super::constructs::{SimConstruct, hand_transform};
-use super::sound::Sfx3d;
+use super::sound::{Sfx3d, SfxLoopEmitter};
 use super::{bq, bv, gv};
 use crate::camera::PlayerCamera;
 use crate::juice::CameraShakeEvent;
@@ -62,12 +64,26 @@ pub struct ConstructAnim {
     turn: f32,
     prev_dist: Option<f32>,
     dismissing: bool,
+    /// Child entity carrying the `rotor_loop` voice.
+    rotor_loop: Option<Entity>,
+    /// Where the rotors are (model space; from the spin-up cue, else the model centre).
+    rotor_at: Option<Vec3>,
 }
+
+/// Marks the `rotor_loop` child of a construct.
+#[derive(Component)]
+struct RotorLoop;
 
 /// Events for constructs, gathered once per frame (entity may still be building its model).
 #[derive(Resource, Default)]
 struct AnimInbox {
     pending: HashMap<ConstructId, Vec<(AnimEvent, f32)>>,
+}
+
+/// `rotor_loop` level / pitch for a rotor spin factor (0 = silent at rest).
+fn rotor_voice(spin: f32) -> SfxLoopEmitter {
+    let s = spin.clamp(0.0, 1.5);
+    SfxLoopEmitter { name: "rotor_loop", gain: 0.55 * (s / 0.55).min(1.0) * (0.8 + 0.2 * s), pitch: 0.7 + 0.4 * s }
 }
 
 fn yaw_of(q: Quat) -> f32 {
@@ -141,6 +157,7 @@ fn animate_constructs(
     mut sfx: MessageWriter<Sfx3d>,
     mut bursts: MessageWriter<BurstFx>,
     mut shake: MessageWriter<CameraShakeEvent>,
+    mut loops: Query<&mut SfxLoopEmitter, With<RotorLoop>>,
     mut feet: Local<Vec<Footfall>>,
 ) {
     let Some(active) = active else { return };
@@ -156,13 +173,16 @@ fn animate_constructs(
         let model = &vis.model;
         let ptr = Arc::as_ptr(model) as usize;
         // (Re)build the animator for this model.
+        if let Some(stale) = anim.as_ref().filter(|a| a.model_ptr != ptr).and_then(|a| a.rotor_loop) {
+            commands.entity(stale).try_despawn();
+        }
         let Some(mut anim) = anim.filter(|a| a.model_ptr == ptr) else {
             let mut a = ConstructAnimator::new(model, sc.id.0.wrapping_mul(2_654_435_761));
             if forming.is_some() && end.is_none() {
                 a.event(AnimEvent::Summon);
             }
             commands.entity(e).try_insert((
-                ConstructAnim { anim: a, model_ptr: ptr, prev_yaw: None, turn: 0.0, prev_dist: None, dismissing: false },
+                ConstructAnim { anim: a, model_ptr: ptr, prev_yaw: None, turn: 0.0, prev_dist: None, dismissing: false, rotor_loop: None, rotor_at: None },
                 PartOverlay { locals: Vec::with_capacity(model.parts.len()) },
             ));
             continue;
@@ -287,6 +307,7 @@ fn animate_constructs(
                 }
                 CueKind::RotorSpinUp => {
                     sfx.write(Sfx3d::at("rotor_spinup", p).gain(0.7));
+                    a.rotor_at = Some(bv(cue.pos));
                 }
                 CueKind::ExhaustPuff => {
                     let dir = (tf.rotation * bv(cue.dir)).normalize_or(Vec3::Y);
@@ -300,6 +321,29 @@ fn animate_constructs(
                     sfx.write(Sfx3d::at("exhaust_puff", p).gain(0.35 + 0.4 * cue.strength));
                 }
             }
+        }
+        // Rotor loop: follows the spin (swells in behind `rotor_spinup`), cut on dismiss.
+        match (a.anim.rotor_speed().filter(|_| end.is_none()), a.rotor_loop) {
+            (Some(spin), None) if spin > 0.05 => {
+                let at = a.rotor_at.unwrap_or_else(|| (bv(model.bounds.min) + bv(model.bounds.max)) * 0.5);
+                let child = commands.spawn((Name::new("RotorLoop"), RotorLoop, Transform::from_translation(at), rotor_voice(spin))).id();
+                commands.entity(e).add_child(child);
+                a.rotor_loop = Some(child);
+            }
+            (Some(spin), Some(child)) => {
+                if let Ok(mut l) = loops.get_mut(child) {
+                    let v = rotor_voice(spin);
+                    if (l.gain - v.gain).abs() > 0.01 || (l.pitch - v.pitch).abs() > 0.005 {
+                        l.gain = v.gain;
+                        l.pitch = v.pitch;
+                    }
+                }
+            }
+            (None, Some(child)) => {
+                commands.entity(child).try_despawn();
+                a.rotor_loop = None;
+            }
+            _ => {}
         }
         // Assembly hook for other effects (shout words).
         let asm = a.anim.assembly();

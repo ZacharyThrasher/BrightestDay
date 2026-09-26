@@ -24,6 +24,7 @@ mod params;
 mod state;
 mod surf;
 mod tether;
+mod water;
 pub mod testkit;
 mod world;
 
@@ -36,4 +37,5 @@ pub use params::MoveParams;
 pub use surf::{SURF_ID_BASE, push_surf_colliders, surf_line, surfable, surfing};
 pub use state::{BUTTON_BITS, HOP_CHAIN_MAX, Hand, Hook, HookPhase, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit};
 pub use tether::{AnchorQuery, hand_pos, query_anchor};
+pub use water::{WATER_ID_BASE, is_water, push_water_colliders};
 pub use world::{AnchorTarget, Collider, ColliderId, CollisionWorld, WorldRayHit, raycast_world};

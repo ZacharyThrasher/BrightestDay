@@ -238,6 +238,9 @@ pub struct PowerWorld {
     pub(crate) incanting: bool,
     /// Delivery applied by the last incanted cast: (from_fist, arm).
     pub(crate) delivered: Option<(bool, bool)>,
+    /// CAMERA: the host-validated aim `(player index, eye, dir)` of the power move being run
+    /// (`World::power_move_aimed`); `None` outside it (ops then use the look).
+    pub(crate) move_aim: Option<(usize, Vec3, Vec3)>,
     pub fruits: Vec<Fruit>,
     restore_log: VecDeque<(IVec3, u8)>,
     shattered: Vec<Shattered>,
@@ -248,6 +251,7 @@ impl Default for PowerWorld {
         Self {
             incanting: false,
             delivered: None,
+            move_aim: None,
             fruits: Vec::with_capacity(MAX_FRUITS),
             restore_log: VecDeque::with_capacity(RESTORE_LOG),
             shattered: Vec::with_capacity(SHATTER_LOG),

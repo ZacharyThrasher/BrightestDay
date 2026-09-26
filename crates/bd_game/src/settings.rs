@@ -195,7 +195,8 @@ impl Plugin for SettingsPlugin {
         let comfort = app.world().resource::<Settings>().comfort;
         app.insert_resource(comfort)
             .add_systems(PreUpdate, mirror_comfort)
-            .add_systems(Update, autosave_settings);
+            // `Last`: sees this frame's changes and an `AppExit` written this frame.
+            .add_systems(Last, autosave_settings);
     }
 }
 
@@ -205,14 +206,15 @@ fn mirror_comfort(settings: Res<Settings>, mut comfort: ResMut<ComfortSettings>)
     }
 }
 
-/// Debounced autosave: write 0.5 s after the last change.
-fn autosave_settings(settings: Res<Settings>, time: Res<Time<Real>>, mut dirty_since: Local<Option<f32>>) {
+/// Debounced autosave: write 0.5 s after the last change, or right away when the app is quitting.
+fn autosave_settings(settings: Res<Settings>, time: Res<Time<Real>>, mut exit: MessageReader<AppExit>, mut dirty_since: Local<Option<f32>>) {
     let now = time.elapsed_secs();
     if settings.is_changed() && !settings.is_added() {
         *dirty_since = Some(now);
     }
+    let quitting = exit.read().count() > 0;
     if let Some(t) = *dirty_since
-        && now - t > 0.5
+        && (now - t > 0.5 || quitting)
     {
         *dirty_since = None;
         if let Err(e) = settings.save() {

@@ -118,7 +118,25 @@ impl World {
 
     /// G tap (slot 0) / G hold (slot 1): the power's signature move.
     pub fn power_move(&mut self, player: PlayerId, slot: u8) -> Result<(), PowerError> {
+        self.power_move_aimed(player, slot, None)
+    }
+
+    /// [`Self::power_move`] along a client aim (CAMERA: third person sends the converged
+    /// crosshair ray, like casts). The aim is host-validated ([`World::resolve_aim`]: near the eye,
+    /// clamped to the look when the rules forbid third person); every op that reads the eye / look
+    /// (casts, dashes, blinks, "at aim" placements) uses it for this move. `None` = the look.
+    pub fn power_move_aimed(&mut self, player: PlayerId, slot: u8, aim: Option<Aim>) -> Result<(), PowerError> {
         let Some(i) = self.pidx(player) else { return Err(PowerError::UnknownPlayer) };
+        self.powers.move_aim = aim.map(|a| {
+            let (o, d) = self.resolve_aim(i, &a);
+            (i, o, d)
+        });
+        let r = self.power_move_inner(i, player, slot);
+        self.powers.move_aim = None;
+        r
+    }
+
+    fn power_move_inner(&mut self, i: usize, player: PlayerId, slot: u8) -> Result<(), PowerError> {
         let p = &self.players[i];
         if !p.alive {
             return Err(PowerError::Dead);
@@ -302,8 +320,12 @@ impl World {
         }
         let stand = def.map_or(is_random_stand, |d| !d.kind.is_pickup());
         let cost = if stand { t.rules.stand_cost } else { t.rules.fruit_cost };
-        if let Err(e) = self.power_pay(i, cost) {
-            return Some(Err(e));
+        // FREEDOM (never refuse): a power pickup you can't afford isn't refused — the phrase casts
+        // as the ordinary construct it describes (which itself sputters to fit what's left). A
+        // power is permanent until KO, so a "weaker" power would be a new system; the construct is
+        // the charming fallback and the power stays a real purchase.
+        if self.power_pay(i, cost).is_err() {
+            return None;
         }
         let name = recipe.name.clone();
         let tick = self.tick;
@@ -501,6 +523,12 @@ impl World {
     // ------------------------------------------------------------------------------ move ops
 
     fn eye_look(&self, i: usize) -> (Vec3, Vec3) {
+        // CAMERA: a power move's validated aim (third person: the converged crosshair ray).
+        if let Some((k, eye, dir)) = self.powers.move_aim
+            && k == i
+        {
+            return (eye, dir);
+        }
         let p = &self.players[i];
         (p.eye(&self.cfg.move_params), p.look())
     }

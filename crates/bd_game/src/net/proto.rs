@@ -148,7 +148,8 @@ pub struct LobbyInfo {
 pub enum NetCmd {
     /// `seq` = client cast sequence (echoed in [`S2C::CastResult`] for predicted spawns).
     Cast { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim, incantation: bool },
-    PowerMove(u8),
+    /// Protocol v9: carries the crosshair aim (third-person convergence; host-validated).
+    PowerMove { slot: u8, aim: Option<Aim> },
     StandRush(u16),
     /// Oath section index (the host looks the length up in its own table; never sent by the client).
     OathBegin { section: u8 },
@@ -182,7 +183,7 @@ impl NetCmd {
                 let shape = small(shape);
                 NetCmd::Cast { seq: cast_seq, recipe, shape, alt_shape: small(alt_shape), aim, incantation }
             }
-            Cmd::PowerMove(s) => NetCmd::PowerMove(s),
+            Cmd::PowerMove(slot, aim) => NetCmd::PowerMove { slot, aim },
             Cmd::StandRush(n) => NetCmd::StandRush(n),
             Cmd::OathBegin { section } => NetCmd::OathBegin { section },
             Cmd::OathProgress { correct_chars, accuracy } => NetCmd::OathProgress { correct_chars, accuracy },
@@ -208,7 +209,8 @@ impl NetCmd {
                 let aim = Aim { origin: aim.origin, dir: aim.dir, target_hint: aim.target_hint, modifier: aim.modifier };
                 Cmd::Cast { recipe, shape, alt_shape: small(alt_shape), aim, incantation }
             }
-            NetCmd::PowerMove(s) => Cmd::PowerMove(s.min(1)),
+            // The sim re-checks the aim against the caster's eye / look (`World::resolve_aim`).
+            NetCmd::PowerMove { slot, aim } => Cmd::PowerMove(slot.min(1), aim.map(|a| Aim { target_hint: None, modifier: false, ..a })),
             NetCmd::StandRush(n) => Cmd::StandRush(n.min(64)),
             // Out of any oath's range → section 0 (the sim also falls back per corps).
             NetCmd::OathBegin { section } => Cmd::OathBegin { section: if (section as usize) < bd_sim::willpower::MAX_OATH_SECTIONS { section } else { 0 } },

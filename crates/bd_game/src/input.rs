@@ -7,8 +7,9 @@
 //!   tick are latched so they are never lost. At each 120 Hz tick, `SimSet::Input` produces
 //!   [`LocalInputState::current`] (a `bd_core::input::PlayerInput`, sequence-numbered) and pushes it
 //!   to [`LocalInputState::history`] for prediction/reconciliation.
-//! * [`UiFocus::typing`] (ring console / oath open) sets the `TYPING` bit and zeroes movement keys
-//!   while aim and tether buttons stay live.
+//! * [`UiFocus::typing`] (ring console / oath open) sets the `TYPING` bit and zeroes movement keys;
+//!   the keyboard tether / reel / charge / dodge / C keys are parked (`lobby::prefs::shell_bindings`)
+//!   while aim, the mouse side-button tethers and the wheel stay live.
 
 use crate::settings::Settings;
 use crate::state::{AppState, InGameMenu};
@@ -90,8 +91,9 @@ pub struct InputOverride {
     pub move_z: i8,
 }
 
-/// Default bindings (rebinding later). Mouse4/5 mirror Q/E.
-#[derive(Resource, Debug, Clone)]
+/// The keys / buttons the shell samples (mirrored from `lobby::prefs::KeyBinds` by its
+/// `shell_bindings`; `F24` = unbound / parked while typing).
+#[derive(Resource, Debug, Clone, PartialEq)]
 pub struct Bindings {
     pub forward: KeyCode,
     pub back: KeyCode,
@@ -99,9 +101,14 @@ pub struct Bindings {
     pub right: KeyCode,
     pub jump: KeyCode,
     pub crouch: KeyCode,
+    /// Hard-wired crouch alias (C) while no action holds it.
+    pub crouch_alt: KeyCode,
     pub boost: KeyCode,
     pub tether_l: KeyCode,
     pub tether_r: KeyCode,
+    /// Hard-wired tether aliases (mouse side buttons) while no action holds them.
+    pub tether_l_mouse: Option<MouseButton>,
+    pub tether_r_mouse: Option<MouseButton>,
     pub reel: KeyCode,
     /// Hold to charge (power up).
     pub charge: KeyCode,
@@ -118,9 +125,12 @@ impl Default for Bindings {
             right: KeyCode::KeyD,
             jump: KeyCode::Space,
             crouch: KeyCode::ControlLeft,
+            crouch_alt: KeyCode::KeyC,
             boost: KeyCode::ShiftLeft,
             tether_l: KeyCode::KeyQ,
             tether_r: KeyCode::KeyE,
+            tether_l_mouse: Some(MouseButton::Back),
+            tether_r_mouse: Some(MouseButton::Forward),
             reel: KeyCode::KeyR,
             charge: KeyCode::KeyZ,
             dodge: KeyCode::AltLeft,
@@ -311,19 +321,20 @@ fn sample_frame_input(
     };
     bit(k(binds.jump), kj(binds.jump), buttons::JUMP);
     bit(
-        k(binds.crouch) || k(KeyCode::KeyC),
-        kj(binds.crouch) || kj(KeyCode::KeyC),
+        k(binds.crouch) || k(binds.crouch_alt),
+        kj(binds.crouch) || kj(binds.crouch_alt),
         buttons::CROUCH,
     );
     bit(k(binds.boost), kj(binds.boost), buttons::BOOST);
+    let (ml, mr) = (binds.tether_l_mouse, binds.tether_r_mouse);
     bit(
-        k(binds.tether_l) || m(MouseButton::Back),
-        kj(binds.tether_l) || mj(MouseButton::Back),
+        k(binds.tether_l) || ml.is_some_and(m),
+        kj(binds.tether_l) || ml.is_some_and(mj),
         buttons::TETHER_L,
     );
     bit(
-        k(binds.tether_r) || m(MouseButton::Forward),
-        kj(binds.tether_r) || mj(MouseButton::Forward),
+        k(binds.tether_r) || mr.is_some_and(m),
+        kj(binds.tether_r) || mr.is_some_and(mj),
         buttons::TETHER_R,
     );
     bit(k(binds.reel), kj(binds.reel), buttons::REEL);

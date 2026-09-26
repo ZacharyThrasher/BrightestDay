@@ -77,6 +77,10 @@ pub const THROW_SPEED: f32 = 30.0;
 pub const RETURN_AFTER: f32 = 1.2;
 pub const RETURN_SPEED: f32 = 34.0;
 pub const CATCH_DIST: f32 = 1.5;
+/// A non-returning thrown item that lands lies where it fell this long (s) before it dissolves
+/// (owner: summons shouldn't vanish right away). Walking over it picks it back up; the owner's
+/// ring is free meanwhile (`World::player_actions`).
+pub const LINGER_SECS: f32 = 4.0;
 /// Thor flight speed (m/s) and willpower drain (/s).
 pub const THOR_SPEED: f32 = 24.0;
 pub const THOR_DRAIN: f32 = 14.0;
@@ -187,6 +191,11 @@ pub struct HeldState {
     /// Thor flight: the thrown item drags its owner.
     pub thor: bool,
     pub fly_t: f32,
+    /// A non-returning throw came to rest (lying / stuck where it landed) and for how long; `dud`:
+    /// it already struck someone and just drops now (no second hit).
+    pub landed: bool,
+    pub rest_t: f32,
+    pub dud: bool,
     /// Thrown flight velocity (kept here so generic pushes can't hijack the throw).
     pub fly_vel: Vec3,
     /// Whip tether anchor + rope length.
@@ -981,6 +990,9 @@ fn start_throw(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Co
     s.returning = false;
     s.thor = false;
     s.fly_t = 0.0;
+    s.landed = false;
+    s.rest_t = 0.0;
+    s.dud = false;
     s.guarding = false;
     c.bounces = 0;
     c.hits.clear();
@@ -996,6 +1008,8 @@ fn catch(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     s.thrown = false;
     s.returning = false;
     s.thor = false;
+    s.landed = false;
+    s.rest_t = 0.0;
     hand_pose(c, &env.owner);
     c.vel = Vec3::ZERO;
     c.set_anim(AnimState::Idle, env.tick());
@@ -1052,8 +1066,20 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
         thrown_hits(c, env, out, p0, c.pos);
         return;
     }
+    if s.landed {
+        // Lying where it landed: walk over it to pick it up, else it dissolves after a while.
+        s.rest_t += dt;
+        c.vel = Vec3::ZERO;
+        let near = o.alive && o.seat.is_none() && (o.hull.center() - c.center()).length() < CATCH_DIST + c.half.max_element();
+        if near && s.rest_t > 0.25 {
+            catch(c, s, env, out);
+        } else if s.rest_t >= LINGER_SECS {
+            c.gone = Some(crate::events::GoneReason::Spent);
+        }
+        return;
+    }
     if s.fly_t > 4.0 {
-        // Lost: the construct dissolves (non-returning throws are spent).
+        // Lost in flight (never landed): the construct dissolves.
         c.gone = Some(crate::events::GoneReason::Spent);
         return;
     }
@@ -1061,12 +1087,15 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
     let p0 = c.pos;
     let p1 = p0 + c.vel * dt;
     spin(c, s);
-    if thrown_hits(c, env, out, p0, p1) {
+    if !s.dud && thrown_hits(c, env, out, p0, p1) {
         if returning_item {
             s.returning = true;
             c.pos = p1;
         } else {
-            c.gone = Some(crate::events::GoneReason::Spent);
+            // It struck someone: it glances off and drops (lands and lingers; no second hit).
+            s.dud = true;
+            c.vel = c.vel * -0.15 + Vec3::Y * 3.0;
+            c.pos = p0;
         }
         return;
     }
@@ -1097,7 +1126,13 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
                 c.pos = h.point + nrm * (r + 0.05);
             }
         } else {
-            c.gone = Some(crate::events::GoneReason::Spent);
+            // It lands (stuck in / lying on what it hit) and lingers — see `LINGER_SECS`.
+            s.landed = true;
+            s.rest_t = 0.0;
+            c.pos = h.point + nrm * (r * 0.5);
+            c.vel = Vec3::ZERO;
+            c.set_anim(AnimState::Idle, env.tick());
+            fx(out, c, HeldFx::SwingImpact, h.point, nrm, 0.6);
         }
         return;
     }

@@ -147,6 +147,127 @@ pub mod mat {
     pub const SHELL: Material = 78;
     /// Black plastic (office chairs, bins, cabinets).
     pub const PLASTIC_BLACK: Material = 79;
+    // ---- Turtle Lair (sewers + night city) ----
+    /// Night-blue sewer brick and its darker courses (breakable).
+    pub const SEWER_BRICK: Material = 80;
+    pub const SEWER_BRICK_DARK: Material = 81;
+    /// Indestructible load-bearing sewer arches, ribs and frame.
+    pub const SEWER_ARCH: Material = 82;
+    /// Murky teal sewer water (faintly self-lit, like the pools).
+    pub const SEWER_WATER: Material = 83;
+    /// Rusty iron pipe / scrap.
+    pub const RUST: Material = 84;
+    /// Straw tatami mat (dojo floor).
+    pub const TATAMI: Material = 85;
+    /// Mutagen-green glow (ooze, green-lit tunnel, lab screens).
+    pub const MUTAGEN: Material = 86;
+    /// Cool moonlight (manhole light shafts, the light pool under them).
+    pub const MOONLIGHT: Material = 87;
+    /// Red-brown city brick (tenements above).
+    pub const CITY_BRICK: Material = 88;
+    /// Teal-painted pipe.
+    pub const TEAL_PIPE: Material = 89;
+    // ---- Cybertron (metal planet: gunmetal plates, energon, rust) ----
+    /// Dark gunmetal plating (streets, walls) and a lighter blue-steel plate (Iacon, statues).
+    pub const CYBER_PLATE: Material = 90;
+    pub const CYBER_PLATE_LIGHT: Material = 91;
+    /// Near-black trim / panel seams (unlit).
+    pub const CYBER_TRIM: Material = 92;
+    /// Glowing energon: cyan-blue conduits and seams (full glow).
+    pub const ENERGON: Material = 93;
+    /// Amber-orange energy seams (full glow).
+    pub const SEAM_ORANGE: Material = 94;
+    /// Kaon's red-orange furnace glow (full glow).
+    pub const KAON_RED: Material = 95;
+    /// Energon-cube pink (glowing, soft).
+    pub const ENERGON_PINK: Material = 96;
+    /// Sea of Rust dust and its darker drifts.
+    pub const RUST_DUST: Material = 97;
+    pub const RUST_DUNE: Material = 98;
+    /// Indestructible gunmetal frame (city cores, gate frames, pylons).
+    pub const CYBER_FRAME: Material = 99;
+    /// Indestructible glowing energon frame (space-bridge rings, Well lip).
+    pub const ENERGON_FRAME: Material = 100;
+    /// Indestructible glowing amber frame (Kaon gate, transforming-panel warning light).
+    pub const EMBER_FRAME: Material = 101;
+    /// Indestructible transforming-panel plate (moving terrain is armoured).
+    pub const TRANSFORM_PLATE: Material = 102;
+    /// Autobot-red and Decepticon-purple insignia inlays (faint glow).
+    pub const INSIGNIA_RED: Material = 103;
+    pub const INSIGNIA_PURPLE: Material = 104;
+    /// Dark-bronze statue metal (Kaon).
+    pub const STATUE_DARK: Material = 105;
+    // ---- Giant's Room (toy-scale bedroom, ×30) ----
+    /// Honey-oak floorboards (breakable top layer) and their big grain stripes.
+    pub const FLOORBOARD: Material = 106;
+    pub const FLOORBOARD_GRAIN: Material = 107;
+    /// Indestructible subfloor (also the dark gaps between boards).
+    pub const SUBFLOOR: Material = 108;
+    /// The rug: dusty-blue pile, lighter tufts, cream border.
+    pub const RUG: Material = 109;
+    pub const RUG_TUFT: Material = 110;
+    pub const RUG_BORDER: Material = 111;
+    /// Indestructible painted wall and gloss-white trim (skirting, frames, ceiling ring).
+    pub const WALL_PAINT: Material = 112;
+    pub const TRIM: Material = 113;
+    /// Ceiling plaster (soft: a hard upward launch punches through → star KO).
+    pub const CEILING_PLASTER: Material = 114;
+    /// Furniture: indestructible oak frame and its breakable top veneer.
+    pub const FURNITURE_FRAME: Material = 115;
+    pub const FURNITURE_TOP: Material = 116;
+    /// Bedding.
+    pub const MATTRESS: Material = 117;
+    pub const DUVET: Material = 118;
+    pub const DUVET_STAR: Material = 119;
+    pub const PILLOW: Material = 120;
+    /// Book spines and page edges.
+    pub const BOOK_RED: Material = 121;
+    pub const BOOK_BLUE: Material = 122;
+    pub const BOOK_GREEN: Material = 123;
+    pub const BOOK_PURPLE: Material = 124;
+    pub const BOOK_PAGES: Material = 125;
+    /// Toy plastic / painted blocks.
+    pub const PLASTIC_RED: Material = 126;
+    pub const PLASTIC_BLUE: Material = 127;
+    pub const PLASTIC_YELLOW: Material = 128;
+    pub const PLASTIC_GREEN: Material = 129;
+    /// The sleeping cat.
+    pub const CAT_GINGER: Material = 130;
+    pub const CAT_CREAM: Material = 131;
+    /// Sunlit curtain fabric.
+    pub const CURTAIN: Material = 132;
+    /// Laptop screen glow.
+    pub const SCREEN_GLOW: Material = 133;
+    /// Brass (curtain rod, clock rim, door knob).
+    pub const BRASS: Material = 134;
+    /// Knit sock.
+    pub const SOCK_WHITE: Material = 135;
+    // ---- Valley of the End (gorge, falls, statues) ----
+    /// Mossy green-grey cliff stone, its darker strata band and pale ledge band.
+    pub const VALLEY_CLIFF: Material = 136;
+    pub const VALLEY_STRATA: Material = 137;
+    pub const VALLEY_LEDGE: Material = 138;
+    /// Moss on ledges and banks (grass-like).
+    pub const VALLEY_MOSS: Material = 139;
+    /// The statues: sage stone and its shaded grooves / folds.
+    pub const STATUE_STONE: Material = 140;
+    pub const STATUE_SHADE: Material = 141;
+    /// Indestructible statue core (legs, torso, pedestal heart): statues never fully vanish.
+    pub const STATUE_CORE: Material = 142;
+    /// The waterfall face: white water and its blue streaks (indestructible, faintly self-lit).
+    pub const WATERFALL: Material = 143;
+    pub const WATERFALL_BLUE: Material = 144;
+    /// River-bed pebbles.
+    pub const RIVER_STONE: Material = 145;
+    /// Dark pine / forest canopy.
+    pub const PINE: Material = 146;
+    /// Indestructible gorge bedrock and cliff cores.
+    pub const VALLEY_CORE: Material = 147;
+    // ---- Hyperline (the endless train) ----
+    /// Indestructible pearl-white train frame (underframe, posts, ribs, nose, keel housings).
+    pub const HYPER_FRAME: Material = 148;
+    /// White roof / wall panels with a faint blue cast (breakable: holes into the cars).
+    pub const HYPER_PANEL: Material = 149;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -161,7 +282,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 80] = [
+pub static MATERIALS: [MaterialDef; 150] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -277,6 +398,192 @@ pub static MATERIALS: [MaterialDef; 80] = [
         emissive: 0.0,
     },
     def("black plastic", [44, 44, 50], 0.05, 0.5, D::Stone),
+    // ---- Turtle Lair (80..) ----
+    def("sewer brick", [76, 96, 114], 0.09, 1.0, D::Stone),
+    def("dark sewer brick", [52, 66, 86], 0.08, 1.0, D::Stone),
+    MaterialDef {
+        name: "sewer arch",
+        color: [64, 74, 96],
+        jitter: 0.06,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    glow(def("sewer water", [40, 148, 136], 0.06, 0.4, D::Crystal), 0.3),
+    def("rusty iron", [150, 86, 54], 0.10, 1.4, D::Stone),
+    def("tatami", [192, 182, 118], 0.05, 0.5, D::Dirt),
+    glow(def("mutagen glow", [110, 255, 90], 0.05, 0.6, D::Crystal), 1.0),
+    glow(def("moonlight", [196, 226, 255], 0.02, 0.6, D::Crystal), 1.0),
+    def("city brick", [134, 68, 56], 0.08, 1.0, D::Stone),
+    def("teal pipe", [58, 128, 124], 0.06, 1.4, D::Stone),
+    // ---- Cybertron (90..) ----
+    def("gunmetal plate", [66, 72, 88], 0.06, 1.3, D::Stone),
+    def("blue-steel plate", [118, 130, 154], 0.05, 1.3, D::Stone),
+    def("gunmetal trim", [34, 38, 50], 0.04, 1.5, D::Stone),
+    glow(def("energon", [56, 196, 255], 0.05, 0.8, D::Crystal), 1.0),
+    glow(def("amber seam", [255, 142, 40], 0.05, 1.0, D::Crystal), 1.0),
+    glow(def("kaon red", [255, 64, 34], 0.05, 1.0, D::Crystal), 1.0),
+    glow(def("energon pink", [255, 96, 206], 0.05, 0.6, D::Crystal), 0.9),
+    def("rust dust", [156, 82, 44], 0.12, 0.45, D::Sand),
+    def("rust dune", [104, 56, 38], 0.10, 0.5, D::Sand),
+    MaterialDef {
+        name: "cybertron frame",
+        color: [52, 56, 70],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "energon frame",
+        color: [70, 206, 255],
+        jitter: 0.03,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 1.0,
+    },
+    MaterialDef {
+        name: "ember frame",
+        color: [255, 120, 30],
+        jitter: 0.03,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 1.0,
+    },
+    MaterialDef {
+        name: "transforming plate",
+        color: [104, 112, 134],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    glow(def("autobot red", [220, 40, 44], 0.03, 1.2, D::Stone), 0.35),
+    glow(def("decepticon purple", [150, 64, 226], 0.03, 1.2, D::Stone), 0.45),
+    def("dark statue metal", [70, 58, 60], 0.05, 1.4, D::Stone),
+    // ---- Giant's Room (106..) ----
+    def("floorboard", [198, 150, 98], 0.05, 1.3, D::Wood),
+    def("floorboard grain", [176, 128, 80], 0.05, 1.3, D::Wood),
+    MaterialDef {
+        name: "subfloor",
+        color: [92, 62, 40],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Wood,
+        emissive: 0.0,
+    },
+    def("rug", [74, 112, 152], 0.07, 0.45, D::Dirt),
+    def("rug tuft", [108, 150, 190], 0.10, 0.4, D::Dirt),
+    def("rug border", [232, 214, 172], 0.05, 0.45, D::Dirt),
+    MaterialDef {
+        name: "wall paint",
+        color: [184, 210, 228],
+        jitter: 0.02,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "trim",
+        color: [246, 242, 234],
+        jitter: 0.02,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Wood,
+        emissive: 0.0,
+    },
+    def("ceiling plaster", [246, 243, 236], 0.02, 0.35, D::Dirt),
+    MaterialDef {
+        name: "furniture frame",
+        color: [180, 128, 80],
+        jitter: 0.05,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Wood,
+        emissive: 0.0,
+    },
+    def("furniture top", [190, 138, 88], 0.05, 1.2, D::Wood),
+    def("mattress", [236, 236, 244], 0.03, 0.5, D::Dirt),
+    def("duvet", [90, 134, 212], 0.05, 0.4, D::Dirt),
+    def("duvet star", [252, 212, 92], 0.04, 0.4, D::Dirt),
+    def("pillow", [248, 244, 232], 0.03, 0.3, D::Dirt),
+    def("red book", [196, 54, 60], 0.06, 0.6, D::Wood),
+    def("blue book", [54, 90, 172], 0.06, 0.6, D::Wood),
+    def("green book", [60, 142, 92], 0.06, 0.6, D::Wood),
+    def("purple book", [124, 74, 152], 0.06, 0.6, D::Wood),
+    def("book pages", [240, 232, 208], 0.03, 0.6, D::Wood),
+    def("red plastic", [228, 48, 46], 0.04, 0.7, D::Stone),
+    def("blue plastic", [40, 108, 222], 0.04, 0.7, D::Stone),
+    def("yellow plastic", [250, 204, 34], 0.04, 0.7, D::Stone),
+    def("green plastic", [52, 178, 84], 0.04, 0.7, D::Stone),
+    def("ginger fur", [228, 142, 64], 0.08, 0.5, D::Dirt),
+    def("cream fur", [248, 224, 184], 0.06, 0.5, D::Dirt),
+    def("curtain", [238, 178, 72], 0.05, 0.35, D::Dirt),
+    glow(def("laptop screen", [124, 192, 255], 0.03, 0.5, D::Crystal), 0.85),
+    def("brass", [214, 174, 82], 0.04, 1.6, D::Stone),
+    def("knit sock", [236, 234, 228], 0.06, 0.3, D::Dirt),
+    // ---- Valley of the End (136..) ----
+    def("valley cliff", [118, 136, 114], 0.08, 1.1, D::Stone),
+    def("valley strata", [88, 104, 94], 0.07, 1.2, D::Stone),
+    def("valley ledge", [156, 164, 136], 0.07, 1.0, D::Stone),
+    def("valley moss", [92, 146, 76], 0.12, 0.55, D::Grass),
+    def("statue stone", [150, 166, 138], 0.05, 1.2, D::Stone),
+    def("statue shade", [110, 126, 106], 0.05, 1.2, D::Stone),
+    MaterialDef {
+        name: "statue core",
+        color: [104, 118, 100],
+        jitter: 0.05,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "waterfall",
+        color: [226, 242, 250],
+        jitter: 0.10,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 0.35,
+    },
+    MaterialDef {
+        name: "waterfall streak",
+        color: [150, 204, 232],
+        jitter: 0.08,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 0.25,
+    },
+    def("river stone", [118, 124, 116], 0.10, 0.9, D::Stone),
+    def("pine", [42, 106, 60], 0.14, 0.25, D::Leaves),
+    MaterialDef {
+        name: "valley bedrock",
+        color: [70, 80, 76],
+        jitter: 0.06,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },    // ---- Hyperline (148..) ----
+    MaterialDef {
+        name: "hyperline frame",
+        color: [226, 232, 240],
+        jitter: 0.03,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    def("hyperline panel", [236, 242, 250], 0.035, 1.1, D::Stone),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

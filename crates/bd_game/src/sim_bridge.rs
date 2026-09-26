@@ -160,8 +160,8 @@ impl ActiveWorld {
             Cmd::Cast { recipe, shape, alt_shape, aim, incantation } => {
                 let _ = if incantation { w.cast_incantation(player, *recipe, shape, aim) } else { w.cast_shaped(player, *recipe, shape, alt_shape, aim) };
             }
-            Cmd::PowerMove(slot) => {
-                let _ = w.power_move(player, slot);
+            Cmd::PowerMove(slot, aim) => {
+                let _ = w.power_move_aimed(player, slot, aim);
             }
             Cmd::StandRush(n) => {
                 w.stand_rush(player, n);
@@ -209,8 +209,9 @@ pub enum Cmd {
     /// (`parse_power_phrase` → `Incantation { rest }`): uses `World::cast_incantation`.
     /// `alt_shape` = a curated two-mode Transformer's hand-authored robot mode (lexicon).
     Cast { recipe: Box<Recipe>, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim, incantation: bool },
-    /// G tap (0) / G hold (1).
-    PowerMove(u8),
+    /// G tap (0) / G hold (1), along the crosshair ray (CAMERA: third person sends the converged
+    /// ray like casts; the host validates it, `World::resolve_aim`). `None` = the look.
+    PowerMove(u8, Option<Aim>),
     /// Rush tokens typed while the console is open (ORA ×n).
     StandRush(u16),
     /// Start reciting one section of the corps oath (the host looks the length up itself).

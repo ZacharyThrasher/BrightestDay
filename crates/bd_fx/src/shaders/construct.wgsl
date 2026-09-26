@@ -217,9 +217,12 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
         e = mix(e, c.dark.rgb * 0.5, contour * day * 0.75);
     }
 
-    // Opacity: translucent body, solid lines and rims; much denser in daylight.
+    // Opacity: translucent body, solid lines and rims; much denser in daylight. The daylight floor
+    // follows the requested opacity: a see-through request (< 0.7, e.g. a dome with a player inside)
+    // keeps its body thin in daylight too; the default 0.72 and player bodies (0.92) are unchanged.
     var alpha = c.misc.z * (0.62 + 0.25 * ao);
-    alpha = mix(alpha, max(alpha, 0.92), day);
+    let day_floor = mix(0.45, 0.92, smoothstep(0.4, 0.7, c.misc.z));
+    alpha = mix(alpha, max(alpha, day_floor), day);
     alpha = max(alpha, max(strong, max(fres * 0.9, max(grid * 0.6, contour * day))));
     if is_core { alpha = max(alpha, 0.85); }
     if earthy { alpha = max(alpha, 0.88); }
@@ -262,7 +265,11 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let f = fog_factor(in.world_pos);
 
 #ifdef BLEND_PREMULTIPLIED_ALPHA
-    var rgb = e * (1.0 - f) + fog_color() * f * alpha;
+    // Fade-out (opacity < 0.3: lines and rims too — e.g. the local body when the third-person
+    // camera is pushed into the head).
+    let fade = clamp(c.misc.z / 0.3, 0.0, 1.0);
+    alpha *= fade;
+    var rgb = e * (1.0 - f) * fade + fog_color() * f * alpha;
     var out = vec4<f32>(rgb, alpha);
 #else
     var rgb = mix(e, fog_color(), f);

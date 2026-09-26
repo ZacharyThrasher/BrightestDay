@@ -356,6 +356,12 @@ impl ConstructAnimator {
         &self.cues[..self.ncue]
     }
 
+    /// Rotor spin factor (0 at rest, ~0.55 idle, up to ~1.35 at full throttle + charge; it springs
+    /// up from 0 after a summon's `RotorSpinUp`). `None` when the model has no rotor parts.
+    pub fn rotor_speed(&self) -> Option<f32> {
+        (self.roles.count(|r| matches!(r, Role::Rotor { .. })) > 0).then_some(self.rotor_k.x)
+    }
+
     /// Seconds the summon assembly takes for this model.
     pub fn assembly_seconds(&self) -> f32 {
         self.asm_total + self.stage_delay

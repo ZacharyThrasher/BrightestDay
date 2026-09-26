@@ -126,6 +126,44 @@ pub struct SimConstruct {
     robot: bool,
     last_pos: Vec3,
     loop_kind: Option<&'static str>,
+    /// Third-person held item: the model's grip (model space) and a scale that keeps a gun's reach
+    /// from the hand body-sized (a huge railgun no longer towers over the head).
+    held: HeldFit,
+    /// 0..1: a player is inside this construct (it thins so they read through it).
+    see: f32,
+}
+
+/// Default construct body opacity (`ConstructVisual::new`) and the "player inside" see-through one.
+const SOLID_OPACITY: f32 = 0.72;
+const SEE_THROUGH_OPACITY: f32 = 0.34;
+
+/// How a held model sits in an animated hand (see [`HeldFit::of`]).
+#[derive(Clone, Copy, Debug)]
+struct HeldFit {
+    grip: Vec3,
+    scale: f32,
+}
+
+impl HeldFit {
+    /// Longest gun reach from the hand in third person (m, body size 1).
+    const GUN_REACH: f32 = 1.05;
+
+    fn of(model: &VoxelModel, gun: bool) -> Self {
+        let grip = bd_shapes::grip_point(model).map_or(Vec3::ZERO, |g| super::bv(g.0));
+        let b = &model.bounds;
+        let reach = (0..8)
+            .map(|i| {
+                let c = Vec3::new(
+                    if i & 1 == 0 { b.min.x } else { b.max.x },
+                    if i & 2 == 0 { b.min.y } else { b.max.y },
+                    if i & 4 == 0 { b.min.z } else { b.max.z },
+                );
+                c.distance(grip)
+            })
+            .fold(0.0f32, f32::max);
+        let scale = if gun && reach.is_finite() && reach > Self::GUN_REACH { Self::GUN_REACH / reach } else { 1.0 };
+        HeldFit { grip, scale }
+    }
 }
 
 /// ConstructId → entity.
@@ -146,7 +184,7 @@ impl Plugin for ConstructsPlugin {
             .init_resource::<SwingCache>()
             .init_resource::<Provisionals>()
             .add_systems(OnExit(AppState::InGame), clear_constructs)
-            .add_systems(Update, (predicted_casts, construct_events, sync_constructs).chain().in_set(PresentSet::Sync))
+            .add_systems(Update, (predicted_casts, construct_events, sync_constructs).chain().in_set(PresentSet::Sync).after(super::players::BodySync))
             .add_systems(Update, prewarm_models.after(sync_constructs));
     }
 }
@@ -560,6 +598,7 @@ fn sync_constructs(
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
     fp_held: Option<Res<crate::viewmodel::FirstPersonHeld>>,
+    body_hands: Res<super::players::BodyHands>,
     mut cache: ResMut<ModelCache>,
     mut map: ResMut<ConstructEntities>,
     mut q: Query<(Entity, &mut SimConstruct, &mut ConstructVisual, &mut Transform, &mut Visibility, Option<&mut SfxLoopEmitter>, Option<&PendingTransform>, Option<&mut Blend>), Without<ConstructEnd>>,
@@ -601,7 +640,8 @@ fn sync_constructs(
                     vis = vis.with_accent(Color::srgb(a[0], a[1], a[2]).to_linear().to_f32_array_no_alpha());
                 }
                 vis.seed = cv.id.0.wrapping_mul(2654435761);
-                let tf = place(cv, owner_view, c.category);
+                let fit = HeldFit::of(&built.model, bd_sim::constructs::gun::is_gun(c));
+                let tf = place(cv, owner_view, c.category, body_hands.0.get(&cv.owner).copied(), fit);
                 let mut ec = commands.spawn((
                     Name::new(format!("Construct{}", cv.id.0)),
                     SimConstruct {
@@ -617,6 +657,8 @@ fn sync_constructs(
                         robot: false,
                         last_pos: tf.translation,
                         loop_kind: None,
+                        held: fit,
+                        see: 0.0,
                     },
                     tf,
                 ));
@@ -657,7 +699,7 @@ fn sync_constructs(
                         _ => hidden = c.recipe.form != Form::Parachute && c.category != FormCategory::Held,
                     }
                 } else if !frozen {
-                    let mut t = place(cv, owner_view, c.category);
+                    let mut t = place(cv, owner_view, c.category, body_hands.0.get(&cv.owner).copied(), sc.held);
                     if let Some((curve, st)) = sc.swing.as_mut() {
                         *st += dt;
                         let total = curve.anticipation + curve.active + curve.recovery;
@@ -716,6 +758,22 @@ fn sync_constructs(
                 // Owner out of willpower: the construct dims.
                 vis.dim = owner_view.map_or(0.0, |v| if v.willpower < 5.0 { 0.45 } else { 0.0 });
                 vis.arc = cv.flags & cflags::FORMING != 0;
+                // Readability: a player inside (a dome, a cage, between a kaiju's legs) reads through
+                // the hard light — the body thins (the daylight floor follows opacity, see
+                // construct.wgsl), lines stay.
+                if !cv.attached() && c.half.min_element() > 0.6 {
+                    let (ctr, inv) = (super::bv(c.center()), super::bq(c.rot).inverse());
+                    let half = super::bv(c.half) + Vec3::splat(0.3);
+                    let inside = views.players.iter().any(|p| {
+                        let l = inv * (p.pos + Vec3::Y * 0.9 * p.size - ctr);
+                        p.alive() && l.abs().cmple(half).all()
+                    });
+                    let k = 1.0 - (-8.0 * dt).exp();
+                    sc.see += (if inside { 1.0 } else { 0.0 } - sc.see) * k;
+                    if sc.see > 1e-3 || vis.opacity < SOLID_OPACITY - 1e-3 {
+                        vis.opacity = SOLID_OPACITY - (SOLID_OPACITY - SEE_THROUGH_OPACITY) * sc.see;
+                    }
+                }
                 if let Some(mut l) = looper {
                     let (g, p) = loop_level(c.recipe.form, cv);
                     l.gain = g;
@@ -760,8 +818,10 @@ fn clamp_first_person(grip: Transform, model: &VoxelModel) -> Transform {
     Transform { scale: grip.scale * (FP_MAX_REACH / (reach * s)), ..grip }
 }
 
-/// Where a construct sits this frame.
-fn place(cv: &ConstructView, owner: Option<&PlayerView>, category: FormCategory) -> Transform {
+/// Where a construct sits this frame. `hand` = the owner body's animated right hand this frame
+/// (`players::BodyHands`; third person / other players): held items ride it, grip in the palm,
+/// pointing along the aim.
+fn place(cv: &ConstructView, owner: Option<&PlayerView>, category: FormCategory, hand: Option<Vec3>, fit: HeldFit) -> Transform {
     if !cv.attached() {
         return Transform::from_translation(cv.pos).with_rotation(cv.rot).with_scale(Vec3::splat(cv.size.max(0.05)));
     }
@@ -774,7 +834,14 @@ fn place(cv: &ConstructView, owner: Option<&PlayerView>, category: FormCategory)
     if category == FormCategory::Worn {
         return Transform::from_translation(v.pos + body * Vec3::new(0.0, 1.25 * s, 0.25 * s)).with_rotation(body);
     }
-    hand_transform(v)
+    match hand {
+        Some(h) if category == FormCategory::Held => {
+            let (_, look, _) = body_frames(v);
+            let k = fit.scale * if fit.scale < 1.0 { s } else { 1.0 };
+            Transform::from_translation(h - look * (fit.grip * k)).with_rotation(look).with_scale(Vec3::splat(k))
+        }
+        _ => hand_transform(v),
+    }
 }
 
 fn loop_for(c: &bd_sim::constructs::Construct) -> Option<&'static str> {
@@ -934,6 +1001,8 @@ fn predicted_casts(
                     robot: false,
                     last_pos: tf.translation,
                     loop_kind: None,
+                    held: HeldFit::of(&built.model, bd_sim::weapons::archetype_for(&recipe).is_some()),
+                    see: 0.0,
                 },
                 AutoForm::new(bd_sim::constructs::forming_secs(recipe.form).max(0.15)),
                 vis,

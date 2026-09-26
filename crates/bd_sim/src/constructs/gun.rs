@@ -50,6 +50,29 @@ pub const HITSCAN_RANGE: f32 = 250.0;
 /// Accuracy only — ADS never touches movement. Deterministic (a pure function of the tick's input).
 pub const ADS_SPREAD: f32 = 0.6;
 
+/// Projectile muzzle parallax (CAMERA): how far down the eye ray the convergence point is searched.
+/// Past this the ~0.3 m hand offset is < 0.15°, i.e. nothing.
+pub const CONVERGE_RANGE: f32 = 120.0;
+
+/// Projectile muzzle parallax (CAMERA): the direction from `muzzle` to what the eye ray `eye → dir`
+/// hits first (terrain or an enemy hull as the shooter saw it, lag-compensated), so a projectile
+/// lands on the crosshair even point-blank — in both views, like hitscan (which starts at the eye)
+/// and hooks (hand → the anchor the eye found). Unchanged when the point is not ahead of the muzzle
+/// (a face-hug: the target is between the eye and the barrel's end).
+pub fn converge_muzzle(env: &Env<'_>, owner: bd_core::PlayerId, eye: Vec3, dir: Vec3, muzzle: Vec3) -> Vec3 {
+    let ctx = env.ctx;
+    let mut t = bd_core::voxel::raycast(ctx.voxels, eye, dir, CONVERGE_RANGE).map_or(CONVERGE_RANGE, |h| h.t);
+    for e in ctx.enemies_of(owner) {
+        let hull = ctx.hull_for(owner, e);
+        if let Some((f, _)) = geom::segment_aabb(eye, eye + dir * t, &hull) {
+            t *= f;
+        }
+    }
+    let to = eye + dir * t - muzzle;
+    let len = to.length();
+    if !len.is_finite() || len < 0.3 || to.dot(dir) < 0.8 * len { dir } else { to / len }
+}
+
 /// Pellet-cone multiplier for this tick's input.
 #[inline]
 pub fn ads_spread(input: &PlayerInput) -> f32 {
@@ -207,6 +230,9 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
     let right = dir.cross(Vec3::Y).normalize_or_zero();
     let side = if c.recipe.count == 2 { if alt { 0.25 } else { -0.25 } } else { 0.0 };
     let muzzle = o.hand + dir * (c.half.z * 2.0) + right * side;
+    // Hitscan starts at the eye; projectiles leave the muzzle toward the eye ray's hit (parallax).
+    let ray = fires_hitscan(c, arch, spec);
+    let dir = if ray { dir } else { converge_muzzle(env, c.owner, o.eye, dir, muzzle) };
     let mut dmg = spec.damage * dmg_k;
     let mut kb = spec.knockback;
     let mut speed = spec.speed * speed_k;
@@ -236,7 +262,6 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
     // Hitscan (COMBAT.md §4b): players move 20–50 m/s, so the hand cannon, every super-shotgun
     // pellet, the minigun and the railgun are instant, lag-compensated rays. Rounds whose point is
     // the flight stay projectiles: payloads, explosive rounds, ricochets and portal shots.
-    let ray = fires_hitscan(c, arch, spec);
     let mut dirs = [Vec3::ZERO; 16];
     let n = pellet_dirs(dir, spec.pellets, spec.spread_deg * ads_spread(&o.input), &mut dirs);
     if ray {

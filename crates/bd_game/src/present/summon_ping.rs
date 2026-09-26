@@ -28,19 +28,24 @@
 //!   (`Alert` > `Info`, then `priority`); lower ones are dropped. Pop-in 0.14 s, fade/shrink 0.18 s
 //!   at the end of `duration`. Hidden while the pause menu is open.
 //!
-//! The window is a second `Camera3d` (order 10, own `Viewport`, `RenderLayers` = [`PREVIEW_LAYER`],
-//! no Hdr / bloom / fog / MSAA / shadows / light clusters, tonemapped in the material shader) that
-//! is spawned once and **inactive** (`is_active = false`) whenever no cut-in shows. It clears only
-//! its own LDR target to transparent and is composited over the window with premultiplied-alpha
-//! blending (the gameplay camera is HDR, so their intermediate textures are not shared). UI stays
-//! on the gameplay camera (`IsDefaultUiCamera`); bd_fx's word/shout billboards ignore inset cameras.
+//! The picture comes from a second `Camera3d` rendering **offscreen** into a 256×192 LDR image
+//! (`RenderTarget::Image`, cleared to transparent; `RenderLayers` = [`PREVIEW_LAYER`], no Hdr /
+//! bloom / fog / MSAA / shadows, a single light cluster, tonemapped in the material shader). The
+//! image is shown by an `ImageNode` inside the UI frame, so there is no viewport or blending with
+//! the gameplay camera. The camera has order -1 (renders before the gameplay camera, whose UI shows
+//! the picture the same frame, and keeps bd_fx's "highest-order active camera" on gameplay), is
+//! spawned once, and is **inactive** except on throttled frames: it redraws at
+//! [`CutInSettings::preview_hz`] (8 Hz default, `BD_PREVIEW_HZ`) while a cut-in shows, and the UI
+//! keeps the last picture in between. UI stays on the gameplay camera (`IsDefaultUiCamera`); bd_fx's
+//! word/shout billboards ignore inset cameras.
 //!
 //! # Summon ping
 //! The **local** player's own free-standing constructs (creatures, vehicles, structures; never held /
 //! worn / thrown): if the new construct is off-screen or behind terrain during its first second, a
 //! corps-coloured arrow + ping ring pops in at the screen edge pointing toward it (or sits over the
 //! spot when it is merely behind a wall) for ~1.5 s, fading early once it is seen, plus an `Info`
-//! cut-in of the construct next to the arrow (`UiPrefs::summon_preview`; off = arrow only).
+//! cut-in of the construct next to the arrow (`UiPrefs::summon_preview`; off = arrow only). The
+//! ping sounds `summon_ping` (2D) as it appears.
 //! Recalled constructs (fell off the map, blinked back to their summoner) get a small hard-light
 //! blink-in; the local player's own recall reuses the ping.
 //!
@@ -617,6 +622,7 @@ fn summon_ping(
     main: MainCam,
     constructs: ConstructRoots,
     mut ui: Query<(&PingUi, &mut Node, &mut UiTransform, &mut BorderColor, &mut Visibility)>,
+    mut sfx: MessageWriter<Sfx3d>,
 ) {
     let t0 = std::time::Instant::now();
     let dt = time.delta_secs().min(0.1);
@@ -696,6 +702,7 @@ fn summon_ping(
         }
         if tr.shown.is_none() && !visible && tr.seen < SEEN_OK && tr.t < WATCH && ent.is_some() {
             tr.shown = Some(0.0);
+            sfx.write(Sfx3d::ui("summon_ping").gain(0.8));
         }
         if let Some(s) = tr.shown.as_mut() {
             *s += dt;

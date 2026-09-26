@@ -121,12 +121,14 @@ fn gun_events(
     mut tracers: ResMut<Tracers>,
     mut volley: Local<(u64, u8, u32)>,
     ads: Option<Res<super::ads::AdsState>>,
+    cam: Query<&GlobalTransform, With<crate::camera::PlayerCamera>>,
 ) {
     let Some(active) = active else {
         events.clear();
         return;
     };
     let ads_blend = ads.map_or(0.0, |a| a.blend.clamp(0.0, 1.0));
+    let sight = cam.single().ok().map(|g| (g.translation(), g.forward().as_vec3()));
     for ev in events.read() {
         match &ev.event {
             GameEvent::ShotFired { owner, archetype, muzzle: m, dir, pellets, .. } => {
@@ -163,6 +165,9 @@ fn gun_events(
                         let right = d.cross(Vec3::Y).normalize_or(Vec3::X);
                         at += (right * 1.1 - Vec3::Y * 0.35) * ads_blend;
                         size *= 1.0 - 0.35 * ads_blend;
+                    } else if let Some((c, f)) = sight {
+                        // Someone else's shot word never lands on our sight line while aiming.
+                        (at, size) = super::ads::off_sight_line(at, size, c, f, ads_blend);
                     }
                     let mut o = SpawnOnomatopoeia::key(w, at, size, col);
                     o.dir = d;

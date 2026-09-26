@@ -578,17 +578,7 @@ fn oath_keys(
     }
     // Swallow game keys this frame (they are letters now).
     if o.typing_focus {
-        for a in [
-            Action::Dismiss,
-            Action::Power,
-            Action::Voice,
-            Action::Console,
-            Action::ConsoleAlt,
-            Action::Slot1,
-            Action::Slot2,
-            Action::Slot3,
-            Action::Slot4,
-        ] {
+        for a in Action::ALL {
             if let Some(k) = binds.get(a).key() {
                 keys.clear_just_pressed(k);
             }

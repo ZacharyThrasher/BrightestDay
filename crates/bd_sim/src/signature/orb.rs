@@ -25,6 +25,9 @@ use crate::combat::{CarveRequest, ConstructHit, HitInfo, HitKind};
 use crate::events::{GameEvent, GoneReason};
 use crate::world::World;
 
+/// Windup gather distance past two radii ahead of the eye (m; see `step`).
+pub const GATHER_BASE: f32 = 5.0;
+
 /// Most live orbs (older ones end early past this).
 pub const MAX_ORBS: usize = 8;
 
@@ -215,7 +218,10 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                 if let Some(p) = w.player(o.owner) {
                     o.dir = p.look();
                     let eye = p.eye(&w.cfg.move_params);
-                    o.pos = eye + o.dir * (o.radius + 3.0) + Vec3::Y * (o.radius * 0.5);
+                    // CAMERA: far enough out that a 3-4 m sphere doesn't fill the view — the
+                    // third-person camera sits ~3 m behind the eye (was radius + 3 m: the windup
+                    // covered the screen). [`GATHER_BASE`] + 2 radii keeps it < ~25° across.
+                    o.pos = eye + o.dir * (o.radius * 2.0 + GATHER_BASE) + Vec3::Y * (o.radius * 0.5);
                 }
                 if let Some(c) = w.constructs.get_mut(o.construct) {
                     c.pos = o.pos;

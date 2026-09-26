@@ -15,31 +15,51 @@ Unzip anywhere and run `brightest_day.exe`. No install. First launch compiles sh
 Online hosting uses a free Cloudflare quick tunnel (`cloudflared.exe`, bundled). No accounts, no port
 forwarding. If it can't start, LAN play still works.
 
-## Controls (rebindable in Settings)
-| | |
+## Controls (rebind in Settings → Controls)
+| key | |
 |---|---|
 | Mouse | look |
-| WASD / Space / Ctrl | move / jump (hold to keep hopping) / crouch-slide |
-| Shift | gas boost |
+| W A S D | move |
+| Space | jump |
+| Ctrl (or C) | crouch |
+| Shift | boost |
 | Left Alt | dodge |
-| Q / E (or Mouse 4 / 5) | left / right tether — hold to stay attached, release to fling |
-| Wheel / R | reel in |
-| LMB / RMB | use what you're holding (empty hand: ring blast / shove) |
-| F5 · B · RMB with a gun | first ⇄ third person · swap shoulder · aim down sights (the gun's alt-fire moves to H) |
-| Enter or T | open the ring — type anything, Enter to make it |
-| V (hold) | say it instead of typing it (if built with voice) |
-| 1–4 | your four saved phrases |
-| G | power (tap / hold) · Mouse 3: transform · E: eject |
-| F | recite your oath to recharge willpower |
+| Q / E (or Mouse 4 / 5) | left / right tether |
+| R or wheel | reel |
+| LMB / RMB | use |
+| RMB with a gun | aim |
+| H | gun alt-fire |
+| Enter or T | ring |
+| V (hold) | voice |
+| 1–4 | quick cast |
+| F | oath |
 | Z (hold) | charge |
-| X | dismiss your constructs · Tab: scores · F3: performance |
+| G (tap / hold) | power |
+| Mouse 3 | transform |
+| E in a seat | eject |
+| X | dismiss |
+| F5 | view |
+| B | shoulder |
+| Tab | scores |
+| Esc | menu |
+| F3 · F11 (or Alt+Enter) | performance · fullscreen |
 
 That's all the help there is. Everything else is for you to find out.
 
+## Settings
+**Settings** (title menu, or Esc in a match). Q / E switch tabs.
+- **Gameplay** — default view (first / third person), shoulder, aim-down-sights hold / toggle and zoom speed, voice casting.
+- **Controls** — mouse sensitivity, ADS sensitivity, invert Y, every key. Taking a key another action uses swaps the two.
+- **Video** — field of view, fullscreen, vsync, anti-aliasing, latency options (next launch).
+- **Audio** — master / music / world / ambience / hit feedback volume, music style, reduced dynamic range, mono.
+- **Comfort** — the comfort preset and each of its parts.
+- **HUD** — player outlines (thickness, colour-blind patterns), enemy compass, damage % number, shout words (on / mine only / off), comic words, summon preview.
+
 ## Comfort
-Settings → **Comfort** preset turns off shake, FOV kicks and flashes and adds a vignette, and makes view
-switches and ADS zoom instant cuts. The third-person camera (Settings → Default view, or F5) is often
-easier on the stomach too. Recommended for anyone who gets motion sick.
+Settings → Comfort → **Comfort preset** turns off shake, FOV kicks and flashes, adds a vignette, and
+makes view switches and ADS zoom instant cuts; each part can be set on its own. Third person (F5, or
+Settings → Gameplay → Default view) is a full way to play and often easier on the stomach too.
+Recommended for anyone who gets motion sick.
 
 ## For the host
 - Match rules (every knob) and presets live on the host setup page: Classic, Party, Chaos, Movement Gods.

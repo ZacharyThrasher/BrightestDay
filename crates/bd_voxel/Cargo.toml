@@ -17,7 +17,19 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 default = ["backrooms"]
 # BACKROOMS map (maps/backrooms.rs).
 backrooms = []
+# TURTLE LAIR map (maps/lair.rs).
+lair = []
+# VALLEY OF THE END map (maps/valley.rs).
+valley = []
 
 [[example]]
 name = "backrooms_preview"
 required-features = ["backrooms"]
+
+[[example]]
+name = "lair_preview"
+required-features = ["lair"]
+
+[[example]]
+name = "valley_preview"
+required-features = ["valley"]

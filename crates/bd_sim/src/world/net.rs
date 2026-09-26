@@ -400,6 +400,7 @@ impl World {
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);
         crate::movement::push_surf_colliders(&self.arena.surf_lines, &mut self.colliders); // SURF: map surf lines
+        crate::movement::push_water_colliders(&self.arena, &mut self.colliders); // WATER-WALK: map water sheets (same as the host)
         self.assist_push_player_colliders(); // ASSIST HOOK: other players are hook targets for prediction
     }
 

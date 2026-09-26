@@ -238,6 +238,7 @@ fn station_keys(
     arena: Res<ArenaWorld>,
     tuning: Res<MoveTuning>,
     menu: Res<crate::state::InGameMenu>,
+    focus: Res<crate::input::UiFocus>,
     mut respawned: MessageReader<PlayerRespawned>,
     mut look: ResMut<LookAngles>,
     mut respawn: ResMut<RespawnPoint>,
@@ -251,7 +252,8 @@ fn station_keys(
         let st = tut.station;
         teleport(st, &arena, &tuning, &mut sim, &mut look, &mut respawn, tut);
     }
-    if menu.0 {
+    if menu.0 || focus.typing {
+        tut.r_hold = 0.0;
         return;
     }
     const DIGITS: [KeyCode; 7] = [

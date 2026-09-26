@@ -258,7 +258,8 @@ impl Caster<'_> {
         self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
         match resolve_phrase(&lex, power, &plan.text, spoken) {
             Resolved::PowerMove(slot) => {
-                self.cmds.write(SimCommand::local(Cmd::PowerMove(slot)));
+                let (eye, dir) = self.crosshair();
+                self.cmds.write(SimCommand::local(Cmd::PowerMove(slot, Some(Aim::new(core_v3(eye), core_v3(dir))))));
             }
             Resolved::Rush(n) => {
                 let n = n.saturating_sub(rush_already);
@@ -266,10 +267,7 @@ impl Caster<'_> {
             }
             Resolved::Cast { res, incantation } => {
                 // The crosshair ray (third person aims from the eye toward what the camera sees).
-                let (eye, dir) = match self.aim_ray.as_ref() {
-                    Some(r) if r.dir.is_finite() && r.dir.length_squared() > 0.5 => (r.origin, r.dir),
-                    _ => (self.anchor.eye, self.look.forward()),
-                };
+                let (eye, dir) = self.crosshair();
                 let modifier = res.kind == ResolutionKind::Graft || plan.graft_onto.is_some();
                 let target_hint = match (plan.graft_onto, plan.target) {
                     (Some(id), _) => Some(TargetHint::Construct(id)),
@@ -305,6 +303,14 @@ impl Caster<'_> {
             }
         }
         true
+    }
+
+    /// The crosshair ray `(eye, dir)`: third person converges from the eye on what the camera sees.
+    pub fn crosshair(&self) -> (Vec3, Vec3) {
+        match self.aim_ray.as_ref() {
+            Some(r) if r.dir.is_finite() && r.dir.length_squared() > 0.5 => (r.origin, r.dir),
+            _ => (self.anchor.eye, self.look.forward()),
+        }
     }
 
     /// Nearest living enemy within a small cone of the crosshair (for autonomous constructs).
@@ -600,8 +606,9 @@ fn console_keys(
         keys.clear_just_pressed(KeyCode::Escape);
     }
     if console.open {
-        // Keys that are text while typing must not also act as game keys this frame.
-        for a in [Action::Oath, Action::Dismiss, Action::Power, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Scoreboard] {
+        // Keys that are text while typing must not also act as game keys this frame (every bound
+        // key: readers also check `UiFocus::typing`, this covers the frame focus changes).
+        for a in Action::ALL.into_iter().filter(|a| !matches!(a, Action::Console | Action::ConsoleAlt)) {
             if let Some(k) = binds.get(a).key() {
                 keys.clear_just_pressed(k);
             }

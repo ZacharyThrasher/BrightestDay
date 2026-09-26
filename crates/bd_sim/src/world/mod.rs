@@ -56,7 +56,7 @@ use crate::rules::{MatchPhase, MatchRules, MatchState, MatchTimings, ScoreRow, s
 use crate::space::{ForceField, Link, PortalPair};
 use crate::willpower::OathTable;
 
-pub use actions::{Aim, TargetHint};
+pub use actions::{Aim, FIRST_PERSON_AIM_SLACK, TargetHint, clamp_to_cone};
 pub use combat::{EMBER_COLLAPSE_LIMITS, SIM_COLLAPSE_LIMITS, apply_carve_op, collapse_limits_for};
 pub use invariants::{MAX_CONSTRUCTS, MAX_PROJECTILES};
 pub use net::PredictCtx;
@@ -449,6 +449,7 @@ impl World {
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);
         crate::movement::push_surf_colliders(&self.arena.surf_lines, &mut self.colliders); // SURF: map surf lines
+        crate::movement::push_water_colliders(&self.arena, &mut self.colliders); // WATER-WALK: map water sheets (Valley)
 
         self.carve_ops_used = 0;
         self.punch_through(dt); // Smash: launched players plow through terrain (world/punch.rs)

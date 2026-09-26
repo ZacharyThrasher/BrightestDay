@@ -11,6 +11,14 @@
 //! * Tether ropes for everyone but the local first-person player (the shell draws those).
 //! * KO: [`ShatterPlayer`] shatters the body into its own voxels instantly (no ragdoll).
 //! * Remote movement sounds (jumps, hard landings, tethers, boosts) are positional.
+//! * **Held items ride the animated hand** (stabilisation): the costume's right-arm chain end, posed
+//!   with the same layers the renderer uses, is published in [`BodyHands`] for
+//!   `constructs::place`. Holding a gun raises the arm (low-ready; fully along the aim while
+//!   firing / ADS; ADS brings the support hand in) through a `bd_fx::PartOverlay`.
+//! * **Third-person near clip**: the local body fades (and hides) when the shoulder camera is
+//!   pushed within ~1.2 m of the head (a wall behind you), so the helmet never fills the view.
+//! * The tutorial has no sim world: `camera3p` adds a synthetic local view in third person, so the
+//!   body is drawn there too.
 
 use super::camera3p::ViewMode;
 use super::constructs::body_frames;
@@ -23,7 +31,7 @@ use crate::state::AppState;
 use bd_core::mechanics::{Element, Form, Recipe};
 use bd_core::shape::ShapeSpec;
 use bd_core::PlayerId;
-use bd_fx::{ConstructVisual, ShatterModelFx};
+use bd_fx::{ConstructVisual, PartOverlay, ShatterModelFx};
 use bd_shapes::{AnimState, CostumeTweaks, VoxelModel};
 use bd_sim::events::move_flags;
 use bd_sim::replicate::pflags;
@@ -63,6 +71,75 @@ pub struct ShatterPlayer {
     pub void: bool,
 }
 
+/// Right-hand world positions of the bodies drawn this frame (held items attach here; see
+/// `constructs::place`). Written in [`BodySync`].
+#[derive(Resource, Default)]
+pub struct BodyHands(pub HashMap<PlayerId, Vec3>);
+
+/// Player bodies are posed (runs before construct placement, which reads [`BodyHands`]).
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BodySync;
+
+/// Most costume parts the hand lookup poses (stack scratch; bigger models skip it).
+const MAX_POSE_PARTS: usize = 96;
+
+/// Where a costume's hands are: per side (0 = left, 1 = right) the top arm part and the chain end
+/// (part index, rest-space point, bd_core types).
+#[derive(Clone, Copy, Debug, Default)]
+struct HandRig {
+    root: [Option<usize>; 2],
+    end: [Option<(usize, bd_core::Vec3)>; 2],
+}
+
+impl HandRig {
+    fn of(model: &VoxelModel) -> Self {
+        use bd_shapes::PartKind;
+        let mut r = HandRig::default();
+        let kinds = &model.rig.kinds;
+        for (k, side) in [(0usize, -1i8), (1, 1)] {
+            let is_arm = |i: usize| kinds.get(i) == Some(&PartKind::Arm(side));
+            let Some(root) = (1..model.parts.len()).find(|&i| is_arm(i) && !is_arm(model.parts[i].parent_index)) else { continue };
+            r.root[k] = Some(root);
+            // The chain: the root and every part whose ancestry reaches it. The hand = the voxel
+            // farthest from the shoulder pivot.
+            let pivot = model.parts[root].pivot;
+            let mut best: Option<(f32, usize, bd_core::Vec3)> = None;
+            for i in root..model.parts.len() {
+                let mut j = i;
+                let mut hops = 0;
+                while j != root && j != 0 && hops < 16 {
+                    j = model.parts[j].parent_index;
+                    hops += 1;
+                }
+                if j != root {
+                    continue;
+                }
+                let p = &model.parts[i];
+                for (v, _) in &p.voxels {
+                    let c = p.voxel_center(*v);
+                    let d = c.distance_squared(pivot);
+                    if best.is_none_or(|b| d > b.0) {
+                        best = Some((d, i, c));
+                    }
+                }
+            }
+            r.end[k] = best.map(|(_, i, c)| (i, c));
+        }
+        r
+    }
+}
+
+/// Eased gun-raise state of a body.
+#[derive(Clone, Copy, Debug, Default)]
+struct Raise {
+    /// Right arm 0 (down) … 1 (along the aim).
+    arm: f32,
+    /// Support hand in (ADS).
+    ads: f32,
+    /// Seconds since the last shot (holds the arm up briefly).
+    since_shot: f32,
+}
+
 #[derive(Component)]
 pub struct PlayerBody {
     pub id: PlayerId,
@@ -77,6 +154,8 @@ pub struct PlayerBody {
     spin: f32,
     ropes: [Entity; 2],
     shattered: bool,
+    hands: HandRig,
+    raise: Raise,
 }
 
 #[derive(Resource, Default)]
@@ -99,10 +178,11 @@ impl Plugin for PlayersPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerCostumes>()
             .init_resource::<BodyEntities>()
+            .init_resource::<BodyHands>()
             .add_message::<ShatterPlayer>()
             .add_systems(Startup, setup_ropes)
             .add_systems(OnExit(AppState::InGame), clear_bodies)
-            .add_systems(Update, (gather_costumes, body_events, sync_bodies).chain().in_set(PresentSet::Sync));
+            .add_systems(Update, (gather_costumes, body_events, sync_bodies).chain().in_set(PresentSet::Sync).in_set(BodySync));
     }
 }
 
@@ -124,11 +204,22 @@ fn clear_bodies(mut commands: Commands, mut map: ResMut<BodyEntities>, q: Query<
 /// Keep [`PlayerCostumes`] filled: lobby profiles, the local prefs, bots.
 fn gather_costumes(
     active: Option<Res<ActiveWorld>>,
+    views: Res<WorldViews>,
     net: Option<Res<crate::net::NetStatus>>,
     prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
     mut costumes: ResMut<PlayerCostumes>,
 ) {
-    let Some(active) = active else { return };
+    let Some(active) = active else {
+        // Tutorial: the synthetic local body (`camera3p::tutorial_view`) wears your costume.
+        if let (Some(v), Some(prefs)) = (views.players.iter().find(|p| p.is_local), prefs.as_ref()) {
+            let c = &prefs.costume;
+            let choice = CostumeChoice { phrase: c.phrase.clone(), seed: c.seed, accent: c.accent, head_scale: c.head_scale, hide: c.hide };
+            if costumes.0.get(&v.id) != Some(&choice) {
+                costumes.0.insert(v.id, choice);
+            }
+        }
+        return;
+    };
     if let Some(net) = net.as_ref().filter(|n| n.is_changed()) {
         for p in &net.players {
             let c = &p.profile.costume;
@@ -199,6 +290,13 @@ fn body_events(
                     b.react = Some((local_dir, impact.strength.min(1.0), 0.0));
                 }
             }
+            GameEvent::ShotFired { owner, construct: Some(_), .. } => {
+                if let Some(&e) = map.0.get(owner)
+                    && let Ok((mut b, _, _)) = bodies.get_mut(e)
+                {
+                    b.raise.since_shot = 0.0;
+                }
+            }
             GameEvent::Move { player, flags, speed } => {
                 let remote = active.local != Some(*player);
                 let Some(&e) = map.0.get(player) else { continue };
@@ -261,18 +359,25 @@ fn sync_bodies(
     costumes: Res<PlayerCostumes>,
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
+    (aim, ads, fx): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>),
     lex: Option<Res<crate::console::RingLexicon>>,
     mut map: ResMut<BodyEntities>,
-    mut ropes: ResMut<RopeAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut bodies: Query<(Entity, &mut PlayerBody, Option<&mut ConstructVisual>, &mut Transform, &mut Visibility), Without<Rope>>,
+    mut hands_out: ResMut<BodyHands>,
+    (mut ropes, mut materials): (ResMut<RopeAssets>, ResMut<Assets<StandardMaterial>>),
+    mut bodies: Query<(Entity, &mut PlayerBody, Option<&mut ConstructVisual>, &mut Transform, &mut Visibility, Option<&mut PartOverlay>), Without<Rope>>,
     mut rope_q: Query<(&mut Transform, &mut Visibility), With<Rope>>,
     mut trail: MessageWriter<SpawnDebris>,
     mut rng: ResMut<VfxRng>,
 ) {
-    let Some(active) = active else { return };
+    hands_out.0.clear();
+    // No sim world = the tutorial (a synthetic local view in third person, see `camera3p`).
+    let active = active.as_deref();
+    if active.is_none() && views.players.is_empty() {
+        return;
+    }
     let dt = time.delta_secs().min(0.1);
     let third = mode.third_person();
+    let translucent = fx.as_ref().is_none_or(|f| f.translucent);
     for v in &views.players {
         let Some(choice) = costumes.0.get(&v.id) else { continue };
         let corps = corps_rgb(v.corps);
@@ -309,6 +414,8 @@ fn sync_bodies(
                             spin: 0.0,
                             ropes: r,
                             shattered: false,
+                            hands: HandRig::default(),
+                            raise: Raise::default(),
                         },
                         Transform::from_translation(v.pos),
                         Visibility::Hidden,
@@ -318,7 +425,7 @@ fn sync_bodies(
                 continue;
             }
         };
-        let Ok((e, mut b, vis, mut tf, mut visibility)) = bodies.get_mut(e) else { continue };
+        let Ok((e, mut b, vis, mut tf, mut visibility, overlay)) = bodies.get_mut(e) else { continue };
         // Costume changed (lobby edit / lexicon arrived): rebuild.
         if &b.choice != choice {
             b.choice = choice.clone();
@@ -328,6 +435,8 @@ fn sync_bodies(
             && let Some(model) = check_ready(t)
         {
             b.task = None;
+            b.hands = HandRig::of(&model);
+            commands.entity(e).insert(PartOverlay { locals: vec![bd_shapes::Local::IDENTITY; model.parts.len()] });
             let mut cv = ConstructVisual::new(model, corps);
             cv.opacity = 0.92;
             cv.seed = v.id.0 as u32 * 7919;
@@ -343,7 +452,11 @@ fn sync_bodies(
             b.shattered = false;
         }
         let hide_self = v.is_local && !third;
-        let show = alive && !hide_self && v.seat.is_none_or(|_| v.has(pflags::SUIT));
+        // Third-person near clip: the shoulder camera pushed into the head (a wall behind you) —
+        // fade the local body out (hide it when the fade can't: opaque style / too close).
+        let near = if v.is_local && third { near_clip_fade(aim.camera.distance(v.pos + Vec3::Y * 1.6 * v.size) / v.size.max(0.2)) } else { 1.0 };
+        let clipped = near < if translucent { 0.12 } else { 0.6 };
+        let show = alive && !hide_self && !clipped && v.seat.is_none_or(|_| v.has(pflags::SUIT));
         let want = if show { Visibility::Inherited } else { Visibility::Hidden };
         if *visibility != want {
             *visibility = want;
@@ -419,6 +532,40 @@ fn sync_bodies(
             n += 1;
         }
         cv.layers.set(&layers[..n]);
+        // Held item: gun raise / ADS pose, and the animated hand for `constructs::place`.
+        let held = active.and_then(|a| a.world.constructs.held_by(v.id)).filter(|c| c.category == bd_core::mechanics::FormCategory::Held && c.attached());
+        let gun = held.is_some_and(bd_sim::constructs::gun::is_gun);
+        let firing = held.and_then(|c| views.construct(c.id)).is_some_and(|c| {
+            use bd_sim::weapons::WeaponPhase::*;
+            matches!(bd_sim::weapons::WeaponPhase::from_u8(c.weapon & 7), Firing | Charging | SpinUp)
+        });
+        b.raise.since_shot += dt;
+        let ads_k = if v.is_local && gun { ads.blend } else { 0.0 };
+        let (arm_t, ads_t) = match gun {
+            true if firing || b.raise.since_shot < 0.9 || ads_k > 0.05 => (1.0, ads_k),
+            true => (0.45, 0.0),
+            false => (0.0, 0.0),
+        };
+        let k = 1.0 - (-14.0 * dt).exp();
+        b.raise.arm += (arm_t - b.raise.arm) * k;
+        b.raise.ads += (ads_t - b.raise.ads) * k;
+        if let Some(mut ov) = overlay {
+            let raise = b.raise;
+            gun_pose(&b.hands, raise, v.pitch, &mut ov.locals);
+            if show
+                && held.is_some()
+                && let Some(h) = hand_world(&cv.model, &layers[..n], &ov.locals, &b.hands, &tf)
+            {
+                hands_out.0.insert(v.id, h);
+            }
+        }
+        if v.is_local {
+            // Near-clip fade (only ever lowers the base 0.92; charge brightens it after this).
+            let o = if near < 1.0 { 0.05 + 0.87 * near } else { 0.92 };
+            if (cv.opacity - o).abs() > 1e-3 && cv.opacity <= 0.92 + 1e-3 {
+                cv.opacity = o;
+            }
+        }
         // Diegetic damage (Smash %): the hard-light body shifts white -> gold -> orange -> red
         // and cracks creep in as % rises (readable at 40 m); never fully "broken".
         let (dmg_col, k) = damage_glow(v.damage_pct);
@@ -461,7 +608,7 @@ fn sync_bodies(
         }
     }
     // Players that left.
-    let gone: Vec<PlayerId> = map.0.keys().copied().filter(|id| views.player(*id).is_none() && active.world.player(*id).is_none()).collect();
+    let gone: Vec<PlayerId> = map.0.keys().copied().filter(|id| views.player(*id).is_none() && active.is_none_or(|a| a.world.player(*id).is_none())).collect();
     for id in gone {
         if let Some(e) = map.0.remove(&id) {
             if let Ok((_, b, ..)) = bodies.get(e) {
@@ -472,6 +619,47 @@ fn sync_bodies(
             commands.entity(e).try_despawn();
         }
     }
+}
+
+/// Third-person near clip: 1 = fully drawn … 0 = gone, from the camera's distance to the head (m,
+/// body-size normalised). Starts fading inside ~1.25 m; gone by ~0.6 m.
+pub fn near_clip_fade(dist: f32) -> f32 {
+    let t = ((dist - 0.6) / 0.65).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// Gun raise (right arm up along the aim, `raise.arm`) + ADS support hand (`raise.ads`) as
+/// part overlays on the arm roots (applied outside the clip layers: walk swing stays on top).
+fn gun_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Local]) {
+    use bd_core::Quat as Q;
+    for l in locals.iter_mut() {
+        *l = bd_shapes::Local::IDENTITY;
+    }
+    // Arms hang down (-Y); rx(90° + pitch) points them forward along the aim (model -Z).
+    let up = std::f32::consts::FRAC_PI_2 + pitch.clamp(-1.1, 1.1);
+    if let Some(r) = h.root[1].filter(|&r| r < locals.len())
+        && raise.arm > 1e-3
+    {
+        locals[r] = bd_shapes::Local::rot(Q::from_rotation_y(0.18 * raise.ads) * Q::from_rotation_x(up * raise.arm));
+    }
+    if let Some(l) = h.root[0].filter(|&l| l < locals.len())
+        && raise.ads > 1e-3
+    {
+        locals[l] = bd_shapes::Local::rot(Q::from_rotation_y(-0.55 * raise.ads) * Q::from_rotation_x(up * raise.ads));
+    }
+}
+
+/// World position of the right hand (the arm chain's end) for this frame's layers + overlay.
+fn hand_world(model: &VoxelModel, layers: &[(AnimState, f32)], locals: &[bd_shapes::Local], h: &HandRig, tf: &Transform) -> Option<Vec3> {
+    let (i, p) = h.end[1]?;
+    let n = model.parts.len();
+    if n > MAX_POSE_PARTS || i >= n {
+        return None;
+    }
+    let mut pose = [Default::default(); MAX_POSE_PARTS];
+    bd_shapes::pose_layered_with(model, layers, Some(locals).filter(|l| !l.is_empty()), &mut pose[..n]);
+    let m = super::bv(pose[i].transform_point3(p));
+    m.is_finite().then(|| tf.transform_point(m))
 }
 
 /// Damage % → glow colour (linear) and how far the body leans into it (0..1).
@@ -488,4 +676,49 @@ pub fn damage_glow(pct: f32) -> ([f32; 3], f32) {
         }
     }
     (c, (p / 120.0).clamp(0.0, 0.7))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn costume(name: &str) -> VoxelModel {
+        let r = bd_sim::bots::recipe(name, Form::Biped, &[], Element::Light, 1.8);
+        bd_shapes::costume_model(&bd_shapes::costume_with(&r, None, None, 3, CostumeTweaks::default()))
+    }
+
+    fn hand(m: &VoxelModel, h: &HandRig, raise: Raise, pitch: f32) -> Vec3 {
+        let mut locals = vec![bd_shapes::Local::IDENTITY; m.parts.len()];
+        gun_pose(h, raise, pitch, &mut locals);
+        hand_world(m, &[(AnimState::Idle, 0.0)], &locals, h, &Transform::IDENTITY).expect("a hand")
+    }
+
+    /// Held items ride the costume's animated hand: the right arm chain end is found on the
+    /// shipped bot costumes, and the gun raise brings it up in front of the chest along the aim.
+    #[test]
+    fn costume_hands_are_found_and_the_gun_raise_points_along_the_aim() {
+        for name in ["knight", "robot", "wizard", "astronaut", "samurai"] {
+            let m = costume(name);
+            let h = HandRig::of(&m);
+            assert!(h.root[1].is_some() && h.end[1].is_some(), "{name}: right arm");
+            let rest = hand(&m, &h, Raise::default(), 0.0);
+            let up = hand(&m, &h, Raise { arm: 1.0, ..Default::default() }, 0.0);
+            assert!(rest.x > 0.05, "{name}: the right hand is on the right ({rest})");
+            assert!(up.z < rest.z - 0.3, "{name}: raised forward ({rest} -> {up})");
+            assert!(up.y > rest.y + 0.3, "{name}: raised up ({rest} -> {up})");
+            let high = hand(&m, &h, Raise { arm: 1.0, ..Default::default() }, 0.6);
+            assert!(high.y > up.y + 0.1, "{name}: follows the aim pitch");
+            let ads = hand(&m, &h, Raise { arm: 1.0, ads: 1.0, ..Default::default() }, 0.0);
+            assert!(ads.x < up.x, "{name}: ADS brings the gun in toward the sight line");
+        }
+    }
+
+    #[test]
+    fn near_clip_fade_ramps() {
+        assert_eq!(near_clip_fade(3.0), 1.0);
+        assert_eq!(near_clip_fade(1.25), 1.0);
+        assert_eq!(near_clip_fade(0.5), 0.0);
+        let m = near_clip_fade(0.9);
+        assert!(m > 0.1 && m < 0.9);
+    }
 }

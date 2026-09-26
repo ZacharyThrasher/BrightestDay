@@ -35,12 +35,14 @@ pub mod noise;
 pub mod tutorial;
 pub mod world;
 
-pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, SurfLine, generate_arena, generate_flat_test};
+pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, SurfLine, WaterSheet, generate_arena, generate_flat_test};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use material::{DebrisClass, MATERIALS, MaterialDef, mat, material_def};
 pub use maps::{District, MIAMI_SIZE_VOXELS, MapInfo, ORBIT_SIZE_VOXELS, Route, RouteKind, generate_miami, generate_orbit};
 #[cfg(feature = "backrooms")]
 pub use maps::{BACKROOMS_SIZE_VOXELS, generate_backrooms};
+#[cfg(feature = "valley")]
+pub use maps::{VALLEY_SIZE_VOXELS, generate_valley};
 pub use mesh::{ChunkMesh, Mesher, mesh_chunk};
 pub use tutorial::{Medals, Station, TutorialInfo, generate_tutorial, medals_from_bot};
 pub use world::{CHUNK_SIZE, CHUNK_VOLUME, VoxelWorld, chunk_of, chunk_origin};

@@ -156,12 +156,14 @@ fn party_keys(
     binds: Res<KeyBinds>,
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
+    focus: Res<crate::input::UiFocus>,
     active: Option<Res<ActiveWorld>>,
     mut ui: ResMut<PartyUi>,
     mut cmds: MessageWriter<SimCommand>,
     mut sfx: MessageWriter<PlaySfx>,
 ) {
-    if ui.phase != Some(PartyPhase::Pick) || *state.get() != AppState::InGame || menu.0 || ui.picked.is_some() {
+    // Digits typed in the ring console / oath are text, not a card pick.
+    if ui.phase != Some(PartyPhase::Pick) || *state.get() != AppState::InGame || menu.0 || focus.typing || ui.picked.is_some() {
         return;
     }
     let Some(a) = active else { return };

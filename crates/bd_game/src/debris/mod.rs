@@ -10,6 +10,9 @@
 //!   onto a face, sleep. Cubes shrink (and emissive fades) over the last part of their life.
 //! * Simulated once per rendered frame on the compute pool (cosmetic, client-only), rendered with a
 //!   single instanced material (see `render`).
+//! * Readability: cubes shrink away within ~1.5 m of the camera and big ones are capped near it
+//!   ([`near_camera_size`]) — a chunk in your face never hides the fight (all passes agree: it is
+//!   the instance size).
 
 mod render;
 
@@ -231,8 +234,9 @@ impl DebrisPool {
         }
     }
 
-    /// Advance all cubes by `dt` and rebuild the instance array.
-    fn step(&mut self, dt: f32, s: &DebrisSettings, collider: Option<&dyn DebrisCollider>) {
+    /// Advance all cubes by `dt` and rebuild the instance array. `cam` = the gameplay camera (cubes
+    /// near it shrink away, see [`near_camera_size`]).
+    fn step(&mut self, dt: f32, s: &DebrisSettings, collider: Option<&dyn DebrisCollider>, cam: Option<Vec3>) {
         self.frame = self.frame.wrapping_add(1);
         // Remove the dead (they were drawn at size 0 last frame).
         let mut i = 0;
@@ -251,11 +255,11 @@ impl DebrisPool {
         if live > 2048 {
             ComputeTaskPool::get().scope(|scope| {
                 for (pc, ic) in particles.chunks_mut(CHUNK).zip(instances.chunks_mut(CHUNK)) {
-                    scope.spawn(async move { step_batch(pc, ic, dt, s, collider, frame) });
+                    scope.spawn(async move { step_batch(pc, ic, dt, s, collider, frame, cam) });
                 }
             });
         } else {
-            step_batch(particles, instances, dt, s, collider, frame);
+            step_batch(particles, instances, dt, s, collider, frame, cam);
         }
         // Hide slots that were live last frame but not now.
         if self.prev_written > live {
@@ -272,11 +276,15 @@ fn step_batch(
     s: &DebrisSettings,
     collider: Option<&dyn DebrisCollider>,
     frame: u32,
+    cam: Option<Vec3>,
 ) {
     let mut run = |col: Option<&dyn SolidQuery>| {
         for (p, inst) in particles.iter_mut().zip(instances.iter_mut()) {
             step_particle(p, dt, s, col, frame);
             *inst = DebrisInstance::from_particle(p, s.fade_secs);
+            if let Some(c) = cam {
+                inst.pos_size[3] = near_camera_size(inst.pos_size[3], p.pos.distance(c));
+            }
         }
     };
     match collider {
@@ -494,6 +502,19 @@ impl Plugin for DebrisPlugin {
     }
 }
 
+/// Readability near the camera: a cube's drawn edge (m) at `dist` m from the camera — shrinks to
+/// nothing inside ~0.35 m (gone by then, smoothly from 1.5 m) and big chunks are capped close up.
+#[inline]
+pub fn near_camera_size(size: f32, dist: f32) -> f32 {
+    // The cap only bites close up (it grows fast past 2 m; terrain chunks are <= 0.5 m anyway).
+    let cap = 0.3 + 0.25 * dist + (dist - 2.0).max(0.0).powi(2);
+    if dist >= 1.5 && size <= cap {
+        return size;
+    }
+    let t = ((dist - 0.35) / 1.15).clamp(0.0, 1.0);
+    size.min(cap) * t * t * (3.0 - 2.0 * t)
+}
+
 fn simulate_debris(
     time: Res<Time<Real>>,
     settings: Res<DebrisSettings>,
@@ -501,6 +522,7 @@ fn simulate_debris(
     mut spawns: MessageReader<SpawnDebris>,
     mut impulses: MessageReader<DebrisImpulse>,
     mut pool: ResMut<DebrisPool>,
+    cam: Query<&GlobalTransform, With<crate::camera::PlayerCamera>>,
 ) {
     for s in spawns.read() {
         pool.spawn(s);
@@ -510,7 +532,8 @@ fn simulate_debris(
     }
     let dt = (time.delta_secs() * settings.time_scale).min(1.0 / 20.0);
     let collider = ground.0.as_deref();
-    pool.step(dt, &settings, collider);
+    let cam = cam.single().ok().map(|g| g.translation());
+    pool.step(dt, &settings, collider, cam);
 }
 
 #[cfg(test)]
@@ -521,6 +544,23 @@ mod tests {
     impl VoxelQuery for Floor {
         fn material(&self, v: bd_core::IVec3) -> bd_core::voxel::Material {
             if v.y < 0 { 1 } else { 0 }
+        }
+    }
+
+    #[test]
+    fn cubes_near_the_camera_shrink_away_and_big_ones_are_capped() {
+        assert_eq!(near_camera_size(0.4, 5.0), 0.4, "far: untouched");
+        assert_eq!(near_camera_size(0.25, 1.6), 0.25);
+        assert!(near_camera_size(0.4, 0.3) == 0.0, "in your face: gone");
+        let mid = near_camera_size(0.4, 0.9);
+        assert!(mid > 0.0 && mid < 0.4, "{mid}");
+        assert!(near_camera_size(2.0, 1.4) < 0.7, "big chunk capped near the camera");
+        // Monotonic in distance.
+        let mut last = 0.0;
+        for k in 0..40 {
+            let s = near_camera_size(0.5, k as f32 * 0.05);
+            assert!(s + 1e-6 >= last);
+            last = s;
         }
     }
 
@@ -538,7 +578,7 @@ mod tests {
         });
         let s = DebrisSettings::default();
         for _ in 0..(144 * 6) {
-            pool.step(1.0 / 144.0, &s, Some(&col));
+            pool.step(1.0 / 144.0, &s, Some(&col), None);
         }
         let p = pool.particles[0];
         assert!(p.sleeping, "should settle: {p:?}");

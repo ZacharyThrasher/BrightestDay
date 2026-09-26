@@ -1761,6 +1761,8 @@ pub fn generate_backrooms(seed: u64) -> (VoxelWorld, MapInfo) {
         ambient: 0.62,
         gravity: None,
         surf_lines: Vec::new(),
+        water_sheets: Vec::new(),
+        water_walk: false,
     };
     let mut districts = Vec::new();
     let names = ["garage", "poolrooms", "sky_room", "hotel", "office"];

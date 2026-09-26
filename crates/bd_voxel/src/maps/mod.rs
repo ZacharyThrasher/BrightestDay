@@ -10,6 +10,8 @@
 pub mod backrooms;
 pub mod miami;
 pub mod orbit;
+#[cfg(feature = "valley")]
+pub mod valley;
 
 use std::ops::Deref;
 
@@ -21,6 +23,8 @@ use crate::arena::ArenaInfo;
 pub use backrooms::{BACKROOMS_SIZE_VOXELS, generate_backrooms};
 pub use miami::{MIAMI_SIZE_VOXELS, generate_miami};
 pub use orbit::{ORBIT_SIZE_VOXELS, generate_orbit};
+#[cfg(feature = "valley")]
+pub use valley::{VALLEY_SIZE_VOXELS, generate_valley};
 
 /// A named area of the map (for spawn logic, bots, the camera and UI callouts).
 #[derive(Clone, Debug, PartialEq)]
