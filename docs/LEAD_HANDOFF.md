@@ -157,6 +157,7 @@ like the gun grip, summon visibility, tether saves) are welcome anytime — the 
   build -> startup smoke -> copy to target\playable\<stamp>\, LATEST.txt, promote.log).
 
 ## Queue (do next, in order)
+0. After the wave + stabilisation: BACKROOMS map (bd_voxel maps/backrooms.rs): 4-6 stacked levels of liminal room kits (office maze, poolrooms, parking garage, hotel corridor, dark playground, impossible sky room), pits to the void = KO, roof = star KO, punch-through floors; perf via room/interior culling + haze, emissive ceiling panels instead of many point lights, capped instanced decor props from the icon library; fluorescent hum ambience (bd_audio maps.ron). Same process as Orbit (preview, routes, bench).
 1. **Weight pass (presentation half)** once client perf is done: DESIGN.md "Weight & power fantasy (pass
    2)" — tiered + asymmetric hit-stop, victim hit-shake, nudge-zoom, finisher flash (comfort-gated),
    directional sparks, scorch/crack decals, heavy-hit ducking, final-blow slow-mo, construct weight
@@ -178,4 +179,4 @@ like the gun grip, summon visibility, tether saves) are welcome anytime — the 
 - DOUBLE JUMP + DODGE DONE: Left Alt = dodge (lead moved gun alt-fire to C; Caps Lock rejected). No air jump while tethered. OWNER: wall touch DOES refresh the air jump/air dodge (surf/wall-kick emergent play) with a tunable same-wall lockout. TODO: regenerate tutorial peak_run ghost (examples/tutorial_ghosts.rs) — its apex jump press is now an air jump.
 - LEXICON RELATIONS DONE: data in crates/bd_lexicon/data/relations.ron (compiled in, no bin rebuild); bd_core v1.6 Recipe.mount (one level); T-Rex now 12 m; sky-emitter / strike / volley recipe shapes documented in the worker report (see signature worker).
 - SURFING (owner: 'go with what feels best'): surf-only air-accel on unwalkable steep surfaces (off-surf bit-identical), real surf lines on Archipelago/Miami/Orbit (indestructible), 'surf ramp/half pipe' constructs; key risk = 0.5 m voxel staircase vs smooth slope collision. Double-jump worker resumed.
-- HOLLOW PURPLE = flagship signature acceptance test (owner: 'key one'): red+blue merge windup, 3-4 m erasing sphere, tunnel, huge knockback, cut-in; scripted scenario + frame strip required. Also bare 'red'/'blue' -> element tints (not a Bolshevik biped). BACKROOMS map proposed to owner (answer pending).
+- HOLLOW PURPLE = flagship signature acceptance test (owner: 'key one'): red+blue merge windup, 3-4 m erasing sphere, tunnel, huge knockback, cut-in; scripted scenario + frame strip required. Also bare 'red'/'blue' -> element tints (not a Bolshevik biped). BACKROOMS map: owner approved, QUEUED BEHIND THIS WAVE.
