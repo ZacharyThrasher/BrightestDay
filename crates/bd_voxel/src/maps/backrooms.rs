@@ -41,7 +41,7 @@ use glam::{IVec3, Vec2, Vec3};
 
 use super::{District, MapInfo, Route, RouteKind};
 use crate::arena::ArenaInfo;
-use crate::city::{CarSpec, City};
+use crate::city::City;
 use crate::material::mat;
 use crate::noise::{Rng, hash3, unit, value2};
 use crate::world::VoxelWorld;
@@ -1127,7 +1127,6 @@ fn build_slabs(c: &mut City, p: &Plan, seed: u32) {
                     continue;
                 }
                 let (i, j) = ((x - GRID0).div_euclid(CELL).min(N - 1), (z - GRID0).div_euclid(CELL).min(N - 1));
-                let interior = (x - GRID0).rem_euclid(CELL) != 0 && (z - GRID0).rem_euclid(CELL) != 0;
                 // Above: the floor.
                 let top = if s < LEVELS {
                     let above = p.room_of(s, i, j);
@@ -1144,12 +1143,6 @@ fn build_slabs(c: &mut City, p: &Plan, seed: u32) {
                     Some(_) => Some(mat::GARAGE_CONCRETE),
                     None => Some(mat::VOID_BLACK),
                 };
-                // A hole's rim shows the room's wall material (a band between the storeys).
-                let rim = top.is_some() && !interior && s < LEVELS && {
-                    let above = p.room_of(s, i, j);
-                    above.is_some_and(|r| r.no_floor())
-                };
-                let _ = rim;
                 if let Some(m) = top {
                     c.w.set(IVec3::new(x, yt, z), m);
                 }
@@ -1538,10 +1531,6 @@ fn build_features(c: &mut City, p: &Plan, seed: u32) {
                 }
             }
         }
-    }
-    // Shaft lamps at the top.
-    for &(i, j) in &p.shafts {
-        let _ = (i, j);
     }
     for room in &p.rooms {
         let yf = floor_v(room.level);
@@ -1956,9 +1945,4 @@ fn plan_view(p: &Plan) -> PlanView {
 pub fn plan_for(seed: u64) -> PlanView {
     let mut rng = Rng::new(seed ^ 0x6261_636b_726f_6f6d);
     plan_view(&make_plan(&mut rng))
-}
-
-#[allow(dead_code)]
-fn car_spec(base: Vec3, along_x: bool, body: Material) -> CarSpec {
-    CarSpec { base, along_x, body, convertible: false }
 }

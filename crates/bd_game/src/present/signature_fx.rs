@@ -284,6 +284,7 @@ fn hands(owner: PlayerId, views: &WorldViews) -> Option<(Vec3, Vec3, Vec3)> {
 }
 
 /// `n` streaks from a shell of `r0..r1` around `c` rushing into `target` over `life` seconds.
+#[allow(clippy::too_many_arguments)]
 fn implode(fx: &mut FxParticles, c: Vec3, target: Vec3, r0: f32, r1: f32, n: usize, life: f32, color: [f32; 3], size: f32) {
     for _ in 0..n {
         let r = &mut fx.rng;
@@ -318,7 +319,7 @@ fn shock_ring(fx: &mut FxParticles, c: Vec3, dir: Vec3, speed: f32, n: usize, co
             flags: PFlags::STRETCH | PFlags::PLAIN,
             pos: c + out * 0.5,
             vel: out * speed,
-            size: 0.22,
+            size: 0.12,
             color,
             emissive: 5.0,
             life: 0.35,
@@ -564,6 +565,8 @@ fn mix(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [(a[0] + b[0]) * 0.6, (a[1] + b[1]) * 0.6, (a[2] + b[2]) * 0.6]
 }
 
+type OrbTfs = (&'static mut Transform, &'static mut Visibility);
+
 /// The orb spheres: follow the construct, grow through the windup, spike, swirl; in flight: the
 /// suck-in streaks, the glowing tunnel wall, the debris sinks, a subtle nearby shake; hide the
 /// construct's own voxel visual.
@@ -577,7 +580,7 @@ fn animate_orbs(
     mut sinks: ResMut<EraseSinks>,
     mut fx: ResMut<FxParticles>,
     mut imats: ResMut<Assets<ImaginaryMaterial>>,
-    mut tfs: Query<(&mut Transform, &mut Visibility), (With<FusionOrb>, Without<SimConstruct>)>,
+    mut tfs: Query<OrbTfs, (With<FusionOrb>, Without<SimConstruct>)>,
     mut constructs: Query<(&SimConstruct, &mut Visibility), Without<FusionOrb>>,
     mut shake: MessageWriter<CameraShakeEvent>,
 ) {
@@ -643,7 +646,7 @@ fn animate_orbs(
         for m in &o.mats {
             if let Some(mut mat) = imats.get_mut(m) {
                 mat.params.misc.x = now;
-                mat.params.misc.y = o.spike.max(if o.launched { 0.0 } else { 0.25 * (o.t / o.windup).min(1.0) });
+                mat.params.misc.y = o.spike;
             }
         }
         if o.launched && o.ended.is_none() {
@@ -657,6 +660,7 @@ fn animate_orbs(
             implode(&mut fx, pos, target, o.radius * 1.6, o.radius * 3.2, n.min(12), 0.2, o.rim, 0.1);
             // The tunnel wall glows violet where it passed (a ring of embers every metre, ~1.5 s).
             let wr = o.radius.max(1.0);
+            let wall = [o.rim[0] * 0.55, o.rim[1] * 0.35, o.rim[2]];
             let (s1, s2) = dir.any_orthonormal_pair();
             if let Some(mut from) = o.wall_from {
                 let mut guard = 0;
@@ -671,8 +675,8 @@ fn animate_orbs(
                             flags: PFlags::PLAIN,
                             pos: from + off * wr,
                             vel: -off * 0.4,
-                            size: 0.26,
-                            color: o.rim,
+                            size: 0.16,
+                            color: wall,
                             emissive: 2.6,
                             life: 1.5,
                             gravity: 0.0,

@@ -96,7 +96,7 @@ fn main() {
                 line = String::from("        ");
             }
         }
-        if line.trim().len() > 0 {
+        if !line.trim().is_empty() {
             let _ = writeln!(out, "{}", line.trim_end());
         }
         out.push_str("    ] },\n");

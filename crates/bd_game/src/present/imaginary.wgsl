@@ -32,13 +32,15 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     if (m.misc.z > 0.5) {
         // Halo: a thin bright shell at the silhouette with a shimmering, breathing edge.
         let shimmer = 0.75 + 0.25 * sin(t * 9.0 + (n.x + n.y * 1.7) * 14.0);
-        let a = clamp(fres * (1.0 - fres) * 4.0 * shimmer * m.core.a * (1.0 + spike), 0.0, 1.0);
-        return vec4(m.rim.rgb * (2.5 + 8.0 * spike), a);
+        let edge = pow(fres, 3.0) * (1.0 - fres) * 6.0;
+        let a = clamp(edge * shimmer * m.core.a, 0.0, 1.0);
+        return vec4(m.rim.rgb * (2.5 + 3.0 * spike), a);
     }
     // Core: near-black violet in the middle (it swallows light), bands of deep purple, a hot rim.
     let heart = m.core.rgb * (0.12 + 0.55 * swirl * (1.0 - ndv * 0.6));
-    let rim = m.rim.rgb * (2.2 + 10.0 * spike) * fres;
+    let rim = m.rim.rgb * (2.2 + 4.0 * spike) * fres;
     let bands = m.rim.rgb * swirl * swirl * 0.35 * (1.0 - fres);
-    let col = heart + bands + rim + vec3(spike * 1.5);
+    // The spike is a violet surge in the heart (bloom does the rest), never a white card.
+    let col = heart * (1.0 + 5.0 * spike) + bands + rim;
     return vec4(col, m.core.a);
 }
