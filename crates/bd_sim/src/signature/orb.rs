@@ -203,10 +203,17 @@ pub(crate) fn step(w: &mut World, dt: f32) {
         let cpos = c.pos;
         match o.phase {
             Phase::Windup => {
-                // The object controller keeps it in the hand while it forms; aim follows the caster.
+                // It gathers ahead of and above the caster (a sphere this big in the hand would hide
+                // everything); aim follows the caster until the release.
                 o.pos = cpos;
                 if let Some(p) = w.player(o.owner) {
                     o.dir = p.look();
+                    let eye = p.eye(&w.cfg.move_params);
+                    o.pos = eye + o.dir * (o.radius + 3.0) + Vec3::Y * (o.radius * 0.5);
+                }
+                if let Some(c) = w.constructs.get_mut(o.construct) {
+                    c.pos = o.pos;
+                    c.vel = Vec3::ZERO;
                 }
                 if !forming {
                     o.phase = Phase::Travel;
