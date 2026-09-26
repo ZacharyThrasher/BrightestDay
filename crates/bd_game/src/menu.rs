@@ -87,6 +87,10 @@ enum Knob {
     InvertY,
     ThirdPerson,
     ShowPercent,
+    SummonPreview,
+    Outlines,
+    OutlineWidth,
+    OutlinePatterns,
     Comfort,
     SpeedFov,
     Shake,
@@ -98,6 +102,13 @@ enum Knob {
     Fullscreen,
     Aa,
     Volume,
+    MusicVol,
+    WorldVol,
+    AmbienceVol,
+    FeedbackVol,
+    MusicStyle,
+    NightMode,
+    Mono,
     Voice,
     Ono,
     OnoLang,
@@ -119,6 +130,8 @@ enum Knob {
     Gravity,
     GasRegen,
     VoidKo,
+    /// Hook-and-strike: tethers hook players (`MatchRules::tether_hooks_players`).
+    TetherHooks,
     Islands,
     Powers,
     Fruits,
@@ -266,7 +279,7 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
-            v.extend([Header("PHYSICS"), Value(K::Knockback), Value(K::Gravity), Value(K::GasRegen)]);
+            v.extend([Header("PHYSICS"), Value(K::Knockback), Value(K::Gravity), Value(K::GasRegen), Value(K::TetherHooks)]);
             if c.prefs.game.mode == SimMode::Party {
                 v.extend([
                     Header("PARTY"),
@@ -305,10 +318,11 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
         }
         MenuPage::Settings => {
             let mut v = vec![Header("CONTROLS"), Value(K::Sensitivity), Value(K::InvertY), Button(Act::Keys, "KEY BINDINGS")];
-            v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent)]);
+            v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent), Value(K::SummonPreview)]);
+            v.extend([Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns)]);
             v.extend([Header("COMFORT"), Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
             v.extend([Header("GRAPHICS"), Value(K::Vsync), Value(K::Fullscreen), Value(K::Aa)]);
-            v.extend([Header("SOUND"), Value(K::Volume), Value(K::Ono), Value(K::OnoLang), Value(K::Shout)]);
+            v.extend([Header("SOUND"), Value(K::Volume), Value(K::MusicVol), Value(K::WorldVol), Value(K::AmbienceVol), Value(K::FeedbackVol), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono), Value(K::Ono), Value(K::OnoLang), Value(K::Shout)]);
             if c.voice {
                 v.push(Value(K::Voice));
             }
@@ -382,6 +396,10 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::InvertY => (lbl("INVERT Y"), on_off(s.invert_y)),
         Knob::ThirdPerson => (lbl("THIRD PERSON"), on_off(c.prefs.third_person)),
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
+        Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
+        Knob::Outlines => (lbl("PLAYER OUTLINES"), on_off(c.prefs.outlines)),
+        Knob::OutlineWidth => (lbl("  OUTLINE THICKNESS"), format!("{:.0}%", c.prefs.outline_width * 100.0)),
+        Knob::OutlinePatterns => (lbl("  COLOUR-BLIND PATTERNS"), on_off(c.prefs.outline_patterns)),
         Knob::Comfort => (lbl("COMFORT PRESET"), on_off(s.comfort.is_comfort_preset())),
         Knob::SpeedFov => (lbl("  SPEED FOV"), on_off(s.comfort.speed_fov)),
         Knob::Shake => (lbl("  CAMERA SHAKE"), pct(s.comfort.shake)),
@@ -393,6 +411,13 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Fullscreen => (lbl("FULLSCREEN"), on_off(s.fullscreen)),
         Knob::Aa => (lbl("ANTI-ALIASING"), s.antialiasing.label().into()),
         Knob::Volume => (lbl("VOLUME"), format!("{:.0}%", s.master_volume * 100.0)),
+        Knob::MusicVol => (lbl("  MUSIC"), format!("{:.0}%", s.audio.music * 100.0)),
+        Knob::WorldVol => (lbl("  WORLD"), format!("{:.0}%", s.audio.world * 100.0)),
+        Knob::AmbienceVol => (lbl("  AMBIENCE"), format!("{:.0}%", s.audio.ambience * 100.0)),
+        Knob::FeedbackVol => (lbl("  HIT FEEDBACK"), format!("{:.0}%", s.audio.feedback * 100.0)),
+        Knob::MusicStyle => (lbl("MUSIC STYLE"), s.audio.music_style.label().into()),
+        Knob::NightMode => (lbl("REDUCED DYNAMIC RANGE"), on_off(s.audio.night_mode)),
+        Knob::Mono => (lbl("MONO AUDIO"), on_off(s.audio.mono)),
         Knob::Voice => (lbl("VOICE CASTING"), on_off(c.prefs.voice)),
         Knob::Ono => (lbl("COMIC WORDS"), c.prefs.ono.label().into()),
         Knob::OnoLang => (lbl("COMIC STYLE"), if c.prefs.ono_manga { "MANGA".into() } else { "CLASSIC".into() }),
@@ -431,6 +456,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Gravity => (lbl("GRAVITY"), format!("{:.2}X", g.gravity_scale)),
         Knob::GasRegen => (lbl("GAS REGEN"), format!("{:.2}X", g.gas_regen_scale)),
         Knob::VoidKo => (lbl("VOID KO"), on_off(r.void_ko)),
+        Knob::TetherHooks => (lbl("TETHERS HOOK PLAYERS"), on_off(r.tether_hooks_players)),
         Knob::Islands => (lbl("REBUILD ISLANDS"), on_off(r.regen_islands_between_rounds)),
         Knob::Powers => (lbl("POWERS"), on_off(r.powers_enabled)),
         Knob::Fruits => (lbl("  FRUITS"), on_off(r.devil_fruits)),
@@ -487,6 +513,22 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             c.prefs.show_percent = !c.prefs.show_percent;
             game = false;
         }
+        Knob::SummonPreview => {
+            c.prefs.summon_preview = !c.prefs.summon_preview;
+            game = false;
+        }
+        Knob::Outlines => {
+            c.prefs.outlines = !c.prefs.outlines;
+            game = false;
+        }
+        Knob::OutlineWidth => {
+            c.prefs.outline_width = (((c.prefs.outline_width + d * 0.25) * 4.0).round() / 4.0).clamp(0.5, 2.0);
+            game = false;
+        }
+        Knob::OutlinePatterns => {
+            c.prefs.outline_patterns = !c.prefs.outline_patterns;
+            game = false;
+        }
         Knob::Comfort => {
             s.comfort = if s.comfort.is_comfort_preset() { ComfortSettings::default() } else { ComfortSettings::COMFORT };
             game = false;
@@ -520,6 +562,29 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::Volume => {
             s.master_volume = ((s.master_volume + d * 0.05) * 20.0).round().clamp(0.0, 20.0) / 20.0;
+            game = false;
+        }
+        Knob::MusicVol | Knob::WorldVol | Knob::AmbienceVol | Knob::FeedbackVol => {
+            let a = &mut s.audio;
+            let v = match k {
+                Knob::MusicVol => &mut a.music,
+                Knob::WorldVol => &mut a.world,
+                Knob::AmbienceVol => &mut a.ambience,
+                _ => &mut a.feedback,
+            };
+            *v = ((*v + d * 0.05) * 20.0).round().clamp(0.0, 20.0) / 20.0;
+            game = false;
+        }
+        Knob::MusicStyle => {
+            s.audio.music_style = s.audio.music_style.next(dir);
+            game = false;
+        }
+        Knob::NightMode => {
+            s.audio.night_mode = !s.audio.night_mode;
+            game = false;
+        }
+        Knob::Mono => {
+            s.audio.mono = !s.audio.mono;
             game = false;
         }
         Knob::Voice => {
@@ -578,6 +643,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Gravity => g.gravity_scale = ((g.gravity_scale + d * 0.25) * 4.0).round().clamp(1.0, 12.0) / 4.0,
         Knob::GasRegen => g.gas_regen_scale = ((g.gas_regen_scale + d * 0.25) * 4.0).round().clamp(0.0, 16.0) / 4.0,
         Knob::VoidKo => g.rules.void_ko = !g.rules.void_ko,
+        Knob::TetherHooks => g.rules.tether_hooks_players = !g.rules.tether_hooks_players,
         Knob::Islands => g.rules.regen_islands_between_rounds = !g.rules.regen_islands_between_rounds,
         Knob::Powers => g.rules.powers_enabled = !g.rules.powers_enabled,
         Knob::Fruits => g.rules.devil_fruits = !g.rules.devil_fruits,

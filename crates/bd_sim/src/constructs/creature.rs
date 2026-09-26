@@ -817,7 +817,8 @@ pub fn is_robot(c: &Construct) -> bool {
 /// Timing of `kind` for this body (same numbers the client animates with).
 pub fn timing(c: &Construct, kind: AttackKind) -> ai::Timing {
     let h = if c.ai.timing_h > 0.0 { c.ai.timing_h } else { (c.half.y * 2.0).max(0.2) };
-    let mut t = ai::attack_timing(h, kind.clip());
+    // Mass-scaled (weight pass): the client poses with `model.weight = weight_of(recipe)`.
+    let mut t = ai::attack_timing_hw(h, kind.clip(), bd_shapes::weight_of(&c.recipe));
     // Aggressive attacks faster between blows (recovery), never with a shorter telegraph.
     t.recovery *= temperament::cooldown_mult(c).clamp(0.4, 1.0);
     t

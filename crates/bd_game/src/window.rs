@@ -33,6 +33,10 @@ pub fn initial_window(settings: &Settings, cli: &CliArgs) -> Window {
             None => None,
         },
         position: WindowPosition::Centered(MonitorSelection::Primary),
+        // `BD_HIDDEN_WINDOW=1`: automated recordings / screenshots without a window popping up
+        // (or stealing focus) on the desktop. Frames still render and capture.
+        visible: std::env::var_os("BD_HIDDEN_WINDOW").is_none(),
+        focused: std::env::var_os("BD_HIDDEN_WINDOW").is_none(),
         ..default()
     }
 }

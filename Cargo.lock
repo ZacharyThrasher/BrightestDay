@@ -411,9 +411,11 @@ dependencies = [
 name = "bd_game"
 version = "0.1.0"
 dependencies = [
+ "bd_audio",
  "bd_core",
  "bd_fx",
  "bd_lexicon",
+ "bd_music",
  "bd_net",
  "bd_shapes",
  "bd_sim",
@@ -421,7 +423,6 @@ dependencies = [
  "bd_voxel",
  "bevy",
  "bytemuck",
- "rodio",
  "ron 0.10.1",
  "serde",
 ]

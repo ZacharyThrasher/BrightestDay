@@ -27,6 +27,8 @@
 //! does not allocate.
 
 mod actions;
+mod assist; // ASSIST HOOK: melee lunge + hook-and-strike plumbing (crate::melee_assist, crate::hook)
+pub mod bounds; // BOUNDS HOOK: blast zones, tether save, construct recall, visible placement
 mod combat;
 mod invariants;
 mod net;
@@ -169,6 +171,10 @@ pub struct World {
     // ---- POWERS HOOK (crate::powers, COMBAT.md §5h) ----
     /// Fruits in the world, the restore log, the incantation in progress.
     pub powers: crate::powers::PowerWorld,
+    /// BOUNDS HOOK: recent construct recalls (id, tick) for the anti-loop valve (`world/bounds.rs`).
+    pub(crate) recall_log: Vec<(bd_core::ConstructId, Tick)>,
+    /// SIGNATURE HOOK: the signature cast in progress (`crate::signature`; `None` between casts).
+    pub(crate) signature: Option<crate::signature::SignatureCtx>,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -232,6 +238,8 @@ impl World {
             party_cost_ratio: None,
             free_cast: false,
             powers: crate::powers::PowerWorld::default(), // POWERS HOOK
+            recall_log: Vec::new(), // BOUNDS HOOK
+            signature: None,        // SIGNATURE HOOK
             cfg,
         }
     }
@@ -440,7 +448,9 @@ impl World {
 
         self.carve_ops_used = 0;
         self.punch_through(dt); // Smash: launched players plow through terrain (world/punch.rs)
+        let n_cols = self.assist_push_player_colliders(); // ASSIST HOOK: players are hook targets during movement
         self.step_movement(dt);
+        self.assist_post_move(n_cols, dt); // ASSIST HOOK: hook-and-strike rope rules
         self.push_players_apart(dt);
         self.solve_links(dt);
         self.check_out_of_bounds();
@@ -518,7 +528,7 @@ impl World {
     }
 
     fn step_movement(&mut self, dt: f32) {
-        let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, party, arena, .. } = self;
+        let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, party, arena, history, .. } = self;
         let base = &cfg.move_params;
         for p in players.iter_mut() {
             p.move_events = Default::default();
@@ -571,6 +581,7 @@ impl World {
             } else {
                 p.mv.di_window = 0.0;
             }
+            crate::melee_assist::dash_pre_move(&mut p.mv, &params, dt); // ASSIST HOOK: melee lunge dash (predicted too)
             let pre_vel = p.mv.vel;
             let pre_tumble = p.mv.tumble;
             // Plowing through rock is flight, not running: no ground friction in the tunnel.
@@ -578,6 +589,7 @@ impl World {
                 p.mv.grounded = false;
             }
             let pre_center = p.hull(base).center();
+            assist::rewind_player_colliders(colliders, history, p.view_tick, cfg.tuning.assist.hook.radius); // ASSIST HOOK: hook targets as this player saw them
             let cw = CollisionWorld::new(voxels, colliders).ignoring(crate::movement::ColliderId::Player(p.id));
             let ev = step_player(&mut p.mv, &input, &cw, &params, dt);
             constructs.post_move(p.id, &p.input, &mut p.mv, pre_vel, &ev, &params);
@@ -642,6 +654,12 @@ impl World {
             if ev.wall_hit.is_some() {
                 flags |= move_flags::WALL_HIT;
             }
+            if ev.air_jumped {
+                flags |= move_flags::AIR_JUMP;
+            }
+            if ev.dodged {
+                flags |= move_flags::DODGE;
+            }
             if flags != 0 {
                 events.push(GameEvent::Move { player: p.id, flags, speed: p.mv.speed() });
             }
@@ -704,6 +722,9 @@ impl World {
             } else {
                 None
             };
+            // BOUNDS HOOK (world/bounds.rs): an attached tether anchored in the arena holds you past
+            // the side / bottom zones; only the star KO (top) still applies.
+            let zone = zone.filter(|z| *z == crate::smash::BlastZone::Top || !self.tether_holds(i));
             let out = zone.is_some();
             if out && !self.cfg.rules.void_ko && pos.is_finite() {
                 // Lobby knob "void off": back onto a spawn point, no KO.
@@ -763,6 +784,7 @@ impl World {
 
     fn step_constructs(&mut self, dt: f32) {
         self.build_views();
+        self.assist_bias_views(); // ASSIST HOOK: melee swing hitbox aim nudge
         self.cout.clear();
         {
             let ctx = crate::constructs::ConstructCtx {
@@ -780,24 +802,10 @@ impl World {
             };
             self.constructs.update(&ctx, &mut self.cout);
         }
-        // Free bodies that left the arena are gone (thrown into the sky / the void).
-        let b = self.arena.bounds;
-        let margin = 40.0;
-        for c in self.constructs.iter_mut() {
-            if c.gone.is_none() && !c.attached() {
-                let p = c.pos;
-                let out = !p.is_finite()
-                    || p.y < self.arena.void_y - margin
-                    || p.x < b.min.x - margin
-                    || p.x > b.max.x + margin
-                    || p.z < b.min.z - margin
-                    || p.z > b.max.z + margin
-                    || p.y > b.max.y + margin;
-                if out {
-                    c.gone = Some(GoneReason::Expired);
-                }
-            }
-        }
+        // BOUNDS HOOK (world/bounds.rs): free bodies that left the map (thrown into the sky / the
+        // void) blink back to their summoner, or are gone (summoner KO'd, anti-loop valve).
+        self.recall_lost_constructs();
+        self.assist_after_constructs(); // ASSIST HOOK: swing starts (lunge dash, slam), lunge / slam hits
         self.apply_construct_out();
         self.announce_transforms();
         self.announce_fire();

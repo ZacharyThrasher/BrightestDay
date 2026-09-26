@@ -370,6 +370,10 @@ fn reentry_heat(
         if !v.alive() || v.vel.y > -6.0 || v.pos.y > void_y + HEAT_BAND {
             continue;
         }
+        // Hanging on an attached tether survives below the void: no burn-up trail.
+        if v.has(pflags::HOOK_L_ATTACHED | pflags::HOOK_R_ATTACHED) {
+            continue;
+        }
         let k = (1.0 - (v.pos.y - void_y) / HEAT_BAND).clamp(0.0, 1.0) * ((-v.vel.y - 6.0) / 14.0).clamp(0.2, 1.0);
         let n = (k * 420.0 * dt).ceil() as usize;
         let down = v.vel.normalize_or(Vec3::NEG_Y);

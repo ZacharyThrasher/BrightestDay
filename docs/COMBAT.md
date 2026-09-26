@@ -54,6 +54,24 @@ reduces air control but you can always tether out of it (a skill save).
 - **KO only by leaving the arena:** blast zones = void/water below (existing `void_y`/`water_y`), plus
   side and top bounds (arena bounds + margin ~25 m sides, ~40 m top). Top KO = "star KO" (a twinkle in
   the sky, delayed poof). Last attacker within 6 s gets credit (existing rule).
+- **Blast zones exactly** (`bd_sim::world::bounds::Zones`, one rule on every map; `World::blast_zones()`):
+  **Bottom** `y < ArenaInfo.void_y`; **Top** (= the **star KO**) `y > voxel-world top + smash.blast_margin_top`
+  (40 m); **Side** `x`/`z` beyond the voxel world's sides `± smash.blast_margin_side` (25 m); checked in that
+  order. Per map: **Archipelago** (192×96×192 m world) bottom −4 (the sea), sides ±121, star KO above 136 m;
+  **Miami** (same size) bottom `WATER_Y − 1` = 2, sides ±121, star KO above 136 m; **Orbit** (192×112×192 m)
+  bottom 2 = re-entry burn-up, sides ±121, star KO above 152 m = "launched into space" (gravity fades to
+  0.08 g above 104 m, so whatever drifts up there keeps going); flat lab (96 m) bottom −4, sides ±73, star
+  KO above 104 m.
+- **A tether saves you (owner rule, `tuning.bounds`).** While at least one hook is **attached** (anchored, not
+  merely flying) to an anchor that is itself inside the zones, crossing the **Side or Bottom** zone does not
+  KO: you hang, swing and reel back in. **Only the star KO (Top) still applies while tethered.** No timers:
+  hang as long as the anchor holds. The rope stops holding, and the normal rules apply on that same tick,
+  when you let go, when the anchor breaks (voxel destroyed; construct shattered, gone or recalled), when the
+  anchor is itself out of the zones (a seabed, a boulder falling into the void), or when you are more than
+  `tether_hold_depth` (40 m) past a side / bottom zone (a sanity clamp that keeps bodies inside the world;
+  a normal swing never gets that deep). The host decides KOs; movement (and so client prediction) is
+  unchanged, and prediction matches the host while hanging. The Orbit re-entry trail and the practice-mode
+  void respawn are skipped while a rope holds. Bots hold on and reel while a rope is all that keeps them in.
 - **Knockback (Smash-style):** `kb = (base + growth · (pct_after / 100) · (dmg / 10 + 1)) · (1 / weight) · kb_scale`
   applied along the hit vector with guaranteed lift; weight 1.0 default (Grow ×1.6 heavier, Shrink ×0.5
   lighter, suits/pilots heavier). Tuned so ~120–160% + a heavy hit launches off a mid-size island.
@@ -114,6 +132,34 @@ cast → **validate/clamp** (scale per form min/max, mass, count ≤ 6, swarm �
   attackers knocked back a little (sword-lock moment).
 - Limits per player: 1 held, 1 worn, 3 structures, 2 objects in flight, 2 creatures (1 Kaiju).
   Casting over a limit replaces the oldest in that slot.
+- **Lifetimes** (`tuning.summon`): creatures 20 s (was 14), kaiju 24 s (was 18), structures 30 s, objects
+  10 s (was 6), domes 3 s, piloted ≥ 30 s, held / worn until dismissed. A thrown object that came to rest
+  stays 4 s more (was 1 s), one that landed with a crater 4 s (was 2 s). Upkeep (§2) still bounds how long
+  you can afford them.
+- **Recall — summons are never lost to the void** (`world/bounds.rs`, `tuning.bounds`). A free construct
+  (not riding its owner) that leaves the map (the player blast zones, with the bottom 6 m under the void) is
+  **recalled**: it reappears next to its summoner in a free spot (slightly in front and above; not in
+  terrain, players or other constructs; walkers / structures stand on the ground; a summoner who is
+  hanging off the map gets it at their last solid footing), velocity zeroed, upright, with a hard-light
+  blink-in (`GameEvent::ConstructRecalled`). A thrown held item comes back to the hand. A seated pilot is
+  ejected where the vehicle was lost (tether / KO rules decide their fate); the vehicle recalls. Ropes and
+  chains tied to it snap. It is despawned instead (the old rule) when the summoner is KO'd / respawning /
+  gone, for children (swarm copies, slice halves, payloads), power fruits (they respawn on their own), and
+  by an invisible anti-loop valve: a construct recalled `recall_max` (3) times within `recall_window`
+  (10 s) is despawned on its next exit.
+- **Placement — you see what you summon** (`World::place_visible`, `tuning.summon`). Fresh creatures,
+  structures (not domes / cages / platforms) and vehicles (not suits) go along the aim ray: on the surface
+  under the crosshair when it is within `snap_max` (40 m) and not closer than `near_min + footprint`, backed
+  off walls by their footprint; otherwise at the fit distance `clamp(2.4 · radius, 3, 26 m)` (the whole
+  thing fits a ~90° view); walkers and structures stand on the ground below (≤ 12 m drop, so a cast at the
+  sky lands on the ground ahead, a cast at your feet lands in front of you, a cast off a ledge walks back to
+  solid ground). The spot must have a line of sight from the eye (terrain and constructs block) and be clear
+  of terrain and players; otherwise it is walked back toward the caster, then swung ±18° / ±34°; a second
+  pass drops the "within 40° of the aim" requirement (looking straight up); the old crosshair spot is the
+  last resort. Huge creatures (radius ≥ 3.5 m: kaiju) and colossal things go further out
+  (`clamp(3 · radius, 3, 80 m)`) and 16° to the right so you watch them rise. Held / worn / thrown objects and
+  drop-from-sky are unaffected. Deterministic (host only; clients get the spawn). The client adds a short
+  off-screen ping + preview window when your fresh summon is still out of view.
 
 ## 3c. Animating the world (grafting onto terrain)
 Casting a graft phrase ("legs", "wings", "rockets", "fire", "angry") while aiming at terrain lifts the
@@ -185,6 +231,41 @@ hard-light casings that tinkle and shatter, short camera punch, layered sound (t
 distance tail). Hit: 20–50 ms hit-stop on heavy hits, crisp hit-confirm "thock", victim flinch + shove,
 voxel chips from terrain, onomatopoeia on big hits (BLAM, KA-CHUNK). Ring shove (empty RMB): 4 m cone push
 14 kb, 0 dmg, 1.5 s cd — a defensive reset.
+
+### 4c. Melee lunge — no lock-on (owner: "Destiny sword is a great target"; `bd_sim::melee_assist`)
+A lock-on would steal the camera and flatten movement skill. Instead every melee swing has a **lunge**:
+- A held **melee** swing that *starts* (primary, combo steps, a released heavy — not secondaries, not guns,
+  not the whip) looks for an enemy inside the weapon's **lunge range** (eye to their hull) and a **20° cone**
+  around the aim, with **clear sight** (terrain and solid constructs block it). Hulls are the ones the
+  swinger saw (lag compensation, `view_tick`).
+- Beyond natural reach (item length + 0.9 m): a committed **dash** (26 m/s, ≤ 0.22 s) at the target's
+  intercept point that stops at arm's length so the swing's active window lands on arrival — on the ground
+  and **in the air**. It only raises your speed *toward them* to the dash speed (a faster bhop / swing keeps
+  its own; nothing stacks), ends in a **committed stop** (5 m/s), and has a **0.7 s cooldown**.
+- Range scales with the weapon: sword ≈ 4.6 m, hammer shorter, Heavy / giant (long) weapons dash shorter and
+  slower (range = clamp(reach + 2.6 · form · weight ÷ length penalty, 2.5, 5.5)).
+- Connecting lunge swings get heavier juice (impact ×1.4, Heavy ×1.25 more: hit-stop, shake); the momentum
+  bonus keeps using your closing speed from *before* the dash (the lunge carries you, movement earns the bonus).
+- The swing **hitbox** (never the camera) turns toward the target by ≤ 12°, easing in over the windup.
+- Skill stays: out-move it (boost / tether / dodge out of the cone or past the range), space, bait the cooldown.
+  Bots swing through the same code. Client: the held weapon brightens while a swing would lunge-connect (same
+  query) — no reticle, no text. The dash is part of the movement state, so prediction replays it exactly.
+Numbers: `assets/tuning/combat.ron` → `assist.lunge`.
+
+### 4d. Hook-and-strike — tethers hook players (`bd_sim::hook`; lobby rule "Tethers hook players", default on)
+One rule set:
+- **Hook:** a tether that meets a player hooks them (hull + 0.3 m box, same hook projectile and crosshair
+  assist; lag-compensated per shooter). A dodging / spawn-shielded / cockpit-seated player can't be hooked.
+- **Reel:** a rope on a player pulls **you** (rope pull + reel, tilted up so it yanks you off the ground in a
+  flat arc); it is never rigid — the victim is never towed and never tows you.
+- **Slam:** arriving within 3 m holding a melee weapon lets go of the rope; your next swing started within 1 s
+  is a **slam** (knockback ×1.5, +lift, juice ×1.6) — one swing, consumed.
+- **Escape — the rope breaks when:** the victim **dodges** or **boosts**, the victim **fires a tether** of
+  their own, the victim's **swing cuts** through the rope, the rope is **longer than 40 m**, or it is **out of
+  sight for 0.25 s**. (And the usual: either player KO'd, the hooker lets go.)
+- The victim sees the hard-light rope binding them and a subtle tug arc at the screen edge toward the hooker.
+Numbers: `assets/tuning/combat.ron` → `assist.hook` (+ `move.ron` `hook_player_lift`). Bots with a melee weapon
+try it now and then. Events: `GameEvent::Assist` (lunge / hooked / broken + why / slam ready / slam).
 
 ### Worn (movement modifiers — must stay below skilled movement)
 - Wings: hold Jump in air = glide (fall → forward speed, cap 22 m/s); tap Jump = flap (+6 m/s up, 3 flaps

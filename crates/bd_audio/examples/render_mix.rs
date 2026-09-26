@@ -650,6 +650,15 @@ fn render_after(scen: &mut dyn Scenario, secs: f32, seed: u64) -> (Capture, Vec<
     let space = ListenerSpace::new(map.space);
     let amb = AmbienceDirector::new(map, emitters, seed);
     let mut rig = Rig { engine, director: MixDirector::new(), amb, space, sim: SimAudio::new(), cfg: a.mix.clone(), wind: None, events: 0 };
+    // `--music`: the soundtrack on the Music bus (bd_music), driven like the client does.
+    let mut music = if std::env::args().any(|x| x == "--music") {
+        let lib = std::sync::Arc::new(bd_music::MusicLibrary::load_dir(&assets().join("music")).expect("music"));
+        rig.engine.set_music(Box::new(bd_audio::music::ChipMusic::new(lib.clone(), SR)));
+        Some(bd_audio::music::MusicDirector::new(lib, bd_audio::music::MusicStyle::Classic, seed))
+    } else {
+        None
+    };
+    let map_key = scen.map();
     let mut cap = Capture { bus: vec![Vec::new(); NUM_BUSES], ..Default::default() };
     let mut track = Vec::new();
     let frames = (secs / FRAME_DT) as usize;
@@ -677,6 +686,10 @@ fn render_after(scen: &mut dyn Scenario, secs: f32, seed: u64) -> (Capture, Vec<
             Some(h) => rig.engine.update(h, f.ear, wind_db, 0.8 + k * 0.6, 0.0),
         }
         rig.director.update(FRAME_DT, &f.inputs, &rig.cfg, &mut rig.engine);
+        if let Some(m) = music.as_mut() {
+            let mi = bd_audio::music::MusicInputs { scene: Scene::InGame, map: map_key, combat: rig.director.weights().combat, ..Default::default() };
+            m.update(FRAME_DT, &mi, &mut rig.engine);
+        }
         rig.engine.advance(FRAME_DT);
         cap.game_us.push((g0.elapsed().as_secs_f32() * 1e6 - scen.sim_us()).max(0.0));
         if fi % 30 == 0 {
@@ -1140,7 +1153,8 @@ fn main() {
     let (cap, rec, track, extra) = render_after(scen.as_mut(), secs, seed);
     let mut summary = HashMap::new();
     if mode != "before" {
-        let r = report(&scenario, "after", &cap, extra, &out_dir);
+        let label = if std::env::args().any(|x| x == "--music") { format!("{scenario}_music") } else { scenario.clone() };
+        let r = report(&label, "after", &cap, extra, &out_dir);
         summary.insert("after", r);
     }
     if mode != "after" {

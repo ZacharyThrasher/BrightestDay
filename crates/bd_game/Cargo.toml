@@ -9,7 +9,7 @@ name = "brightest_day"
 path = "src/main.rs"
 
 [features]
-default = []
+default = ["music"]
 # Dev-only: faster incremental links (`cargo run -p bd_game --features dev`). Never ship with this.
 dev = ["bevy/dynamic_linking"]
 # Profiling: writes a chrome://tracing JSON (trace-*.json) in the working directory.
@@ -19,6 +19,8 @@ profile = ["bevy/trace_chrome"]
 alloc-count = []
 # Push-to-talk voice casting (local Whisper on CPU; needs CMake + MSVC, see crates/bd_voice/README.md).
 voice = ["bd_voice/whisper"]
+# The chip soundtrack on bd_audio's Music bus (bd_music).
+music = ["bd_audio/music", "dep:bd_music"]
 
 [dependencies]
 bd_core.workspace = true
@@ -29,9 +31,9 @@ bd_voice.workspace = true
 bd_shapes.workspace = true
 bd_fx.workspace = true
 bd_net.workspace = true
+bd_audio.workspace = true
+bd_music = { path = "../bd_music", optional = true }
 serde.workspace = true
 ron.workspace = true
 bytemuck = { version = "1", features = ["derive"] }
 bevy = { version = "0.19.1" }
-# Same rodio as bevy_audio (features unify): SFX are pre-decoded to PCM at load (src/pcm.rs).
-rodio = { version = "0.22", default-features = false }

@@ -91,6 +91,8 @@ pub struct Player {
     pub power: crate::powers::PlayerPower,
     /// CHARGE HOOK: holding the charge button (anime power-up, `crate::charge`).
     pub charge: crate::charge::ChargeState,
+    /// ASSIST HOOK: melee lunge cooldown / swing target, hook ropes' sight timers, slam window.
+    pub assist: crate::melee_assist::AssistState,
 }
 
 impl Player {
@@ -139,6 +141,7 @@ impl Player {
             portal_pending: None,
             power: Default::default(),
             charge: Default::default(),
+            assist: Default::default(),
         }
     }
 

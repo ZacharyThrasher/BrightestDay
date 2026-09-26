@@ -461,14 +461,17 @@ fn validation_clamps_scale_by_lobby_rules() {
 fn oath_recital_validates_and_refills() {
     let mut w = duel(2);
     w.player_mut(A).unwrap().willpower = 10.0;
-    assert!(w.begin_oath(A));
-    let len = w.cfg.oaths.len(w.player(A).unwrap().corps);
+    let corps = w.player(A).unwrap().corps;
+    assert!(w.begin_oath(A, 1));
+    let len = w.cfg.oaths.section_len(corps, 1);
+    assert!(w.cfg.oaths.section_count(corps) >= 2 && len > 40);
     // Too fast to be human.
     run(&mut w, 10);
     assert!(w.oath_result(A, 1.0, 0.5).is_err());
     assert!(w.player(A).unwrap().willpower < 11.0, "no refill");
     // A plausible recital on target time with 90 % accuracy.
-    assert!(w.begin_oath(A));
+    assert!(w.begin_oath(A, 1));
+    assert!(matches!(w.player(A).unwrap().oath, bd_sim::willpower::OathState::Reciting { len: l, .. } if l == len));
     let target = len as f32 / bd_sim::willpower::OATH_TARGET_CPS;
     run(&mut w, (target / DT) as u32);
     let before = w.player(A).unwrap().willpower;
@@ -477,11 +480,38 @@ fn oath_recital_validates_and_refills() {
     assert!((w.player(A).unwrap().willpower - (before + refill).min(100.0)).abs() < 1e-3);
     // Damage interrupts with a partial refill.
     w.player_mut(A).unwrap().willpower = 0.0;
-    assert!(w.begin_oath(A));
+    assert!(w.begin_oath(A, 0));
     run(&mut w, 600);
     w.apply_hit(hit(A, Some(B), 5.0, 0.0, Vec3::X));
     assert!(!w.player(A).unwrap().oath.reciting());
     assert!(w.events().iter().any(|e| matches!(e, GameEvent::OathInterrupted { refill, .. } if *refill > 0.0)));
+}
+
+#[test]
+fn oath_section_comes_from_the_host_table() {
+    let mut w = duel(2);
+    let corps = w.player(A).unwrap().corps;
+    let n = w.cfg.oaths.section_count(corps);
+    // Each valid section recites its own length; a bogus section index reads as section 0.
+    for (section, want) in [(0u8, 0u8), (n - 1, n - 1), (n, 0), (255, 0)] {
+        assert!(w.begin_oath(A, section));
+        let len = w.cfg.oaths.section_len(corps, want);
+        assert!(matches!(w.player(A).unwrap().oath, bd_sim::willpower::OathState::Reciting { len: l, .. } if l == len), "section {section}");
+        // The plausibility floor scales with the section: faster than OATH_MAX_CPS is refused.
+        let min = bd_sim::willpower::oath_min_secs(len);
+        run(&mut w, (min / DT) as u32 + 2);
+        assert!(w.oath_result(A, 1.0, min * 0.8).is_err());
+    }
+    // A shorter section refills in proportionally less time: same full refill on target.
+    let (s0, s1) = (w.cfg.oaths.section_len(corps, 0), w.cfg.oaths.section_len(corps, 1));
+    for (section, len) in [(0u8, s0), (1, s1)] {
+        w.player_mut(A).unwrap().willpower = 0.0;
+        assert!(w.begin_oath(A, section));
+        let target = bd_sim::willpower::oath_target_secs(len);
+        run(&mut w, (target / DT) as u32 + 1);
+        let refill = w.oath_result(A, 1.0, target).unwrap();
+        assert!((refill - 100.0).abs() < 0.5, "section {section}: refill {refill}");
+    }
 }
 
 // ------------------------------------------------------------------------------------ constructs

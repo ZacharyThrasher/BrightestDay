@@ -166,6 +166,7 @@ impl Lexicon {
             incantation: None,
             incantation_powers: Vec::new(),
             stand_rush: None,
+            signature: None,
             confidence: 0.9,
             explanation: vec![format!("{} \u{2192} {} (Pok\u{e9}mon move)", mv.name, mv.describe())],
             ignored: Vec::new(),

@@ -9,12 +9,17 @@
 //! * **AoTTG tethers** — two independent hook projectiles (hold = stay attached), inextensible
 //!   ratcheting ropes with a gentle pull, reel (button + wheel notches), release keeps all momentum.
 //! * **Gas boost** — burst on press + sustained thrust, regenerating meter.
+//! * **Air jump + dodge** — one air jump per airtime that redirects without adding speed
+//!   (`air_jump.rs`); a short intangible burst on a cooldown that never raises sustained speed
+//!   (`dodge.rs`). State: [`ExtraMoves`].
 //! * **Hooks for constructs** — [`MoveModifiers`] (in the state) and [`PlayerState::apply_impulse`].
 //!
 //! Entry point: [`step_player`]. Host and client call it with identical inputs at `bd_core::DT`.
 //! Crosshair helper: [`query_anchor`].
 
+mod air_jump;
 mod controller;
+mod dodge;
 mod params;
 mod state;
 mod tether;
@@ -24,6 +29,7 @@ mod world;
 #[cfg(test)]
 mod tests;
 
+pub use air_jump::{ExtraMoves, SINCE_DODGE_CAP, redirect as air_jump_redirect};
 pub use controller::step_player;
 pub use params::MoveParams;
 pub use state::{BUTTON_BITS, HOP_CHAIN_MAX, Hand, Hook, HookPhase, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit};

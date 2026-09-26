@@ -529,7 +529,20 @@ fn voxelize_grid(spec: &ShapeSpec, voxel_size: f32) -> VoxelModel {
             rig.kinds[i] = crate::anim::PartKind::Machine;
         }
     }
+    rigidify_inferred(&parts, &mut rig, &machine, &bounds, voxel_size, seat.is_some());
     VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat, weak_points, unit_m: voxel_size, machine, instances, weight: 1.0 }
+}
+
+/// Parts the role inference is sure about (an untagged icon's turret / barrel / hatch / fins…,
+/// `roles::infer`) ride their parent rigidly in the clips instead of swaying like cloth; the
+/// client's role behaviours move them. Client-visual only: the sim never poses.
+fn rigidify_inferred(parts: &[PartModel], rig: &mut Rig, machine: &crate::features::MachineRig, bounds: &Aabb, voxel_size: f32, has_seat: bool) {
+    let found = crate::roles::infer(parts, &rig.kinds, machine, bounds.min, bounds.max, voxel_size, rig.gait, rig.legs.is_empty(), has_seat);
+    for (i, _) in found {
+        if let Some(k) = rig.kinds.get_mut(i) {
+            *k = crate::anim::PartKind::Rigid;
+        }
+    }
 }
 
 /// Assemble a model from explicit parts (voxels in model space, pivots in metres). Parts must be
@@ -573,6 +586,7 @@ pub(crate) fn model_from_parts(mut parts: Vec<PartModel>, voxel_size: f32) -> Vo
             rig.kinds[i] = crate::anim::PartKind::Machine;
         }
     }
+    rigidify_inferred(&parts, &mut rig, &machine, &bounds, voxel_size, false);
     let instances = part_instances(&parts);
     VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat: None, weak_points, unit_m: voxel_size, machine, instances, weight: 1.0 }
 }

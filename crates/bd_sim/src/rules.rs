@@ -87,6 +87,11 @@ pub struct MatchRules {
     pub devil_fruits: bool,
     /// §5h stands allowed.
     pub stands: bool,
+    /// ASSIST HOOK: tethers hook players (hook-and-strike, `crate::hook`; COMBAT.md "Hook-and-strike").
+    pub tether_hooks_players: bool,
+    /// CAMERA: players may use the over-the-shoulder camera (off = first-person-only lobby; seats
+    /// in vehicles keep their chase camera). Client-side view rule; the sim never reads it.
+    pub allow_third_person: bool,
 }
 
 impl Default for MatchRules {
@@ -106,6 +111,8 @@ impl Default for MatchRules {
             powers_enabled: true,
             devil_fruits: true,
             stands: true,
+            tether_hooks_players: true,
+            allow_third_person: true,
         }
     }
 }

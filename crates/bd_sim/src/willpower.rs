@@ -238,34 +238,119 @@ pub const OATH_LATENCY_SLACK: f32 = 0.6;
 /// Fraction of progress refunded when damage interrupts the recital.
 pub const OATH_INTERRUPT_FRACTION: f32 = 0.5;
 
-/// Oath length per corps (the sim only needs lengths; the client shows the text).
+/// Most sections one oath is cut into (two authored lines, each split once if long).
+pub const MAX_OATH_SECTIONS: usize = 4;
+/// An authored line longer than this (characters) is split at the clause boundary nearest its middle.
+pub const OATH_SECTION_MAX_CHARS: usize = 95;
+/// Section length used for a corps with no oath in the file.
+pub const OATH_FALLBACK_LEN: u16 = 110;
+
+/// Parse `assets/oaths.ron`: a map of corps **name** → oath text (raw: authored line breaks kept).
+/// String keys, so an oath for a corps the game doesn't have yet (e.g. `"Death"`) is simply
+/// ignored instead of failing the whole file.
+pub fn parse_oath_ron(src: &str) -> Result<std::collections::HashMap<String, String>, String> {
+    ron::from_str(src).map_err(|e| e.to_string())
+}
+
+/// The recital sections of one oath — ONE definition shared by the sim ([`OathTable`], lengths) and
+/// the client (texts), so the two always agree. Each authored line is a section (whitespace inside
+/// collapsed to single spaces); a line over [`OATH_SECTION_MAX_CHARS`] is split at the clause
+/// boundary (`, . ; : ! ? -` then a space) nearest its middle. At most [`MAX_OATH_SECTIONS`].
+pub fn oath_sections(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let s = line.split_whitespace().collect::<Vec<_>>().join(" ");
+        if !s.is_empty() {
+            split_oath_line(&s, &mut out);
+        }
+    }
+    out.truncate(MAX_OATH_SECTIONS);
+    out
+}
+
+fn split_oath_line(s: &str, out: &mut Vec<String>) {
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() <= OATH_SECTION_MAX_CHARS {
+        out.push(s.to_string());
+        return;
+    }
+    let mid = chars.len() / 2;
+    let is_clause = |i: usize| i > 0 && matches!(chars[i - 1], ',' | '.' | ';' | ':' | '!' | '?' | '-');
+    let spaces = || (1..chars.len() - 1).filter(|&i| chars[i] == ' ');
+    let cut = spaces().filter(|&i| is_clause(i)).min_by_key(|&i| i.abs_diff(mid)).or_else(|| spaces().min_by_key(|&i| i.abs_diff(mid)));
+    match cut {
+        Some(i) => {
+            let a: String = chars[..i].iter().collect();
+            let b: String = chars[i + 1..].iter().collect();
+            split_oath_line(a.trim(), out);
+            split_oath_line(b.trim(), out);
+        }
+        None => out.push(s.to_string()),
+    }
+}
+
+/// Oath section lengths per corps (the sim only needs lengths; the client shows the text).
+/// Fixed-size: looking a section up in the tick never allocates.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct OathTable {
-    /// Characters, indexed by `Corps::index()`.
-    pub lens: [u16; 8],
+    /// Characters per section, indexed by `Corps::index()` then section (unused slots 0).
+    pub sections: [[u16; MAX_OATH_SECTIONS]; 8],
+    /// Sections per corps (≥ 1).
+    pub counts: [u8; 8],
 }
 
 impl Default for OathTable {
-    /// Parsed from the shipped `assets/oaths.ron` at compile time (falls back to 110 chars).
+    /// Parsed from the shipped `assets/oaths.ron` at compile time (a corps missing from the file —
+    /// or an unparsable file — gets one [`OATH_FALLBACK_LEN`]-char section).
     fn default() -> Self {
-        Self::from_ron(include_str!("../../../assets/oaths.ron")).unwrap_or(Self { lens: [110; 8] })
+        Self::from_ron(include_str!("../../../assets/oaths.ron")).unwrap_or_else(|_| Self::fallback())
     }
 }
 
 impl OathTable {
-    /// Parse an `oaths.ron` map `{ Willpower: "…", Rage: "…", … }`.
-    pub fn from_ron(src: &str) -> Result<Self, String> {
-        let map: std::collections::HashMap<bd_core::corps::Corps, String> =
-            ron::from_str(src).map_err(|e| e.to_string())?;
-        let mut lens = [110u16; 8];
-        for (c, text) in &map {
-            lens[c.index() as usize] = text.chars().count().clamp(1, u16::MAX as usize) as u16;
+    /// One [`OATH_FALLBACK_LEN`]-char section for every corps.
+    pub fn fallback() -> Self {
+        let mut sections = [[0u16; MAX_OATH_SECTIONS]; 8];
+        for s in &mut sections {
+            s[0] = OATH_FALLBACK_LEN;
         }
-        Ok(Self { lens })
+        Self { sections, counts: [1; 8] }
     }
 
-    pub fn len(&self, corps: bd_core::corps::Corps) -> u16 {
-        self.lens[corps.index() as usize]
+    /// Parse an `oaths.ron` map `{ "Willpower": "…", "Rage": "…", … }` (unknown names ignored).
+    pub fn from_ron(src: &str) -> Result<Self, String> {
+        let map = parse_oath_ron(src)?;
+        let mut t = Self::fallback();
+        for c in bd_core::corps::Corps::ALL {
+            let Some(text) = map.get(c.name()) else { continue };
+            let secs = oath_sections(text);
+            if secs.is_empty() {
+                continue;
+            }
+            let i = c.index() as usize;
+            t.sections[i] = [0; MAX_OATH_SECTIONS];
+            for (k, s) in secs.iter().enumerate() {
+                t.sections[i][k] = s.chars().count().clamp(1, u16::MAX as usize) as u16;
+            }
+            t.counts[i] = secs.len() as u8;
+        }
+        Ok(t)
+    }
+
+    /// Number of sections of `corps`'s oath (≥ 1).
+    pub fn section_count(&self, corps: bd_core::corps::Corps) -> u8 {
+        self.counts[corps.index() as usize].max(1)
+    }
+
+    /// `section` if it exists for `corps`, else 0 (untrusted input from the client).
+    pub fn valid_section(&self, corps: bd_core::corps::Corps, section: u8) -> u8 {
+        if section < self.section_count(corps) { section } else { 0 }
+    }
+
+    /// Characters of one section (an out-of-range section reads as section 0).
+    pub fn section_len(&self, corps: bd_core::corps::Corps, section: u8) -> u16 {
+        let s = self.valid_section(corps, section) as usize;
+        self.sections[corps.index() as usize][s].max(1)
     }
 }
 
@@ -359,8 +444,61 @@ mod tests {
 
     #[test]
     fn oaths_parse_from_asset() {
+        use bd_core::corps::Corps;
+        let src = include_str!("../../../assets/oaths.ron");
+        let map = parse_oath_ron(src).expect("assets/oaths.ron must parse");
+        // A key the game has no corps for (Death) is ignored, not an error.
+        assert!(map.contains_key("Death"));
+        let t = OathTable::from_ron(src).unwrap();
+        assert_eq!(t, OathTable::default());
+        for c in Corps::ALL {
+            // No corps may fall back: every one has its own text, and the exact section lengths.
+            let text = map.get(c.name()).unwrap_or_else(|| panic!("no oath for {}", c.name()));
+            let secs = oath_sections(text);
+            assert!((2..=MAX_OATH_SECTIONS).contains(&secs.len()), "{}: {secs:?}", c.name());
+            assert_eq!(t.section_count(c) as usize, secs.len(), "{}", c.name());
+            for (k, s) in secs.iter().enumerate() {
+                assert!(!s.contains('\n') && !s.contains("  ") && s.trim() == s, "{}: {s:?}", c.name());
+                assert!(s.chars().count() <= OATH_SECTION_MAX_CHARS, "{}: {s:?}", c.name());
+                assert_eq!(t.section_len(c, k as u8) as usize, s.chars().count(), "{} §{k}", c.name());
+                assert!(t.section_len(c, k as u8) > 40, "{} §{k} suspiciously short: {s:?}", c.name());
+            }
+            // The sections are the whole oath, in order.
+            let whole = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            assert_eq!(secs.join(" "), whole, "{}", c.name());
+            // Out of range → section 0.
+            assert_eq!(t.section_len(c, 200), t.section_len(c, 0));
+            assert_eq!(t.valid_section(c, t.section_count(c)), 0);
+        }
+    }
+
+    #[test]
+    fn long_lines_split_at_the_middle_clause() {
+        let line = "Aaaa bbbb cccc dddd eeee, ffff gggg hhhh iiii jjjj kkkk llll, mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv.";
+        assert!(line.chars().count() > OATH_SECTION_MAX_CHARS);
+        let s = oath_sections(&format!("{line}\n  Short second line."));
+        assert_eq!(s, vec![
+            "Aaaa bbbb cccc dddd eeee, ffff gggg hhhh iiii jjjj kkkk llll,".to_string(),
+            "mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv.".to_string(),
+            "Short second line.".to_string(),
+        ]);
+        // A one-line oath still gets sections when it's long; blank lines are skipped.
+        assert_eq!(oath_sections("\n  one   short  line \n\n"), vec!["one short line".to_string()]);
+    }
+
+    #[test]
+    fn section_refill_keeps_plausibility() {
+        // A section is ~half the old whole-oath length: the same full refill on target, in half the
+        // time, and the plausibility floor still scales with the section.
         let t = OathTable::default();
-        assert!(t.lens.iter().all(|l| *l > 60 && *l < 200), "{:?}", t.lens);
+        for c in bd_core::corps::Corps::ALL {
+            for s in 0..t.section_count(c) {
+                let len = t.section_len(c, s);
+                assert!((oath_refill(1.0, oath_target_secs(len), len, 100.0) - 100.0).abs() < 1e-3);
+                assert!(oath_min_secs(len) >= 2.5, "{c:?} §{s}: {len} chars is too short to be a recital");
+                assert!(oath_target_secs(len) < 15.0);
+            }
+        }
     }
 
     #[test]

@@ -18,6 +18,7 @@
 use crate::arena::{ArenaWorld, MapKind};
 use crate::camera::PlayerCamera;
 use crate::player::{FrameMoveEvents, LocalPlayer, PlayerSim};
+use crate::present::gv;
 use crate::present::sound::{MixDuck, Sfx3d, SfxLoopEmitter};
 use crate::settings::Settings;
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
@@ -27,7 +28,7 @@ use crate::util::v3;
 use crate::warmup::LoadingBlockers;
 use bd_audio::acoustics::ListenerSpace;
 use bd_audio::game::{SimAudio, SimCtx, corps_key};
-use bd_audio::{AmbienceDirector, AudioEngine, AudioSettings, EmitterMap, Emit, MapAudioTable, MixConfig, MixDirector, MixInputs, PlayOpts, Scene, VoiceHandle};
+use bd_audio::{AmbienceDirector, AudioEngine, AudioSettings, EmitterMap, MapAudioTable, MixConfig, MixDirector, MixInputs, PlayOpts, Scene, VoiceHandle};
 use bd_core::PlayerId;
 use bd_core::input::buttons;
 use bd_sim::GameEvent;
@@ -137,7 +138,7 @@ pub struct Audio {
     own: [Option<VoiceHandle>; 4],
     own_level: [f32; 4],
     stride: f32,
-    remote_prev: HashMap<PlayerId, Vec3>,
+    remote_prev: HashMap<PlayerId, bd_core::Vec3>,
     ear: Vec3,
     prev_ear: Vec3,
     settings: Option<(f32, AudioPrefs)>,
@@ -265,7 +266,8 @@ fn finish_load(world: &mut World) {
     }
     let record = record_wav_path(world);
     let rate = if record.is_some() { 48_000 } else { bd_audio::output::device_rate().map(|(r, _)| r).unwrap_or(48_000) };
-    let (mut engine, mut mixer) = AudioEngine::new(assets.bank.clone(), &assets.cues, assets.mix.clone(), rate, 0xb1d);
+    #[allow(unused_mut)]
+    let (mut engine, mixer) = AudioEngine::new(assets.bank.clone(), &assets.cues, assets.mix.clone(), rate, 0xb1d);
     #[cfg(feature = "music")]
     let music = music_lib.map(|lib| {
         mixer_set_music(&mut engine, &lib, rate);
@@ -277,7 +279,6 @@ fn finish_load(world: &mut World) {
         let args = world.get_resource::<crate::practice::SimArgs>().cloned().unwrap_or_default();
         let fps = record_fps();
         let frames = (args.record_secs.max(0.5) * fps).round() as usize;
-        mixer.process(&mut [0.0; 2], 2);
         Sink::Offline(OfflineCapture { mixer, path, samples: Vec::new(), t_game: 0.0, frames_left: frames, fps, written: false, carry: 0.0 })
     } else {
         match bd_audio::output::start(mixer, 256) {
@@ -291,7 +292,7 @@ fn finish_load(world: &mut World) {
             }
         }
     };
-    world.insert_non_send_resource(sink);
+    world.insert_non_send(sink);
     let maps = assets.maps.clone();
     let space = ListenerSpace::new(maps.get("archipelago").space);
     world.insert_resource(Audio {
@@ -375,13 +376,13 @@ fn forward_messages(
         }
         let mut o = match e.pos {
             Some(p) => {
-                let mut o = PlayOpts::at(p);
+                let mut o = PlayOpts::at(gv(p));
                 if budget > 0
                     && let Some(v) = vox.as_deref()
                     && p.distance(ear) < 120.0
                 {
                     budget -= 1;
-                    o = o.occlusion(bd_audio::occlusion(v, ear, p));
+                    o = o.occlusion(bd_audio::occlusion(v, gv(ear), gv(p)));
                 }
                 o
             }
@@ -404,7 +405,7 @@ fn forward_messages(
         if let Some((h, _)) = a.loops.remove(&e) {
             a.engine.stop(h, 0.0);
         }
-        if let Some(h) = a.engine.play(em.name, PlayOpts::at(ear).gain_db(-120.0)) {
+        if let Some(h) = a.engine.play(em.name, PlayOpts::at(gv(ear)).gain_db(-120.0)) {
             a.loops.insert(e, (h, em.name));
         }
     }
@@ -425,8 +426,8 @@ fn forward_messages(
         }
         let p = gt.translation();
         // Occlusion for a few loops per frame (round robin); others keep their last value.
-        let occ = if (i + rr) % n < 4 { vox.as_deref().map_or(0.0, |v| bd_audio::occlusion(v, ear, p)) } else { f32::NAN };
-        a.engine.update(h, p, db(em.gain), em.pitch.clamp(0.25, 4.0), occ);
+        let occ = if (i + rr) % n < 4 { vox.as_deref().map_or(0.0, |v| bd_audio::occlusion(v, gv(ear), gv(p))) } else { f32::NAN };
+        a.engine.update(h, gv(p), db(em.gain), em.pitch.clamp(0.25, 4.0), occ);
     }
 }
 
@@ -454,7 +455,9 @@ fn local_movement(
     // Footsteps from distance walked on the ground.
     if s.grounded && !s.sliding {
         let d = v3(s.pos - sim.prev.pos);
-        a.stride += Vec2::new(d.x, d.z).length() * events.0.len().max(1) as f32;
+        // Once per tick (frames without a tick add nothing; `max(1)` made steps faster at high fps).
+        // viewmodel_anim's hand bob mirrors this rule so the bob lands on the footstep.
+        a.stride += Vec2::new(d.x, d.z).length() * events.0.len() as f32;
         if a.stride > 2.6 {
             a.stride = 0.0;
             a.engine.play("footstep", PlayOpts::own());
@@ -488,7 +491,7 @@ fn local_movement(
             }
             Some(h) => {
                 let ear = a.ear;
-                a.engine.update(h, ear, db(a.own_level[i]), pitch, 0.0);
+                a.engine.update(h, gv(ear), db(a.own_level[i]), pitch, 0.0);
             }
             None => {}
         }
@@ -518,7 +521,7 @@ fn world_audio(
     a.ear = ear;
     let vel = if dt > 0.0 { (ear - a.prev_ear) / dt } else { Vec3::ZERO };
     let vel = if vel.length() < 200.0 { vel } else { Vec3::ZERO };
-    a.engine.set_listener(ear, fwd, up);
+    a.engine.set_listener(gv(ear), gv(fwd), gv(up));
 
     let in_game = *state.get() == AppState::InGame;
     let local = active.as_ref().and_then(|w| w.local);
@@ -543,18 +546,18 @@ fn world_audio(
             a.amb_for = Some((id, map));
             info!("audio: {key} ambience scanned in {:.1} ms", t0.elapsed().as_secs_f32() * 1000.0);
         }
-        a.space.step(&*vox, ear, 4);
+        a.space.step(&*vox, gv(ear), 4);
         let rv = a.space.reverb(dt);
         a.engine.set_reverb(rv);
         if let Some(amb) = a.amb.as_mut() {
             amb.enclosure = a.space.estimate_now().enclosure;
-            amb.update(dt, ear, vel, &mut a.engine, Some(&*vox));
+            amb.update(dt, gv(ear), gv(vel), &mut a.engine, Some(&*vox));
         }
 
         // Events: the mix reacts (presenters voice them through the shims).
-        let pos_of = |id: PlayerId| views.player(id).map(|p| crate::present::bv(p.pos) + Vec3::Y * 0.9);
+        let pos_of = |id: PlayerId| views.player(id).map(|p| gv(p.pos) + bd_core::Vec3::Y * 0.9);
         let corps_of = |id: PlayerId| views.player(id).map(|p| corps_key(p.corps));
-        let ctx = SimCtx { voxels: &*vox, ear, local, pos_of: &pos_of, corps_of: &corps_of, local_move_predicted: true, match_point: false };
+        let ctx = SimCtx { voxels: &*vox, ear: gv(ear), local, pos_of: &pos_of, corps_of: &corps_of, local_move_predicted: true, match_point: false };
         for ev in events.read() {
             match &ev.event {
                 // The KO duck comes from the presenter's MixDuck request.
@@ -585,7 +588,7 @@ fn world_audio(
 
         // Everyone else's footsteps from the replicated views.
         for p in views.players.iter().filter(|p| !p.is_local) {
-            let pos = crate::present::bv(p.pos);
+            let pos = gv(p.pos);
             let prev = a.remote_prev.insert(p.id, pos).unwrap_or(pos);
             let moved = Vec2::new(pos.x - prev.x, pos.z - prev.z).length();
             let grounded = p.flags & pflags::GROUNDED != 0 && p.flags & pflags::ALIVE != 0 && p.flags & pflags::SLIDING == 0;
@@ -604,7 +607,7 @@ fn world_audio(
             P::Release { .. } => "shout_release",
             P::Fizzle => "shout_fizzle",
         };
-        let o = if s.local { PlayOpts::own() } else { PlayOpts::at(s.pos) };
+        let o = if s.local { PlayOpts::own() } else { PlayOpts::at(gv(s.pos)) };
         a.engine.play(name, o.gain_db(db((0.6 + 0.4 * s.intensity).clamp(0.3, 1.5))));
     }
 
@@ -767,5 +770,3 @@ fn write_wav(path: &std::path::Path, sr: u32, s: &[i16]) -> std::io::Result<()> 
     f.flush()
 }
 
-#[allow(dead_code)]
-fn _emit_is_used(_: Emit) {}

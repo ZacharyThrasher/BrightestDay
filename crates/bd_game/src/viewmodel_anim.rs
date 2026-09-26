@@ -34,10 +34,10 @@ use crate::tick::TickClock;
 use crate::util::v3;
 use bd_core::input::buttons;
 use bd_core::mechanics::{Form, FormCategory};
+use bd_sim::GameEvent;
 use bd_sim::events::HeldFx;
 use bd_sim::movement::HookPhase;
 use bd_sim::weapons::GunArchetype;
-use bd_sim::GameEvent;
 use bevy::prelude::*;
 use bevy::transform::TransformSystems;
 use serde::{Deserialize, Serialize};
@@ -158,6 +158,40 @@ pub struct VmTuning {
     pub coil_pos: [f32; 3],
     pub coil_tremble: f32,
 
+    // grip: held items sit IN the right fist (model origin = grip, bd_shapes convention) and move
+    // with it as one rigid body; the arm rotates with the item (`grip_wrist` = share for melee swings,
+    // guns are fully rigid).
+    /// Palm centre along the glove (fraction of elbow → fingertip).
+    pub grip_palm: f32,
+    pub grip_wrist: f32,
+    /// Share of a swing curve's translation the fist follows (the item always stays in the fist).
+    pub grip_swing_reach: f32,
+    /// Farthest a first-person held model may reach from the grip (m, view space; coverage clamp).
+    pub grip_max_reach: f32,
+    /// Guns / launchers / bows / staffs / shields: fingertip rest point, arm (yaw, pitch), item (yaw, pitch, roll).
+    pub grip_gun_fist: [f32; 3],
+    pub grip_gun_arm: [f32; 2],
+    pub grip_gun_item: [f32; 3],
+    /// Melee (swords, hammers, …): the item held up at the side.
+    pub grip_melee_fist: [f32; 3],
+    pub grip_melee_arm: [f32; 2],
+    pub grip_melee_item: [f32; 3],
+    /// Two-handed guns: the left palm goes this far along the barrel (fraction of the forward length)…
+    pub support_fore: f32,
+    /// …this far below the item's axis (m, view space).
+    pub support_drop: f32,
+    /// Guns shorter than this (m, drawn) are pistols: the support hand cups under the grip instead.
+    pub support_pistol_len: f32,
+
+    // aim down sights (`AdsState::blend`): the gun comes up to the eye along the camera axis
+    /// Sight distance in front of the eye (m) and how far below the crosshair it sits (m).
+    pub ads_dist: f32,
+    pub ads_sight_drop: f32,
+    /// Sway / bob / breathing left while fully aimed.
+    pub ads_motion: f32,
+    /// Recoil share while aimed (it still kicks; it recovers onto the sight line).
+    pub ads_kick: f32,
+
     // guns (on top of the base kick in `viewmodel`): per archetype scale
     pub gun_kick_pitch: f32,
     pub gun_kick_back: f32,
@@ -274,6 +308,23 @@ impl Default for VmTuning {
             swing_impact: 1.0,
             coil_pos: [0.01, -0.01, 0.04],
             coil_tremble: 0.0018,
+            grip_palm: 0.72,
+            grip_wrist: 0.6,
+            grip_swing_reach: 0.5,
+            grip_max_reach: 0.36,
+            grip_gun_fist: [0.13, -0.16, -0.36],
+            grip_gun_arm: [0.1, 0.08],
+            grip_gun_item: [0.05, 0.02, 0.0],
+            grip_melee_fist: [0.16, -0.135, -0.34],
+            grip_melee_arm: [0.16, 0.3],
+            grip_melee_item: [-0.7, 0.75, -0.5],
+            support_fore: 0.45,
+            support_drop: 0.015,
+            support_pistol_len: 0.2,
+            ads_dist: 0.26,
+            ads_sight_drop: 0.012,
+            ads_motion: 0.25,
+            ads_kick: 0.6,
             gun_kick_pitch: 2.5,
             gun_kick_back: 0.25,
             gun_kick_up: 0.2,
@@ -344,7 +395,12 @@ fn load_tuning() -> VmTuning {
                 let _ = std::fs::create_dir_all(dir);
             }
             if let Ok(text) = ron::ser::to_string_pretty(&t, ron::ser::PrettyConfig::default()) {
-                let _ = std::fs::write(&path, format!("// First-person hand animation (bd_game viewmodel_anim). Hot-reloaded. Missing fields use defaults.\n{text}\n"));
+                let _ = std::fs::write(
+                    &path,
+                    format!(
+                        "// First-person hand animation (bd_game viewmodel_anim). Hot-reloaded. Missing fields use defaults.\n{text}\n"
+                    ),
+                );
             }
             t
         }
@@ -491,6 +547,10 @@ pub struct AnimInput {
     pub charge_full: bool,
     pub held: bool,
     pub held_weight: f32,
+    /// Holding a two-handed gun: the left hand supports it (unless it's busy).
+    pub two_handed: bool,
+    /// Aim-down-sights blend 0..1 (steadies the hands).
+    pub ads: f32,
     /// Comfort: sway / bob / landing scale and root-roll scale.
     pub motion_scale: f32,
     pub roll_scale: f32,
@@ -509,11 +569,21 @@ pub struct HandPose {
     pub glow: f32,
     /// Keep the hands visible just after a KO (they drop).
     pub ko_visible: bool,
+    /// 0..1: the left hand on a two-handed gun's fore-grip.
+    pub support: f32,
 }
 
 impl Default for HandPose {
     fn default() -> Self {
-        Self { root_t: Vec3::ZERO, root_r: Quat::IDENTITY, hand_t: [Vec3::ZERO; 2], hand_r: [Quat::IDENTITY; 2], glow: 0.0, ko_visible: false }
+        Self {
+            root_t: Vec3::ZERO,
+            root_r: Quat::IDENTITY,
+            hand_t: [Vec3::ZERO; 2],
+            hand_r: [Quat::IDENTITY; 2],
+            glow: 0.0,
+            ko_visible: false,
+            support: 0.0,
+        }
     }
 }
 
@@ -560,6 +630,146 @@ fn arc_limited(from: Vec3, to: Vec3, max: f32) -> Quat {
     Quat::from_axis_angle(axis, ang.min(max.max(0.0)))
 }
 
+// ------------------------------------------------------------------------------------------ ADS
+
+/// Aim-down-sights state (`present::ads`, camera worker): `blend` 0..1, eased. Read-only here.
+pub use crate::present::ads::AdsState;
+
+// ------------------------------------------------------------------------------------------ grip
+
+/// Where a held model is gripped, in model space (metres at world size).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HeldGeom {
+    /// The grip point (the hand). bd_shapes convention: the model origin.
+    pub grip: Vec3,
+    /// Farthest bounds corner from the grip (m).
+    pub reach: f32,
+    /// Where a support hand holds it (fore-grip / under the barrel), if two-handed.
+    pub support: Option<Vec3>,
+    /// Forward length from the grip to the muzzle end (m).
+    pub fore_len: f32,
+    /// Rear sight: the top of the item above the grip (lined up under the crosshair when aiming).
+    pub sight: Vec3,
+}
+
+fn two_handed(form: Form) -> bool {
+    matches!(form, Form::Gun | Form::Cannon)
+}
+
+/// The grip of a held model. Held forms and curated icons put the grip at the origin; a model whose
+/// origin lies well outside its bounds gets one inferred (guns: low at the rear; others: the end of
+/// the longest axis nearest the origin).
+pub fn held_geom(bounds: &bd_core::voxel::Aabb, form: Form) -> HeldGeom {
+    let (min, max) = (Vec3::from_array(bounds.min.to_array()), Vec3::from_array(bounds.max.to_array()));
+    let ok = min.is_finite() && max.is_finite() && max.cmpge(min).all();
+    let (min, max) = if ok { (min, max) } else { (Vec3::splat(-0.1), Vec3::splat(0.1)) };
+    let size = (max - min).max(Vec3::splat(1e-3));
+    let slack = size * 0.25;
+    let inside = Vec3::ZERO.cmpge(min - slack).all() && Vec3::ZERO.cmple(max + slack).all();
+    let grip = if inside {
+        Vec3::ZERO
+    } else if two_handed(form) {
+        Vec3::new((min.x + max.x) * 0.5, min.y + size.y * 0.2, max.z - size.z * 0.25)
+    } else {
+        let c = (min + max) * 0.5;
+        let axis = if size.x >= size.y && size.x >= size.z {
+            Vec3::X
+        } else if size.y >= size.z {
+            Vec3::Y
+        } else {
+            Vec3::Z
+        };
+        let half = (size * axis).length() * 0.5;
+        let (a, b) = (c + axis * half * 0.85, c - axis * half * 0.85);
+        if a.length_squared() <= b.length_squared() { a } else { b }
+    };
+    let reach = (0..8)
+        .map(|i| {
+            let c = Vec3::new(if i & 1 == 0 { min.x } else { max.x }, if i & 2 == 0 { min.y } else { max.y }, if i & 4 == 0 { min.z } else { max.z });
+            (c - grip).length()
+        })
+        .fold(0.0f32, f32::max);
+    let fore_len = (grip.z - min.z).max(0.0);
+    let support = two_handed(form).then(|| {
+        // Under the barrel, a little ahead of the trigger guard.
+        Vec3::new(grip.x, grip.y + (max.y - grip.y) * 0.1, grip.z - fore_len)
+    });
+    HeldGeom { grip, reach, support, fore_len, sight: Vec3::new(grip.x, max.y, grip.z.min(max.z)) }
+}
+
+/// Aim-down-sights placement (root space, before sway): the item along the camera axis with its
+/// sight on the eye line just under the crosshair. Returns the palm (grip) point and the scale.
+pub fn ads_palm(tu: &VmTuning, geom: &HeldGeom, scale: f32) -> (Vec3, f32) {
+    let s = place_item(tu, geom, Vec3::ZERO, Quat::IDENTITY, scale).scale.x;
+    let sight_at = Vec3::new(0.0, -tu.ads_sight_drop, -tu.ads_dist);
+    (sight_at + (geom.grip - geom.sight) * s, s)
+}
+
+/// Dev A/B switch (`BD_VM_LEGACY_GRIP=1`): draw held items the pre-grip way (before/after shots).
+pub fn legacy_grip() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("BD_VM_LEGACY_GRIP").is_some())
+}
+
+/// The right hand's frame for a held item (root space): the arm's rotation, the item's rotation and
+/// the fingertip point. The item rides in the palm; `swing` = the active swing-curve transform.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GripFrame {
+    pub arm_rot: Quat,
+    pub item_rot: Quat,
+    pub fist: Vec3,
+    pub item_scale: f32,
+}
+
+pub fn grip_frame(tu: &VmTuning, aims: bool, swing: Option<&Transform>) -> GripFrame {
+    let (fist, arm, item) = if aims { (tu.grip_gun_fist, tu.grip_gun_arm, tu.grip_gun_item) } else { (tu.grip_melee_fist, tu.grip_melee_arm, tu.grip_melee_item) };
+    let arm_rest = Quat::from_euler(EulerRot::YXZ, arm[0], arm[1], 0.0);
+    let item_rest = Quat::from_euler(EulerRot::YXZ, item[0], item[1], item[2]);
+    let fist = v3a(fist);
+    match swing.filter(|s| s.is_finite()) {
+        None => GripFrame { arm_rot: arm_rest, item_rot: item_rest, fist, item_scale: 1.0 },
+        Some(s) => {
+            // The arm turns with the item (fully for guns; melee keeps some wrist so a 165° wind-up
+            // doesn't throw the elbow across the screen).
+            let g = arm_rest.inverse() * item_rest;
+            let k = if aims { 1.0 } else { tu.grip_wrist.clamp(0.0, 1.0) };
+            let arm_rot = arm_rest.slerp((s.rotation * g.inverse()).normalize(), k);
+            GripFrame { arm_rot, item_rot: s.rotation.normalize(), fist: fist + s.translation * tu.grip_swing_reach, item_scale: s.scale.max_element() }
+        }
+    }
+}
+
+/// Place a gripped item (root space): its grip point on `palm`, rotation `rot`, uniform `scale`
+/// (the view scale, clamped so it never reaches further than `grip_max_reach`).
+pub fn place_item(tu: &VmTuning, geom: &HeldGeom, palm: Vec3, rot: Quat, scale: f32) -> Transform {
+    let mut s = if scale.is_finite() { scale.max(1e-3) } else { 1.0 };
+    if geom.reach * s > tu.grip_max_reach && geom.reach > 0.0 {
+        s = tu.grip_max_reach / geom.reach;
+    }
+    Transform { translation: palm - rot * (geom.grip * s), rotation: rot, scale: Vec3::splat(s) }
+}
+
+/// The support hand's palm target (root space) for a placed two-handed item.
+pub fn support_point(tu: &VmTuning, geom: &HeldGeom, item: &Transform) -> Option<Vec3> {
+    let sp = geom.support?;
+    let s = item.scale.x;
+    let len = geom.fore_len * s;
+    let local = if len < tu.support_pistol_len {
+        // Pistol: cup the bottom of the grip.
+        geom.grip + Vec3::new(0.0, -0.25 * geom.reach, -0.05 * geom.reach)
+    } else {
+        geom.grip + (sp - geom.grip) * tu.support_fore.clamp(0.0, 1.0)
+    };
+    let p = item.transform_point(local) - Vec3::Y * tu.support_drop;
+    p.is_finite().then_some(p)
+}
+
+/// Rotation that makes an arm resting at `rest` point from `from` toward `to` (support hand).
+pub fn reach_rot(rest: Quat, from: Vec3, to: Vec3) -> Quat {
+    let d0 = rest * Vec3::NEG_Z;
+    arc_limited(d0, to - from, 1.2) * rest
+}
+
 /// The hand animation state machine. Pure: no Bevy resources, no allocation.
 #[derive(Clone, Debug, Default)]
 pub struct HandAnimator {
@@ -588,6 +798,7 @@ pub struct HandAnimator {
     charge_w: Spring,
     coil_w: Spring,
     ko_w: Spring,
+    support_w: Spring,
     coiled: bool,
     flail: f32,
     buzz: f32,
@@ -596,6 +807,7 @@ pub struct HandAnimator {
     shots: u32,
     type_sign: f32,
     rush_hand: usize,
+    ads: f32,
 }
 
 impl HandAnimator {
@@ -670,7 +882,7 @@ impl HandAnimator {
 
     /// Gun fired (`scale` from the archetype); `predicted` = played on the trigger press.
     pub fn gun_kick(&mut self, tu: &VmTuning, archetype: GunArchetype, scale: f32) {
-        let s = tu.gun_scale(archetype) * scale;
+        let s = tu.gun_scale(archetype) * scale * (1.0 + (tu.ads_kick - 1.0) * self.ads);
         if s <= 0.0 {
             return;
         }
@@ -735,7 +947,10 @@ impl HandAnimator {
         let t = self.t;
         let m = if inp.motion_scale.is_finite() { inp.motion_scale.clamp(0.0, 2.0) } else { 1.0 };
         let w = if inp.held && inp.held_weight.is_finite() { inp.held_weight.clamp(0.5, 2.5) } else { 1.0 };
-        let steady = 1.0 + (tu.oath_steady - 1.0) * self.oath_w.x.clamp(0.0, 1.0);
+        self.ads = if inp.ads.is_finite() { inp.ads.clamp(0.0, 1.0) } else { 0.0 };
+        let ads_k = 1.0 + (tu.ads_motion - 1.0) * self.ads;
+        let steady = (1.0 + (tu.oath_steady - 1.0) * self.oath_w.x.clamp(0.0, 1.0)) * ads_k;
+        let m = m * ads_k;
 
         // KO: hands drop, stay visible briefly.
         if inp.alive {
@@ -759,8 +974,14 @@ impl HandAnimator {
         self.coil_w.step(if self.coiled && inp.held { 1.0 } else { 0.0 }, po, 0.8, dt);
         self.ko_w.step(if ko { 1.0 } else { 0.0 }, po * 0.8, 0.9, dt);
         let clamp01 = |s: &Spring| s.x.clamp(-0.2, 1.3);
-        let (ring_w, oath_w, slide_w, charge_w, coil_w, ko_w) =
-            (clamp01(&self.ring_w), clamp01(&self.oath_w), clamp01(&self.slide_w), clamp01(&self.charge_w), clamp01(&self.coil_w), clamp01(&self.ko_w));
+        let (ring_w, oath_w, slide_w, charge_w, coil_w, ko_w) = (
+            clamp01(&self.ring_w),
+            clamp01(&self.oath_w),
+            clamp01(&self.slide_w),
+            clamp01(&self.charge_w),
+            clamp01(&self.coil_w),
+            clamp01(&self.ko_w),
+        );
 
         // --- look sway (heavier held things trail more and settle slower)
         let max_rate = tu.look_max_rate.max(0.0);
@@ -917,8 +1138,15 @@ impl HandAnimator {
         pose.root_r = euler(root_e.clamp(Vec3::splat(-1.0), Vec3::splat(1.0)) * tu.master);
         pose.glow = charge_w.max(0.0) * tu.charge_glow * (0.4 + 0.6 * ramp) + 0.25 * ring_w.max(0.0);
         pose.ko_visible = ko && self.ko_timer > 0.0;
+        // Support hand: on the fore-grip unless it's tethering / charging / flailing.
+        let support = inp.two_handed && inp.held && inp.hooks[LEFT].phase == HookPhase::Idle && !inp.charging && flail <= 0.0 && !ko;
+        self.support_w.step(if support { 1.0 } else { 0.0 }, tu.hand_omega, 0.9, dt);
+        pose.support = self.support_w.x.clamp(0.0, 1.0);
 
-        let finite = pose.root_t.is_finite() && pose.root_r.is_finite() && pose.hand_t.iter().all(|v| v.is_finite()) && pose.hand_r.iter().all(|q| q.is_finite());
+        let finite = pose.root_t.is_finite()
+            && pose.root_r.is_finite()
+            && pose.hand_t.iter().all(|v| v.is_finite())
+            && pose.hand_r.iter().all(|q| q.is_finite());
         if !finite {
             *self = HandAnimator::default();
             return HandPose::default();
@@ -990,14 +1218,20 @@ type AnimRes<'w> = (
     Res<'w, ComfortSettings>,
 );
 
-type UiRes<'w> = (Option<Res<'w, RingConsole>>, Res<'w, crate::oath::OathState>, Res<'w, crate::voice_ui::VoiceUi>, Option<Res<'w, crate::present::impact::HitFreeze>>);
+type UiRes<'w> = (
+    Option<Res<'w, RingConsole>>,
+    Res<'w, crate::oath::OathState>,
+    Res<'w, crate::voice_ui::VoiceUi>,
+    Option<Res<'w, crate::present::impact::HitFreeze>>,
+    Option<Res<'w, AdsState>>,
+);
 
 /// Gather this frame's inputs and advance the hand animation (before `animate_viewmodel`).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn drive_hand_anim(
     time: Res<Time>,
     (tuning, look, anchor, clock, move_events, input, focus, comfort): AnimRes,
-    (console, oath, voice, freeze): UiRes,
+    (console, oath, voice, freeze, ads): UiRes,
     active: Option<Res<ActiveWorld>>,
     local_q: Query<&PlayerSim, With<LocalPlayer>>,
     mut game_events: MessageReader<GameEvents>,
@@ -1147,7 +1381,11 @@ pub(super) fn drive_hand_anim(
         } else {
             v3(hook.pos)
         };
-        *hk = HookIn { phase: hook.phase, dir: (to_cam * (p - anchor.eye)).normalize_or(Vec3::NEG_Z), straining: hook.phase == HookPhase::Attached && reeling };
+        *hk = HookIn {
+            phase: hook.phase,
+            dir: (to_cam * (p - anchor.eye)).normalize_or(Vec3::NEG_Z),
+            straining: hook.phase == HookPhase::Attached && reeling,
+        };
     }
     let charging = me.charge.active || (a.role == SimRole::Client && input.current.held(buttons::CHARGE) && !focus.typing && me.alive);
     let inp = AnimInput {
@@ -1171,6 +1409,8 @@ pub(super) fn drive_hand_anim(
         charge_full: me.charge.full,
         held: held.is_some(),
         held_weight,
+        two_handed: held.is_some_and(|c| two_handed(c.recipe.form)),
+        ads: ads.map_or(0.0, |a| a.blend),
         motion_scale: motion,
         roll_scale,
         alive: me.alive,
@@ -1212,11 +1452,10 @@ fn publish_hands(
     let (Some(id), Some(map)) = (held.construct, map) else { return };
     let Some(&e) = map.0.get(&id) else { return };
     let Ok(mut tf) = items.get_mut(e) else { return };
+    // `grip_local` is already coverage-clamped (`place_item`), so `sync_constructs`' clamp is a no-op.
     let world = cam.mul_transform(held.grip_local);
-    let base = held.grip.scale.max_element();
-    let clamp = if base > 1e-6 { tf.scale.max_element() / base } else { 1.0 };
-    if world.is_finite() && clamp.is_finite() {
-        *tf = Transform { scale: world.scale * clamp, ..world };
+    if world.is_finite() {
+        *tf = world;
     }
 }
 
@@ -1244,13 +1483,22 @@ mod demo {
 
     pub fn register(app: &mut App) {
         if scripted() {
-            app.init_resource::<Demo>().add_systems(Update, run_demo.before(crate::tick::FrameSet::Input).run_if(in_state(AppState::InGame)));
+            app.init_resource::<Demo>()
+                .add_systems(Update, (run_demo, demo_cast).chain().before(crate::tick::FrameSet::Input).run_if(in_state(AppState::InGame)));
         }
     }
 
-    /// `BD_HANDS_DEMO=idle,run,...` picks segments; default = all. `BD_HANDS_T0` offsets the clock.
+    /// Casts go through the real console path (instant `RingCue`, shout, `Cmd::Cast`).
+    fn demo_cast(mut demo: ResMut<Demo>, mut caster: Caster) {
+        if let Some(text) = demo.cast.take() {
+            caster.cast(text, false, 0);
+        }
+    }
+
+    /// `BD_HANDS_DEMO=idle,run,...` picks segments; default = all.
     #[derive(Resource, Default)]
     pub struct Demo {
+        cast: Option<&'static str>,
         t: f32,
         segment: usize,
         seg_t: f32,
@@ -1271,7 +1519,9 @@ mod demo {
         // Casts replace the held item, so these come last.
         ("ring", 4.5),
         ("heavy", 5.0),
+        ("sword", 3.5),
         ("gun", 4.0),
+        ("ads", 4.5),
         ("minigun", 3.0),
     ];
 
@@ -1289,9 +1539,9 @@ mod demo {
         mut look: ResMut<LookAngles>,
         mut ov: ResMut<InputOverride>,
         mut console: Option<ResMut<RingConsole>>,
-        mut caster: Caster,
         active: Option<Res<ActiveWorld>>,
         mut events: MessageWriter<GameEvents>,
+        mut ads: ResMut<crate::present::ads::AdsScript>,
     ) {
         let dt = time.delta_secs();
         let d = &mut *demo;
@@ -1316,6 +1566,7 @@ mod demo {
             d.seg_t = 0.0;
             d.cast_done = false;
             d.hit_n = 0;
+            ads.0 = None;
             look.yaw = d.base_yaw;
             look.pitch = -0.05;
             if let Some(c) = console.as_deref_mut() {
@@ -1338,7 +1589,13 @@ mod demo {
             }
             "run" => {
                 ov.move_z = 1;
-                ov.move_x = if t > 1.5 && t < 2.8 { 1 } else if t >= 2.8 { -1 } else { 0 };
+                ov.move_x = if t > 1.5 && t < 2.8 {
+                    1
+                } else if t >= 2.8 {
+                    -1
+                } else {
+                    0
+                };
                 ov.held |= if t > 3.4 { buttons::CROUCH } else { 0 };
             }
             "jump" => {
@@ -1374,14 +1631,14 @@ mod demo {
                         d.cast_done = true;
                         c.open = false;
                         c.buf.clear();
-                        caster.cast(word, false, 0);
+                        d.cast = Some(word);
                     }
                 }
             }
             "gun" => {
                 if !d.cast_done {
                     d.cast_done = true;
-                    caster.cast("hand cannon", false, 0);
+                    d.cast = Some("hand cannon");
                 }
                 if t > 1.0 && ((t * 2.5) % 1.0) < 0.15 {
                     ov.held |= buttons::PRIMARY;
@@ -1390,7 +1647,7 @@ mod demo {
             "minigun" => {
                 if !d.cast_done {
                     d.cast_done = true;
-                    caster.cast("minigun", false, 0);
+                    d.cast = Some("minigun");
                 }
                 if t > 1.0 {
                     ov.held |= buttons::PRIMARY;
@@ -1399,7 +1656,7 @@ mod demo {
             "heavy" => {
                 if !d.cast_done {
                     d.cast_done = true;
-                    caster.cast("giant anvil hammer", false, 0);
+                    d.cast = Some("giant anvil hammer");
                 }
                 if t > 0.8 {
                     let s = (t * 2.0).sin();
@@ -1407,6 +1664,26 @@ mod demo {
                     ov.move_z = 1;
                 }
                 if (3.6..3.7).contains(&t) {
+                    ov.held |= buttons::PRIMARY;
+                }
+            }
+            "ads" => {
+                if !d.cast_done {
+                    d.cast_done = true;
+                    d.cast = Some("rifle");
+                }
+                // Scripted ADS (the camera worker's `AdsScript`): aim 1.2 … 3.6 s, two shots aimed.
+                ads.0 = Some((1.2..3.6).contains(&t));
+                if (2.3..2.4).contains(&t) || (2.9..3.0).contains(&t) {
+                    ov.held |= buttons::PRIMARY;
+                }
+            }
+            "sword" => {
+                if !d.cast_done {
+                    d.cast_done = true;
+                    d.cast = Some("sword");
+                }
+                if (2.0..2.1).contains(&t) {
                     ov.held |= buttons::PRIMARY;
                 }
             }
@@ -1526,7 +1803,16 @@ mod tests {
     }
 
     fn base_input(dt: f32) -> AnimInput {
-        AnimInput { dt, alive: true, grounded: true, held_weight: 1.0, motion_scale: 1.0, roll_scale: 1.0, alpha: 0.5, ..Default::default() }
+        AnimInput {
+            dt,
+            alive: true,
+            grounded: true,
+            held_weight: 1.0,
+            motion_scale: 1.0,
+            roll_scale: 1.0,
+            alpha: 0.5,
+            ..Default::default()
+        }
     }
 
     fn pose_finite(p: &HandPose) -> bool {
@@ -1693,5 +1979,85 @@ mod tests {
         let partial: VmTuning = ron::from_str("(bob_y: 0.02)").unwrap();
         assert_eq!(partial.bob_y, 0.02);
         assert_eq!(partial.look_pos, t.look_pos);
+    }
+
+    fn aabb(min: [f32; 3], max: [f32; 3]) -> bd_core::voxel::Aabb {
+        bd_core::voxel::Aabb { min: bd_core::Vec3::from_array(min), max: bd_core::Vec3::from_array(max) }
+    }
+
+    #[test]
+    fn item_grip_lands_in_the_palm() {
+        let tu = VmTuning::default();
+        // A gun: grip at the origin, barrel forward (−Z).
+        let g = held_geom(&aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
+        assert_eq!(g.grip, Vec3::ZERO);
+        assert!(g.support.is_some());
+        let palm = Vec3::new(0.12, -0.15, -0.3);
+        let rot = Quat::from_euler(EulerRot::YXZ, 0.3, -0.2, 0.1);
+        let item = place_item(&tu, &g, palm, rot, 0.24);
+        assert!(item.transform_point(g.grip).distance(palm) < 1e-5);
+        // Coverage clamp: never reaches further than grip_max_reach from the hand.
+        assert!(g.reach * item.scale.x <= tu.grip_max_reach + 1e-5);
+        // The support hand goes in front of the grip hand (along −Z of the item).
+        let sp = support_point(&tu, &g, &place_item(&tu, &g, palm, Quat::IDENTITY, 0.24)).unwrap();
+        assert!(sp.z < palm.z);
+    }
+
+    #[test]
+    fn grip_inferred_when_origin_is_off_the_model() {
+        // An icon whose origin sits far from the model: grip at the end of its longest axis.
+        let g = held_geom(&aabb([2.0, -0.1, -0.1], [4.0, 0.1, 0.1]), Form::Sword);
+        assert!((g.grip.x - 2.15).abs() < 1e-4 && g.grip.y.abs() < 1e-4, "{:?}", g.grip);
+        // Garbage bounds never produce NaN.
+        let n = held_geom(&aabb([f32::NAN, 0.0, 0.0], [1.0, 1.0, 1.0]), Form::Gun);
+        assert!(n.grip.is_finite() && n.reach.is_finite());
+    }
+
+    #[test]
+    fn rigid_grip_arm_turns_with_the_item() {
+        let tu = VmTuning::default();
+        let rest = grip_frame(&tu, true, None);
+        let swing = Transform::from_rotation(Quat::from_rotation_x(0.4) * rest.item_rot);
+        let gf = grip_frame(&tu, true, Some(&swing));
+        // Guns: item and arm rotate together (the relative rotation is unchanged).
+        let rel0 = rest.arm_rot.inverse() * rest.item_rot;
+        let rel1 = gf.arm_rot.inverse() * gf.item_rot;
+        assert!(rel0.angle_between(rel1) < 1e-3);
+    }
+
+    #[test]
+    fn ads_puts_the_sight_under_the_crosshair() {
+        let tu = VmTuning::default();
+        let g = held_geom(&aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
+        let (palm, s) = ads_palm(&tu, &g, 0.24);
+        let item = place_item(&tu, &g, palm, Quat::IDENTITY, 0.24);
+        let sight = item.transform_point(g.sight);
+        assert!(item.scale.x == s);
+        assert!(sight.x.abs() < 1e-5 && (sight.y + tu.ads_sight_drop).abs() < 1e-5 && (sight.z + tu.ads_dist).abs() < 1e-5, "{sight}");
+    }
+
+    #[test]
+    fn ads_steadies_the_hands() {
+        let tu = VmTuning::default();
+        let sway = |ads: f32| {
+            let mut a = HandAnimator::default();
+            let mut inp = base_input(1.0 / 120.0);
+            inp.ads = ads;
+            inp.look_rate = Vec2::new(5.0, 0.0);
+            let mut peak = 0.0f32;
+            for _ in 0..60 {
+                peak = peak.max(a.step(&tu, &inp).root_t.x.abs());
+            }
+            peak
+        };
+        assert!(sway(1.0) < sway(0.0) * 0.4);
+    }
+
+    #[test]
+    fn shipped_tuning_file_parses() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/tuning/viewmodel.ron");
+        let text = std::fs::read_to_string(path).expect("assets/tuning/viewmodel.ron");
+        let t: VmTuning = ron::from_str(&text).expect("parse");
+        assert!(t.master.is_finite() && t.step_len > 0.0);
     }
 }

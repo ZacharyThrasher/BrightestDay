@@ -13,6 +13,9 @@
 //!   shotgun = both barrels at once (double recoil: the big shotgun-jump), then reload-snap; minigun =
 //!   pre-spin without firing; rocket = 3-rocket volley at half damage (2.4 s cd); railgun = scope
 //!   (client-side zoom only); staff = continuous Beam while held if tagged `Beam`.
+//! * **ADS** (`buttons::ADS`, CAMERA): with a gun in hand the client maps RMB to aim-down-sights
+//!   and alt-fire (`SECONDARY`) to its ALT FIRE key. ADS tightens pellet cones ([`ADS_SPREAD`]) and
+//!   pre-spins the minigun; the railgun "scope" is the client's ADS zoom. Never touches movement.
 //! * **Minigun hover:** firing while airborne and aiming down caps the fall at [`MINIGUN_SINK`] m/s
 //!   (see [`movement_mods`]) — the recoil stream holds you up.
 //! * **Payload rounds** (`recipe.payload`, "a cannon that shoots anvils / sharks"): slow, heavy,
@@ -42,6 +45,16 @@ pub const BEAM_RANGE: f32 = 30.0;
 pub const BEAM_PERIOD: f32 = 0.1;
 /// Reach of hitscan gun rounds (m).
 pub const HITSCAN_RANGE: f32 = 250.0;
+
+/// CAMERA HOOK: aiming down sights (`buttons::ADS`) tightens a gun's pellet cone to this fraction.
+/// Accuracy only — ADS never touches movement. Deterministic (a pure function of the tick's input).
+pub const ADS_SPREAD: f32 = 0.6;
+
+/// Pellet-cone multiplier for this tick's input.
+#[inline]
+pub fn ads_spread(input: &PlayerInput) -> f32 {
+    if input.held(buttons::ADS) { ADS_SPREAD } else { 1.0 }
+}
 
 /// Does this held construct fire like a gun?
 pub fn is_gun(c: &Construct) -> bool {
@@ -88,7 +101,9 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
     s.beam_t -= dt;
 
     // Primary through the generic machine (the minigun's RMB pre-spins without firing).
-    let trigger = if arch == GunArchetype::Minigun { h1 || h2 } else { h1 };
+    // CAMERA HOOK: aiming down sights (RMB with a gun) also pre-spins the minigun.
+    let ads = ok && o.input.held(buttons::ADS);
+    let trigger = if arch == GunArchetype::Minigun { h1 || h2 || ads } else { h1 };
     let cmd = ws.step(&spec, trigger, r1, dt);
     let cmd = if arch == GunArchetype::Minigun && !h1 { None } else { cmd };
     if let Some(f) = cmd {
@@ -133,7 +148,7 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
         GunArchetype::Rocket if p2 && s.cd2 <= 0.0 => {
             {
                 let mut dirs = [Vec3::ZERO; 16];
-                let n = pellet_dirs(o.look, 3, 5.0, &mut dirs);
+                let n = pellet_dirs(o.look, 3, 5.0 * ads_spread(&o.input), &mut dirs);
                 for (k, d) in dirs[..n].iter().enumerate() {
                     fire(c, env, out, arch, &spec, *d, k % 2 == 1, 0.5, 1.0, if k == 0 { 1.0 } else { 0.0 });
                 }
@@ -223,7 +238,7 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
     // the flight stay projectiles: payloads, explosive rounds, ricochets and portal shots.
     let ray = fires_hitscan(c, arch, spec);
     let mut dirs = [Vec3::ZERO; 16];
-    let n = pellet_dirs(dir, spec.pellets, spec.spread_deg, &mut dirs);
+    let n = pellet_dirs(dir, spec.pellets, spec.spread_deg * ads_spread(&o.input), &mut dirs);
     if ray {
         let beam = arch == GunArchetype::Railgun || spec.pierce > 0;
         for d in &dirs[..n] {

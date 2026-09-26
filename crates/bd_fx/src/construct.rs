@@ -155,6 +155,14 @@ pub enum ConstructEnd {
     Remove,
 }
 
+/// Per-part extra deltas applied outside the clip layers (`bd_shapes::pose_layered_with`) — the
+/// game's role behaviours (`bd_shapes::ConstructAnimator::locals`: turret aim, recoil, hatches,
+/// summon assembly…). Index-aligned with `model.parts`; shorter/empty = no effect.
+#[derive(Component, Debug, Default, Clone)]
+pub struct PartOverlay {
+    pub locals: Vec<bd_shapes::Local>,
+}
+
 /// Part entities of a construct (children), for attaching things to parts.
 #[derive(Component, Debug, Default, Clone)]
 pub struct ConstructParts {
@@ -359,6 +367,14 @@ pub(crate) struct ConstructRuntime {
     pub reveal: f32,
     /// Machine-kit drive last frame (smokestack puffs).
     pub prev_drive: Option<bd_shapes::FeatureDrive>,
+    /// Follow-through springs for capes / tails / chains / flags (weight pass), applied after the
+    /// pose. `None` when the model has no secondary parts.
+    secondary: Option<bd_shapes::SecondaryMotion>,
+}
+
+fn secondary_for(model: &VoxelModel) -> Option<bd_shapes::SecondaryMotion> {
+    let s = bd_shapes::SecondaryMotion::new(model);
+    (!s.offsets().is_empty()).then_some(s)
 }
 
 impl ConstructRuntime {
@@ -462,6 +478,7 @@ fn init_constructs(
                 auto_flash: 0.0,
                 reveal: v.forming,
                 prev_drive: None,
+                secondary: secondary_for(&v.model),
             },
         ));
     }
@@ -480,6 +497,7 @@ fn init_constructs(
         rt.model_ptr = ptr;
         rt.pose = vec![glam::Affine3A::IDENTITY; v.model.parts.len()];
         rt.cum = cumulative(&v.model);
+        rt.secondary = secondary_for(&v.model);
         rt.spawned = false;
         commands.entity(e).insert(ConstructParts::default());
     }
@@ -633,15 +651,27 @@ fn advance_constructs(
     }
 }
 
-fn pose_constructs(q: Query<(&ConstructVisual, &mut ConstructRuntime, Option<&crate::transformers::TransformFx>)>, mut tfs: Query<&mut Transform, Without<ConstructRuntime>>) {
-    for (v, mut rt, xf) in q {
+fn pose_constructs(
+    time: Res<Time>,
+    q: Query<(&ConstructVisual, &mut ConstructRuntime, &Transform, Option<&crate::transformers::TransformFx>, Option<&PartOverlay>)>,
+    mut tfs: Query<&mut Transform, Without<ConstructRuntime>>,
+) {
+    let dt = time.delta_secs();
+    for (v, mut rt, root_tf, xf, overlay) in q {
         let rt = &mut *rt;
         if rt.pose.len() < v.model.parts.len() {
             rt.pose.resize(v.model.parts.len(), glam::Affine3A::IDENTITY);
         }
         match xf {
             Some(x) if x.rig.alt.parts.len() == v.model.parts.len() => crate::transformers::pose_override(x, &mut rt.pose),
-            _ => bd_shapes::pose_layered(&v.model, v.layers.as_slice(), &mut rt.pose),
+            _ => bd_shapes::pose_layered_with(&v.model, v.layers.as_slice(), overlay.map(|o| o.locals.as_slice()).filter(|l| !l.is_empty()), &mut rt.pose),
+        }
+        // Follow-through (capes, tails, chains) on top of the pose, driven by the root's motion.
+        if let Some(sec) = rt.secondary.as_mut() {
+            let m = root_tf.to_matrix();
+            let a = glam::Affine3A::from_mat4(glam::Mat4::from_cols_array(&m.to_cols_array()));
+            sec.update(a, dt);
+            sec.apply(&v.model, &mut rt.pose);
         }
         for (pe, i, off) in &rt.parts {
             let Some(p) = rt.pose.get(*i) else { continue };

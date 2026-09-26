@@ -6,8 +6,34 @@ use bd_core::shape::PrimKind;
 use glam::{Quat, Vec3};
 
 use super::G;
-use crate::build::{A, C, D, P, odd, v3};
+use crate::build::{A, B, C, D, P, odd, v3};
 use crate::parts::exhaust;
+use bd_core::shape::{PartRole, Tint};
+
+/// Paint the hand grip as its own `Grip` part (pivot = palm centre = the held origin; see
+/// `roles::grip_point`). Its volume is cut out of everything painted so far first, so the grip
+/// never shares a voxel with the item body.
+fn grip(b: &mut B, kind: PrimKind, c: Vec3, s: Vec3, rot: Vec3, t: Tint) {
+    let id = b.rpart(0, Vec3::ZERO, PartRole::Grip);
+    if id != 0 {
+        b.cut(kind, c, s, rot);
+        b.on(id);
+    }
+    b.prim(kind, c, s, rot, t, false);
+    b.on(0);
+}
+
+/// Grip along Z (shaft wrap / hilt) from `z0` to `z1`, diameter `d`.
+fn grip_z(b: &mut B, z0: f32, z1: f32, d: f32, t: Tint) {
+    let (a, c) = (z0.min(z1), z0.max(z1));
+    grip(b, PrimKind::Cylinder, v3(0.0, 0.0, (a + c) * 0.5), v3(d, (c - a).max(1.0), d), v3(90.0, 0.0, 0.0), t);
+}
+
+/// Second-hand marker for two-handed items (no geometry; see `roles::support_point`).
+fn support(b: &mut B, at: Vec3) {
+    b.rpart(0, at, PartRole::Support);
+    b.on(0);
+}
 
 pub(super) fn hammer(g: &mut G) {
     let l = g.l;
@@ -26,8 +52,11 @@ pub(super) fn hammer(g: &mut G) {
     // Handle, grip, pommel.
     let h_end = hz + head_z * 0.5;
     b.cz(v3(0.0, 0.0, (behind + h_end) * 0.5), hd, behind - h_end, P);
-    b.cz(v3(0.0, 0.0, (behind - l * 0.14) * 0.5), hd, behind + l * 0.14, D);
+    grip_z(b, -l * 0.14, behind - 1.0, hd, D);
     b.bx(v3(0.0, 0.0, behind), v3(hd + 2.0, hd + 2.0, 1.0), A);
+    if heavy || l >= 6.0 {
+        support(b, v3(0.0, 0.0, (-l * 0.28).max(h_end + 1.0)));
+    }
     match variant {
         0 => {
             // Sledge: block with flared banded ends and a glowing strike face.
@@ -90,13 +119,15 @@ pub(super) fn sword(g: &mut G) {
     let blen = l * g.r.range(0.95, 1.05) - grip;
     let ztip = zg - blen;
     let b = &mut g.b;
-    // Grip + pommel.
-    b.cz(v3(0.0, 0.0, (zb + zg) * 0.5), 1.0, zb - zg, D);
+    // Grip + pommel (the guard is cut out of the grip below, so they share no voxels).
+    grip_z(b, zg, zb, 1.0, D);
     if variant == 1 {
         b.bx(v3(0.0, 0.0, zb + 0.5), v3(1.0, 1.0, 1.0), A);
     } else {
         b.bx(v3(0.0, 0.0, zb + 0.5), v3(3.0, 3.0, 1.0), A);
     }
+    // The blade is its own Blade part rooted at the guard: it slides out of the hilt on summon.
+    let blade = b.rpart(0, v3(0.0, 0.0, zg - 0.5), bd_core::shape::PartRole::Blade);
     match variant {
         1 | 3 => {
             // Curved blade (katana / scimitar): segments bending toward +Y (spine), edge at −Y.
@@ -121,6 +152,8 @@ pub(super) fn sword(g: &mut G) {
             let tip = pts[n];
             let d = (pts[n] - pts[n - 1]).normalize();
             b.cone_to(tip - d * 0.5, tip + d * (w + 1.0) + Vec3::NEG_Y * 0.0, w + 0.5, C);
+            b.cut_bx(v3(0.0, 0.0, zg), v3(3.0, (w + 3.0).max(guard_w), 1.0));
+            b.on(0);
             if variant == 1 {
                 b.cz(v3(0.0, 0.0, zg), w + 3.0, 1.0, D);
                 b.cz(v3(0.0, 0.0, zg), w + 1.0, 1.0, A);
@@ -140,6 +173,8 @@ pub(super) fn sword(g: &mut G) {
                 b.bx(v3(0.0, s * (w - 1.0) * 0.5, zg - 0.5 - blen * 0.5), v3(1.0, 1.0, blen), C);
             });
             b.bxr(v3(0.0, 0.0, ztip - 0.5), v3(1.0, w * 0.75, w * 0.75), v3(45.0, 0.0, 0.0), C);
+            b.cut_bx(v3(0.0, 0.0, zg), v3(3.0, w + guard_w, 1.0));
+            b.on(0);
             // Cross-guard.
             b.bx(v3(0.0, 0.0, zg), v3(3.0, w + guard_w, 1.0), A);
             if variant == 2 {
@@ -153,7 +188,8 @@ pub(super) fn sword(g: &mut G) {
     }
     g.handle(Blade);
     if g.take(Pierce) {
-        g.b.cone_to(v3(0.0, 0.0, ztip), v3(0.0, 0.0, ztip - l * 0.15), w, C);
+        g.b.on(blade).cone_to(v3(0.0, 0.0, ztip), v3(0.0, 0.0, ztip - l * 0.15), w, C);
+        g.b.on(0);
     }
     if g.take(Guard) {
         g.b.el(v3(0.0, 0.0, zg + grip * 0.35), v3(5.0, 5.0, grip * 0.9), A);
@@ -173,8 +209,11 @@ pub(super) fn axe(g: &mut G) {
     let zh = -reach + hw * 0.5 + 0.5;
     let b = &mut g.b;
     b.cz(v3(0.0, 0.0, (behind - reach) * 0.5), 1.0, behind + reach, P);
-    b.cz(v3(0.0, 0.0, (behind - l * 0.15) * 0.5), 1.0, behind + l * 0.15, D);
+    grip_z(b, -l * 0.15, behind, 1.0, D);
     b.bx(v3(0.0, 0.0, behind + 0.5), v3(3.0, 3.0, 1.0), A);
+    if l >= 6.0 {
+        support(b, v3(0.0, 0.0, (-l * 0.3).max(zh + hw * 0.5 + 1.0)));
+    }
     let bit = |b: &mut crate::build::B, s: f32, hh: f32, ww: f32| {
         // Fan widening away from the haft, straight glowing edge with a convex bulge.
         b.el(v3(0.0, s * hh, zh), v3(1.0, hh * 2.0, ww), P);
@@ -209,7 +248,8 @@ pub(super) fn spear(g: &mut G) {
     let zc = zt + hl; // collar
     let b = &mut g.b;
     b.cz(v3(0.0, 0.0, (zb + zc) * 0.5), 1.0, zb - zc, P);
-    b.cz(v3(0.0, 0.0, 0.0), 1.0, l * 0.14, D);
+    grip_z(b, -l * 0.07, l * 0.07, 1.0, D);
+    support(b, v3(0.0, 0.0, (-l * 0.3).max(zc + 1.0)));
     b.cone_to(v3(0.0, 0.0, zb - 1.0), v3(0.0, 0.0, zb + 1.5), 2.0, D);
     b.cz(v3(0.0, 0.0, zc + 0.5), 3.0, 1.5, A);
     b.bx(v3(0.0, -1.5, zc + 1.0), v3(1.0, 2.0, 1.0), A);
@@ -254,7 +294,7 @@ pub(super) fn shield(g: &mut G) {
     let rim = if blade { C } else { D };
     let b = &mut g.b;
     // Arm strap behind the plate.
-    b.bx(v3(0.0, 0.0, 0.0), v3(1.0, 3.0, 1.0), D);
+    grip(b, PrimKind::Box, Vec3::ZERO, v3(1.0, 3.0, 1.0), Vec3::ZERO, D);
     match variant {
         0 => {
             // Round: rim, concentric rings, boss.
@@ -340,7 +380,7 @@ pub(super) fn gauntlet(g: &mut G) {
 pub(super) fn whip(g: &mut G) {
     let l = g.l;
     let b = &mut g.b;
-    b.cz(v3(0.0, 0.0, 0.0), 1.0, 4.0, D);
+    grip_z(b, -2.0, 2.0, 1.0, D);
     b.bx(v3(0.0, 0.0, 2.5), v3(3.0, 3.0, 1.0), A);
     b.cz(v3(0.0, 0.0, -2.5), 3.0, 1.0, A);
     let n = (((l - 4.0) / 2.2).round() as usize).clamp(5, 12);
@@ -365,8 +405,8 @@ pub(super) fn gun(g: &mut G) {
     let l = g.l;
     let variant = g.r.pick(3);
     let b = &mut g.b;
-    b.bxr(v3(0.0, -0.8, 0.4), v3(1.0, 3.0, 2.0), v3(-14.0, 0.0, 0.0), D);
     b.bx(v3(0.0, -0.5, -1.2), v3(1.0, 1.0, 1.0), D);
+    let mut fore = None;
     match variant {
         0 => {
             // Blaster pistol.
@@ -387,6 +427,8 @@ pub(super) fn gun(g: &mut G) {
             b.cz(v3(0.0, 3.0, -1.0), 1.0, 3.0, A);
             b.bx(v3(0.0, 3.0, -2.5), v3(1.0, 1.0, 1.0), C);
             b.bx(v3(0.0, -0.5, -2.5), v3(1.0, 2.0, 1.0), D);
+            // Fore-end under the barrel.
+            fore = Some(v3(0.0, 0.5, -3.5 - bl * 0.2));
         }
         _ => {
             // Ray gun: bulb body, ringed barrel, glowing orb muzzle.
@@ -402,6 +444,11 @@ pub(super) fn gun(g: &mut G) {
             b.el(v3(0.0, 1.8, -3.0 - bl), v3(3.0, 3.0, 3.0), C);
         }
     }
+    // Pistol grip last: its own Grip part, cut clear of the body.
+    grip(b, PrimKind::Box, v3(0.0, -0.8, 0.4), v3(1.0, 3.0, 2.0), v3(-14.0, 0.0, 0.0), D);
+    if let Some(f) = fore {
+        support(b, f);
+    }
     g.handle(Shoots);
 }
 
@@ -414,7 +461,8 @@ pub(super) fn bow(g: &mut G) {
     if variant == 2 {
         // Crossbow: stock along Z, horizontal prod, bolt.
         b.bx(v3(0.0, -0.5, -l * 0.12), v3(1.0, 2.0, l * 0.62), D);
-        b.bx(v3(0.0, -1.5, 0.8), v3(1.0, 2.0, 1.0), D);
+        grip(b, PrimKind::Box, v3(0.0, -1.5, 0.8), v3(1.0, 2.0, 1.0), Vec3::ZERO, D);
+        support(b, v3(0.0, -1.5, -l * 0.3));
         let z0 = -l * 0.4;
         let n = 4;
         let mut tips = [Vec3::ZERO; 2];
@@ -452,7 +500,7 @@ pub(super) fn bow(g: &mut G) {
         }
         tips[si] = prev;
     }
-    b.bx(v3(0.0, 0.0, 0.0), v3(1.0, 3.0, 2.0), D);
+    grip(b, PrimKind::Box, Vec3::ZERO, v3(1.0, 3.0, 2.0), Vec3::ZERO, D);
     b.sym(|b, s| {
         b.bx(v3(0.0, s * 2.0, 0.0), v3(1.0, 1.0, 2.0), A);
     });
@@ -515,7 +563,9 @@ pub(super) fn cannon(g: &mut G) {
         _ => -l * 0.55,
     };
     b.cz(v3(0.0, y, zf + 3.0), (d - 2.0).max(1.0), 1.0, C);
-    b.bx(v3(0.0, 0.5, 0.0), v3(1.0, 2.0, 2.0), D);
+    grip(b, PrimKind::Box, v3(0.0, 0.5, 0.0), v3(1.0, 2.0, 2.0), Vec3::ZERO, D);
+    let fore = if variant == 1 { v3(0.0, y - d * 0.5 - 1.0, -l * 0.25) } else { v3(0.0, y - d * 0.5 - 0.5, -l * 0.3) };
+    support(b, fore);
     g.handle(Shoots);
 }
 
@@ -548,7 +598,8 @@ pub(super) fn staff(g: &mut G) {
     }
     let b = &mut g.b;
     b.cz(v3(0.0, 0.0, (zb + zt) * 0.5), 1.0, zb - zt, P);
-    b.cz(v3(0.0, 0.0, 0.0), 1.0, l * 0.12, D);
+    grip_z(b, -l * 0.06, l * 0.06, 1.0, D);
+    support(b, v3(0.0, 0.0, -l * 0.3));
     b.bx(v3(0.0, 0.0, zb), v3(3.0, 3.0, 1.0), A);
     b.bx(v3(0.0, 0.0, zt + 0.5), v3(3.0, 3.0, 1.0), A);
     match variant {

@@ -40,6 +40,8 @@ pub struct VoiceUi {
     raw_level: f32,
     held: bool,
     spin: f32,
+    /// Seconds since push-to-talk last went down (a spoken oath's measured time).
+    since_ptt: f32,
 }
 
 impl VoiceUi {
@@ -108,14 +110,17 @@ fn voice_frame(
     time: Res<Time<Real>>,
     mut v: ResMut<VoiceUi>,
     mut caster: Caster,
+    mut oath: crate::oath::OathVoice,
 ) {
     if v.input.is_none() {
         return;
     }
     let dt = time.delta_secs();
     let in_play = *state.get() == AppState::InGame && !menu.0 && !focus.typing;
-    let held = in_play && binds.pressed(Action::Voice, &keys, &mouse);
+    // The oath overlay holds push-to-talk itself while reciting by voice (it owns the keyboard).
+    let held = (in_play && binds.pressed(Action::Voice, &keys, &mouse)) || oath.ptt();
     let v = &mut *v;
+    v.since_ptt = if held && !v.held { 0.0 } else { (v.since_ptt + dt).min(600.0) };
     if let Some(input) = v.input.as_ref() {
         if held != v.held {
             input.set_push_to_talk(held);
@@ -137,16 +142,23 @@ fn voice_frame(
                     v.transcribing = false;
                     v.listening = false;
                     debug!("voice: {text:?} ({ms} ms)");
+                    // OATH HOOK (before the ring resolver): the overlay's spoken recital, or a section
+                    // of your own oath yelled outside it, is an oath recital — not a cast.
+                    if oath.claim(&text, v.since_ptt) {
+                        continue;
+                    }
                     caster.cast(&text, true, 0);
                 }
                 VoiceEvent::Discarded(_) => {
                     v.transcribing = false;
                     v.listening = false;
+                    oath.failed();
                 }
                 VoiceEvent::Error(e) => {
                     warn!("voice: {e}");
                     v.transcribing = false;
                     v.listening = false;
+                    oath.failed();
                     if v.status != VoiceStatus::Ready {
                         v.status = VoiceStatus::Unavailable;
                         v.input = None;

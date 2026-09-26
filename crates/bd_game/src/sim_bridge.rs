@@ -166,8 +166,8 @@ impl ActiveWorld {
             Cmd::StandRush(n) => {
                 w.stand_rush(player, n);
             }
-            Cmd::OathBegin => {
-                w.begin_oath(player);
+            Cmd::OathBegin { section } => {
+                w.begin_oath(player, section);
             }
             Cmd::OathProgress { correct_chars, accuracy } => w.oath_progress(player, correct_chars, accuracy),
             Cmd::OathResult { accuracy, seconds } => {
@@ -209,7 +209,8 @@ pub enum Cmd {
     PowerMove(u8),
     /// Rush tokens typed while the console is open (ORA ×n).
     StandRush(u16),
-    OathBegin,
+    /// Start reciting one section of the corps oath (the host looks the length up itself).
+    OathBegin { section: u8 },
     OathProgress { correct_chars: u16, accuracy: f32 },
     OathResult { accuracy: f32, seconds: f32 },
     OathCancel,

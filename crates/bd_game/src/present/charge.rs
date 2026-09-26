@@ -326,7 +326,7 @@ fn sync_auras(
         aura.pulse |= pulse;
         // The aura lights its surroundings (ground wash in corps colour).
         let flicker = if calm { 1.0 } else { 0.9 + 0.1 * (slot.held * 21.0).sin() };
-        light.intensity = slot.intensity * (1.2e5 + 3.0e5 * level) * flicker;
+        light.intensity = slot.intensity * (3.0e5 + 6.0e5 * level) * flicker;
         light.range = 6.0 + 4.0 * level;
         if slot.intensity > 0.02 {
             loops.0.push(ChargeLoop { player: v.id, pos: v.pos, level, intensity: slot.intensity, local: v.is_local });
@@ -368,14 +368,14 @@ fn body_glow(
             continue;
         }
         let level = level_of(s.held);
-        let boost = 1.0 + k * (1.1 + 0.9 * level);
+        let boost = 1.0 + k * (0.45 + 0.45 * level);
         let c = cv.corps_color;
-        cv.corps_color = [c[0] * boost + 0.08 * k, c[1] * boost + 0.08 * k, c[2] * boost + 0.08 * k];
+        cv.corps_color = [c[0] * boost, c[1] * boost, c[2] * boost];
         if let Some(a) = cv.accent {
             cv.accent = Some([a[0] * boost, a[1] * boost, a[2] * boost]);
         }
         let shimmer = if calm { 0.0 } else { 0.03 * (t * 11.0 + b.id.0 as f32).sin() };
-        cv.flash = cv.flash.max(k * (0.07 + 0.05 * level + shimmer));
+        cv.flash = cv.flash.max(k * (0.03 + 0.03 * level + shimmer));
         cv.opacity = cv.opacity.max(0.92 + 0.08 * k);
     }
 }

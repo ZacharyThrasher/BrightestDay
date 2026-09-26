@@ -35,7 +35,6 @@ mod lobby;
 mod menu;
 mod net;
 mod oath;
-mod pcm;
 mod player;
 mod practice;
 mod present;
@@ -99,10 +98,11 @@ fn main() {
 
     // Pipelined rendering overlaps frame N's render with frame N+1's simulation, which adds a frame
     // of input latency. We would rather pay the (small) CPU cost and keep the mouse snappy.
+    // Bevy's audio output is replaced by bd_audio's mixer on its own stream (`audio`).
     if settings.pipelined_rendering {
-        app.add_plugins(default_plugins);
+        app.add_plugins(default_plugins.build().disable::<bevy::audio::AudioPlugin>());
     } else {
-        app.add_plugins(default_plugins.build().disable::<PipelinedRenderingPlugin>());
+        app.add_plugins(default_plugins.build().disable::<PipelinedRenderingPlugin>().disable::<bevy::audio::AudioPlugin>());
     }
 
     app.insert_resource(cli)

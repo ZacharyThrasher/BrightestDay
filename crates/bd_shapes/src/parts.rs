@@ -307,12 +307,23 @@ pub(crate) fn jaw(b: &mut B, parent: PartId, hinge: Vec3, len: f32, w: f32, h: f
     id
 }
 
-/// Two Core eyes on a face plane.
+/// Two Core eyes on a face plane — their own `Eye` part (child of the current part, pivot between
+/// them) so the client can blink them and light them up at the end of a summon. The sockets are cut
+/// out of the face first (no overlapping voxels; a blink reveals the dark socket).
 pub(crate) fn eyes(b: &mut B, center: Vec3, spacing: f32, size: f32) {
     let s = size.max(1.0);
+    let parent = b.cur;
+    let id = b.rpart(parent, center, PartRole::Eye);
+    if id != parent {
+        b.sym(|b, sd| {
+            b.cut_bx(center + v3(sd * spacing, 0.0, 0.0), v3(s, s, 1.0));
+        });
+        b.on(id);
+    }
     b.sym(|b, sd| {
         b.bx(center + v3(sd * spacing, 0.0, 0.0), v3(s, s, 1.0), C);
     });
+    b.on(parent);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -378,7 +389,7 @@ pub(crate) fn exhaust(b: &mut B, parent: PartId, at: Vec3, dir: Vec3, r: f32) ->
     // Nozzle flares outward: cone base at the exit, tip back inside the body.
     b.cone_to(at + dir * h, at - dir * (h * 0.4), d * 1.25, D);
     b.segx(PrimKind::Cylinder, at - dir * h * 0.3, at + dir * h * 0.4, d * 0.9, 0.0, A);
-    let flame = b.part(parent, at + dir * h, PartRole::Other);
+    let flame = b.part(parent, at + dir * h, PartRole::Thruster);
     b.cone_to(at + dir * (h * 0.9), at + dir * (h + r * 4.5 + 2.0), d * 0.9, C);
     b.on(cur);
     flame

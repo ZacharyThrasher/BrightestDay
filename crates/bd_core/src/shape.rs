@@ -93,6 +93,33 @@ pub enum PartRole {
     /// Sways (capes, sails, flags). (v1.1)
     Cloth,
     Other,
+    // ---- v1.5: construct-animation roles (appended so serde/bincode indices stay stable). The
+    // client animates parts by role x semantic event (aim, fire, move, pilot, summon…), never by
+    // word, so any combination of parts animates. Hinged parts put their pivot on the hinge.
+    /// Hinged panel — hatch, canopy, door, lid, visor: opens for the pilot, shuts on entry. (v1.5)
+    Hatch,
+    /// Yaws toward the aim (tank turret, gun-mount base). (v1.5)
+    Turret,
+    /// Pitches toward the aim, recoils along its length on fire (points −Z). (v1.5)
+    Barrel,
+    /// Spins with throttle: rotor, propeller, fan, turbine (axis = its thinnest extent). (v1.5)
+    Rotor,
+    /// Pumps along its longest extent on fire / movement. (v1.5)
+    Piston,
+    /// Fin / small wing / flap: flexes with speed and turns. (v1.5)
+    Fin,
+    /// Engine nozzle / thruster flame: flares with speed and throttle. (v1.5)
+    Thruster,
+    /// Eye(s): blink, light up at the end of the summon. (v1.5)
+    Eye,
+    /// Blade that extends from its base (pivot) on summon and attack. (v1.5)
+    Blade,
+    /// Where the hand holds a held item: the handle geometry (hilt, pistol grip, shaft wrap, strap),
+    /// pivot = palm centre. See `bd_shapes::grip_point`. (v1.5)
+    Grip,
+    /// Second-hand point of a two-handed item (fore-grip, shaft, launcher handle): a marker part
+    /// (no prims needed), pivot = palm centre. See `bd_shapes::support_point`. (v1.5)
+    Support,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

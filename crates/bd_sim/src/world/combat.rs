@@ -66,6 +66,10 @@ impl World {
         if hit.source.is_some_and(|s| self.pidx(s).is_none()) {
             hit.source = None;
         }
+        // DODGE HOOK: attacks pass through a dodging player (crate::dodge: what, lag compensation).
+        if crate::dodge::intangible(self, ti, &hit) {
+            return none;
+        }
         // POWERS HOOK: water drain / seastone marks, Logia scatter, immunities, rubber, Bara Bara.
         let Some(hit) = self.powers_on_hit(ti, hit) else { return none };
         let finite = |v: f32| if v.is_finite() { v.max(0.0) } else { 0.0 };
@@ -159,6 +163,7 @@ impl World {
         let tumble_secs = crate::smash::tumble_secs(st, kb);
         if kb > 0.0 {
             let mv = &mut self.players[ti].mv;
+            mv.extra.cancel_dodge(&mut mv.vel); // DODGE HOOK: knockback ends a (non-intangible) dodge
             let vd = mv.vel.dot(dir);
             if vd < 0.0 {
                 mv.vel -= dir * vd.max(-kb);
@@ -171,6 +176,10 @@ impl World {
             crate::smash::start_di(&self.cfg.tuning.smash, &mut p.mv);
             p.tech_buffer = 99.0;
             self.events.push(GameEvent::Launched { player: hit.target, source: hit.source, speed: kb, dir, pct });
+        }
+        // AIR JUMP HOOK: being hit gives back the air jump + air dodge (Smash recovery).
+        if !self_hit && (damage > 0.0 || kb > 0.0) {
+            crate::dodge::on_hit(&mut self.players[ti].mv);
         }
         // Credit.
         if let (Some(s), false) = (hit.source, self_hit) {
@@ -368,6 +377,8 @@ impl World {
         if let Some(s) = source.filter(|s| *s != id) {
             p.last_attacker = Some((s, tick));
         }
+        p.mv.extra.cancel_dodge(&mut p.mv.vel); // DODGE HOOK: a launch ends a dodge…
+        crate::dodge::on_hit(&mut p.mv); // …and gives back the air jump + air dodge
         p.mv.vel = vel;
         p.mv.grounded = false;
         p.mv.tumble = p.mv.tumble.max(secs);

@@ -223,7 +223,11 @@ pub(crate) fn apply_forces(s: &mut PlayerState, inp: &Inp, p: &MoveParams, dt: f
         if dist < 1e-4 {
             continue;
         }
-        let dir = d / dist;
+        let mut dir = d / dist;
+        // ASSIST HOOK: a rope on a player pulls in a flat upward arc (see `hook_player_lift`).
+        if matches!(s.hooks[i].target, Some(AnchorTarget::Collider(super::world::ColliderId::Player(_)))) {
+            dir = (dir + Vec3::Y * p.hook_player_lift).normalize_or(dir);
+        }
         let hook = &mut s.hooks[i];
         // Ratchet: the rope never gets longer by itself.
         hook.rope_len = hook.rope_len.min(dist).max(p.tether_min_len);
@@ -255,7 +259,8 @@ pub(crate) fn constrain_velocity(s: &mut PlayerState, p: &MoveParams, dt: f32) {
     for _ in 0..2 {
         for i in 0..2 {
             let h = s.hooks[i];
-            if !h.attached() {
+            // ASSIST HOOK: a rope on a player (hook-and-strike) only pulls — the victim never tows you.
+            if !h.attached() || matches!(h.target, Some(AnchorTarget::Collider(super::world::ColliderId::Player(_)))) {
                 continue;
             }
             // Work relative to the anchor's motion.

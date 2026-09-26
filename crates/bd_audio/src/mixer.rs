@@ -86,6 +86,8 @@ pub enum MusicCommand {
     Tempo { multiplier: f32, ramp_secs: f32 },
     /// Beat/bar-quantised stinger (index into the music crate's stinger kinds).
     Stinger(u8),
+    /// Style setting: 0 = classic chip, 1 = remixes, 2 = shuffle.
+    Style(u8),
 }
 
 /// A music generator that runs on the audio thread. Must not allocate, lock or block in `render`.
@@ -93,10 +95,10 @@ pub trait MusicSource: Send {
     /// Overwrite `out` (interleaved stereo, `out.len() / 2` frames at the mixer's sample rate).
     fn render(&mut self, out: &mut [f32]);
     fn command(&mut self, cmd: MusicCommand);
-    /// The current track carries real sub-bass (808 remix variants): the Music bus then opens its
-    /// high-pass down to ~32 Hz and ducks the music's lows under impacts / explosions instead.
-    fn sub_bass(&self) -> bool {
-        false
+    /// `Some(hz)` while the playing variant carries real sub-bass (808 remixes): the Music bus
+    /// opens its high-pass down to `hz` and ducks the music's lows under impacts / explosions.
+    fn sub_bass_hpf(&self) -> Option<f32> {
+        None
     }
 }
 
@@ -498,7 +500,10 @@ impl Mixer {
                     }
                     v.gain_db = finite_or(gain_db, v.gain_db).clamp(-120.0, 24.0);
                     v.pitch = finite_or(pitch, 1.0).clamp(0.05, 8.0);
-                    v.occ_target = finite_or(occlusion, 0.0).clamp(0.0, 1.0);
+                    // NaN = keep the last occlusion (callers refresh it round-robin).
+                    if occlusion.is_finite() {
+                        v.occ_target = occlusion.clamp(0.0, 1.0);
+                    }
                 }
             }
             Cmd::Stop { id, fade } => {
@@ -1065,10 +1070,11 @@ impl Mixer {
             // Fixed-level bed: ducked only by the explicit (heavy-hit / KO) ducks, never by every hit confirm.
             let mg = db_to_lin(bp.gain_db + vol(st.music) + duck_music_db);
             // Sub-bass variants: open the high-pass, and duck the music's lows under World impacts.
-            let sub = mus.sub_bass();
-            if sub != self.music_sub {
+            let sub_hz = mus.sub_bass_hpf().filter(|h| h.is_finite()).map(|h| h.clamp(20.0, 120.0));
+            let sub = sub_hz.is_some();
+            let hz = sub_hz.unwrap_or(self.cfg.music_carve.hpf_hz.max(10.0));
+            if sub != self.music_sub || (hz - self.music_hp[0].cutoff()).abs() > 0.5 {
                 self.music_sub = sub;
-                let hz = if sub { 32.0 } else { self.cfg.music_carve.hpf_hz.max(10.0) };
                 for f in self.music_hp.iter_mut() {
                     f.set(hz, 0.707, sr);
                 }
@@ -1079,7 +1085,7 @@ impl Mixer {
                     .zip(self.bus_buf[Bus::Weapons.index()].iter())
                     .fold(0.0f32, |a, (x, y)| a.max((x + y).abs()));
                 let k_db = lin_to_db(lowkey);
-                let c = if k_db > self.music_low_env { coef(0.005, block_rate) } else { coef(0.25, block_rate) };
+                let c = if k_db > self.music_low_env { coef(0.005, block_rate) } else { coef(0.2, block_rate) };
                 self.music_low_env += (k_db - self.music_low_env) * c;
                 let cut = -9.0 * smoothstep(-36.0, -18.0, self.music_low_env);
                 if (cut - self.music_low_cut).abs() > 0.1 {

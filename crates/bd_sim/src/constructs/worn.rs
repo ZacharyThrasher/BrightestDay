@@ -149,6 +149,7 @@ pub fn pre_move(store: &ConstructStore, owner: PlayerId, input: &PlayerInput, st
         match worn_kind(c) {
             WornKind::Wings if st.air_flaps < MAX_FLAPS => {
                 st.air_flaps += 1;
+                st.extra.air_jump_used = true; // AIR JUMP: the flap is this press's air move
                 let dv = Vec3::new(0.0, st.vel.y.max(0.0) + FLAP_UP - st.vel.y, 0.0);
                 st.apply_impulse(dv, 0.0);
                 let strength = 1.0 - 0.2 * (st.air_flaps - 1) as f32;
@@ -156,6 +157,7 @@ pub fn pre_move(store: &ConstructStore, owner: PlayerId, input: &PlayerInput, st
             }
             WornKind::Cape if !st.air_dashed => {
                 st.air_dashed = true;
+                st.extra.air_jump_used = true; // AIR JUMP: the cape dash replaces it
                 let dv = fwd * CAPE_DASH + Vec3::Y * 3.0 - Vec3::new(0.0, st.vel.y.min(0.0), 0.0);
                 st.apply_impulse(dv, 0.0);
                 fx(GameEvent::HeldFx { id: c.id, owner: c.owner, fx: HeldFx::CapeDash, pos: c.pos, dir: fwd, strength: 1.0 });

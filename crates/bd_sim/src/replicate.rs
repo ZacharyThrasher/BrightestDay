@@ -224,6 +224,12 @@ pub struct OwnState {
     /// prediction runs the host's post-move exactly.
     #[serde(default)]
     pub held: Option<OwnHeld>,
+    /// ASSIST HOOK: melee lunge dash in progress (`None` = none), so prediction replays it.
+    #[serde(default)]
+    pub lunge: Option<crate::melee_assist::LungeDash>,
+    /// Air jump + dodge state (`None` = default), so prediction replays them.
+    #[serde(default)]
+    pub extra: Option<crate::movement::ExtraMoves>,
 }
 
 /// See [`OwnState::held`].
@@ -254,6 +260,8 @@ impl OwnState {
             size,
             portal_cd,
             held: None,
+            lunge: s.lunge.active().then_some(s.lunge),
+            extra: (s.extra != Default::default()).then_some(s.extra),
         }
     }
 
@@ -287,6 +295,11 @@ impl OwnState {
             di_window: f(self.timers[9]),
             hooks: [self.hooks[0].unwrap_or_default(), self.hooks[1].unwrap_or_default()],
             mods: self.mods.unwrap_or_default(),
+            lunge: self.lunge.filter(|l| l.to.is_finite() && l.t.is_finite() && l.speed.is_finite() && l.exit.is_finite() && l.stop.is_finite() && l.lateral.is_finite()).unwrap_or_default(),
+            extra: self.extra.map(|mut x| {
+                x.sanitize();
+                x
+            }).unwrap_or_default(),
         }
     }
 }

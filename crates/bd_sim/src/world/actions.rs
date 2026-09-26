@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Seat, World};
 use crate::combat::*;
-use crate::constructs::{Slot, SpawnParams, forming_secs, lifetime_secs};
+use crate::constructs::{Slot, SpawnParams, forming_secs};
 use crate::events::{CastError, GameEvent, GoneReason};
 use crate::extract::{ExtractOp, apply_extract};
 use crate::geom;
@@ -253,6 +253,7 @@ impl World {
         // PARTY HOOK: Wild Magic + standing grafts + Kaiju Heart (re-validates; no-op in FFA).
         let mut recipe = recipe;
         crate::party::modify_cast(self, i, &mut recipe, typed.autonomous);
+        crate::signature::lift_scale(self, &mut recipe); // SIGNATURE HOOK: ultimate scale past the form clamp
         let shape = shape.map(sanitize_shape);
         // Curated icons: normalise the stored spec to real size ONCE here (the client model is built
         // from the same normalised spec, so `shape_scale` / `body_box` / `timing_height` agree and the
@@ -289,7 +290,7 @@ impl World {
         }
 
         // 1. Graft onto an own construct.
-        if let Some(cid) = hinted_own.or(own_hit.map(|h| h.0)) {
+        if let Some(cid) = hinted_own.or(own_hit.map(|h| h.0)).filter(|_| !crate::signature::builds_fresh(self)) {
             return self.graft(i, cid, recipe, typed);
         }
         // 2. Animate terrain (modifier phrase aimed at terrain).
@@ -426,6 +427,7 @@ impl World {
         // PARTY HOOK: cost ratio (party grafts are free); free casts skip paying, staleness and
         // slot replacement (they are children of the cast they copy).
         let cost = if model.is_some() { 0.0 } else { wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
+        let cost = crate::signature::cost(self, cost); // SIGNATURE HOOK: × cost_mult, ≤ a full bar
         let integrity_cost = cost * wt.adjustment_ratio_as(&recipe, typed.autonomous);
         if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
@@ -498,17 +500,18 @@ impl World {
                 FormCategory::Structure => self.place_structure(&recipe, origin, look, aim_point, aim_normal, p.mv.pos),
             }
         };
+        // BOUNDS HOOK (world/bounds.rs): creatures / structures / vehicles land where the caster sees them.
+        let pos = if model.is_none() { self.place_visible(i, &recipe, shape.as_ref(), origin, look, rot, pos) } else { pos };
         let piloted = recipe.has(Mechanic::Piloted) && !matches!(category, FormCategory::Held | FormCategory::Worn);
         let suit = piloted && recipe.scale <= SUIT_MAX_SCALE;
-        let mut life = lifetime_secs(recipe.form);
-        if recipe.form == Form::Dome {
-            life = 3.0;
-        }
+        // BOUNDS HOOK: lifetimes from `tuning.summon` (was `lifetime_secs`, dome 3 s, piloted ≥ 30 s).
+        let mut life = self.cfg.tuning.summon.lifetime(recipe.form);
         if piloted {
-            life = life.max(30.0);
+            life = life.max(self.cfg.tuning.summon.life_piloted_min);
         }
+        let life = crate::signature::life(self, recipe.form, life); // SIGNATURE HOOK: domain / ultimate lifetimes
         let target = self.players[i].last_target;
-        let forming = forming_secs(recipe.form);
+        let forming = crate::signature::forming(self, forming_secs(recipe.form)); // SIGNATURE HOOK: readable windup
         let cid = self.constructs.spawn(SpawnParams {
             owner: id,
             recipe: recipe.clone(),
@@ -628,14 +631,16 @@ impl World {
 
     // ---------------------------------------------------------------------------- oath
 
-    /// F: start reciting the corps oath (vulnerable; movement keys ignored client-side via TYPING).
-    pub fn begin_oath(&mut self, player: PlayerId) -> bool {
+    /// F: start reciting one `section` of the corps oath (vulnerable; movement keys ignored
+    /// client-side via TYPING). The length comes from the host's own [`crate::willpower::OathTable`]
+    /// (the client never sends one); an out-of-range section reads as section 0.
+    pub fn begin_oath(&mut self, player: PlayerId, section: u8) -> bool {
         let Some(i) = self.pidx(player) else { return false };
         let p = &mut self.players[i];
         if !p.alive || p.oath.reciting() {
             return false;
         }
-        let len = self.cfg.oaths.len(p.corps);
+        let len = self.cfg.oaths.section_len(p.corps, section);
         p.oath = OathState::Reciting { started: self.tick, len, progress: 0, accuracy: 0.9 };
         self.events.push(GameEvent::OathBegan { player });
         true

@@ -40,7 +40,6 @@ use bevy::prelude::*;
 /// Procedural hand animation (sway, bob, tethers, ring, recoil, …): see the module docs.
 #[path = "viewmodel_anim.rs"]
 mod anim;
-#[allow(unused_imports)]
 pub use anim::{HandsPublishSet, ViewmodelHands};
 
 /// Where the local held construct is drawn in first person (SIM reads this).
@@ -480,7 +479,8 @@ fn animate_viewmodel(
     mut mats: ResMut<Assets<StandardMaterial>>,
     mut st: ResMut<VmState>,
     mut held_out: ResMut<FirstPersonHeld>,
-    (pose, anchor, mut hands_out): (Res<anim::HandPose>, Res<crate::camera::ViewAnchor>, ResMut<ViewmodelHands>),
+    (pose, anchor, mut hands_out, tuning): (Res<anim::HandPose>, Res<crate::camera::ViewAnchor>, ResMut<ViewmodelHands>, Res<anim::VmTuningRes>),
+    held_q: (Option<Res<crate::present::constructs::ConstructEntities>>, Query<&bd_fx::ConstructVisual>, Option<Res<anim::AdsState>>, Res<crate::camera::CameraRig>),
     mut root: Query<(&mut Transform, &mut Visibility), (With<VmRoot>, Without<VmArm>)>,
     mut arms: Query<(&VmArm, &mut Transform), Without<VmRoot>>,
     mut light: Query<&mut PointLight, With<VmRingLight>>,
@@ -490,7 +490,8 @@ fn animate_viewmodel(
     st.time += dt;
     let me = active.as_ref().and_then(|a| a.local_player());
     // (A KO keeps the hands up for a moment so they can drop.)
-    let show = *state.get() == AppState::InGame && !prefs.third_person && me.is_some_and(|p| (p.alive || pose.ko_visible) && p.seat.is_none_or(|s| s.suit));
+    let first_person = !prefs.third_person && *held_q.3 == crate::camera::CameraRig::FirstPerson;
+    let show = *state.get() == AppState::InGame && first_person && me.is_some_and(|p| (p.alive || pose.ko_visible) && p.seat.is_none_or(|s| s.suit));
     let Ok((mut root_tf, mut vis)) = root.single_mut() else { return };
     let want = if show { Visibility::Inherited } else { Visibility::Hidden };
     if *vis != want {
@@ -517,12 +518,7 @@ fn animate_viewmodel(
     // Rest: the item is held up at the side (tilted up and out), clear of the crosshair.
     // Guns / launchers / bows / shields point where you aim (DOOM-style), just right of centre.
     let aims = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff | Form::Shield | Form::Gauntlet));
-    let mut swing_tf = if aims {
-        Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.06, 0.03, 0.0)).with_translation(Vec3::new(-0.02, 0.02, 0.0))
-    } else {
-        Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, -0.7, 0.75, -0.5)).with_translation(Vec3::new(0.05, -0.03, 0.02))
-    };
-    let mut swinging = false;
+    let mut swing_tf: Option<Transform> = None;
     if let Some(s) = st.swing.as_mut() {
         if !s.holding || s.t < s.curve.hold_at {
             s.t += dt;
@@ -532,33 +528,97 @@ fn animate_viewmodel(
         }
         let a3 = s.curve.sample(s.t);
         let (sc, r, tr3) = a3.to_scale_rotation_translation();
-        swing_tf = Transform { translation: Vec3::from_array(tr3.to_array()), rotation: Quat::from_array(r.to_array()), scale: Vec3::from_array(sc.to_array()) };
-        swinging = true;
+        swing_tf = Some(Transform { translation: Vec3::from_array(tr3.to_array()), rotation: Quat::from_array(r.to_array()), scale: Vec3::from_array(sc.to_array()) });
         if s.t >= s.curve.duration() && !s.holding {
             st.swing = None;
         }
     }
 
-    for (arm, mut tf) in &mut arms {
-        let base = if arm.right { ELBOW_R } else { ELBOW_L };
-        let yaw0 = if arm.right { 0.16 } else { -0.20 };
-        let ext = if arm.right { st.punch.x.clamp(-0.25, 0.1) } else { 0.0 };
-        let pitch0 = if arm.right { 0.30 } else { 0.22 };
-        let h = if arm.right { anim::RIGHT } else { anim::LEFT };
-        // Procedural pose: rotate about the fist (aim / twist), then offset the fist.
-        let mut rot = pose.hand_r[h] * Quat::from_euler(EulerRot::YXZ, yaw0, pitch0, 0.0);
-        if arm.right && swinging {
-            // The arm follows a softened version of the item's swing.
-            rot = rot * Quat::IDENTITY.slerp(swing_tf.rotation, 0.35);
+    // --- arms. Holding something: the item sits IN the right fist (its grip point on the palm) and
+    // hand + item move as one rigid body (the arm turns with the item); two-handed guns bring the
+    // left palm to the fore-grip. Empty hands: the rest pose. Both + `anim::HandPose` on top.
+    let tu = &tuning.0;
+    let tip_of = |i: usize| if st.tip[i] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.6) } else { st.tip[i] };
+    let palm_of = |tip: Vec3| Vec3::new(0.0, tip.y, tip.z * tu.grip_palm);
+    let geom = st.held.and_then(|(id, form)| {
+        let e = *held_q.0.as_ref()?.0.get(&id)?;
+        let vis = held_q.1.get(e).ok()?;
+        Some(anim::held_geom(&vis.model.bounds, form))
+    });
+    let ext = st.punch.x.clamp(-0.25, 0.1);
+    let sights = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff));
+    let ads_blend = if sights { held_q.2.as_deref().map_or(0.0, |a| a.blend.clamp(0.0, 1.0)) } else { 0.0 };
+    let (r_rot, r_elbow, item_root) = {
+        let tip = tip_of(0);
+        match (st.held, geom) {
+            (Some(_), Some(geom)) if anim::legacy_grip() => {
+                // Dev A/B only (`BD_VM_LEGACY_GRIP=1`): the pre-grip placement — item origin at the
+                // fingertips, camera-aligned, arm following 35 % of the swing.
+                let mut rot = pose.hand_r[anim::RIGHT] * Quat::from_euler(EulerRot::YXZ, 0.16, 0.30, 0.0);
+                let rest = if aims {
+                    Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.06, 0.03, 0.0)).with_translation(Vec3::new(-0.02, 0.02, 0.0))
+                } else {
+                    Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, -0.7, 0.75, -0.5)).with_translation(Vec3::new(0.05, -0.03, 0.02))
+                };
+                let sw = swing_tf.unwrap_or(rest);
+                if swing_tf.is_some() {
+                    rot = rot * Quat::IDENTITY.slerp(sw.rotation, 0.35);
+                }
+                let elbow = FIST_R + pose.hand_t[anim::RIGHT] - rot * (tip * ARM_SCALE) + Vec3::new(0.0, 0.0, ext);
+                let at = Transform::from_translation(elbow).with_rotation(rot).with_scale(Vec3::splat(ARM_SCALE)).transform_point(tip);
+                let item = Transform::from_translation(at).mul_transform(sw);
+                let old = anim::HeldGeom { grip: Vec3::ZERO, ..geom };
+                (rot, elbow, Some((anim::place_item(tu, &old, item.translation, item.rotation, HELD_VIEW_SCALE * item.scale.max_element()), geom)))
+            }
+            (Some(_), Some(geom)) => {
+                let gf = anim::grip_frame(tu, aims, swing_tf.as_ref());
+                let mut rot = pose.hand_r[anim::RIGHT] * gf.arm_rot;
+                let fist = gf.fist + pose.hand_t[anim::RIGHT] + Vec3::new(0.0, 0.0, ext);
+                let mut palm = fist - rot * (tip * ARM_SCALE) + rot * (palm_of(tip) * ARM_SCALE);
+                let mut item_rot = pose.hand_r[anim::RIGHT] * gf.item_rot;
+                let scale = HELD_VIEW_SCALE * gf.item_scale;
+                if ads_blend > 0.0 {
+                    // Aim down sights: up to the eye along the camera axis, sight under the crosshair.
+                    let (ads_palm, _) = anim::ads_palm(tu, &geom, scale);
+                    let arm_rest = Quat::from_euler(EulerRot::YXZ, tu.grip_gun_arm[0], tu.grip_gun_arm[1], 0.0);
+                    rot = rot.slerp(anim::reach_rot(arm_rest, ELBOW_R, ads_palm), ads_blend);
+                    palm = palm.lerp(ads_palm, ads_blend);
+                    item_rot = item_rot.slerp(Quat::IDENTITY, ads_blend);
+                }
+                let elbow = palm - rot * (palm_of(tip) * ARM_SCALE);
+                (rot, elbow, Some((anim::place_item(tu, &geom, palm, item_rot, scale), geom)))
+            }
+            _ => {
+                let rot = pose.hand_r[anim::RIGHT] * Quat::from_euler(EulerRot::YXZ, 0.16, 0.30, 0.0);
+                let fist = FIST_R + pose.hand_t[anim::RIGHT] + Vec3::new(0.0, 0.0, ext);
+                (rot, fist - rot * (tip * ARM_SCALE), None)
+            }
         }
-        let tip = st.tip[if arm.right { 0 } else { 1 }];
-        let fist = (if arm.right { FIST_R } else { FIST_L }) + pose.hand_t[h];
-        let elbow = if tip == Vec3::ZERO { base + pose.hand_t[h] } else { fist - rot * (tip * ARM_SCALE) };
-        tf.translation = elbow + Vec3::new(0.0, 0.0, ext);
+    };
+    let (l_rot, l_elbow) = {
+        let tip = tip_of(1);
+        let rest = Quat::from_euler(EulerRot::YXZ, -0.20, 0.22, 0.0);
+        let rot = pose.hand_r[anim::LEFT] * rest;
+        let fist = FIST_L + pose.hand_t[anim::LEFT];
+        let elbow = fist - rot * (tip * ARM_SCALE);
+        let support = pose.support.max(ads_blend);
+        match item_root.as_ref().and_then(|(item, geom)| anim::support_point(tu, geom, item)).filter(|_| support > 0.0) {
+            Some(target) => {
+                // Support hand: aim the forearm at the fore-grip and put the palm on it.
+                let s_rot = anim::reach_rot(rest, ELBOW_L, target);
+                let s_elbow = target - s_rot * (palm_of(tip) * ARM_SCALE);
+                let w = support;
+                (rot.slerp(s_rot, w), elbow.lerp(s_elbow, w))
+            }
+            None => (rot, elbow),
+        }
+    };
+    for (arm, mut tf) in &mut arms {
+        let (h, rot, elbow) = if arm.right { (anim::RIGHT, r_rot, r_elbow) } else { (anim::LEFT, l_rot, l_elbow) };
+        tf.translation = elbow;
         tf.rotation = rot;
         // Where the rope leaves the hand (camera space).
-        let tip_local = if tip == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.32) } else { tip };
-        hands_out.local[h] = root_tf.transform_point(tf.transform_point(tip_local));
+        hands_out.local[h] = root_tf.transform_point(tf.transform_point(tip_of(if arm.right { 0 } else { 1 })));
     }
 
     // --- ring glow = willpower
@@ -604,16 +664,10 @@ fn animate_viewmodel(
     // --- first-person held grip (world space)
     let held = st.held;
     held_out.construct = held.map(|h| h.0);
-    held_out.active = held.is_some();
-    if held.is_some() {
-        let arm_r = arms.iter().find(|(a, _)| a.right).map(|(_, t)| *t).unwrap_or_default();
-        let tip = if st.tip[0] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.32) } else { st.tip[0] };
-        let hand = Transform::from_translation(tip);
-        let local = root_tf.mul_transform(arm_r).mul_transform(hand);
-        // The item's hand frame looks along the camera (not the arm), so aim stays honest.
-        // Swings play out ahead of the hand; at rest the item hugs the side of the view.
-        let grip_local = Transform { translation: local.translation, rotation: root_tf.rotation, scale: Vec3::ONE }.mul_transform(swing_tf);
-        held_out.grip_local = Transform { scale: grip_local.scale * HELD_VIEW_SCALE, ..grip_local };
+    held_out.active = held.is_some() && item_root.is_some();
+    if let Some((item, _)) = item_root {
+        // Camera space: the root (sway, bob, recoil) carries hand and item together.
+        held_out.grip_local = root_tf.mul_transform(item);
         // This frame's view (the camera's GlobalTransform is still last frame's here);
         // `anim::publish_hands` re-places the item from the final camera transform in PostUpdate.
         let cam_tf = Transform::from_translation(anchor.eye).with_rotation(look.rotation());

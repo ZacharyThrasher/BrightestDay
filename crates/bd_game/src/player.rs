@@ -267,7 +267,9 @@ fn movement_tick(
         let ev = step_player(&mut sim.state, &input, &cw, p, DT);
         events.0.push(ev);
         positions.0.push((v3(sim.prev.pos), v3(sim.state.pos)));
-        if sim.state.pos.y < arena.info.void_y {
+        // Hanging on an attached tether survives below the void (sanity floor 40 m under it).
+        let hanging = sim.state.tethered() && sim.state.pos.y > arena.info.void_y - 40.0;
+        if sim.state.pos.y < arena.info.void_y && !hanging {
             // Void KO (practice): respawn at the station/spawn point.
             let (pos, facing) = match respawn.0 {
                 Some((pos, yaw)) => (pos, Facing::Yaw(yaw)),

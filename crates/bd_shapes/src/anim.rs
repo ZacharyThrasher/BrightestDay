@@ -166,6 +166,14 @@ pub fn pose(model: &VoxelModel, anim: AnimState, t: f32, out: &mut [Affine3A]) {
 
 /// Evaluate up to 4 layered animations (extra layers are ignored).
 pub fn pose_layered(model: &VoxelModel, layers: &[(AnimState, f32)], out: &mut [Affine3A]) {
+    pose_layered_with(model, layers, None, out);
+}
+
+/// [`pose_layered`] plus a per-part `extra` delta (index-aligned with `model.parts`), applied
+/// *outside* the clip layers (parent side: a wheel's steer yaw wraps its roll, a hatch hinge
+/// wraps any clip motion). Client-only role behaviours come in here (see
+/// `behaviours::ConstructAnimator::locals`); the sim never passes one.
+pub fn pose_layered_with(model: &VoxelModel, layers: &[(AnimState, f32)], extra: Option<&[Local]>, out: &mut [Affine3A]) {
     let mut frames: [Option<Frame>; 4] = [None, None, None, None];
     for (slot, (a, t)) in frames.iter_mut().zip(layers.iter()) {
         *slot = Some(Frame::new(model, sanitize(*a), fin(*t, 0.0).clamp(-1e6, 1e6)));
@@ -175,6 +183,9 @@ pub fn pose_layered(model: &VoxelModel, layers: &[(AnimState, f32)], out: &mut [
         let mut l = Local::IDENTITY;
         for f in frames.iter().flatten() {
             l = l.then(f.local(model, i));
+        }
+        if let Some(e) = extra.and_then(|e| e.get(i)) {
+            l = e.then(l);
         }
         let p = &model.parts[i];
         let a = l.affine(p.pivot);
@@ -272,6 +283,10 @@ pub enum PartKind {
     Seat,
     /// Driven by the machine kit (`VoxelModel::machine`): wheels, cranks, rotors, turrets...
     Machine,
+    /// A v1.5 construct-animation role part (hatch, turret, barrel, rotor, piston, fin, eye, blade)
+    /// with no machine link: rides its parent in every clip; the client's role behaviours
+    /// (`behaviours::ConstructAnimator`) move it. Never moves on the sim side.
+    Rigid,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -355,7 +370,10 @@ impl Rig {
                 continue;
             }
             if is_core(p) {
-                kinds[i] = PartKind::Flame;
+                // A small glowing part on a head is an eye (steady), not a flame.
+                let ext = (p.vmax - p.vmin + glam::IVec3::ONE).max_element();
+                let on_head = p.parent_index != 0 && parts[p.parent_index].role == Some(PartRole::Head);
+                kinds[i] = if on_head && ext <= 3 && p.role == Some(PartRole::Other) { PartKind::Rigid } else { PartKind::Flame };
                 continue;
             }
             let pi = p.parent_index;
@@ -414,6 +432,8 @@ impl Rig {
                     rig.has_wings = true;
                 }
                 Some(PartRole::Weapon) => kinds[i] = PartKind::Sway,
+                Some(PartRole::Thruster) => kinds[i] = PartKind::Flame,
+                Some(PartRole::Hatch | PartRole::Turret | PartRole::Barrel | PartRole::Rotor | PartRole::Piston | PartRole::Fin | PartRole::Eye | PartRole::Blade | PartRole::Grip | PartRole::Support) => kinds[i] = PartKind::Rigid,
                 Some(r @ (PartRole::LegFrontLeft | PartRole::LegFrontRight | PartRole::LegBackLeft | PartRole::LegBackRight)) => {
                     let side = if matches!(r, PartRole::LegFrontLeft | PartRole::LegBackLeft) { -1.0 } else { 1.0 };
                     let (len, reach) = if p.voxels.is_empty() {
@@ -1320,7 +1340,7 @@ fn aim_layer(m: &VoxelModel, i: usize, yaw: f32, pitch: f32) -> Local {
 // ---------------------------------------------------------------------------- humanoid (players)
 
 /// Rotation `q` about point `c` expressed as a local about the part pivot `p`.
-fn about(q: Quat, c: Vec3, p: Vec3) -> Local {
+pub(crate) fn about(q: Quat, c: Vec3, p: Vec3) -> Local {
     // Want x' = c + q (x - c); a local maps x' = p + pos + q (x - p)  =>  pos = c - p + q (p - c).
     Local { rot: q, pos: c - p + q * (p - c), scale: Vec3::ONE }
 }

@@ -1264,6 +1264,7 @@ impl Lexicon {
             incantation: None,
             incantation_powers: Vec::new(),
             stand_rush: Some(punches),
+            signature: None,
             confidence: 1.0,
             explanation: vec![format!("stand rush: {punches} punch{}", if punches == 1 { "" } else { "es" })],
             ignored: Vec::new(),
@@ -1274,6 +1275,10 @@ impl Lexicon {
     fn resolve_body(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
         // Pokémon trainer grammar: "<pokemon> use <move>", "go <pokemon>", "<pokemon> i choose you"
         if let Some(res) = self.pokemon_command(&toks, bangs, spoken) {
+            return res;
+        }
+        // Signature tier: "domain expansion <rest>", "bankai <rest>", "<rest> domain" (invocation.rs)
+        if let Some(res) = self.invocation(&toks, bangs, spoken) {
             return res;
         }
         let skip = toks.iter().take_while(|t| matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast))).count();
@@ -1307,10 +1312,13 @@ impl Lexicon {
                 return res;
             }
         }
-        self.resolve_mode_inner(toks, bangs, spoken)
+        let mut res = self.resolve_mode_inner(toks, bangs, spoken);
+        // Signature tier: famous ultimates by name, yelled beams (invocation.rs)
+        self.tag_signature(&mut res, &whole, bangs);
+        res
     }
 
-    fn resolve_mode_inner(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
+    pub(crate) fn resolve_mode_inner(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
         let res = self.resolve_tokens(toks.clone(), bangs, spoken, 0);
         if !spoken || toks.is_empty() {
             return res;
@@ -1954,6 +1962,7 @@ impl Lexicon {
             incantation: None,
             incantation_powers: Vec::new(),
             stand_rush: None,
+            signature: None,
             confidence: confidence.clamp(0.0, 1.0),
             explanation: std::mem::take(&mut cx.why),
             ignored: std::mem::take(&mut cx.ignored),

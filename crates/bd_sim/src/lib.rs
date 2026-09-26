@@ -25,11 +25,14 @@ pub mod bots;
 pub mod charge;
 pub mod combat;
 pub mod constructs;
+pub mod dodge; // DODGE: intangibility window + hits restore the air jump (movement/air_jump.rs, dodge.rs)
 pub mod events;
 pub mod extract;
 pub mod fuzz;
 pub mod geom;
 pub mod history;
+pub mod hook; // ASSIST HOOK: hook-and-strike (tethers hook players)
+pub mod melee_assist; // ASSIST HOOK: melee lunge (Destiny-style dash, aim nudge)
 pub mod movement;
 pub mod party;
 pub mod powers;
@@ -38,6 +41,7 @@ pub mod replicate;
 pub mod rng;
 pub mod rules;
 pub mod settings;
+pub mod signature; // SIGNATURE HOOK: signature casts = an amplifier over existing mechanics (COMBAT.md §5j)
 pub mod smash;
 pub mod space;
 pub mod status;

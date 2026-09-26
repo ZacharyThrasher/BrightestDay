@@ -1,0 +1,164 @@
+// First-person hand animation (crates/bd_game/src/viewmodel_anim.rs). Hot-reloaded while the game runs.
+// Camera space: x right, y up, z back. Offsets in metres / radians; impulses are velocities (m/s, rad/s)
+// kicked into a spring. omega = spring speed (rad/s), zeta = damping (1 = no bounce, < 1 = overshoot).
+// Missing fields use the built-in defaults. master: 0 = the old static hands.
+(
+    master: 1.0,
+    // Share of sway / bob / landing kept when Settings > Comfort "landing dip" is 0 (Comfort preset).
+    // At 0 the viewmodel never rolls. The camera itself is never moved by any of this.
+    comfort_motion: 0.3,
+
+    // --- idle: breathing + slow micro drift
+    breath_amp: 0.0025,
+    breath_rate: 0.22,
+    breath_rot: 0.006,
+    drift_amp: 0.0018,
+    drift_rot: 0.006,
+
+    // --- look sway: hands trail the mouse (per rad/s of turn rate) and spring back
+    look_pos: 0.0045,
+    look_rot: 0.018,
+    look_roll: 0.012,
+    look_max_rate: 12.0,
+    look_omega: 11.0,
+    look_zeta: 0.6,
+
+    // --- footstep bob: one step per step_len metres on the ground (same rule as the footstep sound)
+    step_len: 2.6,
+    bob_y: 0.010,
+    bob_x: 0.007,
+    bob_roll: 0.015,
+    bob_pitch: 0.012,
+    bob_ref_speed: 10.0,
+    bob_max: 1.4,
+
+    // --- movement poses: strafe lean, speed tuck (bhop / sprint), air float, crouch
+    strafe_x: 0.010,
+    strafe_roll: 0.06,
+    tuck_from: 11.0,
+    tuck_to: 26.0,
+    tuck_pos: (0.0, -0.018, 0.022),
+    tuck_pitch: -0.09,
+    tuck_in: 0.018,
+    air_float: 0.0009,
+    air_float_max: 0.022,
+    crouch_y: -0.01,
+    move_omega: 8.0,
+    move_zeta: 0.85,
+
+    // --- jump / land / boost
+    jump_lift: 0.28,
+    jump_pitch: 1.1,
+    land_per_speed: 0.022,
+    land_max: 0.45,
+    land_pitch: 3.0,
+    heavy_land_speed: 14.0,
+    heavy_crunch: 0.35,
+    heavy_squeeze: 0.5,
+    boost_kick: 0.35,
+    imp_omega: 13.0,
+    imp_zeta: 0.5,
+
+    // --- slide: braced pose (slide_brace = left hand reaching down/forward)
+    slide_pos: (0.0, -0.025, -0.015),
+    slide_rot: (0.07, 0.0, -0.1),
+    slide_brace: (0.02, -0.03, -0.05),
+
+    // --- per-hand springs and pose blends (ring raise, charge, slide, KO…)
+    hand_omega: 15.0,
+    hand_zeta: 0.55,
+    pose_omega: 11.0,
+    pose_zeta: 0.72,
+
+    // --- tethers (per hand): throw on fire, aim/grip toward the anchor, strain tremble, whip on release
+    tether_throw: 1.1,
+    tether_throw_pitch: 3.0,
+    tether_aim: 0.8,
+    tether_aim_max: 0.55,
+    tether_pull: 0.035,
+    tether_lift: 0.015,
+    tether_tremble: 0.0022,
+    tether_whip: 1.3,
+    tether_whip_rot: 5.0,
+
+    // --- ring (right hand): raised while typing / push-to-talk, punch on cast, steady for the oath
+    ring_raise_pos: (-0.075, 0.07, 0.03),
+    ring_raise_rot: (0.35, 0.3, 0.55),
+    ring_type_pulse: 1.2,
+    ring_voice_tremble: 0.002,
+    cast_thrust: 1.8,
+    cast_rot: 4.0,
+    cast_recoil: 0.35,
+    oath_raise_pos: (-0.07, 0.1, 0.01),
+    oath_raise_rot: (0.55, 0.3, 0.45),
+    oath_steady: 0.25,
+
+    // --- held constructs: weight = bd_shapes::weight_of (0.6 … 2.2, 1 = nominal)
+    held_lag_exp: 0.9,
+    held_settle_exp: 0.5,
+    swing_anticipation: 1.0,
+    swing_follow: 1.0,
+    swing_impact: 1.0,
+    coil_pos: (0.01, -0.01, 0.04),
+    coil_tremble: 0.0018,
+
+    // --- grip: held items sit IN the right fist (model origin = grip) and move with it as one body.
+    // grip_palm: palm centre along the glove (elbow -> fingertip); grip_wrist: share of a melee swing the
+    // forearm follows (guns: fully rigid); grip_swing_reach: share of a swing's translation the fist follows.
+    grip_palm: 0.72,
+    grip_wrist: 0.6,
+    grip_swing_reach: 0.5,
+    grip_max_reach: 0.36,
+    // Rest poses: fingertip point (x, y, z), arm (yaw, pitch), item (yaw, pitch, roll).
+    grip_gun_fist: (0.13, -0.16, -0.36),
+    grip_gun_arm: (0.1, 0.08),
+    grip_gun_item: (0.05, 0.02, 0.0),
+    grip_melee_fist: (0.16, -0.135, -0.34),
+    grip_melee_arm: (0.16, 0.3),
+    grip_melee_item: (-0.7, 0.75, -0.5),
+    // Two-handed guns: support palm along the barrel / below its axis; shorter guns = pistol cup.
+    support_fore: 0.45,
+    support_drop: 0.015,
+    support_pistol_len: 0.2,
+
+    // --- aim down sights (AdsState.blend): sight this far ahead / below the crosshair; motion left; recoil share
+    ads_dist: 0.26,
+    ads_sight_drop: 0.012,
+    ads_motion: 0.25,
+    ads_kick: 0.6,
+
+    // --- guns: extra kick on top of the base kick, scaled per archetype
+    gun_kick_pitch: 2.5,
+    gun_kick_back: 0.25,
+    gun_kick_up: 0.2,
+    gun_kick_yaw: 1.0,
+    gun_kick_roll: 2.0,
+    gun_omega: 24.0,
+    gun_zeta: 0.42,
+    gun_hand_cannon: 1.0,
+    gun_shotgun: 1.8,
+    gun_minigun: 0.3,
+    gun_rocket: 1.5,
+    gun_railgun: 1.3,
+    gun_bow: 0.4,
+    gun_cannon: 1.9,
+    gun_staff: 0.5,
+    gun_disc: 0.5,
+    minigun_buzz: 0.0025,
+    gun_predict: 0.3,
+
+    // --- getting hit / launched / KO
+    flinch: 0.9,
+    flinch_rot: 4.0,
+    flail: 0.14,
+    flail_rate: 2.3,
+    ko_drop: 0.3,
+    ko_hold: 0.5,
+
+    // --- charge (hold Z): fists clench in and tremble (left-hand values, right is mirrored)
+    charge_pos: (0.07, -0.01, 0.06),
+    charge_rot: (0.25, 0.35, 0.5),
+    charge_tremble: 0.0025,
+    charge_tremble_full: 0.005,
+    charge_glow: 0.6,
+)

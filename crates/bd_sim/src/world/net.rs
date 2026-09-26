@@ -397,6 +397,7 @@ impl World {
         // Colliders for prediction.
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);
+        self.assist_push_player_colliders(); // ASSIST HOOK: other players are hook targets for prediction
     }
 
     /// Client mirror: apply a reliable-lane event (terrain edits, construct models, joins, arena
@@ -525,6 +526,7 @@ impl World {
         let mut params = p.params(&self.cfg.move_params);
         crate::party::hooks::tweak_params(self.party.as_ref(), player, &mut params); // PARTY HOOK (Slippery)
         crate::smash::apply_di(&self.cfg.tuning.smash, state, input, DT);
+        crate::melee_assist::dash_pre_move(state, &params, DT); // ASSIST HOOK: melee lunge dash (same as the host)
         let pre_center = state.hull(&params).center();
         let pre_vel = state.vel;
         let cw = CollisionWorld::new(&self.voxels, &self.colliders).ignoring(crate::movement::ColliderId::Player(player));
@@ -536,6 +538,7 @@ impl World {
         let mut cd = p.portal_cd;
         let _ = super::spatial::player_portals(state, &mut inp, &mut cd, &params, pre_center, pre_vel, &self.portals);
         super::spatial::player_fields(state, player, state.tethered(), p.size.scale, &self.fields, DT);
+        crate::hook::local_rules(state, &self.cfg.tuning.assist.hook, &params); // ASSIST HOOK: over-long rope on a player lets go (as on the host)
         ev
     }
 

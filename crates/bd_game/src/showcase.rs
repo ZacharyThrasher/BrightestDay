@@ -395,8 +395,8 @@ fn showcase_tick(
             continue;
         }
         let act = bot.think(w);
-        if act.begin_oath {
-            w.begin_oath(bot.id);
+        if let Some(section) = act.begin_oath {
+            w.begin_oath(bot.id, section);
         }
         if let Some((acc, secs)) = act.finish_oath {
             let _ = w.oath_result(bot.id, acc, secs);

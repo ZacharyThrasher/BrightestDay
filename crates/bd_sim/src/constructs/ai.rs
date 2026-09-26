@@ -493,8 +493,20 @@ impl Timing {
 /// by COMBAT.md (0.4 s / 0.6 s) so players learn them. Kept in lock-step by the
 /// `timing_matches_bd_shapes` test (bd_shapes is a dev-dependency).
 pub fn attack_timing(height: f32, clip: Clip) -> Timing {
+    attack_timing_hw(height, clip, 1.0)
+}
+
+/// Mass-scaled attack timing: **must equal `bd_shapes::anim::attack_timing_hw(height, clip,
+/// weight)`** (and so `attack_timing(model, clip)` for a model whose `weight` is `weight`). The sim
+/// passes `bd_shapes::weight_of(&recipe)` and the client sets `model.weight` from the same recipe.
+/// Heavier: longer wind-up, a slightly snappier strike, slower settle; Charge / Breath telegraphs
+/// stay fixed (COMBAT.md). Weight 1 is bit-identical to the authored timing.
+pub fn attack_timing_hw(height: f32, clip: Clip, weight: f32) -> Timing {
     let h = if height.is_finite() { height } else { 2.0 };
     let sf = (h / 2.0).max(0.1).powf(0.3).clamp(0.85, 2.0);
+    let w = if weight.is_finite() { weight.clamp(0.5, 2.5) } else { 1.0 };
+    let (wa, wc, wr) = (w.powf(0.6), w.powf(-0.2).clamp(0.85, 1.1), w.powf(0.5));
+    let fixed = matches!(clip, Clip::Charge | Clip::Breath);
     let (a, c, r) = match clip {
         Clip::Bite => (0.2 * sf, 0.08 * sf, 0.25 * sf),
         Clip::Swipe => (0.18 * sf, 0.1 * sf, 0.25 * sf),
@@ -504,7 +516,10 @@ pub fn attack_timing(height: f32, clip: Clip) -> Timing {
         Clip::Breath => (0.6, 1.2, 0.35 * sf),
         Clip::Lash => (0.12, 0.12, 0.2),
     };
-    Timing { anticipation: a, active: c, recovery: r }
+    if fixed {
+        return Timing { anticipation: a, active: c, recovery: r * wr };
+    }
+    Timing { anticipation: a * wa, active: c * wc, recovery: r * wr }
 }
 
 #[cfg(test)]

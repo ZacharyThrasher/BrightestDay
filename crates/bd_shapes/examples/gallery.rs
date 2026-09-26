@@ -690,6 +690,8 @@ mod transforms;
 mod iconscale;
 #[path = "gallery_parts/weight.rs"]
 mod weight;
+#[path = "gallery_parts/roles.rs"]
+mod roles;
 
 // ------------------------------------------------------------------------------------- main
 
@@ -701,7 +703,7 @@ fn main() {
     let docs = root.join("docs");
     let tile: usize = val("--tile").and_then(|s| s.parse().ok()).unwrap_or(180);
     let filter = val("--filter").map(|s| s.to_lowercase());
-    let any_mode = has("--forms") || has("--anims") || has("--icons") || has("--combos") || has("--machines") || has("--costumes") || has("--features") || has("--transforms") || has("--iconscale") || has("--weight");
+    let any_mode = has("--forms") || has("--anims") || has("--icons") || has("--combos") || has("--machines") || has("--costumes") || has("--features") || has("--transforms") || has("--iconscale") || has("--weight") || has("--roles");
     let do_forms = has("--forms") || !any_mode;
     let do_anims = has("--anims") || !any_mode;
 
@@ -805,6 +807,10 @@ fn main() {
     }
     if has("--weight") {
         weight::run(&docs);
+    }
+    if has("--roles") {
+        let lex = machines::lexicon(&root);
+        roles::run(&root, &docs, lex.as_ref());
     }
     if has("--iconscale") {
         let lex = machines::lexicon(&root);

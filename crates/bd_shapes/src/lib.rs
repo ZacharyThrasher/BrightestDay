@@ -11,6 +11,7 @@
 
 pub mod anim;
 pub mod attach;
+pub mod behaviours;
 mod build;
 pub mod collide;
 pub mod costume;
@@ -20,12 +21,15 @@ pub mod forms;
 pub mod mesh;
 mod parts;
 mod rng;
+pub mod roles;
 pub mod secondary;
 pub mod swing;
 pub mod transform;
 pub mod voxelize;
 
-pub use anim::{AnimState, Attack, AttackTiming, CAST_TIMING, Footfall, Gait, Local, PartKind, Rig, attack_timing, attack_timing_hw, blend_poses, footfalls, pose, pose_layered, rest_pose};
+pub use anim::{AnimState, Attack, AttackTiming, CAST_TIMING, Footfall, Gait, Local, PartKind, Rig, attack_timing, attack_timing_hw, blend_poses, footfalls, pose, pose_layered, pose_layered_with, rest_pose};
+pub use behaviours::{AnimDrive, AnimEvent, Assembly, ConstructAnimator, Cue, CueKind};
+pub use roles::{Role, Roles, grip_part, grip_point, support_point};
 pub use secondary::SecondaryMotion;
 pub use attach::{SpecBounds, attach_mechanic_parts, chain_spec, portal_ring_spec, spec_bounds, spec_bounds_of_part};
 pub use build::quat_from_rot_deg;

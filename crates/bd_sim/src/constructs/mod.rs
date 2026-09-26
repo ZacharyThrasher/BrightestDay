@@ -1369,7 +1369,8 @@ impl ConstructStore {
                 body::integrate(c, &env, out);
                 components::react(c, &env, out);
                 components::post_react(c, &env, out);
-                if c.pos.y < ctx.void_y - 20.0 || !c.pos.is_finite() || !c.vel.is_finite() {
+                // BOUNDS HOOK: falling off the map is the world's recall (world/bounds.rs).
+                if !c.pos.is_finite() || !c.vel.is_finite() {
                     c.gone = Some(GoneReason::Expired);
                 }
             }

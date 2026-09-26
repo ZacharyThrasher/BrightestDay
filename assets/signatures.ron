@@ -1,0 +1,108 @@
+// Signature tier (docs/COMBAT.md §5j) — vocabulary only, never behaviour.
+//
+// A signature cast is an ordinary resolution (the rest of the phrase resolves normally: element,
+// features, icon) that the sim then AMPLIFIES with existing mechanics (bd_sim::signature):
+//   Domain         -> a huge sealed Dome (Barrier + Trap + Homing) of the phrase's element, around the caster
+//   Beam           -> an ultimate-scale Beam with a telegraphed windup
+//   Summon         -> the thing itself at ultimate scale
+//   Transformation -> the caster's construct at ultimate scale and weight
+// Nothing here is ever shown to players (mystery tenet). Read by bd_lexicon (compiled in; a copy next to
+// lexicon.bin overrides it at load).
+//
+// invocations: "<words> <rest>" — `kind: None` = infer from what <rest> resolves to.
+//              `alone` = what a bare invocation builds ("domain expansion" on its own).
+// suffixes:    "<rest> <words>" ("fire domain").
+// names:       famous ultimates; the whole phrase, or the construct it resolves to, carries the tag.
+// bang_beams:  a phrase with at least this many "!" that resolves to a Beam construct is a Beam
+//              signature ("HYPER BEAM!!!"). 0 = off.
+(
+    bang_beams: 3,
+    invocations: [
+        (words: "domain expansion", kind: Some(Domain), title: "Domain Expansion", alone: Some("dome")),
+        (words: "ryoiki tenkai", kind: Some(Domain), title: "Ryoiki Tenkai", alone: Some("dome")),
+        (words: "reality marble", kind: Some(Domain), title: "Reality Marble", alone: Some("dome")),
+        (words: "territory", kind: Some(Domain), title: "Territory", alone: None),
+        (words: "bankai", kind: Some(Transformation), title: "Bankai", alone: None),
+        (words: "ban kai", kind: Some(Transformation), title: "Bankai", alone: Some("bankai")),
+        (words: "true form", kind: Some(Transformation), title: "True Form", alone: None),
+        (words: "final form", kind: Some(Transformation), title: "Final Form", alone: None),
+        (words: "full power", kind: None, title: "Full Power", alone: None),
+        (words: "plus ultra", kind: None, title: "Plus Ultra", alone: None),
+        (words: "summoning jutsu", kind: Some(Summon), title: "Summoning Jutsu", alone: None),
+        (words: "kuchiyose no jutsu", kind: Some(Summon), title: "Kuchiyose no Jutsu", alone: None),
+        (words: "limit break", kind: None, title: "Limit Break", alone: None),
+        (words: "secret technique", kind: None, title: "Secret Technique", alone: None),
+        (words: "forbidden technique", kind: None, title: "Forbidden Technique", alone: None),
+        (words: "hidden technique", kind: None, title: "Hidden Technique", alone: None),
+        (words: "ultimate technique", kind: None, title: "Ultimate Technique", alone: None),
+        (words: "special move", kind: None, title: "Special Move", alone: None),
+        (words: "super move", kind: None, title: "Super Move", alone: None),
+        (words: "ultimate", kind: None, title: "Ultimate", alone: None),
+        (words: "final", kind: None, title: "Final", alone: None),
+        (words: "ougi", kind: None, title: "Ougi", alone: None),
+    ],
+    suffixes: [
+        (words: "domain expansion", kind: Some(Domain), title: "Domain Expansion", alone: Some("dome")),
+        (words: "domain", kind: Some(Domain), title: "Domain", alone: Some("dome")),
+        (words: "reality marble", kind: Some(Domain), title: "Reality Marble", alone: Some("dome")),
+    ],
+    names: [
+        // ---- domains (JJK and friends) ----
+        (name: "unlimited void", kind: Domain),
+        (name: "infinite void", kind: Domain),
+        (name: "malevolent shrine", kind: Domain),
+        (name: "coffin of the iron mountain", kind: Domain),
+        (name: "chimera shadow garden", kind: Domain),
+        (name: "self embodiment of perfection", kind: Domain),
+        (name: "horizon of the captivating skandha", kind: Domain),
+        (name: "unlimited blade works", kind: Domain),
+        (name: "infinite tsukuyomi", kind: Domain),
+        (name: "infinity castle", kind: Domain),
+        (name: "room shambles", kind: Domain),
+        // ---- beams ----
+        (name: "kamehameha", kind: Beam),
+        (name: "final kamehameha", kind: Beam),
+        (name: "big bang kamehameha", kind: Beam),
+        (name: "final flash", kind: Beam),
+        (name: "galick gun", kind: Beam),
+        (name: "big bang attack", kind: Beam),
+        (name: "special beam cannon", kind: Beam),
+        (name: "masenko", kind: Beam),
+        (name: "hollow purple", kind: Beam),
+        (name: "getsuga tensho", kind: Beam),
+        (name: "rasenshuriken", kind: Beam),
+        (name: "hyper beam", kind: Beam),
+        (name: "solar beam", kind: Beam),
+        (name: "hadouken", kind: Beam),
+        (name: "fus ro dah", kind: Beam),
+        (name: "avada kedavra", kind: Beam),
+        (name: "enuma elish", kind: Beam),
+        (name: "tailed beast bomb", kind: Beam),
+        (name: "death ray", kind: Beam),
+        // ---- summons (the thing itself, huge) ----
+        (name: "spirit bomb", kind: Summon),
+        (name: "genki dama", kind: Summon),
+        (name: "rasengan", kind: Summon),
+        (name: "chibaku tensei", kind: Summon),
+        (name: "susanoo", kind: Summon),
+        (name: "mahoraga", kind: Summon),
+        (name: "colossal titan", kind: Summon),
+        (name: "the rumbling", kind: Summon),
+        (name: "gamabunta", kind: Summon),
+        (name: "knights of the round", kind: Summon),
+        (name: "expecto patronum", kind: Summon),
+        (name: "gate of babylon", kind: Summon),
+        // ---- transformations ----
+        (name: "tensa zangetsu", kind: Transformation),
+        (name: "senbonzakura kageyoshi", kind: Transformation),
+        (name: "daiguren hyorinmaru", kind: Transformation),
+        (name: "zanka no tachi", kind: Transformation),
+        (name: "super saiyan", kind: Transformation),
+        (name: "ultra instinct", kind: Transformation),
+        (name: "gear fifth", kind: Transformation),
+        (name: "gear fourth", kind: Transformation),
+        (name: "kaioken", kind: Transformation),
+        (name: "omnislash", kind: Transformation),
+        (name: "dragonblade", kind: Transformation),
+    ],
+)

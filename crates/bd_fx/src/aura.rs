@@ -141,8 +141,9 @@ fn emit_auras(
         let hot = mix3(col, WHITE, 0.35);
         let fp = a.first_person;
 
-        // ---- flames: stretched streaks in a teardrop around the body.
-        let rate = (110.0 + 190.0 * lv) * k * budget * lod * if fp { 0.3 } else { 1.0 };
+        // ---- flames: thin stretched streaks on a teardrop shell around the body (never inside it:
+        // particles are opaque, the charger's body must stay readable through the gaps).
+        let rate = (90.0 + 120.0 * lv) * k * budget * lod * if fp { 0.35 } else { 1.0 };
         a.credit[0] += rate * dt;
         let mut guard = 0;
         while a.credit[0] >= 1.0 && guard < 128 {
@@ -150,35 +151,36 @@ fn emit_auras(
             a.credit[0] -= 1.0;
             let r = &mut rng;
             // First person: keep the flames low and wide (peripheral, never over the camera).
-            let yn = r.f().powf(0.75) * if fp { 0.45 } else { 1.0 };
+            let yn = r.f() * if fp { 0.45 } else { 1.0 };
             let ang = r.f() * std::f32::consts::TAU;
-            let bulge = (std::f32::consts::PI * (yn * 1.05).min(1.0)).sin();
-            let base_r = (0.36 + 0.22 * lv) * hs * (0.45 + 0.55 * bulge);
-            let rr = if fp { r.range(1.1, 1.45) * hs } else { base_r * r.range(0.8, 1.2) };
+            let bulge = (std::f32::consts::PI * (yn * 1.1).min(1.0)).sin();
+            let taper = 1.0 - 0.6 * ((yn - 0.8) / 0.2).clamp(0.0, 1.0);
+            let shell = (0.48 + 0.14 * lv) * hs * (0.72 + 0.35 * bulge) * taper;
+            let rr = if fp { r.range(1.1, 1.45) * hs } else { shell * r.range(0.95, 1.12) };
             let (s, c) = ang.sin_cos();
             let radial = Vec3::new(c, 0.0, s);
             let pos = feet + radial * rr + Vec3::Y * (yn * h * 1.02);
-            // Up, pulled in above the waist (flame tip over the head), with a little swirl.
-            let inward = if yn > 0.45 && !fp { -radial * rr * (1.2 + 0.8 * lv) } else { radial * 0.25 };
-            let swirl = Vec3::new(-s, 0.0, c) * r.range(-0.4, 0.4);
-            let vel = Vec3::Y * (2.8 + 2.6 * lv) * hs * r.range(0.8, 1.2) + inward + swirl;
-            let whiten = (0.12 + 0.3 * (1.0 - bulge)) * r.range(0.6, 1.3);
+            // Up, drawn in near the top (flame tip over the head), with a little swirl.
+            let inward = if yn > 0.75 && !fp { -radial * (0.6 + 0.4 * lv) } else { radial * 0.15 };
+            let swirl = Vec3::new(-s, 0.0, c) * r.range(-0.3, 0.3);
+            let vel = Vec3::Y * (1.6 + 1.3 * lv) * hs * r.range(0.8, 1.2) + inward + swirl;
+            let whiten = r.range(0.0, 0.12) + 0.06 * lv;
             let seed = r.next_u32();
-            let size = (0.055 + 0.05 * lv) * hs * r.range(0.7, 1.3) * grow;
-            let life = r.range(0.26, 0.42) * (0.9 + 0.3 * lv) * if fp { 0.6 } else { 1.0 };
-            let white_birth = r.f() < 0.2;
+            let size = (0.045 + 0.025 * lv) * hs * r.range(0.75, 1.25) * grow;
+            let life = r.range(0.22, 0.36) * (0.9 + 0.3 * lv) * if fp { 0.6 } else { 1.0 };
+            let white_birth = r.f() < 0.1;
             fx.emit(Emit {
                 kind: PKind::Ballistic,
                 flags: PFlags::STRETCH | if white_birth { PFlags::WHITE_BIRTH } else { 0 },
                 pos,
                 vel,
                 size,
-                color: mix3(col, WHITE, whiten.min(0.8)),
-                emissive: (3.2 + 4.0 * lv) * (0.6 + 0.4 * k),
+                color: mix3(col, WHITE, whiten.min(0.6)),
+                emissive: (2.2 + 1.6 * lv) * (0.6 + 0.4 * k),
                 life,
-                gravity: -(0.35 + 0.45 * lv),
+                gravity: -(0.12 + 0.15 * lv),
                 drag: 0.6,
-                spin: 2.6 + 3.4 * lv,
+                spin: 2.2 + 1.8 * lv,
                 seed,
                 ..default()
             });

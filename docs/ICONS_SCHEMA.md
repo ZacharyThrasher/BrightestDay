@@ -28,7 +28,7 @@ shape is given, else `Procedural(seed: N)`), `payload` (Some(Recipe) / None), `f
 
 `ShapeSpec`: `prims: [Prim(kind: Box|Ellipsoid|Cylinder|Cone, center: (x,y,z), size: (x,y,z),
 rot_deg: (x,y,z), tint: Primary|Accent|Dark|Core, part: u8, subtract: bool)]`, `parts: [Part(id, parent,
-pivot: (x,y,z), role: Head|Jaw|Tail|LegFrontLeft|...|Weapon|Other)]`. Units: construct voxels
+pivot: (x,y,z), role: Head|Jaw|Tail|LegFrontLeft|...|Weapon|Other|<v1.5 roles>)]`. Units: construct voxels
 (0.25 m) — a 1 m hammer is ~4 units long. Origin = grip for held items, feet-centre for creatures and
 structures; +Y up, −Z forward. Keep silhouettes bold and readable at 30 m; 5–40 prims is typical.
 
@@ -60,6 +60,28 @@ Example (verified to parse against bd_core v1):
     ),
 ]
 ```
+
+**Animation roles (bd_core v1.5).** Constructs animate by *part role × semantic event* (aim, fire,
+move, pilot approach/enter/exit, hit, charge, summon, dismiss — `bd_shapes::behaviours`), never by
+name, so tagging a part is all it takes for an icon to feel "premade". Appended roles (old files stay
+valid; untagged `Other` parts go through a conservative inference and are left still when unsure):
+
+| role | behaviour | pivot convention |
+|---|---|---|
+| `Hatch` | opens as the pilot approaches, shuts with a clunk once seated, reopens on exit; shuts last in the summon | **on the hinge edge** (hinge axis = that edge) |
+| `Turret` | yaws toward the aim (lags by weight) | yaw centre |
+| `Barrel` | pitches toward the aim, recoils along +Z on fire | at its base, gun pointing −Z |
+| `Rotor` | spins (axis = the part's thinnest extent), spins up on summon, faster with throttle/charge | hub |
+| `Piston` | pumps along its longest extent on fire | cylinder end |
+| `Fin` | flexes into turns | root |
+| `Thruster` | flame that flares with throttle / acceleration / charge (+ exhaust puffs) | nozzle |
+| `Eye` | blinks, lights up at the end of the summon | between the eyes |
+| `Blade` | slides out of its base on summon, flicks on attack | base (at the guard) |
+| `Grip` | the hand's hold on a held item (`bd_shapes::grip_point`) | palm centre (the held origin) |
+| `Support` | second-hand marker for two-handed items (no prims needed; `support_point`) | palm centre |
+
+Put a hinged/moving part's geometry on its own part; if it overlaps the body, cut its volume out of
+the body first (a `subtract` prim before the part's prims) so no voxel is shared.
 
 Validate: `cargo run --manifest-path tools/iconcheck/Cargo.toml -- assets/icons/<file>.ron` (exit 0 = OK; also
 checks two-mode entries: `alt_shape` needs `shape`, `Transforms`, and shared part ids).

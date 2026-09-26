@@ -298,16 +298,24 @@ fn sim_timing_is_the_animation_timing() {
     ];
     for (form, scale) in [(Form::Quadruped, 1.2), (Form::Biped, 1.8), (Form::Serpent, 2.0), (Form::Bird, 1.0), (Form::Kaiju, 14.0)] {
         let r = creature_recipe(form, &[], scale);
-        let (spec, model) = bd_shapes::build_model(&r);
-        for (clip, atk) in clips {
-            let a = ai::attack_timing(model.rig.height, clip);
-            let b = attack_timing(&model, atk);
-            assert!(
-                (a.anticipation - b.anticipation).abs() < 1e-5
-                    && (a.active - b.active).abs() < 1e-5
-                    && (a.recovery - b.recovery).abs() < 1e-5,
-                "{form:?} {clip:?}"
-            );
+        let (spec, mut model) = bd_shapes::build_model(&r);
+        // Weight pass: the sim times with `weight_of(recipe)`, the client poses with
+        // `model.weight = weight_of(recipe)` — they must agree at every weight.
+        for w in [1.0, bd_shapes::weight_of(&r), 0.6, 1.7, 2.2] {
+            model.weight = w;
+            for (clip, atk) in clips {
+                let a = ai::attack_timing_hw(model.rig.height, clip, w);
+                let b = attack_timing(&model, atk);
+                assert!(
+                    (a.anticipation - b.anticipation).abs() < 1e-6
+                        && (a.active - b.active).abs() < 1e-6
+                        && (a.recovery - b.recovery).abs() < 1e-6,
+                    "{form:?} {clip:?} w {w}"
+                );
+            }
+        }
+        for (clip, _) in clips {
+            assert_eq!(ai::attack_timing(model.rig.height, clip), ai::attack_timing_hw(model.rig.height, clip, 1.0), "weight 1 = authored");
         }
         // With a shape (the game casts with one) the collider height the sim times from is the
         // model's rig height to within a voxel or two: < 1 tick of timing difference.

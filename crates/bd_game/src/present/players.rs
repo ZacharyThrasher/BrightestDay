@@ -362,7 +362,12 @@ fn sync_bodies(
         let hspeed = Vec2::new(v.vel.x, v.vel.z).length();
         let grounded = v.has(pflags::GROUNDED);
         let attached = [v.has(pflags::HOOK_L_ATTACHED), v.has(pflags::HOOK_R_ATTACHED)];
-        let base = if v.has(pflags::TUMBLING) {
+        let base = if v.has(pflags::TUMBLING) && v.has(pflags::LAUNCHED) && v.vel.length() > 4.0 {
+            // Weight pass: a big launch spins end over end along the flight, limbs trailing.
+            let body = Quat::from_rotation_y(v.yaw);
+            let dir = body.inverse() * v.vel.normalize_or(Vec3::Y);
+            AnimState::Launched { dir: super::gv(dir), spin: (6.0 + v.vel.length() * 0.35).min(22.0) }
+        } else if v.has(pflags::TUMBLING) {
             b.spin += dt * (6.0 + v.vel.length() * 0.3);
             AnimState::Tumble { spin: 6.0 + v.vel.length() * 0.3 }
         } else if v.has(pflags::SLIDING) {

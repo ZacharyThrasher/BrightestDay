@@ -142,6 +142,13 @@ pub struct PlayerState {
     pub di_window: f32,
     pub hooks: [Hook; 2],
     pub mods: MoveModifiers,
+    /// ASSIST HOOK: melee lunge dash in progress (`crate::melee_assist::dash_pre_move`, stepped by
+    /// the host and by prediction alike).
+    #[serde(default)]
+    pub lunge: crate::melee_assist::LungeDash,
+    /// Air jump + dodge (`movement/air_jump.rs`, `movement/dodge.rs`).
+    #[serde(default)]
+    pub extra: super::air_jump::ExtraMoves,
 }
 
 impl PlayerState {
@@ -172,6 +179,8 @@ impl PlayerState {
             di_window: 0.0,
             hooks: [Hook::default(); 2],
             mods: MoveModifiers::default(),
+            lunge: Default::default(),
+            extra: Default::default(),
         }
     }
 
@@ -230,6 +239,7 @@ impl PlayerState {
         if !dv.is_finite() {
             return;
         }
+        self.extra.cancel_dodge(&mut self.vel); // a push ends a dodge burst (it never sticks)
         self.vel += dv;
         if dv.y > 0.0 {
             self.grounded = false;
@@ -306,4 +316,8 @@ pub struct MoveEvents {
     /// Vertical hull displacement from stepping up (+) / snapping down (−) this tick. The camera should
     /// smooth this out (e.g. offset the eye by −stepped and decay the offset over ~0.1 s).
     pub stepped: f32,
+    /// Jumped again in the air (the one air jump). `jumped` stays false for it.
+    pub air_jumped: bool,
+    /// A dodge started this tick (direction: `PlayerState::extra.dodge_dir`).
+    pub dodged: bool,
 }

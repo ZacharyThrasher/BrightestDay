@@ -145,7 +145,8 @@ pub enum NetCmd {
     Cast { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim, incantation: bool },
     PowerMove(u8),
     StandRush(u16),
-    OathBegin,
+    /// Oath section index (the host looks the length up in its own table; never sent by the client).
+    OathBegin { section: u8 },
     OathProgress { correct_chars: u16, accuracy: f32 },
     OathResult { accuracy: f32, seconds: f32 },
     OathCancel,
@@ -166,7 +167,7 @@ impl NetCmd {
             }
             Cmd::PowerMove(s) => NetCmd::PowerMove(s),
             Cmd::StandRush(n) => NetCmd::StandRush(n),
-            Cmd::OathBegin => NetCmd::OathBegin,
+            Cmd::OathBegin { section } => NetCmd::OathBegin { section },
             Cmd::OathProgress { correct_chars, accuracy } => NetCmd::OathProgress { correct_chars, accuracy },
             Cmd::OathResult { accuracy, seconds } => NetCmd::OathResult { accuracy, seconds },
             Cmd::OathCancel => NetCmd::OathCancel,
@@ -190,7 +191,8 @@ impl NetCmd {
             }
             NetCmd::PowerMove(s) => Cmd::PowerMove(s.min(1)),
             NetCmd::StandRush(n) => Cmd::StandRush(n.min(64)),
-            NetCmd::OathBegin => Cmd::OathBegin,
+            // Out of any oath's range → section 0 (the sim also falls back per corps).
+            NetCmd::OathBegin { section } => Cmd::OathBegin { section: if (section as usize) < bd_sim::willpower::MAX_OATH_SECTIONS { section } else { 0 } },
             NetCmd::OathProgress { correct_chars, accuracy } => Cmd::OathProgress { correct_chars, accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0) },
             NetCmd::OathResult { accuracy, seconds } => {
                 Cmd::OathResult { accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0), seconds: fin(seconds, 60.0).clamp(0.5, 600.0) }
@@ -304,5 +306,15 @@ mod tests {
         let s = S2C::TerrainCheck { tick: 5, hash: 77 };
         let back: S2C = bd_net::codec::decode(&bd_net::codec::encode(&s)).unwrap();
         assert!(matches!(back, S2C::TerrainCheck { tick: 5, hash: 77 }));
+    }
+
+    #[test]
+    fn oath_begin_carries_a_section_and_is_clamped() {
+        for (sent, got) in [(0u8, 0u8), (1, 1), (3, 3), (4, 0), (255, 0)] {
+            let n = NetCmd::from_cmd(&Cmd::OathBegin { section: sent }, 0).unwrap();
+            let back: NetCmd = bd_net::codec::decode(&bd_net::codec::encode(&n)).unwrap();
+            assert!(matches!(back, NetCmd::OathBegin { section } if section == sent));
+            assert!(matches!(back.into_cmd(), Some(Cmd::OathBegin { section }) if section == got), "{sent}");
+        }
     }
 }

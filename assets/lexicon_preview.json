@@ -5,13 +5,13 @@
   "adjectives": 1937,
   "verbs": 2620,
   "by_form": {
-   "Anvil": 8559,
+   "Anvil": 8549,
    "Arachnid": 1615,
    "Axe": 626,
-   "Ball": 29376,
-   "Biped": 96757,
+   "Ball": 29375,
+   "Biped": 96735,
    "Bird": 33968,
-   "Blob": 11269,
+   "Blob": 11267,
    "Blob0": 51,
    "Bomb": 3061,
    "Boulder": 11478,
@@ -19,25 +19,25 @@
    "Cage": 2635,
    "Cannon": 2571,
    "Cape": 3152,
-   "Disc": 3592,
-   "Dome": 579,
+   "Disc": 3593,
+   "Dome": 629,
    "Fish": 5170,
    "Gauntlet": 3614,
    "Gun": 5418,
-   "Hammer": 7021,
+   "Hammer": 7022,
    "Insect": 28463,
    "Jetpack": 2864,
    "Kaiju": 5587,
    "Parachute": 179,
-   "Pillar": 87210,
+   "Pillar": 87200,
    "Platform": 5313,
-   "Quadruped": 88699,
+   "Quadruped": 88696,
    "Ramp": 670,
    "Rocket": 6237,
    "Serpent": 1623,
-   "Shield": 5073,
+   "Shield": 5071,
    "Spear": 866,
-   "Staff": 2070,
+   "Staff": 2068,
    "Sword": 3212,
    "Trampoline": 662,
    "Vehicle": 76396,
@@ -5642,7 +5642,32 @@
    "fl": 2064,
    "x": [
     "bell (hand anchor → Dome)",
-    "bell → acoustic device → device (WordNet hypernym)"
+    "bell → signaling device → device (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "expansion",
+   "d": null,
+   "f": "Dome",
+   "m": [
+    "Barrier"
+   ],
+   "e": "Light",
+   "s": 4.0,
+   "w": 800.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 6.04,
+   "g": [
+    "Grow"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 2064,
+   "x": [
+    "expansion (hand anchor → Dome)"
    ],
    "t": null
   },
@@ -5675,7 +5700,32 @@
    "fl": 1040,
    "x": [
     "church bell (hand anchor → Dome)",
-    "church bell → bell → acoustic device → device (WordNet hypernym)"
+    "church bell → bell → signaling device → device (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "domain",
+   "d": null,
+   "f": "Dome",
+   "m": [
+    "Barrier"
+   ],
+   "e": "Light",
+   "s": 4.0,
+   "w": 800.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.81,
+   "g": [
+    "Guard"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 2064,
+   "x": [
+    "domain (hand anchor → Dome)"
    ],
    "t": null
   },
@@ -5808,58 +5858,6 @@
     "tent (hand anchor → Dome)"
    ],
    "t": null
-  },
-  {
-   "k": "dome",
-   "d": null,
-   "f": "Dome",
-   "m": [
-    "Barrier"
-   ],
-   "e": "Light",
-   "s": 4.0,
-   "w": 800.0,
-   "n": 1,
-   "a": null,
-   "c": 1.0,
-   "r": 5.4,
-   "g": [
-    "Guard"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 2064,
-   "x": [
-    "dome (hand anchor → Dome)"
-   ],
-   "t": null
-  },
-  {
-   "k": "cabin fever",
-   "d": null,
-   "f": "Dome",
-   "m": [
-    "Barrier",
-    "Trap"
-   ],
-   "e": "Light",
-   "s": 4.0,
-   "w": 800.0,
-   "n": 1,
-   "a": null,
-   "c": 1.0,
-   "r": 5.37,
-   "g": [
-    "Guard",
-    "Trap"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 1040,
-   "x": [
-    "cabin fever (hand anchor → Dome)"
-   ],
-   "t": "Chaotic"
   },
   {
    "k": "so",

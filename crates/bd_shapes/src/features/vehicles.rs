@@ -54,7 +54,8 @@ fn locomotive(g: &mut G) {
     let zb = zf + lc;
     // Drivers: 3 coupled per side, crank radius ~half the wheel radius, quartered sides. The driver
     // size is solved so cylinder + crosshead + rod + 3 drivers fit the loco length (11 + 8.2·r).
-    let rw_fit = ((lc - 8.0) / 7.2).clamp(1.5, lc * 0.12);
+    // (upper bound kept ≥ the lower: `clamp` panics when min > max, e.g. lc just over 12)
+    let rw_fit = ((lc - 8.0) / 7.2).clamp(1.5, (lc * 0.12).max(1.5));
     let dd = odd(2.0 * rw_fit).max(3.0);
     let rw = dd * 0.5;
     let ay = (dd + 1.0) * 0.5;

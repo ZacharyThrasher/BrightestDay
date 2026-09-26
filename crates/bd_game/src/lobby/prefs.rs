@@ -145,10 +145,18 @@ pub enum Action {
     Slot2,
     Slot3,
     Slot4,
+    /// CAMERA: first ⇄ third person.
+    ToggleView,
+    /// CAMERA: over-the-shoulder side swap.
+    Shoulder,
+    /// CAMERA: aim down sights (with a gun in hand).
+    Aim,
+    /// CAMERA: a held gun's alt-fire (RMB aims guns).
+    AltFire,
 }
 
 impl Action {
-    pub const ALL: [Action; 23] = [
+    pub const ALL: [Action; 27] = [
         Action::Forward,
         Action::Back,
         Action::Left,
@@ -172,6 +180,10 @@ impl Action {
         Action::Slot2,
         Action::Slot3,
         Action::Slot4,
+        Action::ToggleView,
+        Action::Shoulder,
+        Action::Aim,
+        Action::AltFire,
     ];
     pub const COUNT: usize = Self::ALL.len();
 
@@ -204,6 +216,10 @@ impl Action {
             Action::Slot2 => "slot2",
             Action::Slot3 => "slot3",
             Action::Slot4 => "slot4",
+            Action::ToggleView => "toggle_view",
+            Action::Shoulder => "swap_shoulder",
+            Action::Aim => "aim",
+            Action::AltFire => "alt_fire",
         }
     }
 
@@ -232,6 +248,10 @@ impl Action {
             Action::Slot2 => "QUICK CAST 2",
             Action::Slot3 => "QUICK CAST 3",
             Action::Slot4 => "QUICK CAST 4",
+            Action::ToggleView => "FIRST / THIRD PERSON",
+            Action::Shoulder => "SWAP SHOULDER",
+            Action::Aim => "AIM DOWN SIGHTS",
+            Action::AltFire => "ALT FIRE (GUNS)",
         }
     }
 
@@ -268,6 +288,12 @@ impl Action {
             Action::Slot2 => K::Digit2,
             Action::Slot3 => K::Digit3,
             Action::Slot4 => K::Digit4,
+            // CAMERA: F5 is the long-standing "change view" key and free here (F3 perf, F4 render,
+            // F11 fullscreen); B sits by the movement hand; Left Alt = alt-fire (thumb, mnemonic).
+            Action::ToggleView => K::F5,
+            Action::Shoulder => K::KeyB,
+            Action::Aim => return Bind::Mouse(MouseButton::Right),
+            Action::AltFire => K::AltLeft,
         })
     }
 }
@@ -406,6 +432,15 @@ pub struct UiPrefs {
     pub shout: ShoutPref,
     /// Small numeric damage % at the bottom (off by default: the ring and the screen edges say it).
     pub show_percent: bool,
+    /// Off-screen summon ping shows a tiny preview window of the construct (off = arrow only).
+    pub summon_preview: bool,
+    /// Player outlines (present::outline): on/off, width multiplier (0.5–2), colour-blind patterns.
+    pub outlines: bool,
+    pub outline_width: f32,
+    pub outline_patterns: bool,
+    /// CAMERA: default view (first / third), ADS hold-vs-toggle, ADS sensitivity + zoom speed.
+    /// (`third_person` above mirrors the *live* view for readers such as the viewmodel.)
+    pub camera: crate::present::camera3p::CameraPrefs,
     /// Last lobby settings (host).
     pub game: bd_sim::settings::GameSettings,
     /// "arena" | "tutorial" | other map ids.
@@ -426,6 +461,11 @@ impl Default for UiPrefs {
             ono_manga: false,
             shout: ShoutPref::On,
             show_percent: false,
+            summon_preview: true,
+            outlines: true,
+            outline_width: 1.0,
+            outline_patterns: false,
+            camera: Default::default(),
             game: Default::default(),
             map: "arena".into(),
             binds: KeyBinds::default().to_map(),
@@ -446,6 +486,7 @@ impl UiPrefs {
         let mut s: UiPrefs = std::fs::read_to_string(&p).ok().and_then(|t| ron::from_str(&t).ok()).unwrap_or_default();
         s.game = s.game.validated();
         s.costume.head_scale = if s.costume.head_scale.is_finite() { s.costume.head_scale.clamp(0.7, 1.35) } else { 1.0 };
+        s.outline_width = if s.outline_width.is_finite() { s.outline_width.clamp(0.5, 2.0) } else { 1.0 };
         for l in s.loadout.iter_mut() {
             l.truncate(80);
         }

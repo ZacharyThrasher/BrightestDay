@@ -68,6 +68,9 @@ pub struct Shout {
     /// The construct visual (a [`ConstructVisual`] entity): at release the letters' voxels stream
     /// into its voxels.
     pub target: Option<Entity>,
+    /// Hook (summon assembly): stream the letter voxels to this world point instead of into
+    /// `target` (e.g. the start of a hard-light beam that snaps them on as bricks). Wins over `target`.
+    pub stream_to: Option<Vec3>,
     /// The cast failed: the letters crumble instead of streaming.
     pub fizzle: bool,
     /// Cosmetic seed (letter jitter).
@@ -76,7 +79,20 @@ pub struct Shout {
 
 impl Shout {
     pub fn new(text: String, color: [f32; 3], energy: f32, local: bool, anchor: Vec3) -> Self {
-        Shout { text, color, energy, boost: 1.0, local, anchor, head: anchor, toward: anchor, target: None, fizzle: false, seed: 0 }
+        Shout {
+            text,
+            color,
+            energy,
+            boost: 1.0,
+            local,
+            anchor,
+            head: anchor,
+            toward: anchor,
+            target: None,
+            stream_to: None,
+            fizzle: false,
+            seed: 0,
+        }
     }
 }
 
@@ -88,11 +104,15 @@ pub struct ShoutSettings {
     pub max_live: usize,
     /// Stream cubes per shout at release (scaled by `FxSettings::particle_budget`).
     pub stream_cap: usize,
+    /// Other players' shouts draw on top of the world (else the construct they announce, which
+    /// forms between you and the caster, hides them). Trade-off: a shout reads through walls for
+    /// its ~1 s life (the yell is audible anyway). `false` = depth-tested.
+    pub world_on_top: bool,
 }
 
 impl Default for ShoutSettings {
     fn default() -> Self {
-        ShoutSettings { gentle: false, max_live: 8, stream_cap: 700 }
+        ShoutSettings { gentle: false, max_live: 8, stream_cap: 700, world_on_top: true }
     }
 }
 
@@ -425,7 +445,8 @@ pub fn build(app: &mut App) {
 }
 
 fn camera(q: &Query<(&Camera, &GlobalTransform, &Projection), With<Camera3d>>) -> Option<(GlobalTransform, f32, f32)> {
-    q.iter().filter(|(c, _, _)| c.is_active).max_by_key(|(c, _, _)| c.order).map(|(_, g, p)| match p {
+    // Full-window cameras only (inset viewports, e.g. the summon preview, never own the words).
+    q.iter().filter(|(c, _, _)| c.is_active && c.viewport.is_none()).max_by_key(|(c, _, _)| c.order).map(|(_, g, p)| match p {
         Projection::Perspective(p) => (*g, fin(p.fov, 1.2).clamp(0.2, 3.0), fin(p.aspect_ratio, 1.78).clamp(0.3, 5.0)),
         _ => (*g, 1.2, 1.78),
     })
@@ -484,7 +505,7 @@ fn init_shouts(
         let stagger = (0.34 / total).min(0.045);
         let jit = if settings.gentle { 0.02 } else { 0.04 + 0.03 * intensity.min(2.0) };
         let mut letters = Vec::with_capacity(text.len());
-        let mat = if s.local { mats.construct_overlay.clone() } else { mats.construct(false) };
+        let mat = if s.local || settings.world_on_top { mats.construct_overlay.clone() } else { mats.construct(false) };
         let mut order = 0usize;
         for (li, l) in lay.lines().iter().enumerate() {
             let ls = l.scale;
@@ -764,9 +785,59 @@ fn finish_shouts(
         let intensity = shout_intensity(s.energy, st.boost);
         let pal = shout_palette(s.color);
         let hidden_line = if st.far { Some(if st.line_scale[0] < st.line_scale[1] { 0u8 } else { 1u8 }) } else { None };
-        let target = if s.fizzle { None } else { s.target.and_then(|t| targets.get(t).ok()) };
+        let target = if s.fizzle || s.stream_to.is_some() { None } else { s.target.and_then(|t| targets.get(t).ok()) };
         let mut centre = Vec3::ZERO;
         let mut shown = 0usize;
+        if let Some(to) = s.stream_to.filter(|p| p.is_finite() && !s.fizzle) {
+            // Hook: every letter voxel flies to one world point (anchor 0 = world frame).
+            let total: usize =
+                st.letters.iter().filter_map(|l| glyphs.glyphs.get(&l.ch)).map(|g| g.model.voxel_count).sum::<usize>().max(1);
+            let cap = (settings.stream_cap as f32 * fx_settings.particle_budget.clamp(0.0, 1.0)).max(24.0);
+            let keep = (cap / total as f32).min(1.0);
+            for (i, l) in st.letters.iter().enumerate() {
+                let (Some(g), Ok(lgt)) = (glyphs.glyphs.get(&l.ch), letters.get(l.entity)) else { continue };
+                if Some(l.line) == hidden_line {
+                    continue;
+                }
+                centre += lgt.translation();
+                shown += 1;
+                let tf = lgt.affine() * bevy::math::Affine3A::from_translation(-g.offset);
+                let size = (g.model.voxel_size * tf.matrix3.x_axis.length() * 1.4).clamp(0.02, 0.2);
+                for part in &g.model.parts {
+                    for (vx, tint) in &part.voxels {
+                        if matches!(tint, bd_core::shape::Tint::Dark) || fx.rng.f() > keep {
+                            continue;
+                        }
+                        let wp = tf.transform_point3(v3(part.voxel_center(*vx)));
+                        let jitter = fx.rng.vec() * 0.12;
+                        let seed = fx.rng.next_u32();
+                        let life = 0.28 + 0.25 * fx.rng.f() + 0.012 * i as f32;
+                        let color = pal.slot(if fx.rng.f() < 0.75 { 0 } else { 3 });
+                        fx.emit(Emit {
+                            kind: PKind::Stream,
+                            pos: wp,
+                            vel: to + jitter,
+                            size,
+                            color,
+                            emissive: 2.6,
+                            life,
+                            anchor: 0,
+                            seed,
+                            ..default()
+                        });
+                    }
+                }
+            }
+            sfx.write(ShoutSfx {
+                phase: ShoutPhase::Release { streamed: true },
+                pos: centre / shown.max(1) as f32,
+                intensity,
+                local: s.local,
+                entity: e,
+            });
+            commands.entity(e).despawn();
+            continue;
+        }
         match target {
             Some((v, gt, anchor, crt)) => {
                 // The words become the thing: letter voxels stream into the construct's voxels.

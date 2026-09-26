@@ -247,7 +247,8 @@ fn build_glyphs(mut glyphs: ResMut<GlyphCache>, mut cache: ResMut<ConstructMeshC
 }
 
 fn camera(q: &Query<(&Camera, &GlobalTransform), With<Camera3d>>) -> Option<GlobalTransform> {
-    q.iter().filter(|(c, _)| c.is_active).max_by_key(|(c, _)| c.order).map(|(_, g)| *g)
+    // Full-window cameras only (inset viewports, e.g. the summon preview, never own the words).
+    q.iter().filter(|(c, _)| c.is_active && c.viewport.is_none()).max_by_key(|(c, _)| c.order).map(|(_, g)| *g)
 }
 
 fn hue(h: f32) -> [f32; 3] {

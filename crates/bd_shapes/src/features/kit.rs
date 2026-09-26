@@ -38,6 +38,17 @@ impl B {
         id
     }
 
+    /// Declare a role part with no machine motion (hatch, eye, blade…: the client's role behaviours
+    /// animate it) within the same budget as [`B::mpart`]; returns `parent` (and makes it current)
+    /// when the budget is spent, so callers build the geometry static.
+    pub(crate) fn rpart(&mut self, parent: PartId, pivot: Vec3, role: PartRole) -> PartId {
+        if self.spec.parts.len() + 2 > MAX_ANIMATED_PARTS || !pivot.is_finite() {
+            self.cur = parent;
+            return parent;
+        }
+        self.part(parent, pivot, role)
+    }
+
     pub(crate) fn puff(&mut self, p: PuffSpec) -> u8 {
         let k = self.machine.puffs.len();
         if k < 16 {
@@ -305,7 +316,7 @@ pub(crate) fn plow(b: &mut B, cx: f32, z: f32, y0: f32, y1: f32, w: f32) {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn rotor(b: &mut B, parent: PartId, hub: Vec3, axis: Vec3, r: f32, blades: usize, rate: f32, t: Tint) -> PartId {
     let ax = axis.normalize_or(Vec3::Y);
-    let id = b.mpart(parent, hub, PartRole::Other, MotionSpec::spin(ax, rate));
+    let id = b.mpart(parent, hub, PartRole::Rotor, MotionSpec::spin(ax, rate));
     let n = blades.clamp(2, 8);
     let bw = (r * 0.16).clamp(1.2, 3.0);
     for i in 0..n {
@@ -329,7 +340,7 @@ pub(crate) fn jet(b: &mut B, parent: PartId, front: Vec3, back: Vec3, r: f32) {
     b.cone_to(back + d * 1.5, back - d * (r * 0.8), 2.0 * r + 0.5, D);
     b.cyl(front - d * 0.6, d, (2.0 * r - 1.0).max(1.0), 1.0, D);
     rotor(b, parent, front - d * 0.8, -d, r - 0.4, 6, 22.0, Tint::Primary);
-    let flame = b.part(parent, back + d * 1.5, PartRole::Exhaust);
+    let flame = b.part(parent, back + d * 1.5, PartRole::Thruster);
     b.cone_to(back + d * 1.0, back + d * (r * 2.5 + 2.0), 2.0 * r - 0.5, C);
     let _ = flame;
     b.on(parent);
@@ -353,18 +364,28 @@ pub(crate) fn exhaust_pipe(b: &mut B, parent: PartId, at: Vec3, dir: Vec3, r: f3
 /// Turret (aim yaw) at `pos` with a pitching gun mount (aim pitch). Returns (turret, mount).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn turret(b: &mut B, parent: PartId, pos: Vec3, w: f32, l: f32, h: f32, barrel_len: f32, barrel_d: f32, twin: bool) -> (PartId, PartId) {
-    let yaw = b.mpart(parent, pos, PartRole::Other, MotionSpec::Aim { pitch: false });
+    let yaw = b.mpart(parent, pos, PartRole::Turret, MotionSpec::Aim { pitch: false });
     let c = pos + Vec3::Y * (h * 0.5);
     b.cy(pos + Vec3::Y * 0.5, w * 0.95, 1.0, D);
     b.el(c, v3(w, h, l), A);
     b.bx(c + v3(0.0, -h * 0.1, 0.0), v3(w * 0.9, h * 0.55, l * 0.85), A);
-    // Hatch + periscope.
-    b.cy(c + v3(w * 0.15, h * 0.5, l * 0.15), (w * 0.3).max(1.5), 1.0, D);
     b.bx(c + v3(-w * 0.2, h * 0.5, -l * 0.2), v3(1.0, 1.0, 1.0), C);
     b.rivets(c + v3(-w * 0.45, 0.0, -l * 0.3), c + v3(-w * 0.45, 0.0, l * 0.3), 2.0, D);
     b.rivets(c + v3(w * 0.45, 0.0, -l * 0.3), c + v3(w * 0.45, 0.0, l * 0.3), 2.0, D);
+    // Commander's hatch (its own hinged part: pops open for the crew, clunks shut). The hole is
+    // cut first so the lid never overlaps the turret shell.
+    let hc = c + v3(w * 0.15, h * 0.5, l * 0.15);
+    let hd = (w * 0.3).max(1.5);
+    let hatch = b.rpart(yaw, hc + v3(0.0, 0.0, hd * 0.5), PartRole::Hatch);
+    if hatch != yaw {
+        b.cut(PrimKind::Cylinder, hc, v3(hd, 1.0, hd), Vec3::ZERO);
+        b.on(hatch);
+    }
+    b.cy(hc, hd, 1.0, D);
+    b.bx(hc + v3(0.0, 0.5, 0.0), v3((hd * 0.5).max(1.0), 1.0, 1.0), A);
+    b.on(yaw);
     let trunnion = c + v3(0.0, 0.0, -l * 0.42);
-    let pitch = b.mpart(yaw, trunnion, PartRole::Other, MotionSpec::Aim { pitch: true });
+    let pitch = b.mpart(yaw, trunnion, PartRole::Barrel, MotionSpec::Aim { pitch: true });
     b.bx(trunnion, v3((w * 0.5).max(2.0), (h * 0.55).max(2.0), 2.0), D);
     let xs: &[f32] = if twin { &[-1.0, 1.0] } else { &[0.0] };
     for &s in xs {
@@ -640,7 +661,7 @@ pub(crate) fn piston(b: &mut B, parent: PartId, base: Vec3, dir: Vec3, len: f32,
     b.seg(PrimKind::Cylinder, base, cyl_end, d + 1.0, d + 1.0, D);
     b.seg(PrimKind::Cylinder, cyl_end - dd * 0.5, cyl_end + dd * 0.5, d + 2.0, d + 2.0, A);
     b.cyl(base, dd, d + 2.0, 1.0, A);
-    let id = b.mpart(parent, cyl_end, PartRole::Other, MotionSpec::Slide { axis: dd, amp: (len * 0.18).max(0.6), hz, per_m, phase });
+    let id = b.mpart(parent, cyl_end, PartRole::Piston, MotionSpec::Slide { axis: dd, amp: (len * 0.18).max(0.6), hz, per_m, phase });
     b.seg(PrimKind::Cylinder, cyl_end - dd * (len * 0.2), base + dd * len, (d - 1.0).max(1.0), (d - 1.0).max(1.0), C);
     b.el(base + dd * len, Vec3::splat(d + 0.5), A);
     b.on(parent);
@@ -679,8 +700,22 @@ pub(crate) fn cab(b: &mut B, c: Vec3, w: f32, h: f32, l: f32) {
     b.rivets(v3(c.x + w * 0.5 + 0.3, c.y - h * 0.4, c.z - l * 0.45), v3(c.x + w * 0.5 + 0.3, c.y - h * 0.4, c.z + l * 0.45), 2.0, D);
 }
 
-/// Glass canopy (glowing) with frame ribs, centred at `c`.
+/// Glass canopy (glowing) with frame ribs, centred at `c` — its own Hatch part (child of the
+/// current part) hinged at the rear sill, so it lifts open for the pilot. The cockpit well is cut
+/// out of the body first (open canopy = you see into the cockpit; closed = no overlapping voxels).
 pub(crate) fn canopy(b: &mut B, c: Vec3, w: f32, h: f32, l: f32) {
+    let parent = b.cur;
+    let id = b.rpart(parent, c + v3(0.0, -h * 0.5, l * 0.5), PartRole::Hatch);
+    if id != parent {
+        b.cut(PrimKind::Ellipsoid, c, v3(w, h * 2.0, l), Vec3::ZERO);
+        b.cut(PrimKind::Box, c - Vec3::Y * (h * 0.5), v3(w + 1.0, 1.0, l + 1.0), Vec3::ZERO);
+        b.on(id);
+    }
+    canopy_glass(b, c, w, h, l);
+    b.on(parent);
+}
+
+fn canopy_glass(b: &mut B, c: Vec3, w: f32, h: f32, l: f32) {
     b.el(c, v3(w, h * 2.0, l), C);
     b.bx(c - Vec3::Y * (h * 0.5), v3(w + 1.0, 1.0, l + 1.0), D);
     b.bar(c + v3(0.0, h * 0.95, -l * 0.45), c + v3(0.0, h * 0.95, l * 0.45), 1.0, A);
@@ -702,10 +737,14 @@ pub(crate) fn window_row(b: &mut B, x: f32, y: f32, z0: f32, z1: f32, size: f32)
     }
 }
 
-/// Tail fin from `root` to `tip` (flat, in the plane containing both and `normal`).
+/// Tail fin from `root` to `tip` (flat, in the plane containing both and `normal`) — its own Fin
+/// part pivoting at the root (flexes with turns / speed on the client).
 pub(crate) fn fin(b: &mut B, root: Vec3, tip: Vec3, chord: f32, normal: Vec3) {
+    let parent = b.cur;
+    b.rpart(parent, root, PartRole::Fin);
     b.flat(PrimKind::Cone, root, tip, chord, 1.0, normal, A);
     b.flat(PrimKind::Box, root, root.lerp(tip, 0.4), 1.0, 1.2, normal, D);
+    b.on(parent);
 }
 
 /// Crank-slider assembly on one side of a locomotive (all parts parented to `parent`).

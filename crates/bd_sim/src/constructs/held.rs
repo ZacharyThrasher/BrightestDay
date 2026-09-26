@@ -34,7 +34,7 @@ use bd_core::input::buttons;
 use bd_core::mechanics::{Element, Form, FormCategory, Mechanic};
 use bd_core::voxel::{VoxelQuery, raycast, world_to_voxel};
 use bd_core::{ConstructId, PlayerId, Quat, Vec3};
-use bd_shapes::{SwingCurve, SwingKind, swing_curve};
+use bd_shapes::{SwingCurve, SwingKind, swing_curve_weighted};
 use glam::Affine3A;
 
 use super::{AnimState, Construct, ConstructCtx, ConstructOut, ConstructStore, Driver, Env, Loco, PlayerView, form_spec, player_key};
@@ -240,22 +240,60 @@ const HELD_FORMS: [Form; 12] = [
     Form::Disc,
 ];
 
-static CURVES: OnceLock<Vec<SwingCurve>> = OnceLock::new();
+/// Swing curves are mass-scaled (`bd_shapes::swing_curve_weighted`, DESIGN.md "Weight & power
+/// fantasy"): the construct's `bd_shapes::weight_of(recipe)` is quantised to 0.1 steps over
+/// 0.6..=2.2 so the curves can be built once per bin. Host, client prediction and the client's
+/// animation all derive the bin from the same replicated recipe ([`swing_weight`]), so the hitbox
+/// sweeps exactly the curve that is drawn.
+pub const WEIGHT_BINS: usize = 17;
 
-/// The swing curve the client animates for `form` / `swing` (built once, then shared; no per-tick
-/// allocation).
+/// Bin of a weight factor (`weight_of`); non-finite → the authored bin (weight 1).
+pub fn weight_bin(w: f32) -> usize {
+    if !w.is_finite() {
+        return 4;
+    }
+    (((w.clamp(0.6, 2.2) - 0.6) * 10.0).round() as usize).min(WEIGHT_BINS - 1)
+}
+
+/// Weight factor of a bin (bin 4 = exactly 1.0 = the authored curves).
+pub fn bin_weight(bin: usize) -> f32 {
+    (6 + bin.min(WEIGHT_BINS - 1)) as f32 / 10.0
+}
+
+/// The (quantised) weight the swing curves of `recipe` are built for — use it on the client too.
+pub fn swing_weight(recipe: &bd_core::mechanics::Recipe) -> f32 {
+    bin_weight(weight_bin(bd_shapes::weight_of(recipe)))
+}
+
+static CURVES: [OnceLock<Vec<SwingCurve>>; WEIGHT_BINS] = [const { OnceLock::new() }; WEIGHT_BINS];
+
+/// The authored (weight 1) swing curve for `form` / `swing` (built once, then shared).
 pub fn curve(form: Form, swing: Swing) -> Option<&'static SwingCurve> {
-    let table = CURVES.get_or_init(|| {
+    curve_weighted(form, swing, 1.0)
+}
+
+/// The swing curve the client animates for `form` / `swing` at weight factor `weight` (quantised
+/// with [`weight_bin`]; each bin's table is built once on first use, then shared — no per-tick
+/// allocation).
+pub fn curve_weighted(form: Form, swing: Swing, weight: f32) -> Option<&'static SwingCurve> {
+    let bin = weight_bin(weight);
+    let table = CURVES[bin].get_or_init(|| {
+        let w = bin_weight(bin);
         let mut v = Vec::with_capacity(HELD_FORMS.len() * Swing::ALL.len());
         for f in HELD_FORMS {
             for s in Swing::ALL {
-                v.push(swing_curve(f, s.kind()));
+                v.push(swing_curve_weighted(f, s.kind(), w));
             }
         }
         v
     });
     let fi = HELD_FORMS.iter().position(|f| *f == form).unwrap_or(0);
     table.get(fi * Swing::ALL.len() + swing as usize)
+}
+
+/// The curve construct `c` swings along (its recipe's weight bin).
+fn curve_of(c: &Construct, swing: Swing) -> Option<&'static SwingCurve> {
+    curve_weighted(c.recipe.form, swing, bd_shapes::weight_of(&c.recipe))
 }
 
 /// Hand frame: origin at the hand, −Z along the look (bd_shapes swing convention).
@@ -440,7 +478,7 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
         Mode::Charge => {
             s.charge += dt;
             s.guarding = false;
-            if let Some(cv) = curve(c.recipe.form, Swing::Heavy) {
+            if let Some(cv) = curve_of(c, Swing::Heavy) {
                 pose_on_curve(c, &o, cv, cv.hold_at);
             }
             if !h1 || s.charge >= CHARGE_MAX {
@@ -452,7 +490,7 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
                 }
                 s.mode = Mode::Swing;
                 s.swing = Swing::Heavy;
-                s.t = curve(c.recipe.form, Swing::Heavy).map_or(0.0, |cv| cv.hold_at);
+                s.t = curve_of(c, Swing::Heavy).map_or(0.0, |cv| cv.hold_at);
                 s.opened = false;
                 c.hits.clear();
                 s.terrain_hit = false;
@@ -590,7 +628,7 @@ fn pose_on_curve(c: &mut Construct, o: &PlayerView, cv: &SwingCurve, t: f32) {
 fn swing_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, h1: bool, p1: bool) {
     let o = env.owner;
     let form = c.recipe.form;
-    let Some(cv) = curve(form, s.swing) else {
+    let Some(cv) = curve_of(c, s.swing) else {
         s.mode = Mode::Idle;
         return;
     };
@@ -771,6 +809,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     }
     let heavy_terrain = s.swing == Swing::Heavy && (form == Form::Hammer || c.has(Mechanic::Blunt) || c.has(Mechanic::Heavy) || form == Form::Axe);
     for (_, m) in cv.sweep(t0, t1, 0.2) {
+        let m = frame * m; // curve samples are hand-local (like `m0` above); the hitbox is world space
         let mut cur = [Vec3::ZERO; 4];
         for k in 0..n {
             cur[k] = m.transform_point3(local[k]);
@@ -1410,6 +1449,30 @@ mod tests {
         let b = curve(Form::Sword, Swing::Combo2).map(|c| c as *const SwingCurve);
         assert_eq!(a, b);
         assert_eq!(curve(Form::Sword, Swing::Combo2).map(|c| c.name.as_str()), Some("sword_overhead_finisher"));
+    }
+
+    #[test]
+    fn weighted_curves_are_deterministic_and_mass_scaled() {
+        // Weight 1 is exactly the authored curve (bit-identical: no change for nominal items).
+        assert_eq!(bin_weight(weight_bin(1.0)), 1.0);
+        for f in HELD_FORMS {
+            for s in Swing::ALL {
+                assert_eq!(curve_weighted(f, s, 1.0).cloned(), Some(bd_shapes::swing_curve(f, s.kind())));
+            }
+        }
+        // Quantisation is a pure function of the weight (host and client pick the same bin).
+        for k in 0..400 {
+            let w = 0.5 + k as f32 * 0.0047;
+            assert_eq!(weight_bin(w), weight_bin(w));
+            assert!(weight_bin(w) < WEIGHT_BINS);
+        }
+        assert_eq!(weight_bin(f32::NAN), weight_bin(1.0));
+        // Heavy hammers wind up longer than light swords; the same (form, swing, bin) is shared.
+        let heavy = curve_weighted(Form::Hammer, Swing::Primary, 2.2).expect("curve");
+        let light = curve_weighted(Form::Hammer, Swing::Primary, 0.6).expect("curve");
+        assert!(heavy.anticipation > light.anticipation);
+        let a = curve_weighted(Form::Hammer, Swing::Primary, 2.21).map(|c| c as *const SwingCurve);
+        assert_eq!(a, Some(heavy as *const SwingCurve));
     }
 
     #[test]

@@ -45,6 +45,14 @@ pub struct CombatTuning {
     pub snowball: AntiSnowball,
     /// CHARGE HOOK: hold-to-power-up refill + movement (`crate::charge`).
     pub charge: crate::charge::ChargeTuning,
+    /// BOUNDS HOOK: tether save + construct recall (`world/bounds.rs`, COMBAT.md §1a / §3).
+    pub bounds: crate::world::bounds::BoundsTuning,
+    /// BOUNDS HOOK: visible summon placement + construct lifetimes (`world/bounds.rs`, COMBAT.md §3).
+    pub summon: crate::world::bounds::SummonTuning,
+    /// ASSIST HOOK: melee lunge + hook-and-strike (`crate::melee_assist`, `crate::hook`).
+    pub assist: crate::melee_assist::AssistTuning,
+    /// SIGNATURE HOOK: signature casts (`crate::signature`, COMBAT.md §5j).
+    pub signature: crate::signature::SignatureTuning,
 }
 
 impl Default for CombatTuning {
@@ -60,6 +68,10 @@ impl Default for CombatTuning {
             construct: ConstructTuning::default(),
             snowball: AntiSnowball::default(),
             charge: crate::charge::ChargeTuning::default(),
+            bounds: crate::world::bounds::BoundsTuning::default(),
+            summon: crate::world::bounds::SummonTuning::default(),
+            assist: crate::melee_assist::AssistTuning::default(),
+            signature: crate::signature::SignatureTuning::default(),
         }
     }
 }
@@ -928,6 +940,10 @@ impl CombatTuning {
         self.construct = self.construct.validated();
         self.snowball = self.snowball.validated();
         self.charge = self.charge.validated();
+        self.bounds = self.bounds.validated();
+        self.summon = self.summon.validated();
+        self.assist = self.assist.validated(); // ASSIST HOOK
+        self.signature = self.signature.validated(); // SIGNATURE HOOK
         self
     }
 

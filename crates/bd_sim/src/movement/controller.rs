@@ -4,9 +4,9 @@
 //! 1. timers, input edges; depenetrate (things may have moved into us)
 //! 2. crouch / stand
 //! 3. tethers: fire / release / hook flight / anchor refresh, then rope pull + reel (+ lift-off)
-//! 4. jump (before friction ⇒ bhop keeps speed)
+//! 4. jump (before friction ⇒ bhop keeps speed); 4b. air jump (`air_jump.rs`)
 //! 5. ground (friction+accel or slide) / air (air-accel + gravity + modifiers), flight thrust
-//! 6. gas boost
+//! 6. gas boost; 6b. dodge (`dodge.rs`)
 //! 7. rope constraint (inextensible, ratcheting)
 //! 8. speed caps
 //! 9. collide-and-slide with step-up (swept, never tunnels)
@@ -163,6 +163,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     // far outside legitimate play, so normal ticks are bit-identical with or without this.
     s.vel = clamp_speed(s.vel, p.hard_cap_speed * 4.0);
     sanitize_mods(&mut s.mods);
+    s.extra.sanitize();
     let inp = Inp::new(input, s.prev_buttons & BUTTON_BITS);
     let mut chain = s.hop_chain.min(HOP_CHAIN_MAX);
     let speed0 = s.horizontal_speed();
@@ -223,6 +224,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
         ev.jumped = true;
         ev.perfect_hop = fresh && touchdown;
     }
+    super::air_jump::air_jump(s, &inp, input, world, p, jumped, &mut ev); // AIR JUMP (4b)
 
     // ---------------------------------------------------------------- 5. ground / air
     let g = p.gravity * s.mods.gravity_scale;
@@ -293,6 +295,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
 
     // ---------------------------------------------------------------- 6. gas boost
     update_boost(s, &inp, p, dt, &mut ev);
+    super::dodge::step(s, &inp, input, p, dt, jumped || ev.air_jumped, &mut ev); // DODGE (6b)
 
     // ---------------------------------------------------------------- 7. ropes
     tether::constrain_velocity(s, p, dt);
@@ -336,6 +339,9 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     // Hop chain: broken by real ground friction (stayed down past the grace) or a slide.
     if s.grounded && (s.sliding || s.since_landing >= p.land_grace) {
         chain = 0;
+    }
+    if s.grounded || ev.tether_attached.iter().any(|a| *a) {
+        s.extra.restore(); // AIR JUMP / DODGE: back on landing and on a tether attach
     }
     s.prev_buttons = inp.held;
     s.hop_chain = chain;

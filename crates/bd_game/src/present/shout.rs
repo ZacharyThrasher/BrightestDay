@@ -513,7 +513,8 @@ fn shout_demo(
             let eye = spot + Vec3::Y * 1.6;
             let dir = (anchor.eye - eye).normalize_or(Vec3::NEG_Z);
             let side = Vec3::Y.cross(dir).normalize_or(Vec3::X);
-            let aim = bd_sim::Aim::new(super::gv(eye), super::gv((dir + side * 0.6).normalize_or(dir)));
+            // Cast across our view (not at us: the demo is for looking at the words).
+            let aim = bd_sim::Aim::new(super::gv(eye), super::gv((side + dir * 0.25).normalize_or(side)));
             demo.casts.push((
                 bot,
                 Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation: false },

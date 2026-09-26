@@ -17,6 +17,11 @@ pub mod buttons {
     pub const TYPING: u16 = 1 << 8;
     /// Held: charge (power up) — slowly refills willpower; can't act; feet planted. (v1.4)
     pub const CHARGE: u16 = 1 << 9;
+    /// Held: aim down sights (a held gun's aim button). Accuracy only (tighter pellet spread);
+    /// never read by movement. (v1.4, camera)
+    pub const ADS: u16 = 1 << 10;
+    /// Press: dodge — a short intangible burst along WASD (backward with no keys). (movement)
+    pub const DODGE: u16 = 1 << 11;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]

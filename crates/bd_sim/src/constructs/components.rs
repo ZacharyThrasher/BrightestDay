@@ -1049,7 +1049,7 @@ pub fn react(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         if c.body.supported && c.vel.length_squared() < 0.25 {
             c.comp.rest_t += dt;
             if c.comp.rest_t > 1.0 && !eff_has(c, Mechanic::Transforms) {
-                c.life = c.life.min(c.age + 1.0);
+                c.life = c.life.min(c.age + env.ctx.tuning.summon.object_rest_linger); // BOUNDS HOOK (was 1 s)
             }
         } else {
             c.comp.rest_t = 0.0;
@@ -1180,7 +1180,7 @@ fn on_terrain_contact(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, 
         }
         if c.category == FormCategory::Object {
             // Landed: an obstacle for a moment (anvils on ramps slide on, though).
-            c.life = c.life.min(c.age + 2.0);
+            c.life = c.life.min(c.age + env.ctx.tuning.summon.object_landed_linger); // BOUNDS HOOK (was 2 s)
         }
     } else if eff_has(c, Mechanic::Stomp) && speed > 8.0 && normal.y > 0.5 && !creature {
         stomp(c, env, out, 1.0, false);

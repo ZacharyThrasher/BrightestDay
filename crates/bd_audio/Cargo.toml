@@ -6,7 +6,7 @@ license.workspace = true
 description = "Brightest Day's real-time software mixer: buses, shared reverb, occlusion, HDR loudness, snapshots, ambience"
 
 [features]
-default = ["device", "sim"]
+default = ["device", "sim", "music"]
 # Real output device (one cpal output stream, low-latency buffer). Off = offline rendering only.
 device = ["dep:cpal"]
 # GameEvent / MoveEvents -> cue mapping (the same mapping the client and the offline renderer use).

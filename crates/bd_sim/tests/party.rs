@@ -84,7 +84,11 @@ fn ffa_cfg() -> SimConfig {
 // were such self-falls under the Smash model; bots.rs only — the sim itself is unchanged).
 // Re-recorded for hitscan guns + human-like bot aim (reaction delay, tracking lag, jitter,
 // overshoot) and the faster, fatter ring blast (180 m/s, r 0.35) — deliberate combat / bot changes.
-const FFA_NOCAST_STATE_HASH: u64 = 0x2af1_c836_0da9_ac04;
+// Re-recorded (was 0x2af1_c836_0da9_ac04) for the tether-save bot fix (bots.rs only): a bot's rescue
+// rope no longer counts a cliff-edge anchor right above it as "reached" and lets go into the void, and
+// it holds on while hanging past a blast zone. A/B verified: the same tree with just that bot line
+// reverted reproduces the old hash (the tether save / recall / placement sim changes alone don't move it).
+const FFA_NOCAST_STATE_HASH: u64 = 0x89ad_f394_3982_9573;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {

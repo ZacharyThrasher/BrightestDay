@@ -31,8 +31,10 @@ pub struct TetherRenderPlugin;
 
 impl Plugin for TetherRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_ropes)
-            .add_systems(PostUpdate, update_ropes.after(CameraUpdateSet).before(TransformSystems::Propagate));
+        app.add_systems(Startup, spawn_ropes).add_systems(
+            PostUpdate,
+            update_ropes.after(CameraUpdateSet).after(crate::viewmodel::HandsPublishSet).before(TransformSystems::Propagate),
+        );
     }
 }
 
@@ -71,6 +73,7 @@ fn update_ropes(
     look: Res<LookAngles>,
     tuning: Res<MoveTuning>,
     player: Query<&PlayerSim, With<LocalPlayer>>,
+    hands: Res<crate::viewmodel::ViewmodelHands>,
     mut segs: Query<(&RopeSegment, &mut Transform, &mut Visibility), Without<HookHead>>,
     mut heads: Query<(&HookHead, &mut Transform, &mut Visibility), Without<RopeSegment>>,
 ) {
@@ -92,7 +95,8 @@ fn update_ropes(
             }
             let side = if i == 0 { -1.0 } else { 1.0 };
             // Start slightly below/forward of the eye so the rope enters the view from the hand.
-            let start = anchor.eye + right * (side * ho.x) + up * ho.y.min(-0.25) + fwd * ho.z.max(0.35);
+            // First person: the rope leaves the animated glove (this frame's camera).
+            let start = if hands.active { hands.world[i] } else { anchor.eye + right * (side * ho.x) + up * ho.y.min(-0.25) + fwd * ho.z.max(0.35) };
             let end = if hook.phase == HookPhase::Flying && sim.prev.hooks[i].phase == HookPhase::Flying {
                 v3(sim.prev.hooks[i].pos).lerp(v3(hook.pos), clock.alpha)
             } else {

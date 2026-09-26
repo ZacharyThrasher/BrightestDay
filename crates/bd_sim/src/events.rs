@@ -86,6 +86,10 @@ pub mod move_flags {
     pub const TETHER_RELEASE: u16 = 1 << 6;
     pub const BOOST: u16 = 1 << 7;
     pub const WALL_HIT: u16 = 1 << 8;
+    /// The one air jump (hard-light step under the feet).
+    pub const AIR_JUMP: u16 = 1 << 9;
+    /// A dodge started (hard-light streak).
+    pub const DODGE: u16 = 1 << 10;
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -284,6 +288,13 @@ pub enum GameEvent {
     /// CHARGE HOOK: a player's power-up started / filled the pool / was broken by a hit / was
     /// released (`held` = seconds into the charge). The aura itself follows `pflags::CHARGING`.
     Charge { player: PlayerId, kind: crate::charge::ChargeEvent, held: f32 },
+    /// BOUNDS HOOK (`world/bounds.rs`): a construct left the map (blast zone / void) and blinked
+    /// back next to its summoner at `to` (velocity zeroed). `from` = where it was lost. The client
+    /// plays a hard-light blink-in at `to`; the snapshot already carries the new transform.
+    ConstructRecalled { id: ConstructId, owner: PlayerId, from: Vec3, to: Vec3 },
+    /// ASSIST HOOK (`crate::melee_assist`, `crate::hook`): `player` lunged at `other`, hooked
+    /// `other` with a tether, lost that rope (why), reeled in for a slam, or landed the slam.
+    Assist { player: PlayerId, other: Option<PlayerId>, kind: crate::hook::AssistEvent, pos: Vec3 },
 }
 
 /// What [`GameEvent::HeldFx`] reports (COMBAT.md §4 Held / Worn, §4b, §5d).

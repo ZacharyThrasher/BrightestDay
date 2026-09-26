@@ -69,6 +69,9 @@ fn main() {
             println!("  payload: {} {:?} {:?} el={:?} n={}", pl.name, pl.form, pl.mechanics, pl.element, pl.count);
         }
         println!("  graft: {:?} el={:?} x{:.2} feat={:?}", r.graft.mechanics, r.graft.element, r.graft.scale_mul, r.graft.features);
+        if let Some(s) = &r.signature {
+            println!("  SIGNATURE {:?} \"{}\" via {:?}", s.kind, s.title, s.invocation);
+        }
         for e in &r.explanation {
             println!("    - {e}");
         }

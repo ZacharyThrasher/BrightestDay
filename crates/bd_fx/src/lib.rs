@@ -34,7 +34,9 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
 mod arcs;
+mod assembly;
 mod aura;
+pub mod beacon; // tracking primitives: lantern beacon pillar, x-ray strokes, tapered strokes
 mod construct;
 mod effects;
 mod extras;
@@ -44,6 +46,7 @@ mod guns;
 mod material;
 mod meshing;
 mod onomatopoeia;
+pub mod outline; // player outlines: inverted-hull material + params buffer (OutlinePlugin)
 pub mod palette;
 mod particles;
 mod shout;
@@ -51,7 +54,8 @@ mod transformers;
 mod util;
 mod warmup;
 
-pub use construct::{AnimLayers, AutoForm, ConstructEnd, ConstructMeshCache, ConstructParts, ConstructVisual, ModelKey};
+pub use assembly::ConstructAssembly;
+pub use construct::{AnimLayers, AutoForm, ConstructEnd, ConstructMeshCache, ConstructParts, ConstructVisual, ModelKey, PartOverlay};
 pub use meshing::VoxelColors;
 pub use arcs::{ArcFx, ZapFx};
 pub use aura::{AuraBurstFx, ChargeAuraFx};

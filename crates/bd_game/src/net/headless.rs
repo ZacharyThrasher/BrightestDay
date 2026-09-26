@@ -281,8 +281,8 @@ pub fn run_client(cli: &NetCli) -> i32 {
                     if let Some((r, aim)) = act.cast {
                         c.send_cmd(&Cmd::Cast { recipe: Box::new(r), shape: None, alt_shape: None, aim, incantation: false });
                     }
-                    if act.begin_oath {
-                        c.send_cmd(&Cmd::OathBegin);
+                    if let Some(section) = act.begin_oath {
+                        c.send_cmd(&Cmd::OathBegin { section });
                     }
                     if let Some((accuracy, seconds)) = act.finish_oath {
                         c.send_cmd(&Cmd::OathResult { accuracy, seconds });

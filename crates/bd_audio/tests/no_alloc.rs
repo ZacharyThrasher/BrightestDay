@@ -146,3 +146,31 @@ fn guard_detects_allocation() {
     assert!(allocs() > before, "the counting allocator must see this");
     drop(v);
 }
+
+/// The real soundtrack (bd_music's player) on the Music bus: still no heap traffic while
+/// rendering, including track switches, style changes, stingers and tempo ramps.
+#[cfg(feature = "music")]
+#[test]
+fn chip_music_on_the_bus_never_allocates() {
+    let lib = std::sync::Arc::new(bd_music::MusicLibrary::load_dir(&bd_music::default_music_dir()).expect("music"));
+    let (mut e, mut m) = AudioEngine::new(bank(), &CueTable::default(), MixConfig::default(), 48000, 1);
+    e.set_music(Box::new(bd_audio::music::ChipMusic::new(lib.clone(), 48000)));
+    let tracks: Vec<u16> = ["menu", "archipelago_combat", "miami"].iter().filter_map(|n| lib.track_id(n)).map(|t| t.0).collect();
+    let mut out = vec![0.0f32; 480 * 2];
+    m.process(&mut out, 2);
+    for (round, t) in tracks.iter().cycle().take(9).enumerate() {
+        e.music(MusicCommand::Play { track: *t, skip_intro: false });
+        e.music(MusicCommand::Style((round % 3) as u8));
+        e.music(MusicCommand::Stinger((round % 6) as u8));
+        e.music(MusicCommand::Tempo { multiplier: 1.0 + round as f32 * 0.02, ramp_secs: 0.5 });
+        let before = allocs();
+        armed(|| {
+            for _ in 0..200 {
+                m.process(&mut out, 2);
+            }
+        });
+        assert_eq!(allocs(), before, "music render allocated in round {round}");
+        assert!(out.iter().all(|x| x.is_finite()));
+        e.advance(0.016);
+    }
+}

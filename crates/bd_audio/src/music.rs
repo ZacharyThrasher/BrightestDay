@@ -14,7 +14,6 @@ use bd_music::{MusicLibrary, MusicPlayer, StingerKind, TrackId};
 use serde::{Deserialize, Serialize};
 
 use crate::director::Scene;
-use crate::dsp::Rng;
 use crate::engine::AudioEngine;
 use crate::mixer::{MusicCommand, MusicSource};
 
@@ -43,13 +42,17 @@ impl MusicSource for ChipMusic {
                 Some(&k) => bd_music::MusicCommand::Stinger(k),
                 None => return,
             },
+            MusicCommand::Style(s) => bd_music::MusicCommand::SetStyle(match s {
+                1 => bd_music::Style::Remix(None),
+                2 => bd_music::Style::Shuffle,
+                _ => bd_music::Style::Classic,
+            }),
         };
         self.player.command(c);
     }
-    fn sub_bass(&self) -> bool {
-        // REMIX HOOK: when bd_music's variant API lands, return the current track's `sub_bass`
-        // flag (e.g. `self.player.status().track` → `library().track(id).sub_bass`).
-        false
+    fn sub_bass_hpf(&self) -> Option<f32> {
+        let s = self.player.status();
+        s.sub_bass.then_some(s.hpf_hz)
     }
 }
 
@@ -59,9 +62,9 @@ pub enum MusicStyle {
     /// The chip arrangements.
     #[default]
     Classic,
-    /// The remix variants (808 / sub-bass) where a track has one.
+    /// The remix variants (house, lofi, synthwave, trap, dnb, phonk, chip-EDM; 808 sub-bass).
     Remixes,
-    /// Pick per track change.
+    /// Mix of both per track.
     Shuffle,
 }
 
@@ -102,17 +105,18 @@ pub struct MusicInputs {
 pub struct MusicDirector {
     lib: Arc<MusicLibrary>,
     pub style: MusicStyle,
+    sent_style: Option<MusicStyle>,
     current: Option<&'static str>,
     fighting: bool,
     calm_for: f32,
     since_ko: f32,
-    rng: Rng,
     ended: bool,
 }
 
 impl MusicDirector {
     pub fn new(lib: Arc<MusicLibrary>, style: MusicStyle, seed: u64) -> Self {
-        Self { lib, style, current: None, fighting: false, calm_for: 0.0, since_ko: 99.0, rng: Rng::new(seed ^ 0x6d75), ended: false }
+        let _ = seed;
+        Self { lib, style, sent_style: None, current: None, fighting: false, calm_for: 0.0, since_ko: 99.0, ended: false }
     }
 
     pub fn current(&self) -> Option<&'static str> {
@@ -158,31 +162,18 @@ impl MusicDirector {
         }
     }
 
-    /// Resolve a track under the Style setting (remix variants when present).
-    fn resolve(&mut self, name: &str) -> Option<TrackId> {
-        let remix = match self.style {
-            MusicStyle::Classic => false,
-            MusicStyle::Remixes => true,
-            MusicStyle::Shuffle => self.rng.f32() < 0.5,
-        };
-        if remix {
-            // REMIX HOOK: variant naming is up to bd_music; `<name>_remix` is tried first.
-            let mut buf = [0u8; 64];
-            let n = name.len().min(56);
-            buf[..n].copy_from_slice(&name.as_bytes()[..n]);
-            buf[n..n + 6].copy_from_slice(b"_remix");
-            if let Ok(s) = std::str::from_utf8(&buf[..n + 6])
-                && let Some(id) = self.lib.track_id(s)
-            {
-                return Some(id);
-            }
-        }
-        self.lib.track_id(name)
-    }
-
     /// Per frame.
     pub fn update(&mut self, dt: f32, inp: &MusicInputs, engine: &mut AudioEngine) {
         self.since_ko += dt.max(0.0);
+        if self.sent_style != Some(self.style) {
+            self.sent_style = Some(self.style);
+            let s = match self.style {
+                MusicStyle::Classic => 0,
+                MusicStyle::Remixes => 1,
+                MusicStyle::Shuffle => 2,
+            };
+            engine.music(MusicCommand::Style(s));
+        }
         if inp.results.is_some() && inp.scene == Scene::InGame {
             if !self.ended {
                 self.ended = true;
@@ -195,7 +186,7 @@ impl MusicDirector {
         let want = self.want(inp, dt);
         if self.current != Some(want) {
             // Victory/defeat end the track by themselves; results music follows once it has.
-            if let Some(id) = self.resolve(want) {
+            if let Some(id) = self.lib.track_id(want) {
                 engine.music(MusicCommand::Play { track: id.0, skip_intro: false });
             }
             self.current = Some(want);

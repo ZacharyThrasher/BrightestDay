@@ -120,6 +120,9 @@ pub struct MoveParams {
     pub hand_offset: Vec3,
     /// Crosshair aim-assist cone (degrees) used when the centre ray finds no anchor.
     pub aim_assist_deg: f32,
+    /// ASSIST HOOK (hook-and-strike): a rope on a *player* pulls along its direction tilted up by
+    /// this much (a reel yanks you off the ground in a flat arc instead of dragging you).
+    pub hook_player_lift: f32,
 
     // ---------------------------------------------------------------- gas boost
     pub gas_max: f32,
@@ -145,6 +148,24 @@ pub struct MoveParams {
     /// Glide: fraction of fall speed redirected per second (scaled by `MoveModifiers::glide`).
     pub glide_rate: f32,
     pub glide_efficiency: f32,
+
+    // ---------------------------------------------------------------- air jump & dodge (`air_jump.rs`, `dodge.rs`)
+    /// One air jump per airtime: vertical speed is raised to at least this (m/s) × `jump_mult`.
+    pub air_jump_speed: f32,
+    /// Fraction (0..1) of the angle between the horizontal velocity and WASD that an air jump turns
+    /// the velocity through. Speed is never added.
+    pub air_jump_redirect: f32,
+    /// No air jump this soon (s) after leaving the ground (a wheel / double-tap after a hop).
+    pub air_jump_delay: f32,
+    /// Dodge: distance (m) covered over `dodge_time` on top of the kept velocity.
+    pub dodge_distance: f32,
+    pub dodge_time: f32,
+    /// Speed (m/s) carried along the dodge afterwards (total never above max(pre-dodge, run speed)).
+    pub dodge_exit_speed: f32,
+    /// Seconds between dodges (ground or air; an air dodge is also once per airtime).
+    pub dodge_cooldown: f32,
+    /// Seconds after the dodge starts during which attacks pass through (see `crate::dodge`).
+    pub dodge_iframes: f32,
 }
 
 impl Default for MoveParams {
@@ -212,6 +233,7 @@ impl Default for MoveParams {
             tether_lift_frac: 0.5,
             hand_offset: Vec3::new(0.35, -0.25, 0.2),
             aim_assist_deg: 3.0,
+            hook_player_lift: 0.5,
 
             gas_max: 100.0,
             boost_accel: 30.0,
@@ -229,6 +251,15 @@ impl Default for MoveParams {
 
             glide_rate: 2.5,
             glide_efficiency: 0.85,
+
+            air_jump_speed: 8.0,
+            air_jump_redirect: 0.3,
+            air_jump_delay: 0.1,
+            dodge_distance: 4.0,
+            dodge_time: 0.15,
+            dodge_exit_speed: 5.0,
+            dodge_cooldown: 1.1,
+            dodge_iframes: 0.13,
         }
     }
 }

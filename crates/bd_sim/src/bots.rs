@@ -170,7 +170,8 @@ impl AimProfile {
 pub struct BotAction {
     pub input: PlayerInput,
     pub cast: Option<(Recipe, Aim)>,
-    pub begin_oath: bool,
+    /// Start reciting this oath section (bots rotate through the sections like players do).
+    pub begin_oath: Option<u8>,
     /// (accuracy, seconds)
     pub finish_oath: Option<(f32, f32)>,
     pub dismiss: bool,
@@ -207,8 +208,14 @@ pub struct BotBrain {
     tether_dir: Option<Vec3>,
     cast_cd: f32,
     oath_plan: Option<(Tick, f32, f32)>,
+    /// Next oath section to recite (rotates, never the same one twice in a row).
+    oath_section: u8,
     seq: u32,
     last_ground: Vec3,
+    /// ASSIST HOOK: hook-and-strike attempt (`crate::hook::bot_hook_plan`).
+    hook: crate::hook::BotHook,
+    /// DODGE HOOK: air jump + dodge decisions (`crate::dodge::bot_moves`).
+    moves: crate::dodge::BotMoves,
 }
 
 impl BotBrain {
@@ -245,8 +252,11 @@ impl BotBrain {
             tether_dir: None,
             cast_cd,
             oath_plan: None,
+            oath_section: 0,
             seq: 0,
             last_ground: Vec3::ZERO,
+            hook: Default::default(),
+            moves: Default::default(),
         }
     }
 
@@ -271,7 +281,7 @@ impl BotBrain {
         // Smash model: high damage % = fragile (big knockback) → play safe.
         let pct = me.damage_pct;
         // ---------------------------------------------------------------- oath
-        if let OathState::Reciting { started, .. } = me.oath {
+        if let OathState::Reciting { started, len, .. } = me.oath {
             act.input.buttons |= buttons::TYPING;
             act.input.yaw = self.yaw;
             act.input.pitch = self.pitch;
@@ -282,7 +292,6 @@ impl BotBrain {
                 }
             } else {
                 // Lost track (e.g. interrupted and restarted): plan now.
-                let len = w.cfg.oaths.len(me.corps);
                 let cps = 4.0 + 6.0 * self.difficulty;
                 self.oath_plan = Some((started, len as f32 / cps, 0.8 + 0.18 * self.difficulty));
             }
@@ -431,9 +440,17 @@ impl BotBrain {
             }
             if me.mv.hooks[1].attached() {
                 let a = me.mv.hooks[1].pos;
-                let close = Vec3::new(a.x - pos.x, 0.0, a.z - pos.z).length() < 2.0;
+                // Reached = beside it AND up at it (a cliff-edge anchor right above a falling bot is
+                // not "reached": letting go there drops it into the void).
+                let close = Vec3::new(a.x - pos.x, 0.0, a.z - pos.z).length() < 2.0 && pos.y > a.y - 1.5;
+                // BOUNDS HOOK (world/bounds.rs): hanging past a blast zone (or just over the void) the
+                // rope is all that keeps us in: hold on and reel until we're back in.
+                let hanging = !w.blast_zones().contains(pos) || pos.y < w.arena.void_y + 4.0;
+                if hanging {
+                    self.tether_t = self.tether_t.max(0.5);
+                }
                 // Let go once solid ground is under us (or we reached the anchor).
-                if (ground_near && !falling && self.tether_t < 2.6) || close || me.mv.grounded && self.tether_t < 2.5 {
+                if !hanging && ((ground_near && !falling && self.tether_t < 2.6) || close || me.mv.grounded && self.tether_t < 2.5) {
                     self.tether_dir = None;
                     tether_hold = false;
                 }
@@ -477,6 +494,14 @@ impl BotBrain {
                 b &= !buttons::JUMP;
             }
         }
+        // ASSIST HOOK: now and then, hook-and-strike a visible target with a melee weapon in hand.
+        if let Some(at) = crate::hook::bot_hook_plan(&mut self.hook, w, me, target, eye, self.tether_dir.is_none(), &mut self.rng) {
+            let d = (at - eye).normalize_or_zero();
+            want_yaw = (-d.x).atan2(-d.z);
+            want_pitch = d.y.clamp(-1.0, 1.0).asin();
+            b &= !buttons::JUMP;
+            move_z = 1;
+        }
         // ---------------------------------------------------------------- turn (reaction-limited)
         let turn = self.aim.turn_rate * dt;
         let dy = wrap_angle(want_yaw - self.yaw);
@@ -489,6 +514,9 @@ impl BotBrain {
                 b |= buttons::REEL;
             }
         }
+        b |= crate::hook::bot_hook_buttons(&mut self.hook, me, aim_err); // ASSIST HOOK
+        // DODGE HOOK: air jump (recovery / chase) and dodging telegraphed attacks.
+        crate::dodge::bot_moves(&mut self.moves, w, me, target, self.last_ground, self.difficulty, self.yaw, &mut self.rng, &mut b, &mut move_x, &mut move_z);
         // ---------------------------------------------------------------- attack
         let held = w.constructs.held_by(self.id);
         let tethering = self.tether_dir.is_some();
@@ -536,10 +564,12 @@ impl BotBrain {
             return act;
         }
         if wp < 20.0 && near > 18.0 && me.mv.grounded && !w.rules().infinite_willpower() {
-            let len = w.cfg.oaths.len(me.corps);
+            let section = w.cfg.oaths.valid_section(me.corps, self.oath_section);
+            self.oath_section = (section + 1) % w.cfg.oaths.section_count(me.corps);
+            let len = w.cfg.oaths.section_len(me.corps, section);
             let cps = 4.0 + 6.0 * self.difficulty;
             self.oath_plan = Some((w.tick, len as f32 / cps, 0.8 + 0.18 * self.difficulty));
-            act.begin_oath = true;
+            act.begin_oath = Some(section);
             return act;
         }
         if wp < 6.0 && w.constructs.owned_by(self.id).count() > 1 && self.rng.chance(0.01) {
@@ -612,8 +642,8 @@ fn wrap_angle(a: f32) -> f32 {
 pub fn drive(world: &mut World, bots: &mut [BotBrain], inputs: &mut Vec<(PlayerId, PlayerInput)>) {
     for bot in bots.iter_mut() {
         let act = bot.think(world);
-        if act.begin_oath {
-            world.begin_oath(bot.id);
+        if let Some(section) = act.begin_oath {
+            world.begin_oath(bot.id, section);
         }
         if let Some((acc, secs)) = act.finish_oath {
             let _ = world.oath_result(bot.id, acc, secs);
@@ -622,7 +652,8 @@ pub fn drive(world: &mut World, bots: &mut [BotBrain], inputs: &mut Vec<(PlayerI
             world.dismiss(bot.id);
         }
         if let Some((r, aim)) = act.cast {
-            let _ = world.cast(bot.id, r, None, aim);
+            // SIGNATURE HOOK: with a full-ish bar, sometimes shout it as a signature (crate::signature).
+            let _ = crate::signature::bot_cast(world, bot.id, r, aim);
         }
         // Party mode: pick a card on the pick screen.
         if let Some(ix) = party_pick(world, bot) {

@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc f2f68452de0b5d3b16daec8b2c6b8b929c68a70374fb84720164401f68d553f6 # shrinks to form = 0, name = 0, feats = 0, mech = 0, seed = 0, elem = 0, icon = false, hs = 0.0, hide = 0
+cc 2a7bd503b35a10cf94276961b75c3e9ae53e0496717d36e7f1d74d491e2dc740 # shrinks to form = 37, feats = 670056464, mech = 0, scale = NaN, seed = 0, t = 0.0, speed = 0.0, dist = 0.0

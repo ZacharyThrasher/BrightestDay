@@ -49,12 +49,16 @@ pub struct BuiltModel {
     pub colors: Option<Arc<bd_fx::VoxelColors>>,
 }
 
+/// Model cache key: the shape key plus the weight factor (`bd_shapes::weight_of`, in 1/100): the
+/// model carries `weight` for mass-scaled motion (attack timing = the sim's `attack_timing_hw`), and
+/// two recipes with the same shape but different mass must not share it. Meshes still share by
+/// `ShapeKey` in bd_fx (weight never changes geometry).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 enum ModelSrc {
-    Recipe(ShapeKey),
+    Recipe(ShapeKey, u16),
     /// Curated icon shape (+ alt shape): cached by recipe key + spec content, so the second
     /// "mjolnir" reuses the first one's model and meshes.
-    Icon(ShapeKey, u64),
+    Icon(ShapeKey, u64, u16),
     /// Extracted terrain / slice halves: per construct.
     Construct(ConstructId),
 }
@@ -128,9 +132,10 @@ pub struct SimConstruct {
 #[derive(Resource, Default)]
 pub struct ConstructEntities(pub HashMap<ConstructId, Entity>);
 
-/// Swing curves by (form, kind).
+/// Swing curves by (form, kind, weight bin) — mass-scaled like the sim's hitbox sweep
+/// (`bd_sim::constructs::held::swing_weight`).
 #[derive(Resource, Default)]
-struct SwingCache(HashMap<(Form, u8), Arc<SwingCurve>>);
+struct SwingCache(HashMap<(Form, u8, u8), Arc<SwingCurve>>);
 
 pub struct ConstructsPlugin;
 
@@ -152,13 +157,18 @@ fn clear_constructs(mut commands: Commands, mut map: ResMut<ConstructEntities>) 
     }
 }
 
+/// Weight part of the model cache key (see [`ModelSrc`]).
+fn wkey(r: &Recipe) -> u16 {
+    (bd_shapes::weight_of(r) * 100.0).round().clamp(0.0, 1000.0) as u16
+}
+
 fn model_src(c: &bd_sim::constructs::Construct) -> ModelSrc {
     if c.model.is_some() || c.slice.is_some() {
         ModelSrc::Construct(c.id)
     } else if let Some(s) = c.shape.as_deref() {
-        ModelSrc::Icon(ShapeKey::of(&c.recipe), icon_hash(s, c.alt_shape.as_deref(), &c.recipe.name))
+        ModelSrc::Icon(ShapeKey::of(&c.recipe), icon_hash(s, c.alt_shape.as_deref(), &c.recipe.name), wkey(&c.recipe))
     } else {
-        ModelSrc::Recipe(ShapeKey::of(&c.recipe))
+        ModelSrc::Recipe(ShapeKey::of(&c.recipe), wkey(&c.recipe))
     }
 }
 
@@ -173,14 +183,17 @@ fn start_build(cache: &mut ModelCache, src: ModelSrc, c: &bd_sim::constructs::Co
 /// The model build for `src` (worker thread).
 fn build_task(src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Option<ShapeSpec>, terrain: Option<Arc<bd_sim::constructs::VoxelModel>>) -> impl std::future::Future<Output = BuiltModel> + Send + 'static {
     let key = match &src {
-        ModelSrc::Recipe(k) => Some(k.clone()),
+        ModelSrc::Recipe(k, _) => Some(k.clone()),
         ModelSrc::Icon(..) | ModelSrc::Construct(_) => None,
     };
     async move {
+        // Mass-scaled motion: the model times its attacks like the sim (`attack_timing_hw`).
+        let weight = bd_shapes::weight_of(&recipe);
         // Terrain lifted by a graft: its own voxels (materials tinted with hard light) + the
         // phrase's hard-light limbs.
         if let Some(t) = terrain {
-            let (m, colors) = super::animated_terrain::terrain_construct_model(&recipe, &t);
+            let (mut m, colors) = super::animated_terrain::terrain_construct_model(&recipe, &t);
+            m.weight = weight;
             return BuiltModel { model: Arc::new(m), key: None, rig: None, colors: Some(Arc::new(colors)) };
         }
         let transforms = recipe.has(Mechanic::Transforms);
@@ -197,12 +210,13 @@ fn build_task(src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Opti
                 Arc::new(bd_shapes::transform_rig(&m, bd_sim::rng::word_hash(&recipe.name) as u32))
             })
         });
-        let model = match (&rig, &shape) {
-            (Some(r), _) => Arc::new(r.alt.clone()),
-            (None, Some(s)) => Arc::new(bd_shapes::build_icon_model(&recipe, s).1),
-            (None, None) => Arc::new(bd_shapes::build_model(&recipe).1),
+        let mut model = match (&rig, &shape) {
+            (Some(r), _) => r.alt.clone(),
+            (None, Some(s)) => bd_shapes::build_icon_model(&recipe, s).1,
+            (None, None) => bd_shapes::build_model(&recipe).1,
         };
-        BuiltModel { model, key: if rig.is_some() { None } else { key }, rig, colors: None }
+        model.weight = weight;
+        BuiltModel { model: Arc::new(model), key: if rig.is_some() { None } else { key }, rig, colors: None }
     }
 }
 
@@ -224,8 +238,8 @@ struct Prewarm {
 
 fn src_for(recipe: &Recipe, shape: Option<&ShapeSpec>, alt: Option<&ShapeSpec>) -> ModelSrc {
     match shape {
-        Some(s) => ModelSrc::Icon(ShapeKey::of(recipe), icon_hash(s, alt, &recipe.name)),
-        None => ModelSrc::Recipe(ShapeKey::of(recipe)),
+        Some(s) => ModelSrc::Icon(ShapeKey::of(recipe), icon_hash(s, alt, &recipe.name), wkey(recipe)),
+        None => ModelSrc::Recipe(ShapeKey::of(recipe), wkey(recipe)),
     }
 }
 
@@ -253,7 +267,7 @@ fn prewarm_models(
         let w = bd_sim::bots::word_list();
         for r in w.melee.iter().chain(&w.ranged).chain(&w.summon).chain(&w.thrown).chain(&w.defence).chain(&w.mobility) {
             let r = bd_sim::willpower::validate_recipe(r.clone(), &rules);
-            prewarm_one(&mut cache, st, ModelSrc::Recipe(ShapeKey::of(&r)), r, None, None);
+            prewarm_one(&mut cache, st, src_for(&r, None, None), r, None, None);
         }
         st.rules = Some(rules.clone());
         st.loadout = None;
@@ -453,7 +467,9 @@ fn construct_events(
                             _ => 0,
                         };
                         let form = sc.form;
-                        let curve = swings.0.entry((form, k)).or_insert_with(|| Arc::new(bd_shapes::swing_curve(form, kind))).clone();
+                        let w = active.world.constructs.get(*id).map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
+                        let bin = bd_sim::constructs::held::weight_bin(w) as u8;
+                        let curve = swings.0.entry((form, k, bin)).or_insert_with(|| Arc::new(bd_shapes::swing_curve_weighted(form, kind, w))).clone();
                         sc.swing = Some((curve, 0.0));
                     }
                     HeldFx::SwingImpact | HeldFx::DiveSlam | HeldFx::GroundPound | HeldFx::TransformSlam => {
@@ -867,13 +883,14 @@ fn predicted_casts(
     while i < prov.pending.len() {
         prov.pending[i].3 += dt;
         let (seq, recipe, aim, age) = prov.pending[i].clone();
-        let src = ModelSrc::Recipe(ShapeKey::of(&recipe));
+        let src = src_for(&recipe, None, None);
         if !cache.ready.contains_key(&src) && !cache.pending.contains_key(&src) {
             let r = recipe.clone();
             let key = ShapeKey::of(&r);
             let task = AsyncComputeTaskPool::get().spawn(async move {
-                let model = Arc::new(bd_shapes::build_model(&r).1);
-                BuiltModel { model, key: Some(key), rig: None, colors: None }
+                let mut m = bd_shapes::build_model(&r).1;
+                m.weight = bd_shapes::weight_of(&r);
+                BuiltModel { model: Arc::new(m), key: Some(key), rig: None, colors: None }
             });
             cache.pending.insert(src.clone(), task);
         }

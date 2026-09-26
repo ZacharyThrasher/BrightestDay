@@ -19,6 +19,7 @@
 mod data;
 mod fuzzy;
 mod icons;
+mod invocation;
 mod norm;
 mod parse;
 mod phonetic;
@@ -38,6 +39,7 @@ use bd_core::shape::ShapeSpec;
 
 pub use data::LoadError;
 pub use icons::IconDef;
+pub use invocation::{MAX_TITLE as SIGNATURE_MAX_TITLE, SignatureCall, SignatureKind};
 pub use norm::{MAX_INPUT_CHARS, MAX_TOKENS, normalize_key};
 pub use phonetic::phonetic_key;
 
@@ -108,6 +110,10 @@ pub struct Resolution {
     /// Stand-rush punches typed ("ORA ORA ORA" / "MUDAMUDAMUDA" -> 3). When set with nothing else in
     /// the phrase, `kind` is Graft and the game should drive the caster's stand, not build anything.
     pub stand_rush: Option<u16>,
+    /// Signature tier (COMBAT.md §5j): "domain expansion <rest>", "bankai <rest>", a tagged famous
+    /// ultimate ("kamehameha"), a yelled beam. The recipe is still the ordinary resolution (of the
+    /// rest); the game sends it as a signature cast and bd_sim amplifies it. `assets/signatures.ron`.
+    pub signature: Option<SignatureCall>,
     /// 0..1. 0 = nothing recognised.
     pub confidence: f32,
     /// Human-readable reasoning, e.g. "maul → hammer (WordNet hypernym)", "hamer → hammer (typo)".
@@ -189,6 +195,8 @@ pub struct Lexicon {
     pub(crate) powers: Vec<powers::PowerDef>,
     /// (incantation tokens, power index), longest first
     pub(crate) incant: Vec<(Vec<String>, usize)>,
+    /// Signature tier vocabulary (`assets/signatures.ron`, invocation.rs).
+    pub(crate) sig: invocation::SignatureTable,
 }
 
 impl Lexicon {
@@ -200,7 +208,16 @@ impl Lexicon {
         let data = data::LexData::map_file(path)?;
         let files = path.parent().map(Self::icon_files).unwrap_or_default();
         let powers = path.parent().and_then(|d| std::fs::read_to_string(d.join("powers.ron")).ok());
-        Ok(Self::assemble(Some(data), icons::Icons::parse_files(&files), powers.as_deref()))
+        let mut lex = Self::assemble(Some(data), icons::Icons::parse_files(&files), powers.as_deref());
+        // A signatures.ron next to lexicon.bin overrides the compiled-in table (data authoring).
+        if let Some(src) = path.parent().and_then(|d| std::fs::read_to_string(d.join("signatures.ron")).ok()) {
+            let (t, warn) = invocation::SignatureTable::parse(&src);
+            match warn {
+                Some(w) => lex.icons.warnings.push(w),
+                None => lex.sig = t,
+            }
+        }
+        Ok(lex)
     }
 
     /// Build from raw parts: lexicon.bin bytes, icon files `(name, ron)` in priority order, powers.ron.
@@ -343,7 +360,7 @@ impl Lexicon {
         if let Some(d) = &data {
             shadow_domain_aliases(&mut icons, d);
         }
-        Lexicon { data, icons, t, powers, incant }
+        Lexicon { data, icons, t, powers, incant, sig: invocation::SignatureTable::default_table() }
     }
 
     /// Number of lexicon entries (not counting icons).

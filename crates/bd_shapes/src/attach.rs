@@ -126,7 +126,11 @@ pub(crate) fn attach_mechanic_parts_filtered(spec: &mut ShapeSpec, mechanics: &[
     }
     if has(Blade) {
         let r = (0.15 * s).clamp(1.5, 4.0);
-        b.bxr(v3(c.x, bounds.min.y + e.y * 0.35, bounds.min.z), v3(e.x * 0.95, r, r), v3(45.0, 0.0, 0.0), C);
+        let at = v3(c.x, bounds.min.y + e.y * 0.35, bounds.min.z);
+        // Its own Blade part (pivot at the middle): slides out on summon, flicks on attack.
+        b.rpart(0, at, PartRole::Blade);
+        b.bxr(at, v3(e.x * 0.95, r, r), v3(45.0, 0.0, 0.0), C);
+        b.on(0);
     }
     if has(ArticulatedTail) && !has_role(&b.spec, |r| r == PartRole::Tail) {
         let r0 = (0.1 * s).clamp(1.0, 8.0);
@@ -252,9 +256,12 @@ pub(crate) fn attach_mechanic_parts_filtered(spec: &mut ShapeSpec, mechanics: &[
         let d = (0.15 * e.x.min(e.y)).clamp(1.0, 5.0).round().max(1.0);
         let bl = (0.35 * s).clamp(2.0, 14.0);
         let z = bounds.min.z;
+        // A Barrel part rooted at the body face: pitches toward the aim, recoils on every shot.
+        b.rpart(0, v3(c.x, c.y, z + 0.5), PartRole::Barrel);
         b.cz(v3(c.x, c.y, z - bl * 0.5 + 0.5), d, bl, D);
         b.cz(v3(c.x, c.y, z - bl + 1.0), d + 1.0, 1.0, A);
         b.cz(v3(c.x, c.y, z - bl), (d - 1.0).max(1.0), 1.0, C);
+        b.on(0);
     }
     if has(Beam) {
         let d = (0.35 * e.x.min(e.y)).clamp(2.0, 12.0);
@@ -475,8 +482,16 @@ fn cockpit(b: &mut B, bounds: SpecBounds, cen: Vec3) {
         let h = (e.y * 0.2).max(2.0);
         let z = bounds.min.z;
         b.bx(v3(c.x, y, z + 0.5), v3(w + 2.0, h + 2.0, 2.0), A);
-        b.el(v3(c.x, y, z - 0.2), v3(w, h, 2.5), C);
         b.bx(v3(c.x, y - h * 0.5 - 1.0, z), v3(w + 2.0, 1.0, 2.0), D);
+        // The glass is a Hatch hinged along its bottom edge: it swings down/out for the pilot.
+        let glass = v3(c.x, y, z - 0.2);
+        let hatch = b.rpart(0, glass - Vec3::Y * (h * 0.5), PartRole::Hatch);
+        if hatch != 0 {
+            b.cut(PrimKind::Ellipsoid, glass, v3(w, h, 2.5), Vec3::ZERO);
+            b.on(hatch);
+        }
+        b.el(glass, v3(w, h, 2.5), C);
+        b.on(0);
         seat = v3(c.x, y - h * 0.3, z + e.z * 0.3);
     } else if mount {
         // Saddle on the back.
@@ -504,7 +519,11 @@ fn cockpit(b: &mut B, bounds: SpecBounds, cen: Vec3) {
             b.bx(v3(c.x + s * (w * 0.5 + 0.5), top + 1.5, z), v3(1.0, 2.0, l + 2.0), A);
         });
         b.bx(v3(c.x, top + 1.5, z + l * 0.5 + 0.5), v3(w, 2.0, 1.0), A);
+        // Windscreen = a Hatch hinged at its base: folds forward for the pilot, snaps up after.
+        let ws = b.rpart(0, v3(c.x, top + 1.0, z - l * 0.5 - 0.5), PartRole::Hatch);
         b.bxr(v3(c.x, top + 2.5, z - l * 0.5 - 0.5), v3(w + 2.0, 3.0, 1.0), v3(-25.0, 0.0, 0.0), C);
+        b.on(0);
+        let _ = ws;
         seat = v3(c.x, top + 1.5, z);
     }
     b.spec.parts.push(Part { id: SEAT_PART, parent: 0, pivot: seat, role: PartRole::Other });

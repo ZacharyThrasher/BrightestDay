@@ -521,4 +521,115 @@
         air_control_mult: 0.3,
         jump_mult: 0.5,
     ),
+    // Blast zones (bd_sim world/bounds.rs, COMBAT.md §1a / §3): an attached tether anchored in the arena
+    // holds you past the side / bottom zones (up to tether_hold_depth m; the top star KO always applies);
+    // constructs that leave the map (bottom = recall_below_void m under the void) blink back next to their
+    // summoner, at most recall_max times per recall_window s (anti-loop valve).
+    bounds: (
+        tether_saves: true,
+        tether_hold_depth: 40.0,
+        recall: true,
+        recall_below_void: 6.0,
+        recall_max: 3,
+        recall_window: 10.0,
+        recall_ahead: 2.5,
+        recall_up: 1.0,
+    ),
+    // Summons (world/bounds.rs): visible placement (distance = clamp(fit_k * radius, near_min, fit_max),
+    // crosshair surface used up to snap_max m; huge ones further out and to the side) + lifetimes (s).
+    summon: (
+        visible: true,
+        fit_k: 2.4,
+        near_min: 3.0,
+        fit_max: 26.0,
+        snap_max: 40.0,
+        huge_radius: 3.5,
+        huge_k: 3.0,
+        huge_max: 80.0,
+        huge_side_deg: 16.0,
+        view_half_deg: 40.0,
+        ground_drop: 12.0,
+        life_creature: 20.0,
+        life_kaiju: 24.0,
+        life_structure: 30.0,
+        life_object: 10.0,
+        life_dome: 3.0,
+        life_piloted_min: 30.0,
+        object_rest_linger: 4.0,
+        object_landed_linger: 4.0,
+    ),
+    // Melee lunge + hook-and-strike (bd_sim melee_assist.rs / hook.rs, COMBAT.md "Melee lunge",
+    // "Hook-and-strike"). Defaults = the Rust defaults (tests/assist.rs checks parity).
+    assist: (
+        // Destiny-sword lunge: a melee swing that starts with an enemy inside range (eye to hull) and the
+        // cone (clear sight) dashes at them. range = clamp(reach + extra * form * weight / long, min, max),
+        // reach = item length + reach_pad; long weapons (> long_len m) dash shorter and slower.
+        lunge: (
+            enabled: true,
+            reach_pad: 0.9,
+            extra: 2.6,
+            range_min: 2.5,
+            range_max: 5.5,
+            long_len: 1.4,
+            long_penalty: 0.6,
+            long_slow: 0.25,
+            cone_deg: 20.0,
+            // The dash: speed toward the target (a faster approach keeps its own), longest dash, the
+            // committed stop (speed kept on arrival), sideways/vertical velocity kept per tick.
+            dash_speed: 26.0,
+            dash_max_secs: 0.22,
+            exit_speed: 5.0,
+            lateral_keep: 0.3,
+            // Stop at reach * stop_frac from the target's centre (clamped), max vertical slope, cooldown.
+            stop_frac: 0.7,
+            stop_min: 1.2,
+            stop_max: 2.2,
+            max_up: 0.75,
+            cooldown: 0.7,
+            heavy_mult: 0.8,
+            heavy_speed: 0.8,
+            fast_mult: 1.15,
+            forms: [
+                (form: Sword, mult: 1.0),
+                (form: Spear, mult: 1.0),
+                (form: Axe, mult: 0.9),
+                (form: Hammer, mult: 0.8),
+                (form: Gauntlet, mult: 0.95),
+                (form: Shield, mult: 0.7),
+            ],
+            // A lunge swing that connects: juice weight x (hit-stop, shake), Heavy x on top, knockback x;
+            // the momentum bonus keeps the closing speed from before the dash.
+            connect_impact: 1.4,
+            connect_heavy_impact: 1.25,
+            connect_knockback: 1.0,
+            keep_closing_speed: true,
+            // Hitbox aim nudge (never the camera): max degrees, ease-in seconds, hold seconds, release angle.
+            aim_max_deg: 12.0,
+            aim_ramp_secs: 0.1,
+            aim_hold_secs: 0.45,
+            aim_release_deg: 45.0,
+        ),
+        // Tethers hook players (match rule tether_hooks_players). Players' hook boxes = hull + radius; the
+        // rope breaks past max_range, after los_grace s out of sight, when the victim boosts / fires a
+        // tether / cuts it (blade within cut_margin); arriving within arrive_dist holding a melee weapon
+        // lets go and makes the next swing (within slam_window s) a slam: knockback x, lift, juice x.
+        hook: (
+            radius: 0.3,
+            max_range: 40.0,
+            los_grace: 0.25,
+            cut_margin: 0.3,
+            breaks_on_boost: true,
+            breaks_on_tether: true,
+            arrive_dist: 3.0,
+            slam_window: 1.0,
+            slam_knockback: 1.5,
+            slam_lift: 0.45,
+            slam_impact: 1.6,
+            // Bots with a melee weapon try it at this rate (1/s) on a visible target in [min, max] m.
+            bot_rate: 0.35,
+            bot_min_dist: 8.0,
+            bot_max_dist: 30.0,
+            bot_cooldown: 6.0,
+        ),
+    ),
 )

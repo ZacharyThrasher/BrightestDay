@@ -18,14 +18,17 @@
 //! | [`soak`] / [`record`] | `--soak-view` chaos viewer, `--record` frame capture (PNG sequence or piped to ffmpeg) |
 //! | [`director`] | spectator director camera (interest scoring, occlusion-safe framing, slow-mo) |
 
+pub mod ads;
 pub mod animated_terrain;
 pub mod camera3p;
 pub mod charge;
+pub mod construct_anim;
 pub mod constructs;
 pub mod director;
 pub mod guns;
 pub mod impact;
 pub mod local;
+pub mod outline; // OUTLINE: player outlines (inverted hull) for readability in chaos
 pub mod players;
 pub mod powers;
 pub mod record;
@@ -33,7 +36,9 @@ pub mod shout;
 pub mod soak;
 pub mod sound;
 pub mod space;
+pub mod summon_ping;
 pub mod terrain;
+pub mod tracking; // TRACKING: ring compass, beacons, reveal pulses, speed trails, lunge glow, hook ropes
 pub mod water;
 
 use crate::sim_bridge::{ActiveWorld, BridgeSet, SimRole};
@@ -73,7 +78,11 @@ impl Plugin for PresentPlugin {
                 record::RecordPlugin,
             ))
             .add_plugins((water::WaterPlugin, space::SpacePlugin, shout::ShoutPlugin))
-            .add_plugins(charge::ChargePlugin); // CHARGE: aura, world dim, audio cues
+            .add_plugins(charge::ChargePlugin) // CHARGE: aura, world dim, audio cues
+            .add_plugins(summon_ping::SummonPingPlugin) // off-screen summon ping + preview window
+            .add_plugins(construct_anim::ConstructAnimPlugin) // role x event construct animation
+            .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation
+            .add_plugins(outline::OutlinePlugin); // OUTLINE: player outlines
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

@@ -52,6 +52,8 @@ pub struct Settings {
     pub window_size: (u32, u32),
     /// 0..1
     pub master_volume: f32,
+    /// World / ambience / feedback / music volumes, night mode, mono, music style.
+    pub audio: crate::audio::AudioPrefs,
     pub antialiasing: AntiAliasing,
     /// Allow the GPU driver to queue only one frame (lower latency). Applied at startup.
     pub low_latency: bool,
@@ -70,6 +72,7 @@ impl Default for Settings {
             fullscreen: false,
             window_size: (1600, 900),
             master_volume: 0.8,
+            audio: crate::audio::AudioPrefs::default(),
             antialiasing: AntiAliasing::Msaa4,
             low_latency: true,
             pipelined_rendering: false,
@@ -176,7 +179,8 @@ impl Settings {
             self.fov = d.fov;
         }
         self.fov = self.fov.clamp(FOV_MIN, FOV_MAX);
-        self.master_volume = self.master_volume.clamp(0.0, 1.0);
+        self.master_volume = if self.master_volume.is_finite() { self.master_volume.clamp(0.0, 1.0) } else { 0.8 };
+        self.audio = self.audio.sanitized();
         self.comfort = self.comfort.sanitized();
         self.window_size.0 = self.window_size.0.clamp(640, 7680);
         self.window_size.1 = self.window_size.1.clamp(360, 4320);
@@ -191,7 +195,7 @@ impl Plugin for SettingsPlugin {
         let comfort = app.world().resource::<Settings>().comfort;
         app.insert_resource(comfort)
             .add_systems(PreUpdate, mirror_comfort)
-            .add_systems(Update, (autosave_settings, apply_volume));
+            .add_systems(Update, autosave_settings);
     }
 }
 
@@ -214,14 +218,6 @@ fn autosave_settings(settings: Res<Settings>, time: Res<Time<Real>>, mut dirty_s
         if let Err(e) = settings.save() {
             warn!("failed to save settings: {e}");
         }
-    }
-}
-
-fn apply_volume(settings: Res<Settings>, volume: Option<ResMut<GlobalVolume>>) {
-    if let Some(mut volume) = volume
-        && settings.is_changed()
-    {
-        volume.volume = bevy::audio::Volume::Linear(settings.master_volume);
     }
 }
 

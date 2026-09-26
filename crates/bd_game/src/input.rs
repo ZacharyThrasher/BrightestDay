@@ -50,6 +50,17 @@ impl LookAngles {
     }
 }
 
+/// Mouse-look sensitivity multiplier on top of `Settings::sensitivity` (ADS scaling, written by
+/// `present::ads`; 1 = unchanged).
+#[derive(Resource, Debug, Clone, Copy, PartialEq)]
+pub struct LookScale(pub f32);
+
+impl Default for LookScale {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
 /// Whether the game currently owns the mouse.
 #[derive(Resource, Debug, Default)]
 pub struct CursorCapture {
@@ -130,13 +141,19 @@ pub struct LocalInputState {
     pub current: PlayerInput,
     /// Recent inputs, oldest first (for client-side prediction replay / redundancy on the wire).
     pub history: VecDeque<PlayerInput>,
+    /// CAMERA (`present::ads`): contextual buttons held this frame (ADS, alt-fire), a tap latch
+    /// for them, and device bits to drop (RMB's SECONDARY while RMB aims a gun).
+    pub ext_held: u16,
+    pub ext_latched: u16,
+    pub ext_mask: u16,
 }
 
 impl LocalInputState {
     /// Builds and records the input for the next tick. Called once per tick.
     pub fn next_tick(&mut self, look: LookAngles, typing: bool) -> PlayerInput {
-        let mut b = self.held | self.latched;
+        let mut b = ((self.held | self.latched) & !self.ext_mask) | self.ext_held | self.ext_latched;
         self.latched = 0;
+        self.ext_latched = 0;
         let (mut mx, mut mz) = (self.move_x, self.move_z);
         if typing {
             b |= buttons::TYPING;
@@ -167,6 +184,7 @@ impl LocalInputState {
     fn clear_live(&mut self) {
         self.held = 0;
         self.latched = 0;
+        self.ext_latched = 0;
         self.move_x = 0;
         self.move_z = 0;
         self.reel_accum = 0.0;
@@ -184,6 +202,7 @@ impl Plugin for InputPlugin {
             .init_resource::<LocalInputState>()
             .init_resource::<InputOverride>()
             .init_resource::<TickInputQueue>()
+            .init_resource::<LookScale>()
             .add_systems(PreUpdate, (update_cursor_capture, apply_mouse_look).chain().after(InputSystems))
             .add_systems(Update, sample_frame_input.in_set(FrameSet::Input))
             .add_systems(SimTick, build_tick_input.in_set(SimSet::Input));
@@ -230,6 +249,7 @@ fn apply_mouse_look(
     motion: Res<AccumulatedMouseMotion>,
     capture: Res<CursorCapture>,
     settings: Res<Settings>,
+    scale: Res<LookScale>,
     mut look: ResMut<LookAngles>,
 ) {
     if !capture.grabbed
@@ -242,7 +262,7 @@ fn apply_mouse_look(
     if d == Vec2::ZERO {
         return;
     }
-    let k = (M_YAW_DEG * settings.sensitivity).to_radians();
+    let k = (M_YAW_DEG * settings.sensitivity * scale.0).to_radians();
     let inv = if settings.invert_y { -1.0 } else { 1.0 };
     look.yaw = (look.yaw - d.x * k).rem_euclid(std::f32::consts::TAU);
     let lim = PITCH_LIMIT_DEG.to_radians();
