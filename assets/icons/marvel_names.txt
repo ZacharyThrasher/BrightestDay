@@ -1,0 +1,638 @@
+x-men marvel | x-men; x men; the x-men | Q128452 | hint: Biped + Swarm, Shoots
+avengers marvel | avengers; the avengers | Q322646 | hint: Biped + Swarm, Charge
+the fantastic four | fantastic four | Q152098 | hint: Biped + Swarm, Bounce
+nick fury | nick fury sr.; nicholas fury; nicholas joseph fury | Q975100 | hint: Biped + Shoots, Guard
+mary jane watson | mary jane watson-parker; mary jane parker; mj | Q27810 | hint: Biped + Blunt
+warren worthington iii | warren kenneth worthington iii; dark angel; avenging angel | Q770064 | hint: Biped + Flies, Blade
+black cat | felicia hardy; cat | Q912640 | hint: Biped + Blade, Fast, Sticky
+henry pym | henry jonathan pym; henry hank pym; hank pym | Q2057532 | hint: Insect + Shrink, Grow, Swarm
+j. jonah jameson | jonah jameson; john jonah jameson jr.; j jonah jameson | Q1992523 | hint: Biped + Shoots
+guardians of the galaxy |  | Q2545790 | hint: Biped + Swarm, Shoots
+scott lang | scott edward harris lang; astonishing ant-man; ant-man ii | Q81787 | hint: Insect + Shrink, Grow
+maria hill |  | Q1319784 | hint: Biped + Shoots
+pepper potts | iron woman; virginia potts; rescue | Q936542 | hint: Biped + Flies, Guard, Shoots
+sinister six |  | Q2082275 | hint: Biped + Swarm, Charge
+uncle ben | benjamin franklin parker; benjamin parker; ben parker | Q2299139 | hint: Biped + Blunt
+eternal marvel | eternal; homo immortalis | Q1618814 | hint: Biped + Beam, Flies, Atomic
+flash thompson | agent anti-venom; eugene thompson; eugene | Q552000 | hint: Biped + Blunt, Charge
+peggy carter | margaret elizabeth carter | Q3898777 | hint: Biped + Shoots
+polaris marvel | polaris; lorna dane | Q2071256 | hint: Biped + Attract, Repel, Flies
+infinity gems | soul gems; infinity stones | Q4405595 | hint: Ball + Homing, Psychic
+thunderbolt ross | thaddeus ross; thaddeus e. ross; rulk; general ross | Q1841525 | hint: Biped + Blunt, Heavy, Charge
+jane foster | thorita; thordis; thor the goddess of thunder; lady thor | Q1370752 | hint: Biped + Blunt, Returning, Electric
+jubilee marvel | jubilee; jubilation lee | Q59665 | hint: Biped + Shoots, Explodes
+bishop marvel | bishop; red bishop | Q2296652 | hint: Biped + Shoots, Heavy
+inhumans marvel | inhumans; inhuman | Q1858350 | hint: Biped + Swarm
+the new avengers | new avengers | Q2264980 | hint: Biped + Swarm, Charge
+chameleon marvel | chameleon; dmitri smerdyakov; dmitri anatoly smerdyakov kravinoff | Q521305 | hint: Biped + Fast
+aunt may | may reilly; maybelle parker; may parker | Q2453332 | hint: Biped + Blunt
+u.s. agent | super-patriot; liegeman; john f. walker jr; jack daniels | Q2540291 | hint: Biped + Guard, Charge
+wonder man | simon williams | Q1041907 | hint: Biped + Blunt, Flies, Atomic
+mandarin marvel | mandarin; gene kahn; zhang tong; chu | Q2417914 | hint: Gauntlet + Beam, Shoots, Fire
+shuri marvel | shuri; aja-adanna | Q7505397 | hint: Biped + Shoots, Fast
+madame web | cassandra webb | Q2204761 | hint: Biped + Sticky, Psychic
+red sonja | red sonya | Q162335 | hint: Biped + Blade
+howard stark | howard anthony walter stark | Q773035 | hint: Biped + Shoots
+mockingbird marvel | mockingbird; bobbi morse-barton; bobbi morse; bobbi barton | Q73544 | hint: Biped + Blunt, Fast
+defenders marvel | defenders; the defenders | Q609250 | hint: Biped + Swarm
+happy hogan | harold harry hogan | Q1319498 | hint: Biped + Blunt
+hydro-man marvel | hydro-man; morris bench | Q1990090 | hint: Blob + Charge, Water
+sharon carter |  | Q978515 | hint: Biped + Shoots
+mutant marvel | mutant; marvel mutant; homo superior; homo sapiens superior | Q1094617 | hint: Biped + Swarm
+sentinel marvel | sentinel | Q782181 | hint: Kaiju + Beam, Grab, Stomp
+edwin jarvis | jarvis | Q544290 | hint: Biped + Blunt
+collector marvel | collector; taneleer tivan; the collector | Q2982927 | hint: Biped + Trap
+daisy johnson | quake | Q1424480 | hint: Biped + Repel, Stomp, Earth
+silver sable | silver sablinova | Q1877130 | hint: Biped + Blade, Shoots
+ancient one | yao | Q2365240 | hint: Biped + Portal, Psychic
+baron mordo | karl amadeus mordo; baron karl amadeus mordo; karl mordo | Q2435970 | hint: Biped + Shoots, Psychic
+dazzler marvel | dazzler; disco dazzler; alison blaire | Q2584217 | hint: Biped + Beam, Shoots
+betty ross | red she-hulk; elizabeth ross banner; betty banner | Q616633 | hint: Bird + Flies, Grab
+erik killmonger | n'jadaka | Q5388669 | hint: Biped + Blade, Charge
+pyro marvel | pyro; saint-john allerdyce | Q2339776 | hint: Biped + Breath, Fire
+echo marvel | echo; maya lopez | Q2519959 | hint: Biped + Blunt, Fast
+william stryker |  | Q2551564 | hint: Biped + Shoots
+hope pym |  | Q19880512 | hint: Insect + Flies, Shoots, Shrink
+j.a.r.v.i.s. marvel | j.a.r.v.i.s. | Q65089566 | hint: Ball + Homing, Shoots
+gorr the god butcher | gorr | Q96379736 | hint: Biped + Blade, Shadow
+spider-girl marvel | spider-girl; mayday parker; may mayday parker | Q2186500 | hint: Biped + Pull, Sticky, Fast
+karen page |  | Q2298077 | hint: Biped + Shoots
+ultimates marvel | ultimates; the ultimates | Q969938 | hint: Biped + Swarm
+new mutants |  | Q1047918 | hint: Biped + Swarm
+arnim zola |  | Q2663969 | hint: Biped + Heavy, Shoots
+justin hammer |  | Q2664416 | hint: Biped + Shoots, Piloted
+klaw marvel | klaw; ulysses klaw; ulysses klaue | Q2703749 | hint: Biped + Repel, Shoots
+brotherhood of mutants | sisterhood of mutants; brotherhood of evil mutants | Q514974 | hint: Biped + Swarm, Charge
+purple man | zebediah kilgrave | Q3139793 | hint: Biped + Fast, Psychic
+crossbones marvel | crossbones; brock rumlow | Q647315 | hint: Biped + Blunt, Explodes
+mar-vell marvel | mar-vell; mar vell; captain mar-vell | Q927598 | hint: Biped + Flies, Beam
+toad marvel | toad | Q2377661 | hint: Biped + Bounce, Pull, Poison
+batroc the leaper | georges batroc; batroc | Q2308669 | hint: Biped + Bounce, Charge
+nova marvel | nova | Q2356215 | hint: Biped + Flies, Fast, Atomic
+ikaris marvel | ikaris | Q2320351 | hint: Biped + Flies, Beam
+crystal marvel | crystal; crystalia amaquelin; corystalia amaquelin maximoff | Q2418760 | hint: Biped + Fire, Earth
+grandmaster marvel | grandmaster; en dwi gast | Q5595476 | hint: Biped + Portal
+black order | children of thanos | Q20979210 | hint: Biped + Swarm, Blade
+tombstone marvel | tombstone; lonnie thompson lincoln | Q59643 | hint: Biped + Blunt, Heavy
+rachel summers | rachel grey-summers; rachel grey; rachel anne summers; mother askani | Q258015 | hint: Biped + Flies, Psychic
+patsy walker | trish walker; patricia walker baxter hellstrom; patricia walker; hellcat | Q1051167 | hint: Biped + Blade, Fast
+kree marvel | kree | Q1831952 | hint: Biped + Shoots, Swarm
+hammerhead marvel | hammerhead | Q2719607 | hint: Biped + Charge, Heavy
+death marvel | death; mistress death; lady death; the death | Q2732505 | hint: Biped + Shadow
+tinkerer marvel | tinkerer; phineas t. mason; phineas mason | Q2623764 | hint: Biped + Shoots, Explodes
+betty brant | elizabeth brant | Q2628255 | hint: Biped + Blunt
+ned leeds | edward leeds | Q3337686 | hint: Biped + Blunt
+molecule man | owen reece | Q927578 | hint: Biped + Beam, Atomic
+young avengers |  | Q897867 | hint: Biped + Swarm
+lady deathstrike | yuriko oyama | Q2448071 | hint: Biped + Blade, Fast
+iron monger |  | Q2487192 | hint: Biped + Heavy, Piloted, Shoots
+high evolutionary | herbert wyndham; herbert edgar wyndham | Q2568013 | hint: Biped + Grow, Beam
+thunderbolts marvel | thunderbolts | Q2527918 | hint: Biped + Swarm
+sunfire marvel | sunfire; shiro yoshida | Q977088 | hint: Biped + Flies, Fire
+forge marvel | forge | Q1002884 | hint: Biped + Shoots
+super-skrull marvel | super-skrull; kl'rt | Q1048542 | hint: Biped + Bounce, Grab, Fire
+foggy nelson | franklin percy nelson; franklin percy; franklin p. nelson; franklin nelson | Q1096719 | hint: Biped + Blunt
+liz allan | elizabeth allan-osborn; elizabeth allan; liz allen | Q1132203 | hint: Biped + Blunt
+baron strucker | wolfgang von strucker | Q576524 | hint: Gauntlet + Electric, Blunt
+uatu marvel | uatu; uatu the watcher; watcher; the watcher | Q615226 | hint: Kaiju + Heavy, Beam
+jackal marvel | jackal; miles warren | Q2584005 | hint: Biped + Blade, Fast
+shuma-gorath marvel | shuma-gorath | Q2639507 | hint: Blob + Constrict, Grab, Psychic
+dark avengers |  | Q578371 | hint: Biped + Swarm, Shadow
+executioner marvel | executioner; skurge | Q3109952 | hint: Axe + Blade, Heavy
+franklin richards | psi-lord; franklin benjamin richards; ego-spawn; tattletale | Q2624716 | hint: Biped + Beam, Psychic
+malekith the accursed | malekith | Q3281842 | hint: Biped + Shadow, Blade
+mister negative | martin li | Q3316968 | hint: Biped + Shadow, Fast
+man-ape marvel | man-ape | Q3139744 | hint: Biped + Charge, Blunt
+cannonball marvel | cannonball; samuel zachery guthrie; samuel guthrie; sam guthrie | Q1194236 | hint: Biped + Charge, Flies, Fast
+cassandra lang | cassandra cassie lang; cassie lang; miniatura; stature | Q3968689 | hint: Insect + Grow, Shrink
+beyonder marvel | beyonder | Q1994866 | hint: Biped + Beam, Portal
+kaine marvel | kaine; tarantula; the other | Q2000166 | hint: Biped + Sticky, Blade
+john jameson | stargod; man-wolf; john jonah jameson iii; colonel jupiter | Q2423326 | hint: Biped + Blunt, Charge
+jamie madrox | multiple; james madrox; james arthur madrox; multiple man | Q2456058 | hint: Biped + Swarm
+wiccan marvel | wiccan; billy kaplan; asgardian; william kaplan | Q2519989 | hint: Biped + Flies, Psychic
+swordsman marvel | swordsman; jacques duquesne | Q2552350 | hint: Sword + Blade
+thena marvel | thena; azura | Q7781352 | hint: Spear + Blade, Pierce
+tabitha smith | boom-boom; time bomb; meltdown; boom boom | Q748726 | hint: Bomb + Explodes, Bounce
+darwin marvel | darwin | Q2204855 | hint: Biped + Guard
+eric o'grady | irredeemable ant-man; ant-man iii | Q166113 | hint: Insect + Shrink, Fast
+ronin marvel | ronin | Q253251 | hint: Biped + Blade, Fast
+colleen wing |  | Q1761233 | hint: Sword + Blade
+alpha flight |  | Q281762 | hint: Biped + Swarm
+masters of evil |  | Q2193435 | hint: Biped + Swarm
+sunspot marvel | sunspot; bobby da costa; roberto da costa; bobby | Q601199 | hint: Biped + Charge, Flies, Fire
+secret avengers |  | Q2594763 | hint: Biped + Swarm
+sersi marvel | sersi | Q2974182 | hint: Biped + Beam
+ben urich | benjamin urich | Q1150975 | hint: Biped + Blunt
+cassandra nova |  | Q858901 | hint: Biped + Psychic, Repel
+robbie robertson | joseph robertson; joe robertson | Q944573 | hint: Biped + Blunt
+angela marvel | angela; aldrif odinsdottir | Q2037952 | hint: Biped + Blade, Flies
+amadeus cho | mastermind excello | Q4739036 | hint: Biped + Blunt, Heavy
+doc samson | leonard samson | Q2122739 | hint: Biped + Blunt, Heavy
+molten man | mark raxton | Q2534462 | hint: Biped + Blunt, Fire
+absorbing man | crusher creel; carl creel | Q2465865 | hint: Biped + Blunt, Heavy, Earth
+legion marvel | legion; ketshop al hapizza; david haller; david charles haller | Q1607791 | hint: Biped + Psychic, Swarm
+danielle moonstar | dani moonstar; moonstar; psyche; mirage | Q767790 | hint: Bow + Psychic
+sebastian shaw | sebastian hiram shaw; lord imperial; black king; klaus schmidt | Q2265812 | hint: Biped + Blunt, Heavy
+wolfsbane marvel | wolfsbane; rahne sinclair | Q996154 | hint: Quadruped + Charge, Fast
+mister hyde | mr. hyde | Q1638775 | hint: Biped + Blunt, Charge
+blackheart marvel | blackheart | Q1839684 | hint: Biped + Grab, Shadow
+miracleman marvel | miracleman; marvelman; michael moran | Q2266209 | hint: Biped + Flies, Blunt
+x-factor marvel | x-factor | Q2211423 | hint: Biped + Swarm
+hood marvel | hood; parker robbins | Q2624726 | hint: Biped + Shoots, Shadow
+blink marvel | blink; clarice fong; clarice ferguson | Q2624390 | hint: Biped + Portal, Pierce
+typhoid mary | typhoid; mutant zero; mary walker; walker | Q2625935 | hint: Biped + Fire, Psychic
+new warriors |  | Q2731643 | hint: Biped + Swarm
+korath the pursuer |  | Q3198900 | hint: Biped + Fast, Shoots
+korg marvel | korg | Q3198935 | hint: Biped + Blunt, Heavy, Earth
+karla sofen | meteorite; moonstone | Q1394350 | hint: Biped + Beam, Flies
+flag-smasher marvel | flag-smasher | Q1447301 | hint: Biped + Blunt
+blind al | blind alfred; althea; al | Q3640940 | hint: Biped + Blunt
+callisto marvel | callisto; white knight | Q857541 | hint: Biped + Blade
+warpath marvel | warpath; jimmy proudstar; james proudstar | Q920406 | hint: Biped + Blade, Charge
+speed marvel | speed; tommy shepherd; thomas shepherd | Q3966459 | hint: Biped + Fast, Charge
+negasonic teenage warhead | eloise phimister; ellie phimister | Q3985214 | hint: Biped + Explodes, Charge
+dust marvel | dust; sooraya qadir | Q1884663 | hint: Blob + Earth, Fast
+avalanche marvel | avalanche; dominikos petrakis; dominic szilard janos petros | Q2320292 | hint: Biped + Stomp, Earth
+clea marvel | clea; clea strange | Q2404595 | hint: Biped + Psychic, Shoots
+crimson dynamo |  | Q2339552 | hint: Biped + Heavy, Piloted, Electric
+nico minoru | sister grimm | Q9049926 | hint: Staff + Psychic, Shoots
+destroyer marvel | destroyer | Q2473486 | hint: Biped + Beam, Heavy, Fire
+advanced idea mechanics | a.i.m. | Q2548427 | hint: Biped + Swarm, Shoots
+the hand | yasminito; hand | Q2550236 | hint: Biped + Swarm, Blade
+anti-venom marvel | anti-venom; edward charles brock | Q9617362 | hint: Biped + Grab, Constrict
+northstar marvel | northstar; jean-paul beaubier; jean-paul martin | Q251321 | hint: Biped + Flies, Fast
+shadow king | amahl farouk | Q1585469 | hint: Biped + Psychic, Shadow
+madelyne pryor | madelyne summers; madelyne jennifer pryor-summers; maddie pryor; goblin queen | Q741279 | hint: Biped + Psychic, Fire
+demogoblin marvel | demogoblin | Q1812152 | hint: Biped + Flies, Fire, Explodes
+jigsaw marvel | jigsaw; billy russo; william russo | Q955796 | hint: Biped + Shoots
+eternity marvel | eternity | Q2271107 | hint: Kaiju + Beam, Atomic
+ajak marvel | ajak; ajak celestia | Q554230 | hint: Biped + Flies, Beam
+firestar marvel | firestar; fire-star; angel jones; angelica jones | Q578279 | hint: Biped + Flies, Beam, Fire
+machine man | aaron stack | Q2601925 | hint: Biped + Grab, Pull
+boomerang marvel | boomerang; frederick myers; fred myers | Q2604725 | hint: Disc + Returning, Explodes
+dum dum dugan | timothy dugan; timothy aloysius cadwallader dugan | Q2642001 | hint: Biped + Shoots
+captain universe |  | Q2973579 | hint: Biped + Flies, Beam, Atomic
+titania marvel | titania; mary macpherran | Q580822 | hint: Biped + Blunt, Heavy
+count nefaria | luchino nefaria; count luchino nefaria | Q2990985 | hint: Biped + Flies, Beam
+karma marvel | karma; xi'an coy manh | Q2568022 | hint: Biped + Psychic
+maximus marvel | maximus; maximus the mad; maximus boltagon | Q2654161 | hint: Biped + Psychic
+jack o'lantern |  | Q2690005 | hint: Bomb + Explodes, Fire
+beetle marvel | beetle | Q1168065 | hint: Insect + Flies, Shoots
+phyla-vell marvel | phyla-vell | Q1235121 | hint: Sword + Blade, Psychic
+skaar marvel | skaar | Q1394575 | hint: Biped + Blunt, Charge, Stomp
+starhawk marvel | starhawk | Q3497149 | hint: Bird + Flies, Beam
+mojo marvel | mojo | Q632369 | hint: Biped + Portal
+valentina allegra de fontaine | contessa valentina de la fontaine | Q3553620 | hint: Biped + Shoots
+krakoa marvel | krakoa | Q897782 | hint: Kaiju + Grab, Constrict, Earth
+ka-zar marvel | ka-zar; kevin plunder | Q938086 | hint: Biped + Pierce, Charge
+x-force marvel | x-force | Q938034 | hint: Biped + Swarm, Blade
+moondragon marvel | moondragon; heather douglas; h. d. steckley | Q1908572 | hint: Kaiju + Flies, Breath, Psychic
+shriek marvel | shriek | Q2087326 | hint: Biped + Repel, Wind
+watcher marvel |  | Q4348996 | hint: Kaiju + Heavy, Beam
+ajax marvel | ajax; francis freeman | Q4699585 | hint: Biped + Blunt, Heavy
+alexander goodwin pierce |  | Q4718969 | hint: Biped + Shoots
+generation x |  | Q1922133 | hint: Biped + Swarm
+owl marvel | owl; leland owlsley | Q2070834 | hint: Bird + Flies, Glide
+moira mactaggert | moira x; moira kinross; dr. moira kinross mactaggert | Q2361279 | hint: Biped + Shoots
+silvermane marvel | silvermane; silvio manfredi | Q2500449 | hint: Biped + Shoots
+3-d man |  | Q2511584 | hint: Biped + Blunt, Fast
+s.w.o.r.d. marvel | s.w.o.r.d. | Q7387321 | hint: Biped + Swarm, Shoots
+alternative versions of spider-man |  | Q2481268 | hint: Biped + Swarm, Pull, Sticky
+jimmy woo | james woo | Q12965310 | hint: Biped + Shoots
+yo-yo rodriguez |  | Q23018324 | hint: Biped + Fast, Returning
+mobius m. mobius |  | Q106706981 | hint: Biped + Portal
+luna snow | seol hee; luna | Q65162657 | hint: Biped + Shoots, Ice
+quentin quire | quintavius quire; kid omega | Q250443 | hint: Biped + Psychic, Blade
+black tom cassidy | thomas samuel eamon cassidy; thomas cassidy; tom cassidy | Q2236431 | hint: Staff + Blunt, Earth
+stick marvel | stick | Q683548 | hint: Staff + Blunt, Fast
+wizard marvel | wizard; wingless wizard; bentley wittman; the wizard | Q740257 | hint: Biped + Attract, Shoots
+marauders marvel | marauders | Q1075698 | hint: Biped + Swarm, Blade
+grey gargoyle | paul pierre duval; paul duval | Q287489 | hint: Biped + Heavy, Earth
+julia carpenter | julia eugenia cornwall carpenter; julia cornwall carpenter; arachne | Q2276597 | hint: Biped + Blunt
+mastermind marvel | mastermind; jason wyngarde | Q551989 | hint: Biped + Psychic
+sabra marvel | sabra; sa-1980; ruth bat-seraph | Q2777040 | hint: Biped + Shoots, Fast
+copycat marvel | copycat; vanessa geraldine carlysle; vanessa carlysle | Q2916404 | hint: Biped + Fast
+ulik marvel | ulik | Q2746596 | hint: Biped + Blunt, Heavy
+alicia masters | alicia reiss masters; alicia reiss grimm; alicia grimm | Q2836774 | hint: Biped + Blunt
+silver fox | kayla silverfox | Q2608804 | hint: Biped + Blade
+azazel marvel | azazel | Q2642022 | hint: Biped + Portal, Blade, Shadow
+aurora marvel | aurora; jeanne-marie beaubier | Q2663986 | hint: Biped + Flies, Fast
+heroes for hire |  | Q600790 | hint: Biped + Swarm, Blunt
+korvac marvel | korvac; michael korvac | Q3067381 | hint: Biped + Beam, Atomic
+isaiah bradley | the black captain america | Q3155104 | hint: Biped + Guard, Blunt
+mangog marvel | mangog | Q3285766 | hint: Kaiju + Blunt, Stomp
+midnight sons |  | Q3072235 | hint: Biped + Swarm, Shadow
+alistair smythe | ultimate spider slayer; spider-slayer | Q2837209 | hint: Arachnid + Grab, Shoots
+graviton marvel | graviton; franklin hall | Q3115789 | hint: Biped + Attract, Repel
+triton marvel | triton | Q2740033 | hint: Biped + Water, Fast
+karnak marvel | karnak; karnak mander-azur | Q3193522 | hint: Biped + Pierce, Blunt
+fandral marvel | fandral; fandral the dashing | Q3545295 | hint: Sword + Blade, Fast
+bolivar trask |  | Q3641739 | hint: Kaiju + Beam, Grab
+arcade marvel | arcade | Q931048 | hint: Biped + Heavy, Shoots
+red ghost | ivan kragoff | Q898086 | hint: Biped + Blunt
+misty knight | mercedes knight | Q3859385 | hint: Biped + Heavy, Shoots
+onslaught marvel | onslaught | Q2075745 | hint: Biped + Blunt
+madame masque | whitney frost; giuletta nefaria; big m | Q2339160 | hint: Biped + Blunt
+jasper sitwell | jason sitwell; agent 22 | Q6164049 | hint: Biped + Blunt
+kismet marvel | kismet; ayesha; paragon; her | Q6416807 | hint: Biped + Blunt
+night nurse |  | Q7033379 | hint: Biped + Blunt
+hellfire club |  | Q2109149 | hint: Biped + Swarm
+hulkling marvel | hulkling; theodore altman; dorrek viii; teddy altman | Q2526766 | hint: Biped + Shoots
+tigra marvel | tigra; greer nelson; greer grant nelson; greer grant | Q2532716 | hint: Biped + Blade, Fast
+rick jones | richard jones | Q2535955 | hint: Biped + Beam, Shoots, Atomic
+frightful four |  | Q2457162 | hint: Biped + Swarm
+anne weying | she-venom | Q14475812 | hint: Biped + Blunt
+claire temple |  | Q19571310 | hint: Biped + Blunt
+friday marvel | friday; f.r.i.d.a.y. | Q28173125 | hint: Biped + Heavy, Shoots
+shi'ar marvel | shi'ar; aerie | Q19623 | hint: Biped + Shoots
+selene marvel | selene; selene gallio; black priestess; black queen | Q369805 | hint: Biped + Fast, Grab, Shadow
+proteus marvel | proteus; kevin mactaggert; mutant x | Q718806 | hint: Biped + Blunt
+surge marvel | surge; noriko ashida; nori ashida | Q2213159 | hint: Biped + Blunt
+rockslide marvel | rockslide; santo vaccarro | Q962777 | hint: Biped + Blunt
+destiny marvel | destiny; irene adler | Q1051111 | hint: Biped + Blunt
+trapster marvel | trapster | Q431400 | hint: Biped + Blunt
+mad thinker | julius mars | Q1618103 | hint: Biped + Blunt
+menace marvel | menace; queen cat; menace of manhattan; lily hollister | Q1748149 | hint: Biped + Blunt
+robert kelly | robert edward kelly; senator kelly | Q662139 | hint: Biped + Blunt
+valeria richards | valeria meghan richards; brainstorm | Q734861 | hint: Biped + Blunt
+genis-vell marvel | genis-vell; legacy | Q775371 | hint: Biped + Blunt
+puppet master | phillip masters | Q1093359 | hint: Biped + Blunt
+stilt-man marvel | stilt-man; stiltman | Q431125 | hint: Biped + Blunt
+dark x-men |  | Q1764367 | hint: Biped + Swarm, Grab, Shadow
+power pack |  | Q2245206 | hint: Biped + Swarm
+songbird marvel | songbird; screaming mimi; melissa joan gold; melissa gold | Q1588377 | hint: Biped + Blunt
+sin marvel | sin; sinthea schmidt; heir of the devil; erica holstein | Q577086 | hint: Biped + Blunt
+husk marvel | husk; paige guthrie; paige elisabeth guthrie | Q2714915 | hint: Biped + Blunt
+kevin sydney | kevin sidney; morph | Q2734801 | hint: Biped + Blunt
+david north | christoph nord; agent zero; maverick | Q580074 | hint: Biped + Blunt
+lady octopus |  | Q2744835 | hint: Fish + Grab, Water
+calypso marvel | calypso; calypso ezili | Q2934584 | hint: Biped + Blunt
+rom marvel | rom; rom the space knight | Q3088458 | hint: Biped + Blunt
+puma marvel | puma; thomas fireheart | Q2628556 | hint: Biped + Blunt
+magma marvel | magma; amara juliana olivians aquilla; amara aquilla; alison crestmere | Q2660736 | hint: Biped + Blunt
+champions marvel | champions | Q605093 | hint: Biped + Swarm
+elsa bloodstone |  | Q3051712 | hint: Biped + Blunt
+spencer smythe |  | Q3080800 | hint: Biped + Blunt
+wrecking crew |  | Q2659940 | hint: Biped + Swarm
+bill foster |  | Q2633611 | hint: Biped + Blunt
+elders of the universe |  | Q3038387 | hint: Biped + Swarm
+shanna the she-devil | shanna | Q1170251 | hint: Biped + Breath, Grab, Fire
+patriot marvel | patriot | Q1402575 | hint: Biped + Blunt
+weasel marvel | weasel; jack hammer | Q1403772 | hint: Biped + Blunt
+iron lad | young kang; kid immortus; nathaniel richards | Q1447287 | hint: Biped + Blunt
+infinity marvel | infinity | Q3544977 | hint: Biped + Beam, Flies
+blastaar marvel | blastaar; living bomb-burst | Q635781 | hint: Biped + Shoots
+aleksander lukin |  | Q3609483 | hint: Biped + Blunt
+union jack |  | Q898165 | hint: Biped + Blunt
+maria stark | maria collins stark; maria carbonell | Q3847537 | hint: Biped + Blunt
+thundra marvel | thundra | Q3990968 | hint: Biped + Blunt
+mercury marvel | mercury; cessily kincaid | Q2003105 | hint: Biped + Blunt
+quasar marvel | quasar | Q1992429 | hint: Biped + Swarm
+jean dewolff |  | Q4411035 | hint: Biped + Pull, Sticky
+volcana marvel | volcana; marsha rosenberg | Q2081376 | hint: Biped + Blunt
+enforcers marvel | enforcers | Q5377360 | hint: Biped + Swarm
+zzzax marvel | zzzax | Q2309083 | hint: Biped + Blunt
+attuma marvel | attuma | Q2393694 | hint: Biped + Blunt
+firelord marvel | firelord; pyreus kril | Q2405958 | hint: Biped + Shoots
+russian marvel | russian | Q2438411 | hint: Biped + Heavy, Shoots
+ho yinsen | yinsen | Q5575853 | hint: Biped + Blunt
+mattie franklin | martha franklin | Q2095786 | hint: Biped + Blunt
+cypher marvel | cypher; douglas ramsey; doug ramsey | Q2452573 | hint: Biped + Blunt
+shalla-bal marvel | shalla-bal | Q7487249 | hint: Biped + Shoots
+george stacy |  | Q7879740 | hint: Biped + Blunt
+vanessa fisk | vanessa marianna | Q7914646 | hint: Biped + Blunt
+volstagg marvel | volstagg | Q7940698 | hint: Biped + Beam, Flies
+yon-rogg marvel | yon-rogg | Q8054873 | hint: Biped + Shoots
+jocasta marvel | jocasta | Q2526805 | hint: Biped + Heavy, Shoots
+alphonso mackenzie | mack | Q16386826 | hint: Biped + Blunt
+black dwarf |  | Q20979209 | hint: Biped + Shoots
+dora milaje |  | Q28126637 | hint: Biped + Swarm
+everett k. ross | everett kenneth ross | Q20979222 | hint: Biped + Blunt
+starjammers marvel | starjammers | Q19632 | hint: Biped + Swarm
+hellion marvel | hellion; julian keller | Q1602892 | hint: Biped + Blunt
+layla miller | layla rose miller; butterfly | Q744170 | hint: Biped + Blunt
+sage marvel | sage; teresia karisik; tessa | Q2258275 | hint: Biped + Blunt
+chamber marvel | chamber; jonothon evan starsmore; decibel | Q1051158 | hint: Biped + Blunt
+chase stein |  | Q734247 | hint: Biped + Blunt
+microchip marvel | microchip; david linus lieberman; david lieberman; micro | Q978786 | hint: Biped + Blunt
+tiger shark | todd arliss | Q2297765 | hint: Fish + Grab, Blade, Fast, Water
+west coast avengers | avengers west coast | Q721192 | hint: Biped + Swarm
+deacon frost |  | Q1748380 | hint: Biped + Fast, Grab, Shoots, Shadow
+q2276949 marvel | q2276949 | Q2276949 | hint: Biped + Blunt
+burglar marvel | burglar; dennis carradine; spike | Q606569 | hint: Biped + Blunt
+marrow marvel | marrow; sarah rushman; sarah knuckey | Q2755191 | hint: Biped + Blunt
+dragon man |  | Q2714410 | hint: Kaiju + Breath, Flies, Fire
+bastion marvel | bastion; sebastion gilberti; template | Q2737565 | hint: Biped + Heavy, Shoots
+forgotten one | hero | Q2738066 | hint: Biped + Beam, Flies
+donald pierce | white king; white bishop | Q2741605 | hint: Biped + Heavy, Shoots
+egghead marvel | egghead; elihas starr | Q2757603 | hint: Biped + Blunt
+titanium man |  | Q2915396 | hint: Biped + Blunt
+mendel stromm | dr. mendel stromm; robot master; professor mendel stromm; gaunt | Q2585537 | hint: Biped + Heavy, Shoots
+adversary marvel | adversary; sefako the twice-risen god; sefako | Q2604584 | hint: Biped + Breath, Grab, Fire
+wild child | weapon omega; kyle gibney; wildheart; wildchild | Q2597584 | hint: Biped + Blunt
+nate grey | nathaniel grey; x-man | Q2602677 | hint: Biped + Blunt
+caliban marvel | caliban; pestilence; hound | Q2624756 | hint: Biped + Blunt
+bushwacker marvel | bushwacker; carl burbank | Q2633496 | hint: Biped + Heavy, Shoots
+spyke marvel | spyke; evan daniels | Q2679732 | hint: Biped + Blunt
+willie lumpkin | william lumpkin | Q3000429 | hint: Biped + Blunt
+daimon hellstrom | daimon hellstorm; hellstorm; son of satan | Q3012120 | hint: Biped + Breath, Grab, Fire
+druig marvel | druig; ivan druig | Q3040106 | hint: Biped + Beam, Flies
+g. w. bridge | george washington bridge | Q3093070 | hint: Biped + Blunt
+garokk marvel | garokk; the petrified man | Q3098432 | hint: Biped + Beam, Flies
+grim reaper | eric williams | Q3109958 | hint: Biped + Blunt
+blizzard marvel | blizzard; gregor shapanka; jack frost | Q3142385 | hint: Biped + Blunt
+mikhail rasputin | mikhail nikolaievitch rasputin | Q1406012 | hint: Biped + Blunt
+baron blood | victor strange | Q1168440 | hint: Biped + Fast, Grab, Shadow
+battlestar marvel | battlestar; lemar hoskins | Q1168463 | hint: Biped + Blunt
+jack flag |  | Q1168504 | hint: Biped + Blunt
+barney barton | trickshot; charles bernard barton | Q1393840 | hint: Biped + Blunt
+namora marvel | namora | Q1411375 | hint: Biped + Blunt
+morlun marvel | morlun | Q1425172 | hint: Biped + Blunt
+satana marvel | satana | Q3473863 | hint: Biped + Breath, Grab, Fire
+hogun marvel | hogun; hogun the grim | Q3543614 | hint: Biped + Beam, Flies
+dorma marvel | dorma; lady dorma | Q3543851 | hint: Biped + Blunt
+barracuda marvel | barracuda | Q3544280 | hint: Biped + Blunt
+bereet marvel | bereet | Q3544313 | hint: Biped + Blunt
+wrecker marvel | wrecker; dirk garthwaite | Q654551 | hint: Biped + Blunt
+gertrude yorkes |  | Q3546583 | hint: Biped + Blunt
+hyperion marvel | hyperion | Q3550487 | hint: Biped + Blunt
+debra whitman |  | Q3704417 | hint: Biped + Blunt
+winter guard |  | Q3569410 | hint: Biped + Swarm
+zodiac marvel | zodiac | Q3575679 | hint: Biped + Swarm
+alex wilder |  | Q3610734 | hint: Biped + Blunt
+morlocks marvel | morlocks | Q927511 | hint: Biped + Swarm
+living laser | arthur parks | Q932198 | hint: Biped + Blunt
+luna marvel | luna maximoff | Q3840631 | hint: Biped + Blunt
+lyra marvel | lyra; savage she-hulk; lyra walters | Q3841033 | hint: Biped + Beam, Shoots, Atomic
+noh-varr marvel | noh-varr; marvel boy | Q3877735 | hint: Biped + Shoots
+sharon ventura |  | Q3959215 | hint: Biped + Blunt
+thor girl | tarene; tara olson; spirit of the jewel; designate | Q3990774 | hint: Biped + Shoots
+stepford cuckoos | five-in-one; three-in-one | Q898593 | hint: Biped + Swarm
+mister fear |  | Q954755 | hint: Biped + Blunt
+cecilia reyes |  | Q2064366 | hint: Biped + Blunt
+lady bullseye | maki matsumoto | Q2071347 | hint: Biped + Blunt
+armor marvel | armor; hisako ichiki | Q2299363 | hint: Biped + Guard, Shoots
+kestrel marvel | kestrel; john wraith | Q2400241 | hint: Biped + Blunt
+corsair marvel | corsair; major christopher summers; christopher summers | Q2385117 | hint: Biped + Blunt
+richard fisk | supreme hydra; blood rose; the schemer; the rose | Q2436122 | hint: Biped + Blunt
+lance hunter |  | Q6483429 | hint: Biped + Blunt
+laufey marvel | laufey | Q6497975 | hint: Biped + Blunt
+heliopolitans marvel | heliopolitans | Q6573004 | hint: Biped + Swarm
+constrictor marvel | constrictor | Q2354162 | hint: Biped + Swarm
+anole marvel | anole; victor borkowski | Q2539373 | hint: Biped + Blunt
+fantomex marvel | fantomex; charlie-cluster 7 | Q2539413 | hint: Biped + Blunt
+m marvel | m; monet st. croix; penance | Q2550226 | hint: Biped + Blunt
+prodigy marvel | prodigy; david alleyne | Q2550629 | hint: Biped + Blunt
+supreme intelligence |  | Q7645047 | hint: Biped + Heavy, Shoots
+swarm marvel | swarm; fritz von meyer | Q7653886 | hint: Biped + Blunt
+turk barrett | el cochinote | Q7855000 | hint: Biped + Blunt
+deathlok marvel | deathlok; luther manning | Q2526966 | hint: Biped + Heavy, Shoots
+carrion marvel | carrion | Q2555885 | hint: Biped + Blunt
+demolition man | dennis dunphy | Q2555961 | hint: Biped + Blunt
+invaders marvel | invaders | Q2531225 | hint: Biped + Swarm
+madeline joyce | miss america | Q2468882 | hint: Biped + Blunt
+talos the untamed |  | Q18225043 | hint: Biped + Heavy, Shoots
+conan marvel | conan | Q11680834 | hint: Biped + Blunt
+nightmare marvel | nightmare; edvard haberdash | Q15222919 | hint: Biped + Blunt
+jim morita |  | Q19573067 | hint: Biped + Blunt
+lash marvel | lash | Q20967752 | hint: Biped + Blunt
+jeryn hogarth |  | Q21127582 | hint: Biped + Blunt
+t'chaka marvel | t'chaka | Q24022642 | hint: Biped + Blunt
+nadia van dyne |  | Q48740648 | hint: Biped + Blunt
+eitri marvel | eitri | Q52315124 | hint: Biped + Blunt
+white fox | ami han | Q65162819 | hint: Biped + Blunt
+el aguila | alejandro montoya; aguila | Q1463228 | hint: Biped + Blunt
+romulus marvel | romulus; tyranus | Q1628510 | hint: Biped + Blunt
+chris bradley | bolt | Q1771294 | hint: Biped + Blunt
+beautiful dreamer | sonya simonson; dreamer | Q722277 | hint: Biped + Blunt
+leech marvel | leech; jimmy | Q2198161 | hint: Biped + Blunt
+stryfe marvel | stryfe | Q2265799 | hint: Biped + Blunt
+shatterstar marvel | shatterstar; gaveedra seven; ben gaveedra | Q2275950 | hint: Biped + Blunt
+sunpyre marvel | sunpyre; leyu yoshida | Q967429 | hint: Biped + Blunt
+rictor marvel | rictor; julio richter | Q968856 | hint: Biped + Blunt
+old lace |  | Q266069 | hint: Biped + Blunt
+speed demon | whizzer; james sanders | Q385744 | hint: Biped + Breath, Grab, Charge, Fire
+ink marvel | ink; eric gitter | Q1648739 | hint: Biped + Blunt
+will o' the wisp | jackson arvad; dr. jackson arvad; the wisp | Q1772036 | hint: Biped + Blunt
+american eagle | jason strongbow | Q671436 | hint: Biped + Flies, Glide
+karnilla marvel | karnilla; the norn queen | Q683177 | hint: Biped + Blunt
+agent x | nijo; alex hayden | Q1054789 | hint: Biped + Shoots
+brother voodoo | jericho drumm; doctor voodoo | Q1149808 | hint: Biped + Blunt
+stingray marvel | stingray | Q2186821 | hint: Biped + Blunt
+marrina smallwood | marrina | Q2295556 | hint: Biped + Shoots
+starfox marvel | starfox; eros of titan | Q2295563 | hint: Biped + Shoots
+hannibal king |  | Q734932 | hint: Biped + Fast, Grab, Shadow
+all-winners squad |  | Q734854 | hint: Biped + Swarm
+force works |  | Q834597 | hint: Biped + Swarm
+nitro marvel | nitro | Q669916 | hint: Biped + Blunt
+spider-slayer marvel |  | Q1132395 | hint: Biped + Swarm, Pull, Sticky
+maggia marvel | maggia | Q775416 | hint: Biped + Swarm
+imperial guard |  | Q834240 | hint: Biped + Swarm
+hellions marvel | hellions | Q2295246 | hint: Biped + Swarm
+man-killer marvel | man-killer | Q1644750 | hint: Biped + Blunt
+riot marvel | riot | Q507241 | hint: Biped + Constrict, Grab, Shadow
+dark beast | henry hank mccoy; black beast; beast | Q2723286 | hint: Biped + Grab, Charge, Shadow
+abigail brand | abigail thanriaguiaxus | Q2821619 | hint: Biped + Shoots
+phalanx marvel | phalanx | Q2265657 | hint: Biped + Shoots
+bi-beast marvel | bi-beast | Q2900730 | hint: Biped + Heavy, Shoots, Charge
+blazing skull |  | Q2906321 | hint: Biped + Blunt
+strong guy | guido carosella | Q2569703 | hint: Biped + Blunt, Heavy
+arclight marvel | arclight; philippa sontag | Q2604713 | hint: Biped + Blunt
+deathbird marvel | deathbird; cal'syee neramani | Q3020765 | hint: Biped + Shoots
+warlock marvel | warlock | Q3108790 | hint: Biped + Shoots
+blood brothers |  | Q516338 | hint: Biped + Swarm
+lilith marvel | lilith | Q3240860 | hint: Biped + Fast, Grab, Shadow
+controller marvel | controller; basil sandhurst | Q2996189 | hint: Biped + Blunt
+glenn talbot |  | Q3108827 | hint: Biped + Blunt
+agents of atlas |  | Q2826786 | hint: Biped + Swarm
+horsemen of apocalypse | war: | Q2690825 | hint: Biped + Swarm
+snowbird marvel | snowbird; anne mckenzie-thompson; narya; anne mckenzie | Q3127430 | hint: Biped + Shoots, Beam, Flies, Ice
+mariko yashida | scarlet samurai | Q3293073 | hint: Biped + Blunt
+night thrasher |  | Q3341396 | hint: Biped + Blunt
+zeke stane | ezekiel stane | Q2790757 | hint: Biped + Blunt
+secret empire |  | Q3053252 | hint: Biped + Swarm
+cottonmouth marvel | cottonmouth; cornell stokes | Q2998614 | hint: Biped + Blunt
+makkari marvel | makkari; marky-boy; major mercury; mike curry | Q3280860 | hint: Biped + Beam, Flies
+great lakes avengers | the lightning rods | Q3236029 | hint: Biped + Swarm
+lorelei marvel | lorelei | Q3259423 | hint: Biped + Beam, Flies
+man-bull marvel | man-bull; william taurens; bull taurus; bill taurens | Q3139745 | hint: Biped + Blunt
+vanisher marvel | vanisher | Q1168830 | hint: Biped + Blunt
+joanna cargill | frenzy | Q1408551 | hint: Biped + Blunt
+impossible man |  | Q1149855 | hint: Biped + Shoots
+stranger marvel | stranger; the beyonder; the stranger | Q1168494 | hint: Biped + Beam, Shoots, Flies, Atomic
+whizzer marvel |  | Q1402209 | hint: Biped + Blunt
+guardian marvel | guardian; weapon alpha; the antiguard; mac hudson | Q1410619 | hint: Biped + Heavy, Shoots
+doctor faustus | johann fennhoff | Q1447249 | hint: Biped + Blunt
+phastos marvel | phastos | Q3378650 | hint: Biped + Blunt
+rocket racer | robert farrell | Q3440451 | hint: Biped + Blunt
+satannish marvel | satannish | Q3473873 | hint: Biped + Blunt
+stegron marvel | stegron | Q3498060 | hint: Biped + Blunt
+iron maiden | melina vostokoff | Q3544680 | hint: Biped + Blunt
+bushman marvel | bushman | Q3545397 | hint: Biped + Blunt
+jeffrey mace |  | Q3545581 | hint: Biped + Blunt
+bob agent of hydra |  | Q3545619 | hint: Biped + Shoots
+power broker |  | Q3400903 | hint: Biped + Blunt
+elixir marvel | elixir; josh foley; joshua foley | Q653308 | hint: Biped + Blunt
+alyosha kravinoff | al kraven | Q653898 | hint: Biped + Blunt
+morgan le fay |  | Q645718 | hint: Biped + Blunt
+whirlwind marvel | whirlwind; david cannon | Q3567749 | hint: Biped + Blunt
+arsenal marvel | arsenal; arsenal beta | Q3550391 | hint: Biped + Heavy, Shoots
+carlie cooper |  | Q3658902 | hint: Biped + Blunt
+ezekiel marvel | ezekiel; ezekiel sims | Q923391 | hint: Biped + Blunt
+rumiko fujikawa | rumiko ru fujikawa | Q936100 | hint: Biped + Blunt
+toro marvel | toro | Q3995012 | hint: Biped + Blunt
+hit-monkey marvel | hit-monkey | Q4497911 | hint: Biped + Blunt
+nocturne marvel | nocturne; talia wagner; talia josephine wagner; t.j. | Q1911253 | hint: Biped + Blunt
+lady mastermind | regan wyngarde | Q2028652 | hint: Biped + Blunt
+ma gnucci |  | Q1982323 | hint: Biped + Blunt
+angel dust |  | Q4762131 | hint: Biped + Flies
+bethany cabe | bethany camilla cabe van tilburg | Q4897724 | hint: Biped + Blunt
+bluebird marvel | bluebird; sally avril; blue bird | Q4930241 | hint: Biped + Blunt
+brian banner |  | Q4963042 | hint: Biped + Blunt
+nightstalkers marvel | nightstalkers | Q1892114 | hint: Biped + Swarm
+faiza hussain |  | Q5431344 | hint: Biped + Blunt
+namorita marvel | namorita; namorita prentiss; nita | Q2314770 | hint: Biped + Blunt
+michael pointer | omega | Q2396146 | hint: Biped + Blunt
+killraven marvel | killraven | Q2323492 | hint: Biped + Blunt
+molly hayes | princess powerful; bruiser | Q6896598 | hint: Biped + Blunt
+glory grant | gloria grant | Q5571598 | hint: Biped + Blunt
+gog marvel | gog | Q5577293 | hint: Biped + Blunt
+jason macendale | jason philip macendale jr. | Q6163022 | hint: Biped + Heavy, Shoots
+ogun marvel | ogun | Q7080283 | hint: Biped + Blunt
+doppelganger marvel | doppelganger | Q2440293 | hint: Biped + Blunt
+lilandra neramani | majestrix lilandra; lilandra | Q2504688 | hint: Biped + Shoots
+angel salvadore | tempest | Q2539039 | hint: Biped + Flies
+victor mancha |  | Q7926126 | hint: Biped + Heavy, Shoots
+yellow claw | plan chu; golden claw | Q8051696 | hint: Biped + Blade, Fast
+yukio marvel | yukio | Q8060735 | hint: Biped + Blunt
+zabu marvel | zabu | Q8063640 | hint: Biped + Blade, Fast
+squadron supreme |  | Q2454583 | hint: Biped + Swarm
+xavin marvel | xavin | Q10394292 | hint: Biped + Shoots
+living brain | the living brain | Q10568194 | hint: Biped + Heavy, Shoots
+abner jenkins | mach-x; mach-vii; mach-v; mach-3 | Q16203115 | hint: Biped + Blunt
+ashley kafka | doctor kafka | Q16385069 | hint: Biped + Blunt
+anna watson | aunt watson; aunt anna; anna may watson | Q16592823 | hint: Biped + Blunt
+hiro hamada |  | Q16995485 | hint: Biped + Blunt
+steel serpent | davos | Q17022155 | hint: Serpent + Constrict, Poison
+white tiger | hector ayala | Q17064925 | hint: Biped + Blade, Fast
+roger dooley |  | Q18968495 | hint: Biped + Blunt
+rhomann dey |  | Q17405299 | hint: Biped + Blunt
+supergiant marvel | supergiant | Q20979408 | hint: Biped + Shoots
+lei kung | yu-ti; the thunderer; lei-kung the thunderer; lei-kung | Q23306598 | hint: Biped + Blunt
+taserface marvel | taserface | Q26772238 | hint: Biped + Shoots
+ward meachum |  | Q28403782 | hint: Biped + Blunt
+anna maria marconi |  | Q39052372 | hint: Biped + Blunt
+kingo sunen |  | Q65748314 | hint: Biped + Blunt
+midnight man | anton mogart | Q110633556 | hint: Biped + Blunt
+arthur harrow |  | Q111512884 | hint: Biped + Blunt
+lin lie | sword master | Q111721102 | hint: Biped + Blunt
+wallflower marvel | wallflower; laurie collins | Q1448525 | hint: Biped + Blunt
+wind dancer | sofia mantega; sofia elizabeth mantega; renascence | Q1448648 | hint: Biped + Flies, Repel, Wind
+gateway marvel | gateway | Q1764832 | hint: Biped + Blunt
+joseph marvel | joseph; joseph lensherr | Q1771401 | hint: Biped + Blunt
+exodus marvel | exodus; paris bennet; bennet du paris | Q2265782 | hint: Biped + Fast, Grab, Shadow
+barnell bohusk | blackwing; beak | Q2278480 | hint: Biped + Blunt
+freedom ring | curtis doyle | Q285634 | hint: Biped + Blunt
+hepzibah marvel | hepzibah | Q372151 | hint: Biped + Shoots
+agamotto marvel | agamotto | Q1463221 | hint: Biped + Blunt
+air-walker marvel | air-walker; gabriel lan | Q1605367 | hint: Biped + Flies, Repel, Wind
+aleta ogord |  | Q1609790 | hint: Biped + Blunt
+cloud 9 | abigail boylen; abby boylen | Q1638527 | hint: Biped + Blunt
+andromeda marvel | andromeda; andrea mcphee | Q1645950 | hint: Biped + Blunt
+doctor spectrum | joseph ledger | Q1761283 | hint: Biped + Swarm
+kurse marvel | kurse; algrim the strong; algrim | Q1775092 | hint: Biped + Grab, Shadow
+belasco marvel | belasco; belasco of the corrupted | Q750828 | hint: Biped + Breath, Grab, Fire
+vengeance marvel | vengeance | Q1113901 | hint: Biped + Blunt
+lady liberators |  | Q691510 | hint: Biped + Swarm
+omega flight |  | Q836745 | hint: Biped + Swarm, Flies
+exiles marvel | exiles | Q1074284 | hint: Biped + Swarm
+spiral marvel | spiral; rita wayword | Q959613 | hint: Biped + Blunt
+thunderball marvel | thunderball; eliot franklin | Q655082 | hint: Biped + Blunt
+commander kraken |  | Q780488 | hint: Biped + Heavy, Shoots
+purifiers marvel | purifiers | Q1622538 | hint: Biped + Swarm
+scream marvel | scream; donna diego | Q1861779 | hint: Biped + Constrict, Grab, Shadow
+anaconda marvel | anaconda; blanche sitznski | Q1645936 | hint: Biped + Blunt
+stacy x | miranda leevald; ripcord | Q2265169 | hint: Biped + Blunt
+u-foes marvel | u-foes; ironclad | Q962140 | hint: Biped + Swarm
+henry gyrich | henry peter gyrich | Q555791 | hint: Biped + Blunt
+feral marvel | feral; maria callasantos | Q2737568 | hint: Biped + Blunt
+amelia voght |  | Q2842673 | hint: Biped + Blunt
+bedlam marvel | bedlam; jesse aaronson | Q2893582 | hint: Biped + Blunt
+doorman marvel | doorman | Q554789 | hint: Biped + Blunt
+jolt marvel | jolt | Q2757620 | hint: Biped + Blunt
+blackout marvel | blackout; marcus daniels | Q2905575 | hint: Biped + Blunt
+fabian cortez |  | Q3063514 | hint: Biped + Blunt
+holocaust marvel | holocaust; william rolfson; genocide | Q3109652 | hint: Biped + Blunt
+graymalkin marvel | graymalkin | Q3115862 | hint: Biped + Blunt
+grizzly marvel | grizzly | Q3116851 | hint: Biped + Blunt
+madison jeffries | box; gemini | Q3276124 | hint: Biped + Blunt
+living monolith | professor abdol; living pharoah; ahmet abdol | Q3321155 | hint: Biped + Blunt
+cardiac marvel | cardiac; elias wirtham; eli wirtham | Q2938033 | hint: Biped + Blunt
+chemistro marvel | chemistro | Q2962576 | hint: Biped + Blunt
+cyttorak marvel | cyttorak | Q3009556 | hint: Biped + Beam, Flies
+deathcry marvel | deathcry; sharra neramani; lifecry | Q3020767 | hint: Biped + Blunt
+doctor druid | anthony ludgate druid | Q3033512 | hint: Biped + Blunt
+dreadknight marvel | dreadknight; bram velsing | Q3039224 | hint: Biped + Blunt
+graydon creed |  | Q3115851 | hint: Biped + Blunt
+charlotte witter |  | Q432041 | hint: Biped + Blunt
+acolytes marvel | acolytes | Q2734743 | hint: Biped + Swarm
+gorilla-man marvel | gorilla-man | Q3139736 | hint: Biped + Blunt
+kangaroo marvel | kangaroo | Q3192657 | hint: Biped + Blunt
+maelstrom marvel | maelstrom | Q3276326 | hint: Biped + Blunt
+fafnir marvel | fafnir | Q3297367 | hint: Biped + Beam, Shoots, Blunt, Electric
+mayhem marvel | mayhem | Q3302974 | hint: Biped + Blunt
+n'kantu the living mummy |  | Q3319750 | hint: Biped + Blunt
+nighthawk marvel | nighthawk; kyle richmond | Q3341413 | hint: Biped + Blunt
+orka marvel | orka | Q3356429 | hint: Biped + Blunt
+fifty state initiative | avengers: the initiative | Q2943538 | hint: Biped + Swarm
+serpent squad |  | Q3057980 | hint: Serpent + Swarm, Constrict, Poison
+blackwing marvel |  | Q2905618 | hint: Biped + Blunt
+captain america's first shield | heater shield cap |  | hint: Shield + Guard, Ricochet
+uru | uru metal; asgardian metal |  | hint: Boulder + Heavy, Electric
+adamantium shield |  |  | hint: Shield + Guard, Heavy
+carbonadium | carbonadium coil |  | hint: Whip + Constrict, Link
+ultimate nullifier device |  |  | hint: Gun + Beam, Pierce
+nega-bands | negabands; quantum bands |  | hint: Gauntlet + Beam, Atomic
+the aether reality stone |  |  | hint: Ball + Sticky, Shadow
+m'kraan crystal | mkraan crystal |  | hint: Pillar + Portal, Beam
+the cosmic control rod |  |  | hint: Staff + Beam, Repel
+the serpent crown |  |  | hint: Dome + Barrier, Psychic
+the hand of doom |  |  | hint: Gauntlet + Grab, Electric
+doombot |  |  | hint: Biped + Shoots, Swarm
+life model decoy | lmd |  | hint: Biped + Shoots, Swarm
+goblin bombs |  |  | hint: Bomb + Explodes, Bounce
+razor bats | goblin razor bats |  | hint: Disc + Blade, Homing
+web glider | web cape |  | hint: Wings + Glide
+spider-cycle | spider cycle |  | hint: Vehicle + Charge, Piloted
+spider-armor | spider armor mk iv |  | hint: Biped + Guard, Piloted
+iron spider arms | waldo arms |  | hint: Arachnid + Grab, Pierce
+hulkbuster armor | hulkbuster suit |  | hint: Biped + Heavy, Piloted
+iron patriot | iron patriot armor |  | hint: Biped + Flies, Piloted, Shoots
+rescue armor | pepper potts armor |  | hint: Biped + Flies, Guard, Piloted
+stark tower | avengers tower |  | hint: Pillar + Heavy
+baxter building |  |  | hint: Pillar + Heavy
+the raft | raft prison |  | hint: Cage + Trap
+x-copter | x copter |  | hint: Vehicle + Flies, Piloted
+velocipede | x-men velocipede |  | hint: Vehicle + Fast, Piloted
+fantasticar mk2 |  |  | hint: Vehicle + Flies, Piloted
+fantastic four pogo plane | pogo plane |  | hint: Vehicle + Flies, Piloted
+the ghost rider bike | hellcycle mk2 |  | hint: Vehicle + Charge, Fire, Piloted
+blackbird sr-71 | x-men sr-71 |  | hint: Vehicle + Flies, Piloted, Shoots
+avengers quinjet mk2 |  |  | hint: Vehicle + Flies, Piloted, Shoots
+shield flying car | s.h.i.e.l.d. flying car |  | hint: Vehicle + Flies, Piloted
+book of the vishanti |  |  | hint: Staff + Barrier, Psychic
+orb of agamotto |  |  | hint: Ball + Homing, Psychic
+the darkforce | darkforce dimension |  | hint: Dome + Portal, Shadow
+the hand ninjas |  |  | hint: Biped + Blade, Swarm
+aim beekeepers | a.i.m. agents |  | hint: Biped + Shoots, Swarm
+mandroids | shield mandroid |  | hint: Biped + Heavy, Shoots
+celestial head | knowhere |  | hint: Platform + Heavy
+moon knight's truncheon | moon knight staff |  | hint: Staff + Blunt
+cable's psimitar | psimitar |  | hint: Sword + Blade, Psychic
+wolverine's katana | muramasa blade |  | hint: Sword + Blade
+x-force claws |  |  | hint: Gauntlet + Blade, Pierce
+ms. marvel embiggen | embiggen |  | hint: Gauntlet + Grow, Blunt
+squirrel army | squirrels |  | hint: Quadruped + Swarm, Fast
+mjolnir 2099 |  |  | hint: Hammer + Returning, Electric
+storm's staff |  |  | hint: Staff + Electric, Beam
+black bolt's tuning fork |  |  | hint: Staff + Repel

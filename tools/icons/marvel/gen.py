@@ -72,7 +72,7 @@ E(["doctor strange", "dr strange", "dr. strange", "stephen strange", "sorcerer s
 E(["scarlet witch", "wanda maximoff", "wanda", "the scarlet witch"],
   R("Scarlet Witch", "Biped", ["Flies", "Homing", "Shoots"], el="Psychic", scale=None, mass=60, accent=CRIMSON,
     temp="Chaotic", inten=0.6), MV + " (Scarlet Witch)", H.scarlet_witch())
-E(["the vision", "vision avengers", "synthezoid", "white vision"],
+E(["the vision", "vision avengers", "synthezoid", "white vision", "vision marvel"],
   R("Vision", "Biped", ["Beam", "Flies"], el="Psychic", scale=None, mass=150, accent=CRIMSON,
     temp="Calm"), MV + " (Vision)", H.vision())
 E(["captain marvel", "carol danvers", "captain marvel carol"],
@@ -141,7 +141,7 @@ E(["spider-gwen", "spider gwen", "ghost-spider", "ghost spider", "gwen stacy"],
 E(["spider-man 2099", "spiderman 2099", "spider man 2099", "miguel o'hara", "miguel ohara"],
   R("Spider-Man 2099", "Biped", ["Blade", "Fast", "Glide"], scale=None, mass=80, accent=NAVY,
     temp="Aggressive", inten=0.6), MV + " (Spider-Verse)", H.spider_2099())
-E(["venom", "eddie brock", "we are venom", "venom marvel", "lethal protector", "agent venom"],
+E(["venom marvel", "eddie brock", "we are venom", "lethal protector", "agent venom", "venom spider-man"],
   R("Venom", "Biped", ["Constrict", "Grab", "Pull"], el="Shadow", scale=None, mass=260, accent=WHITE,
     temp="Aggressive", inten=0.9), MV + " (Venom)", H.venom())
 E(["carnage", "cletus kasady", "maximum carnage"],
@@ -167,7 +167,7 @@ E(["vulture spider-man", "the vulture marvel", "adrian toomes"],
     temp="Sneaky", inten=0.6), MV + " (Spider-Man)", H.vulture())
 
 # ============================================================== X-Men & mutants
-E(["wolverine", "logan", "james howlett", "weapon x", "old man logan", "the wolverine"],
+E(["wolverine", "logan", "james howlett", "weapon x", "old man logan", "wolverine x-men", "x-men wolverine", "logan wolverine"],
   R("Wolverine", "Biped", ["Blade", "Charge", "Fast"], scale=None, mass=140, accent=YELLOW,
     temp="Aggressive", inten=0.9), XM, H.wolverine())
 E(["cyclops x-men", "scott summers", "cyclops of the x-men", "slim summers"],
@@ -202,13 +202,13 @@ E(["rogue x-men", "anna marie", "rogue of the x-men", "rogue mutant"],
 E(["beast x-men", "hank mccoy", "henry mccoy", "dr. hank mccoy"],
   R("Beast", "Biped", ["Bounce", "Fast", "Grab"], scale=None, mass=180, accent=BLUE,
     temp="Playful", inten=0.7), XM, H.beast())
-E(["juggernaut", "the juggernaut", "cain marko"],
+E(["juggernaut", "the juggernaut", "cain marko", "juggernaut x-men", "unstoppable juggernaut"],
   R("Juggernaut", "Biped", ["Blunt", "Charge", "Heavy", "Stomp"], scale=None, mass=900, accent=RUST,
     temp="Aggressive", inten=1.0), XM, H.juggernaut())
 E(["cable x-men", "nathan summers", "cable marvel", "nathan christopher summers"],
   R("Cable", "Biped", ["Heavy", "Shoots"], scale=None, mass=160, accent=STEEL, temp="Fearful", inten=0.6,
     payload=R("plasma round", "Ball", ["Explodes", "Fast"], scale=0.5, mass=2)), XM, H.cable())
-E(["apocalypse", "en sabah nur", "the first mutant"],
+E(["apocalypse", "en sabah nur", "the first mutant", "apocalypse x-men"],
   R("Apocalypse", "Biped", ["Blunt", "Grow", "Heavy", "Stomp"], scale=None, mass=600, accent=BLUE,
     temp="Calm"), XM, H.apocalypse())
 E(["sabretooth", "victor creed"],

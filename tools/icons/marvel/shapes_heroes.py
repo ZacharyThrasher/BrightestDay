@@ -410,7 +410,8 @@ def sue_storm():
     eyes(s, h, "C", dx=0.4, y=0.1, w=0.35, ht=0.2)
     # force-field disc projected from the right hand
     x, y, _ = hand_c(h, R)
-    s.cz((x - 0.8, y + 1.2, -2.2), 4.4, 0.2, "C", part=4)
+    s.cz((x + 0.6, y + 1.4, -2.4), 3.2, 0.3, "C", part=4)
+    s.cz((x + 0.6, y + 1.4, -2.5), 2.2, 0.3, "A", part=4)
     return check(s)
 
 
@@ -521,7 +522,8 @@ def spider_gwen():
     s, h = hero(tw=2.8, td=1.6, lw=1.05, aw=1.0, torso=3.4, tt="C", ta="P", tl="P", th="C")
     boots(s, h, "A", 1.6)
     gloves(s, h, "A", 1.0)
-    s.el((0, h["hc"] + 0.1, 0.45), (h["hw"] + 0.8, h["hh"] + 0.8, h["hd"] + 0.6), "C", part=5)  # the hood
+    s.el((0, h["hc"] + 0.15, 0.35), (h["hw"] + 0.5, h["hh"] + 0.5, h["hd"] + 0.3), "C", part=5)  # the hood
+    face(s, h, "P", 0, -0.05, (h["hw"] - 0.3, h["hh"] - 0.5, 0.25))                              # mask
     for sx in SIDES:  # web lines on the arms
         s.bx((sx * h["ax"], h["shy"] - 0.9, -0.55), (0.12, 1.4, 0.12), "A", part=3 if sx < 0 else 4)
     spider_suit(s, h)
@@ -564,9 +566,9 @@ def venom(k=1.0, carnage=False):
     for n, (tx, ty, tz) in enumerate(tips):
         pid = s.part(10 + n, 0, (tx * 0.2, base, h["td"] / 2), "Tail")
         mid = (tx * 0.6, (base + ty) / 2 + 0.6 * k, h["td"] / 2 + tz * 0.5)
-        s.seg((tx * 0.2, base, h["td"] / 2), mid, 0.7 * k, 0.7 * k, "D" if not carnage else "A", part=pid, kind="Ellipsoid")
-        s.seg(mid, (tx * k, ty, h["td"] / 2 + tz * k), 0.5 * k, 0.5 * k, "D" if not carnage else "A", part=pid, kind="Ellipsoid")
-        s.cone((tx * k, ty + 0.4 * k, h["td"] / 2 + tz * k), 0.5 * k, 0.9 * k, "C", "+y", part=pid)
+        s.seg((tx * 0.2, base, h["td"] / 2), mid, 1.0 * k, 1.0 * k, "D" if not carnage else "A", part=pid, kind="Ellipsoid")
+        s.seg(mid, (tx * k, ty, h["td"] / 2 + tz * k), 0.8 * k, 0.8 * k, "D" if not carnage else "A", part=pid, kind="Ellipsoid")
+        s.cone((tx * k, ty + 0.5 * k, h["td"] / 2 + tz * k), 0.8 * k, 1.2 * k, "C", "+y", part=pid)
     if carnage:  # blade arm
         x, y, _ = hand_c(h, R)
         s.bx((x, y - 1.6 * k, -0.4), (0.4 * k, 3.2 * k, 1.1 * k), "C", part=4)
@@ -610,8 +612,11 @@ def doctor_octopus():
     for n, e in enumerate(ends):
         pid = s.part(10 + n, 0, base, "Tail")
         mid = (e[0] * 0.55, (base[1] + e[1]) / 2 + 1.4, 1.8)
-        s.seg(base, mid, 0.7, 0.7, "D", part=pid, kind="Cylinder")
-        s.seg(mid, e, 0.6, 0.6, "D", part=pid, kind="Cylinder")
+        s.seg(base, mid, 1.0, 1.0, "D", part=pid, kind="Cylinder")
+        s.seg(mid, e, 0.9, 0.9, "D", part=pid, kind="Cylinder")
+        s.el(mid, (1.2, 1.2, 1.2), "A", part=pid)
+        for dx in (-0.45, 0.45):  # pronged claw
+            s.cone((e[0] + dx, e[1], e[2]), 0.5, 1.2, "C", "+y" if e[1] > 4 else "-y", part=pid)
         s.el(e, (1.3, 1.3, 1.3), "C", part=pid)
     s.bx(base, (2.6, 1.2, 0.8), "D")
     return check(s)
@@ -684,7 +689,9 @@ def wolverine():
     belt(s, h, "D", 0.6)
     s.bx((0, h["hip"] + 1.0, h["cz"] - 0.1), (h["tw"] - 0.2, 1.4, 0.2), "P")  # the side panels
     pads(s, h, "P", ht=0.6)
-    fins(s, h, "P", ht=1.5, dx=0.75, y=0.3, ang=30)                          # the cowl fins
+    for sx in SIDES:                                                        # the cowl fins
+        s.bx((sx * 1.1, h["hc"] + 1.0, h["hz"] + 0.1), (0.5, 2.2, 1.2), "P", rot=(0, 0, sx * -32), part=5)
+        s.bx((sx * 1.0, h["hc"] + 0.1, h["fz"] + 0.2), (0.5, 1.0, 0.4), "P", rot=(0, 0, sx * -20), part=5)
     face(s, h, "P", 0, 0.25, (1.8, 0.8, 0.2))
     eyes(s, h, "C", dx=0.45, y=0.25, w=0.55, ht=0.25, slant=-15)
     face(s, h, "D", 0, -0.55, (1.3, 0.6, 0.2))                               # the jaw + sideburns
@@ -800,8 +807,8 @@ def iceman():
     eyes(s, h, "C", dx=0.4, y=0.15, w=0.45, ht=0.25)
     chest(s, h, "C", (0, -1.2), (1.6, 0.2, 0.2), rot=(0, 0, 30))
     # the ice slide he surfs on (root)
-    s.bx((0, -0.35, 0.6), (3.2, 0.7, 12.0), "C", rot=(-8, 0, 0))
-    s.bx((0, -1.4, 5.4), (1.4, 2.0, 1.2), "A", rot=(-8, 0, 0))
+    s.bx((0, -0.35, 0.8), (3.2, 0.7, 7.0), "C", rot=(-8, 0, 0))
+    s.bx((0, -1.1, 3.6), (1.4, 1.4, 1.2), "A", rot=(-8, 0, 0))
     return check(s)
 
 
@@ -837,12 +844,13 @@ def rogue():
 
 def beast():
     s = Shape()
-    h = humanoid(s, 3.4, 4.0, 1.9, 4.2, 2.6, 1.6, 1.6, 6.2, tt="A", ta="A", tl="A", th="A", hw=2.2, head_z=-1.0)
+    h = humanoid(s, 3.4, 3.8, 1.9, 3.4, 2.4, 1.5, 1.5, 5.8, tt="A", ta="A", tl="A", th="A", hw=2.2, head_z=-1.0,
+                 arm_out=0.35)
     for i, sx in enumerate(SIDES):  # big feet + fists
-        s.bx((sx * h["lx"], 0.4, -0.6), (1.9, 0.8, 2.8), "A", part=1 + i)
-        s.bx((sx * h["ax"], h["hand"] - 0.2, -0.2), (2.0, 1.6, 2.0), "A", part=3 + i)
+        s.bx((sx * h["lx"], 0.4, -0.6), (1.8, 0.8, 2.8), "A", part=1 + i)
+        s.bx((sx * h["ax"], h["hand"] - 0.1, -0.3), (1.9, 1.5, 1.9), "D", part=3 + i)
     s.bx((0, h["hip"] + 0.2, 0), (h["tw"] + 0.2, 1.0, h["td"] + 0.2), "D")      # shorts
-    s.el((0, h["top"] - 0.4, 0.4), (h["tw"] + 0.8, 1.8, h["td"] + 0.6), "A")     # hunched shoulders
+    s.el((0, h["top"] - 0.3, 0.5), (h["tw"] + 0.6, 1.8, h["td"]), "A")           # hunched back
     face(s, h, "C", 0, 0.1, (1.5, 0.3, 0.2))                                      # glasses
     face(s, h, "D", 0, -0.55, (1.6, 0.5, 0.25))
     for sx in SIDES:
@@ -964,30 +972,32 @@ def psylocke():
 
 def dark_phoenix():
     s = Shape()
-    s.el((0, 6.0, 0), (3.6, 3.6, 7.0), "P")
-    s.el((0, 5.6, -1.0), (2.6, 2.6, 4.2), "A")
-    s.part(5, 0, (0, 7.0, -3.2), "Head")
-    s.el((0, 7.8, -4.6), (2.2, 2.2, 2.6), "P", part=5)
-    s.cone((0, 7.6, -6.4), 0.9, 1.6, "C", "-z", part=5)
+    s.el((0, 6.0, 0), (4.2, 4.2, 8.0), "P")
+    s.el((0, 5.4, -1.2), (3.0, 3.0, 5.0), "A")
+    s.part(5, 0, (0, 7.2, -3.4), "Head")
+    s.el((0, 8.0, -4.8), (2.6, 2.6, 3.0), "P", part=5)
+    s.cone((0, 7.8, -6.9), 1.1, 1.8, "C", "-z", part=5)
     for sx in SIDES:
-        s.bx((sx * 0.6, 8.1, -5.6), (0.4, 0.3, 0.3), "C", part=5)
-    s.cone((0, 9.4, -3.9), 0.8, 2.2, "A", "+y", part=5)      # crest flame
+        s.bx((sx * 0.75, 8.3, -5.9), (0.5, 0.4, 0.4), "C", part=5)
+    for dz, ht in ((-4.2, 2.6), (-3.2, 3.2), (-2.2, 2.4)):
+        s.cone((0, 9.6 + ht / 2 - 0.6, dz), 1.0, ht, "A", "+y", part=5)      # crest flames
     for i, sx in enumerate(SIDES):
-        pid = s.part(9 + i, 0, (sx * 1.6, 6.8, -0.8), "WingLeft" if sx < 0 else "WingRight")
-        for n in range(4):
-            w = 3.2
-            s.bx((sx * (2.2 + n * 2.6), 7.4 + n * 0.8, -0.6 + n * 0.6), (w, 0.5, 5.0 - n * 0.9), "P" if n % 2 else "A",
-                 rot=(0, sx * -8, sx * -14), part=pid)
-        s.cone((sx * 12.8, 10.6, 2.2), 1.2, 3.0, "C", "+x" if sx > 0 else "-x", part=pid)
+        pid = s.part(9 + i, 0, (sx * 1.8, 6.8, -0.8), "WingLeft" if sx < 0 else "WingRight")
+        s.bx((sx * 5.0, 7.6, -0.4), (7.0, 1.0, 5.6), "P", rot=(0, 0, sx * -18), part=pid)       # inner wing
+        s.bx((sx * 10.6, 9.6, 0.4), (5.6, 0.8, 4.2), "A", rot=(0, sx * -10, sx * -24), part=pid)  # outer wing
+        for n in range(4):                                                                      # primaries
+            s.bx((sx * (4.0 + n * 2.4), 6.0 + n * 0.9, 2.6 + n * 0.3), (1.6, 0.6, 3.6 - n * 0.3), "C",
+                 rot=(0, sx * -10, sx * -18), part=pid)
+        s.cone((sx * 14.2, 11.4, 1.0), 1.4, 3.0, "C", "+x" if sx > 0 else "-x", part=pid)
     # the flame tail
-    s.part(12, 0, (0, 5.8, 3.4), "Tail")
-    for n, (dx, r) in enumerate(((-1.4, -25), (0.0, 0), (1.4, 25))):
-        s.bx((dx, 5.0, 7.0), (0.9, 0.4, 7.0), "A" if n != 1 else "C", rot=(-10, r, 0), part=12)
-    # talons
+    s.part(12, 0, (0, 5.6, 3.8), "Tail")
+    for n, (dx, r) in enumerate(((-1.6, -22), (0.0, 0), (1.6, 22))):
+        s.bx((dx, 5.0, 8.0), (1.4, 0.7, 8.0), "A" if n != 1 else "C", rot=(-10, r, 0), part=12)
+    s.cone((0, 4.4, 12.6), 1.6, 2.4, "C", "+z", part=12)
     for i, sx in enumerate(SIDES):
-        pid = s.part(1 + i, 0, (sx * 0.8, 4.6, 0.4), "LegBackLeft" if sx < 0 else "LegBackRight")
-        s.bx((sx * 0.8, 3.2, 0.6), (0.5, 2.8, 0.5), "D", part=pid)
-        s.bx((sx * 0.8, 1.9, 0.0), (0.9, 0.3, 1.5), "C", part=pid)
+        pid = s.part(1 + i, 0, (sx * 0.9, 4.4, 0.4), "LegBackLeft" if sx < 0 else "LegBackRight")
+        s.bx((sx * 0.9, 3.0, 0.6), (0.7, 2.8, 0.7), "D", part=pid)
+        s.bx((sx * 0.9, 1.7, 0.0), (1.1, 0.4, 1.8), "C", part=pid)
     return check(s)
 
 

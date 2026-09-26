@@ -1,0 +1,15 @@
+[package]
+name = "mvcheck"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Validates assets/powers_pending/marvel.ron against the real bd_sim power schema (standalone and merged
+# with assets/powers.ron) and probes the lexicon with the merged table + marvel.ron icons.
+[dependencies]
+bd_sim = { path = "../../../../crates/bd_sim" }
+bd_lexicon = { path = "../../../../crates/bd_lexicon" }
+bd_core = { path = "../../../../crates/bd_core" }
+
+# Standalone tool, not a workspace member.
+[workspace]
