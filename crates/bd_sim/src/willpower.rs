@@ -43,9 +43,42 @@ pub fn category_base(form: Form) -> f32 {
     }
 }
 
-/// Willpower drained per second while the construct lives.
+/// Autonomous non-creatures (a held / structure / object recipe that `Flies` or `Walks`: "flying
+/// hammer", "wall with legs") hunt like creatures, so they are priced like creatures: this cast
+/// base and [`AUTONOMOUS_UPKEEP`] (balance pass 2, docs/BALANCE_REPORT.md). Behaviour is unchanged.
+pub const AUTONOMOUS_BASE: f32 = 25.0;
+pub const AUTONOMOUS_UPKEEP: f32 = 1.5;
+
+/// Is this recipe priced as an autonomous non-creature? Decide it on the recipe the player
+/// **typed** (before party / power grafts): standing grafts never raise a cast's price.
+pub fn is_autonomous(recipe: &Recipe) -> bool {
+    matches!(recipe.form.category(), FormCategory::Held | FormCategory::Structure | FormCategory::Object)
+        && (recipe.has(Mechanic::Flies) || recipe.has(Mechanic::Walks))
+}
+
+/// Willpower drained per second while the construct lives (autonomy decided from the recipe).
 pub fn upkeep_per_sec(recipe: &Recipe, piloted: bool) -> f32 {
-    let base: f32 = if recipe.form == Form::Kaiju {
+    upkeep_per_sec_as(recipe, piloted, is_autonomous(recipe))
+}
+
+/// [`upkeep_per_sec`] with the autonomy pricing decided by the caller (the typed recipe's).
+pub fn upkeep_per_sec_as(recipe: &Recipe, piloted: bool, autonomous: bool) -> f32 {
+    let base: f32 = if autonomous && recipe.form != Form::Kaiju && recipe.form.category() != FormCategory::Creature {
+        AUTONOMOUS_UPKEEP.max(upkeep_category(recipe))
+    } else {
+        upkeep_category(recipe)
+    };
+    if piloted {
+        // Piloting drains like a creature; colossal things drain like a kaiju (COMBAT.md §5d).
+        let p = if is_colossal(recipe) { 4.0 } else { 1.5 };
+        base.max(p)
+    } else {
+        base
+    }
+}
+
+fn upkeep_category(recipe: &Recipe) -> f32 {
+    if recipe.form == Form::Kaiju {
         4.0
     } else {
         match recipe.form.category() {
@@ -54,13 +87,6 @@ pub fn upkeep_per_sec(recipe: &Recipe, piloted: bool) -> f32 {
             FormCategory::Structure => 0.3,
             FormCategory::Object => 0.0,
         }
-    };
-    if piloted {
-        // Piloting drains like a creature; colossal things drain like a kaiju (COMBAT.md §5d).
-        let p = if is_colossal(recipe) { 4.0 } else { 1.5 };
-        base.max(p)
-    } else {
-        base
     }
 }
 
@@ -150,8 +176,15 @@ pub fn count_factor(recipe: &Recipe) -> f32 {
 /// Cast cost before staleness: `base · size · (1 + 0.15·#mechanics) · count` (a payload counts as
 /// one mechanic).
 pub fn base_cost(recipe: &Recipe) -> f32 {
+    base_cost_as(recipe, is_autonomous(recipe))
+}
+
+/// [`base_cost`] with the autonomy pricing decided by the caller (the typed recipe's): an
+/// autonomous non-creature uses [`AUTONOMOUS_BASE`] instead of its category base.
+pub fn base_cost_as(recipe: &Recipe, autonomous: bool) -> f32 {
     let n = recipe.mechanics.len() + recipe.payload.is_some() as usize;
-    category_base(recipe.form) * size_factor(recipe) * (1.0 + 0.15 * n as f32) * count_factor(recipe)
+    let base = if autonomous && recipe.form.category() != FormCategory::Creature { AUTONOMOUS_BASE } else { category_base(recipe.form) };
+    base * size_factor(recipe) * (1.0 + 0.15 * n as f32) * count_factor(recipe)
 }
 
 /// `1 + 0.3·uses` of this exact phrase in the last 30 s.

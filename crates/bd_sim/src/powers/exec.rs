@@ -15,7 +15,7 @@ use crate::geom;
 use crate::movement::{CollisionWorld, Hand, hand_pos, raycast_world};
 use crate::space::{LINK_LIFETIME, LINK_MAX_LEN, LinkEnd, PORTAL_LIFETIME, PORTAL_RADIUS, PortalEnd};
 use crate::status::StatusKind;
-use crate::willpower::{integrity_for_cost, upkeep_per_sec, validate_recipe};
+use crate::willpower::{integrity_for_cost, upkeep_per_sec_as, validate_recipe};
 use crate::world::{Aim, World};
 
 const INF: f32 = f32::INFINITY;
@@ -1110,7 +1110,7 @@ impl World {
                     c.pos = if c.pos.is_finite() { c.pos + (want - c.pos) * (18.0 * dt).min(1.0) } else { want };
                     c.vel = vel;
                     c.rot = geom::yaw_rotation(fwd).inverse();
-                    Some(upkeep_per_sec(&c.recipe, false))
+                    Some(upkeep_per_sec_as(&c.recipe, false, false)) // stands: never autonomy-priced
                 } else {
                     None
                 }

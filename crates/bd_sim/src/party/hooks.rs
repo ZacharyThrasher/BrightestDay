@@ -29,7 +29,7 @@ use crate::movement::MoveParams;
 use crate::projectile::ProjectileSpawn;
 use crate::rng::SimRng;
 use crate::space::PortalEnd;
-use crate::willpower::{base_cost, integrity_for_cost, validate_recipe};
+use crate::willpower::{base_cost_as, integrity_for_cost, validate_recipe};
 use crate::world::{Aim, World};
 
 /// What a [`GameEvent::PartyFx`] shows.
@@ -117,7 +117,8 @@ fn hook_param<T>(party: &PartyState, id: PlayerId, f: impl Fn(&Hook) -> Option<T
 
 /// Party cast modifier (called from `World::cast` after validation; no-op in FFA / without
 /// effects). Re-validates `r` and prices the cast as typed (party grafts never cost more).
-pub fn modify_cast(w: &mut World, i: usize, r: &mut Recipe) {
+/// `autonomous` = the typed recipe's autonomy pricing (TUNING HOOK): kept for the grafted recipe.
+pub fn modify_cast(w: &mut World, i: usize, r: &mut Recipe, autonomous: bool) {
     let Some(party) = w.party.as_ref() else { return };
     let Some(id) = w.players.get(i).map(|p| p.id) else { return };
     let Some(pp) = party.player(id) else { return };
@@ -126,7 +127,8 @@ pub fn modify_cast(w: &mut World, i: usize, r: &mut Recipe) {
     }
     let (owned, n, hooks) = (pp.effects, pp.n_effects as usize, pp.hooks);
     let table = party.table.clone();
-    let typed = base_cost(r);
+    // TUNING HOOK: price with the world's tuning and the typed recipe's autonomy decision.
+    let typed = w.cfg.tuning.willpower.base_cost_as(r, autonomous);
     // Wild Magic: the ring misfires into a random phrase.
     if hooks & hb::WILD_MAGIC != 0 {
         let chance = hook_param(party, id, |h| if let Hook::WildMagic { chance } = h { Some(*chance) } else { None }).unwrap_or(0.25);
@@ -161,7 +163,7 @@ pub fn modify_cast(w: &mut World, i: usize, r: &mut Recipe) {
     }
     let cur = std::mem::replace(r, Recipe::unknown(""));
     *r = validate_recipe(cur, &w.cfg.rules);
-    let after = base_cost(r);
+    let after = w.cfg.tuning.willpower.base_cost_as(r, autonomous);
     if after > 0.0 && typed.is_finite() && (after - typed).abs() > 1e-6 {
         w.party_cost_ratio = Some((typed / after).clamp(0.05, 20.0));
     }
@@ -215,7 +217,7 @@ pub(crate) fn spawn_direct(w: &mut World, owner: PlayerId, recipe: Recipe, pos: 
     if matches!(r.form.category(), FormCategory::Held | FormCategory::Worn) {
         return None;
     }
-    let cost = base_cost(&r);
+    let cost = base_cost_as(&r, false); // integrity only (never autonomy-priced)
     let forming = forming_secs(r.form).min(0.3);
     let life = life.filter(|l| l.is_finite() && *l > 0.0).unwrap_or_else(|| lifetime_secs(r.form));
     let rot = if vel.length_squared() > 1e-4 { crate::geom::look_rotation(vel.normalize()) } else { Quat::IDENTITY };

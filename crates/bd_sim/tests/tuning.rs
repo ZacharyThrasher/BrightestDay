@@ -8,8 +8,11 @@ use bd_sim::rng::{Fnv64, SimRng};
 use bd_sim::rules::MatchRules;
 use bd_sim::tuning::{CombatTuning, FormCost, MechanicCost, GUN_ARCHETYPES};
 use bd_sim::weapons::{archetype_for, gun_spec, spec_for};
-use bd_sim::willpower::{base_cost, integrity_for_cost, staleness, upkeep_per_sec, validate_recipe};
-use bd_sim::world::{ArenaSource, SimConfig, World};
+use bd_sim::willpower::{
+    AUTONOMOUS_BASE, AUTONOMOUS_UPKEEP, base_cost, base_cost_as, category_base, integrity_for_cost, is_autonomous, staleness, upkeep_per_sec, upkeep_per_sec_as,
+    validate_recipe,
+};
+use bd_sim::world::{Aim, ArenaSource, SimConfig, World};
 
 // ================================================================================ RON
 
@@ -91,11 +94,27 @@ fn default_tuning_formulas_are_bit_identical() {
     let t = CombatTuning::default();
     let rules = MatchRules::default();
     let mut rng = SimRng::new(77);
+    let legacy = CombatTuning::legacy();
+    let mut autonomous = 0;
     for _ in 0..5000 {
         let r = validate_recipe(random_recipe(&mut rng, 2), &rules);
+        // The reference formulas include the autonomy rule (balance pass 2); legacy tuning turns
+        // it off and must match the pre-rule formula exactly.
         assert_eq!(t.willpower.base_cost(&r).to_bits(), base_cost(&r).to_bits(), "{r:?}");
+        assert_eq!(legacy.willpower.base_cost(&r).to_bits(), base_cost_as(&r, false).to_bits(), "{r:?}");
+        assert_eq!(t.willpower.is_autonomous(&r), is_autonomous(&r));
+        autonomous += usize::from(is_autonomous(&r));
+        for auto in [false, true] {
+            assert_eq!(t.willpower.base_cost_as(&r, auto).to_bits(), base_cost_as(&r, auto).to_bits());
+        }
         for piloted in [false, true] {
             assert_eq!(t.willpower.upkeep_per_sec(&r, piloted).to_bits(), upkeep_per_sec(&r, piloted).to_bits());
+            assert_eq!(legacy.willpower.upkeep_per_sec(&r, piloted).to_bits(), upkeep_per_sec_as(&r, piloted, false).to_bits());
+        }
+        if is_autonomous(&r) {
+            // Priced like a creature of the same size / mechanics / count.
+            assert!((base_cost(&r) / base_cost_as(&r, false) - AUTONOMOUS_BASE / category_base(r.form)).abs() < 1e-4);
+            assert!(upkeep_per_sec(&r, false) >= AUTONOMOUS_UPKEEP);
         }
         let c = base_cost(&r) * staleness(2);
         assert_eq!((t.willpower.base_cost(&r) * t.willpower.staleness(2)).to_bits(), c.to_bits());
@@ -105,6 +124,7 @@ fn default_tuning_formulas_are_bit_identical() {
             assert_eq!(format!("{x:?}"), format!("{y:?}"));
         }
     }
+    assert!(autonomous > 100, "the fuzz space covers autonomous recipes ({autonomous})");
     for u in 0..10 {
         assert_eq!(t.willpower.staleness(u).to_bits(), staleness(u).to_bits());
     }
@@ -145,6 +165,71 @@ fn cost_knobs_only_change_cost() {
     let gun = bots::recipe("gun", Form::Gun, &[bd_core::mechanics::Mechanic::Shoots], bd_core::mechanics::Element::Light, 0.6);
     assert_eq!(g.willpower.upkeep_per_sec(&gun, false), 2.0 * d.willpower.upkeep_per_sec(&gun, false));
     assert_eq!(g.willpower.base_cost(&gun), 2.0 * d.willpower.base_cost(&gun));
+}
+
+// ================================================================================ autonomy pricing
+
+fn flat_live() -> World {
+    let mut cfg = SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, seed: 5, check_invariants: true, ..SimConfig::default() };
+    cfg.timings.warmup_secs = 0.0;
+    let mut w = World::new(cfg);
+    w.add_player(bd_core::PlayerId(1), "a".into(), bd_core::corps::Corps::Willpower).unwrap();
+    w.add_player(bd_core::PlayerId(2), "b".into(), bd_core::corps::Corps::Rage).unwrap();
+    w.start_live();
+    w.tick(&[]);
+    w
+}
+
+fn cast_spend(w: &mut World, r: bd_core::mechanics::Recipe) -> (bd_core::ConstructId, f32) {
+    let a = bd_core::PlayerId(1);
+    w.player_mut(a).unwrap().willpower = 100.0;
+    let p = w.player(a).unwrap();
+    let aim = Aim::new(p.eye(w.params()), (p.look() + bd_core::Vec3::new(0.0, -0.3, 0.0)).normalize());
+    let id = w.cast(a, r, None, aim).unwrap();
+    (id, 100.0 - w.player(a).unwrap().willpower)
+}
+
+/// A flying hammer / wall with legs costs like a creature (cast + upkeep) and is exactly as tough
+/// and behaves exactly like before; a typed graft that makes a hammer fly pays the difference.
+#[test]
+fn autonomous_non_creatures_are_priced_like_creatures() {
+    use bd_core::mechanics::{Element, Mechanic};
+    let hammer = bots::recipe("hammer", Form::Hammer, &[], Element::Light, 1.2);
+    let flying = bots::recipe("flying hammer", Form::Hammer, &[Mechanic::Flies], Element::Light, 1.2);
+    let walls = bots::recipe("wall with legs", Form::Wall, &[Mechanic::Walks], Element::Light, 6.0);
+    let mut w = flat_live();
+    let (id, spent) = cast_spend(&mut w, flying.clone());
+    assert!((spent - AUTONOMOUS_BASE * 1.15).abs() < 1e-3, "{spent}");
+    let c = w.constructs.get(id).unwrap();
+    assert!(c.priced_autonomous);
+    // Integrity is priced from the unadjusted cost (no tougher for being pricier).
+    assert!((c.max_integrity - integrity_for_cost(base_cost_as(&flying, false))).abs() < 1e-3, "{}", c.max_integrity);
+    let (_, spent) = cast_spend(&mut w, walls.clone());
+    assert!((spent - base_cost(&walls)).abs() < 1e-3 && base_cost(&walls) > base_cost_as(&walls, false));
+    // Legacy tuning: the old prices.
+    let mut l = flat_live();
+    l.set_tuning(CombatTuning::legacy());
+    let (id, spent) = cast_spend(&mut l, flying);
+    assert!((spent - 12.0 * 1.15).abs() < 1e-3, "{spent}");
+    assert!(!l.constructs.get(id).unwrap().priced_autonomous);
+    // Graft "wings" (Flies) onto a plain hammer: the hammer now hunts, so the graft pays up to a
+    // creature's base and the hammer pays creature upkeep from then on.
+    let mut g = flat_live();
+    let (hid, _) = cast_spend(&mut g, hammer.clone());
+    for _ in 0..30 {
+        g.tick(&[]);
+    }
+    let wings = bots::recipe("wings", Form::Blob0, &[Mechanic::Flies], Element::Light, 0.8);
+    let a = bd_core::PlayerId(1);
+    g.player_mut(a).unwrap().willpower = 100.0;
+    let p = g.player(a).unwrap();
+    let mut aim = Aim::new(p.eye(g.params()), p.look());
+    aim.target_hint = Some(bd_sim::world::TargetHint::Construct(hid));
+    assert_eq!(g.cast(a, wings.clone(), None, aim).unwrap(), hid);
+    let spent = 100.0 - g.player(a).unwrap().willpower;
+    let plain = base_cost(&wings) * 0.5;
+    assert!((spent - plain - (AUTONOMOUS_BASE - 12.0)).abs() < 1e-2, "{spent} vs {plain}");
+    assert!(g.constructs.get(hid).unwrap().priced_autonomous);
 }
 
 // ================================================================================ whole-sim hashes

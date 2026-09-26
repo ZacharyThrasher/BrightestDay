@@ -581,6 +581,12 @@ pub struct WillpowerTuning {
     pub base_object: f32,
     pub base_creature: f32,
     pub base_kaiju: f32,
+    /// Autonomous non-creatures (held / structure / object that `Flies` or `Walks`: "flying
+    /// hammer", "wall with legs") are priced like creatures — this cast base and upkeep. Decided on
+    /// the recipe the player typed (party / power grafts never raise a price). Behaviour unchanged.
+    pub autonomous_pricing: bool,
+    pub autonomous_base: f32,
+    pub autonomous_upkeep: f32,
     /// Flat weight of each mechanic (a payload counts as one).
     pub per_mechanic: f32,
     /// Balance knob: extra weight per mechanic (empty = none).
@@ -623,6 +629,9 @@ impl Default for WillpowerTuning {
             base_object: willpower::category_base(Form::Ball),
             base_creature: willpower::category_base(Form::Biped),
             base_kaiju: willpower::category_base(Form::Kaiju),
+            autonomous_pricing: true,
+            autonomous_base: willpower::AUTONOMOUS_BASE,
+            autonomous_upkeep: willpower::AUTONOMOUS_UPKEEP,
             per_mechanic: 0.15,
             mechanic_cost: Vec::new(),
             form_cost: Vec::new(),
@@ -658,6 +667,8 @@ impl WillpowerTuning {
         self.base_object = fin(self.base_object, d.base_object, 0.0, 500.0);
         self.base_creature = fin(self.base_creature, d.base_creature, 0.0, 500.0);
         self.base_kaiju = fin(self.base_kaiju, d.base_kaiju, 0.0, 500.0);
+        self.autonomous_base = fin(self.autonomous_base, d.autonomous_base, 0.0, 500.0);
+        self.autonomous_upkeep = fin(self.autonomous_upkeep, d.autonomous_upkeep, 0.0, 100.0);
         self.per_mechanic = fin(self.per_mechanic, d.per_mechanic, 0.0, 5.0);
         self.mechanic_cost.truncate(64);
         for m in &mut self.mechanic_cost {
@@ -735,29 +746,46 @@ impl WillpowerTuning {
         self.form_cost.iter().find(|f| f.form == form).map_or(1.0, |f| f.mult)
     }
 
-    /// Cast cost before staleness (`willpower::base_cost` with these numbers). The original
-    /// operation order is kept (base · size · mechanics · count), so defaults are bit-identical.
+    /// Is `recipe` priced as an autonomous non-creature? Call it on the **typed** recipe.
+    pub fn is_autonomous(&self, recipe: &Recipe) -> bool {
+        self.autonomous_pricing && willpower::is_autonomous(recipe)
+    }
+
+    /// Cast cost before staleness (`willpower::base_cost` with these numbers), autonomy decided
+    /// from `recipe` itself.
     pub fn base_cost(&self, recipe: &Recipe) -> f32 {
-        let mut base = self.category_base(recipe.form);
+        self.base_cost_as(recipe, self.is_autonomous(recipe))
+    }
+
+    /// Cast cost before staleness with the autonomy pricing decided by the caller (the typed
+    /// recipe's). The original operation order is kept (base · size · mechanics · count), so
+    /// defaults are bit-identical to `willpower::base_cost_as`.
+    pub fn base_cost_as(&self, recipe: &Recipe, autonomous: bool) -> f32 {
+        let mut base = if autonomous && recipe.form.category() != FormCategory::Creature { self.autonomous_base } else { self.category_base(recipe.form) };
         if !self.form_cost.is_empty() {
             base *= self.form_mult(recipe.form);
         }
         base * self.size_factor(recipe) * self.mechanic_factor(recipe) * self.count_factor(recipe)
     }
 
-    /// [`Self::base_cost`] without the balance knobs (`mechanic_cost` / `form_cost`). Integrity is
-    /// derived from this, so a cost adjustment changes the price and nothing else.
+    /// [`Self::base_cost`] without the balance knobs (`mechanic_cost` / `form_cost`) and without
+    /// autonomy pricing. Integrity is derived from this, so a price change changes nothing else.
     pub fn base_cost_unadjusted(&self, recipe: &Recipe) -> f32 {
         let n = recipe.mechanics.len() + recipe.payload.is_some() as usize;
         self.category_base(recipe.form) * self.size_factor(recipe) * (1.0 + self.per_mechanic * n as f32) * self.count_factor(recipe)
     }
 
-    /// Ratio `unadjusted / adjusted` for a recipe (1 without balance knobs).
+    /// Ratio `unadjusted / adjusted` for a recipe (1 without balance knobs or autonomy pricing).
     pub fn adjustment_ratio(&self, recipe: &Recipe) -> f32 {
-        if self.mechanic_cost.is_empty() && self.form_cost.is_empty() {
+        self.adjustment_ratio_as(recipe, self.is_autonomous(recipe))
+    }
+
+    /// [`Self::adjustment_ratio`] with the caller's autonomy decision.
+    pub fn adjustment_ratio_as(&self, recipe: &Recipe, autonomous: bool) -> f32 {
+        if self.mechanic_cost.is_empty() && self.form_cost.is_empty() && !autonomous {
             return 1.0;
         }
-        let a = self.base_cost(recipe);
+        let a = self.base_cost_as(recipe, autonomous);
         if a > 1e-6 { self.base_cost_unadjusted(recipe) / a } else { 1.0 }
     }
 
@@ -766,9 +794,15 @@ impl WillpowerTuning {
         1.0 + self.stale_per_use * uses as f32
     }
 
-    /// Willpower drained per second while the construct lives (`willpower::upkeep_per_sec`).
+    /// Willpower drained per second while the construct lives (`willpower::upkeep_per_sec`),
+    /// autonomy decided from `recipe` itself.
     pub fn upkeep_per_sec(&self, recipe: &Recipe, piloted: bool) -> f32 {
-        let base: f32 = if recipe.form == Form::Kaiju {
+        self.upkeep_per_sec_as(recipe, piloted, self.is_autonomous(recipe))
+    }
+
+    /// Upkeep with the caller's autonomy decision (a construct keeps the one it was cast with).
+    pub fn upkeep_per_sec_as(&self, recipe: &Recipe, piloted: bool, autonomous: bool) -> f32 {
+        let cat: f32 = if recipe.form == Form::Kaiju {
             self.upkeep_kaiju
         } else {
             match recipe.form.category() {
@@ -778,6 +812,7 @@ impl WillpowerTuning {
                 FormCategory::Object => self.upkeep_object,
             }
         };
+        let base = if autonomous && recipe.form != Form::Kaiju && recipe.form.category() != FormCategory::Creature { self.autonomous_upkeep.max(cat) } else { cat };
         let v = if piloted {
             let p = if willpower::is_colossal(recipe) { self.upkeep_pilot_colossal } else { self.upkeep_pilot };
             base.max(p)
@@ -858,9 +893,12 @@ impl AntiSnowball {
 // ------------------------------------------------------------------------------------ top level
 
 impl CombatTuning {
-    /// Tuning that reproduces the sim from before the §5i anti-snowball changes.
+    /// Tuning that reproduces the economy from before the §5i balance passes (no anti-snowball,
+    /// no autonomy pricing).
     pub fn legacy() -> Self {
-        Self { snowball: AntiSnowball::LEGACY, ..Self::default() }
+        let mut t = Self { snowball: AntiSnowball::LEGACY, ..Self::default() };
+        t.willpower.autonomous_pricing = false;
+        t
     }
 
     /// Clamp everything into sane ranges (untrusted / hand-edited data; NaN → default). Missing

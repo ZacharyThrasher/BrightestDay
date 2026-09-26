@@ -589,7 +589,8 @@ impl Telemetry {
         let sig = Signature::of(recipe);
         let arch = archetype_for(recipe).filter(|_| recipe.form.category() == FormCategory::Held).map(|a| a as u8);
         let held = (recipe.form.category() == FormCategory::Held && arch.is_none()).then(|| form_ix(recipe.form) as u8);
-        let upkeep = w.tuning().willpower.upkeep_per_sec(recipe, false);
+        let auto = w.constructs.get(id).is_some_and(|c| c.priced_autonomous);
+        let upkeep = w.tuning().willpower.upkeep_per_sec_as(recipe, false, auto);
         self.live.insert(id, Live { sig, owner, born: w.tick, upkeep, arch, held, attack: None, child: false });
         let a = Attrib { sig: Some(sig), arch, held, ..Default::default() };
         let c = f64::from(cost.max(0.0));
@@ -660,7 +661,8 @@ impl Telemetry {
                     let c = f64::from(cost.max(0.0));
                     if let Some(l) = self.live.get_mut(id) {
                         l.sig = sig;
-                        l.upkeep = w.tuning().willpower.upkeep_per_sec(recipe, false);
+                        let auto = w.constructs.get(*id).is_some_and(|c| c.priced_autonomous);
+                        l.upkeep = w.tuning().willpower.upkeep_per_sec_as(recipe, false, auto);
                     }
                     let (arch, held) = self.live.get(id).map_or((None, None), |l| (l.arch, l.held));
                     self.credit(&Attrib { sig: Some(sig), arch, held, ..Default::default() }, |b| {

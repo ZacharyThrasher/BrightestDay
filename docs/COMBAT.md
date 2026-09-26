@@ -88,6 +88,7 @@ reduces air control but you can always tether out of it (a skill save).
   Taking damage while reciting interrupts it (partial refill for progress so far ×0.5).
 - Cast cost = `category_base · size_factor · (1 + 0.15·#mechanics) · count_factor · staleness`.
   - bases: Held 12, Worn 15, Structure 10, Object 14, Creature 25 (Kaiju 60).
+  - autonomous non-creatures (Held / Structure / Object that Flies or Walks: "flying hammer", "wall with legs") are priced like creatures (base 25, upkeep 1.5/s), judged on the phrase as typed — party/power grafts never raise a price; a typed graft that makes your construct hunt pays the difference. Behaviour unchanged (balance pass 2, `tuning.willpower.autonomous_*`).
   - `size_factor = clamp((scale/default_scale)^1.3, 0.5, 3)`; `staleness = 1 + 0.3·(uses of this exact
     word in the last 30 s)` — repetition gets pricier; variety is free (expression!).
 - Upkeep: held/worn constructs drain 0.6/s, creatures 1.5/s (Kaiju 4/s), structures 0.3/s. At 0

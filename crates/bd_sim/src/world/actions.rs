@@ -22,6 +22,27 @@ use crate::rules::ScaleLimit;
 use crate::space::{FIELD_RESIST, ForceField, PORTAL_LIFETIME, PORTAL_RADIUS, PortalEnd};
 use crate::willpower::*;
 
+/// TUNING HOOK: pricing facts taken from the recipe the player typed (before power / party
+/// grafts), carried through the cast so standing grafts never raise its price.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct TypedPricing {
+    /// Priced as an autonomous non-creature (creature base + upkeep).
+    pub autonomous: bool,
+    /// The typed phrase makes things hunt on their own (`Flies` / `Walks`) — for grafts.
+    pub drives: bool,
+}
+
+impl TypedPricing {
+    fn of(t: &crate::tuning::CombatTuning, r: &Recipe) -> Self {
+        Self { autonomous: t.willpower.is_autonomous(r), drives: r.has(Mechanic::Flies) || r.has(Mechanic::Walks) }
+    }
+}
+
+/// Forms that autonomy pricing applies to (held / structure / object).
+fn willpower_autonomous_form(f: Form) -> bool {
+    matches!(f.category(), FormCategory::Held | FormCategory::Structure | FormCategory::Object)
+}
+
 /// Suits: a piloted construct at or below this scale wraps its pilot (COMBAT.md §3d).
 pub const SUIT_MAX_SCALE: f32 = 2.6;
 /// Casting reach for placement (m).
@@ -220,6 +241,9 @@ impl World {
         let origin = if aim.origin.is_finite() && (aim.origin - eye).length() < 4.0 { aim.origin } else { eye };
         let dir = if aim.dir.is_finite() && aim.dir.length_squared() > 1e-6 { aim.dir.normalize() } else { p.look() };
         let recipe = validate_recipe(recipe, &self.cfg.rules);
+        // TUNING HOOK: autonomy pricing is decided on the recipe as typed, before power / party
+        // grafts (standing grafts never raise a cast's price).
+        let typed = TypedPricing::of(&self.cfg.tuning, &recipe);
         // POWERS HOOK — cast modifier pipeline step 1 (powers, then party): fruit / stand casts
         // are handled by the powers module; incantations + standing power grafts rewrite the recipe.
         let recipe = match self.powers_on_cast(i, recipe, origin, dir) {
@@ -228,7 +252,7 @@ impl World {
         };
         // PARTY HOOK: Wild Magic + standing grafts + Kaiju Heart (re-validates; no-op in FFA).
         let mut recipe = recipe;
-        crate::party::modify_cast(self, i, &mut recipe);
+        crate::party::modify_cast(self, i, &mut recipe, typed.autonomous);
         let shape = shape.map(sanitize_shape);
         // Curated icons: normalise the stored spec to real size ONCE here (the client model is built
         // from the same normalised spec, so `shape_scale` / `body_box` / `timing_height` agree and the
@@ -266,7 +290,7 @@ impl World {
 
         // 1. Graft onto an own construct.
         if let Some(cid) = hinted_own.or(own_hit.map(|h| h.0)) {
-            return self.graft(i, cid, recipe);
+            return self.graft(i, cid, recipe, typed);
         }
         // 2. Animate terrain (modifier phrase aimed at terrain).
         if aim.modifier {
@@ -275,13 +299,13 @@ impl World {
                 _ => raycast(&self.voxels, origin, dir, CAST_RANGE).map(|h| h.voxel),
             };
             if let Some(v) = terrain {
-                return self.animate_terrain(i, v, recipe, dir);
+                return self.animate_terrain(i, v, recipe, dir, typed);
             }
         }
         // 3. A fresh construct.
         let aim_point = world_hit.map(|h| h.point).unwrap_or(origin + dir * 12.0);
         let aim_normal = world_hit.map(|h| h.normal).unwrap_or(-dir);
-        self.spawn_cast(i, recipe, shape, None, origin, dir, aim_point, aim_normal)
+        self.spawn_cast(i, recipe, shape, None, origin, dir, aim_point, aim_normal, typed)
     }
 
     fn pay(&mut self, i: usize, cost: f32) -> Result<(), CastError> {
@@ -299,21 +323,33 @@ impl World {
         Ok(())
     }
 
-    fn graft(&mut self, i: usize, cid: ConstructId, add: Recipe) -> Result<ConstructId, CastError> {
+    fn graft(&mut self, i: usize, cid: ConstructId, add: Recipe, typed: TypedPricing) -> Result<ConstructId, CastError> {
         let id = self.players[i].id;
         // TUNING HOOK: costs / integrity from `tuning` (integrity ignores the balance cost knobs).
         let wt = &self.cfg.tuning.willpower;
         let uses = self.players[i].casts.uses_in(&add.name, self.tick, wt.stale_window);
         // PARTY HOOK: `party_cost_ratio` makes party-grafted mechanics free (None in FFA).
-        let cost = wt.base_cost(&add) * wt.staleness(uses) * wt.graft_cost_fraction * self.party_cost_ratio.unwrap_or(1.0);
-        let integrity_cost = cost * wt.adjustment_ratio(&add);
+        let cost = wt.base_cost_as(&add, typed.autonomous) * wt.staleness(uses) * wt.graft_cost_fraction * self.party_cost_ratio.unwrap_or(1.0);
+        let integrity_cost = cost * wt.adjustment_ratio_as(&add, typed.autonomous);
         let integrity_gain = self.cfg.tuning.construct.integrity_for_cost(integrity_cost) * 0.25;
+        // A typed graft that makes a non-creature hunt on its own ("wings" on your hammer) pays the
+        // difference to a creature's base, so casting it plain and grafting isn't a discount.
+        let surcharge = match self.constructs.get(cid) {
+            Some(c) if typed.drives && wt.autonomous_pricing && !c.priced_autonomous && willpower_autonomous_form(c.recipe.form) => {
+                (wt.autonomous_base - wt.category_base(c.recipe.form)).max(0.0) * wt.size_factor(&c.recipe)
+            }
+            _ => 0.0,
+        };
+        let cost = cost + surcharge;
         self.pay(i, cost)?;
         self.players[i].casts.record(&add.name, self.tick);
         let grow = add.has(Mechanic::Grow);
         let shrink = add.has(Mechanic::Shrink);
         let merged = self.constructs.graft(cid, &add).cloned();
         if let Some(c) = self.constructs.get_mut(cid) {
+            if surcharge > 0.0 {
+                c.priced_autonomous = true; // TUNING HOOK: creature upkeep from now on
+            }
             // "Grow your own hammer."
             if grow {
                 c.resize(crate::space::GROW_SCALE);
@@ -333,7 +369,7 @@ impl World {
 
     /// COMBAT.md §3c: lift the terrain piece at `v` and make it a construct with the phrase's
     /// mechanics. Replicated as `Extracted { op }` + `ConstructSpawned`.
-    fn animate_terrain(&mut self, i: usize, v: IVec3, mut recipe: Recipe, dir: Vec3) -> Result<ConstructId, CastError> {
+    fn animate_terrain(&mut self, i: usize, v: IVec3, mut recipe: Recipe, dir: Vec3, typed: TypedPricing) -> Result<ConstructId, CastError> {
         let op = ExtractOp::at(v);
         // Cost first (the piece's size decides it): measure without mutating by extracting into a
         // clone-free dry run is expensive, so estimate from the op's bound and refund nothing.
@@ -344,7 +380,7 @@ impl World {
         let recipe = validate_recipe(recipe, &self.cfg.rules);
         let wt = &self.cfg.tuning.willpower; // TUNING HOOK
         let uses = self.players[i].casts.uses_in(&recipe.name, self.tick, wt.stale_window);
-        let cost = wt.base_cost(&recipe) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
+        let cost = wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
         self.pay(i, cost)?;
         let outcome = apply_extract(&mut self.voxels, &op);
         if outcome.model.voxels.is_empty() {
@@ -361,7 +397,7 @@ impl World {
         recipe.scale = (half.max_element() * 2.0).max(0.5);
         recipe.mass = (model.voxels.len() as f32 * 0.125 * 1500.0).clamp(crate::constructs::forms::MIN_MASS, crate::constructs::forms::MAX_MASS);
         let voxels = model.voxels.len() as u32;
-        let id = self.spawn_cast(i, recipe, None, Some(model), pivot, dir, pivot, Vec3::Y)?;
+        let id = self.spawn_cast(i, recipe, None, Some(model), pivot, dir, pivot, Vec3::Y, typed)?;
         self.events.push(GameEvent::Extracted { op, construct: id, voxels });
         Ok(id)
     }
@@ -377,6 +413,7 @@ impl World {
         dir: Vec3,
         aim_point: Vec3,
         aim_normal: Vec3,
+        typed: TypedPricing,
     ) -> Result<ConstructId, CastError> {
         let id = self.players[i].id;
         let colossal = is_colossal(&recipe);
@@ -388,8 +425,8 @@ impl World {
         let uses = self.players[i].casts.uses_in(&recipe.name, self.tick, wt.stale_window);
         // PARTY HOOK: cost ratio (party grafts are free); free casts skip paying, staleness and
         // slot replacement (they are children of the cast they copy).
-        let cost = if model.is_some() { 0.0 } else { wt.base_cost(&recipe) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
-        let integrity_cost = cost * wt.adjustment_ratio(&recipe);
+        let cost = if model.is_some() { 0.0 } else { wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
+        let integrity_cost = cost * wt.adjustment_ratio_as(&recipe, typed.autonomous);
         if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
             self.players[i].casts.record(&recipe.name, self.tick);
@@ -490,6 +527,7 @@ impl World {
         });
         if let Some(c) = self.constructs.get_mut(cid) {
             c.suit = suit;
+            c.priced_autonomous = typed.autonomous && willpower_autonomous_form(c.recipe.form); // TUNING HOOK
         }
         self.events.push(GameEvent::ConstructSpawned { id: cid, owner: id, recipe: Box::new(recipe.clone()), pos, rot, forming, cost });
         if let Some(alt) = self.pending_alt_shape.take() {
@@ -797,7 +835,8 @@ impl World {
         let aim_point = world_hit.map(|h| h.point).unwrap_or(origin + dir * 12.0);
         let aim_normal = world_hit.map(|h| h.normal).unwrap_or(-dir);
         self.free_cast = true;
-        let res = self.spawn_cast(i, recipe, shape.map(sanitize_shape), None, origin, dir, aim_point, aim_normal);
+        // Party / power free copies are never priced up (TypedPricing::default()).
+        let res = self.spawn_cast(i, recipe, shape.map(sanitize_shape), None, origin, dir, aim_point, aim_normal, TypedPricing::default());
         self.free_cast = false;
         if let (Ok(id), Some(alt)) = (res, alt_shape) {
             self.attach_alt_shape(id, sanitize_shape(alt));

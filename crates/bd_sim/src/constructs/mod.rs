@@ -720,6 +720,9 @@ pub struct Construct {
     /// Human-scale piloted construct worn as a power suit (COMBAT.md §3d): follows its pilot, who
     /// keeps normal movement; its integrity absorbs the pilot's damage first.
     pub suit: bool,
+    /// TUNING HOOK: priced as an autonomous non-creature (creature upkeep; decided on the typed
+    /// recipe at cast / by a typed graft — see `tuning::WillpowerTuning::autonomous_pricing`).
+    pub priced_autonomous: bool,
     /// Scale ≥ `rules::COLOSSAL_SCALE`.
     pub colossal: bool,
     /// Size multiplier from Shrink/Grow (1 = normal).
@@ -1136,6 +1139,7 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         target: p.target,
         pilot: None,
         suit: false,
+        priced_autonomous: false,
         colossal: p.colossal,
         size_scale: 1.0,
         gone: None,

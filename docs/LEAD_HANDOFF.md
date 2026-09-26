@@ -39,6 +39,17 @@ hardening gate + property tests.
   ("man of steel" currently → "of steel" material → steel sword). Also check other "X of Y" names
   (lord of the rings items, "eye of sauron", "hand of doom", "sword of omens").
 
+- Lexicon (next pass): add phrases for `random:origin` ("mystery origin", "superpower", "random
+  superpower", "super serum"?) — sim supports it; "compound v" already points there.
+- tools/icons/{dc,marvel} checker scripts reference the deleted assets/powers_pending files — point
+  them at assets/powers.ron (low priority).
+
+- **Investigate:** one soak run reported 1 failure at tick 156001 (world engineer, while the balance
+  engineer was editing concurrently); didn't reproduce. After balance lands, run the gate soak with
+  several fixed seeds (`--seed 1..8 --ticks 200000`) on a quiet tree; if any fails, reproduce by seed.
+- UI polish: stock/timed scoring on rules page + scoreboard; first-person held items too large (giant
+  hammer); title occasionally missing on first frames.
+
 ## Queue (do next)
 1. When world engineer finishes: dedicated **sim perf pass** on a quiet machine (FFA soak p99 briefly
    4.3 ms reported under load; kaiju/creature work suspected).

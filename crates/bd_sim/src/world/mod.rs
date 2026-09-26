@@ -868,7 +868,7 @@ impl World {
             let upkeep: f32 = self
                 .constructs
                 .owned_by(id)
-                .map(|c| self.cfg.tuning.willpower.upkeep_per_sec(&c.recipe, c.pilot.is_some()))
+                .map(|c| self.cfg.tuning.willpower.upkeep_per_sec_as(&c.recipe, c.pilot.is_some(), c.priced_autonomous)) // TUNING HOOK
                 .sum();
             let p = &mut self.players[i];
             let gain = if p.regen_pause > 0.0 { 0.0 } else { regen };
