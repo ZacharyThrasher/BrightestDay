@@ -265,7 +265,7 @@ export class Player {
     if (this.onGround && this.groundVel.lengthSq() > 0) this.slideMove(this.groundVel.clone(), dt, false);
     const wasGround = this.onGround;
     const vy = this.vel.y;
-    this.slideMove(this.vel, dt, true);
+    this.stepSlideMove(dt, wasGround);
     this.enforceTetherLength();
     this.depenetrate();
     this.categorizeGround();
@@ -391,8 +391,37 @@ export class Player {
     return this.onHit ? this.onHit(collider, n, this) : 'clip';
   }
 
-  /** Quake-style collide-and-slide using swept capsule casts. */
-  slideMove(vel: Vector3, dt: number, primary: boolean) {
+  /** Quake PM_StepSlideMove: if a low ledge blocks us on the ground, try stepping over it. */
+  private stepSlideMove(dt: number, grounded: boolean) {
+    const p0 = this.pos.clone();
+    const v0 = this.vel.clone();
+    const blocked = this.slideMove(this.vel, dt, true);
+    if (!blocked || !grounded || this.flying) return;
+    const horizPlain = Math.hypot(this.pos.x - p0.x, this.pos.z - p0.z);
+    const pA = this.pos.clone(), vA = this.vel.clone();
+    const STEP = 0.55;
+    const ident = { x: 0, y: 0, z: 0, w: 1 };
+    // up
+    const upHit = this.world.pw.castShape(p0, ident, { x: 0, y: 1, z: 0 }, this.shape, 0.01, STEP, false, undefined, PLAYER_MOVE_FILTER, this.collider);
+    const up = upHit ? Math.max(0, upHit.time_of_impact - 0.01) : STEP;
+    if (up < 0.1) return;
+    this.pos.copy(p0).setY(p0.y + up);
+    const vB = v0.clone().setY(Math.max(0, v0.y));
+    this.slideMove(vB, dt, false);
+    // down
+    const downHit = this.world.pw.castShape(this.pos, ident, { x: 0, y: -1, z: 0 }, this.shape, 0.01, up + 0.05, false, undefined, PLAYER_MOVE_FILTER, this.collider);
+    if (!downHit) { this.pos.copy(pA); this.vel.copy(vA); return; }
+    const n = downHit.normal1;
+    if (n.y < 0.7) { this.pos.copy(pA); this.vel.copy(vA); return; }
+    this.pos.y -= Math.max(0, downHit.time_of_impact);
+    const horizStep = Math.hypot(this.pos.x - p0.x, this.pos.z - p0.z);
+    if (horizStep > horizPlain + 0.01) { this.vel.copy(vB); this.vel.y = Math.min(this.vel.y, 0); }
+    else { this.pos.copy(pA); this.vel.copy(vA); }
+  }
+
+  /** Quake-style collide-and-slide using swept capsule casts. Returns true if a wall-like surface blocked us. */
+  slideMove(vel: Vector3, dt: number, primary: boolean): boolean {
+    let blocked = false;
     const planes: Vector3[] = [];
     let time = dt;
     const ignore = new Set<number>();
@@ -412,6 +441,7 @@ export class Player {
         if (res === 'ignore') { ignore.add(hit.collider.handle); continue; }
         if (this.collideDynamic(hit.collider, n)) { ignore.add(hit.collider.handle); continue; }
       }
+      if (n.y < 0.7) blocked = true;
       planes.push(n);
       clipVelocity(vel, n);
       for (let i = 0; i < planes.length - 1; i++) {
@@ -424,6 +454,7 @@ export class Player {
       }
       if (planes.length >= 3) break;
     }
+    return blocked;
   }
 
   /** Momentum exchange with dynamic bodies (entities, free constructs). */

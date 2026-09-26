@@ -374,7 +374,10 @@ export class ConstructRuntime {
         spec.stretch = [spec.stretch?.[0] ?? 1, spec.stretch?.[1] ?? 1, Math.min(LIMITS.stretch[1], Math.max(0.3, (len / nominal) / spec.scale))];
         pos.copy(start).addScaledVector(d, 0.5);
         quat = quatFromDir(d.normalize());
-        pos.y -= ext.max.y * 0.5; // deck top roughly at the line
+        // put the walkable top of the deck on the line from the player's feet to the target
+        const walk = spec.parts.filter((p) => p.solid !== false && ['deck', 'body', 'belt', 'chute', 'collider', 'mesh', 'pad'].includes(p.role ?? 'body'));
+        const deckTop = walk.length ? Math.max(...walk.map((p) => p.pos[1] + p.size[1] / 2)) * spec.scale * (spec.stretch?.[1] ?? 1) : ext.min.y + 0.2 * ext.size.y;
+        pos.y -= deckTop - 0.02;
         break;
       }
     }
@@ -639,6 +642,7 @@ export class ConstructRuntime {
         this.applyShoot(c, inst, dt);
         if (has(s, 'cushion')) this.applyCushion(c, inst, dt);
         if (has(s, 'conveyor')) this.applyConveyorToEntities(c, inst);
+        if (has(s, 'launch')) this.applyLaunchToEntities(c, inst);
       }
       const mount = has(s, 'mount');
       if (mount) this.applyMount(c, mount, P);
@@ -1111,6 +1115,10 @@ export class ConstructRuntime {
         case 'arc': dir = new Vector3(0, 0, 1).applyQuaternion(inst.quat).setY(0).normalize().add(new Vector3(0, 1, 0)).normalize(); break;
         default: dir = n.y > 0.3 ? n.clone() : up;
       }
+      if (launch.target) {
+        const tp = this.refPos(launch.target);
+        if (tp) { this.launchPlayerTo(tp, launch.speed); this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()) }); return 'handled'; }
+      }
       const into = -P.vel.dot(dir);
       // trampolines give back more when you come in fast (skill: height stacking), pads add a fixed kick
       const out = launch.dir === 'normal' ? Math.max(launch.speed, into * 1.02) : launch.speed + Math.max(0, into) * 0.4;
@@ -1122,6 +1130,49 @@ export class ConstructRuntime {
       return 'handled';
     }
     return 'clip';
+  }
+
+  /** Ballistic launch of the player toward a point (used by launchers aimed at a destination). */
+  launchPlayerTo(tp: Vector3, speedHint: number) {
+    const P = this.w.player;
+    const g = -this.w.pw.gravity.y;
+    const d = tp.clone().sub(P.pos);
+    const horiz = Math.hypot(d.x, d.z);
+    // choose a flight time that clears the height difference with some apex margin
+    const apex = Math.max(d.y, 0) + 4 + horiz * 0.15;
+    const vy = Math.sqrt(2 * g * apex);
+    const tUp = vy / g;
+    const tDown = Math.sqrt(Math.max(0, 2 * (apex - d.y) / g));
+    const t = tUp + tDown;
+    const v = new Vector3(d.x / t, vy, d.z / t);
+    const lim = Math.max(speedHint, LIMITS.launchSpeed * 1.4);
+    if (v.length() > lim) v.multiplyScalar(lim / v.length());
+    P.vel.copy(v);
+    P.onGround = false;
+    P.flying = false;
+    P.stats.lastLaunchSpeed = v.length();
+  }
+
+  /** Launchers also fling entities resting on them (spring under a drone/boulder/civilian). */
+  private applyLaunchToEntities(c: Construct, inst: Inst) {
+    const launch = has(c.spec, 'launch')!;
+    const top = inst.pos.y + c.extent.max.y;
+    const st = (inst as any).launchCd ?? ((inst as any).launchCd = new Map<string, number>());
+    for (const e of this.w.entities.values()) {
+      if (e.heldBy || e.restrainedBy || e.type === 'turret') continue;
+      const p = this.w.entityPos(e);
+      const horiz = Math.hypot(p.x - inst.pos.x, p.z - inst.pos.z);
+      const h = p.y - e.radius - top;
+      if (horiz > Math.max(c.extent.size.x, c.extent.size.z) / 2 + 0.3 || h < -0.8 || h > 1.2) continue;
+      if ((st.get(e.id) ?? -1) > this.w.time) continue;
+      st.set(e.id, this.w.time + 0.6);
+      const up = new Vector3(0, 1, 0).applyQuaternion(inst.quat);
+      const v = up.multiplyScalar(launch.speed);
+      if (launch.target) { const tp = this.refPos(launch.target); if (tp) v.copy(ballistic(p, tp, launch.speed, this.w.pw.gravity.y)); }
+      e.body.setLinvel(v, true);
+      if (e.type === 'drone') e.stunnedUntil = this.w.time + 2;
+      this.w.emit('launch_entity', { construct: c.id, entity: e.id });
+    }
   }
 
   onProjectile(id: string, p: Projectile): 'absorb' | 'reflect' {

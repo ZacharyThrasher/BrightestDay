@@ -14,7 +14,7 @@ export const GAME_HOTWORDS = [
 const vad = (m) => join(m, 'silero_vad.onnx');
 
 export const PRESETS = {
-  'zipformer-20M': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-20M-2023-02-17'), ...o }),
+  'zipformer-20M': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-20M-2023-02-17'), prime: true, ...o }),
   'zipformer-0621': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-2023-06-21'), ...o }),
   'kroko-en': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06'), ...o }),
   'nemo-fc-80ms': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8'), ...o }),

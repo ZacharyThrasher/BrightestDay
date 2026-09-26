@@ -164,27 +164,36 @@ function createOnline(o, sherpa, em) {
   const rec = new sherpa.OnlineRecognizer(config);
   const tailPad = new Float32Array(Math.round(((o.tailPaddingMs ?? 400) / 1000) * SR));
   const now = o.now ?? (() => performance.now());
-  // One long-lived stream; utterances are separated with rec.reset(), which
-  // clears the decoded text but keeps the encoder's streaming state warm.
-  // Measured: a *fresh* stream of the 20M zipformer drops the first ~1 s of
-  // speech on our test clips; a warmed, long-lived stream does not (see ASR.md).
-  let stream = rec.createStream();
-  let last = '', samples = 0;
+  // Each push-to-talk utterance gets its own stream (inputFinished() is the
+  // only way to flush the encoder's right context; with rec.reset() on a
+  // long-lived stream the last ~300 ms leaked into the next utterance).
+  // With opts.prime, fresh streams are primed with 3 s of real speech + 1 s
+  // silence, then reset: measured, a cold stream of the 20M zipformer drops
+  // the first ~1 s of speech on our clips, a primed one does not. Other models
+  // are fine cold and priming *hurts* them (leaked context, e.g. "bill the
+  // trampoline"), so it is off by default (see docs/experiments/ASR.md).
+  // Priming runs right after the final is emitted, off the critical path.
+  let primeAudio = o.prime ? o.warmup : null;
+  if (o.prime && primeAudio === undefined) {
+    const f = join(o.modelDir, 'test_wavs', '0.wav');
+    if (existsSync(f)) primeAudio = sherpa.readWave(f).samples.subarray(0, Math.round(3 * SR));
+  }
+  const primeSilence = new Float32Array(Math.round(1.0 * SR));
+  let stream, last = '', samples = 0, lastPrimeMs = 0;
 
   function drain() { while (rec.isReady(stream)) rec.decode(stream); }
-  function warm() {
-    let w = o.warmup;
-    if (w === undefined) {
-      const f = join(o.modelDir, 'test_wavs', '0.wav');
-      if (existsSync(f)) w = sherpa.readWave(f).samples;
+  function newStream() {
+    const t = now();
+    stream = rec.createStream();
+    if (primeAudio) {
+      stream.acceptWaveform({ sampleRate: SR, samples: primeAudio });
+      stream.acceptWaveform({ sampleRate: SR, samples: primeSilence });
+      drain();
+      rec.reset(stream);
     }
-    if (!w) return;
-    stream.acceptWaveform({ sampleRate: SR, samples: w });
-    stream.acceptWaveform({ sampleRate: SR, samples: new Float32Array(SR) });
-    drain();
-    rec.reset(stream);
+    lastPrimeMs = now() - t;
   }
-  warm();
+  newStream();
 
   return {
     acceptPcm(x) {
@@ -194,6 +203,8 @@ function createOnline(o, sherpa, em) {
       const text = cleanText(rec.getResult(stream).text, upper);
       if (text !== last) { last = text; em.partial({ text, audioMs: (samples / SR) * 1000, at: now() }); }
       if (ep.enabled && rec.isEndpoint(stream)) {
+        // hands-free: the endpoint fires after trailing silence, so the
+        // encoder has already seen the whole utterance; reset is enough.
         if (text) em.final({ text, reason: 'endpoint', audioMs: (samples / SR) * 1000, decodeMs: 0, at: now() });
         rec.reset(stream); last = ''; samples = 0;
       }
@@ -201,14 +212,17 @@ function createOnline(o, sherpa, em) {
     endUtterance() {
       const t0 = now();
       stream.acceptWaveform({ sampleRate: SR, samples: tailPad });
+      stream.inputFinished();
       drain();
       const text = cleanText(rec.getResult(stream).text, upper);
       const at = now();
       em.final({ text, reason: 'ptt', audioMs: (samples / SR) * 1000, decodeMs: at - t0, at });
-      rec.reset(stream); last = ''; samples = 0;
+      last = ''; samples = 0;
+      newStream();
     },
-    reset() { rec.reset(stream); last = ''; samples = 0; },
+    reset() { last = ''; samples = 0; newStream(); },
     dispose() { stream = null; },
+    get lastPrimeMs() { return lastPrimeMs; },
     info: { kind: o.kind, modelDir: o.modelDir, decodingMethod: config.decodingMethod, hotwords: !!config.hotwordsFile },
     _rec: rec,
   };

@@ -1,0 +1,192 @@
+/**
+ * Evaluation runner.
+ *   npx tsx eval/run.ts eval/dev.jsonl [--verbose] [--only ID] [--out results/name]
+ *
+ * For each item: fresh world in the item's scene, crosshair on the item's aim, context
+ * utterances committed (and simulated), then the scored utterance is committed and the world
+ * simulated for a few seconds. We score the interpreter's CLAIMED functional effects against
+ * the frozen contract (eval/EVAL_SPEC.md) and separately record OBSERVED world effects so claim
+ * and effect can be compared.
+ */
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { Vector3 } from 'three';
+import { World } from '../src/sim/world.js';
+import { buildScene, aimAt, type SceneName } from '../src/sim/levels.js';
+import { NO_INPUT } from '../src/sim/player.js';
+import { Director } from '../src/lang/director.js';
+import type { EffectReport } from '../src/lang/types.js';
+
+export interface Item {
+  id: string; category: string; scene: SceneName; aim: string; context: string[]; utterance: string;
+  expect: {
+    intent: string | null; functions_any: string[]; functions_all: string[]; target: string | null; count_min: number | null; count_max: number | null;
+    modifications_any: string[]; approximation_ok: boolean; must_clamp: boolean; must_abstain: boolean;
+  };
+  note?: string;
+}
+
+export interface ItemResult {
+  id: string; category: string; scene: string; utterance: string; pass: boolean; reasons: string[];
+  report: EffectReport & { intents?: string[]; targetKinds?: string[] }; observed: string[]; summary: string; abstain: string | null; confidence: number;
+  latencyMs: number; confidentWrong: boolean; messages: string[];
+}
+
+function stepN(w: World, seconds: number) {
+  const n = Math.round(seconds / w.dt);
+  for (let i = 0; i < n; i++) w.step({ ...NO_INPUT, yaw: w.player.yaw, pitch: w.player.pitch });
+}
+
+function snapshot(w: World) {
+  const ents = new Map<string, { pos: Vector3; hp: number; hurt: boolean; safe: boolean; held: string | null; restrained: string | null }>();
+  for (const e of w.entities.values()) ents.set(e.id, { pos: w.entityPos(e), hp: e.hp, hurt: e.hurt, safe: e.safe, held: e.heldBy, restrained: e.restrainedBy });
+  return { ents, blocked: w.stats.projectilesBlocked, reflected: w.stats.projectilesReflected, hits: w.stats.playerHits, pos: w.player.pos.clone(), goals: w.goals.filter((g) => g.reached).length, constructs: w.constructs.list.size, speed: w.player.vel.length() };
+}
+
+export async function runItem(item: Item): Promise<ItemResult> {
+  const w = await World.create();
+  const info = buildScene(w, item.scene);
+  const d = new Director(w);
+  const aimTarget = info.aims[item.aim] ?? (item.aim === 'none' ? w.player.pos.clone().add(new Vector3(0, 1.5, -30)) : info.aims.ground_ahead);
+  aimAt(w, aimTarget);
+  stepN(w, 0.2);
+  for (const c of item.context) {
+    aimAt(w, aimTarget);
+    await d.commit(c);
+    stepN(w, 1.2);
+  }
+  aimAt(w, aimTarget);
+  const before = snapshot(w);
+  let maxY = w.player.pos.y;
+  let maxSpeed = 0;
+  const res = await d.commit(item.utterance);
+  const rep = { ...(d.interp.lastEffect as any) };
+  const heldDuring = new Set<string>();
+  const restrainedDuring = new Set<string>();
+  for (let i = 0; i < 180; i++) {
+    w.step({ ...NO_INPUT, yaw: w.player.yaw, pitch: w.player.pitch, moveZ: item.scene === 'gap' ? 1 : 0 });
+    maxY = Math.max(maxY, w.player.pos.y);
+    maxSpeed = Math.max(maxSpeed, w.player.vel.length());
+    for (const e of w.entities.values()) { if (e.heldBy) heldDuring.add(e.id); if (e.restrainedBy) restrainedDuring.add(e.id); }
+  }
+  const after = snapshot(w);
+  // observed effects (independent of what the interpreter claimed)
+  const obs = new Set<string>();
+  if (after.blocked > before.blocked) obs.add('block_projectiles');
+  if (after.reflected > before.reflected) obs.add('reflect');
+  if (maxY - before.pos.y > 3) obs.add('raise_player');
+  if (maxSpeed > before.speed + 8) obs.add('launch_player');
+  if (after.goals > before.goals) obs.add('goal_reached');
+  for (const [id, b] of before.ents) {
+    const a = after.ents.get(id);
+    if (!a) continue;
+    if (heldDuring.has(id) && !b.held) obs.add('grab_target');
+    if (restrainedDuring.has(id)) obs.add('restrain_target');
+    if (a.hp < b.hp - 1) obs.add('damage_target');
+    if (a.pos.distanceTo(b.pos) > 3 && !heldDuring.has(id)) obs.add('moved_target');
+    if (!a.hurt && (a.safe || heldDuring.has(id)) && item.scene === 'falling') obs.add('catch_target');
+    if (a.hurt && !b.hurt) obs.add('target_hurt');
+  }
+  if (after.constructs > before.constructs) obs.add('construct_created');
+
+  const e = item.expect;
+  const reasons: string[] = [];
+  const intents: string[] = rep.intents ?? [rep.intent];
+  const abstained = !!rep.abstained;
+  if (e.must_abstain) {
+    if (!abstained) reasons.push('should have abstained');
+  } else {
+    if (e.intent) {
+      const alts = e.intent.split('|');
+      if (alts.includes('abstain')) { if (!abstained) reasons.push('expected abstain'); }
+      else if (!alts.some((a) => intents.includes(a))) reasons.push(`intent ${intents.join('/') || 'none'} ≠ ${e.intent}`);
+    }
+    if (abstained && !(e.intent ?? '').includes('abstain')) reasons.push('abstained: ' + (res.abstain ?? ''));
+    const fns = new Set<string>(rep.functions ?? []);
+    if (e.functions_any?.length && !e.functions_any.some((f) => fns.has(f))) reasons.push(`functions_any miss (${e.functions_any.join(',')}) got [${[...fns].join(',')}]`);
+    for (const f of e.functions_all ?? []) if (!fns.has(f)) reasons.push(`missing ${f}`);
+    if (e.target) {
+      const tk: string[] = rep.targetKinds ?? (rep.target ? [rep.target] : []);
+      const ok = tk.includes(e.target) || (e.target === 'nearest_enemy' && tk.includes('aimed_entity')) || (e.target === 'aimed_entity' && tk.includes('nearest_enemy') && item.aim === 'drone') || (e.target === 'previous_construct' && (rep.intent === 'modify' || intents.includes('modify'))) || (e.target === 'none' && tk.length === 0) || (e.target === 'self' && (tk.includes('self') || (rep.functions ?? []).some((f: string) => ['shield_self', 'launch_player', 'raise_player', 'propel_player', 'slow_fall', 'support_player', 'tether_player'].includes(f))));
+      if (!ok) reasons.push(`target ${tk.join('/') || 'none'} ≠ ${e.target}`);
+    }
+    if (e.count_min !== null && e.count_min !== undefined && (rep.count ?? 0) < e.count_min) reasons.push(`count ${rep.count} < ${e.count_min}`);
+    if (e.count_max !== null && e.count_max !== undefined && (rep.count ?? 0) > e.count_max) reasons.push(`count ${rep.count} > ${e.count_max}`);
+    if (e.modifications_any?.length && !e.modifications_any.some((m) => (rep.modifications ?? []).includes(m))) reasons.push(`mods miss (${e.modifications_any.join(',')}) got [${(rep.modifications ?? []).join(',')}]`);
+    if (e.must_clamp && !rep.clamped) reasons.push('should have clamped');
+  }
+  const pass = reasons.length === 0;
+  return {
+    id: item.id, category: item.category, scene: item.scene, utterance: item.utterance, pass, reasons, report: rep, observed: [...obs], summary: res.summary,
+    abstain: res.abstain, confidence: res.confidence, latencyMs: res.latencyMs, confidentWrong: !pass && !abstained && res.confidence >= 0.7, messages: res.messages,
+  };
+}
+
+export function summarize(results: ItemResult[]) {
+  const byCat = new Map<string, { n: number; pass: number }>();
+  for (const r of results) {
+    const c = byCat.get(r.category) ?? { n: 0, pass: 0 };
+    c.n++; if (r.pass) c.pass++;
+    byCat.set(r.category, c);
+  }
+  const n = results.length;
+  const pass = results.filter((r) => r.pass).length;
+  const cw = results.filter((r) => r.confidentWrong).length;
+  const abst = results.filter((r) => r.abstain).length;
+  const lat = results.map((r) => r.latencyMs).sort((a, b) => a - b);
+  // claim vs observed agreement for claims we can observe
+  const observable: Record<string, string[]> = { block_projectiles: ['block_projectiles'], grab_target: ['grab_target'], restrain_target: ['restrain_target', 'grab_target'], strike_target: ['damage_target', 'moved_target'], crush_target: ['damage_target', 'moved_target'], catch_target: ['catch_target'], raise_player: ['raise_player', 'goal_reached'], launch_player: ['launch_player', 'raise_player'], move_obstacle: ['moved_target'], bridge_gap: ['goal_reached'] };
+  let claimN = 0, claimOk = 0;
+  const claimMiss: Record<string, number> = {};
+  for (const r of results) {
+    for (const f of r.report.functions ?? []) {
+      const need = observable[f];
+      if (!need) continue;
+      // only count claims whose preconditions exist in the scene
+      if (f === 'block_projectiles' && r.scene !== 'barrage' && r.scene !== 'drones') continue;
+      if (f === 'catch_target' && r.scene !== 'falling') continue;
+      if (f === 'move_obstacle' && r.scene !== 'boulder') continue;
+      if (f === 'bridge_gap' && r.scene !== 'gap') continue;
+      if (['grab_target', 'restrain_target', 'strike_target', 'crush_target'].includes(f) && !['drones', 'barrage', 'boulder', 'falling', 'arena'].includes(r.scene)) continue;
+      claimN++;
+      if (need.some((o) => r.observed.includes(o))) claimOk++; else claimMiss[f] = (claimMiss[f] ?? 0) + 1;
+    }
+  }
+  return {
+    n, pass, rate: pass / n, confidentWrong: cw, confidentWrongRate: cw / n, abstentions: abst,
+    byCategory: Object.fromEntries([...byCat].map(([k, v]) => [k, `${v.pass}/${v.n}`])),
+    latencyMs: { p50: lat[Math.floor(n * 0.5)], p95: lat[Math.floor(n * 0.95)], max: lat[n - 1] },
+    claimVsObserved: { claims: claimN, observed: claimOk, rate: claimN ? claimOk / claimN : null, misses: claimMiss },
+  };
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const file = args.find((a) => !a.startsWith('--')) ?? 'eval/dev.jsonl';
+  const verbose = args.includes('--verbose');
+  const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
+  const quiet = args.includes('--quiet'); // aggregate only (for sets the implementer must not inspect)
+  const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : null;
+  const items: Item[] = readFileSync(file, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)).filter((i: Item) => !only || i.id === only);
+  const results: ItemResult[] = [];
+  for (const it of items) {
+    const r = await runItem(it);
+    results.push(r);
+    if (!quiet && (verbose || !r.pass)) {
+      console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id} [${r.category}/${r.scene}] "${r.utterance}"`);
+      console.log(`     → ${r.summary}${r.abstain ? '  (abstain: ' + r.abstain + ')' : ''}  conf=${r.confidence.toFixed(2)}`);
+      console.log(`     fns=[${(r.report.functions ?? []).join(',')}] intents=${(r.report.intents ?? []).join('/')} targets=${(r.report.targetKinds ?? []).join('/')} count=${r.report.count} mods=[${(r.report.modifications ?? []).join(',')}] obs=[${r.observed.join(',')}]`);
+      if (!r.pass) console.log(`     ✗ ${r.reasons.join('; ')}`);
+    }
+  }
+  const s = summarize(results);
+  console.log(JSON.stringify(s, null, 2));
+  if (out) {
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out + '.summary.json', JSON.stringify(s, null, 2));
+    if (!quiet) writeFileSync(out + '.items.json', JSON.stringify(results, null, 2));
+    else writeFileSync(out + '.failures_by_category.json', JSON.stringify(Object.fromEntries(Object.entries(s.byCategory)), null, 2));
+  }
+}
+
+if (process.argv[1] && /eval[\\/]run\.ts$/.test(process.argv[1])) main();

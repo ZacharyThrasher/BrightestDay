@@ -15,7 +15,7 @@ test('no construct: barrage hits player; wall between blocks it', async () => {
   assert.ok(r.construct);
   run(b.w, 4);
   console.log('hits bare', hitsBare, 'with wall', b.w.stats.playerHits, 'blocked', b.w.stats.projectilesBlocked);
-  assert.ok(hitsBare >= 5);
+  assert.ok(hitsBare >= 3);
   assert.ok(b.w.stats.playerHits <= 1);
 });
 

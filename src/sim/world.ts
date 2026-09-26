@@ -81,6 +81,8 @@ export class World {
   stats = { projectilesFired: 0, projectilesBlocked: 0, projectilesReflected: 0, playerHits: 0, entityDamage: 0 };
   /** Called for every event (renderer / audio / HUD subscribe). */
   listeners: ((e: GameEvent) => void)[] = [];
+  /** Called at the end of every tick (the interpreter uses it for multi-step actions like grab-then-throw). */
+  tickHooks: (() => void)[] = [];
 
   static async create(): Promise<World> {
     const w = new World();
@@ -214,7 +216,7 @@ export class World {
     const e: Entity = {
       id, type, body, collider, radius, hp, maxHp: hp, hostile: opts.hostile ?? (type === 'drone' || type === 'turret'),
       home: pos.clone(), heldBy: null, restrainedBy: null, stunnedUntil: 0, disabled: false, hurt: false, safe: false,
-      fireCooldown: 1 + Math.random(), lastVel: new Vector3(), label: opts.label ?? type,
+      fireCooldown: 1 + ((this.nextId * 0.618) % 1), lastVel: new Vector3(), label: opts.label ?? type,
     };
     this.entities.set(id, e);
     this.emit('entity_spawn', { id, entityType: type });
@@ -301,6 +303,7 @@ export class World {
     this.checkGoals();
     this.time += dt;
     this.tick++;
+    for (const h of this.tickHooks) h();
   }
 
   private updateEntities(dt: number) {
