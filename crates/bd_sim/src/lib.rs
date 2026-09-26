@@ -21,6 +21,7 @@
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod aim_assist; // CONNECT: melee hit volume, projectile / thrown homing, hitscan magnetism
 pub mod bots;
 pub mod charge;
 pub mod combat;

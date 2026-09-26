@@ -58,6 +58,12 @@ pub const RAIL_Y: f32 = 5.0;
 /// Car half width (m) and the flat roof's half width.
 pub const HALF_W: f32 = 4.5;
 pub const FLAT_HW: f32 = 3.0;
+/// Running boards along both sides at underframe level (1 m wide, top at `FOOTBOARD_Y`): a last
+/// ledge under the doors to land on when blown off the side (grounded = out of the wind).
+pub const FOOTBOARD: f32 = 1.0;
+pub const FOOTBOARD_Y: f32 = 7.5;
+/// Outer half width of the train, running boards included (the slipstream footprint).
+pub const OUTER_HW: f32 = HALF_W + FOOTBOARD;
 /// Shoulder slope (from horizontal) and its tangent.
 pub const SHOULDER_DEG: f32 = 50.0;
 const TAN_SHOULDER: f32 = 1.191_753_6;
@@ -258,6 +264,10 @@ fn unit_mat(u: &Unit, c: Vec3) -> Material {
         return AIR;
     }
     let hw = u.hw(lx);
+    // Running boards (where the body is full width), the glow line on their outer edge.
+    if (FRAME_Y..FOOTBOARD_Y).contains(&c.y) && hw == HALF_W && az + 0.25 > hw && az + 0.25 <= OUTER_HW && (1.0..=len - 1.0).contains(&lx) {
+        return if az + 0.25 > OUTER_HW - 0.5 { mat::EMBER_FRAME } else { mat::HYPER_FRAME };
+    }
     if az + 0.25 > hw {
         return AIR;
     }
@@ -266,9 +276,10 @@ fn unit_mat(u: &Unit, c: Vec3) -> Material {
         return AIR;
     }
     let side = az + 0.25 > hw - 0.5;
-    // Underframe (indestructible) with the orange underglow along its outer edges.
-    if c.y < 7.5 {
-        return if side { mat::EMBER_FRAME } else { mat::HYPER_FRAME };
+    // Underframe (indestructible); the orange underglow runs along its edge where there's no
+    // running board (nose, tail taper).
+    if c.y < FOOTBOARD_Y {
+        return if side && hw < HALF_W { mat::EMBER_FRAME } else { mat::HYPER_FRAME };
     }
     if u.interior(az, lx, c.y) {
         return AIR;
@@ -351,7 +362,7 @@ fn vi(m: f32) -> i32 {
 
 fn build_unit(c: &mut City, u: &Unit) {
     let (x0, x1) = (vi(u.x0), vi(u.x1) - 1);
-    let hz = vi(HALF_W) + 1;
+    let hz = vi(OUTER_HW) + 1;
     let (y0, y1) = (vi(RAIL_Y), vi(ROOF_Y + 0.5));
     for x in x0..=x1 {
         for z in -hz..hz {
@@ -521,8 +532,8 @@ fn pick_spawns(w: &VoxelWorld, us: &[Unit]) -> Vec<Vec3> {
 /// The slipstream for the train's footprint.
 pub fn slipstream() -> Slipstream {
     Slipstream {
-        min: Vec2::new(TAIL_X, -HALF_W),
-        max: Vec2::new(NOSE_X, HALF_W),
+        min: Vec2::new(TAIL_X, -OUTER_HW),
+        max: Vec2::new(NOSE_X, OUTER_HW),
         // The boundary layer: ordinary hops over the roof (apex ≈ 1.8 m) never feel the drag;
         // double jumps, launches and swings above it drift back.
         roof_y: ROOF_Y + SLIP_CALM,

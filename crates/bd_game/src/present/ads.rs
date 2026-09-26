@@ -92,6 +92,8 @@ pub fn gun_zoom(a: GunArchetype) -> f32 {
         Cannon => 1.25,
         Staff => 1.25,
         Disc => 1.2,
+        // Palm energy: no sights, just a slight lean in.
+        HandBeam => 1.1,
     }
 }
 

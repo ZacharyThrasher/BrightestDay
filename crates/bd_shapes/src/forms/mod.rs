@@ -133,16 +133,17 @@ pub fn suggested_scale(form: Form) -> f32 {
         Rocket => 2.4,
         Vehicle => 4.5,
         Blob0 => 1.4,
+        Hands => 1.2,
     }
 }
 
 /// Every form, in declaration order (handy for galleries/tests).
-pub const ALL_FORMS: [Form; 39] = {
+pub const ALL_FORMS: [Form; 40] = {
     use Form::*;
     [
         Hammer, Sword, Axe, Spear, Shield, Gauntlet, Whip, Gun, Bow, Cannon, Staff, Disc, Wings, Parachute,
         Jetpack, Cape, Biped, Kaiju, Quadruped, Serpent, Bird, Fish, Arachnid, Insect, Blob, Wall, Ramp,
-        Pillar, Dome, Cage, Platform, Trampoline, Ball, Anvil, Bomb, Boulder, Rocket, Vehicle, Blob0,
+        Pillar, Dome, Cage, Platform, Trampoline, Ball, Anvil, Bomb, Boulder, Rocket, Vehicle, Blob0, Hands,
     ]
 };
 
@@ -250,6 +251,7 @@ pub fn generate_machine(recipe: &Recipe) -> (ShapeSpec, crate::features::Machine
         Rocket => object::rocket(&mut g),
         Vehicle => object::vehicle(&mut g),
         Blob0 => object::blob0(&mut g),
+        Hands => held::hands(&mut g),
     }
     let G { b, handled, handled_features, .. } = g;
     let mut spec = b.spec;
@@ -313,7 +315,7 @@ pub fn icon_extent(form: Form, spec: &ShapeSpec) -> Option<f32> {
     let e = match form {
         Hammer | Sword | Axe | Spear | Gauntlet | Whip | Gun | Bow | Cannon | Staff | Ramp | Rocket | Vehicle => s.z,
         Biped | Kaiju | Pillar | Dome => s.y,
-        Disc | Wall | Cage | Platform | Trampoline | Ball | Anvil | Bomb | Boulder | Blob | Blob0 => s.x,
+        Disc | Wall | Cage | Platform | Trampoline | Ball | Anvil | Bomb | Boulder | Blob | Blob0 | Hands => s.x,
         _ => s.max_element(),
     };
     (e > 1e-3).then_some(e)

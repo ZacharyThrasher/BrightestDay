@@ -23,6 +23,7 @@ pub mod air_moves; // AIR JUMP / DODGE: hard-light step burst, dodge streak, SFX
 pub mod animated_terrain;
 pub mod camera3p;
 pub mod camera_shots; // CAMERA: BD_CAM_SHOT dev screenshots
+pub mod valley; // VALLEY OF THE END: water sheets, falls veil, mist, rainbow, water-walk ripples
 pub mod casino; // HIGH ROLLER: slot reels / levers, roulette house spin, glitter, pie splat (map interactables)
 pub mod charge;
 pub mod construct_anim;
@@ -31,6 +32,7 @@ pub mod director;
 pub mod guns;
 pub mod impact;
 pub mod local;
+pub mod mirror; // MIRRORFOLD: folded-city backdrop, mirrored void, rift
 pub mod outline; // OUTLINE: player outlines (inverted hull) for readability in chaos
 pub mod players;
 pub mod powers;
@@ -90,8 +92,10 @@ impl Plugin for PresentPlugin {
             .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
+            .add_plugins(mirror::MirrorPlugin) // MIRRORFOLD: folded-city backdrop
             .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
+            .add_plugins(valley::ValleyPlugin) // VALLEY: water sheets + falls + mist (no-op without water sheets)
             .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));

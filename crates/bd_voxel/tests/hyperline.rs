@@ -206,7 +206,7 @@ fn slipstream_footprint_and_surf_lines() {
     let (w, info) = generate_hyperline(1);
     let s = info.slipstream.expect("hyperline has a slipstream");
     assert_eq!((s.min.x, s.max.x), (TAIL_X, NOSE_X));
-    assert_eq!((s.min.y, s.max.y), (-HALF_W, HALF_W));
+    assert_eq!((s.min.y, s.max.y), (-hyperline::OUTER_HW, hyperline::OUTER_HW));
     // Every train voxel is inside the footprint.
     let (lo, hi) = (w.voxel_min(), w.voxel_max());
     for x in lo.x..hi.x {

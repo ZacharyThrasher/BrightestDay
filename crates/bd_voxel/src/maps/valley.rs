@@ -633,8 +633,8 @@ fn vegetation(g: &mut Gen, f: &Field, keep_clear: &[Vec2], seed: u32) {
             g.blob(Vec3::new(x, gy + r * 0.5, zz), Vec3::new(r * 1.3, r * 0.9, r * 1.3), leaves);
         }
     }
-    // A few trees at the cliff feet on the banks, and one pine per islet.
-    for (k, &(side, z)) in [(-1.0f32, -24.0f32), (1.0, -12.0), (-1.0, -70.0), (1.0, -52.0), (1.0, -90.0), (-1.0, 22.0)].iter().enumerate() {
+    // A few trees at the cliff feet on the banks (clear of the surf lines), and a pine on an islet.
+    for (k, &(side, z)) in [(-1.0f32, -50.0f32), (1.0, 4.0), (-1.0, -74.0), (1.0, -86.0)].iter().enumerate() {
         let x = wall_x(z, side) - side * 3.0;
         if near(keep_clear, x, z, 7.0) {
             continue;
@@ -651,7 +651,7 @@ pub fn surf_lines() -> Vec<SurfLine> {
         let b = Vec3::new(wall_x(z1, side) - side * inset, y1, z1);
         SurfLine { a, b, face_deg: 60.0, width: 8.0 }
     };
-    vec![line(-1.0, 22.0, 48.0, -40.0, 28.0, 5.0), line(1.0, -10.0, 46.0, -72.0, 26.0, 6.0)]
+    vec![line(-1.0, 22.0, 48.0, -40.0, 28.0, 5.0), line(1.0, -10.0, 46.0, -72.0, 27.0, 8.5)]
 }
 
 /// Walkable water: the river (segments following the meander, from the plunge hole's rim to the
@@ -886,10 +886,14 @@ pub fn routes() -> Vec<Route> {
             from: "statue_bay",
             to: "gorge",
             kind: RouteKind::Ground,
-            waypoints: (0..=12).map(|k| {
-                let z = 32.0 - 10.0 * k as f32;
-                Vec3::new(centre_x(z), RIVER_Y, z)
-            }).collect(),
+            // Weaves round the rock stacks (z 10, −40, −70).
+            waypoints: (0..=12)
+                .map(|k| {
+                    let z = 32.0 - 10.0 * k as f32;
+                    let off = if z > 20.0 { 0.0 } else if z > -55.0 { -4.5 } else { 4.5 };
+                    Vec3::new(centre_x(z) + off, RIVER_Y, z)
+                })
+                .collect(),
             anchors: vec![],
         },
     ]

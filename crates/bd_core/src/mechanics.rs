@@ -56,13 +56,17 @@ pub enum Form {
     Vehicle,
     /// Unknown word: a generic glowing lump. Still does something (a thrown blob).
     Blob0,
+    // --- appended (v1.7) ---
+    /// Energy projected from the caster's PALMS (kamehameha, final flash, repulsor): a held "item"
+    /// with no weapon model — a glowing orb between the hands; its Beam fires from them. (v1.7)
+    Hands,
 }
 
 impl Form {
     pub fn category(self) -> FormCategory {
         use Form::*;
         match self {
-            Hammer | Sword | Axe | Spear | Shield | Gauntlet | Whip | Gun | Bow | Cannon | Staff | Disc => FormCategory::Held,
+            Hammer | Sword | Axe | Spear | Shield | Gauntlet | Whip | Gun | Bow | Cannon | Staff | Disc | Hands => FormCategory::Held,
             Wings | Parachute | Jetpack | Cape => FormCategory::Worn,
             Biped | Kaiju | Quadruped | Serpent | Bird | Fish | Arachnid | Insect | Blob => FormCategory::Creature,
             Wall | Ramp | Pillar | Dome | Cage | Platform | Trampoline => FormCategory::Structure,

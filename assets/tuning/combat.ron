@@ -568,25 +568,28 @@
         lunge: (
             enabled: true,
             reach_pad: 0.9,
-            extra: 2.6,
+            // CONNECT pass (owner: "I don't even feel the lunge"): sword ~6 m (was 4.6), cone 32 (was 20).
+            extra: 4.0,
             range_min: 2.5,
-            range_max: 5.5,
+            range_max: 6.5,
             long_len: 1.4,
             long_penalty: 0.6,
             long_slow: 0.25,
-            cone_deg: 20.0,
+            cone_deg: 32.0,
             // The dash: speed toward the target (a faster approach keeps its own), longest dash, the
             // committed stop (speed kept on arrival), sideways/vertical velocity kept per tick.
-            dash_speed: 26.0,
-            dash_max_secs: 0.22,
+            dash_speed: 30.0,
+            dash_max_secs: 0.2,
             exit_speed: 5.0,
             lateral_keep: 0.3,
-            // Stop at reach * stop_frac from the target's centre (clamped), max vertical slope, cooldown.
+            // Stop at reach * stop_frac from the target's centre (clamped), max vertical slope, cooldown
+            // (cleared when the lunge swing connects: hit_resets_cooldown).
             stop_frac: 0.7,
             stop_min: 1.2,
             stop_max: 2.2,
             max_up: 0.75,
-            cooldown: 0.7,
+            cooldown: 0.5,
+            hit_resets_cooldown: true,
             heavy_mult: 0.8,
             heavy_speed: 0.8,
             fast_mult: 1.15,
@@ -605,7 +608,7 @@
             connect_knockback: 1.0,
             keep_closing_speed: true,
             // Hitbox aim nudge (never the camera): max degrees, ease-in seconds, hold seconds, release angle.
-            aim_max_deg: 12.0,
+            aim_max_deg: 15.0,
             aim_ramp_secs: 0.1,
             aim_hold_secs: 0.45,
             aim_release_deg: 45.0,
@@ -631,6 +634,49 @@
             bot_min_dist: 8.0,
             bot_max_dist: 30.0,
             bot_cooldown: 6.0,
+        ),
+        // CONNECT (bd_sim aim_assist.rs): invisible, host-side, never through walls; tests/connect.rs reports
+        // hit rates before/after. Melee: swing capsule radius x melee_radius (per-form rows override), x (1 +
+        // melee_weight * (swing weight - 1)), extra capped at melee_extra_max m (the extra needs a clear line
+        // blade -> body). Projectiles (ring blast, bolts, arrows, discs): the enemy nearest the crosshair in
+        // proj_cone_deg / proj_range at release; turn proj_turn_deg deg/s at release falling to 0 over
+        // proj_decay_secs, let go past proj_release_deg; x per kind; explosive rounds x proj_explosive.
+        // Thrown constructs: thrown_*. Hitscan: a ray missing a body by <= deg (per gun; beams
+        // hitscan_beam_deg) within hitscan_range m bends onto it if the bent ray is clear.
+        aim: (
+            melee_radius: 1.5,
+            melee_forms: [
+                (form: Whip, mult: 1.15),
+                (form: Shield, mult: 1.25),
+            ],
+            melee_weight: 0.3,
+            melee_extra_max: 0.45,
+            proj_cone_deg: 12.0,
+            proj_range: 80.0,
+            proj_turn_deg: 220.0,
+            proj_decay_secs: 0.3,
+            proj_release_deg: 35.0,
+            proj_kinds: [
+                (kind: RingBlast, mult: 1.0),
+                (kind: Bolt, mult: 1.0),
+                (kind: Arrow, mult: 0.8),
+                (kind: CannonBall, mult: 0.5),
+                (kind: Disc, mult: 0.8),
+            ],
+            proj_explosive: 0.0,
+            thrown_cone_deg: 14.0,
+            thrown_range: 45.0,
+            thrown_turn_deg: 160.0,
+            thrown_decay_secs: 0.5,
+            thrown_release_deg: 45.0,
+            hitscan: [
+                (arch: HandCannon, deg: 1.6),
+                (arch: Minigun, deg: 0.9),
+                (arch: SuperShotgun, deg: 0.0),
+                (arch: Railgun, deg: 0.5),
+            ],
+            hitscan_beam_deg: 0.5,
+            hitscan_range: 90.0,
         ),
     ),
     // Signature casts (bd_sim::signature, COMBAT.md §5j): "domain expansion ...", "kamehameha", "bankai" —

@@ -87,6 +87,12 @@ pub enum MapKind {
     Sakura,
     /// Volcanic basin: lava rivers (= the void), mining facility, twin-spired fortress (bd_voxel `generate_ember`).
     Ember,
+    /// The folded city: streets curl into surf half-pipes, towers hang from the sky (bd_voxel `generate_mirror`).
+    Mirrorfold,
+    /// High Roller: a Vegas casino atop a tower, giant roulette arena, optional slot machines (bd_voxel `generate_casino`).
+    Casino,
+    /// Valley of the End: river gorge, falls, two colossal statues; walk on water (bd_voxel `generate_valley`).
+    Valley,
 }
 
 impl MapKind {
@@ -99,6 +105,9 @@ impl MapKind {
             "backrooms" => Some(MapKind::Backrooms),
             "sakura" | "sakura_keep" => Some(MapKind::Sakura),
             "ember" => Some(MapKind::Ember),
+            "mirror" | "mirrorfold" => Some(MapKind::Mirrorfold),
+            "casino" | "high_roller" | "highroller" => Some(MapKind::Casino),
+            "valley" | "valley_of_the_end" => Some(MapKind::Valley),
             _ => None,
         }
     }
@@ -262,6 +271,67 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 tutorial: None,
                 arena: Some(info.clone()),
                 // No sea: the lava is voxels on the floor, just under the KO line.
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Mirrorfold => {
+            let (world, m) = bd_voxel::generate_mirror(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the fractures open onto the mirrored void (drawn by `present::mirror`).
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Valley => {
+            let (world, m) = bd_voxel::generate_valley(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // The KO water under the plunge hole / past the lip; the river and pool are water
+                // sheets drawn by `present::valley`.
+                water_y: Some(m.water_y),
+                water_color: Some((m.water_color, m.water_deep)),
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Casino => {
+            let (world, m) = bd_voxel::generate_casino(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the city glows far below the void line (the roof pool is voxels).
                 water_y: None,
                 water_color: None,
                 sun_color: Some(m.sun_color),

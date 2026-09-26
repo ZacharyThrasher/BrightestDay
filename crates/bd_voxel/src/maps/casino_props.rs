@@ -401,9 +401,10 @@ pub fn skyline_tower(c: &mut City, cx: f32, cz: f32, hw: f32, top: f32, seed: u3
     c.fill(Vec3::new(cx - hw, 0.0, cz - hw), Vec3::new(cx + hw, VS, cz + hw), mat::TOWER_CORE);
     c.anchor(glam::IVec3::new((cx / VS).floor() as i32, 0, (cz / VS).floor() as i32));
     c.fill_with(Vec3::new(cx - hw, VS, cz - hw), Vec3::new(cx + hw, top, cz + hw), |p, v, _| {
+        // Solid (no inner faces to mesh); only the outer layer is seen.
         let shell = (p.x - cx).abs() > hw - VS || (p.z - cz).abs() > hw - VS;
         if !shell && p.y < top - VS {
-            return None;
+            return Some(mat::ROOF_DARK);
         }
         if p.y > top - 1.0 {
             return Some(neon);

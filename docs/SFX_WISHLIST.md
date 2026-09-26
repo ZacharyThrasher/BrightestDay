@@ -48,3 +48,22 @@ frequent. Missing names are silent (callers already emit them).
 | amb_pipe_hiss | Turtle Lair | steam-pipe hiss bursts + metallic clanks along the vault pipes (currently `amb_station_creak`) |
 | amb_city_muffled | Turtle Lair | the city above heard through a manhole: low-passed traffic, a far siren (bed near the shafts; currently `amb_city_bed` by altitude) |
 | amb_arcade_bleeps | Turtle Lair | quiet arcade-cabinet attract-mode bleeps + CRT whine near the lair's neon (currently `amb_neon_hum`) |
+| amb_casino_walla | High Roller | casino-floor bed: indistinct crowd murmur (no words), distant slot jingles, chip clatter, a far cheer now and then — loopable, carpet-dead (currently `amb_interior_tone` + `amb_ac_hum`) |
+| amb_slot_jingle | High Roller | short cheerful slot-machine attract melodies / payout bells from somewhere on the floor (sparkle, Surface zone) |
+| amb_chip_clatter | High Roller | stacks of clay chips being shuffled / dropped on felt (sparkle; `assemble_click` stands in) |
+| amb_card_shuffle | High Roller | riffle shuffle + card snaps from the tables (sparkle; `transform_panel_click` stands in) |
+| slot_lever | High Roller slot machines | big mechanical lever yank: ratchet + spring return (`hatch_close` stands in) |
+| slot_clunk | High Roller | lever hit with no stake: a dull locked clunk (`transform_panel_click` pitched down stands in) |
+| slot_reel_loop | High Roller | reels whirring (loop, stops abruptly) + per-reel stop `thunk` (`rotor_loop` pitched up / `assemble_click` stand in) |
+| slot_win | High Roller | three-of-a-kind payout: bright bell arpeggio + a few coins (`oath_complete` stands in) |
+| slot_jackpot | High Roller | JACKPOT: big bell run + cascading coins + siren-ish sweep, ~2.5 s, celebratory not harsh (`legendary_sting` + `charge_full` stand in) |
+| slot_bust_trombone | High Roller | the bust: comic "wah-wah-wah-waaah" sad trombone, ~1.6 s (a sound cue, not the bd_music `Defeat` stinger — that ends the track); `sputter` + `shout_fizzle` stand in |
+| pie_splat | High Roller bust | wet cream-pie splat on your face (`land_heavy` pitched up stands in) |
+| confetti_pop | High Roller bust | party popper + paper flutter (`shout_release` stands in) |
+| spring_boing | High Roller bust | cartoon spring "boing" for the little hop (`air_jump` pitched down stands in) |
+| roulette_spin | High Roller house spin | wheel rumble + ball rattle round the wooden track, decelerating over `house_sweep` s (`rotor_loop` pitched down stands in) |
+| roulette_ball_drop | High Roller house spin | the ball clacking over the frets and dropping into a pocket (`assemble_lock` stands in) |
+| house_bonus | High Roller house spin | small chip "cha-ching" when you step into the lit pocket (`charge_full` pitched up stands in) |
+| amb_furin | Sakura Keep | glass wind-chime tinkles under eaves (sparkle, Wall/Leaves zone) |
+| amb_temple_bell | Sakura Keep | distant temple bell: one deep bonnnng with a long beat-y tail, rare (sparkle, Sky zone) |
+| amb_fountain | Sakura Keep | small trickling water basin / koi pond (loop near the shrine; needs a map-placed emitter) |

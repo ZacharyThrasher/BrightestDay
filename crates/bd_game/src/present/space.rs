@@ -58,6 +58,9 @@ pub struct SpaceParams {
     pub cam: Vec4,
     /// xyz = streak direction, w = amount.
     pub streak: Vec4,
+    /// x = sky style: 0 Orbit (blue planet, one moon), 1 Cybertron (the metal planet below, amber
+    /// seams and fires, a blue-violet nebula, two moons).
+    pub style: Vec4,
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Clone, Debug)]
@@ -130,6 +133,8 @@ struct SpaceState {
     dust: f32,
     /// Star streak (xyz dir, w amount) for the dome.
     streak: Vec4,
+    /// Sky style of the active space map (see `SpaceParams::style`).
+    style: f32,
 }
 
 /// The local player's space-KO spectator shot.
@@ -167,6 +172,16 @@ fn is_orbit(arena: &Option<Res<ArenaWorld>>) -> bool {
     arena.as_ref().is_some_and(|a| a.info.kind == MapKind::Orbit)
 }
 
+/// Maps under open space and their sky style (the KO presentation stays Orbit-only).
+fn space_style(arena: &Option<Res<ArenaWorld>>) -> Option<f32> {
+    match arena.as_ref().map(|a| a.info.kind) {
+        Some(MapKind::Orbit) => Some(0.0),
+        // CYBERTRON (switched to `MapKind::Cybertron` at registration).
+        Some(k) if format!("{k:?}") == "Cybertron" => Some(1.0),
+        _ => None,
+    }
+}
+
 fn dark(materials: &mut Assets<StandardMaterial>, c: Color) -> Handle<StandardMaterial> {
     materials.add(StandardMaterial { base_color: c, unlit: true, fog_enabled: false, ..default() })
 }
@@ -186,11 +201,13 @@ fn sync_space(
     mut space_mats: ResMut<Assets<SpaceMaterial>>,
     mut shot: ResMut<SpaceShot>,
 ) {
-    let want = is_orbit(&arena);
-    if want == state.active {
+    let style = space_style(&arena);
+    let want = style.is_some();
+    if want == state.active && style.unwrap_or(0.0) == state.style {
         return;
     }
     state.active = want;
+    state.style = style.unwrap_or(0.0);
     for mut v in &mut sky {
         *v = if want { Visibility::Hidden } else { Visibility::Inherited };
     }
@@ -202,6 +219,10 @@ fn sync_space(
         shot.target = None;
         state.streak = Vec4::ZERO;
         return;
+    }
+    // Switching straight between two space maps: rebuild.
+    for e in &existing {
+        commands.entity(e).despawn();
     }
     debris.gravity_profile = arena.as_ref().and_then(|a| a.info.arena.as_ref()).and_then(|i| i.gravity);
 
@@ -644,6 +665,7 @@ fn dome_follow(
                 sun_color: Vec4::new(sun.red, sun.green, sun.blue, t),
                 cam: cam.translation.extend(1.9 + t * 0.0025),
                 streak: state.streak,
+                style: Vec4::new(state.style, 0.0, 0.0, 0.0),
             };
         }
     }

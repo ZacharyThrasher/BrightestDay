@@ -137,6 +137,10 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
             dmg = 8.0 / 30.0 + (1.0 - 8.0 / 30.0) * f.charge;
             speed = 0.55 + 0.45 * f.charge;
         }
+        if arch == GunArchetype::HandBeam {
+            // A quick release is a weaker beam; a full charge is the whole thing.
+            dmg = 0.35 + 0.65 * f.charge;
+        }
         fire(c, env, out, arch, &spec, o.look, f.alt, dmg, speed, 1.0);
     }
 

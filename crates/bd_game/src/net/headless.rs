@@ -95,6 +95,9 @@ pub fn run_host(cli: &NetCli) -> i32 {
         Some("backrooms") => NetMapKind::Backrooms,
         Some("sakura") | Some("sakura_keep") => NetMapKind::Sakura,
         Some("ember") => NetMapKind::Ember,
+        Some("mirror") | Some("mirrorfold") => NetMapKind::Mirrorfold,
+        Some("casino") | Some("high_roller") | Some("highroller") => NetMapKind::Casino,
+        Some("valley") | Some("valley_of_the_end") => NetMapKind::Valley,
         _ => NetMapKind::Archipelago,
     };
     let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 }, cli.seed);

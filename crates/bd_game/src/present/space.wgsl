@@ -15,6 +15,8 @@ struct Space {
     cam: vec4<f32>,
     // xyz = streak direction (unit, world), w = amount 0..1
     streak: vec4<f32>,
+    // x = style: 0 Orbit, 1 Cybertron (metal planet, amber/energon seams, fires, two moons)
+    style: vec4<f32>,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> sp: Space;
@@ -90,6 +92,38 @@ fn stars(d: vec3<f32>) -> vec3<f32> {
     return star_layer(d0, 70.0, 0.965, 1.0) * 1.1 + star_layer(d1, 160.0, 0.95, 7.0) * 0.6 + star_layer(d, 380.0, 0.93, 13.0) * 0.35;
 }
 
+// Cybertron seen from a raised city plate: gunmetal plates on a grid, district shading, glowing
+// amber / energon seams (brighter on the night side), concentric ring works, scattered fires.
+fn cybertron_surface(n: vec3<f32>, dir: vec3<f32>, sun: vec3<f32>, t: f32) -> vec3<f32> {
+    let ndl = dot(n, sun);
+    let day = clamp((ndl + 0.15) / 0.35, 0.0, 1.0);
+    let cell = floor(n * 90.0);
+    let h = hash3(cell);
+    let district = fbm(n * 7.0, 4) * 0.5 + 0.5;
+    var base = mix(vec3(0.045, 0.05, 0.065), vec3(0.13, 0.14, 0.17), h.x * 0.6 + district * 0.4);
+    var col = base * (0.03 + 1.25 * day * sqrt(max(ndl, 0.0)));
+    // Seams: a coarse plate grid, amber in some districts and energon blue in others.
+    let g = abs(fract(n * 24.0) - vec3(0.5));
+    let line = smoothstep(0.455, 0.49, max(max(g.x, g.y), g.z));
+    let sel = fbm(n * 2.6 + vec3(9.0), 3);
+    let seam = select(vec3(0.25, 0.75, 2.0), vec3(2.2, 0.75, 0.16), sel > -0.05);
+    let lit_mask = smoothstep(-0.15, 0.35, fbm(n * 11.0 + vec3(4.0), 3));
+    col += seam * line * lit_mask * (0.25 + 0.75 * (1.0 - day));
+    // Concentric ring works around a few hubs.
+    for (var k = 0; k < 3; k++) {
+        let c = normalize(hash3(vec3(f32(k) * 7.0 + 1.0, 3.0, 5.0)) * 2.0 - vec3(1.0));
+        let a = acos(clamp(dot(n, c), -1.0, 1.0));
+        let r = abs(fract(a * 45.0) - 0.5);
+        col += select(vec3(2.0, 0.7, 0.15), vec3(0.3, 0.8, 2.0), k == 1) * smoothstep(0.47, 0.5, r) * smoothstep(0.35, 0.05, a) * 0.6;
+    }
+    // Fires and damage.
+    let fire = fbm(n * 30.0 + vec3(t * 0.03, 0.0, 0.0), 3);
+    col += vec3(2.4, 0.7, 0.12) * max(fire - 0.5, 0.0) * 5.0 * step(0.2, fbm(n * 4.0 + vec3(2.0), 2));
+    // Dusty amber haze at the rim.
+    let rim = pow(clamp(1.0 + dot(n, dir), 0.0, 1.0), 5.0);
+    return mix(col, vec3(0.55, 0.28, 0.12) * (0.15 + 0.6 * day), clamp(rim * 0.8, 0.0, 0.6));
+}
+
 fn planet(ro: vec3<f32>, dir: vec3<f32>, sun: vec3<f32>, t: f32) -> vec4<f32> {
     let oc = ro - PLANET_C;
     let b = dot(oc, dir);
@@ -104,10 +138,14 @@ fn planet(ro: vec3<f32>, dir: vec3<f32>, sun: vec3<f32>, t: f32) -> vec4<f32> {
         let side = normalize(oc - dir * b);
         let lit = clamp(dot(side, sun) * 0.8 + 0.35, 0.05, 1.0);
         let halo = exp(-hd / 120.0) * 0.8 + exp(-hd / 600.0) * 0.12;
-        return vec4(vec3(0.10, 0.28, 0.85) * halo * lit, 0.0);
+        let halo_col = select(vec3(0.10, 0.28, 0.85), vec3(0.45, 0.22, 0.10), sp.style.x > 0.5);
+        return vec4(halo_col * halo * lit, 0.0);
     }
     let tt = -b - sqrt(h);
     let n = normalize(oc + dir * tt);
+    if (sp.style.x > 0.5) {
+        return vec4(cybertron_surface(n, dir, sun, t), 1.0);
+    }
     let ndl = dot(n, sun);
     let day = clamp((ndl + 0.1) / 0.32, 0.0, 1.0);
     let q = n * 3.2;
@@ -165,6 +203,12 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         let nb = fbm(dir * 2.2 + vec3(3.0), 4);
         let band = exp(-abs(dot(dir, normalize(vec3(0.3, 0.9, -0.3)))) * 3.0);
         col += mix(vec3(0.05, 0.015, 0.08), vec3(0.01, 0.05, 0.07), nb * 0.5 + 0.5) * max(nb + 0.3, 0.0) * band * 0.6;
+        if (sp.style.x > 0.5) {
+            // Cybertron: a rich blue-violet nebula across the sky.
+            let nb2 = fbm(dir * 3.4 + vec3(11.0), 5);
+            let band2 = exp(-abs(dot(dir, normalize(vec3(-0.5, 0.7, 0.5)))) * 2.2);
+            col += mix(vec3(0.02, 0.05, 0.16), vec3(0.10, 0.03, 0.14), nb2 * 0.5 + 0.5) * max(nb2 + 0.35, 0.0) * band2 * 1.1;
+        }
         // Stars (streaked when launched: smeared away from the travel direction).
         let k = sp.streak.w;
         if (k > 0.01) {
@@ -190,6 +234,17 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let ma = sp.cam.w;
     let md = normalize(vec3(cos(ma) * 0.82, 0.24 + 0.08 * sin(ma * 0.7), sin(ma) * 0.82));
     let mc = dot(dir, md);
+    // Cybertron's second moon (smaller, rust-tinted).
+    if (sp.style.x > 0.5 && pl.w < 0.5) {
+        let md2 = normalize(vec3(cos(ma * 1.6 + 2.2) * 0.7, 0.42, sin(ma * 1.6 + 2.2) * 0.7));
+        let mc2 = dot(dir, md2);
+        if (mc2 > 0.99955) {
+            let off2 = (dir - md2 * mc2) / 0.03;
+            let z2 = sqrt(max(1.0 - dot(off2, off2), 0.0));
+            let mn2 = normalize(off2 - md2 * z2);
+            col = vec3(0.55, 0.36, 0.26) * (0.6 + 0.4 * fbm(off2 * 6.0, 2)) * (0.02 + 1.3 * max(dot(mn2, sun), 0.0));
+        }
+    }
     if (mc > 0.99865 && pl.w < 0.5) {
         // Sphere normal of the visible hemisphere from the offset in the moon's tangent plane.
         let off = (dir - md * mc) / 0.0519;

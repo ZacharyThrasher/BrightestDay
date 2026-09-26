@@ -3,7 +3,7 @@
 #![allow(clippy::all)]
 use bd_core::mechanics::{Element, Feature, Form, Mechanic, Temperament};
 
-pub const ALL_FORM: [Form; 39] = [
+pub const ALL_FORM: [Form; 40] = [
     Form::Hammer,
     Form::Sword,
     Form::Axe,
@@ -43,6 +43,7 @@ pub const ALL_FORM: [Form; 39] = [
     Form::Rocket,
     Form::Vehicle,
     Form::Blob0,
+    Form::Hands,
 ];
 #[inline]
 pub fn form_index(x: Form) -> u8 {
@@ -86,6 +87,7 @@ pub fn form_index(x: Form) -> u8 {
         Form::Rocket => 36,
         Form::Vehicle => 37,
         Form::Blob0 => 38,
+        Form::Hands => 39,
     }
 }
 pub fn form_from_name(s: &str) -> Option<Form> {
@@ -129,6 +131,7 @@ pub fn form_from_name(s: &str) -> Option<Form> {
         "Rocket" => Form::Rocket,
         "Vehicle" => Form::Vehicle,
         "Blob0" => Form::Blob0,
+        "Hands" => Form::Hands,
         _ => return None,
     })
 }
@@ -173,6 +176,7 @@ pub fn form_name(x: Form) -> &'static str {
         Form::Rocket => "Rocket",
         Form::Vehicle => "Vehicle",
         Form::Blob0 => "Blob0",
+        Form::Hands => "Hands",
     }
 }
 

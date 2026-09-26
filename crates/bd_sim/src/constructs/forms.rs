@@ -80,6 +80,8 @@ pub fn form_spec(f: Form) -> FormSpec {
         Rocket => fs(1.2, 0.5, 3.0, Vec3::new(0.35, 0.35, 1.0), 20.0, 18.0, 32.0),
         Vehicle => fs(3.0, 1.5, 6.0, Vec3::new(0.6, 0.5, 1.0), 16.0, 18.0, 26.0),
         Blob0 => fs(0.8, 0.3, 2.0, LUMP, 6.0, 8.0, 26.0),
+        // Palms: scale = the energy's caliber (like a gun's length).
+        Hands => fs(0.6, 0.3, 1.5, Vec3::new(0.3, 0.3, 0.3), 5.0, 3.0, 120.0),
     }
 }
 

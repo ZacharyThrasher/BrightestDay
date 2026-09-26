@@ -97,7 +97,13 @@ fn ffa_cfg() -> SimConfig {
 // in the air gives the air jump back): bots don't seek it, but 5 incidental wall touches in this
 // run hand air jumps back that `dodge::bot_moves` then uses. A/B verified: the same tree with
 // `move_params.wall_refresh = false` reproduces 0x1fab_383f_88df_c29f.
-const FFA_NOCAST_STATE_HASH: u64 = 0xc678_ca58_2062_e205;
+// Re-recorded (was 0xc678_ca58_2062_e205) for juggle protection (bd_sim::juggle, owner: "a cooldown
+// after a player has been hit so they can't just be knocked around endlessly"): later hits of a chain
+// decay and a victim is briefly knockback-guarded, so bots juggle less. A/B verified:
+// tests/juggle.rs `juggle_off_is_the_old_sim_bit_for_bit` runs this exact FFA with
+// `tuning.juggle = JuggleTuning::off()` on the same tree (casino interactables included) and
+// reproduces 0xc678_ca58_2062_e205.
+const FFA_NOCAST_STATE_HASH: u64 = 0xd1a3_7fca_9b34_c73d;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {

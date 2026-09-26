@@ -42,12 +42,15 @@ pub struct AssistTuning {
     pub lunge: LungeTuning,
     /// Hook-and-strike: tethers hook players (`crate::hook`).
     pub hook: crate::hook::HookTuning,
+    /// CONNECT: melee hit volume, projectile / thrown homing, hitscan magnetism (`crate::aim_assist`).
+    pub aim: crate::aim_assist::AimTuning,
 }
 
 impl AssistTuning {
     pub fn validated(mut self) -> Self {
         self.lunge = self.lunge.validated();
         self.hook = self.hook.validated();
+        self.aim = self.aim.validated();
         self
     }
 }
@@ -95,8 +98,10 @@ pub struct LungeTuning {
     pub stop_max: f32,
     /// Largest vertical component of the dash direction (air lunges go up / down this much).
     pub max_up: f32,
-    /// Seconds between lunges (from the dash start).
+    /// Seconds between lunges (from the dash start)…
     pub cooldown: f32,
+    /// …cleared when the lunge swing connects (chains stay fluid; a whiff still waits).
+    pub hit_resets_cooldown: bool,
     /// Range `extra` × this for Heavy weapons (and dash speed × `heavy_speed`), × `fast_mult` for Fast.
     pub heavy_mult: f32,
     pub heavy_speed: f32,
@@ -125,22 +130,24 @@ impl Default for LungeTuning {
         Self {
             enabled: true,
             reach_pad: 0.9,
-            extra: 2.6,
+            // CONNECT pass (owner: "I don't even feel the lunge"): sword ~6 m (was 4.6), heavy less.
+            extra: 4.0,
             range_min: 2.5,
-            range_max: 5.5,
+            range_max: 6.5,
             long_len: 1.4,
             long_penalty: 0.6,
             long_slow: 0.25,
-            cone_deg: 20.0,
-            dash_speed: 26.0,
-            dash_max_secs: 0.22,
+            cone_deg: 32.0,
+            dash_speed: 30.0,
+            dash_max_secs: 0.2,
             exit_speed: 5.0,
             lateral_keep: 0.3,
             stop_frac: 0.7,
             stop_min: 1.2,
             stop_max: 2.2,
             max_up: 0.75,
-            cooldown: 0.7,
+            cooldown: 0.5,
+            hit_resets_cooldown: true,
             heavy_mult: 0.8,
             heavy_speed: 0.8,
             fast_mult: 1.15,
@@ -156,7 +163,7 @@ impl Default for LungeTuning {
             connect_heavy_impact: 1.25,
             connect_knockback: 1.0,
             keep_closing_speed: true,
-            aim_max_deg: 12.0,
+            aim_max_deg: 15.0,
             aim_ramp_secs: 0.1,
             aim_hold_secs: 0.45,
             aim_release_deg: 45.0,
@@ -278,13 +285,53 @@ pub fn swing_target(
     look: Vec3,
     r: &SwingReach,
     candidates: impl IntoIterator<Item = (PlayerId, Aabb)>,
-    mut clear: impl FnMut(Vec3, Vec3) -> bool,
+    clear: impl FnMut(Vec3, Vec3) -> bool,
 ) -> Option<SwingTarget> {
+    swing_target_diag(eye, look, r, candidates, clear).ok()
+}
+
+/// Why a swing found no lunge target (the closest-to-passing reason over all candidates).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TargetMiss {
+    /// No living, unshielded enemy at all.
+    #[default]
+    NoEnemies,
+    /// Enemies in the cone, all beyond the lunge range.
+    Range,
+    /// Enemies in range, all outside the cone.
+    Cone,
+    /// Neither in range nor in the cone.
+    RangeAndCone,
+    /// In range and cone, but terrain / a solid construct in the way.
+    Sight,
+}
+
+/// [`swing_target`] that also says why it found nothing (diagnostics, `LungeVerdict`).
+pub fn swing_target_diag(
+    eye: Vec3,
+    look: Vec3,
+    r: &SwingReach,
+    candidates: impl IntoIterator<Item = (PlayerId, Aabb)>,
+    mut clear: impl FnMut(Vec3, Vec3) -> bool,
+) -> Result<SwingTarget, TargetMiss> {
     let look = look.normalize_or_zero();
     if look == Vec3::ZERO || !eye.is_finite() {
-        return None;
+        return Err(TargetMiss::NoEnemies);
     }
     let mut best: Option<(SwingTarget, f32)> = None;
+    let mut miss = TargetMiss::NoEnemies;
+    let rank = |m: TargetMiss| match m {
+        TargetMiss::NoEnemies => 0,
+        TargetMiss::RangeAndCone => 1,
+        TargetMiss::Range => 2,
+        TargetMiss::Cone => 3,
+        TargetMiss::Sight => 4,
+    };
+    let mut note = |m: TargetMiss| {
+        if rank(m) > rank(miss) {
+            miss = m;
+        }
+    };
     for (id, hull) in candidates {
         if !hull.min.is_finite() || !hull.max.is_finite() {
             continue;
@@ -296,12 +343,16 @@ pub fn swing_target(
             continue;
         }
         let dist = geom::dist_sq_point_aabb(&hull, eye).sqrt();
-        if dist > r.range {
-            continue;
-        }
         let cos = to.dot(look) / dc;
-        let under = geom::segment_aabb(eye, eye + look * r.range, &hull).is_some();
-        if cos < r.cos_cone && !under {
+        let in_range = dist <= r.range;
+        let in_cone = cos >= r.cos_cone || geom::segment_aabb(eye, eye + look * r.range, &hull).is_some();
+        match (in_range, in_cone) {
+            (false, false) => note(TargetMiss::RangeAndCone),
+            (false, true) => note(TargetMiss::Range),
+            (true, false) => note(TargetMiss::Cone),
+            (true, true) => {}
+        }
+        if !(in_range && in_cone) {
             continue;
         }
         let score = (1.0 - cos) * 10.0 + dist / r.range.max(0.1);
@@ -309,11 +360,34 @@ pub fn swing_target(
             continue;
         }
         if !clear(eye, c) {
+            note(TargetMiss::Sight);
             continue;
         }
         best = Some((SwingTarget { id, point: c, dist, cos }, score));
     }
-    best.map(|b| b.0)
+    best.map(|b| b.0).ok_or(miss)
+}
+
+/// What the lunge did on a melee swing start (host-side diagnostics: `AssistState::verdict`;
+/// `tests/connect.rs` reports the trigger rate by reason).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum LungeVerdict {
+    #[default]
+    None,
+    /// Dashed at the target.
+    Lunged,
+    /// Target already inside natural reach: the swing just lands (aim nudge only).
+    InReach,
+    /// This form never lunges (whip…) / the swing kind doesn't (secondaries).
+    Form,
+    /// No target: why.
+    Miss(TargetMiss),
+    /// Target found but the lunge is on cooldown…
+    Cooldown,
+    /// …or a dash is already running…
+    Dashing,
+    /// …or the dash is switched off / had nothing to close.
+    Disabled,
 }
 
 /// A lunge dash in progress (part of the movement state: host and client prediction step it the
@@ -463,6 +537,9 @@ pub struct AssistState {
     pub slam_swing: Option<ConstructId>,
     /// …and whether it already connected (the `Slam` event fires once).
     pub slam_hit: bool,
+    /// Diagnostics: the lunge verdict of the latest melee swing start, and its tick.
+    pub verdict: LungeVerdict,
+    pub verdict_tick: bd_core::Tick,
 }
 
 #[cfg(test)]
@@ -480,7 +557,7 @@ mod tests {
         let hammer = swing_reach(&t, Form::Hammer, 1.2, false, false, 1.0).unwrap();
         let heavy = swing_reach(&t, Form::Hammer, 1.2, true, false, 1.0).unwrap();
         let giant = swing_reach(&t, Form::Hammer, 3.5, true, false, 1.0).unwrap();
-        assert!((4.0..=5.0).contains(&sword.range), "sword lunges ~4-5 m: {}", sword.range);
+        assert!((5.5..=6.5).contains(&sword.range), "sword lunges ~6 m: {}", sword.range);
         assert!(sword.range > hammer.range && hammer.range > heavy.range);
         assert!(giant.range - giant.reach < heavy.range - heavy.reach, "a giant hammer dashes shorter");
         assert!(giant.dash_speed < heavy.dash_speed && heavy.dash_speed < sword.dash_speed);

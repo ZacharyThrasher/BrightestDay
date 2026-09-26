@@ -277,4 +277,73 @@
         scare_hold: 3.0,
         scare_recover: 8.0,
     ),
+    "casino": (
+        // High Roller: a big carpeted hall — warm, soft, fairly dead (carpet, velvet, drapes) with a
+        // long gilded ceiling; the roof deck is open night air over the city far below.
+        space: (
+            open: (size: 1.4, rt60: 1.1, damping_hz: 4200.0, predelay_ms: 20.0, wet_db: -18.0, er_db: -22.0),
+            enclosed: (size: 1.2, rt60: 1.3, damping_hz: 3600.0, predelay_ms: 16.0, wet_db: -12.0, er_db: -16.0),
+            slap_db: -18.0,
+        ),
+        beds: [
+            // Casino-floor bed (stand-in: room tone + air handling until amb_casino_walla exists — see
+            // docs/SFX_WISHLIST.md); it falls away on the open roof.
+            (sound: "amb_interior_tone", gain_db: 0.0, enclosure: (x0: 0.2, x1: 0.8, db0: -14.0, db1: 0.0)),
+            (sound: "amb_ac_hum", gain_db: -13.0, enclosure: (x0: 0.3, x1: 0.9, db0: -12.0, db1: 0.0)),
+            // The city below + wind up on the roof deck.
+            (sound: "amb_city_bed", gain_db: -6.0, enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -16.0)),
+            (sound: "amb_wind_high", gain_db: -9.0, altitude: (x0: 58.0, x1: 84.0, db0: -8.0, db1: 0.0), speed: (x0: 10.0, x1: 40.0, db0: -6.0, db1: 4.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -20.0)),
+        ],
+        loops: [
+            // Neon signage + slot-cabinet electrics.
+            (sound: "amb_neon_hum", zone: Neon, max_active: 2, radius: 10.0, gain_db: -9.0, lift: 0.0),
+        ],
+        sparkles: [
+            // Chip clatter / slot-cabinet clicks somewhere on the floor (stand-ins for amb_chip_clatter,
+            // amb_slot_jingle, amb_card_shuffle on the wishlist).
+            (sound: "assemble_click", zone: Surface, per_min: 9.0, min_dist: 8.0, max_dist: 36.0, gain_db: (-24.0, -16.0), lift: (0.8, 1.2)),
+            (sound: "transform_panel_click", zone: Surface, per_min: 4.0, min_dist: 10.0, max_dist: 40.0, gain_db: (-26.0, -18.0), lift: (0.9, 1.3)),
+            (sound: "amb_traffic_swish", zone: Sky, per_min: 1.5, min_dist: 60.0, max_dist: 120.0, gain_db: (-20.0, -12.0), lift: (-30.0, -20.0)),
+            (sound: "amb_distant_boom", zone: Sky, per_min: 0.2, min_dist: 200.0, max_dist: 400.0, gain_db: (-18.0, -10.0)),
+        ],
+        scare_hold: 3.0,
+        scare_recover: 8.0,
+    ),
+    "cybertron": (
+        // Cybertron: a raised city plate on the metal planet under open space. A deep machine hum
+        // from the planet's core everywhere (swelling at the Well and the plate's edge), energon
+        // conduits buzzing wherever the seams glow, distant clanks / servos / panel clicks of the
+        // city transforming itself, and wind off the Sea of Rust at the rim and up high.
+        space: (
+            open: (size: 1.5, rt60: 1.3, damping_hz: 3600.0, predelay_ms: 22.0, wet_db: -22.0, er_db: -27.0),
+            enclosed: (size: 0.9, rt60: 1.8, damping_hz: 3800.0, predelay_ms: 10.0, wet_db: -9.0, er_db: -12.0),
+            slap_db: -12.0,
+        ),
+        beds: [
+            // Machine hum of the planet (stand-in for a dedicated amb_cybertron_core).
+            (sound: "amb_planet_hum", gain_db: -3.0, near_zone: CliffEdge, near: (x0: 4.0, x1: 50.0, db0: 2.0, db1: -5.0)),
+            (sound: "amb_ac_hum", gain_db: -12.0, enclosure: (x0: 0.2, x1: 0.8, db0: -6.0, db1: 0.0)),
+            // Rust-laden wind: at the rim and up on the spires / crown / expressways.
+            (sound: "amb_wind_high", gain_db: -6.0, altitude: (x0: 28.0, x1: 70.0, db0: -14.0, db1: 0.0), speed: (x0: 8.0, x1: 40.0, db0: -6.0, db1: 5.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+            (sound: "amb_interior_tone", gain_db: -2.0, enclosure: (x0: 0.5, x1: 0.95, db0: -40.0, db1: 0.0)),
+        ],
+        loops: [
+            // Energon conduits: the glowing seams buzz as you pass them (stand-in for an energon crackle).
+            (sound: "amb_neon_hum", zone: Neon, max_active: 3, radius: 12.0, gain_db: -7.0, lift: 0.0),
+            // Wind over the Sea of Rust at the plate's edge.
+            (sound: "wind_loop", zone: CliffEdge, max_active: 2, radius: 18.0, gain_db: -12.0, lift: 0.5),
+        ],
+        sparkles: [
+            // Distant clanks and servos: the city shifting its plates.
+            (sound: "transform_panel_click", zone: Surface, per_min: 5.0, min_dist: 25.0, max_dist: 90.0, gain_db: (-22.0, -14.0), lift: (1.0, 8.0)),
+            (sound: "assemble_lock", zone: Wall, per_min: 1.5, min_dist: 25.0, max_dist: 90.0, gain_db: (-22.0, -14.0), lift: (2.0, 10.0)),
+            (sound: "hatch_open", zone: Wall, per_min: 0.8, min_dist: 30.0, max_dist: 100.0, gain_db: (-24.0, -16.0), lift: (2.0, 10.0)),
+            (sound: "amb_station_creak", zone: Surface, per_min: 2.0, min_dist: 8.0, max_dist: 60.0, gain_db: (-14.0, -7.0), lift: (0.5, 3.0)),
+            // Rust hissing over the rim; far-off battles.
+            (sound: "debris_patter", zone: CliffEdge, per_min: 3.0, min_dist: 6.0, max_dist: 40.0, gain_db: (-20.0, -12.0), lift: (0.0, 0.5)),
+            (sound: "amb_distant_boom", zone: Sky, per_min: 0.6, min_dist: 250.0, max_dist: 450.0, gain_db: (-12.0, -5.0)),
+        ],
+        scare_hold: 3.0,
+        scare_recover: 8.0,
+    ),
 }

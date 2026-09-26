@@ -747,7 +747,7 @@ fn routes() -> Vec<Route> {
             from: "balcony_n",
             to: "balcony_s",
             kind: RouteKind::Swing,
-            waypoints: vec![Vec3::new(-12.0, MEZZ_Y, 40.0), Vec3::new(-12.0, MEZZ_Y, -40.0)],
+            waypoints: vec![Vec3::new(-18.0, MEZZ_Y, 40.0), Vec3::new(-18.0, MEZZ_Y, -40.0)],
             anchors: vec![hub(2), hub(4)],
         },
         Route { name: "roulette_surf", from: "roulette", to: "roulette", kind: RouteKind::Mixed, waypoints: ring, anchors: vec![] },

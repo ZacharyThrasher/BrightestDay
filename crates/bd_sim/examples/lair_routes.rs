@@ -264,7 +264,7 @@ fn chute(cw: &CollisionWorld<VoxelWorld>, m: &MapInfo) -> RunResult {
 }
 
 /// 5. Half-pipe: come out of the west flat end at speed, hop onto the north hard-light wall and
-/// carve it end to end (surf keeps horizontal speed), dropping back into the trough at the east end.
+///    carve it end to end (surf keeps horizontal speed), dropping back into the trough at the east end.
 fn halfpipe(cw: &CollisionWorld<VoxelWorld>, m: &MapInfo) -> RunResult {
     let r = m.route("halfpipe").expect("halfpipe");
     let (start, end) = (r.waypoints[0], r.waypoints[1]);

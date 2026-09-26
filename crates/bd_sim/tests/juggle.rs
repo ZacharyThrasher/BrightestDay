@@ -305,6 +305,21 @@ impl ChainStats {
             self.open.resize(256, None);
         }
         let now = w.tick;
+        // Back in control at this tick's movement (before this tick's hits): landed (a landing ends
+        // the tumble), hanging on your own tether, or dead. Or no knocking hit for over 1 s.
+        for p in &w.players {
+            if p.juggle.guarded() {
+                self.guarded_ticks += 1;
+            }
+            let back = !p.alive || p.move_events.landed.is_some() || (p.mv.grounded && p.mv.tumble <= 0.0) || p.mv.tethered();
+            let slot = &mut self.open[p.id.0 as usize];
+            if let Some((n, first, last)) = *slot {
+                if back || now - last > 120 {
+                    self.chains.push((n, last - first));
+                    *slot = None;
+                }
+            }
+        }
         for e in evs {
             match e {
                 GameEvent::Hit { target, source, knockback, .. } if *source != Some(*target) && *knockback >= 14.0 => {
@@ -312,29 +327,12 @@ impl ChainStats {
                     *slot = match *slot {
                         // Every hit in one tick (pellets, a blast) is one step of the chain.
                         Some((n, first, last)) if now == last => Some((n, first, last)),
-                        Some((n, first, last)) if now - last <= 120 => Some((n + 1, first, now)),
-                        Some((n, first, last)) => {
-                            self.chains.push((n, last - first));
-                            Some((1, now, now))
-                        }
+                        Some((n, first, _)) => Some((n + 1, first, now)),
                         None => Some((1, now, now)),
                     };
                 }
                 GameEvent::Ko { .. } => self.kos += 1,
                 _ => {}
-            }
-        }
-        for p in &w.players {
-            if p.juggle.guarded() {
-                self.guarded_ticks += 1;
-            }
-            let back = !p.alive || (p.mv.grounded && p.mv.tumble <= 0.0) || p.mv.tethered();
-            let slot = &mut self.open[p.id.0 as usize];
-            if let Some((n, first, last)) = *slot {
-                if back || now - last > 120 {
-                    self.chains.push((n, last - first));
-                    *slot = None;
-                }
             }
         }
     }
@@ -358,7 +356,7 @@ impl ChainStats {
         let p99 = n.get(((n.len() as f32 * 0.99) as usize).min(n.len().saturating_sub(1))).copied().unwrap_or(0);
         let longest_secs = self.chains.iter().map(|c| c.1).max().unwrap_or(0) as f32 / 120.0;
         format!(
-            "chains={} (>=2 steps: {multi}, >=3: {ge3}, >=4: {ge4}) longest={} hits / {longest_secs:.2} s, p99={p99}, guarded={:.1} player-s, KOs={}",
+            "chains={} (>=2 steps: {multi}, >=3: {ge3}, >=4: {ge4}) longest={} steps / {longest_secs:.2} s, p99={p99}, guarded={:.1} player-s, KOs={}",
             n.len(),
             self.longest(),
             self.guarded_ticks as f32 / 120.0,

@@ -268,7 +268,7 @@ fn well_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     )
 }
 
-thread_local! { static SURF_KEY: i8 = std::env::var("SURF_KEY").ok().and_then(|v| v.parse().ok()).unwrap_or(-1); }
+thread_local! { static SURF_KEY: i8 = std::env::var("SURF_KEY").ok().and_then(|v| v.parse().ok()).unwrap_or(1); }
 
 /// 4. Run off the ring deck's outer edge onto the south surf line's face, hold into it, ride it out
 ///    over the street and land south of the Well.
@@ -290,7 +290,9 @@ fn surf_south(w: &VoxelWorld, m: &MapInfo, cols: &[Collider]) -> RunResult {
         12.0,
         move |s, _| {
             if s.grounded && s.pos.y > STREET + 4.0 {
-                return input(yaw, 0.0, 0, 1, 0);
+                // Still on the deck: run; on the ridge's lip: step off onto the −X face.
+                let on_ridge = s.pos.z < l.a.z;
+                return input(yaw, 0.0, if on_ridge { -key } else { 0 }, 1, 0);
             }
             // Hold into the face (the face we ride is on the −X side of the ridge).
             input(yaw, 0.0, key, 0, 0)

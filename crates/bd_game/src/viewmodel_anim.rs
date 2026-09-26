@@ -383,6 +383,7 @@ impl VmTuning {
             GunArchetype::Cannon => self.gun_cannon,
             GunArchetype::Staff => self.gun_staff,
             GunArchetype::Disc => self.gun_disc,
+            GunArchetype::HandBeam => self.gun_railgun,
         }
     }
 }

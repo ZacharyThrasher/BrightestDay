@@ -171,8 +171,9 @@ fn falls_climb(w: &VoxelWorld, m: &MapInfo, cols: &[Collider]) -> RunResult {
             // Face north (into the falls); alternate pushing into the falls (W) and into the
             // buttress (D) between kicks.
             let into_falls = kick % 2 == 0;
-            let (mx, mz) = if into_falls { (0, 1) } else { (1, 0) };
-            let mut i = input(0.0f32.to_radians() + std::f32::consts::PI, 0.0, mx, mz, 0);
+            // Facing north (+Z, yaw π) the strafe-right axis points −X, so strafe *left* pushes +X.
+            let (mx, mz) = if into_falls { (0, 1) } else { (-1, 0) };
+            let mut i = input(std::f32::consts::PI, 0.0, mx, mz, 0);
             if s.grounded && t > 6 {
                 i.buttons |= JUMP;
             } else if !s.grounded && was_used && !s.extra.air_jump_used {
@@ -264,9 +265,12 @@ fn river_run(w: &VoxelWorld, m: &MapInfo, cols: &[Collider]) -> RunResult {
         s,
         40.0,
         move |s, _| {
-            // Pursue the centre line 14 m ahead.
+            // Pursue the route line (it weaves round the rock stacks) 14 m ahead.
             let z = s.pos.z - 14.0;
-            let aim = Vec3::new(valley::centre_x(z), s.pos.y, z);
+            let k = pts.iter().position(|q| q.z < z).unwrap_or(pts.len() - 1).max(1);
+            let (a, b) = (pts[k - 1], pts[k]);
+            let t = ((z - a.z) / (b.z - a.z)).clamp(0.0, 1.0);
+            let aim = Vec3::new(a.x + (b.x - a.x) * t, s.pos.y, z);
             let dir = horiz(aim - s.pos).normalize_or(Vec3::NEG_Z);
             if s.horizontal_speed() < p.run_speed * 0.95 && s.grounded {
                 return input(yaw_to(s.pos, aim), 0.0, 0, 1, 0);

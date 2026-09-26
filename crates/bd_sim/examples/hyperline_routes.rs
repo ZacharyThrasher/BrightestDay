@@ -10,8 +10,8 @@
 //! 3. **Swing in** — blown off beside a door: hook the far wall through the doorway, reel, land
 //!    inside the car.
 //! 4. **Tether back** — launched off the side (a KO without help): hook the roof, reel, back aboard.
-//! 5. **Light hit** — knocked just over the edge: dodge + air jump back into the side door / onto the
-//!    roof (no tether).
+//! 5. **Light hit** — knocked over the edge: steer back, air jump + dodge onto the roof, into a door
+//!    or onto the running board under the doors (no tether).
 //! 6. **Strong hit** — launched hard off the side: the slipstream sweeps you out → KO.
 //! 7. **Astern** — knocked off the tail ramp: swept back → KO.
 //!
@@ -27,7 +27,7 @@ use bd_voxel::maps::hyperline::{self, FLAT_HW, FLOOR_Y, HALF_W, ROOF_Y, Unit, ge
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 /// Light hit: sideways launch speed (m/s).
-const LIGHT: f32 = 10.0;
+const LIGHT: f32 = 14.0;
 
 fn yaw_pitch(d: Vec3) -> (f32, f32) {
     let d = d.normalize_or(Vec3::NEG_Z);
@@ -97,6 +97,11 @@ fn drive(w: &mut World, trace: bool, max: u32, mut policy: impl FnMut(u32, &bd_s
 
 fn on_roof(st: &bd_sim::movement::PlayerState) -> bool {
     st.grounded && st.pos.y >= ROOF_Y - 0.1 && st.pos.z.abs() < HALF_W
+}
+
+/// Standing on a running board (a ledge under the doors: out of the wind, walk in).
+fn on_board(st: &bd_sim::movement::PlayerState) -> bool {
+    st.grounded && (st.pos.y - hyperline::FOOTBOARD_Y).abs() < 0.2
 }
 
 fn inside(st: &bd_sim::movement::PlayerState) -> bool {
@@ -225,9 +230,9 @@ fn main() {
                 }
                 PlayerInput { yaw: 0.0, move_z: if out { 1 } else { 0 }, buttons: b, ..Default::default() }
             },
-            |st| on_roof(st) || inside(st),
+            |st| on_roof(st) || inside(st) || on_board(st),
         );
-        let ok = !o.ko && (on_roof(&o.end) || inside(&o.end)) && o.max_out > 0.5;
+        let ok = !o.ko && (on_roof(&o.end) || inside(&o.end) || on_board(&o.end)) && o.max_out > 0.5;
         report(5, "light hit", ok, format!("out to {:.1} m past the side, ended at {:.1},{:.1},{:.1} after {:.2} s", o.max_out, o.end.pos.x, o.end.pos.y, o.end.pos.z, o.ticks as f32 / 120.0));
     }
 

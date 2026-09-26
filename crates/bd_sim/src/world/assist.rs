@@ -18,7 +18,7 @@ use crate::constructs::held::{Mode, Swing};
 use crate::events::GameEvent;
 use crate::history::HullHistory;
 use crate::hook::{AssistEvent, HookBreak, hookable, hooked_player, player_collider};
-use crate::melee_assist::{AssistState, LungeDash, bias_look, ease, plan_dash, reach_of, swing_target};
+use crate::melee_assist::{AssistState, LungeDash, LungeVerdict, bias_look, ease, plan_dash, reach_of, swing_target_diag};
 use crate::movement::{Collider, ColliderId, CollisionWorld, Hand, Hook, hand_pos, raycast_world};
 
 /// Re-place the player hook boxes (appended last by [`World::assist_push_player_colliders`]) where
@@ -44,6 +44,8 @@ struct SwingStart {
     close: f32,
     heavy: bool,
     pos: Vec3,
+    /// Diagnostics (`AssistState::verdict`).
+    verdict: LungeVerdict,
 }
 
 impl World {
@@ -195,6 +197,10 @@ impl World {
             let Ok(si) = self.players.binary_search_by_key(&src, |p| p.id) else { continue };
             let a = self.players[si].assist;
             if a.lunge_swing == Some(cid) {
+                if self.cfg.tuning.assist.lunge.hit_resets_cooldown {
+                    // A lunge that connects can chain into the next one.
+                    self.players[si].assist.lunge_cd = 0.0;
+                }
                 let hit = &mut self.cout.player_hits[k];
                 hit.impact *= lt_connect.0 * if a.lunge_heavy { lt_connect.1 } else { 1.0 };
                 hit.knockback *= lt_connect.2;
@@ -252,6 +258,8 @@ impl World {
             a.swing = Some(s.construct);
             a.aim_target = s.target;
             a.aim_t = 0.0;
+            a.verdict = s.verdict;
+            a.verdict_tick = self.tick;
             if let Some(dash) = s.dash {
                 a.lunge_cd = self.cfg.tuning.assist.lunge.cooldown;
                 a.lunge_swing = Some(s.construct);
@@ -283,7 +291,7 @@ impl World {
         let params = p.params(base);
         let eye = p.mv.eye(&params);
         let chest = p.mv.chest(&params);
-        let mut s = SwingStart { construct: c.id, target: None, dash: None, close: 0.0, heavy: false, pos: eye };
+        let mut s = SwingStart { construct: c.id, target: None, dash: None, close: 0.0, heavy: false, pos: eye, verdict: LungeVerdict::Form };
         let lt = &self.cfg.tuning.assist.lunge;
         let Some(reach) = reach_of(lt, c, p.size.scale) else { return Some(s) };
         s.heavy = reach.heavy;
@@ -298,8 +306,25 @@ impl World {
             let len = d.length();
             len < 1e-3 || raycast_world(&cw, a, d / len, len, false).is_none_or(|h| h.t >= len - 0.3)
         };
-        let Some(tg) = swing_target(eye, p.look(), &reach, cands, clear) else { return Some(s) };
+        let tg = match swing_target_diag(eye, p.look(), &reach, cands, clear) {
+            Ok(tg) => tg,
+            Err(miss) => {
+                s.verdict = LungeVerdict::Miss(miss);
+                return Some(s);
+            }
+        };
         s.target = Some(tg.id);
+        s.verdict = if tg.dist <= reach.reach {
+            LungeVerdict::InReach
+        } else if !lt.enabled {
+            LungeVerdict::Disabled
+        } else if p.mv.lunge.active() {
+            LungeVerdict::Dashing
+        } else if p.assist.lunge_cd > 0.0 {
+            LungeVerdict::Cooldown
+        } else {
+            LungeVerdict::Disabled
+        };
         if lt.enabled && p.assist.lunge_cd <= 0.0 && tg.dist > reach.reach && !p.mv.lunge.active() {
             let tvel = self.player(tg.id).map_or(Vec3::ZERO, |q| q.mv.vel);
             if let Some(dash) = plan_dash(lt, &reach, chest, p.mv.vel, tg.point, tvel) {
@@ -307,6 +332,7 @@ impl World {
                 s.close = (p.mv.vel - tvel).dot(dir).max(0.0);
                 s.dash = Some(dash);
                 s.pos = chest;
+                s.verdict = LungeVerdict::Lunged;
             }
         }
         Some(s)

@@ -167,6 +167,18 @@ impl MusicDirector {
             // (Orbit's combat track — its trap / DnB / synthwave remixes under the Remix style) when it kicks off.
             ("ember", false) => "archipelago_combat",
             ("ember", true) => "orbit_combat",
+            // Mirrorfold: the Blue Danube waltzing while the city turns over itself (its synthwave /
+            // lofi remixes under the Remix style); Vivaldi's Summer Presto when it kicks off.
+            ("mirror", false) => "orbit_float",
+            ("mirror", true) => "archipelago_combat",
+            // High Roller: Alla Turca as a neon lounge (its house / synthwave / phonk remixes under the
+            // Remix style) on the casino floor; Offenbach's Can-can galop when it kicks off.
+            ("casino", false) => "miami",
+            ("casino", true) => "party",
+            // Valley of the End: Satie's Gymnopédie (lofi / synthwave remixes under the Remix style) for
+            // the solemn gorge; the Ride of the Valkyries for the duel at the falls.
+            ("valley", false) => "lobby",
+            ("valley", true) => "orbit_combat",
             (_, false) => "archipelago_explore",
             (_, true) => "archipelago_combat",
         }

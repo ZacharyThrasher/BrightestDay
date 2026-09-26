@@ -166,17 +166,17 @@ fn plain_casts_are_untouched() {
 }
 
 #[test]
-fn ultimate_beam_is_a_huge_railgun_that_expires() {
+fn ultimate_beam_is_a_huge_palm_beam_that_expires() {
     let mut w = duel();
     let t = SignatureTuning::default();
     w.player_mut(A).unwrap().willpower = 100.0;
     let k = recipe("Kamehameha", Form::Gun, &[Mechanic::Beam], Element::Light, 1.0);
     let (id, rec, forming, cost) = cast_sig(&mut w, A, k, SignatureKind::Beam, 1.0);
-    assert_eq!(rec.form, Form::Gun);
-    assert_eq!(bd_sim::weapons::archetype_for(&rec), Some(bd_sim::weapons::GunArchetype::Railgun));
-    let spec = w.tuning().spec_for(&rec, bd_sim::weapons::GunArchetype::Railgun);
+    assert_eq!(rec.form, Form::Hands, "energy from the palms, never a gun");
+    assert_eq!(bd_sim::weapons::archetype_for(&rec), Some(bd_sim::weapons::GunArchetype::HandBeam));
+    let spec = w.tuning().spec_for(&rec, bd_sim::weapons::GunArchetype::HandBeam);
     let plain =
-        w.tuning().spec_for(&recipe("gun", Form::Gun, &[Mechanic::Beam], Element::Light, 0.6), bd_sim::weapons::GunArchetype::Railgun);
+        w.tuning().spec_for(&recipe("gun", Form::Hands, &[Mechanic::Beam], Element::Light, 0.6), bd_sim::weapons::GunArchetype::HandBeam);
     assert!(spec.damage > plain.damage * 2.0 && spec.knockback > plain.knockback * 2.0, "{} vs {}", spec.damage, plain.damage);
     assert!(forming >= t.windup - 1e-4 && cost > 40.0);
     let c = w.constructs.get(id).unwrap();
@@ -184,6 +184,37 @@ fn ultimate_beam_is_a_huge_railgun_that_expires() {
     assert!(c.life <= t.held_life + 1e-3, "an ultimate, not a new permanent weapon: {}", c.life);
     let s = spectacle(&rec, cost, forming, &t).expect("announced");
     assert_eq!(s.kind, SignatureKind::Beam);
+}
+
+/// Palm beams fire on RELEASE (a partial charge fires a weaker beam) and by themselves at full
+/// charge; a tap below the minimum fires nothing.
+#[test]
+fn palm_beam_fires_on_release_or_at_full_charge() {
+    use bd_sim::weapons::{GunArchetype, WeaponState, gun_spec};
+    let spec = gun_spec(GunArchetype::HandBeam);
+    // Hold 60 % of the charge, then let go: one shot, at that charge.
+    let mut s = WeaponState::new(GunArchetype::HandBeam, &spec);
+    let hold = (spec.charge * 0.6 / DT) as usize;
+    for _ in 0..hold {
+        assert!(s.step(&spec, true, false, DT).is_none(), "no auto-fire mid charge");
+    }
+    let f = s.step(&spec, false, true, DT).expect("fires on release");
+    assert!(f.charge > 0.5 && f.charge < 0.7, "partial charge {}", f.charge);
+    // A tap fires nothing.
+    let mut s = WeaponState::new(GunArchetype::HandBeam, &spec);
+    s.step(&spec, true, false, DT);
+    assert!(s.step(&spec, false, true, DT).is_none(), "a tap is not a beam");
+    // Keep holding: it fires by itself when full.
+    let mut s = WeaponState::new(GunArchetype::HandBeam, &spec);
+    let mut shot = None;
+    for i in 0..((spec.charge * 1.2 / DT) as usize) {
+        if let Some(f) = s.step(&spec, true, false, DT) {
+            shot = Some((i, f));
+            break;
+        }
+    }
+    let (i, f) = shot.expect("auto-fires at full charge");
+    assert!((f.charge - 1.0).abs() < 1e-4 && (i as f32 * DT) >= spec.charge - 2.0 * DT);
 }
 
 #[test]

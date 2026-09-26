@@ -19,11 +19,13 @@ proptest.workspace = true
 bincode.workspace = true
 
 [features]
-default = ["backrooms", "ember"]
+default = ["backrooms", "ember", "mirror", "casino"]
 # BACKROOMS map (bd_voxel feature; the route example needs it).
 backrooms = ["bd_voxel/backrooms"]
 # TURTLE LAIR map (bd_voxel feature; the route example needs it).
 lair = ["bd_voxel/lair"]
+# HIGH ROLLER casino map (bd_voxel feature; the route example needs it).
+casino = ["bd_voxel/casino"]
 # EMBER map (bd_voxel feature; the route example and tests/ember.rs need it).
 ember = ["bd_voxel/ember"]
 # SAKURA KEEP map (bd_voxel feature; the route example needs it).
@@ -36,10 +38,16 @@ hyperline = ["bd_voxel/hyperline"]
 cybertron = ["bd_voxel/cybertron"]
 # VALLEY OF THE END map (bd_voxel feature; the route example and tests/valley.rs need it).
 valley = ["bd_voxel/valley"]
+# GIANT'S ROOM map (bd_voxel feature; the route example needs it).
+giant = ["bd_voxel/giant"]
 
 [[example]]
 name = "backrooms_routes"
 required-features = ["backrooms"]
+
+[[example]]
+name = "casino_routes"
+required-features = ["casino"]
 
 [[example]]
 name = "lair_routes"
@@ -68,3 +76,7 @@ required-features = ["cybertron"]
 [[example]]
 name = "valley_routes"
 required-features = ["valley"]
+
+[[example]]
+name = "giant_routes"
+required-features = ["giant"]

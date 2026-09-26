@@ -35,6 +35,9 @@ pub enum GunArchetype {
     Cannon = 7,
     Staff = 8,
     Disc = 9,
+    /// Energy from the palms (`Form::Hands`: kamehameha, final flash): hold to charge, fires on
+    /// RELEASE (charge scales it) or by itself at full charge; a hitscan beam like the railgun.
+    HandBeam = 10,
 }
 
 impl GunArchetype {
@@ -50,6 +53,7 @@ impl GunArchetype {
             7 => Cannon,
             8 => Staff,
             9 => Disc,
+            10 => HandBeam,
             _ => Ring,
         }
     }
@@ -165,6 +169,7 @@ pub fn gun_spec(a: GunArchetype) -> GunSpec {
         },
         Staff => GunSpec { cadence: 0.45, damage: 8.0, knockback: 8.0, speed: 70.0, recoil: 0.5, ..BASE },
         Disc => GunSpec { cadence: 0.8, damage: 8.0, knockback: 8.0, speed: 40.0, recoil: 0.5, kind: ProjectileKind::Disc, ..BASE },
+        HandBeam => GunSpec { cadence: 1.1, damage: 40.0, knockback: 20.0, speed: 0.0, hitscan: true, recoil: 2.0, charge: 0.6, pierce: 2, chip: 0.8, ..BASE },
     }
 }
 
@@ -187,6 +192,7 @@ pub fn archetype_for(r: &Recipe) -> Option<GunArchetype> {
         Form::Bow => Some(Bow),
         Form::Staff => Some(Staff),
         Form::Disc => Some(Disc),
+        Form::Hands => Some(HandBeam),
         _ => None,
     }
 }
@@ -338,14 +344,17 @@ impl WeaponState {
             }
         } else if spec.charge > 0.0 {
             // Railgun: hold charges, fires by itself when full. Bow: fires on release (draw scales).
+            // Hand beam: both — release fires (charge scales it), a full charge fires by itself.
             let bow = self.arch == GunArchetype::Bow;
+            let on_release = bow || self.arch == GunArchetype::HandBeam;
+            let min_release = if bow { 0.05 } else { 0.2 };
             if held && self.cooldown <= 0.0 {
                 self.charge = (self.charge + dt / spec.charge).min(1.0);
                 self.set(WeaponPhase::Charging);
                 if !bow && self.charge >= 1.0 {
                     fire = Some(FireCmd { charge: 1.0, alt: self.alt });
                 }
-            } else if bow && released && self.charge > 0.05 {
+            } else if on_release && released && self.charge > min_release {
                 fire = Some(FireCmd { charge: self.charge, alt: self.alt });
             } else if !held {
                 self.charge = 0.0;

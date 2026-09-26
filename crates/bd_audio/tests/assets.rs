@@ -52,7 +52,7 @@ fn audio_tables_parse_and_reference_real_sounds() {
     for d in ["heavy_hit", "ko_confirm", "final_blow"] {
         assert!(mix.ducks.contains_key(d), "duck {d}");
     }
-    for m in ["archipelago", "miami", "tutorial", "orbit"] {
+    for m in ["archipelago", "miami", "tutorial", "orbit", "cybertron"] {
         assert!(maps.0.contains_key(m), "map {m}");
     }
 }

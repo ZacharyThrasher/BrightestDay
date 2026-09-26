@@ -689,3 +689,13 @@ pub(super) fn disc(g: &mut G) {
     g.handle(Returning);
     g.handle(Ricochet);
 }
+
+/// Energy between the palms (`Form::Hands`): a glowing orb, no weapon (the game draws the hands).
+pub(super) fn hands(g: &mut G) {
+    let d = odd(g.l).max(3.0);
+    g.handle(Beam);
+    g.handle(Shoots);
+    let b = &mut g.b;
+    b.el(v3(0.0, 0.0, -d * 0.5), v3(d, d, d), A);
+    b.el(v3(0.0, 0.0, -d * 0.5), v3(d * 0.55, d * 0.55, d * 0.55), P);
+}

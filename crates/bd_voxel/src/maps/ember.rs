@@ -54,16 +54,18 @@ use crate::world::VoxelWorld;
 /// World dimensions in voxels (192 × 80 × 192 m).
 pub const EMBER_SIZE_VOXELS: IVec3 = IVec3::new(384, 160, 384);
 /// Top of the lava sheet (one voxel layer on the world floor).
-pub const LAVA_TOP: f32 = 0.5;
+pub const LAVA_TOP: f32 = 3.0;
+/// Voxel layers of lava (y = 0 .. `LAVA_V`).
+pub const LAVA_V: i32 = 6;
 /// Feet below this = KO (touching the lava).
-pub const VOID_Y: f32 = 1.0;
+pub const VOID_Y: f32 = 3.5;
 /// Plateau heights.
-pub const NB_TOP: f32 = 9.0;
+pub const NB_TOP: f32 = 10.0;
 pub const RIDGE_TOP: f32 = 26.0;
-pub const SP_TOP: f32 = 7.0;
+pub const SP_TOP: f32 = 8.0;
 pub const WC_TOP: f32 = 20.0;
-pub const ED_TOP: f32 = 11.0;
-pub const FI_TOP: f32 = 5.0;
+pub const ED_TOP: f32 = 12.0;
+pub const FI_TOP: f32 = 6.0;
 /// Facility: deck walking height, processor roof, stack top.
 pub const DECK_Y: f32 = 12.0;
 pub const ROOF_Y: f32 = 20.0;
@@ -108,13 +110,13 @@ pub const ARCH_X: f32 = -40.0;
 pub const ARCH_Z: (f32, f32) = (9.0, -25.0);
 pub const ARCH_RISE: f32 = 5.0;
 /// East stepping stones across the river (centre, top) and North Bank → Dunes.
-pub const STONES_RIVER: [(Vec2, f32); 3] = [(Vec2::new(41.0, 6.0), 8.5), (Vec2::new(42.0, -1.5), 8.0), (Vec2::new(40.5, -9.0), 7.5)];
-pub const STONES_DUNES: [(Vec2, f32); 2] = [(Vec2::new(53.0, 14.0), 9.5), (Vec2::new(57.5, 9.5), 10.0)];
+pub const STONES_RIVER: [(Vec2, f32); 3] = [(Vec2::new(41.0, 6.0), 9.5), (Vec2::new(42.0, -1.5), 9.0), (Vec2::new(40.5, -9.0), 8.5)];
+pub const STONES_DUNES: [(Vec2, f32); 2] = [(Vec2::new(53.0, 14.0), 10.5), (Vec2::new(57.5, 9.5), 11.0)];
 pub const STONE_R: f32 = 2.2;
 
 /// The two surf lines (smooth hard light over the lava): Ridge (SE corner) → Dunes, Crag → South
 /// Plain. Each starts buried in the plateau you run off and ends ~10 m above the landing.
-pub const SURF_EAST: SurfLine = SurfLine { a: Vec3::new(52.0, 33.0, 50.0), b: Vec3::new(68.0, 21.0, -2.0), face_deg: 60.0, width: 8.0 };
+pub const SURF_EAST: SurfLine = SurfLine { a: Vec3::new(52.0, 33.0, 50.0), b: Vec3::new(68.0, 22.0, -2.0), face_deg: 60.0, width: 8.0 };
 pub const SURF_WEST: SurfLine = SurfLine { a: Vec3::new(-63.0, 30.0, -14.0), b: Vec3::new(-38.0, 17.0, -44.0), face_deg: 60.0, width: 8.0 };
 
 /// Spawn targets (x, z, plateau top): two per big plateau, mirrored east/west; never on the
@@ -278,55 +280,19 @@ fn column(p: Vec2, seed: u32) -> Option<Col> {
 /// Near-lava rock band: basalt shot through with glowing magma seams (sells the underglow).
 fn body_mat(v: IVec3, band_off: f32, seed: u32) -> Material {
     let ym = (v.y as f32 + 0.5) * 0.5;
-    if ym < 2.8 {
-        let p = 0.28 + (2.8 - ym) * 0.18;
+    if ym < LAVA_TOP + 2.3 {
+        let p = 0.28 + (LAVA_TOP + 2.3 - ym) * 0.18;
         return if unit(hash3(v.x, v.y, v.z, seed ^ 0x5ea)) < p { mat::MAGMA_SEAM } else { mat::VOLCANIC };
     }
     let band = (ym * 0.55 + band_off).floor() as i32;
     if band.rem_euclid(3) == 0 { mat::VOLCANIC_LIGHT } else { mat::VOLCANIC }
 }
 
-/// Fill the heightfield and the lava sheet. Returns the per-column "land" mask (for lava shading).
-fn build_terrain(c: &mut City, seed: u32) {
-    let (lo, hi) = (c.w.voxel_min(), c.w.voxel_max());
-    let (nx, nz) = ((hi.x - lo.x) as usize, (hi.z - lo.z) as usize);
-    let mut land = vec![false; nx * nz];
-    for iz in 0..nz {
-        for ix in 0..nx {
-            let (vx, vz) = (lo.x + ix as i32, lo.z + iz as i32);
-            let p = Vec2::new((vx as f32 + 0.5) * 0.5, (vz as f32 + 0.5) * 0.5);
-            let Some(col) = column(p, seed) else { continue };
-            land[iz * nx + ix] = col.bottom <= 0.0;
-            let ty = ((col.top + 0.01) / 0.5).floor() as i32 - 1;
-            let by = if col.bottom > 0.0 { (col.bottom / 0.5).floor() as i32 } else { 1 };
-            let band_off = 0.9 * value2(p.x * 0.04, p.y * 0.04, seed ^ 11);
-            let patch = fbm2(p.x * 0.09, p.y * 0.09, seed ^ 12, 2);
-            let (surf, sub, depth) = match col.kind {
-                Kind::Plain if patch > 0.05 => (mat::ASH, mat::ASH, 2),
-                Kind::Plain => (mat::VOLCANIC, mat::VOLCANIC, 1),
-                Kind::Ridge if patch > 0.25 => (mat::ASH, mat::ASH, 1),
-                Kind::Ridge => (mat::VOLCANIC_LIGHT, mat::VOLCANIC, 1),
-                Kind::Crag if patch < -0.3 => (mat::ASH, mat::VOLCANIC, 1),
-                Kind::Crag => (mat::VOLCANIC_LIGHT, mat::VOLCANIC_LIGHT, 1),
-                Kind::Dunes => (mat::ASH, mat::ASH, 3),
-                Kind::Path => (mat::ASH, mat::VOLCANIC, 1),
-                Kind::Isle => (mat::VOLCANIC, mat::VOLCANIC, 1),
-            };
-            for y in by..ty.saturating_sub(depth - 1) {
-                let v = IVec3::new(vx, y, vz);
-                c.w.set_raw(v, body_mat(v, band_off, seed));
-            }
-            if ty >= by {
-                c.w.fill_column(vx, vz, (ty - depth + 1).max(by), ty, sub);
-                c.w.set_raw(IVec3::new(vx, ty, vz), surf);
-            }
-        }
-    }
-    // Lava sheet on the whole floor, shaded by distance to the shore (chamfer distance transform)
-    // and a flow-stretched noise: dark crust at the banks and in floating plates, hot veins mid-stream.
+/// Chamfer distance (in voxels) from every column to the nearest `true` column of `mask`.
+fn chamfer(mask: &[bool], nx: usize, nz: usize) -> Vec<f32> {
     const INF: f32 = 1e9;
-    let mut d: Vec<f32> = land.iter().map(|&l| if l { 0.0 } else { INF }).collect();
     let s2 = std::f32::consts::SQRT_2;
+    let mut d: Vec<f32> = mask.iter().map(|&l| if l { 0.0 } else { INF }).collect();
     for iz in 0..nz {
         for ix in 0..nx {
             let i = iz * nx + ix;
@@ -365,11 +331,72 @@ fn build_terrain(c: &mut City, seed: u32) {
             d[i] = m;
         }
     }
+    d
+}
+
+/// Shore slope width (m): plains, dunes and the facility rock slope down toward rivers, lakes and
+/// pits (not the narrow rivulets), ending in a [`SHORE_LIP`] step above the lava — so the lava reads
+/// from across the map, and the rule stays crisp: rock you stand on is safe, glowing lava is a KO.
+pub const SHORE: f32 = 7.0;
+pub const SHORE_LIP: f32 = 1.5;
+
+/// Fill the heightfield and the lava sheet.
+fn build_terrain(c: &mut City, seed: u32) {
+    let (lo, hi) = (c.w.voxel_min(), c.w.voxel_max());
+    let (nx, nz) = ((hi.x - lo.x) as usize, (hi.z - lo.z) as usize);
+    let centre = |ix: usize, iz: usize| Vec2::new(((lo.x + ix as i32) as f32 + 0.5) * 0.5, ((lo.z + iz as i32) as f32 + 0.5) * 0.5);
+    let mut cols: Vec<Option<Col>> = Vec::with_capacity(nx * nz);
+    for iz in 0..nz {
+        for ix in 0..nx {
+            cols.push(column(centre(ix, iz), seed));
+        }
+    }
+    // Lava shading distance (lava → nearest ground) and shore distance (ground → nearest big lava).
+    let land: Vec<bool> = cols.iter().map(|c| c.is_some_and(|c| c.bottom <= 0.0)).collect();
+    let d_lava = chamfer(&land, nx, nz);
+    let big: Vec<bool> = cols.iter().zip(&d_lava).map(|(c, d)| c.is_none() && *d * 0.5 > 2.0).collect();
+    let d_shore = chamfer(&big, nx, nz);
+    for iz in 0..nz {
+        for ix in 0..nx {
+            let i = iz * nx + ix;
+            let Some(mut col) = cols[i] else { continue };
+            let (vx, vz) = (lo.x + ix as i32, lo.z + iz as i32);
+            let p = centre(ix, iz);
+            if matches!(col.kind, Kind::Plain | Kind::Dunes | Kind::Isle) && col.bottom <= 0.0 {
+                col.top = shore_top(col.top, d_shore[i] * 0.5);
+            }
+            let ty = ((col.top + 0.01) / 0.5).floor() as i32 - 1;
+            let by = if col.bottom > 0.0 { (col.bottom / 0.5).floor() as i32 } else { LAVA_V };
+            let band_off = 0.9 * value2(p.x * 0.04, p.y * 0.04, seed ^ 11);
+            let patch = fbm2(p.x * 0.09, p.y * 0.09, seed ^ 12, 2);
+            let (surf, sub, depth) = match col.kind {
+                Kind::Plain if patch > 0.05 => (mat::ASH, mat::ASH, 2),
+                Kind::Plain => (mat::VOLCANIC, mat::VOLCANIC, 1),
+                Kind::Ridge if patch > 0.25 => (mat::ASH, mat::ASH, 1),
+                Kind::Ridge => (mat::VOLCANIC_LIGHT, mat::VOLCANIC, 1),
+                Kind::Crag if patch < -0.3 => (mat::ASH, mat::VOLCANIC, 1),
+                Kind::Crag => (mat::VOLCANIC_LIGHT, mat::VOLCANIC_LIGHT, 1),
+                Kind::Dunes => (mat::ASH, mat::ASH, 3),
+                Kind::Path => (mat::ASH, mat::VOLCANIC, 1),
+                Kind::Isle => (mat::VOLCANIC, mat::VOLCANIC, 1),
+            };
+            for y in by..ty.saturating_sub(depth - 1) {
+                let v = IVec3::new(vx, y, vz);
+                c.w.set_raw(v, body_mat(v, band_off, seed));
+            }
+            if ty >= by {
+                c.w.fill_column(vx, vz, (ty - depth + 1).max(by), ty, sub);
+                c.w.set_raw(IVec3::new(vx, ty, vz), surf);
+            }
+        }
+    }
+    // Lava sheet on the whole floor (`LAVA_V` layers), its top shaded by distance to the shore and a
+    // flow-stretched noise: dark crust at the banks and in floating plates, hot veins mid-stream.
     for iz in 0..nz {
         for ix in 0..nx {
             let (vx, vz) = (lo.x + ix as i32, lo.z + iz as i32);
-            let p = Vec2::new((vx as f32 + 0.5) * 0.5, (vz as f32 + 0.5) * 0.5);
-            let dm = d[iz * nx + ix] * 0.5;
+            let p = centre(ix, iz);
+            let dm = d_lava[iz * nx + ix] * 0.5;
             let flow = fbm2(p.x * 0.07, p.y * 0.16, seed ^ 21, 3);
             let fleck = value2(p.x * 0.35, p.y * 0.7, seed ^ 22);
             let m = if dm < 0.6 || (dm < 1.6 && fleck > 0.45) || (dm > 3.0 && flow > 0.4) {
@@ -379,15 +406,22 @@ fn build_terrain(c: &mut City, seed: u32) {
             } else {
                 mat::LAVA
             };
-            c.w.set_raw(IVec3::new(vx, 0, vz), m);
+            c.w.fill_column(vx, vz, 0, LAVA_V - 1, mat::LAVA);
+            c.w.set_raw(IVec3::new(vx, LAVA_V - 1, vz), m);
         }
     }
     // Collapse-search hints on the (indestructible) lava floor every 16 m.
     for vz in (lo.z..hi.z).step_by(32) {
         for vx in (lo.x..hi.x).step_by(32) {
-            c.anchor(IVec3::new(vx, 0, vz));
+            c.anchor(IVec3::new(vx, LAVA_V - 1, vz));
         }
     }
+}
+
+/// A shore column's height `d` metres from big lava (see [`SHORE`]).
+fn shore_top(top: f32, d: f32) -> f32 {
+    let t = (d / SHORE).min(1.0);
+    (LAVA_TOP + (top - LAVA_TOP) * t * (2.0 - t)).max(LAVA_TOP + SHORE_LIP)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -462,7 +496,7 @@ fn tooth(c: &mut City, x: f32, z: f32, base_y: f32, height: f32, radius: f32, le
         if hex > r {
             return None;
         }
-        if p.y < 2.8 && unit(hash3(v.x, v.y, v.z, seed)) < 0.35 {
+        if p.y < LAVA_TOP + 2.3 && unit(hash3(v.x, v.y, v.z, seed)) < 0.35 {
             return Some(mat::MAGMA_SEAM);
         }
         let band = (p.y * 0.45 + 0.7 * value2(p.x * 0.2, p.z * 0.2, seed ^ 7)).floor() as i32;
@@ -476,7 +510,7 @@ fn tooth(c: &mut City, x: f32, z: f32, base_y: f32, height: f32, radius: f32, le
 fn rock_arch(c: &mut City, ax: f32, z0: f32, y0: f32, z1: f32, y1: f32, rise: f32, half_w: f32) {
     let seed = c.seed();
     let (za, zb) = (z0.min(z1), z0.max(z1));
-    c.fill_with(Vec3::new(ax - half_w - 1.0, 0.5, za), Vec3::new(ax + half_w + 1.0, y0.max(y1) + rise + 1.0, zb), |p, _, old| {
+    c.fill_with(Vec3::new(ax - half_w - 1.0, LAVA_TOP, za), Vec3::new(ax + half_w + 1.0, y0.max(y1) + rise + 1.0, zb), |p, _, old| {
         let t = (p.z - z0) / (z1 - z0);
         let s = dsin(PI * t);
         let top = y0 + (y1 - y0) * t + rise * s;
@@ -505,7 +539,7 @@ fn rock_arch(c: &mut City, ax: f32, z0: f32, y0: f32, z1: f32, y1: f32, rise: f3
 /// A basalt stepping stone rising out of the lava: a noisy column of radius `r` with a flat top.
 fn stone(c: &mut City, at: Vec2, top: f32, r: f32) {
     let seed = c.seed();
-    c.fill_with(Vec3::new(at.x - r - 1.0, 0.5, at.y - r - 1.0), Vec3::new(at.x + r + 1.0, top, at.y + r + 1.0), |p, v, _| {
+    c.fill_with(Vec3::new(at.x - r - 1.0, LAVA_TOP, at.y - r - 1.0), Vec3::new(at.x + r + 1.0, top, at.y + r + 1.0), |p, v, _| {
         let d = (Vec2::new(p.x, p.z) - at).length();
         let flare = 1.0 + 0.25 * (1.0 - p.y / top).max(0.0);
         if d > r * flare * (1.0 + 0.12 * value2(p.x * 0.6, p.z * 0.6, seed)) {
@@ -556,15 +590,15 @@ fn facility(c: &mut City) {
     let zs = [dz0 + 0.5, dz1 - 0.5];
     for &x in &xs {
         for &z in &zs {
-            c.fill(Vec3::new(x - 0.5, 0.5, z - 0.5), Vec3::new(x + 0.5, deck - 0.5, z + 0.5), mat::TOWER_CORE);
-            c.anchor(IVec3::new(((x - 0.5) / 0.5) as i32, 4, ((z - 0.5) / 0.5) as i32));
+            c.fill(Vec3::new(x - 0.5, LAVA_TOP, z - 0.5), Vec3::new(x + 0.5, deck - 0.5, z + 0.5), mat::TOWER_CORE);
+            c.anchor(IVec3::new(((x - 0.5) / 0.5).floor() as i32, LAVA_V + 1, ((z - 0.5) / 0.5).floor() as i32));
         }
-        c.line(Vec3::new(x, 2.5, zs[0]), Vec3::new(x, deck - 1.0, zs[1]), mat::STEEL, true);
-        c.line(Vec3::new(x, 2.5, zs[1]), Vec3::new(x, deck - 1.0, zs[0]), mat::STEEL, true);
+        c.line(Vec3::new(x, LAVA_TOP + 2.0, zs[0]), Vec3::new(x, deck - 1.0, zs[1]), mat::STEEL, true);
+        c.line(Vec3::new(x, LAVA_TOP + 2.0, zs[1]), Vec3::new(x, deck - 1.0, zs[0]), mat::STEEL, true);
     }
     for w in xs.windows(2) {
         for &z in &zs {
-            c.line(Vec3::new(w[0], 3.0, z), Vec3::new(w[1], deck - 1.0, z), mat::STEEL, true);
+            c.line(Vec3::new(w[0], LAVA_TOP + 2.5, z), Vec3::new(w[1], deck - 1.0, z), mat::STEEL, true);
         }
     }
     // Deck plate: scorched plating on a steel grid, hazard stripes on the edges.
@@ -936,7 +970,7 @@ pub fn generate_ember(seed: u64) -> (VoxelWorld, MapInfo) {
         let h = c.rng.range(16.0, 34.0) + if z > 60.0 { 8.0 } else { 0.0 };
         let rad = c.rng.range(2.6, 4.4);
         let lean = Vec2::new(dcos(ang), dsin(ang)) * c.rng.range(0.5, 2.5);
-        tooth(&mut c, x, z, 0.5, h, rad, lean);
+        tooth(&mut c, x, z, LAVA_TOP, h, rad, lean);
     }
 
     // ---- spawns ---------------------------------------------------------------------------------
@@ -964,7 +998,7 @@ pub fn generate_ember(seed: u64) -> (VoxelWorld, MapInfo) {
         sky_zenith: [0.16, 0.05, 0.06],
         sky_horizon: [0.86, 0.34, 0.16],
         fog_color: [0.46, 0.17, 0.10],
-        ambient: 0.30,
+        ambient: 0.40,
         gravity: None,
         surf_lines: vec![SURF_EAST, SURF_WEST],
         water_sheets: Vec::new(),
@@ -993,7 +1027,7 @@ pub fn generate_ember(seed: u64) -> (VoxelWorld, MapInfo) {
         sun_color: [1.0, 0.55, 0.30],
         sky_mid: [0.52, 0.15, 0.09],
         fog_start: 30.0,
-        fog_end: 230.0,
+        fog_end: 320.0,
         neon_boost: 1.25,
         districts,
         routes: routes(),

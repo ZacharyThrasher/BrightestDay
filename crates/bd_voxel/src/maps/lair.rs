@@ -180,7 +180,6 @@ pub fn chute_ridge(x: f32) -> f32 {
     CHUTE_TOP.y + (x - CHUTE_TOP.x) * (CHUTE_END.y - CHUTE_TOP.y) / (CHUTE_END.x - CHUTE_TOP.x)
 }
 
-
 // ------------------------------------------------------------------------------------------------
 // Carved spaces
 
@@ -260,7 +259,9 @@ impl Space {
             Space::Culvert { x0, x1, cz, hw, below, above } => {
                 (Vec3::new(x0, chute_ridge(x1) - below, cz - hw) - g, Vec3::new(x1, chute_ridge(x0) + above, cz + hw) + g)
             }
-            Space::Trench { x0, x1, cz, hw } => (Vec3::new(x0, chute_ridge(x1) - CHUTE_BELOW, cz - hw) - g, Vec3::new(x1, 64.0, cz + hw) + g),
+            Space::Trench { x0, x1, cz, hw } => {
+                (Vec3::new(x0, chute_ridge(x1) - CHUTE_BELOW, cz - hw) - g, Vec3::new(x1, 64.0, cz + hw) + g)
+            }
         }
     }
 }
@@ -300,11 +301,7 @@ fn spaces() -> Vec<Space> {
         // The subway chasm, sky to void.
         Space::Cut { min: Vec3::new(CHASM.0, -8.0, -70.0), max: Vec3::new(CHASM.1, 80.0, 70.0) },
         // Central manhole (light shaft) up to the avenue.
-        Space::Tube {
-            a: Vec3::new(MANHOLE.x, HUB_CROWN - 2.0, MANHOLE.y),
-            b: Vec3::new(MANHOLE.x, STREET + 6.0, MANHOLE.y),
-            r: MANHOLE_R,
-        },
+        Space::Tube { a: Vec3::new(MANHOLE.x, HUB_CROWN - 2.0, MANHOLE.y), b: Vec3::new(MANHOLE.x, STREET + 6.0, MANHOLE.y), r: MANHOLE_R },
     ];
     for j in JUNCTIONS {
         s.push(Space::Round { c: j, r: 6.0, floor: f, wall: 17.0, crown: 21.0 });
@@ -480,7 +477,9 @@ fn build_floors(c: &mut City, seed: u32) {
     let (cz0, cz1) = CHANNEL_Z;
     c.fill(Vec3::new(HUB[0], CHANNEL_WATER, cz0), Vec3::new(HUB[2], FLOOR, cz1), AIR);
     c.fill(Vec3::new(HUB[0], CHANNEL_WATER - VS, cz0), Vec3::new(HUB[2], CHANNEL_WATER, cz1), mat::SEWER_WATER);
-    c.fill_with(Vec3::new(HUB[0], CHANNEL_WATER - 1.5, cz0 - 0.5), Vec3::new(HUB[2], CHANNEL_WATER - VS, cz1 + 0.5), |_, v, _| Some(brick(v, seed)));
+    c.fill_with(Vec3::new(HUB[0], CHANNEL_WATER - 1.5, cz0 - 0.5), Vec3::new(HUB[2], CHANNEL_WATER - VS, cz1 + 0.5), |_, v, _| {
+        Some(brick(v, seed))
+    });
     // Coping stones along the channel edges.
     for z in [cz0 - 0.5, cz1] {
         c.fill(Vec3::new(HUB[0], FLOOR - VS, z), Vec3::new(HUB[2], FLOOR, z + 0.5), mat::STONE);
@@ -507,7 +506,9 @@ fn build_floors(c: &mut City, seed: u32) {
     c.fill(Vec3::new(HUB[0] - 0.5, 16.0, wz - 1.0), Vec3::new(HUB[0] + 0.5, 17.0, wz + 1.0), AIR);
     c.fill(Vec3::new(HUB[0], CHANNEL_WATER, wz - 1.0), Vec3::new(HUB[0] + 0.5, 16.0, wz + 1.0), mat::SEWER_WATER);
     // East end: a grate.
-    c.fill_with(Vec3::new(HUB[2] - 0.5, CHANNEL_WATER, cz0), Vec3::new(HUB[2], FLOOR, cz1), |_, v, _| Some(if v.z % 2 == 0 { mat::STEEL } else { mat::SEWER_ARCH }));
+    c.fill_with(Vec3::new(HUB[2] - 0.5, CHANNEL_WATER, cz0), Vec3::new(HUB[2], FLOOR, cz1), |_, v, _| {
+        Some(if v.z % 2 == 0 { mat::STEEL } else { mat::SEWER_ARCH })
+    });
 }
 
 /// Mezzanine + stairs on the hub's south wall, the drop-in arch, the hall's decks and floors.
@@ -580,24 +581,6 @@ fn build_skate(c: &mut City, seed: u32) {
         Vec3::new(HALL[0], r + 3.5 + 0.8, CHUTE_Z + CHUTE_R + 0.8),
         |_, _, old| (old != AIR).then_some(mat::RUST),
     );
-}
-
-/// Voxels of a flat ring (annulus) in the plane x = const (`vertical`) or y = const.
-fn voxel_ring(center: Vec3, r0: f32, r1: f32, vertical: bool) -> Vec<IVec3> {
-    let mut out = Vec::new();
-    let n = (r1 / VS).ceil() as i32 + 1;
-    let cv = (center / VS).floor().as_ivec3();
-    for a in -n..=n {
-        for b in -n..=n {
-            let v = if vertical { cv + IVec3::new(0, a, b) } else { cv + IVec3::new(a, 0, b) };
-            let p = vc(v);
-            let d = if vertical { Vec2::new(p.y - center.y, p.z - center.z) } else { Vec2::new(p.x - center.x, p.z - center.z) }.length();
-            if d >= r0 && d < r1 {
-                out.push(v);
-            }
-        }
-    }
-    out
 }
 
 /// Tunnel floors, channels, bridges over the chasm, the station platform and the stair well.
@@ -673,7 +656,11 @@ fn build_sewers(c: &mut City, seed: u32) {
         // Fluorescent strips down the ceiling (one in six dead).
         let dead = unit(hash3(vx(z), 3, 5, seed)) < 0.17;
         if !in_well {
-            c.fill(Vec3::new(px0 + 4.0, PLATFORM_CEIL - VS, z - 1.5), Vec3::new(px0 + 5.0, PLATFORM_CEIL, z + 1.5), if dead { mat::FLUORESCENT_DEAD } else { mat::FLUORESCENT });
+            c.fill(
+                Vec3::new(px0 + 4.0, PLATFORM_CEIL - VS, z - 1.5),
+                Vec3::new(px0 + 5.0, PLATFORM_CEIL, z + 1.5),
+                if dead { mat::FLUORESCENT_DEAD } else { mat::FLUORESCENT },
+            );
         }
         z += 8.0;
     }
@@ -707,9 +694,7 @@ fn build_sewers(c: &mut City, seed: u32) {
         c.fill(a, b, mat::STEEL);
     }
     // Green subway globes on the railing ends.
-    for z in [sz1] {
-        c.fill(Vec3::new(sx0 - 0.5, top + 1.0, z), Vec3::new(sx0, top + 1.5, z + 0.5), mat::MUTAGEN);
-    }
+    c.fill(Vec3::new(sx0 - 0.5, top + 1.0, sz1), Vec3::new(sx0, top + 1.5, sz1 + 0.5), mat::MUTAGEN);
 }
 
 /// The chasm: brick walls with indestructible pilasters, lamps, and two big pipes across (rails).
@@ -789,7 +774,11 @@ fn build_tunnel_dressing(c: &mut City, seed: u32) {
                         break;
                     }
                     if p.y < top && p.y >= top - 1.0 {
-                        return Some(if p.y >= top - VS && ((s + per_rev * rev as f32).floor() as i32) % 2 == 0 { mat::STEEL } else { brick(v, seed) });
+                        return Some(if p.y >= top - VS && ((s + per_rev * rev as f32).floor() as i32) % 2 == 0 {
+                            mat::STEEL
+                        } else {
+                            brick(v, seed)
+                        });
                     }
                 }
                 let _ = old;
@@ -798,16 +787,15 @@ fn build_tunnel_dressing(c: &mut City, seed: u32) {
         );
         c.fill(Vec3::new(j.x - 6.5, 15.0, j.y - 0.5), Vec3::new(j.x - 6.0, 16.0, j.y + 0.5), mat::NEON_AMBER);
         // Moonlight rim where the shaft meets the street.
-        c.fill_with(Vec3::new(j.x - SHAFT_HALF - 0.5, STREET - VS, j.y - SHAFT_HALF - 0.5), Vec3::new(j.x + SHAFT_HALF + 0.5, STREET, j.y + SHAFT_HALF + 0.5), |_, _, old| {
-            (old != AIR).then_some(mat::HAZARD_ORANGE)
-        });
+        c.fill_with(
+            Vec3::new(j.x - SHAFT_HALF - 0.5, STREET - VS, j.y - SHAFT_HALF - 0.5),
+            Vec3::new(j.x + SHAFT_HALF + 0.5, STREET, j.y + SHAFT_HALF + 0.5),
+            |_, _, old| (old != AIR).then_some(mat::HAZARD_ORANGE),
+        );
     }
     // Wall lamps + a pipe run along one wall of each tunnel.
-    let runs = [
-        (true, T_N_Z, T_W_X + 7.0, CHASM.0 - 1.0),
-        (true, T_S_Z, T_W_X + 7.0, CHASM.0 - 1.0),
-        (false, T_W_X, T_S_Z + 7.0, T_N_Z - 7.0),
-    ];
+    let runs =
+        [(true, T_N_Z, T_W_X + 7.0, CHASM.0 - 1.0), (true, T_S_Z, T_W_X + 7.0, CHASM.0 - 1.0), (false, T_W_X, T_S_Z + 7.0, T_N_Z - 7.0)];
     for (i, &(along_x, cc, a0, a1)) in runs.iter().enumerate() {
         let side = if i % 2 == 0 { 1.0 } else { -1.0 };
         let off = cc + side * (T_HW - 0.35);
@@ -858,8 +846,18 @@ fn build_tunnel_dressing(c: &mut City, seed: u32) {
     c.curve(top, Vec3::new(-31.5, FLOOR + 4.5, 7.2), Vec3::new(-33.5, FLOOR + 0.2, 7.9), 0.7, 0.35, mat::DARK_WOOD, true);
     c.curve(top, Vec3::new(-29.0, FLOOR + 5.0, 7.4), Vec3::new(-27.0, FLOOR + 1.5, 7.9), 0.55, 0.3, mat::DARK_WOOD, true);
     c.curve(top, Vec3::new(-32.0, FLOOR + 6.0, 6.8), Vec3::new(-36.0, FLOOR + 3.0, 7.9), 0.45, 0.25, mat::DARK_WOOD, true);
-    c.curve(Vec3::new(-29.0, FLOOR + 5.0, 7.4), Vec3::new(-28.0, FLOOR + 3.0, 7.9), Vec3::new(-28.5, FLOOR + 0.2, 7.9), 0.3, 0.25, mat::WOOD, true);
-    for (p, r) in [(Vec3::new(-31.0, FLOOR + 5.8, 6.4), 1.0), (Vec3::new(-34.0, FLOOR + 3.5, 7.6), 0.7), (Vec3::new(-27.5, FLOOR + 2.8, 7.6), 0.6)] {
+    c.curve(
+        Vec3::new(-29.0, FLOOR + 5.0, 7.4),
+        Vec3::new(-28.0, FLOOR + 3.0, 7.9),
+        Vec3::new(-28.5, FLOOR + 0.2, 7.9),
+        0.3,
+        0.25,
+        mat::WOOD,
+        true,
+    );
+    for (p, r) in
+        [(Vec3::new(-31.0, FLOOR + 5.8, 6.4), 1.0), (Vec3::new(-34.0, FLOOR + 3.5, 7.6), 0.7), (Vec3::new(-27.5, FLOOR + 2.8, 7.6), 0.6)]
+    {
         c.w.fill_ellipsoid(p, Vec3::new(r * 1.3, r, r * 0.8), mat::LEAVES_GREEN, true);
     }
 }
@@ -868,14 +866,22 @@ fn build_tunnel_dressing(c: &mut City, seed: u32) {
 fn build_hub_dressing(c: &mut City, seed: u32) {
     // Moonlight rim around the manhole on the vault underside + the steel rim at the street.
     let hc = hub_ceiling(MANHOLE.y);
-    c.fill_with(Vec3::new(MANHOLE.x - 3.0, hc - 1.5, MANHOLE.y - 3.0), Vec3::new(MANHOLE.x + 3.0, hc + 2.0, MANHOLE.y + 3.0), |p, _, old| {
-        let d = Vec2::new(p.x - MANHOLE.x, p.z - MANHOLE.y).length();
-        (old != AIR && d < MANHOLE_R + 1.0).then_some(mat::MOONLIGHT)
-    });
-    c.fill_with(Vec3::new(MANHOLE.x - 3.0, STREET - 1.0, MANHOLE.y - 3.0), Vec3::new(MANHOLE.x + 3.0, STREET, MANHOLE.y + 3.0), |p, _, old| {
-        let d = Vec2::new(p.x - MANHOLE.x, p.z - MANHOLE.y).length();
-        (old != AIR && d < MANHOLE_R + 0.6).then_some(mat::STEEL)
-    });
+    c.fill_with(
+        Vec3::new(MANHOLE.x - 3.0, hc - 1.5, MANHOLE.y - 3.0),
+        Vec3::new(MANHOLE.x + 3.0, hc + 2.0, MANHOLE.y + 3.0),
+        |p, _, old| {
+            let d = Vec2::new(p.x - MANHOLE.x, p.z - MANHOLE.y).length();
+            (old != AIR && d < MANHOLE_R + 1.0).then_some(mat::MOONLIGHT)
+        },
+    );
+    c.fill_with(
+        Vec3::new(MANHOLE.x - 3.0, STREET - 1.0, MANHOLE.y - 3.0),
+        Vec3::new(MANHOLE.x + 3.0, STREET, MANHOLE.y + 3.0),
+        |p, _, old| {
+            let d = Vec2::new(p.x - MANHOLE.x, p.z - MANHOLE.y).length();
+            (old != AIR && d < MANHOLE_R + 0.6).then_some(mat::STEEL)
+        },
+    );
     // String lights on the vault: two lines of warm bulbs following the ceiling.
     for z in [-3.0f32, 17.0] {
         let y = hub_ceiling(z);
@@ -1001,9 +1007,11 @@ fn build_streets(c: &mut City, seed: u32) {
         });
     }
     // The chute culvert: brick end wall at the block edge and a railing around the opening.
-    c.fill_with(Vec3::new(-EDGE, chute_ridge(-EDGE) - CHUTE_BELOW - 1.0, CHUTE_Z - CHUTE_R - 1.0), Vec3::new(-EDGE + 0.5, STREET + 1.0, CHUTE_Z + CHUTE_R + 1.0), |_, v, _| {
-        Some(brick(v, seed))
-    });
+    c.fill_with(
+        Vec3::new(-EDGE, chute_ridge(-EDGE) - CHUTE_BELOW - 1.0, CHUTE_Z - CHUTE_R - 1.0),
+        Vec3::new(-EDGE + 0.5, STREET + 1.0, CHUTE_Z + CHUTE_R + 1.0),
+        |_, v, _| Some(brick(v, seed)),
+    );
     for z in [CHUTE_Z - CHUTE_R - 0.5, CHUTE_Z + CHUTE_R] {
         c.fill_with(Vec3::new(-EDGE, STREET, z), Vec3::new(-44.5, STREET + 1.0, z + 0.5), |p, v, old| {
             (old == AIR && p.y < STREET + 1.0 && (v.x.rem_euclid(3) == 0 || p.y >= STREET + 0.5)).then_some(mat::STEEL)
@@ -1058,7 +1066,8 @@ fn build_buildings(c: &mut City, seed: u32) {
                 let sign = up > 3.0;
                 let glass = up > 0.5 && up < 3.0 && (along - 0.5).rem_euclid(5.0) > 1.0;
                 return Some(if sign {
-                    [mat::NEON_PINK, mat::NEON_CYAN, mat::NEON_AMBER, mat::MUTAGEN][((along / 10.0).floor() as i32 + bi as i32).rem_euclid(4) as usize]
+                    [mat::NEON_PINK, mat::NEON_CYAN, mat::NEON_AMBER, mat::MUTAGEN]
+                        [((along / 10.0).floor() as i32 + bi as i32).rem_euclid(4) as usize]
                 } else if glass {
                     mat::GLASS_TEAL
                 } else {
@@ -1246,8 +1255,18 @@ fn pick_spawns(w: &VoxelWorld) -> Vec<Vec3> {
 /// The map's surf lines: the two half-pipe walls and the storm-drain chute.
 pub fn surf_lines() -> Vec<SurfLine> {
     vec![
-        SurfLine { a: Vec3::new(-PIPE_X, DECK_Y, RIDGE_N), b: Vec3::new(PIPE_X, DECK_Y, RIDGE_N), face_deg: PIPE_FACE_DEG, width: PIPE_WIDTH },
-        SurfLine { a: Vec3::new(-PIPE_X, DECK_Y, RIDGE_S), b: Vec3::new(PIPE_X, DECK_Y, RIDGE_S), face_deg: PIPE_FACE_DEG, width: PIPE_WIDTH },
+        SurfLine {
+            a: Vec3::new(-PIPE_X, DECK_Y, RIDGE_N),
+            b: Vec3::new(PIPE_X, DECK_Y, RIDGE_N),
+            face_deg: PIPE_FACE_DEG,
+            width: PIPE_WIDTH,
+        },
+        SurfLine {
+            a: Vec3::new(-PIPE_X, DECK_Y, RIDGE_S),
+            b: Vec3::new(PIPE_X, DECK_Y, RIDGE_S),
+            face_deg: PIPE_FACE_DEG,
+            width: PIPE_WIDTH,
+        },
         SurfLine { a: CHUTE_TOP, b: CHUTE_END, face_deg: CHUTE_FACE_DEG, width: CHUTE_WIDTH },
     ]
 }
@@ -1407,4 +1426,3 @@ pub fn props_for(seed: u64) -> Vec<props::Placed> {
     let spawns = pick_spawns(&c.w);
     props::place_props(&mut c, &spawns, &routes(), &mut rng)
 }
-

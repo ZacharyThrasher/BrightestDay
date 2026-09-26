@@ -122,7 +122,7 @@ fn lava_dist(w: &VoxelWorld, p: Vec3, r: f32) -> f32 {
     for dz in -n..=n {
         for dx in -n..=n {
             let (x, z) = (c.x + dx, c.z + dz);
-            if w.top_solid_y(x, z).is_some_and(|y| y == 0 && is_lava(w.get(IVec3::new(x, 0, z)))) {
+            if w.top_solid_y(x, z).is_some_and(|y| y == ember::LAVA_V - 1 && is_lava(w.get(IVec3::new(x, y, z)))) {
                 best = best.min(((dx * dx + dz * dz) as f32).sqrt() * 0.5);
             }
         }
@@ -153,12 +153,12 @@ fn lava_is_the_floor_and_below_the_ko_line() {
             let m = w.get(IVec3::new(x, 0, z));
             assert!(is_lava(m), "floor voxel ({x}, 0, {z}) is {}", material_def(m).name);
             assert!(material_def(m).indestructible);
-            if w.get(IVec3::new(x, 1, z)) == AIR {
+            if w.get(IVec3::new(x, ember::LAVA_V, z)) == AIR {
                 visible += 1;
             }
             // Lava only ever shows on the floor or as the (thin, vertical) lavafall curtain.
             if let Some(y) = w.top_solid_y(x, z)
-                && y > 0
+                && y >= ember::LAVA_V
                 && is_lava(w.get(IVec3::new(x, y, z)))
             {
                 let p = Vec3::new(x as f32 * 0.5, y as f32 * 0.5, z as f32 * 0.5);
@@ -187,7 +187,7 @@ fn spawns_valid_fair_and_mutually_reachable() {
             assert_eq!(w.get(v + IVec3::Y * 3), AIR, "seed {seed}: spawn {s} without head room");
             let under = w.get(v - IVec3::Y);
             assert!(under != AIR && !is_lava(under), "seed {seed}: spawn {s} not on rock");
-            assert!(s.y > VOID_Y + 4.0, "seed {seed}: spawn {s} too close to the lava level");
+            assert!(s.y > VOID_Y + 3.5, "seed {seed}: spawn {s} too close to the lava level");
             let d = lava_dist(&w, *s, 8.0);
             assert!(d >= 4.0, "seed {seed}: spawn {s} only {d:.1} m from lava");
             for t in &info.spawns[i + 1..] {

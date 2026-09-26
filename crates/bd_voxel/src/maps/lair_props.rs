@@ -264,7 +264,11 @@ fn desk(screens: [Material; 3]) -> Model {
         .b((0, 2, 0), (9, 2, 2), mat::WOOD);
     for (k, s) in screens.iter().enumerate() {
         let u = 1 + 3 * k as i32;
-        m = m.b((u, 3, 0), (u + 1, 4, 0), mat::PLASTIC_BLACK).b((u, 4, 1), (u + 1, 4, 1), *s).b((u, 3, 1), (u + 1, 3, 1), mat::PLASTIC_BLACK);
+        m = m.b((u, 3, 0), (u + 1, 4, 0), mat::PLASTIC_BLACK).b((u, 4, 1), (u + 1, 4, 1), *s).b(
+            (u, 3, 1),
+            (u + 1, 3, 1),
+            mat::PLASTIC_BLACK,
+        );
     }
     m
 }
@@ -355,12 +359,8 @@ pub fn place_props(c: &mut City, spawns: &[Vec3], routes: &[Route], rng: &mut Rn
     // ---- dojo: weapon rack (icons), tires, bag, dummies, Splinter's shrine tree -------------------
     let rack_at = Vec3::new(-14.75, tat, nz);
     if p.model(c, &weapon_rack(), rack_at, Face::NZ) {
-        let weapons = [
-            ("katanas", mat::BALL_BLUE),
-            ("sais", mat::PAINT_RED),
-            ("bo staff", mat::STUCCO_LILAC),
-            ("nunchucks", mat::HAZARD_ORANGE),
-        ];
+        let weapons =
+            [("katanas", mat::BALL_BLUE), ("sais", mat::PAINT_RED), ("bo staff", mat::STUCCO_LILAC), ("nunchucks", mat::HAZARD_ORANGE)];
         for (k, (name, accent)) in weapons.into_iter().enumerate() {
             let pal = [mat::STEEL, accent, mat::DARK_WOOD, mat::HULL_WHITE];
             if let Some(m) = Model::icon(name, pal) {
@@ -408,12 +408,24 @@ pub fn place_props(c: &mut City, spawns: &[Vec3], routes: &[Route], rng: &mut Rn
         let (x, z) = (-20.2f32, 22.4f32);
         p.custom(c, "shrine tree", Vec3::new(x - 1.2, tat, z - 1.2), Vec3::new(x + 1.8, tat + 3.6, z + 1.1), |c| {
             c.fill(Vec3::new(x - 1.0, tat, z - 1.0), Vec3::new(x + 1.0, tat + 0.5, z + 1.0), mat::STONE);
-            c.curve(Vec3::new(x, tat + 0.5, z), Vec3::new(x + 0.9, tat + 1.4, z - 0.2), Vec3::new(x + 0.2, tat + 2.4, z), 0.3, 0.25, mat::DARK_WOOD, true);
+            c.curve(
+                Vec3::new(x, tat + 0.5, z),
+                Vec3::new(x + 0.9, tat + 1.4, z - 0.2),
+                Vec3::new(x + 0.2, tat + 2.4, z),
+                0.3,
+                0.25,
+                mat::DARK_WOOD,
+                true,
+            );
             for (o, r) in [(Vec3::new(0.2, 2.8, 0.0), 0.9), (Vec3::new(0.9, 2.5, -0.3), 0.6), (Vec3::new(-0.4, 2.4, 0.3), 0.55)] {
                 c.w.fill_ellipsoid(Vec3::new(x, tat, z) + o, Vec3::new(r * 1.3, r * 0.8, r * 1.2), mat::LEAVES_PINK, true);
             }
             for (dx, dz) in [(-0.75f32, 0.75f32), (0.75, 0.75), (-0.75, -0.75)] {
-                c.fill(Vec3::new(x + dx - 0.25, tat + 0.5, z + dz - 0.25), Vec3::new(x + dx + 0.25, tat + 1.0, z + dz + 0.25), mat::NEON_AMBER);
+                c.fill(
+                    Vec3::new(x + dx - 0.25, tat + 0.5, z + dz - 0.25),
+                    Vec3::new(x + dx + 0.25, tat + 1.0, z + dz + 0.25),
+                    mat::NEON_AMBER,
+                );
             }
         });
         let (lx, lz) = (-17.0f32, 22.6f32);
@@ -498,7 +510,7 @@ pub fn place_props(c: &mut City, spawns: &[Vec3], routes: &[Route], rng: &mut Rn
                 let d = Vec2::new((q.x - x) / 1.8, (q.z - z) / 1.4).length();
                 let h = 1.5 * (1.0 - d);
                 let pick = crate::noise::hash3(v.x, v.y, v.z, s);
-                (old == AIR && q.y - f < h && pick % 7 != 0).then(|| pal[(pick >> 4) as usize % pal.len()])
+                (old == AIR && q.y - f < h && !pick.is_multiple_of(7)).then(|| pal[(pick >> 4) as usize % pal.len()])
             });
         });
     }

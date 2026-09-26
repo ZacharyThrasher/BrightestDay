@@ -50,8 +50,9 @@ use crate::world::VoxelWorld;
 #[path = "giant_icons.rs"]
 pub mod icons;
 
-/// World size in voxels (128 × 80 × 112 m): the room's outer walls are the world's extent.
-pub const GIANT_SIZE_VOXELS: IVec3 = IVec3::new(256, 160, 224);
+/// World size in voxels (128 × 80 × 128 m, whole chunks): the room's walls fill out to the world's
+/// extent (4 m east/west, 12 m north/south), so nothing outside them is ever seen or meshed.
+pub const GIANT_SIZE_VOXELS: IVec3 = IVec3::new(256, 160, 256);
 /// Real size × this = game size (a 1.8 m player is a 6 cm toy).
 pub const SCALE: f32 = 30.0;
 /// Floor surface (m).
@@ -195,7 +196,7 @@ fn get(c: &City, v: IVec3) -> Material {
 // Shell: subfloor + floorboards, walls, skirting, ceiling, window, door, wall decor
 
 fn build_shell(c: &mut City, seed: u32) {
-    let (wx, wz) = (HX + 4.0, HZ + 4.0);
+    let (wx, wz) = (GIANT_SIZE_VOXELS.x as f32 * 0.25, GIANT_SIZE_VOXELS.z as f32 * 0.25);
     // Indestructible subfloor to the world bottom (its underside is never meshed), boards on top.
     bx(c, -wx, 0.0, -wz, wx, FLOOR_Y - 0.5, wz, mat::SUBFLOOR);
     let (x0, x1) = (vx(-HX), vx(HX));
@@ -932,7 +933,10 @@ fn rug_tufts(c: &mut City, seed: u32) {
     let y = vx(FLOOR_Y) + 1;
     let mut rng = Rng::new(seed as u64 ^ 0x70f7);
     let mut patches: Vec<(Vec2, f32)> = Vec::new();
-    while patches.len() < 6 {
+    for _ in 0..200 {
+        if patches.len() >= 6 {
+            break;
+        }
         let p = Vec2::new(rng.range(r.x0 + 6.0, r.x1 - 6.0), rng.range(r.z0 + 6.0, r.z1 - 6.0));
         if CASTLE.grow(4.0).contains(p.x, p.y) || p.distance(cat_center()) < 11.0 || patches.iter().any(|(q, _)| q.distance(p) < 12.0) {
             continue;
@@ -1429,7 +1433,7 @@ fn toy_car(c: &mut City, x: f32, y: f32, z: f32, along_x: bool, body: Material) 
     let (cx, cz) = if along_x { (0.5, hz) } else { (hx, 0.5) };
     bx(c, x - cx, y + 1.0, z - cz, x + cx, y + 1.5, z + cz, mat::GLASS_BLUE);
     for (sx, sz) in [(-1.0f32, -1.0f32), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
-        let (px, pz) = if along_x { (x + sx * (hx - 0.25), z + sz * (hz + 0.25)) } else { (x + sx * (hx + 0.25), z + sz * (hz - 0.25)) };
+        let (px, pz) = if along_x { (x + sx * (hx - 0.25), z + sz * (hz - 0.25)) } else { (x + sx * (hx - 0.25), z + sz * (hz - 0.25)) };
         bx(c, px - 0.25, y, pz - 0.25, px + 0.25, y + 0.5, pz + 0.25, mat::PLASTIC_BLACK);
     }
 }

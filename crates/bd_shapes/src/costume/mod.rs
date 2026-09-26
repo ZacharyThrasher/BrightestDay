@@ -19,8 +19,15 @@
 //! Name hints are purely cosmetic (they never change mechanics); the lexicon remains the source of
 //! meaning. They exist because "wizard"/"pirate"/"cowboy" all resolve to a plain `Biped`.
 
+mod derive;
 mod gear;
 mod heads;
+pub mod look;
+pub mod paint;
+mod style;
+
+pub use derive::is_character_icon;
+pub use paint::{Costume, Paint, PaintedModel, Rgb, Tier, costume_model_painted, mesh_colors};
 
 use bd_core::mechanics::{Element, Form, FormCategory, Mechanic, Recipe};
 use bd_core::shape::{PartId, PartRole, ShapeSpec};
@@ -297,6 +304,12 @@ pub(crate) struct Cx {
     pub hide: u32,
     pub r: Rng,
     pub used: u32,
+    /// Paint per prim (character / derived looks; shorter = unpainted).
+    pub paint: Vec<Paint>,
+    /// Distinct colours seen (tint slot allocation, see `paint::Pn`).
+    pub slots: Vec<Rgb>,
+    /// Guardrail: bounding volume limit as a multiple of the hull volume.
+    pub limit_k: f32,
 }
 
 impl Cx {
@@ -321,12 +334,132 @@ impl Cx {
         self.groups.push(Group { slot, prio, prims: p0..self.b.spec.prims.len(), parts, anchor });
         self.used |= slot;
     }
+
+    fn new(seed: u32, hide: u32) -> Self {
+        Cx { b: B::new(), groups: Vec::new(), hide, r: Rng::new(seed, 0xC057), used: 0, paint: Vec::new(), slots: Vec::new(), limit_k: GUARDRAIL_K }
+    }
+
+    /// Painting builder on the current part.
+    pub fn pn(&mut self) -> paint::Pn<'_> {
+        paint::Pn::new(&mut self.b, &mut self.paint, &mut self.slots)
+    }
+
+    /// Painted accessory group (see [`Cx::group`]).
+    pub fn pgroup(&mut self, slot: u32, anchor: Vec3, f: impl FnOnce(&mut paint::Pn)) {
+        if self.hide & slot != 0 {
+            return;
+        }
+        let p0 = self.b.spec.prims.len();
+        let q0 = self.b.spec.parts.len();
+        {
+            let mut p = self.pn();
+            f(&mut p);
+        }
+        self.b.on(0);
+        let parts = self.b.spec.parts[q0..].iter().map(|p| p.id).collect();
+        let prio = if slot & (acc::HEAD | acc::FACE) != 0 {
+            2
+        } else if slot & (acc::BACK | acc::HIP | acc::AURA) != 0 {
+            0
+        } else {
+            1
+        };
+        self.groups.push(Group { slot, prio, prims: p0..self.b.spec.prims.len(), parts, anchor });
+        self.used |= slot;
+    }
+
+    /// Finish: head scale, guardrail, paint aligned with the prims.
+    fn finish(mut self, tweaks: &CostumeTweaks) -> Costume {
+        let mut spec = std::mem::take(&mut self.b.spec);
+        let mut paint = std::mem::take(&mut self.paint);
+        paint.resize(spec.prims.len(), Paint::default());
+        derive::resolve_sentinels(&mut spec, &mut paint);
+        scale_head(&mut spec, tweaks.head_scale);
+        snap_decals(&mut spec, &paint);
+        fit_guardrail(&mut spec, &self.groups, &mut paint, self.limit_k);
+        Costume { spec, paint, ..Default::default() }
+    }
+}
+
+/// Keep one-voxel decals on whole voxels after a head rescale (faces stay crisp).
+fn snap_decals(spec: &mut ShapeSpec, paint: &[Paint]) {
+    for (p, pt) in spec.prims.iter_mut().zip(paint) {
+        if pt.decal && p.rot_deg == Vec3::ZERO {
+            let small = |s: f32| s <= 1.6;
+            let c = p.center;
+            p.center = Vec3::new(if small(p.size.x) { c.x.round() } else { c.x }, if small(p.size.y) { c.y.round() } else { c.y }, if small(p.size.z) { c.z.round() } else { c.z });
+            p.size = Vec3::new(if small(p.size.x) { 1.0 } else { p.size.x }, if small(p.size.y) { 1.0 } else { p.size.y }, if small(p.size.z) { 1.0 } else { p.size.z });
+        }
+    }
+}
+
+/// Full resolution for a costume phrase (DESIGN.md "Character costumes"):
+/// 1. the phrase names a hand-authored **character** (assets/costumes/characters.ron: aliases,
+///    optionally + variant words) -> that look; `seed` cycles its variants;
+/// 2. the phrase resolved to a curated **humanoid icon** -> a look derived from the icon;
+/// 3. otherwise the **vocabulary** costume ([`costume_with`]).
+///
+/// `recipe` / `icon` are the lexicon's resolution of the phrase (tier 1 never needs them).
+pub fn dress(phrase: &str, recipe: &Recipe, icon: Option<&ShapeSpec>, head: Option<CostumeHead>, seed: u32, tweaks: CostumeTweaks) -> Costume {
+    if head.is_none()
+        && let Some(f) = look::find(phrase)
+    {
+        return character_costume(f.index, f.base_variant + seed as usize, tweaks);
+    }
+    if head.is_none()
+        && let Some(ic) = icon
+        && derive::is_character_icon(recipe, ic)
+    {
+        return derived_costume(recipe, ic, tweaks);
+    }
+    let mut c = vocab(recipe, icon, head, seed, tweaks);
+    c.tier = Tier::Vocabulary;
+    c
+}
+
+/// Character `index` of the compiled-in table, variant `variant` (wraps).
+pub fn character_costume(index: usize, variant: usize, tweaks: CostumeTweaks) -> Costume {
+    let t = look::table();
+    let Some(ch) = t.chars.get(index) else { return Costume::default() };
+    let n = ch.variant_count();
+    let v = variant % n;
+    let lk = ch.look_of(v);
+    let mut cx = Cx::new(hash_str(&ch.names[0]), tweaks.hide_accessories);
+    cx.limit_k = CHARACTER_GUARDRAIL_K;
+    style::dress(&mut cx, &lk, costume_accent_tweak(&tweaks), true);
+    let mut c = cx.finish(&tweaks);
+    c.character = ch.names.first().cloned();
+    c.variant = Some((v, n));
+    c.tier = Tier::Character;
+    c
+}
+
+/// Tier 2 (see [`dress`]).
+pub fn derived_costume(recipe: &Recipe, icon: &ShapeSpec, tweaks: CostumeTweaks) -> Costume {
+    let lk = derive::derive_look(recipe, icon);
+    let mut cx = Cx::new(hash_str(&recipe.name.to_lowercase()), tweaks.hide_accessories);
+    cx.limit_k = CHARACTER_GUARDRAIL_K;
+    style::dress(&mut cx, &lk, costume_accent_tweak(&tweaks), false);
+    derive::icon_head_painted(&mut cx, recipe, icon);
+    let mut c = cx.finish(&tweaks);
+    c.character = Some(recipe.name.clone());
+    c.tier = Tier::Derived;
+    c
+}
+
+fn costume_accent_tweak(t: &CostumeTweaks) -> Option<Rgb> {
+    t.accent.filter(|a| a.iter().all(|c| c.is_finite())).map(|a| a.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8))
 }
 
 /// Full costume entry point: `icon` = curated shape for an `Icon` recipe, `head` = head donor.
 pub fn costume_with(recipe: &Recipe, icon: Option<&ShapeSpec>, head: Option<CostumeHead>, seed: u32, tweaks: CostumeTweaks) -> ShapeSpec {
+    vocab(recipe, icon, head, seed, tweaks).spec
+}
+
+/// The vocabulary costume (tier 3) as an unpainted [`Costume`].
+fn vocab(recipe: &Recipe, icon: Option<&ShapeSpec>, head: Option<CostumeHead>, seed: u32, tweaks: CostumeTweaks) -> Costume {
     let name_seed = hash_str(&recipe.name.to_lowercase());
-    let mut cx = Cx { b: B::new(), groups: Vec::new(), hide: tweaks.hide_accessories, r: Rng::new(seed ^ name_seed, 0xC057), used: 0 };
+    let mut cx = Cx::new(seed ^ name_seed, tweaks.hide_accessories);
     let h = hints(&recipe.name);
     let hh = head.map(|d| hints(&d.recipe.name));
     // What wears the head?
@@ -375,10 +508,7 @@ pub fn costume_with(recipe: &Recipe, icon: Option<&ShapeSpec>, head: Option<Cost
         }
     }
 
-    let mut spec = std::mem::take(&mut cx.b.spec);
-    scale_head(&mut spec, tweaks.head_scale);
-    fit_guardrail(&mut spec, &cx.groups);
-    spec
+    cx.finish(&tweaks)
 }
 
 /// Pelvis/torso, arms (upper + forearm + glove, ring on the right hand), legs with boots, bare head.
@@ -506,14 +636,21 @@ fn volume_excluding(spec: &ShapeSpec, groups: &[Group], skip: Option<usize>, dro
 }
 
 /// Hull volume × 1.2 in units³.
+/// Default guardrail: rest-pose bounding volume <= 1.2 x the hull.
+pub const GUARDRAIL_K: f32 = 1.2;
+/// Character looks: signature silhouettes (Goku's spikes, a straw-hat brim, a cape) are thin, so the
+/// *bounding box* grows much faster than the visual mass: they get a looser box (still cosmetic;
+/// hitboxes never depend on the costume).
+pub const CHARACTER_GUARDRAIL_K: f32 = 1.75;
+
 pub fn guardrail_volume_units() -> f32 {
     let u3 = COSTUME_UNIT * COSTUME_UNIT * COSTUME_UNIT;
     HULL_M.x * HULL_M.y * HULL_M.z * 1.2 / u3
 }
 
 /// Shrink (then drop) accessory groups until the bounding volume fits the guardrail.
-fn fit_guardrail(spec: &mut ShapeSpec, groups: &[Group]) {
-    let limit = guardrail_volume_units();
+fn fit_guardrail(spec: &mut ShapeSpec, groups: &[Group], paint: &mut Vec<Paint>, limit_k: f32) {
+    let limit = guardrail_volume_units() * limit_k / GUARDRAIL_K;
     let mut dropped = vec![false; groups.len()];
     let mut shrinks = vec![0u8; groups.len()];
     for _ in 0..64 {
@@ -577,6 +714,11 @@ fn fit_guardrail(spec: &mut ShapeSpec, groups: &[Group]) {
         spec.prims.retain(|_| {
             i += 1;
             keep[i - 1]
+        });
+        let mut i = 0;
+        paint.retain(|_| {
+            i += 1;
+            keep.get(i - 1).copied().unwrap_or(true)
         });
         spec.parts.retain(|p| !drop_parts.contains(&p.id));
     }

@@ -40,6 +40,7 @@ fn fuzz_lists_cover_every_form_and_mechanic() {
             Hammer | Sword | Axe | Spear | Shield | Gauntlet | Whip | Gun | Bow | Cannon | Staff | Disc | Wings | Parachute | Jetpack | Cape
             | Biped | Kaiju | Quadruped | Serpent | Bird | Fish | Arachnid | Insect | Blob | Wall | Ramp | Pillar | Dome | Cage | Platform
             | Trampoline | Ball | Anvil | Bomb | Boulder | Rocket | Vehicle | Blob0 => FORMS.contains(&f),
+            Hands => true, // (v1.7) signature / energy casts only, not in the chaos pool
         }
     }
     fn mech_ok(m: Mechanic) -> bool {

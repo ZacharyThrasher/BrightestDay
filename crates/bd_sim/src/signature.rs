@@ -7,8 +7,9 @@
 //!      shouted) with `Barrier` (stops projectiles, takes the hits), `Trap` (snaps shut on an enemy
 //!      inside), keeping the phrase's element / emitters / fields (a Fire domain, a
 //!      bouncy-castle domain, a shrine that `Shoots`);
-//!    * **Beam** → an ultimate-caliber `Gun` + `Beam` (the railgun archetype: its hold-to-charge *is*
-//!      the telegraphed windup); a creature keeps its body and gains `Beam`;
+//!    * **Beam** → an ultimate-caliber `Hands` + `Beam` (energy from the palms, the HandBeam archetype:
+//!      hold to charge is the telegraph, release fires; never a gun model); a creature keeps its body
+//!      and gains `Beam`;
 //!    * **Summon** / **Transformation** → the construct itself at ultimate scale (Transformation also
 //!      `Heavy`);
 //! 2. lets that recipe past the per-form size clamp up to [`SignatureTuning`]'s caps, prices it with the
@@ -244,13 +245,14 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
                 // A piercing thing that is fired / thrown: an erasing orb (Hollow Purple).
                 r = orb::orb_recipe(r, &t.orb, p, full_bar);
             } else {
-                // The railgun archetype (Gun + Beam): hold to charge, a lingering piercing beam.
-                r.form = Form::Gun;
+                // Energy from the palms (Form::Hands, the HandBeam archetype): charge, release, a huge
+                // piercing beam. Never a gun model (owner: "final flash gave me a gun").
+                r.form = Form::Hands;
                 r.mechanics.retain(|m| {
                     !matches!(m, Mechanic::Spin | Mechanic::Explodes | Mechanic::Shoots | Mechanic::Swarm | Mechanic::Returning)
                 });
                 r.mechanics.push(Mechanic::Beam);
-                r.scale = form_spec(Form::Gun).default_scale * t.beam_caliber * t.beam_caliber;
+                r.scale = form_spec(Form::Hands).default_scale * t.beam_caliber * t.beam_caliber;
                 r.count = 1;
             }
         }
@@ -496,18 +498,15 @@ mod tests {
     }
 
     #[test]
-    fn beam_becomes_ultimate_railgun() {
+    fn beam_becomes_an_ultimate_palm_beam_never_a_gun() {
         let t = SignatureTuning::default();
-        let b = amplify(
-            rec(Form::Staff, &[Mechanic::Beam, Mechanic::Heavy], 1.2),
-            SignatureCast::new(SignatureKind::Beam, 0.5),
-            &t,
-            &MatchRules::default(),
-            false,
-        );
-        assert_eq!(b.form, Form::Gun);
-        assert_eq!(crate::weapons::archetype_for(&b), Some(crate::weapons::GunArchetype::Railgun));
-        let k = (b.scale / form_spec(Form::Gun).default_scale).sqrt();
+        for form in [Form::Staff, Form::Gun, Form::Cannon, Form::Ball, Form::Hands] {
+            let b = amplify(rec(form, &[Mechanic::Beam, Mechanic::Heavy], 1.2), SignatureCast::new(SignatureKind::Beam, 0.5), &t, &MatchRules::default(), false);
+            assert_eq!(b.form, Form::Hands, "{form:?}");
+            assert_eq!(crate::weapons::archetype_for(&b), Some(crate::weapons::GunArchetype::HandBeam));
+        }
+        let b = amplify(rec(Form::Staff, &[Mechanic::Beam], 1.2), SignatureCast::new(SignatureKind::Beam, 0.5), &t, &MatchRules::default(), false);
+        let k = (b.scale / form_spec(Form::Hands).default_scale).sqrt();
         assert!((k - 2.5).abs() < 1e-3, "caliber {k}");
     }
 

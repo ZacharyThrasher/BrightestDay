@@ -91,6 +91,12 @@ pub enum NetMapKind {
     Sakura,
     /// Protocol v11.
     Ember,
+    /// Mirrorfold (protocol bump with the map).
+    Mirrorfold,
+    /// High Roller (protocol v14).
+    Casino,
+    /// Valley of the End (protocol v15).
+    Valley,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +133,18 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
         }
         NetMapKind::Ember => {
             let (w, m) = bd_voxel::maps::generate_ember(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Mirrorfold => {
+            let (w, m) = bd_voxel::generate_mirror(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Casino => {
+            let (w, m) = bd_voxel::generate_casino(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Valley => {
+            let (w, m) = bd_voxel::generate_valley(seed);
             (w, m.arena, seed)
         }
     }

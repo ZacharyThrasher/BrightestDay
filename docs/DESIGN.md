@@ -285,6 +285,53 @@ necks or the Dunes causeway, and two surf lines over the lava (Ridge → Dunes, 
 Ridge access: two ash ramps, the cliff (tether), the keep's ledge ladders. A lavafall pours from the
 cliff under the fortress into a KO pool. 9 spawns mirrored east/west, ≥ 4 m from any lava, never on
 the facility or fortress. ~0.62 M triangles; all light is emissive voxels.
+**Valley of the End** (`--map valley`, bd_voxel `maps/valley.rs` + `valley_statues.rs`; private-use,
+see THIRD_PARTY_NOTICES): a meandering river gorge (52 m floor, 74 m in the statue bay) between cliffs
+stepped in three tiers (L1 ledge 28 m, L2 ledge 42 m, forested plateau 64 m; strata bands bulge and
+recede), a 30 m-wide falls from the upper pool (58 m) into a plunge hole, and two ~62 m statues on
+pedestals either side of it, facing each other (spiky mane / long straight hair, raised two-finger
+seal, hand on the hilt; breakable everywhere except a slender core). **Water-walk**: the river and the
+upper pool are `ArenaInfo::water_sheets` with `water_walk` — ground for players only (host +
+prediction push them as colliders; constructs sink to the bed; hooks don't anchor). The falls face is
+indestructible white water: kicking between it and a flanking buttress refreshes the air jump every
+touch (a 43 m corner climb). Routes: bank ↔ L1 ↔ L2 ↔ top ramps on each side (switchbacks), four
+2.5 m wall-kick chimneys, a surf line along each curved wall, a natural arch (L2 to L2) near the lip,
+overhanging shelves at the top edges, statues as perches/anchors, the river itself. KOs: the plunge
+hole and the downstream lip drop to the KO water (3 m); side zones 8 m past the mountain rim; star KO.
+10 spawns, symmetric under a half turn (pedestals, banks, cliff tops, pool shore). Statue heads
+(~77 m) are the highest perches but tiny, coverless, exposed to both rims and breakable. ~0.99 M
+triangles (faces toward the world's outside aren't meshed).
+**Mirrorfold** (`--map mirror`, bd_voxel `maps/mirror.rs` + client `present/mirror.rs`; private-use,
+see THIRD_PARTY_NOTICES): a city folded over itself, gravity normal everywhere. The inner city (116 ×
+84 m rounded rectangle at street level 14 m) is a kaleidoscope-inlaid plaza, four blocks (stone library
+with an open loggia and a torn-away corner, brownstones with a fire escape, a kit glass tower with a sky
+lobby, a bank with a grand stair) and two avenues that run straight into an 8 m ring road. Past it the
+street **curls up** a 22 m-radius arc — asphalt, then bent facades — through vertical to a 120° overhang
+fringed with buildings sticking out at impossible angles. What you ride is hard light: per straight and
+per 15° corner segment four `surf_lines` chords (a walkable ~24° ramp, then ~48° / 60° / 72° surf faces)
+make a continuous surf loop around the arena (the route bot laps it in ~22 s, gaining speed by strafing
+through the corners). Six towers **hang upside-down** from the world top (bottoms 58–64 m, indestructible
+spines + spire tips): a swing ring round the open middle. **Fragments** float between: two spawn islands
+(street chunk, clock face) on single-jump cornice stepping stones, floating stair flights up to the loggia
+/ sky lobby, sideways fire escapes, cornice shards, the library's missing corner, and two broken gable
+roofs whose ridges are descending surf chutes. KOs: fractures in the plaza and two ring-road corners fall
+into the mirrored void (5 m); side zones just behind the curl wall (punch through it and you are gone);
+star KO through the gap. 10 spawns (plaza, roofs, ring road, both islands), never on the curl. Backdrop
+(visual only): the city keeps curling on the inside of a 300 m tube around the X axis — rising over the
+lip on both sides and overhead, where a blazing **rift** slit runs along the gap; toward ±X the tube closes
+to a second glare; a dark glass sheet under the floating city reflects it with glinting shards; the fold
+breathes a few degrees (static with comfort). ~0.95 M voxel triangles + ~90 k backdrop triangles.
+
+**Sakura Keep** (`--map sakura`, bd_voxel `maps/sakura.rs`; PRIVATE USE: the floor plan follows
+Overwatch's Hanamura, see THIRD_PARTY_NOTICES.md): a Japanese castle town on a 10-17 m plateau over the
+void. Spawn street (bhop lane) -> first-gate plaza -> A district (tall A hall with a gallery, courtyard,
+long arcade with a ridge walk, middle street) -> ravine to the void, crossed by a bridge / the SE lane ->
+sakura garden (octagonal shrine in a koi pond, temple hall) -> keep steps -> castle base with the 22 m
+keep hall (two balcony rings, four indestructible red columns, painted panel) under a three-tier tenshu.
+A ring of town-house roofs lines the outline (walkable, the drop behind); open edges (ravine, lower
+garden, east plaza, west street) have only a kerb. Two surf lines (keep chute, gate slide). Layout data
+is traced by `tools/maps/sakura_trace.py` into `maps/sakura_layout.rs`. Light: warm afternoon sun,
+emissive lanterns / shoji.
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,

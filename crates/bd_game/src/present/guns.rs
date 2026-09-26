@@ -102,6 +102,8 @@ fn fire_sound(a: GunArchetype) -> (&'static str, f32, Option<&'static str>) {
         GunArchetype::Cannon => ("explosion_small", 0.8, Some("gun")),
         GunArchetype::Staff => ("ring_blast", 0.8, None),
         GunArchetype::Disc => ("tether_fire", 0.9, None),
+        // Palm energy: a deep blast, no gunshot echo (the signature cue adds the roar).
+        GunArchetype::HandBeam => ("ring_blast", 0.7, None),
     }
 }
 
