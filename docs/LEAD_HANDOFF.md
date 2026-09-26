@@ -12,6 +12,9 @@ docs/CLIENT_INTEGRATION.md, docs/TESTING.md, docs/BALANCE_REPORT.md. Memory: bri
   dirs caused 5-6 concurrent full Bevy builds (~70 rustc) and hour-long waits. Small leaf crates
   (bd_music, bd_audio-only) may keep their own dir. Copy exes out before running them.
   Playable build for the owner: target\playable\brightest_day.exe.
+- With many workers: follow docs/COORDINATION.md — lead runs `target\buildwatch.ps1` (writes
+  target\build_status.txt GREEN/RED + owning worker every ~90 s), hot shared files are claimed via
+  target\locks\*.lock, sequence integration-heavy work behind the features it depends on.
 - Lead: commit a checkpoint whenever `cargo check --workspace --tests` + core tests are green, so HEAD
   always builds (in-progress worker files included).
 - Lead verifies (tests / galleries / screenshots / benches) and commits with the Co-Authored-By trailer.
