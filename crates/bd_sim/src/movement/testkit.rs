@@ -217,6 +217,63 @@ pub mod scenarios {
         (sum / cnt as f32, s.horizontal_speed())
     }
 
+    /// A beginner's bunny-hop: from run speed, hold W + jump (auto-hop) and sweep the view left/right
+    /// ±30° around the route at 120°/s (no strafe keys). Returns (average, final) horizontal speed over
+    /// the last second.
+    pub fn naive_bhop(p: &MoveParams, secs: f32) -> (f32, f32) {
+        let w = arena();
+        let cw = CollisionWorld::new(&w, &[]);
+        let mut s = grounded_at(0.0, p, &cw);
+        s.vel = Vec3::new(p.run_speed, 0.0, 0.0);
+        let n = (secs / DT) as usize;
+        let rate = 120f32.to_radians();
+        let amp = 30f32.to_radians();
+        let mut off = 0.0f32;
+        let mut dir = 1.0f32;
+        let mut sum = 0.0;
+        let mut cnt = 0;
+        for t in 0..n {
+            off += dir * rate * DT;
+            if off.abs() >= amp {
+                off = off.clamp(-amp, amp);
+                dir = -dir;
+            }
+            step_player(&mut s, &input(YAW_PX + off, 0.0, 0, 1, JUMP), &cw, p, DT);
+            if t + 120 >= n {
+                sum += s.horizontal_speed();
+                cnt += 1;
+            }
+        }
+        (sum / cnt as f32, s.horizontal_speed())
+    }
+
+    /// Air-strafe at a constant view turn rate (rad/s, clockwise) for `secs` in zero-g, starting at
+    /// `v0` m/s. `strafe_keys`: hold D with the view synced (a skilled strafer); otherwise hold only W
+    /// (a beginner turning the mouse). Returns (horizontal speed gained, largest angle in radians
+    /// between the view and the horizontal velocity over the second half — "looking where you go").
+    pub fn turn_gain(p: &MoveParams, rate: f32, secs: f32, v0: f32, strafe_keys: bool) -> (f32, f32) {
+        let w = FnWorld(|_: IVec3| false);
+        let cw = CollisionWorld::new(&w, &[]);
+        let mut s = PlayerState::new(Vec3::ZERO, p);
+        s.mods.gravity_scale = 0.0;
+        s.vel = Vec3::new(0.0, 0.0, -v0);
+        // Start synced: D's wish perpendicular to the velocity (view along it), or W's view along it.
+        let (mx, mz) = if strafe_keys { (1i8, 0i8) } else { (0, 1) };
+        let yaw0 = if strafe_keys { yaw_for_wish(Vec3::X, mx, mz) } else { 0.0 };
+        let n = (secs / DT) as usize;
+        let mut lag = 0.0f32;
+        for t in 0..n {
+            let yaw = yaw0 - rate * t as f32 * DT;
+            step_player(&mut s, &input(yaw, 0.0, mx, mz, 0), &cw, p, DT);
+            if t >= n / 2 {
+                let look = bd_core::input::look_dir(yaw, 0.0);
+                let h = Vec3::new(s.vel.x, 0.0, s.vel.z).normalize_or_zero();
+                lag = lag.max(h.dot(look).clamp(-1.0, 1.0).acos());
+            }
+        }
+        (s.horizontal_speed() - v0, lag)
+    }
+
     /// Run, crouch into a slide (entry burst): speed right after the burst and after 0.5 s.
     pub fn slide_flat(p: &MoveParams) -> (f32, f32) {
         let w = arena();

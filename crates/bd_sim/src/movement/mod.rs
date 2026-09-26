@@ -3,7 +3,8 @@
 //! * **Quake/Source core** — ground accelerate/friction/stop-speed, air-accelerate with the small air
 //!   wish-speed cap (air-strafing gains speed), bunny-hop (jump is checked before friction; a fresh
 //!   press inside the jump buffer is a friction-free "perfect hop", holding jump auto-hops with a small
-//!   friction tax), coyote time, crouch-jump (legs tuck), crouch-slide with entry burst + cooldown,
+//!   friction tax, a slightly late press is forgiven by the landing grace), W-strafe assist (holding
+//!   only forward while turning the view gains a fraction of real strafing), coyote time, crouch-jump (legs tuck), crouch-slide with entry burst + cooldown,
 //!   Source ramp-slide / ramp launch and surfing on steep construct ramps, horizontal soft cap.
 //! * **AoTTG tethers** — two independent hook projectiles (hold = stay attached), inextensible
 //!   ratcheting ropes with a gentle pull, reel (button + wheel notches), release keeps all momentum.
@@ -25,6 +26,6 @@ mod tests;
 
 pub use controller::step_player;
 pub use params::MoveParams;
-pub use state::{Hand, Hook, HookPhase, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit};
+pub use state::{BUTTON_BITS, HOP_CHAIN_MAX, Hand, Hook, HookPhase, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit};
 pub use tether::{AnchorQuery, hand_pos, query_anchor};
 pub use world::{AnchorTarget, Collider, ColliderId, CollisionWorld, WorldRayHit, raycast_world};

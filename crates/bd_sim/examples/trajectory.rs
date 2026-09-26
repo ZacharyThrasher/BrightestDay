@@ -34,6 +34,7 @@ fn main() {
     // --------------------------------------------------------------------------------- tiers
     println!("== speed tiers (m/s) ==");
     let run = scenarios::run(&p);
+    let (nv_avg, nv_end) = scenarios::naive_bhop(&p, 5.0);
     let (bh_avg, bh_end) = scenarios::bhop(&p, 5.0, false);
     let (bp_avg, bp_end) = scenarios::bhop(&p, 5.0, true);
     let (sl_peak, sl_05) = scenarios::slide_flat(&p);
@@ -42,7 +43,22 @@ fn main() {
     let swb = scenarios::swing(&p, true);
     let flight = scenarios::flight(&p);
     println!("{:<44} {:>6.1}", "run (steady)", run);
+    for deg in [90.0f32, 150.0, 250.0] {
+        let (r, secs) = (deg.to_radians(), 3.0);
+        let sync = scenarios::turn_gain(&p, r, secs, 12.0, true).0 / secs;
+        let (w_gain, w_lag) = scenarios::turn_gain(&p, r, secs, 12.0, false);
+        let w_only = w_gain / secs;
+        println!(
+            "{:<44} {:>6.2}  (W only {:.2} = {:.0}%, view-velocity lag {:.0}°)",
+            format!("air-strafe gain at {deg:.0}°/s, D+sync (m/s²)"),
+            sync,
+            w_only,
+            100.0 * w_only / sync,
+            w_lag.to_degrees()
+        );
+    }
     println!("{:<44} {:>6.1}", "flight construct cruise (reference)", flight);
+    println!("{:<44} {:>6.1}  (end {:.1})", "naive bhop 5 s, W + held jump, view sweeps", nv_avg, nv_end);
     println!("{:<44} {:>6.1}  (end {:.1})", "bhop 5 s, held jump, perfect strafe: last-1s avg", bh_avg, bh_end);
     println!("{:<44} {:>6.1}  (end {:.1})", "bhop 5 s, timed hops, perfect strafe", bp_avg, bp_end);
     println!("{:<44} {:>6.1}  (after 0.5 s {:.1})", "slide entry burst from run", sl_peak, sl_05);
@@ -119,6 +135,7 @@ fn main() {
         max_speed = max_speed.max(s.speed());
         for (flag, name) in [
             (e.jumped, "jump"),
+            (e.perfect_hop, "perfect"),
             (e.landed.is_some(), "land"),
             (e.slide_start, "slide"),
             (e.tether_fired[0] || e.tether_fired[1], "fire"),
@@ -131,6 +148,9 @@ fn main() {
                 events_line.push_str(name);
                 events_line.push(' ');
             }
+        }
+        if e.jumped && e.hop_chain > 0 {
+            events_line.push_str(&format!("chain{} ", e.hop_chain));
         }
         if t % 12 == 0 {
             println!(

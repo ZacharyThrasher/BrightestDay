@@ -17,7 +17,7 @@ use bd_core::input::{PlayerInput, buttons};
 use bd_core::voxel::VoxelQuery;
 
 use super::params::MoveParams;
-use super::state::{LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit, hull_at};
+use super::state::{BUTTON_BITS, CHAIN_SHIFT, HOP_CHAIN_MAX, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit, hull_at};
 use super::tether;
 use super::world::{Broadphase, CollisionWorld, Hit, SKIN, safe_t};
 
@@ -35,6 +35,8 @@ pub(crate) struct Inp {
     pub wish_h: Vec3,
     /// Camera-relative 3D wish (look-forward incl. pitch + strafe), unit or zero.
     pub wish3: Vec3,
+    /// Only the forward key is held (no strafe keys): the W-strafe assist applies.
+    pub fwd_only: bool,
     pub held: u16,
     pub pressed: u16,
     pub reel_notches: i8,
@@ -45,7 +47,7 @@ impl Inp {
         let yaw = if i.yaw.is_finite() { i.yaw } else { 0.0 };
         let pitch = if i.pitch.is_finite() { i.pitch.clamp(-1.56, 1.56) } else { 0.0 };
         let typing = i.held(buttons::TYPING);
-        let mut held = i.buttons;
+        let mut held = i.buttons & BUTTON_BITS;
         if typing {
             held &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST);
         }
@@ -61,6 +63,7 @@ impl Inp {
             fwd_h,
             wish_h: (fwd_h * mz + right * mx).normalize_or_zero(),
             wish3: (look * mz + right * mx).normalize_or_zero(),
+            fwd_only: mz > 0.0 && mx == 0.0,
             held,
             pressed: held & !prev,
             reel_notches: i.reel_notches,
@@ -83,6 +86,36 @@ fn accelerate(v: &mut Vec3, dir: Vec3, wishspeed: f32, amount: f32) {
     if add > 0.0 {
         *v += dir * amount.min(add);
     }
+}
+
+/// W-strafe assist: holding only forward while the view is turned (|angle| < 90°) off the horizontal
+/// velocity, swing the velocity toward the view — at most `k` × the per-tick turn a synced strafer gets
+/// from `min(budget, cap)`, never past the view — and grant `k` × the speed a synced A/D strafer gains
+/// for that rotation (an add of m = speed·turn along the strafe direction gains m·(cap − m/2)/speed).
+/// Looking along the velocity (no turn) does nothing, so W alone never gains speed in a straight line.
+#[inline]
+fn wstrafe_assist(v: &mut Vec3, fwd: Vec3, k: f32, cap: f32, budget: f32) {
+    let h = Vec3::new(v.x, 0.0, v.z);
+    let sp = h.length();
+    // (Inputs are finite: velocity and modifiers are sanitised at the top of the tick.)
+    if sp <= 1.0 || cap <= 0.0 || budget <= 0.0 {
+        return;
+    }
+    // Signed angle from the velocity to the view about +Y (positive = view is counter-clockwise).
+    let e = h.cross(fwd).y.atan2(h.dot(fwd));
+    if e.abs() >= std::f32::consts::FRAC_PI_2 {
+        return;
+    }
+    let k = k.min(1.0);
+    let turn = e.abs().min(k * budget.min(cap) / sp);
+    if turn <= 0.0 {
+        return;
+    }
+    let gain = k * turn * (cap - 0.5 * sp * turn);
+    let (sn, cs) = turn.copysign(e).sin_cos();
+    let scale = (sp + gain) / sp;
+    v.x = (h.x * cs + h.z * sn) * scale;
+    v.z = (h.z * cs - h.x * sn) * scale;
 }
 
 /// Source friction with stop-speed.
@@ -130,8 +163,9 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     // far outside legitimate play, so normal ticks are bit-identical with or without this.
     s.vel = clamp_speed(s.vel, p.hard_cap_speed * 4.0);
     sanitize_mods(&mut s.mods);
-    let inp = Inp::new(input, s.prev_buttons);
-    s.prev_buttons = inp.held;
+    let inp = Inp::new(input, s.prev_buttons & BUTTON_BITS);
+    let mut chain = s.hop_chain().min(HOP_CHAIN_MAX);
+    let speed0 = s.horizontal_speed();
     let mut bp = Broadphase::new();
     bp.prime(world, s.hull(p), s.vel * dt);
 
@@ -167,6 +201,12 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     let wants_jump = fresh || (p.auto_hop && inp.held(buttons::JUMP));
     let coyote = !s.grounded && s.coyote_ok && s.air_time <= p.coyote_time;
     if wants_jump && (s.grounded || coyote) {
+        // While grounded `air_time` is minus the time since touchdown (0 on the touchdown tick).
+        let from_ground = s.grounded;
+        let touchdown = from_ground && s.air_time > -0.5 * dt;
+        if from_ground && -s.air_time < p.land_grace {
+            chain = (chain + 1).min(HOP_CHAIN_MAX);
+        }
         let gv = if s.grounded { s.ground_vel } else { Vec3::ZERO };
         if s.grounded && !fresh && p.autohop_friction > 0.0 && !s.sliding {
             let mut rel = s.vel - gv;
@@ -181,7 +221,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
         s.jump_buffer = 0.0;
         jumped = true;
         ev.jumped = true;
-        ev.perfect_hop = fresh;
+        ev.perfect_hop = fresh && touchdown;
     }
 
     // ---------------------------------------------------------------- 5. ground / air
@@ -210,7 +250,9 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
                 s.sliding = false;
             }
         } else {
-            apply_friction(&mut rel, p.friction, p.stop_speed, dt, 1.0);
+            // Landing grace: just after touchdown friction barely bites (a slightly late hop keeps its speed).
+            let grace = if -s.air_time < p.land_grace { p.land_grace_friction } else { 1.0 };
+            apply_friction(&mut rel, p.friction, p.stop_speed, dt, grace);
             if inp.wish_h != Vec3::ZERO {
                 let ws = if s.crouched { p.crouch_speed } else { p.run_speed } * speed_mult;
                 let w = on_plane(inp.wish_h, n);
@@ -227,6 +269,9 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
             }
             let ws = p.run_speed * speed_mult;
             accelerate(&mut s.vel, inp.wish_h, ws.min(p.air_wish_cap), p.air_accel * ws * dt * ctrl);
+            if inp.fwd_only && p.wstrafe_assist > 0.0 && s.mods.thrust <= 0.0 && !s.tethered() {
+                wstrafe_assist(&mut s.vel, inp.fwd_h, p.wstrafe_assist, ws.min(p.air_wish_cap), p.air_accel * ws * dt * ctrl);
+            }
         }
         s.vel.y -= g * dt;
         let m = s.mods;
@@ -287,6 +332,14 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
 
     // ---------------------------------------------------------------- 10. ground
     categorize(s, &inp, &mut bp, world, p, g, was_grounded, jumped, rope_acc, out.floor_impact, dt, &mut ev);
+
+    // Hop chain: broken by real ground friction (stayed down past the grace) or a slide.
+    if s.grounded && (s.sliding || -s.air_time >= p.land_grace) {
+        chain = 0;
+    }
+    s.prev_buttons = inp.held | (chain as u16) << CHAIN_SHIFT;
+    ev.hop_chain = chain;
+    ev.speed_gain = s.horizontal_speed() - speed0;
     ev
 }
 
@@ -646,7 +699,8 @@ fn categorize<V: VoxelQuery + ?Sized>(
             s.grounded = true;
             s.ground_normal = n;
             s.ground_vel = h.vel;
-            s.air_time = 0.0;
+            // Grounded: minus the time since touchdown (bounded; only the first `land_grace` matters).
+            s.air_time = if was_grounded { (s.air_time - dt).max(-10.0) } else { 0.0 };
             s.coyote_ok = true;
             if !was_grounded && s.crouched && inp.held(buttons::CROUCH) && !s.sliding && new_rel.length() >= p.slide_min_speed {
                 let mut r = new_rel;
@@ -655,7 +709,9 @@ fn categorize<V: VoxelQuery + ?Sized>(
             }
         }
         None => {
-            if was_grounded {
+            // Left the ground this tick — or earlier this tick / between ticks (jump, tether lift,
+            // boost launch, impulse): a non-positive air_time is still the grounded phase.
+            if was_grounded || s.air_time <= 0.0 {
                 s.air_time = 0.0;
             }
             s.air_time += dt;

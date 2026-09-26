@@ -883,6 +883,7 @@ fn speed_tiers_are_layered() {
     let p = p();
     let run = sc::run(&p);
     let flight = sc::flight(&p);
+    let (naive, _) = sc::naive_bhop(&p, 5.0);
     let (bhop_held, _) = sc::bhop(&p, 5.0, false);
     let (bhop_timed, _) = sc::bhop(&p, 5.0, true);
     let (slide_burst, _) = sc::slide_flat(&p);
@@ -890,7 +891,7 @@ fn speed_tiers_are_layered() {
     let swing = sc::swing(&p, false);
     let boost = sc::swing(&p, true);
     let tiers = format!(
-        "run {run:.1} flight {flight:.1} bhop {bhop_held:.1}/{bhop_timed:.1} slide {slide_burst:.1}/{slide_ramp:.1} \
+        "run {run:.1} flight {flight:.1} naive {naive:.1} bhop {bhop_held:.1}/{bhop_timed:.1} slide {slide_burst:.1}/{slide_ramp:.1} \
          swing {:.1}/{:.1}/{:.1} boost {:.1}/{:.1}/{:.1}",
         swing.peak, swing.release, swing.after, boost.peak, boost.release, boost.after
     );
@@ -904,6 +905,180 @@ fn speed_tiers_are_layered() {
     assert!(boost.peak > swing.peak + 5.0 && boost.release > swing.release + 5.0, "{tiers}");
     assert!(boost.after > 0.85 * boost.release && boost.distance > swing.distance, "{tiers}");
     assert!(boost.peak < p.hard_cap_speed, "{tiers}");
+    // The ladder: a beginner holding W + jump and sweeping the mouse gains a little (feels it) but stays
+    // far below a skilled strafer; then slide tech, swing, swing + boost.
+    assert!(naive > run + 1.0 && naive < bhop_held - 5.0, "{tiers}");
+    assert!(bhop_held < slide_ramp && slide_ramp < swing.peak && swing.peak < boost.peak, "{tiers}");
+}
+
+// ------------------------------------------------------------------------------------- generosity
+
+/// Land at `speed` on flat ground (falling from 1.5 m, no input), then press jump `late` ticks after the
+/// touchdown tick (`None` = pressed 0.15 s before touchdown, i.e. buffered). Returns (horizontal speed
+/// right after the hop, the jump events).
+fn hop_after_landing(p: &MoveParams, speed: f32, late: Option<usize>) -> (f32, MoveEvents) {
+    let w = floor();
+    let cw = CollisionWorld::new(&w, &[]);
+    let mut s = PlayerState::new(Vec3::new(0.0, 1.5, 0.0), p);
+    s.vel = Vec3::new(speed, 0.0, 0.0);
+    // Ticks until touchdown (no jump pressed), measured on a copy.
+    let mut probe = s;
+    let mut land = 0;
+    while !probe.grounded {
+        step_player(&mut probe, &input(YAW_PX, 0.0, 0, 0, 0), &cw, p, DT);
+        land += 1;
+    }
+    let press = match late {
+        None => land - (0.15 / DT) as usize,
+        Some(k) => land + k,
+    };
+    for t in 0..400 {
+        let e = step_player(&mut s, &input(YAW_PX, 0.0, 0, 0, if t == press { JUMP } else { 0 }), &cw, p, DT);
+        if e.jumped {
+            return (s.horizontal_speed(), e);
+        }
+    }
+    panic!("never hopped");
+}
+
+#[test]
+fn jump_buffer_and_landing_grace_forgive_timing() {
+    let p = p();
+    let (perfect, e) = hop_after_landing(&p, 15.0, None);
+    assert!(e.perfect_hop, "a press 0.15 s before touchdown is buffered into a perfect hop");
+    assert!(perfect > 15.0 - 1e-3, "perfect hop lost speed: {perfect}");
+    // Late presses inside the landing grace: still hop, keep ≥ 90 % (≈ 4 % at the grace edge), not "perfect".
+    let grace_ticks = (p.land_grace / DT).round() as usize;
+    let mut prev = perfect;
+    for late in 1..grace_ticks {
+        let (v, e) = hop_after_landing(&p, 15.0, Some(late));
+        assert!(!e.perfect_hop, "late by {late} ticks counted as perfect");
+        assert!(v >= 0.9 * perfect && v < prev, "late by {late}: {v} vs perfect {perfect}");
+        prev = v;
+    }
+    assert!(prev > 0.95 * perfect, "grace edge keeps {prev} of {perfect}");
+    // Past the grace friction bites fully: 150 ms late costs a lot more.
+    let (slow, _) = hop_after_landing(&p, 15.0, Some(18));
+    assert!(slow < 0.8 * perfect, "150 ms late should cost real speed: {slow}");
+    // Without the grace the same late hop would have cost ~20 %.
+    let strict = MoveParams { land_grace: 0.0, ..p.clone() };
+    let (v_strict, _) = hop_after_landing(&strict, 15.0, Some(grace_ticks - 1));
+    assert!(v_strict < 0.85 * perfect, "{v_strict}");
+    // A standing jump is not a perfect hop.
+    let w = floor();
+    let cw = CollisionWorld::new(&w, &[]);
+    let mut s = PlayerState::new(Vec3::new(0.0, 0.01, 0.0), &p);
+    settle(&mut s, &cw, &p);
+    let e = step_player(&mut s, &input(YAW_PX, 0.0, 0, 0, JUMP), &cw, &p, DT);
+    assert!(e.jumped && !e.perfect_hop);
+}
+
+#[test]
+fn hop_chain_counts_clean_hops_and_resets() {
+    let p = p();
+    let w = floor();
+    let cw = CollisionWorld::new(&w, &[]);
+    let mut s = PlayerState::new(Vec3::new(0.0, 0.01, 0.0), &p);
+    settle(&mut s, &cw, &p);
+    s.vel = Vec3::new(0.0, 0.0, -p.run_speed);
+    let mut chains = Vec::new();
+    let mut gain = 0.0;
+    let h0 = s.horizontal_speed();
+    // Held-jump strafe bhop for 4 s: the first hop comes off a run (friction) and doesn't count.
+    run(&mut s, &cw, &p, 480, |_, s| input(optimal_strafe_yaw(s.vel, &p, DT, 1, 0, 1.0), 0.0, 1, 0, JUMP), |_, _, e| {
+        gain += e.speed_gain;
+        if e.jumped {
+            chains.push(e.hop_chain);
+        }
+    });
+    assert!(chains.len() >= 5, "{chains:?}");
+    for (i, c) in chains.iter().enumerate() {
+        assert_eq!(*c as usize, i, "chain {chains:?}");
+    }
+    assert_eq!(s.hop_chain(), *chains.last().unwrap());
+    assert!((gain - (s.horizontal_speed() - h0)).abs() < 1e-3, "speed_gain sums to the change: {gain}");
+    assert!(gain > 3.0);
+    // Stop hopping: the chain survives the grace, then resets.
+    let mut after = Vec::new();
+    run(&mut s, &cw, &p, 200, |_, _| input(YAW_PX, 0.0, 0, 0, 0), |_, s, e| {
+        if s.grounded {
+            after.push((s.ground_time(), e.hop_chain));
+        }
+    });
+    let (t_first, c_first) = after[0];
+    assert!(t_first == 0.0 && c_first > 0, "{:?}", &after[..3]);
+    assert!(after.iter().all(|&(t, c)| (t < p.land_grace) == (c > 0)), "{after:?}");
+    // A late-but-forgiven hop counts; a slide breaks the chain.
+    let (_, e) = hop_after_landing(&p, 15.0, Some(2));
+    assert_eq!(e.hop_chain, 1, "the first hop after a fall within the grace counts");
+    let mut s = PlayerState::new(Vec3::new(0.0, 0.01, 0.0), &p);
+    settle(&mut s, &cw, &p);
+    s.prev_buttons |= 5 << 12;
+    s.vel = Vec3::new(14.0, 0.0, 0.0);
+    let e = step_player(&mut s, &input(YAW_PX, 0.0, 0, 1, CROUCH), &cw, &p, DT);
+    assert!(s.sliding && e.hop_chain == 0);
+    // Respawn-style writes of plain buttons reset it too, and garbage high input bits never leak in.
+    s.prev_buttons = JUMP;
+    assert_eq!(s.hop_chain(), 0);
+    step_player(&mut s, &input(YAW_PX, 0.0, 0, 1, 0xF000), &cw, &p, DT);
+    assert_eq!(s.hop_chain(), 0);
+}
+
+#[test]
+fn wstrafe_assist_gives_beginners_a_fraction_of_strafing() {
+    use super::testkit::scenarios as sc;
+    let p = p();
+    let off = MoveParams { wstrafe_assist: 0.0, ..p.clone() };
+    for deg in [90.0f32, 150.0] {
+        let r = deg.to_radians();
+        let (sync, _) = sc::turn_gain(&p, r, 3.0, 12.0, true);
+        let (w, lag) = sc::turn_gain(&p, r, 3.0, 12.0, false);
+        let (w_off, lag_off) = sc::turn_gain(&off, r, 3.0, 12.0, false);
+        let ratio = w / sync;
+        let msg = format!("{deg}°/s: sync {sync} W {w} (lag {lag}) W-off {w_off} (lag {lag_off})");
+        assert!((0.38..=0.52).contains(&ratio), "{msg} ratio {ratio}");
+        // The velocity follows the view (the beginner looks where they go); without the assist the
+        // view runs ~90° ahead before W does anything.
+        assert!(lag < 15f32.to_radians() && lag_off > 60f32.to_radians(), "{msg}");
+    }
+    // Looking straight ahead (no turn) never gains: W alone isn't free speed.
+    let w = FnWorld(|_| false);
+    let cw = CollisionWorld::new(&w, &[]);
+    let mut s = PlayerState::new(Vec3::ZERO, &p);
+    s.mods.gravity_scale = 0.0;
+    s.vel = Vec3::new(0.0, 0.0, -14.0);
+    run(&mut s, &cw, &p, 240, |_, _| input(0.0, 0.0, 0, 1, 0), |_, _, _| {});
+    assert_eq!(s.vel, Vec3::new(0.0, 0.0, -14.0));
+    // Mouse-wiggling in place (±5° at 20 Hz) gains far less than real strafing.
+    let mut s = PlayerState::new(Vec3::ZERO, &p);
+    s.mods.gravity_scale = 0.0;
+    s.vel = Vec3::new(0.0, 0.0, -14.0);
+    run(&mut s, &cw, &p, 360, |t, _| input(if (t / 3) % 2 == 0 { 0.09 } else { -0.09 }, 0.0, 0, 1, 0), |_, _, _| {});
+    let (sync, _) = sc::turn_gain(&p, 150f32.to_radians(), 3.0, 14.0, true);
+    assert!(s.horizontal_speed() - 14.0 < 0.5 * sync, "wiggle {} vs sync {sync}", s.horizontal_speed() - 14.0);
+}
+
+#[test]
+fn strafe_keys_are_untouched_by_wstrafe_assist() {
+    // Bit-identical: any input with a strafe key (or without forward) never takes the assist path.
+    let p = p();
+    let off = MoveParams { wstrafe_assist: 0.0, ..p.clone() };
+    let w = floor();
+    let cw = CollisionWorld::new(&w, &[]);
+    for (mx, mz) in [(1i8, 0i8), (-1, 0), (1, 1), (-1, 1), (0, -1), (0, 0)] {
+        let trace = |p: &MoveParams| {
+            let mut s = PlayerState::new(Vec3::new(0.0, 0.01, 0.0), p);
+            settle(&mut s, &cw, p);
+            s.vel = Vec3::new(0.0, 0.0, -p.run_speed);
+            let mut out = Vec::new();
+            run(&mut s, &cw, p, 600, |t, s| {
+                let yaw = if s.horizontal_speed() > 1.0 { optimal_strafe_yaw(s.vel, p, DT, mx, mz, 1.0) } else { 0.3 * t as f32 * DT };
+                input(yaw, 0.0, mx, mz, if t % 90 < 80 { JUMP } else { 0 })
+            }, |_, s, e| out.push((*s, *e)));
+            out
+        };
+        assert!(trace(&p) == trace(&off), "strafe input ({mx}, {mz}) changed by the W assist");
+    }
 }
 
 #[test]
@@ -916,4 +1091,7 @@ fn params_round_trip_ron() {
     let partial: MoveParams = ron::from_str("(gravity: 30.0)").unwrap();
     assert_eq!(partial.gravity, 30.0);
     assert_eq!(partial.run_speed, p.run_speed);
+    // The shipped hot-reload file matches the built-in defaults.
+    let shipped: MoveParams = ron::from_str(include_str!("../../../../assets/tuning/move.ron")).unwrap();
+    assert_eq!(shipped, p, "assets/tuning/move.ron drifted from MoveParams::default()");
 }

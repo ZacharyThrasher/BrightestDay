@@ -3,7 +3,10 @@
 //! Writes one ghost per station to `assets/tutorial/ghosts/<station>.ron` (per-tick inputs for exact
 //! replay + 30 Hz feet positions for cheap playback) and prints bot times, peak speeds and medal times.
 //!
-//!     cargo run -p bd_sim --example tutorial_ghosts --release
+//!     cargo run -p bd_sim --example tutorial_ghosts --release [-- params.ron]
+//!
+//! An optional RON file (partial `MoveParams`) overrides the defaults for a dry run (tuning experiments);
+//! ghosts are only written with the default tuning, since that is what the game replays them with.
 //!
 //! Exits non-zero if any station's goal (or gate) isn't reached, so it doubles as a regression test for
 //! both the course layout and movement tuning.
@@ -38,6 +41,19 @@ struct Ghost {
 }
 
 // ------------------------------------------------------------------------------------ helpers
+
+/// Movement tuning for this run: the defaults, or a partial RON override from the first argument.
+fn params() -> &'static MoveParams {
+    static P: std::sync::OnceLock<MoveParams> = std::sync::OnceLock::new();
+    P.get_or_init(|| match std::env::args().nth(1) {
+        Some(path) => ron::from_str(&std::fs::read_to_string(path).expect("read params")).expect("parse params"),
+        None => MoveParams::default(),
+    })
+}
+
+fn default_params() -> bool {
+    *params() == MoveParams::default()
+}
 
 fn inside(b: &Aabb, p: Vec3) -> bool {
     p.cmpge(b.min).all() && p.cmple(b.max).all()
@@ -100,7 +116,7 @@ struct Bot<'a> {
 
 impl<'a> Bot<'a> {
     fn new(info: &'a TutorialInfo) -> Self {
-        Self { info, p: MoveParams::default(), side: 1.0, phase: 0, boost: true, wp: 0 }
+        Self { info, p: params().clone(), side: 1.0, phase: 0, boost: true, wp: 0 }
     }
 
     fn st(&self, i: usize) -> &'a Station {
@@ -134,9 +150,13 @@ impl<'a> Bot<'a> {
         input(yaw, pitch, 0, boosting as i8, hands | if boosting { BOOST } else { 0 })
     }
 
-    /// Drift toward the goal centre in the air (plain forward air control).
+    /// Drift toward the goal centre in the air (forward only: W + mouse, which the W-strafe assist turns).
     fn drift(&self, s: &PlayerState, goal: &Aabb) -> PlayerInput {
-        input(yaw_to(s.pos, goal.center()), 0.0, 0, 1, 0)
+        self.drift_to(s, goal.center())
+    }
+
+    fn drift_to(&self, s: &PlayerState, target: Vec3) -> PlayerInput {
+        input(yaw_to(s.pos, target), 0.0, 0, 1, 0)
     }
 
     fn goal_reached(&self, leg: Leg, s: &PlayerState) -> bool {
@@ -279,6 +299,9 @@ impl<'a> Bot<'a> {
             5 => {
                 let anchor = st.anchors[0];
                 let edge = st.route[1];
+                // Land toward the platform's north end: the peak run turns south into the narrow
+                // return lane from there at ~40 m/s and needs the room.
+                let land_at = Vec3::new(st.goal.center().x, st.goal.min.y, st.goal.max.z - 6.0);
                 match self.phase {
                     0 => {
                         if s.pos.x < edge.x + 2.0 && !s.grounded || s.pos.x < edge.x {
@@ -308,16 +331,16 @@ impl<'a> Bot<'a> {
                         let good = land.is_some_and(|l| l.x < st.goal.max.x - 3.0 && l.x > st.goal.min.x + 8.0);
                         if s.pos.x < anchor.x && s.vel.y > 0.0 && good {
                             self.phase = 2;
-                            return self.drift(s, &st.goal);
+                            return self.drift_to(s, land_at);
                         }
                         // Out of swing: let go at the top of the arc regardless (it will fall short).
                         if s.pos.x < anchor.x && s.vel.y > 0.0 && s.vel.y < 1.0 {
                             self.phase = 2;
-                            return self.drift(s, &st.goal);
+                            return self.drift_to(s, land_at);
                         }
                         self.swing(s, TETHER_L)
                     }
-                    _ => self.drift(s, &st.goal),
+                    _ => self.drift_to(s, land_at),
                 }
             }
             _ => unreachable!(),
@@ -444,10 +467,10 @@ fn write_ghost(name: &str, hint: &str, start: Vec3, yaw: f32, r: &RunResult, bot
 /// Replays recorded inputs and checks the end state matches bit-for-bit (determinism).
 fn replay_matches(world: &VoxelWorld, start: Vec3, r: &RunResult) -> bool {
     let cw = CollisionWorld::new(world, &[]);
-    let p = MoveParams::default();
-    let mut s = PlayerState::new(start, &p);
+    let p = params();
+    let mut s = PlayerState::new(start, p);
     for i in &r.inputs {
-        step_player(&mut s, i, &cw, &p, DT);
+        step_player(&mut s, i, &cw, p, DT);
     }
     s.pos == r.end
 }
@@ -471,7 +494,7 @@ fn main() {
             if ok { "ok" } else { "FAILED" },
             if ok { String::new() } else { format!(" (ended at {:.1?})", r.end) }
         );
-        if ok {
+        if ok && default_params() {
             write_ghost(st.name, st.hint, st.start, st.facing_yaw, &r, time, None);
         }
         if st.name == "fling" {
@@ -499,7 +522,7 @@ fn main() {
     let mut legs: Vec<Leg> = (0..info.stations.len()).map(Leg::Station).collect();
     legs.push(Leg::Return);
     let r = run(&world, &info, &legs, info.peak_start, info.peak_yaw, &info.peak_gates, true, 60.0);
-    let time = (r.ticks - r.t0) as f32 * DT;
+    let time = r.ticks.saturating_sub(r.t0) as f32 * DT;
     let ok = r.ok && r.gates_hit == r.gates_total && replay_matches(&world, info.peak_start, &r);
     all_ok &= ok;
     let m = medals_from_bot(time);
@@ -515,6 +538,8 @@ fn main() {
     );
     if ok {
         println!("medals: gold {:.2} s, silver {:.2} s, bronze {:.2} s", m.gold, m.silver, m.bronze);
+    }
+    if ok && default_params() {
         write_ghost("peak_run", "Chain it all. Beat gold.", info.peak_start, info.peak_yaw, &r, time, Some((m.gold, m.silver, m.bronze)));
     }
     if !all_ok {

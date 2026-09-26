@@ -75,7 +75,7 @@ pub struct TutorialInfo {
 
 /// Peak-run bot time in seconds, measured by `crates/bd_sim/examples/tutorial_ghosts.rs` with the
 /// default `MoveParams`. Re-run that example (and update this) after changing the course or tuning.
-pub const PEAK_BOT_TIME: f32 = 22.31;
+pub const PEAK_BOT_TIME: f32 = 21.92;
 
 // ----- course geometry (metres) -----------------------------------------------------------------
 const H_HUB: f32 = 40.0;

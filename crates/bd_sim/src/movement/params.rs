@@ -34,6 +34,10 @@ pub struct MoveParams {
     pub jump_speed: f32,
     /// A jump press is remembered this long before landing (and gives a friction-free "perfect hop").
     pub jump_buffer: f32,
+    /// Landing grace (s): for this long after touching down, ground friction is scaled by
+    /// `land_grace_friction`, so a hop pressed slightly late still keeps nearly all its speed.
+    pub land_grace: f32,
+    pub land_grace_friction: f32,
     /// Grace period to jump after walking off a ledge.
     pub coyote_time: f32,
     /// Holding jump re-hops automatically on landing.
@@ -58,6 +62,10 @@ pub struct MoveParams {
     pub air_wish_cap: f32,
     /// Air control multiplier while tumbling from knockback.
     pub tumble_air_control: f32,
+    /// W-strafe assist (0 = off): airborne, holding only forward while turning the view, the velocity
+    /// follows the view at up to this fraction of a synced strafer's turn rate and gains this fraction
+    /// of the speed a synced A/D strafer gains for the same turn. Strafe-key input is unaffected.
+    pub wstrafe_assist: f32,
 
     // ---------------------------------------------------------------- slide
     /// Crouching on the ground at or above this speed starts a slide.
@@ -156,7 +164,9 @@ impl Default for MoveParams {
 
             gravity: 25.0,
             jump_speed: 9.4,
-            jump_buffer: 0.12,
+            jump_buffer: 0.2,
+            land_grace: 0.05,
+            land_grace_friction: 0.15,
             coyote_time: 0.1,
             auto_hop: true,
             autohop_friction: 0.35,
@@ -170,6 +180,7 @@ impl Default for MoveParams {
             air_accel: 12.0,
             air_wish_cap: 0.8,
             tumble_air_control: 0.25,
+            wstrafe_assist: 0.45,
 
             slide_min_speed: 8.0,
             slide_exit_speed: 4.5,

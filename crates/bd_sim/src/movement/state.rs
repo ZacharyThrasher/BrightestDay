@@ -114,7 +114,8 @@ pub struct PlayerState {
     pub sliding: bool,
     pub slide_cooldown: f32,
     pub jump_buffer: f32,
-    /// Seconds since last grounded.
+    /// Airborne: seconds since leaving the ground (> 0). Grounded: minus the seconds since landing
+    /// (≤ 0; drives the landing grace). Use [`PlayerState::ground_time`] for the latter.
     pub air_time: f32,
     /// A coyote jump is still available (walked off a ledge, haven't jumped).
     pub coyote_ok: bool,
@@ -124,6 +125,9 @@ pub struct PlayerState {
     pub burst_cooldown: f32,
     /// Remaining tumble seconds (knockback): reduced air control until landing or tethering.
     pub tumble: f32,
+    /// Buttons held last tick (low 12 bits, [`BUTTON_BITS`]) with the hop chain packed into the top 4
+    /// bits (so snapshots carry it without a new field). Read the chain with [`PlayerState::hop_chain`];
+    /// writing plain button bits here (respawn / eject) resets it.
     pub prev_buttons: u16,
     pub hooks: [Hook; 2],
     pub mods: MoveModifiers,
@@ -187,6 +191,18 @@ impl PlayerState {
         Vec3::new(self.vel.x, 0.0, self.vel.z).length()
     }
 
+    /// Consecutive clean hops (see [`MoveEvents::hop_chain`]).
+    #[inline]
+    pub fn hop_chain(&self) -> u8 {
+        (self.prev_buttons >> CHAIN_SHIFT) as u8
+    }
+
+    /// Seconds since landing while grounded (0 on the touchdown tick); 0 while airborne.
+    #[inline]
+    pub fn ground_time(&self) -> f32 {
+        if self.grounded { (-self.air_time).max(0.0) } else { 0.0 }
+    }
+
     pub fn tethered(&self) -> bool {
         self.hooks.iter().any(|h| h.attached())
     }
@@ -217,6 +233,12 @@ impl PlayerState {
     }
 }
 
+/// Bits of [`PlayerState::prev_buttons`] that hold buttons (`bd_core::input::buttons` uses 0..=8).
+pub const BUTTON_BITS: u16 = (1 << CHAIN_SHIFT) - 1;
+pub(crate) const CHAIN_SHIFT: u16 = 12;
+/// The hop chain saturates here (4 bits).
+pub const HOP_CHAIN_MAX: u8 = 15;
+
 #[inline]
 pub(crate) fn hull_at(pos: Vec3, half_w: f32, height: f32) -> Aabb {
     Aabb { min: pos - Vec3::new(half_w, 0.0, half_w), max: pos + Vec3::new(half_w, height, half_w) }
@@ -239,8 +261,16 @@ pub struct WallHit {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct MoveEvents {
     pub jumped: bool,
-    /// The jump was a fresh press inside the buffer window (a "perfect", friction-free hop).
+    /// A frame-tight hop: jump pressed inside the buffer window before touchdown, taken on the touchdown
+    /// tick with zero ground friction. (Late presses inside the landing grace still hop, but aren't perfect.)
     pub perfect_hop: bool,
+    /// Consecutive clean hops (each taken within `land_grace` of touchdown), current value every tick.
+    /// Resets once the player stays on the ground past the grace (stopped) or slides. Saturates at
+    /// [`HOP_CHAIN_MAX`]. For a rising chime / wind layer: read it on `jumped`.
+    pub hop_chain: u8,
+    /// Horizontal speed gained (+) or lost (−) this tick, m/s (× `TICK_HZ` for m/s²). Air-strafe gain
+    /// shows up as a small steady positive value.
+    pub speed_gain: f32,
     pub landed: Option<LandEvent>,
     pub slide_start: bool,
     /// The slide started with the entry burst.
