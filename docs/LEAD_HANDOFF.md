@@ -41,6 +41,21 @@ mazes; possible tutorial first-construct pipeline hitch; bd_net InputQueue trim 
 Sakura's bd_sim `sakura` feature not default; menu backdrop may ignore prefs map.
 **Owner rules:** maps = flavour that ENHANCES, never restricts; voice == typing; never freeze players;
 never say no (sputter); mystery tenet. Owner playtests with friends and sends feel notes — prioritise them.
+**QUEUED (owner-approved, launch AFTER the current wave lands) — "WORDLESS AFFORDANCE" UX pass.** Owner:
+"players have to know a bit more how things work/the rules ... if a player summons something, they would
+instinctively know how to use it ... with NO TEXT." Plan (one worker, maybe two):
+ 1. Control-grammar audit + enforcement across ALL construct categories: LMB = primary verb, RMB = secondary
+    (block/aim/alt), hold = charge, use key = enter/ride, G = power, X = dismiss. Fix outliers.
+ 2. First-summon self-demo per category (≤0.5 s, non-blocking): sword flourish arc, gun snaps to aim + glint,
+    vehicle hatch opens toward you, shield raises, creature roars toward its attack direction, throwable glints.
+ 3. Ghost hands the FIRST time a player holds a category: translucent hands perform the primary verb once.
+ 4. Affordance glows: interact points (hatch/grip/seat) glow in reach; aim glint; weak points (giants);
+    in-range weapon glow (exists).
+ 5. Diegetic rules: blast-zone proximity edge shimmer + rising tone; willpower = ring glow brightness, ring
+    flickers harder while typing for expensive phrases (cost preview, no numbers); soft "thunk" feedback for
+    inputs that do nothing.
+ 6. Tutorial "construct playground": ghost demos (sword, gun, mount, tether on a target) to copy, no text.
+ Keep the MYSTERY tenet (never list what can be summoned); teaching HOW to use what you made is fine.
 **Next after in-flight lands:** quiet-machine perf + `tools/check.ps1 -Soak -Bench -Smoke`, soak seeds
 1..8, fresh voice zip + "try these" list, then run intent_report on the owner's logs/intent.log.
 Owner: wants autonomous progress; this is a research comparison of orchestration harnesses. Read
