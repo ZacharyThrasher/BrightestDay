@@ -25,6 +25,12 @@ export interface HardlightBridge {
   ready?: () => void;
   fatal?: (msg: string) => void;
   toggleFullscreen?: () => void;
+  s2?: {
+    info(): Promise<{ enabled: boolean; name: string }>;
+    complete(req: unknown, timeoutMs: number): Promise<{ ok: boolean; text?: string | null; error?: string; ms?: number }>;
+    mode(): 'off' | 'hybrid' | 'always';
+  };
+  semantic?: () => Promise<Uint8Array | null>;
   voice?: {
     start?: () => void;
     stop?: () => void;

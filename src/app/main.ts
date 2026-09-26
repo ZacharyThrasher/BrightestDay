@@ -10,6 +10,9 @@ import { GameRenderer } from '../render/renderer.js';
 import { Input, type Action } from './input.js';
 import { HUD, SCENE_KEYS } from './hud.js';
 import { loadSettings, saveSettings, type Settings } from './settings.js';
+import { IpcProvider } from '../lang/ipc-provider.js';
+import { loadSemantic } from '../lang/semantic.js';
+import type { Embedder } from '../lang/interpreter.js';
 
 const DT = 1 / 60;
 const MAX_STEPS = 6;
@@ -45,6 +48,9 @@ class App implements HardlightApp {
   private frameWaiters: (() => void)[] = [];
   private voiceActive = false;
   private commitsInFlight = 0;
+  /** Optional language layers, attached to every new Director (System 1.5 word vectors, System 2 LLM). */
+  private embedder: Embedder | null = null;
+  private s2: { provider: IpcProvider; mode: 'hybrid' | 'always' } | null = null;
   frameTimes: number[] = [];
   simTimes: number[] = [];
   renderCpu: number[] = [];
@@ -80,6 +86,7 @@ class App implements HardlightApp {
       this.world = w;
       this.scene = name;
       this.director = new Director(w);
+      this.configureDirector();
       this.gr.setWorld(w);
       this.input.yaw = info.yaw;
       this.input.pitch = -0.08;
@@ -94,6 +101,46 @@ class App implements HardlightApp {
     } finally {
       this.loading = false;
     }
+  }
+
+  private configureDirector() {
+    const d = this.director;
+    if (!d) return;
+    d.interp.embedder = this.embedder;
+    if (this.s2) { d.interp.s2 = this.s2.provider; d.interp.s2Mode = this.s2.mode; }
+    // System 2 disagreed after System 1 already acted: show it, never silently swap
+    d.onCorrection((r) => {
+      this.hud.toast('info', `The ring reconsidered → ${r.summary || r.text}`, 6500);
+      this.hud.showResult(r);
+    });
+  }
+
+  /** Load the optional layers in the background; the game is playable before (and without) them. */
+  async initLanguageLayers() {
+    const b = window.hardlight;
+    try {
+      const bytes = await b?.semantic?.();
+      if (bytes && bytes.byteLength) {
+        const idx = await loadSemantic(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+        if (idx) { this.embedder = idx; console.log('[hardlight] word vectors loaded'); }
+      }
+    } catch (err) { console.warn('[hardlight] word vectors unavailable', err); }
+    try {
+      const info = await b?.s2?.info();
+      const mode = b?.s2?.mode?.() ?? 'hybrid';
+      if (b?.s2 && info?.enabled && mode !== 'off') {
+        this.s2 = { provider: new IpcProvider(b.s2 as any), mode };
+        console.log(`[hardlight] System 2 on (${info.name}, ${mode})`);
+        this.hud.toast('good', `System 2 interpreter on (${info.name})`, 4000);
+      }
+    } catch (err) { console.warn('[hardlight] System 2 unavailable', err); }
+    this.configureDirectorLayers();
+  }
+
+  private configureDirectorLayers() {
+    if (!this.director) return;
+    this.director.interp.embedder = this.embedder;
+    if (this.s2) { this.director.interp.s2 = this.s2.provider; this.director.interp.s2Mode = this.s2.mode; }
   }
 
   // ------------------------------------------------------------------------------------ loop
@@ -344,6 +391,7 @@ async function boot() {
   const scene = (params.get('scene') as SceneName) || 'playground';
   await app.loadScene(scene);
   app.start();
+  void app.initLanguageLayers();
   (window as any).hardlightApp = app as HardlightApp;
   installTestHooks(app);
   document.body.classList.add('ready');

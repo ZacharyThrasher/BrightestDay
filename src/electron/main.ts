@@ -8,12 +8,14 @@
  *   --scene=<name>     start scene
  *   --graphics=low     override quality
  *   --software-gl      force SwiftShader WebGL (VMs / machines with a blocklisted GPU)
+ *   --smoke-say=<text> with --smoke-test: send one utterance to the ring and log the result
  */
 import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { installS2Bridge, type S2Settings } from './s2-main.js';
 
-interface Settings { mouseSensitivity?: number; invertY?: boolean; fov?: number; constructColor?: string; graphics?: 'low' | 'high'; [k: string]: unknown }
+interface Settings { mouseSensitivity?: number; invertY?: boolean; fov?: number; constructColor?: string; graphics?: 'low' | 'high'; system2?: S2Settings & { mode?: 'off' | 'hybrid' | 'always' }; [k: string]: unknown }
 
 const argv = process.argv.slice(1);
 const flag = (name: string) => argv.find((a) => a === `--${name}` || a.startsWith(`--${name}=`));
@@ -114,6 +116,14 @@ ipcMain.on('hl:fatal', (_e, msg: string) => {
 });
 ipcMain.on('hl:ready', () => {
   console.log('[hardlight] renderer ready');
+  // --smoke-say="text": commit one utterance through the full pipeline and log the outcome
+  const say = argv.find((a) => a.startsWith('--smoke-say='))?.slice('--smoke-say='.length);
+  if (say && win) {
+    setTimeout(() => {
+      win?.webContents.executeJavaScript(`hardlightApp.commit(${JSON.stringify(say)}).then((r) => r && JSON.stringify({ source: r.source, summary: r.summary, applied: r.applied, ms: Math.round(r.latencyMs) }))`)
+        .then((r) => console.log('[hardlight] smoke-say →', r)).catch((e) => console.error('[hardlight] smoke-say failed', e));
+    }, 1500);
+  }
   if (smoke) setTimeout(() => { console.log('[hardlight] smoke test OK'); app.exit(0); }, smokeMs);
 });
 // Voice placeholder: the voice integrator replaces these with the real ASR pipeline and sends
@@ -121,8 +131,19 @@ ipcMain.on('hl:ready', () => {
 ipcMain.on('hl:voice-start', () => console.log('[hardlight] voice start requested (voice pipeline not wired yet)'));
 ipcMain.on('hl:voice-stop', () => console.log('[hardlight] voice stop requested'));
 
+/** Bundled model files (read through asar; native code needs the .unpacked path, see unpackedPath). */
+const modelsRoot = () => join(app.getAppPath(), 'models');
+
+// System 1.5 word vectors are optional: the interpreter works without them (see docs/EXPERIMENTS.md §5)
+ipcMain.handle('hl:semantic', () => {
+  const p = join(modelsRoot(), 'semantic', 'bd-semantic-nb19-int8.bin');
+  try { return existsSync(p) ? readFileSync(p) : null; } catch { return null; }
+});
+
 app.whenReady().then(() => {
   settings = loadSettings();
+  installS2Bridge(() => settings.system2);
+  ipcMain.on('hl:s2-mode', (e) => { e.returnValue = settings.system2?.mode ?? 'hybrid'; });
   Menu.setApplicationMenu(null);
   // deny every permission request except the microphone (for push-to-talk)
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));
