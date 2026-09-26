@@ -175,9 +175,11 @@ fn sweep_aabb(a: &Aabb, d: Vec3, b: &Aabb) -> Option<(f32, Vec3)> {
         return None;
     }
     if t_in < 0.0 {
-        // Already overlapping (numerical drift or something moved into us). Block only motion that
-        // goes deeper; depenetration resolves the rest.
-        if min_pen > OVERLAP_EPS && d.dot(pen_n) < 0.0 {
+        // Already overlapping or touching (numerical drift, something moved into us). Block only
+        // motion that goes deeper along the least-penetration axis; depenetration resolves the rest.
+        // This must include *shallow* contacts (< OVERLAP_EPS): skipping them let a hull resting
+        // 0.02 mm from a face sweep straight into it (3 cm penetration, tests/movement_props.rs).
+        if d.dot(pen_n) < -1e-7 {
             return Some((0.0, pen_n));
         }
         return None;
@@ -263,7 +265,8 @@ fn sweep_obb(a: &Aabb, d: Vec3, c: &Collider) -> Option<(f32, Vec3)> {
         return None;
     }
     if t_in < 0.0 {
-        if min_pen > OVERLAP_EPS && d.dot(pen_n) < 0.0 {
+        // See `sweep_aabb`: shallow contacts block motion into them too.
+        if d.dot(pen_n) < -1e-7 {
             return Some((0.0, pen_n));
         }
         return None;

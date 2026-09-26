@@ -237,7 +237,9 @@ impl<T: Sequenced> InputQueue<T> {
             if self.next_seq == 0 {
                 self.next_seq = seq;
             }
-            let view = packet.view_tick - (newest - seq) as f64;
+            // Untrusted input: a hostile packet may be out of order (newest < seq). Non-finite view
+            // ticks pass through; `clamp_view_tick` neutralises them.
+            let view = packet.view_tick - newest.saturating_sub(seq) as f64;
             self.buf.push_back((input, view));
             self.stats.received += 1;
         }

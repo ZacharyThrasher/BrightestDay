@@ -1,0 +1,16 @@
+{
+  "_comment": "Max panicking-construct counts in runtime (non-test) code per crate. tools/check.ps1 fails if a crate exceeds its budget. Lower these as code is hardened; regenerate with -UpdateLintBudget.",
+  "bd_core": {
+    "clippy::unwrap_used": 1,
+    "clippy::indexing_slicing": 1
+  },
+  "bd_net": {
+    "clippy::unwrap_used": 19,
+    "clippy::expect_used": 4,
+    "clippy::indexing_slicing": 31
+  },
+  "bd_voxel": {
+    "clippy::unwrap_used": 1,
+    "clippy::indexing_slicing": 36
+  }
+}

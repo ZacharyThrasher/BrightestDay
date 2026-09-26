@@ -69,6 +69,11 @@ impl ClockSync {
     /// Feed one ping result: the round trip took `rtt` seconds, the host said its tick was
     /// `host_tick_at_reply` when it replied, and we received the reply at local time `local_recv`.
     pub fn add_sample(&mut self, rtt: f64, host_tick_at_reply: f64, local_recv: f64) {
+        // Samples come off the wire: a NaN/inf/absurd value would poison the offset forever.
+        const MAX_TICK: f64 = 4_503_599_627_370_496.0; // 2^52
+        if !(rtt.is_finite() && rtt <= 60.0 && host_tick_at_reply.abs() <= MAX_TICK && local_recv.abs() <= 1e9) {
+            return;
+        }
         let rtt = rtt.max(0.0);
         self.rtt.add(rtt);
         let sample_offset = host_tick_at_reply + rtt * 0.5 * self.hz - local_recv * self.hz;
@@ -159,12 +164,15 @@ impl TickPacer {
     /// *end* of this frame (e.g. `ClockSync::target_client_tick(now, ..)`). On a snap the pacer
     /// jumps straight to the target and simulates nothing this frame.
     pub fn advance(&mut self, dt: f64, target_tick: Option<f64>) -> PacerStep {
-        let adv = dt.max(0.0) * self.hz;
+        // Non-finite dt/targets are ignored (an inf would turn the accumulator into NaN for good).
+        // A frame longer than a minute is a stall; max_ticks_per_frame applies anyway.
+        let adv = if dt.is_finite() { dt.clamp(0.0, 60.0) * self.hz } else { 0.0 };
         let mut scale = 1.0;
-        if let Some(target) = target_tick {
+        if let Some(target) = target_tick.filter(|t| t.is_finite()) {
             let err = target - (self.tick as f64 + self.acc + adv);
             if err.abs() > self.snap_ticks {
-                let t = target.max(0.0);
+                // 2^52: beyond that f64 ticks lose integer precision (and u64 math could overflow).
+                let t = target.clamp(0.0, 4_503_599_627_370_496.0);
                 self.tick = t.floor() as u64;
                 self.acc = t.fract();
                 return PacerStep { first_tick: self.tick, count: 0, snapped: true };
@@ -176,7 +184,7 @@ impl TickPacer {
         self.acc -= n;
         let count = (n as u64).min(self.max_ticks_per_frame as u64) as u32;
         let first_tick = self.tick;
-        self.tick += count as u64;
+        self.tick = self.tick.saturating_add(count as u64);
         PacerStep { first_tick, count, snapped: false }
     }
 }

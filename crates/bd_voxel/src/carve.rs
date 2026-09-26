@@ -137,6 +137,19 @@ impl CarveShape {
         }
     }
 
+    /// All coordinates (and the extents derived from them) are finite. Carves failing this are
+    /// ignored: a NaN/inf op arriving over the network must be a no-op on every client, never a
+    /// stray hole at the origin.
+    fn is_finite(&self) -> bool {
+        match *self {
+            CarveShape::Sphere { center, radius } => center.is_finite() && radius.is_finite(),
+            CarveShape::Box { min, max } => min.is_finite() && max.is_finite() && (max - min).is_finite(),
+            CarveShape::Capsule { a, b, radius } => {
+                a.is_finite() && b.is_finite() && radius.is_finite() && (b - a).is_finite()
+            }
+        }
+    }
+
     fn size_vox(&self) -> f32 {
         let k = 1.0 / VOXEL_SIZE;
         match *self {
@@ -197,7 +210,7 @@ impl VoxelWorld {
     pub fn carve_into(&mut self, op: &CarveOp, out: &mut Vec<RemovedVoxel>) {
         let shape = op.shape;
         let size = shape.size_vox().max(0.0);
-        if !(size.is_finite() && op.power.is_finite()) || op.power <= 0.0 {
+        if !(shape.is_finite() && size.is_finite() && op.power.is_finite()) || op.power <= 0.0 {
             return;
         }
         // Edge noise amplitude grows gently with size; small carves stay crisp.

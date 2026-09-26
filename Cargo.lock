@@ -453,6 +453,7 @@ name = "bd_sim"
 version = "0.1.0"
 dependencies = [
  "bd_core",
+ "bd_shapes",
  "bd_voxel",
  "bincode",
  "glam 0.30.10",

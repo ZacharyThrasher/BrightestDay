@@ -104,6 +104,8 @@ fn leaf_recipe() -> impl Strategy<Value = Recipe> {
                 features,
                 temperament,
                 intensity,
+                // Fields added to the contract later keep their defaults.
+                ..Recipe::unknown("")
             }
         })
 }

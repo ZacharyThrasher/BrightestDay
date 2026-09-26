@@ -397,7 +397,8 @@ async fn host_conn(
             f.extend_from_slice(&clock.tick_now().to_le_bytes());
             peer.send(Bytes::from(f));
             let rtt = f32::from_le_bytes(b[9..13].try_into().unwrap());
-            if rtt > 0.0 {
+            // Client-reported: ignore NaN/inf/absurd values (they would poison `HostSession::rtt`).
+            if rtt.is_finite() && rtt > 0.0 && rtt < 60.0 {
                 let _ = events.send(HostTransportEvent::PeerRtt { conn, rtt });
             }
             true

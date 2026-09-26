@@ -10,5 +10,6 @@ glam.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
+proptest.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 

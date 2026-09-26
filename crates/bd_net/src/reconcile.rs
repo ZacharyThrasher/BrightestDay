@@ -132,6 +132,8 @@ impl<S: Reconcilable, I: Clone> Reconciler<S, I> {
 
     /// Decay the visual error offset; call once per rendered frame.
     pub fn update_smoothing(&mut self, dt: f32) {
+        // A NaN/negative frame time must not turn the offset into NaN or blow it up.
+        let dt = if dt.is_nan() { 0.0 } else { dt.max(0.0) };
         // exp(-3) ≈ 5% left after `smoothing_secs`.
         let k = (-3.0 * dt / self.smoothing_secs.max(1e-4)).exp();
         self.offset *= k;

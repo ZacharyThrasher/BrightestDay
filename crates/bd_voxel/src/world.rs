@@ -393,13 +393,20 @@ impl VoxelWorld {
         (lo..hi).rev().find(|&y| self.get(IVec3::new(x, y, z)) != AIR)
     }
 
-    /// Stable 64-bit FNV-1a hash of the full voxel contents (for determinism checks / desync
-    /// detection). Air chunks and unallocated chunks hash identically.
+    /// Stable 64-bit hash of the full voxel contents (for determinism checks / desync detection).
+    /// Air chunks and unallocated chunks hash identically.
+    ///
+    /// Each 8-voxel word goes through a full-avalanche mix (splitmix64 finaliser). Plain FNV over
+    /// whole words only propagates differences *upwards*: an edit to the 8th voxel of a word changed
+    /// only the top 8 bits of the hash, so two such edits collided ~1/256 of the time (found by
+    /// `tests/props_voxel.rs`).
     pub fn content_hash(&self) -> u64 {
         let mut h: u64 = 0xcbf2_9ce4_8422_2325;
         let mut eat = |b: u64| {
-            h ^= b;
-            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+            let mut z = (h ^ b).wrapping_add(0x9e37_79b9_7f4a_7c15);
+            z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+            h = z ^ (z >> 31);
         };
         for (i, c) in self.chunks.iter().enumerate() {
             let Some(c) = c.as_ref().filter(|c| c.solid > 0) else { continue };

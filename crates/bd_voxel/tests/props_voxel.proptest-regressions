@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc af741a6fe8d93daf61f9b4b979e12a0d744b006b6a89266deae7d96119dc1d8f # shrinks to spec = WorldSpec { min: IVec3(12, -3, 23), size: IVec3(27, 36, 46), fills: [Box { a: IVec3(31, -2, 21), b: IVec3(31, 7, 44), m: 2 }, Sphere { c: Vec3(16.0, -1.5, 16.5), r: 1.9535244, m: 16 }] }, ops = [CarveOp { shape: Sphere { center: Vec3(-13.409812, 10.260966, 3.4028235e38), radius: 1.7069007 }, power: 0.20100886, seed: 2615253930 }, CarveOp { shape: Capsule { a: Vec3(26.906681, 5.4675317, 18.920242), b: Vec3(2.317693, 1.0754856, 9.123507), radius: 0.50093794 }, power: 0.8383276, seed: 2531594499 }]

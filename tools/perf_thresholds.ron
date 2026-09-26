@@ -1,0 +1,10 @@
+// Performance gate for `tools/check.ps1 -Bench` (brightest_day --bench 20, release build, dev box:
+// RTX 5080 / i7-12700K). Budgets from docs/DESIGN.md "Performance budget". Judge by p99, never averages.
+// A value that is missing (or commented out) is not checked.
+(
+    frame_p99_ms: 7.0,     // design target: frame time p99 < 7 ms
+    frame_max_ms: 16.0,    // no single-frame hitch > 16 ms after load
+    hitches_16ms: 0,       // frames > 16 ms during the run
+    // frame_avg_ms: 5.0,
+    // sim_tick_p99_ms: 4.0, // reserved: host sim tick p99 (bd_sim stress example), not wired yet
+)

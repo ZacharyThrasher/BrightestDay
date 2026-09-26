@@ -131,7 +131,8 @@ impl<T> LagCompHistory<T> {
     pub fn rewind(&self, tick: f64) -> Option<Rewind<'_, T>> {
         let (first, _) = self.entries.front()?;
         let (last, _) = self.entries.back()?;
-        let t = tick.clamp(*first as f64, *last as f64);
+        // NaN (from an untrusted view tick) means "no rewind".
+        let t = if tick.is_nan() { *last as f64 } else { tick.clamp(*first as f64, *last as f64) };
         // Binary search for the last entry with tick <= t.
         let idx = self.entries.partition_point(|(et, _)| (*et as f64) <= t).saturating_sub(1);
         let (a_t, a) = &self.entries[idx];
@@ -152,9 +153,14 @@ impl<T> LagCompHistory<T> {
 
 /// Clamp a client-claimed view tick to `[now - max_rewind_ticks, now]` so cheaters / very laggy
 /// players cannot rewind arbitrarily far.
+/// Never panics and always returns a finite tick: a NaN claim means "no rewind".
 pub fn clamp_view_tick(view_tick: f64, now_tick: u64, max_rewind_ticks: f64) -> f64 {
     let now = now_tick as f64;
-    view_tick.clamp(now - max_rewind_ticks, now)
+    let max_rewind = if max_rewind_ticks.is_finite() { max_rewind_ticks.max(0.0) } else { 0.0 };
+    if view_tick.is_nan() {
+        return now;
+    }
+    view_tick.clamp(now - max_rewind, now)
 }
 
 #[cfg(test)]
