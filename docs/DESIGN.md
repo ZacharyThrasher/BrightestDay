@@ -133,6 +133,16 @@ flares brighter per step + one corps-emblem pulse near the crosshair; no banner 
 | X | dismiss your constructs |
 | Tab | scoreboard |
 
+## Motion comfort (a playtester gets motion sick)
+Defaults for everyone: the camera **never rolls** (tumble spins the body, not the view), no motion blur,
+no head-bob, stable high fps, an always-visible small centre dot. Settings → **Comfort preset** (one
+click; each item individually adjustable): camera shake off/slider, speed-FOV and FOV punches off,
+landing dip/camera kick off, **comfort vignette** (edge darkening scaled by speed/swing angular
+velocity, strength slider), wider default FOV, screen flashes off (also photosensitivity), portal
+transition fade, and a **third-person over-the-shoulder camera** (shares the piloting camera rig;
+crosshair raycast from the camera, projectiles corrected toward the camera aim point; shows the
+character costume).
+
 ## Robustness (how the big structure stays solid)
 - **Contract freeze:** `bd_core` is v1. Changes only via the lead with an explicit version note.
 - **Validate at every boundary:** recipes clamped before the sim; network messages size-limited and
