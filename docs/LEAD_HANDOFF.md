@@ -48,6 +48,9 @@ Everything below is committed and green unless noted.
   PHASE A COMMITTED (46b688a); the worker's full Phase B plan is in its report — resume the audio
   worker for Phase B. Check: brawl_after spectrogram shows near-constant saturated low band (wind/bed
   loops?) — verify by ear/metrics during Phase B.
+- NOTE (2026-09-26 ~11:30-11:40): the owner accidentally played in a game window a worker had
+  launched (perf/screenshot run). Treat perf numbers/screenshots from that window as possibly
+  perturbed; owner asked NOT to rerun just for this.
 - WARNING: HEAD does not build on its own — commit 36de637 picked up `mod alloc_count; mod pcm;`
   (main.rs) and `pub mod animated_terrain;` (present/mod.rs) whose files (+ rodio dep, bd_fx
   VoxelColors) belong to the uncommitted client perf work. Resolved when the perf work is committed.
