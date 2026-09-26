@@ -309,6 +309,12 @@ pub struct Recipe {
     /// 0..1 strength of the temperament ("slightly" ≈ 0.3, plain ≈ 0.6, "very"/"extremely" ≈ 0.9+).
     #[serde(default)]
     pub intensity: f32,
+    /// What this construct rides (v1.6): "king kong on a skateboard", "skateboarding gorilla", "gorilla
+    /// in a tank". The rider stays the primary construct; the mount's model sits under its feet (bd_shapes
+    /// `attach::attach_mount`), scaled to the rider, and its locomotion (wheels roll, Fast, Flies…) carries
+    /// the rider. A mount never has a mount of its own (normalisation drops it). `None` = on foot.
+    #[serde(default, deserialize_with = "deserialize_payload")]
+    pub mount: Option<Box<Recipe>>,
 }
 
 impl Recipe {
@@ -326,6 +332,14 @@ impl Recipe {
     fn normalized_at(mut self, depth: usize) -> Self {
         self.payload = match self.payload.take() {
             Some(p) if depth + 1 < MAX_PAYLOAD_DEPTH => Some(Box::new(p.normalized_at(depth + 1))),
+            _ => None,
+        };
+        self.mount = match self.mount.take() {
+            Some(m) if depth + 1 < MAX_PAYLOAD_DEPTH => {
+                let mut m = m.normalized_at(depth + 1);
+                m.mount = None; // one level: a rider on a mount, never a stack of mounts
+                Some(Box::new(m))
+            }
             _ => None,
         };
         self.accent = self.accent.and_then(|a| if a.iter().any(|c| c.is_nan()) { None } else { Some(a.map(|c| c.clamp(0.0, 1.0))) });
@@ -361,6 +375,7 @@ impl Recipe {
             grants: None,
             temperament: Temperament::Calm,
             intensity: 0.0,
+            mount: None,
         }
     }
 }

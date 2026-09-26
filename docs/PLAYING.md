@@ -24,6 +24,7 @@ forwarding. If it can't start, LAN play still works.
 | Q / E (or Mouse 4 / 5) | left / right tether — hold to stay attached, release to fling |
 | Wheel / R | reel in |
 | LMB / RMB | use what you're holding (empty hand: ring blast / shove) |
+| F5 · B · RMB with a gun | first ⇄ third person · swap shoulder · aim down sights (the gun's alt-fire moves to Left Alt) |
 | Enter or T | open the ring — type anything, Enter to make it |
 | V (hold) | say it instead of typing it (if built with voice) |
 | 1–4 | your four saved phrases |
@@ -35,8 +36,9 @@ forwarding. If it can't start, LAN play still works.
 That's all the help there is. Everything else is for you to find out.
 
 ## Comfort
-Settings → **Comfort** preset turns off shake, FOV kicks and flashes and adds a vignette; there's also a
-third-person camera. Recommended for anyone who gets motion sick.
+Settings → **Comfort** preset turns off shake, FOV kicks and flashes and adds a vignette, and makes view
+switches and ADS zoom instant cuts. The third-person camera (Settings → Default view, or F5) is often
+easier on the stomach too. Recommended for anyone who gets motion sick.
 
 ## For the host
 - Match rules (every knob) and presets live on the host setup page: Classic, Party, Chaos, Movement Gods.

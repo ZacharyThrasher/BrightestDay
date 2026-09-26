@@ -264,6 +264,9 @@ pub fn generate_machine(recipe: &Recipe) -> (ShapeSpec, crate::features::Machine
 
     // Machine-kit feature assemblies (wheels, pistons, rotors...) the form did not build itself.
     crate::features::attach_features(&mut spec, &mut machine, &recipe.features, recipe.form, &handled_features);
+    if let Some(m) = recipe.mount.as_deref() {
+        crate::attach::attach_mount(&mut spec, &generate(m)); // v1.6: ride on it
+    }
     (spec, machine)
 }
 
@@ -347,7 +350,10 @@ pub const FINE_ICON_VOXEL: f32 = 0.125;
 /// (0.25 m, doubling for colossal) — within the form's cap. Returns the normalised spec (construct
 /// units; `model.unit_m` = 0.25).
 pub fn build_icon_model(recipe: &Recipe, spec: &ShapeSpec) -> (ShapeSpec, VoxelModel) {
-    let s = normalize_icon_spec(recipe, spec);
+    let mut s = normalize_icon_spec(recipe, spec);
+    if let Some(m) = recipe.mount.as_deref() {
+        crate::attach::attach_mount(&mut s, &generate(m)); // v1.6: an icon riding a procedural mount
+    }
     let cap = voxel_cap(recipe.form);
     let size = quantize_scale(recipe.scale) * if recipe.form == Form::Dome { 2.0 } else { 1.0 };
     if size <= FINE_ICON_MAX_SCALE {

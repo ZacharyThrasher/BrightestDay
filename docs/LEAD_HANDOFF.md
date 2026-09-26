@@ -104,8 +104,8 @@ Everything below is committed and green unless noted.
   step burst; bots use it for recovery.
 - OATH SECTIONS + VOICE: each authored line of oaths.ron is a section; client rotates sections,
   OathBegin{section} (sim looks up length from its own table). Voice: hold V in the overlay, or just
-  yell your oath via push-to-talk (>=0.7 similarity -> recital, checked before casting); voice never
-  gets the speed bonus. FIXES a bug: sim OathTable parser failed on the new string-keyed oaths.ron
+  yell your oath via push-to-talk (>=0.7 similarity -> recital, checked before casting). OWNER RULE:
+  voice == typing in skill ceiling (speed bonus from speaking time, same formula). FIXES a bug: sim OathTable parser failed on the new string-keyed oaths.ron
   and silently fell back to 110 chars.
 - DODGE (double-jump worker): short burst, ~0.12-0.15 s intangible, ground cooldown, one air dodge per
   airtime, never raises sustained speed, breaks hook-and-strike.
@@ -158,3 +158,5 @@ like the gun grip, summon visibility, tether saves) are welcome anytime — the 
 6. Powers backlog (docs/POWERS_BACKLOG.md): Naruto, DBZ, JJK, Zelda runes, HxH, misc — data-only.
 7. Balance: re-run tournaments after humans play; bot data says KO% median ~70 (target 110–170) and
    99% bottom KOs — likely arena/void geometry + bot behaviour, NOT knockback; wait for playtest data.
+
+- OPEN (stabilisation): bd_sim party test default_settings_leave_ffa_bit_identical hash moved (0x1fab383f88dfc29f) from some in-flight world/* change (not oath); plus flying_cage_* and opposing_constructs_clash* failures. Find the cause before re-recording.

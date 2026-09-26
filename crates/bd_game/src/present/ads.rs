@@ -11,7 +11,7 @@
 //!   pistol mild … railgun strong — the railgun's old "scope"); look sensitivity × `ads_sens` / zoom
 //!   (1.0 = zoom-matched). Zoom speed pref; comfort preset = instant.
 
-use super::camera3p::{comfort_cut, ViewMode};
+use super::camera3p::{ViewMode, comfort_cut};
 use crate::input::{CursorCapture, InputOverride, LocalInputState, LookScale, UiFocus};
 use crate::lobby::prefs::{Action, Bind, KeyBinds, UiPrefs};
 use crate::settings::ComfortSettings;
@@ -20,7 +20,7 @@ use crate::state::{AppState, InGameMenu};
 use crate::tick::FrameSet;
 use bd_core::input::buttons;
 use bd_core::mechanics::FormCategory;
-use bd_sim::weapons::{archetype_for, GunArchetype};
+use bd_sim::weapons::{GunArchetype, archetype_for};
 use bevy::prelude::*;
 
 /// Default time to full zoom (s), divided by `CameraPrefs::ads_speed`.
@@ -87,7 +87,9 @@ pub struct AdsPlugin;
 
 impl Plugin for AdsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<AdsState>().init_resource::<AdsScript>().add_systems(Update, (ads_input, ads_blend).chain().in_set(FrameSet::Input));
+        app.init_resource::<AdsState>()
+            .init_resource::<AdsScript>()
+            .add_systems(Update, (ads_input, ads_blend).chain().in_set(FrameSet::Input));
     }
 }
 

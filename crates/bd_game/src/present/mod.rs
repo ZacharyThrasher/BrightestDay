@@ -19,8 +19,10 @@
 //! | [`director`] | spectator director camera (interest scoring, occlusion-safe framing, slow-mo) |
 
 pub mod ads;
+pub mod air_moves; // AIR JUMP / DODGE: hard-light step burst, dodge streak, SFX / camera hooks
 pub mod animated_terrain;
 pub mod camera3p;
+pub mod camera_shots; // CAMERA: BD_CAM_SHOT dev screenshots
 pub mod charge;
 pub mod construct_anim;
 pub mod constructs;
@@ -82,7 +84,8 @@ impl Plugin for PresentPlugin {
             .add_plugins(summon_ping::SummonPingPlugin) // off-screen summon ping + preview window
             .add_plugins(construct_anim::ConstructAnimPlugin) // role x event construct animation
             .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation
-            .add_plugins(outline::OutlinePlugin); // OUTLINE: player outlines
+            .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
+            .add_plugins(air_moves::AirMovesPlugin); // AIR JUMP / DODGE: hard-light step + streak
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

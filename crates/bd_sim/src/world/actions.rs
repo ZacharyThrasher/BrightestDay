@@ -427,7 +427,7 @@ impl World {
         // PARTY HOOK: cost ratio (party grafts are free); free casts skip paying, staleness and
         // slot replacement (they are children of the cast they copy).
         let cost = if model.is_some() { 0.0 } else { wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
-        let cost = crate::signature::cost(self, cost); // SIGNATURE HOOK: × cost_mult, ≤ a full bar
+        let cost = crate::signature::cost(self, &recipe, cost); // SIGNATURE HOOK: signature / orbital cost multiplier
         let integrity_cost = cost * wt.adjustment_ratio_as(&recipe, typed.autonomous);
         if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
@@ -502,6 +502,7 @@ impl World {
         };
         // BOUNDS HOOK (world/bounds.rs): creatures / structures / vehicles land where the caster sees them.
         let pos = if model.is_none() { self.place_visible(i, &recipe, shape.as_ref(), origin, look, rot, pos) } else { pos };
+        let pos = if model.is_none() { crate::signature::orbital_spawn(self, &recipe, origin, aim_point, pos) } else { pos }; // SIGNATURE HOOK: orbital emitters hover high
         let piloted = recipe.has(Mechanic::Piloted) && !matches!(category, FormCategory::Held | FormCategory::Worn);
         let suit = piloted && recipe.scale <= SUIT_MAX_SCALE;
         // BOUNDS HOOK: lifetimes from `tuning.summon` (was `lifetime_secs`, dome 3 s, piloted ≥ 30 s).
@@ -540,6 +541,7 @@ impl World {
             self.seat(id, cid, 0, suit);
         }
         self.attach_space_effects(cid, &recipe);
+        crate::signature::orbital_spawned(self, cid, &recipe, origin, aim_point); // SIGNATURE HOOK: orbital strike cycle
         // Portals: first ring at the aim point, second in front of the caster.
         if recipe.has(Mechanic::Portal) && !(category == FormCategory::Held && crate::weapons::archetype_for(&recipe).is_some()) {
             let a = PortalEnd::new(aim_point + aim_normal * 0.05, aim_normal, Vec3::Y, PORTAL_RADIUS);

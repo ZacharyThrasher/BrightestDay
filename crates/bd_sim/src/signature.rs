@@ -16,20 +16,35 @@
 //!    forming windup and a lifetime — four one-line `SIGNATURE HOOK`s in `world/actions.rs`;
 //! 3. never says no: a signature the caster can't afford is cast as the plain phrase instead.
 //!
-//! Nothing here runs per tick: the context lives only for the duration of one cast, so determinism,
+//! The amplifier runs only for the duration of one cast (no per-tick state), so determinism,
 //! snapshots, prediction and tick cost are untouched. Presentation (the cut-in DANGER alert, title
 //! letters, audio stingers) keys off [`spectacle`] — one generic threshold on the spawn event, so
 //! kaiju and no-limits moons get it too.
+//!
+//! [`orbital`]: an emitter that Flies + DropFromSky ("satellite death beam") hovers high above the
+//! aim point and strikes down with a telegraphed, tracking beam (the one per-tick piece; zero cost
+//! without orbitals).
+
+pub mod orbital;
 
 use bd_core::mechanics::{Form, FormCategory, Mechanic, ModelSource, Recipe};
 use bd_core::shape::ShapeSpec;
-use bd_core::{ConstructId, PlayerId};
+use bd_core::{ConstructId, PlayerId, Vec3};
 use serde::{Deserialize, Serialize};
 
 use crate::constructs::forms::form_spec;
 use crate::events::CastError;
 use crate::rules::MatchRules;
 use crate::world::{Aim, World};
+
+pub use orbital::{OrbitalTuning, StrikePhase, is_orbital};
+
+/// Per-world signature state (`World::signature`): the cast in progress + live orbital emitters.
+#[derive(Debug, Default)]
+pub(crate) struct SignatureState {
+    pub(crate) cast: Option<SignatureCtx>,
+    pub(crate) orbitals: Vec<orbital::Orbital>,
+}
 
 /// What fantasy a signature expresses (mirrors `bd_lexicon::SignatureKind`; the game maps them).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -89,6 +104,8 @@ pub struct SignatureTuning {
     pub bot_willpower: f32,
     /// Chance per bot cast (above `bot_willpower`) that it becomes a signature.
     pub bot_chance: f32,
+    /// Orbital strikes (an emitter that Flies + DropFromSky), see [`orbital`].
+    pub orbital: OrbitalTuning,
 }
 
 impl Default for SignatureTuning {
@@ -109,6 +126,7 @@ impl Default for SignatureTuning {
             alert_scale: 12.0,
             bot_willpower: 85.0,
             bot_chance: 0.2,
+            orbital: OrbitalTuning::default(),
         }
     }
 }
@@ -135,6 +153,7 @@ impl SignatureTuning {
         self.alert_scale = fin(self.alert_scale, d.alert_scale, 0.5, 1000.0);
         self.bot_willpower = fin(self.bot_willpower, d.bot_willpower, 0.0, 200.0);
         self.bot_chance = fin(self.bot_chance, d.bot_chance, 0.0, 1.0);
+        self.orbital = self.orbital.validated();
         self
     }
 
@@ -199,7 +218,8 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
             }
         }
         SignatureKind::Beam => {
-            if r.form.category() == FormCategory::Creature {
+            if r.form.category() == FormCategory::Creature || is_orbital(&r) {
+                // A creature / an orbital emitter keeps its body: bigger, with a Beam.
                 r.mechanics.push(Mechanic::Beam);
                 r.scale *= grow;
             } else {
@@ -256,9 +276,9 @@ impl World {
         }
         let shape = if sig.kind == SignatureKind::Domain { None } else { shape };
         let aim = Aim { modifier: false, ..aim };
-        self.signature = Some(SignatureCtx { scale: amped.scale, form: amped.form, kind: sig.kind });
+        self.signature.cast = Some(SignatureCtx { scale: amped.scale, form: amped.form, kind: sig.kind });
         let res = self.cast_shaped(player, amped, shape, None, aim);
-        self.signature = None;
+        self.signature.cast = None;
         res
     }
 
@@ -273,6 +293,7 @@ impl World {
         let wt = &self.cfg.tuning.willpower;
         let uses = self.player(player).map_or(0, |p| p.casts.uses_in(&r.name, self.tick, wt.stale_window));
         let plain = wt.base_cost_as(&r, wt.is_autonomous(&r)) * wt.staleness(uses);
+        let plain = if is_orbital(&r) { plain * self.cfg.tuning.signature.orbital.cost_mult } else { plain };
         let cost = signature_cost(plain, &self.cfg.tuning.signature, self.cfg.rules.willpower_max());
         (r, cost)
     }
@@ -287,7 +308,7 @@ pub fn signature_cost(plain: f32, t: &SignatureTuning, pool_max: f32) -> f32 {
 
 /// After the per-form clamp (and party re-validation): restore the lifted scale.
 pub(crate) fn lift_scale(w: &World, r: &mut Recipe) {
-    if let Some(c) = w.signature
+    if let Some(c) = w.signature.cast
         && r.form == c.form
     {
         r.scale = c.scale.min(w.cfg.tuning.signature.scale_cap(r.form, &w.cfg.rules));
@@ -296,20 +317,44 @@ pub(crate) fn lift_scale(w: &World, r: &mut Recipe) {
 
 /// A signature never grafts onto the construct under the crosshair: it always builds.
 pub(crate) fn builds_fresh(w: &World) -> bool {
-    w.signature.is_some()
+    w.signature.cast.is_some()
 }
 
-/// Cast cost of the signature in progress (plain casts: unchanged).
-pub(crate) fn cost(w: &World, plain: f32) -> f32 {
-    match w.signature {
-        Some(_) if plain > 0.0 => signature_cost(plain, &w.cfg.tuning.signature, w.cfg.rules.willpower_max()),
-        _ => plain,
+/// Cast cost: a signature × `cost_mult` (≤ a full bar); an orbital emitter × `orbital.cost_mult`;
+/// every other cast unchanged.
+pub(crate) fn cost(w: &World, recipe: &Recipe, plain: f32) -> f32 {
+    if plain <= 0.0 {
+        return plain;
     }
+    let t = &w.cfg.tuning.signature;
+    let plain = if is_orbital(recipe) { plain * t.orbital.cost_mult } else { plain };
+    match w.signature.cast {
+        Some(_) => signature_cost(plain, t, w.cfg.rules.willpower_max()),
+        None => plain,
+    }
+}
+
+/// Orbital emitters spawn high above the aim point (see [`orbital::spawn_point`]).
+pub(crate) fn orbital_spawn(w: &World, recipe: &Recipe, caster_eye: Vec3, aim_point: Vec3, pos: Vec3) -> Vec3 {
+    if is_orbital(recipe) { orbital::spawn_point(w, caster_eye, aim_point).0 } else { pos }
+}
+
+/// After the spawn: an orbital emitter starts its strike cycle.
+pub(crate) fn orbital_spawned(w: &mut World, cid: ConstructId, recipe: &Recipe, caster_eye: Vec3, aim_point: Vec3) {
+    if is_orbital(recipe) {
+        let (anchor, ground) = orbital::spawn_point(w, caster_eye, aim_point);
+        orbital::register(w, cid, anchor, ground);
+    }
+}
+
+/// World::tick, after constructs: orbital strikes.
+pub(crate) fn step(w: &mut World, dt: f32) {
+    orbital::step(w, dt);
 }
 
 /// Forming time: at least the readable windup.
 pub(crate) fn forming(w: &World, secs: f32) -> f32 {
-    match w.signature {
+    match w.signature.cast {
         Some(_) => secs.max(w.cfg.tuning.signature.windup),
         None => secs,
     }
@@ -317,7 +362,7 @@ pub(crate) fn forming(w: &World, secs: f32) -> f32 {
 
 /// Lifetime: domains last `domain_life`; held / worn ultimates expire after `held_life`.
 pub(crate) fn life(w: &World, form: Form, secs: f32) -> f32 {
-    let Some(c) = w.signature else { return secs };
+    let Some(c) = w.signature.cast else { return secs };
     let t = &w.cfg.tuning.signature;
     if c.kind == SignatureKind::Domain && form == Form::Dome {
         t.domain_life

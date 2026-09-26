@@ -656,33 +656,56 @@ fn two_handed(form: Form) -> bool {
     matches!(form, Form::Gun | Form::Cannon)
 }
 
-/// The grip of a held model. Held forms and curated icons put the grip at the origin; a model whose
-/// origin lies well outside its bounds gets one inferred (guns: low at the rear; others: the end of
-/// the longest axis nearest the origin).
-pub fn held_geom(bounds: &bd_core::voxel::Aabb, form: Form) -> HeldGeom {
+/// Grip + support of a held model from the bd_shapes grip API (`grip_point` / `support_point`: the
+/// tagged Grip / Support parts, or their inference for untagged icons), else [`held_geom`]'s
+/// inference. Allocates inside bd_shapes: call once per model and cache (the viewmodel does).
+pub fn held_geom_model(tu: &VmTuning, model: &bd_shapes::VoxelModel, form: Form) -> HeldGeom {
+    let (min, max) = sane_bounds(&model.bounds);
+    let api = |v: bd_core::Vec3| Some(Vec3::from_array(v.to_array())).filter(|v| v.is_finite());
+    let grip = bd_shapes::grip_point(model).and_then(|(p, _)| api(p)).unwrap_or_else(|| infer_grip(min, max, form));
+    let mut out = geom_with_grip(tu, min, max, form, grip);
+    if let Some(s) = bd_shapes::support_point(model).and_then(api) {
+        out.support = Some(s);
+    }
+    out
+}
+
+/// The grip of a held model from its bounds alone: held forms and curated icons put the grip at
+/// the origin; a model whose origin lies well outside its bounds gets one inferred (guns: low at
+/// the rear; others: the end of the longest axis nearest the origin).
+pub fn held_geom(tu: &VmTuning, bounds: &bd_core::voxel::Aabb, form: Form) -> HeldGeom {
+    let (min, max) = sane_bounds(bounds);
+    geom_with_grip(tu, min, max, form, infer_grip(min, max, form))
+}
+
+fn sane_bounds(bounds: &bd_core::voxel::Aabb) -> (Vec3, Vec3) {
     let (min, max) = (Vec3::from_array(bounds.min.to_array()), Vec3::from_array(bounds.max.to_array()));
-    let ok = min.is_finite() && max.is_finite() && max.cmpge(min).all();
-    let (min, max) = if ok { (min, max) } else { (Vec3::splat(-0.1), Vec3::splat(0.1)) };
+    if min.is_finite() && max.is_finite() && max.cmpge(min).all() { (min, max) } else { (Vec3::splat(-0.1), Vec3::splat(0.1)) }
+}
+
+fn infer_grip(min: Vec3, max: Vec3, form: Form) -> Vec3 {
     let size = (max - min).max(Vec3::splat(1e-3));
     let slack = size * 0.25;
-    let inside = Vec3::ZERO.cmpge(min - slack).all() && Vec3::ZERO.cmple(max + slack).all();
-    let grip = if inside {
-        Vec3::ZERO
-    } else if two_handed(form) {
-        Vec3::new((min.x + max.x) * 0.5, min.y + size.y * 0.2, max.z - size.z * 0.25)
+    if Vec3::ZERO.cmpge(min - slack).all() && Vec3::ZERO.cmple(max + slack).all() {
+        return Vec3::ZERO;
+    }
+    if two_handed(form) {
+        return Vec3::new((min.x + max.x) * 0.5, min.y + size.y * 0.2, max.z - size.z * 0.25);
+    }
+    let c = (min + max) * 0.5;
+    let axis = if size.x >= size.y && size.x >= size.z {
+        Vec3::X
+    } else if size.y >= size.z {
+        Vec3::Y
     } else {
-        let c = (min + max) * 0.5;
-        let axis = if size.x >= size.y && size.x >= size.z {
-            Vec3::X
-        } else if size.y >= size.z {
-            Vec3::Y
-        } else {
-            Vec3::Z
-        };
-        let half = (size * axis).length() * 0.5;
-        let (a, b) = (c + axis * half * 0.85, c - axis * half * 0.85);
-        if a.length_squared() <= b.length_squared() { a } else { b }
+        Vec3::Z
     };
+    let half = (size * axis).length() * 0.5;
+    let (a, b) = (c + axis * half * 0.85, c - axis * half * 0.85);
+    if a.length_squared() <= b.length_squared() { a } else { b }
+}
+
+fn geom_with_grip(tu: &VmTuning, min: Vec3, max: Vec3, form: Form, grip: Vec3) -> HeldGeom {
     let reach = (0..8)
         .map(|i| {
             let c = Vec3::new(if i & 1 == 0 { min.x } else { max.x }, if i & 2 == 0 { min.y } else { max.y }, if i & 4 == 0 { min.z } else { max.z });
@@ -690,10 +713,8 @@ pub fn held_geom(bounds: &bd_core::voxel::Aabb, form: Form) -> HeldGeom {
         })
         .fold(0.0f32, f32::max);
     let fore_len = (grip.z - min.z).max(0.0);
-    let support = two_handed(form).then(|| {
-        // Under the barrel, a little ahead of the trigger guard.
-        Vec3::new(grip.x, grip.y + (max.y - grip.y) * 0.1, grip.z - fore_len)
-    });
+    // Two-handed guns without a tagged Support: under the barrel, part way to the muzzle.
+    let support = two_handed(form).then(|| Vec3::new(grip.x, grip.y + (max.y - grip.y) * 0.1, grip.z - fore_len * tu.support_fore.clamp(0.0, 1.0)));
     HeldGeom { grip, reach, support, fore_len, sight: Vec3::new(grip.x, max.y, grip.z.min(max.z)) }
 }
 
@@ -758,7 +779,7 @@ pub fn support_point(tu: &VmTuning, geom: &HeldGeom, item: &Transform) -> Option
         // Pistol: cup the bottom of the grip.
         geom.grip + Vec3::new(0.0, -0.25 * geom.reach, -0.05 * geom.reach)
     } else {
-        geom.grip + (sp - geom.grip) * tu.support_fore.clamp(0.0, 1.0)
+        sp
     };
     let p = item.transform_point(local) - Vec3::Y * tu.support_drop;
     p.is_finite().then_some(p)
@@ -1989,7 +2010,7 @@ mod tests {
     fn item_grip_lands_in_the_palm() {
         let tu = VmTuning::default();
         // A gun: grip at the origin, barrel forward (−Z).
-        let g = held_geom(&aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
+        let g = held_geom(&VmTuning::default(), &aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
         assert_eq!(g.grip, Vec3::ZERO);
         assert!(g.support.is_some());
         let palm = Vec3::new(0.12, -0.15, -0.3);
@@ -2006,10 +2027,10 @@ mod tests {
     #[test]
     fn grip_inferred_when_origin_is_off_the_model() {
         // An icon whose origin sits far from the model: grip at the end of its longest axis.
-        let g = held_geom(&aabb([2.0, -0.1, -0.1], [4.0, 0.1, 0.1]), Form::Sword);
+        let g = held_geom(&VmTuning::default(), &aabb([2.0, -0.1, -0.1], [4.0, 0.1, 0.1]), Form::Sword);
         assert!((g.grip.x - 2.15).abs() < 1e-4 && g.grip.y.abs() < 1e-4, "{:?}", g.grip);
         // Garbage bounds never produce NaN.
-        let n = held_geom(&aabb([f32::NAN, 0.0, 0.0], [1.0, 1.0, 1.0]), Form::Gun);
+        let n = held_geom(&VmTuning::default(), &aabb([f32::NAN, 0.0, 0.0], [1.0, 1.0, 1.0]), Form::Gun);
         assert!(n.grip.is_finite() && n.reach.is_finite());
     }
 
@@ -2028,7 +2049,7 @@ mod tests {
     #[test]
     fn ads_puts_the_sight_under_the_crosshair() {
         let tu = VmTuning::default();
-        let g = held_geom(&aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
+        let g = held_geom(&VmTuning::default(), &aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
         let (palm, s) = ads_palm(&tu, &g, 0.24);
         let item = place_item(&tu, &g, palm, Quat::IDENTITY, 0.24);
         let sight = item.transform_point(g.sight);

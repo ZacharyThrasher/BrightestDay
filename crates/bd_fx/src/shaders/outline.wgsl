@@ -106,8 +106,11 @@ fn fragment(in: VOut) -> @location(0) vec4<f32> {
             }
         }
     }
-    let f = fog_factor(in.world_pos) * o.pattern.w;
-    var out = vec4<f32>(mix(col, fog_color(), f), 1.0);
+    // `fog` only exists in views with DistanceFog (the cut-in camera has none).
+#ifdef DISTANCE_FOG
+    col = mix(col, fog_color(), fog_factor(in.world_pos) * o.pattern.w);
+#endif
+    var out = vec4<f32>(col, 1.0);
 #ifdef TONEMAP_IN_SHADER
     out = tone_mapping(out, view.color_grading);
 #endif

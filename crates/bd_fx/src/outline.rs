@@ -159,7 +159,12 @@ fn extract_outlines(src: Extract<Res<OutlineUpload>>, mut dst: ResMut<RenderOutl
     dst.0.clone_from(&src.slots);
 }
 
-fn write_outlines(up: Res<RenderOutlineUpload>, assets: Res<OutlineAssets>, gpu: Res<RenderAssets<GpuShaderBuffer>>, queue: Res<RenderQueue>) {
+fn write_outlines(
+    up: Res<RenderOutlineUpload>,
+    assets: Res<OutlineAssets>,
+    gpu: Res<RenderAssets<GpuShaderBuffer>>,
+    queue: Res<RenderQueue>,
+) {
     if up.0.is_empty() {
         return;
     }

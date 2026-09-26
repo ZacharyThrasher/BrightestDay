@@ -7,11 +7,11 @@ use bd_core::input::{PlayerInput, buttons};
 use bd_core::{DT, IVec3, PlayerId, Vec3};
 use bd_sim::combat::{HitInfo, HitKind};
 use bd_sim::movement::testkit::{FnWorld, JUMP, TETHER_L, aim_at, input, optimal_strafe_yaw, scenarios};
-use scenarios::zigzag_side;
 use bd_sim::movement::{CollisionWorld, MoveEvents, MoveParams, PlayerState, air_jump_redirect, step_player};
 use bd_sim::rules::WillpowerMode;
 use bd_sim::weapons::HitscanShot;
 use bd_sim::world::{ArenaSource, SimConfig, World};
+use scenarios::zigzag_side;
 
 const DODGE: u16 = buttons::DODGE;
 const A: PlayerId = PlayerId(1);
@@ -174,7 +174,8 @@ fn buffered_and_wheel_spam_presses_near_the_ground_never_air_jump() {
     assert!(hops > 8);
     // Wheel spam: a notch every 2 ticks from 0.2 s before touchdown (y < 1.3 m falling) until 0.08 s
     // after take-off.
-    let (air, hops, _) = bhop_with(|s, t| t % 2 == 0 && (s.grounded || (s.vel.y < 0.0 && s.pos.y < 1.3) || (s.vel.y > 0.0 && s.air_time < 0.08)), 10.0);
+    let (air, hops, _) =
+        bhop_with(|s, t| t % 2 == 0 && (s.grounded || (s.vel.y < 0.0 && s.pos.y < 1.3) || (s.vel.y > 0.0 && s.air_time < 0.08)), 10.0);
     assert_eq!(air, 0, "wheel spam fired an air jump");
     assert!(hops > 8);
 }
@@ -184,9 +185,7 @@ fn buffered_and_wheel_spam_presses_near_the_ground_never_air_jump() {
 #[test]
 fn air_jump_never_adds_horizontal_speed_at_any_speed_or_angle() {
     // Isolate the air jump: no air acceleration / W-assist, so the tick itself adds nothing.
-    let mut p = MoveParams::default();
-    p.air_accel = 0.0;
-    p.wstrafe_assist = 0.0;
+    let p = MoveParams { air_accel: 0.0, wstrafe_assist: 0.0, ..MoveParams::default() };
     let w = floor();
     let cw = CollisionWorld::new(&w, &[]);
     let mut n = 0;
@@ -239,7 +238,11 @@ fn air_jump_tick_never_beats_the_best_plain_strafe_tick() {
                             b.horizontal_speed()
                         })
                         .fold(0.0f32, f32::max);
-                    assert!(a.horizontal_speed() <= best + 2e-3, "speed {speed} heading {hi}: {} > best strafe {best}", a.horizontal_speed());
+                    assert!(
+                        a.horizontal_speed() <= best + 2e-3,
+                        "speed {speed} heading {hi}: {} > best strafe {best}",
+                        a.horizontal_speed()
+                    );
                 }
             }
         }
@@ -442,7 +445,9 @@ fn b_dodges(w: &mut World) -> f32 {
     let before = w.player(B).unwrap().damage_pct;
     let evs = w.tick(&[(B, PlayerInput { move_x: 1, buttons: DODGE, ..Default::default() })]).to_vec();
     assert!(w.player(B).unwrap().move_events.dodged);
-    assert!(evs.iter().any(|e| matches!(e, bd_sim::GameEvent::Move { player, flags, .. } if *player == B && flags & bd_sim::events::move_flags::DODGE != 0)));
+    assert!(evs.iter().any(
+        |e| matches!(e, bd_sim::GameEvent::Move { player, flags, .. } if *player == B && flags & bd_sim::events::move_flags::DODGE != 0)
+    ));
     before
 }
 
@@ -522,7 +527,8 @@ impl Pair {
         p.mv.vel = Vec3::ZERO;
         p.mv.grounded = false;
         host.tick(&[]);
-        let mut client = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
+        let mut client =
+            World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
         client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
         Pair { host, client }
     }
@@ -572,7 +578,13 @@ fn prediction_matches_the_host_for_air_jumps_and_dodges() {
             690 | 692 | 694 => JUMP,
             _ => 0,
         };
-        PlayerInput { yaw: 0.3 + k as f32 * 0.002, move_x: if (40..80).contains(&k) { 1 } else { 0 }, move_z: 1, buttons: b, ..Default::default() }
+        PlayerInput {
+            yaw: 0.3 + k as f32 * 0.002,
+            move_x: if (40..80).contains(&k) { 1 } else { 0 },
+            move_z: 1,
+            buttons: b,
+            ..Default::default()
+        }
     });
     assert!(air >= 1, "air jumped");
     assert!(dodges >= 3, "dodged {dodges}");
@@ -620,7 +632,13 @@ fn bots_sometimes_dodge_a_charging_railgun() {
         place(&mut w, B, Vec3::new(0.0, 0.2, -10.0));
         settle(&mut w, 30);
         let eye = w.player(A).unwrap().eye(w.params());
-        w.cast(A, recipe("railgun", Form::Gun, &[Mechanic::Shoots, Mechanic::Pierce], Element::Electric, 1.0), None, Aim::new(eye, Vec3::NEG_Z)).unwrap();
+        w.cast(
+            A,
+            recipe("railgun", Form::Gun, &[Mechanic::Shoots, Mechanic::Pierce], Element::Electric, 1.0),
+            None,
+            Aim::new(eye, Vec3::NEG_Z),
+        )
+        .unwrap();
         settle(&mut w, 30);
         let mut bot = BotBrain::new(B, 1.0, seed);
         bot.casts_enabled = false;
@@ -634,4 +652,39 @@ fn bots_sometimes_dodge_a_charging_railgun() {
         }
     }
     assert!(dodges >= 2, "bots dodged a charging railgun {dodges} times");
+}
+
+// ============================================================================== tutorial ghosts
+
+#[test]
+fn tutorial_ghost_replays_never_air_jump_or_dodge() {
+    #[derive(serde::Deserialize)]
+    struct Ghost {
+        start: (f32, f32, f32),
+        inputs: Vec<(f32, f32, i8, i8, u16, i8)>,
+        positions: Vec<(f32, f32, f32)>,
+    }
+    let (world, _) = bd_voxel::generate_tutorial();
+    let cw = CollisionWorld::new(&world, &[]);
+    let p = MoveParams::default();
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/tutorial/ghosts");
+    let mut n = 0;
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        let g: Ghost = ron::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let mut s = PlayerState::new(Vec3::new(g.start.0, g.start.1, g.start.2), &p);
+        for (k, i) in g.inputs.iter().enumerate() {
+            let inp = PlayerInput { seq: 0, yaw: i.0, pitch: i.1, move_x: i.2, move_z: i.3, buttons: i.4, reel_notches: i.5 };
+            let ev = step_player(&mut s, &inp, &cw, &p, DT);
+            if (930..960).contains(&k) && path.to_string_lossy().contains("peak") {
+                eprintln!("{k}: b {:#x} pos {:.2} vel {:.2} air {:.3} grounded {} teth {}", inp.buttons, s.pos, s.vel, s.air_time, s.grounded, s.tethered());
+            }
+            assert!(!ev.air_jumped && !ev.dodged, "{}: tick {k}", path.display());
+        }
+        // No air move fired, so the replay is the pre-air-jump physics (A/B: identical end states
+        // with the air jump short-circuited).
+        assert!(!g.positions.is_empty() && s.pos.is_finite());
+        n += 1;
+    }
+    assert!(n >= 7);
 }

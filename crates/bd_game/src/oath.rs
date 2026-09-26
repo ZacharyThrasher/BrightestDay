@@ -479,14 +479,14 @@ fn oath_keys(
             _ => None,
         });
         let Some(t) = text else { continue };
-        if let VoicePhase::Arming { letter, .. } = &mut o.voice {
-            if voice_key == Some(ev.key_code) {
-                // Held back: typed only if this turns out to be a tap.
-                if letter.is_none() && !ev.repeat {
-                    *letter = Some(t.to_string());
-                }
-                continue;
+        if let VoicePhase::Arming { letter, .. } = &mut o.voice
+            && voice_key == Some(ev.key_code)
+        {
+            // Held back: typed only if this turns out to be a tap.
+            if letter.is_none() && !ev.repeat {
+                *letter = Some(t.to_string());
             }
+            continue;
         }
         for c in t.chars().filter(|c| !c.is_control()) {
             if o.feed(c, &mut sfx) {
@@ -629,10 +629,8 @@ fn oath_events(
     let local = active.as_ref().and_then(|a| a.local);
     for e in events.read() {
         match &e.event {
-            GameEvent::OathInterrupted { player, .. } | GameEvent::OathRejected { player, .. } if Some(*player) == local => {
-                if oath.open {
-                    close(&mut oath, &mut focus);
-                }
+            GameEvent::OathInterrupted { player, .. } | GameEvent::OathRejected { player, .. } if Some(*player) == local && oath.open => {
+                close(&mut oath, &mut focus);
             }
             _ => {}
         }
@@ -811,10 +809,10 @@ fn draw_oath(
         n.width = px(420.0 * o.progress());
         bg.0 = c.with_alpha(0.9);
     }
-    if let Ok((mut t, _)) = hint.single_mut() {
-        if t.0 != o.hint {
-            t.0.clone_from(&o.hint);
-        }
+    if let Ok((mut t, _)) = hint.single_mut()
+        && t.0 != o.hint
+    {
+        t.0.clone_from(&o.hint);
     }
 }
 

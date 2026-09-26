@@ -153,10 +153,12 @@ pub enum Action {
     Aim,
     /// CAMERA: a held gun's alt-fire (RMB aims guns).
     AltFire,
+    /// MOVEMENT: dodge (a short intangible burst).
+    Dodge,
 }
 
 impl Action {
-    pub const ALL: [Action; 27] = [
+    pub const ALL: [Action; 28] = [
         Action::Forward,
         Action::Back,
         Action::Left,
@@ -184,6 +186,7 @@ impl Action {
         Action::Shoulder,
         Action::Aim,
         Action::AltFire,
+        Action::Dodge,
     ];
     pub const COUNT: usize = Self::ALL.len();
 
@@ -220,6 +223,7 @@ impl Action {
             Action::Shoulder => "swap_shoulder",
             Action::Aim => "aim",
             Action::AltFire => "alt_fire",
+            Action::Dodge => "dodge",
         }
     }
 
@@ -252,13 +256,14 @@ impl Action {
             Action::Shoulder => "SWAP SHOULDER",
             Action::Aim => "AIM DOWN SIGHTS",
             Action::AltFire => "ALT FIRE (GUNS)",
+            Action::Dodge => "DODGE",
         }
     }
 
     pub fn keys_only(self) -> bool {
         matches!(
             self,
-            Action::Forward | Action::Back | Action::Left | Action::Right | Action::Jump | Action::Crouch | Action::Boost | Action::TetherL | Action::TetherR | Action::Reel | Action::Charge
+            Action::Forward | Action::Back | Action::Left | Action::Right | Action::Jump | Action::Crouch | Action::Boost | Action::TetherL | Action::TetherR | Action::Reel | Action::Charge | Action::Dodge
         )
     }
 
@@ -294,6 +299,8 @@ impl Action {
             Action::Shoulder => K::KeyB,
             Action::Aim => return Bind::Mouse(MouseButton::Right),
             Action::AltFire => K::AltLeft,
+            // MOVEMENT: Left Alt was suggested but is alt-fire; Caps Lock sits under the pinky by Shift.
+            Action::Dodge => K::CapsLock,
         })
     }
 }
@@ -539,6 +546,7 @@ fn sync_binds(kb: Res<KeyBinds>, focus: Res<crate::input::UiFocus>, mut prefs: R
         tether_r: if typing { none } else { k(Action::TetherR) },
         reel: if typing { none } else { k(Action::Reel) },
         charge: if typing { none } else { k(Action::Charge) },
+        dodge: if typing { none } else { k(Action::Dodge) },
     };
     let s = &*shell;
     let same = s.forward == want.forward
@@ -551,7 +559,8 @@ fn sync_binds(kb: Res<KeyBinds>, focus: Res<crate::input::UiFocus>, mut prefs: R
         && s.tether_l == want.tether_l
         && s.tether_r == want.tether_r
         && s.reel == want.reel
-        && s.charge == want.charge;
+        && s.charge == want.charge
+        && s.dodge == want.dodge;
     if !same {
         *shell = want;
     }

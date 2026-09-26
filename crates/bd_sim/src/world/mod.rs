@@ -173,8 +173,8 @@ pub struct World {
     pub powers: crate::powers::PowerWorld,
     /// BOUNDS HOOK: recent construct recalls (id, tick) for the anti-loop valve (`world/bounds.rs`).
     pub(crate) recall_log: Vec<(bd_core::ConstructId, Tick)>,
-    /// SIGNATURE HOOK: the signature cast in progress (`crate::signature`; `None` between casts).
-    pub(crate) signature: Option<crate::signature::SignatureCtx>,
+    /// SIGNATURE HOOK: the signature cast in progress + live orbital emitters (`crate::signature`).
+    pub(crate) signature: crate::signature::SignatureState,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -239,7 +239,7 @@ impl World {
             free_cast: false,
             powers: crate::powers::PowerWorld::default(), // POWERS HOOK
             recall_log: Vec::new(), // BOUNDS HOOK
-            signature: None,        // SIGNATURE HOOK
+            signature: Default::default(), // SIGNATURE HOOK
             cfg,
         }
     }
@@ -459,6 +459,7 @@ impl World {
         self.player_actions();
         self.step_projectiles(dt);
         self.step_constructs(dt);
+        crate::signature::step(self, dt); // SIGNATURE HOOK: orbital strikes (no-op without orbitals)
         self.step_space(dt);
         self.step_powers(dt); // POWERS HOOK: stands, fruits, drain/seastone, time stop (no-op without powers)
         self.step_willpower(dt);

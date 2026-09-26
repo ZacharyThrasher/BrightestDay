@@ -173,7 +173,7 @@ pub fn redirect(h: Vec3, wish: Vec3, frac: f32) -> Vec3 {
 /// (Two chords of the parabola; a private cache so the tick's own broadphase is untouched.)
 fn landing_soon<V: VoxelQuery + ?Sized>(s: &PlayerState, world: &CollisionWorld<V>, p: &MoveParams) -> bool {
     let t = p.jump_buffer;
-    if !(t > 0.0) {
+    if t.is_nan() || t <= 0.0 {
         return false;
     }
     let g = p.gravity * s.mods.gravity_scale;

@@ -245,6 +245,7 @@ impl RecipeDef {
             grants: None,
             temperament: self.temperament,
             intensity: self.intensity,
+            mount: None,
         }
         .normalized()
     }

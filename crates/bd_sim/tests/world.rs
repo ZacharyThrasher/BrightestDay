@@ -488,6 +488,41 @@ fn oath_recital_validates_and_refills() {
 }
 
 #[test]
+fn bots_recite_rotating_oath_sections() {
+    let mut w = duel(0);
+    let mut brains = bots::add_bots(&mut w, 1, 1, 0.8, 7);
+    let id = brains[0].id;
+    let corps = w.player(id).unwrap().corps;
+    let lens: Vec<u16> = (0..w.cfg.oaths.section_count(corps)).map(|s| w.cfg.oaths.section_len(corps, s)).collect();
+    let mut recited = Vec::new();
+    let mut finished = 0;
+    let mut inputs = Vec::new();
+    for _ in 0..(240 * 120) {
+        {
+            let p = w.player_mut(id).unwrap();
+            if !p.oath.reciting() && !p.charge.active {
+                p.willpower = p.willpower.min(5.0);
+            }
+        }
+        let was = w.player(id).unwrap().oath;
+        inputs.clear();
+        bots::drive(&mut w, &mut brains, &mut inputs);
+        if let (false, bd_sim::willpower::OathState::Reciting { len, .. }) = (was.reciting(), w.player(id).unwrap().oath) {
+            recited.push(len);
+        }
+        finished += w.tick(&inputs).iter().filter(|e| matches!(e, GameEvent::OathFinished { player, .. } if *player == id)).count();
+        if recited.len() >= 4 && finished >= 3 {
+            break;
+        }
+    }
+    assert!(finished >= 3 && recited.len() >= 4, "bot recited {recited:?}, finished {finished}");
+    // Section 0 first, then the rotation (never the same section twice in a row).
+    for (k, len) in recited.iter().enumerate() {
+        assert_eq!(*len, lens[k % lens.len()], "recital {k}: {recited:?} vs sections {lens:?}");
+    }
+}
+
+#[test]
 fn oath_section_comes_from_the_host_table() {
     let mut w = duel(2);
     let corps = w.player(A).unwrap().corps;

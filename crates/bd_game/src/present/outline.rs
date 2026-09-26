@@ -22,10 +22,10 @@ use super::players::PlayerBody;
 use crate::camera::PlayerCamera;
 use crate::settings::ComfortSettings;
 use crate::sim_bridge::{ActiveWorld, WorldViews};
+use bd_core::PlayerId;
 use bd_core::corps::Corps;
 use bd_core::mechanics::FormCategory;
-use bd_core::PlayerId;
-use bd_fx::outline::{OutlineAssets, OutlineGpu, OutlineLayer, OutlineUpload, MAX_OUTLINE_SLOTS};
+use bd_fx::outline::{MAX_OUTLINE_SLOTS, OutlineAssets, OutlineGpu, OutlineLayer, OutlineUpload};
 use bd_fx::{ConstructEnd, ConstructParts, ConstructVisual, FxSet};
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::visibility::RenderLayers;
@@ -121,7 +121,11 @@ pub fn outline_params(corps: Corps, damage_pct: f32, pulse01: f32, own: bool, st
     }
     col = col.map(|c| c * gain);
     let dark = corps.color().map(|c| c * 0.035);
-    OutlineGpu { outer: [col[0], col[1], col[2], outer.max(inner + 0.5)], inner: [dark[0], dark[1], dark[2], inner], pattern: [pat[0], pat[1], pat[2], 0.45] }
+    OutlineGpu {
+        outer: [col[0], col[1], col[2], outer.max(inner + 0.5)],
+        inner: [dark[0], dark[1], dark[2], inner],
+        pattern: [pat[0], pat[1], pat[2], 0.45],
+    }
 }
 
 // ------------------------------------------------------------------------------------ plugin
@@ -158,7 +162,10 @@ impl Plugin for OutlinePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(bd_fx::outline::OutlinePlugin).init_resource::<OutlineSettings>().add_systems(
             PostUpdate,
-            (camera_layer, mirror_settings, attach_hulls, update_outlines).chain().after(FxSet::Lifecycle).before(TransformSystems::Propagate),
+            (camera_layer, mirror_settings, attach_hulls, update_outlines)
+                .chain()
+                .after(FxSet::Lifecycle)
+                .before(TransformSystems::Propagate),
         );
         use crate::warmup::WarmupAppExt;
         app.add_warmup(warmup_hull);
@@ -178,7 +185,11 @@ fn camera_layer(mut commands: Commands, cams: Query<Entity, Added<PlayerCamera>>
     }
 }
 
-fn mirror_settings(prefs: Option<Res<crate::lobby::prefs::UiPrefs>>, comfort: Option<Res<ComfortSettings>>, mut s: ResMut<OutlineSettings>) {
+fn mirror_settings(
+    prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
+    comfort: Option<Res<ComfortSettings>>,
+    mut s: ResMut<OutlineSettings>,
+) {
     let mut want = OutlineSettings::default();
     if let Some(p) = prefs.as_ref() {
         want.enabled = p.outlines;
@@ -201,12 +212,16 @@ fn outlined_construct(sc: &SimConstruct) -> bool {
     matches!(sc.category, FormCategory::Held | FormCategory::Worn)
 }
 
+type RootItem<'a> = (Entity, &'a ConstructParts, Option<&'a PlayerBody>, Option<&'a SimConstruct>, Option<&'a OutlineHulls>);
+type RootFilter = (Or<(With<PlayerBody>, With<SimConstruct>)>, Or<(Changed<ConstructParts>, Without<OutlineHulls>)>);
+type HullRoot<'a> = (&'a mut OutlineHulls, Option<&'a SimConstruct>, Option<&'a ConstructVisual>, Has<ConstructEnd>);
+
 fn attach_hulls(
     mut commands: Commands,
     settings: Res<OutlineSettings>,
     assets: Res<OutlineAssets>,
     meshes: Query<&Mesh3d>,
-    roots: Query<(Entity, &ConstructParts, Option<&PlayerBody>, Option<&SimConstruct>, Option<&OutlineHulls>), (Or<(With<PlayerBody>, With<SimConstruct>)>, Or<(Changed<ConstructParts>, Without<OutlineHulls>)>)>,
+    roots: Query<RootItem, RootFilter>,
     all: Query<(Entity, &OutlineHulls)>,
 ) {
     if !settings.enabled {
@@ -241,7 +256,9 @@ fn attach_hulls(
         for (_, pe) in &parts.parts {
             let Ok(mesh) = meshes.get(*pe) else { continue };
             for layer in [OutlineLayer::Inner, OutlineLayer::Outer] {
-                hulls.push(commands.spawn((assets.hull(mesh.0.clone(), slot, layer), RenderLayers::layer(OUTLINE_LAYER), ChildOf(*pe))).id());
+                hulls.push(
+                    commands.spawn((assets.hull(mesh.0.clone(), slot, layer), RenderLayers::layer(OUTLINE_LAYER), ChildOf(*pe))).id(),
+                );
             }
         }
         commands.entity(e).try_insert(OutlineHulls { owner, hulls, shown: true });
@@ -257,7 +274,7 @@ fn update_outlines(
     mode: Res<ViewMode>,
     mut up: ResMut<OutlineUpload>,
     mut phase: Local<Vec<f32>>,
-    mut roots: Query<(&mut OutlineHulls, Option<&SimConstruct>, Option<&ConstructVisual>, Has<ConstructEnd>)>,
+    mut roots: Query<HullRoot>,
     mut vis: Query<&mut Visibility>,
 ) {
     let (Some(active), Some(views)) = (active, views) else { return };
@@ -369,7 +386,12 @@ fn warmup_hull(world: &mut World) {
     let mesh = world.resource_mut::<Assets<Mesh>>().add(mesh);
     world.resource_mut::<OutlineUpload>().set(0, outline_params(Corps::Willpower, 0.0, 0.0, false, OutlineStyle::default()));
     for layer in [OutlineLayer::Inner, OutlineLayer::Outer] {
-        world.spawn((Name::new("outline warmup"), assets.hull(mesh.clone(), 0, layer), RenderLayers::layer(OUTLINE_LAYER), crate::warmup::WarmupItem));
+        world.spawn((
+            Name::new("outline warmup"),
+            assets.hull(mesh.clone(), 0, layer),
+            RenderLayers::layer(OUTLINE_LAYER),
+            crate::warmup::WarmupItem,
+        ));
     }
 }
 

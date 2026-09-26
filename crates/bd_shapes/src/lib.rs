@@ -31,7 +31,7 @@ pub use anim::{AnimState, Attack, AttackTiming, CAST_TIMING, Footfall, Gait, Loc
 pub use behaviours::{AnimDrive, AnimEvent, Assembly, ConstructAnimator, Cue, CueKind};
 pub use roles::{Role, Roles, grip_part, grip_point, support_point};
 pub use secondary::SecondaryMotion;
-pub use attach::{SpecBounds, attach_mechanic_parts, chain_spec, portal_ring_spec, spec_bounds, spec_bounds_of_part};
+pub use attach::{SpecBounds, attach_mechanic_parts, attach_mount, chain_spec, portal_ring_spec, spec_bounds, spec_bounds_of_part};
 pub use build::quat_from_rot_deg;
 pub use collide::{CollisionProxy, Proxy, collision_proxies, collision_proxies_budget};
 pub use ease::Ease;

@@ -39,9 +39,9 @@ use crate::sim_bridge::{ActiveWorld, BridgeSet, WorldViews};
 use crate::state::{AppState, InGameMenu};
 use crate::tick::{FrameSet, SimSet, SimTick, TickClock};
 use crate::util::{core_v3, v3};
-use bd_core::input::buttons;
-use bd_core::voxel::{raycast, world_to_voxel, VoxelQuery};
 use bd_core::PlayerId;
+use bd_core::input::buttons;
+use bd_core::voxel::{VoxelQuery, raycast, world_to_voxel};
 use bd_sim::movement::HookPhase;
 use bd_sim::replicate::pflags;
 use bevy::picking::Pickable;
@@ -196,7 +196,17 @@ pub(crate) struct CamState {
 
 impl Default for CamState {
     fn default() -> Self {
-        Self { t: 0.0, side: 1.0, auto_swap: false, block_t: 0.0, clear_t: 0.0, boom: f32::INFINITY, speed_ext: 0.0, offset: Vec3::ZERO, snap: true }
+        Self {
+            t: 0.0,
+            side: 1.0,
+            auto_swap: false,
+            block_t: 0.0,
+            clear_t: 0.0,
+            boom: f32::INFINITY,
+            speed_ext: 0.0,
+            offset: Vec3::ZERO,
+            snap: true,
+        }
     }
 }
 
@@ -209,7 +219,9 @@ pub struct Camera3pPlugin;
 
 impl Plugin for Camera3pPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ViewMode>()
+        super::camera_shots::build(app);
+        app.add_plugins(super::ads::AdsPlugin)
+            .init_resource::<ViewMode>()
             .init_resource::<AimRay>()
             .init_resource::<CamState>()
             .init_resource::<ThirdPersonHands>()
@@ -259,8 +271,7 @@ fn solid<V: VoxelQuery + ?Sized>(v: &V, p: Vec3) -> bool {
 /// Is the camera's near-plane neighbourhood of `p` clear of solid voxels?
 fn clear_at<V: VoxelQuery + ?Sized>(v: &V, p: Vec3) -> bool {
     const E: f32 = 0.08;
-    !solid(v, p)
-        && [Vec3::X, Vec3::NEG_X, Vec3::Y, Vec3::NEG_Y, Vec3::Z, Vec3::NEG_Z].iter().all(|d| !solid(v, p + *d * E))
+    !solid(v, p) && [Vec3::X, Vec3::NEG_X, Vec3::Y, Vec3::NEG_Y, Vec3::Z, Vec3::NEG_Z].iter().all(|d| !solid(v, p + *d * E))
 }
 
 /// Over-the-shoulder placement for `eye`: `offset` is the world-space shoulder offset, `back` the
@@ -325,11 +336,7 @@ pub fn ray_start(cam: Vec3, fwd: Vec3, eye: Vec3) -> f32 {
 pub fn converge(origin: Vec3, point: Vec3, cam_fwd: Vec3) -> Vec3 {
     let to = point - origin;
     let len = to.length();
-    if !len.is_finite() || len < 0.05 || to.dot(cam_fwd) < 0.5 * len {
-        cam_fwd
-    } else {
-        to / len
-    }
+    if !len.is_finite() || len < 0.05 || to.dot(cam_fwd) < 0.5 * len { cam_fwd } else { to / len }
 }
 
 /// Slab test: entry / exit distances of a ray through an AABB.
@@ -339,11 +346,7 @@ pub fn ray_aabb(o: Vec3, d: Vec3, min: Vec3, max: Vec3) -> Option<(f32, f32)> {
     let t2 = (max - o) * inv;
     let tmin = t1.min(t2).max_element();
     let tmax = t1.max(t2).min_element();
-    if tmin.is_nan() || tmax.is_nan() || tmax < 0.0 || tmin > tmax {
-        None
-    } else {
-        Some((tmin.max(0.0), tmax))
-    }
+    if tmin.is_nan() || tmax.is_nan() || tmax < 0.0 || tmin > tmax { None } else { Some((tmin.max(0.0), tmax)) }
 }
 
 /// What the camera ray is on, as a target point. `players` are other players' rendered hulls
@@ -742,7 +745,13 @@ fn override_local_view(
     v.pitch = pitch;
     let s = &sim.state;
     let mut f = v.flags & !(pflags::GROUNDED | pflags::CROUCHED | pflags::SLIDING | pflags::HOOK_L_ATTACHED | pflags::HOOK_R_ATTACHED);
-    for (on, bit) in [(s.grounded, pflags::GROUNDED), (s.crouched, pflags::CROUCHED), (s.sliding, pflags::SLIDING), (s.hooks[0].attached(), pflags::HOOK_L_ATTACHED), (s.hooks[1].attached(), pflags::HOOK_R_ATTACHED)] {
+    for (on, bit) in [
+        (s.grounded, pflags::GROUNDED),
+        (s.crouched, pflags::CROUCHED),
+        (s.sliding, pflags::SLIDING),
+        (s.hooks[0].attached(), pflags::HOOK_L_ATTACHED),
+        (s.hooks[1].attached(), pflags::HOOK_R_ATTACHED),
+    ] {
         if on {
             f |= bit;
         }
@@ -932,11 +941,12 @@ mod tests {
     #[test]
     fn camera_never_ends_inside_a_solid_voxel() {
         let mut rng = crate::util::Rng::new(0xB0_0B);
+        let mut total = 0;
         for world in 0..40 {
             let mut g = Grid::default();
-            for _ in 0..(60 + world * 8) {
-                let c = Vec3::new(rng.range(-6.0, 6.0), rng.range(-2.0, 6.0), rng.range(-6.0, 6.0));
-                let e = Vec3::new(rng.range(0.25, 2.5), rng.range(0.25, 2.5), rng.range(0.25, 2.5));
+            for _ in 0..(14 + world) {
+                let c = Vec3::new(rng.range(-8.0, 8.0), rng.range(-3.0, 8.0), rng.range(-8.0, 8.0));
+                let e = Vec3::new(rng.range(0.25, 1.5), rng.range(0.25, 1.5), rng.range(0.25, 1.5));
                 g.fill_box(c - e, c + e);
             }
             // Thin sheets and diagonal seams too.
@@ -944,12 +954,16 @@ mod tests {
                 g.0.insert(bd_core::IVec3::new(k, k.rem_euclid(5), -k));
             }
             let mut tried = 0;
-            while tried < 60 {
-                let eye = Vec3::new(rng.range(-5.0, 5.0), rng.range(-1.0, 5.0), rng.range(-5.0, 5.0));
+            for _ in 0..4000 {
+                if tried >= 60 {
+                    break;
+                }
+                let eye = Vec3::new(rng.range(-7.0, 7.0), rng.range(-3.0, 8.0), rng.range(-7.0, 7.0));
                 if !clear_at(&g, eye) {
                     continue;
                 }
                 tried += 1;
+                total += 1;
                 let (rot, _, back, up) = frame(rng.range(0.0, std::f32::consts::TAU), rng.range(-1.5, 1.5));
                 let side = if rng.f32() < 0.5 { -1.0 } else { 1.0 };
                 let boom = rng.range(0.0, 4.5);
@@ -965,6 +979,7 @@ mod tests {
                 }
             }
         }
+        assert!(total > 2000, "only {total} camera placements tested");
     }
 
     /// The crosshair is the truth: the converged ray from the eye passes through the camera's

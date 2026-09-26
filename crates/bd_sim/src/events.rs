@@ -295,6 +295,10 @@ pub enum GameEvent {
     /// ASSIST HOOK (`crate::melee_assist`, `crate::hook`): `player` lunged at `other`, hooked
     /// `other` with a tether, lost that rope (why), reeled in for a slam, or landed the slam.
     Assist { player: PlayerId, other: Option<PlayerId>, kind: crate::hook::AssistEvent, pos: Vec3 },
+    /// SIGNATURE HOOK (`crate::signature::orbital`): an orbital emitter's strike cycle — `Telegraph`
+    /// (show the ground target marker at `point` for `secs`), `Strike` (the beam is live for `secs`;
+    /// `Hitscan` events carry its moving end point), `End` (cooldown `secs`).
+    OrbitalStrike { id: ConstructId, owner: PlayerId, phase: crate::signature::StrikePhase, point: Vec3, radius: f32, secs: f32 },
 }
 
 /// What [`GameEvent::HeldFx`] reports (COMBAT.md §4 Held / Worn, §4b, §5d).

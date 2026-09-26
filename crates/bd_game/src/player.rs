@@ -309,6 +309,10 @@ fn write_view_anchor(
             // Landing dip, proportional to impact speed.
             smooth.dip_vel -= (l.impact_speed * 0.045).min(0.9) * comfort.landing_dip;
         }
+        if ev.air_jumped {
+            // AIR JUMP: a small push-off kick off the hard-light step (comfort-gated like the dip).
+            smooth.dip_vel -= 0.3 * comfort.landing_dip;
+        }
     }
     smooth.step_offset = smooth.step_offset.clamp(-1.0, 1.0) * (-dt / 0.045).exp();
     // Dip spring (slightly underdamped: a quick knee-bend and recover).

@@ -88,7 +88,12 @@ fn ffa_cfg() -> SimConfig {
 // rope no longer counts a cliff-edge anchor right above it as "reached" and lets go into the void, and
 // it holds on while hanging past a blast zone. A/B verified: the same tree with just that bot line
 // reverted reproduces the old hash (the tether save / recall / placement sim changes alone don't move it).
-const FFA_NOCAST_STATE_HASH: u64 = 0x89ad_f394_3982_9573;
+// Re-recorded (was 0x89ad_f394_3982_9573) for the air jump + dodge (movement/air_jump.rs, dodge.rs):
+// bots now air-jump to recover / chase, dodge telegraphed attacks and no longer re-press Jump in the
+// air by accident. A/B verified: a copy of this tree with the air jump short-circuited and
+// `dodge::bot_moves` skipped reproduces 0x89ad_f394_3982_9573 (the new state, timers, restores and
+// event flags alone don't move it).
+const FFA_NOCAST_STATE_HASH: u64 = 0x1fab_383f_88df_c29f;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {

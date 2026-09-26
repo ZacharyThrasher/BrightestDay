@@ -63,12 +63,12 @@ fn push_word(w: &str, out: &mut Vec<String>) {
         return;
     }
     for (suffix, full) in [("'ll", "will"), ("'re", "are"), ("'ve", "have"), ("'d", "would"), ("n't", "not")] {
-        if let Some(base) = w.strip_suffix(suffix) {
-            if !base.is_empty() {
-                out.push(canon(&base.replace('\'', "")));
-                out.push(full.to_string());
-                return;
-            }
+        if let Some(base) = w.strip_suffix(suffix)
+            && !base.is_empty()
+        {
+            out.push(canon(&base.replace('\'', "")));
+            out.push(full.to_string());
+            return;
         }
     }
     // Possessive / anything else: drop the apostrophe ("sinestro's" → "sinestros").
@@ -209,9 +209,7 @@ fn align(r: &[String], t: &[String]) -> f32 {
     }
     // dp[i][j]: cost of section words ..i against transcript words ..j (leading words free).
     let mut dp = vec![vec![f32::INFINITY; m + 1]; n + 1];
-    for j in 0..=m {
-        dp[0][j] = 0.0;
-    }
+    dp[0].fill(0.0);
     for i in 1..=n {
         for j in 0..=m {
             let mut best = dp[i - 1][j] + 1.0; // section word missed

@@ -35,7 +35,7 @@ pub(crate) fn step(s: &mut PlayerState, inp: &Inp, input: &PlayerInput, p: &Move
         return;
     }
     let want = inp.pressed(buttons::DODGE) && !input.held(buttons::TYPING) && !crate::charge::holding(input);
-    if !want || x.dodge_cd > 0.0 || (air && x.air_dodge_used) || tumbling || !(p.dodge_time > 0.0) {
+    if !want || x.dodge_cd > 0.0 || (air && x.air_dodge_used) || tumbling || p.dodge_time.is_nan() || p.dodge_time <= 0.0 {
         return;
     }
     let dir = if inp.wish_h != Vec3::ZERO { inp.wish_h } else { -inp.fwd_h };

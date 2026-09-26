@@ -67,6 +67,7 @@ use bevy::camera::{CameraOutputMode, ClearColorConfig, Viewport};
 use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
 use bevy::ecs::system::SystemParam;
 use bevy::light::cluster::ClusterConfig;
+use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use bevy::render::render_resource::BlendState;
 use bevy::render::view::Msaa;
@@ -369,6 +370,8 @@ fn setup(mut commands: Commands, cams: Query<Entity, With<PlayerCamera>>) {
         Tonemapping::KhronosPbrNeutral,
         DebandDither::Disabled,
         ClusterConfig::None,
+        // The hard-light shader reads the view's fog uniform: bind one that never fogs (alpha 0).
+        DistanceFog { color: Color::NONE, directional_light_color: Color::NONE, directional_light_exponent: 1.0, falloff: FogFalloff::Linear { start: 1.0e6, end: 2.0e6 } },
         RenderLayers::layer(PREVIEW_LAYER),
         Transform::default(),
     ));

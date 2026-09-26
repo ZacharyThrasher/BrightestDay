@@ -264,3 +264,214 @@ fn deterministic_with_bots_and_replicas_agree() {
         }
     }
 }
+
+/// Perf: an 8-bot brawl where every bot cast is a signature (domains + ultimate beams everywhere)
+/// vs the same brawl with signatures off. Prints tick p50 / p99 (run with `--release --ignored`).
+#[test]
+#[ignore = "perf report: cargo test -p bd_sim --release --test signature -- --ignored --nocapture"]
+fn perf_brawl_with_signatures() {
+    let run = |sig: bool| {
+        let cfg = SimConfig { arena: ArenaSource::Archipelago { seed: 3 }, ..SimConfig::default() };
+        let mut w = World::new(cfg);
+        let mut t = w.tuning().clone();
+        t.signature.bot_willpower = if sig { 0.0 } else { 1000.0 };
+        t.signature.bot_chance = if sig { 1.0 } else { 0.0 };
+        w.set_tuning(t);
+        let mut brains = bots::add_bots(&mut w, 0, 8, 0.9, 11);
+        w.start_live();
+        let mut inputs = Vec::new();
+        let mut ms = Vec::new();
+        let mut domains = 0;
+        for _ in 0..(60.0 / DT) as usize {
+            inputs.clear();
+            let t0 = std::time::Instant::now();
+            bots::drive(&mut w, &mut brains, &mut inputs);
+            let evs = w.tick(&inputs);
+            ms.push(t0.elapsed().as_secs_f64() * 1e3);
+            domains += evs.iter().filter(|e| matches!(e, GameEvent::ConstructSpawned { recipe, .. } if recipe.form == Form::Dome && recipe.scale > 10.0)).count();
+        }
+        ms.sort_by(|a, b| a.total_cmp(b));
+        (ms[ms.len() / 2], ms[ms.len() * 99 / 100], ms[ms.len() - 1], domains)
+    };
+    let off = run(false);
+    let on = run(true);
+    println!("tick ms  signatures off: p50 {:.3} p99 {:.3} max {:.3} | on: p50 {:.3} p99 {:.3} max {:.3} ({} domains)", off.0, off.1, off.2, on.0, on.1, on.2, on.3);
+}
+
+// ================================================================================ orbital strikes
+
+use bd_sim::signature::StrikePhase;
+
+fn satellite(extra: &[Mechanic]) -> Recipe {
+    let mut m = vec![Mechanic::Flies, Mechanic::DropFromSky, Mechanic::Beam];
+    m.extend_from_slice(extra);
+    recipe("satellite death beam", Form::Vehicle, &m, Element::Light, 3.0)
+}
+
+/// A casts at the ground `dist` m ahead (B stands there). Returns (construct, ground aim point).
+fn cast_orbital(w: &mut World, r: Recipe, dist: f32) -> (ConstructId, Vec3) {
+    let a = w.player(A).unwrap().mv.pos;
+    let eye = a + Vec3::Y * 1.6;
+    let target = a + Vec3::new(0.0, 0.0, -dist);
+    w.player_mut(B).unwrap().mv.pos = target;
+    w.player_mut(A).unwrap().willpower = 100.0;
+    let id = w.cast(A, r, None, Aim::new(eye, (target - eye).normalize())).expect("cast");
+    (id, target)
+}
+
+fn strikes(evs: &[GameEvent]) -> Vec<(StrikePhase, Vec3)> {
+    evs.iter()
+        .filter_map(|e| match e {
+            GameEvent::OrbitalStrike { phase, point, .. } => Some((*phase, *point)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn orbital_hovers_high_and_in_view() {
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let (id, target) = cast_orbital(&mut w, satellite(&[]), 25.0);
+    let a = w.player(A).unwrap().mv.pos;
+    let eye = a + Vec3::Y * 1.6;
+    for _ in 0..(2.0 / DT) as usize {
+        w.tick(&[]);
+    }
+    let c = w.constructs.get(id).expect("alive");
+    let alt = c.pos.y - target.y;
+    let ceiling = w.arena.bounds.max.y - t.ceiling_margin;
+    assert!(alt >= t.altitude_min.min(ceiling - target.y) - 0.5 && alt <= t.altitude_max + 0.5, "altitude {alt}");
+    assert!(c.pos.y <= ceiling + 0.5, "under the ceiling");
+    let flat = Vec3::new(c.pos.x - eye.x, 0.0, c.pos.z - eye.z).length();
+    let elev = ((c.pos.y - eye.y) / flat.max(1e-3)).atan().to_degrees();
+    assert!(elev <= t.view_elev_deg + 3.0, "in view: {elev:.1}°");
+    let lean = Vec3::new(c.pos.x - target.x, 0.0, c.pos.z - target.z).length();
+    assert!(lean <= alt + 0.5, "beam within 45° of vertical: {lean:.1} m off at {alt:.1} m");
+    let p0 = c.pos;
+    for _ in 0..(1.0 / DT) as usize {
+        w.tick(&[]);
+    }
+    assert!((w.constructs.get(id).unwrap().pos - p0).length() < 0.05, "hovers");
+}
+
+#[test]
+fn telegraph_precedes_damage_then_the_beam_hits() {
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let pct0 = w.player(B).unwrap().damage_pct;
+    let n0 = w.events().len();
+    let _ = cast_orbital(&mut w, satellite(&[Mechanic::Homing]), 20.0);
+    let mut evs: Vec<GameEvent> = w.events()[n0..].to_vec();
+    let mut first_hit: Option<f32> = None;
+    let mut strike_at: Option<f32> = None;
+    let mut telegraph_at: Option<f32> = None;
+    let mut time = 0.0;
+    for _ in 0..(t.telegraph + 1.5) as usize * 120 {
+        for (ph, _) in strikes(&evs) {
+            match ph {
+                StrikePhase::Telegraph => telegraph_at = telegraph_at.or(Some(time)),
+                StrikePhase::Strike => strike_at = strike_at.or(Some(time)),
+                StrikePhase::End => {}
+            }
+        }
+        if first_hit.is_none() && w.player(B).unwrap().damage_pct > pct0 {
+            first_hit = Some(time);
+        }
+        w.player_mut(B).unwrap().mv.vel = Vec3::ZERO; // stand still in the beam
+        evs = w.tick(&[]).to_vec();
+        time += DT;
+    }
+    let (tg, st, hit) = (telegraph_at.expect("marker"), strike_at.expect("strike"), first_hit.expect("B got hit"));
+    assert!(tg < 0.02, "the marker shows at once: {tg}");
+    assert!(st >= t.telegraph - 0.02 && hit >= st - 1e-3, "telegraph {tg} -> strike {st} -> hit {hit}");
+}
+
+#[test]
+fn the_beam_slews_at_a_capped_speed_and_can_be_outrun() {
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let _ = cast_orbital(&mut w, satellite(&[Mechanic::Homing]), 20.0);
+    let mut ends: Vec<Vec3> = Vec::new();
+    let b0 = w.player(B).unwrap().mv.pos;
+    for k in 0..((t.telegraph + t.strike_secs) / DT) as usize {
+        // B sprints sideways at 14 m/s once the strike is live.
+        if k as f32 * DT > t.telegraph {
+            let p = w.player_mut(B).unwrap();
+            p.mv.pos = b0 + Vec3::new((k as f32 * DT - t.telegraph) * 14.0, 0.0, 0.0);
+            p.mv.vel = Vec3::ZERO;
+        }
+        for e in w.tick(&[]) {
+            if let GameEvent::Hitscan { owner, end, .. } = e {
+                if *owner == A {
+                    ends.push(*end);
+                }
+            }
+        }
+    }
+    assert!(ends.len() >= 10, "{} pulses", ends.len());
+    for p in ends.windows(2) {
+        let step = Vec3::new(p[1].x - p[0].x, 0.0, p[1].z - p[0].z).length();
+        assert!(step <= t.slew * t.pulse * 1.3 + 0.05, "slew {step:.2} m per pulse");
+    }
+    let b = w.player(B).unwrap().mv.pos;
+    let last = *ends.last().unwrap();
+    assert!(Vec3::new(b.x - last.x, 0.0, b.z - last.z).length() > 5.0, "outran it");
+}
+
+#[test]
+fn abduction_beam_lifts_instead_of_blasting() {
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let pct0 = w.player(B).unwrap().damage_pct;
+    let _ = cast_orbital(&mut w, satellite(&[Mechanic::Attract]), 18.0);
+    let y0 = w.player(B).unwrap().mv.pos.y;
+    let mut top = y0;
+    for _ in 0..((t.telegraph + 1.0) / DT) as usize {
+        w.tick(&[]);
+        top = top.max(w.player(B).unwrap().mv.pos.y);
+    }
+    assert!(top > y0 + 2.0, "lifted {:.1} m", top - y0);
+    assert_eq!(w.player(B).unwrap().damage_pct, pct0, "abduction doesn't blast");
+}
+
+#[test]
+fn orbital_cost_is_existing_pricing_times_one_knob() {
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let r = satellite(&[]);
+    let n0 = w.events().len();
+    let _ = cast_orbital(&mut w, r.clone(), 20.0);
+    let (_, rec, _, cost) = spawned(&w.events()[n0..]).unwrap();
+    let wt = &w.tuning().willpower;
+    let plain = wt.base_cost_as(&rec, wt.is_autonomous(&rec));
+    assert!((cost - plain * t.cost_mult).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
+}
+
+#[test]
+fn orbital_strikes_are_deterministic_and_replicas_agree() {
+    let run = || {
+        let mut w = duel();
+        let _ = cast_orbital(&mut w, satellite(&[Mechanic::Homing, Mechanic::Heavy]), 22.0);
+        let mut evs = w.events().to_vec();
+        for _ in 0..(8.0 / DT) as usize {
+            evs.extend_from_slice(w.tick(&[]));
+        }
+        (w, evs)
+    };
+    let (w1, e1) = run();
+    let (w2, _) = run();
+    assert_eq!(w1.state_hash(), w2.state_hash());
+    assert!(strikes(&e1).iter().filter(|s| s.0 == StrikePhase::Strike).count() >= 2, "strike, cool down, strike again");
+    // A replica fed the host's events + snapshot sees the hovering emitter where the host has it.
+    let mut replica = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, ..SimConfig::default() });
+    for e in &e1 {
+        replica.apply_event(e);
+    }
+    let snap = w1.snapshot_for(None);
+    replica.apply_snapshot(&snap, None);
+    for c in w1.constructs.iter().filter(|c| c.gone.is_none()) {
+        let r = replica.constructs.get(c.id).expect("replica has it");
+        assert!((r.pos - c.pos).length() < 0.05, "{:?} vs {:?}", r.pos, c.pos);
+    }
+}

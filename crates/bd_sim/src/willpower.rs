@@ -153,6 +153,14 @@ fn validate_inner(recipe: Recipe, rules: &MatchRules) -> Recipe {
         p.payload = None;
         r.payload = Some(Box::new(p));
     }
+    // v1.6 mount ("king kong on a skateboard"): clamped like any recipe (per-form scale range of these
+    // rules), one level only, and it neither shoots nor rides anything itself.
+    if let Some(m) = r.mount.take() {
+        let mut m = validate_inner(*m, rules);
+        m.payload = None;
+        m.mount = None;
+        r.mount = Some(Box::new(m));
+    }
     if let Some(a) = r.accent.as_mut() {
         for c in a.iter_mut() {
             *c = if c.is_finite() { c.clamp(0.0, 1.0) } else { 0.0 };

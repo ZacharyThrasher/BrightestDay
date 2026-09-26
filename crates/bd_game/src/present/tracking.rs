@@ -974,6 +974,27 @@ fn draw_tracking(
 /// `filament` (an enemy far behind you), `beacon` (an enemy ~85 m ahead), `reveal` (an enemy
 /// behind terrain firing a gun + one charging), `trails` (three enemies circling fast),
 /// `hook` (you hook an enemy with a sword, reel in and slam), `victim` (an enemy hooks you).
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tracking_ron_matches_the_rust_defaults() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/tuning/tracking.ron");
+        let text = std::fs::read_to_string(path).expect("assets/tuning/tracking.ron");
+        assert_eq!(ron::from_str::<TrackingTuning>(&text).expect("parses"), TrackingTuning::default());
+    }
+
+    #[test]
+    fn on_screen_projection() {
+        let cam = Transform::from_xyz(0.0, 0.0, 0.0);
+        let fov = (1.2, 16.0 / 9.0);
+        assert!(on_screen(&cam, fov, Vec3::new(0.0, 0.0, -10.0), 0.8));
+        assert!(!on_screen(&cam, fov, Vec3::new(0.0, 0.0, 10.0), 0.8), "behind");
+        assert!(!on_screen(&cam, fov, Vec3::new(30.0, 0.0, -10.0), 0.8), "far right");
+    }
+}
+
 pub mod scenario {
     use super::*;
     use crate::input::InputOverride;

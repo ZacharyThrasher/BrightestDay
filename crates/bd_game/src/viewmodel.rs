@@ -407,7 +407,10 @@ fn vm_events(
         return;
     };
     // Which construct do we hold (and what form)?
-    let held = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held).map(|c| (c.id, c.recipe.form));
+    let held_c = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held);
+    let held = held_c.map(|c| (c.id, c.recipe.form));
+    // The sim's quantised weight: the first-person swing matches its hit windows.
+    let swing_w = held_c.map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
     if held.map(|h| h.0) != st.held.map(|h| h.0) {
         st.swing = None;
     }
@@ -437,7 +440,7 @@ fn vm_events(
                         s.holding = false;
                         continue;
                     }
-                    st.swing = Some(ActiveSwing { curve: bd_shapes::swing_curve(form, kind), t: 0.0, holding: hold });
+                    st.swing = Some(ActiveSwing { curve: bd_shapes::swing_curve_weighted(form, kind, swing_w), t: 0.0, holding: hold });
                 }
             }
             GameEvent::ShotFired { owner, recoil, construct, .. } if *owner == local => {
@@ -480,7 +483,13 @@ fn animate_viewmodel(
     mut st: ResMut<VmState>,
     mut held_out: ResMut<FirstPersonHeld>,
     (pose, anchor, mut hands_out, tuning): (Res<anim::HandPose>, Res<crate::camera::ViewAnchor>, ResMut<ViewmodelHands>, Res<anim::VmTuningRes>),
-    held_q: (Option<Res<crate::present::constructs::ConstructEntities>>, Query<&bd_fx::ConstructVisual>, Option<Res<anim::AdsState>>, Res<crate::camera::CameraRig>),
+    mut held_q: (
+        Option<Res<crate::present::constructs::ConstructEntities>>,
+        Query<&bd_fx::ConstructVisual>,
+        Option<Res<anim::AdsState>>,
+        Res<crate::camera::CameraRig>,
+        Local<Option<((ConstructId, usize), anim::HeldGeom)>>,
+    ),
     mut root: Query<(&mut Transform, &mut Visibility), (With<VmRoot>, Without<VmArm>)>,
     mut arms: Query<(&VmArm, &mut Transform), Without<VmRoot>>,
     mut light: Query<&mut PointLight, With<VmRingLight>>,
@@ -540,10 +549,19 @@ fn animate_viewmodel(
     let tu = &tuning.0;
     let tip_of = |i: usize| if st.tip[i] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.6) } else { st.tip[i] };
     let palm_of = |tip: Vec3| Vec3::new(0.0, tip.y, tip.z * tu.grip_palm);
+    // Grip / support points from bd_shapes' grip API, computed once per held model.
     let geom = st.held.and_then(|(id, form)| {
         let e = *held_q.0.as_ref()?.0.get(&id)?;
         let vis = held_q.1.get(e).ok()?;
-        Some(anim::held_geom(&vis.model.bounds, form))
+        let key = (id, std::sync::Arc::as_ptr(&vis.model) as usize);
+        match *held_q.4 {
+            Some((k, g)) if k == key => Some(g),
+            _ => {
+                let g = anim::held_geom_model(tu, &vis.model, form);
+                *held_q.4 = Some((key, g));
+                Some(g)
+            }
+        }
     });
     let ext = st.punch.x.clamp(-0.25, 0.1);
     let sights = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff));

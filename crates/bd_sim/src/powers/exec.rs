@@ -353,6 +353,7 @@ impl World {
                 grants: Some(def.id.clone()),
                 temperament: Default::default(),
                 intensity: 0.0,
+                mount: None,
             },
             &self.cfg.rules,
         );

@@ -473,6 +473,7 @@ impl Lexicon {
             features: parse::bits_to_feats(rec.feat),
             temperament: temper.unwrap_or_default(),
             intensity: if temper.is_some() { 0.6 } else { 0.0 },
+            mount: None,
         }
         .normalized()
     }

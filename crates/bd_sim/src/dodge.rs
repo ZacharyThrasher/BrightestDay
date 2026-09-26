@@ -30,7 +30,14 @@ use crate::world::{Player, World};
 pub fn ignores(kind: HitKind) -> bool {
     matches!(
         kind,
-        HitKind::RingBlast | HitKind::RingShove | HitKind::Melee | HitKind::HeavyMelee | HitKind::Shot | HitKind::Thrown | HitKind::Creature | HitKind::Chain
+        HitKind::RingBlast
+            | HitKind::RingShove
+            | HitKind::Melee
+            | HitKind::HeavyMelee
+            | HitKind::Shot
+            | HitKind::Thrown
+            | HitKind::Creature
+            | HitKind::Chain
     )
 }
 
@@ -38,7 +45,7 @@ pub fn ignores(kind: HitKind) -> bool {
 pub fn intangible(w: &World, ti: usize, hit: &HitInfo) -> bool {
     let Some(p) = w.players.get(ti) else { return false };
     let iframes = w.cfg.move_params.dodge_iframes;
-    if !(p.mv.extra.since_dodge < iframes) || !ignores(hit.kind) {
+    if p.mv.extra.since_dodge >= iframes || !ignores(hit.kind) {
         return false;
     }
     let now = w.tick as f64;
@@ -99,7 +106,15 @@ pub fn bot_moves(
     let (fwd, right) = (Vec3::new(-sy, 0.0, -cy), Vec3::new(cy, 0.0, -sy));
     let keys = |d: Vec3| {
         let (f, r) = (d.dot(fwd), d.dot(right));
-        let k = |v: f32| if v > 0.38 { 1 } else if v < -0.38 { -1 } else { 0 };
+        let k = |v: f32| {
+            if v > 0.38 {
+                1
+            } else if v < -0.38 {
+                -1
+            } else {
+                0
+            }
+        };
         (k(r), k(f))
     };
     // A fresh Jump press in the air is the air jump: never start one by accident (auto-hop holds).
@@ -162,7 +177,8 @@ fn threat(w: &World, me: &Player) -> Option<Vec3> {
         if q.mv.lunge.active() && (q.mv.lunge.to - chest).length() < 3.5 {
             return Some(Vec3::new(chest.x - q.mv.pos.x, 0.0, chest.z - q.mv.pos.z).normalize_or_zero());
         }
-        let charging = w.constructs.held_by(q.id).and_then(|c| c.weapon).is_some_and(|ws| ws.phase == WeaponPhase::Charging && ws.charge > 0.35);
+        let charging =
+            w.constructs.held_by(q.id).and_then(|c| c.weapon).is_some_and(|ws| ws.phase == WeaponPhase::Charging && ws.charge > 0.35);
         if charging {
             let to = chest - q.eye(params);
             let d = to.length();

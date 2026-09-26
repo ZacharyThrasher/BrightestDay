@@ -101,7 +101,15 @@ fn ads_never_changes_movement_host_prediction_parity() {
             let yaw = (k as f32 * 0.02).sin() * 0.6;
             let strafe = if (k / 30) % 2 == 0 { 1 } else { -1 };
             let base = buttons::JUMP;
-            let inp = PlayerInput { seq: k, yaw, pitch: 0.0, move_x: strafe, move_z: 1, buttons: base | if ads { buttons::ADS } else { 0 }, ..Default::default() };
+            let inp = PlayerInput {
+                seq: k,
+                yaw,
+                pitch: 0.0,
+                move_x: strafe,
+                move_z: 1,
+                buttons: base | if ads { buttons::ADS } else { 0 },
+                ..Default::default()
+            };
             // The client predicts with the same input it sends.
             w.predict_player(A, &mut predicted, &inp);
             pred_states.push(predicted);

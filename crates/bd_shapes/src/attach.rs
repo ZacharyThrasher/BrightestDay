@@ -75,6 +75,50 @@ fn centroid(spec: &ShapeSpec, part: PartId, fb: Vec3) -> Vec3 {
     if w > 0.0 { acc / w } else { fb }
 }
 
+/// Mount attach point (bd_core v1.6 `Recipe::mount`): put `mount` (a real-size spec, e.g.
+/// `forms::generate(mount_recipe)`) under `rider`'s feet. The rider is lifted so its feet (lowest
+/// point) stand on the mount's top, both centred on the rider's footprint in X/Z; the combined origin
+/// stays feet-centre on the ground (the mount's bottom). Mount parts are re-numbered after the rider's
+/// and keep their roles (Wheel parts roll, Rotor spins...); the mount's root prims join the rider's
+/// root part; its seat marker is dropped (the rider is the seat).
+pub fn attach_mount(rider: &mut ShapeSpec, mount: &ShapeSpec) {
+    if mount.prims.is_empty() {
+        return;
+    }
+    let rb = spec_bounds(rider);
+    let mb = spec_bounds(mount);
+    // mount: footprint centred under the rider, bottom on y = 0
+    let m_off = Vec3::new(rb.center().x - mb.center().x, -mb.min.y, rb.center().z - mb.center().z);
+    // rider: feet on the mount's top surface
+    let lift = (mb.max.y - mb.min.y) - rb.min.y;
+    for p in &mut rider.prims {
+        p.center.y += lift;
+    }
+    for p in &mut rider.parts {
+        p.pivot.y += lift;
+    }
+    let base = rider.parts.iter().map(|p| p.id).filter(|&id| id != SEAT_PART).max().unwrap_or(0);
+    let remap = |id: PartId| -> PartId {
+        if id == 0 || id == SEAT_PART { 0 } else { base.saturating_add(id).min(254) }
+    };
+    for p in &mount.parts {
+        if p.id == SEAT_PART {
+            continue;
+        }
+        let mut q = p.clone();
+        q.id = remap(p.id);
+        q.parent = remap(p.parent);
+        q.pivot += m_off;
+        rider.parts.push(q);
+    }
+    for p in &mount.prims {
+        let mut q = p.clone();
+        q.center += m_off;
+        q.part = remap(p.part);
+        rider.prims.push(q);
+    }
+}
+
 /// Attach visible parts for `mechanics` to `spec`, placed relative to `bounds` (usually the body /
 /// root part bounds — see [`spec_bounds_of_part`]).
 pub fn attach_mechanic_parts(spec: &mut ShapeSpec, mechanics: &[Mechanic], bounds: SpecBounds) {
