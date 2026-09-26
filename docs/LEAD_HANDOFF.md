@@ -61,6 +61,9 @@ Everything below is committed and green unless noted.
   OnoStyle::Shout / bd_fx shout.rs + present/shout.rs — phrase erupts as voxel letters from the ring
   hand, size from mic loudness / CAPS / "!!!" / construct scale, letters shatter and stream into the
   construct; replicated (filtered, <=48 chars) so others read it; comfort + "On/Mine only/Off" setting.
+- CHARGE (owner: anime power-up): hold a key to slowly refill willpower (slower than the oath, ramps,
+  can't act, slowed, interrupted by hits); replicated flag+level (bd_core v1.4); big corps-coloured
+  aura, lifting debris, pressure ring, world dims <=6-10% (never HUD/chargers), comfort-gated; bots use it.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
