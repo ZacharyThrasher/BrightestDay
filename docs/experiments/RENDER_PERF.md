@@ -28,6 +28,13 @@ Scenario details (final frame): **idle playground** — 0 construct views, 0 pro
 
 ## How to read / reproduce
 
+- "render JS" is a **mean** and includes one-off costs (first-use shader program compiles and geometry
+  uploads when the 20 constructs appear — the stress rows' 10–16 ms means come from a handful of
+  multi-hundred-ms compile frames under SwiftShader); the CPU/frame p50/p95/p99 columns are the steady
+  state. (After this run, a start-up pre-compile of the hard-light programs was added to the renderer.)
+- p95/p99 CPU in this container are noisy: other agents were running CPU-heavy ASR benchmarks on the
+  same 4 vCPUs during the measurement.
+
 - `npm run build && node tools/perf.mjs` (≈ a few minutes; `--frames=N --size=WxH --quality=high,low`).
 - The sim is stepped exactly one 60 Hz tick per rendered frame inside the page (`__hl.bench`), so
   "CPU/frame" is the cost of one tick + one frame. At 120/144 Hz display rates most frames run

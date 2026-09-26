@@ -1,6 +1,6 @@
 import {
   CircleGeometry, Color, Mesh, PCFShadowMap, PerspectiveCamera, Quaternion, Scene, ShaderMaterial, Vector3, WebGLRenderer,
-  NoToneMapping, LinearSRGBColorSpace, AddEquation, CustomBlending, OneFactor, OneMinusSrcAlphaFactor, ZeroFactor,
+  NoToneMapping, LinearSRGBColorSpace, BackSide, FrontSide, AddEquation, CustomBlending, OneFactor, OneMinusSrcAlphaFactor, ZeroFactor,
 } from 'three';
 import type { World, GameEvent } from '../sim/world.js';
 import type { ConstructSpec } from '../sim/constructs/spec.js';
@@ -14,6 +14,8 @@ import { ConstructViews } from './constructs.js';
 import { EntityViews } from './entities.js';
 import { Markers } from './markers.js';
 import { PlayerRig, type RigState } from './playerRig.js';
+import { buildConstructGeometry, edgeMaterial, fillMaterial, ghostMaterial, hardlightUniforms } from './hardlight.js';
+import { defaultSpec } from '../sim/constructs/spec.js';
 
 export interface ViewInput { yaw: number; pitch: number; boosting?: boolean }
 
@@ -114,6 +116,25 @@ export class GameRenderer {
       this.scene.add(this.blob);
     }
     this.resize();
+    this.warmup();
+  }
+
+  /**
+   * Compile the hard-light shader programs up front so the first construct doesn't hitch.
+   * The warm-up meshes stay (invisible) so their programs are never released.
+   */
+  private warmup() {
+    const geo = buildConstructGeometry(defaultSpec(), null, 1);
+    const u = hardlightUniforms(this.color);
+    const group = new Mesh();
+    for (const [g, m] of [[geo.fill, fillMaterial(u, BackSide)], [geo.fill, fillMaterial(u, FrontSide)], [geo.edges, edgeMaterial(u)], [geo.fill, ghostMaterial(u)]] as const) {
+      const mesh = new Mesh(g, m);
+      mesh.frustumCulled = false;
+      group.add(mesh);
+    }
+    this.scene.add(group);
+    try { this.renderer.compile(this.scene, this.camera); } catch { /* compile is an optimisation only */ }
+    group.visible = false;
   }
 
   private makeDropMarker(): Mesh {

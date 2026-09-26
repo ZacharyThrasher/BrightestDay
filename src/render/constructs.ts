@@ -208,11 +208,7 @@ export class ConstructViews {
       let pose: { pos: Vector3; quat: Quaternion };
       try { pose = w.constructs.place(spec); } catch { continue; }
       const ext = specExtent(spec);
-      let offs: Vector3[] = [new Vector3()];
-      try {
-        const f = (w.constructs as any).arrangementOffsets;
-        if (typeof f === 'function' && spec.count > 1) offs = f.call(w.constructs, spec, ext);
-      } catch { /* private API may change; fall back to one ghost */ }
+      const offs: Vector3[] = spec.count > 1 ? w.constructs.arrangementOffsets(spec, ext) : [new Vector3()];
       want.push({ spec, pos: pose.pos, quat: pose.quat, offs });
     }
     // rebuild ghost meshes when shape changes (key excludes pose)

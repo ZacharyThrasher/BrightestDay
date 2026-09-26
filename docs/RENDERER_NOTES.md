@@ -154,10 +154,17 @@ cancelled in `webRequest.onBeforeRequest`; permissions denied except `media` (mi
 IIFE classic script so `file://` module-CORS rules never apply.
 
 ## Budgets (see RENDER_PERF.md for measured numbers)
-- Normal play: ~20–30 draw calls in the scene pass *including* the shadow pass, + 10 full-screen
-  post passes; ~20k triangles. Stress (20 constructs + a projectile storm): ~80 calls, ~70k tris.
-- CPU per frame (1 sim tick + render JS + HUD): ~2–3 ms p50 in this container, dominated by
-  Three.js traversal/submission; sim tick ~0.3–0.6 ms (2.5 ms with 20 constructs + projectiles).
+Measured at 1280×720 in headless Chromium/SwiftShader, 240 frames, one sim tick per frame:
+
+| scenario (high / low) | CPU per frame p50 / p95 | sim tick | scene draw calls (+post) | triangles |
+|---|---|---|---|---|
+| idle playground | 2.0 / 5.0 ms · 2.0 / 5.9 ms | 0.6 ms | 30 (+10) · 21 (+8) | 23k · 15k |
+| high-speed traversal | 2.5 / 5.4 ms · 2.5 / 5.4 ms | 0.5 ms | 24–32 (+10) · 19–23 (+8) | 20k · 12k |
+| stress: 20 constructs + ~170 projectiles | 4.1 / 7.6 ms · 3.8 / 8.0 ms | 2.2 ms | 81 (+10) · 72 (+8) | 75k · 68k |
+
+Scene draw calls include the shadow-map pass. Normal play is ~10× under the 300-call budget and
+~2–2.5 ms CPU (target < 4 ms) on these shared, contended vCPUs; the stress case is ~4 ms p50.
+SwiftShader rAF frame times (0.4–1 s) are software rasterisation and irrelevant to a GPU.
 
 ## Tried and rejected
 - **EffectComposer + UnrealBloomPass + OutlinePass**: more passes, per-object outline needs extra

@@ -107,6 +107,10 @@ Scenario details (final frame): ${results.filter((r) => r.quality === qualities[
 
 ## How to read / reproduce
 
+- "render JS" is a **mean** and includes one-off costs (first-use shader program compiles and geometry
+  uploads when the 20 constructs appear); the CPU/frame p50/p95/p99 columns are the steady state.
+  The renderer pre-compiles the hard-light programs at start-up to avoid a hitch on the first construct.
+
 - \`npm run build && node tools/perf.mjs\` (≈ a few minutes; \`--frames=N --size=WxH --quality=high,low\`).
 - The sim is stepped exactly one 60 Hz tick per rendered frame inside the page (\`__hl.bench\`), so
   "CPU/frame" is the cost of one tick + one frame. At 120/144 Hz display rates most frames run

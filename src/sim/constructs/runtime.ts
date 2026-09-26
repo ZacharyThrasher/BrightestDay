@@ -421,7 +421,7 @@ export class ConstructRuntime {
     return { pos, quat };
   }
 
-  private arrangementOffsets(spec: ConstructSpec, ext: ReturnType<typeof specExtent>): Vector3[] {
+  arrangementOffsets(spec: ConstructSpec, ext: ReturnType<typeof specExtent>): Vector3[] {
     const n = spec.count;
     if (n <= 1) return [new Vector3()];
     const w = Math.max(ext.size.x, 0.5) + spec.spacing * 0.5;

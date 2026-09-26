@@ -13,7 +13,7 @@ export type Vec3 = [number, number, number];
 export interface Part {
   shape: Shape;
   /**
-   * box/wedge: full extents [x, y, z] (wedge rises toward -z, i.e. its tall end is at the back)
+   * box/wedge: full extents [x, y, z] (wedge rises toward +z: its tall end is at +z)
    * sphere: [d, d, d]; cylinder/capsule/cone: [diameter, height, diameter] along local y
    * torus: [outerDiameter, tubeDiameter, outerDiameter] lying in local XZ plane
    * dome: [diameter, height, diameter] hemisphere shell, open at the bottom
