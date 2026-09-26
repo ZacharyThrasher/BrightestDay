@@ -7,7 +7,7 @@ tracking/lunge/hook-and-strike + compass, double jump/dodge/wall refresh/surfing
 parity, freedom bundle (it-grammar, targeting, sputter, hidden legendary, kill feed, highlights),
 lexicon relations, signature moves + Hollow Purple, combat.ron actually loaded + hot reload + host sync,
 outlines, Orbit, Backrooms. bd_core contract v1.6, bd_net PROTOCOL_VERSION 8 (map workers will bump more).
-**Owner's playable build:** target\playable\0926_1630\brightest_day.exe (fastrel, smoke-tested);
+**Owner's playable build:** target\playable\0926_1654_voice\brightest_day.exe (fastrel + voice, smoke-tested); zip: dist\BrightestDay-win64.zip;
 target\playable\LATEST.txt always points at the newest verified build.
 **Lead background processes (re-start after a machine restart):** `pwsh -File target\buildwatch.ps1`
 (GREEN/RED status every 90 s → target\build_status.txt) and `pwsh -File target\promote.ps1` (every 30 min:
@@ -247,4 +247,4 @@ a hidden window. Protocol is v7 (S2C::Tuning).
 - HIGH ROLLER casino map (--map casino): Vegas floor, giant roulette-table arena (static, surf lap), chandeliers, pool-deck rooftop. OPTIONAL gambling via a small generic interactables module: slot machines (hit/tether the lever, willpower stake, party-effect payout / jackpot = guaranteed legendary next cast / harmless bust; odds hidden) + roulette 'house spin' bonus pocket. Isolated behind feature casino. NINE map workers in flight.
 - In flight: ANTI-JUGGLE worker a98da5aecac02be4b (knockback decay within a window + short knockback immunity after N hits; tunable in combat.ron); COSTUME ROTATE worker a6035c30f82aca87b (drag/wheel orbit of the costume preview). Voice-enabled fastrel building in target\voice (owner saw no voice options: the playable/zip builds lacked --features voice). Zip: drop the unused 148 MB assets\models\ggml-base.en.bin (only q5_1 is used).
 - In flight: RELEASE-TO-FIRE worker (owner: charged hit needs an extra click; sim intends release — root-cause in input/net/prediction or other charge actions).
-- VOICE BUILDS: build with `--features voice` in its own CARGO_TARGET_DIR (target\voice, ~14 min cold). dist\BrightestDay-win64.zip (146 MB) = voice fastrel + assets (unused ggml-base.en.bin dropped; q5_1 kept) + cloudflared. promote.ps1 still builds WITHOUT voice — switch it to --features voice if the owner wants voice in every promoted build.
+- VOICE BUILDS: build with `--features voice` in its own CARGO_TARGET_DIR (target\voice, ~14 min cold). dist\BrightestDay-win64.zip (146 MB) = voice fastrel + assets (unused ggml-base.en.bin dropped; q5_1 kept) + cloudflared. promote.ps1 now builds fastrel WITH --features voice in target\voice (restarted 16:55).
