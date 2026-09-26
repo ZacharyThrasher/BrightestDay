@@ -19,8 +19,11 @@ All workers edit and build the SAME working tree. One broken edit blocks everyon
      (fails if it exists → someone holds it: wait 30 s, retry).
    - Re-read the file after claiming. Edit surgically (Edit tool, never rewrite/reformat), run
      `cargo check`, then delete your lock. Hold a lock ≤ 5 minutes.
-4. **Builds:** `CARGO_TARGET_DIR=target\play`, `CARGO_BUILD_JOBS=8`, default features. Release builds
-   only when you need an exe (screenshots/perf), at most ~1 per 15 min; copy the exe out before running.
+4. **Builds:** `CARGO_TARGET_DIR=target\play`, `CARGO_BUILD_JOBS=8`, default features. For an exe
+   (screenshots, smoke, feel checks) use `cargo build --profile fastrel -p bd_game` → exe at
+   `target\play\fastrel\brightest_day.exe` (no LTO, incremental: ~1 min relinks). Full `--release`
+   (thin LTO, 1 CGU, slow) only for final perf numbers; the lead's promoter handles release builds.
+   Copy the exe out before running.
 5. **Runtime smoke after client/render changes.** Compile-green isn't enough (shader and render
    validation errors only show up at startup). After changing cameras, materials, shaders or anything
    that runs during Loading, run the copied release exe with

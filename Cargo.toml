@@ -53,6 +53,15 @@ codegen-units = 1
 # Used by tools/check.ps1: optimised like release (property tests run millions of cases) but with
 # debug assertions + overflow checks ON, so arithmetic overflow on hostile input fails the gate instead
 # of silently wrapping. No LTO / many codegen units so the gate builds quickly.
+# Worker screenshots / smoke / feel checks: release optimisation without LTO and with parallel,
+# incremental codegen, so an edit relinks in about a minute instead of several. Output:
+# target\<dir>\fastrel\. True `release` (thin LTO, 1 CGU) is for the promoter, packaging and perf gates.
+[profile.fastrel]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
+
 [profile.gate]
 inherits = "release"
 lto = false
