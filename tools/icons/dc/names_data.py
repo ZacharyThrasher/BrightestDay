@@ -290,7 +290,7 @@ katana dc | tatsu yamashiro | Sword + Blade, Shadow [soultaker sword]
 soultaker sword | soultaker | Sword + Blade, Shadow
 el diablo | chato santana | Biped + Breath, Fire
 rick flag | colonel rick flag | Biped + Shoots, Protective
-amanda waller | the wall | Biped + Shoots, Fearful
+amanda waller |  | Biped + Shoots, Fearful
 captain boomerang ii | owen mercer | Disc + Returning, Fast
 nanaue | king shark nanaue | Fish + Grab
 the thinker's helmet | thinking cap | Ball + Psychic

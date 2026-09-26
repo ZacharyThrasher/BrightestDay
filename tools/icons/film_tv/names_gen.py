@@ -43,6 +43,14 @@ GENERIC_ALIASES = {"werewolf", "tornado", "black hole", "chainsaw", "frying pan"
                    "the one matrix", "salem", "ghost", "the gate", "spitter", "compies", "explorer", "morpher",
                    "silver sword", "pixies", "abu", "the stranger", "red balloon", "puzzle box", "boomstick",
                    "the thing monster", "killer car", "stranger", "herbie"}
+# Ceded to the TV/movie pack (assets/icons/shows.ron has hand-authored icons for these; lead decision 2026-09-26).
+# Dropped as row names and as aliases so a regeneration never takes them back.
+CEDED = {"homer simpson", "bart simpson", "rick's spaceship", "mr burns' hounds", "mr. burns' hounds", "drogon", "viserion", "ghost the direwolf",
+         "iron throne", "freddy krueger", "freddy krueger's glove", "jason voorhees", "michael myers", "chucky", "ghostface",
+         "pennywise", "pennywise balloon", "leatherface", "weapons aunt gladys", "annabelle", "candyman's hook", "krites",
+         "m3gan", "john wick", "fast and furious charger", "dom's charger", "neo", "nitrous boost", "sheriff woody",
+         "toy story rex", "aang's staff", "zippleback", "holtzman shield", "dune crysknife", "baron harkonnen",
+         "the baron harkonnen", "spice harvester", "carryall", "paul atreides", "muad'dib", "sardaukar"}
 BANNED_ALIASES = {"why did it have to be snakes", "beam me", "it's so fluffy", "release the kraken"}
 
 rows, seen, errs = [], set(), []
@@ -76,8 +84,8 @@ for line in DATA.strip().splitlines():
         als = [key + " " + q] + als
         key = q + " " + key
         name = key
-    als = [a for a in als if a not in BANNED_ALIASES and a not in GENERIC_ALIASES and a != key]
-    if key in icon_names or key in seen:
+    als = [a for a in als if a not in BANNED_ALIASES and a not in GENERIC_ALIASES and a not in CEDED and a != key]
+    if key in icon_names or key in seen or key in CEDED:
         continue
     als = [a for a in als if a not in icon_names and a not in seen]
     seen.add(key)

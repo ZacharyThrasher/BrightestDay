@@ -288,7 +288,7 @@ katana dc | tatsu yamashiro |  | hint: Sword + Blade, Shadow [soultaker sword]
 soultaker sword | soultaker |  | hint: Sword + Blade, Shadow
 el diablo | chato santana |  | hint: Biped + Breath, Fire
 rick flag | colonel rick flag |  | hint: Biped + Shoots, Protective
-amanda waller | the wall |  | hint: Biped + Shoots, Fearful
+amanda waller |  |  | hint: Biped + Shoots, Fearful
 captain boomerang ii | owen mercer |  | hint: Disc + Returning, Fast
 king shark nanaue |  |  | hint: Fish + Grab
 the thinker's helmet | thinking cap |  | hint: Ball + Psychic

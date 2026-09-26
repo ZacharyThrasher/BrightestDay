@@ -1,336 +1,162 @@
-rocket raccoon | rocket racoon | Q638476 | hint: Quadruped + Shoots, Explodes
-star-lord | star lord; peter quill | Q3496918 | hint: Biped + Shoots, Thrust
-gamora |  | Q2721152 | hint: Biped + Blade, Fast
-drax the destroyer | drax | Q898039 | hint: Biped + Blade, Charge
-marvel mantis | mantis marvel | Q2009899 | hint: Biped + Psychic
-marvel nebula | nebula marvel | Q2721134 | hint: Biped + Blade, Electric
-yondu's arrow | yaka arrow; yondu | Q8054918 | hint: Spear + Homing, Returning, Pierce
-cosmo the spacedog | cosmo | Q20979233 | hint: Quadruped + Grab, Psychic
-milano | the milano; guardians ship |  | hint: Vehicle + Flies, Piloted, Shoots
+milano |  |  | hint: Vehicle + Flies, Piloted, Shoots
 benatar | the bowie |  | hint: Vehicle + Flies, Piloted, Shoots
-ego the living planet | ego | Q2642342 | hint: Ball + Attract, DropFromSky, Heavy
 jane foster thor | mighty thor |  | hint: Biped + Flies, Returning, Electric
-surtur |  |  | hint: Kaiju + Blade, Fire
-twilight sword | surtur's sword |  | hint: Sword + Blade, Heavy, Fire
-jarnbjorn | thor's axe jarnbjorn |  | hint: Axe + Blade, Returning
-captain america | steve rogers | Q190679 | hint: Biped + Guard, Ricochet
-sam wilson captain america | sam wilson | Q24022345 | hint: Wings + Glide, Shoots
-falcon wings | falcon's wings; redwing |  | hint: Wings + Glide, Shoots
-redwing drone |  |  | hint: Bird + Flies, Shoots, Protective
-bucky barnes | winter soldier; bucky | Q28006858 | hint: Gauntlet + Blunt, Grab
-winter soldier's arm | vibranium arm; bucky's arm |  | hint: Gauntlet + Blunt, Grab
+sam wilson captain america |  | Q24022345 | hint: Wings + Glide, Shoots
+winter soldier's arm |  |  | hint: Gauntlet + Blunt, Grab
 us agent's shield | us agent; john walker | Q2540291 | hint: Shield + Guard, Returning
 iron man mark 42 | mark 42; mark xlii |  | hint: Biped + Piloted, Beam, Flies
 iron legion |  |  | hint: Biped + Swarm, Flies, Shoots
 unibeam | uni-beam |  | hint: Gun + Beam, Repel
 arc reactor |  |  | hint: Bomb + Explodes, Electric
-ultron |  | Q2474195 | hint: Biped + Flies, Beam, Swarm
-ultron sentries | ultron drones |  | hint: Biped + Swarm, Flies, Shoots
-marvel vision | vision marvel; the vision | Q2307071 | hint: Biped + Flies, Beam
-scarlet witch | wanda maximoff; wanda | Q929285 | hint: Biped + Grab, Psychic
+marvel vision |  | Q2307071 | hint: Biped + Flies, Beam
 agatha harkness | agatha | Q2339646 | hint: Biped + Pull, Shadow
-doctor strange | dr strange; stephen strange | Q907767 | hint: Biped + Portal, Shoots
-eye of agamotto |  |  | hint: Disc + Repel, Psychic
 wong |  | Q4357278 | hint: Biped + Portal, Guard
-dormammu |  | Q2066394 | hint: Kaiju + Breath, Fire
 mirror dimension |  |  | hint: Dome + Trap, Psychic
-black widow | natasha romanoff; widow | Q369197 | hint: Biped + Fast, Electric
-widow's bite | widow bites |  | hint: Gauntlet + Shoots, Electric
-yelena belova | yelena | Q4009216 | hint: Biped + Fast, Blade
+black widow | widow | Q369197 | hint: Biped + Fast, Electric
 red guardian | red guardian's shield | Q2298436 | hint: Shield + Guard, Blunt
 marvel ghost | ghost marvel; ava starr | Q3066649 | hint: Biped + Sneaky, Fast
-taskmaster |  |  | hint: Biped + Guard, Shoots
 marvel sentry | sentry marvel; robert reynolds |  | hint: Biped + Flies, Charge
 the void |  |  | hint: Blob + Attract, Shadow
 hawkeye's quiver | hawkeye quiver |  | hint: Bow + Explodes, Pull
 kate bishop |  |  | hint: Bow + Ricochet, Pierce
-marvel falcon | falcon marvel; falcon marvel | Q672591 | hint: Wings + Glide, Shoots
-ant-man and the wasp | the wasp; wasp | Q648125 | hint: Insect + Shrink, Fast, Electric
+marvel falcon |  | Q672591 | hint: Wings + Glide, Shoots
+ant-man and the wasp | wasp | Q648125 | hint: Insect + Shrink, Fast, Electric
 giant-man scott lang | giant scott lang |  | hint: Kaiju + Grab, Stomp, Grow
 pym tank | pym van |  | hint: Vehicle + Grow, Shrink, Charge
-modok | m.o.d.o.k. | Q208927 | hint: Blob + Beam, Flies, Psychic
-kang the conqueror | kang | Q1982051 | hint: Biped + Beam, Portal
 time variance authority | tva; tempad |  | hint: Platform + Portal
-alligator loki |  |  | hint: Quadruped + Grab, Charge
 miss minutes |  |  | hint: Blob + Playful, Portal
-he who remains |  |  | hint: Biped + Portal
-captain marvel | carol danvers |  | hint: Biped + Flies, Beam, Fire
 goose the flerken | goose; flerken |  | hint: Quadruped + Grab, Constrict
-ms. marvel | kamala khan | Q15208946 | hint: Gauntlet + Grow, Grab
 monica rambeau | photon | Q3320731 | hint: Biped + Beam, Flies
-shang-chi |  | Q2262357 | hint: Biped + Fast, Blunt
-ten rings | the ten rings |  | hint: Disc + Swarm, Returning, Pull
 great protector dragon | great protector |  | hint: Serpent + Flies, Water
 dweller-in-darkness |  |  | hint: Kaiju + Grab, Shadow
 morris the hundun | morris |  | hint: Blob + Flies, Playful
-moon knight | marc spector; mr knight | Q1037532 | hint: Biped + Ricochet, Returning
 khonshu |  |  | hint: Biped + Flies, Shadow
-crescent darts | moon knight darts |  | hint: Disc + Swarm, Ricochet
-she-hulk | jennifer walters | Q677627 | hint: Biped + Blunt, Charge
-abomination | emil blonsky | Q60146 | hint: Biped + Blunt, Charge, Heavy
-marvel leader | leader marvel; the leader; samuel sterns | Q2328990 | hint: Biped + Psychic
+marvel leader | leader marvel | Q2328990 | hint: Biped + Psychic
 werewolf by night | jack russell | Q2268707 | hint: Quadruped + Charge, Grab
-man-thing |  | Q2267846 | hint: Blob + Constrict, Fire
-marvel blade | blade marvel; eric brooks | Q881024 | hint: Sword + Blade, Fast
+marvel blade | blade marvel | Q881024 | hint: Sword + Blade, Fast
 blade's glaive | blade glaive |  | hint: Disc + Blade, Returning
-morbius |  |  | hint: Bird + Flies, Grab
-kraven the hunter |  | Q654588 | hint: Spear + Pierce, Charge
-marvel rhino | rhino marvel; aleksei sytsevich |  | hint: Quadruped + Charge, Heavy
-doctor octopus | doc ock; otto octavius | Q578094 | hint: Arachnid + Grab, Constrict
+marvel rhino | rhino marvel |  | hint: Quadruped + Charge, Heavy
 doc ock's tentacles | octavius arms |  | hint: Whip + Grab, Constrict
-green goblin | norman osborn | Q735721 | hint: Vehicle + Flies, Explodes
-goblin glider |  |  | hint: Vehicle + Flies, Piloted, Shoots
-pumpkin bomb | pumpkin bombs |  | hint: Bomb + Explodes, Fire
-electro | max dillon | Q2297886 | hint: Biped + Beam, Electric
-marvel sandman | sandman marvel; flint marko | Q1049890 | hint: Blob + Grow, Earth
-marvel lizard | lizard marvel; curt connors | Q19382 | hint: Biped + ArticulatedTail, Charge
-mysterio | quentin beck | Q2283843 | hint: Biped + Swarm, Sneaky
+marvel sandman |  | Q1049890 | hint: Blob + Grow, Earth
+marvel lizard | lizard marvel | Q19382 | hint: Biped + ArticulatedTail, Charge
 mysterio's drones | illusion drones |  | hint: Bird + Swarm, Shoots
-marvel vulture | vulture marvel; adrian toomes | Q2296291 | hint: Wings + Glide, Grab
-marvel scorpion | scorpion marvel; mac gargan | Q2289795 | hint: Arachnid + ArticulatedTail, Poison
+marvel vulture | vulture marvel | Q2296291 | hint: Wings + Glide, Grab
+marvel scorpion |  | Q2289795 | hint: Arachnid + ArticulatedTail, Poison
 shocker |  | Q2015743 | hint: Gauntlet + Repel, Blunt
-spider-gwen | ghost-spider; gwen stacy | Q18754957 | hint: Biped + Fast, Pull, Sticky
-spider-man 2099 | miguel o'hara | Q2092660 | hint: Biped + Blade, Pull
 spider-punk | hobie brown |  | hint: Biped + Blunt, Playful
-spider-ham | peter porker | Q3966700 | hint: Quadruped + Blunt, Playful
 marvel spot | spot marvel; the spot |  | hint: Blob + Portal, Shadow
 marvel prowler | prowler marvel |  | hint: Biped + Sneaky, Blade
 kingpin | wilson fisk | Q1753322 | hint: Biped + Blunt, Heavy
 marvel bullseye | bullseye marvel | Q388316 | hint: Disc + Homing, Ricochet
-elektra's sai | elektra | Q913359 | hint: Sword + Pierce, Fast
-punisher | frank castle | Q729150 | hint: Gun + Shoots, Heavy
-luke cage | power man | Q2267760 | hint: Biped + Guard, Blunt
-iron fist | danny rand | Q1194243 | hint: Gauntlet + Blunt, Light
+elektra's sai |  | Q913359 | hint: Sword + Pierce, Fast
+punisher |  | Q729150 | hint: Gun + Shoots, Heavy
 jessica jones |  | Q2271377 | hint: Biped + Blunt, Launch
-mister fantastic | reed richards | Q865017 | hint: Whip + Constrict, Pull
-invisible woman's force field | sue storm; invisible woman | Q510450 | hint: Dome + Barrier, Repel
+invisible woman's force field |  | Q510450 | hint: Dome + Barrier, Repel
 h.e.r.b.i.e. |  | Q1767163 | hint: Biped + Flies, Shoots, Protective
-fantasticar | fantasti-car |  | hint: Vehicle + Flies, Piloted
-doctor doom | victor von doom | Q430178 | hint: Biped + Beam, Electric
 doombots | doom bots |  | hint: Biped + Swarm, Shoots
-mole man |  | Q2478988 | hint: Biped + Earth
-giganto |  |  | hint: Kaiju + Charge, Stomp
-annihilus |  | Q771247 | hint: Insect + Flies, Swarm
 terrax |  | Q1984020 | hint: Axe + Blade, Earth
 frankie raye |  |  | hint: Biped + Fire, Flies
-magneto | erik lehnsherr | Q840291 | hint: Gauntlet + Attract, Repel, Electric
-professor x | charles xavier | Q838076 | hint: Biped + Psychic
-cerebro |  |  | hint: Dome + Psychic
-marvel storm | storm marvel; ororo munroe | Q632212 | hint: Staff + Beam, Electric, Wind
-jean grey |  | Q5350072 | hint: Bird + Flies, Fire, Psychic
-phoenix force | dark phoenix |  | hint: Bird + Flies, Breath, Fire
-gambit | remy lebeau | Q2639150 | hint: Disc + Explodes, Swarm
+marvel storm | storm marvel | Q632212 | hint: Staff + Beam, Electric, Wind
+phoenix force |  |  | hint: Bird + Flies, Breath, Fire
 marvel rogue | rogue marvel | Q838097 | hint: Biped + Flies, Grab
-marvel colossus | colossus marvel; piotr rasputin | Q60002 | hint: Biped + Heavy, Blunt
-nightcrawler | kurt wagner | Q5342183 | hint: Biped + Portal, ArticulatedTail
-marvel iceman | iceman marvel; bobby drake | Q838088 | hint: Ramp + Launch, Ice
-marvel beast | beast marvel; hank mccoy | Q302186 | hint: Biped + Charge, Grab
-marvel juggernaut | juggernaut marvel; cain marko | Q841372 | hint: Biped + Charge, Heavy
-sabretooth |  | Q431862 | hint: Gauntlet + Blade, Charge
+marvel colossus | colossus marvel | Q60002 | hint: Biped + Heavy, Blunt
+marvel iceman | iceman marvel | Q838088 | hint: Ramp + Launch, Ice
+marvel beast | beast marvel | Q302186 | hint: Biped + Charge, Grab
+marvel juggernaut | juggernaut marvel | Q841372 | hint: Biped + Charge, Heavy
 marvel mystique | mystique marvel | Q737236 | hint: Biped + Sneaky
-marvel apocalypse | apocalypse marvel; en sabah nur | Q2071805 | hint: Kaiju + Beam
-blackbird | x-jet |  | hint: Vehicle + Flies, Piloted
-danger room |  |  | hint: Cage + Trap, Shoots
-marvel cable | cable marvel; nathan summers | Q2267017 | hint: Gun + Shoots, Heavy
+marvel apocalypse | apocalypse marvel | Q2071805 | hint: Kaiju + Beam
+blackbird |  |  | hint: Vehicle + Flies, Piloted
+marvel cable |  | Q2267017 | hint: Gun + Shoots, Heavy
 marvel domino | domino marvel | Q59644 | hint: Gun + Ricochet
-dogpool |  |  | hint: Quadruped + Playful, Charge
 juggernaut helmet |  |  | hint: Shield + Charge, Heavy
 silver samurai |  | Q898201 | hint: Sword + Blade, Electric
-omega red |  | Q2420335 | hint: Whip + Constrict, Poison
 thanos' ship | sanctuary ii |  | hint: Vehicle + DropFromSky, Shoots
-outriders |  |  | hint: Quadruped + Swarm, Charge
-chitauri | chitauri soldiers | Q3675212 | hint: Biped + Swarm, Shoots
-chitauri leviathan |  |  | hint: Serpent + Flies, Charge, Heavy
 ebony maw |  | Q20979240 | hint: Biped + Pierce, Psychic
 proxima midnight's spear | proxima midnight |  | hint: Spear + Pierce, Returning, Electric
 corvus glaive |  | Q17986678 | hint: Spear + Blade
 cull obsidian |  |  | hint: Biped + Blunt, Heavy
-carnage symbiote | cletus kasady | Q1753328 | hint: Blob + Blade, Constrict
+carnage symbiote |  | Q1753328 | hint: Blob + Blade, Constrict
 marvel toxin | toxin marvel |  | hint: Blob + Grab, Sticky
 kree sentry |  |  | hint: Kaiju + Beam, Stomp
-ronan the accuser | ronan | Q1772041 | hint: Hammer + Blunt, Beam
-universal weapon | ronan's hammer |  | hint: Hammer + Blunt, Beam
 collector's museum |  |  | hint: Cage + Trap
-howard the duck |  | Q2708105 | hint: Bird + Playful
-squirrel girl |  | Q4353353 | hint: Quadruped + Swarm, Playful
-devil dinosaur |  | Q5267281 | hint: Kaiju + Grab, Stomp
 moon girl | lunella lafayette |  | hint: Biped + Shoots
-fin fang foom |  | Q2604737 | hint: Kaiju + Breath, Flies, Fire
 tiboro |  |  | hint: Biped + Shadow
 ironheart | riri williams | Q28127085 | hint: Biped + Flies, Piloted, Beam
 blue marvel |  |  | hint: Biped + Flies, Beam
 captain carter | peggy carter shield |  | hint: Shield + Guard, Returning
 zombie captain america | marvel zombies |  | hint: Biped + Swarm, Chaotic
 eternals |  | Q1618814 | hint: Biped + Beam, Flies
-celestial tiamut | tiamut; celestial |  | hint: Kaiju + Stomp, Beam
+celestial tiamut | tiamut |  | hint: Kaiju + Stomp, Beam
 deviants |  |  | hint: Quadruped + Swarm, Charge
-arishem |  |  | hint: Kaiju + Beam
-namor |  | Q613067 | hint: Spear + Pierce, Water, Flies
 talokan whale |  |  | hint: Fish + Charge, Water
 shuri's gauntlets | panther gauntlets |  | hint: Gauntlet + Shoots, Electric
 royal talon fighter | talon fighter |  | hint: Vehicle + Flies, Piloted
 m'baku |  |  | hint: Staff + Blunt
-okoye's spear | okoye |  | hint: Spear + Pierce, Returning
 war rhino | wakandan rhino |  | hint: Quadruped + Charge, Heavy, Piloted
-captain america's motorcycle | cap motorcycle |  | hint: Vehicle + Fast, Piloted
 sanctum sanctorum |  |  | hint: Wall + Barrier, Portal
 wand of watoomb |  |  | hint: Staff + Beam, Wind
-crimson bands of cyttorak | crimson bands |  | hint: Whip + Constrict, Link
 casket of ancient winters |  |  | hint: Bomb + Explodes, Ice
-darkhold |  |  | hint: Bomb + Shadow
-tesseract | space stone | Q110818826 | hint: Ball + Portal
-marvel aether | aether marvel; reality stone |  | hint: Blob + Swarm, Shadow
-marvel orb | orb marvel; power stone |  | hint: Ball + Explodes, Psychic
+tesseract |  | Q110818826 | hint: Ball + Portal
+marvel aether | aether marvel |  | hint: Blob + Swarm, Shadow
+marvel orb | orb marvel |  | hint: Ball + Explodes, Psychic
 stark industries missile | jericho missile |  | hint: Rocket + Explodes, Homing, Swarm
 pym particle van | quantum tunnel |  | hint: Platform + Portal, Shrink
 quantum realm |  |  | hint: Platform + Portal, Shrink
-batman | bruce wayne; the batman | Q2695156 | hint: Biped + Glide, Sneaky
-batcave |  | Q810740 | hint: Dome + Barrier
-batcycle | batpod; bat-pod | Q20008 | hint: Vehicle + Fast, Piloted, Shoots
-batboat |  |  | hint: Vehicle + Fast, Water
-batcopter |  |  | hint: Vehicle + Flies, Rotor
 batman's cape | bat cape |  | hint: Cape + Glide
-utility belt | batman's utility belt |  | hint: Bomb + Explodes, Sticky
-dc robin | robin dc; dick grayson; damian wayne | Q59996 | hint: Staff + Blunt, Fast
-dc nightwing | nightwing dc; escrima sticks | Q686623 | hint: Staff + Blunt, Electric
-dc batgirl | batgirl dc; barbara gordon | Q753713 | hint: Disc + Returning
-red hood | jason todd | Q2143880 | hint: Gun + Shoots
-dc alfred | alfred dc; alfred pennyworth | Q159051 | hint: Biped + Protective
+utility belt |  |  | hint: Bomb + Explodes, Sticky
+dc robin | dick grayson | Q59996 | hint: Staff + Blunt, Fast
+dc nightwing |  | Q686623 | hint: Staff + Blunt, Electric
+dc batgirl |  | Q753713 | hint: Disc + Returning
+dc alfred | alfred dc | Q159051 | hint: Biped + Protective
 joker's bang flag gun | bang gun |  | hint: Gun + Launch, Playful
 joker's teeth |  |  | hint: Arachnid + Swarm, Explodes
 harley quinn's bat | harley bat |  | hint: Hammer + Blunt, Playful
-two-face | harvey dent | Q295599 | hint: Gun + Shoots
-riddler | edward nygma | Q836789 | hint: Staff + Trap
-dc bane | bane dc | Q158940 | hint: Biped + Charge, Heavy
-killer croc |  | Q974336 | hint: Biped + Grab, Charge
-clayface |  | Q551747 | hint: Blob + Grow, Earth
-man-bat |  | Q1471053 | hint: Bird + Flies, Grab
-catwoman | selina kyle | Q158952 | hint: Whip + Pull, Fast
-catwoman's whip | cat whip |  | hint: Whip + Pull
-ra's al ghul |  | Q158931 | hint: Sword + Blade
+dc bane |  | Q158940 | hint: Biped + Charge, Heavy
 lazarus pit |  |  | hint: Dome + Barrier
-deathstroke | slade wilson | Q1181328 | hint: Sword + Blade, Shoots
 dc hush | hush dc |  | hint: Gun + Sneaky
-mad hatter |  |  | hint: Biped + Psychic
 dc ventriloquist | ventriloquist dc; scarface |  | hint: Biped + Shoots
-dc firefly | firefly dc; garfield lynns | Q2635751 | hint: Jetpack + Thrust, Fire
-court of owls | talons |  | hint: Biped + Swarm, Blade
-mr. freeze's suit | freeze suit |  | hint: Biped + Beam, Ice, Heavy
-superman's cape | superman cape |  | hint: Cape + Glide, Flies
-heat vision | superman heat vision |  | hint: Gun + Beam, Fire
-freeze breath | super breath |  | hint: Staff + Breath, Ice
-fortress of solitude |  | Q2121170 | hint: Pillar + Barrier, Ice
-lex luthor |  | Q694790 | hint: Biped + Piloted, Beam
-lex luthor's warsuit | luthor power armor |  | hint: Biped + Piloted, Beam, Flies
-brainiac |  |  | hint: Biped + Grab, Psychic
-brainiac's ship | skull ship |  | hint: Vehicle + DropFromSky, Grab
-bottle city of kandor | kandor |  | hint: Dome + Shrink, Trap
-zod | general zod | Q2260732 | hint: Biped + Flies, Beam
-phantom zone | phantom zone projector | Q1357778 | hint: Cage + Trap, Portal
-dc parasite | parasite dc |  | hint: Blob + Grab, Poison
-metallo |  | Q2003133 | hint: Biped + Beam, Poison
-bizarro |  | Q59641 | hint: Biped + Flies, Ice
-mr. mxyzptlk | mxyzptlk | Q1754534 | hint: Blob + Chaotic, Psychic
-toyman |  | Q2339828 | hint: Bomb + Walks, Explodes
-ultraman |  |  | hint: Biped + Flies, Beam
+dc firefly | firefly dc | Q2635751 | hint: Jetpack + Thrust, Fire
+mr. freeze's suit |  |  | hint: Biped + Beam, Ice, Heavy
+dc parasite |  |  | hint: Blob + Grab, Poison
+mr. mxyzptlk |  | Q1754534 | hint: Blob + Chaotic, Psychic
 the engineer | engineer |  | hint: Blob + Blade, Sticky
 hammer of boravia |  |  | hint: Hammer + Blunt, Heavy
-metamorpho | rex mason | Q1528452 | hint: Blob + Poison, Earth
 guy gardner's power ring |  |  | hint: Gauntlet + Blunt
-hawkgirl's wings | nth metal wings |  | hint: Wings + Glide, Blunt
-mister terrific | michael holt | Q3859330 | hint: Ball + Swarm, Homing
 justice gang |  |  | hint: Biped + Swarm
-superman robots | superman robot |  | hint: Biped + Swarm, Flies
 supergirl's cape |  |  | hint: Cape + Glide
-streaky the supercat | streaky | Q3975927 | hint: Quadruped + Flies, Playful
 comet the super-horse |  |  | hint: Quadruped + Flies, Piloted
-wonder woman's sword | godkiller |  | hint: Sword + Blade, Electric
-wonder woman's shield | amazon shield |  | hint: Shield + Guard, Ricochet
-invisible jet | wonder woman's jet | Q5843701 | hint: Vehicle + Flies, Piloted, Sneaky
-dc cheetah | cheetah dc; barbara minerva | Q2620997 | hint: Quadruped + Fast, Blade
-dc ares | ares dc | Q2426111 | hint: Biped + Blade
-black manta |  | Q2538991 | hint: Gun + Beam, Water
+dc cheetah |  | Q2620997 | hint: Quadruped + Fast, Blade
+dc ares |  | Q2426111 | hint: Biped + Blade
 black manta's helmet | manta helmet |  | hint: Gun + Beam
-karathen |  |  | hint: Kaiju + Grab, Water
-dc trench | trench dc; the trench |  | hint: Fish + Swarm, Aggressive
+dc trench | trench dc |  | hint: Fish + Swarm, Aggressive
 dc topo | topo dc |  | hint: Serpent + Constrict, Water
-mera |  | Q547612 | hint: Fish + Water, Pull
-the flash's lightning | speed force lightning |  | hint: Staff + Beam, Electric
-reverse-flash | eobard thawne | Q2576702 | hint: Biped + Fast, Charge
-captain cold | cold gun | Q717106 | hint: Gun + Beam, Ice
-heat wave | heat gun | Q650052 | hint: Gun + Beam, Fire
-gorilla grodd | grodd | Q783089 | hint: Biped + Charge, Psychic
-cosmic treadmill |  |  | hint: Platform + Portal
-cyborg | victor stone | Q2466726 | hint: Biped + Shoots, Repel
-martian manhunter | j'onn j'onzz | Q675179 | hint: Biped + Flies, Psychic
-shazam | billy batson; captain marvel shazam | Q534153 | hint: Biped + Flies, Electric
-black adam | teth-adam | Q391161 | hint: Biped + Flies, Electric
-blue beetle | jaime reyes | Q3806187 | hint: Biped + Flies, Shoots
-blue beetle scarab | khaji-da |  | hint: Gauntlet + Beam, Blade
-booster gold |  | Q391201 | hint: Biped + Flies, Shoots
+the flash's lightning |  |  | hint: Staff + Beam, Electric
+cyborg |  | Q2466726 | hint: Biped + Shoots, Repel
+shazam |  | Q534153 | hint: Biped + Flies, Electric
+blue beetle scarab |  |  | hint: Gauntlet + Beam, Blade
 dc skeets | skeets dc |  | hint: Ball + Flies, Protective
-zatanna |  | Q860922 | hint: Staff + Portal, Psychic
-john constantine | constantine | Q2663841 | hint: Biped + Fire, Sneaky
-swamp thing |  | Q1427625 | hint: Biped + Constrict, Earth
 dc raven | raven dc | Q245928 | hint: Bird + Flies, Shadow
-beast boy |  | Q575227 | hint: Quadruped + Charge, Playful
-starfire |  |  | hint: Biped + Flies, Fire
-trigon |  |  | hint: Kaiju + Beam, Fire
-plastic man |  | Q746838 | hint: Whip + Constrict, Bounce
-dc atom | atom dc; ray palmer | Q5685120 | hint: Biped + Shrink, Fast
-doctor fate | helmet of fate | Q1233853 | hint: Staff + Beam, Psychic
-hawkman |  | Q2359610 | hint: Wings + Glide, Blunt
-peacemaker's eagle | eagly |  | hint: Bird + Flies, Aggressive
-dc vigilante | vigilante dc |  | hint: Gun + Shoots
-bloodsport |  | Q4928009 | hint: Gun + Swarm, Explodes
-polka-dot man | polka dot man | Q7225485 | hint: Ball + Explodes, Swarm
-ratcatcher 2 | ratcatcher |  | hint: Quadruped + Swarm, Sneaky
-sebastian the rat |  |  | hint: Quadruped + Playful, Sneaky
-dc weasel | weasel dc |  | hint: Quadruped + Chaotic
-captain boomerang |  | Q2568066 | hint: Disc + Returning, Explodes
-el diablo |  |  | hint: Biped + Fire, Breath
+dc atom | atom dc | Q5685120 | hint: Biped + Shrink, Fast
+dc vigilante |  |  | hint: Gun + Shoots
+dc weasel |  |  | hint: Quadruped + Chaotic
 enchantress |  | Q5375407 | hint: Biped + Portal, Shadow
-deadshot |  | Q511769 | hint: Gun + Homing, Shoots
-amanda waller |  |  | hint: Biped + Sneaky
-parademons | parademon | Q3895006 | hint: Bird + Swarm, Flies
-steppenwolf |  | Q3973228 | hint: Axe + Blade, Electric
 apokolips fire pits |  |  | hint: Dome + Fire
-mister miracle |  | Q2365204 | hint: Cage + Trap, Portal
 big barda's mega-rod | mega rod |  | hint: Staff + Blunt, Beam
-lobo |  |  | hint: Hammer + Chains, Charge
 lobo's hook and chain | lobo chain |  | hint: Whip + Pull, Link
-space hog | lobo's bike |  | hint: Vehicle + Fast, Piloted
 sinestro's ring | yellow power ring |  | hint: Gauntlet + Pierce, Shadow
-arkillo |  |  | hint: Biped + Charge, Aggressive
-mongul |  | Q2447271 | hint: Biped + Charge, Heavy
-black hand |  |  | hint: Biped + Shadow
 hector hammond |  |  | hint: Blob + Psychic
 dc krona | krona dc |  | hint: Biped + Beam
-guardians of the universe | guardians of oa | Q947412 | hint: Biped + Swarm, Psychic
-oa | planet oa |  | hint: Ball + DropFromSky, Heavy
+oa |  |  | hint: Ball + DropFromSky, Heavy
 dc salaak | salaak dc |  | hint: Biped + Guard
-tomar-re |  |  | hint: Bird + Flies
-abin sur |  |  | hint: Biped + Flies
-jessica cruz |  | Q24896878 | hint: Biped + Guard, Barrier
-simon baz |  | Q5300252 | hint: Gun + Shoots
-alan scott | green lantern alan scott | Q1839954 | hint: Biped + Flies, Shadow
-sodam yat |  |  | hint: Biped + Flies, Beam
-saint walker |  |  | hint: Biped + Protective
-carol ferris |  |  | hint: Biped + Flies
-arisia |  |  | hint: Biped + Flies
-manhunters | manhunter robots |  | hint: Biped + Swarm, Shoots
 dc relic | relic dc |  | hint: Kaiju + Attract
 nekron's scythe |  |  | hint: Axe + Blade, Shadow
 dc butcher | butcher dc; red lantern entity |  | hint: Quadruped + Charge, Fire
 dc ophidian | ophidian dc |  | hint: Serpent + Constrict
-predator entity | violet entity |  | hint: Serpent + Flies, Psychic
 dc adara | adara dc |  | hint: Bird + Flies
 dc proselyte | proselyte dc |  | hint: Blob + Psychic
 ion entity |  |  | hint: Serpent + Flies, Beam
 doomsday's bone spikes |  |  | hint: Spear + Pierce, Earth
 swamp monster |  |  | hint: Blob + Constrict, Earth
-solomon grundy |  |  | hint: Biped + Blunt, Heavy
-atomic skull |  | Q3543409 | hint: Biped + Atomic
 gotham city blimp | gotham blimp |  | hint: Vehicle + Flies, DropFromSky
 luke skywalker |  | Q51746 | hint: Sword + Blade, Psychic
 darth vader's lightsaber | vader's lightsaber |  | hint: Sword + Blade, Heavy
@@ -481,7 +307,6 @@ fluffy | three-headed dog |  | hint: Quadruped + Grab, Charge
 troll in the dungeon | mountain troll hogwarts |  | hint: Biped + Blunt, Heavy
 cornish pixies |  |  | hint: Bird + Swarm, Playful
 thestral |  |  | hint: Bird + Flies, Shadow
-giant squid |  |  | hint: Serpent + Constrict, Water
 grindylow |  |  | hint: Fish + Grab, Water
 inferi |  |  | hint: Biped + Swarm, Water
 sword of gryffindor |  |  | hint: Sword + Blade
@@ -630,25 +455,10 @@ squid game guards' rifles |  |  | hint: Gun + Shoots
 dalgona cookie | dalgona |  | hint: Disc + Blade
 squid game piggy bank |  |  | hint: Ball + Heavy, DropFromSky
 glass bridge |  |  | hint: Platform + Trap
-soldier boy |  |  | hint: Shield + Guard, Beam
 starlight |  |  | hint: Gauntlet + Beam, Light
-queen maeve |  |  | hint: Sword + Blade, Guard
-a-train |  |  | hint: Biped + Fast, Charge
-black noir |  |  | hint: Sword + Sneaky, Blade
-the deep |  |  | hint: Fish + Swarm, Water
-kimiko |  |  | hint: Biped + Aggressive, Grab
-compound v |  |  | hint: Bomb + Grow, Poison
-atom eve |  |  | hint: Dome + Barrier, Psychic
-allen the alien | allen |  | hint: Biped + Blunt
-battle beast |  |  | hint: Axe + Blade, Charge
-thragg |  |  | hint: Biped + Charge, Heavy
 viltrumites |  |  | hint: Biped + Swarm, Flies
-monster girl |  |  | hint: Biped + Grow, Charge
-rex splode |  |  | hint: Ball + Explodes, Swarm
-dupli-kate |  |  | hint: Biped + Swarm
 bulletproof |  |  | hint: Biped + Flies, Guard
 stranger things titan | titan stranger things |  | hint: Biped + Earth, Heavy
-angstrom levy |  |  | hint: Platform + Portal
 stranger things conquest | conquest stranger things |  | hint: Biped + Blade, Charge
 pow-pow | jinx minigun |  | hint: Gun + Fast, Shoots
 caitlyn's rifle | caitlyn |  | hint: Gun + Pierce, Shoots
@@ -670,11 +480,11 @@ saja boys |  |  | hint: Biped + Swarm, Shadow
 jinu |  |  | hint: Biped + Sneaky, Shadow
 gwi-ma | gwi ma |  | hint: Kaiju + Breath, Shadow
 sussie | kpop demon hunters magpie |  | hint: Bird + Flies, Playful
-pixar woody | woody pixar; sheriff woody |  | hint: Whip + Pull, Link
+pixar woody | woody pixar |  | hint: Whip + Pull, Link
 woody's lasso | woody lasso |  | hint: Whip + Pull
 pixar jessie | jessie pixar |  | hint: Biped + Fast, Playful
 pixar bullseye | bullseye pixar; toy story horse |  | hint: Quadruped + Fast, Piloted
-pixar rex | rex pixar; toy story rex |  | hint: Kaiju + Fearful, ArticulatedTail
+pixar rex | rex pixar |  | hint: Kaiju + Fearful, ArticulatedTail
 pixar hamm | hamm pixar |  | hint: Ball + Heavy
 mr. potato head |  |  | hint: Biped + Swarm
 slinky dog |  |  | hint: Quadruped + Link, Pull
@@ -689,16 +499,8 @@ sulley | james p sullivan |  | hint: Biped + Charge, Heavy
 mike wazowski |  |  | hint: Ball + Bounce, Playful
 pixar boo | boo pixar |  | hint: Biped + Playful
 randall |  |  | hint: Serpent + Sneaky
-bob parr | mr. incredible |  | hint: Biped + Blunt, Heavy
-elastigirl |  |  | hint: Whip + Constrict, Pull
 pixar dash | dash pixar |  | hint: Biped + Fast
-violet's force field | violet parr |  | hint: Dome + Barrier
-jack-jack |  |  | hint: Blob + Chaotic, Fire
 pixar frozone | frozone pixar |  | hint: Ramp + Launch, Ice
-syndrome |  |  | hint: Gauntlet + Grab, Psychic
-omnidroid |  |  | hint: Arachnid + Grab, Shoots
-incredibile |  |  | hint: Vehicle + Fast, Piloted
-edna mode |  |  | hint: Biped + Protective
 nemo |  |  | hint: Fish + Fast
 squirt | crush the turtle |  | hint: Fish + Playful
 dory |  |  | hint: Fish + Playful
@@ -825,13 +627,11 @@ rumpelstiltskin |  |  | hint: Biped + Sneaky
 stormfly |  |  | hint: Quadruped + Flies, Shoots
 meatlug |  |  | hint: Quadruped + Flies, Heavy
 hookfang |  |  | hint: Quadruped + Flies, Fire
-barf and belch | zippleback |  | hint: Serpent + Flies, Breath
+barf and belch |  |  | hint: Serpent + Flies, Breath
 red death |  |  | hint: Kaiju + Breath, Fire
 bewilderbeast |  |  | hint: Kaiju + Breath, Ice
 light fury |  |  | hint: Quadruped + Flies, Sneaky
 grimmel |  |  | hint: Bow + Poison
-megamind |  |  | hint: Gun + Beam
-de-gun | dehydration gun |  | hint: Gun + Shrink
 minion (megamind) | brain bot |  | hint: Bird + Swarm, Flies
 alex the lion | madagascar |  | hint: Quadruped + Charge
 penguins of madagascar | skipper |  | hint: Biped + Swarm, Sneaky
@@ -912,18 +712,11 @@ jetsons car |  |  | hint: Vehicle + Flies
 rosie the robot |  |  | hint: Biped + Protective
 space ghost |  |  | hint: Gauntlet + Beam
 johnny bravo |  |  | hint: Biped + Blunt
-powerpuff girls | blossom; buttercup |  | hint: Biped + Swarm, Flies
-mojo jojo |  |  | hint: Biped + Piloted
 dexter's robot | dexter's lab robot |  | hint: Kaiju + Piloted
 samurai jack's sword | samurai jack |  | hint: Sword + Blade
 aku |  |  | hint: Kaiju + Shadow, Fire
 courage the cowardly dog | courage |  | hint: Quadruped + Fearful
 ben 10 omnitrix | omnitrix |  | hint: Gauntlet + Grow
-heatblast |  |  | hint: Biped + Fire
-four arms |  |  | hint: Biped + Blunt, Grab
-diamondhead |  |  | hint: Biped + Blade, Earth
-xlr8 |  |  | hint: Biped + Fast
-way big |  |  | hint: Kaiju + Beam
 beast man |  |  | hint: Biped + Charge
 man-at-arms |  |  | hint: Hammer + Blunt
 wind raider |  |  | hint: Vehicle + Flies, Piloted
@@ -949,7 +742,7 @@ gravity falls bill cipher | bill cipher |  | hint: Blob + Flies, Chaotic
 gideon's amulet |  |  | hint: Gauntlet + Grab, Psychic
 gobblewonker |  |  | hint: Serpent + Water
 mabel's grappling hook |  |  | hint: Gun + Pull
-aang's glider | aang's staff; air glider |  | hint: Staff + Glide, Wind
+aang's glider | air glider |  | hint: Staff + Glide, Wind
 cartoon appa | appa cartoon |  | hint: Quadruped + Flies, Piloted
 cartoon momo | momo cartoon |  | hint: Bird + Playful
 katara's water whip | water whip |  | hint: Whip + Pull, Water
@@ -974,11 +767,9 @@ flying dutchman |  |  | hint: Biped + Flies, Shadow
 man ray |  |  | hint: Biped + Beam
 invisible boatmobile | boatmobile |  | hint: Vehicle + Charge, Sneaky
 reef blower |  |  | hint: Staff + Pull
-homer simpson | homer |  | hint: Biped + Heavy, Lazy
-bart's slingshot | bart simpson |  | hint: Bow + Shoots
+bart's slingshot |  |  | hint: Bow + Shoots
 bart's skateboard |  |  | hint: Vehicle + Fast
 itchy and scratchy |  |  | hint: Quadruped + Chaotic
-mr. burns' hounds |  |  | hint: Quadruped + Swarm
 kang and kodos |  |  | hint: Blob + Beam
 duff blimp |  |  | hint: Vehicle + Flies
 monorail |  |  | hint: Vehicle + Fast
@@ -990,7 +781,6 @@ nibbler |  |  | hint: Quadruped + Grab
 hypnotoad |  |  | hint: Blob + Psychic
 zoidberg |  |  | hint: Arachnid + Grab
 morty |  |  | hint: Biped + Fearful
-rick's spaceship | space cruiser |  | hint: Vehicle + Flies, Shoots
 mr. poopybutthole |  |  | hint: Biped + Playful
 plumbus |  |  | hint: Staff + Blunt
 squanchy |  |  | hint: Quadruped + Chaotic
@@ -1067,21 +857,12 @@ the expanse rocinante | rocinante |  | hint: Vehicle + Flies, Shoots
 protomolecule |  |  | hint: Blob + Swarm, Sticky
 normandy | mass effect normandy |  | hint: Vehicle + Flies
 babylon 5 station |  |  | hint: Pillar + Barrier
-freddy krueger's glove | freddy's claw; freddy krueger | Q329466 | hint: Gauntlet + Blade, Sneaky
-jason's machete | jason voorhees | Q366957 | hint: Sword + Blade
-leatherface's chainsaw | leatherface | Q1647348 | hint: Sword + Blade, Spin
-michael myers |  | Q1426891 | hint: Biped + Sneaky, Heavy
-chucky | good guy doll |  | hint: Biped + Sneaky, Fast
-annabelle |  | Q18615088 | hint: Biped + Sneaky
-m3gan |  | Q110661062 | hint: Biped + Fast, Sneaky
-pennywise | it clown | Q3899150 | hint: Biped + Sneaky, Swarm
-pennywise balloon |  |  | hint: Ball + SlowFall, Sneaky
-ghostface |  |  | hint: Sword + Blade, Sneaky
+jason's machete |  | Q366957 | hint: Sword + Blade
+leatherface's chainsaw |  | Q1647348 | hint: Sword + Blade, Spin
 pinhead |  | Q2518973 | hint: Whip + Link, Pull
 hellraiser chains | cenobite chains |  | hint: Whip + Link, Pull, Pierce
 lament configuration |  |  | hint: Cage + Trap, Portal
 pyramid head |  |  | hint: Sword + Heavy
-candyman's hook |  |  | hint: Gauntlet + Pierce
 art the clown |  |  | hint: Biped + Chaotic
 terrifier |  |  | hint: Biped + Chaotic
 five nights at freddy's animatronics |  |  | hint: Biped + Swarm, Sneaky
@@ -1100,7 +881,7 @@ oogie boogie |  |  | hint: Blob + Swarm
 beetlejuice |  |  | hint: Serpent + Chaotic
 sandworm (beetlejuice) | saturn sandworm |  | hint: Serpent + Grab, Charge
 gremlin stripe |  |  | hint: Biped + Chaotic
-horror critters | critters horror; krites |  | hint: Ball + Swarm, Aggressive
+horror critters | critters horror |  | hint: Ball + Swarm, Aggressive
 killer klowns |  |  | hint: Biped + Swarm, Sticky
 the thing (1982) |  |  | hint: Blob + Grab, Constrict
 tall man's sphere | phantasm sphere |  | hint: Ball + Homing, Blade
@@ -1108,7 +889,6 @@ evil dead chainsaw arm |  |  | hint: Gauntlet + Blade, Spin
 deadites |  |  | hint: Biped + Swarm, Chaotic
 sinners vampires |  |  | hint: Bird + Swarm, Shadow
 nosferatu | count orlok |  | hint: Bird + Swarm, Shadow
-weapons aunt gladys |  |  | hint: Biped + Chaotic
 the conjuring demon | valak |  | hint: Biped + Sneaky
 barbarian's mother |  |  | hint: Biped + Grab
 a quiet place creature | death angel |  | hint: Biped + Fast, Sneaky
@@ -1120,7 +900,6 @@ arachnophobia spiders |  |  | hint: Arachnid + Swarm
 eight legged freaks |  |  | hint: Arachnid + Swarm, Grow
 tremors graboid |  |  | hint: Serpent + Earth
 pumpkinhead |  |  | hint: Biped + Charge
-neo |  |  | hint: Biped + Fast, Guard
 agent smith |  |  | hint: Biped + Swarm
 sentinels (matrix) | squiddy |  | hint: Serpent + Flies, Swarm, Grab
 apu mech |  |  | hint: Biped + Piloted, Shoots
@@ -1135,8 +914,6 @@ mad max interceptor | pursuit special |  | hint: Vehicle + Fast, Charge
 doof warrior | flame guitar |  | hint: Staff + Breath, Fire
 immortan joe |  |  | hint: Vehicle + Charge
 gigahorse |  |  | hint: Vehicle + Heavy, Charge
-fast and furious charger | dom's charger |  | hint: Vehicle + Charge, Fast
-nitrous boost |  |  | hint: Jetpack + Thrust, Fire
 aston martin db5 | bond car |  | hint: Vehicle + Shoots, Launch
 oddjob's hat |  |  | hint: Disc + Blade, Returning
 jaws (bond) | jaws steel teeth |  | hint: Biped + Grab
@@ -1150,7 +927,7 @@ darkstar |  |  | hint: Vehicle + Fast, Flies
 twisters tornado |  |  | hint: Blob + Spin, Wind, Attract
 sharknado chainsaw |  |  | hint: Sword + Spin, Blade
 kill bill katana | hattori hanzo sword |  | hint: Sword + Blade
-john wick's pencil | john wick |  | hint: Spear + Pierce, Fast
+john wick's pencil |  |  | hint: Spear + Pierce, Fast
 gladiator maximus |  |  | hint: Sword + Blade
 mjolnir (the mighty thor) |  |  | hint: Hammer + Returning
 highlander katana |  |  | hint: Sword + Blade
@@ -1182,19 +959,13 @@ disclosure day ufo |  |  | hint: Vehicle + Flies, Beam
 close encounters mothership |  |  | hint: Vehicle + Flies, Beam
 e.t. | extra-terrestrial |  | hint: Biped + Psychic, Light
 e.t.'s bike | flying bmx |  | hint: Vehicle + Flies, Piloted
-gremlins gizmo | gizmo |  | hint: Biped + Playful
+gremlins gizmo |  |  | hint: Biped + Playful
 the goonies' pirate ship |  |  | hint: Vehicle + Water
 ghost rider penance stare |  |  | hint: Gun + Beam, Fire
-dune crysknife |  |  | hint: Sword + Blade, Pierce
-dune shield | holtzman shield |  | hint: Dome + Barrier, Repel
+dune shield |  |  | hint: Dome + Barrier, Repel
 gom jabbar |  |  | hint: Spear + Pierce, Poison
 harkonnen | beast rabban |  | hint: Biped + Heavy
-baron harkonnen |  |  | hint: Biped + Flies
-paul atreides | muad'dib |  | hint: Biped + Sneaky
 weirding module |  |  | hint: Gun + Repel
-sardaukar |  |  | hint: Biped + Swarm, Blade
-spice harvester |  |  | hint: Vehicle + Heavy, Treads
-carryall |  |  | hint: Vehicle + Flies, Grab
 na'vi bow |  |  | hint: Bow + Pierce
 neytiri |  |  | hint: Bow + Fast
 direhorse |  |  | hint: Quadruped + Charge, Piloted
@@ -1208,9 +979,8 @@ varang | ash people |  | hint: Biped + Fire
 sea dragon ship |  |  | hint: Vehicle + Water, Shoots
 scorpion gunship |  |  | hint: Vehicle + Flies, Shoots
 samson helicopter |  |  | hint: Vehicle + Flies, Rotor
-game of thrones drogon | drogon |  | hint: Kaiju + Flies, Breath, Fire
+game of thrones drogon |  |  | hint: Kaiju + Flies, Breath, Fire
 rhaegal |  |  | hint: Kaiju + Flies, Breath
-viserion |  |  | hint: Kaiju + Flies, Breath, Ice
 vhagar |  |  | hint: Kaiju + Flies, Breath, Heavy
 caraxes | the blood wyrm |  | hint: Serpent + Flies, Breath
 syrax |  |  | hint: Kaiju + Flies, Breath
@@ -1222,14 +992,11 @@ white walkers | white walker |  | hint: Biped + Ice, Swarm
 night king's spear | night king |  | hint: Spear + Pierce, Ice
 movie wights | wights movie |  | hint: Biped + Swarm, Ice
 ice wight bear |  |  | hint: Quadruped + Charge, Ice
-ghost the direwolf |  |  | hint: Quadruped + Charge
 longclaw | valyrian steel sword |  | hint: Sword + Blade
 needle | arya's sword |  | hint: Sword + Pierce, Fast
 dragonglass |  |  | hint: Spear + Pierce
 wildfire |  |  | hint: Bomb + Explodes, Fire
 scorpion ballista |  |  | hint: Cannon + Pierce
-the wall | wall of westeros |  | hint: Wall + Barrier, Ice
-iron throne |  |  | hint: Pillar + Blade
 the mountain | gregor clegane |  | hint: Biped + Heavy
 movie hodor | hodor movie |  | hint: Biped + Protective, Heavy
 giant wun wun | wun wun |  | hint: Kaiju + Grab
@@ -1269,14 +1036,7 @@ nazi flying wing |  |  | hint: Vehicle + Flies
 temple of doom mine cart |  |  | hint: Vehicle + Charge, Fast
 sankara stones |  |  | hint: Boulder + Fire
 snakes (indiana jones) |  |  | hint: Serpent + Swarm, Poison
-power rangers | mighty morphin |  | hint: Biped + Swarm
 power morpher |  |  | hint: Gauntlet + Grow
-dragonzord |  |  | hint: Kaiju + Shoots
-tyrannosaurus zord |  |  | hint: Kaiju + Stomp
-rita repulsa's wand | rita's staff |  | hint: Staff + Grow
-goldar |  |  | hint: Wings + Blade
-putty patrollers | putties |  | hint: Biped + Swarm
-lord zedd |  |  | hint: Staff + Beam
 kamen rider |  |  | hint: Vehicle + Fast, Piloted
 thunderbirds thunderbird 2 | thunderbird 2 |  | hint: Vehicle + Flies, Heavy
 international rescue |  |  | hint: Vehicle + Flies
