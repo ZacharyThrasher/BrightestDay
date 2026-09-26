@@ -212,6 +212,34 @@ hand-held → 1–2 m for colossal), keeping per-construct voxel counts within b
 progressive (spread over ~0.5 s, capped per tick); debris is sampled to the 20k budget; ≤ 1 colossal
 construct per player. Islands regenerate between rounds in no-limits.
 
+## 5f. Mechanic budget — how we avoid slop
+Players learn ~20 **verbs** + 7 **traits**, grouped: Emitters (Shoots/Beam/Breath), Holds (Grab/
+Constrict/Pull), Descent (SlowFall/Glide), Blocking (Guard/Barrier), Motion (Flies/Walks/Homing/Charge/
+Thrust/Returning/Ricochet/Spin/DropFromSky), Area (Explodes/Stomp/Bounce/Launch/Trap), Body
+(ArticulatedTail/Swarm/Piloted); traits = Blunt/Blade/Pierce/Heavy/Fast/Sticky (+Bouncy via Bounce).
+**Admission test** for any new mechanic (all six): (1) a genuinely new verb, not a combination;
+(2) readable by the victim in ~0.5 s via a unique silhouette/VFX/sound tell; (3) has a construct
+counter; (4) generic on any form; (5) never removes control > 0.35 s; (6) players naturally say words
+that map to it. **Never**: invisibility, time stop, mind control, instant kills, player healing, long
+stuns. **Second wave (approved, in progress)** — groups: Space (Portal), Fields (Attract/Repel),
+Resize (Shrink/Grow), Holds (+Link):
+- **Portal**: linked pair (aim point + next aim / near caster), orange-ring/blue-ring style in corps
+  colour; players, projectiles, constructs and debris pass through keeping speed, rotated to the exit
+  facing (Portal-game momentum tech: fall into a floor portal, fly out of a wall portal). Lasts 12 s;
+  either ring can be shot/broken. Counter: break a ring.
+- **Attract / Repel**: a field (radius ∝ scale, ~6–14 m) with a swirling particle tell; accel falls off
+  with distance, Heavy things resist ×0.3, tethered players resist. Black hole = Attract + Explodes at
+  end of life. On a held item: Attract = pull targets to your swing, Repel = shove wave.
+- **Shrink / Grow** (applied to what it hits, 6 s, clear shrinking/growing animation + sound): Shrink
+  → hull/visual ×0.5, speed ×1.2, knockback taken ×1.6, damage dealt ×0.6; Grow → ×1.6 hull, speed
+  ×0.85, knockback taken ×0.5, melee reach/damage ×1.4. Works on constructs too (grow your own hammer).
+  Counter: Guard reflects the ray; it wears off.
+- **Link**: a glowing chain (distance constraint, max length ~8 m, some slack) between the first two
+  things it touches — or the target and the ground if it only hits one. Chained players drag each
+  other; chain a player to an anvil and push the anvil off a cliff. 6 s or until cut (any Blade hit,
+  or 25 dmg). Counter: Blade.
+Playtests log per-mechanic usage + win rate; unused → merge, dominant → counter/nerf.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more

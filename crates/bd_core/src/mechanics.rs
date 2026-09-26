@@ -154,6 +154,20 @@ pub enum Mechanic {
     /// The caster rides/pilots it ("a giant mech I can pilot", "ride a dragon", "drive a tank"):
     /// WASD/mouse/LMB/RMB control the construct; E ejects with a launch. Weak points take extra damage.
     Piloted,
+    /// Makes a linked portal pair (first at the aim point, second at the next aim/cast or near the
+    /// caster). Anything passing through keeps its speed, re-oriented to the exit portal.
+    Portal,
+    /// Pulls players, debris, projectiles and light constructs toward it (magnet, black hole, vortex).
+    Attract,
+    /// Pushes everything away from it (fan, shockwave emitter, force field, tornado's outer wall).
+    Repel,
+    /// What it hits shrinks for a while: tiny = faster but fragile and light (shrink ray).
+    Shrink,
+    /// What it hits grows for a while: giant = slow but heavy and strong (growth ray, mushroom).
+    Grow,
+    /// Chains what it hits to the next thing it hits (or to itself/the ground): two players, a player
+    /// and an anvil, a construct and a cliff. Cut by Blade.
+    Link,
 }
 
 /// Mechanical/visual sub-assemblies a construct is built with ("steam powered train" → Boiler,
