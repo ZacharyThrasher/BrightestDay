@@ -2,11 +2,13 @@ import type { CommitResult } from '../lang/types.js';
 import type { World } from '../sim/world.js';
 import type { GameRenderer } from '../render/renderer.js';
 import { Vector3 } from 'three';
+import { INSPIRED_AT } from '../sim/inspiration.js';
+import type { Slot, CastTiming, CastBests } from './typing.js';
 
-export type RingStatus = 'ready' | 'listening' | 'interpreting' | 'formed' | 'clamped' | 'not_understood' | 'rejected';
+export type RingStatus = 'ready' | 'typing' | 'focus' | 'interpreting' | 'formed' | 'clamped' | 'not_understood' | 'rejected';
 
 const STATUS_TEXT: Record<RingStatus, string> = {
-  ready: 'ring ready', listening: 'listening…', interpreting: 'interpreting…', formed: 'formed', clamped: 'formed · clamped', not_understood: 'not understood', rejected: 'rejected',
+  ready: 'ring ready', typing: 'imagining…', focus: 'focus · time slowed', interpreting: 'interpreting…', formed: 'formed', clamped: 'formed · clamped', not_understood: 'not understood', rejected: 'rejected',
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', parent?: HTMLElement, text?: string): HTMLElementTagNameMap[K] {
@@ -46,6 +48,12 @@ export interface HudFrame {
   simMs: number;
   consoleOpen: boolean;
   locked: boolean;
+  /** The local lantern's id (inspiration is per player). */
+  playerId: string;
+  /** Focus time: meter 0..1, whether time is currently slowed, whether it is enabled at all. */
+  focus: { meter: number; active: boolean; enabled: boolean };
+  /** Typing combo (0/1 = none) and seconds before it lapses. */
+  combo: { n: number; left: number };
 }
 
 /** DOM heads-up display: readable, stylish, failures always visible. */
@@ -56,6 +64,8 @@ export class HUD {
   private speedBar: HTMLElement;
   private gasFill: HTMLElement;
   private willFill: HTMLElement;
+  private inspFill: HTMLElement;
+  private inspVal: HTMLElement;
   private statusPill: HTMLElement;
   private statusText: HTMLElement;
   private chip: HTMLElement;
@@ -64,7 +74,12 @@ export class HUD {
   readonly consoleWrap: HTMLElement;
   readonly consoleInput: HTMLInputElement;
   private consoleHint: HTMLElement;
-  private transcript: HTMLElement;
+  private ghostTyped: HTMLElement;
+  private ghostRest: HTMLElement;
+  private focusLine: HTMLElement;
+  private castStats: HTMLElement;
+  private quickBar: HTMLElement;
+  private quickKey = '';
   private toasts: HTMLElement;
   private list: HTMLElement;
   private objTitle: HTMLElement;
@@ -77,9 +92,10 @@ export class HUD {
   readonly menu: HTMLElement;
   private markers: HTMLElement;
   private markerEls = new Map<string, HTMLElement>();
+  /** Whose HUD this is (set by the app; inspiration events are per player). */
+  localPlayer = 'p1';
   private status: RingStatus = 'ready';
   private statusUntil = 0;
-  private listening = false;
   private interpreting = false;
   private ringStart: number | null = null;
   private ringEnd: number | null = null;
@@ -111,6 +127,10 @@ export class HUD {
     const will = el('div', 'bar will', bars);
     el('label', '', will, 'WILLPOWER');
     this.willFill = el('i', '', el('div', 'track', will));
+    const insp = el('div', 'bar insp', bars);
+    const il = el('label', '', insp, 'INSPIRATION ');
+    this.inspVal = el('span', 'val', il, '×1.0');
+    this.inspFill = el('i', '', el('div', 'track', insp));
     // ring panel (bottom-left)
     const ring = el('div', 'ring-panel', this.root);
     this.statusPill = el('div', 'status ready', ring);
@@ -120,16 +140,22 @@ export class HUD {
     el('span', 'lbl', this.chip, 'the ring understood');
     this.chipSummary = el('span', 'sum', this.chip);
     this.chipMeta = el('span', 'meta', this.chip);
-    this.transcript = el('div', 'transcript hidden', ring);
+    this.castStats = el('div', 'cast-stats hidden', ring);
     this.consoleWrap = el('div', 'console hidden', ring);
     el('span', 'prompt', this.consoleWrap, '›');
-    this.consoleInput = el('input', '', this.consoleWrap) as HTMLInputElement;
+    const field = el('div', 'field', this.consoleWrap);
+    this.consoleInput = el('input', '', field) as HTMLInputElement;
     this.consoleInput.placeholder = 'imagine something… e.g. “a giant ramp”';
     this.consoleInput.spellcheck = false;
     this.consoleInput.autocomplete = 'off';
-    this.consoleHint = el('div', 'console-hint hidden', ring, 'Enter to form · Esc to cancel · ↑ history');
+    const ghost = el('span', 'ghost', field);
+    this.ghostTyped = el('span', 'typed', ghost);
+    this.ghostRest = el('span', '', ghost);
+    this.focusLine = el('i', 'focus-line', this.consoleWrap);
+    this.consoleHint = el('div', 'console-hint hidden', ring, 'Enter form · Shift+Enter chain · Tab complete · ↑ history · empty Enter recast · Esc');
+    this.quickBar = el('div', 'key-hint quick hidden', ring);
     const hint = el('div', 'key-hint', ring);
-    hint.innerHTML = '<b>Enter</b> imagine · <b>V</b> speak · <b>X</b> dismiss · <b>F1</b> help';
+    hint.innerHTML = '<b>Enter</b> imagine · <b>1–9</b> quick-cast · <b>X</b> dismiss · <b>F1</b> help';
     // toasts (top-center)
     this.toasts = el('div', 'toasts', this.root);
     // construct list (top-left)
@@ -164,7 +190,6 @@ export class HUD {
     this.toasts.innerHTML = '';
   }
 
-  setListening(on: boolean) { this.listening = on; }
   setInterpreting(on: boolean) { this.interpreting = on; }
 
   flashStatus(s: RingStatus, ms = 3200) { this.status = s; this.statusUntil = performance.now() + ms; }
@@ -200,15 +225,45 @@ export class HUD {
     (this.banner as any)._t = setTimeout(() => this.banner.classList.add('out'), ms);
   }
 
-  setTranscript(text: string, final: boolean) {
-    this.transcript.classList.toggle('hidden', !text);
-    this.transcript.classList.toggle('final', final);
-    setText(this.transcript, text ? `“${text}”` : '');
-  }
-
   setConsole(open: boolean) {
     this.consoleWrap.classList.toggle('hidden', !open);
     this.consoleHint.classList.toggle('hidden', !open);
+    if (!open) this.setGhost('');
+  }
+
+  /** Faint inline completion after what's typed (hidden if the text has scrolled inside the field). */
+  setGhost(suffix: string) {
+    const inp = this.consoleInput;
+    const show = !!suffix && inp.scrollWidth <= inp.clientWidth + 1;
+    setText(this.ghostTyped, show ? inp.value : '');
+    setText(this.ghostRest, show ? suffix : '');
+  }
+
+  /** "cast 1.4 s · 9.2 cps · best 0.9 s" after a typed cast (or the quick-cast note). */
+  showCast(t: CastTiming | null, bests: CastBests, flags: { bestCast?: boolean; bestCps?: boolean; quick?: string } = {}) {
+    const parts: string[] = [];
+    if (t) parts.push(`cast ${t.sec.toFixed(1)} s${flags.bestCast ? ' ★' : ''}`, `${t.cps.toFixed(1)} cps${flags.bestCps ? ' ★' : ''}`);
+    else if (flags.quick) parts.push(flags.quick);
+    if (bests.cast !== null) parts.push(`best ${bests.cast.toFixed(1)} s`);
+    if (!parts.length) return;
+    this.castStats.classList.remove('hidden');
+    this.castStats.classList.toggle('best', !!(flags.bestCast || flags.bestCps));
+    this.castStats.dataset.base = parts.join(' · ');
+    setText(this.castStats, this.castStats.dataset.base);
+  }
+
+  /** The 1–9 quick-cast bar (re-rendered only when the slots change). */
+  setQuickSlots(slots: Slot[]) {
+    const key = slots.map((s) => s.key + s.text).join('|');
+    if (key === this.quickKey) return;
+    this.quickKey = key;
+    this.quickBar.innerHTML = '';
+    this.quickBar.classList.toggle('hidden', !slots.length);
+    for (const s of slots) {
+      const i = el('span', 'slot' + (s.saved ? ' saved' : ''), this.quickBar);
+      el('b', '', i, String(s.key));
+      el('span', 'txt', i, s.text);
+    }
   }
 
   toggleHelp(force?: boolean) { this.help.classList.toggle('hidden', force === undefined ? undefined : !force); }
@@ -231,6 +286,17 @@ export class HUD {
       case 'construct_dismissed': if (e.reason === 'budget') this.toast('note', `“${e.label}” dissolved — construct budget`); break;
       case 'civilian_safe': this.toast('good', 'Civilian safe'); this.showBanner('SAVED', 'the civilian is safe'); break;
       case 'civilian_hurt': this.toast('bad', 'The civilian was hurt'); break;
+      case 'inspiration': {
+        if (e.player && e.player !== this.localPlayer) break; // the rival's casts are theirs to read about
+        const mul = `×${Number(e.mul).toFixed(1)}`;
+        if (e.stale) this.toast('warn', `Stale ${mul} — ${e.reasons?.[0] ?? 'you’ve done this already'}`, 4200);
+        else if (e.novelty >= INSPIRED_AT) this.toast('good', `✦ Inspired ${mul}${e.fresh?.length ? ` — new: ${e.fresh.join(', ')}` : ''}`, 4200);
+        break;
+      }
+      case 'creative_solution':
+        if (!e.player || e.player === this.localPlayer) this.toast('good', `✦ Creative solution — ${e.reason} · +${Math.round(e.bonus * 100)}% inspiration`, 5200);
+        else if (e.against === this.localPlayer) this.toast('warn', `Rival’s creative solution — ${e.reason}`, 4200);
+        break;
       case 'entity_disabled': {
         const left = [...w.entities.values()].filter((x) => x.hostile && !x.disabled).length;
         if (e.entityType === 'drone' || e.entityType === 'turret') this.toast('good', `${e.entityType} disabled · ${this.hostilesTotal - left}/${this.hostilesTotal}`);
@@ -257,7 +323,21 @@ export class HUD {
     setStyle(this.speedBar, 'width', `${Math.min(100, (sp / 60) * 100).toFixed(1)}%`);
     this.speedNum.parentElement!.classList.toggle('fast', sp > 30);
     setStyle(this.gasFill, 'width', `${((P.gas / P.tune.gasMax) * 100).toFixed(1)}%`);
-    setStyle(this.willFill, 'width', `${Math.max(0, Math.min(100, w.constructs.energy)).toFixed(1)}%`);
+    setStyle(this.willFill, 'width', `${Math.max(0, Math.min(100, (w.constructs.energy / w.constructs.energyMax) * 100)).toFixed(1)}%`);
+    const insp = w.inspiration.of(f.playerId);
+    const inspBar = this.inspFill.parentElement!.parentElement!;
+    setStyle(this.inspFill, 'width', `${(Math.max(0, Math.min(1, insp.level)) * 100).toFixed(1)}%`);
+    setText(this.inspVal, `×${insp.mul.toFixed(1)}`);
+    inspBar.classList.toggle('high', insp.level >= 0.75);
+    inspBar.classList.toggle('low', insp.level < 0.2);
+    // console focus meter + combo
+    setStyle(this.focusLine, 'width', `${(f.focus.enabled ? f.focus.meter * 100 : 0).toFixed(1)}%`);
+    this.focusLine.classList.toggle('active', f.focus.active);
+    if (this.castStats.dataset.base) {
+      const live = f.combo.n > 1 && f.combo.left > 0;
+      setText(this.castStats, live ? `${this.castStats.dataset.base} · combo ×${f.combo.n}` : this.castStats.dataset.base);
+      this.castStats.classList.toggle('combo', live);
+    }
     this.gasFill.parentElement!.parentElement!.classList.toggle('low', P.gas < 20);
     // crosshair state
     const aim = P.aim(P.tune.tetherRange * 1.5);
@@ -270,7 +350,7 @@ export class HUD {
     // ring status
     let s: RingStatus = 'ready';
     if (this.interpreting) s = 'interpreting';
-    else if (this.listening || f.consoleOpen) s = 'listening';
+    else if (f.consoleOpen) s = f.focus.active ? 'focus' : 'typing';
     else if (now < this.statusUntil) s = this.status;
     if (this.statusPill.dataset.s !== s) {
       this.statusPill.dataset.s = s;
@@ -369,14 +449,15 @@ const HELP_HTML = `
 </div>
 <div>
 <h3>Imagine</h3>
-<p><b>Enter</b> open the ring console — type an idea, see it form as a ghost, <b>Enter</b> to make it real</p>
-<p><b>Esc</b> cancel · <b>↑</b> recall history</p>
-<p><b>V</b> (hold) speak · <b>X</b> dismiss focused · <b>Z</b> dismiss all</p>
-<p class="tip">Try: “a giant ramp”, “a wall between me and the turret”, “make a boxing glove and punch that drone”.</p>
+<p><b>Enter</b> open the ring console — you keep your momentum, tethers and aim; only movement keys pause</p>
+<p><b>Enter</b> form it · <b>Shift</b>+<b>Enter</b> form and keep typing · empty <b>Enter</b> recast the last one</p>
+<p><b>Tab</b> complete a word · <b>↑</b> history · <b>Esc</b> cancel · <b>1</b>–<b>9</b> quick-cast</p>
+<p><b>X</b> dismiss focused · <b>Z</b> dismiss all</p>
+<p class="tip">New ideas and new combinations inspire the ring (stronger, cheaper); repeating yourself goes stale. Try “a tank with wings”, “drop a piano on that drone”.</p>
 </div>
 <div>
 <h3>World</h3>
-<p><b>1</b> playground · <b>2</b> arena · <b>3</b> gap · <b>4</b> tower · <b>5</b> barrage · <b>6</b> falling · <b>7</b> boulder · <b>8</b> drones · <b>9</b> flat</p>
+<p><b>Alt</b>+<b>1</b> playground · <b>2</b> arena · <b>3</b> gap · <b>4</b> tower · <b>5</b> barrage · <b>6</b> falling · <b>7</b> boulder · <b>8</b> drones · <b>9</b> flat</p>
 <p><b>Backspace</b>/<b>F5</b> reset scene · <b>F1</b> help · <b>F3</b> perf · <b>F11</b> fullscreen</p>
 </div>
 </div>

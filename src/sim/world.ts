@@ -3,6 +3,7 @@ import { initPhysics, G, ALL, groups, type Rapier, type RWorld, type RBody, type
 import { Player, type PlayerInput, NO_INPUT } from './player.js';
 import { ConstructRuntime } from './constructs/runtime.js';
 import { WorldContent, type EntityAI } from './content.js';
+import { CreativityEconomy } from './inspiration.js';
 
 export type Owner =
   | { kind: 'static'; id: string }
@@ -111,6 +112,8 @@ export class World {
   constructs!: ConstructRuntime;
   /** robots, destructibles, bystanders, debris, waves, race timer */
   content!: WorldContent;
+  /** Creativity economy (novelty → power), per player: `inspiration.of(playerId)`; see inspiration.ts. */
+  inspiration!: CreativityEconomy;
   log: GameEvent[] = [];
   scene = 'empty';
   input: PlayerInput = NO_INPUT;
@@ -131,6 +134,7 @@ export class World {
     w.player = new Player(w);
     w.constructs = new ConstructRuntime(w);
     w.content = new WorldContent(w);
+    w.inspiration = new CreativityEconomy(w);
     w.player.onHit = (c, n, p) => w.constructs.onPlayerTouch(c, n, p);
     return w;
   }

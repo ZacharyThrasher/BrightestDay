@@ -1,7 +1,7 @@
 import { NO_INPUT, type PlayerInput } from '../sim/player.js';
 
 export type Action =
-  | 'console' | 'dismiss' | 'dismiss_all' | 'help' | 'perf' | 'reset' | 'voice_down' | 'voice_up' | 'fullscreen' | `scene_${number}`;
+  | 'console' | 'dismiss' | 'dismiss_all' | 'help' | 'perf' | 'reset' | 'fullscreen' | `scene_${number}` | `quick_${number}`;
 
 const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ControlLeft', 'ControlRight', 'KeyC', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyE', 'KeyR']);
 
@@ -16,6 +16,11 @@ export class Input {
   invertY = false;
   /** When false (console open / menu), movement keys are ignored. */
   gameplay = true;
+  /**
+   * Holds carried through a typing session: a tether you were holding stays attached and a slide keeps
+   * sliding while you type (momentum is never killed by opening the console). Cleared when it closes.
+   */
+  private carry = { hookL: false, hookR: false, crouch: false };
   private held = new Set<string>();
   private latched = new Set<string>();
   private flyToggle = false;
@@ -63,6 +68,7 @@ export class Input {
     if (c === 'F11') { this.onAction('fullscreen', e); return; }
     if (inField || !this.gameplay) return;
     if (c === 'Enter' || c === 'NumpadEnter') { e.preventDefault(); this.onAction('console', e); return; }
+    if (e.altKey && /^Digit[1-9]$/.test(c)) { e.preventDefault(); if (!e.repeat) this.onAction(`scene_${Number(c.slice(5))}`, e); return; }
     if (c === 'Backspace') { e.preventDefault(); this.onAction('reset', e); return; }
     if (c === 'Tab') e.preventDefault();
     if (MOVE_KEYS.has(c)) {
@@ -74,17 +80,32 @@ export class Input {
     if (c === 'KeyF') this.flyToggle = true;
     else if (c === 'KeyX') this.onAction('dismiss', e);
     else if (c === 'KeyZ') this.onAction('dismiss_all', e);
-    else if (c === 'KeyV') this.onAction('voice_down', e);
-    else if (/^Digit[1-9]$/.test(c)) this.onAction(`scene_${Number(c.slice(5))}`, e);
+    else if (/^(Digit|Numpad)[1-9]$/.test(c)) this.onAction(`quick_${Number(c.slice(-1))}`, e);
   }
 
   private keyUp(e: KeyboardEvent) {
     this.held.delete(e.code);
-    if (e.code === 'KeyV') this.onAction('voice_up', e);
   }
 
-  /** Drop all held state (e.g. when the console opens). */
+  /** Drop all held state. */
   release() { this.held.clear(); this.latched.clear(); this.mouse = [false, false, false]; this.mouseLatch = [false, false, false]; }
+
+  /**
+   * Console opened: movement keys stop, but what keeps your momentum carries on — held tethers stay
+   * attached and (if `sliding`) the slide continues. Mouse look and mouse-button tethers stay live.
+   */
+  startTyping(sliding: boolean) {
+    this.carry = { hookL: this.down('KeyQ'), hookR: this.down('KeyE'), crouch: sliding && (this.down('ControlLeft') || this.down('ControlRight') || this.down('KeyC')) };
+    this.gameplay = false;
+    this.latched.clear();
+  }
+
+  /** Console closed: keys typed into it never reach movement; physically held keys resume. */
+  stopTyping() {
+    this.carry = { hookL: false, hookR: false, crouch: false };
+    this.gameplay = true;
+    this.latched.clear();
+  }
 
   private down(code: string) { return this.held.has(code) || this.latched.has(code); }
 
@@ -92,6 +113,8 @@ export class Input {
   sample(): PlayerInput {
     const g = this.gameplay;
     const d = (c: string) => g && this.down(c);
+    const k = this.carry;
+    const crouch = d('ControlLeft') || d('ControlRight') || d('KeyC') || (!g && k.crouch);
     const inp: PlayerInput = {
       ...NO_INPUT,
       moveX: (d('KeyD') ? 1 : 0) - (d('KeyA') ? 1 : 0),
@@ -99,12 +122,13 @@ export class Input {
       yaw: this.yaw,
       pitch: this.pitch,
       jump: d('Space'),
-      crouch: d('ControlLeft') || d('ControlRight') || d('KeyC'),
-      descend: d('ControlLeft') || d('ControlRight') || d('KeyC'),
+      crouch,
+      descend: crouch,
       boost: d('ShiftLeft') || d('ShiftRight'),
-      hookL: d('KeyQ') || (g && (this.mouse[0] || this.mouseLatch[0])),
-      hookR: d('KeyE') || (g && (this.mouse[2] || this.mouseLatch[2])),
-      reel: d('KeyR') || (g && (performance.now() < this.reelUntil || this.mouse[1])),
+      // mouse buttons only register while the pointer is locked, so they stay live while typing
+      hookL: d('KeyQ') || (!g && k.hookL) || this.mouse[0] || this.mouseLatch[0],
+      hookR: d('KeyE') || (!g && k.hookR) || this.mouse[2] || this.mouseLatch[2],
+      reel: d('KeyR') || (g && performance.now() < this.reelUntil) || this.mouse[1],
       flyToggle: g && this.flyToggle,
     };
     this.flyToggle = false;

@@ -1,0 +1,486 @@
+== 01:07:06 node bench.mjs --preset zipformer-20M --mode accuracy --threads 2
+zipformer-20M__accuracy__t2.json: clips=768 WER=20.0% kw=77.0% load=678ms rss=197.6MiB wall=174s
+== 01:10:00 node bench.mjs --preset zipformer-0621 --mode accuracy --threads 2
+zipformer-0621__accuracy__t2.json: clips=768 WER=8.0% kw=91.9% load=1399ms rss=387.8MiB wall=191s
+== 01:13:13 node bench.mjs --preset kroko-en --mode accuracy --threads 2
+kroko-en__accuracy__t2.json: clips=768 WER=38.7% kw=58.7% load=2717ms rss=352.9MiB wall=67s
+== 01:14:23 node bench.mjs --preset nemo-fc-80ms --mode accuracy --threads 2
+nemo-fc-80ms__accuracy__t2.json: clips=768 WER=10.7% kw=88.9% load=1393ms rss=359.3MiB wall=557s
+== 01:23:43 node bench.mjs --preset nemo-fc-480ms --mode accuracy --threads 2
+nemo-fc-480ms__accuracy__t2.json: clips=768 WER=11.2% kw=87.3% load=1473ms rss=368.3MiB wall=216s
+== 01:27:21 node bench.mjs --preset moonshine-tiny --mode accuracy --threads 2
+moonshine-tiny__accuracy__t2.json: clips=768 WER=10.9% kw=88.2% load=841ms rss=257.4MiB wall=65s
+== 01:28:27 node bench.mjs --preset moonshine-base --mode accuracy --threads 2
+moonshine-base__accuracy__t2.json: clips=768 WER=10.7% kw=89.8% load=1908ms rss=425.4MiB wall=114s
+== 01:30:23 node bench.mjs --preset moonshine2-tiny --mode accuracy --threads 2
+moonshine2-tiny__accuracy__t2.json: clips=768 WER=12.6% kw=86.7% load=552ms rss=187.5MiB wall=48s
+== 01:31:11 node bench.mjs --preset moonshine2-base --mode accuracy --threads 2
+moonshine2-base__accuracy__t2.json: clips=768 WER=13.2% kw=90.0% load=1162ms rss=305.7MiB wall=77s
+== 01:32:29 node bench.mjs --preset whisper-tiny.en --mode accuracy --threads 2
+whisper-tiny.en__accuracy__t2.json: clips=768 WER=10.7% kw=90.6% load=715ms rss=337.4MiB wall=172s
+== 01:35:23 node bench.mjs --preset whisper-base.en --mode accuracy --threads 2
+whisper-base.en__accuracy__t2.json: clips=768 WER=9.2% kw=92.0% load=1262ms rss=475.6MiB wall=302s
+== 01:40:27 node bench.mjs --preset parakeet-tdt-v2 --mode accuracy --threads 2
+parakeet-tdt-v2__accuracy__t2.json: clips=768 WER=4.5% kw=95.7% load=2816ms rss=891.9MiB wall=243s
+== 01:44:33 node bench.mjs --preset two-pass --mode accuracy --threads 2
+two-pass__accuracy__t2.json: clips=768 WER=13.5% kw=90.5% load=2282ms rss=517.9MiB wall=834s
+== 01:58:31 node bench.mjs --preset zipformer-20M --mode accuracy --threads 2 --decoding modified_beam_search
+zipformer-20M__accuracy__t2__modified_beam_search.json: clips=768 WER=36.3% kw=57.2% load=747ms rss=187.9MiB wall=175s
+== 02:01:27 node bench.mjs --preset zipformer-20M --mode accuracy --threads 2 --hotwords
+zipformer-20M__accuracy__t2__hot.json: clips=768 WER=31.4% kw=63.7% load=694ms rss=197MiB wall=142s
+== 02:03:51 node bench.mjs --preset zipformer-0621 --mode accuracy --threads 2 --decoding modified_beam_search
+zipformer-0621__accuracy__t2__modified_beam_search.json: clips=768 WER=7.7% kw=92.3% load=1434ms rss=387.9MiB wall=105s
+== 02:05:38 node bench.mjs --preset zipformer-0621 --mode accuracy --threads 2 --hotwords
+zipformer-0621__accuracy__t2__hot.json: clips=768 WER=7.9% kw=92.3% load=1483ms rss=378.8MiB wall=97s
+== 02:07:17 node bench.mjs --preset kroko-en --mode accuracy --threads 2 --decoding modified_beam_search
+kroko-en__accuracy__t2__modified_beam_search.json: clips=768 WER=7.0% kw=92.8% load=2741ms rss=349.4MiB wall=67s
+== 02:08:27 node bench.mjs --preset kroko-en --mode accuracy --threads 2 --hotwords
+kroko-en__accuracy__t2__hot.json: clips=768 WER=6.6% kw=93.5% load=2903ms rss=339.3MiB wall=66s
+== 02:09:37 node bench.mjs --preset parakeet-tdt-v2 --mode accuracy --threads 2 --decoding modified_beam_search
+parakeet-tdt-v2__accuracy__t2__modified_beam_search.json: clips=768 WER=4.7% kw=95.6% load=2707ms rss=895.9MiB wall=177s
+== 02:12:37 node bench.mjs --preset parakeet-tdt-v2 --mode accuracy --threads 2 --hotwords
+parakeet-tdt-v2__accuracy__t2__hot.json: clips=768 WER=4.5% kw=96.0% load=2815ms rss=886.8MiB wall=179s
+== 02:15:39 node bench.mjs --preset zipformer-20M --mode latency --threads 1
+zipformer-20M__latency__t1.json: clips=128 WER=17.0% kw=81.3% load=795ms rss=237.4MiB wall=31s
+== 02:16:11 node bench.mjs --preset zipformer-0621 --mode latency --threads 1
+zipformer-0621__latency__t1.json: clips=128 WER=7.0% kw=92.8% load=1496ms rss=541.5MiB wall=49s
+== 02:17:02 node bench.mjs --preset kroko-en --mode latency --threads 1
+kroko-en__latency__t1.json: clips=128 WER=7.1% kw=92.5% load=2724ms rss=413.2MiB wall=30s
+== 02:17:36 node bench.mjs --preset nemo-fc-80ms --mode latency --threads 1
+nemo-fc-80ms__latency__t1.json: clips=128 WER=10.9% kw=88.5% load=1413ms rss=474.9MiB wall=187s
+== 02:20:45 node bench.mjs --preset nemo-fc-480ms --mode latency --threads 1
+nemo-fc-480ms__latency__t1.json: clips=128 WER=10.9% kw=87.4% load=1401ms rss=485.9MiB wall=81s
+== 02:22:09 node bench.mjs --preset moonshine-tiny --mode latency --threads 1
+moonshine-tiny__latency__t1.json: clips=128 WER=10.5% kw=88.2% load=808ms rss=409.3MiB wall=60s
+== 02:23:10 node bench.mjs --preset moonshine-base --mode latency --threads 1
+moonshine-base__latency__t1.json: clips=128 WER=8.8% kw=90.1% load=1322ms rss=748MiB wall=123s
+== 02:25:14 node bench.mjs --preset moonshine2-tiny --mode latency --threads 1
+moonshine2-tiny__latency__t1.json: clips=128 WER=12.2% kw=86.9% load=535ms rss=284MiB wall=68s
+== 02:26:24 node bench.mjs --preset moonshine2-base --mode latency --threads 1
+moonshine2-base__latency__t1.json: clips=128 WER=9.3% kw=89.6% load=1085ms rss=493.4MiB wall=129s
+== 02:28:34 node bench.mjs --preset whisper-tiny.en --mode latency --threads 1
+whisper-tiny.en__latency__t1.json: clips=128 WER=9.4% kw=91.4% load=799ms rss=636MiB wall=312s
+== 02:33:48 node bench.mjs --preset whisper-base.en --mode latency --threads 1
+whisper-base.en__latency__t1.json: clips=128 WER=10.2% kw=90.4% load=1314ms rss=843.2MiB wall=393s
+== 02:40:23 node bench.mjs --preset parakeet-tdt-v2 --mode latency --threads 1
+parakeet-tdt-v2__latency__t1.json: clips=128 WER=5.0% kw=95.2% load=2980ms rss=1701.5MiB wall=363s
+== 02:46:30 node bench.mjs --preset two-pass --mode latency --threads 1
+two-pass__latency__t1.json: clips=128 WER=10.5% kw=90.6% load=2236ms rss=834.6MiB wall=215s
+== 02:50:09 node bench.mjs --preset zipformer-20M --mode latency --threads 2
+zipformer-20M__latency__t2.json: clips=128 WER=17.0% kw=81.3% load=691ms rss=233.6MiB wall=55s
+== 02:51:05 node bench.mjs --preset zipformer-0621 --mode latency --threads 2
+zipformer-0621__latency__t2.json: clips=128 WER=7.0% kw=92.8% load=1432ms rss=541.5MiB wall=56s
+== 02:52:03 node bench.mjs --preset kroko-en --mode latency --threads 2
+kroko-en__latency__t2.json: clips=128 WER=7.1% kw=92.5% load=2823ms rss=415.3MiB wall=29s
+== 02:52:36 node bench.mjs --preset nemo-fc-80ms --mode latency --threads 2
+nemo-fc-80ms__latency__t2.json: clips=128 WER=10.9% kw=88.5% load=1428ms rss=477.8MiB wall=190s
+== 02:55:48 node bench.mjs --preset nemo-fc-480ms --mode latency --threads 2
+nemo-fc-480ms__latency__t2.json: clips=128 WER=10.9% kw=87.4% load=1365ms rss=485MiB wall=72s
+== 02:57:02 node bench.mjs --preset moonshine-tiny --mode latency --threads 2
+moonshine-tiny__latency__t2.json: clips=128 WER=10.5% kw=88.2% load=783ms rss=411.7MiB wall=76s
+== 02:58:19 node bench.mjs --preset moonshine-base --mode latency --threads 2
+moonshine-base__latency__t2.json: clips=128 WER=8.8% kw=90.1% load=1368ms rss=748.9MiB wall=109s
+== 03:00:11 node bench.mjs --preset moonshine2-tiny --mode latency --threads 2
+moonshine2-tiny__latency__t2.json: clips=128 WER=12.2% kw=86.9% load=523ms rss=288.5MiB wall=83s
+== 03:01:35 node bench.mjs --preset moonshine2-base --mode latency --threads 2
+moonshine2-base__latency__t2.json: clips=128 WER=9.3% kw=89.6% load=1011ms rss=499.4MiB wall=147s
+== 03:04:03 node bench.mjs --preset whisper-tiny.en --mode latency --threads 2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:03 node bench.mjs --preset whisper-base.en --mode latency --threads 2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset parakeet-tdt-v2 --mode latency --threads 2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset two-pass --mode latency --threads 2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset zipformer-20M --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset zipformer-0621 --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset kroko-en --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset nemo-fc-80ms --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset nemo-fc-480ms --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset moonshine-tiny --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:04 node bench.mjs --preset moonshine-base --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset moonshine2-tiny --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset moonshine2-base --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset whisper-tiny.en --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset whisper-base.en --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset parakeet-tdt-v2 --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset two-pass --mode latency --threads 2 --tag rep2
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset zipformer-20M --mode latency --threads 2 --cond noisy --tag noisy
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset nemo-fc-80ms --mode latency --threads 2 --cond noisy --tag noisy
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset moonshine2-base --mode latency --threads 2 --cond noisy --tag noisy
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== 03:04:05 node bench.mjs --preset whisper-base.en --mode latency --threads 2 --cond noisy --tag noisy
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module '/home/user/BrightestDay/tools/asr-bench/bench.mjs'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.22.2
+== done 03:04:05

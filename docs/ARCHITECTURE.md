@@ -1,13 +1,13 @@
 # Architecture
 
 ```
- mic ──► ASR (utility process, sherpa-onnx) ──partials──► ghost preview ─┐
-                                              └─final───┐                │
- keyboard text console ─────────────────────────────────┤                │
-                                                        ▼                │
+ keyboard ring console ──keystrokes──► ghost preview + Tab completion ───┐
+ (momentum + aim live while typing; cast timer, combo, quick-cast 1–9)   │
+                        └─Enter─────────┐                                │
+                                        ▼                                │
                          ┌──────────────────── Director ─────────────────┴──┐
                          │ System 1  (≈1 ms)                                 │
-                         │   normalise → ASR repair → clause parser →        │
+                         │   normalise → typo repair → clause parser →       │
                          │   concept lexicon (120 concepts / 700 synonyms)   │
                          │   + 22 add-on parts + reference resolution        │
                          │ System 1.5 (≈0.2 ms): Numberbatch word vectors    │
@@ -19,9 +19,11 @@
                          └──────────────── proposals (data only) ───────────┘
                                                         │
                                                         ▼
+                         Inspiration.price()  ← novelty of the cast (creativity economy)
                          validateSpec()  ← THE authority boundary
                          size/count/speed/force/energy/lifetime clamps,
                          malformed proposals rejected, every clamp reported
+                         then strength ×inspiration, still within LIMITS
                                                         │
                                                         ▼
             ConstructRuntime (Rapier) — parts → colliders, behaviours → motion
@@ -64,7 +66,8 @@
 | `src/lang/semantic.ts`, `src/semantic/embed.mjs` | System 1.5 |
 | `src/lang/escalate.ts` | System 2 prompt + providers (Anthropic, OpenAI-compatible, record/replay) |
 | `src/lang/director.ts` | the interface the app uses (preview / commit / onCorrection) |
-| `src/voice/` | ASR engine (sherpa-onnx) |
+| `src/sim/inspiration.ts` | creativity economy: novelty signatures, inspiration meter, power scaling within limits, creative-solution bonuses |
+| `src/app/typing.ts` | typing as a skill: focus time, cast clock/bests, combo, Tab completion, quick-cast slots |
 | `src/render/`, `src/app/`, `src/electron/` | renderer, HUD/input, Electron shell |
 | `eval/` | contract, dev set, frozen held-out sets, runners, results |
 | `test/` | movement + construct scenario tests |

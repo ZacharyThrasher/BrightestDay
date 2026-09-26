@@ -5,12 +5,9 @@
   "fov": 78,
   "constructColor": "#3dffa8",
   "graphics": "high",
-  "voice": {
-    "enabled": true,
-    "preset": "default",
-    "pushToTalkKey": "V",
-    "handsFree": false
-  },
+  "_focus": "Focus time (offline practice only; never in online duels): world speed while the ring console is open (1 = off, e.g. 0.35) and seconds of slow time in a full meter.",
+  "focusTimeScale": 1,
+  "focusSeconds": 5,
   "system2": {
     "_readme": "Optional stronger interpreter. 'off' | 'anthropic' | 'openai-compatible'. Without it, the offline rule system is used.",
     "provider": "off",
