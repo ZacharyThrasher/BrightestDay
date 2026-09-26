@@ -586,6 +586,12 @@ WORD_ANCHORS = {
     "flying saucer": dict(f="Disc", m=["Flies", "Beam"], s=4.0),
     "robot": dict(f="Biped", m=["Shoots"]),
     "mech": dict(f="Kaiju", m=["Stomp", "Shoots", "Heavy"], s=8.0),
+    # --- seastone (One Piece): the powers sim treats a Water Link / a name containing "seastone" as
+    # power-cancelling; keep the word in names (modifier use keeps the phrase as the name) ---
+    "seastone": dict(f="Whip", m=["Link", "Heavy"], e="Water", g=["Link"]),
+    "sea stone": dict(f="Whip", m=["Link", "Heavy"], e="Water", g=["Link"]),
+    "sea prism stone": dict(f="Whip", m=["Link", "Heavy"], e="Water", g=["Link"]),
+    "kairoseki": dict(f="Whip", m=["Link", "Heavy"], e="Water", g=["Link"]),
     # --- transformers (bd_core v1.2 Mechanic::Transforms; COMBAT.md 5d-bis) ---
     "transformer": dict(f="Biped", m=["Transforms", "Charge"], s=4.5, w=4000.0, g=["Transforms"]),
     "transformers": dict(f="Biped", m=["Transforms", "Charge"], s=4.5, w=4000.0, g=["Transforms"], count=3),
@@ -1087,7 +1093,7 @@ ELEMENT_ADJ = {
     "Ice": ["frozen", "icy", "ice", "frost", "frosty", "snowy", "snow", "freezing", "glacial", "arctic",
             "polar", "frigid", "cryo", "cryogenic", "chilled", "wintry", "winter", "crystal", "crystalline",
             "cold", "frostbitten", "blizzard", "iced"],
-    "Water": ["water", "watery", "aqua", "aquatic", "wet", "soaking", "tidal", "ocean", "sea", "oceanic",
+    "Water": ["seastone", "sea stone", "sea prism stone", "sea prism", "kairoseki", "water", "watery", "aqua", "aquatic", "wet", "soaking", "tidal", "ocean", "sea", "oceanic",
               "hydro", "liquid", "rain", "misty", "steam", "steaming", "bubbly", "marine", "splashing", "drenched"],
     "Wind": ["wind", "windy", "air", "airy", "gusty", "aero", "breezy", "cyclonic", "tornado", "hurricane",
              "whirlwind", "sky", "aerial", "feathery", "gale"],
@@ -1167,7 +1173,7 @@ MECH_ADJ = {
     "Repel": ["repelling", "repulsor", "repulsive", "antigravity", "anti gravity", "shockwave", "concussive"],
     "Shrink": ["shrinking", "shrinky", "miniaturizing", "shrink"],
     "Grow": ["growing", "enlarging", "expanding", "embiggening", "growth"],
-    "Link": ["chained", "linked", "tethered", "leashed", "shackled", "handcuffed"],
+    "Link": ["seastone", "sea stone", "sea prism stone", "sea prism", "kairoseki", "chained", "linked", "tethered", "leashed", "shackled", "handcuffed"],
     "Transforms": ["transforming", "transformable", "transformer", "shapeshifting", "shape shifting",
                    "morphing", "convertible", "disguised", "two mode", "dual mode", "mode switching"],
     "Portal": ["teleporting", "warping", "blinking", "portal", "dimensional", "interdimensional"],

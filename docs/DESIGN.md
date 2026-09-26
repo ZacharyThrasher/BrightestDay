@@ -59,8 +59,8 @@ light voxels in your corps colour. Everything shatters into cubes.
 - **We construct like the player.** A construct is a `Recipe`: a body plan + mechanic tags + scale +
   element + name. Voxel shapes are generated procedurally from the recipe (plus a small set of curated
   icon models for pop-culture items). Unknown words fall back gracefully via WordNet hypernyms
-  ("sledge" → hammer) and ConceptNet relations; truly unknown words make a generic glowing blob with a
-  flash of "?" — never nothing.
+  ("sledge" → hammer) and ConceptNet relations; truly unknown words make a generic glowing blob —
+  never nothing, never an error.
 - **Vast by default.** Goal: nearly any phrase a player types or says resolves to *something
   sensible*. Layers: curated icons → Wikidata named entities (~150k–500k characters, creatures, species,
   breeds, vehicles, weapons, landmarks, each mapped via its "is a" chain: Eeyore → fictional donkey →
@@ -68,8 +68,8 @@ light voxels in your corps colour. Everything shatters into cubes.
   its category) → morphology/slang ("shootin", "GIANTTT") → compound split ("sharknado") → phonetic/
   fuzzy → description head noun → blob. Phrases compose: size, count, element, "with/that/of" parts
   and mechanics, and a recursive **payload** ("eeyore shooting laser beams", "cannon that shoots
-  anvils", "godzilla breathing bees"). A tiny note ("eeyore ≈ donkey") teaches players what the ring
-  understood.
+  anvils", "godzilla breathing bees"). The construct itself is the only feedback on what the ring
+  understood (mystery tenet — no notes).
 - **Pop culture is data.** `assets/icons.ron` curates iconic things (Mjolnir: Hammer+Returning+Electric;
   Cap's shield: Shield+Returning+Ricochet; Godzilla: Kaiju biped+ArticulatedTail+Breath(atomic);
   lightsaber, batarang, web-shooter, Pokéball…). All ~1000 Pokémon come in automatically from
@@ -200,8 +200,8 @@ phrase + seed + tweaks are sent once at join.
 ## Party mode UI (client)
 Lobby: mode toggle (FFA / Party) + a settings panel exposing every `GameSettings` knob with presets
 (Classic, Party, Chaos, Movement Gods). Between rounds: standings strip (corps-coloured, minimal), then
-the **pick screen** — 2/3/4 hard-light cards floating in front of the camera (name ≤ 3 words, one-line
-description, a small looping voxel illustration of the behaviour); number keys or click to pick; a
+the **pick screen** — 2/3/4 hard-light cards floating in front of the camera (evocative name ≤ 3 words
+only, card style by rarity — no description, no illustration: the mystery is the fun); number keys or click to pick; a
 visible timer; locked picks reveal around the table; **Boom or Bust** is a spinning coin that lands on a
 gold (Legendary) or purple-black (Cursed) face with its own sting. Party end: podium on the Heart island
 with everyone's stacked effects listed.

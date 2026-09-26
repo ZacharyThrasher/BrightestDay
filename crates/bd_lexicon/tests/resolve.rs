@@ -573,3 +573,26 @@ fn all_icon_shapes_parse() {
     assert!(bad.is_empty(), "{bad:#?}");
     assert!(l.icon_count() >= 97);
 }
+
+#[test]
+fn seastone_is_a_water_link() {
+    for p in [
+        "seastone chain",
+        "sea stone handcuffs",
+        "seastone cuffs",
+        "sea-prism stone net",
+        "kairoseki",
+        "seastone",
+        "seastone bullet",
+    ] {
+        check!(p, |x| {
+            x.recipe.element == Element::Water
+                && x.recipe.has(Link)
+                && (x.recipe.name.to_lowercase().contains("seastone")
+                    || x.recipe.name.to_lowercase().contains("sea stone")
+                    || x.recipe.name.to_lowercase().contains("sea prism")
+                    || x.recipe.name.to_lowercase().contains("kairoseki"))
+        });
+    }
+    check!("seastone chain", |x| { x.recipe.name.contains("seastone") });
+}
