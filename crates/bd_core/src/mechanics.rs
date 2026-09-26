@@ -168,6 +168,11 @@ pub enum Mechanic {
     /// Chains what it hits to the next thing it hits (or to itself/the ground): two players, a player
     /// and an anvil, a construct and a cliff. Cut by Blade.
     Link,
+    /// Two modes (alt/vehicle ⇄ robot): the construct's own panels fold/rotate/slide into the other
+    /// mode in a staggered mechanical sequence ("robots in disguise"). Toggled by its pilot (transform
+    /// key), by "transform"/"roll out" grafts, or autonomously. Multiple owned Transforms vehicles can
+    /// combine into one giant (Devastator). (v1.2)
+    Transforms,
 }
 
 /// Mechanical/visual sub-assemblies a construct is built with ("steam powered train" → Boiler,
