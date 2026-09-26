@@ -28,8 +28,8 @@ use super::{bv, corps_rgb, PresentSet};
 use crate::debris::{SpawnDebris, VfxRng};
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
 use crate::state::AppState;
-use bd_core::mechanics::{Element, Form, Recipe};
-use bd_core::shape::ShapeSpec;
+#[cfg(test)]
+use bd_core::mechanics::{Element, Form};
 use bd_core::PlayerId;
 use bd_fx::{ConstructVisual, PartOverlay, ShatterModelFx};
 use bd_shapes::{AnimState, CostumeTweaks, VoxelModel};
@@ -144,7 +144,7 @@ struct Raise {
 pub struct PlayerBody {
     pub id: PlayerId,
     choice: CostumeChoice,
-    task: Option<Task<Arc<VoxelModel>>>,
+    task: Option<Task<(Arc<VoxelModel>, Arc<bd_fx::VoxelColors>)>>,
     distance: f32,
     time: f32,
     last_pos: Vec3,
@@ -244,18 +244,12 @@ fn gather_costumes(
     }
 }
 
-fn build_costume(choice: CostumeChoice, lex: Option<Arc<bd_lexicon::Lexicon>>) -> Task<Arc<VoxelModel>> {
+/// Costume model + per-voxel colours (character looks are painted; see `lobby::costume::dress`).
+fn build_costume(choice: CostumeChoice, lex: Option<Arc<bd_lexicon::Lexicon>>) -> Task<(Arc<VoxelModel>, Arc<bd_fx::VoxelColors>)> {
     AsyncComputeTaskPool::get().spawn(async move {
-        let (recipe, icon): (Recipe, Option<ShapeSpec>) = match &lex {
-            Some(l) => {
-                let r = l.resolve(&choice.phrase);
-                (r.recipe, r.shape)
-            }
-            None => (bd_sim::bots::recipe(&choice.phrase, Form::Biped, &[], Element::Light, 1.8), None),
-        };
         let tweaks = CostumeTweaks { accent: choice.accent, head_scale: choice.head_scale, hide_accessories: choice.hide };
-        let spec = bd_shapes::costume_with(&recipe, icon.as_ref(), None, choice.seed, tweaks);
-        Arc::new(bd_shapes::costume_model(&spec))
+        let pm = crate::lobby::costume::painted_model(lex.as_deref(), &choice.phrase, choice.seed, tweaks);
+        (Arc::new(pm.model), Arc::new(bd_fx::VoxelColors { parts: pm.colors }))
     })
 }
 
@@ -432,12 +426,15 @@ fn sync_bodies(
             b.task = Some(build_costume(choice.clone(), lex.as_ref().map(|l| l.0.clone())));
         }
         if let Some(t) = b.task.as_mut()
-            && let Some(model) = check_ready(t)
+            && let Some((model, colors)) = check_ready(t)
         {
             b.task = None;
             b.hands = HandRig::of(&model);
             commands.entity(e).insert(PartOverlay { locals: vec![bd_shapes::Local::IDENTITY; model.parts.len()] });
             let mut cv = ConstructVisual::new(model, corps);
+            if colors.parts.iter().any(|p| !p.is_empty()) {
+                cv = cv.with_colors(colors);
+            }
             cv.opacity = 0.92;
             cv.seed = v.id.0 as u32 * 7919;
             if let Some(a) = choice.accent {

@@ -116,8 +116,9 @@ pub fn costume_preview(
     for (e, _) in &roots {
         commands.entity(e).despawn();
     }
-    let spec = crate::lobby::costume::costume_spec(&lex.0, &prefs.costume);
-    let model = bd_shapes::costume_model(&spec);
+    // Character looks carry per-voxel colours (sRGB); the rest use the corps palette.
+    let pm = crate::lobby::costume::painted_model(Some(&lex.0), &prefs.costume.phrase, prefs.costume.seed, crate::lobby::costume::tweaks(&prefs.costume));
+    let model = pm.model;
     let parts = bd_shapes::mesh_model(&model);
     let cc = prefs.corps.color();
     let accent = crate::lobby::costume::costume_accent(&lex.0, &prefs.costume).unwrap_or([cc[0] * 0.5 + 0.5, cc[1] * 0.5 + 0.5, cc[2] * 0.5 + 0.5]);
@@ -135,8 +136,15 @@ pub fn costume_preview(
     commands.entity(cam).add_child(root);
     let spin = commands.spawn((PreviewSpin, spin_tf, Visibility::Inherited)).id();
     commands.entity(root).add_child(spin);
-    for pm in parts.iter().filter(|p| !p.is_empty()) {
-        let mesh = meshes.add(part_mesh(pm, &palette));
+    for (i, part) in parts.iter().enumerate().filter(|(_, p)| !p.is_empty()) {
+        let mut mesh = part_mesh(part, &palette);
+        if let Some(paint) = pm.colors.get(i).filter(|c| !c.is_empty()) {
+            let lin = |c: f32| if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) };
+            let srgb_pal = palette.map(|c| c.map(|x| x.max(0.0).powf(1.0 / 2.2)));
+            let cols: Vec<[f32; 4]> = bd_shapes::costume::mesh_colors(part, model.voxel_size, &srgb_pal, Some(paint)).into_iter().map(|c| [lin(c[0]), lin(c[1]), lin(c[2]), 1.0]).collect();
+            mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, cols);
+        }
+        let mesh = meshes.add(mesh);
         let child = commands.spawn((PreviewPart, Mesh3d(mesh), MeshMaterial3d(mat.clone()), Transform::default(), NotShadowCaster)).id();
         commands.entity(spin).add_child(child);
     }

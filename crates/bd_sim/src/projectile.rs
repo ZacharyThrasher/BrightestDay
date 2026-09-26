@@ -135,4 +135,8 @@ pub struct Projectile {
     pub travelled: f32,
     /// Remove at the end of this tick.
     pub dead: bool,
+    /// CONNECT: the enemy this round bends toward (host-side; `aim_assist`) and its turn rate at
+    /// release (rad/s, decaying with age).
+    pub home: Option<bd_core::PlayerId>,
+    pub home_turn: f32,
 }

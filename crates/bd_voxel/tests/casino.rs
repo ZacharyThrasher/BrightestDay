@@ -8,7 +8,7 @@
 use std::collections::VecDeque;
 
 use bd_core::voxel::AIR;
-use bd_voxel::maps::casino::{self, CHANDELIER_R, FLOOR_Y, HALO_R, HALO_Y, HUB_Y, POCKET_Y, VOID_Y, generate_casino};
+use bd_voxel::maps::casino::{self, CHANDELIER_R, FLOOR_Y, HUB_Y, POCKET_Y, VOID_Y, generate_casino};
 use bd_voxel::material::{is_indestructible, material_def};
 use bd_voxel::{ChunkMesh, Mesher, VoxelWorld, mat};
 use glam::{IVec3, Vec3};
@@ -221,26 +221,30 @@ fn interactables_are_clear_and_standable() {
 fn surf_halo_floats_clear() {
     let (w, info) = generate_casino(1);
     assert_eq!(info.surf_lines.len(), casino::HALO_SEGMENTS);
-    for l in &info.surf_lines {
+    // One descending turn: the first segment starts high and out, the last ends low and in.
+    let (first, last) = (info.surf_lines[0], info.surf_lines[casino::HALO_SEGMENTS - 1]);
+    assert!(first.a.y - last.b.y > casino::HALO_DROP - 0.1, "halo doesn't descend");
+    for (k, l) in info.surf_lines.iter().enumerate() {
         let mid = (l.a + l.b) * 0.5;
-        let r = Vec3::new(mid.x, 0.0, mid.z).length();
-        assert!((r - HALO_R).abs() < 0.3 && (mid.y - HALO_Y).abs() < 0.01);
+        assert!(l.a.y >= l.b.y, "segment {k} climbs");
         assert!((45.6..=80.0).contains(&l.face_deg), "halo faces must be surfable");
-        // The prism's volume is air (hard light over the track, never inside voxels).
+        let (sn, cs) = l.face_deg.to_radians().sin_cos();
+        // The prism's volume is air (hard light over the wheel, never inside voxels).
         let out = Vec3::new(mid.x, 0.0, mid.z).normalize();
         for s in [-1.0f32, 1.0] {
-            for k in 0..=6 {
-                let t = k as f32 / 6.0 * l.width;
-                let p = mid + out * (s * t * l.face_deg.to_radians().cos()) - Vec3::Y * (t * l.face_deg.to_radians().sin() + 0.4);
-                assert_eq!(w.get_at(p), AIR, "halo face intersects terrain at {p}");
+            for j in 0..=6 {
+                let t = j as f32 / 6.0 * l.width;
+                let p = mid + out * (s * t * cs) - Vec3::Y * (t * sn + 0.4);
+                assert_eq!(w.get_at(p), AIR, "halo segment {k} intersects terrain at {p}");
             }
         }
-        // Walkable clearance under the halo: the track below it + a standing hull (1.8 m) stays under the faces.
-        let bottom = HALO_Y - l.width * l.face_deg.to_radians().sin() - 1.5 * l.face_deg.to_radians().cos();
-        for dr in [-1.8f32, 0.0, 1.8] {
+        // Walkable clearance under it: whatever is below + a standing hull (1.8 m) stays under the
+        // faces' lowest edge (incl. the 1.5 m collider thickness).
+        let bottom = mid.y - l.width * sn - 1.5 * cs;
+        for dr in [-l.width * cs, 0.0, l.width * cs] {
             let p = Vec3::new(mid.x, 0.0, mid.z) + out * dr;
-            let top = (0..40).map(|k| HALO_Y - 1.0 - k as f32 * 0.5).find(|y| w.get_at(Vec3::new(p.x, *y, p.z)) != AIR).expect("track under the halo");
-            assert!(top + 0.5 + 1.8 < bottom + 0.2, "no head room under the halo at r {:.1}: floor {top} vs halo {bottom}", HALO_R + dr);
+            let top = (0..60).map(|j| mid.y - 1.0 - j as f32 * 0.5).find(|y| w.get_at(Vec3::new(p.x, *y, p.z)) != AIR).expect("floor under the halo");
+            assert!(top + 0.5 + 1.8 < bottom + 0.2, "segment {k}: no head room at {p}: floor {top} vs halo {bottom}");
         }
     }
 }

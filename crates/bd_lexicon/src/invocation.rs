@@ -55,6 +55,18 @@ pub enum Windup {
     Merge(Element, Element),
 }
 
+/// Where a named energy attack comes from (data: `delivery:` in signatures.ron).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+pub enum Delivery {
+    /// Projected from the caster's palms: the construct becomes `Form::Hands` (a glowing orb between
+    /// the hands that fires a beam) — never a gun model. The default for a Beam name.
+    Hands,
+    /// Keeps the held weapon it resolved to (a wand's curse, a sword's release).
+    Held,
+    /// Keeps the thrown / fired thing it resolved to (rasengan, hollow purple).
+    Thrown,
+}
+
 /// Longest title (the sim's recipe-name bound).
 pub const MAX_TITLE: usize = 48;
 
@@ -80,6 +92,16 @@ struct NameRow {
     title: Option<String>,
     #[serde(default)]
     windup: Option<Windup>,
+    #[serde(default)]
+    delivery: Option<Delivery>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+struct EnergyRows {
+    hands: Vec<String>,
+    energy_words: Vec<String>,
+    gun_words: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -89,6 +111,7 @@ struct SignatureFile {
     invocations: Vec<InvocationRow>,
     suffixes: Vec<InvocationRow>,
     names: Vec<NameRow>,
+    energy: EnergyRows,
 }
 
 /// One invocation, normalised.
@@ -100,8 +123,22 @@ pub(crate) struct Invocation {
     pub alone: Option<String>,
 }
 
-/// A tagged name: (kind, display title, windup look).
-pub(crate) type Tag = (SignatureKind, Option<String>, Option<Windup>);
+/// A tagged name.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Tag {
+    pub kind: SignatureKind,
+    /// Display title override.
+    pub title: Option<String>,
+    pub windup: Option<Windup>,
+    /// Where it comes from; `None` = [`Delivery::Hands`] for a Beam, untouched otherwise.
+    pub delivery: Option<Delivery>,
+}
+
+impl Tag {
+    fn delivery(&self) -> Option<Delivery> {
+        self.delivery.or((self.kind == SignatureKind::Beam).then_some(Delivery::Hands))
+    }
+}
 
 /// The parsed `signatures.ron`.
 #[derive(Clone, Debug, Default)]
@@ -110,9 +147,15 @@ pub(crate) struct SignatureTable {
     pub prefixes: Vec<Invocation>,
     /// Longest first.
     pub suffixes: Vec<Invocation>,
-    /// normalised name → (kind, optional display title).
+    /// normalised name → its tag.
     pub names: HashMap<String, Tag>,
     pub bang_beams: usize,
+    /// Plain (non-signature) energy attacks that come from the palms ("repulsor", "ki blast").
+    pub hands: std::collections::HashSet<String>,
+    /// A phrase with one of these words that resolved to a gun model is energy from the palms…
+    pub energy_words: std::collections::HashSet<String>,
+    /// …unless it names a gun ("laser gun", "railgun").
+    pub gun_words: std::collections::HashSet<String>,
 }
 
 /// The shipped table (compiled in; `Lexicon::load` prefers a copy next to lexicon.bin).
@@ -152,10 +195,19 @@ impl SignatureTable {
         for n in f.names {
             let k = normalize_key(&n.name);
             if !k.is_empty() {
-                names.entry(k).or_insert((n.kind, n.title, n.windup));
+                names.entry(k).or_insert(Tag { kind: n.kind, title: n.title, windup: n.windup, delivery: n.delivery });
             }
         }
-        SignatureTable { prefixes: conv(f.invocations), suffixes: conv(f.suffixes), names, bang_beams: f.bang_beams }
+        let set = |v: Vec<String>| v.iter().map(|s| normalize_key(s)).filter(|k| !k.is_empty()).collect();
+        SignatureTable {
+            prefixes: conv(f.invocations),
+            suffixes: conv(f.suffixes),
+            names,
+            bang_beams: f.bang_beams,
+            hands: set(f.energy.hands),
+            energy_words: set(f.energy.energy_words),
+            gun_words: set(f.energy.gun_words),
+        }
     }
 
     pub fn default_table() -> SignatureTable {
@@ -214,10 +266,73 @@ pub(crate) fn infer_kind(res: &Resolution) -> SignatureKind {
     }
 }
 
+/// Energy from the palms: `Form::Hands` + Beam, no weapon model (the game draws the caster's hands
+/// and a glowing orb between them). Keeps the element and the traits that shape a beam.
+pub(crate) fn from_palms(res: &mut Resolution) {
+    let r = &mut res.recipe;
+    if r.form == Form::Hands {
+        return;
+    }
+    r.form = Form::Hands;
+    // (No Pierce: the palm beam already pierces; on a signature it would read as an erasing orb.)
+    r.mechanics.retain(|m| {
+        use Mechanic::*;
+        matches!(m, Heavy | Repel | Attract | Fast | Shrink | Grow | Link | Sticky | Pull)
+    });
+    r.mechanics.insert(0, Mechanic::Beam);
+    r.count = 1;
+    r.scale = 1.2;
+    if let ModelSource::Icon(id) = &r.model {
+        r.model = ModelSource::Procedural { seed: crate::data::fnv64(id.as_bytes()) as u32 };
+    }
+    res.shape = None;
+    res.alt_shape = None;
+    res.kind = ResolutionKind::Construct;
+    res.explanation.push("energy \u{2192} from the palms (Hands)".to_string());
+}
+
+/// A beam ultimate that keeps what it resolved to instead of coming from the palms: a creature or a
+/// sky emitter (it beams itself), a piercing thrown thing (an erasing orb), a held weapon that is not
+/// a gun (a wand, a sword), or a gun the phrase actually named.
+fn keeps_body(res: &Resolution, names_a_gun: bool) -> bool {
+    let r = &res.recipe;
+    match r.form.category() {
+        FormCategory::Creature => true,
+        _ if r.has(Mechanic::Flies) && r.has(Mechanic::DropFromSky) => true,
+        FormCategory::Held if matches!(r.form, Form::Gun | Form::Cannon) => names_a_gun,
+        FormCategory::Held => true,
+        _ => r.has(Mechanic::Pierce),
+    }
+}
+
 impl Lexicon {
     /// Tagged famous ultimate for a normalised name.
     fn tagged(&self, key: &str) -> Option<Tag> {
         self.sig.names.get(key).cloned()
+    }
+
+    /// Does the phrase name a gun ("laser gun", "railgun")?
+    fn names_a_gun(&self, whole: &str) -> bool {
+        whole.split_whitespace().any(|w| self.sig.gun_words.contains(w))
+    }
+
+    /// An energy word that resolved to a gun / cannon model ("energy beam", "laser beam") comes from
+    /// the palms instead — unless the phrase names a gun.
+    fn energy_as_gun(&self, res: &Resolution, whole: &str) -> bool {
+        matches!(res.recipe.form, Form::Gun | Form::Cannon)
+            && whole.split_whitespace().any(|w| self.sig.energy_words.contains(w))
+            && !self.names_a_gun(whole)
+    }
+
+    /// Apply a tag's delivery (Beam names default to the palms).
+    fn deliver(res: &mut Resolution, tag: Option<&Tag>, kind: SignatureKind) {
+        let d = match tag {
+            Some(t) => t.delivery(),
+            None => (kind == SignatureKind::Beam).then_some(Delivery::Hands),
+        };
+        if d == Some(Delivery::Hands) {
+            from_palms(res);
+        }
     }
 
     /// Tag of the construct a phrase resolved to: its display name, else its curated icon id
@@ -292,7 +407,14 @@ impl Lexicon {
         Self::as_construct(&mut res);
         let tag = self.tagged(&rest_key).or_else(|| self.tag_of_recipe(&res));
         let inferred = if modifier_only { SignatureKind::Beam } else { infer_kind(&res) };
-        let kind = inv.kind.or(tag.as_ref().map(|t| t.0)).unwrap_or(inferred);
+        let kind = inv.kind.or(tag.as_ref().map(|t| t.kind)).unwrap_or(inferred);
+        // A beam ultimate is energy from the palms, unless it names a gun or a held weapon keeps it
+        // ("ultimate beam" → palms; "final laser gun" → the gun; "bankai zangetsu" → the sword).
+        match &tag {
+            Some(t) => Self::deliver(&mut res, Some(t), kind),
+            None if kind == SignatureKind::Beam && (modifier_only || !keeps_body(&res, self.names_a_gun(&rest_key))) => from_palms(&mut res),
+            None => {}
+        }
         let title = match (bare, suffix) {
             (true, _) => inv.title.clone(),
             (false, false) => format!("{}: {}", inv.title, title_case(&rest_key)),
@@ -300,7 +422,7 @@ impl Lexicon {
         };
         res.explanation.insert(0, format!("{} \u{2192} signature {kind:?}", inv.words.join(" ")));
         res.confidence = res.confidence.max(0.9);
-        let windup = tag.as_ref().and_then(|t| t.2).map(|Windup::Merge(a, b)| (a, b));
+        let windup = tag.as_ref().and_then(|t| t.windup).map(|Windup::Merge(a, b)| (a, b));
         res.signature = Some(SignatureCall { kind, title: clip_title(title), invocation: Some(inv.words.join(" ")), windup });
         Some(res)
     }
@@ -312,19 +434,28 @@ impl Lexicon {
         }
         let name_key = normalize_key(&res.recipe.name);
         let tag = self.tagged(whole).map(|t| (t, whole.to_string())).or_else(|| self.tag_of_recipe(res).map(|t| (t, name_key.clone())));
-        if let Some(((kind, title, windup), key)) = tag {
+        if let Some((t, key)) = tag {
             Self::as_construct(res);
-            let title = title.unwrap_or_else(|| {
+            let title = t.title.clone().unwrap_or_else(|| {
                 // Curated icons carry proper capitalisation ("Kamehameha"); lexicon names are lower-case.
                 if res.recipe.name.chars().any(|c| c.is_uppercase()) { res.recipe.name.clone() } else { title_case(&key) }
             });
-            res.explanation.insert(0, format!("{key} \u{2192} signature {kind:?}"));
+            Self::deliver(res, Some(&t), t.kind);
+            res.explanation.insert(0, format!("{key} \u{2192} signature {:?}", t.kind));
             res.signature =
-                Some(SignatureCall { kind, title: clip_title(title), invocation: None, windup: windup.map(|Windup::Merge(a, b)| (a, b)) });
+                Some(SignatureCall { kind: t.kind, title: clip_title(title), invocation: None, windup: t.windup.map(|Windup::Merge(a, b)| (a, b)) });
             return;
         }
+        // Plain energy attacks come from the palms too ("repulsor", "ki blast", "energy beam").
+        if res.kind != ResolutionKind::Graft && (self.sig.hands.contains(whole) || self.energy_as_gun(res, whole)) {
+            from_palms(res);
+        }
         let beam = res.kind == ResolutionKind::Construct && res.recipe.has(Mechanic::Beam);
-        if self.sig.bang_beams > 0 && bangs >= self.sig.bang_beams && beam {
+        // A yelled gun ("RAILGUN!!!") stays a gun, not an ultimate.
+        if self.sig.bang_beams > 0 && bangs >= self.sig.bang_beams && beam && !self.names_a_gun(whole) {
+            if !keeps_body(res, false) {
+                from_palms(res);
+            }
             let title = if res.recipe.name.is_empty() { title_case(whole) } else { title_case(&res.recipe.name.to_lowercase()) };
             res.explanation.insert(0, format!("{bangs}\u{00d7}! beam \u{2192} signature Beam"));
             res.signature = Some(SignatureCall { kind: SignatureKind::Beam, title: clip_title(title), invocation: None, windup: None });
@@ -342,7 +473,10 @@ mod tests {
         assert!(warn.is_none(), "{warn:?}");
         assert!(t.prefixes.iter().any(|i| i.words == ["domain", "expansion"] && i.kind == Some(SignatureKind::Domain)));
         assert!(t.suffixes.iter().any(|i| i.words == ["domain"]));
-        assert_eq!(t.names.get("kamehameha").map(|n| n.0), Some(SignatureKind::Beam));
+        assert_eq!(t.names.get("kamehameha").map(|n| n.kind), Some(SignatureKind::Beam));
+        assert_eq!(t.names.get("kamehameha").and_then(Tag::delivery), Some(Delivery::Hands));
+        assert_eq!(t.names.get("hollow purple").and_then(Tag::delivery), Some(Delivery::Thrown));
+        assert!(t.hands.contains("repulsor") && t.gun_words.contains("gun") && t.energy_words.contains("beam"));
         // Longest first, so "domain expansion" wins over a shorter overlapping keyword.
         assert!(t.prefixes.windows(2).all(|w| w[0].words.len() >= w[1].words.len()));
     }

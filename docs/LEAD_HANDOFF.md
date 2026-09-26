@@ -1,40 +1,48 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> CURRENT SNAPSHOT (2026-09-26 16:30) — read this first <<<
-**Committed & green (HEAD builds):** the whole feature wave — audio mixer + music/remixes, shout words,
-charge, hands, camera/ADS, construct animation + summon assembly, bounds/recall/placement + cut-in preview,
-tracking/lunge/hook-and-strike + compass, double jump/dodge/wall refresh/surfing, oath sections + voice
-parity, freedom bundle (it-grammar, targeting, sputter, hidden legendary, kill feed, highlights),
-lexicon relations, signature moves + Hollow Purple, combat.ron actually loaded + hot reload + host sync,
-outlines, Orbit, Backrooms. bd_core contract v1.6, bd_net PROTOCOL_VERSION 8 (map workers will bump more).
-**Owner's playable build:** target\playable\0926_1654_voice\brightest_day.exe (fastrel + voice, smoke-tested); zip: dist\BrightestDay-win64.zip;
-target\playable\LATEST.txt always points at the newest verified build.
-**Lead background processes (re-start after a machine restart):** `pwsh -File target\buildwatch.ps1`
-(GREEN/RED status every 90 s → target\build_status.txt) and `pwsh -File target\promote.ps1` (every 30 min:
-GREEN → release build → startup smoke → target\playable\<stamp>\). Lead's own checks use CARGO_TARGET_DIR
-target\lead; workers use target\play (shared) + `--profile fastrel` for exes, BD_HIDDEN_WINDOW=1 for shots.
-**In flight (subagent ids; reports return to this session; SendMessage by id):**
-- Stabilisation A DONE: conflict-free keymap (swap-on-rebind, reserved keys, alias gating, typing mask), settings tabs, PLAYING/DESIGN docs, audio hooks; FIXED settings/prefs never autosaving while a menu was open. Minor open: Alt+Enter also triggers dodge.
-- Stabilisation B a474d07f59d13ee13 — host-enforced 3P rule, G powers + projectile aim convergence, 3P held
-  items in the costume hand + 3P ADS pose, 3P near-clip fade, tutorial 3P body, Hollow Purple gather
-  distance, readability (debris near camera, dome alpha, others' shot words over ADS), never-refuse powers,
-  thrown items linger, tutorial ghost regen, sputter ring flicker.
-- Map workers (each isolated behind a bd_voxel feature + own target dir; register MapKind/NetMapKind/
-  CLI/picker/audio/music at the end and bump PROTOCOL_VERSION — reconcile the bumps as they land):
-  Sakura Keep af05a4bd42a595302 (Hanamura LAYOUT followed closely, own look; private-use note),
-  Cybertron a2b9a832591c61404 (transforms ADD routes only + space bridge, as flavour),
-  Turtle Lair adf4a2d95abe323d2, Giant's Room ae3814d9e0a766ccd (static; scale cues),
-  Valley of the End a39d259b62dd1312d (water-walk RESTORED as flavour), Ember a12534acdde2f59c8 (lava =
-  void; surge/geysers/obsidian/drift CUT), Hyperline a2bf846d827b78dcb (train; slipstream rule),
-  Mirrorfold a319a5a9539efed5b (folded city; surf curls; no sim code), High Roller casino
-  a668e5a109aacf9fa (optional slot machines/roulette via generic interactables module; odds hidden).
-**Map rule (owner):** flavour must ENHANCE abilities, never force/restrict; competitive quality first.
-**Open offers to owner:** re-add Ember geysers + Giant's Room bed bounce as optional flavour (they
-enhance); basic bot navigation (bots beeline through walls on maze maps).
-**After maps + stabilisation land:** quiet-machine perf + `tools/check.ps1 -Soak -Bench -Smoke`, soak
-seeds 1..8, then package + owner "try these" list. Owner compacts context periodically — keep this
-snapshot current.
-
+## >>> CURRENT SNAPSHOT (2026-09-26 ~18:00) — read this first <<<
+**Committed & green (HEAD builds):** feature wave (audio mixer + music/remixes, shout words, charge,
+hands, camera/ADS, construct animation + assembly, bounds/recall/placement + cut-in preview, tracking/
+lunge/hook + compass, double jump/dodge/wall refresh/surf, oath sections + voice parity, freedom bundle,
+lexicon relations, signature moves + Hollow Purple, combat.ron live + host sync, outlines, Orbit,
+Backrooms, Sakura Keep), Stabilisation A (keymap/settings tabs/settings-save fix) + B (3P/aim/readability),
+release-to-fire fix, costume preview rotation. bd_core v1.6; bd_net PROTOCOL_VERSION ~14 (map workers keep
+bumping — just keep it compiling).
+**Owner builds:** target\playable\0926_1654_voice\brightest_day.exe (fastrel + VOICE); zip
+dist\BrightestDay-win64.zip (146 MB, voice); target\playable\LATEST.txt = newest verified. Voice builds
+need `--features voice` in their own dir (target\voice).
+**Lead background processes (restart after reboot):** `pwsh -File target\buildwatch.ps1` (GREEN/RED →
+target\build_status.txt every 90 s) and `pwsh -File target\promote.ps1` (every 30 min: GREEN → fastrel
++voice build in target\voice → startup smoke → target\playable\<stamp>\). Lead checks: CARGO_TARGET_DIR
+target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Protocol: docs/COORDINATION.md.
+**In flight (subagent ids; reports return to this session):**
+- Connect feel a6409611d34036099 — hit assist (melee volume+magnetism, projectile/hitscan magnetism),
+  weight-pass-2 juice (hit-stop, contact resistance, camera punch, sparks, KO slow-mo; juice.ron),
+  LUNGE fix (owner can't feel it: measure trigger rate, loosen, make it felt), railgun early-release shot.
+- Anti-juggle a98da5aecac02be4b — knockback decay + short immunity; also owns the FFA hash A/B
+  (currently 0xd1a37fca9b34c73d failing — cause is juggle or casino edits).
+- Signature a67f94557763852e1 — ENERGY ATTACKS = HAND BEAMS (final flash/kamehameha/galick… no gun
+  model; 2-hand charge orb + palm beam 1P/3P; canonical title when recognised).
+- Intent aafbfbcb5ee31d5c1 — name targeting bug ("drop a meteor on ethan"), whisper bias w/ player
+  names, delivery verbs, ~1,000-phrase golden corpus, stage order, local logs/intent.log + intent_report.
+- Giants a01a81cbdbb91cd1e — weak points, tether+ride giants (moving platforms), limb sever/topple,
+  dodgeable attacks, summoner command; optional hijack.
+- Powers a8211d8337e51dbfe — DBZ/Naruto/JJK/Bleach/HxH powers + generic effects (AutoDodge, slow field,
+  self-drain, crit, read cue, tiers) + ONE generic "Ascend" transformation sequence driven by data.
+- Character costumes abe83e88bc70188b0 — style library + ~150 iconic looks (gojo/vader/...) + icon-derived
+  fallback; gallery docs/costume_gallery.png is the bar.
+- Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (transforms
+  ADD routes only), Turtle Lair adf4a2d95abe323d2, Giant's Room ae3814d9e0a766ccd (static), Valley of the
+  End a39d259b62dd1312d (water-walk as flavour), Ember a12534acdde2f59c8 (lava = void), Hyperline
+  a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b, High Roller casino
+  a668e5a109aacf9fa (optional slots/roulette; its routes example was missing mid-work).
+**Known follow-ups:** 3P ADS head fills ~1/3 of screen; Alt+Enter also dodges; bots don't navigate
+mazes; possible tutorial first-construct pipeline hitch; bd_net InputQueue trim can drop a 1-tick tap;
+Sakura's bd_sim `sakura` feature not default; menu backdrop may ignore prefs map.
+**Owner rules:** maps = flavour that ENHANCES, never restricts; voice == typing; never freeze players;
+never say no (sputter); mystery tenet. Owner playtests with friends and sends feel notes — prioritise them.
+**Next after in-flight lands:** quiet-machine perf + `tools/check.ps1 -Soak -Bench -Smoke`, soak seeds
+1..8, fresh voice zip + "try these" list, then run intent_report on the owner's logs/intent.log.
 Owner: wants autonomous progress; this is a research comparison of orchestration harnesses. Read
 docs/DESIGN.md first (NORTH STAR, MYSTERY tenet, FEATURE FREEZE, snappiness gates), then docs/COMBAT.md
 (§1a Smash model supersedes health; §5h player powers incl. Origin kind; §5i balance), docs/PLAYING.md,

@@ -88,6 +88,10 @@ pub struct GunSpec {
     pub reload: f32,
     /// Hold to charge this long before the shot (railgun, bow draw).
     pub charge: f32,
+    /// Charge guns that fire by themselves when full (railgun): letting go early still fires
+    /// (owner: "never require another click"), damage / knockback / recoil scaled from this fraction
+    /// at a tap up to 1 at full charge. 0 = an early release fires nothing.
+    pub release_min: f32,
     /// Explodes on impact: (blast radius, crater radius).
     pub explode: Option<(f32, f32)>,
     /// Hitscan: players it passes through; also pierces walls up to 1 m thick.
@@ -113,6 +117,7 @@ const BASE: GunSpec = GunSpec {
     clip: 0,
     reload: 0.0,
     charge: 0.0,
+    release_min: 0.0,
     explode: None,
     pierce: 0,
     chip: 0.0,
@@ -154,7 +159,7 @@ pub fn gun_spec(a: GunArchetype) -> GunSpec {
             radius: 0.3,
             ..BASE
         },
-        Railgun => GunSpec { cadence: 1.1, damage: 40.0, knockback: 20.0, speed: 0.0, hitscan: true, recoil: 6.0, charge: 0.5, pierce: 2, ..BASE },
+        Railgun => GunSpec { cadence: 1.1, damage: 40.0, knockback: 20.0, speed: 0.0, hitscan: true, recoil: 6.0, charge: 0.5, release_min: 0.35, pierce: 2, ..BASE },
         Bow => GunSpec { cadence: 0.3, damage: 30.0, knockback: 14.0, speed: 90.0, recoil: 0.5, charge: 1.0, kind: ProjectileKind::Arrow, ..BASE },
         Cannon => GunSpec {
             cadence: 1.0,
@@ -345,9 +350,11 @@ impl WeaponState {
         } else if spec.charge > 0.0 {
             // Railgun: hold charges, fires by itself when full. Bow: fires on release (draw scales).
             // Hand beam: both — release fires (charge scales it), a full charge fires by itself.
+            // Railgun (`release_min` > 0): an early release fires a weaker shot too (any charge).
             let bow = self.arch == GunArchetype::Bow;
-            let on_release = bow || self.arch == GunArchetype::HandBeam;
-            let min_release = if bow { 0.05 } else { 0.2 };
+            let early = self.arch == GunArchetype::Railgun && spec.release_min > 0.0;
+            let on_release = bow || self.arch == GunArchetype::HandBeam || early;
+            let min_release = if bow { 0.05 } else if early { 0.0 } else { 0.2 };
             if held && self.cooldown <= 0.0 {
                 self.charge = (self.charge + dt / spec.charge).min(1.0);
                 self.set(WeaponPhase::Charging);

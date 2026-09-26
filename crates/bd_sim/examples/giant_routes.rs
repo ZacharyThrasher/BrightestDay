@@ -154,15 +154,27 @@ fn crosshair<V: VoxelQuery>(w: &V, eye: Vec3, target: Vec3) -> Option<Vec3> {
     bd_core::voxel::raycast(w, eye, target - eye, 120.0).map(|h| h.point)
 }
 
-/// 1. A full lap of the track, bunny-hopping (pursue a point a few waypoints ahead).
+/// 1. A full lap of the track, bunny-hopping: pure pursuit of a point 7 m ahead along the lane's
+///    centre line (so the bot rides the kickers instead of cutting the corners).
 fn track_loop(w: &VoxelWorld, cols: &[Collider], m: &MapInfo) -> RunResult {
     let wp = m.route("track_loop").expect("track_loop").waypoints.clone();
+    let n = wp.len();
+    // Cumulative arc length of the closed loop.
+    let mut arc = vec![0.0f32; n + 1];
+    for i in 0..n {
+        arc[i + 1] = arc[i] + horiz(wp[(i + 1) % n] - wp[i]).length();
+    }
+    let total = arc[n];
+    let at = |s: f32| -> Vec3 {
+        let s = s.rem_euclid(total);
+        let i = arc.partition_point(|&a| a <= s).saturating_sub(1).min(n - 1);
+        let t = (s - arc[i]) / (arc[i + 1] - arc[i]).max(1e-3);
+        wp[i].lerp(wp[(i + 1) % n], t)
+    };
     let p = MoveParams::default();
     let s = PlayerState::new(wp[0], &p);
     let mut hop = Hopper::new();
-    let n = wp.len();
-    let mut next = 1usize;
-    let mut lap = false;
+    let mut progress = 0.0f32;
     let done = std::cell::Cell::new(false);
     run(
         w,
@@ -172,18 +184,36 @@ fn track_loop(w: &VoxelWorld, cols: &[Collider], m: &MapInfo) -> RunResult {
         s,
         60.0,
         |s, _| {
+            // Advance along the loop to the nearest centre-line point within 12 m ahead.
             let here = horiz(s.pos);
-            while horiz(wp[next % n]).distance(here) < 6.0 {
-                next += 1;
-                if next >= n + 1 {
-                    lap = true;
+            let mut best = progress;
+            let mut d = f32::INFINITY;
+            let mut k = 0.0;
+            while k <= 12.0 {
+                let q = horiz(at(progress + k)).distance(here);
+                if q < d {
+                    d = q;
+                    best = progress + k;
                 }
+                k += 0.5;
             }
-            if lap && horiz(wp[0]).distance(here) < 6.0 {
+            progress = best;
+            if progress >= total - 3.0 {
                 done.set(true);
             }
-            let aim = wp[(next + 1) % n];
-            hop.hop_to(s, Vec3::new(aim.x, s.pos.y, aim.z), 6.0)
+            let aim = at(progress + 7.0);
+            // The jump on the west straight: land and run up the block ramp (airborne you'd hit its
+            // 0.5 m steps), jump off the lip, then carry on hopping.
+            let kicker = (s.pos.x - giant::TRACK_W).abs() < 3.0 && (9.5..23.0).contains(&s.pos.z);
+            if kicker {
+                let lip = s.pos.z < 10.8 && s.grounded;
+                return input(yaw_to(s.pos, aim), 0.0, 0, 1, if lip { JUMP } else { 0 });
+            }
+            let mut i = hop.hop_to(s, Vec3::new(aim.x, s.pos.y, aim.z), 3.0);
+            if s.grounded && s.horizontal_speed() < 2.0 {
+                i.buttons |= JUMP;
+            }
+            i
         },
         |_, _| done.get(),
     )
@@ -212,17 +242,19 @@ fn desk_ramp(w: &VoxelWorld, cols: &[Collider], m: &MapInfo) -> RunResult {
     )
 }
 
-/// 3. Floor → top of the bookshelf on one tether: hook the ceiling over its front edge, reel up the
-///    face, step over onto the top.
+/// 3. Floor → top of the bookshelf with the tethers: hook the ceiling straight above (in front of the
+///    case), reel up past its top, then hook the far end of the top and reel onto it.
 fn bookshelf_climb(w: &VoxelWorld, cols: &[Collider], m: &MapInfo) -> RunResult {
     let r = m.route("bookshelf_climb").expect("bookshelf_climb");
     let start = r.waypoints[0];
-    let hint = *r.anchors.last().unwrap();
     let top = *r.waypoints.last().unwrap();
+    let up = Vec3::new(start.x, giant::CEIL_Y, start.z);
+    let back = Vec3::new(giant::BOOKSHELF.x0 + 1.5, giant::BOOKSHELF_TOP - 0.25, top.z);
+    let deep = Vec3::new(giant::BOOKSHELF.center().x, top.y, top.z);
     let p = MoveParams::default();
     let s = PlayerState::new(start, &p);
     let mut phase = 0u8;
-    let mut anchor = hint;
+    let (mut a1, mut a2) = (up, back);
     let mut idle = false;
     run(
         w,
@@ -235,29 +267,44 @@ fn bookshelf_climb(w: &VoxelWorld, cols: &[Collider], m: &MapInfo) -> RunResult 
             let eye = s.eye(&p);
             match phase {
                 0 => {
-                    if t < 12 {
-                        return input(yaw_to(s.pos, top), 0.0, 0, 0, JUMP);
+                    if t < 10 {
+                        return input(0.0, 0.0, 0, 0, JUMP);
                     }
                     phase = 1;
-                    anchor = crosshair(w, eye, hint).unwrap_or(hint);
-                    let (y, pc) = aim_at(eye, anchor);
+                    a1 = crosshair(w, eye, up).unwrap_or(up);
+                    let (y, pc) = aim_at(eye, a1);
                     input(y, pc, 0, 0, TETHER_L)
                 }
                 1 => {
                     let h = s.hooks[0];
                     if !h.attached() {
                         idle = !idle;
-                        let (y, pc) = aim_at(eye, anchor);
+                        let (y, pc) = aim_at(eye, a1);
                         return input(y, pc, 0, 0, if idle && h.phase == HookPhase::Idle { 0 } else { TETHER_L });
                     }
-                    if s.pos.y > giant::BOOKSHELF_TOP + 1.5 {
+                    if s.pos.y > giant::BOOKSHELF_TOP + 2.0 {
                         phase = 2;
-                        return input(yaw_to(s.pos, top), 0.0, 0, 1, 0);
+                        a2 = crosshair(w, eye, back).unwrap_or(back);
+                        let (y, pc) = aim_at(eye, a2);
+                        return input(y, pc, 0, 0, TETHER_R);
                     }
-                    let (y, pc) = aim_at(eye, anchor);
+                    let (y, pc) = aim_at(eye, a1);
                     input(y, pc, 0, 0, TETHER_L | REEL)
                 }
-                _ => input(yaw_to(s.pos, top), 0.0, 0, 1, 0),
+                2 => {
+                    let h = s.hooks[1];
+                    if s.grounded {
+                        phase = 3;
+                    }
+                    if !h.attached() {
+                        idle = !idle;
+                        let (y, pc) = aim_at(eye, a2);
+                        return input(y, pc, 0, 0, if idle && h.phase == HookPhase::Idle { 0 } else { TETHER_R });
+                    }
+                    let (y, pc) = aim_at(eye, a2);
+                    input(y, pc, 0, 1, TETHER_R | REEL)
+                }
+                _ => input(yaw_to(s.pos, deep), 0.0, 0, 1, 0),
             }
         },
         move |s, _| s.grounded && s.pos.y >= giant::BOOKSHELF_TOP - 0.05,

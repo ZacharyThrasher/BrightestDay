@@ -67,3 +67,8 @@ frequent. Missing names are silent (callers already emit them).
 | amb_furin | Sakura Keep | glass wind-chime tinkles under eaves (sparkle, Wall/Leaves zone) |
 | amb_temple_bell | Sakura Keep | distant temple bell: one deep bonnnng with a long beat-y tail, rare (sparkle, Sky zone) |
 | amb_fountain | Sakura Keep | small trickling water basin / koi pond (loop near the shrine; needs a map-placed emitter) |
+| giant_clock_tick_loop | Giant's Room | the wall clock heard at toy scale: a huge, slow, dull TICK… TOCK (1 Hz, pitched ~2 octaves down, woody knock + spring ring, long room tail); needs a map-placed emitter at the clock (west wall, above the bed) — maps.ron zones can't place it, so it's absent for now |
+| amb_cat_purr_loop | Giant's Room | the sleeping giant cat: slow, deep, rumbling purr (≈ 1.2 s breath cycle, sub-heavy but soft), map-placed at the cat in the sunbeam |
+| amb_outdoor_window | Giant's Room | the world outside the open window: birdsong, a lawnmower / kids playing far off, a breeze — slightly muffled (currently `amb_archipelago_bed` + `amb_bird` by enclosure) |
+| amb_floorboard_creak | Giant's Room | house settling: deep wooden floorboard creaks and groans, scaled up (sparkle, Surface zone; `amb_station_creak` stands in) |
+| amb_fan_whoosh_loop | Giant's Room | ceiling-fan blades (static in the map for now) — slow deep whoosh for if the fan ever turns |

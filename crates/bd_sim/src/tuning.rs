@@ -442,6 +442,9 @@ pub struct GunNumbers {
     pub clip: u8,
     pub reload: f32,
     pub charge: f32,
+    /// Railgun early release: fraction of the full shot at a tap (0 = an early release fires nothing).
+    #[serde(default)]
+    pub release_min: f32,
     pub explode: Option<(f32, f32)>,
     pub pierce: u8,
     pub chip: f32,
@@ -466,6 +469,7 @@ impl GunNumbers {
             clip: s.clip,
             reload: s.reload,
             charge: s.charge,
+            release_min: s.release_min,
             explode: s.explode,
             pierce: s.pierce,
             chip: s.chip,
@@ -492,6 +496,7 @@ impl GunNumbers {
         self.clip = self.clip.min(64);
         self.reload = fin(self.reload, d.reload, 0.0, 10.0);
         self.charge = fin(self.charge, d.charge, 0.0, 5.0);
+        self.release_min = fin(self.release_min, d.release_min, 0.0, 1.0);
         self.explode = match (self.explode, d.explode) {
             (Some((b, c)), Some(dd)) => Some((fin(b, dd.0, 0.1, 20.0), fin(c, dd.1, 0.0, 20.0))),
             (Some((b, c)), None) => Some((fin(b, 2.0, 0.1, 20.0), fin(c, 1.0, 0.0, 20.0))),
@@ -519,6 +524,7 @@ impl GunNumbers {
             clip: self.clip,
             reload: self.reload,
             charge: self.charge,
+            release_min: self.release_min,
             explode: self.explode,
             pierce: self.pierce,
             chip: self.chip,

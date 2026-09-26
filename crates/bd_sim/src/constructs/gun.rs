@@ -141,7 +141,14 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
             // A quick release is a weaker beam; a full charge is the whole thing.
             dmg = 0.35 + 0.65 * f.charge;
         }
-        fire(c, env, out, arch, &spec, o.look, f.alt, dmg, speed, 1.0);
+        let mut recoil = 1.0;
+        if arch == GunArchetype::Railgun && f.charge < 1.0 {
+            // An early release: damage, knockback and recoil (the client's beam width follows the
+            // recoil) scaled from `release_min` at a tap to the full shot.
+            dmg = spec.release_min + (1.0 - spec.release_min) * f.charge.clamp(0.0, 1.0);
+            recoil = dmg;
+        }
+        fire(c, env, out, arch, &spec, o.look, f.alt, dmg, speed, recoil);
     }
 
     // Alt-fire.
@@ -238,7 +245,8 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
     let ray = fires_hitscan(c, arch, spec);
     let dir = if ray { dir } else { converge_muzzle(env, c.owner, o.eye, dir, muzzle) };
     let mut dmg = spec.damage * dmg_k;
-    let mut kb = spec.knockback;
+    // A part-charged railgun pushes as weakly as it hurts.
+    let mut kb = spec.knockback * if arch == GunArchetype::Railgun { dmg_k } else { 1.0 };
     let mut speed = spec.speed * speed_k;
     let mut radius = spec.radius;
     let mut kind = spec.kind;

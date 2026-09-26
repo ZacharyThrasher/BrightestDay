@@ -341,6 +341,8 @@ fn handle_requests(
                         crate::arena::MapKind::Mirrorfold => proto::NetMapKind::Mirrorfold,
                         crate::arena::MapKind::Casino => proto::NetMapKind::Casino,
                         crate::arena::MapKind::Valley => proto::NetMapKind::Valley,
+                        crate::arena::MapKind::Cybertron => proto::NetMapKind::Cybertron,
+                        crate::arena::MapKind::Lair => proto::NetMapKind::Lair,
                         _ => proto::NetMapKind::Archipelago,
                     };
                     let nm = proto::NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
@@ -491,6 +493,8 @@ fn match_flow(
                     proto::NetMapKind::Mirrorfold => crate::arena::MapKind::Mirrorfold,
                     proto::NetMapKind::Casino => crate::arena::MapKind::Casino,
                     proto::NetMapKind::Valley => crate::arena::MapKind::Valley,
+                    proto::NetMapKind::Cybertron => crate::arena::MapKind::Cybertron,
+                    proto::NetMapKind::Lair => crate::arena::MapKind::Lair,
                     proto::NetMapKind::Archipelago => crate::arena::MapKind::Arena,
                 };
                 if current_map.0 != want {

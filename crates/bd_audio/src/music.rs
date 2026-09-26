@@ -179,6 +179,15 @@ impl MusicDirector {
             // the solemn gorge; the Ride of the Valkyries for the duel at the falls.
             ("valley", false) => "lobby",
             ("valley", true) => "orbit_combat",
+            // Cybertron: Orbit's floating space theme over the metal plains (its lofi / synthwave remixes
+            // under the Remix style); the Ride of the Valkyries (trap / DnB / synthwave remixes) when it kicks off.
+            ("cybertron", false) => "orbit_float",
+            ("cybertron", true) => "orbit_combat",
+            // Turtle Lair: Eine kleine Nachtmusik — "a little night music" under the city (its lo-fi /
+            // house remixes under the Remix style); Vivaldi's Summer Storm (DnB / trap / chip-EDM
+            // remixes) when it kicks off.
+            ("lair", false) => "menu",
+            ("lair", true) => "archipelago_combat",
             (_, false) => "archipelago_explore",
             (_, true) => "archipelago_combat",
         }

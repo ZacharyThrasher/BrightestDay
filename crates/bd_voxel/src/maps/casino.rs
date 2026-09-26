@@ -75,10 +75,17 @@ pub const TRACK_R: f32 = 17.0;
 pub const POCKET_R: f32 = 9.0;
 pub const CONE_R: f32 = 2.5;
 pub const POCKET_Y: f32 = 38.0;
-/// The surf halo over the track.
-pub const HALO_R: f32 = 19.5;
-pub const HALO_Y: f32 = 47.0;
-pub const HALO_SEGMENTS: usize = 24;
+/// The surf halo: one descending turn of a spiral over the wheel — the roulette ball's own line —
+/// from (`HALO_R`, `HALO_Y`) at angle [`HALO_START`] in toward the pockets and down by
+/// [`HALO_DROP`] (gravity along the line keeps a rider's speed up through the lap).
+pub const HALO_R: f32 = 20.5;
+pub const HALO_Y: f32 = 50.5;
+pub const HALO_IN: f32 = 4.5;
+pub const HALO_DROP: f32 = 5.0;
+pub const HALO_START: f32 = std::f32::consts::FRAC_PI_3;
+pub const HALO_SEGMENTS: usize = 48;
+pub const HALO_FACE_DEG: f32 = 58.0;
+pub const HALO_WIDTH: f32 = 3.2;
 /// Glass atrium over the wheel (roof opening radius).
 pub const ATRIUM_R: f32 = 12.0;
 /// Chandelier ring (six over the felt edge) and hub height.
@@ -622,19 +629,22 @@ fn pick_spawns(c: &City) -> Vec<Vec3> {
     out
 }
 
+/// The halo's ridge point at fraction `u` (0 = the high start, 1 = one full turn later).
+pub fn halo_point(u: f32) -> Vec3 {
+    let a = HALO_START + u * TAU;
+    let r = HALO_R - HALO_IN * u;
+    Vec3::new(dcos(a) * r, HALO_Y - HALO_DROP * u, dsin(a) * r)
+}
+
 fn surf_halo() -> Vec<SurfLine> {
     let n = HALO_SEGMENTS;
-    let overlap = 0.012;
+    // Each segment overlaps its neighbours a little so a rider never meets a seam edge.
+    let overlap = 0.1 / n as f32;
     (0..n)
         .map(|k| {
-            let a0 = k as f32 * TAU / n as f32 - overlap;
-            let a1 = (k + 1) as f32 * TAU / n as f32 + overlap;
-            SurfLine {
-                a: Vec3::new(dcos(a0) * HALO_R, HALO_Y, dsin(a0) * HALO_R),
-                b: Vec3::new(dcos(a1) * HALO_R, HALO_Y, dsin(a1) * HALO_R),
-                face_deg: 55.0,
-                width: 3.2,
-            }
+            let u0 = (k as f32 / n as f32 - overlap).max(0.0);
+            let u1 = ((k + 1) as f32 / n as f32 + overlap).min(1.0);
+            SurfLine { a: halo_point(u0), b: halo_point(u1), face_deg: HALO_FACE_DEG, width: HALO_WIDTH }
         })
         .collect()
 }
@@ -727,12 +737,7 @@ fn routes() -> Vec<Route> {
         let a = k as f32 * TAU / 6.0;
         Vec3::new(dcos(a) * CHANDELIER_R, HUB_Y, dsin(a) * CHANDELIER_R)
     };
-    let ring: Vec<Vec3> = (0..=16)
-        .map(|k| {
-            let a = k as f32 * TAU / 16.0;
-            Vec3::new(dcos(a) * HALO_R, HALO_Y, dsin(a) * HALO_R)
-        })
-        .collect();
+    let ring: Vec<Vec3> = (0..=16).map(|k| halo_point(k as f32 / 16.0)).collect();
     vec![
         Route {
             name: "floor_bhop",

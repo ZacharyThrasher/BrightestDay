@@ -176,8 +176,7 @@ fn is_orbit(arena: &Option<Res<ArenaWorld>>) -> bool {
 fn space_style(arena: &Option<Res<ArenaWorld>>) -> Option<f32> {
     match arena.as_ref().map(|a| a.info.kind) {
         Some(MapKind::Orbit) => Some(0.0),
-        // CYBERTRON (switched to `MapKind::Cybertron` at registration).
-        Some(k) if format!("{k:?}") == "Cybertron" => Some(1.0),
+        Some(MapKind::Cybertron) => Some(1.0), // CYBERTRON
         _ => None,
     }
 }

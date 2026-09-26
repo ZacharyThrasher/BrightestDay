@@ -332,6 +332,20 @@ A ring of town-house roofs lines the outline (walkable, the drop behind); open e
 garden, east plaza, west street) have only a kerb. Two surf lines (keep chute, gate slide). Layout data
 is traced by `tools/maps/sakura_trace.py` into `maps/sakura_layout.rs`. Light: warm afternoon sun,
 emissive lanterns / shoji.
+**Turtle Lair** (`--map lair`, bd_voxel `maps/lair.rs` + `lair_props.rs`; PRIVATE USE: TMNT places/props,
+see THIRD_PARTY_NOTICES.md): three layers on a 112 m block over the void. Sewers (12 m): the lair hub, a
+44 × 34 m brick barrel vault on indestructible ribs with the sunken bean-bag pit under the open central
+manhole (moonlight rim + light pool), a scrap contraption hung on chains (standable, falls if the chains
+are shot), dojo / Splinter's tree / weapon rack, lab, arcade + neon pizza sign, workshop, garage bay onto
+the subway chasm, a channel with three humped bridges and a drop-in mezzanine; the skate hall (half-pipe
+walls = two level surf lines over voxel decks, ridden along their length); 7 m arched tunnels on rib rings
+(dry west bhop lane, shallow + deep voxel-water channels, never lethal), junction chambers with walkable
+spiral stairs up open manhole shafts, brick bridges over the chasm to a station platform with the
+Shellraiser and a switchback subway stair. Street (34 m): avenue + west street, solid brick tenements
+(42–52 m roofs, fire escapes, water towers, billboards as swing anchors, flush cornices), a storm-drain
+culvert whose descending surf line drops you into the skate hall at ~24 m/s. KOs: chasm + block edges =
+void, star KO over the roofs. Light: cool night ambience, emissive only. 10 spawns (4 lair, 2 tunnels,
+2 platform, 2 roofs), ~0.63 M triangles.
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,

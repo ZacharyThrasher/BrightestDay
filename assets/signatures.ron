@@ -15,8 +15,15 @@
 // names:       famous ultimates; the whole phrase, or the construct it resolves to, carries the tag.
 // windup:     optional look of the release windup: Merge(a, b) = an orb of each element at either
 //             hand, pulled together (fusion moves). Presentation only.
+// delivery:    where it comes from. Hands = energy projected from the palms (Form::Hands: a glowing orb
+//              between the hands, a thick beam on release; never a gun model). Held = keeps the held
+//              weapon it resolved to (a wand). Thrown = keeps the thrown / fired thing (rasengan,
+//              hollow purple). Omitted: Hands for a Beam name, untouched otherwise.
 // bang_beams:  a phrase with at least this many "!" that resolves to a Beam construct is a Beam
-//              signature ("HYPER BEAM!!!"). 0 = off.
+//              signature ("HYPER BEAM!!!"), from the palms. A yelled gun ("RAILGUN!!!") stays a gun. 0 = off.
+// energy:      plain (non-signature) casts. `hands`: whole phrases that come from the palms. A phrase
+//              with an `energy_words` word that resolved to a gun / cannon model comes from the palms
+//              too, unless it has a `gun_words` word ("laser beam" -> palms, "laser gun" -> a gun).
 (
     bang_beams: 3,
     invocations: [
@@ -61,30 +68,36 @@
         (name: "infinite tsukuyomi", kind: Domain),
         (name: "infinity castle", kind: Domain),
         (name: "room shambles", kind: Domain),
-        // ---- beams ----
+        // ---- beams (from the palms unless a delivery says otherwise) ----
         (name: "kamehameha", kind: Beam),
         (name: "final kamehameha", kind: Beam),
         (name: "big bang kamehameha", kind: Beam),
+        (name: "father son kamehameha", kind: Beam),
         (name: "final flash", kind: Beam),
-        (name: "galick gun", kind: Beam),
+        (name: "galick gun", kind: Beam, title: Some("Galick Gun")),
+        (name: "galic gun", kind: Beam, title: Some("Galick Gun")),
         (name: "big bang attack", kind: Beam),
         (name: "special beam cannon", kind: Beam),
+        (name: "makankosappo", kind: Beam, title: Some("Special Beam Cannon")),
         (name: "masenko", kind: Beam),
-        (name: "hollow purple", kind: Beam, windup: Some(Merge(Water, Fire))),
-        (name: "getsuga tensho", kind: Beam),
-        (name: "rasenshuriken", kind: Beam),
+        (name: "spirit gun", kind: Beam),
+        (name: "rei gun", kind: Beam, title: Some("Spirit Gun")),
+        (name: "hadouken", kind: Beam),
+        (name: "shinku hadouken", kind: Beam),
         (name: "hyper beam", kind: Beam),
         (name: "solar beam", kind: Beam),
-        (name: "hadouken", kind: Beam),
         (name: "fus ro dah", kind: Beam),
-        (name: "avada kedavra", kind: Beam),
-        (name: "enuma elish", kind: Beam),
-        (name: "tailed beast bomb", kind: Beam),
-        (name: "death ray", kind: Beam),
+        (name: "hollow purple", kind: Beam, windup: Some(Merge(Water, Fire)), delivery: Some(Thrown)),
+        (name: "avada kedavra", kind: Beam, delivery: Some(Held)),
+        // ---- sword releases keep the sword ----
+        (name: "getsuga tensho", kind: Transformation, delivery: Some(Held)),
+        (name: "enuma elish", kind: Transformation, delivery: Some(Held)),
         // ---- summons (the thing itself, huge) ----
         (name: "spirit bomb", kind: Summon),
         (name: "genki dama", kind: Summon),
-        (name: "rasengan", kind: Summon),
+        (name: "rasengan", kind: Summon, delivery: Some(Thrown)),
+        (name: "rasenshuriken", kind: Summon, delivery: Some(Thrown)),
+        (name: "tailed beast bomb", kind: Summon, delivery: Some(Thrown)),
         (name: "chibaku tensei", kind: Summon),
         (name: "susanoo", kind: Summon),
         (name: "mahoraga", kind: Summon),
@@ -107,4 +120,22 @@
         (name: "omnislash", kind: Transformation),
         (name: "dragonblade", kind: Transformation),
     ],
+    energy: (
+        hands: [
+            "repulsor", "repulsor blast", "repulsor ray", "unibeam", "ki blast", "ki wave", "ki beam",
+            "energy blast", "energy wave", "energy beam", "chi blast", "spirit wave", "power wave",
+            "mana beam", "light blast", "plasma blast", "photon blast", "force blast", "psychic blast",
+        ],
+        energy_words: [
+            "beam", "beams", "blast", "blasts", "wave", "ki", "chi", "energy", "flash", "photon",
+            "plasma", "spirit", "aura", "mana", "chakra", "repulsor",
+        ],
+        // (weapon words: a phrase naming a gun — or a weapon that shoots, "sword beam" — keeps it)
+        gun_words: [
+            "gun", "guns", "rifle", "pistol", "revolver", "railgun", "raygun", "cannon", "blaster", "launcher",
+            "bazooka", "sniper", "shotgun", "minigun", "gatling", "carbine", "musket", "turret", "firearm",
+            "handgun", "smg", "uzi", "ak", "glock", "magnum", "crossbow", "sword", "blade", "katana", "wand",
+            "staff", "bow",
+        ],
+    ),
 )

@@ -1,0 +1,156 @@
+// Intent layer data (crates/bd_lexicon/src/intent.rs + refer.rs): how a phrase is DELIVERED — onto a
+// named player, at them, next to them, around them — and the verbs / prepositions that say so.
+// Vocabulary only: bd_sim decides what each delivery does per form category (bd_sim world/deliver.rs).
+// Word lists are normalised (lowercase, hyphens -> spaces). Compiled in; no lexicon rebuild needed.
+//
+// Deliveries:
+//   Onto   — from the sky onto the target / aim point (drop, rain, smite, crash, "on top of <name>")
+//   At     — thrown / fired / driven toward them (throw, hurl, launch, fire, shoot, "at <name>")
+//   Near   — appears next to them (summon, spawn, call, "near <name>", a creature "on <name>")
+//   Around — placed around them (cage, trap, surround, "wall around <name>", "dome over <name>")
+//   Hunt   — sent after them from here ("after <name>", "sic", "chase")
+(
+    // Verbs that open a phrase ("drop a meteor", "throw a rock at jake"). The verb comes off before the
+    // resolver reads the rest (its meaning is the delivery, not a thing to build: "fire a missile" is not
+    // a burning missile, "launch a rocket" does not add Launch). `mech`: mechanics the verb adds to what
+    // was built. `rewrite`: the rest is re-read as this phrase ("{}" = the rest) so an existing relation
+    // does the work ("rain arrows" -> "rain of arrows", a relations.ron volley). `alone`: what the verb
+    // builds with nothing after it ("smite jake"). Longest match first; a verb followed by nothing and no
+    // `alone` is left in the phrase untouched ("fire!" stays fire). A verb + the next word that is itself a
+    // known phrase is never split ("fire truck", "rain boots", "drop kick", "launch pad"). `strict`: the
+    // word is also an everyday modifier/noun, so it is only a verb before an article, a number or a plural
+    // ("fire a missile", "rain 3 anvils", "rain arrows" — but "fire sword" stays a flaming sword).
+    verbs: [
+        (words: "drop", via: Onto, mech: [DropFromSky]),
+        (words: "drops", via: Onto, mech: [DropFromSky]),
+        (words: "dropping", via: Onto, mech: [DropFromSky]),
+        (words: "drop down", via: Onto, mech: [DropFromSky]),
+        (words: "call down", via: Onto, mech: [DropFromSky]),
+        (words: "bring down", via: Onto, mech: [DropFromSky]),
+        (words: "send down", via: Onto, mech: [DropFromSky]),
+        (words: "crash", via: Onto, mech: [DropFromSky], strict: true),
+        (words: "slam", via: Onto, mech: [DropFromSky], strict: true),
+        (words: "dump", via: Onto, mech: [DropFromSky], strict: true),
+        (words: "plop", via: Onto, mech: [DropFromSky], strict: true),
+        (words: "smite", via: Onto, mech: [DropFromSky], alone: Some("lightning bolt")),
+        (words: "smash", via: Onto, mech: [DropFromSky], strict: true),
+        (words: "rain down", via: Onto, rewrite: Some("rain of {}")),
+        (words: "rain", via: Onto, rewrite: Some("rain of {}"), strict: true),
+        (words: "shower", via: Onto, rewrite: Some("shower of {}"), strict: true),
+        (words: "hail", via: Onto, rewrite: Some("hail of {}"), strict: true),
+        (words: "pelt", via: Onto, rewrite: Some("hail of {}"), strict: true),
+        (words: "nuke", via: Onto, alone: Some("nuclear bomb"), strict: true),
+
+        (words: "throw", via: At),
+        (words: "throws", via: At),
+        (words: "hurl", via: At),
+        (words: "chuck", via: At),
+        (words: "toss", via: At),
+        (words: "lob", via: At),
+        (words: "fling", via: At),
+        (words: "yeet", via: At),
+        (words: "pitch", via: At, strict: true),
+        (words: "launch", via: At),
+        (words: "fire", via: At, strict: true),
+        (words: "fire off", via: At),
+        (words: "shoot", via: At),
+        (words: "send", via: At, strict: true),
+        (words: "sling", via: At, strict: true),
+        (words: "catapult", via: At),
+        (words: "kick", via: At, strict: true),
+        (words: "hit", via: At, strict: true),
+        (words: "snipe", via: At, alone: Some("sniper rifle"), strict: true),
+
+        (words: "summon", via: Near),
+        (words: "spawn", via: Near, strict: true),
+        (words: "call", via: Near, strict: true),
+        (words: "call forth", via: Near),
+        (words: "conjure", via: Near),
+        (words: "unleash", via: Near),
+        (words: "release", via: Near, strict: true),
+        (words: "put", via: Near, strict: true),
+        (words: "place", via: Near, strict: true),
+        (words: "plant", via: Near, strict: true),
+
+        (words: "sic", via: Hunt),
+        (words: "sick", via: Hunt),
+        (words: "set", via: Hunt, strict: true),
+        (words: "chase", via: Hunt, strict: true),
+        (words: "hunt", via: Hunt, strict: true),
+
+        (words: "cage", via: Around, alone: Some("cage"), strict: true),
+        (words: "trap", via: Around, alone: Some("cage"), strict: true),
+        (words: "surround", via: Around, strict: true),
+        (words: "encase", via: Around, alone: Some("ice cage")),
+        (words: "imprison", via: Around, alone: Some("cage")),
+        (words: "entomb", via: Around, alone: Some("stone dome")),
+        (words: "wall in", via: Around, alone: Some("wall")),
+        (words: "box in", via: Around, alone: Some("cage")),
+        (words: "bury", via: Onto, alone: Some("boulder"), strict: true),
+        (words: "crush", via: Onto, alone: Some("anvil"), strict: true),
+        (words: "squash", via: Onto, alone: Some("anvil"), strict: true),
+        (words: "flatten", via: Onto, alone: Some("anvil"), strict: true),
+        (words: "zap", via: Onto, alone: Some("lightning bolt"), strict: true),
+        (words: "strike", via: Onto, alone: Some("lightning bolt"), strict: true),
+        (words: "freeze", via: Around, alone: Some("ice cage"), strict: true),
+        (words: "burn", via: At, alone: Some("fireball"), strict: true),
+        (words: "torch", via: At, alone: Some("fireball"), strict: true),
+        (words: "blast", via: At, alone: Some("energy blast"), strict: true),
+        (words: "attack", via: Hunt, alone: Some("wolf"), strict: true),
+        (words: "bomb", via: Onto, alone: Some("bomb"), strict: true),
+    ],
+
+    // "<verb> <name> [with <thing>]": verbs that take the player as their object ("cage ethan", "smite
+    // jake", "hit mia with a meteor", "surround sam with wolves"). Must also be in `verbs`.
+    target_verbs: ["cage", "trap", "smite", "nuke", "hit", "pelt", "crush", "squash", "flatten", "bury", "surround",
+        "encase", "imprison", "entomb", "wall in", "box in", "zap", "strike", "freeze", "burn", "torch", "blast",
+        "attack", "bomb", "snipe", "chase", "hunt", "smash", "shower", "rain on", "drop on"],
+
+    // Prepositions that aim the phrase at a player ("<thing> <prep> <name>"). Longest match first.
+    preps: [
+        (words: "on top of", via: Onto),
+        (words: "down on", via: Onto),
+        (words: "down onto", via: Onto),
+        (words: "onto", via: Onto),
+        (words: "on", via: Onto),
+        (words: "upon", via: Onto),
+        (words: "over", via: Onto),
+        (words: "above", via: Onto),
+        (words: "at", via: At),
+        (words: "toward", via: At),
+        (words: "towards", via: At),
+        (words: "against", via: At),
+        (words: "to", via: At),
+        (words: "into", via: At),
+        (words: "vs", via: At),
+        (words: "versus", via: At),
+        (words: "after", via: Hunt),
+        (words: "for", via: Hunt),
+        (words: "near", via: Near),
+        (words: "next to", via: Near),
+        (words: "beside", via: Near),
+        (words: "by", via: Near),
+        (words: "behind", via: Near),
+        (words: "in front of", via: Near),
+        (words: "under", via: Near),
+        (words: "underneath", via: Near),
+        (words: "beneath", via: Near),
+        (words: "below", via: Near),
+        (words: "around", via: Around),
+        (words: "round", via: Around),
+        (words: "surrounding", via: Around),
+    ],
+    // Preps weak enough that a lone common word after them is NOT read as a partial player name
+    // ("sword on fire" never targets "Fire Lord 9000"; "missile at nova" still finds "xX_Nova_Xx").
+    weak_preps: ["on", "onto", "upon", "over", "to", "into", "for", "by", "under", "below", "above", "in front of", "near"],
+    // Words allowed after the name ("at jake's head now!").
+    after_name: ["now", "please", "plz", "head", "face", "feet", "butt", "back", "again", "right", "now", "already",
+        "fast", "quick", "quickly", "asap", "too", "lol", "bro"],
+    // Name tokens too generic to identify a player on their own ("xX_Nova_Xx" -> "nova" counts, "xx" not).
+    name_noise: ["xx", "x", "xxx", "the", "mr", "mrs", "ms", "dr", "sir", "lord", "lil", "big", "little", "iam", "im",
+        "real", "official", "ttv", "yt", "tv", "gaming", "games", "gamer", "plays", "pro", "og"],
+
+    // "Around" a player: structures that only make sense as an enclosure become one (a wall around Sam
+    // is a cage). (from, to) form names.
+    around_forms: [("Wall", "Cage"), ("Pillar", "Cage"), ("Platform", "Cage")],
+)

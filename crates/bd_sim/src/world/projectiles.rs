@@ -32,7 +32,39 @@ impl World {
         if let Some(v) = inherit.and_then(|p| self.player(p)).map(|p| p.mv.vel).filter(|v| v.is_finite()) {
             s.vel += v;
         }
-        self.spawn_projectile(s, view_tick)
+        let id = self.spawn_projectile(s, view_tick)?;
+        // CONNECT: a player's shot bends lightly toward the enemy nearest their crosshair.
+        if let Some(shooter) = inherit {
+            let turn = self.cfg.tuning.assist.aim.proj_turn(s.kind, s.explode.is_some());
+            if turn > 0.0
+                && let Some(target) = self.home_target(shooter, view_tick)
+                && let Some(p) = self.projectiles.last_mut().filter(|p| p.id == id)
+            {
+                p.home = Some(target);
+                p.home_turn = turn;
+            }
+        }
+        Some(id)
+    }
+
+    /// CONNECT: the enemy nearest `shooter`'s crosshair inside the homing cone / range, in clear
+    /// sight (terrain and enemy constructs block), seen as the shooter saw them (`view_tick`).
+    fn home_target(&self, shooter: PlayerId, view_tick: Option<f64>) -> Option<PlayerId> {
+        let aim = &self.cfg.tuning.assist.aim;
+        let base = &self.cfg.move_params;
+        let p = self.player(shooter)?;
+        let (eye, look) = (p.eye(base), p.look());
+        let view = view_tick.and_then(|v| self.history.clamp_view(v));
+        let cands = self.players.iter().filter(|q| q.id != shooter && q.alive && !q.shielded()).map(|q| {
+            let hull = view.and_then(|v| self.history.hull_at(q.id, v)).unwrap_or_else(|| q.hull(base));
+            (q.id, hull)
+        });
+        let clear = |a: Vec3, b: Vec3| {
+            let d = b - a;
+            let len = d.length();
+            len < 1e-3 || (raycast(&self.voxels, a, d / len, len).is_none() && self.constructs.segment_query(a, b, 0.05, Some(shooter)).is_none())
+        };
+        crate::aim_assist::pick_target(eye, look, aim.proj_cone_deg.to_radians().cos(), aim.proj_range, cands, clear).map(|t| t.0)
     }
 
     pub fn spawn_projectile(&mut self, s: ProjectileSpawn, view_tick: Option<f64>) -> Option<u16> {
@@ -63,6 +95,8 @@ impl World {
             portal_cd: 0.0,
             travelled: 0.0,
             dead: false,
+            home: None,
+            home_turn: 0.0,
         };
         self.events.push(GameEvent::ProjectileFired { id, owner: s.owner, kind: s.kind, origin: s.pos, vel: s.vel });
         self.projectiles.push(p);
@@ -105,6 +139,32 @@ impl World {
                 if a != Vec3::ZERO {
                     p.vel += a * dt;
                     bent = true;
+                }
+            }
+        }
+        // CONNECT: light homing, strongest at release, only with a clear line (`aim_assist`).
+        if let Some(id) = p.home {
+            let aim = &self.cfg.tuning.assist.aim;
+            let turn = crate::aim_assist::decayed(p.home_turn, p.age, aim.proj_decay_secs);
+            let base = &self.cfg.move_params;
+            let at = self.player(id).filter(|t| t.alive && !t.shielded()).map(|t| match rewind {
+                Some(v) => self.history.hull_at(id, v).unwrap_or_else(|| t.hull(base)).center(),
+                None => t.hull(base).center(),
+            });
+            match at.filter(|_| turn > 0.0) {
+                None => p.home = None,
+                Some(at) => {
+                    let d = at - p.pos;
+                    let len = d.length();
+                    if len > 1e-3 && raycast(&self.voxels, p.pos, d / len, len).is_none() {
+                        match crate::aim_assist::steer(p.vel, p.pos, at, turn * dt, aim.proj_release_deg.to_radians()) {
+                            Some(v) => {
+                                p.vel = v;
+                                bent = true;
+                            }
+                            None => p.home = None,
+                        }
+                    }
                 }
             }
         }
@@ -328,6 +388,7 @@ impl World {
         p.spec.construct = construct;
         p.spec.muzzle_speed = vel.length();
         p.lag = 0.0;
+        p.home = None;
         p.age = 0.0;
         p.travelled = 0.0;
         self.restart_segment(p);
@@ -421,7 +482,48 @@ impl World {
     /// distance falloff, the bounded momentum bonus (the shooter's own speed along the aim — what
     /// their movement added), head-zone crits, knockback, terrain chips. Returns players hit.
     pub fn hitscan(&mut self, s: crate::weapons::HitscanShot) -> u8 {
+        let s = self.magnetize(s);
         self.hitscan_ray(s, false)
+    }
+
+    /// CONNECT: bullet magnetism. A round that misses every body (as the shooter saw them) by at most
+    /// the gun's angle (`assist.aim.hitscan`, beams `hitscan_beam_deg`) is bent onto the nearest one,
+    /// if the bent ray is clear of terrain and enemy constructs. Shotgun pellets: none.
+    fn magnetize(&self, mut s: crate::weapons::HitscanShot) -> crate::weapons::HitscanShot {
+        let aim = &self.cfg.tuning.assist.aim;
+        let max = aim.hitscan_rad(s.trace);
+        let dir = s.dir.normalize_or_zero();
+        if !(max > 0.0) || dir == Vec3::ZERO || !s.origin.is_finite() {
+            return s;
+        }
+        let range = if s.range.is_finite() { s.range.clamp(1.0, 400.0) } else { 250.0 }.min(aim.hitscan_range);
+        let end = raycast(&self.voxels, s.origin, dir, range).map_or(range, |h| h.t);
+        let view = self.player(s.owner).and_then(|p| p.view_tick).and_then(|v| self.history.clamp_view(v));
+        let base = &self.cfg.move_params;
+        let mut best: Option<(Vec3, f32)> = None;
+        for pl in &self.players {
+            if pl.id == s.owner || !pl.alive || pl.shielded() {
+                continue;
+            }
+            let hull = view.and_then(|v| self.history.hull_at(pl.id, v)).unwrap_or_else(|| pl.hull(base));
+            if geom::segment_aabb(s.origin, s.origin + dir * end, &hull).is_some() {
+                return s; // a direct hit: nothing to help
+            }
+            let Some((at, ang)) = crate::aim_assist::magnet_point(s.origin, dir, &hull, max, range) else { continue };
+            if best.is_some_and(|(_, b)| ang >= b) {
+                continue;
+            }
+            let d = at - s.origin;
+            let len = d.length();
+            let clear = raycast(&self.voxels, s.origin, d / len, len).is_none() && self.constructs.segment_query(s.origin, at, 0.05, Some(s.owner)).is_none();
+            if clear {
+                best = Some((at, ang));
+            }
+        }
+        if let Some((at, _)) = best {
+            s.dir = (at - s.origin).normalize_or(dir);
+        }
+        s
     }
 
     fn hitscan_ray(&mut self, s: crate::weapons::HitscanShot, reflected: bool) -> u8 {

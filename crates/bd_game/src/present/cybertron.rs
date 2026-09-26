@@ -155,7 +155,7 @@ fn pose_movers(
     }
     for (i, s) in w.map_mech.movers.iter().enumerate() {
         let Some(h) = draw.seams.get(i) else { continue };
-        let Some(mat) = mats.get_mut(h) else { continue };
+        let Some(mut mat) = mats.get_mut(h) else { continue };
         let pulse = 0.5 + 0.5 * (t * 9.0).sin();
         mat.emissive = match s.phase {
             MoverPhase::WarnExtend | MoverPhase::WarnRetract => LinearRgba::rgb(3.0 + 3.0 * pulse, 1.0 + pulse, 0.1),
@@ -169,7 +169,7 @@ fn pose_movers(
         *vis = if show { Visibility::Inherited } else { Visibility::Hidden };
         let _ = g.part;
     }
-    if let Some(gm) = draw.ghost.as_ref().and_then(|h| mats.get_mut(h)) {
+    if let Some(mut gm) = draw.ghost.as_ref().and_then(|h| mats.get_mut(h)) {
         let pulse = 0.5 + 0.5 * (t * 6.0).sin();
         gm.emissive = LinearRgba::rgb(0.5 + 0.9 * pulse, 0.22 + 0.4 * pulse, 0.05);
     }

@@ -24,6 +24,7 @@ pub mod animated_terrain;
 pub mod camera3p;
 pub mod camera_shots; // CAMERA: BD_CAM_SHOT dev screenshots
 pub mod valley; // VALLEY OF THE END: water sheets, falls veil, mist, rainbow, water-walk ripples
+pub mod cybertron; // CYBERTRON: transforming panels (map movers), telegraph light + panel sounds
 pub mod casino; // HIGH ROLLER: slot reels / levers, roulette house spin, glitter, pie splat (map interactables)
 pub mod charge;
 pub mod construct_anim;
@@ -94,6 +95,7 @@ impl Plugin for PresentPlugin {
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
             .add_plugins(mirror::MirrorPlugin) // MIRRORFOLD: folded-city backdrop
             .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
+            .add_plugins(cybertron::CybertronPlugin) // CYBERTRON: map movers (no-op on maps without them)
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
             .add_plugins(valley::ValleyPlugin) // VALLEY: water sheets + falls + mist (no-op without water sheets)
             .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx

@@ -527,6 +527,8 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             MapKind::Mirrorfold => "MIRRORFOLD".into(),
             MapKind::Casino => "HIGH ROLLER".into(),
             MapKind::Valley => "VALLEY OF THE END".into(),
+            MapKind::Cybertron => "CYBERTRON".into(),
+            MapKind::Lair => "TURTLE LAIR".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -737,7 +739,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley], map_of(c.prefs), dir);
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair], map_of(c.prefs), dir);
             c.prefs.map = match m {
                 MapKind::Miami => "miami",
                 MapKind::Orbit => "orbit",
@@ -747,6 +749,8 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
                 MapKind::Mirrorfold => "mirror",
                 MapKind::Casino => "casino",
                 MapKind::Valley => "valley",
+                MapKind::Cybertron => "cybertron",
+                MapKind::Lair => "lair",
                 _ => "arena",
             }
             .into();

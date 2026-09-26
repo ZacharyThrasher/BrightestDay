@@ -22,7 +22,7 @@ use bd_sim::movement::testkit::*;
 use bd_sim::movement::*;
 use bd_voxel::MapInfo;
 use bd_voxel::VoxelWorld;
-use bd_voxel::maps::casino::{self, HALO_R, HALO_Y, generate_casino};
+use bd_voxel::maps::casino::{self, generate_casino};
 
 fn horiz(v: Vec3) -> Vec3 {
     Vec3::new(v.x, 0.0, v.z)
@@ -115,7 +115,7 @@ fn run(
         if hooked && s.grounded && !prev.grounded {
             r.touchdowns += 1;
         }
-        if trace && t % 12 == 0 {
+        if trace && t % std::env::var("TRACE_EVERY").ok().and_then(|v| v.parse().ok()).unwrap_or(12usize) == 0 {
             println!(
                 "  t={:5.2} pos=({:6.1},{:5.1},{:6.1}) vel=({:5.1},{:5.1},{:5.1}) |h|={:4.1} gr={} surf={} hooks={:?}/{:?} btn={:#x}",
                 t as f32 * DT,
@@ -250,22 +250,28 @@ fn chandelier_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     res
 }
 
-/// 3. From the top of a chip-stack step onto the halo, then a full lap on its inner face.
+/// 3. Onto the top of the halo spiral (as off the chandelier over its start), then the whole turn
+/// down it: one lap around the wheel on its inner face.
 fn roulette_surf(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     let mut cols = Vec::new();
     push_surf_colliders(&m.surf_lines, &mut cols);
     let p = MoveParams::default();
-    // Launch from above the halo's inner face with a running start (as if off the tallest chip
-    // stack at 45°), heading counter-clockwise.
-    let a0 = std::f32::consts::FRAC_PI_4;
-    let r0 = HALO_R - 0.6;
-    let face_y = HALO_Y - (HALO_R - r0) * 55f32.to_radians().tan();
-    let mut s = PlayerState::new(Vec3::new(a0.cos() * r0, face_y + 0.5, a0.sin() * r0), &p);
+    let l0 = m.surf_lines[1];
+    let (st, ct) = l0.face_deg.to_radians().sin_cos();
+    let ridge = (l0.a + l0.b) * 0.5;
+    let d = (l0.b - l0.a).normalize();
+    let radial = Vec3::new(ridge.x, 0.0, ridge.z).normalize();
+    let n = -radial * st + Vec3::Y * ct;
+    // 1.2 m down the inner face; the hull's face-side bottom corner just off it (0.8 m box).
+    let point = ridge - radial * (1.2 * ct) - Vec3::Y * (1.2 * st);
+    let corner = Vec3::new(0.4 * radial.x.signum(), 0.0, 0.4 * radial.z.signum());
+    let mut s = PlayerState::new(point - corner + n * 0.05, &p);
     s.grounded = false;
-    s.vel = Vec3::new(-a0.sin(), 0.0, a0.cos()) * 14.0;
+    s.air_time = 0.5;
+    s.vel = d * 12.0;
+    let a0 = ridge.z.atan2(ridge.x);
     let mut travelled = 0.0f32;
     let mut prev_a = a0;
-    let mut surf_ticks = 0usize;
     let mut res = run(
         w,
         m,
@@ -274,14 +280,17 @@ fn roulette_surf(w: &VoxelWorld, m: &MapInfo) -> RunResult {
         s,
         20.0,
         move |s, _| {
-            // Hold strafe into the inner face (the wish points radially outward); no forward key.
+            // View along the spiral (CCW tangent); hold the strafe key that pushes into the face
+            // (radially outward) — but not while drifting inward off it (that would only brake).
             let out = horiz(s.pos).normalize_or(Vec3::X);
-            input(yaw_for_wish(out, 1, 0), 0.0, 1, 0, 0)
+            let d = Vec3::new(-out.z, 0.0, out.x);
+            let yaw = (-d.x).atan2(-d.z);
+            let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+            let hold = s.extra.surf_n != Vec3::ZERO || s.vel.dot(out) > -0.3;
+            let mx = if !hold { 0 } else if out.dot(right) > 0.0 { 1 } else { -1 };
+            input(yaw, 0.0, mx, 0, 0)
         },
         |s, _| {
-            if s.extra.surf_n != Vec3::ZERO {
-                surf_ticks += 1;
-            }
             let a = s.pos.z.atan2(s.pos.x);
             let mut d = a - prev_a;
             if d > std::f32::consts::PI {
@@ -292,12 +301,14 @@ fn roulette_surf(w: &VoxelWorld, m: &MapInfo) -> RunResult {
             }
             travelled += d;
             prev_a = a;
-            // Lap done while still up on the halo.
-            travelled >= std::f32::consts::TAU && s.pos.y > HALO_Y - 3.5
+            // Most of the turn (the start was 1/48 in; the end runs off onto the pockets).
+            travelled >= 0.9 * std::f32::consts::TAU
         },
     );
     if !res.ok {
-        res.note = format!("fell off at {:.0}° of 360°", travelled.to_degrees());
+        res.note = format!("fell off after {:.0}° of 360°", travelled.to_degrees());
+    } else {
+        res.note = format!("{:.0}° on the halo", travelled.to_degrees());
     }
     res
 }

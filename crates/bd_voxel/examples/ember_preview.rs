@@ -286,13 +286,14 @@ fn main() {
     };
     let (wpx, hpx) = (640, 360);
     let f = ember::FORT;
-    let views: [(&str, Vec3, Vec3, f32); 6] = [
+    let views: [(&str, Vec3, Vec3, f32); 7] = [
         ("plain_to_fortress", Vec3::new(-14.0, ember::SP_TOP + 1.7, -60.0), Vec3::new(f.x, 36.0, f.y), 64.0),
         ("facility_from_bank", Vec3::new(-34.0, ember::NB_TOP + 2.2, 20.0), Vec3::new(0.0, 15.0, ember::RIVER_Z), 74.0),
         ("lavafall", Vec3::new(4.0, ember::NB_TOP + 1.7, 20.0), Vec3::new(0.0, 22.0, 44.0), 76.0),
         ("ridge_overlook", Vec3::new(-44.0, ember::RIDGE_TOP + 1.7, 58.0), Vec3::new(0.0, 8.0, -12.0), 76.0),
         ("surf_east", ember::SURF_EAST.a + Vec3::new(-3.0, 1.0, 2.0), ember::SURF_EAST.b, 80.0),
         ("crag_to_plain", Vec3::new(-76.0, ember::WC_TOP + 1.7, 14.0), Vec3::new(-20.0, 8.0, -40.0), 76.0),
+        ("sw_spawn", info.spawns[4] + Vec3::Y * 1.6, info.center, 70.0),
     ];
     let mut shots: Vec<RgbImage> = Vec::new();
     for (name, eye, tgt, fov) in views {

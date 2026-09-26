@@ -263,3 +263,180 @@ fn lunge_triggers_when_spam_clicking() {
         assert!(rates[1] > rates[0], "{wpn:?}: the lunge must trigger more often ({} -> {})", rates[0], rates[1]);
     }
 }
+
+// ------------------------------------------------------------------------------ never through walls
+
+fn hits_on_b(ev: &[GameEvent]) -> usize {
+    ev.iter().filter(|e| matches!(e, GameEvent::Hit { target, source: Some(s), .. } if *target == B && *s == A)).count()
+}
+
+fn wall(w: &mut World, a: Vec3, b: Vec3) {
+    let lo = bd_core::voxel::world_to_voxel(a.min(b));
+    let hi = bd_core::voxel::world_to_voxel(a.max(b));
+    w.voxels.fill_box(lo, hi, bd_voxel::mat::STONE);
+}
+
+/// Standing duel, B `dist` m straight ahead of A (−Z), A holding `weapon` (None = empty hand).
+fn standing(t: &CombatTuning, weapon: Option<Weapon>, dist: f32) -> World {
+    let mut w = world(t);
+    place(&mut w, A, Vec3::new(0.0, GROUND, 0.0), Vec3::ZERO);
+    place(&mut w, B, Vec3::new(0.0, GROUND, -dist), Vec3::ZERO);
+    for _ in 0..10 {
+        w.tick(&[]);
+    }
+    if let Some(wp) = weapon {
+        wp.give(&mut w);
+        for _ in 0..30 {
+            w.tick(&[]);
+        }
+    }
+    place(&mut w, A, Vec3::new(0.0, GROUND, 0.0), Vec3::ZERO);
+    place(&mut w, B, Vec3::new(0.0, GROUND, -dist), Vec3::ZERO);
+    w.tick(&[]);
+    w
+}
+
+/// Press `button` once along `dir`, then idle `after` ticks; A's events.
+fn shoot(w: &mut World, dir: Vec3, button: u16, after: usize) -> Vec<GameEvent> {
+    let (yaw, pitch) = yaw_pitch(dir);
+    let mut ev = w.tick(&[(A, PlayerInput { yaw, pitch, buttons: button, ..Default::default() })]).to_vec();
+    for _ in 0..after {
+        ev.extend_from_slice(w.tick(&[(A, PlayerInput { yaw, pitch, ..Default::default() })]));
+    }
+    ev
+}
+
+/// A direction from A's eye that passes `off_deg` degrees to the +X side of B's hull edge.
+fn beside_b(w: &World, off_deg: f32) -> Vec3 {
+    let eye = w.player(A).unwrap().eye(w.params());
+    let hull = w.hull_of(B).unwrap();
+    let c = hull.center();
+    let d = c - eye;
+    let flat = Vec3::new(d.x, 0.0, d.z).length();
+    let edge = ((hull.max.x - c.x) / flat).atan();
+    let yaw = edge + off_deg.to_radians();
+    let dir = bd_core::Quat::from_rotation_y(-yaw) * d.normalize();
+    dir.normalize()
+}
+
+#[test]
+fn ring_blast_homes_but_never_through_walls() {
+    let t = CombatTuning::default();
+    // Open ground: a blast 4 deg wide of B still connects (homing)…
+    let mut w = standing(&t, None, 20.0);
+    let dir = beside_b(&w, 4.0);
+    assert!(hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 40)) > 0, "homing ring blast connects");
+    // …but with neutral assist it misses (the shot really was off)…
+    let mut w = standing(&legacy_tuning(), None, 20.0);
+    assert_eq!(hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 40)), 0, "the unassisted shot misses");
+    // …and behind a wall it never curves onto B.
+    let mut w = standing(&t, None, 20.0);
+    wall(&mut w, Vec3::new(-6.0, GROUND, -10.2), Vec3::new(6.0, GROUND + 6.0, -9.8));
+    assert_eq!(hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 40)), 0, "never through walls");
+}
+
+#[test]
+fn hitscan_magnetism_bends_near_misses_only_with_sight() {
+    let t = CombatTuning::default();
+    let mut w = standing(&t, Some(Weapon::Pistol), 20.0);
+    let dir = beside_b(&w, 1.1);
+    assert!(hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 2)) > 0, "a 1.1 deg miss is bent onto the body");
+    let mut w = standing(&legacy_tuning(), Some(Weapon::Pistol), 20.0);
+    assert_eq!(hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 2)), 0, "unassisted it misses");
+    // Too far off: no help.
+    let mut w = standing(&t, Some(Weapon::Pistol), 20.0);
+    let far = beside_b(&w, 4.0);
+    assert_eq!(hits_on_b(&shoot(&mut w, far, buttons::PRIMARY, 2)), 0, "4 deg off is a miss");
+    // A post covering the body (not the original ray): the bent ray would cross it -> no bend.
+    let mut w = standing(&t, Some(Weapon::Pistol), 20.0);
+    wall(&mut w, Vec3::new(0.05, GROUND, -15.2), Vec3::new(0.45, GROUND + 3.5, -14.8));
+    assert_eq!(hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 2)), 0, "never through walls");
+}
+
+#[test]
+fn wider_melee_volume_never_reaches_through_walls() {
+    // With a wall between, the shipped assist never lands a swing the neutral one would not.
+    for dist in [1.6, 1.9, 2.2, 2.6, 3.2, 4.5] {
+        let mut got = [0usize; 2];
+        for (k, t) in [legacy_tuning(), CombatTuning::default()].iter().enumerate() {
+            let mut w = standing(t, Some(Weapon::Sword), dist);
+            wall(&mut w, Vec3::new(-4.0, GROUND, -1.3), Vec3::new(4.0, GROUND + 4.0, -1.1));
+            let eye = w.player(A).unwrap().eye(w.params());
+            let dir = w.hull_of(B).unwrap().center() - eye;
+            got[k] = hits_on_b(&shoot(&mut w, dir, buttons::PRIMARY, 60));
+        }
+        assert!(got[1] <= got[0], "{dist} m behind a wall: shipped {} vs neutral {}", got[1], got[0]);
+    }
+}
+
+#[test]
+fn thrown_axe_homing_never_through_walls() {
+    let t = CombatTuning::default();
+    let mut w = standing(&t, Some(Weapon::ThrownAxe), 12.0);
+    let dir = beside_b(&w, 5.0);
+    assert!(hits_on_b(&shoot(&mut w, dir, buttons::SECONDARY, 110)) > 0, "a throw 5 deg wide still connects");
+    let mut w = standing(&t, Some(Weapon::ThrownAxe), 12.0);
+    wall(&mut w, Vec3::new(-6.0, GROUND, -6.2), Vec3::new(6.0, GROUND + 6.0, -5.8));
+    assert_eq!(hits_on_b(&shoot(&mut w, dir, buttons::SECONDARY, 110)), 0, "never through walls");
+}
+
+#[test]
+fn assisted_duels_are_deterministic() {
+    let t = CombatTuning::default();
+    for wpn in [Weapon::Sword, Weapon::Pistol, Weapon::ThrownAxe] {
+        assert_eq!(hit_rate(&t, wpn, 20, 5).to_bits(), hit_rate(&t, wpn, 20, 5).to_bits(), "{wpn:?}");
+    }
+    assert_eq!(spam_duel(&t, Weapon::Hammer, 10, 3), spam_duel(&t, Weapon::Hammer, 10, 3));
+}
+
+// ------------------------------------------------------------------------------ railgun early release
+
+/// Owner rule "never require another click": letting go of a railgun before full charge fires a
+/// weaker shot (hitscan, same lag comp) instead of nothing — `guns[Railgun].release_min` at a tap up
+/// to the full shot at full charge (which still fires by itself).
+#[test]
+fn railgun_early_release_fires_a_scaled_shot() {
+    let shot = |hold: usize| -> Option<(f32, f32, f32)> {
+        let t = CombatTuning::default();
+        let mut w = world(&t);
+        place(&mut w, A, Vec3::new(0.0, GROUND, 0.0), Vec3::ZERO);
+        place(&mut w, B, Vec3::new(0.0, GROUND, -20.0), Vec3::ZERO);
+        for _ in 0..10 {
+            w.tick(&[]);
+        }
+        let eye = w.player(A).unwrap().eye(w.params());
+        w.cast(A, recipe("railgun", Form::Gun, &[Mechanic::Pierce], Element::Light, 0.6), None, Aim::new(eye, Vec3::NEG_Z)).unwrap();
+        for _ in 0..40 {
+            w.tick(&[]);
+        }
+        place(&mut w, A, Vec3::new(0.0, GROUND, 0.0), Vec3::ZERO);
+        place(&mut w, B, Vec3::new(0.0, GROUND, -20.0), Vec3::ZERO);
+        w.tick(&[]);
+        let eye = w.player(A).unwrap().eye(w.params());
+        let (yaw, pitch) = yaw_pitch(w.hull_of(B).unwrap().center() - Vec3::Y * 0.3 - eye);
+        let mut ev = Vec::new();
+        for _ in 0..hold {
+            ev.extend_from_slice(w.tick(&[(A, PlayerInput { yaw, pitch, buttons: buttons::PRIMARY, ..Default::default() })]));
+        }
+        for _ in 0..3 {
+            ev.extend_from_slice(w.tick(&[(A, PlayerInput { yaw, pitch, ..Default::default() })]));
+        }
+        let recoil = ev.iter().find_map(|e| match e {
+            GameEvent::ShotFired { owner, recoil, .. } if *owner == A => Some(*recoil),
+            _ => None,
+        })?;
+        ev.iter().find_map(|e| match e {
+            GameEvent::Hit { target, source: Some(s), damage, knockback, .. } if *target == B && *s == A => Some((*damage, *knockback, recoil)),
+            _ => None,
+        })
+    };
+    let tap = shot(1).expect("a tap fires a weak shot (was: nothing)");
+    let half = shot(30).expect("a half charge fires");
+    let full = shot(70).expect("a full charge fires by itself");
+    let min = CombatTuning::default().gun_spec(bd_sim::weapons::GunArchetype::Railgun).release_min;
+    assert!(min > 0.0);
+    assert!((tap.0 / full.0 - min).abs() < 0.05, "tap damage ~{min} of full: {} / {}", tap.0, full.0);
+    assert!(tap.0 < half.0 && half.0 < full.0, "damage scales with charge: {tap:?} {half:?} {full:?}");
+    assert!(tap.1 < full.1, "knockback scales too");
+    assert!(tap.2 < half.2 && half.2 < full.2, "recoil (and the client's beam width) scales too");
+}

@@ -372,6 +372,8 @@ impl World {
                 travelled: 0.0,
                 portal_cd: 0.0,
                 dead: false,
+                home: None,
+                home_turn: 0.0,
             });
         }
         self.portals.clear();

@@ -93,6 +93,12 @@ pub enum MapKind {
     Casino,
     /// Valley of the End: river gorge, falls, two colossal statues; walk on water (bd_voxel `generate_valley`).
     Valley,
+    /// Cybertron: Iacon vs Kaon on a raised city plate under open space, the Well of AllSparks, transforming
+    /// panels + a space bridge (bd_voxel `generate_cybertron`; private-use Transformers fan map).
+    Cybertron,
+    /// Turtle Lair: vaulted sewer lair + tunnels under NYC rooftops, subway chasm (bd_voxel
+    /// `generate_lair`; private-use TMNT map).
+    Lair,
 }
 
 impl MapKind {
@@ -107,7 +113,9 @@ impl MapKind {
             "ember" => Some(MapKind::Ember),
             "mirror" | "mirrorfold" => Some(MapKind::Mirrorfold),
             "casino" | "high_roller" | "highroller" => Some(MapKind::Casino),
+            "cybertron" | "iacon" | "kaon" => Some(MapKind::Cybertron),
             "valley" | "valley_of_the_end" => Some(MapKind::Valley),
+            "lair" | "turtle_lair" | "tmnt" => Some(MapKind::Lair),
             _ => None,
         }
     }
@@ -332,6 +340,46 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 tutorial: None,
                 arena: Some(info.clone()),
                 // No sea: the city glows far below the void line (the roof pool is voxels).
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Cybertron => {
+            let (world, m) = bd_voxel::maps::generate_cybertron(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the metal planet below is drawn by `present::space` (Cybertron style).
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Lair => {
+            let (world, m) = bd_voxel::generate_lair(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the sewer channels are voxels, the subway chasm is void.
                 water_y: None,
                 water_color: None,
                 sun_color: Some(m.sun_color),

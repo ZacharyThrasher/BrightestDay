@@ -18,8 +18,8 @@
 //!
 //! Knockback reaches a predicting client through its exact movement state (`OwnState`), so the
 //! protection needs no prediction state of its own: the host decides, prediction replays the result.
-//! `launch_player` (tools / tests / scripted launches) and `WallSplat` (the impact of the launch
-//! itself) bypass it.
+//! Wall splats are hits in the chain too (`splats`); your own blasts and `launch_player` (tools /
+//! tests / scripted launches) bypass it.
 
 use bd_core::Tick;
 use serde::{Deserialize, Serialize};
@@ -48,11 +48,14 @@ pub struct JuggleTuning {
     pub immune_secs: f32,
     /// Damage × while guarded (hits still register).
     pub immune_dmg: f32,
+    /// Wall splats are part of the chain (their knockback grows with % like any hit's, so a tumbling
+    /// body wedged between walls could ping-pong); off = splats always at full strength.
+    pub splats: bool,
 }
 
 impl Default for JuggleTuning {
     fn default() -> Self {
-        Self { enabled: true, chain_min_kb: 14.0, window: 1.0, kb_decay: vec![0.6, 0.35], dmg_decay: 0.75, max_hits: 3, immune_secs: 0.7, immune_dmg: 0.5 }
+        Self { enabled: true, chain_min_kb: 14.0, window: 1.0, kb_decay: vec![0.6, 0.35], dmg_decay: 0.75, max_hits: 3, immune_secs: 0.7, immune_dmg: 0.5, splats: true }
     }
 }
 

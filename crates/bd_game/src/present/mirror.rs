@@ -96,10 +96,10 @@ fn window_tile(lit: bool) -> Image {
         for x in 0..4 {
             let win = y % 2 == 1 && x % 2 == 1;
             let c: [u8; 4] = match (win, lit) {
-                (true, false) => [70, 86, 120, 255],
+                (true, false) => [112, 122, 152, 255],
                 (true, true) => [255, 214, 150, 255],
                 (false, false) => [255, 255, 255, 255],
-                (false, true) => [150, 142, 136, 255],
+                (false, true) => [170, 162, 154, 255],
             };
             data.extend_from_slice(&c);
         }
@@ -209,12 +209,13 @@ fn build_fold(haze: Vec3, glow: Vec3) -> (Mesh, Mesh) {
                 // Haze by distance from the arena, glow toward the rift (top) and the far ends.
                 let world = p + Vec3::Y * FOLD_AXIS_Y;
                 let d = world.length();
-                let fogk = 1.0 - (-(d / 900.0) * (d / 900.0)).exp();
+                let fogk = 1.0 - (-(d / 750.0) * (d / 750.0)).exp();
                 let riftk = ((th.to_degrees() - 135.0) / 27.0).clamp(0.0, 1.0) * 0.55 + ((x.abs() - 600.0) / 550.0).clamp(0.0, 1.0) * 0.6;
-                let tint = base.lerp(haze, fogk * 0.8).lerp(glow, riftk.min(0.85));
+                // Always a little haze: the fold stays a backdrop behind the players, never busier.
+                let tint = base.lerp(haze, 0.22 + 0.62 * fogk).lerp(glow, riftk.min(0.85));
                 let foot = tint * 0.55;
                 let top = tint;
-                let buf = if h01(key, 7) < 0.12 { &mut lit } else { &mut plain };
+                let buf = if h01(key, 7) < 0.08 { &mut lit } else { &mut plain };
                 buf.tower(p, up, Vec3::X, v, hu, hv, h, foot, top);
             }
         }

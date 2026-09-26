@@ -98,6 +98,8 @@ pub enum HairStyle {
     Topknot,
     /// Short with a single curl/antenna (Luffy-ish messy + ahoge).
     Tufty,
+    /// Two buns over the ears (Leia / Chun-Li).
+    SideBuns,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -232,6 +234,12 @@ pub enum Helmet {
     Slit(Col, Col),
     /// Daft-punk-ish smooth helmet with a visor band.
     Smooth(Col, Col),
+    /// Chainsaw head (skin/hood colour, blade colour).
+    Chainsaw(Col, Col),
+    /// Autobot head: helmet, faceplate, eye glow.
+    Prime(Col, Col, Col),
+    /// Mega Man helmet: base, stripe/ear colour.
+    Mega(Col, Col),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
@@ -268,6 +276,10 @@ pub enum Hat {
     Headphones(Col),
     /// Hachimaki-style tied headband without plate (Ryu).
     Tied(Col),
+    /// Pirate tricorn (hat, trim).
+    Tricorn(Col, Col),
+    /// Big side ears (elf / ogre).
+    Ears(Col),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -293,6 +305,8 @@ pub enum Cut {
     Kimono,
     Dress,
     Haori,
+    /// Waistcoat over a shirt: torso `color`, sleeves `alt` (the shirt), buttons `trim`.
+    Waistcoat,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
@@ -308,6 +322,9 @@ pub struct Top {
     /// Bodysuit: torso side panels / outer arm colour.
     #[serde(default)]
     pub sides: Option<Col>,
+    /// Horizontal stripes (every other row) on the torso and long sleeves.
+    #[serde(default)]
+    pub stripes: Option<Col>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -460,6 +477,12 @@ pub enum Acc {
     Polearm(Col, Col),
     /// Headset/earpiece etc. — tiny side light.
     Earpiece(Col),
+    /// Battle axe on the back (head, handle).
+    Axe(Col, Col),
+    /// Turtle shell on the back (shell, rim).
+    Shell(Col, Col),
+    /// Arm cannon over a forearm (colour, muzzle glow).
+    ArmCannon(Col, Col, Side),
 }
 
 /// Which colour the lobby ACCENT tweak replaces.

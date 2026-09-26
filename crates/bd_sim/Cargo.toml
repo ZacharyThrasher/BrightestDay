@@ -19,7 +19,7 @@ proptest.workspace = true
 bincode.workspace = true
 
 [features]
-default = ["backrooms", "ember", "mirror", "casino"]
+default = ["backrooms", "ember", "mirror", "casino", "valley", "lair"]
 # BACKROOMS map (bd_voxel feature; the route example needs it).
 backrooms = ["bd_voxel/backrooms"]
 # TURTLE LAIR map (bd_voxel feature; the route example needs it).

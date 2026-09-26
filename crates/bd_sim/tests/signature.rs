@@ -170,6 +170,7 @@ fn ultimate_beam_is_a_huge_palm_beam_that_expires() {
     let mut w = duel();
     let t = SignatureTuning::default();
     w.player_mut(A).unwrap().willpower = 100.0;
+    // Even a gun-shaped beam recipe comes out of the palms as an ultimate.
     let k = recipe("Kamehameha", Form::Gun, &[Mechanic::Beam], Element::Light, 1.0);
     let (id, rec, forming, cost) = cast_sig(&mut w, A, k, SignatureKind::Beam, 1.0);
     assert_eq!(rec.form, Form::Hands, "energy from the palms, never a gun");

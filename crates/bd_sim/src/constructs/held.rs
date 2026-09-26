@@ -198,6 +198,8 @@ pub struct HeldState {
     pub dud: bool,
     /// Thrown flight velocity (kept here so generic pushes can't hijack the throw).
     pub fly_vel: Vec3,
+    /// CONNECT: the enemy a throw bends toward (`aim_assist`, picked at release).
+    pub home: Option<PlayerId>,
     /// Whip tether anchor + rope length.
     pub anchor: Option<Vec3>,
     pub rope: f32,
@@ -348,6 +350,13 @@ fn item_points(c: &Construct, o: &PlayerView) -> ([Vec3; MAX_ITEM_POINTS], usize
 }
 
 // ------------------------------------------------------------------------------------ helpers
+
+/// No terrain between `a` and `b` (a point inside solid terrain is blocked).
+fn clear_line(voxels: &bd_voxel::VoxelWorld, a: Vec3, b: Vec3) -> bool {
+    let d = b - a;
+    let len = d.length();
+    len < 1e-3 || raycast(voxels, a, d / len, len).is_none_or(|h| h.t >= len - 0.05)
+}
 
 pub(super) fn mech_mult(c: &Construct) -> (f32, f32) {
     let mut dmg = 1.0;
@@ -829,6 +838,9 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
         return;
     }
     let heavy_terrain = s.swing == Swing::Heavy && (form == Form::Hammer || c.has(Mechanic::Blunt) || c.has(Mechanic::Heavy) || form == Form::Axe);
+    // CONNECT: a generous hit volume vs players (the extra only through a clear line to the body).
+    let aim = &ctx.tuning.assist.aim;
+    let wide = crate::aim_assist::melee_radius(r, aim.melee_mult(form, swing_weight(&c.recipe)), aim.melee_extra_max);
     for (_, m) in cv.sweep(t0, t1, 0.2) {
         let m = frame * m; // curve samples are hand-local (like `m0` above); the hitbox is world space
         let mut cur = [Vec3::ZERO; MAX_ITEM_POINTS];
@@ -848,7 +860,13 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
                     continue;
                 }
                 let hull = ctx.hull_for(c.owner, t);
-                let Some((f, _)) = geom::segment_aabb(p0, p1, &geom::inflate(&hull, r)) else { continue };
+                let contact = geom::segment_aabb(p0, p1, &geom::inflate(&hull, r)).or_else(|| {
+                    (wide > r).then(|| geom::segment_aabb(p0, p1, &geom::inflate(&hull, wide))).flatten().filter(|(f, _)| {
+                        let at = p0 + (p1 - p0) * *f;
+                        clear_line(ctx.voxels, at, geom::closest_point(&hull, at))
+                    })
+                });
+                let Some((f, _)) = contact else { continue };
                 // The whip only lashes forward.
                 if form == Form::Whip && (hull.center() - o.eye).dot(o.look) <= 0.0 {
                     continue;
@@ -1003,6 +1021,15 @@ fn start_throw(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Co
     c.pos = o.hand + o.look * 0.6;
     c.vel = o.look * THROW_SPEED + o.vel;
     s.fly_vel = c.vel;
+    // CONNECT: a light homing toward the enemy nearest the crosshair (gentle, decaying, never through walls).
+    let aim = &env.ctx.tuning.assist.aim;
+    s.home = if aim.thrown_turn_deg > 0.0 {
+        let ctx = env.ctx;
+        let cands = ctx.enemies_of(c.owner).map(|t| (t.id, ctx.hull_for(c.owner, t)));
+        crate::aim_assist::pick_target(o.eye, o.look, aim.thrown_cone_deg.to_radians().cos(), aim.thrown_range, cands, |a, b| clear_line(ctx.voxels, a, b)).map(|t| t.0)
+    } else {
+        None
+    };
     c.set_anim(AnimState::Move, env.tick());
     fx(out, c, HeldFx::Throw, c.pos, o.look, 1.0);
 }
@@ -1087,6 +1114,7 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
         c.gone = Some(crate::events::GoneReason::Spent);
         return;
     }
+    home_step(c, s, env);
     c.vel.y -= 14.0 * dt;
     let p0 = c.pos;
     let p1 = p0 + c.vel * dt;
@@ -1141,6 +1169,27 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
         return;
     }
     c.pos = p1;
+}
+
+/// CONNECT: bend a throw toward its target (`HeldState::home`): the turn rate decays over
+/// `thrown_decay_secs`; out of sight or too far off the flight line lets it go.
+fn home_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>) {
+    let Some(id) = s.home else { return };
+    let ctx = env.ctx;
+    let aim = &ctx.tuning.assist.aim;
+    let turn = crate::aim_assist::decayed(aim.thrown_turn_deg.to_radians(), s.fly_t, aim.thrown_decay_secs);
+    let target = ctx.enemies_of(c.owner).find(|t| t.id == id).map(|t| ctx.hull_for(c.owner, t).center());
+    let Some(at) = target.filter(|_| turn > 0.0 && !s.dud) else {
+        s.home = None;
+        return;
+    };
+    if !clear_line(ctx.voxels, c.pos, at) {
+        return;
+    }
+    match crate::aim_assist::steer(c.vel, c.pos, at, turn * env.dt(), aim.thrown_release_deg.to_radians()) {
+        Some(v) => c.vel = v,
+        None => s.home = None,
+    }
 }
 
 fn spin(c: &mut Construct, s: &HeldState) {

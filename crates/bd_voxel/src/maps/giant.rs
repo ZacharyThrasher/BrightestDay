@@ -890,6 +890,49 @@ fn sneaker(c: &mut City, x0: f32, z0: f32) {
     }
 }
 
+/// Second ways up onto the bed and the desk (every big island gets at least two):
+/// a block staircase against the bed's east side, and a pile of picture books climbing to the chair
+/// seat, with a second pile on the seat reaching over to the desk.
+fn build_stairs(c: &mut City, seed: u32) {
+    let cols = [mat::PLASTIC_RED, mat::PLASTIC_BLUE, mat::PLASTIC_YELLOW, mat::PLASTIC_GREEN, mat::FURNITURE_TOP];
+    // Blocks: 10 steps of 1.5 m rising north along the bed, up to the mattress top.
+    let x = BED.x1 + 0.5;
+    for k in 0..10 {
+        let z = -6.5 + 1.5 * k as f32;
+        for j in 0..=k {
+            block(c, x, FLOOR_Y + 1.5 * j as f32, z, cols[(hash3(k, j, 1, seed) % 5) as usize]);
+        }
+    }
+    // Books: floor → chair seat (9 steps rising east along the chair's north side).
+    let covers = [mat::BOOK_RED, mat::BOOK_BLUE, mat::BOOK_GREEN, mat::BOOK_PURPLE, mat::PLASTIC_YELLOW];
+    let mut rng = Rng::new(seed as u64 ^ 0xb005);
+    let (z0, z1) = (CHAIR.z1 - 0.5, CHAIR.z1 + 3.5);
+    for k in 0..9 {
+        let xa = CHAIR.x0 - 13.5 + 1.5 * k as f32;
+        let top = FLOOR_Y + 1.5 * (k + 1) as f32;
+        let mut y = FLOOR_Y;
+        while y < top - 0.01 {
+            let th = if top - y >= 1.0 && rng.chance(0.5) { 1.0 } else { 0.5 };
+            let o = rng.range(-0.25, 0.25);
+            flat_book(c, xa, xa + 1.5, z0 + o, z1 + o, y, y + th, covers[rng.int(0, 5) as usize]);
+            y += th;
+        }
+    }
+    // Books on the seat: seat → desk top (6 steps rising east), the last one bridging to the desk.
+    let (za, zb) = (CHAIR.z0 + 3.0, CHAIR.z0 + 7.0);
+    for k in 0..6 {
+        let xa = CHAIR.x0 + 3.0 + 1.5 * k as f32;
+        let xb = if k == 5 { DESK.x0 + 1.0 } else { xa + 1.5 };
+        let top = CHAIR_SEAT + 1.5 * (k + 1) as f32;
+        let mut y = CHAIR_SEAT;
+        while y < top - 0.01 {
+            let th = if top - y >= 1.0 && rng.chance(0.5) { 1.0 } else { 0.5 };
+            flat_book(c, xa, xb, za, zb, y, y + th, covers[rng.int(0, 5) as usize]);
+            y += th;
+        }
+    }
+}
+
 fn build_scatter(c: &mut City, seed: u32) {
     sneaker(c, -8.0, 38.0);
     sneaker(c, 1.5, 44.5);
@@ -1210,19 +1253,20 @@ fn loop_segs(w: f32, e: f32, s: f32, n: f32, r: f32) -> Vec<Seg> {
     ]
 }
 
-/// Track surface top on the west straight's kicker jump (`None` = the gap).
+/// Track surface top on the west straight's jump (`None` = the gap): a 1.5 m block ramp either
+/// side of a 6 m gap (a bhop clears the ramp's lip; a run-up clears the gap).
 fn kicker_height(z: f32) -> Option<f32> {
     let f = FLOOR_Y + 0.5;
-    Some(if (10.0..16.0).contains(&z) {
+    Some(if (13.0..16.0).contains(&z) {
         f + (16.0 - z) * 0.5
-    } else if (7.0..10.0).contains(&z) {
-        f + 3.0
-    } else if (-1.0..7.0).contains(&z) {
+    } else if (10.0..13.0).contains(&z) {
+        f + 1.5
+    } else if (4.0..10.0).contains(&z) {
         return None;
-    } else if (-4.0..-1.0).contains(&z) {
-        f + 3.0
-    } else if (-10.0..-4.0).contains(&z) {
-        f + (z + 10.0) * 0.5
+    } else if (1.0..4.0).contains(&z) {
+        f + 1.5
+    } else if (-2.0..1.0).contains(&z) {
+        f + (z + 2.0) * 0.5
     } else {
         f
     })
@@ -1555,7 +1599,7 @@ fn routes() -> Vec<Route> {
         to: "bookshelf",
         kind: RouteKind::Mixed,
         waypoints: climb,
-        anchors: SHELVES.iter().map(|&s| Vec3::new(BOOKSHELF.x1 - 0.25, s - 0.75, bz)).chain([Vec3::new(BOOKSHELF.x1, CEIL_Y, bz)]).collect(),
+        anchors: SHELVES.iter().map(|&s| Vec3::new(BOOKSHELF.x1 - 0.25, s - 0.75, bz)).chain([Vec3::new(BOOKSHELF.center().x, CEIL_Y, bz)]).collect(),
     });
     out.push(Route {
         name: "curtain_swing",
@@ -1612,6 +1656,7 @@ fn build(seed: u64) -> (City, Vec<Vec3>) {
     build_castle(&mut c, s32);
     build_cat(&mut c);
     build_scatter(&mut c, s32);
+    build_stairs(&mut c, s32);
     build_curtains(&mut c, s32);
     build_fan(&mut c);
     rug_tufts(&mut c, s32);

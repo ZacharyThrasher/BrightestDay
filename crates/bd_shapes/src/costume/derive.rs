@@ -93,7 +93,7 @@ pub(super) fn derive_look(recipe: &Recipe, icon: &ShapeSpec) -> Look {
         }
     }
     Look {
-        top: Some(Top { cut: Cut::Bodysuit, color: c(torso), alt: None, trim: None, sides: None }),
+        top: Some(Top { cut: Cut::Bodysuit, color: c(torso), alt: None, trim: None, sides: None, stripes: None }),
         sleeves: Some(Sleeves::Long),
         hands: Some(Hands::Gloves(c(arms))),
         legs: Some(Legs { cut: LegCut::Tights, color: c(legs), alt: None }),

@@ -114,8 +114,8 @@ impl World {
         let crit = hit.crit || head;
         let mut damage = base_damage * (1.0 + bonus) * dealt_mult * if head { HEAD_MULT } else { 1.0 };
         // JUGGLE: later hits of a chain decay, a guarded victim takes no knockback (crate::juggle).
-        // Not the splat (the launch's own impact) or your own blast.
-        let juggles = hit.kind != HitKind::WallSplat && !self_hit;
+        // Wall splats count (their knockback grows with % too: no splat ping-pong); your own blast doesn't.
+        let juggles = !self_hit && (hit.kind != HitKind::WallSplat || self.cfg.tuning.juggle.splats);
         let (j_dmg, j_kb) = if juggles { self.players[ti].juggle.scale(&self.cfg.tuning.juggle, self.tick) } else { (1.0, 1.0) };
         damage *= j_dmg;
         // Power suit absorbs first.

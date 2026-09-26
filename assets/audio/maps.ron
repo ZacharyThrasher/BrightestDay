@@ -346,4 +346,39 @@
         scare_hold: 3.0,
         scare_recover: 8.0,
     ),
+    "giant": (
+        // Giant's Room: a kid's bedroom at toy scale (×30) — a 120 m hall with hard walls, so it
+        // rings long and soft; the only "outside" is the open window (the live estimate opens up
+        // there, and the outdoor bed swells). The lamp, laptop and nightlight hum through the Neon
+        // zone; the void pits (vent, under the bed, toy box) breathe a draught through CliffEdge.
+        // Missing cues — the huge slow clock tick, the cat's purr, muffled outdoors through the
+        // window, floorboard creaks — are in docs/SFX_WISHLIST.md.
+        space: (
+            open: (size: 1.5, rt60: 1.4, damping_hz: 4500.0, predelay_ms: 22.0, wet_db: -18.0, er_db: -22.0),
+            enclosed: (size: 1.2, rt60: 2.4, damping_hz: 4200.0, predelay_ms: 18.0, wet_db: -9.0, er_db: -13.0),
+            slap_db: -13.0,
+        ),
+        beds: [
+            // Room tone under everything; a house hum (heating) below it.
+            (sound: "amb_interior_tone", gain_db: 0.0),
+            (sound: "amb_ac_hum", gain_db: -15.0),
+            // Outdoors through the window: birds and breeze, louder where the room opens up.
+            (sound: "amb_archipelago_bed", gain_db: -12.0, enclosure: (x0: 0.45, x1: 0.95, db0: 0.0, db1: -14.0)),
+            (sound: "amb_wind_high", gain_db: -16.0, enclosure: (x0: 0.3, x1: 0.9, db0: 0.0, db1: -20.0)),
+        ],
+        loops: [
+            // Desk lamp, laptop screen, the moon nightlight.
+            (sound: "amb_neon_hum", zone: Neon, max_active: 2, radius: 10.0, gain_db: -10.0, lift: 0.0),
+            // Draught out of the heating vent / the dark under the bed.
+            (sound: "wind_loop", zone: CliffEdge, max_active: 2, radius: 9.0, gain_db: -18.0, lift: 0.0),
+        ],
+        sparkles: [
+            // The house settling (stand-in for floorboard creaks), birds and a car far outside.
+            (sound: "amb_station_creak", zone: Surface, per_min: 1.5, min_dist: 12.0, max_dist: 70.0, gain_db: (-20.0, -12.0), lift: (0.0, 1.0)),
+            (sound: "amb_bird", zone: Sky, per_min: 3.0, min_dist: 45.0, max_dist: 90.0, gain_db: (-16.0, -9.0), fauna: true),
+            (sound: "amb_traffic_swish", zone: Sky, per_min: 0.8, min_dist: 70.0, max_dist: 120.0, gain_db: (-22.0, -15.0)),
+        ],
+        scare_hold: 3.0,
+        scare_recover: 8.0,
+    ),
 }

@@ -237,13 +237,19 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
             }
         }
         SignatureKind::Beam => {
-            if r.form.category() == FormCategory::Creature || is_orbital(&r) {
+            let palms = r.form == Form::Hands;
+            let held_weapon = r.form.category() == FormCategory::Held && !matches!(r.form, Form::Gun | Form::Cannon | Form::Hands);
+            if !palms && (r.form.category() == FormCategory::Creature || is_orbital(&r)) {
                 // A creature / an orbital emitter keeps its body: bigger, with a Beam.
                 r.mechanics.push(Mechanic::Beam);
                 r.scale *= grow;
-            } else if is_piercing_orb(&r) {
+            } else if !palms && is_piercing_orb(&r) {
                 // A piercing thing that is fired / thrown: an erasing orb (Hollow Purple).
                 r = orb::orb_recipe(r, &t.orb, p, full_bar);
+            } else if held_weapon {
+                // A wand / sword the phrase named keeps its body (the lexicon's `delivery: Held`).
+                r.mechanics.push(Mechanic::Beam);
+                r.scale *= grow;
             } else {
                 // Energy from the palms (Form::Hands, the HandBeam archetype): charge, release, a huge
                 // piercing beam. Never a gun model (owner: "final flash gave me a gun").
@@ -500,14 +506,22 @@ mod tests {
     #[test]
     fn beam_becomes_an_ultimate_palm_beam_never_a_gun() {
         let t = SignatureTuning::default();
-        for form in [Form::Staff, Form::Gun, Form::Cannon, Form::Ball, Form::Hands] {
-            let b = amplify(rec(form, &[Mechanic::Beam, Mechanic::Heavy], 1.2), SignatureCast::new(SignatureKind::Beam, 0.5), &t, &MatchRules::default(), false);
+        let rules = MatchRules::default();
+        let beam = SignatureCast::new(SignatureKind::Beam, 0.5);
+        for form in [Form::Gun, Form::Cannon, Form::Ball, Form::Blob0, Form::Hands] {
+            let b = amplify(rec(form, &[Mechanic::Beam, Mechanic::Heavy], 1.2), beam, &t, &rules, false);
             assert_eq!(b.form, Form::Hands, "{form:?}");
             assert_eq!(crate::weapons::archetype_for(&b), Some(crate::weapons::GunArchetype::HandBeam));
         }
-        let b = amplify(rec(Form::Staff, &[Mechanic::Beam], 1.2), SignatureCast::new(SignatureKind::Beam, 0.5), &t, &MatchRules::default(), false);
+        // Palms first: a piercing palm beam is still a palm beam, not an erasing orb.
+        let b = amplify(rec(Form::Hands, &[Mechanic::Beam, Mechanic::Pierce], 1.2), beam, &t, &rules, false);
+        assert_eq!(b.form, Form::Hands);
         let k = (b.scale / form_spec(Form::Hands).default_scale).sqrt();
         assert!((k - 2.5).abs() < 1e-3, "caliber {k}");
+        // A named wand keeps its body (the lexicon's `delivery: Held`).
+        let w = amplify(rec(Form::Staff, &[Mechanic::Beam], 1.2), beam, &t, &rules, false);
+        assert_eq!(w.form, Form::Staff);
+        assert!(w.scale > 1.2 && w.has(Mechanic::Beam));
     }
 
     #[test]

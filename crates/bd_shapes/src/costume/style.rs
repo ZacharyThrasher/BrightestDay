@@ -70,7 +70,7 @@ struct Kit {
 }
 
 fn resolve(l: &Look, accent: Option<Rgb>) -> Kit {
-    let top = l.top.unwrap_or(Top { cut: Cut::Tee, color: Col([235, 235, 235]), alt: None, trim: None, sides: None });
+    let top = l.top.unwrap_or(Top { cut: Cut::Tee, color: Col([235, 235, 235]), alt: None, trim: None, sides: None, stripes: None });
     let default_sleeves = match top.cut {
         Cut::Tee | Cut::Dress => Sleeves::Short,
         Cut::Bare | Cut::Tank | Cut::Gi | Cut::Vest => Sleeves::Bare,
@@ -606,6 +606,14 @@ fn hair(p: &mut Pn, h: &Hair, hat_on: bool) {
                 p.c(tip).el(v3(0.0, 30.0, 1.5), v3(5.0, 4.0, 5.0));
             }
         }
+        SideBuns => {
+            cap(p, c, 23, 22, false);
+            fringe(p, c, h.fringe.unwrap_or(Fringe::Parted), false);
+            p.c(tip);
+            for s in [-1.0f32, 1.0] {
+                p.el(v3(s * 5.5, 25.0, 0.5), v3(3.0, 4.0, 4.0));
+            }
+        }
         Afro => {
             p.c(c).el(v3(0.0, 27.0, 1.5), v3(15.0, 13.0, 13.0));
             fringe(p, c, Fringe::Open, false);
@@ -924,6 +932,31 @@ fn helmet(p: &mut Pn, h: Helmet) {
             p.decal(s).vb(-3, 3, 24, 24, -5, -5).vb(0, 0, 20, 23, -5, -5);
             p.decal(mix(c, WHITE, 0.3)).vb(-4, 4, 25, 25, -5, -5);
         }
+        Helmet::Chainsaw(c, blade) => {
+            let (c, bl) = (c.rgb(), blade.rgb());
+            p.c(c).vb(-5, 5, 20, 28, -5, 4);
+            p.decal(WHITE).vb(-3, -2, 23, 23, -5, -5).vb(2, 3, 23, 23, -5, -5);
+            p.decal(BLACK).vb(-3, 3, 21, 21, -5, -5);
+            p.decal(WHITE).px(-2, 21, -5).px(0, 21, -5).px(2, 21, -5);
+            p.c(bl).vb(-1, 1, 25, 29, -11, -5).vb(0, 0, 30, 30, -10, -6);
+            p.decal(shade(bl)).vb(-1, 1, 25, 25, -11, -5);
+        }
+        Helmet::Prime(c, face, eye) => {
+            let (c, fc, e) = (c.rgb(), face.rgb(), eye.rgb());
+            shell(p, c);
+            p.c(c).vbs(6, 6, 23, 30, -1, 1);
+            p.c(c).vb(0, 0, 28, 29, -6, -6);
+            p.c(fc).vb(-3, 3, 19, 22, -6, -6);
+            p.decal(shade(fc)).vb(-2, 2, 20, 20, -6, -6).vb(-2, 2, 21, 21, -6, -6);
+            p.decal(e).vb(-3, -2, 24, 24, -5, -5).vb(2, 3, 24, 24, -5, -5);
+            p.decal(fc).vb(-4, 4, 23, 23, -5, -5).vb(-1, 1, 24, 26, -5, -5);
+        }
+        Helmet::Mega(c, st) => {
+            let (c, st) = (c.rgb(), st.rgb());
+            p.c(c).vb(-5, 5, 26, 28, -5, 4).vb(-4, 4, 29, 29, -4, 3).vbs(5, 5, 20, 25, -3, 4).vb(-4, 4, 20, 25, 4, 4);
+            p.c(st).vb(-1, 1, 26, 29, -6, -5);
+            p.c(st).vbs(6, 6, 22, 24, -2, 0);
+        }
         Helmet::Smooth(c, v) => {
             let (c, v) = (c.rgb(), v.rgb());
             p.c(c).vb(-5, 5, 20, 28, -5, 4).vb(-4, 4, 29, 29, -4, 3);
@@ -1083,6 +1116,19 @@ fn hat(p: &mut Pn, h: Hat, tall_hair: bool) {
             let c = c.rgb();
             p.c(c).vb(-5, 5, 29, 29, -1, 0).vbs(5, 5, 25, 28, -1, 0).vbs(6, 6, 22, 25, -2, 1);
         }
+        Hat::Tricorn(c, trim) => {
+            let (c, tr) = (c.rgb(), trim.rgb());
+            p.c(c).vb(-4, 4, 28, 30, -4, 3);
+            p.c(c).vb(-6, 6, 28, 29, -2, 2).vb(-3, 3, 28, 29, -7, -5).vb(-4, 4, 28, 29, 4, 5);
+            p.c(tr).vb(-6, 6, 30, 30, -2, -2).vb(-3, 3, 30, 30, -7, -7);
+        }
+        Hat::Ears(c) => {
+            let c = c.rgb();
+            p.c(c);
+            for s in [-1.0f32, 1.0] {
+                p.seg(v3(s * 5.0, 24.0, 0.0), v3(s * 7.5, 26.5, 0.5), 2.0, 1.2);
+            }
+        }
         Hat::Tied(c) => {
             let c = c.rgb();
             p.c(c);
@@ -1109,7 +1155,6 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
     let alt = k.top.alt.map(Col::rgb);
     let trim = k.top.trim.map(Col::rgb);
     let skin = k.skin;
-    let lc = k.legs.color.rgb();
     let bulky = matches!(k.top.cut, Cut::Plate | Cut::Power) || k.broad;
     let chest_z = if bulky { -3 } else { -2 };
     let back_z = if bulky { 2 } else { 1 };
@@ -1124,6 +1169,7 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
     legs(p, k, hide);
     p.on(0);
     match k.top.cut {
+        Cut::Waistcoat => {}
         Cut::Bare => {
             p.c(skin);
             torso(p, 12, 18);
@@ -1250,6 +1296,19 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
             p.c(t).vb(-3, 3, 19, 19, 0, 2).vbs(3, 3, 19, 19, -2, 2);
         }
     }
+    if let Some(st) = k.top.stripes.map(Col::rgb) {
+        for y in (11..=17).step_by(2) {
+            p.decal(st).vb(-3, 3, y, y, chest_z, back_z);
+        }
+    }
+    if k.top.cut == Cut::Waistcoat {
+        let shirt = alt.unwrap_or(WHITE);
+        p.decal(shirt).vb(-1, 1, 16, 18, -2, -2);
+        p.decal(trim.unwrap_or(shade(t))).px(0, 15, -2).px(0, 13, -2).px(0, 11, -2);
+        if k.top.trim.is_none() {
+            p.decal(shade(t)).vb(0, 0, 11, 15, -2, -2);
+        }
+    }
     // --- sleeves / arms / hands
     for (id, s) in [(ARM_L, -1), (ARM_R, 1)] {
         p.on(id);
@@ -1258,6 +1317,7 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
             _ => t,
         };
         let sleeve = if k.top.cut == Cut::Overalls { t } else { sleeve };
+        let sleeve = if k.top.cut == Cut::Waistcoat { alt.unwrap_or(WHITE) } else { sleeve };
         let (upper, fore) = match k.sleeves {
             Sleeves::Long => (Some(sleeve), Some(if k.top.cut == Cut::Tunic { alt.unwrap_or(sleeve) } else { sleeve })),
             Sleeves::Short => (Some(sleeve), None),
@@ -1269,6 +1329,16 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
         arm(p, s, 12, 14);
         if k.sleeves == Sleeves::Short {
             p.c(sleeve).vb(s * 4, s * 6, 15, 15, -2, 0);
+        }
+        if let Some(st) = k.top.stripes.map(Col::rgb)
+            && k.top.cut != Cut::Waistcoat
+        {
+            let lo = if k.sleeves == Sleeves::Long { 12 } else { 16 };
+            if k.sleeves != Sleeves::Bare {
+                for y in (lo..=17).step_by(2) {
+                    p.decal(st).vb(s * 4, s * 6, y, y, -2, 0);
+                }
+            }
         }
         if k.top.cut == Cut::Bodysuit
             && let Some(sd) = k.top.sides.map(Col::rgb)
@@ -1398,6 +1468,9 @@ fn legs(p: &mut Pn, k: &Kit, hide: u32) {
             LegCut::Pants | LegCut::Tights => {
                 p.c(c);
                 leg(p, s, 2, 9);
+                if let Some(a) = alt {
+                    p.decal(a).vb(s * 3, s * 3, 2, 9, -1, 0);
+                }
             }
             LegCut::Baggy => {
                 p.c(c);
@@ -1503,6 +1576,9 @@ fn slot_of(a: &Acc) -> u32 {
         Acc::Gauntlet(..) => acc::ARMS,
         Acc::Scarf(..) | Acc::Collar(..) | Acc::Earpiece(..) => acc::FACE,
         Acc::ChestLight(..) => acc::AURA,
+        Acc::Axe(..) | Acc::Shell(..) => acc::BACK,
+        Acc::ArmCannon(_, _, Side::Left) => acc::LEFT_ARM,
+        Acc::ArmCannon(..) => acc::ARMS,
     }
 }
 
@@ -1779,6 +1855,26 @@ fn accessory(cx: &mut Cx, a: &Acc, k: &Kit) {
                 let bz = back as f32 + 1.0;
                 p.c(c.rgb()).rod(v3(-5.0, 3.0, bz), v3(5.0, 27.0, bz), 1.2);
                 p.c(blade.rgb()).seg(v3(5.0, 27.0, bz), v3(0.5, 29.5, bz), 3.0, 0.8);
+            }
+            Acc::Axe(head, handle) => {
+                let bz = back as f32 + 1.0;
+                p.c(handle.rgb()).rod(v3(-4.0, 5.0, bz), v3(3.5, 22.0, bz), 1.2);
+                let hd = head.rgb();
+                p.c(hd).seg(v3(2.0, 20.5, bz), v3(6.5, 18.0, bz), 3.0, 1.0).seg(v3(3.0, 23.0, bz), v3(7.0, 22.5, bz), 3.4, 1.0);
+                p.decal(mix(hd, WHITE, 0.4)).vb(6, 7, 18, 23, back + 1, back + 1);
+            }
+            Acc::Shell(c, rim) => {
+                let (c, r) = (c.rgb(), rim.rgb());
+                p.c(r).vb(-4, 4, 9, 18, back, back);
+                p.c(c).el(v3(0.0, 13.5, back as f32 + 1.0), v3(9.0, 11.0, 5.0));
+                p.decal(shade(c)).vb(-3, 3, 13, 13, back + 1, back + 4).vb(0, 0, 9, 18, back + 1, back + 4);
+            }
+            Acc::ArmCannon(c, glow, side) => {
+                let (id, s) = if side == Side::Left { (ARM_L, -1) } else { (ARM_R, 1) };
+                let c = c.rgb();
+                p.on(id).c(c).vb(s * 4, s * 7, 8, 14, -4, 1);
+                p.c(shade(c)).vb(s * 4, s * 7, 14, 14, -4, 1);
+                p.c(glow.rgb()).vb(s * 5, s * 6, 9, 11, -5, -5);
             }
             Acc::Earpiece(c) => {
                 p.on(HEAD).c(c.rgb()).vb(5, 5, 23, 24, -2, -1);

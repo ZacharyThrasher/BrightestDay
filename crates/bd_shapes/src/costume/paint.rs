@@ -213,6 +213,7 @@ pub(crate) struct Pn<'a> {
     tint: Option<Tint>,
 }
 
+#[allow(dead_code)]
 impl<'a> Pn<'a> {
     pub fn new(b: &'a mut B, paint: &'a mut Vec<Paint>, slots: &'a mut Vec<Rgb>) -> Self {
         Pn { b, paint, slots, cur: None, decal: false, tint: None }

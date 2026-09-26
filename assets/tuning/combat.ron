@@ -364,6 +364,8 @@
             clip: 0,
             reload: 0.0,
             charge: 0.5,
+            // Early release (owner: "never require another click"): a weaker shot, this fraction at a tap -> 1 at full.
+            release_min: 0.35,
             explode: None,
             pierce: 2,
             chip: 0.0,
@@ -808,6 +810,7 @@
     // chain hit: knockback x kb_decay (2nd, 3rd, ...; the last entry repeats), damage x dmg_decay. After max_hits
     // chain hits the victim is guarded for immune_secs s: no knockback / launch, damage x immune_dmg (white
     // hard-light shimmer). Standing on the ground out of tumble, hanging on your own tether or a tech resets it.
+    // splats: wall splats are chain hits too (their knockback grows with %; no splat ping-pong).
     juggle: (
         enabled: true,
         chain_min_kb: 14.0,
@@ -817,5 +820,6 @@
         max_hits: 3,
         immune_secs: 0.7,
         immune_dmg: 0.5,
+        splats: true,
     ),
 )

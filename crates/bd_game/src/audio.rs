@@ -376,6 +376,8 @@ fn map_key(k: MapKind) -> &'static str {
         MapKind::Mirrorfold => "mirror",
         MapKind::Casino => "casino",
         MapKind::Valley => "valley",
+        MapKind::Cybertron => "cybertron",
+        MapKind::Lair => "lair",
     }
 }
 

@@ -97,6 +97,10 @@ pub enum NetMapKind {
     Casino,
     /// Valley of the End (protocol v15).
     Valley,
+    /// Cybertron (protocol v16).
+    Cybertron,
+    /// Turtle Lair (protocol v17).
+    Lair,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,6 +149,14 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
         }
         NetMapKind::Valley => {
             let (w, m) = bd_voxel::generate_valley(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Cybertron => {
+            let (w, m) = bd_voxel::maps::generate_cybertron(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Lair => {
+            let (w, m) = bd_voxel::generate_lair(seed);
             (w, m.arena, seed)
         }
     }
@@ -342,7 +354,8 @@ pub enum S2C {
 
 /// Does this event change terrain (logged for late joiners)?
 pub fn is_terrain_event(e: &GameEvent) -> bool {
-    matches!(e, GameEvent::Carve { .. } | GameEvent::Extracted { .. } | GameEvent::Power(bd_sim::powers::PowerEvent::Restored { .. }) | GameEvent::ArenaReset { .. })
+    // MAP MECH: mover phases too, so late joiners rebuild the transforming panels' colliders.
+    matches!(e, GameEvent::Carve { .. } | GameEvent::Extracted { .. } | GameEvent::Power(bd_sim::powers::PowerEvent::Restored { .. }) | GameEvent::ArenaReset { .. } | GameEvent::MapMover { .. })
 }
 
 #[cfg(test)]
