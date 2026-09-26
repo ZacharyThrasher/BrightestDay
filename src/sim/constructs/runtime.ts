@@ -17,6 +17,16 @@ const Z = new Vector3(0, 0, 1);
 interface StrikeState { target: Ref; speed: number; v: number; phase: 'go' | 'return' | 'done'; after: 'return' | 'stay' | 'dissolve'; repeat: number; hitIds: Set<string>; start: Vector3; lock?: Vector3 | null }
 interface GrabState { target: Ref; then: 'hold' | 'bring' | 'lift' | 'stay'; v: number; attached: boolean; vel?: Vector3 }
 interface CargoState { entityId: string; local: Vector3 }
+/** A lantern in a construct's grip (grabbed, caged): glued to the construct until thrown, released or it times out. */
+interface PlayerCargo { playerId: string; local: Vector3 }
+
+/** Anything a classic behaviour can go for: a creature / object, or another lantern. */
+type Tgt = { e: Entity; p?: undefined } | { p: Player; e?: undefined };
+
+/** How long a construct can hold an opposing lantern before they wriggle free (s). Nothing is unavoidable. */
+export const PLAYER_HOLD_MAX = 2.6;
+/** Hit radius of a lantern (capsule) for swept construct hits. */
+const PLAYER_HIT_R = 0.55;
 
 export interface Inst {
   body: RBody;
@@ -30,6 +40,8 @@ export interface Inst {
   strike: StrikeState | null;
   grab: GrabState | null;
   cargo: CargoState | null;
+  /** an opposing lantern held by this instance */
+  cargoPlayer?: PlayerCargo | null;
   liftBase: number | null;
   sweepLeft: number;
   shootCd: number;
@@ -88,8 +100,14 @@ function has<T extends Behavior['type']>(s: ConstructSpec, t: T): Extract<Behavi
 export class ConstructRuntime {
   list = new Map<string, Construct>();
   byCollider = new Map<number, string>();
-  focusId: string | null = null;
-  energy = LIMITS.energyMax;
+  /** The construct each player last made / changed ("it", "make it bigger"), per player id. */
+  private focus = new Map<string, string | null>();
+  /**
+   * Whose point of view the runtime is resolving right now: the caster while spawning / modifying, the
+   * construct's OWNER while it behaves. 'self', 'aim', "me/my", placement, hold/follow/mount/launch/tether
+   * all resolve to this player.
+   */
+  private actorId: string | null = null;
   private removed: Construct[] = [];
   /** machines & creatures: articulation, locomotion, brains, weapons, riding */
   readonly machines: MachineSystem;
@@ -100,15 +118,53 @@ export class ConstructRuntime {
 
   get(id: string | null | undefined) { return id ? this.list.get(id) ?? null : null; }
 
-  /** Willpower cap (the creativity economy raises/lowers it; LIMITS.energyMax without it). */
-  get energyMax() { return this.w.inspiration?.energyMax ?? LIMITS.energyMax; }
+  // ------------------------------------------------------------------ per-player pools and point of view
+
+  /** The LOCAL player's willpower (compatibility: single-player code and tests read/write this). */
+  get energy() { return this.w.player.energy; }
+  set energy(v: number) { this.w.player.energy = v; }
+  /** A player's willpower pool. */
+  energyOf(playerId: string): number { return this.w.playerById(playerId)?.energy ?? 0; }
+  setEnergy(playerId: string, v: number) { const p = this.w.playerById(playerId); if (p) p.energy = v; }
+  /** Willpower cap of a player (the creativity economy raises/lowers it; LIMITS.energyMax without it). */
+  energyMaxOf(playerId: string): number { return this.w.inspiration ? this.w.inspiration.of(playerId).energyMax : LIMITS.energyMax; }
+  /** The local player's willpower cap. */
+  get energyMax() { return this.energyMaxOf(this.w.player.id); }
+
+  /** The local player's focused construct (compatibility). */
+  get focusId(): string | null { return this.focusOf(this.actorId ?? this.w.player.id); }
+  set focusId(id: string | null) { this.focus.set(this.actorId ?? this.w.player.id, id); }
+  focusOf(playerId: string): string | null { const f = this.focus.get(playerId) ?? null; return f && this.list.has(f) ? f : null; }
+  setFocus(playerId: string, id: string | null) { this.focus.set(playerId, id); }
+
+  /** The player whose point of view is being resolved (see actorId); the local player by default. */
+  get actor(): Player { return (this.actorId && this.w.playerById(this.actorId)) || this.w.player; }
+  /** Run `fn` from `playerId`'s point of view ('self', 'aim', placement… resolve to them). */
+  as<T>(playerId: string | null | undefined, fn: () => T): T {
+    const prev = this.actorId;
+    this.actorId = playerId ?? prev;
+    try { return fn(); } finally { this.actorId = prev; }
+  }
+  /** A construct's owner (the local player if the owner left). */
+  ownerOf(c: Construct): Player { return this.w.playerById(c.owner) ?? this.w.player; }
 
   // ------------------------------------------------------------------ spawning
 
   /** Validate + place + build. The ONLY way a proposal becomes physics. */
   spawn(proposal: ConstructSpec, opts: { at?: { pos: Vector3; quat: Quaternion }; name?: string; internal?: boolean; owner?: string } = {}): SpawnResult {
-    const boost = opts.internal ? null : this.w.inspiration?.price('create', proposal, null); // creativity economy
-    const report = validateSpec(proposal, this.energy / (boost?.costMul ?? 1));
+    const owner = opts.owner ?? this.w.inspiration?.caster ?? this.actorId ?? LOCAL_OWNER;
+    return this.as(owner, () => this.spawnAs(owner, proposal, opts));
+  }
+
+  private spawnAs(owner: string, proposal: ConstructSpec, opts: { at?: { pos: Vector3; quat: Quaternion }; name?: string; internal?: boolean }): SpawnResult {
+    const boost = opts.internal ? null : this.w.inspiration?.price('create', proposal, null, owner); // creativity economy
+    const pl = this.w.playerById(owner);
+    if (pl && !pl.alive) {
+      const report: ValidationReport = { spec: proposal, clamps: [], rejected: 'your lantern is down', cost: 0, mass: 0 };
+      this.w.emit('construct_rejected', { label: proposal.label, reason: report.rejected, owner });
+      return { construct: null, report };
+    }
+    const report = validateSpec(proposal, this.energyOf(owner) / (boost?.costMul ?? 1));
     if (report.rejected) {
       this.w.emit('construct_rejected', { label: proposal.label, reason: report.rejected });
       return { construct: null, report };
@@ -124,19 +180,19 @@ export class ConstructRuntime {
       id, spec, insts: [], born: this.w.time, expires: this.w.time + spec.lifetime, radius: specExtent(spec, true).radius, extent,
       mass: 0, cost: report.cost, clamps: report.clamps, kinematic: spec.motion === 'kinematic', frameQuat: frame.quat.clone(), frameOrigin: frame.pos.clone(),
       version: 1, explodeAt: Infinity, name: opts.name ?? null, impacts: 0,
-      owner: opts.owner ?? this.w.inspiration?.caster ?? LOCAL_OWNER, hp: 0, maxHp: 0,
+      owner, hp: 0, maxHp: 0,
     };
     c.maxHp = c.hp = constructHp(report.cost);
     this.build(c, frame.pos, frame.quat);
     this.list.set(id, c);
-    this.energy -= report.cost;
-    this.focusId = id;
+    this.setEnergy(owner, this.energyOf(owner) - report.cost);
+    this.setFocus(owner, id);
     this.initBehaviors(c);
-    this.enforceBudget();
-    this.w.emit('construct_formed', { id, label: spec.label, clamps: report.clamps, cost: Math.round(report.cost), source: spec.provenance.source });
+    this.enforceBudget(owner);
+    this.w.emit('construct_formed', { id, label: spec.label, clamps: report.clamps, cost: Math.round(report.cost), source: spec.provenance.source, owner });
     boost?.done(c);
     // a vehicle conjured around you: you're in the driver's seat
-    if (spec.placement.at === 'self' && c.mach?.ride && c.mach.drive && this.list.has(id)) this.machines.ride(id);
+    if (spec.placement.at === 'self' && c.mach?.ride && c.mach.drive && this.list.has(id)) this.machines.ride(id, this.ownerOf(c));
     return { construct: c, report };
   }
 
@@ -144,14 +200,20 @@ export class ConstructRuntime {
   modify(id: string, edited: ConstructSpec): { ok: boolean; report: ValidationReport } {
     const c = this.list.get(id);
     if (!c) return { ok: false, report: { spec: edited, clamps: [], rejected: 'nothing to modify', cost: 0, mass: 0 } };
+    return this.as(c.owner, () => this.modifyAs(c, edited));
+  }
+
+  private modifyAs(c: Construct, edited: ConstructSpec): { ok: boolean; report: ValidationReport } {
+    const id = c.id;
     const refund = c.cost;
-    const boost = this.w.inspiration?.price('modify', edited, c.spec); // creativity economy
-    const report = validateSpec(edited, (this.energy + refund) / (boost?.costMul ?? 1));
+    const boost = this.w.inspiration?.price('modify', edited, c.spec, c.owner); // creativity economy
+    const report = validateSpec(edited, (this.energyOf(c.owner) + refund) / (boost?.costMul ?? 1));
     if (report.rejected) { this.w.emit('construct_rejected', { label: edited.label, reason: report.rejected }); return { ok: false, report }; }
     const spec = report.spec;
     boost?.shape(spec);
     report.cost *= boost?.costMul ?? 1;
     this.normalizeMotion(spec);
+    for (const i of c.insts) if (i.cargoPlayer) this.releasePlayerFrom(i, i.vel.clone());
     const poses = c.insts.map((i) => ({ pos: i.pos.clone(), quat: i.quat.clone(), vel: i.vel.clone(), cargo: i.cargo, strike: i.strike, grab: i.grab, phase: i.phase }));
     const oldCount = c.insts.length;
     this.destroyBodies(c, false);
@@ -160,7 +222,7 @@ export class ConstructRuntime {
     c.radius = specExtent(spec, true).radius;
     c.kinematic = spec.motion === 'kinematic';
     c.clamps = report.clamps;
-    this.energy += refund - report.cost;
+    this.setEnergy(c.owner, this.energyOf(c.owner) + refund - report.cost);
     c.cost = report.cost;
     { const frac = c.maxHp > 0 ? c.hp / c.maxHp : 1; c.maxHp = constructHp(report.cost); c.hp = Math.max(1, c.maxHp * frac); }
     c.expires = Math.max(c.expires, this.w.time + Math.min(spec.lifetime, 30));
@@ -177,7 +239,7 @@ export class ConstructRuntime {
     for (let i = c.insts.length; i < poses.length; i++) if (poses[i].cargo) this.releaseEntity(poses[i].cargo!.entityId, new Vector3());
     c.version++;
     this.initBehaviors(c, true);
-    this.focusId = id;
+    this.setFocus(c.owner, id);
     this.w.emit('construct_modified', { id, label: spec.label, clamps: report.clamps });
     boost?.done(c);
     return { ok: true, report };
@@ -203,9 +265,9 @@ export class ConstructRuntime {
     this.build(c, keepPoses[0].pos, keepPoses[0].quat, keepPoses);
     c.insts.forEach((i, k) => (i.cargo = keepPoses[k].cargo));
     c.version++;
-    const r = this.spawn(one, { at: pose, internal: true });
+    const r = this.spawn(one, { at: pose, internal: true, owner: c.owner });
     if (r.construct && cargo) r.construct.insts[0].cargo = cargo;
-    if (r.construct) this.energy += r.report.cost; // splitting isn't new work
+    if (r.construct) this.setEnergy(c.owner, this.energyOf(c.owner) + r.report.cost); // splitting isn't new work
     return r.construct;
   }
 
@@ -213,15 +275,21 @@ export class ConstructRuntime {
     const c = this.list.get(id);
     if (!c) return;
     for (const i of c.insts) if (i.cargo) this.releaseEntity(i.cargo.entityId, i.vel.clone());
+    for (const i of c.insts) if (i.cargoPlayer) this.releasePlayerFrom(i, i.vel.clone());
+    for (const p of this.w.players) if (p.heldBy === id) this.releasePlayer(p, new Vector3());
     this.releaseRestrained(c);
-    for (const side of ['L', 'R'] as const) if (this.w.player.tethers[side]?.constructId === id) this.w.player.releaseTether(side);
+    for (const p of this.w.players) for (const side of ['L', 'R'] as const) if (p.tethers[side]?.constructId === id) p.releaseTether(side);
     this.machines.onDismiss(c);
     this.destroyBodies(c, true);
     this.list.delete(id);
     this.removed.push(c);
-    this.energy = Math.min(this.energyMax, this.energy + c.cost * 0.3);
-    if (this.focusId === id) this.focusId = [...this.list.keys()].pop() ?? null;
-    this.w.emit('construct_dismissed', { id, label: c.spec.label, reason });
+    if (reason !== 'owner_died' && reason !== 'destroyed') this.setEnergy(c.owner, Math.min(this.energyMaxOf(c.owner), this.energyOf(c.owner) + c.cost * 0.3));
+    if (this.focus.get(c.owner) === id) {
+      let last: string | null = null;
+      for (const o of this.list.values()) if (o.owner === c.owner) last = o.id;
+      this.focus.set(c.owner, last);
+    }
+    this.w.emit('construct_dismissed', { id, label: c.spec.label, reason, owner: c.owner });
   }
 
   dismissAll() { for (const id of [...this.list.keys()]) this.dismiss(id); }
@@ -233,6 +301,7 @@ export class ConstructRuntime {
   damageConstruct(id: string, amount: number, cause: string, by: string | null = null) {
     const c = this.list.get(id);
     if (!c || amount <= 0) return;
+    if (by && this.w.attackerOf(by) === c.owner) return; // your own things never break each other
     c.hp = Math.max(0, c.hp - amount);
     this.w.emit('construct_damage', { id, amount: Math.round(amount), cause, by, hp: Math.round(c.hp) });
     if (c.hp <= 0) {
@@ -247,6 +316,7 @@ export class ConstructRuntime {
     if (!c) return false;
     let any = false;
     for (const i of c.insts) if (i.cargo) { this.releaseEntity(i.cargo.entityId, i.vel.clone()); i.cargo = null; any = true; }
+    for (const i of c.insts) if (i.cargoPlayer) { this.releasePlayerFrom(i, i.vel.clone()); any = true; }
     if (this.releaseRestrained(c)) any = true;
     c.spec.behaviors = c.spec.behaviors.filter((b) => !['grab', 'restrain', 'lift'].includes(b.type));
     for (const i of c.insts) { i.grab = null; i.liftBase = null; }
@@ -258,13 +328,26 @@ export class ConstructRuntime {
   throwAt(id: string, target: Ref, speed = 40) {
     const c = this.list.get(id);
     if (!c) return false;
-    const tp = this.refPos(target);
+    return this.as(c.owner, () => this.throwAs(c, target, speed));
+  }
+
+  private throwAs(c: Construct, target: Ref, speed: number) {
+    const id = c.id;
+    const O = this.ownerOf(c);
+    let tp = this.refPos(target);
     let thrown = false;
     for (const inst of c.insts) {
-      const from = inst.cargo ? this.entityPosById(inst.cargo.entityId) ?? inst.pos : inst.pos;
-      const aimAt = tp ?? from.clone().add(this.w.player.look(new Vector3()).multiplyScalar(30));
+      const held = inst.cargoPlayer ? this.w.playerById(inst.cargoPlayer.playerId) : null;
+      const from = inst.cargo ? this.entityPosById(inst.cargo.entityId) ?? inst.pos : held ? held.pos.clone() : inst.pos;
+      // throwing someone "at themselves" ("grab him and throw him"): fling them far along our look, up and away
+      if (held && tp && tp.distanceTo(from) < 4) tp = null;
+      const aimAt = tp ?? from.clone().add(O.look(new Vector3()).setY(Math.max(0.35, O.look(new Vector3()).y)).normalize().multiplyScalar(held ? 45 : 30));
       const v = ballistic(from, aimAt, Math.max(speed, inst.vel.length() * 1.1), this.w.pw.gravity.y);
-      if (inst.cargo) {
+      if (held) {
+        this.releasePlayerFrom(inst, v, c.id);
+        thrown = true;
+        this.w.emit('player_thrown', { construct: c.id, player: held.id, speed: Math.round(v.length()) });
+      } else if (inst.cargo) {
         this.releaseEntity(inst.cargo.entityId, v);
         inst.cargo = null;
         thrown = true;
@@ -297,17 +380,24 @@ export class ConstructRuntime {
 
   refPos(ref: Ref | undefined, out = new Vector3()): Vector3 | null {
     if (!ref) return null;
-    const p = this.w.player;
+    const p = this.actor;
     switch (ref.kind) {
       case 'self': return out.copy(p.pos);
       case 'aim': return out.copy(p.aim().point);
       case 'entity': { const e = this.w.entities.get(ref.id); return e ? this.w.entityPos(e, out) : null; }
-      case 'entities': case 'all_enemies': { const e = this.refEntities(ref)[0]; return e ? this.w.entityPos(e, out) : null; }
       case 'construct': { const c = this.list.get(ref.id); return c && c.insts[0] ? out.copy(c.insts[0].pos) : null; }
       case 'point': return out.set(ref.p[0], ref.p[1], ref.p[2]);
-      case 'nearest_enemy': case 'opponent': { const e = this.nearestEnemy(); return e ? this.w.entityPos(e, out) : null; } // (no opponent players yet → nearest hostile)
-      case 'threat': { const e = this.threat(); return e ? this.w.entityPos(e, out) : null; }
-      default: return null; // 'player': other players don't exist in single player
+      case 'player': {
+        const pl = this.w.playerById(ref.id);
+        return pl && pl.alive ? out.copy(pl.pos) : null;
+      }
+      default: {
+        // opponent / nearest_enemy / threat / all_enemies / entities: another lantern if one is the target, else a creature
+        const pl = this.refPlayers(ref)[0];
+        if (pl) return out.copy(pl.pos);
+        const e = this.refEntities(ref)[0];
+        return e ? this.w.entityPos(e, out) : null;
+      }
     }
   }
 
@@ -316,12 +406,51 @@ export class ConstructRuntime {
     if (ref.kind === 'entity') { const e = this.w.entities.get(ref.id); return e ? [e] : []; }
     if (ref.kind === 'entities') return ref.ids.map((id) => this.w.entities.get(id)).filter((e): e is Entity => !!e);
     if (ref.kind === 'all_enemies') return [...this.w.entities.values()].filter((e) => e.hostile && !e.disabled).sort((a, b) => this.dist(a) - this.dist(b));
-    if (ref.kind === 'nearest_enemy' || ref.kind === 'opponent') { const e = this.nearestEnemy(); return e ? [e] : []; }
-    if (ref.kind === 'threat') { const e = this.threat(); return e ? [e] : []; }
+    if (ref.kind === 'opponent') {
+      // "him" in a duel is the other lantern; with nobody else around it falls back to the nearest hostile
+      if (this.w.players.length > 1) return [];
+      const e = this.nearestEnemy(); return e ? [e] : [];
+    }
+    if (ref.kind === 'nearest_enemy') { if (this.refPlayers(ref).length) return []; const e = this.nearestEnemy(); return e ? [e] : []; }
+    if (ref.kind === 'threat') { if (this.refPlayers(ref).length) return []; const e = this.threat(); return e ? [e] : []; }
     return [];
   }
 
-  private dist(e: Entity) { return this.w.entityPos(e).distanceTo(this.w.player.pos); }
+  /**
+   * Lanterns a Ref points at, from the actor's point of view: {kind:'player', id} (never the actor itself),
+   * 'opponent' (the nearest living opponent), 'all_enemies' (every living opponent) and 'nearest_enemy' /
+   * 'threat' when an opponent is nearer than any hostile creature.
+   */
+  refPlayers(ref: Ref | undefined): Player[] {
+    if (!ref || this.w.players.length < 2) return [];
+    const me = this.actor;
+    switch (ref.kind) {
+      case 'player': { const pl = this.w.playerById(ref.id); return pl && pl !== me && pl.alive ? [pl] : []; }
+      case 'opponent': { const o = this.w.opponentOf(me.id); return o ? [o] : []; }
+      case 'all_enemies': return this.w.opponentsOf(me.id).filter((o) => o.alive);
+      case 'nearest_enemy': case 'threat': {
+        const o = this.w.opponentOf(me.id);
+        if (!o) return [];
+        const e = ref.kind === 'threat' ? this.threat() : this.nearestEnemy();
+        return !e || this.dist(e) > o.pos.distanceTo(me.pos) ? [o] : [];
+      }
+      default: return [];
+    }
+  }
+
+  /** First target (creature or lantern) of a Ref. */
+  private refTarget(ref: Ref | undefined): Tgt | null {
+    const e = this.refEntities(ref)[0];
+    if (e) return { e };
+    const p = this.refPlayers(ref)[0];
+    return p ? { p } : null;
+  }
+
+  private tgtPos(t: Tgt, out = new Vector3()) { return t.e ? this.w.entityPos(t.e, out) : out.copy(t.p!.pos); }
+  private tgtVel(t: Tgt, out = new Vector3()) { return t.e ? this.w.entityVel(t.e, out) : out.copy(t.p!.vel); }
+  private tgtRadius(t: Tgt) { return t.e ? t.e.radius : PLAYER_HIT_R; }
+
+  private dist(e: Entity) { return this.w.entityPos(e).distanceTo(this.actor.pos); }
 
   nearestEnemy(): Entity | null {
     let best: Entity | null = null;
@@ -338,10 +467,11 @@ export class ConstructRuntime {
     // the shooter of the nearest incoming projectile, else nearest hostile
     let best: Entity | null = null;
     let bd = Infinity;
+    const me = this.actor.pos;
     for (const pr of this.w.projectiles.values()) {
       if (pr.reflected || !pr.from) continue;
       const t = pr.body.translation();
-      const d = this.w.player.pos.distanceTo(new Vector3(t.x, t.y, t.z));
+      const d = me.distanceTo(new Vector3(t.x, t.y, t.z));
       const e = this.w.entities.get(pr.from);
       if (e && d < bd) { bd = d; best = e; }
     }
@@ -357,7 +487,7 @@ export class ConstructRuntime {
   /** Resolve a placement into a world frame. Deterministic given world state. */
   place(spec: ConstructSpec, ext = specExtent(spec)): { pos: Vector3; quat: Quaternion } {
     const pl = spec.placement;
-    const P = this.w.player;
+    const P = this.actor;
     const fwd = P.forward(new Vector3());
     const look = P.look(new Vector3());
     const yawAway = (dir: Vector3) => new Quaternion().setFromAxisAngle(UP, Math.atan2(dir.x, dir.z));
@@ -421,10 +551,10 @@ export class ConstructRuntime {
       case 'under_target': {
         const t = tgtPos ?? P.aim().point;
         pos.copy(t);
-        const e = pl.target ? this.refEntities(pl.target)[0] : null;
+        const e = pl.target ? this.refTarget(pl.target) : null;
         if (e) {
           // predict where a falling target will come down
-          const v = this.w.entityVel(e);
+          const v = this.tgtVel(e);
           const g = this.groundBelow(t) ?? 0;
           const h = Math.max(0, t.y - g);
           const vy = v.y;
@@ -636,9 +766,9 @@ export class ConstructRuntime {
 
   private destroyBodies(c: Construct, releaseCargo: boolean) {
     // a rope hooked onto a body we are about to remove keeps its last world point instead of a dangling body
-    for (const side of ['L', 'R'] as const) {
-      const t = this.w.player.tethers[side];
-      if (t?.body && c.insts.some((i) => i.body === t.body)) { this.w.player.anchorPoint(t); t.body = null; }
+    for (const P of this.w.players) for (const side of ['L', 'R'] as const) {
+      const t = P.tethers[side];
+      if (t?.body && c.insts.some((i) => i.body === t.body)) { P.anchorPoint(t); t.body = null; }
     }
     for (const i of c.insts) {
       if (releaseCargo && i.cargo) this.releaseEntity(i.cargo.entityId, i.vel.clone());
@@ -676,13 +806,14 @@ export class ConstructRuntime {
     const lift = has(s, 'lift');
     const tether = has(s, 'tether');
     const targets = (ref: Ref) => this.refEntities(ref);
+    const O = this.ownerOf(c);
     c.insts.forEach((inst, k) => {
       if (strike && (!keepState || !inst.strike || inst.strike.phase === 'done')) {
         const ents = targets(strike.target);
         const tgt: Ref = ents.length > 1 ? { kind: 'entity', id: ents[k % ents.length].id } : strike.target;
         // momentum: the player's velocity toward the target carries into the blow
         const tp = this.refPos(tgt);
-        const toward = tp ? Math.max(0, this.w.player.vel.dot(tp.clone().sub(inst.pos).normalize())) : 0;
+        const toward = tp ? Math.max(0, O.vel.dot(tp.clone().sub(inst.pos).normalize())) : 0;
         const thrust = has(s, 'thrust');
         const speed = Math.min(COMBAT.strike.maxSpeed, Math.max(COMBAT.strike.minSpeed, Math.min(LIMITS.strikeSpeed, strike.speed + (thrust ? thrust.accel * 0.6 : 0) + toward)));
         inst.strike = { target: tgt, speed, v: toward * 0.8, phase: 'go', after: strike.after, repeat: strike.repeat ?? 0, hitIds: new Set(), start: inst.pos.clone() };
@@ -691,7 +822,7 @@ export class ConstructRuntime {
       if (grab && !inst.cargo && (!keepState || !inst.grab)) {
         const ents = targets(grab.target);
         const tgt: Ref = ents.length > 1 ? { kind: 'entity', id: ents[k % ents.length].id } : grab.target;
-        inst.grab = { target: tgt, then: grab.then, v: Math.max(0, this.w.player.vel.length() * 0.5), attached: false };
+        inst.grab = { target: tgt, then: grab.then, v: Math.max(0, O.vel.length() * 0.5), attached: false };
       }
       if (restrain && !inst.cargo) {
         const ents = targets(restrain.target);
@@ -700,6 +831,10 @@ export class ConstructRuntime {
           const ep = this.w.entityPos(e);
           this.attachEntity(c, inst, e, ep);
           e.restrainedBy = c.id;
+        } else if (!e && !inst.cargoPlayer) {
+          // a cage / net around a lantern: pinned where they stand for a moment
+          const pl = this.refPlayers(restrain.target)[0];
+          if (pl && !pl.heldBy && pl.pos.distanceTo(inst.pos) < c.radius + 3) this.attachPlayer(c, inst, pl, pl.pos.clone());
         }
       }
       if (crush) {
@@ -715,7 +850,7 @@ export class ConstructRuntime {
     });
     if (explode) c.explodeAt = explode.onContact ? Infinity : this.w.time + explode.delay;
     if (tether && tether.toPlayer) {
-      const P = this.w.player;
+      const P = O;
       // an anchor lying on the ground is useless for swinging/ziplining: raise it on a post
       for (const inst of c.insts) {
         const g = this.groundBelow(inst.pos.clone().add(new Vector3(0, 0.5, 0)), 3);
@@ -737,13 +872,19 @@ export class ConstructRuntime {
   }
 
   preStep(dt: number) {
-    this.energy = Math.min(this.energyMax, this.energy + LIMITS.energyRegen * (this.w.inspiration?.regenMul ?? 1) * dt);
-    const P = this.w.player;
+    // every lantern's willpower regenerates at their own inspiration-scaled rate
+    for (const pl of this.w.players) {
+      if (!pl.alive) continue;
+      const insp = this.w.inspiration?.of(pl.id);
+      pl.energy = Math.min(insp?.energyMax ?? LIMITS.energyMax, pl.energy + LIMITS.energyRegen * (insp?.regenMul ?? 1) * dt);
+    }
     this.machines.preStep(dt);
     for (const c of [...this.list.values()]) {
       if (this.w.time >= c.expires) { this.dismiss(c.id, 'expired'); continue; }
+      this.actorId = c.owner;
       if (this.w.time >= c.explodeAt) { this.explode(c); continue; }
       const s = c.spec;
+      const P = this.ownerOf(c);
       for (const inst of c.insts) {
         if (!inst.alive) continue;
         inst.prevPos.copy(inst.pos);
@@ -760,13 +901,17 @@ export class ConstructRuntime {
       const mount = has(s, 'mount');
       if (mount) this.applyMount(c, mount, P);
     }
+    this.actorId = null;
     this.machines.postMove();
   }
 
   postStep(dt: number) {
+    const pvp = this.w.players.length > 1;
     for (const c of this.list.values()) {
       for (const inst of c.insts) {
         if (!inst.alive) continue;
+        if (inst.cargoPlayer) this.carryPlayer(c, inst);
+        if (pvp && !c.mach?.drive) this.bodyHits(c, inst, dt);
         if (!inst.body.isKinematic()) {
           const t = inst.body.translation();
           const r = inst.body.rotation();
@@ -788,7 +933,7 @@ export class ConstructRuntime {
 
   private driveKinematic(c: Construct, inst: Inst, dt: number) {
     const s = c.spec;
-    const P = this.w.player;
+    const P = this.ownerOf(c);
     let target: Vector3 | null = null;
     let q: Quaternion | null = null;
     const look = P.look(new Vector3());
@@ -809,8 +954,12 @@ export class ConstructRuntime {
         const R = this.w.R;
         const wallHit = step > 0.01 ? this.w.pw.castRay(new R.Ray(inst.pos, d), step + c.radius * 0.5, true, undefined, groups(G.PLAYER, G.WORLD)) : null;
         const ents = this.strikeCandidates(st, inst, target, c);
-        if (ents.length) {
+        const pls = this.strikePlayers(st, inst, target, c);
+        const cons = ents.length || pls.length ? [] : this.strikeConstructs(st, inst, target, c);
+        if (ents.length || pls.length || cons.length) {
           for (const e of ents) this.impactEntity(c, inst, e, d, st.v);
+          for (const pl of pls) this.impactPlayer(c, pl, d, st.v);
+          for (const o of cons) this.impactConstruct(c, o, st.v, 'strike');
           this.finishStrikeLeg(c, inst, st);
         } else if (wallHit) {
           target = inst.pos.clone().addScaledVector(d, Math.max(0, wallHit.timeOfImpact - c.radius * 0.5));
@@ -828,30 +977,33 @@ export class ConstructRuntime {
     } else if (inst.grab && !inst.grab.attached) {
       const g = inst.grab;
       const e = this.refEntities(g.target)[0];
-      const tp = e ? this.w.entityPos(e) : this.refPos(g.target);
+      const pl = e ? null : this.refPlayers(g.target)[0] ?? null;
+      const tp = e ? this.w.entityPos(e) : pl ? pl.pos.clone() : this.refPos(g.target);
       if (!tp) { inst.grab = null; }
       else {
         const d = tp.clone().sub(inst.pos);
         const dist = d.length();
-        // an enemy that is on the move (a player-like target) is chased: capped speed, led, turn-limited
-        const enemy = !!e && e.hostile && !e.disabled && this.w.entityVel(e).lengthSq() > COMBAT.grab.evadeSpeed ** 2;
+        // an enemy that is on the move (a lantern, a running robot) is chased: capped speed, led, turn-limited
+        const tv = e ? this.w.entityVel(e) : pl ? pl.vel : null;
+        const enemy = (!!e && e.hostile && !e.disabled || !!pl) && !!tv && tv.lengthSq() > COMBAT.grab.evadeSpeed ** 2;
         g.v = Math.min(enemy ? COMBAT.grab.maxSpeed : 45, g.v + 120 * dt);
         const step = Math.min(dist, g.v * dt);
         if (dist > 1e-3) d.divideScalar(dist);
         if (enemy) {
           // chaser: lead the target, turn-limited
-          const aimP = interceptPoint(inst.pos, Math.max(8, g.v), tp, this.w.entityVel(e!));
+          const aimP = interceptPoint(inst.pos, Math.max(8, g.v), tp, tv!);
           g.vel = steerToward(g.vel ?? d.clone().multiplyScalar(g.v), aimP.sub(inst.pos), (COMBAT.grab.turnRate * Math.PI / 180) * dt, g.v);
           if (dist > step + 0.5) d.copy(g.vel).normalize();
         }
         target = inst.pos.clone().addScaledVector(d, step);
         q = quatFromDir(d);
-        const reach = c.radius * 0.8 + (e?.radius ?? 0.5) + 0.3;
+        const reach = c.radius * 0.8 + (e?.radius ?? (pl ? PLAYER_HIT_R : 0.5)) + 0.3;
         if (dist - step <= reach) {
           if (e && !e.heldBy) this.attachEntity(c, inst, e, tp);
+          if (pl && !pl.heldBy) this.attachPlayer(c, inst, pl, tp);
           g.attached = true;
           if (g.then === 'lift') inst.liftBase = target.y;
-          this.w.emit('grabbed', { construct: c.id, entity: e?.id ?? null });
+          this.w.emit('grabbed', { construct: c.id, entity: e?.id ?? null, player: pl?.id ?? null });
         }
       }
     } else {
@@ -886,13 +1038,14 @@ export class ConstructRuntime {
         const tp = this.refPos(home.target);
         if (tp) {
           const e = this.refEntities(home.target)[0];
-          const enemy = !!e && e.hostile && !e.disabled;
+          const pl = e ? null : this.refPlayers(home.target)[0] ?? null;
+          const enemy = !!e && e.hostile && !e.disabled || !!pl;
           const speed = enemy ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
           const d = tp.clone().sub(inst.pos);
           const dist = d.length();
           d.divideScalar(Math.max(1e-6, dist));
           // homing: re-plan the intercept every tick, turn-limited (hard cuts and walls shake it off)
-          const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : tp.clone();
+          const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : pl ? interceptPoint(inst.pos, speed, tp, pl.vel) : tp.clone();
           if (!inst.homeVel) inst.homeVel = new Vector3(0, 0, 1).applyQuaternion(inst.quat).multiplyScalar(speed);
           steerToward(inst.homeVel, aimP.sub(inst.pos), ((enemy ? COMBAT.missile.turnRate : 720) * Math.PI / 180) * dt, speed);
           const step = Math.min(dist, speed * dt);
@@ -901,6 +1054,15 @@ export class ConstructRuntime {
           q = quatFromDir(d);
           if (e && dist < c.radius + e.radius + 0.4) {
             this.impactEntity(c, inst, e, d, speed);
+            if (has(s, 'explode')) { this.explode(c); return; }
+            c.expires = Math.min(c.expires, this.w.time + 0.3);
+          } else if (pl && dist < c.radius * 0.8 + PLAYER_HIT_R + 0.5) {
+            if (!has(s, 'explode')) this.impactPlayer(c, pl, d, speed);
+            if (has(s, 'explode')) { this.explode(c); return; }
+            c.expires = Math.min(c.expires, this.w.time + 0.3);
+          } else if (home.target.kind === 'construct' && dist < c.radius + 1.5) {
+            const o = this.list.get(home.target.id);
+            if (o && o.owner !== c.owner) this.impactConstruct(c, o, speed, 'strike');
             if (has(s, 'explode')) { this.explode(c); return; }
             c.expires = Math.min(c.expires, this.w.time + 0.3);
           }
@@ -937,12 +1099,12 @@ export class ConstructRuntime {
   private lockStrike(inst: Inst, st: StrikeState) {
     st.lock = null;
     if (!COMBAT.strike.lockAtLaunch) return;
-    const e = this.refEntities(st.target)[0];
-    if (!e) return;
-    const v = this.w.entityVel(e);
+    const t = this.refTarget(st.target);
+    if (!t) return;
+    const v = this.tgtVel(t);
     if (v.lengthSq() < 4) return; // (near-)stationary: plain tracking is identical and robust to nudges
     // average speed over the lunge (it accelerates from st.v)
-    st.lock = interceptPoint(inst.pos, st.speed * 0.8, this.w.entityPos(e), v);
+    st.lock = interceptPoint(inst.pos, st.speed * 0.8, this.tgtPos(t), v);
   }
 
   private finishStrikeLeg(c: Construct, inst: Inst, st: StrikeState) {
@@ -964,6 +1126,53 @@ export class ConstructRuntime {
       if (segPointDist(inst.pos, next, ep) <= c.radius * 0.75 + e.radius + 0.15) { out.push(e); st.hitIds.add(e.id); }
     }
     return out;
+  }
+
+  /** Opposing lanterns in the path of a strike this tick. */
+  private strikePlayers(st: StrikeState, inst: Inst, next: Vector3, c: Construct): Player[] {
+    const out: Player[] = [];
+    if (this.w.players.length < 2) return out;
+    for (const pl of this.w.players) {
+      if (pl.id === c.owner || !pl.alive || st.hitIds.has(pl.id) || pl.heldBy === c.id) continue;
+      if (capsuleSegDist(inst.pos, next, pl.pos) <= c.radius * 0.75 + PLAYER_HIT_R + 0.15) { out.push(pl); st.hitIds.add(pl.id); }
+    }
+    return out;
+  }
+
+  /** Other lanterns' constructs in the path of a strike this tick ("smash his tank"). */
+  private strikeConstructs(st: StrikeState, inst: Inst, next: Vector3, c: Construct): Construct[] {
+    const out: Construct[] = [];
+    for (const o of this.list.values()) {
+      if (o.owner === c.owner || st.hitIds.has(o.id)) continue;
+      const i0 = o.insts[0];
+      if (!i0?.alive) continue;
+      if (segPointDist(inst.pos, next, i0.pos) <= c.radius * 0.75 + Math.max(0.5, o.radius * 0.6)) { out.push(o); st.hitIds.add(o.id); }
+    }
+    return out;
+  }
+
+  /**
+   * A construct hits an opposing lantern: damage from speed × heft (a solid hammer ≈ 30, a wrecking ball more),
+   * knockback along the blow. Attributed to the construct (and so its owner).
+   */
+  impactPlayer(c: Construct, pl: Player, dir: Vector3, speed: number, cause = 'strike') {
+    if (pl.id === c.owner || !pl.alive) return 0;
+    const heft = Math.min(1.8, Math.max(0.5, Math.sqrt(Math.max(20, c.mass) / 60)));
+    // a fist / hammer lunge (45–60 m/s) ≈ 25–32; a wrecking ball or a dropped piano more; capped at 45
+    const dmg = Math.min(45, Math.max(4, 5 + speed * 0.26 * heft));
+    const dealt = this.w.damagePlayer(pl, dmg, cause, c.id, { dir: dir.clone().setY(dir.y + 0.2), knock: 1.1, pos: pl.pos.clone() });
+    c.impacts++;
+    this.w.emit('impact', { construct: c.id, player: pl.id, dv: Math.round(speed), pos: pl.pos.toArray() });
+    return dealt;
+  }
+
+  /** A construct smashes another lantern's construct: structural damage from speed × heft. */
+  impactConstruct(c: Construct, o: Construct, speed: number, cause: string) {
+    if (o.owner === c.owner) return;
+    const heft = Math.min(2, Math.max(0.5, Math.sqrt(Math.max(20, c.mass) / 60)));
+    this.damageConstruct(o.id, Math.max(10, speed * 1.6 * heft), cause, c.id);
+    c.impacts++;
+    this.w.emit('construct_hit', { construct: c.id, target: o.id, dv: Math.round(speed) });
   }
 
   /** Momentum-based hit: heavier and faster constructs hit harder. */
@@ -992,11 +1201,23 @@ export class ConstructRuntime {
       const outward = ep.clone().sub(at).normalize().add(dir.clone().multiplyScalar(0.5)).normalize();
       this.impactEntity(c, { ...(c.insts[0]) } as Inst, e, outward, speed * k);
     }
+    for (const pl of this.w.players) {
+      if (pl.id === c.owner || !pl.alive || pl.heldBy === c.id) continue;
+      const d = pl.pos.distanceTo(at);
+      if (d > r + PLAYER_HIT_R) continue;
+      const k = 1 - Math.max(0, d - PLAYER_HIT_R) / r;
+      this.impactPlayer(c, pl, pl.pos.clone().sub(at).normalize().add(dir.clone().multiplyScalar(0.5)).normalize(), speed * k, 'smash');
+    }
+    for (const o of [...this.list.values()]) {
+      if (o.owner === c.owner || !o.insts[0]?.alive) continue;
+      const d = o.insts[0].pos.distanceTo(at) - o.radius * 0.6;
+      if (d <= r) this.impactConstruct(c, o, speed * Math.max(0.3, 1 - Math.max(0, d) / r), 'smash');
+    }
     this.w.emit('smash', { construct: c.id, pos: at.toArray(), radius: r });
   }
 
   private holdPose(c: Construct, _inst: Inst, side: string): { pos: Vector3; quat: Quaternion } {
-    const P = this.w.player;
+    const P = this.ownerOf(c);
     const look = P.look(new Vector3());
     const right = P.right(new Vector3());
     const fwd = P.forward(new Vector3());
@@ -1029,8 +1250,9 @@ export class ConstructRuntime {
       if (tp) {
         const v = inst.body.linvel();
         const e = this.refEntities(home.target)[0];
-        const speed = e?.hostile ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
-        const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : tp;
+        const pl = e ? null : this.refPlayers(home.target)[0] ?? null;
+        const speed = e?.hostile || pl ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
+        const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : pl ? interceptPoint(inst.pos, speed, tp, pl.vel) : tp;
         const want = aimP.clone().sub(inst.pos).normalize().multiplyScalar(speed);
         const nv = new Vector3(v.x, v.y, v.z).lerp(want, 1 - Math.exp(-4 * dt));
         inst.body.setLinvel(nv, true);
@@ -1052,6 +1274,16 @@ export class ConstructRuntime {
         if (segPointDist(inst.pos, next, this.w.entityPos(e)) <= c.radius * 0.8 + e.radius) {
           this.impactEntity(c, inst, e, new Vector3(0, -1, 0), vv.length());
           inst.strike = { target: { kind: 'none' }, speed: 0, v: 0, phase: 'done', after: 'stay', repeat: 0, hitIds: new Set([e.id]), start: inst.pos.clone() };
+        }
+      }
+      // a falling piano / anvil flattens any opposing lantern it passes through (not just the one it was aimed at)
+      if (vv.length() > 6) for (const pl of this.w.players) {
+        if (pl.id === c.owner || !pl.alive || inst.strike?.hitIds.has(pl.id)) continue;
+        if (capsuleSegDist(inst.pos, next, pl.pos) <= c.radius * 0.8 + PLAYER_HIT_R) {
+          this.impactPlayer(c, pl, vv.clone().normalize(), vv.length(), 'crush');
+          const hit = inst.strike?.hitIds ?? new Set<string>();
+          hit.add(pl.id);
+          inst.strike = { target: { kind: 'none' }, speed: 0, v: 0, phase: 'done', after: 'stay', repeat: 0, hitIds: hit, start: inst.pos.clone() };
         }
       }
     }
@@ -1092,8 +1324,15 @@ export class ConstructRuntime {
       const a = accelAt(new Vector3(t.x, t.y, t.z));
       if (a) p.body.applyImpulse(a.multiplyScalar(p.body.mass() * dt * 2.5), true);
     }
-    const a = accelAt(this.w.player.pos);
-    if (a && !has(c.spec, 'mount')) this.w.player.vel.addScaledVector(a, dt);
+    // fields move every lantern in range (yours: movement tech; theirs: a black hole, a gale, a geyser)
+    const mount = !!has(c.spec, 'mount');
+    for (const pl of this.w.players) {
+      if (!pl.alive || pl.heldBy || mount && pl.id === c.owner) continue;
+      const a = accelAt(pl.pos);
+      if (!a) continue;
+      pl.vel.addScaledVector(a, dt);
+      if (pl.id !== c.owner && a.lengthSq() > 100) { pl.launchGrace = Math.max(pl.launchGrace, 0.2); pl.flungBy = c.id; pl.flungUntil = this.w.time + 0.8; }
+    }
   }
 
   private applyShoot(c: Construct, inst: Inst, dt: number) {
@@ -1102,11 +1341,12 @@ export class ConstructRuntime {
     inst.shootCd -= dt;
     if (inst.shootCd > 0) return;
     inst.shootCd = 1 / sh.rate;
-    const ents = this.refEntities(sh.target);
-    const tp = ents[0] ? interceptPoint(inst.pos, sh.speed, this.w.entityPos(ents[0]), this.w.entityVel(ents[0])) : this.refPos(sh.target) ?? this.w.player.aim().point;
+    const t = this.refTarget(sh.target);
+    const tp = t ? interceptPoint(inst.pos, sh.speed, this.tgtPos(t), this.tgtVel(t)) : this.refPos(sh.target) ?? this.ownerOf(c).aim().point;
     const d = tp.clone().sub(inst.pos).normalize();
     const start = inst.pos.clone().addScaledVector(d, c.radius + sh.size + 0.3);
-    const pr = this.w.spawnProjectile(start, d.multiplyScalar(sh.speed), null, 10, sh.size);
+    // never touches its owner; hurts other lanterns (world.projectileHit) and creatures (as a friendly shot)
+    const pr = this.w.spawnProjectile(start, d.multiplyScalar(sh.speed), null, 10, sh.size, { ownerPlayer: c.owner, owner: c.id, kind: 'shoot' });
     pr.reflected = true; // friendly
     this.w.emit('construct_fire', { construct: c.id });
   }
@@ -1152,14 +1392,14 @@ export class ConstructRuntime {
     return new Vector3(...cv.axis).normalize().applyQuaternion(inst.quat).multiplyScalar(cv.speed);
   }
 
-  surfaceVelocity(col: RCollider): Vector3 | null {
+  surfaceVelocity(col: RCollider, at: Vector3 = this.w.player.pos): Vector3 | null {
     const id = this.byCollider.get(col.handle);
     if (!id) return null;
     const c = this.list.get(id);
     const cv = c && has(c.spec, 'conveyor');
     if (!c || !cv) return null;
     const inst = c.insts.find((i) => i.colliders.includes(col)) ?? c.insts[0];
-    return this.surfaceVelocityOf(c, inst, cv, this.w.player.pos);
+    return this.surfaceVelocityOf(c, inst, cv, at);
   }
 
   private applyMount(c: Construct, m: Extract<Behavior, { type: 'mount' }>, P: Player) {
@@ -1172,7 +1412,7 @@ export class ConstructRuntime {
     if (m.thrustLook) mods.thrustAlongLook += m.thrustLook;
     const thrust = has(c.spec, 'thrust');
     if (thrust) mods.thrustAlongLook += thrust.accel;
-    if (m.thrustUp && this.w.input?.jump && !P.onGround) mods.thrust.y += m.thrustUp;
+    if (m.thrustUp && P.input?.jump && !P.onGround) mods.thrust.y += m.thrustUp;
     if (m.bounce && P.onGround && P.vel.y <= 0.1 && !P.flying) { P.vel.y = m.bounce; P.onGround = false; }
   }
 
@@ -1194,10 +1434,21 @@ export class ConstructRuntime {
         this.w.damageEntity(e, ex.force * k * 2.2, 'explosion');
         if (e.type === 'drone') e.stunnedUntil = this.w.time + 2;
       }
-      // rocket-jump: blasts push the player too (movement tech, not damage)
-      const P = this.w.player;
-      const d = P.pos.distanceTo(at);
-      if (d < ex.radius) P.vel.addScaledVector(P.pos.clone().sub(at).normalize().add(new Vector3(0, 0.3, 0)).normalize(), ex.force * 0.6 * (1 - d / ex.radius));
+      for (const P of this.w.players) {
+        if (!P.alive) continue;
+        const d = P.pos.distanceTo(at);
+        if (d >= ex.radius + PLAYER_HIT_R) continue;
+        const k = 1 - Math.max(0, d - PLAYER_HIT_R) / ex.radius;
+        const dir = P.pos.clone().sub(at).normalize().add(new Vector3(0, 0.3, 0)).normalize();
+        // rocket-jump: your own blasts push you (movement tech, not damage); anyone else's blast hurts
+        if (P.id === c.owner) P.vel.addScaledVector(dir, ex.force * 0.6 * Math.min(1, k));
+        else this.w.damagePlayer(P, Math.min(65, ex.force * Math.min(1, k) * 1.3 + 4), 'explosion', c.id, { dir, knock: 1.3 });
+      }
+      for (const o of [...this.list.values()]) {
+        if (o.owner === c.owner || o === c || !o.insts[0]?.alive) continue;
+        const d = o.insts[0].pos.distanceTo(at) - o.radius * 0.6;
+        if (d < ex.radius) this.damageConstruct(o.id, ex.force * (1 - Math.max(0, d) / ex.radius) * 2.5, 'explosion', c.id);
+      }
       this.w.emit('explosion', { construct: c.id, pos: at.toArray(), radius: ex.radius });
     }
     this.dismiss(c.id, 'exploded');
@@ -1215,6 +1466,81 @@ export class ConstructRuntime {
     const local = at.clone().sub(inst.pos).applyQuaternion(inst.quat.clone().invert());
     if (local.length() > c.radius * 1.2) local.setLength(c.radius * 0.9 + e.radius);
     inst.cargo = { entityId: e.id, local };
+  }
+
+  /**
+   * Anything of yours flying / swinging through another lantern hurts them: a thrown boulder, a rolling log,
+   * a swept pusher, a falling piano that wasn't even aimed at them (swept test, per-pair cooldown).
+   * Striking / homing constructs resolve their own hits; driving machines ram (machines.ts).
+   */
+  private bodyHits(c: Construct, inst: Inst, dt: number) {
+    if (has(c.spec, 'strike') || has(c.spec, 'home')) return;
+    const v = inst.body.isDynamic() ? inst.body.linvel() : null;
+    const vel = v ? _bh.set(v.x, v.y, v.z) : _bh.copy(inst.pos).sub(inst.prevPos).divideScalar(dt);
+    const sp = vel.length();
+    if (sp < 9) return;
+    for (const pl of this.w.players) {
+      if (pl.id === c.owner || !pl.alive || pl.heldBy === c.id || inst.strike?.hitIds.has(pl.id)) continue;
+      const rel = _bh2.copy(vel).sub(pl.vel);
+      const rs = rel.length();
+      if (rs < 9) continue;
+      const from = inst.body.isDynamic() ? _bh3.copy(inst.pos).addScaledVector(vel, -dt) : inst.prevPos;
+      if (capsuleSegDist(from, inst.pos, pl.pos) > Math.max(0.4, c.radius * 0.7) + PLAYER_HIT_R) continue;
+      const key = c.id + '>' + pl.id;
+      if ((this.hitCd.get(key) ?? -1) > this.w.time) continue;
+      this.hitCd.set(key, this.w.time + 0.6);
+      this.impactPlayer(c, pl, rel.clone().normalize(), rs * 0.8, inst.body.isDynamic() ? 'thrown' : 'smash');
+    }
+    if (this.hitCd.size > 256) for (const [k, t] of this.hitCd) if (t < this.w.time) this.hitCd.delete(k);
+  }
+  private hitCd = new Map<string, number>();
+
+  /** Take hold of an opposing lantern (grab / cage). They are glued to the construct until thrown or released. */
+  attachPlayer(c: Construct, inst: Inst, pl: Player, at: Vector3) {
+    if (pl.id === c.owner || !pl.alive || pl.heldBy) return false;
+    if (pl.riding) this.machines.dismount(pl);
+    pl.heldBy = c.id;
+    pl.heldUntil = this.w.time + PLAYER_HOLD_MAX;
+    pl.vel.set(0, 0, 0);
+    pl.releaseTether('L');
+    pl.releaseTether('R');
+    const local = at.clone().sub(inst.pos).applyQuaternion(inst.quat.clone().invert());
+    if (local.length() > c.radius * 1.2) local.setLength(c.radius * 0.9 + PLAYER_HIT_R);
+    inst.cargoPlayer = { playerId: pl.id, local };
+    this.w.damagePlayer(pl, 5, 'grab', c.id, { knock: 0 });
+    return true;
+  }
+
+  /** Keep a held lantern glued to its holder; let them wriggle free when the grip times out. */
+  private carryPlayer(c: Construct, inst: Inst) {
+    const cp = inst.cargoPlayer!;
+    const pl = this.w.playerById(cp.playerId);
+    if (!pl || !pl.alive || pl.heldBy !== c.id) { inst.cargoPlayer = null; if (pl && pl.heldBy === c.id) pl.heldBy = null; return; }
+    if (this.w.time >= pl.heldUntil) { this.releasePlayerFrom(inst, new Vector3(0, 6, 0)); this.w.emit('player_escaped', { construct: c.id, player: pl.id }); return; }
+    pl.pos.copy(cp.local).applyQuaternion(inst.quat).add(inst.pos);
+    pl.vel.copy(inst.vel);
+  }
+
+  /** Let go of the lantern this instance holds, with a velocity (thrown: credited to `thrownBy`). */
+  releasePlayerFrom(inst: Inst, vel: Vector3, thrownBy: string | null = null) {
+    const cp = inst.cargoPlayer;
+    inst.cargoPlayer = null;
+    if (!cp) return;
+    const pl = this.w.playerById(cp.playerId);
+    if (!pl) return;
+    pl.heldBy = null;
+    pl.vel.copy(vel);
+    pl.onGround = false;
+    pl.body.setTranslation(pl.pos, true);
+    if (thrownBy) { pl.flungBy = thrownBy; pl.flungUntil = this.w.time + 3; pl.launchGrace = Math.max(pl.launchGrace, 1.6); }
+  }
+
+  /** Free a held lantern wherever they are (their holder dissolved, they died, a new round). */
+  releasePlayer(pl: Player, vel: Vector3) {
+    const c = pl.heldBy ? this.list.get(pl.heldBy) : null;
+    const inst = c?.insts.find((i) => i.cargoPlayer?.playerId === pl.id);
+    if (inst) this.releasePlayerFrom(inst, vel);
+    else { pl.heldBy = null; pl.vel.copy(vel); }
   }
 
   releaseEntity(id: string, vel: Vector3) {
@@ -1240,7 +1566,8 @@ export class ConstructRuntime {
 
   cargoOf(id: string): string[] {
     const c = this.list.get(id);
-    return c ? c.insts.map((i) => i.cargo?.entityId).filter((x): x is string => !!x) : [];
+    // held creatures / objects, and held lanterns (their player ids)
+    return c ? c.insts.map((i) => i.cargo?.entityId ?? i.cargoPlayer?.playerId).filter((x): x is string => !!x) : [];
   }
 
   // ------------------------------------------------------------------ contacts
@@ -1250,6 +1577,11 @@ export class ConstructRuntime {
     if (!id) return 'clip';
     const c = this.list.get(id);
     if (!c) return 'clip';
+    return this.as(c.owner, () => this.touchAs(c, collider, n, P));
+  }
+
+  private touchAs(c: Construct, collider: RCollider, n: Vector3, P: Player): 'clip' | 'ignore' | 'handled' {
+    const id = c.id;
     // climbable constructs (ladders, nets, rungs): pushing into them climbs
     if (c.spec.parts.some((p) => p.role === 'rung' || p.role === 'climb') && n.y < 0.5 && P.wishDir.lengthSq() > 0.1 && P.wishDir.dot(n) < -0.3) {
       P.vel.y = Math.max(P.vel.y, 7);
@@ -1267,9 +1599,11 @@ export class ConstructRuntime {
         case 'arc': dir = new Vector3(0, 0, 1).applyQuaternion(inst.quat).setY(0).normalize().add(new Vector3(0, 1, 0)).normalize(); break;
         default: dir = n.y > 0.3 ? n.clone() : up;
       }
+      // someone else's launcher flings you: slamming into a wall afterwards hurts (credited to it)
+      if (P.id !== c.owner) { P.flungBy = id; P.flungUntil = this.w.time + 2.5; }
       if (launch.target) {
         const tp = this.refPos(launch.target);
-        if (tp) { this.launchPlayerTo(tp, launch.speed, launch.clearY); this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()) }); return 'handled'; }
+        if (tp) { this.launchPlayerTo(tp, launch.speed, launch.clearY, P); this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()), player: P.id }); return 'handled'; }
       }
       const into = -P.vel.dot(dir);
       // trampolines give back more when you come in fast (skill: height stacking), pads add a fixed kick
@@ -1279,15 +1613,14 @@ export class ConstructRuntime {
       P.onGround = false;
       P.stats.lastLaunchSpeed = P.vel.length();
       P.launchGrace = MOVE.launchGrace;
-      this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()) });
+      this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()), player: P.id });
       return 'handled';
     }
     return 'clip';
   }
 
-  /** Ballistic launch of the player toward a point (used by launchers aimed at a destination). */
-  launchPlayerTo(tpIn: Vector3, speedHint: number, clearY?: number) {
-    const P = this.w.player;
+  /** Ballistic launch of a player (default: the acting one) toward a point (launchers aimed at a destination). */
+  launchPlayerTo(tpIn: Vector3, speedHint: number, clearY?: number, P: Player = this.actor) {
     const g = -this.w.pw.gravity.y;
     // aim a few metres past the point so we land ON the ledge/roof instead of clipping its edge
     const flat = tpIn.clone().sub(P.pos).setY(0);
@@ -1345,11 +1678,14 @@ export class ConstructRuntime {
     if (!c) return 'absorb';
     if (has(c.spec, 'reflect') || has(c.spec, 'conveyor') && c.spec.parts.some((x) => x.shape === 'torus')) {
       const src = p.from ? this.w.entities.get(p.from) : null;
+      // a mirror sends a lantern's shot back at the lantern who fired it
+      const shooter = !src && p.ownerPlayer && p.ownerPlayer !== c.owner ? this.w.playerById(p.ownerPlayer) : null;
       const t = p.body.translation();
       const pos = new Vector3(t.x, t.y, t.z);
       const v = p.body.linvel();
       const speed = Math.max(30, Math.hypot(v.x, v.y, v.z) * 1.25);
-      const dir = src ? this.w.entityPos(src).add(new Vector3(0, 1.2, 0)).sub(pos).normalize() : new Vector3(-v.x, -v.y, -v.z).normalize();
+      const dir = src ? this.w.entityPos(src).add(new Vector3(0, 1.2, 0)).sub(pos).normalize()
+        : shooter?.alive ? shooter.pos.clone().sub(pos).normalize() : new Vector3(-v.x, -v.y, -v.z).normalize();
       p.body.setLinvel(dir.multiplyScalar(speed), true);
       p.born = this.w.time;
       return 'reflect';
@@ -1361,21 +1697,32 @@ export class ConstructRuntime {
 
   noteImpact(id: string, entityId: string, dv: number) { const c = this.list.get(id); if (c) { c.impacts++; this.w.emit('construct_hit', { construct: id, entity: entityId, dv: Math.round(dv) }); } }
 
-  private enforceBudget() {
+  /** Construct budget, per lantern (48 bodies / 24 constructs each): the oldest of THEIR constructs dissolve. */
+  private enforceBudget(owner: string) {
+    const mine = [...this.list.values()].filter((c) => c.owner === owner);
     let total = 0;
-    for (const c of this.list.values()) total += c.insts.length;
-    const order = [...this.list.values()].sort((a, b) => a.born - b.born);
+    for (const c of mine) total += c.insts.length;
+    const order = mine.sort((a, b) => a.born - b.born);
     while (total > 48 && order.length > 1) {
       const c = order.shift()!;
       total -= c.insts.length;
       this.dismiss(c.id, 'budget');
     }
-    if (this.list.size > 24) {
-      const c = [...this.list.values()].sort((a, b) => a.born - b.born)[0];
+    const left = [...this.list.values()].filter((c) => c.owner === owner);
+    if (left.length > 24) {
+      const c = left.sort((a, b) => a.born - b.born)[0];
       this.dismiss(c.id, 'budget');
     }
   }
 }
+
+/** Distance from a moving point (segment a→b) to a lantern's capsule (its axis ±0.5 m about the centre). */
+function capsuleSegDist(a: Vector3, b: Vector3, center: Vector3): number {
+  let best = Infinity;
+  for (const dy of [-0.5, 0, 0.5]) { _cp.set(center.x, center.y + dy, center.z); best = Math.min(best, segPointDist(a, b, _cp)); }
+  return best;
+}
+const _cp = new Vector3(), _bh = new Vector3(), _bh2 = new Vector3(), _bh3 = new Vector3();
 
 /** Structural health from the willpower spent (a tank ≈ 200, a wall ≈ 80). */
 export function constructHp(cost: number): number { return Math.round(40 + cost * 6); }

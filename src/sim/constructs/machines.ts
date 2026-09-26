@@ -12,6 +12,7 @@
 import { Vector3, Quaternion } from 'three';
 import { G, groups, type RBody } from '../physics.js';
 import type { World, Entity, Projectile, Owner } from '../world.js';
+import type { Player } from '../player.js';
 import type { ConstructRuntime, Construct, Inst } from './runtime.js';
 import type { Behavior, Ref } from './spec.js';
 import { partTransform, specExtent } from './geom.js';
@@ -31,8 +32,8 @@ const GRAV = 22;
 const QF = groups(G.CONSTRUCT, G.WORLD | G.CONSTRUCT);
 /** line of sight blockers */
 const LOSF = groups(G.CONSTRUCT, G.WORLD);
-/** what beams hit */
-const BEAMF = groups(G.CONSTRUCT, G.WORLD | G.CONSTRUCT | G.ENTITY | G.CARGO);
+/** what beams hit (plus every lantern but the owner: see beamFilter) */
+const BEAM_BASE = G.WORLD | G.CONSTRUCT | G.ENTITY | G.CARGO;
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const wrap = (a: number) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
@@ -50,8 +51,11 @@ function rngFrom(seedStr: string, k: number) {
 
 interface Muzzle { joint: number; local: Vector3; group: string | null }
 
-/** Something a machine can fight. (PvP: add { kind: 'player'; id } here and in tPos/tVel/tRadius/dealDamage.) */
-export type TargetRef = { kind: 'entity' | 'construct'; id: string };
+/** Something a machine can fight: a creature / object, another owner's construct, or another lantern. */
+export type TargetRef = { kind: 'entity' | 'construct' | 'player'; id: string };
+
+/** Radius machines use for a lantern (capsule). */
+const PLAYER_R = 0.55;
 
 export interface MachineDef {
   drive: Drive | null;
@@ -118,9 +122,8 @@ const UP = new Vector3(0, 1, 0), X = new Vector3(1, 0, 0), Z = new Vector3(0, 0,
 const IDENT = { x: 0, y: 0, z: 0, w: 1 };
 
 export class MachineSystem {
-  private prevUse = false;
   private aimTick = -1;
-  private aimCache = new Vector3();
+  private aimCache = new Map<string, Vector3>();
   private hostileTick = -1;
   private enemyCache = new Map<string, TargetRef[]>();
   private ray: any = null;
@@ -201,7 +204,7 @@ export class MachineSystem {
       front: new Vector3(ext.center.x, ext.center.y, ext.max.z),
       aimSpeed: ranged.length ? shotSpeed(ranged[0]) : Infinity,
     };
-    const P = this.w.player;
+    const P = this.riderOf(c);
     c.insts.forEach((inst, k) => {
       const fwd = _v.set(0, 0, 1).applyQuaternion(inst.quat);
       const js = joints.length ? newJointState(joints) : null;
@@ -214,18 +217,27 @@ export class MachineSystem {
         goal: brain?.goal ?? 'none', target: null, aimPoint: null, aimErr: 180, jointErr: new Float64Array(joints.length).fill(180),
         home: inst.pos.clone(), wp: null, wait: 0, rng: rngFrom(c.id, k), patrol: [], pi: 0, fetch: null,
         stuck: 0, detour: 0, detourSign: k % 2 ? -1 : 1, progT: 0, progWant: 0, progPos: inst.pos.clone(), climbBoost: 0,
-        rider: !!(P.riding && P.riding.id === c.id && k === 0), riderAimAt: -Infinity, holdFire: false, shots: prev?.shots ?? 0, hits: prev?.hits ?? 0,
+        rider: !!(P && k === 0), riderAimAt: -Infinity, holdFire: false, shots: prev?.shots ?? 0, hits: prev?.hits ?? 0,
       };
       inst.m = m;
       inst.jointPose = js?.poses;
       inst.colJoint = (inst.colPart ?? []).map((pi) => (pi >= 0 ? partJoint[pi] ?? -1 : -1));
       this.resetBrain(c, inst, m);
     });
-    if (P.riding?.id === c.id) {
-      if (!ride || !c.insts[0]) this.dismount();
+    if (P?.riding) {
+      if (!ride || !c.insts[0]) this.dismount(P);
       else P.riding.body = c.insts[0].body;
     }
   }
+
+  /** The lantern riding this construct, if any. */
+  riderOf(c: Construct): Player | null {
+    for (const p of this.w.players) if (p.riding?.id === c.id) return p;
+    return null;
+  }
+
+  /** Who steers / aims a construct right now: its rider, else its owner. */
+  private controllerOf(c: Construct): Player { return this.riderOf(c) ?? this.w.playerById(c.owner) ?? this.w.player; }
 
   private resetBrain(c: Construct, inst: Inst, m: MachineState) {
     const b = c.mach?.brain;
@@ -249,13 +261,14 @@ export class MachineSystem {
 
   /** Start of the construct pre-step: get in/out, homing shots. */
   preStep(_dt: number) {
-    const inp = this.w.input;
-    const use = !!inp.use;
-    if (use && !this.prevUse) {
-      if (this.w.player.riding) this.dismount();
-      else { const c = this.nearestRideable(6); if (c) this.ride(c.id); }
+    for (const P of this.w.players) {
+      const use = !!P.input.use && P.alive;
+      if (use && !P.prevUse) {
+        if (P.riding) this.dismount(P);
+        else { const c = this.nearestRideable(6, P); if (c) this.ride(c.id, P); }
+      }
+      P.prevUse = use;
     }
-    this.prevUse = use;
     for (const [pid, h] of this.missiles) {
       const p = this.w.projectiles.get(pid);
       if (!p) { this.missiles.delete(pid); continue; }
@@ -275,12 +288,13 @@ export class MachineSystem {
     const def = c.mach!;
     const m = inst.m!;
     const d = def.drive!;
-    const ridden = m.rider && this.w.player.riding?.id === c.id;
+    const rider = m.rider ? this.riderOf(c) : null;
+    const ridden = !!rider;
     if (ridden) c.expires = Math.max(c.expires, this.w.time + 10);
     let nav: Nav | null = null;
     if (!ridden) nav = this.think(c, inst, m, dt);
-    else if (!this.riderAiming(m) && def.brain) this.acquire(c, inst, m);
-    const ctl = ridden ? this.riderControl(c, inst, m) : this.navControl(c, inst, m, nav!, dt);
+    else if (!this.riderAiming(m, rider!) && def.brain) this.acquire(c, inst, m);
+    const ctl = ridden ? this.riderControl(c, inst, m, rider!) : this.navControl(c, inst, m, nav!, dt);
     const p0 = _v3.copy(inst.pos);
     const px = p0.x, py = p0.y, pz = p0.z;
     if (d.mode === 'air') this.stepAir(c, inst, m, ctl, dt, ridden);
@@ -309,17 +323,20 @@ export class MachineSystem {
     const def = c.mach!;
     const m = inst.m;
     if (!m) return;
-    const ridden = m.rider && this.w.player.riding?.id === c.id;
-    const riderAiming = ridden && this.riderAiming(m);
+    const rider = m.rider ? this.riderOf(c) : null;
+    const ridden = !!rider;
+    const riderAiming = ridden && this.riderAiming(m, rider!);
     if (!def.drive && !ridden && def.brain) this.think(c, inst, m, dt); // stationary brains still pick targets
     else if (!def.drive && ridden && !riderAiming && def.brain) this.acquire(c, inst, m);
-    // what aim joints track: the rider's crosshair while they aim, else the brain's target, else the crosshair
+    // what aim joints track: the rider's crosshair while they aim, else the brain's target, else the owner's crosshair
+    const ctlr = rider ?? this.controllerOf(c);
+    const needAim = riderAiming || ridden || def.joints.some((j) => j.aim);
     let aimP: Vector3 | null = null;
-    if (riderAiming) aimP = this.playerAim();
+    if (riderAiming) aimP = this.playerAim(ctlr);
     else if (m.target) aimP = this.lead(inst, m.target, def.aimSpeed);
-    else if (ridden) aimP = this.playerAim();
-    if (!aimP && !def.brain && !ridden && def.joints.some((j) => j.aim)) aimP = this.playerAim();
-    if (!aimP && def.brain && m.goal === 'follow' && def.joints.some((j) => j.aim)) aimP = this.playerAim();
+    else if (ridden) aimP = this.playerAim(ctlr);
+    if (needAim && !aimP && !def.brain && !ridden && def.joints.some((j) => j.aim)) aimP = this.playerAim(ctlr);
+    if (needAim && !aimP && def.brain && m.goal === 'follow' && def.joints.some((j) => j.aim)) aimP = this.playerAim(ctlr);
     m.aimPoint = aimP ? (m.aimPoint ?? new Vector3()).copy(aimP) : null;
     if (m.js) {
       const t = this.w.time - c.born;
@@ -347,18 +364,19 @@ export class MachineSystem {
       m.aimErr = best;
       if (MACHINE_OPTS.syncColliders) this.syncColliders(inst, m.js, def);
     }
-    if (def.weapons.length) this.weaponsStep(c, inst, m, dt, ridden);
+    if (def.weapons.length) this.weaponsStep(c, inst, m, dt, rider);
   }
 
-  /** After all constructs moved: put the rider on the seat. */
+  /** After all constructs moved: put every rider on their seat. */
   postMove() {
-    const P = this.w.player;
-    if (!P.riding) return;
-    const c = this.rt.get(P.riding.id);
-    const inst = c?.insts[0];
-    if (!c || !inst || !inst.alive || !c.mach?.seat) { P.riding = null; P.vel.set(0, 0, 0); return; }
-    P.pos.copy(c.mach.seat).applyQuaternion(inst.quat).add(inst.pos);
-    P.vel.copy(inst.m?.vel ?? _v.set(0, 0, 0));
+    for (const P of this.w.players) {
+      if (!P.riding) continue;
+      const c = this.rt.get(P.riding.id);
+      const inst = c?.insts[0];
+      if (!c || !inst || !inst.alive || !c.mach?.seat) { P.riding = null; P.vel.set(0, 0, 0); continue; }
+      P.pos.copy(c.mach.seat).applyQuaternion(inst.quat).add(inst.pos);
+      P.vel.copy(inst.m?.vel ?? _v.set(0, 0, 0));
+    }
   }
 
   private syncColliders(inst: Inst, js: JointState, def: MachineDef) {
@@ -381,8 +399,8 @@ export class MachineSystem {
   // ------------------------------------------------------------------ aiming
 
   /** Is the rider aiming right now (fired within the last 1.5 s)? */
-  private riderAiming(m: MachineState): boolean {
-    const inp = this.w.input;
+  private riderAiming(m: MachineState, rider: Player): boolean {
+    const inp = rider.input;
     if (inp.hookL || inp.hookR) m.riderAimAt = this.w.time;
     return this.w.time - m.riderAimAt < 1.5;
   }
@@ -396,9 +414,12 @@ export class MachineSystem {
     m.target = this.resolveTarget(c, b.target, inst.pos) ?? (b.goal === 'idle' ? null : this.nearestEnemy(c, inst.pos, range));
   }
 
-  private playerAim(): Vector3 {
-    if (this.aimTick !== this.w.tick) { this.aimCache.copy(this.w.player.aim(250).point); this.aimTick = this.w.tick; }
-    return this.aimCache;
+  /** A lantern's crosshair point (cached per player per tick: aim rays are the expensive part). */
+  private playerAim(P: Player): Vector3 {
+    if (this.aimTick !== this.w.tick) { this.aimCache.clear(); this.aimTick = this.w.tick; }
+    let v = this.aimCache.get(P.id);
+    if (!v) { v = P.aim(250).point.clone(); this.aimCache.set(P.id, v); }
+    return v;
   }
 
   /** Where to aim at a target: predictive intercept for a shot of the given speed (Infinity = where it is now). */
@@ -436,6 +457,8 @@ export class MachineSystem {
     let list = this.enemyCache.get(owner);
     if (!list) {
       list = [];
+      // other lanterns first (in a duel they are what matters), then hostile creatures, then others' constructs
+      for (const p of this.w.players) if (p.id !== owner && p.alive && !p.isProtected) list.push({ kind: 'player', id: p.id });
       for (const e of this.w.entities.values()) if (e.hostile && !e.disabled && !e.heldBy) list.push({ kind: 'entity', id: e.id });
       for (const c of this.rt.list.values()) if (c.owner !== owner && c.insts[0]?.alive) list.push({ kind: 'construct', id: c.id });
       this.enemyCache.set(owner, list);
@@ -445,6 +468,7 @@ export class MachineSystem {
 
   tPos(t: TargetRef, out = new Vector3()): Vector3 | null {
     if (t.kind === 'entity') { const e = this.w.entities.get(t.id); return e && !e.disabled ? this.w.entityPos(e, out) : null; }
+    if (t.kind === 'player') { const p = this.w.playerById(t.id); return p && p.alive ? out.copy(p.pos) : null; }
     const c = this.rt.get(t.id);
     const i = c?.insts[0];
     return c && i?.alive ? out.copy(c.extent.center).applyQuaternion(i.quat).add(i.pos) : null;
@@ -452,18 +476,21 @@ export class MachineSystem {
 
   private tVel(t: TargetRef, out = new Vector3()): Vector3 {
     if (t.kind === 'entity') { const e = this.w.entities.get(t.id); return e ? this.w.entityVel(e, out) : out.set(0, 0, 0); }
+    if (t.kind === 'player') { const p = this.w.playerById(t.id); return p ? out.copy(p.vel) : out.set(0, 0, 0); }
     const i = this.rt.get(t.id)?.insts[0];
     return i ? out.copy(i.vel) : out.set(0, 0, 0);
   }
 
   private tRadius(t: TargetRef): number {
     if (t.kind === 'entity') return this.w.entities.get(t.id)?.radius ?? 0.5;
+    if (t.kind === 'player') return PLAYER_R;
     const c = this.rt.get(t.id);
     return c ? Math.max(0.5, c.radius * 0.6) : 0.5;
   }
 
   private tBody(t: TargetRef): RBody | null {
     if (t.kind === 'entity') return this.w.entities.get(t.id)?.body ?? null;
+    if (t.kind === 'player') return this.w.playerById(t.id)?.body ?? null;
     return this.rt.get(t.id)?.insts[0]?.body ?? null;
   }
 
@@ -489,8 +516,9 @@ export class MachineSystem {
 
   /**
    * THE target resolver: turns an order's Ref into something to fight ("attack that drone", "smash his wall",
-   * "get him"). Never resolves to our own owner or the owner's stuff. PvP: 'player' / 'opponent' resolve to
-   * lanterns here once World has several players; until then 'opponent' means the nearest hostile.
+   * "get him"). Never resolves to our own owner or the owner's stuff. 'player' / 'opponent' resolve to the
+   * other lantern (the nearest living opponent of the construct's owner); with nobody else in the world
+   * 'opponent' falls back to the nearest hostile.
    */
   resolveTarget(c: Construct, ref: Ref | undefined, from?: Vector3): TargetRef | null {
     if (!ref) return null;
@@ -499,8 +527,13 @@ export class MachineSystem {
       case 'entity': { const e = this.w.entities.get(ref.id); return e && !e.disabled ? { kind: 'entity', id: e.id } : null; }
       case 'entities': { for (const id of ref.ids) { const e = this.w.entities.get(id); if (e && !e.disabled) return { kind: 'entity', id }; } return null; }
       case 'construct': { const o = this.rt.get(ref.id); return o && o.id !== c.id && o.owner !== c.owner ? { kind: 'construct', id: o.id } : null; }
-      case 'opponent': case 'nearest_enemy': case 'all_enemies': case 'threat': return this.nearestEnemy(c, at, 1e9);
-      case 'player': return null; // single player: the only lantern is our owner
+      case 'player': { const p = this.w.playerById(ref.id); return p && p.alive && p.id !== c.owner ? { kind: 'player', id: p.id } : null; }
+      case 'opponent': {
+        const o = this.w.opponentOf(c.owner);
+        if (o) return { kind: 'player', id: o.id };
+        return this.w.players.length > 1 ? null : this.nearestEnemy(c, at, 1e9);
+      }
+      case 'nearest_enemy': case 'all_enemies': case 'threat': return this.nearestEnemy(c, at, 1e9);
       default: return null;
     }
   }
@@ -520,6 +553,10 @@ export class MachineSystem {
         e.body.applyImpulse(_v3.copy(dir).setY(Math.max(0.15, dir.y)).normalize().multiplyScalar(k * e.body.mass()), true);
         if (e.type === 'drone') e.stunnedUntil = Math.max(e.stunnedUntil, this.w.time + 0.4);
       }
+    } else if (t.kind === 'player') {
+      const p = this.w.playerById(t.id);
+      if (!p || p.id === src.owner) return;
+      this.w.damagePlayer(p, amount, cause, src.id, { dir, knock: knock > 0 ? knock : 0.3 });
     } else {
       const o = this.rt.get(t.id);
       if (!o || o.owner === src.owner) return;
@@ -533,7 +570,7 @@ export class MachineSystem {
   private think(c: Construct, inst: Inst, m: MachineState, dt: number): Nav {
     const def = c.mach!;
     const b = def.brain;
-    const P = this.w.player;
+    const P = this.w.playerById(c.owner) ?? this.w.player;
     const pos = inst.pos;
     const nav: Nav = { point: null, speed: 1, arrive: 1, face: null, alt: null, jump: false };
     if (m.detour > 0) m.detour -= dt;
@@ -693,7 +730,7 @@ export class MachineSystem {
   }
 
   private fetchStep(c: Construct, inst: Inst, m: MachineState, nav: Nav, _range: number): Nav {
-    const P = this.w.player;
+    const P = this.w.playerById(c.owner) ?? this.w.player;
     const b = c.mach!.brain!;
     if (!m.fetch) {
       const r = this.resolveTarget(c, b.target);
@@ -741,11 +778,10 @@ export class MachineSystem {
 
   // ------------------------------------------------------------------ control
 
-  private riderControl(c: Construct, inst: Inst, m: MachineState): Control {
+  private riderControl(c: Construct, inst: Inst, m: MachineState, P: Player): Control {
     const def = c.mach!;
     const d = def.drive!;
-    const inp = this.w.input;
-    const P = this.w.player;
+    const inp = P.input;
     const ctl: Control = { throttle: 0, yawRate: 0, heading: null, hvel: new Vector3(), alt: null, climb: 0, jump: !!inp.jump, boost: !!inp.boost, land: false };
     const turn = d.turn * D2R;
     if (d.mode === 'air') {
@@ -1083,10 +1119,11 @@ export class MachineSystem {
     if (this.rams.size > 256) for (const [k, until] of this.rams) if (until < this.w.time) this.rams.delete(k);
   }
 
-  private weaponsStep(c: Construct, inst: Inst, m: MachineState, dt: number, ridden: boolean) {
+  private weaponsStep(c: Construct, inst: Inst, m: MachineState, dt: number, rider: Player | null) {
     const def = c.mach!;
-    const inp = this.w.input;
-    const wantFire = ridden && (inp.hookL || inp.hookR);
+    const ridden = !!rider;
+    const inp = rider?.input;
+    const wantFire = ridden && !!(inp!.hookL || inp!.hookR);
     const riderAiming = ridden && this.w.time - m.riderAimAt < 1.5;
     const tgt = !riderAiming && !m.holdFire && m.target && this.tPos(m.target, _v) ? m.target : null;
     for (let wi = 0; wi < def.weapons.length; wi++) {
@@ -1096,7 +1133,7 @@ export class MachineSystem {
       let aimAt: Vector3 | null = null;
       if (riderAiming) {
         if (!wantFire) continue;
-        aimAt = this.playerAim().clone();
+        aimAt = this.playerAim(rider!).clone();
       } else {
         if (!tgt) continue;
         aimAt = wp.kind === 'melee' ? this.tPos(tgt, new Vector3()) : this.lead(inst, tgt, shotSpeed(wp));
@@ -1194,11 +1231,12 @@ export class MachineSystem {
       }
       case 'laser': {
         const R = this.w.R;
-        const hit = this.w.pw.castRay(new R.Ray(muzzle, dir), wp.range, true, undefined, BEAMF, undefined, inst.body);
+        const hit = this.w.pw.castRay(new R.Ray(muzzle, dir), wp.range, true, undefined, groups(G.PROJECTILE, BEAM_BASE | this.w.playerMask(c.owner)), undefined, inst.body);
         const end = muzzle.clone().addScaledVector(dir, hit ? hit.timeOfImpact : wp.range);
         const own = hit ? this.w.owners.get(hit.collider.handle) : null;
         if (own?.kind === 'entity') this.dealDamage(c, { kind: 'entity', id: own.id }, wp.damage, 'laser', dir, 1);
         else if (own?.kind === 'construct') this.dealDamage(c, { kind: 'construct', id: own.id }, wp.damage, 'laser');
+        else if (own?.kind === 'player') this.dealDamage(c, { kind: 'player', id: own.id }, wp.damage, 'laser', dir, 0.4);
         this.w.emit('machine_beam', { construct: c.id, kind: 'laser', from: muzzle.toArray(), to: end.toArray(), dur: Math.min(0.25, 0.6 / wp.rate) });
         break;
       }
@@ -1226,6 +1264,7 @@ export class MachineSystem {
           // ridden: strike whatever is right in front (anything that isn't ours)
           for (const e of this.w.entities.values()) if (!e.disabled && !e.heldBy) hitList.push({ kind: 'entity', id: e.id });
           for (const o of this.rt.list.values()) if (o.owner !== c.owner) hitList.push({ kind: 'construct', id: o.id });
+          for (const p of this.w.players) if (p.id !== c.owner && p.alive) hitList.push({ kind: 'player', id: p.id });
         }
         for (const t of hitList) {
           const tp = this.tPos(t, new Vector3());
@@ -1247,11 +1286,27 @@ export class MachineSystem {
     const ownerPlayer = p.ownerPlayer ?? src?.owner ?? null;
     let direct: TargetRef | null = null;
     if (other.kind === 'construct' && (other.id === p.owner || this.rt.get(other.id)?.owner === ownerPlayer)) { this.w.removeProjectile(p); return; }
+    if (other.kind === 'player' && other.id === ownerPlayer) { this.w.removeProjectile(p); return; }
     const v = p.body.linvel();
     const dir = new Vector3(v.x, v.y, v.z).normalize();
-    if (other.kind === 'entity' || other.kind === 'construct') {
+    if (other.kind === 'construct') {
+      // another lantern's construct stops the shot ('blocked'); a mirror / reflector sends it back
+      const blocker = this.rt.get(other.id);
+      const res = blocker ? this.rt.onProjectile(other.id, p) : 'absorb';
+      this.w.emit('blocked', { construct: other.id, reflected: res === 'reflect', from: p.owner, owner: blocker?.owner ?? null });
+      if (res === 'reflect' && blocker) {
+        this.w.stats.projectilesBlocked++;
+        this.w.stats.projectilesReflected++;
+        p.reflected = true;
+        this.missiles.delete(p.id);
+        this.w.reownProjectile(p, blocker.id, blocker.owner);
+        return;
+      }
+    }
+    if (other.kind === 'entity' || other.kind === 'construct' || other.kind === 'player') {
       direct = { kind: other.kind, id: other.id };
-      if (src) this.dealDamage(src, direct, p.damage, p.kind ?? 'shot', dir, other.kind === 'entity' ? Math.min(1, 0.3 + p.damage * 0.02) : 0);
+      if (src) this.dealDamage(src, direct, p.damage, p.kind ?? 'shot', dir, other.kind === 'construct' ? 0 : other.kind === 'player' ? Math.min(1.2, 0.35 + p.damage * 0.02) : Math.min(1, 0.3 + p.damage * 0.02));
+      else if (other.kind === 'player') { const pl = this.w.playerById(other.id); if (pl) this.w.damagePlayer(pl, p.damage, p.kind ?? 'shot', p.owner ?? null, { dir, knock: 0.5 }); }
       else if (other.kind === 'entity') { const e = this.w.entities.get(other.id); if (e) this.w.damageEntity(e, p.damage, p.kind ?? 'shot', p.owner ?? null); }
       if (p.kind === 'net' && other.kind === 'entity') {
         const e = this.w.entities.get(other.id);
@@ -1278,11 +1333,10 @@ export class MachineSystem {
 
   // ------------------------------------------------------------------ riding
 
-  nearestRideable(maxDist = 6): Construct | null {
-    const P = this.w.player;
+  nearestRideable(maxDist = 6, P: Player = this.w.player): Construct | null {
     let best: Construct | null = null, bd = Infinity;
     for (const c of this.rt.list.values()) {
-      if (!c.mach?.ride || !c.insts[0]?.alive) continue;
+      if (!c.mach?.ride || !c.insts[0]?.alive || c.owner !== P.id || this.riderOf(c)) continue;
       const i = c.insts[0];
       const d = Math.max(0, P.pos.distanceTo(i.pos) - c.radius * 0.6);
       if (d <= maxDist && d < bd) { bd = d; best = c; }
@@ -1290,13 +1344,15 @@ export class MachineSystem {
     return best;
   }
 
-  /** Put the player in/on a rideable construct. */
-  ride(id: string): boolean {
+  /** Put a player (default: the construct's owner) in/on a rideable construct. */
+  ride(id: string, P: Player | null = null): boolean {
     const c = this.rt.get(id);
-    const P = this.w.player;
+    P ??= (c && this.w.playerById(c.owner)) || this.w.player;
     const inst = c?.insts[0];
-    if (!c || !c.mach?.ride || !inst?.alive || !inst.m) return false;
-    if (P.riding && P.riding.id !== id) this.dismount();
+    if (!c || !c.mach?.ride || !inst?.alive || !inst.m || !P.alive || P.heldBy) return false;
+    const other = this.riderOf(c);
+    if (other && other !== P) return false;
+    if (P.riding && P.riding.id !== id) this.dismount(P);
     P.riding = { id, body: inst.body, camBack: clamp(c.radius * 0.9, 1.2, 12), camUp: clamp(c.extent.size.y * 0.3, 0.3, 4) };
     P.flying = false;
     P.releaseTether('L');
@@ -1305,15 +1361,14 @@ export class MachineSystem {
     inst.m.rider = true;
     inst.m.altY = null;
     if (inst.cargo) { this.rt.releaseEntity(inst.cargo.entityId, new Vector3()); inst.cargo = null; }
-    this.rt.focusId = id;
+    this.rt.setFocus(P.id, id);
     if (c.mach.seat) P.pos.copy(c.mach.seat).applyQuaternion(inst.quat).add(inst.pos);
-    this.w.emit('ride', { id, label: c.spec.label });
+    this.w.emit('ride', { id, label: c.spec.label, player: P.id });
     return true;
   }
 
-  /** Get out; the player lands beside the machine. */
-  dismount(): boolean {
-    const P = this.w.player;
+  /** Get out; the player (default: the local one) lands beside the machine. */
+  dismount(P: Player = this.w.player): boolean {
     if (!P.riding) return false;
     const id = P.riding.id;
     const c = this.rt.get(id);
@@ -1333,13 +1388,14 @@ export class MachineSystem {
       }
       P.teleport(spot ?? P.pos.clone().add(new Vector3(0, 1.5, 0)), (inst.m?.vel ?? new Vector3()).clone().multiplyScalar(0.5));
     } else P.vel.set(0, 0, 0);
-    this.w.emit('dismount', { id });
+    this.w.emit('dismount', { id, player: P.id });
     return true;
   }
 
   /** Called when a construct is removed. */
   onDismiss(c: Construct) {
-    if (this.w.player.riding?.id === c.id) this.dismount();
+    const r = this.riderOf(c);
+    if (r) this.dismount(r);
   }
 
   // ------------------------------------------------------------------ orders (language layer API)
@@ -1353,6 +1409,10 @@ export class MachineSystem {
   command(id: string, order: { goal: BrainGoal; target?: Ref; range?: number }): boolean {
     const c = this.rt.get(id);
     if (!c) return false;
+    return this.rt.as(c.owner, () => this.commandAs(c, id, order));
+  }
+
+  private commandAs(c: Construct, id: string, order: { goal: BrainGoal; target?: Ref; range?: number }): boolean {
     const note = (_: string) => {};
     const b = clampMachineBehavior({ type: 'brain', goal: order.goal, target: order.target ?? (order.goal === 'follow' ? { kind: 'self' } : order.goal === 'hunt' ? { kind: 'nearest_enemy' } : undefined), range: order.range } as Brain, note) as Brain | null;
     if (!b) return false;

@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import { MOVE, type MoveTuning } from './tuning.js';
-import { G, groups, PLAYER_MOVE_FILTER, type Rapier, type RBody, type RCollider } from './physics.js';
+import { G, groups, playerBit, PLAYER_MOVE_FILTER, type Rapier, type RBody, type RCollider } from './physics.js';
+import { LIMITS } from './constructs/validate.js';
 import type { World } from './world.js';
 
 export interface PlayerInput {
@@ -63,7 +64,41 @@ const tmp = new Vector3();
 const tmp2 = new Vector3();
 const UP = new Vector3(0, 1, 0);
 
+/** Aim ray filter: everything solid a crosshair can rest on, including other lanterns. */
+const AIM_FILTER = groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY | G.CARGO | G.PLAYER);
+
 export class Player {
+  /** Player id ('p1' = the local lantern by default, 'p2' …). Constructs record it as their owner. */
+  readonly id: string;
+  /** Index in world.players (decides the collision membership bit). */
+  readonly index: number;
+  /** This player's own collision membership bit (see physics.ts PLAYER_BITS). */
+  readonly bit: number;
+  /** Display name (HUD / kill feed). */
+  name: string;
+  /** The input applied on the last tick (world.step sets the local one; bots / the netcode set the others). */
+  input: PlayerInput = NO_INPUT;
+  /** Willpower: this lantern's construct energy pool (runtime.energyOf(id)). */
+  energy: number = LIMITS.energyMax;
+  maxHp = 100;
+  /** false while dead (between death and respawn) */
+  alive = true;
+  /** world time of death / of the scheduled respawn (Infinity = none scheduled) */
+  diedAt = -Infinity;
+  respawnAt = Infinity;
+  /** spawn shield: no damage until this world time */
+  protectedUntil = -Infinity;
+  /** last time this player took damage + where it came from (renderer red flash, HUD) */
+  hurtAt = -Infinity;
+  hurtDir = new Vector3();
+  /** construct holding / restraining this player (a grab, a cage); position is driven by it */
+  heldBy: string | null = null;
+  heldUntil = 0;
+  /** who is responsible for where we are flying (thrown / launched / knocked back): slamming into a wall hurts */
+  flungBy: string | null = null;
+  flungUntil = 0;
+  /** edge detection for the ride / dismount key (per player) */
+  prevUse = false;
   pos = new Vector3(0, 2, 0);
   vel = new Vector3();
   yaw = 0;
@@ -101,19 +136,31 @@ export class Player {
   /** Riding a construct: the machine runtime moves us with its seat; WASD/mouse/fire drive it. */
   riding: { id: string; body: RBody | null; camBack: number; camUp: number } | null = null;
 
-  constructor(private world: World) {
+  constructor(private world: World, id = 'p1', index = 0) {
+    this.id = id;
+    this.index = index;
+    this.bit = playerBit(index);
+    this.name = id;
     const R = world.R;
     this.body = world.pw.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(this.pos.x, this.pos.y, this.pos.z));
     this.collider = world.pw.createCollider(
       R.ColliderDesc.capsule(MOVE.playerHalfHeight, MOVE.playerRadius)
-        .setCollisionGroups(groups(G.PLAYER, G.PROJECTILE))
+        .setCollisionGroups(this.liveGroups())
         .setActiveCollisionTypes(R.ActiveCollisionTypes.DEFAULT | R.ActiveCollisionTypes.KINEMATIC_FIXED | R.ActiveCollisionTypes.DYNAMIC_KINEMATIC)
         .setActiveEvents(R.ActiveEvents.COLLISION_EVENTS),
       this.body,
     );
     this.shape = new R.Capsule(MOVE.playerHalfHeight, MOVE.playerRadius);
-    world.owners.set(this.collider.handle, { kind: 'player' });
+    world.owners.set(this.collider.handle, { kind: 'player', id });
   }
+
+  /** Collision groups while alive: member of PLAYER + own bit; hit by projectiles; other lanterns body-block. */
+  liveGroups() { return groups(G.PLAYER | this.bit, G.PROJECTILE | G.PLAYER); }
+  /** Dead bodies are touched by nothing (no blocking, no hits, no aim). */
+  setSolid(on: boolean) { this.collider.setCollisionGroups(on ? this.liveGroups() : groups(0, 0)); }
+
+  /** Spawn shield up? */
+  get isProtected() { return this.world.time < this.protectedUntil; }
 
   teleport(p: Vector3, vel?: Vector3) {
     this.pos.copy(p);
@@ -123,9 +170,9 @@ export class Player {
   }
 
   /** Get in/on a rideable construct. */
-  ride(constructId: string): boolean { return this.world.constructs.machines.ride(constructId); }
+  ride(constructId: string): boolean { return this.world.constructs.machines.ride(constructId, this); }
   /** Get out of whatever we're riding. */
-  dismount(): boolean { return this.world.constructs.machines.dismount(); }
+  dismount(): boolean { return this.world.constructs.machines.dismount(this); }
 
   get feet(): Vector3 { return tmp.copy(this.pos).setY(this.pos.y - MOVE.playerHalfHeight - MOVE.playerRadius); }
 
@@ -166,7 +213,7 @@ export class Player {
     const origin = cam.pos.clone().addScaledVector(cam.dir, startOff);
     const hit = this.world.pw.castRayAndGetNormal(
       new R.Ray(origin, cam.dir), maxDist, true, undefined,
-      groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY | G.CARGO), this.collider, this.riding?.body ?? undefined,
+      AIM_FILTER, this.collider, this.riding?.body ?? undefined,
     );
     if (!hit) return { point: origin.addScaledVector(cam.dir, maxDist), collider: null, normal: new Vector3(0, 1, 0) };
     return {
@@ -180,8 +227,28 @@ export class Player {
     const t = this.world.time;
     const T = this.tune;
     this.events.length = 0;
-    this.yaw = input.yaw;
-    this.pitch = input.pitch;
+    this.input = input;
+    if (!this.alive) {
+      // dead: a limp tumble (momentum, gravity, friction, collisions), no control
+      input = NO_INPUT;
+      this.tethers.L = this.tethers.R = null;
+      this.flying = false;
+    } else {
+      this.yaw = input.yaw;
+      this.pitch = input.pitch;
+    }
+    if (this.heldBy) {
+      // a construct has us (grab, cage): it sets our position every tick; wriggling does nothing
+      this.prevJump = input.jump;
+      this.prevHookL = input.hookL;
+      this.prevHookR = input.hookR;
+      this.tethers.L = this.tethers.R = null;
+      this.flying = false;
+      this.onGround = false;
+      this.body.setTranslation(this.pos, true);
+      this.mods = emptyMods();
+      return;
+    }
     if (this.riding) {
       // the machine runtime already put us on the seat this tick; our own movement is off
       this.prevJump = input.jump;
@@ -304,6 +371,7 @@ export class Player {
     if (this.onGround && this.groundVel.lengthSq() > 0) this.slideMove(this.groundVel.clone(), dt, false);
     const wasGround = this.onGround;
     const vy = this.vel.y;
+    const flung = this.flungBy && t < this.flungUntil ? this.vel.clone() : null;
     this.stepSlideMove(dt, wasGround);
     this.enforceTetherLength();
     this.depenetrate();
@@ -314,6 +382,11 @@ export class Player {
       if (vy < -18) this.events.push('land_hard'); else this.events.push('land');
     }
     if (this.onGround) this.lastGroundTime = t;
+    if (flung) {
+      // thrown / launched / knocked into a wall or the floor by someone else's construct: that hurts
+      const dv = flung.sub(this.vel).length();
+      if (dv > 18) { this.world.damagePlayer(this, Math.min(25, (dv - 18) * 1.6), 'impact', this.flungBy); this.flungBy = null; }
+    } else if (this.flungBy && t >= this.flungUntil) this.flungBy = null;
     this.stats.maxSpeed = Math.max(this.stats.maxSpeed, this.vel.length());
     this.body.setTranslation(this.pos, true);
     // reset mods (constructs re-apply each tick)
@@ -414,7 +487,7 @@ export class Player {
             this.groundBody = body;
             this.groundVel.set(bv.x, bv.y, bv.z);
           }
-          const sv = this.world.constructs.surfaceVelocity(hit.collider);
+          const sv = this.world.constructs.surfaceVelocity(hit.collider, this.pos);
           if (sv) this.groundVel.add(sv);
           // snap down
           if (hit.time_of_impact > 0.005) this.pos.y -= hit.time_of_impact;
@@ -479,6 +552,7 @@ export class Player {
         if (res === 'handled') { planes.length = 0; ignore.add(hit.collider.handle); continue; }
         if (res === 'ignore') { ignore.add(hit.collider.handle); continue; }
         if (this.collideDynamic(hit.collider, n)) { ignore.add(hit.collider.handle); continue; }
+        this.shovePlayer(hit.collider, n);
       }
       if (n.y < 0.7) blocked = true;
       planes.push(n);
@@ -513,6 +587,20 @@ export class Player {
     this.world.onPlayerRam(collider, J, s);
     // if we are still moving into it (it was light), keep going and let physics separate us
     return true;
+  }
+
+  /** Running into another lantern: they get shoved (equal masses, a little bounce), we stop against them. */
+  private shovePlayer(collider: RCollider, n: Vector3) {
+    const o = this.world.owners.get(collider.handle);
+    if (o?.kind !== 'player') return;
+    const other = this.world.playerById(o.id);
+    if (!other || other === this || !other.alive) return;
+    const s = -this.vel.clone().sub(other.vel).dot(n);
+    if (s <= 0.5) return;
+    const J = (1.1 * s) / 2;
+    other.vel.addScaledVector(n, -J);
+    if (other.onGround && n.y > -0.3) other.vel.y = Math.max(other.vel.y, Math.min(3, J * 0.15));
+    this.world.emit('player_bump', { a: this.id, b: other.id, speed: Math.round(s) });
   }
 
   private depenetrate() {

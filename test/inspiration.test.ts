@@ -159,6 +159,7 @@ test('real play: dropping a piano on a drone is a creative solution', async () =
 
 test('duel: each player has their own inspiration (one player spamming does not make the other stale)', async () => {
   const { w, info } = await makeWorld('arena');
+  w.addPlayer('p2'); // willpower is per player now: p2 needs a lantern (and so a pool) in the world
   look(w, info.aims.ground_ahead ?? info.aims[Object.keys(info.aims)[0]]);
   const a = new Director(w); a.playerId = 'p1';
   const b = new Director(w); b.playerId = 'p2';
@@ -175,6 +176,7 @@ test('duel: each player has their own inspiration (one player spamming does not 
 
 test('duel: creative solutions reward hurting / taking down the rival, breaking and blocking their constructs', async () => {
   const { w } = await makeWorld('arena');
+  w.addPlayer('p2'); // willpower is per player now: p2 needs a lantern (and so a pool) in the world
   const E = w.inspiration;
   const castAs = (player: string, form: string, label: string, behaviors: ConstructSpec['behaviors'] = []) => {
     E.beginCast([], player);

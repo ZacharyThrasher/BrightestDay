@@ -115,6 +115,7 @@ export function buildScene(w: World, name: SceneName): SceneInfo {
   }
   w.player.teleport(info.spawn);
   w.player.yaw = info.yaw;
+  setupDuelSpawns(w, info);
   w.refreshQueries();
   return info;
 }
@@ -261,6 +262,23 @@ function buildRace(w: World, info: SceneInfo) {
   info.aims.wall = new Vector3(0, 8.6, -200);
 }
 
+/**
+ * Generic duel wiring for any scene that exposes a second spawn (`info.aims.spawn_b`): when the scene did not
+ * set its own respawn list, the two ends become the spawns (facing each other), and any "practice dummy"
+ * standing in for the rival is registered so a real opponent joining removes it.
+ */
+function setupDuelSpawns(w: World, info: SceneInfo) {
+  const b = info.aims.spawn_b;
+  if (!w.spawns.length && b) {
+    const a = info.spawn;
+    w.spawns = [
+      { pos: a.clone(), yaw: Math.atan2(-(b.x - a.x), -(b.z - a.z)) },
+      { pos: b.clone(), yaw: Math.atan2(-(a.x - b.x), -(a.z - b.z)) },
+    ];
+  }
+  for (const e of w.entities.values()) if (/practice dummy/i.test(e.label) && !w.practiceDummies.includes(e.id)) w.practiceDummies.push(e.id);
+}
+
 /** Aim the player at a world point (sets yaw/pitch so the camera crosshair ray passes through it). */
 export function aimAt(w: World, target: Vector3) {
   const P = w.player;
@@ -314,6 +332,10 @@ function buildDuelArena(w: World, info: SceneInfo) {
   info.aims.spawn_b = new Vector3(0, 1, -36);
   info.aims.ground_ahead = new Vector3(0, 0, 24);
   info.aims.wall = new Vector3(0, 11, 4);
-  // practice target where the rival would stand (replaced by a real opponent in matches)
-  w.addEntity('dummy', new Vector3(0, 1.2, -36), { hostile: false, label: 'rival (practice dummy)' });
+  // spawns: the two ends, then two far corners (respawns pick the one farthest from the opponent)
+  const face = (x: number, z: number) => Math.atan2(x, z);
+  w.spawns = [[0, 36], [0, -36], [38, -36], [-38, 36]].map(([x, z]) => ({ pos: new Vector3(x, 1, z), yaw: face(x, z) }));
+  // practice target where the rival would stand (removed when a real opponent joins)
+  const dummy = w.addEntity('dummy', new Vector3(0, 1.2, -36), { hostile: false, label: 'rival (practice dummy)' });
+  w.practiceDummies.push(dummy.id);
 }
