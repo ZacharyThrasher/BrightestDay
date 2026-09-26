@@ -146,6 +146,16 @@ Signature moves were RE-SCOPED to an amplifier over existing mechanics (no Domai
 Owner is actively playtesting the target\playable build and likes it; ideas from play (feel/polish,
 like the gun grip, summon visibility, tether saves) are welcome anytime — the freeze is for new SYSTEMS.
 
+## Integration cleanups to do ONCE after the wave lands (don't let 8 workers fight over them now)
+- Keybind audit (charge, dodge, view toggle, ADS, shoulder swap, hook) — no conflicts; update PLAYING.md.
+- Settings menu reorganisation into tabs (Gameplay / Controls / Video / Audio / Comfort / HUD) — ~8
+  workers each added rows to menu.rs/prefs.rs.
+- bd_core contract + bd_net PROTOCOL_VERSION reconciliation (multiple bumps: v1.4 charge/ADS bits,
+  v1.5 roles, maybe v1.6 mount); CLIENT_INTEGRATION.md contract notes.
+- SFX: docs/SFX_WISHLIST.md is the consolidated cue list (audio worker, one sfxgen pass).
+- Owner "try these" list + fresh build. Lead runs target\promote.ps1 (every 30 min: GREEN -> release
+  build -> startup smoke -> copy to target\playable\<stamp>\, LATEST.txt, promote.log).
+
 ## Queue (do next, in order)
 1. **Weight pass (presentation half)** once client perf is done: DESIGN.md "Weight & power fantasy (pass
    2)" — tiered + asymmetric hit-stop, victim hit-shake, nudge-zoom, finisher flash (comfort-gated),
