@@ -7,3 +7,6 @@ target/
 /assets/lexicon.bin
 *.stackdump
 /dist/
+
+/logs/
+/bench.json
