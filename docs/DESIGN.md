@@ -116,7 +116,7 @@ Cargo workspace in `game/`:
 | `bd_game` | the Bevy 0.19 app (bin `brightest_day`): render, input, camera, VFX/debris, audio, menus, glue | all |
 
 Offline tools (`tools/`): `lexicon_build` (Python: downloads + processes ConceptNet/WordNet/corpora/PokeAPI
-→ `assets/lexicon.bin` + a human-readable `assets/lexicon_preview.json`), `sfxgen` (procedural WAVs).
+→ `assets/lexicon.bin` + a human-readable `assets/lexicon_preview.json`), `sfxgen` (procedural synthesis → OGG in assets/sfx + manifest.ron).
 
 ### Units & constants
 - 1 world unit = 1 m. **Voxel = 0.5 m** for terrain; construct models use 0.25 m voxels.
