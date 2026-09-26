@@ -51,7 +51,7 @@ pub const DEFAULT_PORT: u16 = 27960;
 
 /// Wire protocol version. Bump whenever the session envelope or any game message type changes
 /// incompatibly; mismatching clients are rejected during the handshake with a clear message.
-pub const PROTOCOL_VERSION: u32 = 7; // v7: S2C::Tuning (host combat.ron hot reload -> clients; join uses WorldInit.cfg.tuning); v6: MatchRules.allow_third_person + ADS/DODGE/CHARGE bits; v2: C2S::Shout / S2C::Shout (bd_game shout callouts); v3: oath sections (NetCmd::OathBegin { section }, OathTable); v4: NetCmd::Signature + CombatTuning.signature; v5: OathResult.voice + tuning.willpower.oath_voice_slack
+pub const PROTOCOL_VERSION: u32 = 8; // v8: NetMapKind::Backrooms; v7: S2C::Tuning (host combat.ron hot reload -> clients; join uses WorldInit.cfg.tuning); v6: MatchRules.allow_third_person + ADS/DODGE/CHARGE bits; v2: C2S::Shout / S2C::Shout (bd_game shout callouts); v3: oath sections (NetCmd::OathBegin { section }, OathTable); v4: NetCmd::Signature + CombatTuning.signature; v5: OathResult.voice + tuning.willpower.oath_voice_slack
 
 /// Magic number at the start of the handshake so random HTTP clients are rejected fast.
 pub const PROTOCOL_MAGIC: u32 = 0x4244_4E54; // "BDNT"
