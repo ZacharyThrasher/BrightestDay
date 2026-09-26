@@ -1,0 +1,50 @@
+// Onomatopoeia table for bd_fx (SpawnOnomatopoeia { word: OnoWord::Key(..) }).
+// Each key: English words, manga (katakana) words, optional tint (linear RGB) the word leans toward
+// (material words: water blue, fire orange…), optional size multiplier.
+// The word is picked deterministically from the list by the event id.
+// Supported glyphs: A–Z 0–9 ! ? - ' . and katakana ト ド コ ゴ ハ バ パ ス ズ カ ガ キ ン ッ ー シ ジ サ ザ ホ ボ ポ フ ブ ヒ ビ ピ ク グ.
+(
+    entries: {
+        // ---- materials (terrain hits, debris)
+        "stone":   (en: ["KRAK", "KRUNCH", "KRAKK"], manga: ["バキッ", "ガッ"], tint: Some((0.78, 0.74, 0.70))),
+        "dirt":    (en: ["THUD", "FWUMP"], manga: ["ドッ", "ズン"], tint: Some((0.62, 0.45, 0.28))),
+        "wood":    (en: ["THOCK", "KRAK"], manga: ["バキ", "ガコッ"], tint: Some((0.80, 0.55, 0.30))),
+        "leaves":  (en: ["FWSSH", "SHFF"], manga: ["ザザッ"], tint: Some((0.35, 0.85, 0.30))),
+        "crystal": (en: ["TINNK", "SHINK"], manga: ["キーン", "キン"], tint: Some((0.70, 0.90, 1.00))),
+        "water":   (en: ["SPLOOSH", "SPLASH"], manga: ["ザブン", "バシッ"], tint: Some((0.15, 0.50, 1.00))),
+        "sand":    (en: ["FSSH", "SHHF"], manga: ["ザー"], tint: Some((0.95, 0.82, 0.50))),
+        // ---- mechanics / elements
+        "explosion": (en: ["BOOM", "KA-BOOM", "BLAMM"], manga: ["ドカーン", "ボン"], tint: Some((1.00, 0.55, 0.15)), size: 1.35),
+        "electric":  (en: ["ZZAK", "BZZT"], manga: ["ビビッ", "ジジッ"], tint: Some((0.60, 0.85, 1.00))),
+        "fire":      (en: ["FWOOM", "FWOSH"], manga: ["ボッ", "ゴー"], tint: Some((1.00, 0.45, 0.08))),
+        "ice":       (en: ["KRSSH", "KRIK"], manga: ["ピキッ"], tint: Some((0.65, 0.92, 1.00))),
+        "portal":    (en: ["VWOOP", "FWOMP"], manga: ["ブン"], tint: None),
+        "grow":      (en: ["BWOMP", "FOOMP"], manga: ["ボン"], tint: None),
+        "shrink":    (en: ["FWIP", "PWIP"], manga: ["シッ"], tint: None, size: 0.8),
+        "link":      (en: ["KLANK", "KLINK"], manga: ["ガキン"], tint: None),
+        "attract":   (en: ["VMMMM", "VVMM"], manga: ["ゴゴゴ"], tint: None),
+        "repel":     (en: ["FWAAM", "WHAM"], manga: ["バン"], tint: None),
+        // ---- hits by weight
+        "hit_light": (en: ["THWAP", "POW", "BAP"], manga: ["パン", "ポン"], tint: None, size: 0.85),
+        "hit_heavy": (en: ["WHAM", "KRAKOOM", "SMASH"], manga: ["ドン", "ズドン"], tint: None, size: 1.25),
+        "wall_splat": (en: ["SPLAT", "SPLUTCH"], manga: ["ドゴッ"], tint: None, size: 1.2),
+        "clash":     (en: ["KRANG", "SHNNG", "KLANG"], manga: ["ガキン"], tint: Some((1.0, 1.0, 1.0))),
+        "kaiju_stomp": (en: ["DOOM", "BOOOM"], manga: ["ズシン", "ドドド"], tint: None, size: 1.8),
+        "shatter":   (en: ["KSSHH", "KRSSH"], manga: ["バキーン"], tint: Some((1.0, 1.0, 1.0))),
+        // ---- guns (COMBAT.md §4b)
+        "gun":       (en: ["BLAM", "BANG"], manga: ["バン"], tint: None),
+        "shotgun":   (en: ["KA-CHUNK", "BOOM"], manga: ["ズドン"], tint: None, size: 1.2),
+        "minigun":   (en: ["BRRT", "BRRRT"], manga: ["ドドド"], tint: None, size: 0.8),
+        "rocket":    (en: ["FWOOSH", "KA-BOOM"], manga: ["ドカーン"], tint: Some((1.00, 0.55, 0.15)), size: 1.3),
+        "railgun":   (en: ["PEWW", "ZHOOM"], manga: ["ビーッ"], tint: None),
+        // ---- performance words (screen-anchored near the crosshair)
+        "perfect":   (en: ["PERFECT"], manga: ["PERFECT"], tint: None),
+        "good":      (en: ["GOOD"], manga: ["GOOD"], tint: None),
+        "slow":      (en: ["SLOW"], manga: ["SLOW"], tint: Some((0.55, 0.62, 0.80))),
+        "parry":     (en: ["PARRY!"], manga: ["PARRY!"], tint: Some((1.0, 0.92, 0.55))),
+        "medal_gold":   (en: ["GOLD!"], manga: ["GOLD!"], tint: Some((1.0, 0.80, 0.20))),
+        "medal_silver": (en: ["SILVER"], manga: ["SILVER"], tint: Some((0.85, 0.90, 1.00))),
+        "medal_bronze": (en: ["BRONZE"], manga: ["BRONZE"], tint: Some((0.90, 0.55, 0.30))),
+        "ko":        (en: ["K.O.!"], manga: ["K.O.!"], tint: None, size: 1.4),
+    },
+)

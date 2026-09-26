@@ -7,4 +7,13 @@ license.workspace = true
 [dependencies]
 bd_core.workspace = true
 bd_shapes.workspace = true
+# bd_shapes' math (glam 0.30). Bevy re-exports its own glam (0.32) as `bevy::math`; convert at the seam.
+glam.workspace = true
+bytemuck = { version = "1", features = ["derive"] }
+bevy = { version = "0.19.1" }
+serde.workspace = true
+ron.workspace = true
 
+[[example]]
+name = "fx_demo"
+path = "examples/fx_demo.rs"

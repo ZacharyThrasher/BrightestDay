@@ -1,0 +1,481 @@
+//! Onomatopoeia: comic hard-light voxel words at impacts ("Juicy Text", ICMI'24: text + particles
+//! reads best; words carry material/semantics).
+//!
+//! `SpawnOnomatopoeia` → a word of voxel glyphs (see [`crate::font`]) facing the camera at the
+//! contact point: letters pop in with overshoot (~80 ms, staggered), wobble, hold ~0.35–0.5 s, crack,
+//! then **shatter into their voxels** through the normal shatter path (blending with the impact
+//! debris). Size/boldness/jitter scale with `impact`. Performance words (PERFECT, GOOD, SLOW,
+//! PARRY!, medals) are screen-anchored under the crosshair, small and brief.
+
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use bd_shapes::VoxelModel;
+use bevy::camera::visibility::VisibilitySystems;
+use bevy::light::NotShadowCaster;
+use bevy::mesh::MeshTag;
+use bevy::prelude::*;
+use serde::Deserialize;
+
+use crate::construct::{ConstructMeshCache, FxSlot, ModelKey, SlotAlloc, construct_gpu, write_slot};
+use crate::effects::{ShatterScratch, shatter_model};
+use crate::font::{SPACE_ADVANCE, all_chars, glyph_bits, glyph_spec};
+use crate::gpu::FxUpload;
+use crate::material::FxMaterials;
+use crate::palette::Palette;
+use crate::particles::{Emit, EmitSystems, FxParticles, PFlags, PKind};
+use crate::util::{FxRng, fin, fin3};
+use crate::{FxSet, FxSettings};
+
+// ------------------------------------------------------------------------------------ API
+
+/// Which word to show.
+#[derive(Clone, Debug)]
+pub enum OnoWord {
+    /// Look up `assets/fx/onomatopoeia.ron` (e.g. "stone", "explosion", "hit_heavy", "perfect").
+    Key(Cow<'static, str>),
+    /// Literal text (unsupported characters are skipped).
+    Text(Cow<'static, str>),
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OnoStyle {
+    /// World-space word at the contact point.
+    #[default]
+    Impact,
+    /// Screen-anchored near the crosshair, small, brief (PERFECT / GOOD / SLOW / PARRY! / medals).
+    Performance,
+}
+
+/// Spawn a comic word.
+#[derive(Message, Clone, Debug)]
+pub struct SpawnOnomatopoeia {
+    pub word: OnoWord,
+    pub pos: Vec3,
+    /// Hit direction (the word leans/drifts along it; zero = none).
+    pub dir: Vec3,
+    /// ≈ normalised impact (0.2 tap … 1 heavy … 2+ kaiju). Scales size, boldness, jitter, hold.
+    pub impact: f32,
+    /// Attacker corps colour (linear RGB); material words lean toward the table's tint.
+    pub color: [f32; 3],
+    pub style: OnoStyle,
+    /// Deterministic word/jitter choice (e.g. the sim event id).
+    pub event_id: u64,
+    /// Events involving the local player get priority under the rate limit.
+    pub local_player: bool,
+}
+
+impl SpawnOnomatopoeia {
+    pub fn key(key: &'static str, pos: Vec3, impact: f32, color: [f32; 3]) -> Self {
+        SpawnOnomatopoeia { word: OnoWord::Key(Cow::Borrowed(key)), pos, dir: Vec3::ZERO, impact, color, style: OnoStyle::Impact, event_id: 0, local_player: false }
+    }
+    pub fn performance(key: &'static str, color: [f32; 3]) -> Self {
+        SpawnOnomatopoeia { word: OnoWord::Key(Cow::Borrowed(key)), pos: Vec3::ZERO, dir: Vec3::ZERO, impact: 0.5, color, style: OnoStyle::Performance, event_id: 0, local_player: true }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OnoMode {
+    Off,
+    /// Impact words only above `big_hit_threshold` (performance words always).
+    #[default]
+    BigHitsOnly,
+    FullComic,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OnoLanguage {
+    #[default]
+    En,
+    Manga,
+}
+
+#[derive(Resource, Clone, Debug)]
+pub struct OnomatopoeiaSettings {
+    pub mode: OnoMode,
+    pub language: OnoLanguage,
+    /// Token-bucket rate limit (local-player events may borrow 2 extra).
+    pub max_per_second: f32,
+    pub big_hit_threshold: f32,
+    /// Live words cap (oldest non-local word shatters early).
+    pub max_live: usize,
+    /// Multiplier on the hold time (1 = default; debug/tuning).
+    pub hold_scale: f32,
+}
+
+impl Default for OnomatopoeiaSettings {
+    fn default() -> Self {
+        OnomatopoeiaSettings { mode: OnoMode::BigHitsOnly, language: OnoLanguage::En, max_per_second: 4.0, big_hit_threshold: 0.6, max_live: 10, hold_scale: 1.0 }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct OnoEntry {
+    pub en: Vec<String>,
+    pub manga: Vec<String>,
+    #[serde(default)]
+    pub tint: Option<(f32, f32, f32)>,
+    #[serde(default = "one")]
+    pub size: f32,
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+#[derive(Deserialize)]
+struct TableFile {
+    entries: HashMap<String, OnoEntry>,
+}
+
+/// Event key → words (`assets/fx/onomatopoeia.ron`, compiled in; `load` to hot-swap).
+#[derive(Resource, Clone, Debug, Default)]
+pub struct OnomatopoeiaTable {
+    pub entries: HashMap<String, OnoEntry>,
+}
+
+const DEFAULT_TABLE: &str = include_str!("../../../assets/fx/onomatopoeia.ron");
+
+impl OnomatopoeiaTable {
+    pub fn parse(src: &str) -> Result<Self, String> {
+        let f: TableFile = ron::from_str(src).map_err(|e| e.to_string())?;
+        Ok(OnomatopoeiaTable { entries: f.entries })
+    }
+    pub fn load(path: &std::path::Path) -> Result<Self, String> {
+        let s = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        Self::parse(&s)
+    }
+}
+
+// ------------------------------------------------------------------------------------ internals
+
+struct Glyph {
+    model: Arc<VoxelModel>,
+    mesh: Handle<Mesh>,
+    /// Mesh centre in glyph model space (m).
+    offset: Vec3,
+    /// Advance (m, before word scale).
+    advance: f32,
+}
+
+#[derive(Resource, Default)]
+struct GlyphCache {
+    glyphs: HashMap<char, Glyph>,
+}
+
+struct Letter {
+    entity: Entity,
+    ch: char,
+    slot: u32,
+    /// Letter centre in word space (m, before word scale).
+    centre: Vec3,
+    delay: f32,
+    jitter_rot: f32,
+    jitter_scale: f32,
+}
+
+#[derive(Component)]
+struct OnoWordState {
+    letters: Vec<Letter>,
+    age: f32,
+    pop: f32,
+    hold: f32,
+    impact: f32,
+    style: OnoStyle,
+    dir: Vec3,
+    base: Vec3,
+    color: [f32; 3],
+    rainbow: bool,
+    scale: f32,
+    roll: f32,
+    local: bool,
+    serial: u64,
+    shattered: bool,
+}
+
+#[derive(Resource, Default)]
+struct OnoRuntime {
+    tokens: f32,
+    serial: u64,
+    scratch: ShatterScratch,
+}
+
+pub fn build(app: &mut App) {
+    let table = OnomatopoeiaTable::parse(DEFAULT_TABLE).unwrap_or_else(|e| {
+        warn!("bd_fx: onomatopoeia.ron parse error: {e}");
+        OnomatopoeiaTable::default()
+    });
+    app.insert_resource(table)
+        .init_resource::<OnomatopoeiaSettings>()
+        .init_resource::<GlyphCache>()
+        .init_resource::<OnoRuntime>()
+        .add_message::<SpawnOnomatopoeia>()
+        .add_systems(Startup, build_glyphs)
+        .add_systems(PostUpdate, spawn_words.in_set(FxSet::Lifecycle))
+        .add_systems(PostUpdate, animate_words.in_set(FxSet::Pose))
+        .add_systems(PostUpdate, finish_words.in_set(EmitSystems).before(VisibilitySystems::CheckVisibility));
+}
+
+fn build_glyphs(mut glyphs: ResMut<GlyphCache>, mut cache: ResMut<ConstructMeshCache>, mut meshes: ResMut<Assets<Mesh>>) {
+    for c in all_chars() {
+        let Some(bits) = glyph_bits(c) else { continue };
+        let model = bd_shapes::voxelize(&glyph_spec(&bits));
+        let parts = cache.insert_now(ModelKey::Named("glyph", c as u32), &model, &mut meshes);
+        let Some(Some(p)) = parts.first() else { continue };
+        let shear = (bits.h as f32 - 1.0) / 3.0;
+        let advance = (bits.w as f32 + shear.floor() + 1.0) * model.voxel_size;
+        glyphs.glyphs.insert(c, Glyph { model: Arc::new(model), mesh: p.mesh.clone(), offset: p.offset, advance });
+    }
+}
+
+fn camera(q: &Query<(&Camera, &GlobalTransform), With<Camera3d>>) -> Option<GlobalTransform> {
+    q.iter().filter(|(c, _)| c.is_active).max_by_key(|(c, _)| c.order).map(|(_, g)| *g)
+}
+
+fn hue(h: f32) -> [f32; 3] {
+    let h = h.rem_euclid(1.0) * 6.0;
+    let f = |n: f32| {
+        let k = (n + h).rem_euclid(6.0);
+        1.0 - (k.min(4.0 - k).clamp(0.0, 1.0))
+    };
+    [f(5.0), f(3.0), f(1.0)]
+}
+
+fn spawn_words(
+    mut commands: Commands,
+    mut msgs: MessageReader<SpawnOnomatopoeia>,
+    settings: Res<OnomatopoeiaSettings>,
+    table: Res<OnomatopoeiaTable>,
+    glyphs: Res<GlyphCache>,
+    mats: Res<FxMaterials>,
+    mut alloc: ResMut<SlotAlloc>,
+    mut rt: ResMut<OnoRuntime>,
+    time: Res<Time>,
+    mut live: Query<&mut OnoWordState>,
+) {
+    let dt = time.delta_secs();
+    rt.tokens = (rt.tokens + settings.max_per_second.max(0.0) * dt).min(settings.max_per_second.max(1.0));
+    for m in msgs.read() {
+        if settings.mode == OnoMode::Off {
+            continue;
+        }
+        let impact = fin(m.impact, 0.5).clamp(0.0, 3.0);
+        if m.style == OnoStyle::Impact && settings.mode == OnoMode::BigHitsOnly && impact < settings.big_hit_threshold {
+            continue;
+        }
+        // Rate limit (performance words and local-player events may borrow).
+        let floor = if m.local_player || m.style == OnoStyle::Performance { -2.0 } else { 1.0 };
+        if rt.tokens < floor {
+            continue;
+        }
+        rt.tokens -= 1.0;
+        // Resolve text.
+        let (text, tint, size_k): (Cow<str>, Option<(f32, f32, f32)>, f32) = match &m.word {
+            OnoWord::Text(t) => (t.clone(), None, 1.0),
+            OnoWord::Key(k) => match table.entries.get(k.as_ref()) {
+                Some(e) => {
+                    let list = if settings.language == OnoLanguage::Manga && !e.manga.is_empty() { &e.manga } else { &e.en };
+                    if list.is_empty() {
+                        continue;
+                    }
+                    let w = &list[(m.event_id as usize) % list.len()];
+                    (Cow::Owned(w.clone()), e.tint, e.size)
+                }
+                None => continue,
+            },
+        };
+        // Evict the oldest non-local word when over the cap.
+        let n_live = live.iter().filter(|w| !w.shattered).count();
+        if n_live >= settings.max_live {
+            let oldest = live.iter_mut().filter(|w| !w.shattered && (!w.local || m.local_player)).max_by(|a, b| a.age.total_cmp(&b.age));
+            match oldest {
+                Some(mut w) => {
+                    w.hold = w.hold.min(w.age - w.pop);
+                }
+                None => continue,
+            }
+        }
+        let mut rng = FxRng::new(m.event_id ^ (rt.serial << 20) ^ 0x0A0A);
+        rt.serial += 1;
+        let perf = m.style == OnoStyle::Performance;
+        // Colour: corps colour leaning toward the material tint.
+        let mut color = m.color;
+        if let Some((r, g, b)) = tint {
+            let k = if perf { 0.85 } else { 0.55 };
+            color = [color[0] + (r - color[0]) * k, color[1] + (g - color[1]) * k, color[2] + (b - color[2]) * k];
+        }
+        let upper = text.to_uppercase();
+        let rainbow = perf && (upper.starts_with("PERFECT") || upper.starts_with("K.O"));
+        // Layout.
+        let mut x = 0.0;
+        let mut placed: Vec<(char, f32)> = Vec::new();
+        for c in upper.chars() {
+            if c == ' ' {
+                x += SPACE_ADVANCE * bd_core::CONSTRUCT_VOXEL_SIZE;
+                continue;
+            }
+            if let Some(g) = glyphs.glyphs.get(&c) {
+                placed.push((c, x));
+                x += g.advance;
+            }
+        }
+        if placed.is_empty() {
+            continue;
+        }
+        let width = x;
+        let root = commands
+            .spawn((Name::new(format!("ono {upper}")), Transform::from_translation(fin3(m.pos)), Visibility::Visible))
+            .id();
+        let stagger = if perf { 0.02 } else { 0.03 };
+        let jit = if perf { 0.03 } else { 0.07 + 0.1 * impact.min(1.5) };
+        let mut letters = Vec::with_capacity(placed.len());
+        for (i, (c, lx)) in placed.iter().enumerate() {
+            let g = &glyphs.glyphs[c];
+            let slot = alloc.slot();
+            let centre = Vec3::new(lx - width * 0.5, 0.0, 0.0) + g.offset;
+            let e = commands
+                .spawn((
+                    Mesh3d(g.mesh.clone()),
+                    MeshMaterial3d(mats.construct(false)),
+                    MeshTag(slot),
+                    FxSlot(slot),
+                    Transform::from_translation(centre).with_scale(Vec3::ZERO),
+                    NotShadowCaster,
+                    ChildOf(root),
+                ))
+                .id();
+            letters.push(Letter {
+                entity: e,
+                ch: *c,
+                slot,
+                centre,
+                delay: i as f32 * stagger,
+                jitter_rot: rng.range(-jit, jit),
+                jitter_scale: 1.0 + rng.range(-0.5, 0.5) * jit,
+            });
+        }
+        let height = if perf { 0.05 } else { (0.3 + 0.3 * impact.min(2.0)) * size_k };
+        commands.entity(root).insert(OnoWordState {
+            letters,
+            age: 0.0,
+            pop: 0.08,
+            hold: settings.hold_scale.max(0.1) * if perf { 0.32 } else { 0.35 + 0.1 * impact.min(1.5) },
+            impact,
+            style: m.style,
+            dir: fin3(m.dir),
+            base: fin3(m.pos),
+            color,
+            rainbow,
+            scale: height / (7.0 * bd_core::CONSTRUCT_VOXEL_SIZE),
+            roll: if perf { 0.0 } else { rng.range(-0.18, 0.18) },
+            local: m.local_player,
+            serial: rt.serial,
+            shattered: false,
+        });
+    }
+}
+
+fn ease_back(x: f32, s: f32) -> f32 {
+    let x = x.clamp(0.0, 1.0) - 1.0;
+    1.0 + (s + 1.0) * x * x * x + s * x * x
+}
+
+fn animate_words(
+    time: Res<Time>,
+    cams: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    mut up: ResMut<FxUpload>,
+    mut words: Query<(&mut OnoWordState, &mut Transform)>,
+    mut letters: Query<&mut Transform, Without<OnoWordState>>,
+) {
+    let dt = time.delta_secs();
+    let now = time.elapsed_secs();
+    let cam = camera(&cams);
+    for (mut w, mut tf) in &mut words {
+        w.age += dt;
+        let age = w.age;
+        let s = w.scale;
+        // Root placement.
+        if let Some(cam) = cam {
+            let (_, cam_rot, cam_pos) = cam.to_scale_rotation_translation();
+            if w.style == OnoStyle::Performance {
+                let fwd = cam.forward().as_vec3();
+                let down = -cam.up().as_vec3();
+                tf.translation = cam_pos + fwd * 0.9 + down * (0.11 + 0.02 * (age * 3.0).min(1.0));
+                tf.rotation = cam_rot;
+            } else {
+                let drift = w.dir * (0.5 * (1.0 - (-age * 5.0).exp())) + Vec3::Y * (0.35 + 0.25 * age);
+                let pos = w.base + drift * s.max(0.3) * 2.0;
+                let to_cam = (cam_pos - pos).normalize_or_zero();
+                let pos = pos + to_cam * 0.4;
+                tf.translation = pos;
+                let facing = Transform::from_translation(pos).looking_to(-to_cam, Vec3::Y).rotation;
+                tf.rotation = facing * Quat::from_rotation_z(w.roll);
+            }
+        }
+        tf.scale = Vec3::splat(s);
+        let end = w.pop + w.hold;
+        let crack = ((age - (end - 0.12)) / 0.12).clamp(0.0, 1.0);
+        let n = w.letters.len().max(1) as f32;
+        for (i, l) in w.letters.iter().enumerate() {
+            let t = age - l.delay;
+            let pop = if t <= 0.0 { 0.0 } else { ease_back(t / w.pop, 2.6) };
+            let wob = (age * 17.0 + i as f32 * 1.3).sin() * (0.1 * (-age * 4.0).exp() + 0.02) * (0.5 + w.impact.min(1.5));
+            let bounce = (age * 11.0 + i as f32 * 0.8).sin() * 0.06 * (-age * 3.0).exp();
+            if let Ok(mut lt) = letters.get_mut(l.entity) {
+                lt.translation = l.centre + Vec3::Y * bounce;
+                lt.rotation = Quat::from_rotation_z(l.jitter_rot + wob);
+                lt.scale = Vec3::splat(pop.max(0.0) * l.jitter_scale);
+            }
+            let color = if w.rainbow { hue(now * 1.6 + i as f32 / n) } else { w.color };
+            let pal = Palette::new(color, None);
+            let flash = (1.0 - t / 0.1).clamp(0.0, 1.0) * if t > 0.0 { 1.0 } else { 0.0 };
+            let integrity = 1.0 - crack * 0.9;
+            let mut gg = construct_gpu(&pal, integrity, 1.0, flash * 0.8, 0.0, bd_core::CONSTRUCT_VOXEL_SIZE, l.slot * 7 + 3, 1.0, false, Vec3::ZERO, 1.0);
+            gg.accent[3] = 1.0;
+            write_slot(&mut up, l.slot, gg);
+        }
+    }
+}
+
+fn finish_words(
+    mut commands: Commands,
+    mut fx: ResMut<FxParticles>,
+    settings: Res<FxSettings>,
+    glyphs: Res<GlyphCache>,
+    mut rt: ResMut<OnoRuntime>,
+    mut words: Query<(Entity, &mut OnoWordState, &GlobalTransform)>,
+    letters: Query<&GlobalTransform>,
+) {
+    let rt = &mut *rt;
+    for (e, mut w, _gt) in &mut words {
+        if w.age < w.pop + w.hold || w.shattered {
+            continue;
+        }
+        w.shattered = true;
+        let _ = w.serial;
+        let perf = w.style == OnoStyle::Performance;
+        for (i, l) in w.letters.iter().enumerate() {
+            let Some(g) = glyphs.glyphs.get(&l.ch) else { continue };
+            let Ok(lgt) = letters.get(l.entity) else { continue };
+            // Letter world transform: the entity's transform includes the mesh centring offset.
+            let tf = lgt.affine() * bevy::math::Affine3A::from_translation(-g.offset);
+            let color = if w.rainbow { hue(i as f32 / w.letters.len().max(1) as f32) } else { w.color };
+            let pal = Palette::new(color, None);
+            if perf {
+                // Tiny sparkle instead of a full shatter right in front of the camera.
+                let p = lgt.translation();
+                for _ in 0..4 {
+                    let r = &mut fx.rng;
+                    let seed = r.next_u32();
+                    let vel = r.dir() * 0.25;
+                    fx.emit(Emit { kind: PKind::Ballistic, flags: PFlags::PLAIN, pos: p, vel, size: 0.006, color, emissive: 4.0, life: 0.25, gravity: 0.0, drag: 2.0, spin: 6.0, seed, ..default() });
+                }
+                continue;
+            }
+            let impulse = w.dir * (1.5 + 2.0 * w.impact.min(2.0)) + Vec3::Y * 0.5;
+            shatter_model(&mut fx, &settings, &g.model, &tf, &[], &pal, impulse, Some(lgt.translation() - w.dir * 0.3), None, 0.5, 0.75, 0.5, &mut rt.scratch);
+        }
+        commands.entity(e).despawn();
+    }
+}
