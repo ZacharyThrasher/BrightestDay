@@ -243,7 +243,7 @@ export class World {
     this.entities.delete(id);
   }
 
-  damageEntity(e: Entity, amount: number, cause: string) {
+  damageEntity(e: Entity, amount: number, cause: string, by?: string | null) {
     if (e.type === 'boulder' || amount <= 0) return;
     if (e.type === 'civilian') {
       if (amount > 30 && !e.hurt) { e.hurt = true; this.emit('civilian_hurt', { id: e.id, cause, amount }); }
@@ -251,7 +251,7 @@ export class World {
     }
     e.hp = Math.max(0, e.hp - amount);
     this.stats.entityDamage += amount;
-    this.emit('entity_damage', { id: e.id, amount: Math.round(amount), cause });
+    this.emit('entity_damage', { id: e.id, amount: Math.round(amount), cause, ...(by ? { by } : {}) });
     if (e.hp <= 0 && !e.disabled) {
       e.disabled = true;
       this.emit('entity_disabled', { id: e.id, entityType: e.type, cause });

@@ -514,7 +514,7 @@ export class MachineSystem {
     if (t.kind === 'entity') {
       const e = this.w.entities.get(t.id);
       if (!e || e.heldBy === src.id) return;
-      this.w.damageEntity(e, amount, cause);
+      this.w.damageEntity(e, amount, cause, src.id);
       if (knock > 0 && dir && e.body.isDynamic()) {
         const k = Math.min(9, 2 + amount * 0.15) * knock;
         e.body.applyImpulse(_v3.copy(dir).setY(Math.max(0.15, dir.y)).normalize().multiplyScalar(k * e.body.mass()), true);
@@ -1252,7 +1252,7 @@ export class MachineSystem {
     if (other.kind === 'entity' || other.kind === 'construct') {
       direct = { kind: other.kind, id: other.id };
       if (src) this.dealDamage(src, direct, p.damage, p.kind ?? 'shot', dir, other.kind === 'entity' ? Math.min(1, 0.3 + p.damage * 0.02) : 0);
-      else if (other.kind === 'entity') { const e = this.w.entities.get(other.id); if (e) this.w.damageEntity(e, p.damage, p.kind ?? 'shot'); }
+      else if (other.kind === 'entity') { const e = this.w.entities.get(other.id); if (e) this.w.damageEntity(e, p.damage, p.kind ?? 'shot', p.owner ?? null); }
       if (p.kind === 'net' && other.kind === 'entity') {
         const e = this.w.entities.get(other.id);
         if (e) { e.stunnedUntil = Math.max(e.stunnedUntil, this.w.time + 4); this.w.emit('netted', { entity: e.id, construct: p.owner }); }
