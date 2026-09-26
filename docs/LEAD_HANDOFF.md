@@ -74,6 +74,12 @@ Everything below is committed and green unless noted.
 - CHARGE (owner: anime power-up): hold a key to slowly refill willpower (slower than the oath, ramps,
   can't act, slowed, interrupted by hits); replicated flag+level (bd_core v1.4); big corps-coloured
   aura, lifting debris, pressure ring, world dims <=6-10% (never HUD/chargers), comfort-gated; bots use it.
+- CONSTRUCT ANIMATION (owner: "everything should give the illusion of being premade"): part ROLES
+  (hatch/canopy, turret, barrel, rotor, piston, wing, jaw, head/eye, blade, thruster + wheel/seat/
+  exhaust/cloth) tagged at generation + conservative inference for icons; role x semantic-event
+  behaviours (aim/fire/move/pilot approach+enter/hit/charge/dismiss), role-ordered summon assembly
+  (visual only, gameplay live from tick 1). SAME WORKER also switches the weight-pass call sites below.
+  HANDS worker: viewmodel procedural springs + "disconnected" root cause (viewmodel.rs, viewmodel_anim.rs).
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
