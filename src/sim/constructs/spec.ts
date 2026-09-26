@@ -21,8 +21,31 @@ export interface Part {
   size: Vec3;
   pos: Vec3;
   rot?: Vec3; // euler XYZ, degrees
-  role?: string; // semantic tag: body, finger, thruster, wheel, blade, pad, canopy, head, handle, spike, barrel, wing...
+  role?: string; // semantic tag: body, finger, thruster, wheel, blade, pad, canopy, head, handle, spike, barrel, muzzle, wing, leg, seat...
   solid?: boolean; // default true; false = visual only
+  /** Articulation: parts sharing a group move together with that group's Joint (see ConstructSpec.joints). */
+  group?: string;
+}
+
+/**
+ * How an articulated group moves relative to its parent (the construct body, or another group).
+ * All angles in degrees, rates in cycles/second (spin: revolutions/second), distances in metres (unscaled part units).
+ * Several motions on one joint compose (e.g. an aim turret that also recoils with a piston).
+ */
+export type JointMotion =
+  | { kind: 'spin'; axis: Vec3; rate: number } // constant rotation: rotors, propellers, drills, saw blades, fans
+  | { kind: 'roll'; axis: Vec3; radius: number } // wheels / treads: angle follows the construct's ground speed
+  | { kind: 'steer'; axis: Vec3; amp: number } // front wheels / rudders: turn with the construct's turning rate (±amp)
+  | { kind: 'aim'; yaw?: boolean; pitch?: boolean; rate: number; minPitch?: number; maxPitch?: number } // turrets, heads, cannons: track the brain's target (else the player's aim); rate = deg/s
+  | { kind: 'swing'; axis: Vec3; amp: number; rate: number; phase?: number; gait?: boolean } // legs, wings, arms, tails, flippers; gait = scale with speed (legs)
+  | { kind: 'piston'; axis: Vec3; amp: number; rate: number; phase?: number; gait?: boolean } // pumps, jackhammers, recoil, bobbing heads
+  | { kind: 'wave'; axis: Vec3; amp: number; rate: number; phase?: number }; // like swing but phase-shifted along a chain (tails, tentacles, snakes)
+
+export interface Joint {
+  group: string; // parts with part.group === group are driven by this joint
+  pivot: Vec3; // pivot point in construct space (unscaled)
+  parent?: string; // another group (e.g. barrel group parented to turret group)
+  motion: JointMotion[];
 }
 
 export type Ref =
@@ -60,7 +83,16 @@ export type Behavior =
   | { type: 'lift'; target: Ref; height: number }
   | { type: 'explode'; radius: number; force: number; delay: number; onContact: boolean }
   | { type: 'sweep'; width: number; speed: number }
-  | { type: 'pulse'; period: number };
+  | { type: 'pulse'; period: number }
+  // ---- machines & creatures (locomotion + autonomy + weapons + riding) ----
+  /** Locomotion capability. ground: follows terrain, wheels/legs; air: flies (altitude hold); hover: floats above ground. */
+  | { type: 'drive'; mode: 'ground' | 'air' | 'hover'; speed: number; turn: number; altitude?: number; jump?: number }
+  /** Autonomy: what the construct decides to do on its own (moves via 'drive', attacks via 'weapon'). */
+  | { type: 'brain'; goal: 'wander' | 'follow' | 'guard' | 'hunt' | 'fetch' | 'patrol' | 'goto' | 'flee' | 'idle'; target?: Ref; range?: number }
+  /** A weapon fired from the group's 'muzzle' parts (or the construct front) at the brain's target / rider's aim. */
+  | { type: 'weapon'; kind: 'gun' | 'cannon' | 'laser' | 'missile' | 'flame' | 'net' | 'melee' | 'bomb'; group?: string; rate: number; speed: number; damage: number; range: number; size?: number; spread?: number }
+  /** The player can get in/on it: WASD drives it (needs 'drive'), mouse aims its 'aim' joints, fire buttons fire its weapons. */
+  | { type: 'rideable'; seat: Vec3; view?: 'third' | 'first' };
 
 export type BehaviorType = Behavior['type'];
 
@@ -109,6 +141,8 @@ export interface ConstructSpec {
   passPlayer: boolean; // player can move through it (bubbles around self)
   placement: Placement;
   behaviors: Behavior[];
+  /** Articulated groups (optional). Constructs without joints are rigid, as before. */
+  joints?: Joint[];
   lifetime: number;
   color?: string; // optional tint name
   provenance: {
