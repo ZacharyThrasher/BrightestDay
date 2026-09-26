@@ -20,7 +20,7 @@ def invincible():
     s.ell((0, hy + 1.4, 0.4), (3.9, 1.8, 3.8), "D")                                             # dark hair tuft
     s.part(5, 0, (0, b["y_neck"], 0), "Head")
     s.on(0)
-    names = ["invincible mark grayson", "invincible hero", "invincible character", "invincible image comics",
+    names = ["invincible mark grayson", "mark grayson", "invincible hero", "invincible character", "invincible image comics",
              "mark grayson invincible", "invincible suit", "think mark"]
     r = R("Invincible", "Biped", ["Flies", "Blunt", "Charge", "Fast"], 1.8, 90.0, INV_YELLOW, temp="Aggressive",
           inten=0.8, source="Invincible (Image)")

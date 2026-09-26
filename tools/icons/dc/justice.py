@@ -14,7 +14,7 @@ def superman():
     head(s, b, hair="D", style="curl")
     emblem_s(s, (0, b["y_hip"] + b["th"] * 0.68, -b["td"] / 2 - 0.55), t="A", inner="P", k=1.15)
     cape(s, b, t="A", flare=2.0)
-    names = ["last son of krypton", "man of tomorrow", "big blue boy scout", "superman flying", "flying superman",
+    names = ["superman", "man of steel", "clark kent", "kal-el", "supes", "last son of krypton", "man of tomorrow", "big blue boy scout", "superman flying", "flying superman",
              "super man", "superman character", "superman icon", "the last son of krypton"]
     r = R("Superman", "Biped", ["Flies", "Beam", "Blunt", "Heavy"], 2.0, 120.0, SUPER_RED, elem="Fire",
           temp="Protective", inten=0.8, source="DC (Superman)")
@@ -135,7 +135,7 @@ def doomsday():
     s.cone((0, hy + 2.8, 0.8), (1.0, 3.0, 1.0), "C", (-30, 0, 0))
     s.part(5, 0, (0, b["y_neck"], 0), "Head")
     s.on(0)
-    names = ["doomsday", "doomsday the monster", "doomsday creature", "doomsday kryptonian monster",
+    names = ["doomsday", "doomsday monster", "doomsday dc", "doomsday the monster", "doomsday creature", "doomsday kryptonian monster",
              "the thing that killed superman"]
     r = R("Doomsday", "Biped", ["Charge", "Blunt", "Heavy", "Stomp"], 3.0, 900.0, (0.55, 0.5, 0.45),
           temp="Aggressive", inten=1.0, feat=["Spikes"], source="DC (Superman)")

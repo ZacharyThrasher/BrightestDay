@@ -35,7 +35,7 @@ def diana():
     s.box((0, b["hy"] + 1.1, -1.7), (3.4, 0.6, 0.6), "C")                                   # tiara
     s.box((0, b["hy"] + 1.4, -2.0), (0.8, 0.8, 0.4), "A", (0, 0, 45))                       # red star
     s.on(0)
-    names = ["diana prince", "princess diana", "diana of themyscira", "wonder woman character", "ww84 wonder woman",
+    names = ["wonder woman", "diana prince", "princess diana", "diana of themyscira", "wonder woman character", "ww84 wonder woman",
              "amazon princess", "the amazing amazon"]
     r = R("Wonder Woman", "Biped", ["Guard", "Pull", "Blade", "Fast"], 1.9, 80.0, WW_RED, temp="Protective",
           inten=0.8, source="DC (Wonder Woman)")

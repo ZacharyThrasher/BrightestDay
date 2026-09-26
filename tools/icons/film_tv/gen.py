@@ -207,15 +207,14 @@ E(["grappling gun", "batclaw", "batman grapple", "grapnel gun", "bat grapple"],
 E(["lasso of truth", "wonder woman's lasso", "golden lasso", "lasso of hestia", "wonder woman lasso", "lasso of truth wonder woman"],
   R("Lasso of Truth", "Whip", ["Constrict", "Link", "Pull"], scale=5.0, mass=2, accent=GOLD),
   DC + " (Wonder Woman)")
-E(["wonder woman's bracelets", "bracelets of submission", "wonder woman bracers", "wonder woman"],
+# "wonder woman" moved to the shaped Wonder Woman in assets/icons/dc.ron (tools/icons/dc).
+E(["wonder woman's bracelets", "bracelets of submission", "wonder woman bracers"],
   R("Bracelets of Submission", "Gauntlet", ["Guard", "Ricochet", "Repel"], scale=1.6, mass=4, accent=SILVER),
   DC + " (Wonder Woman)")
 E(["aquaman's trident", "trident of atlan", "aquaman trident", "aquaman"],
   R("Trident of Atlan", "Spear", ["Pierce", "Returning"], el="Water", scale=None, mass=15, accent=GOLD),
   DC + " (Aquaman)", S.trident())
-E(["superman", "man of steel", "clark kent", "kal-el", "supes"],
-  R("Superman", "Biped", ["Beam", "Fast", "Flies"], el="Fire", scale=2.2, mass=110, accent=RED,
-    temp="Protective", inten=0.8), DC + " (Superman 2025)")
+# Superman ("superman", "man of steel", "clark kent", "kal-el", "supes") lives in assets/icons/dc.ron (shaped).
 E(["krypto", "krypto the superdog", "superdog", "super dog", "superman's dog"],
   R("Krypto", "Quadruped", ["Charge", "Fast", "Flies"], scale=None, mass=40, accent=RED,
     temp="Playful", inten=0.9), DC + " (Superman 2025 / Supergirl)", S.krypto())
@@ -262,9 +261,7 @@ E(["king shark", "nanaue"],
     temp="Playful", inten=0.8), DC + " (Suicide Squad)")
 E(["peacemaker's helmet", "peacemaker helmet"],
   R("Peacemaker's Helmet", "Gauntlet", ["Blunt", "Repel"], scale=1.4, mass=4, accent=SILVER), DC + " (Peacemaker)")
-E(["doomsday monster", "doomsday dc"],
-  R("Doomsday", "Biped", ["Charge", "Heavy", "Stomp"], el="Earth", scale=3.6, mass=900, accent=SILVER,
-    feat=["Spikes"], temp="Aggressive", inten=1.0), DC + " (Superman)")
+# Doomsday ("doomsday monster", "doomsday dc") lives in assets/icons/dc.ron (shaped).
 E(["joker gas", "joker venom", "laughing gas", "joker's laughing gas", "the joker"],
   R("Joker Venom", "Bomb", ["Explodes"], el="Poison", scale=1.2, mass=2, accent=GREEN), DC + " (Batman)")
 
@@ -521,7 +518,8 @@ E(["derpy tiger", "derpy", "kpop demon hunters tiger"],
 E(["homelander", "homelander laser eyes", "the boys homelander"],
   R("Homelander", "Biped", ["Beam", "Fast", "Flies"], el="Fire", scale=2.0, mass=100, accent=BLUE,
     temp="Aggressive", inten=1.0), "The Boys")
-E(["mark grayson", "omni-man", "omniman", "nolan grayson"],
+# "mark grayson" moved to the shaped Invincible in assets/icons/dc.ron.
+E(["omni-man", "omniman", "nolan grayson"],
   R("Invincible", "Biped", ["Blunt", "Charge", "Flies"], scale=2.0, mass=90, accent=YELLOW,
     temp="Aggressive", inten=0.7), "Invincible")
 E(["fishbones", "jinx's rocket launcher", "jinx rocket launcher", "fish bones"],

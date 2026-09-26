@@ -9,7 +9,7 @@
     // Superman: blue suit, red cape/trunks/boots, the S-shield, the kiss curl. Flies, heat-vision
     // Beam, Blunt + Heavy punches that send people through buildings. Protective.
     IconEntry(
-        names: ["last son of krypton", "man of tomorrow", "big blue boy scout", "superman flying", "flying superman", "super man", "superman character", "superman icon", "the last son of krypton"],
+        names: ["superman", "man of steel", "clark kent", "kal-el", "supes", "last son of krypton", "man of tomorrow", "big blue boy scout", "superman flying", "flying superman", "super man", "superman character", "superman icon", "the last son of krypton"],
         recipe: (
             name: "Superman",
             form: Biped,
@@ -19,7 +19,7 @@
             mass: 120.0,
             count: 1,
             accent: Some((0.86, 0.1, 0.12)),
-            model: Icon("last son of krypton"),
+            model: Icon("superman"),
             temperament: Protective,
             intensity: 0.8,
         ),
@@ -320,7 +320,7 @@
     // Doomsday: bone-spurred grey behemoth. Charges and pummels (Blunt + Heavy) - victims plough
     // through buildings. Relentless (Aggressive 1.0). film_tv's 'doomsday monster' is shape-less.
     IconEntry(
-        names: ["doomsday", "doomsday the monster", "doomsday creature", "doomsday kryptonian monster", "the thing that killed superman"],
+        names: ["doomsday", "doomsday monster", "doomsday dc", "doomsday the monster", "doomsday creature", "doomsday kryptonian monster", "the thing that killed superman"],
         recipe: (
             name: "Doomsday",
             form: Biped,
@@ -495,7 +495,7 @@
     // Wonder Woman: red bustier with the gold W-eagle, starred blue skirt, tiara, silver bracelets,
     // shield + sword, lasso coiled at the hip. Parries (Guard), lassos (Pull), cuts, Protective.
     IconEntry(
-        names: ["diana prince", "princess diana", "diana of themyscira", "wonder woman character", "ww84 wonder woman", "amazon princess", "the amazing amazon"],
+        names: ["wonder woman", "diana prince", "princess diana", "diana of themyscira", "wonder woman character", "ww84 wonder woman", "amazon princess", "the amazing amazon"],
         recipe: (
             name: "Wonder Woman",
             form: Biped,
@@ -505,7 +505,7 @@
             mass: 80.0,
             count: 1,
             accent: Some((0.85, 0.1, 0.15)),
-            model: Icon("diana prince"),
+            model: Icon("wonder woman"),
             temperament: Protective,
             intensity: 0.8,
         ),
@@ -3981,7 +3981,7 @@
     // Invincible (Mark Grayson): yellow top, blue sides and cowl, white goggles. Half-Viltrumite: flying
     // charges and punches that send people through buildings. (bare 'invincible' is left to the adjective.)
     IconEntry(
-        names: ["invincible mark grayson", "invincible hero", "invincible character", "invincible image comics", "mark grayson invincible", "invincible suit", "think mark"],
+        names: ["invincible mark grayson", "mark grayson", "invincible hero", "invincible character", "invincible image comics", "mark grayson invincible", "invincible suit", "think mark"],
         recipe: (
             name: "Invincible",
             form: Biped,

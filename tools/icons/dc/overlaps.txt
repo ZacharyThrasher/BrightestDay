@@ -37,3 +37,7 @@ megazord / thunderzord (film_tv)                       -> not duplicated. dc.ron
                                                           "dinozords" (count 5, Transforms: say "combine")
 hulk "incredible hulk" (film_tv)                       -> no bare "incredible" power name, to protect it
 big daddy (games.ron)                                  -> dc.ron uses "big daddy kick-ass"
+
+MIGRATED 2026-09-26 (lead request): "superman", "man of steel", "clark kent", "kal-el", "supes", "wonder woman",
+"doomsday monster", "doomsday dc", "mark grayson" were removed from film_tv (entries + tools/icons/film_tv/gen.py;
+the shape-less Superman and Doomsday entries are gone) and now name the SHAPED dc.ron icons.

@@ -915,7 +915,7 @@
         source: "DC (Batman)",
     ),
     IconEntry(
-        names: ["wonder woman's bracelets", "bracelets of submission", "wonder woman bracers", "wonder woman"],
+        names: ["wonder woman's bracelets", "bracelets of submission", "wonder woman bracers"],
         recipe: (
             name: "Bracelets of Submission",
             form: Gauntlet,
@@ -960,24 +960,6 @@
             ],
         )),
         source: "DC (Aquaman)",
-    ),
-    IconEntry(
-        names: ["superman", "man of steel", "clark kent", "kal-el", "supes"],
-        recipe: (
-            name: "Superman",
-            form: Biped,
-            mechanics: [Beam, Flies, Fast],
-            element: Fire,
-            scale: 2.2,
-            mass: 110.0,
-            count: 1,
-            accent: Some((0.85, 0.12, 0.12)),
-            model: Procedural(seed: 51969),
-            temperament: Protective,
-            intensity: 0.8,
-        ),
-        shape: None,
-        source: "DC (Superman 2025)",
     ),
     IconEntry(
         names: ["krypto", "krypto the superdog", "superdog", "super dog", "superman's dog"],
@@ -1337,25 +1319,6 @@
         ),
         shape: None,
         source: "DC (Peacemaker)",
-    ),
-    IconEntry(
-        names: ["doomsday monster", "doomsday dc"],
-        recipe: (
-            name: "Doomsday",
-            form: Biped,
-            mechanics: [Charge, Stomp, Heavy],
-            element: Earth,
-            scale: 3.6,
-            mass: 900.0,
-            count: 1,
-            accent: Some((0.82, 0.85, 0.9)),
-            model: Procedural(seed: 71377),
-            features: [Spikes],
-            temperament: Aggressive,
-            intensity: 1.0,
-        ),
-        shape: None,
-        source: "DC (Superman)",
     ),
     IconEntry(
         names: ["joker gas", "joker venom", "laughing gas", "joker's laughing gas", "the joker"],
@@ -2890,7 +2853,7 @@
         source: "The Boys",
     ),
     IconEntry(
-        names: ["mark grayson", "omni-man", "omniman", "nolan grayson"],
+        names: ["omni-man", "omniman", "nolan grayson"],
         recipe: (
             name: "Invincible",
             form: Biped,
