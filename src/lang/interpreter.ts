@@ -366,6 +366,10 @@ export class Interpreter {
       }
       if (!obj.concept && !obj.unknownHead && obj.addons.length && ctx.focus) return this.opAdd(c, ctx);
       const purposeVerb = c.purpose?.vclass ?? null;
+      // "a catapult to fling me over": a launcher made for launching you fires right away
+      if (purposeVerb === 'launch' && obj.concept?.cls === 'launcher' && !obj.count) {
+        return this.opAction({ ...c.purpose!, preps: [...c.purpose!.preps, ...c.preps], purpose: null } as Clause, ctx, obj);
+      }
       if (purposeVerb && SELF_GOALS.has(purposeVerb)) {
         const specs = this.objectsToSpecs(c.objects.filter((o) => o.concept || o.unknownHead), c, ctx, purposeVerb);
         ctx.intents.add('create');

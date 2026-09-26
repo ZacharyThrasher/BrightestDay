@@ -107,7 +107,8 @@ export class World {
   }
 
   bodyAlive(b: RBody) {
-    try { return this.pw.bodies.contains(b.handle); } catch { return false; }
+    // identity check, not just the handle: Rapier reuses handles of removed bodies
+    try { return this.pw.bodies.contains(b.handle) && this.pw.getRigidBody(b.handle) === b; } catch { return false; }
   }
 
   // ---------------- static geometry ----------------

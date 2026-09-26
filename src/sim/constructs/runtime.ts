@@ -567,6 +567,11 @@ export class ConstructRuntime {
   }
 
   private destroyBodies(c: Construct, releaseCargo: boolean) {
+    // a rope hooked onto a body we are about to remove keeps its last world point instead of a dangling body
+    for (const side of ['L', 'R'] as const) {
+      const t = this.w.player.tethers[side];
+      if (t?.body && c.insts.some((i) => i.body === t.body)) { this.w.player.anchorPoint(t); t.body = null; }
+    }
     for (const i of c.insts) {
       if (releaseCargo && i.cargo) this.releaseEntity(i.cargo.entityId, i.vel.clone());
       for (const col of i.colliders) { this.w.owners.delete(col.handle); this.byCollider.delete(col.handle); }

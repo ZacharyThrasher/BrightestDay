@@ -633,7 +633,7 @@ export class Player {
       this.vel.addScaledVector(d, dv);
       if (this.onGround && d.y > 0.2) this.onGround = false;
       // reaction on dynamic anchors (yank drones / pull objects)
-      if (t.body && t.body.isDynamic()) {
+      if (t.body && this.world.bodyAlive(t.body) && t.body.isDynamic()) {
         const m2 = t.body.mass();
         const J = dv * T.playerMass * 0.8;
         t.body.applyImpulse({ x: -d.x * J, y: -d.y * J, z: -d.z * J }, true);
