@@ -65,6 +65,7 @@ impl Plugin for PresentPlugin {
                 record::RecordPlugin,
             ))
             .add_plugins(water::WaterPlugin);
+        app.add_systems(Update, perf_experiments);
         use crate::warmup::WarmupAppExt;
         app.add_warmup(|w: &mut World| {
             for e in bd_fx::spawn_warmup(w) {
@@ -72,6 +73,12 @@ impl Plugin for PresentPlugin {
             }
         });
     }
+}
+
+/// `BD_PERF_OFF=audio,lights,ono,shatter` — perf experiments (disable presentation channels).
+pub fn perf_off(what: &str) -> bool {
+    static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    V.get_or_init(|| std::env::var("BD_PERF_OFF").unwrap_or_default()).split(',').any(|w| w == what)
 }
 
 /// Linear corps colour.
@@ -101,4 +108,14 @@ pub fn bq(q: bd_core::Quat) -> Quat {
 #[inline]
 pub fn gv(v: Vec3) -> bd_core::Vec3 {
     bd_core::Vec3::from_array(v.to_array())
+}
+
+fn perf_experiments(ono: Option<ResMut<bd_fx::OnomatopoeiaSettings>>, fx: Option<ResMut<bd_fx::FxSettings>>) {
+    if perf_off("ono") && let Some(mut o) = ono {
+        o.mode = bd_fx::OnoMode::Off;
+    }
+    if perf_off("particles") && let Some(mut f) = fx {
+        f.particle_budget = 0.0;
+        f.shatter_max_cubes = 1;
+    }
 }

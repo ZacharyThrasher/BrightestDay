@@ -3,7 +3,6 @@
 //! In client role the local player's own shots were already played from local input, so their
 //! `ShotFired` is skipped here.
 
-use super::impact::FlashLight;
 use super::sound::Sfx3d;
 use super::{bv, corps_rgb, PresentSet};
 use crate::arena::ArenaWorld;
@@ -54,7 +53,6 @@ fn fire_sound(a: GunArchetype) -> (&'static str, f32, Option<&'static str>) {
 
 #[allow(clippy::too_many_arguments)]
 fn gun_events(
-    mut commands: Commands,
     mut events: MessageReader<GameEvents>,
     active: Option<Res<ActiveWorld>>,
     arena: Option<Res<ArenaWorld>>,
@@ -81,11 +79,7 @@ fn gun_events(
                 let d = bv(*dir).normalize_or(Vec3::NEG_Z);
                 let big = matches!(archetype, GunArchetype::SuperShotgun | GunArchetype::Rocket | GunArchetype::Railgun | GunArchetype::Cannon);
                 muzzle.write(MuzzleFx { pos: p, dir: d, color: col, scale: if big { 1.6 } else if *archetype == GunArchetype::Ring { 0.6 } else { 1.0 } });
-                commands.spawn((
-                    FlashLight { t: 0.0, life: 0.06, peak: if big { 4.0e5 } else { 1.5e5 } },
-                    PointLight { color: Color::linear_rgb(0.6 + col[0] * 0.4, 0.6 + col[1] * 0.4, 0.6 + col[2] * 0.4), intensity: 0.0, range: 8.0, shadow_maps_enabled: false, ..default() },
-                    Transform::from_translation(p + d * 0.3),
-                ));
+                // (bd_fx's MuzzleFx lights the muzzle from its pooled lights: no per-shot light entity.)
                 if matches!(archetype, GunArchetype::HandCannon | GunArchetype::SuperShotgun | GunArchetype::Minigun) {
                     let right = d.cross(Vec3::Y).normalize_or(Vec3::X);
                     casing.write(CasingFx { pos: p - d * 0.25, vel: right * 3.2 + Vec3::Y * 2.2, color: col, floor: None, scale: if *archetype == GunArchetype::SuperShotgun { 1.4 } else { 1.0 } });

@@ -96,7 +96,8 @@ impl Plugin for PracticePlugin {
         app.insert_resource(PracticeSettings { bots: args.bots, difficulty: args.difficulty })
             .insert_resource(args)
             .add_systems(OnEnter(AppState::InGame), start_practice.after(crate::player::SpawnPlayerSet))
-            .add_systems(Update, auto_rematch.run_if(resource_exists::<ActiveWorld>));
+            .add_systems(Update, auto_rematch.run_if(resource_exists::<ActiveWorld>))
+            .add_systems(Update, report_sim_perf);
     }
 }
 
@@ -144,6 +145,9 @@ fn start_practice(
         cfg.timings = timings;
         cfg.check_invariants = false;
     }
+    // Practice keeps its terrain on rematch (the render mirror regenerates only via ArenaReset,
+    // and city maps can't be rebuilt from an Archipelago seed).
+    cfg.rules.regen_islands_between_rounds = false;
     let mut world = build_world(&mut copy, cfg);
     let brawl = args.brawl();
     let local = if brawl { None } else { Some(PlayerId(0)) };
@@ -192,4 +196,18 @@ mod tests {
         assert!(b.brawl());
         assert_eq!(b.bots, 8);
     }
+}
+
+/// Every 5 s with `--bench` / a scenario / `--soak-view`: print the authoritative tick cost.
+fn report_sim_perf(time: Res<Time<Real>>, args: Res<SimArgs>, cli: Res<crate::cli::CliArgs>, timing: Res<crate::sim_bridge::SimTiming>, mut next: Local<f32>) {
+    if !(args.scenario.is_some() || args.soak_view || cli.bench.is_some()) {
+        return;
+    }
+    let t = time.elapsed_secs();
+    if t < *next {
+        return;
+    }
+    *next = t + 5.0;
+    let (avg, p99, max) = timing.stats();
+    println!("SIMPERF ticks={} avg_ms={avg:.3} p99_ms={p99:.3} max_ms={max:.3}", timing.samples.len());
 }

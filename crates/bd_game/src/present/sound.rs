@@ -145,6 +145,13 @@ struct SfxRng(Rng);
 
 /// Distance (m) at which a world sound is at half volume.
 const HALF_DIST: f32 = 22.0;
+/// World one-shots started per frame / per second at most (exempt sounds excluded).
+const MAX_VOICES_PER_FRAME: usize = 4;
+const VOICES_PER_SEC: f32 = 28.0;
+
+#[derive(Default)]
+struct VoiceBudget(f32);
+
 /// Beyond this a one-shot is skipped.
 const MAX_DIST: f32 = 160.0;
 
@@ -194,6 +201,8 @@ fn play_oneshots(
     mut events: MessageReader<Sfx3d>,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     mut listener_missing: Query<Entity, (With<PlayerCamera>, Without<SpatialListener>)>,
+    mut scratch: Local<Vec<(Sfx3d, f32)>>,
+    mut budget: Local<VoiceBudget>,
 ) {
     duck.remaining = (duck.remaining - time.delta_secs()).max(0.0);
     for e in &mut listener_missing {
@@ -201,43 +210,68 @@ fn play_oneshots(
     }
     let ear = cam.single().map(|t| t.translation()).unwrap_or(Vec3::ZERO);
     let master = settings.master_volume;
-    let mut n = 0;
+    // Every voice start costs main-thread work (sink + decoder), so a brawl's dozens of sounds per
+    // frame are culled to the few that matter: loudest first, one per name, a per-frame cap and
+    // a per-second budget (exempt = KO streak / UI-critical sounds always play).
+    let dt = time.delta_secs();
+    budget.0 = (budget.0 + dt * VOICES_PER_SEC).min(VOICES_PER_SEC * 0.5);
+    let mut picks = std::mem::take(&mut *scratch);
+    picks.clear();
     for e in events.read() {
-        let Some(s) = bank.sounds.get(e.name.as_ref()) else { continue };
-        if s.handles.is_empty() || master <= 0.0 {
+        if super::perf_off("audio") || master <= 0.0 {
             continue;
         }
-        // Never flood the mixer (a brawl can emit dozens per frame).
-        n += 1;
-        if n > 24 {
-            break;
+        let Some(s) = bank.sounds.get(e.name.as_ref()) else { continue };
+        if s.handles.is_empty() {
+            continue;
         }
-        let r = &mut rng.0;
-        let h = match (e.step, s.sequence) {
-            (Some(k), _) => s.handles[(k.max(1) as usize - 1).min(s.handles.len() - 1)].clone(),
-            _ => s.handles[(r.next_u32() as usize) % s.handles.len()].clone(),
-        };
-        let speed = (if s.sequence { 1.0 } else { r.range(s.pitch.0, s.pitch.1) }) * e.pitch;
         let mut gain = s.volume * e.gain;
         if !e.duck_exempt {
             gain *= duck.factor();
         }
-        let mut settings = PlaybackSettings::DESPAWN.with_speed(speed.max(0.05));
-        let mut tf = Transform::default();
         if let Some(p) = e.pos {
             let d = p.distance(ear);
             if d > MAX_DIST {
                 continue;
             }
             gain *= 1.0 / (1.0 + d / HALF_DIST);
+        }
+        if gain < 0.04 && !e.duck_exempt {
+            continue;
+        }
+        if let Some(prev) = picks.iter_mut().find(|(q, _): &&mut (Sfx3d, f32)| q.name == e.name && q.step == e.step) {
+            // Same sound twice this frame: keep the louder one.
+            if gain > prev.1 {
+                *prev = (e.clone(), gain);
+            }
+            continue;
+        }
+        picks.push((e.clone(), gain));
+    }
+    picks.sort_by(|a, b| (b.0.duck_exempt, b.1).partial_cmp(&(a.0.duck_exempt, a.1)).unwrap_or(std::cmp::Ordering::Equal));
+    for (i, (e, gain)) in picks.drain(..).enumerate() {
+        if !e.duck_exempt && (i >= MAX_VOICES_PER_FRAME || budget.0 < 1.0) {
+            continue;
+        }
+        if !e.duck_exempt {
+            budget.0 -= 1.0;
+        }
+        let Some(s) = bank.sounds.get(e.name.as_ref()) else { continue };
+        let r = &mut rng.0;
+        let h = match (e.step, s.sequence) {
+            (Some(k), _) => s.handles[(k.max(1) as usize - 1).min(s.handles.len() - 1)].clone(),
+            _ => s.handles[(r.next_u32() as usize) % s.handles.len()].clone(),
+        };
+        let speed = (if s.sequence { 1.0 } else { r.range(s.pitch.0, s.pitch.1) }) * e.pitch;
+        let mut settings = PlaybackSettings::DESPAWN.with_speed(speed.max(0.05));
+        let mut tf = Transform::default();
+        if let Some(p) = e.pos {
             settings = settings.with_spatial(true);
             tf.translation = p;
         }
-        if gain < 0.01 {
-            continue;
-        }
         commands.spawn((AudioPlayer::new(h), settings.with_volume(Volume::Linear(gain)), tf));
     }
+    *scratch = picks;
 }
 
 fn sync_loops(

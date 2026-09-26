@@ -105,7 +105,7 @@ fn start_soak(mut commands: Commands, args: Res<SimArgs>, mut director: ResMut<D
     info!("soak viewer: seed {seed}");
 }
 
-fn soak_tick(mut driver: ResMut<SoakDriver>, active: Option<ResMut<ActiveWorld>>, mut keys: ResMut<ViewKeys>) {
+fn soak_tick(mut driver: ResMut<SoakDriver>, active: Option<ResMut<ActiveWorld>>, mut keys: ResMut<ViewKeys>, mut timing: ResMut<crate::sim_bridge::SimTiming>) {
     let Some(mut active) = active else { return };
     if driver.failure.is_some() {
         return;
@@ -120,10 +120,13 @@ fn soak_tick(mut driver: ResMut<SoakDriver>, active: Option<ResMut<ActiveWorld>>
         d.tick_us.pop_front();
     }
     d.tick_us.push_back(report.tick_us);
+    timing.record(report.tick_us as f32 / 1000.0);
     for (p, desc) in report.casts {
         if d.casts.len() >= 6 {
             d.casts.pop_front();
         }
+        // The UI font is ASCII-only: '×' etc. would render as a box.
+        let desc: String = desc.chars().map(|c| if c == '×' { 'x' } else if c.is_ascii() { c } else { '?' }).collect();
         d.casts.push_back(format!("{}: {desc}", p.0));
     }
     if let Some(e) = report.invariant_error {

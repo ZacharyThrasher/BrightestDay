@@ -357,6 +357,33 @@ impl WorldViews {
     }
 }
 
+/// Authoritative tick cost (ms), for overlays / benchmarks.
+#[derive(Resource, Default, Debug)]
+pub struct SimTiming {
+    pub last_ms: f32,
+    /// Every tick's cost since startup (for the bench report; capped).
+    pub samples: Vec<f32>,
+}
+
+impl SimTiming {
+    pub fn record(&mut self, ms: f32) {
+        self.last_ms = ms;
+        if self.samples.len() < 200_000 {
+            self.samples.push(ms);
+        }
+    }
+    /// (avg, p99, max) over the recorded ticks.
+    pub fn stats(&self) -> (f32, f32, f32) {
+        if self.samples.is_empty() {
+            return (0.0, 0.0, 0.0);
+        }
+        let mut v = self.samples.clone();
+        v.sort_by(|a, b| a.total_cmp(b));
+        let avg = v.iter().sum::<f32>() / v.len() as f32;
+        (avg, v[((v.len() as f32 * 0.99) as usize).min(v.len() - 1)], v[v.len() - 1])
+    }
+}
+
 // ------------------------------------------------------------------------------------ plugin
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -377,6 +404,7 @@ impl Plugin for SimBridgePlugin {
             .add_message::<GameEvents>()
             .init_resource::<ViewKeys>()
             .init_resource::<WorldViews>()
+            .init_resource::<SimTiming>()
             .configure_sets(Update, BridgeSet::Commands.after(FrameSet::Input).before(FrameSet::Sim))
             .configure_sets(Update, (BridgeSet::Flush, BridgeSet::Views).chain().after(FrameSet::Sim).before(FrameSet::Present))
             .add_systems(Update, apply_commands.in_set(BridgeSet::Commands))
@@ -426,6 +454,7 @@ fn step_world(
     mut move_events: ResMut<FrameMoveEvents>,
     mut positions: ResMut<FramePositions>,
     mut local_q: Query<&mut PlayerSim, With<LocalPlayer>>,
+    mut timing: ResMut<SimTiming>,
 ) {
     let Some(mut a) = active else { return };
     if !a.role.authoritative() || a.paused {
@@ -433,7 +462,9 @@ fn step_world(
     }
     let before = a.local_player().map(|p| p.mv);
     let local_input = Some(input.current);
+    let t0 = std::time::Instant::now();
     a.step(local_input);
+    timing.record(t0.elapsed().as_secs_f32() * 1000.0);
     if let (Some(prev), Some(p)) = (before, a.local_player()) {
         if let Ok(mut sim) = local_q.single_mut() {
             sim.prev = prev;
