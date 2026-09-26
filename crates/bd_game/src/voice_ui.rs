@@ -43,6 +43,7 @@ pub struct VoiceUi {
 }
 
 impl VoiceUi {
+    #[allow(dead_code)]
     /// Voice can be used right now (hide every voice affordance otherwise).
     pub fn available(&self) -> bool {
         self.status == VoiceStatus::Ready

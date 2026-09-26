@@ -328,8 +328,17 @@ fn spawn_oath_ui(mut commands: Commands) {
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 row_gap: px(10),
+                padding: UiRect::axes(px(28), px(14)),
+                border_radius: BorderRadius::all(px(10)),
                 ..default()
             },
+            BackgroundGradient::from(bevy::ui::RadialGradient {
+                stops: vec![
+                    bevy::ui::ColorStop::new(Color::srgba(0.0, 0.01, 0.03, 0.62), percent(0)),
+                    bevy::ui::ColorStop::new(Color::srgba(0.0, 0.01, 0.03, 0.0), percent(100)),
+                ],
+                ..default()
+            }),
             UiTransform::default(),
             Visibility::Hidden,
             Pickable::IGNORE,
@@ -346,7 +355,7 @@ fn spawn_oath_ui(mut commands: Commands) {
             ))
             .with_children(|t| {
                 t.spawn((OathNext, TextSpan::new(""), TextFont::from_font_size(26.0), TextColor(Color::WHITE)));
-                t.spawn((OathRest, TextSpan::new(""), TextFont::from_font_size(26.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.32))));
+                t.spawn((OathRest, TextSpan::new(""), TextFont::from_font_size(26.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.5))));
             });
             root.spawn((OathBar, Node { width: px(0), height: px(2), ..default() }, BackgroundColor(Color::WHITE)));
         });

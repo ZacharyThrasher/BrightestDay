@@ -201,7 +201,6 @@ const RANDOM_COSTUMES: &[&str] = &[
 struct Ctx<'a> {
     settings: &'a mut Settings,
     prefs: &'a mut UiPrefs,
-    binds: &'a mut KeyBinds,
     net: Option<&'a NetStatus>,
     voice: bool,
     in_game: bool,
@@ -233,7 +232,7 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
         MenuPage::HostSetup => vec![Value(K::Map), Value(K::Preset), Value(K::Mode), Button(Act::Rules, "MATCH RULES"), Button(Act::OpenLobby, "OPEN LOBBY"), Button(Act::Back, "BACK")],
         MenuPage::Lobby => {
             let mut v = Vec::new();
-            if c.net.and_then(|n| n.lobby_code.as_ref()).is_some() {
+            if c.net.is_some_and(|n| n.lobby_code.is_some() || (n.role == NetRole::Host && !n.lan.is_empty())) {
                 v.push(Button(Act::Copy, "COPY CODE"));
             }
             let me_ready = c.net.and_then(|n| n.me.and_then(|me| n.players.iter().find(|p| p.id == me))).is_some_and(|p| p.ready);
@@ -817,7 +816,7 @@ struct MenuIo<'w> {
 impl MenuIo<'_> {
     fn ctx(&mut self, in_game: bool) -> Ctx<'_> {
         let voice = bd_voice::ENABLED && self.voice.status != crate::voice_ui::VoiceStatus::Unavailable;
-        Ctx { settings: &mut self.settings, prefs: &mut self.prefs, binds: &mut self.binds, net: self.net.as_deref(), voice, in_game }
+        Ctx { settings: &mut self.settings, prefs: &mut self.prefs, net: self.net.as_deref(), voice, in_game }
     }
     fn rows(&mut self, page: MenuPage, in_game: bool) -> Vec<Row> {
         let c = self.ctx(in_game);
@@ -933,7 +932,7 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
             menu.rebuild = true;
         }
         Act::Copy => {
-            if let (Some(code), Some(cb)) = (io.net.as_ref().and_then(|n| n.lobby_code.clone()), io.clipboard.as_mut()) {
+            if let (Some(code), Some(cb)) = (io.net.as_ref().and_then(|n| n.lobby_code.clone().or_else(|| n.lan.first().cloned())), io.clipboard.as_mut()) {
                 let _ = cb.set_text(code);
                 menu.toast("copied");
             }
@@ -1425,8 +1424,7 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                         // Ctx needs &mut; build a read-only copy for text.
                         let mut s = io.settings.clone();
                         let mut p = prefs_snapshot.clone();
-                        let mut b = io.binds.clone();
-                        let c = Ctx { settings: &mut s, prefs: &mut p, binds: &mut b, net, voice: ctx_voice, in_game };
+                        let c = Ctx { settings: &mut s, prefs: &mut p, net, voice: ctx_voice, in_game };
                         let (l, v) = knob_text(k, &c);
                         (l, Some(v))
                     }
@@ -1509,6 +1507,8 @@ fn lobby_panel(root: &mut ChildSpawnerCommands, net: Option<&NetStatus>, glow: C
         (NetPhase::Reconnecting { attempt }, _, _) => Some(format!("reconnecting ({attempt})")),
         _ => None,
     };
+    let lan_big = code.is_none() && net.role == NetRole::Host;
+    let code = code.or_else(|| if lan_big { net.lan.first().cloned() } else { None });
     if let Some(code) = code {
         root.spawn((
             Text::new(code.to_uppercase()),
@@ -1522,7 +1522,7 @@ fn lobby_panel(root: &mut ChildSpawnerCommands, net: Option<&NetStatus>, glow: C
     if let Some(s) = status {
         small.push(s);
     }
-    if !net.lan.is_empty() && net.role == NetRole::Host {
+    if !lan_big && !net.lan.is_empty() && net.role == NetRole::Host {
         small.push(format!("lan {}", net.lan.join("  ")));
     }
     if !small.is_empty() {

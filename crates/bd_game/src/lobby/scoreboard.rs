@@ -150,7 +150,7 @@ fn draw_code_tag(
     mut q: Query<(&mut Text, &mut Visibility), With<CodeTag>>,
 ) {
     let Ok((mut t, mut vis)) = q.single_mut() else { return };
-    let code = net.as_ref().filter(|n| n.role == crate::net::NetRole::Host).and_then(|n| n.lobby_code.clone());
+    let code = net.as_ref().filter(|n| n.role == crate::net::NetRole::Host).and_then(|n| n.lobby_code.clone().or_else(|| n.lan.first().cloned()));
     let warmup = active.as_ref().is_some_and(|a| a.world.match_state.phase == bd_sim::MatchPhase::Warmup);
     let tab = binds.pressed(Action::Scoreboard, &keys, &mouse);
     let show = *state.get() == AppState::InGame && !menu.0 && code.is_some() && (warmup || tab);

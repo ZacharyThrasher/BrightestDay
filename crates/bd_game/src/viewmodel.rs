@@ -96,6 +96,8 @@ struct VmState {
     tether_l: Spring,
     tether_r: Spring,
     ring_key: [f32; 3],
+    /// Fingertip offsets from the elbow (unscaled arm space), from the glove mesh.
+    tip: [Vec3; 2],
 }
 
 #[derive(Component)]
@@ -126,8 +128,15 @@ struct VmAssets {
 }
 
 /// Elbow positions in camera space (right, up, back).
-const ELBOW_R: Vec3 = Vec3::new(0.25, -0.29, -0.09);
-const ELBOW_L: Vec3 = Vec3::new(-0.30, -0.35, -0.05);
+const ELBOW_R: Vec3 = Vec3::new(0.24, -0.27, -0.06);
+/// Where the fists sit in camera space at rest (the arm is placed so its fingertip lands here).
+const FIST_R: Vec3 = Vec3::new(0.16, -0.135, -0.34);
+const FIST_L: Vec3 = Vec3::new(-0.2, -0.17, -0.33);
+/// First-person held items are drawn smaller (a viewmodel convention; the world model is unchanged).
+const HELD_VIEW_SCALE: f32 = 0.24;
+/// Gloves are drawn a bit slimmer than the body's arms so they frame the view instead of filling it.
+const ARM_SCALE: f32 = 0.48;
+const ELBOW_L: Vec3 = Vec3::new(-0.27, -0.31, -0.03);
 
 pub struct ViewmodelPlugin;
 
@@ -161,7 +170,7 @@ fn attach_viewmodel(mut commands: Commands, cams: Query<Entity, With<PlayerCamer
     commands.entity(cam).with_children(|c| {
         c.spawn((Name::new("Viewmodel"), VmRoot, Transform::default(), Visibility::Hidden)).with_children(|root| {
             for right in [true, false] {
-                root.spawn((VmArm { right }, Transform::from_translation(if right { ELBOW_R } else { ELBOW_L }), Visibility::Inherited)).with_children(|arm| {
+                root.spawn((VmArm { right }, Transform::from_translation(if right { ELBOW_R } else { ELBOW_L }).with_scale(Vec3::splat(ARM_SCALE)), Visibility::Inherited)).with_children(|arm| {
                     arm.spawn((VmArmMesh, Transform::default(), Visibility::Inherited, NotShadowCaster));
                     if right {
                         arm.spawn((
@@ -216,7 +225,10 @@ fn rebuild_hands(
         return;
     }
     st.built_for = Some(key);
-    let spec = crate::lobby::costume::costume_spec(&lex.0, c);
+    // Hands only: arm-mounted gear (shields, saws) would fill the view.
+    let mut c1 = c.clone();
+    c1.hide |= bd_shapes::acc::LEFT_ARM;
+    let spec = crate::lobby::costume::costume_spec(&lex.0, &c1);
     let hands = bd_shapes::costume_first_person_hands(&spec);
     let model = bd_shapes::costume_model(&hands);
     let parts = bd_shapes::mesh_model(&model);
@@ -239,6 +251,9 @@ fn rebuild_hands(
                     }
                     // Fingertip = farthest point along −Z from the elbow.
                     let tip = pm.positions.iter().map(|q| Vec3::from_array(*q) - pivot).fold(Vec3::ZERO, |a, b| if b.z < a.z { b } else { a });
+                    // Use the glove's centre line at the tip (not a corner).
+                    let tip = Vec3::new(0.0, tip.y * 0.5, tip.z);
+                    st.tip[if arm.right { 0 } else { 1 }] = tip;
                     let mesh = meshes.add(part_mesh_to_bevy(pm, &palette, pivot));
                     commands.entity(child).insert((Mesh3d(mesh), MeshMaterial3d(assets.arm_mat.clone())));
                     if arm.right {
@@ -500,7 +515,14 @@ fn animate_viewmodel(
     root_tf.rotation = Quat::from_euler(EulerRot::YXZ, st.sway_x.x.clamp(-0.1, 0.1) * 0.5, (st.kick_pitch.x * 0.012).clamp(-0.05, 0.35), 0.0);
 
     // --- swing curve (right hand frame)
-    let mut swing_tf = Transform::IDENTITY;
+    // Rest: the item is held up at the side (tilted up and out), clear of the crosshair.
+    // Guns / launchers / bows / shields point where you aim (DOOM-style), just right of centre.
+    let aims = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff | Form::Shield | Form::Gauntlet));
+    let mut swing_tf = if aims {
+        Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.06, 0.03, 0.0)).with_translation(Vec3::new(-0.02, 0.02, 0.0))
+    } else {
+        Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, -0.7, 0.75, -0.5)).with_translation(Vec3::new(0.05, -0.03, 0.02))
+    };
     let mut swinging = false;
     if let Some(s) = st.swing.as_mut() {
         if !s.holding || s.t < s.curve.hold_at {
@@ -528,7 +550,10 @@ fn animate_viewmodel(
             // The arm follows a softened version of the item's swing.
             rot = rot * Quat::IDENTITY.slerp(swing_tf.rotation, 0.35);
         }
-        tf.translation = base + Vec3::new(0.0, lift * 0.06, ext);
+        let tip = st.tip[if arm.right { 0 } else { 1 }];
+        let fist = if arm.right { FIST_R } else { FIST_L };
+        let elbow = if tip == Vec3::ZERO { base } else { fist - rot * (tip * ARM_SCALE) };
+        tf.translation = elbow + Vec3::new(0.0, lift * 0.06, ext);
         tf.rotation = rot;
     }
 
@@ -578,12 +603,14 @@ fn animate_viewmodel(
     held_out.active = held.is_some();
     if let (Some(_), Ok(cam)) = (held, cams.single()) {
         let arm_r = arms.iter().find(|(a, _)| a.right).map(|(_, t)| *t).unwrap_or_default();
-        let hand = Transform::from_translation(Vec3::new(0.0, 0.0, -0.3));
+        let tip = if st.tip[0] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.32) } else { st.tip[0] };
+        let hand = Transform::from_translation(tip);
         let local = root_tf.mul_transform(arm_r).mul_transform(hand);
         // The item's hand frame looks along the camera (not the arm), so aim stays honest.
+        // Swings play out ahead of the hand; at rest the item hugs the side of the view.
         let grip_local = Transform { translation: local.translation, rotation: root_tf.rotation, scale: Vec3::ONE }.mul_transform(swing_tf);
         let cam_tf = cam.compute_transform();
-        held_out.grip = cam_tf.mul_transform(grip_local);
+        held_out.grip = cam_tf.mul_transform(Transform { scale: grip_local.scale * HELD_VIEW_SCALE, ..grip_local });
     }
 }
 

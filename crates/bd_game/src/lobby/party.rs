@@ -183,9 +183,9 @@ fn party_keys(
 
 fn rarity_colors(r: Rarity, corps: Color) -> (Color, Color) {
     match r {
-        Rarity::Common => (corps, corps.with_alpha(0.10)),
-        Rarity::Legendary => (Color::srgb(1.0, 0.8, 0.25), Color::srgba(1.0, 0.75, 0.2, 0.14)),
-        Rarity::Cursed => (Color::srgb(0.65, 0.3, 1.0), Color::srgba(0.12, 0.02, 0.18, 0.75)),
+        Rarity::Common => (corps, Color::srgba(0.01, 0.02, 0.05, 0.72).mix(&corps, 0.12)),
+        Rarity::Legendary => (Color::srgb(1.0, 0.8, 0.25), Color::srgba(0.08, 0.05, 0.0, 0.78)),
+        Rarity::Cursed => (Color::srgb(0.65, 0.3, 1.0), Color::srgba(0.08, 0.01, 0.12, 0.82)),
     }
 }
 
@@ -304,7 +304,7 @@ fn rebuild_party(mut commands: Commands, mut ui: ResMut<PartyUi>, active: Option
                             ..default()
                         },
                         BorderColor::all(edge.with_alpha(if dim { 0.25 } else { 1.0 })),
-                        BackgroundColor(fill.with_alpha(if dim { 0.05 } else { fill.alpha().max(0.1) })),
+                        BackgroundColor(fill.with_alpha(if dim { 0.3 } else { fill.alpha() })),
                         BoxShadow::new(edge.with_alpha(if dim { 0.0 } else if chosen { 0.9 } else { 0.45 }), px(0), px(0), px(if chosen { 10.0 } else { 2.0 }), px(if chosen { 28.0 } else { 16.0 })),
                         UiTransform::default(),
                     ))
@@ -364,14 +364,19 @@ fn rebuild_party(mut commands: Commands, mut ui: ResMut<PartyUi>, active: Option
     if phase == PartyPhase::Reveal && !ui.reveal.is_empty() {
         commands.entity(root).with_children(|r| {
             r.spawn((Node { height: percent(18), ..default() }, Pickable::IGNORE));
-            r.spawn((Node { flex_direction: FlexDirection::Column, row_gap: px(6), align_items: AlignItems::Center, ..default() }, Pickable::IGNORE)).with_children(|col| {
+            r.spawn((
+                Node { flex_direction: FlexDirection::Column, row_gap: px(6), padding: UiRect::axes(px(22), px(14)), border_radius: BorderRadius::all(px(6)), ..default() },
+                BackgroundColor(Color::srgba(0.0, 0.01, 0.03, 0.7)),
+                Pickable::IGNORE,
+            ))
+            .with_children(|col| {
                 for pk in &ui.reveal {
                     let (name, corps) = name_of(&a, pk.player);
                     let c = corps_color(corps);
                     let eff = pk.effect.map(|e| effect_name(&a, e)).unwrap_or_else(|| "—".into());
                     let rarity = pk.effect.and_then(|e| party.table.get(e)).map_or(Rarity::Common, |s| s.rarity);
                     let (edge, _) = rarity_colors(rarity, c);
-                    col.spawn((Node { flex_direction: FlexDirection::Row, column_gap: px(14), ..default() },)).with_children(|row| {
+                    col.spawn((Node { flex_direction: FlexDirection::Row, column_gap: px(14), width: px(480), align_items: AlignItems::Center, ..default() },)).with_children(|row| {
                         row.spawn((Node { width: px(4), height: px(22), ..default() }, BackgroundColor(c)));
                         row.spawn((Text::new(name.to_uppercase()), TextFont::from_font_size(20.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.7)), Node { width: px(200), ..default() }));
                         row.spawn((Text::new(eff), TextFont::from_font_size(22.0), TextColor(edge.mix(&Color::WHITE, 0.3))));

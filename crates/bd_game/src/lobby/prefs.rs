@@ -402,7 +402,11 @@ impl Default for UiPrefs {
 }
 
 impl UiPrefs {
+    /// `BD_UI_PREFS=<file>` overrides the location (tests / automation).
     pub fn path() -> PathBuf {
+        if let Some(p) = std::env::var_os("BD_UI_PREFS") {
+            return PathBuf::from(p);
+        }
         Settings::path().with_file_name("ui_prefs.ron")
     }
     pub fn load() -> Self {
