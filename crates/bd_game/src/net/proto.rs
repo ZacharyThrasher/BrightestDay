@@ -86,6 +86,7 @@ pub enum NetMapKind {
     Archipelago,
     Miami,
     Orbit,
+    Backrooms,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,6 +111,10 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
         }
         NetMapKind::Orbit => {
             let (w, m) = bd_voxel::generate_orbit(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Backrooms => {
+            let (w, m) = bd_voxel::generate_backrooms(seed);
             (w, m.arena, seed)
         }
     }

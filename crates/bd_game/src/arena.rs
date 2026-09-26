@@ -81,6 +81,8 @@ pub enum MapKind {
     Miami,
     /// Asteroid ring + wrecked station in low orbit (bd_voxel `generate_orbit`; gravity by altitude).
     Orbit,
+    /// Five stacked liminal levels, all breakable (bd_voxel `generate_backrooms`).
+    Backrooms,
 }
 
 impl MapKind {
@@ -90,6 +92,7 @@ impl MapKind {
             "tutorial" | "course" => Some(MapKind::Tutorial),
             "miami" => Some(MapKind::Miami),
             "orbit" | "space" => Some(MapKind::Orbit),
+            "backrooms" => Some(MapKind::Backrooms),
             _ => None,
         }
     }
@@ -193,6 +196,26 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 tutorial: None,
                 arena: Some(info.clone()),
                 // No sea: the planet is drawn by `present::space`.
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Backrooms => {
+            let (world, m) = bd_voxel::generate_backrooms(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the pools are voxels.
                 water_y: None,
                 water_color: None,
                 sun_color: Some(m.sun_color),
@@ -345,7 +368,7 @@ fn finish_generation(
         env.sun_color = Color::srgb(c[0], c[1], c[2]);
     }
     if let Some(f) = map.fog_end {
-        env.fog_visibility = f.clamp(120.0, 2000.0);
+        env.fog_visibility = f.clamp(40.0, 2000.0);
     }
 
     world.drain_dirty();

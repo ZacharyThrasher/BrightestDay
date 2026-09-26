@@ -19,7 +19,8 @@ proptest.workspace = true
 bincode.workspace = true
 
 [features]
-# BACKROOMS map (bd_voxel feature) — only the route example needs it while the map is in development.
+default = ["backrooms"]
+# BACKROOMS map (bd_voxel feature; the route example needs it).
 backrooms = ["bd_voxel/backrooms"]
 
 [[example]]

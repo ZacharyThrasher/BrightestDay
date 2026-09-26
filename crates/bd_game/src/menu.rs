@@ -441,6 +441,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Map => (lbl("MAP"), match map_of(c.prefs) {
             MapKind::Miami => "MIAMI".into(),
             MapKind::Orbit => "ORBIT".into(),
+            MapKind::Backrooms => "BACKROOMS".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -639,10 +640,11 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit], map_of(c.prefs), dir);
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms], map_of(c.prefs), dir);
             c.prefs.map = match m {
                 MapKind::Miami => "miami",
                 MapKind::Orbit => "orbit",
+                MapKind::Backrooms => "backrooms",
                 _ => "arena",
             }
             .into();

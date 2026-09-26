@@ -17,6 +17,8 @@ use glam::Vec3;
 
 use crate::arena::ArenaInfo;
 
+#[cfg(feature = "backrooms")]
+pub use backrooms::{BACKROOMS_SIZE_VOXELS, generate_backrooms};
 pub use miami::{MIAMI_SIZE_VOXELS, generate_miami};
 pub use orbit::{ORBIT_SIZE_VOXELS, generate_orbit};
 

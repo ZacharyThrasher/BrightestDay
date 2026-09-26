@@ -157,6 +157,9 @@ impl MusicDirector {
             ("miami", _) => "miami",
             ("orbit", false) => "orbit_float",
             ("orbit", true) => "orbit_combat",
+            // Backrooms: the lobby muzak drifting through empty offices; Orbit's tension when it kicks off.
+            ("backrooms", false) => "lobby",
+            ("backrooms", true) => "orbit_combat",
             (_, false) => "archipelago_explore",
             (_, true) => "archipelago_combat",
         }

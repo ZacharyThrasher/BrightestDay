@@ -335,6 +335,7 @@ fn handle_requests(
                     let kind = match map.0 {
                         crate::arena::MapKind::Miami => proto::NetMapKind::Miami,
                         crate::arena::MapKind::Orbit => proto::NetMapKind::Orbit,
+                        crate::arena::MapKind::Backrooms => proto::NetMapKind::Backrooms,
                         _ => proto::NetMapKind::Archipelago,
                     };
                     let nm = proto::NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
@@ -479,6 +480,7 @@ fn match_flow(
                 let want = match c.map.kind {
                     proto::NetMapKind::Miami => crate::arena::MapKind::Miami,
                     proto::NetMapKind::Orbit => crate::arena::MapKind::Orbit,
+                    proto::NetMapKind::Backrooms => crate::arena::MapKind::Backrooms,
                     proto::NetMapKind::Archipelago => crate::arena::MapKind::Arena,
                 };
                 if current_map.0 != want {

@@ -486,7 +486,9 @@ fn ping_events(
                 if active.local != Some(*owner) || !eligible(recipe.form) {
                     continue;
                 }
-                if views.construct(*id).is_some_and(|c| c.attached()) {
+                // Held / worn (in your hand or on your back): never a ping, whatever the form.
+                let carried = active.world.constructs.get(*id).is_some_and(|c| matches!(c.category, FormCategory::Held | FormCategory::Worn));
+                if carried || views.construct(*id).is_some_and(|c| c.attached()) {
                     continue;
                 }
                 st.track = Some(new_track(*id, corps_rgb(active.corps_of(*owner)), bv(*pos)));
@@ -746,6 +748,8 @@ struct CutQueries<'w, 's> {
     layers: Query<'w, 's, (), With<RenderLayers>>,
     ui: Query<'w, 's, (&'static CutUi, &'static mut Node, &'static mut UiTransform, &'static mut BorderColor, &'static mut BackgroundColor, &'static mut Visibility)>,
     label: Query<'w, 's, (&'static mut Text, &'static mut TextColor), With<CutUi>>,
+    sim: Query<'w, 's, &'static super::constructs::SimConstruct>,
+    bodies: Query<'w, 's, &'static super::players::PlayerBody>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -757,12 +761,22 @@ fn update_cutins(
     mut st: ResMut<SummonPing>,
     menu: Res<InGameMenu>,
     window: Single<&Window, With<PrimaryWindow>>,
+    active: Option<Res<ActiveWorld>>,
     mut q: CutQueries,
 ) {
     let t0 = std::time::Instant::now();
     let dt = time.delta_secs().min(0.1);
     let cuts = &mut *cuts;
+    let local = active.as_ref().and_then(|a| a.local);
     for c in reader.read() {
+        // The caster never gets a cut-in of their own stuff: their body / held / worn items are in
+        // their hands, and their own free-standing summons get the summon ping's plain Info window
+        // only when actually off-screen or occluded (sent below via `offer(.., Some(id))`).
+        if let (Some(me), CutInTarget::Entity { entity, .. }) = (local, c.target)
+            && (q.sim.get(entity).is_ok_and(|s| s.owner == me) || q.bodies.get(entity).is_ok_and(|b| b.id == me))
+        {
+            continue;
+        }
         let mut c = c.clone();
         c.duration = if c.duration.is_finite() { c.duration.max(POP + FADE) } else { f32::MAX };
         cuts.offer(c, None);

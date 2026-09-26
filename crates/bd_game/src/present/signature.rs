@@ -524,7 +524,11 @@ fn alert_spectacles(
             _ => None,
         };
         if let Some(target) = target {
-            let label = p.title.to_uppercase();
+            // The label bar fits ~22 characters: a long "Invocation: Name" title shows the name.
+            let label = match p.title.split_once(": ") {
+                Some((_, name)) if p.title.chars().count() > 22 => name.to_uppercase(),
+                _ => p.title.to_uppercase(),
+            };
             let placement = if mine || inside { CutInPlacement::Auto } else { CutInPlacement::Screen(threat_side(cam, center)) };
             let duration = (p.sp.windup + 1.4).clamp(1.8, 3.2);
             cut.write(
@@ -644,7 +648,12 @@ struct SigDev {
 }
 
 /// Dev: world side of the plan (pins, willpower, bot casts).
-fn dev_world(active: Option<ResMut<ActiveWorld>>, mut dev: ResMut<SigDev>, mut cmds: MessageWriter<SimCommand>, mut look: ResMut<crate::input::LookAngles>) {
+fn dev_world(
+    active: Option<ResMut<ActiveWorld>>,
+    mut dev: ResMut<SigDev>,
+    mut cmds: MessageWriter<SimCommand>,
+    mut look: ResMut<crate::input::LookAngles>,
+) {
     if let Some((yaw, pitch, until)) = dev.look {
         if dev.t < until {
             let base = *dev.base_yaw.get_or_insert(look.yaw);

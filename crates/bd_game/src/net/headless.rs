@@ -92,6 +92,7 @@ pub fn run_host(cli: &NetCli) -> i32 {
     let kind = match cli.map.as_deref() {
         Some("miami") => NetMapKind::Miami,
         Some("orbit") => NetMapKind::Orbit,
+        Some("backrooms") => NetMapKind::Backrooms,
         _ => NetMapKind::Archipelago,
     };
     let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 }, cli.seed);

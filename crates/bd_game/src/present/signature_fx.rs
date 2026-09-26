@@ -77,6 +77,9 @@ impl Plugin for SignatureFxPlugin {
                 ),
             )
             .add_systems(OnExit(AppState::InGame), clear);
+        // No first-use hitch: the unlit additive material (fusion orbs, strike markers) compiles during Loading.
+        use crate::warmup::WarmupAppExt;
+        app.add_warmup(warmup_fx);
     }
 }
 
@@ -84,6 +87,29 @@ fn assets(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     commands.insert_resource(FusionAssets {
         sphere: meshes.add(Sphere::new(1.0).mesh().ico(2).unwrap_or_else(|_| Sphere::new(1.0).mesh().uv(16, 12))),
     });
+}
+
+/// Loading: one fusion orb + one marker segment parked in front of the camera (pipeline pre-warm).
+fn warmup_fx(world: &mut World) {
+    let sphere = world.resource_mut::<Assets<Mesh>>().add(Sphere::new(0.3).mesh().uv(16, 12));
+    let cube = world.resource_mut::<Assets<Mesh>>().add(Cuboid::new(0.4, 0.05, 0.2));
+    let mat = world.resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial {
+        base_color: Color::linear_rgba(0.5, 0.2, 1.0, 0.9),
+        emissive: LinearRgba::rgb(1.0, 0.4, 2.0),
+        unlit: true,
+        alpha_mode: AlphaMode::Add,
+        ..default()
+    });
+    for mesh in [sphere, cube] {
+        world.spawn((
+            Name::new("signature warmup"),
+            Mesh3d(mesh),
+            MeshMaterial3d(mat.clone()),
+            Transform::default(),
+            bevy::light::NotShadowCaster,
+            crate::warmup::WarmupItem,
+        ));
+    }
 }
 
 fn clear(mut commands: Commands, mut f: ResMut<Fusions>, orbs: Query<Entity, With<FusionOrb>>) {
