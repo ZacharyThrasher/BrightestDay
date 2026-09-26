@@ -83,6 +83,14 @@ mechanic / element / weight (KRAK, SPLOOSH, ZZAK, VWOOP, KRANG, DOOM…; data ta
 bhop, perfect oath), GOOD / SLOW (oath grades), PARRY!. Manga mode (ドドド, ゴゴゴ). Settings: Off /
 Big hits only (default) / Full comic; rate-limited; world-space, never HUD clutter.
 
+### KO streak sounds (per-corps "skinline")
+Each KO without dying plays the next step of a rising 5-step minor-pentatonic phrase (step 5 resolves
+with a flourish and repeats from then on); dying resets. Same musical structure for everyone, **distinct
+timbre per corps** (Willpower bell-synth, Rage distorted saw, Greed coin chimes, Fear detuned glass, Hope
+choir pad, Compassion mallet chime, Love FM harp, Life sine choir) — you can hear *who* is streaking.
+Accents: void KO, double KO (≤ 1 s), shutdown (ending someone's 3+ streak). Visual stays minimal: ring
+flares brighter per step + one corps-emblem pulse near the crosshair; no banner text.
+
 ## Game rules (FFA)
 - 1–8 players, one arena of floating Cube-World-style voxel islands over a void.
 - **Health 100.** As health drops, **knockback taken increases** (Smash-style). KO by health reaching 0
