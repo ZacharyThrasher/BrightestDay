@@ -17,6 +17,7 @@ import type { Behavior, Ref } from './spec.js';
 import { partTransform, specExtent } from './geom.js';
 import { prepareJoints, newJointState, evaluateJoints, isAncestor, type JointRT, type JointState, type Pose } from './joints.js';
 import { clampMachineBehavior } from './machine-spec.js';
+import { COMBAT, interceptPoint, steerToward } from './combat.js';
 
 type Drive = Extract<Behavior, { type: 'drive' }>;
 type Brain = Extract<Behavior, { type: 'brain' }>;
@@ -69,6 +70,8 @@ export interface MachineDef {
   carLike: boolean; narrow: boolean; fixedWing: boolean;
   maxRange: number; melee: Weapon | null; ranged: boolean;
   front: Vector3;
+  /** projectile speed aim joints lead with (first ranged weapon) */
+  aimSpeed: number;
 }
 
 export interface MachineState {
@@ -90,8 +93,20 @@ export interface MachineState {
   shots: number; hits: number;
 }
 
-interface Nav { point: Vector3 | null; speed: number; arrive: number; face: Vector3 | null; alt: number | null; jump: boolean; orbit?: number }
-interface Control { throttle: number; yawRate: number; heading: number | null; hvel: Vector3; alt: number | null; climb: number; jump: boolean; boost: boolean; land: boolean }
+/** chase: going for an enemy — capped at COMBAT.chaser speed / turn rate so a mobile target can shake it */
+interface Nav { point: Vector3 | null; speed: number; arrive: number; face: Vector3 | null; alt: number | null; jump: boolean; chase?: boolean }
+interface Control { throttle: number; yawRate: number; heading: number | null; hvel: Vector3; alt: number | null; climb: number; jump: boolean; boost: boolean; land: boolean; chase?: boolean }
+
+/** How fast a weapon's shot travels (instant beams / melee: Infinity). */
+function shotSpeed(wp: Weapon): number {
+  if (wp.kind === 'laser' || wp.kind === 'flame' || wp.kind === 'melee') return Infinity;
+  if (wp.kind === 'missile') return Math.min(Math.max(10, wp.speed || 50), COMBAT.missile.maxSpeed);
+  if (wp.kind === 'bomb') return Math.min(30, Math.max(10, wp.speed || 30));
+  return Math.max(10, wp.speed || 50);
+}
+
+/** Tuning switches (benchmarks). syncColliders: keep colliders of moving solid parts on their parts. */
+export const MACHINE_OPTS = { syncColliders: true };
 
 const _v = new Vector3(), _v2 = new Vector3(), _v3 = new Vector3(), _q = new Quaternion(), _q2 = new Quaternion(), _qi = new Quaternion();
 const UP = new Vector3(0, 1, 0), X = new Vector3(1, 0, 0), Z = new Vector3(0, 0, 1);
@@ -177,6 +192,7 @@ export class MachineSystem {
       melee: weapons.find((wp) => wp.kind === 'melee') ?? null,
       ranged: ranged.length > 0,
       front: new Vector3(ext.center.x, ext.center.y, ext.max.z),
+      aimSpeed: ranged.length ? shotSpeed(ranged[0]) : Infinity,
     };
     const P = this.w.player;
     c.insts.forEach((inst, k) => {
@@ -240,10 +256,10 @@ export class MachineSystem {
       if (!tp) continue;
       const t = p.body.translation();
       const v = p.body.linvel();
-      const to = tp.sub(_v2.set(t.x, t.y, t.z)).normalize();
-      const cur = _v3.set(v.x, v.y, v.z).normalize();
-      cur.lerp(to, 0.12).normalize().multiplyScalar(h.speed);
-      p.body.setLinvel(cur, true);
+      const from = _v2.set(t.x, t.y, t.z);
+      const aimP = interceptPoint(from, h.speed, tp, this.tVel(h.target, new Vector3()), new Vector3());
+      const vel = steerToward(_v3.set(v.x, v.y, v.z), aimP.sub(from), (COMBAT.missile.turnRate * D2R) * _dt, h.speed);
+      p.body.setLinvel(vel, true);
     }
   }
 
@@ -290,7 +306,7 @@ export class MachineSystem {
     // what aim joints track
     let aimP: Vector3 | null = null;
     if (ridden) aimP = this.playerAim();
-    else if (m.target) aimP = this.lead(inst, m.target);
+    else if (m.target) aimP = this.lead(inst, m.target, def.aimSpeed);
     if (!aimP && !def.brain && !ridden && def.joints.some((j) => j.aim)) aimP = this.playerAim();
     if (!aimP && def.brain && m.goal === 'follow' && def.joints.some((j) => j.aim)) aimP = this.playerAim();
     m.aimPoint = aimP ? (m.aimPoint ?? new Vector3()).copy(aimP) : null;
@@ -318,7 +334,7 @@ export class MachineSystem {
         if (rt.aimLeaf) best = Math.min(best, err);
       }
       m.aimErr = best;
-      this.syncColliders(inst, m.js, def);
+      if (MACHINE_OPTS.syncColliders) this.syncColliders(inst, m.js, def);
     }
     if (def.weapons.length) this.weaponsStep(c, inst, m, dt, ridden);
   }
@@ -358,13 +374,11 @@ export class MachineSystem {
     return this.aimCache;
   }
 
-  /** Where to aim at a target (leads moving targets a little). */
-  private lead(inst: Inst, t: TargetRef): Vector3 | null {
+  /** Where to aim at a target: predictive intercept for a shot of the given speed (Infinity = where it is now). */
+  private lead(inst: Inst, t: TargetRef, speed = 60, from?: Vector3): Vector3 | null {
     const p = this.tPos(t, new Vector3());
-    if (!p) return null;
-    const v = this.tVel(t, _v2);
-    const k = Math.min(1.2, p.distanceTo(inst.pos) / 60);
-    return p.addScaledVector(v, k);
+    if (!p || !isFinite(speed)) return p;
+    return interceptPoint(from ?? inst.pos, speed, p, this.tVel(t, _v2), p);
   }
 
   private aimJoint(rt: JointRT, pivot: Vector3, parentQ: Quaternion, cur: { yaw: number; pitch: number }, m: MachineState, dt: number) {
@@ -426,15 +440,24 @@ export class MachineSystem {
     return this.rt.get(t.id)?.insts[0]?.body ?? null;
   }
 
-  private nearestEnemy(c: Construct, from: Vector3, range: number): TargetRef | null {
+  private nearestEnemy(c: Construct, from: Vector3, range: number, reachableOnly = false): TargetRef | null {
     let best: TargetRef | null = null, bd = range;
     for (const t of this.enemiesOf(c.owner)) {
       const p = this.tPos(t, _v);
       if (!p) continue;
+      if (reachableOnly && !this.reachable(c, t, p)) continue;
       const d = p.distanceTo(from);
       if (d < bd) { bd = d; best = t; }
     }
     return best;
+  }
+
+  /** Can a melee machine get at it (not hovering out of reach)? */
+  private reachable(c: Construct, t: TargetRef, p: Vector3): boolean {
+    const d = c.mach?.drive;
+    if (!d || d.mode === 'air') return true;
+    const g = this.groundY(p.x, p.y + 0.5, p.z, 40, this.tBody(t)) ?? p.y - 1;
+    return p.y - this.tRadius(t) - g < 1.2 + (d.jump ? (d.jump * d.jump) / (2 * GRAV) : 0) + c.extent.size.y * 0.5;
   }
 
   /** A specific thing named in an order ("attack that drone", "smash his wall"). Never our own owner's stuff. */
@@ -495,7 +518,7 @@ export class MachineSystem {
       }
       case 'follow': {
         const leader = (b.target && b.target.kind !== 'self' ? this.rt.refPos(b.target) : null) ?? P.pos;
-        let tgt = armed ? this.nearestEnemy(c, pos, range) : null;
+        let tgt = armed ? this.nearestEnemy(c, pos, range, !!def.melee && !def.ranged) : null;
         const tgtP = tgt ? this.tPos(tgt, new Vector3()) : null;
         if (tgt && (!tgtP || tgtP.distanceTo(leader) > range + 8)) tgt = null; // leash
         m.target = tgt;
@@ -520,7 +543,7 @@ export class MachineSystem {
       }
       case 'guard': {
         const spot = m.home;
-        const tgt = armed ? this.nearestEnemy(c, spot, range) : null;
+        const tgt = armed ? this.nearestEnemy(c, spot, range, !!def.melee && !def.ranged) : null;
         m.target = tgt;
         if (tgt && def.melee && !def.ranged) {
           const n = this.engage(c, inst, m, tgt, nav);
@@ -601,7 +624,11 @@ export class MachineSystem {
     const flier = tgt.kind === 'entity' && this.w.entities.get(tgt.id)?.type === 'drone';
     nav.face = tp;
     if (def.melee && (air || reachable) && (!def.ranged || dist < def.maxRange * 0.35 || !flier)) {
-      nav.point = tp;
+      // charge: lead the target (pursuit intercept at our chase speed)
+      const chaseSpeed = Math.min(def.drive?.speed ?? 10, COMBAT.chaser.maxSpeed);
+      nav.point = interceptPoint(pos, Math.max(4, chaseSpeed), tp, this.tVel(tgt, new Vector3()), new Vector3(), 1.5);
+      nav.point.y = tp.y;
+      nav.chase = true;
       nav.arrive = 0;
       nav.speed = 1;
       nav.jump = !air && dist < 3 + rad && tp.y - rad > pos.y + c.extent.max.y * 0.5;
@@ -615,7 +642,7 @@ export class MachineSystem {
     }
     const standoff = def.maxRange * (air ? 0.5 : 0.6);
     if (dist > def.maxRange * 0.8) {
-      nav.point = tp; nav.arrive = standoff; nav.speed = 1;
+      nav.point = tp; nav.arrive = standoff; nav.speed = 1; nav.chase = true;
     } else if (def.drive && def.joints.some((j) => j.aim)) {
       // in range: keep moving — circle the target slowly (turrets keep tracking)
       const a = Math.atan2(pos.x - tp.x, pos.z - tp.z) + m.detourSign * 0.5;
@@ -712,9 +739,9 @@ export class MachineSystem {
   private navControl(c: Construct, inst: Inst, m: MachineState, nav: Nav, dt: number): Control {
     const def = c.mach!;
     const d = def.drive!;
-    const ctl: Control = { throttle: 0, yawRate: 0, heading: null, hvel: new Vector3(), alt: nav.alt, climb: 0, jump: nav.jump, boost: false, land: !def.brain && !!def.ride };
+    const ctl: Control = { throttle: 0, yawRate: 0, heading: null, hvel: new Vector3(), alt: nav.alt, climb: 0, jump: nav.jump, boost: false, land: !def.brain && !!def.ride, chase: nav.chase };
     const pos = inst.pos;
-    const turn = d.turn * D2R;
+    const turn = Math.min(d.turn, nav.chase ? COMBAT.chaser.turnRate : Infinity) * D2R;
     let desired: number | null = null;
     let dist = 0;
     if (nav.point) {
@@ -726,7 +753,7 @@ export class MachineSystem {
     if (m.detour > 0) desired = m.heading + m.detourSign * 1.4;
     if (d.mode === 'air') {
       if (nav.point && dist > nav.arrive) {
-        const sp = Math.min(nav.speed * d.speed, (dist - nav.arrive) * 1.5 + 1);
+        const sp = Math.min(nav.speed * Math.min(d.speed, nav.chase ? COMBAT.chaser.maxSpeed : Infinity), (dist - nav.arrive) * 1.5 + 1);
         ctl.hvel.set(nav.point.x - pos.x, 0, nav.point.z - pos.z).normalize().multiplyScalar(sp);
       }
       ctl.heading = nav.face && dist < 10 ? Math.atan2(nav.face.x - pos.x, nav.face.z - pos.z) : desired;
@@ -821,7 +848,7 @@ export class MachineSystem {
     const def = c.mach!;
     const d = def.drive!;
     const hover = d.mode === 'hover';
-    const max = d.speed * (ctl.boost ? 1.25 : 1);
+    const max = Math.min(d.speed * (ctl.boost ? 1.25 : 1), ctl.chase ? COMBAT.chaser.maxSpeed : Infinity);
     const want = clamp(ctl.throttle, -0.5, 1) * max;
     const accel = Math.max(6, d.speed * 0.9);
     const rate = Math.abs(want) < Math.abs(m.speed) || Math.sign(want) !== Math.sign(m.speed) ? accel * 2 : accel;
@@ -1034,7 +1061,7 @@ export class MachineSystem {
         aimAt = this.playerAim().clone();
       } else {
         if (!tgt) continue;
-        aimAt = wp.kind === 'melee' ? this.tPos(tgt, new Vector3()) : this.lead(inst, tgt);
+        aimAt = wp.kind === 'melee' ? this.tPos(tgt, new Vector3()) : this.lead(inst, tgt, shotSpeed(wp));
         if (!aimAt) continue;
       }
       // muzzle
@@ -1110,7 +1137,7 @@ export class MachineSystem {
           friendly: true, owner: c.id, ownerPlayer: c.owner, kind: wp.kind, gravity,
           splash: wp.kind === 'cannon' ? 2.5 : wp.kind === 'bomb' ? 4.5 : wp.kind === 'missile' ? 3 : undefined,
         });
-        if (wp.kind === 'missile' && tgt) this.missiles.set(pr.id, { target: tgt, speed: spd });
+        if (wp.kind === 'missile' && tgt) this.missiles.set(pr.id, { target: tgt, speed: Math.min(spd, COMBAT.missile.maxSpeed) });
         break;
       }
       case 'laser': {

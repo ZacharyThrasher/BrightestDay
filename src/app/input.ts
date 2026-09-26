@@ -19,6 +19,7 @@ export class Input {
   private held = new Set<string>();
   private latched = new Set<string>();
   private flyToggle = false;
+  private use = false; // G: get in / out of the nearest rideable construct (edge-triggered)
   private reelUntil = 0;
   private mouse = [false, false, false];
   private mouseLatch = [false, false, false];
@@ -72,6 +73,7 @@ export class Input {
     }
     if (e.repeat) return;
     if (c === 'KeyF') this.flyToggle = true;
+    else if (c === 'KeyG') this.use = true;
     else if (c === 'KeyX') this.onAction('dismiss', e);
     else if (c === 'KeyZ') this.onAction('dismiss_all', e);
     else if (c === 'KeyV') this.onAction('voice_down', e);
@@ -106,8 +108,10 @@ export class Input {
       hookR: d('KeyE') || (g && (this.mouse[2] || this.mouseLatch[2])),
       reel: d('KeyR') || (g && (performance.now() < this.reelUntil || this.mouse[1])),
       flyToggle: g && this.flyToggle,
+      use: g && this.use,
     };
     this.flyToggle = false;
+    this.use = false;
     this.latched.clear();
     this.mouseLatch = [false, false, false];
     return inp;

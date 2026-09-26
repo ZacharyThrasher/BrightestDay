@@ -84,7 +84,7 @@ export function adaptMachine(s: ConstructSpec): void {
     }
   }
   // flying add-ons on a ground machine: it flies now ("a car with wings")
-  if (drive.mode === 'ground' && s.parts.some((p) => !p.group && ['wing', 'propeller', 'rotor', 'blade', 'thruster'].includes(p.role ?? ''))) {
+  if (drive.mode === 'ground' && s.parts.some((p) => !p.group && ['wing', 'propeller', 'rotor', 'blade'].includes(p.role ?? ''))) {
     drive.mode = 'air';
     drive.altitude = drive.altitude ?? 8;
   }
@@ -373,5 +373,8 @@ export function machineFunctions(spec: ConstructSpec): string[] {
     }
   }
   if (ride) { f.add('rideable'); f.add('carries_player'); f.add('propel_player'); if (drive?.mode === 'air') f.add('raise_player'); }
+  // a catalog creature that was given wings flies now (and vice versa): drop claims its locomotion no longer supports
+  if (drive?.mode === 'air') { f.delete('drives_on_ground'); f.delete('walks'); f.delete('pushes_objects'); }
+  else if (drive) f.delete('flies');
   return [...f];
 }

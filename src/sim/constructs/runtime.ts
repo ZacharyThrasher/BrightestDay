@@ -7,12 +7,14 @@ import { partTransform, specExtent } from './geom.js';
 import { LIMITS, validateSpec, type ValidationReport } from './validate.js';
 import { MachineSystem, type MachineDef, type MachineState } from './machines.js';
 import type { Pose } from './joints.js';
+import { COMBAT, interceptPoint, steerToward } from './combat.js';
 
 const UP = new Vector3(0, 1, 0);
 const Z = new Vector3(0, 0, 1);
 
-interface StrikeState { target: Ref; speed: number; v: number; phase: 'go' | 'return' | 'done'; after: 'return' | 'stay' | 'dissolve'; repeat: number; hitIds: Set<string>; start: Vector3 }
-interface GrabState { target: Ref; then: 'hold' | 'bring' | 'lift' | 'stay'; v: number; attached: boolean }
+/** lock: committed intercept point (strikes at moving targets lock their aim at launch — a juke dodges them) */
+interface StrikeState { target: Ref; speed: number; v: number; phase: 'go' | 'return' | 'done'; after: 'return' | 'stay' | 'dissolve'; repeat: number; hitIds: Set<string>; start: Vector3; lock?: Vector3 | null }
+interface GrabState { target: Ref; then: 'hold' | 'bring' | 'lift' | 'stay'; v: number; attached: boolean; vel?: Vector3 }
 interface CargoState { entityId: string; local: Vector3 }
 
 export interface Inst {
@@ -32,6 +34,8 @@ export interface Inst {
   shootCd: number;
   spinQ: Quaternion;
   alive: boolean;
+  /** velocity of a homing construct (turn-limited chaser) */
+  homeVel?: Vector3;
   /** machine state (locomotion, brain, weapons) — see machines.ts */
   m?: MachineState | null;
   /** articulated group poses in the construct's (scaled) frame: world = inst ∘ pose. Undefined = rigid. */
@@ -668,7 +672,9 @@ export class ConstructRuntime {
         const tp = this.refPos(tgt);
         const toward = tp ? Math.max(0, this.w.player.vel.dot(tp.clone().sub(inst.pos).normalize())) : 0;
         const thrust = has(s, 'thrust');
-        inst.strike = { target: tgt, speed: Math.min(LIMITS.strikeSpeed, strike.speed + (thrust ? thrust.accel * 0.6 : 0) + toward), v: toward * 0.8, phase: 'go', after: strike.after, repeat: strike.repeat ?? 0, hitIds: new Set(), start: inst.pos.clone() };
+        const speed = Math.min(COMBAT.strike.maxSpeed, Math.max(COMBAT.strike.minSpeed, Math.min(LIMITS.strikeSpeed, strike.speed + (thrust ? thrust.accel * 0.6 : 0) + toward)));
+        inst.strike = { target: tgt, speed, v: toward * 0.8, phase: 'go', after: strike.after, repeat: strike.repeat ?? 0, hitIds: new Set(), start: inst.pos.clone() };
+        this.lockStrike(inst, inst.strike);
       }
       if (grab && !inst.cargo && (!keepState || !inst.grab)) {
         const ents = targets(grab.target);
@@ -778,7 +784,7 @@ export class ConstructRuntime {
     if (inst.strike && inst.strike.phase !== 'done') {
       const st = inst.strike;
       const home = this.holdPose(c, inst, 'right');
-      const tp = st.phase === 'go' ? this.refPos(st.target) ?? home.pos : home.pos;
+      const tp = st.phase === 'go' ? st.lock ?? this.refPos(st.target) ?? home.pos : home.pos;
       const d = tp.clone().sub(inst.pos);
       const dist = d.length();
       st.v = Math.min(st.speed, st.v + 220 * dt);
@@ -804,7 +810,7 @@ export class ConstructRuntime {
           this.finishStrikeLeg(c, inst, st);
         }
       } else if (dist <= step + 0.05) {
-        if (st.repeat > 0) { st.repeat--; st.phase = 'go'; st.v = 0; st.hitIds.clear(); }
+        if (st.repeat > 0) { st.repeat--; st.phase = 'go'; st.v = 0; st.hitIds.clear(); this.lockStrike(inst, st); }
         else st.phase = 'done';
       }
     } else if (inst.grab && !inst.grab.attached) {
@@ -815,9 +821,17 @@ export class ConstructRuntime {
       else {
         const d = tp.clone().sub(inst.pos);
         const dist = d.length();
-        g.v = Math.min(45, g.v + 120 * dt);
+        // an enemy that is on the move (a player-like target) is chased: capped speed, led, turn-limited
+        const enemy = !!e && e.hostile && !e.disabled && this.w.entityVel(e).lengthSq() > COMBAT.grab.evadeSpeed ** 2;
+        g.v = Math.min(enemy ? COMBAT.grab.maxSpeed : 45, g.v + 120 * dt);
         const step = Math.min(dist, g.v * dt);
         if (dist > 1e-3) d.divideScalar(dist);
+        if (enemy) {
+          // chaser: lead the target, turn-limited
+          const aimP = interceptPoint(inst.pos, Math.max(8, g.v), tp, this.w.entityVel(e!));
+          g.vel = steerToward(g.vel ?? d.clone().multiplyScalar(g.v), aimP.sub(inst.pos), (COMBAT.grab.turnRate * Math.PI / 180) * dt, g.v);
+          if (dist > step + 0.5) d.copy(g.vel).normalize();
+        }
         target = inst.pos.clone().addScaledVector(d, step);
         q = quatFromDir(d);
         const reach = c.radius * 0.8 + (e?.radius ?? 0.5) + 0.3;
@@ -859,15 +873,22 @@ export class ConstructRuntime {
       } else if (home) {
         const tp = this.refPos(home.target);
         if (tp) {
+          const e = this.refEntities(home.target)[0];
+          const enemy = !!e && e.hostile && !e.disabled;
+          const speed = enemy ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
           const d = tp.clone().sub(inst.pos);
           const dist = d.length();
           d.divideScalar(Math.max(1e-6, dist));
-          const step = Math.min(dist, home.speed * dt);
+          // homing: re-plan the intercept every tick, turn-limited (hard cuts and walls shake it off)
+          const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : tp.clone();
+          if (!inst.homeVel) inst.homeVel = new Vector3(0, 0, 1).applyQuaternion(inst.quat).multiplyScalar(speed);
+          steerToward(inst.homeVel, aimP.sub(inst.pos), ((enemy ? COMBAT.missile.turnRate : 720) * Math.PI / 180) * dt, speed);
+          const step = Math.min(dist, speed * dt);
+          if (dist > step + 0.5) d.copy(inst.homeVel).normalize();
           target = inst.pos.clone().addScaledVector(d, step);
           q = quatFromDir(d);
-          const e = this.refEntities(home.target)[0];
           if (e && dist < c.radius + e.radius + 0.4) {
-            this.impactEntity(c, inst, e, d, home.speed);
+            this.impactEntity(c, inst, e, d, speed);
             if (has(s, 'explode')) { this.explode(c); return; }
             c.expires = Math.min(c.expires, this.w.time + 0.3);
           }
@@ -898,6 +919,18 @@ export class ConstructRuntime {
     inst.quat.copy(finalQ);
     inst.body.setNextKinematicTranslation(inst.pos);
     inst.body.setNextKinematicRotation(inst.quat);
+  }
+
+  /** Commit a strike: aim at where a moving target will be when the blow lands, and don't re-aim after launch. */
+  private lockStrike(inst: Inst, st: StrikeState) {
+    st.lock = null;
+    if (!COMBAT.strike.lockAtLaunch) return;
+    const e = this.refEntities(st.target)[0];
+    if (!e) return;
+    const v = this.w.entityVel(e);
+    if (v.lengthSq() < 4) return; // (near-)stationary: plain tracking is identical and robust to nudges
+    // average speed over the lunge (it accelerates from st.v)
+    st.lock = interceptPoint(inst.pos, st.speed * 0.8, this.w.entityPos(e), v);
   }
 
   private finishStrikeLeg(c: Construct, inst: Inst, st: StrikeState) {
@@ -983,7 +1016,10 @@ export class ConstructRuntime {
       const tp = this.refPos(home.target);
       if (tp) {
         const v = inst.body.linvel();
-        const want = tp.clone().sub(inst.pos).normalize().multiplyScalar(home.speed);
+        const e = this.refEntities(home.target)[0];
+        const speed = e?.hostile ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
+        const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : tp;
+        const want = aimP.clone().sub(inst.pos).normalize().multiplyScalar(speed);
         const nv = new Vector3(v.x, v.y, v.z).lerp(want, 1 - Math.exp(-4 * dt));
         inst.body.setLinvel(nv, true);
       }
@@ -1055,7 +1091,7 @@ export class ConstructRuntime {
     if (inst.shootCd > 0) return;
     inst.shootCd = 1 / sh.rate;
     const ents = this.refEntities(sh.target);
-    const tp = ents[0] ? this.w.entityPos(ents[0]) : this.refPos(sh.target) ?? this.w.player.aim().point;
+    const tp = ents[0] ? interceptPoint(inst.pos, sh.speed, this.w.entityPos(ents[0]), this.w.entityVel(ents[0])) : this.refPos(sh.target) ?? this.w.player.aim().point;
     const d = tp.clone().sub(inst.pos).normalize();
     const start = inst.pos.clone().addScaledVector(d, c.radius + sh.size + 0.3);
     const pr = this.w.spawnProjectile(start, d.multiplyScalar(sh.speed), null, 10, sh.size);
