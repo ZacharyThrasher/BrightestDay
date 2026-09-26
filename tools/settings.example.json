@@ -1,5 +1,5 @@
 {
-  "_readme": "Copy to settings.json next to HARDLIGHT.exe (or in %APPDATA%/HARDLIGHT). All keys are optional.",
+  "_readme": "Copy to settings.json next to BrightestDay.exe (or in %APPDATA%/Brightest Day). All keys are optional.",
   "mouseSensitivity": 1,
   "invertY": false,
   "fov": 78,

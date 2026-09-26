@@ -1,4 +1,4 @@
-# HARDLIGHT — imagination-to-construct sandbox (research prototype)
+# Brightest Day — imagination-to-construct 1v1 duels (research prototype)
 
 Type an idea — *"a giant boxing glove with rockets on the back, punch that drone"* — and a ring turns it
 into a physical construct of solid light that you can use, edit ("now make the fingers grab him", "spin
@@ -13,7 +13,7 @@ works. See [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) for all measurements (in
 
 ## Play (Windows)
 
-1. Download `HARDLIGHT-win32-x64.zip`, unzip anywhere, run `HARDLIGHT.exe`. No install, no internet needed.
+1. Download `BrightestDay-win32-x64.zip` ([latest preview](https://github.com/ZacharyThrasher/BrightestDay/releases/download/preview/BrightestDay-win32-x64.zip)), unzip anywhere, run `BrightestDay.exe`. No install, no internet needed.
 2. Optional: copy `settings.example.json` to `settings.json` next to the exe to change mouse sensitivity,
    FOV, graphics quality, focus time, or to enable a stronger "System 2" interpreter (your own Anthropic
    API key, or a local Ollama / LM Studio server).

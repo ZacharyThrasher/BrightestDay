@@ -438,7 +438,7 @@ export class HUD {
 }
 
 const HELP_HTML = `
-<h2>HARDLIGHT <small>controls</small></h2>
+<h2>BRIGHTEST DAY <small>controls</small></h2>
 <div class="cols">
 <div>
 <h3>Move</h3>

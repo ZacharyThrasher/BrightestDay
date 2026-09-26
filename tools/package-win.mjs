@@ -6,7 +6,7 @@
 // 3. cloudflared.exe (pinned version + sha256 in tools/ship-models.json, cached in release/cache/)
 //    → resources/cloudflared/cloudflared.exe (+ LICENSE) via packager --extra-resource
 // 4. @electron/packager --platform=win32 --arch=x64 (downloads the Electron win32 zip from GitHub)
-// 5. zip -> release/HARDLIGHT-win32-x64.zip
+// 5. zip -> release/BrightestDay-win32-x64.zip
 //
 // No wine is needed because we don't rewrite the .exe icon/version resources.
 import { execSync } from 'node:child_process';
@@ -40,7 +40,7 @@ for (const m of manifest.models) {
 // runtime package.json (no dev deps; native addons for win-x64 only, if any are listed)
 const runtimeDeps = {};
 for (const d of manifest.nativeDependencies) runtimeDeps[d] = pkg.dependencies?.[d] ?? pkg.devDependencies?.[d] ?? manifest.versions?.[d] ?? 'latest';
-writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'hardlight', productName: 'HARDLIGHT', version: pkg.version, main: 'dist/main.cjs', type: 'commonjs', dependencies: runtimeDeps }, null, 2));
+writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'brightest-day', productName: 'Brightest Day', version: pkg.version, main: 'dist/main.cjs', type: 'commonjs', dependencies: runtimeDeps }, null, 2));
 if (Object.keys(runtimeDeps).length) sh('npm install --omit=dev --os=win32 --cpu=x64 --no-audit --no-fund', { cwd: stage });
 
 // settings template players can edit (System-2 provider, mouse, graphics)
@@ -85,14 +85,14 @@ if (cf) {
 }
 
 const electronVersion =JSON.parse(readFileSync(join(root, 'node_modules/electron/package.json'), 'utf8')).version;
-sh(`npx --yes @electron/packager@20 "${stage}" HARDLIGHT --platform=win32 --arch=x64 --electron-version=${electronVersion} --out="${rel}" --overwrite --asar.unpack="**/*.{node,dll,onnx,bin,txt}" --ignore="^/node_modules/\\.bin"${extraResourceArg}`);
+sh(`npx --yes @electron/packager@20 "${stage}" BrightestDay --platform=win32 --arch=x64 --electron-version=${electronVersion} --out="${rel}" --overwrite --asar.unpack="**/*.{node,dll,onnx,bin,txt}" --ignore="^/node_modules/\\.bin"${extraResourceArg}`);
 
-const outDir = join(rel, 'HARDLIGHT-win32-x64');
+const outDir = join(rel, 'BrightestDay-win32-x64');
 // user-facing launcher notes next to the exe
 cpSync(join(root, 'tools/settings.example.json'), join(outDir, 'settings.example.json'));
 cpSync(join(root, 'README.md'), join(outDir, 'README.md'));
-rmSync(join(rel, 'HARDLIGHT-win32-x64.zip'), { force: true });
-sh(`zip -qr -9 HARDLIGHT-win32-x64.zip HARDLIGHT-win32-x64`, { cwd: rel });
+rmSync(join(rel, 'BrightestDay-win32-x64.zip'), { force: true });
+sh(`zip -qr -9 BrightestDay-win32-x64.zip BrightestDay-win32-x64`, { cwd: rel });
 
 const size = (p) => { let t = 0; const walk = (q) => { const s = statSync(q); if (s.isDirectory()) for (const f of readdirSync(q)) walk(join(q, f)); else t += s.size; }; walk(p); return t; };
-console.log(`\nfolder ${(size(outDir) / 1e6).toFixed(0)} MB, zip ${(statSync(join(rel, 'HARDLIGHT-win32-x64.zip')).size / 1e6).toFixed(0)} MB -> release/HARDLIGHT-win32-x64.zip`);
+console.log(`\nfolder ${(size(outDir) / 1e6).toFixed(0)} MB, zip ${(statSync(join(rel, 'BrightestDay-win32-x64.zip')).size / 1e6).toFixed(0)} MB -> release/BrightestDay-win32-x64.zip`);

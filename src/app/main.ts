@@ -430,7 +430,7 @@ class App implements HardlightApp {
     const m = this.hud.menu;
     m.innerHTML = `
       <div class="menu-card">
-        <div class="logo">HARD<span>LIGHT</span></div>
+        <div class="logo">BRIGHTEST<span>DAY</span></div>
         <div class="tag">imagine it · the ring makes it real</div>
         <button class="play">Click to play</button>
         <div class="scenes"></div>
@@ -593,7 +593,7 @@ boot().catch((err) => {
   console.error('[hardlight] boot failed', err);
   const d = document.createElement('pre');
   d.className = 'fatal';
-  d.textContent = `HARDLIGHT failed to start:\n${err?.stack ?? err}`;
+  d.textContent = `Brightest Day failed to start:\n${err?.stack ?? err}`;
   document.body.appendChild(d);
   window.hardlight?.fatal?.(String(err?.message ?? err));
 });

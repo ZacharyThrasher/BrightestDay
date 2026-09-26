@@ -37,14 +37,14 @@ jobs:
       - run: node tools/package-win.mjs
       - uses: actions/upload-artifact@v4
         with:
-          name: HARDLIGHT-win32-x64
-          path: release/HARDLIGHT-win32-x64.zip
+          name: BrightestDay-win32-x64
+          path: release/BrightestDay-win32-x64.zip
           compression-level: 0
       - name: Publish "preview" pre-release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete preview --yes --cleanup-tag || true
-          gh release create preview release/HARDLIGHT-win32-x64.zip \
-            --prerelease --target "$GITHUB_SHA" --title "HARDLIGHT preview (${GITHUB_SHA::7})" \
-            --notes "Automated Windows x64 build of ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Unzip and run HARDLIGHT.exe. Research prototype; see README."
+          gh release create preview release/BrightestDay-win32-x64.zip \
+            --prerelease --target "$GITHUB_SHA" --title "Brightest Day preview (${GITHUB_SHA::7})" \
+            --notes "Automated Windows x64 build of ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Unzip and run BrightestDay.exe. Research prototype; see README."

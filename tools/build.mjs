@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build HARDLIGHT: renderer bundle (Electron + plain web), Electron main + preload.
+// Build Brightest Day: renderer bundle (Electron + plain web), Electron main + preload.
 //   node tools/build.mjs            dev build (sourcemaps, unminified)
 //   node tools/build.mjs --minify   release build
 //   node tools/build.mjs --watch    rebuild renderer on change

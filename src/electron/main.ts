@@ -1,5 +1,5 @@
 /**
- * HARDLIGHT — Electron main process.
+ * Brightest Day — Electron main process.
  * One window, local files only, context isolation on. The preload exposes `window.hardlight`
  * (settings, optional System 2 bridge, optional word vectors). Input is keyboard + mouse only.
  *
@@ -67,7 +67,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 540,
     backgroundColor: '#9fc3f0',
-    title: 'HARDLIGHT',
+    title: 'Brightest Day',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
