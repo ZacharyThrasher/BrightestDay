@@ -45,6 +45,14 @@ Everything below is committed and green unless noted.
   hierarchy), per-map reactive ambience, offline render_mix before/after WAV + spectrogram + report.
   Phase B (after client perf worker releases audio.rs/pcm.rs/present/sound.rs): collapse PlaySfx +
   Sfx3d into one bd_audio path, settings UI. Absorbs "heavy-hit ducking" from the weight pass.
+- MUSIC (owner: chiptune classical like "Chiptune Mozart: 8-BIT Classical Music"): new crate bd_music —
+  own arrangements of PUBLIC-DOMAIN pieces only (never copy modern arrangements), band-limited chip synth,
+  layered stems + intensity, beat-quantised stingers, tempo-up for sudden death; per-map/menu casting;
+  render example -> target/music/medley.wav (send to owner). Plays via a Music bus in bd_audio.
+- Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
+  held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
+  client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
+  footfalls + AnimState::Launched. Do after client perf + hitscan workers finish (file overlap).
 If you are a fresh lead and these reports never reached you: inspect `git status`/`git diff`, run tests,
 review galleries/screenshots, and commit what's green; re-launch anything half-done with a fresh brief.
 
