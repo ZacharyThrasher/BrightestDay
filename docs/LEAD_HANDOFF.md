@@ -45,6 +45,14 @@ Everything below is committed and green unless noted.
   hierarchy), per-map reactive ambience, offline render_mix before/after WAV + spectrogram + report.
   Phase B (after client perf worker releases audio.rs/pcm.rs/present/sound.rs): collapse PlaySfx +
   Sfx3d into one bd_audio path, settings UI. Absorbs "heavy-hit ducking" from the weight pass.
+  PHASE A COMMITTED (46b688a); the worker's full Phase B plan is in its report — resume the audio
+  worker for Phase B. Check: brawl_after spectrogram shows near-constant saturated low band (wind/bed
+  loops?) — verify by ear/metrics during Phase B.
+- WARNING: HEAD does not build on its own — commit 36de637 picked up `mod alloc_count; mod pcm;`
+  (main.rs) and `pub mod animated_terrain;` (present/mod.rs) whose files (+ rodio dep, bd_fx
+  VoxelColors) belong to the uncommitted client perf work. Resolved when the perf work is committed.
+- Oaths: owner supplied the Lantern Corps oath texts (assets/oaths.ron; DC's text — private use only,
+  swap before any public release). Loader now takes string keys (Death kept for a future corps).
 - MUSIC (owner: chiptune classical like "Chiptune Mozart: 8-BIT Classical Music"): new crate bd_music —
   own arrangements of PUBLIC-DOMAIN pieces only (never copy modern arrangements), band-limited chip synth,
   layered stems + intensity, beat-quantised stingers, tempo-up for sudden death; per-map/menu casting;
