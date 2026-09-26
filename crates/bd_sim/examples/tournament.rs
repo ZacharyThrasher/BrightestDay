@@ -305,6 +305,9 @@ struct Summary {
     kos: u32,
     ko_share: Vec<(String, u32, f64)>,
     credited_share: f64,
+    self_never_hit: f64,
+    self_stale: f64,
+    stale_secs: f64,
     ko_pct: (f64, f64, f64),
     ko_pct_all: f64,
     fight: (f64, f64, f64),
@@ -330,6 +333,9 @@ fn summarize(r: &MatchReport, min_casts: u32) -> Summary {
         kos,
         ko_share,
         credited_share: r.ko_credited as f64 / kos.max(1) as f64,
+        self_never_hit: r.ko_self_never_hit as f64 / kos.max(1) as f64,
+        self_stale: r.ko_self_stale as f64 / kos.max(1) as f64,
+        stale_secs: pct(&r.ko_self_stale_secs.iter().map(|x| f64::from(*x)).collect::<Vec<_>>(), 0.5),
         ko_pct: (pct(&kp, 0.25), pct(&kp, 0.5), pct(&kp, 0.75)),
         ko_pct_all: pct(&all, 0.5),
         fight: (pct(&fs, 0.25), pct(&fs, 0.5), pct(&fs, 0.75)),
@@ -423,7 +429,14 @@ fn proposals(r: &MatchReport, min_casts: u32) -> Vec<String> {
 fn summary_md(md: &mut String, s: &Summary) {
     let _ = writeln!(md, "- matches: {}, KOs: {} ({:.2} KOs/min across the lobby)", s.matches, s.kos, s.kos_per_min);
     let _ = writeln!(md, "- KO causes (cause/blast zone): {}", s.ko_share.iter().map(|(k, n, f)| format!("{k} {n} ({:.0}%)", f * 100.0)).collect::<Vec<_>>().join(", "));
-    let _ = writeln!(md, "- credited to an opponent: **{:.0}%** (the rest are self-destructs: bots walking / blasting themselves off)", s.credited_share * 100.0);
+    let _ = writeln!(
+        md,
+        "- credited to an opponent: **{:.0}%**; uncredited: never hit since spawning {:.0}%, hit but credit expired {:.0}% (median {:.1} s after the last hit)",
+        s.credited_share * 100.0,
+        s.self_never_hit * 100.0,
+        s.self_stale * 100.0,
+        s.stale_secs
+    );
     let _ = writeln!(md, "- KO % (credited KOs): p25 {:.0} / **median {:.0}** / p75 {:.0} (all KOs: median {:.0})", s.ko_pct.0, s.ko_pct.1, s.ko_pct.2, s.ko_pct_all);
     let _ = writeln!(md, "- fight time (victim's first hit after spawning → credited KO): p25 {:.1} s / **median {:.1} s** / p75 {:.1} s", s.fight.0, s.fight.1, s.fight.2);
     let _ = writeln!(md, "- launches: {}, recovered: **{:.0}%**; techs {}, punch-throughs {}", s.launches, s.recovery * 100.0, s.techs, s.punches);
@@ -586,9 +599,11 @@ fn main() {
     let s = summarize(&before, min_casts);
     let line = |tag: &str, s: &Summary| {
         println!(
-            "{tag}: {} KOs ({:.0}% credited), KO% median {:.0} (all {:.0}), fight median {:.1}s, recovery {:.0}%, causes {:?}",
+            "{tag}: {} KOs ({:.0}% credited, {:.0}% never hit, {:.0}% stale credit), KO% median {:.0} (all {:.0}), fight median {:.1}s, recovery {:.0}%, causes {:?}",
             s.kos,
             s.credited_share * 100.0,
+            s.self_never_hit * 100.0,
+            s.self_stale * 100.0,
             s.ko_pct.1,
             s.ko_pct_all,
             s.fight.1,

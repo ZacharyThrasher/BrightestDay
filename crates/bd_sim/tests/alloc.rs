@@ -1,5 +1,6 @@
 //! A steady-state `World::tick` (8 bots moving, ring-blasting, getting hit, dying and respawning;
-//! no casts / carves) performs no heap allocation: every per-tick buffer is reused.
+//! no casts) performs no heap allocation: every per-tick buffer is reused. Terrain carves (a Smash
+//! wall-splat crater now and then) allocate inside bd_voxel's edit path and are excluded.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -52,14 +53,21 @@ fn steady_state_tick_does_not_allocate() {
     let mut ticks_with_allocs = 0;
     let mut total = 0;
     let mut events = 0;
+    let mut carve_ticks = 0;
     for _ in 0..1200 {
         inputs.clear();
         bots::drive(&mut w, &mut brains, &mut inputs);
         COUNT.store(0, Ordering::Relaxed);
         ARMED.store(true, Ordering::Relaxed);
-        let n = w.tick(&inputs).len();
+        let ev = w.tick(&inputs);
         ARMED.store(false, Ordering::Relaxed);
+        let n = ev.len();
+        let carved = ev.iter().any(|e| matches!(e, bd_sim::events::GameEvent::Carve { .. }));
         events += n;
+        if carved {
+            carve_ticks += 1;
+            continue;
+        }
         let c = COUNT.load(Ordering::Relaxed);
         total += c;
         if c > 0 {
@@ -67,6 +75,7 @@ fn steady_state_tick_does_not_allocate() {
         }
     }
     assert!(events > 100, "the scenario must actually do things ({events} events)");
+    assert!(carve_ticks < 60, "carves are rare here ({carve_ticks})");
     // Allow a handful of one-off buffer growths (a burst of events beyond the warm-up peak).
     assert!(ticks_with_allocs <= 3, "{ticks_with_allocs} ticks allocated ({total} allocations)");
 }

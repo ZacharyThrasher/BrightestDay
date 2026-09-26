@@ -84,7 +84,16 @@ impl World {
         out.tick = self.tick;
         let me = recipient.and_then(|r| self.player(r));
         out.ack = me.map_or(0, |p| p.last_input_seq);
-        out.own = me.filter(|p| p.alive).map(|p| OwnState::from_state(&p.mv, p.size.scale, p.portal_cd));
+        out.own = me.filter(|p| p.alive).map(|p| {
+            let mut o = OwnState::from_state(&p.mv, p.size.scale, p.portal_cd);
+            o.held = self.constructs.owned_by(p.id).find(|c| mover_held(c)).map(|c| crate::replicate::OwnHeld {
+                id: c.id.0,
+                anchor: c.held.anchor,
+                rope: c.held.rope,
+                thor: c.held.thor,
+            });
+            o
+        });
         out.match_info.phase = self.match_state.phase as u8;
         out.match_info.round = self.match_state.round;
         out.match_info.time_left = self.time_left().ceil().clamp(0.0, u16::MAX as f32) as u16;
@@ -196,6 +205,7 @@ impl World {
         }
         let base = self.cfg.move_params.clone();
         // Players.
+        let mut own_held: Option<Option<crate::replicate::OwnHeld>> = None;
         self.players.retain(|p| snap.players.iter().any(|s| s.id == p.id.0));
         for s in &snap.players {
             let id = PlayerId(s.id);
@@ -226,6 +236,7 @@ impl World {
                     p.mv = own.to_state();
                     p.size.scale = if own.size.is_finite() { own.size.clamp(0.25, 2.5) } else { 1.0 };
                     p.portal_cd = if own.portal_cd.is_finite() { own.portal_cd } else { 0.0 };
+                    own_held = Some(own.held);
                 }
                 p.last_input_seq = snap.ack;
             } else {
@@ -305,6 +316,26 @@ impl World {
                     let level = (cs.weapon >> 3) as f32 / 31.0;
                     w.spin = level;
                     w.charge = level;
+                }
+            }
+        }
+        // Our own held item's wielder-moving state (whip anchor, Thor flight): prediction's post-move
+        // reads it from the replica exactly like the host does.
+        if let (Some(me), Some(held)) = (local, own_held) {
+            let mine: Vec<ConstructId> = self.constructs.owned_by(me).filter(|c| c.category == bd_core::mechanics::FormCategory::Held).map(|c| c.id).collect();
+            for id in mine {
+                if let Some(c) = self.constructs.get_mut(id) {
+                    match held.filter(|h| h.id == id.0) {
+                        Some(h) => {
+                            c.held.anchor = h.anchor.filter(|a| a.is_finite());
+                            c.held.rope = if h.rope.is_finite() { h.rope } else { 1.5 };
+                            c.held.thor = h.thor;
+                        }
+                        None => {
+                            c.held.anchor = None;
+                            c.held.thor = false;
+                        }
+                    }
                 }
             }
         }
@@ -480,14 +511,20 @@ impl World {
         if p.seat.is_some_and(|s| !s.suit) {
             return MoveEvents::default();
         }
+        // Same order as the host's `step_movement`: worn air moves, modifiers, DI, move, post-move
+        // (held rope / Thor flight / parachute save / trampolines & pads), portals, fields.
+        crate::constructs::worn::pre_move(&self.constructs, player, input, state, p.busy(), |_| {});
         state.mods = self.move_mods_for(player, input, state);
         let mut params = p.params(&self.cfg.move_params);
         crate::party::hooks::tweak_params(self.party.as_ref(), player, &mut params); // PARTY HOOK (Slippery)
+        crate::smash::apply_di(&self.cfg.tuning.smash, state, input, DT);
         let pre_center = state.hull(&params).center();
         let pre_vel = state.vel;
         let cw = CollisionWorld::new(&self.voxels, &self.colliders).ignoring(crate::movement::ColliderId::Player(player));
+        let raw_input = *input;
         let input = if p.status.stunned() { super::stunned_input(input) } else { *input };
         let ev = step_player(state, &input, &cw, &params, DT);
+        self.constructs.post_move(player, &raw_input, state, pre_vel, &ev, &params);
         let mut inp = input;
         let mut cd = p.portal_cd;
         let _ = super::spatial::player_portals(state, &mut inp, &mut cd, &params, pre_center, pre_vel, &self.portals);
@@ -555,4 +592,9 @@ fn xform_wire(c: &crate::constructs::Construct) -> u8 {
 pub(super) fn xform_key(c: &crate::constructs::Construct) -> u8 {
     let w = xform_wire(c);
     if w == 0 { 0 } else { 1 | (w & (64 | 128)) }
+}
+
+/// A held construct whose state moves its wielder (see `OwnState::held`).
+fn mover_held(c: &crate::constructs::Construct) -> bool {
+    c.category == bd_core::mechanics::FormCategory::Held && (c.held.anchor.is_some() || c.held.thor)
 }

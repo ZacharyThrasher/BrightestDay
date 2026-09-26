@@ -201,10 +201,12 @@ pub struct OwnState {
     /// `None` = zero.
     pub ground_vel: Option<Vec3>,
     /// slide_cooldown, jump_buffer, air_time, gas, gas_regen_delay, burst_cooldown, tumble,
-    /// since_landing.
-    pub timers: [f32; 8],
+    /// since_landing, di_left, di_window.
+    pub timers: [f32; 10],
     pub prev_buttons: u16,
     pub hop_chain: u8,
+    /// Worn air moves used: flaps (bits 0–6) | cape dash used (bit 7).
+    pub air_moves: u8,
     /// `None` = idle (default).
     pub hooks: [Option<Hook>; 2],
     /// `None` = default modifiers.
@@ -212,6 +214,19 @@ pub struct OwnState {
     /// Exact body scale (prediction must use the same hull).
     pub size: f32,
     pub portal_cd: f32,
+    /// Owner-only state of the held construct that moves its wielder (whip anchor, Thor flight), so
+    /// prediction runs the host's post-move exactly.
+    #[serde(default)]
+    pub held: Option<OwnHeld>,
+}
+
+/// See [`OwnState::held`].
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OwnHeld {
+    pub id: u32,
+    pub anchor: Option<Vec3>,
+    pub rope: f32,
+    pub thor: bool,
 }
 
 impl OwnState {
@@ -224,13 +239,15 @@ impl OwnState {
             bits,
             ground_normal: (s.ground_normal != Vec3::Y).then_some(s.ground_normal),
             ground_vel: (s.ground_vel != Vec3::ZERO).then_some(s.ground_vel),
-            timers: [s.slide_cooldown, s.jump_buffer, s.air_time, s.gas, s.gas_regen_delay, s.burst_cooldown, s.tumble, s.since_landing],
+            timers: [s.slide_cooldown, s.jump_buffer, s.air_time, s.gas, s.gas_regen_delay, s.burst_cooldown, s.tumble, s.since_landing, s.di_left, s.di_window],
             prev_buttons: s.prev_buttons,
             hop_chain: s.hop_chain,
+            air_moves: s.air_flaps.min(127) | (s.air_dashed as u8) << 7,
             hooks: [(s.hooks[0] != idle).then_some(s.hooks[0]), (s.hooks[1] != idle).then_some(s.hooks[1])],
             mods: (s.mods != MoveModifiers::default()).then_some(s.mods),
             size,
             portal_cd,
+            held: None,
         }
     }
 
@@ -258,6 +275,10 @@ impl OwnState {
             tumble: f(self.timers[6]),
             prev_buttons: self.prev_buttons,
             hop_chain: self.hop_chain.min(crate::movement::HOP_CHAIN_MAX),
+            air_flaps: self.air_moves & 127,
+            air_dashed: self.air_moves & 128 != 0,
+            di_left: f(self.timers[8]),
+            di_window: f(self.timers[9]),
             hooks: [self.hooks[0].unwrap_or_default(), self.hooks[1].unwrap_or_default()],
             mods: self.mods.unwrap_or_default(),
         }

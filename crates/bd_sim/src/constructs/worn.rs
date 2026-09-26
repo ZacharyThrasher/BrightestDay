@@ -25,7 +25,7 @@ use bd_core::{DT, PlayerId, Vec3};
 
 use super::held::{HeldState, fx};
 use super::{AnimState, Construct, ConstructOut, ConstructStore, Driver, Env, Loco};
-use crate::events::HeldFx;
+use crate::events::{GameEvent, HeldFx};
 use crate::geom;
 use crate::movement::{MoveEvents, MoveModifiers, MoveParams, PlayerState};
 
@@ -91,35 +91,16 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let mut s: HeldState = c.held;
     if o.grounded {
         s.air_t = 0.0;
-        s.flaps = 0;
-        s.dashed = false;
     } else {
         s.air_t += dt;
     }
     let can = !o.busy && !o.input.held(buttons::TYPING);
     let jump_held = can && o.input.held(buttons::JUMP);
-    // A press in the air (not the press that just jumped off the ground).
-    let air_press = can && o.pressed & buttons::JUMP != 0 && !o.grounded && s.air_t > 0.1;
+    // Wing flaps / the cape dash are applied in the movement path ([`pre_move`]) so the client
+    // predicts them; here only the visual state.
     let kind = worn_kind(c);
     let active = match kind {
-        WornKind::Wings => {
-            if air_press && s.flaps < MAX_FLAPS {
-                s.flaps += 1;
-                let dv = Vec3::new(0.0, o.vel.y.max(0.0) + FLAP_UP - o.vel.y, 0.0);
-                out.impulses.push((c.owner, dv, 0.0));
-                fx(out, c, HeldFx::Flap, c.pos, Vec3::Y, 1.0 - 0.2 * (s.flaps - 1) as f32);
-            }
-            jump_held && !o.grounded
-        }
-        WornKind::Cape => {
-            if air_press && !s.dashed {
-                s.dashed = true;
-                let dv = fwd * CAPE_DASH + Vec3::Y * 3.0 - Vec3::new(0.0, o.vel.y.min(0.0), 0.0);
-                out.impulses.push((c.owner, dv, 0.0));
-                fx(out, c, HeldFx::CapeDash, c.pos, fwd, 1.0);
-            }
-            jump_held && !o.grounded
-        }
+        WornKind::Wings | WornKind::Cape => jump_held && !o.grounded,
         WornKind::Parachute => {
             let deployed = jump_held && !o.grounded;
             if deployed && !s.chute {
@@ -144,6 +125,46 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
 }
 
 /// Movement modifiers from `owner`'s worn / held / suit constructs. `mods` already holds statuses.
+/// Before movement (host `step_movement` and client `predict_player` alike): worn air moves — a
+/// wing flap (≤ [`MAX_FLAPS`] per air time) or the cape's one dash — on a fresh Jump press in the
+/// air. The counters live on the [`PlayerState`] (reset on the ground) so prediction replays them
+/// exactly. `fx` receives the `HeldFx` events (the host forwards them; prediction ignores them).
+pub fn pre_move(store: &ConstructStore, owner: PlayerId, input: &PlayerInput, st: &mut PlayerState, busy: bool, mut fx: impl FnMut(GameEvent)) {
+    if st.grounded {
+        st.air_flaps = 0;
+        st.air_dashed = false;
+        return;
+    }
+    let can = !busy && !input.held(buttons::TYPING);
+    let pressed = input.buttons & !st.prev_buttons & buttons::JUMP != 0;
+    if !(can && pressed && st.air_time > 0.1) {
+        return;
+    }
+    let fwd = {
+        let l = input.look_dir();
+        let b = Vec3::new(l.x, 0.0, l.z).normalize_or_zero();
+        if b == Vec3::ZERO { Vec3::NEG_Z } else { b }
+    };
+    for c in store.owned_by(owner).filter(|c| c.active() && !c.suit && c.category == FormCategory::Worn) {
+        match worn_kind(c) {
+            WornKind::Wings if st.air_flaps < MAX_FLAPS => {
+                st.air_flaps += 1;
+                let dv = Vec3::new(0.0, st.vel.y.max(0.0) + FLAP_UP - st.vel.y, 0.0);
+                st.apply_impulse(dv, 0.0);
+                let strength = 1.0 - 0.2 * (st.air_flaps - 1) as f32;
+                fx(GameEvent::HeldFx { id: c.id, owner: c.owner, fx: HeldFx::Flap, pos: c.pos, dir: Vec3::Y, strength });
+            }
+            WornKind::Cape if !st.air_dashed => {
+                st.air_dashed = true;
+                let dv = fwd * CAPE_DASH + Vec3::Y * 3.0 - Vec3::new(0.0, st.vel.y.min(0.0), 0.0);
+                st.apply_impulse(dv, 0.0);
+                fx(GameEvent::HeldFx { id: c.id, owner: c.owner, fx: HeldFx::CapeDash, pos: c.pos, dir: fwd, strength: 1.0 });
+            }
+            _ => {}
+        }
+    }
+}
+
 pub fn movement_mods(store: &ConstructStore, owner: PlayerId, input: &PlayerInput, st: &PlayerState, mods: &mut MoveModifiers) {
     let jump = input.held(buttons::JUMP) && !input.held(buttons::TYPING);
     let air = !st.grounded;

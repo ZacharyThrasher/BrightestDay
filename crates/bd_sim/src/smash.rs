@@ -75,6 +75,32 @@ pub fn punch_threshold(t: &SmashTuning, hardness: f32) -> f32 {
     t.punch_speed * (1.0 + (hardness.max(t.punch_min_hardness) - 1.0) * t.punch_hardness_speed_scale).max(0.05)
 }
 
+/// A launch starts: the full DI budget over the DI window (on the movement state, so client
+/// prediction steers exactly like the host).
+pub fn start_di(t: &SmashTuning, st: &mut crate::movement::PlayerState) {
+    st.di_left = t.di_max_deg.to_radians().max(0.0);
+    st.di_window = t.di_ramp_secs.max(0.0);
+}
+
+/// One tick of DI (host `step_movement` and `World::predict_player`): steer the launch toward the
+/// move keys, at most `di_max_deg` over `di_ramp_secs`. Returns the rotation applied (radians).
+pub fn apply_di(t: &SmashTuning, st: &mut crate::movement::PlayerState, input: &bd_core::input::PlayerInput, dt: f32) -> f32 {
+    if st.di_window <= 0.0 {
+        return 0.0;
+    }
+    let mut applied = 0.0;
+    if st.di_left > 0.0 && !input.held(bd_core::input::buttons::TYPING) {
+        let max = t.di_max_deg.to_radians();
+        let (sy, cy) = input.yaw.sin_cos();
+        let wish = (Vec3::new(-sy, 0.0, -cy) * input.move_z.clamp(-1, 1) as f32 + Vec3::new(cy, 0.0, -sy) * input.move_x.clamp(-1, 1) as f32).normalize_or_zero();
+        let step = (max * dt / t.di_ramp_secs.max(dt)).min(st.di_left);
+        applied = di_rotate(&mut st.vel, wish, step);
+        st.di_left = (st.di_left - applied).max(0.0);
+    }
+    st.di_window = (st.di_window - dt).max(0.0);
+    applied
+}
+
 /// DI: rotate `vel` toward the horizontal `wish` by at most `max_step` radians (the part of the
 /// wish perpendicular to the launch only). Returns the rotation applied (radians).
 pub fn di_rotate(vel: &mut Vec3, wish: Vec3, max_step: f32) -> f32 {

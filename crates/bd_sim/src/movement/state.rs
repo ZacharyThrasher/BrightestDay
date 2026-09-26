@@ -131,6 +131,15 @@ pub struct PlayerState {
     pub prev_buttons: u16,
     /// Consecutive clean hops (see [`MoveEvents::hop_chain`]), ≤ [`HOP_CHAIN_MAX`].
     pub hop_chain: u8,
+    /// Worn-item air moves used since leaving the ground (wing flaps; cape dash). Written by the
+    /// world's shared pre-move step (`constructs::worn::pre_move`), not by the controller, so the
+    /// client predicts them exactly.
+    pub air_flaps: u8,
+    pub air_dashed: bool,
+    /// Smash DI (directional influence) still available on the current launch (radians) and the
+    /// seconds left to apply it. Set at launch; consumed by `smash::apply_di` (host and prediction).
+    pub di_left: f32,
+    pub di_window: f32,
     pub hooks: [Hook; 2],
     pub mods: MoveModifiers,
 }
@@ -157,6 +166,10 @@ impl PlayerState {
             tumble: 0.0,
             prev_buttons: 0,
             hop_chain: 0,
+            air_flaps: 0,
+            air_dashed: false,
+            di_left: 0.0,
+            di_window: 0.0,
             hooks: [Hook::default(); 2],
             mods: MoveModifiers::default(),
         }

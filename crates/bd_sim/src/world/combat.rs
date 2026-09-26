@@ -168,6 +168,7 @@ impl World {
         if launch {
             let p = &mut self.players[ti];
             p.launch = Some(crate::smash::LaunchState { t: 0.0, speed: kb, di: 0.0, source: hit.source });
+            crate::smash::start_di(&self.cfg.tuning.smash, &mut p.mv);
             p.tech_buffer = 99.0;
             self.events.push(GameEvent::Launched { player: hit.target, source: hit.source, speed: kb, dir, pct });
         }
@@ -366,6 +367,7 @@ impl World {
         p.mv.grounded = false;
         p.mv.tumble = p.mv.tumble.max(secs);
         p.launch = Some(crate::smash::LaunchState { t: 0.0, speed, di: 0.0, source });
+        crate::smash::start_di(&self.cfg.tuning.smash, &mut p.mv);
         p.tech_buffer = 99.0;
         let pct = p.damage_pct;
         self.events.push(GameEvent::Launched { player: id, source, speed, dir: vel / speed.max(1e-6), pct });

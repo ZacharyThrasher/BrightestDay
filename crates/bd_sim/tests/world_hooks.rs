@@ -316,3 +316,17 @@ fn icon_shapes_are_normalised_once_at_cast() {
     let alt = c.alt_shape.as_deref().expect("robot");
     assert!((alt.prims[0].size.y - robot.prims[0].size.y * f).abs() < 1e-3, "robot uses the vehicle's factor");
 }
+
+#[test]
+fn reconnect_restores_id_and_score() {
+    let mut w = duel();
+    w.player_mut(B).unwrap().kos = 3;
+    w.player_mut(B).unwrap().deaths = 1;
+    let d = w.remove_player_for_reconnect(B).expect("was in");
+    assert!(w.player(B).is_none());
+    run(&mut w, 30);
+    w.rejoin_player(&d).unwrap();
+    let p = w.player(B).unwrap();
+    assert_eq!((p.kos, p.deaths), (3, 1));
+    assert!(w.rejoin_player(&d).is_err(), "id already back");
+}

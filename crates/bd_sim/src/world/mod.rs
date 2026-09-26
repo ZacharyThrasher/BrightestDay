@@ -376,6 +376,42 @@ impl World {
         true
     }
 
+    /// A player dropped (connection lost): remove them like [`Self::remove_player`] but return what
+    /// a reconnect restores — same `PlayerId`, score and stocks (they respawn after the usual delay).
+    /// The host keeps it under its own reconnect token and hands it to [`Self::rejoin_player`].
+    pub fn remove_player_for_reconnect(&mut self, id: PlayerId) -> Option<DepartedPlayer> {
+        let p = self.player(id)?;
+        let d = DepartedPlayer {
+            id,
+            name: p.name.clone(),
+            corps: p.corps,
+            kos: p.kos,
+            deaths: p.deaths,
+            stocks: p.stocks,
+            eliminated: p.eliminated,
+            round: self.match_state.round,
+        };
+        self.remove_player(id);
+        Some(d)
+    }
+
+    /// Re-admit a dropped player under their old id. Score / stocks come back if it is still the
+    /// same round (a rematch in between starts them fresh, like everyone else).
+    pub fn rejoin_player(&mut self, d: &DepartedPlayer) -> Result<(), JoinError> {
+        self.add_player(d.id, d.name.clone(), d.corps)?;
+        if d.round == self.match_state.round {
+            if let Some(p) = self.player_mut(d.id) {
+                p.kos = d.kos;
+                p.deaths = d.deaths;
+                if p.stocks.is_some() {
+                    p.stocks = d.stocks;
+                }
+                p.eliminated = d.eliminated;
+            }
+        }
+        Ok(())
+    }
+
     /// Lag compensation: the (fractional) tick this player's client was rendering when it sampled
     /// its latest input (`bd_net::InputPacket::view_tick`). `None` disables rewinding.
     pub fn set_view_tick(&mut self, id: PlayerId, view_tick: Option<f64>) {
@@ -501,6 +537,9 @@ impl World {
                     None => p.seat = None,
                 }
             }
+            // Worn air moves (wing flap / cape dash) — shared with client prediction.
+            let busy = p.busy();
+            crate::constructs::worn::pre_move(constructs, p.id, &p.input, &mut p.mv, busy, |e| events.push(e));
             let mut mods = MoveModifiers::default();
             p.status.modify_movement(&mut mods);
             mods.speed_mult *= p.size.speed_mult();
@@ -522,14 +561,10 @@ impl World {
                 p.tech_buffer = (p.tech_buffer + dt).min(99.0);
             }
             if let Some(l) = p.launch.as_mut() {
-                let max = sm.di_max_deg.to_radians();
-                if l.t < sm.di_ramp_secs && l.di < max && !p.input.held(buttons::TYPING) {
-                    let (sy, cy) = p.input.yaw.sin_cos();
-                    let wish = (Vec3::new(-sy, 0.0, -cy) * p.input.move_z.clamp(-1, 1) as f32 + Vec3::new(cy, 0.0, -sy) * p.input.move_x.clamp(-1, 1) as f32).normalize_or_zero();
-                    let step = (max * dt / sm.di_ramp_secs.max(dt)).min(max - l.di);
-                    l.di += crate::smash::di_rotate(&mut p.mv.vel, wish, step);
-                }
+                l.di += crate::smash::apply_di(sm, &mut p.mv, &p.input, dt);
                 l.t += dt;
+            } else {
+                p.mv.di_window = 0.0;
             }
             let pre_vel = p.mv.vel;
             let pre_tumble = p.mv.tumble;
@@ -1272,4 +1307,18 @@ pub fn sanitize_input(i: &PlayerInput) -> PlayerInput {
 fn stunned_input(i: &PlayerInput) -> PlayerInput {
     let keep = buttons::TETHER_L | buttons::TETHER_R | buttons::REEL | buttons::TYPING;
     PlayerInput { move_x: 0, move_z: 0, buttons: i.buttons & keep, ..*i }
+}
+
+/// What a dropped player gets back on reconnect (see [`World::remove_player_for_reconnect`]).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DepartedPlayer {
+    pub id: PlayerId,
+    pub name: String,
+    pub corps: Corps,
+    pub kos: u16,
+    pub deaths: u16,
+    pub stocks: Option<u8>,
+    pub eliminated: bool,
+    /// `MatchState::round` when they dropped.
+    pub round: u32,
 }

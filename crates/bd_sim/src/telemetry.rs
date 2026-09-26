@@ -273,6 +273,12 @@ pub struct MatchReport {
     pub fight_secs: Vec<f32>,
     /// KOs credited to another player (the rest are self-destructs: walked off, own blast).
     pub ko_credited: u32,
+    /// Uncredited KOs split: the victim was never hit since spawning (walked / fell off alone)…
+    pub ko_self_never_hit: u32,
+    /// …or was hit, but the last hit is older than the KO credit window (credit expired).
+    pub ko_self_stale: u32,
+    /// Seconds since the victim's last hit, for uncredited KOs that had one.
+    pub ko_self_stale_secs: Vec<f32>,
     /// Tech (splat cancelled) and punch-through moments.
     pub techs: u32,
     pub punches: u32,
@@ -307,6 +313,9 @@ impl Default for MatchReport {
             ko_pct_credited: Vec::new(),
             fight_secs: Vec::new(),
             ko_credited: 0,
+            ko_self_never_hit: 0,
+            ko_self_stale: 0,
+            ko_self_stale_secs: Vec::new(),
             techs: 0,
             punches: 0,
             streaks: Vec::new(),
@@ -350,6 +359,9 @@ impl MatchReport {
         self.fight_secs.extend_from_slice(&o.fight_secs);
         self.ko_pct_credited.extend_from_slice(&o.ko_pct_credited);
         self.ko_credited += o.ko_credited;
+        self.ko_self_never_hit += o.ko_self_never_hit;
+        self.ko_self_stale += o.ko_self_stale;
+        self.ko_self_stale_secs.extend_from_slice(&o.ko_self_stale_secs);
         self.techs += o.techs;
         self.punches += o.punches;
         self.streaks.extend_from_slice(&o.streaks);
@@ -421,7 +433,12 @@ impl MatchReport {
         list_f(&mut s, "ko_pct", &self.ko_pct);
         list_f(&mut s, "fight_secs", &self.fight_secs);
         list_f(&mut s, "ko_pct_credited", &self.ko_pct_credited);
-        let _ = write!(s, "\"ko_credited\":{},\"techs\":{},\"punch_throughs\":{},", self.ko_credited, self.techs, self.punches);
+        let _ = write!(
+            s,
+            "\"ko_credited\":{},\"ko_self_never_hit\":{},\"ko_self_stale\":{},\"techs\":{},\"punch_throughs\":{},",
+            self.ko_credited, self.ko_self_never_hit, self.ko_self_stale, self.techs, self.punches
+        );
+        list_f(&mut s, "ko_self_stale_secs", &self.ko_self_stale_secs);
         s.push_str("\"streaks\":[");
         for (i, x) in self.streaks.iter().enumerate() {
             let _ = write!(s, "{}{x}", if i > 0 { "," } else { "" });
@@ -731,6 +748,11 @@ impl Telemetry {
                         kt.kos += 1;
                         kt.streak = (*streak).max(1);
                         kt.max_streak = kt.max_streak.max(kt.streak);
+                    } else if let Some((_, at)) = vt.last_hit {
+                        self.report.ko_self_stale += 1;
+                        self.report.ko_self_stale_secs.push(tick.saturating_sub(at) as f32 * DT);
+                    } else {
+                        self.report.ko_self_never_hit += 1;
                     }
                     self.end_streak(*victim);
                     let v = self.player(*victim);
