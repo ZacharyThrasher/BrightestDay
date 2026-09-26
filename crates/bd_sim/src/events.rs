@@ -1,0 +1,202 @@
+//! Everything noteworthy that happened in a tick, for the client (juice, audio, VFX, HUD, killfeed)
+//! and for replication (send on the reliable lane; snapshots carry only continuous state).
+//!
+//! Events are deterministic: same inputs ⇒ same event list, so tests hash them to check
+//! determinism. Only rare events (casts, joins) carry heap data.
+
+use bd_core::corps::Corps;
+use bd_core::mechanics::{Element, Recipe};
+use bd_core::{ConstructId, PlayerId, Quat, Vec3};
+use bd_voxel::CarveOp;
+use serde::{Deserialize, Serialize};
+
+use crate::combat::{HitKind, ImpactFx};
+use crate::extract::ExtractOp;
+use crate::space::{ForceField, Link, PortalEnd};
+use crate::projectile::ProjectileKind;
+use crate::rules::MatchPhase;
+use crate::status::StatusKind;
+use crate::weapons::GunArchetype;
+use crate::willpower::OathError;
+
+/// Why a KO happened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum KoCause {
+    Damage,
+    /// Fell into the void / left the arena bounds.
+    Void,
+    WallSplat,
+    /// Damage over time (burn / poison).
+    Status,
+}
+
+/// Why a construct left the world (other than shattering).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GoneReason {
+    /// Owner pressed X (refund 25 %).
+    Dismissed,
+    /// Lifetime ran out.
+    Expired,
+    /// Replaced by a newer cast in the same slot.
+    Replaced,
+    /// Owner was KO'd or left.
+    OwnerGone,
+    /// A thrown object finished its job (landed, exploded, was caught).
+    Spent,
+    /// Match reset.
+    Reset,
+}
+
+/// Why a cast was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum CastError {
+    UnknownPlayer,
+    Dead,
+    /// Cost exceeds current willpower (the ring flickers).
+    NotEnoughWillpower { cost: f32, have: f32 },
+    /// Busy reciting the oath.
+    Reciting,
+    /// Stunned or seated in a construct.
+    Busy,
+    /// No-limits: already has a colossal construct.
+    ColossalLimit,
+    /// Match ended.
+    MatchOver,
+}
+
+/// Something that went through a portal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Traveller {
+    Player(PlayerId),
+    Construct(ConstructId),
+    Projectile(u16),
+}
+
+/// Movement moments worth a sound on remote clients (bits of [`GameEvent::Move`]).
+pub mod move_flags {
+    pub const JUMP: u16 = 1 << 0;
+    pub const PERFECT_HOP: u16 = 1 << 1;
+    pub const LAND_HARD: u16 = 1 << 2;
+    pub const SLIDE: u16 = 1 << 3;
+    pub const TETHER_FIRE: u16 = 1 << 4;
+    pub const TETHER_ATTACH: u16 = 1 << 5;
+    pub const TETHER_RELEASE: u16 = 1 << 6;
+    pub const BOOST: u16 = 1 << 7;
+    pub const WALL_HIT: u16 = 1 << 8;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum GameEvent {
+    PlayerJoined { player: PlayerId, name: String, corps: Corps },
+    PlayerLeft { player: PlayerId },
+    /// A player took a hit. `impact` is everything the client needs for juice.
+    Hit {
+        target: PlayerId,
+        source: Option<PlayerId>,
+        construct: Option<ConstructId>,
+        kind: HitKind,
+        element: Element,
+        damage: f32,
+        /// Final knockback speed (m/s) after health scaling and bonuses.
+        knockback: f32,
+        point: Vec3,
+        /// Momentum bonus fraction applied (0..0.6).
+        bonus: f32,
+        tumble: bool,
+        lethal: bool,
+        /// Head-zone hit (×1.5) or a construct weak point.
+        crit: bool,
+        impact: ImpactFx,
+    },
+    /// A hit was absorbed (spawn shield).
+    Blocked { target: PlayerId, source: Option<PlayerId>, point: Vec3 },
+    /// Tumbling into a wall: bonus damage + crater + bounce.
+    WallSplat { player: PlayerId, point: Vec3, normal: Vec3, speed: f32, damage: f32 },
+    StatusApplied { player: PlayerId, status: StatusKind, secs: f32, source: Option<PlayerId> },
+    /// KO confirmation (DESIGN.md "Hit & KO confirmation").
+    Ko {
+        victim: PlayerId,
+        killer: Option<PlayerId>,
+        cause: KoCause,
+        victim_corps: Corps,
+        /// Killer's streak (KOs since their last death) including this one.
+        streak: u16,
+        /// ≤ 1 s since the killer's previous KO.
+        double: bool,
+        /// Fell into the void / out of bounds.
+        void: bool,
+        /// The victim was on a streak of ≥ 3.
+        shutdown: bool,
+        /// Victim's last pose + velocity (the client shatters them from here).
+        pos: Vec3,
+        vel: Vec3,
+        yaw: f32,
+    },
+    Respawn { player: PlayerId, pos: Vec3, shield: f32 },
+    /// A projectile left a hand / weapon. Clients simulate it from here (ballistic).
+    ProjectileFired { id: u16, owner: PlayerId, kind: ProjectileKind, origin: Vec3, vel: Vec3 },
+    /// A projectile ended (hit something or timed out).
+    ProjectileEnded { id: u16, pos: Vec3, normal: Vec3, hit_player: Option<PlayerId> },
+    Shove { player: PlayerId, origin: Vec3, dir: Vec3 },
+    /// A gun (or the ring) fired: fire juice (viewmodel kick, muzzle light, casings, camera punch).
+    ShotFired {
+        owner: PlayerId,
+        construct: Option<ConstructId>,
+        archetype: GunArchetype,
+        muzzle: Vec3,
+        dir: Vec3,
+        /// Recoil impulse strength (m/s) before the ground factor.
+        recoil: f32,
+        pellets: u8,
+    },
+    /// A hitscan beam (railgun): draw the lingering beam from `origin` to `end`.
+    Hitscan { owner: PlayerId, origin: Vec3, end: Vec3, hits: u8 },
+    /// A construct was cast; clients build its model from the recipe (same phrase = same model).
+    ConstructSpawned {
+        id: ConstructId,
+        owner: PlayerId,
+        recipe: Box<Recipe>,
+        pos: Vec3,
+        rot: Quat,
+        forming: f32,
+        cost: f32,
+    },
+    CastFailed { player: PlayerId, reason: CastError },
+    /// A cast was grafted onto an existing construct; `recipe` is the merged result.
+    Grafted { player: PlayerId, id: ConstructId, recipe: Box<Recipe>, cost: f32 },
+    /// Integrity damage to a construct (flash).
+    ConstructHit { id: ConstructId, source: Option<PlayerId>, damage: f32, point: Vec3 },
+    /// Integrity hit 0: burst into its own voxels along `impulse`.
+    ConstructShattered { id: ConstructId, impulse: Vec3, pos: Vec3 },
+    ConstructGone { id: ConstructId, reason: GoneReason, refund: f32 },
+    /// Two opposing constructs collided (both flash, shard ring).
+    Clash { a: ConstructId, b: ConstructId, point: Vec3, strength: f32 },
+    Explosion { pos: Vec3, radius: f32, element: Element, source: Option<PlayerId> },
+    /// Replicated terrain destruction: every client applies exactly this op.
+    Carve { op: CarveOp },
+    Move { player: PlayerId, flags: u16, speed: f32 },
+    OathBegan { player: PlayerId },
+    OathFinished { player: PlayerId, refill: f32 },
+    OathInterrupted { player: PlayerId, refill: f32 },
+    OathCancelled { player: PlayerId },
+    OathRejected { player: PlayerId, reason: OathError },
+    Seated { player: PlayerId, construct: ConstructId, part: u8 },
+    Ejected { player: PlayerId, construct: ConstructId, vel: Vec3 },
+    /// Terrain lifted out by a graft (COMBAT.md §3c). Clients apply the same op to get the model.
+    Extracted { op: ExtractOp, construct: ConstructId, voxels: u32 },
+    PortalOpened { id: u16, owner: PlayerId, ends: [PortalEnd; 2] },
+    PortalClosed { id: u16 },
+    /// Went through a portal. For the local player the client rotates its camera by `rot`.
+    Teleported { who: Traveller, portal: u16, rot: Quat, pos: Vec3 },
+    FieldCreated { field: ForceField },
+    FieldEnded { id: u16 },
+    LinkCreated { link: Link },
+    LinkBroken { id: u16, cut: bool },
+    /// Shrink / Grow applied (target scale, seconds).
+    Resized { player: PlayerId, scale: f32, secs: f32 },
+    /// Chaos soak: a human-readable description of a random cast (for the soak viewer).
+    ChaosCast { player: PlayerId, description: String },
+    MatchPhase { phase: MatchPhase, round: u32, winner: Option<PlayerId> },
+    /// Terrain regenerated from this seed (rematch). Clients regenerate too.
+    ArenaReset { seed: u64 },
+}

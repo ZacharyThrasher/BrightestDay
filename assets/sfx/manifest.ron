@@ -3,11 +3,15 @@
 // playback speed in `pitch` (min, max). `volume` is a suggested linear base gain on top of
 // the loudness-normalised files. Loudness targets (BS.1770 K-weighted, LUFS): one-shots are
 // normalised on max momentary (400 ms) loudness, loops on integrated loudness; peaks <= -1 dBFS.
-// Category targets: movement -18, tether -17, construct -15, combat -12, destruction -15, ui -21, loop -21 (per-sound `lufs` overrides).
+// Category targets: movement -18, tether -17, construct -15, combat -12, destruction -15, ui -21, weapon -12, ko_streak -14, loop -21 (per-sound `lufs` overrides).
+// `sequence: true` means `files` are ordered steps (KO streak: play files[step-1]), not variations;
+// sequences step up in loudness by 0.5 dB per step from `lufs`. See `ko_streak` at the bottom.
 // Suggested Rust shape:
-//   struct SfxManifest { sample_rate: u32, sounds: HashMap<String, SfxEntry> }
+//   struct SfxManifest { sample_rate: u32, sounds: HashMap<String, SfxEntry>, ko_streak: KoStreak }
 //   struct SfxEntry { files: Vec<String>, category: String, volume: f32, looping: bool,
-//                     pitch: (f32, f32), lufs: f32 }
+//                     pitch: (f32, f32), lufs: f32, sequence: bool }
+//   struct KoStreak { key: String, steps: Vec<String>, corps: HashMap<String, String>,
+//                     accents: HashMap<String, String> }
 (
     sample_rate: 48000,
     sounds: {
@@ -18,6 +22,7 @@
             looping: false,
             pitch: (0.94, 1.08),
             lufs: -18.0,
+            sequence: false,
         ),
         "land_light": (
             files: ["sfx/land_light_1.ogg", "sfx/land_light_2.ogg", "sfx/land_light_3.ogg"],
@@ -26,6 +31,7 @@
             looping: false,
             pitch: (0.92, 1.08),
             lufs: -19.0,
+            sequence: false,
         ),
         "land_heavy": (
             files: ["sfx/land_heavy_1.ogg", "sfx/land_heavy_2.ogg", "sfx/land_heavy_3.ogg"],
@@ -34,6 +40,7 @@
             looping: false,
             pitch: (0.92, 1.05),
             lufs: -15.0,
+            sequence: false,
         ), // bassy thud for high-speed / long-fall landings
         "footstep": (
             files: ["sfx/footstep_1.ogg", "sfx/footstep_2.ogg", "sfx/footstep_3.ogg", "sfx/footstep_4.ogg"],
@@ -42,6 +49,7 @@
             looping: false,
             pitch: (0.90, 1.10),
             lufs: -22.0,
+            sequence: false,
         ), // short, soft
         "slide_loop": (
             files: ["sfx/slide_loop_1.ogg", "sfx/slide_loop_2.ogg"],
@@ -50,6 +58,7 @@
             looping: true,
             pitch: (0.97, 1.03),
             lufs: -21.0,
+            sequence: false,
         ), // loop; scale volume with slide speed
         "wind_loop": (
             files: ["sfx/wind_loop_1.ogg", "sfx/wind_loop_2.ogg"],
@@ -58,6 +67,7 @@
             looping: true,
             pitch: (1.00, 1.00),
             lufs: -22.0,
+            sequence: false,
         ), // loop; game scales volume/pitch with speed
         "boost_burst": (
             files: ["sfx/boost_burst_1.ogg", "sfx/boost_burst_2.ogg", "sfx/boost_burst_3.ogg"],
@@ -66,6 +76,7 @@
             looping: false,
             pitch: (0.94, 1.06),
             lufs: -16.0,
+            sequence: false,
         ), // gas hiss burst
         "boost_loop": (
             files: ["sfx/boost_loop_1.ogg", "sfx/boost_loop_2.ogg"],
@@ -74,6 +85,7 @@
             looping: true,
             pitch: (0.98, 1.02),
             lufs: -20.0,
+            sequence: false,
         ),
         "tether_fire": (
             files: ["sfx/tether_fire_1.ogg", "sfx/tether_fire_2.ogg", "sfx/tether_fire_3.ogg"],
@@ -82,6 +94,7 @@
             looping: false,
             pitch: (0.95, 1.06),
             lufs: -17.0,
+            sequence: false,
         ), // sharp mechanical zip
         "tether_attach": (
             files: ["sfx/tether_attach_1.ogg", "sfx/tether_attach_2.ogg", "sfx/tether_attach_3.ogg"],
@@ -90,6 +103,7 @@
             looping: false,
             pitch: (0.93, 1.07),
             lufs: -17.0,
+            sequence: false,
         ), // metallic thunk into stone
         "tether_reel_loop": (
             files: ["sfx/tether_reel_loop_1.ogg", "sfx/tether_reel_loop_2.ogg"],
@@ -98,6 +112,7 @@
             looping: true,
             pitch: (1.00, 1.00),
             lufs: -21.0,
+            sequence: false,
         ), // loop; winch
         "tether_release": (
             files: ["sfx/tether_release_1.ogg", "sfx/tether_release_2.ogg", "sfx/tether_release_3.ogg"],
@@ -106,6 +121,7 @@
             looping: false,
             pitch: (0.94, 1.06),
             lufs: -17.0,
+            sequence: false,
         ), // snap + whoosh
         "construct_form": (
             files: ["sfx/construct_form_1.ogg", "sfx/construct_form_2.ogg", "sfx/construct_form_3.ogg"],
@@ -114,6 +130,7 @@
             looping: false,
             pitch: (0.97, 1.03),
             lufs: -15.0,
+            sequence: false,
         ), // rising hard-light vwoom ~0.4 s + lock ping
         "construct_dismiss": (
             files: ["sfx/construct_dismiss_1.ogg", "sfx/construct_dismiss_2.ogg", "sfx/construct_dismiss_3.ogg"],
@@ -122,22 +139,7 @@
             looping: false,
             pitch: (0.95, 1.05),
             lufs: -15.0,
-        ),
-        "ring_blast": (
-            files: ["sfx/ring_blast_1.ogg", "sfx/ring_blast_2.ogg", "sfx/ring_blast_3.ogg", "sfx/ring_blast_4.ogg"],
-            category: "construct",
-            volume: 0.80,
-            looping: false,
-            pitch: (0.93, 1.07),
-            lufs: -15.0,
-        ), // always-available light bolt
-        "ring_blast_hit": (
-            files: ["sfx/ring_blast_hit_1.ogg", "sfx/ring_blast_hit_2.ogg", "sfx/ring_blast_hit_3.ogg", "sfx/ring_blast_hit_4.ogg"],
-            category: "construct",
-            volume: 0.85,
-            looping: false,
-            pitch: (0.93, 1.07),
-            lufs: -15.0,
+            sequence: false,
         ),
         "beam_loop": (
             files: ["sfx/beam_loop_1.ogg", "sfx/beam_loop_2.ogg"],
@@ -146,6 +148,7 @@
             looping: true,
             pitch: (1.00, 1.00),
             lufs: -18.0,
+            sequence: false,
         ), // loop; held beam
         "shield_block": (
             files: ["sfx/shield_block_1.ogg", "sfx/shield_block_2.ogg", "sfx/shield_block_3.ogg"],
@@ -154,6 +157,7 @@
             looping: false,
             pitch: (0.94, 1.06),
             lufs: -13.0,
+            sequence: false,
         ), // energy clang
         "construct_shatter": (
             files: ["sfx/construct_shatter_1.ogg", "sfx/construct_shatter_2.ogg", "sfx/construct_shatter_3.ogg", "sfx/construct_shatter_4.ogg"],
@@ -162,6 +166,7 @@
             looping: false,
             pitch: (0.95, 1.05),
             lufs: -12.0,
+            sequence: false,
         ), // SIGNATURE: glassy crystalline burst + tinkling hard-light cube cascade ~1.2 s
         "clash": (
             files: ["sfx/clash_1.ogg", "sfx/clash_2.ogg", "sfx/clash_3.ogg", "sfx/clash_4.ogg"],
@@ -170,6 +175,7 @@
             looping: false,
             pitch: (0.94, 1.06),
             lufs: -12.0,
+            sequence: false,
         ), // two hard-light constructs colliding: energy crack + low boom
         "hit_light": (
             files: ["sfx/hit_light_1.ogg", "sfx/hit_light_2.ogg", "sfx/hit_light_3.ogg", "sfx/hit_light_4.ogg"],
@@ -178,6 +184,7 @@
             looping: false,
             pitch: (0.90, 1.10),
             lufs: -14.0,
+            sequence: false,
         ),
         "hit_medium": (
             files: ["sfx/hit_medium_1.ogg", "sfx/hit_medium_2.ogg", "sfx/hit_medium_3.ogg", "sfx/hit_medium_4.ogg"],
@@ -186,6 +193,7 @@
             looping: false,
             pitch: (0.92, 1.08),
             lufs: -13.0,
+            sequence: false,
         ),
         "hit_heavy": (
             files: ["sfx/hit_heavy_1.ogg", "sfx/hit_heavy_2.ogg", "sfx/hit_heavy_3.ogg", "sfx/hit_heavy_4.ogg"],
@@ -194,6 +202,7 @@
             looping: false,
             pitch: (0.93, 1.05),
             lufs: -12.0,
+            sequence: false,
         ), // big bass-drop punch; pair with hit-stop
         "wall_splat": (
             files: ["sfx/wall_splat_1.ogg", "sfx/wall_splat_2.ogg", "sfx/wall_splat_3.ogg"],
@@ -202,6 +211,7 @@
             looping: false,
             pitch: (0.93, 1.06),
             lufs: -12.0,
+            sequence: false,
         ), // body slammed into stone
         "kaiju_stomp": (
             files: ["sfx/kaiju_stomp_1.ogg", "sfx/kaiju_stomp_2.ogg", "sfx/kaiju_stomp_3.ogg"],
@@ -210,6 +220,7 @@
             looping: false,
             pitch: (0.90, 1.05),
             lufs: -11.0,
+            sequence: false,
         ), // sub-bass boom + rumble
         "kaiju_roar": (
             files: ["sfx/kaiju_roar_1.ogg", "sfx/kaiju_roar_2.ogg", "sfx/kaiju_roar_3.ogg"],
@@ -218,6 +229,7 @@
             looping: false,
             pitch: (0.92, 1.05),
             lufs: -12.0,
+            sequence: false,
         ), // synth monster roar ~1.6 s (detuned saws + noise through moving formants)
         "explosion_small": (
             files: ["sfx/explosion_small_1.ogg", "sfx/explosion_small_2.ogg", "sfx/explosion_small_3.ogg"],
@@ -226,6 +238,7 @@
             looping: false,
             pitch: (0.92, 1.08),
             lufs: -12.0,
+            sequence: false,
         ),
         "explosion_big": (
             files: ["sfx/explosion_big_1.ogg", "sfx/explosion_big_2.ogg", "sfx/explosion_big_3.ogg"],
@@ -234,6 +247,7 @@
             looping: false,
             pitch: (0.92, 1.05),
             lufs: -11.0,
+            sequence: false,
         ), // with debris rumble tail
         "break_stone": (
             files: ["sfx/break_stone_1.ogg", "sfx/break_stone_2.ogg", "sfx/break_stone_3.ogg", "sfx/break_stone_4.ogg"],
@@ -242,6 +256,7 @@
             looping: false,
             pitch: (0.90, 1.10),
             lufs: -15.0,
+            sequence: false,
         ),
         "break_dirt": (
             files: ["sfx/break_dirt_1.ogg", "sfx/break_dirt_2.ogg", "sfx/break_dirt_3.ogg", "sfx/break_dirt_4.ogg"],
@@ -250,6 +265,7 @@
             looping: false,
             pitch: (0.90, 1.10),
             lufs: -15.0,
+            sequence: false,
         ),
         "break_wood": (
             files: ["sfx/break_wood_1.ogg", "sfx/break_wood_2.ogg", "sfx/break_wood_3.ogg", "sfx/break_wood_4.ogg"],
@@ -258,6 +274,7 @@
             looping: false,
             pitch: (0.90, 1.10),
             lufs: -15.0,
+            sequence: false,
         ), // crack/splinter
         "break_leaves": (
             files: ["sfx/break_leaves_1.ogg", "sfx/break_leaves_2.ogg", "sfx/break_leaves_3.ogg", "sfx/break_leaves_4.ogg"],
@@ -266,6 +283,7 @@
             looping: false,
             pitch: (0.90, 1.12),
             lufs: -17.0,
+            sequence: false,
         ), // rustle burst
         "break_crystal": (
             files: ["sfx/break_crystal_1.ogg", "sfx/break_crystal_2.ogg", "sfx/break_crystal_3.ogg"],
@@ -274,6 +292,7 @@
             looping: false,
             pitch: (0.95, 1.05),
             lufs: -15.0,
+            sequence: false,
         ), // chime shatter
         "debris_patter": (
             files: ["sfx/debris_patter_1.ogg", "sfx/debris_patter_2.ogg", "sfx/debris_patter_3.ogg", "sfx/debris_patter_4.ogg"],
@@ -282,6 +301,7 @@
             looping: false,
             pitch: (0.88, 1.12),
             lufs: -19.0,
+            sequence: false,
         ), // small cubes bouncing
         "collapse_rumble": (
             files: ["sfx/collapse_rumble_1.ogg", "sfx/collapse_rumble_2.ogg"],
@@ -290,6 +310,7 @@
             looping: false,
             pitch: (0.92, 1.05),
             lufs: -13.0,
+            sequence: false,
         ), // a tower falling
         "ui_move": (
             files: ["sfx/ui_move_1.ogg", "sfx/ui_move_2.ogg", "sfx/ui_move_3.ogg"],
@@ -298,6 +319,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -24.0,
+            sequence: false,
         ), // menu hover tick
         "ui_select": (
             files: ["sfx/ui_select_1.ogg", "sfx/ui_select_2.ogg", "sfx/ui_select_3.ogg"],
@@ -306,6 +328,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -21.0,
+            sequence: false,
         ),
         "ui_back": (
             files: ["sfx/ui_back_1.ogg", "sfx/ui_back_2.ogg", "sfx/ui_back_3.ogg"],
@@ -314,6 +337,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -22.0,
+            sequence: false,
         ),
         "type_key": (
             files: ["sfx/type_key_1.ogg", "sfx/type_key_2.ogg", "sfx/type_key_3.ogg", "sfx/type_key_4.ogg", "sfx/type_key_5.ogg", "sfx/type_key_6.ogg", "sfx/type_key_7.ogg", "sfx/type_key_8.ogg"],
@@ -322,6 +346,7 @@
             looping: false,
             pitch: (0.94, 1.06),
             lufs: -26.0,
+            sequence: false,
         ), // ring-console keypress; many variations
         "type_error": (
             files: ["sfx/type_error_1.ogg", "sfx/type_error_2.ogg"],
@@ -330,6 +355,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -21.0,
+            sequence: false,
         ),
         "cast_confirm": (
             files: ["sfx/cast_confirm_1.ogg", "sfx/cast_confirm_2.ogg", "sfx/cast_confirm_3.ogg"],
@@ -338,6 +364,7 @@
             looping: false,
             pitch: (0.98, 1.02),
             lufs: -17.0,
+            sequence: false,
         ), // ring console Enter: construct cast
         "oath_complete": (
             files: ["sfx/oath_complete_1.ogg", "sfx/oath_complete_2.ogg"],
@@ -346,6 +373,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -16.0,
+            sequence: false,
         ), // triumphant rising chord
         "willpower_low": (
             files: ["sfx/willpower_low_1.ogg", "sfx/willpower_low_2.ogg"],
@@ -354,6 +382,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -22.0,
+            sequence: false,
         ), // subtle low heartbeat pulse
         "ko": (
             files: ["sfx/ko_1.ogg", "sfx/ko_2.ogg"],
@@ -362,6 +391,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -12.0,
+            sequence: false,
         ), // dramatic KO sting
         "respawn": (
             files: ["sfx/respawn_1.ogg", "sfx/respawn_2.ogg"],
@@ -370,6 +400,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -16.0,
+            sequence: false,
         ), // rising energy swell + arrival
         "match_start": (
             files: ["sfx/match_start_1.ogg", "sfx/match_start_2.ogg"],
@@ -378,6 +409,7 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -13.0,
+            sequence: false,
         ), // fight-start sting
         "match_end": (
             files: ["sfx/match_end_1.ogg", "sfx/match_end_2.ogg"],
@@ -386,6 +418,301 @@
             looping: false,
             pitch: (1.00, 1.00),
             lufs: -13.0,
+            sequence: false,
         ), // match-over sting (IV -> I resolve)
+        "gun_handcannon": (
+            files: ["sfx/gun_handcannon_1.ogg", "sfx/gun_handcannon_2.ogg", "sfx/gun_handcannon_3.ogg", "sfx/gun_handcannon_4.ogg"],
+            category: "weapon",
+            volume: 0.90,
+            looping: false,
+            pitch: (0.94, 1.05),
+            lufs: -12.0,
+            sequence: false,
+        ), // hand cannon / pistol / revolver / rifle; 0.35 s cadence
+        "gun_shotgun": (
+            files: ["sfx/gun_shotgun_1.ogg", "sfx/gun_shotgun_2.ogg", "sfx/gun_shotgun_3.ogg", "sfx/gun_shotgun_4.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.95, 1.04),
+            lufs: -11.0,
+            sequence: false,
+        ), // super shotgun: huge double-barrel boom
+        "gun_shotgun_reload": (
+            files: ["sfx/gun_shotgun_reload_1.ogg", "sfx/gun_shotgun_reload_2.ogg", "sfx/gun_shotgun_reload_3.ogg"],
+            category: "weapon",
+            volume: 0.75,
+            looping: false,
+            pitch: (0.96, 1.04),
+            lufs: -16.0,
+            sequence: false,
+        ), // two-part snap (break open) ... clack (close), fits the 0.9 s reload
+        "gun_minigun_spinup": (
+            files: ["sfx/gun_minigun_spinup_1.ogg", "sfx/gun_minigun_spinup_2.ogg", "sfx/gun_minigun_spinup_3.ogg"],
+            category: "weapon",
+            volume: 0.80,
+            looping: false,
+            pitch: (0.98, 1.02),
+            lufs: -16.0,
+            sequence: false,
+        ), // 0.4 s spin-up; ends at the loop motor speed
+        "gun_minigun_loop": (
+            files: ["sfx/gun_minigun_loop_1.ogg", "sfx/gun_minigun_loop_2.ogg"],
+            category: "weapon",
+            volume: 0.90,
+            looping: true,
+            pitch: (1.00, 1.00),
+            lufs: -14.0,
+            sequence: false,
+        ), // loop: 14 rounds/s, exactly 14 rounds per 1 s loop
+        "gun_minigun_spindown": (
+            files: ["sfx/gun_minigun_spindown_1.ogg", "sfx/gun_minigun_spindown_2.ogg", "sfx/gun_minigun_spindown_3.ogg"],
+            category: "weapon",
+            volume: 0.75,
+            looping: false,
+            pitch: (0.97, 1.03),
+            lufs: -17.0,
+            sequence: false,
+        ), // 0.3 s spin-down + settle clunk
+        "gun_rocket_fire": (
+            files: ["sfx/gun_rocket_fire_1.ogg", "sfx/gun_rocket_fire_2.ogg", "sfx/gun_rocket_fire_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.94, 1.05),
+            lufs: -11.0,
+            sequence: false,
+        ), // launch whoosh-thump; rocket then uses rocket_flyby_loop
+        "rocket_flyby_loop": (
+            files: ["sfx/rocket_flyby_loop_1.ogg", "sfx/rocket_flyby_loop_2.ogg"],
+            category: "weapon",
+            volume: 0.70,
+            looping: true,
+            pitch: (0.97, 1.03),
+            lufs: -18.0,
+            sequence: false,
+        ), // loop: rocket motor roar; attach to the projectile (spatial + doppler)
+        "gun_railgun_charge": (
+            files: ["sfx/gun_railgun_charge_1.ogg", "sfx/gun_railgun_charge_2.ogg", "sfx/gun_railgun_charge_3.ogg"],
+            category: "weapon",
+            volume: 0.80,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -16.0,
+            sequence: false,
+        ), // 0.5 s rising whine; gun_railgun_fire follows
+        "gun_railgun_fire": (
+            files: ["sfx/gun_railgun_fire_1.ogg", "sfx/gun_railgun_fire_2.ogg", "sfx/gun_railgun_fire_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.96, 1.04),
+            lufs: -11.0,
+            sequence: false,
+        ), // crack + deep boom + ringing tail (lingering beam)
+        "shell_casing": (
+            files: ["sfx/shell_casing_1.ogg", "sfx/shell_casing_2.ogg", "sfx/shell_casing_3.ogg", "sfx/shell_casing_4.ogg", "sfx/shell_casing_5.ogg", "sfx/shell_casing_6.ogg"],
+            category: "weapon",
+            volume: 0.40,
+            looping: false,
+            pitch: (0.90, 1.12),
+            lufs: -24.0,
+            sequence: false,
+        ), // ejected hard-light casing: metallic-glass tinkle (some end in a tiny shatter)
+        "hit_confirm": (
+            files: ["sfx/hit_confirm_1.ogg", "sfx/hit_confirm_2.ogg", "sfx/hit_confirm_3.ogg", "sfx/hit_confirm_4.ogg"],
+            category: "combat",
+            volume: 0.85,
+            looping: false,
+            pitch: (0.98, 1.02),
+            lufs: -17.0,
+            sequence: false,
+        ), // crisp dry hit-confirm "thock" for the shooter; cuts through the mix (1-3 kHz)
+        "hit_confirm_heavy": (
+            files: ["sfx/hit_confirm_heavy_1.ogg", "sfx/hit_confirm_heavy_2.ogg", "sfx/hit_confirm_heavy_3.ogg"],
+            category: "combat",
+            volume: 0.90,
+            looping: false,
+            pitch: (0.98, 1.02),
+            lufs: -13.0,
+            sequence: false,
+        ), // "ka-CHUNK": high tick then heavy thock (big hits / kills)
+        "bullet_impact_stone": (
+            files: ["sfx/bullet_impact_stone_1.ogg", "sfx/bullet_impact_stone_2.ogg", "sfx/bullet_impact_stone_3.ogg", "sfx/bullet_impact_stone_4.ogg"],
+            category: "destruction",
+            volume: 0.80,
+            looping: false,
+            pitch: (0.90, 1.10),
+            lufs: -15.0,
+            sequence: false,
+        ), // slug into stone: chip + dust (variations 2 and 4 ricochet)
+        "bullet_impact_dirt": (
+            files: ["sfx/bullet_impact_dirt_1.ogg", "sfx/bullet_impact_dirt_2.ogg", "sfx/bullet_impact_dirt_3.ogg", "sfx/bullet_impact_dirt_4.ogg"],
+            category: "destruction",
+            volume: 0.75,
+            looping: false,
+            pitch: (0.90, 1.10),
+            lufs: -16.0,
+            sequence: false,
+        ),
+        "bullet_impact_wood": (
+            files: ["sfx/bullet_impact_wood_1.ogg", "sfx/bullet_impact_wood_2.ogg", "sfx/bullet_impact_wood_3.ogg", "sfx/bullet_impact_wood_4.ogg"],
+            category: "destruction",
+            volume: 0.80,
+            looping: false,
+            pitch: (0.90, 1.10),
+            lufs: -15.0,
+            sequence: false,
+        ),
+        "ring_blast": (
+            files: ["sfx/ring_blast_1.ogg", "sfx/ring_blast_2.ogg", "sfx/ring_blast_3.ogg", "sfx/ring_blast_4.ogg"],
+            category: "construct",
+            volume: 0.90,
+            looping: false,
+            pitch: (0.94, 1.06),
+            lufs: -13.0,
+            sequence: false,
+        ), // empty-hand ring blast: meaty fist-of-light whump + zap (0.4 s cadence)
+        "ring_blast_hit": (
+            files: ["sfx/ring_blast_hit_1.ogg", "sfx/ring_blast_hit_2.ogg", "sfx/ring_blast_hit_3.ogg", "sfx/ring_blast_hit_4.ogg"],
+            category: "construct",
+            volume: 0.95,
+            looping: false,
+            pitch: (0.93, 1.07),
+            lufs: -12.0,
+            sequence: false,
+        ), // ring blast impact: light-punch landing, bright crack + sub whump + energy splash
+        "hit_crit": (
+            files: ["sfx/hit_crit_1.ogg", "sfx/hit_crit_2.ogg", "sfx/hit_crit_3.ogg", "sfx/hit_crit_4.ogg"],
+            category: "combat",
+            volume: 0.90,
+            looping: false,
+            pitch: (0.97, 1.03),
+            lufs: -17.0,
+            sequence: false,
+        ), // critical/headshot confirm: short glass-metal snap (3-8 kHz) over a dull 60-120 Hz thud
+        "ko_shatter": (
+            files: ["sfx/ko_shatter_1.ogg", "sfx/ko_shatter_2.ogg", "sfx/ko_shatter_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.96, 1.04),
+            lufs: -11.0,
+            sequence: false,
+        ), // player shatters into hard-light voxels: bigger and more final than construct_shatter + sub drop
+        "ko_streak_willpower": (
+            files: ["sfx/ko_streak_willpower_1.ogg", "sfx/ko_streak_willpower_2.ogg", "sfx/ko_streak_willpower_3.ogg", "sfx/ko_streak_willpower_4.ogg", "sfx/ko_streak_willpower_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // clean bright bell-synth; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_rage": (
+            files: ["sfx/ko_streak_rage_1.ogg", "sfx/ko_streak_rage_2.ogg", "sfx/ko_streak_rage_3.ogg", "sfx/ko_streak_rage_4.ogg", "sfx/ko_streak_rage_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // distorted growling saw; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_greed": (
+            files: ["sfx/ko_streak_greed_1.ogg", "sfx/ko_streak_greed_2.ogg", "sfx/ko_streak_greed_3.ogg", "sfx/ko_streak_greed_4.ogg", "sfx/ko_streak_greed_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // metallic coin chimes; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_fear": (
+            files: ["sfx/ko_streak_fear_1.ogg", "sfx/ko_streak_fear_2.ogg", "sfx/ko_streak_fear_3.ogg", "sfx/ko_streak_fear_4.ogg", "sfx/ko_streak_fear_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // eerie detuned glass; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_hope": (
+            files: ["sfx/ko_streak_hope_1.ogg", "sfx/ko_streak_hope_2.ogg", "sfx/ko_streak_hope_3.ogg", "sfx/ko_streak_hope_4.ogg", "sfx/ko_streak_hope_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // airy choir pad; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_compassion": (
+            files: ["sfx/ko_streak_compassion_1.ogg", "sfx/ko_streak_compassion_2.ogg", "sfx/ko_streak_compassion_3.ogg", "sfx/ko_streak_compassion_4.ogg", "sfx/ko_streak_compassion_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // soft mallet chime; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_love": (
+            files: ["sfx/ko_streak_love_1.ogg", "sfx/ko_streak_love_2.ogg", "sfx/ko_streak_love_3.ogg", "sfx/ko_streak_love_4.ogg", "sfx/ko_streak_love_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // warm FM harp; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_streak_life": (
+            files: ["sfx/ko_streak_life_1.ogg", "sfx/ko_streak_life_2.ogg", "sfx/ko_streak_life_3.ogg", "sfx/ko_streak_life_4.ogg", "sfx/ko_streak_life_5.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: true,
+        ), // pure sine choir; steps 1-5 = E5 G5 A5 B5 (D6->)E6
+        "ko_accent_void": (
+            files: ["sfx/ko_accent_void_1.ogg", "sfx/ko_accent_void_2.ogg"],
+            category: "ko_streak",
+            volume: 0.90,
+            looping: false,
+            pitch: (0.97, 1.03),
+            lufs: -14.0,
+            sequence: false,
+        ), // accent: KO by void / ring-out: whoosh down + thud
+        "ko_accent_double": (
+            files: ["sfx/ko_accent_double_1.ogg", "sfx/ko_accent_double_2.ogg"],
+            category: "ko_streak",
+            volume: 0.85,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -15.0,
+            sequence: false,
+        ), // accent: multi-KO in quick succession: stacked sparkle
+        "ko_streak_end": (
+            files: ["sfx/ko_streak_end_1.ogg", "sfx/ko_streak_end_2.ogg"],
+            category: "ko_streak",
+            volume: 0.95,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -13.0,
+            sequence: false,
+        ), // 'shutdown' sting for the player who ends someone else's streak: falling cue
     },
+    ko_streak: (
+        key: "E minor pentatonic",
+        steps: ["E5", "G5", "A5", "B5", "D6->E6"],
+        corps: {
+            "willpower": "ko_streak_willpower", // clean bright bell-synth
+            "rage": "ko_streak_rage", // distorted growling saw
+            "greed": "ko_streak_greed", // metallic coin chimes
+            "fear": "ko_streak_fear", // eerie detuned glass
+            "hope": "ko_streak_hope", // airy choir pad
+            "compassion": "ko_streak_compassion", // soft mallet chime
+            "love": "ko_streak_love", // warm FM harp
+            "life": "ko_streak_life", // pure sine choir
+        },
+        accents: { "void": "ko_accent_void", "double": "ko_accent_double", "shutdown": "ko_streak_end" },
+    ),
 )

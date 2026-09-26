@@ -25,7 +25,9 @@ deletes old `*.ogg`/`*.wav` in `assets/sfx/` first, so renamed sounds don't ling
 | file | purpose |
 |---|---|
 | `dsp.py` | the DSP toolkit: oscillators, noise, filters, modal synthesis, reverb, loop helpers, loudness, limiter, trimming |
-| `sounds.py` | one `@sound(...)` function per sound id, plus category loudness targets |
+| `sounds.py` | one `@sound(...)` function per sound id (movement, tethers, constructs, hits, destruction, UI), plus category loudness targets |
+| `sounds_weapons.py` | guns (hand cannon, super shotgun, minigun spin-up/loop/spin-down, rocket, railgun), casings, hit confirms/crit, bullet impacts, ring blast, ko_shatter — every fire sound is transient + 40-90 Hz sub thump + mechanism + slapback/room tail |
+| `sounds_streak.py` | KO streak sets: 8 corps × 5 steps (E minor pentatonic E5 G5 A5 B5, D6→E6), one timbre per corps, plus accents |
 | `sfxgen.py` | the CLI. Runs the recipes, masters each file and writes the OGG files and `manifest.ron` |
 | `verify.py` | decodes every file and reports peak, RMS, LUFS, DC, band shares and loop-seam metrics; renders the spectrogram montage |
 
@@ -55,7 +57,9 @@ One-shots are normalised on their **maximum momentary (400 ms) loudness**. Loops
 | tether | -17 | |
 | movement | -18 | land_light -19, land_heavy -15, boost_burst -16, footstep -22 |
 | ui / status | -21 | ui_move -24, type_key -26, ko -12, match_start/end -13, oath_complete / respawn -16 |
-| loops | -21 | wind -22, boost -20, beam -18 |
+| weapon | -12 | shotgun / rocket / railgun fire -11, reloads & spin -16/-17, shell_casing -24 |
+| ko_streak | -14 | streak steps -15 rising 0.5 dB per step to -13 |
+| loops | -21 | wind -22, boost -20, beam -18, minigun -14, rocket flyby -18 |
 
 Very transient sounds (hits, footsteps, breaks) sometimes can't reach their target without more than 6 dB of
 limiting. They land up to about 1.7 dB short, and `sfxgen.py` marks them `(peak-capped)`. The loudness actually
@@ -74,6 +78,16 @@ game decides the balance.
 - `verify.py` checks `|y[0]-y[-1]|` against the 99th-percentile sample step, and the >6 kHz energy at the wrap point
   against the median. The loops currently score jump ≤ 0.6 (a value below 1 means the wrap is smaller than a normal
   sample step) and HF ≤ 2.3× the median (no click).
+
+The minigun loop is exactly 14 rounds in 1.0 s (14 rounds/s). Its room reverb and slapback are applied
+circularly (`dsp.reverb_circ`, `dsp.circ`), so the tail of the last round rings into the first.
+
+## Sequences (KO streak)
+
+`sequence=True` sounds (`ko_streak_<corps>`) have ordered files, where `_N` is the streak step and not a random
+variation. The manifest marks them `sequence: true` and adds a `ko_streak` table (key, steps, corps → id, accents).
+`verify.py` detects the melody note of every step (the strongest partial in the note body) and fails if a step is
+off by more than 25 cents.
 
 ## Adding or changing a sound
 

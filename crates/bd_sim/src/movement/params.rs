@@ -221,3 +221,23 @@ impl Default for MoveParams {
         }
     }
 }
+
+impl MoveParams {
+    /// A copy with the body scaled by `s` (Shrink / Grow): hull width and heights, eye heights and
+    /// step heights. Speeds and physics are unchanged (the sim scales speed via `MoveModifiers`).
+    /// `s = 1.0` yields an identical copy, so unscaled players behave bit-for-bit as before.
+    pub fn scaled(&self, s: f32) -> MoveParams {
+        let mut p = self.clone();
+        if s == 1.0 || !s.is_finite() || s <= 0.0 {
+            return p;
+        }
+        p.hull_half_width *= s;
+        p.stand_height *= s;
+        p.crouch_height *= s;
+        p.eye_stand *= s;
+        p.eye_crouch *= s;
+        p.step_height *= s.max(1.0);
+        p.air_step_height *= s.max(1.0);
+        p
+    }
+}

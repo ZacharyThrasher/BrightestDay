@@ -1,0 +1,72 @@
+//! A steady-state `World::tick` (8 bots moving, ring-blasting, getting hit, dying and respawning;
+//! no casts / carves) performs no heap allocation: every per-tick buffer is reused.
+
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+use bd_sim::bots;
+use bd_sim::world::{ArenaSource, SimConfig, World};
+
+struct Counting;
+
+static COUNT: AtomicUsize = AtomicUsize::new(0);
+static ARMED: AtomicBool = AtomicBool::new(false);
+
+unsafe impl GlobalAlloc for Counting {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if ARMED.load(Ordering::Relaxed) {
+            COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        unsafe { System.alloc(layout) }
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        if ARMED.load(Ordering::Relaxed) {
+            COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+}
+
+#[global_allocator]
+static GLOBAL: Counting = Counting;
+
+#[test]
+fn steady_state_tick_does_not_allocate() {
+    let mut cfg = SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, seed: 5, check_invariants: false, ..SimConfig::default() };
+    cfg.timings.warmup_secs = 0.1;
+    let mut w = World::new(cfg);
+    let mut brains = bots::add_bots(&mut w, 0, 8, 0.9, 5);
+    for b in &mut brains {
+        b.casts_enabled = false;
+    }
+    let mut inputs = Vec::with_capacity(8);
+    // Warm up: buffers reach their working capacity.
+    for _ in 0..1200 {
+        inputs.clear();
+        bots::drive(&mut w, &mut brains, &mut inputs);
+        w.tick(&inputs);
+    }
+    let mut ticks_with_allocs = 0;
+    let mut total = 0;
+    let mut events = 0;
+    for _ in 0..1200 {
+        inputs.clear();
+        bots::drive(&mut w, &mut brains, &mut inputs);
+        COUNT.store(0, Ordering::Relaxed);
+        ARMED.store(true, Ordering::Relaxed);
+        let n = w.tick(&inputs).len();
+        ARMED.store(false, Ordering::Relaxed);
+        events += n;
+        let c = COUNT.load(Ordering::Relaxed);
+        total += c;
+        if c > 0 {
+            ticks_with_allocs += 1;
+        }
+    }
+    assert!(events > 100, "the scenario must actually do things ({events} events)");
+    // Allow a handful of one-off buffer growths (a burst of events beyond the warm-up peak).
+    assert!(ticks_with_allocs <= 3, "{ticks_with_allocs} ticks allocated ({total} allocations)");
+}

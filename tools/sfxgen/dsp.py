@@ -462,3 +462,23 @@ def trim(x, thresh_db=-54.0, fade_in=0.001, fade_out=0.02, preroll=0.003):
     y[-1] = 0.0
     # a few ms of leading silence so lossy codecs' pre-echo doesn't start the file on a step
     return np.concatenate([np.zeros(ns(preroll)), y])
+
+
+# --------------------------------------------------------------------------- circular (loop) processing
+def circ(fn, x):
+    """Apply a causal filter fn to an L-periodic signal circularly (render 3 periods, keep the middle)."""
+    L = len(x)
+    return fn(np.tile(x, 3))[L:2 * L]
+
+
+def reverb_circ(x, rng, rt60=0.8, wet=0.2, predelay=0.01, bright=1.0) -> np.ndarray:
+    """Reverb for loops: the IR is folded onto the loop length and applied by circular convolution,
+    so the tail of the end of the loop rings into its start and the result stays exactly periodic."""
+    L = len(x)
+    ir = make_ir(rt60, rng, predelay, bright)
+    folded = np.zeros(L)
+    for s in range(0, len(ir), L):
+        seg = ir[s:s + L]
+        folded[:len(seg)] += seg
+    w = np.fft.irfft(np.fft.rfft(x) * np.fft.rfft(folded), L)
+    return x + wet * w

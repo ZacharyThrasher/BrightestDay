@@ -29,9 +29,11 @@ PNG = ROOT / 'docs' / 'sfx_spectrograms.png'
 def parse_manifest():
     txt = (SFX / 'manifest.ron').read_text(encoding='utf-8')
     out = {}
-    for m in re.finditer(r'"(\w+)": \(\s*files: \[([^\]]*)\],\s*category: "(\w+)",.*?looping: (\w+)', txt, re.S):
+    for m in re.finditer(r'"(\w+)": \(\s*files: \[([^\]]*)\],\s*category: "(\w+)",.*?looping: (\w+),'
+                         r'.*?sequence: (\w+)', txt, re.S):
         files = re.findall(r'"([^"]+)"', m.group(2))
-        out[m.group(1)] = dict(files=files, category=m.group(3), loop=m.group(4) == 'true')
+        out[m.group(1)] = dict(files=files, category=m.group(3), loop=m.group(4) == 'true',
+                               sequence=m.group(5) == 'true')
     return out
 
 
@@ -62,11 +64,63 @@ def seam_metrics(x):
     return jump, e_seam / (e_med + 1e-20)
 
 
+FIRE_SOUNDS = ['gun_handcannon', 'gun_shotgun', 'gun_minigun_loop', 'gun_rocket_fire', 'gun_railgun_fire',
+               'ring_blast', 'ring_blast_hit']
+NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+
+def note_name(f):
+    m = 69 + 12 * np.log2(f / 440.0)
+    k = int(round(m))
+    return f'{NOTE_NAMES[k % 12]}{k // 12 - 1}', (m - k) * 100
+
+
+def melody_pitch(x, step):
+    """Strongest spectral peak (450-1500 Hz) in the note's body, parabolic-interpolated."""
+    on = np.argmax(np.abs(x) > 0.05 * np.max(np.abs(x)))
+    t0 = on + dsp.ns(0.17 if step == 5 else 0.06)
+    seg = x[t0:t0 + dsp.ns(0.2)] * np.hanning(dsp.ns(0.2))
+    N = 1 << 17
+    X = np.abs(np.fft.rfft(seg, N))
+    f = np.fft.rfftfreq(N, 1 / dsp.SR)
+    m = (f > 450) & (f < 1500)
+    i = np.argmax(np.where(m, X, 0))
+    a, b, c = np.log(X[i - 1:i + 2] + 1e-12)
+    p = 0.5 * (a - c) / (a - 2 * b + c)
+    return (i + p) * dsp.SR / N
+
+
+def pitch_report(man):
+    expect = ['E5', 'G5', 'A5', 'B5', 'E6']
+    bad = []
+    print('\nKO streak melody (detected strongest partial per step, note / cents):')
+    for name, e in man.items():
+        if not name.startswith('ko_streak_') or not e.get('sequence'):
+            continue
+        cells = []
+        for step, rel in enumerate(e['files'], 1):
+            x, _ = sf.read(ROOT / 'assets' / rel)
+            f = melody_pitch(x, step)
+            nm, cents = note_name(f)
+            cells.append(f'{f:7.1f}Hz {nm:3s}{cents:+4.0f}c')
+            if nm != expect[step - 1] or abs(cents) > 25:
+                bad.append(f'{rel}: detected {nm} {cents:+.0f}c, expected {expect[step - 1]}')
+        print(f'  {name[10:]:11s} ' + ' | '.join(cells))
+    return bad
+
+
+BAND_CHECKS = {  # name: [(lo, hi, min_share)] — design intents checked on every variation
+    'hit_crit': [(3000, 8000, 0.25), (60, 120, 0.25)],
+    'ko_shatter': [(0, 150, 0.4), (3000, 12000, 0.1)],
+    'construct_shatter': [(0, 150, 0.3), (3000, 12000, 0.1)],
+}
+
+
 def main():
     man = parse_manifest()
     fails = []
     rows = []
-    print(f'{"file":26s} {"dur":>5s} {"peak":>6s} {"rms":>6s} {"LUFS":>6s} {"dc":>8s} {"<150Hz":>6s} {">4k":>5s} {"cent":>6s}  loop-seam')
+    print(f'{"file":26s} {"dur":>5s} {"peak":>6s} {"rms":>6s} {"LUFS":>6s} {"dc":>8s} {"<150Hz":>6s} {"40-90":>6s} {">4k":>5s} {"cent":>6s}  loop-seam')
     for name, e in man.items():
         for i, rel in enumerate(e['files']):
             p = ROOT / 'assets' / rel
@@ -96,13 +150,22 @@ def main():
                 fails.append(f'{rel}: peak {peak:.2f} dBFS > -1')
             if abs(dc) > 1e-3:
                 fails.append(f'{rel}: DC offset {dc:.5f}')
+            for lo_, hi_, mn in BAND_CHECKS.get(name, []):
+                sh = band_share(x, lo_, hi_)
+                seam += f' {lo_}-{hi_}Hz={sh * 100:.0f}%'
+                if sh < mn:
+                    fails.append(f'{rel}: {lo_}-{hi_} Hz share {sh * 100:.0f}% < {mn * 100:.0f}%')
+            sub = band_share(x, 40, 90)
+            if name in FIRE_SOUNDS and (sub < 0.2 or lo < 0.4):
+                fails.append(f'{rel}: weak low end (40-90 Hz {sub * 100:.0f}%, <150 Hz {lo * 100:.0f}%)')
             print(f'{Path(rel).name:26s} {len(x) / sr:5.2f} {peak:6.1f} {rms:6.1f} {lufs:6.1f} {dc:8.1e} '
-                  f'{lo * 100:5.1f}% {hi * 100:4.1f}% {cen:6.0f}  {seam}')
+                  f'{lo * 100:5.1f}% {sub * 100:5.1f}% {hi * 100:4.1f}% {cen:6.0f}  {seam}')
             if i == 0:
                 rows.append((name, e['category'], x, lo, hi, cen, lufs))
     total = sum(p.stat().st_size for p in SFX.glob('*.*') if p.suffix in ('.ogg', '.wav'))
     nfiles = sum(len(e['files']) for e in man.values())
     print(f'\n{len(man)} sounds, {nfiles} files, {total / 1e6:.2f} MB')
+    fails += pitch_report(man)
     montage(rows)
     if fails:
         print('\nFAILED CHECKS:')

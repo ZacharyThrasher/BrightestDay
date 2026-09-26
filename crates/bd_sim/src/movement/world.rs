@@ -377,11 +377,10 @@ impl Broadphase {
     fn gather<V: VoxelQuery + ?Sized>(&mut self, w: &CollisionWorld<V>, region: Aabb) -> bool {
         self.valid = false;
         let (lo, hi) = region.voxel_range();
-        let n = hi - lo + IVec3::ONE;
-        if n.x <= 0 || n.y <= 0 || n.z <= 0 {
-            return false;
-        }
-        if n.x as i64 * n.y as i64 * n.z as i64 > MAX_CELLS {
+        // i64: a huge/garbage velocity makes the region span the whole i32 voxel range, and
+        // `hi - lo` would overflow (panic in debug builds) before the size check could refuse it.
+        let n = [hi.x as i64 - lo.x as i64 + 1, hi.y as i64 - lo.y as i64 + 1, hi.z as i64 - lo.z as i64 + 1];
+        if n.iter().any(|&k| k <= 0 || k > MAX_CELLS) || n[0] * n[1] * n[2] > MAX_CELLS {
             return false;
         }
         self.nb = 0;

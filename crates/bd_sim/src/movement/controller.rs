@@ -17,7 +17,7 @@ use bd_core::input::{PlayerInput, buttons};
 use bd_core::voxel::VoxelQuery;
 
 use super::params::MoveParams;
-use super::state::{LandEvent, MoveEvents, PlayerState, WallHit, hull_at};
+use super::state::{LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit, hull_at};
 use super::tether;
 use super::world::{Broadphase, CollisionWorld, Hit, SKIN, safe_t};
 
@@ -125,6 +125,11 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     if !s.vel.is_finite() {
         s.vel = Vec3::ZERO;
     }
+    // Garbage from outside (a 1e30 knockback, NaN/absurd construct modifiers) must never reach the
+    // maths below: |v|² overflows to inf for |v| ≳ 1e19 and turns the tick into NaN. Both limits are
+    // far outside legitimate play, so normal ticks are bit-identical with or without this.
+    s.vel = clamp_speed(s.vel, p.hard_cap_speed * 4.0);
+    sanitize_mods(&mut s.mods);
     let inp = Inp::new(input, s.prev_buttons);
     s.prev_buttons = inp.held;
     let mut bp = Broadphase::new();
@@ -209,14 +214,14 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
             if inp.wish_h != Vec3::ZERO {
                 let ws = if s.crouched { p.crouch_speed } else { p.run_speed } * speed_mult;
                 let w = on_plane(inp.wish_h, n);
-                accelerate(&mut rel, w, ws, p.ground_accel * ws * dt);
+                accelerate(&mut rel, w, ws, p.ground_accel * s.mods.accel_mult * ws * dt);
             }
         }
         rel -= n * rel.dot(n);
         s.vel = rel + gv;
     } else {
         if inp.wish_h != Vec3::ZERO {
-            let mut ctrl = s.mods.air_control;
+            let mut ctrl = s.mods.air_control * s.mods.accel_mult;
             if s.tumble > 0.0 {
                 ctrl *= p.tumble_air_control;
             }
@@ -283,6 +288,31 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     // ---------------------------------------------------------------- 10. ground
     categorize(s, &inp, &mut bp, world, p, g, was_grounded, jumped, rope_acc, out.floor_impact, dt, &mut ev);
     ev
+}
+
+/// `v` with its length limited to `cap`, computed without overflowing for huge components.
+fn clamp_speed(v: Vec3, cap: f32) -> Vec3 {
+    let m = v.abs().max_element();
+    if !(m > cap) && v.length_squared() <= cap * cap {
+        return v;
+    }
+    (v / m).normalize_or_zero() * cap
+}
+
+/// Replace non-finite modifier values with defaults and clamp the rest to generous bounds (legit
+/// constructs use single-digit multipliers; the bounds only stop inf/NaN arithmetic).
+fn sanitize_mods(m: &mut MoveModifiers) {
+    let d = MoveModifiers::default();
+    let fix = |v: f32, default: f32, lo: f32, hi: f32| if v.is_finite() { v.clamp(lo, hi) } else { default };
+    m.gravity_scale = fix(m.gravity_scale, d.gravity_scale, -100.0, 100.0);
+    m.glide = fix(m.glide, d.glide, 0.0, 100.0);
+    m.thrust = fix(m.thrust, d.thrust, -1e4, 1e4);
+    m.thrust_max_speed = fix(m.thrust_max_speed, d.thrust_max_speed, 0.0, 1e3);
+    m.slow_fall = fix(m.slow_fall, d.slow_fall, -1e3, 1e3);
+    m.speed_mult = fix(m.speed_mult, d.speed_mult, -100.0, 100.0);
+    m.air_control = fix(m.air_control, d.air_control, -100.0, 100.0);
+    m.jump_mult = fix(m.jump_mult, d.jump_mult, -100.0, 100.0);
+    m.accel_mult = fix(m.accel_mult, d.accel_mult, -100.0, 100.0);
 }
 
 fn start_slide(s: &mut PlayerState, rel: &mut Vec3, p: &MoveParams, ev: &mut MoveEvents) {
@@ -561,7 +591,14 @@ fn categorize<V: VoxelQuery + ?Sized>(
     let probe = Vec3::new(0.0, -GROUND_PROBE, 0.0);
     let mut ground: Option<Hit> = None;
     if !jumped && !lifted {
-        if let Some(h) = bp.sweep(w, hull, probe) {
+        // Sweeps ignore boxes the hull already overlaps by less than the depenetration epsilon. A
+        // slide along a sloped construct can leave the hull a few µm *inside* the floor; the probe
+        // then missed the floor and the step-down snap below fell straight through a 1-voxel floor
+        // (found by tests/movement_props.rs). Retry from just above (only when the normal probe
+        // finds nothing, so ordinary ticks are bit-identical).
+        let lift = Vec3::new(0.0, SKIN, 0.0);
+        let found = bp.sweep(w, hull, probe).or_else(|| bp.sweep(w, hull.translate(lift), probe - lift));
+        if let Some(h) = found {
             let rel = s.vel - h.vel;
             let ok = h.normal.y >= p.walkable_normal_y
                 && (rel.y <= p.ramp_launch_vy || (rel.length() <= p.ramp_slide_speed && rel.dot(h.normal) <= 0.5));

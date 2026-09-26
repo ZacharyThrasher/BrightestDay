@@ -79,6 +79,8 @@ pub struct MoveModifiers {
     pub air_control: f32,
     /// Multiplies jump speed.
     pub jump_mult: f32,
+    /// Multiplies ground and air acceleration (chill status ≈ 0.6). Top speeds are unchanged.
+    pub accel_mult: f32,
 }
 
 impl Default for MoveModifiers {
@@ -92,6 +94,7 @@ impl Default for MoveModifiers {
             speed_mult: 1.0,
             air_control: 1.0,
             jump_mult: 1.0,
+            accel_mult: 1.0,
         }
     }
 }
@@ -200,7 +203,8 @@ impl PlayerState {
             self.sliding = false;
             self.coyote_ok = false;
         }
-        if tumble_secs > 0.0 {
+        // Non-finite tumble (e.g. a knockback formula dividing by zero) would last forever.
+        if tumble_secs.is_finite() && tumble_secs > 0.0 {
             self.tumble = self.tumble.max(tumble_secs);
         }
     }

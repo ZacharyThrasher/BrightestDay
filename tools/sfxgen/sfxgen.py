@@ -23,6 +23,8 @@ sys.path.insert(0, str(HERE))
 
 import dsp  # noqa: E402
 from sounds import REGISTRY, CATEGORY_LUFS  # noqa: E402
+import sounds_weapons  # noqa: E402,F401  (registers guns + ring blast)
+import sounds_streak  # noqa: E402  (registers KO streak sets)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'
@@ -35,11 +37,16 @@ def seed_for(name: str, v: int) -> int:
     return zlib.crc32(f'brightest-day/{name}/{v}'.encode())
 
 
-def master(x: np.ndarray, loop: bool, target: float, fmt: str = 'ogg') -> tuple[np.ndarray, dict]:
+def master(x: np.ndarray, loop: bool, target: float, fmt: str = 'ogg', max_dur=None) -> tuple[np.ndarray, dict]:
     x = np.nan_to_num(np.asarray(x, float))
     x = dsp.dc_block(x, loop=loop)
     if not loop:
-        x = dsp.remove_dc(dsp.trim(x))
+        x = dsp.trim(x)
+        if max_dur and len(x) > dsp.ns(max_dur):
+            x = x[:dsp.ns(max_dur)].copy()
+            f = min(dsp.ns(0.15), len(x) // 3)
+            x[-f:] *= 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, f))
+        x = dsp.remove_dc(x)
     ceil_db = CEILING_DB - (ENCODE_MARGIN_DB if fmt == 'ogg' else 0.0)
     ceiling = 10 ** (ceil_db / 20)
     meas = dsp.lufs_integrated(x, loop=True) if loop else dsp.lufs_momentary_max(x)
@@ -91,10 +98,14 @@ def manifest(sounds, fmt: str) -> str:
         '// the loudness-normalised files. Loudness targets (BS.1770 K-weighted, LUFS): one-shots are',
         '// normalised on max momentary (400 ms) loudness, loops on integrated loudness; peaks <= -1 dBFS.',
         '// Category targets: ' + ', '.join(f'{k} {v:.0f}' for k, v in CATEGORY_LUFS.items()) + ' (per-sound `lufs` overrides).',
+        '// `sequence: true` means `files` are ordered steps (KO streak: play files[step-1]), not variations;',
+        '// sequences step up in loudness by 0.5 dB per step from `lufs`. See `ko_streak` at the bottom.',
         '// Suggested Rust shape:',
-        '//   struct SfxManifest { sample_rate: u32, sounds: HashMap<String, SfxEntry> }',
+        '//   struct SfxManifest { sample_rate: u32, sounds: HashMap<String, SfxEntry>, ko_streak: KoStreak }',
         '//   struct SfxEntry { files: Vec<String>, category: String, volume: f32, looping: bool,',
-        '//                     pitch: (f32, f32), lufs: f32 }',
+        '//                     pitch: (f32, f32), lufs: f32, sequence: bool }',
+        '//   struct KoStreak { key: String, steps: Vec<String>, corps: HashMap<String, String>,',
+        '//                     accents: HashMap<String, String> }',
         '(',
         f'    sample_rate: {dsp.SR},',
         '    sounds: {',
@@ -108,8 +119,9 @@ def manifest(sounds, fmt: str) -> str:
         lines.append(f'            looping: {"true" if s.loop else "false"},')
         lines.append(f'            pitch: ({s.pitch[0]:.2f}, {s.pitch[1]:.2f}),')
         lines.append(f'            lufs: {s.target:.1f},')
+        lines.append(f'            sequence: {"true" if s.sequence else "false"},')
         lines.append('        ),' + (f' // {s.notes}' if s.notes else ''))
-    lines += ['    },', ')', '']
+    lines += ['    },'] + sounds_streak.manifest_section() + [')', '']
     return '\n'.join(lines)
 
 
@@ -144,14 +156,16 @@ def main(argv=None):
         for v in range(s.variations):
             rng = np.random.default_rng(seed_for(s.name, v))
             dsp.CUT_WARNINGS.clear()
-            x, info = master(s.fn(rng, v), s.loop, s.target, args.format)
+            md = s.max_dur[v] if isinstance(s.max_dur, (list, tuple)) else s.max_dur
+            target = s.target + s.lufs_ramp * v
+            x, info = master(s.fn(rng, v), s.loop, target, args.format, md)
             for w in dict.fromkeys(dsp.CUT_WARNINGS):
                 print(f'  warning {s.name}_{v + 1}: {w}')
             path = args.out / f'{s.name}_{v + 1}.{args.format}'
             write(path, x, args.format, rng)
             flag = '  (peak-capped)' if info['short_of_target'] > 0.5 else ''
             print(f'{path.name:28s} {info["dur"]:5.2f} {info["peak_db"]:6.1f} {info["rms_db"]:6.1f} '
-                  f'{info["lufs"]:6.1f} {s.target:5.1f}{flag}')
+                  f'{info["lufs"]:6.1f} {target:5.1f}{flag}')
     (args.out / 'manifest.ron').write_text(manifest(REGISTRY.values(), args.format), encoding='utf-8')
     print(f'done in {time.time() - t0:.1f}s -> {args.out}')
 

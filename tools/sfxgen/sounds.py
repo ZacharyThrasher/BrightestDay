@@ -23,6 +23,8 @@ CATEGORY_LUFS = {
     'combat': -12.0,
     'destruction': -15.0,
     'ui': -21.0,
+    'weapon': -12.0,
+    'ko_streak': -14.0,
     'loop': -21.0,
 }
 
@@ -38,6 +40,9 @@ class Sound:
     pitch: tuple = (0.95, 1.05)
     lufs: float | None = None
     notes: str = ''
+    sequence: bool = False      # files are ordered steps (play file[i]), not random variations
+    lufs_ramp: float = 0.0      # per-variation/step loudness increment (dB)
+    max_dur: float | None = None  # hard cap on the trimmed length (smooth fade)
     files: list = field(default_factory=list)
 
     @property
@@ -50,9 +55,11 @@ class Sound:
 REGISTRY: dict[str, Sound] = {}
 
 
-def sound(name, category, variations=3, loop=False, volume=1.0, pitch=(0.95, 1.05), lufs=None, notes=''):
+def sound(name, category, variations=3, loop=False, volume=1.0, pitch=(0.95, 1.05), lufs=None, notes='',
+          sequence=False, lufs_ramp=0.0, max_dur=None):
     def deco(fn):
-        REGISTRY[name] = Sound(name, fn, category, variations, loop, volume, pitch, lufs, notes)
+        REGISTRY[name] = Sound(name, fn, category, variations, loop, volume, pitch, lufs, notes,
+                               sequence, lufs_ramp, max_dur)
         return fn
     return deco
 
@@ -274,38 +281,6 @@ def construct_dismiss(r, v):
         nn = ns(0.012)
         add(out, sine(U(r, 3000, 8000), nn) * np.hanning(nn), t, 0.12 * (1 - t / 0.4))
     return reverb(out, r, 0.5, 0.2, bright=1.3)
-
-
-@sound('ring_blast', 'construct', 4, volume=0.8, pitch=(0.93, 1.07), notes='always-available light bolt')
-def ring_blast(r, v):
-    d = 0.4
-    n = ns(d)
-    t = tvec(n)
-    out = buf(d)
-    add(out, crack(r, 3000, 0.003), 0, 0.6)
-    fc = glide(n, 1400 * U(r, .9, 1.1), 320, 0.06)
-    zap = fm(fc, 0.5, 6 * np.exp(-t / 0.08) + 0.5, n) * env_exp(n, 0.09)
-    add(out, zap, 0, 0.6)
-    add(out, lp(supersaw(glide(n, 220, 110, 0.05), n, r, 3, 25), 3000) * env_exp(n, 0.07), 0, 0.3)
-    add(out, thump(0.2, 110, 50, 0.025, 0.06, drive=1.8), 0, 0.7)
-    for _ in range(30):
-        tt = r.exponential(0.08)
-        add(out, grain(r, 0.002, 3000, 9000), tt, 0.15 * np.exp(-tt / 0.1))
-    return reverb(out, r, 0.4, 0.12, bright=1.2)
-
-
-@sound('ring_blast_hit', 'construct', 4, volume=0.85, pitch=(0.93, 1.07))
-def ring_blast_hit(r, v):
-    d = 0.9
-    n = ns(d)
-    t = tvec(n)
-    out = buf(d)
-    add(out, sat(crack(r, 2000, 0.005), 2.0), 0, 1.0)
-    add(out, fm(glide(n, 900, 200, 0.03), 0.5, 8 * np.exp(-t / 0.03), n) * env_exp(n, 0.05), 0, 0.5)
-    add(out, thump(0.4, 115, 45, 0.03, 0.12, drive=2.5), 0, 0.9)
-    crackle = bp(white(n, r), 3000, 9000) * (white(n, r) > 0.93) * 3
-    add(out, crackle * env_exp(n, 0.15), 0.01, 0.35)
-    return reverb(out, r, 0.6, 0.18, bright=1.2)
 
 
 @sound('beam_loop', 'construct', 2, loop=True, volume=0.7, pitch=(1.0, 1.0), lufs=-18, notes='loop; held beam')
