@@ -104,6 +104,24 @@ transferred) so small hits stay small and big hits are *huge*:
 | X | dismiss your constructs |
 | Tab | scoreboard |
 
+## Robustness (how the big structure stays solid)
+- **Contract freeze:** `bd_core` is v1. Changes only via the lead with an explicit version note.
+- **Validate at every boundary:** recipes clamped before the sim; network messages size-limited and
+  decoded defensively (malformed ⇒ kick, never crash); sim `check_invariants()` every tick in debug
+  (finite, in bounds, counts ≤ caps, ids consistent).
+- **No panics in sim/net/lexicon runtime paths** (no `unwrap`/indexing on untrusted data; clippy lints).
+  A misbehaving construct is removed, never the game.
+- **Chaos soak:** headless worlds with bots casting random recipes from the full combination space
+  (mechanics × forms × elements × payloads × features × temperaments × grafts × no-limits) for
+  millions of ticks; asserts no panic, invariants, tick budget, determinism; failures print a seed.
+- **Property tests:** lexicon (any string ⇒ valid recipe < 1 ms), voxels (carve/collapse invariants),
+  net (random bytes never crash).
+- **Graceful degradation:** unknown word ⇒ blob; no clang ⇒ voice stub; no cloudflared ⇒ LAN + hint.
+- **One gate:** `tools/check.ps1` (fmt, clippy, tests, 2-min soak, stress bench thresholds, client
+  smoke: launch + screenshot + `--bench`). Nothing integrates unless green.
+- **Vertical slice before breadth:** move → bots + ring blast → few constructs → 2-player net →
+  breadth.
+
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
 tether swing, dual tether + reel, boost + release fling — then the **Peak Run** that chains them all.
