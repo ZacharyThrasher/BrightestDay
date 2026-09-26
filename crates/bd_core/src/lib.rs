@@ -27,3 +27,6 @@ pub struct PlayerId(pub u8);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct ConstructId(pub u32);
+
+/// Simulation tick counter (120 Hz). Snapshots carry the host tick; inputs are sequenced separately.
+pub type Tick = u64;
