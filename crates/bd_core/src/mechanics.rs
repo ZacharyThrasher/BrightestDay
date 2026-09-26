@@ -153,6 +153,48 @@ pub enum Mechanic {
     Walks,
 }
 
+/// Mechanical/visual sub-assemblies a construct is built with ("steam powered train" → Boiler,
+/// Smokestack, Pistons, Wheels, Cab, Cowcatcher). Closed set, game-owned: each has a procedural shape
+/// generator and a procedural motion rig in bd_shapes (wheels spin with ground speed, pistons are
+/// crank-linked to wheels, gears counter-rotate, rotors spin, smokestacks puff). Some imply behaviour
+/// the sim reads (Wheels/Treads → ground locomotion, Rotor/Propeller/Jet → can fly, Turret/Barrels →
+/// Shoots), but features are primarily *what it looks like and how its parts move*.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Feature {
+    Wheels,
+    Treads,
+    Pistons,
+    Gears,
+    Boiler,
+    Smokestack,
+    Pipes,
+    Exhaust,
+    Propeller,
+    Rotor,
+    Jet,
+    Turbine,
+    Sails,
+    Mast,
+    Cockpit,
+    Cab,
+    Windows,
+    Turret,
+    Barrels,
+    Drill,
+    Saw,
+    CraneArm,
+    Chains,
+    Antenna,
+    Dish,
+    Headlight,
+    Plow,
+    Fins,
+    Spikes,
+    Armor,
+    Bell,
+    Cage,
+}
+
 /// Elemental flavour. Changes effects/particles and adds a status on hit.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Element {
@@ -206,6 +248,9 @@ pub struct Recipe {
     /// `None` = the form's default projectile / its element. The sim clamps nesting to depth 1.
     #[serde(default)]
     pub payload: Option<Box<Recipe>>,
+    /// Mechanical sub-assemblies (sorted, unique). See [`Feature`].
+    #[serde(default)]
+    pub features: Vec<Feature>,
 }
 
 impl Recipe {
@@ -217,6 +262,8 @@ impl Recipe {
     pub fn normalized(mut self) -> Self {
         self.mechanics.sort();
         self.mechanics.dedup();
+        self.features.sort();
+        self.features.dedup();
         if !self.scale.is_finite() || self.scale <= 0.0 {
             self.scale = 1.0;
         }
@@ -240,6 +287,7 @@ impl Recipe {
             accent: None,
             model: ModelSource::Procedural { seed: 0 },
             payload: None,
+            features: vec![],
         }
     }
 }

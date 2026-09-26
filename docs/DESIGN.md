@@ -138,7 +138,20 @@ and spawns its own cosmetic debris. Transport: WebSocket; host listens on localh
 `cloudflared tunnel --url http://localhost:PORT`; the `*.trycloudflare.com` words are the lobby code.
 Direct `ip:port` also works for LAN.
 
-### Performance budget
-144+ fps on the dev box (RTX 5080) with 8 players, 50 constructs and 20k debris cubes. Chunk remesh
-off the main thread. Present mode: `AutoNoVsync` by default (toggle). No per-frame allocations in hot
-paths.
+### Performance budget & snappiness rules
+Targets (dev box, RTX 5080 / i7-12700K), measured by a stress scenario (8 bots at construct limits,
+kaiju, constant explosions): **frame time p99 < 7 ms**, **host sim tick p99 < 4 ms** (120 Hz), no
+single-frame hitch > 16 ms after load. Judge by p99/1%-low, never averages.
+- Free *what*, bounded *how much*: per-player construct limits (COMBAT.md §3) cap entity counts.
+- Construct collision = a few OBBs/capsules per part (from prims), never per voxel.
+- Recipe → ShapeSpec → voxels → mesh runs on worker threads and is **cached by recipe** (same phrase =
+  same model). Loadout slots are pre-built at match start.
+- Destruction: carve ops merged + rate-limited per tick; remesh on worker threads with a per-frame
+  budget, nearest-to-camera first; collapse search bounded; debris cosmetic, client-only, GPU-instanced.
+- Network: creatures/constructs replicate `anim state + time`; clients compute part poses with the
+  shared deterministic `bd_shapes` animation code. Delta-compressed snapshots.
+- **Latency hiding**: own swings, ring blasts, hit-stop and cast *forming* animations start locally on
+  input; the host confirms damage/spawns. Forming time (≥ 150 ms) covers the round trip.
+- **Input latency**: `AutoNoVsync`, raw mouse applied per frame, `desired_maximum_frame_latency = 1`.
+- **No first-use hitches**: pre-warm every pipeline/material/mesh type during load (render them once
+  offscreen); no asset loading mid-match; no per-frame allocations in hot paths.
