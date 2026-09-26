@@ -1,0 +1,27 @@
+# Extra vocabulary forced into the artifact (one term per line; spaces or '_' for multi-word).
+# Put game-relevant object names here that fall outside the frequency cut-off. Terms missing from the
+# source vectors are silently skipped. Deliberately contains NO items from testset.json.
+lightsaber
+zipline
+zip_line
+pinwheel
+jet_ski
+battle_axe
+nunchucks
+nunchaku
+boomerang
+frisbee
+yo-yo
+pogo
+jetski
+hovercraft
+snowmobile
+segway
+scooter
+drone
+quadcopter
+exoskeleton
+mech
+forcefield
+tractor_beam
+grappling_gun

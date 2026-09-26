@@ -5,12 +5,14 @@
  */
 import {
   VERBS, MULTI_VERBS, lemma, SIZE_ADJ, DIM_ADJ, SPEED_ADJ, MATERIAL_ADJ, IGNORED_ADJ, COLOR_WORDS, NUMBERS, ARRANGEMENT_WORDS, FILLERS,
-  PREPOSITIONS, ENTITY_NOUNS, PLACE_NOUNS, PRONOUNS_CONSTRUCT, PRONOUNS_PLURAL, PRONOUNS_PERSON, SELF_WORDS, type VerbClass,
+  PREPOSITIONS, ENTITY_NOUNS, PLACE_NOUNS, INTENSIFIERS, PRONOUNS_CONSTRUCT, PRONOUNS_PLURAL, PRONOUNS_PERSON, SELF_WORDS, type VerbClass,
 } from './words.js';
 import { conceptByName, addonByName, MAX_NAME_WORDS, type Concept, type Addon } from './lexicon.js';
 
 export interface RefWord {
   kind: 'self' | 'construct' | 'constructs' | 'person' | 'entity' | 'place' | 'aim' | 'saved' | 'all';
+  id?: string; // resolved construct id (definite noun phrases like "the bridge")
+  fromBefore?: boolean; // "the hammer from before" 
   entityType?: string;
   place?: string;
   plural?: boolean;
@@ -40,6 +42,7 @@ export interface NP {
   ref: RefWord | null;
   analogy: boolean;
   arrangement: string | null;
+  absExtent?: { axis: number; meters: number };
 }
 
 export interface Prep { prep: string; np: NP }
@@ -67,7 +70,7 @@ const PARTICLES = new Set(['up', 'down', 'away', 'back', 'around', 'over', 'off'
 const DETS = new Set(['a', 'an', 'the', 'that', 'this', 'those', 'these', 'my', 'your', 'his', 'her', 'their', 'our', 'another', 'some', 'any', 'each', 'every', 'all', 'one', 'its', 'which', 'what']);
 const REL_PRONOUNS = new Set(['that', 'which', 'who', 'what']);
 const SPLITTERS = ['and then', 'then', 'after that', 'afterwards', 'and also', 'also', 'plus', 'and now', 'now', 'next'];
-const CORRECTION = /(?:\b(?:no wait|no no|wait no|wait|actually no|actually|i mean|i meant|scratch that|sorry|rather|make that|on second thought|nope|correction|er no|uh no)\b|(?:^|,|\s)no\s*,|,\s*no\b)/;
+const CORRECTION = /(?:\b(?:no wait|no no|wait no|wait|actually no|i mean|i meant|scratch that|make that|on second thought|nope|correction|er no|uh no)\b|(?:^|[,\-]\s*|\bno\s+)(?:actually|sorry|rather)\b|\b(?:actually|sorry|rather)\s*,|(?:^|,|\s)no\s*,|,\s*no\b)/;
 const RELATION_WORDS: Record<string, string> = { back: 'back', rear: 'back', behind: 'back', front: 'front', nose: 'front', face: 'front', top: 'top', roof: 'top', bottom: 'bottom', underside: 'bottom', base: 'bottom', underneath: 'bottom', side: 'sides', sides: 'sides', edges: 'sides', left: 'sides', right: 'sides', end: 'tip', ends: 'tip', tip: 'tip', tips: 'tip', around: 'around', all: 'around', everywhere: 'around' };
 
 // ------------------------------------------------------------------------------- normalisation
@@ -87,6 +90,14 @@ export function normalize(text: string): { text: string; corrections: number } {
   t = t.replace(/(\d+)\s*(x|times)\b/g, '$1 times');
   t = t.replace(/[^a-z0-9'.,!?;:\- ]/g, ' ');
   t = t.replace(/-/g, ' ');
+  // hyperbolic extents become explicit (huge) size requests the validator can visibly clamp
+  t = t.replace(/\b(all the way )?(up )?(in)?to (the )?(moon|space|outer space|the stars|stars|heaven|mars|the sun|sun|orbit)\b/g, ' moon sized ');
+  t = t.replace(/\b(around|round|over|covering) (the )?(whole |entire )?(planet|world|earth|globe|universe|galaxy|solar system|country|continent)\b/g, ' planet sized ');
+  t = t.replace(/\b(around|round|over|covering) (the )?(whole |entire )(city|map|town|level)\b/g, ' city sized ');
+  t = t.replace(/\b(the )?size of (a |an |the )?(planet|moon|sun|star|city|mountain|skyscraper|building|house|car|bus|truck|whale|football field|stadium)\b/g, (_m, _a, _b, x) => ` ${x} sized `);
+  t = t.replace(/\b(as big as|bigger than) (a |an |the )?(planet|moon|sun|city|mountain)\b/g, (_m, _a, _b, x) => ` ${x} sized `);
+  t = t.replace(/\bout of (the |my )?way\b/g, ' aside ');
+  t = t.replace(/\ball the way\b/g, ' fully ');
   // repeated stutters "a a ramp", "the the"
   t = t.replace(/\b(\w+)( \1\b)+/g, '$1');
   // corrections: keep what follows the last correction marker, splicing it onto the left context
@@ -110,7 +121,8 @@ function spliceCorrection(left: string, right: string): string {
   const rt = tokenize(right);
   const lt = tokenize(left);
   if (!rt.length) return left;
-  const rightHasVerb = rt.some((w) => VERBS[lemma(w)] && !DETS.has(w) && !conceptByName.has(w));
+  const rtCore = rt.filter((w) => !FILLERS.has(w) && w !== 'just' && w !== 'instead');
+  const rightHasVerb = rt.some((w) => VERBS[lemma(w)] && !DETS.has(w) && !conceptByName.has(w)) || (rtCore.length > 0 && !!VERBS[lemma(rtCore[0])] && !DETS.has(rtCore[0]));
   // "make a ramp no wait a bridge" -> "make a bridge"; "put it on the left, I mean right" -> "put it on the right"
   if (!rightHasVerb || DETS.has(rt[0]) || NUMBERS[rt[0]] !== undefined) {
     // find where the replaced phrase started in the left: last determiner/number/preposition-object
@@ -253,6 +265,7 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
     if (!v) continue;
     // skip "want/need to <verb>" -> use the inner verb
     if ((v.verb === 'want' || v.verb === 'need') && toks[i + 1] === 'to') continue;
+    if (conceptByName.has(`${toks[i]} ${toks[i + 1] ?? ''}`) || conceptByName.has(`${toks[i]} ${singular(toks[i + 1] ?? '')}`)) continue;
     // a noun used after a determiner is not a verb ("a hammer", "the ring")
     if (i > 0 && (DETS.has(toks[i - 1]) || NUMBERS[toks[i - 1]] !== undefined || SIZE_ADJ[toks[i - 1]] || MATERIAL_ADJ[toks[i - 1]] || IGNORED_ADJ.has(toks[i - 1]) || COLOR_WORDS.has(toks[i - 1]))) continue;
     // noun-verbs at the very start followed by a determiner are verbs ("hammer that drone"), otherwise nouns ("hammer!")
@@ -270,11 +283,15 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
     const pre = toks.slice(0, vi).filter((w) => !['i', 'we', 'you', 'please', 'to', 'and', 'then', 'now'].includes(w));
     const preNP = pre.length ? parseNP(pre, analogies) : null;
     if (preNP && (preNP.concept || preNP.unknownHead && pre.length > 1) && !preNP.ref && !['want', 'need'].includes(c.verb ?? '')) {
+      const purposeMark = ['so', 'to', 'for'].includes(toks[vi - 1]);
+      const npToks = purposeMark ? toks.slice(0, vi - 1) : pre;
+      const obj = purposeMark ? parseNP(npToks.filter((w) => !['i', 'we', 'you', 'please', 'and', 'then', 'now'].includes(w)), analogies) : preNP;
       const sub = parseClause(toks.slice(vi), analogies);
-      const obj = preNP;
-      if (sub) obj.rel.push(sub);
       const cc = emptyClause(toksIn);
-      cc.objects.push(obj);
+      if (sub && purposeMark) { cc.purpose = sub; (sub as any).goalSubject = 'self'; }
+      else if (sub) obj.rel.push(sub);
+      for (const np of splitAnd(npToks)) void np;
+      cc.objects.push(...(purposeMark ? splitAnd(npToks.filter((w) => !['i', 'we', 'you', 'please', 'then', 'now'].includes(w))).map((t) => parseNP(t, analogies)) : [obj]));
       return cc;
     }
   }
@@ -317,9 +334,19 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
   }
 
   // purpose clause: "... to block the bullets", "so i can get across"
-  const toIdx = rest.findIndex((w, i) => (w === 'to' || w === 'so') && verbAt(rest, i + 1 + (rest[i + 1] === 'that' ? 1 : 0) + (rest[i + 1] === 'i' ? 1 : 0)) && i > 0);
+  const purposeSkip = (i: number) => {
+    let j = i + 1;
+    if (rest[j] === 'that') j++;
+    if (['i', 'she', 'he', 'we', 'it', 'they', 'you', 'me', 'him', 'her', 'them'].includes(rest[j])) j++;
+    if (['can', 'could', 'will', 'would', 'may', 'might', 'gets', 'get', 'to'].includes(rest[j])) j++;
+    if (rest[j] === 'not') return -1;
+    return j;
+  };
+  const toIdx = rest.findIndex((w, i) => (w === 'to' || w === 'so') && i > 0 && purposeSkip(i) > 0 && !!verbAt(rest, purposeSkip(i)));
   if (toIdx > 0) {
-    const sub = parseClause(rest.slice(toIdx + 1), analogies);
+    const sub = parseClause(rest.slice(purposeSkip(toIdx)), analogies);
+    const subj = rest[toIdx + 1] === 'that' ? rest[toIdx + 2] : rest[toIdx + 1];
+    if (sub) (sub as any).goalSubject = ['i', 'me', 'we'].includes(subj) ? 'self' : ['she', 'he', 'they', 'him', 'her', 'them'].includes(subj) ? 'other' : null;
     c.purpose = sub;
     rest = rest.slice(0, toIdx);
   }
@@ -341,7 +368,8 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
   for (let i = 0; i < rest.length; i++) {
     const p = isPrepStart(rest, i);
     // relative clause: "that orbits me", "which spins", or participle "orbiting me"
-    const isRel = (REL_PRONOUNS.has(rest[i]) && verbAt(rest, i + 1) && i > 0) || (/ing$/.test(rest[i]) && VERBS[lemma(rest[i])] && i > 0 && !conceptByName.has(rest[i]) && !MATERIAL_ADJ[rest[i]]);
+    const compound = conceptByName.has(`${rest[i]} ${rest[i + 1] ?? ''}`) || conceptByName.has(`${rest[i]} ${singular(rest[i + 1] ?? '')}`);
+    const isRel = !compound && ((REL_PRONOUNS.has(rest[i]) && verbAt(rest, i + 1) && i > 0) || (/ing$/.test(rest[i]) && VERBS[lemma(rest[i])] && i > 0 && !conceptByName.has(rest[i]) && !MATERIAL_ADJ[rest[i]]));
     if (isRel) {
       const relToks = rest.slice(REL_PRONOUNS.has(rest[i]) ? i + 1 : i);
       const sub = parseClause(relToks, analogies);
@@ -378,11 +406,16 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
       continue;
     }
     if (s.prep === 'with' && !np.addons.length && !np.concept && !np.ref && np.tokens.some((w) => RELATION_WORDS[w])) continue;
-    // "put rockets on the back of it"
-    if ((s.prep === 'on' || s.prep === 'to') && np.tokens.some((w) => RELATION_WORDS[w]) && !np.concept && !np.ref) {
+    // "put rockets on the back of it", "a jetpack on the back of those"
+    if ((s.prep === 'on' || s.prep === 'to' || s.prep === 'onto') && np.tokens.some((w) => RELATION_WORDS[w]) && !np.concept && (!np.ref || np.ref.kind === 'place')) {
       const rel = np.tokens.map((w) => RELATION_WORDS[w]).find(Boolean) ?? null;
       for (const o of c.objects) for (const a of o.addons) a.where = rel;
       (c as any).relationWhere = rel;
+      const ofAt = np.tokens.indexOf('of');
+      if (ofAt >= 0) {
+        const owner = parseNP(np.tokens.slice(ofAt + 1), analogies);
+        if (owner.ref || owner.concept) c.preps.push({ prep: s.prep!, np: owner });
+      }
       continue;
     }
     c.preps.push({ prep: s.prep!, np });
@@ -437,7 +470,11 @@ function splitAnd(toks: string[]): string[][] {
 function singular(w: string): string {
   if (conceptByName.has(w) || ENTITY_NOUNS[w]) return w;
   if (w.endsWith('ies')) return w.slice(0, -3) + 'y';
-  if (w.endsWith('ves')) return w.slice(0, -3) + 'f';
+  if (w.endsWith('ves')) {
+    const a = w.slice(0, -1), b = w.slice(0, -3) + 'f', c = w.slice(0, -3) + 'fe';
+    for (const x of [a, b, c]) if (conceptByName.has(x) || addonByName.has(x) || ENTITY_NOUNS[x]) return x;
+    return a;
+  }
   if (w.endsWith('ses') || w.endsWith('xes') || w.endsWith('ches') || w.endsWith('shes')) return w.slice(0, -2);
   if (w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1);
   return w;
@@ -448,8 +485,24 @@ export function parseNP(toksIn: string[], analogies: string[]): NP {
     tokens: toksIn, det: null, count: null, plural: false, sizes: [], dims: [], speeds: [], materials: [], colors: [], concept: null, conceptWords: null,
     unknownHead: null, unknownWords: [], ignoredWords: [], addons: [], rel: [], ref: null, analogy: false, arrangement: null,
   };
-  let toks = [...toksIn];
+  let toks = toksIn.filter((w) => !INTENSIFIERS.has(w) || (w === 'more' && toksIn.length === 1));
   if (!toks.length) return np;
+  // absolute measurements: "a million miles long", "50 meters tall", "a mile long"
+  const UNITS: Record<string, number> = { mile: 1609, miles: 1609, km: 1000, kilometer: 1000, kilometers: 1000, kilometre: 1000, kilometres: 1000, meter: 1, meters: 1, metre: 1, metres: 1, feet: 0.3, foot: 0.3, ft: 0.3, yard: 0.91, yards: 0.91, inch: 0.025, inches: 0.025, lightyears: 9e15 };
+  const ui = toks.findIndex((w) => UNITS[w] !== undefined);
+  if (ui > 0) {
+    let j = ui - 1;
+    const nums: number[] = [];
+    while (j >= 0 && (NUMBERS[toks[j]] !== undefined || /^\d+(\.\d+)?$/.test(toks[j]))) { nums.unshift(/^\d/.test(toks[j]) ? parseFloat(toks[j]) : NUMBERS[toks[j]]); j--; }
+    if (nums.length) {
+      const n = nums.reduce((a, b) => (b >= 100 ? Math.max(1, a) * b : a + b), 0) || 1;
+      const dimWord = toks[ui + 1];
+      const axis = dimWord === 'tall' || dimWord === 'high' ? 1 : dimWord === 'wide' ? 0 : 2;
+      np.absExtent = { axis, meters: n * UNITS[toks[ui]] };
+      toks = [...toks.slice(0, j + 1), ...toks.slice(ui + (['long', 'tall', 'high', 'wide', 'deep', 'across'].includes(dimWord) ? 2 : 1))];
+    }
+  }
+  if (toks[0] === 'one' && toks[1] === 'of' && ['those', 'these', 'the', 'them', 'my'].includes(toks[2]) && toks.length > 3) { toks = toks.slice(3); np.count = 1; np.analogy = true; }
   // multiword counts ("a bunch of", "a couple of", "a row of")
   const joined = toks.join(' ');
   for (const [k, v] of Object.entries(NUMBERS)) {

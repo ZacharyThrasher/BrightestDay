@@ -1,0 +1,135 @@
+{
+  "llama-b10951-bin-ubuntu-x64.tar.gz": {
+    "id": "llama.cpp-b10951-linux",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10951/llama-b10951-bin-ubuntu-x64.tar.gz",
+    "sha256": "cb0e453d8d88b62a8962c5b13e46c117315f7740017f2636bcf0de20c6253f7a",
+    "size": 16821155,
+    "license": "MIT"
+  },
+  "en_core_web_md-3.8.0-py3-none-any.whl": {
+    "id": "spacy-md",
+    "url": "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl",
+    "sha256": "5e6329fe3fecedb1d1a02c3ea2172ee0fede6cea6e4aefb6a02d832dba78a310",
+    "size": 33480380,
+    "license": "MIT (model); vectors trained by Explosion on OSCAR/Wikipedia/OpenSubtitles/WMT"
+  },
+  "en_core_web_lg-3.8.0-py3-none-any.whl": {
+    "id": "spacy-lg",
+    "url": "https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl",
+    "sha256": "293e9547a655b25499198ab15a525b05b9407a75f10255e405e8c3854329ab63",
+    "size": 400658291,
+    "license": "MIT"
+  },
+  "glove-wiki-gigaword-300.gz": {
+    "id": "glove-300",
+    "url": "https://github.com/RaRe-Technologies/gensim-data/releases/download/glove-wiki-gigaword-300/glove-wiki-gigaword-300.gz",
+    "sha256": "0a7aebbe49097dc6e5ffff7a25e9aa20181a6e862050ca68bd2f36e056739e00",
+    "size": 394362229,
+    "license": "PDDL 1.0 (Stanford GloVe 6B, Wikipedia 2014 + Gigaword 5)"
+  },
+  "qwen2.5-0.5b-instruct-q4_k_m.gguf": {
+    "id": "qwen2.5-0.5b-instruct-q4_k_m",
+    "url": "https://github.com/Hatk0/offline-models/releases/download/models-v1/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    "sha256": "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
+    "size": 491400032,
+    "license": "Apache-2.0 (Qwen2.5-0.5B-Instruct). THIRD-PARTY GITHUB MIRROR of Qwen/Qwen2.5-0.5B-Instruct-GGUF (huggingface.co blocked)"
+  },
+  "numberbatch-en-19.08.txt.gz": {
+    "id": "numberbatch-en-19.08",
+    "url": "https://conceptnet.s3.amazonaws.com/downloads/2019/numberbatch/numberbatch-en-19.08.txt.gz",
+    "sha256": "90e57611eb71077ada9fd0b011fd0206de8ec13d035aced40b81b1a4d549c6a2",
+    "size": 325403502,
+    "license": "CC BY-SA 4.0 (ConceptNet Numberbatch 19.08)"
+  },
+  "wordnet.zip": {
+    "id": "wordnet",
+    "url": "https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/corpora/wordnet.zip",
+    "sha256": "cbda5ea6eef7f36a97a43d4a75f85e07fccbb4f23657d27b4ccbc93e2646ab59",
+    "size": 10775600,
+    "license": "WordNet 3.0 license (BSD-like, Princeton)"
+  },
+  "use-lite/model.json": {
+    "id": "use-lite-tfjs-model",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/model.json",
+    "sha256": "507d11df18b070f99e0ad650b9a4e6534a4cfb05040127e8ce579f00c8fa3b53",
+    "size": 247026,
+    "license": "Apache-2.0"
+  },
+  "use-lite/vocab.json": {
+    "id": "use-lite-tfjs-vocab",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/vocab.json",
+    "sha256": "1ad860b9720c16cd48e666d664a556b2515c04f5a26a4b53c0372427913b1b8e",
+    "size": 218327,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard1of7": {
+    "id": "use-lite-s1",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard1of7",
+    "sha256": "8775e61b6a4235ea230a62a0d81f1ff00f5213ce86baa5d89c29e611f8cd7412",
+    "size": 4194304,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard2of7": {
+    "id": "use-lite-s2",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard2of7",
+    "sha256": "deaf897e5eea5be6c71ea62876a092034560b6f6fbc99c87a768076385a465bd",
+    "size": 4194304,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard3of7": {
+    "id": "use-lite-s3",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard3of7",
+    "sha256": "50ee49b0daf620cf0cacda2f5fcc0da5929f4a3e520034844b6f8d9f3f4ec936",
+    "size": 4194304,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard4of7": {
+    "id": "use-lite-s4",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard4of7",
+    "sha256": "c1a50daae51e7c6e1e904f5d8d638a8658a0a1d310b9345cd7a368866304d596",
+    "size": 4194304,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard5of7": {
+    "id": "use-lite-s5",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard5of7",
+    "sha256": "410cde3029282e5f601c782985cbb5caa96977f6705dec981c98dd02e93fec6b",
+    "size": 4194304,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard6of7": {
+    "id": "use-lite-s6",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard6of7",
+    "sha256": "83ef116b2b98dc98e03547280ca0166142fbf6b4547bf1d9e6d13a8f518c088b",
+    "size": 4194304,
+    "license": "Apache-2.0"
+  },
+  "use-lite/group1-shard7of7": {
+    "id": "use-lite-s7",
+    "url": "https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder/group1-shard7of7",
+    "sha256": "a29a5e08ee3afd839250b9187b89f1d3163749b5b1807bb175341a16c6012689",
+    "size": 2737832,
+    "license": "Apache-2.0"
+  },
+  "fast-bge-small-en-v1.5.tar.gz": {
+    "id": "bge-small-en-v1.5-onnx",
+    "url": "https://storage.googleapis.com/qdrant-fastembed/fast-bge-small-en-v1.5.tar.gz",
+    "sha256": "3858004b3822f64f940280874b8f2d2dc25b34a4f3eb3cdf617bdceeb21ed9ed",
+    "size": 76692531,
+    "license": "MIT (BAAI bge-small-en-v1.5), ONNX export by Qdrant fastembed"
+  },
+  "sentence-transformers-all-MiniLM-L6-v2.tar.gz": {
+    "id": "minilm-l6-v2-onnx",
+    "url": "https://storage.googleapis.com/qdrant-fastembed/sentence-transformers-all-MiniLM-L6-v2.tar.gz",
+    "sha256": "2735afe656e156af64ed603dbb1c96f3cae7f937286a8feb27fff7fa979f6a77",
+    "size": 83180180,
+    "license": "Apache-2.0 (sentence-transformers/all-MiniLM-L6-v2)"
+  },
+  "qwen2.5-1.5b-instruct-q4_k_m.gguf": {
+    "id": "qwen2.5-1.5b-instruct-q4_k_m",
+    "url": "https://github.com/Hatk0/offline-models/releases/download/models-v1/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+    "size": 1117320736,
+    "license": "Apache-2.0 (Qwen2.5-1.5B-Instruct). THIRD-PARTY GITHUB MIRROR of Qwen/Qwen2.5-1.5B-Instruct-GGUF (huggingface.co blocked)"
+  }
+}

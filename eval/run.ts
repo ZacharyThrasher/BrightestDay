@@ -16,6 +16,15 @@ import { buildScene, aimAt, type SceneName } from '../src/sim/levels.js';
 import { NO_INPUT } from '../src/sim/player.js';
 import { Director } from '../src/lang/director.js';
 import type { EffectReport } from '../src/lang/types.js';
+import { loadSemantic, type SemanticIndex } from '../src/lang/semantic.js';
+
+import { writeFileSync as wfs, existsSync } from 'node:fs';
+import { RecordProvider, ReplayProvider, type S2Provider } from '../src/lang/escalate.js';
+let SEM: SemanticIndex | null = null;
+let S2: S2Provider | null = null;
+let S2MODE: 'hybrid' | 'always' = 'hybrid';
+export const recorder = new RecordProvider();
+export async function enableSemantic(on: boolean) { SEM = on ? await loadSemantic('models/semantic/bd-semantic-nb19-int8.bin') : null; }
 
 export interface Item {
   id: string; category: string; scene: SceneName; aim: string; context: string[]; utterance: string;
@@ -29,7 +38,7 @@ export interface Item {
 export interface ItemResult {
   id: string; category: string; scene: string; utterance: string; pass: boolean; reasons: string[];
   report: EffectReport & { intents?: string[]; targetKinds?: string[] }; observed: string[]; summary: string; abstain: string | null; confidence: number;
-  latencyMs: number; confidentWrong: boolean; messages: string[];
+  latencyMs: number; confidentWrong: boolean; messages: string[]; escalated?: boolean; needsEscalation?: boolean;
 }
 
 function stepN(w: World, seconds: number) {
@@ -47,18 +56,36 @@ export async function runItem(item: Item): Promise<ItemResult> {
   const w = await World.create();
   const info = buildScene(w, item.scene);
   const d = new Director(w);
-  const aimTarget = info.aims[item.aim] ?? (item.aim === 'none' ? w.player.pos.clone().add(new Vector3(0, 1.5, -30)) : info.aims.ground_ahead);
+  if (SEM) d.interp.embedder = SEM;
+  if (S2) { d.interp.s2 = S2; d.interp.s2Mode = S2MODE; }
+  const staticAim = info.aims[item.aim] ?? (item.aim === 'none' ? w.player.pos.clone().add(new Vector3(0, 1.5, -30)) : info.aims.ground_ahead);
+  // entities move (falling civilians, hovering drones): keep the crosshair on the named thing
+  const aimTargetFn = () => {
+    const kind = item.aim === 'civilian' ? 'civilian' : item.aim === 'drone' ? 'drone' : item.aim === 'boulder' ? 'boulder' : item.aim === 'turret' ? 'turret' : null;
+    if (!kind) return staticAim;
+    const es = [...w.entities.values()].filter((e) => e.type === kind && !e.heldBy);
+    if (!es.length) return staticAim;
+    const e = es.sort((a, b) => w.entityPos(a).distanceTo(staticAim) - w.entityPos(b).distanceTo(staticAim))[0];
+    return w.entityPos(e);
+  };
+  let aimTarget = aimTargetFn();
   aimAt(w, aimTarget);
   stepN(w, 0.2);
   for (const c of item.context) {
+    aimTarget = aimTargetFn();
     aimAt(w, aimTarget);
+    const keep = d.interp.s2Mode;
+    d.interp.s2Mode = 'off';
     await d.commit(c);
+    d.interp.s2Mode = keep;
     stepN(w, 1.2);
   }
+  aimTarget = aimTargetFn();
   aimAt(w, aimTarget);
   const before = snapshot(w);
   let maxY = w.player.pos.y;
   let maxSpeed = 0;
+  d.interp.s2Key = item.id;
   const res = await d.commit(item.utterance);
   const rep = { ...(d.interp.lastEffect as any) };
   const heldDuring = new Set<string>();
@@ -119,6 +146,7 @@ export async function runItem(item: Item): Promise<ItemResult> {
   return {
     id: item.id, category: item.category, scene: item.scene, utterance: item.utterance, pass, reasons, report: rep, observed: [...obs], summary: res.summary,
     abstain: res.abstain, confidence: res.confidence, latencyMs: res.latencyMs, confidentWrong: !pass && !abstained && res.confidence >= 0.7, messages: res.messages,
+    escalated: res.escalated, needsEscalation: res.needsEscalation,
   };
 }
 
@@ -167,6 +195,16 @@ async function main() {
   const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
   const quiet = args.includes('--quiet'); // aggregate only (for sets the implementer must not inspect)
   const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : null;
+  await enableSemantic(!args.includes('--no-sem'));
+  const s2arg = args.includes('--s2') ? args[args.indexOf('--s2') + 1] : null;
+  if (args.includes('--s2mode')) S2MODE = args[args.indexOf('--s2mode') + 1] as any;
+  if (s2arg?.startsWith('record:')) { S2 = recorder; S2MODE = 'always'; }
+  if (s2arg?.startsWith('replay:')) {
+    const f = s2arg.slice(7);
+    const m = new Map<string, string>();
+    for (const l of readFileSync(f, 'utf8').split('\n').filter((x) => x.trim())) { const j = JSON.parse(l); m.set(j.key, typeof j.response === 'string' ? j.response : JSON.stringify(j.response)); }
+    S2 = new ReplayProvider(m);
+  }
   const items: Item[] = readFileSync(file, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)).filter((i: Item) => !only || i.id === only);
   const results: ItemResult[] = [];
   for (const it of items) {
@@ -179,7 +217,14 @@ async function main() {
       if (!r.pass) console.log(`     ✗ ${r.reasons.join('; ')}`);
     }
   }
-  const s = summarize(results);
+  const s: any = summarize(results);
+  if (s2arg?.startsWith('record:')) {
+    const f = s2arg.slice(7);
+    wfs(f, JSON.stringify({ system: recorder.requests[0]?.system ?? '' }) + '\n' + recorder.requests.map((r) => JSON.stringify({ key: r.key, user: r.user })).join('\n') + '\n');
+    console.log(`recorded ${recorder.requests.length} System-2 requests to ${f}`);
+  }
+  s.escalated = results.filter((r: any) => r.escalated).length;
+  s.wouldEscalate = results.filter((r: any) => r.needsEscalation).length;
   console.log(JSON.stringify(s, null, 2));
   if (out) {
     mkdirSync(dirname(out), { recursive: true });

@@ -5,7 +5,15 @@ import { conceptByName, addonByName } from './lexicon.js';
 /** A few hundred very common English words that must never be "corrected" into game vocabulary. */
 const COMMON = 'better best good bad great just like know think see look want give use find tell ask work seem feel try leave call keep let begin show hear play run move live believe hold bring happen write provide sit stand lose pay meet include continue learn change lead understand watch follow stop speak read allow add spend grow open walk win offer remember love consider appear buy wait serve die send expect build stay fall cut reach kill remain suggest raise pass sell require report decide pull time year people way day thing man woman child world life hand part place case week company system program question government number night point home water room mother area money story fact month lot right study book eye job word business issue side kind head house service friend father power hour game line end member law car city community name president team minute idea kid body information back parent face others level office door health person art war history party result morning reason research girl guy moment air teacher force education foot boy age policy process music market sense nation plan college interest death experience effect class control care field development role effort rate heart drug show leader light voice wife police mind price report decision son view relationship town road arm difference value building action model season society tax director position player record paper space ground form event official matter center couple site project activity star table need court oil situation cost industry figure street image phone data picture practice piece land product doctor wall patient worker news test movie north love support technology step baby computer type attention film tree source organization hair window evidence population truth song color store chance bed pressure top other new old big high different small large next early young important few public same able last long great little own least bad sure free real full special easy clear recent certain personal open red difficult available likely short single medical current wrong private past foreign fine common poor natural significant similar hot dead central happy serious ready simple left physical general environmental financial blue democratic dark various entire close legal religious cold final main green nice huge popular traditional cultural really very also still even back much well only then there here now down over too always never often maybe sometimes around again away almost later perhaps probably quite rather soon together yet already enough ever instead maybe somewhere anyway please thanks thank sorry okay yeah cool awesome damn wow oops yes nah nope sure fine totally kinda sorta pretty super whatever though although because since unless until while where when what which who whom whose why how both each either neither every few many most none several some such than that these this those whether upon onto into within without through throughout toward towards under until above across after against along among around before behind below beneath beside besides between beyond during except inside near outside past since till versus via'.split(' ');
 
+const COMMON_SET = new Set(COMMON);
 const FUNCTION_WORDS = [...COMMON, 'a', 'an', 'the', 'that', 'this', 'those', 'these', 'it', 'and', 'then', 'with', 'of', 'to', 'at', 'on', 'in', 'my', 'your', 'his', 'her', 'them', 'him', 'me', 'is', 'are', 'be', 'so', 'as', 'or', 'not', 'no', 'all', 'one', 'some', 'there', 'here', 'where', 'when', 'into', 'onto', 'can', 'get', 'got', 'its', 'if', 'for', 'from', 'way', 'side', 'up', 'down', 'back', 'out', 'off', 'over', 'around', 'what', 'which', 'who', 'how', 'more', 'less', 'again', 'too', 'also', 'same', 'other', 'another', 'each', 'every', 'both', 'last', 'first', 'next', 'nearest', 'closest', 'biggest', 'guy', 'thing', 'things', 'something', 'anything', 'everything', 'lol', 'haha', 'oops', 'huh', 'about', 'right', 'left', 'front', 'top', 'bottom', 'end', 'tip', 'sides', 'am', 'was', 'were', 'has', 'have', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'let', 'go', 'going', 'want', 'need', 'think', 'see', 'look', 'looking', 'aiming', 'try', 'times', 'kind', 'sort', 'type', 'bit', 'little', 'lot', 'very', 'really', 'super', 'extra', 'even', 'much', 'many', 'just', 'only', 'still', 'already', 'yet', 'now', 'fall', 'falling', 'fell', 'coming', 'come', 'shooting', 'firing', 'bullets', 'bullet', 'shots', 'shot', 'lasers', 'projectiles', 'fire', 'attack', 'incoming', 'hurry', 'fast', 'help', 'save', 'safe', 'safely', 'gently', 'quick', 'die', 'dying', 'hurt', 'ground', 'air', 'sky', 'building', 'wall', 'door', 'gap', 'tower', 'roof', 'ledge'];
+
+import ENGLISH from './english40k.json';
+const ENGLISH_RANK = new Map<string, number>((ENGLISH as string[]).map((w, i) => [w, i]));
+/** Short rare "words" in web frequency lists are mostly junk (wal, grap...) — treat them as unknown. */
+const isEnglish = (w: string) => { const r = ENGLISH_RANK.get(w); return r !== undefined && (w.length > 4 || r < 8000); };
+/** Words that are never re-read phonetically, even in aggressive mode. */
+const STOP = new Set('a an the that this those these it its and or but then with of to at on in into onto my your his her their them him me we us you i is are be was were so as not no all one some there here where when what which who how can will would should could do does did have has had just up down back out off over around'.split(' '));
 
 let vocab: string[] | null = null;
 let known: Set<string> | null = null;
@@ -24,12 +32,19 @@ function build() {
 
 export function isKnownWord(w: string): boolean {
   if (!known) build();
-  if (known!.has(w) || /^\d+$/.test(w)) return true;
+  if (known!.has(w) || /^\d+$/.test(w) || isEnglish(w)) return true;
   const l = lemma(w);
   if (known!.has(l)) return true;
   if (w.endsWith('s') && known!.has(w.slice(0, -1))) return true;
   if (w.endsWith('es') && known!.has(w.slice(0, -2))) return true;
   return false;
+}
+
+/** Word the GAME vocabulary accounts for (as opposed to merely being English). */
+export function isGameWord(w: string): boolean {
+  if (!known) build();
+  const l = lemma(w);
+  return known!.has(w) || known!.has(l) || (w.endsWith('s') && known!.has(w.slice(0, -1))) || /^\d/.test(w);
 }
 
 export function damerau(a: string, b: string): number {
@@ -52,7 +67,7 @@ export function phonetic(w: string): string {
   s = s.replace(/^kn|^gn|^pn|^wr/, (m) => m[1]).replace(/^x/, 's').replace(/^wh/, 'w');
   s = s.replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/sch/g, 'sk').replace(/tch/g, 'ch').replace(/sh/g, 'x').replace(/ch/g, 'x').replace(/th/g, '0');
   s = s.replace(/c(?=[iey])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k').replace(/x/g, 'ks').replace(/z/g, 's').replace(/dg(?=[iey])/g, 'j').replace(/g(?=[iey])/g, 'j');
-  s = s.replace(/v/g, 'f').replace(/ks/g, 's').replace(/nts$/, 'ns').replace(/ts$/, 's');
+  s = s.replace(/v/g, 'f').replace(/d/g, 't').replace(/b/g, 'p').replace(/g/g, 'k').replace(/ks/g, 's').replace(/nts$/, 'ns').replace(/ts$/, 's');
   const first = s[0] ?? '';
   s = first + s.slice(1).replace(/[aeiouyhw]/g, '');
   s = s.replace(/(.)\1+/g, '$1');
@@ -75,7 +90,17 @@ export function repair(tokens: string[], mode: 'unknown' | 'aggressive' = 'unkno
     if (w.length < 3 || /^\d+$/.test(w) || !/^[a-z']+$/.test(w)) { out.push(w); continue; }
     const isKnown = isKnownWord(w);
     if (isKnown && mode === 'unknown') { out.push(w); continue; }
-    if (isKnown && mode === 'aggressive' && (FUNCTION_WORDS.includes(w) || FILLERS.has(w) || conceptByName.has(w) || VERBS[lemma(w)])) { out.push(w); continue; }
+    const gameWord = known!.has(w) && !COMMON_SET.has(w);
+    if (isKnown && mode === 'aggressive' && (STOP.has(w) || FILLERS.has(w) || conceptByName.has(w) || VERBS[lemma(w)] || gameWord)) { out.push(w); continue; }
+    if (mode === 'aggressive') {
+      const exact = phon!.get(phonetic(w));
+      if (exact && exact.length) {
+        const pick = [...exact].sort((a, b) => damerau(w, a) - damerau(w, b))[0];
+        if (damerau(w, pick) <= Math.max(2, Math.ceil(w.length / 2))) { out.push(pick); corrections.push({ from: w, to: pick, how: 'phonetic' }); continue; }
+      }
+    }
+    // very common English words are only re-read when they SOUND identical (later -> ladder), never by spelling
+    if (mode === 'aggressive' && (ENGLISH_RANK.get(w) ?? 1e9) < 1500) { out.push(w); continue; }
     let best: string | null = null;
     let bestD = Infinity;
     const maxD = w.length >= 8 ? 2 : w.length >= 5 ? (mode === 'aggressive' ? 2 : 1) : 1;

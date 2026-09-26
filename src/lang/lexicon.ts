@@ -46,7 +46,7 @@ export const CONCEPTS: Concept[] = [
   C('panel', ['sheet', 'plate', 'slab of light', 'pane', 'board of light', 'mirror'], 'panel', 'barrier', 'static', 'between', { verb: 'block' }),
   C('door', ['gate', 'hatch'], 'wall', 'barrier', 'static', 'between', { scale: 0.7 }),
   C('dome', ['igloo', 'shelter', 'canopy dome', 'half dome', 'force dome'], 'dome', 'enclosure', 'static', 'self', { verb: 'protect' }),
-  C('bubble', ['orb', 'sphere shield', 'force bubble', 'hamster ball', 'ball shield', 'globe', 'snow globe'], 'bubble', 'enclosure', 'static', 'self', { verb: 'protect' }),
+  C('bubble', ['orb', 'sphere shield', 'force bubble', 'ball shield', 'globe', 'snow globe'], 'bubble', 'enclosure', 'static', 'self', { verb: 'protect' }),
   C('umbrella', ['parasol'], 'umbrella', 'wearable', 'kinematic', 'above_self', { beh: [{ type: 'mount', mode: 'wear', maxFall: 6 }] }),
   // --- surfaces & traversal
   C('platform', ['floor', 'ledge', 'step', 'stage', 'pad', 'deck', 'raft', 'tile', 'disc platform', 'hover platform', 'landing pad'], 'platform', 'surface', 'static', 'under_self'),
@@ -69,7 +69,7 @@ export const CONCEPTS: Concept[] = [
   C('trampoline', ['trampolene', 'bounce pad', 'bouncy castle', 'bouncy house', 'mattress', 'bed'], 'trampoline', 'launcher', 'static', 'aim', { soft: true, restitution: 0.9, beh: [{ type: 'launch', speed: 16, dir: 'normal' }, { type: 'cushion' }] }),
   C('spring', ['coil', 'spring board', 'springboard', 'diving board', 'jack in the box', 'pogo stick', 'pogo'], 'spring', 'launcher', 'static', 'ground_front', { beh: [{ type: 'launch', speed: 30, dir: 'up' }] }),
   C('launch pad', ['launchpad', 'jump pad', 'boost pad', 'booster pad', 'geyser', 'jump plate', 'bounce plate'], 'launchpad', 'launcher', 'static', 'ground_front', { beh: [{ type: 'launch', speed: 34, dir: 'up' }] }),
-  C('catapult', ['trebuchet', 'slingshot', 'sling', 'ballista', 'onager', 'mangonel'], 'catapult', 'launcher', 'static', 'ground_front', { beh: [{ type: 'launch', speed: 38, dir: 'arc' }] }),
+  C('catapult', ['trebuchet', 'slingshot', 'sling', 'ballista', 'onager', 'mangonel', 'seesaw', 'see saw', 'teeter totter', 'lever'], 'catapult', 'launcher', 'static', 'ground_front', { beh: [{ type: 'launch', speed: 38, dir: 'arc' }] }),
   C('cannon', ['artillery', 'mortar', 'howitzer', 'bazooka', 'rocket launcher', 'launcher', 'potato gun', 't-shirt cannon'], 'cannon', 'weapon', 'static', 'front', { beh: [{ type: 'shoot', target: T, rate: 1.5, speed: 50, size: 0.6 }], verb: 'shoot' }),
   // --- manipulators
   C('hand', ['palm', 'mitt', 'fingers', 'giant hand', 'grabber', 'grabbing hand', 'arm'], 'hand', 'manipulator', 'kinematic', 'hand', { verb: 'grab', scale: 1.8 }),
@@ -122,6 +122,7 @@ export const CONCEPTS: Concept[] = [
   C('funnel', ['cone', 'megaphone', 'traffic cone'], 'funnel', 'container', 'static', 'aim'),
   // --- vehicles & wearables
   C('car', ['truck', 'van', 'bus', 'jeep', 'go kart', 'go-kart', 'kart', 'buggy', 'dune buggy', 'race car', 'racecar', 'motorcycle', 'motorbike', 'bike', 'bicycle', 'scooter', 'segway', 'wagon', 'cart', 'shopping cart', 'wheelchair', 'monster truck', 'quad bike', 'atv', 'tricycle', 'unicycle', 'train', 'locomotive', 'tram', 'trolley', 'minecart', 'mine cart', 'sled', 'sleigh', 'bobsled', 'toboggan', 'chariot', 'rickshaw', 'lawnmower', 'lawn mower', 'forklift', 'tractor', 'bulldozer car', 'snowmobile'], 'car', 'vehicle', 'kinematic', 'self', { beh: [{ type: 'mount', mode: 'ride', groundSpeedMul: 2.4, frictionMul: 0.4 }] }),
+  C('hamster ball', ['zorb', 'zorb ball', 'rolling ball', 'giant hamster ball'], 'bubble', 'vehicle', 'kinematic', 'self', { beh: [{ type: 'mount', mode: 'ride', groundSpeedMul: 2.2, frictionMul: 0.3 }] }),
   C('skateboard', ['longboard', 'roller skates', 'rollerblades', 'skates', 'ice skates', 'skis', 'ski', 'snowboard'], 'skateboard', 'vehicle', 'kinematic', 'self', { beh: [{ type: 'mount', mode: 'ride', groundSpeedMul: 2.0, frictionMul: 0.15 }] }),
   C('hoverboard', ['surfboard', 'flying surfboard', 'surf board', 'hover board', 'magic carpet', 'carpet', 'flying carpet', 'broomstick', 'flying broom', 'hover disc', 'flying saucer', 'ufo', 'hover bike', 'hoverbike', 'jet ski', 'jetski', 'cloud', 'nimbus'], 'surfboard', 'vehicle', 'kinematic', 'self', { beh: [{ type: 'mount', mode: 'ride', glide: 1.6, thrustLook: 14, maxFall: 10 }] }),
   C('wings', ['wing', 'wingsuit', 'wing suit', 'angel wings', 'bat wings', 'butterfly wings', 'feathers', 'cape', 'hang glider', 'kite'], 'wings', 'wearable', 'kinematic', 'self', { beh: [{ type: 'mount', mode: 'wear', glide: 1.3 }] }),

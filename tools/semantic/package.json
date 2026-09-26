@@ -1,0 +1,15 @@
+{
+  "name": "semantic-bench",
+  "private": true,
+  "type": "module",
+  "description": "Bench-only deps for the semantic experiment (USE-lite comparison). The shipped src/semantic/embed.mjs has no dependencies.",
+  "scripts": {
+    "download": "node download.mjs",
+    "bench:use": "node bench_use.mjs",
+    "bench:llm": "node bench_llm.mjs"
+  },
+  "devDependencies": {
+    "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
+    "@tensorflow/tfjs": "^4.22.0"
+  }
+}

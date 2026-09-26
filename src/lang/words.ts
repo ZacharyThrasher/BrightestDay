@@ -4,7 +4,7 @@ export type VerbClass =
   | 'create' | 'strike' | 'grab' | 'throw' | 'spin' | 'pull' | 'push' | 'lift' | 'crush' | 'trap' | 'block'
   | 'reflect' | 'carry' | 'shoot' | 'launch' | 'follow' | 'orbit' | 'sweep' | 'explode' | 'catch' | 'drop'
   | 'release' | 'dismiss' | 'undo' | 'save' | 'recall' | 'modify' | 'add' | 'remove' | 'duplicate' | 'stop'
-  | 'protect' | 'cross' | 'climb' | 'descend' | 'rescue' | 'clear' | 'hold' | 'swing' | 'attract' | 'repel' | 'reel' | 'point' | 'ride';
+  | 'protect' | 'cross' | 'climb' | 'descend' | 'rescue' | 'clear' | 'hold' | 'swing' | 'attract' | 'repel' | 'reel' | 'point' | 'ride' | 'handle';
 
 /** verb (lemma or inflection) → class. Multi-word verbs are matched first. */
 export const VERBS: Record<string, VerbClass> = {
@@ -53,6 +53,7 @@ export const VERBS: Record<string, VerbClass> = {
   turn: 'modify', change: 'modify', transform: 'modify', convert: 'modify', upgrade: 'modify', resize: 'modify', grow: 'modify', shrink: 'modify', stretch: 'modify',
   extend: 'modify', widen: 'modify', lengthen: 'modify', thicken: 'modify', flip: 'modify', tilt: 'modify', reverse: 'modify', invert: 'modify', speed: 'modify',
   enlarge: 'modify', expand: 'modify', inflate: 'modify', embiggen: 'modify', supersize: 'modify', upsize: 'modify', downsize: 'modify', lower: 'modify', aim: 'point', point: 'point', face: 'point', steer: 'point', redirect_to: 'point',
+  clap: 'crush', sandwich: 'crush', lever: 'lift', pry: 'lift', leverage: 'lift', crowbar: 'lift', jack: 'lift', roll: 'ride', deal: 'handle', handle: 'handle', 'take care of': 'handle', 'deal with': 'handle', 'do something': 'handle', help: 'handle', hurry: 'handle',
   follow: 'follow', chase: 'follow', track: 'follow', hunt: 'follow', pursue: 'follow', seek: 'follow', 'go after': 'follow', escort: 'follow',
 };
 
@@ -109,6 +110,8 @@ export const MATERIAL_ADJ: Record<string, string> = {
   permanent: 'permanent', temporary: 'temporary', quick_one: 'temporary',
 };
 
+export const INTENSIFIERS = new Set(['fully', 'way', 'much', 'lot', 'really', 'super', 'even', 'so', 'too', 'bit', 'extra', 'very', 'totally', 'more', 'most', 'quite', 'pretty', 'real', 'hella', 'crazy', 'insanely', 'ridiculously', 'absurdly', 'stupidly', 'massively', 'seriously']);
+
 export const IGNORED_ADJ = new Set([
   'green', 'red', 'blue', 'yellow', 'purple', 'pink', 'orange', 'white', 'black', 'gold', 'golden', 'silver', 'glowing', 'shiny', 'bright', 'neon', 'cool', 'awesome', 'nice', 'sick', 'epic', 'cute',
   'hard-light', 'hardlight', 'energy', 'glowy', 'sparkly', 'fancy', 'beautiful', 'pretty', 'ugly', 'scary', 'angry', 'friendly', 'good', 'great', 'awesome', 'lovely', 'dope', 'rad',
@@ -128,7 +131,7 @@ export const NUMBERS: Record<string, number> = {
 export const ARRANGEMENT_WORDS: Record<string, string> = { row: 'line', line: 'line', wall: 'line', ring: 'ring', circle: 'ring', stack: 'stack', tower: 'stack', pile: 'scatter', grid: 'grid', swarm: 'scatter', army: 'grid', fleet: 'line', volley: 'line', barrage: 'scatter', hail: 'scatter', storm: 'scatter', shower: 'scatter', rain: 'scatter', arc: 'arc', fan: 'arc' };
 
 export const FILLERS = new Set([
-  'uh', 'uhh', 'um', 'umm', 'uhm', 'er', 'erm', 'hmm', 'hm', 'ah', 'oh', 'ok', 'okay', 'alright', 'so', 'please', 'pls', 'plz', 'just', 'quickly', 'quick', 'real', 'now', 'yeah', 'yes', 'yep', 'hey', 'ring',
+  'uh', 'uhh', 'um', 'umm', 'uhm', 'er', 'erm', 'hmm', 'hm', 'ah', 'oh', 'ok', 'okay', 'alright', 'please', 'pls', 'plz', 'just', 'quickly', 'quick', 'real', 'now', 'yeah', 'yes', 'yep', 'hey', 'ring',
   'basically', 'literally', 'actually', 'kinda', 'sorta', 'maybe', 'perhaps', 'totally', 'really', 'very', 'gonna', 'going', 'wanna', 'lets', "let's", 'can', 'could', 'would', 'will', 'you', 'u', 'i', 'we', 'should', 'shall', 'might', 'must', 'gotta',
   'something', 'thing', 'thingy', 'stuff', 'dude', 'bro', 'man', 'buddy', 'yo', 'okey', 'hold on', 'alrighty', 'aight', 'ahh', 'ooh', 'whoa', 'wow', 'ugh', 'well', 'right now', 'immediately', 'asap', 'already', 'come on', 'c\'mon',
 ]);

@@ -1,0 +1,764 @@
+{
+ "model": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+ "threads": 2,
+ "server": "llama.cpp b10951 llama-server (CPU)",
+ "optionScoring": {
+  "accuracy": 0.3425925925925926,
+  "calibratedAccuracy": 0.37962962962962965,
+  "n": 108,
+  "perQuestionCalibrated": {
+   "intent": "5/12",
+   "target": "5/12",
+   "compound": "4/12",
+   "size": "5/12",
+   "attach": "5/12",
+   "count": "3/12",
+   "negation": "1/12",
+   "motion": "6/12",
+   "surface": "7/12"
+  },
+  "perQuestion": {
+   "intent": "3/12",
+   "target": "4/12",
+   "compound": "5/12",
+   "size": "3/12",
+   "attach": "5/12",
+   "count": "8/12",
+   "negation": "0/12",
+   "motion": "5/12",
+   "surface": "4/12"
+  },
+  "perQuestionMs": {
+   "mean": 215.662038,
+   "p50": 164.28624299999865,
+   "p95": 465.02575199999956
+  },
+  "serverMs": {
+   "mean": 210.19745370370367,
+   "p50": 158.779,
+   "p95": 459.279
+  },
+  "promptTokensEvaluated": {
+   "mean": 27.555555555555557,
+   "p50": 20,
+   "p95": 57
+  },
+  "prefixPrimeMs": {
+   "mean": 77.92608366666643,
+   "p50": 70.79937099999734,
+   "p95": 133.49591000000055
+  },
+  "rawLatencies": [
+   [
+    471,
+    55
+   ],
+   [
+    364,
+    57
+   ],
+   [
+    301,
+    21
+   ],
+   [
+    134,
+    17
+   ],
+   [
+    136,
+    20
+   ],
+   [
+    128,
+    17
+   ],
+   [
+    163,
+    20
+   ],
+   [
+    171,
+    21
+   ],
+   [
+    148,
+    20
+   ],
+   [
+    385,
+    55
+   ],
+   [
+    357,
+    57
+   ],
+   [
+    215,
+    21
+   ],
+   [
+    134,
+    17
+   ],
+   [
+    153,
+    20
+   ],
+   [
+    247,
+    17
+   ],
+   [
+    187,
+    20
+   ],
+   [
+    151,
+    21
+   ],
+   [
+    175,
+    20
+   ],
+   [
+    378,
+    55
+   ],
+   [
+    465,
+    57
+   ],
+   [
+    149,
+    21
+   ],
+   [
+    142,
+    17
+   ],
+   [
+    138,
+    20
+   ],
+   [
+    142,
+    17
+   ],
+   [
+    141,
+    20
+   ],
+   [
+    156,
+    21
+   ],
+   [
+    139,
+    20
+   ],
+   [
+    346,
+    55
+   ],
+   [
+    363,
+    57
+   ],
+   [
+    152,
+    21
+   ],
+   [
+    130,
+    17
+   ],
+   [
+    165,
+    20
+   ],
+   [
+    127,
+    17
+   ],
+   [
+    150,
+    20
+   ],
+   [
+    154,
+    21
+   ],
+   [
+    141,
+    20
+   ],
+   [
+    402,
+    55
+   ],
+   [
+    493,
+    57
+   ],
+   [
+    215,
+    21
+   ],
+   [
+    185,
+    17
+   ],
+   [
+    174,
+    20
+   ],
+   [
+    129,
+    17
+   ],
+   [
+    250,
+    20
+   ],
+   [
+    193,
+    21
+   ],
+   [
+    163,
+    20
+   ],
+   [
+    337,
+    55
+   ],
+   [
+    373,
+    57
+   ],
+   [
+    193,
+    21
+   ],
+   [
+    128,
+    17
+   ],
+   [
+    200,
+    20
+   ],
+   [
+    149,
+    17
+   ],
+   [
+    134,
+    20
+   ],
+   [
+    210,
+    21
+   ],
+   [
+    163,
+    20
+   ],
+   [
+    375,
+    55
+   ],
+   [
+    375,
+    57
+   ],
+   [
+    152,
+    21
+   ],
+   [
+    136,
+    17
+   ],
+   [
+    137,
+    20
+   ],
+   [
+    138,
+    17
+   ],
+   [
+    151,
+    20
+   ],
+   [
+    152,
+    21
+   ],
+   [
+    142,
+    20
+   ],
+   [
+    341,
+    55
+   ],
+   [
+    475,
+    57
+   ],
+   [
+    164,
+    21
+   ],
+   [
+    187,
+    17
+   ],
+   [
+    145,
+    20
+   ],
+   [
+    127,
+    17
+   ],
+   [
+    134,
+    20
+   ],
+   [
+    168,
+    21
+   ],
+   [
+    142,
+    20
+   ],
+   [
+    347,
+    55
+   ],
+   [
+    484,
+    57
+   ],
+   [
+    160,
+    21
+   ],
+   [
+    133,
+    17
+   ],
+   [
+    143,
+    20
+   ],
+   [
+    133,
+    17
+   ],
+   [
+    136,
+    20
+   ],
+   [
+    185,
+    21
+   ],
+   [
+    164,
+    20
+   ],
+   [
+    469,
+    55
+   ],
+   [
+    359,
+    57
+   ],
+   [
+    184,
+    21
+   ],
+   [
+    139,
+    17
+   ],
+   [
+    170,
+    20
+   ],
+   [
+    158,
+    17
+   ],
+   [
+    222,
+    20
+   ],
+   [
+    245,
+    21
+   ],
+   [
+    138,
+    20
+   ],
+   [
+    416,
+    55
+   ],
+   [
+    465,
+    57
+   ],
+   [
+    229,
+    21
+   ],
+   [
+    131,
+    17
+   ],
+   [
+    192,
+    20
+   ],
+   [
+    210,
+    17
+   ],
+   [
+    151,
+    20
+   ],
+   [
+    152,
+    21
+   ],
+   [
+    136,
+    20
+   ],
+   [
+    334,
+    55
+   ],
+   [
+    366,
+    57
+   ],
+   [
+    164,
+    21
+   ],
+   [
+    130,
+    17
+   ],
+   [
+    136,
+    20
+   ],
+   [
+    190,
+    17
+   ],
+   [
+    223,
+    20
+   ],
+   [
+    163,
+    21
+   ],
+   [
+    201,
+    20
+   ]
+  ],
+  "rows": [
+   {
+    "utt": "make a giant boxing glove with rockets on the back and punch that drone",
+    "answers": {
+     "intent": "act (gold create) p=0.81 | cal:act(x)",
+     "target": "self (gold aimed) p=0.57 | cal:self(x)",
+     "compound": "yes p=0.58 | cal:yes",
+     "size": "large p=0.95 | cal:large",
+     "attach": "yes p=0.80 | cal:yes",
+     "count": "several (gold one) p=0.27 | cal:several(x)",
+     "negation": "yes (gold no) p=0.05 | cal:yes(x)",
+     "motion": "punch p=0.98 | cal:punch",
+     "surface": "sticky (gold normal) p=0.75 | cal:sticky(x)"
+    }
+   },
+   {
+    "utt": "build a ramp in front of me",
+    "answers": {
+     "intent": "act (gold create) p=0.80 | cal:act(x)",
+     "target": "self p=0.48 | cal:previous(x)",
+     "compound": "yes (gold no) p=0.74 | cal:yes(x)",
+     "size": "large (gold normal) p=0.81 | cal:normal",
+     "attach": "yes (gold no) p=0.80 | cal:yes(x)",
+     "count": "one p=0.46 | cal:several(x)",
+     "negation": "yes (gold no) p=0.03 | cal:yes(x)",
+     "motion": "spin (gold none) p=0.60 | cal:swing(x)",
+     "surface": "slippery (gold normal) p=0.75 | cal:normal"
+    }
+   },
+   {
+    "utt": "make it bigger",
+    "answers": {
+     "intent": "act (gold modify) p=0.79 | cal:modify",
+     "target": "self (gold previous) p=0.65 | cal:aimed(x)",
+     "compound": "yes (gold no) p=0.89 | cal:yes(x)",
+     "size": "large p=0.99 | cal:large",
+     "attach": "yes (gold no) p=0.84 | cal:yes(x)",
+     "count": "one (gold zero) p=0.29 | cal:several(x)",
+     "negation": "yes (gold no) p=0.05 | cal:yes(x)",
+     "motion": "spin (gold none) p=0.90 | cal:spin(x)",
+     "surface": "slippery (gold normal) p=0.67 | cal:bouncy(x)"
+    }
+   },
+   {
+    "utt": "spin that wheel really fast",
+    "answers": {
+     "intent": "act p=0.71 | cal:create(x)",
+     "target": "self (gold aimed) p=0.59 | cal:aimed",
+     "compound": "yes (gold no) p=0.85 | cal:yes(x)",
+     "size": "large (gold normal) p=0.98 | cal:large(x)",
+     "attach": "yes (gold no) p=0.74 | cal:yes(x)",
+     "count": "zero p=0.33 | cal:several(x)",
+     "negation": "yes (gold no) p=0.11 | cal:yes(x)",
+     "motion": "spin p=1.00 | cal:spin",
+     "surface": "slippery (gold normal) p=0.75 | cal:bouncy(x)"
+    }
+   },
+   {
+    "utt": "undo that",
+    "answers": {
+     "intent": "act (gold control) p=0.66 | cal:act(x)",
+     "target": "none (gold previous|aimed) p=0.87 | cal:previous",
+     "compound": "no p=0.73 | cal:yes(x)",
+     "size": "large (gold normal) p=0.53 | cal:small(x)",
+     "attach": "no p=0.87 | cal:no",
+     "count": "zero p=0.80 | cal:one(x)",
+     "negation": "no (gold yes) p=0.01 | cal:yes",
+     "motion": "spin (gold none) p=0.50 | cal:punch(x)",
+     "surface": "slippery (gold normal) p=0.79 | cal:normal"
+    }
+   },
+   {
+    "utt": "throw three bouncy balls at the tower",
+    "answers": {
+     "intent": "act (gold create) p=0.88 | cal:act(x)",
+     "target": "none (gold aimed) p=0.50 | cal:previous(x)",
+     "compound": "yes p=0.59 | cal:yes",
+     "size": "large (gold normal) p=0.91 | cal:large(x)",
+     "attach": "yes (gold no) p=0.54 | cal:yes(x)",
+     "count": "one (gold several) p=0.19 | cal:several",
+     "negation": "yes (gold no) p=0.00 | cal:yes(x)",
+     "motion": "launch p=0.75 | cal:launch",
+     "surface": "bouncy p=0.98 | cal:bouncy"
+    }
+   },
+   {
+    "utt": "attach a tiny magnet to it",
+    "answers": {
+     "intent": "act (gold create) p=0.58 | cal:create",
+     "target": "self (gold previous) p=0.75 | cal:self(x)",
+     "compound": "yes (gold no) p=0.69 | cal:yes(x)",
+     "size": "large (gold small) p=0.57 | cal:small",
+     "attach": "yes p=0.85 | cal:yes",
+     "count": "one p=0.35 | cal:several(x)",
+     "negation": "yes (gold no) p=0.02 | cal:yes(x)",
+     "motion": "spin (gold none) p=0.96 | cal:spin(x)",
+     "surface": "sticky (gold normal) p=0.52 | cal:sticky(x)"
+    }
+   },
+   {
+    "utt": "delete everything",
+    "answers": {
+     "intent": "control p=0.55 | cal:control",
+     "target": "none p=0.99 | cal:none",
+     "compound": "no p=0.90 | cal:no",
+     "size": "large (gold normal) p=0.52 | cal:small(x)",
+     "attach": "no p=0.96 | cal:no",
+     "count": "zero p=0.96 | cal:zero",
+     "negation": "no (gold yes) p=0.26 | cal:no(x)",
+     "motion": "spin (gold none) p=0.44 | cal:none",
+     "surface": "sticky (gold normal) p=0.53 | cal:normal"
+    }
+   },
+   {
+    "utt": "make the bridge slippery",
+    "answers": {
+     "intent": "act (gold modify) p=0.80 | cal:act(x)",
+     "target": "self (gold aimed) p=0.49 | cal:aimed",
+     "compound": "yes (gold no) p=0.76 | cal:yes(x)",
+     "size": "large (gold normal) p=0.91 | cal:large(x)",
+     "attach": "yes (gold no) p=0.74 | cal:yes(x)",
+     "count": "one (gold zero) p=0.28 | cal:several(x)",
+     "negation": "yes (gold no) p=0.04 | cal:yes(x)",
+     "motion": "spin (gold none) p=0.91 | cal:spin(x)",
+     "surface": "slippery p=0.93 | cal:slippery"
+    }
+   },
+   {
+    "utt": "swing the hammer at the wall",
+    "answers": {
+     "intent": "act p=0.91 | cal:act",
+     "target": "self (gold aimed) p=0.58 | cal:aimed",
+     "compound": "yes (gold no) p=0.78 | cal:yes(x)",
+     "size": "large (gold normal) p=0.91 | cal:large(x)",
+     "attach": "yes (gold no) p=0.75 | cal:yes(x)",
+     "count": "zero p=0.34 | cal:several(x)",
+     "negation": "yes (gold no) p=0.01 | cal:yes(x)",
+     "motion": "swing p=0.99 | cal:swing",
+     "surface": "slippery (gold normal) p=0.74 | cal:slippery(x)"
+    }
+   },
+   {
+    "utt": "give me a sticky wall twice as tall as me",
+    "answers": {
+     "intent": "act (gold create) p=0.68 | cal:create",
+     "target": "self p=0.53 | cal:previous(x)",
+     "compound": "yes (gold no) p=0.75 | cal:yes(x)",
+     "size": "large p=1.00 | cal:large",
+     "attach": "no p=0.64 | cal:no",
+     "count": "one p=0.40 | cal:one",
+     "negation": "yes (gold no) p=0.04 | cal:yes(x)",
+     "motion": "spin (gold none) p=0.52 | cal:punch(x)",
+     "surface": "sticky p=0.82 | cal:sticky"
+    }
+   },
+   {
+    "utt": "launch me into the air with a trampoline",
+    "answers": {
+     "intent": "act (gold create) p=0.88 | cal:act(x)",
+     "target": "self p=0.45 | cal:aimed(x)",
+     "compound": "yes p=0.68 | cal:yes",
+     "size": "large (gold normal) p=0.84 | cal:large(x)",
+     "attach": "yes (gold no) p=0.57 | cal:yes(x)",
+     "count": "one p=0.33 | cal:several(x)",
+     "negation": "yes (gold no) p=0.07 | cal:yes(x)",
+     "motion": "launch p=0.93 | cal:launch",
+     "surface": "bouncy p=0.80 | cal:bouncy"
+    }
+   }
+  ]
+ },
+ "json": {
+  "validRate": 1,
+  "latencyMs": {
+   "mean": 1280.9400901666677,
+   "p50": 1278.8513979999989,
+   "p95": 1394.6764930000027
+  },
+  "meanTokens": 26.083333333333332,
+  "meanGenTokPerS": 26.960942458884688,
+  "rows": [
+   {
+    "utt": "make a giant boxing glove with rockets on the back and punch that drone",
+    "out": "{\"intent\": \"act\", \"object\": \"giant boxing glove\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 377.811,
+    "gen_ms": 938.694,
+    "gen_tok_s": 28.7633669758196
+   },
+   {
+    "utt": "build a ramp in front of me",
+    "out": "{\"intent\": \"act\", \"object\": \"ramp\", \"size\": \"large\", \"target\": \"self\" }",
+    "valid": true,
+    "prompt_ms": 395.233,
+    "gen_ms": 993.8,
+    "gen_tok_s": 26.162205675186158
+   },
+   {
+    "utt": "make it bigger",
+    "out": "{\"intent\": \"act\", \"object\": \"main object\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 315.175,
+    "gen_ms": 934.904,
+    "gen_tok_s": 26.740713485020922
+   },
+   {
+    "utt": "spin that wheel really fast",
+    "out": "{\"intent\": \"act\", \"object\": \"wheel\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 291.744,
+    "gen_ms": 818.505,
+    "gen_tok_s": 29.321751241592903
+   },
+   {
+    "utt": "undo that",
+    "out": "{\"intent\": \"act\", \"object\": \"main object\", \"size\": \"normal\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 291.588,
+    "gen_ms": 1086.599,
+    "gen_tok_s": 23.007567649151163
+   },
+   {
+    "utt": "throw three bouncy balls at the tower",
+    "out": "{\"intent\": \"act\", \"object\": \"bouncy balls\", \"size\": \"large\", \"target\": \"self\" }",
+    "valid": true,
+    "prompt_ms": 333.249,
+    "gen_ms": 965.044,
+    "gen_tok_s": 27.97799893061871
+   },
+   {
+    "utt": "attach a tiny magnet to it",
+    "out": "{\"intent\": \"act\", \"object\": \"magnet\", \"size\": \"small\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 352.174,
+    "gen_ms": 919.718,
+    "gen_tok_s": 27.182244992486826
+   },
+   {
+    "utt": "delete everything",
+    "out": "{\"intent\": \"act\", \"object\": \"main object\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 295.844,
+    "gen_ms": 921.507,
+    "gen_tok_s": 27.129473785874662
+   },
+   {
+    "utt": "make the bridge slippery",
+    "out": "{\"intent\": \"modify\", \"object\": \"bridge\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 367.114,
+    "gen_ms": 849.789,
+    "gen_tok_s": 28.242304854499174
+   },
+   {
+    "utt": "swing the hammer at the wall",
+    "out": "{\"intent\": \"act\", \"object\": \"hammer\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 438.271,
+    "gen_ms": 886.491,
+    "gen_tok_s": 27.07303289035083
+   },
+   {
+    "utt": "give me a sticky wall twice as tall as me",
+    "out": "{\"intent\": \"act\", \"object\": \"wall\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 338.407,
+    "gen_ms": 937.021,
+    "gen_tok_s": 25.613086579703122
+   },
+   {
+    "utt": "launch me into the air with a trampoline",
+    "out": "{\"intent\": \"act\", \"object\": \"trampoline\", \"size\": \"large\", \"target\": \"self\"}",
+    "valid": true,
+    "prompt_ms": 320.312,
+    "gen_ms": 949.936,
+    "gen_tok_s": 26.31756244631217
+   }
+  ]
+ }
+}

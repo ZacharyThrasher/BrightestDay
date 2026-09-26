@@ -1,0 +1,326 @@
+[
+ {
+  "file": "bd-semantic-nb19-int8.bin",
+  "terms": 127517,
+  "dims": 200,
+  "license": "CC BY-SA 4.0",
+  "headWeight": 1,
+  "top1": 0.7833333333333333,
+  "top3": 0.8666666666666667,
+  "none": 2,
+  "loadMs": 102.41640300000002,
+  "firstQueryMs": 12.533282000000014,
+  "queryMsMean": 0.164913050000001,
+  "queryMsP95": 0.18305200000000355,
+  "misses": [
+   [
+    "hoverboard",
+    null
+   ],
+   [
+    "pogo stick",
+    "trampoline:0.54 seesaw:0.45 sled:0.40"
+   ],
+   [
+    "flyswatter",
+    "glider:0.39 jetpack:0.35 wing:0.34"
+   ],
+   [
+    "skateboard",
+    "trampoline:0.50 sled:0.45 ramp:0.35"
+   ],
+   [
+    "surfboard",
+    "paddle:0.46 board:0.41 boat:0.39"
+   ],
+   [
+    "battering ram",
+    "club:0.38 wrecking_ball:0.36 hammer:0.35"
+   ],
+   [
+    "chainsaw",
+    "axe:0.53 blade:0.46 plow:0.46"
+   ],
+   [
+    "punching bag",
+    "fist:0.54 club:0.41 glove:0.35"
+   ],
+   [
+    "helicopter",
+    "glider:0.62 parachute:0.56 jetpack:0.52"
+   ],
+   [
+    "leaf blower",
+    "blade:0.39 thruster:0.36 plow:0.36"
+   ],
+   [
+    "hair dryer",
+    "bed:0.29 piston:0.28 vacuum:0.27"
+   ],
+   [
+    "treadmill",
+    "ramp:0.35 sled:0.35 trampoline:0.34"
+   ],
+   [
+    "half-pipe",
+    "tube:0.73 funnel:0.36 tunnel:0.31"
+   ],
+   [
+    "chute",
+    "parachute:0.66 ramp:0.43 slide:0.42"
+   ],
+   [
+    "airbag",
+    "car:0.46 parachute:0.38 wheel:0.38"
+   ],
+   [
+    "force field",
+    "parachute:0.29 ball:0.27 drill:0.24"
+   ],
+   [
+    "hammock",
+    "cushion:0.46 bed:0.46 tent:0.41"
+   ],
+   [
+    "kayak",
+    "paddle:0.71 raft:0.66 boat:0.66"
+   ],
+   [
+    "scaffolding",
+    "fence:0.53 ladder:0.52 tower:0.44"
+   ],
+   [
+    "cannonball",
+    "cannon:0.63 launcher:0.49 catapult:0.44"
+   ],
+   [
+    "slinky",
+    "rope:0.34 claw:0.32 seesaw:0.32"
+   ],
+   [
+    "crowbar",
+    "hammer:0.57 tongs:0.51 lever:0.45"
+   ],
+   [
+    "hopper",
+    "conveyor:0.41 bucket:0.33 piston:0.29"
+   ],
+   [
+    "megaphone",
+    "bell:0.28 funnel:0.26 tube:0.25"
+   ],
+   [
+    "anchor",
+    "rope:0.38 hook:0.38 boat:0.34"
+   ],
+   [
+    "wingsuit",
+    null
+   ]
+  ]
+ },
+ {
+  "file": "bd-semantic-spacylg-int8.bin",
+  "terms": 49543,
+  "dims": 300,
+  "license": "MIT",
+  "headWeight": 1,
+  "top1": 0.6083333333333333,
+  "top3": 0.75,
+  "none": 7,
+  "loadMs": 36.90681900000001,
+  "firstQueryMs": 7.322113999999999,
+  "queryMsMean": 0.24332237500000295,
+  "queryMsP95": 0.9291810000000282,
+  "misses": [
+   [
+    "hoverboard",
+    null
+   ],
+   [
+    "flyswatter",
+    "club:0.34 jetpack:0.32 catapult:0.30"
+   ],
+   [
+    "skateboard",
+    "trampoline:0.43 sled:0.42 ramp:0.40"
+   ],
+   [
+    "surfboard",
+    "paddle:0.46 boat:0.39 glider:0.38"
+   ],
+   [
+    "wheelbarrow",
+    "shovel:0.66 sled:0.54 bucket:0.53"
+   ],
+   [
+    "wagon",
+    "wheel:0.51 plow:0.48 car:0.48"
+   ],
+   [
+    "excavator",
+    "plow:0.62 shovel:0.54 bucket:0.44"
+   ],
+   [
+    "sledgehammer",
+    "sled:0.64 hammer:0.56 club:0.49"
+   ],
+   [
+    "katana",
+    null
+   ],
+   [
+    "machete",
+    "axe:0.63 blade:0.61 sword:0.52"
+   ],
+   [
+    "chainsaw",
+    "plow:0.52 axe:0.52 blade:0.51"
+   ],
+   [
+    "buzzsaw",
+    null
+   ],
+   [
+    "jackhammer",
+    "sled:0.50 hammer:0.47 shovel:0.46"
+   ],
+   [
+    "punching bag",
+    "fist:0.63 glove:0.54 conveyor:0.54"
+   ],
+   [
+    "bazooka",
+    "club:0.39 cannon:0.39 fist:0.38"
+   ],
+   [
+    "firework",
+    "cannon:0.39 balloon:0.39 bomb:0.37"
+   ],
+   [
+    "helicopter",
+    "glider:0.55 parachute:0.55 rocket:0.50"
+   ],
+   [
+    "leaf blower",
+    "spring:0.54 vacuum:0.50 blade:0.48"
+   ],
+   [
+    "hair dryer",
+    "bed:0.45 vacuum:0.44 hand:0.41"
+   ],
+   [
+    "treadmill",
+    "ramp:0.54 weight:0.42 trampoline:0.39"
+   ],
+   [
+    "half-pipe",
+    "tube:0.80 bowl:0.50 ball:0.49"
+   ],
+   [
+    "chute",
+    "conveyor:0.56 parachute:0.48 ramp:0.45"
+   ],
+   [
+    "bouncy castle",
+    "cannon:0.44 trampoline:0.44 tower:0.43"
+   ],
+   [
+    "airbag",
+    "wheel:0.42 chair:0.40 car:0.40"
+   ],
+   [
+    "force field",
+    "key:0.48 ball:0.47 hand:0.43"
+   ],
+   [
+    "igloo",
+    "sled:0.42 tent:0.41 block:0.39"
+   ],
+   [
+    "swing",
+    "ball:0.53 slide:0.50 wrecking_ball:0.48"
+   ],
+   [
+    "merry-go-round",
+    "hand:0.53 pole:0.51 saw:0.51"
+   ],
+   [
+    "lazy susan",
+    "hook:0.30 pole:0.30 table:0.30"
+   ],
+   [
+    "jail cell",
+    "block:0.38 bomb:0.37 ring:0.37"
+   ],
+   [
+    "hammock",
+    "tent:0.50 cushion:0.48 glider:0.47"
+   ],
+   [
+    "spider web",
+    "thruster:0.43 net:0.40 platform:0.36"
+   ],
+   [
+    "unicycle",
+    "trampoline:0.44 seesaw:0.39 glider:0.34"
+   ],
+   [
+    "scaffolding",
+    "fence:0.51 ladder:0.51 tower:0.43"
+   ],
+   [
+    "podium",
+    "pole:0.47 platform:0.44 chair:0.38"
+   ],
+   [
+    "cannonball",
+    "cannon:0.51 catapult:0.45 rocket:0.39"
+   ],
+   [
+    "dumbbell",
+    "ramp:0.57 arm:0.39 weight:0.38"
+   ],
+   [
+    "slinky",
+    null
+   ],
+   [
+    "crowbar",
+    "sled:0.55 hammer:0.53 shovel:0.50"
+   ],
+   [
+    "hopper",
+    "conveyor:0.59 bucket:0.49 piston:0.45"
+   ],
+   [
+    "megaphone",
+    "fist:0.31 shovel:0.31 club:0.31"
+   ],
+   [
+    "bullwhip",
+    null
+   ],
+   [
+    "shackles",
+    "rope:0.47 fence:0.36 cage:0.34"
+   ],
+   [
+    "buckler",
+    "spear:0.47 sword:0.46 club:0.42"
+   ],
+   [
+    "paraglider",
+    null
+   ],
+   [
+    "wingsuit",
+    null
+   ],
+   [
+    "pinball flipper",
+    "carousel:0.39 paddle:0.38 seesaw:0.38"
+   ]
+  ]
+ }
+]
