@@ -1248,12 +1248,15 @@ pub mod scenario {
                     for d in (10..60).step_by(2) {
                         let at = me + dir * d as f32;
                         let Some(g) = ground_at(w, at.x, at.z, me.y, 40.0) else { continue };
-                        let chest = g + bd_core::Vec3::Y;
-                        let to = chest - eye;
-                        let len = to.length();
-                        let blocked = bd_core::voxel::raycast(&w.voxels, eye, to / len, len - 0.6).is_some_and(|h| h.t > 4.0);
-                        if blocked && (g.y - me.y).abs() < 12.0 {
-                            let g2 = ground_at(w, at.x + side.x * 5.0, at.z + side.z * 5.0, me.y, 40.0).unwrap_or(g);
+                        // Fully hidden (feet to head) by terrain well in front of them.
+                        let hidden = |p: bd_core::Vec3| {
+                            let to = p - eye;
+                            let len = to.length();
+                            bd_core::voxel::raycast(&w.voxels, eye, to / len, len).is_some_and(|h| h.t > 4.0 && h.t < len - 2.0)
+                        };
+                        let all = |g: bd_core::Vec3| [0.3f32, 1.0, 2.0].iter().all(|y| hidden(g + bd_core::Vec3::Y * *y));
+                        if all(g) && (g.y - me.y).abs() < 12.0 {
+                            let g2 = ground_at(w, at.x + side.x * 4.0, at.z + side.z * 4.0, me.y, 40.0).filter(|g2| all(*g2)).unwrap_or(g);
                             out = Some(vec![(1, g), (2, g2)]);
                             break;
                         }

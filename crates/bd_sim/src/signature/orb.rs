@@ -154,7 +154,18 @@ pub(crate) fn register(w: &mut World, cid: ConstructId) {
     // The flight is ours: only the suction field stays (already attached at spawn).
     c.recipe.mechanics.retain(|m| *m == Mechanic::Attract);
     crate::constructs::components::on_graft(c);
-    let o = Orb { construct: cid, owner: c.owner, phase: Phase::Windup, pos: c.pos, dir: Vec3::NEG_Z, radius, travelled: 0.0, next_carve: 0.0, hit: 0, element };
+    let o = Orb {
+        construct: cid,
+        owner: c.owner,
+        phase: Phase::Windup,
+        pos: c.pos,
+        dir: Vec3::NEG_Z,
+        radius,
+        travelled: 0.0,
+        next_carve: 0.0,
+        hit: 0,
+        element,
+    };
     let list = &mut w.signature.orbs;
     if list.len() >= MAX_ORBS {
         let old = list.remove(0);
@@ -215,7 +226,12 @@ pub(crate) fn step(w: &mut World, dt: f32) {
             }
             // Range reached, or about to leave the map (before the blast zones would recall it).
             let b = &w.arena.bounds;
-            let out = o.pos.x < b.min.x - 10.0 || o.pos.x > b.max.x + 10.0 || o.pos.z < b.min.z - 10.0 || o.pos.z > b.max.z + 10.0 || o.pos.y < b.min.y - 10.0 || o.pos.y > b.max.y + 10.0;
+            let out = o.pos.x < b.min.x - 10.0
+                || o.pos.x > b.max.x + 10.0
+                || o.pos.z < b.min.z - 10.0
+                || o.pos.z > b.max.z + 10.0
+                || o.pos.y < b.min.y - 10.0
+                || o.pos.y > b.max.y + 10.0;
             if o.travelled >= t.range || out {
                 if let Some(c) = w.constructs.get_mut(o.construct) {
                     c.gone = Some(GoneReason::Spent);
@@ -256,7 +272,16 @@ fn erase(w: &mut World, o: &mut Orb, t: &OrbTuning) {
     }
     for &id in &victims[..n] {
         let point = w.constructs.get(id).map_or(o.pos, |c| c.center());
-        w.apply_construct_hit(ConstructHit { target: id, source: Some(o.owner), damage: t.construct_damage, impulse: o.dir * 20.0, blade: false, pierce: true, blunt: false, point });
+        w.apply_construct_hit(ConstructHit {
+            target: id,
+            source: Some(o.owner),
+            damage: t.construct_damage,
+            impulse: o.dir * 20.0,
+            blade: false,
+            pierce: true,
+            blunt: false,
+            point,
+        });
         w.events.push(GameEvent::SignatureFx { id: o.construct, owner: o.owner, fx: SigFx::Erase, pos: point, dir: o.dir });
     }
     // Players (once each).
@@ -280,7 +305,10 @@ fn erase(w: &mut World, o: &mut Orb, t: &OrbTuning) {
     }
     for &(pid, c) in &hits[..m] {
         let dir = (o.dir + Vec3::Y * 0.35).normalize_or(o.dir);
-        let hit = HitInfo::new(pid, Some(o.owner), HitKind::Shot, t.damage, t.knockback, dir, c).with_element(o.element).with_construct(o.construct).with_impact(1.6);
+        let hit = HitInfo::new(pid, Some(o.owner), HitKind::Shot, t.damage, t.knockback, dir, c)
+            .with_element(o.element)
+            .with_construct(o.construct)
+            .with_impact(1.6);
         w.apply_hit(hit);
         w.events.push(GameEvent::SignatureFx { id: o.construct, owner: o.owner, fx: SigFx::Erase, pos: c, dir: o.dir });
     }

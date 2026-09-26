@@ -46,7 +46,7 @@
 //!
 //! Dev: `BD_SUMMON_PREVIEW_FORCE=1` keeps a preview up permanently (perf measurement);
 //! `BD_SUMMON_TEST=phrase@yaw_deg@secs[;...]` casts `phrase` toward look-yaw + `yaw_deg` after `secs`
-//! in game (`!alert@0@secs` sends an Alert cut-in of the newest own construct); `BD_SUMMON_PING_STATS=1`
+//! in game (`!turn@deg@secs` turns the view, `!alert@0@secs` sends an Alert cut-in of the newest own construct); `BD_SUMMON_PING_STATS=1`
 //! prints the CPU cost of the ping + cut-in systems; `BD_GPU_DIAG=1` per-pass GPU timings.
 
 use super::constructs::ConstructEntities;
@@ -1017,7 +1017,7 @@ fn test_casts(
     active: Option<Res<ActiveWorld>>,
     lex: Option<Res<crate::console::RingLexicon>>,
     anchor: Res<ViewAnchor>,
-    look: Res<crate::input::LookAngles>,
+    mut look: ResMut<crate::input::LookAngles>,
     map: Res<ConstructEntities>,
     views: Res<WorldViews>,
     mut cmds: MessageWriter<SimCommand>,
@@ -1048,6 +1048,11 @@ fn test_casts(
             break;
         }
         st.1 += 1;
+        if phrase == "!turn" {
+            // Turn away after casting (the look yaw only; the camera follows next frame).
+            look.yaw += yaw.to_radians();
+            continue;
+        }
         if phrase == "!alert" {
             let newest = views.constructs.iter().filter(|c| active.local == Some(c.owner)).max_by_key(|c| c.id.0).and_then(|c| map.0.get(&c.id));
             if let (Some(&e), Some(me)) = (newest, active.local) {

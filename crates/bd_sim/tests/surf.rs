@@ -346,3 +346,40 @@ fn prediction_matches_the_host_on_a_surf_line() {
     assert!(surfed > 30, "surfed {surfed} ticks");
     assert_eq!(bad, 0, "mispredicted ticks");
 }
+
+#[test]
+fn a_cast_surf_ramp_stands_steep_a_plain_ramp_does_not() {
+    use bd_core::PlayerId;
+    use bd_core::corps::Corps;
+    use bd_core::mechanics::{Element, Form, Mechanic};
+    use bd_sim::movement::ColliderId;
+    use bd_sim::world::Aim;
+    let mut w = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
+    w.cfg.rules.willpower = bd_sim::rules::WillpowerMode::Infinite;
+    let a = PlayerId(1);
+    w.add_player(a, "a".into(), Corps::from_index(1)).unwrap();
+    w.start_live();
+    w.tick(&[]);
+    let eye = w.player(a).unwrap().eye(w.params());
+    let surf_ramp = bd_sim::bots::recipe("surf ramp", Form::Ramp, &[Mechanic::Glide], Element::Light, 12.0);
+    let plain = bd_sim::bots::recipe("ramp", Form::Ramp, &[], Element::Light, 12.0);
+    let p = MoveParams::default();
+    for (r, steep) in [(surf_ramp, true), (plain, false)] {
+        w.cast(a, r, None, Aim::new(eye, Vec3::new(0.0, -0.3, -1.0).normalize())).unwrap();
+        for _ in 0..90 {
+            w.tick(&[]);
+        }
+        let top = w
+            .colliders()
+            .iter()
+            .filter(|c| matches!(c.id, ColliderId::Construct { .. }))
+            .map(|c| c.axes()[1])
+            .fold(Vec3::NEG_Y, |best, n| if n.y > best.y { n } else { best });
+        eprintln!("steep {steep}: ramp top normal {top:.2} (surfable {})", bd_sim::movement::surfable(top, &p));
+        assert_eq!(bd_sim::movement::surfable(top, &p), steep);
+        w.dismiss(a);
+        for _ in 0..30 {
+            w.tick(&[]);
+        }
+    }
+}

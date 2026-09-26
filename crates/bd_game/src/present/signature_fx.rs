@@ -69,13 +69,21 @@ impl Plugin for SignatureFxPlugin {
             .add_message::<GameEvents>()
             .init_resource::<Fusions>()
             .add_systems(Startup, assets)
-            .add_systems(Update, (read_events.in_set(super::PresentSet::Events), (apply_fx, animate_fusions, trails).chain().in_set(super::PresentSet::Sync)))
+            .add_systems(
+                Update,
+                (
+                    read_events.in_set(super::PresentSet::Events),
+                    (apply_fx, animate_fusions, trails).chain().in_set(super::PresentSet::Sync),
+                ),
+            )
             .add_systems(OnExit(AppState::InGame), clear);
     }
 }
 
 fn assets(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    commands.insert_resource(FusionAssets { sphere: meshes.add(Sphere::new(1.0).mesh().ico(2).unwrap_or_else(|_| Sphere::new(1.0).mesh().uv(16, 12))) });
+    commands.insert_resource(FusionAssets {
+        sphere: meshes.add(Sphere::new(1.0).mesh().ico(2).unwrap_or_else(|_| Sphere::new(1.0).mesh().uv(16, 12))),
+    });
 }
 
 fn clear(mut commands: Commands, mut f: ResMut<Fusions>, orbs: Query<Entity, With<FusionOrb>>) {
@@ -117,7 +125,6 @@ fn hands(owner: PlayerId, active: &ActiveWorld, views: &WorldViews, cam: Option<
 fn apply_fx(
     mut commands: Commands,
     active: Option<Res<ActiveWorld>>,
-    views: Res<WorldViews>,
     assets: Option<Res<FusionAssets>>,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
@@ -140,7 +147,8 @@ fn apply_fx(
         let mine = active.local == Some(owner);
         let corps = corps_rgb(active.corps_of(owner));
         let near = eye.distance(pos) < 40.0;
-        let cue = |c: Cue, element: Element| SignatureCue { cue: c, pos, severity: if near { 0.9 } else { 0.5 }, mine, element, construct: id };
+        let cue =
+            |c: Cue, element: Element| SignatureCue { cue: c, pos, severity: if near { 0.9 } else { 0.5 }, mine, element, construct: id };
         match fx {
             SigFx::Merge { a, b, secs } => {
                 let Some(assets) = assets.as_ref() else { continue };
@@ -192,7 +200,13 @@ fn apply_fx(
                 cues.write(cue(Cue::EraseImpact, element));
             }
             SigFx::End => {
-                bursts.write(BurstFx { kind: BurstKind::Element(Element::Psychic), pos, dir, scale: 2.0, color: Some(element_rgb(Element::Psychic, corps)) });
+                bursts.write(BurstFx {
+                    kind: BurstKind::Element(Element::Psychic),
+                    pos,
+                    dir,
+                    scale: 2.0,
+                    color: Some(element_rgb(Element::Psychic, corps)),
+                });
                 cues.write(cue(Cue::OrbTravel { on: false }, Element::Psychic));
                 f.trail_wanted.retain(|t| t.0 != id);
             }
@@ -261,16 +275,36 @@ fn animate_fusions(
         let corps = corps_rgb(active.corps_of(fu.owner));
         let merged = mix(element_rgb(fu.a, corps), element_rgb(fu.b, corps));
         let feet = views.player(fu.owner).map_or(c - Vec3::Y * 1.3, |v| v.pos);
-        aura.write(AuraBurstFx { pos: feet, color: merged, height: 1.8, scale: 2.0, flash: comfort.flashes > 0.0, broken: false, ground: None });
+        aura.write(AuraBurstFx {
+            pos: feet,
+            color: merged,
+            height: 1.8,
+            scale: 2.0,
+            flash: comfort.flashes > 0.0,
+            broken: false,
+            ground: None,
+        });
         bursts.write(BurstFx { kind: BurstKind::Flash, pos: c, dir: Vec3::ZERO, scale: 3.0, color: Some(merged) });
         let near = eye.distance(c) < 30.0;
         if near {
-            flash.write(ScreenFlash { color: Color::linear_rgb(merged[0], merged[1], merged[2]), intensity: if mine { 0.18 } else { 0.1 }, duration: 0.18, vignette: false });
+            flash.write(ScreenFlash {
+                color: Color::linear_rgb(merged[0], merged[1], merged[2]),
+                intensity: if mine { 0.18 } else { 0.1 },
+                duration: 0.18,
+                vignette: false,
+            });
         }
         if mine {
             fov.write(FovPunch { degrees: 4.0 });
         }
-        cues.write(SignatureCue { cue: Cue::MergeFlash, pos: c, severity: if near { 1.0 } else { 0.5 }, mine, element: fu.a, construct: fu.id });
+        cues.write(SignatureCue {
+            cue: Cue::MergeFlash,
+            pos: c,
+            severity: if near { 1.0 } else { 0.5 },
+            mine,
+            element: fu.a,
+            construct: fu.id,
+        });
     }
 }
 

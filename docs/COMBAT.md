@@ -129,7 +129,15 @@ reduces air control but you can always tether out of it (a skill save).
     word in the last 30 s)` — repetition gets pricier; variety is free (expression!).
 - Upkeep: held/worn constructs drain 0.6/s, creatures 1.5/s (Kaiju 4/s), structures 0.3/s. At 0
   willpower your constructs start losing integrity quickly and shatter.
-- Can't cast if cost > current willpower (the ring flickers — diegetic "no").
+- **Never refused for willpower** (FREEDOM bundle, `bd_sim::freedom::afford`): a cast that costs more than
+  you have *sputters* — count first, then scale, shrink toward what's left (floor `tuning.freedom.sputter_floor`
+  of the asked scale / the form minimum) and it drains **everything** left; at ~0 it is a tiny fizzle, never
+  nothing. Flickers (`cflags::SPUTTER`, the low-integrity shader flicker) and is fragile (integrity from what was
+  paid). An unaffordable graft still applies, drains what's left and gains integrity only for what was paid.
+- Shout energy (typed CAPS / "!!!" or a real yell — equal) scales a fresh cast up to +15 % (`energy_max_bonus`),
+  paid as usual. "it" = your newest construct ("make it bigger" → graft path, resize priced like buying the
+  bigger one); "again!" / "two more" re-cast; "missile at Jake" aims at Jake. Hidden legendary rolls: see the
+  `bd_sim::legendary` module docs (never shown to players).
 - **Charging (hold Z, bd_core v1.4 `buttons::CHARGE`; `bd_sim::charge`, `tuning.charge`):** the anime power-up —
   the easy, loud, exposed refill (the oath stays the skilful, faster one). Refill `rate_per_sec` 4.5/s (× the
   willpower mode's regen multiplier) on top of passive regen, ramping in quadratically over 0.8 s (tapping earns

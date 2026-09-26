@@ -107,16 +107,18 @@ fn squeeze(s: &str) -> String {
     out
 }
 
-/// Match-wide memory of what was cast: (hash, bitmask of players who cast it). Fixed capacity ring.
+/// Match-wide memory of what was cast: (hash, bitmask of players who cast it, last-use stamp). Fixed
+/// capacity; when full the **least recently cast** entry is forgotten, so a phrase that keeps being
+/// cast (spam) is never forgotten and can never become "fresh" again.
 #[derive(Clone, Debug)]
 pub struct NoveltySet {
-    entries: Vec<(u64, u16)>,
-    next: usize,
+    entries: Vec<(u64, u16, u32)>,
+    stamp: u32,
 }
 
 impl Default for NoveltySet {
     fn default() -> Self {
-        Self { entries: Vec::with_capacity(NOVELTY_CAP), next: 0 }
+        Self { entries: Vec::with_capacity(NOVELTY_CAP), stamp: 0 }
     }
 }
 
@@ -127,7 +129,7 @@ fn bit(p: PlayerId) -> u16 {
 impl NoveltySet {
     pub fn clear(&mut self) {
         self.entries.clear();
-        self.next = 0;
+        self.stamp = 0;
     }
     pub fn len(&self) -> usize {
         self.entries.len()
@@ -136,7 +138,7 @@ impl NoveltySet {
         self.entries.is_empty()
     }
     fn find(&self, h: u64) -> Option<usize> {
-        self.entries.iter().position(|(k, _)| *k == h)
+        self.entries.iter().position(|e| e.0 == h)
     }
     pub fn contains(&self, h: u64) -> bool {
         self.find(h).is_some()
@@ -145,18 +147,21 @@ impl NoveltySet {
     pub fn cast_by(&self, h: u64, p: PlayerId) -> bool {
         self.find(h).is_some_and(|i| self.entries[i].1 & bit(p) != 0)
     }
-    /// Remember `h` for `p`. Returns true when `p` had not cast it before (this match).
+    /// Remember `h` for `p` (refreshing it). Returns true when `p` had not cast it before this match.
     pub fn insert(&mut self, h: u64, p: PlayerId) -> bool {
+        self.stamp = self.stamp.wrapping_add(1);
+        let stamp = self.stamp;
         if let Some(i) = self.find(h) {
-            let fresh = self.entries[i].1 & bit(p) == 0;
-            self.entries[i].1 |= bit(p);
+            let e = &mut self.entries[i];
+            let fresh = e.1 & bit(p) == 0;
+            e.1 |= bit(p);
+            e.2 = stamp;
             return fresh;
         }
         if self.entries.len() < NOVELTY_CAP {
-            self.entries.push((h, bit(p)));
-        } else {
-            self.entries[self.next] = (h, bit(p));
-            self.next = (self.next + 1) % NOVELTY_CAP;
+            self.entries.push((h, bit(p), stamp));
+        } else if let Some(oldest) = self.entries.iter().enumerate().min_by_key(|(_, e)| e.2).map(|(i, _)| i) {
+            self.entries[oldest] = (h, bit(p), stamp);
         }
         true
     }
@@ -326,6 +331,16 @@ mod tests {
         assert_eq!(s.len(), NOVELTY_CAP);
         assert!(s.contains(NOVELTY_CAP as u64 * 3 - 1));
         assert!(!s.contains(0), "oldest forgotten");
+        // A phrase that keeps being cast is never forgotten, however much else is cast.
+        let spam = u64::MAX;
+        for i in 0..(NOVELTY_CAP as u64 * 4) {
+            if i % 100 == 0 {
+                s.insert(spam, PlayerId(2));
+            }
+            s.insert(10_000 + i, PlayerId(1));
+        }
+        assert!(s.contains(spam));
+        assert_eq!(s.len(), NOVELTY_CAP);
     }
 
     #[test]

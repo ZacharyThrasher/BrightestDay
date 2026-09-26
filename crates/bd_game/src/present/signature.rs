@@ -195,7 +195,11 @@ pub struct SignaturePlugin;
 impl Plugin for SignaturePlugin {
     fn build(&self, app: &mut App) {
         // Messages this plugin writes / reads that other plugins own (idempotent registration).
-        app.add_message::<CutIn>().add_message::<FovPunch>().add_message::<ScreenFlash>().add_message::<GameEvents>().add_message::<SimCommand>();
+        app.add_message::<CutIn>()
+            .add_message::<FovPunch>()
+            .add_message::<ScreenFlash>()
+            .add_message::<GameEvents>()
+            .add_message::<SimCommand>();
         app.add_message::<SignatureCue>()
             .init_resource::<Spectacles>()
             .init_resource::<SigDev>()

@@ -623,7 +623,13 @@ fn purple_range() -> (World, Vec3) {
     w.player_mut(B).unwrap().mv.pos = a + Vec3::new(0.0, 0.0, -28.0);
     w.player_mut(B).unwrap().willpower = 100.0;
     let b_eye = a + Vec3::new(0.0, 1.6, -28.0);
-    w.cast(B, recipe("wall", Form::Wall, &[Mechanic::Barrier], Element::Light, 4.0), None, Aim::new(b_eye, Vec3::new(0.0, -0.3, 1.0).normalize())).unwrap();
+    w.cast(
+        B,
+        recipe("wall", Form::Wall, &[Mechanic::Barrier], Element::Light, 4.0),
+        None,
+        Aim::new(b_eye, Vec3::new(0.0, -0.3, 1.0).normalize()),
+    )
+    .unwrap();
     for _ in 0..30 {
         w.tick(&[]);
     }
@@ -634,7 +640,8 @@ fn purple_range() -> (World, Vec3) {
 fn cast_purple(w: &mut World) -> ConstructId {
     let aim = aim_of(w, A);
     let aim = Aim::new(aim.origin, Vec3::NEG_Z);
-    w.cast_signature(A, hollow_purple(), None, aim, SignatureCast::new(SignatureKind::Beam, 1.0).with_merge(Element::Water, Element::Fire)).expect("cast")
+    w.cast_signature(A, hollow_purple(), None, aim, SignatureCast::new(SignatureKind::Beam, 1.0).with_merge(Element::Water, Element::Fire))
+        .expect("cast")
 }
 
 #[test]
@@ -665,7 +672,10 @@ fn hollow_purple_winds_up_then_erases_a_tunnel_constructs_and_players() {
         }
         evs.extend(e);
     }
-    assert!(evs.iter().any(|e| matches!(e, GameEvent::SignatureFx { fx: SigFx::Merge { a: Element::Water, b: Element::Fire, .. }, .. })), "blue + red merge");
+    assert!(
+        evs.iter().any(|e| matches!(e, GameEvent::SignatureFx { fx: SigFx::Merge { a: Element::Water, b: Element::Fire, .. }, .. })),
+        "blue + red merge"
+    );
     let launch_at = launch_at.expect("released");
     assert!(launch_at >= forming - 0.02, "released after the windup: {launch_at}");
     // The tunnel: the wall is bored through along the path.

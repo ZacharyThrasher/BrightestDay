@@ -5,6 +5,7 @@
 //! * **Wind rush** — while the local player surfs faster than ~15 m/s: a few thin streaks rush past
 //!   the camera along the velocity (the Orbit speed-line look), fading with speed. Comfort-gated
 //!   (off without speed FOV / FOV kicks). Audio hook for the audio worker: `surf_loop`.
+//! * `--scenario surf [--surf-line N]` — record / screenshot scene (see [`scenario`]).
 
 use super::{bq, bv};
 use crate::camera::PlayerCamera;
@@ -24,6 +25,7 @@ impl Plugin for SurfPlugin {
         app.init_resource::<SurfDraw>()
             .add_systems(OnExit(AppState::InGame), clear)
             .add_systems(Update, (sync_lines, wind_rush).chain().in_set(crate::tick::FrameSet::Present));
+        scenario::build(app);
     }
 }
 
@@ -157,5 +159,111 @@ fn wind_rush(
         tf.translation = cam.translation + fwd * (14.0 - 22.0 * phase) + (u * ang.cos() + w * ang.sin()) * rad;
         tf.rotation = Quat::from_rotation_arc(Vec3::Z, fwd);
         tf.scale = Vec3::new(1.0, 1.0, 1.2 + 3.0 * k);
+    }
+}
+
+/// `--scenario surf [--surf-line N]`: a player surfs a map line (reset every 4 s) while the camera
+/// watches from the landing end — for `--record` clips of the surf lines.
+pub mod scenario {
+    use crate::input::LookAngles;
+    use crate::sim_bridge::ActiveWorld;
+    use crate::tick::{SimSet, SimTick};
+    use bd_core::PlayerId;
+    use bd_core::input::PlayerInput;
+    use bevy::prelude::*;
+
+    #[derive(Resource, Clone, Debug, Default)]
+    pub struct SurfScenario {
+        line: usize,
+        placed: bool,
+        t: f32,
+        start_tick: u64,
+        watch: bd_core::Vec3,
+    }
+
+    pub fn build(app: &mut App) {
+        let args: Vec<String> = std::env::args().collect();
+        if !args.windows(2).any(|w| w[0] == "--scenario" && w[1] == "surf") {
+            return;
+        }
+        let line = args.windows(2).find(|w| w[0] == "--surf-line").and_then(|w| w[1].parse().ok()).unwrap_or(0);
+        app.insert_resource(SurfScenario { line, ..default() })
+            .add_systems(Update, place.run_if(resource_exists::<ActiveWorld>))
+            .add_systems(SimTick, drive.in_set(SimSet::Input).run_if(resource_exists::<ActiveWorld>));
+    }
+
+    /// (face, ridge direction, start feet position) for line `k`.
+    fn start_of(w: &bd_sim::World, k: usize) -> Option<(bd_sim::movement::Collider, bd_core::Vec3, bd_core::Vec3)> {
+        let l = *w.arena.surf_lines.get(k)?;
+        let face = bd_sim::movement::surf_line(l.a, l.b, l.face_deg, l.width, 1.5, 0)[0];
+        let d = (l.b - l.a).normalize();
+        let n = face.axes()[1];
+        let point = l.a + (l.b - l.a) * 0.22 + face.axes()[0] * 2.5;
+        let corner = bd_core::Vec3::new(-0.4 * n.x.signum(), 0.0, -0.4 * n.z.signum());
+        Some((face, d, point - corner + n * 0.05))
+    }
+
+    fn place(mut sc: ResMut<SurfScenario>, time: Res<Time<Real>>, mut active: ResMut<ActiveWorld>, mut look: ResMut<LookAngles>) {
+        sc.t += time.delta_secs();
+        if sc.placed || sc.t < 0.5 {
+            return;
+        }
+        let Some(me) = active.local else { return };
+        let Some(l) = active.world.arena.surf_lines.get(sc.line).copied() else {
+            warn!("surf scenario: no surf line {} on this map", sc.line);
+            sc.placed = true;
+            return;
+        };
+        // Camera: beside the line's lower half, looking across at it.
+        let d = (l.b - l.a).normalize();
+        let side = d.cross(bd_core::Vec3::Y).normalize();
+        let mid = l.a + (l.b - l.a) * 0.62;
+        let eye = mid + side * 22.0 + bd_core::Vec3::Y * 2.0;
+        let world = &mut active.world;
+        if let Some(p) = world.player_mut(me) {
+            p.mv.pos = eye - bd_core::Vec3::Y * 1.6;
+            p.mv.vel = bd_core::Vec3::ZERO;
+        }
+        sc.watch = eye - bd_core::Vec3::Y * 1.6;
+        let to = (l.a + (l.b - l.a) * 0.5 - eye).normalize();
+        look.yaw = (-to.x).atan2(-to.z);
+        look.pitch = to.y.asin();
+        active.bots.clear();
+        sc.start_tick = active.world.tick;
+        sc.placed = true;
+        info!("surf scenario: line {} {:?} → {:?}", sc.line, l.a, l.b);
+    }
+
+    fn drive(sc: Res<SurfScenario>, mut active: ResMut<ActiveWorld>, look: Res<LookAngles>) {
+        if !sc.placed {
+            return;
+        }
+        let tick = active.world.tick;
+        let k = tick.saturating_sub(sc.start_tick) % 480;
+        let Some((face, d, start)) = start_of(&active.world, sc.line) else { return };
+        let surfer = PlayerId(1);
+        if k == 0
+            && let Some(p) = active.world.player_mut(surfer)
+        {
+            p.mv.pos = start;
+            p.mv.vel = d * 10.0;
+            p.mv.grounded = false;
+            p.mv.air_time = 0.5;
+            p.spawn_shield = 0.0;
+        }
+        // Hold the strafe key that pushes into the face, view along the line.
+        let n = face.axes()[1];
+        let yaw = (-d.x).atan2(-d.z);
+        let right = bd_core::Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+        let mx = if bd_core::Vec3::new(-n.x, 0.0, -n.z).dot(right) > 0.0 { 1 } else { -1 };
+        active.remote_inputs.push((surfer, PlayerInput { seq: tick as u32, yaw, move_x: mx, ..Default::default() }));
+        // The watcher hovers where it was put.
+        if let Some(me) = active.local
+            && let Some(p) = active.world.player_mut(me)
+        {
+            p.mv.pos = sc.watch;
+            p.mv.vel = bd_core::Vec3::ZERO;
+        }
+        let _ = look;
     }
 }

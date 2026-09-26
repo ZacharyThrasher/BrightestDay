@@ -194,7 +194,8 @@ impl Plugin for AudioFxPlugin {
             .add_message::<crate::present::signature::SignatureCue>()
             .add_message::<bd_fx::ShoutSfx>()
             .add_message::<crate::sim_bridge::GameEvents>()
-            .add_systems(Startup, start_load)
+            // `BD_PERF_OFF=audio`: no audio at all (A/B perf checks).
+            .add_systems(Startup, start_load.run_if(|| !crate::present::perf_off("audio")))
             .add_systems(Update, finish_load.run_if(resource_exists::<AudioLoading>))
             .add_systems(OnExit(AppState::InGame), leave_game)
             .add_systems(
@@ -650,7 +651,7 @@ fn world_audio(
 
     // Mix state.
     let alive = me.is_none_or(|p| p.flags & pflags::ALIVE != 0);
-    let vacuum = if map == MapKind::Orbit { a.maps.get("orbit").space.vacuum(ear.y) } else { 0.0 };
+    let vacuum = if map == MapKind::Orbit { a.space.preset.vacuum(ear.y) } else { 0.0 };
     let ring_open = console.is_some_and(|c| c.open);
     let inputs = MixInputs {
         scene: if in_game { Scene::InGame } else { Scene::Menu },
@@ -661,8 +662,7 @@ fn world_audio(
         sudden_death: false,
         paused: in_game && menu.0,
     };
-    let mix = a.mix.clone();
-    a.director.update(dt, &inputs, &mix, &mut a.engine);
+    a.director.update(dt, &inputs, &a.mix, &mut a.engine);
 
     #[cfg(feature = "music")]
     if let Some(m) = a.music.as_mut() {

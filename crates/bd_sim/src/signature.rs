@@ -306,7 +306,13 @@ impl World {
         if let (Ok(cid), Some([a, b])) = (res, sig.merge) {
             let secs = self.constructs.get(cid).map_or(0.0, |c| c.forming_t);
             let pos = self.constructs.get(cid).map_or(aim.origin, |c| c.pos);
-            self.events.push(crate::events::GameEvent::SignatureFx { id: cid, owner: player, fx: SigFx::Merge { a, b, secs }, pos, dir: aim.dir });
+            self.events.push(crate::events::GameEvent::SignatureFx {
+                id: cid,
+                owner: player,
+                fx: SigFx::Merge { a, b, secs },
+                pos,
+                dir: aim.dir,
+            });
         }
         res
     }
@@ -509,9 +515,21 @@ mod tests {
     fn caps_and_hostile_power() {
         let t = SignatureTuning::default();
         let rules = MatchRules::default();
-        let k = amplify(rec(Form::Kaiju, &[], 22.0), SignatureCast { kind: SignatureKind::Summon, power: f32::NAN, merge: None }, &t, &rules, false);
+        let k = amplify(
+            rec(Form::Kaiju, &[], 22.0),
+            SignatureCast { kind: SignatureKind::Summon, power: f32::NAN, merge: None },
+            &t,
+            &rules,
+            false,
+        );
         assert!(k.scale <= t.max_scale + 1e-4);
-        let h = amplify(rec(Form::Hammer, &[], 1.2), SignatureCast { kind: SignatureKind::Transformation, power: 99.0, merge: None }, &t, &rules, false);
+        let h = amplify(
+            rec(Form::Hammer, &[], 1.2),
+            SignatureCast { kind: SignatureKind::Transformation, power: 99.0, merge: None },
+            &t,
+            &rules,
+            false,
+        );
         assert!(h.has(Mechanic::Heavy) && h.scale <= form_spec(Form::Hammer).max_scale * t.scale_cap_mult + 1e-4);
         assert_eq!(SignatureTuning { cost_mult: f32::NAN, ..Default::default() }.validated(), t);
     }

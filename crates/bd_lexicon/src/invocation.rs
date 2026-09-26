@@ -319,7 +319,8 @@ impl Lexicon {
                 if res.recipe.name.chars().any(|c| c.is_uppercase()) { res.recipe.name.clone() } else { title_case(&key) }
             });
             res.explanation.insert(0, format!("{key} \u{2192} signature {kind:?}"));
-            res.signature = Some(SignatureCall { kind, title: clip_title(title), invocation: None, windup: windup.map(|Windup::Merge(a, b)| (a, b)) });
+            res.signature =
+                Some(SignatureCall { kind, title: clip_title(title), invocation: None, windup: windup.map(|Windup::Merge(a, b)| (a, b)) });
             return;
         }
         let beam = res.kind == ResolutionKind::Construct && res.recipe.has(Mechanic::Beam);
