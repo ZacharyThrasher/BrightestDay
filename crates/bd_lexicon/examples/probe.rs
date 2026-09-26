@@ -9,7 +9,10 @@ use std::time::Instant;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/lexicon.bin");
+    // BD_LEXICON=<path/to/lexicon.bin> probes another build (icons/powers are read next to it)
+    let root = std::env::var_os("BD_LEXICON")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/lexicon.bin"));
     let t = Instant::now();
     let lex = match bd_lexicon::Lexicon::load(&root) {
         Ok(l) => l,

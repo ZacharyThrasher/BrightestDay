@@ -799,7 +799,27 @@ E(["nautiloid", "illithid ship"], R("Nautiloid", "Vehicle", ["Attract", "Flies",
 E(["minsc and boo", "boo the hamster", "miniature giant space hamster"],
   R("Boo", "Quadruped", ["Fast", "Grow"], "Light", 0.3, 0.2, temp="Playful", inten=1.0), "Larian (Baldur's Gate 3)")
 
+def _drop_names_owned_elsewhere():
+    """Names already owned by an earlier-loading icon file (bd_lexicon load order) would only produce
+    load warnings: drop them here, and entries left with no names (tools/lexicon_build/dedupe_icon_names.py)."""
+    import pathlib
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "lexicon_build"))
+    from dedupe_icon_names import taken_before, norm, OWNED_BY
+    taken = taken_before("games.ron")
+    kept, seen = [], set(taken)
+    for e in ENTRIES:
+        names = e[0]
+        nn = [x for x in names if norm(x) and OWNED_BY.get(norm(x), "games.ron") == "games.ron"
+              and (norm(x) not in seen or norm(x) in {norm(y) for y in names[:names.index(x)]})]
+        if not nn:
+            continue
+        seen.update(norm(x) for x in nn)
+        kept.append((nn,) + tuple(e[1:]))
+    ENTRIES[:] = kept
+
+
 if __name__ == "__main__":
+    _drop_names_owned_elsewhere()
     n, ns = emit(sys.argv[1])
     emit_gallery(sys.argv[2])
     print(f"{n} entries, {ns} with shapes")

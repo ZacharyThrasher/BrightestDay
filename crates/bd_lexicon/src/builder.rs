@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use serde::Deserialize;
 
-use crate::data::{self, AdjRec, Meta, NONE8, REC_SIZE, Rec, TOKO_SIZE, VerbRec, fnv32};
+use crate::data::{self, AdjRec, Meta, MoveRec, NONE8, REC_SIZE, Rec, TOKO_SIZE, VerbRec, fnv32};
 use crate::parse::GRAMMAR_WORDS;
 use crate::phonetic::phonetic_key;
 use crate::tables::*;
@@ -76,6 +76,25 @@ struct JColl {
     swarm: bool,
 }
 
+/// A Pokémon move (tools/lexicon_build/moves.py).
+#[derive(Deserialize)]
+struct JMove {
+    k: String,
+    #[serde(default)]
+    d: String,
+    f: String,
+    #[serde(default)]
+    m: Vec<String>,
+    #[serde(default)]
+    e: Option<String>,
+    #[serde(default)]
+    t: Option<String>,
+    #[serde(default)]
+    s: f32,
+    #[serde(default)]
+    w: f32,
+}
+
 #[derive(Deserialize)]
 struct JLex {
     #[serde(default)]
@@ -99,6 +118,12 @@ struct JLex {
     intensifiers: Vec<(String, f32)>,
     #[serde(default)]
     blocked: Vec<String>,
+    #[serde(default)]
+    moves: Vec<JMove>,
+    /// Frequent plain English words (most frequent first): known tokens, so real words are never
+    /// typo-"corrected" into obscure entities ("always" -> "aiways").
+    #[serde(default)]
+    known: Vec<String>,
 }
 
 fn mech_bits(names: &[String], warn: &mut Vec<String>) -> u64 {
@@ -276,6 +301,14 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         .chain(lex.collectives.iter().map(|c| c.k.clone()))
         .chain(GRAMMAR_WORDS.iter().map(|s| s.to_string()))
         .collect::<Vec<_>>();
+    let n_known = lex.known.len().max(1) as f32;
+    for (i, w) in lex.known.iter().enumerate() {
+        if w.is_empty() || w.contains(' ') || w.len() > 30 {
+            continue;
+        }
+        let r = tok_rank.entry(w.clone()).or_insert(0.0);
+        *r = r.max(4.5 - 2.0 * i as f32 / n_known);
+    }
     for w in extra {
         for t in w.split(' ') {
             let r = tok_rank.entry(t.to_string()).or_insert(0.0);
@@ -370,6 +403,28 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
     };
     let meta_bytes = bincode::serde::encode_to_vec(&meta, bincode::config::standard()).map_err(|e| format!("meta: {e}"))?;
 
+    let mut moves: Vec<MoveRec> = lex
+        .moves
+        .iter()
+        .filter(|m| !m.k.is_empty() && m.k.len() < 80)
+        .map(|m| MoveRec {
+            k: m.k.clone(),
+            d: m.d.clone(),
+            form: form_from_name(&m.f).map(form_index).unwrap_or_else(|| {
+                warn.push(format!("unknown move form {}", m.f));
+                form_index(bd_core::mechanics::Form::Blob0)
+            }),
+            element: elem_idx(m.e.as_deref()),
+            mech: mech_bits(&m.m, &mut warn),
+            temper: m.t.as_deref().and_then(temperament_from_name).map(temperament_index).unwrap_or(NONE8),
+            scale: if m.s > 0.0 { m.s } else { 1.0 },
+            mass: if m.w > 0.0 { m.w } else { 5.0 },
+        })
+        .collect();
+    moves.sort_by(|a, b| a.k.cmp(&b.k));
+    moves.dedup_by(|a, b| a.k == b.k);
+    let moves_bytes = bincode::serde::encode_to_vec(&moves, bincode::config::standard()).map_err(|e| format!("moves: {e}"))?;
+
     let pairs = |v: &[(u32, u32)]| -> Vec<u8> {
         let mut b = Vec::with_capacity(v.len() * 8);
         for (h, x) in v {
@@ -388,6 +443,7 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         (b"RTOK", rtok),
         (b"DELS", pairs(&dels)),
         (b"PHON", pairs(&phon)),
+        (b"MOVS", moves_bytes),
     ];
     let mut out = Vec::new();
     out.extend_from_slice(data::MAGIC);
@@ -401,13 +457,14 @@ pub fn pack(json: &str) -> Result<(Vec<u8>, String), String> {
         off += b.len();
     }
     let mut summary = format!(
-        "{} entries, {} tokens, {} adjectives, {} verb forms, {} phonetic keys, {} typo deletes",
+        "{} entries, {} tokens, {} adjectives, {} verb forms, {} phonetic keys, {} typo deletes, {} moves",
         entries.len(),
         tok_rank.len(),
         meta.adjectives.len(),
         meta.verbs.len(),
         phon.len(),
-        dels.len()
+        dels.len(),
+        moves.len()
     );
     for (tag, b) in sections {
         summary.push_str(&format!("\n  {} {:.1} MB", String::from_utf8_lossy(tag), b.len() as f64 / 1e6));

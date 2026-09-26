@@ -1,0 +1,528 @@
+# Everyday phrases players type, with the expected reading. One per line:
+#   phrase | Form            (exact bd_core Form)
+#   phrase | @Category       (Held | Worn | Creature | Structure | Object)
+#   phrase | Form | Mechanic (form + a mechanic the recipe must have)
+#   phrase | @graft          (resolves as a Graft)
+# Used by tests/everyday.rs (regression) and examples/review.rs (writes docs/LEXICON_REVIEW.md).
+
+# --- the lead's compound probes
+hot wheels | Vehicle
+bumper cars | Vehicle
+slip n slide | Platform
+whoopee cushion | Blob
+bouncy castle | Trampoline
+fidget spinner | Disc | Spin
+pinata | Ball | Explodes
+piñata | Ball | Explodes
+jack in the box | Cage | Launch
+hot air balloon | Parachute | SlowFall
+wrecking ball | Ball | Heavy
+hot dog | Ball
+roller coaster | Ramp | Launch
+sucker punch | Gauntlet | Fast
+traffic jam | Vehicle | Swarm
+big mac | Ball | DropFromSky
+couch potato | Anvil
+hot potato | Ball | Explodes
+cold shoulder | Gauntlet
+red bull | @graft
+happy meal | Cage | Swarm
+ferris wheel | Disc | Spin
+merry go round | Platform | Spin
+spaghetti | Whip | Constrict
+dad joke | Blob
+# --- rides & fair
+carousel | Platform | Spin
+go kart | Vehicle
+zip line | Whip
+water slide | Ramp
+haunted house | Dome
+claw machine | Cage | Grab
+bounce house | Trampoline
+ball pit | Cage
+cotton candy | Blob
+funnel cake | Disc
+drop tower | Pillar
+teacups | Platform
+# --- food & drink
+corn dog | @Held
+cheeseburger | Ball
+hamburger | Ball
+french fries | Spear
+chicken nuggets | Ball
+baked potato | Ball
+mashed potatoes | Blob
+noodles | Whip
+ramen | Whip
+meatball | Ball
+pizza | Disc
+taco | Cage
+burrito | Cage
+sandwich | Cage
+bagel | Disc
+donut | Disc
+cupcake | Ball
+birthday cake | Anvil
+wedding cake | Pillar
+ice cream | Ball
+ice cream cone | Spear
+popsicle | Staff
+milkshake | Blob
+jelly beans | Ball
+gummy bears | Blob
+jawbreaker | Ball
+bubble gum | Blob
+candy cane | Staff
+lollipop | Hammer
+chocolate bar | Anvil
+fortune cookie | Ball
+pancakes | Disc
+waffle | Shield
+egg | Ball
+rotten eggs | Ball | Swarm
+watermelon | Ball
+coconut | Ball
+pineapple | Ball
+hot sauce | Blob
+ghost pepper | Ball | Explodes
+mustard | Blob
+ketchup | Blob
+maple syrup | Blob
+peanut butter | Blob
+jello | Blob
+popcorn | Ball | Swarm
+pretzel | Whip
+baguette | Sword
+sushi | Ball
+coffee | @graft
+espresso | @graft
+energy drink | @graft
+soda | Bomb
+mentos and coke | Rocket
+spinach | @graft
+turkey | Bird
+banana | Disc | Returning
+apple | @Object
+cheese | @Object
+bread | @Object
+steak | @Object
+# --- idioms (literal)
+one two punch | Gauntlet
+brain freeze | Ball
+hot head | Ball | Explodes
+temper tantrum | Blob
+brainstorm | Dome
+wet blanket | Cape
+elephant in the room | Quadruped
+loose cannon | Cannon
+time bomb | Bomb
+ticking time bomb | Bomb
+wild goose chase | Bird
+can of worms | Serpent
+bull in a china shop | Quadruped | Charge
+night owl | Bird
+early bird | Bird
+busy bee | Insect
+social butterfly | Insect
+copycat | Quadruped
+scaredy cat | Quadruped
+fat cat | Quadruped
+top dog | Quadruped
+underdog | Quadruped
+lone wolf | Quadruped
+black sheep | Quadruped
+guinea pig | Quadruped
+dark horse | Quadruped
+gravy train | Vehicle
+hot rod | Vehicle
+hot seat | Platform
+hot mess | Blob
+last straw | Spear
+silver bullet | Ball | Pierce
+iron fist | Gauntlet
+brick wall | Wall
+firewall | Wall
+domino effect | Pillar
+house of cards | Dome
+piece of cake | Anvil
+raining cats and dogs | Quadruped | DropFromSky
+curveball | Ball
+knuckle sandwich | Gauntlet
+helping hand | Gauntlet
+green thumb | Gauntlet
+big mouth | Cage
+cold war | Wall
+rat race | Quadruped
+# --- household & appliances
+washing machine | Cage | Spin
+dishwasher | Cage
+microwave | Cage
+oven | Cage
+toaster | Cannon
+blender | Cage | Spin
+vacuum cleaner | Gun
+roomba | Disc
+ceiling fan | Disc | Spin
+air conditioner | Anvil
+hair dryer | Gun
+clothes iron | Anvil
+lawn mower | Vehicle
+leaf blower | Gun
+garden hose | Whip
+pressure washer | Gun
+sprinkler | Pillar
+rake | Staff
+plunger | Staff | Sticky
+toilet paper | Whip
+duct tape | Whip | Sticky
+super glue | Blob | Sticky
+bubble wrap | Cape
+cardboard box | Cage
+shopping cart | Vehicle
+wheelbarrow | Vehicle
+office chair | Vehicle
+rocking chair | Anvil
+bean bag | Blob
+water bed | Trampoline
+lava lamp | Pillar
+disco ball | Ball
+chandelier | Dome | DropFromSky
+grandfather clock | Pillar
+alarm clock | Ball
+fire extinguisher | Gun
+fire hydrant | Pillar
+mailbox | Pillar
+trash can | Cage
+garbage truck | Vehicle
+dumpster | Cage
+kitchen sink | Anvil
+bathtub | Vehicle
+rubber duck | Bird
+light bulb | Ball
+extension cord | Whip
+remote control | Staff
+television | Wall
+smartphone | Shield
+laptop | Cage
+keyboard | Platform
+printer | Cannon
+paper airplane | Bird | Glide
+paper shredder | Cage
+stapler | Gun
+nail gun | Gun
+glue gun | Gun
+rubber band | Bow
+paper clip | Whip
+thumbtack | Spear
+tape measure | Whip
+swiss army knife | Sword
+pizza cutter | Disc
+cheese grater | Shield
+frying pan | Hammer
+cast iron skillet | Hammer
+wooden spoon | Hammer
+chopsticks | Spear
+pepper spray | Gun
+spray paint | Gun
+toothbrush | Staff
+revolving door | Wall | Spin
+trap door | Platform | Trap
+escalator | Ramp
+elevator | Platform
+conveyor belt | Platform
+treadmill | Platform
+punching bag | Pillar
+yoga ball | Ball
+chair | @Object
+table | Platform
+couch | Anvil
+sofa | Anvil
+bed | Trampoline
+refrigerator | Anvil
+fridge | Anvil
+lamp | @Held
+pillow | Hammer
+blanket | @Worn
+umbrella | Parachute
+broom | Staff
+mop | Staff
+bucket | @Object
+ladder | Ramp
+door | Wall
+window | @Structure
+mirror | Shield
+clock | Disc | Spin
+# --- sports gear
+baseball bat | Hammer
+cricket bat | Hammer
+hockey stick | Hammer
+hockey puck | Disc
+golf club | Hammer
+golf ball | Ball
+tennis racket | Shield
+tennis ball | Ball
+ping pong ball | Ball
+shuttlecock | Ball | SlowFall
+baseball glove | Gauntlet
+boxing gloves | Gauntlet
+hula hoop | Disc
+jump rope | Whip
+pogo stick | Staff | Bounce
+roller skates | Vehicle
+ice skates | Vehicle
+skis | Platform
+snowboard | Platform
+surfboard | Platform
+kayak | Vehicle
+canoe | Vehicle
+pool noodle | Whip
+water balloon | Ball | Explodes
+water pistol | Gun
+nerf gun | Gun
+super soaker | Gun
+paintball gun | Gun
+dodgeball | Ball
+medicine ball | Ball
+kettlebell | Anvil
+dumbbell | Anvil
+barbell | Staff
+horseshoe | Disc
+frisbee | Disc
+bowling ball | Ball
+bowling pins | Pillar
+curling stone | Boulder
+javelin | Spear
+shot put | Ball
+half pipe | Ramp
+trophy | Hammer
+basketball | Ball
+football | Ball
+soccer ball | Ball
+volleyball | Ball
+skateboard | Vehicle
+bicycle | Vehicle
+# --- toys & games
+slinky | Whip
+yo yo | Disc | Returning
+yoyo | Disc | Returning
+spinning top | Disc | Spin
+rubik's cube | Anvil
+etch a sketch | Shield
+magic 8 ball | Ball
+whoopie cushion | Blob
+silly string | Gun | Sticky
+play doh | Blob
+silly putty | Blob
+lego | Anvil
+legos | Anvil
+building blocks | Anvil
+jenga | Pillar
+tamagotchi | Ball
+teddy bear | Biped
+stuffed animal | Quadruped
+action figure | Biped
+toy soldiers | Biped | Swarm
+rc car | Vehicle
+toy train | Vehicle
+wind up toy | Biped
+jack o lantern | Ball
+snow globe | Dome
+marbles | Ball | Swarm
+bouncy ball | Ball | Bounce
+beach ball | Ball
+kite | Wings
+paper lantern | Parachute
+party popper | Bomb
+confetti cannon | Cannon
+glitter bomb | Bomb
+stink bomb | Bomb
+smoke bomb | Bomb
+pillow fight | Hammer
+snowball fight | Ball
+food fight | Ball
+dice | Anvil
+deck of cards | Disc
+playing card | Disc
+slot machine | Anvil
+pinball machine | Platform
+arcade machine | Anvil
+game controller | Gauntlet
+joystick | Staff
+balloon | Parachute
+doll | @Creature
+puzzle | @Object
+# --- vehicles & street
+ice cream truck | Vehicle
+school bus | Vehicle
+fire truck | Vehicle
+police car | Vehicle
+ambulance | Vehicle
+monster truck | Vehicle | Bounce
+golf cart | Vehicle
+zamboni | Vehicle
+unicycle | Vehicle
+segway | Vehicle
+hoverboard | Platform
+scooter | Vehicle
+traffic cone | Pillar
+traffic light | Pillar
+speed bump | Ramp
+stop sign | Shield
+manhole cover | Disc
+street lamp | Pillar
+park bench | Platform
+phone booth | Cage
+vending machine | Anvil
+gumball machine | Cannon
+piggy bank | Quadruped
+treasure chest | Cage
+car | Vehicle
+truck | Vehicle
+bus | Vehicle
+train | Vehicle
+tank | Vehicle
+helicopter | Vehicle
+airplane | Vehicle
+motorcycle | Vehicle
+tractor | Vehicle
+bulldozer | Vehicle
+submarine | Vehicle
+sailboat | Vehicle
+rocket | Rocket
+# --- weather & nature
+thunderstorm | Dome
+rain cloud | Platform
+storm cloud | Platform
+snowstorm | Dome
+hailstorm | Ball | DropFromSky
+dust devil | Pillar | Spin
+fire tornado | Pillar | Spin
+waterspout | Pillar
+tidal wave | Wall
+sinkhole | Platform
+quicksand | Platform
+landslide | Boulder
+shooting star | Boulder
+northern lights | Cape
+tumbleweed | Ball
+venus flytrap | Cage | Trap
+poison ivy | Whip
+christmas tree | Pillar
+palm tree | Pillar
+beehive | Ball | Swarm
+hornet nest | Ball | Swarm
+anthill | Pillar
+spider web | Cage | Sticky
+cobweb | Cage
+tornado | Pillar | Spin
+volcano | Pillar
+lightning | @Held
+meteor | Boulder
+cloud | Platform
+rock | Boulder
+boulder | Boulder
+tree | Pillar
+cactus | Pillar
+mushroom | Trampoline
+flower | Pillar
+# --- animals (everyday)
+dog | Quadruped
+cat | Quadruped
+horse | Quadruped
+cow | Quadruped
+pig | Quadruped
+sheep | Quadruped
+goat | Quadruped
+chicken | Bird
+duck | Bird
+goose | Bird
+eagle | Bird
+owl | Bird
+parrot | Bird
+penguin | Bird
+shark | Fish
+whale | Fish
+dolphin | Fish
+goldfish | Fish
+octopus | Blob
+jellyfish | Blob
+crab | Arachnid
+lobster | Arachnid
+spider | Arachnid
+scorpion | Arachnid
+bee | Insect
+ant | Insect
+butterfly | Insect
+mosquito | Insect
+snake | Serpent
+python | Serpent
+worm | Serpent
+frog | Quadruped
+turtle | Quadruped
+lizard | Quadruped
+crocodile | Quadruped
+elephant | Quadruped
+giraffe | @Creature
+lion | Quadruped
+tiger | Quadruped
+bear | Quadruped
+wolf | Quadruped
+fox | @Creature
+rabbit | @Creature
+squirrel | @Creature
+mouse | Quadruped
+rat | Quadruped
+gorilla | Biped
+monkey | Biped
+kangaroo | Biped
+dinosaur | Kaiju
+t rex | Kaiju
+dragon | Quadruped
+unicorn | Quadruped
+# --- tools & weapons (everyday)
+hammer | Hammer
+screwdriver | @Held
+wrench | @Held
+saw | Disc
+drill | Spear
+axe | Axe
+shovel | Staff
+pickaxe | @Held
+crowbar | @Held
+chainsaw | Sword
+knife | Sword
+scissors | Sword
+sword | Sword
+spear | Spear
+bow | Bow
+crossbow | Bow
+shield | Shield
+whip | Whip
+lasso | Whip
+rope | Whip
+chain | Whip
+net | Cage
+cage | Cage
+trap | Cage
+bomb | Bomb
+grenade | Bomb
+dynamite | Bomb
+cannon | Cannon
+gun | Gun
+flamethrower | Gun
+anvil | Anvil
+piano | Anvil
+safe | Anvil
+wall | Wall
+fence | Wall
+tower | Pillar
+castle | Wall
+house | Pillar
+igloo | Dome
+tent | Dome
+bridge | Platform
+trampoline | Trampoline
+parachute | Parachute
+jetpack | Jetpack
+wings | Wings
+cape | Cape

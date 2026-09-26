@@ -1,7 +1,7 @@
 // Brightest Day — video game icon pack (domain: games). Generated; see docs/ICONS_SCHEMA.md.
 [
     IconEntry(
-        names: ["master sword", "the master sword", "blade of evil's bane", "sword that seals the darkness", "links sword", "link's sword", "zelda sword", "mastersword"],
+        names: ["blade of evil's bane", "sword that seals the darkness", "zelda sword"],
         recipe: (
             name: "Master Sword",
             form: Sword,
@@ -325,132 +325,12 @@
         shape: None,
         source: "Nintendo (The Legend of Zelda)",
     ),
+
+
+
+
     IconEntry(
-        names: ["green shell", "koopa shell", "green koopa shell", "turtle shell", "mario shell"],
-        recipe: (
-            name: "Green Shell",
-            form: Ball,
-            mechanics: [Blunt, Ricochet, Fast],
-            element: Light,
-            scale: 0.8,
-            mass: 6.0,
-            count: 1,
-            accent: Some((0.3, 0.9, 0.3)),
-            model: Icon("green shell"),
-        ),
-        shape: Some((
-            prims: [
-                (kind: Ellipsoid, center: (0.0, 2.0, 0.0), size: (8.0, 6.0, 9.0), tint: Primary),
-                (kind: Box, center: (0.0, -1.0, 0.0), size: (11.0, 4.0, 11.0), tint: Primary, subtract: true),
-                (kind: Cylinder, center: (0.0, 1.0, 0.0), size: (9.0, 1.0, 10.0), tint: Core),
-                (kind: Ellipsoid, center: (0.0, 5.0, 0.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (-2.0, 4.0, -2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (2.0, 4.0, -2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (-2.0, 4.0, 2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (2.0, 4.0, 2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-            ],
-        )),
-        source: "Nintendo (Mario Kart)",
-    ),
-    IconEntry(
-        names: ["red shell", "red koopa shell", "homing shell"],
-        recipe: (
-            name: "Red Shell",
-            form: Ball,
-            mechanics: [Blunt, Ricochet, Homing],
-            element: Light,
-            scale: 0.8,
-            mass: 6.0,
-            count: 1,
-            accent: Some((0.9, 0.15, 0.15)),
-            model: Icon("red shell"),
-        ),
-        shape: Some((
-            prims: [
-                (kind: Ellipsoid, center: (0.0, 2.0, 0.0), size: (8.0, 6.0, 9.0), tint: Primary),
-                (kind: Box, center: (0.0, -1.0, 0.0), size: (11.0, 4.0, 11.0), tint: Primary, subtract: true),
-                (kind: Cylinder, center: (0.0, 1.0, 0.0), size: (9.0, 1.0, 10.0), tint: Core),
-                (kind: Ellipsoid, center: (0.0, 5.0, 0.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (-2.0, 4.0, -2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (2.0, 4.0, -2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (-2.0, 4.0, 2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (2.0, 4.0, 2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-            ],
-        )),
-        source: "Nintendo (Mario Kart)",
-    ),
-    IconEntry(
-        names: ["blue shell", "spiny shell", "spiny blue shell", "winged blue shell", "blue spiny shell"],
-        recipe: (
-            name: "Spiny Shell",
-            form: Bomb,
-            mechanics: [Explodes, Homing, Flies, DropFromSky],
-            element: Electric,
-            scale: 0.9,
-            mass: 8.0,
-            count: 1,
-            accent: Some((0.25, 0.5, 1.0)),
-            model: Icon("blue shell"),
-            temperament: Aggressive,
-            intensity: 1.0,
-        ),
-        shape: Some((
-            prims: [
-                (kind: Ellipsoid, center: (0.0, 2.0, 0.0), size: (8.0, 6.0, 9.0), tint: Primary),
-                (kind: Box, center: (0.0, -1.0, 0.0), size: (11.0, 4.0, 11.0), tint: Primary, subtract: true),
-                (kind: Cylinder, center: (0.0, 1.0, 0.0), size: (9.0, 1.0, 10.0), tint: Core),
-                (kind: Ellipsoid, center: (0.0, 5.0, 0.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (-2.0, 4.0, -2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (2.0, 4.0, -2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (-2.0, 4.0, 2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Ellipsoid, center: (2.0, 4.0, 2.0), size: (3.0, 1.0, 3.0), tint: Accent),
-                (kind: Cone, center: (0.0, 6.0, -2.0), size: (1.6, 3.0, 1.6), tint: Core),
-                (kind: Cone, center: (-2.0, 6.0, 1.0), size: (1.6, 3.0, 1.6), tint: Core),
-                (kind: Cone, center: (2.0, 6.0, 1.0), size: (1.6, 3.0, 1.6), tint: Core),
-                (kind: Cone, center: (0.0, 6.0, 0.0), size: (1.6, 3.0, 1.6), tint: Core),
-                (kind: Box, center: (-5.5, 3.0, 1.0), size: (2.0, 1.0, 4.0), rot_deg: (0.0, 0.0, 20.0), tint: Core),
-                (kind: Box, center: (5.5, 3.0, 1.0), size: (2.0, 1.0, 4.0), rot_deg: (0.0, 0.0, -20.0), tint: Core),
-            ],
-        )),
-        source: "Nintendo (Mario Kart)",
-    ),
-    IconEntry(
-        names: ["bob-omb", "bob omb", "bobomb", "bob-ombs", "walking bomb"],
-        recipe: (
-            name: "Bob-omb",
-            form: Bomb,
-            mechanics: [Explodes, Walks],
-            element: Fire,
-            scale: 1.0,
-            mass: 8.0,
-            count: 1,
-            accent: Some((1.0, 0.8, 0.2)),
-            model: Icon("bob-omb"),
-            temperament: Chaotic,
-            intensity: 0.6,
-        ),
-        shape: Some((
-            prims: [
-                (kind: Ellipsoid, center: (0.0, 4.0, 0.0), size: (7.0, 7.0, 7.0), tint: Primary),
-                (kind: Box, center: (-1.0, 5.0, -3.0), size: (1.0, 2.0, 1.0), tint: Core),
-                (kind: Box, center: (1.0, 5.0, -3.0), size: (1.0, 2.0, 1.0), tint: Core),
-                (kind: Cylinder, center: (0.0, 8.0, 0.0), size: (2.0, 1.0, 2.0), tint: Dark),
-                (kind: Cylinder, center: (0.0, 9.0, 0.0), size: (1.0, 2.0, 1.0), tint: Dark),
-                (kind: Box, center: (0.0, 10.0, 0.0), size: (1.0, 1.0, 1.0), tint: Core),
-                (kind: Box, center: (0.0, 4.0, 4.0), size: (1.0, 1.0, 2.0), tint: Dark),
-                (kind: Box, center: (0.0, 4.0, 5.0), size: (5.0, 3.0, 1.0), tint: Accent),
-                (kind: Box, center: (-1.5, 0.0, -0.5), size: (2.0, 1.0, 4.0), tint: Accent, part: 1),
-                (kind: Box, center: (1.5, 0.0, -0.5), size: (2.0, 1.0, 4.0), tint: Accent, part: 2),
-            ],
-            parts: [
-                (id: 1, parent: 0, pivot: (-1.5, 1.5, 0.0), role: LegBackLeft),
-                (id: 2, parent: 0, pivot: (1.5, 1.5, 0.0), role: LegBackRight),
-            ],
-        )),
-        source: "Nintendo (Super Mario)",
-    ),
-    IconEntry(
-        names: ["bullet bill", "bullet bills", "bill blaster bullet"],
+        names: ["bill blaster bullet"],
         recipe: (
             name: "Bullet Bill",
             form: Rocket,
@@ -479,7 +359,7 @@
         source: "Nintendo (Super Mario)",
     ),
     IconEntry(
-        names: ["banzai bill", "king bill"],
+        names: ["king bill"],
         recipe: (
             name: "Banzai Bill",
             form: Rocket,
@@ -555,7 +435,7 @@
         source: "Nintendo (Super Mario)",
     ),
     IconEntry(
-        names: ["super mushroom", "mario mushroom", "mushroom power-up", "mushroom powerup"],
+        names: ["mushroom power-up", "mushroom powerup"],
         recipe: (
             name: "Super Mushroom",
             form: Ball,
@@ -718,7 +598,7 @@
         source: "Nintendo (Super Mario)",
     ),
     IconEntry(
-        names: ["bowser", "king koopa", "king bowser", "bowser koopa"],
+        names: ["king bowser", "bowser koopa"],
         recipe: (
             name: "Bowser",
             form: Biped,
@@ -800,7 +680,7 @@
         source: "Nintendo (Super Mario)",
     ),
     IconEntry(
-        names: ["chain chomp", "chomp", "chain chomps"],
+        names: ["chomp"],
         recipe: (
             name: "Chain Chomp",
             form: Blob,
@@ -847,7 +727,7 @@
         source: "Nintendo (Super Mario)",
     ),
     IconEntry(
-        names: ["thwomp", "thwomps", "whomp"],
+        names: ["whomp"],
         recipe: (
             name: "Thwomp",
             form: Anvil,
@@ -981,7 +861,7 @@
         source: "Nintendo (Super Mario)",
     ),
     IconEntry(
-        names: ["yoshi", "yoshis", "ride yoshi"],
+        names: ["yoshis", "ride yoshi"],
         recipe: (
             name: "Yoshi",
             form: Biped,
@@ -1061,7 +941,7 @@
         source: "Nintendo (Mario Kart)",
     ),
     IconEntry(
-        names: ["banana peel", "mario kart banana", "banana item"],
+        names: ["mario kart banana", "banana item"],
         recipe: (
             name: "Banana Peel",
             form: Platform,
@@ -1135,7 +1015,7 @@
         source: "Nintendo (Donkey Kong)",
     ),
     IconEntry(
-        names: ["donkey kong", "dk", "donkey kong bananza"],
+        names: ["donkey kong bananza"],
         recipe: (
             name: "Donkey Kong",
             form: Biped,
@@ -1185,7 +1065,7 @@
         source: "Nintendo (Donkey Kong)",
     ),
     IconEntry(
-        names: ["kirby", "pink puffball", "kirby inhale", "poyo"],
+        names: ["kirby inhale", "poyo"],
         recipe: (
             name: "Kirby",
             form: Blob,
@@ -1223,40 +1103,7 @@
         )),
         source: "Nintendo (Kirby)",
     ),
-    IconEntry(
-        names: ["warp star", "kirby star", "kirby's warp star"],
-        recipe: (
-            name: "Warp Star",
-            form: Vehicle,
-            mechanics: [Flies, Fast, Piloted],
-            element: Light,
-            scale: 2.0,
-            mass: 20.0,
-            count: 1,
-            accent: Some((1.0, 0.9, 0.2)),
-            model: Icon("warp star"),
-        ),
-        shape: Some((
-            prims: [
-                (kind: Ellipsoid, center: (0.0, 2.0, 0.0), size: (7.0, 3.0, 7.0), tint: Primary),
-                (kind: Box, center: (0.0, 2.0, -2.5), size: (3.0, 5.0, 2.0), rot_deg: (-90.0, 0.0, 0.0), tint: Primary),
-                (kind: Box, center: (0.0, 2.0, -3.5), size: (1.2, 7.0, 1.2), rot_deg: (-90.0, 0.0, 0.0), tint: Primary),
-                (kind: Box, center: (-2.38, 2.0, -0.77), size: (3.0, 5.0, 2.0), rot_deg: (-18.86, -17.09, 84.27), tint: Primary),
-                (kind: Box, center: (-3.33, 2.0, -1.08), size: (1.2, 7.0, 1.2), rot_deg: (-18.86, -17.09, 84.27), tint: Primary),
-                (kind: Box, center: (-1.47, 2.0, 2.02), size: (3.0, 5.0, 2.0), rot_deg: (66.88, 28.39, 41.93), tint: Primary),
-                (kind: Box, center: (-2.06, 2.0, 2.83), size: (1.2, 7.0, 1.2), rot_deg: (66.88, 28.39, 41.93), tint: Primary),
-                (kind: Box, center: (1.47, 2.0, 2.02), size: (3.0, 5.0, 2.0), rot_deg: (66.88, -28.39, -41.93), tint: Primary),
-                (kind: Box, center: (2.06, 2.0, 2.83), size: (1.2, 7.0, 1.2), rot_deg: (66.88, -28.39, -41.93), tint: Primary),
-                (kind: Box, center: (2.38, 2.0, -0.77), size: (3.0, 5.0, 2.0), rot_deg: (-18.86, 17.09, -84.27), tint: Primary),
-                (kind: Box, center: (3.33, 2.0, -1.08), size: (1.2, 7.0, 1.2), rot_deg: (-18.86, 17.09, -84.27), tint: Primary),
-                (kind: Box, center: (0.0, 3.0, 0.0), size: (3.0, 1.0, 3.0), tint: Core),
-                (kind: Box, center: (0.0, 2.0, 7.5), size: (1.0, 1.0, 3.0), tint: Accent),
-                (kind: Box, center: (-1.5, 2.0, 9.0), size: (1.0, 1.0, 1.0), tint: Core),
-                (kind: Box, center: (1.5, 2.0, 9.0), size: (1.0, 1.0, 1.0), tint: Core),
-            ],
-        )),
-        source: "Nintendo (Kirby)",
-    ),
+
     IconEntry(
         names: ["king dedede hammer", "dedede hammer", "jet hammer", "king dedede"],
         recipe: (
@@ -1474,38 +1321,8 @@
         shape: None,
         source: "Nintendo (Star Fox)",
     ),
-    IconEntry(
-        names: ["master ball", "masterball"],
-        recipe: (
-            name: "Master Ball",
-            form: Ball,
-            mechanics: [Trap, Homing],
-            element: Psychic,
-            scale: 0.4,
-            mass: 1.0,
-            count: 1,
-            accent: Some((0.7, 0.3, 1.0)),
-            model: Procedural(seed: 85),
-        ),
-        shape: None,
-        source: "Nintendo/Game Freak (Pokemon)",
-    ),
-    IconEntry(
-        names: ["rare candy"],
-        recipe: (
-            name: "Rare Candy",
-            form: Ball,
-            mechanics: [Grow],
-            element: Light,
-            scale: 0.3,
-            mass: 0.5,
-            count: 1,
-            accent: Some((0.25, 0.5, 1.0)),
-            model: Procedural(seed: 843),
-        ),
-        shape: None,
-        source: "Nintendo/Game Freak (Pokemon)",
-    ),
+
+
     IconEntry(
         names: ["pal sphere", "palworld sphere"],
         recipe: (
@@ -1522,47 +1339,9 @@
         shape: None,
         source: "Pocketpair (Palworld)",
     ),
+
     IconEntry(
-        names: ["tnt", "minecraft tnt", "tnt block", "dynamite block"],
-        recipe: (
-            name: "TNT",
-            form: Bomb,
-            mechanics: [Explodes, Heavy],
-            element: Fire,
-            scale: 1.0,
-            mass: 20.0,
-            count: 1,
-            accent: Some((0.9, 0.15, 0.15)),
-            model: Icon("tnt"),
-        ),
-        shape: Some((
-            prims: [
-                (kind: Box, center: (0.0, 3.0, 0.0), size: (7.0, 7.0, 7.0), tint: Primary),
-                (kind: Box, center: (0.0, 3.0, 0.0), size: (7.2, 3.0, 7.2), tint: Core),
-                (kind: Box, center: (-2.0, 3.0, -3.6), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (-2.0, 3.0, 3.6), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (0.0, 3.0, -3.6), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (0.0, 3.0, 3.6), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (2.0, 3.0, -3.6), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (2.0, 3.0, 3.6), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (-3.6, 3.0, -2.0), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (3.6, 3.0, -2.0), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (-3.6, 3.0, 0.0), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (3.6, 3.0, 0.0), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (-3.6, 3.0, 2.0), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (3.6, 3.0, 2.0), size: (1.0, 1.0, 1.0), tint: Dark),
-                (kind: Box, center: (0.0, 6.6, 0.0), size: (5.0, 1.0, 5.0), tint: Dark),
-                (kind: Box, center: (0.0, 7.0, 0.0), size: (1.0, 1.0, 1.0), tint: Core),
-                (kind: Box, center: (-2.0, 1.0, -2.0), size: (1.0, 1.0, 1.0), tint: Accent),
-                (kind: Box, center: (2.0, 1.0, 2.0), size: (1.0, 1.0, 1.0), tint: Accent),
-                (kind: Box, center: (-2.0, 1.0, 2.0), size: (1.0, 1.0, 1.0), tint: Accent),
-                (kind: Box, center: (2.0, 1.0, -2.0), size: (1.0, 1.0, 1.0), tint: Accent),
-            ],
-        )),
-        source: "Mojang (Minecraft)",
-    ),
-    IconEntry(
-        names: ["creeper", "creepers", "minecraft creeper"],
+        names: ["creepers"],
         recipe: (
             name: "Creeper",
             form: Quadruped,
@@ -1611,7 +1390,7 @@
         source: "Mojang (Minecraft)",
     ),
     IconEntry(
-        names: ["diamond sword", "minecraft sword", "minecraft diamond sword", "netherite sword"],
+        names: ["netherite sword"],
         recipe: (
             name: "Diamond Sword",
             form: Sword,
@@ -1701,7 +1480,7 @@
         source: "Mojang (Minecraft)",
     ),
     IconEntry(
-        names: ["diamond pickaxe", "minecraft pickaxe", "netherite pickaxe"],
+        names: ["netherite pickaxe"],
         recipe: (
             name: "Diamond Pickaxe",
             form: Axe,
@@ -2604,7 +2383,7 @@
         source: "id Software (Doom)",
     ),
     IconEntry(
-        names: ["portal gun", "aperture science handheld portal device", "portal device", "portalgun", "asphd"],
+        names: ["asphd"],
         recipe: (
             name: "Portal Gun",
             form: Gun,
@@ -2633,7 +2412,7 @@
         source: "Valve (Portal)",
     ),
     IconEntry(
-        names: ["companion cube", "weighted companion cube", "portal cube", "weighted storage cube", "storage cube"],
+        names: ["weighted storage cube", "storage cube"],
         recipe: (
             name: "Companion Cube",
             form: Anvil,
@@ -2801,7 +2580,7 @@
         source: "Valve (Portal)",
     ),
     IconEntry(
-        names: ["gravity gun", "zero point energy field manipulator", "gravgun", "grav gun", "physcannon", "physgun", "physics gun"],
+        names: ["physcannon", "physgun", "physics gun"],
         recipe: (
             name: "Gravity Gun",
             form: Gun,
@@ -3174,24 +2953,7 @@
         shape: None,
         source: "FromSoftware (Elden Ring)",
     ),
-    IconEntry(
-        names: ["ornstein", "dragon slayer ornstein", "dragonslayer ornstein"],
-        recipe: (
-            name: "Ornstein",
-            form: Biped,
-            mechanics: [Pierce, Charge, Fast],
-            element: Electric,
-            scale: 2.4,
-            mass: 200.0,
-            count: 1,
-            accent: Some((1.0, 0.8, 0.2)),
-            model: Procedural(seed: 494),
-            temperament: Aggressive,
-            intensity: 0.8,
-        ),
-        shape: None,
-        source: "FromSoftware (Dark Souls)",
-    ),
+
     IconEntry(
         names: ["smough", "executioner smough"],
         recipe: (
@@ -3210,24 +2972,7 @@
         shape: None,
         source: "FromSoftware (Dark Souls)",
     ),
-    IconEntry(
-        names: ["artorias", "knight artorias", "artorias the abysswalker"],
-        recipe: (
-            name: "Artorias",
-            form: Biped,
-            mechanics: [Blade, Fast],
-            element: Shadow,
-            scale: 2.3,
-            mass: 150.0,
-            count: 1,
-            accent: Some((0.25, 0.5, 1.0)),
-            model: Procedural(seed: 619),
-            temperament: Aggressive,
-            intensity: 1.0,
-        ),
-        shape: None,
-        source: "FromSoftware (Dark Souls)",
-    ),
+
     IconEntry(
         names: ["great grey wolf sif", "sif"],
         recipe: (
@@ -3627,7 +3372,7 @@
         source: "Capcom (Monster Hunter)",
     ),
     IconEntry(
-        names: ["buster sword", "cloud's sword", "clouds sword", "cloud sword", "buster blade", "cloud strife sword"],
+        names: ["cloud strife sword"],
         recipe: (
             name: "Buster Sword",
             form: Sword,
@@ -3655,7 +3400,7 @@
         source: "Square Enix (Final Fantasy)",
     ),
     IconEntry(
-        names: ["gunblade", "gun blade", "revolver gunblade", "squall's gunblade", "lionheart"],
+        names: ["revolver gunblade", "lionheart"],
         recipe: (
             name: "Gunblade",
             form: Sword,
@@ -3944,7 +3689,7 @@
         source: "Square Enix (Final Fantasy)",
     ),
     IconEntry(
-        names: ["keyblade", "kingdom key", "key blade", "sora's keyblade", "soras keyblade", "strike raid"],
+        names: ["soras keyblade", "strike raid"],
         recipe: (
             name: "Keyblade",
             form: Sword,
@@ -5849,7 +5594,7 @@
         source: "Pocketpair (Palworld)",
     ),
     IconEntry(
-        names: ["crewmate", "among us", "amogus", "among us crewmate", "sus", "crewmates"],
+        names: ["crewmates"],
         recipe: (
             name: "Crewmate",
             form: Biped,
@@ -5881,7 +5626,7 @@
         source: "Innersloth (Among Us)",
     ),
     IconEntry(
-        names: ["impostor", "imposter", "among us impostor", "among us imposter"],
+        names: ["among us impostor", "among us imposter"],
         recipe: (
             name: "Impostor",
             form: Biped,
@@ -5931,7 +5676,7 @@
         source: "Innersloth (Among Us)",
     ),
     IconEntry(
-        names: ["pac-man ghost", "pacman ghost", "blinky", "inky", "pinky ghost", "clyde"],
+        names: ["pinky ghost"],
         recipe: (
             name: "Pac-Man Ghost",
             form: Blob,
@@ -5961,7 +5706,7 @@
         source: "Bandai Namco (Pac-Man)",
     ),
     IconEntry(
-        names: ["pac-man", "pacman", "pac man", "waka waka"],
+        names: ["waka waka"],
         recipe: (
             name: "Pac-Man",
             form: Blob,
@@ -6191,7 +5936,7 @@
         source: "Psyonix (Rocket League)",
     ),
     IconEntry(
-        names: ["spin dash", "sonic spin dash", "sonic ball", "sonic"],
+        names: ["spin dash", "sonic spin dash", "sonic ball"],
         recipe: (
             name: "Spin Dash",
             form: Ball,
@@ -6352,7 +6097,7 @@
         source: "Capcom (Mega Man)",
     ),
     IconEntry(
-        names: ["hadouken", "hadoken", "hadoukens", "fireball hadouken"],
+        names: ["hadoukens", "fireball hadouken"],
         recipe: (
             name: "Hadouken",
             form: Ball,

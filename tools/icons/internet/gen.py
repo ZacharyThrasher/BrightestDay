@@ -626,28 +626,30 @@ E(["kobold"], DND,
   R("Kobold", "Biped", ["Swarm", "Shoots"], "Light", 0.8, 15, count=5, temp="Sneaky", inten=0.7))
 
 import glob, re as _re
+sys.path.insert(0, str(ROOT / "tools/lexicon_build"))
+from dedupe_icon_names import norm as _norm  # same key normalisation as the bd_lexicon loader
 OTHER = set()
 for _p in glob.glob(str(ROOT / "assets/icons.ron")) + glob.glob(str(ROOT / "assets/icons/*.ron")):
     if _p.replace("\\", "/").endswith("internet.ron"):
         continue
     _s = open(_p, encoding="utf-8").read()
     for _m in _re.finditer(r"names:\s*\[(.*?)\]", _s, _re.S):
-        OTHER.update(_re.findall(r'"([^"]*)"', _m.group(1)))
+        OTHER.update(_norm(x) for x in _re.findall(r'"([^"]*)"', _m.group(1)))
 # Meme-y names this pack owns even if another pack also lists them (lead decision).
 KEEP = {"amogus", "among us", "amongus", "among us crewmate", "crewmate", "impostor", "imposter", "sus", "amogus sus",
         "banana peel"}
-OTHER -= KEEP
+OTHER -= {_norm(k) for k in KEEP}
 DROP_IDS = {"beyblade", "acme anvil", "cardboard box", "boxing glove", "excalibur", "cthulhu",
             "duolingo owl", "hydra"}
 _kept = []
 for (names, source, r, shape, note) in ENTRIES:
     if names[0] in DROP_IDS:
         continue
-    nn = [n for n in names if n not in OTHER]
+    nn = [n for n in names if not _norm(n) or _norm(n) not in OTHER]
     if not nn:
         print("  dropped (all names taken):", names[0]); continue
     if nn != names:
-        print("  renamed", names[0], "->", nn[0], "removed", [n for n in names if n in OTHER])
+        print("  renamed", names[0], "->", nn[0], "removed", [n for n in names if n not in nn])
     _kept.append((nn, source, r, shape, note))
 ENTRIES[:] = _kept
 UP = {"labubu": 2.0, "chimpanzini bananini": 1.8, "cappuccino assassino": 1.5, "moo deng": 1.8, "pesto": 1.6,

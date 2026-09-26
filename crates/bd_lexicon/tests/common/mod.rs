@@ -7,7 +7,14 @@ use bd_lexicon::Lexicon;
 pub fn lex() -> Option<&'static Lexicon> {
     static LEX: OnceLock<Option<Lexicon>> = OnceLock::new();
     LEX.get_or_init(|| {
-        let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/lexicon.bin");
+        // BD_LEXICON_BIN: test a freshly packed file elsewhere (icons are still read from assets/)
+        let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+        let p = std::env::var_os("BD_LEXICON_BIN").map(std::path::PathBuf::from).unwrap_or_else(|| assets.join("lexicon.bin"));
+        if std::env::var_os("BD_LEXICON_BIN").is_some() {
+            let bytes = std::fs::read(&p).ok()?;
+            let powers = std::fs::read_to_string(assets.join("powers.ron")).ok();
+            return Lexicon::from_parts(bytes, &Lexicon::icon_files(&assets), powers.as_deref()).ok();
+        }
         match Lexicon::load(&p) {
             Ok(l) => Some(l),
             Err(e) => {

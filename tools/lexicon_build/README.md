@@ -85,3 +85,14 @@ CARGO_TARGET_DIR=target/lexicon cargo test -p bd_lexicon -- --nocapture     # in
   `crates/bd_lexicon/src/tables.rs`; exhaustive matches make a stale table a compile error), then map
   words to it in `anchors.py` and rebuild.
 * Wrong reading for a word? Prefer a `WORD_ANCHORS` entry or a synset anchor over special cases in code.
+
+## Pokémon moves (`moves.py`, runtime `crates/bd_lexicon/src/pokemon.rs`)
+* PokeAPI `moves.csv` (+ names/meta) → closed-set grafts: type → element, a FAMOUS hand table (Thunderbolt =
+  Beam, Earthquake = Stomp, Surf = Repel + Charge, Body Slam = Heavy + DropFromSky, Splash = a harmless Playful
+  flop…), then name keywords (punch/claw/beam/whip…) and PokeAPI meta (trap, drain, priority, sleep…). Stat
+  moves map to a temperament or are skipped. Each move also gets a construct form for casting it alone; its
+  mechanics are exactly the graft (the sim grafts by merging recipe mechanics).
+* Multi-word move names (and "thunderbolt") become entries flagged `F_MOVE` (bare cast = `ResolutionKind::Graft`);
+  single everyday words (surf, cut, earthquake) keep their reading. All moves go to the `MOVS` section for the
+  trainer grammar: `<pokemon> use <move>`, `<pokemon>, use <move>!`, `<pokemon> <move>`, `go <pokemon>`,
+  `<pokemon> i choose you`, `use <move>`. Tests: `crates/bd_lexicon/tests/pokemon.rs`.

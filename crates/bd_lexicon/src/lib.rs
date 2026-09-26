@@ -22,6 +22,7 @@ mod icons;
 mod norm;
 mod parse;
 mod phonetic;
+mod pokemon;
 mod powers;
 pub mod tables;
 
@@ -482,19 +483,27 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
         }
         if def.file == "powers.ron" {
             // power names keep everything except single very common words ("cream" stays food)
-            let common_single =
-                !alias.contains(' ') && d.entry_id(alias).and_then(|id| d.rec(id)).map(|r| r.rank_f() >= 4.5).unwrap_or(false);
-            if !common_single {
+            // ...and hand-anchored everyday phrases ("storm cloud" isn't the weather power's pickup)
+            let rec = d.entry_id(alias).and_then(|id| d.rec(id));
+            let common_single = !alias.contains(' ') && rec.map(|r| r.rank_f() >= 4.5).unwrap_or(false);
+            let anchored_phrase = alias.contains(' ') && rec.map(|r| r.flags & data::F_ANCHOR != 0).unwrap_or(false);
+            if !common_single && !anchored_phrase {
                 continue;
             }
         }
         let Some(rec) = d.entry_id(alias).and_then(|id| d.rec(id)) else {
             continue;
         };
+        // a hand-shaped Pokemon icon beats the procedural PokeAPI entry for the same Pokemon ("ditto")
+        if rec.flags & data::F_POKEMON != 0 && (def.file.ends_with("pokemon.ron") || def.source.to_lowercase().contains("pokemon")) {
+            continue;
+        }
         let anchored = rec.flags & data::F_ANCHOR != 0;
         // Only single common words and hand-anchored phrases are protected: an exact multi-word name
         // ("man of steel", "eye of sauron") always beats a WordNet/ConceptNet phrase of the same text.
-        let common = !alias.contains(' ') && rec.flags & (data::F_ENTITY | data::F_POP | data::F_POKEMON) == 0 && rec.rank_f() >= 2.5;
+        // "Everyday" = frequency, not source: "punch" stays a punch even though a curated names file
+        // also lists it, so a zoo-monkey icon called Punch can't hijack "sucker punch" / "punch".
+        let common = !alias.contains(' ') && rec.flags & data::F_COMMON != 0;
         if anchored || common {
             drop.push(alias.clone());
         }

@@ -34,6 +34,11 @@ from pathlib import Path
 
 import sources
 import anchors as A
+import everyday
+
+# Everyday concepts (compounds, idioms, foods, rides, toys, brands) are hand anchors too; they win over
+# the general table for the few keys both define.
+A.WORD_ANCHORS.update(everyday.EVERYDAY)
 
 HERE = sources.HERE
 CACHE = sources.CACHE
@@ -90,6 +95,11 @@ def zipf(k: str) -> float:
 # ------------------------------------------------------------------------------------------------
 F_PART, F_POKEMON, F_ENTITY, F_POP, F_ANCHOR, F_PURE, F_CN, F_PERSON = 1, 2, 4, 8, 16, 32, 64, 128
 F_SPIRIT = 256
+F_MOVE = 512      # Pokemon move (tools/lexicon_build/moves.py): a bare cast resolves as a graft
+F_COMPOUND = 1024  # established multi-word unit ("hot dog"): the parser never splits it into modifier + noun
+F_COMMON = 2048    # everyday single word (wordfreq zipf >= 3.3): curated icon aliases may not steal it
+COMMON_ZIPF = 3.3
+CN_COMPOUND_DEGREE = 6
 
 
 class Entry:
@@ -643,6 +653,8 @@ def apply_word_anchor(e: Entry, spec: dict):
         e.count = spec["count"]
     if spec.get("t"):
         e.temper = spec["t"]
+    if spec.get("ft"):
+        e.feat = {f: 1.0 for f in spec["ft"]}
     if "g" in spec:
         e.graft = list(spec["g"])
     if spec.get("part"):
@@ -788,6 +800,45 @@ def load_pokemon(entries):
     log(f"pokemon: {n} species")
 
 
+# single-word move names that override an existing entry (they read as the move first)
+MOVE_OVERRIDE = {"thunderbolt"}
+
+
+def load_moves(entries):
+    """Pokemon moves (PokeAPI) -> (a) entries for distinctive move names (bare cast = graft), (b) the full move
+    table for the runtime grammar "<pokemon> use <move>" (Meta-independent MOVS section). Multi-word move names
+    override weak existing readings (pop-culture scanners, WordNet phrases); single words keep their everyday
+    reading unless in MOVE_OVERRIDE; anchors / Pokemon / Wikidata entities are never overridden."""
+    import moves as MV
+
+    table = MV.build(norm, CACHE / "pokeapi", A.FORM_DEFAULTS)
+    added = 0
+    for m in table:
+        k = m["k"]
+        old = entries.get(k)
+        multi = " " in k
+        if old is not None and k not in MOVE_OVERRIDE:
+            if not multi or old.flags & (F_POKEMON | F_ENTITY | F_ANCHOR):
+                continue
+        if not m["m"] and not m["t"]:
+            continue                        # element-only status moves stay grammar-only
+        e = Entry(k, m["d"])
+        e.form, e.fconf = m["f"], 0.9
+        e.mech = {x: 1.0 for x in m["m"]}
+        e.elem = {m["e"]: 1.0} if m["e"] else {}
+        e.graft = list(m["m"])
+        e.temper = m["t"]
+        e.scale, e.mass, e.size_src = m["s"], m["w"], "anchor"
+        e.flags |= F_MOVE | F_POP | (F_COMPOUND if multi else 0)
+        e.rank = 2.4 if m["famous"] else 2.0
+        what = "+".join(m["m"]) or (m["t"] or "flop")
+        e.why = [f"{k}: Pokémon move ({m['ty']} {m['cls']}) → {what}{' ' + m['e'] if m['e'] else ''} (PokeAPI)"]
+        entries[k] = e
+        added += 1
+    log(f"moves: {len(table)} in the move table, {added} as entries")
+    return [dict(k=m["k"], d=m["d"], f=m["f"], m=m["m"], e=m["e"], t=m["t"], s=m["s"], w=m["w"]) for m in table]
+
+
 GENERIC_CLASS_TOKENS = {"character", "characters", "agent", "mascot", "entity", "person", "human", "humanoid",
                         "people", "protagonist", "hero", "heroine", "villain", "enemy", "being", "figure",
                         "individual", "organism", "object", "thing", "work", "creature", "concept", "item",
@@ -887,6 +938,9 @@ def load_names_txt(entries, icons_dir: Path):
                 old = entries.get(k)
                 if old is not None and old.flags & (F_ANCHOR | F_POKEMON):
                     continue
+                # a curated name/alias can't take over an everyday word ("table", "goose", "shovel")
+                if old is not None and " " not in k and zipf(k) >= COMMON_ZIPF and old.fconf >= 0.3                         and not old.flags & F_CN:
+                    continue
                 ek = e if k == key else entry_from(e, k, a if (a := next((x for x in aliases.split(";") if norm(x) == k), None)) else k)
                 if k != key:
                     ek.fconf, ek.flags, ek.rank, ek.why = e.fconf, e.flags, e.rank - 0.2, [f"{k} = {name} (curated alias)"] + e.why
@@ -973,7 +1027,10 @@ def load_entities(entries, path: Path):
                         continue
                 else:
                     weak = (old.flags & F_CN) or old.fconf < 0.5 or (old.flags & F_PERSON and not old.flags & F_ANCHOR)
-                    if old.flags & (F_ANCHOR | F_POKEMON | F_POP) or not weak or links < 30:
+                    # everyday words ("cheese", "bucket", "window") keep their WordNet reading even when a
+                    # popular Wikidata item's class chain is odd
+                    everyday = " " not in key and zipf(key) >= COMMON_ZIPF
+                    if old.flags & (F_ANCHOR | F_POKEMON | F_POP) or not weak or links < 30 or everyday:
                         skipped += 1
                         continue
                     override = True
@@ -1033,6 +1090,10 @@ def load_entities(entries, path: Path):
             if latin and links < 12:
                 continue  # obscure Latin binomial with no common name
             new[key] = e
+            # a well-known named thing ("big mac") is a unit — but only when its reading is specific:
+            # a taxon whose best class is plain "animal" ("flying snake") should stay compositional
+            if " " in key and (ent.get("kind") == "type" or links >= 25) and fam not in ("taxon", "taxa") and e.fconf >= 0.55:
+                e.flags |= F_COMPOUND
             ent_links[key] = links
             if ent.get("qid"):
                 QID_KEY[ent["qid"]] = key
@@ -1157,6 +1218,12 @@ def is_profane(key: str) -> bool:
 
 def finalize(e: Entry):
     form = e.form
+    if e.flags & F_MOVE:
+        # moves carry exactly their graft mechanics (the sim grafts a recipe by merging its mechanics)
+        el = next(iter(e.elem), "Light")
+        mech = sorted(e.mech)
+        return dict(form=form, mech=mech, el=el, scale=round(float(e.scale), 3), mass=round(float(e.mass), 3),
+                    feats=[], graft=mech, gelem=el if el != "Light" else None)
     cat = A.CATEGORY[form]
     d_scale, d_mass, d_mechs, d_elem = A.FORM_DEFAULTS[form]
     plaus = A.PLAUSIBLE.get(cat, set())
@@ -1376,6 +1443,10 @@ def main():
     log(f"wordnet entries: {len(entries)}")
 
     cn_out, cn_partof = load_conceptnet(cn_path)
+    # lexicalised multi-word units: WordNet multi-word lemmas + well-connected ConceptNet concepts
+    wn_multi = {norm(l.replace("_", " ")) for l in wn.all_lemma_names("n") if "_" in l}
+    cn_multi = {t for t, ed in cn_out.items() if " " in t and len(ed) >= CN_COMPOUND_DEGREE}
+    log(f"compounds: {len(wn_multi)} WordNet multi-word lemmas, {len(cn_multi)} ConceptNet multi-word concepts")
     idx = build_concept_index()
     new = conceptnet_new_words(entries, cn_out, cn_partof, idx, wn)
     entries.update(new)
@@ -1440,6 +1511,7 @@ def main():
 
     n_ent = load_entities(entries, Path(args.entities))
     load_names_txt(entries, ASSETS / "icons")
+    move_table = load_moves(entries)
 
     # ---------- filter + finalise ----------
     out = []
@@ -1480,6 +1552,11 @@ def main():
             elif f <= -0.6:
                 e.scale = A.FORM_DEFAULTS[e.form][0] * 0.55
                 e.mass = A.FORM_DEFAULTS[e.form][1] * 0.2
+        if " " in k:
+            if e.flags & F_ANCHOR or k in wn_multi or k in cn_multi:
+                e.flags |= F_COMPOUND
+        elif z >= COMMON_ZIPF:
+            e.flags |= F_COMMON
         r = finalize(e)
         rank = e.rank if e.rank else 0.0
         rank = max(rank, z + (1.5 if e.flags & F_ANCHOR else 0.0) + (0.5 if e.flags & F_POP else 0.0))
@@ -1518,11 +1595,14 @@ def main():
 
     blocked = sorted(("*" if b.replace(" ", "") in BLOCKED_SUB else "") + b for b in BLOCKED)
     intens = sorted([norm(k), v] for k, v in A.INTENSIFIERS.items())
+    known = [w for w in wordfreq.top_n_list("en", 40000) if re.fullmatch(r"[a-z]{2,}", w) and not is_profane(w)]
     lex = dict(version=5, generated=time.strftime("%Y-%m-%d"), entries=out, adjectives=adjs, verbs=verbs,
+               known=known,
                intensifiers=intens, blocked=blocked,
                collectives=colls, inflections=[list(x) for x in infl], bias=bias,
                payload_hosts=sorted({norm(h) for h in A.PAYLOAD_HOSTS}),
                pure=[[norm(k), v[0], v[1]] for k, v in sorted(A.PURE.items())],
+               moves=move_table,
                sources=dict(conceptnet=sources.CONCEPTNET_URL, corpora=sources.CORPORA_URL,
                             wordnet=sources.WORDNET_URL, pokeapi=sources.POKEAPI_BASE,
                             entities=str(args.entities) if n_ent else None))

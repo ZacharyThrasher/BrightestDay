@@ -143,7 +143,7 @@
     ),
     // 5 ------------------------------------------------------------------------------------------
     IconEntry(
-        names: ["web shooter", "web shooters", "spider web", "web-shooter", "spiderman web shooter", "spider-man web shooter"],
+        names: ["web shooter", "web shooters", "web-shooter", "spiderman web shooter", "spider-man web shooter"],
         recipe: (
             name: "Web Shooter",
             form: Gauntlet,

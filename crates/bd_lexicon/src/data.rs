@@ -35,6 +35,12 @@ pub const F_CN: u16 = 64;
 #[allow(dead_code)]
 pub const F_PERSON: u16 = 128;
 pub const F_SPIRIT: u16 = 256;
+/// Pokémon move name ("thunderbolt", "vine whip"): a bare cast is a graft (mechanics + element).
+pub const F_MOVE: u16 = 512;
+/// Established multi-word unit ("hot dog", "roller coaster"): never split into modifier + noun.
+pub const F_COMPOUND: u16 = 1024;
+/// Everyday single word (wordfreq zipf >= 3.3): curated icon aliases may not take it over.
+pub const F_COMMON: u16 = 2048;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AdjRec {
@@ -83,6 +89,25 @@ pub struct Meta {
     pub pure: Vec<(String, u8, u8)>,
     /// Top completions for 1- and 2-character prefixes: (prefix, entry ids by rank).
     pub top_prefix: Vec<(String, Vec<u32>)>,
+}
+
+/// One Pokémon move (optional `MOVS` section, bincode `Vec<MoveRec>` sorted by `k`): what it grafts
+/// and the construct it makes when cast alone. `mech` is exactly the graft (the construct carries no
+/// other mechanics). Built from PokeAPI by tools/lexicon_build/moves.py.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MoveRec {
+    /// Normalised name ("thunderbolt", "vine whip").
+    pub k: String,
+    /// Display name ("Thunderbolt").
+    pub d: String,
+    pub form: u8,
+    /// Element index or NONE8 (normal-type moves).
+    pub element: u8,
+    pub mech: u64,
+    /// Temperament index or NONE8.
+    pub temper: u8,
+    pub scale: f32,
+    pub mass: f32,
 }
 
 /// The lexicon bytes: an owned buffer, or a read-only memory map of lexicon.bin (the default for
@@ -238,6 +263,8 @@ pub struct LexData {
     toko: (usize, usize),
     dels: (usize, usize),
     phon: (usize, usize),
+    /// Pokémon moves, sorted by key (empty for lexicons built before the MOVS section existed).
+    pub moves: Vec<MoveRec>,
 }
 
 #[derive(Debug)]
@@ -335,7 +362,22 @@ impl LexData {
         if (toko.1 - toko.0) / TOKO_SIZE != toks.len() {
             return fmt_err("TOKO/TOKS count mismatch");
         }
-        Ok(LexData { meta, keys, toks, rtok, recs, pool: get(b"POOL")?, toko, dels: get(b"DELS")?, phon: get(b"PHON")?, buf })
+        // optional: Pokémon moves (older lexicons simply have none)
+        let mut moves: Vec<MoveRec> = match secs.get(b"MOVS") {
+            Some(&(s, e)) => match bincode::serde::decode_from_slice(&buf[s..e], bincode::config::standard()) {
+                Ok((m, _)) => m,
+                Err(e) => return fmt_err(format!("MOVS: {e}")),
+            },
+            None => Vec::new(),
+        };
+        moves.sort_by(|a, b| a.k.cmp(&b.k));
+        moves.dedup_by(|a, b| a.k == b.k);
+        Ok(LexData { meta, keys, toks, rtok, recs, pool: get(b"POOL")?, toko, dels: get(b"DELS")?, phon: get(b"PHON")?, moves, buf })
+    }
+
+    /// Exact Pokémon move by normalised key.
+    pub fn move_rec(&self, key: &str) -> Option<&MoveRec> {
+        self.moves.binary_search_by(|m| m.k.as_str().cmp(key)).ok().and_then(|i| self.moves.get(i))
     }
 
     pub fn n_entries(&self) -> usize {

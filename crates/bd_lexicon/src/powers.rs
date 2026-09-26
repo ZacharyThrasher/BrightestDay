@@ -250,9 +250,10 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         }
         let pickup = get("pickup").and_then(parse_pickup);
         if let Some(n) = pickup.as_ref().and_then(|p| p.name.clone())
-            && !names.iter().any(|x| normalize_key(x) == normalize_key(&n)) {
-                names.push(n);
-            }
+            && !names.iter().any(|x| normalize_key(x) == normalize_key(&n))
+        {
+            names.push(n);
+        }
         out.push(PowerDef { id, names, incantations, kind, pickup });
     }
     (out, warnings)

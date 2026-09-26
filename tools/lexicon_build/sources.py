@@ -38,6 +38,11 @@ POKEAPI_FILES = [
     "pokemon_shapes",
     "pokemon_colors",
     "pokemon_species_names",
+    "moves",
+    "move_names",
+    "move_damage_classes",
+    "move_targets",
+    "move_meta",
 ]
 
 # ConceptNet relations we keep, with the propagation weight used by build.py.

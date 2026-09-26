@@ -10,7 +10,7 @@
 
 use bd_core::mechanics::{Element, Feature, Form, Mechanic, ModelSource, Recipe, Temperament};
 
-use crate::data::{F_ENTITY, F_PART, F_PURE, F_SPIRIT, NONE8, Rec, fnv32, fnv64};
+use crate::data::{F_ENTITY, F_MOVE, F_PART, F_PURE, F_SPIRIT, NONE8, Rec, fnv32, fnv64};
 use crate::fuzzy::{deletes1, dl_distance, edits1, max_typo};
 use crate::norm::{Tok, normalize_key, singulars, squeeze2, squeeze3, tokenize};
 use crate::phonetic::phonetic_key;
@@ -294,7 +294,7 @@ pub(crate) const GRAMMAR_WORDS: &[&str] = &[
     "animate",
 ];
 
-fn gram_of(s: &str) -> Option<Gram> {
+pub(crate) fn gram_of(s: &str) -> Option<Gram> {
     use Gram::*;
     Some(match s {
         "a" | "an" | "the" | "some" | "my" | "your" | "his" | "her" | "their" | "our" | "its" | "this" | "these" | "those" | "any"
@@ -496,7 +496,7 @@ impl Cx {
 
 impl Lexicon {
     // ------------------------------------------------------------------------------------------ lookups
-    fn entry(&self, key: &str) -> Option<(u32, Rec)> {
+    pub(crate) fn entry(&self, key: &str) -> Option<(u32, Rec)> {
         let d = self.data.as_ref()?;
         let id = d.entry_id(key)?;
         Some((id, d.rec(id)?))
@@ -879,7 +879,7 @@ impl Lexicon {
         let mut out = Vec::new();
         let mut i = 0;
         while i < toks.len() {
-            let maxn = (toks.len() - i).min(6);
+            let maxn = (toks.len() - i).min(10);
             let mut done = false;
             for n in (1..=maxn).rev() {
                 let span: String = toks[i..i + n].iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
@@ -915,7 +915,10 @@ impl Lexicon {
                             .data
                             .as_ref()
                             .and_then(|d| d.rec(id))
-                            .map(|r| r.flags & (F_ENTITY | crate::data::F_POP) != 0 && r.flags & crate::data::F_ANCHOR == 0)
+                            .map(|r| {
+                                r.flags & (F_ENTITY | crate::data::F_POP) != 0
+                                    && r.flags & (crate::data::F_ANCHOR | crate::data::F_COMPOUND) == 0
+                            })
                             .unwrap_or(false);
                         if first_mod && is_entity {
                             c.entry = None;
@@ -1269,6 +1272,10 @@ impl Lexicon {
 
     /// Incantation prefix ("gomu gomu no <phrase>") then the normal (typed/spoken) resolution.
     fn resolve_body(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
+        // Pokémon trainer grammar: "<pokemon> use <move>", "go <pokemon>", "<pokemon> i choose you"
+        if let Some(res) = self.pokemon_command(&toks, bangs, spoken) {
+            return res;
+        }
         let skip = toks.iter().take_while(|t| matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast))).count();
         let whole: String = toks[skip.min(toks.len())..].iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
         // the power's own name ("gomu gomu no mi") is not an incantation; a curated icon for the full
@@ -1350,9 +1357,12 @@ impl Lexicon {
         res
     }
 
-    fn resolve_tokens(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8) -> Resolution {
+    pub(crate) fn resolve_tokens(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8) -> Resolution {
         let mut cx = Cx { spoken, phrase: String::new(), why: Vec::new(), ignored: Vec::new(), conf_mul: 1.0, unknown: 0 };
-        let toks = self.repair(toks, &mut cx);
+        // an exact curated/lexicon name is taken as typed (no typo/compound repair of its words)
+        let whole = toks.iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
+        let exact = toks.len() > 1 && (self.icons.alias.contains_key(&whole) || self.entry(&whole).is_some());
+        let toks = if exact { toks } else { self.repair(toks, &mut cx) };
         cx.phrase = toks
             .iter()
             .filter(|t| !matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast | Gram::MakeIt | Gram::Pronoun)))
@@ -1852,8 +1862,11 @@ impl Lexicon {
             None => (Recipe::unknown(""), None, 0.0, 0, Vec::new(), None),
         };
         let head_is_part = head_flags & F_PART != 0;
+        // a Pokémon move name ("thunderbolt", "vine whip") is a graft: aim it at your own construct
+        let head_is_move = head_flags & F_MOVE != 0;
+        let move_temp = (head_is_move && recipe.temperament != Temperament::Calm).then_some(recipe.temperament);
         let has_mods = mods.n > 0 || mods.mech != 0 || mods.feat != 0 || !mods.elems.is_empty() || mods.payload.is_some();
-        let kind = if graft_mode || head.is_none() || (head_is_part && mods.payload.is_none()) {
+        let kind = if graft_mode || head.is_none() || (head_is_part && mods.payload.is_none()) || head_is_move {
             ResolutionKind::Graft
         } else {
             ResolutionKind::Construct
@@ -1884,8 +1897,8 @@ impl Lexicon {
             scale_mul: (mods.scale_mul * mods.abs_size.map(|a| a / recipe.scale.max(0.1)).unwrap_or(1.0)).clamp(0.05, 60.0),
             count: mods.count,
             features: gfeat,
-            temperament: gtemp.and_then(|(t, _)| ALL_TEMPERAMENT.get(t as usize).copied()),
-            intensity: gtemp.map(|(_, v)| v),
+            temperament: gtemp.and_then(|(t, _)| ALL_TEMPERAMENT.get(t as usize).copied()).or(move_temp),
+            intensity: gtemp.map(|(_, v)| v).or(move_temp.map(|_| 0.6)),
             payload: mods.payload.clone(),
             action: None,
         };
@@ -1962,10 +1975,10 @@ impl Lexicon {
         let words: Vec<&str> = toks.iter().map(|t| t.text.as_str()).collect();
         let n = words.len();
         let mut cands: Vec<(f32, String)> = Vec::new();
-        let push = |score: f32, s: String, cands: &mut Vec<(f32, String)>| {
-            if !cands.iter().any(|c| c.1 == s) {
-                cands.push((score, s));
-            }
+        // the same suggestion can arrive from several spans: keep its best score
+        let push = |score: f32, s: String, cands: &mut Vec<(f32, String)>| match cands.iter_mut().find(|c| c.1 == s) {
+            Some(c) => c.0 = c.0.max(score),
+            None => cands.push((score, s)),
         };
         for j in n.saturating_sub(4)..n {
             let span = words[j..].join(" ");
@@ -1987,7 +2000,10 @@ impl Lexicon {
                     } else {
                         0.0
                     };
-                    push(6.0 + bonus - pretty.len() as f32 * 0.02, join(pretty), &mut cands);
+                    // several typed words matching a curated name is a strong signal ("captain am")
+                    let multi_word = if span.contains(' ') { 1.5 } else { 0.0 };
+                    let base = if self.icons.defs.get(*i).map(|d| d.file == "icons.ron").unwrap_or(false) { 5.5 } else { 4.5 };
+                    push(base + bonus + multi_word - pretty.len() as f32 * 0.02, join(pretty), &mut cands);
                 }
             }
             if let Some(d) = self.data.as_ref() {

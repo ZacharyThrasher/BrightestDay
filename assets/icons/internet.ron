@@ -3718,7 +3718,7 @@
     ),
     // the Eddic original: short-handled, always returns
     IconEntry(
-        names: ["norse mjolnir", "mjöllnir", "mythic mjolnir", "thor's hammer (myth)"],
+        names: ["norse mjolnir", "mythic mjolnir", "thor's hammer (myth)"],
         recipe: (
             name: "Mjölnir (Norse)",
             form: Hammer,

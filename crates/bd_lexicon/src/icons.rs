@@ -176,6 +176,9 @@ pub struct Icons {
     /// informational, not authoring errors.
     pub notes: Vec<String>,
     pretty_seen: std::collections::HashSet<String>,
+    /// Aliases that came only from a recipe's display `name` (not the explicit `names` list): a later
+    /// file's explicit name takes them over silently (dc's Megamind "Minion" vs the Despicable Me minions).
+    weak: std::collections::HashSet<String>,
 }
 
 /// phonetic key -> icon indices, and single-symbol deletions of keys -> (icon, full key).
@@ -401,9 +404,17 @@ impl Icons {
             if k.is_empty() {
                 continue;
             }
+            let explicit = e.names.contains(n);
+            if explicit
+                && self.weak.contains(&k)
+                && let Some(old) = self.alias.remove(&k)
+            {
+                self.weak.remove(&k);
+                self.pretty.retain(|(_, pk, i)| !(pk == &k && *i == old));
+            }
             match self.alias.get(&k) {
                 Some(&other) if other != idx => {
-                    if e.names.contains(n) {
+                    if explicit {
                         let owner = self.defs.get(other).map(|d| format!("{} ({})", d.id, d.file)).unwrap_or_default();
                         self.warnings.push(format!("{file}: name \"{n}\" of [{id}] already used by {owner}; kept the earlier"));
                     }
@@ -413,6 +424,9 @@ impl Icons {
                 None => {}
             }
             self.alias.insert(k.clone(), idx);
+            if !explicit {
+                self.weak.insert(k.clone());
+            }
             added += 1;
             let pretty = n.to_lowercase();
             if self.pretty_seen.insert(pretty.clone()) {
