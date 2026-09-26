@@ -93,6 +93,21 @@ transferred) so small hits stay small and big hits are *huge*:
    chromatic/white flash for the victim, low-frequency thump + crack layered by material. Your own
    hits must be as satisfying to *give* as they are dramatic to *receive*.
 
+### Weight & power fantasy (pass 2)
+Hits: tiered hit-stop (light ~40 ms, medium ~80, heavy ~140, finisher ~200) with **asymmetric freeze**
+(attacker unfreezes ~30% earlier — "cuts through"); **victim hit-shake** (jitter 2–6 cm along the hit
+vector during the freeze) before knockback; camera **nudge-zoom** toward the collision (FOV −5–10% over
+2 frames, ease back) on heavy+; **finisher flash** (2–3 frames: background drops to near-black, attacker
++ victim silhouettes in corps light) on KO blows / heavy crits — off in the Comfort/photosensitivity
+preset; **directional hit sparks** (hard-light streaks along the momentum vector); **persistent marks**
+(scorch/crack decals where force dissipated, fade over ~20 s); **duck** the mix −6…−9 dB for ~300 ms on
+heavy+ hits (KOs already duck); exaggerated victim poses (C-curve spine, chin snap, feet off the
+ground); **final blow slow-mo** (match-ending KO only, cosmetic). Constructs have weight: anticipation,
+overshoot and settle scale with mass; big creatures' footsteps/landings shake the camera by distance and
+crack the ground; summoning scales an event (thunderclap, light pulse, ground shake) with size; heavy
+held items lag the view slightly and heavy swings shove the aim (recovering). All in hot-reloadable
+`assets/tuning/juice.ron`.
+
 ### Juicy text (hard-light onomatopoeia)
 Grounded in "Juicy Text" (ICMI '24; vault: JuicyText_SupplementaryMaterials): text + particles is the
 most appealing feedback, text alone is dull, words convey material well. So big impacts spawn a
