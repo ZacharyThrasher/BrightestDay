@@ -1,0 +1,39 @@
+DC / superhero items that already exist in other packs. dc.ron does NOT reuse any of these names:
+tools/icons/dc/gen.py aborts on any clash with another pack or with powers.ron.
+
+Existing entry (pack, shape?)                          -> dc.ron counterpart / note
+---------------------------------------------------------------------------------------------------------------
+batarang, batmobile (icons.ron, shaped)                -> not duplicated. dc.ron adds "tumbler", "batpod", "batcopter"
+lasso of truth (icons.ron, shaped)                     -> not duplicated. The "amazon" power's lasso move is Link
+giant fist / lantern fist, power battery (icons.ron)   -> not duplicated. dc.ron adds "central power battery"
+superman / man of steel / kal-el (film_tv, NO shape)   -> SHAPED Superman in dc.ron: "last son of krypton"
+                                                          (+ "man of tomorrow", "superman flying"...)
+                                                          SUGGESTION: move the "superman" aliases onto it
+wonder woman (film_tv bracelets, NO shape)             -> SHAPED Wonder Woman: "diana prince" (+ tiara, godkiller)
+the flash / barry allen / speed force (film_tv)        -> power "speed_force" takes over "speed force" (intended)
+aquaman / aquaman's trident (film_tv, shaped)          -> not duplicated. Added the "atlantean" power + sharks
+kilowog, guy gardner, kyle rayner (film_tv, NO shape)  -> not duplicated. The shaped Lanterns are hal jordan,
+                                                          john stewart, saint walker, arkillo, glomulus, guardians
+john stewart's mech (film_tv)                          -> SHAPED "john stewart" character (construct rifle)
+sinestro, atrocitus, larfleeze, star sapphire, blue lantern, indigo staff, black lantern/nekron, white lantern,
+mogo, parallax, dex-starr, ch'p (film_tv, NO shapes)   -> not duplicated. The ring kits are powers (8 colours)
+doomsday monster / doomsday dc (film_tv, NO shape)     -> SHAPED "doomsday" in dc.ron. Suggest merging the aliases
+darkseid / omega beams (film_tv)                       -> not duplicated. dc.ron adds parademons, steppenwolf's axe
+boom tube / mother box (film_tv)                       -> not duplicated
+the joker / joker gas (film_tv)                        -> not duplicated. dc.ron adds "joy buzzer" (no Joker char:
+                                                          "joker" normalises onto film_tv's "the joker")
+harley quinn / mallet (film_tv, shaped)                -> not duplicated
+mr. freeze / freeze gun, poison ivy, penguin's umbrella (film_tv) -> not duplicated
+bat-signal (film_tv, shaped), batwing, grappling gun (film_tv)    -> not duplicated. The grapple is the "bat_tech"
+                                                          power's Reel move
+kryptonite (film_tv, Poison boulder)                   -> used as the counter: "kryptonian" power has weak [Poison]
+krypto, supergirl, t-spheres, king shark, starro, peacemaker's helmet, hawkgirl/nth mace, sonic cannon,
+boxing glove arrow (film_tv)                           -> not duplicated (Cyborg is shaped as "victor stone")
+homelander (film_tv)                                   -> not duplicated. dc.ron adds soldier boy + the Seven
+mark grayson / omni-man / nolan grayson (film_tv, NO shape)
+                                                       -> SHAPED "invincible mark grayson". Bare "invincible" is
+                                                          left to the adjective. Suggest moving "mark grayson" here
+megazord / thunderzord (film_tv)                       -> not duplicated. dc.ron adds tyrannosaurus dinozord +
+                                                          "dinozords" (count 5, Transforms: say "combine")
+hulk "incredible hulk" (film_tv)                       -> no bare "incredible" power name, to protect it
+big daddy (games.ron)                                  -> dc.ron uses "big daddy kick-ass"

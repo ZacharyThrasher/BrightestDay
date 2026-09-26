@@ -76,12 +76,12 @@ def bane():
     for sx in (-1, 1):
         s.seg((sx * 1.4, ys + 0.2, td / 2 + 1.8), (sx * 1.6, b["y_neck"] + 2.8, 2.4), 0.8, 0.8, "A")   # venom tubes
     s.on(5)
-    hy = b["y_neck"] + 2.4
-    s.ell((0, hy, -0.4), (4.4, 4.8, 4.6), "D")                                                # luchador mask
+    hy = b["y_neck"] + 2.6
+    s.ell((0, hy, -1.2), (5.2, 5.4, 5.0), "D")                                                # luchador mask
     for sx in (-1, 1):
-        s.ell((sx * 1.0, hy + 0.4, -2.4), (1.4, 1.0, 0.5), "C")                               # white eye patches
+        s.ell((sx * 1.1, hy + 0.4, -3.6), (1.6, 1.1, 0.5), "C")                               # white eye patches
         s.cyl((sx * 2.0, hy - 0.6, 0.6), (1.0, 1.0, 1.0), "A", ALONG_X)                        # tube sockets
-    s.box((0, hy - 1.4, -2.5), (1.8, 0.8, 0.4), "P")                                           # mouth grille
+    s.box((0, hy - 1.5, -3.6), (2.0, 0.9, 0.4), "P")                                           # mouth grille
     s.part(5, 0, (0, b["y_neck"], 0), "Head")
     s.on(0)
     names = ["bane", "bane batman", "the man who broke the bat", "bane dc", "bane venom"]

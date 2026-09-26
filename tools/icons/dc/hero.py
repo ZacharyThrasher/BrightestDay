@@ -281,7 +281,7 @@ def brute(s, bulk=1.4, skin="P", leg_h=7.5, torso=(10.0, 10.0, 6.4), arm_len=10.
     b = humanoid(s, leg_h=leg_h, leg_w=3.2 * k, leg_d=3.4 * k, hip_x=2.2 * k, foot=(3.4 * k, 1.5, 4.4),
                  torso=(torso[0] * k / 1.4, torso[1], torso[2] * k / 1.4), torso_t=skin, torso_kind="v",
                  arm_w=3.2 * k, arm_len=arm_len, arm_x=(torso[0] * k / 1.4) / 2 + 1.6 * k, hand=3.4 * k,
-                 arm_t=skin, leg_t=skin, hand_t=skin, foot_t=skin, neck=0.6, arm_spread=arm_spread)
+                 arm_t=skin, leg_t=skin, hand_t=skin, foot_t=skin, neck=1.8, arm_spread=arm_spread)
     if hunch:
         s.ell((0, b["y_sh"] - 1.4, b["td"] * 0.38), (b["tw"] * 0.86, 3.4, b["td"] * 0.8), skin)   # trapezius hump
     return b

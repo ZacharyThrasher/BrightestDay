@@ -1,0 +1,12 @@
+[package]
+name = "powercheck"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bd_sim = { path = "../../../../crates/bd_sim" }
+ron = "0.10"
+
+# Standalone tool, not a workspace member.
+[workspace]
