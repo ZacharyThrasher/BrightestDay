@@ -56,11 +56,13 @@
 | path | what |
 |---|---|
 | `src/sim/player.ts` | movement: accel/friction, air-strafe, bhop buffer, slide, step-up, flight, dual tethers, reel |
-| `src/sim/world.ts`, `levels.ts` | Rapier world, entities (drones, turret, civilian, boulder…), scenes, goals, race rings |
+| `src/sim/world.ts`, `levels.ts` | Rapier world, entities (drones, turret, civilian, boulder…), scenes, goals, race rings; PvP: `world.players` (ids `p1`, `p2` …; `world.player` = the local alias), `damagePlayer(target, amount, cause, by)`, death / respawn at the spawn farthest from the opponent, `lockTarget`, `snapshotMatch()` / `stateHash()` |
+| `src/sim/match.ts` | duel rules: warmup → live → round_end → match_end, first to 3, 3-min cap + sudden death, rematch (deterministic, serializable) |
+| `src/sim/bots.ts`, `src/lang/practice.ts` | `BotController` (per-tick PlayerInput + typed commands through that player's own Director, `commitSync`), the scripted `PracticeBot`, `attachPracticeBot(world)` |
 | `src/sim/constructs/spec.ts` | the declarative construct representation |
 | `src/sim/constructs/forms.ts` | 90+ parametric shapes |
 | `src/sim/constructs/validate.ts` | the authority boundary (limits, energy budget) |
-| `src/sim/constructs/runtime.ts` | placement, bodies, 22 behaviours, cargo, impacts, launches |
+| `src/sim/constructs/runtime.ts` | placement, bodies, 22 behaviours, cargo, impacts, launches; every construct has an OWNER (player id) whose point of view resolves 'self' / 'aim' / placement / hold / follow / mount; per-player willpower (`energyOf(id)`); strikes, grabs, throws, crushes, blasts and thrown bodies hit opposing lanterns and their constructs |
 | `src/sim/constructs/joints.ts`, `machines.ts` | articulation (joint poses, synced colliders), machine locomotion (kinematic ground/hover/air controllers with their own collision queries), brains, weapons, riding, construct damage |
 | `src/sim/constructs/machine-spec.ts`, `combat.ts` | machine rigging/clamps/costs/claims; combat tuning table + predictive intercept + turn-limited chasers |
 | `src/sim/constructs/catalog/` | named articulated machines & creatures (tank, car, motorcycle, helicopter, airplane, mech, robot, dog, dragon, spider) registered as forms + lexicon concepts |

@@ -63,6 +63,15 @@ export const SUIT = {
   visor: '#9ffff0',
 };
 
+/**
+ * The rival lantern: same hero, a warm plum suit and a magenta ring, and their constructs glow in the ring's
+ * colour so "his tank" reads at a glance next to yours.
+ */
+export const RIVAL = {
+  ring: '#ff5fb0',
+  suit: { base: '#3b1f36', accent: '#62294f', visor: '#ffc9a8' } as Partial<typeof SUIT>,
+};
+
 export const ENTITY_COLORS = {
   droneBody: '#394056',
   droneTrim: '#f2f4f8',

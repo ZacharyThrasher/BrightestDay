@@ -405,9 +405,8 @@ export class WorldContent {
     const push = new Vector3(d.x, 0, d.z).normalize();
     if (id === 'player') {
       const P = w.player;
-      P.hp = Math.max(0, P.hp - ROBOT.punchDamage);
       P.hitsTaken++;
-      w.stats.playerHits++;
+      w.damagePlayer(P, ROBOT.punchDamage, 'punch', e.id, { knock: 0 });
       P.vel.addScaledVector(push, 7);
       P.vel.y = Math.max(P.vel.y, 3.5);
       w.emit('player_hit', { from: e.id, kind: 'punch', damage: ROBOT.punchDamage });

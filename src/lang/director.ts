@@ -36,13 +36,35 @@ export type DirectorListener = (r: CommitResult) => void;
 
 export class Director {
   readonly interp: Interpreter;
-  /** Whose ring this is (the creativity economy is per player; one Director per player on the host). */
-  playerId = LOCAL_PLAYER;
   private listeners: DirectorListener[] = [];
   history: CommitResult[] = [];
 
-  constructor(readonly world: World) {
+  constructor(readonly world: World, playerId: string = LOCAL_PLAYER) {
     this.interp = new Interpreter(world);
+    this.interp.playerId = playerId;
+  }
+
+  /**
+   * Whose ring this is: the creativity economy, willpower, "me/him", the crosshair and construct ownership
+   * are all per player (one Director per player on the host).
+   */
+  get playerId() { return this.interp.playerId; }
+  set playerId(id: string) { this.interp.playerId = id; }
+
+  /**
+   * Commit synchronously (System 1 only): the path bots and the host's remote players use inside the
+   * deterministic tick. One cast for the creativity economy, like commit().
+   */
+  commitSync(text: string): CommitResult {
+    const insp = this.world.inspiration;
+    insp?.beginCast(verbClasses(text), this.playerId);
+    try {
+      const r = this.interp.commitSync(text);
+      this.record(r);
+      return r;
+    } finally {
+      insp?.endCast();
+    }
   }
 
   /** Pure interpretation for previews; never changes the world. */

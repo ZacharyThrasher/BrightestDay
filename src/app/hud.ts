@@ -4,6 +4,7 @@ import type { GameRenderer } from '../render/renderer.js';
 import { Vector3 } from 'three';
 import { INSPIRED_AT } from '../sim/inspiration.js';
 import type { Slot, CastTiming, CastBests } from './typing.js';
+import { DuelHud } from './duelHud.js';
 
 export type RingStatus = 'ready' | 'typing' | 'focus' | 'interpreting' | 'formed' | 'clamped' | 'not_understood' | 'rejected';
 
@@ -26,8 +27,8 @@ function setStyle(e: HTMLElement, k: string, v: string) { if ((e.style as any)[k
 export const SCENE_KEYS = ['duel', 'city', 'playground', 'sandbox', 'flat'] as const; // PvP focus: the duel first; PvE scenes stay in code for tests/eval only
 
 const OBJECTIVES: Record<string, string> = {
-  city: 'Big city duel map — skyscrapers to swing from, rooftops to hop, a highway, sky bridges and a park in the middle. Your rival starts at the far end of the boulevard.',
-  duel: '1v1 duel arena — practise on the dummy at the far spawn. Online matches and AI rivals coming.',
+  city: 'Big city duel map — skyscrapers to swing from, rooftops to hop, a highway, sky bridges and an open park in the middle. First to 3 knockouts; your rival starts at the far end of the boulevard.',
+  duel: '1v1 duel arena — first to 3 knockouts. Type your attacks: “punch him”, “drop a piano on him”, “grab him and throw him”. Practice vs the bot from the menu.',
   playground: 'Free roam — ring run through the city, cross the canyon (east), climb the tower (west), turret outpost & drone field (south).',
   arena: 'Open arena — try anything.',
   gap: 'Cross the 25 m canyon.',
@@ -61,7 +62,10 @@ export interface HudFrame {
 /** DOM heads-up display: readable, stylish, failures always visible. */
 export class HUD {
   readonly root: HTMLElement;
-  private crosshair: HTMLElement;
+  readonly crosshair: HTMLElement;
+  /** PvP panel: health + score, kill feed, banners, damage numbers, lock-on, opponent arrow */
+  readonly duel: DuelHud;
+  private hpFill: HTMLElement;
   private speedNum: HTMLElement;
   private speedBar: HTMLElement;
   private gasFill: HTMLElement;
@@ -123,6 +127,9 @@ export class HUD {
     const sb = el('div', 'speedbar', bc);
     this.speedBar = el('i', '', sb);
     const bars = el('div', 'bars', bc);
+    const hp = el('div', 'bar hp', bars);
+    el('label', '', hp, 'HEALTH');
+    this.hpFill = el('i', '', el('div', 'track', hp));
     const gas = el('div', 'bar gas', bars);
     el('label', '', gas, 'THRUST');
     this.gasFill = el('i', '', el('div', 'track', gas));
@@ -173,6 +180,9 @@ export class HUD {
     this.help.innerHTML = HELP_HTML;
     this.perf = el('pre', 'perf hidden', this.root);
     this.menu = el('div', 'overlay menu hidden', this.root);
+    this.duel = new DuelHud(this.root, this, () => this.localPlayer);
+    this.menu.remove();
+    this.root.appendChild(this.menu); // the menu stays on top of the duel layers
   }
 
   // ------------------------------------------------------------------------------------ state changes
@@ -190,6 +200,7 @@ export class HUD {
     this.renderGoals(w);
     this.chip.classList.add('hidden');
     this.toasts.innerHTML = '';
+    this.duel.reset(w);
   }
 
   setInterpreting(on: boolean) { this.interpreting = on; }
@@ -273,6 +284,7 @@ export class HUD {
   get helpOpen() { return !this.help.classList.contains('hidden'); }
 
   onEvent(w: World, e: { type: string; [k: string]: any }) {
+    this.duel.onEvent(w, e as any);
     switch (e.type) {
       case 'ring_passed': {
         const done = w.rings.filter((r) => r.passed).length;
@@ -284,8 +296,11 @@ export class HUD {
         break;
       }
       case 'goal_reached': this.showBanner('GOAL REACHED', e.label); this.toast('good', `Goal · ${e.label}`); this.renderGoals(w); break;
-      case 'construct_rejected': this.toast('bad', `Rejected · ${e.label}: ${e.reason}`); this.flashStatus('rejected'); break;
-      case 'construct_dismissed': if (e.reason === 'budget') this.toast('note', `“${e.label}” dissolved — construct budget`); break;
+      case 'construct_rejected': if (!e.owner || e.owner === this.localPlayer) { this.toast('bad', `Rejected · ${e.label}: ${e.reason}`); this.flashStatus('rejected'); } break;
+      case 'construct_dismissed':
+        if ((!e.owner || e.owner === this.localPlayer) && e.reason === 'budget') this.toast('note', `“${e.label}” dissolved — construct budget`);
+        else if (e.owner && e.owner !== this.localPlayer && e.reason === 'destroyed') this.toast('good', `Broke their ${e.label}`, 2600);
+        break;
       case 'civilian_safe': this.toast('good', 'Civilian safe'); this.showBanner('SAVED', 'the civilian is safe'); break;
       case 'civilian_hurt': this.toast('bad', 'The civilian was hurt'); break;
       case 'inspiration': {
@@ -325,6 +340,8 @@ export class HUD {
     setStyle(this.speedBar, 'width', `${Math.min(100, (sp / 60) * 100).toFixed(1)}%`);
     this.speedNum.parentElement!.classList.toggle('fast', sp > 30);
     setStyle(this.gasFill, 'width', `${((P.gas / P.tune.gasMax) * 100).toFixed(1)}%`);
+    setStyle(this.hpFill, 'width', `${Math.max(0, Math.min(100, (P.hp / P.maxHp) * 100)).toFixed(1)}%`);
+    this.hpFill.parentElement!.parentElement!.classList.toggle('low', P.hp < 30);
     setStyle(this.willFill, 'width', `${Math.max(0, Math.min(100, (w.constructs.energy / w.constructs.energyMax) * 100)).toFixed(1)}%`);
     const insp = w.inspiration.of(f.playerId);
     const inspBar = this.inspFill.parentElement!.parentElement!;
@@ -345,8 +362,9 @@ export class HUD {
     const aim = P.aim(P.tune.tetherRange * 1.5);
     const own = w.ownerOf(aim.collider);
     const ent = own?.kind === 'entity' ? w.entities.get(own.id) : null;
+    const rival = own?.kind === 'player' && own.id !== P.id;
     const dist = aim.point.distanceTo(P.pos);
-    this.crosshair.classList.toggle('hostile', !!ent && ent.hostile && !ent.disabled);
+    this.crosshair.classList.toggle('hostile', !!ent && ent.hostile && !ent.disabled || rival);
     this.crosshair.classList.toggle('entity', !!ent);
     this.crosshair.classList.toggle('in-range', !!aim.collider && dist <= P.tune.tetherRange);
     // ring status
@@ -360,14 +378,15 @@ export class HUD {
       setText(this.statusText, STATUS_TEXT[s]);
     }
     // construct list
-    const cs = [...w.constructs.list.values()];
-    const key = cs.map((c) => c.id + c.version + (c.id === w.constructs.focusId ? '*' : '')).join('|');
+    const focusId = w.constructs.focusOf(this.localPlayer);
+    const cs = [...w.constructs.list.values()].filter((c) => c.owner === this.localPlayer);
+    const key = cs.map((c) => c.id + c.version + (c.id === focusId ? '*' : '')).join('|');
     if (key !== this.listKey) {
       this.listKey = key;
       this.list.innerHTML = '';
       if (cs.length) el('div', 'hdr', this.list, `CONSTRUCTS · ${cs.length}`);
       for (const c of cs.slice(-8)) {
-        const row = el('div', 'row' + (c.id === w.constructs.focusId ? ' focus' : '') + (c.clamps.length ? ' clamped' : ''), this.list);
+        const row = el('div', 'row' + (c.id === focusId ? ' focus' : '') + (c.clamps.length ? ' clamped' : ''), this.list);
         el('span', 'name', row, (c.name ? `${c.name}: ` : '') + c.spec.label + (c.insts.length > 1 ? ` ×${c.insts.length}` : ''));
         const life = el('i', 'life', row);
         life.dataset.id = c.id;
@@ -384,6 +403,7 @@ export class HUD {
       setText(this.objRings, `RING RUN  ${done}/${w.rings.length}  ·  ${t.toFixed(1)} s`);
     }
     this.updateMarkers(f);
+    this.duel.update(w, f.renderer);
     // perf
     if (this.perfVisible) {
       this.perfAcc += 1;

@@ -1,13 +1,15 @@
 import { Vector3, Quaternion } from 'three';
-import { initPhysics, G, ALL, groups, type Rapier, type RWorld, type RBody, type RCollider } from './physics.js';
+import { initPhysics, G, ALL, groups, PLAYER_BITS, type Rapier, type RWorld, type RBody, type RCollider } from './physics.js';
 import { Player, type PlayerInput, NO_INPUT } from './player.js';
 import { ConstructRuntime } from './constructs/runtime.js';
 import { WorldContent, type EntityAI } from './content.js';
 import { CreativityEconomy } from './inspiration.js';
+import { Match, type MatchRules, type MatchSnapshot } from './match.js';
+import type { BotController } from './bots.js';
 
 export type Owner =
   | { kind: 'static'; id: string }
-  | { kind: 'player' }
+  | { kind: 'player'; id: string }
   | { kind: 'construct'; id: string; part: number }
   | { kind: 'entity'; id: string }
   | { kind: 'projectile'; id: number };
@@ -103,6 +105,23 @@ export interface GameEvent { t: number; type: string; [k: string]: any }
 
 export interface RaceRing { id: string; pos: Vector3; normal: Vector3; radius: number; passed: boolean }
 
+/** Arena spawn point (respawns pick the one farthest from the opponents). */
+export interface SpawnPoint { pos: Vector3; yaw: number }
+
+/** Plain, serializable match state (players, constructs, rules) — what the netcode ships and hashes. */
+export interface MatchStateSnapshot {
+  tick: number;
+  time: number;
+  match: MatchSnapshot | null;
+  players: { id: string; pos: number[]; vel: number[]; yaw: number; pitch: number; hp: number; alive: boolean; respawnAt: number | null; protectedUntil: number; energy: number; gas: number; riding: string | null; heldBy: string | null; inspiration: number }[];
+  constructs: { id: string; owner: string; label: string; hp: number; insts: number[][] }[];
+  entities: { id: string; pos: number[]; hp: number }[];
+  projectiles: number;
+}
+
+/** Options for damagePlayer: knockback direction (normalised inside) and strength (1 = a solid hit). */
+export interface HitOpts { dir?: Vector3; knock?: number; pos?: Vector3 }
+
 export class World {
   R!: Rapier;
   pw!: RWorld;
@@ -111,7 +130,20 @@ export class World {
   tick = 0;
   readonly dt = 1 / 60;
   owners = new Map<number, Owner>();
+  /** The LOCAL lantern (alias of the player whose id is `localId`; single-player code keeps using it). */
   player!: Player;
+  /** Every lantern in this world (index 0 = 'p1'). */
+  players: Player[] = [];
+  /** Id of the player this machine controls (world.player). */
+  localId = 'p1';
+  /** Arena spawn points (duel: point-symmetric pairs); empty = respawn where the scene spawned the player. */
+  spawns: SpawnPoint[] = [];
+  /** Duel rules, when a match is running (null = free play). */
+  match: Match | null = null;
+  /** Stand-ins for a rival in free practice (removed when a real opponent joins). */
+  practiceDummies: string[] = [];
+  /** Scripted / AI lanterns: asked for their player's input at the start of every tick. */
+  controllers = new Map<string, BotController>();
   statics: StaticGeom[] = [];
   entities = new Map<string, Entity>();
   projectiles = new Map<number, Projectile>();
@@ -139,13 +171,254 @@ export class World {
     w.pw = new w.R.World({ x: 0, y: -22, z: 0 });
     w.pw.timestep = w.dt;
     w.eq = new w.R.EventQueue(true);
-    w.player = new Player(w);
+    w.player = w.addPlayer('p1');
     w.constructs = new ConstructRuntime(w);
     w.content = new WorldContent(w);
     w.inspiration = new CreativityEconomy(w);
-    w.player.onHit = (c, n, p) => w.constructs.onPlayerTouch(c, n, p);
+    w.listeners.push((e) => w.match?.onEvent(e));
     return w;
   }
+
+  // ---------------- players (PvP) ----------------
+
+  /** Add a lantern (the first one is the local player 'p1'). Spawns at the scene's next free spawn point. */
+  addPlayer(id = `p${this.players.length + 1}`, name?: string): Player {
+    const have = this.playerById(id);
+    if (have) return have;
+    const p = new Player(this, id, this.players.length);
+    if (name) p.name = name;
+    p.onHit = (c, n, pl) => this.constructs.onPlayerTouch(c, n, pl);
+    this.players.push(p);
+    if (this.players.length > 1) {
+      for (const d of this.practiceDummies.splice(0)) this.removeEntity(d);
+      const sp = this.spawns[this.players.length - 1] ?? this.farthestSpawn(p);
+      if (sp) { p.teleport(sp.pos); p.yaw = sp.yaw; }
+      else p.teleport(this.player.pos.clone().add(new Vector3(0, 0, -10 * (this.players.length - 1)))); // not inside the local lantern
+      this.refreshQueries();
+    }
+    this.emit('player_joined', { id, name: p.name });
+    return p;
+  }
+
+  playerById(id: string | null | undefined): Player | null {
+    if (!id) return null;
+    for (const p of this.players) if (p.id === id) return p;
+    return null;
+  }
+
+  /** The other lanterns (alive or not), nearest first. */
+  opponentsOf(id: string): Player[] {
+    const me = this.playerById(id);
+    const out = this.players.filter((p) => p.id !== id);
+    if (me) out.sort((a, b) => a.pos.distanceToSquared(me.pos) - b.pos.distanceToSquared(me.pos));
+    return out;
+  }
+
+  /** Nearest living opponent of a player (null if none). */
+  opponentOf(id: string): Player | null { return this.opponentsOf(id).find((p) => p.alive) ?? null; }
+
+  /** Set a non-local player's input for the next tick(s) (netcode / scripted tests). */
+  setInput(id: string, input: PlayerInput) { const p = this.playerById(id); if (p) p.input = input; }
+
+  /** Which player a construct / projectile / player id belongs to (for attribution). */
+  attackerOf(by: string | null | undefined): string | null {
+    if (!by) return null;
+    if (this.playerById(by)) return by;
+    const c = this.constructs?.get(by);
+    if (c) return c.owner;
+    return this.inspiration?.ownerOf(by) ?? null;
+  }
+
+  /** Collision bits of every player except `exceptId` (projectile / beam filters that must skip their owner). */
+  playerMask(exceptId?: string | null): number {
+    let m = 0;
+    for (const p of this.players) if (p.id !== exceptId) m |= p.bit;
+    return m & PLAYER_BITS;
+  }
+
+  /** Start a duel between the given players (default: everyone). Everyone respawns; constructs dissolve. */
+  startMatch(rules: Partial<MatchRules> = {}, players = this.players.map((p) => p.id)): Match {
+    this.match = null;
+    this.resetForRound();
+    this.match = new Match(this, players, rules);
+    return this.match;
+  }
+
+  /** Round (re)start: dissolve every construct, clear projectiles, respawn everyone at their spawn. */
+  resetForRound() {
+    this.constructs.dismissAll();
+    for (const p of [...this.projectiles.values()]) this.removeProjectile(p);
+    this.players.forEach((p, i) => {
+      const sp = this.spawns.length ? this.spawns[i % this.spawns.length] : null;
+      this.respawn(p, sp ?? { pos: p.pos.clone(), yaw: p.yaw }, 0);
+    });
+    this.refreshQueries();
+  }
+
+  /** Can a player be killed (duel / multiplayer)? Single-player scenes keep the old "hp floors at 0" rule. */
+  get deathEnabled() { return !!this.match || this.players.length > 1; }
+
+  /**
+   * THE player damage path (PVP_DESIGN: one attributed `damagePlayer(target, amount, cause, by)`).
+   * `by` = construct id, player id or entity id. A player's own constructs never hurt them; the spawn shield,
+   * death and a non-live match phase block damage. Hits knock the victim back (scaled by damage), flash them
+   * red and show the attacker a hit marker + number (events). Returns the damage dealt.
+   */
+  damagePlayer(target: Player, amount: number, cause: string, by?: string | null, opts: HitOpts = {}): number {
+    if (!target || !(amount > 0) || !target.alive) return 0;
+    const attacker = this.attackerOf(by);
+    if (attacker === target.id) return 0; // own constructs never hurt their owner
+    if (target.isProtected) { this.emit('player_shielded', { target: target.id, by: by ?? null, attacker }); return 0; }
+    if (this.match && !this.match.damageEnabled) return 0;
+    const dealt = Math.min(amount, target.hp);
+    const pos = opts.pos ?? target.pos;
+    if (opts.dir && opts.dir.lengthSq() > 1e-8) target.hurtDir.copy(opts.dir).normalize();
+    else target.hurtDir.set(0, 0, 0);
+    target.hurtAt = this.time;
+    target.hp = Math.max(0, target.hp - amount);
+    this.stats.playerHits++;
+    const weapon = this.weaponOf(by, cause);
+    this.emit('player_damage', { target: target.id, amount: Math.round(amount * 10) / 10, cause, by: by ?? null, attacker, weapon, hp: Math.round(target.hp), pos: [pos.x, pos.y, pos.z] });
+    // knockback: a velocity impulse scaled by the damage (no hit-stun: you keep full control)
+    // (only lanterns' constructs knock you around; PvE hazards keep their own pushes)
+    const knock = attacker ? opts.knock ?? 1 : 0;
+    if (knock > 0 && target.hurtDir.lengthSq() > 0 && !target.riding && !target.heldBy) {
+      const k = Math.min(24, 2.5 + amount * 0.45) * knock;
+      const d = target.hurtDir.clone();
+      d.y = Math.max(d.y, 0.25);
+      d.normalize();
+      target.vel.addScaledVector(d, k);
+      target.onGround = false;
+      target.launchGrace = Math.max(target.launchGrace, 0.35);
+      if (k > 12 && by) { target.flungBy = by; target.flungUntil = this.time + 1.2; }
+    }
+    if (target.hp <= 0 && this.deathEnabled) this.killPlayer(target, by ?? null, cause);
+    return dealt;
+  }
+
+  /** What to call the thing that did it (kill feed): the construct's label, else the cause. */
+  weaponOf(by: string | null | undefined, cause: string): string {
+    if (by) {
+      const c = this.constructs?.get(by);
+      if (c) return c.spec.label;
+      const e = this.entities.get(by);
+      if (e) return e.label;
+      const r = this.inspiration?.labelOf(by);
+      if (r) return r;
+    }
+    return cause;
+  }
+
+  killPlayer(target: Player, by: string | null, cause: string) {
+    if (!target.alive) return;
+    const attacker = this.attackerOf(by);
+    const weapon = this.weaponOf(by, cause);
+    if (target.riding) this.constructs.machines.dismount(target);
+    if (target.heldBy) this.constructs.releasePlayer(target, new Vector3());
+    target.alive = false;
+    target.hp = 0;
+    target.diedAt = this.time;
+    target.respawnAt = this.time + (this.match?.rules.respawnDelay ?? 3);
+    target.flungBy = null;
+    target.releaseTether('L');
+    target.releaseTether('R');
+    target.setSolid(false);
+    // a limp tumble away from the killing blow
+    target.vel.addScaledVector(target.hurtDir, 6).add(new Vector3(0, 5, 0));
+    target.onGround = false;
+    this.emit('player_killed', { target: target.id, by, attacker, cause, weapon, pos: target.pos.toArray() });
+    // a fallen lantern's constructs dissolve with them
+    for (const c of [...this.constructs.list.values()]) if (c.owner === target.id) this.constructs.dismiss(c.id, 'owner_died');
+  }
+
+  /** Spawn point farthest from the player's living opponents (null if the arena has none). */
+  farthestSpawn(p: Player): SpawnPoint | null {
+    if (!this.spawns.length) return null;
+    const foes = this.players.filter((o) => o !== p && o.alive);
+    if (!foes.length) return this.spawns[p.index % this.spawns.length];
+    let best = this.spawns[0], bd = -1;
+    for (const s of this.spawns) {
+      let d = Infinity;
+      for (const f of foes) d = Math.min(d, f.pos.distanceTo(s.pos));
+      if (d > bd + 1e-6) { bd = d; best = s; }
+    }
+    return best;
+  }
+
+  /** Bring a player back: full health and willpower, spawn shield for `protect` seconds. */
+  respawn(p: Player, at: SpawnPoint | null = this.farthestSpawn(p), protect = this.match?.rules.spawnProtection ?? 2) {
+    if (p.riding) this.constructs.machines.dismount(p);
+    if (p.heldBy) this.constructs.releasePlayer(p, new Vector3());
+    const sp = at ?? { pos: p.pos.clone(), yaw: p.yaw };
+    p.flungBy = null;
+    p.flying = false;
+    p.teleport(sp.pos);
+    p.yaw = sp.yaw;
+    p.pitch = -0.05;
+    p.hp = p.maxHp;
+    p.gas = p.tune.gasMax;
+    p.energy = this.constructs?.energyMaxOf(p.id) ?? p.energy;
+    p.alive = true;
+    p.respawnAt = Infinity;
+    p.protectedUntil = this.time + protect;
+    p.hurtAt = -Infinity;
+    p.setSolid(true);
+    this.emit('player_respawn', { id: p.id, pos: sp.pos.toArray(), yaw: sp.yaw, protectedUntil: p.protectedUntil });
+  }
+
+  /**
+   * Lock-on (PVP_DESIGN "Speed vs. hitting" §1): the opponent a cast from this player would lock onto —
+   * within ~15° of the crosshair or within 6 m of the aim ray, in line of sight. Null when nobody qualifies.
+   */
+  lockTarget(playerId: string, coneDeg = 15, rayDist = 6, maxRange = 160): Player | null {
+    const me = this.playerById(playerId);
+    if (!me || !me.alive || this.players.length < 2) return null;
+    const cam = me.camera();
+    const cos = Math.cos((coneDeg * Math.PI) / 180);
+    let best: Player | null = null, bs = Infinity;
+    const to = new Vector3();
+    for (const o of this.players) {
+      if (o === me || !o.alive) continue;
+      to.copy(o.pos).sub(cam.pos);
+      const along = to.dot(cam.dir);
+      if (along <= 0) continue;
+      const dist = to.length();
+      if (dist > maxRange) continue;
+      const perp = Math.sqrt(Math.max(0, dist * dist - along * along));
+      const inCone = along / Math.max(1e-6, dist) >= cos;
+      if (!inCone && perp > rayDist) continue;
+      // line of sight from the camera (level geometry only)
+      const hit = this.pw.castRay(new this.R.Ray(cam.pos, to.clone().divideScalar(Math.max(1e-6, dist))), Math.max(0, dist - 0.8), true, undefined, groups(G.PLAYER, G.WORLD));
+      if (hit) continue;
+      const score = perp / Math.max(1, dist) + (inCone ? 0 : 1);
+      if (score < bs) { bs = score; best = o; }
+    }
+    return best;
+  }
+
+  // ---------------- serializable match state (netcode) ----------------
+
+  /** Everything a duel's outcome depends on, as plain data (rounded for stable hashing). */
+  snapshotMatch(): MatchStateSnapshot {
+    const r = (v: number) => Math.round(v * 1000) / 1000;
+    const v3 = (v: { x: number; y: number; z: number }) => [r(v.x), r(v.y), r(v.z)];
+    return {
+      tick: this.tick,
+      time: r(this.time),
+      match: this.match?.snapshot() ?? null,
+      players: this.players.map((p) => ({
+        id: p.id, pos: v3(p.pos), vel: v3(p.vel), yaw: r(p.yaw), pitch: r(p.pitch), hp: r(p.hp), alive: p.alive,
+        respawnAt: isFinite(p.respawnAt) ? r(p.respawnAt) : null, protectedUntil: isFinite(p.protectedUntil) ? r(p.protectedUntil) : -1,
+        energy: r(p.energy), gas: r(p.gas), riding: p.riding?.id ?? null, heldBy: p.heldBy, inspiration: r(this.inspiration?.players.get(p.id)?.level ?? 0),
+      })),
+      constructs: [...this.constructs.list.values()].map((c) => ({ id: c.id, owner: c.owner, label: c.spec.label, hp: r(c.hp), insts: c.insts.map((i) => v3(i.pos)) })),
+      entities: [...this.entities.values()].map((e) => ({ id: e.id, pos: v3(this.entityPos(e)), hp: r(e.hp) })),
+      projectiles: this.projectiles.size,
+    };
+  }
+
+  /** 32-bit FNV-1a hash of snapshotMatch() (desync detection: host and client compare these). */
+  stateHash(): string { return hashString(JSON.stringify(this.snapshotMatch())); }
 
   uid(prefix: string) { return `${prefix}${this.nextId++}`; }
 
@@ -404,9 +677,8 @@ export class World {
   spawnProjectile(pos: Vector3, vel: Vector3, from: string | null, damage = 8, radius = 0.28, opts: ProjectileOpts = {}): Projectile {
     const R = this.R;
     const body = this.pw.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(pos.x, pos.y, pos.z).setLinvel(vel.x, vel.y, vel.z).setGravityScale(opts.gravity ?? 0).setCcdEnabled(true));
-    // single-player: the only player is the owner of every construct, so friendly shots skip the player group
-    // (PvP: give each player a membership bit / per-owner filter here)
-    const hits = G.WORLD | G.CONSTRUCT | G.GHOST | G.ENTITY | G.CARGO | (opts.friendly ? 0 : G.PLAYER);
+    // players: every lantern's own bit except the shot's owner (a construct's shots never touch its owner)
+    const hits = G.WORLD | G.CONSTRUCT | G.GHOST | G.ENTITY | G.CARGO | (opts.friendly || opts.ownerPlayer ? this.playerMask(opts.ownerPlayer ?? null) : G.PLAYER | PLAYER_BITS);
     const collider = this.pw.createCollider(
       R.ColliderDesc.ball(radius).setDensity(2).setCollisionGroups(groups(G.PROJECTILE, hits))
         .setActiveEvents(R.ActiveEvents.COLLISION_EVENTS)
@@ -415,11 +687,21 @@ export class World {
     );
     const p: Projectile = { id: collider.handle, body, collider, from, by: null, reflected: false, born: this.time, damage };
     if (opts.friendly) { p.friendly = true; p.owner = opts.owner ?? null; p.by = opts.owner ?? null; p.ownerPlayer = opts.ownerPlayer ?? null; p.splash = opts.splash; p.kind = opts.kind; }
+    else if (opts.ownerPlayer) { p.ownerPlayer = opts.ownerPlayer; p.owner = opts.owner ?? null; p.by = opts.owner ?? null; p.kind = opts.kind; }
     this.projectiles.set(collider.handle, p);
     this.lastProjectile = p;
     this.owners.set(collider.handle, { kind: 'projectile', id: collider.handle });
     this.stats.projectilesFired++;
     return p;
+  }
+
+  /** A reflected / re-owned shot: it now belongs to `ownerPlayer` and never touches them. */
+  reownProjectile(p: Projectile, construct: string | null, ownerPlayer: string | null) {
+    p.by = construct;
+    if (p.friendly) p.owner = construct;
+    p.ownerPlayer = ownerPlayer;
+    const hits = G.WORLD | G.CONSTRUCT | G.GHOST | G.ENTITY | G.CARGO | this.playerMask(ownerPlayer);
+    p.collider.setCollisionGroups(groups(G.PROJECTILE, hits));
   }
 
   removeProjectile(p: Projectile) {
@@ -439,24 +721,52 @@ export class World {
     this.pw.timestep = dt;
   }
 
+  /**
+   * One 60 Hz tick. `input` drives the LOCAL player; other players use their controller (bots) or the input
+   * last given with setInput() (netcode). Edge-triggered keys (fly toggle, use) fire once.
+   */
   step(input: PlayerInput = NO_INPUT) {
     const dt = this.dt;
     this.input = input;
+    this.player.input = input;
+    for (const [id, ctl] of this.controllers) { const p = this.playerById(id); if (p && p !== this.player) p.input = ctl.tick(this); }
     this.constructs.preStep(dt);
-    this.player.update(input, dt);
+    for (const p of this.players) {
+      p.update(p.input, dt);
+      if (p !== this.player && (p.input.flyToggle || p.input.use)) p.input = { ...p.input, flyToggle: false, use: false };
+    }
     this.updateEntities(dt);
     this.pw.step(this.eq);
     this.handleEvents();
     this.content.postStep(dt);
     this.constructs.postStep(dt);
+    this.updatePlayersLife();
     this.checkGoals();
     this.time += dt;
     this.tick++;
+    this.match?.update();
     for (const h of this.tickHooks) h();
+  }
+
+  /** Respawns, fall-out-of-the-world deaths. */
+  private updatePlayersLife() {
+    for (const p of this.players) {
+      if (!p.alive) {
+        if (this.time >= p.respawnAt) this.respawn(p);
+        continue;
+      }
+      if (p.pos.y < -60 && this.deathEnabled) {
+        p.hurtDir.set(0, 1, 0);
+        const by = p.flungBy;
+        this.damagePlayer(p, p.hp + 1, 'fall', by);
+        if (p.alive) this.respawn(p);
+      }
+    }
   }
 
   private updateEntities(dt: number) {
     const ppos = this.player.pos;
+    const alivePlayers = this.players.length > 1 ? this.players.filter((p) => p.alive) : null;
     for (const e of this.entities.values()) {
       const p = this.entityPos(e);
       const v = this.entityVel(e);
@@ -477,11 +787,13 @@ export class World {
           e.body.resetForces(true);
         }
         if (free && e.hostile) {
-          if (e.variant === 'heavy') this.entityFire(e, p, ppos, dt, 1.9, 24, 12, 0.36);
-          else this.entityFire(e, p, ppos, dt, 2.6, 26);
+          const tp = alivePlayers ? nearestPos(alivePlayers, p) ?? ppos : ppos;
+          if (e.variant === 'heavy') this.entityFire(e, p, tp, dt, 1.9, 24, 12, 0.36);
+          else this.entityFire(e, p, tp, dt, 2.6, 26);
         }
       } else if (e.type === 'turret') {
-        if (!e.disabled && e.hostile) this.entityFire(e, p.clone().add(new Vector3(0, 1.6, 0)), ppos, dt, 0.45, 30);
+        const tp = alivePlayers ? nearestPos(alivePlayers, p) ?? ppos : ppos;
+        if (!e.disabled && e.hostile) this.entityFire(e, p.clone().add(new Vector3(0, 1.6, 0)), tp, dt, 0.45, 30);
       } else if (e.ai) {
         this.content.updateEntity(e, p, v, dt);
       } else if (e.type === 'civilian') {
@@ -573,18 +885,25 @@ export class World {
     if (!p) return;
     if (p.friendly) { this.constructs.machines.projectileHit(p, other); return; }
     switch (other.kind) {
-      case 'player':
-        this.player.hp = Math.max(0, this.player.hp - p.damage);
-        this.player.hitsTaken++;
-        this.stats.playerHits++;
-        this.emit('player_hit', { from: p.from, kind: 'shot', damage: p.damage });
+      case 'player': {
+        const target = this.playerById(other.id);
+        if (!target || target.id === p.ownerPlayer) { this.removeProjectile(p); break; }
+        // a construct's 'shoot' bullets carry their own damage; a shot sent back by a mirror hits hard
+        const shoot = !!p.ownerPlayer && p.kind === 'shoot';
+        const dmg = shoot ? p.damage * 0.9 : p.reflected ? 20 : p.damage;
+        const v = p.body.linvel();
+        target.hitsTaken++;
+        this.damagePlayer(target, dmg, shoot ? 'shot' : p.reflected ? 'reflected' : 'shot', p.by ?? p.from, { dir: new Vector3(v.x, v.y, v.z), knock: 0.5 });
+        this.emit('player_hit', { from: p.from, kind: 'shot', damage: dmg, target: target.id, by: p.by });
         this.removeProjectile(p);
         break;
+      }
       case 'construct': {
+        const con = this.constructs.get(other.id);
         this.stats.projectilesBlocked++;
         const res = this.constructs.onProjectile(other.id, p);
-        this.emit('blocked', { construct: other.id, reflected: res === 'reflect' });
-        if (res === 'reflect') { this.stats.projectilesReflected++; p.reflected = true; p.by = other.id; }
+        this.emit('blocked', { construct: other.id, reflected: res === 'reflect', from: p.by ?? p.from, owner: con?.owner ?? null });
+        if (res === 'reflect') { this.stats.projectilesReflected++; p.reflected = true; this.reownProjectile(p, other.id, con?.owner ?? null); }
         else this.removeProjectile(p);
         break;
       }
@@ -622,4 +941,17 @@ export class World {
 
   /** Which entity/construct does a collider belong to? */
   ownerOf(c: RCollider | null): Owner | null { return c ? this.owners.get(c.handle) ?? null : null; }
+}
+
+function nearestPos(ps: Player[], from: Vector3): Vector3 | null {
+  let best: Vector3 | null = null, bd = Infinity;
+  for (const p of ps) { const d = p.pos.distanceToSquared(from); if (d < bd) { bd = d; best = p.pos; } }
+  return best;
+}
+
+/** 32-bit FNV-1a as 8 hex chars. */
+export function hashString(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, '0');
 }

@@ -482,6 +482,9 @@ export class CreativityEconomy {
     return p;
   }
 
+  /** Label of a construct the economy remembers (still known after it dissolved: kill feed). */
+  labelOf(constructId: string): string | null { return this.remembered.get(constructId)?.label ?? null; }
+
   /** Owner of a construct as far as the economy knows (the player whose cast made it). */
   ownerOf(constructId: string): string | null {
     const c = this.w.constructs?.get(constructId) as (Construct & { owner?: string }) | null;
@@ -512,7 +515,7 @@ export class CreativityEconomy {
   }
 
   private sigContext(verbs: string[]): SignatureContext {
-    const P = this.w.player;
+    const P = this.w.playerById(this.caster) ?? this.w.player;
     let aimType: string | null = null;
     try {
       const own = this.w.ownerOf(P.aim(300).collider) as any;
@@ -639,7 +642,8 @@ export class CreativityEconomy {
     const unusual = (typical ? C.typical : 1) / (1 + uses);
     const bonus = C[job] * unusual;
     p.level = clamp01(p.level + bonus);
-    if (r.owner === LOCAL_PLAYER) this.w.constructs.energy = Math.min(p.energyMax, this.w.constructs.energy + C.energy * unusual);
+    const rt = this.w.constructs;
+    if (rt && this.w.playerById(r.owner)) rt.setEnergy(r.owner, Math.min(p.energyMax, rt.energyOf(r.owner) + C.energy * unusual));
     p.stats.creative++;
     const reason = `${what} ${JOB_TEXT[job]} with ${article(r.noun)}`;
     this.w.emit('creative_solution', { player: r.owner, against, construct: constructId, label: r.label, job, unusual: r2(unusual), bonus: r2(bonus), typical, reason });

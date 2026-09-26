@@ -12,6 +12,7 @@
 import { Vector3 } from 'three';
 import type { World, Entity } from '../sim/world.js';
 import type { Construct } from '../sim/constructs/runtime.js';
+import type { Player } from '../sim/player.js';
 import { type ConstructSpec, type Behavior, type Ref, type Part, type PlacementAt, defaultSpec, cloneSpec, type Vec3 } from '../sim/constructs/spec.js';
 import { buildForm, mountPoint, FORMS } from '../sim/constructs/forms.js';
 import { specExtent } from '../sim/constructs/geom.js';
@@ -37,6 +38,8 @@ interface Ctx {
   aimConstruct: Construct | null;
   /** PvP: the lantern under the crosshair (if the world reports players as collider owners) */
   aimPlayer: string | null;
+  /** aimPlayer came from lock-on (the crosshair was near the opponent, not on them) */
+  locked?: boolean;
   aimNormal: Vector3;
   focus: Construct | null;
   corrections: Correction[];
@@ -91,8 +94,37 @@ export class Interpreter {
   recipes = new Map<string, ConstructSpec>();
   onRecipeLearned: ((phrase: string, spec: ConstructSpec) => void) | null = null;
 
+  /** Whose ring this is: "me", "my", 'self', the crosshair, "him" are resolved from this lantern's point of view. */
+  playerId = 'p1';
+
   constructor(private w: World) {
-    w.tickHooks.push(() => this.tickPending());
+    w.tickHooks.push(() => this.w.constructs.as(this.playerId, () => this.tickPending()));
+  }
+
+  /** This interpreter's lantern (the local player if it isn't in the world). */
+  get me(): Player { return this.w.playerById(this.playerId) ?? this.w.player; }
+
+  /**
+   * Synchronous commit (System 1 only, no escalation): what bots and the host use for other players' typed
+   * commands inside the deterministic tick. Same planning and applying as commit().
+   */
+  commitSync(text: string): CommitResult {
+    const t0 = now();
+    const { ops, ctx, normalized } = this.plan(text, false);
+    const interp = this.toInterpretation(text, normalized, ops, ctx, now() - t0);
+    const applied = this.apply(interp.ops, ctx);
+    const res: CommitResult = {
+      ...interp,
+      applied: applied.ids.length > 0 || applied.changed,
+      messages: [...ctx.notes, ...applied.messages],
+      clamps: applied.clamps,
+      constructIds: applied.ids,
+      latencyMs: now() - t0,
+      escalated: false,
+    };
+    this.lastEffect = this.effectReport(res, ctx, applied);
+    this.w.emit('interpretation', { text, summary: res.summary, applied: res.applied, abstain: res.abstain, confidence: res.confidence, source: res.source, player: this.playerId });
+    return res;
   }
 
   // =========================================================================== public
@@ -237,16 +269,23 @@ export class Interpreter {
   // =========================================================================== planning
 
   private makeCtx(): Ctx {
-    const P = this.w.player;
+    const P = this.me;
     const aim = P.aim(300);
     const own = this.w.ownerOf(aim.collider);
     const aimEntity = own?.kind === 'entity' ? this.w.entities.get(own.id) ?? null : null;
     const aimConstruct = own?.kind === 'construct' ? this.w.constructs.get(own.id) : null;
-    const aimPlayer = (own as any)?.kind === 'player' && String((own as any).id) !== this.myId() ? String((own as any).id) : null;
-    let focus = this.w.constructs.get(this.w.constructs.focusId);
+    let aimPlayer = (own as any)?.kind === 'player' && String((own as any).id) !== this.myId() ? String((own as any).id) : null;
+    // lock-on: the crosshair within ~15° of the opponent (or 6 m of the ray) locks them, unless it rests on a
+    // creature or a construct right there (PVP_DESIGN "Speed vs. hitting" §1)
+    let locked = false;
+    if (!aimPlayer && !aimEntity && !(aimConstruct && this.isForeign(aimConstruct))) {
+      const lock = this.w.lockTarget?.(this.playerId);
+      if (lock) { aimPlayer = lock.id; locked = true; }
+    }
+    let focus = this.w.constructs.get(this.w.constructs.focusOf(this.playerId));
     if (focus && this.isForeign(focus)) focus = [...this.w.constructs.list.values()].reverse().find((c) => !this.isForeign(c)) ?? null;
     return {
-      aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, aimPlayer, focus,
+      aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, aimPlayer, locked, focus,
       corrections: [], notes: [], approximations: [], unknownWords: [], confidence: 0.92, defaultsUsed: 0, source: 'rule',
       lastEntity: this.lastEntityId ? this.w.entities.get(this.lastEntityId) ?? null : null, createdThisUtterance: [], touchedEntities: new Set(), pending: [],
       modTags: [], intents: new Set(), targetKinds: new Set(), priorOps: [], addressees: null, extraFns: new Set(),
@@ -254,6 +293,10 @@ export class Interpreter {
   }
 
   plan(text: string, partial: boolean): { ops: Op[]; ctx: Ctx; normalized: string } {
+    return this.w.constructs.as(this.playerId, () => this.planAs(text, partial));
+  }
+
+  private planAs(text: string, partial: boolean): { ops: Op[]; ctx: Ctx; normalized: string } {
     const ctx = this.makeCtx();
     let raw = expandShorthand(text);
     for (const u of UNSUPPORTED) {
@@ -401,7 +444,7 @@ export class Interpreter {
     // naming one from earlier brings it back ("the car" after it was dismissed)
     if (v === null && c.objects.length === 1 && !c.preps.length && obj?.det && ['the', 'that', 'my'].includes(obj.det) && obj.concept) {
       const live = [...this.w.constructs.list.values()].filter((x) => x.spec.concept === obj.concept!.id);
-      if (live.length) { this.w.constructs.focusId = live[live.length - 1].id; ctx.focus = live[live.length - 1]; ctx.intents.add('control'); return [{ op: 'control', action: 'cancel' }]; }
+      if (live.length) { this.w.constructs.setFocus(this.playerId, live[live.length - 1].id); ctx.focus = live[live.length - 1]; ctx.intents.add('control'); return [{ op: 'control', action: 'cancel' }]; }
       const prev = [...this.createdHistory].reverse().find((sp) => sp.concept === obj.concept!.id);
       if (prev) { const s2 = cloneSpec(prev); s2.provenance = { source: 'cache', confidence: 0.85, notes: ['brought back'] }; ctx.modTags.push('recall'); ctx.intents.add('control'); ctx.intents.add('create'); return [{ op: 'create', spec: s2 }]; }
     }
@@ -586,17 +629,17 @@ export class Interpreter {
     }
     // anchors go where they're useful: on top of what you're pointing at; elevators go up to it
     if (concept.cls === 'rope' && spec.placement.at === 'aim' && !ctx.aimEntity) spec.placement = { ...spec.placement, at: 'target', target: { kind: 'point', p: this.ledgeTop(ctx).toArray() as Vec3 } };
-    if ((concept.id === 'ladder' || concept.id === 'stairs' && ctx.aimNormal.y < 0.5) && !ctx.aimEntity && ctx.aimPoint.distanceTo(this.w.player.pos) < 60) {
+    if ((concept.id === 'ladder' || concept.id === 'stairs' && ctx.aimNormal.y < 0.5) && !ctx.aimEntity && ctx.aimPoint.distanceTo(this.me.pos) < 60) {
       const top = this.ledgeTop(ctx);
       const g = ctx.aimPoint.clone();
-      const baseY = this.w.player.pos.y - 0.9;
+      const baseY = this.me.pos.y - 0.9;
       const rise = top.y - baseY;
       if (rise > 3) {
         if (concept.id === 'ladder') { spec.stretch = [1, Math.min(12, rise / 8 + 0.1), 1]; spec.placement = { ...spec.placement, at: 'target', target: { kind: 'point', p: [g.x + ctx.aimNormal.x * 0.4, baseY, g.z + ctx.aimNormal.z * 0.4] } }; }
         else { spec.stretch = [1, rise / 4 + 0.1, Math.max(1, rise / 4)]; }
       }
     }
-    if (concept.id === 'elevator') spec.behaviors = spec.behaviors.map((b) => (b.type === 'lift' ? { ...b, height: Math.max(8, Math.min(45, this.ledgeTop(ctx).y - this.w.player.pos.y + 3)) } : b));
+    if (concept.id === 'elevator') spec.behaviors = spec.behaviors.map((b) => (b.type === 'lift' ? { ...b, height: Math.max(8, Math.min(45, this.ledgeTop(ctx).y - this.me.pos.y + 3)) } : b));
     if (np?.absExtent) {
       const ext = specExtent({ ...spec, stretch: undefined });
       const cur = [ext.size.x, ext.size.y, ext.size.z][np.absExtent.axis] || 1;
@@ -762,7 +805,7 @@ export class Interpreter {
   /** Resolve a reference word to entities (for action verbs) — never guesses silently: notes are recorded. */
   resolveEntities(r: RefWord | null, ctx: Ctx, forVerb: VerbClass | null): Entity[] {
     const all = [...this.w.entities.values()];
-    const P = this.w.player.pos;
+    const P = this.me.pos;
     const dist = (e: Entity) => this.w.entityPos(e).distanceTo(P);
     const alive = (e: Entity) => !e.disabled || e.type === 'civilian' || e.type === 'boulder' || e.type === 'crate';
     if (!r) {
@@ -781,7 +824,7 @@ export class Interpreter {
       if (ctx.aimEntity && pool.includes(ctx.aimEntity) && r.which !== 'other') return [ctx.aimEntity];
       if (ctx.lastEntity && pool.includes(ctx.lastEntity) && r.which !== 'other') return [ctx.lastEntity];
       // nothing under the crosshair: nearest in view cone, else nearest
-      const look = this.w.player.look(new Vector3());
+      const look = this.me.look(new Vector3());
       const inView = pool.filter((e) => this.w.entityPos(e).sub(P).normalize().dot(look) > 0.8).sort((a, b) => dist(a) - dist(b));
       const pick = (r.which === 'other' ? pool.filter((e) => e !== ctx.aimEntity && e !== ctx.lastEntity) : inView.length ? inView : pool).sort((a, b) => dist(a) - dist(b))[0] ?? pool[0];
       return [pick];
@@ -813,7 +856,7 @@ export class Interpreter {
       // a group made in one go (count > 1): split the member out so it can be edited on its own
       const group = ctx.focus && ctx.focus.insts.length > 1 ? ctx.focus : null;
       if (group) {
-        const P = this.w.player;
+        const P = this.me;
         const right = P.right(new Vector3());
         const idx = group.insts.map((_, i) => i);
         const side = (i: number) => group.insts[i].pos.clone().sub(P.pos).dot(right);
@@ -870,14 +913,14 @@ export class Interpreter {
     }
     if (r?.kind === 'place') {
       const p = ctx.aimPoint.clone();
-      if (r.place === 'sky' || r.place === 'air') p.copy(this.w.player.pos).add(new Vector3(0, 30, 0)).addScaledVector(this.w.player.forward(), 10);
-      if (r.place === 'ground' || r.place === 'floor') p.y = Math.min(p.y, this.w.player.pos.y - 0.9);
+      if (r.place === 'sky' || r.place === 'air') p.copy(this.me.pos).add(new Vector3(0, 30, 0)).addScaledVector(this.me.forward(), 10);
+      if (r.place === 'ground' || r.place === 'floor') p.y = Math.min(p.y, this.me.pos.y - 0.9);
       return { ref: { kind: 'point', p: p.toArray() as Vec3 }, entities: [], kind: 'location' };
     }
     if (r && (r.kind === 'entity' || r.kind === 'person' || (r.kind === 'construct' || r.kind === 'constructs') && forVerb && ENTITY_VERBS.has(forVerb))) {
       const es = this.resolveEntities(r, ctx, forVerb);
       if (es.length) {
-        const cam = this.w.player.camera();
+        const cam = this.me.camera();
         const inCone = (e: Entity) => this.w.entityPos(e).sub(cam.pos).normalize().dot(cam.dir) > 0.975;
         const kind = es.length === 1 && (ctx.aimEntity === es[0] || inCone(es[0])) ? 'aimed_entity' : es.length === 1 && es[0] === this.w.constructs.nearestEnemy() ? 'nearest_enemy' : es.length > 1 ? 'aimed_entity' : 'other';
         for (const e of es) ctx.touchedEntities.add(e.id);
@@ -909,11 +952,11 @@ export class Interpreter {
         case 'over': case 'above': case 'on top of': case 'upon':
           if (np.ref?.kind === 'place' && ['gap', 'canyon', 'chasm', 'pit', 'hole', 'ravine', 'river'].includes(np.ref.place!)) { spec.placement = { ...spec.placement, at: 'span' }; break; }
           if (['ramp', 'stairs', 'slide'].includes(spec.concept) && p.prep === 'over') {
-            const top = this.ledgeTop(ctx).y - (this.w.player.pos.y - 0.9);
+            const top = this.ledgeTop(ctx).y - (this.me.pos.y - 0.9);
             const ext = specExtent({ ...spec, stretch: undefined });
             const k = Math.max(1, (top + 1.5) / Math.max(1, ext.size.y));
             spec.stretch = [1, k, Math.max(1, k * 0.8)];
-            const d = this.w.player.pos.distanceTo(ctx.aimPoint);
+            const d = this.me.pos.distanceTo(ctx.aimPoint);
             spec.placement = { ...spec.placement, at: 'ground_front', distance: Math.max(2, d - ext.size.z * Math.max(1, k * 0.8) / 2 - 2) };
             break;
           }
@@ -1077,19 +1120,19 @@ export class Interpreter {
 
   // --------------------------------------------------------------------------- PvP: opponents and their constructs
 
-  private myId(): string { return String((this.w.player as any).id ?? 'p1'); }
+  private myId(): string { return this.playerId; }
 
   /** Other lanterns in the match. Duck-typed: world.opponents (array|fn), world.players (Map|array) or world.opponent. */
   opponents(): { id: string; pos: Vector3 | null }[] {
     const W: any = this.w;
-    const me = W.player;
+    const me = this.me;
     const pool: any[] = [];
     const add = (x: any) => { if (x && typeof x === 'object' && x !== me && !pool.includes(x) && (x.id === undefined || String(x.id) !== this.myId())) pool.push(x); };
     const src = typeof W.opponents === 'function' ? W.opponents() : W.opponents;
     if (src && typeof src[Symbol.iterator] === 'function') for (const x of src) add(x);
     if (W.players && typeof W.players === 'object') for (const x of (W.players instanceof Map ? W.players.values() : Array.isArray(W.players) ? W.players : Object.values(W.players))) add(x);
     add(W.opponent);
-    const P = this.w.player.pos;
+    const P = this.me.pos;
     return pool.filter((x) => x.alive !== false && x.dead !== true)
       .map((x) => ({ id: String(x.id ?? 'opponent'), pos: x.pos instanceof Vector3 ? x.pos : null }))
       .sort((a, b) => (a.pos ? a.pos.distanceTo(P) : 1e9) - (b.pos ? b.pos.distanceTo(P) : 1e9));
@@ -1352,7 +1395,7 @@ export class Interpreter {
   }
 
   private orderOps(m: Extract<Order, { kind: 'brain' }>, targets: Construct[], ctx: Ctx): Op[] {
-    const P = this.w.player;
+    const P = this.me;
     let tref: Ref | null = null;
     let tkind: string | null = null;
     const forVerb: VerbClass = m.goal === 'hunt' ? 'strike' : m.goal === 'fetch' ? 'grab' : m.goal === 'guard' ? 'protect' : m.goal === 'follow' ? 'follow' : 'create';
@@ -1608,8 +1651,8 @@ export class Interpreter {
           intent('create');
           return [{ op: 'create', spec }];
         }
-        if (selfTarget && (v === 'reel' || v === 'pull') && (this.w.player.tethers.L || this.w.player.tethers.R)) {
-          for (const t of [this.w.player.tethers.L, this.w.player.tethers.R]) if (t) t.autoReel = true;
+        if (selfTarget && (v === 'reel' || v === 'pull') && (this.me.tethers.L || this.me.tethers.R)) {
+          for (const t of [this.me.tethers.L, this.me.tethers.R]) if (t) t.autoReel = true;
           intent('act'); ctx.targetKinds.add('self');
           return [{ op: 'control', action: 'cancel' }];
         }
@@ -1619,7 +1662,7 @@ export class Interpreter {
             intent('create');
             const inst = instrument && (instrument.concept || instrument.unknownHead) ? instrument : null;
             const cid = inst?.concept?.id ?? 'elevator';
-            const h = Math.max(8, Math.min(45, this.ledgeTop(ctx).y - this.w.player.pos.y + 3));
+            const h = Math.max(8, Math.min(45, this.ledgeTop(ctx).y - this.me.pos.y + 3));
             return [{ op: 'create', spec: create(cid, inst, [], { at: cid === 'tornado' ? 'self' : 'under_self', orient: 'face_away' }, (s) => {
               if (!s.behaviors.some((b) => b.type === 'field' && (b as any).mode === 'lift')) { s.behaviors = s.behaviors.filter((b) => b.type !== 'lift'); s.behaviors.push({ type: 'lift', target: { kind: 'self' }, height: h }); }
               else { s.behaviors.push({ type: 'follow', target: { kind: 'self' }, offset: [0, -4, 0] }); s.lifetime = Math.min(s.lifetime, 6 + h / 8); }
@@ -1651,7 +1694,7 @@ export class Interpreter {
         const dest = destP ? this.refFor(destP.np, ctx, 'throw') : { ref: null as Ref | null, entities: [] as Entity[], kind: 'none' };
         // no destination and the crosshair is on the thing being thrown: fling it far ahead
         const aimOnPatient = !destP && ctx.aimEntity && (patient?.ref || tgt.entities.includes(ctx.aimEntity));
-        const ahead = this.w.player.pos.clone().addScaledVector(this.w.player.forward(), 35).add(new Vector3(0, 6, 0));
+        const ahead = this.me.pos.clone().addScaledVector(this.me.forward(), 35).add(new Vector3(0, 6, 0));
         const destRef: Ref = dest.ref && dest.ref.kind !== 'self' ? dest.ref : { kind: 'point', p: (aimOnPatient ? ahead : ctx.aimPoint).toArray() as Vec3 };
         if (dest.ref) ctx.targetKinds.add(dest.kind);
         const speed = 42 * speedK;
@@ -1807,7 +1850,7 @@ export class Interpreter {
         return [{ op: 'create', spec }];
       }
       case 'launch': case 'climb': case 'cross': case 'carry': case 'ride': case 'descend': {
-        const aimFar = ctx.aimPoint.distanceTo(this.w.player.pos);
+        const aimFar = ctx.aimPoint.distanceTo(this.me.pos);
         const toPlace = destP ? this.refFor(destP.np, ctx, v).ref : null;
         const destPoint: Vec3 = toPlace && toPlace.kind === 'point' ? toPlace.p : (v === 'climb' || v === 'launch' || v === 'carry' || v === 'cross' ? this.ledgeTop(ctx) : ctx.aimPoint).toArray() as Vec3;
         // vehicles / wearables named explicitly: "ride a dragon", "fly me with wings"
@@ -1835,8 +1878,8 @@ export class Interpreter {
         let dest = new Vector3(...destPoint);
         if (over) {
           const top = this.ledgeTop(ctx);
-          const flat = ctx.aimPoint.clone().sub(this.w.player.pos).setY(0).normalize();
-          dest = ctx.aimPoint.clone().addScaledVector(flat, 9).setY(Math.max(this.w.player.pos.y - 0.9, 0));
+          const flat = ctx.aimPoint.clone().sub(this.me.pos).setY(0).normalize();
+          dest = ctx.aimPoint.clone().addScaledVector(flat, 9).setY(Math.max(this.me.pos.y - 0.9, 0));
           (ctx as any).clearY = top.y + 3;
         }
         const target: Ref | undefined = v === 'launch' && !toPlace && !c.particle && !over ? undefined : { kind: 'point', p: dest.toArray() as Vec3 };
@@ -1861,7 +1904,7 @@ export class Interpreter {
         const heavyTarget = tgt.entities.some((e) => e.type === 'boulder');
         if (heavyTarget && (instrument?.concept?.id === 'pusher' || instrument?.concept?.cls === 'vehicle' || ['bulldoze', 'plow', 'plough', 'shove'].includes(verb))) {
           const e = tgt.entities[0];
-          const spec = create(instrument?.concept?.id === 'pusher' || !instrument?.concept ? 'pusher' : 'pusher', instrument?.concept?.id === 'pusher' ? instrument : null, [{ type: 'sweep', width: 18, speed: 8 }], { at: 'between', target: { kind: 'entity', id: e.id }, orient: 'face_away', distance: Math.max(3, this.w.entityPos(e).distanceTo(this.w.player.pos) - 6) }, (s) => { s.scale = Math.max(s.scale, 2.4); s.motion = 'kinematic'; s.behaviors = s.behaviors.filter((b) => b.type !== 'hold'); });
+          const spec = create(instrument?.concept?.id === 'pusher' || !instrument?.concept ? 'pusher' : 'pusher', instrument?.concept?.id === 'pusher' ? instrument : null, [{ type: 'sweep', width: 18, speed: 8 }], { at: 'between', target: { kind: 'entity', id: e.id }, orient: 'face_away', distance: Math.max(3, this.w.entityPos(e).distanceTo(this.me.pos) - 6) }, (s) => { s.scale = Math.max(s.scale, 2.4); s.motion = 'kinematic'; s.behaviors = s.behaviors.filter((b) => b.type !== 'hold'); });
           intent('create'); intent('act');
           return [{ op: 'create', spec }];
         }
@@ -2243,7 +2286,7 @@ export class Interpreter {
         ctx.intents.add('act'); ctx.modTags.push('add_behavior'); ctx.targetKinds.add('previous_construct');
         return cons.map((con) => {
           const s2 = cloneSpec(con.spec);
-          const onIt = this.w.player.groundCollider && con.insts.some((i) => i.colliders.includes(this.w.player.groundCollider!));
+          const onIt = this.me.groundCollider && con.insts.some((i) => i.colliders.includes(this.me.groundCollider!));
           const under = s2.placement.at === 'under_self' || onIt;
           s2.behaviors = s2.behaviors.filter((b) => b.type !== 'lift');
           s2.behaviors.push({ type: 'lift', target: under ? { kind: 'self' } : { kind: 'construct', id: con.id }, height: h });
@@ -2279,7 +2322,7 @@ export class Interpreter {
 
   /** Pick the most useful function the scene calls for; visible as an assumption, lower confidence. */
   private situational(c: Clause, ctx: Ctx, dirWords: string[] | null): Op[] {
-    const P = this.w.player;
+    const P = this.me;
     const note = (m: string) => { ctx.approximations.push(`assumed: ${m}`); ctx.confidence = Math.min(ctx.confidence, 0.6); };
     const empty: Clause = { ...c, objects: [], preps: [], purpose: null, causative: false, subject: null, particle: null, bareAdjs: [] };
     if (dirWords) {
@@ -2335,7 +2378,7 @@ export class Interpreter {
     const req = need[goal];
     if (!req || req.some((f) => have.has(f))) return [];
     const aim = ctx.aimPoint;
-    const P = this.w.player;
+    const P = this.me;
     const empty: Clause = { ...purpose, objects: [], preps: purpose.preps, purpose: null, causative: false, subject: null, bareAdjs: [] };
     ctx.approximations.push(`added a helper so you can ${purpose.verb ?? goal}`);
     if (goal === 'climb' && aim.y - P.pos.y > 4 && aim.distanceTo(P.pos) < 70) {
@@ -2561,7 +2604,7 @@ export class Interpreter {
     const t = obj?.ref?.kind === 'construct' ? this.resolveConstructs(obj.ref, ctx, obj) : [];
     const list = t.length ? t : holders.length ? holders : ctx.focus ? [ctx.focus] : [];
     const ops: Op[] = list.map((x) => ({ op: 'act', target: x.id, action: 'release' }));
-    if (this.w.player.tethers.L || this.w.player.tethers.R) ops.push({ op: 'control', action: 'tether_release' });
+    if (this.me.tethers.L || this.me.tethers.R) ops.push({ op: 'control', action: 'tether_release' });
     return ops.length ? ops : [{ op: 'abstain', reason: 'not holding anything' }];
   }
 
@@ -2610,6 +2653,11 @@ export class Interpreter {
   // =========================================================================== applying
 
   private apply(ops: Op[], ctx: Ctx): { ids: string[]; changed: boolean; clamps: string[]; messages: string[] } {
+    // everything the runtime resolves while applying ('self', placement, the crosshair) is from this lantern's view
+    return this.w.constructs.as(this.playerId, () => this.applyAs(ops, ctx));
+  }
+
+  private applyAs(ops: Op[], ctx: Ctx): { ids: string[]; changed: boolean; clamps: string[]; messages: string[] } {
     const ids: string[] = [];
     const clamps: string[] = [];
     const messages: string[] = [];
@@ -2629,8 +2677,8 @@ export class Interpreter {
             if ((op.spec as any)._launchNow) {
               const launch = r.construct.spec.behaviors.find((b) => b.type === 'launch') as any;
               if (launch?.target) this.w.constructs.launchPlayerTo(this.w.constructs.refPos(launch.target)!, launch.speed, launch.clearY);
-              else { this.w.player.vel.y = Math.max(this.w.player.vel.y, launch?.speed ?? 30); this.w.player.onGround = false; }
-              this.w.emit('launch', { construct: r.construct.id, speed: Math.round(this.w.player.vel.length()) });
+              else { this.me.vel.y = Math.max(this.me.vel.y, launch?.speed ?? 30); this.me.onGround = false; }
+              this.w.emit('launch', { construct: r.construct.id, speed: Math.round(this.me.vel.length()) });
             }
             for (const p of ctx.pending.filter((q) => q.opIndex === idx)) this.pendings.push({ p: { ...p, construct: r.construct.id }, ids: [r.construct.id], deadline: this.w.time + 5 });
           } else messages.push(`✖ ${r.report.rejected}`);
@@ -2661,7 +2709,7 @@ export class Interpreter {
           changed = true;
           if (op.action === 'dismiss_all') this.w.constructs.dismissAll();
           else if (op.action === 'undo') this.undo(messages);
-          else if (op.action === 'tether_release') { this.w.player.releaseTether('L'); this.w.player.releaseTether('R'); }
+          else if (op.action === 'tether_release') { this.me.releaseTether('L'); this.me.releaseTether('R'); }
           else if (op.action === 'save' && op.target) {
             const con = this.w.constructs.get(op.target);
             if (con) { const s = cloneSpec(con.spec); this.saved.set(op.name!, s); con.name = op.name!; messages.push(`saved as “${op.name}”`); }
@@ -2671,7 +2719,7 @@ export class Interpreter {
         case 'ride': {
           // seat the player via whichever ride API the app/runtime exposes; always announce it as an event
           const id = op.target.kind === 'construct' ? op.target.id : null;
-          const P: any = this.w.player, C: any = this.w.constructs;
+          const P: any = this.me, C: any = this.w.constructs;
           const fn = P.ride ?? P.mountConstruct ?? C.ride ?? C.board;
           let ok = false;
           try { if (id && typeof fn === 'function') ok = fn.call(fn === P.ride || fn === P.mountConstruct ? P : C, id) !== false; } catch (e) { messages.push('✖ could not get in: ' + String(e).slice(0, 60)); }
@@ -2681,7 +2729,7 @@ export class Interpreter {
           break;
         }
         case 'dismount': {
-          const P: any = this.w.player, C: any = this.w.constructs;
+          const P: any = this.me, C: any = this.w.constructs;
           const fn = P.dismount ?? P.unmount ?? C.dismount;
           try { if (typeof fn === 'function') fn.call(fn === C.dismount ? C : P); } catch { /* nothing to get out of */ }
           this.w.emit('dismount_request', {});
@@ -2800,7 +2848,7 @@ export class Interpreter {
   }
 
   private contextSummary(ctx: Ctx) {
-    const P = this.w.player;
+    const P = this.me;
     const surf = ctx.aimEntity ? null : ctx.aimPoint.distanceTo(P.pos) > 200 ? 'sky/far' : ctx.aimNormal.y > 0.7 ? (ctx.aimPoint.y > P.pos.y + 3 ? 'high ledge/roof' : 'ground') : 'wall/side of something';
     return {
       aim: ctx.aimEntity ? { entity: `entity:${ctx.aimEntity.id}`, type: ctx.aimEntity.type } : { point: ctx.aimPoint.toArray().map((x) => Math.round(x)), surface: surf, distance: Math.round(ctx.aimPoint.distanceTo(P.pos)) },

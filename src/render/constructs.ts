@@ -70,6 +70,9 @@ export class ConstructViews {
   private baseColor: Color;
   private beams: MachineBeam[] = [];
   focusId: string | null = null;
+  /** Constructs of anyone but this player are drawn in `rivalColor` (unless the spec names a colour). */
+  localOwner = 'p1';
+  rivalColor = new Color('#ff5fb0');
 
   constructor(color: string, private fx: FX) {
     this.baseColor = new Color(color);
@@ -89,7 +92,7 @@ export class ConstructViews {
 
   /** Called after every sim tick. */
   tick(w: World, handPos: Vector3) {
-    this.focusId = w.constructs.focusId;
+    this.focusId = w.constructs.focusOf(this.localOwner);
     for (const c of w.constructs.drainRemoved()) {
       const v = this.views.get(c.id);
       if (!v) continue;
@@ -146,7 +149,8 @@ export class ConstructViews {
     const jointGroups = new Set((c.spec.joints ?? []).map((j) => j.group));
     const groupOf = (i: number) => { const g = c.spec.parts[i]?.group; return g && jointGroups.has(g) ? g : null; };
     const names: (string | null)[] = [null, ...(c.spec.joints ?? []).map((j) => j.group).filter((g) => c.spec.parts.some((p) => p.group === g))];
-    const color = new Color(tintFor(c.spec.color, '#' + this.baseColor.getHexString()));
+    const own = c.owner === this.localOwner ? this.baseColor : this.rivalColor;
+    const color = new Color(tintFor(c.spec.color, '#' + own.getHexString()));
     const u = hardlightUniforms(color);
     u.uShell.value = c.spec.parts.some((p) => p.role === 'shell' || p.shape === 'dome') ? 1 : 0;
     const back = fillMaterial(u, BackSide);

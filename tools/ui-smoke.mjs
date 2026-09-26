@@ -151,5 +151,56 @@ if (teth.aimed) {
   } else { await win.keyboard.up('KeyQ'); console.log(`  (note: tether did not attach at ${teth.dist.toFixed(0)} m; tether-carry check skipped)`); }
 }
 
+// ---- practice vs bot: the menu button starts a duel against a scripted rival lantern
+await win.keyboard.press('Escape').catch(() => {});
+await win.waitForTimeout(400);
+await win.evaluate(() => document.exitPointerLock?.());
+await win.waitForTimeout(400);
+const menuShown = await win.evaluate(() => !document.querySelector('.menu')?.classList.contains('hidden'));
+if (!menuShown) await fail('menu did not come back after releasing the mouse');
+await win.click('button.practice');
+await win.waitForFunction(() => window.hardlightApp.world?.players?.length === 2 && !!window.hardlightApp.world.match, null, { timeout: 10000 }).catch(() => fail('Practice vs bot did not start a duel'));
+ok('menu "Practice vs bot" loads a duel with a rival lantern and match rules');
+const duel = await win.evaluate(async () => {
+  const app = window.hardlightApp, w = app.world;
+  app.setManual(true);
+  const hud = () => ({
+    panel: !document.querySelector('.duel')?.classList.contains('hidden'),
+    names: [...document.querySelectorAll('.duel .side .name')].map((e) => e.textContent),
+    score: document.querySelector('.duel .score')?.textContent,
+    clock: document.querySelector('.duel .clock')?.textContent,
+  });
+  const P = w.player, B = w.playerById('p2');
+  // step through the warmup and a few seconds of live play with the local lantern facing the bot
+  for (let i = 0; i < 60 * 9; i++) {
+    const d = B.pos.clone().sub(P.pos);
+    app.stepSim({ moveX: 0, moveZ: 0, yaw: Math.atan2(-d.x, -d.z), pitch: -0.05, jump: false, crouch: false, boost: false, hookL: false, hookR: false, reel: false, flyToggle: false, descend: false });
+  }
+  const phase = w.match.phase;
+  const botCasts = w.log.filter((e) => e.type === 'construct_formed' && e.owner === 'p2').length;
+  // land a hit on the bot with a construct of ours: damage number + hit marker show up
+  B.protectedUntil = -1;
+  // bring the bot into reach (the spawns are 72 m apart with the tower between them) and face it
+  w.controllers.clear();
+  B.teleport(P.pos.clone().add(P.forward().multiplyScalar(12)));
+  w.refreshQueries();
+  window.__hl.aimAt([B.pos.x, B.pos.y, B.pos.z]);
+  P.yaw = app.input.yaw; P.pitch = app.input.pitch;
+  const r = await app.commit('smash him with a hammer');
+  for (let i = 0; i < 90; i++) { await app.nextFrame(); app.stepSim({ moveX: 0, moveZ: 0, yaw: P.yaw, pitch: P.pitch, jump: false, crouch: false, boost: false, hookL: false, hookR: false, reel: false, flyToggle: false, descend: false }); if (document.querySelector('.duel-floats .dmg')) break; }
+  const dmgShown = !!document.querySelector('.duel-floats .dmg');
+  const hits = w.log.filter((e) => e.type === 'player_damage' && e.attacker === 'p1' && e.target === 'p2').length;
+  await app.nextFrame();
+  const h = hud();
+  app.setManual(false);
+  return { phase, botCasts, summary: r?.summary, hits, dmgShown, hud: h, bot: B.hp };
+});
+if (duel.phase !== 'live') await fail(`duel did not go live after the warmup: ${JSON.stringify(duel)}`);
+if (duel.botCasts < 1) await fail(`the bot never cast anything: ${JSON.stringify(duel)}`);
+if (!duel.hud.panel || !/–/.test(duel.hud.score ?? '')) await fail(`duel HUD panel missing: ${JSON.stringify(duel.hud)}`);
+if (duel.hits < 1) await fail(`"smash him with a hammer" did not hurt the bot: ${JSON.stringify(duel)}`);
+if (!duel.dmgShown) console.log('  (note: damage number had already faded when sampled)');
+ok(`practice duel live · bot cast ${duel.botCasts}× · HUD ${JSON.stringify(duel.hud)} · "${duel.summary}" hit the bot (hp ${Math.round(duel.bot)})`);
+
 console.log('UI smoke OK');
 await app.close();

@@ -35,5 +35,13 @@ export function groups(member: number, filter: number): number {
   return ((member & 0xffff) << 16) | (filter & 0xffff);
 }
 
-/** What the player's movement collides with. */
-export const PLAYER_MOVE_FILTER = groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY);
+/**
+ * Per-player membership bits (PvP): every lantern's capsule is a member of G.PLAYER plus its own bit, so a
+ * query/projectile can include every player except one (a construct's shots never touch their owner).
+ * Bits 256..32768 → up to 8 players.
+ */
+export const PLAYER_BITS = 0xff00;
+export function playerBit(index: number): number { return (256 << Math.max(0, Math.min(7, index))) & PLAYER_BITS; }
+
+/** What the player's movement collides with (other lanterns body-block). */
+export const PLAYER_MOVE_FILTER = groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY | G.PLAYER);
