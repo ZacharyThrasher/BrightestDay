@@ -117,10 +117,26 @@ transferred) so small hits stay small and big hits are *huge*:
 - **Property tests:** lexicon (any string ⇒ valid recipe < 1 ms), voxels (carve/collapse invariants),
   net (random bytes never crash).
 - **Graceful degradation:** unknown word ⇒ blob; no clang ⇒ voice stub; no cloudflared ⇒ LAN + hint.
+- **Watchable soak:** `brightest_day --soak-view --seed N` renders a live chaos world (bots casting
+  random combinations, auto-director camera, overlay with each cast's phrase + tick time + invariant
+  counter; freezes on a failure with its seed). Headless soak writes `--stats` JSON → coverage
+  dashboard (mechanic-pair matrix, tick-time histogram, failures).
 - **One gate:** `tools/check.ps1` (fmt, clippy, tests, 2-min soak, stress bench thresholds, client
   smoke: launch + screenshot + `--bench`). Nothing integrates unless green.
 - **Vertical slice before breadth:** move → bots + ring blast → few constructs → 2-player net →
   breadth.
+
+## Character costumes (built with the same ring vocabulary)
+Lobby → "Costume": type any phrase ("knight with a fox head", "robot pirate", "shark", "toaster",
+"eeyore", "goku"); the lexicon resolves it and `bd_shapes::costume(recipe) -> ShapeSpec` **dresses a
+fixed humanoid rig**: creatures donate their head (+ cosmetic tail stub/ears/fin/horns), objects become
+helmets/props at head scale, features/mechanics become accessories (Armor → pauldrons, Wings → small
+wings, Cape, Spikes, Antenna, Smokestack hat), icons/Wikidata characters use their curated/category look.
+Colours = corps + accent. Guardrails: **cosmetic only** (identical hitbox/movement/abilities), cosmetic
+volume ≤ ~1.2× the player hull, always a humanoid core so all animations work, first-person hands show
+the costume's gloves + ring. UI: turntable preview, 3–4 seed variants per phrase, randomise, simple
+tweaks (accent colour, head scale, accessory toggles), preset gallery for non-typers. The costume
+phrase + seed + tweaks are sent once at join.
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
