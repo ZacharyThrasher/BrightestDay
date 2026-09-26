@@ -8,6 +8,10 @@
 
 #[cfg(feature = "backrooms")]
 pub mod backrooms;
+#[cfg(feature = "cybertron")]
+pub mod cybertron;
+#[cfg(feature = "ember")]
+pub mod ember;
 pub mod miami;
 pub mod orbit;
 #[cfg(feature = "valley")]
@@ -21,6 +25,10 @@ use crate::arena::ArenaInfo;
 
 #[cfg(feature = "backrooms")]
 pub use backrooms::{BACKROOMS_SIZE_VOXELS, generate_backrooms};
+#[cfg(feature = "cybertron")]
+pub use cybertron::{CYBERTRON_SIZE_VOXELS, generate_cybertron};
+#[cfg(feature = "ember")]
+pub use ember::{EMBER_SIZE_VOXELS, generate_ember};
 pub use miami::{MIAMI_SIZE_VOXELS, generate_miami};
 pub use orbit::{ORBIT_SIZE_VOXELS, generate_orbit};
 #[cfg(feature = "valley")]

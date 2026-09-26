@@ -268,6 +268,61 @@ pub mod mat {
     pub const HYPER_FRAME: Material = 148;
     /// White roof / wall panels with a faint blue cast (breakable: holes into the cars).
     pub const HYPER_PANEL: Material = 149;
+    // ---- Ember (volcanic world) ----
+    /// Molten lava (the lava sheet is indestructible: it is the floor and the KO surface).
+    pub const LAVA: Material = 150;
+    /// White-hot lava veins.
+    pub const LAVA_HOT: Material = 151;
+    /// Dark cooling crust floating on the lava (still faintly glowing).
+    pub const LAVA_CRUST: Material = 152;
+    /// Grey volcanic ash (soft).
+    pub const ASH: Material = 153;
+    /// Dark warm basalt and its lighter jagged facets.
+    pub const VOLCANIC: Material = 154;
+    pub const VOLCANIC_LIGHT: Material = 155;
+    /// Rock cracked with glowing magma (seams, vents, window slits; breakable).
+    pub const MAGMA_SEAM: Material = 156;
+    /// Black glassy obsidian (fortress).
+    pub const OBSIDIAN: Material = 157;
+    /// Indestructible fortress corner posts and spire spines.
+    pub const OBSIDIAN_CORE: Material = 158;
+    // ---- High Roller (casino) ----
+    /// Patterned casino carpet: crimson field, gold and teal motif.
+    pub const CASINO_CARPET: Material = 159;
+    pub const CASINO_CARPET_GOLD: Material = 160;
+    pub const CASINO_CARPET_TEAL: Material = 161;
+    /// Table felt (cards, craps, the roulette layout).
+    pub const FELT_GREEN: Material = 162;
+    /// Roulette pockets.
+    pub const ROULETTE_RED: Material = 163;
+    pub const ROULETTE_BLACK: Material = 164;
+    pub const ROULETTE_GREEN: Material = 165;
+    /// Polished white marble and its grey vein.
+    pub const MARBLE: Material = 166;
+    pub const MARBLE_VEIN: Material = 167;
+    /// Gilded trim (faintly self-lit so it glints in the warm light).
+    pub const GOLD_TRIM: Material = 168;
+    /// Indestructible damask wall panels / facade frame.
+    pub const CASINO_WALL: Material = 169;
+    /// Indestructible marble columns, slab rings and the roulette spindle.
+    pub const CASINO_PILLAR: Material = 170;
+    /// Indestructible cabinets of the big "high roller" slot machines.
+    pub const SLOT_CABINET: Material = 171;
+    /// Indestructible glowing gold trim / reel window of those machines.
+    pub const SLOT_TRIM: Material = 172;
+    /// Giant poker chips.
+    pub const CHIP_WHITE: Material = 173;
+    pub const CHIP_BLACK: Material = 174;
+    pub const CHIP_PURPLE: Material = 175;
+    /// Giant dice: ivory and translucent casino red.
+    pub const DICE_IVORY: Material = 176;
+    pub const DICE_RED: Material = 177;
+    /// Red velvet (rope barriers, booths, cage curtain).
+    pub const VELVET: Material = 178;
+    pub const NEON_VIOLET: Material = 179;
+    pub const NEON_GREEN: Material = 180;
+    /// Chandelier crystal drops (bright, breakable).
+    pub const CRYSTAL_DROP: Material = 181;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -282,7 +337,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 150] = [
+pub static MATERIALS: [MaterialDef; 182] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -584,6 +639,104 @@ pub static MATERIALS: [MaterialDef; 150] = [
         emissive: 0.0,
     },
     def("hyperline panel", [236, 242, 250], 0.035, 1.1, D::Stone),
+    // ---- Ember (150..) ----
+    MaterialDef {
+        name: "lava",
+        color: [255, 92, 18],
+        jitter: 0.12,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 1.0,
+    },
+    MaterialDef {
+        name: "hot lava",
+        color: [255, 200, 80],
+        jitter: 0.08,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 1.0,
+    },
+    MaterialDef {
+        name: "lava crust",
+        color: [112, 30, 16],
+        jitter: 0.14,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.45,
+    },
+    def("ash", [106, 100, 98], 0.07, 0.45, D::Sand),
+    def("volcanic rock", [48, 42, 46], 0.09, 1.2, D::Stone),
+    def("light volcanic rock", [86, 76, 76], 0.09, 1.2, D::Stone),
+    glow(def("magma seam", [255, 78, 26], 0.10, 1.0, D::Stone), 0.85),
+    def("obsidian", [30, 26, 36], 0.05, 1.5, D::Crystal),
+    MaterialDef {
+        name: "obsidian core",
+        color: [24, 20, 30],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    // ---- High Roller casino (159..) ----
+    def("casino carpet", [138, 18, 38], 0.07, 0.5, D::Dirt),
+    def("casino carpet gold", [212, 158, 50], 0.07, 0.5, D::Dirt),
+    def("casino carpet teal", [22, 104, 112], 0.07, 0.5, D::Dirt),
+    def("felt", [24, 118, 62], 0.05, 0.45, D::Dirt),
+    def("roulette red", [186, 20, 30], 0.04, 0.9, D::Wood),
+    def("roulette black", [30, 26, 32], 0.04, 0.9, D::Wood),
+    def("roulette green", [18, 150, 72], 0.04, 0.9, D::Wood),
+    def("marble", [234, 230, 222], 0.04, 1.2, D::Stone),
+    def("marble vein", [194, 186, 178], 0.05, 1.2, D::Stone),
+    glow(def("gold trim", [238, 186, 70], 0.06, 1.0, D::Stone), 0.3),
+    MaterialDef {
+        name: "casino wall",
+        color: [104, 26, 38],
+        jitter: 0.05,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "casino pillar",
+        color: [226, 220, 210],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "slot cabinet",
+        color: [176, 22, 44],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "slot trim",
+        color: [255, 204, 90],
+        jitter: 0.05,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Crystal,
+        emissive: 0.6,
+    },
+    def("chip white", [240, 238, 232], 0.03, 0.7, D::Wood),
+    def("chip black", [34, 32, 38], 0.03, 0.7, D::Wood),
+    def("chip purple", [118, 52, 170], 0.03, 0.7, D::Wood),
+    def("dice ivory", [244, 238, 222], 0.02, 0.9, D::Crystal),
+    glow(def("dice red", [210, 24, 40], 0.03, 0.9, D::Crystal), 0.2),
+    def("velvet", [124, 14, 34], 0.06, 0.4, D::Dirt),
+    glow(def("neon violet", [186, 80, 255], 0.05, 0.4, D::Crystal), 1.0),
+    glow(def("neon green", [70, 255, 140], 0.05, 0.4, D::Crystal), 1.0),
+    glow(def("crystal drop", [255, 246, 222], 0.08, 0.5, D::Crystal), 0.75),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

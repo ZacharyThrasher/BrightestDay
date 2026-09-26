@@ -14,8 +14,7 @@ target\playable\LATEST.txt always points at the newest verified build.
 GREEN → release build → startup smoke → target\playable\<stamp>\). Lead's own checks use CARGO_TARGET_DIR
 target\lead; workers use target\play (shared) + `--profile fastrel` for exes, BD_HIDDEN_WINDOW=1 for shots.
 **In flight (subagent ids; reports return to this session; SendMessage by id):**
-- Stabilisation A a6b97aa2ebbc1363a — keybinds, settings tabs, PLAYING/DESIGN docs, loose audio hooks
-  (view_toggle, summon_ping, rotor_loop), summon_ping.rs doc comment.
+- Stabilisation A DONE: conflict-free keymap (swap-on-rebind, reserved keys, alias gating, typing mask), settings tabs, PLAYING/DESIGN docs, audio hooks; FIXED settings/prefs never autosaving while a menu was open. Minor open: Alt+Enter also triggers dodge.
 - Stabilisation B a474d07f59d13ee13 — host-enforced 3P rule, G powers + projectile aim convergence, 3P held
   items in the costume hand + 3P ADS pose, 3P near-clip fade, tutorial 3P body, Hollow Purple gather
   distance, readability (debris near camera, dome alpha, others' shot words over ADS), never-refuse powers,

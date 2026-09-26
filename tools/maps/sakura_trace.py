@@ -101,6 +101,8 @@ TERRACES = [
     ("plaza", [(140, 445), (376, 445), (376, 520), (456, 520), (456, 582), (380, 582), (346, 568), (250, 580), (196, 600), (140, 600)], H_PLAZA),
     # A district: north street, west street, A courtyard, the long south arcade, middle street.
     ("a_district", [(15, 150), (398, 150), (398, 395), (340, 440), (240, 440), (160, 452), (15, 470)], H_A),
+    # The junction north of the garden (middle street's end, below the castle's NW wing).
+    ("junction", [(360, 185), (446, 185), (446, 224), (360, 224)], H_A),
     # The SE lane between the ravine and the lower garden.
     ("se_lane", [(376, 440), (482, 440), (482, 472), (376, 472)], H_LOW),
     # Garden (the sakura court) up to the castle's stone base.
@@ -134,10 +136,10 @@ STAIRS = [
     # Garden -> the keep's stone base; middle street -> the castle's NW wing.
     ("keep_steps_w", _KW[0], _KW[1], H_GARDEN, _KW[2], H_CASTLE, "stone"),
     ("keep_steps_e", _KE[0], _KE[1], H_GARDEN, _KE[2], H_CASTLE, "stone"),
-    ("keep_steps_nw", [(376, 150), (399, 150), (399, 184), (376, 184)], (377, 167), H_A, (400, 167), H_CASTLE, "stone"),
+    ("keep_steps_nw", [(404, 188), (440, 188), (440, 213), (404, 213)], (422, 212), H_A, (422, 189), H_CASTLE, "stone"),
 ]
 # Doors in the castle facade, at the top of each keep stair.
-CASTLE_DOORS = [facade_door(530.0, 11.0), facade_door(640.0, 10.0)]
+CASTLE_DOORS = [facade_door(530.0, 11.0), facade_door(640.0, 10.0), ((407.0, 190.0), (437.0, 190.0))]
 # Gravel paths through the garden (polylines px, width m) and raked-gravel courts.
 PATHS = [
     ([(398, 338), (432, 332)], 3.0), ([(398, 400), (438, 352)], 3.0), ([(488, 316), (528, 232)], 3.5),
@@ -337,13 +339,13 @@ def emit(mask, out):
     w("")
     w("/// Metres per image pixel and the image point at world (0, 0).")
     w(f"pub const S: f32 = {S};")
-    w(f"pub const OX: f32 = {OX:.1};")
-    w(f"pub const OY: f32 = {OY:.1};")
+    w(f"pub const OX: f32 = {OX:.1f};")
+    w(f"pub const OY: f32 = {OY:.1f};")
     w("/// The castle's frame: origin (the keep hall's centre, px) and its +u axis angle (degrees, image frame).")
-    w(f"pub const CASTLE_O: (f32, f32) = ({CASTLE_O[0]:.1}, {CASTLE_O[1]:.1});")
-    w(f"pub const CASTLE_DEG: f32 = {CASTLE_DEG:.1};")
+    w(f"pub const CASTLE_O: (f32, f32) = ({CASTLE_O[0]:.1f}, {CASTLE_O[1]:.1f});")
+    w(f"pub const CASTLE_DEG: f32 = {CASTLE_DEG:.1f};")
     for nm, v in [("H_STREET", H_STREET), ("H_PLAZA", H_PLAZA), ("H_A", H_A), ("H_AROOM", H_AROOM), ("H_GARDEN", H_GARDEN), ("H_LOW", H_LOW), ("H_CASTLE", H_CASTLE)]:
-        w(f"pub const {nm}: f32 = {v:.1};")
+        w(f"pub const {nm}: f32 = {v:.1f};")
     w("")
     w("#[derive(Clone, Copy, Debug, PartialEq, Eq)]")
     w("pub enum StairMat { Stone, Wood }")
@@ -380,14 +382,14 @@ def emit(mask, out):
     w("#[rustfmt::skip]")
     w("pub static TERRACES: &[Terrace] = &[")
     for name, poly, hgt in TERRACES:
-        w(f"    Terrace {{ name: {name!r}, poly: {fpoly(poly)}, h: {hgt:.1} }},".replace("'", '"'))
+        w(f"    Terrace {{ name: {name!r}, poly: {fpoly(poly)}, h: {hgt:.1f} }},".replace("'", '"'))
     w("];")
     w("")
     w("#[rustfmt::skip]")
     w("pub static STAIRS: &[Stair] = &[")
     for name, poly, a, h0, b, h1, m in STAIRS:
         mm = "StairMat::Stone" if m == "stone" else "StairMat::Wood"
-        w(f"    Stair {{ name: \"{name}\", poly: {fpoly(poly)}, a: {fpt(a)}, h0: {h0:.1}, b: {fpt(b)}, h1: {h1:.1}, mat: {mm} }},")
+        w(f"    Stair {{ name: \"{name}\", poly: {fpoly(poly)}, a: {fpt(a)}, h0: {h0:.1f}, b: {fpt(b)}, h1: {h1:.1f}, mat: {mm} }},")
     w("];")
     w("")
     w("#[rustfmt::skip]")
@@ -397,21 +399,21 @@ def emit(mask, out):
         roof = {"hip": "Roof::Hip", "gable": "Roof::Gable", "flat": "Roof::Flat"}[b["roof"]]
         style = {"plaster": "Style::Plaster", "timber": "Style::Timber", "temple": "Style::Temple", "stone": "Style::Stone", "shop": "Style::Shop"}[b["style"]]
         doors = "&[" + ", ".join(f"({fpt(p)}, {fpt(q)})" for p, q in b.get("doors", [])) + "]"
-        w(f"    Building {{ name: \"{b['name']}\", kind: {kind}, poly: {fpoly(b['poly'])}, floor: {b['floor']:.1}, wall: {b['wall']:.1}, roof: {roof}, style: {style}, doors: {doors}, gallery: {b.get('gallery', 0.0):.1} }},")
+        w(f"    Building {{ name: \"{b['name']}\", kind: {kind}, poly: {fpoly(b['poly'])}, floor: {b['floor']:.1f}, wall: {b['wall']:.1f}, roof: {roof}, style: {style}, doors: {doors}, gallery: {b.get('gallery', 0.0):.1f} }},")
     w("];")
     w("")
     w("/// (px, py, height m, kind).")
     w("#[rustfmt::skip]")
     w("pub static TREES: &[(f32, f32, f32, TreeKind)] = &[")
     for (x, y, hh, kind) in TREES:
-        w(f"    ({x:.1}, {y:.1}, {hh:.1}, TreeKind::{'Sakura' if kind == 'sakura' else 'Pine'}),")
+        w(f"    ({x:.1f}, {y:.1f}, {hh:.1f}, TreeKind::{'Sakura' if kind == 'sakura' else 'Pine'}),")
     w("];")
     w("")
     w(f"/// The garden shrine: centre (px), pagoda radius (px), koi pond radius (px).")
-    w(f"pub const SHRINE: ((f32, f32), f32, f32) = ({fpt(SHRINE['center'])}, {SHRINE['radius_px']:.1}, {SHRINE['pond_px']:.1});")
+    w(f"pub const SHRINE: ((f32, f32), f32, f32) = ({fpt(SHRINE['center'])}, {SHRINE['radius_px']:.1f}, {SHRINE['pond_px']:.1f});")
     w("pub static STONE_LANTERNS: &[(f32, f32)] = &[" + ", ".join(fpt(p) for p in STONE_LANTERNS) + "];")
     w("/// Paper-lantern strings: (from, to, height above the ground m).")
-    w("pub static PAPER_STRINGS: &[((f32, f32), (f32, f32), f32)] = &[" + ", ".join(f"({fpt(a)}, {fpt(b)}, {h:.1})" for a, b, h in PAPER_STRINGS) + "];")
+    w("pub static PAPER_STRINGS: &[((f32, f32), (f32, f32), f32)] = &[" + ", ".join(f"({fpt(a)}, {fpt(b)}, {h:.1f})" for a, b, h in PAPER_STRINGS) + "];")
     w("/// Torii gates: the two posts.")
     w("pub static TORII: &[((f32, f32), (f32, f32))] = &[" + ", ".join(f"({fpt(a)}, {fpt(b)})" for a, b in TORII) + "];")
     w("/// The spawn street's closed gatehouse doors (in the perimeter ring).")
@@ -421,7 +423,7 @@ def emit(mask, out):
     w("/// The castle builder's region (px).")
     w(f"pub static CASTLE_REGION: &[(f32, f32)] = {fpoly(CASTLE_REGION)};")
     w("/// Garden / courtyard gravel paths: polyline (px) and width (m).")
-    w("pub static PATHS: &[(&[(f32, f32)], f32)] = &[" + ", ".join(f"({fpoly(p)}, {wd:.1})" for p, wd in PATHS) + "];")
+    w("pub static PATHS: &[(&[(f32, f32)], f32)] = &[" + ", ".join(f"({fpoly(p)}, {wd:.1f})" for p, wd in PATHS) + "];")
     w("/// Raked-gravel courts (px).")
     w("pub static GRAVEL: &[&[(f32, f32)]] = &[" + ", ".join(fpoly(p) for p in GRAVEL) + "];")
     w("/// The keep's facade line (px): the castle base is on its north side.")

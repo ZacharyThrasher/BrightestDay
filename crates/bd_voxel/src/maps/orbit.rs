@@ -847,6 +847,8 @@ pub fn generate_orbit(seed: u64) -> (VoxelWorld, MapInfo) {
         surf_lines: Vec::new(),
         water_sheets: Vec::new(),
         water_walk: false,
+        slipstream: None,
+        mechanics: Default::default(),
     };
     let districts = vec![
         District { name: "station", center, area: [-HUB_R, -HUB_R, HUB_R, HUB_R] },

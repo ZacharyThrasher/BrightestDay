@@ -1012,3 +1012,15 @@ fn predicted_casts(
         prov.spawned.insert(seq, e);
     }
 }
+
+#[cfg(test)]
+mod stabb_tmp {
+    use super::*;
+    #[test]
+    fn dump_railgun_fit() {
+        let r = bd_sim::bots::recipe("railgun", Form::Gun, &[Mechanic::Pierce], bd_core::mechanics::Element::Light, 0.9);
+        let m = bd_shapes::build_model(&r).1;
+        let fit = HeldFit::of(&m, true);
+        println!("bounds {:?} grip {:?} fit {:?} gp {:?}", m.bounds, fit.grip, fit, bd_shapes::grip_point(&m));
+    }
+}

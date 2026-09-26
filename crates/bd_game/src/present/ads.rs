@@ -147,7 +147,7 @@ fn ads_input(
     }
     let devices = capture.grabbed && !ov.active && *state.get() == AppState::InGame && !menu.0;
     let aim_bind = binds.as_ref().map_or(Bind::Mouse(MouseButton::Right), |b| b.get(Action::Aim));
-    let alt_bind = binds.as_ref().map_or(Bind::Key(KeyCode::AltLeft), |b| b.get(Action::AltFire));
+    let alt_bind = binds.as_ref().map_or(Bind::Key(KeyCode::KeyH), |b| b.get(Action::AltFire));
     // A letter bound to these must not fire while typing in the ring console.
     let live = |b: Bind| devices && !(focus.typing && matches!(b, Bind::Key(_)));
     let toggle = prefs.as_ref().is_some_and(|p| p.camera.ads_toggle);

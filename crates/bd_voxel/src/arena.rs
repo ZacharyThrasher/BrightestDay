@@ -68,6 +68,12 @@ pub struct ArenaInfo {
     /// slide on the river (`bd_sim::movement::push_water_colliders`, host and prediction alike).
     /// Constructs, projectiles and hooks ignore it. `false` everywhere but the Valley.
     pub water_walk: bool,
+    /// SLIPSTREAM (Hyperline): the train's wind — see [`crate::slipstream`]. Applied to players by
+    /// `bd_sim::slipstream` (host and prediction alike). `None` everywhere else.
+    pub slipstream: Option<crate::slipstream::Slipstream>,
+    /// Sim-run map mechanics: transforming panels + a permanent space bridge (Cybertron; see
+    /// [`crate::mechanics`]). Empty everywhere else (the sim skips it entirely).
+    pub mechanics: crate::mechanics::MapMechanics,
 }
 
 /// A flat water surface: a rectangle at height `center.y` spanning `half` metres along its local
@@ -991,6 +997,8 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
         surf_lines,
         water_sheets: Vec::new(),
         water_walk: false,
+        slipstream: None,
+        mechanics: Default::default(),
     };
     (w, info)
 }
@@ -1073,6 +1081,8 @@ pub fn generate_flat_test(size_m: f32) -> (VoxelWorld, ArenaInfo) {
         surf_lines: Vec::new(),
         water_sheets: Vec::new(),
         water_walk: false,
+        slipstream: None,
+        mechanics: Default::default(),
     };
     (w, info)
 }

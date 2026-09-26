@@ -21,6 +21,10 @@ backrooms = []
 lair = []
 # VALLEY OF THE END map (maps/valley.rs).
 valley = []
+# EMBER map (maps/ember.rs).
+ember = []
+# CYBERTRON map (maps/cybertron.rs).
+cybertron = []
 
 [[example]]
 name = "backrooms_preview"
@@ -33,3 +37,11 @@ required-features = ["lair"]
 [[example]]
 name = "valley_preview"
 required-features = ["valley"]
+
+[[example]]
+name = "ember_preview"
+required-features = ["ember"]
+
+[[example]]
+name = "cybertron_preview"
+required-features = ["cybertron"]
