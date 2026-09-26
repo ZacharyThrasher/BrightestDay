@@ -93,7 +93,11 @@ fn ffa_cfg() -> SimConfig {
 // air by accident. A/B verified: a copy of this tree with the air jump short-circuited and
 // `dodge::bot_moves` skipped reproduces 0x89ad_f394_3982_9573 (the new state, timers, restores and
 // event flags alone don't move it).
-const FFA_NOCAST_STATE_HASH: u64 = 0x1fab_383f_88df_c29f;
+// Re-recorded (was 0x1fab_383f_88df_c29f) for the wall refresh (owner: touching a wall / surf ramp
+// in the air gives the air jump back): bots don't seek it, but 5 incidental wall touches in this
+// run hand air jumps back that `dodge::bot_moves` then uses. A/B verified: the same tree with
+// `move_params.wall_refresh = false` reproduces 0x1fab_383f_88df_c29f.
+const FFA_NOCAST_STATE_HASH: u64 = 0xc678_ca58_2062_e205;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {

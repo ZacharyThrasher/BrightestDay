@@ -854,3 +854,4 @@ fn prediction_matches_the_host_for_wall_refresh_chimney() {
     assert!(refreshes >= 4, "refreshes {refreshes}");
     assert_eq!(bad, 0, "mispredicted ticks");
 }
+

@@ -6,7 +6,7 @@
 //!   handed back plus `dodge_exit_speed` along the dodge, capped at max(pre-dodge speed, run speed):
 //!   a dodge never raises sustained speed, so it can't be chained into a bhop gain.
 //! * One cooldown (`dodge_cooldown`) for every dodge; in the air also once per airtime (restored
-//!   with the air jump: landing, tether attach, being hit — a hit also clears the cooldown).
+//!   with the air jump: landing, tether attach, a wall touch, being hit — a hit also clears the cooldown).
 //! * Not while holding charge or typing; a stun drops the button (`stunned_input`). Any jump ends the
 //!   burst early (the exit velocity is applied first).
 //! * The victim side of hook-and-strike reads [`super::ExtraMoves::dodging`] (`hook::hook_breaks_on_dodge`).
