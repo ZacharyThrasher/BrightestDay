@@ -318,6 +318,16 @@ export class GameRenderer {
       case 'construct_throw': this.fovKick += 1; break;
       case 'grabbed': if (e.entity) { const ent = w.entities.get(e.entity); if (ent) this.fx.ring(w.entityPos(ent), this.color, 0.5, 3, 0.3, 2.5); } break;
       case 'civilian_hurt': { const ent = w.entities.get(e.id); if (ent) this.fx.ring(w.entityPos(ent), new Color('#ff4d5e'), 0.5, 4, 0.6, 2.5); break; }
+      // world content: destructibles, robots, bystanders, waves, race
+      case 'entity_destroyed': if (pos) { this.fx.dust(pos, 14); this.fx.sparks(pos, new Color(e.entityType === 'crate' ? ENTITY_COLORS.crate : '#fff1d6'), 10, 7, { size: 0.06, life: 0.5 }); this.fovKick += 0.8; } break;
+      case 'block_toppled': if (pos) this.fx.dust(pos.setY(Math.max(0.2, pos.y - 0.4)), 3); break;
+      case 'stack_toppled': case 'wall_breached': if (pos) { this.fx.dust(pos, 16); this.fovKick += 1; } break;
+      case 'entity_knocked': if (pos) this.fx.dust(pos.setY(pos.y - 0.8), 8); break;
+      case 'robot_punch': if (pos && e.hit) this.fx.impact(pos, new Color('#ffb04d'), 0.8); break;
+      case 'punch_blocked': if (pos) { this.fx.impact(pos, this.color, 1.0); this.fx.sparks(pos, this.color, 10, 8, { size: 0.05 }); } break;
+      case 'civilian_saved': if (pos) this.fx.sparks(pos, new Color('#7dffb0'), 24, 9, { up: 0.8, size: 0.07, life: 0.9 }); break;
+      case 'wave_spawned': for (const p of e.positions ?? []) this.fx.ring(new Vector3(p[0], p[1], p[2]), new Color(ENTITY_COLORS.hostileGlow), 0.5, 4, 0.6, 2.5); break;
+      case 'race_finished': this.fx.sparks(w.player.pos.clone(), new Color('#ffd35c'), 40, 16, { up: 0.9, size: 0.09, life: 1.2 }); break;
     }
   }
 

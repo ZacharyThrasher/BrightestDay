@@ -21,7 +21,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', parent?: HT
 function setText(e: HTMLElement, t: string) { if (e.textContent !== t) e.textContent = t; }
 function setStyle(e: HTMLElement, k: string, v: string) { if ((e.style as any)[k] !== v) (e.style as any)[k] = v; }
 
-export const SCENE_KEYS = ['playground', 'arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'flat'] as const;
+export const SCENE_KEYS = ['playground', 'arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'flat', 'sandbox', 'horde', 'race'] as const;
 
 const OBJECTIVES: Record<string, string> = {
   playground: 'Free roam — ring run through the city, cross the canyon (east), climb the tower (west), turret outpost & drone field (south).',
@@ -33,6 +33,9 @@ const OBJECTIVES: Record<string, string> = {
   boulder: 'A boulder blocks the door. Get through.',
   drones: 'Three hostile drones. Take them down.',
   flat: 'Empty flat ground.',
+  sandbox: 'Sandbox — robots, drones and a turret. Smash the crates, topple the blocks, breach the wall, protect the civilian.',
+  horde: 'Horde — the sandbox, with a new wave of robots and drones every 22 s.',
+  race: 'Race — 200 m to the finish line. The clock starts at the start line.',
 };
 
 export interface HudFrame {

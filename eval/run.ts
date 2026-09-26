@@ -61,7 +61,13 @@ export async function runItem(item: Item): Promise<ItemResult> {
   const staticAim = info.aims[item.aim] ?? (item.aim === 'none' ? w.player.pos.clone().add(new Vector3(0, 1.5, -30)) : info.aims.ground_ahead);
   // entities move (falling civilians, hovering drones): keep the crosshair on the named thing
   const aimTargetFn = () => {
-    const kind = item.aim === 'civilian' ? 'civilian' : item.aim === 'drone' ? 'drone' : item.aim === 'boulder' ? 'boulder' : item.aim === 'turret' ? 'turret' : null;
+    if (item.aim === 'construct') {
+      // the player's most recent construct
+      const cs = [...w.constructs.list.values()];
+      const c = cs[cs.length - 1];
+      return c?.insts[0] ? c.insts[0].pos.clone() : staticAim;
+    }
+    const kind = ['civilian', 'drone', 'boulder', 'turret', 'robot', 'crate'].includes(item.aim) ? item.aim : null;
     if (!kind) return staticAim;
     const es = [...w.entities.values()].filter((e) => e.type === kind && !e.heldBy);
     if (!es.length) return staticAim;
