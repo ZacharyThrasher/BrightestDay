@@ -368,6 +368,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "bd_audio"
+version = "0.1.0"
+dependencies = [
+ "bd_core",
+ "bd_sim",
+ "bd_voxel",
+ "cpal",
+ "glam 0.30.10",
+ "hound",
+ "lewton",
+ "png",
+ "ron 0.10.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bd_core"
 version = "0.1.0"
 dependencies = [
@@ -403,6 +420,7 @@ dependencies = [
  "bd_voxel",
  "bevy",
  "bytemuck",
+ "rodio",
  "ron 0.10.1",
  "serde",
 ]
@@ -420,6 +438,14 @@ dependencies = [
  "ron 0.10.1",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "bd_music"
+version = "0.1.0"
+dependencies = [
+ "ron 0.10.1",
+ "serde",
 ]
 
 [[package]]

@@ -1,8 +1,18 @@
 """Sound definitions for Brightest Day.
 
-Each @sound function takes (rng, v) — a seeded numpy Generator and the variation
-index — and returns a mono float signal (any scale; the pipeline normalises).
-Loop sounds must return an exactly-seamless loop (see dsp.loop_xfade / dsp.periodic).
+Each @sound function takes (rng, v) - a seeded numpy Generator and the variation index - and
+returns a mono float signal, or an (n, 2) array for `stereo=True` sounds (any scale; the pipeline
+normalises). Loop sounds must return an exactly-seamless loop (see dsp.loop_xfade / dsp.periodic).
+
+Design rules (see README):
+  * DRY - no baked room reverb; the game's mixer supplies one shared space. Natural physical decay
+    (a plate ringing, a rumble, a debris cascade) is part of the source and stays.
+  * No broadband white noise: modal synthesis, pitch-dropping thumps, FM, tuned resonators and
+    granular clusters of tiny modal ticks. Noise only as a <= 15 ms transient, as a shaped,
+    subordinate texture, or where the source really is noise (gas, wind, surf).
+  * Frequency carving by role: heavy = sub/low + transient with a 2-5 kHz dip; foley = mids with a
+    steep high-pass; UI/feedback = small and bright (5-12 kHz).
+  * The loudness hierarchy is baked into the files (`lufs` per sound); manifest `volume` is 1.0.
 """
 from __future__ import annotations
 
@@ -13,21 +23,28 @@ import numpy as np
 
 from dsp import *  # noqa: F401,F403  (tiny DSP vocabulary)
 from dsp import SR, TAU
+from materials import (click, grit, hl_chord, hl_ping, hl_shards, hl_tone, material_hit, micro, note, pent,
+                       pent_index, shatter)
 
-# Loudness targets (BS.1770 K-weighted). One-shots: max momentary (400 ms) LUFS.
-# Loops: integrated LUFS. Peak ceiling -1 dBFS everywhere.
+# Pitch-variation presets (playback-speed ranges). Micro variation only: the files carry the variety.
+P_IMPACT = (0.97, 1.03)     # footsteps / impacts (+-51 cents)
+P_MICRO = (0.975, 1.025)    # most one-shots (+-43 cents)
+P_SOFT = (0.985, 1.015)     # big / slow sounds (+-26 cents)
+P_T10 = (0.994, 1.006)      # tonal sounds that must stay in key (+-10 cents)
+P_TONAL = (1.0, 1.0)
+
+# Group labels for README / manifest header only; every sound sets its own `lufs`.
 CATEGORY_LUFS = {
-    'movement': -18.0,
-    'tether': -17.0,
-    'construct': -15.0,
-    'combat': -12.0,
-    'destruction': -15.0,
-    'ui': -21.0,
-    'weapon': -12.0,
-    'ko_streak': -14.0,
-    'transform': -13.0,
-    'vehicle': -15.0,
-    'loop': -21.0,
+    'combat': 'explosions -9..-12, hits -12/-15/-18',
+    'weapon': 'guns -11..-13, mechanics -20..-24, casings -32',
+    'construct': 'hard light -14..-23',
+    'destruction': 'breaks -18/-22, impacts -20, debris -28',
+    'movement': 'foley -20..-30',
+    'tether': '-22..-28',
+    'feedback': 'bright, -18..-30',
+    'ui': 'bright, -15..-32',
+    'ko_streak': '-17 (+0.5 dB/step), accents -16, shutdown -15',
+    'ambience': 'beds -30..-40, positional -26..-32',
 }
 
 
@@ -38,30 +55,30 @@ class Sound:
     category: str
     variations: int = 3
     loop: bool = False
-    volume: float = 1.0
-    pitch: tuple = (0.95, 1.05)
-    lufs: float | None = None
+    pitch: tuple = P_MICRO
+    lufs: float = -20.0
     notes: str = ''
     sequence: bool = False      # files are ordered steps (play file[i]), not random variations
     lufs_ramp: float = 0.0      # per-variation/step loudness increment (dB)
     max_dur: float | None = None  # hard cap on the trimmed length (smooth fade)
+    stereo: bool = False
+    fade_out: float = 0.02      # end fade applied by the mastering trim (s)
+    volume: float = 1.0         # always 1.0: the hierarchy is in the files, the mixer decides the rest
     files: list = field(default_factory=list)
 
     @property
     def target(self) -> float:
-        if self.lufs is not None:
-            return self.lufs
-        return CATEGORY_LUFS['loop' if self.loop else self.category]
+        return self.lufs
 
 
 REGISTRY: dict[str, Sound] = {}
 
 
-def sound(name, category, variations=3, loop=False, volume=1.0, pitch=(0.95, 1.05), lufs=None, notes='',
-          sequence=False, lufs_ramp=0.0, max_dur=None):
+def sound(name, category, variations=3, loop=False, pitch=P_MICRO, lufs=-20.0, notes='', sequence=False,
+          lufs_ramp=0.0, max_dur=None, stereo=False, fade_out=0.02):
     def deco(fn):
-        REGISTRY[name] = Sound(name, fn, category, variations, loop, volume, pitch, lufs, notes,
-                               sequence, lufs_ramp, max_dur)
+        REGISTRY[name] = Sound(name, fn, category, variations, loop, pitch, float(lufs), notes, sequence,
+                               lufs_ramp, max_dur, stereo, fade_out)
         return fn
     return deco
 
@@ -70,105 +87,6 @@ def U(rng, a, b):
     return rng.uniform(a, b)
 
 
-# =============================================================================== movement
-@sound('jump', 'movement', 3, volume=0.6, pitch=(0.94, 1.08))
-def jump(r, v):
-    out = buf(0.4)
-    add(out, thump(0.1, 150 * U(r, .9, 1.1), 75, 0.025, 0.03, drive=1.2), 0, 0.7)
-    add(out, burst(0.07, r, 250, 2500, 0.014), 0, 0.45)
-    add(out, whoosh(0.3, r, 450, 2600 * U(r, .9, 1.2), 1.3, [(0, 0), (0.06, 1), (0.3, 0)]), 0.008, 0.55)
-    return out
-
-
-@sound('land_light', 'movement', 3, volume=0.6, pitch=(0.92, 1.08), lufs=-19)
-def land_light(r, v):
-    out = buf(0.35)
-    add(out, thump(0.12, 110 * U(r, .9, 1.1), 55, 0.03, 0.045, drive=1.4), 0, 1.0)
-    add(out, burst(0.1, r, None, 1600, 0.03, color='pink'), 0, 0.6)
-    add(out, burst(0.02, r, 1500, 5000, 0.004), 0, 0.25)
-    for _ in range(6):
-        add(out, grain(r, U(r, .002, .006), 1800, 5000), U(r, 0.004, 0.09), U(r, .05, .15))
-    return out
-
-
-@sound('land_heavy', 'movement', 3, volume=0.85, pitch=(0.92, 1.05), lufs=-15,
-       notes='bassy thud for high-speed / long-fall landings')
-def land_heavy(r, v):
-    out = buf(1.0)
-    add(out, burst(0.05, r, None, 3000, 0.006), 0, 0.8)
-    add(out, thump(0.7, 100 * U(r, .9, 1.1), 36, 0.06, 0.22, drive=2.6), 0, 1.0)
-    add(out, burst(0.4, r, None, 260, 0.12, color='brown'), 0, 0.7)
-    for i in range(18):
-        t = r.exponential(0.1)
-        add(out, grain(r, U(r, .003, .01), 1200, 5000), t, 0.2 * np.exp(-t / 0.2))
-    return reverb(out, r, 0.6, 0.15)
-
-
-@sound('footstep', 'movement', 4, volume=0.35, pitch=(0.9, 1.1), lufs=-22, notes='short, soft')
-def footstep(r, v):
-    out = buf(0.18)
-    tilt = U(r, 1200, 2400)
-    add(out, burst(0.06, r, 150, tilt, 0.012, color='pink'), 0, 1.0)
-    add(out, thump(0.06, 95, 70, 0.02, 0.018, drive=0), 0, 0.5)
-    add(out, burst(0.05, r, 200, tilt * 1.3, 0.009, color='pink'), U(r, 0.03, 0.055), U(r, .35, .55))
-    return out
-
-
-@sound('slide_loop', 'movement', 2, loop=True, volume=0.5, pitch=(0.97, 1.03), lufs=-21,
-       notes='loop; scale volume with slide speed')
-def slide_loop(r, v):
-    L, X = ns(2.0), ns(0.3)
-    n = L + X
-    fc = 1200 * 2 ** (0.5 * smooth_noise(n, r, 1.5))
-    base = normpk(tvf(pink(n, r), fc, 0.9, 'bp'))
-    grit = np.zeros(n)
-    for t in np.sort(r.uniform(0, n / SR, int(180 * n / SR))):
-        add(grit, grain(r, U(r, .001, .004), 2000, 7000), t, U(r, 0.1, 1.0))
-    low = normpk(lp(brown(n, r), 160))
-    am = 1 + 0.25 * smooth_noise(n, r, 3)
-    x = am * (base + 0.35 * grit + 0.45 * low)
-    return loop_xfade(x, L, X)
-
-
-@sound('wind_loop', 'movement', 2, loop=True, volume=0.5, pitch=(1.0, 1.0), lufs=-22,
-       notes='loop; game scales volume/pitch with speed')
-def wind_loop(r, v):
-    L, X = ns(4.0), ns(0.8)
-    n = L + X
-    main = normpk(tvf(brown(n, r) + pink(n, r), 600 * 2 ** (0.8 * smooth_noise(n, r, 0.35)), 1.1, 'bp'))
-    hiss = normpk(hp(pink(n, r), 3000)) * (0.6 + 0.4 * smooth_noise(n, r, 1.0))
-    whistle = normpk(tvf(white(n, r), 1400 * U(r, .8, 1.2) * 2 ** (0.5 * smooth_noise(n, r, 0.25)), 14, 'bp'))
-    low = normpk(lp(brown(n, r), 120)) * (0.7 + 0.3 * smooth_noise(n, r, 0.5))
-    x = main + 0.1 * hiss + 0.15 * whistle + 0.6 * low
-    return loop_xfade(x, L, X)
-
-
-@sound('boost_burst', 'movement', 3, volume=0.8, pitch=(0.94, 1.06), lufs=-16, notes='gas hiss burst')
-def boost_burst(r, v):
-    d = 0.7
-    n = ns(d)
-    out = buf(d)
-    add(out, crack(r, 1000, 0.003), 0, 0.6)
-    add(out, thump(0.12, 95, 50, 0.02, 0.04, drive=1.5), 0, 0.55)
-    hiss = normpk(tvf(white(n, r), sweep(n, 8000 * U(r, .9, 1.1), 3000, 0.5), 0.8, 'bp'))
-    flutter = 1 + 0.2 * np.sin(TAU * U(r, 30, 45) * tvec(n)) + 0.15 * smooth_noise(n, r, 40)
-    add(out, hiss * flutter * env_exp(n, 0.17, 0.005), 0, 1.0)
-    add(out, burst(d, r, None, 400, 0.14, attack=0.01, color='brown'), 0, 0.4)
-    add(out, whoosh(0.5, r, 2200, 600, 1.0, [(0, 0), (0.04, 1), (0.5, 0)]), 0, 0.3)
-    return out
-
-
-@sound('boost_loop', 'movement', 2, loop=True, volume=0.6, pitch=(0.98, 1.02), lufs=-20)
-def boost_loop(r, v):
-    L, X = ns(2.0), ns(0.3)
-    n = L + X
-    hiss = normpk(bp(white(n, r), 3000, 9000)) * (1 + 0.18 * smooth_noise(n, r, 25))
-    roar = normpk(lp(brown(n, r), 320)) * (1 + 0.2 * smooth_noise(n, r, 6))
-    mid = normpk(reson(pink(n, r), 1200 * U(r, .9, 1.1), 1.5))
-    return loop_xfade(hiss + 0.55 * roar + 0.25 * mid, L, X)
-
-
-# =============================================================================== tethers
 def _pulse_train(n, rate):
     cyc = np.cumsum(np.broadcast_to(rate, (n,))) / SR
     tr = np.zeros(n)
@@ -176,293 +94,450 @@ def _pulse_train(n, rate):
     return tr
 
 
-@sound('tether_fire', 'tether', 3, volume=0.8, pitch=(0.95, 1.06), notes='sharp mechanical zip')
-def tether_fire(r, v):
-    d = 0.5
+def swish(r, d, f0, f1, q=1.6, grain_hz=90.0, pts=None):
+    """Shaped air/cloth movement: pink noise through a moving resonant band with amplitude grain.
+    Always used as a subordinate layer."""
+    n = ns(d)
+    y = normpk(tvf(pink(n, r), sweep(n, f0, f1), q, 'bp'))
+    y *= 1 + 0.45 * smooth_noise(n, r, grain_hz)
+    return y * env_pts(n, pts or [(0, 0), (d * 0.3, 1), (d, 0)])
+
+
+def string_twang(r, f, dec=0.25, n_part=6, stretch=0.0015, vib=0.0):
+    """Taut cable / spring: near-harmonic partials (slightly stretched), upper ones decay faster."""
+    n = ns(dec * 6)
+    t = tvec(n)
+    x = np.zeros(n)
+    for k in range(1, n_part + 1):
+        fk = f * k * (1 + stretch * k * k)
+        if fk > 16000:
+            break
+        ph = TAU * fk * t + (vib * np.sin(TAU * 6.0 * t) * k if vib else 0)
+        x += (1.0 / k ** 0.8) * np.exp(-t * (1 + 0.6 * k) / dec) * np.sin(ph + r.uniform(0, TAU))
+    return x * np.clip(t / 0.0004, 0, 1)
+
+
+# =============================================================================== movement (foley: mids, steep HPF)
+def _sole(r, size, energy, material='stone'):
+    return material_hit(r, material, size, energy)
+
+
+@sound('jump', 'movement', 4, pitch=P_MICRO, lufs=-26, notes='push-off: boot sole + kit rattle + short cloth swish')
+def jump(r, v):
+    out = buf(0.35)
+    add(out, _sole(r, U(r, 0.55, 0.8), U(r, 0.7, 1.0)), 0, 0.9)
+    if v == 1:  # double push (both feet)
+        add(out, _sole(r, U(r, 0.5, 0.7), 0.6), U(r, 0.012, 0.022), 0.6)
+    for _ in range(int(r.integers(2, 5)) if v != 2 else 1):  # buckles / kit
+        add(out, micro(r, U(r, 2300, 3600), 0.01, 3, (1.4, 2.7)), U(r, 0.01, 0.07), U(r, 0.12, 0.3))
+    top = [2600, 2400, 3000, 3300][v]
+    add(out, swish(r, 0.14, 900, top, 1.8, 110, [(0, 0), (0.03, 1), (0.14, 0)]), 0.006, 0.16)
+    if v == 3:  # lighter hop: tiny rising 'lift' chirp
+        n = ns(0.07)
+        add(out, sine(sweep(n, 900, 1600, 0.7), n) * env_pts(n, [(0, 0), (0.01, 1), (0.07, 0)]), 0.004, 0.06)
+    return carve_foley(out, 220, 9000)
+
+
+@sound('land_light', 'movement', 5, pitch=P_IMPACT, lufs=-27, notes='heel+toe landing, grit patter, small body knock')
+def land_light(r, v):
+    out = buf(0.35)
+    gap = [0.012, 0.02, 0.008, 0.026, 0.016][v]
+    add(out, _sole(r, U(r, 0.8, 1.1), U(r, 0.9, 1.2)), 0, 1.0)
+    add(out, _sole(r, U(r, 0.6, 0.85), U(r, 0.6, 0.9)), gap, 0.7)
+    f = U(r, 230, 330)
+    add(out, modal([f, f * 1.7], [0.03, 0.018], [1, .5], ns(0.2), r), 0, 0.5)  # body weight, low-mid
+    add(out, grit(r, [8, 14, 6, 10, 18][v], 0.02, 1400, 4200, 0.003), 0.004, 0.35)
+    if v in (1, 4):
+        add(out, micro(r, U(r, 2400, 3400), 0.012, 3, (1.4, 2.6)), U(r, 0.015, 0.04), 0.18)
+    return carve_foley(out, 180, 9000)
+
+
+@sound('land_heavy', 'movement', 4, pitch=P_MICRO, lufs=-20,
+       notes='high-speed / long-fall landing: sub thud + stone crunch + a little gravel')
+def land_heavy(r, v):
+    out = buf(0.9)
+    add(out, click(r, 1500, 0.003), 0, 0.5)
+    add(out, thump(0.6, 100 * U(r, .9, 1.1), 36, 0.05, 0.14, drive=2.6), 0, 1.0)
+    add(out, material_hit(r, 'stone', [1.8, 2.2, 1.6, 2.5][v], 1.5), 0, 0.7)
+    add(out, shatter(r, 'stone', [5, 8, 4, 10][v], 0.25, 0.5, 0.8), 0.015, 0.3)
+    return carve_heavy(out)
+
+
+@sound('footstep', 'movement', 8, pitch=P_IMPACT, lufs=-30, notes='short heel-toe on voxel ground (mids only)')
+def footstep(r, v):
+    out = buf(0.2)
+    heel_size = [0.7, 0.8, 0.65, 0.9, 0.75, 0.6, 0.85, 0.7][v]
+    add(out, _sole(r, heel_size, U(r, 0.6, 0.85)), 0, 1.0)
+    gap = [0.045, 0.06, 0.035, 0.07, 0.05, 0.04, 0.065, 0.055][v]
+    add(out, _sole(r, heel_size * U(r, 0.6, 0.8), U(r, 0.4, 0.6)), gap, U(r, 0.4, 0.6))
+    if v % 3 == 1:  # boot clink
+        add(out, micro(r, U(r, 2600, 3400), 0.008, 3, (1.4, 2.4)), U(r, 0.002, 0.01), 0.15)
+    if v % 4 == 3:  # scuff: short grained swish in the mids
+        add(out, swish(r, 0.05, 1400, 2400, 2.0, 160, [(0, 0), (0.01, 1), (0.05, 0)]), gap * 0.6, 0.12)
+    return carve_foley(out, 220, 7000)
+
+
+@sound('slide_loop', 'movement', 2, loop=True, pitch=P_SOFT, lufs=-29, notes='loop; granular scrape; scale with slide speed')
+def slide_loop(r, v):
+    L, X = ns(3.0), ns(0.3)
+    n = L + X
+    scrape = np.zeros(n)
+    rate = [420, 360][v]
+    for t in np.sort(r.uniform(0, n / SR, int(rate * n / SR))):
+        add(scrape, micro(r, U(r, 800, 3500), U(r, 0.0015, 0.004), 2, (1.3, 2.2)), t, U(r, 0.15, 1.0))
+    bands = [(1150, 6), (1900, 7), (2900, 6)] if v == 0 else [(1000, 6), (1700, 7), (3300, 5)]
+    tex = sum(reson(pink(n, r), f, q) for f, q in bands)
+    tex = normpk(tex) * (1 + 0.5 * smooth_noise(n, r, 35))
+    am = 1 + 0.25 * smooth_noise(n, r, 3)
+    x = am * (normpk(scrape) + 0.2 * tex)
+    return circ(lambda y: carve_foley(y, 220, 8000), loop_xfade(x, L, X))  # circular: stays seamless
+
+
+@sound('wind_loop', 'movement', 2, loop=True, pitch=P_TONAL, lufs=-30,
+       notes='loop; game scales volume/pitch with speed; resonant air + gusts + soft whistle')
+def wind_loop(r, v):
+    L, X = ns(6.0), ns(1.0)
+    n = L + X
+    gust = 0.6 + 0.4 * smooth_noise(n, r, 0.4)
+    fc = 520 * 2 ** (0.7 * smooth_noise(n, r, 0.3))
+    body = normpk(tvf(brown(n, r) + 0.6 * pink(n, r), fc, 2.2, 'bp'))
+    whistle = normpk(tvf(pink(n, r), (1100 + 150 * v) * 2 ** (0.35 * smooth_noise(n, r, 0.25)), 22, 'bp'))
+    air = normpk(lp(bp(pink(n, r), 1800, 5000), 5000)) * (0.5 + 0.5 * smooth_noise(n, r, 0.7))
+    low = normpk(lp(brown(n, r), 140))
+    x = gust * (body + 0.12 * whistle + 0.06 * air) + 0.35 * low * gust
+    return circ(lambda y: hp(y, 60, 2), loop_xfade(x, L, X))
+
+
+@sound('boost_burst', 'movement', 3, pitch=P_MICRO, lufs=-21, notes='ignition pop + shaped nozzle gas jet')
+def boost_burst(r, v):
+    d = 0.55
     n = ns(d)
     out = buf(d)
-    add(out, crack(r, 3000, 0.002), 0, 0.8)
-    f = U(r, 2100, 2500)
+    add(out, click(r, 1500, 0.003), 0, 0.6)
+    add(out, _pop(r), 0, 0.5)
+    g = pink(n, r)
+    f1, f2 = [(4200, 2100), (3600, 1800), (5000, 2500)][v]
+    jet = tvf(g, sweep(n, f1, f1 * 0.45, 0.5), 3.0, 'bp') + 0.7 * tvf(g, sweep(n, f2, f2 * 0.45, 0.5), 3.5, 'bp')
+    flutter = 1 + 0.25 * np.sin(TAU * U(r, 30, 45) * tvec(n)) + 0.2 * smooth_noise(n, r, 60)
+    add(out, normpk(jet) * flutter * env_exp(n, 0.14, 0.004), 0, 0.8)
+    return carve_foley(out, 150, 11000)
+
+
+def _pop(r):
+    """Small ignition pop: a damped metal-chamber knock."""
+    f = U(r, 320, 480)
+    n = ns(0.12)
+    return modal([f, f * 1.9, f * 3.1], [0.03, 0.02, 0.01], [1, .5, .3], n, r) + 0.4 * fit(click(r, 2000, 0.002), n)
+
+
+@sound('boost_loop', 'movement', 2, loop=True, pitch=P_SOFT, lufs=-26, notes='loop; nozzle jet: resonant bands + turbine whine')
+def boost_loop(r, v):
+    Ld = 2.0
+    L, X = ns(Ld), ns(0.3)
+    n = L + X
+    g = pink(n, r)
+    bands = [(1250, 3.0), (2700, 3.5), (4900, 3.0)] if v == 0 else [(1100, 3.0), (2400, 3.5), (4400, 3.0)]
+    jet = normpk(sum(reson(g, f, q) * a for (f, q), a in zip(bands, (1.0, 0.8, 0.5))))
+    jet *= 1 + 0.2 * smooth_noise(n, r, 30)
+    noise = loop_xfade(jet, L, X)
+    w1, w2 = qf(2350 + 200 * v, Ld), qf(3525 + 300 * v, Ld)
+    tonal = periodic(lambda m: sine(w1, m) + 0.5 * sine(w2, m) * (1 + 0.3 * np.sin(TAU * 3.0 * tvec(m))), L)
+    return circ(lambda y: carve_foley(y, 150, 11000), noise + 0.1 * tonal)
+
+
+# =============================================================================== tethers (foley)
+@sound('tether_fire', 'tether', 4, pitch=P_MICRO, lufs=-23, notes='latch click + cable zip + spring twang')
+def tether_fire(r, v):
+    d = 0.6
+    n = ns(d)
+    out = buf(d)
+    add(out, click(r, 3000, 0.002), 0, 0.6)
+    f = U(r, 2000, 2600)
     add(out, modal([f, f * 1.61, f * 2.26], [0.03, 0.02, 0.015], [1, .6, .4], ns(0.15), r), 0, 0.35)
-    rate = sweep(n, 650, 110, 0.7)
-    tr = _pulse_train(n, rate) * env_exp(n, 0.14, 0.002)
-    z = reson(tr, 3200 * U(r, .9, 1.1), 5) + 0.7 * reson(tr, 1400, 4)
+    r0, r1 = [(650, 110), (800, 140), (560, 90), (720, 160)][v]
+    tr = _pulse_train(n, sweep(n, r0, r1, 0.7)) * env_exp(n, 0.13, 0.002)
+    z = reson(tr, 3200 * U(r, .9, 1.1), 5) + 0.7 * reson(tr, 1400 * U(r, .9, 1.1), 4)
     add(out, normpk(z), 0.004, 0.7)
-    add(out, whoosh(0.32, r, 4200, 1400, 1.2, [(0, 0), (0.02, 1), (0.32, 0)], color='white'), 0, 0.45)
-    nn = ns(0.12)
-    add(out, sine(sweep(nn, 2300, 850, 0.5), nn) * env_exp(nn, 0.025), 0, 0.2)
-    return out
+    nn = ns(0.14)
+    add(out, sine(sweep(nn, 2400, 850, 0.5), nn) * env_exp(nn, 0.03), 0, 0.15)
+    add(out, string_twang(r, [360, 410, 330, 450][v], 0.12, 6), 0.01, 0.35)
+    return carve_foley(out, 250, 10000)
 
 
-@sound('tether_attach', 'tether', 3, volume=0.85, pitch=(0.93, 1.07), notes='metallic thunk into stone')
+@sound('tether_attach', 'tether', 4, pitch=P_IMPACT, lufs=-22, notes='hook bites stone: short metal clank + chips + taut cable tung')
 def tether_attach(r, v):
-    out = buf(1.6)
-    add(out, crack(r, 1500, 0.004), 0, 0.9)
-    add(out, thump(0.2, 170, 90, 0.03, 0.06, drive=2.0), 0, 0.9)
-    f = U(r, 470, 640)
-    ratios = [1, 2.76, 5.40, 8.93, U(r, 3.3, 3.9)]
-    add(out, modal([f * k for k in ratios], [0.35, 0.2, 0.12, 0.07, 0.15], [0.5, 0.35, 0.25, 0.15, 0.2],
-                   ns(1.6), r), 0, 0.5)
-    for _ in range(10):
-        add(out, grain(r, U(r, .003, .008), 1000, 4000), r.exponential(0.015), U(r, .1, .3))
-    return reverb(out, r, 0.5, 0.18)
+    out = buf(0.9)
+    hook = material_hit(r, 'metal', [0.35, 0.3, 0.45, 0.4][v], 1.3)
+    add(out, hook * env_exp(len(hook), 0.12, 0), 0, 0.7)  # a hook, not a bell: damped by the rock
+    add(out, material_hit(r, 'stone', 0.7, 1.2), 0, 0.7)
+    add(out, grit(r, 10, 0.012, 1500, 4500, 0.003), 0.002, 0.35)
+    add(out, string_twang(r, [380, 430, 350, 470][v], 0.28, 7, vib=0.002), 0.004, 0.35)
+    return carve_foley(out, 180, 10000)
 
 
-@sound('tether_reel_loop', 'tether', 2, loop=True, volume=0.55, pitch=(1.0, 1.0), lufs=-21, notes='loop; winch')
+@sound('tether_reel_loop', 'tether', 2, loop=True, pitch=P_TONAL, lufs=-28, notes='loop; winch motor + gear teeth')
 def tether_reel_loop(r, v):
     Ld = 2.0
-    L, X = ns(Ld), ns(0.25)
+    L = ns(Ld)
     f0 = [160.0, 180.0][v % 2]  # f*Ld integer => exactly periodic
     click_rate = [22.0, 26.0][v % 2]
 
     def motor(n):
         t = tvec(n)
-        vib = 4.0 * np.sin(TAU * 6.0 * t)
         m = saw(f0, n) + saw(f0 + 0.5, n) + 0.5 * saw(2 * f0, n)
-        m = lp(m, 1800)
+        m = lp(m, 2200)
         gear = 1 + 0.25 * np.sin(TAU * click_rate * t)
-        whine = sine(8 * f0 + vib, n)
+        whine = sine(8 * f0 + 4.0 * np.sin(TAU * 6.0 * t), n)
         return normpk(m) * gear + 0.18 * whine
     tonal = periodic(motor, L)
     clicks = np.zeros(L)
     k = int(round(click_rate * Ld))
     for i in range(k):
         c = modal([U(r, 2500, 2700), U(r, 4000, 4200)], [0.006, 0.004], [1, .6], ns(0.04), r)
-        c += 0.5 * crack(r, 3000, 0.0015, d=0.04)
-        add_circ(clicks, c, int((i + 0.5) * L / k), U(r, 0.7, 1.0))  # keep clicks off the seam
-    hiss = normpk(bp(white(L + X, r), 2000, 5000))
-    hiss = loop_xfade(hiss, L, X)
-    return 0.6 * tonal + 0.5 * normpk(clicks) + 0.12 * hiss
+        add_circ(clicks, c, int((i + 0.5) * L / k), U(r, 0.7, 1.0))
+    teeth = np.zeros(L)
+    kt = int(round(click_rate * 4 * Ld))  # fine gear teeth, 4 per click
+    for i in range(kt):
+        add_circ(teeth, micro(r, U(r, 1600, 2200), 0.0015, 2, (1.4, 1.9)), int((i + 0.25) * L / kt), U(r, 0.3, 0.6))
+    x = 0.6 * tonal + 0.5 * normpk(clicks) + 0.15 * normpk(teeth)
+    return circ(lambda y: carve_foley(y, 200, 10000), x)
 
 
-@sound('tether_release', 'tether', 3, volume=0.75, pitch=(0.94, 1.06), notes='snap + whoosh')
+@sound('tether_release', 'tether', 3, pitch=P_MICRO, lufs=-25, notes='latch snap + cable recoil')
 def tether_release(r, v):
-    out = buf(0.9)
-    add(out, crack(r, 2500, 0.0025), 0, 1.0)
-    add(out, thump(0.06, 1800, 600, 0.01, 0.015, drive=0), 0, 0.4)
-    add(out, thump(0.1, 120, 70, 0.02, 0.03, drive=1.5), 0, 0.4)
-    f = U(r, 180, 240)
-    add(out, modal([f, 2 * f, 3 * f, 4.02 * f], [.15] * 4, [1, .5, .3, .2], ns(0.85), r), 0, 0.12)
-    add(out, whoosh(0.45, r, 3000, 500, 1.0, [(0, 0), (0.03, 1), (0.45, 0)]), 0.005, 0.6)
+    out = buf(0.6)
+    add(out, click(r, 2500, 0.002), 0, 0.8)
+    add(out, micro(r, U(r, 2200, 2900), 0.02, 3, (1.5, 2.8)), 0, 0.4)
+    n = ns(0.3)
+    f = sweep(n, [2200, 1900, 2500][v], 520, 0.6)
+    add(out, fm(f, 1.5, 0.8 * env_exp(n, 0.08), n) * env_pts(n, [(0, 0), (0.01, 1), (0.3, 0)], 1.5), 0.004, 0.35)
+    add(out, string_twang(r, U(r, 300, 420), 0.1, 5), 0.002, 0.3)
+    for _ in range(3):
+        add(out, micro(r, U(r, 1200, 2600), 0.004), U(r, 0.03, 0.12), U(r, 0.1, 0.25))
+    return carve_foley(out, 200, 10000)
+
+
+# =============================================================================== hard light (constructs, E minor)
+def _bloom_env(n, t_peak, tau, t0=0.0):
+    t = tvec(n)
+    a = np.clip((t - t0) / max(t_peak - t0, 1e-3), 0, 1) ** 1.5
+    return np.where(t < t_peak, a, np.exp(-(t - t_peak) / tau))
+
+
+@sound('construct_form', 'construct', 3, pitch=P_TONAL, lufs=-19,
+       notes='hard light forming: rising E-minor arpeggio bloom + crystalline build + lock ping')
+def construct_form(r, v):
+    d = 1.1
+    out = buf(d)
+    voicing = [['E3', 'B3', 'E4', 'G4', 'B4'], ['E3', 'G3', 'B3', 'E4', 'G4'], ['E3', 'B3', 'D4', 'G4', 'B4']][v]
+    n = ns(1.8)
+    for i, nm in enumerate(voicing):
+        t0 = 0.055 * i
+        env = _bloom_env(n, 0.34, 0.22, 0.0)
+        add(out, hl_tone(r, note(nm), n, env, bright=0.9, shimmer=0.5), t0, 0.5 / (1 + 0.15 * i))
+    add(out, sine(note('E2'), n) * _bloom_env(n, 0.32, 0.12), 0, 0.3)  # weight of materialisation
+    k0 = pent_index('E5')
+    for j in range(7):  # crystalline build: ascending pentatonic sparkle, crescendo
+        tt = 0.04 + 0.045 * j
+        add(out, hl_ping(r, pent(k0 + j + v), 0.05, 1.2, glint=0.8), tt, 0.06 + 0.03 * j)
+    add(out, hl_ping(r, note('E6'), 0.22, 1.2), 0.34, 0.35)  # lock
+    add(out, hl_ping(r, note('B6'), 0.16, 1.2), 0.345, 0.2)
+    add(out, click(r, 5000, 0.001), 0.34, 0.15)
     return out
 
 
-# =============================================================================== ring / constructs
-@sound('construct_form', 'construct', 3, volume=0.8, pitch=(0.97, 1.03),
-       notes='rising hard-light vwoom ~0.4 s + lock ping')
-def construct_form(r, v):
-    d = 0.9
-    n = ns(d)
-    t = tvec(n)
-    f_end = [130.8, 146.8, 164.8][v % 3] * 1.0
-    u = np.clip(t / 0.36, 0, 1)
-    f = f_end / 2 * 2 ** (1 - (1 - u) ** 2)  # octave rise, ease-out
-    fc = 200 * (7000 / 200) ** (u ** 1.6)
-    body = tvf(supersaw(f, n, r, 5, 18), fc, 2.5, 'lp')
-    env = env_pts(n, [(0, 0), (0.05, 0.6), (0.33, 1.0), (0.55, 0)])
-    out = normpk(body) * env
-    out += 0.5 * sine(f / 2, n) * env
-    sh = sum(sine(f * k, n, r.uniform(0, TAU)) for k in (8, 12, 16, 20))
-    trem = 0.5 + 0.5 * np.sin(TAU * np.cumsum(18 + 14 * u) / SR)
-    out += 0.06 * sh * trem * env_pts(n, [(0, 0), (0.2, 0.3), (0.4, 1), (0.6, 0)])
-    add(out, fm_bell(ns(0.55), f_end * 16, 1.414, 3, 0.05, 0.12), 0.34, 0.22)
-    return reverb(out, r, 0.7, 0.25, bright=1.3)
-
-
-@sound('construct_dismiss', 'construct', 3, volume=0.6, pitch=(0.95, 1.05))
+@sound('construct_dismiss', 'construct', 3, pitch=P_TONAL, lufs=-23,
+       notes='hard light dissolving: the form arpeggio falling, granulating away')
 def construct_dismiss(r, v):
-    d = 0.45
-    n = ns(d)
-    f = glide(n, 150 * U(r, .95, 1.05), 50, 0.12)
-    body = tvf(supersaw(f, n, r, 5, 20), glide(n, 6000, 150, 0.1), 2.0, 'lp')
-    out = normpk(body) * env_exp(n, 0.12, 0.005)
-    out += 0.4 * sine(f / 2, n) * env_exp(n, 0.1, 0.005)
-    add(out, whoosh(0.18, r, 4000, 800, 1.2, [(0, 0), (0.01, 1), (0.18, 0)]), 0, 0.35)
-    for _ in range(25):
-        t = r.uniform(0, 0.35) ** 1.3
-        nn = ns(0.012)
-        add(out, sine(U(r, 3000, 8000), nn) * np.hanning(nn), t, 0.12 * (1 - t / 0.4))
-    return reverb(out, r, 0.5, 0.2, bright=1.3)
+    d = 0.8
+    out = buf(d)
+    voicing = [['B4', 'G4', 'E4', 'B3', 'E3'], ['G4', 'E4', 'B3', 'G3', 'E3'], ['B4', 'G4', 'D4', 'B3', 'E3']][v]
+    for i, nm in enumerate(voicing):
+        p = hl_ping(r, note(nm), 0.22, 0.9, glint=0.4)
+        m = len(p)
+        gr = 1 - 0.6 * np.clip(tvec(m) / 0.3, 0, 1) * (0.5 + 0.5 * np.sin(TAU * U(r, 7, 11) * tvec(m)))  # flicker out
+        add(out, p * gr, 0.05 * i, 0.45)
+    n = ns(0.5)
+    f = sweep(n, note('E4'), note('E3'), 0.8)  # the whole form sinking an octave (ends in key)
+    add(out, (sine(f, n) + 0.3 * sine(2 * f, n)) * env_pts(n, [(0, 0), (0.03, 1), (0.5, 0)], 1.5), 0, 0.2)
+    add(out, hl_shards(r, 4, 0.3, 'E8', 'E6', amp=0.35, dec=(0.02, 0.06)), 0.02, 1.0)
+    return out
 
 
-@sound('beam_loop', 'construct', 2, loop=True, volume=0.7, pitch=(1.0, 1.0), lufs=-18, notes='loop; held beam')
+def hl_drone(r, freqs, n, period, bright=1.0, shimmer=0.5, lfo=0.3, amps=None):
+    """Strictly periodic hard-light drone (every partial, beat and LFO has an integer number of cycles
+    per `period`)."""
+    t = tvec(n)
+    x = np.zeros(n)
+    amps = amps or [1.0] * len(freqs)
+    for f, A in zip(freqs, amps):
+        for k, a, _ in ((1, 1.0, 0), (2, 0.42, 0), (3, 0.26, 0), (4, 0.16, 0), (6, 0.08, 0)):
+            fk = qf(f * k, period)
+            if fk > 16000:
+                continue
+            a = A * a * (bright ** (k - 1) if k > 1 else 1.0)
+            j = int(r.integers(1, 4))
+            m = int(r.integers(1, 4))
+            am = 1 + lfo * np.sin(TAU * m / period * t + r.uniform(0, TAU))
+            x += a * am * (np.sin(TAU * fk * t + r.uniform(0, TAU))
+                           + shimmer * np.sin(TAU * (fk + j / period) * t + r.uniform(0, TAU)))
+    return x
+
+
+@sound('beam_loop', 'construct', 2, loop=True, pitch=P_TONAL, lufs=-22,
+       notes='loop; held beam: sustained E-minor drone, slow shimmer, sparse glints')
 def beam_loop(r, v):
-    Ld = 2.0
-    L, X = ns(Ld), ns(0.25)
-    root = [110.0, 123.0][v % 2]  # every partial/LFO * Ld is an integer
-
-    def tone(n):
-        t = tvec(n)
-        chord = (saw(root, n) + saw(root + 0.5, n) + saw(root * 1.5, n) + saw(root * 1.5 + 0.5, n)
-                 + 0.7 * saw(root * 2, n))
-        fc = 1400 * 2 ** (0.7 * np.sin(TAU * 4.0 * t))
-        c = normpk(tvf(chord, fc, 3.0, 'lp'))
-        whine = sine(root * 16 + 6 * np.sin(TAU * 5.0 * t), n)
-        hum = sine(root / 2, n) * (1 + 0.2 * np.sin(TAU * 8.0 * t))
-        return c + 0.08 * whine + 0.45 * hum
-    tonal = periodic(tone, L)
-    n = L + X
-    crackle = bp(white(n, r), 2000, 8000) * (white(n, r) > 0.95) * 3 * (1 + 0.5 * smooth_noise(n, r, 10))
-    hiss = normpk(hp(white(n, r), 5000))
-    noise = loop_xfade(0.25 * crackle + 0.05 * hiss, L, X)
-    return tonal + noise
+    Ld = 4.0
+    L = ns(Ld)
+    voicing = [['E2', 'B2', 'E3', 'G3', 'B3', 'E4'], ['E2', 'B2', 'D3', 'G3', 'B3', 'E4']][v]
+    x = hl_drone(r, [note(nm) for nm in voicing], L, Ld, bright=1.0, shimmer=0.6, lfo=0.25,
+                 amps=[0.9, 0.7, 0.6, 0.5, 0.4, 0.3])
+    t = tvec(L)
+    buzz = sine(qf(note('E6'), Ld), L) * (0.5 + 0.5 * np.sin(TAU * 8.0 * t))  # energy flutter
+    x = normpk(x) + 0.05 * buzz
+    for i in range(10):  # sparse hard-light glints (kept clear of the loop point)
+        f = pent(pent_index('E6') + int(r.integers(0, 8)))
+        add(x, hl_ping(r, f, 0.05, 1.2, glint=0.6), 0.1 + (Ld - 0.7) * (i + U(r, 0.1, 0.9)) / 10, 0.05)
+    return x
 
 
-@sound('shield_block', 'construct', 3, volume=0.9, pitch=(0.94, 1.06), lufs=-13, notes='energy clang')
+@sound('shield_block', 'construct', 3, pitch=P_T10, lufs=-16,
+       notes='struck E chord "glass gong" + E-tuned low thud')
 def shield_block(r, v):
-    out = buf(2.6)
-    add(out, crack(r, 2000, 0.004), 0, 0.9)
-    add(out, thump(0.4, 130, 60, 0.02, 0.1, drive=2.0), 0, 0.8)
-    f1 = U(r, 520, 640)
-    add(out, fm_bell(ns(2.6), f1, 1.414, 4, 0.15, 0.5), 0, 0.4)
-    add(out, fm_bell(ns(2.6), f1 * 1.5 * 1.012, 2.01, 3, 0.1, 0.4), 0, 0.35)
-    add(out, modal([f1 * 2.76, f1 * 5.4], [0.3, 0.15], [1, .6], ns(1.8), r), 0, 0.2)
-    nn = ns(0.12)
-    add(out, fm(glide(nn, 3000, 800, 0.015), 0.5, 5, nn) * env_exp(nn, 0.02), 0, 0.2)
-    return reverb(out, r, 0.9, 0.25, bright=1.3)
+    out = buf(1.6)
+    chord = [['E4', 'B4', 'E5', 'G5'], ['G4', 'B4', 'E5', 'B5'], ['E4', 'G4', 'B4', 'E5']][v]
+    add(out, hl_chord(r, chord, dec=0.45, bright=1.05, stagger=0.002, amps=[1, .8, .7, .5]), 0, 0.8)
+    add(out, click(r, 2500, 0.003), 0, 0.5)
+    nn = ns(0.08)
+    add(out, fm(glide(nn, 2637, 1319, 0.012), 1.0, 3 * env_exp(nn, 0.01), nn) * env_exp(nn, 0.015), 0, 0.25)
+    add(out, thump(0.4, note('E3'), note('E2'), 0.02, 0.07, drive=1.8), 0, 0.7)
+    return out
 
 
-def _shards(out, r, count, t_spread, fmin, fmax, amp):
-    for _ in range(count):
-        t = r.exponential(t_spread / 3)
-        if t > t_spread:
-            t = r.uniform(0, t_spread)
-        f = U(r, fmin, fmax)
-        dcy = U(r, 0.02, 0.15)
-        s = modal([f, f * U(r, 2.3, 2.8)], [dcy, dcy * 0.6], [1, 0.4], ns(dcy * 8), r)
-        add(out, s, t, amp * U(r, 0.3, 1.0) * (1 - 0.6 * t / t_spread))
-
-
-def _cascade(out, r, n_cubes, t_first, t_max, fmin, fmax, amp, kind='tink'):
+def _cube_tinks(r, n_cubes, t_first, t_max, lo='E6', hi='E7', amp=0.3):
+    """Hard-light cubes bouncing to rest; each cube rings its own pentatonic note."""
+    out = np.zeros(ns(t_max + 0.6))
+    k_lo, k_hi = pent_index(lo), pent_index(hi)
     for _ in range(n_cubes):
-        t0 = t_first + min(r.exponential(0.18), t_max * 0.6)
-        f = U(r, fmin, fmax)
-        for (t, a) in bounces(r, t0, U(r, 0.4, 1.0), U(r, 0.07, 0.2), U(r, 0.5, 0.7), 0.58, t_max):
-            ff = f * U(r, 0.97, 1.03)
-            s = tink(r, ff, U(r, 0.6, 1.4)) if kind == 'tink' else tok(r, ff)
-            add(out, s, t, amp * a)
+        t0 = t_first + min(r.exponential(0.16), t_max * 0.6)
+        f = pent(int(r.integers(k_lo, k_hi + 1)))
+        for (t, a) in bounces(r, t0, U(r, 0.4, 1.0), U(r, 0.07, 0.18), U(r, 0.5, 0.7), 0.58, t_max):
+            add(out, hl_ping(r, f, U(r, 0.03, 0.07), 1.1, glint=0.5, shimmer=0.2), t, amp * a)
+    return out
 
 
-@sound('construct_shatter', 'combat', 4, volume=1.0, pitch=(0.95, 1.05),
-       notes='SIGNATURE: glassy crystalline burst + tinkling hard-light cube cascade ~1.2 s')
+@sound('construct_shatter', 'combat', 5, pitch=P_T10, lufs=-15,
+       notes='SIGNATURE: hard-light break: crack + E-minor chord burst + E1 sub + falling arpeggiated shards')
 def construct_shatter(r, v):
-    d = 1.8
-    n = ns(d)
-    t = tvec(n)
+    d = 1.7
     out = buf(d)
-    # 1. crack
-    add(out, sat(crack(r, 3000, 0.006, d=0.06), 2.5), 0, 1.0)
-    # 2. glass burst: dense shard cluster + bright grainy noise
-    _shards(out, r, 50, 0.08, 2200, 9500, 0.35)
-    nb = ns(0.4)
-    grit = 1 + 0.8 * smooth_noise(nb, r, 400)
-    add(out, normpk(hp(white(nb, r), 4000)) * grit * env_exp(nb, 0.06), 0, 0.45)
-    # 3. hard-light 'pwash': energy collapsing + weight
-    f = glide(n, 330 * U(r, .9, 1.1), 85, 0.12)
-    pw = tvf(supersaw(f, n, r, 5, 22), glide(n, 9000, 300, 0.15), 1.5, 'lp') * env_exp(n, 0.18, 0.002)
-    add(out, normpk(pw), 0, 0.35)
-    add(out, thump(0.5, 95, 40, 0.04, 0.15, drive=2.2), 0, 0.85)
-    # 4. tinkling cube cascade
-    _cascade(out, r, int(U(r, 14, 20)), 0.06, 1.3, 2500, 7500, 0.28)
-    # 5. sparkle fizz
-    fz = normpk(hp(white(n, r), 6000)) * (white(n, r) > 0.7) * env_exp(n, 0.4, 0.01)
-    add(out, fz, 0, 0.1)
-    return reverb(out, r, 1.0, 0.22, bright=1.6)
+    add(out, sat(click(r, 3000, 0.004), 2.0), 0, 0.8)
+    chord = [['E5', 'B5', 'E6', 'G6'], ['G5', 'B5', 'E6', 'B6'], ['E5', 'G5', 'B5', 'E6'],
+             ['B4', 'E5', 'G5', 'D6'], ['E5', 'A5', 'B5', 'E6']][v]
+    add(out, hl_chord(r, chord, dec=0.16, bright=1.3, stagger=0.003), 0, 0.7)
+    add(out, thump(0.7, note('E3'), note('E1'), 0.05, 0.16, drive=2.4), 0, 1.2)
+    n = ns(0.4)
+    f = sweep(n, note('E5'), note('E4'), 0.3)  # energy collapsing an octave
+    add(out, (sine(f, n) + 0.4 * sine(2 * f, n)) * env_exp(n, 0.06, 0.002), 0, 0.3)
+    add(out, hl_shards(r, int(U(r, 10, 14)), 1.0, 'E8', 'E6', amp=0.6), 0.01, 1.0)
+    add(out, _cube_tinks(r, int(U(r, 6, 10)), 0.08, 1.3, amp=0.4), 0, 1.0)
+    return out
 
 
-@sound('clash', 'combat', 4, volume=1.0, pitch=(0.94, 1.06),
-       notes='two hard-light constructs colliding: energy crack + low boom')
+@sound('clash', 'combat', 5, pitch=P_T10, lufs=-14,
+       notes='two hard-light chords colliding: E and B chords, dissonance spike that resolves + E1 boom')
 def clash(r, v):
-    d = 2.4
-    n = ns(d)
-    t = tvec(n)
+    d = 1.5
     out = buf(d)
-    add(out, sat(crack(r, 1500, 0.006, d=0.06), 3.0), 0, 1.0)
-    nz = ns(0.15)
-    add(out, fm(glide(nz, 2500, 400, 0.04), 0.5, 10 * np.exp(-tvec(nz) / 0.04), nz) * env_exp(nz, 0.04), 0, 0.5)
-    a = U(r, 400, 520)
-    add(out, fm_bell(n, a, 1.414, 5, 0.1, 0.45), 0, 0.35)
-    add(out, fm_bell(n, a * 1.059, 1.414, 5, 0.1, 0.45), 0.003, 0.35)
-    add(out, thump(1.2, 72, 28, 0.08, 0.35, drive=3.0), 0, 1.1)
-    crackle = bp(white(n, r), 2500, 9000) * (white(n, r) > 0.94) * 3
-    add(out, crackle * env_exp(n, 0.25, 0.01), 0.01, 0.3)
-    _cascade(out, r, 5, 0.1, 0.8, 3000, 7000, 0.12)
-    return reverb(out, r, 1.4, 0.28, bright=1.3)
+    add(out, sat(click(r, 1500, 0.005), 3.0), 0, 0.9)
+    nz = ns(0.12)
+    add(out, fm(glide(nz, 2637, 330, 0.03), 1.0, 7 * np.exp(-tvec(nz) / 0.02), nz) * env_exp(nz, 0.03), 0, 0.35)
+    a = [['E4', 'G4', 'B4'], ['E4', 'B4', 'E5'], ['G4', 'B4', 'E5'], ['E4', 'G4', 'E5'], ['B3', 'E4', 'G4']][v]
+    b = [['B4', 'D5', 'F#5'], ['B4', 'F#5', 'B5'], ['D5', 'F#5', 'B5'], ['B4', 'D5', 'B5'], ['F#4', 'B4', 'D5']][v]
+    add(out, hl_chord(r, a, dec=0.4, bright=1.2, stagger=0.002), 0, 0.55)
+    # the second construct arrives out of tune and is forced into consonance
+    n = ns(1.9)
+    t = tvec(n)
+    det = 2 ** (U(r, 35, 55) / 1200 * np.exp(-t / 0.05))
+    y = np.zeros(n)
+    for nm in b:
+        f = note(nm) * det
+        for k, amp in ((1, 1.0), (2, 0.4), (3, 0.25)):
+            y += amp * sine(f * k, n, r.uniform(0, TAU)) * np.exp(-t / (0.35 / k ** 0.5))
+    add(out, y * np.clip(t / 0.0006, 0, 1), 0.004, 0.35)
+    add(out, thump(1.0, note('E3'), note('E1'), 0.06, 0.28, drive=3.0), 0, 1.1)
+    add(out, hl_shards(r, 4, 0.5, 'E8', 'B6', amp=0.3), 0.01, 1.0)
+    return peq(out, 3200, -4, 0.8)
 
 
 # =============================================================================== hits
-@sound('hit_light', 'combat', 4, volume=0.8, pitch=(0.9, 1.1), lufs=-14)
+_THWACK = [[1.0, 1.62, 2.4, 3.3], [1.0, 2.1, 3.7], [1.0, 1.45, 2.9, 4.1], [1.0, 1.8, 2.7], [1.0, 1.55, 2.25, 3.9],
+           [1.0, 2.35, 3.1]]
+
+
+def _thwack(r, f, v, dec=0.03):
+    ratios = _THWACK[v % len(_THWACK)]
+    decs = [dec / (1 + 0.5 * i) for i in range(len(ratios))]
+    return modal([f * k for k in ratios], decs, [1 / (1 + 0.4 * i) for i in range(len(ratios))], ns(dec * 8), r)
+
+
+@sound('hit_light', 'combat', 6, pitch=P_IMPACT, lufs=-18, notes='light punch: contact click + modal thwack + small thump')
 def hit_light(r, v):
     out = buf(0.3)
-    add(out, crack(r, 3000, 0.002), 0, 0.6)
-    add(out, burst(0.08, r, 800, 3500 * U(r, .8, 1.2), 0.012), 0, 0.7)
-    add(out, thump(0.15, 190 * U(r, .9, 1.1), 95, 0.02, 0.05, drive=1.5), 0, 0.8)
-    return reverb(out, r, 0.3, 0.08)
+    add(out, click(r, 2500, 0.002), 0, 0.5)
+    add(out, _thwack(r, U(r, 300, 460), v, 0.03), 0, 0.9)
+    add(out, thump(0.15, 180 * U(r, .92, 1.08), 95, 0.02, 0.04, drive=1.5), 0, 0.7)
+    add(out, grit(r, 4, 0.006, 1800, 4000, 0.002), 0, 0.2)
+    return glue(out, 1.8)
 
 
-@sound('hit_medium', 'combat', 4, volume=0.9, pitch=(0.92, 1.08), lufs=-13)
+@sound('hit_medium', 'combat', 6, pitch=P_IMPACT, lufs=-15, notes='medium punch: click + lower thwack + saturated thump')
 def hit_medium(r, v):
-    out = buf(0.55)
-    add(out, crack(r, 2500, 0.003), 0, 0.8)
-    add(out, burst(0.12, r, 500, 3000, 0.02), 0, 0.8)
-    add(out, thump(0.4, 150 * U(r, .9, 1.1), 58, 0.03, 0.1, drive=2.2), 0, 1.0)
-    add(out, burst(0.2, r, None, 300, 0.05, color='brown'), 0, 0.4)
-    return reverb(out, r, 0.5, 0.12)
+    out = buf(0.5)
+    add(out, sat(click(r, 2200, 0.003), 1.5), 0, 0.6)
+    add(out, _thwack(r, U(r, 200, 320), v, 0.045), 0, 0.9)
+    add(out, thump(0.4, 150 * U(r, .92, 1.08), 58, 0.03, 0.09, drive=2.2), 0, 1.0)
+    add(out, grit(r, 6, 0.01, 1200, 3500, 0.003), 0, 0.25)
+    return peq(glue(out, 1.6), 3200, -3, 0.8)
 
 
-@sound('hit_heavy', 'combat', 4, volume=1.0, pitch=(0.93, 1.05),
-       notes='big bass-drop punch; pair with hit-stop')
+@sound('hit_heavy', 'combat', 5, pitch=P_MICRO, lufs=-12, notes='big bass-drop punch; pair with hit-stop')
 def hit_heavy(r, v):
-    d = 2.4
-    n = ns(d)
-    t = tvec(n)
-    out = buf(d)
-    add(out, sat(crack(r, 2000, 0.006, d=0.05), 2.0), 0, 1.0)
-    nc = ns(0.05)
-    add(out, fm(3200, 1.41, 5 * np.exp(-tvec(nc) / 0.006), nc) * env_exp(nc, 0.01), 0, 0.3)
-    add(out, burst(0.2, r, 120, 900, 0.045, color='pink'), 0, 0.9)
-    add(out, thump(1.2, 170 * U(r, .92, 1.08), 32, 0.07, 0.38, drive=3.0, attack=0.002), 0, 1.2)
-    add(out, thump(1.3, 48, 30, 0.3, 0.5, drive=1.2, attack=0.02), 0.02, 0.5)
-    for _ in range(8):
-        add(out, grain(r, U(r, .003, .008), 1000, 4000), r.uniform(0, 0.03), 0.3)
-    out = sat(out * 1.2, 1.5)
-    return reverb(out, r, 1.3, 0.22, bright=0.6)
+    out = buf(1.6)
+    add(out, sat(click(r, 2000, 0.005), 2.0), 0, 0.9)
+    add(out, _thwack(r, U(r, 130, 200), v, 0.08), 0, 0.8)
+    add(out, thump(1.0, 170 * U(r, .92, 1.08), 32, 0.07, 0.3, drive=3.0, attack=0.002), 0, 1.2)
+    add(out, thump(1.2, 48, 30, 0.3, 0.4, drive=1.2, attack=0.02), 0.02, 0.5)
+    add(out, grit(r, 10, 0.012, 900, 2600, 0.004), 0, 0.3)
+    out = glue(out, 1.5)
+    return carve_heavy(out)
 
 
-@sound('wall_splat', 'combat', 3, volume=1.0, pitch=(0.93, 1.06), notes='body slammed into stone')
+@sound('wall_splat', 'combat', 3, pitch=P_MICRO, lufs=-12, notes='body slammed into stone: thud + stone break cascade')
 def wall_splat(r, v):
-    out = buf(1.2)
-    add(out, thump(0.8, 110, 42, 0.05, 0.2, drive=2.5), 0, 1.0)
-    for i in range(3):
-        add(out, burst(0.05, r, 400, 2500, 0.015), i * U(r, .004, .007), 0.7 / (1 + i))
-    for _ in range(20):
-        tt = r.exponential(0.04)
-        f = U(r, 900, 1800)
-        g = mix(2 * reson(grain(r, U(r, .003, .01), 1200, 5000), f, 4),
-                modal([f], [U(r, .01, .03)], [0.5], ns(0.25), r))
-        add(out, g, tt, 0.35 * np.exp(-tt / 0.12))
-    _cascade(out, r, 5, 0.1, 0.9, 700, 2000, 0.12, kind='tok')
-    return reverb(out, r, 0.7, 0.2)
+    out = buf(1.5)
+    add(out, thump(0.8, 110, 42, 0.05, 0.18, drive=2.5), 0, 1.0)
+    add(out, _thwack(r, U(r, 160, 240), v, 0.06), 0, 0.6)
+    add(out, shatter(r, 'stone', [10, 14, 8][v], 0.35, 1.6, 1.5), 0.002, 0.8)
+    return carve_heavy(glue(out, 1.8))
 
 
-@sound('kaiju_stomp', 'combat', 3, volume=1.0, pitch=(0.9, 1.05), lufs=-11, notes='sub-bass boom + rumble')
+@sound('kaiju_stomp', 'combat', 3, pitch=P_SOFT, lufs=-10, notes='sub-bass boom + ground crack + debris + rumble')
 def kaiju_stomp(r, v):
-    d = 4.5
+    d = 3.5
     n = ns(d)
     out = buf(d)
-    add(out, burst(0.1, r, None, 500, 0.02), 0, 0.8)
-    add(out, thump(2.5, 55 * U(r, .92, 1.08), 24, 0.15, 0.7, drive=2.5, attack=0.004), 0, 1.2)
-    rum = normpk(lp(brown(n, r), 140)) * (1 + 0.4 * smooth_noise(n, r, 4)) * env_exp(n, 1.0, 0.05)
-    add(out, rum, 0, 0.6)
-    for _ in range(10):
-        tt = U(r, 0.02, 0.2)
-        add(out, grain(r, U(r, .004, .012), 900, 4000), tt, 0.25)
-    _cascade(out, r, 8, 0.1, 1.8, 500, 1600, 0.1, kind='tok')
-    return reverb(out, r, 2.0, 0.25, bright=0.6)
+    add(out, click(r, 900, 0.006), 0, 0.5)
+    add(out, thump(2.5, 55 * U(r, .92, 1.08), 24, 0.15, 0.6, drive=2.5, attack=0.004), 0, 1.2)
+    rum = normpk(lp(brown(n, r), 120)) * (1 + 0.4 * smooth_noise(n, r, 4)) * env_exp(n, 0.8, 0.05)
+    add(out, rum, 0, 0.45)
+    add(out, material_hit(r, 'stone', 3.0, 2.0), 0, 0.6)
+    add(out, shatter(r, 'stone', [14, 18, 12][v], 1.0, 1.4, 1.2), 0.03, 0.35)
+    return carve_heavy(glue(out, 2.6))
 
 
-@sound('kaiju_roar', 'combat', 3, volume=1.0, pitch=(0.92, 1.05), lufs=-12,
-       notes='synth monster roar ~1.6 s (detuned saws + noise through moving formants)')
+@sound('kaiju_roar', 'combat', 3, pitch=P_SOFT, lufs=-12,
+       notes='synth monster roar ~1.6 s (detuned saws + breath through moving formants)')
 def kaiju_roar(r, v):
     d = 2.0
     n = ns(d)
@@ -472,345 +547,324 @@ def kaiju_roar(r, v):
     f0 = f0 * (1 + 0.03 * smooth_noise(n, r, 12) + 0.02 * np.sin(TAU * 5 * t))
     growl = 1 + 0.55 * np.sin(TAU * np.cumsum(28 + 8 * smooth_noise(n, r, 2)) / SR)
     src = supersaw(f0, n, r, 5, 25) + 0.5 * square(f0 / 2, n)
-    breath = pink(n, r) * 2.2
+    breath = pink(n, r) * 1.0
     exc = (src + breath) * growl
     F1 = env_pts(n, [(0, 550), (0.3, 750), (1.2, 700), (1.9, 450)])
     F2 = env_pts(n, [(0, 950), (0.3, 1250), (1.2, 1150), (1.9, 850)])
     body = (tvf(exc, F1, 5, 'bp') + 0.7 * tvf(exc, F2, 6, 'bp') + 0.4 * reson(exc, 2500, 8)
-            + 0.5 * lp(src, 300))
+            + 0.6 * lp(src, 300))
     scr_f = f0 * 6 * (1 + 0.04 * smooth_noise(n, r, 20))
-    screech = reson(saw(scr_f, n) + 0.5 * white(n, r), 2400 * U(r, .9, 1.1), 3)
+    screech = reson(saw(scr_f, n), 2400 * U(r, .9, 1.1), 3)
     screech *= env_pts(n, [(0, 0), (0.2, 0), (0.5, 1), (1.1, 0.8), (1.6, 0)])
-    x = normpk(body) + 0.45 * normpk(screech)
-    x = sat(x * 1.5, 3.0)
+    x = normpk(body) + 0.4 * normpk(screech)
+    x = glue(x, 3.0)
     x *= env_pts(n, [(0, 0), (0.15, 0.8), (0.35, 1), (1.2, 0.85), (1.6, 0.3), (1.95, 0)])
-    return reverb(x, r, 1.8, 0.3, bright=0.8)
+    return carve_heavy(x, -4, -4)
 
 
-@sound('explosion_small', 'combat', 3, volume=0.95, pitch=(0.92, 1.08))
-def explosion_small(r, v):
-    d = 1.5
+def _fireball(r, d, fc0, fc1, tau_f, tau_a):
+    """Combustion body: brown+pink (never white), falling low-pass, rough amplitude grain."""
     n = ns(d)
+    src = brown(n, r) + 0.5 * pink(n, r)
+    y = tvf(src, glide(n, fc0, fc1, tau_f), 0.8, 'lp') * (1 + 0.5 * smooth_noise(n, r, 45))
+    return normpk(y) * env_exp(n, tau_a, 0.003)
+
+
+@sound('explosion_small', 'combat', 3, pitch=P_MICRO, lufs=-12, notes='crack + sub punch + fireball + stone debris')
+def explosion_small(r, v):
+    d = 1.6
     out = buf(d)
-    add(out, sat(crack(r, 1500, 0.006, d=0.05), 2.0), 0, 1.0)
-    rough = 1 + 0.5 * smooth_noise(n, r, 60)
-    body = tvf(white(n, r), glide(n, 9000, 400, 0.12), 0.8, 'lp') * rough * env_exp(n, 0.18, 0.002)
-    add(out, normpk(body), 0, 1.0)
-    add(out, thump(1.0, 80, 35, 0.05, 0.25, drive=2.5), 0, 1.0)
-    for _ in range(30):
-        tt = U(r, 0.05, 0.6)
-        add(out, grain(r, 0.002, 2000, 8000), tt, 0.25 * np.exp(-tt / 0.25))
-    return reverb(out, r, 1.0, 0.22, bright=0.8)
+    add(out, sat(click(r, 1500, 0.005), 2.0), 0, 0.8)
+    add(out, _fireball(r, 1.0, 5000, 300, 0.1, 0.14), 0, 0.55)
+    add(out, thump(1.0, 80 * U(r, .92, 1.08), 35, 0.05, 0.22, drive=2.8), 0, 1.15)
+    add(out, shatter(r, 'stone', [8, 10, 7][v], 0.6, 0.8, 0.9), 0.04, 0.3)
+    return carve_heavy(glue(out, 1.4))
 
 
-@sound('explosion_big', 'combat', 3, volume=1.0, pitch=(0.92, 1.05), lufs=-11, notes='with debris rumble tail')
+@sound('explosion_big', 'combat', 3, pitch=P_SOFT, lufs=-9, notes='double crack + huge sub + fireball + debris rain + rumble')
 def explosion_big(r, v):
     d = 4.0
     n = ns(d)
     out = buf(d)
-    add(out, sat(crack(r, 1200, 0.008, d=0.08), 2.5), 0, 1.0)
-    add(out, sat(crack(r, 2000, 0.006, d=0.06), 2.0), U(r, 0.012, 0.025), 0.7)
-    rough = 1 + 0.6 * smooth_noise(n, r, 50)
-    body = tvf(white(n, r), glide(n, 12000, 250, 0.3), 0.8, 'lp') * rough * env_exp(n, 0.5, 0.003)
-    add(out, normpk(body), 0, 1.1)
-    add(out, thump(3.0, 60, 25, 0.15, 0.8, drive=3.0, attack=0.003), 0, 1.3)
+    add(out, sat(click(r, 1200, 0.006), 2.5), 0, 0.9)
+    add(out, sat(click(r, 2000, 0.004), 2.0), U(r, 0.012, 0.025), 0.6)
+    add(out, _fireball(r, 2.5, 6000, 200, 0.25, 0.4), 0, 0.6)
+    add(out, thump(3.0, 60, 25, 0.15, 0.7, drive=3.2, attack=0.003), 0, 1.3)
     rum = normpk(lp(brown(n, r), 120)) * (1 + 0.5 * smooth_noise(n, r, 3)) * env_pts(n, [(0, 0), (0.1, 1), (4, 0)], 2)
-    add(out, rum, 0, 0.7)
-    _cascade(out, r, 25, 0.25, 3.2, 500, 2200, 0.12, kind='tok')
+    add(out, rum, 0, 0.55)
+    add(out, shatter(r, 'stone', [22, 26, 20][v], 2.0, 1.0, 1.0), 0.15, 0.28)
     for _ in range(4):
-        add(out, thump(0.3, 130, 60, 0.02, 0.06, drive=1.5), U(r, 0.4, 1.6), 0.25)
-    for _ in range(40):
-        tt = U(r, 0.05, 1.5)
-        add(out, grain(r, 0.002, 2000, 8000), tt, 0.2 * np.exp(-tt / 0.6))
-    return reverb(out, r, 2.5, 0.3, bright=0.6)
+        add(out, thump(0.3, 130, 60, 0.02, 0.06, drive=1.5), U(r, 0.4, 1.6), 0.2)
+    return carve_heavy(glue(out, 1.4))
 
 
-# =============================================================================== destruction
-@sound('break_stone', 'destruction', 4, volume=0.85, pitch=(0.9, 1.1))
+# =============================================================================== destruction (material families)
+@sound('break_stone', 'destruction', 6, pitch=P_IMPACT, lufs=-18, notes='stone block breaks: dense low partials + gritty chips')
 def break_stone(r, v):
     out = buf(1.0)
-    add(out, crack(r, 2000, 0.004), 0, 0.7)
-    add(out, thump(0.25, 140, 70, 0.02, 0.07, drive=1.8), 0, 0.7)
-    for i in range(28):
-        tt = r.exponential(0.03) if i < 20 else U(r, 0.05, 0.3)
-        f = U(r, 900, 4000)
-        g = reson(grain(r, U(r, .003, .008), 700, 6000), f, 6) * 2
-        g = mix(g, modal([f * 0.7], [U(r, .008, .02)], [0.6], ns(0.08), r))
-        add(out, g, tt, 0.5 * np.exp(-tt / 0.15))
-    n = ns(0.9)
-    cr = lp(pink(n, r), 2000) * (white(n, r) > 0.6) * env_exp(n, 0.15, 0.01)
-    add(out, normpk(cr), 0.02, 0.2)
-    return reverb(out, r, 0.5, 0.14)
-
-
-@sound('break_dirt', 'destruction', 4, volume=0.75, pitch=(0.9, 1.1))
-def break_dirt(r, v):
-    out = buf(0.6)
-    add(out, thump(0.3, 110, 55, 0.03, 0.08, drive=1.5), 0, 0.8)
-    add(out, burst(0.25, r, None, 700, 0.06, color='brown'), 0, 0.8)
-    for _ in range(30):
-        tt = r.exponential(0.1)
-        add(out, lp(grain(r, U(r, .004, .012), 300, 3000), 1500), tt, 0.3 * np.exp(-tt / 0.15))
-    for _ in range(10):
-        tt = r.exponential(0.06)
-        add(out, grain(r, 0.003, 2000, 4000), tt, 0.08)
-    return reverb(out, r, 0.35, 0.08)
-
-
-@sound('break_wood', 'destruction', 4, volume=0.85, pitch=(0.9, 1.1), notes='crack/splinter')
-def break_wood(r, v):
-    out = buf(0.8)
-    add(out, sat(crack(r, 1500, 0.003), 2.0), 0, 1.0)
-    add(out, crack(r, 2000, 0.002), U(r, 0.02, 0.04), 0.6)
-    f0 = U(r, 180, 260)
-    add(out, modal([f0, f0 * 2.3, f0 * 3.9, f0 * 5.6], [0.12, 0.07, 0.04, 0.03], [1, .6, .35, .2], ns(0.6), r), 0, 0.7)
-    add(out, thump(0.1, 200, 120, 0.01, 0.03, drive=1.5), 0, 0.5)
-    for _ in range(45):
-        tt = 0.02 + r.gamma(2.0, 0.04)
-        n = ns(U(r, 0.004, 0.012))
-        c = bp(white(n, r), 2000, 7000) * env_exp(n, U(r, 0.001, 0.003))
-        add(out, c, tt, U(r, .1, .4) * np.exp(-tt / 0.2))
-    return reverb(out, r, 0.45, 0.12)
-
-
-@sound('break_leaves', 'destruction', 4, volume=0.6, pitch=(0.9, 1.12), lufs=-17, notes='rustle burst')
-def break_leaves(r, v):
-    out = buf(0.8)
-    for _ in range(260):
-        tt = r.exponential(0.15)
-        if tt > 0.7:
-            continue
-        lo = U(r, 1800, 5000)
-        add(out, grain(r, U(r, .004, .025), lo, lo * 2), tt, U(r, .2, 1.0) * np.exp(-tt / 0.2))
-    add(out, whoosh(0.4, r, 1000, 4000, 0.8, [(0, 0), (0.02, 1), (0.4, 0)]), 0, 0.3)
-    for _ in range(3):
-        add(out, crack(r, 2000, 0.002), U(r, 0, 0.1), 0.4)
-    add(out, thump(0.1, 90, 70, 0.02, 0.03, drive=0), 0, 0.2)
+    add(out, shatter(r, 'stone', int(U(r, 8, 14)), [0.3, 0.4, 0.25, 0.35, 0.45, 0.3][v], U(r, 1.2, 1.8), U(r, 1.0, 1.5)), 0, 1.0)
+    if v in (2, 5):  # two-stage break
+        add(out, material_hit(r, 'stone', 1.3, 1.2), U(r, 0.03, 0.06), 0.6)
+    add(out, thump(0.2, 150, 75, 0.02, 0.05, drive=1.5), 0, 0.35)
     return out
 
 
-@sound('break_crystal', 'destruction', 3, volume=0.85, pitch=(0.95, 1.05), notes='chime shatter')
+@sound('break_dirt', 'destruction', 6, pitch=P_IMPACT, lufs=-22, notes='dirt/grass block: soft low-passed thud + clods')
+def break_dirt(r, v):
+    out = buf(0.7)
+    add(out, shatter(r, 'dirt', int(U(r, 2, 5)), 0.25, [1.0, 1.2, 0.9, 1.3, 1.1, 1.0][v], 1.0, bounce=False), 0, 1.0)
+    return lpf(out, 3500, 2)
+
+
+@sound('break_wood', 'destruction', 6, pitch=P_IMPACT, lufs=-18, notes='hollow knock + dry crack + splinter crackle')
+def break_wood(r, v):
+    out = buf(1.0)
+    add(out, shatter(r, 'wood', int(U(r, 4, 8)), 0.3, U(r, 1.1, 1.5), U(r, 1.1, 1.5)), 0, 1.0)
+    add(out, grit(r, int(U(r, 14, 30)), [0.03, 0.05, 0.02, 0.04, 0.06, 0.035][v], 1800, 5500, 0.0015), 0.005, 0.35)
+    if v % 2:
+        add(out, material_hit(r, 'wood', 0.9, 1.3), U(r, 0.02, 0.05), 0.6)  # second crack
+    return out
+
+
+@sound('break_leaves', 'destruction', 6, pitch=P_IMPACT, lufs=-22, notes='leaf burst: crinkle clusters + twig snaps')
+def break_leaves(r, v):
+    out = buf(0.8)
+    add(out, material_hit(r, 'leaves', [1.4, 1.8, 1.2, 1.6, 2.0, 1.3][v], 1.2), 0, 1.0)
+    for _ in range(int(r.integers(1, 4))):
+        add(out, material_hit(r, 'wood', 0.12, 0.8), U(r, 0.0, 0.08), 0.25)
+    return carve_foley(out, 300, 9000)
+
+
+@sound('break_crystal', 'destruction', 6, pitch=P_T10, lufs=-18, notes='crystal chime shatter, tuned to E minor pentatonic')
 def break_crystal(r, v):
-    d = 2.4
-    out = buf(d)
-    add(out, crack(r, 3000, 0.004), 0, 0.8)
-    scale = [1760.0, 1975.5, 2217.5, 2637.0, 2960.0, 3520.0]  # A6 pentatonic
-    notes = r.choice(scale, 5, replace=False)
-    for i, f in enumerate(notes):
-        ratios = [1, 2.0, 3.0, 4.16, 5.43]
-        decs = np.array([0.9, 0.6, 0.4, 0.25, 0.15]) * U(r, 0.7, 1.1)
-        add(out, modal([f * k for k in ratios], decs, [1, .5, .35, .2, .1], ns(2.3), r),
-            i * U(r, 0.012, 0.035), 0.3)
-    _shards(out, r, 25, 0.06, 3000, 9000, 0.3)
-    _cascade(out, r, 6, 0.08, 1.2, 3500, 7500, 0.18)
-    return reverb(out, r, 1.4, 0.3, bright=1.6)
+    out = buf(2.0)
+    add(out, click(r, 4000, 0.002), 0, 0.6)
+    k = pent_index('E6')
+    notes = r.choice(np.arange(k, k + 7), 4 + v % 2, replace=False)
+    for i, kk in enumerate(sorted(notes, reverse=True)):
+        f = pent(int(kk))
+        dec = U(r, 0.35, 0.7)
+        add(out, modal([f, 2 * f, 3 * f, 4.16 * f, 5.43 * f], np.array([1, .6, .4, .22, .12]) * dec, [1, .45, .3, .15, .07],
+                       ns(dec * 6), r), i * U(r, 0.012, 0.035), 0.3)
+    add(out, shatter(r, 'glass', int(U(r, 6, 10)), 0.25, 0.5, 0.8), 0.005, 0.35)
+    return out
 
 
-@sound('debris_patter', 'destruction', 4, volume=0.6, pitch=(0.88, 1.12), lufs=-19, notes='small cubes bouncing')
+@sound('break_metal', 'destruction', 6, pitch=P_IMPACT, lufs=-18, notes='metal block: inharmonic clang + ringing fragments')
+def break_metal(r, v):
+    out = buf(2.2)
+    add(out, shatter(r, 'metal', int(U(r, 3, 6)), 0.4, U(r, 1.1, 1.6), U(r, 1.1, 1.5)), 0, 1.0)
+    add(out, thump(0.2, 180, 90, 0.015, 0.04, drive=1.5), 0, 0.3)
+    return out
+
+
+@sound('break_glass', 'destruction', 6, pitch=P_IMPACT, lufs=-18, notes='glass pane: bright crack + tinkling shard cascade')
+def break_glass(r, v):
+    out = buf(1.6)
+    add(out, shatter(r, 'glass', int(U(r, 14, 24)), [0.35, 0.45, 0.3, 0.5, 0.4, 0.3][v], U(r, 1.0, 1.4), U(r, 1.1, 1.5)), 0, 1.0)
+    return out
+
+
+@sound('break_hardlight', 'destruction', 6, pitch=P_T10, lufs=-18, notes='hard-light block: E-minor chord ping + falling shards')
+def break_hardlight(r, v):
+    out = buf(1.4)
+    add(out, shatter(r, 'hardlight', int(U(r, 9, 15)), [0.5, 0.6, 0.4, 0.7, 0.55, 0.45][v], U(r, 0.8, 1.3), 1.0), 0, 1.0)
+    add(out, thump(0.2, note('E3'), note('E2'), 0.02, 0.04, drive=1.2), 0, 0.3)
+    return out
+
+
+@sound('debris_patter', 'destruction', 6, pitch=P_IMPACT, lufs=-28, notes='small stone cubes bouncing to rest')
 def debris_patter(r, v):
     out = buf(1.2)
     for _ in range(int(U(r, 4, 8))):
         t0 = U(r, 0, 0.25)
-        f = U(r, 700, 2200)
+        s = U(r, 0.25, 0.5)
         for (t, a) in bounces(r, t0, U(r, 0.4, 1.0), U(r, 0.08, 0.18), U(r, 0.55, 0.7), 0.6, 1.1):
-            add(out, tok(r, f * U(r, 0.96, 1.04)), t, a)
-    return reverb(out, r, 0.3, 0.1)
+            add(out, material_hit(r, 'stone', s * U(r, 0.95, 1.05), 0.4 + 0.5 * a), t, a)
+    return carve_foley(out, 200, 9000)
 
 
-@sound('collapse_rumble', 'destruction', 2, volume=1.0, pitch=(0.92, 1.05), lufs=-13, notes='a tower falling')
+@sound('collapse_rumble', 'destruction', 2, pitch=P_SOFT, lufs=-14, notes='a tower falling: groans, thumps, stone cascades, rumble')
 def collapse_rumble(r, v):
     d = 5.0
     n = ns(d)
     out = buf(d)
-    add(out, burst(0.2, r, None, 3000, 0.02), 0, 0.7)
-    add(out, burst(0.2, r, None, 2500, 0.02), 0.15, 0.6)
-    for _ in range(15):
-        add(out, grain(r, U(r, .004, .01), 900, 4000), r.exponential(0.08), 0.3)
+    add(out, material_hit(r, 'stone', 3.0, 2.0), 0, 0.7)
     groan = tvf(brown(n, r) * 3, sweep(n, 180, 80), 6, 'bp')
     add(out, normpk(groan) * env_pts(n, [(0, 0), (0.3, 0.8), (1.5, 0.5), (2.5, 0)]), 0, 0.45)
     rum = normpk(lp(brown(n, r), 150)) * (1 + 0.5 * smooth_noise(n, r, 2))
     rum *= env_pts(n, [(0, 0), (0.4, 1), (2.8, 1), (4.8, 0)])
-    add(out, rum, 0, 1.0)
+    add(out, rum, 0, 0.8)
     for _ in range(5):
         tt = U(r, 0.7, 2.8)
-        add(out, thump(0.8, 90, 35, 0.05, 0.3, drive=2.0), tt, U(r, 0.6, 1.0))
-        for _ in range(8):
-            add(out, grain(r, U(r, .004, .01), 900, 4000), tt + r.exponential(0.03), 0.2)
-    _cascade(out, r, 50, 0.3, 4.2, 500, 2000, 0.1, kind='tok')
-    return reverb(out, r, 2.5, 0.3, bright=0.6)
+        add(out, thump(0.8, 90, 35, 0.05, 0.25, drive=2.0), tt, U(r, 0.6, 1.0))
+        add(out, shatter(r, 'stone', 8, 0.6, 2.0, 1.4), tt, 0.3)
+    return carve_heavy(out)
 
 
-# =============================================================================== status / UI
-@sound('ui_move', 'ui', 3, volume=0.4, pitch=(1.0, 1.0), lufs=-24, notes='menu hover tick')
+# =============================================================================== UI (bright, small, in key)
+@sound('ui_move', 'ui', 3, pitch=P_TONAL, lufs=-29, notes='menu hover tick (FM, E minor)')
 def ui_move(r, v):
-    n = ns(0.08)
-    x = sine(2200 * (1 + 0.03 * v), n) * env_exp(n, 0.012, 0.0005)
-    return x + 0.3 * crack(r, 4000, 0.0008, d=0.08)
-
-
-@sound('ui_select', 'ui', 3, volume=0.55, pitch=(1.0, 1.0))
-def ui_select(r, v):
-    k = 1 + 0.015 * (v - 1)
-    out = buf(0.8)
-    add(out, fm_bell(ns(0.6), 880 * k, 2, 1.5, 0.05, 0.08), 0, 0.8)
-    add(out, fm_bell(ns(0.7), 1318.5 * k, 2, 1.5, 0.05, 0.11), 0.06, 1.0)
-    add(out, thump(0.05, 200, 120, 0.01, 0.012, drive=0), 0, 0.2)
-    return reverb(out, r, 0.3, 0.15, bright=1.4)
-
-
-@sound('ui_back', 'ui', 3, volume=0.5, pitch=(1.0, 1.0), lufs=-22)
-def ui_back(r, v):
-    k = 1 + 0.015 * (v - 1)
-    out = buf(0.7)
-    add(out, fm_bell(ns(0.5), 1318.5 * k, 2, 1.0, 0.04, 0.07), 0, 0.8)
-    add(out, fm_bell(ns(0.6), 880 * k, 2, 1.0, 0.04, 0.09), 0.06, 0.9)
-    out = lp(out, 3500)
-    return reverb(out, r, 0.3, 0.12)
-
-
-@sound('type_key', 'ui', 8, volume=0.35, pitch=(0.94, 1.06), lufs=-26, notes='ring-console keypress; many variations')
-def type_key(r, v):
     n = ns(0.05)
-    x = crack(r, 3000, 0.0008, d=0.05)
-    f = U(r, 2500, 5000)
-    x += 0.5 * modal([f, f * 1.5], [0.006, 0.004], [1, .5], n, r)
-    x += 0.3 * burst(0.05, r, 800, 1600, 0.004)
-    return x
+    f = note(['E8', 'D8', 'B7'][v])
+    x = fm(f, 2.0, 1.2 * env_exp(n, 0.004), n) * env_exp(n, 0.009, 0.0003)
+    x += 0.3 * fit(click(r, 6000, 0.0008), n)
+    return carve_ui(x, 2000)
 
 
-@sound('type_error', 'ui', 2, volume=0.5, pitch=(1.0, 1.0))
+@sound('ui_select', 'ui', 3, pitch=P_TONAL, lufs=-24, notes='confirm: rising glassy two-note (E minor)')
+def ui_select(r, v):
+    out = buf(0.3)
+    a, b = [('E7', 'B7'), ('G7', 'D8'), ('B6', 'E7')][v]
+    add(out, hl_ping(r, note(a), 0.06, 1.3, glint=1.0), 0, 0.8)
+    add(out, hl_ping(r, note(b), 0.08, 1.3, glint=1.0), 0.05, 1.0)
+    add(out, click(r, 5000, 0.0008), 0, 0.3)
+    return carve_ui(out, 1800)
+
+
+@sound('ui_back', 'ui', 3, pitch=P_TONAL, lufs=-25, notes='back: falling two-note, softer')
+def ui_back(r, v):
+    out = buf(0.3)
+    a, b = [('B7', 'E7'), ('D8', 'G7'), ('E7', 'B6')][v]
+    add(out, hl_ping(r, note(a), 0.05, 1.0, glint=0.6), 0, 0.8)
+    add(out, hl_ping(r, note(b), 0.07, 1.0, glint=0.6), 0.05, 0.9)
+    return carve_ui(out, 1800, 9000)
+
+
+@sound('type_key', 'ui', 8, pitch=P_T10, lufs=-32, notes='ring-console keypress; 8 distinct ticks')
+def type_key(r, v):
+    n = ns(0.045)
+    f = note(['E8', 'G8', 'A8', 'B7', 'D8', 'E8', 'G8', 'B7'][v])
+    ratio = [2.0, 1.0, 3.0, 2.0, 1.5, 3.0, 2.0, 1.0][v]
+    x = fm(f, ratio, [1.0, 1.6, 0.8, 1.3, 1.1, 0.6, 2.0, 1.4][v] * env_exp(n, 0.003), n) * env_exp(n, U(r, 0.006, 0.011), 0.0002)
+    x += 0.4 * fit(click(r, 5000, 0.0007), n)
+    g = U(r, 2600, 3400)
+    x += 0.35 * fit(modal([g, g * 1.47], [0.004, 0.003], [1, .5], n, r), n)  # the key's body
+    return carve_ui(x, 2000)
+
+
+@sound('type_error', 'ui', 2, pitch=P_TONAL, lufs=-26, notes='denied: two buzzy minor-second blips')
 def type_error(r, v):
-    out = buf(0.28)
+    out = buf(0.3)
     for i in range(2):
-        n = ns(0.075)
-        s = lp(square(150, n) + square(158, n), 1800) * env_pts(n, [(0, 0), (0.004, 1), (0.06, 0.8), (0.072, 0)])
-        add(out, s, i * 0.11 + 0.01 * v, 1.0)
-    return out
+        n = ns(0.07)
+        f = 2200 * (1 + 0.03 * v)
+        t = tvec(n)
+        s = (fm(f, 1.0, 1.5, n) + fm(f * 2 ** (1 / 12), 1.0, 1.5, n)) * (0.6 + 0.4 * np.sign(np.sin(TAU * 55 * t)))
+        s *= env_pts(n, [(0, 0), (0.004, 1), (0.055, 0.8), (0.07, 0)])
+        add(out, s, i * 0.1, 1.0)
+    return carve_ui(out, 1500)
 
 
-@sound('cast_confirm', 'ui', 3, volume=0.75, pitch=(0.98, 1.02), lufs=-17, notes='ring console Enter: construct cast')
+@sound('cast_confirm', 'ui', 3, pitch=P_TONAL, lufs=-22, notes='ring console Enter: quick rising hard-light pings + glint')
 def cast_confirm(r, v):
-    out = buf(1.2)
-    n = ns(0.16)
-    add(out, sine(sweep(n, 600, 2000, 0.7), n) * env_pts(n, [(0, 0), (0.01, 1), (0.1, 0.5), (0.16, 0)]), 0, 0.5)
-    base = [1760.0, 1975.5, 2093.0][v % 3]
-    add(out, fm_bell(ns(1.1), base, 1.0, 1.2, 0.1, 0.25), 0.1, 0.5)
-    add(out, fm_bell(ns(1.1), base * 1.5, 1.0, 1.2, 0.1, 0.22), 0.1, 0.4)
-    add(out, thump(0.15, 120, 60, 0.02, 0.04, drive=1.2), 0.1, 0.4)
-    for _ in range(12):
-        nn = ns(0.01)
-        add(out, sine(U(r, 4000, 9000), nn) * np.hanning(nn), U(r, 0.1, 0.4), 0.08)
-    return reverb(out, r, 0.6, 0.25, bright=1.5)
+    out = buf(0.5)
+    seq = [['E6', 'B6', 'E7'], ['G6', 'D7', 'G7'], ['B6', 'E7', 'B7']][v]
+    for i, nm in enumerate(seq):
+        add(out, hl_ping(r, note(nm), 0.07 + 0.03 * i, 1.3, glint=1.0), 0.035 * i, 0.6 + 0.2 * i)
+    add(out, click(r, 6000, 0.0008), 0, 0.3)
+    for _ in range(8):
+        nn = ns(0.008)
+        add(out, sine(pent(pent_index('E8') + int(r.integers(0, 4))), nn) * np.hanning(nn), U(r, 0.07, 0.2), 0.12)
+    return carve_ui(out, 1800)
 
 
-def _chord_pad(n, r, freqs, fc0, fc1, env):
-    x = sum(supersaw(f, n, r, 3, 12) for f in freqs)
-    return normpk(tvf(x, sweep(n, fc0, fc1, 0.5), 1.2, 'lp')) * env
-
-
-@sound('oath_complete', 'ui', 2, volume=0.8, pitch=(1.0, 1.0), lufs=-16, notes='triumphant rising chord')
+@sound('oath_complete', 'ui', 2, pitch=P_TONAL, lufs=-19, notes='triumphant rising E-minor arpeggio + bright Em7 bloom')
 def oath_complete(r, v):
-    d = 4.2
+    d = 2.0
     out = buf(d)
-    root = [261.63, 293.66][v % 2]  # C4 / D4
-    arp = [1, 1.25992, 1.49831, 2.0]
-    for i, k in enumerate(arp):
-        add(out, fm_bell(ns(2.2), root * 2 * k, 1.0, 1.5, 0.15, 0.35), i * 0.085, 0.5)
-    n = ns(d - 0.34)
-    env = env_pts(n, [(0, 0), (0.12, 1), (0.8, 0.8), (2.2, 0)])
-    add(out, _chord_pad(n, r, [root / 2, root * 0.749, root, root * 1.26, root * 1.5], 600, 5500, env), 0.34, 0.7)
-    add(out, sine(root / 4, n) * env, 0.34, 0.4)
-    add(out, fm_bell(ns(4.0), root * 4, 1.0, 2.0, 0.3, 0.8), 0.34, 0.35)
-    add(out, thump(0.3, 110, 55, 0.03, 0.1, drive=1.5), 0.34, 0.5)
-    for _ in range(30):
-        nn = ns(0.012)
-        add(out, sine(U(r, 3500, 9000), nn) * np.hanning(nn), U(r, 0.34, 1.6), 0.06)
-    return reverb(out, r, 1.8, 0.35, bright=1.4)
+    arp = [['E6', 'G6', 'B6', 'D7', 'E7'], ['G6', 'B6', 'D7', 'E7', 'G7']][v]
+    for i, nm in enumerate(arp):
+        add(out, hl_ping(r, note(nm), 0.25, 1.2, glint=1.0), 0.07 * i, 0.5)
+    t0 = 0.35
+    n = ns(1.6)
+    env = env_pts(n, [(0, 0), (0.08, 1), (0.5, 0.7), (1.6, 0)], 1.4)
+    for nm, a in (('E6', 0.6), ('B6', 0.5), ('D7', 0.4), ('G7', 0.35), ('E7', 0.4)):
+        add(out, hl_tone(r, note(nm), n, env, bright=1.1, shimmer=0.6), t0, a)
+    add(out, hl_shards(r, 4, 0.6, 'E8', 'E7', amp=0.25), t0, 1.0)
+    return carve_ui(out, 1500)
 
 
-@sound('willpower_low', 'ui', 2, volume=0.45, pitch=(1.0, 1.0), lufs=-22, notes='subtle low heartbeat pulse')
+@sound('willpower_low', 'ui', 2, pitch=P_TONAL, lufs=-24, notes='ring running dry: two flickering glassy pulses, falling G7 -> E7')
 def willpower_low(r, v):
     out = buf(0.8)
-    for i, (tt, a) in enumerate([(0, 1.0), (0.18, 0.7)]):
-        n = ns(0.3)
-        p = (sine(glide(n, 80, 62, 0.05), n) + 0.3 * sine(140, n)) * env_exp(n, 0.07, 0.01)
-        add(out, lp(p, 400), tt, a)
-    n = ns(0.6)
-    fl = sine(880 * (1 + 0.02 * v), n) * (0.5 + 0.5 * np.sin(TAU * 14 * tvec(n))) * env_pts(n, [(0, 0), (0.05, 1), (0.6, 0)])
-    add(out, fl, 0, 0.03)
-    return out
+    for i, (nm, a) in enumerate([('G7', 1.0), ('E7', 0.8)]):
+        n = ns(0.22)
+        t = tvec(n)
+        flick = 0.55 + 0.45 * np.sin(TAU * np.cumsum(16 + 6 * smooth_noise(n, r, 8)) / SR)
+        bend = 2 ** (-20 / 1200 * np.clip((t - 0.1) / 0.12, 0, 1))
+        f = note(nm) * (1 + 0.01 * v) * bend
+        s = (sine(f, n) + 0.3 * sine(2 * f, n)) * flick * env_pts(n, [(0, 0), (0.02, 1), (0.22, 0)], 1.5)
+        add(out, s, 0.2 * i, a)
+    return carve_ui(out, 1800)
 
 
-@sound('ko', 'ui', 2, volume=1.0, pitch=(1.0, 1.0), lufs=-12, notes='dramatic KO sting')
+@sound('ko', 'ui', 2, pitch=P_TONAL, lufs=-15, notes='KO sting: HF crack + bright Em chord stab + falling shard run')
 def ko(r, v):
-    d = 4.5
-    n = ns(d)
+    d = 1.8
     out = buf(d)
-    add(out, sat(crack(r, 1500, 0.006, d=0.06), 2.5), 0, 1.0)
-    add(out, thump(2.5, 62, 27, 0.1, 0.8, drive=3.0, attack=0.002), 0, 1.2)
-    root = [110.0, 103.83][v % 2]
-    env = env_pts(n, [(0, 0), (0.005, 1), (0.4, 0.6), (2.5, 0)])
-    stab = sum(supersaw(root * k, n, r, 3, 15) for k in (1, 1.189, 1.414, 2.0, 2.378))
-    stab = tvf(stab, glide(n, 5000, 500, 0.4), 1.5, 'lp') * env
-    add(out, normpk(stab), 0, 0.6)
-    add(out, fm_bell(ns(4.2), root * 8, 1.414, 4, 0.3, 0.9), 0, 0.2)
-    add(out, fm_bell(ns(4.2), root * 8 * 1.189, 1.414, 4, 0.3, 0.9), 0.01, 0.2)
-    _shards(out, r, 20, 0.08, 3000, 9000, 0.2)
-    _cascade(out, r, 8, 0.1, 1.5, 2500, 6000, 0.12)
-    return reverb(out, r, 2.5, 0.35, bright=1.0)
+    add(out, sat(click(r, 3000, 0.004), 2.0), 0, 0.8)
+    chord = [['E6', 'G6', 'B6', 'E7'], ['B5', 'E6', 'G6', 'B6']][v]
+    add(out, hl_chord(r, chord, dec=0.5, bright=1.35, stagger=0.004), 0, 0.8)
+    n = ns(0.5)
+    add(out, fm(note('E6'), 1.0, 3 * env_exp(n, 0.05) + 0.5, n) * env_exp(n, 0.12, 0.002), 0, 0.35)  # brassy sheen
+    add(out, hl_shards(r, 8, 0.9, 'E8', 'E6', amp=0.4), 0.05, 1.0)
+    return carve_ui(out, 1100)
 
 
-@sound('respawn', 'ui', 2, volume=0.8, pitch=(1.0, 1.0), lufs=-16, notes='rising energy swell + arrival')
+@sound('respawn', 'ui', 2, pitch=P_TONAL, lufs=-20, notes='rising hard-light arpeggio swell + arrival chord')
 def respawn(r, v):
+    d = 1.6
+    out = buf(d)
+    k0 = pent_index('E5')
+    for j in range(11):  # fast rising pentatonic run, crescendo
+        tt = 0.55 * (j / 11) ** 0.8
+        add(out, hl_ping(r, pent(k0 + j), 0.05, 1.2, glint=0.6), tt, 0.1 + 0.035 * j)
+    n = ns(0.6)
+    air = normpk(tvf(pink(n, r), sweep(n, 2000, 8000), 2.0, 'bp')) * env_pts(n, [(0, 0), (0.55, 1), (0.6, 0)], 2.0)
+    add(out, air, 0, 0.12)
+    ch = [['E6', 'B6', 'E7'], ['G6', 'B6', 'E7']][v]
+    add(out, hl_chord(r, ch, dec=0.35, bright=1.3, stagger=0.003), 0.58, 0.8)
+    add(out, click(r, 5000, 0.001), 0.58, 0.3)
+    return carve_ui(out, 1200)
+
+
+@sound('match_start', 'ui', 2, pitch=P_TONAL, lufs=-16, notes='fight-start sting: two count-in ticks + bright Em stab')
+def match_start(r, v):
     d = 2.2
     out = buf(d)
-    n = ns(0.65)
-    rise = env_pts(n, [(0, 0), (0.6, 1), (0.645, 0)], 2.0)
-    add(out, normpk(tvf(white(n, r), sweep(n, 400, 6000), 2.0, 'bp')) * rise, 0, 0.5)
-    f = sweep(n, 110, 440, 1.5)
-    add(out, normpk(tvf(supersaw(f, n, r, 5, 18), sweep(n, 300, 5000), 2.0, 'lp')) * rise, 0, 0.5)
-    root = [880.0, 987.8][v % 2]
-    add(out, fm_bell(ns(1.5), root, 1.0, 1.5, 0.1, 0.3), 0.6, 0.6)
-    add(out, fm_bell(ns(1.5), root * 1.5, 1.0, 1.5, 0.1, 0.3), 0.6, 0.45)
-    add(out, thump(0.3, 110, 55, 0.03, 0.08, drive=1.5), 0.6, 0.7)
-    for _ in range(20):
-        nn = ns(0.01)
-        add(out, sine(U(r, 3500, 9000), nn) * np.hanning(nn), U(r, 0.6, 1.1), 0.08)
-    return reverb(out, r, 1.2, 0.3, bright=1.4)
-
-
-@sound('match_start', 'ui', 2, volume=0.9, pitch=(1.0, 1.0), lufs=-13, notes='fight-start sting')
-def match_start(r, v):
-    d = 3.8
-    out = buf(d)
     for tt in (0.0, 0.22):
-        add(out, thump(0.4, 120, 50, 0.03, 0.1, drive=2.0), tt, 0.9)
-        add(out, crack(r, 2000, 0.004), tt, 0.5)
-    root = [146.83, 164.81][v % 2]
-    n = ns(d - 0.45)
-    env = env_pts(n, [(0, 0), (0.01, 1), (0.5, 0.7), (2.0, 0)])
-    add(out, _chord_pad(n, r, [root, root * 1.5, root * 2, root * 2.52, root * 3], 5000, 800, env), 0.45, 0.8)
-    add(out, thump(1.5, 70, 30, 0.08, 0.4, drive=2.5), 0.45, 1.0)
-    add(out, sat(crack(r, 1500, 0.006, d=0.05), 2.0), 0.45, 0.8)
-    add(out, fm_bell(ns(3.2), root * 8, 1.0, 2, 0.2, 0.6), 0.45, 0.3)
-    return reverb(out, r, 1.8, 0.3, bright=1.2)
+        nn = ns(0.06)
+        add(out, fm(note('E7'), 2.0, 1.5 * env_exp(nn, 0.006), nn) * env_exp(nn, 0.02), tt, 0.5)
+        add(out, click(r, 4000, 0.002), tt, 0.4)
+    t0 = 0.45
+    top = buf(d)
+    add(top, sat(click(r, 2500, 0.004), 2.0), t0, 0.8)
+    ch = [['E5', 'B5', 'E6', 'G6', 'B6'], ['G5', 'B5', 'E6', 'G6', 'E7']][v]
+    add(out, hl_chord(r, ch, dec=0.55, bright=1.35, stagger=0.003), t0, 0.9)
+    n = ns(0.7)
+    add(out, fm(note('E6'), 1.0, 3 * env_exp(n, 0.06) + 0.4, n) * env_exp(n, 0.2, 0.003), t0, 0.35)
+    add(top, hl_chord(r, ['E7', 'B7'], dec=0.4, bright=1.2), t0, 0.5)
+    add(top, hl_shards(r, 5, 0.6, 'E8', 'E7', amp=0.4), t0 + 0.03, 1.0)
+    return carve_ui(balance_hi(out, top, 0.42), 900)
 
 
-@sound('match_end', 'ui', 2, volume=0.9, pitch=(1.0, 1.0), lufs=-13, notes='match-over sting (IV -> I resolve)')
+@sound('match_end', 'ui', 2, pitch=P_TONAL, lufs=-16, notes='match-over sting: Am(add9) -> Em resolve, bright')
 def match_end(r, v):
-    d = 5.0
+    d = 3.0
     out = buf(d)
-    root = [146.83, 130.81][v % 2]
-    add(out, thump(2.0, 70, 28, 0.1, 0.6, drive=2.5), 0, 1.1)
-    add(out, sat(crack(r, 1500, 0.006, d=0.05), 2.0), 0, 0.8)
-    n1 = ns(0.9)
-    e1 = env_pts(n1, [(0, 0), (0.01, 1), (0.7, 0.6), (0.9, 0)])
-    iv = root * 4 / 3
-    add(out, _chord_pad(n1, r, [iv, iv * 1.26, iv * 1.5, iv * 2], 4000, 1500, e1), 0, 0.7)
-    n2 = ns(d - 0.65)
-    e2 = env_pts(n2, [(0, 0), (0.05, 1), (1.0, 0.7), (2.7, 0)])
-    add(out, _chord_pad(n2, r, [root / 2, root, root * 1.26, root * 1.5, root * 2], 3000, 500, e2), 0.65, 0.8)
-    add(out, sine(root / 2, n2) * e2, 0.65, 0.4)
-    add(out, fm_bell(ns(4.2), root * 8, 1.0, 2, 0.3, 0.9), 0.65, 0.3)
-    add(out, fm_bell(ns(4.2), root * 12, 1.0, 2, 0.3, 0.9), 0.7, 0.2)
-    return reverb(out, r, 2.2, 0.35, bright=1.1)
+    add(out, sat(click(r, 2000, 0.004), 2.0), 0, 0.7)
+    n1 = ns(0.8)
+    e1 = env_pts(n1, [(0, 0), (0.01, 1), (0.6, 0.6), (0.8, 0)])
+    for nm, a in (('A5', 0.6), ('C6', 0.5), ('E6', 0.5), ('B6', 0.4)):
+        add(out, hl_tone(r, note(nm), n1, e1, bright=1.2, shimmer=0.5), 0, a)
+    n2 = ns(2.2)
+    e2 = env_pts(n2, [(0, 0), (0.03, 1), (0.8, 0.7), (2.2, 0)], 1.4)
+    root = ['E5', 'G5'][v]
+    for nm, a in ((root, 0.6), ('B5', 0.5), ('E6', 0.55), ('G6', 0.45), ('B6', 0.4), ('E7', 0.3)):
+        add(out, hl_tone(r, note(nm), n2, e2, bright=1.2, shimmer=0.6), 0.65, a)
+    top = buf(d)
+    add(top, hl_chord(r, ['E6', 'B6', 'E7'], dec=0.4, bright=1.3), 0.65, 0.5)
+    add(top, hl_chord(r, ['E7', 'B7'], dec=0.6, bright=1.2), 0.66, 0.4)
+    add(top, hl_shards(r, 4, 0.8, 'E8', 'E7', amp=0.3), 0.68, 1.0)
+    return carve_ui(balance_hi(out, top, 0.42), 900)

@@ -1,13 +1,15 @@
 """Transformation set (robot <-> vehicle), original design: a staggered cascade of mechanical clicks,
 servo whirs and panel clunks with a pitch trend (up = robot, down = vehicle), ending in a solid lock
-and a short hydraulic hiss.  Plus combine, truck engine loop, air horn, heavy robot footsteps."""
+and a short hydraulic hiss.  Plus combine, truck engine loop, air horn, heavy robot footsteps.
+Dry (no baked room); gas hiss and risers are shaped pink noise, never white."""
 from __future__ import annotations
 
 import numpy as np
 
 from dsp import *  # noqa: F401,F403
 from dsp import SR, TAU
-from sounds import U, sound
+from materials import click, micro
+from sounds import P_IMPACT, P_MICRO, P_SOFT, P_TONAL, U, sound
 
 
 def panel_click(r, k=1.0, amp=1.0):
@@ -15,7 +17,7 @@ def panel_click(r, k=1.0, amp=1.0):
     n = ns(0.12)
     f = U(r, 1800, 2500) * k
     x = modal([f, f * 1.47, f * 2.31], [0.012, 0.009, 0.006], [1, .6, .35], n, r)
-    x += 0.7 * lp(crack(r, 2500 * k, 0.001, d=n / SR)[:n], 6000 * k)
+    x += 0.7 * lp(fit(click(r, 2500 * k, 0.0015), n), 6000 * k)
     x += 0.5 * thump(n / SR, 260 * k, 150 * k, 0.008, 0.012, drive=1.2)[:n]
     return amp * x
 
@@ -25,7 +27,7 @@ def clunk(r, k=1.0, amp=1.0):
     n = ns(0.3)
     f = U(r, 380, 800) * k
     x = modal([f, f * 1.83, f * 2.7, f * 4.1], [0.05, 0.035, 0.02, 0.012], [1, .6, .4, .2], n, r)
-    x += 0.8 * lp(crack(r, 1500 * k, 0.002, d=n / SR)[:n], 5000 * k)
+    x += 0.8 * lp(fit(click(r, 1500 * k, 0.002), n), 5000 * k)
     x += thump(n / SR, 170 * k, 80 * k, 0.015, 0.035, drive=1.8)[:n]
     return amp * x
 
@@ -36,13 +38,14 @@ def servo(r, d, f0, f1, amp=1.0):
     f = sweep(n, f0, f1, 0.8)
     m = lp(saw(f, n) + 0.5 * square(f * 1.5, n, duty=0.3) + 0.3 * saw(f * 2.01, n), 3500)
     gear = 1 + 0.35 * np.sign(np.sin(TAU * np.cumsum(f / 6) / SR))  # gear-tooth chatter
-    w = normpk(tvf(white(n, r), f * 6, 1.2, 'bp')) * 0.25  # gear noise tracks the motor pitch
+    w = normpk(tvf(pink(n, r), f * 6, 5.0, 'bp')) * 0.1  # gear noise tracks the motor pitch
     return amp * (normpk(m) * gear + w) * env_pts(n, [(0, 0), (0.015, 1), (d * 0.8, 0.8), (d, 0)])
 
 
 def hiss(r, d=0.25, amp=1.0):
     n = ns(d)
-    h = normpk(bp(white(n, r), 2500, 9000)) * (1 + 0.2 * smooth_noise(n, r, 40))
+    g = pink(n, r)
+    h = normpk(reson(g, 3200, 5) + 0.7 * reson(g, 5600, 6)) * (1 + 0.3 * smooth_noise(n, r, 40))
     return amp * h * env_exp(n, d / 3.5, 0.004)
 
 
@@ -50,7 +53,7 @@ def lock(r, k=1.0, amp=1.0):
     """The solid final lock: crack + low clunk + sub knock + short metal ring."""
     n = ns(0.8)
     x = np.zeros(n)
-    add(x, sat(crack(r, 1800, 0.003, d=0.04), 2.5), 0, 1.0)
+    add(x, sat(click(r, 1800, 0.003), 2.5), 0, 1.0)
     add(x, clunk(r, 0.8 * k), 0, 1.0)
     add(x, thump(0.6, 120 * k, 48, 0.02, 0.1, drive=2.5), 0, 1.1)
     f = U(r, 900, 1200) * k
@@ -94,7 +97,7 @@ def _take(render, r, want_up, tries=8):
     return best
 
 
-@sound('transform_to_robot', 'transform', 3, volume=1.0, pitch=(0.97, 1.03),
+@sound('transform_to_robot', 'transform', 3, pitch=P_SOFT, lufs=-14,
        notes='~0.9 s rising mechanical cascade -> lock + hydraulic hiss')
 def transform_to_robot(r, v):
     return _take(_to_robot, r, True)
@@ -107,10 +110,10 @@ def _to_robot(r):
     add(out, servo(r, dc, U(r, 220, 280), U(r, 780, 900)), 0.01, 0.55)  # main actuator carries the rise
     add(out, lock(r, 1.1), dc + 0.02, 1.0)
     add(out, hiss(r, 0.25), dc + 0.06, 0.35)
-    return reverb(out, r, 0.5, 0.14, bright=1.1)
+    return glue(out, 1.6)
 
 
-@sound('transform_to_vehicle', 'transform', 3, volume=1.0, pitch=(0.97, 1.03),
+@sound('transform_to_vehicle', 'transform', 3, pitch=P_SOFT, lufs=-14,
        notes='~0.9 s falling mechanical cascade -> lock + hydraulic hiss')
 def transform_to_vehicle(r, v):
     return _take(_to_vehicle, r, False)
@@ -123,10 +126,10 @@ def _to_vehicle(r):
     add(out, servo(r, dc, U(r, 700, 820), U(r, 200, 250)), 0.01, 0.55)  # main actuator carries the fall
     add(out, lock(r, 0.8), dc + 0.02, 1.0)
     add(out, hiss(r, 0.3), dc + 0.05, 0.4)
-    return reverb(out, r, 0.5, 0.14, bright=0.9)
+    return glue(out, 1.6)
 
 
-@sound('transform_panel_click', 'transform', 8, volume=0.6, pitch=(0.9, 1.15), lufs=-20,
+@sound('transform_panel_click', 'transform', 8, pitch=P_IMPACT, lufs=-24,
        notes='single panel click; trigger per animated panel in sync')
 def transform_panel_click(r, v):
     out = buf(0.12)
@@ -136,7 +139,7 @@ def transform_panel_click(r, v):
     return out
 
 
-@sound('transform_combine', 'transform', 2, volume=1.0, pitch=(0.98, 1.02), lufs=-11, max_dur=3.2,
+@sound('transform_combine', 'transform', 2, pitch=(0.99, 1.01), lufs=-12, max_dur=3.2,
        notes='~2.2 s combiner transformation: huge layered cascade, final lock + sub boom')
 def transform_combine(r, v):
     d = 2.4
@@ -148,16 +151,16 @@ def transform_combine(r, v):
         add(out, clunk(r, 0.5 + 0.12 * i), t, 1.0)
         add(out, thump(0.4, 110 + 15 * i, 50, 0.02, 0.08, drive=2.0), t, 0.8)
     n = ns(dc)
-    riser = normpk(tvf(white(n, r), sweep(n, 300, 5000, 1.5), 2.0, 'bp')) * env_pts(n, [(0, 0), (dc, 1)], 2.0)
+    riser = normpk(tvf(pink(n, r), sweep(n, 300, 5000, 1.5), 4.0, 'bp')) * env_pts(n, [(0, 0), (dc, 1)], 2.0)
     add(out, riser, 0, 0.25)
     add(out, lock(r, 0.7, 1.2), dc, 1.0)
     add(out, thump(2.0, 75, 28, 0.08, 0.6, drive=3.0, attack=0.002), dc, 1.4)
     add(out, hiss(r, 0.5), dc + 0.05, 0.45)
     add(out, hiss(r, 0.35), dc + 0.22, 0.25)
-    return reverb(out, r, 1.8, 0.28, bright=0.9)
+    return carve_heavy(glue(out, 1.6), -4, -3)
 
 
-@sound('vehicle_engine_loop', 'vehicle', 2, loop=True, volume=0.7, pitch=(1.0, 1.0), lufs=-18,
+@sound('vehicle_engine_loop', 'vehicle', 2, loop=True, pitch=P_TONAL, lufs=-22,
        notes='loop: diesel truck idle/cruise; the game pitches by speed (~0.8-2.2x)')
 def vehicle_engine_loop(r, v):
     Ld = 2.0
@@ -170,9 +173,9 @@ def vehicle_engine_loop(r, v):
         a = U(r, 0.75, 1.0) * (1.0 if i % 3 else 1.15)  # slightly uneven firing = diesel lope
         pos = int(round((i + 0.5) * L / k))  # keep firings off the loop seam
         pn = ns(0.03)
-        p = white(pn, r) * env_exp(pn, 0.006, 0.001)
+        p = sine(U(r, 70, 90), pn) * env_exp(pn, 0.008, 0.001) + 0.3 * pink(pn, r) * env_exp(pn, 0.003, 0.0005)
         add_circ(pulses, p, pos, a)
-        add_circ(clat, crack(r, 1800, 0.0012, d=0.02), pos + ns(0.004), a * U(r, 0.5, 1.0))
+        add_circ(clat, micro(r, U(r, 1800, 3200), 0.004, 3, (1.4, 2.3)), pos + ns(0.004), a * U(r, 0.5, 1.0))
     body = circ(lambda y: lp(y, 380, 4), pulses)
     exhaust = circ(lambda y: reson(y, 110, 2.5), pulses)
 
@@ -181,12 +184,11 @@ def vehicle_engine_loop(r, v):
         return (sine(fire_hz / 2, n) * 0.6 + sine(fire_hz, n) * 0.4
                 + 0.04 * sine(2400 + 30 * np.sin(TAU * 0.5 * t), n))  # turbo whine
     ton = periodic(tonal, L)
-    rum = loop_xfade(normpk(lp(brown(L + X, r), 150)), L, X)
-    x = normpk(body) + 0.6 * normpk(exhaust) + 0.35 * ton + 0.12 * normpk(circ(lambda y: hp(y, 1500), clat)) + 0.3 * rum
+    x = normpk(body) + 0.6 * normpk(exhaust) + 0.35 * ton + 0.12 * normpk(circ(lambda y: hp(y, 1500), clat)) + 0.3 * normpk(periodic(lambda m: sine(fire_hz / 4, m) + 0.5 * sine(fire_hz * 0.75, m), L))
     return sat(x, 1.5)
 
 
-@sound('vehicle_horn', 'vehicle', 3, volume=0.9, pitch=(1.0, 1.0), lufs=-13,
+@sound('vehicle_horn', 'vehicle', 3, pitch=P_TONAL, lufs=-14,
        notes='big two-tone truck air horn (easter egg): v1 long, v2 double honk, v3 long low')
 def vehicle_horn(r, v):
     pairs = [(233.1, 293.7), (233.1, 293.7), (185.0, 233.1)]  # Bb3+D4, Bb3+D4, F#3+Bb3 (major thirds)
@@ -205,20 +207,20 @@ def vehicle_horn(r, v):
         horn *= env_pts(n, [(0, 0), (0.035, 1), (dur - 0.12, 0.95), (dur, 0)])
         add(out, horn, t0, 1.0)
         add(out, hiss(r, 0.15), t0, 0.1)          # air valve
-    return reverb(out, r, 1.2, 0.2)
+    return out
 
 
-@sound('robot_footstep_heavy', 'movement', 4, volume=0.9, pitch=(0.92, 1.06), lufs=-14,
+@sound('robot_footstep_heavy', 'movement', 4, pitch=P_MICRO, lufs=-15,
        notes='giant robot stomp: servo knee + metal foot + ground thud')
 def robot_footstep_heavy(r, v):
     out = buf(1.0)
     add(out, servo(r, 0.12, U(r, 300, 380), U(r, 200, 260)), 0, 0.25)
     add(out, hiss(r, 0.08), 0.02, 0.15)
     t = 0.09
-    add(out, sat(crack(r, 1500, 0.003, d=0.04), 2.0), t, 0.7)
+    add(out, sat(click(r, 1500, 0.003), 2.0), t, 0.7)
     add(out, thump(0.8, 95 * U(r, .92, 1.08), 40, 0.04, 0.16, drive=2.8), t, 1.3)
     f = U(r, 300, 450)
     add(out, modal([f, f * 1.9, f * 2.8, f * 4.3], [0.18, 0.12, 0.07, 0.04], [1, .6, .4, .2], ns(0.8), r), t, 0.35)
     for _ in range(10):
-        add(out, grain(r, U(r, .003, .01), 900, 4000), t + r.exponential(0.03), 0.2)
-    return reverb(out, r, 0.6, 0.18, bright=0.8)
+        add(out, micro(r, U(r, 900, 3000), 0.004), t + r.exponential(0.03), 0.25)
+    return carve_heavy(out, -4, -3)

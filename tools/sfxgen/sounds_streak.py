@@ -1,5 +1,6 @@
 """KO streak: 5 ascending steps per corps (E minor pentatonic: E5 G5 A5 B5, then D6 -> E6 resolve),
-the same melody for every corps, a distinct timbre per corps, plus a punchy transient on every step.
+the same melody for every corps, a distinct timbre per corps, a bright transient and a shared in-key
+"sheen" on every step (feedback sounds own 5-12 kHz). Dry: the mixer supplies the space.
 Files: ko_streak_<corps>_<step>.ogg (sequence, not random variations)."""
 from __future__ import annotations
 
@@ -7,7 +8,8 @@ import numpy as np
 
 from dsp import *  # noqa: F401,F403
 from dsp import SR, TAU
-from sounds import U, sound
+from materials import click, hl_chord, hl_ping, hl_shards, note, pent, pent_index
+from sounds import P_TONAL, U, sound
 
 NOTE = {'E5': 659.26, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77, 'D6': 1174.66, 'E6': 1318.51}
 STEPS = ['E5', 'G5', 'A5', 'B5', 'E6']  # step 5 = D6 grace -> E6 resolve
@@ -66,36 +68,53 @@ def voice(corps: str, f: float, d: float, r) -> np.ndarray:
     return x
 
 
+def sheen(r, f, d, amt=1.0):
+    """Shared bright 'hard light' layer on every streak note: in-key upper harmonics (3, 4, 6, 8, 12)
+    decaying with the note, plus an FM glint - this is what lets the streak cut through at a modest
+    loudness. Never adds energy in the 450-1500 Hz melody band."""
+    n = ns(d)
+    t = tvec(n)
+    x = np.zeros(n)
+    for k, a, dec in ((3, 0.5, 0.5), (4, 0.6, 0.45), (6, 0.45, 0.35), (8, 0.35, 0.28), (12, 0.18, 0.15)):
+        if f * k < 15000:
+            x += a * np.exp(-t / (dec * d)) * np.sin(TAU * f * k * t + r.uniform(0, TAU))
+    m = min(n, ns(0.05))
+    x[:m] += 0.4 * fm(f * 8, 1.0, 2.0 * np.exp(-tvec(m) / 0.005), m) * env_exp(m, 0.012, 0.0003)
+    return amt * x * np.clip(t / 0.0005, 0, 1)
+
+
 def _step(corps, r, s):
-    """s = 0..4"""
-    out = buf(1.5)
+    """s = 0..4. Dry; bright transient + note + sheen; no sub (the KO itself carries the weight)."""
+    body = buf(1.5)
+    bright = buf(1.5)
     punch = 1.0 + 0.12 * s
-    add(out, crack(r, 3000, 0.002), 0, 0.45 * punch)
-    add(out, thump(0.2, 160, 75, 0.015, 0.04 + 0.005 * s, drive=2.0), 0, 0.6 * punch)
+    add(bright, click(r, 4000, 0.002), 0, 0.5 * punch)
     if s < 4:
         f = NOTE[STEPS[s]]
         d = 0.36 + 0.04 * s
-        add(out, voice(corps, f, d, r), 0.004, 1.0)
-        add(out, voice(corps, 2 * f, d * 0.6, r), 0.004, 0.08 * s)       # escalating shimmer
-        return reverb(out, r, 0.5, 0.18, bright=1.2)
-    # step 5: grace D6 -> resolve E6 with the E5/B5 underneath and a sparkle run
-    add(out, voice(corps, NOTE['D6'], 0.1, r), 0.0, 0.55)
-    t0 = 0.07
-    add(out, sat(crack(r, 2000, 0.003, d=0.04), 2.0), t0, 0.6)
-    add(out, thump(0.5, 120, 45, 0.03, 0.12, drive=2.5), t0, 0.9)
-    add(out, voice(corps, NOTE['E6'], 1.1, r), t0, 1.0)
-    add(out, voice(corps, NOTE['B5'], 0.9, r), t0, 0.3)
-    add(out, voice(corps, NOTE['E5'], 0.9, r), t0, 0.35)
-    for i, k in enumerate([2.0, 2.378, 2.67, 3.0, 4.0]):  # E6 G6 A6 B6 E7 run
-        add(out, voice(corps, NOTE['E5'] * k, 0.14, r), t0 + 0.09 + 0.035 * i, 0.16)
-    return reverb(out, r, 1.2, 0.3, bright=1.2)
+        add(body, voice(corps, f, d, r), 0.004, 1.0)
+        add(body, voice(corps, 2 * f, d * 0.6, r), 0.004, 0.08 * s)       # escalating shimmer
+        add(bright, sheen(r, f, d), 0.004, 1.0)
+    else:
+        # step 5: grace D6 -> resolve E6 with the E5/B5 underneath and a sparkle run
+        add(body, voice(corps, NOTE['D6'], 0.1, r), 0.0, 0.55)
+        t0 = 0.07
+        add(bright, sat(click(r, 3000, 0.003), 2.0), t0, 0.6)
+        add(body, voice(corps, NOTE['E6'], 1.1, r), t0, 1.0)
+        add(bright, sheen(r, NOTE['E6'], 1.1), t0, 1.0)
+        add(body, voice(corps, NOTE['B5'], 0.9, r), t0, 0.3)
+        add(body, voice(corps, NOTE['E5'], 0.9, r), t0, 0.3)
+        for i, k in enumerate([2.0, 2.378, 2.67, 3.0, 4.0]):  # E6 G6 A6 B6 E7 run
+            add(body, voice(corps, NOTE['E5'] * k, 0.14, r), t0 + 0.09 + 0.035 * i, 0.2)
+    # the note keeps its body; the shared sheen is mixed in until >= 42 % of the energy is above 2 kHz
+    return hp(balance_hi(body, bright, 0.42), 400, 2)
 
 
 def _make(corps):
     def fn(r, v):
         return _step(corps, r, v)
     fn.__name__ = f'ko_streak_{corps}'
-    sound(f'ko_streak_{corps}', 'ko_streak', 5, volume=0.9, pitch=(1.0, 1.0), lufs=-15.0, lufs_ramp=0.5,
+    sound(f'ko_streak_{corps}', 'ko_streak', 5, pitch=P_TONAL, lufs=-17.0, lufs_ramp=0.5,
           sequence=True, max_dur=[0.6, 0.6, 0.6, 0.6, 1.4],
           notes=f'{CORPS_TIMBRE[corps]}; steps 1-5 = E5 G5 A5 B5 (D6->)E6')(fn)
 
@@ -104,47 +123,47 @@ for _c in CORPS:
     _make(_c)
 
 
-@sound('ko_accent_void', 'ko_streak', 2, volume=0.9, pitch=(0.97, 1.03), lufs=-14,
-       notes='accent: KO by void / ring-out: whoosh down + thud')
+@sound('ko_accent_void', 'ko_streak', 2, pitch=P_TONAL, lufs=-16,
+       notes='accent: KO by void / ring-out: falling hard-light glissando into the dark + bright pop')
 def ko_accent_void(r, v):
-    out = buf(1.2)
-    d = 0.55
+    out = buf(1.0)
+    k0 = pent_index('E8')
+    for j in range(10):  # a fast falling pentatonic cascade: the player dropping away
+        add(out, hl_ping(r, pent(k0 - j - v), 0.06, 1.1, glint=0.5), 0.04 * j, 0.5 * (1 - 0.05 * j))
+    d = 0.5
     n = ns(d)
-    add(out, whoosh(d, r, 3000, 150, 1.2, [(0, 0), (0.08, 1), (d, 0.3)]), 0, 0.8)
-    add(out, lp(sine(glide(n, 900, 55, 0.15), n), 2000) * env_pts(n, [(0, 0), (0.03, 1), (d, 0.2)]), 0, 0.4)
-    add(out, thump(0.8, 90, 32, 0.04, 0.15, drive=3.0), d - 0.03, 1.2)
-    add(out, lp(crack(r, 800, 0.006, d=0.05), 3000), d - 0.03, 0.6)
-    return reverb(out, r, 1.0, 0.25)
+    f = sweep(n, note('E7'), note('E5'), 0.7)
+    add(out, (sine(f, n) + 0.4 * sine(2 * f, n) + 0.25 * sine(3 * f, n)) * env_pts(n, [(0, 0), (0.03, 1), (d, 0)], 1.5), 0, 0.3)
+    add(out, sat(click(r, 3500, 0.003), 2.0), d - 0.02, 0.7)
+    add(out, hl_chord(r, ['E6', 'B6'], dec=0.15, bright=1.2), d - 0.02, 0.45)
+    return carve_ui(out, 1500)
 
 
-@sound('ko_accent_double', 'ko_streak', 2, volume=0.85, pitch=(1.0, 1.0), lufs=-15,
+@sound('ko_accent_double', 'ko_streak', 2, pitch=P_TONAL, lufs=-16,
        notes='accent: multi-KO in quick succession: stacked sparkle')
 def ko_accent_double(r, v):
     out = buf(0.8)
-    add(out, crack(r, 3000, 0.002), 0, 0.5)
-    add(out, thump(0.2, 180, 90, 0.015, 0.04, drive=1.5), 0, 0.4)
+    add(out, click(r, 4000, 0.002), 0, 0.5)
     for i, f in enumerate([1318.51, 1975.53, 2637.02]):
         add(out, fm_bell(ns(0.6), f, 1.0, 1.5, 0.06, 0.2), 0.055 * i, 0.5)
-    for _ in range(22):
-        nn = ns(0.01)
-        add(out, sine(U(r, 3500, 9500), nn) * np.hanning(nn), U(r, 0.0, 0.35), 0.1)
-    return reverb(out, r, 0.7, 0.25, bright=1.5)
+        add(out, sheen(r, f, 0.4, 0.8), 0.055 * i, 1.0)
+    add(out, hl_shards(r, 4, 0.3, 'E8', 'E7', amp=0.3), 0.1, 1.0)
+    return carve_ui(out, 1500)
 
 
-@sound('ko_streak_end', 'ko_streak', 2, volume=0.95, pitch=(1.0, 1.0), lufs=-13,
-       notes="'shutdown' sting for the player who ends someone else's streak: falling cue")
+@sound('ko_streak_end', 'ko_streak', 2, pitch=P_TONAL, lufs=-15,
+       notes="'shutdown' sting for the player who ends someone else's streak: falling B6 A6 G6 E6 power-down")
 def ko_streak_end(r, v):
-    out = buf(1.6)
-    add(out, sat(crack(r, 1800, 0.004, d=0.05), 2.5), 0, 0.9)
-    add(out, thump(0.9, 100, 40, 0.04, 0.2, drive=3.0), 0, 1.1)
+    out = buf(1.4)
+    add(out, sat(click(r, 3000, 0.004), 2.5), 0, 0.8)
     for i, nm in enumerate(['B5', 'A5', 'G5', 'E5']):
-        add(out, lp(voice('willpower', NOTE[nm], 0.35, r), 5000), 0.02 + 0.07 * i, 0.55)
+        f = NOTE[nm] * 2
+        add(out, voice('willpower', f, 0.35, r), 0.02 + 0.07 * i, 0.5)
+        add(out, sheen(r, f, 0.3, 0.9), 0.02 + 0.07 * i, 1.0)
     n = ns(0.7)
-    pd = tvf(supersaw(glide(n, 500, 80, 0.2), n, r, 5, 20), glide(n, 4000, 200, 0.2), 1.5, 'lp')
-    add(out, normpk(pd) * env_exp(n, 0.25, 0.005), 0, 0.4)
-    add(out, sine(82.41, ns(1.2)) * env_exp(ns(1.2), 0.4, 0.005), 0.3, 0.5)
-    add(out, thump(0.5, 110, 45, 0.03, 0.1, drive=2.0), 0.3, 0.6)
-    return reverb(out, r, 1.3, 0.3)
+    f = sweep(n, note('E7'), note('E6'), 0.6)  # power-down glide, an octave, lands in key
+    add(out, (sine(f, n) + 0.4 * sine(2 * f, n)) * env_exp(n, 0.25, 0.005), 0.3, 0.3)
+    return carve_ui(out, 1200)
 
 
 def manifest_section() -> list[str]:

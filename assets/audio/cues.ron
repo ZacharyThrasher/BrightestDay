@@ -1,0 +1,133 @@
+#![enable(implicit_some)]
+// Brightest Day — cue table: how every sound sits in the one world (bd_audio::cue).
+// Resolution: `sounds` entry > `categories` entry (the manifest's category) > `defaults`.
+// Hot-reloadable. Units: dB, metres, Hz, cents, seconds; priority 0..100.
+//
+// Buses: Impacts | Weapons | Foley | Constructs | Ambience  (= the World: HDR window, shared
+// reverb, occlusion, ducked by Feedback) | Feedback (hit confirm, KO, streak, heartbeat) | Ui | Music.
+// Carve by role: Foley/footsteps HPF'd (mids only), Feedback/UI live up in 5-12 kHz,
+// impacts/explosions own the lows. Frequent sounds get ± cents / ± dB micro-variation.
+(
+    defaults: (
+        bus: Impacts,
+        priority: 50.0,
+        max_instances: 6,
+        min_dist: 3.0,
+        max_dist: 140.0,
+        rolloff: 1.0,
+        air: 1.0,
+        send_db: -10.0,
+        hdr: true,
+        gain_db: 0.0,
+        pitch_cents: 30.0,
+        gain_jitter_db: 1.0,
+        hpf_hz: 0.0,
+        lpf_hz: 0.0,
+        cooldown: 0.0,
+        occlusion: 1.0,
+        width: 1.0,
+    ),
+    categories: {
+        // The body: footsteps, jumps, landings, boost, slide. Mids only, short range.
+        "movement": (bus: Foley, priority: 25.0, max_instances: 4, min_dist: 1.5, max_dist: 50.0, rolloff: 1.15, send_db: -15.0, hpf_hz: 160.0, pitch_cents: 35.0, gain_jitter_db: 1.5),
+        "tether": (bus: Foley, priority: 35.0, max_instances: 4, min_dist: 2.0, max_dist: 70.0, send_db: -13.0, hpf_hz: 180.0, pitch_cents: 30.0, gain_jitter_db: 1.2),
+        // Hard light: tonal, in key — no pitch jitter.
+        "construct": (bus: Constructs, priority: 55.0, max_instances: 5, min_dist: 3.0, max_dist: 110.0, send_db: -8.0, pitch_cents: 0.0, gain_jitter_db: 0.8),
+        "combat": (bus: Impacts, priority: 70.0, max_instances: 5, min_dist: 3.0, max_dist: 170.0, send_db: -9.0, pitch_cents: 35.0, gain_jitter_db: 1.2),
+        "destruction": (bus: Impacts, priority: 40.0, max_instances: 4, min_dist: 3.0, max_dist: 120.0, send_db: -9.0, pitch_cents: 45.0, gain_jitter_db: 1.5),
+        "weapon": (bus: Weapons, priority: 65.0, max_instances: 4, min_dist: 4.0, max_dist: 240.0, rolloff: 0.9, air: 0.8, send_db: -6.0, pitch_cents: 25.0, gain_jitter_db: 1.0),
+        "transform": (bus: Constructs, priority: 55.0, max_instances: 4, min_dist: 4.0, max_dist: 140.0, send_db: -8.0, pitch_cents: 0.0),
+        "vehicle": (bus: Weapons, priority: 45.0, max_instances: 3, min_dist: 5.0, max_dist: 160.0, send_db: -9.0, pitch_cents: 0.0),
+        // Beds + positional ambience: quiet, wide, lowest priority, first to go under the window.
+        "ambience": (bus: Ambience, priority: 10.0, max_instances: 4, min_dist: 6.0, max_dist: 160.0, air: 1.2, send_db: -11.0, pitch_cents: 60.0, gain_jitter_db: 2.0),
+        // Feedback: "you did something" — 2D, bright, above the HDR window, ducks the World.
+        "feedback": (bus: Feedback, priority: 95.0, max_instances: 3, hdr: false, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.3),
+        "ko_streak": (bus: Feedback, priority: 100.0, max_instances: 2, hdr: false, min_dist: 8.0, max_dist: 200.0, send_db: -16.0, pitch_cents: 0.0, gain_jitter_db: 0.0),
+        "ui": (bus: Ui, priority: 90.0, max_instances: 4, hdr: false, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.3, hpf_hz: 250.0),
+    },
+    sounds: {
+        // ---- movement: only the nearest few footsteps are real (the rest virtual) ----------------
+        "footstep": (priority: 15.0, max_instances: 3, min_dist: 1.0, max_dist: 35.0, pitch_cents: 45.0, gain_jitter_db: 2.0),
+        "land_light": (max_instances: 3, max_dist: 40.0),
+        "land_heavy": (priority: 40.0, max_dist: 80.0, hpf_hz: 60.0),
+        "jump": (max_instances: 3, max_dist: 40.0),
+        "robot_footstep_heavy": (bus: Impacts, priority: 45.0, max_dist: 120.0, hpf_hz: 30.0),
+        "slide_loop": (max_instances: 2, pitch_cents: 0.0),
+        "wind_loop": (max_instances: 1, pitch_cents: 0.0, send_db: -120.0, occlusion: 0.0),
+        "boost_loop": (max_instances: 3, pitch_cents: 0.0),
+        "tether_reel_loop": (max_instances: 3, pitch_cents: 0.0),
+
+        // ---- impacts own the lows ---------------------------------------------------------------
+        "hit_heavy": (priority: 80.0, max_instances: 4),
+        "wall_splat": (priority: 80.0),
+        "ko_shatter": (priority: 88.0, max_instances: 3, max_dist: 220.0, send_db: -7.0),
+        "explosion_big": (priority: 85.0, max_instances: 3, min_dist: 6.0, max_dist: 320.0, rolloff: 0.9, air: 0.7, send_db: -5.0),
+        "explosion_small": (priority: 75.0, max_instances: 4, min_dist: 4.0, max_dist: 220.0, air: 0.8, send_db: -6.0),
+        "kaiju_stomp": (priority: 80.0, min_dist: 8.0, max_dist: 300.0, rolloff: 0.85, air: 0.6, send_db: -6.0),
+        "kaiju_roar": (priority: 75.0, min_dist: 8.0, max_dist: 300.0, rolloff: 0.85, send_db: -6.0),
+        "collapse_rumble": (priority: 60.0, min_dist: 6.0, max_dist: 260.0, air: 0.7, send_db: -6.0),
+        "debris_patter": (priority: 20.0, max_instances: 3, max_dist: 60.0, send_db: -14.0),
+        "clash": (bus: Constructs, priority: 72.0, pitch_cents: 0.0),
+        "construct_shatter": (bus: Constructs, priority: 65.0, pitch_cents: 0.0),
+        "break_hardlight": (bus: Constructs, pitch_cents: 0.0),
+        "shield_block": (bus: Constructs, priority: 65.0),
+
+        // ---- weapons ----------------------------------------------------------------------------
+        "gun_minigun_loop": (max_instances: 3, pitch_cents: 0.0),
+        "rocket_flyby_loop": (max_instances: 3, pitch_cents: 0.0, priority: 70.0),
+        "shell_casing": (bus: Foley, priority: 10.0, max_instances: 3, min_dist: 1.0, max_dist: 25.0, hpf_hz: 400.0, send_db: -18.0, pitch_cents: 60.0, gain_jitter_db: 2.5),
+        "bullet_impact_stone": (priority: 35.0, max_instances: 4, max_dist: 90.0),
+        "bullet_impact_dirt": (priority: 30.0, max_instances: 4, max_dist: 80.0),
+        "bullet_impact_wood": (priority: 35.0, max_instances: 4, max_dist: 90.0),
+        "bullet_impact_metal": (priority: 38.0, max_instances: 4, max_dist: 110.0),
+        "bullet_impact_glass": (priority: 36.0, max_instances: 4, max_dist: 100.0),
+        "gun_shotgun_reload": (bus: Foley, priority: 30.0, max_dist: 30.0, hpf_hz: 250.0),
+        "gun_railgun_charge": (priority: 60.0, pitch_cents: 0.0),
+        "ring_blast": (bus: Constructs, priority: 55.0, pitch_cents: 0.0),
+        "ring_blast_hit": (bus: Constructs, priority: 60.0, pitch_cents: 0.0),
+
+        // ---- feedback (5-12 kHz, above the window) ----------------------------------------------
+        "hit_confirm": (bus: Feedback, priority: 95.0, hdr: false, send_db: -120.0, pitch_cents: 15.0, gain_jitter_db: 0.5, max_instances: 3, cooldown: 0.03),
+        "hit_confirm_heavy": (bus: Feedback, priority: 96.0, hdr: false, send_db: -120.0, pitch_cents: 0.0, max_instances: 2),
+        "hit_crit": (bus: Feedback, priority: 97.0, hdr: false, send_db: -120.0, pitch_cents: 0.0, max_instances: 2),
+        "ko": (bus: Feedback, priority: 100.0, hdr: false, send_db: -120.0, pitch_cents: 0.0),
+        "ko_accent_void": (bus: Feedback, priority: 99.0, hdr: false),
+        "ko_accent_double": (bus: Feedback, priority: 99.0, hdr: false),
+        "ko_streak_end": (bus: Feedback, priority: 99.0, hdr: false),
+        "heartbeat": (bus: Feedback, priority: 80.0, hdr: false, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.5, max_instances: 2),
+        "tinnitus": (bus: Feedback, priority: 60.0, hdr: false, send_db: -120.0, pitch_cents: 0.0),
+        "final_blow_suck": (bus: Feedback, priority: 98.0, hdr: false, send_db: -120.0, pitch_cents: 0.0, max_instances: 1),
+        "respawn": (bus: Feedback, priority: 70.0, hdr: false, send_db: -14.0, pitch_cents: 0.0),
+        "cast_confirm": (bus: Feedback, priority: 85.0, hdr: false, send_db: -120.0, pitch_cents: 0.0),
+        "oath_complete": (bus: Feedback, priority: 85.0, hdr: false, send_db: -120.0),
+        "willpower_low": (bus: Feedback, priority: 70.0, hdr: false, send_db: -120.0, cooldown: 1.0),
+        "mix_whoosh_in": (bus: Ui, priority: 80.0, hdr: false),
+        "mix_whoosh_out": (bus: Ui, priority: 80.0, hdr: false),
+        "match_start": (bus: Ui, priority: 100.0),
+        "match_end": (bus: Ui, priority: 100.0),
+        "type_key": (bus: Ui, priority: 60.0, max_instances: 3, pitch_cents: 20.0, gain_jitter_db: 1.0),
+
+        // ---- ambience beds: 2D stereo, no reverb send (they ARE the space) ------------------------
+        "amb_archipelago_bed": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_wind_high": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_city_bed": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_ocean_loop": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_tutorial_bed": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_planet_hum": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_space_bed": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        "amb_interior_tone": (priority: 30.0, max_instances: 1, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.0, occlusion: 0.0),
+        // Positional loops.
+        "amb_neon_hum": (priority: 12.0, max_instances: 3, min_dist: 1.5, max_dist: 30.0, pitch_cents: 0.0, gain_jitter_db: 0.0, send_db: -14.0),
+        "amb_ac_hum": (priority: 12.0, max_instances: 2, min_dist: 2.0, max_dist: 35.0, pitch_cents: 0.0, gain_jitter_db: 0.0, send_db: -12.0),
+        "amb_insects_loop": (priority: 8.0, max_instances: 2, min_dist: 2.0, max_dist: 30.0, pitch_cents: 0.0, gain_jitter_db: 0.0),
+        "amb_surf_loop": (priority: 14.0, max_instances: 2, min_dist: 4.0, max_dist: 60.0, pitch_cents: 0.0, gain_jitter_db: 0.0),
+        // Sparse one-shots in space.
+        "amb_bird": (max_instances: 3, min_dist: 4.0, max_dist: 90.0, pitch_cents: 80.0),
+        "amb_gull": (max_instances: 2, min_dist: 6.0, max_dist: 120.0),
+        "amb_surf": (max_instances: 3, min_dist: 5.0, max_dist: 90.0, air: 1.0),
+        "amb_palm_rustle": (max_instances: 3, min_dist: 3.0, max_dist: 45.0),
+        "amb_traffic_swish": (max_instances: 3, min_dist: 5.0, max_dist: 90.0, send_db: -8.0),
+        "amb_station_creak": (max_instances: 2, min_dist: 5.0, max_dist: 80.0),
+        "amb_distant_boom": (max_instances: 1, min_dist: 40.0, max_dist: 600.0, rolloff: 0.6, air: 0.5, send_db: -4.0),
+    },
+)

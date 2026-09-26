@@ -1,0 +1,33 @@
+[package]
+name = "bd_audio"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "Brightest Day's real-time software mixer: buses, shared reverb, occlusion, HDR loudness, snapshots, ambience"
+
+[features]
+default = ["device", "sim"]
+# Real output device (one cpal output stream, low-latency buffer). Off = offline rendering only.
+device = ["dep:cpal"]
+# GameEvent / MoveEvents -> cue mapping (the same mapping the client and the offline renderer use).
+sim = ["dep:bd_sim"]
+
+[dependencies]
+bd_core.workspace = true
+bd_voxel.workspace = true
+bd_sim = { workspace = true, optional = true }
+glam.workspace = true
+serde.workspace = true
+ron.workspace = true
+# Pure-Rust Vorbis decoder (already in the tree via rodio): every SFX is decoded once at load.
+lewton = "0.10"
+cpal = { version = "0.17", optional = true }
+
+[dev-dependencies]
+hound = "3.5"
+png = "0.18"
+serde_json = "1"
+
+[[example]]
+name = "render_mix"
+required-features = ["sim"]

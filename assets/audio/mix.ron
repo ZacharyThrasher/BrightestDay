@@ -1,0 +1,91 @@
+#![enable(implicit_some)]
+// Brightest Day — the mix (bd_audio::mix). Hot-reloadable.
+//
+// Loudness is "LUFS-ish": the files carry the loudness hierarchy (sfxgen), each voice's level is
+// its file envelope + cue/event gains + distance/occlusion. The HDR window rests at
+// `threshold_db`; anything louder pushes the whole World down (by `ratio` of the excess) and
+// voices below top − `range_db` go virtual until it is quiet again.
+(
+    // Overall playback level (makeup before the limiter).
+    output_gain_db: 0.5,
+    hdr: (
+        enabled: true,
+        threshold_db: -11.0,
+        ratio: 0.7,
+        range_db: 32.0,
+        release_db_s: 12.0,
+        hold: 0.12,
+        night_range_db: 22.0,
+        night_ratio: 1.0,
+    ),
+    // Feedback (hit confirm / KO / streak) carves a hole in the World for a moment: a small
+    // broadband duck plus a high-shelf cut so 5-12 kHz belongs to the cue.
+    sidechain: (depth_db: -4.0, shelf_db: -7.0, shelf_hz: 4500.0, threshold_db: -40.0, knee_db: 12.0, attack: 0.003, release: 0.18),
+    limiter: (ceiling_db: -1.0, knee_db: 3.0, lookahead_ms: 1.5, release: 0.12),
+    voices: (max_real: 48, max_total: 192, fade: 0.012, own_gain_db: 1.5, own_priority: 10.0),
+    music_carve: (hpf_hz: 60.0, notch_hz: 7500.0, notch_q: 0.6, notch_db: -8.0),
+    night: (threshold_db: -26.0, ratio: 3.0, makeup_db: 5.0),
+    ducks: {
+        // DESIGN.md "Weight & power fantasy": duck −6…−9 dB for ~300 ms on heavy+ hits.
+        "heavy_hit": (depth_db: -7.5, lpf_hz: 20000.0, attack: 0.004, hold: 0.12, release: 0.22, music: true),
+        // Negative space on a KO you dealt: the streak note rings (~250 ms).
+        "ko_confirm": (depth_db: -8.0, lpf_hz: 20000.0, attack: 0.008, hold: 0.14, release: 0.12, music: true),
+        // The final blow: the world is sucked out for a beat, then floods back.
+        "final_blow": (depth_db: -14.0, lpf_hz: 450.0, attack: 0.02, hold: 0.2, release: 0.65, music: true),
+    },
+    // Bus trims every snapshot blends from.
+    base: (
+        buses: {
+            Foley: (gain_db: -1.0),
+            Ambience: (gain_db: 6.0),
+            Ui: (gain_db: -2.0),
+            Music: (gain_db: -9.0),
+        },
+    ),
+    snapshots: {
+        "Exploration": (fade_in: 2.0, fade_out: 2.0, music_intensity: 0.3),
+        "Combat": (
+            fade_in: 0.4, fade_out: 3.5,
+            buses: { Ambience: (gain_db: -4.0), Music: (gain_db: -8.0) },
+            music_intensity: 0.85,
+        ),
+        // Local player at high damage %: the world muffles, the heartbeat comes up (director).
+        "Danger": (
+            fade_in: 1.2, fade_out: 0.8,
+            world_lpf_hz: 1900.0, world_gain_db: -2.5,
+            buses: { Feedback: (gain_db: 1.0), Music: (lpf_hz: 1500.0) },
+            music_intensity: 1.0, music_tempo: 1.08,
+        ),
+        // KO'd / respawning: underwater, far away.
+        "KO": (
+            fade_in: 0.12, fade_out: 0.7,
+            world_lpf_hz: 650.0, world_gain_db: -10.0, reverb_db: 4.0,
+            buses: { Music: (gain_db: -14.0, lpf_hz: 900.0) },
+        ),
+        // Typing a construct: the world softly recedes (focus), your ring stays present.
+        "RingOpen": (
+            fade_in: 0.12, fade_out: 0.3,
+            world_gain_db: -5.0, world_lpf_hz: 4200.0, reverb_db: -3.0,
+            buses: { Ambience: (gain_db: -4.0), Music: (gain_db: -15.0) },
+        ),
+        // Orbit above the atmosphere: vacuum. Only body-conducted thumps and your own sounds.
+        "Space": (
+            fade_in: 1.2, fade_out: 1.0,
+            remote_gain_db: -22.0, remote_lpf_hz: 260.0, reverb_db: -40.0,
+            buses: { Ambience: (gain_db: -6.0), Foley: (gain_db: 1.5), Music: (lpf_hz: 2500.0) },
+        ),
+        "Menu": (
+            fade_in: 0.5, fade_out: 0.8,
+            world_gain_db: -12.0, world_lpf_hz: 2600.0,
+            buses: { Ambience: (gain_db: -8.0), Music: (gain_db: -4.0) },
+            music_intensity: 0.15,
+        ),
+        "Lobby": (
+            fade_in: 0.5, fade_out: 0.8,
+            world_gain_db: -6.0,
+            buses: { Music: (gain_db: -6.0) },
+            music_intensity: 0.4,
+        ),
+    },
+    reverb: (size: 1.0, rt60: 1.0, damping_hz: 6000.0, predelay_ms: 12.0, wet_db: -18.0, er_db: -22.0, slap_ms: 0.0, slap_db: -60.0),
+)
