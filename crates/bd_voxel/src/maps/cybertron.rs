@@ -83,8 +83,8 @@ pub const PIT_FLOOR_R: f32 = 13.0;
 pub const PIT_FLOOR_Y: f32 = 16.0;
 pub const PIT_WALL_R: f32 = 27.0;
 /// Space-bridge gates (portal centre, disc radius).
-pub const GATE_IACON: Vec3 = Vec3::new(-96.0, STREET + 7.0, -40.0);
-pub const GATE_KAON: Vec3 = Vec3::new(96.0, STREET + 7.0, 40.0);
+pub const GATE_IACON: Vec3 = Vec3::new(-96.0, STREET + 6.0, -40.0);
+pub const GATE_KAON: Vec3 = Vec3::new(96.0, STREET + 6.0, 40.0);
 pub const GATE_R: f32 = 6.0;
 
 // ------------------------------------------------------------------------------------------------
@@ -368,15 +368,26 @@ fn plate(c: &mut City) {
                 surf = m;
             }
             let ty = vx(top) - 1;
-            c.w.fill_column(vxx, vz, frame_v, frame_v + 1, mat::CYBER_FRAME);
-            // Underside lip: tiers are thinner plates.
-            c.w.fill_column(vxx, vz, frame_v + 1, ty, mat::CYBER_PLATE);
+            // Solid down to the world floor (its underside is never meshed): layered plates with
+            // trim bands on the cliffs, the indestructible frame slab at 12 m.
+            for y in 0..ty {
+                let m = if y == frame_v {
+                    mat::CYBER_FRAME
+                } else if y.rem_euclid(8) == 0 {
+                    mat::CYBER_TRIM
+                } else if y == 36 {
+                    if x < 0.0 { mat::ENERGON } else { mat::SEAM_ORANGE }
+                } else {
+                    mat::CYBER_PLATE
+                };
+                c.w.set_raw(IVec3::new(vxx, y, vz), m);
+            }
             c.w.set(IVec3::new(vxx, ty, vz), surf);
             // The Well's shaft wall: energon bands every 3 m, indestructible glowing lip.
             if r < WELL_R + 0.75 {
-                for y in frame_v..ty {
-                    let m = if y.rem_euclid(6) == 0 { mat::ENERGON } else { mat::CYBER_TRIM };
-                    c.w.set(IVec3::new(vxx, y, vz), m);
+                for y in 0..ty {
+                    let m = if y == frame_v { mat::CYBER_FRAME } else if y.rem_euclid(6) == 0 { mat::ENERGON } else { mat::CYBER_TRIM };
+                    c.w.set_raw(IVec3::new(vxx, y, vz), m);
                 }
                 c.w.set(IVec3::new(vxx, ty, vz), mat::ENERGON_FRAME);
             } else if r < WELL_R + 1.25 {
@@ -393,20 +404,6 @@ fn plate(c: &mut City) {
             x += 16.0;
         }
         z += 16.0;
-    }
-    // Machinery hanging under the rim (seen from the edge): ribbed blocks with energon strips.
-    for k in 0..28 {
-        let a = TAU * (k as f32 + 0.3 * c.rng.f()) / 28.0;
-        let (ex, ez) = (dcos(a) * (PLATE_X - 8.0), dsin(a) * (PLATE_Z - 8.0));
-        if plate_inside(ex, ez) < 4.0 {
-            continue;
-        }
-        let depth = c.rng.range(3.0, 7.0);
-        let w = c.rng.range(2.0, 4.0);
-        let glow = if ex < 0.0 { mat::ENERGON } else { mat::SEAM_ORANGE };
-        c.fill_with(Vec3::new(ex - w, 12.0 - depth, ez - w), Vec3::new(ex + w, 12.0, ez + w), |p, _, _| {
-            Some(if (p.y * 2.0).rem_euclid(3.0) < 0.6 { glow } else { mat::CYBER_TRIM })
-        });
     }
 }
 
@@ -791,20 +788,16 @@ pub fn express_z(x: f32) -> f32 {
 }
 
 /// Deck top at `x` along an expressway: flat 36 m over |x| ≤ 72, ramps down to street at |x| = 104,
-/// plus the Rust Gap kickers (north only) — `None` inside the gap.
+/// — `None` inside the 8 m Rust Gap (north only: a flat-lip jump over the rust bay).
 pub fn express_top(x: f32, north: bool) -> Option<f32> {
     let ax = x.abs();
     if ax > 104.0 {
         return None;
     }
-    if north && ax < 7.0 {
+    if north && ax < 4.0 {
         return None;
     }
-    let mut h = if ax <= 72.0 { EXPRESS_TOP } else { EXPRESS_TOP - (EXPRESS_TOP - STREET) * (ax - 72.0) / 32.0 };
-    if north && ax < 13.0 {
-        h += 1.5 * (13.0 - ax) / 6.0;
-    }
-    Some(h)
+    Some(if ax <= 72.0 { EXPRESS_TOP } else { EXPRESS_TOP - (EXPRESS_TOP - STREET) * (ax - 72.0) / 32.0 })
 }
 
 fn expressways(c: &mut City) {
@@ -834,7 +827,7 @@ fn expressways(c: &mut City) {
         // Pylons under the flat part every 12 m (frame cores anchor the deck).
         let mut x: f32 = -66.0;
         while x <= 66.0 {
-            if !(north && x.abs() < 10.0) {
+            if !(north && x.abs() < 8.0) {
                 let z = s * express_z(x);
                 pylon(c, x, z, STREET, EXPRESS_TOP - 1.0, 1.25, mat::CYBER_PLATE, glow(x));
             }
@@ -876,7 +869,7 @@ fn rust_bay(c: &mut City) {
             }
             let Some(h) = dune_top(x, z) else { continue };
             let ty = vx(h + 0.01) - 1;
-            c.w.fill_column(vxx, vz, vx(VOID_Y), ty, mat::RUST_DUNE);
+            c.w.fill_column(vxx, vz, 0, ty, mat::RUST_DUNE);
             c.w.set(IVec3::new(vxx, ty, vz), mat::RUST_DUST);
         }
     }
@@ -937,12 +930,13 @@ fn gate(c: &mut City, centre: Vec3, normal_x: f32, glow: Material) {
 /// The five transforming pieces. Extended poses are the solid (route-adding) ones.
 pub fn movers() -> Vec<MapMover> {
     let mut out = Vec::new();
-    // Well Span: two 9.6 m leaves across the Well along X at street level, folded = raised upright
+    // Well Span: two 9 m leaves across the Well along X at street level, folded = raised upright
     // over the shaft edge (hinged at the lip).
     let mut parts = Vec::new();
     for sx in [-1.0f32, 1.0] {
-        let half = Vec3::new(4.8, 0.4, 2.5);
-        let centre = Vec3::new(sx * (WELL_R - 4.8), STREET - 0.4, 0.0);
+        // Leaf from the middle (0.25 m) to the abutment's inner face (9.2 m).
+        let half = Vec3::new(4.475, 0.4, 2.5);
+        let centre = Vec3::new(sx * 4.725, STREET - 0.4, 0.0);
         parts.push(MoverPart {
             center: centre,
             half,
@@ -959,7 +953,7 @@ pub fn movers() -> Vec<MapMover> {
     for sz in [-1.0f32, 1.0] {
         let half = Vec3::new(2.5, 0.4, HALL_HALF * 0.5 + 0.25);
         parts.push(MoverPart {
-            center: Vec3::new(-41.0, HALL_TOP - 0.4, sz * (HALL_HALF * 0.5 - 0.25)),
+            center: Vec3::new(-43.5, HALL_TOP - 0.4, sz * (HALL_HALF * 0.5 - 0.25)),
             half,
             rot: Quat::IDENTITY,
             hinge: Vec3::ZERO,
@@ -972,7 +966,8 @@ pub fn movers() -> Vec<MapMover> {
     // Pit Span: a bridge across the gladiator pit (N gate ⇄ S gate) that rises out of the pit floor.
     let parts = vec![MoverPart {
         center: Vec3::new(PIT.x, STREET - 0.4, PIT.y),
-        half: Vec3::new(2.5, 0.4, PIT_WALL_R),
+        // Rim to rim: from the top tier's inner edge on the north to the south (flush with the street).
+        half: Vec3::new(2.5, 0.4, PIT_WALL_R - (PIT_WALL_R - PIT_FLOOR_R) / 8.0 - 0.05),
         rot: Quat::IDENTITY,
         hinge: Vec3::ZERO,
         hinge_axis: Vec3::Y,
@@ -1019,13 +1014,23 @@ pub fn portals() -> Vec<MapPortal> {
 
 // ------------------------------------------------------------------------------------------------
 
+fn dbg_prune(c: &mut City, what: &str) {
+    if std::env::var("CYB_PRUNE").is_ok() {
+        eprintln!("prune after {what}: {}", c.w.prune_unanchored());
+    }
+}
+
 /// Build Cybertron. Deterministic for a given seed (the layout is fixed; details vary).
 pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
     let mut c = City::new(VoxelWorld::centered(CYBERTRON_SIZE_VOXELS), seed ^ 0x0c1b_e270_0000);
     plate(&mut c);
+    dbg_prune(&mut c, "plate(&mut c);");
     rust_bay(&mut c);
+    dbg_prune(&mut c, "rust_bay(&mut c);");
     well(&mut c);
+    dbg_prune(&mut c, "well(&mut c);");
     hall_of_records(&mut c);
+    dbg_prune(&mut c, "hall_of_records(&mut c);");
     // Iacon spires / obelisks and their Kaon tower / smokestack rotations (180° about the Well).
     let spires: [(f32, f32, f32, f32); 5] = [(-72.0, 36.0, 62.0, 5.0), (-48.0, 34.0, 46.0, 4.0), (-86.0, -32.0, 70.0, 5.5), (-62.0, -38.0, 54.0, 4.5), (-26.0, -46.0, 42.0, 4.0)];
     for &(x, z, h, hw) in &spires {
@@ -1037,7 +1042,9 @@ pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
         smokestack(&mut c, -x, -z, h + 8.0);
     }
     gladiator_pit(&mut c);
+    dbg_prune(&mut c, "gladiator_pit(&mut c);");
     expressways(&mut c);
+    dbg_prune(&mut c, "expressways(&mut c);");
     gate(&mut c, GATE_IACON, 1.0, mat::ENERGON_FRAME);
     gate(&mut c, GATE_KAON, -1.0, mat::EMBER_FRAME);
     // Low cover on the central lane approaches (rotation-symmetric).
@@ -1051,6 +1058,21 @@ pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
     let seed32 = c.seed();
     for &(x, z, n) in &[(-86.0f32, 24.0f32, 5u32), (-24.0, -30.0, 3), (86.0, -24.0, 5), (24.0, 30.0, 3), (-100.0, -52.0, 4), (100.0, 52.0, 4)] {
         cube_stack(&mut c, x, z, n, seed32);
+    }
+
+    // Housings: clear breakable terrain inside every extended panel (the ramp foot sits in a slot
+    // flush with the street, the gallery halves slide out of the wall tops).
+    for m in movers() {
+        for p in &m.parts {
+            let (ctr, q) = p.pose(1.0);
+            let inv = q.inverse();
+            let r = p.half.length() + 0.5;
+            c.fill_with(ctr - Vec3::splat(r), ctr + Vec3::splat(r), |pt, _, old| {
+                let l = inv * (pt - ctr);
+                let inside = l.x.abs() <= p.half.x + 0.05 && l.y.abs() <= p.half.y + 0.05 && l.z.abs() <= p.half.z + 0.05;
+                (inside && old != AIR && !crate::material::is_indestructible(old)).then_some(AIR)
+            });
+        }
     }
 
     // ---- Spawns: five per city, spread, on open street (never on the stairs / gates / spans) ----
@@ -1090,6 +1112,7 @@ pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
         surf_lines: surf_lines(),
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
         slipstream: None,
         mechanics: MapMechanics { movers: movers(), portals: portals() },
     };
@@ -1119,11 +1142,13 @@ pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
     (world, info)
 }
 
-/// Two surf lines, 180° symmetric: off each expressway's inner side down onto the Well's ring deck.
+/// Two surf lines, 180° symmetric: off the Well's ring deck (run off its outer edge onto the ridge)
+/// out over the street toward each expressway — a fast exit from the centre. The north one sails
+/// out over the rust bay.
 pub fn surf_lines() -> Vec<SurfLine> {
     vec![
-        SurfLine { a: Vec3::new(0.0, 45.0, -50.0), b: Vec3::new(0.0, 38.5, -29.0), face_deg: 60.0, width: 7.0 },
-        SurfLine { a: Vec3::new(0.0, 45.0, 50.0), b: Vec3::new(0.0, 38.5, 29.0), face_deg: 60.0, width: 7.0 },
+        SurfLine { a: Vec3::new(0.0, RING_TOP - 0.5, -(RING_R1 + 1.0)), b: Vec3::new(0.0, 30.5, -50.0), face_deg: 60.0, width: 7.0 },
+        SurfLine { a: Vec3::new(0.0, RING_TOP - 0.5, RING_R1 + 1.0), b: Vec3::new(0.0, 30.5, 50.0), face_deg: 60.0, width: 7.0 },
     ]
 }
 
@@ -1151,7 +1176,7 @@ fn routes() -> Vec<Route> {
             from: "iacon",
             to: "kaon",
             kind: RouteKind::Ground,
-            waypoints: vec![Vec3::new(-107.0, s, 50.0), Vec3::new(-104.0, s, express_z(104.0)), Vec3::new(-72.0, EXPRESS_TOP, express_z(72.0)), Vec3::new(-14.0, EXPRESS_TOP + 0.5, express_z(14.0)), Vec3::new(14.0, EXPRESS_TOP + 0.5, express_z(14.0)), Vec3::new(72.0, EXPRESS_TOP, express_z(72.0)), Vec3::new(104.0, s, express_z(104.0))],
+            waypoints: vec![Vec3::new(-107.0, s, 50.0), Vec3::new(-104.0, s, express_z(104.0)), Vec3::new(-72.0, EXPRESS_TOP, express_z(72.0)), Vec3::new(-14.0, EXPRESS_TOP, express_z(14.0)), Vec3::new(14.0, EXPRESS_TOP, express_z(14.0)), Vec3::new(72.0, EXPRESS_TOP, express_z(72.0)), Vec3::new(104.0, s, express_z(104.0))],
             anchors: vec![],
         },
         Route {
@@ -1164,10 +1189,10 @@ fn routes() -> Vec<Route> {
         },
         Route {
             name: "surf_south",
-            from: "south_expressway",
-            to: "well",
+            from: "well",
+            to: "kaon",
             kind: RouteKind::Mixed,
-            waypoints: vec![Vec3::new(0.0, EXPRESS_TOP, -58.0), Vec3::new(0.0, RING_TOP, -20.5)],
+            waypoints: vec![Vec3::new(-0.8, RING_TOP, -20.5), Vec3::new(0.0, STREET, -52.0)],
             anchors: vec![],
         },
         Route {

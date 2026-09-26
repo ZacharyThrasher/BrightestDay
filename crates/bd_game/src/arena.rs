@@ -83,6 +83,10 @@ pub enum MapKind {
     Orbit,
     /// Five stacked liminal levels, all breakable (bd_voxel `generate_backrooms`).
     Backrooms,
+    /// Japanese castle town on a plateau over the void (bd_voxel `generate_sakura`).
+    Sakura,
+    /// Volcanic basin: lava rivers (= the void), mining facility, twin-spired fortress (bd_voxel `generate_ember`).
+    Ember,
 }
 
 impl MapKind {
@@ -93,6 +97,8 @@ impl MapKind {
             "miami" => Some(MapKind::Miami),
             "orbit" | "space" => Some(MapKind::Orbit),
             "backrooms" => Some(MapKind::Backrooms),
+            "sakura" | "sakura_keep" => Some(MapKind::Sakura),
+            "ember" => Some(MapKind::Ember),
             _ => None,
         }
     }
@@ -216,6 +222,46 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 tutorial: None,
                 arena: Some(info.clone()),
                 // No sea: the pools are voxels.
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Sakura => {
+            let (world, m) = bd_voxel::generate_sakura(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the koi pond is voxels, below the plateau is the void.
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Ember => {
+            let (world, m) = bd_voxel::maps::generate_ember(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the lava is voxels on the floor, just under the KO line.
                 water_y: None,
                 water_color: None,
                 sun_color: Some(m.sun_color),

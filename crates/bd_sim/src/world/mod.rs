@@ -29,8 +29,10 @@
 mod actions;
 mod assist; // ASSIST HOOK: melee lunge + hook-and-strike plumbing (crate::melee_assist, crate::hook)
 pub mod bounds; // BOUNDS HOOK: blast zones, tether save, construct recall, visible placement
+pub mod interactables; // INTERACT HOOK: map toys (High Roller slot machines + roulette house spin)
 mod combat;
 mod invariants;
+pub mod map_mech; // MAP MECH HOOK: transforming panels + space bridge (Cybertron)
 mod net;
 mod player;
 mod projectiles;
@@ -177,6 +179,10 @@ pub struct World {
     pub(crate) signature: crate::signature::SignatureState,
     /// FREEDOM HOOK: cast metas, novelty ring, kill-feed tags, highlights (`crate::freedom`).
     pub(crate) freedom: crate::freedom::FreedomState,
+    /// MAP MECH HOOK: mover phases (`world/map_mech.rs`; empty on maps without movers).
+    pub map_mech: map_mech::MapMechState,
+    /// INTERACT HOOK: slot machines / house spin state (`world/interactables.rs`; idle elsewhere).
+    pub interact: interactables::InteractState,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -208,7 +214,7 @@ impl World {
             cfg.rules.time_limit = s.round_time;
             crate::party::PartyState::new(s, cfg.seed)
         });
-        Self {
+        let mut w = Self {
             voxels,
             arena,
             tick: 0,
@@ -243,8 +249,12 @@ impl World {
             recall_log: Vec::new(), // BOUNDS HOOK
             signature: Default::default(), // SIGNATURE HOOK
             freedom: Default::default(), // FREEDOM HOOK
+            map_mech: Default::default(), // MAP MECH HOOK
+            interact: interactables::InteractState::new(cfg.seed), // INTERACT HOOK
             cfg,
-        }
+        };
+        w.map_mech_init(false); // MAP MECH HOOK: movers folded + space-bridge portals
+        w
     }
 
     // ------------------------------------------------------------------------------ accessors
@@ -450,11 +460,14 @@ impl World {
         self.constructs.write_colliders(&mut self.colliders);
         crate::movement::push_surf_colliders(&self.arena.surf_lines, &mut self.colliders); // SURF: map surf lines
         crate::movement::push_water_colliders(&self.arena, &mut self.colliders); // WATER-WALK: map water sheets (Valley)
+        self.step_map_mech(); // MAP MECH HOOK: mover phases (telegraph, clear-volume checks)
+        map_mech::push_mover_colliders(&self.arena, &self.map_mech, &mut self.colliders); // MAP MECH HOOK
 
         self.carve_ops_used = 0;
         self.punch_through(dt); // Smash: launched players plow through terrain (world/punch.rs)
         let n_cols = self.assist_push_player_colliders(); // ASSIST HOOK: players are hook targets during movement
         self.step_movement(dt);
+        crate::juggle::step(self, dt); // JUGGLE: chain timers; back in control (ground / own tether / tech) resets
         self.assist_post_move(n_cols, dt); // ASSIST HOOK: hook-and-strike rope rules
         self.push_players_apart(dt);
         self.solve_links(dt);
@@ -471,6 +484,7 @@ impl World {
         // PARTY HOOK: effect hooks (this tick's events so far, scheduled casts, per-tick effects);
         // before the reap so whatever they break is removed this tick.
         crate::party::hooks::end_of_tick(self, dt);
+        interactables::step(self, dt); // INTERACT HOOK: lever pulls in this tick's events, payouts, house spin
         self.reap_constructs();
         self.apply_carves();
         self.check_match_end();
@@ -633,6 +647,7 @@ impl World {
                 events.push(GameEvent::Teleported { who: crate::events::Traveller::Player(p.id), portal, rot, pos: p.mv.pos });
             }
             spatial::player_fields(&mut p.mv, p.id, tethered, p.size.scale, fields, dt);
+            crate::slipstream::apply(arena.slipstream.as_ref(), &mut p.mv, &ev, dt); // SLIPSTREAM HOOK (Hyperline; same as prediction)
             let mut flags = 0u16;
             if ev.jumped {
                 flags |= move_flags::JUMP;
@@ -1010,6 +1025,7 @@ impl World {
         self.carve_queue.clear();
         self.carve_seed = 1;
         self.events.push(GameEvent::ArenaReset { seed });
+        self.map_mech_init(true); // MAP MECH HOOK
     }
 
     /// Build terrain for `src` (about 150 ms for an archipelago: call it on a worker thread).
@@ -1072,9 +1088,11 @@ impl World {
 
     fn reset_round(&mut self) {
         self.powers_reset_round(); // POWERS HOOK: powers + fruits don't survive a new round
+        self.interact_reset(); // INTERACT HOOK: slot effects / jackpot luck end with the round
         self.constructs.clear();
         self.projectiles.clear();
         self.portals.clear();
+        self.map_mech_init(true); // MAP MECH HOOK: fold the movers, re-install the space bridge
         self.fields.clear();
         self.links.clear();
         let max = self.cfg.rules.willpower_max();

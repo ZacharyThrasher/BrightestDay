@@ -1088,6 +1088,36 @@
             sequence: false,
             stereo: false,
         ), // far thunder-like boom, rolling, low-passed
+        "amb_mirror_bed": (
+            files: ["sfx/amb_mirror_bed_1.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -34.0,
+            sequence: false,
+            stereo: true,
+        ), // stereo bed (Mirrorfold): eerie city room tone - hollow E-minor air drone, muffled far traffic swells, faint glass shimmer
+        "amb_glass_shimmer": (
+            files: ["sfx/amb_glass_shimmer_1.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -32.0,
+            sequence: false,
+            stereo: false,
+        ), // positional loop (Mirrorfold fractures): glassy shimmer - high in-key partials slowly beating + sparse soft chimes
+        "amb_glass_chime": (
+            files: ["sfx/amb_glass_chime_1.ogg", "sfx/amb_glass_chime_2.ogg", "sfx/amb_glass_chime_3.ogg", "sfx/amb_glass_chime_4.ogg", "sfx/amb_glass_chime_5.ogg", "sfx/amb_glass_chime_6.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -30.0,
+            sequence: false,
+            stereo: false,
+        ), // Mirrorfold one-shot: a shard of mirror glass settling - a soft in-key crystal chime, sometimes two
         "heartbeat": (
             files: ["sfx/heartbeat_1.ogg", "sfx/heartbeat_2.ogg"],
             category: "feedback",

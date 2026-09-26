@@ -80,6 +80,18 @@ reduces air control but you can always tether out of it (a skill save).
   vector up to ±15° (skill expression). **Tech:** pressing Jump within 0.15 s of a wall/ground contact
   while tumbling cancels the splat/bounce (skill). **Tethers + recovery:** tether fires out of tumble
   as now (the best recovery in any platform fighter). Wall splat still adds %.
+- **Juggle protection** (owner: "a cooldown after a player has been hit so they can't just be knocked
+  around endlessly"; `bd_sim::juggle`, `combat.ron` → `juggle`, hot reload). Per victim: a **chain hit**
+  is one whose knockback (before decay) is ≥ `chain_min_kb` (14 m/s = a hit that tumbles you); every hit a
+  victim takes in one tick is one step (9 shotgun pellets = one). The first chain hit is untouched (single
+  big hits and star KOs work as before). Later hits within `window` (1.0 s, refreshed by each chain hit):
+  knockback ×0.6 then ×0.35 (`kb_decay`, last entry repeats), damage ×0.75 (`dmg_decay`). After `max_hits`
+  (3) chain hits the victim is **guarded** for `immune_secs` (0.7 s): hits still register (event, statuses,
+  damage ×0.5) but push nothing and never launch. The chain and the guard end on timeout, or when the
+  victim is back in control: standing out of tumble, hanging on their own tether, or a tech. Hook-and-strike
+  slams, orbs and explosions are ordinary hits in the chain; wall splats and your own blasts are not.
+  Readability: a guarded body's outline turns hard-light white and shimmers (no text). Host-side only;
+  knockback reaches prediction through `OwnState`; replicated as bit 7 of `PlayerSnap::status`.
 - **Punch-through:** a launched, tumbling player hitting destructible terrain above ~22 m/s (scaled by
   material hardness) plows THROUGH it — a capsule is carved along the path each tick, speed bleeds per
   metre by hardness (glass/leaves ≪ wood ≪ stone), they burst out the other side; below threshold

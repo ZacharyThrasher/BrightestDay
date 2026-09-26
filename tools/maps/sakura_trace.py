@@ -214,7 +214,7 @@ CASTLE_REGION = [(398, 0), (760, 0), (760, 330), FACADE[1], FACADE[0], (398, 190
 
 # FFA spawns (px, py): spread, never in a chokepoint.
 SPAWNS = [
-    (150, 680), (345, 668), (215, 500), (55, 300), (60, 440), (250, 210), (520, 470), (650, 380), (470, 110), (590, 60),
+    (150, 680), (318, 672), (215, 500), (55, 300), (60, 440), (250, 210), (520, 470), (650, 380), (470, 110), (585, 75),
 ]
 
 
@@ -335,7 +335,7 @@ def emit(mask, out):
     w("//! world metres via `sakura::px_to_m`). PRIVATE USE: the layout follows Overwatch's Hanamura (see")
     w("//! THIRD_PARTY_NOTICES.md \"Maps\"); replace it before any public release.")
     w("")
-    w("#![allow(clippy::approx_constant)]")
+    w("#![allow(clippy::approx_constant, clippy::type_complexity)]")
     w("")
     w("/// Metres per image pixel and the image point at world (0, 0).")
     w(f"pub const S: f32 = {S};")
@@ -432,7 +432,7 @@ def emit(mask, out):
     w("pub static CASTLE_DOORS: &[((f32, f32), (f32, f32))] = &[" + ", ".join(f"({fpt(a)}, {fpt(b)})" for a, b in CASTLE_DOORS) + "];")
     w("/// FFA spawn targets (px): spread out, never in a chokepoint.")
     w("pub static SPAWNS: &[(f32, f32)] = &[" + ", ".join(fpt(p) for p in SPAWNS) + "];")
-    out.write_text("\n".join(L) + "\n", encoding="utf-8")
+    out.write_text("\n".join(L) + "\n", encoding="utf-8", newline="\n")
     print("wrote", out, f"({len(rows)} outline rows)")
 
 

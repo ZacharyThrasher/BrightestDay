@@ -491,6 +491,64 @@ def amb_distant_boom(r, v):
 
 
 # =============================================================================== danger / mix cues (feedback)
+# =============================================================================== Mirrorfold (the folded city)
+@sound('amb_mirror_bed', 'ambience', 1, loop=True, stereo=True, pitch=P_TONAL, lufs=-34,
+       notes='stereo bed (Mirrorfold): eerie city room tone - hollow E-minor air drone, muffled far traffic swells, faint glass shimmer')
+def amb_mirror_bed(r, v):
+    Ld = 16.0
+    L, X = ns(Ld), ns(1.0)
+    n = L + X
+    chs = []
+    for c in range(2):
+        t = tvec(L)
+        # A hollow, slightly detuned drone: the city holding its breath.
+        drone = hl_drone(r, [note('E2'), note('B2'), note('E3'), note('G3')], L, Ld, bright=0.35, shimmer=0.9, lfo=0.2,
+                         amps=[1.0, 0.55, 0.45, 0.2])
+        drone = circ(lambda y: lp(y, 700, 2), drone)
+        # Distant traffic heard through the fold: brown rumble, band-passed, slow swells.
+        tr = brown(n, r)
+        tr = lp(hp(tr, 45, 2), 320) + 0.4 * reson(pink(n, r), 190, 2.5)
+        tr = normpk(tr) * (0.45 + 0.55 * smooth_noise(n, r, 0.12) ** 2)
+        # Glass: very quiet high partials beating slowly (the mirror sheen).
+        glass = hl_drone(r, [note('B5'), note('E6'), note('G6')], L, Ld, bright=0.3, shimmer=1.0, lfo=0.7, amps=[1.0, 0.7, 0.4])
+        swell = 0.6 + 0.4 * np.sin(TAU * t / 8.0 + (1.1 if c else 0.0)) ** 2
+        chs.append(normpk(drone) + 0.35 * loop_xfade(tr, L, X) + 0.03 * normpk(glass) * swell)
+    return st(*chs)
+
+
+@sound('amb_glass_shimmer', 'ambience', 1, loop=True, pitch=P_TONAL, lufs=-32,
+       notes='positional loop (Mirrorfold fractures): glassy shimmer - high in-key partials slowly beating + sparse soft chimes')
+def amb_glass_shimmer(r, v):
+    Ld = 6.0
+    L = ns(Ld)
+    t = tvec(L)
+    x = np.zeros(L)
+    for k, f in enumerate((note('E6'), note('G6'), note('B6'), note('D7'), note('E7'))):
+        # Integer beat periods per loop keep it seamless.
+        beat = (k + 1) / Ld
+        ph = r.uniform(0, TAU)
+        x += (0.8 ** k) * sine(f, L, ph) * (0.55 + 0.45 * np.sin(TAU * beat * t + ph) ** 2)
+        x += 0.5 * (0.8 ** k) * sine(f * 1.0015, L, ph + 1.0)
+    x = normpk(x) * 0.5
+    for _ in range(5):
+        ping = hl_ping(r, pent(pent_index('E5') + int(r.integers(0, 8))), dec=0.35, bright=0.7, glint=0.4, shimmer=0.8)
+        add_circ(x, ping, int(r.uniform(0, L)), U(r, 0.15, 0.3))
+    return circ(lambda y: hp(y, 600, 2), x)
+
+
+@sound('amb_glass_chime', 'ambience', 6, pitch=P_IMPACT, lufs=-30,
+       notes='Mirrorfold one-shot: a shard of mirror glass settling - a soft in-key crystal chime, sometimes two')
+def amb_glass_chime(r, v):
+    x = material_hit(r, 'crystal', size=U(r, 0.4, 1.2), energy=U(r, 0.3, 0.6))
+    if v % 2 == 1:
+        y = material_hit(r, 'crystal', size=U(r, 0.3, 0.8), energy=U(r, 0.2, 0.4))
+        out = np.zeros(len(x) + ns(0.4) + len(y))
+        add(out, x, 0.0, 1.0)
+        add(out, y, U(r, 0.12, 0.4), 0.7)
+        x = out
+    return hp(x, 400, 2)
+
+
 @sound('heartbeat', 'feedback', 2, pitch=P_TONAL, lufs=-22,
        notes='danger cue: lub-dub, mostly 40-90 Hz + a small 200 Hz knock so it reads on laptops')
 def heartbeat(r, v):

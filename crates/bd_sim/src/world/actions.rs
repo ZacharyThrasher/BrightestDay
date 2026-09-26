@@ -290,6 +290,7 @@ impl World {
         // PARTY HOOK: Wild Magic + standing grafts + Kaiju Heart (re-validates; no-op in FFA).
         let mut recipe = recipe;
         crate::party::modify_cast(self, i, &mut recipe, typed.autonomous);
+        super::interactables::modify_cast(self, i, &mut recipe, typed.autonomous); // INTERACT HOOK: slot-won party effect (casino)
         crate::signature::lift_scale(self, &mut recipe); // SIGNATURE HOOK: ultimate scale past the form clamp
         let shape = shape.map(sanitize_shape);
         // Curated icons: normalise the stored spec to real size ONCE here (the client model is built

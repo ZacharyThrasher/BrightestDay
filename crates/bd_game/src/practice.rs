@@ -139,6 +139,7 @@ fn start_practice(
     mut copy: ResMut<SimArenaCopy>,
     existing: Option<Res<ActiveWorld>>,
     prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
+    cli: Res<crate::cli::CliArgs>,
 ) {
     if *mode != GameMode::Practice || map.0 == MapKind::Tutorial || existing.is_some() || args.soak_view || args.showcase() {
         return;
@@ -167,6 +168,13 @@ fn start_practice(
     let difficulty = if brawl { 0.8 } else { settings.difficulty };
     let bots = bd_sim::bots::add_bots(&mut world, first, n, difficulty, seed);
     world.start_live();
+    // `--pos x,y,z` (feet): start the local player there (screenshots / feel checks of a spot).
+    if let (Some(id), Some(p)) = (local, cli.pos)
+        && let Some(pl) = world.player_mut(id)
+    {
+        pl.mv.pos = bd_core::Vec3::new(p.x, p.y, p.z);
+        pl.mv.vel = bd_core::Vec3::ZERO;
+    }
     let mut active = ActiveWorld::new(world, local, SimRole::Offline);
     active.bots = bots;
     info!("practice: {} bots (difficulty {:.2}), local {:?}", active.bots.len(), difficulty, local);

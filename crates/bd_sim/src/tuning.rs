@@ -55,6 +55,11 @@ pub struct CombatTuning {
     pub signature: crate::signature::SignatureTuning,
     /// FREEDOM HOOK: shout bonus, sputter floor, "it" resize range, hidden legendary rolls (`crate::freedom`).
     pub freedom: crate::freedom::FreedomTuning,
+    /// JUGGLE: per-victim juggle protection — knockback decay inside a chain, then a short guard
+    /// (`crate::juggle`, COMBAT.md §1a).
+    pub juggle: crate::juggle::JuggleTuning,
+    /// INTERACT HOOK: High Roller's slot machines + roulette house spin (`world/interactables.rs`).
+    pub casino: crate::world::interactables::CasinoTuning,
 }
 
 impl Default for CombatTuning {
@@ -75,6 +80,8 @@ impl Default for CombatTuning {
             assist: crate::melee_assist::AssistTuning::default(),
             signature: crate::signature::SignatureTuning::default(),
             freedom: crate::freedom::FreedomTuning::default(),
+            juggle: crate::juggle::JuggleTuning::default(),
+            casino: crate::world::interactables::CasinoTuning::default(),
         }
     }
 }
@@ -958,6 +965,8 @@ impl CombatTuning {
         self.assist = self.assist.validated(); // ASSIST HOOK
         self.signature = self.signature.validated(); // SIGNATURE HOOK
         self.freedom = self.freedom.validated(); // FREEDOM HOOK
+        self.juggle = self.juggle.validated(); // JUGGLE
+        self.casino = self.casino.validated(); // INTERACT HOOK
         self
     }
 

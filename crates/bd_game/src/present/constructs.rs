@@ -508,7 +508,10 @@ fn construct_events(
                         let w = active.world.constructs.get(*id).map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
                         let bin = bd_sim::constructs::held::weight_bin(w) as u8;
                         let curve = swings.0.entry((form, k, bin)).or_insert_with(|| Arc::new(bd_shapes::swing_curve_weighted(form, kind, w))).clone();
-                        sc.swing = Some((curve, 0.0));
+                        // A heavy starts on the charge's release, already coiled: from `hold_at`
+                        // like the sim (so the strike isn't a wind-up late).
+                        let t0 = if kind == SwingKind::Heavy { curve.hold_at } else { 0.0 };
+                        sc.swing = Some((curve, t0));
                     }
                     HeldFx::SwingImpact | HeldFx::DiveSlam | HeldFx::GroundPound | HeldFx::TransformSlam => {
                         sfx.write(Sfx3d::at(if *strength > 1.5 { "hit_heavy" } else { "hit_medium" }, p));
@@ -1013,14 +1016,3 @@ fn predicted_casts(
     }
 }
 
-#[cfg(test)]
-mod stabb_tmp {
-    use super::*;
-    #[test]
-    fn dump_railgun_fit() {
-        let r = bd_sim::bots::recipe("railgun", Form::Gun, &[Mechanic::Pierce], bd_core::mechanics::Element::Light, 0.9);
-        let m = bd_shapes::build_model(&r).1;
-        let fit = HeldFit::of(&m, true);
-        println!("bounds {:?} grip {:?} fit {:?} gp {:?}", m.bounds, fit.grip, fit, bd_shapes::grip_point(&m));
-    }
-}

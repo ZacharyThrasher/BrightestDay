@@ -273,6 +273,19 @@ window / blasted facade → side or void KO (tether save applies). Light is emis
 lights); drop-ceiling plenums and closed hotel rooms are sealed interiors (render-culled). Decor: capped,
 seeded props (icon-library bakes + kit furniture) hugging solid walls, never on spawns / routes.
 
+**Ember** (`--map ember`, bd_voxel `maps/ember.rs`; private-use look, see THIRD_PARTY_NOTICES): a
+volcanic basin at dusk. **The lava is the void** — an indestructible glowing sheet on the world floor
+(top 0.5 m) just under `void_y` (1 m), so any river, lake, pit or rivulet is a normal bottom KO; no
+map-specific sim code. Tiers: South Plain 7 m / North Bank 9 m / facility deck 12 m (low, cover-rich,
+lava close), processor roof 20 m / Crag 20 m / Dunes 11 m (mid), Ridge 26 m + fortress balcony 40 m
+(high, exposed, backs onto the outer lava); the 56 m perch between the twin spires is tiny, coverless
+and tether-only. North ↔ South crossings: the mining facility (two stair catwalks per side, deck,
+through the processor), the west rock arch, east stepping stones, collector-arm swings, via the Crag
+necks or the Dunes causeway, and two surf lines over the lava (Ridge → Dunes, Crag → South Plain).
+Ridge access: two ash ramps, the cliff (tether), the keep's ledge ladders. A lavafall pours from the
+cliff under the fortress into a KO pool. 9 spawns mirrored east/west, ≥ 4 m from any lava, never on
+the facility or fortress. ~0.62 M triangles; all light is emissive voxels.
+
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
 tether swing, dual tether + reel, boost + release fling — then the **Peak Run** that chains them all.

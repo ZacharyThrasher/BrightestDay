@@ -371,6 +371,8 @@ fn map_key(k: MapKind) -> &'static str {
         MapKind::Miami => "miami",
         MapKind::Orbit => "orbit",
         MapKind::Backrooms => "backrooms",
+        MapKind::Sakura => "sakura",
+        MapKind::Ember => "ember",
     }
 }
 

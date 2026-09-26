@@ -28,6 +28,7 @@ use crate::settings::ComfortSettings;
 use crate::sim_bridge::{ActiveWorld, Cmd, GameEvents, SimCommand};
 use crate::state::{AppState, InGameMenu};
 use bd_core::mechanics::{Form, FormCategory};
+use bd_core::input::buttons;
 use bd_core::ConstructId;
 use bd_shapes::{PartMesh, SwingCurve, SwingKind};
 use bd_sim::events::HeldFx;
@@ -78,6 +79,8 @@ struct ActiveSwing {
     t: f32,
     /// Holding a charge / guard: freeze at `hold_at`.
     holding: bool,
+    /// The input bit that holds it (PRIMARY charge, SECONDARY guard): released locally → play on.
+    button: u16,
 }
 
 #[derive(Resource, Default)]
@@ -105,6 +108,9 @@ struct VmState {
     glove: [(Vec3, Vec3); 2],
     /// `bd_shapes::weight_of` of the held construct (1 = nominal).
     held_w: f32,
+    /// `time` when a charge was released locally (its heavy already plays; the host's heavy
+    /// `SwingStart`, ~RTT later on a client, must not restart it).
+    released_at: Option<f32>,
 }
 
 #[derive(Component)]
@@ -444,6 +450,7 @@ fn vm_events(
     active: Option<Res<ActiveWorld>>,
     mut st: ResMut<VmState>,
     mut sfx: MessageWriter<crate::audio::PlaySfx>,
+    input: Res<crate::input::LocalInputState>,
 ) {
     for c in cues.read() {
         match c {
@@ -495,15 +502,23 @@ fn vm_events(
                     _ => {}
                 }
                 if let Some((kind, hold)) = swing_kind_for(*fx, *strength) {
-                    // A release after a charge continues the held curve instead of restarting.
-                    if let Some(s) = st.swing.as_mut()
-                        && s.holding
-                        && *fx == HeldFx::SwingStart
-                    {
-                        s.holding = false;
-                        continue;
+                    // The heavy's start (the charge's release, strength 2) continues the held
+                    // curve instead of restarting — or is already playing (released locally).
+                    let heavy_start = *fx == HeldFx::SwingStart && *strength >= 1.9;
+                    if heavy_start {
+                        let released = st.released_at.take().is_some_and(|t| st.time - t < 0.6);
+                        if let Some(s) = st.swing.as_mut()
+                            && s.holding
+                        {
+                            s.holding = false;
+                            continue;
+                        }
+                        if released {
+                            continue;
+                        }
                     }
-                    st.swing = Some(ActiveSwing { curve: bd_shapes::swing_curve_weighted(form, kind, swing_w), t: 0.0, holding: hold });
+                    let button = if *fx == HeldFx::ChargeStart { buttons::PRIMARY } else { buttons::SECONDARY };
+                    st.swing = Some(ActiveSwing { curve: bd_shapes::swing_curve_weighted(form, kind, swing_w), t: 0.0, holding: hold, button });
                 }
             }
             GameEvent::ShotFired { owner, recoil, construct, .. } if *owner == local => {
@@ -526,6 +541,18 @@ fn vm_events(
             }
             GameEvent::OathFinished { player, .. } if *player == local => st.flare = 1.0,
             _ => {}
+        }
+    }
+    // Let go of the button → the held curve plays on NOW (a client doesn't wait ~RTT for the
+    // host's heavy `SwingStart`; a guard dropped / charge cut short with no event never sticks).
+    let now = st.time;
+    if let Some(s) = st.swing.as_mut()
+        && s.holding
+        && !input.current.held(s.button)
+    {
+        s.holding = false;
+        if s.button == buttons::PRIMARY {
+            st.released_at = Some(now);
         }
     }
 }

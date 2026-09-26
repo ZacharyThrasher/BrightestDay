@@ -93,6 +93,8 @@ pub struct Player {
     pub charge: crate::charge::ChargeState,
     /// ASSIST HOOK: melee lunge cooldown / swing target, hook ropes' sight timers, slam window.
     pub assist: crate::melee_assist::AssistState,
+    /// JUGGLE: this player's current juggle chain / guard as a victim (`crate::juggle`, host-side).
+    pub juggle: crate::juggle::JuggleState,
 }
 
 impl Player {
@@ -142,6 +144,7 @@ impl Player {
             power: Default::default(),
             charge: Default::default(),
             assist: Default::default(),
+            juggle: Default::default(),
         }
     }
 

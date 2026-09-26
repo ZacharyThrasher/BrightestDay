@@ -286,3 +286,113 @@ fn combat_tuning_syncs_host_to_client() {
     assert_eq!(w.tuning().willpower.form_mult(Form::Staff), 4.0);
     assert_eq!(bot.core.stats.tuning_updates, 1);
 }
+
+/// Charge → release over the wire (owner: "it should attack on RELEASE, not require an extra
+/// click"). A real client holds LMB with a sword for 0.5 s and lets go, never pressing again: the
+/// host starts the heavy (`SwingStart` strength 2) on exactly the tick its input queue delivers the
+/// release, and the client's presentation stream receives it.
+#[test]
+fn charged_heavy_releases_over_the_wire() {
+    use bd_core::input::{PlayerInput, buttons};
+    use bd_core::mechanics::{Element, Form};
+    use bd_sim::GameEvent;
+    use bd_sim::events::HeldFx;
+    const HOLD: u32 = 60;
+    let settings = bd_sim::settings::GameSettings::default();
+    let mut host =
+        HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
+    let port = host.port;
+    let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind: NetMapKind::Archipelago, seed: 1, pristine_hash: 0 }, 7);
+    let mut active = ActiveWorld::new(world, Some(host.me), SimRole::Host);
+    host.start_match(&mut active, map, hasher);
+    active.world.start_live();
+    let mut core = ClientCore::connect(&format!("127.0.0.1:{port}"), "charger", Corps::Rage, Default::default()).expect("connect");
+    let mut cw: Option<World> = None;
+    let mut pacer: Option<TickPacer> = None;
+    let mut last = now_secs();
+    let mut armed_at: Option<f64> = None;
+    let mut sent = 0u32; // client ticks predicted since the sword arrived
+    let (mut host_prev, mut host_release, mut host_heavy, mut host_charge) = (false, None, Vec::new(), None);
+    let mut client_heavy = 0;
+    let mut cmds = Vec::new();
+    let t0 = now_secs();
+    let mut next_tick = t0;
+    while now_secs() - t0 < 12.0 {
+        host.poll(Some(&mut active), &mut cmds);
+        cmds.clear();
+        while now_secs() >= next_tick {
+            host.pre_tick(&mut active);
+            let tick = active.world.tick;
+            let evs = active.step(None).to_vec();
+            host.post_tick(&mut active);
+            next_tick += DT as f64;
+            let Some(me) = core.me else { continue };
+            for e in &evs {
+                if let GameEvent::HeldFx { owner, fx, strength, .. } = e
+                    && *owner == me
+                {
+                    match fx {
+                        HeldFx::SwingStart if *strength >= 1.9 => host_heavy.push(tick),
+                        HeldFx::ChargeStart => host_charge = host_charge.or(Some(tick)),
+                        _ => {}
+                    }
+                }
+            }
+            let held = active.world.player(me).is_some_and(|p| p.input.held(buttons::PRIMARY));
+            if host_prev && !held && host_release.is_none() {
+                host_release = Some(tick);
+            }
+            host_prev = held;
+        }
+        // Client frame.
+        let now = now_secs();
+        let out = core.update(cw.as_mut());
+        if let Some(w) = out.new_world {
+            cw = Some(w);
+        }
+        for e in core.outbox.drain(..) {
+            if let GameEvent::HeldFx { owner, fx: HeldFx::SwingStart, strength, .. } = e
+                && Some(owner) == core.me
+                && strength >= 1.9
+            {
+                client_heavy += 1;
+            }
+        }
+        let dt = now - last;
+        last = now;
+        if let (Some(w), ClientPhase::InGame, Some(me)) = (cw.as_mut(), &core.phase, core.me)
+            && core.session.clock().is_synced()
+        {
+            if armed_at.is_none() && active.world.player(me).is_some_and(|p| p.alive) && w.player(me).is_some_and(|p| p.alive) {
+                // Hand the client a sword (host-authoritative cast), let it form.
+                let p = active.world.player(me).unwrap();
+                let eye = p.eye(active.world.params());
+                let r = bd_sim::bots::recipe("sword", Form::Sword, &[], Element::Light, bd_sim::constructs::form_spec(Form::Sword).default_scale);
+                active.world.cast(me, r, None, bd_sim::world::Aim::new(eye, bd_core::Vec3::NEG_Z)).expect("cast");
+                armed_at = Some(now + 0.6);
+            }
+            let target = core.session.clock().target_client_tick(now, super::client::LEAD_BUFFER_TICKS);
+            let p = pacer.get_or_insert_with(|| TickPacer::new(TICK_HZ, target as u64));
+            let st = p.advance(dt, Some(target));
+            for _ in 0..st.count {
+                let pressing = armed_at.is_some_and(|t| now >= t) && sent < HOLD;
+                if armed_at.is_some_and(|t| now >= t) {
+                    sent += 1;
+                }
+                let _ = core.predict(w, PlayerInput { buttons: if pressing { buttons::PRIMARY } else { 0 }, ..Default::default() });
+            }
+        }
+        let _ = core.interp.update(now);
+        core.release_events();
+        core.send_inputs(false);
+        if client_heavy > 0 && sent > HOLD + 120 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert!(host_charge.is_some(), "the hold coiled a charge on the host");
+    let release = host_release.expect("host saw the release");
+    assert!(host_charge.unwrap() < release);
+    assert_eq!(host_heavy, vec![release], "one heavy, started on the release tick (no second press)");
+    assert_eq!(client_heavy, 1, "the client received the heavy swing start");
+}

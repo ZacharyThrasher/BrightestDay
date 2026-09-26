@@ -63,6 +63,9 @@ pub struct VoxelWorld {
     anchor_hints: Vec<IVec3>,
     /// Any chunk carries enclosed-air bits (render-only face culling of sealed interiors).
     has_enclosed: bool,
+    /// Render-only: faces towards air outside the world's x/z extent or above its top are never
+    /// meshed (maps whose shell is closed, e.g. the Giant's Room). See [`Self::set_cull_outside`].
+    cull_outside: bool,
 }
 
 impl VoxelWorld {
@@ -82,6 +85,7 @@ impl VoxelWorld {
             dirty_list: Vec::new(),
             anchor_hints: Vec::new(),
             has_enclosed: false,
+            cull_outside: false,
         }
     }
 
@@ -403,6 +407,19 @@ impl VoxelWorld {
     }
 
     // ----- enclosed air (render-only) -------------------------------------------------------------
+
+    /// Render-only: never mesh faces that look out of the world's x/z extent or out of its top (for
+    /// maps whose outer shell is closed and never seen from outside, e.g. a room whose walls are the
+    /// world's edge). Default off. Never affects collision, carving or hashing.
+    pub fn set_cull_outside(&mut self, on: bool) {
+        self.cull_outside = on;
+        self.mark_all_dirty();
+    }
+
+    #[inline]
+    pub fn cull_outside(&self) -> bool {
+        self.cull_outside
+    }
 
     /// Does any chunk carry enclosed-air bits?
     #[inline]

@@ -287,7 +287,7 @@ fn main() {
     let (wpx, hpx) = (640, 360);
     let f = ember::FORT;
     let views: [(&str, Vec3, Vec3, f32); 6] = [
-        ("plain_to_fortress", Vec3::new(6.0, ember::SP_TOP + 1.7, -44.0), Vec3::new(f.x, 34.0, f.y), 70.0),
+        ("plain_to_fortress", Vec3::new(-14.0, ember::SP_TOP + 1.7, -60.0), Vec3::new(f.x, 36.0, f.y), 64.0),
         ("facility_from_bank", Vec3::new(-34.0, ember::NB_TOP + 2.2, 20.0), Vec3::new(0.0, 15.0, ember::RIVER_Z), 74.0),
         ("lavafall", Vec3::new(4.0, ember::NB_TOP + 1.7, 20.0), Vec3::new(0.0, 22.0, 44.0), 76.0),
         ("ridge_overlook", Vec3::new(-44.0, ember::RIDGE_TOP + 1.7, 58.0), Vec3::new(0.0, 8.0, -12.0), 76.0),

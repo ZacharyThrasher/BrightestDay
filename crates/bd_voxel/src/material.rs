@@ -323,6 +323,61 @@ pub mod mat {
     pub const NEON_GREEN: Material = 180;
     /// Chandelier crystal drops (bright, breakable).
     pub const CRYSTAL_DROP: Material = 181;
+    // ---- Mirrorfold (the folded city) ----
+    /// Pale warm limestone facade, its cool violet-grey shade (rustication / back of the fold) and
+    /// the bright cornice / trim stone.
+    pub const MIRROR_STONE: Material = 182;
+    pub const MIRROR_SHADE: Material = 183;
+    pub const MIRROR_CORNICE: Material = 184;
+    /// Dark blue-violet window glass and a warm lit window (faint glow).
+    pub const MIRROR_WINDOW: Material = 185;
+    pub const MIRROR_WINDOW_LIT: Material = 186;
+    /// Fracture seams: thin cyan-white hard-light lines where the city was cut (self-lit).
+    pub const MIRROR_SEAM: Material = 187;
+    /// Mirror-glass shards (crack walls, fragment faces): pale reflective crystal, faint glint.
+    pub const MIRROR_SHARD: Material = 188;
+    /// Plaza paving stone.
+    pub const MIRROR_PAVING: Material = 189;
+    /// Indestructible dark slate core (curl ribs, inverted-tower spines, fragment hearts).
+    pub const MIRROR_CORE: Material = 190;
+    // ---- Sakura Keep (Japanese castle town) ----
+    /// Blue-grey roof tile and the pale ridge / eave-edge tiles.
+    pub const SK_ROOF_TILE: Material = 191;
+    pub const SK_ROOF_RIDGE: Material = 192;
+    /// White lime plaster (house and castle walls).
+    pub const SK_PLASTER: Material = 193;
+    /// Vermilion lacquer (temple walls, pillars, torii) and gold trim (faint sheen).
+    pub const SK_LACQUER: Material = 194;
+    pub const SK_GOLD: Material = 195;
+    /// Street pavers and their darker joints / steps.
+    pub const SK_PAVER: Material = 196;
+    pub const SK_PAVER_DARK: Material = 197;
+    /// Raked gravel (garden paths, the courtyard).
+    pub const SK_GRAVEL: Material = 198;
+    /// Shoji paper panels, lit from behind (soft glow; tears easily).
+    pub const SK_SHOJI: Material = 199;
+    /// Red paper lanterns and warm lantern light (full glow).
+    pub const SK_LANTERN: Material = 200;
+    pub const SK_LANTERN_WARM: Material = 201;
+    /// Dressed castle stone (the keep's base, plinths, stone lanterns).
+    pub const SK_KEEP_STONE: Material = 202;
+    /// Indestructible castle stone (the keep base's core, the plateau's bedrock).
+    pub const SK_KEEP_CORE: Material = 203;
+    /// Indestructible red lacquer columns (the keep hall's four pillars).
+    pub const SK_PILLAR_CORE: Material = 204;
+    /// Koi-pond water (dark teal, faintly self-lit) and a koi.
+    pub const SK_KOI_WATER: Material = 205;
+    pub const SK_KOI: Material = 206;
+    /// Cherry bark, pale blossom (fallen petals, canopy highlights), pine needles, moss.
+    pub const SK_BARK: Material = 207;
+    pub const SK_BLOSSOM_LIGHT: Material = 208;
+    pub const SK_PINE: Material = 209;
+    pub const SK_MOSS: Material = 210;
+    /// The plateau's cliff rock.
+    pub const SK_CLIFF: Material = 211;
+    /// The keep's painted panel: indigo wave paint and ink.
+    pub const SK_PAINT_BLUE: Material = 212;
+    pub const SK_INK: Material = 213;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -337,7 +392,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 182] = [
+pub static MATERIALS: [MaterialDef; 214] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -737,6 +792,64 @@ pub static MATERIALS: [MaterialDef; 182] = [
     glow(def("neon violet", [186, 80, 255], 0.05, 0.4, D::Crystal), 1.0),
     glow(def("neon green", [70, 255, 140], 0.05, 0.4, D::Crystal), 1.0),
     glow(def("crystal drop", [255, 246, 222], 0.08, 0.5, D::Crystal), 0.75),
+    // ---- Mirrorfold (182..) ----
+    def("mirror limestone", [206, 196, 178], 0.06, 1.0, D::Stone),
+    def("mirror shade stone", [128, 124, 150], 0.06, 1.1, D::Stone),
+    def("mirror cornice", [232, 226, 210], 0.04, 1.0, D::Stone),
+    def("mirror window", [44, 54, 92], 0.10, 0.6, D::Crystal),
+    glow(def("mirror lit window", [255, 204, 132], 0.10, 0.6, D::Crystal), 0.55),
+    glow(def("mirror seam", [182, 244, 255], 0.05, 1.2, D::Crystal), 1.0),
+    glow(def("mirror shard", [170, 200, 236], 0.12, 1.2, D::Crystal), 0.12),
+    def("mirror paving", [176, 170, 162], 0.07, 1.0, D::Stone),
+    MaterialDef {
+        name: "mirror core",
+        color: [62, 58, 82],
+        jitter: 0.05,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    // ---- Sakura Keep (191..) ----
+    def("roof tile", [66, 74, 94], 0.06, 0.9, D::Stone),
+    def("ridge tile", [150, 152, 160], 0.04, 1.0, D::Stone),
+    def("lime plaster", [240, 234, 220], 0.03, 0.7, D::Stone),
+    def("vermilion lacquer", [196, 46, 36], 0.05, 0.9, D::Wood),
+    glow(def("gold trim", [226, 176, 66], 0.05, 1.0, D::Stone), 0.15),
+    def("street paver", [172, 166, 154], 0.06, 1.0, D::Stone),
+    def("dark paver", [128, 124, 120], 0.06, 1.0, D::Stone),
+    def("raked gravel", [220, 214, 196], 0.05, 0.45, D::Sand),
+    glow(def("shoji paper", [248, 238, 212], 0.03, 0.3, D::Dirt), 0.4),
+    glow(def("paper lantern", [255, 110, 56], 0.05, 0.3, D::Dirt), 1.0),
+    glow(def("lantern light", [255, 210, 140], 0.04, 0.4, D::Crystal), 1.0),
+    def("castle stone", [156, 150, 140], 0.08, 1.4, D::Stone),
+    MaterialDef {
+        name: "castle core",
+        color: [118, 112, 106],
+        jitter: 0.07,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "keep pillar",
+        color: [176, 40, 32],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Wood,
+        emissive: 0.0,
+    },
+    glow(def("koi pond", [40, 112, 112], 0.06, 0.4, D::Crystal), 0.12),
+    def("koi", [250, 128, 40], 0.08, 0.3, D::Crystal),
+    def("cherry bark", [70, 48, 46], 0.08, 0.8, D::Wood),
+    def("pale blossom", [255, 208, 228], 0.10, 0.25, D::Leaves),
+    def("pine needles", [44, 98, 68], 0.12, 0.25, D::Leaves),
+    def("moss", [98, 130, 72], 0.10, 0.5, D::Grass),
+    def("cliff rock", [112, 106, 108], 0.08, 1.2, D::Stone),
+    def("wave indigo", [40, 82, 150], 0.05, 0.8, D::Stone),
+    def("ink", [36, 34, 40], 0.04, 0.9, D::Stone),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

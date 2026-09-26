@@ -548,7 +548,8 @@ pub(crate) fn spawn_prelude(w: &mut World, i: usize, recipe: &mut Recipe, terrai
     let uses = w.players[i].casts.uses_in(&recipe.name, w.tick, lt.personal_window);
     let n = legendary::novelty(&w.freedom.novelty, &key, recipe, uses, lt);
     let chance = legendary::chance(&n, lt);
-    let legendary = legendary::roll(w.cfg.seed, w.tick, id, key.key, chance);
+    let lucky = crate::world::interactables::take_lucky(w, id); // INTERACT HOOK: slot jackpot = next cast legendary
+    let legendary = lucky || legendary::roll(w.cfg.seed, w.tick, id, key.key, chance);
     if !colossal_before && crate::willpower::is_colossal(recipe) {
         recipe.scale = crate::rules::COLOSSAL_SCALE - 0.01; // a bonus never turns a cast into a colossal one
     }

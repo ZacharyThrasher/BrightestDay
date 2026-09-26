@@ -35,3 +35,16 @@ frequent. Missing names are silent (callers already emit them).
 | surf_loop | surfing | wind rush / hard-light hiss while riding a surf face, pitch + gain up with speed |
 | amb_pool_drip | Backrooms poolrooms | sparse water drips + tiny lapping; needs a multi-storey `Water` zone in `EmitterMap::scan` (it is 2.5D: only the roof is scanned) to place it near `POOL_WATER` voxels |
 | amb_fluoro_hum | Backrooms | 120 Hz fluorescent ballast buzz with a faint flicker tick (currently `amb_neon_hum` stands in) |
+| amb_lava_bed | Ember | deep molten drone with slow bubbling (currently `amb_planet_hum` stands in); placed near `CliffEdge` shores |
+| amb_lava_bubble | Ember | thick glooping pops / plops at lava shores (sparkle; `debris_patter` stands in) |
+| amb_heat_roar | Ember | broadband heat shimmer / updraft roar at the lava edges (currently `wind_loop`) |
+| amb_eruption_far | Ember | distant volcanic eruption: deep boom + long rumbling tail (currently `amb_distant_boom`) |
+| amb_lavafall | Ember | continuous pouring / sizzling hiss of the lavafall under the fortress (needs a point emitter or an emissive-voxel zone in `EmitterMap::scan`) |
+| amb_ember_crackle | Ember | faint crackle of embers on the wind (sparkle, Sky zone) |
+| lava_ko | Ember / any lava void | sizzle + hiss burst when a body drops into the lava (client splash of the bottom blast zone on lava maps) |
+| amb_sewer_drip | Turtle Lair | sparse drips + plinks near the sewer channels (sparkle); needs `EmitterMap::scan` to find `SEWER_WATER` voxels under the street (it only scans the top surface) |
+| amb_sewer_trickle_loop | Turtle Lair | gentle running-water trickle loop for the channels and the hub waterfall (currently a quiet `amb_ocean_loop` bed stands in) |
+| amb_subway_rumble | Turtle Lair | distant train rumble rolling through the chasm: low swell + rail clatter, 6–10 s (currently `amb_distant_boom`) |
+| amb_pipe_hiss | Turtle Lair | steam-pipe hiss bursts + metallic clanks along the vault pipes (currently `amb_station_creak`) |
+| amb_city_muffled | Turtle Lair | the city above heard through a manhole: low-passed traffic, a far siren (bed near the shafts; currently `amb_city_bed` by altitude) |
+| amb_arcade_bleeps | Turtle Lair | quiet arcade-cabinet attract-mode bleeps + CRT whine near the lair's neon (currently `amb_neon_hum`) |

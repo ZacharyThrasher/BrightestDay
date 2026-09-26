@@ -74,6 +74,9 @@ pub struct ArenaInfo {
     /// Sim-run map mechanics: transforming panels + a permanent space bridge (Cybertron; see
     /// [`crate::mechanics`]). Empty everywhere else (the sim skips it entirely).
     pub mechanics: crate::mechanics::MapMechanics,
+    /// Optional flavour toys the sim runs (High Roller's slot machines + roulette "house spin",
+    /// [`crate::interact`]). Empty everywhere else.
+    pub interactables: crate::interact::Interactables,
 }
 
 /// A flat water surface: a rectangle at height `center.y` spanning `half` metres along its local
@@ -997,6 +1000,7 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
         surf_lines,
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
         slipstream: None,
         mechanics: Default::default(),
     };
@@ -1081,6 +1085,7 @@ pub fn generate_flat_test(size_m: f32) -> (VoxelWorld, ArenaInfo) {
         surf_lines: Vec::new(),
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
         slipstream: None,
         mechanics: Default::default(),
     };

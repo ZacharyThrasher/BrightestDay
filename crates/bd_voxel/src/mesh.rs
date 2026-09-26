@@ -138,13 +138,18 @@ impl Mesher {
         self.hidden.fill(false);
         let floor = world.voxel_min().y;
         let enclosed = world.has_enclosed_air();
-        if o.y - 1 < floor || enclosed {
+        // Closed-shell maps: air outside the world's x/z extent or above its top is never seen.
+        let (lo, hi) = (world.voxel_min(), world.voxel_max());
+        let edge = world.cull_outside()
+            && (o.x - 1 < lo.x || o.z - 1 < lo.z || o.x + CHUNK_SIZE >= hi.x || o.z + CHUNK_SIZE >= hi.z || o.y + CHUNK_SIZE >= hi.y);
+        let outside = |v: IVec3| v.x < lo.x || v.z < lo.z || v.x >= hi.x || v.z >= hi.z || v.y >= hi.y;
+        if o.y - 1 < floor || enclosed || edge {
             for y in -1..=CHUNK_SIZE {
                 for z in -1..=CHUNK_SIZE {
                     for x in -1..=CHUNK_SIZE {
                         let v = o + IVec3::new(x, y, z);
                         let i = pidx(x + 1, y + 1, z + 1);
-                        if self.padded[i] == AIR && (v.y < floor || (enclosed && world.is_enclosed_air(v))) {
+                        if self.padded[i] == AIR && (v.y < floor || (edge && outside(v)) || (enclosed && world.is_enclosed_air(v))) {
                             self.hidden[i] = true;
                         }
                     }

@@ -23,9 +23,11 @@ use crate::material::mat;
 use crate::noise::{Rng, dcos, dsin, smoothstep, value2};
 use crate::world::VoxelWorld;
 
-/// Statue height above its pedestal top (m).
+/// The shapes below are authored for a 55 m figure and scaled by this on placement.
+pub const SCALE: f32 = 1.12;
+/// Statue height above its pedestal top (m, before [`SCALE`]).
 pub const HEIGHT: f32 = 55.0;
-/// Shoulder-guard top (local y, m).
+/// Shoulder-guard top at its inner edge (local y, m; the top slopes down outward).
 pub const PAULDRON_TOP: f32 = 41.8;
 /// Outer half-span of the shoulder guards along the statue's right axis (m).
 pub const PAULDRON_C: f32 = 7.3;
@@ -51,15 +53,15 @@ pub struct StatueSpec {
 impl StatueSpec {
     /// World position of a local point (`a` forward, `y` up, `c` right).
     pub fn world(&self, a: f32, y: f32, c: f32) -> Vec3 {
-        Vec3::new(self.base.x + self.facing * a, self.base.y + y, self.base.z + self.facing * c)
+        Vec3::new(self.base.x + self.facing * a * SCALE, self.base.y + y * SCALE, self.base.z + self.facing * c * SCALE)
     }
     /// Local point of a world position.
     pub fn local(&self, p: Vec3) -> Vec3 {
-        Vec3::new(self.facing * (p.x - self.base.x), p.y - self.base.y, self.facing * (p.z - self.base.z))
+        Vec3::new(self.facing * (p.x - self.base.x), p.y - self.base.y, self.facing * (p.z - self.base.z)) / SCALE
     }
     /// Top of the shoulder guard on the statue's right (`side` = +1) or left (−1): a perch.
     pub fn pauldron_top(&self, side: f32) -> Vec3 {
-        self.world(0.0, PAULDRON_TOP, side * PAULDRON_C)
+        self.world(0.0, PAULDRON_TOP - 0.3 * (PAULDRON_C - 5.2), side * PAULDRON_C)
     }
     /// Crown of the head (roughly; the hair adds a little).
     pub fn head_top(&self) -> Vec3 {
@@ -67,7 +69,7 @@ impl StatueSpec {
     }
     /// The raised two-finger seal (fingertips).
     pub fn seal_hand(&self) -> Vec3 {
-        self.world(5.2, 46.0, 2.1)
+        self.world(6.9, 46.0, 1.9)
     }
 }
 
@@ -155,7 +157,7 @@ fn shape(hair: Hair, seed: u32) -> Shape {
         spikes.push(Cone { a: Vec3::new(2.2, 51.2, -0.8), b: Vec3::new(3.3, 46.5, -1.8), r0: 0.8, r1: 0.3 });
     }
     // Arms (capsules) and sword.
-    let (rs, re, rw) = (Vec3::new(0.3, 39.3, 6.7), Vec3::new(2.4, 32.6, 6.3), Vec3::new(4.7, 40.4, 2.7));
+    let (rs, re, rw) = (Vec3::new(0.3, 39.3, 6.7), Vec3::new(3.4, 32.8, 6.0), Vec3::new(6.4, 40.4, 2.4));
     let (ls, le, lh) = (Vec3::new(0.3, 39.3, -6.7), Vec3::new(1.2, 31.2, -7.2), Vec3::new(3.9, 26.9, -5.3));
     let limbs = vec![
         Cone { a: rs, b: re, r0: 1.8, r1: 1.7 },
@@ -204,13 +206,13 @@ fn sample(s: &Shape, p: Vec3) -> Option<Material> {
         return Some(mat::STATUE_CORE);
     }
     // ---- right hand: fist, two raised fingers, thumb -----------------------------------------------
-    if (a - 5.2).abs() < 1.15 && (y - 41.4).abs() < 1.45 && (c - 2.1).abs() < 1.2 {
+    if (a - 6.9).abs() < 1.15 && (y - 41.4).abs() < 1.45 && (c - 1.9).abs() < 1.2 {
         return Some(stone);
     }
-    if (4.5..5.9).contains(&a) && (42.7..46.4).contains(&y) && (1.3..2.9).contains(&c) {
-        return Some(if (2.0..2.2).contains(&c) { shade } else { stone });
+    if (6.2..7.6).contains(&a) && (42.7..46.4).contains(&y) && (1.1..2.7).contains(&c) {
+        return Some(if (1.8..2.0).contains(&c) { shade } else { stone });
     }
-    if (5.7..6.5).contains(&a) && (41.8..42.6).contains(&y) && (0.9..1.6).contains(&c) {
+    if (7.4..8.2).contains(&a) && (41.8..42.6).contains(&y) && (0.7..1.4).contains(&c) {
         return Some(stone);
     }
     // ---- left hand on the hilt; the sword --------------------------------------------------------
@@ -288,8 +290,9 @@ fn sample(s: &Shape, p: Vec3) -> Option<Material> {
         return Some(if y > 42.5 { shade } else { stone });
     }
     let cc = c.abs();
-    if (31.5..PAULDRON_TOP).contains(&y) && (-3.3..3.3).contains(&a) && cc >= 5.2 && cc < 9.3 + 0.1 * (PAULDRON_TOP - y) {
-        return Some(if y < PAULDRON_TOP - 0.5 && groove(PAULDRON_TOP - y, 1.7, 0.35) { shade } else { stone });
+    let ptop = PAULDRON_TOP - 0.3 * (cc - 5.2).max(0.0);
+    if y >= 31.5 && y < ptop && (-3.3..3.3).contains(&a) && cc >= 5.2 && cc < 8.9 + 0.1 * (PAULDRON_TOP - y) {
+        return Some(if y < ptop - 0.5 && groove(PAULDRON_TOP - y, 1.7, 0.35) { shade } else { stone });
     }
     // ---- cuirass, belt, armour skirt ---------------------------------------------------------------
     if (28.0..41.0).contains(&y) {
@@ -311,15 +314,18 @@ fn sample(s: &Shape, p: Vec3) -> Option<Material> {
     }
     // ---- cloak (open at the front), hakama, sandals ------------------------------------------------
     if (2.5..40.0).contains(&y) && a < 0.9 {
-        let rc = 8.3 - 2.3 * smoothstep(31.0, 40.0, y);
+        // Hangs from the shoulders and flares toward the hem.
+        let flare = 1.0 - smoothstep(3.0, 30.0, y);
+        let rc = 7.8 + 1.8 * flare - 2.3 * smoothstep(31.0, 40.0, y);
+        let ra = 5.1 + 1.6 * flare;
         let hem = 2.5 + 1.2 * (0.5 + 0.5 * value2(c * 0.8, a * 0.8, s.seed));
-        if y >= hem && ell(Vec3::new(a, 0.0, c), Vec3::ZERO, Vec3::new(5.1, 1.0, rc)) < 1.0 {
+        if y >= hem && ell(Vec3::new(a, 0.0, c), Vec3::ZERO, Vec3::new(ra, 1.0, rc)) < 1.0 {
             return Some(if groove(c + 20.0, 2.0, 0.4) { shade } else { stone });
         }
     }
     if (1.0..25.0).contains(&y) {
         let t = (y - 1.0) / 24.0;
-        let (ra, rc) = (4.4 - 0.7 * t, 6.9 - 1.2 * t);
+        let (ra, rc) = (5.0 - 1.3 * t, 7.8 - 2.1 * t);
         if ell(Vec3::new(a, 0.0, c), Vec3::ZERO, Vec3::new(ra, 1.0, rc)) < 1.0 {
             // The split between the legs at the front.
             if a > ra * 0.55 && cc < 0.55 && y < 10.0 {
@@ -338,7 +344,7 @@ fn sample(s: &Shape, p: Vec3) -> Option<Material> {
 pub fn build(w: &mut VoxelWorld, s: &StatueSpec, seed: u32) {
     let sh = shape(s.hair, seed);
     // Local bounds → world voxel bounds.
-    let (a0, a1, c0, c1) = (-10.5, 8.0, -11.0, 11.0);
+    let (a0, a1, c0, c1) = (-10.5, 9.0, -11.5, 11.5);
     let p0 = s.world(a0, 0.0, c0);
     let p1 = s.world(a1, 57.5, c1);
     let lo = (p0.min(p1) / 0.5).floor().as_ivec3();

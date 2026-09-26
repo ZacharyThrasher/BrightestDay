@@ -14,9 +14,11 @@ proptest.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [features]
-default = ["backrooms"]
+default = ["backrooms", "sakura", "ember"]
 # BACKROOMS map (maps/backrooms.rs).
 backrooms = []
+# HIGH ROLLER casino map (maps/casino.rs): slot machines + the giant roulette.
+casino = []
 # TURTLE LAIR map (maps/lair.rs).
 lair = []
 # VALLEY OF THE END map (maps/valley.rs).
@@ -25,10 +27,22 @@ valley = []
 ember = []
 # CYBERTRON map (maps/cybertron.rs).
 cybertron = []
+# HYPERLINE map (maps/hyperline.rs): the endless train.
+hyperline = []
+# SAKURA KEEP map (maps/sakura.rs): the castle town.
+sakura = []
+# GIANT'S ROOM map (maps/giant.rs): a toy in a kid's bedroom scaled x30.
+giant = []
+# MIRRORFOLD map (maps/mirror.rs): the folded city (surf curls, hanging towers).
+mirror = []
 
 [[example]]
 name = "backrooms_preview"
 required-features = ["backrooms"]
+
+[[example]]
+name = "casino_preview"
+required-features = ["casino"]
 
 [[example]]
 name = "lair_preview"
@@ -45,3 +59,19 @@ required-features = ["ember"]
 [[example]]
 name = "cybertron_preview"
 required-features = ["cybertron"]
+
+[[example]]
+name = "hyperline_preview"
+required-features = ["hyperline"]
+
+[[example]]
+name = "sakura_preview"
+required-features = ["sakura"]
+
+[[example]]
+name = "giant_preview"
+required-features = ["giant"]
+
+[[example]]
+name = "mirror_preview"
+required-features = ["mirror"]

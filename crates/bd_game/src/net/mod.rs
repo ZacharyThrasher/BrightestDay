@@ -336,6 +336,8 @@ fn handle_requests(
                         crate::arena::MapKind::Miami => proto::NetMapKind::Miami,
                         crate::arena::MapKind::Orbit => proto::NetMapKind::Orbit,
                         crate::arena::MapKind::Backrooms => proto::NetMapKind::Backrooms,
+                        crate::arena::MapKind::Sakura => proto::NetMapKind::Sakura,
+                        crate::arena::MapKind::Ember => proto::NetMapKind::Ember,
                         _ => proto::NetMapKind::Archipelago,
                     };
                     let nm = proto::NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
@@ -481,6 +483,8 @@ fn match_flow(
                     proto::NetMapKind::Miami => crate::arena::MapKind::Miami,
                     proto::NetMapKind::Orbit => crate::arena::MapKind::Orbit,
                     proto::NetMapKind::Backrooms => crate::arena::MapKind::Backrooms,
+                    proto::NetMapKind::Sakura => crate::arena::MapKind::Sakura,
+                    proto::NetMapKind::Ember => crate::arena::MapKind::Ember,
                     proto::NetMapKind::Archipelago => crate::arena::MapKind::Arena,
                 };
                 if current_map.0 != want {

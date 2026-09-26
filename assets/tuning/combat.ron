@@ -733,4 +733,43 @@
             integrity: 1.3,
         ),
     ),
+    // CASINO (bd_sim::world::interactables; High Roller's slot machines + roulette house spin; hidden,
+    // never shown to players). A lever pull (hit it or tether it) costs stake willpower (can't pay =
+    // a clunk, nothing lost) and locks that machine for cooldown s; the reels spin spin_secs, then:
+    // p_jackpot = willpower refill + next fresh cast legendary, p_bust = harmless comedy (confetti /
+    // pie / a bust_hop m/s hop), otherwise a random common graft-only party effect for effect_secs.
+    // melee_reach: hand-to-knob reach of swings. House spin: first after house_first s, then every
+    // house_every s the lights sweep house_sweep s and light pockets +-house_half_width for house_lit s;
+    // standing in them regains house_bonus_per_sec willpower/s.
+    casino: (
+        stake: 12.0,
+        cooldown: 3.0,
+        spin_secs: 1.5,
+        effect_secs: 20.0,
+        p_jackpot: 0.06,
+        p_bust: 0.24,
+        bust_hop: 7.5,
+        melee_reach: 2.6,
+        house_first: 20.0,
+        house_every: 45.0,
+        house_sweep: 3.0,
+        house_lit: 10.0,
+        house_half_width: 2,
+        house_bonus_per_sec: 6.0,
+    ),
+    // Juggle protection (bd_sim::juggle, COMBAT.md §1a): a hit with knockback >= chain_min_kb m/s (before decay)
+    // is a chain hit (all hits a victim takes in one tick = one step). Later hits within window s of the last
+    // chain hit: knockback x kb_decay (2nd, 3rd, ...; the last entry repeats), damage x dmg_decay. After max_hits
+    // chain hits the victim is guarded for immune_secs s: no knockback / launch, damage x immune_dmg (white
+    // hard-light shimmer). Standing on the ground out of tumble, hanging on your own tether or a tech resets it.
+    juggle: (
+        enabled: true,
+        chain_min_kb: 14.0,
+        window: 1.0,
+        kb_decay: [0.6, 0.35],
+        dmg_decay: 0.75,
+        max_hits: 3,
+        immune_secs: 0.7,
+        immune_dmg: 0.5,
+    ),
 )

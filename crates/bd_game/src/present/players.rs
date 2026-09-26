@@ -16,7 +16,7 @@
 //!   `constructs::place`. Holding a gun raises the arm (low-ready; fully along the aim while
 //!   firing / ADS; ADS brings the support hand in) through a `bd_fx::PartOverlay`.
 //! * **Third-person near clip**: the local body fades (and hides) when the shoulder camera is
-//!   pushed within ~1.2 m of the head (a wall behind you), so the helmet never fills the view.
+//!   pushed within ~1.6 m of the head (a wall behind you), so the helmet never fills the view.
 //! * The tutorial has no sim world: `camera3p` adds a synthetic local view in third person, so the
 //!   body is drawn there too.
 
@@ -455,7 +455,7 @@ fn sync_bodies(
         // Third-person near clip: the shoulder camera pushed into the head (a wall behind you) —
         // fade the local body out (hide it when the fade can't: opaque style / too close).
         let near = if v.is_local && third { near_clip_fade(aim.camera.distance(v.pos + Vec3::Y * 1.6 * v.size) / v.size.max(0.2)) } else { 1.0 };
-        let clipped = near < if translucent { 0.12 } else { 0.6 };
+        let clipped = near < if translucent { 0.3 } else { 0.6 };
         let show = alive && !hide_self && !clipped && v.seat.is_none_or(|_| v.has(pflags::SUIT));
         let want = if show { Visibility::Inherited } else { Visibility::Hidden };
         if *visibility != want {
@@ -622,9 +622,10 @@ fn sync_bodies(
 }
 
 /// Third-person near clip: 1 = fully drawn … 0 = gone, from the camera's distance to the head (m,
-/// body-size normalised). Starts fading inside ~1.25 m; gone by ~0.6 m.
+/// body-size normalised). Starts fading inside ~1.6 m (a big costume helmet fills the view from
+/// there); gone by ~0.8 m. The normal shoulder camera sits ~3 m out (ADS ~2 m): untouched.
 pub fn near_clip_fade(dist: f32) -> f32 {
-    let t = ((dist - 0.6) / 0.65).clamp(0.0, 1.0);
+    let t = ((dist - 0.8) / 0.8).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
 }
 
@@ -640,7 +641,10 @@ fn gun_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Loca
     if let Some(r) = h.root[1].filter(|&r| r < locals.len())
         && raise.arm > 1e-3
     {
-        locals[r] = bd_shapes::Local::rot(Q::from_rotation_y(0.18 * raise.ads) * Q::from_rotation_x(up * raise.arm));
+        // A little outward (the gun reads past the shoulder over the third-person camera), less so
+        // aimed in.
+        let out = -0.22 * raise.arm * (1.0 - 0.7 * raise.ads);
+        locals[r] = bd_shapes::Local::rot(Q::from_rotation_y(out) * Q::from_rotation_x((up + 0.12) * raise.arm));
     }
     if let Some(l) = h.root[0].filter(|&l| l < locals.len())
         && raise.ads > 1e-3
@@ -716,9 +720,9 @@ mod tests {
     #[test]
     fn near_clip_fade_ramps() {
         assert_eq!(near_clip_fade(3.0), 1.0);
-        assert_eq!(near_clip_fade(1.25), 1.0);
-        assert_eq!(near_clip_fade(0.5), 0.0);
-        let m = near_clip_fade(0.9);
+        assert_eq!(near_clip_fade(1.7), 1.0, "ADS boom (~2 m) never fades");
+        assert_eq!(near_clip_fade(0.7), 0.0);
+        let m = near_clip_fade(1.2);
         assert!(m > 0.1 && m < 0.9);
     }
 }

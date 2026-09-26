@@ -27,6 +27,7 @@
 
 pub mod arena;
 pub mod carve;
+pub mod interact;
 pub mod city;
 pub mod material;
 pub mod maps;
@@ -40,10 +41,21 @@ pub mod world;
 pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, SurfLine, WaterSheet, generate_arena, generate_flat_test};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use mechanics::{MapMechanics, MapMover, MapPortal, MoverPart};
+pub use interact::{Interactables, RouletteWheel, SlotMachine};
 pub use material::{DebrisClass, MATERIALS, MaterialDef, mat, material_def};
 pub use maps::{District, MIAMI_SIZE_VOXELS, MapInfo, ORBIT_SIZE_VOXELS, Route, RouteKind, generate_miami, generate_orbit};
 #[cfg(feature = "backrooms")]
 pub use maps::{BACKROOMS_SIZE_VOXELS, generate_backrooms};
+#[cfg(feature = "casino")]
+pub use maps::{CASINO_SIZE_VOXELS, generate_casino};
+#[cfg(feature = "giant")]
+pub use maps::{GIANT_SIZE_VOXELS, generate_giant};
+#[cfg(feature = "lair")]
+pub use maps::lair::{LAIR_SIZE_VOXELS, generate_lair};
+#[cfg(feature = "mirror")]
+pub use maps::{MIRROR_SIZE_VOXELS, generate_mirror};
+#[cfg(feature = "sakura")]
+pub use maps::{SAKURA_SIZE_VOXELS, generate_sakura};
 #[cfg(feature = "valley")]
 pub use maps::{VALLEY_SIZE_VOXELS, generate_valley};
 pub use slipstream::{SlipZone, Slipstream};

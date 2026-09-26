@@ -33,6 +33,7 @@ pub mod fuzz;
 pub mod geom;
 pub mod history;
 pub mod legendary; // FREEDOM HOOK: hidden novelty-driven legendary rolls (never shown)
+pub mod juggle; // JUGGLE: per-victim juggle protection (knockback decay + short guard; COMBAT.md §1a)
 pub mod hook; // ASSIST HOOK: hook-and-strike (tethers hook players)
 pub mod melee_assist; // ASSIST HOOK: melee lunge (Destiny-style dash, aim nudge)
 pub mod movement;
@@ -43,6 +44,7 @@ pub mod replicate;
 pub mod rng;
 pub mod rules;
 pub mod settings;
+pub mod slipstream; // SLIPSTREAM HOOK: the Hyperline train's wind on players (host + prediction)
 pub mod signature; // SIGNATURE HOOK: signature casts = an amplifier over existing mechanics (COMBAT.md §5j)
 pub mod smash;
 pub mod space;

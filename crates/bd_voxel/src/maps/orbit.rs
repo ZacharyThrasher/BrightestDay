@@ -847,6 +847,7 @@ pub fn generate_orbit(seed: u64) -> (VoxelWorld, MapInfo) {
         surf_lines: Vec::new(),
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
         slipstream: None,
         mechanics: Default::default(),
     };

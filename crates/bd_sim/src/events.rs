@@ -271,6 +271,9 @@ pub enum GameEvent {
     // ---- lobby knobs + Party mode (COMBAT.md §5g; crate::party) ----
     /// "Void off" lobby knob: a player fell out and was put back on a spawn point (no KO).
     VoidRescue { player: PlayerId, pos: Vec3 },
+    /// MAP MECH HOOK: transforming panel `mover` entered `phase` at tick `since` (replicated: the
+    /// client mirrors mover colliders from it; presentation plays the telegraph + panel sounds).
+    MapMover { mover: u8, phase: crate::world::map_mech::MoverPhase, since: i64 },
     /// Party phase changed. `secs` = phase length (0 for Lobby / Round: see the match clock).
     PartyPhase { phase: crate::party::PartyPhase, round: u8, rounds: u8, secs: f32 },
     /// A round was scored (points include the round-win bonus for `winners`).
@@ -307,6 +310,8 @@ pub enum GameEvent {
     /// FREEDOM HOOK (`crate::freedom`): kill-feed line (the killer construct's phrase as cast), a
     /// legendary construct appeared (golden sting), end-of-match highlights.
     Freedom(crate::freedom::FreedomEvent),
+    /// INTERACT HOOK (`world/interactables.rs`): slot machine pulls / payouts, roulette house spin.
+    Casino(crate::world::interactables::CasinoEvent),
 }
 
 /// What [`GameEvent::HeldFx`] reports (COMBAT.md §4 Held / Worn, §4b, §5d).

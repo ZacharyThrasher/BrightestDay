@@ -8,10 +8,10 @@ license.workspace = true
 bd_core.workspace = true
 glam.workspace = true
 serde.workspace = true
+ron.workspace = true
 
 
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
-ron.workspace = true
 proptest.workspace = true
 bd_lexicon.workspace = true

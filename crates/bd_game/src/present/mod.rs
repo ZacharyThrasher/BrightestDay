@@ -23,6 +23,7 @@ pub mod air_moves; // AIR JUMP / DODGE: hard-light step burst, dodge streak, SFX
 pub mod animated_terrain;
 pub mod camera3p;
 pub mod camera_shots; // CAMERA: BD_CAM_SHOT dev screenshots
+pub mod casino; // HIGH ROLLER: slot reels / levers, roulette house spin, glitter, pie splat (map interactables)
 pub mod charge;
 pub mod construct_anim;
 pub mod constructs;
@@ -90,9 +91,10 @@ impl Plugin for PresentPlugin {
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
             .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
+            .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
             .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
-        app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).before(bevy::transform::TransformSystems::Propagate));
+        app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;
         app.add_warmup(|w: &mut World| {
             for e in bd_fx::spawn_warmup(w) {

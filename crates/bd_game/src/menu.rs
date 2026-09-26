@@ -522,6 +522,8 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             MapKind::Miami => "MIAMI".into(),
             MapKind::Orbit => "ORBIT".into(),
             MapKind::Backrooms => "BACKROOMS".into(),
+            MapKind::Sakura => "SAKURA KEEP".into(),
+            MapKind::Ember => "EMBER".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -732,11 +734,13 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms], map_of(c.prefs), dir);
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember], map_of(c.prefs), dir);
             c.prefs.map = match m {
                 MapKind::Miami => "miami",
                 MapKind::Orbit => "orbit",
                 MapKind::Backrooms => "backrooms",
+                MapKind::Sakura => "sakura",
+                MapKind::Ember => "ember",
                 _ => "arena",
             }
             .into();
@@ -854,11 +858,13 @@ pub struct MenuState {
     /// Transient status line ("copied", "connecting…").
     toast: Option<(String, f32)>,
     title_t: f32,
+    /// The cursor is on a text row (keys are text): the costume view skips its key controls.
+    pub typing: bool,
 }
 
 impl Default for MenuState {
     fn default() -> Self {
-        Self { page: MenuPage::Title, tab: SettingsTab::Gameplay, stack: Vec::new(), cursor: 0, scroll: 0, join_code: String::new(), rebuild: true, caret_t: 0.0, capture: None, toast: None, title_t: 0.0 }
+        Self { page: MenuPage::Title, tab: SettingsTab::Gameplay, stack: Vec::new(), cursor: 0, scroll: 0, join_code: String::new(), rebuild: true, caret_t: 0.0, capture: None, toast: None, title_t: 0.0, typing: false }
     }
 }
 
@@ -928,7 +934,8 @@ impl Plugin for MenuPlugin {
                     .after(crate::lobby::UiSet::Input)
                     .run_if(not(in_state(AppState::Loading))),
             )
-            .add_systems(Update, crate::lobby::preview::costume_preview.after(rebuild_menu).run_if(not(in_state(AppState::Loading))));
+            .add_systems(Update, crate::lobby::preview::costume_preview.after(rebuild_menu).run_if(not(in_state(AppState::Loading))))
+            .add_plugins(crate::lobby::costume_view::CostumeViewPlugin);
     }
 }
 
@@ -1332,6 +1339,7 @@ fn menu_input(
 
     // Text entry on text rows.
     let typing = matches!(current, Row::Text(_));
+    menu.typing = typing;
     let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]);
     if let Row::Text(f) = current {
         let mut changed = false;
@@ -1455,6 +1463,7 @@ fn menu_mouse(
     mouse: Res<ButtonInput<MouseButton>>,
     scroll: Res<AccumulatedMouseScroll>,
     state: Res<State<AppState>>,
+    costume_view: Option<Res<crate::lobby::costume_view::CostumeView>>,
     mut menu: ResMut<MenuState>,
     mut io: MenuIo,
 ) {
@@ -1471,7 +1480,9 @@ fn menu_mouse(
         }
     }
     let rows = io.rows(menu.page, menu.tab, in_game);
-    if scroll.delta.y.abs() > 0.0 && rows.len() > MAX_VISIBLE {
+    // Over the costume preview the wheel zooms the model instead (`lobby::costume_view`).
+    let wheel_on_preview = menu.page == MenuPage::Costume && costume_view.is_some_and(|v| v.pointer_on_preview);
+    if scroll.delta.y.abs() > 0.0 && rows.len() > MAX_VISIBLE && !wheel_on_preview {
         let d = if scroll.delta.y > 0.0 { -1 } else { 1 };
         menu.cursor = next_selectable(&rows, menu.cursor, d);
         menu.rebuild = true;
@@ -1819,7 +1830,8 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
             let hint = match page {
                 MenuPage::Settings if tab == SettingsTab::Controls => Some("q/e tab   enter = rebind   backspace = clear   esc back"),
                 MenuPage::Settings => Some("q/e tab   left/right adjust   shift = fine   esc back"),
-                MenuPage::Rules | MenuPage::Costume | MenuPage::HostSetup => Some("left/right adjust   shift = fine   esc back"),
+                MenuPage::Rules | MenuPage::HostSetup => Some("left/right adjust   shift = fine   esc back"),
+                MenuPage::Costume => Some("left/right adjust   shift = fine   drag rotate   wheel zoom   r reset   esc back"),
                 MenuPage::Customize => Some("quick cast: the phrase your ring builds on 1-4"),
                 _ => None,
             };

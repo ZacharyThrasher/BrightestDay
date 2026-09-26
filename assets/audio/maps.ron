@@ -116,4 +116,165 @@
             (sound: "amb_distant_boom", zone: Sky, per_min: 0.4, min_dist: 250.0, max_dist: 450.0, gain_db: (-12.0, -6.0)),
         ],
     ),
+    "ember": (
+        // Volcanic basin at dusk: open air thick with ash (short, dark tails), a deep lava drone
+        // everywhere that swells near the shores, heat roar and rock calving at the cliff edges,
+        // eruptions far off. The lava floor is not scanned (it sits under the KO line), so every
+        // lava shore reads as a `CliffEdge`.
+        space: (
+            open: (size: 1.5, rt60: 1.2, damping_hz: 3200.0, predelay_ms: 22.0, wet_db: -24.0, er_db: -30.0),
+            enclosed: (size: 0.6, rt60: 1.3, damping_hz: 4200.0, predelay_ms: 7.0, wet_db: -10.0, er_db: -13.0),
+            slap_db: -16.0,
+        ),
+        beds: [
+            // Lava rumble: always there, louder close to a shore.
+            (sound: "amb_planet_hum", gain_db: -4.0, near_zone: CliffEdge, near: (x0: 4.0, x1: 40.0, db0: 3.0, db1: -6.0)),
+            (sound: "amb_wind_high", gain_db: -6.0, altitude: (x0: 20.0, x1: 70.0, db0: -14.0, db1: 0.0), speed: (x0: 8.0, x1: 40.0, db0: -6.0, db1: 5.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+            (sound: "amb_interior_tone", gain_db: 0.0, enclosure: (x0: 0.5, x1: 0.95, db0: -40.0, db1: -2.0)),
+        ],
+        loops: [
+            // Heat roar off the lava at the edges.
+            (sound: "wind_loop", zone: CliffEdge, max_active: 2, radius: 18.0, gain_db: -10.0, lift: 0.0),
+            // Facility machinery / fortress window glow.
+            (sound: "amb_ac_hum", zone: Neon, max_active: 1, radius: 16.0, gain_db: -8.0, lift: 0.0),
+        ],
+        sparkles: [
+            // Rock calving into the lava, spatter, distant eruptions, the facility creaking in the heat.
+            (sound: "collapse_rumble", zone: CliffEdge, per_min: 1.0, min_dist: 20.0, max_dist: 90.0, gain_db: (-16.0, -9.0)),
+            (sound: "debris_patter", zone: CliffEdge, per_min: 5.0, min_dist: 6.0, max_dist: 40.0, gain_db: (-16.0, -8.0), lift: (0.0, 0.5)),
+            (sound: "amb_distant_boom", zone: Sky, per_min: 1.2, min_dist: 200.0, max_dist: 400.0, gain_db: (-10.0, -3.0)),
+            (sound: "amb_station_creak", zone: Surface, per_min: 1.5, min_dist: 8.0, max_dist: 50.0, gain_db: (-14.0, -7.0), lift: (0.5, 3.0)),
+        ],
+        scare_hold: 3.0,
+        scare_recover: 8.0,
+    ),
+    "sakura": (
+        // Sakura Keep: a castle town on a plateau over the void. Open streets ring against plaster
+        // and tile (short slapback in the lanes); the keep hall is a big timber room (long, warm
+        // tail); wind comes up over the cliff edges and through the blossom. No bell / wind-chime /
+        // fountain cues exist yet (docs/SFX_WISHLIST.md): leaves, birds, insects and wind carry it.
+        space: (
+            open: (size: 1.4, rt60: 1.2, damping_hz: 5000.0, predelay_ms: 20.0, wet_db: -22.0, er_db: -26.0),
+            enclosed: (size: 0.8, rt60: 1.9, damping_hz: 4200.0, predelay_ms: 10.0, wet_db: -9.0, er_db: -12.0),
+            slap_db: -13.0,
+        ),
+        beds: [
+            (sound: "amb_archipelago_bed", gain_db: -2.0, enclosure: (x0: 0.3, x1: 0.9, db0: 0.0, db1: -12.0)),
+            (sound: "amb_wind_high", gain_db: -5.0, altitude: (x0: 25.0, x1: 70.0, db0: -16.0, db1: 0.0), speed: (x0: 8.0, x1: 40.0, db0: -6.0, db1: 5.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+            // Inside the keep / halls: room tone replaces the garden.
+            (sound: "amb_interior_tone", gain_db: -3.0, enclosure: (x0: 0.5, x1: 0.95, db0: -40.0, db1: 0.0)),
+        ],
+        loops: [
+            (sound: "amb_insects_loop", zone: Grass, max_active: 2, radius: 18.0, gain_db: -6.0, fauna: true, lift: 0.3),
+            // Gusts up the plateau's cliffs.
+            (sound: "wind_loop", zone: CliffEdge, max_active: 2, radius: 16.0, gain_db: -14.0, lift: 0.5),
+        ],
+        sparkles: [
+            // Wind in the blossom and pines.
+            (sound: "amb_palm_rustle", zone: Leaves, per_min: 9.0, min_dist: 3.0, max_dist: 35.0, gain_db: (-8.0, -2.0), lift: (1.0, 4.0)),
+            (sound: "amb_bird", zone: Leaves, per_min: 8.0, min_dist: 6.0, max_dist: 55.0, gain_db: (-8.0, -1.0), fauna: true, lift: (1.0, 4.0)),
+            (sound: "amb_bird", zone: Sky, per_min: 2.0, min_dist: 20.0, max_dist: 70.0, gain_db: (-10.0, -4.0), fauna: true),
+            // Old timber settling in the sun.
+            (sound: "amb_station_creak", zone: Wall, per_min: 0.8, min_dist: 8.0, max_dist: 40.0, gain_db: (-18.0, -11.0), lift: (1.0, 4.0)),
+            (sound: "amb_distant_boom", zone: Sky, per_min: 0.25, min_dist: 250.0, max_dist: 400.0, gain_db: (-14.0, -8.0)),
+        ],
+        scare_hold: 3.5,
+        scare_recover: 8.0,
+    ),
+    "lair": (
+        // Turtle Lair: brick sewers ring long and dark (big vault, long tunnels); the tenement roofs
+        // are open night city. Beds are split by altitude: underground (≈12 m) = room tone, a far
+        // water wash and pipe hum; street/roofs (34–52 m) = the city and wind. The TV / arcade /
+        // pizza-sign neon in the lair and the shop signs above hum through the Neon zone. Missing
+        // cues (drips, trickle, subway rumble, pipe hiss, muffled city) are in docs/SFX_WISHLIST.md.
+        space: (
+            open: (size: 1.3, rt60: 1.4, damping_hz: 4500.0, predelay_ms: 18.0, wet_db: -18.0, er_db: -22.0),
+            enclosed: (size: 0.75, rt60: 2.1, damping_hz: 3600.0, predelay_ms: 9.0, wet_db: -8.0, er_db: -11.0),
+            slap_db: -12.0,
+        ),
+        beds: [
+            (sound: "amb_interior_tone", gain_db: -2.0, altitude: (x0: 26.0, x1: 35.0, db0: 0.0, db1: -30.0)),
+            // Far water wash in the tunnels (stand-in for a trickle bed).
+            (sound: "amb_ocean_loop", gain_db: -19.0, altitude: (x0: 20.0, x1: 34.0, db0: 0.0, db1: -40.0)),
+            // Pipe / pump hum under the street.
+            (sound: "amb_ac_hum", gain_db: -12.0, altitude: (x0: 24.0, x1: 34.0, db0: 0.0, db1: -30.0)),
+            // The city above: muffled underground, full on the street and roofs.
+            (sound: "amb_city_bed", gain_db: -3.0, altitude: (x0: 18.0, x1: 36.0, db0: -26.0, db1: 0.0)),
+            (sound: "amb_wind_high", gain_db: -6.0, altitude: (x0: 40.0, x1: 62.0, db0: -18.0, db1: 0.0), speed: (x0: 8.0, x1: 40.0, db0: -6.0, db1: 4.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+        ],
+        loops: [
+            (sound: "amb_neon_hum", zone: Neon, max_active: 3, radius: 16.0, gain_db: -4.0, lift: 0.0),
+            (sound: "amb_ac_hum", zone: Wall, max_active: 2, radius: 24.0, gain_db: -6.0, lift: 0.0),
+        ],
+        sparkles: [
+            // Pipes knocking and creaking along the vaults.
+            (sound: "amb_station_creak", zone: Surface, per_min: 2.0, min_dist: 6.0, max_dist: 40.0, gain_db: (-16.0, -9.0), lift: (0.5, 3.0)),
+            // A train somewhere down the chasm.
+            (sound: "amb_distant_boom", zone: Sky, per_min: 1.0, min_dist: 60.0, max_dist: 140.0, gain_db: (-16.0, -8.0)),
+            (sound: "amb_traffic_swish", zone: Street, per_min: 6.0, min_dist: 10.0, max_dist: 60.0, gain_db: (-8.0, -2.0), lift: (0.5, 1.0)),
+        ],
+        scare_hold: 3.0,
+        scare_recover: 8.0,
+    ),
+    "valley": (
+        // Valley of the End: an open gorge. The falls' roar is a bed that swells near the plunge hole
+        // (and the lip), kept low and dark so fights read over it; river flow down in the gorge; wind
+        // on the cliff tops; birds in the forest (the fauna scare silences them after blasts).
+        space: (
+            open: (size: 1.5, rt60: 1.2, damping_hz: 4200.0, predelay_ms: 22.0, wet_db: -22.0, er_db: -28.0),
+            enclosed: (size: 0.6, rt60: 1.3, damping_hz: 5000.0, predelay_ms: 7.0, wet_db: -10.0, er_db: -13.0),
+            // Canyon walls: a clear slapback.
+            slap_db: -12.0,
+        ),
+        beds: [
+            (sound: "amb_archipelago_bed", gain_db: -4.0, enclosure: (x0: 0.3, x1: 0.9, db0: 0.0, db1: -10.0)),
+            // The falls: loud only near the plunge / lip, gone by ~120 m; ducks under combat via the mix.
+            (sound: "amb_ocean_loop", gain_db: -3.0, near_zone: Water, near: (x0: 8.0, x1: 120.0, db0: 0.0, db1: -28.0)),
+            // River flow: the gorge floor (fades as you climb out).
+            (sound: "amb_surf_loop", gain_db: -9.0, altitude: (x0: 18.0, x1: 40.0, db0: 0.0, db1: -24.0)),
+            // Wind on the cliff tops and the statues' shoulders.
+            (sound: "amb_wind_high", gain_db: -5.0, altitude: (x0: 45.0, x1: 80.0, db0: -18.0, db1: 0.0), speed: (x0: 8.0, x1: 40.0, db0: -6.0, db1: 4.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+        ],
+        loops: [
+            (sound: "amb_surf_loop", zone: WaterEdge, max_active: 2, radius: 35.0, gain_db: -2.0, lift: 0.3),
+            (sound: "amb_insects_loop", zone: Grass, max_active: 2, radius: 20.0, gain_db: -8.0, fauna: true, lift: 0.3),
+        ],
+        sparkles: [
+            (sound: "amb_bird", zone: Leaves, per_min: 14.0, min_dist: 6.0, max_dist: 70.0, gain_db: (-6.0, 0.0), fauna: true, lift: (0.5, 3.0)),
+            (sound: "amb_bird", zone: Sky, per_min: 3.0, min_dist: 25.0, max_dist: 80.0, gain_db: (-10.0, -4.0), fauna: true),
+            (sound: "amb_palm_rustle", zone: Leaves, per_min: 4.0, min_dist: 4.0, max_dist: 35.0, gain_db: (-9.0, -3.0), lift: (1.0, 3.0)),
+            (sound: "amb_surf", zone: WaterEdge, per_min: 5.0, min_dist: 4.0, max_dist: 50.0, gain_db: (-8.0, -2.0), lift: (0.0, 0.3)),
+        ],
+        scare_hold: 3.5,
+        scare_recover: 8.0,
+    ),
+    "mirror": (
+        // The folded city: open plaza air with a glassy, slightly long tail; the curl's walls give a
+        // clear slapback; sealed floors are dead.
+        space: (
+            open: (size: 1.5, rt60: 1.6, damping_hz: 7000.0, predelay_ms: 22.0, wet_db: -17.0, er_db: -22.0),
+            enclosed: (size: 0.5, rt60: 0.7, damping_hz: 7500.0, predelay_ms: 5.0, wet_db: -8.0, er_db: -10.0),
+            slap_db: -9.0,
+        ),
+        beds: [
+            // Eerie room tone of an emptied city + muffled traffic through the fold.
+            (sound: "amb_mirror_bed", gain_db: 0.0, enclosure: (x0: 0.4, x1: 0.95, db0: 0.0, db1: -12.0)),
+            (sound: "amb_city_bed", gain_db: -12.0, enclosure: (x0: 0.4, x1: 0.95, db0: 0.0, db1: -16.0)),
+            // Wind at the fold: grows toward the lip / hanging towers and with speed (surfing the curl).
+            (sound: "amb_wind_high", gain_db: -5.0, altitude: (x0: 24.0, x1: 62.0, db0: -18.0, db1: 0.0), speed: (x0: 10.0, x1: 40.0, db0: -6.0, db1: 5.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+            (sound: "amb_interior_tone", gain_db: 0.0, enclosure: (x0: 0.5, x1: 0.95, db0: -40.0, db1: 0.0)),
+        ],
+        loops: [
+            // Glass shimmer where the city is cut (seams, fracture rims).
+            (sound: "amb_glass_shimmer", zone: Neon, max_active: 3, radius: 18.0, gain_db: -3.0, lift: 0.3),
+        ],
+        sparkles: [
+            (sound: "amb_glass_chime", zone: Neon, per_min: 8.0, min_dist: 4.0, max_dist: 40.0, gain_db: (-8.0, -2.0), lift: (0.2, 2.0)),
+            (sound: "amb_glass_chime", zone: Sky, per_min: 2.0, min_dist: 20.0, max_dist: 70.0, gain_db: (-12.0, -6.0), lift: (4.0, 20.0)),
+            (sound: "amb_traffic_swish", zone: Street, per_min: 3.0, min_dist: 40.0, max_dist: 90.0, gain_db: (-16.0, -10.0), lift: (0.5, 1.0)),
+            (sound: "amb_distant_boom", zone: Sky, per_min: 0.25, min_dist: 250.0, max_dist: 420.0, gain_db: (-14.0, -8.0)),
+        ],
+        scare_hold: 3.0,
+        scare_recover: 8.0,
+    ),
 }

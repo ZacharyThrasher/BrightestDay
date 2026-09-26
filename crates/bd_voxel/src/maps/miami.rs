@@ -635,6 +635,7 @@ pub fn generate_miami(seed: u64) -> (VoxelWorld, MapInfo) {
         }],
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
         slipstream: None,
         mechanics: Default::default(),
     };

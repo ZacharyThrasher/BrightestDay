@@ -151,7 +151,7 @@ impl World {
             if pp.ends.iter().any(|e| !fin3(e.pos) || !fin3(e.normal) || !e.radius.is_finite()) {
                 return Err(format!("portal {} non-finite", pp.id));
             }
-            if self.pidx(pp.owner).is_none() {
+            if pp.owner != super::map_mech::MAP_OWNER && self.pidx(pp.owner).is_none() {
                 return Err(format!("portal {} owner missing", pp.id));
             }
         }

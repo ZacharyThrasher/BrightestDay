@@ -79,6 +79,75 @@ fn flatten(model: &bd_shapes::VoxelModel, head_only: bool) -> Vec<(IVec3, u8)> {
     vox
 }
 
+/// Terrain voxels are pruned unless connected to the ground: join every loose piece (a weapon, a
+/// shoulder cannon) to the main body with a short strut of Dark voxels. Returns how many pieces.
+fn connect_components(vox: &mut Vec<(IVec3, u8)>) -> usize {
+    use std::collections::{HashMap, VecDeque};
+    let mut bridged = 0;
+    loop {
+        let set: HashMap<IVec3, usize> = vox.iter().enumerate().map(|(i, (p, _))| (*p, i)).collect();
+        let mut comp = vec![usize::MAX; vox.len()];
+        let mut sizes = Vec::new();
+        for s in 0..vox.len() {
+            if comp[s] != usize::MAX {
+                continue;
+            }
+            let id = sizes.len();
+            let mut n = 0;
+            let mut q = VecDeque::from([s]);
+            comp[s] = id;
+            while let Some(i) = q.pop_front() {
+                n += 1;
+                for d in [IVec3::X, IVec3::NEG_X, IVec3::Y, IVec3::NEG_Y, IVec3::Z, IVec3::NEG_Z] {
+                    if let Some(&j) = set.get(&(vox[i].0 + d))
+                        && comp[j] == usize::MAX
+                    {
+                        comp[j] = id;
+                        q.push_back(j);
+                    }
+                }
+            }
+            sizes.push(n);
+        }
+        if sizes.len() <= 1 {
+            return bridged;
+        }
+        // The body = the component touching the ground (y = 0) with the most voxels.
+        let main = (0..sizes.len()).max_by_key(|&c| (vox.iter().zip(&comp).any(|((p, _), &k)| k == c && p.y == 0), sizes[c])).unwrap();
+        let other = (0..sizes.len()).find(|&c| c != main).unwrap();
+        // Nearest pair between `other` and `main`, then a 6-connected strut.
+        let (mut best, mut a, mut b) = (i32::MAX, IVec3::ZERO, IVec3::ZERO);
+        for (i, (p, _)) in vox.iter().enumerate() {
+            if comp[i] != other {
+                continue;
+            }
+            for (j, (q, _)) in vox.iter().enumerate() {
+                if comp[j] == main {
+                    let d = (*p - *q).abs().element_sum();
+                    if d < best {
+                        (best, a, b) = (d, *p, *q);
+                    }
+                }
+            }
+        }
+        let mut v = a;
+        while v != b {
+            let d = b - v;
+            if d.x != 0 {
+                v.x += d.x.signum();
+            } else if d.y != 0 {
+                v.y += d.y.signum();
+            } else {
+                v.z += d.z.signum();
+            }
+            if !set.contains_key(&v) {
+                vox.push((v, 2));
+            }
+        }
+        bridged += 1;
+    }
+}
+
 fn size_of(vox: &[(IVec3, u8)]) -> IVec3 {
     vox.iter().fold(IVec3::ZERO, |a, (p, _)| a.max(*p)) + IVec3::ONE
 }
@@ -110,10 +179,11 @@ fn main() {
         }
         let mut spec = spec0.clone();
         bd_shapes::scale_spec(&mut spec, factor);
-        let vox = flatten(&voxelize_at(&spec, 2), head_only);
+        let mut vox = flatten(&voxelize_at(&spec, 2), head_only);
+        let bridged = connect_components(&mut vox);
         let size = size_of(&vox);
         assert!(size.max_element() < 256, "{name}: too big ({size})");
-        println!("{name:>14}: {} ({}), {} voxels, {}x{}x{} (0.5 m)", r.recipe.name, phrase, vox.len(), size.x, size.y, size.z);
+        println!("{name:>14}: {} ({}), {} voxels, {}x{}x{} (0.5 m), {bridged} loose pieces bridged", r.recipe.name, phrase, vox.len(), size.x, size.y, size.z);
         bin.push(name.len() as u8);
         bin.extend_from_slice(name.as_bytes());
         bin.extend_from_slice(&[size.x as u8, size.y as u8, size.z as u8]);

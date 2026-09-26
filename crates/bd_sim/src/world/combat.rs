@@ -113,6 +113,11 @@ impl World {
         };
         let crit = hit.crit || head;
         let mut damage = base_damage * (1.0 + bonus) * dealt_mult * if head { HEAD_MULT } else { 1.0 };
+        // JUGGLE: later hits of a chain decay, a guarded victim takes no knockback (crate::juggle).
+        // Not the splat (the launch's own impact) or your own blast.
+        let juggles = hit.kind != HitKind::WallSplat && !self_hit;
+        let (j_dmg, j_kb) = if juggles { self.players[ti].juggle.scale(&self.cfg.tuning.juggle, self.tick) } else { (1.0, 1.0) };
+        damage *= j_dmg;
         // Power suit absorbs first.
         if let Some(seat) = self.players[ti].seat.filter(|s| s.suit) {
             let mut shattered = false;
@@ -151,11 +156,15 @@ impl World {
             Element::Wind => self.cfg.tuning.hit.wind_knockback,
             _ => 1.0,
         };
-        let kb = if cockpit {
+        let kb_raw = if cockpit {
             0.0
         } else {
             crate::smash::knockback(st, base_kb * (1.0 + bonus) * elem_kb, damage, pct, weight, self.cfg.rules.knockback_scale)
         };
+        let kb = kb_raw * j_kb;
+        if juggles {
+            self.players[ti].juggle.on_hit(&self.cfg.tuning.juggle, kb_raw, self.tick); // JUGGLE
+        }
         let lift = if hit.element == Element::Wind { self.cfg.tuning.hit.wind_min_lift } else { self.cfg.tuning.hit.min_lift };
         let dir = lifted_dir(dir_in, lift);
         let tumble = kb > self.cfg.tuning.hit.tumble_impulse;

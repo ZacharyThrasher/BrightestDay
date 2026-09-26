@@ -10,6 +10,9 @@
 //! * Damage %: from [`DANGER_FROM`] % the line widens and brightens and breathes slowly
 //!   (≤ [`PULSE_HZ_MAX`] Hz, far from the 3–30 Hz photosensitive band; static with flashes off) —
 //!   "who's about to go" at a glance.
+//! * Juggle guard (`bd_sim::juggle`, status bit from the host): the line turns hard-light white and
+//!   shimmers (< 3 Hz; static with flashes off) while a victim is knockback-immune — why that hit
+//!   didn't launch, without any text.
 //! * The local body in third person gets a subtle one; the first-person held item none.
 //! * Settings (`UiPrefs`): `outlines` on/off, `outline_width` (×), `outline_patterns` (colour-blind
 //!   aid: per-corps dash rhythm + brightness).
@@ -127,6 +130,30 @@ pub fn outline_params(corps: Corps, damage_pct: f32, pulse01: f32, own: bool, st
         inner: [dark[0], dark[1], dark[2], inner],
         pattern: [pat[0], pat[1], pat[2], 0.45],
     }
+}
+
+/// Juggle guard shimmer (`bd_sim::juggle`): how fast the white read fades in / out (per second)
+/// and its shimmer rate (well under the 3 Hz photosensitivity floor).
+const GUARD_IN_PER_SEC: f32 = 14.0;
+const GUARD_OUT_PER_SEC: f32 = 5.0;
+pub const GUARD_SHIMMER_HZ: f32 = 2.2;
+
+/// A juggle-guarded body (knockback-immune for a moment): the corps line turns hard-light white,
+/// widens a little and shimmers — so the attacker reads why that hit didn't launch. `g` = guard
+/// amount 0..1 (smoothed), `shimmer01` = shimmer phase value (ignored when `pulse` is off).
+pub fn guard_tint(mut o: OutlineGpu, g: f32, shimmer01: f32, pulse: bool) -> OutlineGpu {
+    let g = if g.is_finite() { g.clamp(0.0, 1.0) } else { 0.0 };
+    if g <= 0.0 {
+        return o;
+    }
+    let s = if pulse { shimmer01.clamp(0.0, 1.0) } else { 0.6 };
+    let k = g * (0.7 + 0.3 * s);
+    let white = LINE_LUMA * (1.0 + 0.2 * s);
+    for c in 0..3 {
+        o.outer[c] += (white - o.outer[c]) * k;
+    }
+    o.outer[3] += 1.5 * g;
+    o
 }
 
 // ------------------------------------------------------------------------------------ plugin
@@ -281,6 +308,7 @@ fn update_outlines(
     mode: Res<ViewMode>,
     mut up: ResMut<OutlineUpload>,
     mut phase: Local<Vec<f32>>,
+    mut guard: Local<Vec<(f32, f32)>>,
     mut roots: Query<HullRoot>,
     mut vis: Query<&mut Visibility>,
 ) {
@@ -294,6 +322,9 @@ fn update_outlines(
     if phase.len() < MAX_OUTLINE_SLOTS {
         phase.resize(MAX_OUTLINE_SLOTS, 0.0);
     }
+    if guard.len() < MAX_OUTLINE_SLOTS {
+        guard.resize(MAX_OUTLINE_SLOTS, (0.0, 0.0));
+    }
     for v in &views.players {
         let i = v.id.0 as usize;
         let d = danger(v.damage_pct);
@@ -301,7 +332,14 @@ fn update_outlines(
         *ph = (*ph + dt * pulse_hz(d)).fract();
         let pulse01 = 0.5 - 0.5 * (*ph * std::f32::consts::TAU).cos();
         let own = v.is_local && !dev_test().is_some_and(|t| t.full_self);
-        up.set(v.id.0 as u32, outline_params(v.corps, v.damage_pct, pulse01, own, settings.style));
+        // JUGGLE: guard shimmer (status bit from the host; `bd_sim::juggle`).
+        let (g, gph) = &mut guard[i];
+        let on = v.status & bd_sim::juggle::GUARD_STATUS_BIT != 0;
+        *g = if on { (*g + dt * GUARD_IN_PER_SEC).min(1.0) } else { (*g - dt * GUARD_OUT_PER_SEC).max(0.0) };
+        *gph = if *g > 0.0 { (*gph + dt * GUARD_SHIMMER_HZ).fract() } else { 0.0 };
+        let shimmer01 = 0.5 - 0.5 * (*gph * std::f32::consts::TAU).cos();
+        let params = outline_params(v.corps, v.damage_pct, pulse01, own, settings.style);
+        up.set(v.id.0 as u32, guard_tint(params, *g, shimmer01, settings.style.pulse));
     }
     for (mut h, sc, cv, ending) in &mut roots {
         let show = match sc {
@@ -541,6 +579,21 @@ mod tests {
             let g = outline_params(Corps::Life, 0.0, 0.0, true, OutlineStyle { width: w, ..s });
             assert!(g.outer[3] > g.inner[3]);
         }
+    }
+
+    #[test]
+    fn juggle_guard_turns_the_line_white_and_stays_comfort_safe() {
+        let s = OutlineStyle::default();
+        let base = outline_params(Corps::Rage, 80.0, 0.5, false, s);
+        assert_eq!(guard_tint(base, 0.0, 1.0, true), base, "no guard: untouched");
+        let g = guard_tint(base, 1.0, 1.0, true);
+        let spread = |o: &OutlineGpu| o.outer[0].max(o.outer[1]).max(o.outer[2]) - o.outer[0].min(o.outer[1]).min(o.outer[2]);
+        assert!(spread(&g) < spread(&base) * 0.35, "whitened: {:?} vs {:?}", g.outer, base.outer);
+        assert!(g.outer[3] > base.outer[3], "a touch wider");
+        assert!(g.outer[0].max(g.outer[1]).max(g.outer[2]) < 1.1, "under the bloom knee");
+        assert!(GUARD_SHIMMER_HZ < 3.0);
+        // Flashes off: static.
+        assert_eq!(guard_tint(base, 1.0, 0.0, false), guard_tint(base, 1.0, 1.0, false));
     }
 
     #[test]

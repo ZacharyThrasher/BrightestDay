@@ -104,7 +104,10 @@ const PIPE_WIDTH: f32 = 5.2;
 pub const CHUTE_Z: f32 = -21.0;
 pub const CHUTE_TOP: Vec3 = Vec3::new(-55.0, 35.0, CHUTE_Z);
 pub const CHUTE_END: Vec3 = Vec3::new(-27.0, 16.5, CHUTE_Z);
+/// Half width of the box culvert, and how far its floor lies under the ridge (below the faces'
+/// bottom edges: a gutter you can walk down if you fall off the line).
 const CHUTE_R: f32 = 3.5;
+const CHUTE_BELOW: f32 = 4.4;
 const CHUTE_FACE_DEG: f32 = 58.0;
 const CHUTE_WIDTH: f32 = 4.0;
 
@@ -118,6 +121,8 @@ const T_CROWN: f32 = 7.5;
 /// Junction chambers (with manhole shafts up to the west street).
 pub const JUNCTIONS: [Vec2; 2] = [Vec2::new(T_W_X, T_N_Z), Vec2::new(T_W_X, T_S_Z)];
 const SHAFT_HALF: f32 = 2.5;
+/// The south spoke (skate hall → T_S) runs along z at this x, just east of the south deck.
+const SPOKE_S_X: f32 = 16.0;
 
 /// The east strip: station platform (x0, z0, x1, z1) with its ceiling, and the stair well.
 pub const PLATFORM: [f32; 4] = [46.0, -50.0, 54.5, 50.0];
@@ -134,6 +139,9 @@ pub struct Building {
     pub rect: [f32; 4],
     pub roof: f32,
 }
+
+/// The billboard on the north-west roof (base centre).
+const ROOF_SIGN: Vec3 = Vec3::new(-33.0, 0.0, T_N_Z - 4.5);
 
 /// The rooftops.
 pub const BUILDINGS: [Building; 8] = [
@@ -172,9 +180,6 @@ pub fn chute_ridge(x: f32) -> f32 {
     CHUTE_TOP.y + (x - CHUTE_TOP.x) * (CHUTE_END.y - CHUTE_TOP.y) / (CHUTE_END.x - CHUTE_TOP.x)
 }
 
-fn chute_axis(x: f32) -> f32 {
-    chute_ridge(x) + 1.0
-}
 
 // ------------------------------------------------------------------------------------------------
 // Carved spaces
@@ -194,7 +199,10 @@ enum Space {
     Cut { min: Vec3, max: Vec3 },
     /// Capsule tube.
     Tube { a: Vec3, b: Vec3, r: f32 },
-    /// The chute's open culvert: everything above the tube axis in a strip along x.
+    /// The chute's box culvert: a strip along x following the chute ridge, from `below` under it to
+    /// `above` over it.
+    Culvert { x0: f32, x1: f32, cz: f32, hw: f32, below: f32, above: f32 },
+    /// The chute's open top: everything above the culvert floor in a strip along x.
     Trench { x0: f32, x1: f32, cz: f32, hw: f32 },
 }
 
@@ -223,8 +231,12 @@ impl Space {
                 let t = ((p - a).dot(ab) / ab.length_squared()).clamp(0.0, 1.0);
                 (p - (a + ab * t)).length() < r + e
             }
+            Space::Culvert { x0, x1, cz, hw, below, above } => {
+                let r = chute_ridge(p.x);
+                p.x >= x0 - e && p.x < x1 + e && (p.z - cz).abs() < hw + e && p.y > r - below - e && p.y < r + above + e
+            }
             Space::Trench { x0, x1, cz, hw } => {
-                p.x >= x0 - e && p.x < x1 && (p.z - cz).abs() < hw + e && p.y > chute_axis(p.x) - e
+                p.x >= x0 - e && p.x < x1 && (p.z - cz).abs() < hw + e && p.y > chute_ridge(p.x) - CHUTE_BELOW - e
             }
         }
     }
@@ -245,7 +257,10 @@ impl Space {
             Space::Round { c, r, floor, crown, .. } => (Vec3::new(c.x - r, floor, c.y - r) - g, Vec3::new(c.x + r, crown, c.y + r) + g),
             Space::Cut { min, max } => (min - g, max + g),
             Space::Tube { a, b, r } => (a.min(b) - Vec3::splat(r) - g, a.max(b) + Vec3::splat(r) + g),
-            Space::Trench { x0, x1, cz, hw } => (Vec3::new(x0, chute_axis(x1), cz - hw) - g, Vec3::new(x1, 64.0, cz + hw) + g),
+            Space::Culvert { x0, x1, cz, hw, below, above } => {
+                (Vec3::new(x0, chute_ridge(x1) - below, cz - hw) - g, Vec3::new(x1, chute_ridge(x0) + above, cz + hw) + g)
+            }
+            Space::Trench { x0, x1, cz, hw } => (Vec3::new(x0, chute_ridge(x1) - CHUTE_BELOW, cz - hw) - g, Vec3::new(x1, 64.0, cz + hw) + g),
         }
     }
 }
@@ -275,13 +290,13 @@ fn spaces() -> Vec<Space> {
         // Spokes: north (hub → T_N), west (the green tunnel, hub → T_W), south (hall → T_S).
         Space::Tunnel { along_x: false, c: 0.0, a0: HUB[3] - 0.5, a1: T_N_Z - 2.0, hw: 3.0, wall: 4.0, crown: 6.5, floor: f },
         Space::Tunnel { along_x: true, c: 5.0, a0: T_W_X + 2.0, a1: HUB[0] + 0.5, hw: 3.0, wall: 3.5, crown: 6.0, floor: f },
-        Space::Tunnel { along_x: false, c: 21.0, a0: T_S_Z + 2.0, a1: HALL[1] + 0.5, hw: 3.0, wall: 4.0, crown: 6.5, floor: f },
+        Space::Tunnel { along_x: false, c: SPOKE_S_X, a0: T_S_Z + 2.0, a1: HALL[1] + 0.5, hw: 3.0, wall: 4.0, crown: 6.5, floor: f },
         // East strip: station platform + stair well (open to the sky).
         Space::Cut { min: Vec3::new(PLATFORM[0], f, PLATFORM[1]), max: Vec3::new(PLATFORM[2], PLATFORM_CEIL, PLATFORM[3]) },
         Space::Cut { min: Vec3::new(STAIRWELL[0], f, STAIRWELL[1]), max: Vec3::new(STAIRWELL[2], 70.0, STAIRWELL[3]) },
         // Storm-drain chute + its open culvert at the top.
-        Space::Tube { a: Vec3::new(-57.0, chute_axis(-57.0), CHUTE_Z), b: Vec3::new(-25.6, chute_axis(-25.6), CHUTE_Z), r: CHUTE_R },
-        Space::Trench { x0: -57.0, x1: -44.5, cz: CHUTE_Z, hw: CHUTE_R },
+        Space::Culvert { x0: -57.0, x1: HALL[0] + 0.4, cz: CHUTE_Z, hw: CHUTE_R, below: CHUTE_BELOW, above: 3.5 },
+        Space::Trench { x0: -57.0, x1: -45.5, cz: CHUTE_Z, hw: CHUTE_R },
         // The subway chasm, sky to void.
         Space::Cut { min: Vec3::new(CHASM.0, -8.0, -70.0), max: Vec3::new(CHASM.1, 80.0, 70.0) },
         // Central manhole (light shaft) up to the avenue.
@@ -372,7 +387,9 @@ fn carve_spaces(c: &mut City, spaces: &[Space], seed: u32) {
 
 /// Indestructible rib rings every 8 m along the tunnels and ribs + pilasters in the vaults.
 fn build_frame(c: &mut City, spaces: &[Space]) {
-    for s in spaces {
+    // Keys / ribs only where no other space overlaps (no ribs floating across junctions).
+    let alone = |i: usize, p: Vec3| spaces.iter().enumerate().all(|(k, o)| k == i || !o.inside(p, 0.0));
+    for (i, s) in spaces.iter().enumerate() {
         match *s {
             Space::Tunnel { along_x, a0, a1, .. } => {
                 let mut a = (a0 / 8.0).ceil() * 8.0;
@@ -386,7 +403,7 @@ fn build_frame(c: &mut City, spaces: &[Space]) {
                     c.fill_with(lo, hi, |p, _, old| {
                         let shell = old != AIR && s.inside(p, 1.0) && !s.inside(p, 0.0) && p.y > FLOOR;
                         // A 0.5 m key under the arch (above head height only: no snags).
-                        let key = old == AIR && s.inside(p, 0.0) && !s.inside(p, -0.5) && p.y > FLOOR + T_WALL;
+                        let key = old == AIR && s.inside(p, 0.0) && !s.inside(p, -0.5) && p.y > FLOOR + T_WALL && alone(i, p);
                         (shell || key).then_some(mat::SEWER_ARCH)
                     });
                     a += 8.0;
@@ -411,9 +428,9 @@ fn build_frame(c: &mut City, spaces: &[Space]) {
                     let (lo, hi) = s.bounds();
                     c.fill_with(Vec3::new(rx - 0.5, lo.y, lo.z), Vec3::new(rx + 0.5, hi.y, hi.z), |p, _, old| {
                         let shell = old != AIR && s.inside(p, 1.0) && !s.inside(p, 0.0) && p.y > floor;
-                        let rib = old == AIR && s.inside(p, 0.0) && !s.inside(p, -0.75) && p.y > floor + 6.0;
+                        let rib = old == AIR && s.inside(p, 0.0) && !s.inside(p, -0.75) && p.y > floor + 6.0 && alone(i, p);
                         // Pilasters: 0.5 m proud of the long walls, full height.
-                        let pil = old == AIR && s.inside(p, 0.0) && ((p.z - z0) < 0.5 || (z1 - p.z) < 0.5);
+                        let pil = old == AIR && s.inside(p, 0.0) && ((p.z - z0) < 0.5 || (z1 - p.z) < 0.5) && alone(i, p);
                         (shell || rib || pil).then_some(mat::SEWER_ARCH)
                     });
                 }
@@ -425,7 +442,6 @@ fn build_frame(c: &mut City, spaces: &[Space]) {
 
 /// Paint the hub / hall / tunnel floors, then cut the hub's pit and channel.
 fn build_floors(c: &mut City, seed: u32) {
-    let fy = vx(FLOOR) - 1;
     // Hub: worn concrete with brick borders; garage: concrete with oil stains.
     c.fill_with(Vec3::new(HUB[0], FLOOR - VS, HUB[1]), Vec3::new(CHASM.0, FLOOR, HUB[3]), |p, v, old| {
         if old == AIR || old == mat::SEWER_ARCH {
@@ -440,12 +456,14 @@ fn build_floors(c: &mut City, seed: u32) {
             mat::CONCRETE
         })
     });
-    let _ = fy;
     // Pit: three 0.5 m steps down to the floor, rug + moonlight pool under the manhole.
     let [px0, pz0, px1, pz1] = PIT;
     c.fill(Vec3::new(px0, PIT_FLOOR, pz0), Vec3::new(px1, FLOOR, pz1), AIR);
+    // Step rings (0.5 m risers, 1 m treads) down to an 8 × 8 m floor.
     c.fill(Vec3::new(px0, FLOOR - 1.0, pz0), Vec3::new(px1, FLOOR - VS, pz1), mat::SEWER_BRICK_DARK);
     c.fill(Vec3::new(px0 + 1.0, FLOOR - 1.0, pz0 + 1.0), Vec3::new(px1 - 1.0, FLOOR - VS, pz1 - 1.0), AIR);
+    c.fill(Vec3::new(px0, PIT_FLOOR, pz0), Vec3::new(px1, PIT_FLOOR + VS, pz1), mat::SEWER_BRICK);
+    c.fill(Vec3::new(px0 + 2.0, PIT_FLOOR, pz0 + 2.0), Vec3::new(px1 - 2.0, PIT_FLOOR + VS, pz1 - 2.0), AIR);
     c.fill_with(Vec3::new(px0, PIT_FLOOR - VS, pz0), Vec3::new(px1, PIT_FLOOR, pz1), |p, v, _| {
         let d = Vec2::new(p.x - MANHOLE.x, p.z - MANHOLE.y).length();
         let ring = (2.6..3.0).contains(&d);
@@ -458,9 +476,6 @@ fn build_floors(c: &mut City, seed: u32) {
             mat::GARAGE_CONCRETE
         })
     });
-    // Step rings (0.5 m risers) on the pit edge.
-    c.fill(Vec3::new(px0 + 0.5, PIT_FLOOR, pz0 + 0.5), Vec3::new(px1 - 0.5, PIT_FLOOR + VS, pz1 - 0.5), mat::SEWER_BRICK);
-    c.fill(Vec3::new(px0 + 1.5, PIT_FLOOR, pz0 + 1.5), Vec3::new(px1 - 1.5, PIT_FLOOR + VS, pz1 - 1.5), AIR);
     // Channel across the hub (west wall → east wall), water 1.5 m down.
     let (cz0, cz1) = CHANNEL_Z;
     c.fill(Vec3::new(HUB[0], CHANNEL_WATER, cz0), Vec3::new(HUB[2], FLOOR, cz1), AIR);
@@ -542,13 +557,11 @@ fn build_skate(c: &mut City, seed: u32) {
             })
         });
     }
-    // Stairs up to the south deck from both flat ends (along the south wall).
+    // Stairs up to the south deck from the west flat end (along the south wall).
     for k in 0..9 {
         let top = FLOOR + VS * (k + 1) as f32;
-        let (w0, e0) = (-PIPE_X - 9.0 + k as f32, PIPE_X + 8.0 - k as f32);
-        for x0 in [w0, e0] {
-            c.fill_with(Vec3::new(x0, FLOOR, HALL[1] - 0.5), Vec3::new(x0 + 1.0, top, HALL[1] + 2.5), |_, v, _| Some(brick(v, seed)));
-        }
+        let x0 = -PIPE_X - 9.0 + k as f32;
+        c.fill_with(Vec3::new(x0, FLOOR, HALL[1] - 0.5), Vec3::new(x0 + 1.0, top, HALL[1] + 2.5), |_, v, _| Some(brick(v, seed)));
     }
     // Graffiti blotches on the hall walls (flush paint).
     let (lo, hi) = (Vec3::new(HALL[0] - 1.0, FLOOR + 1.0, HALL[1] - 1.0), Vec3::new(HALL[2] + 1.0, HALL_WALL, HALL[3] + 1.0));
@@ -561,11 +574,12 @@ fn build_skate(c: &mut City, seed: u32) {
         (n > 0.66).then(|| paints[(hash3(v.x >> 3, v.y >> 3, v.z >> 3, seed) % paints.len() as u32) as usize])
     });
     // Chute mouth: a steel lip ring on the hall wall.
-    for v in voxel_ring(Vec3::new(HALL[0] - 0.25, chute_axis(HALL[0]), CHUTE_Z), CHUTE_R, CHUTE_R + 0.8, true) {
-        if c.w.get(v) != AIR {
-            c.w.set(v, mat::RUST);
-        }
-    }
+    let r = chute_ridge(HALL[0]);
+    c.fill_with(
+        Vec3::new(HALL[0] - 1.0, r - CHUTE_BELOW - 0.8, CHUTE_Z - CHUTE_R - 0.8),
+        Vec3::new(HALL[0], r + 3.5 + 0.8, CHUTE_Z + CHUTE_R + 0.8),
+        |_, _, old| (old != AIR).then_some(mat::RUST),
+    );
 }
 
 /// Voxels of a flat ring (annulus) in the plane x = const (`vertical`) or y = const.
@@ -623,7 +637,7 @@ fn build_sewers(c: &mut City, seed: u32) {
                 return None;
             }
             let edge = (p.z - z0) < 0.5 || (z1 - p.z) < 0.5;
-            Some(if edge && p.y < FLOOR - 1.0 {
+            Some(if edge && p.y < FLOOR - VS {
                 mat::SEWER_ARCH
             } else if p.y >= FLOOR - VS {
                 mat::GARAGE_CONCRETE
@@ -658,7 +672,9 @@ fn build_sewers(c: &mut City, seed: u32) {
         }
         // Fluorescent strips down the ceiling (one in six dead).
         let dead = unit(hash3(vx(z), 3, 5, seed)) < 0.17;
-        c.fill(Vec3::new(px0 + 4.0, PLATFORM_CEIL - VS, z - 1.5), Vec3::new(px0 + 5.0, PLATFORM_CEIL, z + 1.5), if dead { mat::FLUORESCENT_DEAD } else { mat::FLUORESCENT });
+        if !in_well {
+            c.fill(Vec3::new(px0 + 4.0, PLATFORM_CEIL - VS, z - 1.5), Vec3::new(px0 + 5.0, PLATFORM_CEIL, z + 1.5), if dead { mat::FLUORESCENT_DEAD } else { mat::FLUORESCENT });
+        }
         z += 8.0;
     }
     // The stair well: four switchback flights, 11 steps of 0.5 m each, landings at both ends.
@@ -699,23 +715,28 @@ fn build_sewers(c: &mut City, seed: u32) {
 /// The chasm: brick walls with indestructible pilasters, lamps, and two big pipes across (rails).
 fn build_chasm(c: &mut City, seed: u32) {
     let (x0, x1) = CHASM;
+    // Pilasters, 0.5 m proud of each wall, bedrock to street: in the chasm they fill the air, in
+    // the wall they only replace solids (never an opening), and they stop short of the openings
+    // (tunnel mouths, the garage, the station platform).
+    let openings_w = [(T_N_Z - 4.0, T_N_Z + 4.0), (-4.5, 16.5), (T_S_Z - 4.0, T_S_Z + 4.0)];
     let mut z = -52.0;
     while z <= 52.0 {
-        for (a, b) in [(x0 - 0.5, x0 + 0.5), (x1 - 0.5, x1 + 0.5)] {
-            // Pilasters proud of the walls, bedrock to street (skip the openings).
+        for west in [true, false] {
+            let (a, b) = if west { (x0 - 0.5, x0 + 0.5) } else { (x1 - 0.5, x1 + 0.5) };
+            let gap = if west {
+                openings_w.iter().any(|&(o0, o1)| z + 0.5 > o0 && z - 0.5 < o1).then_some((FLOOR - 3.0, FLOOR + 8.5))
+            } else {
+                (z + 0.5 > PLATFORM[1] && z - 0.5 < PLATFORM[3]).then_some((FLOOR - 3.0, PLATFORM_CEIL + 0.5))
+            };
             c.fill_with(Vec3::new(a, VS, z - 0.5), Vec3::new(b, STREET, z + 0.5), |p, _, old| {
-                let wall_side = if a < x0 { p.x >= x0 } else { p.x < x1 };
-                (old != AIR || wall_side).then_some(mat::SEWER_ARCH).filter(|_| {
-                    let inside = p.x >= x0 && p.x < x1;
-                    !inside || old == AIR
-                })
+                if gap.is_some_and(|(g0, g1)| p.y >= g0 && p.y < g1) {
+                    return None;
+                }
+                let in_chasm = p.x >= x0 && p.x < x1;
+                (in_chasm || old != AIR).then_some(mat::SEWER_ARCH)
             });
         }
         z += 12.0;
-    }
-    // Clean-up: pilasters must not stand in the bridge / tunnel mouths.
-    for (z0, z1) in [(T_N_Z - 3.5, T_N_Z + 3.5), (-4.0, 16.0), (T_S_Z - 3.5, T_S_Z + 3.5)] {
-        c.fill_with(Vec3::new(x0, FLOOR, z0), Vec3::new(x1, FLOOR + 7.0, z1), |_, _, old| (old == mat::SEWER_ARCH).then_some(AIR));
     }
     // Lamps down the walls (warm), every 12 m, staggered.
     let mut z = -46.0;
@@ -739,27 +760,42 @@ fn build_chasm(c: &mut City, seed: u32) {
 /// Junction chambers: ledge spirals up the shafts; the green west tunnel; tunnel pipes and lamps.
 fn build_tunnel_dressing(c: &mut City, seed: u32) {
     for j in JUNCTIONS {
-        // Spiral of 1.5 m ledges up the shaft walls (1.5 m apart vertically).
-        let mut y = FLOOR + 1.5;
-        let mut k = 0;
-        while y < STREET - 0.5 {
-            let (lo, hi) = match k % 4 {
-                0 => (Vec2::new(j.x - SHAFT_HALF, j.y - SHAFT_HALF), Vec2::new(j.x - SHAFT_HALF + 1.5, j.y + 0.5)),
-                1 => (Vec2::new(j.x - SHAFT_HALF, j.y + SHAFT_HALF - 1.5), Vec2::new(j.x + 0.5, j.y + SHAFT_HALF)),
-                2 => (Vec2::new(j.x + SHAFT_HALF - 1.5, j.y - 0.5), Vec2::new(j.x + SHAFT_HALF, j.y + SHAFT_HALF)),
-                _ => (Vec2::new(j.x - 0.5, j.y - SHAFT_HALF), Vec2::new(j.x + SHAFT_HALF, j.y - SHAFT_HALF + 1.5)),
-            };
-            // Ledges below the shaft proper hang off the dome wall: extend them to the chamber wall.
-            c.fill(Vec3::new(lo.x, y - VS, lo.y), Vec3::new(hi.x, y, hi.y), mat::STEEL);
-            y += 1.5;
-            k += 1;
-        }
-        // Rungs up one wall (visual) and a lamp.
-        let mut y = 17.0;
-        while y < STREET {
-            c.fill(Vec3::new(j.x - 0.5, y, j.y + SHAFT_HALF - 0.5), Vec3::new(j.x + 0.5, y + VS, j.y + SHAFT_HALF), mat::RUST);
-            y += 1.0;
-        }
+        // A square spiral stair (1.5 m wide, 0.5 m risers every metre of path) climbing the shaft
+        // walls from the chamber floor to the street, around a 2 m open well you can drop down or
+        // reel up through. Below the shaft it stands free in the chamber (every step overlaps the
+        // next, so it's one piece down to the floor).
+        let inner = SHAFT_HALF - 1.5;
+        let path = SHAFT_HALF - 0.75;
+        let per_rev = 8.0 * path;
+        c.fill_with(
+            Vec3::new(j.x - SHAFT_HALF, FLOOR, j.y - SHAFT_HALF),
+            Vec3::new(j.x + SHAFT_HALF, STREET, j.y + SHAFT_HALF),
+            |p, v, old| {
+                let (dx, dz) = (p.x - j.x, p.z - j.y);
+                if dx.abs().max(dz.abs()) < inner {
+                    return None;
+                }
+                // Perimeter coordinate along the stair's centre path (west → north → east → south).
+                let s = if dx.abs() >= dz.abs() {
+                    if dx < 0.0 { dz.clamp(-path, path) + path } else { 4.0 * path + (path - dz.clamp(-path, path)) }
+                } else if dz > 0.0 {
+                    2.0 * path + (dx.clamp(-path, path) + path)
+                } else {
+                    6.0 * path + (path - dx.clamp(-path, path))
+                };
+                for rev in 0..4 {
+                    let top = FLOOR + VS * ((s + per_rev * rev as f32).floor() + 1.0);
+                    if top > STREET {
+                        break;
+                    }
+                    if p.y < top && p.y >= top - 1.0 {
+                        return Some(if p.y >= top - VS && ((s + per_rev * rev as f32).floor() as i32) % 2 == 0 { mat::STEEL } else { brick(v, seed) });
+                    }
+                }
+                let _ = old;
+                None
+            },
+        );
         c.fill(Vec3::new(j.x - 6.5, 15.0, j.y - 0.5), Vec3::new(j.x - 6.0, 16.0, j.y + 0.5), mat::NEON_AMBER);
         // Moonlight rim where the shaft meets the street.
         c.fill_with(Vec3::new(j.x - SHAFT_HALF - 0.5, STREET - VS, j.y - SHAFT_HALF - 0.5), Vec3::new(j.x + SHAFT_HALF + 0.5, STREET, j.y + SHAFT_HALF + 0.5), |_, _, old| {
@@ -791,7 +827,10 @@ fn build_tunnel_dressing(c: &mut City, seed: u32) {
             } else {
                 (Vec3::new(w - 0.25, FLOOR + 3.0, a - 0.5), Vec3::new(w + 0.25, FLOOR + 3.5, a + 0.5))
             };
-            c.fill(lo, hi, mat::NEON_AMBER);
+            let behind = if along_x { Vec3::new(a, FLOOR + 3.25, w + s * 0.5) } else { Vec3::new(w + s * 0.5, FLOOR + 3.25, a) };
+            if c.w.get_at(behind) != AIR {
+                c.fill(lo, hi, mat::NEON_AMBER);
+            }
             a += 12.0;
             k += 1;
         }
@@ -869,11 +908,14 @@ fn build_hub_dressing(c: &mut City, seed: u32) {
     for pz in [HUB[1] + 0.7, HUB[3] - 0.7] {
         c.tube(Vec3::new(HUB[0], 19.0, pz), Vec3::new(HUB[2], 19.0, pz), 0.5, mat::TEAL_PIPE, true);
     }
-    // Wall lamps between the pilasters.
+    // ... broken where it would cross the drop-in arch (ends capped).
+    c.fill_with(Vec3::new(-5.0, 18.0, HUB[1]), Vec3::new(5.0, 20.0, HUB[1] + 1.5), |_, _, old| (old == mat::TEAL_PIPE).then_some(AIR));
+    // Wall lamps between the pilasters (the south ones high, clear of the mezzanine stairs).
     for x in [-16.0f32, -8.0, 8.0, 16.0] {
-        for z in [HUB[1] + 0.25, HUB[3] - 0.25] {
-            c.fill(Vec3::new(x - 0.5, 17.0, z - 0.25), Vec3::new(x + 0.5, 17.5, z + 0.25), mat::NEON_AMBER);
-        }
+        c.fill(Vec3::new(x - 0.5, 17.0, HUB[3] - 0.5), Vec3::new(x + 0.5, 17.5, HUB[3]), mat::NEON_AMBER);
+    }
+    for x in [-10.0f32, 10.0] {
+        c.fill(Vec3::new(x - 0.5, 20.0, HUB[1]), Vec3::new(x + 0.5, 20.5, HUB[1] + 0.5), mat::NEON_AMBER);
     }
     // Tatami platform (the dojo) and lab floor.
     c.fill_with(Vec3::new(-21.0, FLOOR, 18.0), Vec3::new(-6.0, FLOOR + VS, HUB[3] - 0.5), |p, _, _| {
@@ -959,7 +1001,7 @@ fn build_streets(c: &mut City, seed: u32) {
         });
     }
     // The chute culvert: brick end wall at the block edge and a railing around the opening.
-    c.fill_with(Vec3::new(-EDGE, chute_axis(-EDGE) - CHUTE_R - 1.0, CHUTE_Z - CHUTE_R - 1.0), Vec3::new(-EDGE + 0.5, STREET + 1.0, CHUTE_Z + CHUTE_R + 1.0), |_, v, _| {
+    c.fill_with(Vec3::new(-EDGE, chute_ridge(-EDGE) - CHUTE_BELOW - 1.0, CHUTE_Z - CHUTE_R - 1.0), Vec3::new(-EDGE + 0.5, STREET + 1.0, CHUTE_Z + CHUTE_R + 1.0), |_, v, _| {
         Some(brick(v, seed))
     });
     for z in [CHUTE_Z - CHUTE_R - 0.5, CHUTE_Z + CHUTE_R] {
@@ -978,7 +1020,8 @@ fn build_streets(c: &mut City, seed: u32) {
     }
     let mut z = -50.0;
     while z < 52.0 {
-        if (z - T_S_Z).abs() > 5.0 && (z - T_N_Z).abs() > 5.0 && !(z > AVENUE.0 - 1.0 && z < AVENUE.1 + 1.0) {
+        let clear = (z - T_S_Z).abs() > 5.0 && (z - T_N_Z).abs() > 5.0 && (z - CHUTE_Z).abs() > 5.0;
+        if clear && !(z > AVENUE.0 - 1.0 && z < AVENUE.1 + 1.0) {
             c.street_light(Vec3::new(WEST_ST.0 + 1.0, STREET + VS, z), Vec2::X, 6.0);
         }
         z += 16.0;
@@ -1000,7 +1043,7 @@ fn build_buildings(c: &mut City, seed: u32) {
         let (base, roof) = (STREET, b.roof);
         let body = if bi % 3 == 1 { mat::TERRACOTTA } else { mat::CITY_BRICK };
         let s = seed ^ (bi as u32).wrapping_mul(0x9e37);
-        c.fill_with(Vec3::new(x0, base, z0), Vec3::new(x1, roof, z1), |p, v, old| {
+        c.fill_with(Vec3::new(x0, base, z0), Vec3::new(x1, roof, z1), |p, _, old| {
             if old != AIR && !is_earth(old) && old != mat::CONCRETE && old != mat::MULLION {
                 return None;
             }
@@ -1042,11 +1085,10 @@ fn build_buildings(c: &mut City, seed: u32) {
         c.fill(Vec3::new(cx - 0.5, base - 2.0, cz - 0.5), Vec3::new(cx + 0.5, roof - 1.0, cz + 0.5), mat::TOWER_CORE);
         // Roof deck, cornice and parapet.
         c.fill(Vec3::new(x0 + 0.5, roof - VS, z0 + 0.5), Vec3::new(x1 - 0.5, roof, z1 - 0.5), mat::ROOF_DARK);
-        c.fill_with(Vec3::new(x0 - 0.5, roof - VS, z0 - 0.5), Vec3::new(x1 + 0.5, roof, z1 + 0.5), |p, _, old| {
-            let out = p.x < x0 || p.x >= x1 || p.z < z0 || p.z >= z1;
-            let in_world = p.x > -EDGE && p.x < EDGE && p.z > -EDGE && p.z < EDGE;
-            let over_chasm = p.x >= CHASM.0 && p.x < CHASM.1;
-            (out && old == AIR && in_world && !over_chasm).then_some(mat::STONE)
+        // Cornice band: flush stone (an overhang would be a hidden lip for wall climbs and swings).
+        c.fill_with(Vec3::new(x0, roof - 1.0, z0), Vec3::new(x1, roof, z1), |p, _, _| {
+            let edge = (p.x - x0) < VS || (x1 - p.x) < VS || (p.z - z0) < VS || (z1 - p.z) < VS;
+            edge.then_some(mat::STONE)
         });
         c.fill_with(Vec3::new(x0, roof, z0), Vec3::new(x1, roof + 1.0, z1), |p, _, _| {
             let edge = (p.x - x0) < VS || (x1 - p.x) < VS || (p.z - z0) < VS || (z1 - p.z) < VS;
@@ -1070,7 +1112,12 @@ fn build_buildings(c: &mut City, seed: u32) {
         // Water tower on the taller roofs.
         if roof >= 46.0 {
             let (tx, tz) = (x1 - 5.0, z1 - 6.0);
-            c.water_tower(Vec3::new(tx, roof, tz.min(EDGE - 5.0)), 2.2, 4.0);
+            let tz = tz.min(EDGE - 5.0);
+            c.water_tower(Vec3::new(tx, roof, tz), 2.2, 4.0);
+            // A steel deck under the tank ties it to the legs (the kit's tank sits just inside them).
+            c.fill_with(Vec3::new(tx - 3.0, roof + 2.5, tz - 3.0), Vec3::new(tx + 3.0, roof + 3.0, tz + 3.0), |q, _, _| {
+                (Vec2::new(q.x - tx, q.z - tz).length() < 2.9).then_some(mat::STEEL)
+            });
         }
         // Chimney stacks.
         let (hx, hz) = (x0 + 1.5, z1 - 3.0);
@@ -1086,6 +1133,17 @@ fn build_buildings(c: &mut City, seed: u32) {
         leg_h: 3.0,
         bands: [mat::PAINT_RED, mat::PAINT_YELLOW, mat::PAINT_YELLOW, mat::PAINT_RED],
         neon: mat::NEON_PINK,
+    });
+    // A neon billboard on the north-west roof, facing the west street: the high swing anchor for
+    // anyone coming up the junction shafts.
+    c.billboard(&crate::city::BillboardSpec {
+        base: Vec3::new(ROOF_SIGN.x, BUILDINGS[0].roof, ROOF_SIGN.z),
+        normal: Vec2::NEG_X,
+        width: 10.0,
+        height: 4.0,
+        leg_h: 3.0,
+        bands: [mat::HULL_NAVY, mat::BALL_GREEN, mat::BALL_GREEN, mat::HULL_NAVY],
+        neon: mat::NEON_CYAN,
     });
     // Fire escapes on the avenue-facing facades.
     fire_escape(c, BUILDINGS[0], true, -32.0, BUILDINGS[0].roof);
@@ -1117,16 +1175,20 @@ fn fire_escape(c: &mut City, b: Building, south_face: bool, x_start: f32, roof: 
         for s in 0..steps {
             let top = y + VS * (s + 1) as f32;
             let x = if east { x_start + 1.5 + s as f32 * 0.5 } else { x_start + 1.5 + run - (s + 1) as f32 * 0.5 };
-            c.fill(Vec3::new(x, top - VS, z0), Vec3::new(x + 0.5, top, z1), mat::STEEL);
+            // Two voxels thick so consecutive steps share a face (one piece, anchored).
+            c.fill(Vec3::new(x, top - 1.0, z0), Vec3::new(x + 0.5, top, z1), mat::STEEL);
         }
         let ny = y + VS * steps as f32;
-        // Landing (both strips) at the flight's top end.
-        let lx = if east { x_start + 1.5 + run } else { x_start };
-        let (za, _) = strip(0);
-        let (_, zb) = strip(1);
+        // Landing (both strips) right where the flight ends.
+        let lx = if east { x_start + 1.5 + VS * steps as f32 } else { x_start + run - VS * steps as f32 };
+        let za = strip(0).0.min(strip(1).0);
+        let zb = strip(0).1.max(strip(1).1);
         c.fill(Vec3::new(lx, ny - VS, za), Vec3::new(lx + 1.5, ny, zb), mat::STEEL);
         // Railing on the outer edge of the landing.
         let rz = if out < 0.0 { za } else { zb - VS };
+        for px in [lx, lx + 1.0] {
+            c.fill(Vec3::new(px, ny, rz), Vec3::new(px + 0.5, ny + 1.0, rz + VS), mat::PLASTIC_BLACK);
+        }
         c.fill(Vec3::new(lx, ny + 1.0, rz), Vec3::new(lx + 1.5, ny + 1.5, rz + VS), mat::PLASTIC_BLACK);
         y = ny;
         k += 1;
@@ -1134,11 +1196,9 @@ fn fire_escape(c: &mut City, b: Building, south_face: bool, x_start: f32, roof: 
             break;
         }
     }
-    // Hatch through the parapet onto the roof.
-    let (za, zb) = (strip(0).0.min(strip(1).0), strip(0).1.max(strip(1).1));
-    let _ = (za, zb);
-    c.fill(Vec3::new(x_start - 0.5, roof, fz - 1.0), Vec3::new(x_start + 9.5, roof + 1.0, fz + 1.0), AIR);
-    c.fill_with(Vec3::new(x_start - 0.5, roof - VS, fz - 1.0), Vec3::new(x_start + 9.5, roof, fz + 1.0), |_, _, old| (old == AIR).then_some(mat::ROOF_DARK));
+    // Gap in the parapet onto the roof (the building side of the facade only).
+    let (h0, h1) = if south_face { (fz, fz + 1.0) } else { (fz - 1.0, fz) };
+    c.fill(Vec3::new(x_start - 0.5, roof, h0), Vec3::new(x_start + 9.5, roof + 1.0, h1), AIR);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1147,8 +1207,8 @@ fn fire_escape(c: &mut City, b: Building, south_face: bool, x_start: f32, roof: 
 /// Authored spawn spots (feet, approximately): four in the lair, two tunnels, two on the station
 /// platform, two on the roofs.
 const SPAWN_SPOTS: [Vec3; 10] = [
-    Vec3::new(-14.0, FLOOR + VS, 21.0),
-    Vec3::new(14.0, FLOOR, 21.0),
+    Vec3::new(-12.5, FLOOR + VS, 19.0),
+    Vec3::new(11.5, FLOOR, 19.0),
     Vec3::new(-17.0, FLOOR, -2.0),
     Vec3::new(-21.0, FLOOR, -27.0),
     Vec3::new(T_W_X, FLOOR, -4.0),
@@ -1232,7 +1292,8 @@ fn routes() -> Vec<Route> {
             from: "skate_hall",
             to: "skate_hall",
             kind: RouteKind::Mixed,
-            waypoints: vec![Vec3::new(0.0, DECK_Y, RIDGE_N + 1.2), Vec3::new(0.0, DECK_Y, RIDGE_S - 1.2)],
+            // Ridden along its length: in from the west flat end, carve a wall, out at the east end.
+            waypoints: vec![Vec3::new(-HALL[2] + 4.0, FLOOR, RIDGE_N - 4.0), Vec3::new(PIPE_X + 4.0, FLOOR, RIDGE_N - 4.0)],
             anchors: vec![],
         },
         Route {
@@ -1243,7 +1304,7 @@ fn routes() -> Vec<Route> {
             waypoints: vec![Vec3::new(T_W_X, FLOOR, T_N_Z), Vec3::new(-31.0, BUILDINGS[0].roof, T_N_Z)],
             anchors: vec![
                 Vec3::new(T_W_X + SHAFT_HALF + 0.25, STREET - 1.5, T_N_Z),
-                Vec3::new(BUILDINGS[0].rect[0] + 0.25, BUILDINGS[0].roof + 0.75, T_N_Z),
+                Vec3::new(ROOF_SIGN.x - 0.6, BUILDINGS[0].roof + 3.0 + 3.2, ROOF_SIGN.z),
             ],
         },
     ]
@@ -1261,8 +1322,8 @@ pub fn generate_lair(seed: u64) -> (VoxelWorld, MapInfo) {
     build_frame(&mut c, &sp);
     build_floors(&mut c, s32);
     build_skate(&mut c, s32);
-    build_sewers(&mut c, s32);
     build_chasm(&mut c, s32);
+    build_sewers(&mut c, s32);
     build_tunnel_dressing(&mut c, s32);
     build_hub_dressing(&mut c, s32);
     build_streets(&mut c, s32);
@@ -1288,6 +1349,9 @@ pub fn generate_lair(seed: u64) -> (VoxelWorld, MapInfo) {
         surf_lines: surf_lines(),
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
+        slipstream: None,
+        mechanics: Default::default(),
     };
     let d = |name, center: Vec3, area| District { name, center, area };
     let districts = vec![
@@ -1334,8 +1398,8 @@ pub fn props_for(seed: u64) -> Vec<props::Placed> {
     build_frame(&mut c, &sp);
     build_floors(&mut c, s32);
     build_skate(&mut c, s32);
-    build_sewers(&mut c, s32);
     build_chasm(&mut c, s32);
+    build_sewers(&mut c, s32);
     build_tunnel_dressing(&mut c, s32);
     build_hub_dressing(&mut c, s32);
     build_streets(&mut c, s32);
@@ -1343,3 +1407,4 @@ pub fn props_for(seed: u64) -> Vec<props::Placed> {
     let spawns = pick_spawns(&c.w);
     props::place_props(&mut c, &spawns, &routes(), &mut rng)
 }
+

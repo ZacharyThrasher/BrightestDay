@@ -87,6 +87,10 @@ pub enum NetMapKind {
     Miami,
     Orbit,
     Backrooms,
+    /// Protocol v10.
+    Sakura,
+    /// Protocol v11.
+    Ember,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,6 +119,14 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
         }
         NetMapKind::Backrooms => {
             let (w, m) = bd_voxel::generate_backrooms(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Sakura => {
+            let (w, m) = bd_voxel::generate_sakura(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Ember => {
+            let (w, m) = bd_voxel::maps::generate_ember(seed);
             (w, m.arena, seed)
         }
     }

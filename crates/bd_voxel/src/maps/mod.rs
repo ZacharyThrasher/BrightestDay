@@ -8,12 +8,24 @@
 
 #[cfg(feature = "backrooms")]
 pub mod backrooms;
+#[cfg(feature = "casino")]
+pub mod casino;
 #[cfg(feature = "cybertron")]
 pub mod cybertron;
 #[cfg(feature = "ember")]
 pub mod ember;
+#[cfg(feature = "giant")]
+pub mod giant;
+#[cfg(feature = "hyperline")]
+pub mod hyperline;
+#[cfg(feature = "lair")]
+pub mod lair;
 pub mod miami;
+#[cfg(feature = "mirror")]
+pub mod mirror;
 pub mod orbit;
+#[cfg(feature = "sakura")]
+pub mod sakura;
 #[cfg(feature = "valley")]
 pub mod valley;
 
@@ -25,12 +37,22 @@ use crate::arena::ArenaInfo;
 
 #[cfg(feature = "backrooms")]
 pub use backrooms::{BACKROOMS_SIZE_VOXELS, generate_backrooms};
+#[cfg(feature = "casino")]
+pub use casino::{CASINO_SIZE_VOXELS, generate_casino};
 #[cfg(feature = "cybertron")]
 pub use cybertron::{CYBERTRON_SIZE_VOXELS, generate_cybertron};
 #[cfg(feature = "ember")]
 pub use ember::{EMBER_SIZE_VOXELS, generate_ember};
+#[cfg(feature = "giant")]
+pub use giant::{GIANT_SIZE_VOXELS, generate_giant};
+#[cfg(feature = "hyperline")]
+pub use hyperline::{HYPERLINE_SIZE_VOXELS, generate_hyperline};
 pub use miami::{MIAMI_SIZE_VOXELS, generate_miami};
+#[cfg(feature = "mirror")]
+pub use mirror::{MIRROR_SIZE_VOXELS, generate_mirror};
 pub use orbit::{ORBIT_SIZE_VOXELS, generate_orbit};
+#[cfg(feature = "sakura")]
+pub use sakura::{SAKURA_SIZE_VOXELS, generate_sakura};
 #[cfg(feature = "valley")]
 pub use valley::{VALLEY_SIZE_VOXELS, generate_valley};
 

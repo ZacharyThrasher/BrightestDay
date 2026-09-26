@@ -13,7 +13,7 @@
 //!
 //! ```text
 //!   N   ring of jagged basalt teeth (r ≈ 88, backdrop + tether anchors, pointy: no perches)
-//!       RIDGE (26) ── FORTRESS (plinth 27, balcony 40, perch 52, spires 60/64) ── RIDGE (26)
+//!       RIDGE (26) ── FORTRESS (plinth 27, balcony 40, perch 56, spires 66/72) ── RIDGE (26)
 //!        ash ramp ↑         lavafall down the cliff into the pool          ↑ ash ramp      surf E ↘
 //!   CRAG ══neck══ NORTH BANK (9): rocks, the lavafall pool, two vents ══ stones ∙ ∙      DUNES
 //!   (W, 20)  arch ║   stairs ║   FACILITY: deck 12, processor roof 20, stack 36   ║ stairs  stones ∙  (E, 11)
@@ -24,7 +24,7 @@
 //! - **Tiers** (competitive read): low ground = South Plain 7 / North Bank 9 / facility deck 12
 //!   (fast, lots of cover, but lava close by); mid = processor roof 20 / Crag 20 / Dunes 11 + dunes;
 //!   high = Ridge 26 and the fortress balcony 40 (sightlines over everything, but exposed, flat, and
-//!   backing onto the outer lava). The perch between the spires (52 m) is tiny, coverless and
+//!   backing onto the outer lava). The perch between the spires (56 m) is tiny, coverless and
 //!   tether-only.
 //! - **Routes** North ↔ South: the facility (two stair catwalks each side + the deck, or through the
 //!   processor), the west rock arch, the east stepping stones, swings on the collector arms; via
@@ -74,9 +74,9 @@ pub const RIVER_Z: f32 = -5.0;
 pub const FORT: Vec2 = Vec2::new(0.0, 63.0);
 pub const FORT_BASE: f32 = 27.0;
 pub const BALCONY_Y: f32 = 40.0;
-pub const PERCH_Y: f32 = 52.0;
-pub const SPIRE_W_TOP: f32 = 64.0;
-pub const SPIRE_E_TOP: f32 = 60.0;
+pub const PERCH_Y: f32 = 56.0;
+pub const SPIRE_W_TOP: f32 = 72.0;
+pub const SPIRE_E_TOP: f32 = 66.0;
 /// Island centres.
 pub const WC_C: Vec2 = Vec2::new(-72.0, 0.0);
 pub const ED_C: Vec2 = Vec2::new(72.0, -6.0);
@@ -115,7 +115,7 @@ pub const STONE_R: f32 = 2.2;
 /// The two surf lines (smooth hard light over the lava): Ridge (SE corner) → Dunes, Crag → South
 /// Plain. Each starts buried in the plateau you run off and ends ~10 m above the landing.
 pub const SURF_EAST: SurfLine = SurfLine { a: Vec3::new(52.0, 33.0, 50.0), b: Vec3::new(68.0, 21.0, -2.0), face_deg: 60.0, width: 8.0 };
-pub const SURF_WEST: SurfLine = SurfLine { a: Vec3::new(-70.0, 27.0, -8.0), b: Vec3::new(-40.0, 17.0, -42.0), face_deg: 60.0, width: 8.0 };
+pub const SURF_WEST: SurfLine = SurfLine { a: Vec3::new(-63.0, 30.0, -14.0), b: Vec3::new(-38.0, 17.0, -44.0), face_deg: 60.0, width: 8.0 };
 
 /// Spawn targets (x, z, plateau top): two per big plateau, mirrored east/west; never on the
 /// facility (the contested middle) or the fortress.
@@ -374,7 +374,7 @@ fn build_terrain(c: &mut City, seed: u32) {
             let fleck = value2(p.x * 0.35, p.y * 0.7, seed ^ 22);
             let m = if dm < 0.6 || (dm < 1.6 && fleck > 0.45) || (dm > 3.0 && flow > 0.4) {
                 mat::LAVA_CRUST
-            } else if flow < -0.42 || (dm > 3.0 && fleck > 0.78) {
+            } else if flow < -0.5 || (dm > 4.0 && fleck > 0.86) {
                 mat::LAVA_HOT
             } else {
                 mat::LAVA
@@ -450,6 +450,9 @@ fn tooth(c: &mut City, x: f32, z: f32, base_y: f32, height: f32, radius: f32, le
     let hi = Vec3::new(x + reach, base_y + height, z + reach);
     let b = Vec2::new(x, z);
     c.fill_with(lo, hi, |p, v, _| {
+        if p.y < LAVA_TOP {
+            return None;
+        }
         let t = ((p.y - base_y) / height).clamp(0.0, 1.0);
         let q0 = Vec2::new(p.x, p.z) - (b + lean * t * t);
         let q = Vec2::new(q0.x * cr + q0.y * sr, -q0.x * sr + q0.y * cr);
@@ -518,7 +521,7 @@ fn stone(c: &mut City, at: Vec2, top: f32, r: f32) {
 /// A shallow glowing vent crater (standable; magma floor) at (x, z).
 fn vent_crater(c: &mut City, x: f32, z: f32, from_y: f32, r: f32, depth: f32) {
     let Some(top) = c.ground(x, z, from_y) else { return };
-    c.fill_with(Vec3::new(x - r * 1.4, top - depth - 1.0, z - r * 1.4), Vec3::new(x + r * 1.4, top + 1.0, z + r * 1.4), |p, _, old| {
+    c.fill_with(Vec3::new(x - r * 1.4, top - depth - 1.0, z - r * 1.4), Vec3::new(x + r * 1.4, top + 1.0, z + r * 1.4), |p, v, old| {
         let d = (Vec2::new(p.x, p.z) - Vec2::new(x, z)).length() / r;
         if d >= 1.0 {
             if d < 1.35 && p.y > top - 0.1 && p.y < top + 0.5 && old == AIR {
@@ -531,7 +534,9 @@ fn vent_crater(c: &mut City, x: f32, z: f32, from_y: f32, r: f32, depth: f32) {
             return (old != AIR).then_some(AIR);
         }
         if p.y > floor - 0.5 {
-            return Some(mat::MAGMA_SEAM);
+            // Hot but solid: dark rock with a few glowing specks (bright glow = lava = KO elsewhere).
+            let speck = unit(hash3(v.x, v.y, v.z, 0x0e47)) < 0.2;
+            return Some(if speck { mat::MAGMA_SEAM } else { mat::VOLCANIC });
         }
         None
     });
@@ -648,13 +653,23 @@ fn facility(c: &mut City) {
     }
     // Catwalk stairs: North Bank (9) → deck, South Plain (7) → deck.
     for s in [-1.0f32, 1.0] {
-        c.stairs(Vec3::new(s * CATWALK_X, NB_TOP, 13.0), Vec2::NEG_Y, deck, 2.5, 1.6, mat::STEEL);
-        c.stairs(Vec3::new(s * CATWALK_X, SP_TOP, -25.0), Vec2::Y, deck, 2.5, 1.2, mat::STEEL);
+        // Start on the real ground (the plains undulate ±0.6 m) so the first riser is one step and
+        // the last lands on the deck edge.
+        for (edge, dir, run, top0) in [(dz1, -1.0f32, 1.5f32, NB_TOP), (dz0, 1.0, 1.25, SP_TOP)] {
+            let x = s * CATWALK_X;
+            let mut g = top0;
+            for _ in 0..2 {
+                let z = edge - dir * ((deck - g) / 0.5).round() * run;
+                g = c.ground(x, z, top0 + 3.0).unwrap_or(top0);
+            }
+            let z = edge - dir * ((deck - g) / 0.5).round() * run;
+            c.stairs(Vec3::new(x, g, z), Vec2::new(0.0, dir), deck, 2.5, run, mat::STEEL);
+        }
     }
     // Containers for cover (one stacked).
     c.container(Vec3::new(-19.0, deck, -4.0), false, mat::HAZARD_ORANGE);
-    c.container(Vec3::new(13.5, deck, -8.5), true, mat::SCORCHED);
-    c.container(Vec3::new(14.5, deck + 2.5, -8.5), true, mat::HAZARD_ORANGE);
+    c.container(Vec3::new(17.5, deck, -10.0), false, mat::SCORCHED);
+    c.container(Vec3::new(-19.0, deck + 2.5, -3.0), false, mat::SCORCHED);
 }
 
 /// Square lattice girder from `a` to `b` out of 6-connected voxel lines.
@@ -764,7 +779,7 @@ fn fortress(c: &mut City) {
     }
     // Twin spires: chamfered blades on the balcony, a glowing seam in the slot between them.
     for (cx, tip) in [(-1.75f32, SPIRE_W_TOP), (1.75, SPIRE_E_TOP)] {
-        let (hx, hz) = (1.5f32, 2.6f32);
+        let (hx, hz) = (1.8f32, 3.0f32);
         let span = tip - BALCONY_Y;
         c.fill_with(
             Vec3::new(f.x + cx - hx - 0.5, BALCONY_Y - 0.5, f.y - hz - 0.5),
@@ -780,8 +795,8 @@ fn fortress(c: &mut City) {
             },
         );
         c.fill(
-            Vec3::new(f.x + cx - 0.25, BALCONY_Y - 1.0, f.y - 0.25),
-            Vec3::new(f.x + cx + 0.25, tip - 1.5, f.y + 0.25),
+            Vec3::new(f.x + cx - 0.25, BALCONY_Y - 1.0, f.y - 0.5),
+            Vec3::new(f.x + cx + 0.25, tip - 1.5, f.y + 0.5),
             mat::OBSIDIAN_CORE,
         );
     }
@@ -891,7 +906,7 @@ pub fn generate_ember(seed: u64) -> (VoxelWorld, MapInfo) {
         tooth(&mut c, 0.0, -46.0, g - 1.0, 19.0, 3.0, Vec2::new(0.6, -1.2));
     }
     // Crag needles + vent.
-    for (dx, dz, h) in [(-4.0, 14.0, 13.0), (5.0, -12.0, 11.0), (-6.0, -20.0, 9.0)] {
+    for (dx, dz, h) in [(-4.0, 14.0, 13.0), (-8.0, -8.0, 11.0), (-6.0, -20.0, 9.0)] {
         let (x, z) = (WC_C.x + dx, WC_C.y + dz);
         if let Some(g) = c.ground(x, z, WC_TOP + 4.0) {
             let lean = Vec2::new(dx, dz).normalize_or_zero() * 1.2;
@@ -954,6 +969,7 @@ pub fn generate_ember(seed: u64) -> (VoxelWorld, MapInfo) {
         surf_lines: vec![SURF_EAST, SURF_WEST],
         water_sheets: Vec::new(),
         water_walk: false,
+        interactables: Default::default(),
         slipstream: None,
         mechanics: Default::default(),
     };

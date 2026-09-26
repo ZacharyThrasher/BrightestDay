@@ -160,6 +160,13 @@ impl MusicDirector {
             // Backrooms: the lobby muzak drifting through empty offices; Orbit's tension when it kicks off.
             ("backrooms", false) => "lobby",
             ("backrooms", true) => "orbit_combat",
+            // Sakura Keep: Vivaldi's Spring for the blossom garden, its Summer Storm when it kicks off.
+            ("sakura", false) => "archipelago_explore",
+            ("sakura", true) => "archipelago_combat",
+            // Ember: Summer Storm's brooding G-minor tremolo over the lava; the Ride of the Valkyries
+            // (Orbit's combat track — its trap / DnB / synthwave remixes under the Remix style) when it kicks off.
+            ("ember", false) => "archipelago_combat",
+            ("ember", true) => "orbit_combat",
             (_, false) => "archipelago_explore",
             (_, true) => "archipelago_combat",
         }

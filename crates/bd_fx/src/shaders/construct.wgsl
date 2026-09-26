@@ -269,7 +269,7 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     // camera is pushed into the head).
     let fade = clamp(c.misc.z / 0.3, 0.0, 1.0);
     alpha *= fade;
-    var rgb = e * (1.0 - f) * fade + fog_color() * f * alpha;
+    var rgb = e * (1.0 - f) * fade * fade + fog_color() * f * alpha;
     var out = vec4<f32>(rgb, alpha);
 #else
     var rgb = mix(e, fog_color(), f);

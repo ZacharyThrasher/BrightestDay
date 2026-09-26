@@ -3,7 +3,7 @@
 //! world metres via `sakura::px_to_m`). PRIVATE USE: the layout follows Overwatch's Hanamura (see
 //! THIRD_PARTY_NOTICES.md "Maps"); replace it before any public release.
 
-#![allow(clippy::approx_constant)]
+#![allow(clippy::approx_constant, clippy::type_complexity)]
 
 /// Metres per image pixel and the image point at world (0, 0).
 pub const S: f32 = 0.26;
@@ -839,4 +839,4 @@ pub const FACADE: ((f32, f32), (f32, f32)) = ((490.0, 190.0), (685.0, 300.0));
 /// Doors in the castle facade (segments, px).
 pub static CASTLE_DOORS: &[((f32, f32), (f32, f32))] = &[((520.4, 207.2), (539.6, 218.0)), ((631.3, 269.7), (648.7, 279.5)), ((407.0, 190.0), (437.0, 190.0))];
 /// FFA spawn targets (px): spread out, never in a chokepoint.
-pub static SPAWNS: &[(f32, f32)] = &[(150.0, 680.0), (345.0, 668.0), (215.0, 500.0), (55.0, 300.0), (60.0, 440.0), (250.0, 210.0), (520.0, 470.0), (650.0, 380.0), (470.0, 110.0), (590.0, 60.0)];
+pub static SPAWNS: &[(f32, f32)] = &[(150.0, 680.0), (318.0, 672.0), (215.0, 500.0), (55.0, 300.0), (60.0, 440.0), (250.0, 210.0), (520.0, 470.0), (650.0, 380.0), (470.0, 110.0), (585.0, 75.0)];

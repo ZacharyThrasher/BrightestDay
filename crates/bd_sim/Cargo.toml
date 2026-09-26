@@ -19,11 +19,23 @@ proptest.workspace = true
 bincode.workspace = true
 
 [features]
-default = ["backrooms"]
+default = ["backrooms", "ember"]
 # BACKROOMS map (bd_voxel feature; the route example needs it).
 backrooms = ["bd_voxel/backrooms"]
 # TURTLE LAIR map (bd_voxel feature; the route example needs it).
 lair = ["bd_voxel/lair"]
+# EMBER map (bd_voxel feature; the route example and tests/ember.rs need it).
+ember = ["bd_voxel/ember"]
+# SAKURA KEEP map (bd_voxel feature; the route example needs it).
+sakura = ["bd_voxel/sakura"]
+# MIRRORFOLD map (bd_voxel feature; the route example needs it).
+mirror = ["bd_voxel/mirror"]
+# HYPERLINE map (bd_voxel feature; tests/hyperline.rs and the route example need it).
+hyperline = ["bd_voxel/hyperline"]
+# CYBERTRON map (bd_voxel feature; the route example needs it).
+cybertron = ["bd_voxel/cybertron"]
+# VALLEY OF THE END map (bd_voxel feature; the route example and tests/valley.rs need it).
+valley = ["bd_voxel/valley"]
 
 [[example]]
 name = "backrooms_routes"
@@ -32,3 +44,27 @@ required-features = ["backrooms"]
 [[example]]
 name = "lair_routes"
 required-features = ["lair"]
+
+[[example]]
+name = "ember_routes"
+required-features = ["ember"]
+
+[[example]]
+name = "sakura_routes"
+required-features = ["sakura"]
+
+[[example]]
+name = "mirror_routes"
+required-features = ["mirror"]
+
+[[example]]
+name = "hyperline_routes"
+required-features = ["hyperline"]
+
+[[example]]
+name = "cybertron_routes"
+required-features = ["cybertron"]
+
+[[example]]
+name = "valley_routes"
+required-features = ["valley"]

@@ -512,6 +512,10 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
                 c.hits.clear();
                 s.terrain_hit = false;
                 c.set_anim(AnimState::Windup, env.tick());
+                // The release IS the heavy's swing start (strength 2 = heavy): the first-person
+                // viewmodel holds the coiled curve until this and 3P / construct animation start
+                // the heavy from it. Without it the swing only showed on the NEXT click.
+                fx(out, c, HeldFx::SwingStart, o.hand, o.look, 2.0);
             }
         }
         Mode::Dive => dive_step(c, s, env, out),

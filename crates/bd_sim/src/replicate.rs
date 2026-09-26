@@ -165,7 +165,7 @@ pub struct PlayerSnap {
     /// Stock mode lives (255 = timed match).
     pub stocks: u8,
     pub willpower: u8,
-    /// `StatusSet::bits()`.
+    /// `StatusSet::bits()` | [`crate::juggle::GUARD_STATUS_BIT`] (bit 7) while juggle-guarded.
     pub status: u8,
     /// Body scale × 100 (Shrink / Grow).
     pub size: u8,

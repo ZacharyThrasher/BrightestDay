@@ -6,14 +6,17 @@
 //! ```
 //! Times are seconds since the first frame in `Menu` or `InGame`. Actions: `key:<KeyCode>` (press +
 //! release), `down:<KeyCode>` / `up:<KeyCode>`, `type:<text>` (one press per char, in order),
-//! `mouse:<Left|Right|Middle|Back|Forward>` (click).
+//! `mouse:<Left|Right|Middle|Back|Forward>` (click), `mdown:<button>` / `mup:<button>` (hold /
+//! release), `cursor:<x>,<y>` (a `CursorMoved` in logical px — the OS cursor is not touched),
+//! `wheel:<lines>` (vertical wheel, + = up).
 
 use crate::state::AppState;
 use bevy::input::keyboard::{Key, KeyboardInput};
-use bevy::input::mouse::MouseButtonInput;
+use bevy::input::mouse::{MouseButtonInput, MouseScrollUnit, MouseWheel};
+use bevy::input::touch::TouchPhase;
 use bevy::input::ButtonState;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{CursorMoved, PrimaryWindow};
 
 #[derive(Clone, Debug)]
 enum Step {
@@ -22,6 +25,10 @@ enum Step {
     Up(KeyCode),
     Type(String),
     Mouse(MouseButton),
+    MouseDown(MouseButton),
+    MouseUp(MouseButton),
+    Cursor(Vec2),
+    Wheel(f32),
 }
 
 #[derive(Resource, Default)]
@@ -48,7 +55,18 @@ fn parse(src: &str) -> Vec<(f32, Step)> {
         let Some((t, a)) = part.split_once('=') else { continue };
         let Ok(t) = t.trim().parse::<f32>() else { continue };
         let (kind, arg) = a.split_once(':').unwrap_or((a, ""));
+        let button = |s: &str| match s.trim() {
+            "Right" => MouseButton::Right,
+            "Middle" => MouseButton::Middle,
+            "Back" => MouseButton::Back,
+            "Forward" => MouseButton::Forward,
+            _ => MouseButton::Left,
+        };
         let step = match kind.trim() {
+            "mdown" => Some(Step::MouseDown(button(arg))),
+            "mup" => Some(Step::MouseUp(button(arg))),
+            "cursor" => arg.split_once(',').and_then(|(x, y)| Some(Step::Cursor(Vec2::new(x.trim().parse().ok()?, y.trim().parse().ok()?)))),
+            "wheel" => arg.trim().parse().ok().map(Step::Wheel),
             "key" => keycode(arg.trim()).map(Step::Key),
             "down" => keycode(arg.trim()).map(Step::Down),
             "up" => keycode(arg.trim()).map(Step::Up),
@@ -95,6 +113,8 @@ fn drive(
     mut s: ResMut<UiScript>,
     mut keys: MessageWriter<KeyboardInput>,
     mut mouse: MessageWriter<MouseButtonInput>,
+    mut cursor: MessageWriter<CursorMoved>,
+    mut wheel: MessageWriter<MouseWheel>,
 ) {
     let Ok(window) = window.single() else { return };
     if *state.get() == AppState::Loading && s.t.is_none() {
@@ -161,6 +181,18 @@ fn drive(
             Step::Mouse(b) => {
                 mouse.write(MouseButtonInput { button: b, state: ButtonState::Pressed, window });
                 s.release_mouse.push(b);
+            }
+            Step::MouseDown(b) => {
+                mouse.write(MouseButtonInput { button: b, state: ButtonState::Pressed, window });
+            }
+            Step::MouseUp(b) => {
+                mouse.write(MouseButtonInput { button: b, state: ButtonState::Released, window });
+            }
+            Step::Cursor(position) => {
+                cursor.write(CursorMoved { window, position, delta: None });
+            }
+            Step::Wheel(y) => {
+                wheel.write(MouseWheel { unit: MouseScrollUnit::Line, x: 0.0, y, window, phase: TouchPhase::Moved });
             }
         }
     }

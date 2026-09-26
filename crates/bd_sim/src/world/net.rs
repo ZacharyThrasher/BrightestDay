@@ -63,7 +63,7 @@ fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
         launch: p.launch.map_or(0, |l| (l.speed / trail_kb * 255.0).round().clamp(1.0, 255.0) as u8),
         stocks: p.stocks.unwrap_or(255),
         willpower: p.willpower.clamp(0.0, 255.0).round() as u8,
-        status: p.status.bits(),
+        status: p.status.bits() | if p.juggle.guarded() { crate::juggle::GUARD_STATUS_BIT } else { 0 }, // JUGGLE: guard shimmer
         size: (p.size.scale * 100.0).round().clamp(1.0, 255.0) as u8,
         hooks: [hook(0), hook(1)],
         seat: p.seat.map(|s| (s.construct.0, s.part)),
@@ -401,6 +401,7 @@ impl World {
         self.constructs.write_colliders(&mut self.colliders);
         crate::movement::push_surf_colliders(&self.arena.surf_lines, &mut self.colliders); // SURF: map surf lines
         crate::movement::push_water_colliders(&self.arena, &mut self.colliders); // WATER-WALK: map water sheets (same as the host)
+        super::map_mech::push_mover_colliders(&self.arena, &self.map_mech, &mut self.colliders); // MAP MECH HOOK (same as the host)
         self.assist_push_player_colliders(); // ASSIST HOOK: other players are hook targets for prediction
     }
 
@@ -408,6 +409,8 @@ impl World {
     /// resets). Purely cosmetic events are ignored here (the client handles juice itself).
     pub fn apply_event(&mut self, e: &GameEvent) {
         match e {
+            // MAP MECH HOOK: a transforming panel changed phase.
+            GameEvent::MapMover { mover, phase, since } => self.apply_map_mover(*mover, *phase, *since),
             GameEvent::Carve { op } => {
                 let _ = super::combat::apply_carve_op(&mut self.voxels, op);
             }
@@ -542,6 +545,7 @@ impl World {
         let mut cd = p.portal_cd;
         let _ = super::spatial::player_portals(state, &mut inp, &mut cd, &params, pre_center, pre_vel, &self.portals);
         super::spatial::player_fields(state, player, state.tethered(), p.size.scale, &self.fields, DT);
+        crate::slipstream::apply(self.arena.slipstream.as_ref(), state, &ev, DT); // SLIPSTREAM HOOK (same as the host)
         crate::hook::local_rules(state, &self.cfg.tuning.assist.hook, &params); // ASSIST HOOK: over-long rope on a player lets go (as on the host)
         ev
     }
