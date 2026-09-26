@@ -334,6 +334,27 @@ fn build_spec(label: String, form: Form, spec: &ShapeSpec) -> Built {
 }
 
 fn render_sheet(items: &[Built], tile: usize, cols: usize, title: &str, out: &PathBuf) {
+    sheet_canvas(items, tile, cols, title).save(out);
+}
+
+/// Stack canvases vertically (left-aligned).
+fn stack(cs: Vec<Canvas>) -> Canvas {
+    let w = cs.iter().map(|c| c.w).max().unwrap_or(1);
+    let h: usize = cs.iter().map(|c| c.h).sum();
+    let mut out = Canvas::new(w, h.max(1));
+    let mut y0 = 0;
+    for c in cs {
+        for y in 0..c.h {
+            for x in 0..c.w {
+                out.px[(y0 + y) * w + x] = c.px[y * c.w + x];
+            }
+        }
+        y0 += c.h;
+    }
+    out
+}
+
+fn sheet_canvas(items: &[Built], tile: usize, cols: usize, title: &str) -> Canvas {
     let rows = items.len().div_ceil(cols);
     let head = 22;
     let mut c = Canvas::new(cols * tile, rows * tile + head);
@@ -366,7 +387,7 @@ fn render_sheet(items: &[Built], tile: usize, cols: usize, title: &str, out: &Pa
         let info = format!("{}V {}P", b.model.voxel_count, b.model.parts.len());
         text(&mut c, x0 + 4, y0 + tile as i32 - 11, &info, [110, 130, 120]);
     }
-    c.save(out);
+    c
 }
 
 // ------------------------------------------------------------------------------------- anims
@@ -659,6 +680,13 @@ fn smooth(a: f32, b: f32, x: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
+#[path = "gallery_parts/machines.rs"]
+mod machines;
+#[path = "gallery_parts/costumes.rs"]
+mod costumes;
+#[path = "gallery_parts/transforms.rs"]
+mod transforms;
+
 // ------------------------------------------------------------------------------------- main
 
 fn main() {
@@ -669,7 +697,7 @@ fn main() {
     let docs = root.join("docs");
     let tile: usize = val("--tile").and_then(|s| s.parse().ok()).unwrap_or(180);
     let filter = val("--filter").map(|s| s.to_lowercase());
-    let any_mode = has("--forms") || has("--anims") || has("--icons") || has("--combos");
+    let any_mode = has("--forms") || has("--anims") || has("--icons") || has("--combos") || has("--machines") || has("--costumes") || has("--features") || has("--transforms");
     let do_forms = has("--forms") || !any_mode;
     let do_anims = has("--anims") || !any_mode;
 
@@ -759,6 +787,18 @@ fn main() {
         let out = if has("--forms") { docs.join("gallery_anims.png") } else { val("--out").map(PathBuf::from).unwrap_or(docs.join("gallery_anims.png")) };
         let only = val("--strip").map(|s| s.to_lowercase());
         render_anims(if has("--tile") { tile } else { 170 }, &out, only.as_deref());
+    }
+    if has("--machines") || has("--features") {
+        let lex = machines::lexicon(&root);
+        machines::run(&docs, tile, lex.as_ref(), has("--machines"), has("--features"), val("--only"));
+    }
+    if has("--transforms") {
+        let lex = machines::lexicon(&root);
+        transforms::run(&docs, lex.as_ref(), val("--only"));
+    }
+    if has("--costumes") {
+        let lex = machines::lexicon(&root);
+        costumes::run(&docs, lex.as_ref(), val("--only"));
     }
     if has("--icons") {
         icons(&root, tile, val("--out").map(PathBuf::from).unwrap_or(docs.join("gallery_icons.png")));

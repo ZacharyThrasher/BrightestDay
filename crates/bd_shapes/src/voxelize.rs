@@ -94,6 +94,43 @@ pub struct VoxelModel {
     pub seat: Option<Seat>,
     /// Weak points (joints, neck/nape, cockpit): x3 Blade/Pierce, subtle glow on the client.
     pub weak_points: Vec<WeakPoint>,
+    /// Metres per ShapeSpec unit of the spec this model was built from (0.25 for constructs unless
+    /// the cap forced a shrink; `costume::COSTUME_UNIT` for costumes).
+    pub unit_m: f32,
+    /// Machine-kit motion rig (wheels, cranks, rotors…; see `features`). Index-aligned with `parts`.
+    pub machine: crate::features::MachineRig,
+    /// Mesh sharing: `instances[i]` says part `i` has the same voxels as part `source` shifted by
+    /// `offset` (m, rest pose). Canonical parts point at themselves with a zero offset.
+    pub instances: Vec<PartInstance>,
+}
+
+/// Mesh-instancing info for one part: render part `i` as `pose[i] * T(offset) * mesh[source]`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PartInstance {
+    pub source: usize,
+    pub offset: Vec3,
+}
+
+/// Parts with identical voxels (up to a translation) share the first such part's mesh.
+pub fn part_instances(parts: &[PartModel]) -> Vec<PartInstance> {
+    let mut out: Vec<PartInstance> = Vec::with_capacity(parts.len());
+    for (i, p) in parts.iter().enumerate() {
+        let mut inst = PartInstance { source: i, offset: Vec3::ZERO };
+        if !p.voxels.is_empty() {
+            for (j, q) in parts.iter().enumerate().take(i) {
+                if out[j].source != j || q.voxels.len() != p.voxels.len() || q.vmax - q.vmin != p.vmax - p.vmin || q.voxel_size != p.voxel_size {
+                    continue;
+                }
+                let d = p.vmin - q.vmin;
+                if q.voxels.iter().zip(&p.voxels).all(|((a, ta), (b, tb))| *a + d == *b && ta == tb) {
+                    inst = PartInstance { source: j, offset: d.as_vec3() * p.voxel_size };
+                    break;
+                }
+            }
+        }
+        out.push(inst);
+    }
+    out
 }
 
 /// Pilot seat anchor. Posed seat transform = `pose[part_index] * Affine3A::from_translation(pos)`;
@@ -348,7 +385,9 @@ pub fn voxelize_at(spec: &ShapeSpec, k: u32) -> VoxelModel {
     }
     let mut s = spec.clone();
     scale_spec(&mut s, 1.0 / k as f32);
-    voxelize_grid(&s, CONSTRUCT_VOXEL_SIZE * k as f32)
+    let mut m = voxelize_grid(&s, CONSTRUCT_VOXEL_SIZE * k as f32);
+    m.unit_m = CONSTRUCT_VOXEL_SIZE;
+    m
 }
 
 fn voxelize_grid(spec: &ShapeSpec, voxel_size: f32) -> VoxelModel {
@@ -479,7 +518,66 @@ fn voxelize_grid(spec: &ShapeSpec, voxel_size: f32) -> VoxelModel {
     let rig = Rig::analyze(&parts, &bounds);
     let seat = parts.iter().position(|p| p.id == SEAT_PART).map(|i| Seat { part_index: parts[i].parent_index, pos: parts[i].pivot });
     let weak_points = weak_points(&parts, &rig, seat);
-    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat, weak_points }
+    let machine = crate::features::MachineRig::infer(&parts);
+    let instances = part_instances(&parts);
+    let mut rig = rig;
+    for (i, m) in machine.motions.iter().enumerate() {
+        if *m != crate::features::Motion::None {
+            rig.kinds[i] = crate::anim::PartKind::Machine;
+        }
+    }
+    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat, weak_points, unit_m: voxel_size, machine, instances }
+}
+
+/// Assemble a model from explicit parts (voxels in model space, pivots in metres). Parts must be
+/// ordered parents-first with valid `parent_index`; voxels are sorted/deduplicated here.
+pub(crate) fn model_from_parts(mut parts: Vec<PartModel>, voxel_size: f32) -> VoxelModel {
+    let mut count = 0;
+    let mut bmin = Vec3::splat(f32::MAX);
+    let mut bmax = Vec3::splat(f32::MIN);
+    for p in &mut parts {
+        p.voxels.sort_by_key(|(v, _)| (v.z, v.y, v.x));
+        p.voxels.dedup_by_key(|(v, _)| *v);
+        p.voxel_size = voxel_size;
+        let mut vmin = IVec3::splat(i32::MAX);
+        let mut vmax = IVec3::splat(i32::MIN);
+        for (v, _) in &p.voxels {
+            vmin = vmin.min(*v);
+            vmax = vmax.max(*v);
+        }
+        if p.voxels.is_empty() {
+            vmin = IVec3::ZERO;
+            vmax = IVec3::ZERO;
+        } else {
+            let h = voxel_size * 0.5;
+            bmin = bmin.min(vmin.as_vec3() * voxel_size - Vec3::splat(h));
+            bmax = bmax.max(vmax.as_vec3() * voxel_size + Vec3::splat(h));
+        }
+        p.vmin = vmin;
+        p.vmax = vmax;
+        count += p.voxels.len();
+    }
+    if count == 0 {
+        bmin = Vec3::ZERO;
+        bmax = Vec3::ZERO;
+    }
+    let bounds = Aabb { min: bmin, max: bmax };
+    let mut rig = Rig::analyze(&parts, &bounds);
+    let weak_points = weak_points(&parts, &rig, None);
+    let machine = crate::features::MachineRig::infer(&parts);
+    for (i, m) in machine.motions.iter().enumerate() {
+        if *m != crate::features::Motion::None {
+            rig.kinds[i] = crate::anim::PartKind::Machine;
+        }
+    }
+    let instances = part_instances(&parts);
+    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat: None, weak_points, unit_m: voxel_size, machine, instances }
+}
+
+/// Voxelise a spec whose unit is `unit_m` metres, one voxel per unit (e.g. costumes at 1/16 m).
+pub fn voxelize_with_unit(spec: &ShapeSpec, unit_m: f32) -> VoxelModel {
+    let u = if unit_m.is_finite() { unit_m.clamp(0.01, 4.0) } else { CONSTRUCT_VOXEL_SIZE };
+    voxelize_grid(spec, u)
 }
 
 fn weak_points(parts: &[PartModel], rig: &Rig, seat: Option<Seat>) -> Vec<WeakPoint> {
@@ -612,12 +710,15 @@ pub fn voxelize_capped(spec: &ShapeSpec, cap: usize) -> VoxelModel {
     }
     let mut s = spec.clone();
     let mut tries = 0;
+    let mut shrink = 1.0f32;
     while model.voxel_count > cap && tries < 6 {
         let f = ((cap as f32 / model.voxel_count as f32).sqrt() * 0.97).clamp(0.3, 0.97);
         scale_spec(&mut s, f);
+        shrink *= f;
         model = voxelize_at(&s, k);
         tries += 1;
     }
+    model.unit_m = CONSTRUCT_VOXEL_SIZE * shrink;
     enforce_cap(&mut model, cap);
     model
 }
@@ -653,4 +754,5 @@ fn enforce_cap(model: &mut VoxelModel, cap: usize) {
         total += p.voxels.len();
     }
     model.voxel_count = total;
+    model.instances = part_instances(&model.parts);
 }

@@ -1,7 +1,7 @@
 //! Objects (thrown / dropped / launched). Origin = centre of mass; forward (flight / facing) = −Z.
 
 use bd_core::mechanics::Mechanic::*;
-use bd_core::shape::{PartRole, PrimKind};
+use bd_core::shape::PrimKind;
 use glam::Vec3;
 
 use super::G;
@@ -180,75 +180,7 @@ pub(super) fn rocket(g: &mut G) {
 }
 
 pub(super) fn vehicle(g: &mut G) {
-    let l = g.l;
-    let variant = g.r.pick(3); // 0 car, 1 truck, 2 tank
-    let w = odd(l * 0.42);
-    let wheel_d = odd(l * 0.2).max(3.0);
-    let axle_y = wheel_d * 0.5;
-    let b = &mut g.b;
-    let chassis_y = axle_y + 1.0;
-    let front = -l * 0.5;
-    match variant {
-        2 => {
-            // Tank: treads (Dark), hull, turret (Head part → can track), barrel.
-            b.sym(|b, s| {
-                b.bx(v3(s * (w * 0.5 - 1.0), axle_y, 0.0), v3(3.0, wheel_d, l * 0.9 - wheel_d), D);
-                b.cx(v3(s * (w * 0.5 - 1.0), axle_y, -l * 0.45 + wheel_d * 0.5), wheel_d, 3.0, D);
-                b.cx(v3(s * (w * 0.5 - 1.0), axle_y, l * 0.45 - wheel_d * 0.5), wheel_d, 3.0, D);
-                b.bx(v3(s * (w * 0.5 + 0.5), axle_y, 0.0), v3(1.0, 1.0, l * 0.8), A);
-            });
-            b.bx(v3(0.0, wheel_d + 1.0, 0.0), v3(w - 2.0, 3.0, l * 0.85), P);
-            b.bxr(v3(0.0, wheel_d + 1.0, front + 3.0), v3(w - 2.0, 3.0, 4.0), v3(-35.0, 0.0, 0.0), P);
-            let ty = wheel_d + 2.5;
-            b.part(0, v3(0.0, ty, l * 0.05), PartRole::Head);
-            b.el(v3(0.0, ty + 1.5, l * 0.05), v3(w * 0.6, 4.0, l * 0.35), A);
-            b.cz(v3(0.0, ty + 1.5, l * 0.05 - l * 0.4), 1.0, l * 0.5, P);
-            b.cz(v3(0.0, ty + 1.5, l * 0.05 - l * 0.65), 3.0, 1.5, D);
-            b.bx(v3(0.0, ty + 3.5, l * 0.1), v3(1.0, 1.0, 1.0), C);
-            b.on(0);
-            g.handle(Shoots);
-        }
-        _ => {
-            let body_h = if variant == 1 { 4.0 } else { 3.0 };
-            b.bx(v3(0.0, chassis_y + body_h * 0.5 - 0.5, 0.0), v3(w, body_h, l), P);
-            b.bx(v3(0.0, chassis_y - 0.5, 0.0), v3(w + 1.0, 1.0, l + 1.0), D);
-            if variant == 1 {
-                // Cab front, box back.
-                b.bx(v3(0.0, chassis_y + body_h + 1.5, front + l * 0.2), v3(w - 2.0, 3.0, l * 0.3), P);
-                b.bx(v3(0.0, chassis_y + body_h + 2.0, front + l * 0.08), v3(w - 2.0, 1.0, 1.0), A);
-                b.bx(v3(0.0, chassis_y + body_h + 2.5, l * 0.18), v3(w, 5.0, l * 0.58), A);
-                b.bx(v3(0.0, chassis_y + body_h + 2.5, l * 0.18), v3(w + 1.0, 1.0, l * 0.58), D);
-            } else {
-                let cab_l = l * 0.45;
-                b.bx(v3(0.0, chassis_y + body_h + 1.0, l * 0.05), v3(w - 2.0, 2.0, cab_l), A);
-                b.bxr(v3(0.0, chassis_y + body_h + 0.5, l * 0.05 - cab_l * 0.55), v3(w - 2.0, 1.0, 3.0), v3(-40.0, 0.0, 0.0), A);
-                b.bx(v3(0.0, chassis_y + body_h + 1.0, l * 0.05), v3(w, 1.0, 1.0), P);
-                b.bx(v3(0.0, chassis_y + body_h + 2.5, l * 0.05), v3(w - 2.0, 1.0, cab_l - 2.0), P);
-            }
-            // Head/tail lights.
-            b.sym(|b, s| {
-                b.bx(v3(s * (w * 0.5 - 1.0), chassis_y + body_h * 0.5, front - 0.5), v3(1.0, 1.0, 1.0), C);
-                b.bx(v3(s * (w * 0.5 - 1.0), chassis_y + body_h * 0.5, -front + 0.5), v3(1.0, 1.0, 1.0), A);
-            });
-            // Wheels (own parts, spin with distance).
-            for (x, z) in [(-1.0f32, -1.0f32), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
-                let c = v3(x * (w * 0.5), axle_y, z * (l * 0.5 - wheel_d * 0.6));
-                g.b.part(0, c, PartRole::Other);
-                g.b.cx(c, wheel_d, 2.0, D);
-                g.b.cx(c + v3(x * 0.6, 0.0, 0.0), odd(wheel_d * 0.5), 1.0, A);
-                g.b.bx(c + v3(x * 0.8, wheel_d * 0.3, 0.0), v3(1.0, 1.0, 1.0), C);
-            }
-            g.b.on(0);
-        }
-    }
-    if g.take(Charge) {
-        let b = &mut g.b;
-        b.bx(v3(0.0, chassis_y + 1.0, front - 1.5), v3(w + 2.0, 3.0, 1.0), A);
-        b.sym(|b, s| {
-            b.cone_to(v3(s * w * 0.3, chassis_y + 1.0, front - 2.0), v3(s * w * 0.3, chassis_y + 1.0, front - 5.0), 2.0, C);
-        });
-    }
-    g.handle(Charge);
+    crate::features::vehicles::vehicle(g);
 }
 
 pub(super) fn blob0(g: &mut G) {

@@ -4,12 +4,12 @@ use bd_shapes::*;
 use glam::{Affine3A, Vec3};
 use proptest::prelude::*;
 
-const ALL_MECHANICS: [Mechanic; 39] = {
+const ALL_MECHANICS: [Mechanic; 40] = {
     use Mechanic::*;
     [
         Blunt, Blade, Pierce, Guard, Returning, Ricochet, Shoots, Beam, Explodes, Grab, Pull, SlowFall, Glide, Thrust, Bounce, Launch,
         Barrier, Trap, Homing, ArticulatedTail, Flies, Charge, Stomp, Breath, Swarm, Spin, DropFromSky, Sticky, Fast, Heavy,
-        Constrict, Walks, Piloted, Portal, Attract, Repel, Shrink, Grow, Link,
+        Constrict, Walks, Piloted, Portal, Attract, Repel, Shrink, Grow, Link, Transforms,
     ]
 };
 
@@ -51,6 +51,12 @@ fn anims() -> Vec<AnimState> {
         AnimState::HitReact { dir: Vec3::X, strength: 1.0 },
         AnimState::Forming { duration: 0.6 },
         AnimState::Dismiss { duration: 0.4 },
+        AnimState::Aim { yaw: 0.7, pitch: -0.2 },
+        AnimState::Slide { speed: 9.0 },
+        AnimState::TetherFire { side: -1 },
+        AnimState::Swing { side: 0, lean: 0.5 },
+        AnimState::Cast,
+        AnimState::Tumble { spin: 8.0 },
     ]
 }
 

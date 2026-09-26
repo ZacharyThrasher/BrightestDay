@@ -36,7 +36,26 @@ pub enum AnimState {
     Forming { duration: f32 },
     /// Swell, then collapse (tips first). `t` = seconds since dismiss; gone at `duration`.
     Dismiss { duration: f32 },
+    /// Layer: machine turrets yaw / barrels pitch and heads look toward an aim direction.
+    /// `yaw` rad (+ = left, i.e. toward -X from -Z), `pitch` rad (+ = up), model space.
+    Aim { yaw: f32, pitch: f32 },
+    /// Humanoid: power-slide at `speed` m/s (reclined, legs out front, trailing hand).
+    Slide { speed: f32 },
+    /// Humanoid: tether just fired from arm `side` (-1 left, +1 right; 0 = right). `t` = seconds
+    /// since firing (snaps out in 50 ms, then holds the arm extended).
+    TetherFire { side: i8 },
+    /// Humanoid: hanging from a tether gripped overhead by `side` (0 = both hands). `lean` -1..1 =
+    /// swing direction (+ = swinging forward). `t` = any monotonic time (legs kick, body sways).
+    Swing { side: i8, lean: f32 },
+    /// Humanoid: ring-arm (right) cast thrust. `t` = seconds since the cast; see [`CAST_TIMING`].
+    Cast,
+    /// Humanoid: knocked-back tumble spinning at `spin` rad/s about the body centre; limbs flail.
+    Tumble { spin: f32 },
 }
+
+/// Ring-arm cast: pull back (anticipation), thrust (active: spawn the construct at its end), hold +
+/// recover. Fits inside the >= 150 ms forming budget in DESIGN.md.
+pub const CAST_TIMING: AttackTiming = AttackTiming { anticipation: 0.09, active: 0.08, recovery: 0.33 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Attack {
@@ -165,6 +184,10 @@ fn sanitize(a: AnimState) -> AnimState {
         AnimState::HitReact { dir, strength } => AnimState::HitReact { dir: fin3(dir), strength: fin(strength, 0.0).clamp(0.0, 2.0) },
         AnimState::Forming { duration } => AnimState::Forming { duration: fin(duration, 0.5).clamp(0.02, 30.0) },
         AnimState::Dismiss { duration } => AnimState::Dismiss { duration: fin(duration, 0.5).clamp(0.02, 30.0) },
+        AnimState::Aim { yaw, pitch } => AnimState::Aim { yaw: fin(yaw, 0.0).clamp(-PI, PI), pitch: fin(pitch, 0.0).clamp(-1.5, 1.5) },
+        AnimState::Slide { speed } => AnimState::Slide { speed: fin(speed, 0.0).clamp(0.0, 200.0) },
+        AnimState::Swing { side, lean } => AnimState::Swing { side, lean: fin(lean, 0.0).clamp(-1.0, 1.0) },
+        AnimState::Tumble { spin } => AnimState::Tumble { spin: fin(spin, 6.0).clamp(-60.0, 60.0) },
         other => other,
     }
 }
@@ -226,6 +249,8 @@ pub enum PartKind {
     Sway,
     /// Pilot-seat marker (`voxelize::SEAT_PART`): rides its parent, never animated itself.
     Seat,
+    /// Driven by the machine kit (`VoxelModel::machine`): wheels, cranks, rotors, turrets...
+    Machine,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -298,10 +323,14 @@ impl Rig {
             rig.tails.push(chain);
         }
         // Other: flames, chains, wheels, sway.
-        let other = |p: &PartModel| p.role == Some(PartRole::Other) && !is_core(p);
+        let other = |p: &PartModel| matches!(p.role, Some(PartRole::Other | PartRole::Cloth)) && !is_core(p);
         for i in 1..n {
             let p = &parts[i];
-            if p.role != Some(PartRole::Other) {
+            if p.role == Some(PartRole::Exhaust) {
+                kinds[i] = PartKind::Flame;
+                continue;
+            }
+            if !matches!(p.role, Some(PartRole::Other | PartRole::Cloth)) {
                 continue;
             }
             if is_core(p) {
@@ -546,6 +575,8 @@ impl Frame {
             AnimState::HitReact { dir, strength } => hit_local(m, i, dir, strength, t),
             AnimState::Forming { duration } => forming_local(m, i, t, duration, false),
             AnimState::Dismiss { duration } => forming_local(m, i, t, duration, true),
+            AnimState::Aim { yaw, pitch } => aim_layer(m, i, yaw, pitch),
+            a @ (AnimState::Slide { .. } | AnimState::TetherFire { .. } | AnimState::Swing { .. } | AnimState::Cast | AnimState::Tumble { .. }) => humanoid_local(m, i, a, t),
         }
     }
 }
@@ -633,6 +664,9 @@ fn rz(a: f32) -> Quat {
 /// Things that move in every state: flames flicker, wheels spin, cloth sways, wings beat or fold.
 fn overlay(m: &VoxelModel, i: usize, t: f32, lo: &Loco, dist: f32, _moving: bool) -> Option<Local> {
     let rig = &m.rig;
+    if let Some(l) = crate::features::animate_features(m, i, &crate::features::FeatureDrive { time: t, speed: lo.speed, distance: dist }) {
+        return Some(l);
+    }
     match rig.kinds[i] {
         PartKind::Flame => {
             let boost = 1.0 + 0.35 * smoothstep(0.0, 10.0, lo.speed);
@@ -1220,5 +1254,156 @@ fn forming_local(m: &VoxelModel, i: usize, t: f32, duration: f32, dismiss: bool)
         let s = if u < 0.35 { 1.0 + 0.1 * (PI * u / 0.35).sin() } else { (1.0 - (u - 0.35) / 0.65).powi(2) };
         let rise = if i == 0 { Vec3::Y * (0.05 * rig.height * u) } else { Vec3::ZERO };
         Local { pos: rise, scale: Vec3::splat(s.max(0.001)), ..Local::IDENTITY }
+    }
+}
+
+// ------------------------------------------------------------------------------------ aim layer
+
+fn aim_layer(m: &VoxelModel, i: usize, yaw: f32, pitch: f32) -> Local {
+    if let Some(l) = crate::features::aim_local(m, i, yaw, pitch) {
+        return l;
+    }
+    match m.rig.kinds[i] {
+        PartKind::Head => Local::rot(ry(yaw.clamp(-1.3, 1.3) * 0.75) * rx(pitch.clamp(-0.9, 0.9) * 0.6)),
+        _ => Local::IDENTITY,
+    }
+}
+
+// ---------------------------------------------------------------------------- humanoid (players)
+
+/// Rotation `q` about point `c` expressed as a local about the part pivot `p`.
+fn about(q: Quat, c: Vec3, p: Vec3) -> Local {
+    // Want x' = c + q (x - c); a local maps x' = p + pos + q (x - p)  =>  pos = c - p + q (p - c).
+    Local { rot: q, pos: c - p + q * (p - c), scale: Vec3::ONE }
+}
+
+fn humanoid_local(m: &VoxelModel, i: usize, a: AnimState, t: f32) -> Local {
+    let rig = &m.rig;
+    let speed = match a {
+        AnimState::Slide { speed } => speed,
+        AnimState::Swing { .. } | AnimState::Tumble { .. } => 9.0,
+        _ => 0.0,
+    };
+    let lo = Loco { speed, ..Default::default() };
+    if let Some(o) = overlay(m, i, t, &lo, 0.0, true) {
+        return o;
+    }
+    let h = rig.height;
+    let ll = rig.leg_len.max(0.1);
+    let pivot = m.parts[i].pivot;
+    let kind = rig.kinds[i];
+    let leg_side = |k: u8| rig.legs.get(k as usize).map_or(1.0, |l| l.side);
+    use Ease::*;
+    match a {
+        AnimState::Slide { speed } => {
+            let s = smoothstep(1.0, 8.0, speed);
+            let shake = 0.015 * s * (t * 43.0).sin();
+            let recline = 0.55 + shake;
+            let hip = Vec3::Y * ll;
+            match kind {
+                PartKind::Root => {
+                    let mut l = about(rx(recline), hip, pivot);
+                    l.pos.y -= 0.66 * ll;
+                    l
+                }
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    let lead = side > 0.0;
+                    let world = if lead { -1.38 } else { -1.02 };
+                    Local::rot(rx(world - recline + 0.04 * (t * 31.0 + side).sin() * s) * rz(side * if lead { 0.05 } else { 0.22 }))
+                }
+                PartKind::Arm(sd) => {
+                    if sd < 0 {
+                        Local::rot(rx(1.0 - recline) * rz(-0.45))
+                    } else {
+                        Local::rot(rx(-0.55 - recline) * rz(0.55))
+                    }
+                }
+                PartKind::Head => Local::rot(rx(-recline * 0.8)),
+                PartKind::Tail { k, .. } => Local::rot(rx(-0.4 / (1.0 + k as f32)) * ry(0.1 * (t * 9.0).sin())),
+                _ => Local::IDENTITY,
+            }
+        }
+        AnimState::TetherFire { side } => {
+            let sd = if side < 0 { -1.0 } else { 1.0 };
+            let e = track(t, &[K(0.0, 0.0, Linear), K(0.05, 1.0, OutBack), K(0.25, 0.94, InOutSine), K(0.6, 0.9, InOutSine)]);
+            let kick = spring_impulse(t - 0.05, 7.0, 11.0) * 0.18;
+            match kind {
+                PartKind::Arm(a) if a as f32 == sd => Local::rot(rx(-1.8 * e + kick) * rz(-sd * 0.12 * e)),
+                PartKind::Arm(_) => Local::rot(rx(0.35 * e) * rz(-sd * 0.2 * e)),
+                PartKind::Root => Local::rot(ry(sd * 0.24 * e) * rx(-0.06 * e + kick * 0.2)),
+                PartKind::Head => Local::rot(ry(-sd * 0.18 * e)),
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    Local::rot(rx(if side == sd { -0.15 } else { 0.12 } * e))
+                }
+                _ => Local::IDENTITY,
+            }
+        }
+        AnimState::Swing { side, lean } => {
+            let sway = 0.05 * (t * 2.1).sin();
+            let grip = Vec3::Y * (h * 0.8);
+            let body = lean * 0.5 + sway;
+            match kind {
+                PartKind::Root => about(rx(body), grip, pivot),
+                PartKind::Arm(a) => {
+                    let af = a as f32;
+                    if side == 0 || a == side.signum() {
+                        Local::rot(rx(-2.85 - body) * rz(-af * 0.18))
+                    } else {
+                        Local::rot(rx(-0.6 - body * 0.5) * rz(af * (0.7 + 0.1 * (t * 3.0).sin())))
+                    }
+                }
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    let kickv = 0.16 * (t * 3.2 + side * 1.4).sin();
+                    Local::rot(rx(0.28 - lean * 0.45 - body * 0.3 + kickv) * rz(side * 0.08))
+                }
+                PartKind::Head => Local::rot(rx(-body * 0.6 - 0.12)),
+                PartKind::Tail { k, .. } => Local::rot(rx(0.2 + lean * 0.3 / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        AnimState::Cast => {
+            let tm = CAST_TIMING;
+            let (t1, t2, t3) = (tm.anticipation, tm.anticipation + tm.active, tm.total());
+            let hold = t2 + 0.1;
+            let arm = track(t, &[K(0.0, 0.0, Linear), K(t1, 0.75, OutCubic), K(t2, -1.62, InQuad), K(hold, -1.52, OutQuad), K(t3, 0.0, InOutSine)]);
+            let twist = track(t, &[K(0.0, 0.0, Linear), K(t1, -0.28, OutCubic), K(t2, 0.3, InQuad), K(hold, 0.26, Linear), K(t3, 0.0, InOutSine)]);
+            let lean = track(t, &[K(0.0, 0.0, Linear), K(t1, 0.06, OutCubic), K(t2, -0.1, InQuad), K(t3, 0.0, InOutSine)]);
+            let punch = if t > t2 { spring_impulse(t - t2, 6.0, 10.0) * 0.08 } else { 0.0 };
+            let ext = (-arm).max(0.0) / 1.6;
+            match kind {
+                PartKind::Arm(1) => Local::rot(rx(arm + punch) * rz(0.1 * ext)),
+                PartKind::Arm(_) => Local::rot(rx(-arm * 0.3) * rz(-0.15 * ext)),
+                PartKind::Root => Local::rot(ry(twist) * rx(lean)),
+                PartKind::Head => Local::rot(ry(-twist * 0.75) * rx(-lean * 0.5)),
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    Local::rot(rx(side * twist * 0.3))
+                }
+                _ => Local::IDENTITY,
+            }
+        }
+        AnimState::Tumble { spin } => {
+            let ang = (t * spin).rem_euclid(TAU);
+            let axis = Vec3::new(1.0, 0.0, 0.3).normalize();
+            let com = Vec3::Y * (h * 0.5);
+            match kind {
+                PartKind::Root => about(Quat::from_axis_angle(axis, ang), com, pivot),
+                PartKind::Arm(sd) => {
+                    let sd = sd as f32;
+                    Local::rot(rx(-1.3 + 0.7 * (t * 9.0 + sd).sin()) * rz(sd * (0.9 + 0.35 * (t * 7.0).sin())))
+                }
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    Local::rot(rx(-0.7 + 0.5 * (t * 8.0 + side * 1.7).sin()) * rz(side * 0.3))
+                }
+                PartKind::Head => Local::rot(rx(0.2 * (t * 6.0).sin()) * ry(0.15 * (t * 4.0).sin())),
+                PartKind::Tail { k, .. } => Local::rot(ry(0.5 * (t * 10.0 - k as f32).sin())),
+                _ => Local::IDENTITY,
+            }
+        }
+        _ => Local::IDENTITY,
     }
 }

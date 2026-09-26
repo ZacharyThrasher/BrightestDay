@@ -152,7 +152,7 @@ pub fn collision_proxies_budget(model: &VoxelModel, budget: usize) -> Vec<Collis
         .parts
         .iter()
         .enumerate()
-        .filter(|(i, p)| !p.voxels.is_empty() && !matches!(model.rig.kinds.get(*i), Some(PartKind::Flame | PartKind::Seat)))
+        .filter(|(i, p)| !p.voxels.is_empty() && !matches!(model.rig.kinds.get(*i), Some(PartKind::Flame | PartKind::Seat)) && !model.machine.is_cosmetic(*i))
         .map(|(i, p)| Cluster::fit(p.voxel_size, i, p.voxels.iter().map(|(v, _)| p.voxel_center(*v)).collect()))
         .collect();
     let vv = model.voxel_size.powi(3);

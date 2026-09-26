@@ -15,16 +15,8 @@ pub enum Corps {
 }
 
 impl Corps {
-    pub const ALL: [Corps; 8] = [
-        Corps::Willpower,
-        Corps::Rage,
-        Corps::Greed,
-        Corps::Fear,
-        Corps::Hope,
-        Corps::Compassion,
-        Corps::Love,
-        Corps::Life,
-    ];
+    pub const ALL: [Corps; 8] =
+        [Corps::Willpower, Corps::Rage, Corps::Greed, Corps::Fear, Corps::Hope, Corps::Compassion, Corps::Love, Corps::Life];
 
     pub fn name(self) -> &'static str {
         match self {

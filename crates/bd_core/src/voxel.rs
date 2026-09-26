@@ -95,11 +95,7 @@ pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_d
     if world.is_solid(v) {
         return Some(RayHit { voxel: v, point: origin, normal: IVec3::ZERO, t: 0.0 });
     }
-    let step = IVec3::new(
-        if dir.x > 0.0 { 1 } else { -1 },
-        if dir.y > 0.0 { 1 } else { -1 },
-        if dir.z > 0.0 { 1 } else { -1 },
-    );
+    let step = IVec3::new(if dir.x > 0.0 { 1 } else { -1 }, if dir.y > 0.0 { 1 } else { -1 }, if dir.z > 0.0 { 1 } else { -1 });
     let inv = Vec3::new(
         if dir.x != 0.0 { 1.0 / dir.x.abs() } else { f32::INFINITY },
         if dir.y != 0.0 { 1.0 / dir.y.abs() } else { f32::INFINITY },
@@ -116,11 +112,8 @@ pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_d
             (o - lo) * inv
         }
     };
-    let mut t_max = Vec3::new(
-        first(origin.x, vmin.x, dir.x, inv.x),
-        first(origin.y, vmin.y, dir.y, inv.y),
-        first(origin.z, vmin.z, dir.z, inv.z),
-    );
+    let mut t_max =
+        Vec3::new(first(origin.x, vmin.x, dir.x, inv.x), first(origin.y, vmin.y, dir.y, inv.y), first(origin.z, vmin.z, dir.z, inv.z));
     for _ in 0..MAX_RAY_STEPS {
         let (axis, t) = if t_max.x < t_max.y && t_max.x < t_max.z {
             (0, t_max.x)

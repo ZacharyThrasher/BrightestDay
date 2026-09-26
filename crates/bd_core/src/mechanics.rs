@@ -62,12 +62,9 @@ impl Form {
     pub fn category(self) -> FormCategory {
         use Form::*;
         match self {
-            Hammer | Sword | Axe | Spear | Shield | Gauntlet | Whip | Gun | Bow | Cannon | Staff
-            | Disc => FormCategory::Held,
+            Hammer | Sword | Axe | Spear | Shield | Gauntlet | Whip | Gun | Bow | Cannon | Staff | Disc => FormCategory::Held,
             Wings | Parachute | Jetpack | Cape => FormCategory::Worn,
-            Biped | Kaiju | Quadruped | Serpent | Bird | Fish | Arachnid | Insect | Blob => {
-                FormCategory::Creature
-            }
+            Biped | Kaiju | Quadruped | Serpent | Bird | Fish | Arachnid | Insect | Blob => FormCategory::Creature,
             Wall | Ramp | Pillar | Dome | Cage | Platform | Trampoline => FormCategory::Structure,
             Ball | Anvil | Bomb | Boulder | Rocket | Vehicle | Blob0 => FormCategory::Object,
         }
@@ -331,9 +328,7 @@ impl Recipe {
             Some(p) if depth + 1 < MAX_PAYLOAD_DEPTH => Some(Box::new(p.normalized_at(depth + 1))),
             _ => None,
         };
-        self.accent = self.accent.and_then(|a| {
-            if a.iter().any(|c| c.is_nan()) { None } else { Some(a.map(|c| c.clamp(0.0, 1.0))) }
-        });
+        self.accent = self.accent.and_then(|a| if a.iter().any(|c| c.is_nan()) { None } else { Some(a.map(|c| c.clamp(0.0, 1.0))) });
         self.mechanics.sort();
         self.mechanics.dedup();
         self.features.sort();

@@ -15,7 +15,7 @@ mod object;
 mod structure;
 mod worn;
 
-use bd_core::mechanics::{Form, FormCategory, Mechanic, ModelSource, Recipe};
+use bd_core::mechanics::{Feature, Form, FormCategory, Mechanic, ModelSource, Recipe};
 use bd_core::shape::ShapeSpec;
 use bd_core::CONSTRUCT_VOXEL_SIZE;
 
@@ -35,6 +35,8 @@ pub(crate) struct G<'a> {
     pub b: B,
     /// Mechanics whose visible parts the form generator already built (skipped by the generic attach).
     pub handled: Vec<Mechanic>,
+    /// Features the form generator already built (skipped by the generic feature placement).
+    pub handled_features: Vec<Feature>,
 }
 
 impl G<'_> {
@@ -51,6 +53,22 @@ impl G<'_> {
         let h = self.has(m);
         if h {
             self.handle(m);
+        }
+        h
+    }
+    pub fn feat(&self, f: Feature) -> bool {
+        self.rec.features.contains(&f)
+    }
+    pub fn handle_feat(&mut self, f: Feature) {
+        if !self.handled_features.contains(&f) {
+            self.handled_features.push(f);
+        }
+    }
+    /// `feat` + mark handled.
+    pub fn take_feat(&mut self, f: Feature) -> bool {
+        let h = self.feat(f);
+        if h {
+            self.handle_feat(f);
         }
         h
     }
@@ -173,7 +191,14 @@ impl ShapeKey {
 }
 
 /// Recipe → shape spec (construct-voxel units, see `bd_core::shape`). Pure and deterministic.
+/// Drops the machine-kit sidecar: prefer [`build_model`] (or [`generate_machine`] +
+/// [`crate::features::attach_machine`]) so wheels/pistons/rotors get their exact linked motion.
 pub fn generate(recipe: &Recipe) -> ShapeSpec {
+    generate_machine(recipe).0
+}
+
+/// Recipe → (shape spec, machine-kit motion sidecar). Pure and deterministic.
+pub fn generate_machine(recipe: &Recipe) -> (ShapeSpec, crate::features::MachineSpec) {
     let scale = quantize_scale(recipe.scale);
     let seed = seed_of(&recipe.model);
     let mut g = G {
@@ -182,6 +207,7 @@ pub fn generate(recipe: &Recipe) -> ShapeSpec {
         l: scale / CONSTRUCT_VOXEL_SIZE,
         b: B::new(),
         handled: Vec::new(),
+        handled_features: Vec::new(),
     };
     use Form::*;
     match recipe.form {
@@ -225,8 +251,9 @@ pub fn generate(recipe: &Recipe) -> ShapeSpec {
         Vehicle => object::vehicle(&mut g),
         Blob0 => object::blob0(&mut g),
     }
-    let G { b, handled, .. } = g;
+    let G { b, handled, handled_features, .. } = g;
     let mut spec = b.spec;
+    let mut machine = b.machine;
 
     // Generic mechanic parts for everything the form generator did not build itself.
     let rest: Vec<Mechanic> = recipe.mechanics.iter().copied().filter(|m| !handled.contains(m)).collect();
@@ -235,15 +262,16 @@ pub fn generate(recipe: &Recipe) -> ShapeSpec {
         attach_mechanic_parts_filtered(&mut spec, &rest, body, recipe.form.category() == FormCategory::Held);
     }
 
-    // Extension point: machine-kit feature assemblies (wheels, pistons, rotors…).
-    crate::features::attach_features(&mut spec, &recipe.features, recipe.form);
-    spec
+    // Machine-kit feature assemblies (wheels, pistons, rotors...) the form did not build itself.
+    crate::features::attach_features(&mut spec, &mut machine, &recipe.features, recipe.form, &handled_features);
+    (spec, machine)
 }
 
-/// `generate` + `voxelize_capped` with the form's cap.
+/// `generate` + `voxelize_capped` with the form's cap + the machine-kit motion rig.
 pub fn build_model(recipe: &Recipe) -> (ShapeSpec, VoxelModel) {
-    let spec = generate(recipe);
-    let model = voxelize_capped(&spec, voxel_cap(recipe.form));
+    let (spec, machine) = generate_machine(recipe);
+    let mut model = voxelize_capped(&spec, voxel_cap(recipe.form));
+    crate::features::attach_machine(&mut model, &machine);
     (spec, model)
 }
 

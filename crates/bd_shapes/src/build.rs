@@ -38,15 +38,17 @@ pub(crate) fn odd(x: f32) -> f32 {
 pub(crate) struct B {
     pub spec: ShapeSpec,
     pub cur: PartId,
+    /// Machine-kit motion links for parts declared through `B::mpart` (see `features`).
+    pub machine: crate::features::MachineSpec,
 }
 
 impl B {
     pub fn new() -> Self {
-        B { spec: ShapeSpec::default(), cur: 0 }
+        B { spec: ShapeSpec::default(), cur: 0, machine: Default::default() }
     }
 
     pub fn from_spec(spec: ShapeSpec) -> Self {
-        B { spec, cur: 0 }
+        B { spec, cur: 0, machine: Default::default() }
     }
 
     pub fn next_part_id(&self) -> PartId {
