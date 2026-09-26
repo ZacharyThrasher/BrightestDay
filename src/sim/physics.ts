@@ -21,7 +21,11 @@ export const G = {
   ENTITY: 8,
   PROJECTILE: 16,
   CARGO: 32, // entities currently held by a construct (don't collide with their holder)
+  GHOST: 64, // constructs the player can pass through (held items, bubbles around self, mounts)
 } as const;
+
+/** Things projectiles / entities / aim can hit. */
+export const SOLIDS = G.WORLD | G.CONSTRUCT | G.GHOST | G.ENTITY;
 
 export const ALL = 0xffff;
 
