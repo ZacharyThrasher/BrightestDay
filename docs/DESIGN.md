@@ -73,6 +73,16 @@ transferred) so small hits stay small and big hits are *huge*:
    chromatic/white flash for the victim, low-frequency thump + crack layered by material. Your own
    hits must be as satisfying to *give* as they are dramatic to *receive*.
 
+### Juicy text (hard-light onomatopoeia)
+Grounded in "Juicy Text" (ICMI '24; vault: JuicyText_SupplementaryMaterials): text + particles is the
+most appealing feedback, text alone is dull, words convey material well. So big impacts spawn a
+comic word at the contact point, built from voxel letters in the attacker's corps colour — pop,
+wobble, hold ~0.4 s, then **shatter into cubes** with the impact debris. Word chosen by material /
+mechanic / element / weight (KRAK, SPLOOSH, ZZAK, VWOOP, KRANG, DOOM…; data table
+`assets/fx/onomatopoeia.ron`), size by impact. Performance words where timing is skill: PERFECT (perfect
+bhop, perfect oath), GOOD / SLOW (oath grades), PARRY!. Manga mode (ドドド, ゴゴゴ). Settings: Off /
+Big hits only (default) / Full comic; rate-limited; world-space, never HUD clutter.
+
 ## Game rules (FFA)
 - 1–8 players, one arena of floating Cube-World-style voxel islands over a void.
 - **Health 100.** As health drops, **knockback taken increases** (Smash-style). KO by health reaching 0
