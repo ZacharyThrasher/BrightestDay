@@ -70,7 +70,7 @@ const PARTICLES = new Set(['up', 'down', 'away', 'back', 'around', 'over', 'off'
 const DETS = new Set(['a', 'an', 'the', 'that', 'this', 'those', 'these', 'my', 'your', 'his', 'her', 'their', 'our', 'another', 'some', 'any', 'each', 'every', 'all', 'one', 'its', 'which', 'what']);
 const REL_PRONOUNS = new Set(['that', 'which', 'who', 'what']);
 const SPLITTERS = ['and then', 'then', 'after that', 'afterwards', 'and also', 'also', 'plus', 'and now', 'now', 'next'];
-const CORRECTION = /(?:\b(?:no wait|no no|wait no|wait|actually no|i mean|i meant|scratch that|make that|on second thought|nope|correction|er no|uh no)\b|(?:^|[,\-]\s*|\bno\s+)(?:actually|sorry|rather)\b|\b(?:actually|sorry|rather)\s*,|(?:^|,|\s)no\s*,|,\s*no\b)/;
+const CORRECTION = /(?:\b(?:no wait|no no|wait no|wait|actually no|i mean|i meant|scratch that|make that|on second thought|nope|correction|er no|uh no|never mind|nevermind|forget that|forget it)\b|(?:^|[,\-]\s*|\bno\s+)(?:actually|sorry|rather)\b|\b(?:actually|sorry|rather)\s*,|(?:^|,|\s)no\s*,|,\s*no\b)/;
 const RELATION_WORDS: Record<string, string> = { back: 'back', rear: 'back', behind: 'back', front: 'front', nose: 'front', face: 'front', top: 'top', roof: 'top', bottom: 'bottom', underside: 'bottom', base: 'bottom', underneath: 'bottom', side: 'sides', sides: 'sides', edges: 'sides', left: 'sides', right: 'sides', end: 'tip', ends: 'tip', tip: 'tip', tips: 'tip', around: 'around', all: 'around', everywhere: 'around' };
 
 // ------------------------------------------------------------------------------- normalisation
@@ -84,7 +84,7 @@ const CONTRACTIONS: [RegExp, string][] = [
 
 export function normalize(text: string): { text: string; corrections: number } {
   let t = ` ${text.toLowerCase()} `;
-  t = t.replace(/[’‘`]/g, "'").replace(/[“”]/g, '"');
+  t = t.replace(/[’‘`]/g, "'").replace(/[“”]/g, '"').replace(/\s*[—–]\s*|\.\.\.+|…/g, ' , ');
   for (const [re, rep] of CONTRACTIONS) t = t.replace(re, rep);
   t = t.replace(/\b(out of|made of|made out of|of) (hard )?light\b/g, ' ');
   t = t.replace(/(\d+)\s*(x|times)\b/g, '$1 times');
@@ -98,8 +98,25 @@ export function normalize(text: string): { text: string; corrections: number } {
   t = t.replace(/\b(as big as|bigger than) (a |an |the )?(planet|moon|sun|city|mountain)\b/g, (_m, _a, _b, x) => ` ${x} sized `);
   t = t.replace(/\bout of (the |my )?way\b/g, ' aside ');
   t = t.replace(/\ball the way\b/g, ' fully ');
+  // idioms -> canonical verbs
+  t = t.replace(/\blet (him|her|it|them|em|the \w+|that \w+|those|go of \w+) go\b/g, (_m, x) => ` release ${x} `);
+  t = t.replace(/\bdo something\b/g, ' help ');
+  t = t.replace(/\b(while you('re| are) at it|if you (can|could)|for me|real quick|right now|asap|pretty please|when you get a chance)\b/g, ' ');
+  t = t.replace(/\b(go(ing)?|mov(e|ing)|fly(ing)?|spin(ning)?|circl(e|ing)|zoom(ing)?|whizz(ing)?) (a)?round (me|him|her|it|them|us)\b/g, ' orbiting $10 ');
+  t = t.replace(/\b(fling|throw|toss|hurl|yeet|chuck|lob|catapult|slingshot|shoot) me\b/g, ' launch me ');
+  t = t.replace(/\bturn (it|that|them) up\b|\bcrank (it|that|them)( up)?\b|\bmore (power|pull|push|force|juice|oomph)\b/g, ' make it faster ');
+  t = t.replace(/\bturn (it|that|them) down\b|\bless (power|pull|push|force|juice)\b/g, ' make it slower ');
+  t = t.replace(/\b(faster than light|speed of light|ludicrous speed|light speed|lightspeed|warp speed|infinite speed|infinitely fast)\b/g, ' ludicrously fast ');
+  t = t.replace(/\b(\w+) , \1\b/g, '$1');
+  const CMP: Record<string, string> = { big: 'bigger', large: 'bigger', wide: 'wider', long: 'longer', tall: 'taller', high: 'higher', fast: 'faster', quick: 'faster', heavy: 'heavier', thick: 'thicker', strong: 'stronger', small: 'smaller', short: 'shorter', slow: 'slower', light: 'lighter', thin: 'thinner' };
+  t = t.replace(/\b(twice|double|two times|three times|thrice|3 times|2 times|ten times|10 times) as (big|large|wide|long|tall|high|fast|quick|heavy|thick|strong|small|short|slow|light|thin)\b/g, (_m, _n, a) => ` way ${CMP[a]} `);
+  t = t.replace(/\b(nah|nope)\b\s*,?\s*(?=\w)/g, ' scratch that , ').replace(/\bscrap that\b/g, ' scratch that ');
   // repeated stutters "a a ramp", "the the"
   t = t.replace(/\b(\w+)( \1\b)+/g, '$1');
+  // number homophones from speech recognition: "make for swords", "to hammers" (only before a plural noun)
+  t = t.replace(/\b(for|to|too|tree|free)\s+(?=(\w+s)\b)/g, (m, w, next) => ((conceptByName.has(next) || conceptByName.has(next.replace(/e?s$/, ''))) && !/^(the|a|an|me|him|her|them|it)$/.test(next) ? { for: 'four ', to: 'two ', too: 'two ', tree: 'three ', free: 'three ' }[w as 'for'] ?? m : m));
+  // commentary / justification segments carry no command ("… I keep falling off", "it's clipping my shoulder")
+  t = t.replace(/(,|\s)\s*(cos|coz|cause|because|since|as|so that|so)?\s*\b(i|i'm|i am|it's|it is|it|he|he's|she|she's|they|they're|that's|that|this|we|we're|you're)\s+(keep|keeps|am|is|are|was|were|'m|'s|can not|cannot|cant|won't|will not|nearly|almost|barely|just|still|get|gets|got|need|needs|looks?|seems?|feels?|pointing|clipping|falling|hitting|missing)\b[^,]*(?=,|$)/g, (m, lead) => (/\b(so|so that)\s+(i|we)\s+(can|could)\b/.test(m) ? m : lead + ' '));
   // corrections: keep what follows the last correction marker, splicing it onto the left context
   let corrections = 0;
   // unpunctuated "no" followed by a determiner or a verb is a correction marker
@@ -123,6 +140,26 @@ function spliceCorrection(left: string, right: string): string {
   if (!rt.length) return left;
   const rtCore = rt.filter((w) => !FILLERS.has(w) && w !== 'just' && w !== 'instead');
   const rightHasVerb = rt.some((w) => VERBS[lemma(w)] && !DETS.has(w) && !conceptByName.has(w)) || (rtCore.length > 0 && !!VERBS[lemma(rtCore[0])] && !DETS.has(rtCore[0]));
+  // "bigger ... smaller, I meant smaller": modifiers replace modifiers
+  const isMod = (w: string) => !!(SIZE_ADJ[w] || DIM_ADJ[w] || SPEED_ADJ[w] || MATERIAL_ADJ[w]);
+  if (rtCore.length && rtCore.every(isMod) && lt.filter((w) => !FILLERS.has(w)).every((w) => isMod(w) || ['make', 'it', 'them', 'a', 'bit', 'lot', 'way'].includes(w))) return rt.join(' ');
+  // "net under him, no, a big cushion": swap the noun phrase, keep where it goes
+  const rHead = rtCore.findIndex((w) => conceptByName.has(w) || conceptByName.has(singular(w)));
+  if (!rightHasVerb && rHead >= 0) {
+    let lHead = -1;
+    for (let i = lt.length - 1; i >= 0; i--) if (conceptByName.has(lt[i]) || conceptByName.has(singular(lt[i]))) { lHead = i; break; }
+    if (lHead >= 0) {
+      let st = lHead;
+      while (st > 0 && (DETS.has(lt[st - 1]) || NUMBERS[lt[st - 1]] !== undefined || /^\d+$/.test(lt[st - 1]) || isMod(lt[st - 1]) || IGNORED_ADJ.has(lt[st - 1]))) st--;
+      const npEnd = rtCore.length ? rt.length : rt.length;
+      return [...lt.slice(0, st), ...rt.slice(0, npEnd), ...lt.slice(lHead + 1)].join(' ');
+    }
+  }
+  // "five swords, no, three" : a bare number replaces the number
+  if (!rightHasVerb && rtCore.length === 1 && (NUMBERS[rtCore[0]] !== undefined || /^\d+$/.test(rtCore[0]))) {
+    const ni = lt.findIndex((w) => NUMBERS[w] !== undefined && !['a', 'an'].includes(w) || /^\d+$/.test(w));
+    if (ni >= 0) return [...lt.slice(0, ni), rtCore[0], ...lt.slice(ni + 1)].join(' ');
+  }
   // "make a ramp no wait a bridge" -> "make a bridge"; "put it on the left, I mean right" -> "put it on the right"
   if (!rightHasVerb || DETS.has(rt[0]) || NUMBERS[rt[0]] !== undefined) {
     // find where the replaced phrase started in the left: last determiner/number/preposition-object
@@ -174,7 +211,7 @@ function splitClauses(t: string): string[][] {
       if (sp && cur.length && hasVerbAhead(toks, i + sp.split(' ').length)) {
         out.push(cur); cur = []; i += sp.split(' ').length - 1; continue;
       }
-      if (toks[i] === 'and' && cur.length && startsWithVerb(toks, i + 1) && !isInsideWith(cur)) { out.push(cur); cur = []; continue; }
+      if (toks[i] === 'and' && cur.length && (startsWithVerb(toks, i + 1) || ['have', 'let', 'get'].includes(toks[i + 1]) && (PRONOUNS_PLURAL.has(toks[i + 2]) || PRONOUNS_CONSTRUCT.has(toks[i + 2]))) && !isInsideWith(cur)) { out.push(cur); cur = []; continue; }
       cur.push(toks[i]);
     }
     if (cur.length) out.push(cur);
@@ -241,7 +278,17 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
   let toks: string[] = [];
   for (let i = 0; i < toksIn.length; i++) {
     const w = toksIn[i];
-    if (w === 'like' && (DETS.has(toksIn[i + 1]) || conceptByName.has(toksIn[i + 1] ?? ''))) { analogies.push(toksIn.slice(i + 1, i + 4).join(' ')); continue; }
+    if (w === 'like' && (DETS.has(toksIn[i + 1]) || conceptByName.has(toksIn[i + 1] ?? ''))) {
+      analogies.push(toksIn.slice(i + 1, i + 4).join(' '));
+      const prev = toks[toks.length - 1] ?? '';
+      if (SELF_WORDS.has(prev) || PRONOUNS_PERSON.has(prev) || PRONOUNS_CONSTRUCT.has(prev) || PRONOUNS_PLURAL.has(prev) || VERBS[lemma(prev)]) {
+        // "fling me like an angry bird": skip the manner phrase up to the next comma/preposition
+        let j = i + 1;
+        while (j < toksIn.length && !isPrepStart(toksIn, j) && toksIn[j] !== 'and' && toksIn[j] !== 'then') j++;
+        i = j - 1;
+      }
+      continue;
+    }
     if (w === 'like') continue;
     if (FILLERS.has(w) && !(w === 'go' && verbAt(toksIn, i)?.len === 2)) continue;
     toks.push(w);
@@ -271,7 +318,7 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
     // noun-verbs at the very start followed by a determiner are verbs ("hammer that drone"), otherwise nouns ("hammer!")
     if (conceptByName.has(toks[i]) && v.len === 1) {
       const nx = toks[i + 1];
-      const verbish = nx && (DETS.has(nx) || SELF_WORDS.has(nx) || PRONOUNS_PERSON.has(nx) || PRONOUNS_CONSTRUCT.has(nx) || PRONOUNS_PLURAL.has(nx) || PARTICLES.has(nx) || ENTITY_NOUNS[nx] || /^\d+$/.test(nx) || NUMBERS[nx] !== undefined);
+      const verbish = nx && ((DETS.has(nx) && !['a', 'an', 'one', 'another', 'some', 'any'].includes(nx)) || SELF_WORDS.has(nx) || PRONOUNS_PERSON.has(nx) || PRONOUNS_CONSTRUCT.has(nx) || PRONOUNS_PLURAL.has(nx) || (PARTICLES.has(nx) && !isPrepStart(toks, i + 1)) || ENTITY_NOUNS[nx] || /^\d+$/.test(nx) || NUMBERS[nx] !== undefined);
       if (!verbish) continue;
     }
     vi = i; vlen = v.len; c.verb = v.verb; c.vclass = VERBS[v.verb];
@@ -307,6 +354,12 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
       c.beneficiarySelf = true;
       rest = rest.slice(1);
       if (c.verb === 'get' || c.verb === 'bring') { c.verb = 'make'; c.vclass = 'create'; }
+    }
+    // "give it wings", "get them some rockets": the recipient is a construct
+    if ((c.verb === 'give' || c.verb === 'get') && (PRONOUNS_CONSTRUCT.has(rest[0]) || PRONOUNS_PLURAL.has(rest[0])) && rest.length > 1 && !VERBS[lemma(rest[1])]) {
+      (c as any).giveTo = parseNP([rest[0]], analogies);
+      rest = rest.slice(1);
+      c.vclass = 'add';
     }
     // "get me across/up there" -> goal verbs
     if (c.verb === 'get' && (SELF_WORDS.has(rest[0]) || rest[0] === 'to')) {
@@ -445,7 +498,7 @@ function isPrepStart(toks: string[], i: number): string | null {
     if (toks.slice(i, i + n).join(' ') === p) {
       // 'up'/'down' are only prepositions when followed by a noun phrase
       if ((p === 'up' || p === 'down' || p === 'in' || p === 'off' || p === 'past') && !toks[i + n]) return null;
-      if (p === 'of' && i > 0 && (NUMBERS[toks[i - 1]] !== undefined || ARRANGEMENT_WORDS[toks[i - 1]] || toks[i - 1] === 'one' || toks[i - 1] === 'all' || toks[i - 1] === 'both' || toks[i - 1] === 'each' || toks[i - 1] === 'kind' || toks[i - 1] === 'sort' || toks[i - 1] === 'top' || toks[i - 1] === 'front' || toks[i - 1] === 'back' || toks[i - 1] === 'side' || toks[i - 1] === 'end' || toks[i - 1] === 'bunch' || toks[i - 1] === 'lot' || toks[i - 1] === 'couple' || toks[i - 1] === 'pair' || toks[i - 1] === 'dozen' || toks[i - 1] === 'ton' || toks[i - 1] === 'tons' || toks[i - 1] === 'lots')) return null;
+      if (p === 'of' && i > 0 && (NUMBERS[toks[i - 1]] !== undefined || ARRANGEMENT_WORDS[toks[i - 1]] || toks[i - 1] === 'one' || toks[i - 1] === 'all' || toks[i - 1] === 'both' || toks[i - 1] === 'each' || toks[i - 1] === 'kind' || toks[i - 1] === 'sort' || toks[i - 1] === 'top' || toks[i - 1] === 'front' || toks[i - 1] === 'back' || toks[i - 1] === 'side' || toks[i - 1] === 'end' || toks[i - 1] === 'bunch' || toks[i - 1] === 'lot' || toks[i - 1] === 'couple' || toks[i - 1] === 'pair' || toks[i - 1] === 'dozen' || toks[i - 1] === 'ton' || toks[i - 1] === 'tons' || toks[i - 1] === 'lots' || toks[i - 1] === 'more' || toks[i - 1] === 'few' || toks[i - 1] === 'rest')) return null;
       if (p === 'like') return null;
       return p;
     }
@@ -542,7 +595,7 @@ export function parseNP(toksIn: string[], analogies: string[]): NP {
       let n = NUMBERS[w];
       toks.shift();
       while (toks.length && NUMBERS[toks[0]] !== undefined && NUMBERS[toks[0]] >= 100) { n *= NUMBERS[toks[0]]; toks.shift(); }
-      np.count = (np.count ?? 1) * n;
+      np.count = np.count !== null && n >= 100 ? np.count * n : n;
       if (toks[0] === 'of') toks.shift();
       continue;
     }
@@ -551,6 +604,14 @@ export function parseNP(toksIn: string[], analogies: string[]): NP {
   }
   // "all the drones", "both drones"
   if (toks[0] === 'the' && (np.det === 'all' || np.det === 'both')) toks.shift();
+  // a demonstrative with nothing after it is a pronoun ("two more of those", "make these bigger")
+  if (!toks.length && np.det && ['those', 'these', 'that', 'this'].includes(np.det)) { np.ref = { kind: np.det === 'those' || np.det === 'these' ? 'constructs' : 'construct', plural: np.det === 'those' || np.det === 'these', which: 'last' }; return np; }
+  // ordinal selection among what exists: "the first one", "the middle one", "the left one", "the big one"
+  if ((toks.includes('one') || toks.includes('ones')) && toks.some((w) => ['first', 'second', 'third', 'last', 'middle', 'left', 'right', 'leftmost', 'rightmost', 'big', 'bigger', 'biggest', 'small', 'smaller', 'smallest', 'little', 'near', 'nearest', 'closest', 'far', 'furthest', 'farthest', 'other', 'original', 'new', 'newest', 'previous'].includes(w))) {
+    np.ref = { kind: 'construct', which: 'last' };
+    for (const w of toks) { if (DIM_ADJ[w]) np.dims.push(DIM_ADJ[w]); if (SPEED_ADJ[w]) np.speeds.push(SPEED_ADJ[w]); if (MATERIAL_ADJ[w]) np.materials.push(MATERIAL_ADJ[w]); }
+    return np;
+  }
   // "five of them", "3 more of those"
   if (toks[0] === 'more') toks.shift();
   if (np.count !== null && toks.length && (PRONOUNS_PLURAL.has(toks.join(' ')) || PRONOUNS_CONSTRUCT.has(toks.join(' ')))) { np.ref = { kind: 'constructs', plural: true }; return np; }

@@ -47,6 +47,7 @@ export const CONCEPTS: Concept[] = [
   C('door', ['gate', 'hatch'], 'wall', 'barrier', 'static', 'between', { scale: 0.7 }),
   C('dome', ['igloo', 'shelter', 'canopy dome', 'half dome', 'force dome'], 'dome', 'enclosure', 'static', 'self', { verb: 'protect' }),
   C('bubble', ['orb', 'sphere shield', 'force bubble', 'ball shield', 'globe', 'snow globe'], 'bubble', 'enclosure', 'static', 'self', { verb: 'protect' }),
+  C('armor', ['armour', 'suit of armor', 'suit of armour', 'shell', 'turtle shell', 'carapace', 'exoskeleton', 'power armor', 'power armour', 'mech suit', 'battle suit', 'body armor', 'body armour', 'force suit', 'bubble suit', 'riot gear', 'plate armor', 'knight armor'], 'sphere_shell', 'barrier', 'kinematic', 'self', { scale: 0.62, beh: [{ type: 'follow', target: { kind: 'self' }, offset: [0, 0, 0] }], verb: 'protect' }),
   C('umbrella', ['parasol'], 'umbrella', 'wearable', 'kinematic', 'above_self', { beh: [{ type: 'mount', mode: 'wear', maxFall: 6 }] }),
   // --- surfaces & traversal
   C('platform', ['floor', 'ledge', 'step', 'stage', 'pad', 'deck', 'raft', 'tile', 'disc platform', 'hover platform', 'landing pad'], 'platform', 'surface', 'static', 'under_self'),
@@ -176,8 +177,9 @@ export const ADDONS: Addon[] = [
 
 /** Effects the construct substrate cannot represent at all — abstain visibly instead of faking them. */
 export const UNSUPPORTED: { pattern: RegExp; reason: string }[] = [
-  { pattern: /\b(invisible|invisibility|disappear|vanish)\b/, reason: 'constructs can’t make things invisible' },
-  { pattern: /\b(time|rewind|slow ?mo|slow motion|pause the world|stop time|turn back)\b.*\b(time|clock)?\b/, reason: 'the ring can’t bend time' },
+  { pattern: /\b(invisible|invisibility)\b/, reason: 'constructs can’t make things invisible', strippable: true } as any,
+  { pattern: /\b(make (me|him|her|it|them) (disappear|vanish))\b/, reason: 'constructs can’t make things invisible' },
+  { pattern: /\b(stop|freeze|pause|rewind|reverse|slow down|turn back|speed up|go back in|travel back in|bend) (the )?time\b|\btime travel\b|\bslow ?mo(tion)?\b|\brewind\b|\bpause the world\b/, reason: 'the ring can’t bend time' },
   { pattern: /\b(teleport|teleports|teleportation|blink me)\b/, reason: 'no teleportation — try a launcher or a bridge' },
   { pattern: /\b(heal|cure|revive|resurrect|fix (him|her|me|them))\b/, reason: 'constructs can’t heal' },
   { pattern: /\b(read (his|her|their) mind|mind control|hypnoti[sz]e|make (him|her|them) (like|love) me)\b/, reason: 'no mind effects' },
@@ -187,7 +189,6 @@ export const UNSUPPORTED: { pattern: RegExp; reason: string }[] = [
   { pattern: /\b(delete the (world|level|map)|end the game|destroy (the )?(world|universe|planet)|kill everyone)\b/, reason: 'out of bounds for the ring' },
   { pattern: /\b(transform|turn) (me|myself) into\b/, reason: 'the ring shapes light, not you' },
   { pattern: /\b(shrink me|grow me|make me (bigger|smaller|giant|tiny|huge))\b/, reason: 'can’t resize you — try a construct instead' },
-  { pattern: /\b(fly faster than light|speed of light|infinite (speed|power|energy))\b/, reason: 'no infinities' },
   { pattern: /\b(explode|blow up) (myself|me)\b/, reason: 'the ring won’t blow you up' },
 ];
 

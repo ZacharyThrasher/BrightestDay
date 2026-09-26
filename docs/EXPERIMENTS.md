@@ -68,6 +68,20 @@ on a strike, and "propels the player" on a mount.
 | frozen `3d002f2` | 100% | 68.3% | **55.0%** | 26.7% |
 | revision 1 (A-driven) | 100% | 90.8% | **62.5%** | 18.3% |
 | revision 1, System 1.5 off | – | 90.0% | 61.7% | 20.8% |
+| revision 2 (trained on dev2) | 100% | 91.7% | **70.0%** | 17.5% |
+
+*Revision 2*: a second independent agent (no access to code, held-out sets or results) wrote `eval/dev2.jsonl`
+— 180 items concentrated on the hard categories. The frozen rev-1 build scored **60%** on it (consistent with
+the B estimate), 72 failures were analysed into general abstractions (commentary stripping, NP-swap and
+count corrections, ordinal references with group splitting, "N more of those", idioms such as "let him go",
+recipient "give it wings", ram-vs-place verbs, entity-into-construct placement, antonym-pair contradiction
+detection, noun-slot sound repair, merged-word splitting, guarded aggressive repair) → dev2 **85.6%**,
+dev 100%, A 91.7%, and **B 70.0%** (+7.5). Broader, independently written training data generalised about as
+well as the A-driven revision did; neither closes the gap to System 2 (80.8%).
+
+B has now been evaluated (aggregate-only) 7 times across all builds/policies; its item text was never shown
+to the implementer, but repeated aggregate looks carry mild selection risk, so these numbers are reported as
+measured and not tuned against.
 
 **Findings**
 1. Dev 100% vs unseen 55%: a rule/lexicon system tuned on its author's own phrasings overfits badly.

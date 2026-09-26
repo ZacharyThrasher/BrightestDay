@@ -140,6 +140,32 @@ export class ConstructRuntime {
     return { ok: true, report };
   }
 
+  /** Take one member of a multi-instance construct out as its own construct (so it can be edited alone). */
+  split(id: string, index: number): Construct | null {
+    const c = this.list.get(id);
+    if (!c || c.insts.length < 2 || index < 0 || index >= c.insts.length) return null;
+    const inst = c.insts[index];
+    const one = cloneSpec(c.spec);
+    one.count = 1;
+    one.arrangement = 'single';
+    one.label = c.spec.label.replace(/^\d+ × /, '');
+    const cargo = inst.cargo;
+    const pose = { pos: inst.pos.clone(), quat: inst.quat.clone() };
+    // rebuild the group without that member
+    const rest = cloneSpec(c.spec);
+    rest.count = c.insts.length - 1;
+    const keepPoses = c.insts.filter((_, i) => i !== index).map((i) => ({ pos: i.pos.clone(), quat: i.quat.clone(), cargo: i.cargo }));
+    this.destroyBodies(c, false);
+    c.spec = rest;
+    this.build(c, keepPoses[0].pos, keepPoses[0].quat, keepPoses);
+    c.insts.forEach((i, k) => (i.cargo = keepPoses[k].cargo));
+    c.version++;
+    const r = this.spawn(one, { at: pose });
+    if (r.construct && cargo) r.construct.insts[0].cargo = cargo;
+    if (r.construct) this.energy += r.report.cost; // splitting isn't new work
+    return r.construct;
+  }
+
   dismiss(id: string, reason = 'dismissed') {
     const c = this.list.get(id);
     if (!c) return;

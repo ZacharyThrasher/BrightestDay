@@ -13,7 +13,8 @@ const ENGLISH_RANK = new Map<string, number>((ENGLISH as string[]).map((w, i) =>
 /** Short rare "words" in web frequency lists are mostly junk (wal, grap...) — treat them as unknown. */
 const isEnglish = (w: string) => { const r = ENGLISH_RANK.get(w); return r !== undefined && (w.length > 4 || r < 8000); };
 /** Words that are never re-read phonetically, even in aggressive mode. */
-const STOP = new Set('a an the that this those these it its and or but then with of to at on in into onto my your his her their them him me we us you i is are be was were so as not no all one some there here where when what which who how can will would should could do does did have has had just up down back out off over around'.split(' '));
+const STOP = new Set(('a an the that this those these it its and or but then with of to at on in into onto my your his her their them him me we us you i is are be was were so as not no all one some there here where when what which who how can will would should could do does did have has had just up down back out off over around '
+  + 'while whilst than though although because cause since until unless whether if after before between during about through under again also still only even ever never always maybe really very too quite rather yet already while once twice each every both either neither other another same such own more most less least much many few lot lots').split(' '));
 
 let vocab: string[] | null = null;
 let known: Set<string> | null = null;
@@ -45,6 +46,40 @@ export function isGameWord(w: string): boolean {
   if (!known) build();
   const l = lemma(w);
   return known!.has(w) || known!.has(l) || (w.endsWith('s') && known!.has(w.slice(0, -1))) || /^\d/.test(w);
+}
+
+/** Rank < 2000 in English web frequency: too common to be an unknown object name. */
+export function isEnglishCommon(w: string): boolean { const r = ENGLISH_RANK.get(w); return r !== undefined && r < 2000; }
+
+/** Closest concept NAME by sound (single words), used only for words sitting in a noun slot. */
+export function nearestConceptBySound(w: string): import('./lexicon.js').Concept | null {
+  if (w.length < 3) return null;
+  const key = phonetic(w);
+  const sing = w.replace(/e?s$/, '');
+  let best: { c: import('./lexicon.js').Concept; d: number } | null = null;
+  for (const [name, c] of conceptByName) {
+    if (name.includes(' ')) continue;
+    const pk = phonetic(name);
+    const dk = damerau(key, pk);
+    const ds = Math.min(damerau(w, name), damerau(sing, name));
+    // same sound skeleton (or one sound off for longer words) AND a close spelling
+    const ok = (dk === 0 && ds <= Math.max(2, Math.ceil(w.length / 2))) || (dk === 1 && w.length >= 5 && ds <= 2 && pk[0] === key[0]);
+    if (!ok) continue;
+    const score = dk * 3 + ds;
+    if (!best || score < best.d) best = { c, d: score };
+  }
+  return best?.c ?? null;
+}
+
+/** "dronearound" -> ["drone", "around"] when both halves are real words and one is game vocabulary. */
+export function splitMerged(w: string): string[] | null {
+  if (w.length < 7 || isKnownWord(w)) return null;
+  for (let i = 3; i <= w.length - 3; i++) {
+    const a = w.slice(0, i), b = w.slice(i);
+    if (FILLERS.has(a) || FILLERS.has(b)) continue;
+    if (isKnownWord(a) && isKnownWord(b) && (isGameWord(a) || isGameWord(b))) return [a, b];
+  }
+  return null;
 }
 
 export function damerau(a: string, b: string): number {
@@ -82,16 +117,19 @@ export interface Correction { from: string; to: string; how: 'edit' | 'phonetic'
  * Repair tokens. mode 'unknown' only touches words that aren't in the game vocabulary;
  * mode 'aggressive' also re-reads known words phonetically (used when a clause made no sense).
  */
-export function repair(tokens: string[], mode: 'unknown' | 'aggressive' = 'unknown'): { tokens: string[]; corrections: Correction[] } {
+export function repair(tokens: string[], mode: 'unknown' | 'aggressive' = 'unknown', protectedWords: Set<string> = new Set()): { tokens: string[]; corrections: Correction[] } {
   if (!vocab) build();
   const out: string[] = [];
   const corrections: Correction[] = [];
   for (const w of tokens) {
-    if (w.length < 3 || /^\d+$/.test(w) || !/^[a-z']+$/.test(w)) { out.push(w); continue; }
+    if (w.length < 3 || /^\d+$/.test(w) || !/^[a-z']+$/.test(w) || protectedWords.has(w)) { out.push(w); continue; }
+    const merged = splitMerged(w);
+    if (merged) { out.push(...merged); corrections.push({ from: w, to: merged.join(' '), how: 'edit' }); continue; }
     const isKnown = isKnownWord(w);
     if (isKnown && mode === 'unknown') { out.push(w); continue; }
     const gameWord = known!.has(w) && !COMMON_SET.has(w);
     if (isKnown && mode === 'aggressive' && (STOP.has(w) || FILLERS.has(w) || conceptByName.has(w) || VERBS[lemma(w)] || gameWord)) { out.push(w); continue; }
+    if (mode === 'aggressive' && (STOP.has(w) || IGNORED_ADJ.has(w) || PREPOSITIONS.includes(w) || COLOR_WORDS.has(w))) { out.push(w); continue; }
     if (mode === 'aggressive') {
       const exact = phon!.get(phonetic(w));
       if (exact && exact.length) {

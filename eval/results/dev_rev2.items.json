@@ -1,0 +1,3081 @@
+[
+  {
+    "id": "D-001",
+    "category": "straightforward",
+    "scene": "barrage",
+    "utterance": "make a wall",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "construct_created"
+    ],
+    "summary": "wall @between",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 24.043640000000096,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-002",
+    "category": "straightforward",
+    "scene": "barrage",
+    "utterance": "put up a shield between me and the turret",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "construct_created"
+    ],
+    "summary": "shield @between",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 15.880292999999938,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-003",
+    "category": "straightforward",
+    "scene": "gap",
+    "utterance": "build a bridge across the gap",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "bridge_gap"
+      ],
+      "target": "location",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "location"
+      ]
+    },
+    "observed": [
+      "launch_player",
+      "goal_reached",
+      "construct_created"
+    ],
+    "summary": "bridge @span",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 3.84690599999999,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-004",
+    "category": "straightforward",
+    "scene": "tower",
+    "utterance": "give me some stairs",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "stairs @ground front",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 3.4336900000000696,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-005",
+    "category": "straightforward",
+    "scene": "drones",
+    "utterance": "punch that drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "strike_target",
+        "push_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "block_projectiles",
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "fist → strike drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 3.7986439999999675,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-006",
+    "category": "straightforward",
+    "scene": "drones",
+    "utterance": "grab that drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "damage_target",
+      "construct_created"
+    ],
+    "summary": "hand → grab drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 5.918092999999999,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-007",
+    "category": "straightforward",
+    "scene": "falling",
+    "utterance": "catch him",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "catch_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "catch_target",
+      "construct_created"
+    ],
+    "summary": "net → cushion @under target",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 1.5355340000000979,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-008",
+    "category": "straightforward",
+    "scene": "boulder",
+    "utterance": "push the boulder out of the way",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "strike_target",
+        "push_target",
+        "move_obstacle"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.79,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "hand → strike boulder @hand",
+    "abstain": null,
+    "confidence": 0.79,
+    "latencyMs": 10.116598000000067,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-009",
+    "category": "straightforward",
+    "scene": "arena",
+    "utterance": "make a trampoline",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "launch_player",
+        "catch_target"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "trampoline → launch, cushion",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 2.5990509999999176,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-010",
+    "category": "straightforward",
+    "scene": "arena",
+    "utterance": "ramp!",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "ramp @ground front",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.065211999999974,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-011",
+    "category": "straightforward",
+    "scene": "drones",
+    "utterance": "trap that drone in a cage",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "restrain_target",
+      "construct_created"
+    ],
+    "summary": "cage → trap drone @around target",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 16.22668499999986,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-012",
+    "category": "straightforward",
+    "scene": "drones",
+    "utterance": "drop an anvil on it",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "crush_target",
+        "strike_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "anvil → drop on drone @above target",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.7164969999998902,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-013",
+    "category": "straightforward",
+    "scene": "arena",
+    "utterance": "give me wings",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "propel_player",
+        "slow_fall"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "wings → ride/wear @self",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.9158070000000862,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-014",
+    "category": "straightforward",
+    "scene": "tower",
+    "utterance": "launch me up there",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "launch_player",
+        "raise_player",
+        "bridge_gap"
+      ],
+      "target": "location",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "location"
+      ]
+    },
+    "observed": [
+      "raise_player",
+      "launch_player",
+      "goal_reached",
+      "construct_created"
+    ],
+    "summary": "spring → launch @under self",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 6.169290000000046,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-015",
+    "category": "straightforward",
+    "scene": "drones",
+    "utterance": "shoot the drones",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "projectile_attack"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "blaster → shoot drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 1.0079359999999724,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-016",
+    "category": "novel_composition",
+    "scene": "drones",
+    "utterance": "make a giant boxing glove with rockets on the back and punch that drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "strike_target",
+        "push_target"
+      ],
+      "target": "aimed_entity",
+      "count": 2,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "block_projectiles",
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "giant boxing glove → thrust @hand + fist → strike drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 2.9687260000000606,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-017",
+    "category": "novel_composition",
+    "scene": "arena",
+    "utterance": "a car with wings",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "propel_player",
+        "slow_fall"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "car → ride/wear @self",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 9.8247080000001,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-018",
+    "category": "novel_composition",
+    "scene": "barrage",
+    "utterance": "a spinning shield that orbits me",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "orbit",
+        "spin",
+        "area_attack"
+      ],
+      "target": "self",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "self"
+      ]
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "spinning shield → spin, orbit you @front",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.7213960000001407,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-019",
+    "category": "novel_composition",
+    "scene": "drones",
+    "utterance": "make five fists that punch all the drones",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "strike_target",
+        "push_target",
+        "area_attack",
+        "projectile_attack"
+      ],
+      "target": "aimed_entity",
+      "count": 5,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "5 × fist → strike 3 targets @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.4773740000000544,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-020",
+    "category": "novel_composition",
+    "scene": "barrage",
+    "utterance": "a mirror wall that bounces the shots back at the turret",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player",
+        "launch_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "reflect",
+      "construct_created"
+    ],
+    "summary": "reflective wall → reflect, launch @between",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.3372509999999238,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-021",
+    "category": "novel_composition",
+    "scene": "drones",
+    "utterance": "a magnet on a pole to pull the drones in",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "attract",
+        "pull_target",
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "grab_target",
+      "construct_created"
+    ],
+    "summary": "pole with magnet & magnets → attract, grab drone @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 13.806969999999865,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-022",
+    "category": "novel_composition",
+    "scene": "arena",
+    "utterance": "a hammer with spikes",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "hammer @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 9.597596999999723,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-023",
+    "category": "novel_composition",
+    "scene": "drones",
+    "utterance": "a cannon that shoots nets at the drones",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "restrain_target",
+        "projectile_attack"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "restrain_target",
+      "construct_created"
+    ],
+    "summary": "cannon → shoot drone, trap drone @around target",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.253153999999995,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-024",
+    "category": "novel_composition",
+    "scene": "arena",
+    "utterance": "a ramp with a trampoline at the end",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "ramp @ground front",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.122106000000258,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-025",
+    "category": "novel_composition",
+    "scene": "drones",
+    "utterance": "three hammers orbiting me",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "orbit",
+        "area_attack"
+      ],
+      "target": "self",
+      "count": 3,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "self"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "3 × hammer → orbit you @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.031934000000092,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-026",
+    "category": "novel_composition",
+    "scene": "falling",
+    "utterance": "a giant hand to catch the falling guy",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "catch_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "catch_target",
+      "construct_created"
+    ],
+    "summary": "giant hand → grab civilian @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.0729479999999967,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-027",
+    "category": "novel_composition",
+    "scene": "gap",
+    "utterance": "a skateboard with rockets",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "propel_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "launch_player",
+      "construct_created"
+    ],
+    "summary": "skateboard → ride/wear, thrust @self",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.2555739999997968,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-028",
+    "category": "followup",
+    "scene": "drones",
+    "utterance": "bigger",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "scale_up"
+      ],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "moved_target"
+    ],
+    "summary": "wall → scale_up",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 2.512528999999631,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-029",
+    "category": "followup",
+    "scene": "drones",
+    "utterance": "now make the fingers grab him instead",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [
+        "add_behavior",
+        "reshape"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "block_projectiles",
+      "moved_target",
+      "grab_target"
+    ],
+    "summary": "fist → add_behavior, reshape → grab drone",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.7223299999996016,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-030",
+    "category": "followup",
+    "scene": "drones",
+    "utterance": "spin him around",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target",
+        "orbit",
+        "spin"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [
+        "add_behavior"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target"
+    ],
+    "summary": "hand → add_behavior → orbit you",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.9780289999998786,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-031",
+    "category": "followup",
+    "scene": "drones",
+    "utterance": "throw him into that wall",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "throw_target"
+      ],
+      "target": "nearest_enemy",
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "act"
+      ],
+      "targetKinds": [
+        "nearest_enemy"
+      ]
+    },
+    "observed": [
+      "damage_target",
+      "moved_target"
+    ],
+    "summary": "throw hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.4614129999999932,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-032",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "make five of them",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "support_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 5,
+      "modifications": [
+        "count_change"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "pillar → count_change",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.5864809999998215,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-033",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "put rockets on it",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "strike_target"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "add_part"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "big ball → add_part → thrust",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.3313340000004246,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-034",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "faster",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "repel",
+        "push_target",
+        "block_projectiles",
+        "spin"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "faster"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "moved_target"
+    ],
+    "summary": "fan → faster → wind, spin",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.0148369999997158,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-035",
+    "category": "followup",
+    "scene": "barrage",
+    "utterance": "make it reflect the shots",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "construct_created"
+    ],
+    "summary": "shield → reflect @between",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.9028740000003381,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-036",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "turn it into a trampoline",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "support_player",
+        "launch_player",
+        "catch_target",
+        "slow_fall"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "add_part"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "raise_player",
+      "launch_player"
+    ],
+    "summary": "platform → add_part → launch, cushion",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.3626730000000862,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-037",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "make them orbit me",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "orbit",
+        "area_attack"
+      ],
+      "target": "self",
+      "count": 3,
+      "modifications": [
+        "add_behavior"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": [
+        "self"
+      ]
+    },
+    "observed": [],
+    "summary": "3 × shield → add_behavior → orbit you",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.1224170000000413,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-038",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "save this as the thumper",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "control",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [
+        "save"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.8200000000000001,
+      "intents": [
+        "control"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "save “thumper”",
+    "abstain": null,
+    "confidence": 0.8200000000000001,
+    "latencyMs": 7.73370900000009,
+    "confidentWrong": false,
+    "messages": [
+      "saved as “thumper”"
+    ],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-039",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "thumper",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "control",
+      "functions": [],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "recall"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.8200000000000001,
+      "intents": [
+        "control",
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "giant hammer @hand",
+    "abstain": null,
+    "confidence": 0.8200000000000001,
+    "latencyMs": 0.907158000000436,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-040",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "undo",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "control",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [
+        "undo"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "control"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "undo",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.6708029999999781,
+    "confidentWrong": false,
+    "messages": [
+      "undone"
+    ],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-041",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "get rid of it",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "control",
+      "functions": [],
+      "target": "previous_construct",
+      "count": null,
+      "modifications": [
+        "dismiss"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "control"
+      ],
+      "targetKinds": [
+        "previous_construct"
+      ]
+    },
+    "observed": [],
+    "summary": "dismiss wall",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.7726840000000266,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-042",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "another one",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "duplicate"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "pillar",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.7552479999999377,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-043",
+    "category": "followup",
+    "scene": "arena",
+    "utterance": "make it longer",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "support_player",
+        "bridge_gap"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "scale_up"
+      ],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "bridge → scale_up",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.8631810000001678,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-044",
+    "category": "reference",
+    "scene": "drones",
+    "utterance": "hit it with a hammer",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "strike_target",
+        "push_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "block_projectiles",
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "hammer → strike drone @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 5.068990000000213,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-045",
+    "category": "reference",
+    "scene": "drones",
+    "utterance": "grab the nearest drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "nearest_enemy",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "nearest_enemy"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "hand → grab drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 5.9406089999997675,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-046",
+    "category": "reference",
+    "scene": "drones",
+    "utterance": "throw it at the other drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "throw_target"
+      ],
+      "target": "aimed_entity",
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity",
+        "other"
+      ]
+    },
+    "observed": [
+      "block_projectiles",
+      "damage_target",
+      "moved_target"
+    ],
+    "summary": "throw hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.9010339999999815,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-047",
+    "category": "reference",
+    "scene": "drones",
+    "utterance": "let go",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "control",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [
+        "release"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "control"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "moved_target",
+      "damage_target"
+    ],
+    "summary": "release hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.798486000000139,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-048",
+    "category": "reference",
+    "scene": "drones",
+    "utterance": "make those orbit me",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "orbit",
+        "area_attack"
+      ],
+      "target": "self",
+      "count": 4,
+      "modifications": [
+        "add_behavior"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": [
+        "self"
+      ]
+    },
+    "observed": [
+      "moved_target"
+    ],
+    "summary": "4 × sword → add_behavior → orbit you",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.1147380000002158,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-049",
+    "category": "reference",
+    "scene": "falling",
+    "utterance": "put a trampoline under that guy",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "launch_player",
+        "catch_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "catch_target",
+      "construct_created"
+    ],
+    "summary": "trampoline → launch, cushion @under target",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 8.981866000000082,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-050",
+    "category": "reference",
+    "scene": "drones",
+    "utterance": "cage all the drones",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 3,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.8300000000000001,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "restrain_target",
+      "construct_created"
+    ],
+    "summary": "cage → trap drone @around target + cage → trap drone @around target + cage → trap drone @around target",
+    "abstain": null,
+    "confidence": 0.8300000000000001,
+    "latencyMs": 6.6330370000000585,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-051",
+    "category": "ambiguous",
+    "scene": "arena",
+    "utterance": "do the thing",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "abstain",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": true,
+      "confidence": 0,
+      "intents": [
+        "abstain"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "? I don’t know what a “the” is — describe its shape or what it should do",
+    "abstain": "I don’t know what a “the” is — describe its shape or what it should do",
+    "confidence": 0,
+    "latencyMs": 63.873363000000154,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-052",
+    "category": "ambiguous",
+    "scene": "arena",
+    "utterance": "hmm",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "abstain",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": true,
+      "confidence": 0.3,
+      "intents": [
+        "abstain"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "? I didn’t catch a construct or action in that",
+    "abstain": "I didn’t catch a construct or action in that",
+    "confidence": 0.3,
+    "latencyMs": 0.2204940000001443,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-053",
+    "category": "ambiguous",
+    "scene": "drones",
+    "utterance": "get him",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "damage_target",
+      "construct_created"
+    ],
+    "summary": "hand → grab drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 0.9863289999998415,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-054",
+    "category": "ambiguous",
+    "scene": "barrage",
+    "utterance": "help",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.57,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "construct_created"
+    ],
+    "summary": "wall @between",
+    "abstain": null,
+    "confidence": 0.57,
+    "latencyMs": 5.284806000000117,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-055",
+    "category": "ambiguous",
+    "scene": "arena",
+    "utterance": "make it better",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "abstain",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": true,
+      "confidence": 0,
+      "intents": [
+        "abstain"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "? I don’t know what a “better” is — describe its shape or what it should do",
+    "abstain": "I don’t know what a “better” is — describe its shape or what it should do",
+    "confidence": 0,
+    "latencyMs": 0.5191850000001068,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-056",
+    "category": "impossible",
+    "scene": "drones",
+    "utterance": "make ten thousand planet sized anvils and drop them on the drones",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "crush_target"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "release"
+      ],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create",
+        "control"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "10000 × giant anvil @above target",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.4164419999997335,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-057",
+    "category": "impossible",
+    "scene": "arena",
+    "utterance": "make me invisible",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "abstain",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": true,
+      "confidence": 0.3,
+      "intents": [
+        "abstain"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "? constructs can’t make things invisible",
+    "abstain": "constructs can’t make things invisible",
+    "confidence": 0.3,
+    "latencyMs": 0.3670740000002297,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-058",
+    "category": "impossible",
+    "scene": "arena",
+    "utterance": "turn back time",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "abstain",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": true,
+      "confidence": 0.3,
+      "intents": [
+        "abstain"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "? the ring can’t bend time",
+    "abstain": "the ring can’t bend time",
+    "confidence": 0.3,
+    "latencyMs": 1.7181070000001455,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-059",
+    "category": "impossible",
+    "scene": "arena",
+    "utterance": "a wall a mile long",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "launch_player",
+      "damage_target",
+      "construct_created"
+    ],
+    "summary": "wall @between",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 3.477944000000207,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-060",
+    "category": "impossible",
+    "scene": "drones",
+    "utterance": "a million fists",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [],
+      "target": null,
+      "count": 12,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "1000000 × fist @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.1268990000003214,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-061",
+    "category": "analogy",
+    "scene": "barrage",
+    "utterance": "make one of those airport baggage carousels, turn it vertical, catch the rockets with it and fling them back",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "propel_player",
+        "block_projectiles",
+        "shield_self"
+      ],
+      "target": null,
+      "count": 3,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.8200000000000001,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "construct_created"
+    ],
+    "summary": "carousel + wall @between + shield → reflect @between",
+    "abstain": null,
+    "confidence": 0.8200000000000001,
+    "latencyMs": 2.2935600000000704,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-062",
+    "category": "analogy",
+    "scene": "drones",
+    "utterance": "swat it like a fly",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "strike_target",
+        "push_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.84,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "bat → strike drone @hand",
+    "abstain": null,
+    "confidence": 0.84,
+    "latencyMs": 0.7181249999998727,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-063",
+    "category": "analogy",
+    "scene": "arena",
+    "utterance": "a hoverboard",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "propel_player",
+        "slow_fall"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "hoverboard → ride/wear @self",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.6580359999998109,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-064",
+    "category": "analogy",
+    "scene": "drones",
+    "utterance": "scoop it up like ice cream",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "propel_player",
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.5700000000000001,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "construct_created"
+    ],
+    "summary": "skateboard → ride/wear, grab drone @hand",
+    "abstain": null,
+    "confidence": 0.5700000000000001,
+    "latencyMs": 4.9309800000000905,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-065",
+    "category": "analogy",
+    "scene": "falling",
+    "utterance": "a big bouncy castle under him",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "launch_player",
+        "catch_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "catch_target",
+      "construct_created"
+    ],
+    "summary": "big bouncy castle → launch, cushion @under target",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.0389249999998356,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-066",
+    "category": "analogy",
+    "scene": "drones",
+    "utterance": "a flyswatter",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "flyswatter @hand",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 0.757314999999835,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-067",
+    "category": "analogy",
+    "scene": "gap",
+    "utterance": "a zipline to the other side",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "tether_player",
+        "raise_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "raise_player",
+      "launch_player",
+      "goal_reached",
+      "construct_created"
+    ],
+    "summary": "zipline → tether @target",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.499949000000015,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-068",
+    "category": "asr_noise",
+    "scene": "gap",
+    "utterance": "make a brigde across",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "bridge_gap"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.8400000000000001,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "launch_player",
+      "goal_reached",
+      "construct_created"
+    ],
+    "summary": "bridge @span",
+    "abstain": null,
+    "confidence": 0.8400000000000001,
+    "latencyMs": 9.771818999999596,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-069",
+    "category": "asr_noise",
+    "scene": "drones",
+    "utterance": "punts that drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "strike_target",
+        "push_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.81,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "block_projectiles",
+      "damage_target",
+      "moved_target",
+      "construct_created"
+    ],
+    "summary": "fist → strike drone @hand",
+    "abstain": null,
+    "confidence": 0.81,
+    "latencyMs": 1.7192030000001068,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-070",
+    "category": "asr_noise",
+    "scene": "falling",
+    "utterance": "put a trampling under the civilian",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "launch_player",
+        "catch_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.6400000000000001,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "moved_target",
+      "catch_target",
+      "construct_created"
+    ],
+    "summary": "trampoline → launch, cushion @under target",
+    "abstain": null,
+    "confidence": 0.6400000000000001,
+    "latencyMs": 5.390783999999712,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-071",
+    "category": "asr_noise",
+    "scene": "drones",
+    "utterance": "grap the drone",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.81,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "damage_target",
+      "construct_created"
+    ],
+    "summary": "hand → grab drone @hand",
+    "abstain": null,
+    "confidence": 0.81,
+    "latencyMs": 1.4436470000000554,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-072",
+    "category": "asr_noise",
+    "scene": "barrage",
+    "utterance": "make a wal",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": true,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.8400000000000001,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "block_projectiles",
+      "construct_created"
+    ],
+    "summary": "wall @between",
+    "abstain": null,
+    "confidence": 0.8400000000000001,
+    "latencyMs": 0.9985440000000381,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-073",
+    "category": "correction",
+    "scene": "gap",
+    "utterance": "make a ramp no wait a bridge",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "support_player",
+        "bridge_gap"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "launch_player",
+      "goal_reached",
+      "construct_created"
+    ],
+    "summary": "bridge @span",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 1.1726850000000013,
+    "confidentWrong": false,
+    "messages": [
+      "used your correction"
+    ],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-074",
+    "category": "correction",
+    "scene": "drones",
+    "utterance": "punch it, no, grab it",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "damage_target",
+      "construct_created"
+    ],
+    "summary": "hand → grab drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 0.9086979999997311,
+    "confidentWrong": false,
+    "messages": [
+      "used your correction"
+    ],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-075",
+    "category": "correction",
+    "scene": "arena",
+    "utterance": "a small wall, I mean a huge wall",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "create",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [],
+      "approximated": false,
+      "clamped": true,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "create"
+      ],
+      "targetKinds": []
+    },
+    "observed": [
+      "construct_created"
+    ],
+    "summary": "giant wall @between",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 4.8252880000000005,
+    "confidentWrong": false,
+    "messages": [
+      "used your correction"
+    ],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-076",
+    "category": "contradictory",
+    "scene": "arena",
+    "utterance": "make a tiny giant ball",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "abstain",
+      "functions": [],
+      "target": null,
+      "count": null,
+      "modifications": [],
+      "approximated": false,
+      "clamped": false,
+      "abstained": true,
+      "confidence": 0.3,
+      "intents": [
+        "abstain"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "? big or small? that contradicts itself",
+    "abstain": "big or small? that contradicts itself",
+    "confidence": 0.3,
+    "latencyMs": 0.473747000000003,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": true
+  },
+  {
+    "id": "D-077",
+    "category": "contradictory",
+    "scene": "arena",
+    "utterance": "make it bigger and smaller",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "modify",
+      "functions": [
+        "block_projectiles",
+        "shield_self",
+        "support_player"
+      ],
+      "target": null,
+      "count": 1,
+      "modifications": [
+        "scale_down"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.92,
+      "intents": [
+        "modify"
+      ],
+      "targetKinds": []
+    },
+    "observed": [],
+    "summary": "wall → scale_down",
+    "abstain": null,
+    "confidence": 0.92,
+    "latencyMs": 4.813319999999749,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  },
+  {
+    "id": "D-078",
+    "category": "contradictory",
+    "scene": "drones",
+    "utterance": "grab the drone and let go of it",
+    "pass": true,
+    "reasons": [],
+    "report": {
+      "intent": "act",
+      "functions": [
+        "grab_target",
+        "restrain_target"
+      ],
+      "target": "aimed_entity",
+      "count": 1,
+      "modifications": [
+        "release"
+      ],
+      "approximated": false,
+      "clamped": false,
+      "abstained": false,
+      "confidence": 0.89,
+      "intents": [
+        "create",
+        "act",
+        "control"
+      ],
+      "targetKinds": [
+        "aimed_entity"
+      ]
+    },
+    "observed": [
+      "grab_target",
+      "damage_target",
+      "construct_created"
+    ],
+    "summary": "hand → grab drone @hand",
+    "abstain": null,
+    "confidence": 0.89,
+    "latencyMs": 0.8627200000000812,
+    "confidentWrong": false,
+    "messages": [],
+    "escalated": false,
+    "needsEscalation": false
+  }
+]

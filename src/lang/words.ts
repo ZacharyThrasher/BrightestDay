@@ -19,7 +19,7 @@ export const VERBS: Record<string, VerbClass> = {
   punch: 'strike', hit: 'strike', smash: 'strike', whack: 'strike', bash: 'strike', slam: 'strike', pound: 'strike', strike: 'strike', swat: 'strike',
   smack: 'strike', bonk: 'strike', thump: 'strike', clobber: 'strike', wallop: 'strike', slug: 'strike', sock: 'strike', deck: 'strike', kick: 'strike',
   stab: 'strike', slash: 'strike', slice: 'strike', chop: 'strike', cut: 'strike', hammer: 'strike', ram: 'strike', headbutt: 'strike', uppercut: 'strike',
-  jab: 'strike', poke: 'strike', attack: 'strike', destroy: 'strike', wreck: 'strike', beat: 'strike', 'take out': 'strike', 'knock out': 'strike', spank: 'strike',
+  jab: 'strike', poke: 'strike', attack: 'strike', destroy: 'strike', wreck: 'strike', beat: 'strike', 'take out': 'strike', have: 'create', 'knock out': 'strike', spank: 'strike',
   bop: 'strike', boop: 'strike', clock: 'strike', nail: 'strike', skewer: 'strike', impale: 'strike', dropkick: 'strike', karate: 'strike', demolish: 'strike',
   // grab
   grab: 'grab', seize: 'grab', snatch: 'grab', grip: 'grab', grasp: 'grab', 'pick up': 'grab', take: 'grab', nab: 'grab', clutch: 'grab', collect: 'grab', fetch: 'pull',
@@ -53,7 +53,7 @@ export const VERBS: Record<string, VerbClass> = {
   turn: 'modify', change: 'modify', transform: 'modify', convert: 'modify', upgrade: 'modify', resize: 'modify', grow: 'modify', shrink: 'modify', stretch: 'modify',
   extend: 'modify', widen: 'modify', lengthen: 'modify', thicken: 'modify', flip: 'modify', tilt: 'modify', reverse: 'modify', invert: 'modify', speed: 'modify',
   enlarge: 'modify', expand: 'modify', inflate: 'modify', embiggen: 'modify', supersize: 'modify', upsize: 'modify', downsize: 'modify', lower: 'modify', aim: 'point', point: 'point', face: 'point', steer: 'point', redirect_to: 'point',
-  clap: 'crush', sandwich: 'crush', lever: 'lift', pry: 'lift', leverage: 'lift', crowbar: 'lift', jack: 'lift', roll: 'ride', deal: 'handle', handle: 'handle', 'take care of': 'handle', 'deal with': 'handle', 'do something': 'handle', help: 'handle', hurry: 'handle',
+  flick: 'strike', tap: 'strike', thwack: 'strike', whap: 'strike', wham: 'strike', bat: 'strike', belt: 'strike', lob_: 'throw', ditch: 'dismiss', scrap: 'dismiss', lose: 'dismiss', bin: 'dismiss', trash: 'dismiss', wall: 'block', 'wall off': 'block', fence: 'trap', barricade: 'block', clap: 'crush', sandwich: 'crush', lever: 'lift', pry: 'lift', leverage: 'lift', crowbar: 'lift', jack: 'lift', roll: 'ride', deal: 'handle', handle: 'handle', 'take care of': 'handle', 'deal with': 'handle', 'do something': 'handle', help: 'handle', hurry: 'handle',
   follow: 'follow', chase: 'follow', track: 'follow', hunt: 'follow', pursue: 'follow', seek: 'follow', 'go after': 'follow', escort: 'follow',
 };
 
@@ -91,7 +91,7 @@ export const DIM_ADJ: Record<string, [number, number, number]> = {
   flat: [1.3, 0.4, 1.3], flatter: [1, 0.7, 1], short: [1, 0.6, 0.6], shorter: [1, 0.7, 0.7], narrow: [0.5, 1, 1], narrower: [0.7, 1, 1], stubby: [1, 0.6, 0.6], deep: [1, 1, 1.6],
 };
 
-export const SPEED_ADJ: Record<string, number> = { fast: 1.6, faster: 1.5, quick: 1.5, quicker: 1.4, rapid: 1.6, speedy: 1.6, 'super fast': 2.2, 'really fast': 2, 'lightning fast': 2.5, slow: 0.5, slower: 0.65, sluggish: 0.4, gentle: 0.6, gently: 0.6, softly: 0.6, hard: 1.4, harder: 1.4, 'full force': 1.8, 'as hard as you can': 2 };
+export const SPEED_ADJ: Record<string, number> = { 'ludicrously fast': 1000, ludicrous: 1000, 'insanely fast': 5, fast: 1.6, faster: 1.5, quick: 1.5, quicker: 1.4, rapid: 1.6, speedy: 1.6, 'super fast': 2.2, 'really fast': 2, 'lightning fast': 2.5, slow: 0.5, slower: 0.65, sluggish: 0.4, gentle: 0.6, gently: 0.6, softly: 0.6, hard: 1.4, harder: 1.4, 'full force': 1.8, 'as hard as you can': 2 };
 
 export const MATERIAL_ADJ: Record<string, string> = {
   heavy: 'heavy', heavier: 'heavy', dense: 'heavy', weighted: 'heavy', solid: 'sturdy', sturdy: 'sturdy', strong: 'sturdy', stronger: 'sturdy', reinforced: 'sturdy', indestructible: 'sturdy', unbreakable: 'sturdy',
@@ -106,11 +106,11 @@ export const MATERIAL_ADJ: Record<string, string> = {
   homing: 'homing', 'heat seeking': 'homing', 'heat-seeking': 'homing', guided: 'homing', 'self guided': 'homing', seeking: 'homing', smart: 'homing',
   floating: 'floating', hovering: 'floating', flying: 'floating', levitating: 'floating', airborne: 'floating',
   magnetic: 'magnetic', mirrored: 'reflective', reflective: 'reflective', shiny: 'reflective', mirror: 'reflective',
-  rolling: 'rolling', round: 'rolling', vertical: 'vertical', upright: 'vertical', sideways: 'sideways', horizontal: 'flat', 'upside down': 'upsidedown', 'upside-down': 'upsidedown', backwards: 'reverse', reversed: 'reverse', inverted: 'upsidedown',
+  rolling: 'rolling', vertical: 'vertical', upright: 'vertical', sideways: 'sideways', horizontal: 'flat', 'upside down': 'upsidedown', 'upside-down': 'upsidedown', backwards: 'reverse', reversed: 'reverse', inverted: 'upsidedown',
   permanent: 'permanent', temporary: 'temporary', quick_one: 'temporary',
 };
 
-export const INTENSIFIERS = new Set(['fully', 'way', 'much', 'lot', 'really', 'super', 'even', 'so', 'too', 'bit', 'extra', 'very', 'totally', 'more', 'most', 'quite', 'pretty', 'real', 'hella', 'crazy', 'insanely', 'ridiculously', 'absurdly', 'stupidly', 'massively', 'seriously']);
+export const INTENSIFIERS = new Set(['go', 'mate', 'fully', 'way', 'much', 'lot', 'really', 'super', 'even', 'so', 'too', 'bit', 'extra', 'very', 'totally', 'more', 'most', 'quite', 'pretty', 'real', 'hella', 'crazy', 'insanely', 'ridiculously', 'absurdly', 'stupidly', 'massively', 'seriously']);
 
 export const IGNORED_ADJ = new Set([
   'green', 'red', 'blue', 'yellow', 'purple', 'pink', 'orange', 'white', 'black', 'gold', 'golden', 'silver', 'glowing', 'shiny', 'bright', 'neon', 'cool', 'awesome', 'nice', 'sick', 'epic', 'cute',
