@@ -3,7 +3,7 @@ import { NO_INPUT, type PlayerInput } from '../sim/player.js';
 export type Action =
   | 'console' | 'dismiss' | 'dismiss_all' | 'help' | 'perf' | 'reset' | 'fullscreen' | `scene_${number}` | `quick_${number}`;
 
-const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ControlLeft', 'ControlRight', 'KeyC', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyE', 'KeyR']);
+const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ControlLeft', 'ControlRight', 'KeyC', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyE', 'KeyR', 'KeyV', 'KeyB']);
 
 /**
  * Keyboard + mouse → PlayerInput, sampled once per fixed sim tick. Presses shorter than a tick are
@@ -28,6 +28,14 @@ export class Input {
   private reelUntil = 0;
   private mouse = [false, false, false];
   private mouseLatch = [false, false, false];
+  /**
+   * Mouse mapping. Default: LMB = construct primary, RMB = secondary, wheel = cycle the equipped construct,
+   * MMB = reel; tethers live on Q/E. `mouseTethers` restores the classic mapping (LMB/RMB tethers, wheel reels)
+   * and moves construct actions to V (primary) / B (secondary) / Tab (cycle).
+   */
+  mouseTethers = false;
+  private cycleAcc = 0;
+  private lastCycle = 0;
   onAction: (a: Action, e?: KeyboardEvent) => void = () => {};
   locked = false;
 
@@ -49,7 +57,15 @@ export class Input {
     });
     window.addEventListener('mouseup', (e) => { if (e.button < 3) this.mouse[e.button] = false; });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
-    window.addEventListener('wheel', (e) => { if (this.locked && this.gameplay && e.deltaY !== 0) this.reelUntil = performance.now() + 180; }, { passive: true });
+    window.addEventListener('wheel', (e) => {
+      if (!this.locked || e.deltaY === 0) return;
+      if (this.mouseTethers) { if (this.gameplay) this.reelUntil = performance.now() + 180; return; }
+      // one step per notch; trackpads fire many small events, so rate-limit them
+      const now = performance.now();
+      if (now - this.lastCycle < 90) return;
+      this.lastCycle = now;
+      this.cycleAcc += Math.sign(e.deltaY);
+    }, { passive: true });
     document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === this.target; if (!this.locked) this.mouse = [false, false, false]; });
   }
 
@@ -71,7 +87,7 @@ export class Input {
     if (c === 'Enter' || c === 'NumpadEnter') { e.preventDefault(); this.onAction('console', e); return; }
     if (e.altKey && /^Digit[1-9]$/.test(c)) { e.preventDefault(); if (!e.repeat) this.onAction(`scene_${Number(c.slice(5))}`, e); return; }
     if (c === 'Backspace') { e.preventDefault(); this.onAction('reset', e); return; }
-    if (c === 'Tab') e.preventDefault();
+    if (c === 'Tab') { e.preventDefault(); if (this.mouseTethers && !e.repeat) this.cycleAcc += 1; }
     if (MOVE_KEYS.has(c)) {
       e.preventDefault();
       this.held.add(c);
@@ -117,6 +133,8 @@ export class Input {
     const d = (c: string) => g && this.down(c);
     const k = this.carry;
     const crouch = d('ControlLeft') || d('ControlRight') || d('KeyC') || (!g && k.crouch);
+    const mt = this.mouseTethers;
+    const m0 = this.mouse[0] || this.mouseLatch[0], m1 = this.mouse[1] || this.mouseLatch[1], m2 = this.mouse[2] || this.mouseLatch[2];
     const inp: PlayerInput = {
       ...NO_INPUT,
       moveX: (d('KeyD') ? 1 : 0) - (d('KeyA') ? 1 : 0),
@@ -128,14 +146,19 @@ export class Input {
       descend: crouch,
       boost: d('ShiftLeft') || d('ShiftRight'),
       // mouse buttons only register while the pointer is locked, so they stay live while typing
-      hookL: d('KeyQ') || (!g && k.hookL) || this.mouse[0] || this.mouseLatch[0],
-      hookR: d('KeyE') || (!g && k.hookR) || this.mouse[2] || this.mouseLatch[2],
-      reel: d('KeyR') || (g && performance.now() < this.reelUntil) || this.mouse[1],
+      hookL: d('KeyQ') || (!g && k.hookL) || (mt && m0),
+      hookR: d('KeyE') || (!g && k.hookR) || (mt && m2),
+      reel: d('KeyR') || (mt && g && performance.now() < this.reelUntil) || m1,
+      // construct actions (the equipped construct's LMB / RMB; wheel cycles it) — sim inputs, see sim/constructs/actions.ts
+      primary: mt ? d('KeyV') : m0,
+      secondary: mt ? d('KeyB') : m2,
+      cycle: this.cycleAcc,
       flyToggle: g && this.flyToggle,
       use: g && this.use,
     };
     this.flyToggle = false;
     this.use = false;
+    this.cycleAcc = 0;
     this.latched.clear();
     this.mouseLatch = [false, false, false];
     return inp;

@@ -4,6 +4,7 @@ import { Player, type PlayerInput, NO_INPUT } from './player.js';
 import { ConstructRuntime } from './constructs/runtime.js';
 import { WorldContent, type EntityAI } from './content.js';
 import { CreativityEconomy } from './inspiration.js';
+import { ActionSystem } from './constructs/actions.js';
 
 export type Owner =
   | { kind: 'static'; id: string }
@@ -122,6 +123,8 @@ export class World {
   content!: WorldContent;
   /** Creativity economy (novelty → power), per player: `inspiration.of(playerId)`; see inspiration.ts. */
   inspiration!: CreativityEconomy;
+  /** Adaptive construct controls (mouse actions of the equipped construct), per player; see constructs/actions.ts. */
+  actions!: ActionSystem;
   log: GameEvent[] = [];
   scene = 'empty';
   input: PlayerInput = NO_INPUT;
@@ -143,6 +146,7 @@ export class World {
     w.constructs = new ConstructRuntime(w);
     w.content = new WorldContent(w);
     w.inspiration = new CreativityEconomy(w);
+    w.actions = new ActionSystem(w);
     w.player.onHit = (c, n, p) => w.constructs.onPlayerTouch(c, n, p);
     return w;
   }
@@ -442,8 +446,10 @@ export class World {
   step(input: PlayerInput = NO_INPUT) {
     const dt = this.dt;
     this.input = input;
+    this.actions.input(this.player, input, dt);
     this.constructs.preStep(dt);
     this.player.update(input, dt);
+    this.actions.step(this.player, dt);
     this.updateEntities(dt);
     this.pw.step(this.eq);
     this.handleEvents();
