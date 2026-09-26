@@ -88,7 +88,7 @@ export class ConstructRuntime {
     const extent = specExtent(spec);
     const frame = opts.at ?? this.place(spec, extent);
     const c: Construct = {
-      id, spec, insts: [], born: this.w.time, expires: this.w.time + spec.lifetime, radius: extent.radius, extent,
+      id, spec, insts: [], born: this.w.time, expires: this.w.time + spec.lifetime, radius: specExtent(spec, true).radius, extent,
       mass: 0, cost: report.cost, clamps: report.clamps, kinematic: spec.motion === 'kinematic', frameQuat: frame.quat.clone(), frameOrigin: frame.pos.clone(),
       version: 1, explodeAt: Infinity, name: opts.name ?? null, impacts: 0,
     };
@@ -116,7 +116,7 @@ export class ConstructRuntime {
     this.destroyBodies(c, false);
     c.spec = spec;
     c.extent = specExtent(spec);
-    c.radius = c.extent.radius;
+    c.radius = specExtent(spec, true).radius;
     c.kinematic = spec.motion === 'kinematic';
     c.clamps = report.clamps;
     this.energy += refund - report.cost;
@@ -615,12 +615,21 @@ export class ConstructRuntime {
     if (explode) c.explodeAt = explode.onContact ? Infinity : this.w.time + explode.delay;
     if (tether && tether.toPlayer) {
       const P = this.w.player;
+      // an anchor lying on the ground is useless for swinging/ziplining: raise it on a post
+      for (const inst of c.insts) {
+        const g = this.groundBelow(inst.pos.clone().add(new Vector3(0, 0.5, 0)), 3);
+        if (g !== null && inst.pos.y - g < 2 && c.kinematic === false && c.spec.motion === 'static' && c.spec.concept === 'rope') {
+          inst.pos.y += 7;
+          inst.body.setTranslation(inst.pos, true);
+        }
+      }
       const side = !P.tethers.R ? 'R' : !P.tethers.L ? 'L' : 'R';
       const tp = this.refPos(tether.target.kind === 'none' ? { kind: 'construct', id: c.id } : tether.target) ?? c.insts[0]?.pos;
       if (tp) {
         const e = this.refEntities(tether.target)[0];
         const body = e ? e.body : tether.target.kind === 'none' || tether.target.kind === 'construct' ? c.insts[0]?.body ?? null : null;
-        P.attachTether(side, tp, body, c.id);
+        const tt = P.attachTether(side, tp, body, c.id);
+        tt.autoReel = true;
         if (e && e.type === 'drone') e.stunnedUntil = this.w.time + 4;
       }
     }
@@ -1044,7 +1053,9 @@ export class ConstructRuntime {
         if (e.heldBy && e.heldBy !== c.id) continue;
         if (e.heldBy === c.id) this.releaseEntity(e.id, new Vector3());
         const dir = ep.clone().sub(at).normalize().add(new Vector3(0, 0.4, 0)).normalize();
-        e.body.applyImpulse(dir.multiplyScalar(ex.force * k * Math.sqrt(e.body.mass() * 40)), true);
+        // velocity change falls off gently with mass so blasts still budge boulders
+        const dv = ex.force * k * Math.pow(40 / Math.max(40, e.body.mass()), 0.25);
+        e.body.applyImpulse(dir.multiplyScalar(dv * e.body.mass()), true);
         this.w.damageEntity(e, ex.force * k * 2.2, 'explosion');
         if (e.type === 'drone') e.stunnedUntil = this.w.time + 2;
       }
@@ -1104,6 +1115,12 @@ export class ConstructRuntime {
     if (!id) return 'clip';
     const c = this.list.get(id);
     if (!c) return 'clip';
+    // climbable constructs (ladders, nets, rungs): pushing into them climbs
+    if (c.spec.parts.some((p) => p.role === 'rung' || p.role === 'climb') && n.y < 0.5 && P.wishDir.lengthSq() > 0.1 && P.wishDir.dot(n) < -0.3) {
+      P.vel.y = Math.max(P.vel.y, 7);
+      P.vel.addScaledVector(n, -1.5);
+      return 'clip';
+    }
     const launch = has(c.spec, 'launch');
     if (launch) {
       const inst = c.insts.find((i) => i.colliders.includes(collider)) ?? c.insts[0];
@@ -1117,7 +1134,7 @@ export class ConstructRuntime {
       }
       if (launch.target) {
         const tp = this.refPos(launch.target);
-        if (tp) { this.launchPlayerTo(tp, launch.speed); this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()) }); return 'handled'; }
+        if (tp) { this.launchPlayerTo(tp, launch.speed, launch.clearY); this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()) }); return 'handled'; }
       }
       const into = -P.vel.dot(dir);
       // trampolines give back more when you come in fast (skill: height stacking), pads add a fixed kick
@@ -1133,13 +1150,24 @@ export class ConstructRuntime {
   }
 
   /** Ballistic launch of the player toward a point (used by launchers aimed at a destination). */
-  launchPlayerTo(tp: Vector3, speedHint: number) {
+  launchPlayerTo(tpIn: Vector3, speedHint: number, clearY?: number) {
     const P = this.w.player;
     const g = -this.w.pw.gravity.y;
+    // aim a few metres past the point so we land ON the ledge/roof instead of clipping its edge
+    const flat = tpIn.clone().sub(P.pos).setY(0);
+    const tp = tpIn.clone().add(flat.lengthSq() > 1 ? flat.normalize().multiplyScalar(3) : new Vector3()).add(new Vector3(0, 1, 0));
     const d = tp.clone().sub(P.pos);
     const horiz = Math.hypot(d.x, d.z);
     // choose a flight time that clears the height difference with some apex margin
-    const apex = Math.max(d.y, 0) + 4 + horiz * 0.15;
+    // clear the tallest static obstacle along the way (walls, buildings) with a few metres to spare
+    let obstacle = -Infinity;
+    const samples = Math.min(120, Math.max(10, Math.ceil(P.pos.distanceTo(tp) / 0.7)));
+    for (let i = 1; i < samples; i++) {
+      const q = P.pos.clone().lerp(tp, i / samples);
+      const hit = this.w.pw.castRay(new this.w.R.Ray({ x: q.x, y: q.y + 80, z: q.z }, { x: 0, y: -1, z: 0 }), 200, true, undefined, groups(G.PLAYER, G.WORLD));
+      if (hit) obstacle = Math.max(obstacle, q.y + 80 - hit.timeOfImpact);
+    }
+    const apex = Math.max(Math.max(d.y, 0) + 4 + horiz * 0.15, clearY !== undefined ? clearY - P.pos.y : 0, isFinite(obstacle) ? obstacle + 3 - P.pos.y : 0);
     const vy = Math.sqrt(2 * g * apex);
     const tUp = vy / g;
     const tDown = Math.sqrt(Math.max(0, 2 * (apex - d.y) / g));

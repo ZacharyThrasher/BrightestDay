@@ -1,0 +1,44 @@
+{
+  "n": 120,
+  "pass": 105,
+  "rate": 0.875,
+  "confidentWrong": 14,
+  "confidentWrongRate": 0.11666666666666667,
+  "abstentions": 10,
+  "byCategory": {
+    "straightforward": "19/20",
+    "novel_composition": "17/20",
+    "followup": "14/16",
+    "reference": "9/12",
+    "ambiguous": "7/8",
+    "impossible": "8/8",
+    "analogy": "13/14",
+    "asr_noise": "9/10",
+    "correction": "4/6",
+    "contradictory": "5/6"
+  },
+  "latencyMs": {
+    "p50": 1.6046940000001086,
+    "p95": 17.000060000000076,
+    "max": 48.58972999999992
+  },
+  "claimVsObserved": {
+    "claims": 125,
+    "observed": 69,
+    "rate": 0.552,
+    "misses": {
+      "raise_player": 22,
+      "strike_target": 6,
+      "move_obstacle": 7,
+      "launch_player": 9,
+      "block_projectiles": 6,
+      "catch_target": 1,
+      "crush_target": 1,
+      "grab_target": 1,
+      "restrain_target": 1,
+      "bridge_gap": 2
+    }
+  },
+  "escalated": 119,
+  "wouldEscalate": 0
+}

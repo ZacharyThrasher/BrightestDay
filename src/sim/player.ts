@@ -52,6 +52,7 @@ export interface Tether {
   length: number;
   attachTime: number;
   constructId: string | null; // non-null when created by a construct (grapple construct)
+  autoReel?: boolean; // winch-like constructs reel the player in automatically
 }
 
 export type HitHandler = (collider: RCollider, normal: Vector3, player: Player) => 'clip' | 'ignore' | 'handled';
@@ -89,6 +90,8 @@ export class Player {
   /** diagnostics */
   stats = { maxSpeed: 0, landings: 0, jumps: 0, speedAtLastLanding: 0, lastLaunchSpeed: 0 };
   onHit: HitHandler | null = null;
+  /** last intended horizontal movement direction (for climbing, construct helpers) */
+  wishDir = new Vector3();
   /** true for one tick after a jump (renderer uses for anims/sfx) */
   events: string[] = [];
 
@@ -188,6 +191,7 @@ export class Player {
     const wish = new Vector3().addScaledVector(fwd, input.moveZ).addScaledVector(right, input.moveX);
     const wishLen = Math.min(1, wish.length());
     if (wishLen > 1e-4) wish.normalize();
+    this.wishDir.copy(wish).multiplyScalar(wishLen);
 
     this.categorizeGround();
     const m = this.mods;
@@ -609,13 +613,23 @@ export class Player {
       if (dist < 1.2) continue;
       d.divideScalar(dist);
       let pull = T.tetherPull;
-      if (input.reel) {
+      if (t.autoReel && dist < 3) {
+        // arrived: let go with a little hop so momentum carries us over the ledge
+        this.vel.y = Math.max(this.vel.y, 7);
+        this.vel.addScaledVector(d.clone().setY(0).normalize(), 5);
+        this.tethers[side] = null;
+        this.events.push('tether_release_' + side);
+        continue;
+      }
+      if (input.reel || t.autoReel) {
         pull += T.tetherReelPull;
         t.length = Math.max(1.5, Math.min(t.length, dist) - T.tetherReelRate * dt);
       }
       // ratchet: rope never lengthens by itself
       t.length = Math.min(t.length, Math.max(dist, 1.5));
-      const dv = pull * dt;
+      let dv = pull * dt;
+      // winches reel at a controlled speed instead of slingshotting you into orbit
+      if (t.autoReel) { const toward = this.vel.dot(d); if (toward > 16) dv = 0; this.vel.y = Math.max(this.vel.y, -2); }
       this.vel.addScaledVector(d, dv);
       if (this.onGround && d.y > 0.2) this.onGround = false;
       // reaction on dynamic anchors (yank drones / pull objects)

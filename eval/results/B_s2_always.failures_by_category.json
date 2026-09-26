@@ -1,0 +1,12 @@
+{
+  "straightforward": "17/20",
+  "novel_composition": "16/20",
+  "followup": "14/16",
+  "reference": "8/12",
+  "ambiguous": "7/8",
+  "impossible": "6/8",
+  "analogy": "12/14",
+  "asr_noise": "6/10",
+  "correction": "6/6",
+  "contradictory": "5/6"
+}

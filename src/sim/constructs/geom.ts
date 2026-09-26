@@ -25,10 +25,11 @@ export function partTransform(p: Part, scale: number, stretch: Vec3 = [1, 1, 1])
 }
 
 /** Bounding info of the whole (scaled) construct instance in its local frame. */
-export function specExtent(spec: ConstructSpec) {
+export function specExtent(spec: ConstructSpec, solidOnly = false) {
   const min = new Vector3(Infinity, Infinity, Infinity);
   const max = new Vector3(-Infinity, -Infinity, -Infinity);
-  for (const p of spec.parts) {
+  const parts = solidOnly && spec.parts.some((p) => p.solid !== false) ? spec.parts.filter((p) => p.solid !== false) : spec.parts;
+  for (const p of parts) {
     const t = partTransform(p, spec.scale, spec.stretch);
     const r = p.rot && (p.rot[0] || p.rot[1] || p.rot[2]) ? Math.max(t.size.x, t.size.y, t.size.z) / 2 : 0;
     const e = r ? new Vector3(r, r, r) : t.size.clone().multiplyScalar(0.5);

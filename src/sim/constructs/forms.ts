@@ -42,6 +42,7 @@ export const FORMS: Record<string, FormFn> = {
   ladder: () => {
     const parts: Part[] = [P('box', [0.15, 8, 0.15], [-0.5, 4, 0], 'rail'), P('box', [0.15, 8, 0.15], [0.5, 4, 0], 'rail')];
     for (let i = 0; i < 12; i++) parts.push(P('cylinder', [0.1, 1, 0.1], [0, 0.4 + i * 0.65, 0], 'rung', [0, 0, 90]));
+    parts.push(P('box', [1.2, 8, 0.1], [0, 4, -0.1], 'climb'));
     return parts;
   },
   pillar: () => [P('cylinder', [1.6, 8, 1.6], [0, 4, 0], 'body')],

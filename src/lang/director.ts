@@ -36,12 +36,27 @@ export class Director {
   }
 
   async commit(text: string): Promise<CommitResult> {
+    // with a System-2 provider configured: instant System-1 result, corrected later if System 2 disagrees
+    if (this.interp.s2 && this.interp.s2Mode !== 'off') {
+      const { now, correction } = await this.interp.commitSpeculative(text);
+      this.record(now);
+      correction.then((c) => { if (c) { this.record(c); for (const l of this.correctionListeners) l(c); } });
+      return now;
+    }
     const r = await this.interp.commit(text);
+    this.record(r);
+    return r;
+  }
+
+  private record(r: CommitResult) {
     this.history.push(r);
     if (this.history.length > 200) this.history.shift();
     for (const l of this.listeners) l(r);
-    return r;
   }
+
+  private correctionListeners: DirectorListener[] = [];
+  /** Fires when System 2 disagreed and replaced System 1's interpretation. */
+  onCorrection(l: DirectorListener) { this.correctionListeners.push(l); }
 
   onCommit(l: DirectorListener) { this.listeners.push(l); }
 }

@@ -46,7 +46,7 @@ export type Behavior =
   | { type: 'throw'; target: Ref; speed: number }
   | { type: 'thrust'; accel: number; axis: Vec3 }
   | { type: 'spin'; rate: number; axis: Vec3 }
-  | { type: 'launch'; speed: number; dir: 'normal' | 'up' | 'forward' | 'arc'; target?: Ref }
+  | { type: 'launch'; speed: number; dir: 'normal' | 'up' | 'forward' | 'arc'; target?: Ref; clearY?: number }
   | { type: 'cushion' }
   | { type: 'field'; mode: 'attract' | 'repel' | 'wind' | 'lift'; radius: number; strength: number; axis?: Vec3 }
   | { type: 'reflect' }

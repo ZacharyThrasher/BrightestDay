@@ -76,9 +76,9 @@ export function buildScene(w: World, name: SceneName): SceneInfo {
     }
     case 'boulder': {
       ground(w);
-      w.addBox(new Vector3(-9, 5, -12), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
-      w.addBox(new Vector3(9, 5, -12), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
-      w.addBox(new Vector3(0, 9, -12), new Vector3(4, 2, 2), 0xd9d2c0, 'wall');
+      w.addBox(new Vector3(-9.5, 5, -12), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
+      w.addBox(new Vector3(9.5, 5, -12), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
+      w.addBox(new Vector3(0, 9, -12), new Vector3(5, 2, 2), 0xd9d2c0, 'wall');
       w.addEntity('boulder', new Vector3(0, 2.2, -12), { hostile: false, label: 'boulder' });
       w.addGoal(new Vector3(0, 1.5, -20), new Vector3(5, 3, 4), 'behind the door');
       info.aims.boulder = new Vector3(0, 2.2, -12);
@@ -153,9 +153,9 @@ function buildPlayground(w: World, info: SceneInfo) {
   // drone field (south-west)
   for (let i = 0; i < 5; i++) w.addEntity('drone', new Vector3(-90 + i * 9, 7 + (i % 3) * 3, 150 + (i % 2) * 8));
   // boulder gate (south)
-  w.addBox(new Vector3(-9, 5, 110), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
-  w.addBox(new Vector3(9, 5, 110), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
-  w.addBox(new Vector3(0, 9, 110), new Vector3(4, 2, 2), 0xd9d2c0, 'wall');
+  w.addBox(new Vector3(-9.5, 5, 110), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
+  w.addBox(new Vector3(9.5, 5, 110), new Vector3(14, 10, 2), 0xd9d2c0, 'wall');
+  w.addBox(new Vector3(0, 9, 110), new Vector3(5, 2, 2), 0xd9d2c0, 'wall');
   w.addEntity('boulder', new Vector3(0, 2.2, 110), { hostile: false });
   w.addGoal(new Vector3(0, 2, 122), new Vector3(6, 3, 5), 'gate: through the door');
   // crates to throw around

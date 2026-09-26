@@ -45,6 +45,7 @@ interface Ctx {
   modTags: string[];
   intents: Set<string>;
   targetKinds: Set<string>;
+  priorOps: Op[];
 }
 
 interface Pending { kind: 'throw_after_grab' | 'orbit_after_grab'; construct?: string; ref?: Ref; speed?: number; opIndex: number }
@@ -74,6 +75,9 @@ export class Interpreter {
   s2Key: string | null = null; // request key override (evaluation record/replay)
   s2Stats = { calls: 0, used: 0, failed: 0, ms: [] as number[] };
   private sysPrompt: string | null = null;
+  /** Distilled System-2 results: unknown phrase -> compiled recipe (reused by System 1 next time). */
+  recipes = new Map<string, ConstructSpec>();
+  onRecipeLearned: ((phrase: string, spec: ConstructSpec) => void) | null = null;
 
   constructor(private w: World) {
     w.tickHooks.push(() => this.tickPending());
@@ -107,6 +111,17 @@ export class Interpreter {
           if (ops2.length) {
             escalated = true;
             this.s2Stats.used++;
+            const creates = ops2.filter((o) => o.op === 'create') as Extract<Op, { op: 'create' }>[];
+            const unk = interp.unknownWords.filter((w) => w.length > 2);
+            if (creates.length === 1 && unk.length && unk.length <= 3) {
+              const phrase = unk.join(' ');
+              const rec = cloneSpec(creates[0].spec);
+              rec.placement = { at: rec.placement.at, orient: rec.placement.orient };
+              rec.behaviors = rec.behaviors.filter((b: any) => !b.target || b.target.kind === 'self' || b.target.kind === 'none');
+              rec.provenance = { source: 'cache', confidence: 0.75, approximatedFrom: phrase, notes: ['learned from System 2'] };
+              this.recipes.set(phrase, rec);
+              this.onRecipeLearned?.(phrase, rec);
+            }
             Object.assign(ctx, { intents: ctx2.intents, targetKinds: ctx2.targetKinds, modTags: ctx2.modTags, pending: ctx2.pending, approximations: [...ctx2.approximations], notes: [...ctx.notes, ...ctx2.notes], createdThisUtterance: ctx2.createdThisUtterance });
             const ab = ops2.find((o) => o.op === 'abstain') as any;
             const onlyAb = ops2.every((o) => o.op === 'abstain');
@@ -144,6 +159,69 @@ export class Interpreter {
     return res;
   }
 
+  // =========================================================================== speculative System 1 + parallel System 2
+
+  /**
+   * The evaluated policy: act immediately on System 1, ask System 2 in parallel, and if the two
+   * disagree, visibly swap to System 2's interpretation (held-out B: agree→~90% correct; on
+   * disagreement S2 was right 63% vs S1 10%). Returns the immediate result plus a promise that
+   * resolves with the correction (or null when S2 agreed / was unavailable / was too late).
+   */
+  async commitSpeculative(text: string): Promise<{ now: CommitResult; correction: Promise<CommitResult | null> }> {
+    const mode = this.s2Mode;
+    this.s2Mode = 'off';
+    const nowRes = await this.commit(text);
+    this.s2Mode = mode;
+    const s1Effect = this.lastEffect;
+    if (!this.s2 || mode === 'off' || nowRes.abstain && nowRes.unknownWords.length === 0 && /contradict|can’t|won’t|no teleport|out of bounds/.test(nowRes.abstain)) {
+      return { now: nowRes, correction: Promise.resolve(null) };
+    }
+    const epoch = ++this.speculationEpoch;
+    const ctx = this.makeCtx();
+    const s2 = this.s2;
+    const correction = (async () => {
+      const t1 = now();
+      this.s2Stats.calls++;
+      try {
+        this.sysPrompt ??= systemPrompt();
+        const req = { key: this.s2Key ?? `${this.w.tick}:${text}`, system: this.sysPrompt, user: userPrompt(text, this.contextSummary(ctx), { summary: nowRes.summary, unknown: nowRes.unknownWords, confidence: nowRes.confidence }) };
+        const out = await s2.complete(req, this.s2TimeoutMs);
+        this.s2Stats.ms.push(now() - t1);
+        const json = out ? extractJson(out) : null;
+        if (!json || !Array.isArray(json.ops)) { if (out !== null) this.s2Stats.failed++; return null; }
+        if (epoch !== this.speculationEpoch) return null; // the player already moved on
+        const ctx2 = this.makeCtx();
+        const ops2 = this.compileS2(json.ops, ctx2);
+        if (!ops2.length) return null;
+        // compare functional effects: same intent family and overlapping functions = agreement
+        const probe = { ...nowRes, ops: ops2, abstain: ops2.every((o) => o.op === 'abstain') ? (ops2[0] as any).reason : null } as CommitResult;
+        const fns2 = new Set(ops2.flatMap((o) => (o.op === 'create' || o.op === 'modify' ? functionsOf(o.spec, this.w) : [])));
+        const fns1 = new Set(s1Effect?.functions ?? []);
+        const int1 = new Set<string>((s1Effect as any)?.intents ?? []);
+        const agree = [...ctx2.intents].some((x) => int1.has(x)) && ((fns1.size === 0 && fns2.size === 0) || [...fns1].some((f) => fns2.has(f))) && !!nowRes.abstain === !!probe.abstain;
+        if (agree) { this.w.emit('interpretation_confirmed', { text }); return null; }
+        // disagreement: roll back what System 1 did, then apply System 2's version
+        for (const id of nowRes.constructIds) if (nowRes.ops.some((o) => o.op === 'create')) this.w.constructs.dismiss(id, 'reinterpreted');
+        for (const o of nowRes.ops) if (o.op === 'modify') { const u = [...this.undoStack].reverse().find((x) => x.kind === 'modify' && x.id === o.target) as any; if (u) this.w.constructs.modify(u.id, u.prev); }
+        const applied = this.apply(ops2, ctx2);
+        this.s2Stats.used++;
+        const res: CommitResult = {
+          ...nowRes, ops: ops2, summary: '🧠 ' + (typeof json.summary === 'string' ? json.summary.slice(0, 120) : this.summarize(ops2, ctx2)), confidence: Math.max(0, Math.min(1, Number(json.confidence) || 0.6)),
+          source: 'llm', abstain: probe.abstain, applied: applied.ids.length > 0 || applied.changed, messages: ['the ring reconsidered', ...ctx2.notes, ...applied.messages], clamps: applied.clamps,
+          constructIds: applied.ids, latencyMs: now() - t1, escalated: true,
+        };
+        this.lastEffect = this.effectReport(res, ctx2, applied);
+        this.w.emit('interpretation_corrected', { text, summary: res.summary });
+        return res;
+      } catch (e) {
+        this.s2Stats.failed++;
+        return null;
+      }
+    })();
+    return { now: nowRes, correction };
+  }
+  private speculationEpoch = 0;
+
   // =========================================================================== planning
 
   private makeCtx(): Ctx {
@@ -156,7 +234,7 @@ export class Interpreter {
       aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, focus: this.w.constructs.get(this.w.constructs.focusId),
       corrections: [], notes: [], approximations: [], unknownWords: [], confidence: 0.92, defaultsUsed: 0, source: 'rule',
       lastEntity: this.lastEntityId ? this.w.entities.get(this.lastEntityId) ?? null : null, createdThisUtterance: [], touchedEntities: new Set(), pending: [],
-      modTags: [], intents: new Set(), targetKinds: new Set(),
+      modTags: [], intents: new Set(), targetKinds: new Set(), priorOps: [],
     };
   }
 
@@ -214,6 +292,7 @@ export class Interpreter {
     for (const c of clauses) {
       if (c.negated) { ctx.notes.push('ignored a negated instruction'); continue; }
       try {
+        ctx.priorOps = ops;
         ops.push(...this.clauseToOps(c, ctx, ops, partial));
       } catch (e) {
         ops.push({ op: 'abstain', reason: 'internal interpretation error' });
@@ -234,6 +313,7 @@ export class Interpreter {
     if (special) return special;
     const v = c.vclass;
     // save / recall
+    if (v === 'save' && !c.savedName && c.objects[0]?.ref && ['person', 'entity'].includes(c.objects[0].ref.kind)) return this.opAction({ ...c, vclass: 'rescue', verb: 'rescue' }, ctx, null);
     if (v === 'save') return this.opSave(c, ctx);
     const savedHit = this.savedNameIn(c);
     if (savedHit && (v === null || v === 'recall' || v === 'create' || v === 'duplicate')) return this.opRecall(savedHit, c, ctx);
@@ -337,6 +417,21 @@ export class Interpreter {
   private objectsToSpecs(nps: NP[], c: Clause, ctx: Ctx, verbHint: VerbClass | null = null): ConstructSpec[] {
     const out: ConstructSpec[] = [];
     for (const np of nps) {
+      if (!np.concept && np.unknownWords.length && this.recipes.size) {
+        const key = [...this.recipes.keys()].find((k) => k === np.unknownWords.join(' ') || np.unknownWords.includes(k) || k.split(' ').every((w) => np.unknownWords.includes(w)));
+        if (key) {
+          const rec = cloneSpec(this.recipes.get(key)!);
+          for (const sz of np.sizes) rec.scale *= sz;
+          if (np.count) rec.count = np.count;
+          this.applyMaterials(rec, np.materials, ctx);
+          this.applyPreps(rec, c, ctx);
+          ctx.approximations.push(`“${key}” → learned recipe`);
+          ctx.source = 'cache';
+          ctx.createdThisUtterance.push(rec);
+          out.push(rec);
+          continue;
+        }
+      }
       const { concept, approx } = this.resolveConcept(np, ctx);
       if (!concept) {
         if (np.unknownHead) {
@@ -390,6 +485,19 @@ export class Interpreter {
       provenance: { source: 'lexicon', confidence: ctx.confidence, notes: [] },
     });
     if (concept.at === 'hand' && !spec.behaviors.some((b) => DRIVES.has(b.type))) spec.behaviors.push({ type: 'hold', side: 'right' });
+    // anchors go where they're useful: on top of what you're pointing at; elevators go up to it
+    if (concept.cls === 'rope' && spec.placement.at === 'aim' && !ctx.aimEntity) spec.placement = { ...spec.placement, at: 'target', target: { kind: 'point', p: this.ledgeTop(ctx).toArray() as Vec3 } };
+    if ((concept.id === 'ladder' || concept.id === 'stairs' && ctx.aimNormal.y < 0.5) && !ctx.aimEntity && ctx.aimPoint.distanceTo(this.w.player.pos) < 60) {
+      const top = this.ledgeTop(ctx);
+      const g = ctx.aimPoint.clone();
+      const baseY = this.w.player.pos.y - 0.9;
+      const rise = top.y - baseY;
+      if (rise > 3) {
+        if (concept.id === 'ladder') { spec.stretch = [1, Math.min(12, rise / 8 + 0.1), 1]; spec.placement = { ...spec.placement, at: 'target', target: { kind: 'point', p: [g.x + ctx.aimNormal.x * 0.4, baseY, g.z + ctx.aimNormal.z * 0.4] } }; }
+        else { spec.stretch = [1, rise / 4 + 0.1, Math.max(1, rise / 4)]; }
+      }
+    }
+    if (concept.id === 'elevator') spec.behaviors = spec.behaviors.map((b) => (b.type === 'lift' ? { ...b, height: Math.max(8, Math.min(45, this.ledgeTop(ctx).y - this.w.player.pos.y + 3)) } : b));
     if (np?.absExtent) {
       const ext = specExtent({ ...spec, stretch: undefined });
       const cur = [ext.size.x, ext.size.y, ext.size.z][np.absExtent.axis] || 1;
@@ -642,6 +750,15 @@ export class Interpreter {
           break;
         case 'over': case 'above': case 'on top of': case 'upon':
           if (np.ref?.kind === 'place' && ['gap', 'canyon', 'chasm', 'pit', 'hole', 'ravine', 'river'].includes(np.ref.place!)) { spec.placement = { ...spec.placement, at: 'span' }; break; }
+          if (['ramp', 'stairs', 'slide'].includes(spec.concept) && p.prep === 'over') {
+            const top = this.ledgeTop(ctx).y - (this.w.player.pos.y - 0.9);
+            const ext = specExtent({ ...spec, stretch: undefined });
+            const k = Math.max(1, (top + 1.5) / Math.max(1, ext.size.y));
+            spec.stretch = [1, k, Math.max(1, k * 0.8)];
+            const d = this.w.player.pos.distanceTo(ctx.aimPoint);
+            spec.placement = { ...spec.placement, at: 'ground_front', distance: Math.max(2, d - ext.size.z * Math.max(1, k * 0.8) / 2 - 2) };
+            break;
+          }
           if (['enclosure'].includes(conceptByName.get(spec.concept)?.cls ?? '') || ['dome', 'bubble', 'umbrella', 'shield'].includes(spec.concept)) { spec.placement = { ...spec.placement, at: isSelf ? 'self' : 'around_target', target: isSelf ? undefined : ref ?? undefined }; if (isSelf) spec.passPlayer = true; break; }
           spec.placement = { ...spec.placement, at: isSelf ? 'above_self' : 'above_target', target: ref ?? undefined, height: spec.placement.height ?? 6 };
           break;
@@ -893,7 +1010,8 @@ export class Interpreter {
         const cid = instrument?.concept?.id ?? STRIKE_DEFAULT[verb] ?? 'fist';
         const spec = create(cid, instrument, [], { at: 'hand', orient: 'along_look' });
         const cls = conceptByName.get(spec.concept)?.cls;
-        if (cls === 'heavy' && !spec.behaviors.some((b) => b.type === 'strike')) {
+        const grounded = tgt.entities.length > 0 && tgt.entities.every((e) => e.type !== 'drone');
+        if (cls === 'heavy' && !spec.behaviors.some((b) => b.type === 'strike') && !grounded) {
           spec.motion = 'dynamic'; spec.placement = { at: 'above_target', target: tgt.ref!, orient: 'face_away', height: 8 }; spec.behaviors.push({ type: 'crush', target: tgt.ref! });
         } else {
           const count = tgt.entities.length > 1 ? Math.min(tgt.entities.length, 6) : spec.count;
@@ -901,7 +1019,7 @@ export class Interpreter {
           if (spec.count > 1) spec.arrangement = 'arc';
           spec.behaviors = spec.behaviors.filter((b) => b.type !== 'home' || cls === 'projectile');
           if (cls === 'projectile' && spec.behaviors.some((b) => b.type === 'home')) spec.behaviors = spec.behaviors.map((b) => (b.type === 'home' ? { ...b, target: tgt.ref! } : b));
-          else spec.behaviors.push(strikeB);
+          else spec.behaviors.push(cls === 'heavy' ? { ...strikeB, after: 'stay' } as Behavior : strikeB);
           if (spec.motion === 'static' || spec.motion === 'dynamic') spec.motion = 'kinematic';
         }
         intent('create'); intent('act');
@@ -929,7 +1047,16 @@ export class Interpreter {
         }
         if (selfTarget && (v === 'pull' || v === 'reel' || v === 'lift')) {
           // "pull me up there" / "lift me up": an elevator or a tether toward the aim point
-          if (v === 'lift') { intent('create'); return [{ op: 'create', spec: create('elevator', null, [], { at: 'under_self', orient: 'face_away' }, (s) => { s.behaviors = [{ type: 'lift', target: { kind: 'self' }, height: Math.max(8, Math.min(40, ctx.aimPoint.y - this.w.player.pos.y + 3)) }]; }) }]; }
+          if (v === 'lift') {
+            intent('create');
+            const inst = instrument && (instrument.concept || instrument.unknownHead) ? instrument : null;
+            const cid = inst?.concept?.id ?? 'elevator';
+            const h = Math.max(8, Math.min(45, this.ledgeTop(ctx).y - this.w.player.pos.y + 3));
+            return [{ op: 'create', spec: create(cid, inst, [], { at: cid === 'tornado' ? 'self' : 'under_self', orient: 'face_away' }, (s) => {
+              if (!s.behaviors.some((b) => b.type === 'field' && (b as any).mode === 'lift')) { s.behaviors = s.behaviors.filter((b) => b.type !== 'lift'); s.behaviors.push({ type: 'lift', target: { kind: 'self' }, height: h }); }
+              else { s.behaviors.push({ type: 'follow', target: { kind: 'self' }, offset: [0, -4, 0] }); s.lifetime = Math.min(s.lifetime, 6 + h / 8); }
+            }) }];
+          }
           intent('create');
           return [{ op: 'create', spec: create('grappling hook', null, [], { at: 'aim', orient: 'face_away' }) }];
         }
@@ -954,9 +1081,19 @@ export class Interpreter {
       case 'throw': {
         // destination: explicit "at/into X", else crosshair
         const dest = destP ? this.refFor(destP.np, ctx, 'throw') : { ref: null as Ref | null, entities: [] as Entity[], kind: 'none' };
-        const destRef: Ref = dest.ref && dest.ref.kind !== 'self' ? dest.ref : { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 };
+        // no destination and the crosshair is on the thing being thrown: fling it far ahead
+        const aimOnPatient = !destP && ctx.aimEntity && (patient?.ref || tgt.entities.includes(ctx.aimEntity));
+        const ahead = this.w.player.pos.clone().addScaledVector(this.w.player.forward(), 35).add(new Vector3(0, 6, 0));
+        const destRef: Ref = dest.ref && dest.ref.kind !== 'self' ? dest.ref : { kind: 'point', p: (aimOnPatient ? ahead : ctx.aimPoint).toArray() as Vec3 };
         if (dest.ref) ctx.targetKinds.add(dest.kind);
         const speed = 42 * speedK;
+        // "grab the rock and throw it": chain onto the grab we just planned
+        const priorGrab = ctx.priorOps.findIndex((o) => o.op === 'create' && o.spec.behaviors.some((b) => b.type === 'grab'));
+        if (priorGrab >= 0 && (!patient || patient.ref?.kind === 'construct' || patient.ref?.kind === 'person' || patient.ref?.kind === 'entity')) {
+          ctx.pending.push({ kind: 'throw_after_grab', ref: destRef, speed, opIndex: priorGrab });
+          intent('act');
+          return [];
+        }
         // holding something? throw that
         const holder = focus ?? [...this.w.constructs.list.values()].reverse().find((x) => this.w.constructs.cargoOf(x.id).length);
         const patientEnts = patient ? this.refFor(patient, ctx, 'throw').entities : [];
@@ -967,14 +1104,14 @@ export class Interpreter {
         if (patientEnts.length) {
           // not holding it yet: grab, then throw when the grip closes
           const spec = create('hand', null, [{ type: 'grab', target: { kind: 'entity', id: patientEnts[0].id }, then: 'hold' }], { at: 'hand', orient: 'along_look' });
-          ctx.pending.push({ kind: 'throw_after_grab', ref: destRef, speed, opIndex: 0 });
+          ctx.pending.push({ kind: 'throw_after_grab', ref: destRef, speed, opIndex: ctx.priorOps.length });
           intent('create'); intent('act');
           return [{ op: 'create', spec }];
         }
         // throw a new object ("throw a boulder at him")
         const cid = instrument?.concept?.id ?? 'ball';
         const spec = create(cid, instrument, [], { at: 'hand', orient: 'along_look' }, (s) => { s.motion = 'kinematic'; s.behaviors = s.behaviors.filter((b) => b.type !== 'hold'); });
-        ctx.pending.push({ kind: 'throw_after_grab', ref: tgt.ref && tgt.ref.kind !== 'self' ? tgt.ref : destRef, speed, opIndex: 0 });
+        ctx.pending.push({ kind: 'throw_after_grab', ref: tgt.ref && tgt.ref.kind !== 'self' ? tgt.ref : destRef, speed, opIndex: ctx.priorOps.length });
         intent('create'); intent('act');
         return [{ op: 'create', spec }];
       }
@@ -989,10 +1126,12 @@ export class Interpreter {
           intent(holding ? 'act' : 'modify');
           return [modifyWith(holder!, (s) => { s.behaviors = s.behaviors.filter((b) => b.type !== 'orbit' && b.type !== 'hold'); s.behaviors.push({ type: 'orbit', around: center, radius: 4 + specExtent(s).radius * 0.6, speed: (v === 'spin' ? 6 : 2.5) * speedK }); }, ['add_behavior'])];
         }
+        const priorGrab2 = ctx.priorOps.findIndex((o) => o.op === 'create' && o.spec.behaviors.some((b) => b.type === 'grab'));
+        if (v === 'spin' && priorGrab2 >= 0 && !holding) { ctx.pending.push({ kind: 'orbit_after_grab', opIndex: priorGrab2 }); intent('act'); return []; }
         if (v === 'spin' && patient && tgt.entities.length && !holding) {
           // grab it first, then swing it
           const spec = create('hand', null, [{ type: 'grab', target: tgt.ref!, then: 'hold' }], { at: 'hand', orient: 'along_look' });
-          ctx.pending.push({ kind: 'orbit_after_grab', opIndex: 0 });
+          ctx.pending.push({ kind: 'orbit_after_grab', opIndex: ctx.priorOps.length });
           intent('create'); intent('act');
           return [{ op: 'create', spec }];
         }
@@ -1094,7 +1233,7 @@ export class Interpreter {
       case 'launch': case 'climb': case 'cross': case 'carry': case 'ride': case 'descend': {
         const aimFar = ctx.aimPoint.distanceTo(this.w.player.pos);
         const toPlace = destP ? this.refFor(destP.np, ctx, v).ref : null;
-        const destPoint: Vec3 = toPlace && toPlace.kind === 'point' ? toPlace.p : ctx.aimPoint.toArray() as Vec3;
+        const destPoint: Vec3 = toPlace && toPlace.kind === 'point' ? toPlace.p : (v === 'climb' || v === 'launch' || v === 'carry' || v === 'cross' ? this.ledgeTop(ctx) : ctx.aimPoint).toArray() as Vec3;
         // vehicles / wearables named explicitly: "ride a dragon", "fly me with wings"
         const vehicle = instrument?.concept && ['vehicle', 'wearable', 'creature'].includes(instrument.concept.cls) ? instrument : objNP?.concept && ['vehicle', 'wearable', 'creature'].includes(objNP.concept.cls) ? objNP : null;
         if (vehicle) { intent('create'); return [{ op: 'create', spec: create(vehicle.concept!.id, vehicle, [], { at: 'self', orient: 'face_away' }) }]; }
@@ -1116,10 +1255,18 @@ export class Interpreter {
         }
         // self launch toward destination (up there / the roof / across)
         const cid = instrument?.concept?.id ?? (v === 'launch' && !toPlace && c.particle !== 'over' ? 'spring' : 'launch pad');
-        const target: Ref | undefined = v === 'launch' && !toPlace && !c.particle ? undefined : { kind: 'point', p: destPoint };
+        const over = c.preps.some((p) => ['over', 'across', 'past', 'beyond'].includes(p.prep)) || c.particle === 'over';
+        let dest = new Vector3(...destPoint);
+        if (over) {
+          const top = this.ledgeTop(ctx);
+          const flat = ctx.aimPoint.clone().sub(this.w.player.pos).setY(0).normalize();
+          dest = ctx.aimPoint.clone().addScaledVector(flat, 9).setY(Math.max(this.w.player.pos.y - 0.9, 0));
+          (ctx as any).clearY = top.y + 3;
+        }
+        const target: Ref | undefined = v === 'launch' && !toPlace && !c.particle && !over ? undefined : { kind: 'point', p: dest.toArray() as Vec3 };
         const spec = create(cid, instrument, [], { at: 'under_self', orient: 'face_away' }, (s) => {
           s.behaviors = s.behaviors.filter((b) => b.type !== 'launch');
-          s.behaviors.push({ type: 'launch', speed: v === 'launch' ? 34 * speedK : 40, dir: target ? 'arc' : 'up', target });
+          s.behaviors.push({ type: 'launch', speed: v === 'launch' ? 34 * speedK : 40, dir: target ? 'arc' : 'up', target, ...((ctx as any).clearY ? { clearY: (ctx as any).clearY } : {}) } as any);
         });
         (spec as any)._launchNow = true;
         intent('create');
@@ -1136,6 +1283,12 @@ export class Interpreter {
           return [{ op: 'create', spec: create(instrument?.concept?.id ?? 'pusher', instrument, [], { at: 'front', orient: 'face_away' }, (s) => { s.behaviors = s.behaviors.filter((b) => b.type !== 'sweep'); s.behaviors.push({ type: 'sweep', width: 20, speed: 12 }); s.scale = Math.max(s.scale, 2.4); }) }];
         }
         const heavyTarget = tgt.entities.some((e) => e.type === 'boulder');
+        if (heavyTarget && (instrument?.concept?.id === 'pusher' || instrument?.concept?.cls === 'vehicle' || ['bulldoze', 'plow', 'plough', 'shove'].includes(verb))) {
+          const e = tgt.entities[0];
+          const spec = create(instrument?.concept?.id === 'pusher' || !instrument?.concept ? 'pusher' : 'pusher', instrument?.concept?.id === 'pusher' ? instrument : null, [{ type: 'sweep', width: 18, speed: 8 }], { at: 'between', target: { kind: 'entity', id: e.id }, orient: 'face_away', distance: Math.max(3, this.w.entityPos(e).distanceTo(this.w.player.pos) - 6) }, (s) => { s.scale = Math.max(s.scale, 2.4); s.motion = 'kinematic'; s.behaviors = s.behaviors.filter((b) => b.type !== 'hold'); });
+          intent('create'); intent('act');
+          return [{ op: 'create', spec }];
+        }
         const wield = useFocus((f) => f.spec.motion !== 'static' && !f.spec.behaviors.some((b) => b.type === 'mount'));
         if (wield) { intent('act'); return [modifyWith(wield, (s) => { s.behaviors = s.behaviors.filter((b) => b.type !== 'strike'); s.behaviors.push({ type: 'strike', target: tgt.ref!, speed: 30 * speedK, after: 'return' }); }, ['add_behavior'])]; }
         const spec = create(instrument?.concept?.id ?? 'hand', instrument, [{ type: 'strike', target: tgt.ref!, speed: (heavyTarget ? 30 : 28) * speedK, after: 'dissolve' }], { at: 'hand', orient: 'along_look' }, (s) => { s.motion = 'kinematic'; if (heavyTarget) s.scale = Math.max(s.scale, 3.4); });
@@ -1160,7 +1313,7 @@ export class Interpreter {
         const f = focus ?? (patient?.ref?.kind === 'construct' ? ctx.focus : null);
         if (f && (!tgt.entities.length)) { intent('act'); return [modifyWith(f, (s) => { s.behaviors = s.behaviors.filter((b) => b.type !== 'explode'); s.behaviors.push({ type: 'explode', radius: 7, force: 35, delay: 0.3, onContact: false }); }, ['add_behavior'])]; }
         needTarget();
-        const spec = create(instrument?.concept?.id ?? 'bomb', instrument, [{ type: 'home', target: tgt.ref!, speed: 32 }, { type: 'explode', radius: 7, force: 35, delay: 6, onContact: true }], { at: 'hand', orient: 'along_look' }, (s) => { s.motion = 'kinematic'; s.behaviors = s.behaviors.filter((b, i, arr) => b.type !== 'explode' || arr.findIndex((x) => x.type === 'explode') === i); });
+        const spec = create(instrument?.concept?.id ?? 'bomb', instrument, [{ type: 'home', target: tgt.ref!, speed: 32 }, { type: 'explode', radius: 8, force: 60, delay: 6, onContact: true }], { at: 'hand', orient: 'along_look' }, (s) => { s.motion = 'kinematic'; s.behaviors = s.behaviors.filter((b, i, arr) => b.type !== 'explode' || arr.findIndex((x) => x.type === 'explode') === i); });
         intent('create'); intent('act');
         return [{ op: 'create', spec }];
       }
@@ -1505,6 +1658,23 @@ export class Interpreter {
     return [{ op: 'abstain', reason: 'help how? tell me what to make or do' }];
   }
 
+  /** If the crosshair is on the side of something, the useful destination is usually its top. */
+  ledgeTop(ctx: Ctx): Vector3 {
+    const p = ctx.aimPoint.clone();
+    if (ctx.aimNormal.y > 0.6 || ctx.aimEntity) return p;
+    const R = this.w.R;
+    const inside = p.clone().addScaledVector(ctx.aimNormal, -1.2);
+    for (const h of [8, 20, 45, 80]) {
+      const from = inside.clone().add(new Vector3(0, h, 0));
+      const hit = this.w.pw.castRay(new R.Ray(from, { x: 0, y: -1, z: 0 }), h + 1, true);
+      if (hit && hit.timeOfImpact > 0.05) {
+        const top = from.clone().add(new Vector3(0, -hit.timeOfImpact, 0));
+        if (top.y > p.y - 0.5) return top.addScaledVector(ctx.aimNormal, -1.5);
+      }
+    }
+    return p;
+  }
+
   private blankNP(): NP {
     return { tokens: [], det: null, count: null, plural: false, sizes: [], dims: [], speeds: [], materials: [], colors: [], concept: null, conceptWords: null, unknownHead: null, unknownWords: [], ignoredWords: [], addons: [], rel: [], ref: null, analogy: false, arrangement: null };
   }
@@ -1804,11 +1974,11 @@ export class Interpreter {
             if (this.createdHistory.length > 40) this.createdHistory.shift();
             if ((op.spec as any)._launchNow) {
               const launch = r.construct.spec.behaviors.find((b) => b.type === 'launch') as any;
-              if (launch?.target) this.w.constructs.launchPlayerTo(this.w.constructs.refPos(launch.target)!, launch.speed);
+              if (launch?.target) this.w.constructs.launchPlayerTo(this.w.constructs.refPos(launch.target)!, launch.speed, launch.clearY);
               else { this.w.player.vel.y = Math.max(this.w.player.vel.y, launch?.speed ?? 30); this.w.player.onGround = false; }
               this.w.emit('launch', { construct: r.construct.id, speed: Math.round(this.w.player.vel.length()) });
             }
-            for (const p of ctx.pending.filter((q) => q.opIndex === idx || q.opIndex === 0)) this.pendings.push({ p: { ...p, construct: r.construct.id }, ids: [r.construct.id], deadline: this.w.time + 4 });
+            for (const p of ctx.pending.filter((q) => q.opIndex === idx)) this.pendings.push({ p: { ...p, construct: r.construct.id }, ids: [r.construct.id], deadline: this.w.time + 5 });
           } else messages.push(`✖ ${r.report.rejected}`);
           break;
         }

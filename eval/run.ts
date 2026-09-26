@@ -207,6 +207,32 @@ async function main() {
   }
   const items: Item[] = readFileSync(file, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)).filter((i: Item) => !only || i.id === only);
   const results: ItemResult[] = [];
+  if (args.includes('--compare') && S2) {
+    const keepS2 = S2;
+    const rows: { s1: boolean; s2: boolean; agree: boolean; cat: string; s1conf: number; s2conf: number }[] = [];
+    for (const it of items) {
+      S2 = null; const a = await runItem(it);
+      S2 = keepS2; S2MODE = 'always'; const b = await runItem(it);
+      const ia = new Set<string>((a.report as any).intents ?? []), ib = new Set<string>((b.report as any).intents ?? []);
+      const fa = new Set<string>(a.report.functions ?? []), fb = new Set<string>(b.report.functions ?? []);
+      const intentAgree = [...ia].some((x) => ib.has(x));
+      const fnAgree = (fa.size === 0 && fb.size === 0) || [...fa].some((x) => fb.has(x));
+      rows.push({ s1: a.pass, s2: b.pass, agree: intentAgree && fnAgree && !!a.abstain === !!b.abstain, cat: it.category, s1conf: a.confidence, s2conf: b.confidence });
+    }
+    const agree = rows.filter((r) => r.agree), dis = rows.filter((r) => !r.agree);
+    const pct = (x: number, n: number) => `${x}/${n} (${n ? Math.round((100 * x) / n) : 0}%)`;
+    console.log(JSON.stringify({
+      n: rows.length,
+      agree: agree.length,
+      whenAgree_S1pass: pct(agree.filter((r) => r.s1).length, agree.length),
+      whenAgree_S2pass: pct(agree.filter((r) => r.s2).length, agree.length),
+      whenDisagree_S1pass: pct(dis.filter((r) => r.s1).length, dis.length),
+      whenDisagree_S2pass: pct(dis.filter((r) => r.s2).length, dis.length),
+      oracle_either: pct(rows.filter((r) => r.s1 || r.s2).length, rows.length),
+      policy_S2_overrides_on_disagreement: pct(rows.filter((r) => (r.agree ? r.s1 : r.s2)).length, rows.length),
+    }, null, 2));
+    return;
+  }
   for (const it of items) {
     const r = await runItem(it);
     results.push(r);
