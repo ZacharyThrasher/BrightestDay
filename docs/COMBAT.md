@@ -339,6 +339,31 @@ points per KO / round win, pick timer, Boom-or-Bust on/off, first-place-2-choice
 (common/legendary/cursed toggles), plus every MatchRules knob (scale, willpower, caps, respawn time,
 spawn shield, gravity scale, gas regen, knockback scale, void on/off, islands regen), saved as presets.
 
+## 5h. Player powers (ONE framework for every iconic power system)
+A **Power** (data in `assets/powers.ron`, executed by bd_sim) is a fixed template — nothing else:
+1. `body`: passive traits from closed sets — MoveModifiers, element immunities/weaknesses, "scatter"
+   (Logia: on a hit, dissolve into the element and reform ~1 m away; 3 s cooldown), bounce-body, etc.;
+2. `graft`: a standing graft merged into every cast (like party effects);
+3. `incantation`: an optional prefix ("gomu gomu no", "mera mera no") — `<prefix> <phrase>` resolves the
+   phrase and applies the power's **delivery** (e.g. rubber: launched on a stretching arm that snaps back
+   = Returning + Bounce; fire: Fire element + flame trail) — works only if you hold that power;
+4. `moves`: up to 2 signature moves on the power key (G tap / G hold), each just a Recipe (+ optional
+   self-impulse/blink);
+5. `transform`: optional beast/hybrid form using the Transforms panel system on the player's costume
+   (Zoan fruits);
+6. `companion`: optional persistent construct (JoJo stands: floats behind you, Protective; damage to the
+   stand is dealt to the user; stand rush = each "ORA"/"MUDA"/"DORA" typed in the console is one punch —
+   typing speed = rush speed).
+**Devil fruits:** cast "<name> fruit"/"<name> no mi" → an edible hard-light fruit (expensive, anyone can
+grab & eat it); held until KO, then **the fruit respawns where you died**; eating a second fruit →
+you explode (self-KO, no credit). Weaknesses: Water hits drain the power for 3 s; "seastone" Links
+disable it while linked; fruit users sink faster in the void.
+**Stands:** cast the stand's name (or "stand arrow" → random): held until KO; a second stand replaces
+the first. "Time stop" stands never freeze others (the never-list): the world greys and the *user*
+moves at ×2 for 1.5 s instead.
+Other franchises' power systems (Naruto jutsu, MHA quirks, bending, Nen, Pokémon moves…) are added
+later **as data in this template only**.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more

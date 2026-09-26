@@ -12,6 +12,12 @@ light voxels in your corps colour. Everything shatters into cubes.
 > follow-through, squash), and mechanical depth — never on visual detail. Simple voxel shapes + great
 > motion beat detailed models + stiff motion.
 
+> **FEATURE FREEZE (2026-09-26).** No new *systems*. Growth only as data (icons, powers, words) that
+> composes existing closed-set pieces. Core = movement + ring constructs + destruction + FFA; every other
+> layer (Transformers, player powers, party mode, voice, costumes, onomatopoeia) is a lobby toggle and is
+> hidden rather than shown half-done. Priority from here: vertical slice → playtest → polish → breadth.
+> Any proposed new verb must pass the mechanic admission test (COMBAT.md §5f).
+
 ## Pillars (in priority order)
 1. **Feel.** Snappy, tight, low latency. Mouse look is applied every rendered frame from raw input,
    never tick-quantised. Movement is simulated at a fixed 120 Hz with render interpolation. No

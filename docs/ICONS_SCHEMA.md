@@ -8,9 +8,17 @@ IconEntry(
     names: ["mjolnir", "thor's hammer", "mjölnir"],   // lowercase lookup keys; first = canonical id
     recipe: <bd_core::mechanics::Recipe>,              // serde RON of the real type (fields below)
     shape: Some(<bd_core::shape::ShapeSpec>),          // optional hand-authored model; None = procedural
+    alt_shape: None,                                   // optional second mode (Transforms icons), see below
     source: "Marvel (Thor)",                            // franchise/credit, for the explanation note
 )
 ```
+
+**Two-mode icons (`Mechanic::Transforms`, bd_core v1.2, COMBAT.md §5d-bis):** `shape` is the alt mode
+(vehicle / beast / boombox…) and `alt_shape: Some(<ShapeSpec>)` the robot mode. The recipe must list
+`Transforms`. Panels that move between modes use the **same `part` ids** in both shapes (cab → chest,
+doors → back-wings, wheels → shoulders…); parts only present in one mode (e.g. the robot head that
+unfolds from inside) get their own ids. `alt_shape` defaults to `None` and may be omitted.
+`bd_lexicon` exposes it as `Resolution::alt_shape`.
 
 `Recipe` fields (defaults may be omitted: `payload`, `features`, `temperament`, `intensity`):
 `name`, `form` (Form variant), `mechanics` ([Mechanic]), `element` (Element), `scale` (m), `mass`
@@ -53,4 +61,5 @@ Example (verified to parse against bd_core v1):
 ]
 ```
 
-Validate: `cargo run --manifest-path tools/iconcheck/Cargo.toml -- assets/icons/<file>.ron` (exit 0 = OK).
+Validate: `cargo run --manifest-path tools/iconcheck/Cargo.toml -- assets/icons/<file>.ron` (exit 0 = OK; also
+checks two-mode entries: `alt_shape` needs `shape`, `Transforms`, and shared part ids).
