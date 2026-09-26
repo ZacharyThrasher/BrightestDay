@@ -186,7 +186,7 @@ fn chandelier_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     let p = MoveParams::default();
     let s = PlayerState::new(start, &p);
     let env = |k: &str, d: f32| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
-    let (fire_dist, rel, pump_below) = (env("FIRE", 12.0), env("REL", 3.0), env("PUMP", 2.0));
+    let (fire0, fire_dist, rel, pump_below) = (env("FIRE0", 12.0), env("FIRE", 12.0), env("REL", 3.0), env("PUMP", 2.0));
     // Phase 2k: flying toward hub k (fire when close); 2k+1: swinging on hub k; 2n: to the goal.
     let mut phase = 0usize;
     let mut idle = false;
@@ -220,7 +220,7 @@ fn chandelier_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
             let after = if k + 1 < n { hubs[k + 1] } else { goal_p };
             if phase % 2 == 0 {
                 // Flying: fire once close enough.
-                if horiz(hub - s.pos).length() < fire_dist {
+                if horiz(hub - s.pos).length() < if k == 0 { fire0 } else { fire_dist } {
                     phase += 1;
                     let (y, pc) = aim_at(eye, hub + Vec3::Y * 0.3);
                     return input(y, pc, 0, 1, TETHER_L);

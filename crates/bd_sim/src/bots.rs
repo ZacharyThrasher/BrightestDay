@@ -286,6 +286,17 @@ impl BotBrain {
             act.input.buttons |= buttons::TYPING;
             act.input.yaw = self.yaw;
             act.input.pitch = self.pitch;
+            // Keep drifting on the keys held when the recital began (like a player's latched move),
+            // but let go rather than walk off a ledge.
+            let (mx, mz) = (me.input.move_x, me.input.move_z);
+            let (sy, cy) = self.yaw.sin_cos();
+            let d = (Vec3::new(-sy, 0.0, -cy) * mz as f32 + Vec3::new(cy, 0.0, -sy) * mx as f32).normalize_or_zero();
+            if d != Vec3::ZERO
+                && [1.5f32, 3.0].iter().all(|k| raycast(&w.voxels, me.mv.pos + d * *k + Vec3::Y * 0.5, Vec3::NEG_Y, 3.5).is_some())
+            {
+                act.input.move_x = mx;
+                act.input.move_z = mz;
+            }
             if let Some((t0, secs, acc)) = self.oath_plan {
                 if t0 == started && w.tick.saturating_sub(started) as f32 * DT >= secs {
                     act.finish_oath = Some((acc, secs));

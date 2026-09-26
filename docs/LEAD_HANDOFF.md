@@ -24,6 +24,11 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
   stats table (KOs, falls, SDs, dmg dealt/taken, streak, combo, acc, constructs, stocks, ping).
 - Vocab military + D&D aa338f67f0c63e7fc — content-as-data only (weapons/vehicles/fortifications/support
   calls; SRD spells/monsters/items/class moves; non-SRD names private-use in notices), ~60 golden tests.
+- Wukong + CN folklore a7e87a75ac19851a6 — NEW Mechanic::Extends (contract v1.7): Ruyi staff twirl combos,
+  25-40 m extend thrust, pillar slam, pole vault; plus folklore content pack (Nezha, Erlang, Iron Fan...).
+- Presence/gravitas a1f2fc9e831108f3e — generic Hollow-Purple grammar for EVERY construct: presence tier
+  (scale/cost/legendary/signature; contrast, not max), gather → manifest → element material → presence
+  (light, hum, motion sigs) → clean exit; presence.ron; waits for signature worker's lock on signature_fx.rs.
 - Feel polish ab67c9f46bddf8b57 — momentum while typing (latched WASD; sim no longer zeroes move on
   TYPING; may shift FFA hash), speed lines + wind on all maps, strafe/tether camera roll, instant cast "catch".
 - Costumes abe83e88bc70188b0 got 2 scope adds: exact character name in a SUMMON → costume construct
@@ -47,7 +52,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (transforms
   ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (static), Valley of the
   End a39d259b62dd1312d (water-walk as flavour), Ember a12534acdde2f59c8 (lava = void), Hyperline
-  a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b, High Roller casino
+  a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b (DONE, registered; surf murk fix sent to feel-polish), High Roller casino
   a668e5a109aacf9fa (optional slots/roulette; its routes example was missing mid-work).
 **Known follow-ups:** 3P ADS head fills ~1/3 of screen; Alt+Enter also dodges; bots don't navigate
 mazes; possible tutorial first-construct pipeline hitch; bd_net InputQueue trim can drop a 1-tick tap;

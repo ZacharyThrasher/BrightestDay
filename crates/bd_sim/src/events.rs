@@ -198,6 +198,8 @@ pub enum GameEvent {
         cost: f32,
     },
     CastFailed { player: PlayerId, reason: CastError },
+    /// POWER-UPS (`crate::pickups`): a pickup moment (beacon, appear, take, drop, spend, fade).
+    Pickup { id: u16, kind: crate::pickups::GateKind, moment: crate::pickups::PickupMoment, pos: Vec3, player: Option<PlayerId> },
     /// A cast was grafted onto an existing construct; `recipe` is the merged result.
     Grafted { player: PlayerId, id: ConstructId, recipe: Box<Recipe>, cost: f32 },
     /// Integrity damage to a construct (flash).

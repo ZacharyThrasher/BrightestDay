@@ -3,7 +3,9 @@
 //! yelling out anything").
 //!
 //! * The engine starts once the lexicon is loaded (its `bias_prompt` primes Whisper with the ring's
-//!   vocabulary) and only if the `voice` setting is on. Built without the `voice` cargo feature (or no
+//!   vocabulary, then your corps oath, then — last, where Whisper weighs it most — the other players'
+//!   display names, so "drop a meteor on Ethan" is heard as *Ethan*; re-primed without reloading the
+//!   model whenever the roster changes) and only if the `voice` setting is on. Built without the `voice` cargo feature (or no
 //!   mic / no model) everything stays hidden — no errors on screen.
 //! * While listening, a small ring pulse at the bottom follows the mic level, and the viewmodel's
 //!   ring breathes with it ([`VoiceUi::level`]). Transcribing: the pulse holds and spins.
@@ -44,6 +46,9 @@ pub struct VoiceUi {
     since_ptt: f32,
     /// How long push-to-talk was held last time (the utterance's speaking time).
     last_hold: f32,
+    /// The prompt without player names (lexicon bias + your oath) and the roster it was last sent with.
+    prompt_base: String,
+    roster: Vec<String>,
 }
 
 impl VoiceUi {
@@ -63,7 +68,7 @@ impl Plugin for VoicePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VoiceUi>()
             .add_systems(Startup, spawn_voice_ui)
-            .add_systems(Update, (start_voice, voice_frame).chain().in_set(UiSet::Input))
+            .add_systems(Update, (start_voice, voice_roster, voice_frame).chain().in_set(UiSet::Input))
             .add_systems(Update, draw_voice.in_set(UiSet::Draw));
     }
 }
@@ -84,12 +89,14 @@ fn start_voice(prefs: Res<UiPrefs>, lex: Option<Res<RingLexicon>>, oaths: Res<cr
         return;
     }
     let Some(lex) = lex else { return };
+    // The ring's vocabulary, then the player's own corps oath (so a spoken recital transcribes as the
+    // oath: "Sinestro's", "Abin Sur", the Compassion words). Player names are appended last by
+    // `voice_roster` (Whisper keeps the prompt's tail under its token cap).
+    v.prompt_base = format!("{}, {}", lex.0.bias_prompt(60), oaths.bias_words(prefs.corps, 24));
+    v.roster.clear();
     let cfg = VoiceConfig {
         model_path: crate::assets_dir().join("models").join("ggml-base.en-q5_1.bin"),
-        // The ring's vocabulary, then the player's own corps oath (so a spoken recital transcribes as
-        // the oath: "Sinestro's", "Abin Sur", the Compassion words). Last, so it survives Whisper's
-        // prompt-token cap.
-        initial_prompt: format!("{}, {}", lex.0.bias_prompt(60), oaths.bias_words(prefs.corps, 24)),
+        initial_prompt: v.prompt_base.clone(),
         ..Default::default()
     };
     match VoiceInput::new(cfg) {
@@ -102,6 +109,61 @@ fn start_voice(prefs: Res<UiPrefs>, lex: Option<Res<RingLexicon>>, oaths: Res<cr
             v.status = VoiceStatus::Unavailable;
         }
     }
+}
+
+/// Re-prime Whisper with the other players' display names whenever the roster changes (join / leave /
+/// rename): the names go last in the prompt, where Whisper weighs them most. No model reload.
+fn voice_roster(active: Option<Res<crate::sim_bridge::ActiveWorld>>, mut v: ResMut<VoiceUi>) {
+    let Some(input) = v.input.as_ref() else { return };
+    let Some(a) = active.as_ref() else { return };
+    let mut roster: Vec<String> = a
+        .world
+        .players
+        .iter()
+        .filter(|p| Some(p.id) != a.local)
+        .map(|p| voice_name(&p.name))
+        .filter(|n| !n.is_empty())
+        .take(bd_core::MAX_PLAYERS)
+        .collect();
+    roster.sort();
+    roster.dedup();
+    if roster == v.roster {
+        return;
+    }
+    let prompt = if roster.is_empty() { v.prompt_base.clone() } else { format!("{}, {}", v.prompt_base, roster.join(", ")) };
+    input.set_prompt(&prompt);
+    v.roster = roster;
+}
+
+/// A display name as it would be *said* ("xX_Nova_Xx" → "Nova", "DragonSlayer" → "Dragon Slayer",
+/// "Alex_99" → "Alex 99"): what Whisper should expect to hear.
+fn voice_name(raw: &str) -> String {
+    let mut words: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut prev: Option<char> = None;
+    for c in raw.chars().take(32) {
+        if !c.is_alphanumeric() {
+            if !cur.is_empty() {
+                words.push(std::mem::take(&mut cur));
+            }
+            prev = None;
+            continue;
+        }
+        if let Some(p) = prev
+            && ((p.is_lowercase() && c.is_uppercase()) || (p.is_ascii_digit() != c.is_ascii_digit()))
+            && !cur.is_empty()
+        {
+            words.push(std::mem::take(&mut cur));
+        }
+        cur.push(c);
+        prev = Some(c);
+    }
+    if !cur.is_empty() {
+        words.push(cur);
+    }
+    // gamertag noise ("xX", "Xx", "_") isn't said
+    words.retain(|w| !w.chars().all(|c| matches!(c, 'x' | 'X')));
+    words.join(" ")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -147,17 +209,17 @@ fn voice_frame(
                     v.listening = false;
                     v.transcribing = true;
                 }
-                VoiceEvent::Final { text, ms } => {
+                VoiceEvent::Final { text, ms, confidence } => {
                     v.transcribing = false;
                     v.listening = false;
-                    debug!("voice: {text:?} ({ms} ms)");
+                    debug!("voice: {text:?} ({ms} ms, confidence {confidence:.2})");
                     // OATH HOOK (before the ring resolver): the overlay's spoken recital, or a section
                     // of your own oath yelled outside it, is an oath recital — not a cast.
                     let spoken = if v.held { v.since_ptt } else { v.last_hold };
                     if oath.claim(&text, spoken) {
                         continue;
                     }
-                    caster.cast(&text, true, 0);
+                    caster.cast_heard(&text, true, 0, Some(confidence));
                 }
                 VoiceEvent::Discarded(_) => {
                     v.transcribing = false;
@@ -239,5 +301,19 @@ fn draw_voice(
     if v.transcribing {
         // Spinning broken ring while Whisper runs.
         *border = BorderColor { top: c, right: c.with_alpha(0.2), bottom: c.with_alpha(0.6), left: c.with_alpha(0.1) };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::voice_name;
+
+    #[test]
+    fn names_as_said() {
+        assert_eq!(voice_name("xX_Nova_Xx"), "Nova");
+        assert_eq!(voice_name("DragonSlayer"), "Dragon Slayer");
+        assert_eq!(voice_name("Alex_99"), "Alex 99");
+        assert_eq!(voice_name("Big Tony"), "Big Tony");
+        assert_eq!(voice_name("Ethan"), "Ethan");
     }
 }

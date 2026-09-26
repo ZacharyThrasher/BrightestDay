@@ -131,6 +131,9 @@ pub struct MatchRules {
     /// CONSTRUCTS: per-kind caps (replace-oldest; 0 = that kind is off). Replaced the old
     /// Normal / Chaos `caps` switch (Chaos = [`ConstructLimits::chaos`]).
     pub limits: ConstructLimits,
+    /// POWER-UPS (`crate::pickups`): the big things (giants, awakenings, ultimates) need a pickup
+    /// from the map; without one the phrase comes out small. Off = no pickups at all.
+    pub powerups: bool,
 }
 
 impl Default for MatchRules {
@@ -152,6 +155,7 @@ impl Default for MatchRules {
             tether_hooks_players: true,
             allow_third_person: true,
             limits: ConstructLimits::default(),
+            powerups: false,
         }
     }
 }

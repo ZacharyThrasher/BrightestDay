@@ -93,12 +93,44 @@ fn prepare(label: String, sub: String, c: &Costume) -> Dressed {
     Dressed { label, sub, model: pm.model, meshes, colors }
 }
 
+/// A summoned costume construct (`text` cast with a recipe of `scale` m), coloured like the
+/// construct shader does: the costume palette blended 28 % toward the lantern (corps) colour.
+fn prepare_summon(label: String, text: &str, scale: f32) -> Dressed {
+    let mut r = Recipe::unknown(text);
+    r.form = Form::Biped;
+    r.scale = scale;
+    let mut shape = None;
+    assert!(costume::summon::apply(text, &mut r, &mut shape), "{text} is not a costume summon");
+    let s = shape.expect("shape");
+    let (norm, model) = build_icon_model(&r, &s);
+    let paint = costume::summon::summon_colors(&r, &norm, &model).expect("colours");
+    let meshes = mesh_model(&model);
+    let colors = meshes
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            costume::mesh_colors(m, model.voxel_size, &PAL, paint.get(i))
+                .into_iter()
+                .map(|c| {
+                    let k = 0.28;
+                    [c[0] * (1.0 - k) + PAL[0][0] * k, c[1] * (1.0 - k) + PAL[0][1] * k, c[2] * (1.0 - k) + PAL[0][2] * k, 1.0]
+                })
+                .collect()
+        })
+        .collect();
+    let sub = format!("SUMMON {:.0} M  {}V  {:.3} M VOXELS", scale, model.voxel_count, model.voxel_size);
+    Dressed { label, sub, model, meshes, colors }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn draw_view(c: &mut Canvas, d: &Dressed, eye: Vec3, x0: i32, y0: i32, w: i32, h: i32, scale: f32) {
     let cam = Cam::from_eye(eye);
     let mut pose_v = vec![Affine3A::IDENTITY; d.model.parts.len()];
     pose(&d.model, AnimState::Idle, 0.0, &mut pose_v);
-    // Fixed scale (all tiles share it) with the feet on a common ground line.
+    // Fixed scale (all tiles share it) with the feet on a common ground line; big models (giant
+    // summons) are fitted to the tile instead.
+    let height = d.model.bounds.max.y - d.model.bounds.min.y;
+    let scale = scale.min((h as f32 - 24.0) / height.max(0.1));
     let ox = x0 as f32 + w as f32 * 0.5;
     let oy = (y0 + h) as f32 - 10.0;
     c.clear_depth();
@@ -301,6 +333,35 @@ fn main() {
     let cols: usize = val("--cols").and_then(|s| s.parse().ok()).unwrap_or(6);
     let zoom: f32 = val("--zoom").and_then(|s| s.parse().ok()).unwrap_or(1.0);
 
+    if has("--mix") {
+        let phrases = [
+            "gojo but bald", "donatello with a straw hat", "goku with naruto's headband", "red goku", "goku x luffy", "gojo but flibbertigibbet",
+            "gojo with pink hair", "darth vader with a straw hat", "batman with a gold cape", "naruto x sasuke", "master chief but no helmet", "straw hat",
+        ];
+        let items: Vec<Dressed> = phrases
+            .iter()
+            .map(|ph| {
+                let c = costume::dress(ph, &Recipe::unknown(ph), None, None, 0, tweaks);
+                prepare(ph.to_uppercase(), c.character.clone().unwrap_or_default().to_uppercase(), &c)
+            })
+            .collect();
+        let c = sheet(&items, cols.min(6), "MIX AND MATCH (BASE CHARACTER + WITH / BUT / COLOUR / MASHUP)", zoom);
+        c.save(&val("--out").map(PathBuf::from).unwrap_or(docs.join("costume_mix.png")));
+        return;
+    }
+    if has("--summons") {
+        let items = vec![
+            prepare_summon("GOKU".into(), "goku", 1.9),
+            prepare_summon("NARUTO".into(), "naruto", 1.8),
+            prepare_summon("GOJO".into(), "gojo", 1.9),
+            prepare_summon("LUFFY".into(), "luffy", 1.8),
+            prepare_summon("GIANT GOKU".into(), "giant goku", 16.0),
+            prepare_summon("GIANT GOJO".into(), "giant gojo", 16.0),
+        ];
+        let c = sheet(&items, 3, "SUMMONED COSTUME CONSTRUCTS (HARD LIGHT: PALETTE BLENDED TOWARD THE LANTERN COLOUR)", zoom);
+        c.save(&val("--out").map(PathBuf::from).unwrap_or(docs.join("costume_summons.png")));
+        return;
+    }
     if has("--before-after") {
         let lex = lexicon(&root);
         let list = ["gojo", "darth vader", "goku", "naruto", "spider-man", "master chief"];

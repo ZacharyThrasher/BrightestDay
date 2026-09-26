@@ -62,6 +62,8 @@ pub struct CombatTuning {
     pub casino: crate::world::interactables::CasinoTuning,
     /// GIANTS: weak points, limbs, topple, shockwaves, command, hijack (`constructs/giant.rs`).
     pub giants: crate::constructs::giant::GiantTuning,
+    /// POWER-UPS: the gated list + pickup timers (`crate::pickups`, `MatchRules::powerups`).
+    pub pickups: crate::pickups::PickupTuning,
 }
 
 impl Default for CombatTuning {
@@ -85,6 +87,7 @@ impl Default for CombatTuning {
             juggle: crate::juggle::JuggleTuning::default(),
             casino: crate::world::interactables::CasinoTuning::default(),
             giants: crate::constructs::giant::GiantTuning::default(),
+            pickups: crate::pickups::PickupTuning::default(),
         }
     }
 }
@@ -977,6 +980,7 @@ impl CombatTuning {
         self.juggle = self.juggle.validated(); // JUGGLE
         self.casino = self.casino.validated(); // INTERACT HOOK
         self.giants = self.giants.validated(); // GIANTS
+        self.pickups = self.pickups.validated(); // POWER-UPS
         self
     }
 

@@ -1,9 +1,11 @@
 //! FREEDOM bundle — client half (`bd_sim::freedom` is the sim half).
 //!
-//! * [`plan_cast`] (used by `console::Caster::cast`): "it" = your newest live construct (the rest of the
-//!   phrase is grafted onto it; the host re-checks ownership), "again!" / "two more" re-cast your last
-//!   phrase, "missile at Jake" aims at Jake (the name never reaches the resolver). Pure text steps in
-//!   `bd_lexicon::refer`; anything that doesn't apply falls back to an ordinary cast.
+//! * [`plan_cast`] (used by `console::Caster::cast`): the staged reading `bd_lexicon::Lexicon::intent`
+//!   (refer → target → delivery verb → resolver, one fixed order for typed and spoken words): "it" =
+//!   your newest live construct (the rest is grafted onto it; the host re-checks ownership), "again!" /
+//!   "two more" re-cast your last phrase, "drop a meteor on Ethan" / "missile at Jake" name a player
+//!   (the name never reaches the resolver) and a delivery — sent as `TargetHint::Named` and delivered
+//!   by the host (`bd_sim::freedom::deliver`). Anything that doesn't apply falls back to an ordinary cast.
 //! * [`cast_energy`]: shout energy → the `u8` sent with the cast (`bd_sim::freedom::energy_byte`).
 //!   Typed (CAPS / "!!!") and spoken (peak mic level) go through the same mapping and both saturate.
 //! * Kill feed (top right): "Sam was flattened by KING KONG ON A SKATEBOARD" — the phrase as cast,
@@ -21,7 +23,7 @@ use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
 use crate::state::AppState;
 use bd_core::{ConstructId, PlayerId};
 use bd_fx::{BurstFx, BurstKind, Emit, FxParticles, PFlags, PKind};
-use bd_lexicon::{Lexicon, Refer};
+use bd_lexicon::{Intent, Lexicon, Refer};
 use bd_sim::GameEvent;
 use bd_sim::freedom::{FeedLine, FreedomEvent, Highlights};
 use bd_sim::replicate::cflags;
@@ -55,8 +57,14 @@ pub struct CastPlan {
     pub said: String,
     /// "it": graft onto this own construct.
     pub graft_onto: Option<ConstructId>,
-    /// "… at Jake": aim homing / autonomy at this player.
+    /// "… at Jake": the named player (delivered to by the host).
     pub target: Option<PlayerId>,
+    /// How it reaches them (the words' verb / preposition).
+    pub delivery: Option<bd_sim::freedom::Delivery>,
+    /// The staged reading (its resolution is what gets cast; also the intent log's summary).
+    pub intent: Option<Box<Intent>>,
+    /// Display names of the other players, as given to the lexicon (for the intent log).
+    pub names: Vec<String>,
     /// "two more": copies.
     pub count: Option<u8>,
     /// This was "again" (don't remember it as the last phrase).
@@ -65,7 +73,17 @@ pub struct CastPlan {
 
 impl CastPlan {
     pub fn plain(text: &str) -> Self {
-        Self { text: text.to_string(), said: text.to_string(), graft_onto: None, target: None, count: None, repeat: false }
+        Self {
+            text: text.to_string(),
+            said: text.to_string(),
+            graft_onto: None,
+            target: None,
+            delivery: None,
+            intent: None,
+            names: Vec::new(),
+            count: None,
+            repeat: false,
+        }
     }
 }
 
@@ -76,25 +94,42 @@ pub fn newest_own(world: &bd_sim::World, local: PlayerId) -> Option<ConstructId>
 
 /// "it" / "again" / player names — see the module docs. Never fails: at worst the plan is the text.
 pub fn plan_cast(lex: &Lexicon, world: &bd_sim::World, local: PlayerId, text: &str, spoken: bool, last: Option<&str>) -> CastPlan {
-    let mut plan = CastPlan::plain(text);
-    if let Some(Refer::Again { count }) = lex.refer(text) {
-        // No memory yet: the words are cast as they are (the ring never says no).
-        if let Some(l) = last {
-            plan = CastPlan { repeat: true, count, ..CastPlan::plain(l) };
-        }
-    }
-    if let Some(Refer::It { rest }) = lex.refer(&plan.text) {
-        // No live construct: a normal cast of the rest ("make it bigger" → something bigger).
-        plan.graft_onto = newest_own(world, local);
-        plan.text = rest;
-    }
+    // Other living-or-not players by display name (the host re-checks who is alive).
     let others: Vec<(PlayerId, &str)> = world.players.iter().filter(|p| p.id != local).map(|p| (p.id, p.name.as_str())).collect();
     let names: Vec<&str> = others.iter().map(|o| o.1).collect();
-    if let Some(t) = lex.target_player(&plan.text, &names, spoken) {
-        plan.target = others.get(t.player).map(|o| o.0);
-        plan.text = t.rest;
+    let mut plan = CastPlan { names: names.iter().map(|s| s.to_string()).collect(), ..CastPlan::plain(text) };
+    let mut it = lex.intent(text, &names, spoken);
+    if let Some(Refer::Again { count }) = it.refer {
+        // No memory yet: the words are cast as they are (the ring never says no).
+        if let Some(l) = last {
+            plan = CastPlan { repeat: true, count, names: plan.names, ..CastPlan::plain(l) };
+            // the repeated phrase runs the stages again ("missile at jake" … "again!" → at Jake again)
+            it = lex.intent(l, &names, spoken);
+        }
     }
+    if matches!(it.refer, Some(Refer::It { .. })) {
+        // No live construct: a normal cast of the rest ("make it bigger" → something bigger).
+        plan.graft_onto = newest_own(world, local);
+    }
+    if let Some(t) = it.target {
+        plan.target = others.get(t).map(|o| o.0);
+    }
+    plan.delivery = it.delivery.map(sim_delivery);
+    plan.text = it.text.clone();
+    plan.intent = Some(Box::new(it));
     plan
+}
+
+/// bd_lexicon's delivery (vocabulary) → bd_sim's (what the host delivers).
+pub fn sim_delivery(d: bd_lexicon::Delivery) -> bd_sim::freedom::Delivery {
+    use bd_sim::freedom::Delivery as S;
+    match d {
+        bd_lexicon::Delivery::Onto => S::Onto,
+        bd_lexicon::Delivery::At => S::At,
+        bd_lexicon::Delivery::Near => S::Near,
+        bd_lexicon::Delivery::Around => S::Around,
+        bd_lexicon::Delivery::Hunt => S::Hunt,
+    }
 }
 
 /// Shout energy byte for a cast: typed energy, or the spoken energy at `voice_peak`.

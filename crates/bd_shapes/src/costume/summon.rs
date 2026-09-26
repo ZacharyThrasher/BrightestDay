@@ -90,7 +90,9 @@ pub fn summon_colors(recipe: &Recipe, shape: &ShapeSpec, model: &VoxelModel) -> 
     // shape = geo × f_sim; the model = normalise(shape) (≈ ×1) voxelised at voxel_size / unit_m.
     let f = height(shape) / height(&geo) * crate::forms::icon_scale_factor(recipe, shape) * (model.unit_m / model.voxel_size.max(1e-4));
     crate::voxelize::scale_spec(&mut full, f);
-    Some(bake(&full, &paint, model))
+    let mut cols = bake(&full, &paint, model);
+    super::paint::fill_gaps(model, &mut cols, 3);
+    Some(cols)
 }
 
 #[cfg(test)]

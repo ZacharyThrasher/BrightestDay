@@ -34,11 +34,13 @@ pub mod fuzz;
 pub mod geom;
 pub mod history;
 pub mod legendary; // FREEDOM HOOK: hidden novelty-driven legendary rolls (never shown)
+pub mod match_stats; // SCOREBOARD: competitive per-player stats (observer over events; never writes the world)
 pub mod juggle; // JUGGLE: per-victim juggle protection (knockback decay + short guard; COMBAT.md §1a)
 pub mod hook; // ASSIST HOOK: hook-and-strike (tethers hook players)
 pub mod melee_assist; // ASSIST HOOK: melee lunge (Destiny-style dash, aim nudge)
 pub mod movement;
 pub mod party;
+pub mod pickups; // POWER-UPS: gated big things + map pickups (MatchRules::powerups; off = no-op)
 pub mod powers;
 pub mod projectile;
 pub mod replicate;

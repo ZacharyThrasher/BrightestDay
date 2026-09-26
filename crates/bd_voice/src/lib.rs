@@ -125,9 +125,10 @@ pub enum VoiceEvent {
     Level(f32),
     /// Clip captured; Whisper is running.
     Transcribing,
-    /// Cleaned transcript (lowercase, no punctuation) and latency in ms from key release to
-    /// result (includes the capture tail).
-    Final { text: String, ms: u32 },
+    /// Cleaned transcript (lowercase, no punctuation), latency in ms from key release to result
+    /// (includes the capture tail) and Whisper's confidence 0..1 (mean token probability of the
+    /// text tokens; low = likely misheard). The game only logs it (local intent log).
+    Final { text: String, ms: u32, confidence: f32 },
     /// The clip was thrown away; nothing will be cast.
     Discarded(DiscardReason),
     /// Something went wrong (model missing, device lost, …). Voice may be unusable.
@@ -189,6 +190,7 @@ mod stub {
         pub fn mic_info(&self) -> Option<(&str, u32)> {
             None
         }
+        pub fn set_prompt(&self, _prompt: &str) {}
     }
 }
 

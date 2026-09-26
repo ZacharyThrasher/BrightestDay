@@ -86,7 +86,7 @@ fn wav_mode(voice: &VoiceInput, wavs: &[PathBuf], repeat: usize) {
         for _ in 0..repeat {
             voice.submit_clip(samples.clone(), rate);
             match wait_result(voice) {
-                VoiceEvent::Final { text, ms } => {
+                VoiceEvent::Final { text, ms, .. } => {
                     times.push(ms);
                     last = format!("{text:?}");
                 }
@@ -155,7 +155,7 @@ fn mic_mode(voice: &VoiceInput) {
                     let _ = std::io::Write::flush(&mut std::io::stdout());
                 }
                 VoiceEvent::Transcribing => println!("\n[transcribing…]"),
-                VoiceEvent::Final { text, ms } => {
+                VoiceEvent::Final { text, ms, .. } => {
                     let wall = released_at.map(|t| t.elapsed().as_millis()).unwrap_or(0);
                     println!("=> {text:?}  ({ms} ms release->final, {wall} ms wall)");
                 }

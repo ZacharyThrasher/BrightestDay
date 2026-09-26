@@ -7,7 +7,9 @@
 //!   `id: "gomu_gomu"`                      (required)
 //!   `names: ["gomu gomu no mi", "gum-gum fruit", "rubber fruit"]`
 //!   `incantation: Some("gomu gomu no")` | `incantation: "gomu gomu no"` | `incantations: [..]`
-//!   `kind: DevilFruit | Stand | ...` (also `family:` / `category:` / `type:`), `companion: Some(..)`
+//!   `kind: DevilFruit | Stand | Technique | ...` (also `family:` / `category:` / `type:`),
+//!   `companion: Some(..)`, and for a TECHNIQUE the `names` of each of its `tiers: [(..), ..]`
+//!   ("super saiyan blue" → grants `"super_saiyan@5"`: learn it at that tier).
 //! Everything else is ignored. Kind is inferred when absent (a companion or "stand" → Stand; names
 //! with "fruit"/"no mi" or an incantation → Fruit).
 
@@ -20,6 +22,8 @@ use crate::norm::{normalize_key, squeeze2};
 pub enum PowerKind {
     Fruit,
     Stand,
+    /// Said, not eaten: ultra instinct, sharingan, bankai… (its tier names grant it too).
+    Technique,
     Other,
 }
 
@@ -32,6 +36,9 @@ pub struct PowerDef {
     pub kind: PowerKind,
     /// `pickup: Some((name, form, element, scale))` — how the power's pickup looks (optional).
     pub pickup: Option<Pickup>,
+    /// Technique tiers: (1-based tier, names). Empty for other kinds (their tiers are phrases the
+    /// game parses for a held power, never lexicon entries).
+    pub tiers: Vec<(u8, Vec<String>)>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -59,6 +66,9 @@ pub const RANDOM_FRUIT: &str = "random:devil_fruit";
 pub const RANDOM_STAND: &str = "random:stand";
 pub const RANDOM_MUTAGEN: &str = "random:mutagen";
 pub const RANDOM_ORIGIN: &str = "random:origin";
+/// Sentinel `grants` id of the plain "power up" phrase: the transformation moment in your corps
+/// colour, nothing else (bd_sim `powers::ASCEND_KEY`).
+pub const ASCEND: &str = "ascend:power_up";
 
 /// Stand-rush cries: each typed cry is one punch of the user's stand.
 const CRIES: &[&str] = &["ora", "muda", "dora", "ari", "wry", "wryy", "oraora", "mudamuda"];
@@ -159,6 +169,52 @@ pub(crate) fn fields(entry: &str) -> Vec<(String, String)> {
     out
 }
 
+/// Top-level parenthesised items of a list value: `[(a), (b: [..]), ..]` → ["(a)", "(b: [..])"].
+pub(crate) fn list_items(v: &str) -> Vec<&str> {
+    let b = v.as_bytes();
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut start = None;
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'"' => {
+                i += 1;
+                while i < b.len() && b[i] != b'"' {
+                    if b[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < b.len() && b[i + 1] == b'/' => {
+                while i < b.len() && b[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'[' | b'(' | b'{' => {
+                depth += 1;
+                if depth == 2 && b[i] == b'(' {
+                    start = Some(i);
+                }
+            }
+            b']' | b')' | b'}' => {
+                if depth == 2
+                    && b[i] == b')'
+                    && let Some(s) = start.take()
+                {
+                    out.push(v.get(s..=i).unwrap_or(""));
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    out
+}
+
 /// All string literals in a value ("Some(\"x\")", "[\"a\", \"b\"]", "\"x\"").
 pub(crate) fn strings(v: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -215,7 +271,9 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         let has_companion = get("companion").map(|v| !v.trim().starts_with("None")).unwrap_or(false);
         let lower_names: Vec<String> = names.iter().map(|n| normalize_key(n)).collect();
         let fruity = lower_names.iter().any(|n| n.ends_with(" fruit") || n.ends_with(" no mi"));
-        let kind = if kind_text.contains("stand") || has_companion {
+        let kind = if kind_text.contains("technique") {
+            PowerKind::Technique
+        } else if kind_text.contains("stand") || has_companion {
             PowerKind::Stand
         } else if kind_text.contains("fruit") || fruity || !incantations.is_empty() {
             PowerKind::Fruit
@@ -254,9 +312,39 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         {
             names.push(n);
         }
-        out.push(PowerDef { id, names, incantations, kind, pickup });
+        let mut tiers = Vec::new();
+        if kind == PowerKind::Technique
+            && let Some(v) = get("tiers")
+        {
+            for (k, item) in list_items(v).into_iter().enumerate().take(15) {
+                let tf = fields(item);
+                let tn: Vec<String> = tf.iter().find(|(n, _)| n == "names").map(|(_, v)| strings(v)).unwrap_or_default();
+                let tn: Vec<String> = tn.into_iter().filter(|n| !normalize_key(n).is_empty()).collect();
+                if !tn.is_empty() {
+                    tiers.push(((k + 1) as u8, tn));
+                }
+            }
+        }
+        out.push(PowerDef { id, names, incantations, kind, pickup, tiers });
     }
     (out, warnings)
+}
+
+/// A technique's tier names: learning it straight at that tier (grants `"<id>@<tier>"`).
+pub fn tier_entries(p: &PowerDef) -> Vec<IconEntry> {
+    p.tiers
+        .iter()
+        .map(|(t, names)| {
+            let display = title_case(names.first().map(String::as_str).unwrap_or(&p.id));
+            IconEntry {
+                names: names.iter().map(|n| n.to_lowercase()).collect(),
+                recipe: grant_recipe(&display, &format!("{}@{}", p.id, t), PowerKind::Technique),
+                shape: None,
+                alt_shape: None,
+                source: "powers.ron".to_string(),
+            }
+        })
+        .collect()
 }
 
 /// The construct a power's name summons: an edible fruit, a stand, or a small token orb.
@@ -308,7 +396,7 @@ pub fn grant_recipe(name: &str, id: &str, kind: PowerKind) -> Recipe {
             r.intensity = 0.6;
             r.element = Element::Psychic;
         }
-        PowerKind::Other => {
+        PowerKind::Other | PowerKind::Technique => {
             r.form = Form::Ball;
             r.scale = 0.4;
             r.mass = 0.5;
@@ -384,7 +472,32 @@ pub fn random_entries() -> Vec<IconEntry> {
         alt_shape: None,
         source: "powers.ron".to_string(),
     };
-    vec![fruit, arrow, mutagen, origin]
+    // "power up" / "full power": the transformation moment in your corps colour (cosmetic).
+    let mut up_recipe = grant_recipe("Power Up", ASCEND, PowerKind::Other);
+    up_recipe.scale = 0.3;
+    let power_up = IconEntry {
+        names: [
+            "power up",
+            "powering up",
+            "power-up",
+            "powerup",
+            "full power",
+            "maximum power",
+            "max power",
+            "full power mode",
+            "go full power",
+            "i am powering up",
+            "power up mode",
+            "kiai",
+        ]
+        .map(String::from)
+        .to_vec(),
+        recipe: up_recipe.normalized(),
+        shape: None,
+        alt_shape: None,
+        source: "powers.ron".to_string(),
+    };
+    vec![fruit, arrow, mutagen, origin, power_up]
 }
 
 fn title_case(s: &str) -> String {

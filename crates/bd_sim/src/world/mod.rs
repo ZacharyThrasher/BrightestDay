@@ -183,6 +183,8 @@ pub struct World {
     pub map_mech: map_mech::MapMechState,
     /// INTERACT HOOK: slot machines / house spin state (`world/interactables.rs`; idle elsewhere).
     pub interact: interactables::InteractState,
+    /// POWER-UPS HOOK: map pickups + who carries what (`crate::pickups`; empty while the mode is off).
+    pub pickups: crate::pickups::PickupWorld,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -251,6 +253,7 @@ impl World {
             freedom: Default::default(), // FREEDOM HOOK
             map_mech: Default::default(), // MAP MECH HOOK
             interact: interactables::InteractState::new(cfg.seed), // INTERACT HOOK
+            pickups: Default::default(), // POWER-UPS HOOK
             cfg,
         };
         w.map_mech_init(false); // MAP MECH HOOK: movers folded + space-bridge portals
@@ -480,6 +483,7 @@ impl World {
         crate::signature::step(self, dt); // SIGNATURE HOOK: orbital strikes (no-op without orbitals)
         self.step_space(dt);
         self.step_powers(dt); // POWERS HOOK: stands, fruits, drain/seastone, time stop (no-op without powers)
+        self.step_pickups(); // POWER-UPS HOOK: map pickups (no-op while MatchRules::powerups is off)
         self.step_willpower(dt);
         // PARTY HOOK: effect hooks (this tick's events so far, scheduled casts, per-tick effects);
         // before the reap so whatever they break is removed this tick.
@@ -1026,6 +1030,7 @@ impl World {
         self.carve_seed = 1;
         self.events.push(GameEvent::ArenaReset { seed });
         self.map_mech_init(true); // MAP MECH HOOK
+        self.pickups.reset(); // POWER-UPS HOOK: new terrain, new spots
     }
 
     /// Build terrain for `src` (about 150 ms for an archipelago: call it on a worker thread).
@@ -1088,6 +1093,7 @@ impl World {
 
     fn reset_round(&mut self) {
         self.powers_reset_round(); // POWERS HOOK: powers + fruits don't survive a new round
+        self.pickups.reset(); // POWER-UPS HOOK: pickups don't survive a new round
         self.interact_reset(); // INTERACT HOOK: slot effects / jackpot luck end with the round
         self.constructs.clear();
         self.projectiles.clear();

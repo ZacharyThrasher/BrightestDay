@@ -230,6 +230,12 @@ impl World {
         if let Some(p) = &self.party {
             p.hash_into(&mut h);
         }
+        // POWER-UPS HOOK: live pickups (none while the mode is off, so those hashes are unchanged).
+        for pk in &self.pickups.items {
+            h.write(&[pk.id as u8, (pk.id >> 8) as u8, pk.kind as u8, pk.phase as u8, pk.holder.map_or(0xFF, |p| p.0)]);
+            v3(&mut h, pk.pos);
+            h.write_u64(pk.until);
+        }
         h.0
     }
 }

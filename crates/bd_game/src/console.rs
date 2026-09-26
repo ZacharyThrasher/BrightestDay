@@ -198,6 +198,14 @@ pub enum Resolved {
     Cast { res: Box<Resolution>, incantation: bool },
 }
 
+/// A plain phrase already read by the intent stages (`plan_cast` → `Lexicon::intent`): cast that reading.
+fn resolved_from(res: Resolution) -> Resolved {
+    match res.stand_rush {
+        Some(n) if res.kind == ResolutionKind::Graft => Resolved::Rush(n),
+        _ => Resolved::Cast { res: Box::new(res), incantation: false },
+    }
+}
+
 /// Resolution order: power phrase → lexicon.
 pub fn resolve_phrase(lex: &Lexicon, power: PowerPhrase, text: &str, spoken: bool) -> Resolved {
     let (t, incantation) = match power {
@@ -237,6 +245,11 @@ impl Caster<'_> {
     /// Cast `text`. Returns false when there is no world to cast into (nothing happens).
     /// `rush_already` = stand-rush tokens of this phrase already sent live.
     pub fn cast(&mut self, text: &str, spoken: bool, rush_already: u16) -> bool {
+        self.cast_heard(text, spoken, rush_already, None)
+    }
+
+    /// [`Self::cast`] with the speech recogniser's confidence for a spoken phrase (intent log only).
+    pub fn cast_heard(&mut self, text: &str, spoken: bool, rush_already: u16, heard_conf: Option<f32>) -> bool {
         let text = text.trim();
         if text.is_empty() {
             return false;
@@ -255,7 +268,11 @@ impl Caster<'_> {
         let energy = crate::lobby::feed::cast_energy(text, voice_peak, self.shout_table.as_deref());
         // Instant local feedback on the same frame as the key press.
         self.cues.write(RingCue::Forming { voice: spoken });
-        let resolved = resolve_phrase(&lex, power, &plan.text, spoken);
+        // A plain phrase was already read by the intent stages (one order for typed and spoken words).
+        let resolved = match (&power, plan.intent.as_ref()) {
+            (PowerPhrase::Plain, Some(it)) => resolved_from(it.resolution.clone()),
+            _ => resolve_phrase(&lex, power, &plan.text, spoken),
+        };
         // "Did it hear me right?": the title letters show exactly what was heard, or the canonical
         // name of a recognised signature ("final flesh" heard → "FINAL FLASH!!").
         self.shouts.write(crate::present::shout::ShoutCast { text: shout_text(text, &resolved), spoken });
@@ -274,13 +291,15 @@ impl Caster<'_> {
                 let modifier = res.kind == ResolutionKind::Graft || plan.graft_onto.is_some();
                 let target_hint = match (plan.graft_onto, plan.target) {
                     (Some(id), _) => Some(TargetHint::Construct(id)),
-                    (None, Some(p)) => Some(TargetHint::Player(p)),
+                    // FREEDOM HOOK: a named player is delivered to by the host (bd_sim::freedom::deliver)
+                    (None, Some(p)) => Some(TargetHint::Named { player: p, via: plan.delivery.unwrap_or(bd_sim::freedom::Delivery::Hunt) }),
                     (None, None) => self.aimed_enemy(eye, dir).map(TargetHint::Player),
                 };
                 let aim = Aim { origin: core_v3(eye), dir: core_v3(dir), target_hint, modifier };
                 if Lexicon::is_fallback(&res) {
                     log_unresolved(text, spoken, &res);
                 }
+                log_intent(text, spoken, heard_conf, &plan, &res); // local-only playtest log (logs/intent.log)
                 let mut res = *res;
                 if let Some(n) = plan.count {
                     res.recipe.count = n.max(1);
@@ -402,6 +421,50 @@ pub fn signature_cmd(
 }
 
 /// Append a fallback phrase to `logs/unresolved.txt` (next to `assets/`).
+/// Every cast → one line of `logs/intent.log` (LOCAL ONLY — never sent anywhere; for the lead to improve
+/// recognition after playtests with `cargo run -p bd_lexicon --example intent_report`). Tab-separated:
+/// `time  mode  heard-confidence  phrase  stages  target  delivery  summary` (see bd_lexicon
+/// `Intent::summary`). The target is written as `P<n>` (the n-th other player), never a name.
+fn log_intent(text: &str, spoken: bool, heard_conf: Option<f32>, plan: &crate::lobby::feed::CastPlan, res: &Resolution) {
+    if std::env::var_os("BD_NO_INTENT_LOG").is_some() {
+        return;
+    }
+    let dir = crate::assets_dir().parent().map(|p| p.join("logs")).unwrap_or_else(|| "logs".into());
+    let (stages, target, summary) = match plan.intent.as_ref() {
+        Some(it) => {
+            // the summary of what is actually cast (count / costume overrides included), no names
+            let summary = bd_lexicon::Intent { resolution: res.clone(), target: None, ..(**it).clone() }.summary(&[]);
+            let target = it.target.map(|t| format!("P{}{}", t + 1, if it.name_dist > 0 { format!("~{}", it.name_dist) } else { String::new() }));
+            (it.stages.join(","), target.unwrap_or_else(|| "-".into()), summary)
+        }
+        None => ("power".to_string(), "-".to_string(), format!("{} conf={:.2}", res.signature(), res.confidence)),
+    };
+    let line = format!(
+        "{}	{}	{}	{}	{}	{}	{}	{}
+",
+        timestamp(),
+        if spoken { "voice" } else { "typed" },
+        heard_conf.map_or("-".to_string(), |c| format!("{c:.2}")),
+        text.replace(['	', '
+', '
+'], " "),
+        if stages.is_empty() { "-".to_string() } else { stages },
+        target,
+        plan.delivery.map_or("-".to_string(), |d| format!("{d:?}").to_lowercase()),
+        summary.replace(['	', '
+', '
+'], " "),
+    );
+    let write = || -> std::io::Result<()> {
+        std::fs::create_dir_all(&dir)?;
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("intent.log"))?;
+        f.write_all(line.as_bytes())
+    };
+    if let Err(e) = write() {
+        warn!("could not write the intent log: {e}");
+    }
+}
+
 fn log_unresolved(text: &str, spoken: bool, res: &Resolution) {
     let dir = crate::assets_dir().parent().map(|p| p.join("logs")).unwrap_or_else(|| "logs".into());
     let line = format!(

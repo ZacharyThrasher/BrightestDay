@@ -122,6 +122,7 @@ impl Plugin for HyperlinePlugin {
             .add_message::<SpawnDebris>()
             .init_resource::<HyperState>()
             .add_systems(Update, (sync_hyper, sparks_and_trails).chain().in_set(PresentSet::Sync))
+            .add_systems(Update, dev_hyper_test.before(crate::tick::FrameSet::Sim))
             .add_systems(PostUpdate, scroll_backdrop.after(crate::camera::CameraUpdateSet).before(TransformSystems::Propagate));
     }
 }
@@ -598,4 +599,42 @@ fn sparks_and_trails(time: Res<Time<Real>>, mut state: ResMut<HyperState>, views
         }
     }
     state.trail_acc = n_trail;
+}
+
+/// Dev / verification hook (off unless set): `BD_HYPER_TEST=knock@3` puts the local practice player
+/// on car 3's roof edge 3 s in and launches them off the side (a slipstream knock-off: swept back
+/// and out → KO); `tail@3` launches them off the tail ramp. Offline practice only.
+fn dev_hyper_test(time: Res<Time<Real>>, state: Res<HyperState>, active: Option<ResMut<ActiveWorld>>, mut started: Local<Option<f32>>, mut done: Local<bool>) {
+    static SPEC: std::sync::OnceLock<Option<(bool, f32)>> = std::sync::OnceLock::new();
+    let spec = *SPEC.get_or_init(|| {
+        let v = std::env::var("BD_HYPER_TEST").ok()?;
+        let (kind, at) = v.split_once('@').unwrap_or((v.as_str(), "3"));
+        Some((kind == "tail", at.parse().unwrap_or(3.0)))
+    });
+    let (Some((tail, at)), false, true) = (spec, *done, state.active) else { return };
+    let Some(mut active) = active else { return };
+    if active.role != crate::sim_bridge::SimRole::Offline {
+        return;
+    }
+    let t0 = *started.get_or_insert(time.elapsed_secs());
+    if time.elapsed_secs() - t0 < at {
+        return;
+    }
+    *done = true;
+    let Some(id) = active.local else { return };
+    let us = hyperline::units(1);
+    let (pos, vel) = if tail {
+        let u = &us[hyperline::UNITS - 1];
+        (bd_core::Vec3::new(u.x0 + 8.0, hyperline::ROOF_Y, 2.0), bd_core::Vec3::new(-30.0, 10.0, 0.0))
+    } else {
+        let u = &us[3];
+        (bd_core::Vec3::new(u.cx(), hyperline::ROOF_Y, 3.0), bd_core::Vec3::new(0.0, 7.0, 16.0))
+    };
+    if let Some(p) = active.world.player_mut(id) {
+        p.mv.pos = pos;
+        p.mv.vel = bd_core::Vec3::ZERO;
+        p.mv.grounded = true;
+        p.spawn_shield = 0.0;
+    }
+    active.world.launch_player(id, vel, None);
 }

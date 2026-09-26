@@ -351,6 +351,9 @@ impl Lexicon {
         if powers_ron.is_some() {
             for p in &powers {
                 icons.add_power(powers::power_entry(p));
+                for e in powers::tier_entries(p) {
+                    icons.add_power(e);
+                }
             }
             for e in powers::random_entries() {
                 icons.add_power(e);

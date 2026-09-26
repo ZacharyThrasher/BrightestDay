@@ -1,0 +1,395 @@
+# Brightest Day - military + tabletop (D&D) vocabulary corpus. Same line format as intent_golden.txt:
+#   category | phrase | expectations        (see intent_golden.txt for the expectation tokens)
+# Every line must also NOT be a fallback (Lexicon::is_fallback: nothing / part of the phrase understood).
+# Categories starting "gold_" are the golden set (must all hold); the rest are the wider audit, measured
+# for fallback rate and reported (BD_MILDND_VERBOSE=1 prints every line).
+# Roster: Ethan, Jake, Sam, Alex_99, Mia, Big Tony, xX_Nova_Xx, DragonSlayer, Zoe
+#
+# D&D content: spell / monster / item names from the SRD 5.1 (CC-BY-4.0) plus a few iconic non-SRD NAMES
+# used only as trigger words (see THIRD_PARTY_NOTICES.md). No rules text anywhere.
+
+# =====================================================================================================
+# golden: military
+# =====================================================================================================
+gold_mil | AIRSTRIKE ON ETHAN | +DropFromSky +Explodes target=Ethan via=onto
+gold_mil | air strike on jake | +DropFromSky +Explodes target=Jake
+gold_mil | airstrike | +DropFromSky +Explodes
+gold_mil | call in an airstrike on sam | +DropFromSky +Explodes target=Sam
+gold_mil | carpet bomb | +DropFromSky +Explodes n>=6
+gold_mil | carpet bombing | +DropFromSky +Explodes n>=6
+gold_mil | carpet bomb mia | +DropFromSky n>=6 target=Mia
+gold_mil | drone strike | +DropFromSky +Explodes
+gold_mil | drone strike on zoe | +DropFromSky +Explodes target=Zoe
+gold_mil | artillery barrage | +Explodes n>=6
+gold_mil | fire for effect | +DropFromSky +Explodes n>=4
+gold_mil | danger close | +DropFromSky +Explodes
+gold_mil | orbital strike | +DropFromSky +Explodes
+gold_mil | supply drop | +DropFromSky
+gold_mil | care package | +DropFromSky
+gold_mil | bombs away | form=Bomb +DropFromSky
+gold_mil | fox two | form=Rocket +Homing
+gold_mil | broken arrow | +DropFromSky +Explodes n>=6
+gold_mil | sandbag wall | form=Wall +Barrier
+gold_mil | sandbags | form=Wall +Barrier
+gold_mil | bunker | cat=Structure +Barrier
+gold_mil | barbed wire | cat=Structure
+gold_mil | riot shield | form=Shield +Guard
+gold_mil | frag grenade | form=Bomb +Explodes
+gold_mil | flashbang | form=Bomb el=Light
+gold_mil | sticky grenade | form=Bomb +Sticky
+gold_mil | landmine | form=Bomb +Explodes
+gold_mil | RPG | form=Cannon/Gun/Rocket +Explodes
+gold_mil | minigun | form=Gun +Shoots
+gold_mil | flamethrower | el=Fire
+gold_mil | cruise missile | form=Rocket +Homing +Explodes
+gold_mil | ICBM | form=Rocket +Explodes el=Atomic
+gold_mil | EMP | el=Electric
+gold_mil | AC-130 | form=Vehicle +Flies +Shoots
+gold_mil | attack chopper | form=Vehicle +Flies
+gold_mil | aircraft carrier | form=Vehicle scale>=20
+
+# =====================================================================================================
+# golden: tabletop
+# =====================================================================================================
+gold_dnd | FIREBALL | el=Fire +Explodes
+gold_dnd | cast fireball | el=Fire +Explodes
+gold_dnd | cast fireball on jake | el=Fire +Explodes target=Jake
+gold_dnd | magic missile | +Homing
+gold_dnd | magic missile at sam | +Homing target=Sam
+gold_dnd | lightning bolt | el=Electric
+gold_dnd | eldritch blast | +Beam
+gold_dnd | cone of cold | el=Ice +Breath
+gold_dnd | meteor swarm | +DropFromSky n>=4
+gold_dnd | wall of force | form=Wall +Barrier
+gold_dnd | wall of fire | form=Wall el=Fire
+gold_dnd | wall of ice | form=Wall el=Ice
+gold_dnd | wall of stone | form=Wall el=Earth
+gold_dnd | counterspell | +Barrier
+gold_dnd | misty step | +Portal
+gold_dnd | dimension door | +Portal
+gold_dnd | hold person | +Trap
+gold_dnd | web | +Sticky
+gold_dnd | bigby's hand | form=Gauntlet +Grab
+gold_dnd | leomund's tiny hut | form=Dome +Barrier
+gold_dnd | spiritual weapon | cat=Held +Flies
+gold_dnd | thunderwave | +Repel
+gold_dnd | summon a beholder | name~beholder via=near
+gold_dnd | gelatinous cube | form=Blob +Trap
+gold_dnd | tarrasque | form=Kaiju scale>=15
+gold_dnd | red dragon | el=Fire +Breath +Flies
+gold_dnd | bag of holding | +Attract +Trap
+gold_dnd | vorpal sword | form=Sword +Blade
+gold_dnd | flame tongue | form=Sword el=Fire
+gold_dnd | NAT 20 | +DropFromSky +Explodes
+gold_dnd | natural twenty | +DropFromSky +Explodes
+gold_dnd | NAT 1 | -Explodes scale<=1
+gold_dnd | wild shape | cat=Creature
+gold_dnd | divine smite | el=Light +DropFromSky
+gold_dnd | roll initiative | form=Boulder/Ball
+
+# =====================================================================================================
+# audit: military weapons
+# =====================================================================================================
+mil_weapon | rifle | form=Gun
+mil_weapon | assault rifle | form=Gun
+mil_weapon | sniper rifle | form=Gun
+mil_weapon | sniper | form=Gun
+mil_weapon | rocket launcher | +Explodes
+mil_weapon | bazooka | +Explodes
+mil_weapon | gatling gun | form=Gun
+mil_weapon | grenade | form=Bomb +Explodes
+mil_weapon | hand grenade | form=Bomb +Explodes
+mil_weapon | smoke grenade | form=Bomb
+mil_weapon | smoke bomb | form=Bomb
+mil_weapon | sticky bomb | form=Bomb +Sticky
+mil_weapon | claymore mine | form=Bomb +Explodes
+mil_weapon | land mine | form=Bomb +Explodes
+mil_weapon | mortar | +Explodes
+mil_weapon | artillery | +Explodes
+mil_weapon | howitzer | form=Cannon
+mil_weapon | railgun | form=Gun
+mil_weapon | nuke | +Explodes el=Atomic
+mil_weapon | tactical nuke | +Explodes el=Atomic
+mil_weapon | EMP grenade | form=Bomb el=Electric
+mil_weapon | molotov cocktail | el=Fire
+mil_weapon | C4 | form=Bomb +Explodes
+mil_weapon | javelin missile | form=Rocket +Homing
+mil_weapon | stinger missile | form=Rocket +Homing
+mil_weapon | napalm | el=Fire
+mil_weapon | bunker buster | +Explodes
+mil_weapon | mother of all bombs | form=Bomb +Explodes
+mil_weapon | MOAB | form=Bomb +Explodes
+mil_weapon | machine gun | form=Gun +Shoots
+mil_weapon | bayonet | cat=Held
+mil_weapon | tomahawk missile | form=Rocket +Homing
+
+# =====================================================================================================
+# audit: military vehicles
+# =====================================================================================================
+mil_vehicle | tank | form=Vehicle
+mil_vehicle | APC | form=Vehicle
+mil_vehicle | humvee | form=Vehicle
+mil_vehicle | helicopter gunship | +Flies
+mil_vehicle | attack helicopter | +Flies
+mil_vehicle | fighter jet | form=Vehicle +Flies
+mil_vehicle | bomber | +Flies
+mil_vehicle | stealth bomber | +Flies
+mil_vehicle | B-52 | +Flies
+mil_vehicle | drone | +Flies
+mil_vehicle | predator drone | +Flies
+mil_vehicle | battleship | form=Vehicle
+mil_vehicle | submarine | form=Vehicle
+mil_vehicle | mech | +Piloted
+mil_vehicle | war mech | +Piloted
+mil_vehicle | black hawk | +Flies
+mil_vehicle | apache helicopter | +Flies
+mil_vehicle | chinook | +Flies
+mil_vehicle | jeep | form=Vehicle
+mil_vehicle | destroyer | form=Vehicle
+mil_vehicle | UAV | +Flies
+
+# =====================================================================================================
+# audit: fortifications
+# =====================================================================================================
+mil_fort | trench | cat=Structure
+mil_fort | foxhole | cat=Structure
+mil_fort | watchtower | cat=Structure
+mil_fort | pillbox | cat=Structure
+mil_fort | blast wall | form=Wall +Barrier
+mil_fort | barricade | form=Wall
+mil_fort | machine gun nest | +Shoots
+mil_fort | sentry turret | +Shoots
+mil_fort | tank trap | cat=Structure
+mil_fort | razor wire | cat=Structure
+mil_fort | concrete barrier | form=Wall
+
+# =====================================================================================================
+# audit: support calls
+# =====================================================================================================
+mil_call | call in a UAV | +Flies
+mil_call | paratroopers | cat=Creature n>=3
+mil_call | smoke screen | cat=Structure/Object
+mil_call | suppressing fire | +Shoots
+mil_call | napalm strike | el=Fire +DropFromSky
+mil_call | mortar strike on zoe | +DropFromSky target=Zoe
+mil_call | artillery strike | +DropFromSky +Explodes
+mil_call | missile strike | +Explodes
+mil_call | nuke ethan | +Explodes el=Atomic target=Ethan
+mil_call | tactical nuke incoming | +Explodes el=Atomic
+mil_call | drop a nuke on jake | +Explodes el=Atomic target=Jake
+mil_call | incoming | +DropFromSky
+mil_call | fire in the hole | form=Bomb +Explodes
+mil_call | frag out | form=Bomb +Explodes
+mil_call | fox three | form=Rocket +Homing
+mil_call | rifle volley | +Shoots
+mil_call | precision strike | +DropFromSky
+mil_call | cluster bomb | form=Bomb n>=3
+mil_call | bombing run | +DropFromSky
+mil_call | shock and awe | +Explodes
+mil_call | calling in air support | +DropFromSky
+
+# =====================================================================================================
+# audit: spells
+# =====================================================================================================
+dnd_spell | chain lightning | el=Electric
+dnd_spell | fire bolt | el=Fire
+dnd_spell | ray of frost | el=Ice +Beam
+dnd_spell | scorching ray | el=Fire +Beam
+dnd_spell | sacred flame | el=Light
+dnd_spell | guiding bolt | el=Light
+dnd_spell | acid splash | el=Poison
+dnd_spell | poison spray | el=Poison
+dnd_spell | shocking grasp | el=Electric
+dnd_spell | chill touch | el=Shadow/Ice
+dnd_spell | teleport | +Portal
+dnd_spell | fly | +Flies
+dnd_spell | haste | +Fast
+dnd_spell | slow spell | +Sticky/Heavy
+dnd_spell | sleep spell | cat=Object/Structure/Creature
+dnd_spell | grease | +Sticky
+dnd_spell | fog cloud | cat=Structure/Object/Creature
+dnd_spell | darkness | el=Shadow
+dnd_spell | invisibility | cat=Object/Creature/Worn/Structure
+dnd_spell | mirror image | n>=3
+dnd_spell | blink | +Portal
+dnd_spell | polymorph | cat=Creature/Object
+dnd_spell | enlarge | +Grow
+dnd_spell | reduce | +Shrink
+dnd_spell | spirit guardians | n>=3
+dnd_spell | healing word | el=Light
+dnd_spell | cure wounds | el=Light
+dnd_spell | shield spell | +Barrier/Guard
+dnd_spell | mage armor | +Barrier/Guard
+dnd_spell | shatter | +Explodes
+dnd_spell | earthquake | +Stomp
+dnd_spell | tsunami | el=Water
+dnd_spell | storm of vengeance | el=Electric +DropFromSky
+dnd_spell | power word kill | el=Shadow
+dnd_spell | wish | cat=Object/Creature/Structure
+dnd_spell | time stop | +Trap
+dnd_spell | tenser's floating disk | form=Disc/Platform +Flies
+dnd_spell | otto's irresistible dance | +Trap
+dnd_spell | mordenkainen's sword | form=Sword +Flies
+dnd_spell | tasha's hideous laughter | +Trap
+dnd_spell | disintegrate | +Beam
+dnd_spell | finger of death | el=Shadow
+dnd_spell | prismatic spray | +Beam
+dnd_spell | sunbeam | el=Light +Beam
+dnd_spell | flaming sphere | el=Fire form=Ball
+dnd_spell | ice storm | el=Ice +DropFromSky
+dnd_spell | call lightning | el=Electric +DropFromSky
+dnd_spell | insect plague | +Swarm
+dnd_spell | entangle | +Constrict
+dnd_spell | black tentacles | +Constrict
+dnd_spell | animate dead | cat=Creature
+dnd_spell | conjure animals | cat=Creature
+dnd_spell | find familiar | cat=Creature
+dnd_spell | mage hand | form=Gauntlet +Grab
+dnd_spell | feather fall | +SlowFall
+dnd_spell | levitate | +Flies
+dnd_spell | gust of wind | el=Wind +Repel
+dnd_spell | stinking cloud | el=Poison
+dnd_spell | cloudkill | el=Poison
+dnd_spell | banishment | +Portal
+dnd_spell | gate | cat=Structure
+dnd_spell | resilient sphere | form=Dome +Trap
+dnd_spell | forcecage | form=Cage +Trap
+dnd_spell | antimagic field | form=Dome
+dnd_spell | prismatic wall | form=Wall
+dnd_spell | blade barrier | form=Wall +Blade
+dnd_spell | spike growth | +Pierce
+dnd_spell | moonbeam | +Beam
+dnd_spell | hunter's mark | +Homing
+dnd_spell | hex | el=Shadow
+dnd_spell | bless | el=Light
+dnd_spell | fire storm | el=Fire
+dnd_spell | delayed blast fireball | el=Fire +Explodes
+dnd_spell | incendiary cloud | el=Fire
+dnd_spell | sunburst | el=Light +Explodes
+dnd_spell | witch bolt | el=Electric
+dnd_spell | spirit guardians on sam | target=Sam
+dnd_spell | lightning bolt at mia | el=Electric target=Mia
+dnd_spell | meteor swarm on big tony | +DropFromSky target=Big_Tony
+dnd_spell | hold person on zoe | +Trap target=Zoe
+dnd_spell | cast magic missile | +Homing
+dnd_spell | cast counterspell | +Barrier
+dnd_spell | vicious mockery | el=Psychic
+dnd_spell | toll the dead | el=Shadow
+dnd_spell | arcane eye | +Flies
+dnd_spell | phantasmal killer | el=Psychic
+dnd_spell | globe of invulnerability | form=Dome +Barrier
+dnd_spell | dispel magic | +Repel
+dnd_spell | revivify | el=Light
+dnd_spell | true resurrection | el=Light
+
+# =====================================================================================================
+# audit: monsters
+# =====================================================================================================
+dnd_monster | beholder | name~beholder +Beam
+dnd_monster | mind flayer | cat=Creature el=Psychic
+dnd_monster | owlbear | form=Quadruped
+dnd_monster | mimic | +Trap
+dnd_monster | blue dragon | el=Electric +Breath
+dnd_monster | white dragon | el=Ice +Breath
+dnd_monster | black dragon | el=Poison +Breath
+dnd_monster | green dragon | el=Poison +Breath
+dnd_monster | gold dragon | el=Fire +Breath
+dnd_monster | silver dragon | el=Ice +Breath
+dnd_monster | bronze dragon | el=Electric +Breath
+dnd_monster | brass dragon | el=Fire +Breath
+dnd_monster | copper dragon | el=Poison +Breath
+dnd_monster | ancient red dragon | el=Fire +Breath scale>=10
+dnd_monster | lich | cat=Creature
+dnd_monster | displacer beast | form=Quadruped
+dnd_monster | rust monster | cat=Creature
+dnd_monster | kobold | cat=Creature
+dnd_monster | goblin | cat=Creature
+dnd_monster | bugbear | cat=Creature
+dnd_monster | hobgoblin | cat=Creature
+dnd_monster | basilisk | cat=Creature
+dnd_monster | medusa | cat=Creature
+dnd_monster | kraken | +Constrict
+dnd_monster | treant | form=Biped el=Earth
+dnd_monster | purple worm | form=Serpent scale>=8
+dnd_monster | umber hulk | cat=Creature
+dnd_monster | hydra | cat=Creature
+dnd_monster | manticore | cat=Creature
+dnd_monster | ettin | form=Biped
+dnd_monster | lizardfolk | cat=Creature
+dnd_monster | mind flayer on sam | target=Sam
+dnd_monster | summon an owlbear on jake | form=Quadruped target=Jake
+dnd_monster | ochre jelly | form=Blob
+dnd_monster | black pudding | form=Blob
+dnd_monster | stirge | cat=Creature
+dnd_monster | chimera | cat=Creature
+dnd_monster | wyvern | +Flies
+dnd_monster | fire giant | form=Biped el=Fire
+dnd_monster | frost giant | form=Biped el=Ice
+dnd_monster | storm giant | form=Biped el=Electric
+dnd_monster | hill giant | form=Biped
+dnd_monster | cloud giant | form=Biped
+dnd_monster | gnoll | cat=Creature
+dnd_monster | death knight | cat=Creature
+dnd_monster | dracolich | +Flies el=Shadow
+dnd_monster | shambling mound | cat=Creature
+dnd_monster | roper | cat=Creature
+dnd_monster | intellect devourer | cat=Creature
+dnd_monster | githyanki | form=Biped
+dnd_monster | tiamat | form=Kaiju
+
+# =====================================================================================================
+# audit: items
+# =====================================================================================================
+dnd_item | deck of many things | cat=Held/Object
+dnd_item | immovable rod | +Barrier
+dnd_item | portable hole | +Portal
+dnd_item | staff of power | form=Staff
+dnd_item | holy avenger | form=Sword el=Light
+dnd_item | frost brand | form=Sword el=Ice
+dnd_item | sword of sharpness | form=Sword +Blade
+dnd_item | wand of fireballs | el=Fire
+dnd_item | wand of magic missiles | +Homing
+dnd_item | cloak of displacement | form=Cape
+dnd_item | boots of speed | +Fast
+dnd_item | dwarven thrower | form=Hammer +Returning
+dnd_item | sphere of annihilation | +Attract
+dnd_item | decanter of endless water | el=Water
+dnd_item | necklace of fireballs | el=Fire +Explodes
+dnd_item | rope of entanglement | +Constrict
+dnd_item | staff of the magi | form=Staff
+dnd_item | winged boots | +Flies
+dnd_item | carpet of flying | +Flies
+dnd_item | broom of flying | +Flies
+dnd_item | javelin of lightning | form=Spear el=Electric
+dnd_item | ring of invisibility | cat=Object/Held/Worn
+dnd_item | bag of tricks | cat=Creature
+dnd_item | flame tongue sword | form=Sword el=Fire
+
+# =====================================================================================================
+# audit: class moves / table talk
+# =====================================================================================================
+dnd_class | rage | cat=Creature/Object/Held
+dnd_class | barbarian rage | cat=Creature/Object/Held
+dnd_class | sneak attack | +Pierce
+dnd_class | bardic inspiration | el=Light
+dnd_class | action surge | +Fast
+dnd_class | wild shape bear | form=Quadruped
+dnd_class | wild shape into a wolf | form=Quadruped
+dnd_class | flurry of blows | form=Gauntlet
+dnd_class | lay on hands | el=Light
+dnd_class | turn undead | +Repel
+dnd_class | channel divinity | el=Light
+dnd_class | second wind | +Fast
+dnd_class | cunning action | +Fast
+dnd_class | stunning strike | +Blunt
+dnd_class | roll for initiative | form=Boulder/Ball
+dnd_class | critical hit | +Explodes
+dnd_class | natural 20 | +DropFromSky +Explodes
+dnd_class | nat twenty | +DropFromSky +Explodes
+dnd_class | natural one | -Explodes
+dnd_class | critical fail | -Explodes
+dnd_class | d20 | form=Ball/Boulder
+dnd_class | twenty sided die | form=Ball/Boulder
+dnd_class | i cast fireball | el=Fire +Explodes
+dnd_class | leeroy jenkins | cat=Creature
+dnd_class | dungeon master | cat=Creature

@@ -35,6 +35,7 @@ pub mod impact;
 pub mod local;
 pub mod hyperline; // HYPERLINE: the endless city shaft, ring gates, streaks, sparks (visual only)
 pub mod giant; // GIANT'S ROOM: sunbeam through the window + dust motes
+pub mod giants_fx; // GIANTS: weak-point glow, warnings, shockwave rings, severed limbs, topple slam, command ping
 pub mod mirror; // MIRRORFOLD: folded-city backdrop, mirrored void, rift
 pub mod outline; // OUTLINE: player outlines (inverted hull) for readability in chaos
 pub mod players;
@@ -99,6 +100,7 @@ impl Plugin for PresentPlugin {
             .add_plugins(mirror::MirrorPlugin) // MIRRORFOLD: folded-city backdrop
             .add_plugins(hyperline::HyperlinePlugin) // HYPERLINE: the world streams past the train
             .add_plugins(giant::GiantPlugin) // GIANT'S ROOM: sunbeam + dust motes
+            .add_plugins(giants_fx::GiantsFxPlugin) // GIANTS: kaiju you fight (weak points, shockwaves, severed limbs)
             .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
             .add_plugins(cybertron::CybertronPlugin) // CYBERTRON: map movers (no-op on maps without them)
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)

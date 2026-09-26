@@ -152,6 +152,30 @@ pub fn bake(spec: &ShapeSpec, paint: &[Paint], m: &VoxelModel) -> Vec<HashMap<IV
     m.parts.iter().zip(dense).map(|(p, d)| p.voxels.iter().zip(d.col).filter_map(|((v, _), c)| c.map(|c| (*v, c))).collect()).collect()
 }
 
+/// Give unpainted voxels a painted neighbour's colour (`passes` rings). Used when a costume is
+/// voxelised at a coarser size than it was authored at (summoned constructs), where a thin prim can
+/// miss the voxel centres its neighbours caught.
+pub fn fill_gaps(m: &VoxelModel, colors: &mut [HashMap<IVec3, Rgb>], passes: usize) {
+    const N6: [IVec3; 6] = [IVec3::X, IVec3::NEG_X, IVec3::Y, IVec3::NEG_Y, IVec3::Z, IVec3::NEG_Z];
+    for (p, cols) in m.parts.iter().zip(colors.iter_mut()) {
+        if cols.is_empty() {
+            continue;
+        }
+        for _ in 0..passes {
+            let add: Vec<(IVec3, Rgb)> = p
+                .voxels
+                .iter()
+                .filter(|(v, _)| !cols.contains_key(v))
+                .filter_map(|(v, _)| N6.iter().find_map(|d| cols.get(&(*v + *d))).map(|c| (*v, *c)))
+                .collect();
+            if add.is_empty() {
+                break;
+            }
+            cols.extend(add);
+        }
+    }
+}
+
 /// Colours for a part mesh's vertices (`PartMesh::colors` with per-voxel paint): painted voxels use
 /// their colour, the rest the palette.
 pub fn mesh_colors(pm: &crate::PartMesh, voxel_size: f32, palette: &[[f32; 3]; 4], paint: Option<&HashMap<IVec3, Rgb>>) -> Vec<[f32; 4]> {
