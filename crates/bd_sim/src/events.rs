@@ -169,6 +169,15 @@ pub enum GameEvent {
     /// Integrity hit 0: burst into its own voxels along `impulse`.
     ConstructShattered { id: ConstructId, impulse: Vec3, pos: Vec3 },
     ConstructGone { id: ConstructId, reason: GoneReason, refund: f32 },
+    /// Creature attack cue (constructs/creature.rs). `kind` = `constructs::ai::AttackKind as u8`,
+    /// `phase` = `constructs::ai::phase::*` (telegraph → active → impact → end). The client plays the
+    /// kind's `bd_shapes::anim::Attack` clip from `Telegraph`; the sim's hit window comes from the same
+    /// `attack_timing`, so what is animated is what hits. `aim` = world direction (breath cone, dash
+    /// line); `impact` = juice scalar (0 before impact; ≈1 bite … 2 kaiju stomp).
+    CreatureAttack { id: ConstructId, kind: u8, phase: u8, aim: Vec3, impact: f32 },
+    /// Creature behaviour mode changed (`constructs::ai::Mode as u8`: sitting, kiting, guarding,
+    /// rooted in a cage, pinned, holding…) — the client picks idle/pose variations from it.
+    CreatureMode { id: ConstructId, mode: u8 },
     /// Two opposing constructs collided (both flash, shard ring).
     Clash { a: ConstructId, b: ConstructId, point: Vec3, strength: f32 },
     Explosion { pos: Vec3, radius: f32, element: Element, source: Option<PlayerId> },
@@ -199,4 +208,93 @@ pub enum GameEvent {
     MatchPhase { phase: MatchPhase, round: u32, winner: Option<PlayerId> },
     /// Terrain regenerated from this seed (rematch). Clients regenerate too.
     ArenaReset { seed: u64 },
+    /// A held / worn / piloted construct moment (swing phases, parry, dive slam, whip latch, flap,
+    /// eject…) for client juice. `strength` is the impact scalar (≈ 1 normal, 2+ huge); `dir` the
+    /// swing / launch direction. (Held engineer: `constructs/held.rs`.)
+    HeldFx { id: ConstructId, owner: PlayerId, fx: HeldFx, pos: Vec3, dir: Vec3, strength: f32 },
+    /// POWERS HOOK: a player-power moment (fruit eaten, stand rush, time stop, scatter,
+    /// restore…), see `crate::powers::PowerEvent`.
+    Power(crate::powers::PowerEvent),
+    // ---- lobby knobs + Party mode (COMBAT.md §5g; crate::party) ----
+    /// "Void off" lobby knob: a player fell out and was put back on a spawn point (no KO).
+    VoidRescue { player: PlayerId, pos: Vec3 },
+    /// Party phase changed. `secs` = phase length (0 for Lobby / Round: see the match clock).
+    PartyPhase { phase: crate::party::PartyPhase, round: u8, rounds: u8, secs: f32 },
+    /// A round was scored (points include the round-win bonus for `winners`).
+    PartyRoundEnd { round: u8, results: Vec<crate::party::PartyRoundResult>, winners: Vec<PlayerId> },
+    /// `player`'s cards for this pick (send to that player; revealing others' offers is harmless).
+    PartyOffer { player: PlayerId, offer: crate::party::PartyOffer },
+    /// `player` locked a card (which one stays hidden until the reveal).
+    PartyLocked { player: PlayerId },
+    /// Boom or Bust coin flip: `boom` = Legendary, else Cursed. `effect` None = nothing left.
+    PartyBoomOrBust { player: PlayerId, boom: bool, effect: Option<crate::party::EffectId> },
+    /// Everyone's pick, revealed together.
+    PartyReveal { picks: Vec<crate::party::PartyPick> },
+    /// Podium (best first; ties share a place).
+    PartyEnd { podium: Vec<crate::party::PartyStanding> },
+    /// A party effect did something visible (confetti, honk, echo, slip…) for client juice.
+    PartyFx { player: PlayerId, fx: crate::party::PartyFx, pos: Vec3, construct: Option<ConstructId> },
+}
+
+/// What [`GameEvent::HeldFx`] reports (COMBAT.md §4 Held / Worn, §4b, §5d).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum HeldFx {
+    /// Anticipation begins (wind-up whoosh). `strength`: 1 quick, 1 + combo step, 2 heavy.
+    SwingStart = 0,
+    /// The hitbox went live (swing whoosh / crack).
+    SwingActive = 1,
+    /// A swing struck terrain (sparks, chips, thud).
+    SwingImpact = 2,
+    /// Holding a charge (heavy / draw): glow builds.
+    ChargeStart = 3,
+    /// Perfectly-timed parry (flash, ting, micro slow-mo).
+    Parry = 4,
+    /// Guard absorbed a hit.
+    Block = 5,
+    /// Guard raised (shield up / parry stance).
+    GuardUp = 6,
+    /// Airborne hammer dive begins.
+    DiveStart = 7,
+    /// Dive slam landed (crater, radial shockwave). `strength` scales with fall speed.
+    DiveSlam = 8,
+    GroundPound = 9,
+    /// Spear lunge dash.
+    Lunge = 10,
+    /// Held item thrown (Returning / axe throw).
+    Throw = 11,
+    /// Returning item caught back in the hand.
+    Catch = 12,
+    /// Grab seized a player.
+    Grab = 13,
+    /// Grabbed player thrown.
+    GrabThrow = 14,
+    Uppercut = 15,
+    /// Whip latched onto terrain (a third tether).
+    WhipLatch = 16,
+    WhipRelease = 17,
+    /// Whip yanked a player toward its owner.
+    WhipYank = 18,
+    /// Thor flight: the thrown item drags its owner.
+    ThorFlight = 19,
+    /// Two swings met: sword-lock knockback.
+    SwordLock = 20,
+    /// Wings flap.
+    Flap = 21,
+    /// Cape mid-air dash.
+    CapeDash = 22,
+    /// Parachute / umbrella deployed (cancels tumble).
+    ChuteOpen = 23,
+    /// Jetpack / suit thrusters lit.
+    Thrust = 24,
+    /// Piloted construct attack (punch / stomp / breath / volley).
+    PilotAttack = 25,
+    /// A piloted / suit weak point took a critical hit.
+    WeakPoint = 26,
+    /// Wielder launched by a Thrust hammer / Repel swing.
+    Launch = 27,
+    /// Transformer mode switch began (`strength` +1 → robot, −1 → alt/vehicle); ~0.9 s sequence.
+    Transform = 28,
+    /// Vehicle → robot transform in mid-air landed: stomp. `strength` scales with fall speed.
+    TransformSlam = 29,
 }

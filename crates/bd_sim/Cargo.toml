@@ -7,6 +7,8 @@ license.workspace = true
 [dependencies]
 bd_core.workspace = true
 bd_voxel.workspace = true
+# Held swing curves: hitboxes are swept along the same curves the client animates (held.rs).
+bd_shapes.workspace = true
 glam.workspace = true
 serde.workspace = true
 # Oath table (assets/oaths.ron) — the sim only needs each oath's length.

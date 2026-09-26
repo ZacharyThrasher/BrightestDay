@@ -163,9 +163,14 @@ impl World {
     /// under the crosshair; animate terrain if a modifier phrase is aimed at terrain; otherwise pay
     /// and spawn (replacing the oldest in a full slot). Piloted casts seat the caster.
     pub fn cast(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
+        // PARTY HOOK: after-cast hooks (Echo, Mini-Me) look for this cast's spawn from here.
+        let ev0 = self.events.len();
         let res = self.cast_inner(player, recipe, shape, aim);
-        if let Err(reason) = res {
-            self.events.push(GameEvent::CastFailed { player, reason });
+        // PARTY HOOK: the party cost discount (set by `party::modify_cast`) is per cast.
+        self.party_cost_ratio = None;
+        match res {
+            Err(reason) => self.events.push(GameEvent::CastFailed { player, reason }),
+            Ok(id) => crate::party::hooks::after_cast(self, player, id, aim, ev0), // PARTY HOOK (no-op in FFA)
         }
         res
     }
@@ -190,6 +195,15 @@ impl World {
         let origin = if aim.origin.is_finite() && (aim.origin - eye).length() < 4.0 { aim.origin } else { eye };
         let dir = if aim.dir.is_finite() && aim.dir.length_squared() > 1e-6 { aim.dir.normalize() } else { p.look() };
         let recipe = validate_recipe(recipe, &self.cfg.rules);
+        // POWERS HOOK — cast modifier pipeline step 1 (powers, then party): fruit / stand casts
+        // are handled by the powers module; incantations + standing power grafts rewrite the recipe.
+        let recipe = match self.powers_on_cast(i, recipe, origin, dir) {
+            Ok(r) => r,
+            Err(done) => return done,
+        };
+        // PARTY HOOK: Wild Magic + standing grafts + Kaiju Heart (re-validates; no-op in FFA).
+        let mut recipe = recipe;
+        crate::party::modify_cast(self, i, &mut recipe);
         let shape = shape.map(sanitize_shape);
 
         // Where does the aim land?
@@ -230,7 +244,8 @@ impl World {
     }
 
     fn pay(&mut self, i: usize, cost: f32) -> Result<(), CastError> {
-        if self.cfg.rules.infinite_willpower() {
+        // PARTY HOOK: `free_cast` = a party effect's free copy (Echo, Mini-Me, Copycat…).
+        if self.cfg.rules.infinite_willpower() || self.free_cast {
             return Ok(());
         }
         let p = &mut self.players[i];
@@ -245,7 +260,8 @@ impl World {
     fn graft(&mut self, i: usize, cid: ConstructId, add: Recipe) -> Result<ConstructId, CastError> {
         let id = self.players[i].id;
         let uses = self.players[i].casts.uses(&add.name, self.tick);
-        let cost = base_cost(&add) * staleness(uses) * GRAFT_COST_FRACTION;
+        // PARTY HOOK: `party_cost_ratio` makes party-grafted mechanics free (None in FFA).
+        let cost = base_cost(&add) * staleness(uses) * GRAFT_COST_FRACTION * self.party_cost_ratio.unwrap_or(1.0);
         self.pay(i, cost)?;
         self.players[i].casts.record(&add.name, self.tick);
         let grow = add.has(Mechanic::Grow);
@@ -281,7 +297,7 @@ impl World {
         recipe.scale = est_scale;
         let recipe = validate_recipe(recipe, &self.cfg.rules);
         let uses = self.players[i].casts.uses(&recipe.name, self.tick);
-        let cost = base_cost(&recipe) * staleness(uses);
+        let cost = base_cost(&recipe) * staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
         self.pay(i, cost)?;
         let outcome = apply_extract(&mut self.voxels, &op);
         if outcome.model.voxels.is_empty() {
@@ -321,16 +337,22 @@ impl World {
             return Err(CastError::ColossalLimit);
         }
         let uses = self.players[i].casts.uses(&recipe.name, self.tick);
-        let cost = if model.is_some() { 0.0 } else { base_cost(&recipe) * staleness(uses) };
-        if model.is_none() {
+        // PARTY HOOK: cost ratio (party grafts are free); free casts skip paying, staleness and
+        // slot replacement (they are children of the cast they copy).
+        let cost = if model.is_some() { 0.0 } else { base_cost(&recipe) * staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
+        if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
             self.players[i].casts.record(&recipe.name, self.tick);
         }
+        if self.free_cast && self.constructs.len() >= super::MAX_CONSTRUCTS - 8 {
+            return Err(CastError::Busy);
+        }
         // Limits: replace the oldest in a full slot (and kaiju ≤ 1).
+        let free = self.free_cast;
         let slot = Slot::of(recipe.form);
         let mult = if matches!(slot, Slot::Held | Slot::Worn) { 1 } else { self.cfg.rules.cap_mult() };
         let limit = slot.limit() * mult;
-        let in_slot: Vec<ConstructId> = self.constructs.in_slot(id, slot).map(|c| c.id).collect();
+        let in_slot: Vec<ConstructId> = if free { Vec::new() } else { self.constructs.in_slot(id, slot).map(|c| c.id).collect() };
         if in_slot.len() >= limit {
             for old in &in_slot[..=(in_slot.len() - limit)] {
                 if let Some(c) = self.constructs.get_mut(*old) {
@@ -338,7 +360,7 @@ impl World {
                 }
             }
         }
-        if recipe.form == Form::Kaiju {
+        if recipe.form == Form::Kaiju && !free {
             let kaiju: Vec<ConstructId> = self.constructs.owned_by(id).filter(|c| c.recipe.form == Form::Kaiju && c.gone.is_none()).map(|c| c.id).collect();
             let klimit = crate::constructs::KAIJU_LIMIT * self.cfg.rules.cap_mult();
             if kaiju.len() >= klimit {
@@ -595,6 +617,21 @@ impl World {
         true
     }
 
+    /// Transform key (client binding: Mouse3; also the "transform" command) — HELD ENGINEER
+    /// (COMBAT.md §5d-bis): toggles the seated suit / cockpit construct with `Mechanic::Transforms`
+    /// between robot and alt (vehicle) mode. The switch happens on the next tick
+    /// (`constructs::pilot::toggle`). Returns false if not seated in a transformer.
+    pub fn toggle_transform(&mut self, player: PlayerId) -> bool {
+        let Some(seat) = self.player(player).and_then(|p| p.seat) else { return false };
+        match self.constructs.get_mut(seat.construct) {
+            Some(c) if c.gone.is_none() && c.has(Mechanic::Transforms) => {
+                c.held.transform_req = true;
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// E: leave the seat with a big upward launch (a movement tech).
     pub fn eject(&mut self, player: PlayerId) -> bool {
         let Some(i) = self.pidx(player) else { return false };
@@ -657,6 +694,45 @@ impl World {
     /// Mark: field on a construct (used by grafts) — public so the construct engineer can reuse.
     pub fn field_for_construct(&self, cid: ConstructId) -> Option<&ForceField> {
         self.fields.iter().find(|f| f.construct == Some(cid))
+    }
+}
+
+impl World {
+    /// PARTY HOOK: a free cast for party effects (Echo, Mini-Me, Copycat, Sidekick): validated and
+    /// placed exactly like a fresh cast (never grafts / animates terrain), but costs nothing, adds
+    /// no staleness, replaces nothing (it is a child of `parent`) and refunds nothing on dismiss.
+    pub(crate) fn spawn_free(&mut self, player: PlayerId, recipe: Recipe, aim: Aim, parent: Option<ConstructId>) -> Result<ConstructId, CastError> {
+        let Some(i) = self.pidx(player) else { return Err(CastError::UnknownPlayer) };
+        if self.match_state.phase == crate::rules::MatchPhase::Ended {
+            return Err(CastError::MatchOver);
+        }
+        let p = &self.players[i];
+        if !p.alive {
+            return Err(CastError::Dead);
+        }
+        if p.seat.is_some_and(|s| !s.suit) {
+            return Err(CastError::Busy);
+        }
+        let base = self.cfg.move_params.clone();
+        let eye = p.eye(&base);
+        let origin = if aim.origin.is_finite() && (aim.origin - eye).length() < 4.0 { aim.origin } else { eye };
+        let dir = if aim.dir.is_finite() && aim.dir.length_squared() > 1e-6 { aim.dir.normalize() } else { p.look() };
+        let recipe = validate_recipe(recipe, &self.cfg.rules);
+        let cw = CollisionWorld::new(&self.voxels, &self.colliders);
+        let world_hit = raycast_world(&cw, origin, dir, CAST_RANGE, true);
+        let aim_point = world_hit.map(|h| h.point).unwrap_or(origin + dir * 12.0);
+        let aim_normal = world_hit.map(|h| h.normal).unwrap_or(-dir);
+        self.free_cast = true;
+        let res = self.spawn_cast(i, recipe, None, None, origin, dir, aim_point, aim_normal);
+        self.free_cast = false;
+        if let Ok(id) = res {
+            if let Some(c) = self.constructs.get_mut(id) {
+                // No parent ⇒ its own parent: party copies never count toward slot limits.
+                c.parent = Some(parent.unwrap_or(id));
+                c.cost = 0.0;
+            }
+        }
+        res
     }
 }
 

@@ -40,6 +40,7 @@ pub fn recipe(name: &str, form: Form, mechanics: &[Mechanic], element: Element, 
         model: ModelSource::Procedural { seed: crate::rng::word_hash(name) as u32 },
         payload: None,
         features: vec![],
+        grants: None,
         temperament: Temperament::Calm,
         intensity: 0.0,
     }
@@ -471,8 +472,48 @@ pub fn drive(world: &mut World, bots: &mut [BotBrain], inputs: &mut Vec<(PlayerI
         if let Some((r, aim)) = act.cast {
             let _ = world.cast(bot.id, r, None, aim);
         }
+        // Party mode: pick a card on the pick screen.
+        if let Some(ix) = party_pick(world, bot) {
+            let _ = world.party_choose(bot.id, ix);
+        }
         inputs.push((bot.id, act.input));
     }
+}
+
+/// A bot's party pick (COMBAT.md §5g), once it has "read the cards" (1–2.5 s into the pick).
+/// Simple taste: gambles on Boom or Bust when it is not winning and feeling brave (difficulty),
+/// otherwise prefers effects that make its constructs act on their own (homing, flying, walking,
+/// shooting, companions), then elements, then anything — ties broken by a per-bot seeded hash.
+pub fn party_pick(world: &World, bot: &BotBrain) -> Option<u8> {
+    use crate::party::{PartyCard, PartyPhase};
+    let party = world.party()?;
+    if party.phase != PartyPhase::Pick {
+        return None;
+    }
+    let me = party.player(bot.id)?;
+    if me.picked.is_some() || me.offer.is_empty() {
+        return None;
+    }
+    let think = 1.0 + 0.5 * (bot.id.0 % 4) as f32;
+    if party.phase_time < think.min(party.settings.pick_secs * 0.5) {
+        return None;
+    }
+    let score = |card: PartyCard| -> u32 {
+        match card {
+            PartyCard::BoomOrBust => {
+                if bot.difficulty < 0.6 { 90 } else { 10 }
+            }
+            PartyCard::Effect(e) => {
+                let Some(spec) = party.table.get(e) else { return 0 };
+                let g = &spec.graft;
+                let active = [Mechanic::Homing, Mechanic::Flies, Mechanic::Walks, Mechanic::Shoots, Mechanic::Charge, Mechanic::Breath];
+                let mut s = if g.mechanics.iter().any(|m| active.contains(m)) { 60 } else if !spec.hooks.is_empty() { 50 } else if g.element.is_some() { 40 } else { 20 };
+                s += (crate::rng::word_hash(&spec.id) ^ bot.id.0 as u64).wrapping_mul(0x9E37_79B9) as u32 % 17;
+                s
+            }
+        }
+    };
+    (0..me.offer.n).filter_map(|i| me.offer.card(i).map(|c| (i, score(c)))).max_by_key(|&(i, s)| (s, u8::MAX - i)).map(|(i, _)| i)
 }
 
 /// Add `n` bots (ids `first..first+n`, corps by id) and return their brains.

@@ -25,6 +25,8 @@ pub enum AnimState {
     /// Standing/hovering; `t` = any monotonic time (s).
     Idle,
     /// Moving. `distance` = metres travelled (caller accumulates) — drives gait phase so feet plant;
+    /// at `speed` < 0.05 (and grounded) this is exactly `Idle` except that wheels/treads/cranks keep
+    /// the phase of `distance` — use it instead of `Idle` for anything with wheels so they never snap.
     /// `speed` m/s scales amplitude/gait choice; `airborne` switches to flight/leap poses.
     /// `t` = monotonic time (wing beats, flicker).
     Locomotion { speed: f32, distance: f32, airborne: bool },
@@ -725,7 +727,8 @@ fn breath_period(rig: &Rig) -> f32 {
 
 fn idle_local(m: &VoxelModel, i: usize, t: f32, lo: &Loco) -> Local {
     let rig = &m.rig;
-    if let Some(o) = overlay(m, i, t, lo, 0.0, false) {
+    // `lo.dist` is 0 for `Idle`; a stopped `Locomotion` keeps its distance so wheels hold their phase.
+    if let Some(o) = overlay(m, i, t, lo, lo.dist, false) {
         return o;
     }
     let h = rig.height;
@@ -801,6 +804,10 @@ fn serpent_seg(rig: &Rig, i: usize, phase: f32, amp: f32) -> Local {
 
 fn loco_local(m: &VoxelModel, i: usize, t: f32, lo: &Loco) -> Local {
     let rig = &m.rig;
+    if lo.speed < 0.05 && !lo.airborne {
+        // Parked: identical to Idle (breathing, sway) but machines keep their wheel/tread phase.
+        return idle_local(m, i, t, lo);
+    }
     if let Some(o) = overlay(m, i, t, lo, lo.dist, true) {
         return o;
     }

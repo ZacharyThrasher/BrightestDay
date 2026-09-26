@@ -1,0 +1,623 @@
+// Player powers (COMBAT.md §5h) — ONE template for every iconic power system.
+// Owned by bd_sim (src/powers). Each entry: id, name, kind, names (lexicon), body, graft,
+// incantations + delivery, shouts (whole phrases → move slot), moves (≤ 2: G tap, G hold),
+// transform, companion. Every value is closed-set data; moves are lists of MoveOps that map onto
+// existing world operations (Cast, Impulse, Blink, Reel, Shove, Field, Room, Swap, Portal, Link,
+// Explode, Carve, TimeStop, Restore, Transform, SelfStatus, Weigh, SlamOnLand).
+// The lexicon scans id / name / names / incantations / kind / companion (bd_lexicon/src/powers.rs).
+// Shared tuning (fruit cost, drain secs, rush tokens…) is PowerRules in src/powers/data.rs.
+// Keep this file a plain list: the lexicon splits entries at the first bracket.
+[
+    // ================================================================ ONE PIECE — devil fruits
+    (
+        id: "gomu_gomu",
+        name: "Gomu Gomu no Mi",
+        kind: Paramecia,
+        names: ["gomu gomu no mi", "gum gum fruit", "gum-gum fruit", "rubber fruit", "luffy's fruit"],
+        body: (bounce: true, immune: [Electric], moves: (jump: 1.1)),
+        incantations: ["gomu gomu no", "gum gum", "gum-gum"],
+        delivery: (add: [Returning, Bounce], remove: [DropFromSky], from_fist: true, arm: true),
+        shouts: [("gomu gomu no pistol", 0), ("gum gum pistol", 0), ("gomu gomu no rocket", 1), ("gum gum rocket", 1)],
+        moves: [
+            (name: "pistol", cooldown: 0.5, ops: [
+                Cast(recipe: (name: "gum-gum pistol", form: Ball, mech: [Returning, Blunt, Fast], scale: 0.6, mass: 25.0)),
+            ]),
+            // Stretch to an anchor and yank yourself there: a movement move.
+            (name: "rocket", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 40.0, speed: 34.0)]),
+        ],
+    ),
+    (
+        id: "nika",
+        name: "Hito Hito no Mi, Model: Nika",
+        kind: MythicalZoan,
+        names: ["hito hito no mi model nika", "nika fruit", "sun god fruit", "gear 5 fruit", "gear fifth fruit"],
+        body: (bounce: true, immune: [Electric], moves: (jump: 1.2, gravity: 0.9)),
+        // Cartoon physics: whatever you say comes out giant, bouncy and snaps back.
+        incantations: ["gomu gomu no", "gum gum", "gear 5", "gear five"],
+        delivery: (add: [Grow, Bounce, Returning], remove: [DropFromSky], scale_mult: 1.8, from_fist: true, arm: true),
+        shouts: [("bajrang gun", 0), ("gomu gomu no bajrang gun", 0), ("gear 5", 1), ("gear fifth", 1), ("gear five", 1)],
+        moves: [
+            (name: "bajrang gun", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "bajrang gun", form: Boulder, mech: [DropFromSky, Heavy, Blunt, Bounce], scale: 5.0, mass: 900.0)),
+            ]),
+            (name: "gear 5", cooldown: 2.0, ops: [Transform]),
+        ],
+        transform: Some((
+            costume: "gear5",
+            body: (bounce: true, immune: [Electric], moves: (jump: 1.6, gravity: 0.6, air_control: 1.6, speed: 1.1)),
+            graft: Some((mechanics: [Bounce])),
+        )),
+    ),
+    (
+        id: "mera_mera",
+        name: "Mera Mera no Mi",
+        kind: Logia,
+        names: ["mera mera no mi", "flame flame fruit", "flame-flame fruit", "fire fruit", "ace's fruit"],
+        body: (scatter: true, immune: [Fire]),
+        graft: Some((element: Some(Fire))),
+        incantations: ["mera mera no"],
+        delivery: (element: Some(Fire), add: [Fast]),
+        shouts: [("hiken", 0), ("fire fist", 0), ("entei", 1), ("flame emperor", 1)],
+        moves: [
+            (name: "fire fist", cooldown: 1.2, ops: [
+                Cast(recipe: (name: "fire fist", form: Ball, mech: [Fast, Explodes, Blunt], element: Fire, scale: 1.6, mass: 40.0)),
+            ]),
+            (name: "flame emperor", cooldown: 7.0, ops: [
+                Cast(recipe: (name: "flame emperor", form: Ball, mech: [DropFromSky, Explodes, Heavy], element: Fire, scale: 2.5, mass: 300.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "hie_hie",
+        name: "Hie Hie no Mi",
+        kind: Logia,
+        names: ["hie hie no mi", "chilly chilly fruit", "ice ice fruit", "ice fruit", "aokiji's fruit"],
+        body: (scatter: true, immune: [Ice], weak: [Fire]),
+        graft: Some((element: Some(Ice))),
+        incantations: ["hie hie no"],
+        delivery: (element: Some(Ice), add: [Pierce]),
+        shouts: [("ice age", 0), ("partisan", 1), ("ice partisan", 1)],
+        moves: [
+            (name: "ice age", cooldown: 4.0, cost: 12.0, ops: [
+                Explode(radius: 7.0, damage: 6.0, knockback: 4.0, element: Ice),
+            ]),
+            (name: "partisan", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "partisan", form: Ball, mech: [Pierce, Fast, Swarm], element: Ice, scale: 0.35, count: 5)),
+            ]),
+        ],
+    ),
+    (
+        id: "goro_goro",
+        name: "Goro Goro no Mi",
+        kind: Logia,
+        names: ["goro goro no mi", "rumble rumble fruit", "rumble-rumble fruit", "lightning fruit", "enel's fruit"],
+        body: (scatter: true, immune: [Electric]),
+        graft: Some((element: Some(Electric))),
+        incantations: ["goro goro no"],
+        delivery: (element: Some(Electric), add: [Fast]),
+        shouts: [("lightning blink", 0), ("el thor", 1), ("mamaragan", 1)],
+        moves: [
+            (name: "lightning blink", cooldown: 1.2, cost: 6.0, ops: [Blink(dist: 14.0)]),
+            (name: "el thor", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "el thor", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "pika_pika",
+        name: "Pika Pika no Mi",
+        kind: Logia,
+        names: ["pika pika no mi", "glint glint fruit", "glint-glint fruit", "light fruit", "kizaru's fruit"],
+        body: (scatter: true, moves: (speed: 1.1)),
+        incantations: ["pika pika no"],
+        delivery: (add: [Fast, Beam]),
+        shouts: [("light speed", 0), ("yata no kagami", 0), ("yasakani no magatama", 1)],
+        moves: [
+            (name: "yata no kagami", cooldown: 1.5, cost: 7.0, ops: [Blink(dist: 20.0)]),
+            (name: "yasakani no magatama", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "yasakani no magatama", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.3, count: 8)),
+            ]),
+        ],
+    ),
+    (
+        id: "yami_yami",
+        name: "Yami Yami no Mi",
+        kind: Logia,
+        // Canon: darkness can't scatter — it takes every hit.
+        names: ["yami yami no mi", "dark dark fruit", "dark-dark fruit", "darkness fruit", "blackbeard's fruit"],
+        body: (scatter: false),
+        graft: Some((element: Some(Shadow))),
+        incantations: ["yami yami no"],
+        delivery: (element: Some(Shadow), add: [Attract]),
+        shouts: [("black hole", 0), ("liberation", 1)],
+        moves: [
+            (name: "black hole", cooldown: 5.0, cost: 14.0, ops: [Field(strength: 28.0, radius: 10.0, secs: 3.0, at: Aim)]),
+            (name: "liberation", cooldown: 5.0, cost: 14.0, ops: [
+                Explode(radius: 5.0, damage: 18.0, knockback: 20.0, carve: 2.5, element: Shadow, at: Aim),
+            ]),
+        ],
+    ),
+    (
+        id: "suna_suna",
+        name: "Suna Suna no Mi",
+        kind: Logia,
+        names: ["suna suna no mi", "sand sand fruit", "sand-sand fruit", "sand fruit", "crocodile's fruit"],
+        body: (scatter: true, weak: [Water]),
+        graft: Some((element: Some(Earth))),
+        incantations: ["suna suna no"],
+        delivery: (element: Some(Earth), add: [Spin]),
+        shouts: [("sables", 0), ("desert spada", 1)],
+        moves: [
+            (name: "sables", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "sables", form: Pillar, mech: [Spin, Flies, Homing, Attract], element: Wind, scale: 4.0)),
+            ]),
+            (name: "desert spada", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 18.0, radius: 1.0, damage: 12.0)]),
+        ],
+    ),
+    (
+        id: "magu_magu",
+        name: "Magu Magu no Mi",
+        kind: Logia,
+        names: ["magu magu no mi", "mag mag fruit", "mag-mag fruit", "magma fruit", "akainu's fruit"],
+        body: (scatter: true, immune: [Fire]),
+        graft: Some((element: Some(Fire))),
+        incantations: ["magu magu no"],
+        delivery: (element: Some(Fire), add: [Heavy, Blunt]),
+        shouts: [("great eruption", 0), ("dai funka", 0), ("meteor volcano", 1), ("ryusei kazan", 1)],
+        moves: [
+            (name: "great eruption", cooldown: 1.5, ops: [
+                Cast(recipe: (name: "magma fist", form: Ball, mech: [Heavy, Blunt, Fast], element: Fire, scale: 1.8, mass: 200.0)),
+            ]),
+            (name: "meteor volcano", cooldown: 7.0, ops: [
+                Cast(recipe: (name: "meteor volcano", form: Boulder, mech: [DropFromSky, Swarm, Heavy], element: Fire, scale: 1.2, count: 5)),
+            ]),
+        ],
+    ),
+    (
+        id: "gura_gura",
+        name: "Gura Gura no Mi",
+        kind: Paramecia,
+        names: ["gura gura no mi", "tremor tremor fruit", "tremor-tremor fruit", "quake fruit", "whitebeard's fruit"],
+        incantations: ["gura gura no"],
+        delivery: (element: Some(Earth), add: [Stomp, Blunt]),
+        shouts: [("quake punch", 0), ("seaquake", 1), ("kaishin", 1)],
+        moves: [
+            // The air cracks: a shockwave that carves terrain.
+            (name: "quake punch", cooldown: 2.5, cost: 12.0, ops: [
+                Explode(radius: 4.5, damage: 16.0, knockback: 26.0, carve: 3.0, element: Earth, at: Front, dist: 3.0),
+            ]),
+            (name: "seaquake", cooldown: 6.0, cost: 18.0, ops: [Carve(length: 22.0, radius: 2.2, damage: 14.0)]),
+        ],
+    ),
+    (
+        id: "ope_ope",
+        name: "Ope Ope no Mi",
+        kind: Paramecia,
+        names: ["ope ope no mi", "op op fruit", "op-op fruit", "operation fruit", "law's fruit"],
+        graft: Some((mechanics: [Blade])),
+        incantations: ["ope ope no"],
+        delivery: (add: [Blade]),
+        shouts: [("room", 0), ("shambles", 1)],
+        moves: [
+            (name: "room", cooldown: 3.0, cost: 10.0, ops: [Room(radius: 14.0, secs: 12.0)]),
+            // Swap places with whoever you aim at — both inside your ROOM.
+            (name: "shambles", cooldown: 1.5, cost: 6.0, ops: [Swap(range: 30.0)]),
+        ],
+    ),
+    (
+        id: "bara_bara",
+        name: "Bara Bara no Mi",
+        kind: Paramecia,
+        names: ["bara bara no mi", "chop chop fruit", "chop-chop fruit", "buggy's fruit"],
+        body: (blade_immune: true),
+        incantations: ["bara bara no"],
+        delivery: (add: [Returning, Homing], from_fist: true),
+        shouts: [("bara bara cannon", 0), ("bara bara festival", 1)],
+        moves: [
+            (name: "flying hands", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "flying hands", form: Ball, mech: [Flies, Homing, Swarm, Blunt], scale: 0.5, count: 2)),
+            ]),
+            (name: "bara bara festival", cooldown: 4.0, cost: 6.0, ops: [
+                Impulse(fwd: 0.0, up: 12.0),
+                SelfStatus(status: Float, secs: 1.5),
+            ]),
+        ],
+    ),
+    (
+        id: "hana_hana",
+        name: "Hana Hana no Mi",
+        kind: Paramecia,
+        names: ["hana hana no mi", "flower flower fruit", "flower-flower fruit", "robin's fruit"],
+        incantations: ["hana hana no"],
+        delivery: (add: [Grab]),
+        shouts: [("clutch", 0), ("mil fleur", 1), ("gigantesco mano", 1)],
+        moves: [
+            // Arms sprout on the surface you aim at and grab whoever is there.
+            (name: "clutch", cooldown: 2.5, ops: [
+                Cast(recipe: (name: "sprouted arms", form: Pillar, mech: [Grab, Constrict], scale: 1.2)),
+            ]),
+            (name: "gigantesco mano", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "giant arms", form: Pillar, mech: [Grab, Blunt, Heavy], scale: 5.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "nikyu_nikyu",
+        name: "Nikyu Nikyu no Mi",
+        kind: Paramecia,
+        names: ["nikyu nikyu no mi", "paw paw fruit", "paw-paw fruit", "kuma's fruit"],
+        incantations: ["nikyu nikyu no"],
+        delivery: (add: [Repel, Launch]),
+        shouts: [("pad cannon", 0), ("tsuppari pad ho", 0), ("where would you like to go", 1), ("ursus shock", 1)],
+        moves: [
+            // The paw repels anything in front.
+            (name: "pad cannon", cooldown: 2.0, cost: 8.0, ops: [Field(strength: -60.0, radius: 6.0, secs: 0.5, at: Front, dist: 3.0)]),
+            // "Where would you like to go?" — launch one player very far.
+            (name: "paw launch", cooldown: 6.0, cost: 14.0, ops: [
+                Shove(range: 4.0, angle: 25.0, damage: 0.0, knockback: 48.0, up: 0.8),
+            ]),
+        ],
+    ),
+    (
+        id: "bomu_bomu",
+        name: "Bomu Bomu no Mi",
+        kind: Paramecia,
+        names: ["bomu bomu no mi", "bomb bomb fruit", "bomb-bomb fruit", "bomb fruit", "mr 5's fruit"],
+        body: (explosion_immune: true),
+        incantations: ["bomu bomu no"],
+        delivery: (add: [Explodes, Sticky]),
+        shouts: [("explosive touch", 0), ("nose fancy cannon", 1)],
+        moves: [
+            (name: "explosive touch", cooldown: 1.5, cost: 8.0, ops: [
+                Explode(radius: 2.5, damage: 18.0, knockback: 16.0, carve: 1.2, element: Fire, at: Front, dist: 1.6),
+            ]),
+            (name: "nose fancy cannon", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "booger bomb", form: Bomb, mech: [Fast], scale: 0.4)),
+            ]),
+        ],
+    ),
+    (
+        id: "mochi_mochi",
+        name: "Mochi Mochi no Mi",
+        kind: Paramecia,
+        names: ["mochi mochi no mi", "mochi mochi fruit", "mochi fruit", "katakuri's fruit"],
+        graft: Some((mechanics: [Sticky])),
+        incantations: ["mochi mochi no"],
+        delivery: (add: [Sticky, Blunt, Returning], from_fist: true, arm: true),
+        shouts: [("mochi trident", 0), ("power mochi", 1)],
+        moves: [
+            (name: "mochi trident", cooldown: 1.5, ops: [
+                Cast(recipe: (name: "mochi trident", form: Ball, mech: [Pierce, Sticky, Fast], scale: 0.9)),
+            ]),
+            (name: "power mochi", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "power mochi", form: Ball, mech: [Blunt, Heavy, Sticky, Returning], scale: 2.0, mass: 150.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "bari_bari",
+        name: "Bari Bari no Mi",
+        kind: Paramecia,
+        names: ["bari bari no mi", "barrier barrier fruit", "barrier-barrier fruit", "barrier fruit", "bartolomeo's fruit"],
+        incantations: ["bari bari no"],
+        delivery: (add: [Barrier, Guard]),
+        shouts: [("barrier", 0), ("barrier ball", 1)],
+        moves: [
+            (name: "barrier", cooldown: 2.0, ops: [Cast(recipe: (name: "barrier", form: Wall, mech: [Barrier, Guard], scale: 1.0))]),
+            (name: "barrier ball", cooldown: 4.0, ops: [Cast(recipe: (name: "barrier ball", form: Dome, mech: [Barrier]))]),
+        ],
+    ),
+    (
+        id: "doku_doku",
+        name: "Doku Doku no Mi",
+        kind: Paramecia,
+        names: ["doku doku no mi", "venom venom fruit", "venom-venom fruit", "poison fruit", "magellan's fruit"],
+        body: (immune: [Poison]),
+        graft: Some((element: Some(Poison))),
+        incantations: ["doku doku no"],
+        delivery: (element: Some(Poison), add: [Sticky]),
+        shouts: [("hydra", 0), ("venom demon", 1), ("poison cloud", 1)],
+        moves: [
+            (name: "hydra", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "venom hydra", form: Serpent, mech: [Breath], element: Poison, scale: 4.0)),
+            ]),
+            (name: "poison cloud", cooldown: 5.0, cost: 12.0, ops: [
+                Explode(radius: 5.5, damage: 4.0, knockback: 2.0, element: Poison),
+            ]),
+        ],
+    ),
+    (
+        id: "kilo_kilo",
+        name: "Kilo Kilo no Mi",
+        kind: Paramecia,
+        names: ["kilo kilo no mi", "kilo kilo fruit", "weight fruit", "miss valentine's fruit"],
+        incantations: ["kilo kilo no"],
+        delivery: (add: [Heavy]),
+        shouts: [("10000 kilo press", 0), ("ten thousand kilo press", 0), ("kilo press", 0), ("one kilo", 1), ("float", 1)],
+        moves: [
+            // Heavy: plummet and slam where you land.
+            (name: "10,000 kilo press", cooldown: 3.0, cost: 8.0, ops: [
+                Impulse(fwd: 0.0, up: -38.0),
+                SlamOnLand(radius: 4.0, damage: 22.0, knockback: 20.0, carve: 2.5),
+            ]),
+            // Light: float on the wind.
+            (name: "1 kilo float", cooldown: 3.0, cost: 4.0, ops: [
+                Impulse(fwd: 0.0, up: 7.0),
+                SelfStatus(status: Float, secs: 3.0),
+            ]),
+        ],
+    ),
+    (
+        id: "tori_phoenix",
+        name: "Tori Tori no Mi, Model: Phoenix",
+        kind: MythicalZoan,
+        names: ["tori tori no mi model phoenix", "phoenix fruit", "bird bird fruit phoenix", "marco's fruit"],
+        body: (immune: [Fire]),
+        incantations: ["tori tori no"],
+        delivery: (element: Some(Fire), add: [Flies]),
+        shouts: [("phoenix brand", 0), ("phoenix", 1)],
+        moves: [
+            (name: "phoenix brand", cooldown: 2.0, cost: 6.0, ops: [
+                Impulse(fwd: 26.0, up: 4.0),
+                Shove(range: 3.5, angle: 45.0, damage: 12.0, knockback: 18.0, element: Fire),
+            ]),
+            (name: "phoenix form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Blue-fire wings: flight (thrust stays below skilled movement), fire immunity.
+        transform: Some((
+            costume: "phoenix",
+            body: (immune: [Fire], moves: (thrust: 26.0, thrust_max: 18.0, gravity: 0.45, glide: 0.5)),
+            graft: Some((element: Some(Fire))),
+        )),
+    ),
+    (
+        id: "uo_seiryu",
+        name: "Uo Uo no Mi, Model: Seiryu",
+        kind: MythicalZoan,
+        names: ["uo uo no mi model seiryu", "fish fish fruit azure dragon", "azure dragon fruit", "kaido's fruit"],
+        incantations: ["uo uo no"],
+        delivery: (element: Some(Fire), add: [Breath]),
+        shouts: [("bolo breath", 0), ("boro breath", 0), ("azure dragon", 1), ("dragon form", 1)],
+        moves: [
+            (name: "bolo breath", cooldown: 2.5, ops: [
+                Cast(recipe: (name: "bolo breath", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 1.6)),
+            ]),
+            (name: "azure dragon", cooldown: 3.0, ops: [Transform]),
+        ],
+        // Become an eastern dragon: a piloted serpent that flies and breathes fire (eject = back).
+        transform: Some((
+            costume: "azure_dragon",
+            pilot: Some((name: "azure dragon", form: Serpent, mech: [Flies, Breath, ArticulatedTail, Piloted], element: Fire, scale: 14.0, mass: 4000.0)),
+        )),
+    ),
+    (
+        id: "ushi_giraffe",
+        name: "Ushi Ushi no Mi, Model: Giraffe",
+        kind: Zoan,
+        names: ["ushi ushi no mi model giraffe", "giraffe fruit", "ox ox fruit giraffe", "kaku's fruit"],
+        incantations: ["ushi ushi no"],
+        delivery: (add: [Pierce, Charge]),
+        shouts: [("kirin houdai", 0), ("giraffe cannon", 0), ("giraffe", 1)],
+        moves: [
+            // The neck: a long, narrow strike.
+            (name: "giraffe cannon", cooldown: 1.2, cost: 5.0, ops: [Shove(range: 5.0, angle: 18.0, damage: 14.0, knockback: 16.0)]),
+            (name: "giraffe form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "giraffe", body: (moves: (speed: 1.1, jump: 1.25)), graft: Some((mechanics: [Pierce])))),
+    ),
+    (
+        id: "neko_leopard",
+        name: "Neko Neko no Mi, Model: Leopard",
+        kind: Zoan,
+        names: ["neko neko no mi model leopard", "leopard fruit", "cat cat fruit leopard", "lucci's fruit"],
+        incantations: ["neko neko no"],
+        delivery: (add: [Fast, Blade]),
+        shouts: [("pounce", 0), ("rokuogan", 0), ("leopard", 1)],
+        moves: [
+            (name: "pounce", cooldown: 1.5, cost: 5.0, ops: [
+                Impulse(fwd: 20.0, up: 6.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 10.0),
+            ]),
+            (name: "leopard form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "leopard", body: (moves: (speed: 1.2, accel: 1.3, air_control: 1.2)), graft: Some((mechanics: [Fast, Blade])))),
+    ),
+    (
+        id: "inu_okuchi",
+        name: "Inu Inu no Mi, Model: Okuchi no Makami",
+        kind: MythicalZoan,
+        names: ["inu inu no mi model okuchi no makami", "okuchi no makami fruit", "wolf god fruit", "yamato's fruit"],
+        body: (immune: [Ice]),
+        incantations: ["inu inu no"],
+        delivery: (element: Some(Ice), add: [Charge]),
+        shouts: [("howl", 0), ("narikabura", 0), ("makami", 1), ("wolf form", 1)],
+        moves: [
+            (name: "howl", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "ice wolf", form: Quadruped, mech: [Charge, Fast], element: Ice, scale: 1.6, temperament: Aggressive, intensity: 0.8)),
+            ]),
+            (name: "wolf form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "okuchi_no_makami", body: (immune: [Ice], moves: (speed: 1.2, jump: 1.15)), graft: Some((element: Some(Ice))))),
+    ),
+
+    // ================================================================ JOJO — stands
+    (
+        id: "star_platinum",
+        name: "Star Platinum",
+        kind: Stand,
+        names: ["star platinum", "jotaro's stand"],
+        companion: Some((recipe: (name: "Star Platinum", form: Biped, mech: [Flies, Blunt, Fast], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("star finger", 0), ("star platinum the world", 1), ("star platinum za warudo", 1)],
+        moves: [
+            (name: "star finger", cooldown: 1.5, cost: 5.0, ops: [Shove(range: 5.0, angle: 12.0, damage: 12.0, knockback: 14.0)]),
+            (name: "star platinum: the world", cooldown: 20.0, cost: 20.0, ops: [TimeStop(secs: 1.0, speed: 2.0)]),
+        ],
+    ),
+    (
+        id: "the_world",
+        name: "The World",
+        kind: Stand,
+        names: ["the world stand", "za warudo", "dio's stand"],
+        companion: Some((recipe: (name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("road roller", 0), ("road roller da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1)],
+        moves: [
+            (name: "road roller", cooldown: 8.0, ops: [
+                Cast(recipe: (name: "road roller", form: Vehicle, mech: [DropFromSky, Heavy, Blunt], scale: 4.0, mass: 3000.0)),
+            ]),
+            // Never freezes anyone: the world greys and DIO alone moves at ×2.
+            (name: "za warudo", cooldown: 20.0, cost: 25.0, ops: [TimeStop(secs: 1.5, speed: 2.0)]),
+        ],
+    ),
+    (
+        id: "crazy_diamond",
+        name: "Crazy Diamond",
+        kind: Stand,
+        names: ["crazy diamond", "josuke's stand"],
+        companion: Some((recipe: (name: "Crazy Diamond", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("restore", 0), ("fix", 0), ("dora", 1)],
+        moves: [
+            // Rebuilds broken terrain and your own shattered constructs nearby (never heals players).
+            (name: "restore", cooldown: 3.0, cost: 10.0, ops: [Restore(radius: 9.0)]),
+            (name: "dora punch", cooldown: 0.8, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 12.0)]),
+        ],
+    ),
+    (
+        id: "killer_queen",
+        name: "Killer Queen",
+        kind: Stand,
+        names: ["killer queen", "kira's stand"],
+        companion: Some((recipe: (name: "Killer Queen", form: Biped, mech: [Flies, Explodes], scale: 2.0, mass: 80.0), rush_damage: 2.5, rush_knockback: 3.0)),
+        shouts: [("first bomb", 0), ("sheer heart attack", 1)],
+        moves: [
+            // Touch → it becomes a bomb: aimed at terrain it lifts the piece as a bomb (§3c), at
+            // your own construct it grafts Explodes onto it, at nothing it makes a small bomb.
+            (name: "first bomb", cooldown: 2.0, ops: [Cast(recipe: (name: "first bomb", form: Bomb, mech: [Explodes, Sticky], scale: 0.5), modifier: true)]),
+            (name: "sheer heart attack", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "sheer heart attack", form: Vehicle, mech: [Homing, Explodes, Fast], scale: 0.7, mass: 30.0, temperament: Aggressive, intensity: 1.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "gold_experience",
+        name: "Gold Experience",
+        kind: Stand,
+        names: ["gold experience", "giorno's stand"],
+        companion: Some((recipe: (name: "Gold Experience", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("give life", 0), ("life", 0), ("frog", 1)],
+        moves: [
+            // Bring terrain / your constructs to life: the §3c terrain graft with Walks.
+            (name: "give life", cooldown: 4.0, ops: [Cast(recipe: (name: "life", form: Blob, mech: [Walks], temperament: Aggressive, intensity: 0.8), modifier: true)]),
+            (name: "frog", cooldown: 3.0, ops: [Cast(recipe: (name: "frog", form: Quadruped, mech: [Bounce], scale: 0.8, temperament: Protective, intensity: 0.8))]),
+        ],
+    ),
+    (
+        id: "king_crimson",
+        name: "King Crimson",
+        kind: Stand,
+        names: ["king crimson", "diavolo's stand"],
+        companion: Some((recipe: (name: "King Crimson", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("time erase", 0), ("erase time", 0), ("king crimson chop", 1)],
+        moves: [
+            // A short skip with an afterimage left behind.
+            (name: "erase time", cooldown: 3.0, cost: 8.0, ops: [Blink(dist: 8.0, afterimage: true)]),
+            (name: "chop", cooldown: 1.0, ops: [Shove(range: 3.0, angle: 40.0, damage: 14.0, knockback: 12.0)]),
+        ],
+    ),
+    (
+        id: "stone_free",
+        name: "Stone Free",
+        kind: Stand,
+        names: ["stone free", "jolyne's stand"],
+        companion: Some((recipe: (name: "Stone Free", form: Biped, mech: [Flies, Blunt], scale: 1.9, mass: 70.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("string", 0), ("string web", 1)],
+        moves: [
+            // The string: chain whoever you aim at to you (or tether to a wall).
+            (name: "string", cooldown: 3.0, cost: 6.0, ops: [Link(range: 20.0)]),
+            (name: "string swing", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 28.0, speed: 26.0)]),
+        ],
+    ),
+    (
+        id: "hierophant_green",
+        name: "Hierophant Green",
+        kind: Stand,
+        names: ["hierophant green", "kakyoin's stand"],
+        companion: Some((recipe: (name: "Hierophant Green", form: Biped, mech: [Flies, Constrict], scale: 1.9, mass: 60.0), rush_damage: 2.0, rush_knockback: 3.0)),
+        shouts: [("emerald splash", 0), ("twenty meter emerald splash", 0), ("tentacle", 1)],
+        moves: [
+            (name: "emerald splash", cooldown: 2.5, ops: [
+                Cast(recipe: (name: "emerald splash", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.25, count: 10)),
+            ]),
+            (name: "tentacle", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "hierophant tentacle", form: Serpent, mech: [Grab, Constrict], scale: 2.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "silver_chariot",
+        name: "Silver Chariot",
+        kind: Stand,
+        names: ["silver chariot", "polnareff's stand"],
+        companion: Some((recipe: (name: "Silver Chariot", form: Biped, mech: [Flies, Blade, Fast], scale: 1.9, mass: 60.0), rush_damage: 2.5, rush_knockback: 2.0, rush_range: 3.0)),
+        shouts: [("rapier", 0), ("armor off", 1), ("armour off", 1)],
+        moves: [
+            (name: "rapier", cooldown: 0.3, ops: [Shove(range: 3.4, angle: 25.0, damage: 6.0, knockback: 3.0)]),
+            // Armor off: much faster (toggle).
+            (name: "armor off", cooldown: 1.0, ops: [Transform]),
+        ],
+        transform: Some((costume: "armor_off", body: (moves: (speed: 1.35, accel: 1.3, air_control: 1.2)))),
+    ),
+    (
+        id: "magicians_red",
+        name: "Magician's Red",
+        kind: Stand,
+        names: ["magician's red", "magicians red", "avdol's stand"],
+        companion: Some((recipe: (name: "Magician's Red", form: Biped, mech: [Flies, Breath], element: Fire, scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 3.0)),
+        shouts: [("crossfire hurricane", 0), ("red bind", 1), ("fire ankh", 1)],
+        moves: [
+            (name: "crossfire hurricane", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "crossfire hurricane", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 1.2)),
+            ]),
+            // A fire ankh that breathes flame.
+            (name: "fire ankh", cooldown: 5.0, ops: [Cast(recipe: (name: "fire ankh", form: Pillar, mech: [Breath], element: Fire, scale: 2.0))]),
+        ],
+    ),
+    (
+        id: "sticky_fingers",
+        name: "Sticky Fingers",
+        kind: Stand,
+        names: ["sticky fingers", "bucciarati's stand"],
+        companion: Some((recipe: (name: "Sticky Fingers", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("zipper", 0), ("zip", 0), ("arrivederci", 1)],
+        moves: [
+            // Zip the wall you aim at open: a portal through it.
+            (name: "zipper", cooldown: 3.0, cost: 8.0, ops: [Portal(depth: 8.0)]),
+            (name: "arrivederci", cooldown: 1.5, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 16.0)]),
+        ],
+    ),
+    (
+        id: "the_hand",
+        name: "The Hand",
+        kind: Stand,
+        names: ["the hand stand", "okuyasu's stand"],
+        companion: Some((recipe: (name: "The Hand", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("erase", 0), ("the hand", 0), ("erase space", 1)],
+        moves: [
+            // Erase a line of space: a trench through terrain, and whoever is in it is pulled to you.
+            (name: "erase", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 12.0, radius: 1.2, pull: true)]),
+            (name: "erase space", cooldown: 2.0, cost: 6.0, ops: [Blink(dist: 7.0)]),
+        ],
+    ),
+    (
+        id: "echoes_act3",
+        name: "Echoes Act 3",
+        kind: Stand,
+        names: ["echoes act 3", "echoes act three", "koichi's stand"],
+        companion: Some((recipe: (name: "Echoes Act 3", form: Biped, mech: [Flies, Heavy], scale: 1.2, mass: 40.0), rush_damage: 2.0, rush_knockback: 2.0)),
+        shouts: [("3 freeze", 0), ("three freeze", 0), ("act 3 freeze", 0)],
+        moves: [
+            // 3 FREEZE: the target becomes heavy and sinks.
+            (name: "3 freeze", cooldown: 5.0, cost: 10.0, ops: [Weigh(range: 12.0, secs: 3.0, down: 18.0)]),
+            (name: "act 3 punch", cooldown: 0.8, ops: [Shove(range: 2.5, angle: 40.0, damage: 8.0, knockback: 8.0)]),
+        ],
+    ),
+]

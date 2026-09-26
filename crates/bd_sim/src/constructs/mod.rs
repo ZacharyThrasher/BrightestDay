@@ -1,9 +1,7 @@
-//! Constructs: the store, the per-construct state, and the interface the world talks to.
+//! Constructs: the store, the per-construct state, the interface the world talks to, and the
+//! **component pipeline** (COMBAT.md §5b) that every behaviour plugs into.
 //!
-//! > **PLACEHOLDER BEHAVIOURS.** Everything in [`placeholder`] is a deliberately simple stand-in so
-//! > the world pipeline (cast → forming → behaviour → hits/carves/clash → shatter → snapshot) is
-//! > testable end-to-end and bots can fight. The construct engineer replaces it with the component
-//! > system of COMBAT.md §5b. The *interface* in this file is the contract with the world:
+//! # World contract (unchanged)
 //!
 //! * The world calls, each tick and in this order: [`ConstructStore::movement_mods`] (per player,
 //!   before movement), [`ConstructStore::post_move`] (per player, after movement),
@@ -18,18 +16,130 @@
 //!   store only provides [`ConstructStore::spawn`], [`ConstructStore::graft`] and friends.
 //! * Collision: [`ConstructStore::write_colliders`] feeds movement (solid / anchorable OBBs), and
 //!   [`ConstructStore::segment_query`] is the generic swept test used by projectiles and aim.
+//!
+//! # Module ownership (three engineers work in this directory in parallel)
+//!
+//! | file | owner | what |
+//! |---|---|---|
+//! | `mod.rs` | construct (framework) | store, [`Construct`], pipeline, dispatch, [`Env`], [`Body`] |
+//! | `body.rs` | construct | generic rigid-body physics: gravity, voxels, construct-vs-construct mass pushes |
+//! | `components.rs` | construct | one generic component per [`Mechanic`] (works on ANY form) |
+//! | `structure.rs` / `object.rs` | construct | Structure / Object form controllers |
+//! | `graft.rs` | construct | recipe merging + §3c animated terrain controller |
+//! | `chemistry.rs` / `counters.rs` | construct | §9 element chemistry, §8 counters, clash |
+//! | `held.rs` / `worn.rs` / `pilot.rs` / `gun.rs` | held | wielded, worn, piloted, suits, guns |
+//! | `creature.rs` / `ai.rs` / `temperament.rs` / `swarm.rs` | creature | autonomous creatures |
+//!
+//! Each owner keeps *their* per-construct state in a struct defined in their own file and embedded
+//! in [`Construct`] (`c.held: held::HeldState`, `c.ai: ai::AiState`, `c.comp:
+//! components::CompState`), so nobody has to edit someone else's struct. They must stay
+//! `Clone + Debug + Default + PartialEq`, fixed-size (no heap: no allocation per tick).
+//! The legacy scratch fields (`timer`, `charge`, `cooldown`, `heavy`, `swing_u`, `hits`) belong to
+//! whichever **controller** runs the construct (at most one does).
+//!
+//! # The component pipeline (per tick, per construct, in id order)
+//!
+//! 1. **Housekeeping** ([`housekeeping`]): `prev_pos`, age, cooldowns, owner lookup (missing owner ⇒
+//!    gone), forming countdown, lifetime expiry (death triggers such as Explodes fire here via
+//!    [`components::on_expire`]).
+//! 2. **Controller** — exactly one per construct, chosen by [`controller_of`] from form category and
+//!    state (see [`Controller`]); looked up in the function table [`behaviour`]. Before it runs the
+//!    framework resets `c.body` for the tick ([`Body::begin_tick`]).
+//! 3. **Drivers by precedence** (§5b): `Attached > Hold (Grab/Constrict while holding) > Charge
+//!    (while dashing) > Steer (Homing/Flies/Thrust/Walks/creature locomotion/thrown flight) >
+//!    Physics`. [`components::drive`] runs *before* the controller and may claim `Hold`/`Charge`
+//!    via [`Body::claim`]; a controller or component only writes `c.vel` for motion if
+//!    [`Body::claim`] with its level succeeds (returns false when something higher already
+//!    drives). Attached controllers claim `Attached`. After the controller,
+//!    [`components::steer`] adds the steering components (Homing, Flies, Thrust, Returning, Walks,
+//!    SlowFall/Glide on free bodies) — they refine or claim `Steer`.
+//! 4. **Physics** ([`body::integrate`]): according to `c.body.loco` ([`Loco`]): gravity, voxel
+//!    collision (swept, sliding), ground following for walkers, construct-vs-construct contacts
+//!    using the OBB proxies of every other construct (mass-weighted pushes, stacking, toppling),
+//!    player contacts. `Loco::Kinematic` = the controller placed `pos` itself (held items, stuck
+//!    things) — physics only records contacts. All contacts land in `c.body.contacts`.
+//! 5. **Component reactions** ([`components::react`]): contact events → Explodes / Sticky /
+//!    Ricochet / Bounce / Returning / Grab / Constrict / Pull / Blade / Blunt / Heavy / Spin / Trap…;
+//!    periodic emitters (Shoots / Beam / Breath with depth-1 `payload` recipes), Stomp, ArticulatedTail.
+//! 6. After all constructs: the cross-construct **queue** (`out.queue`, [`Interaction`]) is applied
+//!    (pushes, attachments, slices, splits, spawns), then [`chemistry::step`] (§9) and
+//!    [`counters::clash`] (§3 clash + §8 qualitative counters).
+//!
+//! Everything a behaviour needs is in [`Env`]: the read-only [`ConstructCtx`], the owner's
+//! [`PlayerView`], and `others`: this tick's [`Proxy`] snapshot of every construct (taken before
+//! stepping, so iteration order never matters).
+//!
+//! # Rules for behaviour code
+//!
+//! * Deterministic: iterate slices in order, no hash maps, no wall clock, randomness only from
+//!   [`crate::rng`] seeded from ids/ticks.
+//! * No allocation per tick in steady state (push into the reused `out` vectors only).
+//! * No panics (the crate denies `unwrap`/`expect`); guard every division and `normalize`.
+//! * Cross-construct effects go through `out.queue` — never index `others` mutably.
+//!
+//! # Transforms (COMBAT.md §5d-bis) — shared hooks
+//!
+//! The generic two-mode machine lives in `components.rs` (`c.comp.xform`: `mode` Alt/Robot,
+//! `progress` 0 = alt … 1 = robot over `XFORM_SECS` ≈ 0.9 s, `busy` while transforming,
+//! `combined` for a combiner giant). The framework runs it for every non-attached construct:
+//! * **Toggle**: [`components::request_transform`] — held engineer: call it from the pilot/suit
+//!   transform key (Mouse3 / V-tap); "transform" grafts and "roll out" (`graft.rs` commands) call
+//!   it too. While `busy`, `components::drive` claims `Driver::Hold` (no steering; momentum kept):
+//!   a vehicle → robot transform in mid-air arms a **landing slam** (Stomp scaled by fall speed),
+//!   fired in `components::react` when the body is grounded (`c.grounded || c.body.supported`, so
+//!   pilot controllers must keep `c.grounded` up to date).
+//! * **Autonomous** (no pilot): drive fast toward the target in alt mode, transform ~12 m out,
+//!   fight in robot mode (punches; emitters only fire in robot mode), transform back beyond 25 m.
+//!   Generic bodies (objects / structures / terrain) get this locomotion from `components`;
+//!   **creature engineer**: creature-controlled transformers get the *mode machine* only — read
+//!   `c.comp.xform.mode` for the gait (Alt = the form's own gait / vehicle drive, Robot = biped)
+//!   and `progress`/`busy` to pause locomotion while panels fold.
+//! * The collision box follows the silhouette (alt lies long, robot stands up).
+//! * **Combiners**: "combine" / "devastator" with ≥ 3 owned transformers → `components::start_combine`
+//!   (one per player, ~2 s: limbs fly to the torso, then one Kaiju-scale robot, `xform.combined`).
+//! * Replication gap (needs a world/replicate owner): mode/progress aren't in snapshots yet; the
+//!   client can only infer them from `AnimState::Telegraph` + `anim_since`.
+//!
+//! # Performance budget (hard gate — owner's standing order: SNAPPY above all)
+//!
+//! The WHOLE world tick must stay at soak p99 < 1 ms and max < 4 ms (quiet machine) with every
+//! component active; construct code shares that budget. Measure with
+//! `cargo run --release -p bd_sim --example soak -- --seed 1 --ticks 200000 --stats target/soak.json`
+//! (`SOAK_TRACE=1 … --budget-ms 1.5` prints slow ticks with their events).
+//! * Per construct per tick: O(constructs) proxy box tests at most, a handful of *bounded* voxel
+//!   probes (column scans ≤ 96 cells, ≤ 2–3 raycasts, `ai::steer_ground` fans only every few
+//!   ticks), no pathfinding, no per-voxel collision — collide via proxies (`Proxy` OBBs) only.
+//! * Anything periodic (retargeting, steering probes, emitters, AI decisions) runs on cooldowns,
+//!   not every tick. Chemistry runs at 10/20 Hz with fixed caps; terrain changes go through
+//!   `out.carves` (the world paces them).
+//! * No allocation per tick: fixed-size arrays in your state structs, push only into the reused
+//!   `out` vectors. Spawning children (`Interaction::Spawn/Split`) is rare and capped.
 
+pub mod ai;
+pub mod body;
+pub mod chemistry;
+pub mod components;
+pub mod counters;
+pub mod creature;
 pub mod forms;
-mod placeholder;
+pub mod graft;
+pub mod gun;
+pub mod held;
+pub mod object;
+pub mod pilot;
+pub mod structure;
+pub mod swarm;
+pub mod temperament;
+pub mod worn;
 
 use bd_core::input::PlayerInput;
-use bd_core::mechanics::{Form, FormCategory, Mechanic, Recipe};
+use bd_core::mechanics::{Element, Form, FormCategory, Mechanic, Recipe};
 use bd_core::shape::ShapeSpec;
 use bd_core::voxel::Aabb;
-use bd_core::{ConstructId, PlayerId, Quat, Tick, Vec3};
-use bd_voxel::VoxelWorld;
 use bd_core::voxel::Material;
 use bd_core::IVec3;
+use bd_core::{ConstructId, PlayerId, Quat, Tick, Vec3};
+use bd_voxel::VoxelWorld;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -112,7 +222,8 @@ impl HitList {
     }
 }
 
-/// Key used in a [`HitList`] for players (constructs use their raw id + this offset's complement).
+/// Key used in a [`HitList`] for players (constructs use their raw id, which never reaches this
+/// range in practice).
 #[inline]
 pub(crate) fn player_key(p: PlayerId) -> u32 {
     0xFFFF_FF00 | p.0 as u32
@@ -148,6 +259,426 @@ impl VoxelModel {
         Vec3::new((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5)
     }
 }
+
+// =====================================================================================
+// Framework types: body, contacts, drivers, proxies, environment, interactions
+// =====================================================================================
+
+/// Motion precedence (COMBAT.md §5b). Higher wins; see [`Body::claim`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum Driver {
+    /// Nobody steers: gravity, collisions, momentum.
+    #[default]
+    Physics = 0,
+    /// Homing / Flies / Thrust / Walks / creature locomotion / thrown flight.
+    Steer = 1,
+    /// A Charge dash in progress.
+    Charge = 2,
+    /// Grab / Constrict carrying something (or being carried: see [`CompState`](components::CompState)).
+    Hold = 3,
+    /// Held / worn / suit / piloted: the body follows a player.
+    Attached = 4,
+}
+
+/// How [`body::integrate`] moves the body this tick. Controllers set it (default `Ballistic`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Loco {
+    /// Free rigid body: gravity, swept voxel collision with restitution/friction, rests on ground.
+    #[default]
+    Ballistic,
+    /// Placed structure: does not move unless pushed/toppled (then it becomes Ballistic).
+    Static,
+    /// Ground walker: gravity + ground following with step-up (`c.grounded` maintained).
+    Walk,
+    /// Self-propelled flier: no gravity, stops against terrain.
+    Fly,
+    /// The controller already set `pos` (held/worn/stuck/carried). Physics only records contacts.
+    Kinematic,
+}
+
+/// What a contact touched.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ContactWith {
+    Terrain,
+    Player(PlayerId),
+    Construct(ConstructId),
+}
+
+/// One contact recorded by physics this tick.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Contact {
+    pub with: ContactWith,
+    /// World contact point.
+    pub point: Vec3,
+    /// Unit normal pointing from the other thing toward this construct.
+    pub normal: Vec3,
+    /// Closing speed along the normal just before the contact (≥ 0).
+    pub speed: f32,
+    /// This construct's velocity just before the contact.
+    pub vel: Vec3,
+}
+
+impl Default for Contact {
+    fn default() -> Self {
+        Contact { with: ContactWith::Terrain, point: Vec3::ZERO, normal: Vec3::Y, speed: 0.0, vel: Vec3::ZERO }
+    }
+}
+
+/// Max contacts remembered per tick (extra ones are dropped; the strongest are kept).
+pub const MAX_CONTACTS: usize = 6;
+
+/// Fixed-capacity contact list (no allocation).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Contacts {
+    items: [Contact; MAX_CONTACTS],
+    n: u8,
+}
+
+impl Contacts {
+    pub fn clear(&mut self) {
+        self.n = 0;
+    }
+    pub fn len(&self) -> usize {
+        self.n as usize
+    }
+    pub fn is_empty(&self) -> bool {
+        self.n == 0
+    }
+    pub fn as_slice(&self) -> &[Contact] {
+        &self.items[..self.n as usize]
+    }
+    /// Add a contact; when full, replaces the weakest if this one is stronger. One entry per
+    /// touched thing (the strongest).
+    pub fn push(&mut self, c: Contact) {
+        let n = self.n as usize;
+        if let Some(e) = self.items[..n].iter_mut().find(|e| e.with == c.with) {
+            if c.speed > e.speed {
+                *e = c;
+            }
+            return;
+        }
+        if n < MAX_CONTACTS {
+            self.items[n] = c;
+            self.n += 1;
+            return;
+        }
+        let mut weakest = 0;
+        for i in 1..n {
+            if self.items[i].speed < self.items[weakest].speed {
+                weakest = i;
+            }
+        }
+        if c.speed > self.items[weakest].speed {
+            self.items[weakest] = c;
+        }
+    }
+    /// First contact with a player, if any.
+    pub fn player(&self) -> Option<(PlayerId, &Contact)> {
+        self.as_slice().iter().find_map(|c| match c.with {
+            ContactWith::Player(p) => Some((p, c)),
+            _ => None,
+        })
+    }
+    /// Strongest contact of any kind.
+    pub fn strongest(&self) -> Option<&Contact> {
+        self.as_slice().iter().max_by(|a, b| a.speed.total_cmp(&b.speed))
+    }
+}
+
+/// Framework-owned physics state of a construct (reset per tick by [`Body::begin_tick`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Body {
+    /// Who drives motion this tick (highest claim wins).
+    pub driver: Driver,
+    pub loco: Loco,
+    /// Contacts found by physics this tick.
+    pub contacts: Contacts,
+    /// Gravity multiplier for Ballistic / Walk (SlowFall/Glide lower it).
+    pub gravity: f32,
+    /// Bounciness vs terrain/constructs (0 = thud, 1 = elastic; Bounce > 1).
+    pub restitution: f32,
+    /// Standing on terrain or another construct this tick.
+    pub supported: bool,
+    /// A structure knocked loose (pushed hard / sliced / undermined): it now falls and tips over.
+    pub loose: bool,
+    /// Angular velocity (rad/s, world) for tumbling / toppling bodies.
+    pub spin: Vec3,
+}
+
+impl Default for Body {
+    fn default() -> Self {
+        Body {
+            driver: Driver::Physics,
+            loco: Loco::Ballistic,
+            contacts: Contacts::default(),
+            gravity: 1.0,
+            restitution: 0.3,
+            supported: false,
+            loose: false,
+            spin: Vec3::ZERO,
+        }
+    }
+}
+
+impl Body {
+    /// Start-of-tick reset (keeps `loose`, `spin`, `restitution`, `gravity`, `loco`).
+    pub fn begin_tick(&mut self) {
+        self.driver = Driver::Physics;
+        self.contacts.clear();
+    }
+    /// Claim motion at `level`. Returns true if nothing of higher precedence drives this tick
+    /// (then the caller may write `c.vel`/`c.pos`).
+    #[inline]
+    pub fn claim(&mut self, level: Driver) -> bool {
+        if level >= self.driver {
+            self.driver = level;
+            true
+        } else {
+            false
+        }
+    }
+    /// Would a claim at `level` succeed (without claiming)?
+    #[inline]
+    pub fn free(&self, level: Driver) -> bool {
+        level >= self.driver
+    }
+}
+
+/// Bitset of a recipe's mechanics (fast `has` for proxies).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct MechSet(pub u64);
+
+impl MechSet {
+    pub fn of(r: &Recipe) -> MechSet {
+        let mut b = 0u64;
+        for m in &r.mechanics {
+            b |= 1u64 << (*m as u32 & 63);
+        }
+        MechSet(b)
+    }
+    #[inline]
+    pub fn has(self, m: Mechanic) -> bool {
+        self.0 & (1u64 << (m as u32 & 63)) != 0
+    }
+}
+
+/// Read-only per-tick snapshot of a construct, for cross-construct queries (collision, targeting,
+/// counters). Taken before any construct steps.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Proxy {
+    pub id: ConstructId,
+    pub owner: PlayerId,
+    pub category: FormCategory,
+    pub form: Form,
+    pub mech: MechSet,
+    pub element: Element,
+    pub center: Vec3,
+    pub half: Vec3,
+    pub rot: Quat,
+    pub vel: Vec3,
+    pub mass: f32,
+    /// Formed and not gone.
+    pub active: bool,
+    /// Rides a player (held / worn / suit): not a free body.
+    pub attached: bool,
+    /// Solid for other constructs to stand on / bump into.
+    pub solid: bool,
+    /// Moves under contact impulses (free body); false = immovable (placed structures, attached).
+    pub free: bool,
+    /// Riding / held by this construct.
+    pub attached_to: Option<ConstructId>,
+    /// Child of (swarm copy, payload round, slice half).
+    pub parent: Option<ConstructId>,
+    pub anim: AnimState,
+    /// Frozen solid (brittle) — chemistry.
+    pub frozen: bool,
+    /// On fire — chemistry.
+    pub burning: bool,
+}
+
+impl Proxy {
+    pub fn of(c: &Construct) -> Proxy {
+        Proxy {
+            id: c.id,
+            owner: c.owner,
+            category: c.category,
+            form: c.recipe.form,
+            mech: c.comp.eff,
+            element: c.recipe.element,
+            center: c.center(),
+            half: c.half,
+            rot: c.rot,
+            vel: c.vel,
+            mass: c.mass(),
+            active: c.active(),
+            attached: c.attached(),
+            solid: c.active() && !c.attached() && !matches!(c.recipe.form, Form::Dome | Form::Cage),
+            free: body::is_free(c),
+            attached_to: c.comp.attached_to,
+            parent: c.parent,
+            anim: c.anim_state,
+            frozen: c.comp.frozen > 0.0,
+            burning: c.comp.burning > 0.0,
+        }
+    }
+    #[inline]
+    pub fn has(&self, m: Mechanic) -> bool {
+        self.mech.has(m)
+    }
+    pub fn bounds(&self) -> Aabb {
+        geom::obb_bounds(self.center, self.half, self.rot)
+    }
+}
+
+/// What a behaviour sees while stepping one construct.
+pub struct Env<'e> {
+    pub ctx: &'e ConstructCtx<'e>,
+    /// The construct's owner (always present: constructs of departed owners never step).
+    pub owner: PlayerView,
+    /// Every construct as it was at the start of this update (including the one stepping).
+    pub others: &'e [Proxy],
+}
+
+impl Env<'_> {
+    #[inline]
+    pub fn dt(&self) -> f32 {
+        self.ctx.dt
+    }
+    #[inline]
+    pub fn tick(&self) -> Tick {
+        self.ctx.tick
+    }
+    pub fn proxy(&self, id: ConstructId) -> Option<&Proxy> {
+        self.others.binary_search_by_key(&id.0, |p| p.id.0).ok().map(|i| &self.others[i])
+    }
+    /// The autonomous target for `c` (creature engineer's targeting rules: owner's last aim/hit,
+    /// else nearest; temperaments may change it). Every autonomous component uses this.
+    pub fn target_for(&self, c: &Construct) -> Option<PlayerView> {
+        ai::pick_target(c, self)
+    }
+}
+
+/// How one construct attaches to another (queued, applied after the pass).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AttachKind {
+    /// Sticky: rides the other thing.
+    Stick,
+    /// Grab / Constrict / Trap: the *holder* carries the held construct.
+    Hold,
+}
+
+/// Cross-construct effects queued during the pass (`out.queue`) and applied after every construct
+/// stepped, in queue order (deterministic). The world never sees these.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Interaction {
+    /// Change construct `id`'s velocity (mass-weighted contact pushes, rams, launches).
+    Push { id: ConstructId, dv: Vec3 },
+    /// Knock a structure loose (it starts falling / toppling) with an angular kick.
+    Loosen { id: ConstructId, spin: Vec3 },
+    /// `id` attaches to `to` at `offset` (in `to`'s local frame).
+    Attach { id: ConstructId, to: ConstructId, offset: Vec3, kind: AttachKind },
+    /// `holder` releases whatever it holds with velocity `vel` (throws).
+    Release { holder: ConstructId, vel: Vec3 },
+    /// Slice `id` in two along the plane through `point` with normal `normal` (Blade counter).
+    Slice { id: ConstructId, point: Vec3, normal: Vec3, by: Option<PlayerId> },
+    /// Chemistry on a construct: freeze (secs), ignite (secs), douse.
+    Freeze { id: ConstructId, secs: f32 },
+    Ignite { id: ConstructId, secs: f32 },
+    Douse { id: ConstructId },
+    /// Root a (creature) construct in place for `secs` (cage / trap counter); `pinned` = slammed
+    /// down / toppled (fliers fall, kaiju tip over).
+    Root { id: ConstructId, secs: f32, pinned: bool, by: ConstructId },
+    /// Shrink / Grow a construct.
+    Resize { id: ConstructId, factor: f32 },
+    /// Set Leaves / Wood voxels alight around `pos` (chemistry, §9).
+    IgniteTerrain { pos: Vec3, radius: f32, by: Option<PlayerId> },
+    /// Split `id` into `count` independent copies at `scale` × size (Swarm).
+    Split { id: ConstructId, count: u8, scale: f32 },
+    /// Spawn a brand-new child construct (payload emitters, debris halves). `parent` children do
+    /// not count toward slot limits.
+    Spawn { parent: ConstructId, params: Box<SpawnParams> },
+}
+
+/// Chooses the one controller that runs a construct (the form's default control).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Controller {
+    /// held.rs (+ gun.rs): rides the owner's hand, LMB/RMB.
+    Held = 0,
+    /// worn.rs: rides the owner's back.
+    Worn = 1,
+    /// pilot.rs: a human-scale power suit around its pilot.
+    Suit = 2,
+    /// pilot.rs: a seated pilot drives it.
+    Piloted = 3,
+    /// creature.rs (+ ai / temperament / swarm): autonomous creature.
+    Creature = 4,
+    /// structure.rs: placed structure.
+    Structure = 5,
+    /// object.rs: thrown / dropped / launched object.
+    Object = 6,
+    /// graft.rs: animated terrain piece (§3c).
+    Terrain = 7,
+    /// components.rs: the generic walker for non-creatures with `Walks` ("wall with legs").
+    Walker = 8,
+}
+
+/// Per-tick controller entry point: form default control. Must respect [`Body::claim`] for motion.
+pub type StepFn = fn(&mut Construct, &Env<'_>, &mut ConstructOut);
+
+/// The function table other modules implement (one row per [`Controller`]).
+pub struct Behaviour {
+    pub name: &'static str,
+    pub step: StepFn,
+}
+
+static BEHAVIOURS: [Behaviour; 9] = [
+    Behaviour { name: "held", step: held::step },
+    Behaviour { name: "worn", step: worn::step },
+    Behaviour { name: "suit", step: pilot::step_suit },
+    Behaviour { name: "piloted", step: pilot::step_piloted },
+    Behaviour { name: "creature", step: creature::step },
+    Behaviour { name: "structure", step: structure::step },
+    Behaviour { name: "object", step: object::step },
+    Behaviour { name: "terrain", step: graft::step_terrain },
+    Behaviour { name: "walker", step: components::step_walker },
+];
+
+/// The behaviour row for a controller.
+#[inline]
+pub fn behaviour(c: Controller) -> &'static Behaviour {
+    &BEHAVIOURS[c as usize]
+}
+
+/// Which controller runs `c` this tick.
+pub fn controller_of(c: &Construct) -> Controller {
+    if c.suit {
+        return Controller::Suit;
+    }
+    match c.category {
+        FormCategory::Held if c.free_flier() => return Controller::Object,
+        FormCategory::Held => return Controller::Held,
+        FormCategory::Worn => return Controller::Worn,
+        _ => {}
+    }
+    if c.pilot.is_some() {
+        return Controller::Piloted;
+    }
+    if c.model.is_some() {
+        return Controller::Terrain;
+    }
+    match c.category {
+        FormCategory::Creature => Controller::Creature,
+        FormCategory::Structure | FormCategory::Object if c.has(Mechanic::Walks) => Controller::Walker,
+        FormCategory::Structure => Controller::Structure,
+        _ => Controller::Object,
+    }
+}
+
+// =====================================================================================
+// Construct
+// =====================================================================================
 
 /// One live construct.
 #[derive(Clone, Debug, PartialEq)]
@@ -197,7 +728,19 @@ pub struct Construct {
     pub gone: Option<GoneReason>,
     /// Shattered this tick (impulse) — reported by `reap`.
     pub shatter: Option<Vec3>,
-    // ---- behaviour scratch (placeholder; the component system will replace these) ----
+    /// A child made by the construct system (swarm copy, slice half, emitted payload). Children do
+    /// not count toward the owner's slot limits.
+    pub parent: Option<ConstructId>,
+    // ---- framework / component state ----
+    /// Physics state (framework).
+    pub body: Body,
+    /// Generic mechanic components' state (components.rs).
+    pub comp: components::CompState,
+    /// Held / worn / pilot controllers' state (held.rs).
+    pub held: held::HeldState,
+    /// Creature controllers' state (ai.rs).
+    pub ai: ai::AiState,
+    // ---- controller scratch (belongs to whichever controller runs the construct) ----
     pub timer: f32,
     pub charge: f32,
     pub cooldown: f32,
@@ -207,6 +750,7 @@ pub struct Construct {
     pub hits: HitList,
     pub bounces: u8,
     pub returning: bool,
+    /// Stuck to a player (Sticky). Constructs stuck to constructs use `comp.attached_to`.
     pub stuck_to: Option<PlayerId>,
     pub stuck_offset: Vec3,
     pub grounded: bool,
@@ -227,9 +771,20 @@ impl Construct {
     }
 
     /// Held / worn constructs ride their owner (clients derive their transform from the owner).
+    /// HELD ENGINEER EDIT: a thrown held item (Returning / axe throw / Thor flight, `held.thrown`)
+    /// is a free body while out of the hand (its transform is replicated).
     #[inline]
     pub fn attached(&self) -> bool {
-        self.suit || matches!(self.category, FormCategory::Held | FormCategory::Worn)
+        self.suit || (matches!(self.category, FormCategory::Held | FormCategory::Worn) && !self.held.thrown && !self.free_flier())
+    }
+
+    /// CONSTRUCT ENGINEER: a held form that `Flies` without `Returning` ("a flying hammer", §0)
+    /// leaves the hand and hunts on its own. It runs the Object controller + generic components
+    /// (a free body, not attached) and still occupies the owner's Held slot. Flies + Returning
+    /// stays with the held controller (Mjolnir / Thor flight).
+    #[inline]
+    pub fn free_flier(&self) -> bool {
+        self.category == FormCategory::Held && self.pilot.is_none() && self.recipe.has(Mechanic::Flies) && !self.recipe.has(Mechanic::Returning)
     }
 
     #[inline]
@@ -247,9 +802,15 @@ impl Construct {
         self.center() + self.rot * Vec3::new(0.0, self.half.y, 0.0)
     }
 
-    /// Mass for links / fields / clashes (kg).
+    /// Mass for links / fields / clashes / pushes (kg).
     pub fn mass(&self) -> f32 {
         self.recipe.mass.max(1.0) * self.size_scale.powi(3)
+    }
+
+    /// Local −Z (the facing) in world space.
+    #[inline]
+    pub fn forward(&self) -> Vec3 {
+        self.rot * Vec3::NEG_Z
     }
 
     pub fn set_anim(&mut self, s: AnimState, tick: Tick) {
@@ -284,7 +845,7 @@ impl Construct {
                 (solid, true)
             }
             FormCategory::Creature => (false, true),
-            FormCategory::Object => (false, self.half.max_element() >= 0.4),
+            FormCategory::Object => (structure::object_is_solid(self), self.half.max_element() >= 0.4),
         };
         let mut c = Collider::new(self.center(), self.half, self.rot, ColliderId::Construct { id: self.id, part: 0 });
         c.vel = self.vel;
@@ -394,6 +955,9 @@ pub struct ConstructOut {
     /// Pilots to eject: (player, construct, launch velocity).
     pub ejects: Vec<(PlayerId, ConstructId, Vec3)>,
     pub events: Vec<GameEvent>,
+    /// Construct-system internal: cross-construct effects, applied at the end of
+    /// [`ConstructStore::update`] (empty by the time the world looks). See [`Interaction`].
+    pub queue: Vec<Interaction>,
 }
 
 impl ConstructOut {
@@ -410,11 +974,12 @@ impl ConstructOut {
         self.drain.clear();
         self.ejects.clear();
         self.events.clear();
+        self.queue.clear();
     }
 }
 
 /// Everything needed to create a construct (the world fills it in `cast`).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SpawnParams {
     pub owner: PlayerId,
     pub recipe: Recipe,
@@ -438,21 +1003,61 @@ pub struct SpawnParams {
 pub struct ConstructStore {
     items: Vec<Construct>,
     next_id: u32,
+    /// Per-update proxy snapshot (reused buffer).
+    proxies: Vec<Proxy>,
+    /// Element chemistry on terrain (burning voxels…), §9.
+    chem: chemistry::Chemistry,
 }
 
-/// Collider box (half extents, local centre) for a recipe at its clamped scale, or from its shape.
+/// Uniform scale applied to a construct's shape so its characteristic size matches
+/// `recipe.scale` (icons are authored at their own size). 1.0 for procedural shapes (bd_shapes
+/// already builds them at the recipe's scale). Clients must use the same factor.
+pub fn shape_scale(recipe: &Recipe, shape: &ShapeSpec) -> f32 {
+    if !matches!(recipe.model, bd_core::mechanics::ModelSource::Icon(_)) {
+        return 1.0;
+    }
+    let Some((lo, hi)) = shape_extent(shape) else { return 1.0 };
+    let size = (hi - lo) * bd_core::CONSTRUCT_VOXEL_SIZE;
+    // Characteristic axis of the form (the one normalised to 1.0 in the form table).
+    let dims = form_spec(recipe.form).dims;
+    let axis = if (dims.x - 1.0).abs() < 1e-3 {
+        0
+    } else if (dims.y - 1.0).abs() < 1e-3 {
+        1
+    } else if (dims.z - 1.0).abs() < 1e-3 {
+        2
+    } else {
+        3
+    };
+    let ext = match axis {
+        0 => size.x,
+        1 => size.y,
+        2 => size.z,
+        _ => size.max_element(),
+    };
+    // Dome scale is a radius.
+    let want = if recipe.form == Form::Dome { recipe.scale * 2.0 } else { recipe.scale };
+    if ext > 1e-3 && want.is_finite() && want > 0.0 { (want / ext).clamp(0.05, 40.0) } else { 1.0 }
+}
+
+fn shape_extent(s: &ShapeSpec) -> Option<(Vec3, Vec3)> {
+    let mut lo = Vec3::splat(f32::INFINITY);
+    let mut hi = Vec3::splat(f32::NEG_INFINITY);
+    for p in s.prims.iter().filter(|p| !p.subtract) {
+        // Rotation-agnostic: use the prim's bounding sphere-ish box (max extent on all axes when rotated).
+        let h = if p.rot_deg == Vec3::ZERO { p.size * 0.5 } else { Vec3::splat(p.size.max_element() * 0.5) };
+        lo = lo.min(p.center - h);
+        hi = hi.max(p.center + h);
+    }
+    (lo.is_finite() && hi.is_finite()).then_some((lo, hi))
+}
+
+/// Collider box (half extents, local centre) for a recipe at its clamped scale, or from its shape
+/// (icons rescaled uniformly to `recipe.scale`, see [`shape_scale`]).
 pub fn body_box(recipe: &Recipe, shape: Option<&ShapeSpec>) -> (Vec3, Vec3) {
     if let Some(s) = shape.filter(|s| !s.prims.is_empty()) {
-        let k = bd_core::CONSTRUCT_VOXEL_SIZE;
-        let mut lo = Vec3::splat(f32::INFINITY);
-        let mut hi = Vec3::splat(f32::NEG_INFINITY);
-        for p in s.prims.iter().filter(|p| !p.subtract) {
-            // Rotation-agnostic: use the prim's bounding sphere-ish box (max extent on all axes when rotated).
-            let h = if p.rot_deg == Vec3::ZERO { p.size * 0.5 } else { Vec3::splat(p.size.max_element() * 0.5) };
-            lo = lo.min(p.center - h);
-            hi = hi.max(p.center + h);
-        }
-        if lo.is_finite() && hi.is_finite() {
+        if let Some((lo, hi)) = shape_extent(s) {
+            let k = bd_core::CONSTRUCT_VOXEL_SIZE * shape_scale(recipe, s);
             let half = ((hi - lo) * 0.5 * k).max(Vec3::splat(0.05)).min(Vec3::splat(40.0));
             let center = ((hi + lo) * 0.5 * k).clamp(Vec3::splat(-40.0), Vec3::splat(40.0));
             return (half, center);
@@ -476,7 +1081,7 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         None => body_box(&p.recipe, p.shape.as_ref()),
     };
     let category = p.recipe.form.category();
-    Construct {
+    let mut c = Construct {
         id,
         owner: p.owner,
         category,
@@ -503,6 +1108,11 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         size_scale: 1.0,
         gone: None,
         shatter: None,
+        parent: None,
+        body: Body::default(),
+        comp: components::CompState::default(),
+        held: held::HeldState::default(),
+        ai: ai::AiState::default(),
         timer: 0.0,
         charge: 0.0,
         cooldown: 0.0,
@@ -522,7 +1132,41 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
             None
         },
         recipe: p.recipe,
+    };
+    components::init(&mut c);
+    c
+}
+
+/// Pipeline step 1. Returns the owner's view when the construct should run this tick.
+fn housekeeping(c: &mut Construct, ctx: &ConstructCtx, out: &mut ConstructOut) -> Option<PlayerView> {
+    if c.gone.is_some() {
+        return None;
     }
+    let dt = ctx.dt;
+    c.prev_pos = c.pos;
+    c.age += dt;
+    c.clash_cd = (c.clash_cd - dt).max(0.0);
+    c.cooldown = (c.cooldown - dt).max(0.0);
+    c.portal_cd = (c.portal_cd - dt).max(0.0);
+    // Constructs outlive their owner's KO (normal upkeep/integrity/lifetime rules apply); they
+    // only go when the owner leaves the match.
+    let Some(owner) = ctx.player(c.owner).copied() else {
+        c.gone = Some(GoneReason::OwnerGone);
+        return None;
+    };
+    if c.forming_t > 0.0 {
+        c.forming_t -= dt;
+        if c.forming_t <= 0.0 {
+            c.forming_t = 0.0;
+            c.set_anim(AnimState::Idle, ctx.tick);
+        }
+    }
+    if c.age >= c.life {
+        components::on_expire(c, out);
+        c.gone = Some(GoneReason::Expired);
+        return None;
+    }
+    Some(owner)
 }
 
 impl ConstructStore {
@@ -566,6 +1210,11 @@ impl ConstructStore {
         self.next_id
     }
 
+    /// Terrain chemistry state (burning voxels), read-only.
+    pub fn chemistry(&self) -> &chemistry::Chemistry {
+        &self.chem
+    }
+
     /// Create a construct. Returns its id.
     pub fn spawn(&mut self, p: SpawnParams) -> ConstructId {
         let id = ConstructId(self.next_id);
@@ -605,9 +1254,10 @@ impl ConstructStore {
         self.items.iter().filter(move |c| c.owner == owner && c.gone.is_none())
     }
 
-    /// Live constructs of `owner` in `slot`, oldest first.
+    /// Live constructs of `owner` in `slot`, oldest first. Children (swarm copies, slice halves,
+    /// emitted payloads) never count.
     pub fn in_slot(&self, owner: PlayerId, slot: Slot) -> impl Iterator<Item = &Construct> {
-        self.owned_by(owner).filter(move |c| Slot::of(c.recipe.form) == slot)
+        self.owned_by(owner).filter(move |c| c.parent.is_none() && Slot::of(c.recipe.form) == slot)
     }
 
     /// The owner's held construct, if any.
@@ -615,47 +1265,111 @@ impl ConstructStore {
         self.in_slot(owner, Slot::Held).next()
     }
 
-    /// Merge a grafted phrase into construct `id`: mechanics and features are unioned, a non-Light
-    /// element replaces the old one, a payload is added/replaced, temperament taken if set.
-    /// PLACEHOLDER semantics — the component system decides what grafting a form means.
+    /// Merge a grafted phrase into construct `id` (see [`graft::merge`]).
     pub fn graft(&mut self, id: ConstructId, add: &Recipe) -> Option<&Recipe> {
-        let c = self.get_mut(id)?;
-        let r = &mut c.recipe;
-        r.mechanics.extend_from_slice(&add.mechanics);
-        r.mechanics.sort();
-        r.mechanics.dedup();
-        r.mechanics.truncate(crate::willpower::MAX_MECHANICS);
-        r.features.extend_from_slice(&add.features);
-        r.features.sort();
-        r.features.dedup();
-        r.features.truncate(crate::willpower::MAX_FEATURES);
-        if add.element != bd_core::mechanics::Element::Light {
-            r.element = add.element;
-        }
-        if add.payload.is_some() {
-            r.payload = add.payload.clone();
-        }
-        if add.temperament != bd_core::mechanics::Temperament::Calm {
-            r.temperament = add.temperament;
-            r.intensity = add.intensity;
-        }
-        Some(&c.recipe)
+        let owner = {
+            let c = self.get_mut(id)?;
+            let had = components::eff_has(c, Mechanic::Transforms);
+            graft::merge(c, add);
+            components::on_graft(c);
+            // "transform" grafted onto a transformer toggles it.
+            if had && add.has(Mechanic::Transforms) {
+                components::request_transform(c);
+            }
+            c.owner
+        };
+        graft::graft_command(&mut self.items, owner, add);
+        self.get(id).map(|c| &c.recipe)
     }
 
     /// Movement modifiers from the owner's worn / held constructs (wings, parachute, jetpack,
     /// umbrella…). Called before `step_player`; `mods` already holds status effects.
     pub fn movement_mods(&self, owner: PlayerId, input: &PlayerInput, st: &PlayerState, mods: &mut MoveModifiers) {
-        placeholder::movement_mods(self, owner, input, st, mods);
+        worn::movement_mods(self, owner, input, st, mods);
     }
 
-    /// After a player moved: trampolines, launch pads, parachute tumble-cancel.
+    /// After a player moved: trampolines, launch pads, bouncy surfaces (structure.rs), parachute
+    /// tumble-cancel (worn.rs).
     pub fn post_move(&self, pid: PlayerId, input: &PlayerInput, st: &mut PlayerState, pre_vel: Vec3, ev: &MoveEvents, p: &MoveParams) {
-        placeholder::post_move(self, pid, input, st, pre_vel, ev, p);
+        worn::post_move(self, pid, input, st, pre_vel, ev, p);
+        structure::post_move(self, pid, input, st, pre_vel, ev, p);
     }
 
-    /// Run every construct's behaviour for one tick.
+    /// Run every construct's behaviour for one tick (the pipeline in the module docs).
     pub fn update(&mut self, ctx: &ConstructCtx, out: &mut ConstructOut) {
-        placeholder::update(&mut self.items, ctx, out);
+        graft::run_commands(&mut self.items);
+        self.proxies.clear();
+        self.proxies.extend(self.items.iter().map(Proxy::of));
+        {
+            let Self { items, proxies, .. } = self;
+            for c in items.iter_mut() {
+                let Some(owner) = housekeeping(c, ctx, out) else { continue };
+                let env = Env { ctx, owner, others: proxies };
+                c.body.begin_tick();
+                components::drive(c, &env, out);
+                let ctrl = controller_of(c);
+                (behaviour(ctrl).step)(c, &env, out);
+                if c.gone.is_some() {
+                    continue;
+                }
+                components::steer(c, &env, out);
+                body::integrate(c, &env, out);
+                components::react(c, &env, out);
+                components::post_react(c, &env, out);
+                if c.pos.y < ctx.void_y - 20.0 || !c.pos.is_finite() || !c.vel.is_finite() {
+                    c.gone = Some(GoneReason::Expired);
+                }
+            }
+        }
+        self.apply_queue(ctx, out);
+        chemistry::step(&mut self.chem, &mut self.items, ctx, out);
+        // HELD ENGINEER EDIT: swing-vs-swing sword-locks + Guard (block / perfect parry) on this
+        // tick's melee hits. Runs before the generic clash so a sword-lock's `clash_cd` keeps the
+        // generic pass from clashing the same pair twice.
+        held::after_update(&mut self.items, ctx, out);
+        counters::clash(&mut self.items, ctx, out);
+    }
+
+    /// Apply the cross-construct queue (pipeline step 6).
+    fn apply_queue(&mut self, ctx: &ConstructCtx, out: &mut ConstructOut) {
+        if out.queue.is_empty() {
+            return;
+        }
+        // Interactions may queue more (a split copy that explodes…): bounded rounds.
+        for _round in 0..3 {
+            if out.queue.is_empty() {
+                break;
+            }
+            let mut q = std::mem::take(&mut out.queue);
+            for it in q.drain(..) {
+                components::apply_interaction(self, it, ctx, out);
+            }
+            // Keep the buffer's capacity (steady state: no allocation).
+            if out.queue.is_empty() {
+                out.queue = q;
+            } else {
+                let more = std::mem::take(&mut out.queue);
+                out.queue = q;
+                out.queue.extend(more);
+            }
+        }
+        out.queue.clear();
+    }
+
+    /// Framework: add a child construct during an update (swarm copies, slice halves, payloads).
+    /// Emits `ConstructSpawned` so clients mirror it. Returns None at the global cap.
+    pub(crate) fn spawn_child(&mut self, parent: ConstructId, p: SpawnParams, events: &mut Vec<GameEvent>) -> Option<ConstructId> {
+        if self.items.len() >= crate::world::MAX_CONSTRUCTS - 8 {
+            return None;
+        }
+        let (owner, recipe, pos, rot, forming) = (p.owner, Box::new(p.recipe.clone()), p.pos, p.rot, p.forming);
+        let id = self.spawn(p);
+        if let Some(c) = self.get_mut(id) {
+            c.parent = Some(parent);
+            c.cost = 0.0;
+        }
+        events.push(GameEvent::ConstructSpawned { id, owner, recipe, pos, rot, forming, cost: 0.0 });
+        Some(id)
     }
 
     /// Solid / anchorable boxes for movement and tethers.
@@ -688,26 +1402,11 @@ impl ConstructStore {
         best
     }
 
-    /// Apply integrity damage. Marks the construct shattered at 0 (reported by [`Self::reap`]).
-    /// Returns true if it shattered.
+    /// Apply integrity damage (with the §8 counters of [`counters::on_damage`]: brittle frozen
+    /// things shatter, Blade slices structures in two…). Marks the construct shattered at 0
+    /// (reported by [`Self::reap`]). Returns true if it shattered.
     pub fn damage(&mut self, hit: &ConstructHit, events: &mut Vec<GameEvent>) -> bool {
-        let Some(c) = self.get_mut(hit.target) else { return false };
-        if c.gone.is_some() || !(hit.damage.is_finite()) {
-            return false;
-        }
-        let dmg = hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 };
-        c.integrity -= dmg;
-        if hit.impulse.is_finite() && !c.attached() && c.category != FormCategory::Structure {
-            c.vel += hit.impulse / c.mass().max(1.0).sqrt().max(1.0);
-        }
-        events.push(GameEvent::ConstructHit { id: c.id, source: hit.source, damage: dmg, point: hit.point });
-        if c.integrity <= 0.0 {
-            c.integrity = 0.0;
-            c.gone = Some(GoneReason::Spent);
-            c.shatter = Some(if hit.impulse.is_finite() { hit.impulse } else { Vec3::ZERO });
-            return true;
-        }
-        false
+        counters::on_damage(self, hit, events)
     }
 
     /// Lose integrity (starvation at 0 willpower). Shatters at 0.
@@ -733,6 +1432,10 @@ impl ConstructStore {
     /// reporting seated pilots that must be ejected (into `ejects`: player, construct, velocity).
     /// `refund(owner, amount)` receives dismiss refunds.
     pub fn reap(&mut self, events: &mut Vec<GameEvent>, ejects: &mut Vec<(PlayerId, ConstructId, Vec3)>, mut refund: impl FnMut(PlayerId, f32)) {
+        let any_gone = self.items.iter().any(|c| c.gone.is_some());
+        if !any_gone {
+            return;
+        }
         self.items.retain(|c| {
             let Some(reason) = c.gone else { return true };
             if let Some(p) = c.pilot {
@@ -751,10 +1454,13 @@ impl ConstructStore {
             }
             false
         });
+        // Anything riding / held by a removed construct is released.
+        components::release_orphans(&mut self.items);
     }
 
     /// Drop everything (match reset). No events.
     pub fn clear(&mut self) {
         self.items.clear();
+        self.chem.clear();
     }
 }

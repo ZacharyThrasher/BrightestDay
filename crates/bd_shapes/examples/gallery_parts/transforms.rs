@@ -21,6 +21,11 @@ fn frame_tile(c: &mut Canvas, x0: i32, y0: i32, tile: i32) {
 fn strip(label: &str, r: &Recipe, eye: Vec3, tile: usize) -> Canvas {
     let (_, alt) = build_model(r);
     let rig = transform_rig(&alt, 1);
+    strip_rig(label, &rig, eye, tile)
+}
+
+fn strip_rig(label: &str, rig: &TransformRig, eye: Vec3, tile: usize) -> Canvas {
+    let rig = rig.clone();
     let alt_meshes = mesh_model(&rig.alt);
     let robot_meshes = mesh_model(&rig.robot);
     println!(
@@ -95,7 +100,7 @@ fn combine_strip(recipes: &[(String, Recipe)], tile: usize) -> Canvas {
     let meshes: Vec<Vec<PartMesh>> = rigs.iter().map(|r| mesh_model(&r.alt)).collect();
     let giant_meshes = mesh_model(&comb.giant);
     println!("combiner: giant voxels {} parts {} gait {:?}", comb.giant.voxel_count, comb.giant.parts.len(), comb.giant.rig.gait);
-    let ts = [0.0f32, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0];
+    let ts = [0.0f32, 0.2, 0.4, 0.6, 0.8, 1.0];
     let frames = ts.len() + 1;
     let head = 14;
     let mut c = Canvas::new(frames * tile, tile + head);
@@ -113,11 +118,23 @@ fn combine_strip(recipes: &[(String, Recipe)], tile: usize) -> Canvas {
         frames_p.push(out);
     }
     all.push(Vec3::ZERO);
-    let fit0 = fit_points(&cam, &all, 0.0, 0.0, tile as f32, tile as f32, 8.0);
+    // Parked frames get their own framing; the assembly frames zoom on the giant.
+    let fit_park = fit_points(&cam, &all, 0.0, 0.0, tile as f32, tile as f32, 8.0);
+    let mut late: Vec<Vec3> = world_points(&Item { model: &comb.giant, meshes: &giant_meshes, pose: vec![Affine3A::IDENTITY; comb.giant.parts.len()], root: Affine3A::IDENTITY, pal: GREEN });
+    for (k, &t) in ts.iter().enumerate() {
+        if t >= 0.4 {
+            for (i, r) in rigs.iter().enumerate() {
+                late.extend(world_points(&Item { model: &r.alt, meshes: &meshes[i], pose: vec![Affine3A::IDENTITY; r.alt.parts.len()], root: frames_p[k][i], pal: GREEN }));
+            }
+        }
+    }
+    late.push(Vec3::ZERO);
+    let fit_late = fit_points(&cam, &late, 0.0, 0.0, tile as f32, tile as f32, 8.0);
     for f in 0..frames {
         let x0 = (f * tile) as i32;
         let ty = head as i32;
         frame_tile(&mut c, x0, ty, tile as i32);
+        let fit0 = if f < ts.len() && ts[f] < 0.4 { fit_park } else { fit_late };
         let fit = Fit { scale: fit0.scale, ox: fit0.ox + x0 as f32, oy: fit0.oy + ty as f32 };
         c.clear_depth();
         let clip = (x0 + 1, ty + 1, x0 + tile as i32 - 1, ty + tile as i32 - 1);
@@ -158,8 +175,29 @@ pub fn run(docs: &std::path::Path, lex: Option<&bd_lexicon::Lexicon>, only: Opti
     }
     if only.as_deref().is_none_or(|o| o.contains("comb")) {
         let trio: Vec<(String, Recipe)> = cases.iter().take(3).map(|(l, r)| (l.to_string(), r.clone())).collect();
-        out.push(combine_strip(&trio, tile + 60));
+        out.push(combine_strip(&trio, 380));
     }
     let path = if only.is_some() { docs.join("gallery_transforms_only.png") } else { docs.join("gallery_transforms.png") };
     stack(out).save(&path);
+}
+
+/// Authored two-mode icons from assets/icons/transformers.ron (via the lexicon).
+pub fn icons(docs: &std::path::Path, lex: Option<&bd_lexicon::Lexicon>) {
+    let Some(lex) = lex else { return };
+    let names = [
+        "optimus prime", "bumblebee transformer", "jazz transformer", "ironhide transformer", "ratchet transformer", "arcee transformer", "wheeljack transformer", "bulkhead transformer", "megatron", "starscream", "soundwave", "shockwave transformer", "grimlock", "optimus primal",
+    ];
+    let mut out = Vec::new();
+    for n in names {
+        let r = lex.resolve(n);
+        let (Some(alt), Some(robot)) = (r.shape.as_ref(), r.alt_shape.as_ref()) else {
+            println!("{n}: no two-mode shapes");
+            continue;
+        };
+        let rig = transform_rig_authored(alt, robot, voxel_cap(r.recipe.form));
+        out.push(strip_rig(&n.to_uppercase(), &rig, Vec3::new(1.0, 0.35, -0.75), 200));
+    }
+    if !out.is_empty() {
+        stack(out).save(&docs.join("gallery_transformers_icons.png"));
+    }
 }

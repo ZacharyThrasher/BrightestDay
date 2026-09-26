@@ -61,6 +61,21 @@ pub struct MatchRules {
     pub time_limit: f32,
     /// Regenerate the arena voxels on rematch (always in no-limits lobbies).
     pub regen_islands_between_rounds: bool,
+    // ---- lobby knobs added with GameSettings (settings.rs); defaults = the shipped rules ----
+    /// Seconds dead before respawning (COMBAT.md §1: 3 s).
+    pub respawn_secs: f32,
+    /// Spawn shield seconds (can't deal or take damage; §1: 1.5 s).
+    pub spawn_shield_secs: f32,
+    /// Multiplies every knockback players take (1 = shipped).
+    pub knockback_scale: f32,
+    /// Falling into the void KOs (true). Off: you are put back on a spawn point, no KO.
+    pub void_ko: bool,
+    /// Player powers (COMBAT.md §5h) — master toggle, read by the powers module.
+    pub powers_enabled: bool,
+    /// §5h devil fruits allowed.
+    pub devil_fruits: bool,
+    /// §5h stands allowed.
+    pub stands: bool,
 }
 
 impl Default for MatchRules {
@@ -72,6 +87,13 @@ impl Default for MatchRules {
             ko_target: 10,
             time_limit: 8.0 * 60.0,
             regen_islands_between_rounds: true,
+            respawn_secs: crate::combat::RESPAWN_SECS,
+            spawn_shield_secs: crate::combat::SPAWN_SHIELD_SECS,
+            knockback_scale: 1.0,
+            void_ko: true,
+            powers_enabled: true,
+            devil_fruits: true,
+            stands: true,
         }
     }
 }

@@ -43,7 +43,7 @@ use bd_core::{DT, MAX_PLAYERS, PlayerId, Tick, Vec3};
 use bd_voxel::{ArenaInfo, CarveOp, VoxelWorld, generate_arena, generate_flat_test};
 use serde::{Deserialize, Serialize};
 
-use crate::combat::{KO_CREDIT_SECS, MAX_HEALTH, SPAWN_SHIELD_SECS};
+use crate::combat::{KO_CREDIT_SECS, MAX_HEALTH};
 use crate::constructs::{ConstructOut, ConstructStore, PlayerView};
 use crate::events::{GameEvent, GoneReason, move_flags};
 use crate::history::HullHistory;
@@ -88,6 +88,8 @@ pub struct SimConfig {
     pub oaths: OathTable,
     /// Run [`World::check_invariants`] every tick and panic on failure (defaults to debug builds).
     pub check_invariants: bool,
+    /// Party mode (COMBAT.md §5g); `None` = FFA. Built by `settings::GameSettings::sim_config`.
+    pub party: Option<crate::settings::PartySettings>,
 }
 
 impl Default for SimConfig {
@@ -103,6 +105,7 @@ impl Default for SimConfig {
             blast_chips_terrain: false,
             oaths: OathTable::default(),
             check_invariants: cfg!(debug_assertions),
+            party: None,
         }
     }
 }
@@ -130,7 +133,7 @@ pub struct World {
     pub history: HullHistory,
     /// Sim randomness (seeded from `SimConfig::seed`) for the construct engineer's behaviours.
     pub rng: SimRng,
-    events: Vec<GameEvent>,
+    pub(crate) events: Vec<GameEvent>,
     /// Events already returned by the previous tick (dropped at the start of the next).
     delivered: usize,
     colliders: Vec<Collider>,
@@ -138,13 +141,23 @@ pub struct World {
     cout: ConstructOut,
     /// (due tick, op), sorted by due tick.
     carve_queue: VecDeque<(Tick, CarveOp)>,
-    carve_seed: u32,
+    pub(crate) carve_seed: u32,
     next_projectile: u16,
     next_space_id: u16,
     /// Seed of the terrain currently loaded (rematch regenerates from it).
     arena_seed: u64,
     /// Last invariant violation seen by the per-tick check (release builds keep running).
     pub last_invariant_error: Option<(Tick, String)>,
+    // ---- PARTY HOOK (crate::party) ----
+    /// Party mode state (`None` = FFA).
+    pub party: Option<crate::party::PartyState>,
+    /// Cost discount for the cast in progress (party grafts are free); `None` outside party casts.
+    pub(crate) party_cost_ratio: Option<f32>,
+    /// The cast in progress is a party effect's free copy (no cost / staleness / replacement).
+    pub(crate) free_cast: bool,
+    // ---- POWERS HOOK (crate::powers, COMBAT.md §5h) ----
+    /// Fruits in the world, the restore log, the incantation in progress.
+    pub powers: crate::powers::PowerWorld,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -167,8 +180,15 @@ impl World {
     }
 
     /// Build around an existing voxel world (e.g. a client that generated / received it).
-    pub fn with_arena(cfg: SimConfig, voxels: VoxelWorld, arena: ArenaInfo, arena_seed: u64) -> Self {
+    pub fn with_arena(mut cfg: SimConfig, voxels: VoxelWorld, arena: ArenaInfo, arena_seed: u64) -> Self {
         let rng = SimRng::new(cfg.seed);
+        // PARTY HOOK: a party round is a match with the round KO target / round time.
+        let party = cfg.party.clone().map(|s| {
+            let s = s.validated();
+            cfg.rules.ko_target = s.round_ko_target;
+            cfg.rules.time_limit = s.round_time;
+            crate::party::PartyState::new(s, cfg.seed)
+        });
         Self {
             voxels,
             arena,
@@ -193,6 +213,10 @@ impl World {
             next_space_id: 1,
             arena_seed,
             last_invariant_error: None,
+            party,
+            party_cost_ratio: None,
+            free_cast: false,
+            powers: crate::powers::PowerWorld::default(), // POWERS HOOK
             cfg,
         }
     }
@@ -369,7 +393,11 @@ impl World {
         self.step_projectiles(dt);
         self.step_constructs(dt);
         self.step_space(dt);
+        self.step_powers(dt); // POWERS HOOK: stands, fruits, drain/seastone, time stop (no-op without powers)
         self.step_willpower(dt);
+        // PARTY HOOK: effect hooks (this tick's events so far, scheduled casts, per-tick effects);
+        // before the reap so whatever they break is removed this tick.
+        crate::party::hooks::end_of_tick(self, dt);
         self.reap_constructs();
         self.apply_carves();
         self.check_match_end();
@@ -430,7 +458,7 @@ impl World {
     }
 
     fn step_movement(&mut self, dt: f32) {
-        let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, .. } = self;
+        let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, party, .. } = self;
         let base = &cfg.move_params;
         for p in players.iter_mut() {
             p.move_events = Default::default();
@@ -457,9 +485,11 @@ impl World {
                 mods.speed_mult *= 0.85;
             }
             constructs.movement_mods(p.id, &p.input, &p.mv, &mut mods);
+            p.power.modify_movement(p.mv.grounded, &mut mods); // POWERS HOOK (body, time stop, void sink)
             p.mv.mods = mods;
             let input = if p.status.stunned() { stunned_input(&p.input) } else { p.input };
-            let params = p.params(base);
+            let mut params = p.params(base);
+            crate::party::hooks::tweak_params(party.as_ref(), p.id, &mut params); // PARTY HOOK (Slippery)
             let was_tumbling = p.mv.tumble > 0.0;
             let pre_vel = p.mv.vel;
             let pre_center = p.hull(base).center();
@@ -561,7 +591,16 @@ impl World {
                 || pos.z < b.min.z
                 || pos.z > b.max.z
                 || pos.y > b.max.y + 60.0;
-            if out {
+            if out && !self.cfg.rules.void_ko && pos.is_finite() {
+                // Lobby knob "void off": back onto a spawn point, no KO.
+                let id = p.id;
+                let at = self.pick_spawn(id);
+                let p = &mut self.players[i];
+                p.mv.pos = at;
+                p.mv.vel = Vec3::ZERO;
+                p.mv.release_tethers();
+                self.events.push(GameEvent::VoidRescue { player: id, pos: at });
+            } else if out {
                 let killer = self.credit(i);
                 self.ko(i, killer, crate::events::KoCause::Void);
             }
@@ -670,6 +709,8 @@ impl World {
     }
 
     fn reap_constructs(&mut self) {
+        // PARTY HOOK: shatter hooks (Main Character split, confetti, portals, black holes).
+        crate::party::hooks::pre_reap(self);
         let mut ejects = std::mem::take(&mut self.cout.ejects);
         ejects.clear();
         {
@@ -700,6 +741,11 @@ impl World {
     // ------------------------------------------------------------------------------ match
 
     fn step_match(&mut self, dt: f32) {
+        // PARTY HOOK: Party mode runs its own round / pick / podium flow.
+        if self.party.is_some() {
+            self.step_party_match(dt);
+            return;
+        }
         let t = self.cfg.timings.clone();
         match self.match_state.phase {
             MatchPhase::Warmup => {
@@ -726,6 +772,16 @@ impl World {
 
     /// Force the match live now (skip the warmup countdown).
     pub fn start_live(&mut self) {
+        // PARTY HOOK: in Party mode this starts the next round.
+        if self.party.is_some() {
+            self.party_start_round();
+            return;
+        }
+        self.start_live_ffa();
+    }
+
+    /// The FFA "go live" (also used by party rounds).
+    pub(crate) fn start_live_ffa(&mut self) {
         self.reset_round();
         self.match_state.phase = MatchPhase::Live;
         self.match_state.phase_time = 0.0;
@@ -737,18 +793,29 @@ impl World {
     /// ~150 ms arena build never lands on a tick). Set `timings.auto_rematch = false` and call this
     /// when the scoreboard time is over.
     pub fn rematch_with_arena(&mut self, voxels: VoxelWorld, arena: ArenaInfo, seed: u64) {
-        self.voxels = voxels;
-        self.arena = arena;
-        self.arena_seed = seed;
-        self.carve_queue.clear();
-        self.carve_seed = 1;
-        self.events.push(GameEvent::ArenaReset { seed });
+        self.swap_arena(voxels, arena, seed);
+        self.party_reset(); // PARTY HOOK: a rematch starts a fresh party
         self.match_state.round += 1;
         self.reset_round();
         self.match_state.phase = MatchPhase::Warmup;
         self.match_state.phase_time = 0.0;
         self.match_state.winner = None;
         self.events.push(GameEvent::MatchPhase { phase: MatchPhase::Warmup, round: self.match_state.round, winner: None });
+    }
+
+    /// Load pre-built terrain (rematch / party rounds) and tell clients to regenerate it.
+    pub(crate) fn swap_arena(&mut self, voxels: VoxelWorld, arena: ArenaInfo, seed: u64) {
+        self.voxels = voxels;
+        self.arena = arena;
+        self.arena_seed = seed;
+        self.carve_queue.clear();
+        self.carve_seed = 1;
+        self.events.push(GameEvent::ArenaReset { seed });
+    }
+
+    /// Build terrain for `src` (about 150 ms for an archipelago: call it on a worker thread).
+    pub fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
+        build_arena(src)
     }
 
     /// The seed of the terrain currently loaded (clients regenerate from it).
@@ -758,6 +825,7 @@ impl World {
 
     /// Back to warmup with fresh scores (and fresh terrain if the rules say so).
     pub fn rematch(&mut self) {
+        self.party_reset(); // PARTY HOOK: a rematch starts a fresh party
         self.match_state.round += 1;
         if self.cfg.rules.regen_islands_between_rounds && self.carve_seed > 1 {
             let (w, info, seed) = build_arena(self.cfg.arena);
@@ -776,6 +844,7 @@ impl World {
     }
 
     fn reset_round(&mut self) {
+        self.powers_reset_round(); // POWERS HOOK: powers + fruits don't survive a new round
         self.constructs.clear();
         self.projectiles.clear();
         self.portals.clear();
@@ -830,6 +899,7 @@ impl World {
     }
 
     pub(crate) fn ko(&mut self, i: usize, killer: Option<PlayerId>, cause: crate::events::KoCause) {
+        self.powers_on_ko(i); // POWERS HOOK: power lost; a fruit respawns where you died
         let live = self.match_state.live();
         let victim = self.players[i].id;
         let (victim_corps, pos, vel, yaw, victim_streak) = {
@@ -849,7 +919,7 @@ impl World {
             let p = &mut self.players[i];
             p.alive = false;
             p.health = 0.0;
-            p.respawn_timer = crate::combat::RESPAWN_SECS;
+            p.respawn_timer = self.cfg.rules.respawn_secs; // lobby knob (default RESPAWN_SECS)
             p.mv.release_tethers();
             p.mv.vel = Vec3::ZERO;
             p.status.clear();
@@ -923,13 +993,14 @@ impl World {
         let pos = self.pick_spawn(id);
         let base = self.cfg.move_params.clone();
         let wp_min = self.cfg.rules.willpower_max() * 0.5;
+        let shield = self.cfg.rules.spawn_shield_secs; // lobby knob (default SPAWN_SHIELD_SECS)
         let p = &mut self.players[i];
         p.mv = crate::movement::PlayerState::new(pos, &base);
         p.mv.prev_buttons = p.input.buttons;
         p.alive = true;
         p.health = MAX_HEALTH;
         p.willpower = p.willpower.max(wp_min);
-        p.spawn_shield = SPAWN_SHIELD_SECS;
+        p.spawn_shield = shield;
         p.respawn_timer = 0.0;
         p.status.clear();
         p.size = Default::default();
@@ -938,7 +1009,7 @@ impl World {
         let to = self.arena.center - pos;
         p.input.yaw = (-to.x).atan2(-to.z);
         p.input.pitch = 0.0;
-        self.events.push(GameEvent::Respawn { player: id, pos, shield: SPAWN_SHIELD_SECS });
+        self.events.push(GameEvent::Respawn { player: id, pos, shield });
     }
 
     /// Is `p` inside the arena bounds grown by `margin` (and above the void)?

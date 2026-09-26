@@ -190,6 +190,11 @@ impl World {
                 }
             }
             Some(Contact::Player(pid, point)) => {
+                // HELD ENGINEER HOOK: a raised Guard (shield / sword parry / Guard suit) facing the
+                // shot blocks it; a perfect parry reflects it at its shooter (COMBAT.md §4, §8).
+                if self.guard_projectile(p, pid, p0, point) {
+                    return;
+                }
                 let s = p.spec;
                 p.travelled += (point - p0).length();
                 if let Some((radius, carve)) = s.explode {
@@ -249,6 +254,47 @@ impl World {
                 self.end_projectile(p, point, n, None);
             }
         }
+    }
+
+    /// HELD ENGINEER HOOK (see `constructs::held::guard_check`): returns true when `target`'s guard
+    /// consumed the projectile — parried (reflected back at its shooter, now owned by the parrier)
+    /// or blocked (absorbed; the guard takes integrity damage; explosive rounds still burst).
+    fn guard_projectile(&mut self, p: &mut Projectile, target: PlayerId, from: Vec3, point: Vec3) -> bool {
+        use crate::constructs::held::{Guarded, guard_check};
+        use crate::events::HeldFx;
+        let base = &self.cfg.move_params;
+        let Some((eye, look)) = self.player(target).map(|t| (t.eye(base), t.look())) else { return false };
+        let Some((verdict, gid)) = guard_check(&self.constructs, target, eye, look, from, false) else { return false };
+        let s = p.spec;
+        match verdict {
+            Guarded::Parry => {
+                let speed = p.vel.length().max(s.muzzle_speed).max(10.0);
+                let back = self.player(s.owner).filter(|o| o.alive).map(|o| o.hull(base).center());
+                let mut dir = back.map_or(Vec3::ZERO, |b| (b - point).normalize_or_zero());
+                if dir == Vec3::ZERO {
+                    dir = -p.vel.normalize_or_zero();
+                }
+                p.vel = dir * speed;
+                p.pos = point + dir * (s.radius + 0.4);
+                p.spec.owner = target;
+                p.spec.construct = None;
+                p.spec.muzzle_speed = speed;
+                p.lag = 0.0;
+                p.age = 0.0;
+                p.travelled = 0.0;
+                self.restart_segment(p);
+                self.events.push(GameEvent::HeldFx { id: gid, owner: target, fx: HeldFx::Parry, pos: point, dir, strength: 1.5 });
+            }
+            Guarded::Block => {
+                self.apply_construct_hit(ConstructHit { target: gid, source: Some(s.owner), damage: s.damage * 0.5, impulse: Vec3::ZERO, blade: false, point });
+                if let Some((radius, carve)) = s.explode {
+                    self.explode(Explosion { pos: point, radius, damage: s.damage * 0.5, knockback: s.knockback, source: Some(s.owner), construct: s.construct, element: s.element, carve_radius: carve, self_damage: false });
+                }
+                self.events.push(GameEvent::HeldFx { id: gid, owner: target, fx: HeldFx::Block, pos: point, dir: p.vel.normalize_or_zero(), strength: s.damage / 10.0 });
+                self.end_projectile(p, point, -p.vel.normalize_or_zero(), None);
+            }
+        }
+        true
     }
 
     fn restart_segment(&mut self, p: &mut Projectile) {

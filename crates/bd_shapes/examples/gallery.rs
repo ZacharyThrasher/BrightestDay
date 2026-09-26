@@ -795,6 +795,9 @@ fn main() {
     if has("--transforms") {
         let lex = machines::lexicon(&root);
         transforms::run(&docs, lex.as_ref(), val("--only"));
+        if val("--only").is_none() {
+            transforms::icons(&docs, lex.as_ref());
+        }
     }
     if has("--costumes") {
         let lex = machines::lexicon(&root);

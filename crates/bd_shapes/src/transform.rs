@@ -1,23 +1,31 @@
 //! Transformers (`Mechanic::Transforms`, COMBAT.md §5d-bis): one body, two modes.
 //!
-//! [`transform_rig`] splits an alt-mode model (usually a vehicle) into ~10–24 rigid **panels** by region
-//! (hood → chest, grille → abdomen, doors → back-wings, rear → thighs/shins, rear bumper → feet, wheels →
-//! shoulders/calves/hips, front corners → fists, sills → arms, roof → backpack) and lays those same panels
-//! out as a humanoid robot. Every panel keeps its voxels: the robot is the panels re-posed by exact
-//! 90°-rotations + whole-voxel translations, so [`TransformRig::robot`] (a normal biped `VoxelModel` —
-//! gait, attacks, hit reacts all work) contains exactly the panel voxels where `pose_transform(.., 1.0)`
-//! leaves them: the client swaps models at the end without a pop. A small head unfolds from inside.
+//! [`transform_rig`] splits an alt-mode model (usually a vehicle) into ~12–26 rigid **panels**
+//! (connected pieces of regions: cab/windshield + hood → chest, grille → abdomen, doors → back
+//! "kibble" wings, sills → arms, front corners → fists, rear → thighs/shins/feet, wheels → shoulder
+//! pads / calves / hips, roof → backpack; crumbs < 12 voxels merge into a touching panel) and lays the
+//! same panels out as a heroic humanoid (broad shoulders, strong chest, narrow waist, thick shins).
+//! Every panel keeps its voxels: the robot is the panels re-posed by exact 90° rotations + whole-voxel
+//! translations, then **snapped until every panel touches its body part and every limb meets the
+//! torso** (no floating bits). [`TransformRig::robot`] is a normal biped `VoxelModel` built from
+//! exactly those voxels, so at the end of [`pose_transform`] the client swaps models without a pop.
+//! The head (Core visor) is new: it grows out of the chest last.
 //!
-//! Sequence (normalised t 0..1, [`TRANSFORM_SECONDS`] ≈ 0.9 s): panels start outside-in (staggered);
-//! each does up to three discrete moves — unlatch/pop outward, hinge-rotate (single axis, snappy ease
-//! with a little overshoot), slide/arc into its robot slot — then the whole robot squashes and **stands
-//! up**. Reverse (robot → alt) plays the same moves backwards. [`sequence_events`] lists the moments for
-//! sparks/clicks. Two-mode icons: [`transform_rig_authored`] takes the robot `ShapeSpec` (panels matched
-//! by `part` id); its placement and roles win over the procedural layout.
+//! Sequence, three beats over [`TRANSFORM_SECONDS`] (normalised t):
+//! 1. **Unfold** (0–0.34): panels unlatch outside-in, pop outward and hinge-flip (snappy, overshoot).
+//! 2. **Rearrange** (0.26–0.72): legs drop first, torso assembles, wings fold onto the back, arms
+//!    extend, shoulder pads land — each sliding along a short arc.
+//! 3. **Lock-in** (0.62–1.0): the head pops up, the body squashes and stands up with a spring.
+//!
+//! Reverse (robot → alt) plays it backwards. [`sequence_events`] lists unlatch / hinge / lock / head /
+//! stand-up moments for sparks and clicks. Two-mode icons: [`transform_rig_authored`] uses the icon's
+//! robot `ShapeSpec` (shared `part` ids = the same panel rigidly moved; robot-only parts such as head,
+//! arms and weapons grow in; alt-only parts fold away) — the authored layout wins.
 //!
 //! Combiners: [`combine_rigs`] stacks 3–5 alt models into one giant (legs, torso, arms + a head) with a
 //! per-vehicle drive/flip/lift sequence ([`pose_combine`]).
 
+use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
 
 use bd_core::shape::{PartId, PartRole, ShapeSpec, Tint};
@@ -30,6 +38,10 @@ use crate::voxelize::{PartModel, VoxelModel, model_from_parts};
 pub const TRANSFORM_SECONDS: f32 = 0.9;
 /// Real-time length of a combine sequence, seconds.
 pub const COMBINE_SECONDS: f32 = 2.0;
+/// Panels smaller than this merge into a touching neighbour (or are culled).
+pub const MIN_PANEL_VOXELS: usize = 12;
+/// Upper bound on panels per rig.
+pub const MAX_PANELS: usize = 26;
 
 /// Robot role of a panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -62,8 +74,8 @@ pub enum RobotRole {
 }
 
 impl RobotRole {
-    /// Which robot-model part the panel rides in (0 root, 1 head, 2/3 arms, 4/5 legs).
-    fn group(self) -> usize {
+    /// Which robot-model part the panel rides in (0 root/torso, 1 head, 2/3 arms, 4/5 legs).
+    pub fn group(self) -> usize {
         use RobotRole::*;
         match self {
             Head => 1,
@@ -77,6 +89,16 @@ impl RobotRole {
     fn limb(self) -> bool {
         use RobotRole::*;
         matches!(self, UpperArmL | UpperArmR | ForearmL | ForearmR | ThighL | ThighR | ShinL | ShinR)
+    }
+    /// Anchor preference inside its group (lower = anchor first).
+    fn anchor_rank(self) -> u8 {
+        use RobotRole::*;
+        match self {
+            Chest | Head | UpperArmL | UpperArmR | ThighL | ThighR => 0,
+            Abdomen | ForearmL | ForearmR | ShinL | ShinR => 1,
+            Pelvis | FistL | FistR | FootL | FootR => 2,
+            _ => 3,
+        }
     }
 }
 
@@ -94,22 +116,25 @@ pub struct Panel {
     pub q: Quat,
     pub axis: Vec3,
     pub angle: f32,
-    /// Outward unlatch direction and the normalised start/end of this panel's moves.
+    /// Outward unlatch direction.
     pub pop: Vec3,
-    pub start: f32,
-    pub end: f32,
+    /// Normalised start of the unfold beat, start and length of the rearrange move.
+    pub unfold: f32,
+    pub move_start: f32,
+    pub move_len: f32,
+    /// 0 = normal, 1 = grows in (robot-only: head, authored arms/weapons), −1 = folds away (alt-only).
+    pub scale_mode: i8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TransformRig {
-    /// Alt mode split into panels: part 0 = empty root, parts 1.. = panels (same voxels as the alt
-    /// model plus a hidden head). Pose with [`pose_transform`].
+    /// Alt mode split into panels: part 0 = empty root, parts 1.. = panels. Pose with [`pose_transform`].
     pub alt: VoxelModel,
     /// Robot mode: biped rig (root torso, head, arms, legs) made of the same panel voxels.
     pub robot: VoxelModel,
     /// Index-aligned with `alt.parts` (entry 0 is a dummy for the root).
     pub panels: Vec<Panel>,
-    /// Robot height (m) for the stand-up squash.
+    /// Robot height (m).
     pub height: f32,
 }
 
@@ -130,7 +155,6 @@ fn all_rotations() -> Vec<[[i32; 3]; 3]> {
             }
         }
     }
-    // Identity first (deterministic tie-breaks prefer "no rotation").
     out.sort_by_key(|m| (m[0][0] != 1 || m[1][1] != 1 || m[2][2] != 1) as i32);
     out
 }
@@ -148,13 +172,27 @@ fn rot_quat(m: &[[i32; 3]; 3]) -> Quat {
     Quat::from_mat3(&Mat3::from_cols(c(0), c(1), c(2))).normalize()
 }
 
+/// Nearest 90° rotation to `q`.
+fn snap_rot(q: Quat, rots: &[[[i32; 3]; 3]]) -> [[i32; 3]; 3] {
+    let mut best = (f32::MIN, IDENTITY_ROT);
+    for m in rots {
+        let d = rot_quat(m).dot(q).abs();
+        if d > best.0 {
+            best = (d, *m);
+        }
+    }
+    best.1
+}
+
 const IDENTITY_ROT: [[i32; 3]; 3] = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 
-// ---------------------------------------------------------------------------------- building
+// ---------------------------------------------------------------------------------- voxel sets
 
 struct Proto {
     role: RobotRole,
+    /// Alt-space voxels.
     voxels: Vec<(IVec3, Tint)>,
+    scale_mode: i8,
 }
 
 fn bbox(vs: &[(IVec3, Tint)]) -> (IVec3, IVec3) {
@@ -167,70 +205,47 @@ fn bbox(vs: &[(IVec3, Tint)]) -> (IVec3, IVec3) {
     (mn, mx)
 }
 
-/// Region → role for one alt voxel. `u`,`v`,`w` = normalised x (left→right), y (bottom→top), z
-/// (front→rear).
-fn region(u: f32, v: f32, w: f32) -> RobotRole {
-    use RobotRole::*;
-    let left = u < 0.5;
-    if w < 0.3 {
-        if v >= 0.5 {
-            Chest
-        } else if u < 0.33 {
-            FistL
-        } else if u > 0.67 {
-            FistR
-        } else {
-            Abdomen
-        }
-    } else if w < 0.62 {
-        if v >= 0.62 {
-            Back
-        } else if u < 0.3 || u > 0.7 {
-            if v >= 0.3 {
-                if left { WingL } else { WingR }
-            } else if w < 0.46 {
-                if left { ForearmL } else { ForearmR }
-            } else if left {
-                UpperArmL
-            } else {
-                UpperArmR
+const N26: [IVec3; 26] = {
+    let mut out = [IVec3::ZERO; 26];
+    let mut k = 0;
+    let mut z = -1;
+    while z <= 1 {
+        let mut y = -1;
+        while y <= 1 {
+            let mut x = -1;
+            while x <= 1 {
+                if x != 0 || y != 0 || z != 0 {
+                    out[k] = IVec3::new(x, y, z);
+                    k += 1;
+                }
+                x += 1;
             }
-        } else {
-            Pelvis
+            y += 1;
         }
-    } else if w > 0.9 && v < 0.35 {
-        if left { FootL } else { FootR }
-    } else if w < 0.78 {
-        if left { ThighL } else { ThighR }
-    } else if left {
-        ShinL
-    } else {
-        ShinR
+        z += 1;
     }
-}
+    out
+};
 
+/// 26-connected components.
 fn components(vox: &[(IVec3, Tint)]) -> Vec<Vec<(IVec3, Tint)>> {
-    use std::collections::HashMap;
     let map: HashMap<IVec3, Tint> = vox.iter().copied().collect();
-    let mut seen: std::collections::HashSet<IVec3> = std::collections::HashSet::new();
+    let mut seen: HashSet<IVec3> = HashSet::new();
     let mut out = Vec::new();
-    for (v, _) in vox {
-        if seen.contains(v) {
+    let mut sorted: Vec<IVec3> = map.keys().copied().collect();
+    sorted.sort_by_key(|v| (v.z, v.y, v.x));
+    for v in sorted {
+        if !seen.insert(v) {
             continue;
         }
         let mut comp = Vec::new();
-        let mut stack = vec![*v];
-        seen.insert(*v);
+        let mut stack = vec![v];
         while let Some(p) = stack.pop() {
             comp.push((p, map[&p]));
-            for dz in -1..=1 {
-                for dy in -1..=1 {
-                    for dx in -1..=1 {
-                        let q = p + IVec3::new(dx, dy, dz);
-                        if map.contains_key(&q) && seen.insert(q) {
-                            stack.push(q);
-                        }
-                    }
+            for d in N26 {
+                let q = p + d;
+                if map.contains_key(&q) && seen.insert(q) {
+                    stack.push(q);
                 }
             }
         }
@@ -240,40 +255,59 @@ fn components(vox: &[(IVec3, Tint)]) -> Vec<Vec<(IVec3, Tint)>> {
     out
 }
 
-fn defragment(by_role: Vec<(RobotRole, Vec<(IVec3, Tint)>)>) -> Vec<(RobotRole, Vec<(IVec3, Tint)>)> {
-    let mut keep: Vec<(RobotRole, Vec<(IVec3, Tint)>)> = Vec::new();
-    let mut loose: Vec<Vec<(IVec3, Tint)>> = Vec::new();
-    for (role, vox) in by_role {
-        let mut comps = components(&vox);
-        comps.sort_by_key(|c| std::cmp::Reverse(c.len()));
-        let big = comps.first().map_or(0, |c| c.len());
-        let mut main = Vec::new();
-        for c in comps {
-            if c.len() * 4 >= big {
-                main.extend(c);
-            } else {
-                loose.push(c);
-            }
-        }
-        keep.push((role, main));
-    }
-    for frag in loose {
-        let (a, b) = bbox(&frag);
-        let c = (a + b) / 2;
-        let best = keep
-            .iter()
-            .enumerate()
-            .filter(|(_, (_, v))| !v.is_empty())
-            .map(|(i, (_, v))| (i, v.iter().map(|(p, _)| (*p - c).length_squared()).min().unwrap_or(i32::MAX)))
-            .min_by_key(|x| x.1);
-        if let Some((i, _)) = best {
-            keep[i].1.extend(frag);
-        }
-    }
-    keep
+/// Number of 26-connected components of a voxel set.
+pub fn component_count(vox: &[IVec3]) -> usize {
+    let t: Vec<(IVec3, Tint)> = vox.iter().map(|v| (*v, Tint::Primary)).collect();
+    components(&t).len()
 }
 
-/// Split `alt` into panels (by region + wheel parts).
+// ---------------------------------------------------------------------------------- splitting
+
+/// Region → role for one alt voxel. `u`,`v`,`w` = normalised x (left→right), y (bottom→top), z
+/// (front→rear).
+fn region(u: f32, v: f32, w: f32) -> RobotRole {
+    use RobotRole::*;
+    let left = u < 0.5;
+    let side = u < 0.28 || u > 0.72;
+    if v >= 0.55 && w < 0.55 {
+        // Hood + windshield/cab: the iconic chest.
+        Chest
+    } else if v >= 0.55 && w < 0.72 {
+        Back
+    } else if w < 0.28 {
+        if u < 0.3 {
+            FistL
+        } else if u > 0.7 {
+            FistR
+        } else {
+            Abdomen
+        }
+    } else if w < 0.62 {
+        if side {
+            if v >= 0.3 {
+                if left { WingL } else { WingR }
+            } else if w < 0.45 {
+                if left { ForearmL } else { ForearmR }
+            } else if left {
+                UpperArmL
+            } else {
+                UpperArmR
+            }
+        } else {
+            Pelvis
+        }
+    } else if w > 0.88 && v < 0.4 {
+        if left { FootL } else { FootR }
+    } else if w < 0.76 {
+        if left { ThighL } else { ThighR }
+    } else if left {
+        ShinL
+    } else {
+        ShinR
+    }
+}
+
+/// Split `alt` into connected panels (regions + wheel parts), merging/culling crumbs.
 fn split(alt: &VoxelModel) -> Vec<Proto> {
     use RobotRole::*;
     let mut all: Vec<(IVec3, Tint, usize)> = Vec::new();
@@ -294,23 +328,19 @@ fn split(alt: &VoxelModel) -> Vec<Proto> {
     }
     let ext = (mx - mn).max(IVec3::ONE).as_vec3();
     let norm = |v: IVec3| (v - mn).as_vec3() / ext;
-    // Wheel-like parts become their own panels.
     let is_wheel = |i: usize| {
-        i > 0 && (alt.parts[i].role == Some(PartRole::Wheel) || matches!(alt.machine.motion(i), crate::features::Motion::Spin { .. }))
-            && alt.parts[i].voxels.len() >= 3
+        i > 0 && (alt.parts[i].role == Some(PartRole::Wheel) || matches!(alt.machine.motion(i), crate::features::Motion::Spin { roll_k, .. } if roll_k > 0.0)) && alt.parts[i].voxels.len() >= MIN_PANEL_VOXELS
     };
-    let mut wheels: Vec<(usize, Vec3)> = Vec::new();
-    for i in 0..alt.parts.len() {
-        if is_wheel(i) {
-            let (a, b) = bbox(&alt.parts[i].voxels);
-            wheels.push((i, norm((a + b) / 2)));
-        }
-    }
-    // Front/rear wheels per side → shoulders / calves; the rest → hips.
+    // Wheels: front → shoulder pads, rear → calves, extras → hips.
+    let mut wheel_parts = Vec::new();
     let mut used = [0usize; 4];
-    for (i, c) in &wheels {
-        let left = c.x < 0.5;
-        let front = c.z < 0.5;
+    for i in 0..alt.parts.len() {
+        if !is_wheel(i) {
+            continue;
+        }
+        let (a, b) = bbox(&alt.parts[i].voxels);
+        let c = norm((a + b) / 2);
+        let (left, front) = (c.x < 0.5, c.z < 0.5);
         let slot = (front as usize) * 2 + left as usize;
         used[slot] += 1;
         let role = match (front, left, used[slot]) {
@@ -321,9 +351,10 @@ fn split(alt: &VoxelModel) -> Vec<Proto> {
             (_, true, _) => HipL,
             (_, false, _) => HipR,
         };
-        protos.push(Proto { role, voxels: alt.parts[*i].voxels.clone() });
+        protos.push(Proto { role, voxels: alt.parts[i].voxels.clone(), scale_mode: 0 });
+        wheel_parts.push(i);
     }
-    let wheel_parts: Vec<usize> = wheels.iter().map(|w| w.0).collect();
+    // Regions → connected components.
     let mut by_role: Vec<(RobotRole, Vec<(IVec3, Tint)>)> = Vec::new();
     for (v, t, i) in all {
         if wheel_parts.contains(&i) {
@@ -336,61 +367,135 @@ fn split(alt: &VoxelModel) -> Vec<Proto> {
             None => by_role.push((r, vec![(v, t)])),
         }
     }
-    // Small disconnected fragments of a region ride with the nearest big panel so nothing floats.
-    let by_role = defragment(by_role);
-    for (role, voxels) in by_role {
-        protos.push(Proto { role, voxels });
+    let mut comps: Vec<(RobotRole, Vec<(IVec3, Tint)>)> = Vec::new();
+    for (role, vox) in by_role {
+        for c in components(&vox) {
+            comps.push((role, c));
+        }
     }
-    // Guarantee a body: synthesize any missing structural limb inside the alt hull (hidden).
+    // Merge small pieces into a touching piece (any role); cull isolated crumbs; cap the count.
+    loop {
+        let wheel_n = protos.len();
+        let total = comps.len() + wheel_n;
+        let Some(k) = (0..comps.len()).filter(|&k| comps[k].1.len() < MIN_PANEL_VOXELS || total > MAX_PANELS).min_by_key(|&k| (comps[k].1.len(), k)) else { break };
+        let owner: HashMap<IVec3, usize> = comps.iter().enumerate().filter(|(j, _)| *j != k).flat_map(|(j, (_, v))| v.iter().map(move |(p, _)| (*p, j))).collect();
+        let mut target: Option<usize> = None;
+        'find: for (p, _) in &comps[k].1 {
+            for d in N26 {
+                if let Some(&j) = owner.get(&(*p + d)) {
+                    target = Some(j);
+                    break 'find;
+                }
+            }
+        }
+        let small = std::mem::take(&mut comps[k].1);
+        match target {
+            Some(j) => comps[j].1.extend(small),
+            None if small.len() < MIN_PANEL_VOXELS => {}
+            None => {
+                comps[k].1 = small;
+                // Isolated but big: keep it and stop merging (nothing touches it).
+                if total <= MAX_PANELS + 8 {
+                    break;
+                }
+                let j = (0..comps.len()).filter(|&j| j != k && !comps[j].1.is_empty()).min_by_key(|&j| comps[j].1.len());
+                match j {
+                    Some(j) => {
+                        let v = std::mem::take(&mut comps[k].1);
+                        comps[j].1.extend(v);
+                    }
+                    None => break,
+                }
+            }
+        }
+        comps.retain(|c| !c.1.is_empty());
+    }
+    for (role, voxels) in comps {
+        protos.push(Proto { role, voxels, scale_mode: 0 });
+    }
+    // Missing structural pieces grow in (no hidden geometry).
     let centre = (mn + mx) / 2;
     let s = ((ext.x.min(ext.y).min(ext.z)) * 0.18).round().max(1.0) as i32;
     for role in [Chest, Pelvis, UpperArmL, UpperArmR, ForearmL, ForearmR, ThighL, ThighR, ShinL, ShinR] {
-        let n = protos.iter().filter(|p| p.role == role).map(|p| p.voxels.len()).sum::<usize>();
-        if n >= 4 {
+        if protos.iter().any(|p| p.role == role) {
             continue;
         }
-        let (len, w) = if role.limb() { (s * 3, s) } else { (s * 2, s * 2) };
-        let mut vox = Vec::new();
-        for y in 0..len {
-            for x in 0..w.max(1) {
-                for z in 0..w.max(1) {
-                    vox.push((centre + IVec3::new(x - w / 2, y - len / 2, z - w / 2), Tint::Dark));
-                }
-            }
-        }
-        protos.push(Proto { role, voxels: vox });
+        let (len, w) = if role.limb() { (s * 3, s + 1) } else { (s * 2, s * 2) };
+        protos.push(Proto { role, voxels: shell_box(centre, IVec3::new(w, len, w), Tint::Dark), scale_mode: 1 });
     }
-    // The head: helmet with crest, glowing eyes and "ear" fins, folded inside the chassis.
-    let hs = (ext.x * 0.22).round().max(2.0) as i32;
-    let mut head = Vec::new();
-    for y in 0..hs + 1 {
-        for x in -hs / 2..=hs / 2 {
-            for z in -hs / 2..=hs / 2 {
-                let edge = x.abs() == hs / 2 || z.abs() == hs / 2 || y == hs || y == 0;
-                if !edge {
-                    continue;
-                }
-                let t = if z == -hs / 2 && y == hs / 2 + (hs > 3) as i32 && x != 0 { Tint::Core } else if y == hs || (x == 0 && z == -hs / 2) { Tint::Accent } else { Tint::Primary };
-                head.push((centre + IVec3::new(x, y - hs / 2, z), t));
-            }
-        }
-    }
-    for k in 0..2 {
-        head.push((centre + IVec3::new(0, hs / 2 + 1 + k, -hs / 2 + 1), Tint::Accent));
-        for sx in [-1, 1] {
-            head.push((centre + IVec3::new(sx * (hs / 2 + 1), k, 0), Tint::Accent));
-        }
-    }
-    protos.push(Proto { role: Head, voxels: head });
+    protos.push(Proto { role: Head, voxels: robot_head(centre, (ext.x * 0.2).round().max(3.0) as i32), scale_mode: 1 });
     protos.retain(|p| !p.voxels.is_empty());
     protos
 }
 
+fn shell_box(c: IVec3, size: IVec3, t: Tint) -> Vec<(IVec3, Tint)> {
+    let size = size.max(IVec3::ONE);
+    let mut out = Vec::new();
+    for y in 0..size.y {
+        for x in 0..size.x {
+            for z in 0..size.z {
+                if x == 0 || y == 0 || z == 0 || x == size.x - 1 || y == size.y - 1 || z == size.z - 1 {
+                    let tint = if y == size.y - 1 { Tint::Accent } else { t };
+                    out.push((c + IVec3::new(x, y, z) - size / 2, tint));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Robot head: helmet shell with a central crest, "ear" fins and a glowing Core visor.
+fn robot_head(c: IVec3, hs: i32) -> Vec<(IVec3, Tint)> {
+    let hs = hs.max(3) | 1;
+    let r = hs / 2;
+    let mut out = Vec::new();
+    for y in 0..=hs {
+        for x in -r..=r {
+            for z in -r..=r {
+                if !(x.abs() == r || z.abs() == r || y == 0 || y == hs) {
+                    continue;
+                }
+                let visor = z == -r && (y == hs / 2 || y == hs / 2 + 1) && x.abs() < r;
+                let mouth = z == -r && y > 0 && y < hs / 2 - 1 && x.abs() <= r / 2;
+                let t = if visor {
+                    Tint::Core
+                } else if mouth || y == 0 {
+                    Tint::Dark
+                } else if y == hs || (x == 0 && z == -r) {
+                    Tint::Accent
+                } else {
+                    Tint::Primary
+                };
+                out.push((c + IVec3::new(x, y - r, z), t));
+            }
+        }
+    }
+    // Crest + ear fins.
+    for k in 1..=2 {
+        out.push((c + IVec3::new(0, hs - r + k, -r + 1), Tint::Accent));
+        out.push((c + IVec3::new(0, hs - r + k - 1, -r), Tint::Accent));
+        for sx in [-1, 1] {
+            out.push((c + IVec3::new(sx * (r + 1), hs / 2 - r + k, 0), Tint::Accent));
+            out.push((c + IVec3::new(sx * (r + 1), hs / 2 - r + k + 1, 1), Tint::Accent));
+        }
+    }
+    out
+}
+
+// ------------------------------------------------------------------------------------- layout
+
 struct Placed {
     proto: usize,
     rot: [[i32; 3]; 3],
+    #[allow(dead_code)]
     rmin: IVec3,
     at: IVec3,
+}
+
+impl Placed {
+    fn voxels(&self, p: &Proto) -> Vec<IVec3> {
+        p.voxels.iter().map(|(v, _)| rot_apply(&self.rot, *v) + self.at).collect()
+    }
 }
 
 /// Build the rig from any alt-mode model (see module docs). Deterministic.
@@ -417,79 +522,82 @@ pub fn transform_rig(alt: &VoxelModel, seed: u32) -> TransformRig {
                 0
             }
         };
-        // Centre on the target box (x/z), bottom-align limbs/feet, centre everything else.
         let tc = (tmin + tmax) / 2;
         let mut min = IVec3::new(tc.x - size.x / 2, tc.y - size.y / 2, tc.z - size.z / 2);
         use RobotRole::*;
         match p.role {
             FootL | FootR | ShinL | ShinR | ThighL | ThighR | Pelvis | Abdomen | Chest | Head => min.y = tmin.y,
             UpperArmL | UpperArmR | ForearmL | ForearmR | FistL | FistR => min.y = tmax.y - size.y + 1,
+            // Door wings hang from the shoulder line, peeking just above it.
+            WingL | WingR => min.y = tmax.y - size.y + 2,
             _ => {}
         }
-        // Extra panels of one role (several wheels on a hip) fan out along z.
-        min.z += k * (size.z / 2 + 1) * if k % 2 == 1 { -1 } else { 1 };
+        // Extra pieces of one role spread a little (they are snapped together afterwards).
+        let spread = (k + 1) / 2 * if k % 2 == 1 { 1 } else { -1 };
+        min.z += spread * (size.z / 3).max(1);
         placed.push(Placed { proto: i, rot, rmin: a, at: min - a });
     }
-    let low = placed.iter().map(|p| p.rmin.y + p.at.y).min().unwrap_or(0);
-    for p in placed.iter_mut() {
-        p.at.y -= low;
-    }
+    connect(&protos, &mut placed);
     let _ = seed;
-    assemble(alt, &protos, &placed)
+    assemble(alt.voxel_size, &protos, &placed, None)
 }
 
-/// Robot skeleton boxes (voxel units, feet at y = 0, facing −Z), proportioned from the alt size so
-/// the robot is about as tall as the vehicle is long.
+/// Robot skeleton boxes (voxel units, feet at y = 0, facing −Z): heroic proportions — broad chest
+/// and shoulders, narrow waist, thick shins and feet — scaled so the robot is about as tall as the
+/// vehicle is long.
 fn skeleton(protos: &[Proto]) -> Vec<(RobotRole, IVec3, IVec3)> {
     use RobotRole::*;
-    let all: Vec<(IVec3, Tint)> = protos.iter().filter(|p| p.role != Head).flat_map(|p| p.voxels.iter().copied()).collect();
+    let all: Vec<(IVec3, Tint)> = protos.iter().filter(|p| p.scale_mode == 0).flat_map(|p| p.voxels.iter().copied()).collect();
     let (a, b) = if all.is_empty() { (IVec3::ZERO, IVec3::splat(8)) } else { bbox(&all) };
     let e = (b - a + IVec3::ONE).as_vec3();
-    let h = (e.z.max(e.x) * 1.0).max(e.y * 1.6).max(10.0);
+    let h = e.z.max(e.x).max(e.y * 1.6).max(12.0);
     let r = |x: f32| (x.round() as i32).max(1);
-    let cw = r((e.x * 0.8).max(h * 0.34));
-    let cd = r((h * 0.16).max(3.0));
-    let lw = r(cw as f32 * 0.34).max(2);
-    let aw = r(cw as f32 * 0.26).max(2);
-    let (foot, shin, thigh) = (r(h * 0.06), r(h * 0.2), r(h * 0.19));
-    let (pelvis, abd, chest, head) = (r(h * 0.08), r(h * 0.1), r(h * 0.19), r(h * 0.1));
+    let cw = r((e.x * 0.95).max(h * 0.42));
+    let cd = r((h * 0.2).max(4.0));
+    let tw = r(cw as f32 * 0.3).max(2);
+    let sw = r(cw as f32 * 0.36).max(3);
+    let aw = r(cw as f32 * 0.24).max(2);
+    let (foot, shin, thigh) = (r(h * 0.06), r(h * 0.2), r(h * 0.18));
+    let (pelvis, abd, chest, head) = (r(h * 0.08), r(h * 0.09), r(h * 0.21), r(h * 0.12));
     let (upper, fore, fist) = (r(h * 0.19), r(h * 0.17), r(h * 0.08));
+    let pad = r(h * 0.14);
     let y_shin = foot;
     let y_thigh = y_shin + shin;
     let y_pel = y_thigh + thigh;
     let y_abd = y_pel + pelvis;
     let y_chest = y_abd + abd;
     let top = y_chest + chest;
-    let lx = cw / 4 + 1;
+    let pw = r(cw as f32 * 0.62);
+    let lx = (pw / 2 - tw / 2).max(tw / 2 + 1);
     let ax = cw / 2 + aw / 2 + 1;
     let bx = |cx: i32, y0: i32, w: i32, hh: i32, cz: i32, d: i32| (IVec3::new(cx - w / 2, y0, cz - d / 2), IVec3::new(cx - w / 2 + w - 1, y0 + hh - 1, cz - d / 2 + d - 1));
     let mut out = Vec::new();
     for s in [-1i32, 1] {
         let pick = |l: RobotRole, rr: RobotRole| if s < 0 { l } else { rr };
-        let (a1, b1) = bx(s * lx, 0, lw + 1, foot, -1, lw + 3);
+        let (a1, b1) = bx(s * lx, 0, sw + 1, foot, -1, sw + 4);
         out.push((pick(FootL, FootR), a1, b1));
-        let (a1, b1) = bx(s * lx, y_shin, lw, shin, 0, lw);
+        let (a1, b1) = bx(s * lx, y_shin, sw, shin, 0, sw);
         out.push((pick(ShinL, ShinR), a1, b1));
-        let (a1, b1) = bx(s * (lx + lw / 2 + 1), y_shin + shin / 4, 2, shin / 2, 0, shin / 2);
+        let (a1, b1) = bx(s * (lx + sw / 2 + 1), y_shin + shin / 4, 2, shin / 2, 0, shin / 2);
         out.push((pick(CalfL, CalfR), a1, b1));
-        let (a1, b1) = bx(s * lx, y_thigh, lw, thigh, 0, lw);
+        let (a1, b1) = bx(s * lx, y_thigh, tw, thigh, 0, tw);
         out.push((pick(ThighL, ThighR), a1, b1));
-        let (a1, b1) = bx(s * (cw / 2 + 1), y_pel, 2, pelvis, 0, pelvis);
+        let (a1, b1) = bx(s * (pw / 2 + 1), y_pel, 2, pelvis, 0, pelvis);
         out.push((pick(HipL, HipR), a1, b1));
         let (a1, b1) = bx(s * ax, top - upper, aw, upper, 0, aw);
         out.push((pick(UpperArmL, UpperArmR), a1, b1));
-        let (a1, b1) = bx(s * ax, top - upper - fore, aw, fore, -1, aw);
+        let (a1, b1) = bx(s * ax, top - upper - fore, aw + 1, fore, -1, aw + 1);
         out.push((pick(ForearmL, ForearmR), a1, b1));
         let (a1, b1) = bx(s * ax, top - upper - fore - fist, aw + 1, fist, -1, aw + 1);
         out.push((pick(FistL, FistR), a1, b1));
-        let (a1, b1) = bx(s * (ax + aw / 2 + 1), top - upper / 2, 2, upper / 2, 0, upper / 2);
+        let (a1, b1) = bx(s * (ax + 1), top - pad / 2 - 1, pad, pad, 0, pad);
         out.push((pick(ShoulderL, ShoulderR), a1, b1));
         let (a1, b1) = bx(s * (cw / 4 + 1), y_chest + chest / 3, cw / 2, chest, cd / 2 + 2, 2);
         out.push((pick(WingL, WingR), a1, b1));
     }
-    let (a1, b1) = bx(0, y_pel, cw - 2, pelvis, 0, cd - 1);
+    let (a1, b1) = bx(0, y_pel, pw, pelvis, 0, cd - 2);
     out.push((Pelvis, a1, b1));
-    let (a1, b1) = bx(0, y_abd, cw - 3, abd, 0, cd - 1);
+    let (a1, b1) = bx(0, y_abd, r(cw as f32 * 0.55), abd, 0, cd - 2);
     out.push((Abdomen, a1, b1));
     let (a1, b1) = bx(0, y_chest, cw, chest, -1, cd);
     out.push((Chest, a1, b1));
@@ -505,7 +613,7 @@ fn target_of(t: &[(RobotRole, IVec3, IVec3)], role: RobotRole) -> (IVec3, IVec3)
 }
 
 /// Pick the 90° rotation whose rotated box best matches the target box (limbs weigh length most;
-/// plates prefer their outer face forward; wheels keep their axle across).
+/// the chest keeps its windshield facing forward; wheels keep their axle across).
 fn orient_to(role: RobotRole, vox: &[(IVec3, Tint)], target: Vec3, rots: &[[[i32; 3]; 3]]) -> [[i32; 3]; 3] {
     use RobotRole::*;
     let (a, b) = bbox(vox);
@@ -522,7 +630,7 @@ fn orient_to(role: RobotRole, vox: &[(IVec3, Tint)], target: Vec3, rots: &[[[i32
         let back = rot_apply(m, IVec3::Z);
         let mut cost = ((ea - target) * w).abs().element_sum();
         match role {
-            Chest if up == IVec3::NEG_Z => cost -= 1.5,
+            Chest | Head if *m == IDENTITY_ROT => cost -= 4.0 + e.element_sum() * 0.25,
             Back if up == IVec3::Z => cost -= 1.5,
             ShinL | ShinR | FootL | FootR if back == IVec3::NEG_Y => cost -= 1.0,
             ShoulderL | ShoulderR | CalfL | CalfR | HipL | HipR => cost = if rot_apply(m, IVec3::X).abs() == IVec3::X { cost * 0.1 } else { cost + 100.0 },
@@ -538,15 +646,133 @@ fn orient_to(role: RobotRole, vox: &[(IVec3, Tint)], target: Vec3, rots: &[[[i32
     best.1
 }
 
-fn assemble(alt: &VoxelModel, protos: &[Proto], placed: &[Placed]) -> TransformRig {
-    let vs = alt.voxel_size.max(1e-3);
-    // Alt panel model: root (empty) + one part per panel.
+fn set_of(protos: &[Proto], placed: &[Placed], idx: &[usize]) -> HashSet<IVec3> {
+    idx.iter().flat_map(|&i| placed[i].voxels(&protos[placed[i].proto])).collect()
+}
+
+fn vbox(v: &[IVec3]) -> (IVec3, IVec3) {
+    let mut mn = IVec3::splat(i32::MAX);
+    let mut mx = IVec3::splat(i32::MIN);
+    for p in v {
+        mn = mn.min(*p);
+        mx = mx.max(*p);
+    }
+    (mn, mx)
+}
+
+/// Unit step moving box `a` toward box `b` (largest separating axis; centres if they overlap).
+fn step_toward(a: (IVec3, IVec3), b: (IVec3, IVec3)) -> IVec3 {
+    let mut best = (0, IVec3::ZERO);
+    for k in 0..3 {
+        let gap_pos = b.0[k] - a.1[k];
+        let gap_neg = a.0[k] - b.1[k];
+        let (g, dir) = if gap_pos > 0 { (gap_pos, 1) } else if gap_neg > 0 { (gap_neg, -1) } else { (0, 0) };
+        if g > best.0 {
+            let mut d = IVec3::ZERO;
+            d[k] = dir * (g - 1).max(1);
+            best = (g, d);
+        }
+    }
+    if best.0 > 0 {
+        return best.1;
+    }
+    let d = (b.0 + b.1) - (a.0 + a.1);
+    let k = if d.x.abs() >= d.y.abs() && d.x.abs() >= d.z.abs() { 0 } else if d.y.abs() >= d.z.abs() { 1 } else { 2 };
+    let mut s = IVec3::ZERO;
+    s[k] = d[k].signum();
+    s
+}
+
+fn touches(set: &HashSet<IVec3>, v: &[IVec3], reach: i32) -> bool {
+    v.iter().any(|p| {
+        if set.contains(p) {
+            return true;
+        }
+        for z in -reach..=reach {
+            for y in -reach..=reach {
+                for x in -reach..=reach {
+                    if set.contains(&(*p + IVec3::new(x, y, z))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    })
+}
+
+/// Snap panels so every body part is one connected piece and every part meets the torso
+/// (limbs within a 1-voxel joint gap).
+fn connect(protos: &[Proto], placed: &mut [Placed]) {
+    let live: Vec<usize> = (0..placed.len()).filter(|&i| protos[placed[i].proto].scale_mode >= 0).collect();
+    let mut groups: Vec<Vec<usize>> = vec![Vec::new(); 6];
+    for &i in &live {
+        groups[protos[placed[i].proto].role.group()].push(i);
+    }
+    for members in &mut groups {
+        members.sort_by_key(|&i| (protos[placed[i].proto].role.anchor_rank(), std::cmp::Reverse(protos[placed[i].proto].voxels.len()), i));
+        if members.is_empty() {
+            continue;
+        }
+        let mut set: HashSet<IVec3> = placed[members[0]].voxels(&protos[placed[members[0]].proto]).into_iter().collect();
+        let anchor_c = {
+            let v: Vec<IVec3> = set.iter().copied().collect();
+            let (a, b) = vbox(&v);
+            (a + b) / 2
+        };
+        let mut rest: Vec<usize> = members[1..].to_vec();
+        rest.sort_by_key(|&i| {
+            let v = placed[i].voxels(&protos[placed[i].proto]);
+            let (a, b) = vbox(&v);
+            (((a + b) / 2) - anchor_c).length_squared()
+        });
+        for i in rest {
+            for _ in 0..64 {
+                let v = placed[i].voxels(&protos[placed[i].proto]);
+                if touches(&set, &v, 1) {
+                    break;
+                }
+                let sv: Vec<IVec3> = set.iter().copied().collect();
+                placed[i].at += step_toward(vbox(&v), vbox(&sv));
+            }
+            set.extend(placed[i].voxels(&protos[placed[i].proto]));
+        }
+    }
+    // Limbs and head meet the torso (joint gap ≤ 1 voxel).
+    let torso = set_of(protos, placed, &groups[0]);
+    if torso.is_empty() {
+        return;
+    }
+    let tv: Vec<IVec3> = torso.iter().copied().collect();
+    let tb = vbox(&tv);
+    for members in groups.iter().skip(1) {
+        if members.is_empty() {
+            continue;
+        }
+        for _ in 0..64 {
+            let gv: Vec<IVec3> = set_of(protos, placed, members).into_iter().collect();
+            if touches(&torso, &gv, 2) {
+                break;
+            }
+            let st = step_toward(vbox(&gv), tb);
+            for &i in members {
+                placed[i].at += st;
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------- assemble
+
+fn assemble(vs: f32, protos: &[Proto], placed: &[Placed], pivots: Option<&[Option<Vec3>; 6]>) -> TransformRig {
+    use RobotRole::*;
+    let vs = vs.max(1e-3);
     let mut alt_parts = vec![PartModel { id: 0, parent: 0, parent_index: 0, pivot: Vec3::ZERO, role: None, voxels: Vec::new(), vmin: IVec3::ZERO, vmax: IVec3::ZERO, depth: 0, voxel_size: vs }];
-    let mut panels = vec![Panel { role: RobotRole::Chest, rot: IDENTITY_ROT, offset: IVec3::ZERO, alt_center: Vec3::ZERO, robot_center: Vec3::ZERO, q: Quat::IDENTITY, axis: Vec3::Y, angle: 0.0, pop: Vec3::ZERO, start: 0.0, end: 0.0 }];
-    // Robot parts: root torso, head, arms, legs.
+    let dummy = Panel { role: Chest, rot: IDENTITY_ROT, offset: IVec3::ZERO, alt_center: Vec3::ZERO, robot_center: Vec3::ZERO, q: Quat::IDENTITY, axis: Vec3::Y, angle: 0.0, pop: Vec3::ZERO, unfold: 0.0, move_start: 0.0, move_len: 0.0, scale_mode: 0 };
+    let mut panels = vec![dummy];
     let mut groups: Vec<Vec<(IVec3, Tint)>> = vec![Vec::new(); 6];
-    let mut group_boxes: Vec<(IVec3, IVec3)> = vec![(IVec3::splat(i32::MAX), IVec3::splat(i32::MIN)); 6];
-    let (amn, amx) = bbox(&protos.iter().flat_map(|p| p.voxels.iter().copied()).collect::<Vec<_>>());
+    let solid: Vec<(IVec3, Tint)> = protos.iter().filter(|p| p.scale_mode == 0).flat_map(|p| p.voxels.iter().copied()).collect();
+    let (amn, amx) = if solid.is_empty() { (IVec3::ZERO, IVec3::ZERO) } else { bbox(&solid) };
     let alt_c = (amn + amx).as_vec3() * 0.5 * vs;
     for (k, pl) in placed.iter().enumerate() {
         let pr = &protos[pl.proto];
@@ -556,70 +782,65 @@ fn assemble(alt: &VoxelModel, protos: &[Proto], placed: &[Placed]) -> TransformR
         let c1 = q * c0 + pl.at.as_vec3() * vs;
         let (axis, angle) = q.to_axis_angle();
         let out = c0 - alt_c;
-        let pop = if out.length_squared() > 1e-6 { out.normalize() } else { Vec3::Y };
-        alt_parts.push(PartModel {
-            id: (k + 1).min(250) as PartId,
-            parent: 0,
-            parent_index: 0,
-            pivot: c0,
-            role: Some(PartRole::Other),
-            voxels: pr.voxels.clone(),
-            vmin: a,
-            vmax: b,
-            depth: 1,
-            voxel_size: vs,
+        let pop = if out.length_squared() > 1e-6 { (out.normalize() + Vec3::Y * 0.3).normalize() } else { Vec3::Y };
+        alt_parts.push(PartModel { id: (k + 1).min(250) as PartId, parent: 0, parent_index: 0, pivot: c0, role: Some(PartRole::Other), voxels: pr.voxels.clone(), vmin: a, vmax: b, depth: 1, voxel_size: vs });
+        panels.push(Panel {
+            role: pr.role,
+            rot: pl.rot,
+            offset: pl.at,
+            alt_center: c0,
+            robot_center: c1,
+            q,
+            axis: if axis.is_finite() { axis } else { Vec3::Y },
+            angle: if angle.is_finite() { angle } else { 0.0 },
+            pop,
+            unfold: 0.0,
+            move_start: 0.0,
+            move_len: 0.0,
+            scale_mode: pr.scale_mode,
         });
-        panels.push(Panel { role: pr.role, rot: pl.rot, offset: pl.at, alt_center: c0, robot_center: c1, q, axis: if axis.is_finite() { axis } else { Vec3::Y }, angle: if angle.is_finite() { angle } else { 0.0 }, pop, start: 0.0, end: 0.0 });
-        let g = pr.role.group();
-        for (v, t) in &pr.voxels {
-            let r = rot_apply(&pl.rot, *v) + pl.at;
-            groups[g].push((r, *t));
-            group_boxes[g].0 = group_boxes[g].0.min(r);
-            group_boxes[g].1 = group_boxes[g].1.max(r);
+        if pr.scale_mode >= 0 {
+            let g = pr.role.group();
+            for (v, t) in &pr.voxels {
+                groups[g].push((rot_apply(&pl.rot, *v) + pl.at, *t));
+            }
         }
     }
-    // Stagger: outside-in (farthest from the alt centre first); the head unfolds last.
+    // Beat timing: unfold outside-in, then legs → torso → wings/back → arms → shoulder pads, head last.
     let n = panels.len().saturating_sub(1).max(1);
     let mut order: Vec<usize> = (1..panels.len()).collect();
-    order.sort_by(|&a, &b| {
-        let da = if panels[a].role == RobotRole::Head { -1.0 } else { (panels[a].alt_center - alt_c).length() };
-        let db = if panels[b].role == RobotRole::Head { -1.0 } else { (panels[b].alt_center - alt_c).length() };
-        db.total_cmp(&da).then(a.cmp(&b))
-    });
+    order.sort_by(|&a, &b| (panels[b].alt_center - alt_c).length().total_cmp(&(panels[a].alt_center - alt_c).length()).then(a.cmp(&b)));
     for (rank, &i) in order.iter().enumerate() {
+        let p = &mut panels[i];
         let f = rank as f32 / n as f32;
-        panels[i].start = 0.02 + 0.36 * f;
-        panels[i].end = (panels[i].start + 0.44).min(0.84);
+        p.unfold = 0.12 * f;
+        let base = match p.role {
+            ThighL | ThighR | ShinL | ShinR | FootL | FootR | CalfL | CalfR => 0.26,
+            Pelvis | Abdomen | Chest | HipL | HipR => 0.3,
+            Back | WingL | WingR => 0.34,
+            UpperArmL | UpperArmR | ForearmL | ForearmR | FistL | FistR => 0.36,
+            ShoulderL | ShoulderR => 0.42,
+            Head => 0.64,
+        };
+        p.move_start = if p.scale_mode == 1 && p.role != Head { 0.4 } else { base } + 0.04 * f;
+        p.move_len = if p.role == Head { 0.18 } else { 0.3 };
     }
     // Robot model.
-    let pivot_of = |g: usize, bx: (IVec3, IVec3)| -> Vec3 {
-        let (a, b) = bx;
-        let c = (a + b).as_vec3() * 0.5;
-        match g {
-            1 => Vec3::new(c.x, a.y as f32 - 0.5, c.z) * vs,
-            2..=5 => Vec3::new(c.x, b.y as f32, c.z) * vs,
-            _ => Vec3::ZERO,
-        }
-    };
     let roles = [None, Some(PartRole::Head), Some(PartRole::ArmLeft), Some(PartRole::ArmRight), Some(PartRole::LegBackLeft), Some(PartRole::LegBackRight)];
     let mut robot_parts = Vec::new();
     for g in 0..6 {
         if g > 0 && groups[g].is_empty() {
             continue;
         }
-        let id = robot_parts.len() as PartId;
-        robot_parts.push(PartModel {
-            id,
-            parent: 0,
-            parent_index: 0,
-            pivot: if g == 0 { Vec3::ZERO } else { pivot_of(g, group_boxes[g]) },
-            role: roles[g],
-            voxels: std::mem::take(&mut groups[g]),
-            vmin: IVec3::ZERO,
-            vmax: IVec3::ZERO,
-            depth: (g > 0) as u8,
-            voxel_size: vs,
-        });
+        let (a, b) = if groups[g].is_empty() { (IVec3::ZERO, IVec3::ZERO) } else { bbox(&groups[g]) };
+        let c = (a + b).as_vec3() * 0.5;
+        let auto = match g {
+            0 => Vec3::ZERO,
+            1 => Vec3::new(c.x, a.y as f32 - 0.5, c.z) * vs,
+            _ => Vec3::new(c.x, b.y as f32, c.z) * vs,
+        };
+        let pivot = pivots.and_then(|p| p[g]).unwrap_or(auto);
+        robot_parts.push(PartModel { id: robot_parts.len() as PartId, parent: 0, parent_index: 0, pivot, role: roles[g], voxels: std::mem::take(&mut groups[g]), vmin: IVec3::ZERO, vmax: IVec3::ZERO, depth: (g > 0) as u8, voxel_size: vs });
     }
     let robot = model_from_parts(robot_parts, vs);
     let height = (robot.bounds.max.y - robot.bounds.min.y).max(0.25);
@@ -627,64 +848,103 @@ fn assemble(alt: &VoxelModel, protos: &[Proto], placed: &[Placed]) -> TransformR
     TransformRig { alt: alt_model, robot, panels, height }
 }
 
-/// Two-mode icon: `alt` and `robot` specs share panel ids (`Prim::part`). Each alt panel is placed
-/// by the 90° rotation + translation that best matches the robot panel's box; the robot panel's
-/// part role (Head / Arm* / Leg* / else torso) decides which robot part it rides in.
+// ------------------------------------------------------------------------------ authored icons
+
+/// Two-mode icon: `alt` = vehicle/beast mode, `robot` = robot mode. Parts present in both are the
+/// same panel rigidly moved (the transform is read from the prims, snapped to 90° / whole voxels);
+/// robot-only parts (head, arms, weapons) grow in; alt-only parts fold away. The robot part roles
+/// (Head / Arm* / Leg*, walking up the parent chain) decide which robot-model part each rides in.
 pub fn transform_rig_authored(alt: &ShapeSpec, robot: &ShapeSpec, cap: usize) -> TransformRig {
     use RobotRole::*;
     let am = crate::voxelize::voxelize_capped(alt, cap);
-    let k = (am.voxel_size / bd_core::CONSTRUCT_VOXEL_SIZE).round().max(1.0) as u32;
-    let rm = crate::voxelize::voxelize_at(robot, k);
+    let k = (am.voxel_size / bd_core::CONSTRUCT_VOXEL_SIZE).round().max(1.0);
+    let rm = crate::voxelize::voxelize_at(robot, k as u32);
     let rots = all_rotations();
+    // Group of a robot part: walk the parent chain to the first limb/head role.
+    let group_of = |id: PartId| -> (usize, bool) {
+        let mut cur = id;
+        for _ in 0..32 {
+            let Some(p) = robot.parts.iter().find(|p| p.id == cur) else { return (0, false) };
+            match p.role {
+                PartRole::Head => return (1, false),
+                PartRole::ArmLeft => return (2, true),
+                PartRole::ArmRight => return (3, true),
+                PartRole::LegBackLeft | PartRole::LegFrontLeft => return (4, true),
+                PartRole::LegBackRight | PartRole::LegFrontRight => return (5, true),
+                _ => {}
+            }
+            if p.parent == cur {
+                break;
+            }
+            cur = p.parent;
+        }
+        (0, false)
+    };
+    let role_for = |g: usize| [Chest, Head, UpperArmL, UpperArmR, ThighL, ThighR][g];
+    let first_prim = |s: &ShapeSpec, id: PartId| s.prims.iter().find(|p| p.part == id && !p.subtract).cloned();
     let mut protos = Vec::new();
     let mut placed = Vec::new();
+    let alt_c = {
+        let all: Vec<(IVec3, Tint)> = am.parts.iter().flat_map(|p| p.voxels.iter().copied()).collect();
+        if all.is_empty() { IVec3::ZERO } else { let (a, b) = bbox(&all); (a + b) / 2 }
+    };
     for ap in &am.parts {
         if ap.voxels.is_empty() {
             continue;
         }
-        let Some(rp) = rm.parts.iter().find(|p| p.id == ap.id && !p.voxels.is_empty()) else { continue };
-        let side_l = rp.pivot.x < 0.0;
-        let role = match rp.role {
-            Some(PartRole::Head) => Head,
-            Some(PartRole::ArmLeft) => UpperArmL,
-            Some(PartRole::ArmRight) => UpperArmR,
-            Some(PartRole::LegBackLeft | PartRole::LegFrontLeft) => ThighL,
-            Some(PartRole::LegBackRight | PartRole::LegFrontRight) => ThighR,
-            _ if side_l => WingL,
-            _ => Chest,
-        };
-        let target = (rp.vmax - rp.vmin + IVec3::ONE).as_vec3();
-        let mut best = (f32::MAX, IDENTITY_ROT);
-        for m in &rots {
-            let rv: Vec<IVec3> = ap.voxels.iter().map(|(v, _)| rot_apply(m, *v)).collect();
-            let mut mn = IVec3::splat(i32::MAX);
-            let mut mx = IVec3::splat(i32::MIN);
-            for v in &rv {
-                mn = mn.min(*v);
-                mx = mx.max(*v);
+        let rp = rm.parts.iter().find(|p| p.id == ap.id && !p.voxels.is_empty());
+        match (rp, first_prim(alt, ap.id), first_prim(robot, ap.id)) {
+            (Some(rp), Some(pa), Some(pr)) => {
+                // Rigid move read from the prims: R = q_r · q_a⁻¹, t = c_r − R c_a (units → voxels /k).
+                let q = crate::build::quat_from_rot_deg(pr.rot_deg) * crate::build::quat_from_rot_deg(pa.rot_deg).inverse();
+                let rot = snap_rot(q, &rots);
+                let rq = rot_quat(&rot);
+                let t = (pr.center - rq * pa.center) / k;
+                let at = t.round().as_ivec3();
+                let rv: Vec<(IVec3, Tint)> = ap.voxels.iter().map(|(v, t)| (rot_apply(&rot, *v), *t)).collect();
+                let (a, _) = bbox(&rv);
+                let (g, _) = group_of(rp.id);
+                placed.push(Placed { proto: protos.len(), rot, rmin: a, at });
+                protos.push(Proto { role: role_for(g), voxels: ap.voxels.clone(), scale_mode: 0 });
             }
-            let d = ((mx - mn + IVec3::ONE).as_vec3() - target).abs().element_sum() + if *m == IDENTITY_ROT { -1e-3 } else { 0.0 };
-            if d < best.0 {
-                best = (d, *m);
+            _ => {
+                // Alt-only: folds away into the body.
+                placed.push(Placed { proto: protos.len(), rot: IDENTITY_ROT, rmin: IVec3::ZERO, at: IVec3::ZERO });
+                protos.push(Proto { role: Back, voxels: ap.voxels.clone(), scale_mode: -1 });
             }
         }
-        let rv: Vec<(IVec3, Tint)> = ap.voxels.iter().map(|(v, t)| (rot_apply(&best.1, *v), *t)).collect();
-        let (a, b) = bbox(&rv);
-        let at = rp.vmin - a;
-        let _ = b;
-        placed.push(Placed { proto: protos.len(), rot: best.1, rmin: a, at });
-        protos.push(Proto { role, voxels: ap.voxels.clone() });
     }
-    if protos.is_empty() {
-        let (s, m) = (alt.clone(), am);
-        let _ = s;
-        return transform_rig(&m, 0);
+    // Robot-only parts grow in from the body centre.
+    for rp in &rm.parts {
+        if rp.voxels.is_empty() || am.parts.iter().any(|a| a.id == rp.id && !a.voxels.is_empty()) {
+            continue;
+        }
+        let (a, b) = bbox(&rp.voxels);
+        let shift = (a + b) / 2 - alt_c;
+        let voxels: Vec<(IVec3, Tint)> = rp.voxels.iter().map(|(v, t)| (*v - shift, *t)).collect();
+        let (g, _) = group_of(rp.id);
+        let role = if g == 1 { Head } else { role_for(g) };
+        placed.push(Placed { proto: protos.len(), rot: IDENTITY_ROT, rmin: a - shift, at: shift });
+        protos.push(Proto { role, voxels, scale_mode: 1 });
     }
-    let low = placed.iter().map(|p| p.rmin.y + p.at.y).min().unwrap_or(0);
+    if protos.iter().all(|p| p.scale_mode != 0) {
+        return transform_rig(&am, 0);
+    }
+    // Feet on the ground, then the same no-floaters pass as procedural robots.
+    let low = placed.iter().enumerate().filter(|(i, _)| protos[*i].scale_mode >= 0).map(|(i, p)| protos[i].voxels.iter().map(|(v, _)| rot_apply(&p.rot, *v).y + p.at.y).min().unwrap_or(0)).min().unwrap_or(0);
     for p in placed.iter_mut() {
         p.at.y -= low;
     }
-    assemble(&am, &protos, &placed)
+    connect(&protos, &mut placed);
+    // Authored limb pivots.
+    let mut pivots: [Option<Vec3>; 6] = [None; 6];
+    for p in &robot.parts {
+        let (g, limb) = group_of(p.id);
+        if (limb || g == 1) && pivots[g].is_none() && p.pivot.is_finite() {
+            pivots[g] = Some((p.pivot / k - Vec3::Y * low as f32) * am.voxel_size);
+        }
+    }
+    assemble(am.voxel_size, &protos, &placed, Some(&pivots))
 }
 
 // --------------------------------------------------------------------------------- sequence
@@ -693,16 +953,16 @@ fn ease(e: Ease, u: f32) -> f32 {
     e.apply(u.clamp(0.0, 1.0))
 }
 
-/// Pose the panel model at normalised time `t` (0 = alt, 1 = robot). `to_robot = false` plays the
-/// reverse (robot → alt) with the same `t` direction (0 = robot, 1 = alt). Allocation-free;
-/// `out` must hold `rig.alt.parts.len()` entries (model space, metres).
+/// Pose the panel model at normalised time `t` (0 = alt, 1 = robot) — three beats: unfold,
+/// rearrange, lock-in (see module docs). `to_robot = false` plays robot → alt (t: 0 = robot, 1 =
+/// alt). Allocation-free; `out` must hold `rig.alt.parts.len()` entries (model space, metres).
 pub fn pose_transform(rig: &TransformRig, t: f32, to_robot: bool, out: &mut [Affine3A]) {
     let t = if t.is_finite() { t.clamp(0.0, 1.0) } else { 0.0 };
     let t = if to_robot { t } else { 1.0 - t };
     let n = rig.panels.len().min(out.len());
-    // Stand-up: squash while the panels land, spring up at the end.
-    let crouch = smoothstep(0.3, 0.62, t) * (1.0 - ease(Ease::OutBack, (t - 0.8) / 0.2));
-    let g = Affine3A::from_scale(Vec3::new(1.0 + 0.06 * crouch, 1.0 - 0.2 * crouch, 1.0 + 0.06 * crouch));
+    // Lock-in: squash while the last panels land, then spring up (stretch overshoot) and settle.
+    let squash = smoothstep(0.5, 0.8, t) * (1.0 - ease(Ease::OutBack, (t - 0.82) / 0.18));
+    let g = Affine3A::from_scale(Vec3::new(1.0 + 0.07 * squash, 1.0 - 0.16 * squash, 1.0 + 0.07 * squash));
     let vs = rig.alt.voxel_size;
     for (i, o) in out.iter_mut().enumerate().take(n) {
         if i == 0 {
@@ -710,25 +970,29 @@ pub fn pose_transform(rig: &TransformRig, t: f32, to_robot: bool, out: &mut [Aff
             continue;
         }
         let p = &rig.panels[i];
-        let u = ((t - p.start) / (p.end - p.start).max(1e-3)).clamp(0.0, 1.0);
-        // 1) unlatch: pop outward, 2) hinge, 3) slide/arc into place.
-        let pop = p.pop * (vs * 1.5) * ease(Ease::OutCubic, u / 0.25) * (1.0 - smoothstep(0.55, 1.0, u));
-        let r = ease(Ease::OutBack, (u - 0.18) / 0.45);
+        if t >= 1.0 {
+            *o = if p.scale_mode < 0 { Affine3A::from_scale(Vec3::splat(1e-3)) } else { exact(p, vs) };
+            continue;
+        }
+        // Beat 1: unlatch + pop + hinge flip.
+        let u1 = (t - p.unfold) / 0.2;
+        let pop = p.pop * (vs * 2.0) * ease(Ease::OutCubic, u1) * (1.0 - smoothstep(0.5, 0.75, t));
+        let r = ease(Ease::OutBack, (t - p.unfold - 0.04) / 0.24);
         let q = Quat::from_axis_angle(p.axis, p.angle * r);
-        let m = ease(Ease::OutBack, (u - 0.32) / 0.68);
-        let arc = Vec3::Y * ((p.robot_center - p.alt_center).length() * 0.25 * (PI * ((u - 0.32) / 0.68).clamp(0.0, 1.0)).sin());
+        // Beat 2: slide along an arc into the robot slot.
+        let um = (t - p.move_start) / p.move_len.max(1e-3);
+        let m = ease(Ease::OutBack, um);
+        let arc = Vec3::Y * ((p.robot_center - p.alt_center).length() * 0.18 * (PI * um.clamp(0.0, 1.0)).sin());
         let c = p.alt_center.lerp(p.robot_center, m) + arc + pop;
-        let a = Affine3A::from_translation(c) * Affine3A::from_quat(q) * Affine3A::from_translation(-p.alt_center);
-        let a = if u >= 1.0 { exact(p, vs) } else { a };
-        let blend = smoothstep(0.35, 0.7, t);
-        let a = if blend > 0.0 { g_lerp(g, blend) * a } else { a };
+        let s = match p.scale_mode {
+            1 => ease(Ease::OutBack, um).max(1e-3),
+            -1 => (1.0 - smoothstep(0.2, 0.55, t)).max(1e-3),
+            _ => 1.0,
+        };
+        let a = Affine3A::from_translation(c) * Affine3A::from_quat(q) * Affine3A::from_scale(Vec3::splat(s)) * Affine3A::from_translation(-p.alt_center);
+        let a = g * a;
         *o = if a.is_finite() { a } else { Affine3A::IDENTITY };
     }
-}
-
-fn g_lerp(g: Affine3A, w: f32) -> Affine3A {
-    let s = Vec3::ONE.lerp(Vec3::new(g.matrix3.x_axis.x, g.matrix3.y_axis.y, g.matrix3.z_axis.z), w);
-    Affine3A::from_scale(s)
 }
 
 /// Exact robot placement of a panel (maps alt voxel centres onto robot voxel centres).
@@ -740,10 +1004,12 @@ fn exact(p: &Panel, vs: f32) -> Affine3A {
 pub enum TransformEventKind {
     /// Panel unlatches (click + spark).
     Unlatch,
-    /// Hinge swing peaks (whirr).
+    /// Hinge flip peaks (whirr).
     Hinge,
     /// Panel locks into its slot (clack + spark burst).
     Lock,
+    /// The head pops up (visor flash).
+    HeadUp,
     /// The robot stands up / the vehicle settles (thud).
     StandUp,
 }
@@ -755,22 +1021,27 @@ pub struct TransformEvent {
     /// Panel part index in `TransformRig::alt` (0 for whole-body events).
     pub panel: usize,
     pub kind: TransformEventKind,
-    /// Posed position at the event (robot-bound direction), metres.
+    /// Where it happens (model space, metres; alt-side for unlatch, robot-side for lock).
     pub pos: Vec3,
 }
 
-/// Events of the alt → robot sequence, sorted by time (reverse: `1 - time`).
+/// Events of the alt → robot sequence, sorted by time (reverse: use `1 - time`).
 pub fn sequence_events(rig: &TransformRig) -> Vec<TransformEvent> {
     let mut ev = Vec::new();
     for (i, p) in rig.panels.iter().enumerate().skip(1) {
-        let w = p.end - p.start;
-        ev.push(TransformEvent { time: p.start, panel: i, kind: TransformEventKind::Unlatch, pos: p.alt_center });
-        if p.angle.abs() > 0.1 {
-            ev.push(TransformEvent { time: p.start + w * 0.4, panel: i, kind: TransformEventKind::Hinge, pos: p.alt_center.lerp(p.robot_center, 0.3) });
+        if p.scale_mode == 0 {
+            ev.push(TransformEvent { time: p.unfold, panel: i, kind: TransformEventKind::Unlatch, pos: p.alt_center });
+            if p.angle.abs() > 0.1 {
+                ev.push(TransformEvent { time: p.unfold + 0.12, panel: i, kind: TransformEventKind::Hinge, pos: p.alt_center + p.pop * 0.3 });
+            }
         }
-        ev.push(TransformEvent { time: p.end, panel: i, kind: TransformEventKind::Lock, pos: p.robot_center });
+        let end = (p.move_start + p.move_len).min(1.0);
+        let kind = if p.role == RobotRole::Head { TransformEventKind::HeadUp } else { TransformEventKind::Lock };
+        if p.scale_mode >= 0 {
+            ev.push(TransformEvent { time: end, panel: i, kind, pos: p.robot_center });
+        }
     }
-    ev.push(TransformEvent { time: 0.92, panel: 0, kind: TransformEventKind::StandUp, pos: Vec3::ZERO });
+    ev.push(TransformEvent { time: 0.9, panel: 0, kind: TransformEventKind::StandUp, pos: Vec3::ZERO });
     ev.sort_by(|a, b| a.time.total_cmp(&b.time));
     ev
 }

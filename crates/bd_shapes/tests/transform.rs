@@ -19,21 +19,40 @@ fn check_rig(rig: &TransformRig) {
     assert!(rig.panels.len() >= 8, "{} panels", rig.panels.len());
     assert_eq!(rig.robot.rig.gait, Gait::Biped);
     assert!(rig.robot.rig.has_arms && rig.robot.rig.has_head);
+    // No floaters: every robot part is one connected piece and meets the torso (joint gap ≤ 1).
+    let torso: HashSet<IVec3> = rig.robot.parts[0].voxels.iter().map(|(v, _)| *v).collect();
+    for p in &rig.robot.parts {
+        let v: Vec<IVec3> = p.voxels.iter().map(|(v, _)| *v).collect();
+        assert_eq!(component_count(&v), 1, "robot part {:?} is in {} pieces", p.role, component_count(&v));
+        if p.id != 0 {
+            let near = v.iter().any(|a| (-2..=2).any(|x| (-2..=2).any(|y| (-2..=2).any(|z| torso.contains(&(*a + IVec3::new(x, y, z)))))));
+            assert!(near, "robot part {:?} floats", p.role);
+        }
+    }
     // Seamless swap: every panel voxel lands exactly on a robot voxel at t = 1.
     let robot: HashSet<IVec3> = rig.robot.parts.iter().flat_map(|p| p.voxels.iter().map(|(v, _)| *v)).collect();
     let mut out = vec![Affine3A::IDENTITY; rig.alt.parts.len()];
     pose_transform(rig, 1.0, true, &mut out);
     let vs = rig.alt.voxel_size;
     for (i, p) in rig.alt.parts.iter().enumerate() {
+        if rig.panels[i].scale_mode < 0 {
+            continue;
+        }
         for (v, _) in &p.voxels {
             let w = out[i].transform_point3(v.as_vec3() * vs) / vs;
             let r = w.round().as_ivec3();
             assert!((w - r.as_vec3()).length() < 1e-3 && robot.contains(&r), "panel {i} voxel off-grid");
         }
     }
-    // t = 0 is the alt model exactly.
+    // t = 0 is the alt model exactly (robot-only pieces are scaled to nothing).
     pose_transform(rig, 0.0, true, &mut out);
-    assert!(out.iter().all(|a| a.abs_diff_eq(Affine3A::IDENTITY, 1e-5)));
+    for (i, a) in out.iter().enumerate() {
+        if rig.panels[i].scale_mode == 0 {
+            assert!(a.abs_diff_eq(Affine3A::IDENTITY, 1e-5));
+        } else if rig.panels[i].scale_mode == 1 {
+            assert!(a.matrix3.x_axis.length() < 0.01);
+        }
+    }
     for k in 0..=24 {
         pose_transform(rig, k as f32 / 24.0, k % 2 == 0, &mut out);
         assert!(out.iter().all(|a| a.is_finite()));

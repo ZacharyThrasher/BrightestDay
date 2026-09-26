@@ -70,6 +70,8 @@ pub struct Player {
     pub streak: u16,
     /// Tick of this player's last KO (double-KO detection).
     pub last_ko_tick: Option<Tick>,
+    /// POWERS HOOK: held player power (devil fruit / stand), COMBAT.md §5h.
+    pub power: crate::powers::PlayerPower,
 }
 
 impl Player {
@@ -108,6 +110,7 @@ impl Player {
             pending_splat: None,
             streak: 0,
             last_ko_tick: None,
+            power: Default::default(),
         }
     }
 

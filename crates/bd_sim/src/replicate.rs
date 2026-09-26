@@ -162,6 +162,9 @@ pub struct PlayerSnap {
     pub hooks: [Option<QPos>; 2],
     /// Seated in (construct id, part).
     pub seat: Option<(u32, u8)>,
+    /// POWERS HOOK: held power + its state flags (COMBAT.md §5h).
+    #[serde(default)]
+    pub power: crate::powers::PowerSnap,
 }
 
 impl PlayerSnap {
@@ -362,6 +365,9 @@ pub struct WorldSnapshot {
     pub portals: Vec<PortalSnap>,
     pub fields: Vec<FieldSnap>,
     pub links: Vec<LinkSnap>,
+    /// Party mode state (`None` in FFA): phase, clock, standings, owned effects, own offer.
+    #[serde(default)]
+    pub party: Option<crate::party::PartySnap>,
 }
 
 /// A snapshot encoded against an acknowledged baseline.
@@ -384,6 +390,9 @@ pub struct SnapshotDelta {
     pub portals: Option<Vec<PortalSnap>>,
     pub fields: Option<Vec<FieldSnap>>,
     pub links: Option<Vec<LinkSnap>>,
+    /// Party state when it changed (or on a keyframe). `Some(None)` = left party mode.
+    #[serde(default)]
+    pub party: Option<Option<crate::party::PartySnap>>,
 }
 
 /// Merge-walk two id-sorted lists: changed/new items of `cur`, and ids missing from `cur`.
@@ -456,6 +465,9 @@ impl SnapshotDelta {
         if ago == 0 || b.links != cur.links {
             d.links = Some(cur.links.clone());
         }
+        if (ago == 0 && cur.party.is_some()) || (ago > 0 && b.party != cur.party) {
+            d.party = Some(cur.party.clone());
+        }
         d
     }
 
@@ -483,6 +495,7 @@ impl SnapshotDelta {
             portals: self.portals.clone().unwrap_or_else(|| b.portals.clone()),
             fields: self.fields.clone().unwrap_or_else(|| b.fields.clone()),
             links: self.links.clone().unwrap_or_else(|| b.links.clone()),
+            party: self.party.clone().unwrap_or_else(|| b.party.clone()),
         })
     }
 }

@@ -47,7 +47,7 @@ fn fuzz_lists_cover_every_form_and_mechanic() {
         match m {
             Blunt | Blade | Pierce | Guard | Returning | Ricochet | Shoots | Beam | Explodes | Grab | Pull | SlowFall | Glide | Thrust
             | Bounce | Launch | Barrier | Trap | Homing | ArticulatedTail | Flies | Charge | Stomp | Breath | Swarm | Spin | DropFromSky
-            | Sticky | Fast | Heavy | Constrict | Walks | Piloted | Portal | Attract | Repel | Shrink | Grow | Link => MECHANICS.contains(&m),
+            | Sticky | Fast | Heavy | Constrict | Walks | Piloted | Portal | Attract | Repel | Shrink | Grow | Link | Transforms => MECHANICS.contains(&m),
         }
     }
     assert!(FORMS.iter().all(|f| form_ok(*f)));

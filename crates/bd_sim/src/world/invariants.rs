@@ -218,6 +218,10 @@ impl World {
             h.write(&l.id.to_le_bytes());
         }
         h.write_u64(self.carve_queue.len() as u64);
+        // PARTY HOOK: party standings / effects / offers (nothing in FFA, so FFA hashes are unchanged).
+        if let Some(p) = &self.party {
+            p.hash_into(&mut h);
+        }
         h.0
     }
 }

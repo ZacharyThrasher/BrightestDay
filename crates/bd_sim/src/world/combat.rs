@@ -45,6 +45,8 @@ impl World {
         if !self.players[ti].alive {
             return none;
         }
+        // POWERS HOOK: water drain / seastone marks, Logia scatter, immunities, rubber, Bara Bara.
+        let Some(hit) = self.powers_on_hit(ti, hit) else { return none };
         let finite = |v: f32| if v.is_finite() { v.max(0.0) } else { 0.0 };
         let base_damage = finite(hit.damage).min(500.0);
         let base_kb = finite(hit.knockback).min(120.0);
@@ -114,7 +116,8 @@ impl World {
             p.health = (p.health - damage).max(0.0);
             p.health
         };
-        let kb_mult = knock_mult(health) * element_knockback(hit.element) * self.players[ti].size.knockback_taken();
+        // Lobby knob `knockback_scale` (1.0 = shipped, bit-identical).
+        let kb_mult = knock_mult(health) * element_knockback(hit.element) * self.players[ti].size.knockback_taken() * self.cfg.rules.knockback_scale;
         let kb = if cockpit { 0.0 } else { base_kb * (1.0 + bonus) * kb_mult };
         let dir = knockback_dir(dir_in, hit.element);
         let tumble = kb > TUMBLE_IMPULSE;
@@ -499,7 +502,8 @@ impl World {
             self.carve_queue.pop_front();
             ops += 1;
             budget -= est;
-            let _outcome = apply_carve_op(&mut self.voxels, &op);
+            let outcome = apply_carve_op(&mut self.voxels, &op);
+            self.powers_record_carve(&outcome); // POWERS HOOK: Crazy Diamond's restore log
             self.events.push(GameEvent::Carve { op });
         }
     }

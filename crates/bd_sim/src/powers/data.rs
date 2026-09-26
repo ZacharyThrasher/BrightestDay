@@ -1,0 +1,555 @@
+//! Power definitions (`assets/powers.ron`) — the ONE template of COMBAT.md §5h.
+//!
+//! Every power is `body` + `graft` + `incantation` + `moves` + `transform` + `companion`, and every
+//! piece is closed-set data: `MoveModifiers` numbers, `Element`s, `Mechanic`s, recipes, and a closed
+//! list of [`MoveOp`]s that each map onto an existing world operation (cast, impulse, blink,
+//! field, portal, link, explosion, carve, status, seat). Nothing here adds a verb.
+
+use std::sync::OnceLock;
+
+use bd_core::mechanics::{Element, Feature, Form, Mechanic, ModelSource, Recipe, Temperament};
+use serde::{Deserialize, Serialize};
+
+use crate::movement::MoveModifiers;
+use crate::status::StatusKind;
+
+/// Grants key of the "random devil fruit" recipe (lexicon: "devil fruit", "mystery fruit").
+pub const RANDOM_FRUIT: &str = "random:devil_fruit";
+/// Grants key of the "random stand" recipe (lexicon: "stand arrow", "the arrow").
+pub const RANDOM_STAND: &str = "random:stand";
+
+/// Devil fruit class (Logia can scatter; Zoans transform) or a JoJo stand.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PowerKind {
+    Paramecia,
+    Logia,
+    Zoan,
+    MythicalZoan,
+    Stand,
+}
+
+impl PowerKind {
+    pub fn is_fruit(self) -> bool {
+        !matches!(self, PowerKind::Stand)
+    }
+}
+
+/// Multipliers / additions onto [`MoveModifiers`] (1.0 / 0.0 = unchanged).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MoveMods {
+    pub speed: f32,
+    pub gravity: f32,
+    pub jump: f32,
+    pub air_control: f32,
+    pub accel: f32,
+    /// Max of this and the current glide.
+    pub glide: f32,
+    /// Flight (m/s²) and its cap — Phoenix.
+    pub thrust: f32,
+    pub thrust_max: f32,
+    pub slow_fall: f32,
+}
+
+impl Default for MoveMods {
+    fn default() -> Self {
+        Self { speed: 1.0, gravity: 1.0, jump: 1.0, air_control: 1.0, accel: 1.0, glide: 0.0, thrust: 0.0, thrust_max: 0.0, slow_fall: 0.0 }
+    }
+}
+
+impl MoveMods {
+    pub fn apply(&self, m: &mut MoveModifiers) {
+        let f = |v: f32| if v.is_finite() { v.clamp(0.0, 4.0) } else { 1.0 };
+        m.speed_mult *= f(self.speed);
+        m.gravity_scale *= f(self.gravity);
+        m.jump_mult *= f(self.jump);
+        m.air_control *= f(self.air_control);
+        m.accel_mult *= f(self.accel);
+        if self.glide.is_finite() {
+            m.glide = m.glide.max(self.glide.clamp(0.0, 1.0));
+        }
+        if self.thrust.is_finite() && self.thrust > m.thrust {
+            m.thrust = self.thrust.min(60.0);
+            if self.thrust_max.is_finite() && self.thrust_max > 0.0 {
+                m.thrust_max_speed = self.thrust_max.min(30.0);
+            }
+        }
+        if self.slow_fall.is_finite() && self.slow_fall > 0.0 {
+            m.slow_fall = if m.slow_fall > 0.0 { m.slow_fall.min(self.slow_fall) } else { self.slow_fall };
+        }
+    }
+}
+
+/// Passive traits (§5h.1).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BodyDef {
+    pub moves: MoveMods,
+    /// Hits of these elements deal no damage and apply no element status (knockback halved).
+    pub immune: Vec<Element>,
+    /// Hits of these elements drain the power like Water does.
+    pub weak: Vec<Element>,
+    /// Logia: dissolve and reform ~1 m away instead of taking a hit (3 s cooldown).
+    pub scatter: bool,
+    /// Rubber: blunt things boing off (little damage, extra launch).
+    pub bounce: bool,
+    /// Bara Bara: Blade hits pass through.
+    pub blade_immune: bool,
+    /// Bomu Bomu: explosions don't hurt you (they still push).
+    pub explosion_immune: bool,
+}
+
+/// Standing graft merged into every cast (§5h.2), like a party effect.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GraftDef {
+    pub mechanics: Vec<Mechanic>,
+    /// Applied only when the phrase itself is plain Light (the player's own element wins).
+    pub element: Option<Element>,
+    pub features: Vec<Feature>,
+}
+
+/// How an incanted phrase is delivered (§5h.3).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Delivery {
+    pub add: Vec<Mechanic>,
+    pub remove: Vec<Mechanic>,
+    /// Overrides the phrase's element.
+    pub element: Option<Element>,
+    pub scale_mult: f32,
+    /// Objects are launched from the caster's fist (never dropped from the sky).
+    pub from_fist: bool,
+    /// Client: draw a stretching arm from the caster's hand to the construct while it lives.
+    pub arm: bool,
+}
+
+impl Default for Delivery {
+    fn default() -> Self {
+        Self { add: vec![], remove: vec![], element: None, scale_mult: 1.0, from_fist: false, arm: false }
+    }
+}
+
+/// A recipe in data form (compact; converted with [`RecipeDef::to_recipe`]).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RecipeDef {
+    pub name: String,
+    pub form: Form,
+    pub mech: Vec<Mechanic>,
+    pub element: Element,
+    pub scale: f32,
+    pub mass: f32,
+    pub count: u8,
+    pub features: Vec<Feature>,
+    pub temperament: Temperament,
+    pub intensity: f32,
+    pub payload: Option<Box<RecipeDef>>,
+}
+
+impl Default for RecipeDef {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            form: Form::Ball,
+            mech: vec![],
+            element: Element::Light,
+            scale: 1.0,
+            mass: 20.0,
+            count: 1,
+            features: vec![],
+            temperament: Temperament::Calm,
+            intensity: 0.0,
+            payload: None,
+        }
+    }
+}
+
+impl RecipeDef {
+    pub fn to_recipe(&self) -> Recipe {
+        Recipe {
+            name: self.name.clone(),
+            form: self.form,
+            mechanics: self.mech.clone(),
+            element: self.element,
+            scale: self.scale,
+            mass: self.mass,
+            count: self.count,
+            accent: None,
+            model: ModelSource::Procedural { seed: crate::rng::word_hash(&self.name) as u32 },
+            payload: self.payload.as_ref().map(|p| {
+                let mut r = p.to_recipe();
+                r.payload = None;
+                Box::new(r)
+            }),
+            features: self.features.clone(),
+            grants: None,
+            temperament: self.temperament,
+            intensity: self.intensity,
+        }
+        .normalized()
+    }
+}
+
+/// Where an area op is centred.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum At {
+    /// On the user.
+    #[default]
+    Me,
+    /// Where the crosshair lands (≤ 60 m).
+    Aim,
+    /// `dist` m in front of the user.
+    Front,
+}
+
+/// The closed set of things a move may do. Each maps onto an existing world operation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum MoveOp {
+    /// Cast a recipe through the normal pipeline (pays its cost). `modifier` = a graft phrase
+    /// (aimed at terrain it animates the terrain, §3c; aimed at an own construct it grafts).
+    Cast {
+        recipe: RecipeDef,
+        #[serde(default)]
+        modifier: bool,
+    },
+    /// Self impulse along the flat look (fwd) and world up.
+    Impulse { fwd: f32, up: f32 },
+    /// Short teleport along the look (stops before walls). `afterimage`: client ghost.
+    Blink {
+        dist: f32,
+        #[serde(default)]
+        afterimage: bool,
+    },
+    /// Stretch/string to what the crosshair hits and yank yourself there.
+    Reel { range: f32, speed: f32 },
+    /// Cone hit in front (a big ring shove): the stand's fist, a paw, a neck.
+    Shove {
+        range: f32,
+        angle: f32,
+        damage: f32,
+        knockback: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        up: f32,
+    },
+    /// Attract (> 0) / Repel (< 0) force field.
+    Field {
+        strength: f32,
+        radius: f32,
+        secs: f32,
+        #[serde(default)]
+        at: At,
+        #[serde(default)]
+        dist: f32,
+    },
+    /// Ope Ope ROOM: a strength-0 field that enables `Swap` inside it.
+    Room { radius: f32, secs: f32 },
+    /// Shambles: swap places with the aimed player (or own construct) — both must be inside
+    /// your ROOM.
+    Swap { range: f32 },
+    /// Sticky Fingers zipper: a portal on the aimed wall and one `depth` m through it.
+    Portal { depth: f32 },
+    /// Chain the aimed player to you.
+    Link { range: f32 },
+    /// Radial blast (+ crater).
+    Explode {
+        radius: f32,
+        damage: f32,
+        knockback: f32,
+        #[serde(default)]
+        carve: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        at: At,
+        #[serde(default)]
+        dist: f32,
+    },
+    /// Carve a straight trench along the look (capsule); players in it are hit; `pull` yanks
+    /// the first player in it to you (The Hand).
+    Carve {
+        length: f32,
+        radius: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        pull: bool,
+    },
+    /// The user alone moves at `speed`× while the world greys (never freezes anyone else).
+    TimeStop { secs: f32, speed: f32 },
+    /// Crazy Diamond: rebuild recently carved terrain and your own shattered constructs nearby.
+    Restore { radius: f32 },
+    /// Toggle the power's `transform`.
+    Transform,
+    /// A status on yourself (Kilo Kilo float = Float).
+    SelfStatus { status: StatusKind, secs: f32 },
+    /// The aimed player gets a status + a downward shove (Echoes 3 Freeze: heavy → sinks).
+    Weigh { range: f32, secs: f32, down: f32 },
+    /// When you next touch ground: a slam explosion there (Kilo press).
+    SlamOnLand { radius: f32, damage: f32, knockback: f32, carve: f32 },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MoveDef {
+    pub name: String,
+    pub cooldown: f32,
+    /// Willpower (Cast ops additionally pay their own cast cost).
+    pub cost: f32,
+    pub ops: Vec<MoveOp>,
+}
+
+impl Default for MoveDef {
+    fn default() -> Self {
+        Self { name: String::new(), cooldown: 1.0, cost: 0.0, ops: vec![] }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TransformDef {
+    /// Client costume id for the Transforms panel system (beast / hybrid form).
+    pub costume: String,
+    /// Replaces the base body while transformed.
+    pub body: BodyDef,
+    /// Extra standing graft while transformed.
+    pub graft: Option<GraftDef>,
+    /// Become a piloted construct instead (Kaido's dragon): cast + seat; eject = transform back.
+    pub pilot: Option<RecipeDef>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CompanionDef {
+    pub recipe: RecipeDef,
+    /// One rush punch (per typed token).
+    pub rush_damage: f32,
+    pub rush_knockback: f32,
+    pub rush_range: f32,
+}
+
+impl Default for CompanionDef {
+    fn default() -> Self {
+        Self { recipe: RecipeDef::default(), rush_damage: 3.0, rush_knockback: 3.0, rush_range: 2.6 }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PowerDef {
+    /// Stable id (`Recipe::grants`). Field names `id` / `name` / `names` / `incantations` / `kind`
+    /// / `companion` are also read by the lexicon's scanner (bd_lexicon/src/powers.rs).
+    pub id: String,
+    pub name: String,
+    pub kind: PowerKind,
+    /// Names the lexicon maps to this id ("gum gum fruit", "star platinum").
+    #[serde(default)]
+    pub names: Vec<String>,
+    #[serde(default)]
+    pub body: BodyDef,
+    #[serde(default)]
+    pub graft: Option<GraftDef>,
+    /// Lower-case word sequences ("gomu gomu no"): `<prefix> <phrase>` is an incantation
+    /// (whole words, punctuation ignored). Empty = no incantation.
+    #[serde(default)]
+    pub incantations: Vec<String>,
+    /// How an incanted phrase is delivered (§5h.3).
+    #[serde(default)]
+    pub delivery: Delivery,
+    /// Whole phrases that trigger a move slot ("za warudo" → 1). Checked before incantations.
+    #[serde(default)]
+    pub shouts: Vec<(String, u8)>,
+    /// ≤ 2: [G tap, G hold].
+    #[serde(default)]
+    pub moves: Vec<MoveDef>,
+    #[serde(default)]
+    pub transform: Option<TransformDef>,
+    #[serde(default)]
+    pub companion: Option<CompanionDef>,
+}
+
+/// Rules shared by every fruit / stand (tuning lives here in code; powers.ron is only entries).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PowerRules {
+    /// Willpower to cast a fruit.
+    pub fruit_cost: f32,
+    /// Willpower to call a stand.
+    pub stand_cost: f32,
+    /// Seconds a Water (or weakness) hit drains a fruit.
+    pub drain_secs: f32,
+    pub scatter_cooldown: f32,
+    pub scatter_dist: f32,
+    /// Gravity multiplier for fruit users falling over the void.
+    pub void_sink: f32,
+    /// Second fruit: blast radius / damage / knockback.
+    pub overdose_radius: f32,
+    pub overdose_damage: f32,
+    pub overdose_knockback: f32,
+    /// Typed rush tokens (upper-case; the client counts them while the console is open).
+    pub rush_tokens: Vec<String>,
+    /// Fastest accepted rush rate (punches / s).
+    pub rush_max_rate: f32,
+    /// Phrase words that make a Link seastone (a Water-element Link also is).
+    pub seastone_words: Vec<String>,
+}
+
+impl Default for PowerRules {
+    fn default() -> Self {
+        Self {
+            fruit_cost: 40.0,
+            stand_cost: 35.0,
+            drain_secs: 3.0,
+            scatter_cooldown: 3.0,
+            scatter_dist: 1.1,
+            void_sink: 1.6,
+            overdose_radius: 6.0,
+            overdose_damage: 35.0,
+            overdose_knockback: 28.0,
+            rush_tokens: vec!["ORA".into(), "MUDA".into(), "DORA".into(), "ARI".into(), "WRYY".into()],
+            rush_max_rate: 20.0,
+            seastone_words: vec!["seastone".into(), "kairoseki".into(), "sea prism".into()],
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PowerTable {
+    #[serde(default)]
+    pub rules: PowerRules,
+    pub powers: Vec<PowerDef>,
+}
+
+/// The shipped table (compiled in; deterministic on every peer).
+pub const SHIPPED_RON: &str = include_str!("../../../../assets/powers.ron");
+
+impl PowerTable {
+    pub fn parse(src: &str) -> Result<PowerTable, String> {
+        // The file is a plain list of entries (the lexicon's scanner reads the same list).
+        let powers: Vec<PowerDef> = ron::from_str(src).map_err(|e| e.to_string())?;
+        let mut t = PowerTable { rules: PowerRules::default(), powers };
+        t.sanitize();
+        Ok(t)
+    }
+
+    fn sanitize(&mut self) {
+        self.powers.truncate(250);
+        for p in &mut self.powers {
+            p.moves.truncate(2);
+            p.id = p.id.to_ascii_lowercase();
+            for a in &mut p.names {
+                *a = norm_words(a);
+            }
+            for pre in &mut p.incantations {
+                *pre = norm_words(pre);
+            }
+            p.incantations.retain(|p| !p.is_empty());
+            for (s, _) in &mut p.shouts {
+                *s = norm_words(s);
+            }
+            for m in &mut p.moves {
+                if !m.cooldown.is_finite() || m.cooldown < 0.05 {
+                    m.cooldown = 0.05;
+                }
+                if !m.cost.is_finite() || m.cost < 0.0 {
+                    m.cost = 0.0;
+                }
+            }
+        }
+        for t in &mut self.rules.rush_tokens {
+            *t = t.to_ascii_uppercase();
+        }
+        for w in &mut self.rules.seastone_words {
+            *w = norm_words(w);
+        }
+    }
+
+    /// The table every world uses (parsed once from [`SHIPPED_RON`]; an empty table if it fails
+    /// to parse, so a bad data edit disables powers instead of crashing).
+    pub fn get() -> &'static PowerTable {
+        static T: OnceLock<PowerTable> = OnceLock::new();
+        T.get_or_init(|| PowerTable::parse(SHIPPED_RON).unwrap_or(PowerTable { rules: PowerRules::default(), powers: vec![] }))
+    }
+
+    pub fn index_of(&self, key: &str) -> Option<u16> {
+        self.powers.iter().position(|p| p.id.eq_ignore_ascii_case(key)).map(|i| i as u16)
+    }
+
+    pub fn def(&self, id: u16) -> Option<&PowerDef> {
+        self.powers.get(id as usize)
+    }
+
+    /// Power id for a spoken / typed name ("gum gum fruit", "star platinum").
+    pub fn id_for_name(&self, name: &str) -> Option<&str> {
+        let n = norm_words(name);
+        if n.is_empty() {
+            return None;
+        }
+        self.powers.iter().find(|p| p.id == n.replace(' ', "_") || norm_words(&p.name) == n || p.names.iter().any(|a| *a == n)).map(|p| p.id.as_str())
+    }
+
+    /// Every (name, id) pair.
+    pub fn names(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.powers.iter().flat_map(|p| p.names.iter().map(move |a| (a.as_str(), p.id.as_str())))
+    }
+
+    /// Ids of every fruit / every stand (for random picks), in table order.
+    pub fn ids_of(&self, stand: bool) -> impl Iterator<Item = u16> + '_ {
+        self.powers.iter().enumerate().filter(move |(_, p)| p.kind.is_fruit() != stand).map(|(i, _)| i as u16)
+    }
+
+    pub fn is_rush_token(&self, token: &str) -> bool {
+        let t = token.trim().trim_matches(|c: char| !c.is_ascii_alphabetic()).to_ascii_uppercase();
+        !t.is_empty() && self.rules.rush_tokens.iter().any(|r| t == *r || (t.len() > r.len() && t.starts_with(r.as_str()) && t[r.len()..].chars().all(|c| c == r.chars().last().unwrap_or('A'))))
+    }
+}
+
+/// Lower-case, punctuation stripped, single spaces ("Gomu-Gomu no… PISTOL!!" → "gomu gomu no pistol").
+pub fn norm_words(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for w in s.split(|c: char| c.is_whitespace() || c == '-' || c == '_').filter(|w| !w.is_empty()) {
+        let w: String = w.chars().filter(|c| c.is_alphanumeric() || *c == '\'').flat_map(|c| c.to_lowercase()).collect();
+        if w.is_empty() {
+            continue;
+        }
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(&w);
+    }
+    out
+}
+
+/// What a typed/spoken phrase means for a player holding power `power` (client + lexicon contract).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PowerPhrase {
+    /// Exactly a shout of the held power → [`crate::World::power_move`] with this slot.
+    Move(u8),
+    /// `<prefix> <rest>`: resolve `rest` with the lexicon, then call
+    /// [`crate::World::cast_incantation`].
+    Incantation { rest: String },
+    /// Not a power phrase (cast it normally).
+    Plain,
+}
+
+/// Parse a phrase against the held power (`None` = no power → always `Plain`). An incantation
+/// prefix of a power you don't hold is `Plain` (the whole phrase goes to the lexicon).
+pub fn parse_phrase(power: Option<u16>, text: &str) -> PowerPhrase {
+    let t = PowerTable::get();
+    let Some(def) = power.and_then(|id| t.def(id)) else { return PowerPhrase::Plain };
+    let n = norm_words(text);
+    if let Some((_, slot)) = def.shouts.iter().find(|(s, _)| *s == n) {
+        return PowerPhrase::Move(*slot);
+    }
+    for pre in &def.incantations {
+        if let Some(rest) = n.strip_prefix(pre.as_str()) {
+            if let Some(rest) = rest.strip_prefix(' ') {
+                if !rest.is_empty() {
+                    return PowerPhrase::Incantation { rest: rest.to_string() };
+                }
+            }
+        }
+    }
+    PowerPhrase::Plain
+}

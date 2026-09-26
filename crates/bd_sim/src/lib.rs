@@ -15,6 +15,7 @@
 //! - [`events`]: everything clients need to hear about; [`replicate`]: compact snapshots + deltas.
 //! - [`weapons`]: gun archetypes (DOOM feel) + the generic weapon state machine.
 //! - [`bots`]: AI players for tests, practice and stress; [`fuzz`]: random recipes + chaos worlds.
+//! - [`settings`]: every lobby knob + presets; [`party`]: Party mode (rounds, picks, effects).
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
@@ -27,10 +28,13 @@ pub mod fuzz;
 pub mod geom;
 pub mod history;
 pub mod movement;
+pub mod party;
+pub mod powers;
 pub mod projectile;
 pub mod replicate;
 pub mod rng;
 pub mod rules;
+pub mod settings;
 pub mod space;
 pub mod status;
 pub mod weapons;

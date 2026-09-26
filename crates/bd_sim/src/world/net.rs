@@ -61,6 +61,7 @@ fn player_snap(p: &Player) -> PlayerSnap {
         size: (p.size.scale * 100.0).round().clamp(1.0, 255.0) as u8,
         hooks: [hook(0), hook(1)],
         seat: p.seat.map(|s| (s.construct.0, s.part)),
+        power: p.power.snap(), // POWERS HOOK
     }
 }
 
@@ -85,6 +86,11 @@ impl World {
         out.match_info.winner = self.match_state.winner.map(|w| w.0);
         out.match_info.scores.clear();
         out.match_info.scores.extend(self.players.iter().map(|p| (p.id.0, p.kos, p.deaths)));
+        // PARTY HOOK: party phase / standings / owned effects / the recipient's own offer.
+        match &self.party {
+            Some(party) => party.write_snap(recipient, self.party_time_left(), out.party.get_or_insert_with(Default::default)),
+            None => out.party = None,
+        }
         out.players.clear();
         out.players.extend(self.players.iter().map(player_snap));
         out.constructs.clear();
@@ -177,6 +183,10 @@ impl World {
         };
         self.match_state.round = snap.match_info.round;
         self.match_state.winner = snap.match_info.winner.map(PlayerId);
+        // PARTY HOOK: mirror the party (owned effects drive prediction, e.g. Slippery).
+        if let (Some(party), Some(ps)) = (self.party.as_mut(), snap.party.as_ref()) {
+            party.apply_snap(ps);
+        }
         let base = self.cfg.move_params.clone();
         // Players.
         self.players.retain(|p| snap.players.iter().any(|s| s.id == p.id.0));
@@ -201,6 +211,7 @@ impl World {
             p.size.target = p.size.scale;
             p.spawn_shield = if fl & pflags::SHIELD != 0 { p.spawn_shield.max(DT) } else { 0.0 };
             p.seat = s.seat.map(|(c, part)| Seat { construct: ConstructId(c), part, suit: fl & pflags::SUIT != 0 });
+            p.power.apply_snap(s.power); // POWERS HOOK (prediction reads the power's movement mods)
             if Some(id) == local {
                 if let Some(own) = &snap.own {
                     p.mv = own.to_state();
@@ -343,6 +354,10 @@ impl World {
             GameEvent::Carve { op } => {
                 let _ = super::combat::apply_carve_op(&mut self.voxels, op);
             }
+            // POWERS HOOK: Crazy Diamond rebuilt terrain.
+            GameEvent::Power(crate::powers::PowerEvent::Restored { voxels, .. }) => {
+                crate::powers::apply_restore(&mut self.voxels, voxels);
+            }
             GameEvent::Extracted { op, construct, .. } => {
                 let out = apply_extract(&mut self.voxels, op);
                 if let Some(c) = self.constructs.get_mut(*construct) {
@@ -409,6 +424,9 @@ impl World {
             }
         }
         self.constructs.movement_mods(player, input, st, &mut mods);
+        if let Some(p) = self.player(player) {
+            p.power.modify_movement(st.grounded, &mut mods); // POWERS HOOK (same order as the host)
+        }
         mods
     }
 
@@ -421,7 +439,8 @@ impl World {
             return MoveEvents::default();
         }
         state.mods = self.move_mods_for(player, input, state);
-        let params = p.params(&self.cfg.move_params);
+        let mut params = p.params(&self.cfg.move_params);
+        crate::party::hooks::tweak_params(self.party.as_ref(), player, &mut params); // PARTY HOOK (Slippery)
         let pre_center = state.hull(&params).center();
         let pre_vel = state.vel;
         let cw = CollisionWorld::new(&self.voxels, &self.colliders).ignoring(crate::movement::ColliderId::Player(player));

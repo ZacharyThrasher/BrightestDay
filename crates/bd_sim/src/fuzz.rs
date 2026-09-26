@@ -31,12 +31,12 @@ pub const FORMS: [Form; 39] = {
     ]
 };
 
-pub const MECHANICS: [Mechanic; 39] = {
+pub const MECHANICS: [Mechanic; 40] = {
     use Mechanic::*;
     [
         Blunt, Blade, Pierce, Guard, Returning, Ricochet, Shoots, Beam, Explodes, Grab, Pull, SlowFall, Glide, Thrust, Bounce, Launch,
         Barrier, Trap, Homing, ArticulatedTail, Flies, Charge, Stomp, Breath, Swarm, Spin, DropFromSky, Sticky, Fast, Heavy, Constrict,
-        Walks, Piloted, Portal, Attract, Repel, Shrink, Grow, Link,
+        Walks, Piloted, Portal, Attract, Repel, Shrink, Grow, Link, Transforms,
     ]
 };
 
@@ -66,9 +66,11 @@ fn mech_index(m: Mechanic) -> usize {
     MECHANICS.iter().position(|x| *x == m).unwrap_or(0)
 }
 
-const WORDS: [&str; 16] = [
+const WORDS: [&str; 19] = [
     "hammer", "shark", "tornado", "mjolnir", "grandma's teapot", "GIANTTT", "eeyore", "sharknado", "🐝🐝", "a", "", "wall with legs",
     "very angry bees", "extremely huge moon", "ñandú", "x",
+    // Command phrases (COMBAT.md §5d-bis): exercised as casts and as grafts.
+    "roll out", "combine", "transform",
 ];
 
 /// A random recipe anywhere in the combination space — including hostile values (NaN / negative
@@ -108,9 +110,32 @@ pub fn random_recipe(rng: &mut SimRng, payload_depth: u32) -> Recipe {
         model: ModelSource::Procedural { seed: rng.next_u32() },
         payload,
         features,
+        grants: None,
         temperament: TEMPERAMENTS[rng.below(TEMPERAMENTS.len() as u32) as usize],
         intensity: if rng.chance(0.05) { f32::NAN } else { rng.range(-0.2, 1.3) },
     }
+}
+
+const WILD_WORDS: [&str; 12] = [
+    "banana", "teapot", "grandma", "tuba", "lawnmower", "jellyfish", "disco ball", "cactus", "spatula", "moon", "rubber duck", "shark",
+];
+
+/// A random but *sane* recipe (form default scale, 0–2 mechanics, any element): Wild Magic's
+/// fallback when the game layer injected no phrase source (the sim has no lexicon).
+pub fn random_sane_recipe(rng: &mut SimRng) -> Recipe {
+    let form = FORMS[rng.below(FORMS.len() as u32) as usize];
+    let mut mechanics = Vec::with_capacity(2);
+    for _ in 0..rng.below(3) {
+        let m = MECHANICS[rng.below(MECHANICS.len() as u32) as usize];
+        if !matches!(m, Mechanic::Piloted | Mechanic::Portal | Mechanic::Swarm) {
+            mechanics.push(m);
+        }
+    }
+    let name = WILD_WORDS[rng.below(WILD_WORDS.len() as u32) as usize];
+    let mut r = crate::bots::recipe(name, form, &mechanics, ELEMENTS[rng.below(ELEMENTS.len() as u32) as usize], crate::constructs::form_spec(form).default_scale);
+    r.temperament = TEMPERAMENTS[rng.below(TEMPERAMENTS.len() as u32) as usize];
+    r.intensity = if r.temperament == Temperament::Calm { 0.0 } else { 0.7 };
+    r
 }
 
 /// Human-readable one-liner for a recipe.
@@ -148,6 +173,7 @@ pub fn random_rules(rng: &mut SimRng) -> MatchRules {
         ko_target: 10,
         time_limit: 480.0,
         regen_islands_between_rounds: true,
+        ..MatchRules::default()
     }
 }
 
@@ -326,11 +352,14 @@ pub struct ChaosConfig {
     pub bots: u8,
     /// Mean random casts per bot per second.
     pub cast_rate: f32,
+    /// Run Party mode (short rounds) with this many random effects stacked on every bot at the
+    /// start (bots keep picking more between rounds). `None` = FFA.
+    pub party: Option<u8>,
 }
 
 impl ChaosConfig {
     pub fn new(seed: u64, rules: MatchRules) -> Self {
-        Self { seed, rules, arena: ArenaSource::Archipelago { seed }, bots: 8, cast_rate: 0.6 }
+        Self { seed, rules, arena: ArenaSource::Archipelago { seed }, bots: 8, cast_rate: 0.6, party: None }
     }
 }
 
@@ -351,7 +380,10 @@ impl ChaosWorld {
     }
 
     pub fn with_config(cfg: ChaosConfig) -> Self {
-        let sim = SimConfig { arena: cfg.arena, seed: cfg.seed, rules: cfg.rules.clone(), check_invariants: false, ..SimConfig::default() };
+        let mut sim = SimConfig { arena: cfg.arena, seed: cfg.seed, rules: cfg.rules.clone(), check_invariants: false, ..SimConfig::default() };
+        if cfg.party.is_some() {
+            sim.party = Some(crate::settings::PartySettings { rounds: 15, round_time: 40.0, round_ko_target: 6, pick_secs: 3.0, round_end_secs: 1.0, reveal_secs: 1.0, party_end_secs: 3.0, ..Default::default() });
+        }
         let mut world = World::new(sim);
         world.cfg.timings.warmup_secs = 2.0;
         let mut bots = Vec::new();
@@ -361,6 +393,17 @@ impl ChaosWorld {
                 let mut b = BotBrain::new(id, 0.3 + 0.1 * (k % 7) as f32, cfg.seed);
                 b.casts_enabled = false; // chaos casts instead
                 bots.push(b);
+            }
+        }
+        if let Some(n) = cfg.party {
+            // Stack random effects of every rarity on every bot.
+            let mut r = SimRng::new(cfg.seed ^ 0xFA27_EFFE);
+            let count = world.party().map_or(0, |p| p.table.len()) as u32;
+            for b in &bots {
+                for _ in 0..n {
+                    let e = r.below(count.max(1)) as u16;
+                    world.grant_party_effect(b.id, e);
+                }
             }
         }
         let stats = ChaosStats { worlds: 1, ..Default::default() };
