@@ -201,6 +201,9 @@ fn set_tuning_changes_the_sim_deterministically() {
     let mut t = CombatTuning::default();
     t.ring.blast_damage = 30.0;
     t.ring.blast_knockback = 20.0;
+    // Every hit's knockback (the run's ring blasts may all miss: bots fight across gaps).
+    t.smash.kb_growth = 2.0;
+    t.smash.kb_base = 0.7;
     let a = ffa_casts(t.clone());
     let b = ffa_casts(t);
     assert_eq!(a, b);

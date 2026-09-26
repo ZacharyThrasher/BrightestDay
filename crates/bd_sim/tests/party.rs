@@ -80,7 +80,9 @@ fn ffa_cfg() -> SimConfig {
 // It also includes the §5i anti-snowball defaults (`tuning.snowball`: respawn with full willpower,
 // shutdown +1), which move it on their own; `CombatTuning::legacy()` restores the old snowball
 // behaviour. The tuning plumbing itself was verified bit-identical by A/B build (tests/tuning.rs).
-const FFA_NOCAST_STATE_HASH: u64 = 0xe20f_5f18_1d6b_a9ff;
+// Re-recorded again when bots stopped deliberate tether swings across gaps (a third of all bot KOs
+// were such self-falls under the Smash model; bots.rs only — the sim itself is unchanged).
+const FFA_NOCAST_STATE_HASH: u64 = 0xda2c_9084_3dbe_c2ef;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {

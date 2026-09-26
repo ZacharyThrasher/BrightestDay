@@ -287,7 +287,10 @@ impl BotBrain {
         let ground_near = raycast(&w.voxels, pos + Vec3::Y * 0.5, Vec3::NEG_Y, 15.0).is_some();
         let falling = !me.mv.grounded && !ground_near && me.mv.vel.y < -6.0;
         self.tether_t = (self.tether_t - dt).max(0.0);
-        let want_tether = falling || (gap && dist > 10.0 && me.mv.grounded);
+        // Only as a rescue: deliberate gap-crossing swings were a third of all bot KOs (self-falls)
+        // under the Smash model. Bots fight across gaps with ranged blasts instead.
+        let _ = gap;
+        let want_tether = falling;
         if want_tether && self.tether_dir.is_none() && self.tether_t <= 0.0 {
             // Anchors above us: toward the goal first, then steeper.
             let goal = if falling { self.last_ground } else { aim_point };
