@@ -14,13 +14,33 @@ import { dog, dragon, spider, robot, mech } from './creatures.js';
 import { WEAPONS } from './weapons.js';
 import { TRAPS } from './traps.js';
 import { SIEGE } from './siege.js';
+import * as B from './beasts.js';
+import * as M from './monsters.js';
+import * as R from './rides.js';
 
 export type { CatalogEntry } from './types.js';
 
-/** Combat constructs (weapons / traps / siege) come after the vehicles and creatures, so those keep their names. */
-export const COMBAT_CATALOG: CatalogEntry[] = [...WEAPONS, ...TRAPS, ...SIEGE];
+/** Combat creatures, monsters and war vehicles. Listed before the core entries: their specific names ("wolf",
+ * "griffin", "monster truck", "fighter jet", "titan") deliberately win over the core entries' catch-all synonyms. */
+export const CREATURE_CATALOG: CatalogEntry[] = [
+  // beasts
+  B.wolf, B.raptor, B.bigcat, B.shark, B.bees, B.piranhas, B.bats, B.eagle, B.rhino, B.bull, B.elephant, B.bear, B.gorilla, B.trex,
+  B.croc, B.kangaroo, B.scorpion, B.crab, B.spiderQueen, B.kraken, B.cobra, B.horse,
+  // monsters
+  M.golem, M.titan, M.cyclops, M.ogre, M.yeti, M.minotaur, M.werewolf, M.zombies, M.skeletons, M.mummy, M.ghost,
+  M.iceDragon, M.stormDragon, M.hydra, M.kaiju, M.mechaKaiju, M.sandworm, M.griffin, M.phoenix,
+  // rides & war machines
+  R.monsterTruck, R.dozer, R.steamroller, R.train, R.drillTank, R.wreckingCrane, R.battleship, R.hovercraft, R.submarine,
+  R.jetFighter, R.bomber, R.ufo, R.hoverbike, R.rocketRide, R.coaster, R.chariot,
+];
 
-export const CATALOG: CatalogEntry[] = [tank, motorcycle, car, helicopter, airplane, mech, robot, dog, dragon, spider, ...COMBAT_CATALOG];
+/** Weapons / traps / siege come after the vehicles and creatures, so those keep their names. */
+export const WEAPON_CATALOG: CatalogEntry[] = [...WEAPONS, ...TRAPS, ...SIEGE];
+export const COMBAT_CATALOG: CatalogEntry[] = [...CREATURE_CATALOG, ...WEAPON_CATALOG];
+
+const ALL: CatalogEntry[] = [...CREATURE_CATALOG, tank, motorcycle, car, helicopter, airplane, mech, robot, dog, dragon, spider, ...WEAPON_CATALOG];
+/** One entry per id: the first wins (a later duplicate id would disagree with the registered form). */
+export const CATALOG: CatalogEntry[] = ALL.filter((e, i) => ALL.findIndex((x) => x.id === e.id) === i);
 
 export const CATALOG_BY_ID = new Map<string, CatalogEntry>(CATALOG.map((e) => [e.id, e]));
 
