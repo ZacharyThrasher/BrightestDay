@@ -80,6 +80,9 @@ Everything below is committed and green unless noted.
   behaviours (aim/fire/move/pilot approach+enter/hit/charge/dismiss), role-ordered summon assembly
   (visual only, gameplay live from tick 1). SAME WORKER also switches the weight-pass call sites below.
   HANDS worker: viewmodel procedural springs + "disconnected" root cause (viewmodel.rs, viewmodel_anim.rs).
+- BOUNDS RULES (owner): an attached tether prevents side/bottom/void KOs (only the star/top KO still
+  applies); constructs leaving the map RECALL next to their summoner (anti-loop valve), plus an audit of
+  every early-despawn path (worker: new bd_sim world/bounds.rs or recall.rs).
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
