@@ -63,6 +63,7 @@ export interface MachineDef {
   muzzles: Muzzle[];
   wMuzzles: number[][]; // per weapon: muzzle indices ([] = construct front)
   wAim: number[]; // per weapon: aim joint that points it (-1 none)
+  wBody: boolean[]; // per weapon: melee with no group = the whole construct hits what it touches
   ext: ReturnType<typeof specExtent>;
   hx: number; hz: number; stepH: number;
   boxLow: any; boxLowY: number; boxFull: any; boxFullY: number;
@@ -90,6 +91,10 @@ export interface MachineState {
   stuck: number; detour: number; detourSign: number; progT: number; progWant: number; progPos: Vector3;
   climbBoost: number;
   rider: boolean;
+  /** last time the rider pressed fire: while they aim, weapons/aim joints follow the crosshair, otherwise the brain gunner */
+  riderAimAt: number;
+  /** idle-with-target: keep aim joints on the target but don't fire */
+  holdFire: boolean;
   shots: number; hits: number;
 }
 
@@ -155,7 +160,9 @@ export class MachineSystem {
         muzzles.push({ joint: partJoint[i], local: new Vector3(0, t.size.y / 2, 0).applyQuaternion(t.quat).add(t.pos), group: p.group ?? null });
       });
     }
-    const wMuzzles = weapons.map((wp) => {
+    const wBody = weapons.map((wp) => wp.kind === 'melee' && (!wp.group || !s.parts.some((p) => p.group === wp.group)));
+    const wMuzzles = weapons.map((wp, wi) => {
+      if (wBody[wi]) return [];
       const gj = wp.group ? jIdx.get(wp.group) : undefined;
       const list = muzzles.map((_, i) => i).filter((i) => {
         const m = muzzles[i];
@@ -181,7 +188,7 @@ export class MachineSystem {
     const motions = joints.flatMap((r) => r.j.motion);
     const ranged = weapons.filter((wp) => wp.kind !== 'melee');
     c.mach = {
-      drive, brain, weapons, ride, joints, partJoint, muzzles, wMuzzles, wAim, ext, hx, hz, stepH,
+      drive, brain, weapons, ride, joints, partJoint, muzzles, wMuzzles, wAim, wBody, ext, hx, hz, stepH,
       boxLow: new R.Cuboid(hx, hyLow, hz), boxLowY: ext.min.y + stepH + hyLow,
       boxFull: new R.Cuboid(hx, hyFull, hz), boxFullY: ext.min.y + 0.3 + hyFull,
       seat: ride ? new Vector3(ride.seat[0] * (s.stretch?.[0] ?? 1), ride.seat[1] * (s.stretch?.[1] ?? 1), ride.seat[2] * (s.stretch?.[2] ?? 1)).multiplyScalar(s.scale) : null,
@@ -207,7 +214,7 @@ export class MachineSystem {
         goal: brain?.goal ?? 'none', target: null, aimPoint: null, aimErr: 180, jointErr: new Float64Array(joints.length).fill(180),
         home: inst.pos.clone(), wp: null, wait: 0, rng: rngFrom(c.id, k), patrol: [], pi: 0, fetch: null,
         stuck: 0, detour: 0, detourSign: k % 2 ? -1 : 1, progT: 0, progWant: 0, progPos: inst.pos.clone(), climbBoost: 0,
-        rider: !!(P.riding && P.riding.id === c.id && k === 0), shots: prev?.shots ?? 0, hits: prev?.hits ?? 0,
+        rider: !!(P.riding && P.riding.id === c.id && k === 0), riderAimAt: -Infinity, holdFire: false, shots: prev?.shots ?? 0, hits: prev?.hits ?? 0,
       };
       inst.m = m;
       inst.jointPose = js?.poses;
@@ -272,6 +279,7 @@ export class MachineSystem {
     if (ridden) c.expires = Math.max(c.expires, this.w.time + 10);
     let nav: Nav | null = null;
     if (!ridden) nav = this.think(c, inst, m, dt);
+    else if (!this.riderAiming(m) && def.brain) this.acquire(c, inst, m);
     const ctl = ridden ? this.riderControl(c, inst, m) : this.navControl(c, inst, m, nav!, dt);
     const p0 = _v3.copy(inst.pos);
     const px = p0.x, py = p0.y, pz = p0.z;
@@ -302,11 +310,14 @@ export class MachineSystem {
     const m = inst.m;
     if (!m) return;
     const ridden = m.rider && this.w.player.riding?.id === c.id;
+    const riderAiming = ridden && this.riderAiming(m);
     if (!def.drive && !ridden && def.brain) this.think(c, inst, m, dt); // stationary brains still pick targets
-    // what aim joints track
+    else if (!def.drive && ridden && !riderAiming && def.brain) this.acquire(c, inst, m);
+    // what aim joints track: the rider's crosshair while they aim, else the brain's target, else the crosshair
     let aimP: Vector3 | null = null;
-    if (ridden) aimP = this.playerAim();
+    if (riderAiming) aimP = this.playerAim();
     else if (m.target) aimP = this.lead(inst, m.target, def.aimSpeed);
+    else if (ridden) aimP = this.playerAim();
     if (!aimP && !def.brain && !ridden && def.joints.some((j) => j.aim)) aimP = this.playerAim();
     if (!aimP && def.brain && m.goal === 'follow' && def.joints.some((j) => j.aim)) aimP = this.playerAim();
     m.aimPoint = aimP ? (m.aimPoint ?? new Vector3()).copy(aimP) : null;
@@ -368,6 +379,22 @@ export class MachineSystem {
   }
 
   // ------------------------------------------------------------------ aiming
+
+  /** Is the rider aiming right now (fired within the last 1.5 s)? */
+  private riderAiming(m: MachineState): boolean {
+    const inp = this.w.input;
+    if (inp.hookL || inp.hookR) m.riderAimAt = this.w.time;
+    return this.w.time - m.riderAimAt < 1.5;
+  }
+
+  /** Brain target acquisition only (no movement) — the gunner of a ridden machine. */
+  private acquire(c: Construct, inst: Inst, m: MachineState) {
+    const b = c.mach?.brain;
+    if (!b || !c.mach!.weapons.length || b.goal === 'flee' || b.goal === 'fetch') { m.target = null; return; }
+    const range = b.range ?? 40;
+    m.holdFire = b.goal === 'idle';
+    m.target = this.resolveTarget(c, b.target, inst.pos) ?? (b.goal === 'idle' ? null : this.nearestEnemy(c, inst.pos, range));
+  }
 
   private playerAim(): Vector3 {
     if (this.aimTick !== this.w.tick) { this.aimCache.copy(this.w.player.aim(250).point); this.aimTick = this.w.tick; }
@@ -460,13 +487,22 @@ export class MachineSystem {
     return p.y - this.tRadius(t) - g < 1.2 + (d.jump ? (d.jump * d.jump) / (2 * GRAV) : 0) + c.extent.size.y * 0.5;
   }
 
-  /** A specific thing named in an order ("attack that drone", "smash his wall"). Never our own owner's stuff. */
-  private refTarget(c: Construct, ref: Ref | undefined): TargetRef | null {
+  /**
+   * THE target resolver: turns an order's Ref into something to fight ("attack that drone", "smash his wall",
+   * "get him"). Never resolves to our own owner or the owner's stuff. PvP: 'player' / 'opponent' resolve to
+   * lanterns here once World has several players; until then 'opponent' means the nearest hostile.
+   */
+  resolveTarget(c: Construct, ref: Ref | undefined, from?: Vector3): TargetRef | null {
     if (!ref) return null;
-    if (ref.kind === 'entity') { const e = this.w.entities.get(ref.id); return e && !e.disabled ? { kind: 'entity', id: e.id } : null; }
-    if (ref.kind === 'entities') { for (const id of ref.ids) { const e = this.w.entities.get(id); if (e && !e.disabled) return { kind: 'entity', id }; } return null; }
-    if (ref.kind === 'construct') { const o = this.rt.get(ref.id); return o && o.id !== c.id && o.owner !== c.owner ? { kind: 'construct', id: o.id } : null; }
-    return null;
+    const at = from ?? c.insts[0]?.pos ?? this.w.player.pos;
+    switch (ref.kind) {
+      case 'entity': { const e = this.w.entities.get(ref.id); return e && !e.disabled ? { kind: 'entity', id: e.id } : null; }
+      case 'entities': { for (const id of ref.ids) { const e = this.w.entities.get(id); if (e && !e.disabled) return { kind: 'entity', id }; } return null; }
+      case 'construct': { const o = this.rt.get(ref.id); return o && o.id !== c.id && o.owner !== c.owner ? { kind: 'construct', id: o.id } : null; }
+      case 'opponent': case 'nearest_enemy': case 'all_enemies': case 'threat': return this.nearestEnemy(c, at, 1e9);
+      case 'player': return null; // single player: the only lantern is our owner
+      default: return null;
+    }
   }
 
   /**
@@ -510,8 +546,9 @@ export class MachineSystem {
     }
     const range = b.range ?? (b.goal === 'follow' ? 25 : b.goal === 'guard' ? 22 : 40);
     const armed = def.weapons.length > 0;
+    m.holdFire = false;
     switch (m.goal) {
-      case 'idle': m.target = null; return nav;
+      case 'idle': m.target = b.target ? this.resolveTarget(c, b.target, pos) : null; m.holdFire = true; return nav;
       case 'wander': {
         m.target = armed ? this.nearestEnemy(c, pos, range) : null;
         return this.wander(c, inst, m, nav, dt, m.home, 20);
@@ -555,7 +592,7 @@ export class MachineSystem {
         return nav;
       }
       case 'hunt': {
-        let tgt = this.refTarget(c, b.target);
+        let tgt = this.resolveTarget(c, b.target, pos);
         if (!tgt) tgt = this.nearestEnemy(c, pos, Math.max(range * 3, 150));
         m.target = tgt;
         if (!tgt) return this.wander(c, inst, m, nav, dt, P.pos, 18);
@@ -582,7 +619,7 @@ export class MachineSystem {
       }
       case 'flee': {
         m.target = null;
-        const threat = this.refTarget(c, b.target) ?? this.nearestEnemy(c, pos, range);
+        const threat = this.resolveTarget(c, b.target, pos) ?? this.nearestEnemy(c, pos, range);
         const tp = threat ? this.tPos(threat, new Vector3()) : null;
         if (!tp) return nav;
         const away = pos.clone().sub(tp).setY(0);
@@ -659,7 +696,7 @@ export class MachineSystem {
     const P = this.w.player;
     const b = c.mach!.brain!;
     if (!m.fetch) {
-      const r = this.refTarget(c, b.target);
+      const r = this.resolveTarget(c, b.target);
       let e = r?.kind === 'entity' ? this.w.entities.get(r.id) ?? null : b.target?.kind === 'entity' ? this.w.entities.get(b.target.id) ?? null : null;
       if (!e) {
         let bd = 80;
@@ -1050,13 +1087,14 @@ export class MachineSystem {
     const def = c.mach!;
     const inp = this.w.input;
     const wantFire = ridden && (inp.hookL || inp.hookR);
-    const tgt = !ridden && m.target && this.tPos(m.target, _v) ? m.target : null;
+    const riderAiming = ridden && this.w.time - m.riderAimAt < 1.5;
+    const tgt = !riderAiming && !m.holdFire && m.target && this.tPos(m.target, _v) ? m.target : null;
     for (let wi = 0; wi < def.weapons.length; wi++) {
       m.cds[wi] -= dt;
       if (m.cds[wi] > 0) continue;
       const wp = def.weapons[wi];
       let aimAt: Vector3 | null = null;
-      if (ridden) {
+      if (riderAiming) {
         if (!wantFire) continue;
         aimAt = this.playerAim().clone();
       } else {
@@ -1075,11 +1113,12 @@ export class MachineSystem {
         muzzle.copy(mz.local);
         if (mj >= 0 && m.js) { const pose = m.js.poses.get(def.joints[mj].j.group)!; muzzle.applyQuaternion(pose.quat).add(pose.pos); }
         muzzle.applyQuaternion(inst.quat).add(inst.pos);
-      } else muzzle.copy(def.front).applyQuaternion(inst.quat).add(inst.pos);
+      } else if (def.wBody[wi]) muzzle.copy(def.ext.center).applyQuaternion(inst.quat).add(inst.pos);
+      else muzzle.copy(def.front).applyQuaternion(inst.quat).add(inst.pos);
       const to = aimAt.clone().sub(muzzle);
       const dist = to.length();
-      if (!ridden) {
-        if (wp.kind === 'melee') { if (dist - this.tRadius(tgt!) > wp.range) continue; }
+      if (!riderAiming) {
+        if (wp.kind === 'melee') { if (dist - this.tRadius(tgt!) - (def.wBody[wi] ? c.radius * 0.6 : 0) > wp.range) continue; }
         else if (dist > wp.range) continue;
         // pointing roughly the right way?
         const aj = def.wAim[wi];
@@ -1103,6 +1142,19 @@ export class MachineSystem {
       while (j >= 0 && guard++ < 32) { if (def.joints[j].hasFire) m.fireAt[j] = this.w.time; j = def.joints[j].parent; }
       if (base >= 0) for (const r of def.joints) if (r.hasFire && isAncestor(def.joints, base, r.index)) m.fireAt[r.index] = this.w.time;
     }
+  }
+
+  /** Push a shot's spawn point forward until it doesn't overlap our own colliders (shots never hit their maker). */
+  private clearOfSelf(inst: Inst, start: Vector3, dir: Vector3, size: number): Vector3 {
+    const R = this.w.R;
+    const ball = new R.Ball(size);
+    for (let k = 0; k < 10; k++) {
+      let hit = false;
+      this.w.pw.intersectionsWithShape(start, IDENT, ball, () => { hit = true; return false; }, undefined, undefined, undefined, undefined, (col) => col.parent() === inst.body);
+      if (!hit) break;
+      start.addScaledVector(dir, size + 0.3);
+    }
+    return start;
   }
 
   private clearShot(from: Vector3, to: Vector3, body: RBody, tgt: TargetRef): boolean {
@@ -1132,7 +1184,7 @@ export class MachineSystem {
           vel = dd.divideScalar(t);
           vel.y += 0.5 * GRAV * t;
         }
-        const start = muzzle.clone().addScaledVector(dir, size + 0.45);
+        const start = this.clearOfSelf(inst, muzzle.clone().addScaledVector(dir, size + 0.45), dir, size);
         const pr = this.w.spawnProjectile(start, vel, null, wp.damage, size, {
           friendly: true, owner: c.id, ownerPlayer: c.owner, kind: wp.kind, gravity,
           splash: wp.kind === 'cannon' ? 2.5 : wp.kind === 'bomb' ? 4.5 : wp.kind === 'missile' ? 3 : undefined,
@@ -1177,7 +1229,7 @@ export class MachineSystem {
         }
         for (const t of hitList) {
           const tp = this.tPos(t, new Vector3());
-          if (!tp || (!tgt && tp.distanceTo(muzzle) - this.tRadius(t) > wp.range + 0.5)) continue;
+          if (!tp || (!tgt && tp.distanceTo(muzzle) - this.tRadius(t) - (c.mach!.wBody[c.mach!.weapons.indexOf(wp)] ? c.radius * 0.6 : 0) > wp.range + 0.5)) continue;
           this.dealDamage(c, t, wp.damage, 'bite', dir, 1);
           this.w.emit('impact', { construct: c.id, entity: t.id, dv: Math.round(wp.damage / 2), pos: tp.toArray() });
         }

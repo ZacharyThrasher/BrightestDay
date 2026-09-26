@@ -163,13 +163,16 @@ function catalogConcepts(): { list: Concept[]; replaced: Set<string> } {
   const replaced = new Set<string>();
   const list = CATALOG.map((e): Concept => {
     const inherited: string[] = [];
+    let extras: Partial<Concept> = {};
     for (const r of e.replaces ?? []) {
       const old = BASE_CONCEPTS.find((c) => c.id === r);
       if (!old) continue;
       replaced.add(r);
       for (const n of old.names) if (!own.has(n) && !inherited.includes(n)) inherited.push(n);
+      extras = { ...old, ...extras }; // keep fields the language layer attaches (e.g. machine defaults)
     }
     return {
+      ...extras,
       id: e.id, names: [e.id, ...e.names.filter((n) => n !== e.id), ...inherited], form: e.id, cls: e.cls, motion: e.motion, at: e.at,
       orient: e.orient, scale: e.scale, density: e.density, beh: e.behaviors, verb: e.verb, lifetime: e.lifetime, catalog: e.id, functions: e.functions,
     };

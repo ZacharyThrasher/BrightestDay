@@ -293,9 +293,9 @@ export class ConstructRuntime {
       case 'entities': case 'all_enemies': { const e = this.refEntities(ref)[0]; return e ? this.w.entityPos(e, out) : null; }
       case 'construct': { const c = this.list.get(ref.id); return c && c.insts[0] ? out.copy(c.insts[0].pos) : null; }
       case 'point': return out.set(ref.p[0], ref.p[1], ref.p[2]);
-      case 'nearest_enemy': { const e = this.nearestEnemy(); return e ? this.w.entityPos(e, out) : null; }
+      case 'nearest_enemy': case 'opponent': { const e = this.nearestEnemy(); return e ? this.w.entityPos(e, out) : null; } // (no opponent players yet → nearest hostile)
       case 'threat': { const e = this.threat(); return e ? this.w.entityPos(e, out) : null; }
-      default: return null;
+      default: return null; // 'player': other players don't exist in single player
     }
   }
 
@@ -304,7 +304,7 @@ export class ConstructRuntime {
     if (ref.kind === 'entity') { const e = this.w.entities.get(ref.id); return e ? [e] : []; }
     if (ref.kind === 'entities') return ref.ids.map((id) => this.w.entities.get(id)).filter((e): e is Entity => !!e);
     if (ref.kind === 'all_enemies') return [...this.w.entities.values()].filter((e) => e.hostile && !e.disabled).sort((a, b) => this.dist(a) - this.dist(b));
-    if (ref.kind === 'nearest_enemy') { const e = this.nearestEnemy(); return e ? [e] : []; }
+    if (ref.kind === 'nearest_enemy' || ref.kind === 'opponent') { const e = this.nearestEnemy(); return e ? [e] : []; }
     if (ref.kind === 'threat') { const e = this.threat(); return e ? [e] : []; }
     return [];
   }

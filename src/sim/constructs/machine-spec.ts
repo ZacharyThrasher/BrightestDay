@@ -118,9 +118,15 @@ export function rigMachine(s: ConstructSpec): void {
   const joints: Joint[] = [...(s.joints ?? [])];
   const has = new Set(joints.map((j) => j.group));
   const grouped = new Set(s.parts.map((p) => p.group).filter((g): g is string => !!g));
-  const missing = [...grouped].filter((g) => !has.has(g));
-  if (missing.length) {
-    for (const j of catalogJoints(s.concept)) if (grouped.has(j.group) && !has.has(j.group)) { joints.push(j); has.add(j.group); }
+  for (const j of catalogJoints(s.concept)) {
+    if (!grouped.has(j.group)) continue;
+    const i = joints.findIndex((x) => x.group === j.group);
+    if (i < 0) { joints.push(j); has.add(j.group); continue; }
+    // a generic default with a foreign pivot (same kinds of motion, e.g. another form's stock turret joint) is
+    // replaced by the catalog's exact joint; edits (same pivot, new rates) and different motions are kept
+    const kinds = new Set(j.motion.map((m) => m.kind));
+    const moved = Math.hypot(joints[i].pivot[0] - j.pivot[0], joints[i].pivot[1] - j.pivot[1], joints[i].pivot[2] - j.pivot[2]) > 1e-3;
+    if (moved && joints[i].motion.every((m) => kinds.has(m.kind))) joints[i] = j;
   }
   if (isMachine(s)) autoRig(s, joints, has);
   if (joints.length) s.joints = joints;

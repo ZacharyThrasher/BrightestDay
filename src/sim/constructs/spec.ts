@@ -61,6 +61,8 @@ export type Ref =
   | { kind: 'nearest_enemy' }
   | { kind: 'all_enemies' }
   | { kind: 'threat' } // nearest incoming projectile source
+  | { kind: 'opponent' } // PvP: the (nearest) opposing lantern, whoever that is
+  | { kind: 'player'; id: string } // PvP: a specific player/lantern by id
   | { kind: 'none' };
 
 export type Behavior =

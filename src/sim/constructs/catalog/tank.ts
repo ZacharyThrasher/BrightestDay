@@ -10,6 +10,7 @@ export const tank: CatalogEntry = {
   motion: 'kinematic',
   at: 'ground_front',
   lifetime: 150,
+  replaces: ['tank'],
   build() {
     const parts: Part[] = [
       P('box', [3.2, 1.0, 5.0], [0, 1.1, 0], { role: 'body' }),

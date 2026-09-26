@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Quaternion } from 'three';
-import { makeWorld, run, Vector3 } from './helpers.js';
+import { makeWorld, run, look, Vector3 } from './helpers.js';
 import { defaultSpec, type ConstructSpec } from '../src/sim/constructs/spec.js';
 import { CATALOG, CATALOG_BY_ID, buildEntry } from '../src/sim/constructs/catalog/index.js';
 import { validateSpec } from '../src/sim/constructs/validate.js';
@@ -266,4 +266,100 @@ test('machines are deterministic', async () => {
     return [...w.constructs.list.values()].map((c) => c.insts[0].pos.toArray().map((x) => x.toFixed(5)).join(',')).join('|') + [...w.entities.values()].map((e) => e.hp.toFixed(3)).join(',');
   };
   assert.equal(await sim(), await sim());
+});
+
+// ---- specs as the language layer composes them (any host + articulated add-on kits) ----
+
+const kitPart = (shape: any, size: any, pos: any, role: string, group?: string, rot?: any, solid = true) => ({ shape, size, pos, role, ...(group ? { group } : {}), ...(rot ? { rot } : {}), ...(solid ? {} : { solid: false }) });
+
+test('kit-built machines: couch on wheels rolls about; flying shark bites; tentacle body-melee; army of robots', async () => {
+  // a couch on wheels (no brain, no seat): wheels roll with travel, it potters about
+  {
+    const { w } = await makeWorld('flat');
+    const parts: any[] = [kitPart('box', [4, 1.2, 2], [0, 1.2, 0], 'cushion')];
+    const joints: any[] = [];
+    [[-2.1, 0.6, 0.7], [2.1, 0.6, 0.7], [-2.1, 0.6, -0.7], [2.1, 0.6, -0.7]].forEach((p, i) => {
+      parts.push(kitPart('cylinder', [1.2, 0.4, 1.2], p, 'wheel', `wheel${i}`, [0, 0, 90]));
+      joints.push({ group: `wheel${i}`, pivot: p, motion: [...(p[2] > 0 ? [{ kind: 'steer', axis: [0, 1, 0], amp: 25 }] : []), { kind: 'roll', axis: [1, 0, 0], radius: 0.6 }] });
+    });
+    const c = spawn(w, defaultSpec({ concept: 'pillow', label: 'couch with wheels', parts, joints, motion: 'kinematic', behaviors: [{ type: 'drive', mode: 'ground', speed: 16, turn: 100 }], placement: { at: 'ground_front', orient: 'face_away' } }));
+    const p0 = c.insts[0].pos.clone();
+    run(w, 5);
+    const moved = c.insts[0].pos.distanceTo(p0);
+    console.log(`couch on wheels moved ${moved.toFixed(1)} m`);
+    assert.ok(moved > 4 && c.insts[0].jointPose!.get('wheel0')!.quat.w < 0.999);
+  }
+  // a shark with helicopter blades that hunts drones: flies, and its jaws bite a drone
+  {
+    const { w } = await makeWorld('drones');
+    const parts: any[] = [
+      kitPart('capsule', [1.2, 3.0, 1.0], [0, 1.2, 0], 'body', undefined, [90, 0, 0]),
+      kitPart('box', [0.8, 0.2, 0.7], [0, 0.85, 1.35], 'jaw', 'jaw'),
+      kitPart('cylinder', [0.2, 0.4, 0.2], [0, 1.9, 0], 'hub'),
+      kitPart('box', [4, 0.05, 0.3], [0, 2.1, 0], 'rotor', 'rotor'), kitPart('box', [0.3, 0.05, 4], [0, 2.1, 0], 'rotor', 'rotor'),
+    ];
+    const joints: any[] = [
+      { group: 'jaw', pivot: [0, 0.85, 1.0], motion: [{ kind: 'swing', axis: [1, 0, 0], amp: 18, rate: 2.5 }] },
+      { group: 'rotor', pivot: [0, 2.1, 0], motion: [{ kind: 'spin', axis: [0, 1, 0], rate: 5 }] },
+    ];
+    const c = spawn(w, defaultSpec({
+      concept: 'shark', label: 'shark with helicopter blades', parts, joints, motion: 'kinematic', placement: { at: 'ground_front', orient: 'face_away' },
+      behaviors: [{ type: 'drive', mode: 'air', speed: 12, turn: 90, altitude: 10 }, { type: 'brain', goal: 'hunt', target: { kind: 'nearest_enemy' } }, { type: 'weapon', kind: 'melee', group: 'jaw', rate: 1.2, speed: 0, damage: 25, range: 2.5 }],
+    }));
+    const hp0 = [...w.entities.values()].reduce((a, e) => a + e.hp, 0);
+    let maxY = 0;
+    for (let s = 0; s < 480; s++) { run(w, 1 / 60); maxY = Math.max(maxY, c.insts[0].pos.y); }
+    const hp1 = [...w.entities.values()].reduce((a, e) => a + e.hp, 0);
+    console.log(`flying shark: max height ${maxY.toFixed(1)} m, bites ${c.insts[0].m!.hits}, drone hp ${hp0}→${hp1}`);
+    assert.ok(maxY > 3 && hp1 < hp0);
+  }
+  // tentacles: melee with no group = the whole body hits what it touches
+  {
+    const { w } = await makeWorld('flat');
+    const dummy = w.addEntity('dummy', new Vector3(0, 1.2, -16), { hostile: true });
+    w.refreshQueries();
+    const c = spawn(w, defaultSpec({
+      concept: 'octopus', label: 'octopus', parts: [kitPart('sphere', [2, 2, 2], [0, 1.2, 0], 'body')], motion: 'kinematic', placement: { at: 'ground_front', orient: 'face_away' },
+      behaviors: [{ type: 'drive', mode: 'ground', speed: 7, turn: 120 }, { type: 'brain', goal: 'hunt', target: { kind: 'opponent' } }, { type: 'weapon', kind: 'melee', rate: 1.2, speed: 0, damage: 12, range: 2.5 }],
+    }));
+    run(w, 6);
+    console.log(`body-melee octopus: dummy hp ${dummy.hp} (opponent → nearest hostile), hits ${c.insts[0].m!.hits}`);
+    assert.ok(dummy.hp < dummy.maxHp);
+  }
+  // an army of 5 robots following you: five independent agents that all keep up
+  {
+    const { w } = await makeWorld('flat');
+    const c = spawn(w, catSpec('robot', { count: 5, arrangement: 'line' }));
+    run(w, 4, () => ({ moveZ: 1 }));
+    run(w, 2);
+    const gaps = c.insts.map((i) => i.pos.distanceTo(w.player.pos));
+    console.log(`army of 5 robots: gaps to player ${gaps.map((g) => g.toFixed(1)).join(', ')}`);
+    assert.equal(c.insts.length, 5);
+    assert.ok(gaps.every((g) => g < 14));
+  }
+});
+
+test('ridden tank: the brain gunner shoots while the rider drives; firing hands the gun to the rider; idle keeps aim', async () => {
+  const { w } = await makeWorld('drones');
+  const c = spawn(w, catSpec('tank', { placement: { at: 'self', orient: 'face_away' } }));
+  assert.equal((w.player.riding as any)?.id, c.id);
+  run(w, 4, () => ({ moveZ: 0.5 }));
+  const auto = c.insts[0].m!.shots;
+  // rider takes over: shots go where the crosshair points, not at drones
+  look(w, new Vector3(40, 60, 40));
+  const s0 = c.insts[0].m!.shots;
+  run(w, 3, () => ({ hookL: true }));
+  const manual = c.insts[0].m!.shots - s0;
+  console.log(`ridden tank: brain-gunner shots ${auto}, rider shots ${manual}`);
+  assert.ok(auto >= 1, 'turret keeps gunning while you drive');
+  assert.ok(manual >= 1, 'LMB fires where you aim');
+  // idle with a target: turret stays on it, holds fire
+  const b = await makeWorld('drones');
+  const drone = [...b.w.entities.values()].find((e) => e.type === 'drone')!;
+  const t = spawn(b.w, catSpec('tank'));
+  b.w.constructs.machines.command(t.id, { goal: 'idle', target: { kind: 'entity', id: drone.id } });
+  run(b.w, 4);
+  console.log(`idle tank: aim error ${t.insts[0].m!.aimErr.toFixed(1)}°, shots ${t.insts[0].m!.shots}`);
+  assert.ok(t.insts[0].m!.aimErr < 20);
+  assert.equal(t.insts[0].m!.shots, 0);
 });

@@ -181,8 +181,12 @@ export const FORMS: Record<string, FormFn> = {
   horse: () => [P('capsule', [1.2, 2, 1.2], [0, 1.6, 0], 'body', [90, 0, 0]), P('box', [0.5, 1.2, 0.9], [0, 2.4, 1.6], 'head', [30, 0, 0]), ...[[-0.4, 0.8], [0.4, 0.8], [-0.4, -0.8], [0.4, -0.8]].map(([x, z]) => P('cylinder', [0.25, 1.4, 0.25], [x, 0.7, z], 'leg'))],
 };
 
-// catalog machines are forms too (their parts carry joint groups; validateSpec re-attaches the joints)
-for (const e of CATALOG) FORMS[e.id] = () => buildEntry(e.id)!.parts;
+// catalog machines are forms too (their parts carry joint groups; validateSpec re-attaches the joints).
+// A catalog entry owns its id: later assignments to FORMS[id] are ignored so parts always match the catalog joints.
+for (const e of CATALOG) {
+  const build = () => buildEntry(e.id)!.parts;
+  Object.defineProperty(FORMS, e.id, { get: () => build, set: () => {}, enumerable: true, configurable: false });
+}
 
 export const FORM_IDS = Object.keys(FORMS);
 

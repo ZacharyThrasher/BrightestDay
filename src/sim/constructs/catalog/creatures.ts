@@ -112,6 +112,7 @@ export const spider: CatalogEntry = {
   motion: 'kinematic',
   at: 'ground_front',
   lifetime: 150,
+  replaces: ['spider'],
   build() {
     const parts: Part[] = [
       P('sphere', [1.7, 1.3, 2.0], [0, 1.45, -1.05], { role: 'abdomen' }),
@@ -156,6 +157,7 @@ export const robot: CatalogEntry = {
   motion: 'kinematic',
   at: 'ground_front',
   lifetime: 150,
+  replaces: ['robot'],
   build() {
     const legL: Part[] = [
       P('capsule', [0.22, 0.85, 0.22], [-0.22, 0.46, 0], { role: 'leg', group: 'leg_l', solid: false }),
