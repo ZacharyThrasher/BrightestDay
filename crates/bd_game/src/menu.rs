@@ -92,6 +92,8 @@ enum Knob {
     AdsSpeed,
     ShowPercent,
     SummonPreview,
+    /// TRACKING: enemy compass strip on / off.
+    EnemyCompass,
     Outlines,
     OutlineWidth,
     OutlinePatterns,
@@ -324,7 +326,7 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
         }
         MenuPage::Settings => {
             let mut v = vec![Header("CONTROLS"), Value(K::Sensitivity), Value(K::InvertY), Value(K::AdsMode), Value(K::AdsSens), Button(Act::Keys, "KEY BINDINGS")];
-            v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent), Value(K::SummonPreview)]);
+            v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent), Value(K::SummonPreview), Value(K::EnemyCompass)]);
             v.extend([Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns)]);
             v.extend([Header("COMFORT"), Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette), Value(K::AdsSpeed)]);
             v.extend([Header("GRAPHICS"), Value(K::Vsync), Value(K::Fullscreen), Value(K::Aa)]);
@@ -410,6 +412,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::AdsSpeed => (lbl("  ADS ZOOM SPEED"), format!("{:.2}X", c.prefs.camera.ads_speed())),
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
         Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
+        Knob::EnemyCompass => (lbl("ENEMY COMPASS"), on_off(c.prefs.enemy_compass)),
         Knob::Outlines => (lbl("PLAYER OUTLINES"), on_off(c.prefs.outlines)),
         Knob::OutlineWidth => (lbl("  OUTLINE THICKNESS"), format!("{:.0}%", c.prefs.outline_width * 100.0)),
         Knob::OutlinePatterns => (lbl("  COLOUR-BLIND PATTERNS"), on_off(c.prefs.outline_patterns)),
@@ -543,6 +546,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::SummonPreview => {
             c.prefs.summon_preview = !c.prefs.summon_preview;
+            game = false;
+        }
+        Knob::EnemyCompass => {
+            c.prefs.enemy_compass = !c.prefs.enemy_compass;
             game = false;
         }
         Knob::Outlines => {

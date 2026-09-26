@@ -1,14 +1,12 @@
-//! Diegetic tracking + melee / hook presentation (owner: "could we get some form of diegetic player
-//! tracker? how could we easily enable players to seek each other?"). No minimap, no markers, no
-//! text — hard light in the world only (mystery tenet):
+//! Tracking + melee / hook presentation (owner: "could we get some form of diegetic player tracker?
+//! how could we easily enable players to seek each other?"). No minimap, no markers, no text:
 //!
-//! * **Ring compass** (owner: an intuition, not a GPS) — while the nearest enemy (or whoever hit you
-//!   in the last few seconds) is off screen or hidden, the ring fires a **sonar dart** every
-//!   ~1.2–1.6 s: a tiny hard-light arrowhead with a comet streak that shoots ~2.5 m toward them
-//!   (toward the screen side to turn to when they're behind you), accelerating, then pops into a few
-//!   sparks — faster / brighter when close or when it's your attacker. The ring itself carries a tiny
-//!   **needle** highlight on the rim facing them. Both off while they're on screen and in sight;
-//!   comfort keeps the dart at constant speed without sparks.
+//! * **Enemy compass strip** (owner, after a ring filament and a sonar dart read as "noodle" /
+//!   "distracting": "could we just put a compass somewhere") — a thin, faint line at the top of the
+//!   screen (~⅓ wide, ±90° of heading, tiny ticks) with one small pip per enemy in their corps colour
+//!   at their bearing (behind you clamps to the ends): bigger / brighter when close, brighter for
+//!   your attacker / last target, a brief swell on their loud actions (not in comfort mode). It fades
+//!   in (~0.3 s) only while some enemy is off screen or hidden. Setting: "Enemy compass" (UiPrefs).
 //! * **Lantern beacons** — players beyond ~60 m wear a faint, tall pillar in their corps colour
 //!   that pokes over terrain and fades out as you close in (`bd_fx::beacon::beacon_pillar`).
 //! * **Loud actions reveal** — firing a gun, summoning something big, charging and taking a heavy
@@ -34,7 +32,7 @@ use std::time::SystemTime;
 use bd_core::PlayerId;
 use bd_core::voxel::Aabb;
 use bd_fx::beacon::{beacon_pillar, tapered_stroke, view_ring, xray_polyline};
-use bd_fx::{BurstFx, BurstKind, ConstructVisual, Emit, FxParticles, PFlags, PKind};
+use bd_fx::{BurstFx, BurstKind, ConstructVisual, FxParticles, PFlags};
 use bd_sim::GameEvent;
 use bd_sim::charge::ChargeEvent;
 use bd_sim::hook::AssistEvent;
@@ -63,54 +61,36 @@ use crate::viewmodel::{HandsPublishSet, ViewmodelHands};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TrackingTuning {
-    // ---- ring compass: sonar dart + ring-face needle
+    // ---- enemy compass strip (top of the screen)
     pub compass: bool,
-    /// Whoever hit you within this many seconds is tracked instead of the nearest enemy.
+    /// Whoever hit you / you hit within this many seconds gets a brighter pip.
     pub compass_attacker_secs: f32,
-    /// "Close" / "far" distances (m) for the dart's cadence, speed and brightness.
-    pub compass_near: f32,
-    pub compass_far: f32,
-    /// On screen = inside this fraction of the view (and in sight): dart + needle are off.
+    /// On screen = inside this fraction of the view (and in sight). The strip shows only while some
+    /// enemy is off screen or hidden; fades in / out over `compass_fade_secs`.
     pub compass_screen_margin: f32,
-    /// Fade speed (1/s) of the needle / dart spawning.
-    pub compass_fade_rate: f32,
-    /// A target behind you sends the dart toward the screen side to turn to (least forward component).
-    pub compass_min_forward: f32,
-    /// Seconds between darts: close / far (× `dart_attacker_period` for whoever hit you).
-    pub dart_period_near: f32,
-    pub dart_period_far: f32,
-    pub dart_attacker_period: f32,
-    /// Flight time (s) close / far (× `dart_attacker_speed` for the attacker).
-    pub dart_secs_near: f32,
-    pub dart_secs_far: f32,
-    pub dart_attacker_speed: f32,
-    /// Distance the dart travels from the ring (m).
-    pub dart_len: f32,
-    /// Arrowhead length / half-width, stroke thickness (m); comet streak length at full speed (m).
-    pub dart_head: f32,
-    pub dart_head_width: f32,
-    pub dart_thick: f32,
-    pub dart_streak: f32,
-    /// Brightness close / far, × `dart_attacker_boost` for the attacker.
-    pub dart_emissive_near: f32,
-    pub dart_emissive_far: f32,
-    pub dart_attacker_boost: f32,
-    /// The pop at the end: spark count, speed (m/s), life (s), size (m). Comfort: no sparks, no
-    /// acceleration (constant speed).
-    pub dart_sparks: u32,
-    pub dart_spark_speed: f32,
-    pub dart_spark_life: f32,
-    pub dart_spark_size: f32,
-    /// Ring-face needle: a tiny highlight on the ring's rim on the side facing the target.
-    pub ring_needle: bool,
-    /// Ring rim radius in the ring's local units (× the arm's scale), needle length / thickness in the
-    /// same units, brightness.
-    pub ring_radius: f32,
-    pub ring_needle_len: f32,
-    pub ring_needle_thick: f32,
-    pub ring_needle_emissive: f32,
-    /// Where the ring sits relative to the viewmodel's ring light (arm-local units): read-only lookup.
-    pub ring_from_light: [f32; 3],
+    pub compass_fade_secs: f32,
+    /// Strip width (% of the screen), distance from the top (px), heading span to each end (degrees:
+    /// enemies further round clamp to the ends), line thickness (px) and opacity, tick height (px).
+    pub strip_width_pct: f32,
+    pub strip_top_px: f32,
+    pub strip_span_deg: f32,
+    pub strip_line_px: f32,
+    pub strip_line_alpha: f32,
+    pub strip_tick_px: f32,
+    /// Pip size (px) and opacity from far to near (`pip_far` → `pip_near` m).
+    pub pip_near: f32,
+    pub pip_far: f32,
+    pub pip_min_px: f32,
+    pub pip_max_px: f32,
+    pub pip_alpha_min: f32,
+    pub pip_alpha_max: f32,
+    /// Your attacker / last target: opacity + this, size + `pip_focus_px`.
+    pub pip_focus_alpha: f32,
+    pub pip_focus_px: f32,
+    /// A loud action (gun, charge, big summon, heavy hit taken) swells the pip for `pip_pulse_secs`
+    /// by up to `pip_pulse_scale` (not in comfort mode).
+    pub pip_pulse_secs: f32,
+    pub pip_pulse_scale: f32,
     // ---- lantern beacons
     pub beacon: bool,
     /// Beacons appear beyond `beacon_min_dist`, fully in by `+ beacon_fade_dist` (m)…
@@ -194,35 +174,24 @@ impl Default for TrackingTuning {
         Self {
             compass: true,
             compass_attacker_secs: 5.0,
-            compass_near: 10.0,
-            compass_far: 70.0,
             compass_screen_margin: 0.8,
-            compass_fade_rate: 6.0,
-            compass_min_forward: 0.35,
-            dart_period_near: 1.2,
-            dart_period_far: 1.6,
-            dart_attacker_period: 0.85,
-            dart_secs_near: 0.26,
-            dart_secs_far: 0.48,
-            dart_attacker_speed: 0.85,
-            dart_len: 2.5,
-            dart_head: 0.07,
-            dart_head_width: 0.04,
-            dart_thick: 0.008,
-            dart_streak: 0.45,
-            dart_emissive_near: 5.0,
-            dart_emissive_far: 1.8,
-            dart_attacker_boost: 1.3,
-            dart_sparks: 5,
-            dart_spark_speed: 1.6,
-            dart_spark_life: 0.16,
-            dart_spark_size: 0.018,
-            ring_needle: true,
-            ring_radius: 0.02,
-            ring_needle_len: 0.016,
-            ring_needle_thick: 0.004,
-            ring_needle_emissive: 4.5,
-            ring_from_light: [0.0, 0.06, 0.02],
+            compass_fade_secs: 0.3,
+            strip_width_pct: 33.0,
+            strip_top_px: 14.0,
+            strip_span_deg: 90.0,
+            strip_line_px: 1.0,
+            strip_line_alpha: 0.22,
+            strip_tick_px: 5.0,
+            pip_near: 10.0,
+            pip_far: 90.0,
+            pip_min_px: 4.0,
+            pip_max_px: 10.0,
+            pip_alpha_min: 0.35,
+            pip_alpha_max: 0.85,
+            pip_focus_alpha: 0.15,
+            pip_focus_px: 2.0,
+            pip_pulse_secs: 0.5,
+            pip_pulse_scale: 0.6,
             beacon: true,
             beacon_min_dist: 60.0,
             beacon_fade_dist: 20.0,
@@ -438,27 +407,15 @@ struct HookLink {
     t: f32,
 }
 
-/// A sonar dart in flight (camera space: it belongs to the view, never left behind by your speed).
-#[derive(Clone, Copy, Debug)]
-struct Dart {
-    origin: Vec3,
-    dir: Vec3,
-    t: f32,
-    secs: f32,
-    emissive: f32,
-    color: [f32; 3],
-}
-
 #[derive(Resource)]
 pub struct TrackingState {
     now: f32,
     attacker: Option<(PlayerId, f32)>,
     compass_fade: f32,
-    darts: Vec<Dart>,
-    dart_timer: f32,
-    /// The viewmodel ring in camera space (centre, axis, arm scale), from last frame's transforms.
-    ring_cam: Option<(Vec3, Vec3, f32)>,
-    seed: u32,
+    /// The enemy you hit last (and when): brighter compass pip.
+    target: Option<(PlayerId, f32)>,
+    /// The strip is needed (some enemy off screen / hidden): 0 or 1, eased into compass_fade.
+    compass_want: f32,
     pulses: Vec<Pulse>,
     last_pulse: Vec<(PlayerId, f32)>,
     trails: Vec<Trail>,
@@ -473,10 +430,8 @@ impl Default for TrackingState {
             now: 0.0,
             attacker: None,
             compass_fade: 0.0,
-            darts: Vec::with_capacity(4),
-            dart_timer: 0.3,
-            ring_cam: None,
-            seed: 0x9E37_79B9,
+            target: None,
+            compass_want: 0.0,
             pulses: Vec::with_capacity(32),
             last_pulse: Vec::with_capacity(16),
             trails: Vec::with_capacity(MAX_TRAILS),
@@ -543,8 +498,175 @@ impl Plugin for TrackingPlugin {
             .add_systems(OnExit(AppState::InGame), reset)
             .add_systems(Update, (hot_reload_tuning, tracking_events.in_set(PresentSet::Events)))
             .add_systems(Update, weapon_glow.in_set(FrameSet::Present).after(PresentSet::Sync))
-            .add_systems(PostUpdate, draw_tracking.after(CameraUpdateSet).after(HandsPublishSet).before(TransformSystems::Propagate));
+            .add_systems(PostUpdate, draw_tracking.after(CameraUpdateSet).after(HandsPublishSet).before(TransformSystems::Propagate))
+            .add_systems(OnEnter(AppState::InGame), spawn_compass)
+            .add_systems(OnExit(AppState::InGame), despawn_compass)
+            .add_systems(Update, compass_strip.in_set(FrameSet::Present).after(PresentSet::Sync));
         scenario::build(app);
+    }
+}
+
+// ------------------------------------------------------------------------------------ compass strip
+
+/// Enemy pips on the strip (8 players max, minus you).
+const MAX_PIPS: usize = 8;
+
+#[derive(Component)]
+struct CompassRoot;
+#[derive(Component)]
+struct CompassLine;
+#[derive(Component)]
+struct CompassPip;
+
+fn spawn_compass(mut commands: Commands, tuning: Res<TrackingTuningRes>, old: Query<Entity, With<CompassRoot>>) {
+    if !old.is_empty() {
+        return;
+    }
+    let t = &tuning.0;
+    let w = t.strip_width_pct.clamp(5.0, 100.0);
+    let mid = 10.0;
+    commands
+        .spawn((
+            Name::new("EnemyCompass"),
+            CompassRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(t.strip_top_px),
+                left: percent((100.0 - w) * 0.5),
+                width: percent(w),
+                height: px(mid * 2.0),
+                ..default()
+            },
+            Visibility::Hidden,
+            GlobalZIndex(4),
+        ))
+        .with_children(|p| {
+            let line = t.strip_line_px.max(1.0);
+            p.spawn((
+                CompassLine,
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: percent(0),
+                    width: percent(100),
+                    top: px(mid - line * 0.5),
+                    height: px(line),
+                    ..default()
+                },
+                BackgroundColor(Color::NONE),
+            ));
+            for x in [0.0f32, 25.0, 50.0, 75.0, 100.0] {
+                let h = t.strip_tick_px * if x == 50.0 { 1.6 } else { 1.0 };
+                p.spawn((
+                    CompassLine,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: percent(x),
+                        margin: UiRect::left(px(-0.5)),
+                        width: px(1.0),
+                        top: px(mid - h * 0.5),
+                        height: px(h),
+                        ..default()
+                    },
+                    BackgroundColor(Color::NONE),
+                ));
+            }
+            for _ in 0..MAX_PIPS {
+                p.spawn((
+                    CompassPip,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: percent(50),
+                        top: px(mid),
+                        width: px(0.0),
+                        height: px(0.0),
+                        border_radius: BorderRadius::all(percent(50)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::NONE),
+                ));
+            }
+        });
+}
+
+fn despawn_compass(mut commands: Commands, q: Query<Entity, With<CompassRoot>>) {
+    for e in &q {
+        commands.entity(e).try_despawn();
+    }
+}
+
+/// The enemy compass: a thin strip at the top of the screen, one pip per enemy at their bearing
+/// (±`strip_span_deg`, further round clamps to the ends), bigger + brighter when close, brighter for
+/// your attacker / last target, swelling briefly on their loud actions. Shown only while some enemy
+/// is off screen or hidden (`draw_tracking` decides), fading in / out. No text.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+fn compass_strip(
+    time: Res<Time<Real>>,
+    tuning: Res<TrackingTuningRes>,
+    prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
+    active: Option<Res<ActiveWorld>>,
+    views: Res<WorldViews>,
+    look: Res<LookAngles>,
+    comfort: Res<ComfortSettings>,
+    mut state: ResMut<TrackingState>,
+    mut root: Query<&mut Visibility, With<CompassRoot>>,
+    mut lines: Query<&mut BackgroundColor, (With<CompassLine>, Without<CompassPip>)>,
+    mut pips: Query<(&mut Node, &mut BackgroundColor), (With<CompassPip>, Without<CompassLine>)>,
+) {
+    let t = &tuning.0;
+    let dt = time.delta_secs().min(0.1);
+    let enabled = t.compass && prefs.as_ref().is_none_or(|p| p.enemy_compass) && !super::perf_off("tracking");
+    let me = active.as_ref().and_then(|a| a.local).and_then(|id| views.player(id)).filter(|v| v.alive());
+    let want = if enabled && me.is_some() { state.compass_want } else { 0.0 };
+    let rate = 3.0 / t.compass_fade_secs.max(0.01);
+    state.compass_fade += (want - state.compass_fade) * (1.0 - (-rate * dt).exp());
+    let fade = state.compass_fade;
+    let Ok(mut vis) = root.single_mut() else { return };
+    let show = fade > 0.005;
+    let v = if show { Visibility::Inherited } else { Visibility::Hidden };
+    if *vis != v {
+        *vis = v;
+    }
+    let Some(me) = me.filter(|_| show) else { return };
+    let line = Color::srgba(1.0, 1.0, 1.0, t.strip_line_alpha * fade);
+    for mut c in &mut lines {
+        c.0 = line;
+    }
+    let now = state.now;
+    let calm = comfort.flashes <= 0.01;
+    let span = t.strip_span_deg.clamp(10.0, 180.0).to_radians();
+    let focus =
+        |id: PlayerId| [state.attacker, state.target].iter().flatten().any(|(p, at)| *p == id && now - at <= t.compass_attacker_secs);
+    let mut enemies = views.players.iter().filter(|v| !v.is_local && v.alive());
+    for (mut node, mut color) in &mut pips {
+        let Some(v) = enemies.next() else {
+            color.0 = Color::NONE;
+            continue;
+        };
+        let to = v.pos - me.pos;
+        let bearing = (-to.x).atan2(-to.z);
+        let rel = (bearing - look.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+        let x = 50.0 - rel.clamp(-span, span) / span * 50.0;
+        let k = 1.0 - smooth(t.pip_near, t.pip_far, to.length());
+        let f = focus(v.id);
+        let pulse = state
+            .last_pulse
+            .iter()
+            .find(|(id, _)| *id == v.id)
+            .map_or(0.0, |(_, at)| 1.0 - ((now - at) / t.pip_pulse_secs.max(0.01)).clamp(0.0, 1.0));
+        let pulse = if calm { 0.0 } else { pulse };
+        let size =
+            (t.pip_min_px + (t.pip_max_px - t.pip_min_px) * k + if f { t.pip_focus_px } else { 0.0 }) * (1.0 + t.pip_pulse_scale * pulse);
+        let alpha =
+            (t.pip_alpha_min + (t.pip_alpha_max - t.pip_alpha_min) * k + if f { t.pip_focus_alpha } else { 0.0 } + 0.2 * pulse).min(1.0);
+        let c = super::corps_rgb(v.corps);
+        color.0 = Color::linear_rgba(c[0], c[1], c[2], alpha * fade);
+        let want = (percent(x), px(size), px(-size * 0.5));
+        if node.left != want.0 || node.width != want.1 {
+            node.left = want.0;
+            node.width = want.1;
+            node.height = want.1;
+            node.margin = UiRect { left: want.2, top: want.2, ..default() };
+        }
     }
 }
 
@@ -552,9 +674,8 @@ fn reset(mut state: ResMut<TrackingState>, mut reels: ResMut<HookReels>) {
     let s = &mut *state;
     s.attacker = None;
     s.compass_fade = 0.0;
-    s.darts.clear();
-    s.dart_timer = 0.3;
-    s.ring_cam = None;
+    s.target = None;
+    s.compass_want = 0.0;
     s.pulses.clear();
     s.last_pulse.clear();
     s.trails.clear();
@@ -593,6 +714,9 @@ fn tracking_events(
                     && let Some(s) = source.filter(|s| Some(*s) != local)
                 {
                     state.attacker = Some((s, now));
+                }
+                if source.is_some() && *source == local && Some(*target) != local {
+                    state.target = Some((*target, now));
                 }
                 if impact.heavy || *knockback >= t.reveal_heavy_kb {
                     state.pulse(*target, local, &views, t, 1.0);
@@ -733,14 +857,6 @@ fn on_screen(cam: &Transform, fov: (f32, f32), p: Vec3, margin: f32) -> bool {
     x.abs() < margin && y.abs() < margin
 }
 
-/// Read-only lookup of the first-person ring: point lights (the viewmodel's ring light is the one
-/// whose grandparent is named "Viewmodel"), parents, names.
-type ViewmodelRingQuery<'w, 's> = (
-    Query<'w, 's, (&'static GlobalTransform, &'static ChildOf), With<PointLight>>,
-    Query<'w, 's, &'static ChildOf>,
-    Query<'w, 's, &'static Name>,
-);
-
 #[allow(clippy::too_many_arguments)]
 fn draw_tracking(
     time: Res<Time<Real>>,
@@ -756,7 +872,6 @@ fn draw_tracking(
     mut fx: ResMut<FxParticles>,
     mut reels: ResMut<HookReels>,
     mut cues: MessageWriter<TrackingCue>,
-    (cam_gt, vm): (Query<&GlobalTransform, With<PlayerCamera>>, ViewmodelRingQuery<'_, '_>),
 ) {
     reels.0.clear();
     // `BD_PERF_OFF=tracking`: A/B perf runs.
@@ -775,156 +890,23 @@ fn draw_tracking(
     let st = &mut *state;
     let fx = &mut *fx;
 
-    // ---- ring compass (first person).
-    let mut want = 0.0;
-    let mut target: Option<&PlayerView> = None;
-    if t.compass
-        && hands.active
-        && !third
-        && let Some(me) = me
-    {
-        let attacker =
-            st.attacker.filter(|(_, at)| now - at <= t.compass_attacker_secs).and_then(|(id, _)| views.player(id)).filter(|v| v.alive());
-        target = attacker.or_else(|| {
-            views
-                .players
-                .iter()
-                .filter(|v| !v.is_local && v.alive())
-                .min_by(|a, b| a.pos.distance_squared(me.pos).total_cmp(&b.pos.distance_squared(me.pos)))
-        });
-        if let Some(tv) = target {
-            let c = chest(tv);
-            let visible = on_screen(cam, fov, c, t.compass_screen_margin)
-                && arena.as_ref().is_none_or(|a| {
-                    let w = a.read();
+    // ---- enemy compass strip: needed while any enemy is off screen or hidden (`compass_strip` draws it).
+    st.compass_want = 0.0;
+    if t.compass && me.is_some() {
+        let w = arena.as_ref().map(|a| a.read());
+        for v in views.players.iter().filter(|v| !v.is_local && v.alive()) {
+            let c = chest(v);
+            let seen = on_screen(cam, fov, c, t.compass_screen_margin)
+                && w.as_ref().is_none_or(|w| {
                     let d = c - eye;
                     let len = d.length();
-                    len < 1e-3 || bd_core::voxel::raycast(&*w, super::gv(eye), super::gv(d / len), (len - 0.5).max(0.0)).is_none()
+                    len < 1e-3 || bd_core::voxel::raycast(&**w, super::gv(eye), super::gv(d / len), (len - 0.5).max(0.0)).is_none()
                 });
-            want = if visible { 0.0 } else { 1.0 };
-        }
-    }
-    st.compass_fade += (want - st.compass_fade) * (1.0 - (-t.compass_fade_rate * dt).exp());
-    // The viewmodel ring (read-only): from its point light's last-frame transform, in camera space.
-    st.ring_cam = None;
-    if let Ok(cgt) = cam_gt.single() {
-        let (lights, parents, names) = &vm;
-        for (lgt, of) in lights.iter() {
-            let Ok(root) = parents.get(of.parent()) else { continue };
-            if !names.get(root.parent()).is_ok_and(|n| n.as_str() == "Viewmodel") {
-                continue;
-            }
-            let (s, r, p) = lgt.to_scale_rotation_translation();
-            let ring_w = p - r * (Vec3::from_array(t.ring_from_light) * s);
-            let (_, cr, cp) = cgt.to_scale_rotation_translation();
-            st.ring_cam = Some((cr.inverse() * (ring_w - cp), cr.inverse() * (r * Vec3::X), s.x.max(1e-3)));
-            break;
-        }
-    }
-    let ring_now = st.ring_cam.map(|(c, a, s)| (eye + rot * c, (rot * a).normalize_or(Vec3::X), s));
-    if let (Some(tv), Some(me)) = (target, me) {
-        let c = chest(tv);
-        let dist = c.distance(me.pos);
-        let far = smooth(t.compass_near, t.compass_far, dist);
-        let lerp = |a: f32, b: f32| a + (b - a) * far;
-        let attacker = st.attacker.is_some_and(|(id, at)| id == tv.id && now - at <= t.compass_attacker_secs);
-        let own = super::corps_rgb(me.corps);
-        let hot = [0.45 + own[0] * 0.55, 0.45 + own[1] * 0.55, 0.45 + own[2] * 0.55];
-        let origin = ring_now.map_or(hands.world[1], |r| r.0);
-        // Sonar dart: every ~1.2-1.6 s while they're off screen / hidden.
-        if want > 0.5 {
-            st.dart_timer -= dt;
-            if st.dart_timer <= 0.0 && st.darts.len() < 4 {
-                st.dart_timer = lerp(t.dart_period_near, t.dart_period_far) * if attacker { t.dart_attacker_period } else { 1.0 };
-                let d = (rot.inverse() * (c - origin)).normalize_or(Vec3::NEG_Z);
-                let dc = if -d.z < t.compass_min_forward {
-                    let lat = Vec2::new(d.x, d.y).normalize_or(Vec2::X);
-                    let k = (1.0 - t.compass_min_forward * t.compass_min_forward).max(0.0).sqrt();
-                    Vec3::new(lat.x * k, lat.y * k, -t.compass_min_forward)
-                } else {
-                    d
-                };
-                st.darts.push(Dart {
-                    origin: rot.inverse() * (origin - eye),
-                    dir: dc,
-                    t: 0.0,
-                    secs: (lerp(t.dart_secs_near, t.dart_secs_far) * if attacker { t.dart_attacker_speed } else { 1.0 }).max(0.05),
-                    emissive: lerp(t.dart_emissive_near, t.dart_emissive_far) * if attacker { t.dart_attacker_boost } else { 1.0 },
-                    color: own,
-                });
-            }
-        } else {
-            // Back in view: the next dart comes soon after they leave it again.
-            st.dart_timer = st.dart_timer.min(0.25);
-        }
-        // Ring-face needle: a tiny highlight on the rim facing them.
-        if t.ring_needle
-            && st.compass_fade > 0.01
-            && let Some((rc, axis, s)) = ring_now
-        {
-            let d = (c - rc).normalize_or_zero();
-            let radial = (d - axis * d.dot(axis)).normalize_or_zero();
-            if radial != Vec3::ZERO {
-                let rim = rc + radial * (t.ring_radius * s);
-                let tang = axis.cross(radial).normalize_or_zero();
-                let half = t.ring_needle_len * s * 0.5;
-                let k = st.compass_fade * if calm { 1.0 } else { 0.85 + 0.15 * (now * 6.0).sin() };
-                let e = t.ring_needle_emissive * k;
-                fx.immediate_segment(rim - tang * half, rim + tang * half, t.ring_needle_thick * s, hot, e, PFlags::PLAIN);
-                fx.immediate_segment(rim, rim + radial * (half * 1.2), t.ring_needle_thick * s * 0.7, hot, e, PFlags::PLAIN);
+            if !seen {
+                st.compass_want = 1.0;
+                break;
             }
         }
-    } else {
-        st.dart_timer = st.dart_timer.min(0.25);
-    }
-    // Darts in flight (camera space): arrowhead + comet streak, accelerating, popping into sparks.
-    let mut i = 0;
-    while i < st.darts.len() {
-        let d = st.darts[i];
-        let dt_u = d.t + dt;
-        let u = (dt_u / d.secs).min(1.0);
-        let s = if calm { u } else { u * u };
-        let dir = (rot * d.dir).normalize_or(rot * Vec3::NEG_Z);
-        let p = eye + rot * (d.origin + d.dir * (t.dart_len * s));
-        let hot = [0.5 + d.color[0] * 0.5, 0.5 + d.color[1] * 0.5, 0.5 + d.color[2] * 0.5];
-        if dt_u >= d.secs {
-            if !calm {
-                for _ in 0..t.dart_sparks.min(12) {
-                    st.seed ^= st.seed << 13;
-                    st.seed ^= st.seed >> 17;
-                    st.seed ^= st.seed << 5;
-                    let h = |k: u32| ((st.seed.rotate_left(k) & 0xFFFF) as f32 / 65535.0) * 2.0 - 1.0;
-                    let r = Vec3::new(h(0), h(11), h(22)).normalize_or(Vec3::Y);
-                    fx.emit(Emit {
-                        kind: PKind::Ballistic,
-                        flags: PFlags::PLAIN,
-                        pos: p,
-                        vel: dir * (t.dart_spark_speed * 0.8) + r * t.dart_spark_speed,
-                        size: t.dart_spark_size,
-                        color: hot,
-                        emissive: d.emissive,
-                        life: t.dart_spark_life,
-                        gravity: 0.0,
-                        drag: 4.0,
-                        seed: st.seed,
-                        ..Default::default()
-                    });
-                }
-            }
-            st.darts.swap_remove(i);
-            continue;
-        }
-        st.darts[i].t = dt_u;
-        let em = d.emissive * (u * 8.0).min(1.0);
-        let view = (p - eye).normalize_or(dir);
-        let side = dir.cross(view).normalize_or(rot * Vec3::X);
-        let back = p - dir * t.dart_head;
-        let w = t.dart_head_width;
-        fx.immediate_segment(p, back + side * w, t.dart_thick, hot, em, PFlags::PLAIN);
-        fx.immediate_segment(p, back - side * w, t.dart_thick, hot, em, PFlags::PLAIN);
-        let streak = t.dart_streak * if calm { 0.5 } else { (2.0 * u).clamp(0.15, 1.0) };
-        tapered_stroke(fx, &[back - dir * streak, back], t.dart_thick * 0.15, t.dart_thick * 0.8, d.color, hot, em * 0.1, em * 0.7, 10.0);
-        i += 1;
     }
 
     // ---- lantern beacons.
@@ -1238,8 +1220,13 @@ pub mod scenario {
             let w = &active.world;
             let spots: Option<Vec<(u8, bd_core::Vec3)>> = match sc.shot.as_str() {
                 "compass" | "filament" => {
-                    // Behind you, off to the right: the darts fly toward the right edge.
-                    ground_at(w, me.x - dir.x * 14.0 + side.x * 20.0, me.z - dir.z * 14.0 + side.z * 20.0, me.y, 30.0).map(|g| vec![(1, g)])
+                    // One behind-right (close), one hard left (mid), one far out ahead-left.
+                    let at = |f: f32, s: f32| ground_at(w, me.x + dir.x * f + side.x * s, me.z + dir.z * f + side.z * s, me.y, 40.0);
+                    match (at(-14.0, 20.0), at(4.0, -40.0), at(60.0, -35.0)) {
+                        (Some(a), Some(b), Some(c)) => Some(vec![(1, a), (2, b), (3, c)]),
+                        (Some(a), Some(b), None) => Some(vec![(1, a), (2, b)]),
+                        _ => None,
+                    }
                 }
                 "beacon" => ground_at(w, me.x + dir.x * 85.0, me.z + dir.z * 85.0, me.y, 60.0).map(|g| vec![(1, g)]),
                 "reveal" => {

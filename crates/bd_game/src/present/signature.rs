@@ -369,7 +369,7 @@ fn spawn_tint(mut commands: Commands) {
 pub(super) fn element_rgb(e: Element, corps: [f32; 3]) -> [f32; 3] {
     match e {
         Element::Light => corps,
-        Element::Fire => [1.0, 0.32, 0.06],
+        Element::Fire => [1.0, 0.16, 0.04],
         Element::Electric => [1.0, 0.92, 0.25],
         Element::Ice => [0.55, 0.85, 1.0],
         Element::Water => [0.15, 0.45, 1.0],

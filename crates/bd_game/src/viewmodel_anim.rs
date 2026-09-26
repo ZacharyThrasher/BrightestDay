@@ -679,6 +679,7 @@ pub fn held_geom_model(tu: &VmTuning, model: &bd_shapes::VoxelModel, form: Form)
 /// The grip of a held model from its bounds alone: held forms and curated icons put the grip at
 /// the origin; a model whose origin lies well outside its bounds gets one inferred (guns: low at
 /// the rear; others: the end of the longest axis nearest the origin).
+#[cfg(test)]
 pub fn held_geom(tu: &VmTuning, bounds: &bd_core::voxel::Aabb, form: Form) -> HeldGeom {
     let (min, max) = sane_bounds(bounds);
     geom_with_grip(tu, min, max, form, infer_grip(min, max, form))

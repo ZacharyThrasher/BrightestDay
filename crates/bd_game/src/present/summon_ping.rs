@@ -671,7 +671,9 @@ fn summon_ping(
                 let push = if sp.x > half.x { Vec2::NEG_X } else { Vec2::X };
                 (sp - Vec2::Y * 16.0, std::f32::consts::FRAC_PI_2, push)
             } else {
-                let mut d = if front { sp - half } else { Vec2::new(vpos.x, -vpos.y) };
+                // Behind you: bottom edge, leaning toward the side to turn to (never "up" just
+                // because the view pitches down).
+                let mut d = if front { sp - half } else { Vec2::new(vpos.x, vpos.z.abs() * 0.6) };
                 if d.length_squared() < 1e-6 {
                     d = Vec2::Y;
                 }

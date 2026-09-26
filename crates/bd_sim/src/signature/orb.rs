@@ -62,6 +62,9 @@ pub struct OrbTuning {
     pub knockback: f32,
     /// Integrity damage to a touched construct (enough to shatter anything).
     pub construct_damage: f32,
+    /// The suction wake: an Attract field (radius m, strength) that rides the orb once it is released.
+    pub wake_radius: f32,
+    pub wake_strength: f32,
 }
 
 impl Default for OrbTuning {
@@ -78,6 +81,8 @@ impl Default for OrbTuning {
             damage: 28.0,
             knockback: 36.0,
             construct_damage: 100_000.0,
+            wake_radius: 7.0,
+            wake_strength: 22.0,
         }
     }
 }
@@ -100,6 +105,8 @@ impl OrbTuning {
         self.damage = fin(self.damage, d.damage, 0.0, 300.0);
         self.knockback = fin(self.knockback, d.knockback, 0.0, 120.0);
         self.construct_damage = fin(self.construct_damage, d.construct_damage, 0.0, 1.0e7);
+        self.wake_radius = fin(self.wake_radius, d.wake_radius, 0.0, 30.0);
+        self.wake_strength = fin(self.wake_strength, d.wake_strength, 0.0, 100.0);
         self
     }
 }
@@ -151,9 +158,11 @@ pub(crate) fn register(w: &mut World, cid: ConstructId) {
     let Some(c) = w.constructs.get_mut(cid) else { return };
     let radius = c.half.max_element().max(0.5);
     let element = c.recipe.element;
-    // The flight is ours: only the suction field stays (already attached at spawn).
+    // The flight is ours: its own verbs go quiet (the field that followed it from the hand waits for
+    // the release — riding in the hand it would swallow its own caster).
     c.recipe.mechanics.retain(|m| *m == Mechanic::Attract);
     crate::constructs::components::on_graft(c);
+    w.fields.retain(|f| f.construct != Some(cid));
     let o = Orb {
         construct: cid,
         owner: c.owner,
@@ -203,6 +212,10 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                     o.phase = Phase::Travel;
                     let dir = o.dir.normalize_or(Vec3::NEG_Z);
                     o.dir = dir;
+                    if t.wake_radius > 0.0 && t.wake_strength > 0.0 {
+                        let secs = t.range / t.speed + 0.2;
+                        let _ = w.create_field(o.owner, o.pos, t.wake_radius, t.wake_strength, secs, Some(o.construct));
+                    }
                     w.events.push(GameEvent::SignatureFx {
                         id: o.construct,
                         owner: o.owner,

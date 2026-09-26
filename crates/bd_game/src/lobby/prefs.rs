@@ -442,6 +442,8 @@ pub struct UiPrefs {
     pub show_percent: bool,
     /// Off-screen summon ping shows a tiny preview window of the construct (off = arrow only).
     pub summon_preview: bool,
+    /// TRACKING: the enemy compass strip at the top of the screen (`present::tracking`).
+    pub enemy_compass: bool,
     /// Player outlines (present::outline): on/off, width multiplier (0.5–2), colour-blind patterns.
     pub outlines: bool,
     pub outline_width: f32,
@@ -470,6 +472,7 @@ impl Default for UiPrefs {
             shout: ShoutPref::On,
             show_percent: false,
             summon_preview: true,
+            enemy_compass: true,
             outlines: true,
             outline_width: 1.0,
             outline_patterns: false,

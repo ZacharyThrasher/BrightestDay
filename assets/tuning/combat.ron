@@ -693,7 +693,7 @@
         // bar) forms in the hand for the windup, then flies straight at speed m/s for range m, ignoring
         // everything: a carve of radius x carve_radius_mult (min 1 m) every carve_spacing m at carve_power, every
         // touched construct (not the caster's) takes construct_damage, every touched player is hit once for
-        // damage % with base knockback (Smash formula). Its Attract field is the suction wake.
+        // damage % with base knockback (Smash formula). Released, it drags a suction wake (Attract, wake_radius / wake_strength).
         orb: (
             diameter: 3.5,
             diameter_shout: 0.6,
@@ -706,6 +706,8 @@
             damage: 28.0,
             knockback: 36.0,
             construct_damage: 100000.0,
+            wake_radius: 7.0,
+            wake_strength: 22.0,
         ),
     ),
     // FREEDOM (bd_sim::freedom / bd_sim::legendary; hidden, never shown to players). A full shout (typed

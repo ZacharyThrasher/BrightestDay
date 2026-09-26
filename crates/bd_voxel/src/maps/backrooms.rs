@@ -715,9 +715,18 @@ fn make_plan(rng: &mut Rng) -> Plan {
             if b1 <= b0 {
                 continue;
             }
+            // Cross corridors run through the row to the rest of the level: only where the cell
+            // beyond the row is ordinary floor (not a stairwell, shaft or the sky-room void).
+            let beyond = if b0 == s0 { s0 - 1 } else { s1 };
+            let mut last_cross = a0 - 10;
             let mut a = a0;
             while a < a1 {
-                let cross = interior && (a - a0) % 5 == 2 && a < a1 - 1;
+                let out = if along_x { (a, beyond) } else { (beyond, a) };
+                let free_beyond = in_grid(out) && !levels[l].reserved[ci(out.0, out.1)];
+                let cross = interior && free_beyond && a - last_cross >= 4 && a > a0 && a < a1 - 1;
+                if cross {
+                    last_cross = a;
+                }
                 let r = mk(a, a + 1, b0, b1);
                 if r.cells().any(|(i, j)| levels[l].reserved[ci(i, j)]) {
                     a += 1;
@@ -1280,7 +1289,7 @@ fn build_walls(c: &mut City, p: &Plan, l: usize, seed: u32) {
                                         AIR
                                     }
                                 } else if d == 2 && yrel < 7 || d <= 2 && yrel == 6 {
-                                    mat::MULLION
+                                    mat::WOOD
                                 } else {
                                     continue;
                                 };
@@ -1370,7 +1379,10 @@ fn build_walls(c: &mut City, p: &Plan, l: usize, seed: u32) {
         for &jj in &COLUMN_LINES {
             let cells = [(ii - 1, jj - 1), (ii, jj - 1), (ii - 1, jj), (ii, jj)];
             let rooms: Vec<Option<&Room>> = cells.iter().map(|&(i, j)| p.room_of(l, i, j)).collect();
+            // Never inside a corridor (the bhop lanes stay clear) or the halls / stairwells / pits.
+            let same = rooms.iter().all(|r| r.map(|r| r as *const Room) == rooms[0].map(|r| r as *const Room));
             let blocked = rooms.iter().any(|r| r.is_some_and(|r| matches!(r.kit, Kit::Sky | Kit::Stair | Kit::Shaft)))
+                || (same && rooms[0].is_some_and(|r| r.role == Role::Corridor))
                 || cells.iter().any(|&(i, j)| p.is_pit(l, i, j));
             if blocked {
                 continue;

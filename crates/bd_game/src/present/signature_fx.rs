@@ -105,20 +105,14 @@ fn read_events(mut events: MessageReader<GameEvents>, mut f: ResMut<Fusions>) {
     }
 }
 
-/// Where the caster's hands are: (left, right, centre in front of the chest).
-fn hands(owner: PlayerId, active: &ActiveWorld, views: &WorldViews, cam: Option<&GlobalTransform>) -> Option<(Vec3, Vec3, Vec3)> {
-    if active.local == Some(owner)
-        && let Some(c) = cam
-    {
-        let (p, r, u, f) = (c.translation(), c.right().as_vec3(), c.up().as_vec3(), c.forward().as_vec3());
-        let base = p + f * 0.75 - u * 0.28;
-        return Some((base - r * 0.5, base + r * 0.5, base + f * 0.15));
-    }
+/// Where the caster's hands are in the world: (left, right, centre in front of the chest). The same
+/// for every viewer (first person sees them at the bottom corners, third person / others at the body).
+fn hands(owner: PlayerId, views: &WorldViews) -> Option<(Vec3, Vec3, Vec3)> {
     let v = views.player(owner)?;
     let rot = Quat::from_euler(EulerRot::YXZ, v.yaw, 0.0, 0.0);
     let (r, f) = (rot * Vec3::X, rot * Vec3::NEG_Z);
-    let base = v.pos + Vec3::Y * 1.3 * v.size.max(0.2) + f * 0.45;
-    Some((base - r * 0.6, base + r * 0.6, base + f * 0.35))
+    let base = v.pos + Vec3::Y * 1.25 * v.size.max(0.2) + f * 0.55;
+    Some((base - r * 0.65, base + r * 0.65, base + f * 0.45))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -158,7 +152,7 @@ fn apply_fx(
                     let c = element_rgb(e, corps);
                     let m = mats.add(StandardMaterial {
                         base_color: Color::linear_rgba(c[0], c[1], c[2], 0.9),
-                        emissive: LinearRgba::rgb(c[0] * 6.0, c[1] * 6.0, c[2] * 6.0),
+                        emissive: LinearRgba::rgb(c[0] * 2.0, c[1] * 2.0, c[2] * 2.0),
                         unlit: true,
                         alpha_mode: AlphaMode::Add,
                         ..default()
@@ -236,14 +230,13 @@ fn animate_fusions(
     }
     let Some(active) = active else { return };
     let dt = time.delta_secs();
-    let cam = cam.single().ok();
-    let eye = cam.map_or(Vec3::ZERO, |c| c.translation());
+    let eye = cam.single().map_or(Vec3::ZERO, |c| c.translation());
     let mut i = 0;
     while i < f.live.len() {
         let fu = &mut f.live[i];
         fu.t += dt;
         let k = (fu.t / fu.secs).clamp(0.0, 1.0);
-        let Some((l, r, c)) = hands(fu.owner, &active, &views, cam) else {
+        let Some((l, r, c)) = hands(fu.owner, &views) else {
             i += 1;
             continue;
         };
@@ -257,7 +250,7 @@ fn animate_fusions(
                 tf.scale = Vec3::splat(size * (1.0 + 0.15 * (fu.t * 18.0 + n as f32 * 3.0).sin()));
             }
             if let Some(mut m) = mats.get_mut(&fu.mats[n]) {
-                let g = 6.0 + 10.0 * k;
+                let g = 2.0 + 3.0 * k;
                 let lin = m.base_color.to_linear();
                 m.emissive = LinearRgba::rgb(lin.red * g, lin.green * g, lin.blue * g);
             }

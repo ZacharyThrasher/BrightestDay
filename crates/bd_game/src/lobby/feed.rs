@@ -333,6 +333,30 @@ fn freedom_test_on() -> bool {
     *ON.get_or_init(|| std::env::var("BD_FREEDOM_TEST").is_ok_and(|v| !v.is_empty() && v != "0"))
 }
 
+/// Dev test: bot number `k` is hit by the local player's newest (legendary if `gold`) construct and
+/// dropped out of the world (the real hit + blast-zone path, so the feed line is the sim's own).
+fn ko_bot(active: &mut ActiveWorld, me: PlayerId, k: usize, gold: bool) {
+    let cid = active
+        .world
+        .constructs
+        .owned_by(me)
+        .filter(|c| c.parent.is_none() && (c.flair & cflags::LEGENDARY != 0) == gold)
+        .max_by_key(|c| c.id.0)
+        .map(|c| c.id);
+    let Some(bot) = active.bots.get(k).map(|b| b.id) else { return };
+    let Some(pos) = active.world.player(bot).map(|p| p.mv.pos) else { return };
+    let mut hit = bd_sim::HitInfo::new(bot, Some(me), bd_sim::HitKind::Creature, 25.0, 8.0, bd_core::Vec3::Y, pos);
+    hit.construct = cid;
+    if let Some(p) = active.world.player_mut(bot) {
+        p.spawn_shield = 0.0;
+    }
+    active.world.apply_hit(hit);
+    if let Some(p) = active.world.player_mut(bot) {
+        p.mv.pos = bd_core::Vec3::new(pos.x, -500.0, pos.z);
+    }
+    info!("freedom test: KO bot {k} with {cid:?}");
+}
+
 /// Dev test plan state (`BD_FREEDOM_TEST`).
 #[derive(Resource, Default)]
 struct FreedomTest {
@@ -342,9 +366,9 @@ struct FreedomTest {
     cast: Option<String>,
 }
 
-/// `BD_FREEDOM_TEST=1` (practice): t=2.5 s a (forced) legendary "KING KONG ON A SKATEBOARD!!!",
-/// 6.5 s a sputtering "GIANT DRAGON" at 1.5 willpower, 9.5 s two bots KO'd by those constructs
-/// (real sim hits → real feed lines), 12 s the match ends (highlights). Screenshot at ~4.5 / 8 / 10.5 / 14.
+/// `BD_FREEDOM_TEST=1` (practice): t=2.5 s a (forced) legendary "KING KONG ON A SKATEBOARD!!!", 6 s a
+/// bot KO'd by it, 7 s a sputtering "GIANT DRAGON" at 1.5 willpower, 8.9 s a bot KO'd by that, 11.5 s
+/// the match ends (highlights). Screenshots at ~5.8 / 8.3 / 10 / 13.
 fn freedom_test_world(
     time: Res<Time<Real>>,
     state: Res<State<AppState>>,
@@ -367,9 +391,9 @@ fn freedom_test_world(
             forced.freedom.legendary.cap = 1.0;
             active.world.set_tuning(forced);
             st.saved = Some(saved);
-            if let Some(p) = active.world.player_mut(me) {
-                p.willpower = 100.0;
-            }
+            // A kaiju costs more than a full bar: infinite willpower for this part (else it sputters —
+            // and starves once the bar is empty, which is the honest rule, just not this shot).
+            active.world.cfg.rules.willpower = bd_sim::WillpowerMode::Infinite;
             info!("freedom test: legendary cast");
             st.cast = Some("KING KONG ON A SKATEBOARD!!!".into());
             st.step = 1;
@@ -380,45 +404,32 @@ fn freedom_test_world(
             }
             st.step = 2;
         }
-        2 if t >= 6.5 => {
+        2 if t >= 6.0 => {
+            ko_bot(&mut active, me, 0, true);
+            st.step = 3;
+        }
+        3 if t >= 7.0 => {
+            // Clear the view (dismiss the kaiju), back to the normal economy, almost empty.
+            let gold: Vec<ConstructId> = active.world.constructs.owned_by(me).map(|c| c.id).collect();
+            for id in gold {
+                active.world.dismiss_one(me, id);
+            }
+            active.world.cfg.rules.willpower = bd_sim::WillpowerMode::Normal;
             if let Some(p) = active.world.player_mut(me) {
                 p.willpower = 1.5;
             }
             info!("freedom test: sputtering cast");
             st.cast = Some("GIANT DRAGON".into());
-            st.step = 3;
-        }
-        3 if t >= 9.5 => {
-            // Two bots are KO'd by those constructs (the real hit + blast-zone path, so the feed is real).
-            let mine: Vec<(ConstructId, bool)> = active
-                .world
-                .constructs
-                .owned_by(me)
-                .filter(|c| c.parent.is_none())
-                .map(|c| (c.id, c.flair & cflags::LEGENDARY != 0))
-                .collect();
-            let gold = mine.iter().find(|m| m.1).map(|m| m.0);
-            let other = mine.iter().rev().find(|m| !m.1).map(|m| m.0);
-            let bots: Vec<PlayerId> = active.bots.iter().map(|b| b.id).take(2).collect();
-            for (bot, cid) in bots.into_iter().zip([gold, other]) {
-                let Some(pos) = active.world.player(bot).map(|p| p.mv.pos) else { continue };
-                let mut hit = bd_sim::HitInfo::new(bot, Some(me), bd_sim::HitKind::Creature, 25.0, 8.0, bd_core::Vec3::Y, pos);
-                hit.construct = cid;
-                if let Some(p) = active.world.player_mut(bot) {
-                    p.spawn_shield = 0.0;
-                }
-                active.world.apply_hit(hit);
-                if let Some(p) = active.world.player_mut(bot) {
-                    p.mv.pos = bd_core::Vec3::new(pos.x, -500.0, pos.z);
-                }
-            }
-            info!("freedom test: KOs");
             st.step = 4;
         }
-        4 if t >= 12.0 => {
+        4 if t >= 8.9 => {
+            ko_bot(&mut active, me, 1, false);
+            st.step = 5;
+        }
+        5 if t >= 11.5 => {
             active.world.cfg.rules.ko_target = 1;
             info!("freedom test: match end");
-            st.step = 5;
+            st.step = 6;
         }
         _ => {}
     }

@@ -580,7 +580,7 @@ fn animate_viewmodel(
                 };
                 let sw = swing_tf.unwrap_or(rest);
                 if swing_tf.is_some() {
-                    rot = rot * Quat::IDENTITY.slerp(sw.rotation, 0.35);
+                    rot *= Quat::IDENTITY.slerp(sw.rotation, 0.35);
                 }
                 let elbow = FIST_R + pose.hand_t[anim::RIGHT] - rot * (tip * ARM_SCALE) + Vec3::new(0.0, 0.0, ext);
                 let at = Transform::from_translation(elbow).with_rotation(rot).with_scale(Vec3::splat(ARM_SCALE)).transform_point(tip);
@@ -789,7 +789,7 @@ fn spawn_fractures(mut commands: Commands) {
         });
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn draw_fractures(
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,

@@ -152,6 +152,8 @@ pub struct Audio {
     ads_active: bool,
     /// Domain drone loops per construct.
     domains: Vec<(bd_core::ConstructId, VoiceHandle)>,
+    /// Main-thread cost of the audio systems per frame (µs), logged every 1024 frames.
+    timing: (Option<std::time::Instant>, Vec<f32>),
 }
 
 type Loaded = Result<(bd_audio::AudioAssets, Option<MusicLib>), String>;
@@ -200,7 +202,7 @@ impl Plugin for AudioFxPlugin {
             .add_systems(OnExit(AppState::InGame), leave_game)
             .add_systems(
                 Update,
-                (forward_messages, local_movement, world_audio, hooks_audio, apply_settings)
+                (timing_begin, forward_messages, local_movement, world_audio, hooks_audio, apply_settings, timing_end)
                     .chain()
                     .after(FrameSet::Present)
                     .run_if(resource_exists::<Audio>),
@@ -336,6 +338,7 @@ fn finish_load(world: &mut World) {
         reels: Vec::new(),
         ads_active: false,
         domains: Vec::new(),
+        timing: (None, Vec::with_capacity(1024)),
     });
     info!("audio: {} sounds, {:.0} MB PCM, {} Hz", assets.bank.len(), assets.bank.bytes() as f32 / 1e6, rate);
 }
@@ -796,6 +799,23 @@ fn music_moments(e: &GameEvent, w: &ActiveWorld, alive: &mut usize, mp: &mut boo
             *alive = w.world.players.len();
         }
         _ => {}
+    }
+}
+
+fn timing_begin(mut audio: ResMut<Audio>) {
+    audio.timing.0 = Some(std::time::Instant::now());
+}
+
+fn timing_end(mut audio: ResMut<Audio>) {
+    let t = &mut audio.timing;
+    if let Some(t0) = t.0.take() {
+        t.1.push(t0.elapsed().as_secs_f32() * 1e6);
+    }
+    if t.1.len() >= 1024 {
+        t.1.sort_by(f32::total_cmp);
+        let mean = t.1.iter().sum::<f32>() / t.1.len() as f32;
+        info!("audio: main thread {:.0} us mean, p99 {:.0} us, max {:.0} us (1024 frames)", mean, t.1[1013], t.1[1023]);
+        t.1.clear();
     }
 }
 

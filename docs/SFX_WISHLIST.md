@@ -31,3 +31,5 @@ frequent. Missing names are silent (callers already emit them).
 | sputter | freedom bundle | flickering, underpowered cast |
 | ads_in / ads_out | camera/ADS | subtle cloth/weapon raise |
 | view_toggle | camera | very subtle UI whoosh |
+| wall_refresh | wall refresh (air jump back) | tiny hard-light scuff tick on the wall contact |
+| surf_loop | surfing | wind rush / hard-light hiss while riding a surf face, pitch + gain up with speed |

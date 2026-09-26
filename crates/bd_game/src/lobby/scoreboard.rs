@@ -161,17 +161,17 @@ fn highlights_panel(root: &mut ChildSpawnerCommands, h: &bd_sim::freedom::Highli
     let name = |id: bd_core::PlayerId| a.world.player(id).map_or_else(|| format!("P{}", id.0), |p| p.name.clone());
     let phrase = |p: &str| bd_sim::freedom::filter_phrase(p, blocked).map(|s| s.to_uppercase());
     let mut lines: Vec<(&'static str, Vec<(String, bool)>)> = Vec::new();
-    let wild: Vec<(String, bool)> = h.wildest.iter().filter_map(|p| phrase(&p.phrase).map(|s| (format!("\u{201c}{s}\u{201d}  \u{2014} {}", name(p.player)), p.legendary))).collect();
+    let wild: Vec<(String, bool)> = h.wildest.iter().filter_map(|p| phrase(&p.phrase).map(|s| (format!("\"{s}\"  - {}", name(p.player)), p.legendary))).collect();
     lines.push(("WILDEST", wild));
     let kos: Vec<(String, bool)> = h.ko_lines.iter().map(|l| (crate::lobby::feed::feed_line_text(l, a, lex), l.legendary)).collect();
     lines.push(("BEST KOS", kos));
     if let Some(b) = &h.biggest
         && let Some(s) = phrase(&b.phrase)
     {
-        lines.push(("BIGGEST", vec![(format!("{s}  \u{2014} {} \u{b7} {:.0} m", name(b.player), b.size_m.max(0.0)), b.legendary)]));
+        lines.push(("BIGGEST", vec![(format!("{s}  - {}, {:.0} m", name(b.player), b.size_m.max(0.0)), b.legendary)]));
     }
     if let Some((p, n)) = h.creative {
-        lines.push(("MOST CREATIVE", vec![(format!("{} \u{b7} {n} unique phrase{}", name(p), if n == 1 { "" } else { "s" }), false)]));
+        lines.push(("MOST CREATIVE", vec![(format!("{}: {n} unique phrase{}", name(p), if n == 1 { "" } else { "s" }), false)]));
     }
     root.spawn((
         Text::new("HIGHLIGHTS"),

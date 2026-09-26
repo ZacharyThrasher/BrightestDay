@@ -330,7 +330,7 @@ fn main() {
     let (wpx, hpx) = (640, 360);
     let mut shots: Vec<(String, RgbImage)> = Vec::new();
     // Largest walkable room per (level, kit): look along its long axis from one end.
-    let mut add_room_shot = |shots: &mut Vec<(String, RgbImage)>, level: usize, kit: Kit, name: &str| {
+    let add_room_shot = |shots: &mut Vec<(String, RgbImage)>, level: usize, kit: Kit, name: &str| {
         let best = plan.rooms.iter().filter(|r| r.level == level && r.kit == kit && r.walkable && !r.hotel_room).max_by_key(|r| r.rect.w() * r.rect.h());
         let Some(r) = best else { return };
         let c = r.rect.center();
@@ -364,7 +364,7 @@ fn main() {
         carved.apply_carve(&op);
         let op2 = CarveOp { shape: CarveShape::Sphere { center: Vec3::new(c.x, floor_y(1) + 5.2, c.y), radius: 2.4 }, power: 3.0, seed: 8 };
         carved.apply_carve(&op2);
-        let eye = Vec3::new(c.x - 5.0, floor_y(1) + 1.6, c.y - 4.0);
+        let eye = Vec3::new(c.x - 2.2, floor_y(1) + 1.6, c.y - 0.3);
         shots.push(("punch_L1_up".into(), shot(&carved, &look, eye, Vec3::new(c.x, floor_y(2) + 5.0, c.y), 80.0, wpx, hpx)));
     }
     for (n, s) in &shots {

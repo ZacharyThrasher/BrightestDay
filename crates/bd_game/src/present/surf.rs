@@ -42,7 +42,9 @@ struct SurfDraw {
     level: f32,
 }
 
-fn clear(mut commands: Commands, mut draw: ResMut<SurfDraw>, q: Query<Entity, Or<(With<SurfSlab>, With<SurfStreak>)>>) {
+type SurfEntities<'w, 's> = Query<'w, 's, Entity, Or<(With<SurfSlab>, With<SurfStreak>)>>;
+
+fn clear(mut commands: Commands, mut draw: ResMut<SurfDraw>, q: SurfEntities) {
     for e in &q {
         commands.entity(e).try_despawn();
     }
@@ -218,7 +220,7 @@ pub mod scenario {
         let d = (l.b - l.a).normalize();
         let side = d.cross(bd_core::Vec3::Y).normalize();
         let mid = l.a + (l.b - l.a) * 0.62;
-        let eye = mid + side * 22.0 + bd_core::Vec3::Y * 2.0;
+        let eye = mid + side * 13.0 + bd_core::Vec3::Y * 1.0;
         let world = &mut active.world;
         if let Some(p) = world.player_mut(me) {
             p.mv.pos = eye - bd_core::Vec3::Y * 1.6;
