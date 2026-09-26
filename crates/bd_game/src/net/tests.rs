@@ -57,6 +57,7 @@ impl Bot {
             let _ = self.core.predict(w, act.input);
         }
         let _ = self.core.interp.update(now);
+        self.core.release_events();
         self.core.send_inputs(false);
     }
 }

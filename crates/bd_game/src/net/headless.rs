@@ -138,7 +138,8 @@ pub fn run_host(cli: &NetCli) -> i32 {
             let spawns = &active.world.arena.spawns;
             if !spawns.is_empty() {
                 let s = spawns[rng.below(spawns.len() as u32) as usize];
-                let off = bd_core::Vec3::new(rng.range(-6.0, 6.0), rng.range(-3.0, 0.0), rng.range(-6.0, 6.0));
+                // Well away from the spawn itself (players spawning into a crater are stuck).
+                let off = bd_core::Vec3::new(rng.range(8.0, 20.0) * if rng.chance(0.5) { 1.0 } else { -1.0 }, rng.range(-3.0, 0.0), rng.range(8.0, 20.0) * if rng.chance(0.5) { 1.0 } else { -1.0 });
                 active.world.request_carve(CarveRequest { center: s + off, radius: rng.range(1.5, 4.5), power: 1.5 });
             }
         }
@@ -289,6 +290,8 @@ pub fn run_client(cli: &NetCli) -> i32 {
                 }
             }
             let _ = c.interp.update(now);
+            c.release_events();
+            c.outbox.clear();
             c.send_inputs(false);
             if now - last_rtt_sample > 0.5 {
                 last_rtt_sample = now;

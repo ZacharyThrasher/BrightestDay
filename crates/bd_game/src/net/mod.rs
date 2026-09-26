@@ -27,6 +27,7 @@ pub mod headless;
 pub mod host;
 pub mod proto;
 pub mod terrain_hash;
+pub mod timing;
 
 #[cfg(test)]
 mod tests;
@@ -240,7 +241,7 @@ impl Plugin for NetPlugin {
             .add_systems(SimTick, host_pre_tick.in_set(SimSet::Input))
             .add_systems(SimTick, client_predict.in_set(SimSet::Simulate))
             .add_systems(SimTick, host_post_tick.in_set(SimSet::Post))
-            .add_systems(Update, client_frame.after(FrameSet::Sim).before(BridgeSet::Views))
+            .add_systems(Update, client_frame.after(FrameSet::Sim).before(BridgeSet::Flush))
             .add_systems(Update, (update_status, update_net_ui).chain().after(BridgeSet::Views))
             .add_systems(OnExit(AppState::InGame), on_exit_game);
     }
@@ -571,7 +572,7 @@ fn client_predict(
 
 fn client_frame(
     mut net: ResMut<NetState>,
-    active: Option<Res<ActiveWorld>>,
+    active: Option<ResMut<ActiveWorld>>,
     mut keys: ResMut<ViewKeys>,
     clock: Res<TickClock>,
     look: Res<LookAngles>,
@@ -580,7 +581,7 @@ fn client_frame(
     let t0 = now_secs();
     let net = &mut *net;
     let Some(c) = net.client.as_mut() else { return };
-    let Some(a) = active.filter(|a| a.role == SimRole::Client) else { return };
+    let Some(mut a) = active.filter(|a| a.role == SimRole::Client) else { return };
     c.send_inputs(false);
     let now = now_secs();
     let keys = &mut *keys;
@@ -590,6 +591,11 @@ fn client_frame(
         keys.alpha = it.alpha;
         keys.external = true;
         keys.valid = true;
+    }
+    // Remote-entity events at the same render time as the entities (this frame's flush).
+    c.release_events();
+    for e in c.outbox.drain(..) {
+        a.push_event(e);
     }
     // The local player is drawn where it is predicted, not ~100 ms in the past.
     if let (Some(me), Ok(sim)) = (a.local, local_q.single()) {
@@ -779,7 +785,7 @@ fn update_net_ui(
             status.lobby_code.as_deref().map(|c| format!("  code {c}")).unwrap_or_default()
         ),
         _ => format!(
-            "net rtt {:.0} ms ±{:.0}  up {:.0} kbps  down {:.0} kbps  interp {:.0} ms  corrections {} ({} visible, max {:.2} m)  terrain ok {} desync {}  net {:.3} ms/frame",
+            "net rtt {:.0} ms (jitter {:.0})  up {:.0} kbps  down {:.0} kbps  interp {:.0} ms  corrections {} ({} visible, max {:.2} m)  terrain ok {} desync {}  net {:.3} ms/frame",
             s.rtt_ms,
             s.jitter_ms,
             s.up_kbps,

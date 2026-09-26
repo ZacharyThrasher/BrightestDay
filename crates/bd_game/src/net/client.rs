@@ -24,6 +24,7 @@ use bd_voxel::{ArenaInfo, VoxelWorld};
 
 use super::proto::*;
 use super::terrain_hash::TerrainHasher;
+use super::timing::EventDelay;
 
 /// Position error that counts as a *visible* correction (smaller ones vanish in the ~100 ms blend).
 pub const VISIBLE_ERROR_M: f32 = 0.10;
@@ -142,6 +143,8 @@ pub struct ClientCore {
     pending_casts: VecDeque<(u32, f64)>,
     next_cast_seq: u32,
     decoder: DeltaDecoder,
+    /// Host events held until the render clock reaches them (see `timing`).
+    pub delay: EventDelay,
     terrain: TerrainHasher,
     latest: Option<WorldSnapshot>,
     pub interp: SnapshotBuffer<WorldSnapshot>,
@@ -184,6 +187,7 @@ impl ClientCore {
             pending_casts: VecDeque::new(),
             next_cast_seq: 1,
             decoder: DeltaDecoder::new(),
+            delay: EventDelay::default(),
             terrain: TerrainHasher::default(),
             latest: None,
             interp: SnapshotBuffer::new(InterpConfig::default()),
@@ -251,7 +255,15 @@ impl ClientCore {
         self.rec = None;
     }
 
+    /// Presentation events whose render time has come (call each frame after `interp.update`).
+    pub fn release_events(&mut self) {
+        let rt = self.interp.render_tick();
+        self.delay.release(rt, now_secs(), &mut self.outbox);
+    }
+
     fn reset_replication(&mut self) {
+        // Anything still held belongs to the old world: show it before the new init stream.
+        self.delay.flush(&mut self.outbox);
         self.decoder = DeltaDecoder::new();
         self.latest = None;
         self.interp = SnapshotBuffer::new(InterpConfig::default());
@@ -395,7 +407,7 @@ impl ClientCore {
                     i.ready = true;
                 }
             }
-            S2C::Events { events, .. } => {
+            S2C::Events { events, tick } => {
                 self.stats.events += events.len() as u64;
                 match (self.init.is_none() && self.has_world, world) {
                     (true, Some(w)) => {
@@ -420,7 +432,7 @@ impl ClientCore {
                                 break;
                             }
                             w.apply_event(&e);
-                            self.outbox.push(e);
+                            self.delay.route(e, tick, now_secs(), self.me, w, &mut self.outbox);
                         }
                     }
                     _ => self.pending.extend(events.into_iter().map(Pending::Event)),
