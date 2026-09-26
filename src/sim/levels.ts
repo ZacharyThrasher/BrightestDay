@@ -1,7 +1,7 @@
 import { Vector3, Quaternion } from 'three';
 import type { World } from './world.js';
 
-export const SCENES = ['arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'playground', 'flat'] as const;
+export const SCENES = ['arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'playground', 'flat', 'sandbox', 'race', 'horde'] as const;
 export type SceneName = (typeof SCENES)[number];
 
 function rng(seed: number) {
@@ -98,6 +98,17 @@ export function buildScene(w: World, name: SceneName): SceneInfo {
     case 'playground':
       buildPlayground(w, info);
       break;
+    case 'sandbox':
+      buildSandbox(w, info);
+      break;
+    case 'horde':
+      // the sandbox with enemy waves switched on (a new, capped wave every 22 s)
+      buildSandbox(w, info);
+      w.content.setWaves(true, { period: 22, cap: 8, firstIn: 10 });
+      break;
+    case 'race':
+      buildRace(w, info);
+      break;
   }
   w.player.teleport(info.spawn);
   w.player.yaw = info.yaw;
@@ -172,6 +183,79 @@ function buildPlayground(w: World, info: SceneInfo) {
   }
   info.spawn.set(0, 1, 0);
   info.aims.drone = new Vector3(-90, 7, 150);
+
+  // --- added after everything above so existing ids / layout are unchanged ---
+  // loose block stacks on the plaza edges (topple them with anything)
+  w.content.addStack(new Vector3(14, 0, 16), { shape: 'pyramid', levels: 4 });
+  w.content.addStack(new Vector3(-14, 0, 18), { shape: 'tower', levels: 5, size: 1.1, colors: [0xa9c1d9, 0xe6c9d8] });
+  // robot patrol yard (south-west): two robots walk a loop and chase anyone who comes close
+  w.content.addWall(new Vector3(-45, 0, 72), { bricks: 7, courses: 3 });
+  w.content.addRobot(new Vector3(-50, 1.1, 86), { patrol: new Vector3(-45, 0, 86), patrolR: 7, aggro: 20, leash: 36 });
+  w.content.addRobot(new Vector3(-40, 1.1, 86), { patrol: new Vector3(-45, 0, 86), patrolR: 7, aggro: 20, leash: 36 });
+  info.aims.robot = new Vector3(-50, 1.1, 86);
+}
+
+/**
+ * Sandbox (EVAL_SPEC_MACHINES): large open ground, scattered crates, a stack of loose blocks, a low
+ * wall, two ground robots, two hostile drones, one turret and one civilian standing still.
+ * Player at the origin looking down -z.
+ */
+function buildSandbox(w: World, info: SceneInfo) {
+  ground(w, 2000);
+  const C = w.content;
+  // hostiles + civilian first (low ids, first in entity lists)
+  C.addRobot(new Vector3(-10, 1.1, -42));
+  C.addRobot(new Vector3(12, 1.1, -40));
+  w.addEntity('drone', new Vector3(-16, 8, -36));
+  w.addEntity('drone', new Vector3(14, 7, -30));
+  w.addEntity('turret', new Vector3(24, 1.2, -56), { label: 'turret' });
+  C.addBystander(new Vector3(-14, 0.95, -8));
+  // scattered crates
+  const crates: [number, number][] = [[6.5, -8], [-6, -11], [-16, -22], [20, -13], [-2, -27], [4, -46]];
+  for (const [x, z] of crates) w.addEntity('crate', new Vector3(x, 0.8, z));
+  // a stack of loose blocks
+  C.addStack(new Vector3(13, 0, -15), { shape: 'pyramid', levels: 4 });
+  // a low wall of bricks (breakable)
+  C.addWall(new Vector3(-12, 0, -30), { bricks: 8, courses: 3 });
+  info.aims.robot = new Vector3(-10, 1.1, -42);
+  info.aims.drone = new Vector3(14, 7, -30);
+  info.aims.turret = new Vector3(24, 1.5, -56);
+  info.aims.civilian = new Vector3(-14, 1, -8);
+  info.aims.crate = new Vector3(6.5, 0.8, -8);
+  info.aims.blocks = new Vector3(13, 1.5, -15);
+  info.aims.wall = new Vector3(-12, 0.8, -30);
+}
+
+/** Race: a 200 m straight road from the start line (z = 0) to a finish line (z = -200); nothing hostile. */
+function buildRace(w: World, info: SceneInfo) {
+  ground(w, 2000);
+  const len = 240, width = 14, z0 = 20;
+  // road surface sits 2 cm proud of the ground
+  w.addBox(new Vector3(0, -0.48, z0 - len / 2), new Vector3(width, 1, len), 0x8f98aa, 'ground');
+  // kerbs along both sides (outside the lane)
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 24; i++) {
+      w.addBox(new Vector3(s * (width / 2 + 0.5), 0.1, z0 - 5 - i * 10), new Vector3(1, 0.2, 10), i % 2 ? 0xf2f4f8 : 0xe2524f, 'prop');
+    }
+  }
+  // start line + gantry posts
+  w.addBox(new Vector3(0, 0.025, 0), new Vector3(width, 0.01, 0.6), 0xf2f4f8, 'prop');
+  // finish line: chequered strip and an arch the player passes under
+  for (let r = 0; r < 2; r++) {
+    for (let i = 0; i < width; i++) {
+      w.addBox(new Vector3(-width / 2 + 0.5 + i, 0.025, -200 + (r - 0.5)), new Vector3(1, 0.01, 1), (i + r) % 2 ? 0x2a2e3d : 0xf2f4f8, 'prop');
+    }
+  }
+  for (const zz of [0, -200]) {
+    for (const s of [-1, 1]) w.addBox(new Vector3(s * (width / 2 + 2), 4, zz), new Vector3(1, 8, 1), zz === 0 ? 0xa9c1d9 : 0xf0e2c0, 'prop');
+    w.addBox(new Vector3(0, 8.6, zz), new Vector3(width + 5, 1.2, 0.8), zz === 0 ? 0xa9c1d9 : 0xffc55c, 'prop');
+  }
+  w.addGoal(new Vector3(0, 3, -200), new Vector3(width / 2 + 1, 4, 1.5), 'finish line');
+  w.content.setupRace(0, -200, width / 2);
+  info.spawn.set(0, 1, 8);
+  info.aims.finish = new Vector3(0, 1, -200);
+  info.aims.far_ledge = new Vector3(0, 0, -200);
+  info.aims.wall = new Vector3(0, 8.6, -200);
 }
 
 /** Aim the player at a world point (sets yaw/pitch so the camera crosshair ray passes through it). */

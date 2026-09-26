@@ -100,7 +100,9 @@ function mesh(geo: any, mat: any, s: [number, number, number], p: [number, numbe
   return m;
 }
 
-function buildModel(type: EntityType, hostile: boolean): Model {
+function buildModel(ent: Pick<Entity, 'type' | 'hostile' | 'variant' | 'size' | 'color'>): Model {
+  const type: EntityType = ent.type;
+  const hostile = ent.hostile;
   const group = new Group();
   const parts: Record<string, Object3D> = {};
   const C = ENTITY_COLORS;
@@ -126,8 +128,60 @@ function buildModel(type: EntityType, hostile: boolean): Model {
       body.add(rotor);
       eye = glowMat(hostile ? C.hostileGlow : '#7fd3ff', 3.2);
       body.add(mesh(G.sphere, eye, [0.32, 0.22, 0.2], [0, 0.0, -0.58], false));
+      if (ent.variant === 'heavy') {
+        // armoured heavy drone: same drone, 1.5x, with side plates and a belly gun
+        const plate = new Color(C.turretBase);
+        body.add(mergedMesh([
+          { geo: G.box, s: [0.16, 0.42, 0.9], p: [-0.66, -0.02, 0], r: [0, 0, 0.35], c: plate },
+          { geo: G.box, s: [0.16, 0.42, 0.9], p: [0.66, -0.02, 0], r: [0, 0, -0.35], c: plate },
+          { geo: G.sphere, s: [0.7, 0.4, 0.7], p: [0, -0.26, 0], c: dark },
+          { geo: G.cyl, s: [0.14, 0.6, 0.14], p: [0, -0.34, -0.35], r: [Math.PI / 2, 0, 0], c: trim },
+        ], 0.3));
+        body.scale.setScalar(1.5);
+      }
       group.add(body);
       return { group, parts: { body }, eye };
+    }
+    case 'robot': {
+      // chunky hostile walker, same palette as drones / turrets
+      const light = new Color(C.turretHead), dark = new Color(C.droneBody), mid = new Color(C.turretBase), trim = new Color(C.droneTrim);
+      const body = new Group();
+      body.add(mergedMesh([
+        { geo: G.box, s: [0.95, 0.75, 0.6], p: [0, 0.22, 0], c: light },
+        { geo: G.box, s: [0.6, 0.34, 0.08], p: [0, 0.3, -0.31], c: dark },
+        { geo: G.box, s: [0.7, 0.22, 0.5], p: [0, -0.2, 0], c: mid },
+        { geo: G.box, s: [0.55, 0.42, 0.5], p: [0, 0.83, 0], c: dark },
+        { geo: G.box, s: [0.5, 0.08, 0.46], p: [0, 1.07, 0], c: light },
+        { geo: G.cyl, s: [0.05, 0.32, 0.05], p: [0.17, 1.22, 0.05], c: mid },
+        { geo: G.sphere, s: [0.12, 0.12, 0.12], p: [0.17, 1.4, 0.05], c: trim },
+        { geo: G.sphere, s: [0.34, 0.34, 0.34], p: [-0.6, 0.5, 0], c: trim },
+        { geo: G.sphere, s: [0.34, 0.34, 0.34], p: [0.6, 0.5, 0], c: trim },
+      ], 0.3));
+      eye = glowMat(hostile ? C.hostileGlow : '#7fd3ff', 3.0);
+      body.add(mesh(G.sphere, eye, [0.42, 0.11, 0.1], [0, 0.86, -0.25], false));
+      for (const sd of [-1, 1]) {
+        const arm = new Group(); arm.position.set(sd * 0.62, 0.5, 0);
+        arm.add(mergedMesh([
+          { geo: G.capsule, s: [0.2, 0.26, 0.2], p: [0, -0.33, 0], c: dark },
+          { geo: G.box, s: [0.3, 0.3, 0.32], p: [0, -0.74, 0], c: mid },
+        ], 0.3));
+        body.add(arm); parts['arm' + (sd < 0 ? 'L' : 'R')] = arm;
+        const leg = new Group(); leg.position.set(sd * 0.22, -0.22, 0);
+        leg.add(mergedMesh([
+          { geo: G.capsule, s: [0.26, 0.28, 0.26], p: [0, -0.36, 0], c: mid },
+          { geo: G.box, s: [0.3, 0.16, 0.46], p: [0, -0.74, -0.06], c: dark },
+        ], 0.3));
+        group.add(leg); parts['leg' + (sd < 0 ? 'L' : 'R')] = leg;
+      }
+      parts.body = body;
+      group.add(body);
+      return { group, parts, eye };
+    }
+    case 'block': {
+      const sz = ent.size ?? new Vector3(1, 1, 1);
+      const col = ent.color ?? 0xd9d2c0;
+      group.add(soupMesh((s) => { s.begin(new Vector3(), Q0, col, 4); s.box(sz); }));
+      break;
     }
     case 'turret': {
       group.add(soupMesh((s) => { s.begin(new Vector3(0, -0.7, 0), Q0, 0x50576e, 4); s.cylinder(1.25, 1.0, 12); s.begin(new Vector3(0, -0.05, 0), Q0, 0x6b7390, 4); s.cylinder(0.95, 0.35, 12); }));
@@ -215,7 +269,12 @@ interface EView {
   yaw: number;
   pitch: number;
   smoke: number;
+  mode: string | null; // robots: walk / knocked / getup / down
+  punch: number; // robots: seconds into a punch, -1 when idle
+  phase: number; // walk cycle
 }
+
+interface DebrisView { mesh: Mesh; prevP: Vector3; currP: Vector3; prevQ: Quaternion; currQ: Quaternion; age: number; life: number; seen: number }
 
 const _v = new Vector3(), _q = new Quaternion();
 
@@ -223,12 +282,15 @@ const _v = new Vector3(), _q = new Quaternion();
 export class EntityViews {
   readonly root = new Group();
   private views = new Map<string, EView>();
+  private debris = new Map<number, DebrisView>();
+  private tickN = 0;
 
   constructor(private fx: FX) { this.root.name = 'entities'; }
 
   get count() { return this.views.size; }
 
   tick(w: World) {
+    this.tickDebris(w);
     for (const [id, v] of this.views) {
       if (!w.entities.has(id)) { this.root.remove(v.model.group); this.views.delete(id); }
     }
@@ -237,11 +299,12 @@ export class EntityViews {
       const t = e.body.translation();
       const r = e.body.rotation();
       if (!v) {
-        const model = buildModel(e.type, e.hostile);
+        const model = buildModel(e);
         this.root.add(model.group);
         v = {
           id: e.id, type: e.type, model, prevP: new Vector3(t.x, t.y, t.z), currP: new Vector3(t.x, t.y, t.z), prevQ: new Quaternion(r.x, r.y, r.z, r.w), currQ: new Quaternion(r.x, r.y, r.z, r.w),
           vel: new Vector3(), hit: 0, fireFlash: 0, disabled: e.disabled, held: false, hurt: false, safe: false, yaw: 0, pitch: 0, smoke: 0,
+          mode: null, punch: -1, phase: 0,
         };
         this.views.set(e.id, v);
       }
@@ -253,9 +316,33 @@ export class EntityViews {
         if (v.model.eye) v.model.eye.uniforms.uOn.value = 0;
       }
       v.held = !!(e.heldBy || e.restrainedBy);
+      if (e.ai?.kind === 'robot') { v.mode = e.ai.mode; v.punch = e.ai.punchT; }
       if (e.hurt && !v.hurt) { v.hurt = true; }
       if (e.safe && !v.safe) { v.safe = true; this.fx.ring(v.currP.clone(), new Color('#7dffb0'), 0.5, 4, 0.8, 2); }
     }
+  }
+
+  /** Broken pieces: plain toon boxes that shrink away before they despawn. */
+  private tickDebris(w: World) {
+    this.tickN++;
+    for (const d of w.content.debris) {
+      let v = this.debris.get(d.id);
+      const t = d.body.translation(), r = d.body.rotation();
+      if (!v) {
+        const mesh = new Mesh(G.box, toon({ color: d.color, rim: 0.15 }));
+        mesh.castShadow = true;
+        mesh.scale.copy(d.size);
+        this.root.add(mesh);
+        v = { mesh, prevP: new Vector3(t.x, t.y, t.z), currP: new Vector3(t.x, t.y, t.z), prevQ: new Quaternion(r.x, r.y, r.z, r.w), currQ: new Quaternion(r.x, r.y, r.z, r.w), age: 0, life: d.life, seen: 0 };
+        v.mesh.userData.size = d.size.clone();
+        this.debris.set(d.id, v);
+      }
+      v.prevP.copy(v.currP); v.prevQ.copy(v.currQ);
+      v.currP.set(t.x, t.y, t.z); v.currQ.set(r.x, r.y, r.z, r.w);
+      v.age = w.time - d.born;
+      v.seen = this.tickN;
+    }
+    for (const [id, v] of this.debris) if (v.seen !== this.tickN) { this.root.remove(v.mesh); this.debris.delete(id); }
   }
 
   onDamage(id: string) { const v = this.views.get(id); if (v) v.hit = 1; }
@@ -270,6 +357,12 @@ export class EntityViews {
 
   frame(alpha: number, dt: number, time: number, playerPos: Vector3) {
     rotorMat.uniforms.uTime.value = time;
+    for (const d of this.debris.values()) {
+      d.mesh.position.copy(d.prevP).lerp(d.currP, alpha);
+      d.mesh.quaternion.copy(d.prevQ).slerp(d.currQ, alpha);
+      const k = Math.max(0.01, Math.min(1, (d.life - d.age) / 0.6));
+      d.mesh.scale.copy(d.mesh.userData.size).multiplyScalar(k);
+    }
     for (const v of this.views.values()) {
       const g = v.model.group;
       g.position.copy(v.prevP).lerp(v.currP, alpha);
@@ -318,16 +411,54 @@ export class EntityViews {
           break;
         }
         case 'civilian': {
-          g.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.atan2(-toP.x, -toP.z));
+          const hs = Math.hypot(v.vel.x, v.vel.z);
+          const running = hs > 1.2 && !v.held && !v.hurt && Math.abs(v.vel.y) < 3 ? Math.min(1, hs / 4) : 0;
+          if (running > 0) {
+            // fleeing: face where they run, pump arms and legs
+            const wantYaw = Math.atan2(-v.vel.x, -v.vel.z);
+            let d = wantYaw - v.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+            v.yaw += d * (1 - Math.exp(-10 * dt));
+          } else v.yaw = Math.atan2(-toP.x, -toP.z);
+          g.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), v.yaw);
+          v.phase += hs * dt * 3.2;
+          const run = Math.sin(v.phase) * 0.9 * running;
           const falling = v.vel.y < -3 && !v.held;
           const f = falling ? 1 : 0;
           const flail = Math.sin(time * 14);
-          v.model.parts.armL.rotation.set(0, 0, -0.2 - f * (2.4 + flail * 0.4));
-          v.model.parts.armR.rotation.set(0, 0, 0.2 + f * (2.4 - flail * 0.4));
-          v.model.parts.legL.rotation.set(f * (0.4 + flail * 0.5), 0, -0.05);
-          v.model.parts.legR.rotation.set(-f * (0.4 + flail * 0.5), 0, 0.05);
+          v.model.parts.armL.rotation.set(-run, 0, -0.2 - f * (2.4 + flail * 0.4));
+          v.model.parts.armR.rotation.set(run, 0, 0.2 + f * (2.4 - flail * 0.4));
+          v.model.parts.legL.rotation.set(f * (0.4 + flail * 0.5) + run, 0, -0.05);
+          v.model.parts.legR.rotation.set(-f * (0.4 + flail * 0.5) - run, 0, 0.05);
           if (v.hurt) g.rotation.z = 1.4;
           if (v.safe && !v.hurt) g.position.y += Math.abs(Math.sin(time * 5)) * 0.15; // happy hop
+          break;
+        }
+        case 'robot': {
+          g.quaternion.copy(_q);
+          const P = v.model.parts;
+          const upright = (v.mode === 'walk' || v.mode === 'getup') && !v.held && !v.disabled;
+          const hs = Math.hypot(v.vel.x, v.vel.z);
+          const moving = upright ? Math.min(1, hs / 2.5) : 0;
+          v.phase += hs * dt * 3.0 * (upright ? 1 : 0);
+          const sw = Math.sin(v.phase) * 0.7 * moving;
+          const limp = upright ? 0 : v.held ? Math.sin(time * 9) * 0.5 : 0.35;
+          P.legL.rotation.set(sw + limp, 0, upright ? 0 : -0.15);
+          P.legR.rotation.set(-sw - limp, 0, upright ? 0 : 0.15);
+          P.armL.rotation.set(-sw * 0.8, 0, upright ? 0 : -0.9 - limp * 0.5);
+          P.armR.rotation.set(sw * 0.8, 0, upright ? 0 : 0.9 + limp * 0.5);
+          if (v.punch >= 0 && upright) {
+            const t = v.punch;
+            const ext = t < 0.32 ? -0.6 * (t / 0.32) : t < 0.45 ? 1.65 : 1.65 * Math.max(0, 1 - (t - 0.45) / 0.25);
+            P.armR.rotation.set(ext, 0, 0);
+            P.body.rotation.y = t < 0.32 ? 0.25 * (t / 0.32) : t < 0.45 ? -0.3 : -0.3 * Math.max(0, 1 - (t - 0.45) / 0.25);
+          } else P.body.rotation.y = 0;
+          P.body.position.y = Math.abs(Math.cos(v.phase)) * 0.07 * moving;
+          P.body.rotation.z = Math.sin(v.phase) * 0.05 * moving;
+          if (v.model.eye) v.model.eye.uniforms.uOn.value = v.disabled ? 0 : 0.8 + (v.punch >= 0 ? 0.6 : 0) + v.hit * 0.5;
+          if (v.disabled) {
+            v.smoke -= dt;
+            if (v.smoke <= 0) { v.smoke = 0.1; this.fx.glow(g.position.clone().add(new Vector3(0, 0.6, 0)), new Color(0.25, 0.23, 0.28), 1.0, 1.2, 0.5, 2.4); }
+          }
           break;
         }
         default:
@@ -340,6 +471,8 @@ export class EntityViews {
   clear() {
     for (const v of this.views.values()) this.root.remove(v.model.group);
     this.views.clear();
+    for (const d of this.debris.values()) this.root.remove(d.mesh);
+    this.debris.clear();
   }
 
   positionOf(id: string): Vector3 | null { return this.views.get(id)?.model.group.position ?? null; }
