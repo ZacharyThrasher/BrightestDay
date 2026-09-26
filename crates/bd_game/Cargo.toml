@@ -8,6 +8,19 @@ license.workspace = true
 name = "brightest_day"
 path = "src/main.rs"
 
+[features]
+default = []
+# Dev-only: faster incremental links (`cargo run -p bd_game --features dev`). Never ship with this.
+dev = ["bevy/dynamic_linking"]
+# Profiling: writes a chrome://tracing JSON (trace-*.json) in the working directory.
+# Build into a separate target dir to avoid rebuilding Bevy back and forth.
+profile = ["bevy/trace_chrome"]
+
 [dependencies]
 bd_core.workspace = true
-
+bd_voxel.workspace = true
+bd_sim.workspace = true
+serde.workspace = true
+ron.workspace = true
+bytemuck = { version = "1", features = ["derive"] }
+bevy = { version = "0.19.1" }

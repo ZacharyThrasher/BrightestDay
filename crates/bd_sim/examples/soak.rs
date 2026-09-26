@@ -6,7 +6,10 @@
 //!
 //!     cargo run --release -p bd_sim --example soak -- --seed 1 --ticks 200000
 //!         [--worlds 1] [--stats out.json] [--budget-ms 4] [--rules random|normal] [--arena arch|flat]
-//!         [--det-ticks 20000]
+//!         [--det-ticks 20000] [--party 4]
+//!
+//! `--party N`: Party mode (short rounds, picks between them) with N random party effects of every
+//! rarity stacked on each bot from the start (COMBAT.md §5g).
 //!
 //! Exit code 1 on any failure.
 
@@ -27,12 +30,13 @@ fn arg(name: &str, default: u64) -> u64 {
     arg_str(name).and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
-fn config(seed: u64, random: bool, flat: bool) -> ChaosConfig {
+fn config(seed: u64, random: bool, flat: bool, party: Option<u8>) -> ChaosConfig {
     let rules = if random { random_rules(&mut SimRng::new(seed ^ 0x5EED)) } else { MatchRules::default() };
     let mut cfg = ChaosConfig::new(seed, rules);
     if flat {
         cfg.arena = ArenaSource::Flat { size_m: 128.0 };
     }
+    cfg.party = party;
     cfg
 }
 
@@ -100,6 +104,7 @@ fn main() {
     let det_ticks = arg("--det-ticks", 20_000).min(ticks);
     let random = arg_str("--rules").is_none_or(|r| r != "normal");
     let flat = arg_str("--arena").is_some_and(|a| a == "flat");
+    let party = arg_str("--party").and_then(|v| v.parse::<u8>().ok());
     let budget_us = (budget_ms * 1000.0) as u32;
     let mut all = ChaosStats::default();
     let mut failed = false;
@@ -107,13 +112,13 @@ fn main() {
     for k in 0..worlds {
         let s = seed.wrapping_add(k);
         eprintln!("world {k}: seed {s}, {ticks} ticks");
-        let (st, _, _, f) = run_world(config(s, random, flat), ticks, budget_us, true);
+        let (st, _, _, f) = run_world(config(s, random, flat, party), ticks, budget_us, true);
         failed |= f;
         all.merge(&st);
     }
     // Determinism: world 0 twice for `det_ticks`.
-    let (_, h1, v1, f1) = run_world(config(seed, random, flat), det_ticks, u32::MAX, false);
-    let (_, h2, v2, f2) = run_world(config(seed, random, flat), det_ticks, u32::MAX, false);
+    let (_, h1, v1, f1) = run_world(config(seed, random, flat, party), det_ticks, u32::MAX, false);
+    let (_, h2, v2, f2) = run_world(config(seed, random, flat, party), det_ticks, u32::MAX, false);
     let det = !f1 && !f2 && h1 == h2 && v1 == v2;
     all.determinism = Some(det);
     if !det {
