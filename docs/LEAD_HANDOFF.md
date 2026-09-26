@@ -6,7 +6,14 @@ docs/DESIGN.md first (NORTH STAR, MYSTERY tenet, FEATURE FREEZE, snappiness gate
 docs/CLIENT_INTEGRATION.md, docs/TESTING.md, docs/BALANCE_REPORT.md. Memory: brightest-day-direction.
 
 ## Process
-- Workers = Opus subagents with strict file ownership + their own CARGO_TARGET_DIR; they never commit.
+- Workers = Opus subagents with strict file ownership; they never commit. BUILD POLICY (changed
+  2026-09-26 midday): all workers build the SAME working tree, so they share ONE target dir
+  (`target\play`, default features, CARGO_BUILD_JOBS=8; cargo's lock queues builds). Per-worker target
+  dirs caused 5-6 concurrent full Bevy builds (~70 rustc) and hour-long waits. Small leaf crates
+  (bd_music, bd_audio-only) may keep their own dir. Copy exes out before running them.
+  Playable build for the owner: target\playable\brightest_day.exe.
+- Lead: commit a checkpoint whenever `cargo check --workspace --tests` + core tests are green, so HEAD
+  always builds (in-progress worker files included).
 - Lead verifies (tests / galleries / screenshots / benches) and commits with the Co-Authored-By trailer.
 - bd_core contract v1.4 (v1.3 Transforms, Recipe.grants; v1.4 `input::buttons::CHARGE`). Change only via lead; patch literal call sites.
 - Gate: `tools/check.ps1` (fmt/clippy/tests/soak/bench/smoke). Perf gates: frame p99 < 7 ms (quiet
