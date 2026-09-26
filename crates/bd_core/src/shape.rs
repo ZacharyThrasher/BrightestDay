@@ -1,3 +1,5 @@
+//! Euler convention for `Prim::rot_deg`: glam XYZ order (R = Rx·Ry·Rz), degrees.
+//!
 //! Construct shape description: a list of simple primitives in construct-voxel units
 //! (1 unit = [`crate::CONSTRUCT_VOXEL_SIZE`] m), origin at the construct's pivot (grip for held items,
 //! feet-centre for creatures and structures), +Y up, -Z forward (the direction a held item points /
@@ -82,6 +84,14 @@ pub enum PartRole {
     WingLeft,
     WingRight,
     Weapon,
+    /// Pilot seat / saddle / cockpit (Mechanic::Piloted). (v1.1)
+    Seat,
+    /// Spins with locomotion speed. (v1.1)
+    Wheel,
+    /// Flame/exhaust flicker. (v1.1)
+    Exhaust,
+    /// Sways (capes, sails, flags). (v1.1)
+    Cloth,
     Other,
 }
 

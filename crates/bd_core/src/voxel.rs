@@ -79,11 +79,16 @@ pub struct RayHit {
     pub t: f32,
 }
 
+/// Upper bound on voxel boundaries a single [`raycast`] crosses (≈ 10 km of travel at 0.5 m voxels).
+/// Guarantees termination for absurd `max_dist` values (1e30, +inf) on unbounded worlds.
+pub const MAX_RAY_STEPS: u32 = 1 << 16;
+
 /// Amanatides–Woo DDA through the voxel grid. `dir` need not be normalised; `max_dist` is in metres
-/// along the normalised direction.
+/// along the normalised direction. Never panics and always terminates: non-finite origins/directions
+/// or a NaN `max_dist` miss, and at most [`MAX_RAY_STEPS`] voxels are visited.
 pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_dist: f32) -> Option<RayHit> {
     let dir = dir.normalize_or_zero();
-    if dir == Vec3::ZERO {
+    if dir == Vec3::ZERO || !dir.is_finite() || !origin.is_finite() || max_dist.is_nan() {
         return None;
     }
     let mut v = world_to_voxel(origin);
@@ -116,7 +121,7 @@ pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_d
         first(origin.y, vmin.y, dir.y, inv.y),
         first(origin.z, vmin.z, dir.z, inv.z),
     );
-    loop {
+    for _ in 0..MAX_RAY_STEPS {
         let (axis, t) = if t_max.x < t_max.y && t_max.x < t_max.z {
             (0, t_max.x)
         } else if t_max.y < t_max.z {
@@ -128,19 +133,20 @@ pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_d
             return None;
         }
         let mut normal = IVec3::ZERO;
+        // Checked steps: an origin near the i32 voxel limit (|p| ≳ 1e9 m) must miss, not overflow.
         match axis {
             0 => {
-                v.x += step.x;
+                v.x = v.x.checked_add(step.x)?;
                 t_max.x += t_delta.x;
                 normal.x = -step.x;
             }
             1 => {
-                v.y += step.y;
+                v.y = v.y.checked_add(step.y)?;
                 t_max.y += t_delta.y;
                 normal.y = -step.y;
             }
             _ => {
-                v.z += step.z;
+                v.z = v.z.checked_add(step.z)?;
                 t_max.z += t_delta.z;
                 normal.z = -step.z;
             }
@@ -149,6 +155,7 @@ pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_d
             return Some(RayHit { voxel: v, point: origin + dir * t, normal, t });
         }
     }
+    None
 }
 
 #[cfg(test)]

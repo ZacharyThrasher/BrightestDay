@@ -264,6 +264,10 @@ pub enum ModelSource {
     Icon(String),
 }
 
+/// Deepest payload chain a [`Recipe`] may carry (`a cannon shooting bees breathing anvils…`). The sim
+/// only uses depth 1; this bound exists so hostile or buggy data can never recurse without limit.
+pub const MAX_PAYLOAD_DEPTH: usize = 8;
+
 /// A fully resolved construct description. Produced by the lexicon, validated/clamped and executed by the
 /// sim. Contains **no behaviour** — only which closed-set mechanics apply and their parameters.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -286,7 +290,9 @@ pub struct Recipe {
     /// What this construct shoots / breathes / throws / drops, as a construct of its own
     /// ("a cannon that shoots anvils", "godzilla breathing bees", "eeyore shooting laser beams").
     /// `None` = the form's default projectile / its element. The sim clamps nesting to depth 1.
-    #[serde(default)]
+    /// Deserialising a chain deeper than [`MAX_PAYLOAD_DEPTH`] fails (no unbounded recursion on
+    /// untrusted bytes).
+    #[serde(default, deserialize_with = "deserialize_payload")]
     pub payload: Option<Box<Recipe>>,
     /// Mechanical sub-assemblies (sorted, unique). See [`Feature`].
     #[serde(default)]
@@ -304,7 +310,20 @@ impl Recipe {
     }
 
     /// Normalise: sort + dedup mechanics, sanitise NaNs. Always call after building a recipe by hand.
-    pub fn normalized(mut self) -> Self {
+    /// Idempotent. Also sanitises `accent` (clamped to 0..1, dropped if NaN) and normalises the
+    /// payload chain, truncating it below [`MAX_PAYLOAD_DEPTH`].
+    pub fn normalized(self) -> Self {
+        self.normalized_at(0)
+    }
+
+    fn normalized_at(mut self, depth: usize) -> Self {
+        self.payload = match self.payload.take() {
+            Some(p) if depth + 1 < MAX_PAYLOAD_DEPTH => Some(Box::new(p.normalized_at(depth + 1))),
+            _ => None,
+        };
+        self.accent = self.accent.and_then(|a| {
+            if a.iter().any(|c| c.is_nan()) { None } else { Some(a.map(|c| c.clamp(0.0, 1.0))) }
+        });
         self.mechanics.sort();
         self.mechanics.dedup();
         self.features.sort();
@@ -338,4 +357,32 @@ impl Recipe {
             intensity: 0.0,
         }
     }
+}
+
+thread_local! {
+    /// Payload nesting depth of the recipe currently being deserialised on this thread.
+    static PAYLOAD_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// `Option<Box<Recipe>>` with a nesting limit: serde recurses once per payload level, so a hostile
+/// 100k-deep chain would otherwise overflow the stack and abort the process.
+fn deserialize_payload<'de, D>(d: D) -> Result<Option<Box<Recipe>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct Guard(usize);
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            PAYLOAD_DEPTH.with(|c| c.set(self.0));
+        }
+    }
+    let depth = PAYLOAD_DEPTH.with(|c| c.get());
+    // The field of the recipe at chain depth `depth` holds link `depth + 1` (or None): a chain may
+    // have at most MAX_PAYLOAD_DEPTH - 1 links, matching `Recipe::normalized`.
+    if depth >= MAX_PAYLOAD_DEPTH {
+        return Err(serde::de::Error::custom("recipe payload nested too deeply"));
+    }
+    let _restore = Guard(depth);
+    PAYLOAD_DEPTH.with(|c| c.set(depth + 1));
+    Option::<Box<Recipe>>::deserialize(d)
 }
