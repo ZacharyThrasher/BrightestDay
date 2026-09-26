@@ -107,6 +107,8 @@ quiet-machine perf, `tools/check.ps1 -Soak -Bench -Smoke`, soak seeds 1..8, cros
 (charge x hook x signature, recall x Orbit gravity, shout x assembly), (3) fresh build + short
 "try these" list for an owner playtest (ideally 2+ players over the tunnel), (4) tune from feel.
 Signature moves were RE-SCOPED to an amplifier over existing mechanics (no Domain mode in the sim).
+Owner is actively playtesting the target\playable build and likes it; ideas from play (feel/polish,
+like the gun grip, summon visibility, tether saves) are welcome anytime — the freeze is for new SYSTEMS.
 
 ## Queue (do next, in order)
 1. **Weight pass (presentation half)** once client perf is done: DESIGN.md "Weight & power fantasy (pass
