@@ -11,10 +11,16 @@ import type { Joint, Part } from '../spec.js';
 import { tank } from './tank.js';
 import { car, motorcycle, helicopter, airplane } from './vehicles.js';
 import { dog, dragon, spider, robot, mech } from './creatures.js';
+import { WEAPONS } from './weapons.js';
+import { TRAPS } from './traps.js';
+import { SIEGE } from './siege.js';
 
 export type { CatalogEntry } from './types.js';
 
-export const CATALOG: CatalogEntry[] = [tank, motorcycle, car, helicopter, airplane, mech, robot, dog, dragon, spider];
+/** Combat constructs (weapons / traps / siege) come after the vehicles and creatures, so those keep their names. */
+export const COMBAT_CATALOG: CatalogEntry[] = [...WEAPONS, ...TRAPS, ...SIEGE];
+
+export const CATALOG: CatalogEntry[] = [tank, motorcycle, car, helicopter, airplane, mech, robot, dog, dragon, spider, ...COMBAT_CATALOG];
 
 export const CATALOG_BY_ID = new Map<string, CatalogEntry>(CATALOG.map((e) => [e.id, e]));
 
