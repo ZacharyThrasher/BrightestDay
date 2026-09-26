@@ -9,3 +9,4 @@ tools/asr-bench/data/
 eval/results/tmp/
 tools/asr-bench/node_modules/
 tools/.scratch/
+.claude/worktrees/
