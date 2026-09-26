@@ -1,0 +1,13 @@
+[package]
+name = "iconcheck"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bd_core = { path = "../../crates/bd_core" }
+ron = "0.10"
+serde = { version = "1", features = ["derive"] }
+
+# Standalone tool, not a workspace member.
+[workspace]
