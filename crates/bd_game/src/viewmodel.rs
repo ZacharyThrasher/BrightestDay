@@ -100,6 +100,10 @@ struct VmState {
     ring_key: [f32; 3],
     /// Fingertip offsets from the elbow (unscaled arm space), from the glove mesh.
     tip: [Vec3; 2],
+    /// Glove (hand block) bounds in unscaled arm space, min/max (right, left).
+    glove: [(Vec3, Vec3); 2],
+    /// `bd_shapes::weight_of` of the held construct (1 = nominal).
+    held_w: f32,
 }
 
 #[derive(Component)]
@@ -110,6 +114,12 @@ struct VmArm {
 }
 #[derive(Component)]
 struct VmArmMesh;
+/// Curled fingers / thumb blocks around a held grip (shown only while holding / supporting).
+#[derive(Component)]
+struct VmFinger {
+    right: bool,
+    thumb: bool,
+}
 #[derive(Component)]
 struct VmRing;
 #[derive(Component)]
@@ -127,6 +137,7 @@ struct PercentText;
 struct VmAssets {
     arm_mat: Handle<StandardMaterial>,
     ring_mat: Handle<StandardMaterial>,
+    finger_mat: Handle<StandardMaterial>,
 }
 
 /// Elbow positions in camera space (right, up, back).
@@ -138,8 +149,9 @@ const FIST_L: Vec3 = Vec3::new(-0.2, -0.17, -0.33);
 /// Huge items are clamped further by screen coverage where the visual is placed
 /// (`present::constructs::clamp_first_person`), so a giant hammer never covers the view.
 const HELD_VIEW_SCALE: f32 = 0.24;
-/// Gloves are drawn a bit slimmer than the body's arms so they frame the view instead of filling it.
-const ARM_SCALE: f32 = 0.48;
+/// Gloves are drawn well under the body's arm size so they read as hands and frame the view (the
+/// cross-section shrinks more than the length: slimmer fists, same reach).
+const ARM_SCALE: Vec3 = Vec3::new(0.31, 0.31, 0.37);
 const ELBOW_L: Vec3 = Vec3::new(-0.27, -0.31, -0.03);
 
 pub struct ViewmodelPlugin;
@@ -165,7 +177,8 @@ impl Plugin for ViewmodelPlugin {
 fn setup_assets(mut commands: Commands, mut mats: ResMut<Assets<StandardMaterial>>) {
     let arm_mat = mats.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.75, reflectance: 0.2, ..default() });
     let ring_mat = mats.add(StandardMaterial { base_color: Color::WHITE, emissive: LinearRgba::rgb(2.0, 8.0, 3.0), unlit: true, ..default() });
-    commands.insert_resource(VmAssets { arm_mat, ring_mat });
+    let finger_mat = mats.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.75, reflectance: 0.2, ..default() });
+    commands.insert_resource(VmAssets { arm_mat, ring_mat, finger_mat });
 }
 
 fn local_corps(active: Option<&ActiveWorld>, prefs: &UiPrefs) -> bd_core::corps::Corps {
@@ -179,11 +192,15 @@ fn attach_viewmodel(mut commands: Commands, cams: Query<Entity, With<PlayerCamer
     }
     let Ok(cam) = cams.single() else { return };
     let ring_mesh = meshes.add(Torus::new(0.011, 0.02));
+    let cube = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
     commands.entity(cam).with_children(|c| {
         c.spawn((Name::new("Viewmodel"), VmRoot, Transform::default(), Visibility::Hidden)).with_children(|root| {
             for right in [true, false] {
-                root.spawn((VmArm { right }, Transform::from_translation(if right { ELBOW_R } else { ELBOW_L }).with_scale(Vec3::splat(ARM_SCALE)), Visibility::Inherited)).with_children(|arm| {
+                root.spawn((VmArm { right }, Transform::from_translation(if right { ELBOW_R } else { ELBOW_L }).with_scale(ARM_SCALE), Visibility::Inherited)).with_children(|arm| {
                     arm.spawn((VmArmMesh, Transform::default(), Visibility::Inherited, NotShadowCaster));
+                    for thumb in [false, true] {
+                        arm.spawn((VmFinger { right, thumb }, Mesh3d(cube.clone()), MeshMaterial3d(assets.finger_mat.clone()), Transform::default(), Visibility::Hidden, NotShadowCaster));
+                    }
                     if right {
                         arm.spawn((
                             VmRing,
@@ -223,8 +240,9 @@ fn rebuild_hands(
     mut st: ResMut<VmState>,
     arms: Query<(&VmArm, &Children)>,
     arm_meshes: Query<Entity, With<VmArmMesh>>,
-    mut rings: Query<&mut Transform, (With<VmRing>, Without<VmRingLight>)>,
-    mut lights: Query<&mut Transform, (With<VmRingLight>, Without<VmRing>)>,
+    mut rings: Query<&mut Transform, (With<VmRing>, Without<VmRingLight>, Without<VmFinger>)>,
+    mut lights: Query<&mut Transform, (With<VmRingLight>, Without<VmRing>, Without<VmFinger>)>,
+    (mut fingers, mut mats): (Query<(&VmFinger, &mut Transform), (Without<VmRing>, Without<VmRingLight>)>, ResMut<Assets<StandardMaterial>>),
 ) {
     let Some(lex) = lex else { return };
     if arms.is_empty() {
@@ -265,7 +283,31 @@ fn rebuild_hands(
                     let tip = pm.positions.iter().map(|q| Vec3::from_array(*q) - pivot).fold(Vec3::ZERO, |a, b| if b.z < a.z { b } else { a });
                     // Use the glove's centre line at the tip (not a corner).
                     let tip = Vec3::new(0.0, tip.y * 0.5, tip.z);
-                    st.tip[if arm.right { 0 } else { 1 }] = tip;
+                    let side = if arm.right { 0 } else { 1 };
+                    st.tip[side] = tip;
+                    // The hand block: vertices in the far half of the arm (glove + cuff).
+                    let (mut gmin, mut gmax, mut far) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN), (f32::MAX, 0usize));
+                    for (k, q) in pm.positions.iter().enumerate() {
+                        let v = Vec3::from_array(*q) - pivot;
+                        if v.z < tip.z * 0.52 {
+                            gmin = gmin.min(v);
+                            gmax = gmax.max(v);
+                        }
+                        if v.z < far.0 {
+                            far = (v.z, k);
+                        }
+                    }
+                    if gmin.cmple(gmax).all() {
+                        st.glove[side] = (gmin, gmax);
+                        place_fingers(&mut fingers, arm.right, gmin, gmax);
+                    }
+                    // Fingers take the glove's colour at the fingertip (a touch darker: reads as a fold).
+                    if arm.right
+                        && let Some(c) = pm.colors(&palette).get(far.1)
+                        && let Some(mut m) = mats.get_mut(&assets.finger_mat)
+                    {
+                        m.base_color = Color::linear_rgb(c[0] * 0.8, c[1] * 0.8, c[2] * 0.8);
+                    }
                     let mesh = meshes.add(part_mesh_to_bevy(pm, &palette, pivot));
                     commands.entity(child).insert((Mesh3d(mesh), MeshMaterial3d(assets.arm_mat.clone())));
                     if arm.right {
@@ -285,6 +327,20 @@ fn rebuild_hands(
                 }
             }
         }
+    }
+}
+
+/// Curled fingers wrap the front-bottom of the fist (where a grip passes through the palm) and a
+/// thumb lies over the inner top edge: shown while the hand holds something, it reads as gripping.
+fn place_fingers(fingers: &mut Query<(&VmFinger, &mut Transform), (Without<VmRing>, Without<VmRingLight>)>, right: bool, gmin: Vec3, gmax: Vec3) {
+    let (s, c) = (gmax - gmin, (gmin + gmax) * 0.5);
+    for (f, mut tf) in fingers.iter_mut().filter(|(f, _)| f.right == right) {
+        *tf = if f.thumb {
+            let inner = if right { gmin.x - s.x * 0.04 } else { gmax.x + s.x * 0.04 };
+            Transform::from_xyz(inner, c.y + s.y * 0.18, c.z - s.z * 0.12).with_scale(Vec3::new(s.x * 0.24, s.y * 0.3, s.z * 0.55))
+        } else {
+            Transform::from_xyz(c.x, c.y - s.y * 0.22, gmin.z - s.z * 0.04).with_scale(Vec3::new(s.x * 0.92, s.y * 0.5, s.z * 0.26))
+        };
     }
 }
 
@@ -411,6 +467,7 @@ fn vm_events(
     let held = held_c.map(|c| (c.id, c.recipe.form));
     // The sim's quantised weight: the first-person swing matches its hit windows.
     let swing_w = held_c.map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
+    st.held_w = held_c.map_or(1.0, |c| bd_shapes::weight_of(&c.recipe));
     if held.map(|h| h.0) != st.held.map(|h| h.0) {
         st.swing = None;
     }
@@ -489,6 +546,7 @@ fn animate_viewmodel(
         Option<Res<anim::AdsState>>,
         Res<crate::camera::CameraRig>,
         Local<Option<((ConstructId, usize), anim::HeldGeom)>>,
+        Query<(&VmFinger, &mut Visibility), Without<VmRoot>>,
     ),
     mut root: Query<(&mut Transform, &mut Visibility), (With<VmRoot>, Without<VmArm>)>,
     mut arms: Query<(&VmArm, &mut Transform), Without<VmRoot>>,
@@ -548,7 +606,11 @@ fn animate_viewmodel(
     // left palm to the fore-grip. Empty hands: the rest pose. Both + `anim::HandPose` on top.
     let tu = &tuning.0;
     let tip_of = |i: usize| if st.tip[i] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.6) } else { st.tip[i] };
-    let palm_of = |tip: Vec3| Vec3::new(0.0, tip.y, tip.z * tu.grip_palm);
+    // Palm = the middle of the hand block (0 right, 1 left); grip_palm along the arm if unknown.
+    let palm_of = |i: usize| match st.glove[i] {
+        (mn, mx) if mn.cmplt(mx).all() => Vec3::new(0.0, (mn.y + mx.y) * 0.5, (mn.z + mx.z) * 0.5),
+        _ => Vec3::new(0.0, tip_of(i).y, tip_of(i).z * tu.grip_palm),
+    };
     // Grip / support points from bd_shapes' grip API, computed once per held model.
     let geom = st.held.and_then(|(id, form)| {
         let e = *held_q.0.as_ref()?.0.get(&id)?;
@@ -583,16 +645,16 @@ fn animate_viewmodel(
                     rot *= Quat::IDENTITY.slerp(sw.rotation, 0.35);
                 }
                 let elbow = FIST_R + pose.hand_t[anim::RIGHT] - rot * (tip * ARM_SCALE) + Vec3::new(0.0, 0.0, ext);
-                let at = Transform::from_translation(elbow).with_rotation(rot).with_scale(Vec3::splat(ARM_SCALE)).transform_point(tip);
+                let at = Transform::from_translation(elbow).with_rotation(rot).with_scale(ARM_SCALE).transform_point(tip);
                 let item = Transform::from_translation(at).mul_transform(sw);
                 let old = anim::HeldGeom { grip: Vec3::ZERO, ..geom };
                 (rot, elbow, Some((anim::place_item(tu, &old, item.translation, item.rotation, HELD_VIEW_SCALE * item.scale.max_element()), geom)))
             }
             (Some(_), Some(geom)) => {
-                let gf = anim::grip_frame(tu, aims, swing_tf.as_ref());
+                let gf = anim::grip_frame(tu, aims, st.held_w, swing_tf.as_ref());
                 let mut rot = pose.hand_r[anim::RIGHT] * gf.arm_rot;
                 let fist = gf.fist + pose.hand_t[anim::RIGHT] + Vec3::new(0.0, 0.0, ext);
-                let mut palm = fist - rot * (tip * ARM_SCALE) + rot * (palm_of(tip) * ARM_SCALE);
+                let mut palm = fist - rot * (tip * ARM_SCALE) + rot * (palm_of(0) * ARM_SCALE);
                 let mut item_rot = pose.hand_r[anim::RIGHT] * gf.item_rot;
                 let mut scale = anim::hip_scale(tu, &geom, HELD_VIEW_SCALE * gf.item_scale);
                 if ads_blend > 0.0 {
@@ -604,7 +666,7 @@ fn animate_viewmodel(
                     palm = palm.lerp(ads_palm, ads_blend);
                     item_rot = item_rot.slerp(Quat::IDENTITY, ads_blend);
                 }
-                let elbow = palm - rot * (palm_of(tip) * ARM_SCALE);
+                let elbow = palm - rot * (palm_of(0) * ARM_SCALE);
                 (rot, elbow, Some((anim::place_item_scaled(&geom, palm, item_rot, scale), geom)))
             }
             _ => {
@@ -614,7 +676,7 @@ fn animate_viewmodel(
             }
         }
     };
-    let (l_rot, l_elbow) = {
+    let (l_rot, l_elbow, l_grip) = {
         let tip = tip_of(1);
         let rest = Quat::from_euler(EulerRot::YXZ, -0.20, 0.22, 0.0);
         let rot = pose.hand_r[anim::LEFT] * rest;
@@ -625,11 +687,11 @@ fn animate_viewmodel(
             Some(target) => {
                 // Support hand: aim the forearm at the fore-grip and put the palm on it.
                 let s_rot = anim::reach_rot(rest, ELBOW_L, target);
-                let s_elbow = target - s_rot * (palm_of(tip) * ARM_SCALE);
+                let s_elbow = target - s_rot * (palm_of(1) * ARM_SCALE);
                 let w = support;
-                (rot.slerp(s_rot, w), elbow.lerp(s_elbow, w))
+                (rot.slerp(s_rot, w), elbow.lerp(s_elbow, w), w)
             }
-            None => (rot, elbow),
+            None => (rot, elbow, 0.0),
         }
     };
     for (arm, mut tf) in &mut arms {
@@ -638,6 +700,14 @@ fn animate_viewmodel(
         tf.rotation = rot;
         // Where the rope leaves the hand (camera space).
         hands_out.local[h] = root_tf.transform_point(tf.transform_point(tip_of(if arm.right { 0 } else { 1 })));
+    }
+    // Curled fingers + thumb only while the hand closes on something.
+    let gripping = [item_root.is_some(), l_grip > 0.5];
+    for (f, mut v) in &mut held_q.5 {
+        let want = if gripping[if f.right { 0 } else { 1 }] { Visibility::Inherited } else { Visibility::Hidden };
+        if *v != want {
+            *v = want;
+        }
     }
 
     // --- ring glow = willpower

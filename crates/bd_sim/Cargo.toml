@@ -17,3 +17,11 @@ ron.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 bincode.workspace = true
+
+[features]
+# BACKROOMS map (bd_voxel feature) — only the route example needs it while the map is in development.
+backrooms = ["bd_voxel/backrooms"]
+
+[[example]]
+name = "backrooms_routes"
+required-features = ["backrooms"]

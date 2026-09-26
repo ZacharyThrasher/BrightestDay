@@ -687,7 +687,12 @@ fn render_after(scen: &mut dyn Scenario, secs: f32, seed: u64) -> (Capture, Vec<
         }
         rig.director.update(FRAME_DT, &f.inputs, &rig.cfg, &mut rig.engine);
         if let Some(m) = music.as_mut() {
-            let mi = bd_audio::music::MusicInputs { scene: Scene::InGame, map: map_key, combat: rig.director.weights().combat, ..Default::default() };
+            let mi = bd_audio::music::MusicInputs {
+                scene: Scene::InGame,
+                map: map_key,
+                combat: rig.director.weights().combat,
+                ..Default::default()
+            };
             m.update(FRAME_DT, &mi, &mut rig.engine);
         }
         rig.engine.advance(FRAME_DT);

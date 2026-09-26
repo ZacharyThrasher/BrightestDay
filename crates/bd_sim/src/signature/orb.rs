@@ -242,7 +242,8 @@ pub(crate) fn step(w: &mut World, dt: f32) {
         if o.phase == Phase::Travel {
             if let Some(c) = w.constructs.get_mut(o.construct) {
                 c.pos = o.pos;
-                c.vel = o.dir * t.speed;
+                // Zero: it is placed, not thrown (a "thrown" body would add its own contact hits).
+                c.vel = Vec3::ZERO;
             }
             // Range reached, or about to leave the map (before the blast zones would recall it).
             let b = &w.arena.bounds;
@@ -317,7 +318,8 @@ fn erase(w: &mut World, o: &mut Orb, t: &OrbTuning) {
             continue;
         }
         let h = p.hull(&base);
-        if crate::geom::dist_sq_point_aabb(&h, o.pos) <= o.radius * o.radius {
+        let reach = o.radius + 0.35;
+        if crate::geom::dist_sq_point_aabb(&h, o.pos) <= reach * reach {
             o.hit |= bit;
             hits[m] = (p.id, h.center());
             m += 1;

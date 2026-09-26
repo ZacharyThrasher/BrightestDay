@@ -367,7 +367,7 @@ struct FreedomTest {
 }
 
 /// `BD_FREEDOM_TEST=1` (practice): t=2.5 s a (forced) legendary "KING KONG ON A SKATEBOARD!!!", 6 s a
-/// bot KO'd by it, 7 s a sputtering "GIANT DRAGON" at 1.5 willpower, 8.9 s a bot KO'd by that, 11.5 s
+/// bot KO'd by it, 7 s a sputtering "GIANT BEAR" at 1.5 willpower, 8.9 s a bot KO'd by that, 11.5 s
 /// the match ends (highlights). Screenshots at ~5.8 / 8.3 / 10 / 13.
 fn freedom_test_world(
     time: Res<Time<Real>>,
@@ -419,7 +419,7 @@ fn freedom_test_world(
                 p.willpower = 1.5;
             }
             info!("freedom test: sputtering cast");
-            st.cast = Some("GIANT DRAGON".into());
+            st.cast = Some("GIANT BEAR".into());
             st.step = 4;
         }
         4 if t >= 8.9 => {

@@ -176,6 +176,10 @@ pub struct VmTuning {
     pub grip_melee_fist: [f32; 3],
     pub grip_melee_arm: [f32; 2],
     pub grip_melee_item: [f32; 3],
+    /// Added to the melee fist / item rest per unit of weight above 1 (max 1.5): heavy things rest
+    /// lower and further out.
+    pub grip_melee_heavy_fist: [f32; 3],
+    pub grip_melee_heavy_item: [f32; 3],
     /// Two-handed guns: the left palm goes this far along the barrel (fraction of the forward length)…
     pub support_fore: f32,
     /// …this far below the item's axis (m, view space).
@@ -319,9 +323,11 @@ impl Default for VmTuning {
             grip_gun_fist: [0.13, -0.16, -0.36],
             grip_gun_arm: [0.1, 0.08],
             grip_gun_item: [0.05, 0.02, 0.0],
-            grip_melee_fist: [0.16, -0.135, -0.34],
+            grip_melee_fist: [0.18, -0.16, -0.37],
             grip_melee_arm: [0.16, 0.3],
-            grip_melee_item: [-0.7, 0.75, -0.5],
+            grip_melee_item: [-0.85, 0.55, -0.45],
+            grip_melee_heavy_fist: [0.04, -0.05, -0.03],
+            grip_melee_heavy_item: [-0.15, -0.3, -0.1],
             support_fore: 0.45,
             support_drop: 0.015,
             support_pistol_len: 0.2,
@@ -766,15 +772,18 @@ pub struct GripFrame {
     pub item_scale: f32,
 }
 
-pub fn grip_frame(tu: &VmTuning, aims: bool, swing: Option<&Transform>) -> GripFrame {
+pub fn grip_frame(tu: &VmTuning, aims: bool, weight: f32, swing: Option<&Transform>) -> GripFrame {
     let (fist, arm, item) = if aims {
         (tu.grip_gun_fist, tu.grip_gun_arm, tu.grip_gun_item)
     } else {
         (tu.grip_melee_fist, tu.grip_melee_arm, tu.grip_melee_item)
     };
+    // Heavier melee items rest lower and further out (the head away from the camera).
+    let heavy = if aims || !weight.is_finite() { 0.0 } else { (weight - 1.0).clamp(0.0, 1.5) };
+    let item = v3a(item) + v3a(tu.grip_melee_heavy_item) * heavy;
     let arm_rest = Quat::from_euler(EulerRot::YXZ, arm[0], arm[1], 0.0);
-    let item_rest = Quat::from_euler(EulerRot::YXZ, item[0], item[1], item[2]);
-    let fist = v3a(fist);
+    let item_rest = Quat::from_euler(EulerRot::YXZ, item.x, item.y, item.z);
+    let fist = v3a(fist) + v3a(tu.grip_melee_heavy_fist) * heavy;
     match swing.filter(|s| s.is_finite()) {
         None => GripFrame { arm_rot: arm_rest, item_rot: item_rest, fist, item_scale: 1.0 },
         Some(s) => {
@@ -2072,9 +2081,9 @@ mod tests {
     #[test]
     fn rigid_grip_arm_turns_with_the_item() {
         let tu = VmTuning::default();
-        let rest = grip_frame(&tu, true, None);
+        let rest = grip_frame(&tu, true, 1.0, None);
         let swing = Transform::from_rotation(Quat::from_rotation_x(0.4) * rest.item_rot);
-        let gf = grip_frame(&tu, true, Some(&swing));
+        let gf = grip_frame(&tu, true, 1.0, Some(&swing));
         // Guns: item and arm rotate together (the relative rotation is unchanged).
         let rel0 = rest.arm_rot.inverse() * rest.item_rot;
         let rel1 = gf.arm_rot.inverse() * gf.item_rot;

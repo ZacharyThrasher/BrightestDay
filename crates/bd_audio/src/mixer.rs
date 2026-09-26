@@ -78,12 +78,18 @@ impl Default for AudioSettings {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MusicCommand {
     /// Switch track (on the next bar line); `track` is the music library's track index.
-    Play { track: u16, skip_intro: bool },
+    Play {
+        track: u16,
+        skip_intro: bool,
+    },
     Stop,
     /// 0..1: stems fade in/out on bar lines.
     Intensity(f32),
     /// Tempo multiplier (sudden death / final stock), ramped.
-    Tempo { multiplier: f32, ramp_secs: f32 },
+    Tempo {
+        multiplier: f32,
+        ramp_secs: f32,
+    },
     /// Beat/bar-quantised stinger (index into the music crate's stinger kinds).
     Stinger(u8),
     /// Style setting: 0 = classic chip, 1 = remixes, 2 = shuffle.

@@ -172,7 +172,7 @@ impl Plugin for OutlinePlugin {
         app.add_warmup(warmup_hull);
         if std::env::var_os("BD_OUTLINE_STATS").is_some() {
             // Dev measurement: CPU cost of the outline systems + hull count, printed every 5 s.
-            app.init_resource::<OutlineCost>().add_systems(PostUpdate, (cost_start.before(camera_layer), cost_end.after(update_outlines)));
+            app.init_resource::<OutlineCost>().add_systems(PostUpdate, cost_report.after(update_outlines));
         }
         if dev_test().is_some() {
             app.add_systems(Update, dev_views.after(crate::sim_bridge::BridgeSet::Views).before(super::PresentSet::Events)).add_systems(
@@ -195,6 +195,7 @@ fn mirror_settings(
     comfort: Option<Res<ComfortSettings>>,
     mut s: ResMut<OutlineSettings>,
 ) {
+    let _cost = CostScope::new();
     let mut want = OutlineSettings::default();
     if let Some(p) = prefs.as_ref() {
         want.enabled = p.outlines;
@@ -229,6 +230,7 @@ fn attach_hulls(
     roots: Query<RootItem, RootFilter>,
     all: Query<(Entity, &OutlineHulls)>,
 ) {
+    let _cost = CostScope::new();
     if !settings.enabled {
         for (e, h) in &all {
             for hull in &h.hulls {
@@ -282,6 +284,7 @@ fn update_outlines(
     mut roots: Query<HullRoot>,
     mut vis: Query<&mut Visibility>,
 ) {
+    let _cost = CostScope::new();
     let (Some(active), Some(views)) = (active, views) else { return };
     if !settings.enabled {
         return;
@@ -325,33 +328,63 @@ fn update_outlines(
 
 // ------------------------------------------------------------------------------------ dev stats
 
+/// Nanoseconds spent inside the outline systems this frame (their own work, not scheduling).
+static COST_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Adds the scope's duration to [`COST_NS`] on drop.
+struct CostScope(std::time::Instant);
+
+impl CostScope {
+    fn new() -> Self {
+        CostScope(std::time::Instant::now())
+    }
+}
+
+impl Drop for CostScope {
+    fn drop(&mut self) {
+        COST_NS.fetch_add(self.0.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 #[derive(Resource, Default)]
 struct OutlineCost {
-    start: Option<std::time::Instant>,
     us: Vec<f32>,
     next: f32,
     elapsed: f32,
 }
 
-fn cost_start(mut c: ResMut<OutlineCost>) {
-    c.start = Some(std::time::Instant::now());
-}
-
-fn cost_end(mut c: ResMut<OutlineCost>, time: Res<Time<Real>>, hulls: Query<&OutlineHulls>) {
-    if let Some(s) = c.start.take() {
-        c.us.push(s.elapsed().as_secs_f32() * 1e6);
-    }
+fn cost_report(
+    mut c: ResMut<OutlineCost>,
+    time: Res<Time<Real>>,
+    hulls: Query<&OutlineHulls>,
+    store: Option<Res<bevy::diagnostic::DiagnosticsStore>>,
+) {
+    let ns = COST_NS.swap(0, std::sync::atomic::Ordering::Relaxed);
+    c.us.push(ns as f32 / 1000.0);
     c.elapsed += time.delta_secs();
-    if c.elapsed < c.next || c.us.is_empty() {
+    if c.elapsed < c.next {
         return;
     }
     c.next = c.elapsed + 5.0;
     let mut v = std::mem::take(&mut c.us);
     v.sort_by(|a, b| a.total_cmp(b));
-    let avg = v.iter().sum::<f32>() / v.len() as f32;
-    let p99 = v[((v.len() as f32 * 0.99) as usize).min(v.len() - 1)];
+    let avg = v.iter().sum::<f32>() / v.len().max(1) as f32;
+    let p99 = v.get(((v.len() as f32 * 0.99) as usize).min(v.len().saturating_sub(1))).copied().unwrap_or(0.0);
     let n: usize = hulls.iter().map(|h| h.hulls.len()).sum();
-    println!("OUTLINE frames={} cpu_avg_us={avg:.1} cpu_p99_us={p99:.1} roots={} hulls={n}", v.len(), hulls.iter().count());
+    // GPU pass timings (`BD_GPU_DIAG=1` adds RenderDiagnosticsPlugin): smoothed averages, ms.
+    let mut gpu = String::new();
+    if let Some(store) = store.as_ref() {
+        for d in store.iter() {
+            let path = d.path().as_str();
+            let pass = path.starts_with("render/") && path.matches('/').count() == 2;
+            if pass && (path.ends_with("elapsed_gpu") || path.ends_with("elapsed_cpu")) {
+                if let Some(a) = d.average() {
+                    gpu.push_str(&format!(" {}={a:.3}", path.trim_start_matches("render/")));
+                }
+            }
+        }
+    }
+    println!("OUTLINE frames={} cpu_avg_us={avg:.1} cpu_p99_us={p99:.1} roots={} hulls={n} passes_ms:{gpu}", v.len(), hulls.iter().count());
 }
 
 // ------------------------------------------------------------------------------------ dev hook

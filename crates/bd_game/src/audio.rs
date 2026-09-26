@@ -28,7 +28,10 @@ use crate::util::v3;
 use crate::warmup::LoadingBlockers;
 use bd_audio::acoustics::ListenerSpace;
 use bd_audio::game::{SimAudio, SimCtx, corps_key};
-use bd_audio::{AmbienceDirector, AudioEngine, AudioSettings, EmitterMap, MapAudioTable, MixConfig, MixDirector, MixInputs, PlayOpts, Scene, VoiceHandle};
+use bd_audio::{
+    AmbienceDirector, AudioEngine, AudioSettings, EmitterMap, MapAudioTable, MixConfig, MixDirector, MixInputs, PlayOpts, Scene,
+    VoiceHandle,
+};
 use bd_core::PlayerId;
 use bd_core::input::buttons;
 use bd_sim::GameEvent;
@@ -246,7 +249,11 @@ fn record_wav_path(world: &World) -> Option<PathBuf> {
 
 fn record_fps() -> f32 {
     let a: Vec<String> = std::env::args().collect();
-    a.windows(2).find(|w| w[0] == "--record-fps").and_then(|w| w[1].parse::<f32>().ok()).filter(|f| (1.0..=240.0).contains(f)).unwrap_or(30.0)
+    a.windows(2)
+        .find(|w| w[0] == "--record-fps")
+        .and_then(|w| w[1].parse::<f32>().ok())
+        .filter(|f| (1.0..=240.0).contains(f))
+        .unwrap_or(30.0)
 }
 
 fn finish_load(world: &mut World) {
@@ -295,7 +302,16 @@ fn finish_load(world: &mut World) {
         let args = world.get_resource::<crate::practice::SimArgs>().cloned().unwrap_or_default();
         let fps = record_fps();
         let frames = (args.record_secs.max(0.5) * fps).round() as usize;
-        Sink::Offline(OfflineCapture { mixer, path, samples: Vec::new(), t_game: 0.0, frames_left: frames, fps, written: false, carry: 0.0 })
+        Sink::Offline(OfflineCapture {
+            mixer,
+            path,
+            samples: Vec::new(),
+            t_game: 0.0,
+            frames_left: frames,
+            fps,
+            written: false,
+            carry: 0.0,
+        })
     } else {
         match bd_audio::output::start(mixer, 256) {
             Ok(o) => {
@@ -537,7 +553,8 @@ fn world_audio(
     let a = &mut *audio;
     let dt = time.delta_secs();
     a.sim.begin_frame(dt, &mut a.engine);
-    let (ear, fwd, up) = cam.single().map(|t| (t.translation(), t.forward().as_vec3(), t.up().as_vec3())).unwrap_or((Vec3::ZERO, Vec3::NEG_Z, Vec3::Y));
+    let (ear, fwd, up) =
+        cam.single().map(|t| (t.translation(), t.forward().as_vec3(), t.up().as_vec3())).unwrap_or((Vec3::ZERO, Vec3::NEG_Z, Vec3::Y));
     a.prev_ear = a.ear;
     a.ear = ear;
     let vel = if dt > 0.0 { (ear - a.prev_ear) / dt } else { Vec3::ZERO };
@@ -578,7 +595,15 @@ fn world_audio(
         // Events: the mix reacts (presenters voice them through the shims).
         let pos_of = |id: PlayerId| views.player(id).map(|p| gv(p.pos) + bd_core::Vec3::Y * 0.9);
         let corps_of = |id: PlayerId| views.player(id).map(|p| corps_key(p.corps));
-        let ctx = SimCtx { voxels: &*vox, ear: gv(ear), local, pos_of: &pos_of, corps_of: &corps_of, local_move_predicted: true, match_point: false };
+        let ctx = SimCtx {
+            voxels: &*vox,
+            ear: gv(ear),
+            local,
+            pos_of: &pos_of,
+            corps_of: &corps_of,
+            local_move_predicted: true,
+            match_point: false,
+        };
         for ev in events.read() {
             match &ev.event {
                 // The KO duck comes from the presenter's MixDuck request.
@@ -682,7 +707,15 @@ fn world_audio(
             }
             _ => (None, false, false),
         };
-        let mi = bd_audio::music::MusicInputs { scene: inputs.scene, map: key, combat: a.director.weights().combat, final_stock, sudden_death: false, party, results };
+        let mi = bd_audio::music::MusicInputs {
+            scene: inputs.scene,
+            map: key,
+            combat: a.director.weights().combat,
+            final_stock,
+            sudden_death: false,
+            party,
+            results,
+        };
         m.update(dt, &mi, &mut a.engine);
     }
     a.engine.advance(dt);
@@ -721,7 +754,8 @@ fn hooks_audio(
                 d.hold = 0.3;
                 a.engine.duck(d);
             }
-            C::MusicStinger => {
+            C::MusicStinger =>
+            {
                 #[cfg(feature = "music")]
                 if let Some(m) = a.music.as_mut() {
                     m.stinger(bd_music::StingerKind::Streak, &mut a.engine);
@@ -778,7 +812,14 @@ fn hooks_audio(
 
 /// Match point / last standing stingers.
 #[cfg(feature = "music")]
-fn music_moments(e: &GameEvent, w: &ActiveWorld, alive: &mut usize, mp: &mut bool, m: &mut bd_audio::music::MusicDirector, engine: &mut AudioEngine) {
+fn music_moments(
+    e: &GameEvent,
+    w: &ActiveWorld,
+    alive: &mut usize,
+    mp: &mut bool,
+    m: &mut bd_audio::music::MusicDirector,
+    engine: &mut AudioEngine,
+) {
     match e {
         GameEvent::Ko { killer_kos, .. } => {
             let target = w.world.rules().ko_target;
@@ -920,4 +961,3 @@ fn write_wav(path: &std::path::Path, sr: u32, s: &[i16]) -> std::io::Result<()> 
     }
     f.flush()
 }
-

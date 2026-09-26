@@ -137,7 +137,14 @@ impl Default for SimAudio {
 
 impl SimAudio {
     pub fn new() -> Self {
-        Self { time: 0.0, charges: Vec::new(), occl_budget: 0, guns: Vec::new(), strides: [Stride::default(); 256], occlusion_per_frame: 24 }
+        Self {
+            time: 0.0,
+            charges: Vec::new(),
+            occl_budget: 0,
+            guns: Vec::new(),
+            strides: [Stride::default(); 256],
+            occlusion_per_frame: 24,
+        }
     }
 
     /// Start of a frame.
@@ -483,7 +490,14 @@ impl SimAudio {
     }
 
     /// CHARGE HOOK (anime power-up): start / full / broken / released for `player` at `pos`.
-    pub fn charge<W: VoxelQuery + ?Sized>(&mut self, ctx: &SimCtx<W>, player: PlayerId, kind: bd_sim::charge::ChargeEvent, pos: Vec3, engine: &mut AudioEngine) {
+    pub fn charge<W: VoxelQuery + ?Sized>(
+        &mut self,
+        ctx: &SimCtx<W>,
+        player: PlayerId,
+        kind: bd_sim::charge::ChargeEvent,
+        pos: Vec3,
+        engine: &mut AudioEngine,
+    ) {
         use bd_sim::charge::ChargeEvent as C;
         let o = self.by(ctx, Some(player), pos);
         let stop = |s: &mut Self, engine: &mut AudioEngine, fade: f32| {

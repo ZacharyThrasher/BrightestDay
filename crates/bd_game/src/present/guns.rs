@@ -120,11 +120,13 @@ fn gun_events(
     mut commands: Commands,
     mut tracers: ResMut<Tracers>,
     mut volley: Local<(u64, u8, u32)>,
+    ads: Option<Res<super::ads::AdsState>>,
 ) {
     let Some(active) = active else {
         events.clear();
         return;
     };
+    let ads_blend = ads.map_or(0.0, |a| a.blend.clamp(0.0, 1.0));
     for ev in events.read() {
         match &ev.event {
             GameEvent::ShotFired { owner, archetype, muzzle: m, dir, pellets, .. } => {
@@ -153,7 +155,16 @@ fn gun_events(
                     sfx.write(Sfx3d::at(name, p).pitch(pitch));
                 }
                 if let Some(w) = word {
-                    let mut o = SpawnOnomatopoeia::key(w, p + d * 1.2, 0.5 + 0.2 * *pellets as f32, col);
+                    // Own shots while aiming down sights: the word pops off to the side of the
+                    // muzzle (right, a little low), never over the sight line.
+                    let mut at = p + d * 1.2;
+                    let mut size = 0.5 + 0.2 * *pellets as f32;
+                    if active.local == Some(*owner) && ads_blend > 0.0 {
+                        let right = d.cross(Vec3::Y).normalize_or(Vec3::X);
+                        at += (right * 1.1 - Vec3::Y * 0.35) * ads_blend;
+                        size *= 1.0 - 0.35 * ads_blend;
+                    }
+                    let mut o = SpawnOnomatopoeia::key(w, at, size, col);
                     o.dir = d;
                     o.event_id = ev.tick ^ owner.0 as u64;
                     ono.write(o);

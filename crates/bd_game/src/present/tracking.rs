@@ -1222,11 +1222,12 @@ pub mod scenario {
                 "compass" | "filament" => {
                     // One behind-right (close), one hard left (mid), one far out ahead-left.
                     let at = |f: f32, s: f32| ground_at(w, me.x + dir.x * f + side.x * s, me.z + dir.z * f + side.z * s, me.y, 40.0);
-                    match (at(-14.0, 20.0), at(4.0, -40.0), at(60.0, -35.0)) {
-                        (Some(a), Some(b), Some(c)) => Some(vec![(1, a), (2, b), (3, c)]),
-                        (Some(a), Some(b), None) => Some(vec![(1, a), (2, b)]),
-                        _ => None,
-                    }
+                    at(-14.0, 20.0).map(|a| {
+                        let mut v = vec![(1, a)];
+                        v.extend(at(4.0, -40.0).map(|b| (2, b)));
+                        v.extend(at(60.0, -35.0).map(|c| (3, c)));
+                        v
+                    })
                 }
                 "beacon" => ground_at(w, me.x + dir.x * 85.0, me.z + dir.z * 85.0, me.y, 60.0).map(|g| vec![(1, g)]),
                 "reveal" => {
@@ -1241,7 +1242,7 @@ pub mod scenario {
                             let len = to.length();
                             bd_core::voxel::raycast(&w.voxels, eye, to / len, len).is_some_and(|h| h.t > 4.0 && h.t < len - 2.0)
                         };
-                        let all = |g: bd_core::Vec3| [0.3f32, 1.0, 2.0].iter().all(|y| hidden(g + bd_core::Vec3::Y * *y));
+                        let all = |g: bd_core::Vec3| [0.3f32, 1.0, 2.0, 2.8].iter().all(|y| hidden(g + bd_core::Vec3::Y * *y));
                         if all(g) && (g.y - me.y).abs() < 12.0 {
                             let g2 = ground_at(w, at.x + side.x * 4.0, at.z + side.z * 4.0, me.y, 40.0).filter(|g2| all(*g2)).unwrap_or(g);
                             out = Some(vec![(1, g), (2, g2)]);

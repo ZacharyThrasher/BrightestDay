@@ -188,16 +188,16 @@ fn icon_or(name: &str, palette: [Material; 4], fallback: fn() -> Model) -> Model
 
 /// Wall-prop palette per kit.
 fn kit_models(kit: Kit) -> Vec<Model> {
-    let vending = || icon_or("vending machine", [mat::PAINT_RED, mat::NEON_CYAN, mat::PLASTIC_BLACK, mat::NEON_AMBER], vending_kit);
+    let vending = vending_kit;
     let cone_i = || icon_or("traffic cone", [mat::HAZARD_ORANGE, mat::PAINT_WHITE, mat::PLASTIC_BLACK, mat::PAINT_WHITE], cone);
     let cart = || icon_or("shopping cart", [mat::STEEL, mat::PAINT_RED, mat::PLASTIC_BLACK, mat::MULLION], luggage_cart);
     match kit {
         Kit::Office => vec![office_chair(), desk(), water_cooler(), filing_cabinet(), potted_plant(), vending(), crt_tv(), cone_i()],
         Kit::Pool => vec![lounger(), lounger(), lifeguard_chair(), potted_plant(), vending()],
         Kit::Garage => vec![cone_i(), cone_i(), cart(), vending()],
-        Kit::Hotel => vec![bed(), lamp(), crt_tv(), luggage_cart(), potted_plant()],
-        Kit::Playground => vec![arcade(), arcade(), icon_or("teddy bear", [mat::TERRACOTTA, mat::STUCCO_PEACH, mat::DARK_WOOD, mat::PLASTIC_BLACK], lamp), vending()],
-        Kit::Sky => vec![office_chair(), door_frame()],
+        Kit::Hotel => vec![bed(), lamp(), crt_tv(), luggage_cart(), icon_or("pivot couch", [mat::HOTEL_CARPET_GOLD, mat::DARK_WOOD, mat::DARK_WOOD, mat::HULL_WHITE], potted_plant)],
+        Kit::Playground => vec![arcade(), arcade(), icon_or("pac-man", [mat::PAINT_YELLOW, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK], arcade), vending()],
+        Kit::Sky => vec![office_chair(), door_frame(), icon_or("grand piano", [mat::PLASTIC_BLACK, mat::HULL_WHITE, mat::PLASTIC_BLACK, mat::HULL_WHITE], door_frame)],
         _ => vec![],
     }
 }
@@ -311,7 +311,7 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
         let (x0, x1, z0, _) = vox(room.rect);
         let yf = floor_v(room.level);
         // The duck: from the icon library, scaled giant, floating in the pond.
-        if let Some(duck) = icon_model("rubber duck (giant)", [mat::PAINT_YELLOW, mat::HAZARD_ORANGE, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
+        if let Some(duck) = icon_model("rubber duck (giant)", [mat::HAZARD_ORANGE, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
             let (px, pz) = ((x1 + 1) as f32 * 0.5 - 7.0, z0 as f32 * 0.5 + 6.0);
             let o = IVec3::new((px / 0.5) as i32 - duck.size.x / 2, yf, (pz / 0.5) as i32 - duck.size.z / 2);
             for &(p, m) in &duck.voxels {
@@ -379,6 +379,34 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
             placed += 1;
         }
     }
+    // A giant bowling ball parked in the garage (icon library), clear of lanes and pits.
+    if let Some(ball) = icon_model("bowling ball (giant)", [mat::HULL_NAVY, mat::NEON_PINK, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
+        let mut spots: Vec<(i32, i32)> = (0..N).flat_map(|j| (0..N).map(move |i| (i, j))).collect();
+        shuffle(&mut spots, rng);
+        for (i, j) in spots {
+            let ok = [(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)].iter().all(|&(a, b)| {
+                v.cell(0, a, b).is_some_and(|c| c.kit == Kit::Garage && c.walkable && !c.keep_clear && !c.no_props) && !used[0][idx(a, b)]
+            });
+            let centre = Vec3::new((line(i + 1) as f32) * 0.5, super::floor_y(0), (line(j + 1) as f32) * 0.5);
+            if !ok || spawn_near(spawns, centre, 7.0) || v.pits.iter().any(|p| CellRect::new(p.x0 - 1, p.z0 - 1, p.x1 + 1, p.z1 + 1).contains(i, j)) {
+                continue;
+            }
+            let o = IVec3::new(line(i + 1) - ball.size.x / 2, floor_v(0), line(j + 1) - ball.size.z / 2);
+            if ball.voxels.iter().all(|(q, _)| {
+                let w = o + *q;
+                c.w.get(w) == AIR || c.w.get(w) == mat::PAINT_WHITE
+            }) {
+                for &(q, m) in &ball.voxels {
+                    c.w.set(o + q, m);
+                }
+                for (a, b) in [(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)] {
+                    used[0][idx(a, b)] = true;
+                }
+                placed += 1;
+                break;
+            }
+        }
+    }
     // Playground structures: one per playground room (ball pit, slide tower, climbing frame).
     for room in v.rooms.iter() {
         if room.kit != Kit::Playground || !room.walkable || placed >= MAX_PROPS {
@@ -436,7 +464,7 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
                         c.w.set(q, if k % 2 == 0 { mat::PAINT_RED } else { mat::HULL_WHITE });
                     }
                 }
-            } else if let Some(duck) = icon_model("rubber duck", [mat::PAINT_YELLOW, mat::HAZARD_ORANGE, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
+            } else if let Some(duck) = icon_model("rubber duck", [mat::HAZARD_ORANGE, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
                 let o = p + IVec3::new(-duck.size.x / 2, 1, -duck.size.z / 2);
                 if duck.voxels.iter().all(|(q, _)| c.w.get(o + *q) == AIR) && duck.voxels.iter().filter(|(q, _)| q.y == 0).all(|(q, _)| c.w.get(o + *q - IVec3::Y) != AIR) {
                     for &(q, m) in &duck.voxels {

@@ -581,7 +581,8 @@ fn make_plan(rng: &mut Rng) -> Plan {
         shuffle(&mut cands, rng);
         // The garage ramp first on level 0 (2 wide), then ordinary 1-wide stairwells.
         let mut chosen: Vec<Stair> = Vec::new();
-        for pass in 0..2 {
+        // Spread is relaxed pass by pass so a crowded storey still gets its two stairwells.
+        for (pass, spread) in [(0, 30.0), (1, 30.0), (2, 18.0), (3, 8.0)] {
             for s in &cands {
                 if chosen.len() == 2 {
                     break;
@@ -612,7 +613,11 @@ fn make_plan(rng: &mut Rng) -> Plan {
                 }
                 // Spread: away from the other stairwells of this storey and from the ones below.
                 let c = s.rect.center();
-                if chosen.iter().chain(stairs.iter().filter(|o| o.level + 1 == l)).any(|o| o.rect.center().distance(c) < 30.0) {
+                if chosen.iter().chain(stairs.iter().filter(|o| o.level + 1 == l)).any(|o| o.rect.center().distance(c) < spread) {
+                    continue;
+                }
+                // Keep a cell between stairwells of this storey (their mouths stay clear).
+                if chosen.iter().any(|o| CellRect::new(o.rect.x0 - 1, o.rect.z0 - 1, o.rect.x1 + 1, o.rect.z1 + 1).overlaps(&s.rect)) {
                     continue;
                 }
                 chosen.push(*s);
@@ -621,6 +626,7 @@ fn make_plan(rng: &mut Rng) -> Plan {
                 break;
             }
         }
+        debug_assert!(!chosen.is_empty(), "no stairwell between levels {l} and {}", l + 1);
         for s in chosen {
             add_room(&mut rooms, &mut levels, l, Kit::Stair, Role::StairLow, s.rect, false);
             add_room(&mut rooms, &mut levels, l + 1, Kit::Stair, Role::StairHigh, s.rect, false);
