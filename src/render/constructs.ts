@@ -17,14 +17,14 @@ const REFORM_TIME = 0.22;
 const DISSOLVE_TIME = 0.5;
 
 /** One articulated part group of a construct (null = the rigid body). Drawn with the construct's shared materials. */
-interface GroupView {
+export interface GroupView {
   name: string | null;
   geo: ConstructGeometry;
   prevJ: Float32Array; // per inst: joint pose pos(3) + quat(4) in the construct frame
   currJ: Float32Array;
 }
 
-interface View {
+export interface View {
   id: string;
   version: number;
   count: number;
@@ -70,6 +70,8 @@ export class ConstructViews {
   private baseColor: Color;
   private beams: MachineBeam[] = [];
   focusId: string | null = null;
+  /** JUICE hook: called after each view's instances are written (hitstop freeze, snap / flash uniforms). */
+  poseHook: ((v: View) => void) | null = null;
 
   constructor(color: string, private fx: FX) {
     this.baseColor = new Color(color);
@@ -263,6 +265,7 @@ export class ConstructViews {
       g.geo.fill.getAttribute('iPos').needsUpdate = true;
       g.geo.fill.getAttribute('iQuat').needsUpdate = true;
     }
+    this.poseHook?.(v); // JUICE hook
   }
 
   /** Interpolated world position of a construct's first instance (HUD / effects). */

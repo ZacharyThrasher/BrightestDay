@@ -10,6 +10,11 @@ export interface Settings {
   focusTimeScale: number;
   /** Real seconds of slowed time in a full focus meter. */
   focusSeconds: number;
+  /** JUICE: screen shake / camera motion 0..1 (0 = off, also turns off camera kicks and FOV punches). */
+  shake: number;
+  /** JUICE: master and sound-effect volume 0..1. */
+  masterVolume: number;
+  sfxVolume: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +26,10 @@ export const DEFAULT_SETTINGS: Settings = {
   // focus time is an offline-practice aid (duels share one clock): off by default
   focusTimeScale: 1,
   focusSeconds: 5,
+  // JUICE: ~70% shake by default; people who ask their OS for reduced motion start with it off
+  shake: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.7,
+  masterVolume: 0.8,
+  sfxVolume: 0.9,
 };
 
 /** Bridge exposed by the Electron preload (absent in the plain web build). */
@@ -54,6 +63,7 @@ function sanitize(s: Partial<Settings>): Partial<Settings> {
   if ((s.focusTimeScale as unknown) === false || (s.focusTimeScale as unknown) === 'off') out.focusTimeScale = 1;
   else if (typeof s.focusTimeScale === 'number' && isFinite(s.focusTimeScale)) out.focusTimeScale = Math.min(1, Math.max(0.1, s.focusTimeScale));
   if (typeof s.focusSeconds === 'number' && isFinite(s.focusSeconds)) out.focusSeconds = Math.min(30, Math.max(1, s.focusSeconds));
+  for (const k of ['shake', 'masterVolume', 'sfxVolume'] as const) if (typeof s[k] === 'number' && isFinite(s[k])) out[k] = Math.min(1, Math.max(0, s[k])); // JUICE
   return out;
 }
 
@@ -73,6 +83,8 @@ export function loadSettings(): Settings {
   if (q.has('sens')) qs.mouseSensitivity = Number(q.get('sens'));
   if (q.has('invertY')) qs.invertY = q.get('invertY') === '1' || q.get('invertY') === 'true';
   if (q.has('color')) qs.constructColor = '#' + q.get('color')!.replace('#', '');
+  if (q.has('shake')) qs.shake = Number(q.get('shake')); // JUICE
+  if (q.has('mute')) qs.masterVolume = 0;
   if (q.has('focus')) qs.focusTimeScale = q.get('focus') === 'off' ? 1 : Number(q.get('focus'));
   return { ...s, ...sanitize(qs) };
 }
