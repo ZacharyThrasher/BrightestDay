@@ -4,6 +4,7 @@
 pub mod corps;
 pub mod input;
 pub mod mechanics;
+pub mod shape;
 pub mod voxel;
 
 pub use glam::{IVec3, Quat, Vec2, Vec3};
