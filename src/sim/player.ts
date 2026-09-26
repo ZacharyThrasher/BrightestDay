@@ -16,6 +16,8 @@ export interface PlayerInput {
   reel: boolean;
   flyToggle: boolean; // edge-triggered
   descend: boolean;
+  /** get in / out of the nearest rideable construct (edge-triggered; G) */
+  use?: boolean;
 }
 
 export const NO_INPUT: PlayerInput = {
@@ -94,6 +96,8 @@ export class Player {
   wishDir = new Vector3();
   /** true for one tick after a jump (renderer uses for anims/sfx) */
   events: string[] = [];
+  /** Riding a construct: the machine runtime moves us with its seat; WASD/mouse/fire drive it. */
+  riding: { id: string; body: RBody | null; camBack: number; camUp: number } | null = null;
 
   constructor(private world: World) {
     const R = world.R;
@@ -116,6 +120,11 @@ export class Player {
     this.tethers.L = this.tethers.R = null;
   }
 
+  /** Get in/on a rideable construct. */
+  ride(constructId: string): boolean { return this.world.constructs.machines.ride(constructId); }
+  /** Get out of whatever we're riding. */
+  dismount(): boolean { return this.world.constructs.machines.dismount(); }
+
   get feet(): Vector3 { return tmp.copy(this.pos).setY(this.pos.y - MOVE.playerHalfHeight - MOVE.playerRadius); }
 
   forward(out = new Vector3()): Vector3 { return out.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)); }
@@ -129,10 +138,10 @@ export class Player {
   camera(outPos = new Vector3(), outDir = new Vector3()): { pos: Vector3; dir: Vector3 } {
     const R = this.world.R;
     const dir = this.look(outDir);
-    const pivot = tmp2.copy(this.pos).add(new Vector3(0, 0.75, 0));
+    const pivot = tmp2.copy(this.pos).add(new Vector3(0, 0.75 + (this.riding?.camUp ?? 0), 0));
     const right = this.right(new Vector3());
     const speed = this.vel.length();
-    const back = 5.2 + Math.min(3, speed * 0.03);
+    const back = 5.2 + Math.min(3, speed * 0.03) + (this.riding?.camBack ?? 0);
     const desired = new Vector3().copy(pivot).addScaledVector(dir, -back).addScaledVector(right, 0.9).addScaledVector(UP, 0.35);
     // pull camera in against world geometry
     const off = new Vector3().subVectors(desired, pivot);
@@ -155,7 +164,7 @@ export class Player {
     const origin = cam.pos.clone().addScaledVector(cam.dir, startOff);
     const hit = this.world.pw.castRayAndGetNormal(
       new R.Ray(origin, cam.dir), maxDist, true, undefined,
-      groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY | G.CARGO), this.collider,
+      groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY | G.CARGO), this.collider, this.riding?.body ?? undefined,
     );
     if (!hit) return { point: origin.addScaledVector(cam.dir, maxDist), collider: null, normal: new Vector3(0, 1, 0) };
     return {
@@ -171,6 +180,20 @@ export class Player {
     this.events.length = 0;
     this.yaw = input.yaw;
     this.pitch = input.pitch;
+    if (this.riding) {
+      // the machine runtime already put us on the seat this tick; our own movement is off
+      this.prevJump = input.jump;
+      this.prevHookL = input.hookL;
+      this.prevHookR = input.hookR;
+      this.tethers.L = this.tethers.R = null;
+      this.flying = false;
+      this.sliding = false;
+      this.onGround = true;
+      this.lastGroundTime = t;
+      this.body.setTranslation(this.pos, true);
+      this.mods = emptyMods();
+      return;
+    }
 
     if (input.flyToggle) {
       this.flying = !this.flying;

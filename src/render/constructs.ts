@@ -1,4 +1,5 @@
 import { BackSide, Color, FrontSide, Group, LineSegments, Mesh, Quaternion, Vector3, type ShaderMaterial } from 'three';
+import type { GameEvent } from '../sim/world.js';
 import type { World } from '../sim/world.js';
 import type { Construct } from '../sim/constructs/runtime.js';
 import type { ConstructSpec } from '../sim/constructs/spec.js';
@@ -15,11 +16,20 @@ const FORM_TIME = 0.34; // seconds for a fresh construct to assemble
 const REFORM_TIME = 0.22;
 const DISSOLVE_TIME = 0.5;
 
+/** One articulated part group of a construct (null = the rigid body). Drawn with the construct's shared materials. */
+interface GroupView {
+  name: string | null;
+  geo: ConstructGeometry;
+  prevJ: Float32Array; // per inst: joint pose pos(3) + quat(4) in the construct frame
+  currJ: Float32Array;
+}
+
 interface View {
   id: string;
   version: number;
   count: number;
-  geo: ConstructGeometry;
+  geo: ConstructGeometry; // the first group's geometry
+  groups: GroupView[];
   u: HardlightUniforms;
   group: Group;
   mats: ShaderMaterial[];
@@ -33,6 +43,7 @@ interface View {
   label: string;
   flash: number;
   maxDelay: number;
+  pos0: Vector3; // interpolated position of the first instance (last written)
 }
 
 interface Ghost {
@@ -45,7 +56,9 @@ interface Ghost {
   count: number;
 }
 
-const _p = new Vector3(), _q = new Quaternion(), _q2 = new Quaternion(), _v = new Vector3();
+const _p = new Vector3(), _q = new Quaternion(), _q2 = new Quaternion(), _v = new Vector3(), _jp = new Vector3(), _jq = new Quaternion();
+
+interface MachineBeam { from: Vector3; to: Vector3; kind: string; t: number; dur: number; id: string }
 
 /** Hard-light construct visuals: assembly, interpolation, reform flash, dissolve and ghost previews. */
 export class ConstructViews {
@@ -55,6 +68,7 @@ export class ConstructViews {
   private ghosts: Ghost[] = [];
   private ghostSpecs: ConstructSpec[] = [];
   private baseColor: Color;
+  private beams: MachineBeam[] = [];
   focusId: string | null = null;
 
   constructor(color: string, private fx: FX) {
@@ -65,6 +79,13 @@ export class ConstructViews {
   setColor(color: string) { this.baseColor.set(color); }
 
   get drawCount() { return this.views.size + this.dying.length; }
+
+  /** Machine weapons (lasers, flame): drawn for a moment with the existing beam/particle fx. */
+  onMachineEvent(e: GameEvent) {
+    if (e.type !== 'machine_beam' || !e.from || !e.to) return;
+    this.beams.push({ from: new Vector3(...(e.from as [number, number, number])), to: new Vector3(...(e.to as [number, number, number])), kind: e.kind ?? 'laser', t: 0, dur: Math.max(0.06, e.dur ?? 0.12), id: e.construct });
+    if (this.beams.length > 64) this.beams.splice(0, this.beams.length - 64);
+  }
 
   /** Called after every sim tick. */
   tick(w: World, handPos: Vector3) {
@@ -78,11 +99,15 @@ export class ConstructViews {
       // shed particles from each instance
       for (let k = 0; k < v.count; k++) {
         _p.fromArray(v.curr, k * 7);
-        for (const ctr of v.geo.centers) {
-          _q.fromArray(v.curr, k * 7 + 3);
-          const at = ctr.clone().applyQuaternion(_q).add(_p);
-          this.fx.glow(at, v.color, 0.8 + Math.random() * 0.6, 0.45, 1.6);
-          this.fx.sparks(at, v.color, 3, 5, { life: 0.6, size: 0.05 });
+        _q.fromArray(v.curr, k * 7 + 3);
+        for (const g of v.groups) {
+          _jp.fromArray(g.currJ, k * 7);
+          _jq.fromArray(g.currJ, k * 7 + 3);
+          for (const ctr of g.geo.centers) {
+            const at = ctr.clone().applyQuaternion(_jq).add(_jp).applyQuaternion(_q).add(_p);
+            this.fx.glow(at, v.color, 0.8 + Math.random() * 0.6, 0.45, 1.6);
+            this.fx.sparks(at, v.color, 3, 5, { life: 0.6, size: 0.05 });
+          }
         }
       }
     }
@@ -97,13 +122,19 @@ export class ConstructViews {
         if (!fresh) { v.formStart = 0.45; v.formDur = REFORM_TIME; v.flash = 1; }
       } else {
         v.prev.set(v.curr);
+        for (const g of v.groups) g.prevJ.set(g.currJ);
       }
       for (let k = 0; k < n; k++) {
         const inst = c.insts[k];
         inst.pos.toArray(v.curr, k * 7);
         inst.quat.toArray(v.curr, k * 7 + 3);
+        for (const g of v.groups) {
+          const pose = g.name !== null ? inst.jointPose?.get(g.name) : undefined;
+          if (pose) { pose.pos.toArray(g.currJ, k * 7); pose.quat.toArray(g.currJ, k * 7 + 3); }
+          else { g.currJ.fill(0, k * 7, k * 7 + 6); g.currJ[k * 7 + 6] = 1; }
+        }
       }
-      if (v.formT === 0) v.prev.set(v.curr);
+      if (v.formT === 0) { v.prev.set(v.curr); for (const g of v.groups) g.prevJ.set(g.currJ); }
     }
   }
 
@@ -111,8 +142,10 @@ export class ConstructViews {
     const n = Math.max(1, c.insts.length);
     const inst0 = c.insts[0];
     const local = inst0 ? handPos.clone().sub(inst0.pos).applyQuaternion(inst0.quat.clone().invert()) : null;
-    const geo = buildConstructGeometry(c.spec, fresh ? local : null, n);
-    shareInstanceAttributes(geo.fill, geo.edges);
+    // one geometry per articulated group (parts whose group has a joint); everything else is the rigid body
+    const jointGroups = new Set((c.spec.joints ?? []).map((j) => j.group));
+    const groupOf = (i: number) => { const g = c.spec.parts[i]?.group; return g && jointGroups.has(g) ? g : null; };
+    const names: (string | null)[] = [null, ...(c.spec.joints ?? []).map((j) => j.group).filter((g) => c.spec.parts.some((p) => p.group === g))];
     const color = new Color(tintFor(c.spec.color, '#' + this.baseColor.getHexString()));
     const u = hardlightUniforms(color);
     u.uShell.value = c.spec.parts.some((p) => p.role === 'shell' || p.shape === 'dome') ? 1 : 0;
@@ -120,24 +153,33 @@ export class ConstructViews {
     const front = fillMaterial(u, FrontSide);
     const edge = edgeMaterial(u);
     const group = new Group();
-    const mBack = new Mesh(geo.fill, back); mBack.frustumCulled = false; mBack.renderOrder = 10;
-    const mFront = new Mesh(geo.fill, front); mFront.frustumCulled = false; mFront.renderOrder = 11;
-    const mEdge = new LineSegments(geo.edges, edge); mEdge.frustumCulled = false; mEdge.renderOrder = 12;
-    group.add(mBack, mFront, mEdge);
+    const groups: GroupView[] = [];
+    for (const name of names) {
+      if (name === null && names.length > 1 && !c.spec.parts.some((_, i) => groupOf(i) === null)) continue;
+      const geo = buildConstructGeometry(c.spec, fresh ? local : null, n, names.length > 1 ? (i) => groupOf(i) === name : undefined);
+      shareInstanceAttributes(geo.fill, geo.edges);
+      const mBack = new Mesh(geo.fill, back); mBack.frustumCulled = false; mBack.renderOrder = 10;
+      const mFront = new Mesh(geo.fill, front); mFront.frustumCulled = false; mFront.renderOrder = 11;
+      const mEdge = new LineSegments(geo.edges, edge); mEdge.frustumCulled = false; mEdge.renderOrder = 12;
+      group.add(mBack, mFront, mEdge);
+      const delays = geo.fill.getAttribute('iDelay').array as Float32Array;
+      for (let k = 0; k < n; k++) delays[k] = n > 1 ? (k / (n - 1)) * 0.5 : 0;
+      geo.fill.getAttribute('iDelay').needsUpdate = true;
+      const ident = new Float32Array(n * 7);
+      for (let k = 0; k < n; k++) ident[k * 7 + 6] = 1;
+      groups.push({ name, geo, prevJ: ident.slice(), currJ: ident });
+    }
     this.root.add(group);
-    const delays = geo.fill.getAttribute('iDelay').array as Float32Array;
-    for (let k = 0; k < n; k++) delays[k] = n > 1 ? (k / (n - 1)) * 0.5 : 0;
-    geo.fill.getAttribute('iDelay').needsUpdate = true;
+    const geo = groups[0].geo;
     return {
-      id: c.id, version: c.version, count: c.insts.length, geo, u, group, mats: [back, front, edge], prev: new Float32Array(n * 7), curr: new Float32Array(n * 7),
-      formT: 0, formDur: FORM_TIME, formStart: 0, dissolveT: -1, color, label: c.spec.label, flash: 0, maxDelay: n > 1 ? 0.5 : 0,
+      id: c.id, version: c.version, count: c.insts.length, geo, groups, u, group, mats: [back, front, edge], prev: new Float32Array(n * 7), curr: new Float32Array(n * 7),
+      formT: 0, formDur: FORM_TIME, formStart: 0, dissolveT: -1, color, label: c.spec.label, flash: 0, maxDelay: n > 1 ? 0.5 : 0, pos0: new Vector3(),
     };
   }
 
   private disposeView(v: View) {
     this.root.remove(v.group);
-    v.geo.fill.dispose();
-    v.geo.edges.dispose();
+    for (const g of v.groups) { g.geo.fill.dispose(); g.geo.edges.dispose(); }
     v.mats.forEach((m) => m.dispose());
   }
 
@@ -160,6 +202,28 @@ export class ConstructViews {
         }
       }
     }
+    // machine beams (lasers / flame)
+    for (let i = this.beams.length - 1; i >= 0; i--) {
+      const b = this.beams[i];
+      const first = b.t === 0;
+      b.t += dt;
+      const v = this.views.get(b.id);
+      const col = v?.color ?? this.baseColor;
+      const k = 1 - b.t / b.dur;
+      if (k <= 0) { this.beams.splice(i, 1); continue; }
+      if (b.kind === 'flame') {
+        const warm = col.clone().lerp(new Color('#ffb04d'), 0.55);
+        const dir = b.to.clone().sub(b.from);
+        if (first) for (let n = 0; n < 6; n++) {
+          const vel = dir.clone().multiplyScalar(2.2 + Math.random()).add(new Vector3(Math.random() - 0.5, Math.random() - 0.3, Math.random() - 0.5).multiplyScalar(3));
+          this.fx.particles.spawn({ pos: b.from.clone(), vel, color: warm, intensity: 2.4, size: 0.35, sizeEnd: 1.4, life: 0.4, drag: 1.5, mode: 0 });
+        }
+        this.fx.beams.push(b.from, b.to, 0.25 * k, 1.2 * k, warm, 1.4 * k);
+      } else {
+        this.fx.beams.push(b.from, b.to, 0.09 * k + 0.02, 0.06 * k + 0.02, col, 3.2 * k + 0.4);
+        if (first) this.fx.sparks(b.to, col, 6, 7, { size: 0.05, life: 0.3 });
+      }
+    }
     for (let i = this.dying.length - 1; i >= 0; i--) {
       const v = this.dying[i];
       v.dissolveT += dt;
@@ -171,28 +235,41 @@ export class ConstructViews {
     }
   }
 
+  /** Per group: world transform = interpolated instance pose ∘ interpolated joint pose. */
   private writeInstances(v: View, alpha: number) {
-    const P = v.geo.fill.getAttribute('iPos');
-    const Q = v.geo.fill.getAttribute('iQuat');
-    const pa = P.array as Float32Array, qa = Q.array as Float32Array;
     for (let k = 0; k < v.count; k++) {
       _p.fromArray(v.prev, k * 7).lerp(_v.fromArray(v.curr, k * 7), alpha);
       _q.fromArray(v.prev, k * 7 + 3).slerp(_q2.fromArray(v.curr, k * 7 + 3), alpha);
-      pa[k * 3] = _p.x; pa[k * 3 + 1] = _p.y; pa[k * 3 + 2] = _p.z;
-      qa[k * 4] = _q.x; qa[k * 4 + 1] = _q.y; qa[k * 4 + 2] = _q.z; qa[k * 4 + 3] = _q.w;
+      if (k === 0) v.pos0.copy(_p);
+      for (const g of v.groups) {
+        const pa = g.geo.fill.getAttribute('iPos').array as Float32Array;
+        const qa = g.geo.fill.getAttribute('iQuat').array as Float32Array;
+        let wx = _p.x, wy = _p.y, wz = _p.z;
+        let q = _q;
+        if (g.name !== null) {
+          _jp.fromArray(g.prevJ, k * 7).lerp(_v.fromArray(g.currJ, k * 7), alpha);
+          _jq.fromArray(g.prevJ, k * 7 + 3).slerp(_q2.fromArray(g.currJ, k * 7 + 3), alpha);
+          _jp.applyQuaternion(_q);
+          wx += _jp.x; wy += _jp.y; wz += _jp.z;
+          q = _jq.premultiply(_q);
+        }
+        pa[k * 3] = wx; pa[k * 3 + 1] = wy; pa[k * 3 + 2] = wz;
+        qa[k * 4] = q.x; qa[k * 4 + 1] = q.y; qa[k * 4 + 2] = q.z; qa[k * 4 + 3] = q.w;
+      }
     }
-    v.geo.fill.instanceCount = v.count;
-    v.geo.edges.instanceCount = v.count;
-    P.needsUpdate = true;
-    Q.needsUpdate = true;
+    for (const g of v.groups) {
+      g.geo.fill.instanceCount = v.count;
+      g.geo.edges.instanceCount = v.count;
+      g.geo.fill.getAttribute('iPos').needsUpdate = true;
+      g.geo.fill.getAttribute('iQuat').needsUpdate = true;
+    }
   }
 
   /** Interpolated world position of a construct's first instance (HUD / effects). */
   positionOf(id: string, out = new Vector3()): Vector3 | null {
     const v = this.views.get(id);
     if (!v) return null;
-    const P = v.geo.fill.getAttribute('iPos');
-    return out.set(P.getX(0), P.getY(0), P.getZ(0));
+    return out.copy(v.pos0);
   }
 
   // ---------------------------------------------------------------------------------------------

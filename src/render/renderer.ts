@@ -296,9 +296,11 @@ export class GameRenderer {
       }
       case 'construct_fire': {
         const c = w.constructs.get(e.construct);
-        if (c?.insts[0]) this.fx.glow(c.insts[0].pos, this.color, 1.2, 0.15, 3);
+        const at = pos ?? c?.insts[0]?.pos;
+        if (at) this.fx.glow(at, this.color, 1.2, 0.15, 3);
         break;
       }
+      case 'machine_beam': this.constructs.onMachineEvent(e); break;
       case 'construct_formed': {
         const c = w.constructs.get(e.id);
         if (c?.insts[0]) { this.castTarget = c.insts[0].pos.clone(); this.castT = 0.55; }
@@ -364,7 +366,7 @@ export class GameRenderer {
     const tL = this.tCurr.L && this.tPrev.L ? this.tPrev.L.clone().lerp(this.tCurr.L, alpha) : null;
     const tR = this.tCurr.R && this.tPrev.R ? this.tPrev.R.clone().lerp(this.tCurr.R, alpha) : null;
     const rs: RigState = {
-      pos, vel, lookYaw: view.yaw, lookPitch: view.pitch, onGround: P.onGround, sliding: P.sliding, flying: P.flying,
+      pos, vel: P.riding ? new Vector3() : vel, lookYaw: view.yaw, lookPitch: view.pitch, onGround: P.onGround, sliding: P.sliding, flying: P.flying,
       boosting: this.boosting > 0.5, tetherL: tL, tetherR: tR, castTarget: this.castT > 0 ? this.castTarget : null,
     };
     this.rig.update(rs, dt, this.time);

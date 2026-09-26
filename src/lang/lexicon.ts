@@ -9,6 +9,7 @@
  * held-out corpora were written independently and were not consulted.
  */
 import type { PlacementAt, Placement, ConstructSpec } from '../sim/constructs/spec.js';
+import { CATALOG } from '../sim/constructs/catalog/index.js';
 
 export type ConceptClass =
   | 'barrier' | 'surface' | 'ramp' | 'launcher' | 'manipulator' | 'weapon' | 'heavy' | 'enclosure'
@@ -32,6 +33,10 @@ export interface Concept {
   /** what this thing does when used with a target but no verb ("an anvil on him") */
   verb?: string;
   lifetime?: number;
+  /** set when the concept is a machine-catalog entry (src/sim/constructs/catalog): form === catalog id, joints come with it */
+  catalog?: string;
+  /** claimed functions from the catalog entry */
+  functions?: string[];
 }
 
 const C = (id: string, names: string[], form: string, cls: ConceptClass, motion: Concept['motion'], at: PlacementAt, extra: Partial<Concept> = {}): Concept =>
@@ -39,7 +44,7 @@ const C = (id: string, names: string[], form: string, cls: ConceptClass, motion:
 
 const T = { kind: 'T' } as any; // placeholder target resolved by the parser
 
-export const CONCEPTS: Concept[] = [
+const BASE_CONCEPTS: Concept[] = [
   // --- barriers / defence
   C('wall', ['barrier', 'barricade', 'fence', 'blockade', 'partition', 'screen', 'bulwark', 'rampart'], 'wall', 'barrier', 'static', 'between', { verb: 'block' }),
   C('shield', ['buckler', 'aegis', 'deflector', 'riot shield', 'force field', 'forcefield', 'energy shield'], 'shield', 'barrier', 'kinematic', 'front', { beh: [{ type: 'hold', side: 'front' }], verb: 'block' }),
@@ -97,7 +102,7 @@ export const CONCEPTS: Concept[] = [
   C('arrow', ['dart', 'bolt', 'quarrel', 'needle'], 'arrow', 'projectile', 'kinematic', 'hand', { verb: 'strike' }),
   C('bow', ['crossbow', 'longbow'], 'bow', 'weapon', 'kinematic', 'hand', { beh: [{ type: 'hold', side: 'left' }, { type: 'shoot', target: T, rate: 1.2, speed: 60, size: 0.25 }], verb: 'shoot' }),
   C('blaster', ['gun', 'pistol', 'rifle', 'ray gun', 'laser', 'laser gun', 'blaster rifle', 'minigun', 'machine gun', 'shotgun', 'water gun', 'squirt gun', 'nerf gun', 'nail gun', 'staple gun', 'flamethrower', 'sniper'], 'blaster', 'weapon', 'kinematic', 'hand', { beh: [{ type: 'hold', side: 'right' }, { type: 'shoot', target: T, rate: 3, speed: 55, size: 0.25 }], verb: 'shoot' }),
-  C('turret', ['sentry', 'sentry gun', 'gun turret', 'auto turret', 'tank'], 'turret', 'weapon', 'static', 'aim', { beh: [{ type: 'shoot', target: { kind: 'nearest_enemy' }, rate: 2, speed: 50, size: 0.3 }], verb: 'shoot' }),
+  C('turret', ['sentry', 'sentry gun', 'gun turret', 'auto turret'], 'turret', 'weapon', 'static', 'aim', { beh: [{ type: 'shoot', target: { kind: 'nearest_enemy' }, rate: 2, speed: 50, size: 0.3 }], verb: 'shoot' }),
   C('saw', ['buzzsaw', 'buzz saw', 'saw blade', 'circular saw', 'sawblade', 'chainsaw', 'shuriken', 'ninja star', 'throwing star', 'frisbee', 'disc', 'discus', 'chakram', 'boomerang', 'pizza cutter'], 'saw', 'weapon', 'kinematic', 'hand', { beh: [{ type: 'spin', rate: 25, axis: [0, 0, 1] }], verb: 'strike' }),
   C('drill', ['auger', 'jackhammer', 'screw', 'corkscrew'], 'drill', 'weapon', 'kinematic', 'hand', { beh: [{ type: 'spin', rate: 20, axis: [0, 0, 1] }], verb: 'strike' }),
   C('gear', ['cog', 'cogwheel', 'sprocket'], 'gear', 'weapon', 'kinematic', 'aim', { beh: [{ type: 'spin', rate: 8, axis: [0, 0, 1] }] }),
@@ -147,6 +152,32 @@ export const CONCEPTS: Concept[] = [
   C('pipe organ', ['xylophone'], 'tube', 'misc', 'static', 'aim'),
   C('chain', ['chains', 'shackle chain', 'anchor chain', 'bike chain'], 'chain', 'rope', 'kinematic', 'hand', { verb: 'pull' }),
 ];
+
+/**
+ * Machine-catalog entries become concepts (registered first, so their names win). An entry that `replaces` a base
+ * concept takes it over, inheriting the synonyms no other catalog entry claims ("a sled" is still a car).
+ */
+function catalogConcepts(): { list: Concept[]; replaced: Set<string> } {
+  const own = new Set<string>();
+  for (const e of CATALOG) { own.add(e.id); for (const n of e.names) own.add(n); }
+  const replaced = new Set<string>();
+  const list = CATALOG.map((e): Concept => {
+    const inherited: string[] = [];
+    for (const r of e.replaces ?? []) {
+      const old = BASE_CONCEPTS.find((c) => c.id === r);
+      if (!old) continue;
+      replaced.add(r);
+      for (const n of old.names) if (!own.has(n) && !inherited.includes(n)) inherited.push(n);
+    }
+    return {
+      id: e.id, names: [e.id, ...e.names.filter((n) => n !== e.id), ...inherited], form: e.id, cls: e.cls, motion: e.motion, at: e.at,
+      orient: e.orient, scale: e.scale, density: e.density, beh: e.behaviors, verb: e.verb, lifetime: e.lifetime, catalog: e.id, functions: e.functions,
+    };
+  });
+  return { list, replaced };
+}
+const CAT = catalogConcepts();
+export const CONCEPTS: Concept[] = [...CAT.list, ...BASE_CONCEPTS.filter((c) => !CAT.replaced.has(c.id))];
 
 /** Add-on parts ("with rockets on the back"). Each contributes geometry + behaviour. */
 export interface Addon { id: string; names: string[]; form: string; where: 'back' | 'front' | 'top' | 'bottom' | 'sides' | 'around' | 'tip'; scale: number; beh?: any[]; mountMods?: Record<string, number>; density?: number; restitution?: number }

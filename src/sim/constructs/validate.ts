@@ -1,5 +1,6 @@
 import { type ConstructSpec, type Behavior, cloneSpec, partsBounds, partVolume } from './spec.js';
 import { FORMS } from './forms.js';
+import { adaptMachine, rigMachine, clampJoints, clampMachineBehavior, dedupeMachine, machineCost } from './machine-spec.js';
 
 /**
  * The authority boundary. Whatever proposed the spec (rules, lexicon, embeddings, an LLM),
@@ -52,7 +53,7 @@ export function specVolume(s: ConstructSpec): number {
 
 export function specCost(s: ConstructSpec): number {
   const v = specVolume(s);
-  return s.count * (2 + 1.1 * Math.sqrt(v)) + 1.5 * s.behaviors.length;
+  return s.count * (2 + 1.1 * Math.sqrt(v)) + 1.5 * s.behaviors.length + machineCost(s);
 }
 
 export function validateSpec(input: ConstructSpec, energyAvailable: number): ValidationReport {
@@ -95,7 +96,13 @@ export function validateSpec(input: ConstructSpec, energyAvailable: number): Val
   s.lifetime = clamp(isFinite(s.lifetime) ? s.lifetime : LIMITS.lifetime, 1, LIMITS.lifetime);
   if (!isFinite(input.lifetime) || input.lifetime > LIMITS.lifetime) if (input.lifetime > LIMITS.lifetime && input.lifetime !== 60) note(`lasts at most ${LIMITS.lifetime}s`);
 
+  // machines: legacy orders → machine behaviours, joints from the catalog / part roles, then clamp everything
+  if (!Array.isArray(s.behaviors)) s.behaviors = [];
+  adaptMachine(s);
   s.behaviors = s.behaviors.map((bh) => clampBehavior(bh, note)).filter((x): x is Behavior => !!x);
+  dedupeMachine(s, note);
+  rigMachine(s);
+  clampJoints(s, note);
 
   // virtual mass
   let mass = specVolume(s) * s.density / s.count;
@@ -151,6 +158,7 @@ function clampBehavior(b: Behavior, note: (m: string) => void): Behavior | null 
       maxFall: b.maxFall !== undefined ? c(b.maxFall, 1, 200, 'fall speed', 5) : undefined,
       bounce: b.bounce !== undefined ? c(b.bounce, 0, 40, 'bounce', 14) : undefined,
     };
+    case 'drive': case 'brain': case 'weapon': case 'rideable': return clampMachineBehavior(b, note);
     default: return b;
   }
 }

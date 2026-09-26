@@ -15,6 +15,7 @@ import type { Construct } from '../sim/constructs/runtime.js';
 import { type ConstructSpec, type Behavior, type Ref, type Part, type PlacementAt, defaultSpec, cloneSpec, type Vec3 } from '../sim/constructs/spec.js';
 import { buildForm, mountPoint, FORMS } from '../sim/constructs/forms.js';
 import { specExtent } from '../sim/constructs/geom.js';
+import { machineFunctions } from '../sim/constructs/machine-spec.js';
 import { parse, tokenize, type Clause, type NP, type RefWord } from './parser.js';
 import { conceptByName, UNSUPPORTED, CONCEPTS, type Concept, type Addon } from './lexicon.js';
 import { SPEED_ADJ, VERBS, lemma, FILLERS, type VerbClass } from './words.js';
@@ -2454,6 +2455,7 @@ export function functionsOf(spec: ConstructSpec, w: World): string[] {
   if (types.has('orbit') && (cls === 'weapon' || cls === 'heavy')) f.add('area_attack');
   if (cls === 'heavy' && spec.motion === 'dynamic' && at === 'above_target') { f.add('crush_target'); }
   if (types.has('hold') && cls === 'barrier') { f.add('shield_self'); f.add('block_projectiles'); }
+  for (const x of machineFunctions(spec)) f.add(x); // machines & creatures (drive / brain / weapon / rideable)
   return [...f];
 }
 

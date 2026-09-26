@@ -51,7 +51,15 @@ export interface Projectile {
   reflected: boolean;
   born: number;
   damage: number;
+  /** Fired by a construct: never hits its owner (player) or the owner's constructs; damage is attributed to it. */
+  friendly?: boolean;
+  owner?: string | null; // construct id
+  ownerPlayer?: string | null; // player id that owns the firing construct
+  splash?: number; // blast radius on impact (cannon shells, bombs)
+  kind?: string; // weapon kind (gun, cannon, missile, bomb, net)
 }
+
+export interface ProjectileOpts { friendly?: boolean; owner?: string | null; ownerPlayer?: string | null; splash?: number; kind?: string; gravity?: number }
 
 export interface Goal { id: string; min: Vector3; max: Vector3; label: string; reached: boolean }
 
@@ -259,16 +267,20 @@ export class World {
     this.emit('player_ram', { impulse: Math.round(impulse), speed: Math.round(speed) });
   }
 
-  spawnProjectile(pos: Vector3, vel: Vector3, from: string | null, damage = 8, radius = 0.28): Projectile {
+  spawnProjectile(pos: Vector3, vel: Vector3, from: string | null, damage = 8, radius = 0.28, opts: ProjectileOpts = {}): Projectile {
     const R = this.R;
-    const body = this.pw.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(pos.x, pos.y, pos.z).setLinvel(vel.x, vel.y, vel.z).setGravityScale(0).setCcdEnabled(true));
+    const body = this.pw.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(pos.x, pos.y, pos.z).setLinvel(vel.x, vel.y, vel.z).setGravityScale(opts.gravity ?? 0).setCcdEnabled(true));
+    // single-player: the only player is the owner of every construct, so friendly shots skip the player group
+    // (PvP: give each player a membership bit / per-owner filter here)
+    const hits = G.WORLD | G.CONSTRUCT | G.GHOST | G.ENTITY | G.CARGO | (opts.friendly ? 0 : G.PLAYER);
     const collider = this.pw.createCollider(
-      R.ColliderDesc.ball(radius).setDensity(2).setCollisionGroups(groups(G.PROJECTILE, G.WORLD | G.CONSTRUCT | G.GHOST | G.ENTITY | G.PLAYER | G.CARGO))
+      R.ColliderDesc.ball(radius).setDensity(2).setCollisionGroups(groups(G.PROJECTILE, hits))
         .setActiveEvents(R.ActiveEvents.COLLISION_EVENTS)
         .setActiveCollisionTypes(R.ActiveCollisionTypes.DEFAULT | R.ActiveCollisionTypes.DYNAMIC_KINEMATIC),
       body,
     );
     const p: Projectile = { id: collider.handle, body, collider, from, reflected: false, born: this.time, damage };
+    if (opts.friendly) { p.friendly = true; p.owner = opts.owner ?? null; p.ownerPlayer = opts.ownerPlayer ?? null; p.splash = opts.splash; p.kind = opts.kind; }
     this.projectiles.set(collider.handle, p);
     this.owners.set(collider.handle, { kind: 'projectile', id: collider.handle });
     this.stats.projectilesFired++;
@@ -393,6 +405,7 @@ export class World {
   private projectileHit(pid: number, other: Owner, _h: number) {
     const p = this.projectiles.get(pid);
     if (!p) return;
+    if (p.friendly) { this.constructs.machines.projectileHit(p, other); return; }
     switch (other.kind) {
       case 'player':
         this.player.hp = Math.max(0, this.player.hp - p.damage);
