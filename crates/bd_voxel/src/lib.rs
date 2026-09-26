@@ -7,6 +7,7 @@
 //!   ([`FallingChunk`]).
 //! - [`mesh`]: chunk → plain vertex arrays with culled faces, baked AO and colour jitter.
 //! - [`arena`]: the seeded Archipelago arena and a flat movement lab.
+//! - [`tutorial`]: the movement tutorial course (stations + peak run).
 //!
 //! Typical host/client flow:
 //! ```
@@ -27,10 +28,12 @@ pub mod carve;
 pub mod material;
 pub mod mesh;
 pub mod noise;
+pub mod tutorial;
 pub mod world;
 
 pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, generate_arena, generate_flat_test};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use material::{DebrisClass, MATERIALS, MaterialDef, mat, material_def};
 pub use mesh::{ChunkMesh, Mesher, mesh_chunk};
+pub use tutorial::{Medals, Station, TutorialInfo, generate_tutorial, medals_from_bot};
 pub use world::{CHUNK_SIZE, CHUNK_VOLUME, VoxelWorld, chunk_of, chunk_origin};

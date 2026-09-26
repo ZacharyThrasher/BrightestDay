@@ -58,21 +58,21 @@ pub struct ArenaInfo {
 const VS: f32 = VOXEL_SIZE;
 
 #[inline]
-fn vx(m: f32) -> i32 {
+pub(crate) fn vx(m: f32) -> i32 {
     (m / VS).floor() as i32
 }
 
 #[inline]
-fn vcenter(v: IVec3) -> Vec3 {
+pub(crate) fn vcenter(v: IVec3) -> Vec3 {
     (v.as_vec3() + Vec3::splat(0.5)) * VS
 }
 
-fn is_foliage(m: Material) -> bool {
+pub(crate) fn is_foliage(m: Material) -> bool {
     matches!(material_def(m).debris, crate::material::DebrisClass::Leaves | crate::material::DebrisClass::Wood)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Surface {
+pub(crate) enum Surface {
     Grass,
     /// Grass with a sandy rim.
     Beach,
@@ -81,30 +81,30 @@ enum Surface {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct IslandSpec {
-    center: Vec2,
-    top: f32,
-    rx: f32,
-    rz: f32,
-    rot: f32,
+pub(crate) struct IslandSpec {
+    pub(crate) center: Vec2,
+    pub(crate) top: f32,
+    pub(crate) rx: f32,
+    pub(crate) rz: f32,
+    pub(crate) rot: f32,
     /// Extra thickness at the centre (the inverted-cone underside), metres.
-    depth: f32,
-    hills: f32,
+    pub(crate) depth: f32,
+    pub(crate) hills: f32,
     /// Height change per metre along x/z (sloped land bridges).
-    slope: Vec2,
+    pub(crate) slope: Vec2,
     /// Normalised radius inside which hills are suppressed (flat arena floors).
-    flat: f32,
-    surface: Surface,
-    crystals: Material,
-    core: bool,
+    pub(crate) flat: f32,
+    pub(crate) surface: Surface,
+    pub(crate) crystals: Material,
+    pub(crate) core: bool,
     /// How far the surface drops towards the edge (m), starting at normalised radius `rim_start`.
     /// A large rim with an early start turns a plateau into a smooth walkable mound.
-    rim: f32,
-    rim_start: f32,
+    pub(crate) rim: f32,
+    pub(crate) rim_start: f32,
 }
 
 impl IslandSpec {
-    fn new(center: Vec2, top: f32, r: f32) -> Self {
+    pub(crate) fn new(center: Vec2, top: f32, r: f32) -> Self {
         Self {
             center,
             top,
@@ -125,24 +125,24 @@ impl IslandSpec {
 }
 
 /// Generation context: the world being built plus deterministic randomness.
-struct Gen {
-    w: VoxelWorld,
-    rng: Rng,
+pub(crate) struct Gen {
+    pub(crate) w: VoxelWorld,
+    pub(crate) rng: Rng,
     /// Indestructible cores, placed last so later fills can't overwrite them: (centre, radius).
-    cores: Vec<(Vec3, f32)>,
+    pub(crate) cores: Vec<(Vec3, f32)>,
 }
 
 impl Gen {
-    fn new(w: VoxelWorld, seed: u64) -> Self {
+    pub(crate) fn new(w: VoxelWorld, seed: u64) -> Self {
         Self { w, rng: Rng::new(seed), cores: Vec::new() }
     }
 
-    fn seed(&mut self) -> u32 {
+    pub(crate) fn seed(&mut self) -> u32 {
         self.rng.next_u32()
     }
 
     /// Top of the first non-foliage solid at or below `from_y` in the column containing (x, z).
-    fn ground(&self, x: f32, z: f32, from_y: f32) -> Option<f32> {
+    pub(crate) fn ground(&self, x: f32, z: f32, from_y: f32) -> Option<f32> {
         let (cx, cz) = (vx(x), vx(z));
         let lo = self.w.voxel_min().y;
         (lo..=vx(from_y)).rev().find_map(|y| {
@@ -153,7 +153,7 @@ impl Gen {
 
     // ----- islands -------------------------------------------------------------------------------
 
-    fn island(&mut self, s: IslandSpec) {
+    pub(crate) fn island(&mut self, s: IslandSpec) {
         let seed = self.seed();
         let reach = s.rx.max(s.rz) * 1.2 + 1.0;
         let (x0, x1) = (vx(s.center.x - reach), vx(s.center.x + reach));
@@ -216,7 +216,7 @@ impl Gen {
     // ----- structures ----------------------------------------------------------------------------
 
     /// A tapering stone needle. Returns the tip position.
-    fn spire(&mut self, x: f32, z: f32, from_y: f32, height: f32, radius: f32, tip: Option<Material>) -> Vec3 {
+    pub(crate) fn spire(&mut self, x: f32, z: f32, from_y: f32, height: f32, radius: f32, tip: Option<Material>) -> Vec3 {
         let Some(g) = self.ground(x, z, from_y) else { return Vec3::new(x, from_y, z) };
         let seed = self.seed();
         let lean = Vec2::new(self.rng.range(-1.0, 1.0), self.rng.range(-1.0, 1.0)) * height * 0.07;
@@ -246,7 +246,7 @@ impl Gen {
     }
 
     /// Noisy leaf blob (only fills air).
-    fn blob(&mut self, c: Vec3, r: Vec3, m: Material) {
+    pub(crate) fn blob(&mut self, c: Vec3, r: Vec3, m: Material) {
         let seed = self.seed();
         let lo = ((c - r * 1.3) / VS).floor().as_ivec3();
         let hi = ((c + r * 1.3) / VS).floor().as_ivec3();
@@ -262,7 +262,7 @@ impl Gen {
     }
 
     /// Sweep spheres along a quadratic Bézier.
-    fn sweep(&mut self, a: Vec3, ctrl: Vec3, b: Vec3, r0: f32, r1: f32, m: Material, only_air: bool) {
+    pub(crate) fn sweep(&mut self, a: Vec3, ctrl: Vec3, b: Vec3, r0: f32, r1: f32, m: Material, only_air: bool) {
         let len = (ctrl - a).length() + (b - ctrl).length();
         let n = ((len / 0.3) as i32).max(2);
         for i in 0..=n {
@@ -274,7 +274,7 @@ impl Gen {
     }
 
     /// A big tree: curved trunk with root flare, a few branches, noisy leaf canopies.
-    fn tree(&mut self, x: f32, z: f32, from_y: f32, height: f32, trunk_r: f32, leaves: Material, canopy_r: f32) {
+    pub(crate) fn tree(&mut self, x: f32, z: f32, from_y: f32, height: f32, trunk_r: f32, leaves: Material, canopy_r: f32) {
         let Some(g) = self.ground(x, z, from_y) else { return };
         let wood = if self.rng.chance(0.3) { mat::DARK_WOOD } else { mat::WOOD };
         let base = Vec3::new(x, g - 1.5, z);
@@ -313,7 +313,7 @@ impl Gen {
     }
 
     /// Hollow ruined tower with a jagged broken top, windows, a door and a broken mid floor.
-    fn tower(&mut self, x: f32, z: f32, from_y: f32, radius: f32, height: f32, square: bool, door_to: Vec2) {
+    pub(crate) fn tower(&mut self, x: f32, z: f32, from_y: f32, radius: f32, height: f32, square: bool, door_to: Vec2) {
         let Some(g) = self.ground(x, z, from_y) else { return };
         let seed = self.seed();
         let c = Vec2::new(x, z);
@@ -366,7 +366,7 @@ impl Gen {
     }
 
     /// Square broken pillar (cover / low anchor). `lying` lays it on its side along `lying_dir`.
-    fn pillar(&mut self, x: f32, z: f32, from_y: f32, height: f32, half: f32) {
+    pub(crate) fn pillar(&mut self, x: f32, z: f32, from_y: f32, height: f32, half: f32) {
         let Some(g) = self.ground(x, z, from_y) else { return };
         let seed = self.seed();
         let lo = IVec3::new(vx(x - half), vx(g - 2.0), vx(z - half));
@@ -389,7 +389,7 @@ impl Gen {
     }
 
     /// A fallen column segment lying on the ground (cover).
-    fn fallen_pillar(&mut self, x: f32, z: f32, from_y: f32, len: f32, along_x: bool) {
+    pub(crate) fn fallen_pillar(&mut self, x: f32, z: f32, from_y: f32, len: f32, along_x: bool) {
         let Some(g) = self.ground(x, z, from_y) else { return };
         let (hx, hz) = if along_x { (len * 0.5, 0.75) } else { (0.75, len * 0.5) };
         let lo = IVec3::new(vx(x - hx), vx(g - 0.5), vx(z - hz));
@@ -398,7 +398,7 @@ impl Gen {
     }
 
     /// Ruined wall segment from `a` to `b` with a jagged top and occasional breaches.
-    fn wall(&mut self, a: Vec2, b: Vec2, from_y: f32, height: f32, thick: f32) {
+    pub(crate) fn wall(&mut self, a: Vec2, b: Vec2, from_y: f32, height: f32, thick: f32) {
         let seed = self.seed();
         let len = (b - a).length();
         let n = (len / (VS * 0.5)) as i32;
@@ -435,7 +435,7 @@ impl Gen {
         }
     }
 
-    fn boulder(&mut self, x: f32, z: f32, from_y: f32, r: f32) {
+    pub(crate) fn boulder(&mut self, x: f32, z: f32, from_y: f32, r: f32) {
         let Some(g) = self.ground(x, z, from_y) else { return };
         let seed = self.seed();
         let c = Vec3::new(x, g + r * 0.3, z);
@@ -456,7 +456,7 @@ impl Gen {
 
     /// Natural stone arch from `a` to `b` (ends buried), rising `rise` metres above the chord.
     /// The top is grassed so it reads as walkable.
-    fn arch(&mut self, a: Vec3, b: Vec3, rise: f32, thick: f32) {
+    pub(crate) fn arch(&mut self, a: Vec3, b: Vec3, rise: f32, thick: f32) {
         let seed = self.seed();
         let len = (b - a).length();
         let n = (len / 0.35) as i32;
@@ -505,7 +505,7 @@ impl Gen {
 
     /// The Heart's landmark: a vertical hard-light lantern ring (torus in the YZ plane) with gold
     /// bands, held up by two slanted pylons.
-    fn lantern_ring(&mut self, c: Vec3, major: f32, minor: f32, ground_y: f32) {
+    pub(crate) fn lantern_ring(&mut self, c: Vec3, major: f32, minor: f32, ground_y: f32) {
         let lo = ((c - Vec3::new(minor + 1.0, major + minor + 1.0, major + minor + 1.0)) / VS).floor().as_ivec3();
         let hi = ((c + Vec3::new(minor + 1.0, major + minor + 1.0, major + minor + 1.0)) / VS).floor().as_ivec3();
         self.w.fill_with(lo, hi, |v, _| {
@@ -529,7 +529,7 @@ impl Gen {
     }
 
     /// Stamp the island cores (indestructible, replaces only solid voxels) and register anchors.
-    fn place_cores(&mut self) {
+    pub(crate) fn place_cores(&mut self) {
         let cores = std::mem::take(&mut self.cores);
         for (c, r) in cores {
             let (lo, hi) = (((c - r) / VS).floor().as_ivec3(), ((c + r) / VS).floor().as_ivec3());
@@ -546,7 +546,7 @@ impl Gen {
 
     /// Find a spawn near (x, z): standing on non-foliage ground with 3 m of clear head room, and at
     /// least `SPAWN_MIN_DIST` from every spawn in `taken`.
-    fn spawn_near(&self, x: f32, z: f32, from_y: f32, taken: &[Vec3]) -> Option<Vec3> {
+    pub(crate) fn spawn_near(&self, x: f32, z: f32, from_y: f32, taken: &[Vec3]) -> Option<Vec3> {
         for ring in 0..12 {
             let steps = if ring == 0 { 1 } else { 8 };
             for k in 0..steps {
@@ -564,7 +564,7 @@ impl Gen {
 }
 
 /// Is (x, z) a valid spawn column? Returns the feet position if so.
-fn spawn_ok(w: &VoxelWorld, x: f32, z: f32, from_y: f32) -> Option<Vec3> {
+pub(crate) fn spawn_ok(w: &VoxelWorld, x: f32, z: f32, from_y: f32) -> Option<Vec3> {
     let (cx, cz) = (vx(x), vx(z));
     let top = (w.voxel_min().y..=vx(from_y)).rev().find(|&y| w.get(IVec3::new(cx, y, cz)) != AIR)?;
     let ground: &MaterialDef = material_def(w.get(IVec3::new(cx, top, cz)));
@@ -591,7 +591,7 @@ fn spawn_ok(w: &VoxelWorld, x: f32, z: f32, from_y: f32) -> Option<Vec3> {
 /// Minimum distance between two spawn points (m).
 const SPAWN_MIN_DIST: f32 = 12.0;
 
-fn polar(angle_deg: f32, r: f32) -> Vec2 {
+pub(crate) fn polar(angle_deg: f32, r: f32) -> Vec2 {
     let a = angle_deg * (PI / 180.0);
     Vec2::new(dcos(a) * r, dsin(a) * r)
 }

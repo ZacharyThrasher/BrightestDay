@@ -374,3 +374,32 @@ fn timing() {
     println!("tree felling carve + collapse: {tree_ms:.2} ms ({fell} voxels fell)");
     assert!(fell > 1000, "the south tree should fall");
 }
+
+#[test]
+fn tutorial_is_sane() {
+    let (w, info) = generate_tutorial();
+    let (w2, _) = generate_tutorial();
+    assert_eq!(w.content_hash(), w2.content_hash(), "tutorial generation must be deterministic");
+    assert_eq!(info.stations.len(), 6);
+    for st in &info.stations {
+        // Starts: standing on ground with head room.
+        let feet = world_to_voxel(st.start);
+        assert!(w.is_solid(feet - IVec3::Y), "{} start floating", st.name);
+        for dy in 0..4 {
+            assert!(!w.is_solid(feet + IVec3::Y * dy), "{} start buried", st.name);
+        }
+        // Goals: ground right under the goal box's centre.
+        let c = st.goal.center();
+        let below = world_to_voxel(Vec3::new(c.x, st.goal.min.y + 0.05, c.z)) - IVec3::Y;
+        assert!(w.is_solid(below), "{} goal has no floor", st.name);
+        // Anchors sit on a solid underside.
+        for a in &st.anchors {
+            assert!(w.is_solid(world_to_voxel(*a + Vec3::Y * 0.05)), "{} anchor {a} not on solid", st.name);
+            assert!(!w.is_solid(world_to_voxel(*a - Vec3::Y * 0.05)), "{} anchor {a} not an underside", st.name);
+        }
+        assert!((3..=5).contains(&st.hint.split_whitespace().count()), "hint length: {}", st.hint);
+    }
+    assert_eq!(info.peak_gates.last().copied(), Some(info.start_finish));
+    let m = info.medals;
+    assert!(m.gold > 0.0 && m.gold < m.silver && m.silver < m.bronze);
+}

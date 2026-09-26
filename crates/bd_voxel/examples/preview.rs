@@ -1,9 +1,10 @@
 //! Render the generated arena to a PNG so the layout can be reviewed without the game.
 //!
 //! ```text
-//! cargo run -p bd_voxel --example preview --release -- [seed] [out.png] [--flat]
+//! cargo run -p bd_voxel --example preview --release -- [seed] [out.png] [--flat | --tutorial]
 //! ```
-//! Default output: `docs/arena_preview.png` (relative to the workspace root). Layout:
+//! Default output: `docs/arena_preview.png` (`docs/tutorial_preview.png` with `--tutorial`; relative
+//! to the workspace root). Red markers = spawns (tutorial: station starts). Layout:
 //! top row = two isometric views from opposite corners; bottom row = top-down height/material map
 //! (10 m grid, spawns marked) and a side elevation looking north.
 //! Set `PREVIEW_PARTS_DIR` to also write each view as its own full-resolution PNG.
@@ -315,10 +316,23 @@ fn main() {
     let pos: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
     let seed: u64 = pos.first().and_then(|s| s.parse().ok()).unwrap_or(1);
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let out = pos.get(1).map(PathBuf::from).unwrap_or_else(|| root.join("docs/arena_preview.png"));
+    let default_name = if args.iter().any(|a| a == "--tutorial") { "docs/tutorial_preview.png" } else { "docs/arena_preview.png" };
+    let out = pos.get(1).map(PathBuf::from).unwrap_or_else(|| root.join(default_name));
 
     let t = Instant::now();
-    let (world, info) = if flat { generate_flat_test(128.0) } else { generate_arena(seed) };
+    let tutorial = args.iter().any(|a| a == "--tutorial");
+    let (world, info) = if tutorial {
+        // Markers = station start points.
+        let (w, t) = bd_voxel::generate_tutorial();
+        let (_, mut info) = generate_flat_test(64.0);
+        info.spawns = t.stations.iter().map(|s| s.start).collect();
+        info.void_y = t.void_y;
+        (w, info)
+    } else if flat {
+        generate_flat_test(128.0)
+    } else {
+        generate_arena(seed)
+    };
     println!(
         "generated in {:.1} ms: {} solid voxels, {} spawns, {} anchors",
         t.elapsed().as_secs_f64() * 1e3,
