@@ -1,0 +1,960 @@
+# Dragon Ball
+goku | son goku; kakarot; kakarrot | Biped Fast Beam
+super saiyan goku | ssj goku; super saiyan | Biped Fast Beam Electric
+ultra instinct goku | ultra instinct; mui goku | Biped Fast Guard
+vegeta | prince vegeta; vegeta prince of saiyans | Biped Fast Beam Aggressive
+super saiyan blue vegeta | ssb vegeta | Biped Fast Beam
+gohan | son gohan; beast gohan; gohan beast | Biped Beam Fast
+goten | son goten | Biped Fast Playful
+trunks | future trunks; trunks sword | Biped Blade Fast
+piccolo | king piccolo; orange piccolo | Biped Beam Grab
+krillin | kuririn | Biped Fast
+frieza | freeza; lord frieza; golden frieza | Biped ArticulatedTail Beam Aggressive
+cell | perfect cell; imperfect cell | Biped ArticulatedTail Beam
+android 18 | c-18; lazuli | Biped Fast Beam
+android 17 | c-17; lapis | Biped Barrier Beam
+android 16 | c-16 | Biped Heavy Protective
+beerus | lord beerus; god of destruction beerus | Biped ArticulatedTail Explodes Lazy
+whis | whis staff | Staff Guard
+jiren | pride trooper jiren | Biped Heavy Repel
+broly | legendary super saiyan; broly lss | Biped Heavy Aggressive
+gogeta | super gogeta | Biped Fast Beam
+vegito | vegito blue; vegetto | Biped Fast Blade
+tien | tenshinhan; tien shinhan | Biped Beam
+yamcha | wolf fang fist | Biped Fast Charge
+master roshi | kame sennin; muten roshi | Biped Beam Lazy
+chi-chi | chichi | Biped Blunt
+bulma | bulma's capsule | Vehicle
+hercule | mr satan; mister satan | Biped Blunt Fearful
+majin vegeta | majin-vegeta | Biped Explodes Aggressive
+kid buu | super buu | Blob Bounce Aggressive
+nappa | saiyan nappa | Biped Heavy Aggressive
+raditz | raditz saiyan | Biped ArticulatedTail
+zamasu | goku black; fused zamasu | Biped Blade Aggressive
+hit | hit assassin | Biped Fast Sneaky
+cooler | cooler frieza brother | Biped ArticulatedTail Beam
+janemba | super janemba | Biped Portal Chaotic
+baby vegeta | baby | Biped Aggressive
+omega shenron | shadow dragon | Serpent Ice Flies
+super shenron | super shenlong | Serpent Flies Constrict
+capsule corp capsule | hoi poi capsule; dyno cap | Bomb Explodes
+scouter | saiyan scouter | Gun Shoots
+senzu bean | sensu bean | Ball Bounce
+z sword | z-sword | Sword Heavy Blade
+hyperbolic time chamber | room of spirit and time | Dome Trap
+saiyan space pod | attack ball; saiyan pod | Rocket DropFromSky
+masenko | masenko ha | Staff Beam
+kaioken | kaio-ken | Cape Fast Fire
+solar flare | taiyoken | Staff Explodes
+dragon fist | ryuken | Gauntlet Charge Blunt
+tri-beam | kikoho | Staff Beam Heavy
+burning attack | trunks burning attack | Staff Beam Fire
+kaio-ken x20 | kaioken times twenty | Gauntlet Fast Fire
+daima goku | dragon ball daima | Biped Fast Playful
+# Naruto
+naruto uzumaki | naruto; nine tails jinchuriki | Biped Fast Aggressive
+sasuke uchiha | sasuke | Biped Electric Blade
+kakashi hatake | kakashi; copy ninja | Biped Electric Sneaky
+sakura haruno | sakura punch; cherry blossom impact | Gauntlet Blunt Heavy
+itachi uchiha | itachi | Biped Fire Sneaky
+madara uchiha | madara | Biped Fire Barrier
+obito uchiha | tobi | Biped Portal Sneaky
+minato namikaze | minato; yellow flash | Biped Portal Fast
+jiraiya | pervy sage; toad sage | Biped Fire
+tsunade | lady tsunade | Gauntlet Blunt Heavy
+orochimaru | orochimaru snakes | Serpent Constrict Sneaky
+gaara | gaara of the sand; kazekage gaara | Biped Earth Barrier
+rock lee | lee; leaf hurricane | Biped Fast Charge
+might guy | guy sensei; eight gates | Biped Fast Charge Fire
+neji hyuga | neji; rotation; eight trigrams rotation | Dome Repel Spin
+hinata hyuga | hinata; twin lion fists | Gauntlet Fast
+shikamaru nara | shikamaru; shadow possession | Whip Link Shadow
+choji akimichi | choji; human boulder | Boulder Heavy Charge
+kiba inuzuka | kiba; fang over fang | Quadruped Spin Charge
+akamaru | akamaru dog | Quadruped Charge Playful
+shino aburame | shino; parasitic insects | Insect Swarm
+tenten | tenten scrolls | Spear Shoots
+kisame hoshigaki | kisame; samehada | Sword Heavy Water
+samehada | shark skin sword | Sword Heavy Blade
+deidara | deidara clay; c4 karura; art is an explosion | Bird Explodes Flies
+sasori | sasori puppets; hiruko | Arachnid Poison ArticulatedTail
+hidan | hidan scythe | Axe Blade Link
+kakuzu | kakuzu threads | Whip Link Grab
+konan | paper angel; konan paper | Bird Swarm Flies
+nagato | pain; six paths of pain | Biped Repel Psychic
+kaguya otsutsuki | kaguya | Biped Portal Psychic
+jiraiya's toads | toad summoning | Quadruped Bounce
+manda | manda snake; giant snake summoning | Serpent Constrict Poison
+katsuyu | slug summoning; giant slug | Blob Sticky
+enma monkey king | monkey king enma; adamantine staff | Staff Blunt
+ninken | pakkun; ninja hounds | Quadruped Swarm
+shukaku | one tail; ichibi | Kaiju Earth Stomp
+matatabi | two tails | Quadruped Fire
+isobu | three tails | Kaiju Water Guard
+son goku tailed beast | four tails | Kaiju Fire
+kokuo | five tails | Quadruped Charge
+saiken | six tails | Blob Poison Sticky
+chomei | seven tails | Insect Flies
+gyuki | eight tails; killer bee's beast | Kaiju ArticulatedTail Constrict
+ten tails | juubi; ten-tails | Kaiju Stomp Beam
+wood style | mokuton; wood release | Wall Earth Grab
+water dragon jutsu | water dragon bullet; suiryudan | Serpent Water Charge
+earth wall jutsu | earth style wall; doryuheki | Wall Earth
+sage mode | senjutsu | Cape Fast
+eight gates | eight inner gates; night guy | Gauntlet Charge Fire Fast
+paper bomb | explosive tag; exploding tag | Bomb Sticky Explodes
+smoke bomb | ninja smoke bomb | Bomb Repel
+kubikiribocho | executioner's blade; zabuza's sword | Sword Heavy Blade
+hiramekarei | twin sword hiramekarei | Sword Heavy
+kiba blades | thunder fang swords | Sword Electric
+sword of kusanagi | kusanagi sword | Sword Pierce Fast
+truth-seeking balls | truth seeking orbs; gudodama | Ball Swarm Homing Shadow
+boruto | boruto uzumaki; vanishing rasengan | Ball Spin Homing
+kawaki | kawaki karma | Gauntlet Pierce
+# One Piece
+monkey d luffy | luffy; straw hat luffy | Biped Bounce Blunt
+roronoa zoro | zoro; pirate hunter zoro | Biped Blade
+nami | cat burglar nami | Biped Electric
+usopp | god usopp; sogeking | Bow Shoots
+sanji | black leg sanji; diable jambe | Biped Fire Fast
+tony tony chopper | chopper; monster point chopper | Quadruped Playful
+nico robin | robin; hana hana no mi | Gauntlet Grab Swarm
+franky | cyborg franky; franky shogun | Kaiju Piloted Shoots
+brook | soul king brook | Biped Ice Blade
+jinbe | jinbei; fishman karate | Gauntlet Water Blunt
+shanks | red-haired shanks | Sword Blade Heavy
+whitebeard | edward newgate; bisento | Spear Heavy Earth
+blackbeard | marshall d teach | Biped Shadow Attract
+portgas d ace | ace; fire fist portgas | Biped Fire
+sabo | flame emperor sabo | Gauntlet Fire Grab
+trafalgar law | law; surgeon of death | Sword Portal
+boa hancock | hancock; love beam | Staff Beam Psychic
+dracule mihawk | mihawk; hawkeye mihawk | Sword Blade Pierce
+buggy | buggy the clown; chop chop fruit | Biped Swarm Playful
+crocodile | sir crocodile; sand sand fruit | Biped Earth
+enel | eneru; god enel | Biped Electric DropFromSky
+rob lucci | lucci; leopard lucci | Quadruped Fast
+doflamingo | donquixote doflamingo; birdcage | Cage Blade Trap
+kaido of the beasts | kaido human form; hassaikai | Hammer Heavy Blunt
+big mom | charlotte linlin; prometheus | Biped Fire Heavy
+katakuri | charlotte katakuri; mochi mochi | Gauntlet Sticky Grab
+akainu | sakazuki; magma fist | Gauntlet Fire Heavy
+aokiji | kuzan; ice age | Wall Ice Trap
+kizaru | borsalino; yasakani no magatama | Gun Shoots Fast
+garp | monkey d garp; fist of love; galaxy impact | Gauntlet Blunt Heavy
+yamato | yamato club | Hammer Ice
+kizaru light | amaterasu light kick | Gauntlet Fast
+den den mushi | transponder snail | Blob Lazy
+sea king | sea kings; giant sea king | Serpent Charge Water
+kraken surume | surume | Serpent Constrict Water
+going merry cannon | merry cannon | Cannon
+wado ichimonji sword | wado | Sword Blade
+kabuto slingshot | usopp's kabuto; usopp slingshot | Bow Shoots
+pop green | usopp pop greens | Ball Grab
+gomu gomu no bazooka | gum gum bazooka | Gauntlet Repel Blunt
+red hawk | luffy red hawk | Gauntlet Fire Blunt
+gum gum balloon | gomu gomu no fusen | Blob Bounce Guard
+thousand sunny coup de burst | coup de burst | Launch Ramp
+baby den den mushi | mini snail phone | Blob
+straw hat | luffy's hat; strawhat | Parachute SlowFall
+devil fruit | akuma no mi | Ball Bounce
+seastone handcuffs | kairoseki cuffs | Cage Trap
+mera mera fruit | flame flame fruit | Ball Fire
+hie hie fruit | ice ice fruit | Ball Ice
+goro goro fruit | rumble rumble fruit | Ball Electric
+egghead seraphim | seraphim | Biped Flies Beam
+pacifista | pacifistas; kuma pacifista | Biped Beam Heavy
+bartholomew kuma | kuma; paw paw fruit; ursus shock | Gauntlet Repel Launch
+nika drums | drums of liberation | Bell Repel
+elbaf giant | giants of elbaf | Kaiju Heavy Blunt
+# Bleach
+ichigo kurosaki | ichigo; substitute soul reaper | Biped Blade
+rukia kuchiki | rukia; sode no shirayuki | Sword Ice
+sode no shirayuki | white moon sword | Sword Ice Blade
+byakuya kuchiki | byakuya | Sword Blade Swarm
+toshiro hitsugaya | hitsugaya; captain hitsugaya | Sword Ice
+kenpachi zaraki | kenpachi; nozarashi | Sword Heavy Aggressive
+nozarashi | kenpachi's sword | Axe Heavy Blade
+uryu ishida | uryu; quincy bow | Bow Shoots Pierce
+orihime inoue | orihime; santen kesshun | Shield Barrier
+chad | sado; brazo derecha de gigante | Gauntlet Blunt Heavy
+renji abarai | renji; zabimaru | Whip Blade Serpent
+zabimaru | hihio zabimaru | Serpent Blade Constrict
+kisuke urahara | urahara; benihime | Sword Blade Guard
+yoruichi | yoruichi shihoin; shunko | Gauntlet Fast Electric
+sosuke aizen | aizen; kyoka suigetsu | Sword Sneaky
+ulquiorra | ulquiorra cifer; lanza del relampago | Spear Pierce Explodes
+grimmjow | grimmjow jaegerjaquez; desgarron | Gauntlet Blade
+starrk | coyote starrk; wolves | Quadruped Swarm Explodes
+yhwach | the almighty | Biped Shadow
+shunsui kyoraku | shunsui; katen kyokotsu | Sword Blade Shadow
+unohana | retsu unohana; minazuki | Serpent Flies
+komamura | sajin komamura; kokujo tengen myo'o | Kaiju Blade Heavy
+mayuri kurotsuchi | mayuri; ashisogi jizo | Kaiju Poison
+soi fon | suzumebachi; soifon | Sword Pierce Fast
+gin ichimaru | gin; shinso | Spear Pierce Fast
+kaname tosen | tosen; suzumushi | Sword Blade
+hollow ichigo | white ichigo; vasto lorde | Biped Beam Aggressive
+menos grande | gillian | Kaiju Beam Lazy
+adjuchas | adjuchas hollow | Quadruped Aggressive
+hollow | hollows; bleach hollow | Biped Aggressive
+kon | kon plushie | Biped Playful
+senkaimon | senkai gate | Wall Portal
+garganta | hollow portal | Wall Portal Shadow
+sokyoku | sokyoku phoenix | Bird Fire Flies
+kido hado 31 | shakkaho; red flame cannon | Staff Fire Shoots
+bakudo 61 | rikujokoro; six rods prison of light | Cage Trap
+reishi bow | quincy cross | Bow Shoots
+# Jujutsu Kaisen
+satoru gojo | gojo; gojo satoru; strongest sorcerer | Biped Repel Psychic
+yuji itadori | itadori; yuji | Biped Blunt Fast
+megumi fushiguro | megumi | Biped Shadow
+nobara kugisaki | nobara; straw doll technique; resonance | Hammer Pierce
+ryomen sukuna | sukuna; king of curses | Biped Blade Fire Aggressive
+maki zenin | maki | Spear Fast
+toge inumaki | inumaki; cursed speech | Biped Repel
+panda | panda jujutsu | Biped Blunt Playful
+yuta okkotsu | yuta | Sword Blade
+kento nanami | nanami; ratio technique | Sword Blunt
+suguru geto | geto; cursed spirit manipulation | Biped Swarm Shadow
+kenjaku | kenjaku brain | Biped Attract
+mahito | idle transfiguration | Blob Grab Chaotic
+jogo | volcano curse | Blob Fire
+hanami | hanami curse | Biped Earth Grab
+dagon | dagon curse | Fish Water Swarm
+choso | piercing blood | Staff Beam Pierce
+toji fushiguro | toji; sorcerer killer | Biped Fast Sneaky
+aoi todo | todo; boogie woogie | Biped Portal Blunt
+hakari kinji | hakari; jackpot | Biped Fast Bounce
+kashimo hajime | kashimo | Staff Electric
+higuruma | hiromi higuruma; judgeman | Hammer Heavy
+takaba | fumihiko takaba; comedian | Biped Bounce Playful
+uraume | ice formation | Wall Ice
+yorozu | yorozu construction | Insect Heavy
+naobito zenin | projection sorcery | Biped Fast
+max elephant | mai's elephant | Quadruped Water
+round deer | healing deer | Quadruped Guard
+toad shikigami | megumi's toad | Quadruped Pull
+rabbit escape | shikigami rabbits | Quadruped Swarm
+great serpent | orochi shikigami | Serpent Grab
+agito | shikigami agito | Kaiju Heavy
+cursed womb | death painting | Blob Poison
+split soul katana | soul katana | Sword Blade Pierce
+dragon bone | maki's dragon bone | Sword Heavy Blunt
+slaughter demon | slaughter demon knife | Sword Blade
+chain of a thousand miles | thousand mile chain | Whip Link
+prison realm | gokumonkyo | Cage Trap
+chimera shadow garden | megumi's domain | Dome Shadow
+self-embodiment of perfection | mahito domain | Dome Trap
+coffin of the iron mountain | jogo domain | Dome Fire
+horizon of the captivating skandha | dagon domain | Dome Water Swarm
+# Demon Slayer
+tanjiro kamado | tanjiro | Biped Blade Water
+nezuko kamado | nezuko; blood demon art nezuko | Biped Fire Playful
+nezuko's box | tanjiro's box | Shield Guard
+zenitsu agatsuma | zenitsu thunder | Biped Electric Fast
+inosuke hashibira | inosuke; boar mask | Biped Blade Charge
+kyojuro rengoku | rengoku; flame hashira | Biped Fire Blade
+giyu tomioka | giyu; water hashira; dead calm | Biped Water Guard
+shinobu kocho | shinobu; insect hashira | Sword Pierce Poison
+tengen uzui | uzui; sound hashira | Biped Explodes Blade
+mitsuri kanroji | mitsuri; love hashira | Whip Blade
+muichiro tokito | muichiro; mist hashira | Sword Blade Wind
+gyomei himejima | gyomei; stone hashira | Whip Heavy Link
+sanemi shinazugawa | sanemi; wind hashira | Sword Wind Blade
+obanai iguro | obanai; serpent hashira | Sword Serpent
+kanao tsuyuri | kanao; flower breathing | Sword Blade
+genya shinazugawa | genya | Gun Shoots
+muzan kibutsuji | muzan | Biped Whip Aggressive
+akaza | upper moon three; destructive death | Gauntlet Blunt Fast
+douma | upper moon two; doma; cryo lotus | Biped Ice Swarm
+kokushibo | upper moon one | Biped Blade Shadow
+gyutaro | blood sickles | Disc Blade Poison
+daki | obi sash demon | Whip Blade
+nakime | biwa demon | Wall Portal
+infinity castle | mugen jo | Platform Portal
+rui | spider demon rui; blood threads | Whip Blade Trap
+spider demon | father spider demon | Arachnid Heavy
+hand demon | temple hand demon | Biped Grab
+kasugai crow | kanzaburo | Bird Flies
+urokodaki | sakonji urokodaki | Biped Water
+hantengu | sekido; zohakuten | Biped Swarm Aggressive
+gyokko | pot demon | Blob Water
+enmu | lower moon one; dream train demon | Vehicle Sneaky
+mugen train | infinity train | Vehicle Charge
+hotaru haganezuka | haganezuka | Biped Aggressive
+yoriichi | yoriichi tsugikuni; sun breathing master | Biped Fire Blade
+wisteria | wisteria flower | Wall Poison
+# Chainsaw Man
+power | blood fiend; power blood devil | Biped Blunt Aggressive
+aki hayakawa | aki; fox devil | Biped Blade
+fox devil | kon fox | Quadruped Grab Charge
+makima | control devil | Biped Psychic
+himeno | ghost devil | Biped Grab Sneaky
+kobeni | kobeni higashiyama | Biped Fast Fearful
+beam the shark fiend | shark fiend; beam fiend | Fish Charge Playful
+angel devil | angel hybrid | Bird Flies
+gun devil | gun devil kaiju | Kaiju Shoots Aggressive
+typhoon devil | typhoon | Blob Wind Repel
+eternity devil | eternity | Blob Heavy
+bat devil | bat | Bird Flies
+leech devil | leech | Serpent Grab
+darkness devil | darkness | Biped Shadow
+future devil | future | Biped Sneaky
+spider devil | spider devil chainsaw | Arachnid Grab
+tomato devil | tomato | Blob Explodes
+zombie devil | zombies | Biped Swarm
+quanxi | crossbow devil | Bow Shoots Fast
+asa mitaka | asa | Biped
+war devil | yoru war devil | Biped Explodes
+yoru | war devil yoru | Sword Blade
+falling devil | falling | Blob DropFromSky
+nayuta | nayuta control | Biped Psychic
+chainsaw man cosplay | chainsaw arm | Sword Blade Spin
+# Attack on Titan
+eren yeager | eren jaeger; eren | Biped Blade Aggressive
+mikasa ackerman | mikasa | Biped Blade Fast
+armin arlert | armin | Biped Fearful
+levi ackerman | levi; captain levi | Biped Blade Fast Spin
+erwin smith | erwin; commander erwin | Biped Charge
+hange zoe | hange; hanji | Biped
+sasha braus | sasha; potato girl | Bow Shoots
+jean kirstein | jean | Biped Blade
+connie springer | connie | Biped Fast
+historia reiss | historia | Biped
+reiner braun | reiner | Biped Heavy
+annie leonhart | annie | Biped Fast Guard
+bertholdt hoover | bertholdt | Biped Heavy
+zeke yeager | zeke | Biped Shoots
+pieck finger | pieck | Quadruped
+porco galliard | porco | Quadruped Grab
+falco grice | falco | Bird Flies
+ymir | ymir fritz; founder ymir | Biped
+jaw titan | galliard's titan | Quadruped Grab Fast
+war hammer titan | warhammer titan | Kaiju Pierce Hammer
+founding titan | founder titan | Kaiju Stomp
+abnormal titan | abnormal | Biped Chaotic Fast
+smiling titan | smiling | Biped Grab Chaotic
+pure titan | mindless titan | Biped Grab Chaotic
+dina titan | smiling titan dina | Biped Grab Chaotic
+wagon titan | cart | Quadruped
+survey corps cape | wings of freedom | Cape Glide
+flare gun | signal flare | Gun Shoots Fire
+anti-personnel odm gear | anti personnel gear | Jetpack Shoots
+wall titan colossus | colossal wall titan | Kaiju Stomp
+# My Hero Academia
+izuku midoriya | deku; midoriya | Biped Fast Blunt
+katsuki bakugo | bakugo; kacchan | Biped Explodes Aggressive
+shoto todoroki | todoroki; half cold half hot | Biped Ice Fire
+ochaco uraraka | uraraka; zero gravity | Biped Psychic
+tenya iida | iida; recipro burst | Biped Fast Charge
+eijiro kirishima | kirishima; red riot; hardening | Biped Guard Heavy
+momo yaoyorozu | momo yaoyorozu; creati | Biped
+tsuyu asui | froppy; tsuyu | Quadruped Pull Bounce
+denki kaminari | kaminari; chargebolt | Biped Electric
+fumikage tokoyami | tokoyami | Biped Shadow
+minoru mineta | mineta | Biped Sticky
+kyoka jiro | jiro; earphone jack | Whip Repel
+mina ashido | pinky; acid | Biped Poison
+hanta sero | sero; tape | Whip Sticky Pull
+all might true form | toshinori yagi | Biped Heavy
+endeavor | enji todoroki | Biped Fire
+hawks | keigo takami | Bird Flies Blade
+eraser head | aizawa; shota aizawa | Whip Link
+present mic | loud voice | Biped Repel
+tomura shigaraki | shigaraki; decay | Biped Earth Chaotic
+all for one | afo | Biped Beam Heavy
+dabi | touya todoroki; blue flames | Biped Fire
+himiko toga | toga | Sword Pierce Sneaky
+stain | hero killer stain | Sword Blade Pierce
+nomu | high-end nomu | Biped Heavy Aggressive
+overhaul | kai chisaki | Wall Earth Pierce
+mirio togata | lemillion; permeation | Biped Fast Sneaky
+nejire hado | nejire; grind wave | Staff Beam Spin
+gran torino | gran torino jet | Biped Fast Bounce
+mt lady | mount lady; gigantification | Kaiju Stomp
+lady nagant | nagant; air prison | Gun Shoots Pierce
+knuckleduster | knuckle duster | Gauntlet Blunt
+koichi haimawari | the crawler | Biped Fast
+star and stripe | new order | Biped Psychic
+gigantomachia | gigantomachia | Kaiju Heavy Aggressive
+# Hunter x Hunter
+gon freecss | gon | Biped Blunt Charge
+killua zoldyck | killua | Biped Electric Fast
+kurapika | kurapika chains | Whip Link
+leorio paradinight | leorio; leorio punch | Gauntlet Portal Blunt
+hisoka morow | hisoka | Disc Sticky Playful
+chrollo lucilfer | chrollo; skill hunter | Biped
+isaac netero | netero; chairman netero | Gauntlet Fast Blunt
+meruem | ant king | Biped ArticulatedTail Pierce
+neferpitou | pitou; terpsichora | Biped Fast Aggressive
+shaiapouf | pouf | Insect Swarm
+menthuthuyoupi | youpi | Biped Explodes Heavy
+knuckle bine | knuckle; hakoware | Gauntlet Blunt
+morel mackernasey | morel; deep purple | Blob Swarm
+biscuit krueger | bisky; magical esthetician | Biped Heavy
+feitan | feitan pain packer | Dome Fire
+nobunaga | nobunaga hazama | Sword Blade
+uvogin | uvogin big bang impact | Gauntlet Explodes Heavy
+franklin | franklin double machine gun | Gun Shoots
+silva zoldyck | silva; dragon lance | Serpent Swarm DropFromSky
+zeno zoldyck | zeno | Serpent Flies Explodes
+illumi zoldyck | illumi; needles | Spear Pierce Swarm
+chimera ant | chimera ants | Insect Aggressive Swarm
+razor | razor ball | Ball Fast
+ging freecss | ging | Biped
+alluka | nanika | Biped Portal
+greed island cards | spell cards | Disc Shoots
+# Evangelion / mecha
+shinji ikari | shinji | Biped Fearful
+rei ayanami | rei | Biped Calm
+asuka langley | asuka | Biped Aggressive
+eva unit-02 | unit 02; unit-02; eva 02 | Kaiju Piloted Blade
+eva unit-00 | unit 00; unit-00; eva 00 | Kaiju Piloted Guard
+eva unit-13 | unit 13 | Kaiju Piloted
+mass production eva | eva series | Bird Swarm Flies
+sachiel | third angel | Biped Pierce Beam
+shamshel | fourth angel | Arachnid Whip
+zeruel | fourteenth angel | Biped Beam Whip
+israfel | seventh angel | Biped Fast
+matarael | ninth angel | Arachnid Poison
+sahaquiel | tenth angel | Blob DropFromSky
+lilith | second angel | Kaiju Heavy
+nerv headquarters | geofront | Dome Barrier
+entry plug | plug | Rocket
+amuro ray | amuro | Biped Piloted
+char aznable | char | Biped Piloted Fast
+nu gundam | ν gundam; hi-nu gundam | Kaiju Piloted Shoots
+unicorn gundam | rx-0 unicorn; banshee | Kaiju Piloted Beam
+strike freedom | strike freedom gundam; freedom gundam | Kaiju Piloted Beam Flies
+aerial gundam | gundam aerial; witch from mercury | Kaiju Piloted Swarm
+exia | gundam exia | Kaiju Piloted Blade
+zz gundam | double zeta | Kaiju Piloted Beam
+sazabi | sazabi mobile suit | Kaiju Piloted Shoots
+gm | gm mobile suit; jim | Kaiju Piloted Shoots
+gouf | gouf custom | Kaiju Piloted Whip
+dom | dom mobile suit | Kaiju Piloted Fast
+acguy | acguy mobile suit | Kaiju Piloted Playful
+ball pod | ball mobile pod | Vehicle Piloted Shoots
+haro | haro ball | Ball Bounce Playful
+white base | trojan horse | Vehicle Flies Piloted Shoots
+psycho gundam | psycho gundam mk ii | Kaiju Piloted Beam
+getter robo | getter one; getter beam | Kaiju Piloted Beam
+great mazinger | thunder break | Kaiju Piloted Electric
+grendizer | ufo robo grendizer | Kaiju Piloted Disc
+daitarn 3 | daitarn | Kaiju Piloted
+combattler v | combattler | Kaiju Piloted
+gaogaigar | gaogaigar hammer; goldion hammer | Hammer Heavy Piloted
+lagann | lagann mech | Biped Piloted Spin
+kamina | bro kamina | Biped Charge
+simon the digger | simon | Biped Pierce
+yoko littner | yoko; yoko's rifle | Gun Shoots Pierce
+boota | boota pig mole | Blob Playful
+king kittan | kittan | Kaiju Piloted
+arc gurren lagann | arc-gurren | Kaiju Piloted Spin
+super galaxy gurren lagann | super galaxy | Kaiju Piloted Spin
+code geass lancelot | lancelot; lancelot knightmare | Kaiju Piloted Blade
+guren mk-ii | guren; radiant wave surger | Kaiju Piloted Grab
+knightmare frame | knightmare | Vehicle Piloted Fast
+patlabor | ingram; av-98 ingram | Kaiju Piloted Guard
+big o | the big o; megadeus | Kaiju Piloted Blunt
+promare galo | galo thymos; matoi tech | Biped Fire Ice
+lio fotia | lio | Biped Fire
+armored trooper votoms | scopedog | Kaiju Piloted Fast
+full metal panic arbalest | arbalest; lambda driver | Kaiju Piloted Repel
+aldnoah zero | kataphrakt | Kaiju Piloted
+darling in the franxx | strelizia | Kaiju Piloted Spear
+86 juggernaut | juggernaut; reginleif | Arachnid Piloted Shoots
+# Ghibli
+chibi totoro | small totoro; chu totoro | Biped Playful
+kiki | kiki witch | Staff Glide
+jiji | jiji cat | Quadruped Playful
+howl | howl pendragon; howl bird form | Bird Flies
+sophie hatter | sophie | Biped
+turnip head | scarecrow | Biped Bounce
+the witch of the waste | witch of the waste | Blob Heavy Lazy
+chihiro | sen; chihiro ogino | Biped Fearful
+yubaba | yubaba witch | Bird Flies
+boh | giant baby boh | Biped Heavy Playful
+radish spirit | oshira-sama | Biped Heavy Lazy
+stink spirit | river spirit | Blob Poison Heavy
+kamaji | boiler man | Arachnid Grab
+ponyo | ponyo fish | Fish Water Playful
+sosuke | ponyo's sosuke | Biped
+ashitaka | prince ashitaka | Bow Shoots
+yakul | red elk | Quadruped Charge Fast
+san | wolf princess | Biped Charge
+okkoto | boar god | Quadruped Charge Heavy
+nago | demon boar; tatarigami | Quadruped Charge Poison
+forest spirit | shishigami; nightwalker; deer god | Kaiju Grow
+kodama | tree spirits | Blob Swarm Playful
+nausicaa | nausicaa of the valley of the wind | Wings Glide
+god warrior | giant warrior | Kaiju Beam
+porco rosso | porco; savoia s.21 | Vehicle Flies Propeller Piloted
+pazu | pazu laputa | Biped
+sheeta | sheeta laputa | Biped SlowFall
+laputa | castle in the sky; laputa castle | Platform Flies
+goliath airship | goliath | Vehicle Flies Shoots
+flaptter | tiger moth flaptter | Wings Flies
+arrietty | arrietty borrower | Biped Fast
+jiro horikoshi | the wind rises plane | Vehicle Flies Propeller
+the grey heron | heron man | Bird Flies Sneaky
+warawara | warawara spirits | Blob Swarm Flies
+parakeets | parakeet king | Bird Swarm Aggressive
+baron humbert | the baron; cat returns | Biped Guard
+muta | fat cat | Quadruped Heavy Lazy
+teto | fox squirrel | Quadruped Fast
+calcifer star | fire demon star | Ball Fire
+# Sailor Moon / magical girls
+sailor moon | usagi tsukino; usagi | Biped Psychic
+sailor mercury | ami mizuno; shabon spray | Staff Water
+sailor mars | rei hino; fire soul; burning mandala | Bow Fire
+sailor jupiter | makoto kino; supreme thunder | Staff Electric
+sailor venus | minako aino; love me chain | Whip Link
+sailor mini moon | chibiusa | Biped Playful
+sailor uranus | haruka tenoh; world shaking | Ball Earth
+sailor neptune | michiru kaioh; deep submerge | Ball Water
+sailor pluto | setsuna meioh; garnet rod | Staff Portal
+sailor saturn | hotaru tomoe; silence glaive | Spear Blade
+tuxedo mask | mamoru chiba; tuxedo mask rose | Spear Pierce Fast
+luna | luna cat | Quadruped Playful
+artemis | artemis cat | Quadruped
+silver crystal | ginzuishou | Ball Psychic
+space sword | uranus sword | Sword Blade
+deep aqua mirror | neptune mirror | Shield Guard Water
+madoka kaname | madoka; ultimate madoka | Bow Shoots
+homura akemi | homura | Shield Guard
+sayaka miki | sayaka | Sword Blade Swarm
+mami tomoe | mami; tiro finale | Cannon Shoots
+kyoko sakura | kyoko | Spear Pierce Link
+kyubey | incubator | Quadruped Sneaky
+walpurgisnacht | walpurgis night | Kaiju Flies Chaotic
+soul gem | madoka soul gem | Ball Psychic
+cardcaptor sakura | sakura kinomoto; sealing wand | Staff Psychic
+clow cards | sakura cards | Disc Swarm
+kero-chan | cerberus | Quadruped Flies Fire
+precure | pretty cure; cure black | Gauntlet Blunt
+cure white | pretty cure white | Gauntlet Blunt
+nanoha takamachi | nanoha | Staff Beam
+fate testarossa | fate; bardiche | Axe Electric
+magical girl lyrical nanoha | lyrical nanoha | Staff Beam
+# Pokemon (anime)
+ash ketchum | ash; satoshi | Biped Charge
+ash's pikachu | satoshi's pikachu | Quadruped Electric Fast
+team rocket | jessie and james | Vehicle Flies
+meowth | team rocket meowth; pay day | Quadruped Playful
+ash's charizard | ash charizard | Bird Fire Flies Breath
+ash's greninja | ash-greninja; water shuriken | Disc Water Spin
+misty | kasumi | Biped Water
+brock | takeshi | Biped Earth
+goh | goh pokemon | Biped
+liko | liko horizons | Biped
+roy | roy horizons | Biped
+captain pikachu | cap pikachu | Quadruped Electric
+rising volt tacklers | brave asagi | Vehicle Flies Piloted
+terapagos | terapagos stellar | Kaiju Barrier
+thunderbolt pikachu | 10 million volt thunderbolt | Staff Electric DropFromSky
+quick attack | quick attack pokemon | Quadruped Fast Charge
+water shuriken | greninja shuriken | Disc Water Spin
+aura sphere | lucario aura sphere | Ball Homing Psychic
+rock tomb | rock tomb attack | Boulder DropFromSky
+earthquake pokemon | earthquake attack | Stomp Earth Kaiju
+blast burn | blast burn attack | Bomb Fire Explodes
+razor leaf | razor leaves | Disc Blade Swarm
+vine whip | bulbasaur vine whip | Whip Pull
+string shot | string shot attack | Whip Sticky Trap
+rollout | rollout attack | Boulder Charge
+flash cannon | flash cannon attack | Cannon Beam
+shadow ball | shadow ball attack | Ball Shadow Homing
+thunder punch | thunderpunch | Gauntlet Electric
+fire punch | firepunch | Gauntlet Fire
+ice beam | ice beam attack | Staff Beam Ice
+dragon rage | dragon rage attack | Staff Breath Fire
+pokedex | rotom dex | Blob Flies
+# Frieren
+frieren the slayer | frieren elf | Staff Beam
+fern | fern mage | Staff Shoots Fast
+stark | stark warrior | Axe Heavy Blunt
+himmel | himmel the hero | Sword Blade
+heiter | heiter priest | Staff Guard
+eisen | eisen dwarf | Axe Heavy
+sein | sein priest | Staff Guard
+aura the guillotine | aura; scale of obedience | Biped Sneaky
+linie | replica linie | Axe Fast
+draht | draht | Whip Link
+lugner | blood magic | Whip Blade
+qual | qual demon | Staff Beam
+macht | golden land | Biped Earth Heavy
+solitar | solitar demon | Biped Sneaky
+serie | great mage serie | Staff Beam
+flamme | great mage flamme | Staff Fire
+ubel | reelseiden; cutting magic | Sword Blade
+land | land doppelganger | Biped Swarm
+wirbel | wirbel mage | Staff Shoots
+denken | denken mage | Staff Wind
+lawine | lawine ice | Staff Ice
+kanne | kanne water | Staff Water
+methode | methode mage | Whip Trap
+genau | genau | Staff Blade
+spiegel | mirror lotus | Biped Sneaky
+sword of the hero | hero sword frieren | Sword Blade
+frieren's grimoire | grimoire frieren | Staff
+flower field magic | flower magic | Wall
+# Dandadan
+okarun | ken takakura; turbo okarun | Biped Fast Charge
+momo ayase | momo | Biped Psychic
+turbo granny cat | maneki neko turbo granny | Quadruped Fast
+seiko ayase | seiko | Biped Psychic
+aira shiratori | acrobatic silky; aira | Biped Whip
+jiji | jin enjoji | Biped Heavy
+kinta sakata | kinta | Biped
+vamola | vamola alien | Biped Fast
+serpoian | serpoians; serpo | Biped Beam
+kur-bo | kur-bo | Blob
+flatwoods monster | flatwoods alien | Biped Shoots
+evil eye | jiji evil eye | Biped Shadow Aggressive
+kashimoto reiko | the rational | Biped
+mantis shrimp alien | mantis shrimp | Arachnid Blunt Charge
+unji | reiko kashima | Biped Blade
+# Solo Leveling
+sung jinwoo | jinwoo; shadow monarch jinwoo | Biped Shadow Blade
+cha hae-in | cha hae in | Sword Blade Fast
+thomas andre | goliath andre | Biped Heavy Blunt
+go gunhee | go gun-hee | Biped Wind
+baek yoonho | white tiger yoonho | Quadruped Fast
+igris the blood red | igris blood red | Biped Blade Shadow
+tusk shadow | tusk orc shaman | Biped Fire
+iron | iron shadow | Biped Guard Heavy
+tank bear | tank shadow | Quadruped Heavy
+bellion | grand marshal bellion | Biped Whip
+greed | greed shadow | Biped Blade
+kamish | kamish dragon | Kaiju Flies Breath Fire
+antares | dragon monarch | Kaiju Flies Breath Fire
+ant queen | jeju ant queen | Insect Heavy
+statue of god | smiling statue; cartenon statue | Biped Beam
+cerberus solo leveling | kasaka | Quadruped Fire
+high orc | high orcs | Biped Heavy
+ice elf | ice elves | Bow Ice
+baruka | ice elf chief | Sword Ice Fast
+# Kaiju No. 8
+kafka hibino kaiju | kaiju no.8 kafka | Biped Blunt
+mina ashiro | mina ashiro cannon | Cannon Heavy Shoots
+kikoru shinomiya | kikoru; kikoru axe | Axe Heavy
+soshiro hoshina | hoshina | Sword Blade Fast
+reno ichikawa | reno; ice suit | Biped Ice
+kaiju no. 6 | kaiju six | Kaiju Ice
+kaiju no. 10 | kaiju ten | Kaiju Charge Aggressive
+kaiju no. 15 | kaiju fifteen | Bird Flies Psychic
+kaiju no. 12 | kaiju twelve | Biped Grab
+honju | main kaiju | Kaiju Stomp
+yoju | small kaiju | Quadruped Swarm
+kaiju no. 2 weapon | fortitude weapon | Cannon Beam
+anti kaiju suit | defense force suit | Cape Fast
+# Spy x Family / other recent
+anya forger | anya | Biped Psychic Playful
+loid forger | twilight | Gun Shoots Sneaky
+yor forger | thorn princess yor | Biped Pierce Fast
+chimera plush | mr chimera | Biped Playful
+penguin anya | anya's penguin | Bird Playful
+damian desmond | damian | Biped
+yuri briar | yuri | Biped
+franky franklin | franky spy | Biped
+fiona frost | nightfall | Biped Sneaky
+taro sakamoto | sakamoto | Biped Fast Heavy
+shin asakura | shin sakamoto days | Biped Psychic
+lu shaotang | lu | Biped Fast
+nagumo | nagumo multitool | Sword Blade
+slur | slur sakamoto days | Biped Sneaky
+chihiro rokuhira | chihiro kagurabachi | Sword Blade
+kagurabachi enten | enten flames | Sword Fire
+rudo surebrec | rudo | Gauntlet Grab
+engine gachiakuta | engine umbrella | Staff SlowFall
+zanka nijiku | zanka | Staff Pierce
+riyo | riyo gachiakuta | Sword Blade
+trash beast | trash beasts | Blob Swarm Aggressive
+yoichi isagi | isagi; direct shot | Ball Fast
+bachira | meguru bachira | Ball Bounce Playful
+rin itoshi | rin | Ball Fast Pierce
+sae itoshi | sae | Ball Fast
+nagi seishiro | nagi | Ball Lazy
+blue lock soccer ball | blue lock ball | Ball Fast Ricochet
+shoyo hinata | hinata volleyball; little giant | Ball Bounce Fast
+tobio kageyama | kageyama; king of the court | Ball Fast Homing
+haikyuu volleyball | volleyball spike | Ball Fast Bounce
+aqua hoshino | aqua | Biped
+ruby hoshino | ruby | Biped Playful
+ai hoshino | ai | Biped Playful
+gabimaru | gabimaru the hollow | Biped Fire Fast
+sagiri | sagiri yamada asaemon | Sword Blade
+tensen | lord tensen | Biped Grab
+witch hat atelier coco | coco | Staff Shoots
+qifrey | qifrey witch | Staff Guard
+brimmed cap | brimmed caps | Biped Sneaky
+magic pen | glyph pen | Staff Shoots
+dorohedoro caiman | caiman; lizard head | Biped Blade Aggressive
+nikaido | nikaido gyoza | Wall Portal
+en | en mushroom sorcerer | Ball Grow
+shin dorohedoro | shin hammer | Hammer Heavy
+noi | noi sorcerer | Biped Heavy Blunt
+kasukabe | kasukabe dorohedoro | Biped
+ebisu | ebisu dorohedoro | Biped Playful
+daemons of the shadow realm yuru | yuru | Biped Shadow
+jaadugar | jaadugar witch | Staff Beam
+apothecary diaries maomao | maomao | Bomb Poison
+jinshi | jinshi apothecary | Biped
+edgerunners david | david martinez | Biped Fast
+lucy kushinada | lucy; lucy edgerunners | Whip Electric Sneaky
+rebecca | rebecca edgerunners; guts shotgun | Gun Shoots Heavy
+adam smasher | smasher | Biped Heavy Shoots Aggressive
+maine | maine edgerunners | Biped Heavy
+kiwi | kiwi netrunner | Biped Sneaky
+cosmic princess kaguya | kaguya netflix | Biped Flies
+black clover asta | asta | Sword Heavy Blade
+yuno | yuno grinberryall; spirit of zephyr | Bird Wind Flies
+sylph | wind spirit sylph | Bird Wind Flies
+noelle silva | noelle; sea dragon's roar | Serpent Water Breath
+yami sukehiro | yami; dark cloaked dimension slash | Sword Shadow Blade
+mereoleona | mereoleona vermillion | Gauntlet Fire
+julius novachrono | julius | Staff Portal
+lucius zogratis | lucius | Biped Psychic
+liebe | liebe devil | Biped Shadow
+salamander | fire spirit salamander | Serpent Fire
+undine | water spirit undine | Blob Water
+gnome | earth spirit gnome | Biped Earth
+grimoire | black clover grimoire | Disc Shoots
+five-leaf grimoire | five leaf grimoire | Disc Shadow
+# Fire Force / Mob Psycho / One Punch / JoJo
+shinra kusakabe | shinra; devil shinra | Biped Fire Fast
+arthur boyle | knight king; excalibur plasma | Sword Fire Electric
+benimaru shinmon | benimaru | Biped Fire Explodes
+infernal | infernals | Biped Fire Chaotic
+mob | shigeo kageyama | Biped Psychic Repel
+reigen arataka | reigen; salt splash | Staff Shoots
+dimple | ekubo | Blob Flies Sneaky
+teru hanazawa | teru | Sword Psychic
+saitama | caped baldy; one punch man | Biped Blunt Heavy
+genos | demon cyborg | Biped Fire Beam
+garou | hero hunter; cosmic garou | Biped Fast Blunt
+boros | lord boros; collapsing star roaring cannon | Cannon Beam Heavy
+speed-o'-sound sonic | sonic ninja | Sword Fast
+fubuki | blizzard | Staff Psychic
+king | strongest man; king engine | Biped Fearful
+bang | silver fang | Biped Fast
+metal bat | metal bat hero | Hammer Blunt
+puri puri prisoner | angel style | Biped Charge
+orochi opm | monster king orochi | Serpent Fire
+jotaro kujo | jotaro | Biped Blunt
+dio brando | dio | Biped Fast Sneaky
+joseph joestar | joseph; hamon clackers | Whip Electric
+jonathan joestar | jonathan; sunlight yellow overdrive | Gauntlet Fire
+giorno giovanna | giorno; gold experience | Biped Grow
+josuke higashikata | josuke; crazy diamond | Biped Blunt
+kira yoshikage | killer queen; sheer heart attack | Vehicle Explodes Homing
+killer queen | bites the dust | Biped Explodes
+crazy diamond | crazy diamond stand | Biped Blunt Protective
+gold experience | golden experience | Biped Grow
+king crimson | king crimson stand | Biped Blunt Sneaky
+silver chariot | polnareff's stand | Sword Pierce Fast
+magician's red | avdol's stand | Bird Fire
+hierophant green | emerald splash | Staff Shoots
+hermit purple | vines stand | Whip Pull
+the hand | okuyasu's stand | Gauntlet Attract
+echoes act 3 | three freeze | Gauntlet Heavy
+sticky fingers | zipper stand | Portal Blunt
+stone free | jolyne's stand | Whip Link
+made in heaven | pucci's stand | Biped Fast
+d4c | dirty deeds done dirt cheap | Biped Portal
+tusk act 1 | tusk nail shot | Gun Spin
+gyro zeppeli | gyro | Ball Spin
+johnny joestar | johnny | Gun Spin
+slow dancer | valkyrie horse | Quadruped Fast Piloted
+aerosmith | narancia's stand | Vehicle Flies Shoots
+sex pistols | mista's stand | Gun Homing Ricochet
+harvest | shigechi's stand | Insect Swarm
+# FMA / classics
+edward elric | ed; fullmetal alchemist | Biped Earth
+roy mustang flame | flame alchemist roy | Biped Fire
+winry rockbell | winry; wrench | Hammer Blunt
+alex louis armstrong | armstrong | Gauntlet Earth Heavy
+scar | ishvalan scar | Gauntlet Explodes
+greed ling | ultimate shield | Biped Guard
+king bradley | wrath; bradley | Sword Blade Fast
+envy | envy serpent | Serpent Constrict
+gluttony | gluttony homunculus | Blob Attract
+lust | ultimate spear | Whip Pierce
+pride | selim bradley | Whip Shadow
+father | dwarf in the flask | Blob Psychic
+riza hawkeye | hawkeye | Gun Shoots Pierce
+philosopher's stone | red stone | Ball Psychic
+transmutation circle | alchemy circle | Trampoline Launch
+chimera nina | nina chimera | Quadruped
+spike spiegel | spike | Biped Fast
+faye valentine | faye | Gun Shoots
+ein | data dog ein | Quadruped Playful
+bebop ship | the bebop | Vehicle Flies
+red tail | jet's ship | Vehicle Flies
+tetsuo shima | tetsuo | Blob Grow Chaotic
+akira capsule | laser satellite sol | Staff Beam DropFromSky
+motoko kusanagi | the major | Biped Sneaky Fast
+batou | batou cyborg | Biped Heavy
+guts | black swordsman | Sword Heavy Blade
+griffith | femto | Bird Flies
+zodd | nosferatu zodd | Kaiju Heavy Charge
+puck | elf puck | Bird Flies Playful
+behelit | crimson behelit | Ball Portal
+berserker armor | berserk armor | Cape Heavy Aggressive
+casca | casca sword | Sword Blade
+skull knight | skull knight sword | Sword Blade Portal
+behemoth berserk | behemoth | Quadruped Heavy
+ryuko matoi | ryuko | Sword Blade
+satsuki kiryuin | satsuki; bakuzan | Sword Blade Fast
+senketsu | living uniform | Cape Glide
+junketsu | kamui junketsu | Cape Fast
+inuyasha | inuyasha half demon | Biped Blade
+sesshomaru | lord sesshomaru; bakusaiga | Whip Blade
+kirara | kilala; fire cat | Quadruped Flies Fire
+hiraikotsu | sango's boomerang; giant boomerang | Disc Returning Heavy
+kagome | kagome's arrow; sacred arrow | Bow Shoots Pierce
+miroku | wind tunnel; kazaana | Gauntlet Attract
+shippo | fox magic | Blob Playful
+naraku | naraku demon | Blob Poison
+tokijin | cursed sword | Sword Blade Shadow
+tenseiga | heaven sword | Sword Guard
+kenshin himura | battosai; hitokiri battosai | Sword Blade Fast
+sanosuke | zanbato; futae no kiwami | Gauntlet Blunt Heavy
+saito hajime | gatotsu | Sword Pierce Charge
+shishio makoto | shishio | Sword Fire
+yusuke urameshi | yusuke | Gun Shoots
+hiei | hiei jagan | Sword Blade Fire
+kurama yuyu | yoko kurama | Whip Blade Poison
+toguro | younger toguro; 100% toguro | Biped Heavy Blunt
+kuwabara | spirit sword | Sword Blade
+puu | spirit beast puu | Bird Flies
+sword of the spirit | spirit sword kuwabara | Sword Pierce
+natsu dragneel | natsu; salamander natsu | Biped Fire Breath
+lucy heartfilia | lucy fairy tail; celestial keys | Staff Swarm
+happy | happy exceed | Bird Flies Playful
+erza scarlet | erza; heaven's wheel armor | Sword Swarm Blade
+gray fullbuster | gray; ice make | Wall Ice
+acnologia | black dragon acnologia | Kaiju Flies Breath
+igneel | fire dragon igneel | Kaiju Flies Breath Fire
+fairy law | fairy law spell | Dome Explodes
+kirito | black swordsman kirito | Sword Blade Fast
+asuna | asuna yuuki; lightning flash | Sword Pierce Fast
+the gleam eyes | gleam eyes | Kaiju Blade Heavy
+rimuru tempest | rimuru; slime rimuru | Blob Sticky Attract
+veldora | storm dragon veldora | Kaiju Flies Breath Wind
+benimaru tensura | benimaru ogre | Sword Fire
+milim nava | milim; drago nova | Gauntlet Explodes
+subaru natsuki | return by death | Biped Fearful
+emilia | emilia re zero | Staff Ice
+rem | rem morning star | Hammer Whip Heavy
+ram | ram oni | Staff Wind
+puck re zero | great spirit puck | Quadruped Ice
+betelgeuse | petelgeuse; unseen hand | Gauntlet Grab Sneaky
+kazuma | kazuma konosuba; steal | Biped Grab Sneaky
+aqua konosuba | aqua goddess | Staff Water
+darkness | lalatina | Shield Guard Heavy
+destroyer konosuba | mobile fortress destroyer | Arachnid Heavy Stomp
+rudeus greyrat | rudeus; stone cannon | Cannon Earth Spin
+roxy migurdia | roxy | Staff Water
+eris greyrat | eris swordswoman | Sword Blade Fast
+senku ishigami | senku; science cola | Bomb Explodes
+chrome dr stone | chrome | Biped
+tsukasa shishio | tsukasa | Biped Blunt Heavy
+medusa device | petrification device | Bomb Trap
+yugi muto | yugi; dark magician | Biped Psychic
+dark magician | dark magic attack | Staff Beam Shadow
+dark magician girl | dmg | Staff Beam
+red-eyes black dragon | red eyes black dragon | Bird Flies Breath Fire
+slifer the sky dragon | slifer | Serpent Flies Electric
+obelisk the tormentor | obelisk | Kaiju Blunt Heavy
+the winged dragon of ra | winged dragon of ra | Bird Flies Fire
+kuriboh | winged kuriboh | Blob Swarm Playful
+millennium puzzle | millennium item | Ball Psychic
+duel disk | duel disc | Shield Guard
+agumon | agumon digimon; pepper breath | Biped Fire Shoots
+greymon | nova blast | Kaiju Fire Breath
+wargreymon | terra force | Ball Explodes Heavy
+gabumon | blue blaster | Quadruped Fire
+garurumon | howling blaster | Quadruped Ice Fast
+omnimon | omegamon | Biped Blade Shoots
+gatomon | tailmon | Quadruped Fast
+angemon | hand of fate | Bird Flies Shoots
+patamon | boom bubble | Bird Flies
+tentomon | super shocker | Insect Electric Flies
+digivice | digivice device | Ball Psychic
+dragon ball goku's hat | turtle school gi | Cape
+doraemon | doraemon robot cat | Biped Playful
+nobita | nobita nobi | Biped Fearful
+gian | takeshi goda | Biped Blunt Aggressive
+time machine doraemon | time machine | Vehicle Portal
+time cloth | furoshiki | Cape Shrink
+gourmet tablecloth | table cloth | Platform
+dorayaki | dorayaki pancake | Ball
+shock gun | doraemon shock gun | Gun Electric
+astro boy | tetsuwan atom | Biped Flies Thrust
+speed racer | go mifune | Vehicle Fast
+kimba | kimba the white lion | Quadruped Charge
+cyborg 009 | joe shimamura | Biped Fast
+ultraman anime | ultraman specium ray | Staff Beam
+city hunter hammer | kaori's hammer; 100-ton hammer | Hammer Heavy Blunt DropFromSky
+lupin iii | lupin | Gun Sneaky
+goemon's zantetsuken | zantetsuken | Sword Blade Pierce
+fujiko | fujiko mine | Gun
+jigen | jigen's magnum | Gun Shoots Pierce
+lupin's fiat | fiat 500 lupin | Vehicle Fast
+captain harlock | harlock; arcadia ship | Vehicle Flies Shoots
+galaxy express 999 | galaxy express | Vehicle Flies Charge
+space battleship yamato | yamato ship | Vehicle Flies Shoots Heavy
+vash the stampede | vash; angel arm | Gun Beam Heavy
+nicholas wolfwood | wolfwood | Gun Heavy
+alucard hellsing | alucard; jackal | Gun Shoots Shadow
+seras victoria | harkonnen | Cannon Heavy
+integra | integra hellsing | Sword
+soul evans | soul eater; death scythe soul | Axe Blade
+maka albarn | maka; witch hunter | Axe Blade Spin
+black star | black star soul eater | Sword Shadow
+death the kid | kid; beelzebub board | Gun Shoots
+excalibur soul eater | excalibur | Sword Playful
+ken kaneki | kaneki; centipede | Whip Pierce Constrict
+touka kirishima | touka; ukaku | Wings Shoots
+amon koutarou | amon quinque | Hammer Heavy
+quinque | quinque weapon | Sword Blade
+rize kamishiro | rize | Whip Pierce
+jinwoo shadow exchange | shadow exchange | Portal Shadow
+light yagami | kira; light | Biped Sneaky
+ryuk | ryuk shinigami; ryuk apple | Bird Flies Sneaky Shadow
+l lawliet | l detective | Biped Lazy
+misa amane | misa | Biped Playful
+rem death note | rem shinigami | Bird Flies Protective
+death note | notebook of death | Shield Shadow
+lelouch | lelouch vi britannia; zero | Biped Psychic
+suzaku | suzaku kururugi | Kaiju Piloted Blade
+c.c. | cc code geass | Biped Calm
+yato | yato noragami; sekki | Sword Blade
+anos voldigoad | anos | Biped Shadow
+shadow garden cid | cid kagenou; atomic | Staff Atomic Explodes
+i am atomic | eminence in shadow atomic | Bomb Atomic Explodes
+ainz ooal gown | ainz; momonga | Staff Shadow
+albedo overlord | albedo; ginnungagap | Axe Heavy
+naofumi | shield hero; rage shield | Shield Guard Fire
+filo | filolial | Bird Fast Charge
+raphtalia | raphtalia sword | Sword Blade
+kazuto kiryu | smith | Hammer
+goblin slayer | orcbolg | Sword Blade
+priestess | holy light | Staff Barrier
+ranma saotome | ranma; hiryu shoten ha | Dome Wind Spin
+p-chan | ryoga's pig | Blob Playful
+ryoga hibiki | shishi hokodan; breaking point | Gauntlet Earth Heavy
+akane tendo | akane; mallet | Hammer Blunt
+lum | lum invader; lum's lightning | Biped Electric Flies
+urusei yatsura | lum shock | Staff Electric
+vegeta's galick | galick gun vegeta | Staff Beam Psychic
+kiki flying | kiki flight | Staff Glide
+gojo blindfold | gojo's blindfold | Cape
+sukuna finger | cursed finger | Ball Shadow
+ryomen sukuna true form | heian sukuna; four arms sukuna | Biped Blade Fire Heavy
+world cutting slash | world-cutting slash | Disc Blade Pierce
+ten shadows | ten shadows technique | Biped Swarm Shadow
+cursed energy | cursed energy blast | Ball Shadow
