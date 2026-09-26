@@ -62,6 +62,36 @@ pub mod mat {
     pub const DARK_WOOD: Material = 18;
     pub const LEAVES_GOLD: Material = 19;
     pub const CRYSTAL_GOLD: Material = 20;
+    // ---- city kit (Miami & future cities) ----
+    pub const ASPHALT: Material = 21;
+    pub const PAINT_WHITE: Material = 22;
+    pub const PAINT_YELLOW: Material = 23;
+    pub const CONCRETE: Material = 24;
+    pub const GLASS_TEAL: Material = 25;
+    pub const GLASS_BLUE: Material = 26;
+    pub const GLASS_SUNSET: Material = 27;
+    pub const MULLION: Material = 28;
+    /// Indestructible structural core (tower cores, bridge piers, city bedrock).
+    pub const TOWER_CORE: Material = 29;
+    pub const STUCCO_WHITE: Material = 30;
+    pub const STUCCO_PINK: Material = 31;
+    pub const STUCCO_MINT: Material = 32;
+    pub const STUCCO_LEMON: Material = 33;
+    pub const STUCCO_LILAC: Material = 34;
+    pub const STUCCO_PEACH: Material = 35;
+    pub const STUCCO_SKY: Material = 36;
+    pub const NEON_PINK: Material = 37;
+    pub const NEON_CYAN: Material = 38;
+    pub const NEON_AMBER: Material = 39;
+    pub const PALM_TRUNK: Material = 40;
+    pub const PALM_FROND: Material = 41;
+    pub const SAND_WET: Material = 42;
+    pub const POOL_WATER: Material = 43;
+    pub const HULL_WHITE: Material = 44;
+    pub const HULL_NAVY: Material = 45;
+    pub const PAINT_RED: Material = 46;
+    pub const STEEL: Material = 47;
+    pub const ROOF_DARK: Material = 48;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -76,7 +106,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 21] = [
+pub static MATERIALS: [MaterialDef; 49] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -106,6 +136,43 @@ pub static MATERIALS: [MaterialDef; 21] = [
     def("dark wood", [84, 58, 40], 0.08, 0.9, D::Wood),
     def("gold leaves", [250, 204, 52], 0.12, 0.25, D::Leaves),
     glow(def("gold crystal", [255, 214, 90], 0.08, 1.6, D::Crystal), 0.8),
+    // ---- city kit (21..) ----
+    def("asphalt", [58, 58, 70], 0.05, 1.0, D::Stone),
+    def("white paint", [236, 234, 226], 0.03, 1.0, D::Stone),
+    def("yellow paint", [246, 204, 64], 0.04, 1.0, D::Stone),
+    def("concrete", [206, 198, 190], 0.05, 1.0, D::Stone),
+    glow(def("teal glass", [72, 186, 200], 0.05, 0.5, D::Crystal), 0.12),
+    glow(def("blue glass", [84, 132, 196], 0.05, 0.5, D::Crystal), 0.12),
+    glow(def("sunset glass", [252, 198, 170], 0.05, 0.5, D::Crystal), 0.18),
+    def("mullion", [168, 176, 190], 0.04, 1.2, D::Stone),
+    MaterialDef {
+        name: "structural core",
+        color: [104, 100, 118],
+        jitter: 0.05,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    def("white stucco", [246, 242, 232], 0.04, 0.8, D::Stone),
+    def("pink stucco", [250, 170, 196], 0.05, 0.8, D::Stone),
+    def("mint stucco", [150, 232, 202], 0.05, 0.8, D::Stone),
+    def("lemon stucco", [252, 232, 140], 0.05, 0.8, D::Stone),
+    def("lilac stucco", [204, 176, 242], 0.05, 0.8, D::Stone),
+    def("peach stucco", [254, 192, 146], 0.05, 0.8, D::Stone),
+    def("sky stucco", [140, 212, 246], 0.05, 0.8, D::Stone),
+    glow(def("pink neon", [255, 70, 170], 0.04, 0.6, D::Crystal), 1.0),
+    glow(def("cyan neon", [50, 240, 255], 0.04, 0.6, D::Crystal), 1.0),
+    glow(def("amber neon", [255, 176, 60], 0.04, 0.6, D::Crystal), 1.0),
+    def("palm trunk", [176, 138, 96], 0.10, 0.7, D::Wood),
+    def("palm frond", [92, 180, 70], 0.16, 0.25, D::Leaves),
+    def("wet sand", [206, 180, 132], 0.05, 0.4, D::Sand),
+    glow(def("pool water", [70, 214, 240], 0.05, 0.4, D::Crystal), 0.25),
+    def("hull white", [244, 244, 248], 0.03, 1.2, D::Stone),
+    def("hull navy", [40, 56, 120], 0.04, 1.2, D::Stone),
+    def("red paint", [232, 64, 70], 0.05, 1.0, D::Stone),
+    def("steel", [128, 138, 156], 0.05, 1.6, D::Stone),
+    def("dark roof", [96, 92, 110], 0.06, 1.0, D::Stone),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

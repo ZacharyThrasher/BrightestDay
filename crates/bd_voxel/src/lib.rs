@@ -8,6 +8,8 @@
 //! - [`mesh`]: chunk → plain vertex arrays with culled faces, baked AO and colour jitter.
 //! - [`arena`]: the seeded Archipelago arena and a flat movement lab.
 //! - [`tutorial`]: the movement tutorial course (stations + peak run).
+//! - [`city`]: the reusable city kit (towers, deco hotels, streets, palms, bridges, ship, props).
+//! - [`maps`]: themed city maps built from the kit ([`generate_miami`]).
 //!
 //! Typical host/client flow:
 //! ```
@@ -25,7 +27,9 @@
 
 pub mod arena;
 pub mod carve;
+pub mod city;
 pub mod material;
+pub mod maps;
 pub mod mesh;
 pub mod noise;
 pub mod tutorial;
@@ -34,6 +38,7 @@ pub mod world;
 pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, generate_arena, generate_flat_test};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use material::{DebrisClass, MATERIALS, MaterialDef, mat, material_def};
+pub use maps::{District, MIAMI_SIZE_VOXELS, MapInfo, Route, RouteKind, generate_miami};
 pub use mesh::{ChunkMesh, Mesher, mesh_chunk};
 pub use tutorial::{Medals, Station, TutorialInfo, generate_tutorial, medals_from_bot};
 pub use world::{CHUNK_SIZE, CHUNK_VOLUME, VoxelWorld, chunk_of, chunk_origin};
