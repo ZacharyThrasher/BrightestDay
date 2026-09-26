@@ -294,6 +294,62 @@ export class ConstructRuntime {
 
   dismissAll() { for (const id of [...this.list.keys()]) this.dismiss(id); }
 
+  // ------------------------------------------------------------------ netcode mirror (client)
+
+  /** Build bodies kinematic regardless of the spec's motion (puppets are posed from host snapshots). */
+  private puppetBuild = false;
+
+  /**
+   * Netcode client: materialise a construct the host created, from its validated spec, as a puppet — bodies
+   * are kinematic, no behaviour ever runs, energy is untouched and no event is emitted (the host's events
+   * arrive separately). Re-calling with a new version rebuilds it in place (a modify on the host).
+   */
+  upsertPuppet(id: string, owner: string, spec: ConstructSpec, meta: { version: number; hp: number; maxHp: number; born: number; expires: number }, poses: { pos: Vector3; quat: Quaternion }[]): Construct {
+    const have = this.list.get(id);
+    const base = poses[0] ?? { pos: new Vector3(), quat: new Quaternion() };
+    const c: Construct = have ?? {
+      id, spec, insts: [], born: meta.born, expires: meta.expires, radius: 1, extent: specExtent(spec), mass: 0, cost: 0, clamps: [], kinematic: true,
+      frameQuat: base.quat.clone(), frameOrigin: base.pos.clone(), version: meta.version, explodeAt: Infinity, name: null, impacts: 0, owner, hp: meta.hp, maxHp: meta.maxHp,
+    };
+    if (have) this.destroyBodies(c, false);
+    c.spec = spec;
+    c.extent = specExtent(spec);
+    c.radius = specExtent(spec, true).radius;
+    c.version = meta.version; c.hp = meta.hp; c.maxHp = meta.maxHp; c.expires = meta.expires; c.owner = owner;
+    this.puppetBuild = true;
+    try { this.build(c, base.pos, base.quat, poses.length ? poses : undefined); } finally { this.puppetBuild = false; }
+    this.list.set(id, c);
+    this.setFocus(owner, id);
+    return c;
+  }
+
+  /** Netcode client: pose one puppet instance (joint poses in the construct's frame, as on the host). */
+  posePuppet(c: Construct, k: number, pos: Vector3, quat: Quaternion, joints?: Map<string, Pose>) {
+    const inst = c.insts[k];
+    if (!inst || !inst.alive) return;
+    inst.prevPos.copy(inst.pos);
+    inst.pos.copy(pos);
+    inst.quat.copy(quat);
+    inst.vel.copy(inst.pos).sub(inst.prevPos).divideScalar(this.w.dt);
+    if (joints) inst.jointPose = joints;
+    inst.body.setNextKinematicTranslation(pos);
+    inst.body.setNextKinematicRotation(quat);
+  }
+
+  /** Netcode client: the host dismissed it (no refunds, no releases, no events — those come from the host). */
+  removePuppet(id: string) {
+    const c = this.list.get(id);
+    if (!c) return;
+    this.destroyBodies(c, false);
+    this.list.delete(id);
+    this.removed.push(c);
+    if (this.focus.get(c.owner) === id) {
+      let last: string | null = null;
+      for (const o of this.list.values()) if (o.owner === c.owner) last = o.id;
+      this.focus.set(c.owner, last);
+    }
+  }
+
   /**
    * Damage a construct (attributed). Only attacks from someone other than its owner should call this.
    * At 0 hp it shatters (dismissed with reason 'destroyed').
@@ -645,7 +701,7 @@ export class ConstructRuntime {
     for (let k = 0; k < offs.length; k++) {
       const pos = poses?.[k]?.pos.clone() ?? origin.clone().add(offs[k].clone().applyQuaternion(quat));
       const q = poses?.[k]?.quat.clone() ?? quat.clone();
-      let desc = spec.motion === 'static' ? R.RigidBodyDesc.fixed() : spec.motion === 'kinematic' ? R.RigidBodyDesc.kinematicPositionBased() : R.RigidBodyDesc.dynamic().setCcdEnabled(true).setLinearDamping(0.05).setAngularDamping(0.3);
+      let desc = spec.motion === 'kinematic' || this.puppetBuild ? R.RigidBodyDesc.kinematicPositionBased() : spec.motion === 'static' ? R.RigidBodyDesc.fixed() : R.RigidBodyDesc.dynamic().setCcdEnabled(true).setLinearDamping(0.05).setAngularDamping(0.3);
       desc = desc.setTranslation(pos.x, pos.y, pos.z).setRotation(q);
       const body = this.w.pw.createRigidBody(desc);
       const colliders: RCollider[] = [];

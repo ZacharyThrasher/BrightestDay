@@ -66,6 +66,14 @@ export class Match {
     this.enter('warmup');
   }
 
+  /** A match mirrored from a host's snapshot (netcode client): no events, never updated locally. */
+  static mirror(w: World, s: MatchSnapshot): Match {
+    const m = Object.create(Match.prototype) as Match;
+    (m as any).w = w;
+    m.restore(s);
+    return m;
+  }
+
   /** Damage (and kills) only count while the round is live. */
   get damageEnabled() { return this.phase === 'live'; }
   /** Seconds left in the current phase (warmup countdown, round clock, result screen); Infinity when open-ended. */
@@ -92,7 +100,7 @@ export class Match {
 
   /** World events: kills score. Called by the world for every event. */
   onEvent(e: GameEvent) {
-    if (e.type !== 'player_killed' || this.phase !== 'live') return;
+    if (e.type !== 'player_killed' || this.phase !== 'live' || this.w.mirror) return; // a mirror only replays the host's scores
     const victim = String(e.target);
     const killer: string | null = e.attacker && e.attacker !== victim ? String(e.attacker) : null;
     const weapon = String(e.weapon ?? e.cause ?? 'the ring');

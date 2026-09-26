@@ -125,6 +125,8 @@ export class Player {
   prevHookR = false;
   tethers: { L: Tether | null; R: Tether | null } = { L: null, R: null };
   mods: PlayerMods = emptyMods();
+  /** Netcode (host): the construct mods of the last tick of a player who moves on their own machine. */
+  netMods: PlayerMods = emptyMods();
   body!: RBody;
   collider!: RCollider;
   shape: any;

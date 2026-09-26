@@ -186,6 +186,20 @@ export class ActionSystem {
     return s;
   }
 
+  /** What a remote player's HUD needs of their action state (netcode: the host ships it to the client). */
+  netState(id: string): { eq: string | null; precise: string | null; charge: { cid: string; kind: 'strike' | 'throw'; start: number } | null } {
+    const s = this.state(id);
+    return { eq: s.equipped, precise: s.precise, charge: s.charging ? { cid: s.charging.cid, kind: s.charging.kind, start: s.charging.start } : null };
+  }
+
+  /** Mirror a host's action state for the HUD (the client never steps actions itself). */
+  applyNetState(id: string, v: ReturnType<ActionSystem['netState']>) {
+    const s = this.state(id);
+    s.equipped = v.eq;
+    s.precise = v.precise;
+    s.charging = v.charge ? { ...v.charge, emitted: 0 } : null;
+  }
+
   // ------------------------------------------------------------------ equipping
 
   /** Constructs this player can use, oldest first. */

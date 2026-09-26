@@ -533,6 +533,7 @@ export class CreativityEconomy {
   // ---------------------------------------------------------------- outcomes → creative solutions
 
   onEvent(e: GameEvent) {
+    if (this.w.mirror) return; // a netcode client replays the host's events; the host scores them
     const now = this.w.time;
     switch (e.type) {
       case 'impact': case 'grabbed': case 'launch_entity': case 'construct_hit': {

@@ -1,6 +1,6 @@
 import { Vector3, Quaternion } from 'three';
 import { initPhysics, G, ALL, groups, PLAYER_BITS, type Rapier, type RWorld, type RBody, type RCollider } from './physics.js';
-import { Player, type PlayerInput, NO_INPUT } from './player.js';
+import { Player, type PlayerInput, NO_INPUT, emptyMods } from './player.js';
 import { ConstructRuntime } from './constructs/runtime.js';
 import { WorldContent, type EntityAI } from './content.js';
 import { CreativityEconomy } from './inspiration.js';
@@ -43,6 +43,8 @@ export interface EntityOpts {
   hp?: number;
   /** blocks: density override (kg/m³) */
   density?: number;
+  /** Force this id (netcode: a client mirrors the host's entity ids). */
+  id?: string;
 }
 
 export interface Entity {
@@ -120,6 +122,17 @@ export interface MatchStateSnapshot {
   projectiles: number;
 }
 
+/**
+ * The discrete, authoritative part of the match state (no positions / velocities, which are latency-shifted
+ * between host and client): what a client can hash to check it agrees with the host (see src/net/game.ts).
+ */
+export interface SyncState {
+  match: MatchSnapshot | null;
+  players: { id: string; hp: number; alive: boolean; energy: number }[];
+  constructs: { id: string; owner: string; hp: number }[];
+  entities: { id: string; hp: number }[];
+}
+
 /** Options for damagePlayer: knockback direction (normalised inside) and strength (1 = a solid hit). */
 export interface HitOpts { dir?: Vector3; knock?: number; pos?: Vector3 }
 
@@ -167,6 +180,18 @@ export class World {
   listeners: ((e: GameEvent) => void)[] = [];
   /** Called at the end of every tick (the interpreter uses it for multi-step actions like grab-then-throw). */
   tickHooks: (() => void)[] = [];
+  /**
+   * Netcode (host): players whose movement is simulated on their own machine. world.step() does not run their
+   * Player.update — the host session writes their reported pose — but everything else (constructs, actions,
+   * damage, knockback) still acts on them. Construct mods meant for them are kept in `netMods`.
+   */
+  externallyDriven = new Set<string>();
+  /**
+   * Netcode (client): this world is a mirror of the host's. It never decides damage or deaths itself; damage
+   * its own local movement causes (slamming into a wall after a throw) is reported through `onMirrorDamage`.
+   */
+  mirror = false;
+  onMirrorDamage: ((target: Player, amount: number, cause: string, by: string | null) => void) | null = null;
 
   static async create(): Promise<World> {
     const w = new World();
@@ -270,6 +295,7 @@ export class World {
    */
   damagePlayer(target: Player, amount: number, cause: string, by?: string | null, opts: HitOpts = {}): number {
     if (!target || !(amount > 0) || !target.alive) return 0;
+    if (this.mirror) { this.onMirrorDamage?.(target, amount, cause, by ?? null); return 0; }
     const attacker = this.attackerOf(by);
     if (attacker === target.id) return 0; // own constructs never hurt their owner
     if (target.isProtected) { this.emit('player_shielded', { target: target.id, by: by ?? null, attacker }); return 0; }
@@ -314,7 +340,7 @@ export class World {
   }
 
   killPlayer(target: Player, by: string | null, cause: string) {
-    if (!target.alive) return;
+    if (!target.alive || this.mirror) return;
     const attacker = this.attackerOf(by);
     const weapon = this.weaponOf(by, cause);
     if (target.riding) this.constructs.machines.dismount(target);
@@ -421,8 +447,22 @@ export class World {
     };
   }
 
-  /** 32-bit FNV-1a hash of snapshotMatch() (desync detection: host and client compare these). */
-  stateHash(): string { return hashString(JSON.stringify(this.snapshotMatch())); }
+  /** The discrete authoritative state (scores, health, alive, willpower, which constructs / entities exist). */
+  syncState(): SyncState {
+    const r = (v: number) => Math.round(v * 1000) / 1000;
+    return {
+      match: this.match?.snapshot() ?? null,
+      players: this.players.map((p) => ({ id: p.id, hp: r(p.hp), alive: p.alive, energy: r(p.energy) })),
+      constructs: [...this.constructs.list.values()].map((c) => ({ id: c.id, owner: c.owner, hp: r(c.hp) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+      entities: [...this.entities.values()].map((e) => ({ id: e.id, hp: r(Math.min(e.hp, 1e6)) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    };
+  }
+
+  /**
+   * 32-bit FNV-1a hash for desync detection. 'full' = snapshotMatch() (two runs of the same deterministic sim
+   * compare these); 'sync' = syncState() (an online host and its client compare these).
+   */
+  stateHash(kind: 'full' | 'sync' = 'full'): string { return hashString(JSON.stringify(kind === 'sync' ? this.syncState() : this.snapshotMatch())); }
 
   uid(prefix: string) { return `${prefix}${this.nextId++}`; }
 
@@ -435,7 +475,14 @@ export class World {
     return e;
   }
 
-  bodyAlive(b: RBody) {
+  /** Netcode client: re-dispatch an event the host emitted (no attribution side effects, same time stamp). */
+  replay(e: GameEvent) {
+    this.log.push(e);
+    if (this.log.length > 2000) this.log.splice(0, 500);
+    for (const l of this.listeners) l(e);
+  }
+
+    bodyAlive(b: RBody) {
     // identity check, not just the handle: Rapier reuses handles of removed bodies
     try { return this.pw.bodies.contains(b.handle) && this.pw.getRigidBody(b.handle) === b; } catch { return false; }
   }
@@ -494,7 +541,7 @@ export class World {
 
   addEntity(type: EntityType, pos: Vector3, opts: EntityOpts = {}): Entity {
     const R = this.R;
-    const id = this.uid(type);
+    const id = opts.id ?? this.uid(type);
     let desc = R.RigidBodyDesc.dynamic().setTranslation(pos.x, pos.y, pos.z);
     let cdesc: any;
     let radius = 0.5;
@@ -595,7 +642,7 @@ export class World {
    * causes, the nearest construct. Events carry `by` so outcomes can be attributed to constructs.
    */
   damageEntity(e: Entity, amount: number, cause: string, by?: string | null) {
-    if (e.type === 'boulder' || amount <= 0) return;
+    if (e.type === 'boulder' || amount <= 0 || this.mirror) return;
     const who = by !== undefined ? by : this.resolveCredit(e, cause);
     if (who) this.credit(e, who);
     if (e.type === 'civilian') {
@@ -738,7 +785,13 @@ export class World {
     for (const p of this.players) this.actions.input(p, p.input, dt);
     this.constructs.preStep(dt);
     for (const p of this.players) {
-      p.update(p.input, dt);
+      if (this.externallyDriven.has(p.id)) {
+        // moved on its own machine: keep the collider where the session put it; hand over this tick's mods
+        p.events.length = 0;
+        p.body.setTranslation(p.pos, true);
+        p.netMods = p.mods;
+        p.mods = emptyMods();
+      } else p.update(p.input, dt);
       this.actions.step(p, dt);
       if (p !== this.player && (p.input.flyToggle || p.input.use)) p.input = { ...p.input, flyToggle: false, use: false };
     }
