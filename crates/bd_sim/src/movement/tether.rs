@@ -166,7 +166,10 @@ fn advance<V: VoxelQuery + ?Sized>(s: &mut PlayerState, i: usize, w: &CollisionW
                 hook.vel = c.vel;
             }
         }
-        hook.rope_len = (hit.point - s.chest(p)).length().max(p.tether_min_len);
+        // The hook head never flies past `tether_range`, but the player keeps moving during the
+        // flight. If they are now further away than the range, the rope attaches taut *at* the range
+        // (and winds in at `rope_retract_speed`): a rope is never longer than `tether_range`.
+        hook.rope_len = (hit.point - s.chest(p)).length().clamp(p.tether_min_len, p.tether_range.max(p.tether_min_len));
         s.hooks[i] = hook;
         s.tumble = 0.0;
         ev.tether_attached[i] = true;

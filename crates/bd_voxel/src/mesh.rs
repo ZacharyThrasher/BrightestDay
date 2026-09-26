@@ -169,10 +169,7 @@ impl Mesher {
                         // Corner position: voxel min + (n>0 on N axis) + (du>0 on U) + (dv>0 on V).
                         let npos = f.n.max(IVec3::ZERO);
                         for (k, &(du, dv)) in CORNERS.iter().enumerate() {
-                            let corner = world_v
-                                + npos
-                                + if du > 0 { f.u } else { IVec3::ZERO }
-                                + if dv > 0 { f.v } else { IVec3::ZERO };
+                            let corner = world_v + npos + if du > 0 { f.u } else { IVec3::ZERO } + if dv > 0 { f.v } else { IVec3::ZERO };
                             out.positions.push((corner.as_vec3() * VOXEL_SIZE).to_array());
                             out.normals.push(nrm);
                             let occl = AO_CURVE[ao[k] as usize];
@@ -206,11 +203,7 @@ fn jitter_color(base: [f32; 3], m: Material, v: IVec3) -> [f32; 3] {
     let b = 1.0 + j * noise::signed(h);
     let h2 = noise::mix32(h);
     let t = j * 0.35;
-    let tint = [
-        1.0 + t * noise::signed(h2),
-        1.0 + t * noise::signed(h2.rotate_left(11)),
-        1.0 + t * noise::signed(h2.rotate_left(22)),
-    ];
+    let tint = [1.0 + t * noise::signed(h2), 1.0 + t * noise::signed(h2.rotate_left(11)), 1.0 + t * noise::signed(h2.rotate_left(22))];
     [base[0] * b * tint[0], base[1] * b * tint[1], base[2] * b * tint[2]]
 }
 

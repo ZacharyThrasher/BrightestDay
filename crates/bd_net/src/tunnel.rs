@@ -85,7 +85,9 @@ impl Tunnel {
             }
         };
         let Some(exe) = Self::find_cloudflared() else {
-            return fail("cloudflared not found — install it (winget install Cloudflare.cloudflared) or put cloudflared.exe next to the game".into());
+            return fail(
+                "cloudflared not found — install it (winget install Cloudflare.cloudflared) or put cloudflared.exe next to the game".into(),
+            );
         };
         let mut cmd = Command::new(&exe);
         cmd.args(["tunnel", "--no-autoupdate", "--url", &format!("http://127.0.0.1:{port}")])

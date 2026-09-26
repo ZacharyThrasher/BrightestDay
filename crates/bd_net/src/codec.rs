@@ -6,6 +6,11 @@ use serde::de::DeserializeOwned;
 /// Largest message we will decode (guards against hostile length prefixes).
 pub const MAX_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 
+/// Largest message a *client* may send the host (inputs, casts, chat, handshake). Enforced by the
+/// host's WebSocket layer, so an oversized frame drops that client before it is buffered or decoded.
+/// Host -> client messages (keyframes) may use the full [`MAX_MESSAGE_BYTES`].
+pub const MAX_CLIENT_MESSAGE_BYTES: usize = 64 * 1024;
+
 #[inline]
 fn config() -> impl bincode::config::Config {
     bincode::config::standard().with_limit::<MAX_MESSAGE_BYTES>()

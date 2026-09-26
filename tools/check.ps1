@@ -7,7 +7,7 @@
 
       manifest  workspace manifests parse and all targets exist (a broken in-progress crate is
                 reported and the other crates are checked in an isolated mirror workspace)
-      fmt       cargo fmt --check per crate (report-only unless a rustfmt.toml exists or -StrictFmt)
+      fmt       cargo fmt --check per crate (enforced for finished crates, report-only for the rest)
       clippy    cargo clippy per crate: compile errors / denied lints FAIL; panicking constructs
                 (unwrap/expect/panic/indexing...) in runtime code are counted per crate and compared
                 with tools/lint_budget.json (a crate listed there may never exceed its budget)
@@ -261,12 +261,19 @@ if ($Broken.Count -gt 0 -or $Isolated) {
 
 if ($Skip -notcontains 'fmt') {
     Write-Section 'fmt'
-    $enforce = $StrictFmt -or ((Test-Path (Join-Path $Root 'rustfmt.toml')) -and -not $FmtReportOnly)
-    if (-not $enforce) { Write-Host '  (report-only: no rustfmt.toml yet; use -StrictFmt to enforce)' -ForegroundColor DarkGray }
+    # Enforced for finished crates (those with an entry in tools/lint_budget.json) once rustfmt.toml
+    # exists; crates still being written are report-only so nobody's uncommitted work gets reformatted.
+    $finished = @()
+    $budgetFile = Join-Path $PSScriptRoot 'lint_budget.json'
+    if (Test-Path $budgetFile) { $finished = @((Get-Content $budgetFile -Raw | ConvertFrom-Json).PSObject.Properties.Name | Where-Object { $_ -notlike '_*' }) }
+    $haveConfig = Test-Path (Join-Path $Root 'rustfmt.toml')
+    if (-not $haveConfig) { Write-Host '  (report-only: no rustfmt.toml; use -StrictFmt to enforce)' -ForegroundColor DarkGray }
+    else { Write-Host "  (enforced for finished crates: $($finished -join ', '); others report-only)" -ForegroundColor DarkGray }
     foreach ($c in $Healthy) {
         $log = Join-Path $Logs "fmt-$c.log"
         $code = Invoke-Logged 'cargo' @('fmt', '-p', $c, '--check') $log -WorkDir $WorkDir -TimeoutSec 300
         $text = Get-Content $log
+        $enforce = $StrictFmt -or ($haveConfig -and -not $FmtReportOnly -and $finished -contains $c)
         $files = @($text | Select-String -Pattern '^Diff in (.+?)(:\d+| at line)' | ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique)
         $hunks = @($text | Select-String -Pattern '^Diff in ').Count
         $parseError = @($text | Select-String -Pattern '^error').Count -gt 0

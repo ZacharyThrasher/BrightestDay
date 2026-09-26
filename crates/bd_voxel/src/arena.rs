@@ -29,7 +29,7 @@ use bd_core::voxel::{AIR, Aabb, Material};
 use glam::{IVec3, Vec2, Vec3};
 
 use crate::material::{MaterialDef, mat, material_def};
-use crate::noise::{self, PI, Rng, TAU, dcos, datan2, dsin, fbm2, smoothstep, value2, value3};
+use crate::noise::{self, PI, Rng, TAU, datan2, dcos, dsin, fbm2, smoothstep, value2, value3};
 use crate::world::VoxelWorld;
 
 /// Everything the sim/client needs to know about a generated map besides its voxels.
@@ -278,13 +278,9 @@ impl Gen {
         let Some(g) = self.ground(x, z, from_y) else { return };
         let wood = if self.rng.chance(0.3) { mat::DARK_WOOD } else { mat::WOOD };
         let base = Vec3::new(x, g - 1.5, z);
-        let top = Vec3::new(
-            x + self.rng.range(-1.0, 1.0) * height * 0.08,
-            g + height * 0.72,
-            z + self.rng.range(-1.0, 1.0) * height * 0.08,
-        );
-        let ctrl = (base + top) * 0.5
-            + Vec3::new(self.rng.range(-1.0, 1.0), 0.0, self.rng.range(-1.0, 1.0)) * height * 0.08;
+        let top =
+            Vec3::new(x + self.rng.range(-1.0, 1.0) * height * 0.08, g + height * 0.72, z + self.rng.range(-1.0, 1.0) * height * 0.08);
+        let ctrl = (base + top) * 0.5 + Vec3::new(self.rng.range(-1.0, 1.0), 0.0, self.rng.range(-1.0, 1.0)) * height * 0.08;
         // Root flare, then trunk.
         self.w.fill_sphere(Vec3::new(x, g - 0.5, z), trunk_r * 2.0, wood, false);
         let n = ((height / 0.25) as i32).max(4);
@@ -334,11 +330,8 @@ impl Gen {
             if rel > hmax {
                 return if rel < height && dist < radius - wall { Some(AIR) } else { None };
             }
-            let brick = if rel < 1.5 || value3(p.x * 0.25, p.y * 0.25, p.z * 0.25, seed ^ 3) > 0.3 {
-                mat::MOSSY_BRICK
-            } else {
-                mat::RUIN_BRICK
-            };
+            let brick =
+                if rel < 1.5 || value3(p.x * 0.25, p.y * 0.25, p.z * 0.25, seed ^ 3) > 0.3 { mat::MOSSY_BRICK } else { mat::RUIN_BRICK };
             if dist < radius - wall {
                 // Interior.
                 if rel < 0.0 {
@@ -379,11 +372,7 @@ impl Gen {
                 return None;
             }
             // Plinth and capital-ish bands.
-            let m = if rel < 1.0 || value3(p.x * 0.3, p.y * 0.3, p.z * 0.3, seed) > 0.35 {
-                mat::MOSSY_BRICK
-            } else {
-                mat::RUIN_BRICK
-            };
+            let m = if rel < 1.0 || value3(p.x * 0.3, p.y * 0.3, p.z * 0.3, seed) > 0.35 { mat::MOSSY_BRICK } else { mat::RUIN_BRICK };
             Some(m)
         });
     }
@@ -424,11 +413,7 @@ impl Gen {
                 let (y0, y1) = (vx(g - 1.5), vx(g + h));
                 for y in y0..=y1 {
                     let v = IVec3::new(key.0, y, key.1);
-                    let m = if y - vx(g) < 2 || noise::unit(noise::hash_v(v, seed)) < 0.25 {
-                        mat::MOSSY_BRICK
-                    } else {
-                        mat::RUIN_BRICK
-                    };
+                    let m = if y - vx(g) < 2 || noise::unit(noise::hash_v(v, seed)) < 0.25 { mat::MOSSY_BRICK } else { mat::RUIN_BRICK };
                     self.w.set(v, m);
                 }
             }
@@ -671,12 +656,7 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
     // Crag (SW, high) + terrace + overhanging shelf pointing at the Heart.
     let crag_c = polar(240.0, 66.0) + j(&mut g, 2.5);
     let crag_top = 50.0 + g.rng.range(-1.0, 1.0);
-    g.island(IslandSpec {
-        depth: 16.0,
-        surface: Surface::Rocky,
-        crystals: mat::CRYSTAL_GOLD,
-        ..IslandSpec::new(crag_c, crag_top, 15.0)
-    });
+    g.island(IslandSpec { depth: 16.0, surface: Surface::Rocky, crystals: mat::CRYSTAL_GOLD, ..IslandSpec::new(crag_c, crag_top, 15.0) });
     let terrace_c = crag_c + (crag_c.normalize() * 5.0) + j(&mut g, 1.5);
     g.island(IslandSpec { depth: 6.0, hills: 0.4, core: false, ..IslandSpec::new(terrace_c, crag_top + 5.0, 8.0) });
     let to_heart = -crag_c.normalize();
@@ -695,12 +675,7 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
     // Sandbar (SE, low).
     let sand_c = polar(300.0, 66.0) + j(&mut g, 2.5);
     let sand_top = 26.0 + g.rng.range(-1.0, 1.0);
-    g.island(IslandSpec {
-        depth: 15.0,
-        hills: 0.9,
-        surface: Surface::Beach,
-        ..IslandSpec::new(sand_c, sand_top, 20.0)
-    });
+    g.island(IslandSpec { depth: 15.0, hills: 0.9, surface: Surface::Beach, ..IslandSpec::new(sand_c, sand_top, 20.0) });
 
     // ---- Outer loop stepping stones --------------------------------------------------------------
     let steps: [(f32, f32, f32, f32); 6] = [
@@ -862,20 +837,10 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
     // Big arches over the outer gaps: NE ↔ E, SW ↔ SE.
     let ne_foot = spire_c + (meadow_c - spire_c).normalize() * 11.0;
     let e_foot = meadow_c + Vec2::new(-4.0, 11.0);
-    g.arch(
-        Vec3::new(ne_foot.x, spire_top - 2.0, ne_foot.y),
-        Vec3::new(e_foot.x, meadow_top - 2.0, e_foot.y),
-        14.0,
-        1.8,
-    );
+    g.arch(Vec3::new(ne_foot.x, spire_top - 2.0, ne_foot.y), Vec3::new(e_foot.x, meadow_top - 2.0, e_foot.y), 14.0, 1.8);
     let sw_foot = crag_c + (sand_c - crag_c).normalize() * 11.0;
     let se_foot = sand_c + (crag_c - sand_c).normalize() * 12.0;
-    g.arch(
-        Vec3::new(sw_foot.x, crag_top - 2.0, sw_foot.y),
-        Vec3::new(se_foot.x, sand_top - 2.0, se_foot.y),
-        16.0,
-        1.8,
-    );
+    g.arch(Vec3::new(sw_foot.x, crag_top - 2.0, sw_foot.y), Vec3::new(se_foot.x, sand_top - 2.0, se_foot.y), 16.0, 1.8);
 
     g.place_cores();
 

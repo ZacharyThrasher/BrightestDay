@@ -15,12 +15,19 @@ fn real_cloudflared_tunnel_rtt() {
     let mut host = loopback_host(Some("Host"));
     let t0 = Instant::now();
     let tunnel = Tunnel::start(host.port());
-    let (url, code) = tunnel.wait_ready(Duration::from_secs(60)).unwrap_or_else(|e| panic!("tunnel: {e}\n{}", tunnel.log_tail().join("\n")));
+    let (url, code) =
+        tunnel.wait_ready(Duration::from_secs(60)).unwrap_or_else(|e| panic!("tunnel: {e}\n{}", tunnel.log_tail().join("\n")));
     let t_ready = t0.elapsed();
     eprintln!("tunnel ready after {:.1}s: {url} (code {code})", t_ready.as_secs_f32());
 
     let t1 = Instant::now();
-    let mut clients = vec![ClientSession::connect(&code, ClientConfig { name: "remote".into(), connect_timeout: Duration::from_secs(45), ..Default::default() }).unwrap()];
+    let mut clients = vec![
+        ClientSession::connect(
+            &code,
+            ClientConfig { name: "remote".into(), connect_timeout: Duration::from_secs(45), ..Default::default() },
+        )
+        .unwrap(),
+    ];
     let mut hev = Vec::new();
     let mut cev = vec![Vec::new()];
     let ok = pump_until(&mut host, &mut clients, &mut hev, &mut cev, Duration::from_secs(50), |_, cs, _, cev| {

@@ -9,6 +9,10 @@
     "clippy::expect_used": 4,
     "clippy::indexing_slicing": 31
   },
+  "bd_voice": {
+    "clippy::unwrap_used": 1,
+    "clippy::indexing_slicing": 5
+  },
   "bd_voxel": {
     "clippy::unwrap_used": 1,
     "clippy::indexing_slicing": 36

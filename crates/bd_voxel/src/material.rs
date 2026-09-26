@@ -64,13 +64,7 @@ pub mod mat {
     pub const CRYSTAL_GOLD: Material = 20;
 }
 
-const fn def(
-    name: &'static str,
-    color: [u8; 3],
-    jitter: f32,
-    hardness: f32,
-    debris: DebrisClass,
-) -> MaterialDef {
+const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
     MaterialDef { name, color, jitter, hardness, indestructible: false, debris, emissive: 0.0 }
 }
 

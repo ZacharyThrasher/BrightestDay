@@ -123,10 +123,7 @@ fn cut_pillar_top_falls() {
     // Blast a slice out of the pillar 3 m above the ground.
     let cut_y = 11.0;
     let out = w.apply_carve(&CarveOp {
-        shape: CarveShape::Box {
-            min: Vec3::new(29.0, cut_y, -13.0),
-            max: Vec3::new(32.0, cut_y + 1.0, -10.0),
-        },
+        shape: CarveShape::Box { min: Vec3::new(29.0, cut_y, -13.0), max: Vec3::new(32.0, cut_y + 1.0, -10.0) },
         power: 1.0,
         seed: 1,
     });
@@ -143,7 +140,8 @@ fn cut_pillar_top_falls() {
     assert!(com.y > cut_y && (com.x - 30.5).abs() < 0.6);
 
     // Carving a crater in open ground drops nothing.
-    let out = w.apply_carve(&CarveOp { shape: CarveShape::Sphere { center: Vec3::new(-20.0, 8.0, 20.0), radius: 3.0 }, power: 1.0, seed: 2 });
+    let out =
+        w.apply_carve(&CarveOp { shape: CarveShape::Sphere { center: Vec3::new(-20.0, 8.0, 20.0), radius: 3.0 }, power: 1.0, seed: 2 });
     assert!(!out.removed.is_empty());
     assert!(out.falling.is_empty());
 }
@@ -171,12 +169,8 @@ fn chopping_a_tree_drops_the_canopy() {
         power: 1.0,
         seed: 3,
     });
-    let leaves: usize = out
-        .falling
-        .iter()
-        .flat_map(|f| f.voxels.iter())
-        .filter(|(_, m)| material_def(*m).debris == DebrisClass::Leaves)
-        .count();
+    let leaves: usize =
+        out.falling.iter().flat_map(|f| f.voxels.iter()).filter(|(_, m)| material_def(*m).debris == DebrisClass::Leaves).count();
     assert!(leaves > 500, "canopy should fall, got {leaves} leaves in {} chunks", out.falling.len());
 }
 
@@ -320,11 +314,8 @@ fn timing() {
     // Typical gameplay carve: 3 m crater in the Heart's floor (+ collapse check).
     let mut carve_ms = Vec::new();
     for i in 0..10 {
-        let op = CarveOp {
-            shape: CarveShape::Sphere { center: Vec3::new(-8.0 + i as f32 * 2.0, 40.0, 8.0), radius: 3.0 },
-            power: 1.0,
-            seed: i,
-        };
+        let op =
+            CarveOp { shape: CarveShape::Sphere { center: Vec3::new(-8.0 + i as f32 * 2.0, 40.0, 8.0), radius: 3.0 }, power: 1.0, seed: i };
         let t = Instant::now();
         w.apply_carve(&op);
         carve_ms.push(t.elapsed().as_secs_f64() * 1e3);
@@ -368,7 +359,11 @@ fn timing() {
 
     println!("--- bd_voxel timing ({} build) ---", if cfg!(debug_assertions) { "debug" } else { "release" });
     println!("arena gen:            {gen_ms:.1} ms ({} solid voxels)", w.solid_count());
-    println!("full mesh (1 thread): {mesh_ms:.1} ms for {} chunks, {tris} tris; worst chunk {worst:.2} ms, avg {:.3} ms", chunks.len(), mesh_ms / chunks.len() as f64);
+    println!(
+        "full mesh (1 thread): {mesh_ms:.1} ms for {} chunks, {tris} tris; worst chunk {worst:.2} ms, avg {:.3} ms",
+        chunks.len(),
+        mesh_ms / chunks.len() as f64
+    );
     println!("full mesh ({threads} threads): {par_ms:.1} ms");
     println!("carve r=3 m + collapse: median {:.3} ms, max {:.3} ms", carve_ms[5], carve_ms[9]);
     println!("tree felling carve + collapse: {tree_ms:.2} ms ({fell} voxels fell)");

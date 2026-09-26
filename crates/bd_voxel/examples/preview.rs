@@ -34,11 +34,7 @@ fn sky(y: u32, h: u32) -> Rgb<u8> {
     let t = y as f32 / h as f32;
     let top = [84.0, 148.0, 242.0];
     let bot = [204.0, 228.0, 255.0];
-    Rgb([
-        (top[0] + (bot[0] - top[0]) * t) as u8,
-        (top[1] + (bot[1] - top[1]) * t) as u8,
-        (top[2] + (bot[2] - top[2]) * t) as u8,
-    ])
+    Rgb([(top[0] + (bot[0] - top[0]) * t) as u8, (top[1] + (bot[1] - top[1]) * t) as u8, (top[2] + (bot[2] - top[2]) * t) as u8])
 }
 
 /// Column height map (top solid voxel y, or i32::MIN).
@@ -70,7 +66,7 @@ fn iso(w: &VoxelWorld, info: &ArenaInfo, flip: bool, a: f32) -> RgbImage {
     let y_off = hi.y as f32 * b + 2.0;
     let width = ((sx + sz) * a + 4.0) as u32;
     let height = ((sx + sz) * a * 0.5 + hi.y as f32 * b + 4.0) as u32;
-    
+
     // Sprite: which face each pixel of a unit cube's footprint belongs to (0 top, 1 +X, 2 +Z).
     let quads: [[Vec3; 4]; 3] = [
         [Vec3::new(0., 1., 0.), Vec3::new(1., 1., 0.), Vec3::new(1., 1., 1.), Vec3::new(0., 1., 1.)],
@@ -225,11 +221,7 @@ fn top_down(w: &VoxelWorld, info: &ArenaInfo, scale: u32) -> RgbImage {
                 // Void: dark blue with grid.
                 let wx = x as f32 * VOXEL_SIZE;
                 let wz = z as f32 * VOXEL_SIZE;
-                if wx.rem_euclid(10.0) < VOXEL_SIZE || wz.rem_euclid(10.0) < VOXEL_SIZE {
-                    Rgb([40, 52, 86])
-                } else {
-                    Rgb([22, 28, 52])
-                }
+                if wx.rem_euclid(10.0) < VOXEL_SIZE || wz.rem_euclid(10.0) < VOXEL_SIZE { Rgb([40, 52, 86]) } else { Rgb([22, 28, 52]) }
             } else {
                 let c = voxel_rgb(w, IVec3::new(x, y, z));
                 let nb = at(x - 1, z + 1);
@@ -276,11 +268,8 @@ fn elevation(w: &VoxelWorld, info: &ArenaInfo, scale: u32) -> RgbImage {
                 let k = 1.15 - 0.6 * t;
                 let fog = [200.0, 222.0, 250.0];
                 let mix = t * 0.45;
-                let cc = [
-                    c[0] * k * (1.0 - mix) + fog[0] * mix,
-                    c[1] * k * (1.0 - mix) + fog[1] * mix,
-                    c[2] * k * (1.0 - mix) + fog[2] * mix,
-                ];
+                let cc =
+                    [c[0] * k * (1.0 - mix) + fog[0] * mix, c[1] * k * (1.0 - mix) + fog[1] * mix, c[2] * k * (1.0 - mix) + fog[2] * mix];
                 let p = to_px(cc, 1.0);
                 for dy in 0..scale {
                     for dx in 0..scale {

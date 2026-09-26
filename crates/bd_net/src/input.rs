@@ -61,7 +61,14 @@ pub struct InputBuffer<T> {
 impl<T: Sequenced> InputBuffer<T> {
     /// Sequence numbers start at 1; an ack of 0 means "nothing processed yet".
     pub fn new(redundancy: usize) -> Self {
-        Self { next_seq: 1, last_acked: 0, last_sent: 0, pending: VecDeque::with_capacity(256), redundancy: redundancy.max(1), capacity: 1024 }
+        Self {
+            next_seq: 1,
+            last_acked: 0,
+            last_sent: 0,
+            pending: VecDeque::with_capacity(256),
+            redundancy: redundancy.max(1),
+            capacity: 1024,
+        }
     }
 
     /// Record an input; its seq field is overwritten with the assigned sequence number.

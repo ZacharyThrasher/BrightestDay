@@ -37,7 +37,8 @@ struct Args {
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { host: false, join: None, name: String::new(), port: bd_net::DEFAULT_PORT, bind: "0.0.0.0".parse().unwrap(), tunnel: true };
+    let mut a =
+        Args { host: false, join: None, name: String::new(), port: bd_net::DEFAULT_PORT, bind: "0.0.0.0".parse().unwrap(), tunnel: true };
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
         match arg.as_str() {
@@ -197,7 +198,14 @@ fn run_client(args: Args) {
                 }
                 "/ping" => {
                     let r = client.clock().rtt();
-                    println!("[client] rtt {:.1} ms (min {:.1}, jitter {:.1}) over {} pings; host tick ≈ {:.0}", r.srtt * 1e3, r.min * 1e3, r.rttvar * 1e3, r.count, client.host_tick_now());
+                    println!(
+                        "[client] rtt {:.1} ms (min {:.1}, jitter {:.1}) over {} pings; host tick ≈ {:.0}",
+                        r.srtt * 1e3,
+                        r.min * 1e3,
+                        r.rttvar * 1e3,
+                        r.count,
+                        client.host_tick_now()
+                    );
                 }
                 "/players" => {
                     for p in client.players() {

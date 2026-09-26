@@ -29,10 +29,20 @@ pub struct RemovedVoxel {
 /// The volume a carve removes. All coordinates are world metres.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum CarveShape {
-    Sphere { center: Vec3, radius: f32 },
-    Box { min: Vec3, max: Vec3 },
+    Sphere {
+        center: Vec3,
+        radius: f32,
+    },
+    Box {
+        min: Vec3,
+        max: Vec3,
+    },
     /// Swept sphere from `a` to `b` — a trench torn through terrain by something big moving fast.
-    Capsule { a: Vec3, b: Vec3, radius: f32 },
+    Capsule {
+        a: Vec3,
+        b: Vec3,
+        radius: f32,
+    },
 }
 
 /// A replicable destruction op: identical inputs ⇒ identical edits on every client.
@@ -144,9 +154,7 @@ impl CarveShape {
         match *self {
             CarveShape::Sphere { center, radius } => center.is_finite() && radius.is_finite(),
             CarveShape::Box { min, max } => min.is_finite() && max.is_finite() && (max - min).is_finite(),
-            CarveShape::Capsule { a, b, radius } => {
-                a.is_finite() && b.is_finite() && radius.is_finite() && (b - a).is_finite()
-            }
+            CarveShape::Capsule { a, b, radius } => a.is_finite() && b.is_finite() && radius.is_finite() && (b - a).is_finite(),
         }
     }
 
@@ -428,25 +436,16 @@ impl VoxelWorld {
     }
 
     fn nearest_anchor_hint(&self, v: IVec3) -> Option<IVec3> {
-        self.anchor_hints()
-            .iter()
-            .copied()
-            .min_by_key(|a| {
-                let d = *a - v;
-                (d.x as i64 * d.x as i64 + d.y as i64 * d.y as i64 + d.z as i64 * d.z as i64, a.y, a.z, a.x)
-            })
+        self.anchor_hints().iter().copied().min_by_key(|a| {
+            let d = *a - v;
+            (d.x as i64 * d.x as i64 + d.y as i64 * d.y as i64 + d.z as i64 * d.z as i64, a.y, a.z, a.x)
+        })
     }
 }
 
 /// Face neighbours, fixed order (−Y first: support is usually below).
-const NEIGHBOURS: [IVec3; 6] = [
-    IVec3::new(0, -1, 0),
-    IVec3::new(1, 0, 0),
-    IVec3::new(-1, 0, 0),
-    IVec3::new(0, 0, 1),
-    IVec3::new(0, 0, -1),
-    IVec3::new(0, 1, 0),
-];
+const NEIGHBOURS: [IVec3; 6] =
+    [IVec3::new(0, -1, 0), IVec3::new(1, 0, 0), IVec3::new(-1, 0, 0), IVec3::new(0, 0, 1), IVec3::new(0, 0, -1), IVec3::new(0, 1, 0)];
 
 /// FxHash-style hasher: fast for small integer keys. Only used for membership tests.
 #[derive(Default, Clone, Copy)]

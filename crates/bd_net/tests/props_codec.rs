@@ -41,7 +41,8 @@ fn player_input() -> impl Strategy<Value = PlayerInput> {
 
 fn game_msg() -> impl Strategy<Value = GameMsg> {
     prop_oneof![
-        (any::<f64>(), prop::collection::vec(player_input(), 0..16)).prop_map(|(view_tick, inputs)| GameMsg::Input(InputPacket { view_tick, inputs })),
+        (any::<f64>(), prop::collection::vec(player_input(), 0..16))
+            .prop_map(|(view_tick, inputs)| GameMsg::Input(InputPacket { view_tick, inputs })),
         (".{0,40}", any::<[f32; 3]>()).prop_map(|(text, aim)| GameMsg::Cast { text, aim }),
         ".{0,12}".prop_map(|n| GameMsg::Spawn(Box::new(Recipe::unknown(&n)))),
         prop::collection::vec((any::<u32>(), any::<[f32; 4]>()), 0..8).prop_map(GameMsg::Carves),

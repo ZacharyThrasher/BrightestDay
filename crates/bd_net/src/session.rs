@@ -361,7 +361,10 @@ where
             return self.reject(conn, "not a Brightest Day client");
         }
         if protocol != PROTOCOL_VERSION {
-            return self.reject(conn, &format!("version mismatch: host has protocol v{PROTOCOL_VERSION}, you have v{protocol} — update your game"));
+            return self.reject(
+                conn,
+                &format!("version mismatch: host has protocol v{PROTOCOL_VERSION}, you have v{protocol} — update your game"),
+            );
         }
         let Some(id) = (0..self.cfg.max_players as u8).map(PlayerId).find(|id| self.players.iter().all(|p| p.id != *id)) else {
             return self.reject(conn, &format!("lobby is full ({} players)", self.cfg.max_players));
@@ -454,9 +457,15 @@ pub enum ClientState {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ClientEvent<S> {
     /// Handshake done. `players` includes you.
-    Welcome { you: PlayerId, players: Vec<PlayerInfo> },
+    Welcome {
+        you: PlayerId,
+        players: Vec<PlayerInfo>,
+    },
     PlayerJoined(PlayerInfo),
-    PlayerLeft { id: PlayerId, reason: LeaveReason },
+    PlayerLeft {
+        id: PlayerId,
+        reason: LeaveReason,
+    },
     /// Reliable-lane message. (Latest-lane messages go to [`ClientSession::drain_latest`].)
     Message(S),
     /// Connection failed, was rejected, kicked, or dropped. Final.
@@ -487,7 +496,8 @@ where
     pub fn connect(address: &str, cfg: ClientConfig) -> Result<Self, NetError> {
         let url = crate::resolve_address(address)?;
         let transport = ClientTransport::connect(url.clone(), cfg.connect_timeout, cfg.ping_interval);
-        let hello = frame(&ClientWire::<()>::Hello { magic: PROTOCOL_MAGIC, protocol: PROTOCOL_VERSION, name: cfg.name.clone(), corps: cfg.corps });
+        let hello =
+            frame(&ClientWire::<()>::Hello { magic: PROTOCOL_MAGIC, protocol: PROTOCOL_VERSION, name: cfg.name.clone(), corps: cfg.corps });
         let bytes_sent = hello.len() as u64;
         transport.tx.send(hello);
         Ok(Self {

@@ -14,7 +14,8 @@ use common::*;
 fn host_and_seven_clients() {
     let mut host = loopback_host(Some("Host"));
     let addr = format!("127.0.0.1:{}", host.port());
-    let mut clients: Vec<Client> = (0..7).map(|i| client(&addr, if i == 3 { "host" } else { ["ann", "bo", "cy", "-", "  ", "ed", "flo"][i] })).collect();
+    let mut clients: Vec<Client> =
+        (0..7).map(|i| client(&addr, if i == 3 { "host" } else { ["ann", "bo", "cy", "-", "  ", "ed", "flo"][i] })).collect();
     let mut hev = Vec::new();
     let mut cev: Vec<Vec<_>> = vec![Vec::new(); 7];
 

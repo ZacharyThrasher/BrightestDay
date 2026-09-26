@@ -15,7 +15,7 @@
 //! a slow socket are coalesced so only the newest is written.
 
 use std::net::{IpAddr, SocketAddr};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -55,10 +55,22 @@ pub fn runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
+/// Most bytes a connection may have queued for sending before the peer is considered dead (it has
+/// stopped reading). Room for two maximum-size messages; beyond that the peer is dropped instead of
+/// letting its backlog grow without bound.
+pub const MAX_QUEUED_BYTES: usize = 2 * crate::codec::MAX_MESSAGE_BYTES;
+
+/// Client side: accepts host messages up to [`crate::codec::MAX_MESSAGE_BYTES`] (keyframes).
 fn ws_config() -> WebSocketConfig {
+    WebSocketConfig::default().max_message_size(Some(crate::codec::MAX_MESSAGE_BYTES)).max_frame_size(Some(crate::codec::MAX_MESSAGE_BYTES))
+}
+
+/// Host side: clients only ever send small messages (inputs, casts, chat), so anything larger than
+/// [`crate::codec::MAX_CLIENT_MESSAGE_BYTES`] drops the connection before it is even buffered.
+fn ws_config_host() -> WebSocketConfig {
     WebSocketConfig::default()
-        .max_message_size(Some(crate::codec::MAX_MESSAGE_BYTES))
-        .max_frame_size(Some(crate::codec::MAX_MESSAGE_BYTES))
+        .max_message_size(Some(crate::codec::MAX_CLIENT_MESSAGE_BYTES))
+        .max_frame_size(Some(crate::codec::MAX_CLIENT_MESSAGE_BYTES))
 }
 
 fn tls_connector() -> Connector {
@@ -90,22 +102,70 @@ pub(crate) enum Out {
     Close,
 }
 
+impl Out {
+    fn len(&self) -> usize {
+        match self {
+            Out::Reliable(b) | Out::Latest(b) => b.len(),
+            Out::Close => 0,
+        }
+    }
+}
+
 /// Handle for sending frames to one peer. Cheap to clone; never blocks.
+///
+/// The queue is bounded by [`MAX_QUEUED_BYTES`]: a peer that stops reading (its socket backs up) is
+/// disconnected instead of growing our memory forever.
 #[derive(Clone)]
 pub struct PeerTx {
     tx: mpsc::UnboundedSender<Out>,
+    queued: Arc<AtomicUsize>,
+    kill: Arc<watch::Sender<bool>>,
+}
+
+/// Receiving side of a [`PeerTx`], owned by the connection's tasks.
+pub(crate) struct PeerRx {
+    rx: mpsc::UnboundedReceiver<Out>,
+    queued: Arc<AtomicUsize>,
+    kill: watch::Receiver<bool>,
+}
+
+fn peer_channel() -> (PeerTx, PeerRx) {
+    let (tx, rx) = mpsc::unbounded_channel();
+    let queued = Arc::new(AtomicUsize::new(0));
+    let (kill_tx, kill_rx) = watch::channel(false);
+    (PeerTx { tx, queued: queued.clone(), kill: Arc::new(kill_tx) }, PeerRx { rx, queued, kill: kill_rx })
 }
 
 impl PeerTx {
-    /// Queue a frame on the reliable ordered lane. Returns false if the connection is gone.
+    /// Queue a frame on the reliable ordered lane. Returns false if the connection is gone (or was
+    /// just dropped because its send queue overflowed).
     pub fn send(&self, frame: Bytes) -> bool {
-        self.tx.send(Out::Reliable(frame)).is_ok()
+        self.enqueue(Out::Reliable(frame))
     }
 
     /// Queue a frame on the latest-only lane: if several are waiting for the socket, only the
     /// newest is written.
     pub fn send_latest(&self, frame: Bytes) -> bool {
-        self.tx.send(Out::Latest(frame)).is_ok()
+        self.enqueue(Out::Latest(frame))
+    }
+
+    fn enqueue(&self, out: Out) -> bool {
+        if *self.kill.borrow() {
+            return false;
+        }
+        let n = out.len();
+        if self.queued.fetch_add(n, Ordering::Relaxed) + n > MAX_QUEUED_BYTES {
+            self.queued.fetch_sub(n, Ordering::Relaxed);
+            crate::debug_log(|| format!("send queue overflow ({MAX_QUEUED_BYTES} bytes): dropping peer"));
+            let _ = self.kill.send(true);
+            return false;
+        }
+        self.tx.send(out).is_ok()
+    }
+
+    /// Bytes queued and not yet handed to the socket.
+    pub fn queued_bytes(&self) -> usize {
+        self.queued.load(Ordering::Relaxed)
     }
 
     /// Flush what is queued, then close.
@@ -154,13 +214,14 @@ type WsSink<S> = futures_util::stream::SplitSink<WebSocketStream<S>, Message>;
 
 /// Write a batch, skipping latest-lane messages superseded within the batch.
 /// Returns Ok(true) if a Close was requested.
-async fn write_batch<S>(sink: &mut WsSink<S>, batch: &mut Vec<Out>) -> Result<bool, ()>
+async fn write_batch<S>(sink: &mut WsSink<S>, batch: &mut Vec<Out>, queued: &AtomicUsize) -> Result<bool, ()>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let last_latest = batch.iter().rposition(|m| matches!(m, Out::Latest(_)));
     let mut close = false;
     for (i, m) in batch.drain(..).enumerate() {
+        queued.fetch_sub(m.len(), Ordering::Relaxed);
         let r = match m {
             Out::Reliable(b) => sink.feed(Message::Binary(b)).await,
             Out::Latest(b) if Some(i) == last_latest => sink.feed(Message::Binary(b)).await,
@@ -185,10 +246,11 @@ fn drain_into(rx: &mut mpsc::UnboundedReceiver<Out>, batch: &mut Vec<Out>) {
     }
 }
 
-async fn writer<S>(mut sink: WsSink<S>, mut rx: mpsc::UnboundedReceiver<Out>, mut shutdown: watch::Receiver<bool>, ping: Option<PingCfg>)
+async fn writer<S>(mut sink: WsSink<S>, peer: PeerRx, mut shutdown: watch::Receiver<bool>, ping: Option<PingCfg>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    let PeerRx { mut rx, queued, mut kill } = peer;
     let mut ping_timer = tokio::time::interval(ping.as_ref().map(|p| p.interval).unwrap_or(Duration::from_secs(3600)));
     ping_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut batch: Vec<Out> = Vec::with_capacity(64);
@@ -198,11 +260,12 @@ where
                 // Graceful: flush whatever the game queued (goodbyes, kicks), then close.
                 drain_into(&mut rx, &mut batch);
                 let _ = tokio::time::timeout(Duration::from_millis(500), async {
-                    let _ = write_batch(&mut sink, &mut batch).await;
+                    let _ = write_batch(&mut sink, &mut batch, &queued).await;
                     let _ = sink.send(Message::Close(None)).await;
                 }).await;
                 return;
             }
+            _ = kill.changed() => return,
             _ = ping_timer.tick(), if ping.is_some() => {
                 let p = ping.as_ref().unwrap();
                 let mut f = Vec::with_capacity(13);
@@ -220,7 +283,13 @@ where
                 };
                 batch.push(first);
                 drain_into(&mut rx, &mut batch);
-                match write_batch(&mut sink, &mut batch).await {
+                // A peer that stopped reading blocks this write forever: the kill switch (send-queue
+                // overflow) must be able to interrupt it.
+                let written = tokio::select! {
+                    r = write_batch(&mut sink, &mut batch, &queued) => r,
+                    _ = kill.changed() => return,
+                };
+                match written {
                     Ok(false) => {}
                     Ok(true) => {
                         let _ = sink.send(Message::Close(None)).await;
@@ -238,6 +307,7 @@ where
 async fn reader<S>(
     mut stream: futures_util::stream::SplitStream<WebSocketStream<S>>,
     mut shutdown: watch::Receiver<bool>,
+    mut kill: watch::Receiver<bool>,
     mut on_frame: impl FnMut(Bytes) -> bool,
 ) -> String
 where
@@ -245,6 +315,7 @@ where
 {
     loop {
         tokio::select! {
+            _ = kill.changed() => return "send queue overflow: peer stopped reading".into(),
             _ = shutdown.changed() => {
                 // Keep reading (and discarding) until the peer acknowledges our Close. Closing a
                 // socket with unread data makes Windows send RST, which can destroy our final
@@ -280,11 +351,24 @@ where
 // ---------------------------------------------------------------------------------------------
 
 pub enum HostTransportEvent {
-    Connected { conn: ConnId, remote: String, tx: PeerTx },
-    Data { conn: ConnId, bytes: Bytes },
+    Connected {
+        conn: ConnId,
+        remote: String,
+        tx: PeerTx,
+    },
+    Data {
+        conn: ConnId,
+        bytes: Bytes,
+    },
     /// RTT (seconds) the client reported in its last ping.
-    PeerRtt { conn: ConnId, rtt: f32 },
-    Disconnected { conn: ConnId, reason: String },
+    PeerRtt {
+        conn: ConnId,
+        rtt: f32,
+    },
+    Disconnected {
+        conn: ConnId,
+        reason: String,
+    },
 }
 
 pub struct HostTransport {
@@ -340,7 +424,12 @@ impl Drop for HostTransport {
     }
 }
 
-async fn accept_loop(listener: TcpListener, events: Sender<HostTransportEvent>, mut shutdown: watch::Receiver<bool>, clock: Arc<HostClock>) {
+async fn accept_loop(
+    listener: TcpListener,
+    events: Sender<HostTransportEvent>,
+    mut shutdown: watch::Receiver<bool>,
+    clock: Arc<HostClock>,
+) {
     let mut next_conn: ConnId = 1;
     loop {
         tokio::select! {
@@ -376,19 +465,24 @@ async fn host_conn(
             .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
         Ok::<_, ErrorResponse>(resp)
     };
-    let ws = match tokio::time::timeout(Duration::from_secs(10), tokio_tungstenite::accept_hdr_async_with_config(stream, cb, Some(ws_config()))).await {
+    let ws = match tokio::time::timeout(
+        Duration::from_secs(10),
+        tokio_tungstenite::accept_hdr_async_with_config(stream, cb, Some(ws_config_host())),
+    )
+    .await
+    {
         Ok(Ok(ws)) => ws,
         _ => return, // not a websocket client / too slow: never surfaced to the game
     };
     let remote = forwarded.map(|f| format!("{f} (via tunnel)")).unwrap_or_else(|| addr.to_string());
     let (sink, stream) = ws.split();
-    let (tx, rx) = mpsc::unbounded_channel();
-    let peer = PeerTx { tx };
+    let (peer, peer_rx) = peer_channel();
+    let kill = peer_rx.kill.clone();
     if events.send(HostTransportEvent::Connected { conn, remote, tx: peer.clone() }).is_err() {
         return;
     }
-    tokio::spawn(writer(sink, rx, shutdown.clone(), None));
-    let reason = reader(stream, shutdown, |b| match b[0] {
+    tokio::spawn(writer(sink, peer_rx, shutdown.clone(), None));
+    let reason = reader(stream, shutdown, kill, |b| match b[0] {
         K_DATA => events.send(HostTransportEvent::Data { conn, bytes: b.slice(1..) }).is_ok(),
         K_PING if b.len() >= 13 => {
             let mut f = Vec::with_capacity(17);
@@ -418,7 +512,11 @@ pub enum ClientTransportEvent {
     Connected,
     Data(Bytes),
     /// A ping round trip completed.
-    Pong { rtt: f64, host_tick: f64, recv_at: f64 },
+    Pong {
+        rtt: f64,
+        host_tick: f64,
+        recv_at: f64,
+    },
     Disconnected(String),
 }
 
@@ -434,8 +532,7 @@ impl ClientTransport {
     pub fn connect(url: String, timeout: Duration, ping_interval: Duration) -> Self {
         let (ev_tx, ev_rx) = unbounded();
         let (sd_tx, sd_rx) = watch::channel(false);
-        let (tx, rx) = mpsc::unbounded_channel();
-        let tx = PeerTx { tx };
+        let (tx, rx) = peer_channel();
         runtime().spawn(client_task(url, timeout, ping_interval, ev_tx, tx.clone(), rx, sd_rx));
         Self { events: ev_rx, tx, shutdown: sd_tx }
     }
@@ -491,7 +588,7 @@ async fn client_task(
     ping_interval: Duration,
     events: Sender<ClientTransportEvent>,
     self_tx: PeerTx,
-    rx: mpsc::UnboundedReceiver<Out>,
+    rx: PeerRx,
     mut shutdown: watch::Receiver<bool>,
 ) {
     let deadline = tokio::time::Instant::now() + timeout;
@@ -521,8 +618,9 @@ async fn client_task(
     }
     let (sink, stream) = ws.split();
     let last_rtt = Arc::new(AtomicU32::new(0f32.to_bits()));
+    let kill = rx.kill.clone();
     tokio::spawn(writer(sink, rx, shutdown.clone(), Some(PingCfg { interval: ping_interval, last_rtt: last_rtt.clone() })));
-    let reason = reader(stream, shutdown, |b| match b[0] {
+    let reason = reader(stream, shutdown, kill, |b| match b[0] {
         K_DATA => events.send(ClientTransportEvent::Data(b.slice(1..))).is_ok(),
         K_PONG if b.len() >= 17 => {
             let now = now_secs();

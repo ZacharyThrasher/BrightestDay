@@ -49,10 +49,7 @@ impl VoiceInput {
     /// the model on a background thread. Returns quickly; watch for [`VoiceEvent::Ready`].
     pub fn new(config: VoiceConfig) -> Result<Self, VoiceError> {
         if !config.model_path.is_file() {
-            return Err(VoiceError::Model(format!(
-                "model not found at {} (run tools/voice/fetch_model.ps1)",
-                config.model_path.display()
-            )));
+            return Err(VoiceError::Model(format!("model not found at {} (run tools/voice/fetch_model.ps1)", config.model_path.display())));
         }
         let (ev_tx, events) = unbounded::<VoiceEvent>();
         let (job_tx, job_rx) = unbounded::<Job>();
@@ -207,10 +204,7 @@ where
                 mono.extend(data.iter().map(|&s| f32::from_sample_(s)));
             } else {
                 let inv = 1.0 / channels as f32;
-                mono.extend(
-                    data.chunks_exact(channels)
-                        .map(|f| f.iter().map(|&s| f32::from_sample_(s)).sum::<f32>() * inv),
-                );
+                mono.extend(data.chunks_exact(channels).map(|f| f.iter().map(|&s| f32::from_sample_(s)).sum::<f32>() * inv));
             }
             let _ = tx.send(CapMsg::Audio(mono));
         },
@@ -225,14 +219,7 @@ enum CapState {
     Tail { clip: Vec<f32>, released: Instant, remaining: usize },
 }
 
-fn capture_loop(
-    cfg: &VoiceConfig,
-    rate: u32,
-    rx: Receiver<CapMsg>,
-    job_tx: Sender<Job>,
-    ev_tx: Sender<VoiceEvent>,
-    status: Arc<AtomicU8>,
-) {
+fn capture_loop(cfg: &VoiceConfig, rate: u32, rx: Receiver<CapMsg>, job_tx: Sender<Job>, ev_tx: Sender<VoiceEvent>, status: Arc<AtomicU8>) {
     let pre_cap = dsp::ms_to_samples(cfg.pre_roll_ms, rate);
     let tail_len = dsp::ms_to_samples(cfg.tail_ms, rate);
     let max_len = dsp::ms_to_samples(cfg.max_clip_ms, rate);
@@ -273,9 +260,7 @@ fn capture_loop(
                 let _ = ev_tx.send(VoiceEvent::Listening);
                 CapState::Recording { clip }
             }
-            (Some(CapMsg::Ptt(false, t)), CapState::Recording { clip }) => {
-                CapState::Tail { clip, released: t, remaining: tail_len }
-            }
+            (Some(CapMsg::Ptt(false, t)), CapState::Recording { clip }) => CapState::Tail { clip, released: t, remaining: tail_len },
             (Some(CapMsg::Ptt(_, _)), s) => s,
 
             (Some(CapMsg::Audio(chunk)), CapState::Idle) => {
@@ -349,8 +334,7 @@ impl Engine {
         let mut cp = WhisperContextParameters::default();
         cp.use_gpu(false); // the game owns the GPU
         cp.flash_attn(cfg.flash_attn);
-        let ctx = WhisperContext::new_with_params(&cfg.model_path, cp)
-            .map_err(|e| format!("loading {}: {e}", cfg.model_path.display()))?;
+        let ctx = WhisperContext::new_with_params(&cfg.model_path, cp).map_err(|e| format!("loading {}: {e}", cfg.model_path.display()))?;
         let state = ctx.create_state().map_err(|e| format!("whisper state: {e}"))?;
 
         // Built once and cloned per clip: whisper-rs leaks the CStrings passed to

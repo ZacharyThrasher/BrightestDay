@@ -5,8 +5,8 @@
 
 use bd_core::input::PlayerInput;
 use bd_net::{
-    ClockSync, InputBuffer, InputPacket, InputQueue, InterpConfig, LagCompHistory, LatestLane, Reconcilable, ReconcileOutcome,
-    Reconciler, Sequenced, SnapshotBuffer, TickPacer, clamp_view_tick, lobby_code_from_url, resolve_address,
+    ClockSync, InputBuffer, InputPacket, InputQueue, InterpConfig, LagCompHistory, LatestLane, Reconcilable, ReconcileOutcome, Reconciler,
+    Sequenced, SnapshotBuffer, TickPacer, clamp_view_tick, lobby_code_from_url, resolve_address,
 };
 use glam::Vec3;
 use proptest::prelude::*;
@@ -49,9 +49,16 @@ fn inp(seq: u32, x: i8) -> PlayerInput {
 #[derive(Debug, Clone)]
 enum QOp {
     /// A packet as a hostile/buggy client might send it (any seqs, any order, any view tick).
-    Packet { view_tick: f64, seqs: Vec<u32> },
+    Packet {
+        view_tick: f64,
+        seqs: Vec<u32>,
+    },
     /// A well-formed contiguous run from `start` (typical honest packet, possibly with a gap).
-    Run { view_tick: f64, start: u32, len: u8 },
+    Run {
+        view_tick: f64,
+        start: u32,
+        len: u8,
+    },
     Next,
 }
 
@@ -207,7 +214,10 @@ fn step(s: &mut S, i: &i8) {
 enum ROp {
     Predict(i8),
     /// Ack `back` inputs behind the newest prediction (may be negative = from the future, or far past).
-    Reconcile { back: i32, jitter: f32 },
+    Reconcile {
+        back: i32,
+        jitter: f32,
+    },
     Smooth(f32),
     Reset,
 }

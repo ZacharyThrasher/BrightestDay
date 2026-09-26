@@ -36,12 +36,11 @@ pub use input::{InputBuffer, InputPacket, InputQueue, InputQueueStats, QueuedInp
 pub use interp::{Interp, InterpConfig, SnapshotBuffer};
 pub use lagcomp::{LagCompHistory, Lerp, Rewind, clamp_view_tick};
 pub use latest::LatestLane;
+pub use proxy::{LagProxy, LagSettings};
 pub use reconcile::{Reconcilable, ReconcileOutcome, Reconciler};
 pub use session::{
-    ClientConfig, ClientEvent, ClientSession, ClientState, HostConfig, HostEvent, HostSession, LeaveReason,
-    LocalPlayer, PlayerInfo,
+    ClientConfig, ClientEvent, ClientSession, ClientState, HostConfig, HostEvent, HostSession, LeaveReason, LocalPlayer, PlayerInfo,
 };
-pub use proxy::{LagProxy, LagSettings};
 pub use tunnel::{Tunnel, TunnelStatus};
 
 use std::sync::OnceLock;

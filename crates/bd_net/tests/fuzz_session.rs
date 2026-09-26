@@ -115,10 +115,9 @@ async fn attacks(port: u16, seed: u64) -> Vec<(String, Vec<HostWire<S2C>>, &'sta
     }
 
     // 2. Wrong magic / wrong protocol / absurd name.
-    for (label, msg) in [
-        ("bad magic", hello(0xDEAD_BEEF, PROTOCOL_VERSION, "x")),
-        ("bad protocol", hello(PROTOCOL_MAGIC, PROTOCOL_VERSION + 99, "x")),
-    ] {
+    for (label, msg) in
+        [("bad magic", hello(0xDEAD_BEEF, PROTOCOL_VERSION, "x")), ("bad protocol", hello(PROTOCOL_MAGIC, PROTOCOL_VERSION + 99, "x"))]
+    {
         let mut ws = connect(&url).await;
         let _ = ws.send(msg).await;
         let (got, how) = drain(&mut ws, 5).await;
@@ -129,7 +128,7 @@ async fn attacks(port: u16, seed: u64) -> Vec<(String, Vec<HostWire<S2C>>, &'sta
     //    message, then garbage ⇒ must be kicked.
     {
         let mut ws = connect(&url).await;
-        let name = format!("{}\u{0}\u{7}\n{}", "A".repeat(100_000), "\u{202e}evil");
+        let name = format!("{}\u{0}\u{7}\n{}", "A".repeat(30_000), "\u{202e}evil");
         let _ = ws.send(hello(PROTOCOL_MAGIC, PROTOCOL_VERSION, &name)).await;
         // Short ping, NaN ping, inf-RTT ping, unknown kind, empty frame.
         let mut nan_ping = vec![K_PING];
@@ -288,4 +287,151 @@ fn hostile_peers_cannot_hurt_the_host_or_other_players() {
         hev.iter().any(|e| matches!(e, HostEvent::Message { msg: C2S::Chat(t), .. } if t == "still here"))
     });
     assert!(ok, "post-attack chat lost");
+}
+
+/// Host with one good client, plus an attacker connection that completed the handshake.
+fn host_with_good_client() -> (Host, Vec<Client>, Vec<HostEvent<C2S>>, Vec<Vec<ClientEvent<S2C>>>) {
+    let mut host = loopback_host(Some("Host"));
+    let addr = format!("127.0.0.1:{}", host.port());
+    let mut clients = vec![client(&addr, "good")];
+    let mut hev = Vec::new();
+    let mut cev = vec![Vec::new()];
+    assert!(pump_until(&mut host, &mut clients, &mut hev, &mut cev, Duration::from_secs(10), |_, cs, _, _| cs[0].is_connected()));
+    (host, clients, hev, cev)
+}
+
+/// Pump host + clients until `done`, while `each` runs every iteration (e.g. to keep broadcasting).
+fn pump_while(
+    host: &mut Host,
+    clients: &mut [Client],
+    hev: &mut Vec<HostEvent<C2S>>,
+    cev: &mut [Vec<ClientEvent<S2C>>],
+    secs: u64,
+    mut each: impl FnMut(&mut Host),
+    mut done: impl FnMut(&[HostEvent<C2S>]) -> bool,
+) -> bool {
+    let end = std::time::Instant::now() + Duration::from_secs(secs);
+    while std::time::Instant::now() < end {
+        each(host);
+        while let Some(e) = host.poll() {
+            hev.push(e);
+        }
+        for (c, ev) in clients.iter_mut().zip(cev.iter_mut()) {
+            while let Some(e) = c.poll() {
+                ev.push(e);
+            }
+        }
+        if done(hev) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(4));
+    }
+    false
+}
+
+/// A client that completes the handshake and then never reads again must be dropped once its send
+/// queue passes `MAX_QUEUED_BYTES`, instead of growing the host's memory forever. Other players are
+/// unaffected.
+#[test]
+fn client_that_stops_reading_is_dropped() {
+    let (mut host, mut clients, mut hev, mut cev) = host_with_good_client();
+    let port = host.port();
+    // The attacker: handshake, then hold the socket without ever polling it.
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("rt");
+    let mut stalled = rt.block_on(async move {
+        let mut ws = connect(&format!("ws://127.0.0.1:{port}")).await;
+        let _ = ws.send(hello(PROTOCOL_MAGIC, PROTOCOL_VERSION, "sloth")).await;
+        ws
+    });
+    let joined = pump_while(
+        &mut host,
+        &mut clients,
+        &mut hev,
+        &mut cev,
+        10,
+        |_| {},
+        |hev| hev.iter().any(|e| matches!(e, HostEvent::PlayerJoined(p) if p.name == "sloth")),
+    );
+    assert!(joined, "attacker never joined");
+    // Keep pinging from the attacker's side so it isn't dropped for idleness, and keep broadcasting
+    // 256 KiB snapshots that the good client drains and the attacker doesn't.
+    let blob = vec![7u8; 256 * 1024];
+    let mut tick = 0u64;
+    let dropped = pump_while(
+        &mut host,
+        &mut clients,
+        &mut hev,
+        &mut cev,
+        60,
+        |h| {
+            tick += 1;
+            h.broadcast(&S2C::Blob { tick, sent_at: 0.0, data: blob.clone() });
+            if tick % 50 == 0 {
+                let mut ping = vec![K_PING];
+                ping.extend_from_slice(&0f64.to_le_bytes());
+                ping.extend_from_slice(&0.05f32.to_le_bytes());
+                let _ = rt.block_on(stalled.send(Message::Binary(ping.into())));
+            }
+        },
+        |hev| {
+            hev.iter().any(
+                |e| matches!(e, HostEvent::PlayerLeft { reason: LeaveReason::ConnectionLost(r), .. } if r.contains("send queue overflow")),
+            )
+        },
+    );
+    assert!(dropped, "stalled reader was never dropped; events: {:?}", hev.iter().rev().take(3).collect::<Vec<_>>());
+    assert!(tick as usize * blob.len() > bd_net::transport::MAX_QUEUED_BYTES, "overflow needs at least the queue limit");
+    // The good client kept receiving and is still connected.
+    assert!(clients[0].is_connected());
+    let got = cev[0].iter().filter(|e| matches!(e, ClientEvent::Message(S2C::Blob { .. }))).count();
+    assert!(got > 50, "good client received only {got} blobs");
+    assert_eq!(host.players().len(), 2);
+}
+
+/// Client → host messages are capped at `MAX_CLIENT_MESSAGE_BYTES`: a bigger one drops that client
+/// at the WebSocket layer (never buffered or decoded); one just under the cap is fine.
+#[test]
+fn oversized_client_message_is_dropped() {
+    let (mut host, mut clients, mut hev, mut cev) = host_with_good_client();
+    let cap = bd_net::codec::MAX_CLIENT_MESSAGE_BYTES;
+    // Just under the cap: delivered.
+    let ok_text = "x".repeat(cap - 64);
+    clients[0].send(&C2S::Chat(ok_text.clone()));
+    let got = pump_while(
+        &mut host,
+        &mut clients,
+        &mut hev,
+        &mut cev,
+        10,
+        |_| {},
+        |hev| hev.iter().any(|e| matches!(e, HostEvent::Message { msg: C2S::Chat(t), .. } if t.len() == ok_text.len())),
+    );
+    assert!(got, "message under the cap was not delivered");
+    // An attacker sends a message over the cap.
+    let port = host.port();
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("rt");
+    let attacker = std::thread::spawn(move || {
+        rt.block_on(async move {
+            let mut ws = connect(&format!("ws://127.0.0.1:{port}")).await;
+            let _ = ws.send(hello(PROTOCOL_MAGIC, PROTOCOL_VERSION, "big")).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            let _ = ws.send(data(&ClientWire::App(C2S::Chat("y".repeat(cap * 2))))).await;
+            drain(&mut ws, 10).await
+        })
+    });
+    let left = pump_while(
+        &mut host,
+        &mut clients,
+        &mut hev,
+        &mut cev,
+        15,
+        |_| {},
+        |hev| hev.iter().any(|e| matches!(e, HostEvent::PlayerLeft { .. })),
+    );
+    let (_, how) = attacker.join().expect("attacker thread");
+    assert!(left, "oversized sender was not dropped");
+    assert_ne!(how, "timeout");
+    assert!(!hev.iter().any(|e| matches!(e, HostEvent::Message { msg: C2S::Chat(t), .. } if t.len() > cap)), "oversized message delivered");
+    assert!(clients[0].is_connected());
+    assert_eq!(host.players().len(), 2);
 }

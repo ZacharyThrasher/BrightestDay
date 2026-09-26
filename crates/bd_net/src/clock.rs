@@ -63,7 +63,14 @@ const WINDOW: usize = 16;
 
 impl ClockSync {
     pub fn new(tick_hz: u32) -> Self {
-        Self { hz: tick_hz as f64, window: VecDeque::with_capacity(WINDOW), offset: 0.0, rtt: RttStats::default(), snap_ticks: 12.0, slew: 0.2 }
+        Self {
+            hz: tick_hz as f64,
+            window: VecDeque::with_capacity(WINDOW),
+            offset: 0.0,
+            rtt: RttStats::default(),
+            snap_ticks: 12.0,
+            slew: 0.2,
+        }
     }
 
     /// Feed one ping result: the round trip took `rtt` seconds, the host said its tick was

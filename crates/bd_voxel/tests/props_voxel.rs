@@ -42,25 +42,21 @@ fn material() -> impl Strategy<Value = Material> {
 }
 
 fn world_spec() -> impl Strategy<Value = WorldSpec> {
-    (
-        (-40i32..40, -8i32..8, -40i32..40),
-        (1i32..64, 1i32..48, 1i32..64),
-    )
-        .prop_flat_map(|(min, size)| {
-            let min = IVec3::new(min.0, min.1, min.2);
-            let size = IVec3::new(size.0, size.1, size.2);
-            let lo = min - IVec3::splat(4);
-            let hi = min + size + IVec3::splat(4);
-            let coord = move || (lo.x..hi.x, lo.y..hi.y, lo.z..hi.z).prop_map(|(x, y, z)| IVec3::new(x, y, z));
-            let fill = prop_oneof![
-                3 => (coord(), coord(), material()).prop_map(|(a, b, m)| Fill::Box { a: a.min(b), b: a.max(b), m }),
-                2 => (coord(), 0.0f32..6.0, material())
-                    .prop_map(|(c, r, m)| Fill::Sphere { c: c.as_vec3() * VOXEL_SIZE, r, m }),
-                2 => (coord(), material()).prop_map(|(v, m)| Fill::Voxel { v, m }),
-                1 => (coord(), coord()).prop_map(|(a, b)| Fill::Box { a: a.min(b), b: a.max(b), m: AIR }),
-            ];
-            prop::collection::vec(fill, 0..12).prop_map(move |fills| WorldSpec { min, size, fills })
-        })
+    ((-40i32..40, -8i32..8, -40i32..40), (1i32..64, 1i32..48, 1i32..64)).prop_flat_map(|(min, size)| {
+        let min = IVec3::new(min.0, min.1, min.2);
+        let size = IVec3::new(size.0, size.1, size.2);
+        let lo = min - IVec3::splat(4);
+        let hi = min + size + IVec3::splat(4);
+        let coord = move || (lo.x..hi.x, lo.y..hi.y, lo.z..hi.z).prop_map(|(x, y, z)| IVec3::new(x, y, z));
+        let fill = prop_oneof![
+            3 => (coord(), coord(), material()).prop_map(|(a, b, m)| Fill::Box { a: a.min(b), b: a.max(b), m }),
+            2 => (coord(), 0.0f32..6.0, material())
+                .prop_map(|(c, r, m)| Fill::Sphere { c: c.as_vec3() * VOXEL_SIZE, r, m }),
+            2 => (coord(), material()).prop_map(|(v, m)| Fill::Voxel { v, m }),
+            1 => (coord(), coord()).prop_map(|(a, b)| Fill::Box { a: a.min(b), b: a.max(b), m: AIR }),
+        ];
+        prop::collection::vec(fill, 0..12).prop_map(move |fills| WorldSpec { min, size, fills })
+    })
 }
 
 fn build(spec: &WorldSpec) -> VoxelWorld {

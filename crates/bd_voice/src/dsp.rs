@@ -126,10 +126,7 @@ pub fn find_speech(x: &[f32], rate: u32, p: &VadParams) -> Option<SpeechSpan> {
     if x.len() < frame {
         return None;
     }
-    let db: Vec<f32> = x
-        .chunks(frame)
-        .map(|f| 20.0 * rms(f).max(1e-7).log10())
-        .collect();
+    let db: Vec<f32> = x.chunks(frame).map(|f| 20.0 * rms(f).max(1e-7).log10()).collect();
     let mut sorted = db.clone();
     sorted.sort_by(|a, b| a.total_cmp(b));
     let floor = sorted[sorted.len() / 10];
@@ -178,9 +175,7 @@ mod tests {
     use super::*;
 
     fn tone(freq: f32, rate: u32, ms: u32, amp: f32) -> Vec<f32> {
-        (0..ms_to_samples(ms, rate))
-            .map(|i| amp * (2.0 * std::f32::consts::PI * freq * i as f32 / rate as f32).sin())
-            .collect()
+        (0..ms_to_samples(ms, rate)).map(|i| amp * (2.0 * std::f32::consts::PI * freq * i as f32 / rate as f32).sin()).collect()
     }
 
     #[test]

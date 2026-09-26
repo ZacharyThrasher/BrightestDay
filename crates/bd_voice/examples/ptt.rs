@@ -13,8 +13,7 @@ use std::time::{Duration, Instant};
 
 use bd_voice::{VoiceConfig, VoiceEvent, VoiceInput};
 
-const DEFAULT_PROMPT: &str =
-    "Mjolnir, Pikachu, Godzilla, Charizard, Batman, hammer, shield, sword, wall, flaming, ice, giant.";
+const DEFAULT_PROMPT: &str = "Mjolnir, Pikachu, Godzilla, Charizard, Batman, hammer, shield, sword, wall, flaming, ice, giant.";
 
 fn main() {
     let mut cfg = VoiceConfig {

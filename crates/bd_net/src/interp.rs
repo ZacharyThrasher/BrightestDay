@@ -114,9 +114,7 @@ impl<T> SnapshotBuffer<T> {
     /// Current interpolation delay target in ticks.
     pub fn delay_ticks(&self) -> f64 {
         let c = &self.cfg;
-        (self.interval * c.min_delay_snapshots)
-            .max(self.interval + c.jitter_mult * self.late_dev + c.extra_ticks)
-            .min(c.max_delay_ticks)
+        (self.interval * c.min_delay_snapshots).max(self.interval + c.jitter_mult * self.late_dev + c.extra_ticks).min(c.max_delay_ticks)
     }
 
     /// Measured arrival jitter (mean deviation, ticks).

@@ -135,11 +135,7 @@ impl VoxelWorld {
 
     /// Chunk coordinates that contain at least one solid voxel, in a fixed order.
     pub fn nonempty_chunks(&self) -> impl Iterator<Item = IVec3> + '_ {
-        self.chunks
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| c.as_ref().is_some_and(|c| c.solid > 0))
-            .map(|(i, _)| self.slot_coord(i))
+        self.chunks.iter().enumerate().filter(|(_, c)| c.as_ref().is_some_and(|c| c.solid > 0)).map(|(i, _)| self.slot_coord(i))
     }
 
     /// Raw voxel data of a chunk (`None` = all air or out of range). Index with [`local_index`].
@@ -232,9 +228,7 @@ impl VoxelWorld {
     pub fn mark_voxel_dirty(&mut self, v: IVec3) {
         let c = chunk_of(v);
         let l = v & CHUNK_MASK;
-        let range = |a: i32| -> (i32, i32) {
-            (if a == 0 { -1 } else { 0 }, if a == CHUNK_MASK { 1 } else { 0 })
-        };
+        let range = |a: i32| -> (i32, i32) { (if a == 0 { -1 } else { 0 }, if a == CHUNK_MASK { 1 } else { 0 }) };
         let (rx, ry, rz) = (range(l.x), range(l.y), range(l.z));
         for dy in ry.0..=ry.1 {
             for dz in rz.0..=rz.1 {

@@ -269,11 +269,13 @@ fn check_tick<V: VoxelQuery>(
     for (i, h) in s.hooks.iter().enumerate() {
         prop_assert!(h.travelled <= p.tether_range + 1e-3, "tick {}: hook {} flew {}", tick, i, h.travelled);
         if h.phase == HookPhase::Attached {
-            // The hook head never flies past `tether_range` from where it was fired, but the player
-            // keeps moving during the flight (≤ hard cap for range/hook_speed seconds), so the rope
-            // at attach time may be longer than the range by that much.
+            // A rope is never longer than `tether_range` (it attaches taut at the range if the
+            // player moved away while the hook flew).
+            prop_assert!(h.rope_len >= p.tether_min_len - 1e-4 && h.rope_len <= p.tether_range + 1e-3, "tick {}: rope_len {}", tick, h.rope_len);
+            // The anchor itself can be further away than the range for a moment (the rope winds
+            // in at `rope_retract_speed`), but never by more than the player could travel while
+            // the hook flew.
             let max_rope = p.tether_range + p.hard_cap_speed * (p.tether_range / p.hook_speed) + 3.0;
-            prop_assert!(h.rope_len >= p.tether_min_len - 1e-4 && h.rope_len <= max_rope, "tick {}: rope_len {}", tick, h.rope_len);
             match h.target {
                 Some(AnchorTarget::Voxel(v)) => prop_assert!(vox.is_solid(v), "tick {}: anchored to air {:?}", tick, v),
                 Some(AnchorTarget::Collider(id)) => {
@@ -464,4 +466,38 @@ fn dense_collider_floor_holds() {
             }
         }
     }
+}
+
+/// Tether attach while moving away fast: the hook reaches a wall just inside `tether_range`, but by
+/// then the player is well beyond the range. The rope must attach taut at `tether_range` and reel the
+/// player back within range (at the bounded retract speed) instead of attaching slack and long.
+#[test]
+fn rope_attaches_taut_at_range_when_player_retreats() {
+    let p = MoveParams::default();
+    // Wall face at z = -119.5 m (just inside range from the hand); no floor, no gravity.
+    let world = FnWorld(|v: IVec3| v.z == -240);
+    let w = CollisionWorld::new(&world, &[]);
+    let mut s = PlayerState::new(Vec3::new(0.0, 10.0, 0.0), &p);
+    s.mods.gravity_scale = 0.0;
+    s.vel = Vec3::new(0.0, 0.0, 60.0); // flying away from the wall
+    let fire = PlayerInput { yaw: 0.0, pitch: 0.0, buttons: bd_core::input::buttons::TETHER_L, ..Default::default() };
+    let mut attached_at = None;
+    for t in 0..240 {
+        let ev = step_player(&mut s, &fire, &w, &p, DT);
+        let h = s.hooks[0];
+        if ev.tether_attached[0] {
+            let dist = (h.pos - s.chest(&p)).length();
+            assert!(dist > p.tether_range, "setup: player should be beyond range at attach ({dist})");
+            assert!((h.rope_len - p.tether_range).abs() < 1e-3, "rope attached at {} instead of taut at range", h.rope_len);
+            attached_at = Some(t);
+        }
+        if h.attached() {
+            assert!(h.rope_len <= p.tether_range + 1e-3, "tick {t}: rope_len {}", h.rope_len);
+        }
+    }
+    assert!(attached_at.is_some(), "hook never attached");
+    let h = s.hooks[0];
+    assert!(h.attached(), "rope released");
+    let dist = (h.pos - s.chest(&p)).length();
+    assert!(dist <= p.tether_range + 0.05, "player still {dist} m from the anchor after 2 s");
 }
