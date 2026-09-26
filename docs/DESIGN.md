@@ -12,6 +12,14 @@ light voxels in your corps colour. Everything shatters into cubes.
 > follow-through, squash), and mechanical depth — never on visual detail. Simple voxel shapes + great
 > motion beat detailed models + stiff motion.
 
+> **NORTH STAR (owner):** "The user experience has to feel good; we are trying to create the illusion
+> that the only thing limiting them is their mind — not the game. I want them excitedly yelling out
+> anything they can think of." Consequences: the ring **never says no** (every phrase yields something
+> sensible, instantly — forming starts on the same frame); failures are invisible or charming, never
+> an error; the "≈" note is brief and delightful, not a correction; voice (push-to-talk) is a
+> first-class way to play, not a gimmick; unresolved/fallback phrases are logged locally
+> (`logs/unresolved.txt`) so every playtest grows the vocabulary.
+>
 > **FEATURE FREEZE (2026-09-26).** No new *systems*. Growth only as data (icons, powers, words) that
 > composes existing closed-set pieces. Core = movement + ring constructs + destruction + FFA; every other
 > layer (Transformers, player powers, party mode, voice, costumes, onomatopoeia) is a lobby toggle and is
