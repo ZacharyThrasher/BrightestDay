@@ -1,0 +1,35 @@
+// Blue Danube — lo-fi. Floating in orbit at 84 bpm: the waltz theme on a mellow square, dusty
+// Rhodes sevenths, swung hats, vinyl crackle and a slow tape wow.
+(
+    title: "Blue Danube (Lo-fi)",
+    base: "orbit_float",
+    style: "lofi",
+    bpm: 84.0,
+    gain_db: -2.2,
+    swing: 0.28,
+    swing_unit: 8,
+    hpf_hz: 45.0,
+    lofi: (bits: 11.0, crackle: 0.5, wow: 10.0, wow_rate: 0.4),
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.9),
+    adaptive: (explore_cutoff: 1200.0, explore_res: 0.1, explore_drive: 0.6, build_bars: 1, build_cutoff: 3000.0,
+               build_res: 0.2, riser: false, roll: false, impact: false),
+    channels: [
+        (name: "lead", inst: "rx_mellow", stem: Lead, echo: (ticks: 144, vol: 0.28)),
+        (name: "bell", inst: "hl_bell", stem: Lead, pan: 0.3, vol: 0.45),
+        (name: "keys", inst: "rx_keys", stem: Base, pan: -0.15, gen: "$lofi_keys"),
+        (name: "bass", inst: "rx_upright", stem: Base, gen: "$lofi_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$lofi_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$lofi_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$lofi_hats", pan: -0.25, vol: 0.5),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "D | D | A7 | A7 |", mute: ["kick", "snare"]),
+        (name: "a", bars: 32, chords: "$ch_th", remeter: ["lead"], parts: { "lead": "$th31 $thEndR" }),
+        (name: "b", bars: 16, key: "G", chords: "$ch_w2", remeter: ["lead"], parts: { "lead": "$w2" }),
+        (name: "end", bars: 2, chords: "D | D |", mute: ["hats", "snare"],
+         parts: { "lead": "o4 d2 f+4 a4 | o5 d1 |", "kick": "K4 r2. | r1 |", "bell": "r1 | o6 d4 a4 o7 d2 |" }),
+    ],
+    order: ["intro", "a", "b"],
+    loop_to: "a",
+    ending: "end",
+)

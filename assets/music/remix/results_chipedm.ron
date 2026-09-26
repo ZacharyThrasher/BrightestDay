@@ -1,0 +1,35 @@
+// Ode to Joy — chiptune EDM. A podium anthem: the theme on a chip pulse, then with its counter-line
+// on supersaw, then lifted to E major for the drop before turning home to D.
+(
+    title: "Ode to Joy (Chip EDM)",
+    base: "results",
+    style: "chipedm",
+    bpm: 128.0,
+    gain_db: -2.9,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.2, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_chip", stem: Lead, echo: (ticks: 72, vol: 0.22)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.55),
+        (name: "arp", inst: "arp", stem: Drive, pan: -0.3, vol: 0.6, gen: "$ce_arp"),
+        (name: "chords", inst: "rx_ssaw_chord", stem: Base, gen: "o3 [X4]4 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$ce_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$ce_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$ce_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$ce_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "D | G | A | A7 |", mute: ["kick", "clap", "arp"]),
+        (name: "a", bars: 16, chords: "$ch_ode", parts: { "lead": "$ode" }),
+        (name: "b", bars: 16, chords: "$ch_ode", parts: { "lead": "$ode", "lead2": "k12 $counter k0" }),
+        (name: "c", bars: 16, transpose: 2, chords: "$ch_ode", parts: { "lead": "@hardlight $ode", "lead2": "$ode" }),
+        (name: "turn", bars: 2, chords: "A7 | A7 |", parts: { "lead": "o5 e2 c+2 | o4 a2 r2 |" }),
+        (name: "end", bars: 2, chords: "A7 D | D |", mute: ["hats", "clap", "arp"],
+         parts: { "lead": "o5 e4. d8 d2 | o5 d1 |", "kick": "r1 | K4 r2. |" }),
+    ],
+    order: ["intro", "a", "b", "c", "turn"],
+    loop_to: "a",
+    ending: "end",
+)

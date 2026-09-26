@@ -1,0 +1,36 @@
+// Alla Turca — phonk. The Turkish march played on a pitched FM cowbell over distorted 808s, a
+// clap backbeat and rattling hats — Miami at night with the windows down.
+(
+    title: "Alla Turca (Phonk)",
+    base: "miami",
+    style: "phonk",
+    time: (2, 4),
+    bpm: 132.0,
+    gain_db: -4.4,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 4.0, release: 0.15, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 4),
+    channels: [
+        (name: "lead", inst: "rx_cowbell", stem: Lead, echo: (ticks: 48, vol: 0.25)),
+        (name: "lead2", inst: "rx_saw", stem: Drive, vol: 0.55),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "o3 X2 |"),
+        (name: "808", inst: "rx_808", stem: Base, gen: "$phonk_808"),
+        (name: "kick", drums: true, stem: Drive, gen: "$phonk_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$phonk_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$phonk_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "Am | Am | E | E |", mute: ["clap"],
+         parts: { "lead": "r2 | r2 | r2 | r4 o4 b16 a16 g+16 a16 |" }),
+        (name: "a", bars: 16, chords: "$ch_th", parts: { "lead": "$p1 $p2_7 $endEF" }),
+        (name: "r", bars: 16, chords: "$ch_r", parts: { "lead": "$R7 $rEnd $R7 $rEndP", "lead2": "k-12 $R7 $rEnd $R7 $rEndP k0" }),
+        (name: "a2", bars: 16, chords: "$ch_th", parts: { "lead": "$p1 $p2_7 $endEF", "lead2": "k-12 $p1 $p2_7 $endEF k0" }),
+        (name: "c", bars: 16, chords: "$ch_c", parts: { "lead": "$C8 $p2_7 $endP" }),
+        (name: "end", bars: 2, chords: "Am | Am |", mute: ["hats", "clap"],
+         parts: { "lead": "o5 a8 r8 o4 a8 r8 | r2 |", "kick": "K4 r4 | r2 |", "808": "o1 u4 R2 | r2 |" }),
+    ],
+    order: ["intro", "a", "r", "a2", "c"],
+    loop_to: "a",
+    ending: "end",
+)

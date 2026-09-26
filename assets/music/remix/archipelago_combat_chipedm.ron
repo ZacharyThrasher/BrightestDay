@@ -1,0 +1,36 @@
+// Summer Storm — chiptune EDM. Chip pulse runs, 60 Hz chip arps, pumping supersaw chords and a
+// four-on-the-floor at 150; the hard-light brass theme and a supersaw drop.
+(
+    title: "Summer Storm (Chip EDM)",
+    base: "archipelago_combat",
+    style: "chipedm",
+    bpm: 150.0,
+    gain_db: -3.6,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.18, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_chip", stem: Lead, echo: (ticks: 48, vol: 0.22)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.6),
+        (name: "arp", inst: "arp", stem: Drive, pan: -0.3, vol: 0.65, gen: "$ce_arp"),
+        (name: "chords", inst: "rx_ssaw_chord", stem: Base, gen: "o3 [X4]4 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$ce_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$ce_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$ce_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "[H16 H16 O8]4 |", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "Gm | Eb | Cm | D |", mute: ["kick", "clap", "arp"]),
+        (name: "a", bars: 16, chords: "$ch_A", remeter: ["lead"], parts: { "lead": "$runA $runB" }),
+        (name: "b", bars: 16, chords: "$ch_brass", remeter: ["lead", "lead2"],
+         parts: { "lead": "@hardlight $brass", "lead2": "k-12 $brass k0" }),
+        (name: "a2", bars: 16, chords: "$ch_A", remeter: ["lead", "lead2"],
+         parts: { "lead": "$runA $runB", "lead2": "$runA $runB", "clap": "C4 X4 r4 X4 | [r4 X4 r4 X4 |]15" }),
+        (name: "end", bars: 2, chords: "Gm | Gm |", mute: ["hats", "clap", "arp"],
+         parts: { "lead": "o5 g4 d4 o4 g2 | r1 |", "kick": "K4 r2. | r1 |" }),
+    ],
+    order: ["intro", "a", "b", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

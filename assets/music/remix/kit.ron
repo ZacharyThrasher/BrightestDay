@@ -1,0 +1,98 @@
+// Remix kit: instruments and genre templates shared by every remix in this folder.
+// Templates use chord degrees (R T F S O N, X/Y chords) and are tiled over any section that has
+// `chords` and doesn't write the channel explicitly (see a channel's `gen`). `u4` keeps roots in
+// the octave starting at E of the current `o` (o1 u4 = E1..D#2 for 808s).
+(
+    instruments: {
+        // ---- bass ----
+        "rx_808": (wave: Sine, pitch_drop: 7.0, pitch_time: 0.03, attack: 0.002, decay: 1.3, sustain: 0.3, release: 0.12,
+                   drive: 0.45, glide: 0.07, vol: 1.0, gate: 1.0),
+        "rx_808long": (wave: Sine, pitch_drop: 5.0, pitch_time: 0.03, attack: 0.002, decay: 2.2, sustain: 0.55, release: 0.15,
+                       drive: 0.5, glide: 0.09, vol: 0.95, gate: 1.0),
+        "rx_reese": (wave: Supersaw, unison: 2, detune: 24.0, spread: 0.25, lp_hz: 650.0, lp_env: 0.6, lp_time: 0.3, res: 0.3,
+                     attack: 0.01, decay: 0.5, sustain: 0.85, release: 0.1, vol: 0.62, gate: 0.95, glide: 0.08, drive: 0.25),
+        "rx_synthbass": (wave: Saw, lp_hz: 420.0, lp_env: 4.5, lp_time: 0.08, res: 0.35, attack: 0.002, decay: 0.2, sustain: 0.4,
+                         release: 0.05, vol: 0.62, gate: 0.75),
+        "rx_housebass": (wave: Saw, lp_hz: 700.0, lp_env: 2.5, lp_time: 0.06, res: 0.3, attack: 0.002, decay: 0.16, sustain: 0.15,
+                         release: 0.04, vol: 0.7, gate: 0.7, drive: 0.2),
+        "rx_upright": (wave: Triangle, lp_hz: 900.0, attack: 0.004, decay: 0.45, sustain: 0.25, release: 0.08, vol: 0.95, gate: 0.85,
+                       drive: 0.25),
+        // ---- leads (saw / square / dual saw / supersaw; the FM hard light lives in instruments.ron) ----
+        "rx_saw": (wave: Saw, lp_hz: 4200.0, lp_env: 0.8, lp_time: 0.15, res: 0.2, attack: 0.004, decay: 0.3, sustain: 0.7,
+                   release: 0.08, vol: 0.62, vib_depth: 12.0, vib_delay: 0.22),
+        "rx_square": (wave: Pulse, duty: 0.5, lp_hz: 3800.0, res: 0.15, attack: 0.004, decay: 0.3, sustain: 0.7, release: 0.08,
+                      vol: 0.6, vib_depth: 12.0, vib_delay: 0.22),
+        "rx_dualsaw": (wave: Supersaw, unison: 2, detune: 14.0, spread: 0.7, lp_hz: 5000.0, res: 0.1, attack: 0.006, decay: 0.3,
+                       sustain: 0.75, release: 0.12, vol: 0.62, vib_depth: 8.0, vib_delay: 0.3),
+        "rx_supersaw": (wave: Supersaw, unison: 7, detune: 32.0, spread: 0.9, lp_hz: 6500.0, res: 0.1, attack: 0.008, decay: 0.3,
+                        sustain: 0.8, release: 0.15, vol: 0.5),
+        "rx_mellow": (wave: Pulse, duty: 0.5, lp_hz: 1500.0, res: 0.1, attack: 0.01, decay: 0.4, sustain: 0.7, release: 0.12,
+                      vol: 0.75, vib_depth: 10.0, vib_rate: 4.8, vib_delay: 0.25),
+        "rx_chip": (wave: Pulse, duty: 0.25, attack: 0.003, decay: 0.25, sustain: 0.65, release: 0.06, vol: 0.8, vib_depth: 14.0,
+                    vib_rate: 5.8, vib_delay: 0.18),
+        "rx_cowbell": (wave: Fm, fm_ratio: 1.44, fm_index: 1.8, fm_index_end: 0.5, fm_decay: 0.12, attack: 0.001, decay: 0.32,
+                       sustain: 0.0, release: 0.08, vol: 0.75, lp_hz: 3600.0, res: 0.3),
+        // ---- harmony ----
+        "rx_pad": (wave: Supersaw, unison: 3, detune: 18.0, spread: 0.9, lp_hz: 1900.0, res: 0.1, attack: 0.08, decay: 0.6,
+                   sustain: 0.75, release: 0.45, vol: 0.3, arp_rate: 40.0),
+        "rx_stab": (wave: Supersaw, unison: 4, detune: 20.0, spread: 0.7, lp_hz: 2300.0, lp_env: 2.0, lp_time: 0.07, res: 0.25,
+                    attack: 0.002, decay: 0.2, sustain: 0.08, release: 0.06, vol: 0.42, gate: 0.7, arp_rate: 60.0),
+        "rx_ssaw_chord": (wave: Supersaw, unison: 5, detune: 26.0, spread: 1.0, lp_hz: 4200.0, res: 0.1, attack: 0.004, decay: 0.35,
+                          sustain: 0.55, release: 0.12, vol: 0.34, gate: 0.85, arp_rate: 50.0),
+        "rx_keys": (wave: Fm, fm_ratio: 1.0, fm_index: 1.5, fm_index_end: 0.35, fm_decay: 0.7, fm_detune: 5.0, attack: 0.004,
+                    decay: 1.2, sustain: 0.3, release: 0.3, vol: 0.5, arp_rate: 22.0, vib_depth: 4.0),
+        "rx_pluck": (wave: Saw, lp_hz: 2200.0, lp_env: 3.0, lp_time: 0.05, res: 0.2, attack: 0.002, decay: 0.15, sustain: 0.05,
+                     release: 0.05, vol: 0.4, gate: 0.8),
+    },
+    patterns: {
+        // ---------------- trap (half-time, ~140) ----------------
+        "trap_808": "o1 u4 R4. R8 r4 r8 R8 | R4 r8 R8 ~O4 ~R4 |",
+        "trap_kick": "K4. K8 r2 | K8 r8 r4 r8 K8 r4 |",
+        "trap_clap": "r2 X2 | r2 X4 r8 ?X8 |",
+        "trap_hats": "p0 [H8]4 [H16]4 p0 H32 p2 H32 p4 H32 p6 H32 p0 H8 | [H8]2 H12 H12 H12 [H8]2 [H16]4 |",
+        "trap_pad": "o4 Y2 Y2 |",
+        "trap_bells": "o5 [R8 F8 O8 F8]2 |",
+        // ---------------- synthwave (~104) ----------------
+        "sw_bass": "o2 u4 [R8 O8]4 |",
+        "sw_arp": "o4 [R16 F16 O16 F16]4 |",
+        "sw_pad": "o4 X2 X2 |",
+        "sw_kick": "K4 r4 K4 r8 K8 |",
+        "sw_snare": "r4 G4 r4 G4 |",
+        "sw_hats": "[H8]8 |",
+        // ---------------- house (~124) ----------------
+        "house_kick": "[K4]4 |",
+        "house_clap": "r4 X4 r4 X4 |",
+        "house_hats": "[?H16 ?H16 O8]4 |",
+        "house_bass": "o2 u4 [r8 R8]4 |",
+        "house_stab": "o4 r8 X8 r4 r8 X8 r4 |",
+        // ---------------- drum & bass (~172) ----------------
+        "dnb_kick": "K4 r4 r8 K8 r4 | K4 r8 K8 r8 K8 r4 |",
+        "dnb_snare": "r4 S4 r4 S4 | r4 S4 r8 ?S8 S8 ?S16 ?S16 |",
+        "dnb_hats": "[H16 ?H16]8 |",
+        "dnb_reese": "o1 u4 R2. ~F4 |",
+        "dnb_pad": "o4 Y2 Y2 |",
+        // ---------------- lo-fi boom bap (~88, swung 8ths) ----------------
+        "lofi_kick": "K8 r8 r16 K16 r8 r4 r8 K8 | K8 r8 r4 r8 K8 r4 |",
+        "lofi_snare": "r4 S4 r4 S4 | r4 S4 r8 ?S16 r16 S4 |",
+        "lofi_hats": "[H8]8 |",
+        "lofi_bass": "o2 u4 R4. R8 r4 F4 |",
+        "lofi_keys": "o4 Y2 Y4. r8 |",
+        // ---------------- phonk (~135) ----------------
+        "phonk_kick": "K4 r8 K8 r4 r8 K16 K16 |",
+        "phonk_clap": "r4 X4 r4 X4 |",
+        "phonk_hats": "[H16]6 O8 [H16]6 O8 |",
+        "phonk_808": "o1 u4 R4 r8 R8 R4 ~O4 |",
+        "phonk_bell": "o5 R8 R8 r16 F16 R8 T8 r8 R8 F8 |",
+        // ---------------- chiptune EDM (~130-150) ----------------
+        "ce_kick": "[K4]4 |",
+        "ce_clap": "r4 X4 r4 X4 |",
+        "ce_hats": "[r8 O8]4 |",
+        "ce_bass": "o2 u4 [R8 R8 O8 R8]2 |",
+        "ce_arp": "o5 [X8]8 |",
+        "ce_chords": "o4 [X4]4 |",
+        // ---------------- shared ----------------
+        "fill1": "[S16]8 [S32]8 |",
+        "rest4": "r1 | r1 | r1 | r1 |",
+        "rest8": "$rest4 $rest4",
+    },
+)

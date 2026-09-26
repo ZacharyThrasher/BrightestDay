@@ -1,0 +1,36 @@
+// Minuet in G — chiptune EDM. The minuet straightened into 4/4 on a chip pulse lead, 60 Hz chip
+// arps and pumping supersaw chords; the supersaw doubles the tune after the drop.
+(
+    title: "Minuet in G (Chip EDM)",
+    base: "tutorial",
+    style: "chipedm",
+    bpm: 130.0,
+    gain_db: -3.4,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.2, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_chip", stem: Lead, echo: (ticks: 72, vol: 0.25)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.7),
+        (name: "arp", inst: "arp", stem: Drive, pan: -0.3, vol: 0.7, gen: "$ce_arp"),
+        (name: "chords", inst: "rx_ssaw_chord", stem: Base, gen: "o3 [X4]4 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$ce_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$ce_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$ce_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$ce_hats", pan: 0.2, vol: 0.7),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "G | Em | C | D7 |", mute: ["kick", "clap", "arp"]),
+        (name: "a", bars: 16, chords: "$ch_A $ch_A2", remeter: ["lead"], parts: { "lead": "$mA $mA2" }),
+        (name: "b", bars: 16, chords: "$ch_B1 $ch_B2", remeter: ["lead", "lead2"],
+         parts: { "lead": "$mB1 $mB2", "lead2": "k-12 $mB1 $mB2 k0" }),
+        (name: "a2", bars: 16, chords: "$ch_A $ch_A2", remeter: ["lead", "lead2"],
+         parts: { "lead": "$mA $mA2", "lead2": "$mA $mA2", "clap": "C4 X4 r4 X4 | [r4 X4 r4 X4 |]15" }),
+        (name: "end", bars: 2, chords: "G | G |", mute: ["hats", "arp", "clap"],
+         parts: { "lead": "o4 g2 o5 g2 | r1 |", "kick": "K4 r2. | r1 |" }),
+    ],
+    order: ["intro", "a", "b", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

@@ -455,12 +455,11 @@ impl Parser<'_> {
     }
 
     fn take_vol(&mut self) -> u8 {
-        let v = match std::mem::take(&mut self.accent) {
+        match std::mem::take(&mut self.accent) {
             1 => (self.vol + 3).min(15),
             -1 => ((f32::from(self.vol) * 0.4).round() as u8).max(1),
             _ => self.vol,
-        };
-        v
+        }
     }
 
     fn err(&self, msg: impl std::fmt::Display) -> String {

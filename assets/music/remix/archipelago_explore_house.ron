@@ -1,0 +1,37 @@
+// Spring — house. The ritornello on a saw lead over four-on-the-floor; birdsong becomes plucked
+// chirps, the brook a filtered groove, and the thunderstorm a 16th-note saw run into the drop.
+(
+    title: "Spring (House)",
+    base: "archipelago_explore",
+    style: "house",
+    bpm: 122.0,
+    gain_db: 0.6,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 5.0, release: 0.2, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_saw", stem: Lead, echo: (ticks: 72, vol: 0.22)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.65),
+        (name: "chords", inst: "rx_stab", stem: Base, gen: "$house_stab"),
+        (name: "bass", inst: "rx_housebass", stem: Base, gen: "$house_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$house_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$house_clap", pan: 0.1),
+        (name: "hats", drums: true, stem: Drive, gen: "$house_hats", pan: -0.2, vol: 0.8),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "E | C#m | A | B7 |", mute: ["clap"]),
+        (name: "a", bars: 8, chords: "$ch_rit $ch_rit", parts: { "lead": "$rit $rit_lo" }),
+        (name: "birds", bars: 8, chords: "$ch_birds", parts: { "lead": "$birds", "lead2": "@rx_pluck $chirps" }),
+        (name: "a2", bars: 8, chords: "$ch_rit $ch_rit", parts: { "lead": "$rit $rit", "lead2": "k-12 $rit $rit k0" }),
+        (name: "brook", bars: 8, chords: "$ch_brook", mute: ["clap"], parts: { "lead": "$brookmel" }),
+        (name: "storm", bars: 8, key: "C#m", chords: "$ch_storm", mute: ["kick"],
+         auto: [(target: "all", from: 400.0, to: 12000.0), (target: "all", param: Res, from: 0.6, to: 0.2)],
+         parts: { "lead": "@run25 $storm" }),
+        (name: "end", bars: 2, chords: "E | E |", mute: ["hats", "clap", "chords"],
+         parts: { "lead": "o5 e2 b4 o6 e4 | r1 |", "kick": "K4 r2. | r1 |" }),
+    ],
+    order: ["intro", "a", "birds", "a2", "brook", "storm"],
+    loop_to: "a",
+    ending: "end",
+)

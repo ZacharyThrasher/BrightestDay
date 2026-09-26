@@ -1,0 +1,33 @@
+// Ode to Joy — trap. Victory lap at half-time 140: the theme on hard-light bells over sliding 808s
+// and rolled hats, the counter-line on a saw, a lift to E major.
+(
+    title: "Ode to Joy (Trap)",
+    base: "results",
+    style: "trap",
+    bpm: 140.0,
+    gain_db: -4.4,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "hl_bell", stem: Lead, echo: (ticks: 72, vol: 0.25)),
+        (name: "lead2", inst: "rx_saw", stem: Drive, vol: 0.55),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "$trap_pad"),
+        (name: "808", inst: "rx_808", stem: Base, gen: "$trap_808"),
+        (name: "kick", drums: true, stem: Drive, gen: "$trap_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$trap_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$trap_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "D | G | A | A7 |", mute: ["kick", "clap"]),
+        (name: "a", bars: 16, chords: "$ch_ode", parts: { "lead": "$ode" }),
+        (name: "b", bars: 16, chords: "$ch_ode", parts: { "lead": "@hardlight $ode", "lead2": "$counter" }),
+        (name: "c", bars: 16, transpose: 2, chords: "$ch_ode", parts: { "lead": "$ode", "lead2": "k-12 $ode k0" }),
+        (name: "turn", bars: 2, chords: "A7 | A7 |", parts: { "lead": "o5 e2 c+2 | o4 a2 r2 |" }),
+        (name: "end", bars: 2, chords: "A7 D | D |", mute: ["hats", "clap"],
+         parts: { "lead": "o5 e4. d8 d2 | o5 d1 |", "kick": "r1 | K4 r2. |", "808": "r1 | o1 u4 R1 |" }),
+    ],
+    order: ["intro", "a", "b", "c", "turn"],
+    loop_to: "a",
+    ending: "end",
+)

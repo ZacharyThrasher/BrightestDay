@@ -1,0 +1,36 @@
+// Nachtmusik — lo-fi boom bap. Swung 8ths, dusty electric-piano sevenths, upright-ish bass, a
+// mellow square lead, vinyl crackle and tape wow. Exploring = low-passed; combat opens it up.
+(
+    title: "Nachtmusik (Lo-fi)",
+    base: "menu",
+    style: "lofi",
+    bpm: 86.0,
+    gain_db: -1.9,
+    swing: 0.28,
+    swing_unit: 8,
+    hpf_hz: 45.0,
+    lofi: (bits: 11.0, crackle: 0.5, wow: 9.0, wow_rate: 0.55),
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    adaptive: (explore_cutoff: 1300.0, explore_res: 0.1, explore_drive: 0.6, build_bars: 1, build_cutoff: 3000.0,
+               build_res: 0.2, riser: false, roll: false, impact: false),
+    channels: [
+        (name: "lead", inst: "rx_mellow", stem: Lead, echo: (ticks: 144, vol: 0.25)),
+        (name: "keys", inst: "rx_keys", stem: Base, pan: 0.2, gen: "$lofi_keys"),
+        (name: "bass", inst: "rx_upright", stem: Base, gen: "$lofi_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$lofi_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$lofi_snare", pan: 0.05),
+        (name: "hats", drums: true, stem: Drive, gen: "$lofi_hats", pan: -0.25, vol: 0.55),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "G | Em | C | D7 |", mute: ["kick", "snare"]),
+        (name: "a", bars: 8, chords: "$ch_a", parts: { "lead": "$rocket $answer" }),
+        (name: "b", bars: 8, key: "D", chords: "$ch_b", parts: { "lead": "$bmel6 $bend1" }),
+        (name: "c", bars: 8, key: "Em", chords: "$ch_c", parts: { "lead": "$cmel" }),
+        (name: "a2", bars: 8, chords: "$ch_a2", parts: { "lead": "$rocket $answer_d" }),
+        (name: "end", bars: 2, chords: "G | G |", mute: ["hats", "snare"],
+         parts: { "lead": "o5 g2 d4 o4 b4 | o4 g1 |", "kick": "K4 r2. | r1 |" }),
+    ],
+    order: ["intro", "a", "b", "c", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

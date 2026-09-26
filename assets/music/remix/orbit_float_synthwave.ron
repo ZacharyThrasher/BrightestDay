@@ -1,0 +1,38 @@
+// Blue Danube — synthwave. The waltz straightened into a slow 4/4 cruise through orbit: dual-saw
+// lead with long echoes, neon pads, octave saw bass, gated snare; the second waltz on hard light.
+(
+    title: "Blue Danube (Synthwave)",
+    base: "orbit_float",
+    style: "synthwave",
+    bpm: 104.0,
+    gain_db: -1.6,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 3.0, release: 0.22, stems: [Base]),
+    adaptive: (explore_cutoff: 900.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_dualsaw", stem: Lead, echo: (ticks: 144, vol: 0.3)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.5),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "$sw_pad"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$sw_bass"),
+        (name: "arp", inst: "rx_pluck", stem: Drive, pan: -0.3, gen: "$sw_arp"),
+        (name: "kick", drums: true, stem: Drive, gen: "$sw_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$sw_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$sw_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "D | D | A7 | A7 |", mute: ["snare", "arp"],
+         auto: [(target: "base", from: 400.0, to: 5000.0)]),
+        (name: "a", bars: 32, chords: "$ch_th", remeter: ["lead", "lead2"],
+         parts: { "lead": "$th31 $thEndR", "lead2": "[r2. |]16
+                                                   o4 d4 f+4 a4 | o5 d2 o6 d4 | o6 d4 r4 o5 a4 | o5 a4 r4 o4 d4 | o4 d4 f+4 a4 | o5 d2 o6 d4 |
+                                                   o6 d4 r4 o5 b4 | o5 b4 r4 o4 e4 | o4 e4 g4 b4 | o4 b2. | o4 b4 g+4 a4 | o5 f+2. |
+                                                   o5 f+4 d4 o4 d4 | o4 e2 a4 | o4 a4 g4 e4 | o4 d2 r4 |" }),
+        (name: "b", bars: 16, key: "G", chords: "$ch_w2", remeter: ["lead"], parts: { "lead": "@hardlight $w2" }),
+        (name: "end", bars: 2, chords: "D | D |", mute: ["hats", "arp"],
+         parts: { "lead": "o5 d1 | r1 |", "snare": "r2 G2 | r1 |" }),
+    ],
+    order: ["intro", "a", "b"],
+    loop_to: "a",
+    ending: "end",
+)

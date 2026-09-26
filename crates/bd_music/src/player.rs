@@ -611,10 +611,10 @@ impl Deck {
                     self.build_len = a.build_bars * song.bar_ticks;
                     let len = a.build_bars as f32 * bar_samples;
                     self.sweep_to_phase(AdaptPhase::Build, len);
-                    if a.riser {
-                        if let Some(f) = self.fx.get_mut(0) {
-                            f.hit(Drum::Riser, 0.95, len / self.sr, 0.0);
-                        }
+                    if a.riser
+                        && let Some(f) = self.fx.get_mut(0)
+                    {
+                        f.hit(Drum::Riser, 0.95, len / self.sr, 0.0);
                     }
                     log.build(now);
                 }
@@ -1091,7 +1091,7 @@ impl Deck {
             let ds = lf.downsample.max(1);
             let thresh = (lf.crackle * 14.0 / self.sr * 4_294_967_295.0) as u32;
             for i in 0..span {
-                let hold = ds > 1 && self.ds_n % ds != 0;
+                let hold = ds > 1 && !self.ds_n.is_multiple_of(ds);
                 self.ds_n = self.ds_n.wrapping_add(1);
                 for s in 0..3 {
                     let (mut l, mut r) = (self.sl[s][i], self.sr_[s][i]);

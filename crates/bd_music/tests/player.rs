@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use bd_music::{MusicCommand, MusicLibrary, MusicPlayer, StingerKind};
+use bd_music::{AdaptPhase, MusicCommand, MusicLibrary, MusicPlayer, RemixStyle, StingerKind, Style};
 
 const SR: u32 = 48_000;
 
@@ -167,7 +167,8 @@ fn corr(a: &[f32], b: &[f32]) -> f32 {
 fn every_track_loops_seamlessly_without_nan_or_clipping() {
     let lib = lib();
     let mut bad = Vec::new();
-    for t in TRACKS {
+    let names: Vec<String> = lib.track_names().map(str::to_string).collect();
+    for t in names.iter().map(String::as_str) {
         let mut p = player(&lib, t, 1.0);
         let mut stems: [Vec<f32>; 4] = Default::default();
         let mut mix: Vec<f32> = Vec::new();
@@ -338,4 +339,140 @@ fn player_can_move_to_the_audio_thread() {
     assert_send::<MusicPlayer>();
     assert_send::<MusicCommand>();
     assert_send::<Arc<MusicLibrary>>();
+}
+
+#[test]
+fn every_piece_has_remixes() {
+    let lib = lib();
+    let combat = ["archipelago_combat", "orbit_combat", "sudden_death", "final_stock"];
+    for t in TRACKS {
+        let id = lib.track_id(t).expect(t);
+        let v = lib.variants_of(id);
+        let need = if combat.contains(&t) { 3 } else { 2 };
+        assert!(v.len() >= need, "{t}: only {} remixes", v.len());
+        for r in v {
+            let s = lib.track(*r).expect("remix");
+            assert!(s.meta.style.is_some() && s.meta.adaptive.is_some(), "{}: no style / adaptive", s.info.name);
+            if s.meta.sub_bass {
+                assert!(s.meta.hpf_hz <= 35.0, "{}: sub variant with a {} Hz high-pass", s.info.name, s.meta.hpf_hz);
+            }
+            let (_, body) = s.structure_ticks();
+            let secs = body as f64 / f64::from(bd_music::notation::PPQ) * 60.0 / f64::from(s.bpm);
+            assert!(secs > 40.0, "{}: loop only {secs:.1} s", s.info.name);
+        }
+    }
+}
+
+#[test]
+fn remix_drop_lands_on_a_bar_line_after_the_build() {
+    let lib = lib();
+    for t in ["menu_house", "sudden_death_trap", "party_chipedm", "lobby_lofi", "final_stock_dnb"] {
+        let s = lib.track(lib.track_id(t).expect(t)).expect("song");
+        let build_bars = s.meta.adaptive.expect("adaptive").build_bars as usize;
+        let mut p = player(&lib, t, 0.2);
+        let mut buf = vec![0.0f32; 2 * 377];
+        let _ = render(&mut p, 6.3, 377);
+        assert_eq!(p.status().phase, AdaptPhase::Calm, "{t}");
+        p.command(MusicCommand::SetIntensity(1.0));
+        for _ in 0..(48_000 * 14 / 377) {
+            p.render(&mut buf);
+        }
+        let log = *p.debug_log();
+        assert!(log.drop_n >= 1, "{t}: no drop");
+        let drop = log.drops[(log.drop_n - 1) % 16];
+        assert!(log.is_bar(drop), "{t}: drop at {drop} is not a bar line");
+        if build_bars > 0 {
+            let build = log.builds[(log.build_n - 1) % 16];
+            assert!(log.is_bar(build), "{t}: build not on a bar line");
+            let n = log.bar_n.min(256);
+            let bi = log.bars[..n].iter().position(|&b| b == build).expect("build bar");
+            let di = log.bars[..n].iter().position(|&b| b == drop).expect("drop bar");
+            assert_eq!(di - bi, build_bars, "{t}: drop {} bars after the build", di - bi);
+        }
+        assert_eq!(p.status().phase, AdaptPhase::Combat, "{t}");
+        // Back to exploring on the next bar line.
+        p.command(MusicCommand::SetIntensity(0.2));
+        let _ = render(&mut p, 5.0, 377);
+        assert_eq!(p.status().phase, AdaptPhase::Calm, "{t}");
+    }
+}
+
+#[test]
+fn style_setting_picks_variants_and_switches_on_bar_lines() {
+    let lib = lib();
+    let menu = lib.track_id("menu").expect("menu");
+    let house = lib.track_id("menu_house").expect("menu_house");
+    let mut p = MusicPlayer::new(Arc::clone(&lib), SR);
+    p.command(MusicCommand::SetStyle(Style::Remix(Some(RemixStyle::House))));
+    p.command(MusicCommand::Play { track: menu, skip_intro: false });
+    let _ = render(&mut p, 1.0, 256);
+    assert_eq!(p.status().track, Some(house));
+    assert!(p.status().sub_bass && p.status().hpf_hz < 40.0);
+    // Switching the setting mid-track changes version on the next bar line.
+    p.command(MusicCommand::SetStyle(Style::Classic));
+    let bars_before = p.debug_log().bar_n;
+    let _ = render(&mut p, 4.0, 256);
+    assert_eq!(p.status().track, Some(menu));
+    assert!(p.debug_log().bar_n > bars_before);
+    assert!(!p.status().sub_bass);
+    // Replaying the same request keeps the current version.
+    p.command(MusicCommand::Play { track: menu, skip_intro: false });
+    let _ = render(&mut p, 1.0, 256);
+    assert_eq!(p.status().track, Some(menu));
+    // Shuffle picks among the classic and its remixes, deterministically.
+    let pick = || {
+        let mut q = MusicPlayer::new(Arc::clone(&lib), SR);
+        q.command(MusicCommand::SetStyle(Style::Shuffle));
+        let mut seen = Vec::new();
+        for _ in 0..6 {
+            q.command(MusicCommand::Stop);
+            let _ = render(&mut q, 3.0, 256);
+            q.command(MusicCommand::Play { track: menu, skip_intro: true });
+            let _ = render(&mut q, 0.2, 256);
+            seen.push(q.status().track);
+        }
+        seen
+    };
+    let a = pick();
+    assert_eq!(a, pick());
+    assert!(a.iter().any(|x| *x != Some(menu)) && a.iter().all(|x| x.is_some_and(|t| lib.classic_of(t) == menu)));
+}
+
+#[test]
+fn remixes_are_deterministic_for_any_callback_size() {
+    let lib = lib();
+    for t in ["lobby_lofi", "archipelago_combat_trap", "menu_house"] {
+        // Intensity change at a fixed sample, fixed-size callbacks: run twice, compare.
+        let run = || {
+            let mut a = player(&lib, t, 0.3);
+            let mut x = vec![0.0f32; 48_000 * 2 * 10];
+            let mut pa = 0;
+            while pa < x.len() {
+                if pa == 1024 * 280 {
+                    a.command(MusicCommand::SetIntensity(1.0));
+                }
+                let e = (pa + 1024).min(x.len());
+                a.render(&mut x[pa..e]);
+                pa = e;
+            }
+            x
+        };
+        let x = run();
+        assert_eq!(x, run(), "{t}: not deterministic");
+        assert!(x.iter().all(|v| v.is_finite()));
+        let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        assert!(peak < 0.79, "{t}: peak {peak}");
+        // Irregular callback sizes give bit-identical audio.
+        let fixed = render(&mut player(&lib, t, 1.0), 6.0, 512);
+        let mut b = player(&lib, t, 1.0);
+        let mut y = vec![0.0f32; fixed.len()];
+        let (mut pos, mut n) = (0, 1usize);
+        while pos < y.len() {
+            let e = (pos + 2 * n).min(y.len());
+            b.render(&mut y[pos..e]);
+            pos = e;
+            n = (n * 7 + 3) % 509 + 1;
+        }
+        assert_eq!(fixed, y, "{t}: output depends on callback size");
+    }
 }

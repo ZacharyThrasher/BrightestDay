@@ -9,6 +9,8 @@ recordings.
 assets/music/instruments.ron   shared instrument bank (pulse / triangle / saw / sine / "hard light" FM)
 assets/music/stingers.ron      KO, streak, match point, last standing, victory, defeat
 assets/music/<track>.ron       one track per file (the track name is the file stem)
+assets/music/remix/kit.ron     remix instruments (808, reese, supersaw, ...) and genre templates
+assets/music/remix/<track>_<style>.ron   remix variants (31), each a data variant of a base track
 crates/bd_music/src/notation.rs  the MML dialect parser (bar-checked)
 crates/bd_music/src/song.rs      RON schema -> compiled songs, MusicLibrary
 crates/bd_music/src/synth.rs     oscillators, envelopes, arps, vibrato, glides, NES noise drums, filters
@@ -46,6 +48,65 @@ public-domain scores, written from memory. Episodes, counter-melodies, harmony a
 arrangement are original to Brightest Day. No modern arrangement, recording or third-party score
 file was used.
 
+## Remixes
+
+Every piece also exists as 2-3 head-nod remixes. The classical theme stays in front, and genre
+conventions supply the groove: 808s, supersaws, filter builds and drops. They are data variants of
+their base track: they inherit its melody patterns, and chord progressions (`ch_*` patterns in the
+base file) drive generated bass, chord and arp parts.
+
+| base | remixes (bpm) |
+|---|---|
+| menu (Nachtmusik) | house 124, lofi 86 |
+| lobby (Gymnopédie) | lofi 82, synthwave 100 |
+| tutorial (Minuet in G) | chipedm 130, house 124 |
+| archipelago_explore (Spring) | house 122, lofi 90 |
+| archipelago_combat (Summer) | dnb 172, trap 140 (half-time), chipedm 150 |
+| miami (Rondo alla Turca) | house 126, synthwave 108, phonk 132 |
+| orbit_float (Blue Danube) | synthwave 104, lofi 84 |
+| orbit_combat (Valkyries) | synthwave 110, trap 140, dnb 174 |
+| sudden_death (Mountain King) | trap 110→140, phonk 118→138, dnb 150→174 (accelerating intros) |
+| final_stock (Bumblebee) | dnb 174, chipedm 150, trap 145 |
+| party (Can-can) | chipedm 140, house 128 |
+| party_results (William Tell) | dnb 170, synthwave 108 |
+| results (Ode to Joy) | chipedm 128, trap 140 |
+
+Styles:
+- **Trap:** half-time sliding 808s, pitched and rolled hats, clap on three.
+- **Synthwave:** dual-saw leads, gated snare, octave saw bass, 16th plucks.
+- **House:** four-on-the-floor, offbeat bass and open hats, pumping stabs, filter-sweep breaks.
+- **DnB:** original two-step breaks with ghost snares, reese bass, half-time breakdowns.
+- **Lo-fi:** swung 8ths, electric-piano sevenths, crackle and tape wow, a mild crush.
+- **Phonk:** a pitched FM cowbell plays the theme over distorted 808s.
+- **Chip EDM:** our chip voices plus 60 Hz arps, pumping supersaw chords and a supersaw drop.
+
+Waltzes (3/4) are straightened into 4/4 by `remeter`, which holds each bar's first beat. Valkyries
+has hand-written 4/4 versions of its motif.
+
+**Adaptive behaviour.** Intensity does more than add layers here.
+
+| state | what plays |
+|---|---|
+| exploring | base and drive stems are low-passed (`explore_cutoff`, ~700–1300 Hz) and the drums are thinned (`explore_drive`) |
+| entering combat | on the bar line where intensity crosses `combat_at`, a **build** starts: noise riser, snare roll (8ths → 16ths → 32nds), resonant filter sweep up |
+| the drop | after `build_bars` bars the **DROP** lands on a bar line: the filter snaps open in 4 ms, an impact hits, and every layer comes in |
+| leaving combat | the filter closes over one bar |
+
+Lo-fi variants just open up (no riser). Stingers and `SetTempo` work unchanged on every variant.
+
+**Choosing versions.** `MusicCommand::SetStyle(Style)` sets the game option:
+
+| option | behaviour |
+|---|---|
+| `Classic` | the chip arrangements |
+| `Remix(Some(RemixStyle::House))` | that genre when the track has one, otherwise its remixes in rotation |
+| `Remix(None)` | rotate through all of a track's remixes |
+| `Shuffle` | each `Play` picks between the classic and its remixes, deterministically |
+
+`Play { track }` with a classic id is resolved through the style. A remix id, e.g.
+`lib.track_id("menu_house")`, plays that exact variant. Changing the style while a track plays
+switches versions on the next bar line.
+
 ## Song files
 
 ```ron
@@ -72,6 +133,21 @@ file was used.
 )
 ```
 
+Section options for remixes:
+
+| option | meaning |
+|---|---|
+| `chords: "G \| Em C \| %"` | chord progression, 1, 2 or 4 chords per bar; `%` repeats the previous bar; `$pattern` and `[ ]n` work |
+| channel `gen: "$trap_808"` | a template tiled over any section that has chords and doesn't write the channel |
+| `mute: [..]` | silence channels in this section |
+| `remeter: [..]` | channels written in the base's meter |
+| `swing` / `swing_unit` | swing amount and grid |
+| `auto: [(target: "all" \| "base" \| "drive" \| "lead" \| <channel>, param: Cutoff \| Res, from, to, start, bars)]` | filter automation lanes |
+
+Song-level remix fields: `base`, `style`, `sub_bass`, `hpf_hz`, `pump: (depth_db, release, stems)`,
+`adaptive: (explore_cutoff, explore_res, explore_drive, build_bars, build_cutoff, build_res, riser,
+roll, impact, combat_at, filter_lead)`, `lofi: (bits, downsample, crackle, wow, wow_rate)`.
+
 Every part is checked against the section length and every `|` bar check. A wrong length or a
 misplaced bar line fails loudly at load and names the section, channel and bar.
 
@@ -92,7 +168,9 @@ misplaced bar line fails loudly at load and names the section, channel and bar.
 | `$name` | insert a named pattern |
 | `\|` | bar check |
 | `;` | comment to end of line |
-| drums | `k s h o c t m x n`: kick, snare, closed hat, open hat, crash, low tom, mid tom, clap, metallic blip |
+| drums | chip kit `k s h o c t m x n` (kick, snare, closed hat, open hat, crash, low tom, mid tom, clap, metallic blip) and modern kit `K S X G H O C b W R I`. Modern: punchy synth kick, noise+band-pass snare and clap, gated snare, closed/open hats (a hit on the same channel chokes the previous one), crash, cowbell, white-noise riser and reverse cymbal (both swell over the written length), impact. `p4` sets the pitch of the following hits (trap-hat pitch ramps). |
+| `!c` `?c` | accent (+3 volume) / ghost note (40 %) |
+| `R T F S O N` | with a section `chords`: root, third, fifth, seventh (or octave), octave, ninth of the chord sounding now; `X`/`Y` = triad / seventh chord (arpeggiated); `u4` keeps roots in one register (`o1 u4` = E1..D#2 for 808s) |
 
 Tip: start every bar with an explicit `o` octave. `render -- --lint` lists each channel's range per
 section and flags minor-2nd / minor-9th clashes on beats, which catches wrong accidentals or octaves.
@@ -116,8 +194,19 @@ with an envelope (`lp_hz`, `lp_env`, `lp_time`).
   and box-filtered per sample. Each hit has a 0.8 ms onset ramp and drum tones sweep. A retrigger
   crossfades the previous hit over 12 ms.
 * **Echo by channel delay**: any channel can have a tempo-synced delayed copy, panned opposite.
-* Output: each stem is high-passed at 60 Hz (12 dB/oct, so no sub) and low-passed at 11.5 kHz
-  (4th-order Butterworth).
+* Remix additions:
+  * The 808 is a sine with a pitch-drop envelope, long decay, glides and soft saturation (`drive`).
+  * Supersaw uses up to 7 band-limited saws (the CPU cap) with detune and stereo spread; `unison: 2`
+    is the dual saw.
+  * Every voice filter can be a resonant state-variable filter (`res`). Each deck also runs resonant
+    stem filters for the adaptive sweeps and `auto` lanes.
+  * A sidechain pump: kicks duck the listed stems (4 ms attack, `release`).
+  * The modern drum kit, risers and impacts.
+  * Groove: swing, ghost notes, accents.
+  * Lo-fi colour: bit-crush, sample-hold, vinyl crackle, tape wow.
+* Output: each stem is high-passed (12 dB/oct) and low-passed at 11.5 kHz (4th-order Butterworth).
+  The high-pass is at 60 Hz for chip tracks (no sub). It is the variant's `hpf_hz` for remixes:
+  32 Hz for `sub_bass` variants, 45 Hz for lo-fi.
 
 ## Adaptive player and integration contract (for bd_audio)
 
@@ -151,6 +240,9 @@ let status = player.status();           // Copy: track, bars, beat, bpm, intensi
   * `Defeat` lands on the next bar, fades the track over a beat and plays the jingle.
 
   Stingers are transposed into the current track's relative key. A new stinger replaces a playing one.
+* `SetStyle(Style)` chooses Classic / Remix / Shuffle (see Remixes). `status().phase` gives the remix
+  state (Calm / Build / Combat). `status().sub_bass` and `status().hpf_hz` say whether the playing
+  variant needs the sub band, and where to put the music high-pass.
 * `SetTempo { multiplier, ramp_secs }` ramps tempo (0.25–4×) without changing pitch. Use it for
   final stock or sudden death, e.g. `1.0 → 1.25` over the last 30 s. bd_audio's snapshot fields
   `music_intensity` / `music_tempo` map straight onto `SetIntensity` / `SetTempo`. Send them only
@@ -197,7 +289,15 @@ allocate: a counting global allocator watches every code path, including switche
   8–10 LU under combat SFX (target SFX momentary around -14 … -16 LUFS). Stingers reach about -19 …
   -21 LUFS momentary. Don't let the HDR loudness window push the music up in quiet moments; treat
   the Music bus as a fixed-level bed.
-* **Frequency pockets.** The music leaves **< 60 Hz** to impacts and explosions (already high-passed).
+* **Sub-bass remixes (808s, sub kicks).** Every remix except the lo-fi ones is flagged
+  `sub_bass: true`, with a suggested high-pass of 32 Hz.
+  * While `status().sub_bass` is true, bd_audio must lower its Music-bus high-pass (MusicCarve
+    currently cuts at 60 Hz) to `status().hpf_hz`. Restore 60 Hz for chip tracks.
+  * **Sidechain the music's sub band under impacts and explosions.** Duck the music below ~120 Hz by
+    6–9 dB (attack 5 ms, release 150–250 ms) on heavy hits, KOs and explosions, so an 808 never masks
+    a hit. A low-shelf or split-band duck on the Music bus keyed from the Impacts bus is enough.
+  * Remixes are calibrated to the same -23 LUFS, so switching versions keeps the level.
+* **Frequency pockets.** Chip tracks leave **< 60 Hz** to impacts and explosions (already high-passed).
   Add a gentle **-2 … -3 dB bell at ~2.5 kHz (Q ≈ 0.7)** only while voice chat, announcer or other
   dialogue-like cues play. Keep a **-3 dB dip across 5–12 kHz** permanently: that is the UI and
   feedback band (hit ticks, crosshair, ring UI). The music has nothing above 11.5 kHz, so the band
@@ -234,6 +334,8 @@ cargo run --release -p bd_music --example render -- --track menu --intensity 0.3
 cargo run --release -p bd_music --example render -- --all          # every track at 0.3 and 1.0 + target/music/report.md
 cargo run --release -p bd_music --example render -- --medley target/music/medley.wav
 cargo run --release -p bd_music --example render -- --stingers target/music/stingers.wav
+cargo run --release -p bd_music --example render -- --remix-medley target/music/remix_medley.wav --medley-secs 16
+cargo run --release -p bd_music --example render -- --track menu_house --intensity 0.3 --drop-at 10 --seconds 30 --out target/music/x.wav
 cargo run --release -p bd_music --example render -- --track miami --spectrogram target/music/miami.png --start 10 --seconds 15
 cargo run --release -p bd_music --example render -- --lint          # ranges + clashes per section
 cargo run --release -p bd_music --example render -- --calibrate     # rewrite gain_db to hit -23 LUFS
@@ -247,7 +349,16 @@ cargo test -p bd_music ; cargo clippy -p bd_music --all-targets -- -D warnings ;
 * The medley plays each track for ~20 s through the real adaptive API: exploration then combat,
   bar-line switches, stingers and a tempo ramp. It is lifted to -16 LUFS for listening; in game the
   music sits at -23.
+* `--all` also writes `<remix>_drop.wav` (exploring → intensity 1.0 at 8 s → build → drop) and a
+  remix table in the report: loop length, LUFS, sub/HPF, build and drop times, CPU, and the
+  heaviest variant.
 * The tests cover:
+  * seamless loops on every track **including all 31 remixes**;
+  * the drop landing on a bar line exactly `build_bars` bars after the build;
+  * style selection and switching;
+  * remix determinism and callback-size independence;
+  * every piece having ≥ 2 remixes (≥ 3 for the combat tracks);
+  * zero allocation through the remix path;
   * seamless loops: no step at the seam larger than any in the body, identical note-ons per bar
     after the wrap, and matching stem levels;
   * sample-aligned stems, and stems that sum exactly to the mix;

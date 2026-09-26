@@ -49,3 +49,9 @@ the score.
 | stinger: match_point | "Dies irae" sequence (Gregorian chant, 13th c.) | anonymous |
 | stinger: last_standing | Toccata and Fugue in D minor BWV 565, opening (c. 1704) | attr. J. S. Bach (1750) |
 | stingers: streak, victory, defeat | original | Brightest Day |
+
+Remix variants (`assets/music/remix/*.ron`): our own arrangements of the same public-domain themes in
+genre styles (trap, synthwave, house, drum & bass, lo-fi, phonk, chiptune EDM). The drum patterns,
+bass lines, chord voicings, builds and drops are original, and they follow generic genre conventions
+only. No existing recording, remix, producer's track or sample was used, imitated or referenced. The
+808s, supersaws, drum kit, risers and vinyl crackle are all synthesised by `bd_music`.

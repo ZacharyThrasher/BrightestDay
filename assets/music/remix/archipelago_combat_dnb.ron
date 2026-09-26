@@ -1,0 +1,34 @@
+// Summer Storm — drum & bass. The G-minor tremolo and plunging scales over an original two-step
+// break with ghost snares and a sliding reese bass; the brass theme returns on hard light.
+(
+    title: "Summer Storm (DnB)",
+    base: "archipelago_combat",
+    style: "dnb",
+    bpm: 172.0,
+    gain_db: -3.1,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    adaptive: (explore_cutoff: 900.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_saw", stem: Lead, echo: (ticks: 72, vol: 0.2)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.6),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "$dnb_pad"),
+        (name: "bass", inst: "rx_reese", stem: Base, gen: "$dnb_reese"),
+        (name: "kick", drums: true, stem: Drive, gen: "$dnb_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$dnb_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$dnb_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "Gm | Eb | Cm | D |", mute: ["kick", "snare"]),
+        (name: "a", bars: 16, chords: "$ch_A", remeter: ["lead"], parts: { "lead": "$runA $runB" }),
+        (name: "b", bars: 16, chords: "$ch_brass", remeter: ["lead", "lead2"],
+         parts: { "lead": "@hardlight $brass", "lead2": "k-12 $brass k0" }),
+        (name: "a2", bars: 16, chords: "$ch_A", remeter: ["lead", "lead2"],
+         parts: { "lead": "$runA $runB", "lead2": "k-12 $runA $runB k0", "hats": "C8 [H16 ?H16]7 | [[H16 ?H16]8 |]15" }),
+        (name: "end", bars: 2, chords: "Gm | Gm |", mute: ["hats", "snare"],
+         parts: { "lead": "o5 g4 d4 o4 g2 | r1 |", "kick": "K4 r2. | r1 |" }),
+    ],
+    order: ["intro", "a", "b", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

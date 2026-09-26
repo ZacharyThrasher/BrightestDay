@@ -838,7 +838,9 @@ fn recipe(d: Drum) -> DrumRecipe {
             ..base
         },
         Drum::Clap => DrumRecipe { noise: 0.6, noise_idx: 4.0, noise_end_idx: 5.0, noise_sweep: 0.1, noise_decay: 0.11, flams: 2, ..base },
-        Drum::Blip => DrumRecipe { noise: 0.35, noise_idx: 5.0, noise_end_idx: 7.0, noise_sweep: 0.06, noise_decay: 0.07, short_mode: true, ..base },
+        Drum::Blip => {
+            DrumRecipe { noise: 0.35, noise_idx: 5.0, noise_end_idx: 7.0, noise_sweep: 0.06, noise_decay: 0.07, short_mode: true, ..base }
+        }
         Drum::SynthKick => DrumRecipe {
             tone: 1.15,
             tone_hz: 210.0,
@@ -911,24 +913,10 @@ fn recipe(d: Drum) -> DrumRecipe {
             filter_tone: true,
             ..modern
         },
-        Drum::Riser => DrumRecipe {
-            noise: 0.5,
-            filt: Filt::Bp,
-            f_hz: 300.0,
-            f_end_hz: 9000.0,
-            f_res: 0.55,
-            env: DrumEnv::Rise,
-            ..modern
-        },
-        Drum::RevCymbal => DrumRecipe {
-            noise: 0.42,
-            filt: Filt::Hp,
-            f_hz: 2500.0,
-            f_end_hz: 6000.0,
-            f_res: 0.1,
-            env: DrumEnv::Rise,
-            ..modern
-        },
+        Drum::Riser => DrumRecipe { noise: 0.5, filt: Filt::Bp, f_hz: 300.0, f_end_hz: 9000.0, f_res: 0.55, env: DrumEnv::Rise, ..modern },
+        Drum::RevCymbal => {
+            DrumRecipe { noise: 0.42, filt: Filt::Hp, f_hz: 2500.0, f_end_hz: 6000.0, f_res: 0.1, env: DrumEnv::Rise, ..modern }
+        }
         Drum::Impact => DrumRecipe {
             tone: 1.1,
             tone_hz: 120.0,

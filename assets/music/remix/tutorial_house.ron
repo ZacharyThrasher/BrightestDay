@@ -1,0 +1,36 @@
+// Minuet in G — house. Square lead, offbeat saw bass, open hats on the "and", supersaw stabs that
+// pump under the kick; the B strain filters down and builds back into the recap.
+(
+    title: "Minuet in G (House)",
+    base: "tutorial",
+    style: "house",
+    bpm: 124.0,
+    gain_db: -1.3,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.2, stems: [Base]),
+    adaptive: (explore_cutoff: 700.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_square", stem: Lead, echo: (ticks: 72, vol: 0.2)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.65),
+        (name: "chords", inst: "rx_stab", stem: Base, gen: "$house_stab"),
+        (name: "bass", inst: "rx_housebass", stem: Base, gen: "$house_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$house_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$house_clap", pan: 0.1),
+        (name: "hats", drums: true, stem: Drive, gen: "$house_hats", pan: -0.2, vol: 0.8),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "G | C | D7 | G |", mute: ["clap"]),
+        (name: "a", bars: 16, chords: "$ch_A $ch_A2", remeter: ["lead"], parts: { "lead": "$mA $mA2" }),
+        (name: "b", bars: 16, chords: "$ch_B1 $ch_B2", remeter: ["lead"], mute: ["kick"],
+         auto: [(target: "all", from: 500.0, to: 14000.0, start: 8.0), (target: "all", param: Res, from: 0.55, to: 0.15, start: 8.0)],
+         parts: { "lead": "$mB1 $mB2" }),
+        (name: "a2", bars: 16, chords: "$ch_A $ch_A2", remeter: ["lead", "lead2"],
+         parts: { "lead": "$mA $mA2", "lead2": "k-12 $mA $mA2 k0", "clap": "C4 X4 r4 X4 | [r4 X4 r4 X4 |]15" }),
+        (name: "end", bars: 2, chords: "G | G |", mute: ["hats", "clap", "chords"],
+         parts: { "lead": "o4 g2 o5 d4 g4 | r1 |", "kick": "K4 r2. | r1 |" }),
+    ],
+    order: ["intro", "a", "b", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

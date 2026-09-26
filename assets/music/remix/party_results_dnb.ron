@@ -1,0 +1,36 @@
+// William Tell — drum & bass. The gallop at 170: the trumpet call on hard-light brass, the theme on
+// a saw over a two-step break and reese bass, galloping 16th strains in A and C# minor.
+(
+    title: "William Tell (DnB)",
+    base: "party_results",
+    style: "dnb",
+    time: (2, 4),
+    bpm: 170.0,
+    gain_db: -3.3,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    adaptive: (explore_cutoff: 900.0, build_bars: 4),
+    channels: [
+        (name: "lead", inst: "rx_saw", stem: Lead, echo: (ticks: 48, vol: 0.18)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.5),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "o4 Y2 |"),
+        (name: "bass", inst: "rx_reese", stem: Base, gen: "o1 u4 R4. ~F8 |"),
+        (name: "kick", drums: true, stem: Drive, gen: "$dnb_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$dnb_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$dnb_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "E | E | B | B |", mute: ["kick", "snare"],
+         parts: { "lead": "@hl_brass o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 e8 a8 | o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 b4 |" }),
+        (name: "a", bars: 16, chords: "$ch_ga", parts: { "lead": "$ga1 $ga2" }),
+        (name: "b", bars: 16, key: "A", chords: "$ch_strB", parts: { "lead": "@run25 $strB", "lead2": "k12 $strHl k0" }),
+        (name: "c", bars: 16, key: "C#m", chords: "$ch_stC", parts: { "lead": "@run12 $stC $stC" }),
+        (name: "a2", bars: 16, chords: "$ch_ga", parts: { "lead": "@hl_brass $ga1 $ga2", "lead2": "$ga1 $ga2" }),
+        (name: "b2", bars: 16, key: "A", chords: "$ch_strB", parts: { "lead": "@run25 $strB", "lead2": "k12 $strHl k0" }),
+        (name: "end", bars: 2, chords: "B7 | E |", mute: ["hats", "snare"],
+         parts: { "lead": "o4 b8 a8 g+8 f+8 | o4 e4 r4 |", "kick": "r2 | K4 r4 |" }),
+    ],
+    order: ["intro", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

@@ -21,6 +21,10 @@
         (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
     ],
     patterns: {
+        // chord progressions (remixes, one per 2/4 bar)
+        "ch_pa1": "C | C | G7 | G7 | G7 | C | G7 | G |",
+        "ch_pa2": "C | C | G7 | G7 | G7 | C | G7 C | C |",
+        "ch_B": "C | F | G7 | G7 | C | F | G7 | C G | C | F | G7 | G7 | C | G7 | C | C |",
         "pa1": "o4 c4 d8 f8 | o4 e8 d8 g4 | o4 g4 g8 a8 | o4 e8 f8 d4 | o4 d4 d8 f8 | o4 e8 d8 c8 o5 c8 | o4 b8 a8 g8 f8 | o4 e8 d8 o3 g4 |",
         "pa2": "o4 c4 d8 f8 | o4 e8 d8 g4 | o4 g4 g8 a8 | o4 e8 f8 d4 | o4 d4 d8 f8 | o4 e8 d8 c8 g8 | o4 d8 e8 c4 | o4 c8 r8 o5 c8 r8 |",
         "B": "o5 g8 g8 g8 g8 | o5 a8 g8 f8 e8 | o5 f8 f8 f8 f8 | o5 g8 f8 e8 d8 | o5 e8 e8 e8 e8 | o5 f8 e8 d8 c8 | o4 b8 o5 d8 g8 f8 | o5 e4 d4 |

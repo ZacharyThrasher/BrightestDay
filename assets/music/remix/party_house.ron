@@ -1,0 +1,38 @@
+// Can-can — house. The galop as a peak-time house tune: saw lead, offbeat bass and hats, stabs
+// pumping under the kick, a filtered break and a key lift to F.
+(
+    title: "Can-can (House)",
+    base: "party",
+    style: "house",
+    time: (2, 4),
+    bpm: 128.0,
+    gain_db: 0.5,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.2, stems: [Base]),
+    adaptive: (explore_cutoff: 750.0, build_bars: 4),
+    channels: [
+        (name: "lead", inst: "rx_saw", stem: Lead, echo: (ticks: 48, vol: 0.2)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.55),
+        (name: "chords", inst: "rx_stab", stem: Base, gen: "o4 r8 X8 r4 |"),
+        (name: "bass", inst: "rx_housebass", stem: Base, gen: "o2 u4 [r8 R8]2 |"),
+        (name: "kick", drums: true, stem: Drive, gen: "$house_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$house_clap", pan: 0.1),
+        (name: "hats", drums: true, stem: Drive, gen: "$house_hats", pan: -0.2, vol: 0.8),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "G7 | G7 | G7 | G7 |", mute: ["clap"],
+         parts: { "lead": "o4 g8 r8 g8 r8 | o4 g8 r8 g8 r8 | o5 g8 r8 g8 r8 | o5 g4 o4 g4 |" }),
+        (name: "a", bars: 16, chords: "$ch_pa1 $ch_pa2", parts: { "lead": "$pa1 $pa2" }),
+        (name: "b", bars: 16, chords: "$ch_B", mute: ["kick"],
+         auto: [(target: "all", from: 450.0, to: 14000.0), (target: "all", param: Res, from: 0.55, to: 0.15)],
+         parts: { "lead": "$B" }),
+        (name: "a2", bars: 16, transpose: 5, chords: "$ch_pa1 $ch_pa2", parts: { "lead": "$pa1 $pa2", "lead2": "k-12 $pa1 $pa2 k0" }),
+        (name: "b2", bars: 16, chords: "$ch_B", parts: { "lead": "$B", "lead2": "k-12 $B k0" }),
+        (name: "end", bars: 2, chords: "C | C |", mute: ["hats", "clap", "chords"],
+         parts: { "lead": "o5 c8 r8 o4 c8 r8 | r2 |", "kick": "K4 r4 | r2 |" }),
+    ],
+    order: ["intro", "a", "b", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

@@ -1,0 +1,37 @@
+// Can-can — chiptune EDM. The galop on a chip pulse with 60 Hz arps and a pumping four-on-the-floor;
+// the second strain on hard light, a key lift to F with a supersaw drop.
+(
+    title: "Can-can (Chip EDM)",
+    base: "party",
+    style: "chipedm",
+    time: (2, 4),
+    bpm: 140.0,
+    gain_db: -3.3,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.16, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 4),
+    channels: [
+        (name: "lead", inst: "rx_chip", stem: Lead, echo: (ticks: 48, vol: 0.2)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.55),
+        (name: "arp", inst: "arp", stem: Drive, pan: -0.3, vol: 0.6, gen: "o5 [X8]4 |"),
+        (name: "chords", inst: "rx_ssaw_chord", stem: Base, gen: "o3 [X4]2 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "o2 u4 R8 R8 O8 R8 |"),
+        (name: "kick", drums: true, stem: Drive, gen: "$ce_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$ce_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$ce_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "G7 | G7 | G7 | G7 |", mute: ["kick", "clap", "arp"],
+         parts: { "lead": "o4 g8 r8 g8 r8 | o4 g8 r8 g8 r8 | o5 g8 r8 g8 r8 | o5 g4 o4 g4 |" }),
+        (name: "a", bars: 16, chords: "$ch_pa1 $ch_pa2", parts: { "lead": "$pa1 $pa2" }),
+        (name: "b", bars: 16, chords: "$ch_B", parts: { "lead": "@hardlight $B" }),
+        (name: "a2", bars: 16, transpose: 5, chords: "$ch_pa1 $ch_pa2", parts: { "lead": "$pa1 $pa2", "lead2": "$pa1 $pa2" }),
+        (name: "b2", bars: 16, chords: "$ch_B", parts: { "lead": "$B", "lead2": "k-12 $B k0" }),
+        (name: "end", bars: 2, chords: "C | C |", mute: ["hats", "clap", "arp"],
+         parts: { "lead": "o5 c8 r8 o4 c8 r8 | r2 |", "kick": "K4 r4 | r2 |" }),
+    ],
+    order: ["intro", "a", "b", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

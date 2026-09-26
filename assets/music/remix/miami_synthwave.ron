@@ -1,0 +1,37 @@
+// Alla Turca — synthwave. Neon Miami: dual-saw lead with echo, gated snare, octave saw bass and
+// 16th plucks; the A-major refrain rides a supersaw.
+(
+    title: "Alla Turca (Synthwave)",
+    base: "miami",
+    style: "synthwave",
+    time: (2, 4),
+    bpm: 108.0,
+    gain_db: -1.7,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    pump: (depth_db: 3.0, release: 0.22, stems: [Base]),
+    adaptive: (explore_cutoff: 900.0, build_bars: 4),
+    channels: [
+        (name: "lead", inst: "rx_dualsaw", stem: Lead, echo: (ticks: 72, vol: 0.3)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.55),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "o3 X2 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$sw_bass"),
+        (name: "arp", inst: "rx_pluck", stem: Drive, pan: -0.3, gen: "$sw_arp"),
+        (name: "kick", drums: true, stem: Drive, gen: "$sw_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$sw_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$sw_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "Am | Am | E | E |", mute: ["snare", "arp"],
+         parts: { "lead": "r2 | r2 | r2 | r4 o4 b16 a16 g+16 a16 |" }),
+        (name: "a", bars: 16, chords: "$ch_th", parts: { "lead": "$p1 $p2_7 $endEF" }),
+        (name: "c", bars: 16, chords: "$ch_c", parts: { "lead": "$C8 $p2_7 $endR" }),
+        (name: "r", bars: 16, chords: "$ch_r", parts: { "lead": "$R7 $rEnd $R7 $rEndP", "lead2": "$R7 $rEnd $R7 $rEndP" }),
+        (name: "a2", bars: 16, chords: "$ch_th", parts: { "lead": "$p1 $p2_7 $endP", "lead2": "k-12 $p1 $p2_7 $endP k0" }),
+        (name: "end", bars: 2, chords: "Am | Am |", mute: ["hats", "arp"],
+         parts: { "lead": "o5 a4 o4 a4 | r2 |", "snare": "G4 r4 | r2 |", "kick": "K4 r4 | r2 |" }),
+    ],
+    order: ["intro", "a", "c", "r", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

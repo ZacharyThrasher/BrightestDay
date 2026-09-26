@@ -1,0 +1,37 @@
+// William Tell — synthwave. The gallop as a sunset drive: dual-saw theme, gated snare, octave saw
+// bass and 16th plucks; the strains on a supersaw.
+(
+    title: "William Tell (Synthwave)",
+    base: "party_results",
+    style: "synthwave",
+    time: (2, 4),
+    bpm: 108.0,
+    gain_db: -1.4,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    pump: (depth_db: 3.0, release: 0.2, stems: [Base]),
+    adaptive: (explore_cutoff: 900.0, build_bars: 4),
+    channels: [
+        (name: "lead", inst: "rx_dualsaw", stem: Lead, echo: (ticks: 72, vol: 0.28)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.5),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "o3 X2 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$sw_bass"),
+        (name: "arp", inst: "rx_pluck", stem: Drive, pan: -0.3, gen: "$sw_arp"),
+        (name: "kick", drums: true, stem: Drive, gen: "$sw_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$sw_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$sw_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "E | E | B | B |", mute: ["snare", "arp"],
+         parts: { "lead": "@hl_brass o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 e8 a8 | o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 b4 |" }),
+        (name: "a", bars: 16, chords: "$ch_ga", parts: { "lead": "$ga1 $ga2" }),
+        (name: "b", bars: 16, key: "A", chords: "$ch_strB", parts: { "lead": "$strHl", "lead2": "$strB" }),
+        (name: "c", bars: 16, key: "C#m", chords: "$ch_stC", parts: { "lead": "@rx_pluck $stC $stC", "lead2": "[o4 g+2 | g+2 | g+2 | g+2 | o4 a2 | g+2 | a2 | a2 |]2" }),
+        (name: "a2", bars: 16, chords: "$ch_ga", parts: { "lead": "$ga1 $ga2", "lead2": "k-12 $ga1 $ga2 k0" }),
+        (name: "end", bars: 2, chords: "B7 | E |", mute: ["hats", "arp"],
+         parts: { "lead": "o4 b8 a8 g+8 f+8 | o4 e4 r4 |", "snare": "r2 | G4 r4 |", "kick": "r2 | K4 r4 |" }),
+    ],
+    order: ["intro", "a", "b", "c", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

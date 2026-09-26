@@ -1,0 +1,34 @@
+// Valkyries — trap. Half-time 140: the motif on hard-light brass over sliding 808s, rolled hats
+// and a clap on three; the hammer blows land as 808 hits.
+(
+    title: "Valkyries (Trap)",
+    base: "orbit_combat",
+    style: "trap",
+    bpm: 140.0,
+    gain_db: -4.8,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.85),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "hl_brass", stem: Lead, echo: (ticks: 48, vol: 0.2)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.5),
+        (name: "bells", inst: "hl_bell", stem: Base, pan: 0.3, vol: 0.4, gen: "$trap_bells"),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "$trap_pad"),
+        (name: "808", inst: "rx_808", stem: Base, gen: "$trap_808"),
+        (name: "kick", drums: true, stem: Drive, gen: "$trap_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$trap_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$trap_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "Bm | G | Em | F# |", mute: ["kick", "clap"]),
+        (name: "a", bars: 16, chords: "$ch_ride", parts: { "lead": "$ride44" }),
+        (name: "b", bars: 8, chords: "$ch_hammer", mute: ["bells"],
+         parts: { "lead": "$hammer44", "808": "[o1 u4 R4. R4. R4 |]8" }),
+        (name: "a2", bars: 16, chords: "$ch_ride", parts: { "lead": "$ride44", "lead2": "k-12 $ride44 k0" }),
+        (name: "end", bars: 2, chords: "Bm | Bm |", mute: ["hats", "clap", "bells"],
+         parts: { "lead": "o5 b1 | r1 |", "kick": "K4 r2. | r1 |", "808": "o1 u4 R1 | r1 |" }),
+    ],
+    order: ["intro", "a", "b", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

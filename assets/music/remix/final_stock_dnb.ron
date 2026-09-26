@@ -1,0 +1,35 @@
+// Bumblebee — drum & bass. The chromatic bee at 174 on a saw over a two-step break and reese bass;
+// the hard-light counter-melody on supersaw; the swarm as octave-leaping 16ths; key lifts to D minor
+// and E minor.
+(
+    title: "Bumblebee (DnB)",
+    base: "final_stock",
+    style: "dnb",
+    bpm: 174.0,
+    gain_db: -3.1,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    adaptive: (explore_cutoff: 900.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_saw", stem: Lead, echo: (ticks: 48, vol: 0.18)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.5),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "$dnb_pad"),
+        (name: "bass", inst: "rx_reese", stem: Base, gen: "$dnb_reese"),
+        (name: "kick", drums: true, stem: Drive, gen: "$dnb_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$dnb_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$dnb_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 2, chords: "E7 | E7 |", mute: ["kick", "snare"], parts: { "lead": "$swoop" }),
+        (name: "a", bars: 8, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "lead2": "$cT $cT" }),
+        (name: "b", bars: 8, chords: "$ch_swarm", parts: { "lead": "$swarm", "lead2": "@hl_brass $swarmHl" }),
+        (name: "a2", bars: 8, transpose: 5, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "lead2": "$cT $cT" }),
+        (name: "c", bars: 8, transpose: 7, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "lead2": "@hardlight $cT $cT" }),
+        (name: "b2", bars: 8, chords: "$ch_swarm", parts: { "lead": "$swarm", "lead2": "$swarmHl" }),
+        (name: "end", bars: 2, chords: "E7 | Am |", mute: ["hats", "snare"],
+         parts: { "lead": "$swoop", "kick": "r1 | K4 r2. |" }),
+    ],
+    order: ["intro", "a", "b", "a2", "c", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

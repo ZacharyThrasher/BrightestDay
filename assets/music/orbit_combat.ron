@@ -22,6 +22,15 @@
         (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
     ],
     patterns: {
+        // 4/4 versions of the motif and the hammer blows (remixes) + chord progressions
+        "ride44": "o4 b8. f+16 b8 o5 d4. o4 b4 | o5 d8. o4 b16 o5 d8 f+4. d4 | o5 f+8. d16 f+8 a4. o4 a4 | o5 d8. o4 a16 o5 d8 f+4.^4 |
+                   o4 a8. e16 a8 o5 c+4. o4 a4 | o5 c+8. o4 a16 o5 c+8 e4. c+4 | o5 e8. c+16 e8 g4. o4 g4 | o5 c+8. o4 g16 o5 c+8 e4.^4 |
+                   o4 b8. f+16 b8 o5 d4. o4 b4 | o5 d8. o4 b16 o5 d8 f+4. d4 | o5 f+8. d16 f+8 a4. o4 a4 | o5 d8. o4 a16 o5 d8 f+4.^4 |
+                   o5 e8. o4 b16 o5 e8 g4. e4 | o5 g8. e16 g8 b4. g4 | o5 f+8. c+16 f+8 a+4. f+4 | o5 a+8. f+16 a+8 o6 c+4. o5 f+4 |",
+        "hammer44": "o5 f+4. d4. o4 b4 | o5 g4. d4. o4 b4 | o5 g4. e4. o4 b4 | o5 f+4. c+4. o4 a+4 |
+                     o5 b4. f+4. d4 | o5 b4. g4. d4 | o6 c=4. o5 g4. e4 | o5 f+4. a+4. o6 c+4 |",
+        "ch_ride": "Bm | Bm | D | D | A | A | A7 | A7 | Bm | Bm | D | D | Em | Em | F#7 | F#7 |",
+        "ch_hammer": "Bm | G | Em | F# | Bm | G | C | F#7 |",
         "ride": "o4 b8. f+16 b8 o5 d4. o4 b4. | o5 d8. o4 b16 o5 d8 f+4. d4. | o5 f+8. d16 f+8 a4. o4 a4. | o5 d8. o4 a16 o5 d8 f+4.^4. |
                  o4 a8. e16 a8 o5 c+4. o4 a4. | o5 c+8. o4 a16 o5 c+8 e4. c+4. | o5 e8. c+16 e8 g4. o4 g4. | o5 c+8. o4 g16 o5 c+8 e4.^4. |
                  o4 b8. f+16 b8 o5 d4. o4 b4. | o5 d8. o4 b16 o5 d8 f+4. d4. | o5 f+8. d16 f+8 a4. o4 a4. | o5 d8. o4 a16 o5 d8 f+4.^4. |

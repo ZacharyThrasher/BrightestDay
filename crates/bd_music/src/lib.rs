@@ -22,6 +22,9 @@
 //! * Output is interleaved stereo at the player's sample rate, already high-passed (60 Hz) and
 //!   low-passed (11.5 kHz); at intensity 1 tracks are calibrated to ≈ -23 LUFS integrated.
 //! * [`MusicPlayer::status`] gives bar/beat/tempo for beat-synced visuals.
+//! * Remix variants (`assets/music/remix`): [`MusicCommand::SetStyle`] picks Classic / Remix /
+//!   Shuffle; remixes filter down when exploring and build into a bar-quantised DROP when intensity
+//!   crosses into combat; `status().sub_bass` / `hpf_hz` tell the mixer to open its sub band.
 
 pub mod analysis;
 pub mod notation;

@@ -1,0 +1,36 @@
+// Bumblebee — chiptune EDM. The bee on a 12.5 % chip pulse, 60 Hz chip arps, pumping supersaw
+// chords and a supersaw drop; key lifts to D minor and E minor.
+(
+    title: "Bumblebee (Chip EDM)",
+    base: "final_stock",
+    style: "chipedm",
+    bpm: 150.0,
+    gain_db: -2.2,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    pump: (depth_db: 6.0, release: 0.18, stems: [Base]),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "run12", stem: Lead, echo: (ticks: 48, vol: 0.2)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.55),
+        (name: "arp", inst: "arp", stem: Drive, pan: -0.3, vol: 0.6, gen: "$ce_arp"),
+        (name: "chords", inst: "rx_ssaw_chord", stem: Base, gen: "o3 [X4]4 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "$ce_bass"),
+        (name: "kick", drums: true, stem: Drive, gen: "$ce_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$ce_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "[H16 H16 O8]4 |", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 2, chords: "E7 | E7 |", mute: ["kick", "clap", "arp"], parts: { "lead": "$swoop" }),
+        (name: "a", bars: 8, chords: "$ch_T $ch_T", parts: { "lead": "$T $T" }),
+        (name: "b", bars: 8, chords: "$ch_swarm", parts: { "lead": "$swarm", "lead2": "$swarmHl" }),
+        (name: "a2", bars: 8, transpose: 5, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "lead2": "$cT $cT" }),
+        (name: "c", bars: 8, transpose: 7, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "lead2": "$cT $cT" }),
+        (name: "b2", bars: 8, chords: "$ch_swarm", parts: { "lead": "$swarm", "lead2": "@hardlight $swarmHl" }),
+        (name: "end", bars: 2, chords: "E7 | Am |", mute: ["hats", "clap", "arp"],
+         parts: { "lead": "$swoop", "kick": "r1 | K4 r2. |" }),
+    ],
+    order: ["intro", "a", "b", "a2", "c", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

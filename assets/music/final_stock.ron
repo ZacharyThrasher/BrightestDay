@@ -21,6 +21,9 @@
         (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
     ],
     patterns: {
+        // chord progressions (remixes)
+        "ch_T": "Am | Am | Am | E7 |",
+        "ch_swarm": "[Am | F | Dm | E |]2",
         "swoop": "o6 e16 d+16 d16 c+16 d16 c+16 c16 o5 b16 o6 c16 o5 b16 a+16 a16 g+16 g16 f+16 f16 |
                   o5 e16 f16 e16 d+16 e16 f16 f+16 g16 g+16 a16 a+16 b16 o6 c16 c+16 d16 d+16 |",
         "t1": "o5 a16 g+16 g16 f+16 f16 a+16 a16 g+16 a16 g+16 g16 f+16 f16 f+16 g16 g+16 |",

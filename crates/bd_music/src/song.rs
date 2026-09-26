@@ -705,12 +705,7 @@ fn bar_ticks_of(time: (u32, u32)) -> Result<u32, String> {
     Ok(num * (WHOLE / den))
 }
 
-pub fn compile_song(
-    name: &str,
-    file: &SongFile,
-    bank: &BTreeMap<String, InstrumentDef>,
-    require_order: bool,
-) -> Result<Song, String> {
+pub fn compile_song(name: &str, file: &SongFile, bank: &BTreeMap<String, InstrumentDef>, require_order: bool) -> Result<Song, String> {
     let bar_ticks = bar_ticks_of(file.time)?;
     if !(20.0..=400.0).contains(&file.bpm) {
         return Err(format!("bpm {} out of range", file.bpm));
@@ -739,11 +734,8 @@ pub fn compile_song(
         if channels.iter().any(|x: &ChannelSpec| x.name == c.name) {
             return Err(format!("duplicate channel {}", c.name));
         }
-        let inst = if c.drums {
-            0
-        } else {
-            inst_index(&c.inst).ok_or_else(|| format!("channel {}: unknown instrument '{}'", c.name, c.inst))?
-        };
+        let inst =
+            if c.drums { 0 } else { inst_index(&c.inst).ok_or_else(|| format!("channel {}: unknown instrument '{}'", c.name, c.inst))? };
         let pan = c.pan.clamp(-1.0, 1.0);
         channels.push(ChannelSpec {
             name: c.name.clone(),
@@ -1001,8 +993,14 @@ pub enum StingerKind {
 }
 
 impl StingerKind {
-    pub const ALL: [StingerKind; 6] =
-        [StingerKind::Ko, StingerKind::Streak, StingerKind::MatchPoint, StingerKind::LastStanding, StingerKind::Victory, StingerKind::Defeat];
+    pub const ALL: [StingerKind; 6] = [
+        StingerKind::Ko,
+        StingerKind::Streak,
+        StingerKind::MatchPoint,
+        StingerKind::LastStanding,
+        StingerKind::Victory,
+        StingerKind::Defeat,
+    ];
     pub fn name(self) -> &'static str {
         match self {
             StingerKind::Ko => "ko",

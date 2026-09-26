@@ -6,7 +6,7 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::sync::Arc;
 
-use bd_music::{MusicCommand, MusicLibrary, MusicPlayer, StingerKind};
+use bd_music::{MusicCommand, MusicLibrary, MusicPlayer, RemixStyle, StingerKind, Style};
 
 struct Counting;
 
@@ -61,9 +61,23 @@ fn render_and_commands_never_allocate() {
         (4200, MusicCommand::Play { track: menu, skip_intro: true }),
         (4500, MusicCommand::Stinger(StingerKind::Defeat)),
         (5000, MusicCommand::Stop),
+        // Remix path: style switch, filtered explore, build (riser/roll), drop (impact), pump,
+        // supersaws, 808s, lo-fi, shuffle.
+        (5200, MusicCommand::SetStyle(Style::Remix(Some(RemixStyle::House)))),
+        (5210, MusicCommand::SetIntensity(0.2)),
+        (5220, MusicCommand::Play { track: menu, skip_intro: true }),
+        (5800, MusicCommand::SetIntensity(1.0)),
+        (7000, MusicCommand::Stinger(StingerKind::Ko)),
+        (7400, MusicCommand::SetStyle(Style::Remix(Some(RemixStyle::LoFi)))),
+        (8200, MusicCommand::SetIntensity(0.1)),
+        (8600, MusicCommand::SetStyle(Style::Shuffle)),
+        (8610, MusicCommand::Play { track: combat, skip_intro: true }),
+        (9000, MusicCommand::SetStyle(Style::Remix(Some(RemixStyle::Trap)))),
+        (9100, MusicCommand::SetIntensity(1.0)),
+        (9900, MusicCommand::SetTempo { multiplier: 1.2, ramp_secs: 1.0 }),
     ];
     WATCH.with(|w| w.set(true));
-    for i in 0..5600 {
+    for i in 0..11_000 {
         for (at, cmd) in &script {
             if *at == i {
                 p.command(*cmd);

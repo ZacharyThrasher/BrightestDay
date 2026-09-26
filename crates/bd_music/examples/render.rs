@@ -33,6 +33,8 @@ struct Args {
     spectrogram: Option<PathBuf>,
     start: f32,
     calibrate: bool,
+    drop_at: Option<f32>,
+    remix_medley: Option<PathBuf>,
 }
 
 fn parse_args() -> Args {
@@ -51,6 +53,8 @@ fn parse_args() -> Args {
         spectrogram: None,
         start: 0.0,
         calibrate: false,
+        drop_at: None,
+        remix_medley: None,
     };
     let v: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -98,6 +102,14 @@ fn parse_args() -> Args {
                 i += 1;
             }
             "--calibrate" => a.calibrate = true,
+            "--remix-medley" => {
+                a.remix_medley = Some(PathBuf::from(next(i)));
+                i += 1;
+            }
+            "--drop-at" => {
+                a.drop_at = next(i).parse().ok();
+                i += 1;
+            }
             "--all" | "--report" => a.all = true,
             "--lint" => a.lint = true,
             "--list" => a.list = true,
@@ -113,10 +125,25 @@ struct Rendered {
     loop_start: Option<u64>,
     wrap: Option<u64>,
     secs_cpu: f64,
+    build: Option<u64>,
+    drop: Option<u64>,
+    drop_on_bar: bool,
 }
 
 /// Render a track from the top: intro + one full loop + `tail` seconds past the wrap (or `seconds`).
 fn render_track(lib: &Arc<MusicLibrary>, name: &str, intensity: f32, seconds: Option<f32>, tail: f32) -> Rendered {
+    render_track_drop(lib, name, intensity, seconds, tail, None)
+}
+
+/// As `render_track`, switching to intensity 1.0 after `drop_at` seconds (remix build → drop).
+fn render_track_drop(
+    lib: &Arc<MusicLibrary>,
+    name: &str,
+    intensity: f32,
+    seconds: Option<f32>,
+    tail: f32,
+    drop_at: Option<f32>,
+) -> Rendered {
     let id = lib.track_id(name).unwrap_or_else(|| panic!("no track {name}"));
     let mut p = MusicPlayer::new(Arc::clone(lib), SR);
     p.command(MusicCommand::SetIntensity(intensity));
@@ -127,7 +154,14 @@ fn render_track(lib: &Arc<MusicLibrary>, name: &str, intensity: f32, seconds: Op
     let limit = seconds.map_or(8 * 60 * SR as usize, |s| (s * SR as f32) as usize);
     let t0 = Instant::now();
     let mut stop_at: Option<usize> = None;
+    let drop_frame = drop_at.map(|s| (s * SR as f32) as usize);
     while audio.len() / 2 < limit {
+        if let Some(d) = drop_frame
+            && audio.len() / 2 >= d
+            && audio.len() / 2 < d + block
+        {
+            p.command(MusicCommand::SetIntensity(1.0));
+        }
         p.render(&mut buf);
         audio.extend_from_slice(&buf);
         if seconds.is_none() {
@@ -146,7 +180,17 @@ fn render_track(lib: &Arc<MusicLibrary>, name: &str, intensity: f32, seconds: Op
     }
     let secs_cpu = t0.elapsed().as_secs_f64();
     let log = p.debug_log();
-    Rendered { audio, loop_start: log.loop_start, wrap: log.last_wrap, secs_cpu }
+    let drop = (log.drop_n > 0).then(|| log.drops[(log.drop_n - 1) % 16]);
+    let build = (log.build_n > 0).then(|| log.builds[(log.build_n - 1) % 16]);
+    Rendered {
+        audio,
+        loop_start: log.loop_start,
+        wrap: log.last_wrap,
+        secs_cpu,
+        build,
+        drop,
+        drop_on_bar: drop.is_some_and(|d| log.is_bar(d)),
+    }
 }
 
 /// Integer-exact prediction of the intro / loop length in samples (tempo multiplier 1).
@@ -247,19 +291,22 @@ fn main() {
     if let Some(path) = &args.stingers {
         render_stingers(&lib, path);
     }
+    if let Some(path) = &args.remix_medley {
+        render_remix_medley(&lib, path, args.medley_secs.clamp(12.0, 20.0));
+    }
     if let Some(path) = &args.medley {
         render_medley(&lib, path, args.medley_secs);
     }
     if let (Some(png), Some(t)) = (&args.spectrogram, &args.track) {
         let secs = args.seconds.unwrap_or(20.0);
-        let r = render_track(&lib, t, args.intensity, Some(args.start + secs), 0.0);
+        let r = render_track_drop(&lib, t, args.intensity, Some(args.start + secs), 0.0, args.drop_at);
         let skip = (args.start * SR as f32) as usize * 2;
         spectrogram_png(png, r.audio.get(skip..).unwrap_or(&[]));
         println!("spectrogram {t} {:.1}-{:.1} s -> {}", args.start, args.start + secs, png.display());
         return;
     }
     if let (Some(t), false) = (&args.track, args.all) {
-        let r = render_track(&lib, t, args.intensity, args.seconds, 4.0);
+        let r = render_track_drop(&lib, t, args.intensity, args.seconds, 4.0, args.drop_at);
         let out = args.out.clone().unwrap_or_else(|| args.out_dir.join(format!("{t}_{}.wav", args.intensity)));
         write_wav16(&out, SR, &r.audio).expect("write wav");
         let secs = r.audio.len() as f64 / 2.0 / f64::from(SR);
@@ -297,6 +344,13 @@ fn report(lib: &Arc<MusicLibrary>, out_dir: &Path) {
     let mut stems_md = String::from(
         "\n## Stem loudness (LUFS, first 40 s of the loop at intensity 1.0) and tonal-only HF check\n\n| track | base | drive | lead | >12 kHz at 0.3 (no drums), dB rel. total |\n|---|---|---|---|---|\n",
     );
+    let mut remix_md = String::from(
+        "\n## Remix variants\n\nEach remix: `<name>_0.3.wav` (exploring: filtered/thinned), `<name>_1.0.wav` (combat) and \
+         `<name>_drop.wav` (30 s: exploring, intensity set to 1.0 at 8 s → riser/build → DROP on a bar line). \
+         \"sub\" variants use the band below 60 Hz (808s / sub kicks): the mixer must lower its music high-pass to the listed corner.\n\n\
+         | variant | base | style | bpm | loop s | LUFS 0.3 | LUFS 1.0 | dBTP | sub (HPF) | build → drop | drop on bar | CPU ms per s |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+    );
+    let mut heaviest = (0.0f64, String::new());
     let mut total_cpu = 0.0;
     let mut total_secs = 0.0;
     for s in &lib.tracks {
@@ -316,6 +370,25 @@ fn report(lib: &Arc<MusicLibrary>, out_dir: &Path) {
         let cpu = hi.secs_cpu * 1000.0 / secs;
         total_cpu += hi.secs_cpu;
         total_secs += secs;
+        if cpu > heaviest.0 {
+            heaviest = (cpu, name.clone());
+        }
+        if s.is_remix() {
+            let d = render_track_drop(lib, name, 0.3, Some(30.0), 0.0, Some(8.0));
+            write_wav16(&out_dir.join(format!("{name}_drop.wav")), SR, &d.audio).expect("wav");
+            let spb = |x: Option<u64>| x.map_or("?".into(), |v| format!("{:.2}", v as f64 / f64::from(SR)));
+            remix_md.push_str(&format!(
+                "| {name} | {} | {} | {} | {:.1} | {l_lo:.1} | {l_hi:.1} | {tp:.1} | {} | {} s → {} s | {} | {cpu:.2} |\n",
+                s.info.base.as_deref().unwrap_or(""),
+                s.meta.style.map_or("", |x| x.name()),
+                s.bpm,
+                (hi.wrap.unwrap_or(0).saturating_sub(hi.loop_start.unwrap_or(0))) as f64 / f64::from(SR),
+                if s.meta.sub_bass { format!("yes ({:.0} Hz)", s.meta.hpf_hz) } else { format!("no ({:.0} Hz)", s.meta.hpf_hz) },
+                spb(d.build),
+                spb(d.drop),
+                if d.drop_on_bar { "yes" } else { "NO" },
+            ));
+        }
         let obs_len = match (hi.loop_start, hi.wrap) {
             (Some(a), Some(b)) => (b - a).to_string(),
             _ => "?".into(),
@@ -338,8 +411,23 @@ fn report(lib: &Arc<MusicLibrary>, out_dir: &Path) {
         );
     }
     bands_md.push_str("```\n");
+    md.push_str(&remix_md);
     md.push_str(&bands_md);
     md.push_str(&stems_md);
+    // Heaviest variant, measured on its own (best of 3 × 30 s of combat).
+    let mut best = f64::MAX;
+    for _ in 0..3 {
+        let r = render_track(lib, &heaviest.1, 1.0, Some(30.0), 0.0);
+        best = best.min(r.secs_cpu * 1000.0 / 30.0);
+    }
+    md.push_str(&format!(
+        "\nHeaviest variant: **{}** at {best:.2} ms of CPU per second of audio ({:.2} % of one core, {:.0}x real time), \
+         supersaw voices capped at 7 saws per voice.\n",
+        heaviest.1,
+        best / 10.0,
+        1000.0 / best
+    ));
+    println!("heaviest: {} {best:.2} ms/s", heaviest.1);
     md.push_str(&format!(
         "\nTotal: {:.0} s of audio rendered (intensity 1.0 pass) in {:.2} s CPU = {:.2} ms per second of audio \
          ({:.3} % of one core, {:.0}x real time). The player renders on the audio thread with zero allocation.\n",
@@ -655,7 +743,7 @@ fn calibrate(lib: &Arc<MusicLibrary>, dir: &Path) {
         let name = &s.info.name;
         let r = render_track(lib, name, 1.0, None, 0.0);
         let lufs = integrated_lufs(&r.audio, SR);
-        let path = dir.join(format!("{name}.ron"));
+        let path = dir.join(&s.info.file);
         let Ok(text) = std::fs::read_to_string(&path) else { continue };
         let Some(pos) = text.find("gain_db:") else { continue };
         let end = text[pos..].find(',').map_or(pos, |e| pos + e);
@@ -665,4 +753,57 @@ fn calibrate(lib: &Arc<MusicLibrary>, dir: &Path) {
         std::fs::write(&path, out).expect("write");
         println!("{name:22} {lufs:6.1} LUFS  gain_db {old:5.1} -> {new:5.1}");
     }
+}
+
+/// Every remix variant for ~`secs`: exploring (0.3) for ~40 %, then intensity 1.0 → riser/build →
+/// the DROP on a bar line → combat. Tracks switch on bar lines through the real API. The file is
+/// lifted to -16 LUFS for listening (in game the music sits at -23).
+fn render_remix_medley(lib: &Arc<MusicLibrary>, path: &Path, secs: f32) {
+    let mut p = MusicPlayer::new(Arc::clone(lib), SR);
+    let mut audio: Vec<f32> = Vec::new();
+    let mut buf = vec![0.0f32; 256 * 2];
+    let mut run = |p: &mut MusicPlayer, audio: &mut Vec<f32>, s: f32| {
+        let target = audio.len() / 2 + (s * SR as f32) as usize;
+        while audio.len() / 2 < target {
+            p.render(&mut buf);
+            audio.extend_from_slice(&buf);
+        }
+    };
+    let remixes: Vec<&bd_music::Song> = lib.tracks.iter().filter(|s| s.is_remix()).collect();
+    let mut drops = 0;
+    let mut on_bar = 0;
+    for s in &remixes {
+        let id = lib.track_id(&s.info.name).expect("id");
+        p.command(MusicCommand::SetIntensity(0.3));
+        p.command(MusicCommand::Play { track: id, skip_intro: true });
+        run(&mut p, &mut audio, secs * 0.4);
+        let before = p.debug_log().drop_n;
+        p.command(MusicCommand::SetIntensity(1.0));
+        run(&mut p, &mut audio, secs * 0.6);
+        let log = p.debug_log();
+        if log.drop_n > before {
+            drops += 1;
+            if log.is_bar(log.drops[(log.drop_n - 1) % 16]) {
+                on_bar += 1;
+            }
+        }
+    }
+    p.command(MusicCommand::Stinger(StingerKind::Victory));
+    run(&mut p, &mut audio, 6.0);
+    let game_lufs = integrated_lufs(&audio, SR);
+    let game_tp = true_peak_db(&audio);
+    let lift_db = (-16.0 - game_lufs).min(-1.0 - game_tp);
+    let g = 10f32.powf(lift_db / 20.0);
+    for x in &mut audio {
+        *x *= g;
+    }
+    write_wav16(path, SR, &audio).expect("remix medley wav");
+    println!(
+        "remix medley: {} variants, {:.1} s, {drops} drops ({on_bar} on bar lines); in-game {game_lufs:.1} LUFS / {game_tp:.1} dBTP; preview lifted {lift_db:+.1} dB -> {:.1} LUFS, {:.1} dBTP -> {}",
+        remixes.len(),
+        audio.len() as f32 / 2.0 / SR as f32,
+        integrated_lufs(&audio, SR),
+        true_peak_db(&audio),
+        path.display()
+    );
 }

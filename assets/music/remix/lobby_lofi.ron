@@ -1,0 +1,35 @@
+// Gymnopédie — lo-fi. The waltz straightened into a slow 4/4 (each bar's first beat is held), swung
+// boom-bap, Rhodes-like major sevenths, crackle and wow. The natural home of a lobby.
+(
+    title: "Gymnopedie (Lo-fi)",
+    base: "lobby",
+    style: "lofi",
+    bpm: 82.0,
+    gain_db: -1.9,
+    swing: 0.3,
+    swing_unit: 8,
+    hpf_hz: 45.0,
+    lofi: (bits: 10.0, crackle: 0.65, wow: 11.0, wow_rate: 0.45),
+    layers: (lead: 0.1, drive: 0.6, base_floor: 0.9),
+    adaptive: (explore_cutoff: 1200.0, explore_res: 0.1, explore_drive: 0.65, build_bars: 1, build_cutoff: 2800.0,
+               build_res: 0.2, riser: false, roll: false, impact: false),
+    channels: [
+        (name: "lead", inst: "rx_mellow", stem: Lead, echo: (ticks: 144, vol: 0.3)),
+        (name: "bell", inst: "hl_bell", stem: Lead, pan: 0.3, vol: 0.55),
+        (name: "keys", inst: "rx_keys", stem: Base, pan: -0.15, gen: "o3 Y2. r4 |"),
+        (name: "bass", inst: "rx_upright", stem: Base, gen: "o2 u4 R2. F4 |"),
+        (name: "kick", drums: true, stem: Drive, gen: "$lofi_kick"),
+        (name: "snare", drums: true, stem: Drive, gen: "$lofi_snare"),
+        (name: "hats", drums: true, stem: Drive, gen: "$lofi_hats", pan: -0.25, vol: 0.5),
+    ],
+    sections: [
+        (name: "intro", bars: 4, chords: "Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 |", mute: ["kick", "snare"]),
+        (name: "a", bars: 16, chords: "$ch_A", remeter: ["lead"], parts: { "lead": "$m1 $m2" }),
+        (name: "b", bars: 16, chords: "$ch_B", remeter: ["lead", "bell"], parts: { "lead": "$mb $mb2", "bell": "[$bells]2" }),
+        (name: "end", bars: 2, chords: "Dmaj7 | Dmaj7 |", mute: ["hats", "snare", "kick"],
+         parts: { "lead": "o5 d1 | r1 |", "bell": "o6 d4 a4 o7 d2 | r1 |" }),
+    ],
+    order: ["intro", "a", "b"],
+    loop_to: "a",
+    ending: "end",
+)

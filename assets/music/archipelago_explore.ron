@@ -27,6 +27,11 @@
         (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.75),
     ],
     patterns: {
+        // chord progressions (remixes)
+        "ch_rit": "E | E | E B7 | E E B7 E |",
+        "ch_birds": "E | E | B7 | E | A | A B | B7 | E |",
+        "ch_brook": "E | C#m | A | B7 | E | C#m | F#m7 | B7 |",
+        "ch_storm": "C#m | C#m | G#7 | C#m | A | F#m | G#7 | B7 |",
         "rit": "o5 g8 g8 g8 f16 e16 b4. b16 a16 | o5 g8 g8 g8 f16 e16 b4. b16 a16 |
                 o5 g8 a16 b16 a8 g8 f4 d8 o4 b8 | o5 g8 a16 b16 a8 g8 f8 d8 e4 |",
         "rit_lo": "o5 e8 e8 e8 d16 c16 g4. g16 f16 | o5 e8 e8 e8 d16 c16 g4. g16 f16 |

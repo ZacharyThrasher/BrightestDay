@@ -1,0 +1,34 @@
+// Bumblebee — trap. Half-time 145: the bee buzzes over sliding 808s and rolled, pitched hats; the
+// counter-melody rings on bells, the swarm on a supersaw.
+(
+    title: "Bumblebee (Trap)",
+    base: "final_stock",
+    style: "trap",
+    bpm: 145.0,
+    gain_db: -5.5,
+    sub_bass: true,
+    layers: (lead: 0.1, drive: 0.55, base_floor: 0.85),
+    adaptive: (explore_cutoff: 800.0, build_bars: 2),
+    channels: [
+        (name: "lead", inst: "rx_square", stem: Lead, echo: (ticks: 48, vol: 0.18)),
+        (name: "lead2", inst: "rx_supersaw", stem: Drive, vol: 0.5),
+        (name: "bells", inst: "hl_bell", stem: Base, pan: 0.3, vol: 0.5),
+        (name: "pad", inst: "rx_pad", stem: Base, gen: "$trap_pad"),
+        (name: "808", inst: "rx_808", stem: Base, gen: "$trap_808"),
+        (name: "kick", drums: true, stem: Drive, gen: "$trap_kick"),
+        (name: "clap", drums: true, stem: Drive, gen: "$trap_clap"),
+        (name: "hats", drums: true, stem: Drive, gen: "$trap_hats", pan: 0.2, vol: 0.6),
+    ],
+    sections: [
+        (name: "intro", bars: 2, chords: "E7 | E7 |", mute: ["kick", "clap"], parts: { "lead": "$swoop" }),
+        (name: "a", bars: 8, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "bells": "k12 $cT $cT k0" }),
+        (name: "b", bars: 8, chords: "$ch_swarm", parts: { "lead": "$swarm", "lead2": "$swarmHl" }),
+        (name: "a2", bars: 8, transpose: 5, chords: "$ch_T $ch_T", parts: { "lead": "$T $T", "bells": "k12 $cT $cT k0", "lead2": "$cT $cT" }),
+        (name: "c", bars: 8, chords: "$ch_swarm", parts: { "lead": "$swarm", "lead2": "@hl_brass $swarmHl" }),
+        (name: "end", bars: 2, chords: "E7 | Am |", mute: ["hats", "clap"],
+         parts: { "lead": "$swoop", "kick": "r1 | K4 r2. |", "808": "o1 u4 R1 | R1 |" }),
+    ],
+    order: ["intro", "a", "b", "a2", "c"],
+    loop_to: "a",
+    ending: "end",
+)

@@ -34,6 +34,13 @@
                   o4 a8 e8 a8 o5 c8 e4 r4 | o5 c4 r8 o4 g8 o5 c4 r8 o4 g8 | o5 c8 o4 g8 o5 c8 e8 g4 r4 |",
         "cmel": "$cmel6 o5 f+8 a8 o6 c8 o5 a8 f+8 d8 c8 o4 a8 | o4 f+8 a8 o5 d8 f+8 a4 r4 |",
         "crun": "o5 d8 e8 f+8 g8 a8 b8 o6 c8 d8 | o6 c8 o5 a8 f+8 d8 c8 o4 a8 f+8 d8 |",
+        // --- chord progressions (used by the remixes) ---
+        "ch_a": "G | G | D7/F# | D | G | C | D7 | G |",
+        "ch_a2": "G | G | D7/F# | D | G | C | A7 | D |",
+        "ch_b": "D | A7 | D | A7 | G | D | E7 | A |",
+        "ch_b2": "D | A7 | D | A7 | G | D | B7 | B7 |",
+        "ch_c": "Em | Em | Am | Am | C | C | D7 | D7 |",
+        "ch_c2": "Em | Em | Am | Am | C | C | D7 | D7 |",
         // --- off-beat chord arps ---
         "aG": "[r8 o4 {g b d}8]4 |",
         "aC": "[r8 o4 {c e g}8]4 |",
