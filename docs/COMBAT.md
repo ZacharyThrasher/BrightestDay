@@ -82,15 +82,6 @@ cast → **validate/clamp** (scale per form min/max, mass, count ≤ 6, swarm �
 - Limits per player: 1 held, 1 worn, 3 structures, 2 objects in flight, 2 creatures (1 Kaiju).
   Casting over a limit replaces the oldest in that slot.
 
-## 3b. Concentration (constructs depend on the wielder's focus)
-Canon: constructs fade when the wielder is distracted, unconscious or far away. So:
-- Owner **tumbling** (big knockback) → all their constructs flicker and lose 15% integrity/s while it
-  lasts (pilots are ejected only if the construct shatters).
-- Owner **KO'd** → all their constructs dissolve (voxels drift apart and fade over ~0.6 s).
-- Owner **far away** (> 45 m from a construct; creatures/structures only) → it dims and loses 5%
-  integrity/s. Colossal constructs use 90 m.
-Counterplay: the answer to a kaiju is often its summoner.
-
 ## 3c. Animating the world (grafting onto terrain)
 Casting a graft phrase ("legs", "wings", "rockets", "fire", "angry") while aiming at terrain lifts the
 connected voxel piece there (a tree, a boulder, a pillar top, a chunk of ruin — extraction bounded to
