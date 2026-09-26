@@ -618,7 +618,7 @@ fn is_core(p: &PartModel) -> bool {
 /// The conservative geometric inference (module docs, step 4) over untagged `Other` / `Weapon`
 /// parts: `(part index, role)` for every part it is sure about. Run by `voxelize` (the parts it
 /// names become rigid in the clips — a turret must not sway like cloth) and by [`analyze`].
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::needless_range_loop)]
 pub(crate) fn infer(
     parts: &[PartModel],
     kinds: &[PartKind],

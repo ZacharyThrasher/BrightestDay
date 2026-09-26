@@ -74,6 +74,7 @@ fn update_ropes(
     tuning: Res<MoveTuning>,
     player: Query<&PlayerSim, With<LocalPlayer>>,
     hands: Res<crate::viewmodel::ViewmodelHands>,
+    tp_hands: Res<crate::present::camera3p::ThirdPersonHands>,
     mut segs: Query<(&RopeSegment, &mut Transform, &mut Visibility), Without<HookHead>>,
     mut heads: Query<(&HookHead, &mut Transform, &mut Visibility), Without<RopeSegment>>,
 ) {
@@ -96,7 +97,12 @@ fn update_ropes(
             let side = if i == 0 { -1.0 } else { 1.0 };
             // Start slightly below/forward of the eye so the rope enters the view from the hand.
             // First person: the rope leaves the animated glove (this frame's camera).
-            let start = if hands.active { hands.world[i] } else { anchor.eye + right * (side * ho.x) + up * ho.y.min(-0.25) + fwd * ho.z.max(0.35) };
+            // Third person (CAMERA): the rope leaves the body's hand.
+            let start = if hands.active {
+                hands.world[i]
+            } else if tp_hands.active {
+                tp_hands.world[i]
+            } else { anchor.eye + right * (side * ho.x) + up * ho.y.min(-0.25) + fwd * ho.z.max(0.35) };
             let end = if hook.phase == HookPhase::Flying && sim.prev.hooks[i].phase == HookPhase::Flying {
                 v3(sim.prev.hooks[i].pos).lerp(v3(hook.pos), clock.alpha)
             } else {

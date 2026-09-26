@@ -182,6 +182,8 @@ pub struct Caster<'w> {
     sfx: MessageWriter<'w, PlaySfx>,
     /// Shout callouts (present::shout): the phrase bursts out as big letters.
     shouts: MessageWriter<'w, crate::present::shout::ShoutCast>,
+    /// SIGNATURE HOOK: how hard a signature was shouted (CAPS / "!!!" / amplifier words).
+    shout_table: Option<Res<'w, bd_fx::ShoutTable>>,
 }
 
 /// What a phrase turned into.
@@ -263,7 +265,12 @@ impl Caster<'_> {
                     log_unresolved(text, spoken, &res);
                 }
                 let res = *res;
-                self.cmds.write(SimCommand::local(Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation }));
+                // SIGNATURE HOOK (COMBAT.md §5j): "domain expansion …", "kamehameha" → a signature cast.
+                let cmd = match res.signature.as_ref().filter(|_| !incantation) {
+                    Some(s) => signature_cmd(res.recipe, res.shape, aim, s, text, self.shout_table.as_deref()),
+                    None => Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation },
+                };
+                self.cmds.write(SimCommand::local(cmd));
             }
         }
         true
@@ -290,6 +297,29 @@ impl Caster<'_> {
         }
         best.map(|(_, id)| id)
     }
+}
+
+/// SIGNATURE HOOK: a signature resolution → `Cmd::Signature` (the sim amplifies it). The title rides
+/// in `recipe.name` (cut-in label, staleness); `power` 0..1 = how hard it was shouted (typed energy:
+/// CAPS / "!!!" / stretched letters / amplifier words; `bd_fx::typed_energy` ≈ 0.35 calm … 2.3).
+pub fn signature_cmd(mut recipe: bd_core::mechanics::Recipe, shape: Option<bd_core::shape::ShapeSpec>, aim: Aim, s: &bd_lexicon::SignatureCall, text: &str, table: Option<&bd_fx::ShoutTable>) -> Cmd {
+    use bd_lexicon::SignatureKind as L;
+    use bd_sim::signature::{SignatureCast, SignatureKind as S};
+    let kind = match s.kind {
+        L::Domain => S::Domain,
+        L::Beam => S::Beam,
+        L::Transformation => S::Transformation,
+        L::Summon => S::Summon,
+    };
+    let energy = match table {
+        Some(t) => bd_fx::typed_energy(text, t),
+        None => bd_fx::typed_energy(text, &bd_fx::ShoutTable::default()),
+    };
+    let power = ((energy - 0.35) / 1.4).clamp(0.0, 1.0);
+    if !s.title.is_empty() {
+        recipe.name = s.title.clone();
+    }
+    Cmd::Signature { recipe: Box::new(recipe), shape, aim: Aim { modifier: false, ..aim }, sig: SignatureCast::new(kind, power) }
 }
 
 /// Append a fallback phrase to `logs/unresolved.txt` (next to `assets/`).

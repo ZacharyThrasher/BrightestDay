@@ -155,9 +155,19 @@ pub enum NetCmd {
     ToggleTransform,
     Eject,
     PartyPick(u8),
+    /// A signature cast (`Cmd::Signature`); `seq` like `Cast`.
+    Signature { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, aim: Aim, sig: bd_sim::signature::SignatureCast },
 }
 
 impl NetCmd {
+    /// The client cast sequence of a cast-like command (echoed in [`S2C::CastResult`]).
+    pub fn cast_seq(&self) -> Option<u32> {
+        match self {
+            NetCmd::Cast { seq, .. } | NetCmd::Signature { seq, .. } => Some(*seq),
+            _ => None,
+        }
+    }
+
     /// Client side: which bridge commands travel to the host (`GrantPower` is a local tool).
     pub fn from_cmd(c: &Cmd, cast_seq: u32) -> Option<Self> {
         Some(match c.clone() {
@@ -177,6 +187,7 @@ impl NetCmd {
             Cmd::Eject => NetCmd::Eject,
             Cmd::PartyPick(i) => NetCmd::PartyPick(i),
             Cmd::GrantPower(_) => return None,
+            Cmd::Signature { recipe, shape, aim, sig } => NetCmd::Signature { seq: cast_seq, recipe, shape: small(shape), aim, sig },
         })
     }
 
@@ -203,6 +214,11 @@ impl NetCmd {
             NetCmd::ToggleTransform => Cmd::ToggleTransform,
             NetCmd::Eject => Cmd::Eject,
             NetCmd::PartyPick(i) => Cmd::PartyPick(i.min(8)),
+            NetCmd::Signature { recipe, shape, aim, sig, .. } => {
+                // The sim validates the recipe, re-checks the aim and caps the amplified scale / cost.
+                let aim = Aim { origin: aim.origin, dir: aim.dir, target_hint: aim.target_hint, modifier: false };
+                Cmd::Signature { recipe, shape: small(shape), aim, sig: sig.sanitized() }
+            }
         })
     }
 }
@@ -295,6 +311,22 @@ mod tests {
         assert_eq!(p.costume.accent, Some([1.0, 1.0, 0.0]));
         assert_eq!(p.costume.head_scale, 1.0);
         assert!(p.loadout.iter().all(|l| l.chars().count() <= MAX_TEXT && !l.contains('\n')));
+    }
+
+    #[test]
+    fn signature_cmd_roundtrips_and_is_sanitised() {
+        use bd_sim::signature::{SignatureCast, SignatureKind};
+        let aim = Aim::new(bd_core::Vec3::ZERO, bd_core::Vec3::NEG_Z);
+        let sig = SignatureCast { kind: SignatureKind::Domain, power: f32::NAN };
+        let cmd = Cmd::Signature { recipe: Box::new(Recipe::unknown("Domain Expansion")), shape: None, aim, sig };
+        let nc = NetCmd::from_cmd(&cmd, 7).expect("travels");
+        assert_eq!(nc.cast_seq(), Some(7));
+        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::Cmd(nc))).unwrap();
+        let C2S::Cmd(nc) = back else { panic!("cmd") };
+        match nc.into_cmd() {
+            Some(Cmd::Signature { sig, .. }) => assert_eq!(sig.power, 0.0),
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]

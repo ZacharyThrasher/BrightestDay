@@ -86,6 +86,10 @@ enum Knob {
     Fov,
     InvertY,
     ThirdPerson,
+    /// CAMERA: ADS hold / toggle, ADS sensitivity, ADS zoom speed.
+    AdsMode,
+    AdsSens,
+    AdsSpeed,
     ShowPercent,
     SummonPreview,
     Outlines,
@@ -132,6 +136,8 @@ enum Knob {
     VoidKo,
     /// Hook-and-strike: tethers hook players (`MatchRules::tether_hooks_players`).
     TetherHooks,
+    /// CAMERA: `MatchRules::allow_third_person`.
+    AllowThird,
     Islands,
     Powers,
     Fruits,
@@ -274,7 +280,7 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             } else {
                 v.push(Value(K::KoTarget));
             }
-            v.extend([Value(K::TimeLimit), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
+            v.extend([Value(K::TimeLimit), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands), Value(K::AllowThird)]);
             v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Caps), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
@@ -317,10 +323,10 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             v
         }
         MenuPage::Settings => {
-            let mut v = vec![Header("CONTROLS"), Value(K::Sensitivity), Value(K::InvertY), Button(Act::Keys, "KEY BINDINGS")];
+            let mut v = vec![Header("CONTROLS"), Value(K::Sensitivity), Value(K::InvertY), Value(K::AdsMode), Value(K::AdsSens), Button(Act::Keys, "KEY BINDINGS")];
             v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent), Value(K::SummonPreview)]);
             v.extend([Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns)]);
-            v.extend([Header("COMFORT"), Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
+            v.extend([Header("COMFORT"), Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette), Value(K::AdsSpeed)]);
             v.extend([Header("GRAPHICS"), Value(K::Vsync), Value(K::Fullscreen), Value(K::Aa)]);
             v.extend([Header("SOUND"), Value(K::Volume), Value(K::MusicVol), Value(K::WorldVol), Value(K::AmbienceVol), Value(K::FeedbackVol), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono), Value(K::Ono), Value(K::OnoLang), Value(K::Shout)]);
             if c.voice {
@@ -339,6 +345,10 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
                 if a == Action::Voice && !c.voice {
                     continue;
                 }
+                v.push(Key(a));
+            }
+            v.push(Header("VIEW / AIM"));
+            for a in [Action::ToggleView, Action::Shoulder, Action::Aim, Action::AltFire] {
                 v.push(Key(a));
             }
             v.extend([Button(Act::ResetKeys, "RESET TO DEFAULTS"), Button(Act::Back, "BACK")]);
@@ -394,7 +404,10 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Sensitivity => (lbl("SENSITIVITY"), format!("{:.2}", s.sensitivity)),
         Knob::Fov => (lbl("FIELD OF VIEW"), format!("{:.0}", s.fov)),
         Knob::InvertY => (lbl("INVERT Y"), on_off(s.invert_y)),
-        Knob::ThirdPerson => (lbl("THIRD PERSON"), on_off(c.prefs.third_person)),
+        Knob::ThirdPerson => (lbl("DEFAULT VIEW"), if c.prefs.camera.third.unwrap_or(c.prefs.third_person) { "THIRD".into() } else { "FIRST".into() }),
+        Knob::AdsMode => (lbl("AIM DOWN SIGHTS"), if c.prefs.camera.ads_toggle { "TOGGLE".into() } else { "HOLD".into() }),
+        Knob::AdsSens => (lbl("  ADS SENSITIVITY"), format!("{:.2}X", c.prefs.camera.ads_sens())),
+        Knob::AdsSpeed => (lbl("  ADS ZOOM SPEED"), format!("{:.2}X", c.prefs.camera.ads_speed())),
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
         Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
         Knob::Outlines => (lbl("PLAYER OUTLINES"), on_off(c.prefs.outlines)),
@@ -457,6 +470,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::GasRegen => (lbl("GAS REGEN"), format!("{:.2}X", g.gas_regen_scale)),
         Knob::VoidKo => (lbl("VOID KO"), on_off(r.void_ko)),
         Knob::TetherHooks => (lbl("TETHERS HOOK PLAYERS"), on_off(r.tether_hooks_players)),
+        Knob::AllowThird => (lbl("ALLOW THIRD PERSON"), on_off(r.allow_third_person)),
         Knob::Islands => (lbl("REBUILD ISLANDS"), on_off(r.regen_islands_between_rounds)),
         Knob::Powers => (lbl("POWERS"), on_off(r.powers_enabled)),
         Knob::Fruits => (lbl("  FRUITS"), on_off(r.devil_fruits)),
@@ -506,7 +520,21 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::ThirdPerson => {
-            c.prefs.third_person = !c.prefs.third_person;
+            let third = c.prefs.camera.third.unwrap_or(c.prefs.third_person);
+            c.prefs.camera.third = Some(!third);
+            game = false;
+        }
+        Knob::AdsMode => {
+            c.prefs.camera.ads_toggle = !c.prefs.camera.ads_toggle;
+            game = false;
+        }
+        Knob::AdsSens => {
+            let step = if fine { 0.01 } else { 0.05 };
+            c.prefs.camera.ads_sens = (((c.prefs.camera.ads_sens() + d * step) * 100.0).round() / 100.0).clamp(0.2, 2.5);
+            game = false;
+        }
+        Knob::AdsSpeed => {
+            c.prefs.camera.ads_speed = (((c.prefs.camera.ads_speed() + d * 0.25) * 4.0).round() / 4.0).clamp(0.25, 4.0);
             game = false;
         }
         Knob::ShowPercent => {
@@ -644,6 +672,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::GasRegen => g.gas_regen_scale = ((g.gas_regen_scale + d * 0.25) * 4.0).round().clamp(0.0, 16.0) / 4.0,
         Knob::VoidKo => g.rules.void_ko = !g.rules.void_ko,
         Knob::TetherHooks => g.rules.tether_hooks_players = !g.rules.tether_hooks_players,
+        Knob::AllowThird => g.rules.allow_third_person = !g.rules.allow_third_person,
         Knob::Islands => g.rules.regen_islands_between_rounds = !g.rules.regen_islands_between_rounds,
         Knob::Powers => g.rules.powers_enabled = !g.rules.powers_enabled,
         Knob::Fruits => g.rules.devil_fruits = !g.rules.devil_fruits,

@@ -104,6 +104,16 @@ reduces air control but you can always tether out of it (a skill save).
   oath; while open, movement keys are ignored (TYPING bit) but momentum/tethers/aim stay live.
   Refill = `100 · accuracy² · clamp(target_time / time_taken, 0.5, 1.2)`; cancel anytime (no refill).
   Taking damage while reciting interrupts it (partial refill for progress so far ×0.5).
+  **Sections:** you recite one *section* (an authored line of `assets/oaths.ron`; a line over 95 chars is
+  split at its middle clause — `bd_sim::willpower::oath_sections`, shared by sim and client), the next one
+  in rotation per corps each time (never the same twice in a row). `OathBegin { section }`: the host looks
+  the length up in its own `OathTable` (the client never sends a length; bad index → section 0), so a
+  half-length section earns the full refill in half the time and `oath_min_secs` (20 cps) still scales.
+  **Voice:** in the overlay, hold the voice key ≥ 0.2 s before the first letter to speak the section
+  (a tap still types its letter); outside it, a push-to-talk utterance that matches a section of your own
+  oath (≥ 0.7, `oath::voice_match`) is a recital, not a cast. Voice is graded by accuracy only and reports
+  `seconds = max(measured, target)` (never the speed bonus); the result waits until `oath_min_secs` has
+  passed since `OathBegin` (you stay reciting — vulnerable, can't cast — until then).
 - Cast cost = `category_base · size_factor · (1 + 0.15·#mechanics) · count_factor · staleness`.
   - bases: Held 12, Worn 15, Structure 10, Object 14, Creature 25 (Kaiju 60).
   - autonomous non-creatures (Held / Structure / Object that Flies or Walks: "flying hammer", "wall with legs") are priced like creatures (base 25, upkeep 1.5/s), judged on the phrase as typed — party/power grafts never raise a price; a typed graft that makes your construct hunt pays the difference. Behaviour unchanged (balance pass 2, `tuning.willpower.autonomous_*`).
@@ -513,6 +523,30 @@ later **as data in this template only**.
    never-used mechanics), and all combat numbers in hot-reloadable `assets/tuning/combat.ron`.
 Targets (Smash model): typical KO % ≈ 110–170; a focused fight from 0% to KO ≈ 8–15 s; heavy/creative
 burst setups faster; strong recoveries (tethers/constructs) save ~40% of launches.
+
+## 5j. Signature casts (owner: "a domain expansion called by name should give a dopamine spike")
+**An amplifier over the existing composition — no new mode, no new mechanic.** Vocabulary
+(`assets/signatures.ron`, `bd_lexicon` invocation.rs): invocations `domain expansion <rest>`, `bankai
+<rest>`, `final / ultimate / full power / limit break … <rest>`, suffixes `<rest> domain`; tagged famous
+ultimates (`kamehameha` Beam, `unlimited void` Domain, `spirit bomb` Summon, `tensa zangetsu`
+Transformation…, matched on the phrase or the construct it resolves to); a Beam yelled with ≥ 3 "!".
+`<rest>` resolves like any phrase (element, mechanics, icon). The sim (`bd_sim::signature`,
+`tuning.signature`) then rewrites the recipe with mechanics that already exist:
+- **Domain** → `Dome` + Barrier + Trap + Homing of the phrase's element around the caster, radius 16 m
+  (+ up to 4 m by shout power), 6 s; keeps the rest's emitters / fields / traits (a shrine that Shoots, a
+  bouncy-castle domain that Bounces); drops movers (Flies, Walks, Charge, Swarm, Piloted…). Everything
+  else is the ordinary Dome/Trap/Barrier behaviour: an enemy inside is snapped up by the Trap, projectiles
+  stop at the shell, enough damage from inside or outside breaks it (integrity from its cost).
+- **Beam** → a `Gun` + `Beam` at caliber ×2.5 (the railgun: its hold-to-charge is the telegraph); a
+  creature keeps its body and gains Beam. **Summon** → the thing at ×2–2.6 scale. **Transformation** →
+  ×2–2.6 scale + Heavy. Caps: form max × 2.5, ≤ 30 m.
+- Cost = the existing cast cost × `cost_mult` (1.35), never more than a full bar; unaffordable → the plain
+  phrase is cast instead (the ring never says no). Forming ≥ 0.7 s (a readable windup; the caster keeps
+  moving). Held / worn ultimates expire after 10 s. Bots at ≥ 85 willpower shout one 20% of the time.
+- **Presentation, no freeze, no control taken:** any spawn costing ≥ 45 or ≥ 12 m (signatures, kaiju,
+  no-limits moons — one generic path, `signature::spectacle`) gets a picture-in-picture cut-in DANGER
+  alert for everyone (side of the threat, corps colour, title, severity by distance / inside the radius),
+  the shout words as the title letters, and audio/music cues. Nothing explains any of it (mystery tenet).
 
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m

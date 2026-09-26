@@ -347,7 +347,7 @@ impl LungeDash {
 pub fn plan_dash(t: &LungeTuning, r: &SwingReach, chest: Vec3, vel: Vec3, target: Vec3, target_vel: Vec3) -> Option<LungeDash> {
     let stop = (r.reach * t.stop_frac).clamp(t.stop_min, t.stop_max);
     let gap = (target - chest).length() - stop;
-    if !(gap > 0.05) || r.dash_speed <= 0.1 || !vel.is_finite() {
+    if gap.is_nan() || gap <= 0.05 || r.dash_speed <= 0.1 || !vel.is_finite() {
         return None;
     }
     let secs = (gap / r.dash_speed).min(t.dash_max_secs);
@@ -417,7 +417,7 @@ pub fn dash_pre_move(s: &mut PlayerState, p: &MoveParams, dt: f32) {
 pub fn bias_look(look: Vec3, eye: Vec3, target: Vec3, max_rad: f32, release_rad: f32) -> Vec3 {
     let l = look.normalize_or_zero();
     let to = (target - eye).normalize_or_zero();
-    if l == Vec3::ZERO || to == Vec3::ZERO || !(max_rad > 0.0) {
+    if l == Vec3::ZERO || to == Vec3::ZERO || max_rad.is_nan() || max_rad <= 0.0 {
         return look;
     }
     let ang = l.dot(to).clamp(-1.0, 1.0).acos();

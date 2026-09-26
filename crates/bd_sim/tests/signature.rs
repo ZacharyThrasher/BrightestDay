@@ -105,7 +105,16 @@ fn domain_erupts_traps_an_enemy_and_can_be_broken() {
     // Enough damage breaks it (from inside or outside: integrity is all that matters).
     let integrity = c.integrity;
     assert!(integrity > 150.0, "a domain is sturdy: {integrity}");
-    w.apply_construct_hit(ConstructHit { target: id, source: Some(B), damage: integrity + 1.0, impulse: Vec3::ZERO, blade: false, pierce: false, blunt: false, point: a });
+    w.apply_construct_hit(ConstructHit {
+        target: id,
+        source: Some(B),
+        damage: integrity + 1.0,
+        impulse: Vec3::ZERO,
+        blade: false,
+        pierce: false,
+        blunt: false,
+        point: a,
+    });
     for _ in 0..10 {
         w.tick(&[]);
     }
@@ -166,7 +175,8 @@ fn ultimate_beam_is_a_huge_railgun_that_expires() {
     assert_eq!(rec.form, Form::Gun);
     assert_eq!(bd_sim::weapons::archetype_for(&rec), Some(bd_sim::weapons::GunArchetype::Railgun));
     let spec = w.tuning().spec_for(&rec, bd_sim::weapons::GunArchetype::Railgun);
-    let plain = w.tuning().spec_for(&recipe("gun", Form::Gun, &[Mechanic::Beam], Element::Light, 0.6), bd_sim::weapons::GunArchetype::Railgun);
+    let plain =
+        w.tuning().spec_for(&recipe("gun", Form::Gun, &[Mechanic::Beam], Element::Light, 0.6), bd_sim::weapons::GunArchetype::Railgun);
     assert!(spec.damage > plain.damage * 2.0 && spec.knockback > plain.knockback * 2.0, "{} vs {}", spec.damage, plain.damage);
     assert!(forming >= t.windup - 1e-4 && cost > 40.0);
     let c = w.constructs.get(id).unwrap();
@@ -180,11 +190,23 @@ fn ultimate_beam_is_a_huge_railgun_that_expires() {
 fn summon_and_transformation_grow_past_the_form_clamp() {
     let mut w = duel();
     w.player_mut(A).unwrap().willpower = 100.0;
-    let (_, rec, ..) = cast_sig(&mut w, A, recipe("Spirit Bomb", Form::Ball, &[Mechanic::Explodes, Mechanic::Heavy], Element::Light, 8.0), SignatureKind::Summon, 0.5);
+    let (_, rec, ..) = cast_sig(
+        &mut w,
+        A,
+        recipe("Spirit Bomb", Form::Ball, &[Mechanic::Explodes, Mechanic::Heavy], Element::Light, 8.0),
+        SignatureKind::Summon,
+        0.5,
+    );
     assert!(rec.scale > 2.5 + 1e-3, "past the ball clamp: {}", rec.scale);
     let mut w = duel();
     w.player_mut(A).unwrap().willpower = 100.0;
-    let (_, rec, ..) = cast_sig(&mut w, A, recipe("Tensa Zangetsu", Form::Sword, &[Mechanic::Blade, Mechanic::Fast], Element::Shadow, 2.2), SignatureKind::Transformation, 0.0);
+    let (_, rec, ..) = cast_sig(
+        &mut w,
+        A,
+        recipe("Tensa Zangetsu", Form::Sword, &[Mechanic::Blade, Mechanic::Fast], Element::Shadow, 2.2),
+        SignatureKind::Transformation,
+        0.0,
+    );
     assert!(rec.scale > 2.5 && rec.has(Mechanic::Heavy), "{rec:?}");
 }
 
@@ -201,7 +223,13 @@ fn deterministic_with_bots_and_replicas_agree() {
         let mut brains = bots::add_bots(&mut w, 3, 4, 0.8, 5);
         w.player_mut(A).unwrap().willpower = 100.0;
         let aim = aim_of(&w, A);
-        let _ = w.cast_signature(A, recipe("dome", Form::Dome, &[], Element::Fire, 4.0), None, aim, SignatureCast::new(SignatureKind::Domain, 1.0));
+        let _ = w.cast_signature(
+            A,
+            recipe("dome", Form::Dome, &[], Element::Fire, 4.0),
+            None,
+            aim,
+            SignatureCast::new(SignatureKind::Domain, 1.0),
+        );
         let mut inputs = Vec::new();
         let mut events: Vec<GameEvent> = w.events().to_vec();
         let mut sigs = 0;

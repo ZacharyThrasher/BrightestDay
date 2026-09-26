@@ -413,7 +413,7 @@ fn net_poll(
             // Forward local commands to the host (the bridge ignores them in Client role).
             for cmd in sim_cmds.read() {
                 if let Some(seq) = c.send_cmd(&cmd.cmd) {
-                    if let crate::sim_bridge::Cmd::Cast { recipe, aim, .. } = &cmd.cmd {
+                    if let crate::sim_bridge::Cmd::Cast { recipe, aim, .. } | crate::sim_bridge::Cmd::Signature { recipe, aim, .. } = &cmd.cmd {
                         predicted.write(PredictedCast::Started { seq, recipe: recipe.clone(), aim: *aim });
                     }
                 }

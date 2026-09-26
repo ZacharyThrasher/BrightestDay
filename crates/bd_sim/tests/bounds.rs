@@ -602,6 +602,10 @@ fn a_bot_knocked_off_the_edge_catches_the_cliff_and_holds_on() {
         w.player_mut(B).unwrap().mv.grounded = true;
     }
     w.launch_player(B, Vec3::new(22.0, -4.0, 0.0), Some(A));
+    // AIR JUMP: this is about the rope rescue. With a working air jump the bot hops back onto the
+    // edge by itself (tests/air_jump.rs), so make the air jump a no-op here.
+    w.cfg.move_params.air_jump_speed = 0.0;
+    w.cfg.move_params.air_jump_redirect = 0.0;
     let mut tethered = 0;
     let mut below_void = 0;
     for _ in 0..(10 * 120) {

@@ -111,6 +111,13 @@ Everything below is committed and green unless noted.
   airtime, never raises sustained speed, breaks hook-and-strike.
 - PLAYER OUTLINES + chaos readability audit (inverted hull, distance-scaled, LOS only, player/construct
   separation, subtle high-% pulse, settings).
+- CONSTRUCT ANIMATION DONE (bd_core contract now v1.5: PartRole + Hatch/Turret/Barrel/Rotor/Piston/Fin/
+  Thruster/Eye/Blade/Grip/Support). Weight call sites switched (viewmodel.rs line left to hands worker).
+  TODO lead: wire shout letter voxels into the assembly beam — `bd_fx::ConstructAssembly{ring,
+  next_world,next_in,...}` + shout's `Shout::stream_to`. SFX wishlist: assemble_click, assemble_lock,
+  hatch_open, hatch_close, rotor_spinup, exhaust_puff, kaiju_step, footstep_heavy.
+  Two bd_sim tests fail from in-flight world/* work (flying_cage_*, opposing_constructs_clash*) — recheck.
+  SHOUT WORDS DONE; open design call: remote shouts draw on top through walls (~1 s) — world_on_top.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +

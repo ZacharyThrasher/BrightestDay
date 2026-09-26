@@ -445,7 +445,9 @@ fn sync_bodies(
         let (eye, look, _) = body_frames(v);
         for i in 0..2 {
             let Ok((mut rt, mut rv)) = rope_q.get_mut(b.ropes[i]) else { continue };
-            let draw = show && !(v.is_local && !third) && v.hooks[i].is_some();
+            // The local player's ropes are always the shell's (render/tethers.rs; from the body's
+            // hands in third person via `camera3p::ThirdPersonHands`).
+            let draw = show && !v.is_local && v.hooks[i].is_some();
             let want = if draw { Visibility::Inherited } else { Visibility::Hidden };
             if *rv != want {
                 *rv = want;

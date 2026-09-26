@@ -516,7 +516,7 @@ impl BotBrain {
         }
         b |= crate::hook::bot_hook_buttons(&mut self.hook, me, aim_err); // ASSIST HOOK
         // DODGE HOOK: air jump (recovery / chase) and dodging telegraphed attacks.
-        crate::dodge::bot_moves(&mut self.moves, w, me, target, self.last_ground, self.difficulty, self.yaw, &mut self.rng, &mut b, &mut move_x, &mut move_z);
+        crate::dodge::bot_moves(&mut self.moves, w, me, target, self.last_ground, self.tether_dir.is_some(), self.difficulty, self.yaw, &mut self.rng, &mut b, &mut move_x, &mut move_z);
         // ---------------------------------------------------------------- attack
         let held = w.constructs.held_by(self.id);
         let tethering = self.tether_dir.is_some();

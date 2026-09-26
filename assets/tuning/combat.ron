@@ -632,4 +632,30 @@
             bot_cooldown: 6.0,
         ),
     ),
+    // Signature casts (bd_sim::signature, COMBAT.md §5j): "domain expansion ...", "kamehameha", "bankai" —
+    // an amplifier over existing mechanics. Domain = Dome + Barrier + Trap + Homing of the phrase's element,
+    // radius domain_radius + domain_radius_shout x shout power (0..1), lives domain_life s. Summon /
+    // Transformation scale x (scale_mult + scale_mult_shout x power), capped at form max x scale_cap_mult and
+    // max_scale. Beam = railgun at caliber beam_caliber. Forming >= windup s (readable, the caster keeps
+    // moving); held / worn ultimates expire after held_life s. Cost = the existing cast cost x cost_mult,
+    // never more than a full bar (unaffordable -> the plain phrase is cast). Spawns costing >= alert_cost or
+    // >= alert_scale m (or colossal) get the cut-in DANGER alert. Bots with >= bot_willpower shout one at
+    // bot_chance per cast.
+    signature: (
+        domain_radius: 16.0,
+        domain_radius_shout: 4.0,
+        domain_life: 6.0,
+        scale_mult: 2.0,
+        scale_mult_shout: 0.6,
+        scale_cap_mult: 2.5,
+        max_scale: 30.0,
+        beam_caliber: 2.5,
+        windup: 0.7,
+        held_life: 10.0,
+        cost_mult: 1.35,
+        alert_cost: 45.0,
+        alert_scale: 12.0,
+        bot_willpower: 85.0,
+        bot_chance: 0.2,
+    ),
 )

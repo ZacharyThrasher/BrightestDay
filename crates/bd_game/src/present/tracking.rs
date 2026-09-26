@@ -604,7 +604,7 @@ fn weapon_glow(
 ) {
     let t = &tuning.0;
     let dt = time.delta_secs().min(0.1);
-    let Some(active) = active else {
+    let Some(active) = active.filter(|_| !super::perf_off("tracking")) else {
         state.glow = 0.0;
         return;
     };
@@ -687,7 +687,8 @@ fn draw_tracking(
     mut cues: MessageWriter<TrackingCue>,
 ) {
     reels.0.clear();
-    let Some(active) = active else { return };
+    // `BD_PERF_OFF=tracking`: A/B perf runs.
+    let Some(active) = active.filter(|_| !super::perf_off("tracking")) else { return };
     let Ok((cam, proj)) = cams.single() else { return };
     let t = &tuning.0;
     let dt = time.delta_secs().min(0.1);
@@ -1098,11 +1099,11 @@ pub mod scenario {
         // Everyone not in the shot goes far away (beacons of extras would clutter).
         let ids: Vec<u8> = w.players.iter().map(|p| p.id.0).filter(|id| *id != 0).collect();
         for id in ids {
-            if !spots.iter().any(|(s, _)| *s == id) {
-                if let Some(p) = w.player_mut(PlayerId(id)) {
-                    p.alive = false;
-                    p.respawn_timer = 1e6;
-                }
+            if !spots.iter().any(|(s, _)| *s == id)
+                && let Some(p) = w.player_mut(PlayerId(id))
+            {
+                p.alive = false;
+                p.respawn_timer = 1e6;
             }
         }
         for (id, g) in &spots {
@@ -1165,7 +1166,7 @@ pub mod scenario {
         match sc.shot.as_str() {
             "reveal" => {
                 // Bot 1 fires its gun at the sky now and then; bot 2 charges.
-                let fire = (tick / 40) % 3 == 0;
+                let fire = (tick / 40).is_multiple_of(3);
                 let b = if fire { buttons::PRIMARY } else { 0 };
                 active
                     .remote_inputs

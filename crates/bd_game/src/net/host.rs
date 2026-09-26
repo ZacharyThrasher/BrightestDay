@@ -446,11 +446,11 @@ impl HostCore {
                     return;
                 }
                 r.cmd_tokens -= 1.0;
-                if let NetCmd::Cast { seq, .. } = &c {
+                if let Some(seq) = c.cast_seq() {
                     if r.pending_casts.len() >= 16 {
                         r.pending_casts.pop_front();
                     }
-                    r.pending_casts.push_back((*seq, now));
+                    r.pending_casts.push_back((seq, now));
                 }
                 if let Some(cmd) = c.into_cmd() {
                     cmds.push((from, cmd));

@@ -192,6 +192,9 @@ impl ActiveWorld {
             Cmd::GrantPower(key) => {
                 w.grant_power(player, &key);
             }
+            Cmd::Signature { recipe, shape, aim, sig } => {
+                let _ = w.cast_signature(player, *recipe, shape, aim, sig);
+            }
         }
     }
 }
@@ -225,6 +228,10 @@ pub enum Cmd {
     PartyPick(u8),
     /// Tools / lobby "random powers": give a power by key.
     GrantPower(String),
+    /// A signature cast (COMBAT.md §5j: "domain expansion …", "kamehameha"): the resolved phrase +
+    /// what it invokes; the sim amplifies it (`World::cast_signature`). Treated like `Cast` by NET
+    /// (cast sequence, prediction). `recipe.name` carries the title.
+    Signature { recipe: Box<Recipe>, shape: Option<ShapeSpec>, aim: Aim, sig: bd_sim::signature::SignatureCast },
 }
 
 /// Who issues a command.

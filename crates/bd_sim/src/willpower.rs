@@ -477,11 +477,14 @@ mod tests {
         let line = "Aaaa bbbb cccc dddd eeee, ffff gggg hhhh iiii jjjj kkkk llll, mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv.";
         assert!(line.chars().count() > OATH_SECTION_MAX_CHARS);
         let s = oath_sections(&format!("{line}\n  Short second line."));
-        assert_eq!(s, vec![
-            "Aaaa bbbb cccc dddd eeee, ffff gggg hhhh iiii jjjj kkkk llll,".to_string(),
-            "mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv.".to_string(),
-            "Short second line.".to_string(),
-        ]);
+        assert_eq!(
+            s,
+            vec![
+                "Aaaa bbbb cccc dddd eeee, ffff gggg hhhh iiii jjjj kkkk llll,".to_string(),
+                "mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv.".to_string(),
+                "Short second line.".to_string(),
+            ]
+        );
         // A one-line oath still gets sections when it's long; blank lines are skipped.
         assert_eq!(oath_sections("\n  one   short  line \n\n"), vec!["one short line".to_string()]);
     }

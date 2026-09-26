@@ -123,7 +123,12 @@ impl SignatureTable {
                         return None;
                     }
                     let title = if r.title.trim().is_empty() { title_case(&k) } else { r.title.trim().to_string() };
-                    Some(Invocation { words: k.split(' ').map(String::from).collect(), kind: r.kind, title, alone: r.alone.filter(|a| !a.trim().is_empty()) })
+                    Some(Invocation {
+                        words: k.split(' ').map(String::from).collect(),
+                        kind: r.kind,
+                        title,
+                        alone: r.alone.filter(|a| !a.trim().is_empty()),
+                    })
                 })
                 .collect();
             v.sort_by(|a, b| b.words.len().cmp(&a.words.len()).then(a.words.cmp(&b.words)));
@@ -236,7 +241,9 @@ impl Lexicon {
         if exact(&whole) || exact(&full) {
             return None;
         }
-        let matches_at = |words: &[String], at: usize| body.len() >= at + words.len() && body[at..at + words.len()].iter().zip(words).all(|(t, w)| t.text == *w);
+        let matches_at = |words: &[String], at: usize| {
+            body.len() >= at + words.len() && body[at..at + words.len()].iter().zip(words).all(|(t, w)| t.text == *w)
+        };
         // (invocation, rest, is a suffix)
         let mut hit: Option<(&Invocation, Vec<Tok>, bool)> = None;
         for inv in &self.sig.prefixes {

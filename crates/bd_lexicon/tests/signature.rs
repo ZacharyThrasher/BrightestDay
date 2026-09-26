@@ -40,14 +40,19 @@ fn owner_phrases_are_signatures_with_sensible_elements() {
     }
     // The rest of the phrase resolves normally: the bouncy castle keeps its Bounce.
     assert!(l.resolve("DOMAIN EXPANSION: BOUNCY CASTLE").recipe.has(Mechanic::Bounce));
-    assert_eq!(sig(l, "domain expansion coffin of the iron mountain").map(|s| s.1).as_deref(), Some("Domain Expansion: Coffin of the Iron Mountain"));
+    assert_eq!(
+        sig(l, "domain expansion coffin of the iron mountain").map(|s| s.1).as_deref(),
+        Some("Domain Expansion: Coffin of the Iron Mountain")
+    );
     assert_eq!(sig(l, "fire domain").map(|s| s.1).as_deref(), Some("Fire Domain"));
 }
 
 #[test]
 fn domain_and_expansion_no_longer_graft_flies() {
     let Some(l) = common::lex() else { return };
-    for p in ["domain expansion coffin of the iron mountain", "DOMAIN EXPANSION: BOUNCY CASTLE", "domain expansion unlimited void", "domain"] {
+    for p in
+        ["domain expansion coffin of the iron mountain", "DOMAIN EXPANSION: BOUNCY CASTLE", "domain expansion unlimited void", "domain"]
+    {
         let r = l.resolve(p);
         assert!(!r.recipe.has(Mechanic::Flies) && !r.graft.mechanics.contains(&Mechanic::Flies), "{p:?}: {:?}", r.explanation);
     }
@@ -56,7 +61,20 @@ fn domain_and_expansion_no_longer_graft_flies() {
 #[test]
 fn ordinary_phrases_stay_ordinary() {
     let Some(l) = common::lex() else { return };
-    for p in ["dome", "tent", "igloo", "hammer", "giant hammer", "laser beam", "shield", "cage", "a dome with spikes", "fire", "coffin", "HAMMER!!!"] {
+    for p in [
+        "dome",
+        "tent",
+        "igloo",
+        "hammer",
+        "giant hammer",
+        "laser beam",
+        "shield",
+        "cage",
+        "a dome with spikes",
+        "fire",
+        "coffin",
+        "HAMMER!!!",
+    ] {
         let r = l.resolve(p);
         assert!(r.signature.is_none(), "{p:?} must not be a signature: {:?}", r.signature);
     }
@@ -100,7 +118,17 @@ fn every_tagged_name_resolves_to_something() {
 #[test]
 fn signatures_resolve_fast_and_never_panic() {
     let Some(l) = common::lex() else { return };
-    for p in ["domain expansion", "domain expansion domain expansion domain expansion", "bankai bankai", "ultimate", "final", "domain", "   DOMAIN   ", "domain expansion !!!!!!!!", "final final final final final final final final final final final final final final final final final"] {
+    for p in [
+        "domain expansion",
+        "domain expansion domain expansion domain expansion",
+        "bankai bankai",
+        "ultimate",
+        "final",
+        "domain",
+        "   DOMAIN   ",
+        "domain expansion !!!!!!!!",
+        "final final final final final final final final final final final final final final final final final",
+    ] {
         let _ = l.resolve(p);
         let _ = l.resolve_spoken(p);
     }

@@ -28,17 +28,17 @@ pub mod voice_match;
 use crate::audio::PlaySfx;
 use crate::console::corps_color;
 use crate::input::UiFocus;
-use crate::lobby::prefs::{Action, KeyBinds, UiPrefs};
 use crate::lobby::UiSet;
+use crate::lobby::prefs::{Action, KeyBinds, UiPrefs};
 use crate::sim_bridge::{ActiveWorld, Cmd, GameEvents, SimCommand};
 use crate::state::{AppState, InGameMenu};
 use crate::voice_ui::VoiceUi;
 use bd_core::corps::Corps;
-use bd_sim::willpower::{oath_min_secs, oath_sections, parse_oath_ron, MAX_OATH_SECTIONS};
 use bd_sim::GameEvent;
+use bd_sim::willpower::{MAX_OATH_SECTIONS, oath_min_secs, oath_sections, parse_oath_ron};
 use bevy::ecs::system::SystemParam;
-use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
+use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -527,22 +527,41 @@ fn oath_keys(
     }
     o.ptt = matches!(o.voice, VoicePhase::Listening { released: None, .. });
     // Hint line under the bar.
-    let hint = match &o.voice {
-        VoicePhase::Listening { released: None, .. } => "LISTENING…".to_string(),
-        VoicePhase::Listening { .. } => "…".to_string(),
-        VoicePhase::Sealing { .. } if !o.typing_focus => "OATH SPOKEN".to_string(),
-        VoicePhase::Sealing { .. } => String::new(),
-        _ if o.missed > 0.0 => "didn't catch that".to_string(),
-        _ if o.typing_focus && voice.available() && !o.started => format!("hold {} to speak it", binds.get(Action::Voice).label()),
-        _ => String::new(),
+    // (Built only when it changes: no per-frame allocation.)
+    let hint: Option<&str> = match &o.voice {
+        VoicePhase::Listening { released: None, .. } => Some("LISTENING…"),
+        VoicePhase::Listening { .. } => Some("…"),
+        VoicePhase::Sealing { .. } if !o.typing_focus => Some("OATH SPOKEN"),
+        VoicePhase::Sealing { .. } => Some(""),
+        _ if o.missed > 0.0 => Some("didn't catch that"),
+        _ if o.typing_focus && voice.available() && !o.started => None,
+        _ => Some(""),
     };
-    if hint != o.hint {
-        o.hint = hint;
-        o.dirty = true;
+    match hint {
+        Some(h) if h != o.hint => {
+            o.hint.clear();
+            o.hint.push_str(h);
+            o.dirty = true;
+        }
+        None if !o.hint.starts_with("hold ") => {
+            o.hint = format!("hold {} to speak it", binds.get(Action::Voice).label());
+            o.dirty = true;
+        }
+        _ => {}
     }
     // Swallow game keys this frame (they are letters now).
     if o.typing_focus {
-        for a in [Action::Dismiss, Action::Power, Action::Voice, Action::Console, Action::ConsoleAlt, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4] {
+        for a in [
+            Action::Dismiss,
+            Action::Power,
+            Action::Voice,
+            Action::Console,
+            Action::ConsoleAlt,
+            Action::Slot1,
+            Action::Slot2,
+            Action::Slot3,
+            Action::Slot4,
+        ] {
             if let Some(k) = binds.get(a).key() {
                 keys.clear_just_pressed(k);
             }
@@ -601,7 +620,12 @@ fn close(o: &mut OathState, focus: &mut UiFocus) {
 }
 
 /// Sim side: an interrupting hit or a rejection closes the overlay.
-fn oath_events(mut events: MessageReader<GameEvents>, active: Option<Res<ActiveWorld>>, mut oath: ResMut<OathState>, mut focus: ResMut<UiFocus>) {
+fn oath_events(
+    mut events: MessageReader<GameEvents>,
+    active: Option<Res<ActiveWorld>>,
+    mut oath: ResMut<OathState>,
+    mut focus: ResMut<UiFocus>,
+) {
     let local = active.as_ref().and_then(|a| a.local);
     for e in events.read() {
         match &e.event {
@@ -659,7 +683,13 @@ fn spawn_oath_ui(mut commands: Commands) {
                 t.spawn((OathRest, TextSpan::new(""), TextFont::from_font_size(26.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.5))));
             });
             root.spawn((OathBar, Node { width: px(0), height: px(2), ..default() }, BackgroundColor(Color::WHITE)));
-            root.spawn((OathHint, Text::new(""), TextFont::from_font_size(15.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.45)), TextLayout::justify(Justify::Center)));
+            root.spawn((
+                OathHint,
+                Text::new(""),
+                TextFont::from_font_size(15.0),
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.45)),
+                TextLayout::justify(Justify::Center),
+            ));
         });
     commands.spawn((
         Name::new("OathGrade"),
@@ -669,7 +699,14 @@ fn spawn_oath_ui(mut commands: Commands) {
         TextColor(Color::NONE),
         TextShadow { offset: Vec2::new(0.0, 2.0), color: Color::srgba(0.0, 0.0, 0.0, 0.5) },
         TextLayout::justify(Justify::Center),
-        Node { position_type: PositionType::Absolute, left: percent(50), top: percent(50), width: px(400), margin: UiRect { left: px(-200), top: px(40), ..default() }, ..default() },
+        Node {
+            position_type: PositionType::Absolute,
+            left: percent(50),
+            top: percent(50),
+            width: px(400),
+            margin: UiRect { left: px(-200), top: px(40), ..default() },
+            ..default()
+        },
         UiTransform::default(),
         Pickable::IGNORE,
         GlobalZIndex(56),
@@ -879,7 +916,13 @@ mod tests {
         // Typing mode: a transcript is not the overlay's (old behaviour).
         assert!(!route_transcript(&mut o, &t, Some(Corps::Fear), "in blackest day", 1.0));
         o.voice = VoicePhase::Listening { t: 4.0, released: Some(3.5) };
-        assert!(route_transcript(&mut o, &t, Some(Corps::Fear), "let those who try to stop what's right burn like my power sinestro's might", 4.0));
+        assert!(route_transcript(
+            &mut o,
+            &t,
+            Some(Corps::Fear),
+            "let those who try to stop what's right burn like my power sinestro's might",
+            4.0
+        ));
         let VoicePhase::Sealing { accuracy, seconds } = o.voice else { panic!("{:?}", o.voice) };
         assert!(accuracy > 0.95, "{accuracy}");
         assert!((seconds - target_secs(sec.chars().count())).abs() < 1e-4, "voice never beats the target time");

@@ -74,9 +74,11 @@ impl Default for BotMoves {
     }
 }
 
-/// Bots use the air jump (recovery back toward `last_ground` over a drop; chasing a target above)
-/// and the dodge (a telegraphed melee lunge at them, or a charging railgun / bow aimed at them —
-/// sometimes, after a reaction time). Adjusts this tick's buttons / WASD; `yaw` is the input's yaw.
+/// Bots use the air jump (recovery back toward `last_ground` when falling over a drop and the
+/// rescue rope found nothing — `roping`: the bot's own tether rescue is under way; chasing a target
+/// above) and the dodge (a telegraphed melee lunge at them, or a charging railgun / bow aimed at
+/// them — sometimes, after a reaction time). Adjusts this tick's buttons / WASD; `yaw` is the
+/// input's yaw.
 #[allow(clippy::too_many_arguments)]
 pub fn bot_moves(
     st: &mut BotMoves,
@@ -84,6 +86,7 @@ pub fn bot_moves(
     me: &Player,
     target: Option<&Player>,
     last_ground: Vec3,
+    roping: bool,
     difficulty: f32,
     yaw: f32,
     rng: &mut SimRng,
@@ -107,7 +110,8 @@ pub fn bot_moves(
     let pos = mv.pos;
     if !mv.grounded && !mv.extra.air_jump_used && !mv.tethered() && mv.tumble <= 0.0 && mv.air_time > 0.2 {
         let over_void = raycast(&w.voxels, pos + Vec3::Y * 0.5, Vec3::NEG_Y, 20.0).is_none();
-        let recover = over_void && mv.vel.y < -1.0;
+        // The rope first (bots.rs looks for an anchor once falling faster than 6 m/s), then this.
+        let recover = over_void && mv.vel.y < -6.0 && !roping;
         let chase = difficulty > 0.3
             && mv.vel.y < 2.0
             && target.is_some_and(|t| t.mv.pos.y > pos.y + 2.0 && Vec3::new(t.mv.pos.x - pos.x, 0.0, t.mv.pos.z - pos.z).length() < 12.0);

@@ -316,7 +316,14 @@ mod tests {
     fn construct_phrases_and_sloppy_recitals_do_not() {
         for c in Corps::ALL {
             let secs = sections(c);
-            for phrase in ["giant hammer", "flying shark with a laser", "a big green wall", "summon a dragon made of fire", "hammer hammer hammer", ""] {
+            for phrase in [
+                "giant hammer",
+                "flying shark with a laser",
+                "a big green wall",
+                "summon a dragon made of fire",
+                "hammer hammer hammer",
+                "",
+            ] {
                 let (_, a) = best_section(phrase, &secs).unwrap();
                 assert!(a < 0.5, "{c:?}: {phrase:?} scored {a}");
                 assert_eq!(yelled_section(phrase, &secs), None);

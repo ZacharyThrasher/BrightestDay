@@ -231,7 +231,7 @@ impl ClientCore {
         if self.phase != ClientPhase::InGame {
             return None;
         }
-        let is_cast = matches!(c, crate::sim_bridge::Cmd::Cast { .. });
+        let is_cast = matches!(c, crate::sim_bridge::Cmd::Cast { .. } | crate::sim_bridge::Cmd::Signature { .. });
         let seq = self.next_cast_seq;
         let nc = NetCmd::from_cmd(c, seq)?;
         self.session.send(&C2S::Cmd(nc));

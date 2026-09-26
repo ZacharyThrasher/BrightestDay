@@ -205,7 +205,9 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
             } else {
                 // The railgun archetype (Gun + Beam): hold to charge, a lingering piercing beam.
                 r.form = Form::Gun;
-                r.mechanics.retain(|m| !matches!(m, Mechanic::Spin | Mechanic::Explodes | Mechanic::Shoots | Mechanic::Swarm | Mechanic::Returning));
+                r.mechanics.retain(|m| {
+                    !matches!(m, Mechanic::Spin | Mechanic::Explodes | Mechanic::Shoots | Mechanic::Swarm | Mechanic::Returning)
+                });
                 r.mechanics.push(Mechanic::Beam);
                 r.scale = form_spec(Form::Gun).default_scale * t.beam_caliber * t.beam_caliber;
                 r.count = 1;
@@ -235,7 +237,14 @@ pub(crate) struct SignatureCtx {
 impl World {
     /// Cast a signature (see the module docs). Resolves like [`World::cast_shaped`] with the
     /// amplified recipe; if the caster can't afford it, the plain phrase is cast instead.
-    pub fn cast_signature(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim, sig: SignatureCast) -> Result<ConstructId, CastError> {
+    pub fn cast_signature(
+        &mut self,
+        player: PlayerId,
+        recipe: Recipe,
+        shape: Option<ShapeSpec>,
+        aim: Aim,
+        sig: SignatureCast,
+    ) -> Result<ConstructId, CastError> {
         let sig = sig.sanitized();
         let t = self.cfg.tuning.signature.clone();
         let amped = amplify(recipe.clone(), sig, &t, &self.cfg.rules);
@@ -278,10 +287,10 @@ pub fn signature_cost(plain: f32, t: &SignatureTuning, pool_max: f32) -> f32 {
 
 /// After the per-form clamp (and party re-validation): restore the lifted scale.
 pub(crate) fn lift_scale(w: &World, r: &mut Recipe) {
-    if let Some(c) = w.signature {
-        if r.form == c.form {
-            r.scale = c.scale.min(w.cfg.tuning.signature.scale_cap(r.form, &w.cfg.rules));
-        }
+    if let Some(c) = w.signature
+        && r.form == c.form
+    {
+        r.scale = c.scale.min(w.cfg.tuning.signature.scale_cap(r.form, &w.cfg.rules));
     }
 }
 
@@ -402,7 +411,12 @@ mod tests {
     #[test]
     fn beam_becomes_ultimate_railgun() {
         let t = SignatureTuning::default();
-        let b = amplify(rec(Form::Staff, &[Mechanic::Beam, Mechanic::Heavy], 1.2), SignatureCast::new(SignatureKind::Beam, 0.5), &t, &MatchRules::default());
+        let b = amplify(
+            rec(Form::Staff, &[Mechanic::Beam, Mechanic::Heavy], 1.2),
+            SignatureCast::new(SignatureKind::Beam, 0.5),
+            &t,
+            &MatchRules::default(),
+        );
         assert_eq!(b.form, Form::Gun);
         assert_eq!(crate::weapons::archetype_for(&b), Some(crate::weapons::GunArchetype::Railgun));
         let k = (b.scale / form_spec(Form::Gun).default_scale).sqrt();
