@@ -377,6 +377,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bd_fx"
+version = "0.1.0"
+dependencies = [
+ "bd_core",
+ "bd_shapes",
+ "bevy",
+ "bytemuck",
+ "glam 0.30.10",
+ "ron 0.10.1",
+ "serde",
+]
+
+[[package]]
 name = "bd_game"
 version = "0.1.0"
 dependencies = [
@@ -427,6 +440,7 @@ name = "bd_shapes"
 version = "0.1.0"
 dependencies = [
  "bd_core",
+ "bd_lexicon",
  "glam 0.30.10",
  "image",
  "proptest",

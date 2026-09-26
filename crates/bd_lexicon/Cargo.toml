@@ -3,9 +3,26 @@ name = "bd_lexicon"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
+description = "Brightest Day runtime resolver: typed/spoken phrase -> bd_core Recipe (lexicon.bin + icons.ron)"
+
+[features]
+default = []
+# Enables `bd_lexicon::builder` (JSON -> lexicon.bin packing). Used by examples/pack.rs and the offline
+# pipeline (tools/lexicon_build/build.py); the game never needs it.
+builder = ["dep:serde_json"]
 
 [dependencies]
 bd_core.workspace = true
 glam.workspace = true
 serde.workspace = true
+ron.workspace = true
+bincode.workspace = true
+fst = "0.4"
+serde_json = { version = "1", optional = true }
 
+[dev-dependencies]
+proptest = "1"
+
+[[example]]
+name = "pack"
+required-features = ["builder"]

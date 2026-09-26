@@ -1,0 +1,47 @@
+# Brightest Day slur / hate-speech denylist.
+# Owner policy: profanity and crude words are ALLOWED (they resolve normally or act as intensifiers).
+# ONLY slurs and hate speech are blocked: a listed token resolves to nothing (reported as "ignored"),
+# is never typo-/sound-corrected into or out of, and `Lexicon::is_blocked_name` rejects player names
+# containing it (also after leetspeak folding; entries marked with * also match inside longer words).
+# One normalised token per line.
+*nigger
+*nigga
+*faggot
+fag
+fags
+*kike
+kikes
+spic
+spics
+chink
+chinks
+gook
+gooks
+*wetback
+*raghead
+*towelhead
+*beaner
+coon
+coons
+*tranny
+trannies
+dyke
+dykes
+retard
+retards
+paki
+pakis
+*jigaboo
+*sambo
+kyke
+negro
+negroes
+*hitler
+*nazi
+nazis
+*swastika
+*kkk
+heil
+*siegheil
+*whitepower
+*1488
