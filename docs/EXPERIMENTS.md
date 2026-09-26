@@ -66,7 +66,9 @@ on a strike, and "propels the player" on a mount.
 - Protocol: build + tune on my own dev set (78 items) → freeze → run A (inspect failures) and B
   (aggregate only, never inspected) → revise using A only → re-run both.
 
-`npx tsx eval/run.ts <file> [--quiet] [--no-sem] [--s2 record:<f>|replay:<f>] [--s2mode hybrid|always]`
+`npx tsx eval/run.ts <file> [--quiet [--by-category]] [--no-sem] [--s2 record:<f>|replay:<f>] [--s2mode hybrid|always]`
+`[--window 8] [--phases expected|all|none] [--score observed|claimed] [--jobs N] [--verbose]` — machine functions
+(EVAL_SPEC_MACHINES.md) are scored from world state by `eval/observe.ts` (see its header for thresholds and phases).
 
 | build | dev (own) | held-out A | held-out B (unseen) | B confident-wrong |
 |---|---|---|---|---|
