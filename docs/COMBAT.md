@@ -193,6 +193,25 @@ Aggressive); crude words resolve through their physical sense like any word. Onl
 blocked (in phrases and player names). Ambiguous words prefer the literal physical sense ("horny" =
 horned). The closed mechanic set means the ring can only ever express what we designed.
 
+## 5d. Piloting (Mechanic::Piloted)
+"a giant mech I can pilot", "ride a dragon", "drive a tank", "mount a horse". Mech/Gundam/Jaeger-like
+bipeds and classic mounts get it by default when cast big. The caster is seated at the cockpit/saddle
+part; camera pulls back to third person; WASD drives the construct's own locomotion (walk, fly, roll —
+by form/features), mouse aims its head/turret, LMB/RMB fire its mechanics (punch/stomp/payload/breath),
+Space = jump/thrust, **E = eject** (big upward launch — also a movement tech). Drains willpower while
+piloted (Kaiju-tier upkeep for colossal things). Balance = the Attack-on-Titan loop: piloted giants
+are devastating but slow; **weak points** (joints, cockpit, "nape") take ×3 from Blade/Pierce, and
+swingers can tether onto the giant and ride its limbs. Shattered → pilot ejected tumbling.
+
+## 5e. No-limits mode (lobby option)
+Lobby toggles: Scale (Normal / Huge / **No limits**), Willpower (Normal / Double / Infinite), Construct
+caps (Normal / Chaos). "Throw a moon": colossal Objects form above the caster while the cast is held,
+then hurl on release; they cross the sky slowly (a telegraph everyone can dodge) and carve huge craters.
+Performance stays bounded because **construct voxel size scales with construct size** (0.25 m for
+hand-held → 1–2 m for colossal), keeping per-construct voxel counts within budget; huge carves are
+progressive (spread over ~0.5 s, capped per tick); debris is sampled to the 20k budget; ≤ 1 colossal
+construct per player. Islands regenerate between rounds in no-limits.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more

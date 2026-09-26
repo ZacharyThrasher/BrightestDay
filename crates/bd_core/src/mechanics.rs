@@ -151,6 +151,9 @@ pub enum Mechanic {
     Constrict,
     /// Gains legs and walks after its target (a "wall with legs"). Creatures walk by default.
     Walks,
+    /// The caster rides/pilots it ("a giant mech I can pilot", "ride a dragon", "drive a tank"):
+    /// WASD/mouse/LMB/RMB control the construct; E ejects with a launch. Weak points take extra damage.
+    Piloted,
 }
 
 /// Mechanical/visual sub-assemblies a construct is built with ("steam powered train" → Boiler,
