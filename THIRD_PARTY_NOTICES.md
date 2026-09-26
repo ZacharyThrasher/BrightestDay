@@ -12,6 +12,8 @@ time of the build; verify before any redistribution beyond research/demo use.
 | speech model (see `docs/experiments/ASR.md` / models manifest) | local speech recognition | per model: see manifest (zipformer: Apache-2.0; NeMo models: CC-BY-4.0; Moonshine: MIT) |
 | [Silero VAD](https://github.com/snakers4/silero-vad) | voice activity detection | MIT |
 | [ConceptNet Numberbatch 19.08](https://github.com/commonsense/conceptnet-numberbatch) (pruned, int8) | unknown-word → concept fallback | **CC BY-SA 4.0** — © ConceptNet / Luminoso; this derived vector file is shared under the same license |
+| [cloudflared](https://github.com/cloudflare/cloudflared) 2026.9.3 (`resources/cloudflared/cloudflared.exe`, unmodified release binary, sha256 pinned in `tools/ship-models.json`) | online play: Cloudflare quick tunnel to the host's local server | Apache-2.0 — © Cloudflare, Inc.; full license text in `resources/cloudflared/LICENSE`. Quick tunnels are subject to Cloudflare's terms of use |
+| [ws](https://github.com/websockets/ws) | WebSocket server/client (bundled into the main process) | MIT |
 | [wordfreq](https://github.com/rspeer/wordfreq) (top-40k English word list, `src/lang/english40k.json`) | ASR-repair vocabulary | code Apache-2.0 / MIT; data **CC BY-SA 4.0** (derived from multiple sources, see wordfreq README) |
 
 Not bundled (optional, player-configured): Anthropic API or any OpenAI-compatible local server

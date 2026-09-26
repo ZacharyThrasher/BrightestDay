@@ -14,6 +14,7 @@ import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { installS2Bridge, type S2Settings } from './s2-main.js';
+import { installNetBridge } from './net-main.js';
 
 interface Settings { mouseSensitivity?: number; invertY?: boolean; fov?: number; constructColor?: string; graphics?: 'low' | 'high'; system2?: S2Settings & { mode?: 'off' | 'hybrid' | 'always' }; [k: string]: unknown }
 
@@ -143,11 +144,13 @@ ipcMain.handle('hl:semantic', () => {
 app.whenReady().then(() => {
   settings = loadSettings();
   installS2Bridge(() => settings.system2);
+  installNetBridge((wc) => wc === win?.webContents); // online play: sockets + cloudflared stay in main
   ipcMain.on('hl:s2-mode', (e) => { e.returnValue = settings.system2?.mode ?? 'hybrid'; });
   Menu.setApplicationMenu(null);
   // deny every permission request except what the game needs: microphone (push-to-talk),
-  // pointer lock (mouse look — without it "click to play" silently does nothing) and fullscreen
-  const allowed = new Set(['media', 'pointerLock', 'fullscreen']);
+  // pointer lock (mouse look — without it "click to play" silently does nothing), fullscreen and
+  // clipboard write (copy the online room code)
+  const allowed = new Set(['media', 'pointerLock', 'fullscreen', 'clipboard-sanitized-write']);
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
   // block any non-file network request (defence in depth on top of the CSP)
