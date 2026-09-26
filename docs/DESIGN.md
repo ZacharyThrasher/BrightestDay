@@ -215,6 +215,11 @@ gaps, sightlines) so it's designed, not generated from phrases. Maps: **Archipel
 over the void), **Miami** (Vice City sunset; Brickell tower swing-canyon, Ocean Drive bhop boulevard,
 beach, port + cruise ship, causeway over water — water is out of bounds with a splash), Tutorial. Future
 cities (Tokyo, NYC) = mostly city-kit data. Lobby map picker.
+**Orbit**: asteroid islands + a wrecked station in low orbit above a giant impostor planet; normal
+gravity on the islands fading to zero-g above an altitude (map-defined gravity profile — the only sim
+hook); top KO = launched into space (drift into the stars), bottom KO = re-entry burn-up. Scale is sold
+with cheap impostors (planet, moon, far station), parallax starfields and atmosphere gradients — no
+spherical gravity (keeps movement feel and the never-roll comfort rule).
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
