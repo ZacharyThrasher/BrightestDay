@@ -302,6 +302,11 @@ pub struct Recipe {
     /// Mechanical sub-assemblies (sorted, unique). See [`Feature`].
     #[serde(default)]
     pub features: Vec<Feature>,
+    /// A player power granted when this construct is eaten/equipped (devil fruits: "gum gum fruit").
+    /// Key into the game-owned power table (`assets/powers.ron`, defined and executed by bd_sim — the
+    /// lexicon only maps names to ids). (v1.3)
+    #[serde(default)]
+    pub grants: Option<String>,
     #[serde(default)]
     pub temperament: Temperament,
     /// 0..1 strength of the temperament ("slightly" ≈ 0.3, plain ≈ 0.6, "very"/"extremely" ≈ 0.9+).
@@ -358,6 +363,7 @@ impl Recipe {
             model: ModelSource::Procedural { seed: 0 },
             payload: None,
             features: vec![],
+            grants: None,
             temperament: Temperament::Calm,
             intensity: 0.0,
         }

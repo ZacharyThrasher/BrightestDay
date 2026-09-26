@@ -13,6 +13,11 @@ use bd_core::{IVec3, VOXEL_SIZE, Vec3};
 use proptest::prelude::*;
 use std::cell::Cell;
 
+/// Case count × `BD_PROP_SCALE` (default 1; `tools/check.ps1 -Deep` sets 10).
+fn scaled(n: u32) -> u32 {
+    std::env::var("BD_PROP_SCALE").ok().and_then(|s| s.parse::<u32>().ok()).map_or(n, |k| n.saturating_mul(k.max(1)))
+}
+
 // ------------------------------------------------------------------------------------ strategies
 
 /// Any f32 with the nasty values heavily over-represented.
@@ -54,7 +59,7 @@ const MECHANICS: &[Mechanic] = &[
     Mechanic::Charge, Mechanic::Stomp, Mechanic::Breath, Mechanic::Swarm, Mechanic::Spin,
     Mechanic::DropFromSky, Mechanic::Sticky, Mechanic::Fast, Mechanic::Heavy, Mechanic::Constrict,
     Mechanic::Walks, Mechanic::Piloted, Mechanic::Portal, Mechanic::Attract, Mechanic::Repel, Mechanic::Shrink,
-    Mechanic::Grow, Mechanic::Link,
+    Mechanic::Grow, Mechanic::Link, Mechanic::Transforms,
 ];
 
 const FEATURES: &[Feature] = &[
@@ -95,6 +100,7 @@ fn leaf_recipe() -> impl Strategy<Value = Recipe> {
                 accent: accent.map(|(r, g, b)| [r, g, b]),
                 model: if seed % 3 == 0 { ModelSource::Icon(format!("icon{seed}")) } else { ModelSource::Procedural { seed } },
                 payload: None,
+                grants: None,
                 features,
                 temperament,
                 intensity,
@@ -134,7 +140,7 @@ fn assert_sane(r: &Recipe, depth: usize) {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: scaled(512), ..ProptestConfig::default() })]
 
     #[test]
     fn normalized_is_sane_and_idempotent(r in recipe()) {
@@ -254,7 +260,7 @@ fn check_ray<W: VoxelQuery>(w: &W, o: Vec3, d: Vec3, max: f32) {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 2048, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: scaled(2048), ..ProptestConfig::default() })]
 
     /// Any input at all: must terminate and never panic.
     #[test]
@@ -284,7 +290,7 @@ fn raycast_huge_max_dist_on_empty_world_is_bounded() {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 1024, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: scaled(1024), ..ProptestConfig::default() })]
 
     /// On small random worlds the DDA agrees with a fine brute-force march: the reported voxel is
     /// solid, and no solid voxel lies on the ray noticeably before the hit.
