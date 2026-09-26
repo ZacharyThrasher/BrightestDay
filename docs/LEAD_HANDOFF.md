@@ -35,6 +35,10 @@ hardening gate + property tests.
   them into assets/powers.ron** (append; check ids unique; TMNT's mutagen already appended) and run
   bd_sim powers tests + bd_lexicon tests (sim embeds powers.ron via include_str).
 
+- Lexicon bug (next lexicon pass): an exact multi-word icon/entity name must win over phrase parsing
+  ("man of steel" currently → "of steel" material → steel sword). Also check other "X of Y" names
+  (lord of the rings items, "eye of sauron", "hand of doom", "sword of omens").
+
 ## Queue (do next)
 1. When world engineer finishes: dedicated **sim perf pass** on a quiet machine (FFA soak p99 briefly
    4.3 ms reported under load; kaiju/creature work suspected).
