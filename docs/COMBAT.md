@@ -62,6 +62,10 @@ reduces air control but you can always tether out of it (a skill save).
   vector up to ±15° (skill expression). **Tech:** pressing Jump within 0.15 s of a wall/ground contact
   while tumbling cancels the splat/bounce (skill). **Tethers + recovery:** tether fires out of tumble
   as now (the best recovery in any platform fighter). Wall splat still adds %.
+- **Punch-through:** a launched, tumbling player hitting destructible terrain above ~22 m/s (scaled by
+  material hardness) plows THROUGH it — a capsule is carved along the path each tick, speed bleeds per
+  metre by hardness (glass/leaves ≪ wood ≪ stone), they burst out the other side; below threshold
+  inside → splat; indestructible cores always stop. Constructs in the path take integrity damage.
 - **Respawn** at 0% with full willpower; brief spawn shield. No health regen.
 - **Scoring (lobby):** Stock (N lives, last standing) or Timed KOs (default FFA) — party rounds use Timed.
 - **Readability:** everyone's hard-light body glow shifts white → gold → orange → red with visible
