@@ -444,8 +444,8 @@ const HELP_HTML = `
 <h3>Move</h3>
 <p><b>WASD</b> move · <b>Space</b> jump / up · <b>Ctrl</b> or <b>C</b> slide / down</p>
 <p><b>Shift</b> boost thruster · <b>F</b> toggle flight</p>
-<p><b>Q</b>/<b>LMB</b> left tether · <b>E</b>/<b>RMB</b> right tether (hold)</p>
-<p><b>R</b>, <b>wheel</b> or <b>MMB</b> reel in</p>
+<p><b>Q</b> left tether · <b>E</b> right tether (hold) · <b>R</b> or <b>MMB</b> reel in</p>
+<p><b>LMB</b> / <b>RMB</b> use what you made — the prompt by the crosshair says how (hold <b>RMB</b> to charge / aim) · <b>wheel</b> switch construct</p>
 <p class="tip">Bunny-hop: jump the instant you land and strafe (A/D) while turning the mouse to build speed.</p>
 </div>
 <div>

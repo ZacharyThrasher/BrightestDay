@@ -256,6 +256,8 @@ export class Interpreter {
   plan(text: string, partial: boolean): { ops: Op[]; ctx: Ctx; normalized: string } {
     const ctx = this.makeCtx();
     let raw = expandShorthand(text);
+    // "use / equip / wield the hammer" = "the hammer": selects it (and so equips it for the mouse, see actions.ts)
+    raw = raw.replace(/^\s*(?:use|equip|wield|switch to|ready)\s+(?=(?:the|my|that)\s+[a-z][a-z ]{0,30}$)/i, '');
     for (const u of UNSUPPORTED) {
       const m = u.pattern.exec(raw);
       if (!m) continue;

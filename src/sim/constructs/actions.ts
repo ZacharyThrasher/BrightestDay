@@ -9,7 +9,8 @@
  * Everything here runs INSIDE the sim from PlayerInput (primary / secondary / cycle + the aim in yaw/pitch),
  * so it is deterministic and per player: `update(player, input, dt)` for each lantern. Actions never hurt their
  * owner or the owner's constructs, cost a little willpower, and emit events for the juice layer:
- *   'action_start'   { construct, player, kind, action, charge }
+ *   'action_start'   { construct, player, kind, action, charge }   (a charge: action 'charge' when it begins, then the
+ *                                                                   release starts e.g. 'charged_strike' / 'throw')
  *   'action_charge'  { construct, player, kind, level }            (at 25 / 50 / 75 / 100 %)
  *   'action_release' { construct, player, kind, action, level }
  *   'action_hit'     { construct, player, target, targetKind, energy, kind, pos }
@@ -163,6 +164,12 @@ export function labels(c: Construct, kind: ActionKind, holding: boolean): { lmb:
 
 export class ActionSystem {
   private states = new Map<string, PState>();
+  /**
+   * Constructs mid-lunge pass through creatures and players: the action's own hit test is the one damage path
+   * (predictable numbers, a juke really dodges), instead of a 60 m/s kinematic shove crushing whatever it
+   * brushes. cid → { until (Infinity while the motion runs), original collision groups per collider }.
+   */
+  private ghosts = new Map<string, { until: number; groups: Map<number, number> }>();
   private get rt(): ConstructRuntime { return this.w.constructs; }
 
   constructor(private w: World) {}
@@ -277,6 +284,7 @@ export class ActionSystem {
     this.stepMotions(P, s, dt);
     this.stepFlights(s);
     this.stepRaised(P, s);
+    this.unghost();
   }
 
   /** Both phases (tests / tools that step a player on its own). */
@@ -310,6 +318,7 @@ export class ActionSystem {
         this.ensureKinematic(c);
         const dir = held ? P.look(new Vector3()) : P.forward(new Vector3());
         s.motions = s.motions.filter((m) => m.cid !== c.id);
+        this.ghost(c);
         s.motions.push({
           cid: c.id, inst: c.insts.indexOf(inst), kind: held ? 'bash' : 'shove', cur: inst.pos.clone(), dir, speed: A.shield.bashSpeed, reach: held ? A.shield.bashReach : A.shield.shove, travelled: 0,
           damage: A.shield.bashDamage * this.massF(c), knock: A.shield.bashKnock, hit: new Set(), phase: 'go', home: held ? null : null, charge: 0, end: null,
@@ -377,10 +386,9 @@ export class ActionSystem {
   private secondaryPress(P: Player, s: PState, c: Construct, kind: ActionKind) {
     const t = this.w.time;
     switch (kind) {
-      case 'strike': if (t >= s.busyUntil) s.charging = { cid: c.id, kind: 'strike', start: t, emitted: 0 }; break;
       case 'grab': {
         const inst = this.nearestInst(c, P);
-        if (inst?.cargo) s.charging = { cid: c.id, kind: 'throw', start: t, emitted: 0 };
+        if (!inst?.cargo) this.swing(P, s, c, 0, false, 0.6); // empty-handed: a slap
         break;
       }
       case 'shield':
@@ -411,6 +419,12 @@ export class ActionSystem {
   }
 
   private secondaryHeld(P: Player, s: PState, c: Construct, kind: ActionKind, _dt: number) {
+    // charging starts as soon as you can swing again (holding RMB through a recovery queues the charge)
+    if (!s.charging && this.w.time >= s.busyUntil) {
+      if (kind === 'strike') s.charging = { cid: c.id, kind: 'strike', start: this.w.time, emitted: 0 };
+      else if (kind === 'grab' && this.nearestInst(c, P)?.cargo) s.charging = { cid: c.id, kind: 'throw', start: this.w.time, emitted: 0 };
+      if (s.charging) this.start(P, c, kind, 'charge');
+    }
     const ch = s.charging;
     if (ch && ch.cid === c.id) {
       const level = this.chargeLevel(s);
@@ -487,9 +501,10 @@ export class ActionSystem {
     if (dist < 1e-3) d.copy(P.look(new Vector3())); else d.divideScalar(dist);
     const held = !!has(c, 'hold');
     s.motions = s.motions.filter((m) => m.cid !== c.id);
+    this.ghost(c);
     s.motions.push({
       cid: c.id, inst: c.insts.indexOf(inst), kind: slam ? 'slam' : 'swing', cur: from.clone(), dir: d, speed, reach: Math.min(A.reach, dist + 1.2), travelled: 0,
-      damage: (slam ? A.slamDamage : A.damage) * mf * (1 + charge) * dmgMul, knock: Math.min(34, A.knock * mf * (1 + charge)), hit: new Set(),
+      damage: (slam ? A.slamDamage : A.damage) * (0.55 + 0.45 * mf) * (1 + charge) * dmgMul, knock: Math.min(34, A.knock * mf * (1 + charge)), hit: new Set(),
       phase: 'go', home: held ? null : from, charge, end: slam ? to : null,
     });
     // recovery: heavier weapons recover slower; the clock starts now and the lunge itself adds to it
@@ -503,16 +518,16 @@ export class ActionSystem {
       const m = s.motions[k];
       const c = this.rt.get(m.cid);
       const inst = c?.insts[m.inst];
-      if (!c || !inst?.alive || !inst.body.isKinematic()) { s.motions.splice(k, 1); continue; }
+      if (!c || !inst?.alive || !inst.body.isKinematic()) { this.endMotion(s, k); continue; }
       if (m.phase === 'back') {
-        if (!m.home) { s.motions.splice(k, 1); continue; }
+        if (!m.home) { this.endMotion(s, k); continue; }
         const d = m.home.clone().sub(m.cur);
         const dist = d.length();
         const step = Math.min(dist, 30 * dt);
         if (dist > 1e-3) m.cur.addScaledVector(d.divideScalar(dist), step);
         inst.pos.copy(m.cur);
         this.pose(inst);
-        if (dist <= step + 0.05) s.motions.splice(k, 1);
+        if (dist <= step + 0.05) this.endMotion(s, k);
         continue;
       }
       const step = Math.min(m.speed * dt, m.reach - m.travelled);
@@ -549,9 +564,39 @@ export class ActionSystem {
       }
       if (done) {
         if (m.home) m.phase = 'back';
-        else s.motions.splice(k, 1);
-        if (m.kind === 'shove') s.motions.splice(s.motions.indexOf(m), 1);
+        else this.endMotion(s, k);
       }
+    }
+  }
+
+  private endMotion(s: PState, k: number) {
+    const m = s.motions[k];
+    s.motions.splice(k, 1);
+    const g = this.ghosts.get(m.cid);
+    if (g && !s.motions.some((x) => x.cid === m.cid)) g.until = this.w.time + 0.35; // let it clear the target first
+  }
+
+  private ghost(c: Construct) {
+    let g = this.ghosts.get(c.id);
+    if (!g) {
+      g = { until: Infinity, groups: new Map() };
+      for (const i of c.insts) for (const col of i.colliders) {
+        const cg = col.collisionGroups();
+        g.groups.set(col.handle, cg);
+        col.setCollisionGroups(((cg >>> 16) << 16) | ((cg & 0xffff) & ~(G.ENTITY | G.CARGO | G.PLAYER)));
+      }
+      this.ghosts.set(c.id, g);
+    }
+    g.until = Infinity;
+  }
+
+  private unghost() {
+    for (const [cid, g] of this.ghosts) {
+      if (this.w.time < g.until) continue;
+      this.ghosts.delete(cid);
+      const c = this.rt.get(cid);
+      if (!c) continue;
+      for (const i of c.insts) for (const col of i.colliders) { const cg = g.groups.get(col.handle); if (cg !== undefined && i.alive) col.setCollisionGroups(cg); }
     }
   }
 

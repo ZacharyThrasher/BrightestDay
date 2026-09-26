@@ -9,6 +9,7 @@ import { NO_INPUT, type PlayerInput } from '../sim/player.js';
 import { GameRenderer } from '../render/renderer.js';
 import { Input, type Action } from './input.js';
 import { HUD, SCENE_KEYS } from './hud.js';
+import { ActionHud } from './actionHud.js';
 import { loadSettings, saveSettings, type Settings } from './settings.js';
 import { IpcProvider } from '../lang/ipc-provider.js';
 import { loadSemantic } from '../lang/semantic.js';
@@ -35,6 +36,7 @@ class App implements HardlightApp {
   readonly gr: GameRenderer;
   readonly input: Input;
   readonly hud: HUD;
+  readonly actionHud: ActionHud;
   settings: Settings;
   private consoleOpen = false;
   private history: string[] = [];
@@ -84,7 +86,9 @@ class App implements HardlightApp {
     this.input = new Input(canvas);
     this.input.sensitivity = this.settings.mouseSensitivity;
     this.input.invertY = this.settings.invertY;
+    this.input.mouseTethers = this.settings.mouseTethers;
     this.hud = new HUD(overlay);
+    this.actionHud = new ActionHud(this.hud.root, this.settings.constructColor);
     this.hud.localPlayer = this.playerId;
     this.input.onAction = (a, e) => this.onAction(a, e);
     this.setupConsole();
@@ -191,6 +195,7 @@ class App implements HardlightApp {
           focus: { meter: this.focus.meter, active: this.focus.active, enabled: this.focus.enabled },
           combo: { n: this.combo.n, left: this.combo.left(th) },
         });
+        this.actionHud.update(this.world, this.gr, dt, this.settings.fov, this.input.locked || this.manual);
         this.hudTimes.push(performance.now() - th);
         if (this.hudTimes.length > 4000) this.hudTimes.splice(0, 2000);
       }
@@ -438,6 +443,7 @@ class App implements HardlightApp {
           <label>Mouse sensitivity <input type="range" min="0.2" max="4" step="0.05" name="sens"><output></output></label>
           <label>Field of view <input type="range" min="60" max="110" step="1" name="fov"><output></output></label>
           <label>Invert Y <input type="checkbox" name="inv"></label>
+          <label>Tethers on mouse buttons (classic) <input type="checkbox" name="mtether"></label>
           <label>Construct colour <input type="color" name="color"></label>
           <label>Graphics <select name="gfx"><option value="high">high</option><option value="low">low</option></select></label>
           <label>Focus time (practice) <select name="focus"><option value="1">off</option><option value="0.5">50%</option><option value="0.35">35%</option><option value="0.2">20%</option></select></label>
@@ -456,17 +462,19 @@ class App implements HardlightApp {
     const sens = q<HTMLInputElement>('input[name=sens]'), fov = q<HTMLInputElement>('input[name=fov]');
     const inv = q<HTMLInputElement>('input[name=inv]'), color = q<HTMLInputElement>('input[name=color]'), gfx = q<HTMLSelectElement>('select[name=gfx]');
     const focus = q<HTMLSelectElement>('select[name=focus]');
+    const mtether = q<HTMLInputElement>('input[name=mtether]');
     const focusOpt = () => { const v = this.settings.focusTimeScale; return [...focus.options].reduce((a, o) => (Math.abs(Number(o.value) - v) < Math.abs(Number(a.value) - v) ? o : a)).value; };
     const sync = () => {
       sens.value = String(this.settings.mouseSensitivity); (sens.nextElementSibling as HTMLOutputElement).value = this.settings.mouseSensitivity.toFixed(2);
       fov.value = String(this.settings.fov); (fov.nextElementSibling as HTMLOutputElement).value = String(this.settings.fov);
-      inv.checked = this.settings.invertY; color.value = this.settings.constructColor; gfx.value = this.settings.graphics; focus.value = focusOpt();
+      inv.checked = this.settings.invertY; mtether.checked = this.settings.mouseTethers; color.value = this.settings.constructColor; gfx.value = this.settings.graphics; focus.value = focusOpt();
     };
     sync();
     const apply = () => {
       this.settings.mouseSensitivity = Number(sens.value);
       this.settings.fov = Number(fov.value);
       this.settings.invertY = inv.checked;
+      this.settings.mouseTethers = mtether.checked;
       this.settings.constructColor = color.value;
       const gfxChanged = gfx.value !== this.settings.graphics;
       this.settings.graphics = gfx.value as any;
@@ -474,6 +482,8 @@ class App implements HardlightApp {
       this.focus.target = this.settings.focusTimeScale;
       this.input.sensitivity = this.settings.mouseSensitivity;
       this.input.invertY = this.settings.invertY;
+      this.input.mouseTethers = this.settings.mouseTethers;
+      this.actionHud.setColor(this.settings.constructColor);
       this.gr.setFov(this.settings.fov);
       this.gr.setConstructColor(this.settings.constructColor);
       document.documentElement.style.setProperty('--hl', this.settings.constructColor);
@@ -481,7 +491,7 @@ class App implements HardlightApp {
       sync();
       if (gfxChanged) this.hud.toast('note', 'Graphics quality applies after restart (or reload).');
     };
-    for (const e of [sens, fov, inv, color, gfx, focus]) { e.addEventListener('input', apply); e.addEventListener('click', (ev) => ev.stopPropagation()); }
+    for (const e of [sens, fov, inv, mtether, color, gfx, focus]) { e.addEventListener('input', apply); e.addEventListener('click', (ev) => ev.stopPropagation()); }
     m.querySelector('.settings')!.addEventListener('click', (ev) => ev.stopPropagation());
     m.addEventListener('click', () => this.input.requestLock());
     this.updateMenu();

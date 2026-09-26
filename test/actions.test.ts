@@ -214,6 +214,38 @@ test('universal fallback: a piano (no better affordance) is hurled and hits a ta
   assert.ok(piano.insts[0].pos.distanceTo(w.player.pos) < 8, 'pulled back to the player');
 });
 
+test('an unusual tool landing the blow is a creative solution (hurled piano takes down a hostile)', async () => {
+  const { w, d, events } = await setup();
+  look(w, new Vector3(-6, 0, -6));
+  const piano = await make(w, d, 'a piano');
+  run(w, 2);
+  const e = target(w, new Vector3(3, 1.2, -20), 40);
+  click(w, () => new Vector3(3, 1.2, -20), 2);
+  const cs = events.find((x) => x.type === 'creative_solution' && x.construct === piano.id);
+  console.log(`creative: ${cs ? cs.reason + ' +' + cs.bonus : 'none'}`);
+  assert.ok(e.disabled, 'taken down');
+  assert.ok(cs, 'counted as a creative solution for the piano');
+});
+
+test('riding: LMB fires the machine you are in, RMB boosts; the equipped prompt follows the ride', async () => {
+  const { w, d, events } = await setup();
+  const tank = await make(w, d, 'a tank');
+  assert.ok(w.player.ride(tank.id));
+  assert.equal(classify(tank, w.player), 'ride');
+  assert.equal(w.actions.view(w.player).equipped?.lmb, 'Fire');
+  press(w, { primary: true }, 1.5, 0.2, () => new Vector3(0, 0, -60));
+  const fires = events.filter((x) => x.type === 'construct_fire' && x.construct === tank.id).length;
+  assert.ok(fires >= 1, 'fires while ridden');
+  const p0 = tank.insts[0].pos.clone();
+  run(w, 1, () => ({ moveZ: 1 }));
+  const plain = tank.insts[0].pos.distanceTo(p0);
+  const p1 = tank.insts[0].pos.clone();
+  run(w, 1, () => ({ moveZ: 1, secondary: true }));
+  const boosted = tank.insts[0].pos.distanceTo(p1);
+  console.log(`riding: ${fires} shots; 1 s driving ${plain.toFixed(1)} m, with RMB boost ${boosted.toFixed(1)} m`);
+  assert.ok(boosted > plain * 1.05, 'RMB boosts');
+});
+
 test('wheel cycles the equipped construct among the ones you own; naming one equips it', async () => {
   const { w, d } = await setup();
   const hammer = await make(w, d, 'a hammer');
