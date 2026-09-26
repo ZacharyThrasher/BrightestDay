@@ -173,6 +173,17 @@ test('online duel: client moves instantly, casts through the host, both agree on
     await run(rig, 300);
     assert.equal(cw.stateHash('sync').length, 8);
 
+    // ---- a jointed machine: built on the client from its spec, joint poses follow the host's
+    const { Director } = await import('../src/lang/director.js');
+    const tank = new Director(hw, 'p1').commitSync('a tank');
+    assert.ok(tank.applied, tank.summary);
+    const tid = tank.constructIds[0];
+    assert.ok(await run(rig, 3000, () => !!cw.constructs.get(tid)?.insts[0]?.jointPose?.size), 'the tank and its joint poses reach the client');
+    const ht = hw.constructs.get(tid)!, ct = cw.constructs.get(tid)!;
+    console.log(`tank: host ${ht.spec.label} v${ht.version} joints [${[...(ht.insts[0].jointPose?.keys() ?? [])].join(', ')}] → client ${ct.spec.label}, ${ct.insts.length} inst(s), ${ct.insts[0].jointPose!.size} joint poses, ${ct.insts[0].pos.distanceTo(ht.insts[0].pos).toFixed(2)} m behind`);
+    assert.equal(ct.spec.label, ht.spec.label);
+    assert.equal(ct.owner, 'p1');
+
     // ---- bandwidth: every message under the cap, a sane rate
     console.log(`host → client: ${hs.stats.snaps} snapshots, avg ${(hs.stats.bytes / Math.max(1, hs.stats.snaps)).toFixed(0)} B, max ${hs.stats.maxSnap} B; corrections ${hs.stats.corrections}`);
     assert.ok(hs.stats.maxSnap < 60 * 1024);

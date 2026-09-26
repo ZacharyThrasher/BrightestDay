@@ -37,6 +37,18 @@ Decided by the project owner: PvP focus; **online matches + AI "rival lanterns"*
   main process + `cloudflared tunnel --url http://localhost:PORT` → share the `https://<words>.trycloudflare.com`
   address (the words are the "room code"). Joiner connects to `wss://<words>.trycloudflare.com`.
   LAN/localhost direct join also supported (`ws://ip:port`) for testing.
+- **Implemented** in `src/net/game.ts` (HostSession / ClientSession; wired up in `src/app/main.ts`):
+  - A peer joins → both load the duel (or city) scene; the host adds `p2` and starts the match, which waits (paused) until
+    the client reports it has loaded. Casts from the client run on the host through `p2`'s own Director (`commitSync`).
+  - The host owns the client's lantern while it is dead, held or riding; otherwise the client's reported pose drives the
+    proxy (`world.externallyDriven`). Knockback shows up as a velocity correction, a construct's tether as a tether attach.
+  - Snapshots are delta-encoded against what was already sent on the ordered channel (constructs and entities are only
+    resent when they move). Construct specs travel once per version (`cadd`). Every snapshot carries
+    `world.stateHash('sync')`, a hash of the discrete state (score, health, alive, willpower, which constructs and entities
+    exist). The client compares it after applying that snapshot and asks for a full resync if they differ.
+  - Lost connection → the match pauses with a banner and resumes after the reconnect with a full resync.
+  - Not mirrored yet: breakable-block debris (cosmetic), articulated colliders of machines on the client (they are drawn
+    with their joint poses but collide as their rest shape), and System 2 (LLM) casts for the remote player (System 1 only).
 - cloudflared.exe (Apache-2.0) is bundled in the Windows zip (pinned version + sha256).
   Quick tunnels are Cloudflare's free testing service: no uptime guarantee; fine for friend duels.
 

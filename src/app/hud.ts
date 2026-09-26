@@ -229,6 +229,8 @@ export class HUD {
     setTimeout(() => t.remove(), ms + 400);
   }
 
+  hideBanner() { clearTimeout((this.banner as any)._t); this.banner.classList.add('out'); }
+
   showBanner(title: string, sub = '', ms = 2600) {
     this.banner.innerHTML = '';
     el('div', 'big', this.banner, title);

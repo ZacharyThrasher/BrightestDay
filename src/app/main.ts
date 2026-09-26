@@ -16,7 +16,9 @@ import { loadSemantic } from '../lang/semantic.js';
 import type { Embedder } from '../lang/interpreter.js';
 import { FocusMeter, CastClock, CastRecords, Combo, Completer, QuickSlots, type CastTiming, type Suggestion } from './typing.js';
 import { LOCAL_PLAYER } from '../sim/inspiration.js';
-import { installLobby } from './lobby.js';
+import { installLobby, type LobbyHandle } from './lobby.js';
+import { net, HOST_PEER, type PeerEvent, type NetMessage } from '../net/client.js';
+import { HostSession, ClientSession, type GameLink, type NetNotice } from '../net/game.js';
 import { attachPracticeBot, type BotHandle } from '../lang/practice.js';
 import { Juice } from './juice/index.js'; // JUICE
 
@@ -75,6 +77,10 @@ class App implements HardlightApp {
    * never slow the world there. The netcode sets this.
    */
   sharedClock = false;
+  /** Online duel (src/net/game.ts): this machine hosts the authoritative sim, or mirrors the host's. */
+  online: { role: 'host'; session: HostSession } | { role: 'client'; session: ClientSession } | null = null;
+  private lobby: LobbyHandle | null = null;
+  private pauseShown = '';
   /** Optional language layers, attached to every new Director (System 1.5 word vectors, System 2 LLM). */
   private embedder: Embedder | null = null;
   private s2: { provider: IpcProvider; mode: 'hybrid' | 'always' } | null = null;
@@ -107,12 +113,17 @@ class App implements HardlightApp {
     document.addEventListener('pointerlockerror', () => this.hud.toast('warn', 'Couldn’t capture the mouse — click again (after Esc, Windows needs a second before re-capturing)'));
   }
 
-  async loadScene(name: SceneName, opts: { practice?: boolean } = {}) {
+  async loadScene(name: SceneName, opts: { practice?: boolean; setup?: (w: World) => void } = {}) {
     if (this.loading) return;
     this.loading = true;
     try {
       const w = await World.create();
       const info = buildScene(w, name);
+      this.online?.session.dispose();
+      this.online = null;
+      this.sharedClock = false;
+      this.setPlayerId('p1');
+      opts.setup?.(w); // online: the session joins the players / turns the world into a mirror
       this.practice = !!opts.practice;
       this.bot = null;
       if (this.practice) {
@@ -132,9 +143,9 @@ class App implements HardlightApp {
       if (oldSaved) for (const [k, v] of oldSaved) this.director.interp.saved.set(k, v);
       this.gr.setWorld(w);
       this.juice.setWorld(w); // JUICE
-      this.input.yaw = info.yaw;
+      this.input.yaw = w.player === w.players[0] ? info.yaw : w.player.yaw;
       this.input.pitch = -0.08;
-      w.player.yaw = info.yaw;
+      w.player.yaw = this.input.yaw;
       w.player.pitch = this.input.pitch;
       w.listeners.push((e) => this.hud.onEvent(w, e));
       this.hud.reset(w, name);
@@ -227,6 +238,15 @@ class App implements HardlightApp {
    * 60 Hz sim simply gets fewer ticks per real second (dt never changes, so the sim stays deterministic).
    */
   advance(dt: number): number {
+    const on = this.online;
+    if (on?.role === 'host' && on.session.paused) {
+      // waiting for the opponent (loading / reconnecting): the match clock stands still
+      this.acc = 0;
+      this.showPause(on.session.pauseReason);
+      return 0;
+    }
+    if (on?.role === 'client' && on.session.paused) { this.acc = 0; this.showPause(on.session.pauseReason); return 0; }
+    this.showPause('');
     this.timeScale = this.focus.update(dt, this.consoleOpen && !this.sharedClock);
     this.acc += Math.min(dt, 0.25) * this.timeScale;
     let steps = 0;
@@ -237,7 +257,9 @@ class App implements HardlightApp {
 
   stepSim(inp: PlayerInput) {
     const t0 = performance.now();
-    this.world.step(inp);
+    const on = this.online;
+    if (on) on.session.step(inp);
+    else this.world.step(inp);
     const ms = performance.now() - t0;
     this.simMs = this.simMs * 0.95 + ms * 0.05;
     this.simTimes.push(ms);
@@ -250,9 +272,13 @@ class App implements HardlightApp {
   private onAction(a: Action, _e?: KeyboardEvent) {
     const w = this.world;
     if (!w) return;
+    const client = this.online?.role === 'client' ? this.online.session : null;
     if (a === 'console') this.openConsole();
+    else if (a === 'dismiss' && client) client.command('dismiss');
+    else if (a === 'dismiss_all' && client) client.command('dismiss_all');
     else if (a === 'dismiss') { const id = w.constructs.focusId; if (id) w.constructs.dismiss(id); }
     else if (a === 'dismiss_all') { for (const c of [...w.constructs.list.values()]) if (c.owner === this.playerId) w.constructs.dismiss(c.id); }
+    else if ((a === 'reset' || a.startsWith('scene_')) && this.online) this.hud.toast('note', 'Online duel in progress — leave it from the menu (Play online → Cancel) first.', 3500);
     else if (a === 'help') this.hud.toggleHelp();
     else if (a === 'perf') this.hud.togglePerf();
     else if (a === 'reset') void this.loadScene(this.scene, { practice: this.practice }); // in a duel: rematch
@@ -431,7 +457,10 @@ class App implements HardlightApp {
     this.gr.setPreview([]);
     this.commitsInFlight++;
     try {
-      const r = await this.director.commit(text);
+      const client = this.online?.role === 'client' ? this.online.session : null;
+      // online client: the host runs our ring (same Director, on the authoritative world) and answers
+      const r = client ? await client.cast(text, this.world.inspiration.of(this.playerId).combo) : await this.director.commit(text);
+      if (!r) { this.hud.flashStatus('not_understood'); this.hud.toast('bad', 'The host did not answer that cast'); return null; }
       this.hud.showResult(r);
       return r;
     } catch (err: any) {
@@ -466,7 +495,11 @@ class App implements HardlightApp {
         </div>
         <div class="foot">F1 controls · settings.json next to the app overrides defaults</div>
       </div>`;
-    installLobby(m.querySelector('.menu-card')!, this.hud); // "Play online" panel
+    this.lobby = installLobby(m.querySelector('.menu-card')!, this.hud, {
+      // leaving the lobby (Cancel) ends an online duel: back to an offline arena
+      onLeave: () => { if (this.online) void this.loadScene('duel'); },
+    }); // "Play online" panel
+    this.setupOnline();
     (m.querySelector('button.practice') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); void this.startPractice(); };
     this.juice.installMenu(m.querySelector('.settings'), () => saveSettings(this.settings)); // JUICE: shake + volume sliders
     const sc = m.querySelector('.scenes')!;
@@ -524,12 +557,100 @@ class App implements HardlightApp {
 
   /** Menu → "Practice vs bot": the duel arena, a scripted rival, first to 3. */
   async startPractice(scene: SceneName = 'duel') {
+    if (this.online) await net.stop().catch(() => {});
     await this.loadScene(scene, { practice: true });
     this.hud.toast('info', 'Practice duel — first to 3 knockouts. Type “punch him”, “drop a piano on him”, “grab him and throw him”…', 6000);
     this.input.requestLock();
   }
 
   nextFrame(): Promise<void> { return new Promise((r) => this.frameWaiters.push(r)); }
+
+  // ------------------------------------------------------------------------------------ online duel
+
+  private setPlayerId(id: string) {
+    if (this.playerId === id) return;
+    this.playerId = id;
+    this.hud.localPlayer = id;
+    this.juice.applySettings();
+  }
+
+  private link: GameLink = { send: (to, m) => net.send(to, m), hostNow: () => net.hostNow() };
+
+  private setupOnline() {
+    if (!net.available) return;
+    net.onPeer((e: PeerEvent) => {
+      if (net.role === 'host' && e.kind === 'join') { void this.startHostMatch(e.peerId, e.name); return; }
+      const on = this.online;
+      if (on?.role === 'host') on.session.onPeer(e);
+      else if (on?.role === 'client') on.session.onPeer(e);
+    });
+    net.onMessage((from, msg: NetMessage) => {
+      if (msg.t === 'start' && net.role === 'client' && from === HOST_PEER) { void this.startClientMatch(msg); return; }
+      const on = this.online;
+      if (on?.role === 'host') on.session.onMessage(from, msg);
+      else if (on?.role === 'client') on.session.onMessage(from, msg);
+    });
+  }
+
+  private onNotice = (n: NetNotice) => {
+    if (n.kind === 'pause') return; // shown by the pause banner while it lasts
+    if (n.kind === 'resume') { this.hud.showBanner('RESUMED', n.text, 1500); return; }
+    if (n.kind === 'left') { this.hud.showBanner('OPPONENT LEFT', n.text, 6000); return; }
+    this.hud.toast(n.kind === 'desync' ? 'warn' : 'info', n.text, 3000);
+  };
+
+  /** A persistent banner while an online match is paused (opponent loading / reconnecting). */
+  private showPause(reason: string) {
+    if (reason === this.pauseShown) return;
+    this.pauseShown = reason;
+    document.body.dataset.netPaused = reason ? '1' : '';
+    if (reason) this.hud.showBanner('PAUSED', reason, 600000);
+    else this.hud.hideBanner();
+  }
+
+  /** Host: an opponent joined — the duel arena (or the city), they become 'p2', first to 3. */
+  private async startHostMatch(peer: number, name: string) {
+    const scene: SceneName = this.scene === 'city' ? 'city' : 'duel';
+    let session: HostSession | null = null;
+    await this.loadScene(scene, {
+      setup: (w) => {
+        session = new HostSession(w, this.link, {
+          onNotice: this.onNotice,
+          onRemoteCast: (_id, r) => { if (r.applied && r.summary) this.hud.toast('note', `${name}: ${r.summary}`, 2500); },
+        });
+        if (this.lobby) w.player.name = this.lobby.playerName;
+        session.addPeer(peer, name, scene);
+        w.startMatch();
+      },
+    });
+    if (!session) return;
+    this.online = { role: 'host', session };
+    this.sharedClock = true;
+    this.lobby?.matchStarted(name);
+    this.hud.toast('good', `${name} joined — duel! First to 3. Click to play.`, 5000);
+  }
+
+  /** Client: the host started the match — load its scene and mirror it as the lantern it gave us. */
+  private async startClientMatch(msg: NetMessage) {
+    const scene = (typeof msg.scene === 'string' && (SCENE_KEYS as readonly string[]).includes(msg.scene) ? msg.scene : 'duel') as SceneName;
+    const you = typeof msg.you === 'string' && /^p\d$/.test(msg.you) ? msg.you : 'p2';
+    const names = (msg.names && typeof msg.names === 'object' ? msg.names : {}) as Record<string, string>;
+    let session: ClientSession | null = null;
+    await this.loadScene(scene, {
+      setup: (w) => {
+        this.setPlayerId(you);
+        session = new ClientSession(w, this.link, you, names, { onNotice: this.onNotice });
+      },
+    });
+    if (!session) return;
+    const s: ClientSession = session;
+    this.online = { role: 'client', session: s };
+    this.sharedClock = true;
+    s.ready();
+    const host = Object.entries(names).find(([id]) => id !== you)?.[1] ?? 'the host';
+    this.lobby?.matchStarted(host);
+    this.hud.toast('good', `Duel vs ${host}! First to 3. Click to play.`, 5000);
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -618,6 +739,18 @@ function installTestHooks(app: App) {
         last = now;
       }
       return out;
+    },
+    /** Online duel state (tools/net-smoke.mjs). */
+    online() {
+      const on = app.online;
+      if (!on) return null;
+      const w = app.world;
+      return {
+        role: on.role, paused: on.session.paused, me: w.player.id, phase: w.match?.phase ?? null, scores: w.match?.scores ?? null,
+        hp: Object.fromEntries(w.players.map((p) => [p.id, Math.round(p.hp * 10) / 10])), protected: w.player.isProtected,
+        constructs: [...w.constructs.list.values()].map((c) => `${c.id}:${c.owner}:${c.spec.label}`),
+        stats: { ...on.session.stats },
+      };
     },
     hud: app.hud,
     juice: app.juice, // JUICE: stats(), apply(), sfx, ui

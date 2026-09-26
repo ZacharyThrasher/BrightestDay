@@ -1,7 +1,7 @@
 /**
  * "Play online" lobby panel inside the main menu card. Host (Cloudflare quick tunnel or LAN), Join by
- * room code / address, Cancel. For now a connection only exchanges greetings and shows the ping;
- * the game sync hooks into `net` (src/net/client.ts) later.
+ * room code / address, Cancel. Once connected the app starts the duel (src/app/main.ts → src/net/game.ts)
+ * and calls `matchStarted`; Cancel leaves the match (`onLeave`).
  * Uses the existing menu classes (.tag, .logo, .scenes, .settings, .foot, .menu button) — no new styles.
  */
 import { net, type PeerEvent, type NetStatus } from '../net/client.js';
@@ -16,8 +16,15 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: H
   return e;
 };
 
-export function installLobby(card: HTMLElement, hud: Toaster) {
-  if (!net.available) return; // plain web build: no main process, no online play
+export interface LobbyHandle {
+  /** The duel began: fold the panel away (the connection stays up). */
+  matchStarted(opponent: string): void;
+  /** The name this player goes by online. */
+  readonly playerName: string;
+}
+
+export function installLobby(card: HTMLElement, hud: Toaster, opts: { onLeave?: () => void } = {}): LobbyHandle | null {
+  if (!net.available) return null; // plain web build: no main process, no online play
   const playerName = (() => {
     const s = (window as any).hardlight?.settings?.playerName;
     return typeof s === 'string' && s.trim() ? s.trim().slice(0, 24) : `Lantern-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -79,14 +86,21 @@ export function installLobby(card: HTMLElement, hud: Toaster) {
     hiddenBefore.forEach((c) => c.classList.add('hidden'));
     root.classList.remove('hidden');
   };
-  const close = async () => {
-    await net.stop().catch(() => {});
-    reset();
+  const fold = () => {
     root.classList.add('hidden');
     hiddenBefore.forEach((c) => c.classList.remove('hidden'));
   };
+  const close = async () => {
+    const wasOnline = root.dataset.match === '1';
+    await net.stop().catch(() => {});
+    reset();
+    fold();
+    if (wasOnline) opts.onLeave?.();
+  };
   const reset = () => {
     setState('idle'); opponent = null;
+    root.dataset.match = '';
+    openBtn.textContent = 'Play online';
     hostView.classList.add('hidden'); joinView.classList.add('hidden');
     actions.classList.remove('hidden');
     setStatus('Host a match and send your friend the room code, or join theirs.');
@@ -174,4 +188,14 @@ export function installLobby(card: HTMLElement, hud: Toaster) {
     navigator.clipboard?.writeText(text).then(() => hud.toast('good', 'Room code copied', 2000), () => { codeIn.value = text; hud.toast('warn', 'Copy failed — select the code and press Ctrl+C', 3000); });
   };
   cancelBtn.onclick = () => void close();
+
+  return {
+    playerName,
+    matchStarted(name: string) {
+      opponent = name;
+      root.dataset.match = '1';
+      if (!root.classList.contains('hidden')) fold();
+      openBtn.textContent = 'Online duel';
+    },
+  };
 }
