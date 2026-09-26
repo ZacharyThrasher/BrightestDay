@@ -27,6 +27,13 @@ jobs:
       - run: npx tsc --noEmit
       - name: UI smoke test (real clicks in Electron under a virtual display)
         run: npm run build && xvfb-run -a node tools/ui-smoke.mjs
+      - name: Online smoke test (two instances, LAN host + join)
+        run: xvfb-run -a node tools/net-smoke.mjs
+      - name: Cache pinned downloads (cloudflared)
+        uses: actions/cache@v4
+        with:
+          path: release/cache
+          key: release-cache-${{ hashFiles('tools/ship-models.json') }}
       - run: node tools/package-win.mjs
       - uses: actions/upload-artifact@v4
         with:

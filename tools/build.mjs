@@ -48,7 +48,7 @@ const nodeOpts = {
   target: ['node20'],
   sourcemap: true,
   minify,
-  external: ['electron'],
+  external: ['electron', 'bufferutil', 'utf-8-validate'], // optional native speedups of `ws` (it falls back to JS)
   logLevel: 'warning',
 };
 

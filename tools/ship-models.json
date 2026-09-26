@@ -1,5 +1,13 @@
 {
   "_comment": "Models copied into the Windows build ({from, to} pairs). Voice input was dropped (see docs/experiments/ASR.md).",
   "models": [],
-  "nativeDependencies": []
+  "nativeDependencies": [],
+  "cloudflared": {
+    "_comment": "Bundled at resources/cloudflared/cloudflared.exe for online play (Cloudflare quick tunnel). Apache-2.0. Verified against sha256 by tools/package-win.mjs.",
+    "version": "2026.9.3",
+    "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.9.3/cloudflared-windows-amd64.exe",
+    "sha256": "f096265ec2fcbe9bb6e2d64268db167ced3fcbb83d894bdb9e2fcdb26f2ea7e2",
+    "licenseUrl": "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.9.3/LICENSE",
+    "licenseSha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+  }
 }

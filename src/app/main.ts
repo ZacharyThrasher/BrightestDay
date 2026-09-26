@@ -15,6 +15,7 @@ import { loadSemantic } from '../lang/semantic.js';
 import type { Embedder } from '../lang/interpreter.js';
 import { FocusMeter, CastClock, CastRecords, Combo, Completer, QuickSlots, type CastTiming, type Suggestion } from './typing.js';
 import { LOCAL_PLAYER } from '../sim/inspiration.js';
+import { installLobby } from './lobby.js';
 
 const DT = 1 / 60;
 const MAX_STEPS = 6;
@@ -443,6 +444,7 @@ class App implements HardlightApp {
         </div>
         <div class="foot">F1 controls · settings.json next to the app overrides defaults</div>
       </div>`;
+    installLobby(m.querySelector('.menu-card')!, this.hud); // "Play online" panel
     const sc = m.querySelector('.scenes')!;
     SCENE_KEYS.forEach((s, i) => {
       const b = document.createElement('button');
