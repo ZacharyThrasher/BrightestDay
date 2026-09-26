@@ -20,6 +20,7 @@
 //! - [`warmup`]       loading screen + render-pipeline pre-warm (no mid-match shader hitches)
 //! - [`automation`]   `--screenshot`, `--quit-after`, `--bench-debris`
 
+mod alloc_count;
 mod arena;
 mod audio;
 mod automation;
@@ -34,11 +35,13 @@ mod lobby;
 mod menu;
 mod net;
 mod oath;
+mod pcm;
 mod player;
 mod practice;
 mod present;
 mod render;
 mod settings;
+mod showcase;
 mod sim_bridge;
 mod state;
 mod tick;
@@ -129,5 +132,7 @@ fn main() {
         .add_plugins((practice::PracticePlugin, present::PresentPlugin))
         .add_plugins(net::NetPlugin)
         .add_plugins(lobby::UiPlugin)
+        .add_plugins(showcase::ShowcasePlugin)
+        .add_plugins(alloc_count::AllocCountPlugin)
         .run();
 }

@@ -179,10 +179,12 @@ fn update_crosshair(
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
     preview: Res<AnchorPreview>,
+    rig: Res<crate::camera::CameraRig>,
     mut dot: Query<&mut Visibility, (With<Crosshair>, Without<AnchorRing>)>,
     mut ring: Query<(&mut Visibility, &mut BorderColor), (With<AnchorRing>, Without<Crosshair>)>,
 ) {
-    let show = *state.get() == AppState::InGame && !menu.0;
+    // A director camera (spectator views) has no crosshair.
+    let show = *state.get() == AppState::InGame && !menu.0 && *rig != crate::camera::CameraRig::Director;
     let vis = |on: bool| if on { Visibility::Visible } else { Visibility::Hidden };
     for mut v in &mut dot {
         if *v != vis(show) {

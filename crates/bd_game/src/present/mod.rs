@@ -14,10 +14,13 @@
 //! | [`camera3p`] | over-the-shoulder rig (piloting / comfort), crosshair ray + projectile aim correction |
 //! | [`local`] | local player: respawn facing, death cam, hop chain feedback |
 //! | [`water`] | city-map sea: animated water plane + splashes |
-//! | [`soak`] / [`record`] | `--soak-view` chaos viewer with auto-director, `--record` PNG frame dump |
+//! | [`soak`] / [`record`] | `--soak-view` chaos viewer, `--record` frame capture (PNG sequence or piped to ffmpeg) |
+//! | [`director`] | spectator director camera (interest scoring, occlusion-safe framing, slow-mo) |
 
+pub mod animated_terrain;
 pub mod camera3p;
 pub mod constructs;
+pub mod director;
 pub mod guns;
 pub mod impact;
 pub mod local;
@@ -62,6 +65,7 @@ impl Plugin for PresentPlugin {
                 camera3p::Camera3pPlugin,
                 local::LocalPlugin,
                 soak::SoakPlugin,
+                director::DirectorPlugin,
                 record::RecordPlugin,
             ))
             .add_plugins(water::WaterPlugin);
