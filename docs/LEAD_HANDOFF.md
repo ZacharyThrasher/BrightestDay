@@ -24,7 +24,7 @@ Everything below is committed and green unless noted.
 - Client: practice, host/join lobby, all menus/rules/presets, console/voice/oath/viewmodel, party UI,
   presentation of every event, director camera + `--scenario showcase`, `--record`.
 - Playable: `target\game\release\brightest_day.exe` (build: `cargo build --release -p bd_game`);
-  `--map tutorial|miami`, `--host`, `--join <code|ip:port>`, `--scenario showcase`, `--soak-view`.
+  `--map tutorial|miami|orbit`, `--host`, `--join <code|ip:port>`, `--scenario showcase`, `--soak-view`.
 - Videos: target\recordings\showcase.mp4 (1080p60), showcase_720p.mp4, soak_director.mp4.
 
 ## In flight at time of writing (their reports come to the session that launched them)
@@ -32,9 +32,9 @@ Everything below is committed and green unless noted.
   size; stock/timed scoring UI; title flake). Owns bd_game present/render/debris, bd_fx, bd_voxel mesher.
 - Shapes weight pass (mass-scaled anticipation/overshoot, exaggerated hit reactions, secondary follow-
   through, kaiju footfall events) in bd_shapes — then call sites in bd_sim held.rs/creature.rs + client.
-- Content: shows/movies + Dune pack (assets/icons/shows*.ron); Pokémon pass (assets/icons/pokemon.ron +
-  bd_lexicon moves grammar "X use Y"); lexicon compounds + everyday-concepts anchors + LEXICON_REVIEW.md
-  (both lexicon workers coordinate; lexicon.bin rebuilt once both are in).
+- (DONE + committed: shows/Dune pack, Pokémon pass + moves grammar, lexicon compounds/everyday anchors.
+  lexicon.bin is gitignored — rebuild with `python tools/lexicon_build/build.py` (~3.5 min).
+  Open: tools/icons/games/dsl.py was never committed, so games/gen.py can't run.)
 - Orbit map (bd_voxel maps/orbit.rs, gravity-by-altitude profile, space/re-entry KOs, present/space.rs).
 - Hitscan guns + bot aim realism + balance trim (bd_sim weapons, COMBAT.md §4b).
 - AUDIO WORLD (owner: "feels like we are just throwing noise at the user, it doesn't feel like a world").
