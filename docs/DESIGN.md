@@ -83,6 +83,17 @@ mechanic / element / weight (KRAK, SPLOOSH, ZZAK, VWOOP, KRANG, DOOM…; data ta
 bhop, perfect oath), GOOD / SLOW (oath grades), PARRY!. Manga mode (ドドド, ゴゴゴ). Settings: Off /
 Big hits only (default) / Full comic; rate-limited; world-space, never HUD clutter.
 
+### Hit & KO confirmation (lessons from Valorant's feedback loop)
+- **Crit layer:** players have a head zone (×1.5 for guns, ring blast, thrown objects; melee exempt);
+  construct weak points share it. Crit = a crisp high-frequency snap layered over a dull low thud —
+  cuts through any mix without fatigue — plus a stronger crosshair flare.
+- **Clean KO:** the KO'd player shatters instantly into their corps-coloured voxels (no lingering
+  ragdoll; threat silhouette gone at once); their construct loops cut off abruptly.
+- **Negative space:** on a KO you dealt, the rest of the mix ducks ~250 ms so the streak note rings.
+- **Release:** KO blows get ~80 ms extra hit-stop on top of the normal amount.
+- **Crosshair flare:** subtle pulse on hit, stronger on crit, corps-coloured bloom on KO — the only
+  2D confirmation. No kill banners/skulls; no long finishers.
+
 ### KO streak sounds (per-corps "skinline")
 Each KO without dying plays the next step of a rising 5-step minor-pentatonic phrase (step 5 resolves
 with a flourish and repeats from then on); dying resets. Same musical structure for everyone, **distinct
