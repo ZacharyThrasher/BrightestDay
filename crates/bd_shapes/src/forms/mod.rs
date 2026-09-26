@@ -287,3 +287,88 @@ pub fn demo_recipe(form: Form, seed: u32, mechanics: &[Mechanic]) -> Recipe {
     r.model = ModelSource::Procedural { seed };
     r
 }
+
+// ------------------------------------------------------------------------------ curated icons
+
+/// Characteristic extent (ShapeSpec units) of an icon spec along its form's scale axis — the same
+/// measure the sim uses for colliders (rotation-agnostic prim boxes; the form table's unit axis:
+/// length for held items/rockets/vehicles/ramps, height for bipeds/kaiju/pillars/domes, width for
+/// walls/platforms/lumps, else the longest side).
+pub fn icon_extent(form: Form, spec: &ShapeSpec) -> Option<f32> {
+    let mut lo = glam::Vec3::splat(f32::INFINITY);
+    let mut hi = glam::Vec3::splat(f32::NEG_INFINITY);
+    for p in spec.prims.iter().filter(|p| !p.subtract && p.center.is_finite() && p.size.is_finite() && p.rot_deg.is_finite()) {
+        let h = if p.rot_deg == glam::Vec3::ZERO { p.size.abs() * 0.5 } else { glam::Vec3::splat(p.size.abs().max_element() * 0.5) };
+        lo = lo.min(p.center - h);
+        hi = hi.max(p.center + h);
+    }
+    if !(lo.is_finite() && hi.is_finite()) {
+        return None;
+    }
+    let s = hi - lo;
+    use Form::*;
+    let e = match form {
+        Hammer | Sword | Axe | Spear | Gauntlet | Whip | Gun | Bow | Cannon | Staff | Ramp | Rocket | Vehicle => s.z,
+        Biped | Kaiju | Pillar | Dome => s.y,
+        Disc | Wall | Cage | Platform | Trampoline | Ball | Anvil | Bomb | Boulder | Blob | Blob0 => s.x,
+        _ => s.max_element(),
+    };
+    (e > 1e-3).then_some(e)
+}
+
+/// Factor that rescales an icon spec (authored in any units) so its characteristic size equals
+/// `recipe.scale` metres at construct units (0.25 m) — domes: diameter = 2 × scale.
+pub fn icon_scale_factor(recipe: &Recipe, spec: &ShapeSpec) -> f32 {
+    let want = quantize_scale(recipe.scale) * if recipe.form == Form::Dome { 2.0 } else { 1.0 };
+    match icon_extent(recipe.form, spec) {
+        Some(e) => (want / (e * CONSTRUCT_VOXEL_SIZE)).clamp(0.01, 100.0),
+        None => 1.0,
+    }
+}
+
+/// Normalise a curated icon spec to real size before voxelising (every pack then gets the same
+/// voxel density for its size, whatever units it was authored in). The result's characteristic
+/// size is `recipe.scale`, so the sim's shape rescale for it is 1.
+pub fn normalize_icon_spec(recipe: &Recipe, spec: &ShapeSpec) -> ShapeSpec {
+    let mut s = spec.clone();
+    crate::voxelize::scale_spec(&mut s, icon_scale_factor(recipe, spec));
+    s
+}
+
+/// Icons at or below this characteristic size (m) are voxelised at [`FINE_ICON_VOXEL`] (a 1.8 m hero
+/// is ~14 voxels tall instead of 7 — readable faces/emblems); larger ones use the standard sizes.
+pub const FINE_ICON_MAX_SCALE: f32 = 3.0;
+/// Voxel edge for human-scale icons (m).
+pub const FINE_ICON_VOXEL: f32 = 0.125;
+
+/// Curated icon → model, the icon counterpart of [`build_model`]: the spec is first normalised to
+/// real size ([`normalize_icon_spec`]), then voxelised at the same density for every pack — 0.125 m
+/// for characters/objects ≤ [`FINE_ICON_MAX_SCALE`], else the standard scale-adaptive construct size
+/// (0.25 m, doubling for colossal) — within the form's cap. Returns the normalised spec (construct
+/// units; `model.unit_m` = 0.25).
+pub fn build_icon_model(recipe: &Recipe, spec: &ShapeSpec) -> (ShapeSpec, VoxelModel) {
+    let s = normalize_icon_spec(recipe, spec);
+    let cap = voxel_cap(recipe.form);
+    let size = quantize_scale(recipe.scale) * if recipe.form == Form::Dome { 2.0 } else { 1.0 };
+    if size <= FINE_ICON_MAX_SCALE {
+        let mut fine = s.clone();
+        let k = CONSTRUCT_VOXEL_SIZE / FINE_ICON_VOXEL;
+        crate::voxelize::scale_spec(&mut fine, k);
+        let mut m = crate::voxelize::voxelize_with_unit(&fine, FINE_ICON_VOXEL);
+        if m.voxel_count <= cap && m.voxel_count > 0 {
+            m.unit_m = CONSTRUCT_VOXEL_SIZE;
+            return (s, m);
+        }
+    }
+    let m = voxelize_capped(&s, cap);
+    (s, m)
+}
+
+/// Two-mode (`Transforms`) icon: both shapes normalised by the alt shape's factor, then rigged.
+pub fn transform_rig_icon(recipe: &Recipe, alt: &ShapeSpec, robot: &ShapeSpec) -> crate::transform::TransformRig {
+    let f = icon_scale_factor(recipe, alt);
+    let (mut a, mut r) = (alt.clone(), robot.clone());
+    crate::voxelize::scale_spec(&mut a, f);
+    crate::voxelize::scale_spec(&mut r, f);
+    crate::transform::transform_rig_authored(&a, &r, voxel_cap(recipe.form))
+}

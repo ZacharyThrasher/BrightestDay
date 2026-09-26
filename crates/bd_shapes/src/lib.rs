@@ -29,7 +29,7 @@ pub use attach::{SpecBounds, attach_mechanic_parts, chain_spec, portal_ring_spec
 pub use build::quat_from_rot_deg;
 pub use collide::{CollisionProxy, Proxy, collision_proxies, collision_proxies_budget};
 pub use ease::Ease;
-pub use forms::{ALL_FORMS, SCALE_QUANTUM, ShapeKey, build_model, demo_recipe, generate, generate_machine, quantize_scale, suggested_scale, voxel_cap, voxel_size_hint};
+pub use forms::{ALL_FORMS, SCALE_QUANTUM, ShapeKey, build_icon_model, FINE_ICON_MAX_SCALE, FINE_ICON_VOXEL, icon_extent, icon_scale_factor, normalize_icon_spec, transform_rig_icon, build_model, demo_recipe, generate, generate_machine, quantize_scale, suggested_scale, voxel_cap, voxel_size_hint};
 pub use features::{ALL_FEATURES, FeatureDrive, MachineRig, MachineSpec, Motion, Puff, attach_feature_parts, attach_machine, machine_puffs};
 pub use costume::{COSTUME_UNIT, CostumeHead, CostumeTweaks, acc, costume, costume_first_person_hands, costume_model, costume_with};
 pub use mesh::{PartMesh, chain_link_mesh, chain_transform, mesh_model, mesh_part};

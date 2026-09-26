@@ -227,3 +227,28 @@ proptest! {
         prop_assert_eq!(&spec, &costume_with(&r, icon_spec.as_ref(), None, seed, tw));
     }
 }
+
+#[test]
+fn icons_normalise_to_real_size() {
+    // The same icon authored at 1× and 3.7× units must build identically (same density, same size).
+    for (form, scale) in [(Form::Biped, 1.8f32), (Form::Hammer, 1.0), (Form::Vehicle, 6.0), (Form::Kaiju, 30.0), (Form::Dome, 3.0)] {
+        let base = generate(&demo_recipe(form, 3, &[]));
+        let mut big = base.clone();
+        scale_spec(&mut big, 3.7);
+        let mut r = demo_recipe(form, 3, &[]);
+        r.scale = scale;
+        r.model = ModelSource::Icon("x".into());
+        let (s1, m1) = build_icon_model(&r, &base);
+        let (_, m2) = build_icon_model(&r, &big);
+        assert!((m1.voxel_size - m2.voxel_size).abs() < 1e-6);
+        let want = quantize_scale(scale) * if form == Form::Dome { 2.0 } else { 1.0 };
+        let e = icon_extent(form, &s1).unwrap() * bd_core::CONSTRUCT_VOXEL_SIZE;
+        assert!((e - want).abs() < 0.02 * want, "{form:?} extent {e} vs {want}");
+        let ratio = m1.voxel_count as f32 / m2.voxel_count.max(1) as f32;
+        assert!((0.85..1.18).contains(&ratio), "{form:?} {} vs {}", m1.voxel_count, m2.voxel_count);
+        assert!(m1.voxel_count <= voxel_cap(form));
+        if want <= FINE_ICON_MAX_SCALE {
+            assert_eq!(m1.voxel_size, FINE_ICON_VOXEL);
+        }
+    }
+}
