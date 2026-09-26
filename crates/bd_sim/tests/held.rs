@@ -189,20 +189,36 @@ fn spear_lunge_is_a_movement_tool() {
 
 #[test]
 fn whip_lash_yanks_players_toward_you() {
-    // 9 m: where the lash's 75 % sample point comes down now that the sweep is in world space
-    // (the hand-frame fix in `held::sweep`; the whip samples its 12 m length every 3 m).
-    let mut w = duel(9.0);
+    // 8 m: between the old 3 m-spaced samples (6 m / 9 m) — the whip now samples its length every
+    // ≤ 0.75 m (`held::WHIP_SAMPLE_SPACING`), so anything along the lash is hit.
+    let mut w = duel(8.0);
     give(&mut w, A, "whip", Form::Whip, &[]);
     let (yaw, pitch) = aim_at(&w, A, B);
     let ev = act(&mut w, A, yaw, pitch, buttons::PRIMARY, 1, 30);
     assert!(has_fx(&ev, HeldFx::WhipYank));
     assert!(!hits_on(&ev, B).is_empty());
     // B was pulled toward A (+Z) at some point.
-    let mut w2 = duel(9.0);
+    let mut w2 = duel(8.0);
     give(&mut w2, A, "whip", Form::Whip, &[]);
     let z0 = w2.player(B).unwrap().mv.pos.z;
     act(&mut w2, A, yaw, pitch, buttons::PRIMARY, 1, 40);
     assert!(w2.player(B).unwrap().mv.pos.z > z0 + 0.3, "yanked toward the wielder");
+}
+
+/// The lash hits anywhere along its length (dense samples), not only at the sample points.
+#[test]
+fn whip_lash_hits_all_along_its_length() {
+    let mut missed = Vec::new();
+    for d in [3.0f32, 4.5, 6.0, 7.0, 7.5, 8.0, 8.5, 10.0, 11.0] {
+        let mut w = duel(d);
+        give(&mut w, A, "whip", Form::Whip, &[]);
+        let (yaw, pitch) = aim_at(&w, A, B);
+        let ev = act(&mut w, A, yaw, pitch, buttons::PRIMARY, 1, 30);
+        if hits_on(&ev, B).is_empty() {
+            missed.push(d);
+        }
+    }
+    assert!(missed.is_empty(), "whip missed at {missed:?} m");
 }
 
 #[test]

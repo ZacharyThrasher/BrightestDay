@@ -655,7 +655,10 @@ impl Default for WillpowerTuning {
             autonomous_upkeep: willpower::AUTONOMOUS_UPKEEP,
             per_mechanic: 0.15,
             mechanic_cost: Vec::new(),
-            form_cost: Vec::new(),
+            // Shipped balance (tournament passes, §5i.1): held guns / staves are sustained ranged
+            // damage, so they cost (and upkeep) more. Kept equal to assets/tuning/combat.ron so
+            // tests, bots, tournaments and the game agree.
+            form_cost: vec![FormCost { form: Form::Gun, mult: 2.6 }, FormCost { form: Form::Staff, mult: 2.0 }],
             size_exp: 1.3,
             size_min: 0.5,
             size_max: 3.0,
@@ -917,10 +920,12 @@ impl AntiSnowball {
 
 impl CombatTuning {
     /// Tuning that reproduces the economy from before the §5i balance passes (no anti-snowball,
-    /// no autonomy pricing).
+    /// no autonomy pricing, no `form_cost` / `mechanic_cost` knobs).
     pub fn legacy() -> Self {
         let mut t = Self { snowball: AntiSnowball::LEGACY, ..Self::default() };
         t.willpower.autonomous_pricing = false;
+        t.willpower.form_cost.clear();
+        t.willpower.mechanic_cost.clear();
         t
     }
 

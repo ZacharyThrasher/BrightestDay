@@ -68,7 +68,8 @@ use bevy::ecs::system::SystemParam;
 use bevy::light::cluster::ClusterConfig;
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
-use bevy::render::render_resource::BlendState;
+use bevy::camera::RenderTarget;
+use bevy::render::render_resource::TextureFormat;
 use bevy::render::view::Msaa;
 use bevy::transform::TransformSystems;
 use bevy::ui::IsDefaultUiCamera;
@@ -93,7 +94,7 @@ const PV_H: f32 = 120.0;
 const BORDER: f32 = 2.0;
 /// Alert window interior, border, hazard trim and label bar heights.
 const AL_W: f32 = 224.0;
-const AL_H: f32 = 140.0;
+const AL_H: f32 = 168.0;
 const AL_BORDER: f32 = 3.0;
 const TRIM: f32 = 8.0;
 const LABEL: f32 = 22.0;
@@ -101,6 +102,9 @@ const LABEL: f32 = 22.0;
 const EDGE: f32 = 34.0;
 /// Cut-in camera vertical FOV.
 const PV_FOV: f32 = 30.0;
+/// Offscreen picture (physical px, 4:3 like both window interiors).
+const IMG_W: u32 = 256;
+const IMG_H: u32 = 192;
 /// Most entities one cut-in puts on the preview layer.
 const MAX_LAYERED: usize = 256;
 
@@ -203,12 +207,14 @@ impl Plugin for SummonPingPlugin {
         app.add_message::<CutIn>()
             .init_resource::<SummonPing>()
             .init_resource::<CutIns>()
+            .init_resource::<CutInSettings>()
             .add_systems(PostStartup, setup)
             .add_systems(Update, (ping_events.in_set(PresentSet::Events), test_casts.before(crate::tick::FrameSet::Input)))
             .add_systems(
                 PostUpdate,
                 (
                     (summon_ping, update_cutins).chain().in_set(CutInSet).run_if(in_state(AppState::InGame)),
+                    warmup_preview.run_if(in_state(AppState::Loading)),
                 )
                     .after(CameraUpdateSet)
                     .before(bevy::camera::CameraUpdateSystems)
@@ -245,7 +251,6 @@ enum CutUi {
     TopTrim,
     Spacer,
     Bottom,
-    Stripe,
     Label,
 }
 
@@ -295,9 +300,30 @@ struct ActiveCut {
     last_centre: Option<(Vec3, f32)>,
 }
 
+/// Cut-in tunables.
+#[derive(Resource, Clone, Debug)]
+pub struct CutInSettings {
+    /// How often the offscreen picture re-renders (the camera is active on those frames only; the
+    /// UI shows the last picture in between). `BD_PREVIEW_HZ` overrides.
+    pub preview_hz: f32,
+}
+
+impl Default for CutInSettings {
+    fn default() -> Self {
+        let hz = std::env::var("BD_PREVIEW_HZ").ok().and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite() && *v > 0.0);
+        Self { preview_hz: hz.unwrap_or(8.0) }
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct CutIns {
     active: Option<ActiveCut>,
+    /// Seconds until the next picture render (<= 0: render this frame).
+    next_render: f32,
+    /// The offscreen picture the cut-in camera renders into (shown by the frame's `ImageNode`).
+    pub image: Handle<Image>,
+    /// Last hazard-trim look written (alpha, pulse, colour): the gradients rebuild on change only.
+    trim_key: Option<(u8, u8, [u8; 3])>,
     /// Entities we put on [`PREVIEW_LAYER`].
     layered: Vec<Entity>,
     /// Smoothed frame centre (logical px).
@@ -319,6 +345,8 @@ impl CutIns {
                 self.frame_c = None;
             }
             self.active = Some(ActiveCut { cut, t: 0.0, fade: None, summon, last_centre: None });
+            // Fresh picture on the frame it appears (never the previous cut-in's).
+            self.next_render = 0.0;
         }
         ok
     }
@@ -345,23 +373,27 @@ fn eligible(form: Form) -> bool {
 
 // ------------------------------------------------------------------------------------ setup
 
-fn setup(mut commands: Commands, cams: Query<Entity, With<PlayerCamera>>) {
-    // The cut-in camera has a higher order: keep UI on the gameplay camera.
+fn setup(mut commands: Commands, cams: Query<Entity, With<PlayerCamera>>, mut images: ResMut<Assets<Image>>, mut cuts: ResMut<CutIns>) {
+    // Keep UI on the gameplay camera whatever other cameras exist.
     for e in &cams {
         commands.entity(e).insert(IsDefaultUiCamera);
     }
+    let image = images.add(Image::new_target_texture(IMG_W, IMG_H, TextureFormat::Rgba8UnormSrgb, None));
+    cuts.image = image.clone();
     commands.spawn((
         Name::new("CutInCamera"),
         SummonPreviewCam,
         Camera3d::default(),
         Camera {
-            order: 10,
+            // Renders before the gameplay camera (whose UI shows the picture the same frame); a
+            // negative order also keeps bd_fx's "active camera with the highest order" on gameplay.
+            order: -1,
             is_active: false,
-            // Own LDR target: clear it to transparent, composite premultiplied over the window.
             clear_color: ClearColorConfig::Custom(Color::NONE),
-            output_mode: CameraOutputMode::Write { blend_state: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING), clear_color: ClearColorConfig::None },
+            output_mode: CameraOutputMode::Write { blend_state: None, clear_color: ClearColorConfig::None },
             ..default()
         },
+        RenderTarget::Image(image.clone().into()),
         Projection::Perspective(PerspectiveProjection { fov: PV_FOV.to_radians(), near: 0.05, ..default() }),
         Msaa::Off,
         // LDR: tonemapped in the material shader (matches the gameplay look), no post pass.
@@ -397,17 +429,13 @@ fn setup(mut commands: Commands, cams: Query<Entity, With<PlayerCamera>>) {
     ));
     // Frame: [hazard trim] [picture] [label bar]; the camera viewport sits over the picture spacer.
     let bar = |kind: CutUi, h: f32| {
-        (kind, Node { width: percent(100), height: px(h), overflow: Overflow::clip(), justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() }, BackgroundColor(Color::NONE))
-    };
-    let stripes = |p: &mut ChildSpawnerCommands| {
-        for i in 0..14 {
-            p.spawn((
-                CutUi::Stripe,
-                Node { position_type: PositionType::Absolute, left: px(i as f32 * 18.0 - 12.0), top: px(-10.0), width: px(8.0), height: px(44.0), ..default() },
-                UiTransform { rotation: Rot2::degrees(40.0), ..default() },
-                BackgroundColor(Color::NONE),
-            ));
-        }
+        (
+            kind,
+            Node { width: percent(100), height: px(h), overflow: Overflow::clip(), justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+            BackgroundColor(Color::NONE),
+            // Hazard trim: the bar's own background (clipped to it by construction).
+            BackgroundGradient::default(),
+        )
     };
     commands
         .spawn((
@@ -431,10 +459,9 @@ fn setup(mut commands: Commands, cams: Query<Entity, With<PlayerCamera>>) {
             hidden,
         ))
         .with_children(|f| {
-            f.spawn(bar(CutUi::TopTrim, 0.0)).with_children(stripes);
-            f.spawn((CutUi::Spacer, Node { width: percent(100), flex_grow: 1.0, ..default() }, BackgroundColor(Color::NONE)));
+            f.spawn(bar(CutUi::TopTrim, 0.0));
+            f.spawn((CutUi::Spacer, Node { width: percent(100), flex_grow: 1.0, ..default() }, BackgroundColor(Color::NONE), ImageNode::new(image)));
             f.spawn(bar(CutUi::Bottom, 0.0)).with_children(|b| {
-                stripes(b);
                 b.spawn((CutUi::Label, Text::new(""), TextFont::from_font_size(15.0), TextColor(Color::WHITE), TextLayout::justify(Justify::Center)));
             });
         });
@@ -463,6 +490,43 @@ fn clear_all(
     }
     for mut v in &mut ui {
         *v = Visibility::Hidden;
+    }
+}
+
+/// Loading: render ONE frame of the warm-up constructs into the offscreen picture, so the cut-in
+/// view's pipelines compile behind the loading screen (no empty first frames in game).
+fn warmup_preview(
+    mut commands: Commands,
+    items: Query<(Entity, Has<RenderLayers>), (With<crate::warmup::WarmupItem>, With<MeshMaterial3d<bd_fx::ConstructMaterial>>)>,
+    main: Query<&Transform, (With<PlayerCamera>, Without<SummonPreviewCam>)>,
+    mut cam: Query<(&mut Camera, &mut Transform, &mut Projection), With<SummonPreviewCam>>,
+    mut state: Local<u8>,
+) {
+    let Ok((mut c, mut tf, mut proj)) = cam.single_mut() else { return };
+    match *state {
+        0 => {
+            let mut ready = false;
+            for (e, has) in &items {
+                if has {
+                    ready = true;
+                } else {
+                    commands.entity(e).insert(RenderLayers::from_layers(&[0, PREVIEW_LAYER]));
+                }
+            }
+            if ready && let Ok(m) = main.single() {
+                *tf = *m;
+                if let Projection::Perspective(p) = proj.as_mut() {
+                    p.fov = 90f32.to_radians();
+                }
+                c.is_active = true;
+                *state = 1;
+            }
+        }
+        1 => {
+            c.is_active = false;
+            *state = 2;
+        }
+        _ => {}
     }
 }
 
@@ -750,6 +814,8 @@ struct CutQueries<'w, 's> {
     label: Query<'w, 's, (&'static mut Text, &'static mut TextColor), With<CutUi>>,
     sim: Query<'w, 's, &'static super::constructs::SimConstruct>,
     bodies: Query<'w, 's, &'static super::players::PlayerBody>,
+    grads: Query<'w, 's, (&'static CutUi, &'static mut BackgroundGradient)>,
+    pics: Query<'w, 's, &'static mut ImageNode, With<CutUi>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -762,6 +828,7 @@ fn update_cutins(
     menu: Res<InGameMenu>,
     window: Single<&Window, With<PrimaryWindow>>,
     active: Option<Res<ActiveWorld>>,
+    settings: Res<CutInSettings>,
     mut q: CutQueries,
 ) {
     let t0 = std::time::Instant::now();
@@ -782,7 +849,6 @@ fn update_cutins(
         cuts.offer(c, None);
     }
     let size = Vec2::new(window.width(), window.height());
-    let sf = window.scale_factor();
 
     // ---- advance + resolve the active cut-in
     struct Frame {
@@ -866,7 +932,7 @@ fn update_cutins(
     for (kind, mut node, mut ut, mut bc, mut bg, mut vis) in &mut q.ui {
         let on = rect.is_some()
             && match kind {
-                CutUi::TopTrim | CutUi::Bottom | CutUi::Stripe => alert.is_some(),
+                CutUi::TopTrim | CutUi::Bottom => alert.is_some(),
                 CutUi::Label => alert.is_some() && active.and_then(|a| a.cut.label.as_ref()).is_some(),
                 _ => true,
             };
@@ -895,10 +961,26 @@ fn update_cutins(
                 node.height = px(bottom);
                 *bg = BackgroundColor(Color::srgba(0.01, 0.01, 0.02, 0.85 * alpha));
             }
-            CutUi::Stripe => {
-                *bg = BackgroundColor(hot(color, alpha * (0.75 + 0.25 * pulse), 0.1));
-            }
             CutUi::Spacer | CutUi::Label => {}
+        }
+    }
+    // Hazard trim gradients (rebuilt only when their look changes) + picture fade.
+    let key = alert.filter(|_| rect.is_some()).map(|_| ((alpha * 20.0) as u8, (pulse * 8.0) as u8, color.map(|c| (c.clamp(0.0, 4.0) * 60.0) as u8)));
+    if key.is_some() && key != cuts.trim_key {
+        cuts.trim_key = key;
+        let g = hazard(hot(color, alpha * (0.75 + 0.25 * pulse), 0.1), Color::srgba(0.01, 0.01, 0.02, 0.85 * alpha));
+        for (kind, mut bgr) in &mut q.grads {
+            if matches!(kind, CutUi::TopTrim | CutUi::Bottom) {
+                *bgr = g.clone();
+            }
+        }
+    } else if key.is_none() {
+        cuts.trim_key = None;
+    }
+    for mut img in &mut q.pics {
+        let c = Color::linear_rgba(1.0, 1.0, 1.0, alpha);
+        if img.color != c {
+            img.color = c;
         }
     }
     // Label text (stamped over the bottom trim).
@@ -917,19 +999,16 @@ fn update_cutins(
     }
 
     // ---- camera
+    // Throttled: the camera renders the offscreen picture on 1 frame in N (`preview_hz`).
     let mut cam_on = false;
-    if let (Some(a), Some(fr), Some((fc, scale)), Ok((mut pc, mut ptf, mut proj, mut layers))) = (active, frame.as_ref(), rect, q.preview.single_mut()) {
-        // The picture spacer's centre relative to the frame centre (scaled with the frame).
-        let off = Vec2::new(0.0, (top - bottom) * 0.5);
-        let vc = fc + off * scale;
-        let half = inner * scale * 0.5;
-        let min = ((vc - half) * sf).round().max(Vec2::ZERO);
-        let max = ((vc + half) * sf).round().min(Vec2::new(window.physical_width() as f32, window.physical_height() as f32));
-        if max.x - min.x >= 4.0 && max.y - min.y >= 4.0 {
+    let showing = active.is_some() && rect.is_some();
+    cuts.next_render -= dt;
+    if let (Some(a), Some(fr), Some(_), Ok((mut pc, mut ptf, mut proj, mut layers))) = (active, frame.as_ref(), rect, q.preview.single_mut()) {
+        if cuts.next_render <= 0.0 {
+            cuts.next_render = 1.0 / settings.preview_hz.clamp(0.5, 240.0);
             cam_on = true;
-            let vp = Viewport { physical_position: min.as_uvec2(), physical_size: (max - min).as_uvec2(), ..default() };
-            if !same_vp(pc.viewport.as_ref(), &vp) {
-                pc.viewport = Some(vp);
+            if pc.viewport.is_some() {
+                pc.viewport = None;
             }
             let want_layers = if a.cut.show_world { RenderLayers::from_layers(&[0, PREVIEW_LAYER]) } else { RenderLayers::layer(PREVIEW_LAYER) };
             if *layers != want_layers {
@@ -970,10 +1049,10 @@ fn update_cutins(
         st.active_frames += 1;
     }
 
-    // ---- preview layer on the target and its mesh descendants (only while the camera draws)
+    // ---- preview layer on the target and its mesh descendants (while the cut-in shows)
     let mut want = std::mem::take(&mut cuts.scratch);
     want.clear();
-    if let (true, Some(root)) = (cam_on, target_entity) {
+    if let (true, Some(root)) = (showing, target_entity) {
         want.push(root);
         let mut i = 0;
         while i < want.len() && want.len() < MAX_LAYERED {
@@ -1010,6 +1089,20 @@ fn update_cutins(
     }
 }
 
+/// Diagonal hazard stripes (hard stops) as a gradient.
+fn hazard(on: Color, off: Color) -> BackgroundGradient {
+    const W: f32 = 9.0;
+    let mut stops = Vec::with_capacity(96);
+    for i in 0..44 {
+        let (a, b) = (i as f32 * W, (i + 1) as f32 * W);
+        let c = if i % 2 == 0 { on } else { off };
+        stops.push(ColorStop::px(c, a));
+        stops.push(ColorStop::px(c, b));
+    }
+    BackgroundGradient::from(LinearGradient::new(1.0, stops))
+}
+
+#[allow(dead_code)]
 fn same_vp(a: Option<&Viewport>, b: &Viewport) -> bool {
     a.is_some_and(|a| a.physical_position == b.physical_position && a.physical_size == b.physical_size)
 }

@@ -550,17 +550,19 @@ fn alert_spectacles(
             fov.write(FovPunch { degrees: 2.5 + 2.0 * (p.sp.radius / 20.0).min(1.0) });
         }
         // Bots never type: their title erupts as world shout words over them.
-        if !mine && active.bots.iter().any(|b| b.id == p.owner) && !p.title.is_empty() {
-            if let Some(v) = views.player(p.owner) {
-                let hand = v.pos + Vec3::Y * 1.3;
-                let mut sh = bd_fx::Shout::new(bd_fx::sanitize_shout(&p.title, bd_fx::SHOUT_MAX_CHARS), corps, 2.0, false, hand);
-                sh.head = v.pos + Vec3::Y * 1.9;
-                sh.toward = center;
-                sh.target = entity;
-                sh.boost = 2.2;
-                sh.seed = p.id.0 as u64;
-                commands.spawn((Name::new("SignatureTitle"), sh));
-            }
+        if !mine
+            && active.bots.iter().any(|b| b.id == p.owner)
+            && !p.title.is_empty()
+            && let Some(v) = views.player(p.owner)
+        {
+            let hand = v.pos + Vec3::Y * 1.3;
+            let mut sh = bd_fx::Shout::new(bd_fx::sanitize_shout(&p.title, bd_fx::SHOUT_MAX_CHARS), corps, 2.0, false, hand);
+            sh.head = v.pos + Vec3::Y * 1.9;
+            sh.toward = center;
+            sh.target = entity;
+            sh.boost = 2.2;
+            sh.seed = p.id.0 as u64;
+            commands.spawn((Name::new("SignatureTitle"), sh));
         }
         s.live.push(Live { id: p.id, owner: p.owner, sp: p.sp, element: p.element, form: p.form, age: 0.0, opened: false, pulse: 0.0 });
     }
@@ -667,10 +669,10 @@ fn dev_world(
         return;
     }
     let Some(mut active) = active else { return };
-    if std::mem::take(&mut dev.boost_me) {
-        if let Some(p) = active.local.and_then(|me| active.world.player_mut(me)) {
-            p.willpower = p.willpower.max(100.0);
-        }
+    if std::mem::take(&mut dev.boost_me)
+        && let Some(p) = active.local.and_then(|me| active.world.player_mut(me))
+    {
+        p.willpower = p.willpower.max(100.0);
     }
     if let Some((bot, spot, until)) = dev.pin {
         if dev.t < until {

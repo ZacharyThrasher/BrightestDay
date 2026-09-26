@@ -33,3 +33,5 @@ frequent. Missing names are silent (callers already emit them).
 | view_toggle | camera | very subtle UI whoosh |
 | wall_refresh | wall refresh (air jump back) | tiny hard-light scuff tick on the wall contact |
 | surf_loop | surfing | wind rush / hard-light hiss while riding a surf face, pitch + gain up with speed |
+| amb_pool_drip | Backrooms poolrooms | sparse water drips + tiny lapping; needs a multi-storey `Water` zone in `EmitterMap::scan` (it is 2.5D: only the roof is scanned) to place it near `POOL_WATER` voxels |
+| amb_fluoro_hum | Backrooms | 120 Hz fluorescent ballast buzz with a faint flicker tick (currently `amb_neon_hum` stands in) |

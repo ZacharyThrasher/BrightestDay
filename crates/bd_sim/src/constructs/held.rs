@@ -302,13 +302,20 @@ pub fn hand_frame(o: &PlayerView) -> Affine3A {
     Affine3A::from_rotation_translation(geom::look_rotation(o.look), o.hand)
 }
 
+/// Most sample points an item's sweep uses (a Grow whip: 16.8 m / [`WHIP_SAMPLE_SPACING`] = 23).
+const MAX_ITEM_POINTS: usize = 24;
+/// Spacing of the whip's sample points along its length. Each point's swept path is tested as a
+/// segment inflated by the lash radius (0.3 m) against hulls inflated the same way, so ≤ 0.75 m
+/// leaves no gap a player's hull can sit in (the old 3 m spacing missed targets between samples).
+pub const WHIP_SAMPLE_SPACING: f32 = 0.75;
+
 /// Item sample points in the item's model space (grip at the origin, pointing −Z) + radius.
-fn item_points(c: &Construct, o: &PlayerView) -> ([Vec3; 4], usize, f32) {
+fn item_points(c: &Construct, o: &PlayerView) -> ([Vec3; MAX_ITEM_POINTS], usize, f32) {
     // Grow: melee reach ×1.4 (never more); Shrink: shorter.
     let reach = if o.size > 1.0 { o.size.min(1.4) } else { o.size.max(0.25) };
     let len = (c.half.z * 2.0).max(0.3) * reach;
     let thick = c.half.x.max(c.half.y);
-    let mut p = [Vec3::ZERO; 4];
+    let mut p = [Vec3::ZERO; MAX_ITEM_POINTS];
     match c.recipe.form {
         Form::Shield => {
             p[0] = Vec3::new(0.0, 0.0, -c.half.z) * reach;
@@ -316,10 +323,11 @@ fn item_points(c: &Construct, o: &PlayerView) -> ([Vec3; 4], usize, f32) {
         }
         Form::Whip => {
             let l = WHIP_RANGE * reach;
-            for (k, f) in [0.25f32, 0.5, 0.75, 1.0].iter().enumerate() {
-                p[k] = Vec3::new(0.0, 0.0, -l * f);
+            let n = ((l / WHIP_SAMPLE_SPACING).ceil() as usize).clamp(4, MAX_ITEM_POINTS);
+            for (k, q) in p.iter_mut().enumerate().take(n) {
+                *q = Vec3::new(0.0, 0.0, -l * (k + 1) as f32 / n as f32);
             }
-            (p, 4, 0.3)
+            (p, n, 0.3)
         }
         _ => {
             for (k, f) in [0.35f32, 0.7, 1.0].iter().enumerate() {
@@ -796,7 +804,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     let ctx = env.ctx;
     let frame = hand_frame(&o);
     let (local, n, r) = item_points(c, &o);
-    let mut prev = [Vec3::ZERO; 4];
+    let mut prev = [Vec3::ZERO; MAX_ITEM_POINTS];
     let m0 = frame * cv.sample(t0);
     for k in 0..n {
         prev[k] = m0.transform_point3(local[k]);
@@ -810,7 +818,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     let heavy_terrain = s.swing == Swing::Heavy && (form == Form::Hammer || c.has(Mechanic::Blunt) || c.has(Mechanic::Heavy) || form == Form::Axe);
     for (_, m) in cv.sweep(t0, t1, 0.2) {
         let m = frame * m; // curve samples are hand-local (like `m0` above); the hitbox is world space
-        let mut cur = [Vec3::ZERO; 4];
+        let mut cur = [Vec3::ZERO; MAX_ITEM_POINTS];
         for k in 0..n {
             cur[k] = m.transform_point3(local[k]);
         }

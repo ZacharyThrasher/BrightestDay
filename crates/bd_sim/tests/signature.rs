@@ -424,10 +424,10 @@ fn the_beam_slews_at_a_capped_speed_and_can_be_outrun() {
             p.mv.vel = Vec3::ZERO;
         }
         for e in w.tick(&[]) {
-            if let GameEvent::Hitscan { owner, end, .. } = e {
-                if *owner == A {
-                    ends.push(*end);
-                }
+            if let GameEvent::Hitscan { owner, end, .. } = e
+                && *owner == A
+            {
+                ends.push(*end);
             }
         }
     }
@@ -514,10 +514,10 @@ fn without_homing_the_beam_follows_the_casters_crosshair() {
     let mut last = None;
     for _ in 0..((t.telegraph + t.strike_secs) / DT) as usize {
         for e in w.tick(&[(A, input)]) {
-            if let GameEvent::Hitscan { owner, end, .. } = e {
-                if *owner == A {
-                    last = Some(*end);
-                }
+            if let GameEvent::Hitscan { owner, end, .. } = e
+                && *owner == A
+            {
+                last = Some(*end);
             }
         }
     }
@@ -654,7 +654,7 @@ fn hollow_purple_winds_up_then_erases_a_tunnel_constructs_and_players() {
     assert_eq!(rec.form, Form::Ball);
     assert!(rec.scale >= 3.5, "a LARGE sphere: {}", rec.scale);
     assert!(rec.has(Mechanic::Attract), "suction wake");
-    assert!(forming >= 0.55 && forming <= 0.8, "windup {forming}");
+    assert!((0.55..=0.8).contains(&forming), "windup {forming}");
     assert!(cost > 50.0 && cost <= 100.0, "most of the bar: {cost}");
     let mut evs: Vec<GameEvent> = w.events()[n0..].to_vec();
     let mut launch_at = None;
@@ -703,10 +703,10 @@ fn hollow_purple_knockback_grows_into_a_ko_at_mid_percent() {
         cast_purple(&mut w);
         for _ in 0..(3.0 / DT) as usize {
             for e in w.tick(&[]).to_vec() {
-                if let GameEvent::Launched { player, speed, .. } = e {
-                    if player == B {
-                        return speed;
-                    }
+                if let GameEvent::Launched { player, speed, .. } = e
+                    && player == B
+                {
+                    return speed;
                 }
             }
         }

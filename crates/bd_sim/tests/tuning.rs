@@ -38,30 +38,28 @@ fn tuning_round_trips_through_ron_and_bincode() {
 }
 
 #[test]
-#[ignore = "rewrites assets/tuning/combat.ron from the built-in defaults, keeping its cost knobs"]
+#[ignore = "rewrites assets/tuning/combat.ron from the built-in defaults"]
 fn write_default_combat_ron() {
     // Run after changing any default in bd_sim::tuning (e.g. SmashTuning):
     //   cargo test -p bd_sim --test tuning write_default_combat_ron -- --ignored
+    // Balance knobs (form_cost / mechanic_cost) are Rust defaults too: change them in
+    // `WillpowerTuning::default` first, then regenerate.
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/tuning/combat.ron");
-    let mut t = CombatTuning::default();
-    if let Some(old) = std::fs::read_to_string(path).ok().and_then(|s| CombatTuning::from_ron(&s).ok()) {
-        t.willpower.mechanic_cost = old.willpower.mechanic_cost;
-        t.willpower.form_cost = old.willpower.form_cost;
-    }
-    std::fs::write(path, t.to_ron().unwrap()).unwrap();
+    std::fs::write(path, CombatTuning::default().to_ron().unwrap()).unwrap();
 }
 
-/// The shipped file equals the built-in defaults except for the balance cost knobs (balance with
-/// cost, not damage — §5i.1). Fails when a default changes without regenerating the file (a stale
-/// file would silently override the new default in the hot-reloading client): run
-/// `write_default_combat_ron` (above).
+/// The shipped file equals the built-in defaults, balance cost knobs included (the game loads and
+/// hot-reloads it; tests, bots and tournaments run the defaults — they must agree). Fails when a
+/// default changes without regenerating the file or the file is edited without moving the default:
+/// run `write_default_combat_ron` (above) after changing the default.
 #[test]
-fn shipped_combat_ron_is_defaults_plus_cost_knobs() {
+fn shipped_combat_ron_equals_defaults() {
     let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/tuning/combat.ron")).unwrap();
-    let mut t = CombatTuning::from_ron(&src).unwrap();
-    t.willpower.mechanic_cost.clear();
-    t.willpower.form_cost.clear();
-    assert_eq!(t, CombatTuning::default(), "assets/tuning/combat.ron is stale: regenerate it (see write_default_combat_ron)");
+    let t = CombatTuning::from_ron(&src).unwrap();
+    let d = CombatTuning::default();
+    assert_eq!(t.willpower.form_cost, d.willpower.form_cost, "willpower.form_cost: combat.ron vs Rust default");
+    assert_eq!(t.willpower.mechanic_cost, d.willpower.mechanic_cost, "willpower.mechanic_cost: combat.ron vs Rust default");
+    assert_eq!(t, d, "assets/tuning/combat.ron is stale: regenerate it (see write_default_combat_ron)");
 }
 
 #[test]
@@ -91,7 +89,10 @@ fn hostile_tuning_is_sanitised() {
 /// Every tuned formula equals the constant-based original bit for bit over the fuzz space.
 #[test]
 fn default_tuning_formulas_are_bit_identical() {
-    let t = CombatTuning::default();
+    // The formulas, without the shipped balance knobs (`form_cost`; see cost_knobs_only_change_cost).
+    let mut t = CombatTuning::default();
+    t.willpower.form_cost.clear();
+    t.willpower.mechanic_cost.clear();
     let rules = MatchRules::default();
     let mut rng = SimRng::new(77);
     let legacy = CombatTuning::legacy();
@@ -146,10 +147,12 @@ fn default_tuning_formulas_are_bit_identical() {
 #[test]
 fn cost_knobs_only_change_cost() {
     let mut t = CombatTuning::default();
+    t.willpower.form_cost.clear();
     t.willpower.mechanic_cost.push(MechanicCost { mechanic: bd_core::mechanics::Mechanic::Explodes, extra: 0.3 });
     t.willpower.form_cost.push(FormCost { form: Form::Bomb, mult: 1.5 });
     let t = t.validated();
-    let d = CombatTuning::default();
+    let mut d = CombatTuning::default();
+    d.willpower.form_cost.clear();
     let bomb = bots::recipe("bomb", Form::Bomb, &[bd_core::mechanics::Mechanic::Explodes], bd_core::mechanics::Element::Fire, 0.7);
     let hammer = bots::recipe("hammer", Form::Hammer, &[bd_core::mechanics::Mechanic::Blunt], bd_core::mechanics::Element::Light, 1.2);
     let expect = d.willpower.base_cost(&bomb) / 1.15 * (1.15 + 0.3) * 1.5;
@@ -160,7 +163,7 @@ fn cost_knobs_only_change_cost() {
     let adj = t.willpower.base_cost(&bomb) * t.willpower.adjustment_ratio(&bomb);
     assert!((adj - d.willpower.base_cost(&bomb)).abs() < 1e-4);
     // A form multiplier prices upkeep too (sustained held weapons).
-    let mut g = CombatTuning::default();
+    let mut g = d.clone();
     g.willpower.form_cost.push(FormCost { form: Form::Gun, mult: 2.0 });
     let gun = bots::recipe("gun", Form::Gun, &[bd_core::mechanics::Mechanic::Shoots], bd_core::mechanics::Element::Light, 0.6);
     assert_eq!(g.willpower.upkeep_per_sec(&gun, false), 2.0 * d.willpower.upkeep_per_sec(&gun, false));

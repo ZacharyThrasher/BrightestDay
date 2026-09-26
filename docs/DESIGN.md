@@ -244,6 +244,16 @@ gravity on the islands fading to zero-g above an altitude (map-defined gravity p
 hook); top KO = launched into space (drift into the stars), bottom KO = re-entry burn-up. Scale is sold
 with cheap impostors (planet, moon, far station), parallax starfields and atmosphere gradients — no
 spherical gravity (keeps movement feel and the never-roll comfort rule).
+**Backrooms** (`--map backrooms`, bd_voxel `maps/backrooms.rs`): five stacked 8 m storeys of seeded
+liminal room kits on a 19 × 19 grid of 4 m cells, every room reachable (spanning tree of doorways + loops,
+two stairwells per storey, two elevator shafts): garage with void pits + poolrooms (L0), office maze +
+long corridor + poolrooms (L1), office / poolrooms / hotel around the double-height **sky room** (L2–3,
+painted sky, clouds to swing on, giant rubber duck), the 76 m hotel spine = bhop lane (L3), office
+"level 0" + dark playground (L4). Floors, walls, roof and facade break (indestructible frame posts,
+slab ring, columns, black basement); KOs: garage pits → void, up through the roof → star KO, out of a
+window / blasted facade → side or void KO (tether save applies). Light is emissive panels (no point
+lights); drop-ceiling plenums and closed hotel rooms are sealed interiors (render-culled). Decor: capped,
+seeded props (icon-library bakes + kit furniture) hugging solid walls, never on spawns / routes.
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,

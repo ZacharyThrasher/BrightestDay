@@ -557,8 +557,15 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
   creature keeps its body and gains Beam. **Summon** → the thing at ×2–2.6 scale. **Transformation** →
   ×2–2.6 scale + Heavy. Caps: form max × 2.5, ≤ 30 m.
 - Cost = the existing cast cost × `cost_mult` (1.35), never more than a full bar; unaffordable → the plain
-  phrase is cast instead (the ring never says no). Forming ≥ 0.7 s (a readable windup; the caster keeps
+  phrase is cast instead (the ring never says no). Forming ≥ 0.6 s (a readable windup; the caster keeps
   moving). Held / worn ultimates expire after 10 s. Bots at ≥ 85 willpower shout one 20% of the time.
+- **Erasing orbs** (`signature::orb`, `tuning.signature.orb`; the flagship is HOLLOW PURPLE): a Beam signature whose
+  phrase Pierces and is fired / thrown becomes a hard-light Ball, 3.5 m (+0.6 by shout, x1.15 from a full bar). It
+  gathers 0.6 s ahead of the caster (a data `windup: Merge(Water, Fire)` shows a blue and a red orb pulled together
+  from the hands and merging in a flash), then flies straight along the aim at 50 m/s for 120 m and stops for
+  nothing: a 2 m-radius tunnel carve every 1.2 m (power 3), every construct it touches (not its caster's) shattered,
+  every player it touches launched once (28 %, base knockback 36: ~40 m/s at 0 %, ~54 at 90 %, ~63 at 150 %), a
+  7 m Attract wake riding it. Dodge i-frames and movement are the counterplay.
 - **Orbital strikes** (`signature::orbital`, `tuning.signature.orbital`; "SATELLITE DEATH BEAM", "UFO
   abduction beam", "dragon breath from the sky"): not a new verb — an emitter (Shoots / Beam / Breath)
   that Flies and is placed with DropFromSky hovers ~30 m (22–40, under the map ceiling, nudged to within
