@@ -1,0 +1,41 @@
+# Builds the Windows x64 zip (cross-packaged on Linux, same as tools/package-win.mjs locally)
+# and publishes it as the "preview" pre-release so it can be downloaded from the Releases page.
+name: windows-build
+
+on:
+  push:
+    branches: [claude/windows-native-app-perf-d8k8ag, main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: node tools/package-win.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HARDLIGHT-win32-x64
+          path: release/HARDLIGHT-win32-x64.zip
+          compression-level: 0
+      - name: Publish "preview" pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete preview --yes --cleanup-tag || true
+          gh release create preview release/HARDLIGHT-win32-x64.zip \
+            --prerelease --target "$GITHUB_SHA" --title "HARDLIGHT preview (${GITHUB_SHA::7})" \
+            --notes "Automated Windows x64 build of ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Unzip and run HARDLIGHT.exe. Research prototype; see README."
