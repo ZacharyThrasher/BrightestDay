@@ -343,6 +343,20 @@ export class Interpreter {
     this.bindDefinites(c, ctx);
     const order = this.tryOrder(c, ctx);
     if (order) return order;
+    // "make it fly", "have the couch walk", "let the tank swim": give an existing construct that way of moving
+    if (c.causative && c.subject && locoForVerb(c.verb) && ['ride', 'locomote'].includes(c.vclass ?? '')) {
+      const cons = this.resolveConstructs(c.subject.ref, ctx, c.subject).filter((x) => !this.isForeign(x));
+      if (cons.length) {
+        ctx.intents.add('modify');
+        ctx.modTags.push('add_part', 'add_behavior');
+        return cons.map((con) => {
+          const s2 = cloneSpec(con.spec);
+          applyTraits(s2, [{ loco: locoForVerb(c.verb)!, word: c.verb! }], ctx.notes);
+          finalizeMachine(s2, ctx.notes);
+          return { op: 'modify' as const, target: con.id, spec: s2, mods: ['add_part', 'add_behavior'] };
+        });
+      }
+    }
     // "steal his car" / "hijack their tank": take over a vehicle you can ride
     if (['steal', 'hijack', 'commandeer', 'nick', 'take'].includes(c.verb ?? '') && c.objects[0]?.ref && ['construct', 'constructs'].includes(c.objects[0].ref.kind)) {
       const con = this.resolveConstructs(c.objects[0].ref, ctx, c.objects[0])[0];
@@ -1160,7 +1174,7 @@ export class Interpreter {
       }
       case 'shoot': {
         const ammo = obj && !obj.ref ? obj.tokens.join(' ') : '';
-        const kind = /laser|beam|ray/.test(ammo) ? 'laser' : /missile|rocket|torpedo/.test(ammo) ? 'missile' : /\bnets?\b|web/.test(ammo) ? 'net' : /fire|flame|fireball/.test(ammo) ? 'flame' : /bomb|grenade/.test(ammo) ? 'bomb' : /cannon ?ball|shell|boulder/.test(ammo) ? 'cannon' : null;
+        const kind = /laser|beam|ray|lightning|electric|zap|bolt|plasma|energy/.test(ammo) ? 'laser' : /missile|rocket|torpedo/.test(ammo) ? 'missile' : /\bnets?\b|web/.test(ammo) ? 'net' : /fire|flame|fireball/.test(ammo) ? 'flame' : /bomb|grenade/.test(ammo) ? 'bomb' : /cannon ?ball|shell|boulder/.test(ammo) ? 'cannon' : null;
         if (kind) ensureWeapon(spec, ctx.notes, kind);
         else if (!weaponsOf(spec).length) ensureWeapon(spec, ctx.notes, conceptByName.get(spec.concept)?.cls === 'vehicle' ? 'cannon' : 'gun');
         const tnp = obj?.ref ? obj : atP;

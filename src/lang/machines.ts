@@ -430,16 +430,20 @@ export function attachKit(s: ConstructSpec, kind: MachineKind, o: KitOpts = {}):
       return true;
     }
     case 'arms': {
-      if (s.parts.some((p) => p.role === 'arm')) articulate(s, { creature: true });
-      else {
+      const have = s.parts.filter((p) => p.role === 'arm').length;
+      if (have) articulate(s, { creature: true });
+      const want = clamp(Math.round(o.count ?? (have ? have : 2)), 1, 8);
+      if (want > have) {
         const L = clamp(0.7 * sy, 0.5, 6), w = clamp(L * 0.22, 0.15, 1.5);
-        const sh = B.c[1] + sy * 0.25;
-        if (!room(s, 4)) return full(notes, 'arms');
-        for (const side of [-1, 1]) {
+        const add = want - have;
+        if (!room(s, add * 2)) return full(notes, 'arms');
+        for (let i = 0; i < add; i++) {
+          const side = i % 2 ? 1 : -1, tier = Math.floor((i + have) / 2);
+          const sh = B.c[1] + sy * (0.25 - tier * 0.18);
           const x = side < 0 ? B.min[0] - w / 2 : B.max[0] + w / 2;
           const g = uniqGroup(s, side < 0 ? 'arm_l' : 'arm_r');
           s.parts.push(part('capsule', [w, L, w], [x, sh - L / 2, B.c[2]], 'arm', g), part('sphere', [w * 1.7, w * 1.7, w * 1.7], [x, sh - L, B.c[2]], 'fist', g));
-          addJoint(s, { group: g, pivot: [x, sh, B.c[2]], motion: [{ kind: 'swing', axis: [1, 0, 0], amp: 40, rate: 1.2, phase: side < 0 ? 0 : 0.5 }] });
+          addJoint(s, { group: g, pivot: [x, sh, B.c[2]], motion: [{ kind: 'swing', axis: [1, 0, 0], amp: 40, rate: 1.2, phase: (side < 0 ? 0 : 0.5) + tier * 0.25 }] });
         }
       }
       const g = s.parts.find((p) => p.role === 'arm' && p.group?.startsWith('arm_r'))?.group ?? s.parts.find((p) => p.role === 'arm')?.group;
@@ -666,7 +670,8 @@ export function ensureWeapon(s: ConstructSpec, notes: string[], kind: WeaponKind
   if (melee === 'arms' && attachKit(s, 'arms', { notes })) return;
   if (melee === 'claws' && attachKit(s, 'claws', { notes })) return;
   if (melee === 'sting') { addWeapon(s, 'melee', undefined, 0.5); return; }
-  if (c?.cls === 'vehicle' || c?.cls === 'weapon') { attachKit(s, 'turret', { notes, weapon: 'cannon' }); return; }
+  if (c?.cls === 'vehicle') { attachKit(s, 'turret', { notes, weapon: 'cannon' }); return; }
+  if (c && ['weapon', 'tool', 'heavy', 'projectile'].includes(c.cls)) { addWeapon(s, 'melee', undefined, 1.2); return; } // a walking hammer hits with itself
   addWeapon(s, 'melee', undefined, 0.8);
   notes.push('it has no weapon — it will ram them');
 }

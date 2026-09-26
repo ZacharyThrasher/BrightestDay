@@ -265,3 +265,32 @@ test('PvP: "him"/"the enemy" target the opponent lantern; "his wall" targets the
   const reshape = await d.commit('make his wall smaller');
   assert.ok(reshape.abstain, 'their constructs are not ours to reshape');
 });
+
+test('free composition: part lists, counts, held weapons, materials, giving parts, "make it fly"', async () => {
+  const { w, d } = await setup('sandbox');
+  const bus = specOf((await d.commit('a bus with 4 legs, a tail and a machine gun on top')).ops);
+  assert.ok(bus.parts.filter((p) => p.role === 'leg').length >= 4 && bus.parts.some((p) => p.role === 'tail') && beh(bus, 'weapon').some((x) => x.kind === 'gun'));
+  const ship = specOf((await d.commit('a pirate ship with wheels and 6 cannons')).ops);
+  assert.equal(beh(ship, 'weapon').length, 6);
+  assert.equal(beh(ship, 'drive')[0].mode, 'ground');
+  const robot = specOf((await d.commit('a giant robot with 4 arms')).ops);
+  assert.equal(robot.parts.filter((p) => p.role === 'arm').length, 4);
+  const hammer = specOf((await d.commit('a hammer with legs that chases the robots')).ops);
+  assert.ok(beh(hammer, 'weapon').some((x) => x.kind === 'melee'), 'a walking hammer hits with itself');
+  const bear = specOf((await d.commit('a bear wielding a chainsaw')).ops);
+  assert.ok(motions(bear).includes('spin') && beh(bear, 'weapon').some((x) => x.kind === 'melee'));
+  const jelly = specOf((await d.commit('a huge robot made of jelly')).ops);
+  assert.ok(jelly.restitution > 0.8, 'jelly is bouncy');
+  const heads = specOf((await d.commit('a dragon with 3 heads')).ops);
+  assert.equal(heads.parts.filter((p) => p.role === 'head').length, 3);
+  await d.commit('a dog');
+  const dog = [...w.constructs.list.values()].pop()!;
+  const give = await d.commit('give the dog wings');
+  const g = give.ops.find((o) => o.op === 'modify') as any;
+  assert.equal(g?.target, dog.id);
+  assert.equal(beh(g.spec, 'drive')[0].mode, 'air');
+  await d.commit('a couch');
+  const fly = specOf((await d.commit('make it fly')).ops);
+  assert.equal(fly.concept, 'pillow');
+  assert.equal(beh(fly, 'drive')[0].mode, 'air');
+});

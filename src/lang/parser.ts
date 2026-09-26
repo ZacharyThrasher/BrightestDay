@@ -389,6 +389,17 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
       rest = rest.slice(1);
       c.vclass = 'add';
     }
+    // "give the dog wings", "give my tank rockets": a named construct receives the parts
+    else if ((c.verb === 'give' || c.verb === 'get') && ['the', 'my', 'that', 'this', 'your', 'our'].includes(rest[0]) && rest.length > 2) {
+      const n = conceptByName.has(`${rest[1]} ${rest[2]}`) ? 3 : 2;
+      const rec = parseNP(rest.slice(0, n), analogies);
+      const restNP = parseNP(rest.slice(n), analogies);
+      if (rec.concept && !rec.ref && (restNP.addons.length || restNP.concept && addonByName.has(restNP.conceptWords ?? ''))) {
+        (c as any).giveTo = rec;
+        rest = rest.slice(n);
+        c.vclass = 'add';
+      }
+    }
     // "get me across/up there" -> goal verbs
     if (c.verb === 'get' && (SELF_WORDS.has(rest[0]) || rest[0] === 'to')) {
       const r2 = rest.slice(SELF_WORDS.has(rest[0]) ? 1 : 0);
@@ -524,6 +535,8 @@ function findInnerVerb(toks: string[]): { verb: string; at: number; len: number 
     if (i > 0 && DETS.has(toks[i - 1]) && !standalonePronoun) continue;
     const v = verbAt(toks, i);
     if (v && !conceptByName.has(toks[i]) && !MATERIAL_ADJ[toks[i]] && !SIZE_ADJ[toks[i]]) return { verb: v.verb, at: i, len: v.len };
+    // "make it fly": a noun-verb as the last word right after a pronoun is the verb
+    if (v && conceptByName.has(toks[i]) && i === toks.length - 1 && i > 0 && (PRONOUNS_CONSTRUCT.has(toks[i - 1]) || PRONOUNS_PLURAL.has(toks[i - 1]))) return { verb: v.verb, at: i, len: v.len };
     if (v && conceptByName.has(toks[i]) && i > 0 && (SELF_WORDS.has(toks[i + 1] ?? '') || PRONOUNS_PERSON.has(toks[i + 1] ?? '') || DETS.has(toks[i + 1] ?? '') || PARTICLES.has(toks[i + 1] ?? ''))) return { verb: v.verb, at: i, len: v.len };
   }
   return null;
