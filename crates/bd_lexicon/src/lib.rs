@@ -492,7 +492,9 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
             continue;
         };
         let anchored = rec.flags & data::F_ANCHOR != 0;
-        let common = rec.flags & (data::F_ENTITY | data::F_POP | data::F_POKEMON) == 0 && rec.rank_f() >= 2.5;
+        // Only single common words and hand-anchored phrases are protected: an exact multi-word name
+        // ("man of steel", "eye of sauron") always beats a WordNet/ConceptNet phrase of the same text.
+        let common = !alias.contains(' ') && rec.flags & (data::F_ENTITY | data::F_POP | data::F_POKEMON) == 0 && rec.rank_f() >= 2.5;
         if anchored || common {
             drop.push(alias.clone());
         }

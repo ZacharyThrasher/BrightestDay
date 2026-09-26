@@ -158,7 +158,7 @@ def taken():
             if len(parts) >= 2:
                 out.add(parts[0].lower())
                 out.update(a.strip().lower() for a in parts[1].split(";") if a.strip())
-    for fp in (os.path.join(ROOT, "assets", "powers.ron"), os.path.join(ROOT, "assets", "powers_pending", "marvel.ron")):
+    for fp in (os.path.join(ROOT, "assets", "powers.ron"),):  # the pending file was merged into powers.ron
         t = open(fp, encoding="utf-8").read()
         for m in re.finditer(r"names:\s*\[(.*?)\]", t, re.S):
             out.update(n.lower() for n in re.findall(r'"([^"]*)"', m.group(1)))

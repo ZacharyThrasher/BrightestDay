@@ -1,15 +1,14 @@
-//! Validates pending power files against bd_sim's real PowerDef schema + the never-list / flight rules:
-//! `cargo run --manifest-path tools/icons/dc/powercheck/Cargo.toml -- assets/powers_pending/dc.ron [assets/powers.ron]`
-//! The first file is linted; any further files only contribute ids/names for uniqueness checks.
+//! Validates power files against bd_sim's real PowerDef schema + the never-list / flight rules:
+//! `cargo run --manifest-path tools/icons/dc/powercheck/Cargo.toml [-- assets/powers.ron [other.ron...]]`
+//! (the pending files were merged into assets/powers.ron, which is the default). The first file is
+//! linted; any further files only contribute ids/names for uniqueness checks.
 use bd_sim::powers::{MoveOp, PowerDef, PowerTable, norm_words};
 use std::collections::HashMap;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let Some(path) = args.first() else {
-        eprintln!("usage: powercheck <pending.ron> [other.ron...]");
-        std::process::exit(2);
-    };
+    let default = "assets/powers.ron".to_string();
+    let path = args.first().unwrap_or(&default);
     let src = std::fs::read_to_string(path).expect("read");
     let raw: Vec<PowerDef> = match ron::from_str(&src) {
         Ok(v) => v,
@@ -22,7 +21,7 @@ fn main() {
     let mut bad = 0;
     let mut ids: HashMap<String, String> = HashMap::new();
     let mut names: HashMap<String, String> = HashMap::new();
-    for other in &args[1..] {
+    for other in args.iter().skip(1) {
         let o = std::fs::read_to_string(other).expect("read other");
         let v: Vec<PowerDef> = ron::from_str(&o).unwrap_or_else(|e| panic!("{other}: {e}"));
         for p in v {

@@ -393,3 +393,57 @@ fn seastone_is_a_water_link() {
     }
     check!("seastone chain", |x| { x.recipe.name.contains("seastone") });
 }
+
+/// Exact curated names beat composition grammar: every icon / power alias that exactly names something
+/// ("man of steel", "eye of sauron", "ball and chain", "sword of omens") resolves to that thing, not to
+/// an "X of Y" material/graft reading.
+#[test]
+fn exact_names_beat_phrase_grammar() {
+    let Some(l) = common::lex() else { return };
+    let grammar = [" of ", " with ", " and ", " that ", " made ", " on ", " in ", " the "];
+    let mut checked = 0;
+    let mut bad = Vec::new();
+    for d in l.icons() {
+        for n in d.names.iter().chain(std::iter::once(&d.name)) {
+            let padded = format!(" {} ", n.to_lowercase());
+            if !grammar.iter().any(|g| padded.contains(g)) {
+                continue;
+            }
+            // only aliases this icon actually owns (earlier packs / common words may own the rest)
+            let Some(owner) = l.lookup(n) else { continue };
+            if owner.name != d.recipe().name {
+                continue;
+            }
+            checked += 1;
+            let r = l.resolve(n);
+            if r.recipe.name != owner.name || r.recipe.form != owner.form || r.recipe.grants != owner.grants {
+                bad.push(format!("{n:?} -> {} ({:?}) expected {} ({:?})", r.recipe.name, r.recipe.form, owner.name, owner.form));
+            }
+        }
+    }
+    eprintln!("exact-name audit: {checked} grammar-looking names checked, {} failed", bad.len());
+    assert!(checked > 50, "only {checked} names checked");
+    assert!(bad.is_empty(), "{} failures:\n{}", bad.len(), bad.join("\n"));
+    for (p, want) in [
+        ("man of steel", "superman"),
+        ("eye of sauron", "sauron"),
+        ("hand of doom", "hand of doom"),
+        ("sword of omens", "omens"),
+        ("ball and chain", "ball and chain"),
+        ("one ring", "ring"),
+        ("pym particles", "pym"),
+    ] {
+        let r = l.resolve(p);
+        assert!(r.recipe.name.to_lowercase().contains(want), "{p:?} -> {:?} {:?}", r.recipe.name, r.explanation);
+    }
+    check!("tree of life", |x| { x.recipe.form == Form::Pillar });
+}
+
+#[test]
+fn random_origin_phrases() {
+    let Some(l) = common::lex() else { return };
+    for p in ["mystery origin", "random superpower", "superpower", "super serum", "origin story", "compound v"] {
+        let r = l.resolve(p);
+        assert_eq!(r.recipe.grants.as_deref(), Some("random:origin"), "{p:?} -> {:?}", r.explanation);
+    }
+}

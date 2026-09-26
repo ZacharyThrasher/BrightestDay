@@ -586,6 +586,8 @@ WORD_ANCHORS = {
     "flying saucer": dict(f="Disc", m=["Flies", "Beam"], s=4.0),
     "robot": dict(f="Biped", m=["Shoots"]),
     "mech": dict(f="Kaiju", m=["Stomp", "Shoots", "Heavy"], s=8.0),
+    "tree of life": dict(f="Pillar", m=["Grow", "Heavy"], e="Earth", s=10.0),
+    "tree of knowledge": dict(f="Pillar", m=["Heavy"], e="Psychic", s=10.0),
     # --- seastone (One Piece): the powers sim treats a Water Link / a name containing "seastone" as
     # power-cancelling; keep the word in names (modifier use keeps the phrase as the name) ---
     "seastone": dict(f="Whip", m=["Link", "Heavy"], e="Water", g=["Link"]),

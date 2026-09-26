@@ -21,10 +21,10 @@ TAGS = set(MECH_ORDER) | set(FEAT_ORDER) | TEMPS | ELEMS
 
 def main():
     taken = taken_names(exclude=())      # every pack, dc.ron included
-    pend = open(os.path.join(ROOT, "assets", "powers_pending", "dc.ron"), encoding="utf-8").read()
+    pend = open(os.path.join(ROOT, "assets", "powers.ron"), encoding="utf-8").read()  # pending file merged
     for m in re.finditer(r"names:\s*\[(.*?)\]", pend, re.S):
         for n in re.findall(r'"([^"]*)"', m.group(1)):
-            taken.setdefault(norm_name(n), "powers_pending/dc.ron")
+            taken.setdefault(norm_name(n), "powers.ron")
     seen = set()
     out = [
         "# Brightest Day - DC / Invincible / superhero names (2026-09): DC (Superman & Batman families, Wonder Woman, Flash,",

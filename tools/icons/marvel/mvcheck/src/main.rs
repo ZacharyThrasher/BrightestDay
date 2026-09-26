@@ -1,4 +1,4 @@
-//! mvcheck — validate the Marvel pending powers + probe the lexicon.
+//! mvcheck — validate assets/powers.ron (the Marvel pending file was merged into it) + probe the lexicon.
 //!
 //!     cargo run --release --manifest-path tools/icons/marvel/mvcheck/Cargo.toml -- [phrase ...]
 //!
@@ -12,8 +12,7 @@ const FLIGHT_CAP: f32 = 17.0;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let pending = std::fs::read_to_string("assets/powers_pending/marvel.ron").expect("pending file");
-    let base = std::fs::read_to_string("assets/powers.ron").expect("powers.ron");
+    let pending = std::fs::read_to_string("assets/powers.ron").expect("powers.ron");
     let mut bad = 0;
 
     let t = match PowerTable::parse(&pending) {
@@ -23,7 +22,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    println!("pending: {} powers", t.powers.len());
+    println!("powers.ron: {} powers", t.powers.len());
     for p in &t.powers {
         let mut flights = vec![p.body.moves.thrust_max];
         let mut has_tf_op = false;
@@ -74,10 +73,8 @@ fn main() {
         }
     }
 
-    // Merge exactly like the lead will: append pending entries to the base list.
-    let b = base.trim_end().trim_end_matches(']');
-    let body = pending.find('[').map(|i| &pending[i + 1..]).unwrap_or("");
-    let merged = format!("{b}\n{body}");
+    // Already merged: check uniqueness across the whole table.
+    let merged = pending.clone();
     let mt = match PowerTable::parse(&merged) {
         Ok(t) => t,
         Err(e) => {

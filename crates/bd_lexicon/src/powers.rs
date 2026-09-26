@@ -30,12 +30,35 @@ pub struct PowerDef {
     /// Normalised incantation prefixes ("gomu gomu no").
     pub incantations: Vec<String>,
     pub kind: PowerKind,
+    /// `pickup: Some((name, form, element, scale))` — how the power's pickup looks (optional).
+    pub pickup: Option<Pickup>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Pickup {
+    pub name: Option<String>,
+    pub form: Option<Form>,
+    pub element: Option<Element>,
+    pub scale: Option<f32>,
+}
+
+fn parse_pickup(v: &str) -> Option<Pickup> {
+    let inner = v.trim().strip_prefix("Some(")?.trim().strip_suffix(')')?.trim();
+    let f = fields(inner);
+    let get = |k: &str| f.iter().find(|(n, _)| n == k).map(|(_, v)| v.trim());
+    Some(Pickup {
+        name: get("name").and_then(|v| strings(v).into_iter().next()),
+        form: get("form").and_then(crate::tables::form_from_name),
+        element: get("element").and_then(crate::tables::element_from_name),
+        scale: get("scale").and_then(|v| v.parse::<f32>().ok()).filter(|s| s.is_finite() && *s > 0.0),
+    })
 }
 
 /// Sentinel `grants` ids for the "random" items; the game picks the actual power (seeded, host-side).
 pub const RANDOM_FRUIT: &str = "random:devil_fruit";
 pub const RANDOM_STAND: &str = "random:stand";
 pub const RANDOM_MUTAGEN: &str = "random:mutagen";
+pub const RANDOM_ORIGIN: &str = "random:origin";
 
 /// Stand-rush cries: each typed cry is one punch of the user's stand.
 const CRIES: &[&str] = &["ora", "muda", "dora", "ari", "wry", "wryy", "oraora", "mudamuda"];
@@ -225,7 +248,12 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         if names.is_empty() {
             names.push(id.replace('_', " "));
         }
-        out.push(PowerDef { id, names, incantations, kind });
+        let pickup = get("pickup").and_then(parse_pickup);
+        if let Some(n) = pickup.as_ref().and_then(|p| p.name.clone())
+            && !names.iter().any(|x| normalize_key(x) == normalize_key(&n)) {
+                names.push(n);
+            }
+        out.push(PowerDef { id, names, incantations, kind, pickup });
     }
     (out, warnings)
 }
@@ -235,9 +263,25 @@ pub fn power_entry(p: &PowerDef) -> IconEntry {
     let display =
         p.names.iter().find(|n| n.to_lowercase().contains("fruit")).or_else(|| p.names.first()).cloned().unwrap_or_else(|| p.id.clone());
     let display = title_case(&display);
+    let mut recipe = grant_recipe(&display, &p.id, p.kind);
+    if let Some(pk) = &p.pickup {
+        if let Some(n) = &pk.name {
+            recipe.name = title_case(n);
+        }
+        if let Some(f) = pk.form {
+            recipe.form = f;
+            recipe.mechanics.clear();
+        }
+        if let Some(e) = pk.element {
+            recipe.element = e;
+        }
+        if let Some(s) = pk.scale {
+            recipe.scale = s;
+        }
+    }
     IconEntry {
         names: p.names.iter().map(|n| n.to_lowercase()).collect(),
-        recipe: grant_recipe(&display, &p.id, p.kind),
+        recipe: recipe.normalized(),
         shape: None,
         alt_shape: None,
         source: "powers.ron".to_string(),
@@ -316,7 +360,30 @@ pub fn random_entries() -> Vec<IconEntry> {
         alt_shape: None,
         source: "powers.ron".to_string(),
     };
-    vec![fruit, arrow, mutagen]
+    let mut origin_recipe = grant_recipe("Mystery Origin", RANDOM_ORIGIN, PowerKind::Fruit);
+    origin_recipe.scale = 0.3;
+    let origin = IconEntry {
+        names: [
+            "mystery origin",
+            "random superpower",
+            "superpower",
+            "super power",
+            "super serum",
+            "super soldier serum",
+            "origin story",
+            "random origin",
+            "a superpower",
+            "random super power",
+            "origin kit",
+        ]
+        .map(String::from)
+        .to_vec(),
+        recipe: origin_recipe.normalized(),
+        shape: None,
+        alt_shape: None,
+        source: "powers.ron".to_string(),
+    };
+    vec![fruit, arrow, mutagen, origin]
 }
 
 fn title_case(s: &str) -> String {
