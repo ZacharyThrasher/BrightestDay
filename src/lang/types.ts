@@ -6,6 +6,10 @@ export type Op =
   | { op: 'modify'; target: string /* construct id */; spec: ConstructSpec; mods: string[] }
   | { op: 'act'; target: string; action: 'throw' | 'release' | 'dismiss'; ref?: Ref; speed?: number }
   | { op: 'control'; action: 'dismiss_all' | 'undo' | 'save' | 'recall' | 'cancel' | 'release_all' | 'tether_release'; name?: string; target?: string }
+  /** The player gets in/on a rideable construct (target is a { kind: 'construct' } ref). Executed by the app via the player's ride API. */
+  | { op: 'ride'; target: Ref }
+  /** The player gets out of / off whatever they are riding. */
+  | { op: 'dismount' }
   | { op: 'abstain'; reason: string };
 
 export type SourceKind = 'rule' | 'lexicon' | 'embedding' | 'llm' | 'cache' | 'none';

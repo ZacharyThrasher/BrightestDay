@@ -15,8 +15,13 @@ import type { Construct } from '../sim/constructs/runtime.js';
 import { type ConstructSpec, type Behavior, type Ref, type Part, type PlacementAt, defaultSpec, cloneSpec, type Vec3 } from '../sim/constructs/spec.js';
 import { buildForm, mountPoint, FORMS } from '../sim/constructs/forms.js';
 import { specExtent } from '../sim/constructs/geom.js';
-import { parse, tokenize, type Clause, type NP, type RefWord } from './parser.js';
-import { conceptByName, UNSUPPORTED, CONCEPTS, type Concept, type Addon } from './lexicon.js';
+import { parse, tokenize, expandShorthand, type Clause, type NP, type RefWord } from './parser.js';
+import { conceptByName, addonByName, UNSUPPORTED, CONCEPTS, type Concept, type Addon } from './lexicon.js';
+import {
+  attachKit, applyTraits, finalizeMachine, machineFunctions, isMachine, machineCapable, setBrain, setRideable, ensureLocomotion, ensureWeapon, articulate,
+  traitsFromWords, locoForVerb, brainOf, driveOf, weaponsOf, isRideable, MOVING_GOALS, type Trait, type BrainGoal,
+} from './machines.js';
+import { matchOrder, cleanOrderTokens, ALL_ADDRESS, type Order } from './orders.js';
 import { SPEED_ADJ, VERBS, lemma, FILLERS, type VerbClass } from './words.js';
 import { repair, isGameWord, isEnglishCommon, nearestConceptBySound, type Correction } from './fuzzy.js';
 import type { Op, Interpretation, CommitResult, EffectReport, SourceKind } from './types.js';
@@ -29,6 +34,8 @@ interface Ctx {
   aimPoint: Vector3;
   aimEntity: Entity | null;
   aimConstruct: Construct | null;
+  /** PvP: the lantern under the crosshair (if the world reports players as collider owners) */
+  aimPlayer: string | null;
   aimNormal: Vector3;
   focus: Construct | null;
   corrections: Correction[];
@@ -46,6 +53,10 @@ interface Ctx {
   intents: Set<string>;
   targetKinds: Set<string>;
   priorOps: Op[];
+  /** constructs the utterance addressed by name ("tanks, attack") */
+  addressees: string[] | null;
+  /** functional claims that come from orders rather than specs (e.g. "returns", riding) */
+  extraFns: Set<string>;
 }
 
 interface Pending { kind: 'throw_after_grab' | 'orbit_after_grab'; construct?: string; ref?: Ref; speed?: number; opIndex: number }
@@ -230,17 +241,20 @@ export class Interpreter {
     const own = this.w.ownerOf(aim.collider);
     const aimEntity = own?.kind === 'entity' ? this.w.entities.get(own.id) ?? null : null;
     const aimConstruct = own?.kind === 'construct' ? this.w.constructs.get(own.id) : null;
+    const aimPlayer = (own as any)?.kind === 'player' && String((own as any).id) !== this.myId() ? String((own as any).id) : null;
+    let focus = this.w.constructs.get(this.w.constructs.focusId);
+    if (focus && this.isForeign(focus)) focus = [...this.w.constructs.list.values()].reverse().find((c) => !this.isForeign(c)) ?? null;
     return {
-      aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, focus: this.w.constructs.get(this.w.constructs.focusId),
+      aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, aimPlayer, focus,
       corrections: [], notes: [], approximations: [], unknownWords: [], confidence: 0.92, defaultsUsed: 0, source: 'rule',
       lastEntity: this.lastEntityId ? this.w.entities.get(this.lastEntityId) ?? null : null, createdThisUtterance: [], touchedEntities: new Set(), pending: [],
-      modTags: [], intents: new Set(), targetKinds: new Set(), priorOps: [],
+      modTags: [], intents: new Set(), targetKinds: new Set(), priorOps: [], addressees: null, extraFns: new Set(),
     };
   }
 
   plan(text: string, partial: boolean): { ops: Op[]; ctx: Ctx; normalized: string } {
     const ctx = this.makeCtx();
-    let raw = text.toLowerCase();
+    let raw = expandShorthand(text);
     for (const u of UNSUPPORTED) {
       const m = u.pattern.exec(raw);
       if (!m) continue;
@@ -265,12 +279,25 @@ export class Interpreter {
         const prev = rep.tokens[i - 1];
         const clauseStart = i === 0 || [',', '.', 'and', 'then', 'now', 'just', 'please', '!'].includes(prev);
         if (!clauseStart || w.length < 3 || VERBS[lemma(w)] || conceptByName.has(w) || isFunctionish(w)) continue;
+        // orders to machines ("let me drive", "sic em") are not unknown verbs
+        const upto = rep.tokens.slice(i); const cut = upto.findIndex((x) => /^[,.!?;]$/.test(x));
+        if (matchOrder(cleanOrderTokens(cut >= 0 ? upto.slice(0, cut) : upto))) continue;
         const next = rep.tokens[i + 1] ?? '';
         if (!next || ![...'the that this those these it him her them em me my a an all both his their'.split(' ')].includes(next)) continue;
         const nv = this.embedder.nearestVerb(w);
         if (nv && nv.score >= 0.55) { ctx.approximations.push(`“${w}” ≈ ${nv.verb}`); ctx.confidence -= 0.15; ctx.source = 'embedding'; rep.tokens[i] = nv.verb; }
       }
     }
+    // PvP possessives: "the enemy's wall", "that thing he made" → "his wall", "his thing"
+    if (this.opponents().length) {
+      const j = rep.tokens.join(' ')
+        .replace(/\b(the enemy|my opponent|the opponent|my rival|the rival|the other guy|that guy|the other lantern)'?s\b/g, 'his')
+        .replace(/\b(that|the|this) (thing|construct|stuff|one|contraption|machine|creation) (that )?(he|she|they|the enemy|my opponent|my rival|the other guy) (just )?(made|built|summoned|conjured|created|has|is riding|is in|rides)\b/g, 'his $2');
+      rep.tokens = j.split(' ').filter(Boolean);
+    }
+    // "tanks, attack that drone" / "all of you follow me": orders addressed to existing machines
+    const addr = this.extractAddressee(rep.tokens, ctx);
+    if (addr) rep.tokens = addr;
     let p = parse(rep.tokens.join(' '));
     let ops = this.clausesToOps(p.clauses, ctx, partial);
     // if nothing made sense, try an aggressive phonetic re-read (homophones like "punts" -> "punch")
@@ -279,6 +306,8 @@ export class Interpreter {
       if (rep2.corrections.length) {
         const ctx2 = this.makeCtx();
         ctx2.corrections.push(...rep2.corrections);
+        const addr2 = this.extractAddressee(rep2.tokens, ctx2);
+        if (addr2) rep2.tokens = addr2;
         const p2 = parse(rep2.tokens.join(' '));
         const ops2 = this.clausesToOps(p2.clauses, ctx2, partial);
         if (ops2.length && !ops2.every((o) => o.op === 'abstain')) { p = p2; ops = ops2; Object.assign(ctx, ctx2); }
@@ -312,9 +341,38 @@ export class Interpreter {
 
   private clauseToOps(c: Clause, ctx: Ctx, prior: Op[], partial: boolean): Op[] {
     this.bindDefinites(c, ctx);
+    const order = this.tryOrder(c, ctx);
+    if (order) return order;
+    // "make it fly", "have the couch walk", "let the tank swim": give an existing construct that way of moving
+    if (c.causative && c.subject && locoForVerb(c.verb) && ['ride', 'locomote'].includes(c.vclass ?? '')) {
+      const cons = this.resolveConstructs(c.subject.ref, ctx, c.subject).filter((x) => !this.isForeign(x));
+      if (cons.length) {
+        ctx.intents.add('modify');
+        ctx.modTags.push('add_part', 'add_behavior');
+        return cons.map((con) => {
+          const s2 = cloneSpec(con.spec);
+          applyTraits(s2, [{ loco: locoForVerb(c.verb)!, word: c.verb! }], ctx.notes);
+          finalizeMachine(s2, ctx.notes);
+          return { op: 'modify' as const, target: con.id, spec: s2, mods: ['add_part', 'add_behavior'] };
+        });
+      }
+    }
+    // "steal his car" / "hijack their tank": take over a vehicle you can ride
+    if (['steal', 'hijack', 'commandeer', 'nick', 'take'].includes(c.verb ?? '') && c.objects[0]?.ref && ['construct', 'constructs'].includes(c.objects[0].ref.kind)) {
+      const con = this.resolveConstructs(c.objects[0].ref, ctx, c.objects[0])[0];
+      if (con && (isRideable(con.spec) || driveOf(con.spec) || con.spec.behaviors.some((b) => b.type === 'mount'))) { ctx.approximations.push('steal → climb in and take it'); return this.rideOps(con, ctx); }
+    }
     const special = this.reinterpret(c, ctx);
     if (special) return special;
     const v = c.vclass;
+    // "so I can walk up to it": how the player gets about is not a construct goal
+    if (c.purpose?.vclass === 'locomote') c.purpose = null;
+    // "walking house", "flying car" said without an article: a participle describing the thing to make
+    if (v === 'locomote' && /ing$/.test(c.raw.find((w) => lemma(w) === c.verb) ?? '') && c.objects[0] && (c.objects[0].concept || c.objects[0].unknownHead) && !c.objects[0].ref) {
+      const np = c.objects[0];
+      np.tokens = [c.raw.find((w) => lemma(w) === c.verb)!, ...np.tokens];
+      return this.clauseToOps({ ...c, verb: null, vclass: null }, ctx, prior, partial);
+    }
     // save / recall
     if (v === 'save' && !c.savedName && c.objects[0]?.ref && ['person', 'entity'].includes(c.objects[0].ref.kind)) return this.opAction({ ...c, vclass: 'rescue', verb: 'rescue' }, ctx, null);
     if (v === 'save') return this.opSave(c, ctx);
@@ -383,6 +441,7 @@ export class Interpreter {
       const specs = this.objectsToSpecs(c.objects.filter((o) => o.concept || o.unknownHead), c, ctx);
       if (!specs.length) return this.abstainUnknown(obj, ctx);
       ctx.intents.add('create');
+      for (const spec of specs) this.companionDefaults(spec, ctx);
       return specs.map((spec) => ({ op: 'create', spec }));
     }
     // action verbs
@@ -424,6 +483,7 @@ export class Interpreter {
         const c = CONCEPTS.find((x) => x.id === res[0].id) ?? null;
         if (c) {
           ctx.approximations.push(`“${phrase}” ≈ ${c.id} (${Math.round(res[0].score * 100)}%)`);
+          ctx.notes.push(`closest I know to “${phrase}”: ${c.id}`);
           ctx.confidence -= 0.25;
           ctx.source = 'embedding';
           return { concept: c, approx: phrase };
@@ -456,6 +516,19 @@ export class Interpreter {
       if (!concept) {
         if (np.unknownHead) {
           ctx.unknownWords.push(np.unknownHead);
+          // machine features on an unknown thing ("a flying zamboni with cannons"): build them on a generic hard-light hull
+          if (this.wantsMachine(np, c)) {
+            const hull = conceptByName.get('cube')!;
+            const spec = this.specFromConcept(hull, np, c, ctx);
+            spec.concept = 'hull';
+            spec.label = spec.label.replace(/\bcube\b/, np.unknownHead);
+            spec.provenance = { source: 'fallback', confidence: 0.4, approximatedFrom: np.unknownHead, notes: [`unknown “${np.unknownHead}” → generic hull`] };
+            ctx.approximations.push(`“${np.unknownHead}” unknown → a hard-light hull with the parts you asked for`);
+            ctx.notes.push(`I don’t know what a “${np.unknownHead}” looks like — closest I can make is a hull with those parts`);
+            ctx.confidence = Math.min(ctx.confidence, 0.5);
+            out.push(spec);
+            continue;
+          }
           // if the verb gives it a clear job we can still act with a generic form, flagged as an approximation
           if (verbHint && verbHint !== 'create') {
             const generic = this.genericForVerb(verbHint);
@@ -505,6 +578,11 @@ export class Interpreter {
       provenance: { source: 'lexicon', confidence: ctx.confidence, notes: [] },
     });
     if (concept.at === 'hand' && !spec.behaviors.some((b) => DRIVES.has(b.type))) spec.behaviors.push({ type: 'hold', side: 'right' });
+    // vehicles and creatures come articulated (wheels roll, legs walk, wings flap) and able to move
+    if (concept.cls === 'vehicle' || concept.cls === 'creature' || concept.mach) {
+      articulate(spec);
+      if (concept.mach) ensureLocomotion(spec, ctx.notes, true);
+    }
     // anchors go where they're useful: on top of what you're pointing at; elevators go up to it
     if (concept.cls === 'rope' && spec.placement.at === 'aim' && !ctx.aimEntity) spec.placement = { ...spec.placement, at: 'target', target: { kind: 'point', p: this.ledgeTop(ctx).toArray() as Vec3 } };
     if ((concept.id === 'ladder' || concept.id === 'stairs' && ctx.aimNormal.y < 0.5) && !ctx.aimEntity && ctx.aimPoint.distanceTo(this.w.player.pos) < 60) {
@@ -530,7 +608,7 @@ export class Interpreter {
     if (np) {
       this.applyMaterials(spec, np.materials, ctx);
       for (const sp of np.speeds) this.scaleSpeeds(spec, sp);
-      for (const a of np.addons) this.addAddon(spec, a.addon, a.where, ctx);
+      for (const a of np.addons) this.addAddon(spec, a.addon, a.where, ctx, a);
       if (np.colors.length) spec.color = np.colors[0];
       if ((np.count ?? 1) > 1 && !np.arrangement && concept.cls === 'barrier' && spec.placement.at === 'self') spec.arrangement = 'ring';
     }
@@ -538,7 +616,14 @@ export class Interpreter {
     if (c) this.applyPreps(spec, c, ctx);
     // relative clauses: "that orbits me", "that shoots at the drones"
     for (const rel of np?.rel ?? []) this.applyRelClause(spec, rel, ctx);
-    if (c && (c as any).relationWhere && np?.addons.length === 0) void 0;
+    // machine traits named by adjectives ("a flying bathtub", "an attack helicopter", "an army of robots")
+    if (np) {
+      // (the head noun itself is never an adjective: "a war" misheard for "a wall" is not a war machine)
+      const head = new Set([np.unknownHead, ...(np.conceptWords ?? '').split(' ')].filter(Boolean) as string[]);
+      const traits = traitsFromWords(np.tokens.filter((w) => !head.has(w)), np.tokens.join(' '));
+      if (traits.length && (machineCapable(spec) || traits.some((t) => t.goal))) applyTraits(spec, traits, ctx.notes);
+    }
+    finalizeMachine(spec, ctx.notes);
     ctx.createdThisUtterance.push(spec);
     return spec;
   }
@@ -547,7 +632,7 @@ export class Interpreter {
     const bits: string[] = [];
     const size = (np?.sizes ?? []).reduce((a, b) => a * b, 1);
     if (size >= 2.5) bits.push('giant'); else if (size >= 1.4) bits.push('big'); else if (size < 0.5) bits.push('tiny'); else if (size < 0.9) bits.push('small');
-    for (const m of np?.materials ?? []) if (!['vertical', 'sideways', 'flat', 'upsidedown', 'reverse', 'permanent', 'temporary'].includes(m)) bits.push(m);
+    for (const m of new Set(np?.materials ?? [])) if (!['vertical', 'sideways', 'flat', 'upsidedown', 'reverse', 'permanent', 'temporary'].includes(m)) bits.push(m);
     bits.push(np?.conceptWords && conceptByName.get(np.conceptWords) === concept ? np.conceptWords : concept.id);
     let label = bits.join(' ');
     if ((np?.count ?? 1) > 1) label = `${np!.count} × ${label}`;
@@ -603,13 +688,27 @@ export class Interpreter {
         case 'sweep': any = true; return { ...b, speed: b.speed * k };
         case 'mount': any = true; return { ...b, groundSpeedMul: b.groundSpeedMul ? b.groundSpeedMul * Math.sqrt(k) : b.groundSpeedMul, thrustLook: b.thrustLook ? b.thrustLook * k : b.thrustLook, thrustUp: b.thrustUp ? b.thrustUp * k : b.thrustUp, glide: b.glide ? b.glide * Math.sqrt(k) : b.glide };
         case 'field': any = true; return { ...b, strength: b.strength * k };
+        case 'drive': any = true; return { ...b, speed: b.speed * k };
+        case 'weapon': return { ...b, rate: b.rate * Math.sqrt(k) };
         default: return b;
       }
     });
     return any;
   }
 
-  addAddon(spec: ConstructSpec, a: Addon, where: string | null, ctx: Ctx) {
+  addAddon(spec: ConstructSpec, a: Addon, where: string | null, ctx: Ctx, use?: { count: number; explicit?: boolean }) {
+    if (a.machine && !a.keepGeometry) {
+      // articulated kit: parts + joints + drive / weapon / seat (see machines.ts)
+      const plural = (use?.count ?? 1) > 1;
+      const count = use?.explicit ? use.count : a.machine === 'gun' ? (plural ? 2 : 1) : null;
+      const ok = attachKit(spec, a.machine, { where, count, weapon: a.weapon, notes: ctx.notes });
+      if (!ok) ctx.notes.push(`couldn’t fit the ${a.id}`);
+      const mount = spec.behaviors.find((b) => b.type === 'mount') as any;
+      if (ok && mount && a.mountMods) for (const [key, val] of Object.entries(a.mountMods)) mount[key] = key === 'maxFall' ? Math.min(mount[key] ?? Infinity, val) : Math.max(mount[key] ?? 0, val) * (key === 'groundSpeedMul' && mount[key] ? 1.2 : 1);
+      if (a.density) spec.density *= a.density;
+      spec.label = spec.label.includes(' with ') ? spec.label + ` & ${a.id}s` : spec.label;
+      return;
+    }
     const hostExt = specExtent({ ...spec, scale: 1, stretch: undefined });
     const hostSize = Math.max(hostExt.size.x, hostExt.size.y, hostExt.size.z);
     const addParts = buildForm(a.form);
@@ -635,6 +734,7 @@ export class Interpreter {
     }
     if (a.density) spec.density *= a.density;
     if (a.restitution) spec.restitution = a.restitution;
+    if (a.machine && isMachine(spec)) attachKit(spec, a.machine, { where, weapon: a.weapon, notes: ctx.notes }); // spikes/blades on a machine are a melee weapon
     spec.label = spec.label.includes(' with ') ? spec.label + ` & ${a.id}s` : spec.label;
   }
 
@@ -648,8 +748,11 @@ export class Interpreter {
 
   private defaultTarget(ctx: Ctx): Ref {
     if (ctx.aimEntity) return { kind: 'entity', id: ctx.aimEntity.id };
+    if (ctx.aimPlayer) return { kind: 'player', id: ctx.aimPlayer };
     const ne = this.w.constructs.nearestEnemy();
     if (ne) return { kind: 'entity', id: ne.id };
+    const opp = this.opponents()[0];
+    if (opp) return { kind: 'player', id: opp.id };
     return { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 };
   }
 
@@ -666,8 +769,8 @@ export class Interpreter {
       return [];
     }
     if (r.kind === 'entity') {
-      let pool = all.filter((e) => e.type === r.entityType || r.entityType === 'drone' && e.type === 'drone');
-      if (!pool.length && r.entityType === 'drone') pool = all.filter((e) => e.hostile);
+      let pool = r.entityType === 'hostile' ? all.filter((e) => e.hostile) : all.filter((e) => e.type === r.entityType);
+      if (!pool.length && (r.entityType === 'drone' || r.entityType === 'robot')) pool = all.filter((e) => e.hostile);
       if (!pool.length && r.entityType === 'turret') pool = all.filter((e) => e.type === 'turret');
       if (!pool.length && r.entityType === 'civilian') pool = all.filter((e) => e.type === 'civilian' || e.type === 'dummy');
       if (!pool.length) { ctx.notes.push(`no ${r.noun ?? r.entityType} in sight`); return []; }
@@ -756,6 +859,8 @@ export class Interpreter {
   /** Turn a noun phrase into a runtime Ref (entity / self / point / construct). */
   refFor(np: NP | null, ctx: Ctx, forVerb: VerbClass | null): { ref: Ref | null; entities: Entity[]; kind: string } {
     if (!np) return { ref: null, entities: [], kind: 'none' };
+    const opp = this.opponentRef(np, ctx, forVerb);
+    if (opp) return opp;
     const r = np.ref;
     if (r?.kind === 'self') return { ref: { kind: 'self' }, entities: [], kind: 'self' };
     if (r?.kind === 'aim') {
@@ -853,6 +958,8 @@ export class Interpreter {
           else if (ref && ref.kind !== 'self') this.targetBehaviors(spec, ref);
           break;
         case 'on': case 'onto': case 'at': case 'into': case 'against': case 'in':
+          // "a couch on wheels", "a house on chicken legs"
+          if (p.prep === 'on' && !np.ref && this.locoAddonOf(np)) { this.withParts(spec, np, ctx); break; }
           if (isSelf) {
             if (!spec.behaviors.some((b) => b.type === 'mount')) spec.placement = { ...spec.placement, at: 'self' };
             break;
@@ -874,15 +981,52 @@ export class Interpreter {
         case 'for':
           if (!isSelf && ref) { spec.placement = { ...spec.placement, at: 'around_target', target: ref }; }
           break;
-        case 'with':
-          for (const a of np.addons) this.addAddon(spec, a.addon, a.where, ctx);
-          if (np.concept && !np.addons.length) {
-            // "a car with a cannon" where cannon is a concept that also exists as an addon
-            const asAddon = ADDON_BY_CONCEPT(np.concept.id);
-            if (asAddon) this.addAddon(spec, asAddon, null, ctx);
-          }
+        case 'with': {
+          // "with wheels and 6 cannons", "with wings, a tail plus lasers": each part on its own
+          const groups: string[][] = [[]];
+          for (const w of np.tokens) { if (['and', 'plus', ','].includes(w) && groups[groups.length - 1].length) groups.push([]); else groups[groups.length - 1].push(w); }
+          const subs = groups.filter((g) => g.length);
+          if (subs.length > 1) for (const g of subs) { const sub = parseNPLite(g); if ((np as any).where) (sub as any).where = (np as any).where; this.withParts(spec, sub, ctx); }
+          else this.withParts(spec, np, ctx);
+        }
+          // "… with helicopter blades that hunts drones": the relative clause describes the whole machine
+          for (const rel of np.rel) this.applyRelClause(spec, rel, ctx);
           break;
       }
+    }
+  }
+
+  /** An add-on NP that is a way of getting about ("on wheels", "on legs", "on treads"). */
+  private locoAddonOf(np: NP): Addon | null {
+    const a = np.addons[0]?.addon ?? (np.conceptWords ? addonByName.get(np.conceptWords) ?? null : null);
+    return a && ['wheels', 'treads', 'legs', 'hover'].includes(a.machine ?? '') ? a : null;
+  }
+
+  /** "with Y": attach add-on parts (articulated kits for machine parts); never silently drop a part. */
+  private withParts(spec: ConstructSpec, np: NP, ctx: Ctx) {
+    const explicit = np.tokens.some((w) => /^\d+$/.test(w) || NUMBERS[w] !== undefined && !['a', 'an', 'one', 'single'].includes(w));
+    for (const a of np.addons) this.addAddon(spec, a.addon, a.where, ctx, { count: a.count, explicit: a.explicit || explicit });
+    if (np.concept) {
+      // "a car with a cannon": a concept word that is also an add-on
+      const w = np.conceptWords ?? '';
+      const asAddon = addonByName.get(w) ?? addonByName.get(w.replace(/e?s$/, '')) ?? ADDON_BY_CONCEPT(np.concept.id);
+      const count = np.count ?? (np.plural ? 2 : 1);
+      if (asAddon) { if (!np.addons.some((a) => a.addon === asAddon)) this.addAddon(spec, asAddon, (np as any).where ?? null, ctx, { count, explicit }); }
+      else if (np.addons.length) void 0;
+      else {
+        // any other thing: bolt its shape on (front, or where asked) and say so
+        const parts = buildForm(np.concept.form);
+        const mp = mountPoint(spec.parts, (((np as any).where ?? 'front') === 'head' ? 'top' : (np as any).where ?? 'front') as any)[0];
+        const k = 0.5 * specExtent({ ...spec, scale: 1, stretch: undefined }).radius / Math.max(0.3, specExtent(defaultSpec({ parts })).radius);
+        if (spec.parts.length + parts.length <= 46) {
+          for (const q of parts) spec.parts.push({ ...q, size: q.size.map((x) => x * k) as Vec3, pos: q.pos.map((x, i) => x * k + mp.pos[i]) as Vec3 });
+          for (const b of np.concept.beh ?? []) if (!['hold', 'mount', 'restrain', 'follow'].includes(b.type)) spec.behaviors.push(this.fillTarget(b, null, ctx));
+          ctx.approximations.push(`${w} → bolted its shape on`);
+        } else ctx.notes.push(`no room left to add a ${w}`);
+      }
+    } else if (!np.concept && !np.addons.length && np.unknownHead && !np.ref) {
+      ctx.notes.push(`couldn’t add “${np.unknownWords.join(' ')}” — I don’t know that part`);
+      ctx.unknownWords.push(np.unknownHead);
     }
   }
 
@@ -891,6 +1035,7 @@ export class Interpreter {
   }
 
   private applyRelClause(spec: ConstructSpec, rel: Clause, ctx: Ctx) {
+    if (this.machineRel(spec, rel, ctx)) return;
     const obj = rel.objects[0] ?? rel.preps.find((p) => ['around', 'at', 'to', 'toward', 'towards', 'into'].includes(p.prep))?.np ?? null;
     const t = this.refFor(obj, ctx, rel.vclass);
     const tref: Ref = t.ref ?? (rel.vclass === 'orbit' || rel.vclass === 'follow' || rel.vclass === 'protect' ? { kind: 'self' } : this.defaultTarget(ctx));
@@ -924,8 +1069,373 @@ export class Interpreter {
       default:
         if (rel.verb === 'fly' || rel.verb === 'glide') { spec.behaviors.push({ type: 'thrust', accel: 20, axis: [0, 0, 1] }); }
         else if (rel.bareAdjs.length) this.applyMaterials(spec, rel.bareAdjs.map((a) => a), ctx);
-        else ctx.notes.push(`ignored “${rel.raw.join(' ')}”`);
+        else ctx.notes.push(`can’t make it “${rel.raw.join(' ')}” — ignored that part`);
     }
+  }
+
+
+  // --------------------------------------------------------------------------- PvP: opponents and their constructs
+
+  private myId(): string { return String((this.w.player as any).id ?? 'local'); }
+
+  /** Other lanterns in the match. Duck-typed: world.opponents (array|fn), world.players (Map|array) or world.opponent. */
+  opponents(): { id: string; pos: Vector3 | null }[] {
+    const W: any = this.w;
+    const me = W.player;
+    const pool: any[] = [];
+    const add = (x: any) => { if (x && typeof x === 'object' && x !== me && !pool.includes(x) && (x.id === undefined || String(x.id) !== this.myId())) pool.push(x); };
+    const src = typeof W.opponents === 'function' ? W.opponents() : W.opponents;
+    if (src && typeof src[Symbol.iterator] === 'function') for (const x of src) add(x);
+    if (W.players && typeof W.players === 'object') for (const x of (W.players instanceof Map ? W.players.values() : Array.isArray(W.players) ? W.players : Object.values(W.players))) add(x);
+    add(W.opponent);
+    const P = this.w.player.pos;
+    return pool.filter((x) => x.alive !== false && x.dead !== true)
+      .map((x) => ({ id: String(x.id ?? 'opponent'), pos: x.pos instanceof Vector3 ? x.pos : null }))
+      .sort((a, b) => (a.pos ? a.pos.distanceTo(P) : 1e9) - (b.pos ? b.pos.distanceTo(P) : 1e9));
+  }
+
+  /** A construct someone else made (construct.owner / spec.owner differs from this player's id). */
+  isForeign(c: Construct): boolean {
+    const o = (c as any).owner ?? (c.spec as any).owner;
+    return o !== undefined && o !== null && String(o) !== this.myId();
+  }
+
+  /** "him", "her", "the enemy", "my rival", "that guy" → the opposing lantern; "his wall" → their construct. */
+  private opponentRef(np: NP, ctx: Ctx, forVerb: VerbClass | null): { ref: Ref | null; entities: Entity[]; kind: string } | null {
+    const r = np.ref;
+    if (r && (r.kind === 'construct' || r.kind === 'constructs') && r.id) {
+      const con = this.w.constructs.get(r.id);
+      if (con && this.isForeign(con)) { ctx.touchedEntities.add(con.id); return { ref: { kind: 'construct', id: con.id }, entities: [], kind: ctx.aimConstruct === con ? 'aimed_entity' : 'other' }; }
+    }
+    const opps = this.opponents();
+    if (!opps.length || !r) return null;
+    const personish = r.kind === 'person' || r.kind === 'entity' && (r.entityType === 'opponent' || r.entityType === 'hostile' || r.entityType === 'civilian' && ['guy', 'dude', 'man', 'person', 'fella', 'fellow', 'lady', 'woman', 'girl', 'boy'].includes(r.noun ?? ''))
+      || (r.kind === 'constructs' && !!forVerb && ENTITY_VERBS.has(forVerb) && !np.concept);
+    if (!personish) return null;
+    // a thing under the crosshair wins for plain pronouns ("him" while aiming at a drone)
+    if (!ctx.aimPlayer && ctx.aimEntity && r.kind === 'person') return null;
+    if (r.kind === 'entity' && r.entityType === 'hostile' && ctx.aimEntity?.hostile && !ctx.aimPlayer) return null;
+    if (r.kind === 'entity' && r.entityType === 'civilian' && !ctx.aimPlayer && [...this.w.entities.values()].some((e) => e.type === 'civilian')) return null;
+    const id = ctx.aimPlayer ?? opps[0].id;
+    return { ref: opps.length > 1 && (r.plural || r.kind === 'constructs') ? { kind: 'opponent' } : { kind: 'player', id }, entities: [], kind: ctx.aimPlayer ? 'aimed_entity' : 'opponent' };
+  }
+
+  // --------------------------------------------------------------------------- machines: relative clauses, orders, riding
+
+  /** "that flies / walks / hunts drones / follows me / shoots lasers / guards the civilian" on a machine-capable host. */
+  private machineRel(spec: ConstructSpec, rel: Clause, ctx: Ctx): boolean {
+    const verb = rel.verb ?? '';
+    const v = rel.vclass;
+    const loco = locoForVerb(verb);
+    const concept = conceptByName.get(spec.concept);
+    // behaviour verbs only make things autonomous that are (or were asked to be) machines:
+    // "a shield that follows me" stays a shield
+    const autonomous = isMachine(spec) || !!concept?.mach || !concept || spec.concept === 'hull';
+    if (loco && (v === 'locomote' || v === 'ride') && machineCapable(spec)) {
+      applyTraits(spec, [{ loco, word: verb }], ctx.notes);
+      const dest = rel.preps.find((p) => ['to', 'toward', 'towards', 'at', 'after'].includes(p.prep));
+      if (dest) { const t = this.refFor(dest.np, ctx, 'follow'); if (t.ref) { setBrain(spec, t.entities.length && dest.prep !== 'to' ? 'hunt' : 'goto', t.ref); ctx.targetKinds.add(t.kind); } }
+      return true;
+    }
+    if (verb === 'ride' && machineCapable(spec)) { setRideable(spec); ensureLocomotion(spec, ctx.notes, true); return true; }
+    if (['patrol', 'wander', 'roam', 'prowl'].includes(verb) && machineCapable(spec)) { setBrain(spec, verb === 'patrol' ? 'patrol' : 'wander'); return true; }
+    // "tentacles holding swords", "a bear wielding a chainsaw", "a robot carrying a minigun": it is armed with that
+    const held = rel.objects[0];
+    if (['hold', 'grab', 'carry'].includes(v ?? '') && held && !held.ref && (held.concept || held.addons.length) && machineCapable(spec)) {
+      const w = held.conceptWords ?? '';
+      const kit = held.addons[0]?.addon ?? addonByName.get(w) ?? addonByName.get(w.replace(/e?s$/, '')) ?? (held.concept ? ADDON_BY_CONCEPT(held.concept.id) : null);
+      if (kit || ['weapon', 'tool'].includes(held.concept?.cls ?? '')) { this.withParts(spec, held, ctx); if (!isMachine(spec)) ensureWeapon(spec, ctx.notes, 'melee'); return true; }
+    }
+    if (!autonomous) return false;
+    const obj = rel.objects[0] ?? null;
+    const atP = rel.preps.find((p) => ['at', 'to', 'toward', 'towards', 'after', 'on'].includes(p.prep))?.np ?? null;
+    const huntT = (np: NP | null): Ref => {
+      if (!np) return this.opponents().length ? { kind: 'opponent' } : { kind: 'all_enemies' };
+      const t = this.refFor(np, ctx, 'strike');
+      if (t.ref && t.ref.kind !== 'self') { ctx.targetKinds.add(t.kind); return t.ref; }
+      return { kind: 'all_enemies' };
+    };
+    switch (v) {
+      case 'follow': {
+        const np = obj ?? atP;
+        const t = np ? this.refFor(np, ctx, 'follow') : null;
+        if (!np || t?.ref?.kind === 'self') { setBrain(spec, 'follow', { kind: 'self' }); ctx.targetKinds.add('self'); return true; }
+        if (['follow', 'escort', 'track'].includes(verb) && t?.ref && !t.entities.some((e) => e.hostile)) { setBrain(spec, 'follow', t.ref); ctx.targetKinds.add(t.kind); return true; }
+        setBrain(spec, 'hunt', huntT(np));
+        ensureWeapon(spec, ctx.notes);
+        return true;
+      }
+      case 'strike': case 'crush': case 'explode': {
+        setBrain(spec, 'hunt', huntT(obj ?? atP));
+        if (['bite', 'chomp', 'eat', 'devour', 'maul'].includes(verb) && !weaponsOf(spec).some((w) => w.kind === 'melee')) attachKit(spec, 'jaws', { notes: ctx.notes });
+        else if (['punch', 'hit', 'smack'].includes(verb) && !weaponsOf(spec).length) attachKit(spec, 'arms', { notes: ctx.notes });
+        else ensureWeapon(spec, ctx.notes);
+        return true;
+      }
+      case 'shoot': {
+        const ammo = obj && !obj.ref ? obj.tokens.join(' ') : '';
+        const kind = /laser|beam|ray|lightning|electric|zap|bolt|plasma|energy/.test(ammo) ? 'laser' : /missile|rocket|torpedo/.test(ammo) ? 'missile' : /\bnets?\b|web/.test(ammo) ? 'net' : /fire|flame|fireball/.test(ammo) ? 'flame' : /bomb|grenade/.test(ammo) ? 'bomb' : /cannon ?ball|shell|boulder/.test(ammo) ? 'cannon' : null;
+        if (kind) ensureWeapon(spec, ctx.notes, kind);
+        else if (!weaponsOf(spec).length) ensureWeapon(spec, ctx.notes, conceptByName.get(spec.concept)?.cls === 'vehicle' ? 'cannon' : 'gun');
+        const tnp = obj?.ref ? obj : atP;
+        if (tnp) setBrain(spec, 'hunt', huntT(tnp)); else setBrain(spec, 'guard');
+        return true;
+      }
+      case 'protect': case 'block': {
+        const np = obj ?? atP;
+        const t = np ? this.refFor(np, ctx, 'protect') : null;
+        setBrain(spec, 'guard', t?.ref ?? null);
+        if (t?.ref) ctx.targetKinds.add(t.kind);
+        if (!weaponsOf(spec).length) ensureWeapon(spec, ctx.notes);
+        return true;
+      }
+      case 'pull': case 'grab': case 'carry': {
+        if (!['fetch', 'bring', 'retrieve', 'collect', 'carry', 'haul'].includes(verb)) return false;
+        const np = obj ?? atP;
+        if (verb === 'carry' && np?.ref?.kind === 'self') { setRideable(spec); ensureLocomotion(spec, ctx.notes, true); return true; }
+        const t = np ? this.refFor(np, ctx, 'grab') : null;
+        setBrain(spec, 'fetch', t?.ref ?? { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 });
+        if (t?.ref) ctx.targetKinds.add(t.kind);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Does this noun phrase ask for machine features (so an unknown noun still deserves a body)? */
+  private wantsMachine(np: NP, c: Clause | null): boolean {
+    if (np.addons.some((a) => a.addon.machine)) return true;
+    if (traitsFromWords(np.tokens.filter((w) => w !== np.unknownHead), np.tokens.join(' ')).length) return true;
+    if (np.rel.some((r) => locoForVerb(r.verb) || ['follow', 'strike', 'shoot', 'protect'].includes(r.vclass ?? '') || ['patrol', 'wander', 'roam'].includes(r.verb ?? ''))) return true;
+    return !!c?.preps.some((p) => p.prep === 'with' && (p.np.addons.some((a) => a.addon.machine) || !!(p.np.conceptWords && addonByName.get(p.np.conceptWords)?.machine)) || p.prep === 'on' && !!this.locoAddonOf(p.np));
+  }
+
+  /** A pet made on its own keeps you company ("a dog", "a robot buddy"). */
+  private companionDefaults(spec: ConstructSpec, ctx: Ctx) {
+    const c = conceptByName.get(spec.concept);
+    if (!c?.mach?.pet || brainOf(spec)) return;
+    if (spec.behaviors.some((b) => ['mount', 'restrain', 'strike', 'grab', 'orbit', 'home', 'follow'].includes(b.type))) return;
+    setBrain(spec, 'follow', { kind: 'self' });
+    finalizeMachine(spec, ctx.notes);
+  }
+
+  /** The player's constructs an order is addressed to ("tanks", "the second dog", "all of you"). */
+  private resolveAddressee(pre: string[], ctx: Ctx): Construct[] {
+    const list = [...this.w.constructs.list.values()];
+    if (!list.length) return [];
+    const joined = pre.join(' ');
+    const machines = list.filter((c) => isMachine(c.spec));
+    if (ALL_ADDRESS.test(joined)) return machines.length ? machines : list;
+    const t = pre.filter((w) => !['the', 'my', 'that', 'this', 'those', 'these', 'your', 'our', 'hey', 'oi', 'o', 'dear', 'good', 'mr'].includes(w));
+    if (!t.length) return [];
+    if (t.length === 1 && t[0] === 'you') return ctx.focus && isMachine(ctx.focus.spec) ? [ctx.focus] : machines.slice(-1);
+    const named = list.filter((c) => c.name && c.name === t.join(' '));
+    if (named.length) return named;
+    const head = t[t.length - 1];
+    const sing = head.replace(/ies$/, 'y').replace(/(ches|shes|xes|ses)$/, (m) => m.slice(0, -2)).replace(/s$/, '');
+    const concept = conceptByName.get(t.join(' ')) ?? conceptByName.get(head) ?? conceptByName.get(sing);
+    if (!concept) return [];
+    const rest = t.slice(0, -1);
+    const ORD = ['first', 'second', 'third', 'last', 'middle', 'left', 'right', 'leftmost', 'rightmost', 'big', 'bigger', 'biggest', 'small', 'smaller', 'smallest', 'little', 'near', 'nearest', 'closest', 'far', 'furthest', 'farthest', 'other', 'original', 'new', 'newest', '1st', '2nd'];
+    if (rest.some((w) => !ORD.includes(w) && !['all', 'both', 'every', 'each'].includes(w) && !conceptByName.has(w))) return [];
+    const pool = list.filter((c) => c.spec.concept === concept.id || c.spec.label.split(/\W+/).includes(head) || c.spec.label.split(/\W+/).includes(sing));
+    if (!pool.length) return [];
+    const ord = rest.length ? ordinalOf([...rest, 'one']) : null;
+    const plural = (head !== sing && !concept.names.includes(head)) || /^(all|both|every|each)$/.test(pre[0]);
+    if (ord) {
+      const np = { ...parseNPLite([...rest, 'one']), concept } as NP;
+      const one = this.resolveConstructs({ kind: 'construct', which: 'last' }, { ...ctx, focus: pool[pool.length - 1] }, np);
+      return one.length ? one : [pool[pool.length - 1]];
+    }
+    if (plural) return pool;
+    return ctx.focus && pool.includes(ctx.focus) ? [ctx.focus] : [pool[pool.length - 1]];
+  }
+
+  /** Strip a vocative ("tank, …", "all of you …", "tell the dogs to …", "…, robots") and remember who it addresses. */
+  private extractAddressee(tokens: string[], ctx: Ctx): string[] | null {
+    let i = 0;
+    while (i < tokens.length && ['hey', 'ok', 'okay', 'yo', 'alright', 'now', 'oi', 'right', 'so', 'and', 'then'].includes(tokens[i])) i++;
+    const lead = tokens.slice(0, i);
+    const words = tokens.slice(i);
+    const firstClause = (xs: string[]) => { const out: string[] = []; for (const w of xs) { if (/^[.!?;]$/.test(w) || (w === 'then' && out.length)) break; out.push(w); } return out; };
+    const attempt = (pre: string[], rest: string[]): string[] | null => {
+      const r = rest[0] === ',' ? rest.slice(1) : rest;
+      if (!r.length || !pre.length || pre.includes(',')) return null;
+      if (!matchOrder(firstClause(r))) return null;
+      const cons = this.resolveAddressee(pre, ctx);
+      if (!cons.length) {
+        // "tank, attack that drone" with no tank yet: make one that does it
+        const np = parseNPLite(pre.filter((w) => !['the', 'my', 'you', 'hey'].includes(w)));
+        const first = cleanOrderTokens(r)[0] ?? '';
+        if (np.concept && !np.ref && (np.concept.mach || ['vehicle', 'creature'].includes(np.concept.cls)) && VERBS[lemma(first)] && pre.length <= 3) {
+          return [...lead, ...(np.plural ? [] : ['a']), ...pre.filter((w) => !['the', 'my', 'you', 'hey'].includes(w)), 'that', ...cleanOrderTokens(r)];
+        }
+        return null;
+      }
+      ctx.addressees = cons.map((c) => c.id);
+      ctx.targetKinds.add('previous_construct');
+      return [...lead, ...r];
+    };
+    if (['tell', 'order', 'command', 'ask', 'have', 'make', 'let', 'get', 'send'].includes(words[0])) {
+      for (let k = 2; k <= 6 && k < words.length; k++) {
+        let rest = words.slice(k);
+        if (rest[0] === 'to') rest = rest.slice(1);
+        const r = attempt(words.slice(1, k), rest);
+        if (r) return r;
+      }
+    }
+    for (let k = 1; k <= 5 && k < words.length; k++) {
+      const r = attempt(words.slice(0, k), words.slice(k));
+      if (r) return r;
+    }
+    // trailing vocative: "follow me, dog" / "attack, tanks"
+    const lc = words.lastIndexOf(',');
+    if (lc > 0 && words.length - lc <= 5) {
+      const body = words.slice(0, lc);
+      if (matchOrder(firstClause(body))) {
+        const cons = this.resolveAddressee(words.slice(lc + 1), ctx);
+        if (cons.length) { ctx.addressees = cons.map((c) => c.id); ctx.targetKinds.add('previous_construct'); return [...lead, ...body]; }
+      }
+    }
+    return null;
+  }
+
+  /** Orders to machines: brain goals, riding, dismounting. Returns null when the clause is not an order for a machine. */
+  private tryOrder(c: Clause, ctx: Ctx): Op[] | null {
+    const toks = cleanOrderTokens(c.raw);
+    if (!toks.length) return null;
+    const m = matchOrder(toks);
+    if (!m) return null;
+    let targets = (ctx.addressees ?? []).map((id) => this.w.constructs.get(id)).filter((x): x is Construct => !!x);
+    if (m.kind === 'dismount') { ctx.intents.add('act'); ctx.intents.add('control'); ctx.modTags.push('release'); ctx.targetKinds.add('self'); return [{ op: 'dismount' }]; }
+    const rideish = (x: Construct) => isRideable(x.spec) || x.spec.behaviors.some((b) => b.type === 'mount' && b.mode === 'ride') || ['vehicle', 'creature'].includes(conceptByName.get(x.spec.concept)?.cls ?? '') || !!driveOf(x.spec);
+    if (m.kind === 'ride') {
+      if (!targets.length && m.target && !/^(it|this|that|them|him|her)$/.test(m.target.join(' '))) {
+        const np = parseNPLite(m.target);
+        const cons = np.concept ? [...this.w.constructs.list.values()].filter((x) => x.spec.concept === np.concept!.id) : [];
+        if (cons.length) targets = [ctx.focus && cons.includes(ctx.focus) ? ctx.focus : cons[cons.length - 1]];
+      }
+      if (!targets.length) {
+        const recent = [...this.w.constructs.list.values()].reverse();
+        const pick = (ctx.aimConstruct && rideish(ctx.aimConstruct) ? ctx.aimConstruct : null) ?? (ctx.focus && rideish(ctx.focus) ? ctx.focus : null) ?? recent.find(rideish) ?? null;
+        if (pick) targets = [pick];
+      }
+      if (!targets.length) { ctx.intents.add('control'); return [{ op: 'abstain', reason: 'nothing to ride — make a vehicle or a creature first' }]; }
+      return this.rideOps(targets[0], ctx);
+    }
+    if (!targets.length) {
+      const f = this.orderFocus(ctx, m);
+      if (!f) return null;
+      targets = [f];
+    }
+    return this.orderOps(m, targets, ctx);
+  }
+
+  /** Which construct an unaddressed order goes to: the focused machine (or the latest one, for pet-style orders). */
+  private orderFocus(ctx: Ctx, m: Extract<Order, { kind: 'brain' }>): Construct | null {
+    const f = ctx.focus;
+    const mobile = (x: Construct | null) => !!x && isMachine(x.spec) && (!!driveOf(x.spec) || !!brainOf(x.spec));
+    const armed = (x: Construct | null) => !!x && (weaponsOf(x.spec).length > 0 || x.spec.behaviors.some((b) => b.type === 'shoot'));
+    const aims = (x: Construct | null) => !!x && (x.spec.joints ?? []).some((j) => j.motion.some((mm) => mm.kind === 'aim'));
+    if (m.tag === 'aim') return aims(f) ? f : null;
+    if (m.tag === 'fire') return (mobile(f) || aims(f)) && armed(f) ? f : null;
+    if (!m.strong) return null;
+    if (m.goal === 'hunt') return mobile(f) && (armed(f) || conceptByName.get(f!.spec.concept)?.cls === 'creature' || !!brainOf(f!.spec)) ? f : null;
+    if (mobile(f)) return f;
+    // pet-style orders reach the most recent autonomous machine even if something else was made since
+    if (['follow', 'idle', 'flee', 'fetch', 'wander', 'patrol', 'goto'].includes(m.goal)) {
+      const list = [...this.w.constructs.list.values()].reverse();
+      return list.find((x) => mobile(x) && !!brainOf(x.spec)) ?? null;
+    }
+    return null;
+  }
+
+  private orderOps(m: Extract<Order, { kind: 'brain' }>, targets: Construct[], ctx: Ctx): Op[] {
+    const P = this.w.player;
+    let tref: Ref | null = null;
+    let tkind: string | null = null;
+    const forVerb: VerbClass = m.goal === 'hunt' ? 'strike' : m.goal === 'fetch' ? 'grab' : m.goal === 'guard' ? 'protect' : m.goal === 'follow' ? 'follow' : 'create';
+    if (m.target) {
+      const j = m.target.join(' ');
+      if (/^(forward|ahead|onward)$/.test(j)) { tref = { kind: 'point', p: P.pos.clone().addScaledVector(P.forward(), 60).toArray() as Vec3 }; tkind = 'location'; }
+      else if (/\b(finish|finish line|end|goal|exit|flag)\b/.test(j) && m.goal !== 'hunt') {
+        const g = this.w.goals.find((x) => !x.reached) ?? this.w.goals[0];
+        const p = g ? new Vector3().addVectors(g.min, g.max).multiplyScalar(0.5) : P.pos.clone().addScaledVector(P.forward(), 200);
+        tref = { kind: 'point', p: p.toArray() as Vec3 }; tkind = 'location';
+      } else {
+        const np = parseNPLite(m.target);
+        this.bindDefinites({ ...this.blankClause(), objects: [np] }, ctx);
+        const r = this.refFor(np, ctx, forVerb);
+        if (r.ref) { tref = r.ref; tkind = r.kind; }
+        else if (m.goal === 'hunt') { tref = { kind: 'all_enemies' }; tkind = 'nearest_enemy'; }
+        else { tref = { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 }; tkind = 'location'; }
+      }
+    } else {
+      switch (m.goal) {
+        case 'hunt': {
+          const e = ctx.aimEntity?.hostile ? ctx.aimEntity : ctx.aimPlayer ? null : this.w.constructs.nearestEnemy();
+          const opp = ctx.aimPlayer ?? this.opponents()[0]?.id ?? null;
+          if (e) { tref = { kind: 'entity', id: e.id }; tkind = ctx.aimEntity === e ? 'aimed_entity' : 'nearest_enemy'; this.lastEntityId = e.id; }
+          else if (opp) { tref = { kind: 'player', id: opp }; tkind = ctx.aimPlayer ? 'aimed_entity' : 'opponent'; }
+          else { tref = { kind: 'all_enemies' }; tkind = 'nearest_enemy'; }
+          break;
+        }
+        case 'follow': tref = { kind: 'self' }; tkind = 'self'; break;
+        case 'fetch': tref = ctx.aimEntity ? { kind: 'entity', id: ctx.aimEntity.id } : { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 }; tkind = ctx.aimEntity ? 'aimed_entity' : 'location'; break;
+        case 'goto': tref = { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 }; tkind = 'location'; break;
+        case 'flee': tref = { kind: 'threat' }; break;
+        case 'idle':
+          if (m.tag === 'aim') { tref = ctx.aimEntity ? { kind: 'entity', id: ctx.aimEntity.id } : { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 }; tkind = ctx.aimEntity ? 'aimed_entity' : 'location'; }
+          break;
+      }
+    }
+    if (tkind) ctx.targetKinds.add(tkind);
+    if (m.tag === 'return') ctx.extraFns.add('returns');
+    const ops: Op[] = [];
+    for (const con of targets) {
+      const s = cloneSpec(con.spec);
+      const riding = s.behaviors.some((b) => b.type === 'mount') && s.placement.at === 'self';
+      if (m.tag === 'aim') {
+        const b = brainOf(s);
+        if (b && ['hunt', 'guard'].includes(b.goal)) b.target = tref ?? undefined; else setBrain(s, 'idle', tref);
+      } else setBrain(s, m.goal, tref);
+      if (m.goal === 'idle' && m.tag === 'stop') s.behaviors = s.behaviors.filter((b) => !['follow', 'home', 'orbit', 'strike', 'sweep', 'spin'].includes(b.type));
+      if (m.goal === 'hunt' && !weaponsOf(s).length && !s.behaviors.some((b) => b.type === 'shoot')) ensureWeapon(s, ctx.notes);
+      if (!driveOf(s) && MOVING_GOALS.has(m.goal)) ensureLocomotion(s, ctx.notes);
+      // firing from a vehicle you're sitting in keeps you in it
+      finalizeMachine(s, ctx.notes, { keepMount: riding && (m.tag === 'fire' || m.tag === 'aim') });
+      const mods = m.goal === 'idle' && m.tag === 'stop' ? ['remove_behavior'] : tref && tkind !== 'self' ? ['add_behavior', 'retarget'] : ['add_behavior'];
+      ops.push({ op: 'modify', target: con.id, spec: s, mods });
+      ctx.modTags.push(...mods);
+    }
+    ctx.intents.add('modify');
+    if (m.goal !== 'idle' || m.tag === 'aim') ctx.intents.add('act');
+    else ctx.intents.add('control');
+    if (targets.length > 1) ctx.extraFns.add('multiple_agents');
+    return ops;
+  }
+
+  /** "get in" / "let me drive": make sure it can carry you, then ask the app to seat the player. */
+  private rideOps(con: Construct, ctx: Ctx): Op[] {
+    const ops: Op[] = [];
+    if (!isRideable(con.spec) || !driveOf(con.spec)) {
+      const s = cloneSpec(con.spec);
+      setRideable(s);
+      ensureLocomotion(s, ctx.notes);
+      if (brainOf(s) && MOVING_GOALS.has(brainOf(s)!.goal)) setBrain(s, 'idle');
+      ops.push({ op: 'modify', target: con.id, spec: s, mods: ['add_behavior'] });
+      ctx.modTags.push('add_behavior');
+      ctx.intents.add('modify');
+    }
+    ops.push({ op: 'ride', target: { kind: 'construct', id: con.id } });
+    ctx.intents.add('act'); ctx.intents.add('control');
+    ctx.targetKinds.add('previous_construct');
+    for (const f of ['rideable', 'carries_player', 'propel_player']) ctx.extraFns.add(f);
+    return ops;
+  }
+
+  private blankClause(): Clause {
+    return { raw: [], verb: null, vclass: null, particle: null, subject: null, objects: [], preps: [], bareAdjs: [], negated: false, purpose: null, causative: false, beneficiarySelf: false, savedName: null, notes: [] };
   }
 
   // --------------------------------------------------------------------------- actions
@@ -1158,9 +1668,11 @@ export class Interpreter {
           intent('act');
           return [{ op: 'act', target: holder.id, action: 'throw', ref: destRef, speed }];
         }
-        if (patientEnts.length) {
+        const patientPlayer = patient ? this.refFor(patient, ctx, 'throw').ref : null;
+        if (patientEnts.length || patientPlayer?.kind === 'player' || patientPlayer?.kind === 'opponent') {
           // not holding it yet: grab, then throw when the grip closes
-          const spec = create('hand', null, [{ type: 'grab', target: { kind: 'entity', id: patientEnts[0].id }, then: 'hold' }], { at: 'hand', orient: 'along_look' });
+          const who: Ref = patientEnts.length ? { kind: 'entity', id: patientEnts[0].id } : patientPlayer!;
+          const spec = create('hand', null, [{ type: 'grab', target: who, then: 'hold' }], { at: 'hand', orient: 'along_look' });
           ctx.pending.push({ kind: 'throw_after_grab', ref: destRef, speed, opIndex: ctx.priorOps.length });
           intent('create'); intent('act');
           return [{ op: 'create', spec }];
@@ -1301,7 +1813,7 @@ export class Interpreter {
         const vehicle = instrument?.concept && ['vehicle', 'wearable', 'creature'].includes(instrument.concept.cls) ? instrument : objNP?.concept && ['vehicle', 'wearable', 'creature'].includes(objNP.concept.cls) ? objNP : null;
         if (vehicle) { intent('create'); return [{ op: 'create', spec: create(vehicle.concept!.id, vehicle, [], { at: 'self', orient: 'face_away' }) }]; }
         if (v === 'descend') { intent('create'); return [{ op: 'create', spec: create('parachute', null, [], { at: 'self', orient: 'face_away' }) }]; }
-        if (v === 'launch' && patient && tgt.entities.length) {
+        if (v === 'launch' && patient && (tgt.entities.length || tgt.ref?.kind === 'player' || tgt.ref?.kind === 'opponent')) {
           // launch someone else: spring under them
           intent('create'); intent('act');
           return [{ op: 'create', spec: create('spring', null, [], { at: 'under_target', target: tgt.ref!, orient: 'face_away' }, (s) => { s.behaviors = [{ type: 'launch', speed: 30, dir: 'up' }]; }) }];
@@ -1450,6 +1962,13 @@ export class Interpreter {
       case 'mount': return { type: 'mount', mode: b.mode === 'wear' ? 'wear' : 'ride', glide: b.glide !== undefined ? num(b.glide, 1) : undefined, thrustLook: b.thrustLook !== undefined ? num(b.thrustLook, 15) : undefined, thrustUp: b.thrustUp !== undefined ? num(b.thrustUp, 28) : undefined, maxFall: b.maxFall !== undefined ? num(b.maxFall, 5) : undefined, groundSpeedMul: b.groundSpeedMul !== undefined ? num(b.groundSpeedMul, 2) : undefined, bounce: b.bounce !== undefined ? num(b.bounce, 14) : undefined, frictionMul: b.groundSpeedMul ? 0.4 : undefined };
       case 'tether': return { type: 'tether', target: { kind: 'none' }, pull: 16, toPlayer: true };
       case 'hold': return { type: 'hold', side: ['right', 'left', 'front', 'back', 'overhead'].includes(b.side) ? b.side : 'right' };
+      case 'drive': return { type: 'drive', mode: ['ground', 'air', 'hover'].includes(b.mode) ? b.mode : 'ground', speed: num(b.speed, 12), turn: num(b.turn, 90), ...(b.altitude !== undefined ? { altitude: num(b.altitude, 8) } : {}) };
+      case 'brain': return { type: 'brain', goal: ['wander', 'follow', 'guard', 'hunt', 'fetch', 'patrol', 'goto', 'flee', 'idle'].includes(b.goal) ? b.goal : 'idle', ...(b.target ? { target: tgt(b.target) ?? undefined } : {}) };
+      case 'weapon': {
+        const k = ['gun', 'cannon', 'laser', 'missile', 'flame', 'net', 'melee', 'bomb'].includes(b.kind) ? b.kind : 'gun';
+        return { type: 'weapon', kind: k, rate: num(b.rate, 1.5), speed: num(b.speed, 50), damage: num(b.damage, 15), range: num(b.range, 50) };
+      }
+      case 'rideable': return { type: 'rideable', seat: Array.isArray(b.seat) && b.seat.length === 3 ? b.seat : [0, 1.5, 0] };
       default: ctx.notes.push(`ignored unknown behaviour “${String(b.type).slice(0, 20)}”`); return null;
     }
   }
@@ -1563,6 +2082,12 @@ export class Interpreter {
     const nps: NP[] = [...c.objects, ...c.preps.map((p) => p.np), ...(c.subject ? [c.subject] : [])];
     const fromBefore = c.preps.some((p) => p.prep === 'from' && p.np.tokens.some((w) => ['before', 'earlier', 'last', 'previously', 'yesterday', 'ago'].includes(w)));
     for (const np of nps) {
+      // "his tank", "her wall", "their shield", "his thing": the opponent's constructs
+      if (!np.ref && np.det && ['his', 'her', 'their'].includes(np.det)) {
+        const theirs = [...this.w.constructs.list.values()].filter((x) => this.isForeign(x));
+        const pick = np.concept ? theirs.filter((x) => x.spec.concept === np.concept!.id || (np.conceptWords && x.spec.label.includes(np.conceptWords))) : theirs;
+        if (pick.length) { np.ref = { kind: np.plural ? 'constructs' : 'construct', id: pick[pick.length - 1].id }; continue; }
+      }
       if (np.ref || !np.concept || !np.det) continue;
       if (!['the', 'that', 'this', 'those', 'these', 'my', 'its', 'your'].includes(np.det)) continue;
       if (fromBefore) { (np as any).fromBefore = true; continue; }
@@ -1823,7 +2348,9 @@ export class Interpreter {
   // --------------------------------------------------------------------------- modify / add / control
 
   private opModify(c: Clause, ctx: Ctx, obj: NP | null): Op[] {
-    const targets = obj?.ref || obj?.concept ? this.resolveConstructs(obj.ref, ctx, obj) : ctx.focus ? [ctx.focus] : [];
+    const all = obj?.ref || obj?.concept ? this.resolveConstructs(obj.ref, ctx, obj) : ctx.focus ? [ctx.focus] : [];
+    const targets = all.filter((x) => !this.isForeign(x));
+    if (all.length && !targets.length) return [{ op: 'abstain', reason: 'that’s their construct — you can’t reshape it, but you can smash it' }];
     const intoP = c.preps.find((p) => p.prep === 'into' || p.prep === 'to' && (p.np.concept || p.np.unknownHead));
     if (!targets.length) {
       if (intoP?.np.concept) return [{ op: 'create', spec: this.specFromConcept(intoP.np.concept, intoP.np, null, ctx) }];
@@ -2140,6 +2667,26 @@ export class Interpreter {
           }
           break;
         }
+        case 'ride': {
+          // seat the player via whichever ride API the app/runtime exposes; always announce it as an event
+          const id = op.target.kind === 'construct' ? op.target.id : null;
+          const P: any = this.w.player, C: any = this.w.constructs;
+          const fn = P.ride ?? P.mountConstruct ?? C.ride ?? C.board;
+          let ok = false;
+          try { if (id && typeof fn === 'function') ok = fn.call(fn === P.ride || fn === P.mountConstruct ? P : C, id) !== false; } catch (e) { messages.push('✖ could not get in: ' + String(e).slice(0, 60)); }
+          this.w.emit('ride_request', { construct: id, handled: ok });
+          if (!ok) messages.push('get in: waiting for the vehicle controls');
+          changed = true;
+          break;
+        }
+        case 'dismount': {
+          const P: any = this.w.player, C: any = this.w.constructs;
+          const fn = P.dismount ?? P.unmount ?? C.dismount;
+          try { if (typeof fn === 'function') fn.call(fn === C.dismount ? C : P); } catch { /* nothing to get out of */ }
+          this.w.emit('dismount_request', {});
+          changed = true;
+          break;
+        }
         case 'abstain':
           break;
       }
@@ -2209,6 +2756,8 @@ export class Interpreter {
       else if (op.op === 'modify') parts.push(`${this.w.constructs.get(op.target)?.spec.label ?? 'it'} → ${op.mods.join(', ')}${this.behSummary(op.spec, this.w.constructs.get(op.target)?.spec)}`);
       else if (op.op === 'act') parts.push(`${op.action} ${this.w.constructs.get(op.target)?.spec.label ?? ''}`);
       else if (op.op === 'control') parts.push(op.action + (op.name ? ` “${op.name}”` : ''));
+      else if (op.op === 'ride') parts.push(`ride ${op.target.kind === 'construct' ? this.w.constructs.get(op.target.id)?.spec.label ?? 'it' : 'it'}`);
+      else if (op.op === 'dismount') parts.push('get out');
       else parts.push(`? ${op.reason}`);
     }
     return parts.join(' + ');
@@ -2223,6 +2772,10 @@ export class Interpreter {
         case 'strike': return `strike ${tn}`; case 'grab': return `grab ${tn}`; case 'orbit': return `orbit ${tn}`; case 'crush': return `drop on ${tn}`; case 'restrain': return `trap ${tn}`;
         case 'shoot': return `shoot ${tn}`; case 'home': return `chase ${tn}`; case 'launch': return 'launch'; case 'thrust': return 'thrust'; case 'reflect': return 'reflect'; case 'cushion': return 'cushion';
         case 'mount': return 'ride/wear'; case 'field': return x.mode; case 'spin': return 'spin'; case 'lift': return 'lift'; case 'explode': return 'explode'; case 'tether': return 'tether';
+        case 'drive': return x.mode === 'ground' ? 'drives' : x.mode === 'air' ? 'flies' : 'hovers';
+        case 'brain': return x.goal === 'idle' ? (tn ? `aim at ${tn}` : 'stay') : `${x.goal}${tn ? ' ' + tn : ''}`;
+        case 'weapon': return x.kind === 'melee' ? 'melee' : `${x.kind}`;
+        case 'rideable': return 'rideable';
         default: return '';
       }
     }).filter(Boolean);
@@ -2239,6 +2792,8 @@ export class Interpreter {
       case 'point': return 'there';
       case 'nearest_enemy': return 'nearest enemy';
       case 'all_enemies': return 'all enemies';
+      case 'opponent': return 'your opponent';
+      case 'player': return 'your opponent';
       default: return '';
     }
   }
@@ -2269,6 +2824,7 @@ export class Interpreter {
     for (const id of applied.ids) { const c = this.w.constructs.get(id); if (c) count = (count ?? 0) + c.insts.length; }
     for (const { spec } of specs) for (const f of functionsOf(spec, this.w)) fns.add(f);
     if (ctx.pending.some((p) => p.kind === 'throw_after_grab')) fns.add('throw_target');
+    for (const f of ctx.extraFns) fns.add(f);
     if (ctx.pending.some((p) => p.kind === 'orbit_after_grab')) { fns.add('orbit'); fns.add('spin'); }
     // swinging something you're holding around you is also "spinning" it
     for (const { spec } of specs) if (spec.behaviors.some((b) => b.type === 'orbit') && spec.behaviors.some((b) => b.type === 'grab')) fns.add('spin');
@@ -2336,12 +2892,12 @@ export function detectContradiction(raw: string): string | null {
   return null;
 }
 const ENTITY_VERBS = new Set<VerbClass>(['strike', 'grab', 'throw', 'pull', 'push', 'lift', 'crush', 'trap', 'catch', 'rescue', 'shoot', 'follow', 'attract', 'hold', 'swing', 'spin', 'launch', 'protect', 'explode', 'stop', 'drop', 'reel']);
-import { SIZE_ADJ as SIZE, DIM_ADJ as DIM, MATERIAL_ADJ as MATERIAL } from './words.js';
+import { SIZE_ADJ as SIZE, DIM_ADJ as DIM, MATERIAL_ADJ as MATERIAL, NUMBERS } from './words.js';
 import { ADDONS } from './lexicon.js';
 const ADDONS_ALL = ADDONS;
 const ADDON = (id: string) => ADDONS.find((a) => a.id === id)!;
 const ADDON_BY_CONCEPT = (conceptId: string): Addon | null => {
-  const map: Record<string, string> = { rocket: 'rocket', wheel: 'wheel', wings: 'wing', spike: 'spike', sword: 'blade', saw: 'blade', magnet: 'magnet', hook: 'hook', cannon: 'cannon', blaster: 'cannon', turret: 'cannon', fan: 'fan', spring: 'spring', chain: 'chain', rope: 'chain', hand: 'finger', fist: 'finger', shield: 'shield', parachute: 'parachute', net: 'net', bucket: 'bucket', drill: 'drill', hammer: 'hammerhead', 'jetpack': 'rocket', 'grappling hook': 'hook', claw: 'hook', umbrella: 'parachute', 'boxing glove': 'finger' };
+  const map: Record<string, string> = { rocket: 'rocket', wheel: 'wheel', wings: 'wing', spike: 'spike', sword: 'blade', saw: 'saw', magnet: 'magnet', hook: 'hook', cannon: 'cannon', blaster: 'gun', turret: 'turret', fan: 'fan', spring: 'spring', chain: 'chain', rope: 'chain', hand: 'finger', fist: 'arm', shield: 'shield', parachute: 'parachute', net: 'net', bucket: 'bucket', drill: 'drill', hammer: 'hammerhead', 'jetpack': 'rocket', 'grappling hook': 'hook', claw: 'claw', umbrella: 'parachute', 'boxing glove': 'arm', lasso: 'tentacle', helicopter: 'rotor', bomb: 'bomb', rocket_launcher: 'missile' };
   return map[conceptId] ? ADDON(map[conceptId]) : null;
 };
 
@@ -2454,6 +3010,7 @@ export function functionsOf(spec: ConstructSpec, w: World): string[] {
   if (types.has('orbit') && (cls === 'weapon' || cls === 'heavy')) f.add('area_attack');
   if (cls === 'heavy' && spec.motion === 'dynamic' && at === 'above_target') { f.add('crush_target'); }
   if (types.has('hold') && cls === 'barrier') { f.add('shield_self'); f.add('block_projectiles'); }
+  for (const m of machineFunctions(spec)) f.add(m);
   return [...f];
 }
 

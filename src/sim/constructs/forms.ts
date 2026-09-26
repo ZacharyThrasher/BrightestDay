@@ -207,5 +207,79 @@ export function mountPoint(hostParts: Part[], where: 'back' | 'front' | 'top' | 
     case 'right': return [{ pos: [max[0], c[1], c[2]] }];
     case 'sides': return [{ pos: [min[0], c[1], c[2]] }, { pos: [max[0], c[1], c[2]] }];
     case 'around': return [0, 1, 2, 3, 4, 5].map((i) => { const a = (i / 6) * Math.PI * 2; return { pos: [c[0] + Math.cos(a) * (max[0] - min[0]) / 2, c[1], c[2] + Math.sin(a) * (max[2] - min[2]) / 2] as Vec3 }; });
+    default: return [{ pos: [c[0], max[1], c[2]] }]; // unknown relation words ("head") → on top
   }
 }
+
+// =====================================================================================================
+// Machine / creature helper forms (language layer). Catalog-independent: generic articulated bodies
+// and add-on part kits. Parts carry `role` (+ `group` where the form is pre-articulated); FORM_JOINTS
+// gives the joints for pre-articulated forms. A machine catalog may supersede these bodies.
+// =====================================================================================================
+
+const G = (p: Part, group: string): Part => ({ ...p, group });
+
+const MACHINE_FORMS: Record<string, FormFn> = {
+  /** four-legged animal: body along z, head at +z, legs (role leg), tail (role tail) */
+  quadruped: () => [
+    P('capsule', [1.1, 2.2, 1.1], [0, 1.4, 0], 'body', [90, 0, 0]),
+    P('sphere', [0.8, 0.75, 0.9], [0, 1.9, 1.5], 'head'),
+    P('box', [0.45, 0.35, 0.5], [0, 1.75, 2.0], 'snout'),
+    ...[[-0.38, 0.75], [0.38, 0.75], [-0.38, -0.75], [0.38, -0.75]].map(([x, z]) => P('capsule', [0.26, 0.9, 0.26], [x, 0.55, z], 'leg')),
+    P('cone', [0.22, 1, 0.22], [0, 1.6, -1.55], 'tail', [-120, 0, 0]),
+  ],
+  /** two-legged robot / golem: torso, head, arms (role arm), legs (role leg) */
+  humanoid: () => [
+    P('box', [1.2, 1.4, 0.7], [0, 2.1, 0], 'body'),
+    P('box', [0.7, 0.6, 0.6], [0, 3.15, 0], 'head'),
+    P('capsule', [0.3, 1.2, 0.3], [-0.8, 2.0, 0], 'arm'),
+    P('capsule', [0.3, 1.2, 0.3], [0.8, 2.0, 0], 'arm'),
+    P('capsule', [0.36, 1.3, 0.36], [-0.32, 0.75, 0], 'leg'),
+    P('capsule', [0.36, 1.3, 0.36], [0.32, 0.75, 0], 'leg'),
+  ],
+  /** eight-legged bug */
+  spider: () => {
+    const p: Part[] = [P('sphere', [1.1, 0.8, 1.1], [0, 0.9, 0.4], 'body'), P('sphere', [1.3, 1.0, 1.5], [0, 1.0, -0.9], 'abdomen'), P('sphere', [0.5, 0.45, 0.5], [0, 0.95, 1.1], 'head')];
+    for (let i = 0; i < 4; i++) for (const s of [-1, 1]) p.push(P('capsule', [0.14, 1.3, 0.14], [s * 0.85, 0.55, 0.9 - i * 0.5], 'leg', [0, 0, s * 35]));
+    return p;
+  },
+  /** fish / shark: body along z, tail fin (role tail), dorsal fin, jaw (role jaw) */
+  fish: () => [
+    P('capsule', [1.2, 3.0, 1.0], [0, 1.2, 0], 'body', [90, 0, 0]),
+    P('wedge', [0.1, 1.0, 0.8], [0, 1.95, 0.1], 'fin'),
+    P('box', [0.1, 1.2, 0.6], [0, 1.2, -1.9], 'tail'),
+    P('box', [0.8, 0.2, 0.7], [0, 0.85, 1.35], 'jaw'),
+    ...[-1, 1].map((s) => P('wedge', [0.8, 0.08, 0.5], [s * 0.7, 1.0, 0.3], 'fin', [0, 0, s * -20])),
+  ],
+  /** tracked tank: hull, treads, road wheels (role wheel), turret (group turret), barrel + muzzle (group barrel) */
+  tank: () => {
+    const p: Part[] = [P('box', [2.6, 0.9, 4.6], [0, 1.0, 0], 'body')];
+    for (const s of [-1, 1]) {
+      p.push(P('box', [0.6, 0.9, 4.8], [s * 1.55, 0.55, 0], 'tread'));
+      for (const z of [-1.6, 0, 1.6]) p.push(P('cylinder', [0.7, 0.12, 0.7], [s * 1.92, 0.55, z], 'wheel', [0, 0, 90]));
+    }
+    p.push(G(P('dome', [1.8, 0.8, 1.8], [0, 1.45, -0.2], 'turret'), 'turret'));
+    p.push(G(P('cylinder', [0.26, 2.4, 0.26], [0, 1.75, 1.0], 'barrel', [90, 0, 0]), 'barrel'));
+    p.push(G(P('cylinder', [0.34, 0.3, 0.34], [0, 1.75, 2.3], 'muzzle', [90, 0, 0]), 'barrel'));
+    return p;
+  },
+  // ---- add-on kits at unit size (the language layer scales and positions them on a host) ----
+  m_wheel: () => [P('cylinder', [1, 0.35, 1], [0, 0, 0], 'wheel', [0, 0, 90])],
+  m_leg: () => [P('capsule', [0.25, 1, 0.25], [0, -0.5, 0], 'leg')],
+  m_rotor: () => [P('cylinder', [0.08, 0.3, 0.08], [0, 0, 0], 'hub'), P('box', [1, 0.04, 0.1], [0, 0.15, 0], 'rotor'), P('box', [0.1, 0.04, 1], [0, 0.15, 0], 'rotor')],
+  m_prop: () => [P('cylinder', [0.2, 0.25, 0.2], [0, 0, 0], 'hub', [90, 0, 0]), P('box', [1, 0.1, 0.04], [0, 0, 0.05], 'blade', [0, 0, 15])],
+  m_barrel: () => [P('cylinder', [0.18, 1, 0.18], [0, 0, 0.5], 'barrel', [90, 0, 0]), P('cylinder', [0.24, 0.12, 0.24], [0, 0, 1], 'muzzle', [90, 0, 0])],
+  m_jaw: () => [P('box', [1, 0.22, 0.9], [0, 0, 0.45], 'jaw'), ...[-0.3, 0, 0.3].map((x) => P('cone', [0.12, 0.25, 0.12], [x, 0.2, 0.75], 'tooth', undefined, false))],
+  m_segment: () => [P('sphere', [1, 1, 1], [0, 0, 0], 'segment')],
+  m_seat: () => [P('box', [1, 0.25, 1], [0, 0.12, 0], 'seat'), P('box', [1, 0.9, 0.2], [0, 0.55, -0.45], 'seatback')],
+};
+Object.assign(FORMS, MACHINE_FORMS);
+FORM_IDS.push(...Object.keys(MACHINE_FORMS));
+
+/** Joints for forms that come pre-articulated (pivots in the form's own frame, unscaled). */
+export const FORM_JOINTS: Record<string, () => import('./spec.js').Joint[]> = {
+  tank: () => [
+    { group: 'turret', pivot: [0, 1.45, -0.2], motion: [{ kind: 'aim', yaw: true, rate: 90 }] },
+    { group: 'barrel', pivot: [0, 1.75, -0.2], parent: 'turret', motion: [{ kind: 'aim', pitch: true, rate: 60, minPitch: -8, maxPitch: 35 }] },
+  ],
+};

@@ -4,7 +4,8 @@ export type VerbClass =
   | 'create' | 'strike' | 'grab' | 'throw' | 'spin' | 'pull' | 'push' | 'lift' | 'crush' | 'trap' | 'block'
   | 'reflect' | 'carry' | 'shoot' | 'launch' | 'follow' | 'orbit' | 'sweep' | 'explode' | 'catch' | 'drop'
   | 'release' | 'dismiss' | 'undo' | 'save' | 'recall' | 'modify' | 'add' | 'remove' | 'duplicate' | 'stop'
-  | 'protect' | 'cross' | 'climb' | 'descend' | 'rescue' | 'clear' | 'hold' | 'swing' | 'attract' | 'repel' | 'reel' | 'point' | 'ride' | 'handle';
+  | 'protect' | 'cross' | 'climb' | 'descend' | 'rescue' | 'clear' | 'hold' | 'swing' | 'attract' | 'repel' | 'reel' | 'point' | 'ride' | 'handle'
+  | 'locomote'; // walk / run / swim / hover / patrol / wander … (how a machine or creature gets about)
 
 /** verb (lemma or inflection) → class. Multi-word verbs are matched first. */
 export const VERBS: Record<string, VerbClass> = {
@@ -22,7 +23,7 @@ export const VERBS: Record<string, VerbClass> = {
   jab: 'strike', poke: 'strike', attack: 'strike', destroy: 'strike', wreck: 'strike', beat: 'strike', 'take out': 'strike', have: 'create', 'knock out': 'strike', spank: 'strike',
   bop: 'strike', boop: 'strike', clock: 'strike', nail: 'strike', skewer: 'strike', impale: 'strike', dropkick: 'strike', karate: 'strike', demolish: 'strike',
   // grab
-  grab: 'grab', seize: 'grab', snatch: 'grab', grip: 'grab', grasp: 'grab', 'pick up': 'grab', take: 'grab', nab: 'grab', clutch: 'grab', collect: 'grab', fetch: 'pull',
+  grab: 'grab', seize: 'grab', snatch: 'grab', steal: 'grab', nick: 'grab', swipe: 'strike', hijack: 'grab', commandeer: 'grab', grip: 'grab', grasp: 'grab', 'pick up': 'grab', take: 'grab', nab: 'grab', clutch: 'grab', collect: 'grab', fetch: 'pull',
   pinch: 'grab', squeeze: 'crush', hold: 'hold', carry: 'carry', hug: 'grab', scoop: 'grab', 'scoop up': 'grab', pluck: 'grab', capture: 'trap', catch: 'catch',
   // throw
   throw: 'throw', toss: 'throw', fling: 'throw', hurl: 'throw', chuck: 'throw', yeet: 'throw', lob: 'throw', pitch: 'throw', send: 'throw', slingshot: 'throw',
@@ -55,7 +56,19 @@ export const VERBS: Record<string, VerbClass> = {
   enlarge: 'modify', expand: 'modify', inflate: 'modify', embiggen: 'modify', supersize: 'modify', upsize: 'modify', downsize: 'modify', lower: 'modify', aim: 'point', point: 'point', face: 'point', steer: 'point', redirect_to: 'point',
   flick: 'strike', tap: 'strike', thwack: 'strike', whap: 'strike', wham: 'strike', bat: 'strike', belt: 'strike', lob_: 'throw', ditch: 'dismiss', scrap: 'dismiss', lose: 'dismiss', bin: 'dismiss', trash: 'dismiss', wall: 'block', 'wall off': 'block', fence: 'trap', barricade: 'block', clap: 'crush', sandwich: 'crush', lever: 'lift', pry: 'lift', leverage: 'lift', crowbar: 'lift', jack: 'lift', roll: 'ride', deal: 'handle', handle: 'handle', 'take care of': 'handle', 'deal with': 'handle', 'do something': 'handle', help: 'handle', hurry: 'handle',
   follow: 'follow', chase: 'follow', track: 'follow', hunt: 'follow', pursue: 'follow', seek: 'follow', 'go after': 'follow', escort: 'follow',
+  // machines & creatures
+  wield: 'hold', brandish: 'hold', kill: 'strike', bite: 'strike', chomp: 'strike', sting: 'strike', maul: 'strike', eat: 'strike', devour: 'strike', eliminate: 'strike', annihilate: 'strike', obliterate: 'strike', 'open fire': 'shoot',
+  walk: 'locomote', run: 'locomote', swim: 'locomote', crawl: 'locomote', slither: 'locomote', hop: 'locomote', trot: 'locomote', gallop: 'locomote', march: 'locomote',
+  scuttle: 'locomote', waddle: 'locomote', hover: 'locomote', patrol: 'locomote', wander: 'locomote', roam: 'locomote', prowl: 'locomote', stroll: 'locomote',
 };
+
+/** Order / machine vocabulary that is matched on raw tokens (not verbs of the ring) — kept here so typo repair knows it. */
+export const MACHINE_WORDS = [
+  'heel', 'sit', 'sic', 'sick', 'stay', 'come', 'fetch', 'hop', 'ride', 'drive', 'dismount', 'regroup', 'scram', 'patrol', 'wander', 'roam', 'flee', 'retreat', 'dismount', 'board', 'saddle', 'cockpit', 'seat', 'tentacle', 'tentacles',
+  'treads', 'tracks', 'turret', 'turrets', 'rotor', 'rotors', 'propeller', 'propellers', 'flamethrower', 'missile', 'missiles', 'laser', 'lasers', 'cannon', 'cannons',
+  'wheels', 'legs', 'wings', 'jaws', 'claws', 'pincers', 'fangs', 'teeth', 'tail', 'arms', 'guard', 'hunt', 'attack', 'follow', 'helicopter', 'tank', 'tanks', 'robot', 'robots',
+  'spider', 'shark', 'dragon', 'machine', 'gun', 'guns', 'flying', 'walking', 'hovering', 'armed', 'army', 'swarm', 'squad', 'companion', 'buddy', 'pet', 'mech',
+];
 
 export const MULTI_VERBS = Object.keys(VERBS).filter((k) => k.includes(' ')).sort((a, b) => b.split(' ').length - a.split(' ').length);
 
@@ -140,8 +153,10 @@ export const PREPOSITIONS = ['in front of', 'on top of', 'next to', 'up to', 'ou
 
 /** Words that refer to things already in the scene. */
 export const ENTITY_NOUNS: Record<string, string> = {
-  drone: 'drone', drones: 'drone', robot: 'drone', robots: 'drone', bot: 'drone', bots: 'drone', enemy: 'drone', enemies: 'drone', bad: 'drone', baddie: 'drone', baddies: 'drone', target: 'drone', targets: 'drone',
-  ufo: 'drone', ufos: 'drone', machine: 'drone', machines: 'drone', flyer: 'drone', flyers: 'drone', hostile: 'drone', hostiles: 'drone', quadcopter: 'drone', 'flying thing': 'drone', buzzers: 'drone', buzzer: 'drone', mosquito: 'drone', mosquitoes: 'drone',
+  drone: 'drone', drones: 'drone', robot: 'robot', robots: 'robot', bot: 'robot', bots: 'robot', droid: 'robot', droids: 'robot', android: 'robot', androids: 'robot', mech: 'robot', mechs: 'robot', walker: 'robot', walkers: 'robot',
+  enemy: 'hostile', enemies: 'hostile', bad: 'hostile', baddie: 'hostile', baddies: 'hostile', 'bad guys': 'hostile', target: 'hostile', targets: 'hostile', foe: 'hostile', foes: 'hostile', hostile: 'hostile', hostiles: 'hostile', villain: 'hostile', villains: 'hostile', monster: 'hostile', monsters: 'hostile',
+  ufo: 'drone', ufos: 'drone', machine: 'drone', machines: 'drone', flyer: 'drone', flyers: 'drone', quadcopter: 'drone', 'flying thing': 'drone', buzzers: 'drone', buzzer: 'drone', mosquito: 'drone', mosquitoes: 'drone',
+  opponent: 'opponent', opponents: 'opponent', rival: 'opponent', rivals: 'opponent', 'other player': 'opponent', 'enemy lantern': 'opponent', 'other lantern': 'opponent', challenger: 'opponent', nemesis: 'opponent',
   turret: 'turret', turrets: 'turret', gun: 'turret', cannon: 'turret', shooter: 'turret', sentry: 'turret', tower_gun: 'turret', emplacement: 'turret', launcher: 'turret',
   civilian: 'civilian', civilians: 'civilian', guy: 'civilian', person: 'civilian', man: 'civilian', woman: 'civilian', lady: 'civilian', dude: 'civilian', kid: 'civilian', child: 'civilian', people: 'civilian',
   pedestrian: 'civilian', citizen: 'civilian', victim: 'civilian', faller: 'civilian', human: 'civilian', fella: 'civilian', fellow: 'civilian', girl: 'civilian', boy: 'civilian', worker: 'civilian', hostage: 'civilian',
