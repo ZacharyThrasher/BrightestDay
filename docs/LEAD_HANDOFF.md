@@ -83,6 +83,10 @@ Everything below is committed and green unless noted.
 - BOUNDS RULES (owner): an attached tether prevents side/bottom/void KOs (only the star/top KO still
   applies); constructs leaving the map RECALL next to their summoner (anti-loop valve), plus an audit of
   every early-despawn path (worker: new bd_sim world/bounds.rs or recall.rs).
+- TRACKING + MELEE ASSIST: ring-compass filament, lantern beacons >60 m, loud-action reveal pulses
+  through walls, speed trails; melee lunge magnetism (sim, range/cone/LOS, cooldown), in-range weapon
+  glow, hook-and-strike (tether hooks players, reel + one-shot slam; escapable; rules toggle).
+  Same bounds worker also does visible summon placement + off-screen ping + tiny live preview camera.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
