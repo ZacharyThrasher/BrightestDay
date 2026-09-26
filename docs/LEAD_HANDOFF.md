@@ -45,8 +45,7 @@ review galleries/screenshots, and commit what's green; re-launch anything half-d
    directional sparks, scorch/crack decals, heavy-hit ducking, final-blow slow-mo, construct weight
    (footstep shake, summon events by size, held-weapon lag/aim shove), `assets/tuning/juice.ron` hot
    reload; wire the weighted timing fns into bd_sim held.rs/creature.rs so hitboxes match.
-2. Showcase re-record after weight + perf passes; fix weak beats (Mjolnir framing, black hole off-edge,
-   combiner readability, tether recovery clarity, debris into lens); add a Miami + Orbit segment.
+2. (Deprioritised by owner: no more showcase/video work — the game is the focus.)
 3. **Soak investigation:** one soak failure at tick 156001 during concurrent edits didn't reproduce —
    run `soak --seed 1..8 --ticks 200000` on a quiet tree; reproduce by seed if any fails.
 4. Full `tools/check.ps1 -Soak -Bench -Smoke` green on a quiet machine; fix regressions.
