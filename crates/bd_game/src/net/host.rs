@@ -255,7 +255,13 @@ impl HostCore {
     /// Build the world for a new match (call on a worker: ~150 ms+). Returns the world and the map
     /// with its pristine terrain hash filled in (hand it to [`HostCore::start_match`]).
     pub fn build_world(settings: &GameSettings, map: NetMap, sim_seed: u64) -> (World, NetMap, TerrainHasher) {
-        let base = bd_sim::SimConfig { arena: bd_sim::ArenaSource::Archipelago { seed: map.seed }, seed: sim_seed, ..Default::default() };
+        // `assets/tuning/combat.ron` (clients get it in `WorldInit.cfg`, hot reloads via `set_tuning`).
+        let base = bd_sim::SimConfig {
+            arena: bd_sim::ArenaSource::Archipelago { seed: map.seed },
+            seed: sim_seed,
+            tuning: crate::combat_tuning::current(),
+            ..Default::default()
+        };
         let mut cfg = settings.sim_config(base);
         if map.kind != NetMapKind::Archipelago {
             // The sim can only regenerate archipelagos between rounds.
@@ -285,6 +291,21 @@ impl HostCore {
             self.init_remote(i, active);
         }
         self.lobby_dirty = true;
+    }
+
+    /// Combat tuning hot reload: apply it to the match world (if any) and send it to every
+    /// connected client (`S2C::Tuning`), so predicting clients run the host's numbers. Returns the
+    /// number of clients it was sent to.
+    pub fn set_tuning(&mut self, world: Option<&mut World>, t: &bd_sim::tuning::CombatTuning) -> usize {
+        if let Some(w) = world {
+            w.set_tuning(t.clone());
+        }
+        let msg = S2C::Tuning(Box::new(t.clone().validated()));
+        let ids: Vec<PlayerId> = self.remotes.iter().map(|r| r.id).collect();
+        for &id in &ids {
+            self.session.send(id, &msg);
+        }
+        ids.len()
     }
 
     /// Back to the lobby (match torn down).

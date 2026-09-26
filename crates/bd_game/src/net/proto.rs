@@ -302,6 +302,10 @@ pub enum S2C {
     Snapshot(SnapshotDelta),
     /// Cosmetic: `player` shouted `line` (receivers re-sanitise and slur-filter it).
     Shout { player: PlayerId, line: crate::present::shout::ShoutLine },
+    /// The host's combat tuning changed (`assets/tuning/combat.ron` hot reload): clients apply it
+    /// to their replica / prediction world (and to a world init still in flight). At join the
+    /// tuning travels in `WorldInit.cfg.tuning`. Protocol v7.
+    Tuning(Box<bd_sim::tuning::CombatTuning>),
 }
 
 /// Does this event change terrain (logged for late joiners)?

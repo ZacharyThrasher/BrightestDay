@@ -116,6 +116,12 @@ pub fn is_piercing_orb(r: &Recipe) -> bool {
     r.has(Mechanic::Pierce) && r.form.category() != FormCategory::Creature && !super::orbital::is_orbital(r)
 }
 
+/// A live erasing orb's recipe (what [`orb_recipe`] builds; the kill feed says "erased", the client
+/// draws the imaginary-mass sphere). Also true after the flight strips its other verbs.
+pub fn is_erasing_orb(r: &Recipe) -> bool {
+    r.form == Form::Ball && r.has(Mechanic::Attract) && (r.has(Mechanic::Pierce) || r.mechanics.len() == 1) && r.scale >= 2.0
+}
+
 /// The amplified orb recipe: a big hard-light Ball of the phrase's element with the suction wake.
 pub fn orb_recipe(mut r: Recipe, t: &OrbTuning, power: f32, full_bar: bool) -> Recipe {
     r.form = Form::Ball;
@@ -351,6 +357,11 @@ mod tests {
         assert_eq!(o.form, Form::Ball);
         assert!(o.has(Mechanic::Attract) && !o.has(Mechanic::Explodes));
         assert!((o.scale - 3.5).abs() < 1e-4);
+        assert!(is_erasing_orb(&o));
+        assert_eq!(crate::freedom::verb_text(crate::freedom::verb_for(&o)), "erased");
+        let mut plain = Recipe::unknown("ball");
+        plain.form = Form::Ball;
+        assert!(!is_erasing_orb(&plain.normalized()));
         let big = orb_recipe(r.clone(), &OrbTuning::default(), 1.0, true);
         assert!(big.scale > o.scale * 1.2);
         let mut beast = r;

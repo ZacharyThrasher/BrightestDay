@@ -195,6 +195,7 @@ pub const VERBS: &[&str] = &[
     "mind-blasted", // 19 psychic
     "swallowed",    // 20 shadow
     "sent flying",  // 21 blast zone with no construct
+    "erased",       // 22 an erasing orb (signature::orb: Hollow Purple)
 ];
 /// `verb` byte for a KO with no killer ("Sam fell").
 pub const VERB_FELL: u8 = 255;
@@ -210,6 +211,9 @@ pub fn verb_text(v: u8) -> &'static str {
 /// The verb for a construct's KO, from what it is (mechanics / element / form).
 pub fn verb_for(r: &Recipe) -> u8 {
     let has = |m| r.has(m);
+    if crate::signature::orb::is_erasing_orb(r) {
+        return 22; // SIGNATURE HOOK
+    }
     if has(Mechanic::Explodes) {
         return 8;
     }

@@ -212,6 +212,8 @@ impl Plugin for SignaturePlugin {
                 (
                     spectacle_events.in_set(PresentSet::Events),
                     (alert_spectacles, domain_state, strike_markers).chain().in_set(PresentSet::Sync),
+                    // After the construct sync (it owns the visuals' other fields).
+                    element_tint.after(PresentSet::Sync),
                 ),
             )
             .add_systems(Update, (dev_test, dev_world).chain().before(crate::tick::FrameSet::Input))
@@ -446,6 +448,28 @@ fn spectacle_events(
                 }
             }
             _ => {}
+        }
+    }
+}
+
+/// Signature constructs with a strong element glow in THAT element's colour (a Fire domain is fire,
+/// not the caster's green), with a little corps colour left so ownership still reads.
+fn element_tint(
+    active: Option<Res<ActiveWorld>>,
+    s: Res<Spectacles>,
+    mut q: Query<(&super::constructs::SimConstruct, &mut bd_fx::ConstructVisual)>,
+) {
+    let Some(active) = active else { return };
+    if s.live.is_empty() {
+        return;
+    }
+    for l in s.live.iter().filter(|l| l.element != Element::Light) {
+        let Some((_, mut vis)) = q.iter_mut().find(|(sc, _)| sc.id == l.id) else { continue };
+        let corps = corps_rgb(active.corps_of(l.owner));
+        let e = element_rgb(l.element, corps);
+        let want = [e[0] * 0.75 + corps[0] * 0.25, e[1] * 0.75 + corps[1] * 0.25, e[2] * 0.75 + corps[2] * 0.25];
+        if vis.corps_color != want {
+            vis.corps_color = want;
         }
     }
 }

@@ -707,6 +707,10 @@ fn summon_ping(
         if let Some(f) = tr.fade.as_mut() {
             *f += dt;
         }
+        // Forced (measuring): come back after another cut-in took the window.
+        if forced && cuts.active.is_none() {
+            tr.offered = false;
+        }
         // The summon's cut-in: requested once, faded with the ping.
         if let (Some(_), false, Some((e, _))) = (tr.shown, tr.offered, ent.as_ref())
             && (prefs.summon_preview || forced)
@@ -811,7 +815,7 @@ struct CutQueries<'w, 's> {
     meshes: Query<'w, 's, (), With<Mesh3d>>,
     layers: Query<'w, 's, (), With<RenderLayers>>,
     ui: Query<'w, 's, (&'static CutUi, &'static mut Node, &'static mut UiTransform, &'static mut BorderColor, &'static mut BackgroundColor, &'static mut Visibility)>,
-    label: Query<'w, 's, (&'static mut Text, &'static mut TextColor), With<CutUi>>,
+    label: Query<'w, 's, (&'static mut Text, &'static mut TextColor, &'static mut TextFont), With<CutUi>>,
     sim: Query<'w, 's, &'static super::constructs::SimConstruct>,
     bodies: Query<'w, 's, &'static super::players::PlayerBody>,
     grads: Query<'w, 's, (&'static CutUi, &'static mut BackgroundGradient)>,
@@ -987,11 +991,17 @@ fn update_cutins(
     let want_label = active.and_then(|a| a.cut.label.clone()).filter(|_| alert.is_some());
     if want_label != cuts.label {
         cuts.label = want_label.clone();
-        for (mut t, _) in &mut q.label {
+        // Auto-fit: long titles ("DOMAIN EXPANSION: COFFIN OF THE IRON MOUNTAIN") shrink to one line.
+        let chars = want_label.as_deref().map_or(0, |l| l.chars().count());
+        let size = FontSize::Px(if chars > 21 { (15.0 * 21.0 / chars as f32).max(7.5) } else { 15.0 });
+        for (mut t, _, mut f) in &mut q.label {
             t.0 = want_label.clone().unwrap_or_default().to_uppercase();
+            if f.font_size != size {
+                f.font_size = size;
+            }
         }
     }
-    for (_, mut tc) in &mut q.label {
+    for (_, mut tc, _) in &mut q.label {
         let c = Color::linear_rgba(1.0, 1.0, 1.0, alpha);
         if tc.0 != c {
             tc.0 = c;

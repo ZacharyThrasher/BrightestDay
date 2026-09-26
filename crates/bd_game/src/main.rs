@@ -26,6 +26,7 @@ mod audio;
 mod automation;
 mod camera;
 mod cli;
+mod combat_tuning;
 mod console;
 mod debris;
 mod hud;
@@ -129,6 +130,7 @@ fn main() {
             tutorial::TutorialPlugin,
         ))
         .add_plugins(sim_bridge::SimBridgePlugin)
+        .add_plugins(combat_tuning::CombatTuningPlugin)
         .add_plugins((practice::PracticePlugin, present::PresentPlugin))
         .add_plugins(net::NetPlugin)
         .add_plugins(lobby::UiPlugin)

@@ -208,7 +208,12 @@ fn gun_events(
             }
             GameEvent::Hitscan { owner, origin, end, .. } => {
                 let col = corps_rgb(active.corps_of(*owner));
-                beam.write(BeamFx { from: bv(*origin), to: bv(*end), color: col, width: 1.0 });
+                // Caliber: a giant (ultimate) railgun draws a thick beam (width x sqrt(scale / default)).
+                let caliber = active.world.constructs.held_by(*owner).filter(|c| c.recipe.form == bd_core::mechanics::Form::Gun).map_or(1.0, |c| {
+                    let d = bd_sim::constructs::forms::form_spec(c.recipe.form).default_scale.max(0.1);
+                    (c.recipe.scale / d).sqrt().clamp(1.0, 2.5)
+                });
+                beam.write(BeamFx { from: bv(*origin), to: bv(*end), color: col, width: caliber });
             }
             GameEvent::ProjectileEnded { pos, normal, hit_player, id } => {
                 let _ = id;

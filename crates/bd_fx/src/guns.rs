@@ -301,7 +301,7 @@ fn beams(mut fx: ResMut<FxParticles>, mut msgs: MessageReader<BeamFx>) {
         if len < 0.05 {
             continue;
         }
-        let w = if m.width.is_finite() && m.width > 0.0 { m.width.min(1.0) } else { 0.12 };
+        let w = if m.width.is_finite() && m.width > 0.0 { m.width.min(3.0) } else { 0.12 };
         let hot = [0.7 + m.color[0] * 0.3, 0.7 + m.color[1] * 0.3, 0.7 + m.color[2] * 0.3];
         // Core (split into ≤ 8 m segments so fog/culling stay sane).
         let segs = (len / 8.0).ceil().max(1.0) as usize;

@@ -152,7 +152,7 @@ ADS/gun-raise body pose, held item on a fixed hand offset, railgun oversized at 
 (c) "Allow third person" is client-enforced only — enforce on host; (d) power moves (G) use the
 uncorrected look in 3P; (e) projectile muzzle parallax ~0.3 m point-blank; (f) tutorial map doesn't
 draw the local body in 3P; (g) DESIGN.md still frames 3P as comfort-only; (h) re-test `--bench` with
-a hidden window. Protocol is v6.
+a hidden window. Protocol is v7 (S2C::Tuning).
 
 ## Integration cleanups to do ONCE after the wave lands (don't let 8 workers fight over them now)
 - Keybind audit (charge, dodge, view toggle, ADS, shoulder swap, hook) — no conflicts; update PLAYING.md.
@@ -194,3 +194,4 @@ a hidden window. Protocol is v6.
 - FREEDOM BUNDLE DONE. Open: power pickups (powers/exec.rs power_pay) still refuse for willpower; viewmodel NotEnoughWillpower flicker is now dead for casts; note a sputter at 0 willpower starves other constructs (existing upkeep rule) — watch in playtest.
 - OUTLINES DONE. Readability follow-ups: (1) fade/shrink opaque shatter debris within ~1.5 m of the camera and cap shatter cube size near players; (2) lower daylight construct alpha (0.92) near player bodies so players inside enemy domes read; (3) judge dark flecks on high-damage bodies. Uncapped --bench for outlines still owed. target/outline/rec is ~550 MB (prunable).
 - TRACKING/MELEE DONE (f87b4f0) incl. a real bug fix: melee sweeps ignored the hand frame (hitboxes near world origin) — all melee changed. CRITICAL FOUND: combat.ron was never loaded by bd_game (only move.ron) — worker launched to load + hot-reload + host->client sync + whip sweep density. Design notes: hooking a PLAYER while falling counts as a tether save (kept as emergent rescue); victim tug arc at screen edge is on (tracking.ron tug:false to remove); ring-face glow dropped (needs hands' ring position).
+- COMBAT TUNING NOW LIVE: crates/bd_game/src/combat_tuning.rs loads assets/tuning/combat.ron (practice/host/headless/soak), hot-reloads every 0.5 s, host pushes S2C::Tuning to clients; defaults == shipped (strict parity test). Guns had been running at x1 cost until now. Whip samples <=0.75 m. Note: held.rs/tests/held.rs/tests/tuning.rs are now LF (harmless).

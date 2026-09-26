@@ -224,3 +224,65 @@ fn reconnect_keeps_the_player() {
     assert_eq!(Some(id), first_id, "same player id after the reconnect");
     assert_eq!(active.world.player(id).map(|p| p.kos), Some(3), "score kept");
 }
+
+/// Combat tuning is host-authoritative: a joining client's replica / prediction world gets the
+/// host's tuning in `WorldInit.cfg`, and a host hot reload (`HostCore::set_tuning` →
+/// `S2C::Tuning`) reaches the client's world while it plays.
+#[test]
+fn combat_tuning_syncs_host_to_client() {
+    use bd_core::mechanics::Form;
+    use bd_sim::tuning::{CombatTuning, FormCost};
+    let settings = bd_sim::settings::GameSettings::default();
+    let mut host =
+        HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
+    let port = host.port;
+    let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind: NetMapKind::Archipelago, seed: 1, pristine_hash: 0 }, 7);
+    // The host world starts from the shipped combat.ron (== defaults).
+    assert_eq!(world.tuning().willpower.form_mult(Form::Gun), 2.6);
+    let mut active = ActiveWorld::new(world, Some(host.me), SimRole::Host);
+    // A host-side edit before anyone joins: travels in WorldInit.
+    let mut at_join = CombatTuning::default();
+    at_join.willpower.form_cost = vec![FormCost { form: Form::Gun, mult: 3.5 }];
+    at_join.ring.blast_damage = 17.0;
+    active.world.set_tuning(at_join.clone());
+    host.start_match(&mut active, map, hasher);
+    active.world.start_live();
+    let mut bot = Bot::new(port, "tuned", 31);
+    let mut reloaded = CombatTuning::default();
+    reloaded.willpower.form_cost = vec![FormCost { form: Form::Gun, mult: 1.25 }, FormCost { form: Form::Staff, mult: 4.0 }];
+    reloaded.charge.rate_per_sec *= 0.5;
+    let t0 = now_secs();
+    let mut next_tick = t0;
+    let mut cmds = Vec::new();
+    let mut joined_with = None;
+    let mut sent_to = None;
+    while now_secs() - t0 < 10.0 {
+        host.poll(Some(&mut active), &mut cmds);
+        cmds.clear();
+        while now_secs() >= next_tick {
+            host.pre_tick(&mut active);
+            active.step(None);
+            host.post_tick(&mut active);
+            next_tick += DT as f64;
+        }
+        bot.frame(false);
+        if let Some(w) = bot.world.as_ref() {
+            if joined_with.is_none() {
+                joined_with = Some(w.tuning().clone());
+                // Hot reload on the host while the client plays.
+                sent_to = Some(host.set_tuning(Some(&mut active.world), &reloaded));
+            } else if w.tuning() == active.world.tuning() {
+                break;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert_eq!(joined_with.as_ref().map(|t| t.willpower.form_mult(Form::Gun)), Some(3.5), "join carries the host's tuning");
+    assert_eq!(joined_with.as_ref().map(|t| t.ring.blast_damage), Some(17.0));
+    assert_eq!(sent_to, Some(1));
+    let w = bot.world.as_ref().expect("client joined");
+    assert_eq!(active.world.tuning(), &reloaded.clone().validated());
+    assert_eq!(w.tuning(), active.world.tuning(), "hot reload reached the client's world");
+    assert_eq!(w.tuning().willpower.form_mult(Form::Staff), 4.0);
+    assert_eq!(bot.core.stats.tuning_updates, 1);
+}

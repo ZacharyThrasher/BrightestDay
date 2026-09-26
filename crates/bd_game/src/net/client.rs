@@ -91,6 +91,8 @@ pub struct ClientStats {
     pub reconnects: u64,
     pub last_terrain_hash: u64,
     pub world_build_ms: f32,
+    /// `S2C::Tuning` received (host combat tuning hot reloads).
+    pub tuning_updates: u64,
     /// Knockback hits / shoves / respawns on the local player (host-side impulses the client
     /// cannot predict: each one is an expected correction).
     pub hits_taken: u64,
@@ -463,6 +465,18 @@ impl ClientCore {
                 if self.shouts.len() < 32 {
                     self.shouts.push((player, line));
                 }
+            }
+            S2C::Tuning(t) => {
+                // The host's combat.ron changed: predict with the same numbers (never our own file).
+                let t = t.validated();
+                self.stats.tuning_updates += 1;
+                if let Some(i) = self.init.as_mut() {
+                    i.init.cfg.tuning = t.clone();
+                }
+                if let Some(w) = world {
+                    w.set_tuning(t);
+                }
+                super::host::bd_net_log(|| "host combat tuning updated".into());
             }
         }
     }

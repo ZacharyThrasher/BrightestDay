@@ -64,6 +64,7 @@ fn start_soak(mut commands: Commands, args: Res<SimArgs>, mut director: ResMut<D
     let mut cfg = ChaosConfig::new(seed, MatchRules::default());
     cfg.arena = ArenaSource::Archipelago { seed };
     let mut chaos = ChaosWorld::with_config(cfg);
+    chaos.world.set_tuning(crate::combat_tuning::current()); // assets/tuning/combat.ron
     // Move the real world into ActiveWorld; leave a tiny placeholder in the driver.
     let placeholder = World::new(bd_sim::SimConfig { arena: ArenaSource::Flat { size_m: 32.0 }, check_invariants: false, ..Default::default() });
     let world = std::mem::replace(&mut chaos.world, placeholder);

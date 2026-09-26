@@ -96,6 +96,7 @@ fn apply_terrain_events(
     mut sfx: MessageWriter<Sfx3d>,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     mut queue: ResMut<crate::render::voxel_render::RemeshQueue>,
+    sinks: Option<Res<super::signature_fx::EraseSinks>>,
 ) {
     let Some(arena) = arena else {
         events.clear();
@@ -156,6 +157,8 @@ fn apply_terrain_events(
                 // Far away carves get fewer cubes.
                 let dist_k = (1.0 - (d - 30.0) / 150.0).clamp(0.15, 1.0);
                 let push = pushes.nearest(center, radius);
+                // SIGNATURE: an erasing orb's tunnel — the removed voxels are sucked INTO the orb.
+                let sink = sinks.as_deref().and_then(|s| s.sink(center));
                 let r = &mut rng.0;
                 // Removed voxels → debris.
                 let n = outcome.removed.len();
@@ -190,14 +193,11 @@ fn apply_terrain_events(
                         } else {
                             Vec3::new((k & 1) as f32, ((k >> 1) & 1) as f32, ((k >> 2) & 1) as f32) * size - Vec3::splat(size * 0.5)
                         };
-                        debris.write(SpawnDebris {
-                            pos: p + o,
-                            vel: base + Vec3::Y * r.range(1.5, 5.0) + r.unit_vec3() * 1.2,
-                            color,
-                            size: size * 0.96,
-                            emissive: def.emissive * 3.0,
-                            lifetime: r.range(3.0, 6.5),
-                        });
+                        let (vel, lifetime) = match sink {
+                            Some((sp, sv)) => ((sp + sv * 0.22 - (p + o)) / 0.22, 0.22),
+                            None => (base + Vec3::Y * r.range(1.5, 5.0) + r.unit_vec3() * 1.2, r.range(3.0, 6.5)),
+                        };
+                        debris.write(SpawnDebris { pos: p + o, vel, color, size: size * 0.96, emissive: def.emissive * 3.0, lifetime });
                     }
                 }
                 // Unsupported pieces fall as clumps sharing one velocity.
@@ -226,7 +226,7 @@ fn apply_terrain_events(
                         });
                     }
                 }
-                if radius > 1.2 {
+                if radius > 1.2 && sink.is_none() {
                     impulses.write(DebrisImpulse { center, radius: radius * 2.5, strength: 4.0 + radius * 1.5 });
                 }
                 // One material break sound per carve (rate-limited per frame).

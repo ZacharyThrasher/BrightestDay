@@ -108,7 +108,9 @@ impl Plugin for PracticePlugin {
 
 /// The sim config every practice world uses.
 pub fn practice_config(seed: u64, arena_seed: u64) -> SimConfig {
-    let mut cfg = SimConfig { arena: ArenaSource::Archipelago { seed: arena_seed }, seed, check_invariants: false, ..Default::default() };
+    // `assets/tuning/combat.ron` (hot-reloaded into the running world by `combat_tuning`).
+    let tuning = crate::combat_tuning::current();
+    let mut cfg = SimConfig { arena: ArenaSource::Archipelago { seed: arena_seed }, seed, check_invariants: false, tuning, ..Default::default() };
     cfg.rules.ko_target = 50;
     cfg.rules.time_limit = 60.0 * 60.0;
     cfg.rules.regen_islands_between_rounds = false;
