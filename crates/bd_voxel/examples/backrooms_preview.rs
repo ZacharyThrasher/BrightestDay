@@ -175,7 +175,13 @@ fn shade(w: &VoxelWorld, look: &Look, eye: Vec3, dir: Vec3) -> Vec3 {
     // Flat "fluorescent" ambient: floors brightest, ceilings dimmest; cheap AO from the 4 in-plane
     // neighbours of the air voxel in front of the face.
     let air = h.voxel + h.normal;
-    let (t1, t2) = if n.x != 0.0 { (IVec3::Y, IVec3::Z) } else if n.y != 0.0 { (IVec3::X, IVec3::Z) } else { (IVec3::X, IVec3::Y) };
+    let (t1, t2) = if n.x != 0.0 {
+        (IVec3::Y, IVec3::Z)
+    } else if n.y != 0.0 {
+        (IVec3::X, IVec3::Z)
+    } else {
+        (IVec3::X, IVec3::Y)
+    };
     let occ = [t1, -t1, t2, -t2].iter().filter(|&&t| w.get(air + t) != AIR).count() as f32;
     let ao = 1.0 - occ * 0.09;
     let face = 0.78 + 0.16 * n.y.max(0.0) - 0.1 * (-n.y).max(0.0);
@@ -234,10 +240,14 @@ fn mesh_stats(w: &VoxelWorld, by_level: bool) -> (usize, [usize; LEVELS + 2], f6
         mesher.mesh_chunk_into(w, c, &mut mesh);
         total += mesh.triangle_count();
         if by_level {
-            for tri in mesh.indices.chunks_exact(3) {
+            for tri in mesh.indices.as_chunks::<3>().0 {
                 let (a, b, cc) = (mesh.positions[tri[0] as usize], mesh.positions[tri[1] as usize], mesh.positions[tri[2] as usize]);
                 let n = mesh.normals[tri[0] as usize];
-                let p = Vec3::new((a[0] + b[0] + cc[0]) / 3.0 + n[0] * 0.1, (a[1] + b[1] + cc[1]) / 3.0 + n[1] * 0.1, (a[2] + b[2] + cc[2]) / 3.0 + n[2] * 0.1);
+                let p = Vec3::new(
+                    (a[0] + b[0] + cc[0]) / 3.0 + n[0] * 0.1,
+                    (a[1] + b[1] + cc[1]) / 3.0 + n[1] * 0.1,
+                    (a[2] + b[2] + cc[2]) / 3.0 + n[2] * 0.1,
+                );
                 let inside = p.x.abs() < 38.0 && p.z.abs() < 38.0;
                 let bin = match level_at(p.y) {
                     Some(l) if inside => l,
@@ -255,7 +265,12 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let seed: u64 = args.iter().find(|a| !a.starts_with("--")).and_then(|s| s.parse().ok()).unwrap_or(1);
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let out = args.iter().position(|a| a == "--out").and_then(|i| args.get(i + 1)).map(PathBuf::from).unwrap_or_else(|| root.join("docs/backrooms_preview.png"));
+    let out = args
+        .iter()
+        .position(|a| a == "--out")
+        .and_then(|i| args.get(i + 1))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| root.join("docs/backrooms_preview.png"));
     SEED.with(|s| *s.borrow_mut() = seed);
     let parts = root.join("target/backrooms/preview");
     std::fs::create_dir_all(&parts).ok();
@@ -331,7 +346,11 @@ fn main() {
     let mut shots: Vec<(String, RgbImage)> = Vec::new();
     // Largest walkable room per (level, kit): look along its long axis from one end.
     let add_room_shot = |shots: &mut Vec<(String, RgbImage)>, level: usize, kit: Kit, name: &str| {
-        let best = plan.rooms.iter().filter(|r| r.level == level && r.kit == kit && r.walkable && !r.hotel_room).max_by_key(|r| r.rect.w() * r.rect.h());
+        let best = plan
+            .rooms
+            .iter()
+            .filter(|r| r.level == level && r.kit == kit && r.walkable && !r.hotel_room)
+            .max_by_key(|r| r.rect.w() * r.rect.h());
         let Some(r) = best else { return };
         let c = r.rect.center();
         let (hw, hh) = (r.rect.w() as f32 * 2.0, r.rect.h() as f32 * 2.0);
@@ -357,7 +376,9 @@ fn main() {
     }
     // Punch-through: blow a hole through the slab over a garage spawn-free spot and look up.
     let mut carved = world.clone_for_preview();
-    if let Some(r) = plan.rooms.iter().filter(|r| r.level == 1 && r.kit == Kit::Office && r.walkable).max_by_key(|r| r.rect.w() * r.rect.h()) {
+    if let Some(r) =
+        plan.rooms.iter().filter(|r| r.level == 1 && r.kit == Kit::Office && r.walkable).max_by_key(|r| r.rect.w() * r.rect.h())
+    {
         let c = r.rect.center();
         let slab = floor_y(2) - 0.5;
         let op = CarveOp { shape: CarveShape::Sphere { center: Vec3::new(c.x, slab, c.y), radius: 2.6 }, power: 3.0, seed: 7 };

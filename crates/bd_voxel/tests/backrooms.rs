@@ -38,9 +38,7 @@ fn clear(w: &VoxelWorld, x: i32, y: i32, z: i32, h: i32) -> bool {
 }
 
 fn standable(w: &VoxelWorld, x: i32, y: i32, z: i32) -> bool {
-    y as f32 * 0.5 >= VOID_Y
-        && clear(w, x, y, z, 4)
-        && (0..2).any(|dz| (0..2).any(|dx| w.get(IVec3::new(x + dx, y - 1, z + dz)) != AIR))
+    y as f32 * 0.5 >= VOID_Y && clear(w, x, y, z, 4) && (0..2).any(|dz| (0..2).any(|dx| w.get(IVec3::new(x + dx, y - 1, z + dz)) != AIR))
 }
 
 /// Nodes reachable from `start` (feet voxel) by walking, stepping ≤ 0.5 m, jumping ≤ 2 m and falling.
@@ -118,10 +116,11 @@ fn deterministic_per_seed() {
 #[test]
 fn spawns_valid_and_mutually_reachable() {
     // BR_SEEDS=a..b widens the sweep (default: 1, 2, 7).
-    let seeds: Vec<u64> = match std::env::var("BR_SEEDS").ok().and_then(|s| s.split_once("..").map(|(a, b)| (a.parse().ok(), b.parse().ok()))) {
-        Some((Some(a), Some(b))) => (a..b).collect(),
-        _ => vec![1, 2, 7],
-    };
+    let seeds: Vec<u64> =
+        match std::env::var("BR_SEEDS").ok().and_then(|s| s.split_once("..").map(|(a, b)| (a.parse().ok(), b.parse().ok()))) {
+            Some((Some(a), Some(b))) => (a..b).collect(),
+            _ => vec![1, 2, 7],
+        };
     for seed in seeds {
         let (w, info) = generate_backrooms(seed);
         assert!((8..=10).contains(&info.spawns.len()), "seed {seed}: {} spawns", info.spawns.len());
@@ -135,7 +134,8 @@ fn spawns_valid_and_mutually_reachable() {
         }
         assert!(per_level.iter().all(|&n| n >= 1), "seed {seed}: spawns per level {per_level:?}");
         let g = Grid::new(&w);
-        let nodes: Vec<IVec3> = info.spawns.iter().map(|s| spawn_node(&w, *s).unwrap_or_else(|| panic!("seed {seed}: spawn {s} not standable"))).collect();
+        let nodes: Vec<IVec3> =
+            info.spawns.iter().map(|s| spawn_node(&w, *s).unwrap_or_else(|| panic!("seed {seed}: spawn {s} not standable"))).collect();
         let matrix: Vec<String> = nodes
             .iter()
             .map(|&from| {
@@ -144,14 +144,24 @@ fn spawns_valid_and_mutually_reachable() {
             })
             .collect();
         if matrix.iter().any(|r| r.contains('.')) {
-            eprintln!("seed {seed} reachability (row = from):
-{}", matrix.join("
-"));
+            eprintln!(
+                "seed {seed} reachability (row = from):
+{}",
+                matrix.join(
+                    "
+"
+                )
+            );
         }
         for (i, &from) in nodes.iter().enumerate() {
             let seen = reach(&w, &g, from);
             for (j, &to) in nodes.iter().enumerate() {
-                assert!(seen[g.idx(to).unwrap()], "seed {seed}: spawn {j} {:?} not reachable from spawn {i} {:?}", info.spawns[j], info.spawns[i]);
+                assert!(
+                    seen[g.idx(to).unwrap()],
+                    "seed {seed}: spawn {j} {:?} not reachable from spawn {i} {:?}",
+                    info.spawns[j],
+                    info.spawns[i]
+                );
             }
         }
     }
@@ -220,7 +230,7 @@ fn triangle_budget() {
     for c in w.nonempty_chunks() {
         mesher.mesh_chunk_into(&w, c, &mut mesh);
         total += mesh.triangle_count();
-        for tri in mesh.indices.chunks_exact(3) {
+        for tri in mesh.indices.as_chunks::<3>().0 {
             let (a, n) = (mesh.positions[tri[0] as usize], mesh.normals[tri[0] as usize]);
             let (b, cc) = (mesh.positions[tri[1] as usize], mesh.positions[tri[2] as usize]);
             let p = Vec3::new(a[0] + b[0] + cc[0], a[1] + b[1] + cc[1], a[2] + b[2] + cc[2]) / 3.0 + Vec3::from_array(n) * 0.1;
@@ -250,7 +260,13 @@ fn debug_slice() {
                 .map(|dx| {
                     let q = IVec3::new(v.x + dx, v.y + dy, v.z + dz);
                     let m = w.get(q);
-                    if dx == 0 && dz == 0 { '@' } else if m == AIR { if w.get(q - IVec3::Y) == AIR { ' ' } else { '.' } } else { char::from(b'A' + (m % 26)) }
+                    if dx == 0 && dz == 0 {
+                        '@'
+                    } else if m == AIR {
+                        if w.get(q - IVec3::Y) == AIR { ' ' } else { '.' }
+                    } else {
+                        char::from(b'A' + (m % 26))
+                    }
                 })
                 .collect();
             eprintln!("{row}");

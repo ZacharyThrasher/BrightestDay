@@ -499,10 +499,59 @@ impl Plugin for TrackingPlugin {
             .add_systems(Update, (hot_reload_tuning, tracking_events.in_set(PresentSet::Events)))
             .add_systems(Update, weapon_glow.in_set(FrameSet::Present).after(PresentSet::Sync))
             .add_systems(PostUpdate, draw_tracking.after(CameraUpdateSet).after(HandsPublishSet).before(TransformSystems::Propagate))
+            .add_systems(Last, prof_frame)
             .add_systems(OnEnter(AppState::InGame), spawn_compass)
             .add_systems(OnExit(AppState::InGame), despawn_compass)
             .add_systems(Update, compass_strip.in_set(FrameSet::Present).after(PresentSet::Sync));
         scenario::build(app);
+    }
+}
+
+// ------------------------------------------------------------------------------------ profiling
+
+/// `BD_TRACKING_PROF=1`: accumulate the CPU time of the tracking systems per frame and print
+/// `TRACKPROF avg_us p99_us max_us` every 5 s (perf gate evidence; off = one relaxed load).
+struct Prof(Option<std::time::Instant>);
+
+static PROF_ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+static PROF: std::sync::Mutex<(f64, u64, Vec<f32>)> = std::sync::Mutex::new((0.0, 0, Vec::new()));
+
+impl Prof {
+    fn start() -> Self {
+        Prof(PROF_ON.get_or_init(|| std::env::var_os("BD_TRACKING_PROF").is_some()).then(std::time::Instant::now))
+    }
+}
+
+impl Drop for Prof {
+    fn drop(&mut self) {
+        if let Some(t0) = self.0
+            && let Ok(mut p) = PROF.lock()
+        {
+            p.0 += t0.elapsed().as_secs_f64() * 1e6;
+        }
+    }
+}
+
+/// Close a frame's accumulation (Last) and report every 5 s.
+fn prof_frame(time: Res<Time<Real>>, mut next: Local<f32>) {
+    if !*PROF_ON.get_or_init(|| std::env::var_os("BD_TRACKING_PROF").is_some()) {
+        return;
+    }
+    let Ok(mut p) = PROF.lock() else { return };
+    let us = p.0 as f32;
+    p.0 = 0.0;
+    p.1 += 1;
+    p.2.push(us);
+    let t = time.elapsed_secs();
+    if t >= *next {
+        *next = t + 5.0;
+        let mut v = p.2.clone();
+        v.sort_by(|a, b| a.total_cmp(b));
+        if let Some(max) = v.last() {
+            let avg = v.iter().sum::<f32>() / v.len() as f32;
+            let p99 = v[((v.len() as f32 * 0.99) as usize).min(v.len() - 1)];
+            println!("TRACKPROF frames={} avg_us={avg:.1} p99_us={p99:.1} max_us={max:.1}", v.len());
+        }
     }
 }
 
@@ -612,6 +661,7 @@ fn compass_strip(
     mut lines: Query<&mut BackgroundColor, (With<CompassLine>, Without<CompassPip>)>,
     mut pips: Query<(&mut Node, &mut BackgroundColor), (With<CompassPip>, Without<CompassLine>)>,
 ) {
+    let _prof = Prof::start(); // BD_TRACKING_PROF=1: CPU time of the tracking systems
     let t = &tuning.0;
     let dt = time.delta_secs().min(0.1);
     let enabled = t.compass && prefs.as_ref().is_none_or(|p| p.enemy_compass) && !super::perf_off("tracking");
@@ -699,6 +749,7 @@ fn tracking_events(
     mut cues: MessageWriter<TrackingCue>,
     mut burst: MessageWriter<BurstFx>,
 ) {
+    let _prof = Prof::start(); // BD_TRACKING_PROF=1: CPU time of the tracking systems
     state.now += time.delta_secs();
     let Some(active) = active else {
         events.clear();
@@ -789,6 +840,7 @@ fn weapon_glow(
     mut q: Query<&mut ConstructVisual>,
     mut cues: MessageWriter<TrackingCue>,
 ) {
+    let _prof = Prof::start(); // BD_TRACKING_PROF=1: CPU time of the tracking systems
     let t = &tuning.0;
     let dt = time.delta_secs().min(0.1);
     let Some(active) = active.filter(|_| !super::perf_off("tracking")) else {
@@ -873,6 +925,7 @@ fn draw_tracking(
     mut reels: ResMut<HookReels>,
     mut cues: MessageWriter<TrackingCue>,
 ) {
+    let _prof = Prof::start(); // BD_TRACKING_PROF=1: CPU time of the tracking systems
     reels.0.clear();
     // `BD_PERF_OFF=tracking`: A/B perf runs.
     let Some(active) = active.filter(|_| !super::perf_off("tracking")) else { return };

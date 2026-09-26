@@ -638,10 +638,22 @@ struct SigDev {
     boost_me: bool,
     boosted: Option<usize>,
     casts: Vec<(PlayerId, crate::sim_bridge::Cmd)>,
+    /// `me@<yaw_deg>,<pitch_deg>`: hold the local look (yaw relative to the spawn facing) until `t`.
+    look: Option<(f32, f32, f32)>,
+    base_yaw: Option<f32>,
 }
 
 /// Dev: world side of the plan (pins, willpower, bot casts).
-fn dev_world(active: Option<ResMut<ActiveWorld>>, mut dev: ResMut<SigDev>, mut cmds: MessageWriter<SimCommand>) {
+fn dev_world(active: Option<ResMut<ActiveWorld>>, mut dev: ResMut<SigDev>, mut cmds: MessageWriter<SimCommand>, mut look: ResMut<crate::input::LookAngles>) {
+    if let Some((yaw, pitch, until)) = dev.look {
+        if dev.t < until {
+            let base = *dev.base_yaw.get_or_insert(look.yaw);
+            look.yaw = base + yaw.to_radians();
+            look.pitch = pitch.to_radians();
+        } else {
+            dev.look = None;
+        }
+    }
     if dev.pin.is_none() && dev.casts.is_empty() && !dev.boost_me {
         return;
     }
@@ -702,7 +714,17 @@ fn dev_test(
             break;
         }
         // "me": top up one frame, cast the next (so the cast lands on a full bar).
+        let (who, aim) = match who.split_once('@') {
+            Some((w, a)) => (w, Some(a)),
+            None => (who.as_str(), None),
+        };
         if who == "me" && dev.boosted != Some(dev.next) {
+            if let Some(a) = aim {
+                let v: Vec<f32> = a.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                if let [yaw, pitch] = v[..] {
+                    dev.look = Some((yaw, pitch, dev.t + 4.0));
+                }
+            }
             dev.boost_me = true;
             dev.boosted = Some(dev.next);
             break;
@@ -714,6 +736,10 @@ fn dev_test(
             continue;
         }
         let spec = who.strip_prefix("bot:").unwrap_or("25");
+        let spec = match aim {
+            Some(a) => format!("{spec}@{a}"),
+            None => spec.to_string(),
+        };
         let mut parts = spec.split('@');
         let dist: f32 = parts.next().and_then(|d| d.parse().ok()).unwrap_or(25.0);
         let yaw: f32 = parts.next().and_then(|d| d.parse().ok()).unwrap_or(0.0);

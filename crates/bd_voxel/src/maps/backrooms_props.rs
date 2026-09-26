@@ -91,14 +91,19 @@ fn water_cooler() -> Model {
 }
 
 fn filing_cabinet() -> Model {
-    Model::new("filing cabinet")
-        .b((0, 0, 0), (1, 4, 1), mat::STEEL)
-        .b((0, 1, 1), (1, 1, 1), mat::MULLION)
-        .b((0, 3, 1), (1, 3, 1), mat::MULLION)
+    Model::new("filing cabinet").b((0, 0, 0), (1, 4, 1), mat::STEEL).b((0, 1, 1), (1, 1, 1), mat::MULLION).b(
+        (0, 3, 1),
+        (1, 3, 1),
+        mat::MULLION,
+    )
 }
 
 fn potted_plant() -> Model {
-    Model::new("potted plant").b((0, 0, 0), (1, 1, 1), mat::TERRACOTTA).b((0, 2, 0), (1, 4, 1), mat::LEAVES_GREEN).b((0, 5, 0), (0, 5, 0), mat::LEAVES_GREEN)
+    Model::new("potted plant").b((0, 0, 0), (1, 1, 1), mat::TERRACOTTA).b((0, 2, 0), (1, 4, 1), mat::LEAVES_GREEN).b(
+        (0, 5, 0),
+        (0, 5, 0),
+        mat::LEAVES_GREEN,
+    )
 }
 
 fn crt_tv() -> Model {
@@ -129,11 +134,19 @@ fn bed() -> Model {
 }
 
 fn lamp() -> Model {
-    Model::new("lamp").b((0, 0, 0), (1, 1, 1), mat::DARK_WOOD).b((0, 2, 0), (1, 2, 1), mat::DARK_WOOD).b((0, 3, 0), (1, 4, 1), mat::NEON_AMBER)
+    Model::new("lamp").b((0, 0, 0), (1, 1, 1), mat::DARK_WOOD).b((0, 2, 0), (1, 2, 1), mat::DARK_WOOD).b(
+        (0, 3, 0),
+        (1, 4, 1),
+        mat::NEON_AMBER,
+    )
 }
 
 fn lounger() -> Model {
-    Model::new("pool lounger").b((0, 0, 1), (2, 0, 6), mat::HULL_WHITE).b((0, 1, 1), (2, 1, 6), mat::STUCCO_SKY).b((0, 2, 5), (2, 3, 6), mat::STUCCO_SKY)
+    Model::new("pool lounger").b((0, 0, 1), (2, 0, 6), mat::HULL_WHITE).b((0, 1, 1), (2, 1, 6), mat::STUCCO_SKY).b(
+        (0, 2, 5),
+        (2, 3, 6),
+        mat::STUCCO_SKY,
+    )
 }
 
 fn lifeguard_chair() -> Model {
@@ -147,7 +160,11 @@ fn lifeguard_chair() -> Model {
 }
 
 fn cone() -> Model {
-    Model::new("traffic cone (kit)").b((0, 0, 0), (1, 0, 1), mat::HAZARD_ORANGE).b((0, 1, 0), (0, 2, 0), mat::HAZARD_ORANGE).b((0, 2, 0), (0, 2, 0), mat::PAINT_WHITE)
+    Model::new("traffic cone (kit)").b((0, 0, 0), (1, 0, 1), mat::HAZARD_ORANGE).b((0, 1, 0), (0, 2, 0), mat::HAZARD_ORANGE).b(
+        (0, 2, 0),
+        (0, 2, 0),
+        mat::PAINT_WHITE,
+    )
 }
 
 fn luggage_cart() -> Model {
@@ -195,9 +212,24 @@ fn kit_models(kit: Kit) -> Vec<Model> {
         Kit::Office => vec![office_chair(), desk(), water_cooler(), filing_cabinet(), potted_plant(), vending(), crt_tv(), cone_i()],
         Kit::Pool => vec![lounger(), lounger(), lifeguard_chair(), potted_plant(), vending()],
         Kit::Garage => vec![cone_i(), cone_i(), cart(), vending()],
-        Kit::Hotel => vec![bed(), lamp(), crt_tv(), luggage_cart(), icon_or("pivot couch", [mat::HOTEL_CARPET_GOLD, mat::DARK_WOOD, mat::DARK_WOOD, mat::HULL_WHITE], potted_plant)],
-        Kit::Playground => vec![arcade(), arcade(), icon_or("pac-man", [mat::PAINT_YELLOW, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK], arcade), vending()],
-        Kit::Sky => vec![office_chair(), door_frame(), icon_or("grand piano", [mat::PLASTIC_BLACK, mat::HULL_WHITE, mat::PLASTIC_BLACK, mat::HULL_WHITE], door_frame)],
+        Kit::Hotel => vec![
+            bed(),
+            lamp(),
+            crt_tv(),
+            luggage_cart(),
+            icon_or("pivot couch", [mat::HOTEL_CARPET_GOLD, mat::DARK_WOOD, mat::DARK_WOOD, mat::HULL_WHITE], potted_plant),
+        ],
+        Kit::Playground => vec![
+            arcade(),
+            arcade(),
+            icon_or("pac-man", [mat::PAINT_YELLOW, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK], arcade),
+            vending(),
+        ],
+        Kit::Sky => vec![
+            office_chair(),
+            door_frame(),
+            icon_or("grand piano", [mat::PLASTIC_BLACK, mat::HULL_WHITE, mat::PLASTIC_BLACK, mat::HULL_WHITE], door_frame),
+        ],
         _ => vec![],
     }
 }
@@ -308,12 +340,17 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
             continue;
         }
         let _ = rid;
-        let (x0, x1, z0, _) = vox(room.rect);
+        let (x0, _, _, _) = vox(room.rect);
         let yf = floor_v(room.level);
         // The duck: from the icon library, scaled giant, floating in the pond.
-        if let Some(duck) = icon_model("rubber duck (giant)", [mat::HAZARD_ORANGE, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
-            let (px, pz) = ((x1 + 1) as f32 * 0.5 - 7.0, z0 as f32 * 0.5 + 6.0);
+        if let Some(duck) =
+            icon_model("rubber duck (giant)", [mat::HAZARD_ORANGE, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK])
+        {
+            let (px, pz) = (super::pond_spot().x, super::pond_spot().y);
             let o = IVec3::new((px / 0.5) as i32 - duck.size.x / 2, yf, (pz / 0.5) as i32 - duck.size.z / 2);
+            if spawn_near(spawns, Vec3::new(px, yf as f32 * 0.5, pz), 9.0) {
+                continue;
+            }
             for &(p, m) in &duck.voxels {
                 let w = o + p;
                 if c.w.get(w) == AIR {
@@ -364,7 +401,11 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
             let clear = (-5..=5).all(|du| {
                 (-2..=2).all(|dv| {
                     (0..4).all(|dy| {
-                        let off = if along_x { Vec3::new(du as f32 * 0.5, dy as f32 * 0.5, dv as f32 * 0.5) } else { Vec3::new(dv as f32 * 0.5, dy as f32 * 0.5, du as f32 * 0.5) };
+                        let off = if along_x {
+                            Vec3::new(du as f32 * 0.5, dy as f32 * 0.5, dv as f32 * 0.5)
+                        } else {
+                            Vec3::new(dv as f32 * 0.5, dy as f32 * 0.5, du as f32 * 0.5)
+                        };
                         c.w.get_at(base + off + Vec3::new(0.0, 0.25, 0.0)) == AIR
                     })
                 })
@@ -388,7 +429,10 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
                 v.cell(0, a, b).is_some_and(|c| c.kit == Kit::Garage && c.walkable && !c.keep_clear && !c.no_props) && !used[0][idx(a, b)]
             });
             let centre = Vec3::new((line(i + 1) as f32) * 0.5, super::floor_y(0), (line(j + 1) as f32) * 0.5);
-            if !ok || spawn_near(spawns, centre, 7.0) || v.pits.iter().any(|p| CellRect::new(p.x0 - 1, p.z0 - 1, p.x1 + 1, p.z1 + 1).contains(i, j)) {
+            if !ok
+                || spawn_near(spawns, centre, 7.0)
+                || v.pits.iter().any(|p| CellRect::new(p.x0 - 1, p.z0 - 1, p.x1 + 1, p.z1 + 1).contains(i, j))
+            {
                 continue;
             }
             let o = IVec3::new(line(i + 1) - ball.size.x / 2, floor_v(0), line(j + 1) - ball.size.z / 2);
@@ -464,9 +508,13 @@ pub fn place_props(c: &mut City, v: &PlanView, spawns: &[Vec3], rng: &mut Rng) -
                         c.w.set(q, if k % 2 == 0 { mat::PAINT_RED } else { mat::HULL_WHITE });
                     }
                 }
-            } else if let Some(duck) = icon_model("rubber duck", [mat::HAZARD_ORANGE, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK]) {
+            } else if let Some(duck) =
+                icon_model("rubber duck", [mat::HAZARD_ORANGE, mat::PAINT_YELLOW, mat::PLASTIC_BLACK, mat::PLASTIC_BLACK])
+            {
                 let o = p + IVec3::new(-duck.size.x / 2, 1, -duck.size.z / 2);
-                if duck.voxels.iter().all(|(q, _)| c.w.get(o + *q) == AIR) && duck.voxels.iter().filter(|(q, _)| q.y == 0).all(|(q, _)| c.w.get(o + *q - IVec3::Y) != AIR) {
+                if duck.voxels.iter().all(|(q, _)| c.w.get(o + *q) == AIR)
+                    && duck.voxels.iter().filter(|(q, _)| q.y == 0).all(|(q, _)| c.w.get(o + *q - IVec3::Y) != AIR)
+                {
                     for &(q, m) in &duck.voxels {
                         c.w.set(o + q, m);
                     }
@@ -562,15 +610,11 @@ fn ball_pit(c: &mut City, cx: i32, cz: i32, yf: i32, rng: &mut Rng) {
                 if c.w.get(v) != AIR {
                     continue;
                 }
-                let m = if edge {
-                    rim
-                } else {
-                    balls[(crate::noise::hash3(x, y, z, 0xba11) % 4) as usize]
-                };
+                let m = if edge { rim } else { balls[(crate::noise::hash3(x, y, z, 0xba11) % 4) as usize] };
                 c.w.set(v, m);
             }
             // A bumpy top layer.
-            if !edge && crate::noise::hash3(x, 7, z, 0xba12) % 3 == 0 {
+            if !edge && crate::noise::hash3(x, 7, z, 0xba12).is_multiple_of(3) {
                 let v = IVec3::new(x, yf + 2, z);
                 if c.w.get(v) == AIR {
                     c.w.set(v, balls[(crate::noise::hash3(x, 9, z, 0xba13) % 4) as usize]);
@@ -632,7 +676,13 @@ fn climbing_frame(c: &mut City, cx: i32, cz: i32, yf: i32) {
                 let (ex, ez, ey) = ((x - cx + r) % 4 == 0, (z - cz + r) % 4 == 0, (y - yf) % 3 == 2);
                 let bar = (ex && ez) || (ex && ey) || (ez && ey);
                 if bar {
-                    let m = if (x + y + z).rem_euclid(3) == 0 { mat::STUCCO_SKY } else if (x + z).rem_euclid(2) == 0 { mat::PAINT_RED } else { mat::PAINT_YELLOW };
+                    let m = if (x + y + z).rem_euclid(3) == 0 {
+                        mat::STUCCO_SKY
+                    } else if (x + z).rem_euclid(2) == 0 {
+                        mat::PAINT_RED
+                    } else {
+                        mat::PAINT_YELLOW
+                    };
                     set_air(c, IVec3::new(x, y, z), m);
                 }
             }

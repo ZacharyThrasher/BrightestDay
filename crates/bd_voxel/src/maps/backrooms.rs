@@ -33,6 +33,9 @@
 //! - **Decor.** Seeded, capped props hug solid walls (never in doorways, stair mouths, spawn
 //!   circles or the authored routes): see [`props`](self::props).
 
+// Generator style: grid loops index several per-level tables at once.
+#![allow(clippy::needless_range_loop, clippy::type_complexity)]
+
 use bd_core::voxel::{AIR, Aabb, Material};
 use glam::{IVec3, Vec2, Vec3};
 
@@ -540,9 +543,10 @@ fn make_plan(rng: &mut Rng) -> Plan {
             for l in 0..LEVELS {
                 let mut nb = [(1, 0), (-1, 0), (0, 1), (0, -1)];
                 shuffle(&mut nb, rng);
-                let pick = nb.iter().map(|d| (c.0 + d.0, c.1 + d.1)).find(|&n| {
-                    in_grid(n) && !levels[l].reserved[ci(n.0, n.1)] && !in_hotel(l, n.0, n.1, &hotel_zones)
-                });
+                let pick = nb
+                    .iter()
+                    .map(|d| (c.0 + d.0, c.1 + d.1))
+                    .find(|&n| in_grid(n) && !levels[l].reserved[ci(n.0, n.1)] && !in_hotel(l, n.0, n.1, &hotel_zones));
                 match pick {
                     Some(n) => doors.push((l, n)),
                     None => break,
@@ -655,7 +659,10 @@ fn make_plan(rng: &mut Rng) -> Plan {
             // A clear ring of garage around it (stays walkable) and away from other pits.
             let ring = CellRect::new(x0 - 1, z0 - 1, x0 + w + 1, z0 + h + 1);
             let ok = ring.cells().all(|(i, j)| {
-                in_grid((i, j)) && levels[0].kit[ci(i, j)] == Kit::Garage && !levels[0].reserved[ci(i, j)] && !levels[0].keep_clear[ci(i, j)]
+                in_grid((i, j))
+                    && levels[0].kit[ci(i, j)] == Kit::Garage
+                    && !levels[0].reserved[ci(i, j)]
+                    && !levels[0].keep_clear[ci(i, j)]
             }) && pits.iter().all(|p| !CellRect::new(p.x0 - 1, p.z0 - 1, p.x1 + 1, p.z1 + 1).overlaps(&r));
             if ok {
                 pits.push(r);
@@ -767,7 +774,9 @@ fn make_plan(rng: &mut Rng) -> Plan {
             };
             let (tw, th) = (rng.int(lo, hi), rng.int(lo, hi));
             let mut r = CellRect::new(i, j, i + 1, j + 1);
-            let free = |levels: &[Level], c: (i32, i32)| in_grid(c) && levels[l].room[ci(c.0, c.1)] == NO_ROOM && levels[l].kit[ci(c.0, c.1)] == kit;
+            let free = |levels: &[Level], c: (i32, i32)| {
+                in_grid(c) && levels[l].room[ci(c.0, c.1)] == NO_ROOM && levels[l].kit[ci(c.0, c.1)] == kit
+            };
             let mut dirs = [0u8, 1, 2, 3];
             loop {
                 shuffle(&mut dirs, rng);
@@ -1123,11 +1132,7 @@ fn build_slabs(c: &mut City, p: &Plan, seed: u32) {
                 let top = if s < LEVELS {
                     let above = p.room_of(s, i, j);
                     let hole = above.is_some_and(|r| r.no_floor() && in_room_interior(r, x, z)) || (s == 0 && pit_interior(p, x, z));
-                    if hole {
-                        None
-                    } else {
-                        Some(above.map_or(mat::GARAGE_CONCRETE, |r| floor_mat(r.kit, IVec3::new(x, yt, z), seed)))
-                    }
+                    if hole { None } else { Some(above.map_or(mat::GARAGE_CONCRETE, |r| floor_mat(r.kit, IVec3::new(x, yt, z), seed))) }
                 } else {
                     Some(mat::ROOF_DARK)
                 };
@@ -1174,6 +1179,12 @@ fn build_slabs(c: &mut City, p: &Plan, seed: u32) {
     }
 }
 
+/// The sky room's pond (and the giant duck floating in it), metres (x, z).
+pub fn pond_spot() -> Vec2 {
+    let (_, x1, z0, _) = HALL.vox();
+    Vec2::new(x1 as f32 * 0.5 - 7.0, z0 as f32 * 0.5 + 6.0)
+}
+
 fn in_room_interior(r: &Room, x: i32, z: i32) -> bool {
     let (x0, x1, z0, z1) = r.rect.vox();
     x >= x0 && x <= x1 && z >= z0 && z <= z1
@@ -1206,7 +1217,8 @@ fn ceiling_light(r: &Room, x: i32, z: i32, i: i32, j: i32, seed: u32) -> Option<
         Kit::Stair | Kit::Shaft => ((3..=4).contains(&lx) && (3..=4).contains(&lz)).then_some(mat::FLUORESCENT),
         Kit::Playground => {
             let h = hash3(x, r.level as i32, z, seed ^ 0x57a2);
-            (unit(h) < 0.018 && lx != 0 && lz != 0).then(|| [mat::NEON_CYAN, mat::NEON_AMBER, mat::NEON_PINK, mat::CLOUD][(h >> 8) as usize % 4])
+            (unit(h) < 0.018 && lx != 0 && lz != 0)
+                .then(|| [mat::NEON_CYAN, mat::NEON_AMBER, mat::NEON_PINK, mat::CLOUD][(h >> 8) as usize % 4])
         }
         _ => None,
     }
@@ -1244,7 +1256,8 @@ fn build_walls(c: &mut City, p: &Plan, l: usize, seed: u32) {
                 let double = ka != kb || ra.map(|r| r.role) != rb.map(|r| r.role) && (ka == Kit::Sky || kb == Kit::Sky);
                 let lpos = if vertical { line(i) } else { line(j) };
                 let (s0, s1) = if vertical { (line(j) + 1, line(j) + 7) } else { (line(i) + 1, line(i) + 7) };
-                let at = |along: i32, across: i32, y: i32| if vertical { IVec3::new(across, y, along) } else { IVec3::new(along, y, across) };
+                let at =
+                    |along: i32, across: i32, y: i32| if vertical { IVec3::new(across, y, along) } else { IVec3::new(along, y, across) };
                 for y in ys.clone() {
                     let yrel = y - yf;
                     for s in s0..=s1 {
@@ -1443,13 +1456,21 @@ fn build_walls(c: &mut City, p: &Plan, l: usize, seed: u32) {
             }
         }
         let mid = room.rect.center();
-        c.interior(Vec3::new(mid.x, (y + 2) as f32 * 0.5 + 0.25, mid.y), Vec3::new(x0 as f32 * 0.5 - 0.6, y as f32 * 0.5, z0 as f32 * 0.5 - 0.6), Vec3::new(x1 as f32 * 0.5 + 1.1, (yf + CLEAR) as f32 * 0.5 + 0.1, z1 as f32 * 0.5 + 1.1));
+        c.interior(
+            Vec3::new(mid.x, (y + 2) as f32 * 0.5 + 0.25, mid.y),
+            Vec3::new(x0 as f32 * 0.5 - 0.6, y as f32 * 0.5, z0 as f32 * 0.5 - 0.6),
+            Vec3::new(x1 as f32 * 0.5 + 1.1, (yf + CLEAR) as f32 * 0.5 + 0.1, z1 as f32 * 0.5 + 1.1),
+        );
     }
     // Closed hotel rooms are sealed pockets.
     for room in p.rooms.iter().filter(|r| r.level == l && r.closed) {
         let (x0, x1, z0, z1) = room.rect.vox();
         let mid = room.rect.center();
-        c.interior(Vec3::new(mid.x, (yf + 3) as f32 * 0.5, mid.y), Vec3::new(x0 as f32 * 0.5 - 0.6, yf as f32 * 0.5 - 0.6, z0 as f32 * 0.5 - 0.6), Vec3::new(x1 as f32 * 0.5 + 1.1, (yf + CLEAR) as f32 * 0.5 + 0.6, z1 as f32 * 0.5 + 1.1));
+        c.interior(
+            Vec3::new(mid.x, (yf + 3) as f32 * 0.5, mid.y),
+            Vec3::new(x0 as f32 * 0.5 - 0.6, yf as f32 * 0.5 - 0.6, z0 as f32 * 0.5 - 0.6),
+            Vec3::new(x1 as f32 * 0.5 + 1.1, (yf + CLEAR) as f32 * 0.5 + 0.6, z1 as f32 * 0.5 + 1.1),
+        );
     }
 }
 
@@ -1507,9 +1528,8 @@ fn build_features(c: &mut City, p: &Plan, seed: u32) {
                 let width = if s.along_x { z1 - z0 } else { x1 - x0 };
                 for y in yf..yf + h {
                     let top = y == yf + h - 1;
-                    let m = if top && wide && (across <= 1 || across >= width - 1) {
-                        mat::PAINT_YELLOW
-                    } else if top && !wide && hn > h {
+                    // Yellow edge lines on the ramp, yellow nosing on stair steps.
+                    let m = if top && ((wide && (across <= 1 || across >= width - 1)) || (!wide && hn > h)) {
                         mat::PAINT_YELLOW
                     } else {
                         mat::GARAGE_CONCRETE
@@ -1542,7 +1562,10 @@ fn build_features(c: &mut City, p: &Plan, seed: u32) {
                             c.w.set(IVec3::new(x, yf - 1, z), mat::POOL_WATER);
                         } else if c.w.get(IVec3::new(x, yf, z)) == AIR {
                             let edge = has_pool && (x >= pool.0 - 1 && x <= pool.1 + 1 && z >= pool.2 - 1 && z <= pool.3 + 1);
-                            c.w.set(IVec3::new(x, yf, z), if edge { mat::POOL_GROUT } else { floor_mat(Kit::Pool, IVec3::new(x, yf, z), seed) });
+                            c.w.set(
+                                IVec3::new(x, yf, z),
+                                if edge { mat::POOL_GROUT } else { floor_mat(Kit::Pool, IVec3::new(x, yf, z), seed) },
+                            );
                         }
                     }
                 }
@@ -1575,7 +1598,7 @@ fn build_features(c: &mut City, p: &Plan, seed: u32) {
                             continue;
                         }
                         let (lx, lz) = ((x - GRID0).rem_euclid(CELL), (z - GRID0).rem_euclid(CELL));
-                        if lx == 0 && lz >= 2 && lz <= 6 {
+                        if lx == 0 && (2..=6).contains(&lz) {
                             c.w.set(v, mat::PAINT_WHITE);
                         } else if lz == 0 && (x - GRID0).div_euclid(CELL) % 3 == 1 && lx % 3 != 0 {
                             c.w.set(v, mat::PAINT_YELLOW);
@@ -1594,7 +1617,11 @@ fn build_features(c: &mut City, p: &Plan, seed: u32) {
                             let yrel = y - yf;
                             for dz in 0..2 {
                                 for dx in 0..2 {
-                                    let m = if yrel <= 2 { if (yrel + dx + dz) % 2 == 0 { mat::PAINT_YELLOW } else { mat::ROOF_DARK } } else { mat::GARAGE_CONCRETE };
+                                    let m = if yrel <= 2 {
+                                        if (yrel + dx + dz) % 2 == 0 { mat::PAINT_YELLOW } else { mat::ROOF_DARK }
+                                    } else {
+                                        mat::GARAGE_CONCRETE
+                                    };
                                     c.w.set(IVec3::new(line(ii) + dx, y, line(jj) + dz), m);
                                 }
                             }
@@ -1630,7 +1657,7 @@ fn build_features(c: &mut City, p: &Plan, seed: u32) {
                     }
                 }
                 // Pond (off the swing line).
-                let (px, pz, pr) = (x1 as f32 * 0.5 - 7.0, z0 as f32 * 0.5 + 6.0, 3.6);
+                let (px, pz, pr) = (pond_spot().x, pond_spot().y, 3.6);
                 for z in z0..=z1 {
                     for x in x0..=x1 {
                         let d = Vec2::new(x as f32 * 0.5 + 0.25 - px, (z as f32 * 0.5 + 0.25 - pz) * 1.3).length();
@@ -1664,6 +1691,10 @@ fn pick_spawns(w: &VoxelWorld, p: &Plan, rng: &mut Rng) -> Vec<Vec3> {
                     continue;
                 }
                 let c = cell_center(i, j);
+                // Not under the sky room's giant duck.
+                if l == 2 && c.distance(pond_spot()) < 9.0 {
+                    continue;
+                }
                 let from = floor_y(l) + 3.0;
                 for (dx, dz) in [(0.0, 0.0), (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
                     if let Some(s) = crate::arena::spawn_ok(w, c.x + dx, c.y + dz, from)
@@ -1682,15 +1713,11 @@ fn pick_spawns(w: &VoxelWorld, p: &Plan, rng: &mut Rng) -> Vec<Vec3> {
         // Two per level: a random one, then the farthest from everything chosen so far.
         let first = cands[rng.int(0, cands.len() as i32) as usize];
         let pick_far = |taken: &[Vec3], cands: &[Vec3]| -> Option<Vec3> {
-            cands
-                .iter()
-                .copied()
-                .filter(|c| taken.iter().all(|t| t.distance(*c) >= 12.0))
-                .max_by(|a, b| {
-                    let da = taken.iter().map(|t| t.distance(*a)).fold(f32::INFINITY, f32::min);
-                    let db = taken.iter().map(|t| t.distance(*b)).fold(f32::INFINITY, f32::min);
-                    da.total_cmp(&db)
-                })
+            cands.iter().copied().filter(|c| taken.iter().all(|t| t.distance(*c) >= 12.0)).max_by(|a, b| {
+                let da = taken.iter().map(|t| t.distance(*a)).fold(f32::INFINITY, f32::min);
+                let db = taken.iter().map(|t| t.distance(*b)).fold(f32::INFINITY, f32::min);
+                da.total_cmp(&db)
+            })
         };
         if spawns.iter().all(|t| t.distance(first) >= 12.0) {
             spawns.push(first);
@@ -1731,7 +1758,10 @@ pub fn generate_backrooms(seed: u64) -> (VoxelWorld, MapInfo) {
     let center = Vec3::new(sky.x, floor_y(2), sky.y);
     let arena = ArenaInfo {
         spawns,
-        bounds: Aabb { min: Vec3::new(wb.min.x - 24.0, VOID_Y, wb.min.z - 24.0), max: Vec3::new(wb.max.x + 24.0, wb.max.y + 40.0, wb.max.z + 24.0) },
+        bounds: Aabb {
+            min: Vec3::new(wb.min.x - 24.0, VOID_Y, wb.min.z - 24.0),
+            max: Vec3::new(wb.max.x + 24.0, wb.max.y + 40.0, wb.max.z + 24.0),
+        },
         void_y: VOID_Y,
         center,
         // Straight down through any hole punched in the roof: shafts of daylight.

@@ -70,6 +70,7 @@ struct RunResult {
     ok: bool,
     secs: f32,
     peak: f32,
+    peak_y: f32,
     avg: f32,
     hooks: u32,
     touchdowns: u32,
@@ -89,7 +90,8 @@ fn run(
     let cw = CollisionWorld::new(world, &[]);
     let p = MoveParams::default();
     let trace = std::env::var("TRACE").is_ok_and(|v| v == route.to_string());
-    let mut r = RunResult::default();
+    let mut r = RunResult { peak_y: s.pos.y, ..Default::default() };
+    let start_y = s.pos.y;
     let mut dist = 0.0;
     let mut hooked = false;
     for t in 0..(max_secs / DT) as usize {
@@ -99,6 +101,7 @@ fn run(
         let e = step_player(&mut s, &i, &cw, &p, DT);
         dist += horiz(s.pos - prev.pos).length();
         r.peak = r.peak.max(s.horizontal_speed());
+        r.peak_y = r.peak_y.max(s.pos.y);
         if e.tether_attached.iter().any(|&a| a) {
             r.hooks += 1;
             hooked = true;
@@ -132,6 +135,7 @@ fn run(
         }
     }
     r.avg = dist / r.secs.max(1e-3);
+    r.peak_y -= start_y;
     r.end = s.pos;
     r
 }
@@ -207,19 +211,21 @@ fn sky_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
                         let (y, pc) = aim_at(eye, anchor);
                         return input(y, pc, 0, 0, if idle && h.phase == HookPhase::Idle { 0 } else { TETHER_L });
                     }
-                    // Swing through; let go past the anchor while still rising.
-                    let past = s.pos.x > anchor.x + 3.0;
-                    if past && s.vel.y > -1.0 {
+                    // Reel up into the swing (boost through the bottom of the arc), let go past the
+                    // anchor while rising and fly on to the far side.
+                    let past = s.pos.x > anchor.x + 4.0;
+                    if past && s.vel.y > 0.0 {
                         phase = 2;
                         return input(yaw_to(s.pos, goal_p), 0.0, 0, 1, 0);
                     }
                     let (y, pc) = aim_at(eye, h.pos + Vec3::new(6.0, 0.0, 0.0));
-                    input(y, pc, 0, 1, TETHER_L | if s.vel.y < 0.0 && s.pos.y < floor + 3.0 { BOOST } else { 0 })
+                    let reel = if s.pos.x < anchor.x { REEL } else { 0 };
+                    input(y, pc, 0, 1, TETHER_L | reel | if s.vel.y < 0.0 { BOOST } else { 0 })
                 }
                 _ => input(yaw_to(s.pos, goal_p), 0.0, 0, 1, 0),
             }
         },
-        move |s, _| s.grounded && s.pos.x > goal_p.x - 8.0 && (s.pos.y - floor).abs() < 1.0,
+        move |s, _| s.grounded && s.pos.x > goal_p.x - 3.0 && (s.pos.y - floor).abs() < 1.0,
     )
 }
 
@@ -233,20 +239,22 @@ fn main() {
     ];
     let run_speed = MoveParams::default().run_speed;
     println!("backrooms routes (seed {seed}); run speed {run_speed:.1} m/s");
-    println!("{:<24} {:>7} {:>9} {:>9} {:>6} {:>6}  result", "route", "time s", "avg m/s", "peak m/s", "hooks", "touch");
+    println!("{:<24} {:>7} {:>9} {:>9} {:>7} {:>6} {:>6}  result", "route", "time s", "avg m/s", "peak m/s", "rise m", "hooks", "touch");
     let mut all_ok = true;
     for (k, (name, r)) in results.iter().enumerate() {
         // Bhop lines must beat plain running; the swing must not touch down before the landing.
-        let fast = k == 1 || r.avg > run_speed * 1.1;
-        let clean = k != 1 || r.touchdowns <= 1;
+        let fast = k == 1 || r.avg > run_speed * 1.1 || r.peak > run_speed * 1.4;
+        // The swing must be a real swing: up off the floor, then down onto the far side.
+        let clean = k != 1 || (r.touchdowns <= 1 && r.peak_y > 4.0);
         let ok = r.ok && fast && clean;
         all_ok &= ok;
         println!(
-            "{:<24} {:>7.2} {:>9.1} {:>9.1} {:>6} {:>6}  {}",
+            "{:<24} {:>7.2} {:>9.1} {:>9.1} {:>7.1} {:>6} {:>6}  {}",
             name,
             r.secs,
             r.avg,
             r.peak,
+            r.peak_y,
             r.hooks,
             r.touchdowns,
             if ok {

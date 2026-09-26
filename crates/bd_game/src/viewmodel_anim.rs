@@ -320,7 +320,7 @@ impl Default for VmTuning {
             grip_wrist: 0.6,
             grip_swing_reach: 0.5,
             grip_max_reach: 0.36,
-            grip_gun_fist: [0.13, -0.16, -0.36],
+            grip_gun_fist: [0.15, -0.185, -0.38],
             grip_gun_arm: [0.1, 0.08],
             grip_gun_item: [0.05, 0.02, 0.0],
             grip_melee_fist: [0.18, -0.16, -0.37],

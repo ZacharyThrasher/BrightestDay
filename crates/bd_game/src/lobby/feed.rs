@@ -8,15 +8,15 @@
 //!   Typed (CAPS / "!!!") and spoken (peak mic level) go through the same mapping and both saturate.
 //! * Kill feed (top right): "Sam was flattened by KING KONG ON A SKATEBOARD" — the phrase as cast,
 //!   slur-filtered with the lexicon on display; legendary constructs in gold.
-//! * Legendary construct: `legendary_sting` + a gold burst, then a slow gold sparkle while it lives.
-//!   Sputtering own cast: the `sputter` sound (the flicker itself is `present/constructs.rs`).
+//! * Legendary construct: a subtle positional `legendary_sting` + a gold burst, then a slow gold sparkle
+//!   while it lives. A sputtering cast: a positional `sputter` (the flicker itself is `present/constructs.rs`).
 //! * [`MatchHighlights`]: the end-of-match highlights the scoreboard's results panel shows.
 //! * Dev: `BD_FREEDOM_TEST=1` (practice) — a legendary cast, a sputtering cast, two KOs and the match
 //!   end, for `--screenshot` runs.
 
-use crate::audio::PlaySfx;
 use crate::console::{Caster, RingLexicon};
 use crate::lobby::UiSet;
+use crate::present::sound::Sfx3d;
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
 use crate::state::AppState;
 use bd_core::{ConstructId, PlayerId};
@@ -192,7 +192,7 @@ fn read_events(
     lex: Option<Res<RingLexicon>>,
     mut feed: ResMut<KillFeed>,
     mut highlights: ResMut<MatchHighlights>,
-    mut sfx: MessageWriter<PlaySfx>,
+    mut sfx: MessageWriter<Sfx3d>,
     mut burst: MessageWriter<BurstFx>,
     time: Res<Time<Real>>,
 ) {
@@ -223,10 +223,11 @@ fn read_events(
                 feed.dirty = true;
             }
             GameEvent::Freedom(FreedomEvent::Legendary { id, owner }) => {
+                // Subtle: a positional sting + a gold burst, no announcement (never says why).
                 let mine = active.local == Some(*owner);
-                sfx.write(PlaySfx::new("legendary_sting").gain(if mine { 0.9 } else { 0.55 }));
                 if let Some(c) = active.world.constructs.get(*id) {
                     let pos = crate::util::v3(c.center());
+                    sfx.write(Sfx3d::at("legendary_sting", pos).gain(if mine { 0.7 } else { 0.45 }));
                     burst.write(BurstFx { kind: BurstKind::Shards, pos, dir: Vec3::ZERO, scale: 2.5, color: Some(GOLD_ACCENT_LINEAR) });
                     burst.write(BurstFx { kind: BurstKind::Flash, pos, dir: Vec3::ZERO, scale: 1.5, color: Some(GOLD_LINEAR) });
                 }
@@ -284,18 +285,19 @@ fn construct_flair_fx(
     active: Option<Res<ActiveWorld>>,
     fx: Option<ResMut<FxParticles>>,
     time: Res<Time>,
-    mut sfx: MessageWriter<PlaySfx>,
+    mut sfx: MessageWriter<Sfx3d>,
     mut seen: Local<Vec<ConstructId>>,
     mut acc: Local<f32>,
 ) {
     let local = active.as_ref().and_then(|a| a.local);
     for c in &views.constructs {
-        if c.flags & cflags::SPUTTER != 0 && Some(c.owner) == local && !seen.contains(&c.id) {
+        if c.flags & cflags::SPUTTER != 0 && !seen.contains(&c.id) {
             if seen.len() >= 32 {
                 seen.remove(0);
             }
             seen.push(c.id);
-            sfx.write(PlaySfx::new("sputter").gain(0.8));
+            let pos = if c.attached() { views.player(c.owner).map_or(c.pos, |p| p.pos + Vec3::Y * 1.2) } else { c.pos };
+            sfx.write(Sfx3d::at("sputter", pos).gain(if Some(c.owner) == local { 0.8 } else { 0.5 }));
         }
     }
     let Some(mut fx) = fx else { return };

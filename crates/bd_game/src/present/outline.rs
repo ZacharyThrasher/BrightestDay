@@ -377,10 +377,11 @@ fn cost_report(
         for d in store.iter() {
             let path = d.path().as_str();
             let pass = path.starts_with("render/") && path.matches('/').count() == 2;
-            if pass && (path.ends_with("elapsed_gpu") || path.ends_with("elapsed_cpu")) {
-                if let Some(a) = d.average() {
-                    gpu.push_str(&format!(" {}={a:.3}", path.trim_start_matches("render/")));
-                }
+            if pass
+                && (path.ends_with("elapsed_gpu") || path.ends_with("elapsed_cpu"))
+                && let Some(a) = d.average()
+            {
+                gpu.push_str(&format!(" {}={a:.3}", path.trim_start_matches("render/")));
             }
         }
     }

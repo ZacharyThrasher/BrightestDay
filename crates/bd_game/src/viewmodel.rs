@@ -240,9 +240,9 @@ fn rebuild_hands(
     mut st: ResMut<VmState>,
     arms: Query<(&VmArm, &Children)>,
     arm_meshes: Query<Entity, With<VmArmMesh>>,
-    mut rings: Query<&mut Transform, (With<VmRing>, Without<VmRingLight>, Without<VmFinger>)>,
-    mut lights: Query<&mut Transform, (With<VmRingLight>, Without<VmRing>, Without<VmFinger>)>,
-    (mut fingers, mut mats): (Query<(&VmFinger, &mut Transform), (Without<VmRing>, Without<VmRingLight>)>, ResMut<Assets<StandardMaterial>>),
+    mut rings: Query<&mut Transform, (With<VmRing>, Without<VmFinger>)>,
+    mut lights: Query<&mut Transform, (With<VmRingLight>, Without<VmRing>)>,
+    (mut fingers, mut mats): (FingerQuery, ResMut<Assets<StandardMaterial>>),
 ) {
     let Some(lex) = lex else { return };
     if arms.is_empty() {
@@ -330,9 +330,11 @@ fn rebuild_hands(
     }
 }
 
+type FingerQuery<'w, 's> = Query<'w, 's, (&'static VmFinger, &'static mut Transform), (Without<VmRing>, Without<VmRingLight>)>;
+
 /// Curled fingers wrap the front-bottom of the fist (where a grip passes through the palm) and a
 /// thumb lies over the inner top edge: shown while the hand holds something, it reads as gripping.
-fn place_fingers(fingers: &mut Query<(&VmFinger, &mut Transform), (Without<VmRing>, Without<VmRingLight>)>, right: bool, gmin: Vec3, gmax: Vec3) {
+fn place_fingers(fingers: &mut FingerQuery, right: bool, gmin: Vec3, gmax: Vec3) {
     let (s, c) = (gmax - gmin, (gmin + gmax) * 0.5);
     for (f, mut tf) in fingers.iter_mut().filter(|(f, _)| f.right == right) {
         *tf = if f.thumb {
