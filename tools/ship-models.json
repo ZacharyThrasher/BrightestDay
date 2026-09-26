@@ -1,5 +1,5 @@
 {
-  "_comment": "Models copied into the Windows build. Voice models are added once voice is wired (see docs/experiments/ASR.md).",
+  "_comment": "Models copied into the Windows build ({from, to} pairs). Voice input was dropped (see docs/experiments/ASR.md).",
   "models": [],
   "nativeDependencies": []
 }

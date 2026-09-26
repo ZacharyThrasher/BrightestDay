@@ -2,7 +2,7 @@
 // Build a self-contained Windows x64 folder + zip:  node tools/package-win.mjs
 //
 // 1. release build (esbuild, minified)
-// 2. stage: dist/ + package.json + models (semantic vectors, speech model, VAD) + win-x64 native deps
+// 2. stage: dist/ + package.json + models (semantic vectors) + win-x64 native deps (none today)
 // 3. @electron/packager --platform=win32 --arch=x64 (downloads the Electron win32 zip from GitHub)
 // 4. zip -> release/HARDLIGHT-win32-x64.zip
 //
@@ -34,7 +34,7 @@ for (const m of manifest.models) {
   cpSync(src, dst, { recursive: true });
 }
 
-// runtime package.json (no dev deps; native speech addon for win-x64 only)
+// runtime package.json (no dev deps; native addons for win-x64 only, if any are listed)
 const runtimeDeps = {};
 for (const d of manifest.nativeDependencies) runtimeDeps[d] = pkg.dependencies?.[d] ?? pkg.devDependencies?.[d] ?? manifest.versions?.[d] ?? 'latest';
 writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'hardlight', productName: 'HARDLIGHT', version: pkg.version, main: 'dist/main.cjs', type: 'commonjs', dependencies: runtimeDeps }, null, 2));

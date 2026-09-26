@@ -1,7 +1,7 @@
 /**
  * HARDLIGHT — Electron main process.
  * One window, local files only, context isolation on. The preload exposes `window.hardlight`
- * (settings + a voice IPC placeholder the voice integrator fills in).
+ * (settings, optional System 2 bridge, optional word vectors). Input is keyboard + mouse only.
  *
  * Flags:
  *   --smoke-test[=ms]  quit automatically after the renderer reports ready (+ms, default 3000); exit 1 on failure
@@ -126,11 +126,6 @@ ipcMain.on('hl:ready', () => {
   }
   if (smoke) setTimeout(() => { console.log('[hardlight] smoke test OK'); app.exit(0); }, smokeMs);
 });
-// Voice placeholder: the voice integrator replaces these with the real ASR pipeline and sends
-// 'hl:voice-partial' / 'hl:voice-final' (string) to the renderer.
-ipcMain.on('hl:voice-start', () => console.log('[hardlight] voice start requested (voice pipeline not wired yet)'));
-ipcMain.on('hl:voice-stop', () => console.log('[hardlight] voice stop requested'));
-
 /** Bundled model files (read through asar; native code needs the .unpacked path, see unpackedPath). */
 const modelsRoot = () => join(app.getAppPath(), 'models');
 
@@ -145,9 +140,9 @@ app.whenReady().then(() => {
   installS2Bridge(() => settings.system2);
   ipcMain.on('hl:s2-mode', (e) => { e.returnValue = settings.system2?.mode ?? 'hybrid'; });
   Menu.setApplicationMenu(null);
-  // deny every permission request except what the game needs: microphone (push-to-talk),
-  // pointer lock (mouse look — without it "click to play" silently does nothing) and fullscreen
-  const allowed = new Set(['media', 'pointerLock', 'fullscreen']);
+  // deny every permission request except what the game needs: pointer lock (mouse look — without it
+  // "click to play" silently does nothing) and fullscreen. No microphone: the ring is typed to.
+  const allowed = new Set(['pointerLock', 'fullscreen']);
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
   // block any non-file network request (defence in depth on top of the CSP)
