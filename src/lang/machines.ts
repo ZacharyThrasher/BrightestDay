@@ -746,7 +746,7 @@ export function machineFunctions(s: ConstructSpec): string[] {
   if (motions.some((m) => m.kind === 'spin')) f.add('spin');
   if (drive) {
     if (moving) { f.add('moves_autonomously'); if (s.count > 1) f.add('multiple_agents'); }
-    if (moving || ride) {
+    if (moving || ride || brain?.goal === 'guard') {
       if (drive.mode === 'ground') f.add('drives_on_ground');
       if (drive.mode === 'air' || drive.mode === 'hover' && (drive.altitude ?? 0) >= 3) f.add('flies');
       if (drive.mode === 'ground' && motions.some((m) => m.kind === 'swing' && m.gait)) f.add('walks');

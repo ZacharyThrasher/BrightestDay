@@ -279,6 +279,9 @@ export class Interpreter {
         const prev = rep.tokens[i - 1];
         const clauseStart = i === 0 || [',', '.', 'and', 'then', 'now', 'just', 'please', '!'].includes(prev);
         if (!clauseStart || w.length < 3 || VERBS[lemma(w)] || conceptByName.has(w) || isFunctionish(w)) continue;
+        // orders to machines ("let me drive", "sic em") are not unknown verbs
+        const upto = rep.tokens.slice(i); const cut = upto.findIndex((x) => /^[,.!?;]$/.test(x));
+        if (matchOrder(cleanOrderTokens(cut >= 0 ? upto.slice(0, cut) : upto))) continue;
         const next = rep.tokens[i + 1] ?? '';
         if (!next || ![...'the that this those these it him her them em me my a an all both his their'.split(' ')].includes(next)) continue;
         const nv = this.embedder.nearestVerb(w);

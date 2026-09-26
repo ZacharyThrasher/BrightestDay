@@ -64,7 +64,7 @@ export const VERBS: Record<string, VerbClass> = {
 
 /** Order / machine vocabulary that is matched on raw tokens (not verbs of the ring) — kept here so typo repair knows it. */
 export const MACHINE_WORDS = [
-  'heel', 'sit', 'stay', 'come', 'fetch', 'patrol', 'wander', 'roam', 'flee', 'retreat', 'dismount', 'board', 'saddle', 'cockpit', 'seat', 'tentacle', 'tentacles',
+  'heel', 'sit', 'sic', 'sick', 'stay', 'come', 'fetch', 'hop', 'ride', 'drive', 'dismount', 'regroup', 'scram', 'patrol', 'wander', 'roam', 'flee', 'retreat', 'dismount', 'board', 'saddle', 'cockpit', 'seat', 'tentacle', 'tentacles',
   'treads', 'tracks', 'turret', 'turrets', 'rotor', 'rotors', 'propeller', 'propellers', 'flamethrower', 'missile', 'missiles', 'laser', 'lasers', 'cannon', 'cannons',
   'wheels', 'legs', 'wings', 'jaws', 'claws', 'pincers', 'fangs', 'teeth', 'tail', 'arms', 'guard', 'hunt', 'attack', 'follow', 'helicopter', 'tank', 'tanks', 'robot', 'robots',
   'spider', 'shark', 'dragon', 'machine', 'gun', 'guns', 'flying', 'walking', 'hovering', 'armed', 'army', 'swarm', 'squad', 'companion', 'buddy', 'pet', 'mech',
