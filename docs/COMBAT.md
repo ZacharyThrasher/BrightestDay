@@ -364,6 +364,20 @@ moves at ×2 for 1.5 s instead.
 Other franchises' power systems (Naruto jutsu, MHA quirks, bending, Nen, Pokémon moves…) are added
 later **as data in this template only**.
 
+## 5i. Balance philosophy
+1. **Balance with willpower cost, not damage** — a strong combo keeps its behaviour and gets pricier
+   (preserves "creativity changes behaviour, not numbers").
+2. **Counterplay over parity** — the bar is "nothing unanswerable", not "everything equal".
+3. **Soft anti-snowball (FFA):** respawn with full willpower; streakers glow brighter + their streak sound
+   announces them; shutdown (ending a 3+ streak) = +1 point; out-of-combat health regen (after 5 s
+   untouched, 6 HP/s) — regen, not healing (the never-list still bans constructs that heal players).
+4. **Hidden** (mystery tenet): no stats, tooltips or DPS displays.
+5. **Party / no-limits are deliberately unbalanced** — fun > fair; the lobby opts in.
+6. **Data-driven:** per-match local telemetry (`logs/matches/*.json`), bot-vs-bot tournaments over random
+   recipes, a balance report flagging outliers (e.g. damage-per-willpower > 2× median, win-rate skews,
+   never-used mechanics), and all combat numbers in hot-reloadable `assets/tuning/combat.ron`.
+Targets: focused-fire TTK from full ≈ 2–4 s; burst combos faster with setup; void KOs ≈ 30–50% of KOs.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more
