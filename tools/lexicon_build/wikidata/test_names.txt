@@ -1,0 +1,259 @@
+# Coverage test list: one name per line; "A / B" = either spelling counts as a hit.
+Eeyore
+Winnie the Pooh
+Tigger
+Piglet
+Shrek
+Donkey
+Puss in Boots
+Sonic / Sonic the Hedgehog
+Knuckles / Knuckles the Echidna
+Tails / Miles "Tails" Prower
+Shadow the Hedgehog
+Kirby
+Meta Knight
+King Dedede
+Totoro
+Catbus
+No-Face
+Stitch
+Baby Yoda / Grogu
+Yoda
+Chewbacca
+R2-D2
+C-3PO
+BB-8
+Darth Vader
+Groot
+Rocket Raccoon
+Venom
+Thanos
+Hulk
+Spider-Man
+Batman
+Superman
+Wonder Woman
+Iron Man
+Captain America
+Thor
+Wolverine
+Deadpool
+Joker
+Godzilla
+King Kong
+Mothra
+Gamera
+Rodan
+King Ghidorah
+Mechagodzilla
+Kraken
+Cerberus
+Pegasus
+Hydra / Lernaean Hydra
+Minotaur
+Medusa
+Phoenix
+Griffin
+Chimera
+Basilisk
+Unicorn
+Balrog
+Smaug
+Toothless
+Nessie / Loch Ness Monster
+Bigfoot
+Yeti
+Chupacabra
+Mothman
+Jersey Devil
+Slender Man
+corgi / Pembroke Welsh Corgi
+capybara
+axolotl
+T. rex / Tyrannosaurus rex / Tyrannosaurus
+velociraptor
+triceratops
+stegosaurus
+brachiosaurus
+pterodactyl / Pterodactylus
+spinosaurus
+ankylosaurus
+mammoth / woolly mammoth
+sabre-toothed cat / Smilodon
+dodo
+platypus
+narwhal
+giant squid
+great white shark
+blue whale
+octopus
+honey badger
+red panda
+pangolin
+komodo dragon
+golden retriever
+German Shepherd
+pug
+dachshund
+Maine Coon
+Siamese cat
+Clydesdale horse / Clydesdale
+Millennium Falcon
+TARDIS
+Batmobile
+Excalibur
+Master Sword
+Keyblade
+Gunblade
+Portal gun
+Mjolnir / Mjölnir
+Lightsaber
+Death Star
+Enterprise / USS Enterprise (NCC-1701)
+X-wing
+Star Destroyer
+Sonic screwdriver
+DeLorean time machine
+Ecto-1
+KITT
+Herbie
+Optimus Prime
+Megatron
+Bumblebee
+Gundam / RX-78-2 Gundam
+Eva Unit-01 / Evangelion Unit-01 / EVA-01
+Jaeger
+Gipsy Danger
+Voltron
+Mazinger Z
+Iron Giant
+WALL-E
+EVE
+Bender
+Terminator / T-800
+RoboCop
+HAL 9000
+Ornstein
+Sif / Great Grey Wolf Sif
+Artorias
+Bowser
+Yoshi
+Mario
+Luigi
+Princess Peach
+Donkey Kong
+Link
+Ganon / Ganondorf
+Pac-Man
+Mega Man
+Samus Aran
+Master Chief
+Pikachu
+Charizard
+Mewtwo
+Snorlax
+Agumon
+Clippy / Office Assistant
+Garfield
+Odie
+Scooby-Doo
+SpongeBob / SpongeBob SquarePants
+Patrick Star
+Squidward
+Mickey Mouse
+Donald Duck
+Goofy
+Bugs Bunny
+Daffy Duck
+Tweety
+Road Runner
+Wile E. Coyote
+Tom / Tom Cat
+Jerry / Jerry Mouse
+Snoopy
+Pink Panther
+Kermit the Frog
+Miss Piggy
+Big Bird
+Cookie Monster
+Elmo
+Barney
+Tamagotchi
+Rubik's Cube
+Lego
+Furby
+Slinky
+yo-yo
+Game Boy
+Etch A Sketch
+Eiffel Tower
+Big Ben
+Statue of Liberty
+Leaning Tower of Pisa
+Colosseum
+Taj Mahal
+Great Pyramid of Giza
+Sphinx / Great Sphinx of Giza
+Stonehenge
+Empire State Building
+Burj Khalifa
+Golden Gate Bridge
+Sydney Opera House
+Christ the Redeemer
+Mount Rushmore
+Titanic / RMS Titanic
+Bismarck / German battleship Bismarck
+Yamato / Japanese battleship Yamato
+Enola Gay
+Air Force One
+Concorde
+Spitfire / Supermarine Spitfire
+Apache / AH-64 Apache
+Saturn V
+Space Shuttle
+Hubble Space Telescope
+International Space Station
+Voyager 1
+Sputnik 1
+Curiosity / Curiosity rover
+Abrams tank / M1 Abrams
+Tiger I
+AK-47
+Gatling gun
+trebuchet
+katana
+Zweihänder
+bagpipes
+theremin
+didgeridoo
+Stradivarius
+pizza
+taco
+sushi
+Big Mac
+Twinkie
+Ronald McDonald
+Michelin Man
+Mr. Peanut
+Kool-Aid Man
+Tony the Tiger
+Duolingo owl / Duo
+Pinocchio
+Cthulhu
+Dracula
+Frankenstein's monster
+Mummy
+Xenomorph
+Predator
+Dalek
+Cyberman
+Totoro
+Pennywise
+Chucky
+Gollum
+Aslan
+Hedwig
+Buckbeak
+Falkor
+Appa
+Ryuk
