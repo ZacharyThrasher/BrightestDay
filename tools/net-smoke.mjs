@@ -28,6 +28,8 @@ try {
   apps.push(await launch(dirs[0]), await launch(dirs[1]));
   const [a, b] = await Promise.all(apps.map((x) => x.firstWindow()));
   for (const w of [a, b]) await w.waitForFunction(() => document.body.classList.contains('ready'), null, { timeout: 60000 });
+  // software GL on CI draws two windows at ~1 fps: skip the 3D scene so both sims (and the netcode) run in real time
+  for (const w of [a, b]) await w.evaluate(() => window.__hl.skipRender(true));
   const lobby = (w) => w.evaluate(() => { const l = document.querySelector('.lobby'); return l && { state: l.dataset.state, status: l.querySelector('.net-status')?.textContent, address: l.dataset.address, greeted: l.dataset.greeted, code: l.querySelector('.code')?.textContent }; });
 
   await a.click('button.online');
@@ -52,7 +54,7 @@ try {
   // ---- the duel: both sides load the arena and go live
   const online = (w) => w.evaluate(() => window.__hl?.online?.());
   for (const [w, who, me] of [[a, 'host', 'p1'], [b, 'joiner', 'p2']]) {
-    await w.waitForFunction((me) => { const o = window.__hl?.online?.(); return o && o.me === me && o.phase === 'live' && !o.paused; }, me, { timeout: 20000 })
+    await w.waitForFunction((me) => { const o = window.__hl?.online?.(); return o && o.me === me && o.phase === 'live' && !o.paused; }, me, { timeout: 45000 })
       .catch(async () => fail(`${who} never got a live online match: ${JSON.stringify(await online(w))}`));
   }
   console.log('match live on both:', JSON.stringify(await online(a)), '|', JSON.stringify(await online(b)));
@@ -84,10 +86,10 @@ try {
   await b.evaluate(() => { window.__hl.app.input.exitLock?.(); document.exitPointerLock?.(); });
   await b.evaluate(() => document.querySelector('button.online')?.click());
   await b.click('.lobby button.cancel');
-  await a.waitForFunction(() => document.querySelector('.lobby')?.dataset.state === 'waiting', null, { timeout: 5000 }).catch(() => fail('host did not notice the joiner leaving'));
-  await b.waitForFunction(() => !document.querySelector('button.play')?.classList.contains('hidden') && document.querySelector('.lobby')?.classList.contains('hidden'), null, { timeout: 5000 })
+  await a.waitForFunction(() => document.querySelector('.lobby')?.dataset.state === 'waiting', null, { timeout: 15000 }).catch(() => fail('host did not notice the joiner leaving'));
+  await b.waitForFunction(() => !document.querySelector('button.play')?.classList.contains('hidden') && document.querySelector('.lobby')?.classList.contains('hidden'), null, { timeout: 15000 })
     .catch(() => fail('cancel did not restore the menu'));
-  await a.waitForFunction(() => window.__hl.online()?.paused && document.body.dataset.netPaused === '1', null, { timeout: 5000 }).catch(() => fail('host did not pause when the joiner left'));
+  await a.waitForFunction(() => window.__hl.online()?.paused && document.body.dataset.netPaused === '1', null, { timeout: 15000 }).catch(() => fail('host did not pause when the joiner left'));
   console.log('NET smoke OK: LAN host + join over ws://127.0.0.1, greetings, ping, duel live on both, joiner punched host, damage on both HUDs, leave pauses the host');
   clearTimeout(timer);
   await cleanup();

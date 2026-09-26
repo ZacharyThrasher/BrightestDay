@@ -24,6 +24,7 @@ import { Juice } from './juice/index.js'; // JUICE
 
 const DT = 1 / 60;
 const MAX_STEPS = 6;
+const MAX_STEPS_ONLINE = 15;
 
 /** Public surface for anything that wants to drive the ring (tools, tests). */
 export interface HardlightApp {
@@ -56,6 +57,8 @@ class App implements HardlightApp {
   private frameMs = 16.7;
   /** Test hook: when true the real-time loop does not advance the sim (scripted stepping only). */
   manual = false;
+  /** Test hook: skip drawing the 3D scene (sim, net and HUD keep running) — smoke tests on software GL. */
+  skipRender = false;
   private loading = false;
   private frameWaiters: (() => void)[] = [];
   private commitsInFlight = 0;
@@ -211,7 +214,7 @@ class App implements HardlightApp {
       if (this.world && !this.loading) {
         if (!this.manual) this.advance(dt);
         const alpha = this.manual ? 1 : this.acc / DT;
-        this.gr.render(alpha, dt, { yaw: this.input.yaw, pitch: this.input.pitch });
+        if (!this.skipRender) this.gr.render(alpha, dt, { yaw: this.input.yaw, pitch: this.input.pitch });
         this.renderCpu.push(this.gr.stats.frameCpuMs);
         if (this.renderCpu.length > 4000) this.renderCpu.splice(0, 2000);
         const th = performance.now();
@@ -250,8 +253,10 @@ class App implements HardlightApp {
     this.timeScale = this.focus.update(dt, this.consoleOpen && !this.sharedClock);
     this.acc += Math.min(dt, 0.25) * this.timeScale;
     let steps = 0;
-    while (this.acc >= DT && steps < MAX_STEPS) { this.stepSim(this.input.sample()); this.acc -= DT; steps++; }
-    if (steps === MAX_STEPS) this.acc = 0; // too slow: drop time instead of spiralling
+    // online both players share one match clock: a slow frame catches up further instead of slowing the duel
+    const maxSteps = this.online ? MAX_STEPS_ONLINE : MAX_STEPS;
+    while (this.acc >= DT && steps < maxSteps) { this.stepSim(this.input.sample()); this.acc -= DT; steps++; }
+    if (steps === maxSteps) this.acc = 0; // too slow: drop time instead of spiralling
     return steps;
   }
 
@@ -681,6 +686,8 @@ function installTestHooks(app: App) {
     app,
     get world() { return app.world; },
     manual(on: boolean) { app.setManual(on); },
+    /** Stop drawing the 3D scene (the sim, netcode and HUD keep running in real time). */
+    skipRender(on: boolean) { app.skipRender = on; },
     /** Step the sim n ticks with the given (partial) input; look defaults to the current view. */
     step(n: number, inp: Partial<PlayerInput> = {}) {
       for (let i = 0; i < n; i++) {
