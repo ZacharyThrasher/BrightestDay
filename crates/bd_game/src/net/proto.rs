@@ -203,6 +203,10 @@ impl NetCmd {
 /// Client → host.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum C2S {
+    /// First message after the handshake: a random per-client token. A client that drops and
+    /// reconnects with the same token within [`crate::net::host::REJOIN_SECS`] gets its player
+    /// (KOs, deaths, stocks) back.
+    Token(u64),
     Profile(NetProfile),
     Ready(bool),
     /// Inputs (with redundancy) + the newest snapshot tick decoded (delta baseline ack).

@@ -171,3 +171,55 @@ fn measure_costs() {
     let snap_us = (now_secs() - t) * 1000.0;
     eprintln!("COSTS build_world {:.1} ms, content_hash {:.2} ms (h {h:x}), incremental hash after a carve {inc:.3} ms, snapshot+delta+encode {:.1} us", build * 1000.0, hash * 1000.0, snap_us);
 }
+
+/// A client whose connection dies mid-match reconnects on its own and gets its player back.
+#[test]
+fn reconnect_keeps_the_player() {
+    let settings = bd_sim::settings::GameSettings::default();
+    let mut host =
+        HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
+    let port = host.port;
+    let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind: NetMapKind::Archipelago, seed: 1, pristine_hash: 0 }, 7);
+    let mut active = ActiveWorld::new(world, Some(host.me), SimRole::Host);
+    host.start_match(&mut active, map, hasher);
+    active.world.start_live();
+    let proxy = bd_net::LagProxy::start(format!("127.0.0.1:{port}").parse().expect("addr"), bd_net::LagSettings::default()).expect("proxy");
+    let mut bot = Bot::new(port, "flaky", 21);
+    bot.core = ClientCore::connect(&proxy.url(), "flaky", Corps::Rage, NetProfile::default()).expect("connect");
+    let mut proxy = Some(proxy);
+    let t0 = now_secs();
+    let mut next_tick = t0;
+    let mut cmds = Vec::new();
+    let mut first_id = None;
+    while now_secs() - t0 < 8.0 {
+        let t = now_secs() - t0;
+        if t > 2.5 && proxy.is_some() {
+            first_id = bot.core.me;
+            assert_eq!(bot.core.phase, ClientPhase::InGame);
+            // Give the player a score, then cut the wire (both sides see a lost connection).
+            if let Some(p) = first_id.and_then(|id| active.world.player_mut(id)) {
+                p.kos = 3;
+            }
+            bot.core.address = format!("127.0.0.1:{port}");
+            proxy = None;
+        }
+        host.poll(Some(&mut active), &mut cmds);
+        for (id, c) in cmds.drain(..) {
+            active.apply_command(id, c);
+        }
+        while now_secs() >= next_tick {
+            host.pre_tick(&mut active);
+            active.step(None);
+            host.post_tick(&mut active);
+            next_tick += DT as f64;
+        }
+        bot.frame(false);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert_eq!(bot.core.stats.reconnects, 1, "{:?}", bot.core.phase);
+    assert_eq!(bot.core.phase, ClientPhase::InGame);
+    assert_eq!(host.stats.rejoins, 1);
+    let id = bot.core.me.expect("id");
+    assert_eq!(Some(id), first_id, "same player id after the reconnect");
+    assert_eq!(active.world.player(id).map(|p| p.kos), Some(3), "score kept");
+}

@@ -157,6 +157,8 @@ pub struct ClientCore {
     pub stats: ClientStats,
     /// Pacing: client ticks simulated + offset to the host tick timeline.
     ticks_done: u64,
+    /// Random per-process reconnect token (never derived from personal data).
+    token: u64,
     last_hit_at: f64,
     pace_base: Option<f64>,
 }
@@ -195,6 +197,12 @@ impl ClientCore {
             has_world: false,
             stats: ClientStats::default(),
             ticks_done: 0,
+            token: {
+                use std::hash::{BuildHasher, Hasher};
+                let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+                h.write_u64(now_secs().to_bits());
+                h.finish() | 1
+            },
             last_hit_at: 0.0,
             pace_base: None,
         })
@@ -271,6 +279,7 @@ impl ClientCore {
                     self.phase = ClientPhase::Lobby;
                     self.reconnect_attempt = 0;
                     self.reconnect_at = None;
+                    self.session.send(&C2S::Token(self.token));
                     self.session.send(&C2S::Profile(self.profile.clone()));
                     if self.ready {
                         self.session.send(&C2S::Ready(true));

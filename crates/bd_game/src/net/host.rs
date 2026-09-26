@@ -15,7 +15,7 @@ use bd_core::corps::Corps;
 use bd_core::input::PlayerInput;
 use bd_core::{MAX_PLAYERS, PlayerId, TICK_HZ, Tick};
 use bd_net::{
-    DEFAULT_PORT, HostConfig, HostEvent, HostSession, InputQueue, LocalPlayer, NetError, Tunnel, TunnelStatus,
+    DEFAULT_PORT, HostConfig, HostEvent, HostSession, InputQueue, LeaveReason, LocalPlayer, NetError, Tunnel, TunnelStatus,
     clamp_view_tick, now_secs,
 };
 use bd_sim::replicate::{DeltaEncoder, WorldSnapshot};
@@ -43,6 +43,10 @@ fn input_queue() -> InputQueue<PlayerInput> {
     q.window = 480;
     q
 }
+/// How long a dropped player's slot (score) is kept for a reconnect.
+pub const REJOIN_SECS: f64 = 90.0;
+/// A joiner that never sends its token enters the match anyway after this long.
+const TOKEN_WAIT_SECS: f64 = 1.5;
 /// Commands per second a client may issue (burst = 2×).
 const CMD_RATE: f32 = 20.0;
 
@@ -89,6 +93,11 @@ struct Remote {
     profile: NetProfile,
     /// Casts sent to the sim, waiting for their spawn / failure event: (client cast seq, when).
     pending_casts: std::collections::VecDeque<(u32, f64)>,
+    /// Reconnect token (None until the client sent it).
+    token: Option<u64>,
+    joined_at: f64,
+    name: String,
+    corps: Corps,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -100,6 +109,8 @@ pub struct HostStats {
     pub keyframes: u64,
     pub resyncs: u64,
     pub cmds_dropped: u64,
+    /// Reconnects that got their old player back.
+    pub rejoins: u64,
     /// Sum over clients of host input-queue starvation (ticks).
     pub input_starved: u64,
     pub last_terrain_hash: u64,
@@ -127,6 +138,8 @@ pub struct HostCore {
     ev_buf: Vec<GameEvent>,
     snap: WorldSnapshot,
     terrain: TerrainHasher,
+    /// Dropped players kept for a reconnect: (token, player, when).
+    departed: Vec<(u64, bd_sim::world::DepartedPlayer, f64)>,
     pub stats: HostStats,
     /// Terrain hash after every tick? (tests: prove convergence quickly).
     pub terrain_check_every: u64,
@@ -166,6 +179,7 @@ impl HostCore {
             ev_buf: Vec::with_capacity(256),
             snap: WorldSnapshot::default(),
             terrain: TerrainHasher::default(),
+            departed: Vec::new(),
             stats: HostStats::default(),
             terrain_check_every: TERRAIN_CHECK_EVERY,
             port,
@@ -273,6 +287,7 @@ impl HostCore {
     /// Back to the lobby (match torn down).
     pub fn end_match(&mut self) {
         self.in_match = false;
+        self.departed.clear();
         self.terrain_log.clear();
         self.ev_buf.clear();
         for r in &mut self.remotes {
@@ -326,21 +341,30 @@ impl HostCore {
                         ready: false,
                         profile: NetProfile::default(),
                         pending_casts: Default::default(),
+                        token: None,
+                        joined_at: now,
+                        name: info.name.clone(),
+                        corps: info.corps,
                     });
                     self.lobby_dirty = true;
-                    if self.in_match {
-                        if let Some(a) = active.as_deref_mut() {
-                            let _ = a.world.add_player(info.id, info.name.clone(), info.corps);
-                            let i = self.remotes.len() - 1;
-                            self.init_remote(i, a);
-                        }
-                    }
+                    // Mid-match joiners enter the world once their reconnect token arrives.
                 }
                 HostEvent::PlayerLeft { id, reason } => {
                     bd_net_log(|| format!("player {} left: {reason:?}", id.0));
+                    let token = self.remotes.iter().find(|r| r.id == id).and_then(|r| r.token);
                     self.remotes.retain(|r| r.id != id);
                     if let Some(a) = active.as_deref_mut() {
-                        a.world.remove_player(id);
+                        match (&reason, token, self.in_match) {
+                            (LeaveReason::ConnectionLost(_), Some(t), true) => {
+                                if let Some(d) = a.world.remove_player_for_reconnect(id) {
+                                    self.departed.retain(|(tk, _, _)| *tk != t);
+                                    self.departed.push((t, d, now_secs()));
+                                }
+                            }
+                            _ => {
+                                a.world.remove_player(id);
+                            }
+                        }
                     }
                     self.lobby_dirty = true;
                 }
@@ -348,6 +372,17 @@ impl HostCore {
             }
         }
         let now = now_secs();
+        self.departed.retain(|(_, _, t)| now - t < REJOIN_SECS);
+        if self.in_match {
+            if let Some(a) = active.as_deref_mut() {
+                for i in 0..self.remotes.len() {
+                    let r = &self.remotes[i];
+                    if !r.in_world && (r.token.is_some() || now - r.joined_at > TOKEN_WAIT_SECS) {
+                        self.enter_world(i, a);
+                    }
+                }
+            }
+        }
         if self.lobby_dirty && now - self.last_lobby_sent > 0.1 || now - self.last_lobby_sent > 1.0 {
             self.lobby_dirty = false;
             self.last_lobby_sent = now;
@@ -357,10 +392,29 @@ impl HostCore {
         self.cost(t0);
     }
 
+    /// Put a remote into the running match: its old player back if it reconnected, else a new one.
+    fn enter_world(&mut self, i: usize, a: &mut ActiveWorld) {
+        let (id, token) = (self.remotes[i].id, self.remotes[i].token);
+        let back = token.and_then(|t| self.departed.iter().position(|(tk, d, _)| *tk == t && d.id == id));
+        let rejoined = back.map(|k| self.departed.remove(k).1).is_some_and(|d| a.world.rejoin_player(&d).is_ok());
+        if rejoined {
+            self.stats.rejoins += 1;
+        } else if a.world.player(id).is_none() {
+            let (name, corps) = (self.remotes[i].name.clone(), self.remotes[i].corps);
+            let _ = a.world.add_player(id, name, corps);
+        }
+        self.init_remote(i, a);
+    }
+
     fn on_message(&mut self, from: PlayerId, msg: C2S, active: Option<&mut ActiveWorld>, cmds: &mut Vec<(PlayerId, Cmd)>) {
         let Some(i) = self.remotes.iter().position(|r| r.id == from) else { return };
         let now = now_secs();
         match msg {
+            C2S::Token(t) => {
+                if self.remotes[i].token.is_none() {
+                    self.remotes[i].token = Some(t);
+                }
+            }
             C2S::Profile(p) => {
                 self.remotes[i].profile = p.sanitized();
                 self.lobby_dirty = true;
