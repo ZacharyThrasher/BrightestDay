@@ -1,0 +1,10 @@
+[package]
+name = "bd_fx"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+bd_core.workspace = true
+bd_shapes.workspace = true
+

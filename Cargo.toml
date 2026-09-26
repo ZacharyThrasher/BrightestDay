@@ -9,6 +9,7 @@ members = [
     "crates/bd_game",
     "crates/bd_shapes",
     "crates/bd_voice",
+    "crates/bd_fx",
 ]
 
 [workspace.package]
@@ -24,6 +25,7 @@ bd_lexicon = { path = "crates/bd_lexicon" }
 bd_net = { path = "crates/bd_net" }
 bd_shapes = { path = "crates/bd_shapes" }
 bd_voice = { path = "crates/bd_voice" }
+bd_fx = { path = "crates/bd_fx" }
 glam = { version = "0.30", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }
@@ -31,6 +33,8 @@ ron = "0.10"
 rand = "0.9"
 rand_pcg = "0.9"
 noise = "0.9"
+# Property testing (dev-dependency only; see docs/TESTING.md).
+proptest = "1"
 
 # Fast iteration in dev while keeping the game playable (Bevy recommends this).
 [profile.dev]
@@ -42,3 +46,14 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Used by tools/check.ps1: optimised like release (property tests run millions of cases) but with
+# debug assertions + overflow checks ON, so arithmetic overflow on hostile input fails the gate instead
+# of silently wrapping. No LTO / many codegen units so the gate builds quickly.
+[profile.gate]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
+debug-assertions = true
+overflow-checks = true
