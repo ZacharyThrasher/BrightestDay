@@ -100,6 +100,75 @@ majority-class baseline**; few-shot and calibration did not rescue it. JSON gene
 wrong. Conclusion: at ≤1.5B, generation-free typed decisions are not viable zero-shot for this workload;
 Laya-style fine-tuning on logged utterance→decision pairs remains the hypothesis worth testing later.
 
-## 6. System 2 (in progress)
+## 6. System 2: a stronger model compiling into the same bounded ops
 
-See §6 results once the record/replay run completes.
+**Setup.** `src/lang/escalate.ts` defines one system prompt (vocabulary: concept ids, add-ons, 22 behaviour
+types, placements, refs; rules: compose, abstain on unsupported/contradictory, request absurd sizes and
+let the validator clamp) and a per-request user message (scene summary + utterance + System-1's attempt).
+The model's JSON is compiled by `Interpreter.compileS2` into ordinary ops — unknown ids/behaviours are
+dropped and noted, never guessed — and then validated like everything else.
+
+**Emulation (no API key in the container).** Requests for all 240 held-out items were recorded
+(`--s2 record:`), answered by a fast model (Claude Haiku-class, i.e. the runtime default
+`claude-haiku-4-5`) playing System 2, and replayed (`--s2 replay:`).
+- *Negative result:* the first attempt gave each of two agents 120 requests; both wrote keyword-heuristic
+  scripts instead of answering (only ~29 distinct responses per 120). Detected by response-diversity
+  checks, quarantined in `eval/s2/invalid/`, redone with 12 agents × 20 requests and an explicit
+  no-scripts rule (119–120 distinct responses per set). Lesson for autonomous evaluation: *check that an
+  evaluator actually did the work.*
+- Caveats: batching 20 requests in one context is not identical to 20 independent API calls; latency
+  is not measured by replay (UNKNOWN on a real network; Haiku-class models typically take ~1–2 s for
+  ~300 output tokens). One emulation agent's summary quoted two short B fragments into the implementer's
+  context despite instructions; no change was made in response to them.
+
+| policy | A (inspected) | **B (unseen)** | B confident-wrong |
+|---|---|---|---|
+| System 1 only (rules, rev 1) | 90.8% | **62.5%** | 18.3% |
+| System 2 on every utterance | 87.5% | **80.8%** | 15.8% |
+| Hybrid: S2 only when S1 unsure | 90.0% | 71.7% | 25.0% |
+| Speculative: act on S1, S2 overrides on disagreement | 88% | **80%** | – |
+
+S1/S2 agreement analysis (`--compare`, aggregate only for B):
+
+| | A | B |
+|---|---|---|
+| agree | 104/120 | 80/120 |
+| accuracy when they agree | 96% / 95% | **89% / 90%** |
+| when they disagree: S1 right / S2 right | 56% / 38% | **10% / 63%** |
+| oracle (either right) | 94% | 85% |
+
+**Conclusions**
+1. On unseen phrasing a small fast LLM compiling into the bounded vocabulary beats the hand-built rule
+   system by ~18 points, while the rules win on the phrasings they were tuned on (A). The rules are
+   still valuable: 1 ms, offline, deterministic, and correct ~90% of the time *when the model agrees*.
+2. "Escalate when uncertain" underperforms because System 1's errors are confident; **agreement between
+   two different systems** is the useful confidence signal.
+3. Adopted policy (implemented in `Interpreter.commitSpeculative` / `Director.onCorrection`): act on
+   System 1 immediately (instant feedback), run System 2 in parallel, and visibly reform the construct if
+   System 2 disagrees ("the ring reconsidered"). Without a model configured, the game degrades to the
+   System-1 numbers above.
+4. Distillation hook: System-2 compilations for unknown phrases are stored as recipes and reused by
+   System 1 next time (`Interpreter.recipes`). Not yet evaluated over a play session (UNKNOWN).
+
+## 7. Solution diversity (world-state judged)
+
+`npx tsx eval/diversity.ts` — 6 challenges × 9 deliberately different requests (written by me, so this
+is a *dev* measurement), judged only by physics outcomes; a naive autopilot walks/jumps/boosts toward the
+objective where a person would. Do-nothing baselines fail all six.
+
+| challenge | first run | after substrate fixes |
+|---|---|---|
+| cross a 25 m canyon | 4/9 | 5/9 |
+| reach a 40 m roof | 2/9 | 6/9 |
+| falling civilian lands unhurt | 7/9 | 8/9 |
+| barrage: ≤1 hit in 5 s | 8/9 | 8/9 |
+| disable/capture aimed drone | 9/9 | 9/9 |
+| clear the boulder door | 2/9 | 6/9 |
+| **total** | **32/54** | **42/54** |
+
+The failures were mostly substrate gaps, not language: ladders couldn't be climbed; grapples didn't winch;
+launches aimed at a wall face instead of its top; elevators stopped short; kinematic strikes used visual
+(non-solid) extents; the boulder was wedged into a door narrower than itself; "grab the rock and throw
+it" created two hands (no cross-clause sequencing). Each fix is general (e.g. every ballistic launch now
+samples the path and clears the tallest obstacle). Remaining failures are mostly honest physics (wings from
+standing height can't cross a 25 m gap; orbiting shields leave gaps).

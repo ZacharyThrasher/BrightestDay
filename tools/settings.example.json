@@ -1,0 +1,23 @@
+{
+  "_readme": "Copy to settings.json next to HARDLIGHT.exe (or in %APPDATA%/HARDLIGHT). All keys are optional.",
+  "mouseSensitivity": 1,
+  "invertY": false,
+  "fov": 78,
+  "constructColor": "#3dffa8",
+  "graphics": "high",
+  "voice": {
+    "enabled": true,
+    "preset": "default",
+    "pushToTalkKey": "V",
+    "handsFree": false
+  },
+  "system2": {
+    "_readme": "Optional stronger interpreter. 'off' | 'anthropic' | 'openai-compatible'. Without it, the offline rule system is used.",
+    "provider": "off",
+    "anthropicApiKey": "",
+    "anthropicModel": "claude-haiku-4-5-20251001",
+    "openaiBaseUrl": "http://127.0.0.1:11434/v1",
+    "openaiModel": "qwen2.5:7b-instruct",
+    "timeoutMs": 6000
+  }
+}
