@@ -1,7 +1,7 @@
 import { Vector3, Quaternion } from 'three';
 import type { World } from './world.js';
 
-export const SCENES = ['arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'playground', 'flat', 'sandbox', 'race', 'horde'] as const;
+export const SCENES = ['duel', 'arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'playground', 'flat', 'sandbox', 'race', 'horde'] as const;
 export type SceneName = (typeof SCENES)[number];
 
 function rng(seed: number) {
@@ -30,6 +30,9 @@ export function buildScene(w: World, name: SceneName): SceneInfo {
   w.scene = name;
   const info: SceneInfo = { spawn: new Vector3(0, 1.0, 0), yaw: 0, aims: { ground_ahead: new Vector3(0, 0, -12), sky: new Vector3(0, 60, -60), wall: new Vector3(0, 3, -40) } };
   switch (name) {
+    case 'duel':
+      buildDuelArena(w, info);
+      break;
     case 'flat':
       ground(w);
       break;
@@ -271,4 +274,46 @@ export function aimAt(w: World, target: Vector3) {
     P.pitch = pitch;
   }
   return { yaw: P.yaw, pitch: P.pitch };
+}
+
+/**
+ * 1v1 duel arena (docs/PVP_DESIGN.md). 90 m square, point-symmetric so neither spawn is favoured.
+ * Tall perimeter walls (tether anchors, nowhere to run forever), a central tower with two ledges,
+ * four mid pillars for swings, low cover near each spawn, ramps for launches. Spawns at z = ±36.
+ */
+function buildDuelArena(w: World, info: SceneInfo) {
+  ground(w, 400);
+  const H = 45; // half size
+  const wallC = 0xd9d2c0;
+  // perimeter walls (28 m tall)
+  w.addBox(new Vector3(0, 14, -H - 1), new Vector3(2 * H + 4, 28, 2), wallC, 'wall');
+  w.addBox(new Vector3(0, 14, H + 1), new Vector3(2 * H + 4, 28, 2), wallC, 'wall');
+  w.addBox(new Vector3(-H - 1, 14, 0), new Vector3(2, 28, 2 * H + 4), wallC, 'wall');
+  w.addBox(new Vector3(H + 1, 14, 0), new Vector3(2, 28, 2 * H + 4), wallC, 'wall');
+  // central tower + two ledges facing each spawn
+  w.addBox(new Vector3(0, 11, 0), new Vector3(8, 22, 8), PALETTE[2]);
+  w.addBox(new Vector3(0, 12, -6.5), new Vector3(8, 1, 5), PALETTE[6]);
+  w.addBox(new Vector3(0, 12, 6.5), new Vector3(8, 1, 5), PALETTE[6]);
+  // mid pillars (point-symmetric pairs) — swing anchors and line-of-sight breakers
+  const pillars: [number, number, number][] = [[-20, -14, 18], [20, 14, 18], [20, -16, 12], [-20, 16, 12]];
+  pillars.forEach(([x, z, h], i) => w.addBox(new Vector3(x, h / 2, z), new Vector3(4, h, 4), PALETTE[i % PALETTE.length]));
+  // side platforms (mirrored) reachable by ramp or tether
+  for (const sx of [-1, 1]) {
+    w.addBox(new Vector3(sx * 34, 4, sx * 8), new Vector3(10, 8, 16), PALETTE[3]);
+    w.addWedge(new Vector3(sx * 34, 2, sx * 8 - sx * 13), new Vector3(8, 4, 10), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), sx > 0 ? 0 : Math.PI));
+  }
+  // low cover near each spawn (1.6 m: hides a crouching lantern, not a standing one)
+  for (const sz of [-1, 1]) {
+    w.addBox(new Vector3(-8, 0.8, sz * 26), new Vector3(8, 1.6, 1), PALETTE[1], 'wall');
+    w.addBox(new Vector3(9, 0.8, sz * 24), new Vector3(6, 1.6, 1), PALETTE[1], 'wall');
+    // launch ramp toward the centre
+    w.addWedge(new Vector3(0, 1, sz * 20), new Vector3(6, 2, 7), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), sz > 0 ? Math.PI : 0));
+  }
+  info.spawn.set(0, 1, 36);
+  info.yaw = 0; // facing -z, toward the centre
+  info.aims.spawn_b = new Vector3(0, 1, -36);
+  info.aims.ground_ahead = new Vector3(0, 0, 24);
+  info.aims.wall = new Vector3(0, 11, 4);
+  // practice target where the rival would stand (replaced by a real opponent in matches)
+  w.addEntity('dummy', new Vector3(0, 1.2, -36), { hostile: false, label: 'rival (practice dummy)' });
 }

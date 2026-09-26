@@ -30,7 +30,7 @@ export interface HardlightApp {
 class App implements HardlightApp {
   world!: World;
   director!: Director;
-  scene: SceneName = 'playground';
+  scene: SceneName = 'duel';
   readonly gr: GameRenderer;
   readonly input: Input;
   readonly hud: HUD;
@@ -506,7 +506,7 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   const test = params.has('test');
   if (test) app.setManual(true);
-  const scene = (params.get('scene') as SceneName) || 'playground';
+  const scene = (params.get('scene') as SceneName) || 'duel';
   await app.loadScene(scene);
   app.start();
   void app.initLanguageLayers();
