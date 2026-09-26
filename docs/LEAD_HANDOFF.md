@@ -104,6 +104,10 @@ Everything below is committed and green unless noted.
   yell your oath via push-to-talk (>=0.7 similarity -> recital, checked before casting); voice never
   gets the speed bonus. FIXES a bug: sim OathTable parser failed on the new string-keyed oaths.ron
   and silently fell back to 110 chars.
+- DODGE (double-jump worker): short burst, ~0.12-0.15 s intangible, ground cooldown, one air dodge per
+  airtime, never raises sustained speed, breaks hook-and-strike.
+- PLAYER OUTLINES + chaos readability audit (inverted hull, distance-scaled, LOS only, player/construct
+  separation, subtle high-% pulse, settings).
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
