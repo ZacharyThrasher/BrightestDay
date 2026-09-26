@@ -30,16 +30,19 @@ export interface Part {
 /**
  * How an articulated group moves relative to its parent (the construct body, or another group).
  * All angles in degrees, rates in cycles/second (spin: revolutions/second), distances in metres (unscaled part units).
- * Several motions on one joint compose (e.g. an aim turret that also recoils with a piston).
+ * `phase` is a fraction of a cycle (0..1; 0.5 = opposite legs). Axes are in the construct frame (+z forward, +y up, +x right).
+ * Several motions on one joint compose in order (e.g. steer then roll; aim then a recoil piston).
+ * `on: 'fire'` (swing/piston): instead of cycling continuously, play one cycle each time a weapon mounted in this
+ * group (or a child group) fires — recoil, bites, punches.
  */
 export type JointMotion =
   | { kind: 'spin'; axis: Vec3; rate: number } // constant rotation: rotors, propellers, drills, saw blades, fans
   | { kind: 'roll'; axis: Vec3; radius: number } // wheels / treads: angle follows the construct's ground speed
   | { kind: 'steer'; axis: Vec3; amp: number } // front wheels / rudders: turn with the construct's turning rate (±amp)
-  | { kind: 'aim'; yaw?: boolean; pitch?: boolean; rate: number; minPitch?: number; maxPitch?: number } // turrets, heads, cannons: track the brain's target (else the player's aim); rate = deg/s
-  | { kind: 'swing'; axis: Vec3; amp: number; rate: number; phase?: number; gait?: boolean } // legs, wings, arms, tails, flippers; gait = scale with speed (legs)
-  | { kind: 'piston'; axis: Vec3; amp: number; rate: number; phase?: number; gait?: boolean } // pumps, jackhammers, recoil, bobbing heads
-  | { kind: 'wave'; axis: Vec3; amp: number; rate: number; phase?: number }; // like swing but phase-shifted along a chain (tails, tentacles, snakes)
+  | { kind: 'aim'; yaw?: boolean; pitch?: boolean; rate: number; minPitch?: number; maxPitch?: number } // turrets, heads, cannons: track the brain's target (else the rider's / player's aim); rate = deg/s
+  | { kind: 'swing'; axis: Vec3; amp: number; rate: number; phase?: number; gait?: boolean; on?: 'fire' } // legs, wings, arms, tails, flippers, jaws; gait = scale with speed (legs)
+  | { kind: 'piston'; axis: Vec3; amp: number; rate: number; phase?: number; gait?: boolean; on?: 'fire' } // pumps, jackhammers, recoil, bobbing heads
+  | { kind: 'wave'; axis: Vec3; amp: number; rate: number; phase?: number }; // like swing, plus an automatic phase lag per chain depth (tails, tentacles, snakes)
 
 export interface Joint {
   group: string; // parts with part.group === group are driven by this joint
@@ -87,13 +90,26 @@ export type Behavior =
   | { type: 'sweep'; width: number; speed: number }
   | { type: 'pulse'; period: number }
   // ---- machines & creatures (locomotion + autonomy + weapons + riding) ----
-  /** Locomotion capability. ground: follows terrain, wheels/legs; air: flies (altitude hold); hover: floats above ground. */
-  | { type: 'drive'; mode: 'ground' | 'air' | 'hover'; speed: number; turn: number; altitude?: number; jump?: number }
-  /** Autonomy: what the construct decides to do on its own (moves via 'drive', attacks via 'weapon'). */
+  /**
+   * Locomotion capability. ground: follows terrain, wheels/legs; air: flies (altitude hold); hover: floats above ground.
+   * speed m/s, turn deg/s, altitude m above ground (air/hover), jump m/s take-off speed, minSpeed m/s (fixed-wing: never slower in the air).
+   */
+  | { type: 'drive'; mode: 'ground' | 'air' | 'hover'; speed: number; turn: number; altitude?: number; jump?: number; minSpeed?: number }
+  /**
+   * Autonomy: what the construct decides to do on its own (moves via 'drive', attacks via 'weapon'). range = engage radius (m).
+   * target: hunt → entity to attack (default: nearest hostile); follow → who (default: player); guard/patrol/goto → spot;
+   * fetch → object to bring (default: nearest loose object); flee → what to run from (default: nearest hostile).
+   */
   | { type: 'brain'; goal: 'wander' | 'follow' | 'guard' | 'hunt' | 'fetch' | 'patrol' | 'goto' | 'flee' | 'idle'; target?: Ref; range?: number }
-  /** A weapon fired from the group's 'muzzle' parts (or the construct front) at the brain's target / rider's aim. */
+  /**
+   * A weapon fired from the 'muzzle' parts in `group` or its child groups (or the construct front) at the brain's target /
+   * rider's aim. rate shots/s, speed m/s, damage per hit, range m. laser/flame are instant beams/cones, melee hits what it reaches.
+   */
   | { type: 'weapon'; kind: 'gun' | 'cannon' | 'laser' | 'missile' | 'flame' | 'net' | 'melee' | 'bomb'; group?: string; rate: number; speed: number; damage: number; range: number; size?: number; spread?: number }
-  /** The player can get in/on it: WASD drives it (needs 'drive'), mouse aims its 'aim' joints, fire buttons fire its weapons. */
+  /**
+   * The player can get in/on it: WASD drives it (needs 'drive'), mouse aims its 'aim' joints, fire buttons fire its weapons.
+   * seat = where the rider's body centre goes (construct frame, unscaled). Placed at 'self', the player is put in it on creation.
+   */
   | { type: 'rideable'; seat: Vec3; view?: 'third' | 'first' };
 
 export type BehaviorType = Behavior['type'];

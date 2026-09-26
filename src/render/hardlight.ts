@@ -75,25 +75,30 @@ export interface ConstructGeometry {
 
 /**
  * Build merged fill + edge geometry. `origin` (construct-local) is where assembly starts (the ring
- * hand); parts closer to it form first.
+ * hand); parts closer to it form first. `include` selects a subset of parts (one articulated group);
+ * the assembly order is still ranked over the whole construct so split groups form exactly like one mesh.
  */
-export function buildConstructGeometry(spec: ConstructSpec, origin: Vector3 | null, maxInstances: number): ConstructGeometry {
+export function buildConstructGeometry(spec: ConstructSpec, origin: Vector3 | null, maxInstances: number, include?: (partIndex: number) => boolean): ConstructGeometry {
   const fills: BufferGeometry[] = [];
   const edges: BufferGeometry[] = [];
   const centers: Vector3[] = [];
   const parts = spec.parts.length ? spec.parts : [{ shape: 'box', size: [1, 1, 1], pos: [0, 0, 0] } as Part];
-  for (const p of parts) {
-    const { geo, center } = partGeometry(p, spec.scale, spec.stretch);
+  const allCenters = parts.map((p) => partTransform(p, spec.scale, spec.stretch).pos);
+  const o = origin ?? new Vector3(0, 0, -1e3);
+  const d = allCenters.map((c) => c.distanceTo(o));
+  const order = d.map((_, i) => i).sort((a, b) => d[a] - d[b]);
+  const rankAll = new Array(allCenters.length).fill(0);
+  order.forEach((pi, r) => { rankAll[pi] = allCenters.length > 1 ? r / (allCenters.length - 1) : 0; });
+  const rank: number[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (include && !include(i)) continue;
+    const { geo, center } = partGeometry(parts[i], spec.scale, spec.stretch);
     centers.push(center);
+    rank.push(rankAll[i]);
     fills.push(geo);
     const eg = new EdgesGeometry(geo, 28);
     edges.push(eg);
   }
-  const o = origin ?? new Vector3(0, 0, -1e3);
-  const d = centers.map((c) => c.distanceTo(o));
-  const order = d.map((_, i) => i).sort((a, b) => d[a] - d[b]);
-  const rank = new Array(centers.length).fill(0);
-  order.forEach((pi, r) => { rank[pi] = centers.length > 1 ? r / (centers.length - 1) : 0; });
   const tag = (g: BufferGeometry, i: number) => {
     const n = g.getAttribute('position').count;
     const a = new Float32Array(n * 4);

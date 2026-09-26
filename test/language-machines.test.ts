@@ -34,7 +34,7 @@ test('"a car w/ a cannon": rolling wheels, ground drive, cannon on an aiming joi
   const r = await d.commit('a car w/ a cannon');
   const s = specOf(r.ops);
   assert.equal(s.concept, 'car');
-  assert.ok(motions(s).filter((m) => m === 'roll').length >= 4, 'wheels roll');
+  assert.ok(motions(s).filter((m) => m === 'roll').length >= 3, 'wheels roll'); // catalog car: 2 steering front wheels + a shared rear axle
   assert.equal(beh(s, 'drive')[0]?.mode, 'ground');
   const w = beh(s, 'weapon');
   assert.equal(w[0]?.kind, 'cannon');
@@ -283,6 +283,9 @@ test('free composition: part lists, counts, held weapons, materials, giving part
   assert.ok(jelly.restitution > 0.8, 'jelly is bouncy');
   const heads = specOf((await d.commit('a dragon with 3 heads')).ops);
   assert.equal(heads.parts.filter((p) => p.role === 'head').length, 3);
+  // machines cost real willpower now: clear the board so "a dog" isn't refused for lack of energy
+  for (const id of [...w.constructs.list.keys()]) w.constructs.dismiss(id);
+  w.constructs.energy = w.constructs.energyMax;
   await d.commit('a dog');
   const dog = [...w.constructs.list.values()].pop()!;
   const give = await d.commit('give the dog wings');

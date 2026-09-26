@@ -9,6 +9,7 @@
  * held-out corpora were written independently and were not consulted.
  */
 import type { PlacementAt, Placement, ConstructSpec } from '../sim/constructs/spec.js';
+import { CATALOG } from '../sim/constructs/catalog/index.js';
 
 export type ConceptClass =
   | 'barrier' | 'surface' | 'ramp' | 'launcher' | 'manipulator' | 'weapon' | 'heavy' | 'enclosure'
@@ -34,6 +35,10 @@ export interface Concept {
   lifetime?: number;
   /** machine/creature defaults: how it gets about when given autonomy or ridden, and whether it keeps you company */
   mach?: MachineDefaults;
+  /** set when the concept is a machine-catalog entry (src/sim/constructs/catalog): form === catalog id, joints come with it */
+  catalog?: string;
+  /** claimed functions from the catalog entry */
+  functions?: string[];
 }
 
 export type LocoKind = 'wheels' | 'treads' | 'legs' | 'wings' | 'rotor' | 'propeller' | 'jets' | 'hover' | 'swim' | 'slither' | 'roll';
@@ -54,7 +59,7 @@ const C = (id: string, names: string[], form: string, cls: ConceptClass, motion:
 
 const T = { kind: 'T' } as any; // placeholder target resolved by the parser
 
-export const CONCEPTS: Concept[] = [
+const BASE_CONCEPTS: Concept[] = [
   // --- barriers / defence
   C('wall', ['barrier', 'barricade', 'fence', 'blockade', 'partition', 'screen', 'bulwark', 'rampart'], 'wall', 'barrier', 'static', 'between', { verb: 'block' }),
   C('shield', ['buckler', 'aegis', 'deflector', 'riot shield', 'force field', 'forcefield', 'energy shield'], 'shield', 'barrier', 'kinematic', 'front', { beh: [{ type: 'hold', side: 'front' }], verb: 'block' }),
@@ -167,6 +172,35 @@ export const CONCEPTS: Concept[] = [
   C('pipe organ', ['xylophone'], 'tube', 'misc', 'static', 'aim'),
   C('chain', ['chains', 'shackle chain', 'anchor chain', 'bike chain'], 'chain', 'rope', 'kinematic', 'hand', { verb: 'pull' }),
 ];
+
+/**
+ * Machine-catalog entries become concepts (registered first, so their names win). An entry that `replaces` a base
+ * concept takes it over, inheriting the synonyms no other catalog entry claims ("a sled" is still a car).
+ */
+function catalogConcepts(): { list: Concept[]; replaced: Set<string> } {
+  const own = new Set<string>();
+  for (const e of CATALOG) { own.add(e.id); for (const n of e.names) own.add(n); }
+  const replaced = new Set<string>();
+  const list = CATALOG.map((e): Concept => {
+    const inherited: string[] = [];
+    let extras: Partial<Concept> = {};
+    for (const r of e.replaces ?? []) {
+      const old = BASE_CONCEPTS.find((c) => c.id === r);
+      if (!old) continue;
+      replaced.add(r);
+      for (const n of old.names) if (!own.has(n) && !inherited.includes(n)) inherited.push(n);
+      extras = { ...old, ...extras }; // keep fields the language layer attaches (e.g. machine defaults)
+    }
+    return {
+      ...extras,
+      id: e.id, names: [e.id, ...e.names.filter((n) => n !== e.id), ...inherited], form: e.id, cls: e.cls, motion: e.motion, at: e.at,
+      orient: e.orient, scale: e.scale, density: e.density, beh: e.behaviors, verb: e.verb, lifetime: e.lifetime, catalog: e.id, functions: e.functions,
+    };
+  });
+  return { list, replaced };
+}
+const CAT = catalogConcepts();
+export const CONCEPTS: Concept[] = [...CAT.list, ...BASE_CONCEPTS.filter((c) => !CAT.replaced.has(c.id))];
 
 /** Add-on parts ("with rockets on the back"). Each contributes geometry + behaviour. */
 export type MachineKind = 'heads' | 'wheels' | 'treads' | 'legs' | 'wings' | 'rotor' | 'propeller' | 'jets' | 'hover' | 'turret' | 'gun' | 'jaws' | 'arms' | 'claws' | 'tentacles' | 'tail' | 'seat' | 'melee' | 'saw' | 'drill';

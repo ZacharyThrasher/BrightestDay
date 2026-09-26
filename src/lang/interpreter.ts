@@ -22,6 +22,7 @@ import {
   traitsFromWords, locoForVerb, brainOf, driveOf, weaponsOf, isRideable, MOVING_GOALS, type Trait, type BrainGoal,
 } from './machines.js';
 import { matchOrder, cleanOrderTokens, ALL_ADDRESS, type Order } from './orders.js';
+import { machineFunctions as catalogMachineFunctions } from '../sim/constructs/machine-spec.js';
 import { SPEED_ADJ, VERBS, lemma, FILLERS, type VerbClass } from './words.js';
 import { repair, isGameWord, isEnglishCommon, nearestConceptBySound, type Correction } from './fuzzy.js';
 import type { Op, Interpretation, CommitResult, EffectReport, SourceKind } from './types.js';
@@ -1076,7 +1077,7 @@ export class Interpreter {
 
   // --------------------------------------------------------------------------- PvP: opponents and their constructs
 
-  private myId(): string { return String((this.w.player as any).id ?? 'local'); }
+  private myId(): string { return String((this.w.player as any).id ?? 'p1'); }
 
   /** Other lanterns in the match. Duck-typed: world.opponents (array|fn), world.players (Map|array) or world.opponent. */
   opponents(): { id: string; pos: Vector3 | null }[] {
@@ -3011,6 +3012,7 @@ export function functionsOf(spec: ConstructSpec, w: World): string[] {
   if (cls === 'heavy' && spec.motion === 'dynamic' && at === 'above_target') { f.add('crush_target'); }
   if (types.has('hold') && cls === 'barrier') { f.add('shield_self'); f.add('block_projectiles'); }
   for (const m of machineFunctions(spec)) f.add(m);
+  for (const x of catalogMachineFunctions(spec)) f.add(x); // runtime's view (drive / brain / weapon / rideable)
   return [...f];
 }
 

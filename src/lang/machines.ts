@@ -6,7 +6,7 @@
  * touches the world. Positions/pivots are in the host's unscaled part frame (+z forward, +y up).
  */
 import { type ConstructSpec, type Part, type Joint, type JointMotion, type Behavior, type Vec3, type Ref, partsBounds } from '../sim/constructs/spec.js';
-import { buildForm, FORM_JOINTS } from '../sim/constructs/forms.js';
+import { buildForm, FORM_JOINTS, formJoints } from '../sim/constructs/forms.js';
 import { conceptByName, type Concept, type LocoKind, type MachineKind, type WeaponKind, type MachineDefaults } from './lexicon.js';
 import { Euler, Vector3 } from 'three';
 
@@ -153,8 +153,9 @@ function attachPoint(p: Part, toward: Vec3): Vec3 {
 export function articulate(s: ConstructSpec, opts: { creature?: boolean } = {}): void {
   const concept = conceptOf(s);
   const creature = concept?.cls === 'creature' || !!opts.creature;
-  if (concept?.form && FORM_JOINTS[concept.form]) {
-    for (const j of FORM_JOINTS[concept.form]()) if (!(s.joints ?? []).some((x) => x.group === j.group) && s.parts.some((p) => p.group === j.group)) addJoint(s, j);
+  if (concept?.form && (FORM_JOINTS[concept.form] || formJoints(concept.form).length)) {
+    // catalog machines bring their own joints (preferred); the generic bodies' defaults fill any gaps
+    for (const j of [...formJoints(concept.form), ...(FORM_JOINTS[concept.form]?.() ?? [])]) if (!(s.joints ?? []).some((x) => x.group === j.group) && s.parts.some((p) => p.group === j.group)) addJoint(s, j);
   }
   const B = hostBox(s);
   const body = s.parts.filter((p) => p.solid !== false && !p.group && !['leg', 'arm', 'tail', 'wing', 'wheel', 'jaw'].includes(p.role ?? ''));
@@ -693,7 +694,7 @@ export function applyTraits(s: ConstructSpec, traits: Trait[], notes: string[]) 
       if (!(d && d.mode === LOCO_DRIVE[t.loco].mode && (!role || s.parts.some((p) => p.role === role)))) attachKit(s, t.loco as MachineKind, { notes });
     }
     if (t.weapon) ensureWeapon(s, notes, t.weapon);
-    if (t.goal && !brainOf(s)) setBrain(s, t.goal, t.target ?? (t.goal === 'follow' ? { kind: 'self' } : t.goal === 'hunt' ? { kind: 'all_enemies' } : null));
+    if (t.goal) setBrain(s, t.goal, t.target ?? (t.goal === 'follow' ? { kind: 'self' } : t.goal === 'hunt' ? { kind: 'all_enemies' } : null));
     if (t.ride) setRideable(s);
     if (t.fast) {
       if (!driveOf(s)) ensureLocomotion(s, notes, true);

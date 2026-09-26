@@ -6,12 +6,16 @@ import type { Player } from '../player.js';
 import { type ConstructSpec, type Behavior, type Ref, type Part, cloneSpec } from './spec.js';
 import { partTransform, specExtent } from './geom.js';
 import { LIMITS, validateSpec, type ValidationReport } from './validate.js';
+import { MachineSystem, type MachineDef, type MachineState } from './machines.js';
+import type { Pose } from './joints.js';
+import { COMBAT, interceptPoint, steerToward } from './combat.js';
 
 const UP = new Vector3(0, 1, 0);
 const Z = new Vector3(0, 0, 1);
 
-interface StrikeState { target: Ref; speed: number; v: number; phase: 'go' | 'return' | 'done'; after: 'return' | 'stay' | 'dissolve'; repeat: number; hitIds: Set<string>; start: Vector3 }
-interface GrabState { target: Ref; then: 'hold' | 'bring' | 'lift' | 'stay'; v: number; attached: boolean }
+/** lock: committed intercept point (strikes at moving targets lock their aim at launch — a juke dodges them) */
+interface StrikeState { target: Ref; speed: number; v: number; phase: 'go' | 'return' | 'done'; after: 'return' | 'stay' | 'dissolve'; repeat: number; hitIds: Set<string>; start: Vector3; lock?: Vector3 | null }
+interface GrabState { target: Ref; then: 'hold' | 'bring' | 'lift' | 'stay'; v: number; attached: boolean; vel?: Vector3 }
 interface CargoState { entityId: string; local: Vector3 }
 
 export interface Inst {
@@ -31,6 +35,16 @@ export interface Inst {
   shootCd: number;
   spinQ: Quaternion;
   alive: boolean;
+  /** velocity of a homing construct (turn-limited chaser) */
+  homeVel?: Vector3;
+  /** machine state (locomotion, brain, weapons) — see machines.ts */
+  m?: MachineState | null;
+  /** articulated group poses in the construct's (scaled) frame: world = inst ∘ pose. Undefined = rigid. */
+  jointPose?: Map<string, Pose>;
+  /** per collider: source part index, its rest transform relative to the body, and its joint (-1 = body) */
+  colPart?: number[];
+  colBase?: { t: Vector3; r: Quaternion }[];
+  colJoint?: number[];
 }
 
 export interface Construct {
@@ -51,9 +65,19 @@ export interface Construct {
   explodeAt: number;
   name: string | null;
   impacts: number;
+  /** joints / locomotion / brain / weapons / riding, when the construct has any (machines.ts) */
+  mach?: MachineDef | null;
+  /** who made it (a player id); a construct never hurts its owner or the owner's other constructs */
+  owner: string;
+  /** structural health: scales with the willpower spent on it; at 0 it shatters (only other owners' attacks hurt it) */
+  hp: number;
+  maxHp: number;
 }
 
 export interface SpawnResult { construct: Construct | null; report: ValidationReport }
+
+/** Owner id of constructs made by the (single, local) player. PvP: one id per player. */
+export const LOCAL_OWNER = 'p1'; // same id as inspiration LOCAL_PLAYER (the local lantern)
 
 const DRIVING = new Set(['hold', 'follow', 'orbit', 'strike', 'grab', 'sweep', 'lift', 'mount', 'home']);
 
@@ -67,10 +91,12 @@ export class ConstructRuntime {
   focusId: string | null = null;
   energy = LIMITS.energyMax;
   private removed: Construct[] = [];
+  /** machines & creatures: articulation, locomotion, brains, weapons, riding */
+  readonly machines: MachineSystem;
   /** Constructs removed since the renderer last looked (for dissolve effects). */
   drainRemoved() { const r = this.removed; this.removed = []; return r; }
 
-  constructor(private w: World) {}
+  constructor(private w: World) { this.machines = new MachineSystem(w, this); }
 
   get(id: string | null | undefined) { return id ? this.list.get(id) ?? null : null; }
 
@@ -80,7 +106,7 @@ export class ConstructRuntime {
   // ------------------------------------------------------------------ spawning
 
   /** Validate + place + build. The ONLY way a proposal becomes physics. */
-  spawn(proposal: ConstructSpec, opts: { at?: { pos: Vector3; quat: Quaternion }; name?: string; internal?: boolean } = {}): SpawnResult {
+  spawn(proposal: ConstructSpec, opts: { at?: { pos: Vector3; quat: Quaternion }; name?: string; internal?: boolean; owner?: string } = {}): SpawnResult {
     const boost = opts.internal ? null : this.w.inspiration?.price('create', proposal, null); // creativity economy
     const report = validateSpec(proposal, this.energy / (boost?.costMul ?? 1));
     if (report.rejected) {
@@ -98,7 +124,9 @@ export class ConstructRuntime {
       id, spec, insts: [], born: this.w.time, expires: this.w.time + spec.lifetime, radius: specExtent(spec, true).radius, extent,
       mass: 0, cost: report.cost, clamps: report.clamps, kinematic: spec.motion === 'kinematic', frameQuat: frame.quat.clone(), frameOrigin: frame.pos.clone(),
       version: 1, explodeAt: Infinity, name: opts.name ?? null, impacts: 0,
+      owner: opts.owner ?? this.w.inspiration?.caster ?? LOCAL_OWNER, hp: 0, maxHp: 0,
     };
+    c.maxHp = c.hp = constructHp(report.cost);
     this.build(c, frame.pos, frame.quat);
     this.list.set(id, c);
     this.energy -= report.cost;
@@ -107,6 +135,8 @@ export class ConstructRuntime {
     this.enforceBudget();
     this.w.emit('construct_formed', { id, label: spec.label, clamps: report.clamps, cost: Math.round(report.cost), source: spec.provenance.source });
     boost?.done(c);
+    // a vehicle conjured around you: you're in the driver's seat
+    if (spec.placement.at === 'self' && c.mach?.ride && c.mach.drive && this.list.has(id)) this.machines.ride(id);
     return { construct: c, report };
   }
 
@@ -132,6 +162,7 @@ export class ConstructRuntime {
     c.clamps = report.clamps;
     this.energy += refund - report.cost;
     c.cost = report.cost;
+    { const frac = c.maxHp > 0 ? c.hp / c.maxHp : 1; c.maxHp = constructHp(report.cost); c.hp = Math.max(1, c.maxHp * frac); }
     c.expires = Math.max(c.expires, this.w.time + Math.min(spec.lifetime, 30));
     // rebuild at the first instance's pose; new instances fan out from there
     const base = poses[0] ?? { pos: c.frameOrigin, quat: c.frameQuat };
@@ -184,6 +215,7 @@ export class ConstructRuntime {
     for (const i of c.insts) if (i.cargo) this.releaseEntity(i.cargo.entityId, i.vel.clone());
     this.releaseRestrained(c);
     for (const side of ['L', 'R'] as const) if (this.w.player.tethers[side]?.constructId === id) this.w.player.releaseTether(side);
+    this.machines.onDismiss(c);
     this.destroyBodies(c, true);
     this.list.delete(id);
     this.removed.push(c);
@@ -193,6 +225,21 @@ export class ConstructRuntime {
   }
 
   dismissAll() { for (const id of [...this.list.keys()]) this.dismiss(id); }
+
+  /**
+   * Damage a construct (attributed). Only attacks from someone other than its owner should call this.
+   * At 0 hp it shatters (dismissed with reason 'destroyed').
+   */
+  damageConstruct(id: string, amount: number, cause: string, by: string | null = null) {
+    const c = this.list.get(id);
+    if (!c || amount <= 0) return;
+    c.hp = Math.max(0, c.hp - amount);
+    this.w.emit('construct_damage', { id, amount: Math.round(amount), cause, by, hp: Math.round(c.hp) });
+    if (c.hp <= 0) {
+      this.w.emit('construct_destroyed', { id, label: c.spec.label, cause, by });
+      this.dismiss(id, 'destroyed');
+    }
+  }
 
   /** Let go of held entities / stop holding (construct stays). */
   release(id: string) {
@@ -245,6 +292,7 @@ export class ConstructRuntime {
     const orbit = has(spec, 'orbit');
     if (orbit && orbit.around.kind === 'self') spec.passPlayer = true;
     if (spec.placement.at === 'self' || spec.placement.at === 'around_target' && spec.placement.target?.kind === 'self') spec.passPlayer = true;
+    if (types.has('drive')) spec.motion = 'kinematic'; // machines drive themselves (machines.ts)
   }
 
   refPos(ref: Ref | undefined, out = new Vector3()): Vector3 | null {
@@ -257,9 +305,9 @@ export class ConstructRuntime {
       case 'entities': case 'all_enemies': { const e = this.refEntities(ref)[0]; return e ? this.w.entityPos(e, out) : null; }
       case 'construct': { const c = this.list.get(ref.id); return c && c.insts[0] ? out.copy(c.insts[0].pos) : null; }
       case 'point': return out.set(ref.p[0], ref.p[1], ref.p[2]);
-      case 'nearest_enemy': { const e = this.nearestEnemy(); return e ? this.w.entityPos(e, out) : null; }
+      case 'nearest_enemy': case 'opponent': { const e = this.nearestEnemy(); return e ? this.w.entityPos(e, out) : null; } // (no opponent players yet → nearest hostile)
       case 'threat': { const e = this.threat(); return e ? this.w.entityPos(e, out) : null; }
-      default: return null;
+      default: return null; // 'player': other players don't exist in single player
     }
   }
 
@@ -268,7 +316,7 @@ export class ConstructRuntime {
     if (ref.kind === 'entity') { const e = this.w.entities.get(ref.id); return e ? [e] : []; }
     if (ref.kind === 'entities') return ref.ids.map((id) => this.w.entities.get(id)).filter((e): e is Entity => !!e);
     if (ref.kind === 'all_enemies') return [...this.w.entities.values()].filter((e) => e.hostile && !e.disabled).sort((a, b) => this.dist(a) - this.dist(b));
-    if (ref.kind === 'nearest_enemy') { const e = this.nearestEnemy(); return e ? [e] : []; }
+    if (ref.kind === 'nearest_enemy' || ref.kind === 'opponent') { const e = this.nearestEnemy(); return e ? [e] : []; }
     if (ref.kind === 'threat') { const e = this.threat(); return e ? [e] : []; }
     return [];
   }
@@ -471,12 +519,16 @@ export class ConstructRuntime {
       desc = desc.setTranslation(pos.x, pos.y, pos.z).setRotation(q);
       const body = this.w.pw.createRigidBody(desc);
       const colliders: RCollider[] = [];
+      const colPart: number[] = [];
+      const colBase: { t: Vector3; r: Quaternion }[] = [];
       for (let pi = 0; pi < spec.parts.length; pi++) {
         const part = spec.parts[pi];
         if (part.solid === false) continue;
         for (const cd of this.partColliders(part, spec)) {
           const col = this.w.pw.createCollider(cd, body);
           colliders.push(col);
+          colPart.push(pi);
+          colBase.push({ t: new Vector3(cd.translation.x, cd.translation.y, cd.translation.z), r: new Quaternion(cd.rotation.x, cd.rotation.y, cd.rotation.z, cd.rotation.w) });
           this.w.owners.set(col.handle, { kind: 'construct', id: c.id, part: pi });
           this.byCollider.set(col.handle, c.id);
         }
@@ -485,6 +537,8 @@ export class ConstructRuntime {
         // purely visual construct: give it a tiny sensor so it still has a body
         const col = this.w.pw.createCollider(R.ColliderDesc.ball(0.2).setSensor(true).setCollisionGroups(groups(G.GHOST, 0)), body);
         colliders.push(col);
+        colPart.push(-1);
+        colBase.push({ t: new Vector3(), r: new Quaternion() });
         this.w.owners.set(col.handle, { kind: 'construct', id: c.id, part: 0 });
         this.byCollider.set(col.handle, c.id);
       }
@@ -492,8 +546,10 @@ export class ConstructRuntime {
       c.insts.push({
         body, colliders, pos, quat: q, prevPos: pos.clone(), vel: new Vector3(), offset: offs[k], phase: (k / offs.length) * Math.PI * 2,
         strike: null, grab: null, cargo: null, liftBase: null, sweepLeft: 0, shootCd: 0.2 * k, spinQ: new Quaternion(), alive: true,
+        colPart, colBase,
       });
     }
+    this.machines.init(c);
     // virtual mass for kinematic/static constructs (used for strike impulses)
     c.mass = spec.motion === 'dynamic' ? massTotal / Math.max(1, offs.length) : Math.min(LIMITS.maxVirtualMass, this.volume(spec) * spec.density);
   }
@@ -628,7 +684,9 @@ export class ConstructRuntime {
         const tp = this.refPos(tgt);
         const toward = tp ? Math.max(0, this.w.player.vel.dot(tp.clone().sub(inst.pos).normalize())) : 0;
         const thrust = has(s, 'thrust');
-        inst.strike = { target: tgt, speed: Math.min(LIMITS.strikeSpeed, strike.speed + (thrust ? thrust.accel * 0.6 : 0) + toward), v: toward * 0.8, phase: 'go', after: strike.after, repeat: strike.repeat ?? 0, hitIds: new Set(), start: inst.pos.clone() };
+        const speed = Math.min(COMBAT.strike.maxSpeed, Math.max(COMBAT.strike.minSpeed, Math.min(LIMITS.strikeSpeed, strike.speed + (thrust ? thrust.accel * 0.6 : 0) + toward)));
+        inst.strike = { target: tgt, speed, v: toward * 0.8, phase: 'go', after: strike.after, repeat: strike.repeat ?? 0, hitIds: new Set(), start: inst.pos.clone() };
+        this.lockStrike(inst, inst.strike);
       }
       if (grab && !inst.cargo && (!keepState || !inst.grab)) {
         const ents = targets(grab.target);
@@ -681,6 +739,7 @@ export class ConstructRuntime {
   preStep(dt: number) {
     this.energy = Math.min(this.energyMax, this.energy + LIMITS.energyRegen * (this.w.inspiration?.regenMul ?? 1) * dt);
     const P = this.w.player;
+    this.machines.preStep(dt);
     for (const c of [...this.list.values()]) {
       if (this.w.time >= c.expires) { this.dismiss(c.id, 'expired'); continue; }
       if (this.w.time >= c.explodeAt) { this.explode(c); continue; }
@@ -688,8 +747,10 @@ export class ConstructRuntime {
       for (const inst of c.insts) {
         if (!inst.alive) continue;
         inst.prevPos.copy(inst.pos);
-        if (inst.body.isKinematic()) this.driveKinematic(c, inst, dt);
+        if (c.mach?.drive && inst.m && inst.body.isKinematic()) this.machines.drive(c, inst, dt);
+        else if (inst.body.isKinematic()) this.driveKinematic(c, inst, dt);
         else if (inst.body.isDynamic()) this.driveDynamic(c, inst, dt);
+        if (c.mach && inst.m) this.machines.animate(c, inst, dt);
         this.applyFields(c, inst, dt);
         this.applyShoot(c, inst, dt);
         if (has(s, 'cushion')) this.applyCushion(c, inst, dt);
@@ -699,6 +760,7 @@ export class ConstructRuntime {
       const mount = has(s, 'mount');
       if (mount) this.applyMount(c, mount, P);
     }
+    this.machines.postMove();
   }
 
   postStep(dt: number) {
@@ -734,7 +796,7 @@ export class ConstructRuntime {
     if (inst.strike && inst.strike.phase !== 'done') {
       const st = inst.strike;
       const home = this.holdPose(c, inst, 'right');
-      const tp = st.phase === 'go' ? this.refPos(st.target) ?? home.pos : home.pos;
+      const tp = st.phase === 'go' ? st.lock ?? this.refPos(st.target) ?? home.pos : home.pos;
       const d = tp.clone().sub(inst.pos);
       const dist = d.length();
       st.v = Math.min(st.speed, st.v + 220 * dt);
@@ -760,7 +822,7 @@ export class ConstructRuntime {
           this.finishStrikeLeg(c, inst, st);
         }
       } else if (dist <= step + 0.05) {
-        if (st.repeat > 0) { st.repeat--; st.phase = 'go'; st.v = 0; st.hitIds.clear(); }
+        if (st.repeat > 0) { st.repeat--; st.phase = 'go'; st.v = 0; st.hitIds.clear(); this.lockStrike(inst, st); }
         else st.phase = 'done';
       }
     } else if (inst.grab && !inst.grab.attached) {
@@ -771,9 +833,17 @@ export class ConstructRuntime {
       else {
         const d = tp.clone().sub(inst.pos);
         const dist = d.length();
-        g.v = Math.min(45, g.v + 120 * dt);
+        // an enemy that is on the move (a player-like target) is chased: capped speed, led, turn-limited
+        const enemy = !!e && e.hostile && !e.disabled && this.w.entityVel(e).lengthSq() > COMBAT.grab.evadeSpeed ** 2;
+        g.v = Math.min(enemy ? COMBAT.grab.maxSpeed : 45, g.v + 120 * dt);
         const step = Math.min(dist, g.v * dt);
         if (dist > 1e-3) d.divideScalar(dist);
+        if (enemy) {
+          // chaser: lead the target, turn-limited
+          const aimP = interceptPoint(inst.pos, Math.max(8, g.v), tp, this.w.entityVel(e!));
+          g.vel = steerToward(g.vel ?? d.clone().multiplyScalar(g.v), aimP.sub(inst.pos), (COMBAT.grab.turnRate * Math.PI / 180) * dt, g.v);
+          if (dist > step + 0.5) d.copy(g.vel).normalize();
+        }
         target = inst.pos.clone().addScaledVector(d, step);
         q = quatFromDir(d);
         const reach = c.radius * 0.8 + (e?.radius ?? 0.5) + 0.3;
@@ -815,15 +885,22 @@ export class ConstructRuntime {
       } else if (home) {
         const tp = this.refPos(home.target);
         if (tp) {
+          const e = this.refEntities(home.target)[0];
+          const enemy = !!e && e.hostile && !e.disabled;
+          const speed = enemy ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
           const d = tp.clone().sub(inst.pos);
           const dist = d.length();
           d.divideScalar(Math.max(1e-6, dist));
-          const step = Math.min(dist, home.speed * dt);
+          // homing: re-plan the intercept every tick, turn-limited (hard cuts and walls shake it off)
+          const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : tp.clone();
+          if (!inst.homeVel) inst.homeVel = new Vector3(0, 0, 1).applyQuaternion(inst.quat).multiplyScalar(speed);
+          steerToward(inst.homeVel, aimP.sub(inst.pos), ((enemy ? COMBAT.missile.turnRate : 720) * Math.PI / 180) * dt, speed);
+          const step = Math.min(dist, speed * dt);
+          if (dist > step + 0.5) d.copy(inst.homeVel).normalize();
           target = inst.pos.clone().addScaledVector(d, step);
           q = quatFromDir(d);
-          const e = this.refEntities(home.target)[0];
           if (e && dist < c.radius + e.radius + 0.4) {
-            this.impactEntity(c, inst, e, d, home.speed);
+            this.impactEntity(c, inst, e, d, speed);
             if (has(s, 'explode')) { this.explode(c); return; }
             c.expires = Math.min(c.expires, this.w.time + 0.3);
           }
@@ -854,6 +931,18 @@ export class ConstructRuntime {
     inst.quat.copy(finalQ);
     inst.body.setNextKinematicTranslation(inst.pos);
     inst.body.setNextKinematicRotation(inst.quat);
+  }
+
+  /** Commit a strike: aim at where a moving target will be when the blow lands, and don't re-aim after launch. */
+  private lockStrike(inst: Inst, st: StrikeState) {
+    st.lock = null;
+    if (!COMBAT.strike.lockAtLaunch) return;
+    const e = this.refEntities(st.target)[0];
+    if (!e) return;
+    const v = this.w.entityVel(e);
+    if (v.lengthSq() < 4) return; // (near-)stationary: plain tracking is identical and robust to nudges
+    // average speed over the lunge (it accelerates from st.v)
+    st.lock = interceptPoint(inst.pos, st.speed * 0.8, this.w.entityPos(e), v);
   }
 
   private finishStrikeLeg(c: Construct, inst: Inst, st: StrikeState) {
@@ -939,7 +1028,10 @@ export class ConstructRuntime {
       const tp = this.refPos(home.target);
       if (tp) {
         const v = inst.body.linvel();
-        const want = tp.clone().sub(inst.pos).normalize().multiplyScalar(home.speed);
+        const e = this.refEntities(home.target)[0];
+        const speed = e?.hostile ? Math.min(home.speed, COMBAT.missile.maxSpeed) : home.speed;
+        const aimP = e ? interceptPoint(inst.pos, speed, tp, this.w.entityVel(e)) : tp;
+        const want = aimP.clone().sub(inst.pos).normalize().multiplyScalar(speed);
         const nv = new Vector3(v.x, v.y, v.z).lerp(want, 1 - Math.exp(-4 * dt));
         inst.body.setLinvel(nv, true);
       }
@@ -1011,7 +1103,7 @@ export class ConstructRuntime {
     if (inst.shootCd > 0) return;
     inst.shootCd = 1 / sh.rate;
     const ents = this.refEntities(sh.target);
-    const tp = ents[0] ? this.w.entityPos(ents[0]) : this.refPos(sh.target) ?? this.w.player.aim().point;
+    const tp = ents[0] ? interceptPoint(inst.pos, sh.speed, this.w.entityPos(ents[0]), this.w.entityVel(ents[0])) : this.refPos(sh.target) ?? this.w.player.aim().point;
     const d = tp.clone().sub(inst.pos).normalize();
     const start = inst.pos.clone().addScaledVector(d, c.radius + sh.size + 0.3);
     const pr = this.w.spawnProjectile(start, d.multiplyScalar(sh.speed), null, 10, sh.size);
@@ -1113,7 +1205,7 @@ export class ConstructRuntime {
 
   // ------------------------------------------------------------------ cargo
 
-  private attachEntity(c: Construct, inst: Inst, e: Entity, at: Vector3) {
+  attachEntity(c: Construct, inst: Inst, e: Entity, at: Vector3) {
     const R = this.w.R;
     if (e.type === 'turret') return;
     e.heldBy = c.id;
@@ -1284,6 +1376,9 @@ export class ConstructRuntime {
     }
   }
 }
+
+/** Structural health from the willpower spent (a tank ≈ 200, a wall ≈ 80). */
+export function constructHp(cost: number): number { return Math.round(40 + cost * 6); }
 
 function quatFromDir(dir: Vector3): Quaternion {
   const d = dir.clone();

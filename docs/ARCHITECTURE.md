@@ -61,6 +61,9 @@
 | `src/sim/constructs/forms.ts` | 90+ parametric shapes |
 | `src/sim/constructs/validate.ts` | the authority boundary (limits, energy budget) |
 | `src/sim/constructs/runtime.ts` | placement, bodies, 22 behaviours, cargo, impacts, launches |
+| `src/sim/constructs/joints.ts`, `machines.ts` | articulation (joint poses, synced colliders), machine locomotion (kinematic ground/hover/air controllers with their own collision queries), brains, weapons, riding, construct damage |
+| `src/sim/constructs/machine-spec.ts`, `combat.ts` | machine rigging/clamps/costs/claims; combat tuning table + predictive intercept + turn-limited chasers |
+| `src/sim/constructs/catalog/` | named articulated machines & creatures (tank, car, motorcycle, helicopter, airplane, mech, robot, dog, dragon, spider) registered as forms + lexicon concepts |
 | `src/lang/parser.ts`, `words.ts`, `lexicon.ts`, `fuzzy.ts` | System 1 |
 | `src/lang/interpreter.ts` | references, edits, actions, goals, situational defaults, S2 compile, effect report |
 | `src/lang/semantic.ts`, `src/semantic/embed.mjs` | System 1.5 |
