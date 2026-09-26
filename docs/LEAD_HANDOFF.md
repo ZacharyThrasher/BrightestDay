@@ -174,4 +174,5 @@ like the gun grip, summon visibility, tether saves) are welcome anytime — the 
 7. Balance: re-run tournaments after humans play; bot data says KO% median ~70 (target 110–170) and
    99% bottom KOs — likely arena/void geometry + bot behaviour, NOT knockback; wait for playtest data.
 
-- OPEN (stabilisation): bd_sim party test default_settings_leave_ffa_bit_identical hash moved (0x1fab383f88dfc29f) from some in-flight world/* change (not oath); plus flying_cage_* and opposing_constructs_clash* failures. Find the cause before re-recording.
+- RESOLVED: FFA hash 0x1fab383f88dfc29f re-recorded by the double-jump worker (bots air-jump/dodge; A/B verified). STILL OPEN: flying_cage_* and opposing_constructs_clash* failures — recheck in stabilisation.
+- DOUBLE JUMP + DODGE DONE: Left Alt = dodge (lead moved gun alt-fire to C; Caps Lock rejected). No air jump while tethered, no wall restore. TODO: regenerate tutorial peak_run ghost (examples/tutorial_ghosts.rs) — its apex jump press is now an air jump.
