@@ -998,19 +998,6 @@ Four Arms | | Biped + Blunt, Grab
 Diamondhead | | Biped + Blade, Earth
 XLR8 | | Biped + Fast
 Way Big | | Kaiju + Beam
-Teenage Mutant Ninja Turtles | ninja turtles; tmnt | Biped + Swarm, Fast
-Leonardo's katanas | leonardo | Sword + Blade
-Raphael's sai | raphael | Sword + Pierce
-Donatello's bo staff | donatello | Staff + Blunt
-Michelangelo's nunchucks | michelangelo; nunchucks | Whip + Blunt, Spin
-Shredder | | Gauntlet + Blade
-Krang | | Blob + Piloted
-Technodrome | | Ball + Heavy, Treads
-Turtle Van | party wagon | Vehicle + Charge, Shoots
-Bebop and Rocksteady | rocksteady | Biped + Charge, Heavy
-Foot Clan | | Biped + Swarm, Sneaky
-Splinter | | Staff + Fast
-Mousers | | Quadruped + Swarm, Grab
 He-Man | | Sword + Blade, Heavy
 Beast Man | | Biped + Charge
 Man-At-Arms | | Hammer + Blunt

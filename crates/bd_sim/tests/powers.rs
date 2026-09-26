@@ -12,6 +12,17 @@ use bd_sim::powers::{self, MoveOp, PowerEvent, PowerPhrase, PowerTable, power_fl
 use bd_sim::rng::{Fnv64, SimRng};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 
@@ -147,10 +158,10 @@ fn eating_a_cast_fruit_grants_the_power() {
     assert!(power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Gained { player: A, .. })));
     assert!(w.powers.fruits.is_empty() && w.constructs.get(cid).is_none(), "fruit consumed");
     // Rubber: electric does nothing.
-    let hp = w.player(A).unwrap().health;
+    let hp = w.player(A).unwrap().health();
     let h = HitInfo::new(A, Some(B), HitKind::RingBlast, 20.0, 5.0, Vec3::X, Vec3::ZERO).with_element(Element::Electric);
     w.apply_hit(h);
-    assert_eq!(w.player(A).unwrap().health, hp);
+    assert_eq!(w.player(A).unwrap().health(), hp);
     assert_eq!(w.player(A).unwrap().power.snap().power(), Some(pid("gomu_gomu")));
 }
 
@@ -212,14 +223,14 @@ fn second_fruit_explodes_without_credit() {
     stand_at(&mut w, B, 3.0, 0.0);
     w.tick(&[]);
     assert!(w.grant_power(A, "gomu_gomu"));
-    let hb = w.player(B).unwrap().health;
+    let hb = w.player(B).unwrap().health();
     assert!(w.grant_power(A, "mera_mera"));
     let evs = run(&mut w, 1);
     assert!(!w.player(A).unwrap().alive, "overdose = self-KO");
     assert!(evs.iter().any(|e| matches!(e, GameEvent::Ko { victim: A, killer: None, cause: KoCause::Damage, .. })));
     let pe = power_events(&evs);
     assert!(pe.iter().any(|e| matches!(e, PowerEvent::Overdose { player: A, .. })));
-    assert!(w.player(B).unwrap().health < hb, "big blast");
+    assert!(w.player(B).unwrap().health() < hb, "big blast");
     assert_eq!(w.player(A).unwrap().kos + w.player(B).unwrap().kos, 0, "no credit");
     // The first fruit comes back where A died.
     assert!(pe.iter().any(|e| matches!(e, PowerEvent::FruitSpawned { respawn: true, power, .. } if *power == pid("gomu_gomu"))));
@@ -233,8 +244,12 @@ fn fruit_respawns_at_the_ko_spot() {
     run(&mut w, 5);
     assert!(w.grant_power(A, "hie_hie"));
     w.player_mut(A).unwrap().power.scatter_cd = 10.0; // no dodge for this test
+    run(&mut w, 2); // the power remembers the last ground it stood on
     let spot = w.player(A).unwrap().mv.pos;
-    w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 500.0, 0.0, Vec3::X, spot));
+    w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 1.0, 0.0, Vec3::X, spot));
+    // Smash model: KO'd through the blast zone below; the fruit returns to the last ground.
+    w.player_mut(A).unwrap().mv.pos.y = -100.0;
+    w.tick(&[]);
     assert!(!w.player(A).unwrap().alive);
     assert_eq!(power_of(&w, A), None, "power lost at KO");
     assert_eq!(w.powers.fruits.len(), 1);
@@ -258,12 +273,12 @@ fn water_drains_a_fruit_for_three_seconds() {
     w.apply_hit(splash);
     let p = w.player(A).unwrap();
     assert!(p.power.drained > 0.0 && !p.power.active());
-    assert!(p.health < 100.0, "water is never scattered");
+    assert!(p.health() < 100.0, "water is never scattered");
     assert!(p.power.snap().has(power_flags::DRAINED));
     // Drained: fire now burns the fire man and he can't scatter.
-    let hp = w.player(A).unwrap().health;
+    let hp = w.player(A).unwrap().health();
     w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 10.0, 2.0, Vec3::X, Vec3::ZERO).with_element(Element::Fire));
-    assert!(w.player(A).unwrap().health < hp);
+    assert!(w.player(A).unwrap().health() < hp);
     assert_eq!(w.power_move(A, 0), Err(powers::PowerError::Drained));
     run(&mut w, (3.1 * 120.0) as u32);
     assert!(w.player(A).unwrap().power.active(), "back after 3 s");
@@ -300,19 +315,19 @@ fn logia_scatter_dodges_then_cools_down() {
     let r = w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 20.0, 9.0, Vec3::X, before));
     assert!(!r.applied);
     let p = w.player(A).unwrap();
-    assert_eq!(p.health, 100.0);
+    assert_eq!(p.health(), 100.0);
     let moved = (p.mv.pos - before).length();
     assert!(moved > 0.5 && moved < 1.6, "reformed ~1 m away ({moved})");
     let evs = run(&mut w, 1);
     assert!(power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Scattered { player: A, element: Element::Electric, .. })));
     w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 20.0, 9.0, Vec3::X, before));
-    assert!(w.player(A).unwrap().health < 100.0, "3 s cooldown");
+    assert!(w.player(A).unwrap().health() < 100.0, "3 s cooldown");
     // Yami Yami can't.
     let mut w = duel(2);
     stand_at(&mut w, A, 0.0, 0.0);
     w.grant_power(A, "yami_yami");
     w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 20.0, 9.0, Vec3::X, before));
-    assert!(w.player(A).unwrap().health < 100.0);
+    assert!(w.player(A).unwrap().health() < 100.0);
 }
 
 // ------------------------------------------------------------------------------------ stands
@@ -332,11 +347,11 @@ fn stand_follows_and_mirrors_damage_to_its_user() {
     assert!((s.pos - a).length() < 2.0, "floats behind its user: {} vs {a}", s.pos);
     assert!(s.pos.z > a.z, "behind (user looks down -Z)");
     assert!(w.constructs.in_slot(A, bd_sim::constructs::Slot::Creature).count() == 0, "a stand takes no creature slot");
-    let hp = w.player(A).unwrap().health;
-    w.apply_construct_hit(ConstructHit { target: sid, source: Some(B), damage: 20.0, impulse: Vec3::X, blade: false, point: s.pos });
+    let hp = w.player(A).unwrap().health();
+    w.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: sid, source: Some(B), damage: 20.0, impulse: Vec3::X, blade: false, point: s.pos });
     run(&mut w, 1);
     let p = w.player(A).unwrap();
-    assert!((hp - p.health - 20.0).abs() < 1.0, "stand damage hurts the user ({} → {})", hp, p.health);
+    assert!((hp - p.health() - 20.0).abs() < 1.0, "stand damage hurts the user ({} → {})", hp, p.health());
     assert_eq!(p.last_attacker.map(|a| a.0), Some(B));
     let s = w.constructs.get(sid).expect("the stand itself never breaks");
     assert_eq!(s.integrity, s.max_integrity);
@@ -360,7 +375,7 @@ fn ora_tokens_are_rush_punches() {
     assert_eq!(w.stand_rush(A, 3), 0);
     let typing = PlayerInput { buttons: buttons::TYPING, ..Default::default() };
     w.tick(&[(A, typing)]);
-    let hp = w.player(B).unwrap().health;
+    let hp = w.player(B).unwrap().health();
     assert!(w.stand_rush_token(A));
     assert_eq!(w.stand_rush(A, 4), 4, "typed faster than the rush rate: queued");
     let mut rushes = 0;
@@ -375,7 +390,7 @@ fn ora_tokens_are_rush_punches() {
     }
     assert_eq!(rushes, 5, "one punch per token");
     assert!(hits >= 2, "the stand hit B ({hits})");
-    assert!(w.player(B).unwrap().health < hp);
+    assert!(w.player(B).unwrap().health() < hp);
 }
 
 #[test]
@@ -555,4 +570,13 @@ fn chaos_soak_with_random_powers_holds_invariants_and_is_deterministic() {
         assert!(a.3 > 20, "powers were actually used ({} events)", a.3);
         assert_eq!(a, b, "seed {seed}");
     }
+}
+
+#[test]
+fn mutagen_pool_is_separate_from_devil_fruits() {
+    let t = PowerTable::parse(powers::SHIPPED_RON).expect("powers.ron parses");
+    let muts: Vec<u16> = t.mutagen_ids().collect();
+    assert!(muts.len() >= 2, "TMNT mutagen powers present");
+    assert!(t.ids_of(false).all(|id| !muts.contains(&id)), "random devil fruit never rolls a mutagen");
+    assert!(muts.iter().all(|&id| t.def(id).is_some_and(|d| d.id.starts_with(powers::MUTAGEN_PREFIX))));
 }

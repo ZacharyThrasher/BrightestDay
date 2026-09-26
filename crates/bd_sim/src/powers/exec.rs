@@ -25,6 +25,11 @@ pub fn is_random_fruit(key: &str) -> bool {
     key.eq_ignore_ascii_case(RANDOM_FRUIT) || key.eq_ignore_ascii_case("devil_fruit")
 }
 
+/// "random:mutagen" (TMNT: a random animal hybrid among the `mutagen_*` powers).
+pub fn is_random_mutagen(key: &str) -> bool {
+    key.eq_ignore_ascii_case(RANDOM_MUTAGEN)
+}
+
 /// "random:stand" (also "stand_arrow").
 pub fn is_random_stand(key: &str) -> bool {
     key.eq_ignore_ascii_case(RANDOM_STAND) || key.eq_ignore_ascii_case("stand_arrow")
@@ -75,9 +80,14 @@ impl World {
     /// Returning + Bounce launched from the fist on a stretching arm). Without the power it is a
     /// plain cast.
     pub fn cast_incantation(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
+        self.cast_incantation_shaped(player, recipe, shape, None, aim)
+    }
+
+    /// [`Self::cast_incantation`] passing a two-mode icon's authored robot `alt_shape` through.
+    pub fn cast_incantation_shaped(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
         self.powers.incanting = true;
         self.powers.delivered = None;
-        let res = self.cast(player, recipe, shape, aim);
+        let res = self.cast_shaped(player, recipe, shape, alt_shape, aim);
         self.powers.incanting = false;
         if let (Ok(cid), Some((from_fist, arm))) = (res, self.powers.delivered.take()) {
             let base = self.cfg.move_params.clone();
@@ -219,6 +229,14 @@ impl World {
 
     fn resolve_power_key(&mut self, key: &str) -> Option<u16> {
         let t = PowerTable::get();
+        if is_random_mutagen(key) {
+            let n = t.mutagen_ids().count() as u32;
+            if n == 0 {
+                return None;
+            }
+            let k = self.rng.below(n) as usize;
+            return t.mutagen_ids().nth(k);
+        }
         let stand = if is_random_fruit(key) {
             false
         } else if is_random_stand(key) {
@@ -253,7 +271,8 @@ impl World {
         let key = recipe.grants.as_deref()?;
         let t = PowerTable::get();
         let is_random_stand = is_random_stand(key);
-        let is_random_fruit = is_random_fruit(key);
+        // A random mutagen is a fruit-like pickup (Zoan) gated by the devil-fruit toggle.
+        let is_random_fruit = is_random_fruit(key) || is_random_mutagen(key);
         let def = if is_random_stand || is_random_fruit {
             if (is_random_stand && !self.cfg.rules.stands) || (is_random_fruit && !self.cfg.rules.devil_fruits) {
                 return None;

@@ -924,19 +924,6 @@ four arms |  |  | hint: Biped + Blunt, Grab
 diamondhead |  |  | hint: Biped + Blade, Earth
 xlr8 |  |  | hint: Biped + Fast
 way big |  |  | hint: Kaiju + Beam
-teenage mutant ninja turtles | ninja turtles; tmnt |  | hint: Biped + Swarm, Fast
-leonardo's katanas | leonardo |  | hint: Sword + Blade
-raphael's sai | raphael |  | hint: Sword + Pierce
-donatello's bo staff | donatello |  | hint: Staff + Blunt
-michelangelo's nunchucks | michelangelo; nunchucks |  | hint: Whip + Blunt, Spin
-shredder |  |  | hint: Gauntlet + Blade
-krang |  |  | hint: Blob + Piloted
-technodrome |  |  | hint: Ball + Heavy, Treads
-turtle van | party wagon |  | hint: Vehicle + Charge, Shoots
-bebop and rocksteady | rocksteady |  | hint: Biped + Charge, Heavy
-foot clan |  |  | hint: Biped + Swarm, Sneaky
-splinter |  |  | hint: Staff + Fast
-mousers |  |  | hint: Quadruped + Swarm, Grab
 beast man |  |  | hint: Biped + Charge
 man-at-arms |  |  | hint: Hammer + Blunt
 wind raider |  |  | hint: Vehicle + Flies, Piloted

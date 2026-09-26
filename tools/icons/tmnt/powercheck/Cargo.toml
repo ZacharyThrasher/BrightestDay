@@ -1,0 +1,15 @@
+[package]
+name = "powercheck"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Parses assets/powers.ron with bd_sim's own PowerDef types (src/powers/data.rs included by path), so a
+# data edit can be checked even while bd_sim itself is mid-edit. Run from the game root:
+#   cargo run --manifest-path tools/icons/tmnt/powercheck/Cargo.toml
+[dependencies]
+bd_core = { path = "../../../../crates/bd_core" }
+ron = "0.10"
+serde = { version = "1", features = ["derive"] }
+
+[workspace]

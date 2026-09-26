@@ -17,6 +17,12 @@ use crate::status::StatusKind;
 pub const RANDOM_FRUIT: &str = "random:devil_fruit";
 /// Grants key of the "random stand" recipe (lexicon: "stand arrow", "the arrow").
 pub const RANDOM_STAND: &str = "random:stand";
+/// Grants key of the "random mutagen" recipe (lexicon: "mutagen", "the ooze"): a random animal
+/// hybrid among the `mutagen_*` powers (TMNT pack).
+pub const RANDOM_MUTAGEN: &str = "random:mutagen";
+/// Id prefix of the mutagen powers — they are Zoan "fruits" mechanically but are never rolled by a
+/// random devil fruit, only by [`RANDOM_MUTAGEN`].
+pub const MUTAGEN_PREFIX: &str = "mutagen_";
 
 /// Devil fruit class (Logia can scatter; Zoans transform) or a JoJo stand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -496,7 +502,16 @@ impl PowerTable {
 
     /// Ids of every fruit / every stand (for random picks), in table order.
     pub fn ids_of(&self, stand: bool) -> impl Iterator<Item = u16> + '_ {
-        self.powers.iter().enumerate().filter(move |(_, p)| p.kind.is_fruit() != stand).map(|(i, _)| i as u16)
+        self.powers
+            .iter()
+            .enumerate()
+            .filter(move |(_, p)| p.kind.is_fruit() != stand && !p.id.starts_with(MUTAGEN_PREFIX))
+            .map(|(i, _)| i as u16)
+    }
+
+    /// Ids of every mutagen power (for "random:mutagen"), in table order.
+    pub fn mutagen_ids(&self) -> impl Iterator<Item = u16> + '_ {
+        self.powers.iter().enumerate().filter(|(_, p)| p.id.starts_with(MUTAGEN_PREFIX)).map(|(i, _)| i as u16)
     }
 
     pub fn is_rush_token(&self, token: &str) -> bool {

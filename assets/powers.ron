@@ -620,4 +620,148 @@
             (name: "act 3 punch", cooldown: 0.8, ops: [Shove(range: 2.5, angle: 40.0, damage: 8.0, knockback: 8.0)]),
         ],
     ),
+    // ================================================================ TMNT — mutagen (Zoan-style mutation)
+    // Eating the ooze (a Zoan-kind "fruit": expensive, grabbable, a second dose explodes you) mutates you
+    // into an animal hybrid. "mutagen" / "the ooze" gives the classic outcome (turtle); the animal-named
+    // doses give the others. Retro-mutagen (assets/icons/tmnt.ron) is a Water splash: it drains the
+    // mutation for a few seconds like any Water hit.
+    (
+        id: "mutagen_turtle",
+        name: "Mutagen",
+        kind: Zoan,
+        names: ["turtle mutagen", "secret of the ooze", "tcri ooze"],
+        incantations: ["turtle power", "cowabunga"],
+        // "cowabunga <anything>": it comes out shell-guarded and bouncy.
+        delivery: (add: [Guard, Bounce]),
+        shouts: [("cowabunga", 0), ("shell slide", 0), ("turtle power", 1), ("heroes in a half shell", 1)],
+        moves: [
+            (name: "shell slide", cooldown: 1.6, cost: 5.0, ops: [
+                Impulse(fwd: 20.0, up: 2.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 14.0),
+            ]),
+            (name: "turtle form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Ninja turtle hybrid: nimble, and every cast carries the shell (Guard).
+        transform: Some((
+            costume: "ninja turtle",
+            body: (moves: (accel: 1.15, air_control: 1.2, jump: 1.1)),
+            graft: Some((mechanics: [Guard])),
+        )),
+    ),
+    (
+        id: "mutagen_rat",
+        name: "Rat Mutagen",
+        kind: Zoan,
+        names: ["rat mutagen", "splinter's mutagen", "mutagen rat"],
+        incantations: ["rat power"],
+        delivery: (add: [Fast, Grab]),
+        shouts: [("rat swarm", 0), ("rat form", 1)],
+        moves: [
+            (name: "rat swarm", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "rat swarm", form: Quadruped, mech: [Swarm, Fast, Grab], scale: 0.4, mass: 1.0, count: 6, temperament: Aggressive, intensity: 0.8)),
+            ]),
+            (name: "rat form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "rat", body: (moves: (speed: 1.12, accel: 1.2)), graft: Some((mechanics: [Fast])))),
+    ),
+    (
+        id: "mutagen_warthog",
+        name: "Warthog Mutagen",
+        kind: Zoan,
+        names: ["warthog mutagen", "bebop's mutagen", "mutagen warthog"],
+        incantations: ["warthog power"],
+        delivery: (add: [Charge, Blunt]),
+        shouts: [("warthog charge", 0), ("warthog form", 1)],
+        moves: [
+            (name: "warthog charge", cooldown: 1.8, cost: 5.0, ops: [
+                Impulse(fwd: 24.0, up: 1.0),
+                Shove(range: 3.0, angle: 45.0, damage: 14.0, knockback: 18.0),
+            ]),
+            (name: "warthog form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "warthog", body: (moves: (speed: 1.05, accel: 1.1)), graft: Some((mechanics: [Charge])))),
+    ),
+    (
+        id: "mutagen_rhino",
+        name: "Rhino Mutagen",
+        kind: Zoan,
+        names: ["rhino mutagen", "rocksteady's mutagen", "mutagen rhino"],
+        incantations: ["rhino power"],
+        delivery: (add: [Charge, Heavy]),
+        shouts: [("rhino charge", 0), ("rhino form", 1)],
+        moves: [
+            (name: "rhino charge", cooldown: 2.2, cost: 6.0, ops: [
+                Impulse(fwd: 22.0, up: 0.5),
+                Shove(range: 3.2, angle: 40.0, damage: 16.0, knockback: 24.0),
+            ]),
+            (name: "rhino form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Horned and heavy: every cast charges and hits heavy, but the rhino is slower.
+        transform: Some((costume: "rhino", body: (moves: (speed: 0.92, jump: 0.9)), graft: Some((mechanics: [Charge, Heavy])))),
+    ),
+    (
+        id: "mutagen_fly",
+        name: "Fly Mutagen",
+        kind: Zoan,
+        names: ["fly mutagen", "baxter's mutagen", "mutagen fly", "housefly mutagen"],
+        incantations: ["fly power"],
+        delivery: (add: [Flies, Sticky]),
+        shouts: [("fly spit", 0), ("fly form", 1)],
+        moves: [
+            (name: "fly spit", cooldown: 1.0, ops: [
+                Cast(recipe: (name: "fly spit", form: Ball, mech: [Sticky, Fast], element: Poison, scale: 0.4, mass: 0.5)),
+            ]),
+            (name: "fly form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Buzzing flight (below skilled movement) and sticky everything.
+        transform: Some((
+            costume: "fly",
+            body: (moves: (thrust: 18.0, thrust_max: 12.0, gravity: 0.6, glide: 0.4)),
+            graft: Some((mechanics: [Sticky])),
+        )),
+    ),
+    (
+        id: "mutagen_gator",
+        name: "Gator Mutagen",
+        kind: Zoan,
+        names: ["gator mutagen", "alligator mutagen", "leatherhead's mutagen", "mutagen gator"],
+        incantations: ["gator power"],
+        delivery: (add: [Grab, Heavy]),
+        shouts: [("death roll", 0), ("gator form", 1)],
+        moves: [
+            (name: "death roll", cooldown: 1.6, cost: 4.0, ops: [Shove(range: 2.8, angle: 50.0, damage: 14.0, knockback: 12.0, element: Water)]),
+            (name: "gator form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // At home in water: Water hits don't hurt the gator.
+        transform: Some((costume: "alligator", body: (immune: [Water], moves: (speed: 0.95)), graft: Some((mechanics: [Grab])))),
+    ),
+    (
+        id: "mutagen_gecko",
+        name: "Gecko Mutagen",
+        kind: Zoan,
+        names: ["gecko mutagen", "mondo's mutagen", "mutagen gecko"],
+        incantations: ["gecko power"],
+        delivery: (add: [Sticky, Bounce]),
+        shouts: [("gecko hop", 0), ("gecko form", 1)],
+        moves: [
+            (name: "gecko hop", cooldown: 1.2, cost: 4.0, ops: [Impulse(fwd: 16.0, up: 9.0)]),
+            (name: "gecko form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "gecko", body: (moves: (air_control: 1.4, jump: 1.2, speed: 1.08)), graft: Some((mechanics: [Sticky])))),
+    ),
+    (
+        id: "mutagen_wolf",
+        name: "Wolf Mutagen",
+        kind: Zoan,
+        names: ["wolf mutagen", "rahzar's mutagen", "mutagen wolf"],
+        incantations: ["wolf power"],
+        delivery: (add: [Blade, Fast]),
+        shouts: [("howl", 0), ("wolf form", 1)],
+        moves: [
+            // The howl: a short repel blast around you.
+            (name: "howl", cooldown: 3.0, cost: 6.0, ops: [Field(strength: -22.0, radius: 8.0, secs: 0.6)]),
+            (name: "wolf form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((costume: "wolf", body: (moves: (speed: 1.12, accel: 1.15)), graft: Some((mechanics: [Blade])))),
+    ),
 ]
