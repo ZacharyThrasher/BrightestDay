@@ -99,6 +99,12 @@ pub enum MapKind {
     /// Turtle Lair: vaulted sewer lair + tunnels under NYC rooftops, subway chasm (bd_voxel
     /// `generate_lair`; private-use TMNT map).
     Lair,
+    /// Giant's Room: a kid's bedroom at toy scale (×30) — bed, bookshelf, desk, toy track round the
+    /// rug, open-window side KO, soft ceiling star KO (bd_voxel `generate_giant`).
+    GiantsRoom,
+    /// Hyperline: an endless high-speed train chase (a static voxel train, the world streams past;
+    /// the SLIPSTREAM wind; bd_voxel `generate_hyperline`, backdrop `present::hyperline`).
+    Hyperline,
 }
 
 impl MapKind {
@@ -116,6 +122,8 @@ impl MapKind {
             "cybertron" | "iacon" | "kaon" => Some(MapKind::Cybertron),
             "valley" | "valley_of_the_end" => Some(MapKind::Valley),
             "lair" | "turtle_lair" | "tmnt" => Some(MapKind::Lair),
+            "giant" | "giants_room" | "bedroom" => Some(MapKind::GiantsRoom),
+            "train" | "hyperline" => Some(MapKind::Hyperline),
             _ => None,
         }
     }
@@ -360,6 +368,46 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 tutorial: None,
                 arena: Some(info.clone()),
                 // No sea: the metal planet below is drawn by `present::space` (Cybertron style).
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Hyperline => {
+            let (world, m) = bd_voxel::generate_hyperline(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the city shaft, rings and guideway are drawn by `present::hyperline`.
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::GiantsRoom => {
+            let (world, m) = bd_voxel::generate_giant(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // Indoors: no sea; the sunbeam + dust are drawn by `present::giant`.
                 water_y: None,
                 water_color: None,
                 sun_color: Some(m.sun_color),

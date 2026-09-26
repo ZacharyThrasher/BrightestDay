@@ -812,14 +812,52 @@ fn glide_slowfall_and_flight_modifiers() {
 }
 
 #[test]
-fn typing_ignores_movement_keys_but_keeps_momentum() {
+fn typing_suppresses_jump_and_boost_but_keeps_momentum() {
     let p = p();
     let w = FnWorld(|_| false);
     let cw = CollisionWorld::new(&w, &[]);
     let mut s = PlayerState::new(Vec3::new(0.0, 100.0, 0.0), &p);
     s.vel = Vec3::new(20.0, 0.0, 0.0);
-    run(&mut s, &cw, &p, 60, |_, _| input(0.0, 0.0, 1, 1, bd_core::input::buttons::TYPING | JUMP | BOOST), |_, _, _| {});
+    run(&mut s, &cw, &p, 60, |_, _| input(0.0, 0.0, 0, 0, bd_core::input::buttons::TYPING | JUMP | BOOST), |_, _, _| {});
     assert!((s.vel.x - 20.0).abs() < 1e-4 && s.vel.z.abs() < 1e-6 && s.gas == p.gas_max);
+}
+
+#[test]
+fn typing_with_latched_forward_keeps_ground_speed() {
+    // The client latches the move keys held when the ring opens: running while typing never
+    // brakes (voice == typing), and jump stays suppressed.
+    let p = p();
+    let w = floor();
+    let cw = CollisionWorld::new(&w, &[]);
+    let mut s = PlayerState::new(Vec3::new(0.0, 0.01, 0.0), &p);
+    settle(&mut s, &cw, &p);
+    run(&mut s, &cw, &p, 240, |_, _| input(YAW_PX, 0.0, 0, 1, 0), |_, _, _| {});
+    let typing = bd_core::input::buttons::TYPING | JUMP | BOOST;
+    run(&mut s, &cw, &p, 240, |_, _| input(YAW_PX, 0.0, 0, 1, typing), |_, s, _| {
+        assert!(s.grounded, "typing must not jump");
+    });
+    assert!((s.horizontal_speed() - p.run_speed).abs() < 0.05, "typing run speed {}", s.horizontal_speed());
+    assert!(s.vel.x > 9.9 && s.gas == p.gas_max);
+    // Aim still steers the latched wish: turn to +Z (yaw π) and the run follows.
+    run(&mut s, &cw, &p, 120, |_, _| input(PI, 0.0, 0, 1, typing), |_, _, _| {});
+    assert!(s.vel.z > 9.9 && s.vel.x.abs() < 0.1, "typing steer {:?}", s.vel);
+    // Nothing latched (keys released before opening the ring) → coast to a stop as before.
+    run(&mut s, &cw, &p, 120, |_, _| input(PI, 0.0, 0, 0, typing), |_, _, _| {});
+    assert!(s.horizontal_speed() < 0.1, "typing coast {}", s.horizontal_speed());
+}
+
+#[test]
+fn typing_air_strafe_still_gains_speed() {
+    let p = p();
+    let w = FnWorld(|_| false);
+    let cw = CollisionWorld::new(&w, &[]);
+    let mut s = PlayerState::new(Vec3::ZERO, &p);
+    s.mods.gravity_scale = 0.0;
+    s.vel = Vec3::new(0.0, 0.0, -10.0);
+    let typing = bd_core::input::buttons::TYPING;
+    run(&mut s, &cw, &p, 4 * 120, |_, s| input(optimal_strafe_yaw(s.vel, &p, DT, 1, 0, 1.0), 0.0, 1, 0, typing), |_, _, _| {});
+    let v = s.horizontal_speed();
+    assert!(v > 17.0, "typing air strafe only reached {v}");
 }
 
 #[test]

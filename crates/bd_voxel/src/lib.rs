@@ -59,6 +59,8 @@ pub use maps::{SAKURA_SIZE_VOXELS, generate_sakura};
 #[cfg(feature = "valley")]
 pub use maps::{VALLEY_SIZE_VOXELS, generate_valley};
 pub use slipstream::{SlipZone, Slipstream};
+#[cfg(feature = "hyperline")]
+pub use maps::{HYPERLINE_SIZE_VOXELS, generate_hyperline};
 pub use mesh::{ChunkMesh, Mesher, mesh_chunk};
 pub use tutorial::{Medals, Station, TutorialInfo, generate_tutorial, medals_from_bot};
 pub use world::{CHUNK_SIZE, CHUNK_VOLUME, VoxelWorld, chunk_of, chunk_origin};

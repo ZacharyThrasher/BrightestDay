@@ -614,6 +614,9 @@ fn scale_ring(c: &Construct) -> f32 {
 /// Weak points of a construct in its local frame (relative to its centre): nape (top-back), cockpit
 /// (top), two leg joints. Only piloted giants, kaiju and big creatures have them.
 pub fn weak_points(p: &Proxy, out: &mut [(Vec3, f32); 4]) -> usize {
+    if p.giant {
+        return 0; // GIANTS: their anatomy has its own weak points (`giant::damage`)
+    }
     let big = p.has(Mechanic::Piloted) || p.form == Form::Kaiju || (p.category == bd_core::mechanics::FormCategory::Creature && p.half.y >= 1.5);
     if !big {
         return 0;

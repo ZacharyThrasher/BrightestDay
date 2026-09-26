@@ -459,11 +459,44 @@ pub struct Spectacle {
     pub windup: f32,
 }
 
-/// `Some` when a `ConstructSpawned { recipe, cost, forming }` deserves the alert.
+/// Mechanics that hurt / seize whoever is near: a big construct with one of these is a threat.
+const HOSTILE: [Mechanic; 15] = [
+    Mechanic::Explodes,
+    Mechanic::Beam,
+    Mechanic::Shoots,
+    Mechanic::Breath,
+    Mechanic::Blade,
+    Mechanic::Pierce,
+    Mechanic::Blunt,
+    Mechanic::Stomp,
+    Mechanic::Charge,
+    Mechanic::Spin,
+    Mechanic::Trap,
+    Mechanic::Grab,
+    Mechanic::Constrict,
+    Mechanic::DropFromSky,
+    Mechanic::ArticulatedTail,
+];
+
+/// Is this a THREAT worth a DANGER alert? Domains (Trap), palm beams (Beam), erasing orbs, orbital
+/// strikes and anything with a hostile mechanic, a kaiju, an aggressive / chaotic creature, a swarm.
+/// A parachute, wall, ramp or weaponless vehicle is not, however big or pricey ("ULTIMATE PARACHUTE").
+pub fn is_threat(r: &Recipe) -> bool {
+    if HOSTILE.iter().any(|m| r.has(*m)) || orb::is_erasing_orb(r) || is_orbital(r) || r.form == Form::Hands {
+        return true;
+    }
+    r.form.category() == FormCategory::Creature
+        && (r.form == Form::Kaiju
+            || r.has(Mechanic::Swarm)
+            || matches!(r.temperament, bd_core::mechanics::Temperament::Aggressive | bd_core::mechanics::Temperament::Chaotic))
+}
+
+/// `Some` when a `ConstructSpawned { recipe, cost, forming }` deserves the alert: a THREAT (see
+/// [`is_threat`]) that is big or pricey.
 pub fn spectacle(recipe: &Recipe, cost: f32, forming: f32, t: &SignatureTuning) -> Option<Spectacle> {
     let big = recipe.scale >= t.alert_scale || recipe.scale >= crate::rules::COLOSSAL_SCALE;
     let pricey = cost.is_finite() && cost >= t.alert_cost;
-    if !(big || pricey) {
+    if !(big || pricey) || !is_threat(recipe) {
         return None;
     }
     let kind = infer_kind(recipe);
@@ -558,9 +591,43 @@ mod tests {
     fn spectacle_threshold() {
         let t = SignatureTuning::default();
         assert!(spectacle(&rec(Form::Hammer, &[], 1.2), 12.0, 0.15, &t).is_none());
-        let s = spectacle(&rec(Form::Dome, &[Mechanic::Barrier], 18.0), 70.0, 0.7, &t).expect("domain");
+        let s = spectacle(&rec(Form::Dome, &[Mechanic::Barrier, Mechanic::Trap], 18.0), 70.0, 0.7, &t).expect("domain");
         assert_eq!(s.kind, SignatureKind::Domain);
         assert!((s.radius - 18.0).abs() < 1e-4);
         assert!(spectacle(&rec(Form::Kaiju, &[], 14.0), 20.0, 1.2, &t).is_some(), "big things too");
+    }
+
+    /// Owner (Ember screenshot): a bot's "ULTIMATE PARACHUTE" raised the DANGER alert. Only threats do.
+    #[test]
+    fn only_threats_raise_the_alert() {
+        let t = SignatureTuning::default();
+        let rules = MatchRules::default();
+        let ult = |r: Recipe, kind| amplify(r, SignatureCast::new(kind, 1.0), &t, &rules, true);
+        // Harmless / utility ultimates: big and pricey, but no alert.
+        for (name, r) in [
+            ("parachute", ult(rec(Form::Parachute, &[Mechanic::SlowFall, Mechanic::Glide], 2.0), SignatureKind::Transformation)),
+            ("wall", ult(rec(Form::Wall, &[Mechanic::Barrier], 6.0), SignatureKind::Summon)),
+            ("ramp", ult(rec(Form::Ramp, &[Mechanic::Launch], 6.0), SignatureKind::Summon)),
+            ("car", ult(rec(Form::Vehicle, &[Mechanic::Piloted], 6.0), SignatureKind::Summon)),
+            ("trampoline", ult(rec(Form::Trampoline, &[Mechanic::Bounce], 6.0), SignatureKind::Summon)),
+            ("calm dog", rec(Form::Quadruped, &[], 20.0)),
+        ] {
+            assert!(!is_threat(&r), "{name}: {r:?}");
+            assert!(spectacle(&r, 100.0, 0.6, &t).is_none(), "{name} raised the alert");
+        }
+        // Threats: domains, palm beams, erasing orbs, orbital strikes, hostile big things.
+        let dome = ult(rec(Form::Dome, &[Mechanic::Barrier], 4.0), SignatureKind::Domain);
+        let palms = ult(rec(Form::Hands, &[Mechanic::Beam], 1.2), SignatureKind::Beam);
+        let orb = ult(rec(Form::Cannon, &[Mechanic::Pierce, Mechanic::Explodes], 2.0), SignatureKind::Beam);
+        let sky = ult(rec(Form::Disc, &[Mechanic::Flies, Mechanic::DropFromSky, Mechanic::Beam], 4.0), SignatureKind::Beam);
+        let bomb = ult(rec(Form::Bomb, &[Mechanic::Explodes], 2.0), SignatureKind::Summon);
+        let mut wolf = rec(Form::Quadruped, &[], 20.0);
+        wolf.temperament = bd_core::mechanics::Temperament::Aggressive;
+        let kaiju = rec(Form::Kaiju, &[], 20.0);
+        for (name, r) in
+            [("domain", dome), ("palm beam", palms), ("orb", orb), ("orbital", sky), ("bomb", bomb), ("wolf", wolf), ("kaiju", kaiju)]
+        {
+            assert!(spectacle(&r, 100.0, 0.6, &t).is_some(), "{name} is a threat: {r:?}");
+        }
     }
 }

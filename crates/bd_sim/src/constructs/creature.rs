@@ -39,6 +39,7 @@ use bd_core::{ConstructId, PlayerId, Quat, Vec3};
 
 use super::ai::{self, AttackKind, Mode, Target, phase};
 use super::components::{self, XMode};
+use super::giant;
 use super::swarm;
 use super::temperament::{self, Profile};
 use super::{AnimState, Construct, ConstructOut, Driver, Env, Interaction, Loco, PlayerView, SpawnParams, player_key};
@@ -119,7 +120,8 @@ pub fn kind_of(c: &Construct) -> Kind {
     let spirit = form == Form::Blob && (c.has(Mechanic::Flies) || c.recipe.temperament != Temperament::Calm);
     let swimmer = form == Form::Fish && !c.has(Mechanic::Flies);
     let robot = is_robot(c);
-    let flier = !robot && (spirit || c.has(Mechanic::Flies) || matches!(form, Form::Bird | Form::Insect));
+    // GIANTS: a giant whose wings were cut off walks.
+    let flier = !robot && (spirit || c.has(Mechanic::Flies) || matches!(form, Form::Bird | Form::Insect)) && !giant::grounded_by_wings(c);
     let vehicle = !robot && (form == Form::Vehicle || (c.has(Mechanic::Transforms) && c.category != FormCategory::Creature));
     let hopper = form == Form::Blob && !spirit;
     let mut speed = base_speed(c) * temperament::speed_mult(c);
@@ -162,6 +164,13 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     }
     init(c);
     tick_timers(c, dt);
+    // GIANTS: anatomy on the first active tick; timers; shockwaves run whatever the body does.
+    let gt = &env.ctx.tuning.giants;
+    giant::init(c, gt, out);
+    if c.ai.giant.on {
+        giant::tick(c, dt);
+        giant::step_shocks(c, env, gt, out);
+    }
     // Framework holds: frozen / rooted (cage) / pinned (slammed, toppled) / carried, or a
     // transformation in progress (`components::drive` already claimed `Hold` and moves the body).
     if components::is_held_down(c) || c.comp.xform.busy {
@@ -191,6 +200,52 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     c.body.loco = Loco::Kinematic;
     let prof = temperament::of(c);
     let mut k = kind_of(c);
+
+    // ---- GIANTS: hijack, topple (a leg gave out), stagger (weak-point crit) ----
+    if c.ai.giant.on {
+        if let Some(pid) = giant::step_hijack(c, env, gt, out) {
+            c.owner = pid;
+            c.target = None;
+            c.ai.target = Target::None;
+            cancel_hold(c);
+        }
+        if giant::begin_topple(c, out) {
+            abort_attack(c, env, out);
+            cancel_hold(c);
+            if k.flier {
+                c.ai.giant.topple_y = ai::ground_at(env.ctx.voxels, c.pos, 1.0, 60.0).unwrap_or(c.pos.y);
+            }
+        }
+        if giant::step_topple(c, env, gt, out) {
+            abort_attack(c, env, out);
+            cancel_hold(c);
+            set_mode(c, Mode::Toppled, out);
+            c.grounded = true;
+            c.ai.airborne = false;
+            c.ai.speed = 0.0;
+            return;
+        }
+        if c.ai.giant.stagger > 0.0 {
+            if c.ai.giant.stagger_new {
+                c.ai.giant.stagger_new = false;
+                abort_attack(c, env, out);
+                cancel_hold(c);
+                c.anim_state = AnimState::Idle;
+                c.set_anim(AnimState::Recover, env.tick());
+            }
+            set_mode(c, Mode::Staggered, out);
+            c.vel.x *= 0.85;
+            c.vel.z *= 0.85;
+            if k.flier || k.swimmer {
+                c.vel.y *= 0.85;
+                fly(c, env, &k);
+            } else {
+                walk(c, env, &k, false);
+            }
+            c.ai.speed = flat(c.vel).length();
+            return;
+        }
+    }
 
     // ---- counters: pinned (slammed / toppled), rooted (caged) ----
     detect_counters(c, env, &k, out);
@@ -224,7 +279,7 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     }
 
     // ---- target ----
-    let target = choose_target(c, env, &prof);
+    let target = choose_target(c, env, &prof, out);
     let tpos = target_pos(env, target);
 
     // ---- holds (Grab / Constrict) ----
@@ -261,7 +316,7 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     // ---- locomotion ----
     let (goal, stop, mode) = goal_for(c, env, &k, &prof, target, tpos);
     set_mode(c, mode, out);
-    let speed = k.speed * move_scale;
+    let speed = k.speed * move_scale * giant::speed_mult(c, gt); // GIANTS: a damaged leg limps
     locomote(c, env, &k, &prof, goal, stop, speed, tpos);
     anim_moving(c, env, speed);
     if k.kaiju || c.has(Mechanic::Stomp) && k.h >= 3.0 {
@@ -341,7 +396,7 @@ fn tick_timers(c: &mut Construct, dt: f32) {
 // ============================================================================ targeting
 
 /// Current target (players via `ai::pick_target`; Chaotic also other people's constructs).
-fn choose_target(c: &mut Construct, env: &Env<'_>, prof: &Profile) -> Target {
+fn choose_target(c: &mut Construct, env: &Env<'_>, prof: &Profile, out: &mut ConstructOut) -> Target {
     if prof.hits_anyone {
         // Chaotic: re-roll among everything in range every `retarget_secs`.
         let still_ok = match c.ai.target {
@@ -376,7 +431,12 @@ fn choose_target(c: &mut Construct, env: &Env<'_>, prof: &Profile) -> Target {
             };
         }
     } else {
-        c.ai.target = env.target_for(c).map_or(Target::None, |p| Target::Player(p.id));
+        // GIANTS: the summoner's command (crosshair hold / a named enemy) comes first.
+        let focus = if c.ai.giant.on { giant::command(c, env, &env.ctx.tuning.giants, out) } else { None };
+        c.ai.target = match focus {
+            Some(p) => Target::Player(p),
+            None => env.target_for(c).map_or(Target::None, |p| Target::Player(p.id)),
+        };
     }
     c.target = match c.ai.target {
         Target::Player(p) => Some(p),
@@ -733,6 +793,9 @@ fn footsteps(c: &mut Construct, env: &Env<'_>, k: &Kind, out: &mut ConstructOut)
     let foot = c.pos + right * (k.radius * 0.45 * side) + c.forward() * (k.radius * 0.3);
     let r = (k.h * 0.08).clamp(1.0, 4.0);
     out.carves.push(CarveRequest { center: foot, radius: r, power: 0.6 });
+    if c.ai.giant.on {
+        return; // GIANTS: walking never hurts (no ambient launches) — only its attacks do
+    }
     let ring = (k.h * 0.3).clamp(2.0, 12.0);
     for t in env.ctx.enemies_of(c.owner) {
         if t.grounded && (t.pos - foot).length() < ring {
@@ -836,7 +899,7 @@ fn melee_kind(c: &Construct, k: &Kind) -> AttackKind {
         AttackKind::Grab
     } else if c.has(Mechanic::Pull) {
         AttackKind::Lash
-    } else if k.arms {
+    } else if k.arms && giant::has_arm(c) {
         AttackKind::Swipe
     } else {
         AttackKind::Bite
@@ -883,6 +946,7 @@ fn try_start_attack(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, 
     // 1. ArticulatedTail: 360° sweep when someone is close (especially behind).
     let mk = melee_kind(c, k);
     if c.has(Mechanic::ArticulatedTail)
+        && giant::can(c, AttackKind::TailSweep)
         && ready(AttackKind::TailSweep)
         && hdist < k.radius + k.h * 0.9 + 1.0
         && (facing < 0.3 || k.kaiju || !ready(mk))
@@ -891,7 +955,9 @@ fn try_start_attack(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, 
         return;
     }
     // 2. Stomp: ring shockwave (kaiju always can).
-    if (c.has(Mechanic::Stomp) || k.kaiju) && ready(AttackKind::Stomp) && c.grounded && hdist < stomp_ring(k) * 0.85 {
+    // GIANTS: the shockwave runs further than the old ring, so they stomp from further out.
+    let stomp_from = if c.ai.giant.on { (k.h * env.ctx.tuning.giants.shock_reach).clamp(6.0, 30.0) * 0.6 } else { stomp_ring(k) * 0.85 };
+    if (c.has(Mechanic::Stomp) || k.kaiju) && ready(AttackKind::Stomp) && c.grounded && hdist < stomp_from {
         start_attack(c, env, AttackKind::Stomp, front, out);
         return;
     }
@@ -929,6 +995,24 @@ fn stomp_ring(k: &Kind) -> f32 {
 fn start_attack(c: &mut Construct, env: &Env<'_>, kind: AttackKind, aim: Vec3, out: &mut ConstructOut) {
     c.ai.attack = ai::AttackRun { kind, t: 0.0, running: true, aim, emitted: 1, pulse: 0.0 };
     c.hits.clear();
+    // GIANTS: a warning (glow + audio) before the clip's own telegraph — nothing a giant does is
+    // unreadable. The clip starts when it runs out (`advance_attack`).
+    if c.ai.giant.on {
+        if kind == AttackKind::Swipe {
+            giant::choose_swipe_side(c, c.center() + aim * 5.0);
+        }
+        let warn = giant::warn_secs(&env.ctx.tuning.giants, kind);
+        if warn > 0.0 {
+            c.ai.attack.t = -warn;
+            out.events.push(GameEvent::Giant(giant::GiantEvent::Warn { id: c.id, kind: kind as u8, aim, secs: warn }));
+            return;
+        }
+    }
+    begin_clip(c, env, kind, aim, out);
+}
+
+/// The attack clip starts (clip time 0 = this tick = the client's `anim_since`).
+fn begin_clip(c: &mut Construct, env: &Env<'_>, kind: AttackKind, aim: Vec3, out: &mut ConstructOut) {
     let s = match kind {
         AttackKind::Charge | AttackKind::Breath | AttackKind::Swoop => AnimState::Telegraph,
         _ => AnimState::Windup,
@@ -958,6 +1042,28 @@ fn advance_attack(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, ou
     let dt = env.dt();
     let kind = c.ai.attack.kind;
     let tm = timing(c, kind);
+    if c.ai.attack.t < 0.0 {
+        // GIANTS: the warning — slowed, still tracking, then the clip begins.
+        if let Some(tc) = target_center(env, c.ai.target) {
+            let want = (tc - c.center()).normalize_or(c.ai.attack.aim);
+            c.ai.attack.aim = (c.ai.attack.aim + (want - c.ai.attack.aim) * (4.0 * dt).min(1.0)).normalize_or(want);
+        }
+        let fa = flat(c.ai.attack.aim);
+        if fa.length_squared() > 1e-4 {
+            c.rot = c.rot.slerp(geom::yaw_rotation(fa), (4.0 * dt).min(1.0)).normalize();
+        }
+        let t1 = c.ai.attack.t + dt;
+        if t1 >= -1e-5 {
+            c.ai.attack.t = 0.0;
+            if kind == AttackKind::Swipe {
+                giant::choose_swipe_side(c, c.center() + c.ai.attack.aim * 5.0);
+            }
+            begin_clip(c, env, kind, c.ai.attack.aim, out);
+        } else {
+            c.ai.attack.t = t1;
+        }
+        return 0.45;
+    }
     let t0 = c.ai.attack.t;
     let t1 = t0 + dt;
     c.ai.attack.t = t1;
@@ -1099,6 +1205,11 @@ fn attack_window(
     let aim = c.ai.attack.aim;
     let here = c.center();
     match kind {
+        // GIANTS: a swipe is an arc sweeping across the front (dodge through it).
+        AttackKind::Swipe if c.ai.giant.on => {
+            let impact = impact_of(c, k, kind);
+            giant::swipe(c, env, &env.ctx.tuning.giants, k.reach, k.radius, u0, u1, tm.anticipation, tm.active, bd * 1.1 * dm, bk * km, impact, out);
+        }
         AttackKind::Bite | AttackKind::Swipe | AttackKind::Lash | AttackKind::Grab | AttackKind::Constrict => {
             let reach = if kind == AttackKind::Lash { k.reach * 2.5 + 1.0 } else { k.reach };
             // Strike along the (tracked, 3D) attack aim: a kaiju swipes *down* at a player.
@@ -1223,7 +1334,13 @@ fn stomp(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, out: &mut C
     let ct = &env.ctx.tuning.creature; // TUNING HOOK
     let dmg = if k.kaiju { ct.stomp_damage_kaiju } else { ct.stomp_damage } * dm;
     let kb = if k.kaiju { ct.stomp_knockback_kaiju } else { ct.stomp_knockback } * km;
-    for t in env.ctx.enemies_of(c.owner) {
+    // GIANTS: the foot blow, then a shockwave ring along the ground (a jump clears it).
+    let giant_ring = c.ai.giant.on;
+    if giant_ring {
+        let impact = impact_of(c, k, AttackKind::Stomp);
+        giant::stomp(c, env, &env.ctx.tuning.giants, at, dmg, kb, impact, out);
+    }
+    for t in env.ctx.enemies_of(c.owner).filter(|_| !giant_ring) {
         let d = flat(t.pos - at).length();
         if d > ring || (t.pos.y - at.y) > 2.0 + k.h * 0.1 || !c.hits.insert(player_key(t.id)) {
             continue;
@@ -1263,12 +1380,14 @@ fn tail_sweep(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, u0: f3
     // 360°: sweep angle progresses over the active window; everything within reach whose bearing
     // the tail passed this tick is hit (once).
     let back = -flat(c.forward()).normalize_or(Vec3::NEG_Z);
+    // GIANTS: the tail sweeps along the ground — riders on the back are above it.
+    let top = if c.ai.giant.on { giant::tail_top(c) } else { k.h + 1.5 };
     let span = tm.active.max(1e-3);
     let a0 = ((u0 - tm.anticipation) / span).clamp(0.0, 1.0) * std::f32::consts::TAU;
     let a1 = ((u1 - tm.anticipation) / span).clamp(0.0, 1.0) * std::f32::consts::TAU;
     for t in env.ctx.enemies_of(c.owner) {
         let d = flat(t.pos - here);
-        if d.length() > reach || (t.pos.y - here.y).abs() > k.h + 1.5 {
+        if d.length() > reach || (t.pos.y - here.y).abs() > k.h + 1.5 || t.pos.y - here.y > top {
             continue;
         }
         let bearing = angle_from(back, d);

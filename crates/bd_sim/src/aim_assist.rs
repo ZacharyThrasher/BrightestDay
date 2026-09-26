@@ -249,7 +249,8 @@ pub fn pick_target(
         if cos < cos_cone && !under {
             continue;
         }
-        let score = (1.0 - cos.min(1.0)) * 10.0 + dist / range;
+        // Angle off the crosshair first (degrees), distance as a tie-break (≤ 2 deg worth).
+        let score = cos.clamp(-1.0, 1.0).acos().to_degrees() + 2.0 * dist / range;
         if best.is_some_and(|(_, _, s)| score >= s) {
             continue;
         }

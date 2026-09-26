@@ -34,12 +34,12 @@
         (words: "plop", via: Onto, mech: [DropFromSky], strict: true),
         (words: "smite", via: Onto, mech: [DropFromSky], alone: Some("lightning bolt")),
         (words: "smash", via: Onto, mech: [DropFromSky], strict: true),
-        (words: "rain down", via: Onto, rewrite: Some("rain of {}")),
-        (words: "rain", via: Onto, rewrite: Some("rain of {}"), strict: true),
+        (words: "rain down", via: Onto, mech: [DropFromSky], rewrite: Some("rain of {}")),
+        (words: "rain", via: Onto, mech: [DropFromSky], rewrite: Some("rain of {}"), strict: true),
         (words: "shower", via: Onto, rewrite: Some("shower of {}"), strict: true),
         (words: "hail", via: Onto, rewrite: Some("hail of {}"), strict: true),
         (words: "pelt", via: Onto, rewrite: Some("hail of {}"), strict: true),
-        (words: "nuke", via: Onto, alone: Some("nuclear bomb"), strict: true),
+        (words: "nuke", via: Onto, alone: Some("nuke"), strict: true),
 
         (words: "throw", via: At),
         (words: "throws", via: At),
@@ -54,23 +54,23 @@
         (words: "fire", via: At, strict: true),
         (words: "fire off", via: At),
         (words: "shoot", via: At),
-        (words: "send", via: At, strict: true),
+        (words: "send", via: At, strict: true, generic: true),
         (words: "sling", via: At, strict: true),
         (words: "catapult", via: At),
         (words: "kick", via: At, strict: true),
         (words: "hit", via: At, strict: true),
         (words: "snipe", via: At, alone: Some("sniper rifle"), strict: true),
 
-        (words: "summon", via: Near),
-        (words: "spawn", via: Near, strict: true),
-        (words: "call", via: Near, strict: true),
-        (words: "call forth", via: Near),
-        (words: "conjure", via: Near),
-        (words: "unleash", via: Near),
-        (words: "release", via: Near, strict: true),
-        (words: "put", via: Near, strict: true),
-        (words: "place", via: Near, strict: true),
-        (words: "plant", via: Near, strict: true),
+        (words: "summon", via: Near, generic: true),
+        (words: "spawn", via: Near, strict: true, generic: true),
+        (words: "call", via: Near, strict: true, generic: true),
+        (words: "call forth", via: Near, generic: true),
+        (words: "conjure", via: Near, generic: true),
+        (words: "unleash", via: Near, generic: true),
+        (words: "release", via: Near, strict: true, generic: true),
+        (words: "put", via: Near, strict: true, generic: true),
+        (words: "place", via: Near, strict: true, generic: true),
+        (words: "plant", via: Near, strict: true, generic: true),
 
         (words: "sic", via: Hunt),
         (words: "sick", via: Hunt),
@@ -86,6 +86,8 @@
         (words: "entomb", via: Around, alone: Some("stone dome")),
         (words: "wall in", via: Around, alone: Some("wall")),
         (words: "box in", via: Around, alone: Some("cage")),
+        (words: "lock", via: Around, alone: Some("cage"), strict: true),
+        (words: "lock up", via: Around, alone: Some("cage")),
         (words: "bury", via: Onto, alone: Some("boulder"), strict: true),
         (words: "crush", via: Onto, alone: Some("anvil"), strict: true),
         (words: "squash", via: Onto, alone: Some("anvil"), strict: true),
@@ -98,13 +100,21 @@
         (words: "blast", via: At, alone: Some("energy blast"), strict: true),
         (words: "attack", via: Hunt, alone: Some("wolf"), strict: true),
         (words: "bomb", via: Onto, alone: Some("bomb"), strict: true),
+        (words: "eat", via: Hunt, alone: Some("shark"), strict: true),
+        (words: "sting", via: Hunt, alone: Some("bees"), strict: true),
+        (words: "bite", via: Hunt, alone: Some("wolf"), strict: true),
+        (words: "stomp", via: Onto, alone: Some("giant foot"), strict: true),
+        (words: "squish", via: Onto, alone: Some("anvil"), strict: true),
     ],
 
     // "<verb> <name> [with <thing>]": verbs that take the player as their object ("cage ethan", "smite
     // jake", "hit mia with a meteor", "surround sam with wolves"). Must also be in `verbs`.
-    target_verbs: ["cage", "trap", "smite", "nuke", "hit", "pelt", "crush", "squash", "flatten", "bury", "surround",
+    target_verbs: ["cage", "trap", "lock", "lock up", "eat", "sting", "bite", "stomp", "squish", "smite", "nuke", "hit", "pelt", "crush", "squash", "flatten", "bury", "surround",
         "encase", "imprison", "entomb", "wall in", "box in", "zap", "strike", "freeze", "burn", "torch", "blast",
         "attack", "bomb", "snipe", "chase", "hunt", "smash", "shower", "rain on", "drop on"],
+
+    // "<verb> <name> with|in <thing>": the thing ("hit mia with a meteor", "trap nova in a bubble").
+    with_words: ["with", "using", "w", "in", "inside", "into", "under", "beneath"],
 
     // Prepositions that aim the phrase at a player ("<thing> <prep> <name>"). Longest match first.
     preps: [
@@ -145,7 +155,8 @@
     weak_preps: ["on", "onto", "upon", "over", "to", "into", "for", "by", "under", "below", "above", "in front of", "near"],
     // Words allowed after the name ("at jake's head now!").
     after_name: ["now", "please", "plz", "head", "face", "feet", "butt", "back", "again", "right", "now", "already",
-        "fast", "quick", "quickly", "asap", "too", "lol", "bro"],
+        "fast", "quick", "quickly", "asap", "too", "lol", "bro", "spawn", "base", "house", "side", "position", "location",
+        "spot", "place", "team", "hideout", "camp", "tower", "corner"],
     // Name tokens too generic to identify a player on their own ("xX_Nova_Xx" -> "nova" counts, "xx" not).
     name_noise: ["xx", "x", "xxx", "the", "mr", "mrs", "ms", "dr", "sir", "lord", "lil", "big", "little", "iam", "im",
         "real", "official", "ttv", "yt", "tv", "gaming", "games", "gamer", "plays", "pro", "og"],
@@ -153,4 +164,20 @@
     // "Around" a player: structures that only make sense as an enclosure become one (a wall around Sam
     // is a cage). (from, to) form names.
     around_forms: [("Wall", "Cage"), ("Pillar", "Cage"), ("Platform", "Cage")],
+
+    // Verb + next word that is a thing of its own ("rain boots" are boots, "fire truck" is a truck): never a
+    // delivery. (Known lexicon phrases are also caught automatically; these are the ones it misses.)
+    not_verbs: ["rain boot", "rain boots", "rain coat", "rain jacket", "rain cloud", "rain drop", "rain dance", "rain bow",
+        "rain forest", "rain gauge", "fire truck", "fire ball", "fire ant", "fire hydrant", "fire extinguisher", "fire alarm",
+        "fire engine", "fire hose", "fire station", "fire works", "fire fly", "fire wall", "fire place", "fire pit",
+        "fire cracker", "fire man", "fire fighter", "fire storm", "fire bird", "fire sword", "fire axe", "fire whip",
+        "drop kick", "drop bear", "drop ship", "drop pod", "drop tower", "drop zone", "launch pad", "shower head",
+        "shower curtain", "hail mary", "crash test", "crash dummy", "trap door", "cage fighter", "hit man", "pitch fork",
+        "set piece", "place holder", "kick drum", "kick scooter", "bomb shelter", "blast door", "throw pillow",
+        "throw blanket", "strike team", "torch light", "call center", "send off", "spawn point", "hunt party",
+        "chase car", "bite size", "sting ray", "lock pick", "lock box", "plant pot", "release valve", "put put",
+        "smash cake", "slam dunk", "crush depth", "toss up", "chuck norris", "pelt coat", "dump truck", "set trap"],
+    // "<thing> <prep> the <place>": the place is where to cast it (see intent.rs `location_head`).
+    location_preps: ["over", "on", "on top of", "in", "at", "near", "above", "under", "behind", "into", "onto", "around",
+        "across", "through", "inside", "outside", "beside", "next to", "in front of", "by"],
 )

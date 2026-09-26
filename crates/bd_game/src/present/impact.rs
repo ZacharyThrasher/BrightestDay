@@ -30,6 +30,11 @@ use bevy::picking::Pickable;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
+/// CONNECT juice: tiered asymmetric hit-stop, victim shake / flash, contact drag, sparks, finisher
+/// slow-mo, lunge feel (`assets/tuning/juice.ron`).
+#[path = "connect.rs"]
+pub mod connect;
+
 /// Render-side hit-stop: visuals of these players / constructs hold still until the given real
 /// time (the rest of the world keeps moving, so it reads as contact, not lag).
 #[derive(Resource, Default)]
@@ -37,6 +42,10 @@ pub struct HitFreeze {
     pub players: HashMap<PlayerId, f64>,
     pub constructs: HashMap<ConstructId, f64>,
     pub now: f64,
+    /// CONNECT: victim hit-shake during the freeze: (dir, amplitude m, Hz, start, until).
+    pub shakes: HashMap<PlayerId, (Vec3, f32, f32, f64, f64)>,
+    /// CONNECT: victim white flash: (peak, start, until).
+    pub flashes: HashMap<PlayerId, (f32, f64, f64)>,
 }
 
 impl HitFreeze {
@@ -50,6 +59,47 @@ impl HitFreeze {
         let until = self.now + secs as f64;
         let e = self.players.entry(id).or_insert(0.0);
         *e = e.max(until);
+    }
+    /// Hold a player's visuals for `secs` (longest request wins).
+    pub fn hold_player(&mut self, id: PlayerId, secs: f32) {
+        self.freeze_player(id, secs);
+    }
+    pub fn hold_construct(&mut self, id: ConstructId, secs: f32) {
+        let until = self.now + secs as f64;
+        let e = self.constructs.entry(id).or_insert(0.0);
+        *e = e.max(until);
+    }
+    /// Shake a frozen victim along `dir` (a jitter that decays over `secs`).
+    pub fn set_shake(&mut self, id: PlayerId, dir: Vec3, amp: f32, hz: f32, secs: f32) {
+        if amp > 0.0 && secs > 0.0 {
+            self.shakes.insert(id, (dir.normalize_or(Vec3::X), amp, hz, self.now, self.now + secs as f64));
+        }
+    }
+    /// Flash a victim white, fading over `secs`.
+    pub fn set_flash(&mut self, id: PlayerId, peak: f32, secs: f32) {
+        if peak > 0.0 && secs > 0.0 {
+            let old = self.flash_of(id);
+            self.flashes.insert(id, (peak.max(old), self.now, self.now + secs as f64));
+        }
+    }
+    /// This frame's hit-shake offset of a player's body (zero when none).
+    pub fn shake_offset(&self, id: PlayerId) -> Vec3 {
+        let Some(&(dir, amp, hz, t0, t1)) = self.shakes.get(&id) else { return Vec3::ZERO };
+        if self.now >= t1 || t1 <= t0 {
+            return Vec3::ZERO;
+        }
+        let u = ((self.now - t0) / (t1 - t0)) as f32;
+        let ph = (self.now - t0) as f32 * hz * std::f32::consts::TAU;
+        dir * (amp * (1.0 - u) * ph.sin())
+    }
+    /// This frame's white flash (0..1) of a player's body.
+    pub fn flash_of(&self, id: PlayerId) -> f32 {
+        let Some(&(peak, t0, t1)) = self.flashes.get(&id) else { return 0.0 };
+        if self.now >= t1 || t1 <= t0 {
+            return 0.0;
+        }
+        let u = ((self.now - t0) / (t1 - t0)) as f32;
+        peak * (1.0 - u) * (1.0 - u)
     }
 }
 
@@ -80,7 +130,8 @@ pub struct ImpactPlugin;
 
 impl Plugin for ImpactPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<HitFreeze>()
+        app.add_plugins(connect::ConnectPlugin)
+            .init_resource::<HitFreeze>()
             .init_resource::<CrosshairFlare>()
             .add_systems(OnEnter(AppState::InGame), spawn_flare)
             .add_systems(OnExit(AppState::InGame), despawn_flare)
@@ -119,9 +170,10 @@ fn present_hits(
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     arena: Option<Res<crate::arena::ArenaWorld>>,
-    ads: Option<Res<super::ads::AdsState>>,
+    (ads, juice_t): (Option<Res<super::ads::AdsState>>, Res<connect::JuiceTuningRes>),
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
+    let _ = &mut hitstop;
     // Orbit presents top / bottom KOs itself (`present::space`: drift into the stars, re-entry).
     let orbit = arena.is_some_and(|a| a.info.kind == crate::arena::MapKind::Orbit);
     let (mut sfx, mut burst, mut ono, mut shatter, mut impulses) = fx_out;
@@ -139,33 +191,21 @@ fn present_hits(
     let mut hit_sounds = 0;
     for ev in events.read() {
         match &ev.event {
-            GameEvent::Hit { target, source, construct, kind: _, element, damage, knockback, point, tumble, lethal, crit, impact: fx, .. } => {
+            GameEvent::Hit { target, source, construct, kind, element, damage, knockback, point, tumble, lethal, crit, impact: fx, .. } => {
                 let p = bv(*point);
                 let dir = bv(fx.dir).normalize_or_zero();
                 let strength = fx.strength.max(0.05);
                 let col = corps_rgb(corps_of(*source));
-                // Time: freeze attacker + victim visuals (+ their construct).
-                let mut stop = fx.hitstop_ms as f32 / 1000.0;
-                if *lethal {
-                    stop += 0.08;
-                }
-                freeze.freeze_player(*target, stop);
-                if let Some(s) = source {
-                    freeze.freeze_player(*s, stop);
-                }
-                if let Some(c) = construct {
-                    let until = freeze.now + stop as f64;
-                    let e = freeze.constructs.entry(*c).or_insert(0.0);
-                    *e = e.max(until);
-                }
+                // Time (tiered, asymmetric hit-stop), victim shake / flash, the attacker's camera
+                // punch + contact drag, sparks, sub, finisher: `connect` (juice.ron).
+                let tier = connect::tier(&juice_t.0, *kind, fx.strength, fx.heavy, *knockback, *lethal);
+                let word_k = juice_t.0.word_scale[tier as usize].max(0.1);
+                let _ = construct;
                 pushes.add(p, dir * knockback.min(40.0), 1.5 + strength);
                 let local_victim = local == Some(*target);
                 let local_attacker = source.is_some() && local == *source;
-                if local_victim || local_attacker {
+                if local_victim {
                     impact.write(Impact { impact: strength, dir, local_victim, color: rgb_color(col) });
-                    if *lethal {
-                        hitstop.write(HitStop { secs: 0.08 });
-                    }
                 }
                 if local_attacker {
                     flare.hit(if *crit { 1.0 } else { 0.45 + 0.3 * strength.min(1.0) }, if *crit { [1.0, 0.95, 0.8] } else { [1.0; 3] });
@@ -185,14 +225,14 @@ fn present_hits(
                 if let Some(w) = element_word(*element) {
                     burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir, scale: 0.5 + strength * 0.5, color: None });
                     let (wp, ws) = super::ads::off_sight_line(p, strength, eye, fwd, ads_blend);
-                    let mut o = SpawnOnomatopoeia::key(w, wp, ws, col);
+                    let mut o = SpawnOnomatopoeia::key(w, wp, ws * word_k, col);
                     o.dir = dir;
                     o.event_id = event_hash(ev.tick, target.0 as u64);
                     o.local_player = local_victim || local_attacker;
                     ono.write(o);
                 } else if fx.heavy || strength > 0.6 || *damage > 18.0 {
                     let (wp, ws) = super::ads::off_sight_line(p, strength, eye, fwd, ads_blend);
-                    let mut o = SpawnOnomatopoeia::key(if strength > 0.9 { "hit_heavy" } else { "hit_light" }, wp, ws, col);
+                    let mut o = SpawnOnomatopoeia::key(if strength > 0.9 { "hit_heavy" } else { "hit_light" }, wp, ws * word_k, col);
                     o.dir = dir;
                     o.event_id = event_hash(ev.tick, target.0 as u64);
                     o.local_player = local_victim || local_attacker;
@@ -399,6 +439,8 @@ fn present_hits(
     let now = freeze.now;
     freeze.players.retain(|_, t| *t > now);
     freeze.constructs.retain(|_, t| *t > now);
+    freeze.shakes.retain(|_, s| s.4 > now);
+    freeze.flashes.retain(|_, f| f.2 > now);
 }
 
 /// A short hot point-light flash (explosions, muzzle flashes).

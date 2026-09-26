@@ -297,14 +297,18 @@ fn main() {
     sec_z.save(parts.join("section_ns.png")).unwrap();
 
     let lin = |c: [f32; 3]| Vec3::new(c[0].powf(2.2), c[1].powf(2.2), c[2].powf(2.2));
-    let look = Look { fog: lin(info.fog_color) * 0.8, fog_end: info.fog_end, neon: info.neon_boost, sun: sun_dir(), sun_col: lin(info.sun_color) };
+    let look =
+        Look { fog: lin(info.fog_color) * 0.8, fog_end: info.fog_end, neon: info.neon_boost, sun: sun_dir(), sun_col: lin(info.sun_color) };
     let (wpx, hpx) = (640, 360);
     let f = FLOOR_Y;
     let shots: Vec<(&str, RgbImage)> = vec![
-        ("carpet_to_bed", shot(&world, &look, Vec3::new(18.0, f + 1.1, 12.0), Vec3::new(-45.0, f + 12.0, 26.0), 80.0, wpx, hpx)),
-        ("desk_down", shot(&world, &look, Vec3::new(24.0, giant::DESK_TOP + 1.7, -38.0), Vec3::new(-10.0, f, 10.0), 84.0, wpx, hpx)),
-        ("track", shot(&world, &look, Vec3::new(-8.0, f + 2.1, giant::TRACK_S), Vec3::new(40.0, f + 1.0, giant::TRACK_S + 6.0), 80.0, wpx, hpx)),
-        ("sunbeam", shot(&world, &look, Vec3::new(-30.0, f + 3.0, 4.0), Vec3::new(HX, 46.0, 0.0), 84.0, wpx, hpx)),
+        ("carpet_to_bed", shot(&world, &look, Vec3::new(20.0, f + 2.1, 16.0), Vec3::new(-45.0, f + 12.0, 26.0), 80.0, wpx, hpx)),
+        ("desk_down", shot(&world, &look, Vec3::new(19.0, giant::DESK_TOP + 1.7, -41.0), Vec3::new(-15.0, f, 18.0), 84.0, wpx, hpx)),
+        (
+            "track",
+            shot(&world, &look, Vec3::new(-8.0, f + 2.1, giant::TRACK_S), Vec3::new(40.0, f + 1.0, giant::TRACK_S + 6.0), 80.0, wpx, hpx),
+        ),
+        ("sunbeam", shot(&world, &look, Vec3::new(-24.0, f + 2.0, 24.0), Vec3::new(HX, 44.0, 0.0), 84.0, wpx, hpx)),
         ("bookshelf", shot(&world, &look, Vec3::new(-30.0, f + 8.0, -30.0), Vec3::new(-55.0, 30.0, -38.0), 80.0, wpx, hpx)),
         ("fan_overview", shot(&world, &look, Vec3::new(52.0, 72.0, 44.0), Vec3::new(-10.0, f, -10.0), 84.0, wpx, hpx)),
     ];

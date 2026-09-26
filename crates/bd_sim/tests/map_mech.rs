@@ -243,3 +243,28 @@ fn the_space_bridge_is_permanent_and_carries_players() {
     }
     assert!(through, "walking into the Iacon gate should come out of the Kaon gate");
 }
+
+#[test]
+fn every_cybertron_mover_cycles_with_players_around() {
+    let (v, m) = bd_voxel::maps::generate_cybertron(1);
+    let mut w = World::with_arena(SimConfig { check_invariants: true, ..SimConfig::default() }, v, m.arena, 1);
+    for k in 0..4u8 {
+        w.add_player(PlayerId(k + 1), format!("p{k}"), Corps::from_index(k)).unwrap();
+    }
+    w.start_live();
+    let n = w.arena.mechanics.movers.len();
+    assert_eq!(n, 5);
+    assert_eq!(w.portals.iter().filter(|p| p.owner == MAP_OWNER).count(), 1);
+    let mut extended = vec![0u32; n];
+    for _ in 0..(90 * TICK_HZ) {
+        let evs = w.tick(&[]).to_vec();
+        for (i, ph, _) in mover_events(&evs) {
+            if ph == MoverPhase::Extended {
+                extended[i as usize] += 1;
+            }
+        }
+    }
+    for (i, m) in w.arena.mechanics.movers.iter().enumerate() {
+        assert!(extended[i] >= 2, "{} extended only {} times in 90 s", m.name, extended[i]);
+    }
+}

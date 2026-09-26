@@ -10,7 +10,7 @@ use bd_sim::combat::{HitInfo, HitKind};
 use bd_sim::events::{CastError, GameEvent, GoneReason, KoCause};
 use bd_sim::replicate::{DeltaDecoder, DeltaEncoder, WorldSnapshot};
 use bd_sim::rng::Fnv64;
-use bd_sim::rules::{CapMode, MatchPhase, ScaleLimit, WillpowerMode};
+use bd_sim::rules::{ConstructLimits, MatchPhase, ScaleLimit, WillpowerMode};
 use bd_sim::space::{LinkEnd, PortalEnd};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, TargetHint, World};
 
@@ -436,7 +436,7 @@ fn slot_limits_replace_the_oldest() {
     run(&mut w, 1);
     assert_eq!(w.constructs.held_by(A).unwrap().recipe.form, Form::Axe);
     // Chaos caps triple structures.
-    w.cfg.rules.caps = CapMode::Chaos;
+    w.cfg.rules.limits = ConstructLimits::chaos();
     for _ in 0..8 {
         w.cast(A, wall.clone(), None, aim).unwrap();
     }

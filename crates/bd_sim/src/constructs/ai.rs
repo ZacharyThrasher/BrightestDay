@@ -45,6 +45,10 @@ pub enum Mode {
     Transforming = 10,
     /// Transforms: driving / running in alt mode (vehicle or beast).
     AltMode = 11,
+    /// GIANTS: reeling from a weak-point hit (its attack was cancelled).
+    Staggered = 12,
+    /// GIANTS: a leg gave out — rolled onto its side, then gets up.
+    Toppled = 13,
 }
 
 impl Mode {
@@ -62,6 +66,8 @@ impl Mode {
             9 => Stranded,
             10 => Transforming,
             11 => AltMode,
+            12 => Staggered,
+            13 => Toppled,
             _ => Pursue,
         }
     }
@@ -142,6 +148,8 @@ pub struct AiState {
     pub toppled: bool,
     /// Last mode reported to clients.
     pub sent_mode: u8,
+    /// GIANTS: anatomy, limb hit points, stagger / topple, shockwaves, command focus (`giant.rs`).
+    pub giant: super::giant::GiantState,
 }
 
 /// Number of [`AttackKind`] variants.
@@ -173,6 +181,10 @@ pub fn pick_target(c: &Construct, env: &Env<'_>) -> Option<PlayerView> {
     let leash_ok = |p: &PlayerView| {
         prof.leash.is_infinite() || (p.pos - env.owner.pos).length() <= prof.leash.max(20.0) || (p.pos - here).length() <= 12.0
     };
+    // FREEDOM HOOK: cast at them by name ("wolves after Jake") — locked while they live.
+    if let Some(t) = c.comp.named.and_then(|t| ctx.player(t)).filter(|t| t.id != c.owner && t.alive) {
+        return Some(*t);
+    }
     // Playful: a random enemy, re-rolled every `fickle_secs`.
     if prof.fickle_secs > 0.0 {
         let n = ctx.enemies_of(c.owner).count() as u32;

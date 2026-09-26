@@ -7,8 +7,9 @@
 //!   tick are latched so they are never lost. At each 120 Hz tick, `SimSet::Input` produces
 //!   [`LocalInputState::current`] (a `bd_core::input::PlayerInput`, sequence-numbered) and pushes it
 //!   to [`LocalInputState::history`] for prediction/reconciliation.
-//! * [`UiFocus::typing`] (ring console / oath open) sets the `TYPING` bit and zeroes movement keys;
-//!   the keyboard tether / reel / charge / dodge / C keys are parked (`lobby::prefs::shell_bindings`)
+//! * [`UiFocus::typing`] (ring console / oath open) sets the `TYPING` bit and keeps sending the move
+//!   axes held on the tick typing began (letters are text, but you keep running — voice == typing);
+//!   on close, anything newly held is swallowed until released (no phantom presses). The keyboard tether / reel / charge / dodge / C keys are parked (`lobby::prefs::shell_bindings`)
 //!   while aim, the mouse side-button tethers and the wheel stay live.
 
 use crate::settings::Settings;
@@ -159,6 +160,10 @@ pub struct LocalInputState {
     pub ext_held: u16,
     pub ext_latched: u16,
     pub ext_mask: u16,
+    /// Move axes latched on the tick typing began; sent unchanged until typing ends.
+    typing_move: Option<(i8, i8)>,
+    /// Buttons held across the end of typing that weren't being sent: dropped until released.
+    swallow: u16,
 }
 
 impl LocalInputState {
@@ -169,10 +174,18 @@ impl LocalInputState {
         self.ext_latched = 0;
         let (mut mx, mut mz) = (self.move_x, self.move_z);
         if typing {
+            // Keep running on what was held when the ring opened; aim still steers it.
+            (mx, mz) = *self.typing_move.get_or_insert((mx, mz));
             b |= buttons::TYPING;
             b &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST | buttons::CHARGE | buttons::DODGE);
-            mx = 0;
-            mz = 0;
+        } else {
+            if self.typing_move.take().is_some() {
+                // Hand-off to the live keys: letters still down (Space, Q, Shift…) must not fire.
+                self.swallow = b & !self.current.buttons;
+            } else {
+                self.swallow &= self.held;
+            }
+            b &= !self.swallow;
         }
         let notches = self.reel_accum.trunc().clamp(-127.0, 127.0);
         self.reel_accum -= notches;
@@ -398,12 +411,55 @@ mod tests {
     }
 
     #[test]
-    fn typing_blocks_movement() {
+    fn typing_latches_movement() {
         let mut s = LocalInputState { move_z: 1, held: buttons::JUMP | buttons::TETHER_L, ..Default::default() };
         let i = s.next_tick(LookAngles::default(), true);
-        assert_eq!(i.move_z, 0);
+        assert_eq!((i.move_x, i.move_z), (0, 1));
         assert!(i.held(buttons::TYPING));
         assert!(i.held(buttons::TETHER_L));
         assert!(!i.held(buttons::JUMP));
+        // Typed letters (W/A/S/D as text) don't move you: the latch holds.
+        s.move_z = -1;
+        s.move_x = 1;
+        let i = s.next_tick(LookAngles::default(), true);
+        assert_eq!((i.move_x, i.move_z), (0, 1));
+    }
+
+    #[test]
+    fn typing_with_nothing_held_coasts() {
+        let mut s = LocalInputState::default();
+        s.next_tick(LookAngles::default(), false);
+        s.move_z = 1; // typed "w" after the ring opened
+        let i = s.next_tick(LookAngles::default(), true);
+        assert_eq!((i.move_x, i.move_z), (0, 0));
+    }
+
+    #[test]
+    fn closing_typing_hands_off_cleanly() {
+        let mut s = LocalInputState { move_z: 1, held: buttons::TETHER_R, ..Default::default() };
+        s.next_tick(LookAngles::default(), true);
+        // Released W while typing, still holding Space + a keyboard tether key at close.
+        s.move_z = 0;
+        s.held = buttons::TETHER_R | buttons::JUMP | buttons::TETHER_L;
+        s.latched = buttons::JUMP;
+        let i = s.next_tick(LookAngles::default(), false);
+        assert_eq!((i.move_x, i.move_z), (0, 0), "no stuck direction");
+        assert!(!i.held(buttons::TYPING));
+        assert!(i.held(buttons::TETHER_R), "held through typing stays held");
+        assert!(!i.held(buttons::JUMP) && !i.held(buttons::TETHER_L), "no phantom presses");
+        // Still held: still swallowed.
+        let i = s.next_tick(LookAngles::default(), false);
+        assert!(!i.held(buttons::JUMP) && !i.held(buttons::TETHER_L));
+        // Released, then pressed again: live.
+        s.held = buttons::TETHER_R;
+        s.next_tick(LookAngles::default(), false);
+        s.held = buttons::TETHER_R | buttons::JUMP;
+        s.move_z = 1;
+        let i = s.next_tick(LookAngles::default(), false);
+        assert!(i.held(buttons::JUMP));
+        assert_eq!(i.move_z, 1);
+        // A fresh ring latches afresh.
+        s.move_z = -1;
+        assert_eq!(s.next_tick(LookAngles::default(), true).move_z, -1);
     }
 }

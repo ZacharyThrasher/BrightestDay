@@ -45,11 +45,21 @@ pub struct Collider {
     pub solid: bool,
     /// Hooks can anchor to it.
     pub anchorable: bool,
+    /// GIANTS: angular velocity (rad/s, world) about `pivot` — a turning giant carries its riders
+    /// round with it (surface velocity [`Collider::surface_vel`]). Zero for everything else.
+    pub spin: Vec3,
+    pub pivot: Vec3,
 }
 
 impl Collider {
     pub fn new(center: Vec3, half: Vec3, rot: Quat, id: ColliderId) -> Self {
-        Self { center, half, rot, vel: Vec3::ZERO, id, solid: true, anchorable: true }
+        Self { center, half, rot, vel: Vec3::ZERO, id, solid: true, anchorable: true, spin: Vec3::ZERO, pivot: center }
+    }
+
+    /// Velocity of the collider's surface at world point `p` (linear + spin about `pivot`).
+    #[inline]
+    pub fn surface_vel(&self, p: Vec3) -> Vec3 {
+        if self.spin == Vec3::ZERO { self.vel } else { self.vel + self.spin.cross(p - self.pivot) }
     }
 
     pub fn with_vel(mut self, vel: Vec3) -> Self {
@@ -485,7 +495,7 @@ impl Broadphase {
             let c = &w.colliders[i as usize];
             if let Some((t, n)) = sweep_obb(hull, d, c) {
                 if best.is_none_or(|h| t < h.t) {
-                    best = Some(Hit { t, normal: n, vel: c.vel });
+                    best = Some(Hit { t, normal: n, vel: c.surface_vel(hull.center() + d * t) });
                 }
             }
         }
@@ -538,7 +548,7 @@ impl Broadphase {
                 for &i in &self.cols[..self.nc] {
                     let c = &w.colliders[i as usize];
                     if let Some((d, n)) = obb_penetration(&hull, c) {
-                        push = Some((d, n, c.vel));
+                        push = Some((d, n, c.surface_vel(hull.center())));
                         break;
                     }
                 }

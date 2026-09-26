@@ -81,8 +81,11 @@ fn launch(c: &mut Construct, env: &Env<'_>) {
         return;
     }
     let spec = form_spec(c.recipe.form);
+    // FREEDOM HOOK: thrown / driven at the player it was cast at by name (freedom/deliver.rs).
+    let named = c.comp.named.and_then(|t| env.ctx.player(t)).filter(|t| t.alive).copied();
     if c.recipe.form == Form::Vehicle {
-        let h = Vec3::new(o.look.x, 0.0, o.look.z).normalize_or(c.forward());
+        let look = named.map_or(o.look, |t| (t.pos - c.pos).normalize_or(o.look));
+        let h = Vec3::new(look.x, 0.0, look.z).normalize_or(c.forward());
         c.rot = geom::yaw_rotation(h);
         c.pos = Vec3::new(c.pos.x, c.pos.y.max(o.pos.y + c.half.y), c.pos.z);
         c.vel = h * spec.speed * speed_mult(c) * 0.5;
@@ -92,7 +95,16 @@ fn launch(c: &mut Construct, env: &Env<'_>) {
     }
     let speed = if c.colossal { COLOSSAL_THROW_SPEED } else { spec.speed.max(18.0) * speed_mult(c) };
     c.vel = o.look * speed + o.vel * 0.5 + Vec3::Y * 2.0;
-    c.rot = geom::look_rotation(o.look);
+    if let Some(t) = named {
+        let flies = eff_has(c, Mechanic::Flies) || eff_has(c, Mechanic::Thrust);
+        let g = if flies { 0.0 } else { super::body::GRAVITY * if c.colossal { 0.25 } else { 1.0 } };
+        let aim_at = (t.hull.min + t.hull.max) * 0.5;
+        if let Some(v) = crate::freedom::deliver::lob(c.center(), aim_at, t.vel, speed, g) {
+            c.vel = v;
+        }
+    }
+    let heading = c.vel.normalize_or(o.look);
+    c.rot = geom::look_rotation(if named.is_some() { heading } else { o.look });
     c.body.loco = if eff_has(c, Mechanic::Flies) { Loco::Fly } else { Loco::Ballistic };
     if (c.recipe.form == Form::Bomb || (eff_has(c, Mechanic::Explodes) && c.recipe.form == Form::Blob0)) && !eff_has(c, Mechanic::Attract) && !eff_has(c, Mechanic::Returning) {
         c.comp.fuse = BOMB_FUSE;

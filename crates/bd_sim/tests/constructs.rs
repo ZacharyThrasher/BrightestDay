@@ -8,7 +8,7 @@ use bd_sim::bots::recipe;
 use bd_sim::combat::{ConstructHit, HitKind};
 use bd_sim::constructs::components::XMode;
 use bd_sim::events::{GameEvent, KoCause, Traveller};
-use bd_sim::rules::{CapMode, WillpowerMode};
+use bd_sim::rules::{ConstructLimits, WillpowerMode};
 use bd_sim::space::{LinkEnd, PortalEnd};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, TargetHint, World};
 
@@ -32,7 +32,7 @@ fn duel(n: u8) -> World {
     let cfg = SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() };
     let mut w = World::new(cfg);
     w.cfg.rules.willpower = WillpowerMode::Infinite;
-    w.cfg.rules.caps = CapMode::Chaos;
+    w.cfg.rules.limits = ConstructLimits::chaos();
     for k in 1..=n {
         w.add_player(PlayerId(k), format!("p{k}"), Corps::from_index(k)).unwrap();
     }

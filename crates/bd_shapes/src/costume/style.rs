@@ -86,7 +86,16 @@ fn resolve(l: &Look, accent: Option<Rgb>) -> Kit {
             _ => LegCut::Pants,
         },
         color: match top.cut {
-            Cut::Gi | Cut::Robe | Cut::Dress | Cut::Jumpsuit | Cut::Bodysuit | Cut::Suit | Cut::Power | Cut::Plate | Cut::HighCollar | Cut::Kimono => top.color,
+            Cut::Gi
+            | Cut::Robe
+            | Cut::Dress
+            | Cut::Jumpsuit
+            | Cut::Bodysuit
+            | Cut::Suit
+            | Cut::Power
+            | Cut::Plate
+            | Cut::HighCollar
+            | Cut::Kimono => top.color,
             Cut::Overalls => top.alt.unwrap_or(Col([40, 70, 170])),
             _ => Col([50, 60, 90]),
         },
@@ -151,7 +160,8 @@ pub(super) fn dress(cx: &mut Cx, look: &Look, accent: Option<Rgb>, own_head: boo
         let h = b.part(0, v3(0.0, rig::NECK_Y, 0.0), PartRole::Head);
         debug_assert_eq!(h, HEAD);
         for (id, s) in [(ARM_L, -1.0f32), (ARM_R, 1.0)] {
-            let got = b.part(0, v3(s * rig::SHOULDER.x, rig::SHOULDER.y, 0.0), if s < 0.0 { PartRole::ArmLeft } else { PartRole::ArmRight });
+            let got =
+                b.part(0, v3(s * rig::SHOULDER.x, rig::SHOULDER.y, 0.0), if s < 0.0 { PartRole::ArmLeft } else { PartRole::ArmRight });
             debug_assert_eq!(got, id);
         }
         for (id, s) in [(LEG_L, -1.0f32), (LEG_R, 1.0)] {
@@ -190,7 +200,20 @@ pub(super) fn dress(cx: &mut Cx, look: &Look, accent: Option<Rgb>, own_head: boo
         && !helmet_on
         && !full_mask
     {
-        let hat_on = !matches!(k.hat, Hat::No) && hide & acc::HEAD == 0;
+        // Hats that sit on the crown flatten tall hair; bands/tiaras/ears leave it standing.
+        let hat_on = hide & acc::HEAD == 0
+            && !matches!(
+                k.hat,
+                Hat::No
+                    | Hat::Headband(..)
+                    | Hat::Tied(..)
+                    | Hat::Tiara(..)
+                    | Hat::Halo(..)
+                    | Hat::Headphones(..)
+                    | Hat::Horns(..)
+                    | Hat::CatEars(..)
+                    | Hat::Ears(..)
+            );
         cx.pgroup(acc::HEAD, v3(0.0, 27.0, 0.0), |p| {
             p.on(HEAD);
             hair(p, &h, hat_on);
@@ -221,7 +244,8 @@ pub(super) fn dress(cx: &mut Cx, look: &Look, accent: Option<Rgb>, own_head: boo
     }
     if !matches!(k.hat, Hat::No) && !helmet_on {
         let h = k.hat;
-        let tall_hair = k.hair.is_some_and(|h| matches!(h.style, HairStyle::SpikyUp | HairStyle::Saiyan | HairStyle::Flame | HairStyle::Afro));
+        let tall_hair =
+            k.hair.is_some_and(|h| matches!(h.style, HairStyle::SpikyUp | HairStyle::Saiyan | HairStyle::Flame | HairStyle::Afro));
         cx.pgroup(acc::HEAD, v3(0.0, 28.0, 0.0), |p| {
             p.on(HEAD);
             hat(p, h, tall_hair);
@@ -530,14 +554,20 @@ fn hair(p: &mut Pn, h: &Hair, hat_on: bool) {
                 spike(p, v3(x, 27.5, -4.8), v3(x + 0.3, l, -5.6), 2.6);
             }
             if tall {
+                // The palm-tree silhouette: big clumps up, out to the sides and back.
+                p.c(c).vb(-4, 4, 29, 30, -3, 3);
+                p.c(tip);
                 let spikes = [
-                    (v3(-3.0, 28.5, -1.0), v3(-8.0, 33.0, 0.0), 4.6),
-                    (v3(-1.0, 29.0, 0.0), v3(-2.5, 35.5, 0.5), 4.6),
-                    (v3(1.5, 29.0, 0.0), v3(3.0, 35.0, 1.0), 4.6),
-                    (v3(3.0, 28.5, -1.0), v3(8.0, 32.5, 0.0), 4.4),
-                    (v3(-2.5, 27.0, 3.0), v3(-6.0, 29.0, 6.5), 4.0),
-                    (v3(2.5, 27.0, 3.0), v3(6.0, 29.0, 6.5), 4.0),
-                    (v3(0.0, 25.0, 3.5), v3(0.0, 23.0, 7.0), 3.6),
+                    (v3(-2.5, 29.0, 0.0), v3(-6.0, 35.5, 0.5), 5.4),
+                    (v3(0.5, 29.5, 0.5), v3(0.5, 37.0, 1.0), 5.6),
+                    (v3(2.5, 29.0, 0.0), v3(6.5, 35.0, 0.5), 5.4),
+                    (v3(-4.0, 27.0, 0.0), v3(-8.5, 29.5, 0.5), 4.6),
+                    (v3(4.0, 27.0, 0.0), v3(8.5, 29.0, 0.5), 4.6),
+                    (v3(-4.0, 24.5, 0.5), v3(-7.0, 23.5, 1.5), 3.6),
+                    (v3(4.0, 24.5, 0.5), v3(7.0, 23.5, 1.5), 3.6),
+                    (v3(-2.5, 27.5, 3.0), v3(-5.5, 30.0, 6.5), 4.6),
+                    (v3(2.5, 27.5, 3.0), v3(5.5, 30.0, 6.5), 4.6),
+                    (v3(0.0, 24.5, 3.5), v3(0.0, 22.0, 6.5), 4.0),
                 ];
                 for (a, b, d) in spikes {
                     spike(p, a, b, d);
@@ -611,7 +641,7 @@ fn hair(p: &mut Pn, h: &Hair, hat_on: bool) {
             fringe(p, c, h.fringe.unwrap_or(Fringe::Parted), false);
             p.c(tip);
             for s in [-1.0f32, 1.0] {
-                p.el(v3(s * 5.5, 25.0, 0.5), v3(3.0, 4.0, 4.0));
+                p.el(v3(s * 6.0, 24.5, 0.5), v3(3.6, 5.0, 5.0));
             }
         }
         Afro => {
@@ -659,7 +689,11 @@ fn eyewear(p: &mut Pn, e: Eyewear) {
         Eyewear::Glasses(c) => {
             let c = c.rgb();
             for s in [-1, 1] {
-                p.c(c).vb(s * 2, s * 3, 25, 25, -5, -5).vb(s * 2, s * 3, 22, 22, -5, -5).vb(s * 4, s * 4, 23, 24, -5, -5).vb(s, s, 23, 24, -5, -5);
+                p.c(c)
+                    .vb(s * 2, s * 3, 25, 25, -5, -5)
+                    .vb(s * 2, s * 3, 22, 22, -5, -5)
+                    .vb(s * 4, s * 4, 23, 24, -5, -5)
+                    .vb(s, s, 23, 24, -5, -5);
             }
             p.c(c).px(0, 24, -5).vbs(5, 5, 24, 24, -4, 0);
         }
@@ -706,7 +740,12 @@ fn mask(p: &mut Pn, m: Mask, skin: Rgb, eyes: Eyes) {
             let rows = ["....L....", "L...L...L", "KKK.L.KKK", "KWWKLKWWK", ".KWWLWWK.", "L.KK.KK.L", "...LLL...", "....L...."];
             p.mosaic(&rows, &f, IVec3::new(-4, 27, FACE), IVec3::X, IVec3::NEG_Y, IVec3::Z, 1);
             // Web lines around the head.
-            p.decal(l).vb(-4, 4, 25, 25, -3, 3).vb(0, 0, 21, 28, 3, 3).vbs(4, 4, 21, 28, 0, 0).vb(-4, 4, 28, 28, 0, 0).vb(0, 0, 28, 28, -4, 3);
+            p.decal(l)
+                .vb(-4, 4, 25, 25, -3, 3)
+                .vb(0, 0, 21, 28, 3, 3)
+                .vbs(4, 4, 21, 28, 0, 0)
+                .vb(-4, 4, 28, 28, 0, 0)
+                .vb(0, 0, 28, 28, -4, 3);
         }
         Mask::Full(base, patch, lens) => {
             let (b, pc, lc) = (base.rgb(), patch.rgb(), lens.rgb());
@@ -827,7 +866,17 @@ fn helmet(p: &mut Pn, h: Helmet) {
                 'G' => Some([110, 116, 124]),
                 _ => None,
             };
-            let rows = ["...........", "...........", "...........", ".KKK...KKK.", "..KK...KK..", "B....K....B", "...GKKKG...", "..G.G.G.G..", "..........."];
+            let rows = [
+                "...........",
+                "...........",
+                "...........",
+                ".KKK...KKK.",
+                "..KK...KK..",
+                "B....K....B",
+                "...GKKKG...",
+                "..G.G.G.G..",
+                "...........",
+            ];
             p.mosaic(&rows, &f, IVec3::new(-5, 28, -5), IVec3::X, IVec3::NEG_Y, IVec3::Z, 1);
             p.c(c).vb(-2, 2, 20, 21, -6, -6);
             p.decal(d).px(-1, 20, -6).px(1, 20, -6);
@@ -872,7 +921,18 @@ fn helmet(p: &mut Pn, h: Helmet) {
                 'D' => Some(mul(fc, 0.55)),
                 _ => None,
             };
-            let rows = ["...........", "...........", "..FFFFFFF..", ".FFFFFFFFF.", ".FEEFFFEEF.", ".FFFFFFFFF.", "..FFFFFFF..", "..FFDDDFF..", "...FFFFF...", "....FFF...."];
+            let rows = [
+                "...........",
+                "...........",
+                "..FFFFFFF..",
+                ".FFFFFFFFF.",
+                ".FEEFFFEEF.",
+                ".FFFFFFFFF.",
+                "..FFFFFFF..",
+                "..FFDDDFF..",
+                "...FFFFF...",
+                "....FFF....",
+            ];
             p.mosaic(&rows, &f, IVec3::new(-5, 28, -5), IVec3::X, IVec3::NEG_Y, IVec3::Z, 1);
             p.c(fc).vb(-2, 2, 19, 20, -6, -6);
         }
@@ -938,8 +998,12 @@ fn helmet(p: &mut Pn, h: Helmet) {
             p.decal(WHITE).vb(-3, -2, 23, 23, -5, -5).vb(2, 3, 23, 23, -5, -5);
             p.decal(BLACK).vb(-3, 3, 21, 21, -5, -5);
             p.decal(WHITE).px(-2, 21, -5).px(0, 21, -5).px(2, 21, -5);
-            p.c(bl).vb(-1, 1, 25, 29, -11, -5).vb(0, 0, 30, 30, -10, -6);
-            p.decal(shade(bl)).vb(-1, 1, 25, 25, -11, -5);
+            // The chainsaw bar out of the forehead, teeth along the top.
+            p.c(bl).seg(v3(0.0, 26.0, -4.5), v3(0.0, 34.0, -10.0), 2.6, 1.4);
+            p.c([90, 94, 100]).seg(v3(0.0, 25.5, -4.0), v3(0.0, 27.5, -5.5), 3.4, 2.2);
+            p.decal(shade(bl)).seg(v3(0.0, 27.5, -5.8), v3(0.0, 34.0, -10.3), 3.0, 1.8);
+            p.c(WHITE).vb(-4, 4, 21, 21, -6, -6);
+            p.decal(BLACK).px(-3, 21, -6).px(-1, 21, -6).px(1, 21, -6).px(3, 21, -6);
         }
         Helmet::Prime(c, face, eye) => {
             let (c, fc, e) = (c.rgb(), face.rgb(), eye.rgb());
@@ -981,7 +1045,7 @@ fn hat(p: &mut Pn, h: Hat, tall_hair: bool) {
             p.c(c).vb(-4, 4, 26, 26, -8, -6).vb(-3, 3, 26, 26, -9, -9);
             if let Some(b) = badge {
                 p.c(WHITE).vb(-1, 1, 27, 29, -6, -6).vbs(2, 2, 28, 28, -6, -6);
-                p.decal(b.rgb()).vbs(1, 1, 27, 29, -6, -6).px(0, 28, -6);
+                p.decal(b.rgb()).px(0, 28, -6);
             }
         }
         Hat::Pointy(c) => {
@@ -1061,7 +1125,14 @@ fn hat(p: &mut Pn, h: Hat, tall_hair: bool) {
         }
         Hat::Halo(c) => {
             let c = c.rgb();
-            p.c(c).vb(-3, 3, 32 + lift * 3, 32 + lift * 3, -4, -4).vb(-3, 3, 32 + lift * 3, 32 + lift * 3, 3, 3).vbs(4, 4, 32 + lift * 3, 32 + lift * 3, -3, 2);
+            p.c(c).vb(-3, 3, 32 + lift * 3, 32 + lift * 3, -4, -4).vb(-3, 3, 32 + lift * 3, 32 + lift * 3, 3, 3).vbs(
+                4,
+                4,
+                32 + lift * 3,
+                32 + lift * 3,
+                -3,
+                2,
+            );
         }
         Hat::CatEars(c) => {
             let c = c.rgb();
@@ -1283,7 +1354,13 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
         }
         Cut::Overalls => {
             let o = alt.unwrap_or([40, 70, 170]);
-            p.decal(o).vb(-2, 2, 12, 15, -2, -2).vb(-2, -2, 16, 18, -2, -2).vb(2, 2, 16, 18, -2, -2).vb(-3, 3, 10, 12, -2, 1).vb(-2, -2, 13, 18, 1, 1).vb(2, 2, 13, 18, 1, 1);
+            p.decal(o)
+                .vb(-2, 2, 12, 15, -2, -2)
+                .vb(-2, -2, 16, 18, -2, -2)
+                .vb(2, 2, 16, 18, -2, -2)
+                .vb(-3, 3, 10, 12, -2, 1)
+                .vb(-2, -2, 13, 18, 1, 1)
+                .vb(2, 2, 13, 18, 1, 1);
             let btn = trim.unwrap_or([250, 210, 40]);
             p.c(btn).px(-2, 15, -3).px(2, 15, -3);
         }
@@ -1358,7 +1435,14 @@ fn body(p: &mut Pn, k: &Kit, hide: u32) {
             && matches!(k.top.cut, Cut::Tee | Cut::Gi | Cut::Kimono)
             && k.sleeves != Sleeves::Bare
         {
-            p.decal(tr).vb(s * 4, s * 6, if k.sleeves == Sleeves::Short { 15 } else { 12 }, if k.sleeves == Sleeves::Short { 15 } else { 12 }, -2, 0);
+            p.decal(tr).vb(
+                s * 4,
+                s * 6,
+                if k.sleeves == Sleeves::Short { 15 } else { 12 },
+                if k.sleeves == Sleeves::Short { 15 } else { 12 },
+                -2,
+                0,
+            );
         }
         // Hands.
         let hands = if hide & acc::ARMS != 0 { Hands::Bare } else { k.hands };
@@ -1567,10 +1651,26 @@ fn mosaic(p: &mut Pn, m: &Mosaic, origin: IVec3, right: IVec3, down: IVec3, n: I
 
 fn slot_of(a: &Acc) -> u32 {
     match a {
-        Acc::Cape(..) | Acc::Cloak(..) | Acc::Wings(..) | Acc::BackSword(..) | Acc::BigSword(..) | Acc::TwinSwords(..) | Acc::Staff(..) | Acc::RoundShield(..) | Acc::KiteShield(..) | Acc::Backpack(..) | Acc::Jetpack(..) | Acc::Gourd(..) | Acc::Quiver(..) | Acc::Bow(..) | Acc::Polearm(..) => acc::BACK,
+        Acc::Cape(..)
+        | Acc::Cloak(..)
+        | Acc::Wings(..)
+        | Acc::BackSword(..)
+        | Acc::BigSword(..)
+        | Acc::TwinSwords(..)
+        | Acc::Staff(..)
+        | Acc::RoundShield(..)
+        | Acc::KiteShield(..)
+        | Acc::Backpack(..)
+        | Acc::Jetpack(..)
+        | Acc::Gourd(..)
+        | Acc::Quiver(..)
+        | Acc::Bow(..)
+        | Acc::Polearm(..) => acc::BACK,
         Acc::Tail(..) => acc::TAIL,
         Acc::HipSwords(..) | Acc::Pouches(..) | Acc::Saber(..) | Acc::Holsters(..) | Acc::Hammer(..) | Acc::SashTails(..) => acc::HIP,
-        Acc::Pauldron(..) | Acc::Pauldrons(..) | Acc::Spikes(..) | Acc::Mantle(..) | Acc::Bandolier(..) | Acc::Necklace(..) => acc::SHOULDERS,
+        Acc::Pauldron(..) | Acc::Pauldrons(..) | Acc::Spikes(..) | Acc::Mantle(..) | Acc::Bandolier(..) | Acc::Necklace(..) => {
+            acc::SHOULDERS
+        }
         Acc::Claws(..) => acc::ARMS,
         Acc::Gauntlet(_, _, Side::Left) => acc::LEFT_ARM,
         Acc::Gauntlet(..) => acc::ARMS,
@@ -1636,10 +1736,20 @@ fn accessory(cx: &mut Cx, a: &Acc, k: &Kit) {
                         }
                         WingKind::Bat => {
                             p.c(mul(c, 0.7)).seg(v3(s * 2.0, 16.0, bz), v3(s * 7.5, 24.0, bz + 2.0), 1.0, 1.0);
-                            p.c(c).seg(v3(s * 3.0, 15.0, bz), v3(s * 7.0, 17.0, bz + 2.0), 3.0, 1.0).seg(v3(s * 3.0, 13.0, bz), v3(s * 6.0, 10.0, bz + 1.5), 3.0, 1.0);
+                            p.c(c).seg(v3(s * 3.0, 15.0, bz), v3(s * 7.0, 17.0, bz + 2.0), 3.0, 1.0).seg(
+                                v3(s * 3.0, 13.0, bz),
+                                v3(s * 6.0, 10.0, bz + 1.5),
+                                3.0,
+                                1.0,
+                            );
                         }
                         WingKind::Mech => {
-                            p.c(c).seg(v3(s * 2.0, 17.0, bz), v3(s * 7.0, 24.0, bz + 1.0), 2.0, 1.0).seg(v3(s * 2.0, 15.0, bz), v3(s * 7.5, 18.0, bz + 1.0), 2.0, 1.0);
+                            p.c(c).seg(v3(s * 2.0, 17.0, bz), v3(s * 7.0, 24.0, bz + 1.0), 2.0, 1.0).seg(
+                                v3(s * 2.0, 15.0, bz),
+                                v3(s * 7.5, 18.0, bz + 1.0),
+                                2.0,
+                                1.0,
+                            );
                             p.c(mix(c, WHITE, 0.4)).seg(v3(s * 2.0, 13.0, bz), v3(s * 6.5, 12.0, bz + 1.0), 2.0, 1.0);
                         }
                     }
@@ -1650,7 +1760,10 @@ fn accessory(cx: &mut Cx, a: &Acc, k: &Kit) {
                 p.part(0, v3(0.0, 11.0, 2.0), PartRole::Tail);
                 match kind {
                     TailKind::Monkey => {
-                        p.c(c).seg(v3(0.0, 11.0, 2.0), v3(0.0, 8.0, 6.0), 1.6, 1.6).seg(v3(0.0, 8.0, 6.0), v3(-1.0, 4.0, 8.0), 1.6, 1.6).seg(v3(-1.0, 4.0, 8.0), v3(-1.5, 5.0, 10.0), 1.6, 1.6);
+                        p.c(c)
+                            .seg(v3(0.0, 11.0, 2.0), v3(0.0, 8.0, 6.0), 1.6, 1.6)
+                            .seg(v3(0.0, 8.0, 6.0), v3(-1.0, 4.0, 8.0), 1.6, 1.6)
+                            .seg(v3(-1.0, 4.0, 8.0), v3(-1.5, 5.0, 10.0), 1.6, 1.6);
                     }
                     TailKind::Cat | TailKind::Demon => {
                         p.c(c).seg(v3(0.0, 11.0, 2.0), v3(0.0, 7.0, 6.0), 1.4, 1.4).seg(v3(0.0, 7.0, 6.0), v3(0.0, 9.0, 9.0), 1.4, 1.4);
@@ -1830,7 +1943,12 @@ fn accessory(cx: &mut Cx, a: &Acc, k: &Kit) {
             Acc::SashTails(c) => {
                 let c = c.rgb();
                 p.part(0, v3(0.0, 11.0, back as f32), PartRole::Cloth);
-                p.c(c).seg(v3(-1.0, 11.0, back as f32), v3(-2.0, 4.0, back as f32 + 1.5), 1.6, 1.0).seg(v3(1.0, 11.0, back as f32), v3(2.0, 5.0, back as f32 + 1.0), 1.6, 1.0);
+                p.c(c).seg(v3(-1.0, 11.0, back as f32), v3(-2.0, 4.0, back as f32 + 1.5), 1.6, 1.0).seg(
+                    v3(1.0, 11.0, back as f32),
+                    v3(2.0, 5.0, back as f32 + 1.0),
+                    1.6,
+                    1.0,
+                );
             }
             Acc::Collar(c) => {
                 p.c(c.rgb()).px(-1, 20, -5);

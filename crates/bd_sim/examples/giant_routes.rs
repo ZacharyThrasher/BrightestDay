@@ -391,7 +391,16 @@ fn blanket_surf(w: &VoxelWorld, cols: &[Collider], m: &MapInfo) -> RunResult {
     let yaw = (-d.x).atan2(-d.z);
     // The right face's outward normal points to the line's right: push left (A) into it.
     let end = l.b;
-    run(w, cols, m, 5, s, 12.0, move |_, _| input(yaw, 0.0, -1, 0, 0), move |s, _| s.grounded && (s.pos - l.a).dot(d) >= (end - l.a).dot(d) - 4.0)
+    run(
+        w,
+        cols,
+        m,
+        5,
+        s,
+        12.0,
+        move |_, _| input(yaw, 0.0, -1, 0, 0),
+        move |s, _| s.grounded && (s.pos - l.a).dot(d) >= (end - l.a).dot(d) - 4.0,
+    )
 }
 
 /// 6. Ride the NE banked corner: approach along the east straight at bhop speed, jump onto the bank
@@ -454,7 +463,10 @@ fn main() {
     ];
     let run_speed = MoveParams::default().run_speed;
     println!("giant's room routes (seed {seed}); run speed {run_speed:.1} m/s");
-    println!("{:<22} {:>7} {:>8} {:>8} {:>7} {:>5} {:>5} {:>5}  result", "route", "time s", "avg m/s", "peak m/s", "rise m", "hooks", "touch", "surf");
+    println!(
+        "{:<22} {:>7} {:>8} {:>8} {:>7} {:>5} {:>5} {:>5}  result",
+        "route", "time s", "avg m/s", "peak m/s", "rise m", "hooks", "touch", "surf"
+    );
     let mut all_ok = true;
     for (k, (name, r)) in results.iter().enumerate() {
         let (fast, clean) = match k {

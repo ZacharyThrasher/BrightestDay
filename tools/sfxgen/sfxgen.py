@@ -29,6 +29,7 @@ import sounds_transform  # noqa: E402,F401  (robot <-> vehicle transformations)
 import sounds_ambience  # noqa: E402,F401  (world ambience beds/emitters + danger/mix cues)
 import sounds_charge  # noqa: E402,F401  (ring charge aura + shout words)
 import sounds_extra  # noqa: E402,F401  (assembly, hatches, rotors, hook, domain, ult, strike, misc cues)
+import sounds_hyperline  # noqa: E402,F401  (Hyperline: train rush / rail clatter beds, ring whoosh, city flyby)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

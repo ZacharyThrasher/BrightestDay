@@ -135,6 +135,9 @@ pub struct Transform {
 pub struct CompState {
     /// Effective mechanics (recipe + form defaults), refreshed on init / graft.
     pub eff: MechSet,
+    /// FREEDOM HOOK: the player this construct was explicitly cast at by name ("missile at Jake").
+    /// Homing / creature targeting lock onto them while they live; thrown objects launch at them.
+    pub named: Option<PlayerId>,
     // --- chemistry / counters ---
     /// Seconds left frozen solid (brittle: the next hit shatters it).
     pub frozen: f32,

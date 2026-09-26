@@ -359,13 +359,13 @@
             skin: "5aa83a",
             hair: (style: Bald, color: "5aa83a"),
             eyes: (color: "1a1a1a", style: Angry),
-            hat: Headband("f2f2f2", None),
+            hat: Beanie("f2f2f2"),
             top: (cut: Gi, color: "5a3a8a", alt: "5a3a8a"),
             legs: (cut: Baggy, color: "5a3a8a"),
             belt: Sash("4ab0d0"),
             hands: Wristbands("c8302a"),
             feet: (kind: Shoes, color: "8a5a30"),
-            acc: [Cape("f2f2f2", Some("e8e0d0"), false), Mantle("f2f2f2"), Horns("5aa83a")],
+            acc: [Cape("f2f2f2", Some("e8e0d0"), false), Mantle("f2f2f2")],
         ),
     ),
     (
@@ -1034,7 +1034,7 @@
         ),
     ),
     (
-        names: ["black swordsman guts"],
+        names: ["guts berserk", "black swordsman guts"],
         source: "Berserk",
         look: (
             skin: "e2b890",
@@ -1102,7 +1102,7 @@
         ),
     ),
     (
-        names: ["shigeo kageyama", "mob psycho"],
+        names: ["mob psycho", "shigeo kageyama"],
         source: "Mob Psycho 100",
         look: (
             skin: "f5dac6",
@@ -1219,7 +1219,7 @@
         look: (
             skin: "5a6a4a",
             build: Broad,
-            hair: (style: Flame, color: "d0402a"),
+            hair: (style: Shaggy, color: "d0402a", fringe: Parted),
             eyes: (color: "e8c040", style: Angry),
             facial: [Beard("d0402a")],
             top: (cut: Plate, color: "2a2a30", alt: "c8a040"),
@@ -2427,7 +2427,7 @@
             build: Broad,
             hair: (style: Bald, color: "9ab84a"),
             eyes: (color: "6a4a2a", style: Dots),
-            hat: Ears("9ab84a"),
+            hat: Horns("9ab84a"),
             top: (cut: Waistcoat, color: "6a5a3a", alt: "e8dcc0"),
             legs: (cut: Pants, color: "6a5a3a"),
             belt: Belt("4a3a2a", None),
@@ -2914,7 +2914,7 @@
         source: "Image Comics",
         look: (
             mask: Full("16161a", "16161a", "3ae060"),
-            top: (cut: Bodysuit, color: "16161a", sides: "f2f2f2"),
+            top: (cut: Bodysuit, color: "16161a"),
             legs: (cut: Tights, color: "16161a"),
             hands: Gloves("f2f2f2"),
             feet: (kind: HighBoots, color: "16161a"),

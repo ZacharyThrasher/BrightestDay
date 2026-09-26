@@ -33,6 +33,8 @@ pub mod director;
 pub mod guns;
 pub mod impact;
 pub mod local;
+pub mod hyperline; // HYPERLINE: the endless city shaft, ring gates, streaks, sparks (visual only)
+pub mod giant; // GIANT'S ROOM: sunbeam through the window + dust motes
 pub mod mirror; // MIRRORFOLD: folded-city backdrop, mirrored void, rift
 pub mod outline; // OUTLINE: player outlines (inverted hull) for readability in chaos
 pub mod players;
@@ -41,6 +43,7 @@ pub mod record;
 pub mod shout;
 pub mod signature; // SIGNATURE: cut-in DANGER alert, domain grade, strike markers, audio cues
 pub mod signature_fx; // SIGNATURE: fusion windup (Merge), erasing orbs (Hollow Purple)
+pub mod palm_beam; // SIGNATURE: palm energy (Form::Hands): the orb between the hands + the sustained beam
 pub mod soak;
 pub mod sound;
 pub mod space;
@@ -94,11 +97,13 @@ impl Plugin for PresentPlugin {
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
             .add_plugins(mirror::MirrorPlugin) // MIRRORFOLD: folded-city backdrop
+            .add_plugins(hyperline::HyperlinePlugin) // HYPERLINE: the world streams past the train
+            .add_plugins(giant::GiantPlugin) // GIANT'S ROOM: sunbeam + dust motes
             .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
             .add_plugins(cybertron::CybertronPlugin) // CYBERTRON: map movers (no-op on maps without them)
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
             .add_plugins(valley::ValleyPlugin) // VALLEY: water sheets + falls + mist (no-op without water sheets)
-            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx
+            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

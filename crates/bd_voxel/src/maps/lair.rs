@@ -1063,8 +1063,9 @@ fn build_buildings(c: &mut City, seed: u32) {
             let up = p.y - base;
             if up < 4.0 {
                 // Shopfront: dark glass with a lit sign band.
-                let sign = up > 3.0;
-                let glass = up > 0.5 && up < 3.0 && (along - 0.5).rem_euclid(5.0) > 1.0;
+                // Signs: a lit panel over every other shopfront, not a full-length band.
+                let sign = up > 3.0 && up < 3.6 && (along + bi as f32 * 3.0).rem_euclid(10.0) < 4.0;
+                let glass = up > 0.5 && up < 2.5 && (along - 0.5).rem_euclid(5.0) > 2.0;
                 return Some(if sign {
                     [mat::NEON_PINK, mat::NEON_CYAN, mat::NEON_AMBER, mat::MUTAGEN]
                         [((along / 10.0).floor() as i32 + bi as i32).rem_euclid(4) as usize]

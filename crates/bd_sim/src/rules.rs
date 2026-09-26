@@ -34,13 +34,50 @@ pub enum WillpowerMode {
     Infinite,
 }
 
-/// Per-player construct caps.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CapMode {
-    #[default]
-    Normal,
-    /// Structure/object/creature limits ×3 (held/worn stay 1).
-    Chaos,
+/// "No cap" for a [`ConstructLimits`] field (the world's `MAX_CONSTRUCTS` still bounds everything).
+pub const UNLIMITED: u8 = u8::MAX;
+
+/// Per-player construct caps by kind (COMBAT.md §3), chosen on the host's Match Rules page.
+/// Casting over a cap replaces the caster's oldest of that kind. `0` = that kind can't be summoned:
+/// the cast becomes the nearest allowed kind (a kaiju → a big creature; a colossal → just big) or,
+/// when there is none, fizzles (no cost). [`UNLIMITED`] = no cap. Defaults = the shipped caps.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ConstructLimits {
+    pub held: u8,
+    pub worn: u8,
+    pub structures: u8,
+    pub objects: u8,
+    /// Creatures, kaiju included.
+    pub creatures: u8,
+    /// Kaiju-form creatures (also count as creatures).
+    pub kaiju: u8,
+    /// Colossal constructs (scale ≥ [`COLOSSAL_SCALE`], no-limits lobbies). At the cap a new
+    /// colossal cast is refused (`CastError::ColossalLimit`), as shipped.
+    pub colossal: u8,
+    /// All of a player's constructs together.
+    pub total: u8,
+    /// Match-wide: live giants (kaiju + colossal) on the map. A caster who already has a giant
+    /// replaces their oldest; anyone else gets the downsized version.
+    pub giants_on_map: u8,
+}
+
+impl Default for ConstructLimits {
+    fn default() -> Self {
+        Self { held: 1, worn: 1, structures: 3, objects: 2, creatures: 2, kaiju: 1, colossal: 1, total: UNLIMITED, giants_on_map: UNLIMITED }
+    }
+}
+
+impl ConstructLimits {
+    /// The old `CapMode::Chaos`: structure / object / creature / kaiju caps ×3.
+    pub fn chaos() -> Self {
+        Self { structures: 9, objects: 6, creatures: 6, kaiju: 3, ..Self::default() }
+    }
+
+    /// Cap as a count (`UNLIMITED` → `usize::MAX`).
+    pub fn n(v: u8) -> usize {
+        if v == UNLIMITED { usize::MAX } else { v as usize }
+    }
 }
 
 /// How a match is won (COMBAT.md §1a).
@@ -65,7 +102,6 @@ pub struct MatchRules {
     pub scoring: Scoring,
     pub scale: ScaleLimit,
     pub willpower: WillpowerMode,
-    pub caps: CapMode,
     /// KOs needed to win.
     pub ko_target: u16,
     /// Match length in seconds.
@@ -92,6 +128,9 @@ pub struct MatchRules {
     /// CAMERA: players may use the over-the-shoulder camera (off = first-person-only lobby; seats
     /// in vehicles keep their chase camera). Client-side view rule; the sim never reads it.
     pub allow_third_person: bool,
+    /// CONSTRUCTS: per-kind caps (replace-oldest; 0 = that kind is off). Replaced the old
+    /// Normal / Chaos `caps` switch (Chaos = [`ConstructLimits::chaos`]).
+    pub limits: ConstructLimits,
 }
 
 impl Default for MatchRules {
@@ -100,7 +139,6 @@ impl Default for MatchRules {
             scoring: Scoring::TimedKos,
             scale: ScaleLimit::Normal,
             willpower: WillpowerMode::Normal,
-            caps: CapMode::Normal,
             ko_target: 10,
             time_limit: 8.0 * 60.0,
             regen_islands_between_rounds: true,
@@ -113,6 +151,7 @@ impl Default for MatchRules {
             stands: true,
             tether_hooks_players: true,
             allow_third_person: true,
+            limits: ConstructLimits::default(),
         }
     }
 }
@@ -138,12 +177,37 @@ impl MatchRules {
         self.willpower == WillpowerMode::Infinite
     }
 
-    /// Multiplier on per-slot limits (held/worn excluded).
-    pub fn cap_mult(&self) -> usize {
-        match self.caps {
-            CapMode::Normal => 1,
-            CapMode::Chaos => 3,
-        }
+    /// Max live constructs per player in `slot` (`usize::MAX` = unlimited; 0 = off).
+    pub fn slot_limit(&self, slot: crate::constructs::Slot) -> usize {
+        use crate::constructs::Slot;
+        let l = &self.limits;
+        ConstructLimits::n(match slot {
+            Slot::Held => l.held,
+            Slot::Worn => l.worn,
+            Slot::Structure => l.structures,
+            Slot::Object => l.objects,
+            Slot::Creature => l.creatures,
+        })
+    }
+
+    /// Max live kaiju per player.
+    pub fn kaiju_limit(&self) -> usize {
+        ConstructLimits::n(self.limits.kaiju)
+    }
+
+    /// Max live colossal constructs per player.
+    pub fn colossal_limit(&self) -> usize {
+        ConstructLimits::n(self.limits.colossal)
+    }
+
+    /// Max live constructs per player, all kinds.
+    pub fn total_limit(&self) -> usize {
+        ConstructLimits::n(self.limits.total)
+    }
+
+    /// Max live giants (kaiju + colossal) on the whole map.
+    pub fn giants_on_map_limit(&self) -> usize {
+        ConstructLimits::n(self.limits.giants_on_map)
     }
 
     /// Scale clamp for a form with table range `[min, max]`.

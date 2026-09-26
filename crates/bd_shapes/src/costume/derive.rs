@@ -62,7 +62,9 @@ pub(super) fn derive_look(recipe: &Recipe, icon: &ShapeSpec) -> Look {
         lo = lo.min(p.center.y - p.size.y.abs() * 0.5);
         hi = hi.max(p.center.y + p.size.y.abs() * 0.5);
     }
-    let is_leg = |id: PartId| matches!(role_of(id), Some(PartRole::LegBackLeft | PartRole::LegBackRight | PartRole::LegFrontLeft | PartRole::LegFrontRight));
+    let is_leg = |id: PartId| {
+        matches!(role_of(id), Some(PartRole::LegBackLeft | PartRole::LegBackRight | PartRole::LegFrontLeft | PartRole::LegFrontRight))
+    };
     let is_arm = |id: PartId| matches!(role_of(id), Some(PartRole::ArmLeft | PartRole::ArmRight));
     let torso = dominant(icon, |p, f| p.part == 0 && (0.42..0.8).contains(&f), lo, hi).unwrap_or(Tint::Primary);
     let legs = dominant(icon, |p, f| (is_leg(p.part) || p.part == 0) && (0.1..0.45).contains(&f), lo, hi).unwrap_or(torso);
@@ -83,11 +85,9 @@ pub(super) fn derive_look(recipe: &Recipe, icon: &ShapeSpec) -> Look {
                 let t = dominant(icon, |p, _| p.part == part.id, lo, hi).unwrap_or(Tint::Primary);
                 acc.push(Acc::Wings(WingKind::Mech, c(t)));
             }
-            PartRole::Tail => {
-                if !acc.iter().any(|a| matches!(a, Acc::Tail(..))) {
-                    let t = dominant(icon, |p, _| p.part == part.id, lo, hi).unwrap_or(Tint::Primary);
-                    acc.push(Acc::Tail(TailKind::Demon, c(t)));
-                }
+            PartRole::Tail if !acc.iter().any(|a| matches!(a, Acc::Tail(..))) => {
+                let t = dominant(icon, |p, _| p.part == part.id, lo, hi).unwrap_or(Tint::Primary);
+                acc.push(Acc::Tail(TailKind::Demon, c(t)));
             }
             _ => {}
         }

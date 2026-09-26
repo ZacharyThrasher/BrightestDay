@@ -145,6 +145,9 @@ impl World {
                 size: (c.size_scale * 50.0).round().clamp(1.0, 255.0) as u8,
                 weapon: c.weapon.map_or(0, |w| w.wire(&crate::weapons::spec_for(&c.recipe, w.arch))),
                 xform: xform_wire(c),
+                // GIANTS: their colliders move with the displacement velocity.
+                vel: if attached { QVel::default() } else { QVel::new(if c.ai.giant.on { c.ai.giant.move_vel } else { c.vel }) },
+                spin: q_spin(c.ai.giant.spin),
             });
         }
         out.projectiles.clear();
@@ -295,6 +298,10 @@ impl World {
                     c.prev_pos = c.pos;
                     c.pos = cs.pos.get();
                     c.rot = cs.rot.get();
+                    // Moving platforms: prediction carries a rider exactly like the host does.
+                    c.vel = cs.vel.get();
+                    c.ai.giant.spin = dq_spin(cs.spin);
+                    c.ai.giant.move_vel = c.vel;
                 }
                 c.anim_state = AnimState::from_u8(cs.anim);
                 c.anim_since = (tick & !0xFFFF) | cs.anim_since as Tick;
@@ -413,6 +420,8 @@ impl World {
         match e {
             // MAP MECH HOOK: a transforming panel changed phase.
             GameEvent::MapMover { mover, phase, since } => self.apply_map_mover(*mover, *phase, *since),
+            // GIANTS: the host's anatomy (replica colliders for prediction), severed limbs, hijacks.
+            GameEvent::Giant(g) => crate::constructs::giant::apply_event(&mut self.constructs, g),
             GameEvent::Carve { op } => {
                 let _ = super::combat::apply_carve_op(&mut self.voxels, op);
             }
@@ -571,6 +580,7 @@ impl World {
             if let Some(a) = c.alt_shape.clone() {
                 v.push(GameEvent::ConstructShapes { id: c.id, shape: c.shape.clone(), alt_shape: a });
             }
+            crate::constructs::giant::manifest(c, &mut v); // GIANTS: anatomy + severed limbs
         }
         v
     }

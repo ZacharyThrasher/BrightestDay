@@ -589,7 +589,7 @@ pub static MATERIALS: [MaterialDef; 214] = [
         emissive: 0.0,
     },
     def("rug", [74, 112, 152], 0.07, 0.45, D::Dirt),
-    def("rug tuft", [108, 150, 190], 0.10, 0.4, D::Dirt),
+    def("rug tuft", [94, 136, 178], 0.10, 0.4, D::Dirt),
     def("rug border", [232, 214, 172], 0.05, 0.45, D::Dirt),
     MaterialDef {
         name: "wall paint",

@@ -159,11 +159,17 @@ fn spawns_valid_spread_and_mutually_reachable() {
         assert!(info.spawns.iter().any(|s| s.y > 28.0), "a floating-island spawn");
         assert!(info.spawns.iter().filter(|s| s.y < WALK_Y + 0.6).count() >= 4, "ground spawns");
         let st = Stand::new(&w);
-        let nodes: Vec<IVec3> = info.spawns.iter().map(|s| spawn_node(&st, *s).unwrap_or_else(|| panic!("seed {seed}: spawn {s} not standable"))).collect();
+        let nodes: Vec<IVec3> =
+            info.spawns.iter().map(|s| spawn_node(&st, *s).unwrap_or_else(|| panic!("seed {seed}: spawn {s} not standable"))).collect();
         for (i, &from) in nodes.iter().enumerate() {
             let seen = reach(&w, &st, from);
             for (j, to) in nodes.iter().enumerate() {
-                assert!(seen.contains_key(to), "seed {seed}: spawn {j} {:?} not reachable from spawn {i} {:?}", info.spawns[j], info.spawns[i]);
+                assert!(
+                    seen.contains_key(to),
+                    "seed {seed}: spawn {j} {:?} not reachable from spawn {i} {:?}",
+                    info.spawns[j],
+                    info.spawns[i]
+                );
             }
         }
     }

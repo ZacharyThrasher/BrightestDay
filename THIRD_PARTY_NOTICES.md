@@ -55,3 +55,40 @@ genre styles (trap, synthwave, house, drum & bass, lo-fi, phonk, chiptune EDM). 
 bass lines, chord voicings, builds and drops are original, and they follow generic genre conventions
 only. No existing recording, remix, producer's track or sample was used, imitated or referenced. The
 808s, supersaws, drum kit, risers and vinyl crackle are all synthesised by `bd_music`.
+
+## Maps
+
+Sakura Keep's layout is modelled on Blizzard's Overwatch map Hanamura for private use; replace the layout before any public release.
+(Only the floor plan is followed — `crates/bd_voxel/src/maps/sakura_layout.rs`, traced by `tools/maps/sakura_trace.py`.
+The look, palette, props and name are Brightest Day's own; no Blizzard assets, logos, signage or text are used.)
+
+Ember map is inspired by Star Wars' Mustafar for private use; replace before any public release.
+(Only the mood is referenced — a lava world at dusk with a dark twin-spired tower and a mining
+facility over a lava river. Layout, geometry, props and the name are Brightest Day's own; no
+Lucasfilm/Disney assets, names, logos or text are used — `crates/bd_voxel/src/maps/ember.rs`.)
+
+TMNT Lair map uses Teenage Mutant Ninja Turtles places/props (Paramount/Nickelodeon) for private use; replace before any public release.
+(The Turtle Lair — `crates/bd_voxel/src/maps/lair.rs` — is our own layout, geometry and voxel art evoking the turtles'
+sewer lair: the bean-bag pit, dojo, weapon rack, pizza sign, party wagon, Shellraiser, Krang's body and other props are
+baked from the private-use TMNT icon pack `assets/icons/tmnt.ron`. No Paramount/Nickelodeon assets, logos or text are used.)
+
+Valley of the End map is modelled on the Naruto location for private use; replace before any public release.
+(Naruto is Shueisha/Pierrot IP. The gorge, falls and the two facing statues — `crates/bd_voxel/src/maps/valley.rs`,
+`valley_statues.rs` — are Brightest Day's own voxel geometry evoking the location; no Shueisha/Pierrot assets, logos or text are used.)
+
+Mirrorfold map is inspired by Inception and Doctor Strange's Mirror Dimension for private use; replace before any public release.
+(Only the idea is referenced — a city folding up over itself, kaleidoscope-cut buildings, a bright rift where the fold
+meets. Layout, geometry, props and the name are Brightest Day's own; no Warner Bros./Legendary or Marvel/Disney assets,
+logos or text are used — `crates/bd_voxel/src/maps/mirror.rs`, `crates/bd_game/src/present/mirror.rs`.)
+
+Cybertron map uses Transformers places/insignia (Hasbro) for private use; replace before any public release.
+(Iacon, the Hall of Records, Kaon's gladiator pit, the Well of AllSparks, the space bridge, the Sea of Rust and the Autobot /
+Decepticon insignia mosaics — `crates/bd_voxel/src/maps/cybertron.rs` — are our own layout, geometry and voxel art; the Prime
+and Megatron statues, the Matrix and the AllSpark are baked from the private-use Transformers icon pack
+`assets/icons/transformers.ron`. The transforming-terrain sounds are our own panel clicks, not the trademarked transformation
+sound. No Hasbro assets, logos or text are used.)
+
+Hyperline map is inspired by Spider-Man: Across the Spider-Verse for private use; replace before any public release.
+(Only the mood of the train chase is referenced — a sleek white train racing through a vertical city shaft past giant ring
+gates. The name, layout, geometry, backdrop and sounds are Brightest Day's own; no Sony/Marvel assets, logos, names or text are
+used — `crates/bd_voxel/src/maps/hyperline.rs`, `crates/bd_game/src/present/hyperline.rs`.)

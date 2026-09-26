@@ -55,6 +55,9 @@ pub enum TargetHint {
     Construct(ConstructId),
     Terrain(IVec3),
     Point(Vec3),
+    /// FREEDOM HOOK: a player the words named ("drop a meteor on Ethan") and how it reaches them
+    /// (`crate::freedom::deliver`). Host-validated; an invalid name casts at the crosshair.
+    Named { player: PlayerId, via: crate::freedom::Delivery },
 }
 
 /// Where a cast is aimed.
@@ -277,6 +280,9 @@ impl World {
             return Err(CastError::Busy);
         }
         let (origin, dir) = self.resolve_aim(i, &aim); // CAMERA: host-side aim validation
+        // FREEDOM HOOK: a named target is delivered to (freedom/deliver.rs): the cast faces them.
+        let named = self.named_target(i, aim.target_hint, origin);
+        let dir = named.map_or(dir, |n| (n.center - origin).normalize_or(dir));
         let recipe = validate_recipe(recipe, &self.cfg.rules);
         // TUNING HOOK: autonomy pricing is decided on the recipe as typed, before power / party
         // grafts (standing grafts never raise a cast's price).
@@ -326,13 +332,16 @@ impl World {
                 self.players[i].last_target = Some(t);
             }
         }
+        if let Some(n) = named {
+            self.players[i].last_target = Some(n.player);
+        }
 
-        // 1. Graft onto an own construct.
-        if let Some(cid) = hinted_own.or(own_hit.map(|h| h.0)).filter(|_| !crate::signature::builds_fresh(self)) {
+        // 1. Graft onto an own construct (never when the words named a player).
+        if let Some(cid) = hinted_own.or(own_hit.map(|h| h.0)).filter(|_| !crate::signature::builds_fresh(self) && named.is_none()) {
             return self.graft(i, cid, recipe, typed);
         }
         // 2. Animate terrain (modifier phrase aimed at terrain).
-        if aim.modifier {
+        if aim.modifier && named.is_none() {
             let terrain = match aim.target_hint {
                 Some(TargetHint::Terrain(v)) if self.voxels.get(v) != 0 => Some(v),
                 _ => raycast(&self.voxels, origin, dir, CAST_RANGE).map(|h| h.voxel),
@@ -341,10 +350,10 @@ impl World {
                 return self.animate_terrain(i, v, recipe, dir, typed);
             }
         }
-        // 3. A fresh construct.
-        let aim_point = world_hit.map(|h| h.point).unwrap_or(origin + dir * 12.0);
-        let aim_normal = world_hit.map(|h| h.normal).unwrap_or(-dir);
-        self.spawn_cast(i, recipe, shape, None, origin, dir, aim_point, aim_normal, typed)
+        // 3. A fresh construct (named: aimed at their feet as the caster saw them).
+        let aim_point = named.map(|n| n.feet).or(world_hit.map(|h| h.point)).unwrap_or(origin + dir * 12.0);
+        let aim_normal = if named.is_some() { Vec3::Y } else { world_hit.map(|h| h.normal).unwrap_or(-dir) };
+        self.spawn_cast(i, recipe, shape, None, origin, dir, aim_point, aim_normal, typed, named)
     }
 
     fn pay(&mut self, i: usize, cost: f32) -> Result<(), CastError> {
@@ -422,7 +431,8 @@ impl World {
         recipe.form = if autonomous { Form::Blob } else { Form::Boulder };
         let est_scale = 3.0;
         recipe.scale = est_scale;
-        let recipe = validate_recipe(recipe, &self.cfg.rules);
+        let mut recipe = validate_recipe(recipe, &self.cfg.rules);
+        self.steer_by_limits(self.players[i].id, &mut recipe)?; // CONSTRUCTS rules: before lifting anything
         let wt = &self.cfg.tuning.willpower; // TUNING HOOK
         let uses = self.players[i].casts.uses_in(&recipe.name, self.tick, wt.stale_window);
         let cost = wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
@@ -443,7 +453,7 @@ impl World {
         recipe.scale = (half.max_element() * 2.0).max(0.5);
         recipe.mass = (model.voxels.len() as f32 * 0.125 * 1500.0).clamp(crate::constructs::forms::MIN_MASS, crate::constructs::forms::MAX_MASS);
         let voxels = model.voxels.len() as u32;
-        let id = self.spawn_cast(i, recipe, None, Some(model), pivot, dir, pivot, Vec3::Y, typed)?;
+        let id = self.spawn_cast(i, recipe, None, Some(model), pivot, dir, pivot, Vec3::Y, typed, None)?;
         self.events.push(GameEvent::Extracted { op, construct: id, voxels });
         Ok(id)
     }
@@ -460,13 +470,19 @@ impl World {
         aim_point: Vec3,
         aim_normal: Vec3,
         typed: TypedPricing,
+        named: Option<crate::freedom::deliver::Named>,
     ) -> Result<ConstructId, CastError> {
         let id = self.players[i].id;
         // FREEDOM HOOK: shout bonus (≤ +15 %), hidden legendary roll, novelty / highlights bookkeeping.
         let mut recipe = recipe;
+        if let Some(n) = named {
+            crate::freedom::deliver::prepare(&mut recipe, n.via); // FREEDOM HOOK: "a car on Ethan" falls on him
+        }
         let flavor = crate::freedom::spawn_prelude(self, i, &mut recipe, model.is_some());
+        // CONSTRUCTS rules: a kind the lobby turned off steers to the nearest allowed kind (or fizzles).
+        self.steer_by_limits(id, &mut recipe)?;
         let colossal = is_colossal(&recipe);
-        if colossal && self.constructs.owned_by(id).any(|c| c.colossal) {
+        if colossal && self.constructs.owned_by(id).filter(|c| c.colossal).count() >= self.cfg.rules.colossal_limit() {
             return Err(CastError::ColossalLimit);
         }
         // TUNING HOOK: costs / integrity from `tuning` (integrity ignores the balance cost knobs).
@@ -490,27 +506,26 @@ impl World {
         if self.free_cast && self.constructs.len() >= super::MAX_CONSTRUCTS - 8 {
             return Err(CastError::Busy);
         }
-        // Limits: replace the oldest in a full slot (and kaiju ≤ 1).
+        // Limits (`MatchRules::limits`): replace the oldest in a full slot, then kaiju, all-kinds
+        // total and the map-wide giants cap. Free copies are children and never replace.
         let free = self.free_cast;
-        let slot = Slot::of(recipe.form);
-        let mult = if matches!(slot, Slot::Held | Slot::Worn) { 1 } else { self.cfg.rules.cap_mult() };
-        let limit = slot.limit() * mult;
-        let in_slot: Vec<ConstructId> = if free { Vec::new() } else { self.constructs.in_slot(id, slot).map(|c| c.id).collect() };
-        if in_slot.len() >= limit {
-            for old in &in_slot[..=(in_slot.len() - limit)] {
-                if let Some(c) = self.constructs.get_mut(*old) {
-                    c.gone = Some(GoneReason::Replaced);
-                }
+        if !free {
+            let rules = &self.cfg.rules;
+            let (slot_cap, kaiju_cap, total_cap, giants_cap) = (rules.slot_limit(Slot::of(recipe.form)), rules.kaiju_limit(), rules.total_limit(), rules.giants_on_map_limit());
+            let in_slot: Vec<ConstructId> = self.constructs.in_slot(id, Slot::of(recipe.form)).map(|c| c.id).collect();
+            self.replace_oldest(&in_slot, slot_cap);
+            if recipe.form == Form::Kaiju {
+                let kaiju: Vec<ConstructId> = self.constructs.owned_by(id).filter(|c| c.recipe.form == Form::Kaiju && c.gone.is_none()).map(|c| c.id).collect();
+                self.replace_oldest(&kaiju, kaiju_cap);
             }
-        }
-        if recipe.form == Form::Kaiju && !free {
-            let kaiju: Vec<ConstructId> = self.constructs.owned_by(id).filter(|c| c.recipe.form == Form::Kaiju && c.gone.is_none()).map(|c| c.id).collect();
-            let klimit = crate::constructs::KAIJU_LIMIT * self.cfg.rules.cap_mult();
-            if kaiju.len() >= klimit {
-                for old in &kaiju[..=(kaiju.len() - klimit)] {
-                    if let Some(c) = self.constructs.get_mut(*old) {
-                        c.gone = Some(GoneReason::Replaced);
-                    }
+            let mine: Vec<ConstructId> = self.constructs.owned_by(id).filter(|c| c.parent.is_none()).map(|c| c.id).collect();
+            self.replace_oldest(&mine, total_cap);
+            if recipe.form == Form::Kaiju || colossal {
+                // `steer_by_limits` only lets a giant through a full map when the caster has one to swap.
+                let on_map = self.constructs.iter().filter(|c| c.gone.is_none() && c.parent.is_none() && is_giant(c)).count();
+                if on_map >= giants_cap {
+                    let own: Vec<ConstructId> = self.constructs.owned_by(id).filter(|c| c.parent.is_none() && is_giant(c)).map(|c| c.id).collect();
+                    self.retire_oldest(&own, on_map + 1 - giants_cap);
                 }
             }
         }
@@ -555,7 +570,12 @@ impl World {
             }
         };
         // BOUNDS HOOK (world/bounds.rs): creatures / structures / vehicles land where the caster sees them.
-        let pos = if model.is_none() { self.place_visible(i, &recipe, shape.as_ref(), origin, look, rot, pos) } else { pos };
+        let pos = if model.is_none() && named.is_none() { self.place_visible(i, &recipe, shape.as_ref(), origin, look, rot, pos) } else { pos };
+        // FREEDOM HOOK: named delivery — next to / around / in front of them (freedom/deliver.rs)
+        let (pos, rot) = match named {
+            Some(n) if model.is_none() => self.deliver_place(&recipe, shape.as_ref(), &n, (pos, rot)),
+            _ => (pos, rot),
+        };
         let pos = if model.is_none() { crate::signature::orbital_spawn(self, &recipe, origin, aim_point, pos) } else { pos }; // SIGNATURE HOOK: orbital emitters hover high
         let piloted = recipe.has(Mechanic::Piloted) && !matches!(category, FormCategory::Held | FormCategory::Worn);
         let suit = piloted && recipe.scale <= SUIT_MAX_SCALE;
@@ -584,6 +604,10 @@ impl World {
             model,
         });
         if let Some(c) = self.constructs.get_mut(cid) {
+            if let Some(n) = named {
+                c.comp.named = Some(n.player); // FREEDOM HOOK: homing / AI lock, thrown at them
+                c.target = Some(n.player);
+            }
             c.suit = suit;
             c.priced_autonomous = typed.autonomous && willpower_autonomous_form(c.recipe.form); // TUNING HOOK
         }
@@ -607,6 +631,47 @@ impl World {
             self.create_portal(id, a, b, PORTAL_LIFETIME, Some(cid));
         }
         Ok(cid)
+    }
+
+    /// Retire the oldest of `ids` (oldest first) so at most `cap - 1` are left (room for one more).
+    fn replace_oldest(&mut self, ids: &[ConstructId], cap: usize) {
+        self.retire_oldest(ids, (ids.len() + 1).saturating_sub(cap));
+    }
+
+    /// Mark the `k` oldest of `ids` (oldest first) replaced.
+    fn retire_oldest(&mut self, ids: &[ConstructId], k: usize) {
+        for old in &ids[..k.min(ids.len())] {
+            if let Some(c) = self.constructs.get_mut(*old) {
+                c.gone = Some(GoneReason::Replaced);
+            }
+        }
+    }
+
+    /// CONSTRUCTS rules (`MatchRules::limits`), before anything is paid: steer a cast to a kind the
+    /// lobby allows. A kaiju with kaiju off (or with the map full of giants and none of the caster's
+    /// own to swap out) becomes a big creature; a colossal one just big. A kind that is off with
+    /// nothing near it fizzles ([`CastError::Fizzled`]).
+    pub(crate) fn steer_by_limits(&self, id: PlayerId, recipe: &mut Recipe) -> Result<(), CastError> {
+        let rules = &self.cfg.rules;
+        if recipe.form == Form::Kaiju || is_colossal(recipe) {
+            let on_map = self.constructs.iter().filter(|c| c.gone.is_none() && c.parent.is_none() && is_giant(c)).count();
+            let swappable = !self.free_cast && self.constructs.owned_by(id).any(|c| c.parent.is_none() && is_giant(c));
+            let cap = rules.giants_on_map_limit();
+            let downsize = on_map >= cap && (!swappable || cap == 0);
+            if recipe.form == Form::Kaiju && (rules.kaiju_limit() == 0 || downsize) {
+                recipe.form = Form::Biped;
+                let spec = crate::constructs::form_spec(Form::Biped);
+                let (lo, hi) = rules.scale_range(spec.min_scale, spec.max_scale);
+                recipe.scale = recipe.scale.clamp(lo, hi);
+            }
+            if is_colossal(recipe) && (rules.colossal_limit() == 0 || downsize) {
+                recipe.scale = crate::rules::COLOSSAL_SCALE - 0.01;
+            }
+        }
+        if rules.slot_limit(Slot::of(recipe.form)) == 0 || rules.total_limit() == 0 {
+            return Err(CastError::Fizzled);
+        }
+        Ok(())
     }
 
     /// Store an authored robot shape on `cid` and tell clients (once).
@@ -918,7 +983,7 @@ impl World {
         let aim_normal = world_hit.map(|h| h.normal).unwrap_or(-dir);
         self.free_cast = true;
         // Party / power free copies are never priced up (TypedPricing::default()).
-        let res = self.spawn_cast(i, recipe, shape.map(sanitize_shape), None, origin, dir, aim_point, aim_normal, TypedPricing::default());
+        let res = self.spawn_cast(i, recipe, shape.map(sanitize_shape), None, origin, dir, aim_point, aim_normal, TypedPricing::default(), None);
         self.free_cast = false;
         if let (Ok(id), Some(alt)) = (res, alt_shape) {
             self.attach_alt_shape(id, sanitize_shape(alt));
@@ -935,6 +1000,11 @@ impl World {
 }
 
 /// Clamp an untrusted shape (prim count / sizes / NaNs).
+/// A giant for the map-wide cap (`ConstructLimits::giants_on_map`): a kaiju or anything colossal.
+fn is_giant(c: &crate::constructs::Construct) -> bool {
+    c.recipe.form == Form::Kaiju || c.colossal
+}
+
 pub(crate) fn sanitize_shape(mut s: ShapeSpec) -> ShapeSpec {
     s.prims.truncate(256);
     s.parts.truncate(64);

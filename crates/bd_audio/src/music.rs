@@ -188,6 +188,14 @@ impl MusicDirector {
             // remixes) when it kicks off.
             ("lair", false) => "menu",
             ("lair", true) => "archipelago_combat",
+            // Giant's Room: the Minuet in G with its music-box sparkle (a kid's bedroom; chip-EDM /
+            // house remixes under the Remix style); Offenbach's Can-can galop when it kicks off.
+            ("giant", false) => "tutorial",
+            ("giant", true) => "party",
+            // Hyperline: the chase — Flight of the Bumblebee (its DnB remix at 174 under the Remix style)
+            // riding the train; In the Hall of the Mountain King (168 bpm; DnB / trap / phonk) when it kicks off.
+            ("hyperline", false) => "final_stock",
+            ("hyperline", true) => "sudden_death",
             (_, false) => "archipelago_explore",
             (_, true) => "archipelago_combat",
         }

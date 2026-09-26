@@ -378,6 +378,8 @@ fn map_key(k: MapKind) -> &'static str {
         MapKind::Valley => "valley",
         MapKind::Cybertron => "cybertron",
         MapKind::Lair => "lair",
+        MapKind::GiantsRoom => "giant",
+        MapKind::Hyperline => "hyperline",
     }
 }
 

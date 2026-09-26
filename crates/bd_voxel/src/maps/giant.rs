@@ -35,7 +35,7 @@
 //!   (faces towards the air outside the world's extent are never meshed).
 
 // Generator style: many small brushes with explicit metre coordinates.
-#![allow(clippy::too_many_arguments)]
+#![allow(clippy::too_many_arguments, clippy::needless_range_loop, clippy::manual_range_contains)]
 
 use bd_core::voxel::{AIR, Aabb, Material};
 use glam::{IVec3, Vec2, Vec3};
@@ -269,7 +269,12 @@ fn build_shell(c: &mut City, seed: u32) {
     let (dx0, dx1, dtop) = (DOOR.x0, DOOR.x1, FLOOR_Y + 60.0);
     bx(c, dx0, FLOOR_Y, HZ, dx1, dtop, HZ + 1.0, mat::FURNITURE_FRAME);
     // Panel grooves (4 panels).
-    for (a, b, y0, y1) in [(dx0 + 3.0, dx0 + 10.5, 14.0, 34.0), (dx1 - 10.5, dx1 - 3.0, 14.0, 34.0), (dx0 + 3.0, dx0 + 10.5, 38.0, 64.0), (dx1 - 10.5, dx1 - 3.0, 38.0, 64.0)] {
+    for (a, b, y0, y1) in [
+        (dx0 + 3.0, dx0 + 10.5, 14.0, 34.0),
+        (dx1 - 10.5, dx1 - 3.0, 14.0, 34.0),
+        (dx0 + 3.0, dx0 + 10.5, 38.0, 64.0),
+        (dx1 - 10.5, dx1 - 3.0, 38.0, 64.0),
+    ] {
         for (p0, p1) in [((a, y0), (b, y0 + 0.5)), ((a, y1 - 0.5), (b, y1)), ((a, y0), (a + 0.5, y1)), ((b - 0.5, y0), (b, y1))] {
             bx(c, p0.0, p0.1, HZ, p1.0, p1.1, HZ + 0.5, AIR);
         }
@@ -552,7 +557,11 @@ fn build_bookshelf(c: &mut City, seed: u32) {
         let stair_left = k % 2 == 0;
         let stair_len = if k < 4 { 4 } else { 0 };
         let tread = 2.5;
-        let (stair_z0, stair_z1) = if stair_left { (b.z0 + 1.0, b.z0 + 1.0 + tread * stair_len as f32) } else { (b.z1 - 1.0 - tread * stair_len as f32, b.z1 - 1.0) };
+        let (stair_z0, stair_z1) = if stair_left {
+            (b.z0 + 1.0, b.z0 + 1.0 + tread * stair_len as f32)
+        } else {
+            (b.z1 - 1.0 - tread * stair_len as f32, b.z1 - 1.0)
+        };
         for step in 0..stair_len {
             let (za, zb) = if stair_left {
                 (stair_z0 + tread * step as f32, stair_z0 + tread * (step + 1) as f32)
@@ -668,7 +677,13 @@ fn build_desk(c: &mut City, seed: u32) {
     c.fill_with(Vec3::new(lx0, y, lz0), Vec3::new(lx1, y + 0.5, lz1), |p, _, _| {
         let keys = p.x > lx0 + 1.0 && p.x < lx1 - 1.0 && p.z > lz0 + 1.0 && p.z < lz0 + 4.0;
         let pad = (p.x - (lx0 + lx1) * 0.5).abs() < 1.8 && p.z > lz0 + 4.5 && p.z < lz1 - 0.5;
-        Some(if keys { mat::PLASTIC_BLACK } else if pad { mat::HULL_WHITE } else { mat::STEEL })
+        Some(if keys {
+            mat::PLASTIC_BLACK
+        } else if pad {
+            mat::HULL_WHITE
+        } else {
+            mat::STEEL
+        })
     });
     for k in 0..14 {
         let yy = y + 0.5 + k as f32 * 0.5;
@@ -717,7 +732,12 @@ fn build_desk(c: &mut City, seed: u32) {
     for (x, z) in [(ch.x0, ch.z0), (ch.x1 - 1.0, ch.z0), (ch.x0, ch.z1 - 1.0), (ch.x1 - 1.0, ch.z1 - 1.0)] {
         bx(c, x, FLOOR_Y, z, x + 1.0, seat - 1.0, z + 1.0, mat::FURNITURE_FRAME);
     }
-    for (x0, z0, x1, z1) in [(ch.x0, ch.z0, ch.x0 + 0.5, ch.z1), (ch.x1 - 0.5, ch.z0, ch.x1, ch.z1), (ch.x0, ch.z0, ch.x1, ch.z0 + 0.5), (ch.x0, ch.z1 - 0.5, ch.x1, ch.z1)] {
+    for (x0, z0, x1, z1) in [
+        (ch.x0, ch.z0, ch.x0 + 0.5, ch.z1),
+        (ch.x1 - 0.5, ch.z0, ch.x1, ch.z1),
+        (ch.x0, ch.z0, ch.x1, ch.z0 + 0.5),
+        (ch.x0, ch.z1 - 0.5, ch.x1, ch.z1),
+    ] {
         bx(c, x0, FLOOR_Y + 4.0, z0, x1, FLOOR_Y + 4.5, z1, mat::FURNITURE_FRAME);
     }
     bx(c, ch.x0, seat - 1.0, ch.z0, ch.x1, seat - 0.5, ch.z1, mat::FURNITURE_FRAME);
@@ -754,7 +774,9 @@ fn build_toy_box(c: &mut City, seed: u32) {
     let t = TOY_BOX;
     let rim = TOY_BOX_RIM;
     // Four 1 m walls (painted wood), no bottom: the inside is a pit into the void.
-    for (x0, z0, x1, z1) in [(t.x0, t.z0, t.x1, t.z0 + 1.0), (t.x0, t.z1 - 1.0, t.x1, t.z1), (t.x0, t.z0, t.x0 + 1.0, t.z1), (t.x1 - 1.0, t.z0, t.x1, t.z1)] {
+    for (x0, z0, x1, z1) in
+        [(t.x0, t.z0, t.x1, t.z0 + 1.0), (t.x0, t.z1 - 1.0, t.x1, t.z1), (t.x0, t.z0, t.x0 + 1.0, t.z1), (t.x1 - 1.0, t.z0, t.x1, t.z1)]
+    {
         bx(c, x0, FLOOR_Y, z0, x1, rim, z1, mat::PAINT_RED);
     }
     // Brass corner caps and a yellow band.
@@ -791,7 +813,9 @@ fn build_vent(c: &mut City) {
     let v = VENT;
     // The hole itself into the void, a metal duct frame round it, the grille lying beside it.
     carve_pit(c, v);
-    c.fill_with(Vec3::new(v.x0 - 0.5, FLOOR_Y - 0.5, v.z0 - 0.5), Vec3::new(v.x1 + 0.5, FLOOR_Y, v.z1 + 0.5), |_, _, old| (old != AIR).then_some(mat::TOWER_CORE));
+    c.fill_with(Vec3::new(v.x0 - 0.5, FLOOR_Y - 0.5, v.z0 - 0.5), Vec3::new(v.x1 + 0.5, FLOOR_Y, v.z1 + 0.5), |_, _, old| {
+        (old != AIR).then_some(mat::TOWER_CORE)
+    });
     for z in 0..20 {
         let zz = v.z0 - 0.5 + z as f32 * 0.5;
         let m = if z % 2 == 0 { mat::STEEL } else { AIR };
@@ -840,9 +864,19 @@ fn build_socks(c: &mut City, seed: u32) {
         let rr = rng.range(0.0, 5.5);
         let (x, z) = (ctr.x + dcos(a) * rr, ctr.y + dsin(a) * rr * 0.9);
         // Rest on top of whatever is there.
-        let y = (0..40).rev().map(|k| FLOOR_Y + k as f32 * 0.5).find(|&yy| c.w.get(IVec3::new(vx(x), vx(yy), vx(z))) != AIR).map_or(FLOOR_Y, |yy| yy + 0.5);
+        let y = (0..40)
+            .rev()
+            .map(|k| FLOOR_Y + k as f32 * 0.5)
+            .find(|&yy| c.w.get(IVec3::new(vx(x), vx(yy), vx(z))) != AIR)
+            .map_or(FLOOR_Y, |yy| yy + 0.5);
         let ang = rng.range(0.0, TAU);
-        sock(c, Vec3::new(x - dcos(ang) * 2.0, y - 0.8, z - dsin(ang) * 2.0), Vec2::new(dcos(ang), dsin(ang)), stripes[k % stripes.len()], seed ^ k as u32);
+        sock(
+            c,
+            Vec3::new(x - dcos(ang) * 2.0, y - 0.8, z - dsin(ang) * 2.0),
+            Vec2::new(dcos(ang), dsin(ang)),
+            stripes[k % stripes.len()],
+            seed ^ k as u32,
+        );
     }
 }
 
@@ -880,7 +914,13 @@ fn sneaker(c: &mut City, x0: f32, z0: f32) {
         }
         let toe_cap = u > len - 1.5 && y < 1.6;
         let sole_side = y < 1.0;
-        Some(if sole_side { mat::HULL_WHITE } else if toe_cap { mat::PAINT_WHITE } else { mat::PLASTIC_RED })
+        Some(if sole_side {
+            mat::HULL_WHITE
+        } else if toe_cap {
+            mat::PAINT_WHITE
+        } else {
+            mat::PLASTIC_RED
+        })
     });
     // Laces across the tongue.
     for k in 0..5 {
@@ -1022,7 +1062,13 @@ fn build_cat(c: &mut City) {
         }
         let stripe = (dsin((q.x - body.x) * 1.35 + (q.z - body.z) * 0.35) > 0.55) && q.y > body.y + 0.6;
         let belly = d.z < -0.45 && q.y < body.y + 1.2;
-        Some(if belly { mat::CAT_CREAM } else if stripe { mat::TERRACOTTA } else { mat::CAT_GINGER })
+        Some(if belly {
+            mat::CAT_CREAM
+        } else if stripe {
+            mat::TERRACOTTA
+        } else {
+            mat::CAT_GINGER
+        })
     });
     // Head tucked at the east end, facing the window, chin on the paws.
     let head = Vec3::new(p.x + 5.2, base + 2.6, p.y - 2.8);
@@ -1033,7 +1079,13 @@ fn build_cat(c: &mut City) {
         }
         let muzzle = d.x > 1.6 && d.y < 0.4;
         let stripe = d.y > 1.4 && (dsin(d.z * 2.4) > 0.5);
-        Some(if muzzle { mat::CAT_CREAM } else if stripe { mat::TERRACOTTA } else { mat::CAT_GINGER })
+        Some(if muzzle {
+            mat::CAT_CREAM
+        } else if stripe {
+            mat::TERRACOTTA
+        } else {
+            mat::CAT_GINGER
+        })
     });
     for dz in [-1.6f32, 1.6] {
         // Ears: stacked, narrowing squares.
@@ -1044,7 +1096,12 @@ fn build_cat(c: &mut City) {
             bx(c, head.x - s * 0.5, yy, head.z + dz - s * 0.5, head.x + s * 0.5 + 0.5, yy + 0.5, head.z + dz + s * 0.5 + 0.5, m);
         }
         // Closed eyes: little dark curves.
-        c.line(Vec3::new(head.x + 2.75, head.y + 0.9, head.z + dz * 0.55 - 0.4), Vec3::new(head.x + 2.75, head.y + 0.9, head.z + dz * 0.55 + 0.4), mat::PLASTIC_BLACK, false);
+        c.line(
+            Vec3::new(head.x + 2.75, head.y + 0.9, head.z + dz * 0.55 - 0.4),
+            Vec3::new(head.x + 2.75, head.y + 0.9, head.z + dz * 0.55 + 0.4),
+            mat::PLASTIC_BLACK,
+            false,
+        );
     }
     set(c, IVec3::new(vx(head.x + 3.0), vx(head.y + 0.1), vx(head.z)), mat::STUCCO_PINK);
     // Front paws under the chin, the tail wrapped round the front.
@@ -1104,7 +1161,22 @@ fn build_castle(c: &mut City, seed: u32) {
             // Merlons: small cubes on the outer edge of walls and towers.
             if h > 0 && (wall || tower(i, j).is_some()) && (i + j) % 2 == 0 && !keep(i, j) {
                 let (x, y, z) = at(i, h, j);
-                let (ox, oz) = (if i == 0 { 0.0 } else if i == bw - 1 { 1.0 } else { 0.5 }, if j == 0 { 0.0 } else if j == bd - 1 { 1.0 } else { 0.5 });
+                let (ox, oz) = (
+                    if i == 0 {
+                        0.0
+                    } else if i == bw - 1 {
+                        1.0
+                    } else {
+                        0.5
+                    },
+                    if j == 0 {
+                        0.0
+                    } else if j == bd - 1 {
+                        1.0
+                    } else {
+                        0.5
+                    },
+                );
                 bx(c, x + ox, y, z + oz, x + ox + 0.5, y + 0.5, z + oz + 0.5, col(i, j, 9));
             }
         }
@@ -1179,19 +1251,23 @@ fn build_fan(c: &mut City) {
         let a = (15.0 + 90.0 * k as f32).to_radians();
         let (dx, dz) = (dcos(a), dsin(a));
         let n = Vec2::new(-dz, dx);
-        c.fill_with(Vec3::new(f.x - FAN_R - 1.0, f.y - 0.5, f.z - FAN_R - 1.0), Vec3::new(f.x + FAN_R + 1.0, f.y + 1.0, f.z + FAN_R + 1.0), |p, _, _| {
-            let q = Vec2::new(p.x - f.x, p.z - f.z);
-            let along = q.x * dx + q.y * dz;
-            let across = q.dot(n);
-            if p.y < f.y + 0.5 {
-                // Blade: 4.5 m wide, a little wider at the tip, rounded end.
-                let half = 2.0 + 0.25 * ((along - 4.5) / (FAN_R - 4.5)).clamp(0.0, 1.0);
-                let end = if along > FAN_R - half { ((along - (FAN_R - half)).powi(2) + across * across).sqrt() <= half } else { true };
-                (along >= 4.5 && along <= FAN_R && across.abs() <= half && end).then_some(mat::FURNITURE_TOP)
-            } else {
-                (along >= 2.5 && along <= 6.0 && across.abs() <= 0.6).then_some(mat::STEEL)
-            }
-        });
+        c.fill_with(
+            Vec3::new(f.x - FAN_R - 1.0, f.y - 0.5, f.z - FAN_R - 1.0),
+            Vec3::new(f.x + FAN_R + 1.0, f.y + 1.0, f.z + FAN_R + 1.0),
+            |p, _, _| {
+                let q = Vec2::new(p.x - f.x, p.z - f.z);
+                let along = q.x * dx + q.y * dz;
+                let across = q.dot(n);
+                if p.y < f.y + 0.5 {
+                    // Blade: 4.5 m wide, a little wider at the tip, rounded end.
+                    let half = 2.0 + 0.25 * ((along - 4.5) / (FAN_R - 4.5)).clamp(0.0, 1.0);
+                    let end = if along > FAN_R - half { ((along - (FAN_R - half)).powi(2) + across * across).sqrt() <= half } else { true };
+                    (along >= 4.5 && along <= FAN_R && across.abs() <= half && end).then_some(mat::FURNITURE_TOP)
+                } else {
+                    (along >= 2.5 && along <= 6.0 && across.abs() <= 0.6).then_some(mat::STEEL)
+                }
+            },
+        );
     }
 }
 
@@ -1275,11 +1351,7 @@ fn kicker_height(z: f32) -> Option<f32> {
 /// Launch-ramp surface top at z (desk top → floor run-out).
 pub fn ramp_height(z: f32) -> f32 {
     let top = DESK_TOP + 0.5;
-    if z < DESK.z1 {
-        top
-    } else {
-        (top - (z - DESK.z1) * 0.5).max(FLOOR_Y + 0.5)
-    }
+    if z < DESK.z1 { top } else { (top - (z - DESK.z1) * 0.5).max(FLOOR_Y + 0.5) }
 }
 
 #[derive(Clone, Copy)]
@@ -1397,7 +1469,9 @@ fn build_track(c: &mut City) {
 /// Surf lines: the blanket slide and the two banked track corners (three chords each).
 pub fn surf_lines() -> Vec<SurfLine> {
     let mut out = vec![SurfLine { a: Vec3::new(-43.0, 27.5, -9.0), b: Vec3::new(-43.0, 11.8, -37.0), face_deg: 55.0, width: 4.5 }];
-    for (ctr, a0, h0) in [(Vec2::new(TRACK_E - TRACK_R, TRACK_N - TRACK_R), 0.0f32, 14.0f32), (Vec2::new(TRACK_W + TRACK_R, TRACK_S + TRACK_R), PI, 14.0)] {
+    for (ctr, a0, h0) in
+        [(Vec2::new(TRACK_E - TRACK_R, TRACK_N - TRACK_R), 0.0f32, 14.0f32), (Vec2::new(TRACK_W + TRACK_R, TRACK_S + TRACK_R), PI, 14.0)]
+    {
         let r = 13.0;
         for k in 0..3 {
             let (t0, t1) = (a0 + k as f32 * PI / 6.0, a0 + (k + 1) as f32 * PI / 6.0);
@@ -1435,7 +1509,9 @@ fn teddy(c: &mut City, at: Vec3) {
     e(c, Vec3::new(1.6, 0.9, -1.3), Vec3::new(1.9, 0.9, 0.9), WOOD);
     e(c, Vec3::new(1.6, 0.9, 1.3), Vec3::new(1.9, 0.9, 0.9), WOOD);
     for dz in [-1.3f32, 1.3] {
-        c.fill_with(at + Vec3::new(3.0, 0.1, dz - 0.8), at + Vec3::new(3.6, 1.7, dz + 0.8), |p, _, _| (Vec2::new(p.y - at.y - 0.9, p.z - at.z - dz).length() <= 0.75).then_some(CAT_CREAM));
+        c.fill_with(at + Vec3::new(3.0, 0.1, dz - 0.8), at + Vec3::new(3.6, 1.7, dz + 0.8), |p, _, _| {
+            (Vec2::new(p.y - at.y - 0.9, p.z - at.z - dz).length() <= 0.75).then_some(CAT_CREAM)
+        });
     }
     e(c, Vec3::new(0.0, 2.6, 0.0), Vec3::new(2.0, 2.4, 2.1), WOOD);
     e(c, Vec3::new(1.4, 2.4, 0.0), Vec3::new(0.8, 1.6, 1.4), CAT_CREAM);
@@ -1477,7 +1553,7 @@ fn toy_car(c: &mut City, x: f32, y: f32, z: f32, along_x: bool, body: Material) 
     let (cx, cz) = if along_x { (0.5, hz) } else { (hx, 0.5) };
     bx(c, x - cx, y + 1.0, z - cz, x + cx, y + 1.5, z + cz, mat::GLASS_BLUE);
     for (sx, sz) in [(-1.0f32, -1.0f32), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
-        let (px, pz) = if along_x { (x + sx * (hx - 0.25), z + sz * (hz - 0.25)) } else { (x + sx * (hx - 0.25), z + sz * (hz - 0.25)) };
+        let (px, pz) = (x + sx * (hx - 0.25), z + sz * (hz - 0.25));
         bx(c, px - 0.25, y, pz - 0.25, px + 0.25, y + 0.5, pz + 0.25, mat::PLASTIC_BLACK);
     }
 }
@@ -1578,14 +1654,22 @@ fn routes() -> Vec<Route> {
     let f = FLOOR_Y + 0.5;
     let mut out = Vec::new();
     // The track loop, counter-clockwise from the south straight (lane centre, kicker heights).
-    let wp: Vec<Vec3> = track_loop().iter().map(|(p, _)| Vec3::new(p.x, if (p.x - TRACK_W).abs() < 0.01 { kicker_height(p.y).unwrap_or(f) } else { f }, p.y)).collect();
+    let wp: Vec<Vec3> = track_loop()
+        .iter()
+        .map(|(p, _)| Vec3::new(p.x, if (p.x - TRACK_W).abs() < 0.01 { kicker_height(p.y).unwrap_or(f) } else { f }, p.y))
+        .collect();
     out.push(Route { name: "track_loop", from: "track", to: "track", kind: RouteKind::Ground, waypoints: wp, anchors: vec![] });
     out.push(Route {
         name: "desk_ramp",
         from: "rug",
         to: "desk",
         kind: RouteKind::Ground,
-        waypoints: vec![Vec3::new(RAMP_X, f, 18.0), Vec3::new(RAMP_X, f, 10.0), Vec3::new(RAMP_X, DESK_TOP + 0.5, DESK.z1), Vec3::new(RAMP_X - 6.0, DESK_TOP, -44.0)],
+        waypoints: vec![
+            Vec3::new(RAMP_X, f, 18.0),
+            Vec3::new(RAMP_X, f, 10.0),
+            Vec3::new(RAMP_X, DESK_TOP + 0.5, DESK.z1),
+            Vec3::new(RAMP_X - 6.0, DESK_TOP, -44.0),
+        ],
         anchors: vec![],
     });
     let bx0 = BOOKSHELF.x1 - 1.5;
@@ -1599,7 +1683,11 @@ fn routes() -> Vec<Route> {
         to: "bookshelf",
         kind: RouteKind::Mixed,
         waypoints: climb,
-        anchors: SHELVES.iter().map(|&s| Vec3::new(BOOKSHELF.x1 - 0.25, s - 0.75, bz)).chain([Vec3::new(BOOKSHELF.center().x, CEIL_Y, bz)]).collect(),
+        anchors: SHELVES
+            .iter()
+            .map(|&s| Vec3::new(BOOKSHELF.x1 - 0.25, s - 0.75, bz))
+            .chain([Vec3::new(BOOKSHELF.center().x, CEIL_Y, bz)])
+            .collect(),
     });
     out.push(Route {
         name: "curtain_swing",
@@ -1642,7 +1730,7 @@ fn build(seed: u64) -> (City, Vec<Vec3>) {
     let s32 = (seed as u32) ^ 0x0917_a470;
     let mut w = VoxelWorld::centered(GIANT_SIZE_VOXELS);
     w.set_cull_outside(true);
-    let mut c = City::new(w, seed ^ 0x6769_616e_74);
+    let mut c = City::new(w, seed ^ 0x0067_6961_6e74);
     build_shell(&mut c, s32);
     build_rug(&mut c, s32);
     build_bed(&mut c, s32);
@@ -1708,7 +1796,10 @@ fn info(world: VoxelWorld, spawns: Vec<Vec3>, pruned: usize) -> (VoxelWorld, Map
     let center = Vec3::new(RUG.center().x, FLOOR_Y + 0.5, RUG.center().y);
     let arena = ArenaInfo {
         spawns,
-        bounds: Aabb { min: Vec3::new(wb.min.x - 25.0, VOID_Y, wb.min.z - 25.0), max: Vec3::new(wb.max.x + 25.0, wb.max.y + 40.0, wb.max.z + 25.0) },
+        bounds: Aabb {
+            min: Vec3::new(wb.min.x - 25.0, VOID_Y, wb.min.z - 25.0),
+            max: Vec3::new(wb.max.x + 25.0, wb.max.y + 40.0, wb.max.z + 25.0),
+        },
         void_y: VOID_Y,
         center,
         sun_dir: sun_dir(),
@@ -1724,7 +1815,11 @@ fn info(world: VoxelWorld, spawns: Vec<Vec3>, pruned: usize) -> (VoxelWorld, Map
         slipstream: None,
         mechanics: Default::default(),
     };
-    let d = |name: &'static str, a: Area, y: f32| District { name, center: Vec3::new(a.center().x, y, a.center().y), area: [a.x0, a.z0, a.x1, a.z1] };
+    let d = |name: &'static str, a: Area, y: f32| District {
+        name,
+        center: Vec3::new(a.center().x, y, a.center().y),
+        area: [a.x0, a.z0, a.x1, a.z1],
+    };
     let districts = vec![
         d("bed", BED, MATTRESS_TOP + 1.0),
         d("bookshelf", BOOKSHELF, SHELVES[0]),

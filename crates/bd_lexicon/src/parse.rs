@@ -855,9 +855,6 @@ impl Lexicon {
         if let Some(&i) = self.icons.alias.get(span) {
             return (Some(i), None, false);
         }
-        if let Some((id, _)) = self.entry(span) {
-            return (None, Some(id), false);
-        }
         // plural / irregular on the last word
         let (pre, last) = match span.rfind(' ') {
             Some(p) => (&span[..p + 1], &span[p + 1..]),
@@ -868,6 +865,23 @@ impl Lexicon {
             cands.push(b.clone());
         }
         cands.extend(singulars(last));
+        if let Some((id, rec)) = self.entry(span) {
+            // A plural that is only some obscure name ("sharks" = a gang in West Side Story, "spiders" =
+            // a band) reads as the everyday plural when the singular is a hand-anchored / common noun.
+            let weak = rec.flags & (F_ENTITY | crate::data::F_POP) != 0
+                && rec.flags & (crate::data::F_ANCHOR | crate::data::F_COMPOUND | crate::data::F_POKEMON) == 0;
+            if weak {
+                for c in &cands {
+                    let k = format!("{pre}{c}");
+                    if let Some((sid, srec)) = self.entry(&k)
+                        && srec.flags & (crate::data::F_ANCHOR | crate::data::F_COMMON) != 0
+                    {
+                        return (None, Some(sid), true);
+                    }
+                }
+            }
+            return (None, Some(id), false);
+        }
         for c in cands {
             let k = format!("{pre}{c}");
             if let Some(&i) = self.icons.alias.get(&k) {
@@ -925,7 +939,9 @@ impl Lexicon {
                                     && r.flags & (crate::data::F_ANCHOR | crate::data::F_COMPOUND) == 0
                             })
                             .unwrap_or(false);
-                        if first_mod && is_entity {
+                        // ...nor one that merely starts with an article ("a whale" the film, "a bomb" = A-bomb)
+                        let first_article = matches!(first, "a" | "an" | "the");
+                        if (first_mod || first_article) && is_entity {
                             c.entry = None;
                         }
                     }
@@ -1340,9 +1356,28 @@ impl Lexicon {
                 if cat.len() < 4 || phonetic_key(&cat).len() < 3 || (!weak && len < 2) {
                     continue;
                 }
+                // A sound-alike window never starts or ends on a function word ("uh missile", "king kong
+                // on a", "at the dragon") and only spans one ("car at zoey", "rain of arrows") when the
+                // name it sounds like has that word too (checked below).
+                // ("a" may sit inside: whisper splits syllables — "pick a chew" is Pikachu.)
+                let edge = |t: &Tok| {
+                    matches!(
+                        gram_of(&t.text),
+                        Some(Gram::Article | Gram::Filler | Gram::Stop | Gram::With | Gram::Of | Gram::And | Gram::Copula | Gram::Cast)
+                    )
+                };
+                let inner = |t: &Tok| matches!(gram_of(&t.text), Some(Gram::Stop | Gram::With | Gram::Of | Gram::And));
+                let win = &toks[start..start + len];
+                if len > 1 && (edge(&win[0]) || edge(&win[len - 1])) {
+                    continue;
+                }
+                let inner_func: Vec<&str> = win.iter().filter(|t| inner(t)).map(|t| t.text.as_str()).collect();
                 let cands =
                     [self.phonetic_match_opts(&cat, true, true), if weak { self.phonetic_match(&cat, cat.len() >= 6) } else { None }];
                 for (key, is_icon, dist, rank) in cands.into_iter().flatten() {
+                    if !inner_func.iter().all(|f| key.split(' ').any(|k| k == *f)) {
+                        continue;
+                    }
                     // explaining more of what was heard beats matching a common short word
                     let score = rank as f32 / 25.0 + if is_icon { 3.0 } else { 0.0 } - dist as f32 * 1.5 + len as f32 * 1.5;
                     if (weak || is_icon) && best.as_ref().is_none_or(|b| score > b.0) {

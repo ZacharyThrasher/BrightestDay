@@ -103,7 +103,12 @@ fn ffa_cfg() -> SimConfig {
 // tests/juggle.rs `juggle_off_is_the_old_sim_bit_for_bit` runs this exact FFA with
 // `tuning.juggle = JuggleTuning::off()` on the same tree (casino interactables included) and
 // reproduces 0xc678_ca58_2062_e205.
-const FFA_NOCAST_STATE_HASH: u64 = 0xd1a3_7fca_9b34_c73d;
+// Re-recorded (was 0xd1a3_7fca_9b34_c73d) when wall splats joined the juggle chain (`juggle.splats`:
+// a splat's knockback grows with % too, so a tumbling body wedged between walls ping-ponged), on a
+// tree that also carries the in-flight CONNECT projectile bend (world/projectiles.rs, another worker),
+// which moves the hash on its own. A/B on that tree (tests/juggle.rs `print_ffa_juggle_ab`):
+// juggle off = 0xee46_5d42_cd65_ae0e, on without splats = 0x9b63_3e8c_b1d0_11af, on = this.
+const FFA_NOCAST_STATE_HASH: u64 = 0x0279_2967_07d1_b7e0;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {

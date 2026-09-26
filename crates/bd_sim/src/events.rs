@@ -65,6 +65,9 @@ pub enum CastError {
     ColossalLimit,
     /// Match ended.
     MatchOver,
+    /// The lobby turned this kind of construct off (`MatchRules::limits`) and nothing near it is
+    /// allowed: the ring fizzles, nothing paid.
+    Fizzled,
 }
 
 /// Something that went through a portal.
@@ -312,6 +315,9 @@ pub enum GameEvent {
     Freedom(crate::freedom::FreedomEvent),
     /// INTERACT HOOK (`world/interactables.rs`): slot machine pulls / payouts, roulette house spin.
     Casino(crate::world::interactables::CasinoEvent),
+    /// GIANTS (`constructs/giant.rs`): anatomy (replica colliders), weak-point crits, limbs cut off,
+    /// topples, attack warnings, stomp shockwaves, command focus, hijack.
+    Giant(crate::constructs::giant::GiantEvent),
 }
 
 /// What [`GameEvent::HeldFx`] reports (COMBAT.md §4 Held / Worn, §4b, §5d).

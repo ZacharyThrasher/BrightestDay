@@ -60,6 +60,8 @@ pub struct CombatTuning {
     pub juggle: crate::juggle::JuggleTuning,
     /// INTERACT HOOK: High Roller's slot machines + roulette house spin (`world/interactables.rs`).
     pub casino: crate::world::interactables::CasinoTuning,
+    /// GIANTS: weak points, limbs, topple, shockwaves, command, hijack (`constructs/giant.rs`).
+    pub giants: crate::constructs::giant::GiantTuning,
 }
 
 impl Default for CombatTuning {
@@ -82,6 +84,7 @@ impl Default for CombatTuning {
             freedom: crate::freedom::FreedomTuning::default(),
             juggle: crate::juggle::JuggleTuning::default(),
             casino: crate::world::interactables::CasinoTuning::default(),
+            giants: crate::constructs::giant::GiantTuning::default(),
         }
     }
 }
@@ -973,6 +976,7 @@ impl CombatTuning {
         self.freedom = self.freedom.validated(); // FREEDOM HOOK
         self.juggle = self.juggle.validated(); // JUGGLE
         self.casino = self.casino.validated(); // INTERACT HOOK
+        self.giants = self.giants.validated(); // GIANTS
         self
     }
 

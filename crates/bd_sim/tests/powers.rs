@@ -374,35 +374,42 @@ fn origin_is_a_themed_pickup_and_a_second_origin_replaces_the_first() {
     assert_eq!(power_of(&w, A), Some(spider));
     assert!(power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Gained { player: A, .. })));
     assert!(w.powers.fruits.is_empty() && w.constructs.get(cid).is_none(), "pickup taken");
-    // A second origin replaces the first (no overdose); the old one drops at the holder's feet.
+    // Powers MIX (up to `max_powers` = 3): a second origin joins the first as the ACTIVE power.
     assert!(w.grant_power(A, "gamma"));
     let evs = run(&mut w, 1);
     let p = w.player(A).unwrap();
     assert!(p.alive, "no explosion");
     assert_eq!(p.power.id, Some(pid("gamma")));
+    assert_eq!(p.power.slot_of(spider), Some(1), "the spider is still held");
     assert!(!power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Overdose { .. })));
-    assert!(w.powers.fruits.iter().any(|f| f.power == spider), "the spider drops where A stood");
-    // A devil fruit on top of an origin also just replaces it (one slot); the origin drops.
+    assert!(w.powers.fruits.is_empty(), "nothing dropped");
+    // A devil fruit on top of two origins: three held.
     assert!(w.grant_power(A, "gomu_gomu"));
     run(&mut w, 1);
     assert!(w.player(A).unwrap().alive);
     assert_eq!(power_of(&w, A), Some(pid("gomu_gomu")));
-    assert!(w.powers.fruits.iter().any(|f| f.power == pid("gamma")));
-    // ...and an origin on top of a fruit replaces the fruit (it drops, nobody explodes).
+    assert_eq!(w.player(A).unwrap().power.count(), 3);
+    // A fourth: the OLDEST (the spider) goes and drops at the holder's feet.
     assert!(w.grant_power(A, "kryptonian"));
     run(&mut w, 1);
     assert!(w.player(A).unwrap().alive);
     assert_eq!(power_of(&w, A), Some(pid("kryptonian")));
-    assert!(w.powers.fruits.iter().any(|f| f.power == pid("gomu_gomu")));
-    // A stand replaces an origin too (the origin drops); an origin replaces a stand (it is gone).
+    assert_eq!(w.player(A).unwrap().power.slot_of(spider), None);
+    assert!(w.powers.fruits.iter().any(|f| f.power == spider), "the oldest drops where A stood");
+    assert_eq!(w.player(A).unwrap().power.count(), 3);
+    // A stand joins too (gamma, now the oldest, drops); a second stand replaces the first (gone).
     assert!(w.grant_power(A, "star_platinum"));
     run(&mut w, 1);
-    assert!(w.powers.fruits.iter().any(|f| f.power == pid("kryptonian")));
+    assert!(w.powers.fruits.iter().any(|f| f.power == pid("gamma")));
     let stand = w.player(A).unwrap().power.companion.expect("stand out");
-    assert!(w.grant_power(A, "viltrumite"));
+    assert!(w.grant_power(A, "the_world"));
     run(&mut w, 1);
-    assert!(w.player(A).unwrap().alive && w.constructs.get(stand).is_none());
-    assert_eq!(power_of(&w, A), Some(pid("viltrumite")));
+    let p = w.player(A).unwrap();
+    assert!(p.alive && w.constructs.get(stand).is_none(), "the old stand is gone");
+    assert_eq!(p.power.id, Some(pid("the_world")));
+    assert_eq!(p.power.slot_of(pid("star_platinum")), None);
+    assert!(p.power.companion.is_some(), "the new stand is out");
+    assert_eq!(p.power.count(), 3, "gomu + kryptonian + the world");
 }
 
 #[test]

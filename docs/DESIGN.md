@@ -107,6 +107,14 @@ overshoot and settle scale with mass; big creatures' footsteps/landings shake th
 crack the ground; summoning scales an event (thunderclap, light pulse, ground shake) with size; heavy
 held items lag the view slightly and heavy swings shove the aim (recovering). All in hot-reloadable
 `assets/tuning/juice.ron`.
+**Built (CONNECT pass, `bd_game` `present/connect.rs`, `assets/tuning/juice.ron`):** hits are tiered Light / Medium /
+Heavy / Finisher (a launch ≥ 42 m/s); victim hit-stop 40 / 70 / 110 / 160 ms, the attacker's ×0.7; victim hit-shake
+along the hit + a white body flash; first-person **contact resistance** (the swing curve drags at 0.12× for 30–100 ms,
+then snaps through at 2.2× until the time is repaid; the third-person swing holds and snaps through too) + a hand
+kick; attacker camera punch + nudge-zoom (comfort-gated); directional hard-light sparks; a sub thump under heavies and
+the `heavy_hit` world duck on heavies you're in; bigger words on heavies; finisher flash + 0.25 s presentation
+slow-mo (`Time<Virtual>` only, off in the Comfort preset). Hit-stop never freezes the sim tick (offline included).
+Not built yet: scorch / crack decals, exaggerated victim poses, construct-weight anticipation.
 
 ### Juicy text (hard-light onomatopoeia)
 Grounded in "Juicy Text" (ICMI '24; vault: JuicyText_SupplementaryMaterials): text + particles is the
@@ -241,6 +249,20 @@ the costume's gloves + ring. UI: turntable preview, 3–4 seed variants per phra
 tweaks (accent colour, head scale, accessory toggles), preset gallery for non-typers. The costume
 phrase + seed + tweaks are sent once at join.
 
+**Character looks (owner: "if I type gojo I should look like gojo").** Resolution order for a costume
+phrase (`bd_shapes::costume::dress`): (1) a hand-authored **character** (assets/costumes/characters.ron,
+~200 looks, compiled into bd_shapes so every peer agrees without the lexicon; aliases + optional variant
+words: "gojo sunglasses", "goku super saiyan") built from a **style library** of voxel blocks with exact
+colours (hair styles, faces/eyes, eyewear, masks, helmets, hats, outfit cuts per region, belts,
+pixel-mosaic emblems/face paint, capes/weapons/wings/tails…); (2) a look **derived** from a curated
+humanoid icon (region slot structure + icon head + cape/wing/tail parts); (3) the vocabulary costume
+above. Characters are painted per voxel (the construct shader's colour channel, lightly tinted with the
+corps hard light; the lantern ring stays corps-coloured). VARIANT cycles a character's variants,
+RANDOMIZE mostly rolls an iconic character; ACCENT recolours the look's accent zone, HEAD SIZE and
+accessory toggles apply on top. Same rig/part ids as always (animations, hands, hitboxes unchanged);
+character bounding box ≤ 2.6× hull (thin hair spikes/brims inflate a box, not the silhouette).
+Characters are never listed in UI (MYSTERY). Gallery: docs/costume_gallery.png.
+
 ## Party mode UI (client)
 Lobby: mode toggle (FFA / Party) + a settings panel exposing every `GameSettings` knob with presets
 (Classic, Party, Chaos, Movement Gods). Between rounds: standings strip (corps-coloured, minimal), then
@@ -321,6 +343,50 @@ star KO through the gap. 10 spawns (plaza, roofs, ring road, both islands), neve
 lip on both sides and overhead, where a blazing **rift** slit runs along the gap; toward ±X the tube closes
 to a second glare; a dark glass sheet under the floating city reflects it with glinting shards; the fold
 breathes a few degrees (static with comfort). ~0.95 M voxel triangles + ~90 k backdrop triangles.
+**Cybertron** (`--map cybertron`, bd_voxel `maps/cybertron.rs`, sim `world/map_mech.rs`, client
+`present/cybertron.rs` + the Cybertron style of `present/space.rs`; private-use Transformers fan map, see
+THIRD_PARTY_NOTICES): a 240 × 160 m gunmetal city plate under open space (street 24 m, two 2 m rim tiers,
+then the void — the Sea of Rust), energon-cyan and amber seams, concentric ring motifs; 180°-rotation
+symmetric where it matters. **Iacon** (W): the Hall of Records (56 m gallery, Autobot floor crest, Optimus
+Prime + six Prime/Autobot statues baked from the Transformers icon pack, rib arches to swing on, the Matrix
+of Leadership in the apse behind Optimus), blue-steel spires. **Kaon** (E): the gladiator pit (13 m floor,
+8 m below the street, eight 1 m tiers + four stair aisles, cover pillars, Decepticon crest; Megatron towers
+over its east wall), jagged towers, smokestacks. **Centre**: the Well of AllSparks (20 m shaft = void KO,
+the AllSpark glowing far below), lip-ring walk, a 33 m ring deck (4 radial stairs), a crown ring at 58 m to
+swing across. **Expressways** (N/S, 36 m decks, ramps down to rim boulevards = a vehicle loop; open decks,
+no cover) with the 8 m **Rust Gap** over the rust bay (dunes, a fallen colossal Megatron head you can tunnel
+through, a giant hand; drifts climb back out). Two surf lines off the ring deck. **Space bridge**: a permanent
+portal pair (indestructible gates, SW Iacon ⇄ NE Kaon). **Transforming terrain** (flavour that only ADDS
+routes; the folded layout is complete): Well Span (split bascule across the Well), Gallery Span (across the
+Hall at wall-top height), Pit Span (over the pit), two expressway drop ramps. Sim colliders, not voxels:
+2 s telegraph (amber seams + panel clicks + a ghost of the extended pose), non-solid while moving, solid only
+once the volume is clear, retract only when nobody is on it (no crush, no shove, no KO). Normal gravity; star
+KO above. 10 spawns (5 a city), ~0.94 M triangles.
+
+**High Roller** (`--map casino`, bd_voxel `maps/casino.rs` + `casino_props.rs`, client
+`present/casino.rs`; generic art, no real brands): a Vegas casino on top of a tower at night, 104 × 92 m,
+hall floor 40 m over a void line at 30 m with a neon skyline glowing far below. The centre is a **giant
+roulette table as the arena floor**: a felt table (step ring, betting layouts, chip-stack steps), a gold
+rim, the banked ball track terracing down into 38 numbered red / black / green pockets (0.5 m gold frets,
+walkable) and the cone up to the indestructible spindle cross (anchors, a small exposed perch). Over it
+floats the **surf halo** — one descending turn of a hard-light spiral (the ball's own line, 48 chords,
+50.5 → 45.5 m, r 20.5 → 16) you board off a chandelier or the tallest chip stacks and ride round the
+wheel; it never blocks walking. Around it: a patterned-carpet hall with slot rows, blackjack / craps
+tables (cover), giant chip stacks and dice, the cashier cage and a neon "777", a U mezzanine (N / S / W
+balconies at 49 m on marble columns, open gold rails you can hop), a grand staircase, NE / SW stairs up
+through roof hatches, and ten crystal chandeliers (indestructible hubs + chains = swing anchors, crystals
+break). Roof deck (59 m): pool, loungers, parasols, palms, a round bar, the HIGH ROLLER sign, a giant dice
+pair and a glass atrium dome over the wheel (breakable glass on gold ribs). KOs: big breakable windows in
+an indestructible facade (both storeys) and the 1 m roof parapet → side / void KO (tether save applies);
+up through the roof / dome → star KO; the hall floor sits on an indestructible plate (no void holes).
+10 spawns (floor ×4, table ×2, balconies ×2, roof ×2). **Optional gambling** (`ArenaInfo::interactables`,
+sim `world/interactables.rs`, odds in `combat.ron` → `casino`, never shown): four big indestructible slot
+machines — hit the lever (melee / shot / blast) or hook it with a tether, pay a small willpower stake,
+the reels spin, then a random common party effect rides your casts for 20 s, rarely the jackpot (refill +
+next cast legendary), sometimes a harmless bust (confetti, a pie in your face, a little hop); and the
+roulette **house spin** every 45 s (a ball runs the track, telegraphed, and lights a pocket region that
+refills willpower faster while you stand in it). Warm gold + neon emissive light only, capped glitter.
+~0.7 M triangles.
 
 **Sakura Keep** (`--map sakura`, bd_voxel `maps/sakura.rs`; PRIVATE USE: the floor plan follows
 Overwatch's Hanamura, see THIRD_PARTY_NOTICES.md): a Japanese castle town on a 10-17 m plateau over the
@@ -346,6 +412,41 @@ Shellraiser and a switchback subway stair. Street (34 m): avenue + west street, 
 culvert whose descending surf line drops you into the skate hall at ~24 m/s. KOs: chasm + block edges =
 void, star KO over the roofs. Light: cool night ambience, emissive only. 10 spawns (4 lair, 2 tunnels,
 2 platform, 2 roofs), ~0.63 M triangles.
+
+**Hyperline** (`--map train`, bd_voxel `maps/hyperline.rs`, feature `hyperline`): an endless train chase.
+"The train stands still, the world moves": a white locomotive + 7 cars (233 m, along +X) on a glowing orange
+guideway, 9 m wide with a 6 m flat roof (orange centre stripe) and 50° curved shoulders carrying hard-light surf
+lines; hollow cars (4 m clear) with open side doors (glowing jambs), breakable windows/roof panels between an
+indestructible frame, roof hatches with stairs, running boards under the doors, 3 m gaps (three with gangways),
+antenna masts / pantographs / tail fin as anchors. The client (`present/hyperline.rs`) streams an endless vertical
+city shaft (towers, light rails, scaffold bridges) back and down, ring gates (bore ≥ 36 m) sweeping over with a
+doppler whoosh, guideway markers/pylons, speed streaks + edge wind lines (off in comfort mode; the scroll slows to
+a third), bogie sparks. The one map rule is **SLIPSTREAM** (`ArenaInfo::slipstream`, sim `bd_sim::slipstream`,
+host = prediction): nothing when touching the train or in the calm layer ≤ 2.5 m over the roofs; a gentle 1.5 m/s²
+rearward drag higher up; outside the footprint a rearward (28 m/s²) + outward (14 m/s²) sweep ramping in over 3 m
+(terminal 60 / 30 m/s); ×0.35 on an attached tether. Knock-offs sweep past the tail / out the side / into the void
+(17 m under the roofs); star KO above; the tether save holds — reel back aboard. Light hits (≤ ~16 m/s sideways) are
+recoverable with DI + air jump + dodge (onto the roof or a running board); harder hits need the tether.
+
+**Giant's Room** (`--map giant`, bd_voxel `maps/giant.rs` + client `present/giant.rs`): you are a 6 cm toy in a
+kid's bedroom scaled ×30 — everything in true proportion so the scale reads from anywhere (4 m floorboards with
+gaps, a 3 m skirting board, a 15 m bed, a 60 m door, a 9 m wall clock, 0.5–1 m rug tufts). The room is
+120 × 104 m with a 70 m ceiling; its walls are the world's extent (the mesher culls everything facing out).
+Furniture islands at every height, each with two or more ways up: the bed (duvet ≈ 24 m; the duvet dragged
+off its foot is a walkable slope + a surf line; a block staircase on its side) with the pillow mountain and a
+flush nightstand; the bookshelf (58 m, shelves every 9.5 m, book stairs, wall-kicks, tethers); the desk
+(30.5 m: lamp, laptop, pencil cup) reached by the orange toy-track launch ramp or by book piles via the
+chair; the toy box (a block staircase to its 20 m rim); the block castle (a pencil bridge); the sock heap;
+the curled cat asleep in the sun patch. The track loops round the rug (two banked corners carrying surf
+chords, a jump over a 6 m gap). High perches (bookshelf top, the static ceiling fan at 66 m, the window sill,
+curtain rod) are exposed and near the soft ceiling: no safe dominant spot. KOs: three void pits (the
+heating vent with its grille pulled off, the dark gap under the bed, the open toy box); the open window is
+the side blast zone; the ceiling is soft plaster, so a hard upward launch punches through into the sky
+(star KO). Light: the afternoon sun through the window (the shadowed room is lit by the patch it throws),
+a warm haze (fog 300 m), emissive lamp / laptop / nightlight; the client adds the sunbeam shaft and big
+drifting dust motes (slow, comfort-safe). Scope note (owner, 2026-09-26): no map-specific sim mechanics —
+the fan and the cat are static, the bed is ordinary terrain. 10 spawns across bed, nightstand, desk,
+bookshelf, floor, track, castle, sock heap; ~0.75 M triangles.
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,

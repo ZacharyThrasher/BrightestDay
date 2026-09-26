@@ -18,7 +18,7 @@ use bd_core::{PlayerId, Vec3};
 use crate::bots::{BotBrain, drive};
 use crate::events::GameEvent;
 use crate::rng::SimRng;
-use crate::rules::{CapMode, MatchRules, ScaleLimit, WillpowerMode};
+use crate::rules::{ConstructLimits, MatchRules, ScaleLimit, WillpowerMode};
 use crate::space::{LinkEnd, PortalEnd};
 use crate::world::{Aim, ArenaSource, SimConfig, TargetHint, World};
 
@@ -171,7 +171,7 @@ pub fn random_rules(rng: &mut SimRng) -> MatchRules {
         scoring: if rng.chance(0.25) { crate::rules::Scoring::Stock { lives: 1 + rng.below(3) as u8 } } else { crate::rules::Scoring::TimedKos },
         scale: [ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits][rng.below(3) as usize],
         willpower: [WillpowerMode::Normal, WillpowerMode::Double, WillpowerMode::Infinite][rng.below(3) as usize],
-        caps: if rng.chance(0.5) { CapMode::Normal } else { CapMode::Chaos },
+        limits: if rng.chance(0.5) { ConstructLimits::default() } else { ConstructLimits::chaos() },
         ko_target: 10,
         time_limit: 480.0,
         regen_islands_between_rounds: true,

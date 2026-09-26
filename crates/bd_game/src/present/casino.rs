@@ -141,6 +141,42 @@ impl Plugin for CasinoPlugin {
         app.init_resource::<CasinoFx>()
             .add_systems(Update, (sync_scene, casino_events).chain().in_set(PresentSet::Events))
             .add_systems(Update, (animate_slots, animate_house, animate_glitter, animate_pie).in_set(PresentSet::Sync));
+        if std::env::var_os("BD_CASINO_DEMO").is_some() {
+            app.add_systems(Update, demo.in_set(PresentSet::Events).before(casino_events));
+        }
+    }
+}
+
+/// `BD_CASINO_DEMO=<outcome>[:<machine>]` (practice / host only; dev screenshots, never set in play):
+/// ~2.5 s into the match the local player pulls machine `machine` (default 0) with the odds forced to
+/// `jackpot`, `bust`, `effect` (or `any` = the real odds), and the roulette house spin starts at ~1 s.
+fn demo(time: Res<Time>, fx: Res<CasinoFx>, active: Option<ResMut<ActiveWorld>>, mut t: Local<f32>, mut done: Local<u8>) {
+    let Some(mut active) = active else { return };
+    if !fx.active || active.role == crate::sim_bridge::SimRole::Client {
+        return;
+    }
+    *t += time.delta_secs();
+    let spec = std::env::var("BD_CASINO_DEMO").unwrap_or_default();
+    let (what, machine) = spec.split_once(':').map_or((spec.as_str(), 0usize), |(a, b)| (a, b.parse().unwrap_or(0)));
+    let w = &mut active.world;
+    if *done == 0 && *t > 1.0 {
+        *done = 1;
+        w.interact.house.next = 0.05;
+    }
+    if *done == 1 && *t > 2.5 {
+        *done = 2;
+        let c = &mut w.cfg.tuning.casino;
+        match what {
+            "jackpot" => (c.p_jackpot, c.p_bust) = (1.0, 0.0),
+            "bust" => (c.p_jackpot, c.p_bust) = (0.0, 1.0),
+            "effect" => (c.p_jackpot, c.p_bust) = (0.0, 0.0),
+            _ => {}
+        }
+        if let Some(me) = active.local {
+            let w = &mut active.world;
+            w.interact.machines.iter_mut().for_each(|m| m.cooldown = 0.0);
+            bd_sim::world::interactables::pull(w, machine, me, bd_sim::world::interactables::PullBy::Melee);
+        }
     }
 }
 

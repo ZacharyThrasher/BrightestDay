@@ -227,7 +227,8 @@ impl Default for TrackingTuning {
             trail_max_segments: 160,
             trail_samples_per_sec: 60.0,
             glow: true,
-            glow_flash: 0.22,
+            // CONNECT: the "you can lunge now" cue must read clearly (was 0.22).
+            glow_flash: 0.6,
             glow_rate: 14.0,
             glow_shimmer: 0.15,
             glow_shimmer_hz: 5.0,

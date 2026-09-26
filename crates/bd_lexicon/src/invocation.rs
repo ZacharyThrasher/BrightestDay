@@ -412,7 +412,9 @@ impl Lexicon {
         // ("ultimate beam" → palms; "final laser gun" → the gun; "bankai zangetsu" → the sword).
         match &tag {
             Some(t) => Self::deliver(&mut res, Some(t), kind),
-            None if kind == SignatureKind::Beam && (modifier_only || !keeps_body(&res, self.names_a_gun(&rest_key))) => from_palms(&mut res),
+            None if kind == SignatureKind::Beam && (modifier_only || !keeps_body(&res, self.names_a_gun(&rest_key))) => {
+                from_palms(&mut res)
+            }
             None => {}
         }
         let title = match (bare, suffix) {
@@ -442,8 +444,12 @@ impl Lexicon {
             });
             Self::deliver(res, Some(&t), t.kind);
             res.explanation.insert(0, format!("{key} \u{2192} signature {:?}", t.kind));
-            res.signature =
-                Some(SignatureCall { kind: t.kind, title: clip_title(title), invocation: None, windup: t.windup.map(|Windup::Merge(a, b)| (a, b)) });
+            res.signature = Some(SignatureCall {
+                kind: t.kind,
+                title: clip_title(title),
+                invocation: None,
+                windup: t.windup.map(|Windup::Merge(a, b)| (a, b)),
+            });
             return;
         }
         // Plain energy attacks come from the palms too ("repulsor", "ki blast", "energy beam").

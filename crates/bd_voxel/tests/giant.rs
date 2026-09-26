@@ -133,11 +133,22 @@ fn spawns_valid_spread_and_mutually_reachable() {
             assert!(info.spawns.iter().any(|s| s.y >= lo && s.y <= hi), "seed {seed}: no spawn at {lo}..{hi} m");
         }
         let g = Grid::new(&w);
-        let nodes: Vec<IVec3> = info.spawns.iter().map(|s| spawn_node(&g, *s).unwrap_or_else(|| panic!("seed {seed}: spawn {s} not standable"))).collect();
+        let nodes: Vec<IVec3> =
+            info.spawns.iter().map(|s| spawn_node(&g, *s).unwrap_or_else(|| panic!("seed {seed}: spawn {s} not standable"))).collect();
         // Mutual reachability ⇔ every spawn reaches spawn 0 and spawn 0 reaches every spawn.
         for (i, &n) in nodes.iter().enumerate().skip(1) {
-            assert!(reaches(&g, nodes[0], n), "seed {seed}: spawn {i} {:?} not reachable from spawn 0 {:?}", info.spawns[i], info.spawns[0]);
-            assert!(reaches(&g, n, nodes[0]), "seed {seed}: spawn 0 {:?} not reachable from spawn {i} {:?}", info.spawns[0], info.spawns[i]);
+            assert!(
+                reaches(&g, nodes[0], n),
+                "seed {seed}: spawn {i} {:?} not reachable from spawn 0 {:?}",
+                info.spawns[i],
+                info.spawns[0]
+            );
+            assert!(
+                reaches(&g, n, nodes[0]),
+                "seed {seed}: spawn 0 {:?} not reachable from spawn {i} {:?}",
+                info.spawns[0],
+                info.spawns[i]
+            );
         }
     }
 }

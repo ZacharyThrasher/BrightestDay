@@ -16,6 +16,19 @@ target\build_status.txt every 90 s) and `pwsh -File target\promote.ps1` (every 3
 +voice build in target\voice → startup smoke → target\playable\<stamp>\). Lead checks: CARGO_TARGET_DIR
 target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Protocol: docs/COORDINATION.md.
 **In flight (subagent ids; reports return to this session):**
+- Match rules a68a4dbccc61a4edc — per-type construct caps, THEN (scope add) an optional power-up pickup
+  mode: kaiju scale / awakening forms / signature ultimates gated behind telegraphed map pickups (heart/egg,
+  aura orb; no text), weaker "sputter" version without one, drops on KO, carrier glows + is visible.
+- Match swap + stats board ae79eb8b5f11e2ad8 — end-screen map vote (pips, host override/rules, ~15 s
+  countdown, protocol bump) + scoreboard: text awards removed (WILDEST/BIGGEST/MOST CREATIVE), competitive
+  stats table (KOs, falls, SDs, dmg dealt/taken, streak, combo, acc, constructs, stocks, ping).
+- Vocab military + D&D aa338f67f0c63e7fc — content-as-data only (weapons/vehicles/fortifications/support
+  calls; SRD spells/monsters/items/class moves; non-SRD names private-use in notices), ~60 golden tests.
+- Feel polish ab67c9f46bddf8b57 — momentum while typing (latched WASD; sim no longer zeroes move on
+  TYPING; may shift FFA hash), speed lines + wind on all maps, strafe/tether camera roll, instant cast "catch".
+- Costumes abe83e88bc70188b0 got 2 scope adds: exact character name in a SUMMON → costume construct
+  ("goku" → Goku-looking construct, "GIANT GOKU" stacks); slot mix-and-match ("gojo but bald",
+  "donatello with a straw hat", "goku x luffy"; unknown modifiers ignored). Power phrases still win.
 - Connect feel a6409611d34036099 — hit assist (melee volume+magnetism, projectile/hitscan magnetism),
   weight-pass-2 juice (hit-stop, contact resistance, camera punch, sparks, KO slow-mo; juice.ron),
   LUNGE fix (owner can't feel it: measure trigger rate, loosen, make it felt), railgun early-release shot.
@@ -32,7 +45,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Character costumes abe83e88bc70188b0 — style library + ~150 iconic looks (gojo/vader/...) + icon-derived
   fallback; gallery docs/costume_gallery.png is the bar.
 - Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (transforms
-  ADD routes only), Turtle Lair adf4a2d95abe323d2, Giant's Room ae3814d9e0a766ccd (static), Valley of the
+  ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (static), Valley of the
   End a39d259b62dd1312d (water-walk as flavour), Ember a12534acdde2f59c8 (lava = void), Hyperline
   a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b, High Roller casino
   a668e5a109aacf9fa (optional slots/roulette; its routes example was missing mid-work).

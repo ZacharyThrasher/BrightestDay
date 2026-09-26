@@ -343,6 +343,8 @@ fn handle_requests(
                         crate::arena::MapKind::Valley => proto::NetMapKind::Valley,
                         crate::arena::MapKind::Cybertron => proto::NetMapKind::Cybertron,
                         crate::arena::MapKind::Lair => proto::NetMapKind::Lair,
+                        crate::arena::MapKind::GiantsRoom => proto::NetMapKind::GiantsRoom,
+                        crate::arena::MapKind::Hyperline => proto::NetMapKind::Hyperline,
                         _ => proto::NetMapKind::Archipelago,
                     };
                     let nm = proto::NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
@@ -495,6 +497,8 @@ fn match_flow(
                     proto::NetMapKind::Valley => crate::arena::MapKind::Valley,
                     proto::NetMapKind::Cybertron => crate::arena::MapKind::Cybertron,
                     proto::NetMapKind::Lair => crate::arena::MapKind::Lair,
+                    proto::NetMapKind::GiantsRoom => crate::arena::MapKind::GiantsRoom,
+                    proto::NetMapKind::Hyperline => crate::arena::MapKind::Hyperline,
                     proto::NetMapKind::Archipelago => crate::arena::MapKind::Arena,
                 };
                 if current_map.0 != want {

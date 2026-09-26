@@ -403,7 +403,14 @@ fn curl_blocks(rng: &mut Rng) -> Vec<CurlBlock> {
                 continue;
             }
             let th0 = rng.range(96.0, 104.0);
-            out.push(CurlBlock { panel, lo: w, hi: w + len, th0: rad(th0), th1: rad((th0 + rng.range(8.0, 15.0)).min(118.0)), depth: rng.range(2.0, 5.0) });
+            out.push(CurlBlock {
+                panel,
+                lo: w,
+                hi: w + len,
+                th0: rad(th0),
+                th1: rad((th0 + rng.range(8.0, 15.0)).min(118.0)),
+                depth: rng.range(2.0, 5.0),
+            });
             w += len + rng.range(3.0, 8.0);
         }
     }
@@ -557,7 +564,19 @@ struct Bldg {
 
 impl Bldg {
     fn new(rect: Rect, base_y: f32, height: f32, style: Style) -> Self {
-        Self { rect, base_y, height, floor_h: 4.0, hang: false, style, open_floor: None, doors: true, crown: 0.0, spire: 0.0, parapet_gaps: [None; 2] }
+        Self {
+            rect,
+            base_y,
+            height,
+            floor_h: 4.0,
+            hang: false,
+            style,
+            open_floor: None,
+            doors: true,
+            crown: 0.0,
+            spire: 0.0,
+            parapet_gaps: [None; 2],
+        }
     }
     /// Roof surface height of an upright building.
     fn roof_y(&self) -> f32 {
@@ -751,7 +770,10 @@ pub fn hanging_tower_footprints() -> Vec<(Vec2, Vec2)> {
 
 /// Bottom-face centres of the hanging towers (just under the roof slab end).
 pub fn tower_bottoms() -> Vec<Vec3> {
-    hanging_towers().iter().map(|b| Vec3::new(b.rect.center().x + b.rect.half().x * 0.5, b.base_y - b.height - 0.5, b.rect.center().y)).collect()
+    hanging_towers()
+        .iter()
+        .map(|b| Vec3::new(b.rect.center().x + b.rect.half().x * 0.5, b.base_y - b.height - 0.5, b.rect.center().y))
+        .collect()
 }
 
 // The city blocks.
@@ -1254,8 +1276,16 @@ pub fn generate_mirror(seed: u64) -> (VoxelWorld, MapInfo) {
     };
     let districts = vec![
         District { name: "plaza", center: Vec3::new(0.0, WALK_Y, 6.0), area: [PLAZA.min.x, PLAZA.min.y, PLAZA.max.x, PLAZA.max.y] },
-        District { name: "library", center: Vec3::new(31.0, blocks.library_roof, 20.0), area: [LIBRARY.min.x, LIBRARY.min.y, LIBRARY.max.x, LIBRARY.max.y] },
-        District { name: "brownstones", center: Vec3::new(-23.0, blocks.brown_roof, 20.0), area: [BROWN_W.min.x, BROWN_W.min.y, BROWN_E.max.x, BROWN_E.max.y] },
+        District {
+            name: "library",
+            center: Vec3::new(31.0, blocks.library_roof, 20.0),
+            area: [LIBRARY.min.x, LIBRARY.min.y, LIBRARY.max.x, LIBRARY.max.y],
+        },
+        District {
+            name: "brownstones",
+            center: Vec3::new(-23.0, blocks.brown_roof, 20.0),
+            area: [BROWN_W.min.x, BROWN_W.min.y, BROWN_E.max.x, BROWN_E.max.y],
+        },
         District {
             name: "glass_tower",
             center: Vec3::new(-31.0, blocks.glass_roof, -20.0),
@@ -1264,7 +1294,11 @@ pub fn generate_mirror(seed: u64) -> (VoxelWorld, MapInfo) {
         District { name: "bank", center: Vec3::new(31.0, blocks.bank_roof, -20.0), area: [BANK.min.x, BANK.min.y, BANK.max.x, BANK.max.y] },
         District { name: "street_island", center: fr.south_island, area: [-5.0, -28.0, 5.0, -20.0] },
         District { name: "clock", center: fr.north_clock, area: [-5.0, 19.0, 5.0, 29.0] },
-        District { name: "curl", center: Vec3::new(HALF_X + 12.0, STREET_Y + 6.0, 0.0), area: [-HALF_X - CURL_R, -HALF_Z - CURL_R, HALF_X + CURL_R, HALF_Z + CURL_R] },
+        District {
+            name: "curl",
+            center: Vec3::new(HALF_X + 12.0, STREET_Y + 6.0, 0.0),
+            area: [-HALF_X - CURL_R, -HALF_Z - CURL_R, HALF_X + CURL_R, HALF_Z + CURL_R],
+        },
     ];
     let routes = routes(&fr, &blocks);
     let info = MapInfo {

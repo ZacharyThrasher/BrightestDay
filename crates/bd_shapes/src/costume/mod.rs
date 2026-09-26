@@ -21,10 +21,12 @@
 
 mod derive;
 mod gear;
+pub mod grammar;
 mod heads;
 pub mod look;
 pub mod paint;
 mod style;
+pub mod summon;
 
 pub use derive::is_character_icon;
 pub use paint::{Costume, Paint, PaintedModel, Rgb, Tier, costume_model_painted, mesh_colors};
@@ -402,9 +404,9 @@ fn snap_decals(spec: &mut ShapeSpec, paint: &[Paint]) {
 /// `recipe` / `icon` are the lexicon's resolution of the phrase (tier 1 never needs them).
 pub fn dress(phrase: &str, recipe: &Recipe, icon: Option<&ShapeSpec>, head: Option<CostumeHead>, seed: u32, tweaks: CostumeTweaks) -> Costume {
     if head.is_none()
-        && let Some(f) = look::find(phrase)
+        && let Some(p) = grammar::parse(phrase)
     {
-        return character_costume(f.index, f.base_variant + seed as usize, tweaks);
+        return phrase_costume(&p, seed, tweaks);
     }
     if head.is_none()
         && let Some(ic) = icon
@@ -423,15 +425,46 @@ pub fn character_costume(index: usize, variant: usize, tweaks: CostumeTweaks) ->
     let Some(ch) = t.chars.get(index) else { return Costume::default() };
     let n = ch.variant_count();
     let v = variant % n;
-    let lk = ch.look_of(v);
-    let mut cx = Cx::new(hash_str(&ch.names[0]), tweaks.hide_accessories);
-    cx.limit_k = CHARACTER_GUARDRAIL_K;
-    style::dress(&mut cx, &lk, costume_accent_tweak(&tweaks), true);
-    let mut c = cx.finish(&tweaks);
+    let mut c = look_costume(&ch.look_of(v), &ch.names[0], tweaks);
     c.character = ch.names.first().cloned();
     c.variant = Some((v, n));
+    c
+}
+
+/// A mix-and-match phrase ([`grammar`]): base character (variant `base + seed`) + modifiers, or a
+/// default body wearing parts.
+pub fn phrase_costume(p: &grammar::Parsed, seed: u32, tweaks: CostumeTweaks) -> Costume {
+    let t = look::table();
+    let (name, n, v) = match p.base.and_then(|(c, v)| t.chars.get(c).map(|ch| (ch, v))) {
+        Some((ch, v)) => (ch.names[0].clone(), ch.variant_count(), (v + seed as usize) % ch.variant_count()),
+        None => ("costume".to_string(), 1, 0),
+    };
+    let lk = grammar::compose(&grammar::Parsed { base: p.base.map(|(c, _)| (c, 0)), ..p.clone() }, v);
+    let mut c = look_costume(&lk, &name, tweaks);
+    c.character = Some(name);
+    c.variant = Some((v, n));
+    c
+}
+
+/// Dress the rig from any look (character tier).
+pub fn look_costume(lk: &look::Look, name: &str, tweaks: CostumeTweaks) -> Costume {
+    let mut cx = Cx::new(hash_str(name), tweaks.hide_accessories);
+    cx.limit_k = CHARACTER_GUARDRAIL_K;
+    style::dress(&mut cx, lk, costume_accent_tweak(&tweaks), true);
+    let mut c = cx.finish(&tweaks);
     c.tier = Tier::Character;
     c
+}
+
+/// The phrase dresses as a character / mix-and-match look (tier 1).
+pub fn is_character_phrase(phrase: &str) -> bool {
+    grammar::parse(phrase).is_some()
+}
+
+/// VARIANT count for a phrase's character look (`None` = not a character phrase).
+pub fn variant_count(phrase: &str) -> Option<usize> {
+    let p = grammar::parse(phrase)?;
+    Some(p.base.and_then(|(c, _)| look::table().chars.get(c)).map_or(1, |ch| ch.variant_count()))
 }
 
 /// Tier 2 (see [`dress`]).
@@ -641,7 +674,7 @@ pub const GUARDRAIL_K: f32 = 1.2;
 /// Character looks: signature silhouettes (Goku's spikes, a straw-hat brim, a cape) are thin, so the
 /// *bounding box* grows much faster than the visual mass: they get a looser box (still cosmetic;
 /// hitboxes never depend on the costume).
-pub const CHARACTER_GUARDRAIL_K: f32 = 1.75;
+pub const CHARACTER_GUARDRAIL_K: f32 = 2.6;
 
 pub fn guardrail_volume_units() -> f32 {
     let u3 = COSTUME_UNIT * COSTUME_UNIT * COSTUME_UNIT;

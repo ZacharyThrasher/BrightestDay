@@ -381,4 +381,27 @@
         scare_hold: 3.0,
         scare_recover: 8.0,
     ),
+    "hyperline": (
+        // The endless train: a roaring slipstream bed that swells with height / speed and drops inside
+        // the cars, the rail clatter groove underneath, towers whipping past. Each ring gate's doppler
+        // whoosh is fired by the client (present/hyperline.rs) as it sweeps over the camera.
+        space: (
+            open: (size: 1.2, rt60: 0.8, damping_hz: 4000.0, predelay_ms: 14.0, wet_db: -26.0, er_db: -30.0),
+            enclosed: (size: 0.5, rt60: 0.6, damping_hz: 6000.0, predelay_ms: 4.0, wet_db: -10.0, er_db: -12.0),
+            slap_db: -18.0,
+        ),
+        beds: [
+            (sound: "amb_train_rush", gain_db: 0.0, altitude: (x0: 16.0, x1: 45.0, db0: 0.0, db1: 3.0), enclosure: (x0: 0.3, x1: 0.85, db0: 0.0, db1: -14.0)),
+            (sound: "amb_rail_clatter", gain_db: -2.0, altitude: (x0: 14.0, x1: 50.0, db0: 0.0, db1: -12.0), enclosure: (x0: 0.3, x1: 0.85, db0: 0.0, db1: 3.0)),
+            (sound: "amb_wind_high", gain_db: -6.0, speed: (x0: 8.0, x1: 40.0, db0: -8.0, db1: 4.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+            // Inside a car: cabin tone under the muffled rush.
+            (sound: "amb_interior_tone", gain_db: 0.0, enclosure: (x0: 0.4, x1: 0.9, db0: -40.0, db1: -3.0)),
+        ],
+        loops: [],
+        sparkles: [
+            // Towers and scaffolds streaking past close.
+            (sound: "amb_city_flyby", zone: Sky, per_min: 16.0, min_dist: 12.0, max_dist: 45.0, gain_db: (-9.0, -2.0)),
+            (sound: "amb_distant_boom", zone: Sky, per_min: 0.3, min_dist: 200.0, max_dist: 400.0, gain_db: (-14.0, -8.0)),
+        ],
+    ),
 }

@@ -1,0 +1,1317 @@
+# Brightest Day - intent golden corpus: "what the player MEANT" -> what the ring should build.
+# Used to measure per-category accuracy of the phrase resolver (bd_lexicon). Expectations describe the
+# correct INTENT, not whatever the resolver outputs today; a failing line is a real gap (or a line to fix).
+#
+# Line format:   category | phrase | expectations
+#   - '#' starts a comment line; blank lines are ignored.
+#   - phrase: exactly as typed. A leading '~' marks a VOICE transcript (whisper-style: lowercased,
+#     may carry "." "," "!" and misheard words); resolve it with the spoken path, without the '~'.
+#   - expectations: space-separated tokens, ALL must hold:
+#       form=Hammer | form=Sword/Axe (any of) | form!=Gun         exact bd_core Form
+#       cat=Held|Worn|Creature|Structure|Object (alternatives with /)
+#       kind=graft | kind=construct
+#       +Mechanic (must have) | -Mechanic (must not have)
+#       el=Fire (alternatives with /)
+#       scale>=8 | scale<=1           metres, rough bands (tiny <=0.5, human ~1.8, house ~8, kaiju >=15)
+#       n>=3 | n<=1                   construct count
+#       target=Ethan | target=none    roster player the phrase is aimed at. A space inside a roster name
+#                                     is written '_' here (target=Big_Tony); compare ignoring case and
+#                                     treating '_' and ' ' alike (Alex_99, xX_Nova_Xx keep theirs).
+#       via=onto|at|near|around|hunt  delivery toward the target
+#       sig=Domain|Beam|Transformation|Summon | sig=none
+#       refer=it | refer=again
+#       name~text                     display name contains text (case-insensitive, one word)
+#       mount=any | mount=Vehicle     the construct rides a mount (of that form)
+#       incant=<power id>             power incantation (assets/powers.ron)
+#       rush                          stand rush ("ORA ORA ORA")
+#
+# Roster used by the test (other players in the match):
+#   Ethan, Jake, Sam, Alex_99, Mia, Big Tony, xX_Nova_Xx, DragonSlayer, Zoe
+# A name only targets after a verb/preposition aimed at someone ("dragon on sam" -> Sam, not DragonSlayer).
+#
+# Categories: owner, target, voice_target, popculture, everyday, verbs, combos, signature, pokemon,
+#             refer, voice, collisions.
+
+# =====================================================================================================
+# owner - the owner's own phrases and close variants
+# =====================================================================================================
+owner | T-rex sized duck | form=Bird scale>=8
+owner | t rex sized duck | form=Bird scale>=8
+owner | trex sized duck | form=Bird scale>=8
+owner | T-REX SIZED DUCK!!! | form=Bird scale>=8
+owner | duck the size of a t-rex | form=Bird scale>=8
+owner | king kong on a skateboard | name~kong mount=Vehicle target=none
+owner | King Kong riding a skateboard | name~kong mount=Vehicle
+owner | KING KONG ON A SKATEBOARD!!! | name~kong mount=Vehicle target=none
+owner | godzilla on a skateboard | name~godzilla mount=Vehicle target=none
+owner | satellite death beam | +Beam form!=Gun
+owner | death beam from a satellite | +Beam
+owner | satellite laser | +Beam
+owner | SATELLITE DEATH BEAM ON ETHAN | +Beam target=Ethan
+owner | gravity nuclear bomb | form=Bomb +Explodes +Attract
+owner | nuclear gravity bomb | form=Bomb +Explodes +Attract
+owner | gravity bomb | form=Bomb +Attract
+owner | nuclear bomb | form=Bomb +Explodes el=Atomic
+owner | nuke | +Explodes el=Atomic
+owner | NUKE!!! | +Explodes el=Atomic
+owner | meteor shower | n>=6 +DropFromSky
+owner | METEOR SHOWER!!! | n>=6 +DropFromSky
+owner | meteor | form=Boulder +DropFromSky
+owner | final flash | sig=Beam form!=Gun
+owner | FINAL FLASH!!! | sig=Beam form!=Gun
+owner | hollow purple | sig=Beam el=Psychic
+owner | domain expansion coffin of the iron mountain | sig=Domain el=Fire
+owner | domain expansion unlimited void | sig=Domain el=Psychic
+owner | domain expansion | sig=Domain
+owner | domain expansion malevolent shrine | sig=Domain el=Shadow
+owner | make it bigger | refer=it
+owner | set it on fire | refer=it el=Fire
+owner | again! | refer=again
+owner | again | refer=again
+owner | missile at Jake | form=Rocket +Homing target=Jake via=at
+owner | pikachu use thunderbolt | name~pikachu +Beam el=Electric
+owner | gomu gomu no pistol | incant=gomu_gomu
+owner | darth vader | name~vader
+owner | gojo | name~gojo el=Psychic
+owner | surf ramp | form=Ramp +Glide
+owner | hot dog | form=Ball
+owner | roller coaster | form=Ramp +Launch
+owner | DROP A METEOR ON ETHAN | form=Boulder +DropFromSky target=Ethan via=onto
+owner | drop a meteor on ethan | form=Boulder +DropFromSky target=Ethan via=onto
+owner | MISSILE AT JAKE!!! | form=Rocket target=Jake via=at
+owner | king kong | name~kong cat=Creature scale>=15
+owner | godzilla | name~godzilla form=Kaiju el=Atomic
+owner | T-rex | cat=Creature scale>=8
+owner | giant duck | form=Bird
+owner | laser beam | +Beam form!=Gun
+owner | kamehameha | sig=Beam form!=Gun
+owner | spirit bomb | sig=Summon
+owner | ora ora ora | rush
+owner | ORA ORA ORA ORA ORA | rush
+owner | mjolnir | name~mjolnir form=Hammer el=Electric
+owner | shark with laser beams | form=Fish +Beam
+owner | orbital laser | +Beam
+owner | rain of arrows | +DropFromSky n>=3
+owner | duck the size of a house | form=Bird scale>=4
+owner | skateboarding gorilla | form=Biped mount=Vehicle
+owner | knight riding a horse | mount=any
+
+# =====================================================================================================
+# target - typed name targeting with delivery verbs
+# =====================================================================================================
+# --- onto: from the sky
+target | drop an anvil on jake | form=Anvil +DropFromSky target=Jake via=onto
+target | drop a piano on sam | +DropFromSky target=Sam via=onto
+target | drop a cow on mia | cat=Creature target=Mia via=onto
+target | drop a whale on zoe | form=Fish target=Zoe via=onto
+target | drop a car on big tony | form=Vehicle target=Big_Tony via=onto
+target | drop a boulder on alex | form=Boulder target=Alex_99 via=onto
+target | drop a bomb on nova | form=Bomb +Explodes target=xX_Nova_Xx via=onto
+target | drop a house on dragonslayer | target=DragonSlayer via=onto
+target | drop a meteor on sam | form=Boulder +DropFromSky target=Sam via=onto
+target | drop a meteor on mia | form=Boulder +DropFromSky target=Mia via=onto
+target | drop the moon on ethan | target=Ethan via=onto
+target | drop a fridge on jake | +DropFromSky target=Jake via=onto
+target | drop a nuke on zoe | +Explodes el=Atomic target=Zoe via=onto
+target | anvil on top of alex | form=Anvil +DropFromSky target=Alex_99 via=onto
+target | piano on top of sam | +DropFromSky target=Sam via=onto
+target | a bus on top of ethan | form=Vehicle target=Ethan via=onto
+target | anvil on ethan | form=Anvil target=Ethan via=onto
+target | boulder on jake | form=Boulder target=Jake via=onto
+target | meteor on mia | form=Boulder +DropFromSky target=Mia via=onto
+target | meteor shower on zoe | n>=6 +DropFromSky target=Zoe via=onto
+target | rain arrows on mia | +DropFromSky n>=3 target=Mia via=onto
+target | rain fire on ethan | el=Fire +DropFromSky target=Ethan via=onto
+target | rain swords on jake | form=Sword +DropFromSky n>=3 target=Jake via=onto
+target | rain bowling balls on big tony | +DropFromSky n>=3 target=Big_Tony via=onto
+target | rain cats on sam | cat=Creature +DropFromSky target=Sam via=onto
+target | smite jake | target=Jake via=onto
+target | smite ethan with lightning | el=Electric target=Ethan via=onto
+target | lightning strike on sam | el=Electric target=Sam via=onto
+target | crash a plane into mia | form=Vehicle target=Mia via=onto
+target | crash a meteor into big tony | form=Boulder target=Big_Tony via=onto
+target | airstrike on sam | +DropFromSky +Explodes target=Sam via=onto
+target | nuke on jake | +Explodes target=Jake via=onto
+target | nuke ethan | +Explodes el=Atomic target=Ethan
+target | acme anvil on zoe | form=Anvil target=Zoe via=onto
+target | drop a thwomp on alex_99 | name~thwomp target=Alex_99 via=onto
+target | spirit bomb on dragonslayer | sig=Summon target=DragonSlayer via=onto
+# --- at: thrown / fired
+target | missile at ethan | form=Rocket target=Ethan via=at
+target | missile at sam | form=Rocket target=Sam via=at
+target | fire a missile at sam | form=Rocket target=Sam via=at
+target | shoot a rocket at mia | form=Rocket target=Mia via=at
+target | launch a rocket toward nova | form=Rocket target=xX_Nova_Xx via=at
+target | throw a boulder at big tony | form=Boulder target=Big_Tony via=at
+target | hurl a car at zoe | form=Vehicle target=Zoe via=at
+target | chuck a toaster at jake | target=Jake via=at
+target | throw a spear at ethan | form=Spear target=Ethan via=at
+target | throw a hammer at alex | form=Hammer target=Alex_99 via=at
+target | fire a cannonball at sam | target=Sam via=at
+target | shoot lasers at mia | +Beam target=Mia via=at
+target | laser at jake | +Beam target=Jake via=at
+target | fireball at ethan | el=Fire target=Ethan via=at
+target | throw a fireball at zoe | el=Fire target=Zoe via=at
+target | lightning at big tony | el=Electric target=Big_Tony
+target | throw a shark at sam | form=Fish target=Sam via=at
+target | hurl a boulder at dragonslayer | form=Boulder target=DragonSlayer via=at
+target | yeet a watermelon at mia | target=Mia via=at
+target | throw a grenade at jake | form=Bomb +Explodes target=Jake via=at
+target | shoot an arrow at ethan | target=Ethan via=at
+target | throw mjolnir at zoe | name~mjolnir target=Zoe via=at
+target | throw my shield at alex | form=Shield target=Alex_99 via=at
+target | fling a cow at tony | cat=Creature target=Big_Tony via=at
+target | kamehameha at sam | sig=Beam target=Sam
+target | heat seeking missile at mia | form=Rocket +Homing target=Mia via=at
+target | torpedo at ethan | target=Ethan via=at
+target | rocket at xX_Nova_Xx | form=Rocket target=xX_Nova_Xx via=at
+target | throw a banana at big tony | target=Big_Tony via=at
+target | ice spear at zoe | form=Spear el=Ice target=Zoe via=at
+# --- near: creatures appear next to them
+target | bees on sam | form=Insect +Swarm target=Sam via=near
+target | bees on ethan | form=Insect +Swarm target=Ethan via=near
+target | wasps on jake | form=Insect +Swarm target=Jake via=near
+target | summon a dragon on jake | +Flies +Breath target=Jake via=near
+target | summon a wolf near mia | form=Quadruped target=Mia via=near
+target | spawn zombies near ethan | cat=Creature n>=2 target=Ethan via=near
+target | call a bear on zoe | form=Quadruped target=Zoe via=near
+target | dragon on sam | +Flies target=Sam via=near
+target | snakes on big tony | form=Serpent target=Big_Tony via=near
+target | spiders on alex | form=Arachnid target=Alex_99 via=near
+target | a t-rex near nova | cat=Creature target=xX_Nova_Xx via=near
+target | godzilla on jake | name~godzilla target=Jake via=near
+target | king kong on mia | name~kong target=Mia via=near
+target | summon the kraken on ethan | name~kraken target=Ethan via=near
+target | ants on zoe | form=Insect target=Zoe via=near
+target | rats on sam | cat=Creature target=Sam via=near
+target | gorilla on dragonslayer | form=Biped target=DragonSlayer via=near
+target | summon skeletons near tony | form=Biped n>=2 target=Big_Tony via=near
+target | spawn a creeper next to alex | name~creeper target=Alex_99 via=near
+target | angry geese on mia | form=Bird target=Mia via=near
+# --- around: cages, walls, domes
+target | cage ethan | form=Cage +Trap target=Ethan via=around
+target | cage jake | form=Cage +Trap target=Jake via=around
+target | trap sam | +Trap target=Sam via=around
+target | wall around sam | form=Wall/Cage target=Sam via=around
+target | build a wall around mia | form=Wall/Cage target=Mia via=around
+target | dome over mia | form=Dome target=Mia via=around
+target | put a dome over zoe | form=Dome target=Zoe via=around
+target | ice cage around big tony | form=Cage el=Ice target=Big_Tony via=around
+target | lock alex in a cage | form=Cage target=Alex_99 via=around
+target | trap nova in a bubble | target=xX_Nova_Xx via=around
+target | fence around dragonslayer | form=Wall/Cage target=DragonSlayer via=around
+target | box in jake | target=Jake via=around
+target | ring of fire around ethan | el=Fire target=Ethan via=around
+target | spider web on zoe | +Sticky target=Zoe
+# --- hunt: sent after them
+target | sharks after tony | form=Fish target=Big_Tony via=hunt
+target | sharks after big tony | form=Fish target=Big_Tony via=hunt
+target | sic wolves on ethan | form=Quadruped target=Ethan via=hunt
+target | send bees after jake | form=Insect +Swarm target=Jake via=hunt
+target | wolves chase sam | form=Quadruped target=Sam via=hunt
+target | sic the kraken on zoe | name~kraken target=Zoe via=hunt
+target | send a velociraptor after mia | cat=Creature target=Mia via=hunt
+target | sic the dogs on alex | form=Quadruped target=Alex_99 via=hunt
+target | chase nova with a chainsaw | target=xX_Nova_Xx via=hunt
+target | homing bees after dragonslayer | form=Insect target=DragonSlayer via=hunt
+# --- CAPS, bangs, now/please
+target | DROP A PIANO ON SAM!!! | +DropFromSky target=Sam via=onto
+target | BEES ON ETHAN NOW | form=Insect target=Ethan via=near
+target | drop a meteor on ethan now | form=Boulder target=Ethan via=onto
+target | drop a meteor on ethan please | form=Boulder target=Ethan via=onto
+target | please cage zoe | form=Cage target=Zoe via=around
+target | missile at jake please | form=Rocket target=Jake via=at
+target | ANVIL ON MIA NOW!!! | form=Anvil target=Mia via=onto
+target | CAGE BIG TONY | form=Cage target=Big_Tony via=around
+target | SHARKS AFTER NOVA!!! | form=Fish target=xX_Nova_Xx via=hunt
+target | Throw A Boulder At Alex | form=Boulder target=Alex_99 via=at
+# --- typos
+target | missile at jkae | form=Rocket target=Jake via=at
+target | drop a meteor on ehtan | form=Boulder target=Ethan via=onto
+target | drop a cow on etahn | cat=Creature target=Ethan via=onto
+target | cage zoee | form=Cage target=Zoe via=around
+target | sharks after tonny | form=Fish target=Big_Tony via=hunt
+target | missile at dragonslyer | form=Rocket target=DragonSlayer via=at
+target | anvil on alxe | form=Anvil target=Alex_99 via=onto
+target | bees on sma | form=Insect target=Sam
+target | drop a meteor on etan | form=Boulder target=Ethan via=onto
+# --- possessives
+target | missile at jake's head | form=Rocket target=Jake via=at
+target | hammer at ethan's face | form=Hammer target=Ethan via=at
+target | drop an anvil on sam's head | form=Anvil target=Sam via=onto
+target | throw a rock at zoe's feet | form=Boulder target=Zoe via=at
+target | wall around mia's spawn | form=Wall/Cage target=Mia via=around
+# --- multi-word names and gamertags
+target | boulder at tony | form=Boulder target=Big_Tony via=at
+target | drop a piano on big tony | +DropFromSky target=Big_Tony via=onto
+target | missile at nova | form=Rocket target=xX_Nova_Xx via=at
+target | bees on xX_Nova_Xx | form=Insect target=xX_Nova_Xx via=near
+target | drop a meteor on xx_nova_xx | form=Boulder target=xX_Nova_Xx via=onto
+target | throw a rock at nova | form=Boulder target=xX_Nova_Xx via=at
+target | anvil on alex_99 | form=Anvil target=Alex_99 via=onto
+target | cage alex99 | form=Cage target=Alex_99 via=around
+target | missile at dragonslayer | form=Rocket target=DragonSlayer via=at
+target | missile at dragon slayer | form=Rocket target=DragonSlayer via=at
+target | bees on DragonSlayer | form=Insect target=DragonSlayer via=near
+# --- negatives: nobody is targeted
+target | sword on fire | form=Sword el=Fire target=none
+target | king kong on a skateboard now | name~kong mount=Vehicle target=none
+target | missile at the moon | form=Rocket target=none
+target | fire on the ground | el=Fire target=none
+target | drop a meteor on the arena | +DropFromSky target=none
+target | throw a rock at the wall | form=Boulder target=none
+target | wall around the base | form=Wall target=none
+target | dome over everyone | form=Dome target=none
+target | cage the beast | form=Cage target=none
+target | samurai sword | form=Sword target=none
+target | tony hawk's skateboard | form=Vehicle target=none
+target | supernova | target=none
+target | missile at the sky | form=Rocket target=none
+target | shark on a surfboard | form=Fish mount=any target=none
+target | fire at will | target=none
+target | bees on a stick | target=none
+target | drop an anvil | form=Anvil +DropFromSky target=none
+
+# =====================================================================================================
+# voice_target - whisper transcripts of targeting
+# =====================================================================================================
+voice_target | ~drop a meteor on eaton. | form=Boulder +DropFromSky target=Ethan via=onto
+voice_target | ~drop a meteor on ethan. | form=Boulder +DropFromSky target=Ethan via=onto
+voice_target | ~drop a meteor on e than | form=Boulder target=Ethan via=onto
+voice_target | ~meteor on ethen | form=Boulder target=Ethan via=onto
+voice_target | ~drop the meteor on ethan | form=Boulder target=Ethan via=onto
+voice_target | ~drop meteor on ethan | form=Boulder target=Ethan via=onto
+voice_target | ~drop a meteor on ethan now. | form=Boulder target=Ethan via=onto
+voice_target | ~drop a meteor on ethan please. | form=Boulder target=Ethan via=onto
+voice_target | ~can you drop a meteor on ethan | form=Boulder target=Ethan via=onto
+voice_target | ~um drop a meteor on ethan | form=Boulder target=Ethan via=onto
+voice_target | ~drop a meteor on sam's head. | form=Boulder target=Sam via=onto
+voice_target | ~missile at jay k | form=Rocket target=Jake via=at
+voice_target | ~missile at jake's | form=Rocket target=Jake via=at
+voice_target | ~missile at jake. | form=Rocket target=Jake via=at
+voice_target | ~missal at jake | form=Rocket target=Jake via=at
+voice_target | ~missiles at jake | form=Rocket target=Jake via=at
+voice_target | ~uh missile at jake | form=Rocket target=Jake via=at
+voice_target | ~missile at jake, now! | form=Rocket target=Jake via=at
+voice_target | ~missile at nova | form=Rocket target=xX_Nova_Xx via=at
+voice_target | ~fire a missile at mia. | form=Rocket target=Mia via=at
+voice_target | ~missile at the dragon slayer | form=Rocket target=DragonSlayer via=at
+voice_target | ~bees on sam. | form=Insect +Swarm target=Sam via=near
+voice_target | ~bees on sam | form=Insect +Swarm target=Sam via=near
+voice_target | ~bee's on sam. | form=Insect target=Sam via=near
+voice_target | ~bees on dragon slayer. | form=Insect target=DragonSlayer via=near
+voice_target | ~anvil on top of alex 99 | form=Anvil +DropFromSky target=Alex_99 via=onto
+voice_target | ~anvil on top of alex ninety nine | form=Anvil target=Alex_99 via=onto
+voice_target | ~an anvil on alex. | form=Anvil target=Alex_99 via=onto
+voice_target | ~anvil on top of alex. | form=Anvil target=Alex_99 via=onto
+voice_target | ~okay drop an anvil on sam | form=Anvil target=Sam via=onto
+voice_target | ~drop an anvil on alex. | form=Anvil target=Alex_99 via=onto
+voice_target | ~rain arrows on mia | +DropFromSky n>=3 target=Mia via=onto
+voice_target | ~rain arrows on maya | +DropFromSky target=Mia via=onto
+voice_target | ~rain fire on ethan. | el=Fire +DropFromSky target=Ethan via=onto
+voice_target | ~rain swords on jake | form=Sword +DropFromSky target=Jake via=onto
+voice_target | ~meteor shower on zoey. | n>=6 +DropFromSky target=Zoe via=onto
+voice_target | ~meteor shower on zoe | n>=6 +DropFromSky target=Zoe via=onto
+voice_target | ~throw a rock at big tony | form=Boulder target=Big_Tony via=at
+voice_target | ~throw a rock at tony. | form=Boulder target=Big_Tony via=at
+voice_target | ~hurl a boulder at big tony! | form=Boulder target=Big_Tony via=at
+voice_target | ~throw a rock at dragon slayer. | form=Boulder target=DragonSlayer via=at
+voice_target | ~sword at dragon slayer | form=Sword target=DragonSlayer via=at
+voice_target | ~throw a car at zoey. | form=Vehicle target=Zoe via=at
+voice_target | ~throw a fire ball at zoey | el=Fire target=Zoe via=at
+voice_target | ~fireball at ethan. | el=Fire target=Ethan via=at
+voice_target | ~fire ball at ethan | el=Fire target=Ethan via=at
+voice_target | ~shoot lasers at mia. | +Beam target=Mia via=at
+voice_target | ~laser at jake | +Beam target=Jake via=at
+voice_target | ~hammer at ethan. | form=Hammer target=Ethan via=at
+voice_target | ~throw a hammer at ethan's head. | form=Hammer target=Ethan via=at
+voice_target | ~launch a rocket at nova | form=Rocket target=xX_Nova_Xx via=at
+voice_target | ~lightning on jake. | el=Electric target=Jake
+voice_target | ~cage zoey | form=Cage target=Zoe via=around
+voice_target | ~cage zoe. | form=Cage target=Zoe via=around
+voice_target | ~dome over zoey | form=Dome target=Zoe via=around
+voice_target | ~put a dome over mia. | form=Dome target=Mia via=around
+voice_target | ~wall around sam. | form=Wall/Cage target=Sam via=around
+voice_target | ~build a wall around sam | form=Wall/Cage target=Sam via=around
+voice_target | ~wall around dragon slayer. | form=Wall/Cage target=DragonSlayer via=around
+voice_target | ~trap ethan in a cage | form=Cage target=Ethan via=around
+voice_target | ~lock jake in a cage. | form=Cage target=Jake via=around
+voice_target | ~cage alex 99. | form=Cage target=Alex_99 via=around
+voice_target | ~cage alex. | form=Cage target=Alex_99 via=around
+voice_target | ~trap nova. | +Trap target=xX_Nova_Xx via=around
+voice_target | ~dome over nova. | form=Dome target=xX_Nova_Xx via=around
+voice_target | ~sharks after tony | form=Fish target=Big_Tony via=hunt
+voice_target | ~sharks after big tony. | form=Fish target=Big_Tony via=hunt
+voice_target | ~sick wolves on ethan | form=Quadruped target=Ethan via=hunt
+voice_target | ~sic wolves on ethan | form=Quadruped target=Ethan via=hunt
+voice_target | ~send bees after jake. | form=Insect target=Jake via=hunt
+voice_target | ~wolves after sam. | form=Quadruped target=Sam via=hunt
+voice_target | ~smite jake. | target=Jake via=onto
+voice_target | ~summon a dragon on jake. | +Flies target=Jake via=near
+voice_target | ~summon a dragon near jake | +Flies target=Jake via=near
+voice_target | ~dragon on sam. | +Flies target=Sam via=near
+voice_target | ~summon wolves on zoey. | form=Quadruped target=Zoe via=near
+voice_target | ~spawn zombies near ethan. | cat=Creature target=Ethan via=near
+voice_target | ~call a bear on zoe. | form=Quadruped target=Zoe via=near
+voice_target | ~snakes on big tony. | form=Serpent target=Big_Tony via=near
+voice_target | ~spiders on alex. | form=Arachnid target=Alex_99 via=near
+voice_target | ~drop a piano on sam. | +DropFromSky target=Sam via=onto
+voice_target | ~drop a cow on mia. | cat=Creature target=Mia via=onto
+voice_target | ~drop a whale on zoey. | form=Fish target=Zoe via=onto
+voice_target | ~drop a bomb on nova. | form=Bomb target=xX_Nova_Xx via=onto
+voice_target | ~drop an anvil on nova. | form=Anvil target=xX_Nova_Xx via=onto
+voice_target | ~drop a car on big tony. | form=Vehicle target=Big_Tony via=onto
+voice_target | ~piano on top of sam. | +DropFromSky target=Sam via=onto
+voice_target | ~crash a plane into mia. | form=Vehicle target=Mia via=onto
+voice_target | ~nuke ethan. | +Explodes target=Ethan
+voice_target | ~i want a meteor on ethan | form=Boulder target=Ethan via=onto
+voice_target | ~drop a meteor on dragonslayer | form=Boulder target=DragonSlayer via=onto
+voice_target | ~missile at dragonslayer. | form=Rocket target=DragonSlayer via=at
+voice_target | ~kamehameha at sam! | sig=Beam target=Sam
+voice_target | ~final flash at jake. | sig=Beam target=Jake
+# --- negatives
+voice_target | ~sword on fire. | form=Sword el=Fire target=none
+voice_target | ~king kong on a skateboard. | name~kong mount=Vehicle target=none
+voice_target | ~missile at the moon. | form=Rocket target=none
+voice_target | ~fire on the ground. | el=Fire target=none
+voice_target | ~drop a meteor. | form=Boulder +DropFromSky target=none
+voice_target | ~dragon slayer sword. | form=Sword target=none
+voice_target | ~samurai sword. | form=Sword target=none
+voice_target | ~a meteor on the arena. | +DropFromSky target=none
+voice_target | ~supernova. | target=none
+
+# =====================================================================================================
+# popculture - curated names from every icon pack
+# =====================================================================================================
+# --- base set (assets/icons.ron)
+popculture | thor's hammer | name~mjolnir form=Hammer
+popculture | stormbreaker | name~stormbreaker form=Axe el=Electric
+popculture | captain america's shield | name~shield form=Shield +Returning
+popculture | wolverine claws | name~wolverine form=Gauntlet +Blade
+popculture | web shooter | name~web +Sticky
+popculture | batarang | name~batarang +Returning
+popculture | lasso of truth | name~lasso form=Whip
+popculture | master sword | name~master form=Sword
+popculture | buster sword | name~buster form=Sword
+popculture | keyblade | name~keyblade form=Sword
+popculture | lightsaber | name~lightsaber form=Sword
+popculture | double lightsaber | name~lightsaber cat=Held
+popculture | green shell | name~shell form=Ball
+popculture | blue shell | name~shell +Homing
+popculture | poke ball | name~poke form=Ball
+popculture | portal gun | name~portal form=Gun +Portal
+popculture | tnt | name~tnt form=Bomb +Explodes
+popculture | diamond sword | name~diamond form=Sword
+popculture | death star | name~death scale>=15
+popculture | shrink ray | form=Gun +Shrink
+popculture | black hole | +Attract
+popculture | infinity gauntlet | name~infinity form=Gauntlet
+popculture | excalibur | name~excalibur form=Sword
+popculture | bob-omb | name~bob form=Bomb +Explodes
+popculture | bullet bill | name~bullet form=Rocket
+popculture | thwomp | name~thwomp +DropFromSky
+popculture | chain chomp | name~chomp
+popculture | companion cube | name~cube
+popculture | gravity gun | name~gravity form=Gun
+popculture | proton pack | name~proton +Beam
+popculture | elder wand | name~wand form=Staff
+popculture | golden snitch | name~snitch +Flies
+popculture | batmobile | name~batmobile form=Vehicle
+popculture | millennium falcon | name~falcon form=Vehicle +Flies
+popculture | mothra | name~mothra +Flies
+popculture | kraken | name~kraken cat=Creature
+popculture | cthulhu | name~cthulhu cat=Creature scale>=15
+popculture | hydra | name~hydra cat=Creature
+popculture | jaws | name~jaws form=Fish
+popculture | kirby | name~kirby
+popculture | yoshi | name~yoshi cat=Creature
+popculture | goku | name~goku cat=Creature
+popculture | totoro | name~totoro cat=Creature
+popculture | groot | name~groot cat=Creature
+popculture | stay puft marshmallow man | name~puft scale>=15
+popculture | gipsy danger | name~gipsy form=Kaiju
+popculture | voltron | name~voltron scale>=15
+popculture | creeper | name~creeper +Explodes
+popculture | xenomorph | name~xenomorph cat=Creature
+popculture | pac-man | name~pac
+popculture | sonic the hedgehog | name~sonic +Fast
+popculture | toothless | name~toothless +Flies
+popculture | smaug | name~smaug +Breath
+popculture | balrog | name~balrog el=Fire
+popculture | king ghidorah | name~ghidorah +Flies
+popculture | mechagodzilla | name~mechagodzilla form=Kaiju
+popculture | bowser | name~bowser cat=Creature
+popculture | donkey kong | name~donkey cat=Creature
+popculture | baby yoda | name~grogu
+popculture | dalek | name~dalek
+popculture | the iron giant | name~giant scale>=8
+# --- anime
+popculture | flying nimbus | name~nimbus form=Vehicle
+popculture | shenron | name~shenron form=Serpent
+popculture | destructo disc | name~destructo form=Disc
+popculture | vegeta | name~vegeta cat=Creature
+popculture | frieza | name~frieza cat=Creature
+popculture | chidori | name~chidori el=Electric
+popculture | kurama | name~kurama scale>=8
+popculture | kunai | name~kunai form=Spear
+popculture | amaterasu | name~amaterasu el=Fire
+popculture | thousand sunny | name~sunny form=Vehicle
+popculture | zangetsu | name~zangetsu form=Sword
+popculture | senbonzakura | name~senbonzakura +Swarm
+popculture | pochita | name~pochita
+popculture | chainsaw man | name~chainsaw cat=Creature
+popculture | odm gear | name~odm form=Jetpack
+popculture | armored titan | name~titan scale>=8
+popculture | eva unit 01 | name~eva scale>=8
+popculture | gundam | name~gundam scale>=8
+popculture | gurren lagann | name~lagann
+popculture | catbus | name~catbus
+popculture | calcifer | name~calcifer el=Fire
+popculture | blue-eyes white dragon | name~blue-eyes +Flies
+popculture | exodia | name~exodia scale>=8
+popculture | satoru gojo | name~gojo el=Psychic
+popculture | luffy | name~luffy cat=Creature
+popculture | saitama | name~saitama cat=Creature
+# --- dc
+popculture | superman | name~superman cat=Creature +Flies
+popculture | batman | name~batman cat=Creature
+popculture | wonder woman | name~wonder cat=Creature
+popculture | heat vision | +Beam el=Fire
+popculture | doomsday | name~doomsday cat=Creature
+popculture | bane | name~bane cat=Creature
+popculture | clayface | name~clayface form=Blob
+popculture | black adam | name~adam el=Electric
+popculture | invisible jet | name~jet form=Vehicle
+popculture | lobo | name~lobo
+popculture | starfire | name~starfire
+popculture | parademons | name~parademon n>=3
+popculture | green lantern corps | name~lantern n>=3
+popculture | invincible | name~invincible cat=Creature
+popculture | omni-man | name~omni
+popculture | homelander | name~homelander
+popculture | spawn | name~spawn
+popculture | hellboy | name~hellboy
+popculture | mr. incredible | name~incredible
+popculture | heatblast | name~heatblast el=Fire
+# --- film & tv
+popculture | iron man suit | name~iron cat=Creature
+popculture | hulkbuster | name~hulkbuster scale>=3
+popculture | spider-man | name~spider cat=Creature
+popculture | the hulk | name~hulk cat=Creature
+popculture | galactus | name~galactus scale>=15
+popculture | human torch | name~torch el=Fire
+popculture | venom | name~venom
+popculture | darksaber | name~darksaber form=Sword
+popculture | at-at | name~at-at scale>=8
+popculture | x-wing | name~x-wing form=Vehicle
+popculture | tie fighter | name~tie form=Vehicle
+popculture | r2-d2 | name~r2
+popculture | bb-8 | name~bb
+popculture | rancor | name~rancor
+popculture | star destroyer | name~destroyer form=Vehicle
+popculture | thermal detonator | name~detonator form=Bomb
+popculture | force lightning | name~lightning el=Electric
+popculture | oliphaunt | name~oliphaunt scale>=8
+popculture | the one ring | name~ring
+popculture | gandalf's staff | name~gandalf form=Staff
+popculture | shelob | name~shelob form=Arachnid
+popculture | great eagle | name~eagle form=Bird
+popculture | nimbus 2000 | name~nimbus
+popculture | basilisk | name~basilisk form=Serpent
+popculture | hogwarts express | name~hogwarts form=Vehicle
+popculture | fawkes | name~fawkes form=Bird
+popculture | shai-hulud | name~shai scale>=15
+popculture | indominus rex | name~indominus
+popculture | velociraptors | name~velociraptor
+popculture | demogorgon | name~demogorgon
+popculture | ecto-1 | name~ecto form=Vehicle
+popculture | delorean | name~delorean form=Vehicle
+popculture | uss enterprise | name~enterprise form=Vehicle
+popculture | spongebob | name~spongebob
+popculture | olaf | name~olaf
+popculture | shrek | name~shrek
+popculture | the terminator | name~terminator
+# --- games
+popculture | paraglider | name~paraglider form=Wings
+popculture | mario | name~mario cat=Creature
+popculture | ender dragon | name~ender +Flies
+popculture | energy sword | name~energy form=Sword
+popculture | master chief | name~chief cat=Creature
+popculture | cacodemon | name~cacodemon
+popculture | among us impostor | name~impostor
+# --- internet, toys, myth
+popculture | tralalero tralala | name~tralalero
+popculture | tung tung tung sahur | name~sahur
+popculture | bombardiro crocodilo | name~bombardiro
+popculture | skibidi toilet | name~skibidi
+popculture | moo deng | name~moo
+popculture | doge | name~doge
+popculture | nyan cat | name~nyan
+popculture | gigachad | name~gigachad
+popculture | big chungus | name~chungus
+popculture | grimace shake | name~grimace
+popculture | cerberus | name~cerberus form=Quadruped
+popculture | fenrir | name~fenrir form=Quadruped
+popculture | gungnir | name~gungnir form=Spear
+popculture | phoenix | name~phoenix form=Bird el=Fire
+popculture | loch ness monster | name~ness
+# --- marvel
+popculture | captain america | name~captain cat=Creature
+popculture | thor | name~thor el=Electric
+popculture | black panther | name~panther
+popculture | doctor strange | name~strange
+popculture | thanos | name~thanos
+popculture | green goblin | name~goblin
+popculture | doctor octopus | name~octopus
+popculture | magneto | name~magneto
+popculture | wolverine | name~wolverine
+popculture | deadpool | name~deadpool
+popculture | juggernaut | name~juggernaut
+popculture | ghost rider | name~rider el=Fire
+# --- shows
+popculture | homer simpson | name~homer
+popculture | bender | name~bender
+popculture | eric cartman | name~cartman
+popculture | pickle rick | name~pickle
+popculture | heisenberg | name~heisenberg
+popculture | hodor | name~hodor
+popculture | drogon | name~drogon +Flies el=Fire
+popculture | pennywise | name~pennywise
+popculture | chucky | name~chucky
+popculture | freddy krueger | name~krueger
+popculture | jason voorhees | name~jason
+# --- tmnt
+popculture | leonardo | name~leonardo
+popculture | michelangelo's nunchucks | name~nunchucks
+popculture | shredder | name~shredder
+popculture | technodrome | name~technodrome
+# --- transformers
+popculture | optimus prime | name~optimus
+popculture | megatron | name~megatron
+popculture | grimlock | name~grimlock
+popculture | devastator | name~devastator scale>=8
+popculture | unicron | name~unicron scale>=15
+
+# =====================================================================================================
+# everyday - nouns and adjective + noun
+# =====================================================================================================
+everyday | frying pan | cat=Held +Blunt
+everyday | giant rubber duck | cat=Creature/Object scale>=3
+everyday | flaming sword | form=Sword el=Fire
+everyday | ice wall | form=Wall el=Ice
+everyday | trampoline | form=Trampoline +Bounce
+everyday | piano | cat=Object +Heavy
+everyday | grand piano | cat=Object +Heavy
+everyday | shopping cart | form=Vehicle
+everyday | lawn mower | form=Vehicle
+everyday | toilet | cat=Object/Structure
+everyday | baseball bat | form=Hammer +Blunt
+everyday | chainsaw | cat=Held +Blade
+everyday | bowling ball | form=Ball/Boulder
+everyday | wrecking ball | +Heavy
+everyday | pogo stick | +Bounce
+everyday | slingshot | form=Bow
+everyday | boomerang | +Returning
+everyday | yo-yo | +Returning
+everyday | beach ball | form=Ball
+everyday | watermelon | form=Ball
+everyday | pillow | cat=Held
+everyday | fire hydrant | cat=Structure
+everyday | traffic cone | form=Pillar
+everyday | ladder | form=Ramp
+everyday | bridge | form=Platform
+everyday | castle wall | form=Wall
+everyday | igloo | form=Dome
+everyday | tent | form=Dome
+everyday | bouncy castle | form=Trampoline
+everyday | tornado | +Spin el=Wind
+everyday | volcano | el=Fire
+everyday | snowball | form=Ball el=Ice
+everyday | lava wall | form=Wall el=Fire
+everyday | electric fence | form=Wall el=Electric
+everyday | poison gas cloud | el=Poison
+everyday | spiked shield | form=Shield
+everyday | glue trap | +Sticky
+everyday | net | form=Cage +Trap
+everyday | lasso | form=Whip +Pull
+everyday | grappling hook | +Pull
+everyday | giant magnet | +Attract
+everyday | leaf blower | form=Gun +Repel
+everyday | vacuum cleaner | +Attract
+everyday | angry bull | form=Quadruped +Charge
+everyday | cheetah | form=Quadruped +Fast
+everyday | elephant | form=Quadruped
+everyday | gorilla | form=Biped
+everyday | eagle | form=Bird +Flies
+everyday | great white shark | form=Fish
+everyday | octopus | cat=Creature
+everyday | tarantula | form=Arachnid
+everyday | scorpion | form=Arachnid
+everyday | rattlesnake | form=Serpent
+everyday | anaconda | form=Serpent +Constrict
+everyday | crocodile | cat=Creature
+everyday | hippo | form=Quadruped
+everyday | penguin | form=Bird
+everyday | flamingo | form=Bird
+everyday | butterfly | form=Insect
+everyday | fire ants | form=Insect +Swarm
+everyday | swarm of bees | form=Insect +Swarm
+everyday | piranhas | form=Fish n>=3
+everyday | zombie | form=Biped
+everyday | skeleton | form=Biped
+everyday | ghost | cat=Creature +Flies
+everyday | robot | form=Biped
+everyday | giant robot | cat=Creature scale>=8
+everyday | ninja | form=Biped
+everyday | knight | form=Biped
+everyday | pirate ship | form=Vehicle
+everyday | tank | form=Vehicle +Shoots
+everyday | helicopter | form=Vehicle +Flies
+everyday | fighter jet | form=Vehicle +Flies
+everyday | submarine | form=Vehicle
+everyday | monster truck | form=Vehicle
+everyday | bulldozer | form=Vehicle
+everyday | school bus | form=Vehicle
+everyday | ice cream truck | form=Vehicle
+everyday | skateboard | form=Vehicle
+everyday | jetpack | form=Jetpack +Thrust
+everyday | parachute | form=Parachute +SlowFall
+everyday | hang glider | form=Wings +Glide
+everyday | angel wings | form=Wings
+everyday | superhero cape | form=Cape
+everyday | rocket boots | +Thrust
+everyday | pizza | form=Disc
+everyday | giant donut | form=Disc
+everyday | pineapple | form=Ball
+everyday | hot potato | form=Ball +Explodes
+everyday | cheeseburger | form=Ball
+everyday | bubble gum | +Sticky
+everyday | spaghetti | form=Whip
+everyday | bazooka | cat=Held +Shoots
+everyday | crossbow | form=Bow
+everyday | katana | form=Sword
+everyday | nunchucks | cat=Held
+everyday | mace | form=Hammer
+everyday | war hammer | form=Hammer
+everyday | battle axe | form=Axe
+everyday | trident | form=Spear
+everyday | javelin | form=Spear
+everyday | shuriken | form=Disc
+everyday | throwing knives | +Pierce
+everyday | flamethrower | form=Gun el=Fire
+everyday | freeze ray | form=Gun el=Ice
+everyday | taser | el=Electric
+everyday | water gun | form=Gun el=Water
+everyday | minigun | form=Gun +Shoots
+everyday | sniper rifle | form=Gun
+everyday | grenade | form=Bomb +Explodes
+everyday | dynamite | form=Bomb +Explodes
+everyday | landmine | +Explodes
+everyday | sticky bomb | form=Bomb +Sticky
+everyday | smoke bomb | form=Bomb
+everyday | tower shield | form=Shield +Guard
+everyday | riot shield | form=Shield
+everyday | brick wall | form=Wall
+everyday | stone pillar | form=Pillar
+everyday | ramp | form=Ramp
+everyday | jump pad | +Launch
+everyday | giant spring | +Bounce
+everyday | catapult | +Launch
+everyday | cannon | form=Cannon
+everyday | spike trap | +Trap
+everyday | bear trap | +Trap
+everyday | force field | +Barrier
+everyday | bubble shield | form=Dome +Barrier
+everyday | watchtower | form=Pillar
+everyday | skyscraper | form=Pillar scale>=8
+everyday | lighthouse | form=Pillar
+everyday | stairs | form=Ramp
+everyday | slide | form=Ramp
+everyday | half pipe | form=Ramp
+everyday | water slide | form=Ramp
+everyday | fridge | cat=Object +Heavy
+everyday | mattress | form=Trampoline
+everyday | pinata | +Explodes
+everyday | disco ball | form=Ball
+everyday | snow globe | form=Dome
+everyday | cannonball | form=Ball
+everyday | beehive | +Swarm
+everyday | cactus | form=Pillar
+everyday | christmas tree | form=Pillar
+everyday | giant mushroom | cat=Structure
+everyday | quicksand | +Trap
+everyday | tidal wave | el=Water
+everyday | thunderstorm | el=Electric
+everyday | black widow spider | form=Arachnid el=Poison
+everyday | poison dart | el=Poison +Pierce
+everyday | icicle | el=Ice +Pierce
+everyday | fireworks | +Explodes
+everyday | garden hose | el=Water
+everyday | hammer | form=Hammer
+everyday | sword | form=Sword
+everyday | shield | form=Shield
+
+# =====================================================================================================
+# verbs - delivery verbs without a target
+# =====================================================================================================
+verbs | throw a rock | form=Boulder target=none
+verbs | drop an anvil from the sky | form=Anvil +DropFromSky
+verbs | summon a wolf | form=Quadruped
+verbs | rain fire | el=Fire +DropFromSky
+verbs | shoot lasers | +Beam
+verbs | call lightning | el=Electric
+verbs | spawn a zombie horde | form=Biped n>=3
+verbs | throw a spear | form=Spear
+verbs | hurl a boulder | form=Boulder
+verbs | chuck a brick | cat=Object
+verbs | fire a missile | form=Rocket
+verbs | launch a rocket | form=Rocket
+verbs | shoot a fireball | el=Fire
+verbs | drop a piano | +DropFromSky
+verbs | drop a meteor | form=Boulder +DropFromSky
+verbs | rain arrows | +DropFromSky n>=3
+verbs | rain swords | form=Sword +DropFromSky n>=3
+verbs | rain frogs | cat=Creature +DropFromSky
+verbs | summon a dragon | +Flies +Breath
+verbs | summon a kraken | name~kraken
+verbs | summon a skeleton army | form=Biped n>=3
+verbs | call an airstrike | +DropFromSky +Explodes
+verbs | call down thunder | el=Electric
+verbs | call a meteor | +DropFromSky
+verbs | spawn a giant spider | form=Arachnid scale>=3
+verbs | build a wall | form=Wall
+verbs | raise a wall of ice | form=Wall el=Ice
+verbs | put up a force field | +Barrier
+verbs | throw a grenade | form=Bomb +Explodes
+verbs | lob a grenade | form=Bomb +Explodes
+verbs | toss a bomb | form=Bomb
+verbs | fling a cow | cat=Creature
+verbs | yeet a toaster | name~toaster
+verbs | shoot an arrow | form=Bow
+verbs | fire a cannon | form=Cannon
+verbs | breathe fire | +Breath el=Fire
+verbs | freeze everything | el=Ice
+verbs | shoot webs | +Sticky
+verbs | cast a fireball | el=Fire
+verbs | cast lightning | el=Electric
+verbs | throw a boomerang | +Returning
+verbs | smash with a giant hammer | form=Hammer
+verbs | drop a nuke | +Explodes el=Atomic +DropFromSky
+verbs | blow everything up | +Explodes
+verbs | summon a tornado | +Spin el=Wind
+verbs | open a portal | +Portal
+verbs | grow wings | kind=graft +Flies
+verbs | become giant | kind=graft +Grow
+verbs | shrink | +Shrink
+verbs | throw a net | form=Cage +Trap
+verbs | spit acid | el=Poison
+verbs | spray poison | el=Poison
+verbs | send a swarm of bees | form=Insect +Swarm
+verbs | unleash the kraken | name~kraken
+verbs | release the hounds | name~hounds
+verbs | drop a building | +DropFromSky scale>=8
+verbs | fire a laser | +Beam
+verbs | blast lasers from my eyes | +Beam
+verbs | throw a car | form=Vehicle
+verbs | toss a whale | form=Fish
+verbs | shoot ice | el=Ice
+verbs | summon a golem | form=Biped
+
+# =====================================================================================================
+# combos - sizes, mounts, emitters, volleys, elements, numbers, magnitude
+# =====================================================================================================
+# --- sizes
+combos | house sized hamster | cat=Creature scale>=5
+combos | hamster the size of a house | cat=Creature scale>=5
+combos | skyscraper sized cat | form=Quadruped scale>=15
+combos | tiny elephant | form=Quadruped scale<=1
+combos | mini godzilla | name~godzilla scale<=5
+combos | giant ant | form=Insect scale>=3
+combos | ant the size of a bus | form=Insect scale>=5
+combos | bus sized spider | form=Arachnid scale>=5
+combos | kaiju hamster | cat=Creature scale>=15
+combos | cat bigger than a horse | form=Quadruped scale>=2.5
+combos | dog as big as a car | form=Quadruped scale>=3
+combos | hammer as big as a house | form=Hammer scale>=5
+combos | sword longer than a bus | form=Sword scale>=5
+combos | cow the size of a house | form=Quadruped scale>=5
+combos | microscopic shark | form=Fish scale<=0.5
+combos | mega shark | form=Fish scale>=5
+combos | colossal squid | cat=Creature scale>=8
+combos | tiny tank | form=Vehicle scale<=1
+combos | giant fist | form=Gauntlet scale>=2
+combos | pocket sized dragon | +Flies scale<=1
+# --- mounts
+combos | goblin riding a shark | mount=any
+combos | shark riding a jet ski | form=Fish mount=Vehicle
+combos | cat riding a roomba | form=Quadruped mount=any
+combos | knight on a horse | mount=any
+combos | witch on a broom | mount=any
+combos | gorilla in a tank | form=Biped mount=Vehicle
+combos | frog on a unicycle | mount=Vehicle
+combos | penguin on a surfboard | form=Bird mount=any
+combos | skeleton riding a dinosaur | form=Biped mount=any
+combos | monkey driving a bulldozer | mount=Vehicle
+combos | chicken riding a pig | form=Bird mount=any
+combos | godzilla riding a motorcycle | name~godzilla mount=Vehicle
+# --- emitters
+combos | sharks with frickin laser beams | form=Fish +Beam
+combos | space laser | +Beam
+combos | eye laser | +Beam
+combos | satellite that shoots lasers | +Beam
+combos | laser eyes cat | form=Quadruped +Beam
+combos | dragon that shoots lightning | +Flies el=Electric
+combos | tank that shoots bees | form=Vehicle +Shoots
+# --- volleys
+combos | shower of swords | form=Sword +DropFromSky n>=3
+combos | rain of fire | el=Fire +DropFromSky
+combos | storm of knives | n>=3
+combos | barrage of missiles | form=Rocket n>=3
+combos | volley of arrows | n>=3
+combos | swarm of piranhas | form=Fish +Swarm
+combos | hail of anvils | form=Anvil +DropFromSky n>=3
+combos | rain of hammers | form=Hammer +DropFromSky n>=3
+# --- elements + forms
+combos | electric whip | form=Whip el=Electric
+combos | poison dart gun | form=Gun el=Poison
+combos | ice spear | form=Spear el=Ice
+combos | lightning sword | form=Sword el=Electric
+combos | water whip | form=Whip el=Water
+combos | shadow sword | form=Sword el=Shadow
+combos | earth hammer | form=Hammer el=Earth
+combos | wind bow | form=Bow el=Wind
+combos | toxic sludge monster | cat=Creature el=Poison
+combos | lava golem | form=Biped el=Fire
+combos | ice dragon | +Flies el=Ice
+combos | fire dragon | +Breath el=Fire
+combos | electric eel | cat=Creature el=Electric
+combos | psychic cat | form=Quadruped el=Psychic
+combos | frost axe | form=Axe el=Ice
+combos | holy shield | form=Shield el=Light
+combos | fire breathing chicken | form=Bird +Breath el=Fire
+combos | ice breathing dragon | +Breath el=Ice
+combos | a dragon made of lightning | el=Electric
+combos | wall of fire | form=Wall el=Fire
+combos | dome of ice | form=Dome el=Ice
+combos | cage of lightning | form=Cage el=Electric
+combos | pillar of light | form=Pillar el=Light
+combos | fist made of stone | form=Gauntlet el=Earth
+combos | frozen fish | form=Fish el=Ice
+combos | electric jellyfish | cat=Creature el=Electric
+combos | flaming bowling ball | el=Fire
+combos | hammer on fire | form=Hammer el=Fire target=none
+combos | shark on fire | form=Fish el=Fire target=none
+# --- numbers
+combos | three flaming swords | form=Sword el=Fire n>=3
+combos | five bombs | form=Bomb n>=5
+combos | two sharks | form=Fish n>=2
+combos | a dozen rubber ducks | n>=6
+combos | ten thousand bees | form=Insect n>=6
+combos | army of skeletons | form=Biped n>=3
+combos | flock of seagulls | form=Bird n>=3
+combos | pack of wolves | form=Quadruped n>=3
+combos | explosive watermelons | +Explodes n>=2
+combos | twin swords | form=Sword n>=2
+# --- magnitude
+combos | nuclear hamster | cat=Creature el=Atomic
+combos | atomic chicken | form=Bird el=Atomic
+combos | radioactive spider | form=Arachnid el=Atomic
+combos | nuclear shark | form=Fish el=Atomic
+# --- mechanic adjectives
+combos | exploding sheep | form=Quadruped +Explodes
+combos | bouncing bomb | form=Bomb +Bounce
+combos | homing banana | +Homing
+combos | heat seeking missile | form=Rocket +Homing
+combos | laser guided bomb | form=Bomb +Homing
+combos | flying car | form=Vehicle +Flies
+combos | flying shark | form=Fish +Flies
+combos | jet powered shopping cart | form=Vehicle +Thrust
+combos | rocket powered skateboard | form=Vehicle +Thrust
+combos | winged pig | form=Quadruped +Flies
+combos | pig with wings | form=Quadruped +Flies
+combos | sticky grenade | form=Bomb +Sticky
+combos | bouncy wall | form=Wall +Bounce
+combos | giant spinning saw blade | form=Disc +Spin
+combos | boomerang sword | form=Sword +Returning
+combos | returning hammer | form=Hammer +Returning
+combos | exploding arrows | +Explodes
+combos | king kong with a jetpack | name~kong +Thrust
+combos | gorilla with a minigun | form=Biped +Shoots
+combos | bear with rocket launchers | cat=Creature +Shoots
+combos | zombie shark | form=Fish
+combos | cyborg gorilla | form=Biped
+combos | ghost pirate ship | form=Vehicle el=Shadow
+combos | skeleton horse | form=Quadruped
+
+# =====================================================================================================
+# signature - domains, beams, summons, transformations
+# =====================================================================================================
+signature | KAMEHAMEHA!!! | sig=Beam form!=Gun
+signature | final kamehameha | sig=Beam form!=Gun
+signature | big bang kamehameha | sig=Beam
+signature | father son kamehameha | sig=Beam
+signature | giant kamehameha | sig=Beam
+signature | ultimate kamehameha | sig=Beam
+signature | final flash at jake | sig=Beam form!=Gun target=Jake
+signature | galick gun | sig=Beam form!=Gun
+signature | galic gun | sig=Beam form!=Gun
+signature | GALICK GUN!!! | sig=Beam form!=Gun
+signature | big bang attack | sig=Beam
+signature | special beam cannon | sig=Beam form!=Gun
+signature | makankosappo | sig=Beam
+signature | masenko | sig=Beam
+signature | spirit gun | sig=Beam form!=Gun
+signature | hadouken | sig=Beam
+signature | shinku hadouken | sig=Beam
+signature | hyper beam | sig=Beam
+signature | HYPER BEAM!!! | sig=Beam form!=Gun
+signature | solar beam | sig=Beam
+signature | fus ro dah | sig=Beam
+signature | avada kedavra | sig=Beam
+signature | hollow purple at ethan | sig=Beam el=Psychic target=Ethan
+signature | ENERGY BEAM!!! | sig=Beam form!=Gun
+signature | laser beam!!! | sig=Beam form!=Gun
+signature | laser beam! | sig=none
+signature | RAILGUN!!! | form=Gun sig=none
+signature | SPIRIT BOMB!!! | sig=Summon
+signature | genki dama | sig=Summon
+signature | rasengan | sig=Summon
+signature | rasenshuriken | sig=Summon
+signature | tailed beast bomb | sig=Summon
+signature | chibaku tensei | sig=Summon
+signature | susanoo | sig=Summon
+signature | expecto patronum | sig=Summon
+signature | the rumbling | sig=Summon
+signature | colossal titan | sig=Summon scale>=15
+signature | mahoraga | sig=Summon
+signature | gate of babylon | sig=Summon
+signature | summoning jutsu toad | sig=Summon
+signature | bankai | sig=Transformation
+signature | BANKAI!!! | sig=Transformation
+signature | bankai senbonzakura kageyoshi | sig=Transformation
+signature | tensa zangetsu | sig=Transformation
+signature | daiguren hyorinmaru | sig=Transformation
+signature | getsuga tensho | sig=Transformation
+signature | super saiyan | sig=Transformation
+signature | ultra instinct | sig=Transformation
+signature | gear fifth | sig=Transformation
+signature | kaioken | sig=Transformation
+signature | omnislash | sig=Transformation
+signature | final form godzilla | sig=Transformation
+signature | malevolent shrine | sig=Domain el=Shadow
+signature | unlimited void | sig=Domain el=Psychic
+signature | infinite void | sig=Domain
+signature | coffin of the iron mountain | sig=Domain el=Fire
+signature | chimera shadow garden | sig=Domain
+signature | unlimited blade works | sig=Domain
+signature | infinite tsukuyomi | sig=Domain
+signature | ryoiki tenkai | sig=Domain
+signature | fire domain | sig=Domain el=Fire
+signature | ice domain | sig=Domain el=Ice
+signature | domain expansion bouncy castle | sig=Domain
+signature | DOMAIN EXPANSION: SHARK TANK | sig=Domain
+signature | dome | sig=none
+signature | coffin | sig=none
+
+# =====================================================================================================
+# pokemon - trainer grammar and names
+# =====================================================================================================
+pokemon | go pikachu, use thunderbolt! | name~pikachu +Beam el=Electric
+pokemon | pikachu thunderbolt | name~pikachu +Beam
+pokemon | pikachu i choose you | name~pikachu cat=Creature
+pokemon | i choose you, pikachu! | name~pikachu cat=Creature
+pokemon | go pikachu | name~pikachu
+pokemon | go charizard | name~charizard +Flies
+pokemon | charizard, i choose you! | name~charizard el=Fire
+pokemon | go charizard, use flamethrower! | name~charizard +Breath el=Fire
+pokemon | squirtle i choose you | name~squirtle el=Water
+pokemon | squirtle use water gun | name~squirtle +Shoots el=Water
+pokemon | blastoise use hydro pump | name~blastoise +Beam el=Water
+pokemon | bulbasaur use vine whip | name~bulbasaur +Pull
+pokemon | lapras use surf | name~lapras el=Water
+pokemon | golem use earthquake | +Stomp el=Earth
+pokemon | snorlax use body slam | name~snorlax +Heavy
+pokemon | pikachu use quick attack | name~pikachu +Fast
+pokemon | electrode use self destruct | +Explodes
+pokemon | charizard use fly | name~charizard +Flies
+pokemon | magikarp use splash | name~magikarp
+pokemon | gyarados use hyper beam | name~gyarados +Beam
+pokemon | mewtwo use psychic | name~mewtwo el=Psychic
+pokemon | gengar use shadow ball | name~gengar el=Shadow
+pokemon | onix use rock slide | name~onix el=Earth
+pokemon | eevee i choose you | name~eevee
+pokemon | jigglypuff use sing | name~jigglypuff
+pokemon | go lucario | name~lucario
+pokemon | lucario use aura sphere | name~lucario
+pokemon | greninja use water shuriken | name~greninja el=Water
+pokemon | dragonite use outrage | name~dragonite
+pokemon | rayquaza | name~rayquaza cat=Creature
+pokemon | lugia | name~lugia form=Bird
+pokemon | giant pikachu use thunderbolt | name~pikachu +Beam scale>=1
+pokemon | use thunderbolt | kind=graft +Beam el=Electric
+pokemon | use flamethrower | kind=graft el=Fire
+pokemon | quick attack | kind=graft +Fast
+pokemon | use explosion | kind=graft +Explodes
+pokemon | pickachu use thundrbolt | name~pikachu +Beam
+pokemon | master ball | name~master form=Ball
+pokemon | pikachu use thunderbolt on jake | name~pikachu +Beam target=Jake
+pokemon | charizard use flamethrower on ethan | name~charizard +Breath target=Ethan
+pokemon | slowpoke | name~slowpoke
+
+# =====================================================================================================
+# refer - "it" / "again" grammar
+# =====================================================================================================
+refer | make it smaller | refer=it
+refer | make it huge | refer=it
+refer | set it ablaze | refer=it el=Fire
+refer | light it on fire | refer=it el=Fire
+refer | freeze it | refer=it el=Ice
+refer | electrify it | refer=it el=Electric
+refer | give it wings | refer=it +Flies
+refer | give it a jetpack | refer=it +Thrust
+refer | give it lasers | refer=it +Beam
+refer | put rockets on it | refer=it +Thrust
+refer | make it explode | refer=it +Explodes
+refer | make it bouncy | refer=it +Bounce
+refer | make it fly | refer=it +Flies
+refer | make it fast | refer=it +Fast
+refer | make it faster | refer=it +Fast
+refer | make it spin | refer=it +Spin
+refer | make it poisonous | refer=it el=Poison
+refer | make it sticky | refer=it +Sticky
+refer | make it heavy | refer=it +Heavy
+refer | make it homing | refer=it +Homing
+refer | make it come back | refer=it +Returning
+refer | make it radioactive | refer=it el=Atomic
+refer | make it electric | refer=it el=Electric
+refer | turn it into ice | refer=it el=Ice
+refer | bigger! | refer=it
+refer | even bigger | refer=it
+refer | BIGGER!!! | refer=it
+refer | smaller | refer=it
+refer | make it bigger and set it on fire | refer=it el=Fire
+refer | set it on fire and make it explode | refer=it el=Fire +Explodes
+refer | again!! | refer=again
+refer | do it again | refer=again
+refer | one more | refer=again
+refer | two more | refer=again
+refer | three more | refer=again
+refer | another one | refer=again
+refer | another! | refer=again
+refer | more! | refer=again
+refer | same again | refer=again
+refer | once more | refer=again
+refer | do that again | refer=again
+refer | AGAIN!!! | refer=again
+
+# =====================================================================================================
+# voice - misheard / spoken variants of popculture, everyday, signature and owner phrases
+# =====================================================================================================
+# --- icons, homophones and splits
+voice | ~mule near | name~mjolnir form=Hammer
+voice | ~mjolnir. | name~mjolnir form=Hammer
+voice | ~thor's hammer. | name~mjolnir form=Hammer
+voice | ~storm breaker | name~stormbreaker form=Axe
+voice | ~pika chu | name~pikachu
+voice | ~picked you use thunderbolt | name~pikachu +Beam
+voice | ~pikachu use thunder bolt. | name~pikachu +Beam el=Electric
+voice | ~pikachu, use thunderbolt! | name~pikachu +Beam el=Electric
+voice | ~charizard i choose you. | name~charizard el=Fire
+voice | ~squirtle, i choose you. | name~squirtle
+voice | ~god zilla | name~godzilla form=Kaiju
+voice | ~godzila | name~godzilla form=Kaiju
+voice | ~gojira | name~godzilla form=Kaiju
+voice | ~king kong. | name~kong cat=Creature
+voice | ~kingkong | name~kong cat=Creature
+voice | ~the cracken | name~kraken
+voice | ~release the kraken! | name~kraken
+voice | ~cthulhu. | name~cthulhu
+voice | ~toothless. | name~toothless
+voice | ~pac man | name~pac
+voice | ~mine craft creeper | name~creeper +Explodes
+voice | ~creeper. | name~creeper
+voice | ~master chief. | name~chief
+voice | ~the millennium falcon. | name~falcon form=Vehicle
+voice | ~yoda. | name~yoda
+voice | ~baby yoda | name~grogu
+voice | ~x wing | name~wing form=Vehicle
+voice | ~the iron giant. | name~giant
+voice | ~stay puft marshmallow man. | name~puft
+voice | ~gypsy danger | name~danger
+voice | ~mecha godzilla | name~mechagodzilla
+voice | ~king gidora | name~ghidorah
+voice | ~shrek. | name~shrek
+voice | ~big chungus. | name~chungus
+voice | ~skibidi toilet. | name~skibidi
+voice | ~skibbidy toilet | name~skibidi
+voice | ~tung tung tung tung sahur | name~sahur
+voice | ~tra la lero tra la la | name~tralalero
+voice | ~bombardino crocodilo | name~bombardiro
+voice | ~pennywise. | name~pennywise
+voice | ~penny wise | name~pennywise
+voice | ~optimus prime. | name~optimus
+voice | ~megatron. | name~megatron
+voice | ~ninja turtles | name~turtles
+voice | ~sponge bob | name~spongebob
+voice | ~lightning mc queen | name~mcqueen form=Vehicle
+voice | ~spider man. | name~spider cat=Creature
+voice | ~spiderman | name~spider cat=Creature
+voice | ~iron man. | name~iron cat=Creature
+voice | ~super man | name~superman
+voice | ~man of steel. | name~superman
+voice | ~bat mobile | name~batmobile form=Vehicle
+voice | ~light saber | name~lightsaber form=Sword
+voice | ~dr strange | name~strange
+voice | ~darth vader. | name~vader
+voice | ~dark vader | name~vader
+voice | ~go jo | name~gojo
+voice | ~gojo. | name~gojo
+# --- signatures and powers
+voice | ~camera hammer ha | sig=Beam form!=Gun
+voice | ~kamehameha. | sig=Beam form!=Gun
+voice | ~kame hame ha | sig=Beam form!=Gun
+voice | ~final flash! | sig=Beam form!=Gun
+voice | ~final flash. | sig=Beam form!=Gun
+voice | ~hollow purple. | sig=Beam el=Psychic
+voice | ~galick gun. | sig=Beam form!=Gun
+voice | ~garlic gun! | sig=Beam form!=Gun
+voice | ~special beam cannon. | sig=Beam form!=Gun
+voice | ~spirit bomb. | sig=Summon
+voice | ~resengan | sig=Summon
+voice | ~ban kai. | sig=Transformation
+voice | ~hadoken | sig=Beam
+voice | ~ha do ken | sig=Beam
+voice | ~hyper beam! | sig=Beam
+voice | ~domain expansion unlimited void. | sig=Domain el=Psychic
+voice | ~domain expansion, unlimited void! | sig=Domain el=Psychic
+voice | ~domain expansion coffin of the iron mountain. | sig=Domain el=Fire
+voice | ~domain expansion coffin of the iron mountains | sig=Domain el=Fire
+voice | ~domain expansion. malevolent shrine. | sig=Domain el=Shadow
+voice | ~domain expansion malevolent shrine | sig=Domain el=Shadow
+voice | ~gomu gomu no pistol. | incant=gomu_gomu
+voice | ~gum gum pistol | incant=gomu_gomu
+voice | ~gomu gomu no gatling | incant=gomu_gomu
+voice | ~gomu gomu no rocket | incant=gomu_gomu
+voice | ~ora ora ora ora | rush
+voice | ~ora, ora, ora, ora! | rush
+voice | ~muda muda muda | rush
+# --- owner phrases spoken
+voice | ~t rex sized duck | form=Bird scale>=8
+voice | ~tea rex sized duck | form=Bird scale>=8
+voice | ~a t-rex sized duck. | form=Bird scale>=8
+voice | ~king kong on a skate board | name~kong mount=Vehicle
+voice | ~satellite death beam. | +Beam
+voice | ~satellite death ray | +Beam
+voice | ~nuclear bomb. | form=Bomb +Explodes el=Atomic
+voice | ~nucular bomb | form=Bomb +Explodes el=Atomic
+voice | ~gravity nuclear bomb. | form=Bomb +Explodes +Attract
+voice | ~okay, meteor shower. | n>=6 +DropFromSky
+voice | ~meteor shower! | n>=6 +DropFromSky
+voice | ~um drop a meteor | form=Boulder +DropFromSky
+voice | ~surf ramp. | form=Ramp +Glide
+voice | ~serf ramp | form=Ramp +Glide
+voice | ~hot dog. | form=Ball
+voice | ~hotdog | form=Ball
+voice | ~roller coaster. | form=Ramp +Launch
+voice | ~rollercoaster | form=Ramp +Launch
+voice | ~make it bigger. | refer=it
+voice | ~set it on fire. | refer=it el=Fire
+voice | ~again. | refer=again
+voice | ~do it again! | refer=again
+voice | ~two more. | refer=again
+# --- everyday spoken: splits, merges, digits, fillers
+voice | ~sky scraper | form=Pillar scale>=8
+voice | ~firesword | form=Sword el=Fire
+voice | ~fire sword | form=Sword el=Fire
+voice | ~flaming sword. | form=Sword el=Fire
+voice | ~uh fire sword | form=Sword el=Fire
+voice | ~3 flaming swords | form=Sword el=Fire n>=3
+voice | ~10 bees | form=Insect n>=5
+voice | ~a hundred bees | form=Insect n>=6
+voice | ~5 sharks | form=Fish n>=3
+voice | ~2 dragons | +Flies n>=2
+voice | ~uh, giant hammer | form=Hammer
+voice | ~like a really big shark | form=Fish
+voice | ~can i get a jetpack | form=Jetpack
+voice | ~i want a dragon | +Flies
+voice | ~give me a sword | form=Sword
+voice | ~frying pan. | cat=Held
+voice | ~a giant rubber duck | scale>=3
+voice | ~trampoline. | form=Trampoline
+voice | ~shopping cart. | form=Vehicle
+voice | ~lawnmower | form=Vehicle
+voice | ~a piano. | cat=Object
+voice | ~icewall | form=Wall el=Ice
+voice | ~bouncy castle. | form=Trampoline
+voice | ~wrecking ball. | +Heavy
+voice | ~sledge hammer | form=Hammer
+voice | ~flame thrower | form=Gun el=Fire
+voice | ~jet pack | form=Jetpack
+voice | ~hang glider. | form=Wings
+voice | ~cannon ball | form=Ball
+voice | ~force field. | +Barrier
+voice | ~skate board | form=Vehicle
+voice | ~monster truck. | form=Vehicle
+voice | ~a tank. | form=Vehicle
+voice | ~helicopter. | form=Vehicle +Flies
+voice | ~t rex | cat=Creature scale>=8
+voice | ~dragon. | +Flies
+voice | ~unicorn. | form=Quadruped
+voice | ~zombies. | form=Biped n>=2
+voice | ~skeleton army | form=Biped n>=3
+voice | ~giant spider. | form=Arachnid
+voice | ~bees! | form=Insect +Swarm
+voice | ~a shark. | form=Fish
+voice | ~anaconda. | form=Serpent
+voice | ~tornado. | +Spin
+voice | ~dynamite. | +Explodes
+voice | ~grenade. | form=Bomb
+
+# =====================================================================================================
+# collisions - known stage collisions (the reading a player means wins)
+# =====================================================================================================
+collisions | iron man | name~iron cat=Creature
+collisions | on fire | kind=graft el=Fire
+collisions | man of steel | name~superman
+collisions | laser gun | form=Gun +Beam
+collisions | baby shower | -DropFromSky
+collisions | spider man | name~spider cat=Creature
+collisions | spider on a man | form=Arachnid mount=any
+collisions | dragon on dragonslayer | +Flies target=DragonSlayer via=near
+collisions | dragonslayer | form=Sword target=none
+collisions | dragon slayer sword | form=Sword target=none
+collisions | fire on sam | el=Fire target=Sam
+collisions | sword of fire | form=Sword el=Fire target=none
+collisions | shark on a skateboard | form=Fish mount=Vehicle target=none
+collisions | rain boots | -DropFromSky n<=1
+collisions | brain storm | -DropFromSky n<=1
+collisions | brainstorm | -DropFromSky n<=1
+collisions | bee on sam | cat=Creature target=Sam
+collisions | jake the dog | name~jake target=none
+collisions | zoey's shinkal | name~shinkal target=none
+collisions | ethan hunt | cat=Creature target=none
+collisions | tony hawk | target=none
+collisions | nova bomb | form=Bomb target=none
+collisions | cat on a hot tin roof | target=none
+collisions | fire truck | form=Vehicle
+collisions | fire ant | form=Insect
+collisions | firework rocket | form=Rocket
+collisions | water balloon | +Explodes
+collisions | snowman | form=Biped el=Ice
+collisions | iron fist | form=Gauntlet
+collisions | man eating shark | form=Fish
+collisions | killer bees | form=Insect +Swarm
+collisions | hammerhead shark | form=Fish
+collisions | swordfish | form=Fish
+collisions | dragonfly | form=Insect
+collisions | catfish | form=Fish
+collisions | bulldog | form=Quadruped
+collisions | horsefly | form=Insect
+collisions | rocket punch | form=Gauntlet
+collisions | laser sword | form=Sword
+collisions | hot dog stand | cat=Structure/Object
+collisions | corn dog | cat=Held
+collisions | meteor shower over the lake | n>=6 +DropFromSky target=none
+collisions | king kong riding godzilla | name~kong mount=any
+collisions | drop the bass | target=none
+

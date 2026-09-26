@@ -6,8 +6,9 @@
 //!   existing ownership check decides (not yours / gone → a normal cast). A scale word travels as
 //!   [`CastMeta::resize`] (host-clamped to `tuning.freedom.resize_min..=resize_max` and the rules'
 //!   scale range; the growth is paid like buying the bigger construct).
-//! * **Name targeting** — "missile at Jake": the client strips the name and sends
-//!   `TargetHint::Player(jake)`; the host already validates the player exists (homing does the rest).
+//! * **Name targeting** — "missile at Jake", "drop a meteor on Ethan": the client strips the name and
+//!   sends `TargetHint::Named { player, via }`; the host validates it and *delivers* there — onto /
+//!   at / next to / around the named player as the caster saw them ([`deliver`]).
 //! * **Never refuse for willpower** ([`afford`]): an unaffordable cast becomes a scaled-down
 //!   *sputtering* version (count first, then scale, down to `sputter_floor` of the asked size or the
 //!   form minimum) that **drains everything left**; at ~0 willpower it is a tiny fizzle — never
@@ -33,6 +34,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::World;
 use crate::combat::HitKind;
+
+pub mod deliver; // FREEDOM HOOK: named-target delivery ("drop a meteor on Ethan")
+pub use deliver::Delivery;
 use crate::events::{GameEvent, KoCause};
 use crate::legendary::{self, LegendaryTuning, NoveltySet, PhraseKey};
 

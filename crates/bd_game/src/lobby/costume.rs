@@ -53,11 +53,13 @@ pub fn costume_spec(lex: &Lexicon, c: &CostumePref) -> ShapeSpec {
 /// Dress a phrase (all tiers, see the module docs). Without a lexicon, non-character phrases get a
 /// plain biped recipe named after the phrase.
 pub fn dress(lex: Option<&Lexicon>, phrase: &str, seed: u32, tw: CostumeTweaks) -> Costume {
+    // Character / mix-and-match phrases ("gojo but bald", "donatello with a straw hat").
     let (body, head) = split_head(phrase);
-    let body = if body.is_empty() { "person".to_string() } else { body };
-    if head.is_none() && bd_shapes::costume::look::find(&body).is_some() {
-        return bd_shapes::costume::dress(&body, &Recipe::unknown(&body), None, None, seed, tw);
+    let whole = phrase.trim().to_lowercase();
+    if (head.is_none() || bd_shapes::costume::is_character_phrase(&body)) && bd_shapes::costume::is_character_phrase(&whole) {
+        return bd_shapes::costume::dress(&whole, &Recipe::unknown(&whole), None, None, seed, tw);
     }
+    let body = if body.is_empty() { "person".to_string() } else { body };
     match lex {
         Some(lex) => {
             let rb = lex.resolve(&body);
@@ -81,16 +83,16 @@ pub fn painted_model(lex: Option<&Lexicon>, phrase: &str, seed: u32, tw: Costume
 /// Number of variants the phrase's character look has (`None` = not a character phrase).
 pub fn variant_count(phrase: &str) -> Option<usize> {
     let (body, head) = split_head(phrase);
-    if head.is_some() {
+    if head.is_some() && !bd_shapes::costume::is_character_phrase(&body) {
         return None;
     }
-    bd_shapes::costume::look::variant_count(&body)
+    bd_shapes::costume::variant_count(phrase)
 }
 
 /// Accent colour the costume renders with (palette slot of unpainted voxels).
 pub fn costume_accent(lex: &Lexicon, c: &CostumePref) -> Option<[f32; 3]> {
     let (body, head) = split_head(&c.phrase);
-    if head.is_none() && bd_shapes::costume::look::find(&body).is_some() {
+    if (head.is_none() || bd_shapes::costume::is_character_phrase(&body)) && bd_shapes::costume::is_character_phrase(&c.phrase) {
         return tweaks(c).accent;
     }
     let rb = lex.resolve(&body);

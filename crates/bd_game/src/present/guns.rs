@@ -214,6 +214,10 @@ fn gun_events(
                 tracers.0.push_back(e);
             }
             GameEvent::Hitscan { owner, origin, end, .. } => {
+                // Palm energy draws its own sustained beam from the hands (present::palm_beam).
+                if active.world.constructs.held_by(*owner).is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands) {
+                    continue;
+                }
                 let col = corps_rgb(active.corps_of(*owner));
                 // Caliber: a giant (ultimate) railgun draws a thick beam (width x sqrt(scale / default)).
                 let caliber = active.world.constructs.held_by(*owner).filter(|c| c.recipe.form == bd_core::mechanics::Form::Gun).map_or(1.0, |c| {

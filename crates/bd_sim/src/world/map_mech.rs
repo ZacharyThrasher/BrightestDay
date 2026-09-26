@@ -24,7 +24,8 @@ use crate::movement::{Collider, ColliderId};
 use crate::space::{PortalEnd, PortalPair};
 
 /// Owner id of map-owned portals (never a real player).
-pub const MAP_OWNER: PlayerId = PlayerId(255);
+/// (252 % 8 = Hope: the corps colour fallback draws the space-bridge discs energon blue.)
+pub const MAP_OWNER: PlayerId = PlayerId(252);
 /// Collider ids of mover panels: `MOVER_ID_BASE + mover * 16 + part` (`ColliderId::Other`).
 pub const MOVER_ID_BASE: u32 = 0x4d56_0000;
 

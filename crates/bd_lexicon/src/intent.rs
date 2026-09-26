@@ -83,6 +83,9 @@ struct Verb {
     alone: Option<String>,
     #[serde(default)]
     strict: bool,
+    /// Generic placement verb ("send", "put", "summon"): a preposition's delivery wins over it.
+    #[serde(default)]
+    generic: bool,
 }
 
 #[derive(Deserialize)]
@@ -95,11 +98,15 @@ struct Prep {
 struct IntentData {
     verbs: Vec<Verb>,
     target_verbs: Vec<String>,
+    /// Words that introduce the thing in "<verb> <name> with|in <thing>".
+    with_words: Vec<String>,
     preps: Vec<Prep>,
     weak_preps: Vec<String>,
     after_name: Vec<String>,
     name_noise: Vec<String>,
     around_forms: Vec<(String, String)>,
+    not_verbs: Vec<String>,
+    location_preps: Vec<String>,
 }
 
 fn data() -> Option<&'static IntentData> {
@@ -305,7 +312,10 @@ pub(crate) fn sound_key(s: &str) -> String {
             (b'q', _) => (b"k", 1),
             (b'x', _) => (b"ks", 1),
             (b'z', _) => (b"s", 1),
-            (b'y', _) => (b"i", 1),
+            (b'y', _) if i == 0 => (b"y", 1),
+            (b'y', _) => (b"a", 1),
+            // silent final e ("jake" sounds like "jayk")
+            (b'e', 0) if w.len() > 3 && i > 0 && !matches!(w[i - 1], b'a' | b'e' | b'i' | b'o' | b'u' | b'y') => (b"", 1),
             (b'a' | b'e' | b'i' | b'o' | b'u', _) => (b"a", 1),
             (b'h', _) if i > 0 => (b"", 1),
             _ => (std::slice::from_ref(&w[i]), 1),
@@ -363,7 +373,9 @@ fn match_name(span: &[Word], names: &[NameForm], spoken: bool, weak_prep: bool, 
             cands.extend(n.distinctive.iter().map(String::as_str).filter(|t| t.len() >= 4));
         }
         for c in cands.iter().filter(|c| c.len() >= 3) {
-            let limit = max_typo(c.len().max(squashed.len()), spoken);
+            // 3-letter names forgive one swap / slip of a later letter ("sma", "zeo"), first letter kept
+            let short = c.len() == 3 && squashed.len() == 3 && c.as_bytes()[0] == squashed.as_bytes()[0];
+            let limit = if short { 1 } else { max_typo(c.len().max(squashed.len()), spoken) };
             if limit > 0
                 && let Some(d) = dl_distance(squashed.as_bytes(), c.as_bytes(), limit)
             {
@@ -399,14 +411,18 @@ fn phrase_at(ws: &[Word], at: usize, phrase: &str) -> bool {
 }
 
 /// Words that open a phrase without meaning anything ("um drop a meteor on ethan").
-const LEAD_FILLER: &[&str] = &[
-    "ok", "okay", "now", "please", "and", "then", "oh", "hey", "yo", "quick", "quickly", "alright", "right", "so", "just", "go", "um", "uh",
-    "er", "erm", "like", "lets", "let's", "i", "gonna", "wanna", "will", "can", "you", "yeah", "bro", "dude",
-];
+const LEAD_FILLER: &[&str] =
+    &["ok", "okay", "now", "please", "and", "then", "oh", "hey", "yo", "alright", "so", "just", "um", "uh", "er", "erm", "yeah", "bro", "dude"];
 
 /// Targeting (stage 2). `common(key)` = the words are a known everyday word (then only an exact name
 /// counts). `None` = no player named.
-pub(crate) fn find_target(text: &str, names: &[&str], spoken: bool, common: &dyn Fn(&str) -> bool) -> Option<Targeted> {
+pub(crate) fn find_target(
+    text: &str,
+    names: &[&str],
+    spoken: bool,
+    common: &dyn Fn(&str) -> bool,
+    phrase: &dyn Fn(&str) -> bool,
+) -> Option<Targeted> {
     let d = data()?;
     if names.is_empty() {
         return None;
@@ -420,17 +436,22 @@ pub(crate) fn find_target(text: &str, names: &[&str], spoken: bool, common: &dyn
     let tail_ok = |from: usize| ws[from..].iter().all(|w| d.after_name.iter().any(|a| *a == w.key));
     let heard = |from: usize, len: usize| ws[from..from + len].iter().map(|w| w.key.as_str()).collect::<Vec<_>>().join(" ");
     // A: "<rest> <prep> <name> [tail]" — scan preposition positions from the end (the aim is the tail).
-    for p in (1..n - 1).rev() {
-        let Some(prep) = d.preps.iter().find(|pr| phrase_at(&ws, p, &pr.words)) else { continue };
-        let name_from = p + prep.words.split(' ').count();
-        if name_from >= n {
+    // (longest preposition ending right before the name: "next to alex" is "next to", not "to")
+    for name_from in (2..n).rev() {
+        let Some((prep, p)) = d.preps.iter().find_map(|pr| {
+            let k = pr.words.split(' ').count();
+            (name_from > k && phrase_at(&ws, name_from - k, &pr.words)).then_some((pr, name_from - k))
+        }) else {
             continue;
-        }
-        let weak = d.weak_preps.iter().any(|w| *w == prep.words);
+        };
+        let weak_prep = d.weak_preps.iter().any(|w| *w == prep.words);
         for len in (1..=3.min(n - name_from)).rev() {
             if !tail_ok(name_from + len) {
                 continue;
             }
+            // After a weak preposition a common word only names a player when "<prep> <word>" isn't a
+            // phrase of its own ("sword on fire", "shark on ice" stay; "bomb on nova" finds xX_Nova_Xx).
+            let weak = weak_prep && phrase(&format!("{} {}", prep.words, heard(name_from, len)));
             if let Some((i, dist)) = match_name(&ws[name_from..name_from + len], &forms, spoken, weak, common) {
                 let rest = text[..ws[p].start].trim().trim_end_matches([',', '-', ':', ';']).trim().to_string();
                 if rest.is_empty() {
@@ -440,28 +461,67 @@ pub(crate) fn find_target(text: &str, names: &[&str], spoken: bool, common: &dyn
             }
         }
     }
-    // B: "<verb> <name> [with <thing>]" ("cage ethan", "smite jake", "hit mia with a meteor").
     let mut s = 0;
     while s < n && LEAD_FILLER.contains(&ws[s].key.as_str()) {
         s += 1;
     }
-    let verb = d.target_verbs.iter().find(|v| phrase_at(&ws, s, v))?;
-    let name_from = s + verb.split(' ').count();
-    for len in (1..=3.min(n.saturating_sub(name_from))).rev() {
-        let after = name_from + len;
-        let with_at = (after < n && matches!(ws[after].key.as_str(), "with" | "using" | "w")).then_some(after);
-        if with_at.is_none() && !tail_ok(after) {
-            continue;
+    // B: "<verb> <name> [with|in <thing>]" ("cage ethan", "smite jake", "hit mia with a meteor",
+    // "trap nova in a bubble").
+    let is_with = |k: &str| d.with_words.iter().any(|w| w == k);
+    if let Some(verb) = d.target_verbs.iter().find(|v| phrase_at(&ws, s, v)) {
+        let name_from = s + verb.split(' ').count();
+        for len in (1..=3.min(n.saturating_sub(name_from))).rev() {
+            let after = name_from + len;
+            let with_at = (after < n && is_with(&ws[after].key)).then_some(after);
+            if with_at.is_none() && !tail_ok(after) {
+                continue;
+            }
+            // the verb's object slot is strong: a distinctive word of a name counts ("hit nova with …")
+            if let Some((i, dist)) = match_name(&ws[name_from..after], &forms, spoken, false, common) {
+                let via = d.verbs.iter().find(|x| x.words == *verb).map(|x| x.via).unwrap_or(Delivery::Hunt);
+                let verb_text = text[ws[s].start..ws[name_from - 1].end].to_string();
+                let rest = match with_at {
+                    Some(w) if w + 1 < n => format!("{verb_text} {}", text[ws[w + 1].start..].trim()),
+                    _ => verb_text.clone(),
+                };
+                return Some(Targeted { rest, player: i, via, heard: heard(name_from, len), dist, verb: Some(verb_text) });
+            }
         }
-        // "hit sam with …": a strong object slot — common words count as names only if exact
-        if let Some((i, dist)) = match_name(&ws[name_from..after], &forms, spoken, true, common) {
-            let v = d.verbs.iter().find(|x| x.words == *verb).map(|x| x.via).unwrap_or(Delivery::Hunt);
-            let verb_text = text[ws[s].start..ws[name_from - 1].end].to_string();
-            let rest = match with_at {
-                Some(w) if w + 1 < n => format!("{verb_text} {}", text[ws[w + 1].start..].trim()),
-                _ => verb_text.clone(),
-            };
-            return Some(Targeted { rest, player: i, via: v, heard: heard(name_from, len), dist, verb: Some(verb_text) });
+    }
+    // C: "<thing> <verb>s <name>" ("wolves chase sam", "bees attack mia", "a dragon hunts jake").
+    for p in (s + 1..n.saturating_sub(1)).rev() {
+        let k = ws[p].key.as_str();
+        let stems = [k, k.strip_suffix("es").unwrap_or("-"), k.strip_suffix('s').unwrap_or("-")];
+        let Some(v) = d.verbs.iter().find(|v| stems.contains(&v.words.as_str()) && d.target_verbs.iter().any(|t| *t == v.words)) else {
+            continue;
+        };
+        let from = p + 1;
+        for len in (1..=3.min(n - from)).rev() {
+            if !tail_ok(from + len) {
+                continue;
+            }
+            if let Some((i, dist)) = match_name(&ws[from..from + len], &forms, spoken, false, common) {
+                let rest = text[..ws[p].start].trim().to_string();
+                if rest.is_empty() {
+                    break;
+                }
+                return Some(Targeted { rest, player: i, via: v.via, heard: heard(from, len), dist, verb: None });
+            }
+        }
+    }
+    None
+}
+
+/// "<head> <place-prep> the|a <place>" → the head ("meteor shower over the lake" → "meteor shower").
+fn location_head(d: &IntentData, text: &str) -> Option<String> {
+    let ws = words(text);
+    let n = ws.len();
+    for p in (1..n.saturating_sub(1)).rev() {
+        let Some(prep) = d.location_preps.iter().find(|pr| phrase_at(&ws, p, pr)) else { continue };
+        let at = p + prep.split(' ').count();
+        if at < n && matches!(ws[at].key.as_str(), "the" | "a" | "an" | "my" | "your" | "his" | "her" | "their" | "that" | "this") && n - at <= 4 {
+            let head = text[..ws[p].start].trim().to_string();
+            return (!head.is_empty()).then_some(head);
         }
     }
     None
@@ -503,7 +563,8 @@ impl Lexicon {
         if k.is_empty() {
             return false;
         }
-        if crate::parse::gram_of(k).is_some() || self.icons.alias.contains_key(k) {
+        // (a curated icon name like "zoey" or "sam" is still a fine player name: icons don't count)
+        if crate::parse::gram_of(k).is_some() {
             return true;
         }
         match self.entry(k) {
@@ -514,6 +575,13 @@ impl Lexicon {
             }
             None => false,
         }
+    }
+
+    /// "<prep> <word>" is a phrase of its own ("on fire", "on ice", "over the moon"): the word after a
+    /// weak preposition is then not a player's name.
+    pub(crate) fn prep_phrase(&self, k: &str) -> bool {
+        let word = k.rsplit(' ').next().unwrap_or(k);
+        self.known_phrase(k) || self.t.adj.contains_key(word) || self.t.pure.contains_key(word) || self.t.intens.contains_key(word)
     }
 
     fn delivery_verb<'d>(&self, d: &'d IntentData, text: &str, force: bool) -> Option<VerbHit<'d>> {
@@ -527,8 +595,14 @@ impl Lexicon {
         let k = verb.words.split(' ').count();
         let from = s + k;
         if from >= n {
-            let alone = verb.alone.as_ref()?;
+            // "smite jake" → a lightning bolt; a bare "attack" / "smite" typed alone is left to the resolver
+            let alone = verb.alone.as_ref().filter(|_| force)?;
             return Some(VerbHit { verb, rest: alone.clone() });
+        }
+        // "rain boots", "fire truck", "drop kick" (data: `not_verbs`)
+        let two: String = ws[s..(from + 1).min(n)].iter().map(|w| w.key.as_str()).collect::<Vec<_>>().join(" ");
+        if d.not_verbs.iter().any(|x| two == *x || two.strip_suffix('s') == Some(x.as_str())) {
+            return None;
         }
         // "fire truck", "rain boots", "drop kick": the verb is part of a known name
         for extra in 1..=2usize.min(n - from) {
@@ -540,11 +614,15 @@ impl Lexicon {
         let next = ws[from].key.as_str();
         if verb.strict && !force {
             let det = DETERMINERS.contains(&next) || next.chars().all(|c| c.is_ascii_digit());
-            let plural = next.len() > 3 && next.ends_with('s') && !next.ends_with("ss") && self.known_token(&next[..next.len() - 1]);
+            let plural_word = |w: &str| w.len() > 3 && w.ends_with('s') && !w.ends_with("ss") && self.known_token(&w[..w.len() - 1]);
+            // "rain arrows", "rain bowling balls": the noun phrase ends in a plural
+            let plural = plural_word(next) || ws[from..].last().is_some_and(|w| plural_word(&w.key));
             if !det && !plural {
                 return None;
             }
         }
+        // the article goes too ("drop a whale" reads "whale", never the film "A Whale")
+        let from = if from + 1 < n && matches!(next, "a" | "an" | "the") { from + 1 } else { from };
         let rest = text[ws[from].start..].trim().to_string();
         let rest = match &verb.rewrite {
             Some(t) => t.replace("{}", &rest),
@@ -578,6 +656,7 @@ impl Lexicon {
         let mut name_dist = 0u8;
         let mut delivery = None;
         let mut forced_verb = false;
+        let mut from_prep = false;
         if !matches!(refer, Some(Refer::Again { .. }))
             && let Some(t) = self.target_player(&cur, names, spoken)
         {
@@ -587,6 +666,7 @@ impl Lexicon {
             name_dist = t.dist;
             delivery = Some(t.via);
             forced_verb = t.verb.is_some();
+            from_prep = t.verb.is_none();
             cur = t.rest;
         }
         // 3. delivery verb
@@ -597,13 +677,32 @@ impl Lexicon {
             && let Some(v) = self.delivery_verb(d, &cur, forced_verb)
         {
             stages.push(format!("verb:{}", v.verb.words));
-            delivery = Some(v.verb.via);
+            // a generic verb ("send bees after jake", "put a dome over zoe") keeps the preposition's delivery
+            if !(v.verb.generic && delivery.is_some()) {
+                delivery = Some(v.verb.via);
+                from_prep = false;
+            }
             verb_mech = v.verb.mech.clone();
             verb_note = Some(format!("{} \u{2192} delivered {}", v.verb.words, v.verb.via.name()));
             cur = v.rest;
         }
         // 4. the resolver (invocation/signature → pokémon → incantation → relations → compounds → grammar → leftovers)
-        let mut res = if spoken { self.resolve_spoken(&cur) } else { self.resolve(&cur) };
+        let rs = |t: &str| if spoken { self.resolve_spoken(t) } else { self.resolve(t) };
+        let mut res = rs(&cur);
+        // "meteor shower over the lake", "a wall on the bridge": a trailing *place* is where, not what —
+        // when the words before it read clearly and the whole doesn't, the place goes (the crosshair aims).
+        if target.is_none()
+            && let Some(d) = data()
+            && let Some(head) = location_head(d, &cur)
+        {
+            let h = rs(&head);
+            let whole_weak = Lexicon::is_fallback(&res) || res.confidence + 0.15 < h.confidence;
+            if whole_weak && !Lexicon::is_fallback(&h) {
+                stages.push("location".into());
+                cur = head;
+                res = h;
+            }
+        }
         if res.signature.is_some() {
             stages.push("signature".into());
         }
@@ -623,6 +722,17 @@ impl Lexicon {
                 res.graft.mechanics.push(m);
                 res.graft.mechanics.sort();
             }
+        }
+        // A preposition says where, the thing says how: a creature "on sam" appears next to Sam (it is not
+        // dropped on him — "drop a dragon on sam" is); a dome / cage "over" or "on" someone goes around them.
+        if from_prep && let Some(dv) = delivery {
+            let f = res.recipe.form;
+            let creature = f.category() == bd_core::mechanics::FormCategory::Creature;
+            delivery = Some(match dv {
+                Delivery::Onto if creature && !res.recipe.has(Mechanic::DropFromSky) => Delivery::Near,
+                Delivery::Onto | Delivery::Near | Delivery::At if matches!(f, Form::Dome | Form::Cage) => Delivery::Around,
+                other => other,
+            });
         }
         // "wall around sam" is an enclosure
         if delivery == Some(Delivery::Around)
@@ -674,6 +784,8 @@ mod tests {
     fn sound_keys() {
         assert_eq!(sound_key("ethan"), sound_key("eathan"));
         assert_eq!(skeleton(&sound_key("ethan")), skeleton(&sound_key("eaton")));
+        assert_eq!(sound_key("jake"), sound_key("jayk"));
+        assert_eq!(sound_key("ethan"), sound_key("eaton"));
         assert_eq!(fold_numbers(&["alex", "ninety", "nine"]), "alex99");
     }
 }

@@ -122,6 +122,7 @@ pub mod components;
 pub mod counters;
 pub mod creature;
 pub mod forms;
+pub mod giant; // GIANTS: weak points, limbs, topple, rideable colliders, shockwaves, command
 pub mod graft;
 pub mod gun;
 pub mod held;
@@ -495,10 +496,13 @@ pub struct Proxy {
     pub frozen: bool,
     /// On fire — chemistry.
     pub burning: bool,
+    /// GIANTS: a giant (its own weak points; `center` / `half` are its whole-body hit box).
+    pub giant: bool,
 }
 
 impl Proxy {
     pub fn of(c: &Construct) -> Proxy {
+        let (center, half) = c.hit_box();
         Proxy {
             id: c.id,
             owner: c.owner,
@@ -506,8 +510,8 @@ impl Proxy {
             form: c.recipe.form,
             mech: c.comp.eff,
             element: c.recipe.element,
-            center: c.center(),
-            half: c.half,
+            center,
+            half,
             rot: c.rot,
             vel: c.vel,
             mass: c.mass(),
@@ -520,6 +524,7 @@ impl Proxy {
             anim: c.anim_state,
             frozen: c.comp.frozen > 0.0,
             burning: c.comp.burning > 0.0,
+            giant: c.ai.giant.on,
         }
     }
     #[inline]
@@ -831,6 +836,13 @@ impl Construct {
         geom::obb_bounds(self.center(), self.half, self.rot)
     }
 
+    /// Box that hits (melee, shots, other constructs) test against: the collider box, or for a
+    /// giant every part of it (snout and tail included). World centre + half extents, `rot` frame.
+    #[inline]
+    pub fn hit_box(&self) -> (Vec3, Vec3) {
+        if self.ai.giant.on { giant::hit_box(self) } else { (self.center(), self.half) }
+    }
+
     /// Where a pilot's feet sit (top of the collider). The component system may use `part`.
     pub fn seat_pos(&self, _part: u8) -> Vec3 {
         self.center() + self.rot * Vec3::new(0.0, self.half.y, 0.0)
@@ -1052,6 +1064,8 @@ pub struct ConstructStore {
     proxies: Vec<Proxy>,
     /// Element chemistry on terrain (burning voxels…), §9.
     chem: chemistry::Chemistry,
+    /// GIANTS: this update's giant tuning (damage is applied outside `update`).
+    pub(crate) giants: giant::GiantTuning,
 }
 
 /// Uniform scale applied to a construct's shape so its characteristic size matches
@@ -1354,6 +1368,7 @@ impl ConstructStore {
     /// Run every construct's behaviour for one tick (the pipeline in the module docs).
     pub fn update(&mut self, ctx: &ConstructCtx, out: &mut ConstructOut) {
         graft::run_commands(&mut self.items);
+        self.giants = ctx.tuning.giants;
         self.proxies.clear();
         self.proxies.extend(self.items.iter().map(Proxy::of));
         {
@@ -1372,6 +1387,7 @@ impl ConstructStore {
                 body::integrate(c, &env, out);
                 components::react(c, &env, out);
                 components::post_react(c, &env, out);
+                giant::end_tick(c, ctx.dt); // GIANTS: this tick's turn → the colliders' spin (riders)
                 // BOUNDS HOOK: falling off the map is the world's recall (world/bounds.rs).
                 if !c.pos.is_finite() || !c.vel.is_finite() {
                     c.gone = Some(GoneReason::Expired);
@@ -1432,6 +1448,11 @@ impl ConstructStore {
     /// Solid / anchorable boxes for movement and tethers.
     pub fn write_colliders(&self, out: &mut Vec<Collider>) {
         for c in &self.items {
+            // GIANTS: one solid, anchorable, moving box per body part (stand on it, ride it).
+            if c.ai.giant.on && c.gone.is_none() && c.forming_t <= 0.0 {
+                giant::push_colliders(c, out);
+                continue;
+            }
             if let Some(col) = c.collider() {
                 out.push(col);
             }
@@ -1447,10 +1468,11 @@ impl ConstructStore {
             if !c.active() || Some(c.owner) == skip_owner || c.attached() {
                 continue;
             }
-            if !c.bounds().intersects(&seg) {
+            let (hc, hh) = c.hit_box();
+            if !geom::obb_bounds(hc, hh, c.rot).intersects(&seg) {
                 continue;
             }
-            if let Some((t, n)) = geom::segment_obb(p0, p1, c.center(), c.half, c.rot, r) {
+            if let Some((t, n)) = geom::segment_obb(p0, p1, hc, hh, c.rot, r) {
                 if best.is_none_or(|b| t < b.1) {
                     best = Some((c.id, t, n));
                 }

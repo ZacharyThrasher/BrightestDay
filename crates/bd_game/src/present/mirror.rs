@@ -21,13 +21,13 @@
 use super::PresentSet;
 use crate::arena::{ArenaWorld, MapKind};
 use crate::settings::ComfortSettings;
+use bd_voxel::maps::mirror::{TOP_Y, hanging_tower_footprints};
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
 use bevy::light::{NotShadowCaster, NotShadowReceiver};
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bd_voxel::maps::mirror::{TOP_Y, hanging_tower_footprints};
 
 /// Tube radius of the fold (m) and its axis height.
 pub const FOLD_R: f32 = 300.0;
@@ -104,7 +104,13 @@ fn window_tile(lit: bool) -> Image {
             data.extend_from_slice(&c);
         }
     }
-    let mut img = Image::new(Extent3d { width: 4, height: 4, depth_or_array_layers: 1 }, TextureDimension::D2, data, TextureFormat::Rgba8UnormSrgb, RenderAssetUsages::RENDER_WORLD);
+    let mut img = Image::new(
+        Extent3d { width: 4, height: 4, depth_or_array_layers: 1 },
+        TextureDimension::D2,
+        data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    );
     img.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
         address_mode_u: ImageAddressMode::Repeat,
         address_mode_v: ImageAddressMode::Repeat,
@@ -313,7 +319,13 @@ fn sync_mirror(
     for mirrored in [false, true] {
         let (m0, m1) = if mirrored { (refl_mat.clone(), refl_lit_mat.clone()) } else { (fold_mat.clone(), fold_lit_mat.clone()) };
         commands
-            .spawn((Name::new(if mirrored { "MirrorFoldReflection" } else { "MirrorFold" }), MirrorEntity, Fold { mirrored }, fold_transform(0.0, mirrored), Visibility::default()))
+            .spawn((
+                Name::new(if mirrored { "MirrorFoldReflection" } else { "MirrorFold" }),
+                MirrorEntity,
+                Fold { mirrored },
+                fold_transform(0.0, mirrored),
+                Visibility::default(),
+            ))
             .with_children(|c| {
                 c.spawn((Mesh3d(plain.clone()), MeshMaterial3d(m0), Transform::IDENTITY, NotShadowCaster, NotShadowReceiver));
                 c.spawn((Mesh3d(lit.clone()), MeshMaterial3d(m1), Transform::IDENTITY, NotShadowCaster, NotShadowReceiver));
@@ -323,7 +335,15 @@ fn sync_mirror(
     // Hanging towers continue up into the light.
     let stone = srgb(0.46, 0.44, 0.50);
     let tops = materials.add(StandardMaterial { base_color: Color::WHITE, unlit: true, fog_enabled: false, ..default() });
-    commands.spawn((Name::new("MirrorTowerTops"), MirrorEntity, Mesh3d(meshes.add(build_tower_tops(stone, glow))), MeshMaterial3d(tops), Transform::IDENTITY, NotShadowCaster, NotShadowReceiver));
+    commands.spawn((
+        Name::new("MirrorTowerTops"),
+        MirrorEntity,
+        Mesh3d(meshes.add(build_tower_tops(stone, glow))),
+        MeshMaterial3d(tops),
+        Transform::IDENTITY,
+        NotShadowCaster,
+        NotShadowReceiver,
+    ));
 
     // The rift: a blazing slit along the top of the fold plus a soft additive bloom sheet, and the
     // two far glares where the tube closes.
@@ -347,7 +367,15 @@ fn sync_mirror(
     });
     let top_y = FOLD_AXIS_Y + FOLD_R * 0.97;
     let slit_w = 2.0 * FOLD_R * (180.0 - THETA_MAX).to_radians().sin();
-    commands.spawn((Name::new("MirrorRift"), MirrorEntity, Mesh3d(meshes.add(rift_strip(HALF_LEN, slit_w * 0.55))), MeshMaterial3d(rift), Transform::from_xyz(0.0, top_y, 0.0), NotShadowCaster, NotShadowReceiver));
+    commands.spawn((
+        Name::new("MirrorRift"),
+        MirrorEntity,
+        Mesh3d(meshes.add(rift_strip(HALF_LEN, slit_w * 0.55))),
+        MeshMaterial3d(rift),
+        Transform::from_xyz(0.0, top_y, 0.0),
+        NotShadowCaster,
+        NotShadowReceiver,
+    ));
     commands.spawn((
         Name::new("MirrorRiftHalo"),
         MirrorEntity,
@@ -364,7 +392,8 @@ fn sync_mirror(
             MirrorEntity,
             Mesh3d(end_disc.clone()),
             MeshMaterial3d(halo.clone()),
-            Transform::from_xyz(sx * (HALF_LEN - 20.0), FOLD_AXIS_Y, 0.0).with_rotation(Quat::from_rotation_y(-sx * std::f32::consts::FRAC_PI_2)),
+            Transform::from_xyz(sx * (HALF_LEN - 20.0), FOLD_AXIS_Y, 0.0)
+                .with_rotation(Quat::from_rotation_y(-sx * std::f32::consts::FRAC_PI_2)),
             NotShadowCaster,
             NotShadowReceiver,
         ));
@@ -397,13 +426,26 @@ fn sync_mirror(
         cull_mode: None,
         ..default()
     });
-    commands.spawn((Name::new("MirrorShards"), MirrorEntity, ShardCloud, Mesh3d(meshes.add(build_shards())), MeshMaterial3d(shard_mat), Transform::IDENTITY, NotShadowCaster, NotShadowReceiver));
+    commands.spawn((
+        Name::new("MirrorShards"),
+        MirrorEntity,
+        ShardCloud,
+        Mesh3d(meshes.add(build_shards())),
+        MeshMaterial3d(shard_mat),
+        Transform::IDENTITY,
+        NotShadowCaster,
+        NotShadowReceiver,
+    ));
 }
 
 /// The fold's transform for a breathing angle `a` (the reflection mirrors it under the glass).
 fn fold_transform(a: f32, mirrored: bool) -> Transform {
     if mirrored {
-        Transform { translation: Vec3::new(0.0, 2.0 * MIRROR_Y - FOLD_AXIS_Y, 0.0), rotation: Quat::from_rotation_x(-a), scale: Vec3::new(1.0, -1.0, 1.0) }
+        Transform {
+            translation: Vec3::new(0.0, 2.0 * MIRROR_Y - FOLD_AXIS_Y, 0.0),
+            rotation: Quat::from_rotation_x(-a),
+            scale: Vec3::new(1.0, -1.0, 1.0),
+        }
     } else {
         Transform { translation: Vec3::new(0.0, FOLD_AXIS_Y, 0.0), rotation: Quat::from_rotation_x(a), scale: Vec3::ONE }
     }

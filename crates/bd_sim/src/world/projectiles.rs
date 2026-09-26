@@ -142,6 +142,8 @@ impl World {
                 }
             }
         }
+        // POWERS HOOK: an enemy's slow field (Infinity) — the round crawls near them (powers::effects).
+        bent |= self.powers_slow_projectile(p.spec.owner, p.pos, &mut p.vel);
         // CONNECT: light homing, strongest at release, only with a clear line (`aim_assist`).
         if let Some(id) = p.home {
             let aim = &self.cfg.tuning.assist.aim;

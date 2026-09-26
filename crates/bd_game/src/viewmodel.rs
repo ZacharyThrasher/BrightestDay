@@ -476,7 +476,9 @@ fn vm_events(
         return;
     };
     // Which construct do we hold (and what form)?
-    let held_c = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held);
+    // (Palm energy, `Form::Hands`, is nothing in the hand: the hands stay open and pose themselves —
+    // `viewmodel_anim`'s palm layer; present::palm_beam draws the orb and the beam.)
+    let held_c = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held && c.recipe.form != Form::Hands);
     let held = held_c.map(|c| (c.id, c.recipe.form));
     // The sim's quantised weight: the first-person swing matches its hit windows.
     let swing_w = held_c.map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
@@ -572,7 +574,13 @@ fn animate_viewmodel(
     mut mats: ResMut<Assets<StandardMaterial>>,
     mut st: ResMut<VmState>,
     mut held_out: ResMut<FirstPersonHeld>,
-    (pose, anchor, mut hands_out, tuning): (Res<anim::HandPose>, Res<crate::camera::ViewAnchor>, ResMut<ViewmodelHands>, Res<anim::VmTuningRes>),
+    (pose, anchor, mut hands_out, tuning, mut bite): (
+        Res<anim::HandPose>,
+        Res<crate::camera::ViewAnchor>,
+        ResMut<ViewmodelHands>,
+        Res<anim::VmTuningRes>,
+        Option<ResMut<crate::present::impact::connect::ContactBite>>,
+    ),
     mut held_q: (
         Option<Res<crate::present::constructs::ConstructEntities>>,
         Query<&bd_fx::ConstructVisual>,
@@ -588,6 +596,11 @@ fn animate_viewmodel(
     let dt = time.delta_secs().min(0.05);
     let st = &mut *st;
     st.time += dt;
+    // CONNECT: contact resistance (the swing drags through the body, then snaps through), the
+    // hand kick on a connect and the lunge's forward thrust (`present::impact::connect`).
+    let (swing_rate, kick, thrust) = bite.as_deref_mut().map_or((1.0, 0.0, 0.0), |b| (b.rate, std::mem::take(&mut b.kick), std::mem::take(&mut b.thrust)));
+    st.kick_back.v += kick;
+    st.punch.v -= thrust;
     let me = active.as_ref().and_then(|a| a.local_player());
     // (A KO keeps the hands up for a moment so they can drop.)
     let first_person = !prefs.third_person && *held_q.3 == crate::camera::CameraRig::FirstPerson;
@@ -621,7 +634,7 @@ fn animate_viewmodel(
     let mut swing_tf: Option<Transform> = None;
     if let Some(s) = st.swing.as_mut() {
         if !s.holding || s.t < s.curve.hold_at {
-            s.t += dt;
+            s.t += dt * swing_rate;
         }
         if s.holding {
             s.t = s.t.min(s.curve.hold_at);

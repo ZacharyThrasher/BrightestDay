@@ -431,7 +431,8 @@ fn cost_report(
 /// `BD_OUTLINE_TEST=pct:140,self,cam:60,yaw:30,h:2,corps:0` — look checks / screenshots (never set in play):
 /// `pct` forces every player's shown damage % (render side only), `self` gives the local body the
 /// full outline, `cam` pins the gameplay camera `cam` metres from the local player (`yaw` degrees
-/// around it, `h` metres above its feet), `corps` puts every player (and their hard light) in one corps.
+/// around it, `h` metres above its feet), `corps` puts every player (and their hard light) in one corps,
+/// `guard` shows every player juggle-guarded (the white shimmer).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct DevTest {
     pct: Option<f32>,
@@ -440,6 +441,7 @@ struct DevTest {
     yaw: f32,
     h: f32,
     corps: Option<u8>,
+    guard: bool,
 }
 
 fn dev_test() -> Option<DevTest> {
@@ -457,6 +459,7 @@ fn dev_test() -> Option<DevTest> {
                 "yaw" => t.yaw = f.unwrap_or(0.0),
                 "h" => t.h = f.unwrap_or(1.6),
                 "corps" => t.corps = f.map(|c| c as u8),
+                "guard" => t.guard = true,
                 _ => {}
             }
         }
@@ -469,6 +472,9 @@ fn dev_views(mut views: ResMut<WorldViews>, active: Option<ResMut<ActiveWorld>>)
     for v in views.players.iter_mut() {
         if let Some(p) = t.pct {
             v.damage_pct = p;
+        }
+        if t.guard {
+            v.status |= bd_sim::juggle::GUARD_STATUS_BIT;
         }
     }
     // Worst case: everyone (bodies + constructs) in one corps colour.

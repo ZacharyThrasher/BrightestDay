@@ -64,7 +64,7 @@
     trail_samples_per_sec: 60.0,
     // Held melee weapon glow while a swing would lunge-connect.
     glow: true,
-    glow_flash: 0.22,
+    glow_flash: 0.6,
     glow_rate: 14.0,
     glow_shimmer: 0.15,
     glow_shimmer_hz: 5.0,

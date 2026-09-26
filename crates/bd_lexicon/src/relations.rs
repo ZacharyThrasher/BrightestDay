@@ -509,7 +509,23 @@ impl Lexicon {
     fn volley(&self, v: &Volley, x: &[Tok], explicit: bool, bangs: usize, spoken: bool) -> Option<Resolution> {
         let x_text = join(trim_trail(trim_lead(x)));
         if self.elemental(&x_text) {
-            return None; // "rain of fire" / "fire storm": the element grammar handles those
+            // "fire storm": the element grammar handles those; "rain of fire" is fire falling from the sky
+            if !(explicit && v.drop) {
+                return None;
+            }
+            let mut r = self.sub(x, bangs, spoken);
+            if let Some((e, _)) = self.t.pure.get(&x_text)
+                && let Some(el) = crate::tables::ALL_ELEMENT.get(*e as usize).copied()
+            {
+                r.recipe.element = el;
+                r.graft.element = Some(el);
+            }
+            r.recipe.count = r.recipe.count.max(v.count);
+            r.recipe.mechanics.extend([Mechanic::Swarm, Mechanic::DropFromSky]);
+            r.recipe = r.recipe.clone().normalized();
+            r.kind = ResolutionKind::Construct;
+            r.explanation.insert(0, format!("{} of {x_text} \u{2192} {} falling from the sky", v.word, v.count));
+            return Some(r);
         }
         let mut r = self.sub(x, bangs, spoken);
         if !self.physical(&x_text, &r) {

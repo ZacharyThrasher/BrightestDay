@@ -1578,6 +1578,46 @@
             sequence: false,
             stereo: false,
         ), // camera/view toggle: very subtle bright whoosh
+        "amb_train_rush": (
+            files: ["sfx/amb_train_rush_1.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -27.0,
+            sequence: false,
+            stereo: true,
+        ), // stereo bed: roaring slipstream on a high-speed train roof - turbulent air + body rumble + soft hiss
+        "amb_rail_clatter": (
+            files: ["sfx/amb_rail_clatter_1.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -30.0,
+            sequence: false,
+            stereo: true,
+        ), // stereo bed: fast double clacks over rail joints (every 0.5 s), maglev whine on E, guideway hum
+        "train_ring_whoosh": (
+            files: ["sfx/train_ring_whoosh_1.ogg", "sfx/train_ring_whoosh_2.ogg", "sfx/train_ring_whoosh_3.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // a ring gate sweeping over the train at speed: doppler air-rip + falling metallic hum, ~1.6 s
+        "amb_city_flyby": (
+            files: ["sfx/amb_city_flyby_1.ogg", "sfx/amb_city_flyby_2.ogg", "sfx/amb_city_flyby_3.ogg", "sfx/amb_city_flyby_4.ogg"],
+            category: "ambience",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -29.0,
+            sequence: false,
+            stereo: false,
+        ), // a tower / scaffold streaking past close: short doppler swish + passing hum, 0.6-1 s
     },
     ko_streak: (
         key: "E minor pentatonic",

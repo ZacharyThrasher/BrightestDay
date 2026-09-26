@@ -85,7 +85,12 @@ fn beam_mesh(sun: Vec3, inset: f32, a0: f32, a1: f32) -> Mesh {
     let mut idx: Vec<u32> = Vec::new();
     for k in 0..4 {
         let (a, b) = (corners[k], corners[(k + 1) % 4]);
-        let quad = [beam_point(a.0, a.1, 0.0, sun), beam_point(b.0, b.1, 0.0, sun), beam_point(b.0, b.1, 1.0, sun), beam_point(a.0, a.1, 1.0, sun)];
+        let quad = [
+            beam_point(a.0, a.1, 0.0, sun),
+            beam_point(b.0, b.1, 0.0, sun),
+            beam_point(b.0, b.1, 1.0, sun),
+            beam_point(a.0, a.1, 1.0, sun),
+        ];
         let n = (quad[1] - quad[0]).cross(quad[3] - quad[0]).normalize_or_zero();
         let base = pos.len() as u32;
         for (i, p) in quad.iter().enumerate() {
@@ -133,7 +138,9 @@ fn sync_giant(
     }
     let sun = v3(sun_dir());
     // Warm afternoon light; three nested shells give the shaft a soft edge and a brighter core.
-    for (k, (inset, a0, a1, glow)) in [(0.0f32, 0.055f32, 0.012f32, 1.0f32), (0.12, 0.05, 0.012, 1.1), (0.26, 0.06, 0.015, 1.25)].iter().enumerate() {
+    for (k, (inset, a0, a1, glow)) in
+        [(0.0f32, 0.055f32, 0.012f32, 1.0f32), (0.12, 0.05, 0.012, 1.1), (0.26, 0.06, 0.015, 1.25)].iter().enumerate()
+    {
         let mat = materials.add(StandardMaterial {
             base_color: Color::LinearRgba(LinearRgba::new(1.0 * glow, 0.80 * glow, 0.52 * glow, 1.0)),
             unlit: true,

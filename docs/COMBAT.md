@@ -89,7 +89,8 @@ reduces air control but you can always tether out of it (a skill save).
   (3) chain hits the victim is **guarded** for `immune_secs` (0.7 s): hits still register (event, statuses,
   damage ×0.5) but push nothing and never launch. The chain and the guard end on timeout, or when the
   victim is back in control: standing out of tumble, hanging on their own tether, or a tech. Hook-and-strike
-  slams, orbs and explosions are ordinary hits in the chain; wall splats and your own blasts are not.
+  slams, orbs, explosions and wall splats (their knockback grows with % too — no splat ping-pong; `splats`)
+  are ordinary hits in the chain; your own blasts are not.
   Readability: a guarded body's outline turns hard-light white and shimmers (no text). Host-side only;
   knockback reaches prediction through `OwnState`; replicated as bit 7 of `PlayerSnap::status`.
 - **Punch-through:** a launched, tumbling player hitting destructible terrain above ~22 m/s (scaled by
@@ -170,6 +171,15 @@ cast → **validate/clamp** (scale per form min/max, mass, count ≤ 6, swarm �
   attackers knocked back a little (sword-lock moment).
 - Limits per player: 1 held, 1 worn, 3 structures, 2 objects in flight, 2 creatures (1 Kaiju).
   Casting over a limit replaces the oldest in that slot.
+  **Lobby-set** (`MatchRules::limits` / `ConstructLimits`, host Match Rules page → CONSTRUCTS; the
+  numbers above are the defaults, Chaos = ×3 structures / objects / creatures / kaiju): held, worn,
+  structures, objects, creatures, kaiju, colossal (1; at the cap a new colossal is refused), a
+  per-player TOTAL of all kinds (unlimited) and a match-wide GIANTS ON MAP (kaiju + colossal;
+  unlimited). Over a cap → replace the caster's oldest of that kind (the map-wide cap only ever
+  swaps the caster's own giant). **0 = that kind is off**, never a "no": a kaiju becomes the biggest
+  creature allowed (Biped at its max size), a colossal just big (under 24 m); the same downsizing
+  happens when the map is full of giants and the caster has none to swap; a kind that is off with
+  nothing near it fizzles (`CastError::Fizzled`, nothing paid, the shout fizzles).
 - **Lifetimes** (`tuning.summon`): creatures 20 s (was 14), kaiju 24 s (was 18), structures 30 s, objects
   10 s (was 6), domes 3 s, piloted ≥ 30 s, held / worn until dismissed. A thrown object that came to rest
   stays 4 s more (was 1 s), one that landed with a crater 4 s (was 2 s). Upkeep (§2) still bounds how long
@@ -256,6 +266,7 @@ fires it back at the shooter; (4) fire is instant and client-predicted, the host
 | Minigun (minigun/gatling/machine gun; Gun + Spin) | **hitscan**, small slug tracers | 0.4 s spin-up, then 14/s | 4.5 dmg, 3 kb | 1.2/s continuous | point down = hover; spin-down 0.3 s |
 | Rocket (rocket launcher/bazooka; Gun/Cannon + Explodes) | projectile 45 m/s | 0.8 s | 30 dmg center, r=3.5 m carve, 22 kb | 4 | rocket-jump (self kb, no self damage) |
 | Railgun (railgun/sniper/laser rifle; Gun + Pierce/Beam) | **hitscan**, lingering beam | 0.5 s charge, 1.1 s cycle | 40 dmg, 20 kb, pierces 2 players + thin walls | 6 | — |
+| Palm beam (`Form::Hands`, v1.7: kamehameha, final flash, repulsor, ki blast…; §5j) | **hitscan**, a thick sustained beam from both palms (no weapon model) | hold to charge 0.6 s; fires on **release** (≥ 20 % charge) or by itself at full | 40 dmg × (0.35 + 0.65 × charge), 20 kb, pierces 2 | 2 | caliber by scale |
 | Bow / Cannon / Staff / Disc | projectile | see §4 table | | | arcs, splash, ricochet |
 Hitscan rounds keep the gun's feel: recoil, the bounded momentum bonus (shooter velocity along the aim),
 head-zone crits, knockback, terrain chips. A hitscan gun whose round *is* the point stays a projectile:
@@ -273,22 +284,44 @@ voxel chips from terrain, onomatopoeia on big hits (BLAM, KA-CHUNK). Ring shove 
 ### 4c. Melee lunge — no lock-on (owner: "Destiny sword is a great target"; `bd_sim::melee_assist`)
 A lock-on would steal the camera and flatten movement skill. Instead every melee swing has a **lunge**:
 - A held **melee** swing that *starts* (primary, combo steps, a released heavy — not secondaries, not guns,
-  not the whip) looks for an enemy inside the weapon's **lunge range** (eye to their hull) and a **20° cone**
+  not the whip) looks for an enemy inside the weapon's **lunge range** (eye to their hull) and a **32° cone**
   around the aim, with **clear sight** (terrain and solid constructs block it). Hulls are the ones the
   swinger saw (lag compensation, `view_tick`).
-- Beyond natural reach (item length + 0.9 m): a committed **dash** (26 m/s, ≤ 0.22 s) at the target's
+- Beyond natural reach (item length + 0.9 m): a committed **dash** (30 m/s, ≤ 0.2 s: 4–6 m in ~0.17 s) at the target's
   intercept point that stops at arm's length so the swing's active window lands on arrival — on the ground
   and **in the air**. It only raises your speed *toward them* to the dash speed (a faster bhop / swing keeps
-  its own; nothing stacks), ends in a **committed stop** (5 m/s), and has a **0.7 s cooldown**.
-- Range scales with the weapon: sword ≈ 4.6 m, hammer shorter, Heavy / giant (long) weapons dash shorter and
-  slower (range = clamp(reach + 2.6 · form · weight ÷ length penalty, 2.5, 5.5)).
+  its own; nothing stacks), ends in a **committed stop** (5 m/s), and has a **0.5 s cooldown**, cleared when the
+  lunge swing connects (chains stay fluid; a whiff still waits). Combo swings lunge too.
+- Range scales with the weapon: sword ≈ 6 m, hammer ≈ 5.3 m, Heavy / giant (long) weapons dash shorter and
+  slower (range = clamp(reach + 4.0 · form · weight ÷ length penalty, 2.5, 6.5)). (CONNECT pass, owner: "I don't
+  even feel the lunge / I just end up spam clicking": the old 20° / 4.6 m / 0.7 s lunge fired on ~23 % of
+  spam-clicked swing starts at a strafing target, now ~46 %; `tests/connect.rs` prints the verdicts.)
 - Connecting lunge swings get heavier juice (impact ×1.4, Heavy ×1.25 more: hit-stop, shake); the momentum
   bonus keeps using your closing speed from *before* the dash (the lunge carries you, movement earns the bonus).
-- The swing **hitbox** (never the camera) turns toward the target by ≤ 12°, easing in over the windup.
+- The swing **hitbox** (never the camera) turns toward the target by ≤ 15°, easing in over the windup (swing
+  magnetism).
 - Skill stays: out-move it (boost / tether / dodge out of the cone or past the range), space, bait the cooldown.
   Bots swing through the same code. Client: the held weapon brightens while a swing would lunge-connect (same
   query) — no reticle, no text. The dash is part of the movement state, so prediction replays it exactly.
-Numbers: `assets/tuning/combat.ron` → `assist.lunge`.
+Numbers: `assets/tuning/combat.ron` → `assist.lunge`. Feel (presentation, `assets/tuning/juice.ron`): FOV punch out,
+speed lines, whoosh, the viewmodel thrusts forward; others see a hard-light dash streak; the in-range glow is bright.
+
+### 4c-bis. CONNECT assist — easier to connect, never through walls (`bd_sim::aim_assist`, `assist.aim`)
+Owner: "I feel like I'm slapping noodles around and it is hard to hit anyone." Invisible, host-side, lag-compensated
+like the hit tests it helps; all numbers in `combat.ron` → `assist.aim` (neutral = `AimTuning::neutral()`).
+- **Melee hit volume:** the swing capsule radius vs players ×1.5 (whip ×1.15, shield ×1.25), × (1 + 0.3 · (swing
+  weight − 1)), the extra capped at 0.45 m; the extra only counts with a clear line from the blade to the body.
+- **Projectile homing** (ring blast, bolts, arrows ×0.8, cannonballs ×0.5, discs ×0.8; explosive rounds none — their
+  splash is their assist): at release the enemy nearest the crosshair inside 12° / 80 m (clear sight) becomes the
+  target; the round turns toward them at ≤ 220°/s, falling linearly to 0 over 0.3 s, lets go past 35° off its flight
+  line, needs a clear line every tick. The `Homing` mechanic stays far stronger.
+- **Thrown constructs:** the same with 14° / 45 m, ≤ 160°/s over 0.5 s, release 45°.
+- **Hitscan magnetism:** a round missing every body by ≤ 1.6° (hand cannon), 0.9° (minigun), 0.5° (railgun / beams),
+  0 (shotgun pellets) within 90 m is bent onto the nearest body if the bent ray is clear of terrain and constructs.
+- **Railgun early release** (owner: "never require another click"): letting go before full charge fires a weaker
+  shot — damage, knockback, recoil and beam width from 35 % at a tap to 100 % (`guns[Railgun].release_min`).
+- Hit rates vs a strafing target (scripted human-ish aimer, `tests/connect.rs`): sword 70 → 100 %, hammer 51 → 89 %,
+  hand cannon 21 → 53 %, thrown axe 7 → 69 %.
 
 ### 4d. Hook-and-strike — tethers hook players (`bd_sim::hook`; lobby rule "Tethers hook players", default on)
 One rule set:
@@ -433,7 +466,7 @@ swingers can tether onto the giant and ride its limbs. Shattered → pilot eject
 
 ## 5e. No-limits mode (lobby option)
 Lobby toggles: Scale (Normal / Huge / **No limits**), Willpower (Normal / Double / Infinite), Construct
-caps (Normal / Chaos). "Throw a moon": colossal Objects form above the caster while the cast is held,
+caps (Normal / Chaos, or per kind: §3). "Throw a moon": colossal Objects form above the caster while the cast is held,
 then hurl on release; they cross the sky slowly (a telegraph everyone can dodge) and carve huge craters.
 Performance stays bounded because **construct voxel size scales with construct size** (0.25 m for
 hand-held → 1–2 m for colossal), keeping per-construct voxel counts within budget; huge carves are
@@ -497,6 +530,9 @@ recipe that player casts (reusing the composition engine), some add event hooks.
   (your constructs honk and glow extra bright — no sneaking), **Slippery** (ice under your feet:
   low friction everywhere — secretly great for bhop players).
 Effects are data (`assets/party_effects.ron`), easy to extend.
+**Outside party mode** the same effect grafts can be won for a while from High Roller's slot machines
+(`bd_sim::world::interactables`): only common, graft-only effects (hook effects need the party state),
+applied in `cast_inner` after the party graft and priced as typed, for `tuning.casino.effect_secs`.
 **Settings (lobby, all gameplay knobs):** mode (FFA / Party), rounds, round KO target, round time,
 points per KO / round win, pick timer, Boom-or-Bust on/off, first-place-2-choices on/off, effect pools
 (common/legendary/cursed toggles), plus every MatchRules knob (scale, willpower, caps, respawn time,
@@ -565,9 +601,19 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
   bouncy-castle domain that Bounces); drops movers (Flies, Walks, Charge, Swarm, Piloted…). Everything
   else is the ordinary Dome/Trap/Barrier behaviour: an enemy inside is snapped up by the Trap, projectiles
   stop at the shell, enough damage from inside or outside breaks it (integrity from its cost).
-- **Beam** → a `Gun` + `Beam` at caliber ×2.5 (the railgun: its hold-to-charge is the telegraph); a
-  creature keeps its body and gains Beam. **Summon** → the thing at ×2–2.6 scale. **Transformation** →
-  ×2–2.6 scale + Heavy. Caps: form max × 2.5, ≤ 30 m.
+- **Beam** → energy from the PALMS (owner: "final flash gave me a super powered gun, not the iconic
+  beam"): `Form::Hands` + Beam at caliber ×2.5 — no weapon model; hold PRIMARY to charge (both hands draw
+  back around a growing orb in the element colour), release to fire (or it fires itself at full): a thick
+  0.5–1.0 s beam from the hands, damage by charge. A creature / sky emitter keeps its body and gains Beam;
+  a named wand / sword keeps it (`delivery: Held`); a piercing thrown thing is an erasing orb.
+  **Summon** → the thing at ×2–2.6 scale. **Transformation** → ×2–2.6 scale + Heavy. Caps: form max ×
+  2.5, ≤ 30 m.
+- **Delivery (data, `signatures.ron`):** a Beam name comes from the palms unless tagged `delivery: Held`
+  (avada kedavra's wand, getsuga tensho's sword) or `Thrown` (rasengan, hollow purple). Plain energy
+  casts come from the palms too (`energy.hands`: repulsor, unibeam, ki blast…; or an `energy_words` word
+  resolving to a gun model with no `gun_words` word: "laser beam" palms, "laser gun" a gun). A yelled gun
+  ("RAILGUN!!!") stays a gun. The title letters show a recognised signature's canonical name
+  ("FINAL FLASH!!"), anything else exactly what was heard.
 - Cost = the existing cast cost × `cost_mult` (1.35), never more than a full bar; unaffordable → the plain
   phrase is cast instead (the ring never says no). Forming ≥ 0.6 s (a readable windup; the caster keeps
   moving). Held / worn ultimates expire after 10 s. Bots at ≥ 85 willpower shout one 20% of the time.
@@ -588,8 +634,11 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
   status), carves every 0.3 s; 3 s cooldown, then the next strike while the construct lives. Attract =
   abduction (lifts, no damage); Breath = a wider column (fire ignites); Shoots = a hail of bolts. Cost =
   the existing (autonomous + scale) price × 1.25, never more than a full bar. Meteor showers need nothing new (count + DropFromSky).
-- **Presentation, no freeze, no control taken:** any spawn costing ≥ 45 or ≥ 12 m (signatures, kaiju,
-  no-limits moons — one generic path, `signature::spectacle`) gets a picture-in-picture cut-in DANGER
+- **Presentation, no freeze, no control taken:** any THREAT (`signature::is_threat`: a hostile mechanic —
+  Explodes, Beam, Shoots, Breath, Blade, Pierce, Blunt, Stomp, Charge, Spin, Trap, Grab, Constrict,
+  DropFromSky, tail — a kaiju, an aggressive / chaotic creature or swarm, palms, orbs, orbital strikes)
+  costing ≥ 45 or ≥ 12 m (signatures, kaiju, no-limits moons — one generic path, `signature::spectacle`;
+  an "ULTIMATE PARACHUTE", wall, ramp or weaponless vehicle gets none) gets a picture-in-picture cut-in DANGER
   alert for everyone (side of the threat, corps colour, title, severity by distance / inside the radius),
   the shout words as the title letters, and audio/music cues. Nothing explains any of it (mystery tenet).
 

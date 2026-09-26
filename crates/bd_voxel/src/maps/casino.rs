@@ -638,8 +638,9 @@ pub fn halo_point(u: f32) -> Vec3 {
 
 fn surf_halo() -> Vec<SurfLine> {
     let n = HALO_SEGMENTS;
-    // Each segment overlaps its neighbours a little so a rider never meets a seam edge.
-    let overlap = 0.1 / n as f32;
+    // Each segment overlaps its neighbours by ~0.6 m of arc, so a segment's end cap is always
+    // buried inside its neighbour: a rider meets the next face, never an edge.
+    let overlap = 0.6 / (TAU * (HALO_R - HALO_IN * 0.5));
     (0..n)
         .map(|k| {
             let u0 = (k as f32 / n as f32 - overlap).max(0.0);
@@ -752,8 +753,9 @@ fn routes() -> Vec<Route> {
             from: "balcony_n",
             to: "balcony_s",
             kind: RouteKind::Swing,
-            waypoints: vec![Vec3::new(-18.0, MEZZ_Y, 40.0), Vec3::new(-18.0, MEZZ_Y, -40.0)],
-            anchors: vec![hub(2), hub(4)],
+            // N balcony → the three east chandeliers (60°, 0°, 300°) → S balcony, over the felt.
+            waypoints: vec![Vec3::new(6.0, MEZZ_Y, 40.0), Vec3::new(6.0, MEZZ_Y, -40.0)],
+            anchors: vec![hub(1), hub(0), hub(5)],
         },
         Route { name: "roulette_surf", from: "roulette", to: "roulette", kind: RouteKind::Mixed, waypoints: ring, anchors: vec![] },
     ]

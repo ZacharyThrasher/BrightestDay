@@ -93,6 +93,7 @@ fn prepare(label: String, sub: String, c: &Costume) -> Dressed {
     Dressed { label, sub, model: pm.model, meshes, colors }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_view(c: &mut Canvas, d: &Dressed, eye: Vec3, x0: i32, y0: i32, w: i32, h: i32, scale: f32) {
     let cam = Cam::from_eye(eye);
     let mut pose_v = vec![Affine3A::IDENTITY; d.model.parts.len()];
@@ -309,7 +310,7 @@ fn main() {
             let before = Costume::plain(costume_with(&r, s.as_ref(), None, 0, tweaks));
             items.push(prepare(format!("{} (BEFORE)", n.to_uppercase()), format!("OLD: RESOLVED AS {}", r.name.to_uppercase()), &before));
             let after = costume::dress(n, &r, s.as_ref(), None, 0, tweaks);
-            items.push(prepare(format!("{}", n.to_uppercase()), "NEW CHARACTER LOOK".into(), &after));
+            items.push(prepare(n.to_uppercase(), "NEW CHARACTER LOOK".into(), &after));
         }
         let c = sheet(&items, 4, "COSTUMES BEFORE / AFTER (OLD VOCABULARY PATH VS CHARACTER LOOK)", zoom);
         c.save(&val("--out").map(PathBuf::from).unwrap_or(docs.join("costume_before_after.png")));
@@ -358,7 +359,8 @@ fn main() {
 fn humanoid_icons(root: &std::path::Path, lex: &bd_lexicon::Lexicon) -> Vec<(String, Recipe, ShapeSpec)> {
     let mut files = vec![root.join("assets/icons.ron")];
     if let Ok(rd) = std::fs::read_dir(root.join("assets/icons")) {
-        let mut v: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "ron")).collect();
+        let mut v: Vec<PathBuf> =
+            rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|x| x == "ron")).collect();
         v.sort();
         files.extend(v);
     }
@@ -369,7 +371,7 @@ fn humanoid_icons(root: &std::path::Path, lex: &bd_lexicon::Lexicon) -> Vec<(Str
             let l = line.trim();
             let Some(rest) = l.strip_prefix("names: [\"") else { continue };
             let Some(name) = rest.split('"').next() else { continue };
-            if look::find(name).is_some() {
+            if costume::grammar::parse(name).is_some() {
                 continue;
             }
             let r = lex.resolve(name);

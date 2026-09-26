@@ -1,0 +1,66 @@
+// CONNECT juice (bd_game present/connect.rs; DESIGN "Weight & power fantasy (pass 2)"). Hot-reloaded.
+// Presentation only (never the sim tick). Missing fields use defaults; defaults = the Rust defaults (a
+// bd_game unit test checks parity). Arrays are (light, medium, heavy, finisher). Never shown to players.
+(
+    // Tiers: impact strength >= medium_strength -> Medium, >= heavy_strength (or a released heavy) -> Heavy,
+    // knockback >= finisher_kb m/s (a launch that KOs) -> Finisher.
+    medium_strength: 0.45,
+    heavy_strength: 0.9,
+    finisher_kb: 42.0,
+    // Hit-stop (s) on the victim's visuals; the attacker's is x attacker_frac (cuts through first).
+    hitstop: (0.04, 0.07, 0.11, 0.16),
+    attacker_frac: 0.7,
+    // Victim hit-shake along the hit (m, Hz) and white body flash (peak, fade s) during the freeze.
+    victim_shake: (0.02, 0.03, 0.05, 0.06),
+    victim_shake_hz: 38.0,
+    victim_flash: (0.35, 0.55, 0.85, 1.0),
+    victim_flash_secs: 0.14,
+    // Contact resistance (first person): the swing drags at bite_rate x for bite_secs, then plays at
+    // snap_rate x until the lost time is repaid; the hands kick back (spring velocity).
+    bite_secs: (0.03, 0.05, 0.08, 0.1),
+    bite_rate: 0.12,
+    snap_rate: 2.2,
+    hands_kick: (0.5, 0.9, 1.5, 2.0),
+    // Attacker camera punch (shake trauma along the hit) + nudge-zoom (FOV deg, negative = in).
+    // Comfort-gated by the shake / FOV-kick settings (the Comfort preset: none).
+    punch_trauma: (0.05, 0.1, 0.2, 0.28),
+    nudge_zoom: (-0.5, -1.2, -2.8, -4.0),
+    // Directional sparks: count and speed per tier; cone (deg), life (s), size (m), glow, max camera distance (m).
+    sparks: (6.0, 12.0, 22.0, 34.0),
+    spark_speed: (14.0, 20.0, 28.0, 34.0),
+    spark_cone_deg: 24.0,
+    spark_life: 0.22,
+    spark_size: 0.07,
+    spark_emissive: 9.0,
+    spark_max_dist: 70.0,
+    // Audio: sub thump under Heavy+ (gain, pitch), crisp transient over your connects (gain, pitch), and the
+    // heavy_hit world duck on Heavy+ hits you're in.
+    sub_gain: 0.85,
+    sub_pitch: 0.55,
+    transient_gain: 0.45,
+    transient_pitch: 1.7,
+    duck_heavy: true,
+    // Onomatopoeia size x per tier.
+    word_scale: (1.0, 1.0, 1.35, 1.7),
+    // Finisher: presentation slow-mo (Time<Virtual>: effects, debris, words) for slowmo_secs at slowmo_speed,
+    // for hits within slowmo_radius m of the camera (or yours); off in the Comfort preset. White flash.
+    slowmo_secs: 0.25,
+    slowmo_speed: 0.35,
+    slowmo_radius: 30.0,
+    finisher_flash: 0.35,
+    finisher_flash_secs: 0.12,
+    // Lunge (your dash): FOV punch out (deg), camera trauma, viewmodel thrust; speed lines (count, length m,
+    // distance ahead m, ring radius m, glow; off when FOV kicks are off).
+    lunge_fov: 6.0,
+    lunge_trauma: 0.08,
+    lunge_thrust: 3.2,
+    lunge_lines: 18,
+    lunge_line_len: 1.6,
+    lunge_line_ahead: 4.0,
+    lunge_line_radius: 1.4,
+    lunge_line_emissive: 3.0,
+    // Everyone else's lunge: a hard-light dash streak from where they started (fade s, thickness m, glow).
+    dash_streak_secs: 0.3,
+    dash_streak_thick: 0.07,
+    dash_streak_emissive: 4.0,
+)

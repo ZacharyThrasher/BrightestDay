@@ -147,7 +147,7 @@ fn start_showcase(
     }
     let mut cfg = crate::practice::practice_config(args.seed, crate::arena::ARENA_SEED);
     cfg.rules.willpower = bd_sim::rules::WillpowerMode::Infinite;
-    cfg.rules.caps = bd_sim::rules::CapMode::Chaos;
+    cfg.rules.limits = bd_sim::rules::ConstructLimits::chaos();
     cfg.rules.respawn_secs = 2.0;
     let mut world = crate::practice::build_world(&mut copy, cfg);
     let mut bots = bd_sim::bots::add_bots(&mut world, 0, 8, 0.85, args.seed);

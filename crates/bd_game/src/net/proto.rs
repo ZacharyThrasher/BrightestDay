@@ -101,6 +101,10 @@ pub enum NetMapKind {
     Cybertron,
     /// Turtle Lair (protocol v17).
     Lair,
+    /// Giant's Room (protocol v18).
+    GiantsRoom,
+    /// Hyperline (protocol v22; the train's slipstream is map-generated, same on host and clients).
+    Hyperline,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,6 +161,14 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
         }
         NetMapKind::Lair => {
             let (w, m) = bd_voxel::generate_lair(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::GiantsRoom => {
+            let (w, m) = bd_voxel::generate_giant(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Hyperline => {
+            let (w, m) = bd_voxel::generate_hyperline(seed);
             (w, m.arena, seed)
         }
     }

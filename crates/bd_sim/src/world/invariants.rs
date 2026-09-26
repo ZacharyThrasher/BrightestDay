@@ -123,14 +123,13 @@ impl World {
         // Per-owner slot caps.
         for p in &self.players {
             for slot in [Slot::Held, Slot::Worn, Slot::Structure, Slot::Object, Slot::Creature] {
-                let mult = if matches!(slot, Slot::Held | Slot::Worn) { 1 } else { self.cfg.rules.cap_mult() };
                 let n = self.constructs.in_slot(p.id, slot).count();
-                if n > slot.limit() * mult {
+                if n > self.cfg.rules.slot_limit(slot) {
                     return Err(format!("player {:?} has {n} constructs in {slot:?}", p.id));
                 }
             }
             let colossal = self.constructs.owned_by(p.id).filter(|c| c.colossal).count();
-            if colossal > 1 {
+            if colossal > self.cfg.rules.colossal_limit().max(1) {
                 return Err(format!("player {:?} has {colossal} colossal constructs", p.id));
             }
         }

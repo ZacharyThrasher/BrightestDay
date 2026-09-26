@@ -232,6 +232,7 @@ fn shade(w: &VoxelWorld, info: &MapInfo, faces: &[Face], eye: Vec3, dir: Vec3) -
     c
 }
 
+#[allow(clippy::too_many_arguments)]
 fn shot(w: &VoxelWorld, info: &MapInfo, faces: &[Face], eye: Vec3, target: Vec3, fov: f32, wpx: u32, hpx: u32) -> RgbImage {
     let fwd = (target - eye).normalize();
     let yaw = (-fwd.x).atan2(-fwd.z).to_degrees();
@@ -303,7 +304,12 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let seed: u64 = args.iter().find(|a| !a.starts_with("--")).and_then(|s| s.parse().ok()).unwrap_or(1);
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let out = args.iter().position(|a| a == "--out").and_then(|i| args.get(i + 1)).map(PathBuf::from).unwrap_or_else(|| root.join("docs/mirror_preview.png"));
+    let out = args
+        .iter()
+        .position(|a| a == "--out")
+        .and_then(|i| args.get(i + 1))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| root.join("docs/mirror_preview.png"));
     let parts = root.join("target/mirror/preview");
     std::fs::create_dir_all(&parts).ok();
 
@@ -321,7 +327,10 @@ fn main() {
         println!("  spawn {i}: ({:.1}, {:.1}, {:.1})", s.x, s.y, s.z);
     }
     let (tris, bins, ms) = mesh_stats(&world);
-    println!("  triangles: {tris} (curl {}, hanging towers {}, city+fragments {}, other {}) meshed in {ms:.0} ms", bins[0], bins[1], bins[2], bins[3]);
+    println!(
+        "  triangles: {tris} (curl {}, hanging towers {}, city+fragments {}, other {}) meshed in {ms:.0} ms",
+        bins[0], bins[1], bins[2], bins[3]
+    );
 
     let plan_img = plan(&world, &info, 3, 56.0);
     let sec_x = section(&world, true, 0, 2);
@@ -333,7 +342,16 @@ fn main() {
         // Plaza looking up at the hanging towers and the lip.
         shot(&world, &info, &fcs, Vec3::new(-6.0, STREET_Y + 2.1, -4.0), Vec3::new(30.0, 60.0, 16.0), 90.0, sw, sh),
         // Riding the east curl, looking north along the surf band into the NE corner.
-        shot(&world, &info, &fcs, Vec3::new(HALF_X + 14.0, STREET_Y + 7.0, -18.0), Vec3::new(HALF_X + 4.0, STREET_Y + 10.0, 40.0), 85.0, sw, sh),
+        shot(
+            &world,
+            &info,
+            &fcs,
+            Vec3::new(HALF_X + 14.0, STREET_Y + 7.0, -18.0),
+            Vec3::new(HALF_X + 4.0, STREET_Y + 10.0, 40.0),
+            85.0,
+            sw,
+            sh,
+        ),
         // Over the north ring road, looking across the city to the far curl.
         shot(&world, &info, &fcs, Vec3::new(-10.0, 44.0, HALF_Z + 6.0), Vec3::new(8.0, 20.0, -HALF_Z), 80.0, sw, sh),
         // From the south-west corner of the curl lip: overview.

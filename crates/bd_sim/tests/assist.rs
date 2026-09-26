@@ -158,6 +158,10 @@ fn no_lunge_outside_range_cone_or_sight() {
 fn lunge_has_a_cooldown() {
     let t = World::new(SimConfig::default()).tuning().assist.lunge.cooldown;
     let mut w = sword_duel(4.2);
+    // (A connecting lunge clears the cooldown — tests/connect.rs; here the plain cooldown.)
+    let mut tt = w.tuning().clone();
+    tt.assist.lunge.hit_resets_cooldown = false;
+    w.set_tuning(tt);
     let (yaw, pitch) = aim_at(&w, A, B);
     let first = act(&mut w, A, yaw, pitch, buttons::PRIMARY, 1, 1);
     assert!(lunged(&first, A));

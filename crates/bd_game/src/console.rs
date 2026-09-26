@@ -255,8 +255,11 @@ impl Caster<'_> {
         let energy = crate::lobby::feed::cast_energy(text, voice_peak, self.shout_table.as_deref());
         // Instant local feedback on the same frame as the key press.
         self.cues.write(RingCue::Forming { voice: spoken });
-        self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
-        match resolve_phrase(&lex, power, &plan.text, spoken) {
+        let resolved = resolve_phrase(&lex, power, &plan.text, spoken);
+        // "Did it hear me right?": the title letters show exactly what was heard, or the canonical
+        // name of a recognised signature ("final flesh" heard → "FINAL FLASH!!").
+        self.shouts.write(crate::present::shout::ShoutCast { text: shout_text(text, &resolved), spoken });
+        match resolved {
             Resolved::PowerMove(slot) => {
                 let (eye, dir) = self.crosshair();
                 self.cmds.write(SimCommand::local(Cmd::PowerMove(slot, Some(Aim::new(core_v3(eye), core_v3(dir))))));
@@ -281,6 +284,12 @@ impl Caster<'_> {
                 let mut res = *res;
                 if let Some(n) = plan.count {
                     res.recipe.count = n.max(1);
+                }
+                // COSTUME HOOK: a plain summon naming a character ("goku", "GIANT GOKU") is built as
+                // that character's costume (bd_shapes::costume::summon; derived from the text on every
+                // peer — no new net data). Powers / signatures / incantations / grafts never get here.
+                if res.signature.is_none() && !incantation && !modifier && bd_shapes::costume::summon::apply(&plan.text, &mut res.recipe, &mut res.shape) {
+                    res.alt_shape = None;
                 }
                 // FREEDOM HOOK: the words (kill feed), shout energy and an "it" resize go just before the cast.
                 let resize = if plan.graft_onto.is_some() { res.graft.scale_mul } else { 1.0 };
@@ -334,6 +343,24 @@ impl Caster<'_> {
         }
         best.map(|(_, id)| id)
     }
+}
+
+/// The title letters for a cast: what was heard / typed, or a recognised signature's canonical name
+/// yelled ("FINAL FLASH!!"). An incantation keeps the words said.
+fn shout_text(heard: &str, resolved: &Resolved) -> String {
+    match resolved {
+        Resolved::Cast { res, incantation: false } => match res.signature.as_ref().filter(|s| !s.title.trim().is_empty()) {
+            Some(s) => signature_shout(&s.title),
+            None => heard.to_string(),
+        },
+        _ => heard.to_string(),
+    }
+}
+
+/// "Final Flash" → "FINAL FLASH!!" (≤ the shout length: the "!!" never gets cut off a long title).
+pub fn signature_shout(title: &str) -> String {
+    let t: String = title.trim().to_uppercase().chars().take(bd_fx::SHOUT_MAX_CHARS - 2).collect();
+    format!("{}!!", t.trim_end())
 }
 
 /// SIGNATURE HOOK: a signature resolution → `Cmd::Signature` (the sim amplifies it). The title rides
@@ -766,6 +793,22 @@ fn draw_console(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// "Did it hear me right?": a recognised signature shows its canonical name (typed or spoken);
+    /// anything else shows exactly what was heard.
+    #[test]
+    fn title_letters_show_the_canonical_signature_name() {
+        let Ok(lex) = Lexicon::load(&crate::assets_dir().join("lexicon.bin")) else { return };
+        let shout = |heard: &str, spoken: bool| shout_text(heard, &resolve_phrase(&lex, PowerPhrase::Plain, heard, spoken));
+        assert_eq!(shout("final flash", false), "FINAL FLASH!!");
+        assert_eq!(shout("final flash", true), "FINAL FLASH!!");
+        assert_eq!(shout("KAMEHAMEHA!!!", false), "KAMEHAMEHA!!");
+        assert_eq!(shout("galic gun", false), "GALICK GUN!!");
+        assert_eq!(shout("giant hammer", false), "giant hammer");
+        assert_eq!(shout("GIANT HAMMER!!!", true), "GIANT HAMMER!!!");
+        assert!(signature_shout(&"Domain Expansion: Very Long Words ".repeat(3)).ends_with("!!"));
+        assert!(signature_shout(&"x".repeat(200)).len() <= bd_fx::SHOUT_MAX_CHARS);
+    }
 
     #[test]
     fn rush_counts_live() {

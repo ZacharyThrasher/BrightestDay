@@ -169,9 +169,17 @@ pub fn on_damage(store: &mut ConstructStore, hit: &ConstructHit, events: &mut Ve
     if c.gone.is_some() || !hit.damage.is_finite() {
         return false;
     }
-    // Blade and Pierce find weak points (joints, cockpit, nape).
-    let weak = (hit.blade || hit.pierce) && weak_point(c, hit.point);
-    let dmg = hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 } * if weak { WEAK_POINT_MULT } else { 1.0 };
+    // Blade and Pierce find weak points (joints, cockpit, nape). GIANTS: their own anatomy decides
+    // (weak points for every hit, limbs, stagger / topple — `giant::damage`).
+    let dmg = if c.ai.giant.on {
+        let t = store.giants;
+        let Some(c) = store.get_mut(hit.target) else { return false };
+        super::giant::damage(c, hit, hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 }, &t, events)
+    } else {
+        let weak = (hit.blade || hit.pierce) && weak_point(c, hit.point);
+        hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 } * if weak { WEAK_POINT_MULT } else { 1.0 }
+    };
+    let Some(c) = store.get_mut(hit.target) else { return false };
     events.push(GameEvent::ConstructHit { id: c.id, source: hit.source, damage: dmg, point: hit.point });
     let impulse = if hit.impulse.is_finite() { hit.impulse } else { Vec3::ZERO };
     // Frozen = brittle: the next hit shatters it.

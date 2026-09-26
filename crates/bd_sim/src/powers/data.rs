@@ -39,6 +39,9 @@ pub enum PowerKind {
     /// A pickup like a fruit, but none of the devil-fruit rules: no Water drain, no seastone, no
     /// void sinking, and a second origin simply replaces the first.
     Origin,
+    /// A trained technique / form (ultra instinct, super saiyan, sharingan, bankai, nen…): saying
+    /// its name makes it yours on the spot until KO — no pickup, no companion needed.
+    Technique,
 }
 
 impl PowerKind {
@@ -53,6 +56,10 @@ impl PowerKind {
 
     pub fn is_origin(self) -> bool {
         self == PowerKind::Origin
+    }
+
+    pub fn is_technique(self) -> bool {
+        self == PowerKind::Technique
     }
 
     /// Acquired as a pickup anyone can grab (and dropped where the holder is KO'd): fruits and
@@ -272,6 +279,12 @@ pub enum MoveOp {
         recipe: RecipeDef,
         #[serde(default)]
         modifier: bool,
+        /// Cast it as a signature (the §5j amplifier: hollow purple, getsuga tensho…).
+        #[serde(default)]
+        signature: Option<crate::signature::SignatureKind>,
+        /// The signature's fusion windup (hollow purple: `Some((Water, Fire))`).
+        #[serde(default)]
+        merge: Option<(Element, Element)>,
     },
     /// Self impulse along the flat look (fwd) and world up.
     Impulse { fwd: f32, up: f32 },
@@ -349,6 +362,64 @@ pub enum MoveOp {
     Weigh { range: f32, secs: f32, down: f32 },
     /// When you next touch ground: a slam explosion there (Kilo press).
     SlamOnLand { radius: f32, damage: f32, knockback: f32, carve: f32 },
+    /// Yank the aimed player (or construct) toward you along the crosshair — Universal Pull. A
+    /// fast pull that breaks their tether and sets up a melee connect. `cone`: aim forgiveness (°).
+    Yank {
+        range: f32,
+        speed: f32,
+        #[serde(default)]
+        cone: f32,
+    },
+    /// A gravity core (Planetary Devastation, a black hole): thrown `dist` m along the aim, it
+    /// rises `rise` m, then for `secs` pulls enemies, loose constructs and carved terrain chunks
+    /// (`chunks` carves) in with `strength` m/s² inside `radius`; enemies within `capture` m are
+    /// held in the mass until it breaks (the end blast: `damage`, `knockback`) — or until they
+    /// dodge or tether out. Everyone gets a cut-in (it is announced like a signature).
+    Singularity {
+        dist: f32,
+        rise: f32,
+        secs: f32,
+        radius: f32,
+        strength: f32,
+        capture: f32,
+        chunks: u8,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+    },
+    /// Switch the power's tier (0 = base; Gear Second, Super Saiyan Blue…).
+    Tier(u8),
+}
+
+/// Presentation of a move (bd_game `present::ascend`): the juice every big power move shares.
+/// Never read by the sim.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MoveJuice {
+    /// A spherical distortion ripple of this radius (m) where the move lands; 0 = none.
+    pub ripple: f32,
+    pub at: At,
+    /// Metres in front for `at: Front`.
+    pub dist: f32,
+    /// Sub-bass boom + a world duck.
+    pub boom: bool,
+    /// Caster's camera punch (FOV degrees, comfort-gated).
+    pub punch: f32,
+    /// Screen shake for players near it (trauma 0..0.4, comfort-gated).
+    pub shake: f32,
+    /// Title letters over the caster (the move's name in big hard-light words).
+    pub title: Option<String>,
+    /// sRGB 0..1; `None` = the caster's corps colour.
+    pub color: Option<[f32; 3]>,
+    /// Loose debris near it is flung (> 0 out, < 0 in) with this speed (m/s).
+    pub debris: f32,
+}
+
+impl Default for MoveJuice {
+    fn default() -> Self {
+        Self { ripple: 0.0, at: At::Me, dist: 0.0, boom: false, punch: 0.0, shake: 0.0, title: None, color: None, debris: 0.0 }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -359,12 +430,157 @@ pub struct MoveDef {
     /// Willpower (Cast ops additionally pay their own cast cost).
     pub cost: f32,
     pub ops: Vec<MoveOp>,
+    /// How it lands (presentation only).
+    pub juice: Option<MoveJuice>,
 }
 
 impl Default for MoveDef {
     fn default() -> Self {
-        Self { name: String::new(), cooldown: 1.0, cost: 0.0, ops: vec![] }
+        Self { name: String::new(), cooldown: 1.0, cost: 0.0, ops: vec![], juice: None }
     }
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+/// How a critical hit looks (presentation).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CritFx {
+    /// A white-hot spark.
+    #[default]
+    Spark,
+    /// Black Flash: black-red lightning, space bends around the impact.
+    BlackFlash,
+}
+
+/// Generic power effects (`powers/effects.rs`). Any power, tier or transform may list them, and
+/// they stack across every power a player holds. Deterministic and host-authoritative; the only
+/// movement one (`PowerMult::speed`) is read by client prediction identically.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum PowerEffect {
+    /// An incoming dodgeable hit may trigger an automatic dodge (the dodge's i-frames + a short
+    /// sidestep) — Ultra Instinct. `chance` 0..1 per hit, `cooldown` s between auto-dodges.
+    AutoDodge { chance: f32, cooldown: f32 },
+    /// Enemy projectiles and thrown things crawl near you (never hitscan or melee) — Infinity.
+    /// Inside `radius` their speed keeps `factor` of itself every 0.1 s, down to a crawl
+    /// ([`super::effects::SLOW_FIELD_CRAWL`]) — they still arrive, late.
+    ProjectileSlowField { radius: f32, factor: f32 },
+    /// A trade (Kaio-ken, forms): your own damage % rises and / or willpower drains while held.
+    SelfDrain {
+        #[serde(default)]
+        damage_pct_per_s: f32,
+        #[serde(default)]
+        willpower_per_s: f32,
+    },
+    /// Damage and knockback you deal, your run speed, and your power-move cooldowns (< 1 = faster).
+    PowerMult {
+        #[serde(default = "one")]
+        damage: f32,
+        #[serde(default = "one")]
+        speed: f32,
+        #[serde(default = "one")]
+        knockback: f32,
+        #[serde(default = "one")]
+        cooldown: f32,
+    },
+    /// Melee connects (weapons, shoves, lunges, power cone hits) may crit: `mult` × damage and
+    /// knockback, a deterministic roll — Black Flash.
+    CritChance {
+        chance: f32,
+        mult: f32,
+        #[serde(default)]
+        fx: CritFx,
+    },
+    /// Presentation only: attacks coming at you inside `radius` get a brief telegraph glow on
+    /// your screen — Sharingan. No time dilation, nothing in the sim.
+    ReadSlow { radius: f32 },
+}
+
+/// Aura look of an Ascend (bd_game `present::ascend`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AscendStyle {
+    /// Anime flame aura (super saiyan, kaio-ken).
+    #[default]
+    Flame,
+    /// White steam clouds (Gear Second, Gear Fifth).
+    Steam,
+    /// Calm wisps and a still ring (ultra instinct, sage mode).
+    Calm,
+}
+
+/// The ONE transformation moment (presentation only; the sim never reads it): windup pose →
+/// aura ignites in `color` → burst → title letters → cosmetic tints → a lingering aura while the
+/// form lasts. Every form / tier / power-up in powers.ron drives it with data.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AscendDef {
+    /// sRGB 0..1; `None` = the player's corps colour.
+    pub color: Option<[f32; 3]>,
+    /// 1 = a base form; tiers escalate (≈ 0.6 … 2.5).
+    pub intensity: f32,
+    /// Title letters ("SUPER SAIYAN BLUE").
+    pub title: Option<String>,
+    /// `false` = flicker and crackle (Kaio-ken, risky forms).
+    pub stable: bool,
+    pub style: AscendStyle,
+    /// Cosmetic tint hooks the costume system can read (sRGB 0..1).
+    pub hair_tint: Option<[f32; 3]>,
+    pub eye_glow: Option<[f32; 3]>,
+    pub skin_tint: Option<[f32; 3]>,
+    /// Keep a low aura while the form lasts.
+    pub linger: bool,
+    /// A music layer while the form is active ("drums"): the audio side maps it.
+    pub music: Option<String>,
+    /// "The world goes quiet" for the caster: audio dip + everything but you desaturates a beat.
+    pub quiet: bool,
+    /// Toon physics: squash-and-stretch body + cartoon eyes hook (Gear Fifth).
+    pub toon: bool,
+}
+
+impl Default for AscendDef {
+    fn default() -> Self {
+        Self {
+            color: None,
+            intensity: 1.0,
+            title: None,
+            stable: true,
+            style: AscendStyle::Flame,
+            hair_tint: None,
+            eye_glow: None,
+            skin_tint: None,
+            linger: true,
+            music: None,
+            quiet: false,
+            toon: false,
+        }
+    }
+}
+
+/// A tier of a power (Gear Second…Fifth, Super Saiyan 2 / 3 / God / Blue, Kaio-ken ×10…): picked
+/// by saying one of its `names` while you hold the power (a technique's tier names also grant it).
+/// Everything is optional and overrides / adds to the base power while the tier is on.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TierDef {
+    pub name: String,
+    pub names: Vec<String>,
+    /// Client costume id (look), like a transform.
+    pub costume: String,
+    /// Replaces the base body.
+    pub body: Option<BodyDef>,
+    /// Added to the base graft.
+    pub graft: Option<GraftDef>,
+    /// Added to the base effects.
+    pub effects: Vec<PowerEffect>,
+    /// Replace the base moves while on (empty = keep).
+    pub moves: Vec<MoveDef>,
+    /// Extra shouts while on.
+    pub shouts: Vec<(String, u8)>,
+    /// Extra incantation prefixes while on ("gomu gomu no jet") and their delivery.
+    pub incantations: Vec<String>,
+    pub delivery: Option<Delivery>,
+    pub ascend: Option<AscendDef>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -378,6 +594,10 @@ pub struct TransformDef {
     pub graft: Option<GraftDef>,
     /// Become a piloted construct instead (Kaido's dragon): cast + seat; eject = transform back.
     pub pilot: Option<RecipeDef>,
+    /// Added to the base effects while transformed.
+    pub effects: Vec<PowerEffect>,
+    /// The transformation moment (presentation).
+    pub ascend: Option<AscendDef>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -417,10 +637,11 @@ pub struct PowerDef {
     /// How an incanted phrase is delivered (§5h.3).
     #[serde(default)]
     pub delivery: Delivery,
-    /// Whole phrases that trigger a move slot ("za warudo" → 1). Checked before incantations.
+    /// Whole phrases that trigger a move slot ("za warudo" → 1; slots 2 / 3 exist only as shouts).
+    /// Checked before incantations.
     #[serde(default)]
     pub shouts: Vec<(String, u8)>,
-    /// ≤ 2: [G tap, G hold].
+    /// ≤ 4: [G tap, G hold, shout-only, shout-only].
     #[serde(default)]
     pub moves: Vec<MoveDef>,
     #[serde(default)]
@@ -430,6 +651,47 @@ pub struct PowerDef {
     /// Look of the pickup (fruits / origins); `None` = a plain glowing orb named after the power.
     #[serde(default)]
     pub pickup: Option<PickupDef>,
+    /// Generic effects while held (`powers/effects.rs`).
+    #[serde(default)]
+    pub effects: Vec<PowerEffect>,
+    /// The moment you gain it (presentation; techniques / forms).
+    #[serde(default)]
+    pub ascend: Option<AscendDef>,
+    /// Tiers picked by phrase (index + 1 = tier; 0 = base).
+    #[serde(default)]
+    pub tiers: Vec<TierDef>,
+}
+
+impl PowerDef {
+    /// Tier `t` (1-based; 0 = base → `None`).
+    pub fn tier(&self, t: u8) -> Option<&TierDef> {
+        t.checked_sub(1).and_then(|k| self.tiers.get(k as usize))
+    }
+
+    /// The tier a spoken phrase names (1-based), if any.
+    pub fn tier_named(&self, phrase: &str) -> Option<u8> {
+        let n = norm_words(phrase);
+        self.tiers.iter().position(|t| t.names.iter().any(|a| *a == n)).map(|k| (k + 1).min(15) as u8)
+    }
+
+    /// Is `phrase` one of this power's own names?
+    pub fn is_named(&self, phrase: &str) -> bool {
+        let n = norm_words(phrase);
+        !n.is_empty() && (norm_words(&self.name) == n || self.names.iter().any(|a| *a == n) || self.id.replace('_', " ") == n)
+    }
+
+    /// Moves in effect at tier `t` (a tier's own moves replace the base ones).
+    pub fn moves_at(&self, t: u8) -> &[MoveDef] {
+        match self.tier(t) {
+            Some(td) if !td.moves.is_empty() => &td.moves,
+            _ => &self.moves,
+        }
+    }
+
+    /// The Ascend of tier `t` (falls back to the power's own).
+    pub fn ascend_at(&self, t: u8) -> Option<&AscendDef> {
+        self.tier(t).and_then(|td| td.ascend.as_ref()).or(self.ascend.as_ref())
+    }
 }
 
 /// Rules shared by every fruit / stand / origin (tuning lives here in code; powers.ron is only entries).
@@ -456,6 +718,10 @@ pub struct PowerRules {
     pub rush_max_rate: f32,
     /// Phrase words that make a Link seastone (a Water-element Link also is).
     pub seastone_words: Vec<String>,
+    /// Willpower to learn a technique (saying its name).
+    pub technique_cost: f32,
+    /// Powers one player can hold at once (the oldest is replaced beyond it).
+    pub max_powers: u8,
 }
 
 impl Default for PowerRules {
@@ -473,6 +739,8 @@ impl Default for PowerRules {
             rush_tokens: vec!["ORA".into(), "MUDA".into(), "DORA".into(), "ARI".into(), "WRYY".into()],
             rush_max_rate: 20.0,
             seastone_words: vec!["seastone".into(), "kairoseki".into(), "sea prism".into()],
+            technique_cost: 30.0,
+            max_powers: 3,
         }
     }
 }
@@ -499,7 +767,7 @@ impl PowerTable {
     fn sanitize(&mut self) {
         self.powers.truncate(250);
         for p in &mut self.powers {
-            p.moves.truncate(2);
+            p.moves.truncate(super::move_sel::MAX_MOVES);
             p.id = p.id.to_ascii_lowercase();
             for a in &mut p.names {
                 *a = norm_words(a);
@@ -514,15 +782,40 @@ impl PowerTable {
             for (s, _) in &mut p.shouts {
                 *s = norm_words(s);
             }
-            for m in &mut p.moves {
+            p.tiers.truncate(15);
+            for t in &mut p.tiers {
+                t.moves.truncate(super::move_sel::MAX_MOVES);
+                for a in &mut t.names {
+                    *a = norm_words(a);
+                }
+                t.names.retain(|a| !a.is_empty());
+                for pre in &mut t.incantations {
+                    *pre = norm_words(pre);
+                }
+                t.incantations.retain(|p| !p.is_empty());
+                for (s, _) in &mut t.shouts {
+                    *s = norm_words(s);
+                }
+            }
+            let fix_move = |m: &mut MoveDef| {
                 if !m.cooldown.is_finite() || m.cooldown < 0.05 {
                     m.cooldown = 0.05;
                 }
                 if !m.cost.is_finite() || m.cost < 0.0 {
                     m.cost = 0.0;
                 }
+            };
+            p.moves.iter_mut().for_each(fix_move);
+            p.tiers.iter_mut().flat_map(|t| t.moves.iter_mut()).for_each(fix_move);
+            super::effects::sanitize_effects(&mut p.effects);
+            if let Some(t) = &mut p.transform {
+                super::effects::sanitize_effects(&mut t.effects);
+            }
+            for t in &mut p.tiers {
+                super::effects::sanitize_effects(&mut t.effects);
             }
         }
+        self.rules.max_powers = self.rules.max_powers.clamp(1, 1 + super::MAX_EXTRA_POWERS as u8);
         for t in &mut self.rules.rush_tokens {
             *t = t.to_ascii_uppercase();
         }
@@ -614,23 +907,10 @@ pub enum PowerPhrase {
     Plain,
 }
 
-/// Parse a phrase against the held power (`None` = no power → always `Plain`). An incantation
-/// prefix of a power you don't hold is `Plain` (the whole phrase goes to the lexicon).
+/// Parse a phrase against a single held power (`None` = no power → always `Plain`). An incantation
+/// prefix of a power you don't hold is `Plain` (the whole phrase goes to the lexicon). Prefer
+/// [`super::PlayerPower::parse_phrase`], which knows every power the player holds.
 pub fn parse_phrase(power: Option<u16>, text: &str) -> PowerPhrase {
-    let t = PowerTable::get();
-    let Some(def) = power.and_then(|id| t.def(id)) else { return PowerPhrase::Plain };
-    let n = norm_words(text);
-    if let Some((_, slot)) = def.shouts.iter().find(|(s, _)| *s == n) {
-        return PowerPhrase::Move(*slot);
-    }
-    for pre in &def.incantations {
-        if let Some(rest) = n.strip_prefix(pre.as_str()) {
-            if let Some(rest) = rest.strip_prefix(' ') {
-                if !rest.is_empty() {
-                    return PowerPhrase::Incantation { rest: rest.to_string() };
-                }
-            }
-        }
-    }
-    PowerPhrase::Plain
+    let held = super::PlayerPower { id: power, ..Default::default() };
+    held.parse_phrase(text)
 }

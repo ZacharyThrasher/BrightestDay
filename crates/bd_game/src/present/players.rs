@@ -156,6 +156,8 @@ pub struct PlayerBody {
     shattered: bool,
     hands: HandRig,
     raise: Raise,
+    /// CONNECT: where the body is held during a hit-stop (the victim's hit-shake jitters around it).
+    hold: Option<Vec3>,
 }
 
 #[derive(Resource, Default)]
@@ -410,6 +412,7 @@ fn sync_bodies(
                             shattered: false,
                             hands: HandRig::default(),
                             raise: Raise::default(),
+                            hold: None,
                         },
                         Transform::from_translation(v.pos),
                         Visibility::Hidden,
@@ -462,6 +465,11 @@ fn sync_bodies(
         if !freeze.player(v.id) {
             let (_, _, body) = body_frames(v);
             *tf = Transform::from_translation(v.pos).with_rotation(body).with_scale(Vec3::splat(v.size));
+            b.hold = None;
+        } else {
+            // CONNECT: held in the hit — shake along the hit vector around the held spot.
+            let base = *b.hold.get_or_insert(tf.translation);
+            tf.translation = base + freeze.shake_offset(v.id);
         }
         let moved = Vec2::new(v.pos.x - b.last_pos.x, v.pos.z - b.last_pos.z).length();
         if moved < 5.0 {
@@ -538,7 +546,14 @@ fn sync_bodies(
         });
         b.raise.since_shot += dt;
         let ads_k = if v.is_local && gun { ads.blend } else { 0.0 };
+        // Palm energy (`Form::Hands`): both hands cup it low in front while it charges, then thrust
+        // straight at the aim for the beam.
+        let palms = held.is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands);
+        let palm_charging = palms
+            && held.and_then(|c| views.construct(c.id)).is_some_and(|c| bd_sim::weapons::WeaponPhase::from_u8(c.weapon & 7) == bd_sim::weapons::WeaponPhase::Charging);
         let (arm_t, ads_t) = match gun {
+            _ if palms && b.raise.since_shot < 0.9 => (1.0, 0.0),
+            _ if palms => (if palm_charging { 0.5 } else { 0.0 }, 0.0),
             true if firing || b.raise.since_shot < 0.9 || ads_k > 0.05 => (1.0, ads_k),
             true => (0.45, 0.0),
             false => (0.0, 0.0),
@@ -548,7 +563,11 @@ fn sync_bodies(
         b.raise.ads += (ads_t - b.raise.ads) * k;
         if let Some(mut ov) = overlay {
             let raise = b.raise;
-            gun_pose(&b.hands, raise, v.pitch, &mut ov.locals);
+            if palms {
+                palm_pose(&b.hands, raise, v.pitch, &mut ov.locals);
+            } else {
+                gun_pose(&b.hands, raise, v.pitch, &mut ov.locals);
+            }
             if show
                 && held.is_some()
                 && let Some(h) = hand_world(&cv.model, &layers[..n], &ov.locals, &b.hands, &tf)
@@ -585,6 +604,8 @@ fn sync_bodies(
             }
         }
         cv.flash = if v.has(pflags::SHIELD) { 0.25 + 0.15 * (t * 12.0).sin().abs() } else { 0.0 };
+        // CONNECT: the victim flashes white on a connect (tiered, fades out of the hit-stop).
+        cv.flash = cv.flash.max(freeze.flash_of(v.id));
         // Ropes (not the local first-person player: the shell draws those).
         let (eye, look, _) = body_frames(v);
         for i in 0..2 {
@@ -647,6 +668,24 @@ fn gun_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Loca
         && raise.ads > 1e-3
     {
         locals[l] = bd_shapes::Local::rot(Q::from_rotation_y(-0.55 * raise.ads) * Q::from_rotation_x(up * raise.ads));
+    }
+}
+
+/// Palm energy: BOTH arms come up together and in toward the middle (the hands meet around the
+/// orb / the beam's root). `raise.arm` 0.5 = cupped low in front (charging), 1 = along the aim.
+fn palm_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Local]) {
+    use bd_core::Quat as Q;
+    for l in locals.iter_mut() {
+        *l = bd_shapes::Local::IDENTITY;
+    }
+    if raise.arm <= 1e-3 {
+        return;
+    }
+    let up = std::f32::consts::FRAC_PI_2 + pitch.clamp(-1.1, 1.1);
+    for (side, inward) in [(1usize, 0.32f32), (0, -0.32)] {
+        if let Some(r) = h.root[side].filter(|&r| r < locals.len()) {
+            locals[r] = bd_shapes::Local::rot(Q::from_rotation_y(inward * raise.arm) * Q::from_rotation_x(up * raise.arm));
+        }
     }
 }
 

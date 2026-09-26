@@ -539,7 +539,29 @@ impl Look {
         macro_rules! pick {
             ($($f:ident),*) => { Look { $($f: patch.$f.clone().or_else(|| self.$f.clone()),)* acc: None, add: None } };
         }
-        let mut out = pick!(skin, build, hair, eyes, brows, mouth, facial, eyewear, mask, helmet, hat, top, sleeves, hands, legs, feet, belt, emblem, back_emblem, face_paint, accent);
+        let mut out = pick!(
+            skin,
+            build,
+            hair,
+            eyes,
+            brows,
+            mouth,
+            facial,
+            eyewear,
+            mask,
+            helmet,
+            hat,
+            top,
+            sleeves,
+            hands,
+            legs,
+            feet,
+            belt,
+            emblem,
+            back_emblem,
+            face_paint,
+            accent
+        );
         let mut acc = patch.acc.clone().or_else(|| self.acc.clone()).unwrap_or_default();
         acc.extend(self.add.clone().unwrap_or_default());
         acc.extend(patch.add.clone().unwrap_or_default());
@@ -634,7 +656,10 @@ fn key(toks: &[String]) -> String {
 }
 
 /// Words that may accompany a character name without changing the match.
-const FILLER: &[&str] = &["the", "a", "an", "as", "in", "with", "his", "her", "their", "mode", "form", "style", "outfit", "costume", "look", "suit", "version", "cosplay", "skin"];
+const FILLER: &[&str] = &[
+    "the", "a", "an", "as", "in", "with", "his", "her", "their", "mode", "form", "style", "outfit", "costume", "look", "suit", "version",
+    "cosplay", "skin",
+];
 
 /// A phrase matched to a character.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -675,7 +700,8 @@ pub fn find_in(t: &Table, phrase: &str) -> Option<Found> {
                 for w in &v.words {
                     words.extend(tokens(w));
                 }
-                let phrase_words: Vec<String> = v.words.iter().map(|w| key(&tokens(w))).chain(std::iter::once(key(&tokens(&v.name)))).collect();
+                let phrase_words: Vec<String> =
+                    v.words.iter().map(|w| key(&tokens(w))).chain(std::iter::once(key(&tokens(&v.name)))).collect();
                 if rest.iter().all(|w| words.contains(w)) || phrase_words.contains(&rest_key) {
                     return Some(Found { index: i, base_variant: vi });
                 }

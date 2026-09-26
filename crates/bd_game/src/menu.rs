@@ -24,7 +24,8 @@ use crate::state::{AfterLoading, AppState, GameMode, InGameMenu};
 use bd_core::corps::Corps;
 use bd_sim::settings::{GameMode as SimMode, GameSettings, Preset};
 use bd_sim::rules::Scoring;
-use bd_sim::{CapMode, ScaleLimit, WillpowerMode};
+use bd_sim::rules::UNLIMITED;
+use bd_sim::{ConstructLimits, ScaleLimit, WillpowerMode};
 use bevy::ecs::system::SystemParam;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseButtonInput};
@@ -132,7 +133,10 @@ enum Knob {
     Mode,
     Scale,
     Willpower,
+    /// CONSTRUCTS: Normal / Chaos / Custom quick switch over every [`Lim`].
     Caps,
+    /// CONSTRUCTS: one per-kind cap (`MatchRules::limits`).
+    Limit(Lim),
     Scoring,
     Lives,
     KoTarget,
@@ -168,6 +172,78 @@ enum Knob {
     Accent,
     HeadScale,
     Acc(u32),
+}
+
+/// CONSTRUCTS section rows: one per [`ConstructLimits`] field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Lim {
+    Held,
+    Worn,
+    Structures,
+    Objects,
+    Creatures,
+    Kaiju,
+    Colossal,
+    Total,
+    GiantsOnMap,
+}
+
+impl Lim {
+    const ALL: [Lim; 9] = [Lim::Held, Lim::Worn, Lim::Structures, Lim::Objects, Lim::Creatures, Lim::Kaiju, Lim::Colossal, Lim::Total, Lim::GiantsOnMap];
+
+    fn label(self) -> &'static str {
+        match self {
+            Lim::Held => "HELD",
+            Lim::Worn => "WORN",
+            Lim::Structures => "STRUCTURES",
+            Lim::Objects => "OBJECTS",
+            Lim::Creatures => "CREATURES",
+            Lim::Kaiju => "  KAIJU",
+            Lim::Colossal => "COLOSSAL",
+            Lim::Total => "TOTAL PER PLAYER",
+            Lim::GiantsOnMap => "GIANTS ON MAP",
+        }
+    }
+
+    fn get(self, l: &mut ConstructLimits) -> &mut u8 {
+        match self {
+            Lim::Held => &mut l.held,
+            Lim::Worn => &mut l.worn,
+            Lim::Structures => &mut l.structures,
+            Lim::Objects => &mut l.objects,
+            Lim::Creatures => &mut l.creatures,
+            Lim::Kaiju => &mut l.kaiju,
+            Lim::Colossal => &mut l.colossal,
+            Lim::Total => &mut l.total,
+            Lim::GiantsOnMap => &mut l.giants_on_map,
+        }
+    }
+
+    /// Stepper range; `true` = one more step past `max` is UNLIMITED.
+    fn range(self) -> (u8, u8, bool) {
+        match self {
+            Lim::Held | Lim::Worn => (0, 1, false),
+            Lim::Total => (1, 20, true),
+            _ => (0, 10, true),
+        }
+    }
+
+    fn step(self, v: u8, dir: i32) -> u8 {
+        let (lo, hi, unl) = self.range();
+        if v == UNLIMITED && unl {
+            return if dir < 0 { hi } else { UNLIMITED };
+        }
+        let n = v.min(hi) as i32 + dir;
+        if n > hi as i32 && unl { UNLIMITED } else { n.clamp(lo as i32, hi as i32) as u8 }
+    }
+}
+
+fn lim_text(v: u8) -> String {
+    match v {
+        0 => "OFF".into(),
+        UNLIMITED => "UNLIMITED".into(),
+        n => n.to_string(),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -348,9 +424,16 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             }
             v.push(Value(K::TimeLimit));
             v.extend([Header("ARENA"), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
-            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Caps), Value(K::Powers)]);
+            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
+            }
+            v.extend([Header("CONSTRUCTS"), Value(K::Caps)]);
+            for l in Lim::ALL {
+                // Colossal things only exist in no-limits lobbies.
+                if l != Lim::Colossal || c.prefs.game.rules.scale == ScaleLimit::NoLimits {
+                    v.push(Value(K::Limit(l)));
+                }
             }
             v.extend([Header("PHYSICS"), Value(K::Knockback), Value(K::Gravity), Value(K::GasRegen), Value(K::TetherHooks)]);
             v.extend([Header("VIEW"), Value(K::AllowThird)]);
@@ -529,6 +612,8 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             MapKind::Valley => "VALLEY OF THE END".into(),
             MapKind::Cybertron => "CYBERTRON".into(),
             MapKind::Lair => "TURTLE LAIR".into(),
+            MapKind::GiantsRoom => "GIANT'S ROOM".into(),
+            MapKind::Hyperline => "HYPERLINE".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -543,7 +628,17 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             WillpowerMode::Double => "DOUBLE".into(),
             WillpowerMode::Infinite => "INFINITE".into(),
         }),
-        Knob::Caps => (lbl("CONSTRUCT CAPS"), if r.caps == CapMode::Chaos { "CHAOS".into() } else { "NORMAL".into() }),
+        Knob::Caps => (lbl("CAPS"), if r.limits == ConstructLimits::default() {
+            "NORMAL".into()
+        } else if r.limits == ConstructLimits::chaos() {
+            "CHAOS".into()
+        } else {
+            "CUSTOM".into()
+        }),
+        Knob::Limit(l) => {
+            let mut lim = r.limits;
+            (lbl(l.label()), lim_text(*l.get(&mut lim)))
+        }
         Knob::Scoring => (lbl("SCORING"), match r.scoring {
             Scoring::TimedKos => "TIMED KOS".into(),
             Scoring::Stock { .. } => "STOCK".into(),
@@ -578,7 +673,11 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::PoolLegend => (lbl("LEGENDARY CARDS"), on_off(pa.pool_legendary)),
         Knob::PoolCursed => (lbl("CURSED CARDS"), on_off(pa.pool_cursed)),
         Knob::Corps => (lbl("CORPS"), c.prefs.corps.name().to_uppercase()),
-        Knob::Variant => (lbl("VARIANT"), format!("{} / 4", c.prefs.costume.seed % 4 + 1)),
+        Knob::Variant => {
+            // Character looks have their own variant count (blindfold / sunglasses / eyes…).
+            let n = crate::lobby::costume::variant_count(&c.prefs.costume.phrase).unwrap_or(4).max(1) as u32;
+            (lbl("VARIANT"), format!("{} / {n}", c.prefs.costume.seed % n + 1))
+        }
         Knob::Accent => (lbl("ACCENT"), ACCENTS.iter().find(|(_, a)| *a == c.prefs.costume.accent).map_or("CUSTOM", |(n, _)| n).into()),
         Knob::HeadScale => (lbl("HEAD SIZE"), format!("{:.0}%", c.prefs.costume.head_scale * 100.0)),
         Knob::Acc(bit) => (ACC_SLOTS.iter().find(|(b, _)| *b == bit).map_or("?", |(_, n)| n).to_string(), on_off(c.prefs.costume.hide & bit == 0)),
@@ -739,7 +838,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair], map_of(c.prefs), dir);
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair, MapKind::GiantsRoom, MapKind::Hyperline], map_of(c.prefs), dir);
             c.prefs.map = match m {
                 MapKind::Miami => "miami",
                 MapKind::Orbit => "orbit",
@@ -751,6 +850,8 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
                 MapKind::Valley => "valley",
                 MapKind::Cybertron => "cybertron",
                 MapKind::Lair => "lair",
+                MapKind::GiantsRoom => "giant",
+                MapKind::Hyperline => "train",
                 _ => "arena",
             }
             .into();
@@ -766,7 +867,11 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Mode => g.mode = if g.mode == SimMode::Party { SimMode::Ffa } else { SimMode::Party },
         Knob::Scale => g.rules.scale = cycle(&[ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits], g.rules.scale, dir),
         Knob::Willpower => g.rules.willpower = cycle(&[WillpowerMode::Normal, WillpowerMode::Double, WillpowerMode::Infinite], g.rules.willpower, dir),
-        Knob::Caps => g.rules.caps = if g.rules.caps == CapMode::Chaos { CapMode::Normal } else { CapMode::Chaos },
+        Knob::Caps => g.rules.limits = if g.rules.limits == ConstructLimits::default() { ConstructLimits::chaos() } else { ConstructLimits::default() },
+        Knob::Limit(l) => {
+            let v = l.get(&mut g.rules.limits);
+            *v = l.step(*v, dir);
+        }
         Knob::Scoring => {
             g.rules.scoring = match g.rules.scoring {
                 Scoring::TimedKos => Scoring::Stock { lives: STOCK_DEFAULT_LIVES },
@@ -808,7 +913,8 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Variant => {
-            c.prefs.costume.seed = (c.prefs.costume.seed as i32 + dir).rem_euclid(4) as u32;
+            let n = crate::lobby::costume::variant_count(&c.prefs.costume.phrase).unwrap_or(4).max(1) as i32;
+            c.prefs.costume.seed = ((c.prefs.costume.seed as i32).rem_euclid(n) + dir).rem_euclid(n) as u32;
             game = false;
         }
         Knob::Accent => {
@@ -870,11 +976,13 @@ pub struct MenuState {
     title_t: f32,
     /// The cursor is on a text row (keys are text): the costume view skips its key controls.
     pub typing: bool,
+    /// Put the cursor on this row at the next rebuild (`--menu rules:constructs`).
+    focus: Option<Knob>,
 }
 
 impl Default for MenuState {
     fn default() -> Self {
-        Self { page: MenuPage::Title, tab: SettingsTab::Gameplay, stack: Vec::new(), cursor: 0, scroll: 0, join_code: String::new(), rebuild: true, caret_t: 0.0, capture: None, toast: None, title_t: 0.0, typing: false }
+        Self { page: MenuPage::Title, tab: SettingsTab::Gameplay, stack: Vec::new(), cursor: 0, scroll: 0, join_code: String::new(), rebuild: true, caret_t: 0.0, capture: None, toast: None, title_t: 0.0, typing: false, focus: None }
     }
 }
 
@@ -967,6 +1075,10 @@ fn enter_menu(cli: Res<crate::cli::CliArgs>, net: Option<Res<NetStatus>>, mut m:
         Some("join") => m.goto(MenuPage::Join),
         Some("host") => m.goto(MenuPage::HostSetup),
         Some("rules") => m.goto(MenuPage::Rules),
+        Some("rules:constructs") => {
+            m.goto(MenuPage::Rules);
+            m.focus = Some(Knob::Limit(Lim::GiantsOnMap)); // the whole CONSTRUCTS section in view
+        }
         Some("customize") => m.goto(MenuPage::Customize),
         Some("costume") => m.goto(MenuPage::Costume),
         _ => {}
@@ -1200,9 +1312,20 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
             let n = RANDOM_COSTUMES.len();
             let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(7);
             let mut r = crate::util::Rng::new(t as u64);
-            io.prefs.costume.phrase = RANDOM_COSTUMES[(r.next_u32() as usize) % n].into();
-            io.prefs.costume.seed = r.next_u32() % 4;
-            io.prefs.costume.accent = ACCENTS[(r.next_u32() as usize) % ACCENTS.len()].1;
+            // Mostly an iconic character (their own colours), sometimes a wild vocabulary phrase.
+            match bd_shapes::costume::look::random_name(r.next_u32()).filter(|_| r.next_u32() % 5 != 0) {
+                Some(name) => {
+                    io.prefs.costume.phrase = name.into();
+                    let v = crate::lobby::costume::variant_count(name).unwrap_or(1).max(1) as u32;
+                    io.prefs.costume.seed = r.next_u32() % v;
+                    io.prefs.costume.accent = None;
+                }
+                None => {
+                    io.prefs.costume.phrase = RANDOM_COSTUMES[(r.next_u32() as usize) % n].into();
+                    io.prefs.costume.seed = r.next_u32() % 4;
+                    io.prefs.costume.accent = ACCENTS[(r.next_u32() as usize) % ACCENTS.len()].1;
+                }
+            }
             menu.rebuild = true;
         }
         Act::ResetKeys => {
@@ -1628,6 +1751,9 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
         menu.title_t = 0.0;
     }
     let rows = io.rows(page, menu.tab, in_game);
+    if let Some(k) = menu.focus.take() {
+        menu.cursor = rows.iter().position(|r| *r == Row::Value(k)).unwrap_or(menu.cursor);
+    }
     // Scroll window (a settings tab strip stays pinned above it).
     let n = rows.len();
     let pinned = rows.first() == Some(&Row::Tabs);
@@ -2035,6 +2161,40 @@ mod tests {
         // Settings still persist through the file format.
         let text = ron::ser::to_string_pretty(&s, Default::default()).unwrap();
         assert_eq!(ron::from_str::<Settings>(&text).unwrap(), s);
+    }
+
+    #[test]
+    fn constructs_section_has_every_cap_and_steps() {
+        let mut s = Settings::default();
+        let mut p = UiPrefs::default();
+        p.game.rules.scale = ScaleLimit::NoLimits;
+        let c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice: true, in_game: false };
+        let rows = page_rows(MenuPage::Rules, SettingsTab::Gameplay, &c);
+        let at = rows.iter().position(|r| *r == Row::Header("CONSTRUCTS")).expect("CONSTRUCTS section");
+        assert_eq!(rows[at + 1], Row::Value(Knob::Caps));
+        for (i, l) in Lim::ALL.into_iter().enumerate() {
+            assert_eq!(rows[at + 2 + i], Row::Value(Knob::Limit(l)), "{l:?}");
+        }
+        // Steppers: 0..=max, then UNLIMITED, and back down.
+        assert_eq!(Lim::Structures.step(10, 1), UNLIMITED);
+        assert_eq!(Lim::Structures.step(UNLIMITED, 1), UNLIMITED);
+        assert_eq!(Lim::Structures.step(UNLIMITED, -1), 10);
+        assert_eq!(Lim::Structures.step(0, -1), 0);
+        assert_eq!(Lim::Held.step(1, 1), 1);
+        assert_eq!(Lim::Total.step(1, -1), 1);
+        assert_eq!((lim_text(0), lim_text(3), lim_text(UNLIMITED)), ("OFF".to_string(), "3".to_string(), "UNLIMITED".to_string()));
+        // Knobs touch the lobby rules; CAPS toggles Normal ↔ Chaos, stepping makes it CUSTOM.
+        let mut c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice: true, in_game: false };
+        assert!(step_knob(Knob::Caps, &mut c, 1, false));
+        assert_eq!(c.prefs.game.rules.limits, ConstructLimits::chaos());
+        assert!(step_knob(Knob::Limit(Lim::Kaiju), &mut c, -1, false));
+        assert_eq!(c.prefs.game.rules.limits.kaiju, 2);
+        assert_eq!(knob_text(Knob::Caps, &c).1, "CUSTOM");
+        assert!(step_knob(Knob::Caps, &mut c, 1, false));
+        assert_eq!(c.prefs.game.rules.limits, ConstructLimits::default());
+        // Colossal only shows in no-limits lobbies.
+        c.prefs.game.rules.scale = ScaleLimit::Normal;
+        assert!(!page_rows(MenuPage::Rules, SettingsTab::Gameplay, &c).contains(&Row::Value(Knob::Limit(Lim::Colossal))));
     }
 
     #[test]

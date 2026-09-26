@@ -25,7 +25,8 @@
 //!
 //! Dev: `BD_SIGNATURE_TEST="<secs>|me|<phrase>;<secs>|bot:<metres>@<yaw_deg>|<phrase>"` — cast through
 //! the real console path (me) or make the first bot shout it from `metres` in front of the camera,
-//! `yaw_deg` to the side (screenshots of the alert from outside / inside).
+//! `yaw_deg` to the side (screenshots of the alert from outside / inside). `<secs>|me|!hold <s>` holds
+//! PRIMARY for `s` seconds then releases (charge → release a palm beam).
 
 use super::constructs::ConstructEntities;
 use super::players::PlayerBody;
@@ -671,6 +672,8 @@ struct SigDev {
     /// `me@<yaw_deg>,<pitch_deg>`: hold the local look (yaw relative to the spawn facing) until `t`.
     look: Option<(f32, f32, f32)>,
     base_yaw: Option<f32>,
+    /// `me|!hold <secs>`: hold PRIMARY (charge a palm beam / a held weapon) until `t`, then release.
+    hold: Option<f32>,
 }
 
 /// Dev: world side of the plan (pins, willpower, bot casts).
@@ -679,7 +682,18 @@ fn dev_world(
     mut dev: ResMut<SigDev>,
     mut cmds: MessageWriter<SimCommand>,
     mut look: ResMut<crate::input::LookAngles>,
+    mut ov: ResMut<crate::input::InputOverride>,
 ) {
+    if let Some(until) = dev.hold {
+        if dev.t < until {
+            ov.active = true;
+            ov.held = bd_core::input::buttons::PRIMARY;
+        } else {
+            ov.active = false;
+            ov.held = 0;
+            dev.hold = None;
+        }
+    }
     if let Some((yaw, pitch, until)) = dev.look {
         if dev.t < until {
             let base = *dev.base_yaw.get_or_insert(look.yaw);
@@ -753,6 +767,14 @@ fn dev_test(
             Some((w, a)) => (w, Some(a)),
             None => (who.as_str(), None),
         };
+        if who == "me"
+            && let Some(secs) = phrase.strip_prefix("!hold").and_then(|s| s.trim().parse::<f32>().ok())
+        {
+            info!("signature test: hold PRIMARY {secs:.2} s");
+            dev.hold = Some(dev.t + secs.clamp(0.0, 10.0));
+            dev.next += 1;
+            continue;
+        }
         if who == "me" && dev.boosted != Some(dev.next) {
             if let Some(a) = aim {
                 let v: Vec<f32> = a.split(',').filter_map(|x| x.trim().parse().ok()).collect();

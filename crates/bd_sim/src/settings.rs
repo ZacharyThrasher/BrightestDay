@@ -19,7 +19,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::rules::{CapMode, MatchRules, ScaleLimit, WillpowerMode};
+use crate::rules::{ConstructLimits, MatchRules, ScaleLimit, WillpowerMode};
 use crate::world::SimConfig;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -157,7 +157,7 @@ impl GameSettings {
                 s.mode = GameMode::Party;
                 s.rules.scale = ScaleLimit::NoLimits;
                 s.rules.willpower = WillpowerMode::Infinite;
-                s.rules.caps = CapMode::Chaos;
+                s.rules.limits = ConstructLimits::chaos();
                 s.rules.regen_islands_between_rounds = true;
             }
             Preset::MovementGods => {

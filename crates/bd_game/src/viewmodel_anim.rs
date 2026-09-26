@@ -235,6 +235,18 @@ pub struct VmTuning {
     pub charge_tremble: f32,
     pub charge_tremble_full: f32,
     pub charge_glow: f32,
+
+    // palm energy (`Form::Hands`: kamehameha, final flash) — left hand values; right is mirrored.
+    /// Charging: both hands drawn back and together, cupping the orb.
+    pub palm_charge_pos: [f32; 3],
+    pub palm_charge_rot: [f32; 3],
+    pub palm_tremble: f32,
+    /// Release: both hands thrust forward, palms out, held for the beam.
+    pub palm_thrust_pos: [f32; 3],
+    pub palm_thrust_rot: [f32; 3],
+    /// Release kick (camera-space velocity) and the beam's hold time (s) at full charge.
+    pub palm_kick: f32,
+    pub palm_hold: f32,
 }
 
 impl Default for VmTuning {
@@ -366,6 +378,13 @@ impl Default for VmTuning {
             charge_tremble: 0.0025,
             charge_tremble_full: 0.005,
             charge_glow: 0.6,
+            palm_charge_pos: [0.15, -0.04, 0.08],
+            palm_charge_rot: [0.2, -0.5, -0.9],
+            palm_tremble: 0.004,
+            palm_thrust_pos: [0.13, 0.05, -0.15],
+            palm_thrust_rot: [-0.9, -0.35, -0.6],
+            palm_kick: 1.2,
+            palm_hold: 0.9,
         }
     }
 }
@@ -558,6 +577,10 @@ pub struct AnimInput {
     pub charging: bool,
     pub charge_held: f32,
     pub charge_full: bool,
+    /// Holding palm energy (`Form::Hands`).
+    pub palms: bool,
+    /// Its charge 0..1 while PRIMARY is held (0 = not charging).
+    pub palm_charge: f32,
     pub held: bool,
     pub held_weight: f32,
     /// Holding a two-handed gun: the left hand supports it (unless it's busy).
@@ -865,6 +888,10 @@ pub struct HandAnimator {
     coil_w: Spring,
     ko_w: Spring,
     support_w: Spring,
+    palm_w: Spring,
+    thrust_w: Spring,
+    /// Seconds of the palm-beam thrust left.
+    thrust_t: f32,
     coiled: bool,
     flail: f32,
     buzz: f32,
@@ -960,6 +987,19 @@ impl HandAnimator {
         if archetype == GunArchetype::Minigun {
             self.buzz = 0.12;
         }
+    }
+
+    /// Palm beam released (`charge` 0..1): both hands thrust out and hold for the beam; the body
+    /// takes the kick (scaled by the comfort motion `m`).
+    pub fn palm_release(&mut self, tu: &VmTuning, charge: f32, m: f32) {
+        let c = if charge.is_finite() { charge.clamp(0.0, 1.0) } else { 1.0 };
+        self.thrust_t = tu.palm_hold * (0.55 + 0.45 * c);
+        self.palm_w = Spring::default();
+        let k = tu.palm_kick * (0.5 + 0.5 * c) * m;
+        self.hand_pos[LEFT].kick(Vec3::new(0.3, 0.1, -1.0) * k);
+        self.hand_pos[RIGHT].kick(Vec3::new(-0.3, 0.1, -1.0) * k);
+        self.imp_pos.kick(Vec3::new(0.0, 0.05, 0.35) * k);
+        self.imp_rot.kick(Vec3::X * 0.9 * k);
     }
 
     /// Swing wind-up (held construct): the hand coils back before the swing.
@@ -1161,6 +1201,25 @@ impl HandAnimator {
         tgt_rot[RIGHT] += Vec3::new(crot.x, -crot.y, -crot.z) * charge_w;
         tremble[LEFT] += ct * charge_w.max(0.0);
         tremble[RIGHT] += ct * charge_w.max(0.0);
+        // Palm energy: charging draws both hands back and together around the orb (shaking harder as
+        // it fills); the release thrusts them out, palms forward, and holds for the beam.
+        self.thrust_t = (self.thrust_t - dt).max(0.0);
+        let pc = if inp.palm_charge.is_finite() { inp.palm_charge.clamp(0.0, 1.0) } else { 0.0 };
+        self.palm_w.step(if inp.palms && pc > 0.0 && self.thrust_t <= 0.0 { 1.0 } else { 0.0 }, po, pz, dt);
+        self.thrust_w.step(if inp.palms && self.thrust_t > 0.0 { 1.0 } else { 0.0 }, po * 1.8, 0.75, dt);
+        let (palm_w, thrust_w) = (clamp01(&self.palm_w), clamp01(&self.thrust_w));
+        let mirror = |v: Vec3| Vec3::new(-v.x, v.y, v.z);
+        let mirror_r = |v: Vec3| Vec3::new(v.x, -v.y, -v.z);
+        for (pos, rot, w) in [(tu.palm_charge_pos, tu.palm_charge_rot, palm_w), (tu.palm_thrust_pos, tu.palm_thrust_rot, thrust_w)] {
+            let (p, r) = (v3a(pos), v3a(rot));
+            tgt_pos[LEFT] += p * w;
+            tgt_rot[LEFT] += r * w;
+            tgt_pos[RIGHT] += mirror(p) * w;
+            tgt_rot[RIGHT] += mirror_r(r) * w;
+        }
+        let pt = tu.palm_tremble * (0.3 + 0.7 * pc * pc) * palm_w.max(0.0) + tu.palm_tremble * 0.5 * thrust_w.max(0.0);
+        tremble[LEFT] += pt;
+        tremble[RIGHT] += pt;
         // Launched / tumbling: a little flail.
         if inp.tumbling {
             self.flail = self.flail.max(0.3);
@@ -1202,7 +1261,7 @@ impl HandAnimator {
         root_e.z *= inp.roll_scale.clamp(0.0, 1.0);
         pose.root_t = root_t.clamp(Vec3::splat(-0.4), Vec3::splat(0.4)) * tu.master;
         pose.root_r = euler(root_e.clamp(Vec3::splat(-1.0), Vec3::splat(1.0)) * tu.master);
-        pose.glow = charge_w.max(0.0) * tu.charge_glow * (0.4 + 0.6 * ramp) + 0.25 * ring_w.max(0.0);
+        pose.glow = charge_w.max(0.0) * tu.charge_glow * (0.4 + 0.6 * ramp) + 0.25 * ring_w.max(0.0) + 0.5 * pc * palm_w.max(0.0);
         pose.ko_visible = ko && self.ko_timer > 0.0;
         // Support hand: on the fore-grip unless it's tethering / charging / flailing.
         let support = inp.two_handed && inp.held && inp.hooks[LEFT].phase == HookPhase::Idle && !inp.charging && flail <= 0.0 && !ko;
@@ -1246,6 +1305,8 @@ pub(super) struct AnimState {
     last_buf: usize,
     last_oath: f32,
     prev_buttons: u16,
+    /// Palm-beam charge last seen (the release kick scales with it).
+    last_palm: f32,
     prof: Prof,
 }
 
@@ -1299,6 +1360,7 @@ pub(super) fn drive_hand_anim(
     (tuning, look, anchor, clock, move_events, input, focus, comfort): AnimRes,
     (console, oath, voice, freeze, ads): UiRes,
     active: Option<Res<ActiveWorld>>,
+    views: Res<crate::sim_bridge::WorldViews>,
     local_q: Query<&PlayerSim, With<LocalPlayer>>,
     mut game_events: MessageReader<GameEvents>,
     mut cues: MessageReader<RingCue>,
@@ -1345,8 +1407,17 @@ pub(super) fn drive_hand_anim(
     }
     st.last_look = Some((look.yaw, look.pitch));
 
-    // Held construct: weight and kind.
-    let held = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held);
+    // Held construct: weight and kind. Palm energy (`Form::Hands`) is nothing in the hand: its own
+    // pose layer (charge from the replicated weapon byte, so a client sees it too).
+    let palms = a.world.constructs.held_by(local).filter(|c| c.recipe.form == Form::Hands);
+    let palm_charge = palms.and_then(|c| views.construct(c.id)).map_or(0.0, |v| {
+        let phase = bd_sim::weapons::WeaponPhase::from_u8(v.weapon & 7);
+        if phase == bd_sim::weapons::WeaponPhase::Charging { ((v.weapon >> 3) as f32 / 31.0).max(0.02) } else { 0.0 }
+    });
+    if palm_charge > 0.0 {
+        st.last_palm = palm_charge;
+    }
+    let held = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held && c.recipe.form != Form::Hands);
     let held_weight = held.map_or(1.0, |c| bd_shapes::weight_of(&c.recipe));
     let held_gun = held.is_some_and(|c| matches!(c.recipe.form, Form::Gun | Form::Cannon | Form::Bow | Form::Staff));
 
@@ -1405,6 +1476,10 @@ pub(super) fn drive_hand_anim(
 
     for e in game_events.read() {
         match &e.event {
+            GameEvent::ShotFired { owner, construct: Some(_), archetype: GunArchetype::HandBeam, .. } if *owner == local => {
+                anim.palm_release(tu, st.last_palm, motion);
+                st.last_palm = 0.0;
+            }
             GameEvent::ShotFired { owner, construct: Some(_), archetype, .. } if *owner == local => {
                 let predicted = if a.role == SimRole::Client { 1.0 - tu.gun_predict } else { 1.0 };
                 anim.gun_kick(tu, *archetype, predicted);
@@ -1473,6 +1548,8 @@ pub(super) fn drive_hand_anim(
         charging,
         charge_held: me.charge.held,
         charge_full: me.charge.full,
+        palms: palms.is_some(),
+        palm_charge,
         held: held.is_some(),
         held_weight,
         two_handed: held.is_some_and(|c| two_handed(c.recipe.form)),

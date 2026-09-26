@@ -94,10 +94,32 @@ fn signature_titles_are_canonical() {
 fn probe_energy_names() {
     let Some(l) = common::lex() else { return };
     for p in [
-        "kamehameha", "final flash", "galick gun", "special beam cannon", "masenko", "big bang attack", "spirit gun",
-        "hadouken", "rasengan", "rasenshuriken", "getsuga tensho", "repulsor", "unibeam", "hyper beam", "avada kedavra",
-        "ki blast", "energy beam", "laser beam", "ultimate beam", "final fire", "ultimate laser", "hollow purple",
-        "railgun", "RAILGUN!!!", "laser gun", "light beam",
+        "kamehameha",
+        "final flash",
+        "galick gun",
+        "special beam cannon",
+        "masenko",
+        "big bang attack",
+        "spirit gun",
+        "hadouken",
+        "rasengan",
+        "rasenshuriken",
+        "getsuga tensho",
+        "repulsor",
+        "unibeam",
+        "hyper beam",
+        "avada kedavra",
+        "ki blast",
+        "energy beam",
+        "laser beam",
+        "ultimate beam",
+        "final fire",
+        "ultimate laser",
+        "hollow purple",
+        "railgun",
+        "RAILGUN!!!",
+        "laser gun",
+        "light beam",
     ] {
         let r = l.resolve(p);
         println!(

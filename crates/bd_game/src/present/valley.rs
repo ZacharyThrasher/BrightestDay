@@ -10,6 +10,10 @@
 //!   faint rainbow arc in the spray, opposite the afternoon sun.
 //! * **Water-walk feedback** — ripple rings, droplets and a splashy footstep layer wherever someone
 //!   runs, lands or slides on the water (chakra walking).
+//!
+//! Dev screenshots (never set in play): `BD_VALLEY_POSE=x,y,z,yaw,pitch` (feet, degrees) pins the
+//! local player there and holds the view from 0.8 s on (practice respawn facing otherwise wins
+//! over `--look`); pair with `BD_HIDDEN_WINDOW=1 --screenshot … --quit-after …`.
 
 use super::sound::Sfx3d;
 use super::PresentSet;
@@ -89,7 +93,32 @@ impl Plugin for ValleyPlugin {
         app.init_resource::<Scene>()
             .init_resource::<Wading>()
             .add_systems(Update, (spawn_scene, animate_water, animate_mist, water_walk_fx, animate_ripples).chain().in_set(PresentSet::Sync));
+        if let Some(pose) = std::env::var("BD_VALLEY_POSE").ok().map(|s| s.split(',').filter_map(|t| t.trim().parse::<f32>().ok()).collect::<Vec<_>>()).filter(|v| v.len() == 5) {
+            app.insert_resource(Pose(pose, 0.0)).add_systems(
+                Update,
+                hold_pose.before(crate::tick::FrameSet::Input).run_if(resource_exists::<crate::sim_bridge::ActiveWorld>),
+            );
+        }
     }
+}
+
+#[derive(Resource)]
+struct Pose(Vec<f32>, f32);
+
+fn hold_pose(time: Res<Time<Real>>, mut pose: ResMut<Pose>, mut active: ResMut<crate::sim_bridge::ActiveWorld>, mut look: ResMut<crate::input::LookAngles>) {
+    pose.1 += time.delta_secs();
+    if pose.1 < 0.8 {
+        return;
+    }
+    let v = &pose.0;
+    if let Some(me) = active.local
+        && let Some(p) = active.world.player_mut(me)
+    {
+        p.mv.pos = bd_core::Vec3::new(v[0], v[1], v[2]);
+        p.mv.vel = bd_core::Vec3::ZERO;
+        p.spawn_shield = 0.0;
+    }
+    look.set_degrees(v[3], v[4]);
 }
 
 fn repeat_sampler() -> ImageSampler {

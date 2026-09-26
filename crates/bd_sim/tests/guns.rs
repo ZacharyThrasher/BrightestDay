@@ -284,6 +284,8 @@ fn ring_blast_is_a_fast_fat_bolt() {
     // A blast passing 0.3 m beside B's hull still connects (swept 0.35 m sphere); 0.5 m misses.
     let graze = |side: f32| {
         let mut w = world(2);
+        // The swept radius alone (CONNECT homing would bend a near miss in: tests/connect.rs).
+        w.cfg.tuning.assist.aim = bd_sim::aim_assist::AimTuning::neutral();
         place(&mut w, A, Vec3::new(10.0, 8.0, 8.0));
         place(&mut w, B, Vec3::new(10.0, 8.0, -10.0));
         settle(&mut w, 40);

@@ -123,6 +123,9 @@ pub struct SimConstruct {
     flash: f32,
     attack: Option<(Attack, f32)>,
     swing: Option<(Arc<SwingCurve>, f32)>,
+    /// CONNECT contact resistance: swing time lost while held in a hit-stop, repaid after (the
+    /// blade drags in the body, then snaps through).
+    bite: f32,
     robot: bool,
     last_pos: Vec3,
     loop_kind: Option<&'static str>,
@@ -254,7 +257,14 @@ fn build_task(src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Opti
             (None, None) => bd_shapes::build_model(&recipe).1,
         };
         model.weight = weight;
-        BuiltModel { model: Arc::new(model), key: if rig.is_some() { None } else { key }, rig, colors: None }
+        // Summoned character costume ("goku!"): its palette per voxel, re-derived from the recipe's
+        // `costume:` id (bd_shapes::costume::summon), tinted toward the lantern colour by the shader.
+        let colors = match (&rig, &shape) {
+            (None, Some(s)) => bd_shapes::costume::summon::summon_colors(&recipe, s, &model).map(|parts| Arc::new(bd_fx::VoxelColors { parts })),
+            _ => None,
+        };
+        let key = if colors.is_some() { None } else { key };
+        BuiltModel { model: Arc::new(model), key: if rig.is_some() { None } else { key }, rig, colors }
     }
 }
 
@@ -606,9 +616,11 @@ fn sync_constructs(
     mut map: ResMut<ConstructEntities>,
     mut q: Query<(Entity, &mut SimConstruct, &mut ConstructVisual, &mut Transform, &mut Visibility, Option<&mut SfxLoopEmitter>, Option<&PendingTransform>, Option<&mut Blend>), Without<ConstructEnd>>,
     mut seen: Local<Vec<ConstructId>>,
+    juice: Res<super::impact::connect::JuiceTuningRes>,
 ) {
     let Some(active) = active else { return };
     let dt = time.delta_secs().min(0.1);
+    let snap = (juice.0.snap_rate - 1.0).max(0.0);
     // Finish model builds.
     let mut done = Vec::new();
     for (k, t) in cache.pending.iter_mut() {
@@ -657,6 +669,7 @@ fn sync_constructs(
                         flash: 0.0,
                         attack: None,
                         swing: None,
+                        bite: 0.0,
                         robot: false,
                         last_pos: tf.translation,
                         loop_kind: None,
@@ -701,10 +714,17 @@ fn sync_constructs(
                         Some(h) if h.active && h.construct == Some(cv.id) => *tf = clamp_first_person(h.grip, &vis.model),
                         _ => hidden = c.recipe.form != Form::Parachute && c.category != FormCategory::Held,
                     }
-                } else if !frozen {
+                } else if frozen {
+                    // Held in the hit: the swing owes the time (repaid below as a snap through).
+                    if sc.swing.is_some() {
+                        sc.bite = (sc.bite + dt).min(0.3);
+                    }
+                } else {
                     let mut t = place(cv, owner_view, c.category, body_hands.0.get(&cv.owner).copied(), sc.held);
+                    let repay = sc.bite.min(dt * snap);
+                    sc.bite -= repay;
                     if let Some((curve, st)) = sc.swing.as_mut() {
-                        *st += dt;
+                        *st += dt + repay;
                         let total = curve.anticipation + curve.active + curve.recovery;
                         if *st > total {
                             sc.swing = None;
@@ -1001,6 +1021,7 @@ fn predicted_casts(
                     flash: 0.0,
                     attack: None,
                     swing: None,
+                    bite: 0.0,
                     robot: false,
                     last_pos: tf.translation,
                     loop_kind: None,

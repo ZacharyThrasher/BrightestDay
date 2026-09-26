@@ -5,9 +5,9 @@
 //! * or the individual channels: [`HitStop`], [`CameraShakeEvent`], [`FovPunch`], [`ScreenFlash`].
 //!
 //! Hit-stop is budgeted (≤ [`HitStopState::BUDGET_PER_SEC`] of freeze per second) so a flurry of
-//! hits never turns into lag. While active, [`HitStopState::time_scale`] is 0; by default it freezes
-//! the local sim tick (practice/offline). bd_net/bd_sim should instead read it to freeze only the
-//! attacker/victim visuals ([`HitStopState::freeze_sim`] = false).
+//! hits never turns into lag. While active, [`HitStopState::time_scale`] is 0. It never freezes the
+//! sim tick ([`HitStopState::freeze_sim`] = false, offline too): the attacker / victim visuals hold
+//! instead (`present::impact::HitFreeze`, tiered in `present::impact::connect`).
 //!
 //! Shake never touches `LookAngles`: it is a camera-local offset + small rotation applied on top
 //! of the aim in `camera`, decaying within a few hundred ms, so the aim point always returns.
@@ -72,7 +72,9 @@ pub struct HitStopState {
 
 impl Default for HitStopState {
     fn default() -> Self {
-        Self { remaining: 0.0, budget: Self::BUDGET_PER_SEC, freeze_sim: true }
+        // CONNECT: hit-stop is presentation time only (`present::impact::HitFreeze` holds the
+        // involved players' visuals); the sim tick never freezes, offline included.
+        Self { remaining: 0.0, budget: Self::BUDGET_PER_SEC, freeze_sim: false }
     }
 }
 

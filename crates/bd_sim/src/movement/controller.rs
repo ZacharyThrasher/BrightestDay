@@ -51,7 +51,9 @@ impl Inp {
         if typing {
             held &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST);
         }
-        let (mx, mz) = if typing { (0.0, 0.0) } else { (i.move_x.clamp(-1, 1) as f32, i.move_z.clamp(-1, 1) as f32) };
+        // TYPING keeps the move axes: the client latches the direction held when the ring opened
+        // (voice == typing: talking never stops you, so typing mustn't either).
+        let (mx, mz) = (i.move_x.clamp(-1, 1) as f32, i.move_z.clamp(-1, 1) as f32);
         let (sy, cy) = yaw.sin_cos();
         let fwd_h = Vec3::new(-sy, 0.0, -cy);
         let right = Vec3::new(cy, 0.0, -sy);

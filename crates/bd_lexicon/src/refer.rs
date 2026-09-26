@@ -265,7 +265,7 @@ impl crate::Lexicon {
     /// `spoken`, sound-alikes) accepted unless the word is itself a known noun ("sword on fire" never
     /// targets a player called "Fyre"; one literally called "Fire" still matches exactly).
     pub fn target_player(&self, text: &str, names: &[&str], spoken: bool) -> Option<Targeted> {
-        crate::intent::find_target(text, names, spoken, &|k| self.common_word(k))
+        crate::intent::find_target(text, names, spoken, &|k| self.common_word(k), &|k| self.prep_phrase(k))
     }
 }
 
@@ -341,7 +341,7 @@ mod tests {
     const NAMES: [&str; 4] = ["Jake", "Sam", "Alex_99", "Big Tony"];
 
     fn target_player(s: &str, names: &[&str], spoken: bool, common: impl Fn(&str) -> bool) -> Option<Targeted> {
-        crate::intent::find_target(s, names, spoken, &common)
+        crate::intent::find_target(s, names, spoken, &common, &|k| k == "on fire")
     }
 
     fn aim(s: &str, spoken: bool) -> Option<(String, &'static str)> {

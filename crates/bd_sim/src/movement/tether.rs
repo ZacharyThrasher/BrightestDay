@@ -163,7 +163,7 @@ fn advance<V: VoxelQuery + ?Sized>(s: &mut PlayerState, i: usize, w: &CollisionW
         if let AnchorTarget::Collider(id) = hit.target {
             if let Some(c) = w.colliders.iter().find(|c| c.id == id) {
                 hook.local = c.to_local(hit.point);
-                hook.vel = c.vel;
+                hook.vel = c.surface_vel(hit.point);
             }
         }
         // The hook head never flies past `tether_range`, but the player keeps moving during the
@@ -193,7 +193,7 @@ fn refresh_anchor<V: VoxelQuery + ?Sized>(h: &mut Hook, w: &CollisionWorld<V>) -
         Some(AnchorTarget::Collider(id)) => match w.colliders.iter().find(|c| c.id == id && c.anchorable) {
             Some(c) => {
                 h.pos = c.to_world(h.local);
-                h.vel = c.vel;
+                h.vel = c.surface_vel(h.pos);
                 true
             }
             None => false,

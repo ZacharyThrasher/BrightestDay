@@ -44,7 +44,6 @@ fn case_punctuation_and_filler_are_ignored() {
     assert_eq!(idx("  GOJO  ").as_deref(), Some("gojo"));
     assert_eq!(idx("the batman").as_deref(), Some("batman"));
     assert_eq!(idx("darth vader costume").as_deref(), Some("darth vader"));
-    assert_eq!(idx("zombie gojo"), None, "unknown words fall through to the vocabulary tier");
     assert_eq!(idx("toaster"), None);
 }
 
@@ -80,7 +79,13 @@ fn every_look_builds_on_the_rig_within_budget() {
             let painted: usize = pm.colors.iter().map(|m| m.len()).sum();
             assert!(painted * 10 >= pm.model.voxel_count * 9, "{name}: only {painted}/{} voxels painted", pm.model.voxel_count);
             // Same rig as the vocabulary costume (animations, hand lookup, first-person hands).
-            for (id, role) in [(1u8, PartRole::Head), (2, PartRole::ArmLeft), (3, PartRole::ArmRight), (4, PartRole::LegBackLeft), (5, PartRole::LegBackRight)] {
+            for (id, role) in [
+                (1u8, PartRole::Head),
+                (2, PartRole::ArmLeft),
+                (3, PartRole::ArmRight),
+                (4, PartRole::LegBackLeft),
+                (5, PartRole::LegBackRight),
+            ] {
                 assert!(d.spec.parts.iter().any(|p| p.id == id && p.role == role), "{name}: part {id} {role:?}");
             }
             // Never shrunk as a whole by the guardrail: feet on the ground, full height.
@@ -119,8 +124,10 @@ fn tweaks_apply_on_top_of_characters() {
     assert!(red.paint.iter().any(|p| p.rgb == Some([255, 0, 0])));
     assert!(!base.paint.iter().any(|p| p.rgb == Some([255, 0, 0])));
     // Head size scales the head.
-    let big = costume::character_costume(f.index, 0, CostumeTweaks { head_scale: 1.3, ..tw() });
-    assert!(spec_bounds(&big.spec).max.y > spec_bounds(&base.spec).max.y);
+    let m = look::find("mario").expect("mario");
+    let small = costume::character_costume(m.index, 0, tw());
+    let big = costume::character_costume(m.index, 0, CostumeTweaks { head_scale: 1.3, ..tw() });
+    assert!(spec_bounds(&big.spec).max.y > spec_bounds(&small.spec).max.y);
     // Every accessory slot can be hidden without panicking; hiding the helmet shows hair.
     let t = look::table();
     for i in 0..t.chars.len() {
@@ -146,12 +153,21 @@ fn derived_costumes_for_character_icons() {
         return;
     };
     let mut names = Vec::new();
-    for f in ["icons/marvel.ron", "icons/dc.ron", "icons/shows.ron", "icons/games.ron", "icons/anime.ron", "icons/film_tv.ron", "icons/tmnt.ron", "icons.ron"] {
+    for f in [
+        "icons/marvel.ron",
+        "icons/dc.ron",
+        "icons/shows.ron",
+        "icons/games.ron",
+        "icons/anime.ron",
+        "icons/film_tv.ron",
+        "icons/tmnt.ron",
+        "icons.ron",
+    ] {
         let Ok(src) = std::fs::read_to_string(root.join("assets").join(f)) else { continue };
         for l in src.lines() {
             if let Some(rest) = l.trim().strip_prefix("names: [\"")
                 && let Some(n) = rest.split('"').next()
-                && look::find(n).is_none()
+                && costume::grammar::parse(n).is_none()
             {
                 names.push(n.to_string());
             }
@@ -172,7 +188,11 @@ fn derived_costumes_for_character_icons() {
         let d2 = costume::dress(n, &r.recipe, Some(shape), None, 0, tw());
         assert_eq!(d.spec, d2.spec, "{n}: deterministic");
         let pm = costume::costume_model_painted(&d);
-        assert!(pm.model.voxel_count > 300 && pm.model.voxel_count <= bd_shapes::costume::MAX_COSTUME_VOXELS, "{n}: {}", pm.model.voxel_count);
+        assert!(
+            pm.model.voxel_count > 300 && pm.model.voxel_count <= bd_shapes::costume::MAX_COSTUME_VOXELS,
+            "{n}: {}",
+            pm.model.voxel_count
+        );
         let b = spec_bounds(&d.spec);
         let s = b.max - b.min + Vec3::ONE;
         assert!(s.x * s.y * s.z <= limit * 1.001, "{n}: volume");
@@ -182,4 +202,85 @@ fn derived_costumes_for_character_icons() {
         }
     }
     assert_eq!(done, 20, "found only {done} humanoid icons");
+}
+
+#[test]
+#[ignore]
+fn print_prim_counts() {
+    let t = look::table();
+    let mut worst = Vec::new();
+    for i in 0..t.chars.len() {
+        for v in 0..t.chars[i].variant_count() {
+            let d = costume::character_costume(i, v, tw());
+            let geo = d.paint.iter().filter(|p| !p.decal).count();
+            worst.push((geo, d.spec.prims.len(), t.chars[i].names[0].clone()));
+        }
+    }
+    worst.sort();
+    for w in worst.iter().rev().take(15) {
+        println!("{w:?}");
+    }
+}
+
+// ------------------------------------------------------------------------------ mix and match
+
+fn composed(phrase: &str) -> look::Look {
+    let p = costume::grammar::parse(phrase).unwrap_or_else(|| panic!("{phrase:?} did not parse"));
+    costume::grammar::compose(&p, 0)
+}
+
+fn base_of(phrase: &str) -> Option<String> {
+    costume::grammar::parse(phrase).and_then(|p| p.base).map(|(c, _)| look::table().chars[c].names[0].clone())
+}
+
+#[test]
+fn mix_and_match_phrases() {
+    use look::{Cut, HairStyle, Hat, Mask};
+    // "gojo but bald"
+    let l = composed("gojo but bald");
+    assert_eq!(l.hair.map(|h| h.style), Some(HairStyle::Bald));
+    assert_eq!(l.top.map(|t| t.cut), Some(Cut::HighCollar), "still Gojo's uniform");
+    // "donatello with a straw hat": his bandana mask stays, the hat is added.
+    let l = composed("donatello with a straw hat");
+    assert!(matches!(l.hat, Some(Hat::Straw(..))));
+    assert!(matches!(l.mask, Some(Mask::Bandana(..))));
+    // "goku with naruto's headband": Naruto's exact headband (with the plate).
+    let naruto = look::table().chars[look::find("naruto").expect("naruto").index].look_of(0);
+    let l = composed("goku with naruto's headband");
+    assert_eq!(l.hat, naruto.hat);
+    assert_eq!(l.hair.map(|h| h.style), Some(HairStyle::Saiyan));
+    // "red goku": the gi turns red.
+    let l = composed("red goku");
+    assert_eq!(l.top.map(|t| t.color.rgb()), Some([210, 30, 36]));
+    // "goku x luffy": Goku's head on Luffy's outfit.
+    let l = composed("goku x luffy");
+    assert_eq!(l.hair.map(|h| h.style), Some(HairStyle::Saiyan));
+    assert_eq!(l.top.map(|t| t.cut), Some(Cut::Vest));
+    assert_eq!(composed("goku naruto").top.map(|t| t.cut), Some(Cut::Jumpsuit));
+    // "gojo but flibbertigibbet": unknown words are ignored — base Gojo, no panic.
+    assert_eq!(base_of("gojo but flibbertigibbet").as_deref(), Some("gojo"));
+    assert_eq!(base_of("zombie gojo").as_deref(), Some("gojo"));
+    // More grammar.
+    assert_eq!(composed("gojo with pink hair").hair.map(|h| h.color.rgb()), Some([245, 140, 180]));
+    assert!(matches!(composed("naruto without the headband").hat, Some(Hat::No)));
+    assert!(matches!(composed("darth vader with a straw hat").hat, Some(Hat::Straw(..))));
+    assert!(matches!(composed("darth vader with a straw hat").helmet, Some(look::Helmet::No)), "a hat replaces the helmet");
+    assert!(composed("batman no cape").acc.unwrap_or_default().iter().all(|a| !matches!(a, look::Acc::Cape(..))));
+    // A part alone dresses a default body; nonsense alone is not a costume phrase.
+    assert!(matches!(composed("straw hat").hat, Some(Hat::Straw(..))));
+    assert_eq!(base_of("straw hat"), None);
+    assert!(costume::grammar::parse("flibbertigibbet").is_none());
+    assert!(costume::grammar::parse("knight").is_none(), "vocabulary phrases stay vocabulary");
+    // All of them build (and deterministically).
+    for ph in [
+        "gojo but bald", "donatello with a straw hat", "goku with naruto's headband", "red goku", "goku x luffy", "gojo but flibbertigibbet", "straw hat",
+        "spider-man in black", "batman with a gold cape", "mario with sunglasses and a cape", "master chief but no helmet",
+    ] {
+        let r = bd_core::mechanics::Recipe::unknown(ph);
+        let a = costume::dress(ph, &r, None, None, 0, tw());
+        let b = costume::dress(ph, &r, None, None, 0, tw());
+        assert_eq!(a.spec, b.spec, "{ph}");
+        assert_eq!(a.tier, Tier::Character, "{ph}");
+        assert!(costume::costume_model_painted(&a).model.voxel_count > 800, "{ph}");
+    }
 }

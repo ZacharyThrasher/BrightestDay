@@ -106,7 +106,7 @@ impl Slot {
         }
     }
 
-    /// Max live constructs of this slot per player.
+    /// Shipped per-player cap of this slot (the live cap is `MatchRules::slot_limit`, lobby-set).
     pub fn limit(self) -> usize {
         match self {
             Slot::Held => 1,
@@ -118,7 +118,8 @@ impl Slot {
     }
 }
 
-/// Max simultaneous kaiju per player (they also count as creatures).
+/// Shipped max simultaneous kaiju per player (they also count as creatures; live cap:
+/// `MatchRules::kaiju_limit`).
 pub const KAIJU_LIMIT: usize = 1;
 
 /// Max `count` for a non-swarm recipe / a swarm.

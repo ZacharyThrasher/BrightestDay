@@ -102,21 +102,28 @@ impl World {
         if !pw.active() || !self.power_allowed(def) {
             return Ok(recipe);
         }
-        let transformed = pw.transformed;
         let mut r = recipe;
         let mut changed = false;
-        if let Some(g) = &def.graft {
-            changed |= merge_graft(&mut r, g);
-        }
-        if transformed {
-            if let Some(g) = def.transform.as_ref().and_then(|t| t.graft.as_ref()) {
+        // Every held power lends its grafts (base, tier, transform): powers MIX on your constructs.
+        for h in pw.held() {
+            if !self.power_allowed(h.def) {
+                continue;
+            }
+            for g in h.grafts() {
                 changed |= merge_graft(&mut r, g);
             }
         }
-        if incanting && !def.incantations.is_empty() {
-            apply_delivery(&mut r, &def.delivery);
-            self.powers.delivered = Some((def.delivery.from_fist, def.delivery.arm));
-            changed = true;
+        // Incantation: the delivery of the active power if it has one, else the first held power
+        // that does (a tier may bring its own: Gear Second's JET).
+        if incanting {
+            let deliv = pw.held().find(|h| !h.def.incantations.is_empty() || h.def.tier(h.tier).is_some_and(|t| !t.incantations.is_empty())).map(|h| {
+                h.def.tier(h.tier).and_then(|t| t.delivery.as_ref()).unwrap_or(&h.def.delivery)
+            });
+            if let Some(d) = deliv {
+                apply_delivery(&mut r, d);
+                self.powers.delivered = Some((d.from_fist, d.arm));
+                changed = true;
+            }
         }
         if changed {
             r = validate_recipe(r, &self.cfg.rules);
@@ -128,6 +135,8 @@ impl World {
     /// (fruits), Logia scatter, immunities, rubber, Bara Bara.
     /// `None` = the hit is cancelled entirely.
     pub(crate) fn powers_on_hit(&mut self, ti: usize, hit: HitInfo) -> Option<HitInfo> {
+        // Attacker side first: PowerMult damage / knockback, Black Flash crits.
+        let hit = if hit.source.is_some_and(|s| s != hit.target) { self.powers_attacker_mods(hit) } else { hit };
         let Some(def) = self.players[ti].power.def() else { return Some(hit) };
         if !self.power_allowed(def) || self.players[ti].shielded() || self.match_state.phase == crate::rules::MatchPhase::Ended {
             return Some(hit);
@@ -136,12 +145,12 @@ impl World {
         let delivered_by = hit.construct.and_then(|c| self.constructs.get(c));
         let (blade, pierce, seastone) = delivered_by.map_or((false, false, false), |c| (c.has(Mechanic::Blade), c.has(Mechanic::Pierce), is_seastone(&c.recipe)));
         let rules = &PowerTable::get().rules;
-        let fruit = def.kind.is_fruit();
+        let fruit = self.players[ti].power.is_fruit();
         if fruit && seastone {
             self.players[ti].power.seastone_mark = 0.5;
         }
         // Water drains devil fruits only; an authored weakness (kryptonite = Poison) drains any power.
-        let weak = def.body.weak.contains(&hit.element);
+        let weak = self.players[ti].power.held().any(|h| h.def.body.weak.contains(&hit.element));
         if ((fruit && hit.element == Element::Water) || weak) && hit.element != Element::Light {
             let p = &mut self.players[ti].power;
             let fresh = p.drained <= 0.0;
@@ -155,30 +164,51 @@ impl World {
         if !pw.active() {
             return Some(hit);
         }
-        let body = pw.body()?;
+        // Ultra Instinct: the body may move on its own before anything else.
+        if self.powers_auto_dodge(ti, &hit) {
+            return None;
+        }
+        let pw = &self.players[ti].power;
+        // Every held power's body counts (a rubber Logia shrugs both ways).
+        let (mut scatter, mut immune, mut bounce, mut blade_immune, mut explosion_immune) = (None, false, false, false, false);
+        for h in pw.held() {
+            let b = h.body();
+            if b.scatter && scatter.is_none() {
+                scatter = Some(h.def);
+            }
+            immune |= b.immune.contains(&hit.element);
+            bounce |= b.bounce;
+            blade_immune |= b.blade_immune;
+            explosion_immune |= b.explosion_immune;
+        }
         let mut hit = hit;
         // Logia: dissolve and reform beside the hit.
-        if body.scatter && pw.scatter_cd <= 0.0 && hit.kind != HitKind::WallSplat && hit.element != Element::Water && (hit.damage > 0.0 || hit.knockback > 0.0) {
-            self.scatter(ti, &hit, def);
+        if let Some(sdef) = scatter
+            && pw.scatter_cd <= 0.0
+            && hit.kind != HitKind::WallSplat
+            && hit.element != Element::Water
+            && (hit.damage > 0.0 || hit.knockback > 0.0)
+        {
+            self.scatter(ti, &hit, sdef);
             return None;
         }
         let mut shrug = None;
-        if body.immune.contains(&hit.element) && hit.element != Element::Light {
+        if immune && hit.element != Element::Light {
             hit.damage = 0.0;
             hit.knockback *= 0.5;
             hit.element = Element::Light;
             shrug = Some(Shrug::Immune);
         }
-        if body.explosion_immune && hit.kind == HitKind::Explosion {
+        if explosion_immune && hit.kind == HitKind::Explosion {
             hit.damage = 0.0;
             shrug = Some(Shrug::Blastproof);
         }
-        if body.blade_immune && blade {
+        if blade_immune && blade {
             self.inject_event(GameEvent::Power(PowerEvent::Shrugged { player: id, why: Shrug::BladePassed, point: hit.point }));
             return None;
         }
         let blunt_kind = matches!(hit.kind, HitKind::RingBlast | HitKind::Melee | HitKind::HeavyMelee | HitKind::Shot | HitKind::Thrown | HitKind::Creature | HitKind::Crush);
-        if body.bounce && blunt_kind && !blade && !pierce {
+        if bounce && blunt_kind && !blade && !pierce {
             hit.damage *= 0.25;
             hit.knockback *= 1.35;
             shrug = Some(Shrug::Bounced);

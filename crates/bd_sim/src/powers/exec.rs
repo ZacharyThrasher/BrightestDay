@@ -145,15 +145,46 @@ impl World {
         if !self.power_allowed(def) {
             return Err(PowerError::Disabled);
         }
+        // Selectors: swap the active power / pick a tier / fire another held power's move.
+        if slot & move_sel::SELECT != 0 {
+            let held = ((slot >> 4) & 3) as usize;
+            let tier = slot & move_sel::KEEP_TIER;
+            return self.select_power(i, held, if tier == move_sel::KEEP_TIER { None } else { Some(tier) });
+        }
+        if slot & move_sel::MOVE_OF != 0 {
+            let held = ((slot >> 2) & 3) as usize;
+            let s = slot & 3;
+            if held == 0 {
+                return self.power_move_inner(i, player, s);
+            }
+            // Run it as the active power for one move, then swap straight back (cooldowns stay
+            // with their own power: moves from different powers chain).
+            if !self.players[i].power.swap_active(held) {
+                return Err(PowerError::NoSuchMove);
+            }
+            let r = self.power_move_inner(i, player, s);
+            if self.players[i].power.others[held - 1].is_some() {
+                self.players[i].power.swap_active(held);
+            }
+            return r;
+        }
+        if slot == move_sel::CYCLE {
+            return self.cycle_power(i);
+        }
+        if slot as usize >= move_sel::MAX_MOVES {
+            return Err(PowerError::NoSuchMove);
+        }
+        let p = &self.players[i];
         if !p.power.active() {
             return Err(PowerError::Drained);
         }
-        let Some(mv) = def.moves.get(slot as usize) else { return Err(PowerError::NoSuchMove) };
+        let tier = p.power.tier;
+        let Some(mv) = def.moves_at(tier).get(slot as usize) else { return Err(PowerError::NoSuchMove) };
         let s = slot as usize;
         if p.power.move_cd[s] > 0.0 {
             return Err(PowerError::Cooldown);
         }
-        let only_transform = mv.ops.iter().all(|o| matches!(o, MoveOp::Transform));
+        let only_transform = mv.ops.iter().all(|o| matches!(o, MoveOp::Transform | MoveOp::Tier(_)));
         if p.status.stunned() || p.oath.reciting() || p.charge.active || (p.seat.is_some_and(|s| !s.suit) && !only_transform) {
             return Err(PowerError::Busy);
         }
@@ -164,7 +195,7 @@ impl World {
         // Run the ops; the move only counts (cost + cooldown) if the first op did something.
         let mut first: Option<Result<(), PowerError>> = None;
         for op in &mv.ops {
-            let r = self.run_op(i, def, op);
+            let r = self.run_op(i, def, mv, op);
             if first.is_none() {
                 first = Some(r);
                 if r.is_err() {
@@ -178,12 +209,102 @@ impl World {
         if let Some(Err(e)) = first {
             return Err(e);
         }
+        let cd = mv.cooldown * effects::cooldown_mult(&self.players[i].power);
         let p = &mut self.players[i];
         p.willpower = (p.willpower - cost).max(0.0);
-        p.power.move_cd[s] = mv.cooldown;
+        // A Tier / Transform op may have swapped nothing, but the slot is still this power's.
+        p.power.move_cd[s] = cd;
         let power = p.power.id.unwrap_or(0);
         self.inject_event(GameEvent::Power(PowerEvent::Move { player, power, slot }));
         Ok(())
+    }
+
+    /// G double-tap: the next held power becomes the active one.
+    fn cycle_power(&mut self, i: usize) -> Result<(), PowerError> {
+        let pw = &self.players[i].power;
+        let Some(k) = pw.others.iter().position(|o| o.is_some()) else { return Err(PowerError::NoSuchMove) };
+        // Rotate: active → back of the line, the first other → active.
+        let pw = &mut self.players[i].power;
+        pw.swap_active(k + 1);
+        // Keep held order stable: move the old active (now at k) to the end.
+        let old = pw.others[k].take();
+        let mut rest: [Option<HeldPower>; MAX_EXTRA_POWERS] = [None; MAX_EXTRA_POWERS];
+        let mut n = 0;
+        for o in pw.others.iter().flatten() {
+            rest[n] = Some(*o);
+            n += 1;
+        }
+        if n < MAX_EXTRA_POWERS {
+            rest[n] = old;
+        }
+        pw.others = rest;
+        self.announce_selected(i);
+        Ok(())
+    }
+
+    /// Make held power `held` (0 = active) active and optionally switch its tier.
+    fn select_power(&mut self, i: usize, held: usize, tier: Option<u8>) -> Result<(), PowerError> {
+        if held > 0 && !self.players[i].power.swap_active(held) {
+            return Err(PowerError::NoSuchMove);
+        }
+        match tier {
+            Some(t) if t != self.players[i].power.tier => self.set_tier(i, t)?,
+            _ if held > 0 => self.announce_selected(i),
+            Some(_) => self.announce_selected(i),
+            None => {}
+        }
+        Ok(())
+    }
+
+    fn announce_selected(&mut self, i: usize) {
+        let p = &self.players[i];
+        if let Some(power) = p.power.id {
+            let (player, tier) = (p.id, p.power.tier);
+            self.inject_event(GameEvent::Power(PowerEvent::Selected { player, power, tier }));
+        }
+    }
+
+    /// Switch the active power's tier (0 = base). A tier with an Ascend plays it (the first time
+    /// this round: the awakening).
+    pub(crate) fn set_tier(&mut self, i: usize, tier: u8) -> Result<(), PowerError> {
+        let Some(def) = self.players[i].power.def() else { return Err(PowerError::NoPower) };
+        let tier = tier.min(def.tiers.len().min(15) as u8);
+        if tier > 0 && def.tier(tier).is_none() {
+            return Err(PowerError::NoSuchMove);
+        }
+        let old = self.players[i].power.tier;
+        if old == tier {
+            return Ok(());
+        }
+        let pw = &mut self.players[i].power;
+        pw.tier = tier;
+        // A tier brings its own moves: their cooldowns start fresh.
+        if def.tier(tier).is_some_and(|t| !t.moves.is_empty()) || def.tier(old).is_some_and(|t| !t.moves.is_empty()) {
+            pw.move_cd = [0.0; move_sel::MAX_MOVES];
+        }
+        self.announce_selected(i);
+        if tier > 0 || def.ascend.is_some() {
+            let id = self.players[i].power.id.unwrap_or(0);
+            self.ascend(i, Some(id), tier, false);
+        }
+        Ok(())
+    }
+
+    /// Emit the transformation moment (awakening = the first time this round).
+    pub(crate) fn ascend(&mut self, i: usize, power: Option<u16>, tier: u8, transform: bool) {
+        let player = self.players[i].id;
+        let awakening = match power {
+            Some(id) => {
+                let key = (player, id, if transform { 0x80 | tier } else { tier });
+                let first = !self.powers.awakened.contains(&key);
+                if first && self.powers.awakened.len() < 1024 {
+                    self.powers.awakened.push(key);
+                }
+                first
+            }
+            None => false,
+        };
+        self.inject_event(GameEvent::Power(PowerEvent::Ascend { player, power, tier, transform, awakening }));
     }
 
     /// One typed rush token (ORA / MUDA / DORA / ARI / WRYY…) while the ring console is open =
@@ -198,7 +319,7 @@ impl World {
         let Some(i) = self.pidx(player) else { return 0 };
         let p = &self.players[i];
         let Some(def) = p.power.def() else { return 0 };
-        if def.companion.is_none() || !p.alive || !self.power_allowed(def) || p.status.stunned() || !p.input.held(bd_core::input::buttons::TYPING) {
+        if p.power.companion_def().is_none() || !p.alive || !self.power_allowed(def) || p.status.stunned() || !p.input.held(bd_core::input::buttons::TYPING) {
             return 0;
         }
         let mut accepted = 0u16;
@@ -218,7 +339,7 @@ impl World {
 
     /// One stand rush punch (a small cone hit from the stand, which steps out front).
     fn rush_punch(&mut self, i: usize) {
-        let Some(comp) = self.players[i].power.def().and_then(|d| d.companion.as_ref()) else { return };
+        let Some(comp) = self.players[i].power.companion_def() else { return };
         let rules = &PowerTable::get().rules;
         let base = self.cfg.move_params.clone();
         let p = &self.players[i];
@@ -252,6 +373,7 @@ impl World {
     // ------------------------------------------------------------------------------ grants
 
     fn resolve_power_key(&mut self, key: &str) -> Option<u16> {
+        let key = split_tier(key).0;
         let t = PowerTable::get();
         if is_random_mutagen(key) {
             let n = t.mutagen_ids().count() as u32;
@@ -300,7 +422,17 @@ impl World {
     /// A recipe with `grants`: a fruit construct, or the stand itself. `None` = not a known /
     /// allowed power (the cast continues as a normal construct — the ring never says no).
     pub(crate) fn cast_grant(&mut self, i: usize, recipe: &Recipe, origin: Vec3, dir: Vec3) -> Option<Result<ConstructId, CastError>> {
-        let key = recipe.grants.as_deref()?;
+        let full = recipe.grants.as_deref()?;
+        // A plain "power up" / "full power": the Ascend moment in your corps colour. Cosmetic only.
+        if full.eq_ignore_ascii_case(ASCEND_KEY) {
+            let pw = &mut self.players[i].power;
+            if pw.ascend_cd <= 0.0 {
+                pw.ascend_cd = 2.5;
+                self.ascend(i, None, 0, false);
+            }
+            return Some(Ok(NO_CONSTRUCT));
+        }
+        let (key, tier) = split_tier(full);
         let t = PowerTable::get();
         let is_random_stand = is_random_stand(key);
         // A random mutagen is a fruit-like pickup (Zoan) gated by the devil-fruit toggle.
@@ -318,12 +450,30 @@ impl World {
         if def.is_some_and(|d| !self.power_allowed(d)) {
             return None;
         }
-        let stand = def.map_or(is_random_stand, |d| !d.kind.is_pickup());
-        let cost = if stand { t.rules.stand_cost } else { t.rules.fruit_cost };
-        // FREEDOM (never refuse): a power pickup you can't afford isn't refused — the phrase casts
-        // as the ordinary construct it describes (which itself sputters to fit what's left). A
-        // power is permanent until KO, so a "weaker" power would be a new system; the construct is
-        // the charming fallback and the power stays a real purchase.
+        // Saying a power you already hold makes it the active one (a tier phrase picks the tier):
+        // free and instant, the toolkit is yours to mix.
+        if let Some(d) = def
+            && !d.kind.is_pickup()
+            && let Some(id) = t.index_of(key)
+            && let Some(slot) = self.players[i].power.slot_of(id)
+        {
+            let tier = tier.or(if d.tiers.is_empty() { None } else { Some(0) });
+            let _ = self.select_power(i, slot, tier);
+            return Some(Ok(self.players[i].power.companion.filter(|_| d.companion.is_some()).unwrap_or(NO_CONSTRUCT)));
+        }
+        let direct = def.map_or(is_random_stand, |d| !d.kind.is_pickup());
+        let technique = def.is_some_and(|d| d.kind.is_technique());
+        let cost = if technique {
+            t.rules.technique_cost
+        } else if direct {
+            t.rules.stand_cost
+        } else {
+            t.rules.fruit_cost
+        };
+        // FREEDOM (never refuse): a power pickup you can not afford is not refused: the phrase
+        // casts as the ordinary construct it describes (which itself sputters to fit what is left).
+        // A power is permanent until KO, so a "weaker" power would be a new system; the construct
+        // is the charming fallback and the power stays a real purchase.
         if self.power_pay(i, cost).is_err() {
             return None;
         }
@@ -332,11 +482,13 @@ impl World {
         self.players[i].casts.record(&name, tick);
         let Some(id) = self.resolve_power_key(key) else { return Some(Err(CastError::Busy)) };
         let owner = self.players[i].id;
-        if stand {
-            self.gain_power(i, id, GainHow::Stand);
-            return Some(self.players[i].power.companion.ok_or(CastError::Busy));
+        if direct {
+            let how = if technique { GainHow::Learned } else { GainHow::Stand };
+            self.gain_power_at(i, id, how, tier.unwrap_or(0));
+            let has_companion = t.def(id).is_some_and(|d| d.companion.is_some());
+            return Some(Ok(self.players[i].power.companion.filter(|_| has_companion).unwrap_or(NO_CONSTRUCT)));
         }
-        // The fruit / origin pickup pops out where you aim (≤ 8 m) or just in front of you.
+        // The fruit / origin pickup pops out where you aim (<= 8 m) or just in front of you.
         let cw = CollisionWorld::new(&self.voxels, self.colliders());
         let at = match raycast_world(&cw, origin, dir, 8.0, false) {
             Some(h) => h.point + h.normal * 0.45,
@@ -440,48 +592,149 @@ impl World {
         self.gain_power(i, power, GainHow::Ate);
     }
 
-    /// Take power `power` (replacing any other; a replaced fruit drops at your feet).
+    /// Take power `power` at its base tier (see [`Self::gain_power_at`]).
     pub(crate) fn gain_power(&mut self, i: usize, power: u16, how: GainHow) {
-        if self.players[i].power.id.is_some() {
-            let feet = self.players[i].mv.pos + Vec3::Y * 0.5;
-            self.lose_power(i, Some(feet));
+        self.gain_power_at(i, power, how, 0);
+    }
+
+    /// Take power `power` (at `tier`) as the ACTIVE power. Powers mix: up to
+    /// `PowerRules::max_powers` are held (the oldest goes beyond it; a pickup drops at your
+    /// feet); a second stand replaces the first (one companion); an already-held power just
+    /// becomes active.
+    pub(crate) fn gain_power_at(&mut self, i: usize, power: u16, how: GainHow, tier: u8) {
+        let t = PowerTable::get();
+        let Some(def) = t.def(power) else { return };
+        if let Some(slot) = self.players[i].power.slot_of(power) {
+            let _ = self.select_power(i, slot, Some(tier));
+            return;
         }
-        let Some(def) = PowerTable::get().def(power) else { return };
-        let id = self.players[i].id;
-        self.players[i].power = PlayerPower { id: Some(power), time_speed: time_stop_speed(def), ..Default::default() };
-        self.inject_event(GameEvent::Power(PowerEvent::Gained { player: id, power, how }));
+        let feet = self.players[i].mv.pos + Vec3::Y * 0.5;
+        // One companion at a time: a second stand (or companion technique) replaces the first.
         if def.companion.is_some() {
+            let old = self.players[i].power.held().find(|h| h.def.companion.is_some()).map(|h| h.slot);
+            if let Some(slot) = old {
+                self.drop_held(i, slot, None);
+            }
+        }
+        let max = (t.rules.max_powers as usize).clamp(1, 1 + MAX_EXTRA_POWERS);
+        while self.players[i].power.count() >= max {
+            let pw = &self.players[i].power;
+            let active = pw.id.map(|_| (0usize, pw.since));
+            let oldest = active.into_iter().chain(pw.others.iter().enumerate().filter_map(|(k, o)| o.map(|o| (k + 1, o.since)))).min_by_key(|x| x.1).map(|x| x.0);
+            let Some(slot) = oldest else { break };
+            self.drop_held(i, slot, Some(feet));
+        }
+        let pw = &mut self.players[i].power;
+        pw.gains = pw.gains.wrapping_add(1);
+        if let Some(old) = pw.id {
+            let held = HeldPower { id: old, move_cd: pw.move_cd, transformed: pw.transformed, tier: pw.tier, since: pw.since };
+            if let Some(slot) = pw.others.iter_mut().find(|o| o.is_none()) {
+                *slot = Some(held);
+            }
+        }
+        pw.id = Some(power);
+        pw.move_cd = [0.0; move_sel::MAX_MOVES];
+        pw.transformed = false;
+        pw.tier = tier.min(def.tiers.len().min(15) as u8);
+        pw.since = pw.gains;
+        pw.time_speed = time_stop_speed(def);
+        let tier = pw.tier;
+        let id = self.players[i].id;
+        self.inject_event(GameEvent::Power(PowerEvent::Gained { player: id, power, how }));
+        if def.companion.is_some() && self.players[i].power.companion.is_none() {
             self.spawn_companion(i);
+        }
+        if def.ascend_at(tier).is_some() {
+            self.ascend(i, Some(power), tier, false);
         }
     }
 
-    /// Drop the power (KO / replaced). A fruit / origin reappears at `fruit_at`.
-    pub(crate) fn lose_power(&mut self, i: usize, fruit_at: Option<Vec3>) {
-        let old = std::mem::take(&mut self.players[i].power);
-        let Some(power) = old.id else { return };
+    /// Drop the held power in `slot` (0 = active: the next held one becomes active). A fruit /
+    /// origin reappears at `fruit_at`.
+    pub(crate) fn drop_held(&mut self, i: usize, slot: usize, fruit_at: Option<Vec3>) {
+        let pw = &mut self.players[i].power;
+        let (power, transformed) = if slot == 0 {
+            let Some(id) = pw.id else { return };
+            let transformed = pw.transformed;
+            // Promote the first other (if any) to active.
+            match pw.others.iter().position(|o| o.is_some()) {
+                Some(k) => {
+                    pw.swap_active(k + 1);
+                    pw.others[k] = None;
+                }
+                None => {
+                    pw.id = None;
+                    pw.move_cd = [0.0; move_sel::MAX_MOVES];
+                    pw.transformed = false;
+                    pw.tier = 0;
+                }
+            }
+            (id, transformed)
+        } else {
+            let Some(o) = pw.others.get_mut(slot - 1).and_then(|o| o.take()) else { return };
+            (o.id, o.transformed)
+        };
+        // Compact the others (held order).
+        let mut rest: [Option<HeldPower>; MAX_EXTRA_POWERS] = [None; MAX_EXTRA_POWERS];
+        for (n, o) in pw.others.iter().flatten().enumerate() {
+            rest[n] = Some(*o);
+        }
+        pw.others = rest;
         let id = self.players[i].id;
-        for cid in [old.companion, old.pilot].into_iter().flatten() {
-            if let Some(c) = self.constructs.get_mut(cid) {
-                if c.gone.is_none() {
-                    c.gone = Some(GoneReason::OwnerGone);
+        let def = PowerTable::get().def(power);
+        if def.is_some_and(|d| d.companion.is_some()) {
+            if let Some(cid) = self.players[i].power.companion.take() {
+                if let Some(c) = self.constructs.get_mut(cid) {
+                    if c.gone.is_none() {
+                        c.gone = Some(GoneReason::OwnerGone);
+                    }
                 }
             }
         }
-        if old.pilot.is_some() && self.players[i].seat.is_some_and(|s| Some(s.construct) == old.pilot) {
-            let cid = old.pilot.unwrap_or(ConstructId(0));
-            self.eject_with(id, cid, Vec3::Y * 8.0, false);
+        if transformed && def.is_some_and(|d| d.transform.as_ref().is_some_and(|t| t.pilot.is_some())) {
+            if let Some(cid) = self.players[i].power.pilot.take() {
+                if self.players[i].seat.is_some_and(|s| s.construct == cid) {
+                    self.eject_with(id, cid, Vec3::Y * 8.0, false);
+                }
+                if let Some(c) = self.constructs.get_mut(cid) {
+                    if c.gone.is_none() {
+                        c.gone = Some(GoneReason::OwnerGone);
+                    }
+                }
+            }
         }
         self.inject_event(GameEvent::Power(PowerEvent::Lost { player: id, power }));
-        if let (Some(at), Some(def)) = (fruit_at, PowerTable::get().def(power)) {
+        if let (Some(at), Some(def)) = (fruit_at, def) {
             if def.kind.is_pickup() {
                 self.spawn_fruit(id, power, at, Vec3::Y * 2.0, true);
             }
         }
     }
 
+    /// Drop EVERY held power (KO / round). Fruits / origins reappear around `fruit_at`.
+    pub(crate) fn lose_power(&mut self, i: usize, fruit_at: Option<Vec3>) {
+        let mut n = 0u32;
+        while self.players[i].power.id.is_some() && n < 8 {
+            // Several pickups fan out a little so they do not stack in one spot.
+            let off = if n == 0 { Vec3::ZERO } else { Vec3::new((n as f32 * 2.1).cos(), 0.0, (n as f32 * 2.1).sin()) * 0.8 };
+            self.drop_held(i, 0, fruit_at.map(|p| p + off));
+            n += 1;
+        }
+        let keep_ground = self.players[i].power.last_ground;
+        let companion = self.players[i].power.companion;
+        let pilot = self.players[i].power.pilot;
+        for cid in [companion, pilot].into_iter().flatten() {
+            if let Some(c) = self.constructs.get_mut(cid) {
+                if c.gone.is_none() {
+                    c.gone = Some(GoneReason::OwnerGone);
+                }
+            }
+        }
+        self.players[i].power = PlayerPower { last_ground: keep_ground, ..Default::default() };
+    }
+
     fn spawn_companion(&mut self, i: usize) {
-        let Some(def) = self.players[i].power.def() else { return };
-        let Some(comp) = def.companion.as_ref() else { return };
+        let Some(comp) = self.players[i].power.companion_def() else { return };
         if self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 {
             self.players[i].power.resummon = 1.0;
             return;
@@ -625,14 +878,24 @@ impl World {
         hits
     }
 
-    fn run_op(&mut self, i: usize, def: &'static PowerDef, op: &MoveOp) -> Result<(), PowerError> {
+    fn run_op(&mut self, i: usize, def: &'static PowerDef, mv: &'static MoveDef, op: &MoveOp) -> Result<(), PowerError> {
         let id = self.players[i].id;
         let (eye, look) = self.eye_look(i);
         match op {
-            MoveOp::Cast { recipe, modifier } => {
+            MoveOp::Cast { recipe, modifier, signature, merge } => {
                 let r = recipe.to_recipe();
                 let aim = Aim { origin: eye, dir: look, target_hint: None, modifier: *modifier };
-                match self.cast(id, r, None, aim) {
+                let res = match signature {
+                    Some(kind) => {
+                        let mut sig = crate::signature::SignatureCast::new(*kind, 0.8);
+                        if let Some((a, b)) = merge {
+                            sig = sig.with_merge(*a, *b);
+                        }
+                        self.cast_signature(id, r, None, aim, sig)
+                    }
+                    None => self.cast(id, r, None, aim),
+                };
+                match res {
                     Ok(_) => Ok(()),
                     Err(CastError::NotEnoughWillpower { .. }) => Err(PowerError::NotEnoughWillpower),
                     Err(_) => Err(PowerError::Busy),
@@ -794,7 +1057,75 @@ impl World {
                 self.players[i].power.slam = Some([*radius, *damage, *knockback, *carve]);
                 Ok(())
             }
+            MoveOp::Yank { range, speed, cone } => self.op_yank(i, range.clamp(1.0, 60.0), speed.clamp(1.0, 60.0), cone.clamp(0.0, 20.0)),
+            MoveOp::Singularity { dist, rise, secs, radius, strength, capture, chunks, damage, knockback } => {
+                self.op_singularity(i, eye, look, &mv.name, mv.cost, (*dist, *rise, *secs, *radius, *strength, *capture, *chunks, *damage, *knockback))
+            }
+            MoveOp::Tier(t) => {
+                let t = if *t == self.players[i].power.tier { 0 } else { *t };
+                self.set_tier(i, t)
+            }
         }
+    }
+
+    /// Universal Pull: the aimed enemy (generous cone) or construct flies at you; their tether
+    /// breaks.
+    fn op_yank(&mut self, i: usize, range: f32, speed: f32, cone: f32) -> Result<(), PowerError> {
+        let id = self.players[i].id;
+        let (eye, look) = self.eye_look(i);
+        let base = self.cfg.move_params.clone();
+        let me = self.players[i].hull(&base).center();
+        // Aimed player: the crosshair ray, else the best one inside the cone (line of sight).
+        let target = self.aimed_player(i, range).or_else(|| {
+            let cos = cone.to_radians().cos();
+            let mut best: Option<(usize, f32)> = None;
+            for (k, q) in self.players.iter().enumerate() {
+                if k == i || !q.alive || cone <= 0.0 {
+                    continue;
+                }
+                let c = q.hull(&base).center();
+                let d = c - eye;
+                let len = d.length();
+                if len > range || len < 0.5 {
+                    continue;
+                }
+                let dot = d.dot(look) / len;
+                if dot < cos || bd_core::voxel::raycast(&self.voxels, eye, d / len, len - 0.5).is_some() {
+                    continue;
+                }
+                if best.is_none_or(|b| dot > b.1) {
+                    best = Some((k, dot));
+                }
+            }
+            best.map(|b| b.0)
+        });
+        if let Some(k) = target {
+            let q = &mut self.players[k];
+            let from = q.hull(&base).center();
+            let to = (me + look.normalize_or_zero() * 1.6 - from).normalize_or(-look);
+            q.mv.release_tethers();
+            q.mv.extra.cancel_dodge(&mut q.mv.vel);
+            q.mv.vel = to * speed + Vec3::Y * 2.5;
+            q.mv.grounded = false;
+            q.mv.tumble = q.mv.tumble.max(0.25);
+            let tid = q.id;
+            // A zero-damage hit: credit + interrupts (no knockback, the yank is the motion).
+            self.apply_hit(HitInfo::new(tid, Some(id), HitKind::RingShove, 0.0, 0.0, to, from));
+            self.inject_event(GameEvent::Power(PowerEvent::Yanked { player: id, target: Some(tid), construct: None, from }));
+            return Ok(());
+        }
+        // Else the first construct (not yours, not worn / held by someone) on the aim line.
+        let hit = self.constructs.segment_query(eye, eye + look * range, 0.6, None).filter(|(c, _, _)| self.constructs.get(*c).is_some_and(|c| c.owner != id && !c.attached() && c.parent != Some(c.id)));
+        let Some((cid, _, _)) = hit else { return Err(PowerError::NoTarget) };
+        let Some(c) = self.constructs.get_mut(cid) else { return Err(PowerError::NoTarget) };
+        let from = c.center();
+        let to = (me - from).normalize_or(-look);
+        c.vel = to * speed * 0.8 + Vec3::Y * 2.0;
+        if matches!(c.body.loco, Loco::Static | Loco::Kinematic) && c.category != FormCategory::Structure {
+            c.body.loco = Loco::Ballistic;
+        }
+        self.inject_event(GameEvent::Power(PowerEvent::Yanked { player: id, target: None, construct: Some(cid), from }));
+        Ok(())
     }
 
     /// Shambles: swap places with the aimed player / own construct — both inside your ROOM.
@@ -928,8 +1259,8 @@ impl World {
                 continue;
             }
             let slot = Slot::of(s.recipe.form);
-            let mult = if matches!(slot, Slot::Held | Slot::Worn) { 1 } else { self.cfg.rules.cap_mult() };
-            if matches!(slot, Slot::Held | Slot::Worn) || self.constructs.in_slot(id, slot).count() >= slot.limit() * mult || self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 {
+            let total = self.constructs.owned_by(id).filter(|c| c.parent.is_none()).count();
+            if matches!(slot, Slot::Held | Slot::Worn) || self.constructs.in_slot(id, slot).count() >= self.cfg.rules.slot_limit(slot) || total >= self.cfg.rules.total_limit() || self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 {
                 k += 1;
                 continue;
             }
@@ -963,7 +1294,14 @@ impl World {
     }
 
     fn op_transform(&mut self, i: usize, def: &'static PowerDef) -> Result<(), PowerError> {
-        let Some(t) = def.transform.as_ref() else { return Err(PowerError::NoSuchMove) };
+        let Some(t) = def.transform.as_ref() else {
+            // A tiered power without a transform: toggle base <-> its first tier.
+            if def.tiers.is_empty() {
+                return Err(PowerError::NoSuchMove);
+            }
+            let to = if self.players[i].power.tier == 0 { 1 } else { 0 };
+            return self.set_tier(i, to);
+        };
         let id = self.players[i].id;
         let on = !self.players[i].power.transformed;
         if let Some(pilot) = &t.pilot {
@@ -999,6 +1337,10 @@ impl World {
             self.players[i].power.transformed = on;
         }
         self.inject_event(GameEvent::Power(PowerEvent::Transformed { player: id, on }));
+        if on && t.ascend.is_some() {
+            let power = self.players[i].power.id;
+            self.ascend(i, power, 0, true);
+        }
         Ok(())
     }
 
@@ -1009,7 +1351,7 @@ impl World {
     /// conserve, eat), shattered-construct memory. Does nothing (and allocates nothing) when
     /// nobody holds a power and no fruit exists.
     pub(crate) fn step_powers(&mut self, dt: f32) {
-        let any = !self.powers.fruits.is_empty() || self.players.iter().any(|p| p.power.id.is_some());
+        let any = !self.powers.fruits.is_empty() || !self.powers.cores.is_empty() || self.players.iter().any(|p| p.power.id.is_some() || p.power.ascend_cd > 0.0);
         if !any {
             return;
         }
@@ -1037,28 +1379,36 @@ impl World {
             if !self.players[i].alive {
                 continue;
             }
-            let Some(def) = self.players[i].power.def() else { continue };
-            restorer |= def.moves.iter().any(|m| m.ops.iter().any(|o| matches!(o, MoveOp::Restore { .. })));
+            if self.players[i].power.def().is_none() {
+                continue;
+            }
+            restorer |= self.players[i].power.held().any(|h| h.def.moves.iter().any(|m| m.ops.iter().any(|o| matches!(o, MoveOp::Restore { .. }))));
             let id = self.players[i].id;
             // Timers.
             {
                 let pw = &mut self.players[i].power;
                 pw.drained = (pw.drained - dt).max(0.0);
                 pw.scatter_cd = (pw.scatter_cd - dt).max(0.0);
-                pw.move_cd[0] = (pw.move_cd[0] - dt).max(0.0);
-                pw.move_cd[1] = (pw.move_cd[1] - dt).max(0.0);
+                for cd in &mut pw.move_cd {
+                    *cd = (*cd - dt).max(0.0);
+                }
                 pw.time_stop = (pw.time_stop - dt).max(0.0);
                 pw.rush_t = (pw.rush_t - dt).max(0.0);
                 pw.rush_cd = (pw.rush_cd - dt).max(0.0);
                 pw.resummon = (pw.resummon - dt).max(0.0);
                 pw.seastone_mark = (pw.seastone_mark - dt).max(0.0);
+                for o in pw.others.iter_mut().flatten() {
+                    for cd in &mut o.move_cd {
+                        *cd = (*cd - dt).max(0.0);
+                    }
+                }
             }
             let (pos, grounded) = (self.players[i].mv.pos, self.players[i].mv.grounded);
             if grounded {
                 self.players[i].power.last_ground = Some(pos);
             }
             // Fruit users over the void sink faster.
-            if def.kind.is_fruit() {
+            if self.players[i].power.is_fruit() {
                 let over = !grounded && bd_core::voxel::raycast(&self.voxels, pos + Vec3::Y * 0.1, Vec3::NEG_Y, 80.0).is_none();
                 self.players[i].power.over_void = over;
                 // Seastone: linked by a seastone chain (or to a seastone construct).
@@ -1087,12 +1437,20 @@ impl World {
                 if self.players[i].seat.is_none_or(|s| s.construct != cid) {
                     let pw = &mut self.players[i].power;
                     pw.pilot = None;
-                    pw.transformed = false;
+                    let pilots = |id: u16| PowerTable::get().def(id).is_some_and(|d| d.transform.as_ref().is_some_and(|t| t.pilot.is_some()));
+                    if pw.id.is_some_and(pilots) {
+                        pw.transformed = false;
+                    }
+                    for o in pw.others.iter_mut().flatten() {
+                        if pilots(o.id) {
+                            o.transformed = false;
+                        }
+                    }
                     self.inject_event(GameEvent::Power(PowerEvent::Transformed { player: id, on: false }));
                 }
             }
             // The stand (and queued rush punches).
-            if def.companion.is_some() {
+            if self.players[i].power.companion_def().is_some() {
                 self.step_companion(i, &base, dt);
                 let pw = &mut self.players[i].power;
                 if pw.rush_queue > 0 && pw.rush_cd <= 0.0 {
@@ -1108,6 +1466,7 @@ impl World {
                 self.apply_hit(HitInfo::new(tid, source, HitKind::Creature, damage, 0.0, dir, point).with_impact(0.8));
             }
         }
+        self.step_power_effects(dt);
         self.step_fruits(&base, dt);
         if restorer {
             self.record_shattered(dt);
@@ -1251,7 +1610,7 @@ impl World {
             if c.gone.is_none() || c.shatter.is_none() || c.parent.is_some() || c.model.is_some() || c.recipe.grants.is_some() {
                 continue;
             }
-            let owner_restores = self.player(c.owner).and_then(|p| p.power.def()).is_some_and(|d| d.moves.iter().any(|m| m.ops.iter().any(|o| matches!(o, MoveOp::Restore { .. }))));
+            let owner_restores = self.player(c.owner).is_some_and(|p| p.power.held().any(|h| h.def.moves.iter().any(|m| m.ops.iter().any(|o| matches!(o, MoveOp::Restore { .. })))));
             if owner_restores && !self.powers.shattered.iter().any(|s| s.owner == c.owner && s.pos == c.pos) {
                 new[n] = Some(c.id);
                 n += 1;

@@ -149,11 +149,7 @@ pub fn bake(spec: &ShapeSpec, paint: &[Paint], m: &VoxelModel) -> Vec<HashMap<IV
             }
         }
     }
-    m.parts
-        .iter()
-        .zip(dense)
-        .map(|(p, d)| p.voxels.iter().zip(d.col).filter_map(|((v, _), c)| c.map(|c| (*v, c))).collect())
-        .collect()
+    m.parts.iter().zip(dense).map(|(p, d)| p.voxels.iter().zip(d.col).filter_map(|((v, _), c)| c.map(|c| (*v, c))).collect()).collect()
 }
 
 /// Colours for a part mesh's vertices (`PartMesh::colors` with per-voxel paint): painted voxels use
@@ -348,7 +344,17 @@ impl<'a> Pn<'a> {
     /// Pixel-art decal on a plane: `rows[0]` is the top row; each char looks up `pal` (`.`/space =
     /// skip). `origin` = voxel of the top-left cell, `right`/`down` = voxel steps, depth along `n`
     /// (voxels painted from `origin` inward by `depth` layers).
-    pub fn mosaic(&mut self, rows: &[&str], pal: &dyn Fn(char) -> Option<Rgb>, origin: IVec3, right: IVec3, down: IVec3, n: IVec3, depth: i32) -> &mut Self {
+    #[allow(clippy::too_many_arguments)]
+    pub fn mosaic(
+        &mut self,
+        rows: &[&str],
+        pal: &dyn Fn(char) -> Option<Rgb>,
+        origin: IVec3,
+        right: IVec3,
+        down: IVec3,
+        n: IVec3,
+        depth: i32,
+    ) -> &mut Self {
         let saved = (self.cur, self.decal, self.tint);
         for (r, row) in rows.iter().enumerate() {
             for (k, ch) in row.chars().enumerate() {

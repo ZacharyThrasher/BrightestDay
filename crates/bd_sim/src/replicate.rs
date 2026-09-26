@@ -71,20 +71,23 @@ impl QVel {
     }
 }
 
-/// Rotation as 4 × i8 (≈ 1° error; rendering only).
+/// Rotation as 4 × i16 (≈ 0.005° error). GIANTS: construct boxes are collision for prediction
+/// (riding a kaiju), so a 1° error (the old 4 × i8) would put a rider 15 cm off on a 10 m body.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct QRot(pub [u8; 4]);
+pub struct QRot(pub [u8; 8]);
 
 impl QRot {
     pub fn new(q: Quat) -> Self {
         let q = if q.is_finite() && q.length_squared() > 1e-6 { q.normalize() } else { Quat::IDENTITY };
         let q = if q.w < 0.0 { -q } else { q };
-        let e = |v: f32| ((v * 127.0).round().clamp(-127.0, 127.0) as i8) as u8;
-        Self([e(q.x), e(q.y), e(q.z), e(q.w)])
+        let e = |v: f32| ((v * 32767.0).round().clamp(-32767.0, 32767.0) as i16).to_le_bytes();
+        let (x, y, z, w) = (e(q.x), e(q.y), e(q.z), e(q.w));
+        Self([x[0], x[1], y[0], y[1], z[0], z[1], w[0], w[1]])
     }
     pub fn get(&self) -> Quat {
-        let d = |b: u8| (b as i8) as f32 / 127.0;
-        let q = Quat::from_xyzw(d(self.0[0]), d(self.0[1]), d(self.0[2]), d(self.0[3]));
+        let b = self.0;
+        let d = |i: usize| i16::from_le_bytes([b[i], b[i + 1]]) as f32 / 32767.0;
+        let q = Quat::from_xyzw(d(0), d(2), d(4), d(6));
         if q.length_squared() > 1e-6 { q.normalize() } else { Quat::IDENTITY }
     }
 }
@@ -340,6 +343,23 @@ pub struct ConstructSnap {
     /// target mode robot (bit 7). 0 for everything else.
     #[serde(default)]
     pub xform: u8,
+    /// Linear velocity (zero when attached): moving construct colliders carry players (a rider on a
+    /// walking kaiju) — prediction needs the host's velocity.
+    #[serde(default)]
+    pub vel: QVel,
+    /// GIANTS: angular velocity (rad/s × 1000 per axis): a turning giant carries its riders round.
+    #[serde(default)]
+    pub spin: [i16; 3],
+}
+
+/// Angular velocity ↔ `ConstructSnap::spin` (0.001 rad/s resolution, ±32 rad/s).
+pub fn q_spin(w: Vec3) -> [i16; 3] {
+    let q = |v: f32| if v.is_finite() { (v * 1000.0).round().clamp(-32767.0, 32767.0) as i16 } else { 0 };
+    [q(w.x), q(w.y), q(w.z)]
+}
+
+pub fn dq_spin(s: [i16; 3]) -> Vec3 {
+    Vec3::new(s[0] as f32, s[1] as f32, s[2] as f32) / 1000.0
 }
 
 /// One ballistic projectile segment (clients simulate `origin + v·t + ½·g·t²`).

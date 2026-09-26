@@ -720,7 +720,8 @@ pub fn generate_valley(seed: u64) -> (VoxelWorld, MapInfo) {
     // Rock stacks in the river, boulders on the banks, rocks on the plunge hole's rim.
     stack(&mut g, centre_x(-40.0) + 1.5, -40.0, 3.2, 38.0, s32);
     stack(&mut g, centre_x(-70.0) - 2.0, -70.0, 2.8, 33.0, s32 ^ 1);
-    stack(&mut g, centre_x(10.0) + 2.5, 10.0, 2.4, 25.0, s32 ^ 2);
+    // (off the classic sightline from downstream to the falls)
+    stack(&mut g, centre_x(4.0) - 7.0, 4.0, 2.4, 25.0, s32 ^ 2);
     let targets = spawn_targets();
     let keep: Vec<Vec2> = targets.iter().map(|t| Vec2::new(t.0, t.1)).collect();
     for k in 0..16 {
@@ -886,11 +887,11 @@ pub fn routes() -> Vec<Route> {
             from: "statue_bay",
             to: "gorge",
             kind: RouteKind::Ground,
-            // Weaves round the rock stacks (z 10, −40, −70).
+            // Weaves round the rock stacks (z 4, −40, −70).
             waypoints: (0..=12)
                 .map(|k| {
                     let z = 32.0 - 10.0 * k as f32;
-                    let off = if z > 20.0 { 0.0 } else if z > -55.0 { -4.5 } else { 4.5 };
+                    let off = if z > 20.0 { 0.0 } else if z > -12.0 { 3.5 } else if z > -55.0 { -6.5 } else { 4.5 };
                     Vec3::new(centre_x(z) + off, RIVER_Y, z)
                 })
                 .collect(),

@@ -177,16 +177,20 @@ fn floor_bhop(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     )
 }
 
-/// 2. N balcony → two chandeliers → S balcony, never touching the floor.
+/// 2. N balcony → chandelier → chandelier → chandelier → S balcony, never touching down.
 fn chandelier_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     let r = m.route("chandelier_swing").expect("chandelier_swing");
     let (start, goal_p) = (r.waypoints[0], r.waypoints[1]);
-    let hubs = [r.anchors[0], r.anchors[1]];
+    let hubs = r.anchors.clone();
+    let n = hubs.len();
     let p = MoveParams::default();
     let s = PlayerState::new(start, &p);
-    let mut phase = 0u8;
-    let mut anchor = hubs[0];
+    let env = |k: &str, d: f32| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (fire_dist, rel, pump_below) = (env("FIRE", 12.0), env("REL", 3.0), env("PUMP", 2.0));
+    // Phase 2k: flying toward hub k (fire when close); 2k+1: swinging on hub k; 2n: to the goal.
+    let mut phase = 0usize;
     let mut idle = false;
+    let mut jumped = false;
     let mut res = run(
         w,
         m,
@@ -196,55 +200,52 @@ fn chandelier_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
         25.0,
         move |s, _| {
             let eye = s.eye(&p);
-            let south = Vec3::new(start.x, s.pos.y, goal_p.z);
-            match phase {
-                // Sprint south, jump the rail at the balcony edge.
-                0 => {
-                    if !s.grounded && s.pos.z < 37.0 {
-                        phase = 1;
-                        anchor = crosshair(w, eye, hubs[0] + Vec3::Y * 0.4).unwrap_or(hubs[0]);
-                        let (y, pc) = aim_at(eye, anchor);
-                        return input(y, pc, 0, 1, TETHER_L);
-                    }
-                    let mut i = input(yaw_to(s.pos, south), 0.0, 0, 1, 0);
-                    if s.grounded && s.pos.z < 38.2 {
-                        i.buttons |= JUMP;
-                    }
-                    i
+            let next = if phase / 2 < n { hubs[phase / 2] } else { goal_p };
+            if !jumped {
+                // Sprint toward the first hub, hop the balcony rail.
+                let mut i = input(yaw_to(s.pos, next), 0.0, 0, 1, 0);
+                if s.grounded && s.pos.z < 38.3 {
+                    i.buttons |= JUMP;
                 }
-                // Swing on the first chandelier; release past it, rising.
-                1 | 3 => {
-                    let k = if phase == 1 { 0 } else { 1 };
-                    let h = s.hooks[0];
-                    if !h.attached() {
-                        idle = !idle;
-                        let (y, pc) = aim_at(eye, anchor);
-                        return input(y, pc, 0, 1, if idle && h.phase == HookPhase::Idle { 0 } else { TETHER_L });
-                    }
-                    let past = s.pos.z < hubs[k].z - 5.0;
-                    if past && s.vel.y > -1.0 {
-                        phase += 1;
-                        return input(yaw_to(s.pos, south), 0.0, 0, 1, 0);
-                    }
-                    let (y, pc) = aim_at(eye, h.pos + Vec3::new(0.0, 0.0, -8.0));
-                    // Keep the arc's low point off the felt / floor: reel while the rope is long.
-                    let low = h.pos.y - h.rope_len;
-                    let reel = if low < casino::FELT_Y + 3.0 || s.pos.z > hubs[k].z { REEL } else { 0 };
-                    input(y, pc, 0, 1, TETHER_L | reel | if s.vel.y < 0.0 { BOOST } else { 0 })
+                if !s.grounded && s.pos.z < 37.0 {
+                    jumped = true;
                 }
-                // Airborne between chandeliers: fire at the second hub.
-                2 => {
-                    anchor = crosshair(w, eye, hubs[1] + Vec3::Y * 0.4).unwrap_or(hubs[1]);
-                    phase = 3;
-                    let (y, pc) = aim_at(eye, anchor);
-                    input(y, pc, 0, 1, TETHER_L)
-                }
-                _ => input(yaw_to(s.pos, south), 0.0, 0, 1, 0),
+                return i;
             }
+            if phase >= 2 * n {
+                return input(yaw_to(s.pos, goal_p), 0.0, 0, 1, 0);
+            }
+            let k = phase / 2;
+            let hub = hubs[k];
+            let after = if k + 1 < n { hubs[k + 1] } else { goal_p };
+            if phase % 2 == 0 {
+                // Flying: fire once close enough.
+                if horiz(hub - s.pos).length() < fire_dist {
+                    phase += 1;
+                    let (y, pc) = aim_at(eye, hub + Vec3::Y * 0.3);
+                    return input(y, pc, 0, 1, TETHER_L);
+                }
+                return input(yaw_to(s.pos, hub), 0.0, 0, 1, 0);
+            }
+            let h = s.hooks[0];
+            if !h.attached() {
+                idle = !idle;
+                let (y, pc) = aim_at(eye, hub + Vec3::Y * 0.3);
+                return input(y, pc, 0, 1, if idle && h.phase == HookPhase::Idle { 0 } else { TETHER_L });
+            }
+            // Past the hub (toward what comes next) and rising: let go.
+            let dir = horiz(after - hub).normalize_or(Vec3::NEG_Z);
+            if (s.pos - hub).dot(dir) > rel && s.vel.y > 0.0 {
+                phase += 1;
+                return input(yaw_to(s.pos, after), 0.0, 0, 1, 0);
+            }
+            let (y, pc) = aim_at(eye, s.pos + dir * 8.0);
+            let pump = s.vel.y < 0.0 && s.pos.y < h.pos.y - pump_below;
+            input(y, pc, 0, 1, TETHER_L | if pump { BOOST } else { 0 })
         },
         move |s, _| s.grounded && s.pos.z < -36.8 && (s.pos.y - casino::MEZZ_Y).abs() < 1.0,
     );
-    if res.touchdowns > 1 {
+    if res.touchdowns > 0 {
         res.note = format!("touched down {} times", res.touchdowns);
     }
     res
@@ -280,15 +281,18 @@ fn roulette_surf(w: &VoxelWorld, m: &MapInfo) -> RunResult {
         s,
         20.0,
         move |s, _| {
-            // View along the spiral (CCW tangent); hold the strafe key that pushes into the face
-            // (radially outward) — but not while drifting inward off it (that would only brake).
+            // Travelling counter-clockwise the inner face is on the left: air-strafe left into it
+            // (optimal strafe yaw: holds the line and gains speed round the curve, like surfing any
+            // curved ramp); ease off (strafe right) if drifting up over the ridge.
             let out = horiz(s.pos).normalize_or(Vec3::X);
-            let d = Vec3::new(-out.z, 0.0, out.x);
-            let yaw = (-d.x).atan2(-d.z);
-            let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
-            let hold = s.extra.surf_n != Vec3::ZERO || s.vel.dot(out) > -0.3;
-            let mx = if !hold { 0 } else if out.dot(right) > 0.0 { 1 } else { -1 };
-            input(yaw, 0.0, mx, 0, 0)
+            let r = horiz(s.pos).length();
+            let a = s.pos.z.atan2(s.pos.x);
+            let u = ((a - casino::HALO_START).rem_euclid(std::f32::consts::TAU) / std::f32::consts::TAU).clamp(0.0, 1.0);
+            let ridge_r = casino::HALO_R - casino::HALO_IN * u;
+            let high = r > ridge_r - 0.5 || s.vel.dot(out) > 2.0;
+            let sign = if high { 1.0 } else { -1.0 };
+            let mx: i8 = if sign < 0.0 { -1 } else { 1 };
+            input(optimal_strafe_yaw(s.vel, &p, DT, mx, 0, sign), 0.0, mx, 0, 0)
         },
         |s, _| {
             let a = s.pos.z.atan2(s.pos.x);
@@ -301,7 +305,7 @@ fn roulette_surf(w: &VoxelWorld, m: &MapInfo) -> RunResult {
             }
             travelled += d;
             prev_a = a;
-            // Most of the turn (the start was 1/48 in; the end runs off onto the pockets).
+            // The rest of the turn (the start was 3.5/48 in; the end runs off onto the pockets).
             travelled >= 0.9 * std::f32::consts::TAU
         },
     );
@@ -324,6 +328,7 @@ fn main() {
     for (k, (name, r)) in results.iter().enumerate() {
         let fast = k != 0 || r.avg > run_speed * 1.1 || r.peak > run_speed * 1.4;
         let clean = k != 1 || r.touchdowns == 0;
+        let _ = casino::HUB_Y;
         let ok = r.ok && fast && clean;
         all_ok &= ok;
         println!(

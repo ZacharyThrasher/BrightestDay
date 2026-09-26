@@ -250,7 +250,8 @@ fn curl_loop(cx: &Ctx, _m: &MapInfo) -> RunResult {
             turned >= std::f32::consts::TAU
         },
     );
-    r.note = format!("lap {:.0}% ({:.0} deg), {} ticks off the band", turned / std::f32::consts::TAU * 100.0, turned.to_degrees(), off_band);
+    r.note =
+        format!("lap {:.0}% ({:.0} deg), {} ticks off the band", turned / std::f32::consts::TAU * 100.0, turned.to_degrees(), off_band);
     r.ok &= r.touchdowns == 0 && off_band == 0;
     r
 }
@@ -336,7 +337,13 @@ fn tower_swing(cx: &Ctx, m: &MapInfo) -> RunResult {
                     // Steer the swing plane toward the next spire: strafe toward it.
                     let mut i = swing_input(s, &p, TETHER_L, floor, true);
                     let side = horiz(s.vel).normalize_or(dir).cross(dir).y;
-                    i.move_x = if side > 0.15 { -1 } else if side < -0.15 { 1 } else { 0 };
+                    i.move_x = if side > 0.15 {
+                        -1
+                    } else if side < -0.15 {
+                        1
+                    } else {
+                        0
+                    };
                     i
                 }
                 _ => {
@@ -415,12 +422,15 @@ fn main() {
         ("5 clock hop (north)", hop_chain(&cx, 5, clock)),
     ];
     println!("mirrorfold routes (seed {seed})");
-    println!("{:<26} {:>7} {:>8} {:>8} {:>8} {:>6} {:>6} {:>6}  result", "route", "time s", "avg m/s", "peak", "min", "hooks", "touch", "surf");
+    println!(
+        "{:<26} {:>7} {:>8} {:>8} {:>8} {:>6} {:>6} {:>6}  result",
+        "route", "time s", "avg m/s", "peak", "min", "hooks", "touch", "surf"
+    );
     let mut all_ok = true;
     for (name, r) in &results {
         all_ok &= r.ok;
         println!(
-            "{:<26} {:>7.2} {:>8.1} {:>8.1} {:>8.1} {:>6} {:>6} {:>6}  {}{}",
+            "{:<26} {:>7.2} {:>8.1} {:>8.1} {:>8.1} {:>6} {:>6} {:>6}  {} (end {:.1?}) {}",
             name,
             r.secs,
             r.avg,
@@ -436,7 +446,8 @@ fn main() {
             } else {
                 "FAILED"
             },
-            format!(" (end {:.1?}) {}", r.end, r.note)
+            r.end,
+            r.note
         );
     }
     if !all_ok {

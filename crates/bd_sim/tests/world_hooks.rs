@@ -126,6 +126,8 @@ fn pierce_finds_weak_points() {
 fn bounce_and_guard_constructs_deflect_projectiles() {
     for (name, form, mech) in [("trampoline", Form::Trampoline, &[Mechanic::Bounce][..]), ("mirror wall", Form::Wall, &[Mechanic::Guard][..])] {
         let mut w = duel();
+        // Aimed at the construct itself (CONNECT homing would bend the round toward B behind it).
+        w.cfg.tuning.assist.aim = bd_sim::aim_assist::AimTuning::neutral();
         place(&mut w, A, Vec3::new(10.0, G, 8.0));
         place(&mut w, B, Vec3::new(10.0, G, -10.0));
         run(&mut w, 30);
