@@ -100,6 +100,14 @@ Everything below is committed and green unless noted.
 If you are a fresh lead and these reports never reached you: inspect `git status`/`git diff`, run tests,
 review galleries/screenshots, and commit what's green; re-launch anything half-done with a fresh brief.
 
+## FEATURE FREEZE after the current wave (lead recommendation, 2026-09-26 afternoon)
+Owner asked whether complexity is getting out of hand. Answer: finish in-flight work, then NO new
+features — new ideas go to a backlog list. Order: (1) land + commit the wave, (2) stabilisation:
+quiet-machine perf, `tools/check.ps1 -Soak -Bench -Smoke`, soak seeds 1..8, cross-feature bugs
+(charge x hook x signature, recall x Orbit gravity, shout x assembly), (3) fresh build + short
+"try these" list for an owner playtest (ideally 2+ players over the tunnel), (4) tune from feel.
+Signature moves were RE-SCOPED to an amplifier over existing mechanics (no Domain mode in the sim).
+
 ## Queue (do next, in order)
 1. **Weight pass (presentation half)** once client perf is done: DESIGN.md "Weight & power fantasy (pass
    2)" — tiered + asymmetric hit-stop, victim hit-shake, nudge-zoom, finisher flash (comfort-gated),
