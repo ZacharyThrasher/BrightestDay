@@ -447,7 +447,7 @@ impl World {
         }
         self.attach_space_effects(cid, &recipe);
         // Portals: first ring at the aim point, second in front of the caster.
-        if recipe.has(Mechanic::Portal) {
+        if recipe.has(Mechanic::Portal) && !(category == FormCategory::Held && crate::weapons::archetype_for(&recipe).is_some()) {
             let a = PortalEnd::new(aim_point + aim_normal * 0.05, aim_normal, Vec3::Y, PORTAL_RADIUS);
             let fwd = Vec3::new(look.x, 0.0, look.z).normalize_or_zero();
             let fwd = if fwd == Vec3::ZERO { Vec3::NEG_Z } else { fwd };

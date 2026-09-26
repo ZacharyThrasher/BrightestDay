@@ -807,7 +807,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
                 let point = p0 + (p1 - p0) * f;
                 let weak = super::pilot::weak_mult(px, point, is_sharp(c));
                 let vs = if form == Form::Axe { 1.5 } else { 1.0 };
-                out.construct_hits.push(ConstructHit {
+                out.construct_hits.push(ConstructHit { pierce: super::components::is_pierce(c), blunt: super::components::is_blunt(c),
                     target: px.id,
                     source: Some(c.owner),
                     damage: hs.dmg * vs * weak,
@@ -1316,8 +1316,8 @@ fn clash_swings(items: &mut [Construct], out: &mut ConstructOut) {
             let strength = 8.0 + (form_spec(a.recipe.form).damage + form_spec(b.recipe.form).damage) * 0.5;
             out.impulses.push((a.owner, nrm * 6.0 + Vec3::Y * 2.0, 0.0));
             out.impulses.push((b.owner, -nrm * 6.0 + Vec3::Y * 2.0, 0.0));
-            out.construct_hits.push(ConstructHit { target: a.id, source: Some(b.owner), damage: strength * 0.5, impulse: Vec3::ZERO, blade: is_blade(b), point });
-            out.construct_hits.push(ConstructHit { target: b.id, source: Some(a.owner), damage: strength * 0.5, impulse: Vec3::ZERO, blade: is_blade(a), point });
+            out.construct_hits.push(ConstructHit { pierce: false, blunt: false, target: a.id, source: Some(b.owner), damage: strength * 0.5, impulse: Vec3::ZERO, blade: is_blade(b), point });
+            out.construct_hits.push(ConstructHit { pierce: false, blunt: false, target: b.id, source: Some(a.owner), damage: strength * 0.5, impulse: Vec3::ZERO, blade: is_blade(a), point });
             out.events.push(GameEvent::Clash { a: a.id, b: b.id, point, strength });
             fx(out, a, HeldFx::SwordLock, point, nrm, 1.5);
             for c in [a, b] {
@@ -1376,7 +1376,7 @@ fn resolve_guards(items: &mut [Construct], ctx: &ConstructCtx, out: &mut Constru
                 false
             }
             Some(Guarded::Block) => {
-                construct_hits.push(ConstructHit { target: gid, source: h.source, damage: h.damage * 0.5, impulse: Vec3::ZERO, blade: false, point: h.point });
+                construct_hits.push(ConstructHit { pierce: false, blunt: false, target: gid, source: h.source, damage: h.damage * 0.5, impulse: Vec3::ZERO, blade: false, point: h.point });
                 events.push(GameEvent::HeldFx { id: gid, owner: gowner, fx: HeldFx::Block, pos: h.point, dir: (from - def.eye).normalize_or_zero(), strength: h.damage / 10.0 });
                 h.damage = 0.0;
                 h.knockback *= BLOCK_KB;
@@ -1385,7 +1385,7 @@ fn resolve_guards(items: &mut [Construct], ctx: &ConstructCtx, out: &mut Constru
             None => {
                 if pierce && items[gi].held.guarding {
                     // Pierce vs Guard: goes through, the guard cracks.
-                    construct_hits.push(ConstructHit { target: gid, source: h.source, damage: h.damage * 1.5, impulse: Vec3::ZERO, blade: false, point: h.point });
+                    construct_hits.push(ConstructHit { pierce: false, blunt: false, target: gid, source: h.source, damage: h.damage * 1.5, impulse: Vec3::ZERO, blade: false, point: h.point });
                 }
                 true
             }

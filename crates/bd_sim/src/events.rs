@@ -215,6 +215,22 @@ pub enum GameEvent {
     /// POWERS HOOK: a player-power moment (fruit eaten, stand rush, time stop, scatter,
     /// restore…), see `crate::powers::PowerEvent`.
     Power(crate::powers::PowerEvent),
+    // ---- world / construct presentation (world owner) ----
+    /// A portal gun placed one ring (`slot` 0 = A, 1 = B). When both exist the pair opens
+    /// (`PortalOpened`, re-sent whenever a gun shot moves one end).
+    PortalPlaced { owner: PlayerId, slot: u8, end: PortalEnd },
+    /// A Guard (front) or Bounce (any face) construct turned a projectile around; it now belongs to
+    /// the construct's owner.
+    Deflected { construct: ConstructId, projectile: u16, pos: Vec3, dir: Vec3, guard: bool },
+    /// A transformer switched target mode (`robot` false = alt / vehicle) or became a combined giant.
+    /// Pose it from the snapshot's `xform` byte (mode + progress).
+    Transformed { id: ConstructId, robot: bool, combined: bool },
+    /// Burning terrain voxels changed (chemistry VFX): newly lit / went out (burnt or doused).
+    /// Voxel coordinates as i16 (the arena fits).
+    FireVoxels { lit: Vec<[i16; 3]>, out: Vec<[i16; 3]> },
+    /// A slice half: draw its parent's model clipped by `cut` (sent right after its
+    /// `ConstructSpawned`, and in late-join manifests).
+    ConstructSliced { id: ConstructId, parent: ConstructId, cut: crate::constructs::SliceCut },
     // ---- lobby knobs + Party mode (COMBAT.md §5g; crate::party) ----
     /// "Void off" lobby knob: a player fell out and was put back on a spawn point (no KO).
     VoidRescue { player: PlayerId, pos: Vec3 },

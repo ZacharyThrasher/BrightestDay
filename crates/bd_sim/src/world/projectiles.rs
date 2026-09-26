@@ -195,6 +195,11 @@ impl World {
                 if self.guard_projectile(p, pid, p0, point) {
                     return;
                 }
+                if p.spec.effects & effects::PORTAL != 0 {
+                    // Portal rounds are utility: they only open portals on surfaces.
+                    self.end_projectile(p, point, -p.vel.normalize_or_zero(), Some(pid));
+                    return;
+                }
                 let s = p.spec;
                 p.travelled += (point - p0).length();
                 if let Some((radius, carve)) = s.explode {
@@ -227,9 +232,21 @@ impl World {
                 self.end_projectile(p, point, -p.vel.normalize_or_zero(), Some(pid));
             }
             Some(Contact::Construct(cid, point, n)) => {
+                if self.deflect_projectile(p, cid, point, n) {
+                    return;
+                }
                 let s = p.spec;
-                let blade = false;
-                self.apply_construct_hit(ConstructHit { target: cid, source: Some(s.owner), damage: s.damage, impulse: p.vel.normalize_or_zero() * s.knockback, blade, point });
+                if s.effects & effects::PORTAL != 0 {
+                    let fixed = self.constructs.get(cid).is_some_and(|c| c.category == bd_core::mechanics::FormCategory::Structure && !c.body.loose);
+                    if fixed {
+                        self.place_portal_end(s.owner, point, n, p.vel);
+                    }
+                    self.end_projectile(p, point, n, None);
+                    return;
+                }
+                // The firing construct's traits (a Pierce rifle finds weak points…).
+                let (blade, pierce, blunt) = s.construct.and_then(|c| self.constructs.get(c)).map_or((false, false, false), crate::constructs::components::hit_traits);
+                self.apply_construct_hit(ConstructHit { pierce, blunt, target: cid, source: Some(s.owner), damage: s.damage, impulse: p.vel.normalize_or_zero() * s.knockback, blade, point });
                 if let Some((radius, carve)) = s.explode {
                     self.explode(Explosion { pos: point, radius, damage: s.damage, knockback: s.knockback, source: Some(s.owner), construct: s.construct, element: s.element, carve_radius: carve, self_damage: false });
                 }
@@ -237,6 +254,11 @@ impl World {
             }
             Some(Contact::Terrain(point, n)) => {
                 let s = p.spec;
+                if s.effects & effects::PORTAL != 0 {
+                    self.place_portal_end(s.owner, point, n, p.vel);
+                    self.end_projectile(p, point, n, None);
+                    return;
+                }
                 if s.ricochet > 0 {
                     p.spec.ricochet -= 1;
                     p.vel -= n * (2.0 * p.vel.dot(n));
@@ -274,19 +296,11 @@ impl World {
                 if dir == Vec3::ZERO {
                     dir = -p.vel.normalize_or_zero();
                 }
-                p.vel = dir * speed;
-                p.pos = point + dir * (s.radius + 0.4);
-                p.spec.owner = target;
-                p.spec.construct = None;
-                p.spec.muzzle_speed = speed;
-                p.lag = 0.0;
-                p.age = 0.0;
-                p.travelled = 0.0;
-                self.restart_segment(p);
+                self.redirect_projectile(p, target, None, point + dir * (s.radius + 0.4), dir * speed);
                 self.events.push(GameEvent::HeldFx { id: gid, owner: target, fx: HeldFx::Parry, pos: point, dir, strength: 1.5 });
             }
             Guarded::Block => {
-                self.apply_construct_hit(ConstructHit { target: gid, source: Some(s.owner), damage: s.damage * 0.5, impulse: Vec3::ZERO, blade: false, point });
+                self.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: gid, source: Some(s.owner), damage: s.damage * 0.5, impulse: Vec3::ZERO, blade: false, point });
                 if let Some((radius, carve)) = s.explode {
                     self.explode(Explosion { pos: point, radius, damage: s.damage * 0.5, knockback: s.knockback, source: Some(s.owner), construct: s.construct, element: s.element, carve_radius: carve, self_damage: false });
                 }
@@ -294,6 +308,52 @@ impl World {
                 self.end_projectile(p, point, -p.vel.normalize_or_zero(), None);
             }
         }
+        true
+    }
+
+    /// Turn a projectile around: new owner (and construct), new position / velocity, fresh flight
+    /// (no lag compensation — it's the host's shot now). Shared by parries and deflecting constructs.
+    fn redirect_projectile(&mut self, p: &mut Projectile, owner: PlayerId, construct: Option<bd_core::ConstructId>, pos: Vec3, vel: Vec3) {
+        p.vel = vel;
+        p.pos = pos;
+        p.spec.owner = owner;
+        p.spec.construct = construct;
+        p.spec.muzzle_speed = vel.length();
+        p.lag = 0.0;
+        p.age = 0.0;
+        p.travelled = 0.0;
+        self.restart_segment(p);
+    }
+
+    /// Guard (front face) / Bounce (any face) constructs reflect projectiles along the surface
+    /// normal; the round now belongs to the construct's owner. A Guard takes a little integrity
+    /// damage; Bounce is free. Returns true if deflected.
+    fn deflect_projectile(&mut self, p: &mut Projectile, cid: bd_core::ConstructId, point: Vec3, n: Vec3) -> bool {
+        use crate::constructs::components::eff_has;
+        use bd_core::mechanics::{Form, Mechanic};
+        let Some(c) = self.constructs.get(cid) else { return false };
+        if !c.active() || !n.is_finite() {
+            return false;
+        }
+        let bounce = eff_has(c, Mechanic::Bounce) || c.recipe.form == Form::Trampoline;
+        let guard = (eff_has(c, Mechanic::Guard) || c.recipe.form == Form::Shield) && n.dot(c.rot * Vec3::NEG_Z) > 0.5;
+        if !(bounce || guard) {
+            return false;
+        }
+        let owner = c.owner;
+        let n = n.normalize_or(Vec3::Y);
+        let speed = p.vel.length().max(10.0);
+        let mut dir = (p.vel - n * (2.0 * p.vel.dot(n))).normalize_or(n);
+        if dir.dot(n) <= 0.05 {
+            dir = n;
+        }
+        let r = p.spec.radius;
+        let (id, s) = (p.id, p.spec);
+        self.redirect_projectile(p, owner, Some(cid), point + n * (r + 0.05), dir * speed);
+        if guard && !bounce {
+            self.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: cid, source: Some(s.owner), damage: s.damage * 0.25, impulse: Vec3::ZERO, blade: false, point });
+        }
+        self.events.push(GameEvent::Deflected { construct: cid, projectile: id, pos: point, dir, guard: guard && !bounce });
         true
     }
 
@@ -372,7 +432,7 @@ impl World {
         if let Some((cid, t, _)) = self.constructs.segment_query(s.origin, s.origin + dir * end, 0.05, Some(s.owner)) {
             let at = s.origin + dir * (t * end);
             let thin = self.constructs.get(cid).is_some_and(|c| c.half.min_element() * 2.0 <= 1.0);
-            self.apply_construct_hit(ConstructHit { target: cid, source: Some(s.owner), damage: s.damage, impulse: dir * s.knockback, blade: false, point: at });
+            self.apply_construct_hit(ConstructHit { pierce: s.pierce > 0, blunt: false, target: cid, source: Some(s.owner), damage: s.damage, impulse: dir * s.knockback, blade: false, point: at });
             if !thin {
                 end *= t;
             }

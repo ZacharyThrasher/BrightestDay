@@ -757,6 +757,29 @@ pub struct Construct {
     pub portal_cd: f32,
     /// Gun state for held guns (the Gun component drives it; replicated as one byte).
     pub weapon: Option<crate::weapons::WeaponState>,
+    /// A slice half: which part of the parent's model this is (clients clip the parent's model).
+    pub slice: Option<SliceCut>,
+    /// World bookkeeping: last transformer state announced (`Transformed` events).
+    pub xform_seen: u8,
+}
+
+/// Where a slice half was cut from its parent (all in the parent's local frame, metres).
+/// Clients build the parent's model (`parent_scale`, same recipe otherwise) and keep the part on
+/// `side` of the plane `local[axis] = cut`, then place it with this half's transform
+/// (`offset` = parent-local centre of the half, subtract it from the kept part).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SliceCut {
+    pub parent: ConstructId,
+    /// 0 = local X, 2 = local Z.
+    pub axis: u8,
+    /// −1 keeps `local < cut`, +1 keeps `local > cut`.
+    pub side: i8,
+    pub cut: f32,
+    /// The parent's collider half extents / scale before the cut.
+    pub parent_half: Vec3,
+    pub parent_scale: f32,
+    /// The half's centre in the parent's local frame (relative to the parent's collider centre).
+    pub offset: Vec3,
 }
 
 impl Construct {
@@ -1127,6 +1150,8 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         stuck_offset: Vec3::ZERO,
         grounded: false,
         portal_cd: 0.0,
+        slice: None,
+        xform_seen: 0,
         weapon: if category == FormCategory::Held {
             crate::weapons::archetype_for(&p.recipe).map(|a| crate::weapons::WeaponState::new(a, &crate::weapons::spec_for(&p.recipe, a)))
         } else {

@@ -45,6 +45,12 @@ impl World {
         if !self.players[ti].alive {
             return none;
         }
+        // Boundary check: a source that left the match (stale construct state, e.g. a shock's
+        // `shock_by`, or a party effect's scheduled blast) is credited to nobody.
+        let mut hit = hit;
+        if hit.source.is_some_and(|s| self.pidx(s).is_none()) {
+            hit.source = None;
+        }
         // POWERS HOOK: water drain / seastone marks, Logia scatter, immunities, rubber, Bara Bara.
         let Some(hit) = self.powers_on_hit(ti, hit) else { return none };
         let finite = |v: f32| if v.is_finite() { v.max(0.0) } else { 0.0 };
@@ -351,7 +357,10 @@ impl World {
         }
         let mut targets: Vec<(bd_core::ConstructId, f32, Vec3)> = Vec::new();
         for c in self.constructs.iter() {
-            if !c.active() || Some(c.owner) == e.source || Some(c.id) == e.construct {
+            // Your own blast hurts (and can knock loose) your own *structures* — blast your wall
+            // onto someone — but not your creatures / weapons.
+            let own = Some(c.owner) == e.source;
+            if !c.active() || (own && c.category != bd_core::mechanics::FormCategory::Structure) || Some(c.id) == e.construct {
                 continue;
             }
             let d = geom::dist_sq_point_aabb(&c.bounds(), e.pos).sqrt();
@@ -360,7 +369,7 @@ impl World {
             }
         }
         for (id, fall, dir) in targets {
-            self.apply_construct_hit(ConstructHit { target: id, source: e.source, damage: e.damage * fall, impulse: dir * e.knockback * fall, blade: false, point: e.pos });
+            self.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: id, source: e.source, damage: e.damage * fall, impulse: dir * e.knockback * fall, blade: false, point: e.pos });
         }
         self.damage_space_in_radius(e.pos, r, e.damage);
         if e.carve_radius > 0.0 {

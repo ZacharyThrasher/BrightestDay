@@ -289,7 +289,7 @@ pub fn step(chem: &mut Chemistry, items: &mut [Construct], ctx: &ConstructCtx, o
         }
         let c = &items[i];
         if c.comp.burning > 0.0 && c.recipe.element != Element::Fire {
-            out.construct_hits.push(ConstructHit { target: c.id, source: None, damage: 4.0 * dt, impulse: Vec3::ZERO, blade: false, point: c.center() });
+            out.construct_hits.push(ConstructHit { pierce: false, blunt: false, target: c.id, source: None, damage: 4.0 * dt, impulse: Vec3::ZERO, blade: false, point: c.center() });
         }
         if c.recipe.element == Element::Wind && c.vel.length_squared() > 4.0 {
             let (pos, dir, owner) = (c.center(), c.vel.normalize_or_zero(), c.owner);

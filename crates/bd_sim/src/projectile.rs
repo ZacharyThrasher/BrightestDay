@@ -54,6 +54,8 @@ pub mod effects {
     pub const LINK: u8 = 1 << 2;
     /// Yank the target toward the shooter.
     pub const PULL: u8 = 1 << 3;
+    /// Portal gun round: on a surface it places the owner's next portal end (A, then B).
+    pub const PORTAL: u8 = 1 << 4;
 }
 
 /// Request to fire a projectile (from the ring or a construct).

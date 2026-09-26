@@ -126,6 +126,7 @@ impl World {
                 flags,
                 size: (c.size_scale * 50.0).round().clamp(1.0, 255.0) as u8,
                 weapon: c.weapon.map_or(0, |w| w.wire(&crate::weapons::spec_for(&c.recipe, w.arch))),
+                xform: xform_wire(c),
             });
         }
         out.projectiles.clear();
@@ -282,6 +283,15 @@ impl World {
                 c.suit = cs.flags & cflags::SUIT != 0;
                 c.colossal = cs.flags & cflags::COLOSSAL != 0;
                 c.size_scale = (cs.size as f32 / 50.0).clamp(0.1, 5.0);
+                {
+                    use crate::constructs::components::XMode;
+                    let x = &mut c.comp.xform;
+                    x.progress = (cs.xform & 31) as f32 / 31.0;
+                    x.busy = cs.xform & 32 != 0;
+                    x.combined = cs.xform & 64 != 0;
+                    x.want = if cs.xform & 128 != 0 { XMode::Robot } else { XMode::Alt };
+                    x.mode = if x.progress >= 0.5 { XMode::Robot } else { XMode::Alt };
+                }
                 if let Some(w) = c.weapon.as_mut() {
                     w.phase = crate::weapons::WeaponPhase::from_u8(cs.weapon & 7);
                     let level = (cs.weapon >> 3) as f32 / 31.0;
@@ -403,10 +413,25 @@ impl World {
                     super::ArenaSource::Archipelago { .. } => super::ArenaSource::Archipelago { seed: *seed },
                     other => other,
                 };
-                let (w, info, s) = super::build_arena(src);
+                // Built in the background since the match ended (see `MatchPhase` below); only
+                // falls back to building here if the host skipped the scoreboard.
+                let (w, info, s) = match self.take_prefetched_arena_for(src) {
+                    Some(b) => b,
+                    None => super::build_arena(src),
+                };
                 self.voxels = w;
                 self.arena = info;
                 self.arena_seed = s;
+            }
+            GameEvent::MatchPhase { phase: crate::rules::MatchPhase::Ended, .. } => {
+                if self.cfg.rules.regen_islands_between_rounds {
+                    self.prefetch_arena();
+                }
+            }
+            GameEvent::ConstructSliced { id, cut, .. } => {
+                if let Some(c) = self.constructs.get_mut(*id) {
+                    c.slice = Some(*cut);
+                }
             }
             _ => {}
         }
@@ -455,10 +480,9 @@ impl World {
 
     /// Recipes of every live construct (send to a late joiner along with its first keyframe).
     pub fn construct_manifest(&self) -> Vec<GameEvent> {
-        self.constructs
-            .iter()
-            .filter(|c| c.gone.is_none())
-            .map(|c| GameEvent::ConstructSpawned {
+        let mut v = Vec::new();
+        for c in self.constructs.iter().filter(|c| c.gone.is_none()) {
+            v.push(GameEvent::ConstructSpawned {
                 id: c.id,
                 owner: c.owner,
                 recipe: Box::new(c.recipe.clone()),
@@ -466,8 +490,12 @@ impl World {
                 rot: c.rot,
                 forming: c.forming_t,
                 cost: c.cost,
-            })
-            .collect()
+            });
+            if let Some(cut) = c.slice {
+                v.push(GameEvent::ConstructSliced { id: c.id, parent: cut.parent, cut });
+            }
+        }
+        v
     }
 }
 
@@ -490,4 +518,21 @@ fn stand_in(owner: PlayerId, recipe: Recipe, pos: Vec3, tick: Tick) -> SpawnPara
         colossal: false,
         model: None,
     }
+}
+
+/// Transformer state as one replicated byte (see `ConstructSnap::xform`).
+fn xform_wire(c: &crate::constructs::Construct) -> u8 {
+    use crate::constructs::components::{XMode, eff_has};
+    if !eff_has(c, bd_core::mechanics::Mechanic::Transforms) {
+        return 0;
+    }
+    let x = &c.comp.xform;
+    let p = (x.progress.clamp(0.0, 1.0) * 31.0).round() as u8;
+    p | (x.busy as u8) << 5 | (x.combined as u8) << 6 | ((x.want == XMode::Robot) as u8) << 7
+}
+
+/// The bits of the wire byte that mark a *change* worth an event (target mode, combined).
+pub(super) fn xform_key(c: &crate::constructs::Construct) -> u8 {
+    let w = xform_wire(c);
+    if w == 0 { 0 } else { 1 | (w & (64 | 128)) }
 }

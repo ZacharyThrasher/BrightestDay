@@ -262,7 +262,13 @@ pub struct ConstructHit {
     pub damage: f32,
     /// Momentum handed to the construct (and to its shards if it shatters).
     pub impulse: Vec3,
+    /// Attacker traits (COMBAT.md §8 counters / weak points): Blade slices structures and doubles
+    /// integrity damage; Pierce goes through Guard and finds weak points; Blunt knocks things loose.
     pub blade: bool,
+    #[serde(default)]
+    pub pierce: bool,
+    #[serde(default)]
+    pub blunt: bool,
     pub point: Vec3,
 }
 

@@ -296,6 +296,21 @@ pub fn is_blade(c: &Construct) -> bool {
     eff_has(c, Mechanic::Blade) || matches!(c.recipe.form, Form::Sword | Form::Axe)
 }
 
+/// Pierce trait (spears, Pierce): goes through Guard, finds weak points.
+pub fn is_pierce(c: &Construct) -> bool {
+    eff_has(c, Mechanic::Pierce) || c.recipe.form == Form::Spear
+}
+
+/// Blunt trait (hammers, Blunt): knocks structures loose, craters.
+pub fn is_blunt(c: &Construct) -> bool {
+    eff_has(c, Mechanic::Blunt) || c.recipe.form == Form::Hammer
+}
+
+/// (blade, pierce, blunt) of an attacking construct.
+pub fn hit_traits(c: &Construct) -> (bool, bool, bool) {
+    (is_blade(c), is_pierce(c), is_blunt(c))
+}
+
 /// Projectile side effects from a construct's ray mechanics.
 pub fn hit_effects(c: &Construct) -> u8 {
     let mut e = 0;
@@ -310,6 +325,9 @@ pub fn hit_effects(c: &Construct) -> u8 {
     }
     if eff_has(c, Mechanic::Pull) {
         e |= effects::PULL;
+    }
+    if eff_has(c, Mechanic::Portal) {
+        e |= effects::PORTAL;
     }
     e
 }
@@ -2112,5 +2130,5 @@ pub(super) fn post_react(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOu
 
 /// Damage a construct takes from contact with an enemy construct (used by clash).
 pub fn ram_hit(target: ConstructId, source: PlayerId, dmg: f32, impulse: Vec3, blade: bool, point: Vec3) -> ConstructHit {
-    ConstructHit { target, source: Some(source), damage: dmg, impulse, blade, point }
+    ConstructHit { pierce: false, blunt: false, target, source: Some(source), damage: dmg, impulse, blade, point }
 }

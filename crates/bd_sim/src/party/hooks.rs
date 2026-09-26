@@ -430,7 +430,7 @@ fn on_projectile_end(w: &mut World, party: &mut PartyState, id: u16, pos: Vec3, 
     }
     let Some(&(_, owner)) = party.proj_owner.iter().find(|(pid, o)| *pid == id && *o != u8::MAX) else { return };
     let owner = PlayerId(owner);
-    if party.hooks_of(owner) & hb::POPCORN == 0 || party.player(owner).is_none_or(|p| p.cd_popcorn > 0.0) {
+    if w.player(owner).is_none() || party.hooks_of(owner) & hb::POPCORN == 0 || party.player(owner).is_none_or(|p| p.cd_popcorn > 0.0) {
         return;
     }
     if let Some(p) = party.player_mut(owner) {
@@ -472,7 +472,13 @@ fn run_scheduled(w: &mut World, party: &mut PartyState) {
                     fx(w, player, PartyFx::Echo, at, Some(id));
                 }
             }
-            Scheduled::Explosion { e, .. } => w.explode(e),
+            Scheduled::Explosion { mut e, .. } => {
+                // The source may have left since (never credit a missing player).
+                if e.source.is_some_and(|s| w.player(s).is_none()) {
+                    e.source = None;
+                }
+                w.explode(e)
+            }
             Scheduled::Portal { owner, pos, .. } => {
                 let Some(p) = w.player(owner).filter(|p| p.alive) else { continue };
                 let feet = p.mv.pos;
@@ -488,7 +494,9 @@ fn run_scheduled(w: &mut World, party: &mut PartyState) {
                 }
             }
             Scheduled::Field { owner, pos, radius, strength, secs, .. } => {
-                w.create_field(owner, pos, radius, strength, secs, None);
+                if w.player(owner).is_some() {
+                    w.create_field(owner, pos, radius, strength, secs, None);
+                }
             }
         }
     }

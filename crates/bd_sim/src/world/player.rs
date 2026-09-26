@@ -70,6 +70,10 @@ pub struct Player {
     pub streak: u16,
     /// Tick of this player's last KO (double-KO detection).
     pub last_ko_tick: Option<Tick>,
+    /// Portal gun: which end the next shot places (0 = A, 1 = B)…
+    pub portal_slot: u8,
+    /// …and the first ring while its partner hasn't been shot yet.
+    pub portal_pending: Option<crate::space::PortalEnd>,
     /// POWERS HOOK: held player power (devil fruit / stand), COMBAT.md §5h.
     pub power: crate::powers::PlayerPower,
 }
@@ -110,6 +114,8 @@ impl Player {
             pending_splat: None,
             streak: 0,
             last_ko_tick: None,
+            portal_slot: 0,
+            portal_pending: None,
             power: Default::default(),
         }
     }

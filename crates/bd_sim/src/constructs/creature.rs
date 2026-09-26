@@ -784,7 +784,7 @@ fn detect_counters(c: &mut Construct, env: &Env<'_>, k: &Kind, out: &mut Constru
         // Thrash against the bars: ~12 integrity/s (kaiju ×2) — it can break out.
         let dps = if k.kaiju { 24.0 } else { 12.0 };
         if (c.ai.thrash / 0.5).floor() != ((c.ai.thrash - env.dt()) / 0.5).floor() {
-            out.construct_hits.push(ConstructHit {
+            out.construct_hits.push(ConstructHit { pierce: false, blunt: false,
                 target: cage,
                 source: Some(c.owner),
                 damage: dps * 0.5,
@@ -1200,7 +1200,7 @@ fn strike(
             if !geom::sphere_obb(p, r, q.center, q.half, q.rot) || !c.hits.insert(q.id.0) {
                 continue;
             }
-            out.construct_hits.push(ConstructHit {
+            out.construct_hits.push(ConstructHit { pierce: false, blunt: false,
                 target: q.id,
                 source: Some(c.owner),
                 damage: dmg * 1.5,
@@ -1236,7 +1236,7 @@ fn stomp(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, out: &mut C
     }
     for q in env.others {
         if q.owner != c.owner && q.active && !q.attached && flat(q.center - at).length() < ring && c.hits.insert(q.id.0) {
-            out.construct_hits.push(ConstructHit {
+            out.construct_hits.push(ConstructHit { pierce: false, blunt: false,
                 target: q.id,
                 source: Some(c.owner),
                 damage: dmg,
@@ -1339,7 +1339,7 @@ fn breath(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, out: &mut 
             let d = q.center - mouth;
             let len = d.length();
             if q.owner != c.owner && q.active && !q.attached && len < range && (len < 0.5 || d.dot(aim) / len >= cos) {
-                out.construct_hits.push(ConstructHit {
+                out.construct_hits.push(ConstructHit { pierce: false, blunt: false,
                     target: q.id,
                     source: Some(c.owner),
                     damage: BREATH_DMG * dm,

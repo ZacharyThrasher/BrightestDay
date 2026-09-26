@@ -278,6 +278,10 @@ pub struct ConstructSnap {
     pub size: u8,
     /// Gun state: `WeaponPhase` (3 bits) | level (spin / charge / reload progress, 5 bits).
     pub weapon: u8,
+    /// Transformer: progress 0 (alt) … 31 (robot) in bits 0–4, busy (bit 5), combined (bit 6),
+    /// target mode robot (bit 7). 0 for everything else.
+    #[serde(default)]
+    pub xform: u8,
 }
 
 /// One ballistic projectile segment (clients simulate `origin + v·t + ½·g·t²`).

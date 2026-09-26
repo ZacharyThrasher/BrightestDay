@@ -148,6 +148,10 @@ pub struct World {
     arena_seed: u64,
     /// Last invariant violation seen by the per-tick check (release builds keep running).
     pub last_invariant_error: Option<(Tick, String)>,
+    /// Burning voxels last announced (`FireVoxels`).
+    fire_seen: Vec<bd_core::IVec3>,
+    /// Next arena being built on a worker thread (never on the tick): (source, job).
+    arena_job: Option<(ArenaSource, std::thread::JoinHandle<(VoxelWorld, ArenaInfo, u64)>)>,
     // ---- PARTY HOOK (crate::party) ----
     /// Party mode state (`None` = FFA).
     pub party: Option<crate::party::PartyState>,
@@ -213,6 +217,8 @@ impl World {
             next_space_id: 1,
             arena_seed,
             last_invariant_error: None,
+            fire_seen: Vec::with_capacity(crate::constructs::chemistry::MAX_BURNING),
+            arena_job: None,
             party,
             party_cost_ratio: None,
             free_cast: false,
@@ -682,6 +688,65 @@ impl World {
             }
         }
         self.apply_construct_out();
+        self.announce_transforms();
+        self.announce_fire();
+    }
+
+    /// `Transformed` whenever a transformer's target mode / combined state changes.
+    fn announce_transforms(&mut self) {
+        for c in self.constructs.iter_mut() {
+            if c.gone.is_some() {
+                continue;
+            }
+            let key = net::xform_key(c);
+            if key != c.xform_seen {
+                // First sighting of a fresh alt-mode transformer is not a toggle.
+                if c.xform_seen != 0 || key & (64 | 128) != 0 {
+                    self.events.push(GameEvent::Transformed { id: c.id, robot: key & 128 != 0, combined: key & 64 != 0 });
+                }
+                c.xform_seen = key;
+            }
+        }
+    }
+
+    /// `FireVoxels` when the set of burning terrain voxels changed (merge-walk of two sorted lists;
+    /// allocates only when something changed).
+    fn announce_fire(&mut self) {
+        let burning = self.constructs.chemistry().burning();
+        if burning.is_empty() && self.fire_seen.is_empty() {
+            return;
+        }
+        let key = |v: bd_core::IVec3| (v.x, v.y, v.z);
+        let q = |v: bd_core::IVec3| [v.x.clamp(-32768, 32767) as i16, v.y.clamp(-32768, 32767) as i16, v.z.clamp(-32768, 32767) as i16];
+        let (mut lit, mut out) = (Vec::new(), Vec::new());
+        let (mut i, mut j) = (0, 0);
+        while i < self.fire_seen.len() || j < burning.len() {
+            match (self.fire_seen.get(i), burning.get(j)) {
+                (Some(a), Some(b)) if key(*a) == key(b.v) => {
+                    i += 1;
+                    j += 1;
+                }
+                (Some(a), Some(b)) if key(*a) < key(b.v) => {
+                    out.push(q(*a));
+                    i += 1;
+                }
+                (Some(a), None) => {
+                    out.push(q(*a));
+                    i += 1;
+                }
+                (_, Some(b)) => {
+                    lit.push(q(b.v));
+                    j += 1;
+                }
+                (None, None) => break,
+            }
+        }
+        if lit.is_empty() && out.is_empty() {
+            return;
+        }
+        self.fire_seen.clear();
+        self.fire_seen.extend(burning.iter().map(|b| b.v));
+        self.events.push(GameEvent::FireVoxels { lit, out });
     }
 
     fn step_willpower(&mut self, dt: f32) {
@@ -818,6 +883,35 @@ impl World {
         build_arena(src)
     }
 
+    /// Start building the next round's terrain (`cfg.arena`) on a worker thread. Idempotent: a
+    /// build already running for the same source is kept. Deterministic: the result depends only
+    /// on the source; *when* it is swapped in is decided by the sim (`take_prefetched_arena`).
+    pub fn prefetch_arena(&mut self) {
+        let src = self.cfg.arena;
+        if self.arena_job.as_ref().is_some_and(|(s, _)| *s == src) {
+            return;
+        }
+        let spawned = std::thread::Builder::new().name("bd_arena_build".into()).spawn(move || build_arena(src));
+        self.arena_job = spawned.ok().map(|h| (src, h));
+    }
+
+    /// Is a prefetched arena built and ready (no wait)?
+    pub fn prefetched_arena_ready(&self) -> bool {
+        self.arena_job.as_ref().is_some_and(|(_, h)| h.is_finished())
+    }
+
+    /// Take the prefetched terrain (waits for the worker if it hasn't finished — it was started
+    /// seconds earlier, so this is normally instant). `None` if no prefetch was started.
+    pub fn take_prefetched_arena(&mut self) -> Option<(VoxelWorld, ArenaInfo, u64)> {
+        let (_, job) = self.arena_job.take()?;
+        job.join().ok()
+    }
+
+    /// Like [`Self::take_prefetched_arena`] but only if it was built for `src`.
+    pub fn take_prefetched_arena_for(&mut self, src: ArenaSource) -> Option<(VoxelWorld, ArenaInfo, u64)> {
+        if self.arena_job.as_ref().is_some_and(|(s, _)| *s == src) { self.take_prefetched_arena() } else { None }
+    }
+
     /// The seed of the terrain currently loaded (clients regenerate from it).
     pub fn arena_seed(&self) -> u64 {
         self.arena_seed
@@ -828,13 +922,12 @@ impl World {
         self.party_reset(); // PARTY HOOK: a rematch starts a fresh party
         self.match_state.round += 1;
         if self.cfg.rules.regen_islands_between_rounds && self.carve_seed > 1 {
-            let (w, info, seed) = build_arena(self.cfg.arena);
-            self.voxels = w;
-            self.arena = info;
-            self.arena_seed = seed;
-            self.carve_queue.clear();
-            self.carve_seed = 1;
-            self.events.push(GameEvent::ArenaReset { seed });
+            // Never build on the tick: use the terrain prefetched since the match ended. Without
+            // one (rematch forced early) keep the current terrain and prefetch for next time.
+            match self.take_prefetched_arena() {
+                Some((w, info, seed)) => self.swap_arena(w, info, seed),
+                None => self.prefetch_arena(),
+            }
         }
         self.reset_round();
         self.match_state.phase = MatchPhase::Warmup;
@@ -886,6 +979,9 @@ impl World {
             self.match_state.phase_time = 0.0;
             self.match_state.winner = winner;
             self.events.push(GameEvent::MatchPhase { phase: MatchPhase::Ended, round: self.match_state.round, winner });
+            if self.cfg.rules.regen_islands_between_rounds && self.carve_seed > 1 {
+                self.prefetch_arena();
+            }
         }
     }
 

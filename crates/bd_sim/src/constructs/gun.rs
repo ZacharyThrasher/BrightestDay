@@ -58,6 +58,9 @@ fn ray_effects(c: &Construct) -> u8 {
     if c.has(Mechanic::Pull) {
         e |= effects::PULL;
     }
+    if c.has(Mechanic::Portal) {
+        e |= effects::PORTAL;
+    }
     e
 }
 

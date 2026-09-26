@@ -125,8 +125,8 @@ pub fn clash(items: &mut [Construct], ctx: &ConstructCtx, out: &mut ConstructOut
             let dmg_a = if smash_a { a.integrity + a.max_integrity + 1.0 } else { to_a };
             let imp_b = if smash_b { a.vel } else { -nrm * rel * 0.5 };
             let imp_a = if smash_a { b.vel } else { nrm * rel * 0.5 };
-            out.construct_hits.push(ConstructHit { target: a.id, source: Some(b.owner), damage: dmg_a, impulse: imp_a, blade: is_blade(b), point });
-            out.construct_hits.push(ConstructHit { target: b.id, source: Some(a.owner), damage: dmg_b, impulse: imp_b, blade: is_blade(a), point });
+            out.construct_hits.push(ConstructHit { pierce: components::is_pierce(b), blunt: components::is_blunt(b), target: a.id, source: Some(b.owner), damage: dmg_a, impulse: imp_a, blade: is_blade(b), point });
+            out.construct_hits.push(ConstructHit { pierce: components::is_pierce(a), blunt: components::is_blunt(a), target: b.id, source: Some(a.owner), damage: dmg_b, impulse: imp_b, blade: is_blade(a), point });
             // Heavy / DropFromSky on a flier: pinned.
             if (eff_has(a, Mechanic::Heavy) || eff_has(a, Mechanic::DropFromSky)) && eff_has(b, Mechanic::Flies) && a.vel.y < -4.0 {
                 b.comp.pinned = b.comp.pinned.max(1.5);
@@ -169,7 +169,8 @@ pub fn on_damage(store: &mut ConstructStore, hit: &ConstructHit, events: &mut Ve
     if c.gone.is_some() || !hit.damage.is_finite() {
         return false;
     }
-    let weak = hit.blade && weak_point(c, hit.point);
+    // Blade and Pierce find weak points (joints, cockpit, nape).
+    let weak = (hit.blade || hit.pierce) && weak_point(c, hit.point);
     let dmg = hit.damage.max(0.0) * if hit.blade { 2.0 } else { 1.0 } * if weak { WEAK_POINT_MULT } else { 1.0 };
     events.push(GameEvent::ConstructHit { id: c.id, source: hit.source, damage: dmg, point: hit.point });
     let impulse = if hit.impulse.is_finite() { hit.impulse } else { Vec3::ZERO };
@@ -264,9 +265,50 @@ pub fn slice(store: &mut ConstructStore, id: ConstructId, point: Vec3, normal: V
             colossal: false,
             model: src.model.clone(),
         };
+        // Terrain-model halves carry exactly their own voxels.
+        let model = src.model.as_ref().map(|m| {
+            let vs = bd_core::VOXEL_SIZE;
+            let (pm_half, pm_lc) = m.body_box();
+            let _ = pm_half;
+            let mut vox: Vec<(bd_core::IVec3, bd_core::voxel::Material)> = Vec::new();
+            for (v, mat) in &m.voxels {
+                // Voxel centre relative to the parent's collider centre (model local frame).
+                let lp = ((*v - m.min).as_vec3() + Vec3::splat(0.5)) * vs - (m.max - m.min + bd_core::IVec3::ONE).as_vec3() * vs * 0.5;
+                let coord = if axis == Vec3::X { lp.x } else { lp.z };
+                if (side < 0.0 && coord <= cut) || (side > 0.0 && coord > cut) {
+                    vox.push((*v, *mat));
+                }
+            }
+            let _ = pm_lc;
+            let mut lo = bd_core::IVec3::MAX;
+            let mut hi = bd_core::IVec3::MIN;
+            for (v, _) in &vox {
+                lo = lo.min(*v);
+                hi = hi.max(*v);
+            }
+            if vox.is_empty() {
+                lo = m.min;
+                hi = m.min;
+            }
+            std::sync::Arc::new(super::VoxelModel { origin: m.origin, voxels: vox, min: lo, max: hi })
+        });
+        let cut_info = super::SliceCut {
+            parent: id,
+            axis: if axis == Vec3::X { 0 } else { 2 },
+            side: if side < 0.0 { -1 } else { 1 },
+            cut,
+            parent_half: src.half,
+            parent_scale: src.recipe.scale,
+            offset: axis * mid,
+        };
         if let Some(cid) = store.spawn_child(id, params, events) {
             spawned += 1;
+            events.push(GameEvent::ConstructSliced { id: cid, parent: id, cut: cut_info });
             if let Some(c) = store.get_mut(cid) {
+                c.slice = Some(cut_info);
+                if model.is_some() {
+                    c.model = model;
+                }
                 c.half = half;
                 c.local_center = Vec3::new(0.0, half.y, 0.0);
                 c.life = c.age + 4.0;

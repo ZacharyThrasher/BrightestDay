@@ -460,3 +460,39 @@ fn seg_seg_dist(a: Vec3, b: Vec3, c: Vec3, d: Vec3) -> f32 {
     }
     ((a + d1 * s) - (c + d2 * t)).length()
 }
+
+impl World {
+    /// Portal gun impact: place the owner's next ring (A, then B, alternating) on the surface at
+    /// `point` facing `normal`. With both placed the pair opens; later shots move one end at a time
+    /// (Portal-game style) and refresh the pair's lifetime.
+    pub fn place_portal_end(&mut self, owner: PlayerId, point: Vec3, normal: Vec3, shot_dir: Vec3) {
+        let n = normal.normalize_or_zero();
+        let Some(i) = self.pidx(owner) else { return };
+        if n == Vec3::ZERO || !point.is_finite() {
+            return;
+        }
+        // Floor / ceiling rings are "up"-oriented along the shot; wall rings stand upright.
+        let up = if n.y.abs() > 0.7 { Vec3::new(shot_dir.x, 0.0, shot_dir.z).normalize_or(Vec3::NEG_Z) } else { Vec3::Y };
+        let end = PortalEnd::new(point + n * 0.05, n, up, PORTAL_RADIUS);
+        let slot = self.players[i].portal_slot.min(1);
+        self.players[i].portal_slot = 1 - slot;
+        self.events.push(GameEvent::PortalPlaced { owner, slot, end });
+        let expires = self.tick + (PORTAL_LIFETIME / DT) as Tick;
+        if let Some(pp) = self.portals.iter_mut().find(|p| p.owner == owner) {
+            if let Some(e) = pp.ends.get_mut(slot as usize) {
+                *e = end;
+            }
+            pp.expires = expires;
+            let (id, ends) = (pp.id, pp.ends);
+            self.events.push(GameEvent::PortalOpened { id, owner, ends });
+            return;
+        }
+        match self.players[i].portal_pending.take() {
+            Some(other) => {
+                let (a, b) = if slot == 1 { (other, end) } else { (end, other) };
+                self.create_portal(owner, a, b, PORTAL_LIFETIME, None);
+            }
+            None => self.players[i].portal_pending = Some(end),
+        }
+    }
+}

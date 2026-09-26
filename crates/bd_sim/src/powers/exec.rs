@@ -548,7 +548,7 @@ impl World {
             }
         }
         for cid in chits.iter().flatten().copied() {
-            if damage > 0.0 && self.apply_construct_hit(ConstructHit { target: cid, source: Some(id), damage, impulse: dir * knockback, blade: false, point: origin + dir }) {
+            if damage > 0.0 && self.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: cid, source: Some(id), damage, impulse: dir * knockback, blade: false, point: origin + dir }) {
                 hits = hits.saturating_add(1);
             } else if damage > 0.0 {
                 hits = hits.saturating_add(1);
