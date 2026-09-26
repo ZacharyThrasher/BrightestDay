@@ -36,6 +36,15 @@ Everything below is committed and green unless noted.
   bd_lexicon moves grammar "X use Y"); lexicon compounds + everyday-concepts anchors + LEXICON_REVIEW.md
   (both lexicon workers coordinate; lexicon.bin rebuilt once both are in).
 - Orbit map (bd_voxel maps/orbit.rs, gravity-by-altitude profile, space/re-entry KOs, present/space.rs).
+- Hitscan guns + bot aim realism + balance trim (bd_sim weapons, COMBAT.md §4b).
+- AUDIO WORLD (owner: "feels like we are just throwing noise at the user, it doesn't feel like a world").
+  Phase A: new crate bd_audio (real-time mixer on the audio thread: buses, shared aux reverb driven by
+  voxel-raycast room estimation, occlusion/air-absorption LPF, HDR loudness window, voice limits +
+  virtual voices, snapshots in assets/audio/mix.ron incl. Danger/RingOpen/Space), sfxgen redesign
+  (modal synthesis, layered composites, spectral carving, dry assets, variation pools, loudness
+  hierarchy), per-map reactive ambience, offline render_mix before/after WAV + spectrogram + report.
+  Phase B (after client perf worker releases audio.rs/pcm.rs/present/sound.rs): collapse PlaySfx +
+  Sfx3d into one bd_audio path, settings UI. Absorbs "heavy-hit ducking" from the weight pass.
 If you are a fresh lead and these reports never reached you: inspect `git status`/`git diff`, run tests,
 review galleries/screenshots, and commit what's green; re-launch anything half-done with a fresh brief.
 
