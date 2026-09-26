@@ -44,4 +44,4 @@ async function main() {
     for (let i = 0; i < 30; i++) w.step({ ...NO_INPUT, yaw: w.player.yaw, pitch: w.player.pitch });
   }
 }
-main();
+if (process.argv[1] && /probe_machines\.ts$/.test(process.argv[1])) main();

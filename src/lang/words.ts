@@ -57,7 +57,7 @@ export const VERBS: Record<string, VerbClass> = {
   flick: 'strike', tap: 'strike', thwack: 'strike', whap: 'strike', wham: 'strike', bat: 'strike', belt: 'strike', lob_: 'throw', ditch: 'dismiss', scrap: 'dismiss', lose: 'dismiss', bin: 'dismiss', trash: 'dismiss', wall: 'block', 'wall off': 'block', fence: 'trap', barricade: 'block', clap: 'crush', sandwich: 'crush', lever: 'lift', pry: 'lift', leverage: 'lift', crowbar: 'lift', jack: 'lift', roll: 'ride', deal: 'handle', handle: 'handle', 'take care of': 'handle', 'deal with': 'handle', 'do something': 'handle', help: 'handle', hurry: 'handle',
   follow: 'follow', chase: 'follow', track: 'follow', hunt: 'follow', pursue: 'follow', seek: 'follow', 'go after': 'follow', escort: 'follow',
   // machines & creatures
-  kill: 'strike', bite: 'strike', chomp: 'strike', sting: 'strike', maul: 'strike', eat: 'strike', devour: 'strike', eliminate: 'strike', annihilate: 'strike', obliterate: 'strike', 'open fire': 'shoot',
+  wield: 'hold', brandish: 'hold', kill: 'strike', bite: 'strike', chomp: 'strike', sting: 'strike', maul: 'strike', eat: 'strike', devour: 'strike', eliminate: 'strike', annihilate: 'strike', obliterate: 'strike', 'open fire': 'shoot',
   walk: 'locomote', run: 'locomote', swim: 'locomote', crawl: 'locomote', slither: 'locomote', hop: 'locomote', trot: 'locomote', gallop: 'locomote', march: 'locomote',
   scuttle: 'locomote', waddle: 'locomote', hover: 'locomote', patrol: 'locomote', wander: 'locomote', roam: 'locomote', prowl: 'locomote', stroll: 'locomote',
 };

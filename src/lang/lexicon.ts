@@ -169,7 +169,7 @@ export const CONCEPTS: Concept[] = [
 ];
 
 /** Add-on parts ("with rockets on the back"). Each contributes geometry + behaviour. */
-export type MachineKind = 'wheels' | 'treads' | 'legs' | 'wings' | 'rotor' | 'propeller' | 'jets' | 'hover' | 'turret' | 'gun' | 'jaws' | 'arms' | 'claws' | 'tentacles' | 'tail' | 'seat' | 'melee' | 'saw' | 'drill';
+export type MachineKind = 'heads' | 'wheels' | 'treads' | 'legs' | 'wings' | 'rotor' | 'propeller' | 'jets' | 'hover' | 'turret' | 'gun' | 'jaws' | 'arms' | 'claws' | 'tentacles' | 'tail' | 'seat' | 'melee' | 'saw' | 'drill';
 export type WeaponKind = 'gun' | 'cannon' | 'laser' | 'missile' | 'flame' | 'net' | 'melee' | 'bomb';
 export interface Addon {
   id: string; names: string[]; form: string; where: 'back' | 'front' | 'top' | 'bottom' | 'sides' | 'around' | 'tip' | 'head'; scale: number; beh?: any[]; mountMods?: Record<string, number>; density?: number; restitution?: number;
@@ -218,6 +218,7 @@ export const ADDONS: Addon[] = [
   { id: 'bucket', names: ['bucket', 'basket', 'scoop', 'cup'], form: 'bucket', where: 'front', scale: 0.6 },
   { id: 'drill', names: ['drill', 'drills', 'drill bit', 'drill tip', 'drill nose'], form: 'drill', where: 'front', scale: 0.6, machine: 'drill' },
   { id: 'hammerhead', names: ['hammer', 'hammers', 'mallet'], form: 'hammer', where: 'front', scale: 0.6 },
+  { id: 'head', names: ['head', 'heads', 'extra head', 'extra heads', 'second head', 'more heads'], form: 'ball', where: 'head', scale: 0.3, machine: 'heads' },
   { id: 'hover', names: ['hover pads', 'hover jets', 'hoverpads', 'antigravity', 'anti gravity', 'repulsors'], form: 'disc', where: 'bottom', scale: 0.3, machine: 'hover' },
 ];
 

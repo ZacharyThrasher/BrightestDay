@@ -106,6 +106,13 @@ export function normalize(text: string): { text: string; corrections: number } {
   t = t.replace(/[’‘`]/g, "'").replace(/[“”]/g, '"').replace(/\s*[—–]\s*|\.\.\.+|…/g, ' , ');
   for (const [re, rep] of CONTRACTIONS) t = t.replace(re, rep);
   t = t.replace(/\b(out of|made of|made out of|of) (hard )?light\b/g, ' ');
+  // "made of jelly / steel / glass …": what it is made of is a material, not a relative clause
+  t = t.replace(/\b(made (out )?of|built (out )?of|out of) (jelly|jello|rubber|slime|goo|gummy|gum|bouncy castle|springs?)\b/g, ' bouncy ')
+    .replace(/\b(made (out )?of|built (out )?of|out of) (steel|iron|metal|stone|rock|lead|concrete|diamonds?|titanium|granite|brick|bricks|gold)\b/g, ' sturdy heavy ')
+    .replace(/\b(made (out )?of|built (out )?of|out of) (foam|marshmallows?|pillows?|cotton|clouds?|wool|feathers?)\b/g, ' soft light ')
+    .replace(/\b(made (out )?of|built (out )?of|out of) (glass|ice|mirrors?|chrome)\b/g, ' shiny slippery ')
+    .replace(/\b(made (out )?of|built (out )?of|out of) (paper|cardboard|balloons?|air|bubbles?)\b/g, ' light ')
+    .replace(/\b(made (out )?of|built (out )?of|out of) (thorns|spikes|knives|blades|razors)\b/g, ' spiky ');
   t = t.replace(/(\d+)\s*(x|times)\b/g, '$1 times');
   t = t.replace(/[^a-z0-9'.,!?;:\- ]/g, ' ');
   t = t.replace(/-/g, ' ');
@@ -329,6 +336,8 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
   for (let i = 0; i < toks.length; i++) {
     const v = verbAt(toks, i);
     if (!v) continue;
+    // a participle right after a noun describes it ("tentacles holding swords", "a dog wearing a hat"), it is not the main verb
+    if (i > 1 && /ing$/.test(toks[i]) && (conceptByName.has(toks[i - 1]) || addonByName.has(toks[i - 1]) || conceptByName.has(singular(toks[i - 1])) || addonByName.has(singular(toks[i - 1]))) && toks.slice(0, i - 1).some((w) => DETS.has(w) || NUMBERS[w] !== undefined || /^\d+$/.test(w))) continue;
     // skip "want/need to <verb>" -> use the inner verb
     if ((v.verb === 'want' || v.verb === 'need') && toks[i + 1] === 'to') continue;
     if (conceptByName.has(`${toks[i]} ${toks[i + 1] ?? ''}`) || conceptByName.has(`${toks[i]} ${singular(toks[i + 1] ?? '')}`)) continue;

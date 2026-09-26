@@ -102,9 +102,10 @@ export function setDrive(s: ConstructSpec, loco: LocoKind, d?: MachineDefaults |
   const next: DriveB = { type: 'drive', mode: base.mode, speed, turn: base.turn, ...(altitude !== undefined ? { altitude } : {}), ...(base.jump ? { jump: base.jump } : {}) };
   if (cur) {
     // a flying request upgrades a ground machine; a ground request never grounds a flyer
-    if (cur.mode !== 'ground' && next.mode === 'ground') return;
+    if (cur.mode === 'air' && next.mode !== 'air') return;
     if (cur.mode === next.mode) { cur.speed = Math.max(cur.speed, next.speed); return; }
-    Object.assign(cur, next, { speed: Math.max(cur.speed, next.speed) });
+    const merged: DriveB = { ...next, speed: Math.max(cur.speed, next.speed) };
+    s.behaviors = s.behaviors.map((b) => (b === cur ? merged : b));
     return;
   }
   s.behaviors.push(next);
@@ -382,7 +383,7 @@ export function attachKit(s: ConstructSpec, kind: MachineKind, o: KitOpts = {}):
     }
     case 'gun': {
       const kind = o.weapon ?? 'gun';
-      const n = clamp(Math.round(o.count ?? 1), 1, 4);
+      const n = clamp(Math.round(o.count ?? 1), 1, 8);
       const creature = conceptOf(s)?.cls === 'creature';
       const where = o.where === 'back' ? 'top' : o.where ?? (creature && (kind === 'laser' || kind === 'flame') ? (kind === 'flame' ? 'front' : 'head') : kind === 'bomb' ? 'bottom' : kind === 'flame' ? 'front' : 'top');
       const len = clamp(0.4 * H, 0.5, 5) * (kind === 'cannon' ? 1.2 : kind === 'flame' ? 0.7 : 1);
@@ -391,8 +392,14 @@ export function attachKit(s: ConstructSpec, kind: MachineKind, o: KitOpts = {}):
       if (where === 'sides') bases.push(spot(s, 'left', B), spot(s, 'right', B));
       else {
         const sp = spot(s, where, B);
-        const spread = where === 'bottom' || where === 'top' || where === 'head' || where === 'front' ? Math.max(sx * 0.3, dia * 1.5) : 0;
-        for (let i = 0; i < n; i++) bases.push(n === 1 ? sp : [sp[0] + (i - (n - 1) / 2) * spread * (2 / Math.max(1, n - 1)), sp[1], sp[2]]);
+        // a row across (up to 3), further rows front-to-back
+        const cols = Math.min(n, 3), rows = Math.ceil(n / cols);
+        const spanX = where === 'bottom' || where === 'top' || where === 'head' || where === 'front' ? Math.max(sx * 0.6, dia * 3) : 0;
+        const spanZ = where === 'front' ? 0 : Math.min(sz * 0.6, dia * 3 * rows);
+        for (let i = 0; i < n; i++) {
+          const c = i % cols, r = Math.floor(i / cols);
+          bases.push([sp[0] + (cols > 1 ? (c / (cols - 1) - 0.5) * spanX : 0), sp[1], sp[2] + (rows > 1 ? (0.5 - r / (rows - 1)) * spanZ : 0)]);
+        }
       }
       if (!room(s, bases.length * 2)) return full(notes, `${kind}s`);
       for (const b of bases) {
@@ -489,6 +496,23 @@ export function attachKit(s: ConstructSpec, kind: MachineKind, o: KitOpts = {}):
     }
     case 'melee': {
       if (!weaponsOf(s).some((w) => w.kind === 'melee')) addWeapon(s, 'melee', undefined, 0.6);
+      return true;
+    }
+    case 'heads': {
+      // "a dragon with 3 heads": extra heads side by side, each looking around on its own neck joint
+      const head = s.parts.find((p) => p.role === 'head' && p.solid !== false);
+      const have = head ? 1 : 0;
+      const n = clamp(Math.round(o.count ?? 2) - have, 1, 6);
+      const d = head ? Math.max(...head.size) : clamp(Math.min(sx, sy) * 0.4, 0.3, 3);
+      const base: Vec3 = head ? [...head.pos] as Vec3 : [B.c[0], B.max[1] + d * 0.3, B.max[2] - d * 0.3];
+      if (!room(s, n)) return full(notes, 'heads');
+      for (let i = 0; i < n; i++) {
+        const side = i % 2 ? 1 : -1, k = Math.floor(i / 2) + 1;
+        const g = uniqGroup(s, 'head');
+        const pos: Vec3 = [base[0] + side * k * d * 1.1, base[1], base[2] - k * d * 0.2];
+        s.parts.push(part('sphere', [d, d * 0.9, d * 1.1], pos, 'head', g));
+        addJoint(s, { group: g, pivot: [pos[0], pos[1] - d * 0.4, pos[2] - d * 0.4], motion: [{ kind: 'aim', yaw: true, pitch: true, rate: 120, minPitch: -30, maxPitch: 30 }] });
+      }
       return true;
     }
     case 'saw': {

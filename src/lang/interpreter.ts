@@ -615,7 +615,7 @@ export class Interpreter {
     const bits: string[] = [];
     const size = (np?.sizes ?? []).reduce((a, b) => a * b, 1);
     if (size >= 2.5) bits.push('giant'); else if (size >= 1.4) bits.push('big'); else if (size < 0.5) bits.push('tiny'); else if (size < 0.9) bits.push('small');
-    for (const m of np?.materials ?? []) if (!['vertical', 'sideways', 'flat', 'upsidedown', 'reverse', 'permanent', 'temporary'].includes(m)) bits.push(m);
+    for (const m of new Set(np?.materials ?? [])) if (!['vertical', 'sideways', 'flat', 'upsidedown', 'reverse', 'permanent', 'temporary'].includes(m)) bits.push(m);
     bits.push(np?.conceptWords && conceptByName.get(np.conceptWords) === concept ? np.conceptWords : concept.id);
     let label = bits.join(' ');
     if ((np?.count ?? 1) > 1) label = `${np!.count} × ${label}`;
@@ -964,8 +964,14 @@ export class Interpreter {
         case 'for':
           if (!isSelf && ref) { spec.placement = { ...spec.placement, at: 'around_target', target: ref }; }
           break;
-        case 'with':
-          this.withParts(spec, np, ctx);
+        case 'with': {
+          // "with wheels and 6 cannons", "with wings, a tail plus lasers": each part on its own
+          const groups: string[][] = [[]];
+          for (const w of np.tokens) { if (['and', 'plus', ','].includes(w) && groups[groups.length - 1].length) groups.push([]); else groups[groups.length - 1].push(w); }
+          const subs = groups.filter((g) => g.length);
+          if (subs.length > 1) for (const g of subs) { const sub = parseNPLite(g); if ((np as any).where) (sub as any).where = (np as any).where; this.withParts(spec, sub, ctx); }
+          else this.withParts(spec, np, ctx);
+        }
           // "… with helicopter blades that hunts drones": the relative clause describes the whole machine
           for (const rel of np.rel) this.applyRelClause(spec, rel, ctx);
           break;
@@ -983,12 +989,13 @@ export class Interpreter {
   private withParts(spec: ConstructSpec, np: NP, ctx: Ctx) {
     const explicit = np.tokens.some((w) => /^\d+$/.test(w) || NUMBERS[w] !== undefined && !['a', 'an', 'one', 'single'].includes(w));
     for (const a of np.addons) this.addAddon(spec, a.addon, a.where, ctx, { count: a.count, explicit: a.explicit || explicit });
-    if (np.concept && !np.addons.length) {
+    if (np.concept) {
       // "a car with a cannon": a concept word that is also an add-on
       const w = np.conceptWords ?? '';
       const asAddon = addonByName.get(w) ?? addonByName.get(w.replace(/e?s$/, '')) ?? ADDON_BY_CONCEPT(np.concept.id);
       const count = np.count ?? (np.plural ? 2 : 1);
-      if (asAddon) this.addAddon(spec, asAddon, (np as any).where ?? null, ctx, { count, explicit });
+      if (asAddon) { if (!np.addons.some((a) => a.addon === asAddon)) this.addAddon(spec, asAddon, (np as any).where ?? null, ctx, { count, explicit }); }
+      else if (np.addons.length) void 0;
       else {
         // any other thing: bolt its shape on (front, or where asked) and say so
         const parts = buildForm(np.concept.form);
@@ -1115,6 +1122,13 @@ export class Interpreter {
     }
     if (verb === 'ride' && machineCapable(spec)) { setRideable(spec); ensureLocomotion(spec, ctx.notes, true); return true; }
     if (['patrol', 'wander', 'roam', 'prowl'].includes(verb) && machineCapable(spec)) { setBrain(spec, verb === 'patrol' ? 'patrol' : 'wander'); return true; }
+    // "tentacles holding swords", "a bear wielding a chainsaw", "a robot carrying a minigun": it is armed with that
+    const held = rel.objects[0];
+    if (['hold', 'grab', 'carry'].includes(v ?? '') && held && !held.ref && (held.concept || held.addons.length) && machineCapable(spec)) {
+      const w = held.conceptWords ?? '';
+      const kit = held.addons[0]?.addon ?? addonByName.get(w) ?? addonByName.get(w.replace(/e?s$/, '')) ?? (held.concept ? ADDON_BY_CONCEPT(held.concept.id) : null);
+      if (kit || ['weapon', 'tool'].includes(held.concept?.cls ?? '')) { this.withParts(spec, held, ctx); if (!isMachine(spec)) ensureWeapon(spec, ctx.notes, 'melee'); return true; }
+    }
     if (!autonomous) return false;
     const obj = rel.objects[0] ?? null;
     const atP = rel.preps.find((p) => ['at', 'to', 'toward', 'towards', 'after', 'on'].includes(p.prep))?.np ?? null;
