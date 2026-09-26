@@ -1,5 +1,5 @@
 import {
-  CircleGeometry, Color, Mesh, PCFSoftShadowMap, PerspectiveCamera, Quaternion, Scene, ShaderMaterial, Vector3, WebGLRenderer,
+  CircleGeometry, Color, Mesh, PCFShadowMap, PerspectiveCamera, Quaternion, Scene, ShaderMaterial, Vector3, WebGLRenderer,
   NoToneMapping, LinearSRGBColorSpace, AddEquation, CustomBlending, OneFactor, OneMinusSrcAlphaFactor, ZeroFactor,
 } from 'three';
 import type { World, GameEvent } from '../sim/world.js';
@@ -69,6 +69,7 @@ export class GameRenderer {
   private time = 0;
   private tickCount = 0;
   private dropMarker: Mesh;
+  private blob: Mesh | null = null;
   private streakAcc = 0;
   private sceneReady = false;
   stats: RenderStats = { sceneCalls: 0, sceneTriangles: 0, totalCalls: 0, frameCpuMs: 0, updateMs: 0, particles: 0, beams: 0, projectiles: 0, constructs: 0, entities: 0 };
@@ -84,7 +85,7 @@ export class GameRenderer {
     this.renderer.toneMapping = NoToneMapping;
     this.renderer.outputColorSpace = LinearSRGBColorSpace; // composite pass encodes sRGB itself
     this.renderer.shadowMap.enabled = q.shadows;
-    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.shadowMap.type = PCFShadowMap;
     this.renderer.info.autoReset = false;
     this.renderer.autoClear = false;
     this.camera = new PerspectiveCamera(this.opts.fov, 16 / 9, 0.1, 3000);
@@ -99,6 +100,19 @@ export class GameRenderer {
     this.rig = new PlayerRig(this.scene, this.color);
     this.dropMarker = this.makeDropMarker();
     this.scene.add(this.dropMarker);
+    if (!q.shadows) {
+      // no shadow map on low quality: a soft contact blob keeps the player grounded visually
+      const bm = new ShaderMaterial({
+        uniforms: { uA: { value: 0.5 } },
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+        fragmentShader: `uniform float uA; varying vec2 vUv; void main(){ float d = length(vUv - 0.5) * 2.0; float a = (1.0 - smoothstep(0.2, 1.0, d)) * uA; gl_FragColor = vec4(0.05, 0.06, 0.12, a); }`,
+        transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      });
+      this.blob = new Mesh(new CircleGeometry(0.55, 24), bm);
+      this.blob.renderOrder = 4;
+      this.blob.frustumCulled = false;
+      this.scene.add(this.blob);
+    }
     this.resize();
   }
 
@@ -355,7 +369,7 @@ export class GameRenderer {
       const hand = side === 'L' ? this.rig.handL : this.rig.handR;
       const attached = this.tState[side] === 'attached';
       const pulse = 0.85 + 0.15 * Math.sin(this.time * 30);
-      this.fx.beams.push(hand, tp, 0.035, 0.05, this.color, (attached ? 2.2 : 1.6) * pulse);
+      this.fx.beams.push(hand, tp, 0.06, 0.08, this.color, (attached ? 2.6 : 1.8) * pulse);
       if (attached && Math.random() < dt * 20) this.fx.glow(tp, this.color, 0.7, 0.15, 2);
       if (!attached) this.fx.glow(tp, this.color, 0.35, 0.05, 3);
     }
@@ -418,7 +432,14 @@ export class GameRenderer {
       this.dropMarker.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), n));
       want = h > 2 ? Math.min(1, (h - 2) / 4) : 0;
       this.dropMarker.scale.setScalar(1 + Math.min(2, h * 0.03));
+      if (this.blob) {
+        this.blob.position.copy(this.dropMarker.position).addScaledVector(n, 0.01);
+        this.blob.quaternion.copy(this.dropMarker.quaternion);
+        this.blob.scale.setScalar(1 + Math.min(1.5, h * 0.08));
+        (this.blob.material as ShaderMaterial).uniforms.uA.value = 0.55 * Math.max(0, 1 - h / 12);
+      }
     }
+    if (this.blob) this.blob.visible = !!hit && !this.hideRig;
     m.uniforms.uA.value += (want - m.uniforms.uA.value) * Math.min(1, dt * 10);
     this.dropMarker.visible = m.uniforms.uA.value > 0.01;
   }
@@ -432,6 +453,8 @@ export class GameRenderer {
     const behind = v.z > 1 || new Vector3().subVectors(p, this.camera.position).dot(this.camera.getWorldDirection(new Vector3())) < 0;
     return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h, behind };
   }
+
+  toCameraSpace(p: Vector3): Vector3 { return p.clone().applyMatrix4(this.camera.matrixWorldInverse); }
 
   dispose() {
     this.post.dispose();

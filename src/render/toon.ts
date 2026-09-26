@@ -6,7 +6,7 @@ let gradient: DataTexture | null = null;
 /** 3-band toon ramp: shadow / mid / lit. Kept bright so the pastel city never goes muddy. */
 export function toonGradient(): DataTexture {
   if (gradient) return gradient;
-  const data = new Uint8Array([118, 190, 255]);
+  const data = new Uint8Array([92, 178, 255]);
   gradient = new DataTexture(data, data.length, 1, RedFormat);
   gradient.minFilter = NearestFilter;
   gradient.magFilter = NearestFilter;
@@ -42,7 +42,7 @@ export function toon(o: ToonOpts = {}): MeshToonMaterial {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform float uRim; uniform vec3 uRimColor;')
         .replace('#include <opaque_fragment>', /* glsl */ `
-          float rimF = 1.0 - saturate(dot(normal, normalize(-vViewPosition)));
+          float rimF = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
           outgoingLight += uRimColor * smoothstep(0.55, 0.75, rimF) * uRim;
           #include <opaque_fragment>`);
     };
@@ -109,11 +109,11 @@ export function staticsMaterial(): MeshToonMaterial {
               float v = vWPos.y;
               float floorH = 3.6;
               float fv = fract(v / floorH);
-              float win = band(fv, 0.34, 0.78) * step(4.0, v);
+              float win = band(fv, 0.4, 0.76) * step(4.0, v);
               float mull = gridLine(u, 3.2, 0.8);
-              float lod = 1.0 - smoothstep(120.0, 380.0, dist);
+              float lod = 1.0 - smoothstep(60.0, 260.0, dist);
               vec3 glass = mix(vec3(0.46, 0.58, 0.78), vec3(0.78, 0.86, 0.96), fv);
-              diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, glass, 0.6), win * (1.0 - mull * 0.8) * mix(0.5, 1.0, lod));
+              diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, glass, 0.5), win * (1.0 - mull * 0.85) * mix(0.25, 1.0, lod));
               diffuseColor.rgb *= 0.8 + 0.2 * smoothstep(0.0, 3.0, v);
             } else if (n.y > 0.7) {
               diffuseColor.rgb *= 0.9;

@@ -22,6 +22,8 @@ export interface HardlightBridge {
   settings?: Partial<Settings>;
   saveSettings?: (s: Partial<Settings>) => void;
   quit?: () => void;
+  ready?: () => void;
+  fatal?: (msg: string) => void;
   toggleFullscreen?: () => void;
   voice?: {
     start?: () => void;

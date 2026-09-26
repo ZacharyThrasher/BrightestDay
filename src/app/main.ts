@@ -44,9 +44,11 @@ class App implements HardlightApp {
   private loading = false;
   private frameWaiters: (() => void)[] = [];
   private voiceActive = false;
+  private commitsInFlight = 0;
   frameTimes: number[] = [];
   simTimes: number[] = [];
   renderCpu: number[] = [];
+  hudTimes: number[] = [];
 
   constructor(readonly canvas: HTMLCanvasElement, readonly overlay: HTMLElement) {
     this.settings = loadSettings();
@@ -74,6 +76,7 @@ class App implements HardlightApp {
     try {
       const w = await World.create();
       const info = buildScene(w, name);
+      const old = this.world;
       this.world = w;
       this.scene = name;
       this.director = new Director(w);
@@ -86,6 +89,8 @@ class App implements HardlightApp {
       this.hud.reset(w, name);
       this.gr.setPreview([]);
       this.acc = 0;
+      // free the previous Rapier world (WASM memory is not garbage collected) unless a commit is in flight
+      if (old && !this.commitsInFlight) { try { old.eq.free(); old.pw.free(); } catch { /* already freed */ } }
     } finally {
       this.loading = false;
     }
@@ -112,7 +117,10 @@ class App implements HardlightApp {
         this.gr.render(alpha, dt, { yaw: this.input.yaw, pitch: this.input.pitch });
         this.renderCpu.push(this.gr.stats.frameCpuMs);
         if (this.renderCpu.length > 4000) this.renderCpu.splice(0, 2000);
+        const th = performance.now();
         this.hud.update({ world: this.world, renderer: this.gr, fps: this.fps, frameMs: this.frameMs, simMs: this.simMs, consoleOpen: this.consoleOpen, locked: this.input.locked });
+        this.hudTimes.push(performance.now() - th);
+        if (this.hudTimes.length > 4000) this.hudTimes.splice(0, 2000);
       }
       const waiters = this.frameWaiters;
       this.frameWaiters = [];
@@ -224,6 +232,7 @@ class App implements HardlightApp {
     if (!this.director) return null;
     this.hud.setInterpreting(true);
     this.gr.setPreview([]);
+    this.commitsInFlight++;
     try {
       const r = await this.director.commit(text);
       this.hud.showResult(r);
@@ -234,7 +243,8 @@ class App implements HardlightApp {
       this.hud.toast('bad', `Ring error: ${err?.message ?? err}`);
       return null;
     } finally {
-      this.hud.setInterpreting(false);
+      this.commitsInFlight--;
+      this.hud.setInterpreting(this.commitsInFlight > 0);
     }
   }
 
@@ -337,12 +347,13 @@ async function boot() {
   (window as any).hardlightApp = app as HardlightApp;
   installTestHooks(app);
   document.body.classList.add('ready');
-  console.log('[hardlight] renderer ready', { quality: app.settings.graphics, scene });
+  window.hardlight?.ready?.();
+  console.log(`[hardlight] renderer ready (graphics=${app.settings.graphics}, scene=${scene}, fov=${app.settings.fov})`);
 }
 
 /** Deterministic scripting surface for tools/screenshot.mjs and tools/perf.mjs. */
 function installTestHooks(app: App) {
-  const hooks = {
+  const hooks: any = {
     app,
     get world() { return app.world; },
     manual(on: boolean) { app.setManual(on); },
@@ -377,8 +388,32 @@ function installTestHooks(app: App) {
     },
     frames(n = 1) { let p = Promise.resolve(); for (let i = 0; i < n; i++) p = p.then(() => app.nextFrame()); return p; },
     stats() { return { ...app.gr.stats, simMsAvg: app.simTimes.slice(-120).reduce((a, b) => a + b, 0) / Math.max(1, Math.min(120, app.simTimes.length)) }; },
-    resetTimings() { app.frameTimes.length = 0; app.simTimes.length = 0; app.renderCpu.length = 0; },
-    timings() { return { frame: app.frameTimes.slice(), sim: app.simTimes.slice(), render: app.renderCpu.slice() }; },
+    resetTimings() { app.frameTimes.length = 0; app.simTimes.length = 0; app.renderCpu.length = 0; app.hudTimes.length = 0; },
+    timings() { return { frame: app.frameTimes.slice(), sim: app.simTimes.slice(), render: app.renderCpu.slice(), hud: app.hudTimes.slice() }; },
+    /**
+     * Benchmark loop inside the page: each iteration steps `ticksPerFrame` sim ticks with input from
+     * `inputFn(i)` and waits for one rendered frame. Returns per-frame samples.
+     */
+    async bench(n: number, ticksPerFrame: number, inputSrc: string) {
+      const inputFn = new Function('i', 'w', inputSrc) as (i: number, w: World) => Partial<PlayerInput>;
+      const out: { sim: number; render: number; update: number; hud: number; frame: number; calls: number; tris: number; total: number }[] = [];
+      let last = performance.now();
+      for (let i = 0; i < n; i++) {
+        let sim = 0;
+        for (let k = 0; k < ticksPerFrame; k++) {
+          const inp = inputFn(i, app.world) ?? {};
+          const t0 = performance.now();
+          hooks.step(1, inp);
+          sim += performance.now() - t0;
+        }
+        await app.nextFrame();
+        const now = performance.now();
+        const st = app.gr.stats;
+        out.push({ sim, render: st.frameCpuMs, update: st.updateMs, hud: app.hudTimes[app.hudTimes.length - 1] ?? 0, frame: now - last, calls: st.sceneCalls, tris: st.sceneTriangles, total: st.totalCalls });
+        last = now;
+      }
+      return out;
+    },
     hud: app.hud,
     toggleHelp(on?: boolean) { app.hud.toggleHelp(on); },
     togglePerf() { app.hud.togglePerf(); },
@@ -392,4 +427,5 @@ boot().catch((err) => {
   d.className = 'fatal';
   d.textContent = `HARDLIGHT failed to start:\n${err?.stack ?? err}`;
   document.body.appendChild(d);
+  window.hardlight?.fatal?.(String(err?.message ?? err));
 });

@@ -150,7 +150,6 @@ export class ConstructViews {
       v.flash = Math.max(0, v.flash - dt * 3);
       v.u.uFlash.value = v.flash + (fp < 1 ? (1 - fp) * 0.6 : 0);
       v.u.uTime.value = time;
-      v.u.uPulse.value = v.id === this.focusId ? 0 : 0;
       this.writeInstances(v, alpha);
       // assembly beam from the ring hand
       if (fp < 1 && v.formStart === 0) {

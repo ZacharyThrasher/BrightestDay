@@ -1,7 +1,9 @@
 import {
   Color, CylinderGeometry, Group, IcosahedronGeometry, Mesh, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3,
-  CustomBlending, OneFactor, OneMinusSrcAlphaFactor, ZeroFactor, CapsuleGeometry, BoxGeometry, type Object3D,
+  CustomBlending, OneFactor, OneMinusSrcAlphaFactor, ZeroFactor, CapsuleGeometry, BoxGeometry, BufferAttribute, Matrix4, Euler,
+  type Object3D, type BufferGeometry,
 } from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { World, Entity, EntityType } from '../sim/world.js';
 import { ENTITY_COLORS } from './config.js';
 import { toon, staticsMaterial } from './toon.js';
@@ -31,6 +33,48 @@ function soupMesh(build: (s: Soup) => void): Mesh {
 }
 
 const Q0 = new Quaternion();
+
+interface MergePart { geo: BufferGeometry; s: [number, number, number]; p: [number, number, number]; r?: [number, number, number]; c: Color }
+
+/** Bake several primitive placements into one vertex-coloured geometry (1 draw call). */
+function mergeParts(parts: MergePart[]): BufferGeometry {
+  const geos = parts.map((pt) => {
+    const g = pt.geo.clone();
+    if (g.getAttribute('uv')) g.deleteAttribute('uv');
+    const m = new Matrix4().compose(new Vector3(...pt.p), new Quaternion().setFromEuler(new Euler(...(pt.r ?? [0, 0, 0]))), new Vector3(...pt.s));
+    g.applyMatrix4(m);
+    const n = g.getAttribute('position').count;
+    const col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { col[i * 3] = pt.c.r; col[i * 3 + 1] = pt.c.g; col[i * 3 + 2] = pt.c.b; }
+    g.setAttribute('color', new BufferAttribute(col, 3));
+    return g.index ? g.toNonIndexed() : g;
+  });
+  return mergeGeometries(geos, false)!;
+}
+
+function mergedMesh(parts: MergePart[], rim: number): Mesh {
+  const m = new Mesh(mergeParts(parts), toon({ vertexColors: true, rim }));
+  m.castShadow = true;
+  return m;
+}
+
+/** Spinning-rotor discs: translucent with rotating blade streaks (no per-rotor transforms needed). */
+const rotorMat = (() => {
+  const m = new ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `varying vec3 vL; varying vec3 vC; attribute vec3 color; void main(){ vL = position; vC = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `uniform float uTime; varying vec3 vL; varying vec3 vC;
+      void main(){
+        float a = atan(vL.z - (vL.z > 0.0 ? 0.813 : -0.813), vL.x - (vL.x > 0.0 ? 0.813 : -0.813));
+        float streak = pow(0.5 + 0.5 * cos(2.0 * a - uTime * 40.0), 6.0);
+        float alpha = 0.18 + 0.35 * streak;
+        gl_FragColor = vec4(vec3(0.85, 0.9, 1.0) * alpha, alpha * 0.5);
+      }`,
+    transparent: true, depthWrite: false,
+  });
+  m.blending = CustomBlending; m.blendSrc = OneFactor; m.blendDst = OneMinusSrcAlphaFactor; m.blendSrcAlpha = ZeroFactor; m.blendDstAlpha = OneMinusSrcAlphaFactor;
+  return m;
+})();
 
 interface Model {
   group: Group;
@@ -64,43 +108,36 @@ function buildModel(type: EntityType, hostile: boolean): Model {
   switch (type) {
     case 'drone': {
       const body = new Group();
-      body.add(mesh(G.sphere, toon({ color: C.droneBody, rim: 0.3 }), [1.25, 0.6, 1.25]));
-      body.add(mesh(G.sphere, toon({ color: C.droneTrim, rim: 0.2 }), [0.8, 0.45, 0.8], [0, 0.18, 0]));
-      const trim = mesh(G.torus, toon({ color: C.droneTrim }), [1.3, 1.3, 1.6], [0, 0, 0]);
-      trim.rotation.x = Math.PI / 2;
-      body.add(trim);
-      eye = glowMat(hostile ? C.hostileGlow : '#7fd3ff', 3.2);
-      body.add(mesh(G.sphere, eye, [0.32, 0.22, 0.2], [0, 0.0, -0.58], false));
-      const rotors: Object3D[] = [];
+      const trim = new Color(C.droneTrim), dark = new Color(C.droneBody);
+      const parts: MergePart[] = [
+        { geo: G.sphere, s: [1.25, 0.6, 1.25], p: [0, 0, 0], c: dark },
+        { geo: G.sphere, s: [0.8, 0.45, 0.8], p: [0, 0.18, 0], c: trim },
+        { geo: G.torus, s: [1.3, 1.3, 1.6], p: [0, 0, 0], r: [Math.PI / 2, 0, 0], c: trim },
+      ];
+      const discs: MergePart[] = [];
       for (let i = 0; i < 4; i++) {
         const a = Math.PI / 4 + (i * Math.PI) / 2;
-        const arm = mesh(G.box, toon({ color: C.droneBody }), [0.9, 0.1, 0.14], [Math.cos(a) * 0.75, 0.05, Math.sin(a) * 0.75]);
-        arm.rotation.y = -a;
-        body.add(arm);
-        const hub = new Group();
-        hub.position.set(Math.cos(a) * 1.15, 0.14, Math.sin(a) * 1.15);
-        hub.add(mesh(G.cyl, toon({ color: C.droneTrim }), [0.14, 0.12, 0.14]));
-        const blade = mesh(G.box, toon({ color: '#20242f' }), [0.85, 0.02, 0.09], [0, 0.07, 0], false);
-        hub.add(blade);
-        const disc = mesh(G.cyl, glowMat('#cfe6ff', 0.35), [0.85, 0.005, 0.85], [0, 0.07, 0], false);
-        hub.add(disc);
-        rotors.push(hub);
-        body.add(hub);
+        parts.push({ geo: G.box, s: [0.9, 0.1, 0.14], p: [Math.cos(a) * 0.75, 0.05, Math.sin(a) * 0.75], r: [0, -a, 0], c: dark });
+        parts.push({ geo: G.cyl, s: [0.14, 0.12, 0.14], p: [Math.cos(a) * 1.15, 0.14, Math.sin(a) * 1.15], c: trim });
+        discs.push({ geo: G.cyl, s: [0.85, 0.005, 0.85], p: [Math.cos(a) * 1.15, 0.21, Math.sin(a) * 1.15], c: trim });
       }
-      parts.body = body;
-      rotors.forEach((r, i) => (parts['rotor' + i] = r));
+      body.add(mergedMesh(parts, 0.3));
+      const rotor = new Mesh(mergeParts(discs), rotorMat);
+      body.add(rotor);
+      eye = glowMat(hostile ? C.hostileGlow : '#7fd3ff', 3.2);
+      body.add(mesh(G.sphere, eye, [0.32, 0.22, 0.2], [0, 0.0, -0.58], false));
       group.add(body);
-      break;
+      return { group, parts: { body }, eye };
     }
     case 'turret': {
       group.add(soupMesh((s) => { s.begin(new Vector3(0, -0.7, 0), Q0, 0x50576e, 4); s.cylinder(1.25, 1.0, 12); s.begin(new Vector3(0, -0.05, 0), Q0, 0x6b7390, 4); s.cylinder(0.95, 0.35, 12); }));
       const head = new Group();
       head.position.set(0, 0.55, 0);
-      head.add(mesh(G.sphere, toon({ color: C.turretHead, rim: 0.3 }), [1.6, 1.3, 1.6]));
-      const barrel = mesh(G.cyl, toon({ color: C.turretBase }), [0.32, 1.6, 0.32], [0, 0.05, -0.95]);
-      barrel.rotation.x = Math.PI / 2;
-      head.add(barrel);
-      head.add(mesh(G.torus, toon({ color: '#2a2e3d' }), [0.55, 0.55, 1.2], [0, 0.05, -1.75]));
+      head.add(mergedMesh([
+        { geo: G.sphere, s: [1.6, 1.3, 1.6], p: [0, 0, 0], c: new Color(C.turretHead) },
+        { geo: G.cyl, s: [0.32, 1.6, 0.32], p: [0, 0.05, -0.95], r: [Math.PI / 2, 0, 0], c: new Color(C.turretBase) },
+        { geo: G.torus, s: [0.55, 0.55, 1.2], p: [0, 0.05, -1.75], c: new Color('#2a2e3d') },
+      ], 0.3));
       eye = glowMat(hostile ? C.hostileGlow : '#7fd3ff', 3.0);
       head.add(mesh(G.sphere, eye, [0.5, 0.2, 0.2], [0, 0.35, -0.68], false));
       parts.head = head;
@@ -111,9 +148,12 @@ function buildModel(type: EntityType, hostile: boolean): Model {
       const shirt = toon({ color: C.civilianShirt, rim: 0.3 });
       const pants = toon({ color: C.civilianPants, rim: 0.2 });
       const skin = toon({ color: '#e9b894', rim: 0.2 });
-      group.add(mesh(G.capsule, shirt, [0.46, 0.27, 0.32], [0, 0.2, 0]));
-      group.add(mesh(G.sphere, skin, [0.3, 0.34, 0.3], [0, 0.72, 0]));
-      group.add(mesh(G.sphere, toon({ color: '#5a3b2a' }), [0.32, 0.22, 0.32], [0, 0.82, 0.03]));
+      group.add(mergedMesh([
+        { geo: G.capsule, s: [0.46, 0.27, 0.32], p: [0, 0.2, 0], c: new Color(C.civilianShirt) },
+        { geo: G.sphere, s: [0.3, 0.34, 0.3], p: [0, 0.72, 0], c: new Color('#e9b894') },
+        { geo: G.sphere, s: [0.32, 0.22, 0.32], p: [0, 0.82, 0.03], c: new Color('#5a3b2a') },
+      ], 0.3));
+      void skin;
       for (const s of [-1, 1]) {
         const leg = new Group(); leg.position.set(s * 0.11, -0.2, 0);
         leg.add(mesh(G.capsule, pants, [0.16, 0.33, 0.16], [0, -0.33, 0]));
@@ -143,11 +183,14 @@ function buildModel(type: EntityType, hostile: boolean): Model {
     case 'dummy': {
       group.add(soupMesh((s) => { s.begin(new Vector3(0, -1.0, 0), Q0, 0x8a7a64, 4); s.cylinder(0.6, 0.2, 10); s.begin(new Vector3(0, -0.5, 0), Q0, 0x8a7a64, 4); s.cylinder(0.08, 1.0, 8); }));
       const body = new Group();
-      body.add(mesh(G.capsule, toon({ color: C.dummy, rim: 0.2 }), [0.9, 0.55, 0.7], [0, 0.25, 0]));
-      body.add(mesh(G.sphere, toon({ color: C.dummy, rim: 0.2 }), [0.55, 0.55, 0.55], [0, 1.2, 0]));
-      const t1 = mesh(G.cyl, toon({ color: C.dummyTarget }), [0.6, 0.04, 0.6], [0, 0.35, -0.36], false); t1.rotation.x = Math.PI / 2; body.add(t1);
-      const t2 = mesh(G.cyl, toon({ color: '#ffffff' }), [0.38, 0.05, 0.38], [0, 0.35, -0.37], false); t2.rotation.x = Math.PI / 2; body.add(t2);
-      const t3 = mesh(G.cyl, toon({ color: C.dummyTarget }), [0.16, 0.06, 0.16], [0, 0.35, -0.38], false); t3.rotation.x = Math.PI / 2; body.add(t3);
+      const X = Math.PI / 2;
+      body.add(mergedMesh([
+        { geo: G.capsule, s: [0.9, 0.55, 0.7], p: [0, 0.25, 0], c: new Color(C.dummy) },
+        { geo: G.sphere, s: [0.55, 0.55, 0.55], p: [0, 1.2, 0], c: new Color(C.dummy) },
+        { geo: G.cyl, s: [0.6, 0.04, 0.6], p: [0, 0.35, -0.36], r: [X, 0, 0], c: new Color(C.dummyTarget) },
+        { geo: G.cyl, s: [0.38, 0.05, 0.38], p: [0, 0.35, -0.37], r: [X, 0, 0], c: new Color('#ffffff') },
+        { geo: G.cyl, s: [0.16, 0.06, 0.16], p: [0, 0.35, -0.38], r: [X, 0, 0], c: new Color(C.dummyTarget) },
+      ], 0.2));
       parts.body = body;
       group.add(body);
       break;
@@ -226,6 +269,7 @@ export class EntityViews {
   }
 
   frame(alpha: number, dt: number, time: number, playerPos: Vector3) {
+    rotorMat.uniforms.uTime.value = time;
     for (const v of this.views.values()) {
       const g = v.model.group;
       g.position.copy(v.prevP).lerp(v.currP, alpha);
@@ -248,8 +292,6 @@ export class EntityViews {
             body.rotation.set(-v.vel.z * 0.02 * Math.cos(v.yaw), 0, v.vel.x * 0.03);
             body.position.y = Math.sin(time * 3 + v.currP.x) * 0.06;
           }
-          const spin = v.disabled ? 2 : 40;
-          for (let i = 0; i < 4; i++) v.model.parts['rotor' + i].rotation.y = time * spin * (i % 2 ? 1 : -1);
           if (v.model.eye) v.model.eye.uniforms.uOn.value = v.disabled ? 0 : 0.75 + v.fireFlash * 0.8;
           if (v.disabled) {
             v.smoke -= dt;

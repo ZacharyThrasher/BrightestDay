@@ -22,7 +22,7 @@ body { font-family: var(--font); color: var(--text); -webkit-font-smoothing: ant
 body.ready #boot { display: none; }
 .fatal { position: fixed; inset: 20px; background: #200; color: #fbb; padding: 20px; white-space: pre-wrap; font: 13px var(--mono); z-index: 99; }
 
-.hud { position: absolute; inset: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.hud { position: absolute; inset: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 0 8px rgba(10, 14, 32, 0.25); }
 .hidden { display: none !important; }
 
 /* crosshair */
@@ -43,13 +43,13 @@ body.ready #boot { display: none; }
 .bottom-center { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .speed { font-weight: 800; font-style: italic; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
 .speed .num { font-size: 46px; }
-.speed .unit { font-size: 13px; margin-left: 6px; color: var(--dim); font-style: normal; letter-spacing: 0.1em; }
+.speed .unit { font-size: 13px; margin-left: 6px; color: #fff; font-style: normal; letter-spacing: 0.1em; }
 .speed.fast .num { color: #fff; text-shadow: 0 0 14px var(--hl), 0 1px 2px rgba(0,0,0,0.4); }
 .speedbar { width: 260px; height: 3px; background: rgba(255, 255, 255, 0.18); border-radius: 2px; overflow: hidden; }
 .speedbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #fff, var(--hl)); }
 .bars { display: flex; gap: 14px; }
 .bar { width: 170px; }
-.bar label { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.22em; color: var(--dim); margin-bottom: 3px; }
+.bar label { display: block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.22em; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.6); margin-bottom: 3px; }
 .bar .track { height: 6px; border-radius: 3px; background: rgba(12, 16, 34, 0.5); border: 1px solid var(--panel-edge); overflow: hidden; }
 .bar .track i { display: block; height: 100%; width: 100%; border-radius: 3px; transition: width 0.08s linear; }
 .bar.gas .track i { background: linear-gradient(90deg, #bfe3ff, #ffffff); }
@@ -79,7 +79,7 @@ body.ready #boot { display: none; }
 .console input { flex: 1; background: transparent; border: 0; outline: none; color: #fff; font: 500 17px var(--font); caret-color: var(--hl); }
 .console input::placeholder { color: rgba(255, 255, 255, 0.4); }
 .console-hint { font-size: 11px; color: var(--dim); letter-spacing: 0.04em; }
-.key-hint { font-size: 11px; color: rgba(255, 255, 255, 0.75); letter-spacing: 0.03em; }
+.key-hint { font-size: 11px; color: rgba(255, 255, 255, 0.85); letter-spacing: 0.03em; padding: 3px 8px; border-radius: 5px; background: rgba(12, 16, 34, 0.4); }
 .key-hint b { color: #fff; font-weight: 700; }
 
 /* toasts */
@@ -94,8 +94,8 @@ body.ready #boot { display: none; }
 
 /* construct list */
 .clist { position: absolute; left: 24px; top: 20px; display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
-.clist .hdr { font-size: 10px; letter-spacing: 0.22em; font-weight: 700; color: var(--dim); margin-bottom: 2px; }
-.clist .row { position: relative; padding: 5px 10px; border-radius: 6px; background: rgba(12, 16, 34, 0.42); border: 1px solid transparent; font-size: 13px; overflow: hidden; max-width: 320px; }
+.clist .hdr { align-self: flex-start; font-size: 10px; letter-spacing: 0.22em; font-weight: 800; color: #fff; margin-bottom: 2px; padding: 3px 8px; border-radius: 4px; background: rgba(12, 16, 34, 0.55); }
+.clist .row { position: relative; padding: 5px 10px; border-radius: 6px; background: rgba(12, 16, 34, 0.6); border: 1px solid transparent; font-size: 13px; overflow: hidden; max-width: 320px; }
 .clist .row .name { position: relative; z-index: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .clist .row .life { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--hl); opacity: 0.7; }
 .clist .row.focus { border-color: var(--hl); background: rgba(12, 40, 34, 0.55); box-shadow: 0 0 12px color-mix(in srgb, var(--hl) 30%, transparent); }
@@ -103,7 +103,7 @@ body.ready #boot { display: none; }
 .clist .row.clamped .name::after { content: ' · clamped'; color: var(--warn); font-size: 11px; }
 
 /* objective */
-.objective { position: absolute; right: 24px; top: 20px; width: min(340px, 30vw); text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.objective { position: absolute; right: 24px; top: 20px; width: min(360px, 30vw); text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding: 10px 14px; border-radius: 10px; background: linear-gradient(270deg, rgba(12, 16, 34, 0.5), rgba(12, 16, 34, 0.0)); }
 .objective .title { font-size: 11px; letter-spacing: 0.3em; font-weight: 800; color: #fff; }
 .objective .text { font-size: 12.5px; color: rgba(255, 255, 255, 0.88); line-height: 1.35; }
 .objective .rings { margin-top: 4px; padding: 5px 10px; border-radius: 6px; background: var(--panel); border: 1px solid rgba(255, 197, 92, 0.6); font: 700 13px var(--mono); color: #ffe2a8; }
@@ -113,8 +113,8 @@ body.ready #boot { display: none; }
 /* world markers */
 .markers { position: absolute; inset: 0; }
 .marker { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; transform-origin: 0 0; }
-.marker i { width: 10px; height: 10px; margin-left: -5px; margin-top: -5px; transform: rotate(45deg); border: 2px solid #fff; }
-.marker span { margin-top: 6px; margin-left: -50%; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; padding: 2px 6px; border-radius: 4px; background: rgba(12, 16, 34, 0.45); }
+.marker i { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; transform: rotate(45deg); border: 2px solid #fff; }
+.marker { width: 0; } .marker span { margin-top: 6px; transform: translateX(-50%); position: absolute; top: 4px; left: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; padding: 2px 6px; border-radius: 4px; background: rgba(12, 16, 34, 0.45); }
 .marker.ring i { border-color: #ff7ad9; box-shadow: 0 0 8px #ff7ad9; }
 .marker.goal i { border-color: #7fd3ff; box-shadow: 0 0 8px #7fd3ff; }
 .marker.edge { opacity: 0.8; }

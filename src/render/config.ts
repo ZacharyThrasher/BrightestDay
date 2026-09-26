@@ -35,17 +35,17 @@ export const SKY = {
   horizon: '#ffd6c4',
   ground: '#c9b7c4',
   sun: '#fff1d6',
-  sunDir: [0.45, 0.62, 0.64] as [number, number, number], // normalised in code
+  sunDir: [0.78, 0.52, -0.2] as [number, number, number], // normalised in code
   fogStart: 70,
-  fogDensity: 0.0024,
+  fogDensity: 0.0017,
   fogHeightFalloff: 0.006,
 };
 
 export const LIGHT = {
-  sunIntensity: 2.1,
+  sunIntensity: 2.35,
   hemiSky: '#c7dcff',
   hemiGround: '#b59a8a',
-  hemiIntensity: 1.25,
+  hemiIntensity: 0.95,
 };
 
 /** Toon ink used for outlines / baked edge lines. */

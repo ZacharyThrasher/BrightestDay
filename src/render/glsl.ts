@@ -37,16 +37,18 @@ vec3 skyColor(vec3 dir, float time) {
   vec3 c = skyGradient(dir);
   float sd = max(dot(dir, uSunDir), 0.0);
   c += uSunColor * smoothstep(0.9993, 0.9996, sd) * 3.0; // crisp HDR sun disc (blooms)
-  if (uClouds > 0.5 && dir.y > 0.02) {
-    // flat cel clouds on a virtual plane: two tones, hard-edged
-    vec2 uv = dir.xz / (dir.y + 0.12) * 1.3 + vec2(time * 0.004, time * 0.0015);
-    float n = vnoise(uv * 1.1) * 0.55 + vnoise(uv * 2.3 + 7.1) * 0.3 + vnoise(uv * 5.1 + 3.3) * 0.15;
-    float fade = smoothstep(0.02, 0.25, dir.y) * (1.0 - smoothstep(0.55, 0.95, dir.y));
-    float body = smoothstep(0.60, 0.63, n) * fade;
-    float core = smoothstep(0.70, 0.73, n) * fade;
-    vec3 cloudShade = mix(uSkyHorizon, vec3(1.0), 0.55);
-    c = mix(c, cloudShade, body * 0.75);
-    c = mix(c, vec3(1.0, 0.99, 0.97), core * 0.8);
+  if (uClouds > 0.5 && dir.y > 0.01) {
+    // stylised cel clouds on a virtual plane: hard-edged body, flat shadow band underneath
+    vec2 uv = dir.xz / (dir.y + 0.06) * 0.22 + vec2(time * 0.003, time * 0.001);
+    float n = vnoise(uv) * 0.5 + vnoise(uv * 2.03 + 5.2) * 0.25 + vnoise(uv * 4.1 + 1.7) * 0.15 + vnoise(uv * 8.3 + 9.1) * 0.1;
+    vec2 toSun = normalize(uSunDir.xz + 1e-4) * 0.06;
+    float n2 = vnoise(uv - toSun) * 0.5 + vnoise((uv - toSun) * 2.03 + 5.2) * 0.25 + vnoise((uv - toSun) * 4.1 + 1.7) * 0.15 + vnoise((uv - toSun) * 8.3 + 9.1) * 0.1;
+    float fade = smoothstep(0.01, 0.16, dir.y) * (1.0 - smoothstep(0.6, 0.98, dir.y));
+    float body = smoothstep(0.585, 0.6, n) * fade;
+    float lit = smoothstep(0.6, 0.615, n2 + 0.02);
+    vec3 shadowCol = mix(uSkyHorizon, vec3(0.93, 0.9, 1.0), 0.5);
+    vec3 cloud = mix(shadowCol, vec3(1.0, 0.985, 0.96), lit);
+    c = mix(c, cloud, body * 0.92);
   }
   return c;
 }

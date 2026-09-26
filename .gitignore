@@ -7,3 +7,5 @@ tools/asr-bench/data/
 *.log
 .DS_Store
 eval/results/tmp/
+tools/asr-bench/node_modules/
+tools/.scratch/

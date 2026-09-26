@@ -10,7 +10,12 @@
     "start": "npm run build && electron .",
     "test": "tsx --test test/*.test.ts",
     "eval": "tsx eval/run.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:release": "node tools/build.mjs --minify",
+    "web": "npm run build && node tools/serve.mjs dist/web 5173",
+    "screenshots": "npm run build && node tools/screenshot.mjs",
+    "perf": "npm run build && node tools/perf.mjs",
+    "smoke:electron": "npm run build && xvfb-run -a electron . --no-sandbox --smoke-test=3000"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
@@ -21,6 +26,7 @@
     "@types/three": "^0.186.0",
     "electron": "^44.4.5",
     "esbuild": "^0.28.2",
+    "playwright-core": "^1.56.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }

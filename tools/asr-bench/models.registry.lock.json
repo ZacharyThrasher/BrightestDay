@@ -1,0 +1,19 @@
+{
+  "tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2": "10dc268f3e371696d721486123e2705a9fc1faa113491979fde4d88dba1f1b1c",
+  "asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2": "d5fe6ec4334fef36255b2a4010412cad4c007e33103fec62fb5d17cad88086f2",
+  "asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2": "9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9",
+  "tts-models/vits-piper-en_US-amy-low.tar.bz2": "c70f5284a09a7fd4ed203b39b2ff51cac1432b422b852eb647b481dade3cf639",
+  "tts-models/vits-piper-en_GB-alan-medium.tar.bz2": "a48d4017da0f77668b27bed63fe6e04dd64c6397e1fadad4f460efb0ef7c9012",
+  "asr-models/sherpa-onnx-moonshine-base-en-int8.tar.bz2": "21870cecaa2e44e4e2bf63e02d1072bed183ccd10284871353bd9d24dad14e5e",
+  "asr-models/sherpa-onnx-moonshine-tiny-en-quantized-2026-02-27.tar.bz2": "9ec31b342d8fa3240c3b81b8f82e1cf7e3ac467c93ca5a999b741d5887164f8d",
+  "asr-models/sherpa-onnx-moonshine-base-en-quantized-2026-02-27.tar.bz2": "43232c1d13013d37317163baec3135bd771a186a4356f28c889bab453bb0e891",
+  "tts-models/kokoro-en-v0_19.tar.bz2": "912804855a04745fa77a30be545b3f9a5d15c4d66db00b88cbcd4921df605ac7",
+  "asr-models/silero_vad.onnx": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+  "asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-21.tar.bz2": "455f40e556aa2b20ac9d3bffd603b58002075c1193b4070938540c11efe0a4da",
+  "asr-models/sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06.tar.bz2": "c8676e5ff9ac2a85296e53ee0fd4d5fb1db6770e7a7647166eeafe349ade6834",
+  "asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2": "2bd6cf965c8bb3e068ef9fa2191387ee63a9dfa2a4e37582a8109641c20005dd",
+  "asr-models/sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8.tar.bz2": "7bd33a914e93370a1ba9c2066d9e841bdcad8613fa2a00537c1ae15d851a14d8",
+  "asr-models/sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-480ms-int8.tar.bz2": "da93061cbf7b708b6b65976f70b29f519be29df750d8cdcabf98c65645930f13",
+  "asr-models/sherpa-onnx-whisper-base.en.tar.bz2": "475bc7052ce299c007f6d5d5407ba8601f819a2867f6eecee510ed17df581542",
+  "asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2": "157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad"
+}

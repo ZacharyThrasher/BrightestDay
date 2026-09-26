@@ -68,6 +68,7 @@ export class PlayerRig {
   private bodyRoll = 0;
   private phase = 0;
   private w = { run: 0, air: 0, slide: 0, fly: 0, idle: 1 };
+  private dive = 0;
   private cur: Pose = {};
   private lean = new Vector3();
   private prevVel = new Vector3();
@@ -246,6 +247,13 @@ export class PlayerRig {
       pelvis: [0, 0, 0], spine: [0.05, 0, 0], chest: [0.05, 0, 0], neck: [-1.1, 0, 0],
       shL: [-0.25, 0, -0.25], shR: [2.9, 0, 0.08], elL: [0.25, 0, 0], elR: [0.05, 0, 0],
       hipL: [-0.08 + Math.sin(time * 3) * 0.04, 0, -0.03], hipR: [0.05 - Math.sin(time * 3) * 0.04, 0, 0.03], knL: [-0.15, 0, 0], knR: [-0.35, 0, 0], ftL: [-0.7, 0, 0], ftR: [-0.6, 0, 0],
+    }]);
+    // boosting through the air: streamlined dive, arms swept back
+    this.dive = damp(this.dive, s.boosting && !s.flying && !s.sliding ? (airborne ? 1 : 0.6) : 0, 8, dt);
+    poses.push([this.dive * 3, {
+      pelvis: [-0.75, 0, 0], spine: [-0.1, 0, 0], chest: [-0.1, 0, 0], neck: [0.7, 0, 0],
+      shL: [-0.7, 0, -0.35], shR: [-0.7, 0, 0.35], elL: [0.3, 0, 0], elR: [0.3, 0, 0],
+      hipL: [-0.15, 0, -0.05], hipR: [0.1, 0, 0.05], knL: [-0.5, 0, 0], knR: [-0.9, 0, 0], ftL: [-0.6, 0, 0], ftR: [-0.5, 0, 0],
     }]);
     let wsum = 0;
     for (const [w] of poses) wsum += w;

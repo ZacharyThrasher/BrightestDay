@@ -63,7 +63,7 @@ export class PostPipeline {
         float wa = 1.0 / (1.0 + max(a.r, max(a.g, a.b))), wb = 1.0 / (1.0 + max(b.r, max(b.g, b.b)));
         float wc = 1.0 / (1.0 + max(c.r, max(c.g, c.b))), wd = 1.0 / (1.0 + max(d.r, max(d.g, d.b)));
         gl_FragColor = vec4((a * wa + b * wb + c * wc + d * wd) / (wa + wb + wc + wd), 1.0);
-      }`, { tSrc: { value: null }, uTexel: { value: new Vector2() }, uThreshold: { value: 1.0 } });
+      }`, { tSrc: { value: null }, uTexel: { value: new Vector2() }, uThreshold: { value: 1.12 } });
     this.downMat = pass(/* glsl */ `
       uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
       void main() {
@@ -134,19 +134,19 @@ export class PostPipeline {
         float rad = length(p);
         if (uSpeed > 0.001) {
           float ang = atan(p.y, p.x);
-          float k = floor(ang * 70.0 / 3.14159);
+          float k = floor(ang * 120.0 / 3.14159);
           float h = hash12(vec2(k, 3.0));
-          float cw = abs(fract(ang * 70.0 / 3.14159) - 0.5);
+          float cw = abs(fract(ang * 120.0 / 3.14159) - 0.5);
           float dash = fract(rad * 1.8 - uTime * (2.5 + h * 3.0) + h * 7.0);
-          float on = step(0.72, h) * smoothstep(0.35, 0.0, dash) * (1.0 - smoothstep(0.08, 0.25, cw));
+          float on = step(0.8, h) * smoothstep(0.3, 0.0, dash) * (1.0 - smoothstep(0.03, 0.12, cw));
           float radial = smoothstep(0.28, 0.75, rad);
-          col = mix(col, vec3(1.0), on * radial * uSpeed * 0.35);
+          col = mix(col, vec3(1.0), on * radial * uSpeed * 0.28);
         }
         // vignette + damage / boost edge tint
         float vig = smoothstep(0.95, 0.35, rad);
         col *= mix(0.78, 1.0, vig);
         col = mix(col, vec3(1.0, 0.15, 0.2), (1.0 - vig) * uHurt * 0.55);
-        col = mix(col, vec3(0.3, 1.0, 0.72), (1.0 - vig) * uBoost * 0.18);
+        col = mix(col, vec3(0.3, 1.0, 0.72), (1.0 - vig) * (1.0 - vig) * uBoost * 0.12);
         col = shoulder(max(col, 0.0));
         col = vec3(lin2srgb(col.r), lin2srgb(col.g), lin2srgb(col.b));
         col += (hash12(gl_FragCoord.xy + fract(uTime) * 91.0) - 0.5) / 255.0;

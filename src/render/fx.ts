@@ -270,7 +270,7 @@ export class ProjectileBatch {
   private n = 0;
 
   constructor() {
-    const s = new SphereGeometry(0.34, 10, 8);
+    const s = new SphereGeometry(0.42, 10, 8);
     const g = new InstancedBufferGeometry();
     g.setAttribute('position', s.getAttribute('position'));
     g.setAttribute('normal', s.getAttribute('normal'));
@@ -294,7 +294,7 @@ export class ProjectileBatch {
           float stretch = 1.0 + sp * 0.06;
           // stretch along velocity, trailing behind
           float along = dot(p, d);
-          p += d * (along * (stretch - 1.0) - (stretch - 1.0) * 0.34);
+          p += d * (along * (stretch - 1.0) - (stretch - 1.0) * 0.42);
           vec3 wp = iP + p;
           vC = iC; vN = normal; vV = cameraPosition - wp;
           gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);

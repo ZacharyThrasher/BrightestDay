@@ -16,9 +16,11 @@ const vad = (m) => join(m, 'silero_vad.onnx');
 export const PRESETS = {
   'zipformer-20M': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-20M-2023-02-17'), prime: true, ...o }),
   'zipformer-0621': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-2023-06-21'), ...o }),
-  'kroko-en': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06'), ...o }),
+  // Kroko uses 1.28 s encoder chunks (decode_chunk_len=128, T=141): it needs >=1.41 s of tail padding to flush.
+  'kroko-en': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06'), tailPaddingMs: 1500, ...o }),
   'nemo-fc-80ms': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8'), ...o }),
-  'nemo-fc-480ms': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-480ms-int8'), ...o }),
+  // 480ms variant: 560 ms chunk shift / 650 ms window, so it needs more tail padding than the default 400 ms.
+  'nemo-fc-480ms': (m, o = {}) => ({ kind: 'online-transducer', modelDir: join(m, 'sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-480ms-int8'), tailPaddingMs: 800, ...o }),
   'moonshine-tiny': (m, o = {}) => ({ kind: 'offline-moonshine', modelDir: join(m, 'sherpa-onnx-moonshine-tiny-en-int8'), vadModel: vad(m), ...o, hotwords: [] }),
   'moonshine-base': (m, o = {}) => ({ kind: 'offline-moonshine', modelDir: join(m, 'sherpa-onnx-moonshine-base-en-int8'), vadModel: vad(m), ...o, hotwords: [] }),
   'moonshine2-tiny': (m, o = {}) => ({ kind: 'offline-moonshine2', modelDir: join(m, 'sherpa-onnx-moonshine-tiny-en-quantized-2026-02-27'), vadModel: vad(m), ...o, hotwords: [] }),

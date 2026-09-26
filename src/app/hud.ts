@@ -155,8 +155,10 @@ export class HUD {
     this.hostilesTotal = [...w.entities.values()].filter((e) => e.hostile).length;
     for (const m of this.markerEls.values()) m.remove();
     this.markerEls.clear();
-    this.listKey = '';
+    this.listKey = '#reset';
     this.renderGoals(w);
+    this.chip.classList.add('hidden');
+    this.toasts.innerHTML = '';
   }
 
   setListening(on: boolean) { this.listening = on; }
@@ -331,10 +333,18 @@ export class HUD {
       if (!e) { e = el('div', 'marker ' + m.cls, this.markers); el('i', '', e); el('span', '', e); this.markerEls.set(k, e); }
       const pr = f.renderer.project(m.p);
       let x = pr.x, y = pr.y;
-      const off = pr.behind || x < 30 || x > W - 30 || y < 30 || y > H - 30;
-      if (pr.behind) { x = W - x; y = H - 40; }
-      x = Math.max(30, Math.min(W - 30, x));
-      y = Math.max(30, Math.min(H - 30, y));
+      const M = 40;
+      let off = pr.behind || x < M || x > W - M || y < M || y > H - M;
+      if (off) {
+        // clamp onto an inset screen ellipse in the direction of the target
+        const cs = f.renderer.toCameraSpace(m.p);
+        let ang = Math.atan2(-cs.y, cs.x);
+        if (!pr.behind && cs.z < 0) ang = Math.atan2(y - H / 2, x - W / 2);
+        x = W / 2 + Math.cos(ang) * (W / 2 - M);
+        y = H / 2 + Math.sin(ang) * (H / 2 - M);
+        y = Math.min(y, H - 150); // keep clear of the bottom HUD
+      }
+      x = Math.max(M + 70, Math.min(W - M - 70, x));
       e.classList.toggle('edge', off);
       setStyle(e, 'transform', `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`);
       const d = m.p.distanceTo(w.player.pos);
