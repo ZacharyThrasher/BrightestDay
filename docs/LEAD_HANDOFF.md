@@ -30,6 +30,11 @@ hardening gate + property tests.
 - bd_fx (hard-light rendering, VFX, onomatopoeia, gun FX, transform FX).
 - Content: TMNT pack (+ mutagen power); Miami map + city kit; lexicon lazy-loading + TMNT load check.
 
+- Superhero packs: Marvel/X-Men (assets/icons/marvel.ron) and DC/Invincible/others (assets/icons/dc.ron);
+  their power entries are staged in `assets/powers_pending/{marvel,dc}.ron` — **the lead must merge
+  them into assets/powers.ron** (append; check ids unique; TMNT's mutagen already appended) and run
+  bd_sim powers tests + bd_lexicon tests (sim embeds powers.ron via include_str).
+
 ## Queue (do next)
 1. When world engineer finishes: dedicated **sim perf pass** on a quiet machine (FFA soak p99 briefly
    4.3 ms reported under load; kaiju/creature work suspected).
