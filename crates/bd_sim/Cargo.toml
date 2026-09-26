@@ -10,3 +10,6 @@ bd_voxel.workspace = true
 glam.workspace = true
 serde.workspace = true
 
+
+[dev-dependencies]
+ron.workspace = true

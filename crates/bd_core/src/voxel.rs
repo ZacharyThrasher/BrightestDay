@@ -81,7 +81,7 @@ pub struct RayHit {
 
 /// Amanatides–Woo DDA through the voxel grid. `dir` need not be normalised; `max_dist` is in metres
 /// along the normalised direction.
-pub fn raycast(world: &impl VoxelQuery, origin: Vec3, dir: Vec3, max_dist: f32) -> Option<RayHit> {
+pub fn raycast<W: VoxelQuery + ?Sized>(world: &W, origin: Vec3, dir: Vec3, max_dist: f32) -> Option<RayHit> {
     let dir = dir.normalize_or_zero();
     if dir == Vec3::ZERO {
         return None;
