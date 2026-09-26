@@ -27,6 +27,7 @@ deletes old `*.ogg`/`*.wav` in `assets/sfx/` first, so renamed sounds don't ling
 | `dsp.py` | the DSP toolkit: oscillators, noise, filters, modal synthesis, reverb, loop helpers, loudness, limiter, trimming |
 | `sounds.py` | one `@sound(...)` function per sound id (movement, tethers, constructs, hits, destruction, UI), plus category loudness targets |
 | `sounds_weapons.py` | guns (hand cannon, super shotgun, minigun spin-up/loop/spin-down, rocket, railgun), casings, hit confirms/crit, bullet impacts, ring blast, ko_shatter — every fire sound is transient + 40-90 Hz sub thump + mechanism + slapback/room tail |
+| `sounds_transform.py` | robot/vehicle transformation set (original design: staggered click/servo/clunk cascade with a pitch contour → lock + hiss), panel clicks, combine, diesel engine loop, air horn, heavy robot footsteps. Transform takes are auto-selected until the verified pitch contour (≥ 0.6 oct/s up or down) holds |
 | `sounds_streak.py` | KO streak sets: 8 corps × 5 steps (E minor pentatonic E5 G5 A5 B5, D6→E6), one timbre per corps, plus accents |
 | `sfxgen.py` | the CLI. Runs the recipes, masters each file and writes the OGG files and `manifest.ron` |
 | `verify.py` | decodes every file and reports peak, RMS, LUFS, DC, band shares and loop-seam metrics; renders the spectrogram montage |
@@ -58,6 +59,8 @@ One-shots are normalised on their **maximum momentary (400 ms) loudness**. Loops
 | movement | -18 | land_light -19, land_heavy -15, boost_burst -16, footstep -22 |
 | ui / status | -21 | ui_move -24, type_key -26, ko -12, match_start/end -13, oath_complete / respawn -16 |
 | weapon | -12 | shotgun / rocket / railgun fire -11, reloads & spin -16/-17, shell_casing -24 |
+| transform | -13 | panel_click -20, combine -11 |
+| vehicle | -15 | horn -13, engine loop -18 |
 | ko_streak | -14 | streak steps -15 rising 0.5 dB per step to -13 |
 | loops | -21 | wind -22, boost -20, beam -18, minigun -14, rocket flyby -18 |
 

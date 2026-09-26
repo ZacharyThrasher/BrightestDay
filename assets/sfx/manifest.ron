@@ -3,7 +3,7 @@
 // playback speed in `pitch` (min, max). `volume` is a suggested linear base gain on top of
 // the loudness-normalised files. Loudness targets (BS.1770 K-weighted, LUFS): one-shots are
 // normalised on max momentary (400 ms) loudness, loops on integrated loudness; peaks <= -1 dBFS.
-// Category targets: movement -18, tether -17, construct -15, combat -12, destruction -15, ui -21, weapon -12, ko_streak -14, loop -21 (per-sound `lufs` overrides).
+// Category targets: movement -18, tether -17, construct -15, combat -12, destruction -15, ui -21, weapon -12, ko_streak -14, transform -13, vehicle -15, loop -21 (per-sound `lufs` overrides).
 // `sequence: true` means `files` are ordered steps (KO streak: play files[step-1]), not variations;
 // sequences step up in loudness by 0.5 dB per step from `lufs`. See `ko_streak` at the bottom.
 // Suggested Rust shape:
@@ -699,6 +699,69 @@
             lufs: -13.0,
             sequence: false,
         ), // 'shutdown' sting for the player who ends someone else's streak: falling cue
+        "transform_to_robot": (
+            files: ["sfx/transform_to_robot_1.ogg", "sfx/transform_to_robot_2.ogg", "sfx/transform_to_robot_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.97, 1.03),
+            lufs: -13.0,
+            sequence: false,
+        ), // ~0.9 s rising mechanical cascade -> lock + hydraulic hiss
+        "transform_to_vehicle": (
+            files: ["sfx/transform_to_vehicle_1.ogg", "sfx/transform_to_vehicle_2.ogg", "sfx/transform_to_vehicle_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.97, 1.03),
+            lufs: -13.0,
+            sequence: false,
+        ), // ~0.9 s falling mechanical cascade -> lock + hydraulic hiss
+        "transform_panel_click": (
+            files: ["sfx/transform_panel_click_1.ogg", "sfx/transform_panel_click_2.ogg", "sfx/transform_panel_click_3.ogg", "sfx/transform_panel_click_4.ogg", "sfx/transform_panel_click_5.ogg", "sfx/transform_panel_click_6.ogg", "sfx/transform_panel_click_7.ogg", "sfx/transform_panel_click_8.ogg"],
+            category: "transform",
+            volume: 0.60,
+            looping: false,
+            pitch: (0.90, 1.15),
+            lufs: -20.0,
+            sequence: false,
+        ), // single panel click; trigger per animated panel in sync
+        "transform_combine": (
+            files: ["sfx/transform_combine_1.ogg", "sfx/transform_combine_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.98, 1.02),
+            lufs: -11.0,
+            sequence: false,
+        ), // ~2.2 s combiner transformation: huge layered cascade, final lock + sub boom
+        "vehicle_engine_loop": (
+            files: ["sfx/vehicle_engine_loop_1.ogg", "sfx/vehicle_engine_loop_2.ogg"],
+            category: "vehicle",
+            volume: 0.70,
+            looping: true,
+            pitch: (1.00, 1.00),
+            lufs: -18.0,
+            sequence: false,
+        ), // loop: diesel truck idle/cruise; the game pitches by speed (~0.8-2.2x)
+        "vehicle_horn": (
+            files: ["sfx/vehicle_horn_1.ogg", "sfx/vehicle_horn_2.ogg", "sfx/vehicle_horn_3.ogg"],
+            category: "vehicle",
+            volume: 0.90,
+            looping: false,
+            pitch: (1.00, 1.00),
+            lufs: -13.0,
+            sequence: false,
+        ), // big two-tone truck air horn (easter egg): v1 long, v2 double honk, v3 long low
+        "robot_footstep_heavy": (
+            files: ["sfx/robot_footstep_heavy_1.ogg", "sfx/robot_footstep_heavy_2.ogg", "sfx/robot_footstep_heavy_3.ogg", "sfx/robot_footstep_heavy_4.ogg"],
+            category: "movement",
+            volume: 0.90,
+            looping: false,
+            pitch: (0.92, 1.06),
+            lufs: -14.0,
+            sequence: false,
+        ), // giant robot stomp: servo knee + metal foot + ground thud
     },
     ko_streak: (
         key: "E minor pentatonic",

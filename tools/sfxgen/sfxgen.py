@@ -25,6 +25,7 @@ import dsp  # noqa: E402
 from sounds import REGISTRY, CATEGORY_LUFS  # noqa: E402
 import sounds_weapons  # noqa: E402,F401  (registers guns + ring blast)
 import sounds_streak  # noqa: E402  (registers KO streak sets)
+import sounds_transform  # noqa: E402,F401  (robot <-> vehicle transformations)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

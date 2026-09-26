@@ -25,6 +25,8 @@ CATEGORY_LUFS = {
     'ui': -21.0,
     'weapon': -12.0,
     'ko_streak': -14.0,
+    'transform': -13.0,
+    'vehicle': -15.0,
     'loop': -21.0,
 }
 

@@ -113,7 +113,15 @@ BAND_CHECKS = {  # name: [(lo, hi, min_share)] — design intents checked on eve
     'hit_crit': [(3000, 8000, 0.25), (60, 120, 0.25)],
     'ko_shatter': [(0, 150, 0.4), (3000, 12000, 0.1)],
     'construct_shatter': [(0, 150, 0.3), (3000, 12000, 0.1)],
+    'transform_combine': [(0, 150, 0.4)],
+    'robot_footstep_heavy': [(0, 150, 0.5)],
 }
+# pitch-trend intents: slope (octaves/s) of the energy-weighted 150-12000 Hz centroid over the cascade
+TREND_CHECKS = {'transform_to_robot': ('up', 0.03, 0.66), 'transform_to_vehicle': ('down', 0.03, 0.66)}
+
+
+def trend(x, t0, t1):
+    return dsp.pitch_trend(x, t0, t1)
 
 
 def main():
@@ -155,6 +163,12 @@ def main():
                 seam += f' {lo_}-{hi_}Hz={sh * 100:.0f}%'
                 if sh < mn:
                     fails.append(f'{rel}: {lo_}-{hi_} Hz share {sh * 100:.0f}% < {mn * 100:.0f}%')
+            if name in TREND_CHECKS:
+                want, *w = TREND_CHECKS[name]
+                tr = trend(x, *w)
+                seam += f' pitch trend {tr:+.2f} oct/s'
+                if (want == 'up' and tr <= 0.3) or (want == 'down' and tr >= -0.3):
+                    fails.append(f'{rel}: pitch trend {tr:.2f} not {want}')
             sub = band_share(x, 40, 90)
             if name in FIRE_SOUNDS and (sub < 0.2 or lo < 0.4):
                 fails.append(f'{rel}: weak low end (40-90 Hz {sub * 100:.0f}%, <150 Hz {lo * 100:.0f}%)')

@@ -482,3 +482,20 @@ def reverb_circ(x, rng, rt60=0.8, wet=0.2, predelay=0.01, bright=1.0) -> np.ndar
         folded[:len(seg)] += seg
     w = np.fft.irfft(np.fft.rfft(x) * np.fft.rfft(folded), L)
     return x + wet * w
+
+
+def pitch_trend(x, t0=0.03, t1=0.66):
+    """Slope (octaves/s) of the 150-12000 Hz spectral centroid over [t0, t1] after onset,
+    using 20 ms frames within 20 dB of the loudest (equally weighted)."""
+    on = int(np.argmax(np.abs(x) > 0.02 * np.max(np.abs(x))))
+    w = ns(0.02)
+    f = np.fft.rfftfreq(4096, 1 / SR)
+    m = (f > 150) & (f < 12000)
+    ts, cs, es = [], [], []
+    for s in range(on + ns(t0), min(len(x), on + ns(t1)) - w, w // 2):
+        X = np.abs(np.fft.rfft(x[s:s + w] * np.hanning(w), 4096)) ** 2
+        e = X[m].sum()
+        ts.append(s / SR); cs.append(np.log2((f[m] * X[m]).sum() / (e + 1e-20))); es.append(e)
+    es = np.array(es)
+    keep = es > es.max() * 0.01
+    return float(np.polyfit(np.array(ts)[keep], np.array(cs)[keep], 1)[0])
