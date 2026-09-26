@@ -124,6 +124,11 @@ Everything below is committed and green unless noted.
   construct, beam is its attack), sky delivery + volley words (meteor shower, rain of arrows).
   Sim side of the orbital strike (hover high above aim, ground telegraph, tracking beam with slew cap)
   -> signature worker. Resolve cost is per-cast (~0.1-10 ms), not per-frame.
+- FREEDOM BUNDLE (owner-approved): "it" = last construct ("make it bigger", "again!", graft path),
+  player-name targeting ("missile at Jake"), never refuse for willpower (sputtering scaled-down version),
+  yell/CAPS energy -> up to ~+15% (voice == typing), HIDDEN legendary rolls whose chance scales with
+  novelty (match-wide unseen phrase + composition richness + personal variety; repeats ~0; never shown),
+  kill feed with the exact phrase, end-of-match highlights. Leftover words -> light grafts (lexicon worker).
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
