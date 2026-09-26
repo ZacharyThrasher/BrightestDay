@@ -176,3 +176,4 @@ like the gun grip, summon visibility, tether saves) are welcome anytime — the 
 
 - RESOLVED: FFA hash 0x1fab383f88dfc29f re-recorded by the double-jump worker (bots air-jump/dodge; A/B verified). STILL OPEN: flying_cage_* and opposing_constructs_clash* failures — recheck in stabilisation.
 - DOUBLE JUMP + DODGE DONE: Left Alt = dodge (lead moved gun alt-fire to C; Caps Lock rejected). No air jump while tethered. OWNER: wall touch DOES refresh the air jump/air dodge (surf/wall-kick emergent play) with a tunable same-wall lockout. TODO: regenerate tutorial peak_run ghost (examples/tutorial_ghosts.rs) — its apex jump press is now an air jump.
+- LEXICON RELATIONS DONE: data in crates/bd_lexicon/data/relations.ron (compiled in, no bin rebuild); bd_core v1.6 Recipe.mount (one level); T-Rex now 12 m; sky-emitter / strike / volley recipe shapes documented in the worker report (see signature worker).
