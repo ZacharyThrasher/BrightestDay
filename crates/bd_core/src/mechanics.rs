@@ -149,6 +149,8 @@ pub enum Mechanic {
     Heavy,
     /// Constricts/wraps (python, tentacle).
     Constrict,
+    /// Gains legs and walks after its target (a "wall with legs"). Creatures walk by default.
+    Walks,
 }
 
 /// Elemental flavour. Changes effects/particles and adds a status on hit.

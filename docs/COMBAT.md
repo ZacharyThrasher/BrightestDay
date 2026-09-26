@@ -14,24 +14,33 @@ tether feels great (bigger hit-stop, streak VFX when `v_close > 20`) but isn't r
 Movement is mostly *defence and positioning*: dodging, closing gaps, escaping kaiju, recovering from
 ring-outs.
 
-**Axis 2 — Construction (head).** The ring rewards imagination and cleverness, mechanically:
-1. **Composition is power.** Phrases compose closed-set pieces: `a flaming hammer with rockets`,
-   `electric shark swarm`, `giant bouncy anvil`, `returning axe of ice`. Each extra mechanic costs a
-   bit more but stacks real behaviour (Thrust makes the hammer lunge you forward; Explodes makes every
-   hit a crater). Designing a good combo *is* the skill.
-2. **Freshness ("Spark").** Your first cast of a word this life gets +20% power and −30% cost; a
-   *combination* (form+mechanics+element signature) you haven't used this match gets it too. Repeats
-   go stale (§2). Variety is always the efficient play; spamming one weapon is the inefficient one.
-3. **Counters pay ("Clever!").** Answering what's in front of you is rewarded: a construct that hard-
-   counters the thing it hits/blocks (see §8 counter table) refunds 50% of its cost and deals ×1.5.
-   Shield vs projectile spam, cage vs kaiju, ice vs fire, water vs fire, parachute vs a launch, pillar
-   over the void, mirror/Guard vs Beam, Blade vs structures, Pierce vs Guard.
-4. **Systemic interactions** (§9): elements and constructs interact with each other and the world —
-   fire burns leaves/wood voxels, water douses fire, electric through water chains wider, ice + Blunt
-   shatters frozen things for bonus damage, bombs on trampolines, anvils on ramps, boulders down
-   slopes. Players discover combos we didn't script.
+**Axis 2 — Construction (head).** Owner rule: *creativity must make creative things HAPPEN — never
+the same result with bigger numbers.* There are no "creativity multipliers". Instead the rules are
+built so that unusual ideas produce genuinely different behaviour:
+1. **Mechanics are components, not stat bumps.** Every `Mechanic` is a behaviour component with a
+   generic implementation that works on ANY form (§5b). The form gives shape + default control; each
+   mechanic adds a *verb*. So combinations produce new behaviour we never enumerated:
+   `flying hammer` hunts enemies on its own and bonks them; `bouncy wall` is a rebound surface that
+   sends players and projectiles back; `homing trampoline` slides under the nearest enemy and launches
+   them; `charging wall` is a bulldozer; `anvil swarm` is a hailstorm; `flying cage` scoops someone up
+   and carries them over the void; `spinning pillar` is a lighthouse sweep; `exploding boomerang`
+   craters on the way out and on the way back; `sticky rocket` rides the target; a `shark with wings`
+   is a dive-bomber; `returning godzilla`... returns.
+2. **Grafting.** Casting while your crosshair is on one of *your own* live constructs grafts the new
+   phrase's mechanics/element/parts onto it instead of making a new one: throw a boulder, then
+   `wings` → it takes flight; then `fire` → it's a flaming meteor; aim at your wall, `legs` → it
+   walks toward the enemy. Constructs become things you *build up* mid-fight.
+3. **Counters are qualitative** (§8): a cage around a kaiju roots it; ice on a fire construct
+   freezes and shatters it; a mirror/Guard sends a Beam back along its path; a parachute cancels a
+   launch; a pillar over the void is a lifeline; water makes an electric chain arc to the caster.
+4. **Chemistry and physics** (§9): elements interact with each other, with constructs and with the
+   world — fire spreads through leaves/wood, water douses, ice makes things brittle, constructs have
+   mass and push/stack/topple each other, bombs on trampolines, anvils on ramps, boulders down slopes.
+   Players discover combos we didn't script.
 5. **Readable to the victim.** Every construct telegraphs (forming glow, silhouette, sound) so the
    *opponent's* creativity — reading and countering — is also skill.
+The only economy nudge is mild staleness on repeating the exact same phrase (§2), so variety isn't
+*punished* — but the *reward* for creativity is always new behaviour, never numbers.
 
 Other skill axes: timing (parry windows, dodging telegraphs), typing under pressure (casting
 mid-fight, reciting the oath), and loadout design (the 4 quick-cast slots are a build).
@@ -134,28 +143,68 @@ constructs), Blunt (×1.3 kb, craters), Guard (adds block), Pull, Grab, SlowFall
 worn behaviour to held items: an umbrella is a Staff + SlowFall), Bounce, Launch, Barrier, Trap, Beam,
 Shoots, Breath, Stomp, Charge, ArticulatedTail, Flies, Swarm, Constrict, DropFromSky.
 
+## 5b. Mechanics as generic components (the composition engine)
+Every construct is a physical body (voxel shape → mass, collider) plus a **controller** chosen by its
+form category, plus one **component per mechanic**. Components only talk through shared body state
+(velocity, contacts, target, owner, trigger events), so any combination works. Precedence: if two
+components both want to drive motion, the "drivers" blend in this order: Held/worn attachment >
+Grab/Constrict (while holding) > Charge (while dashing) > Homing/Flies/Thrust (steering) > physics.
+| component | generic meaning on ANY construct |
+|---|---|
+| Flies | body ignores gravity and becomes self-propelled; with no other driver it hovers after its target and bumps it (a flying hammer bonks, a flying wall hunts you as a moving barrier) |
+| Homing | continuously steers toward its target (turn-rate limited) |
+| Thrust | pushes along its facing (on held items: pulls the wielder — rocket hammer lunges you; on objects: rocket-propelled) |
+| Charge | periodic telegraphed dash along facing toward target, rams |
+| Returning | after contact/timeout, flies back to its owner (catchable); if it has a wielder slot it re-equips |
+| Ricochet | on contact, reflects off the surface and re-aims at the nearest enemy (N bounces) |
+| Explodes | detonates on its trigger (impact / fuse / owner re-cast / death) — carves, knocks back |
+| Bounce | its surfaces are super-elastic for anything that touches them (players, projectiles, constructs) |
+| Launch | anything that touches its top/front is flung along its facing |
+| Sticky | attaches to whatever it touches first and rides it |
+| Grab | when its front touches a player/construct, seizes it and carries it; owner's RMB (or AI) throws |
+| Constrict | wraps what it touches; holds + squeezes |
+| Pull | on contact, yanks the touched thing toward its owner |
+| Spin | continuous rotation about its up axis; contact = repeated hits, deflects projectiles |
+| Swarm | the construct is split into `count` smaller copies that act independently |
+| DropFromSky | spawns high above the aim point and falls (telegraphed shadow) |
+| Barrier / Guard | its front face blocks and reflects (see §8) |
+| Trap | if it can enclose its target (cage-like), it snaps shut around it |
+| SlowFall / Glide | on held/worn: modifies the wielder; on anything else: the body itself drifts/glides |
+| Breath | periodically emits its element as a cone from its front |
+| Beam | emits a continuous beam from its front along its facing |
+| Shoots | periodically fires small projectiles from its front at its target |
+| Stomp | when it lands/steps, emits a ground shockwave + carve |
+| ArticulatedTail | adds a tail part that sweeps anything behind it |
+| Blade / Pierce / Blunt / Heavy / Fast | physical character of its contacts (cut, penetrate, crater, mass, speed) |
+Autonomous constructs (creatures, or anything with Flies/Homing/Charge) pick targets by the owner's
+last aim/hit, else nearest enemy. Voxel shapes gain visible parts for mechanics (wings, rockets,
+spikes, tail, jaw, horns) on any form, so the victim can *read* what a combination will do.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more
 lift), Earth (×2 terrain carve), Poison (2 dmg/s 4 s), Psychic (victim gravity ×0.3 for 1 s — juggle),
 Shadow (victim vision vignette 1 s), Atomic (burn + bigger breath/explosions).
 
-## 8. Counter table ("Clever!" bonus: ×1.5 effect, 50% refund, small gold flash + chime)
-| the construct you use | counters |
-|---|---|
-| Guard / Barrier / Dome | incoming projectiles, Beam, Breath (blocked while facing) |
-| Cage / Trap / Constrict | Creatures (esp. Kaiju: a cage the Kaiju's size roots it 2 s), Charge |
-| Blade | Structures, Barrier, Cage (cuts through) |
-| Pierce | Guard (ignores block) |
-| SlowFall / Glide / Parachute | being launched (tumble cancel) — "saved it" bonus if within 1.5 s of a big knockback |
-| Pillar / Platform / Whip-to-terrain | falling into the void (rescue) |
-| Ice | Fire, Fast creatures |  
-| Water | Fire, Explodes (dud chance) |
-| Electric | Water creatures/constructs, Swarm (chains through) |
-| Heavy / DropFromSky | Flies (knocks fliers down), Barrier |
-| Returning / Ricochet | targets behind cover |
-| Pull / Grab | fleeing/fast players, fliers |
-The table is data (`bd_sim` counter rules), easy to tune; the lexicon never touches it.
+## 8. Counters — qualitative outcomes, not multipliers
+| your construct | against | what HAPPENS |
+|---|---|---|
+| Guard / Barrier / Dome | projectiles | stopped; a perfectly-timed Guard *reflects* them back to their owner |
+| Guard (mirror-ish / Shield) | Beam, Breath | the beam bends off the shield along your aim — you redirect it |
+| Cage / Trap | Creature, Kaiju | creature rooted in place, thrashing (it can break out); a kaiju cage topples it |
+| Constrict / Grab | Creature | you can *steer* the grabbed creature (drag it, throw it at people) |
+| Blade | Structure, Barrier, Cage | sliced cleanly in two along the swing plane; both halves fall physically |
+| Pierce | Guard | goes through; the shield cracks with a hole where it hit |
+| SlowFall / Glide | being launched | tumble cancelled mid-air; you drift down safely |
+| Pillar / Platform / Whip | falling into the void | a new anchor/ledge — the rescue |
+| Ice | Fire construct/creature | fire snuffed; the thing freezes solid and becomes brittle (next hit shatters it) |
+| Water | Fire; Explodes | fire hisses out into steam (vision cloud); bombs fizzle into duds |
+| Electric | Water / wet targets | current arcs through everything wet, including the water's owner |
+| Heavy / DropFromSky | Flies | fliers are slammed out of the sky and pinned briefly |
+| Returning / Ricochet | targets behind cover | reaches around corners |
+| Pull / Grab | fleeing / fast players, fliers | reeled in to you |
+| Charge / Heavy | Wall, Barrier | smashes through; wall voxels scatter as debris |
+The table is data (`bd_sim` counter rules), easy to extend; the lexicon never touches it.
 
 ## 9. Systemic interactions (world + construct chemistry)
 - Fire ignites Leaves/Wood voxels: burning spreads slowly (deterministic cellular step at 10 Hz,
