@@ -40,6 +40,15 @@ light voxels in your corps colour. Everything shatters into cubes.
   icon models for pop-culture items). Unknown words fall back gracefully via WordNet hypernyms
   ("sledge" → hammer) and ConceptNet relations; truly unknown words make a generic glowing blob with a
   flash of "?" — never nothing.
+- **Vast by default.** Goal: nearly any phrase a player types or says resolves to *something
+  sensible*. Layers: curated icons → Wikidata named entities (~150k–500k characters, creatures, species,
+  breeds, vehicles, weapons, landmarks, each mapped via its "is a" chain: Eeyore → fictional donkey →
+  donkey → Quadruped) → ConceptNet/WordNet words (every concrete WordNet noun gets a default body from
+  its category) → morphology/slang ("shootin", "GIANTTT") → compound split ("sharknado") → phonetic/
+  fuzzy → description head noun → blob. Phrases compose: size, count, element, "with/that/of" parts
+  and mechanics, and a recursive **payload** ("eeyore shooting laser beams", "cannon that shoots
+  anvils", "godzilla breathing bees"). A tiny note ("eeyore ≈ donkey") teaches players what the ring
+  understood.
 - **Pop culture is data.** `assets/icons.ron` curates iconic things (Mjolnir: Hammer+Returning+Electric;
   Cap's shield: Shield+Returning+Ricochet; Godzilla: Kaiju biped+ArticulatedTail+Breath(atomic);
   lightsaber, batarang, web-shooter, Pokéball…). All ~1000 Pokémon come in automatically from
@@ -89,6 +98,7 @@ transferred) so small hits stay small and big hits are *huge*:
 | LMB / RMB | use construct primary / secondary (ring blast when empty) |
 | Enter or T | open ring console: type a construct, Enter to cast (mouse aim + tethers stay live; momentum preserved) |
 | 1–4 | quick-cast loadout slots (words chosen in lobby) |
+| V (hold) | *experimental* voice cast: say the phrase, release to cast (local Whisper on CPU → same lexicon resolver) |
 | F | recite oath (willpower recharge typing test) |
 | X | dismiss your constructs |
 | Tab | scoreboard |

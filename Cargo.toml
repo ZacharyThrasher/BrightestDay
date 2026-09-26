@@ -8,6 +8,7 @@ members = [
     "crates/bd_net",
     "crates/bd_game",
     "crates/bd_shapes",
+    "crates/bd_voice",
 ]
 
 [workspace.package]
@@ -22,6 +23,7 @@ bd_sim = { path = "crates/bd_sim" }
 bd_lexicon = { path = "crates/bd_lexicon" }
 bd_net = { path = "crates/bd_net" }
 bd_shapes = { path = "crates/bd_shapes" }
+bd_voice = { path = "crates/bd_voice" }
 glam = { version = "0.30", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }

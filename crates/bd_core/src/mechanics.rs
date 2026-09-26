@@ -201,6 +201,11 @@ pub struct Recipe {
     /// Optional secondary tint for icons (e.g. Cap's shield stripes), sRGB 0..1; blended with corps colour.
     pub accent: Option<[f32; 3]>,
     pub model: ModelSource,
+    /// What this construct shoots / breathes / throws / drops, as a construct of its own
+    /// ("a cannon that shoots anvils", "godzilla breathing bees", "eeyore shooting laser beams").
+    /// `None` = the form's default projectile / its element. The sim clamps nesting to depth 1.
+    #[serde(default)]
+    pub payload: Option<Box<Recipe>>,
 }
 
 impl Recipe {
@@ -234,6 +239,7 @@ impl Recipe {
             count: 1,
             accent: None,
             model: ModelSource::Procedural { seed: 0 },
+            payload: None,
         }
     }
 }
