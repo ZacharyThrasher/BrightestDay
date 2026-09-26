@@ -20,11 +20,15 @@ pub const RANDOM_STAND: &str = "random:stand";
 /// Grants key of the "random mutagen" recipe (lexicon: "mutagen", "the ooze"): a random animal
 /// hybrid among the `mutagen_*` powers (TMNT pack).
 pub const RANDOM_MUTAGEN: &str = "random:mutagen";
+/// Grants key of the "random origin" recipe: a random superhero origin kit (`kind: Origin`).
+pub const RANDOM_ORIGIN: &str = "random:origin";
 /// Id prefix of the mutagen powers — they are Zoan "fruits" mechanically but are never rolled by a
 /// random devil fruit, only by [`RANDOM_MUTAGEN`].
 pub const MUTAGEN_PREFIX: &str = "mutagen_";
 
-/// Devil fruit class (Logia can scatter; Zoans transform) or a JoJo stand.
+/// Devil fruit class (Logia can scatter; Zoans transform), a JoJo stand, or a superhero origin
+/// (radioactive spider, gamma, kryptonian, power ring…). Transforms and companions are data on any
+/// kind; the kind only picks the acquisition + weakness rules (COMBAT.md §5h).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PowerKind {
     Paramecia,
@@ -32,11 +36,60 @@ pub enum PowerKind {
     Zoan,
     MythicalZoan,
     Stand,
+    /// A pickup like a fruit, but none of the devil-fruit rules: no Water drain, no seastone, no
+    /// void sinking, and a second origin simply replaces the first.
+    Origin,
 }
 
 impl PowerKind {
+    /// A devil fruit (mutagens included): Water drain, seastone, void sink, a second one explodes you.
     pub fn is_fruit(self) -> bool {
-        !matches!(self, PowerKind::Stand)
+        matches!(self, PowerKind::Paramecia | PowerKind::Logia | PowerKind::Zoan | PowerKind::MythicalZoan)
+    }
+
+    pub fn is_stand(self) -> bool {
+        self == PowerKind::Stand
+    }
+
+    pub fn is_origin(self) -> bool {
+        self == PowerKind::Origin
+    }
+
+    /// Acquired as a pickup anyone can grab (and dropped where the holder is KO'd): fruits and
+    /// origins. Stands are called, held until KO and then gone.
+    pub fn is_pickup(self) -> bool {
+        self.is_fruit() || self.is_origin()
+    }
+}
+
+/// How an uneaten fruit / ungrabbed origin looks (§5h): a small inert object. Only the look is data;
+/// forms and elements are limited to ones that never act on their own (sanitized on load).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PickupDef {
+    /// Construct name ("radioactive spider", "gamma canister"); empty = the power's name.
+    pub name: String,
+    pub form: Form,
+    pub element: Element,
+    pub scale: f32,
+}
+
+impl Default for PickupDef {
+    fn default() -> Self {
+        Self { name: String::new(), form: Form::Ball, element: Element::Light, scale: 0.45 }
+    }
+}
+
+impl PickupDef {
+    fn sanitize(&mut self) {
+        if !matches!(self.form, Form::Ball | Form::Boulder | Form::Blob0) {
+            self.form = Form::Ball;
+        }
+        // No element that burns, soaks, freezes or blows things around while lying on the ground.
+        if !matches!(self.element, Element::Light | Element::Electric | Element::Earth | Element::Poison | Element::Psychic | Element::Shadow | Element::Atomic) {
+            self.element = Element::Light;
+        }
+        self.scale = if self.scale.is_finite() { self.scale.clamp(0.25, 0.9) } else { 0.45 };
     }
 }
 
@@ -373,13 +426,16 @@ pub struct PowerDef {
     pub transform: Option<TransformDef>,
     #[serde(default)]
     pub companion: Option<CompanionDef>,
+    /// Look of the pickup (fruits / origins); `None` = a plain glowing orb named after the power.
+    #[serde(default)]
+    pub pickup: Option<PickupDef>,
 }
 
-/// Rules shared by every fruit / stand (tuning lives here in code; powers.ron is only entries).
+/// Rules shared by every fruit / stand / origin (tuning lives here in code; powers.ron is only entries).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PowerRules {
-    /// Willpower to cast a fruit.
+    /// Willpower to cast a fruit or an origin pickup.
     pub fruit_cost: f32,
     /// Willpower to call a stand.
     pub stand_cost: f32,
@@ -451,6 +507,9 @@ impl PowerTable {
                 *pre = norm_words(pre);
             }
             p.incantations.retain(|p| !p.is_empty());
+            if let Some(k) = &mut p.pickup {
+                k.sanitize();
+            }
             for (s, _) in &mut p.shouts {
                 *s = norm_words(s);
             }
@@ -500,18 +559,24 @@ impl PowerTable {
         self.powers.iter().flat_map(|p| p.names.iter().map(move |a| (a.as_str(), p.id.as_str())))
     }
 
-    /// Ids of every fruit / every stand (for random picks), in table order.
+    /// Random pools, in table order: `false` = devil fruits ("devil fruit": never an origin or a
+    /// mutagen), `true` = stands ("stand arrow": only stands).
     pub fn ids_of(&self, stand: bool) -> impl Iterator<Item = u16> + '_ {
         self.powers
             .iter()
             .enumerate()
-            .filter(move |(_, p)| p.kind.is_fruit() != stand && !p.id.starts_with(MUTAGEN_PREFIX))
+            .filter(move |(_, p)| if stand { p.kind.is_stand() } else { p.kind.is_fruit() && !p.id.starts_with(MUTAGEN_PREFIX) })
             .map(|(i, _)| i as u16)
+    }
+
+    /// Ids of every origin kit (for "random:origin"), in table order.
+    pub fn origin_ids(&self) -> impl Iterator<Item = u16> + '_ {
+        self.powers.iter().enumerate().filter(|(_, p)| p.kind.is_origin()).map(|(i, _)| i as u16)
     }
 
     /// Ids of every mutagen power (for "random:mutagen"), in table order.
     pub fn mutagen_ids(&self) -> impl Iterator<Item = u16> + '_ {
-        self.powers.iter().enumerate().filter(|(_, p)| p.id.starts_with(MUTAGEN_PREFIX)).map(|(i, _)| i as u16)
+        self.powers.iter().enumerate().filter(|(_, p)| p.kind.is_fruit() && p.id.starts_with(MUTAGEN_PREFIX)).map(|(i, _)| i as u16)
     }
 
     pub fn is_rush_token(&self, token: &str) -> bool {

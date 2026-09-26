@@ -30,6 +30,11 @@ pub fn is_random_mutagen(key: &str) -> bool {
     key.eq_ignore_ascii_case(RANDOM_MUTAGEN)
 }
 
+/// "random:origin" (a random superhero origin kit).
+pub fn is_random_origin(key: &str) -> bool {
+    key.eq_ignore_ascii_case(RANDOM_ORIGIN)
+}
+
 /// "random:stand" (also "stand_arrow").
 pub fn is_random_stand(key: &str) -> bool {
     key.eq_ignore_ascii_case(RANDOM_STAND) || key.eq_ignore_ascii_case("stand_arrow")
@@ -56,7 +61,8 @@ impl World {
     // ------------------------------------------------------------------------------ commands
 
     /// Give `player` the power `key` directly (tools, tests, a lobby "random powers" toggle).
-    /// A stand calls its companion; a fruit is simply eaten (a second fruit explodes you).
+    /// A stand calls its companion; a fruit / origin is taken as if grabbed (one power slot: the
+    /// new power replaces the old, except a second fruit explodes you).
     pub fn grant_power(&mut self, player: PlayerId, key: &str) -> bool {
         let Some(i) = self.pidx(player) else { return false };
         if !self.players[i].alive {
@@ -67,8 +73,8 @@ impl World {
         if !self.power_allowed(def) {
             return false;
         }
-        if def.kind.is_fruit() {
-            self.eat_fruit(i, id);
+        if def.kind.is_pickup() {
+            self.take_pickup(i, id);
         } else {
             self.gain_power(i, id, GainHow::Granted);
         }
@@ -237,6 +243,14 @@ impl World {
             let k = self.rng.below(n) as usize;
             return t.mutagen_ids().nth(k);
         }
+        if is_random_origin(key) {
+            let n = t.origin_ids().count() as u32;
+            if n == 0 {
+                return None;
+            }
+            let k = self.rng.below(n) as usize;
+            return t.origin_ids().nth(k);
+        }
         let stand = if is_random_fruit(key) {
             false
         } else if is_random_stand(key) {
@@ -273,7 +287,9 @@ impl World {
         let is_random_stand = is_random_stand(key);
         // A random mutagen is a fruit-like pickup (Zoan) gated by the devil-fruit toggle.
         let is_random_fruit = is_random_fruit(key) || is_random_mutagen(key);
-        let def = if is_random_stand || is_random_fruit {
+        // A random origin is a pickup gated only by the powers toggle.
+        let is_random_origin = is_random_origin(key);
+        let def = if is_random_stand || is_random_fruit || is_random_origin {
             if (is_random_stand && !self.cfg.rules.stands) || (is_random_fruit && !self.cfg.rules.devil_fruits) {
                 return None;
             }
@@ -284,7 +300,7 @@ impl World {
         if def.is_some_and(|d| !self.power_allowed(d)) {
             return None;
         }
-        let stand = def.map_or(is_random_stand, |d| !d.kind.is_fruit());
+        let stand = def.map_or(is_random_stand, |d| !d.kind.is_pickup());
         let cost = if stand { t.rules.stand_cost } else { t.rules.fruit_cost };
         if let Err(e) = self.power_pay(i, cost) {
             return Some(Err(e));
@@ -298,7 +314,7 @@ impl World {
             self.gain_power(i, id, GainHow::Stand);
             return Some(self.players[i].power.companion.ok_or(CastError::Busy));
         }
-        // The fruit pops out where you aim (≤ 8 m) or just in front of you.
+        // The fruit / origin pickup pops out where you aim (≤ 8 m) or just in front of you.
         let cw = CollisionWorld::new(&self.voxels, self.colliders());
         let at = match raycast_world(&cw, origin, dir, 8.0, false) {
             Some(h) => h.point + h.normal * 0.45,
@@ -307,8 +323,8 @@ impl World {
         Some(self.spawn_fruit(owner, id, at, Vec3::Y * 3.0, false).ok_or(CastError::Busy))
     }
 
-    /// A hard-light fruit anyone can eat by touching it (conserved: if it is destroyed it
-    /// reappears).
+    /// A hard-light fruit (or origin pickup: a radioactive spider, a gamma canister...) anyone can
+    /// take by touching it (conserved: if it is destroyed it reappears).
     pub(crate) fn spawn_fruit(&mut self, owner: PlayerId, power: u16, pos: Vec3, vel: Vec3, respawn: bool) -> Option<ConstructId> {
         let def = PowerTable::get().def(power)?;
         if self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 || self.pidx(owner).is_none() || !pos.is_finite() {
@@ -320,13 +336,14 @@ impl World {
                 c.gone = Some(GoneReason::Expired);
             }
         }
+        let look = def.pickup.as_ref();
         let recipe = validate_recipe(
             Recipe {
-                name: def.name.clone(),
-                form: Form::Ball,
+                name: look.filter(|k| !k.name.is_empty()).map_or_else(|| def.name.clone(), |k| k.name.clone()),
+                form: look.map_or(Form::Ball, |k| k.form),
                 mechanics: vec![],
-                element: Element::Light,
-                scale: 0.45,
+                element: look.map_or(Element::Light, |k| k.element),
+                scale: look.map_or(0.45, |k| k.scale),
                 mass: 2.0,
                 count: 1,
                 accent: None,
@@ -369,11 +386,14 @@ impl World {
         Some(cid)
     }
 
-    /// Eat a fruit: a second fruit is an overdose (a big blast, self-KO, no credit).
-    fn eat_fruit(&mut self, i: usize, power: u16) {
+    /// Take a pickup (eat a fruit / grab an origin). One power slot: the new power replaces the
+    /// old one (a replaced fruit / origin drops at your feet, a stand is gone) - except a second
+    /// devil fruit, which is an overdose (a big blast, self-KO, no credit).
+    fn take_pickup(&mut self, i: usize, power: u16) {
         let p = &self.players[i];
         let id = p.id;
-        if p.power.is_fruit() {
+        let fruit = PowerTable::get().def(power).is_some_and(|d| d.kind.is_fruit());
+        if fruit && p.power.is_fruit() {
             let base = self.cfg.move_params.clone();
             let pos = p.hull(&base).center();
             let r = &PowerTable::get().rules;
@@ -412,7 +432,7 @@ impl World {
         }
     }
 
-    /// Drop the power (KO / replaced). A fruit reappears at `fruit_at`.
+    /// Drop the power (KO / replaced). A fruit / origin reappears at `fruit_at`.
     pub(crate) fn lose_power(&mut self, i: usize, fruit_at: Option<Vec3>) {
         let old = std::mem::take(&mut self.players[i].power);
         let Some(power) = old.id else { return };
@@ -430,7 +450,7 @@ impl World {
         }
         self.inject_event(GameEvent::Power(PowerEvent::Lost { player: id, power }));
         if let (Some(at), Some(def)) = (fruit_at, PowerTable::get().def(power)) {
-            if def.kind.is_fruit() {
+            if def.kind.is_pickup() {
                 self.spawn_fruit(id, power, at, Vec3::Y * 2.0, true);
             }
         }
@@ -1157,14 +1177,16 @@ impl World {
                 }
             }
         }
-        if !self.cfg.rules.powers_enabled || !self.cfg.rules.devil_fruits {
+        if !self.cfg.rules.powers_enabled {
             return;
         }
-        // Eating: whoever touches a ripe fruit (lowest id first; one fruit per player per tick).
+        // Taking: whoever touches a ripe pickup (lowest id first) - only kinds the lobby allows
+        // (devil fruits can be off while origins stay on).
+        let t = PowerTable::get();
         for _ in 0..MAX_FRUITS {
             let mut found = None;
             'outer: for (k, f) in self.powers.fruits.iter().enumerate() {
-                if f.age < FRUIT_EAT_DELAY {
+                if f.age < FRUIT_EAT_DELAY || !t.def(f.power).is_some_and(|d| self.power_allowed(d)) {
                     continue;
                 }
                 let Some(c) = self.constructs.get(f.construct).filter(|c| c.gone.is_none()) else { continue };
@@ -1181,7 +1203,7 @@ impl World {
             if let Some(c) = self.constructs.get_mut(f.construct) {
                 c.gone = Some(GoneReason::Spent);
             }
-            self.eat_fruit(pi, f.power);
+            self.take_pickup(pi, f.power);
         }
     }
 

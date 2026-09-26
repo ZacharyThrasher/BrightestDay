@@ -8,8 +8,10 @@
 //! ## Client / lexicon contract
 //! * The lexicon maps fruit / stand names to recipes with `grants: Some(id)` (it scans `id`,
 //!   `name`, `names`, `incantations`, `kind`, `companion` of each powers.ron entry;
-//!   [`PowerTable::id_for_name`]; `"random:devil_fruit"` / `"random:stand"` = the sim rolls one). Casting such a recipe with [`crate::World::cast`] makes an edible fruit construct
-//!   (anyone who touches it eats it) or calls the stand (held until KO).
+//!   [`PowerTable::id_for_name`]; `"random:devil_fruit"` / `"random:stand"` / `"random:mutagen"` /
+//!   `"random:origin"` = the sim rolls one from that pool only). Casting such a recipe with
+//!   [`crate::World::cast`] makes a pickup construct - a fruit or an origin (anyone who touches it
+//!   takes it) - or calls the stand (held until KO).
 //! * Before resolving a typed/spoken phrase, the client calls [`parse_phrase`] with the local
 //!   player's power (`PlayerSnap::power.power()`): `Move(slot)` → `power_move`, `Incantation {rest}`
 //!   → resolve `rest` with the lexicon and call [`crate::World::cast_incantation`], `Plain` → cast.
@@ -58,7 +60,7 @@ pub mod power_flags {
     pub const TRANSFORMED: u8 = 1 << 2;
     /// Time stop: grey the world (for everyone) — only this player is fast.
     pub const TIME_STOP: u8 = 1 << 3;
-    /// Falling over the void (fruit users sink faster).
+    /// Falling over the void (devil-fruit users sink faster; origins and stands don't).
     pub const OVER_VOID: u8 = 1 << 4;
     /// The stand is out front rushing.
     pub const RUSH: u8 = 1 << 5;
@@ -210,7 +212,7 @@ pub fn time_stop_speed(d: &PowerDef) -> f32 {
         .unwrap_or(2.0)
 }
 
-/// An uneaten fruit (a construct with `recipe.grants`).
+/// An uneaten fruit or ungrabbed origin pickup (a construct with `recipe.grants`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Fruit {
     pub construct: ConstructId,
@@ -295,7 +297,7 @@ pub enum PowerError {
 /// How a power was gained.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GainHow {
-    /// Ate a fruit construct.
+    /// Ate a fruit / grabbed an origin pickup.
     Ate,
     /// Called a stand (or the stand arrow picked one).
     Stand,
@@ -324,7 +326,7 @@ pub enum PowerEvent {
     Lost { player: PlayerId, power: u16 },
     /// A fruit construct appeared (cast, or respawned where its eater died).
     FruitSpawned { construct: ConstructId, power: u16, pos: Vec3, respawn: bool },
-    /// Ate a second fruit: self-KO blast.
+    /// Ate a second devil fruit: self-KO blast (a second origin just replaces the first).
     Overdose { player: PlayerId, pos: Vec3 },
     Drained { player: PlayerId, secs: f32 },
     Seastone { player: PlayerId, on: bool },

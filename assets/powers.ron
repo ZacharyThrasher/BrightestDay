@@ -1,9 +1,10 @@
 // Player powers (COMBAT.md §5h) — ONE template for every iconic power system.
 // Owned by bd_sim (src/powers). Each entry: id, name, kind, names (lexicon), body, graft,
 // incantations + delivery, shouts (whole phrases → move slot), moves (≤ 2: G tap, G hold),
-// transform, companion. Every value is closed-set data; moves are lists of MoveOps that map onto
-// existing world operations (Cast, Impulse, Blink, Reel, Shove, Field, Room, Swap, Portal, Link,
-// Explode, Carve, TimeStop, Restore, Transform, SelfStatus, Weigh, SlamOnLand).
+// transform, companion, pickup (the look of a fruit / origin pickup). kind: Paramecia | Logia | Zoan |
+// MythicalZoan (devil fruits) | Stand (JoJo) | Origin (superhero origin kits). Every value is
+// closed-set data; moves are lists of MoveOps that map onto existing world operations (Cast,
+// Impulse, Blink, Reel, Shove, Field, Room, Swap, Portal, Link, Explode, Carve, TimeStop, Restore, Transform, SelfStatus, Weigh, SlamOnLand).
 // The lexicon scans id / name / names / incantations / kind / companion (bd_lexicon/src/powers.rs).
 // Shared tuning (fruit cost, drain secs, rush tokens…) is PowerRules in src/powers/data.rs.
 // Keep this file a plain list: the lexicon splits entries at the first bracket.
@@ -366,7 +367,7 @@
         // Blue-fire wings: flight (thrust stays below skilled movement), fire immunity.
         transform: Some((
             costume: "phoenix",
-            body: (immune: [Fire], moves: (thrust: 26.0, thrust_max: 18.0, gravity: 0.45, glide: 0.5)),
+            body: (immune: [Fire], moves: (thrust: 26.0, thrust_max: 17.0, gravity: 0.45, glide: 0.5)),
             graft: Some((element: Some(Fire))),
         )),
     ),
@@ -763,5 +764,1083 @@
             (name: "wolf form", cooldown: 1.5, ops: [Transform]),
         ],
         transform: Some((costume: "wolf", body: (moves: (speed: 1.12, accel: 1.15)), graft: Some((mechanics: [Blade])))),
+    ),
+    // ================================================================ ORIGINS (kind: Origin, COMBAT.md §5h)
+    // Superhero origin kits: casting the origin's name makes a small themed pickup (`pickup`) anyone can
+    // grab; it drops where its holder is KO'd. No devil-fruit rules (no Water drain, seastone or void
+    // sinking; a second origin replaces the first). An authored `weak` still drains (kryptonite = Poison).
+    // Never-list checked: no invisibility / time stop / mind control / instant kills / player healing /
+    // long stuns; every flight cap (thrust_max) <= 17 m/s.
+    // ---------------------------------------------------------------- Marvel + X-Men
+    // ================================================================ MARVEL — origins
+    (
+        id: "spider_bite",
+        name: "Radioactive Spider",
+        kind: Origin,
+        pickup: Some((name: "radioactive spider", form: Blob0, element: Poison, scale: 0.35)),
+        names: ["radioactive spider", "radioactive spider bite", "bitten by a radioactive spider", "spider bite",
+                "spider powers", "spider-sense powers", "proportional strength of a spider"],
+        // Agile: bigger jumps, air control and snappier acceleration (wall-cling isn't a MoveModifier).
+        body: (moves: (jump: 1.25, air_control: 1.35, accel: 1.1)),
+        // "thwip <anything>": it comes out webbed — sticks and yanks back to you.
+        incantations: ["thwip"],
+        delivery: (add: [Sticky, Pull], from_fist: true),
+        shouts: [("web swing", 0), ("thwip", 0), ("spider sense", 1), ("spidey sense", 1), ("spider-sense", 1)],
+        moves: [
+            // A web line to whatever you aim at, reeling you in: a third tether-like swing.
+            (name: "web swing", cooldown: 0.9, cost: 3.0, ops: [Reel(range: 45.0, speed: 30.0)]),
+            // Spider-sense: an instant backflip out of danger, hanging in the air a beat.
+            (name: "spider-sense", cooldown: 2.5, cost: 4.0, ops: [
+                Impulse(fwd: -11.0, up: 9.0),
+                SelfStatus(status: Float, secs: 0.4),
+            ]),
+        ],
+    ),
+    (
+        id: "gamma",
+        name: "Gamma Radiation",
+        kind: Origin,
+        pickup: Some((name: "gamma canister", form: Ball, element: Atomic, scale: 0.5)),
+        names: ["gamma radiation", "gamma bomb", "gamma rays", "gamma ray", "gamma blast", "gamma exposure",
+                "gamma radiation exposure"],
+        body: (immune: [Atomic]),
+        // "hulk smash <anything>": comes out huge, heavy and blunt.
+        incantations: ["hulk smash"],
+        delivery: (add: [Heavy, Blunt], scale_mult: 1.6),
+        shouts: [("hulk smash", 0), ("smash", 0), ("thunderclap", 0), ("hulk out", 1), ("hulk", 1)],
+        moves: [
+            // Leap and crater where you land (the terrain gives way: punch-through energy).
+            (name: "hulk smash", cooldown: 2.8, cost: 8.0, ops: [
+                Impulse(fwd: 10.0, up: 15.0),
+                SlamOnLand(radius: 5.0, damage: 20.0, knockback: 24.0, carve: 3.2),
+            ]),
+            (name: "hulk out", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Jade giant: big leaps, falls heavy, every cast Heavy + Blunt (bigger launches, craters).
+        transform: Some((
+            costume: "savage hulk",
+            body: (immune: [Atomic], moves: (jump: 1.45, gravity: 1.1, speed: 0.95)),
+            graft: Some((mechanics: [Heavy, Blunt])),
+        )),
+    ),
+    (
+        id: "super_soldier",
+        name: "Super Soldier Serum",
+        kind: Origin,
+        pickup: Some((name: "super soldier serum", form: Ball, element: Light, scale: 0.4)),
+        names: ["super soldier serum", "supersoldier serum", "vita rays", "project rebirth",
+                "erskine formula"],
+        body: (moves: (speed: 1.08, jump: 1.12, accel: 1.12, air_control: 1.1)),
+        shouts: [("shield throw", 0), ("shield toss", 0), ("shield charge", 1), ("shield bash", 1)],
+        moves: [
+            // The vibranium disc: always returns, bounces between targets.
+            (name: "shield throw", cooldown: 1.0, ops: [
+                Cast(recipe: (name: "vibranium shield toss", form: Disc, mech: [Returning, Ricochet, Blunt], scale: 0.8, mass: 8.0)),
+            ]),
+            (name: "shield charge", cooldown: 2.0, cost: 5.0, ops: [
+                Impulse(fwd: 18.0, up: 2.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 18.0),
+            ]),
+        ],
+    ),
+    (
+        id: "worthy",
+        name: "Worthy",
+        kind: Origin,
+        pickup: Some((name: "spark of the worthy", form: Ball, element: Electric, scale: 0.4)),
+        names: ["worthy", "i am worthy", "power of thor", "thor's power", "power of thunder", "odinforce"],
+        body: (immune: [Electric]),
+        graft: Some((element: Some(Electric))),
+        // "for asgard <anything>": comes back to your hand like Mjolnir.
+        incantations: ["for asgard"],
+        delivery: (element: Some(Electric), add: [Returning]),
+        shouts: [("mjolnir", 0), ("come to me", 0), ("god of thunder", 1), ("thunder strike", 1), ("bring the thunder", 1)],
+        moves: [
+            // Summon the hammer: throw it and RMB-hold to be dragged along (existing Mjolnir flight).
+            (name: "mjolnir", cooldown: 1.0, ops: [
+                Cast(recipe: (name: "mjolnir", form: Hammer, mech: [Blunt, Returning], element: Electric, scale: 0.9, mass: 40.0)),
+            ]),
+            (name: "god of thunder", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "thunder strike", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "adamantium",
+        name: "Adamantium Skeleton",
+        kind: Origin,
+        pickup: Some((name: "adamantium ingot", form: Boulder, element: Earth, scale: 0.4)),
+        // No healing factor (never-list): the metal is the power.
+        names: ["adamantium", "adamantium skeleton", "weapon x program", "x gene", "mutant x gene",
+                "berserker mutation"],
+        body: (moves: (speed: 1.05, accel: 1.15)),
+        incantations: ["snikt"],
+        delivery: (add: [Blade, Pierce]),
+        shouts: [("snikt", 0), ("claws", 0), ("berserker rage", 1), ("berserker", 1)],
+        moves: [
+            (name: "snikt", cooldown: 0.6, ops: [
+                Cast(recipe: (name: "adamantium claws", form: Gauntlet, mech: [Blade, Pierce, Fast], scale: 0.7, mass: 3.0)),
+            ]),
+            // Lunge-slash: a movement move that hits.
+            (name: "berserker rage", cooldown: 2.2, cost: 6.0, ops: [
+                Impulse(fwd: 22.0, up: 3.0),
+                Shove(range: 3.2, angle: 60.0, damage: 14.0, knockback: 12.0),
+            ]),
+        ],
+    ),
+    (
+        id: "optic_blast",
+        name: "Optic Blasts",
+        kind: Origin,
+        pickup: Some((name: "ruby quartz", form: Boulder, element: Light, scale: 0.35)),
+        names: ["optic blast powers", "optic blasts power", "cyclops powers", "cyclops' powers", "ruby quartz eyes",
+                "concussive optic blasts"],
+        incantations: ["optic"],
+        delivery: (add: [Beam, Fast]),
+        // Holders may shout the icon's name: "optic blast" fires the eyes instead of casting the visor.
+        shouts: [("optic blast", 0), ("optic", 0), ("full power optic blast", 1), ("full power", 1)],
+        moves: [
+            // A concussive (not cutting) blast: big shove, some punch-through into terrain.
+            (name: "optic blast", cooldown: 0.9, ops: [
+                Cast(recipe: (name: "optic blast", form: Ball, mech: [Fast, Pierce, Blunt], scale: 0.9, mass: 30.0)),
+            ]),
+            (name: "full power", cooldown: 4.0, cost: 12.0, ops: [Carve(length: 24.0, radius: 1.3, damage: 16.0)]),
+        ],
+    ),
+    (
+        id: "weather_witch",
+        name: "Weather Control",
+        kind: Origin,
+        pickup: Some((name: "storm cloud", form: Blob0, element: Electric, scale: 0.5)),
+        names: ["weather witch", "storm powers", "weather control", "ororo's powers", "weather goddess",
+                "atmokinesis"],
+        body: (immune: [Electric]),
+        graft: Some((element: Some(Wind))),
+        // "hurricane <anything>": it spins in on the wind, hunting.
+        incantations: ["hurricane"],
+        delivery: (element: Some(Wind), add: [Spin, Homing]),
+        shouts: [("lightning strike", 0), ("lightning bolt", 0), ("ride the winds", 1), ("take flight", 1)],
+        moves: [
+            (name: "lightning strike", cooldown: 3.5, ops: [
+                Cast(recipe: (name: "lightning strike", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
+            ]),
+            (name: "ride the winds", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Riding the wind: a slow cruise flight (cap 14 m/s — below skilled movement) and a long glide.
+        transform: Some((
+            costume: "ororo munroe",
+            body: (immune: [Electric], moves: (thrust: 16.0, thrust_max: 14.0, gravity: 0.6, glide: 0.55)),
+            graft: Some((element: Some(Electric))),
+        )),
+    ),
+    (
+        id: "magnetism",
+        name: "Magnetism",
+        kind: Origin,
+        pickup: Some((name: "magnetic ore", form: Boulder, element: Earth, scale: 0.45)),
+        names: ["magnetism", "magnetic powers", "master of magnetism powers", "magneto's powers", "magnetokinesis",
+                "magnetic mutation"],
+        // Magnetic levitation: slightly lighter falls.
+        body: (moves: (gravity: 0.9)),
+        incantations: ["magnetic"],
+        delivery: (add: [Attract, Homing]),
+        shouts: [("magnetic pull", 0), ("magnetic repulse", 1), ("repulse", 1)],
+        moves: [
+            // Attract metal: a pull field where you aim (debris, constructs, players).
+            (name: "magnetic pull", cooldown: 4.0, cost: 10.0, ops: [Field(strength: 34.0, radius: 12.0, secs: 2.0, at: Aim)]),
+            // Repel: a shove wave around you.
+            (name: "magnetic repulse", cooldown: 3.0, cost: 8.0, ops: [Field(strength: -60.0, radius: 7.0, secs: 0.5)]),
+        ],
+    ),
+    (
+        id: "teleport_bamf",
+        name: "Teleportation (BAMF)",
+        kind: Origin,
+        pickup: Some((name: "brimstone puff", form: Blob0, element: Shadow, scale: 0.45)),
+        names: ["teleport bamf", "bamf", "teleportation mutation", "nightcrawler's powers", "teleporting mutant",
+                "bamf powers"],
+        body: (moves: (air_control: 1.25, jump: 1.15)),
+        // "bamf <anything>": it pops in from above, trailing brimstone smoke.
+        incantations: ["bamf"],
+        delivery: (element: Some(Shadow), add: [DropFromSky]),
+        shouts: [("bamf", 0), ("teleport", 0), ("bamf strike", 1)],
+        moves: [
+            // BAMF: a sulphur-smoke puff where you were, a blink, a puff where you land.
+            (name: "bamf", cooldown: 1.1, cost: 5.0, ops: [
+                Explode(radius: 2.2, damage: 0.0, knockback: 4.0, element: Shadow),
+                Blink(dist: 12.0, afterimage: true),
+                Explode(radius: 1.8, damage: 0.0, knockback: 3.0, element: Shadow),
+            ]),
+            (name: "bamf strike", cooldown: 2.0, cost: 6.0, ops: [
+                Blink(dist: 8.0, afterimage: true),
+                Shove(range: 3.0, angle: 60.0, damage: 12.0, knockback: 14.0),
+            ]),
+        ],
+    ),
+    (
+        id: "organic_steel",
+        name: "Organic Steel",
+        kind: Origin,
+        pickup: Some((name: "organic steel ingot", form: Boulder, element: Earth, scale: 0.45)),
+        names: ["organic steel", "colossus powers", "steel skin", "organic steel skin", "metal skin mutation"],
+        shouts: [("fastball special", 0), ("armor up", 1), ("armour up", 1), ("steel form", 1)],
+        moves: [
+            // Throw a clawed teammate-shaped projectile, homing (the classic toss).
+            (name: "fastball special", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "fastball special", form: Ball, mech: [Blade, Fast, Homing], scale: 1.2, mass: 90.0)),
+            ]),
+            (name: "steel form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Steel body: slow, falls heavy, shrugs off fire and poison; every cast lands Heavy + Blunt.
+        transform: Some((
+            costume: "colossus x-men",
+            body: (immune: [Fire, Poison], moves: (speed: 0.9, jump: 0.85, gravity: 1.25)),
+            graft: Some((mechanics: [Heavy, Blunt])),
+        )),
+    ),
+    (
+        id: "ice_powers",
+        name: "Cryokinesis",
+        kind: Origin,
+        pickup: Some((name: "frost crystal", form: Boulder, element: Light, scale: 0.4)),
+        names: ["ice powers", "iceman powers", "cryokinesis", "bobby drake's powers", "ice mutation"],
+        body: (immune: [Ice], weak: [Fire]),
+        graft: Some((element: Some(Ice))),
+        shouts: [("ice slide", 0), ("ice ramp", 0), ("ice bridge", 1), ("ice platform", 1)],
+        moves: [
+            // Movement tech: an ice ramp where you aim + a shove onto it — surf it, launch off it.
+            (name: "ice slide", cooldown: 1.6, cost: 4.0, ops: [
+                Cast(recipe: (name: "ice slide", form: Ramp, mech: [Launch], element: Ice, scale: 3.0)),
+                Impulse(fwd: 9.0, up: 1.5),
+            ]),
+            // A floating ice ledge where you aim: a recovery / a tether anchor.
+            (name: "ice bridge", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "ice bridge", form: Platform, element: Ice, scale: 4.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "kinetic_charge",
+        name: "Kinetic Charge",
+        kind: Origin,
+        pickup: Some((name: "charged ace of spades", form: Ball, element: Psychic, scale: 0.35)),
+        names: ["kinetic charge", "kinetic energy charge", "gambit's powers", "kinetic energy powers",
+                "molecular kinetic charge"],
+        // "charged <anything>" / "kinetic <anything>": it detonates on contact.
+        incantations: ["charged", "kinetic"],
+        delivery: (add: [Explodes, Fast]),
+        shouts: [("card throw", 0), ("ace of spades", 0), ("charged staff", 1), ("bo staff", 1)],
+        moves: [
+            (name: "card throw", cooldown: 1.2, ops: [
+                Cast(recipe: (name: "charged cards", form: Ball, mech: [Explodes, Fast, Swarm], scale: 0.3, mass: 0.5, count: 3)),
+            ]),
+            (name: "charged staff", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "charged bo staff", form: Staff, mech: [Blunt, Explodes], scale: 1.8, mass: 3.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "phoenix_force",
+        name: "Phoenix Force",
+        kind: Origin,
+        pickup: Some((name: "phoenix ember", form: Ball, element: Light, scale: 0.45)),
+        names: ["phoenix force", "the phoenix force", "phoenix force power", "power of the phoenix"],
+        body: (immune: [Fire]),
+        graft: Some((element: Some(Psychic))),
+        incantations: ["phoenix"],
+        delivery: (element: Some(Fire), add: [Flies]),
+        shouts: [("telekinetic push", 0), ("telekinesis", 0), ("rise", 1), ("phoenix rise", 1), ("dark phoenix", 1)],
+        moves: [
+            (name: "telekinetic push", cooldown: 2.0, cost: 7.0, ops: [Field(strength: -45.0, radius: 7.0, secs: 0.5, at: Front, dist: 3.0)]),
+            (name: "phoenix rise", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Firebird form: cruise flight capped at 17 m/s (below skilled bhop/swing), Fire on everything.
+        transform: Some((
+            costume: "dark phoenix",
+            body: (immune: [Fire], moves: (thrust: 24.0, thrust_max: 17.0, gravity: 0.45, glide: 0.5)),
+            graft: Some((element: Some(Fire))),
+        )),
+    ),
+    (
+        id: "symbiote",
+        name: "Symbiote Bond",
+        kind: Origin,
+        pickup: Some((name: "symbiote goo", form: Blob0, element: Shadow, scale: 0.45)),
+        names: ["symbiote suit", "alien symbiote", "the black suit", "black symbiote suit", "klyntar"],
+        // Symbiotes hate fire: Fire hits drain the bond like Water does.
+        body: (weak: [Fire], moves: (jump: 1.2, air_control: 1.2)),
+        incantations: ["we are"],
+        delivery: (element: Some(Shadow), add: [Grab, Constrict]),
+        shouts: [("web swing", 0), ("tendrils", 0), ("we are venom", 1), ("symbiote form", 1)],
+        moves: [
+            (name: "web swing", cooldown: 0.9, cost: 3.0, ops: [Reel(range: 42.0, speed: 30.0)]),
+            (name: "symbiote form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Venom form: tendrils grab and squeeze whatever you cast at.
+        transform: Some((
+            costume: "venom marvel",
+            body: (weak: [Fire], moves: (jump: 1.3, air_control: 1.25, speed: 1.05)),
+            graft: Some((mechanics: [Grab, Constrict])),
+        )),
+    ),
+    (
+        id: "spirit_of_vengeance",
+        name: "Spirit of Vengeance",
+        kind: Origin,
+        pickup: Some((name: "hellfire skull", form: Boulder, element: Shadow, scale: 0.4)),
+        names: ["spirit of vengeance", "ghost rider's curse", "zarathos", "rider's curse", "demon of vengeance"],
+        body: (immune: [Fire]),
+        graft: Some((element: Some(Fire))),
+        shouts: [("hellfire chain", 0), ("chain whip", 0), ("hell cycle", 1), ("ride out", 1)],
+        moves: [
+            (name: "hellfire chain", cooldown: 0.8, ops: [
+                Cast(recipe: (name: "hellfire chain", form: Whip, mech: [Link, Pull], element: Fire, scale: 4.5, mass: 15.0)),
+            ]),
+            (name: "hell cycle", cooldown: 3.0, ops: [Transform]),
+        ],
+        // Become the rider: a piloted flaming bike (eject = back on foot).
+        transform: Some((
+            costume: "johnny blaze",
+            pilot: Some((name: "hell cycle", form: Vehicle, mech: [Charge, Fast, Piloted], element: Fire, scale: 3.0, mass: 300.0,
+                         features: [Wheels, Exhaust, Spikes])),
+        )),
+    ),
+    (
+        id: "vibranium_suit",
+        name: "Vibranium Suit",
+        kind: Origin,
+        pickup: Some((name: "heart-shaped herb", form: Ball, element: Psychic, scale: 0.4)),
+        names: ["vibranium suit", "black panther suit", "heart shaped herb",
+                "kinetic vibranium suit", "nanite panther suit"],
+        body: (moves: (speed: 1.1, accel: 1.2, air_control: 1.2, jump: 1.1)),
+        shouts: [("pounce", 0), ("vibranium claws", 0), ("kinetic burst", 1), ("wakanda forever", 1)],
+        moves: [
+            (name: "pounce", cooldown: 1.4, cost: 4.0, ops: [
+                Impulse(fwd: 16.0, up: 5.0),
+                Shove(range: 2.8, angle: 60.0, damage: 10.0, knockback: 8.0),
+            ]),
+            // The stored-energy release: a purple shockwave around you.
+            (name: "kinetic burst", cooldown: 5.0, cost: 12.0, ops: [
+                Field(strength: -70.0, radius: 6.0, secs: 0.4),
+                Explode(radius: 4.0, damage: 10.0, knockback: 22.0),
+            ]),
+        ],
+    ),
+    (
+        id: "pym_particles",
+        name: "Pym Particle Serum",
+        kind: Origin,
+        pickup: Some((name: "pym particle vial", form: Ball, element: Light, scale: 0.3)),
+        names: ["pym particle vial", "shrinking particles", "size-changing particles",
+                "ant-man powers", "pym particle powers"],
+        // "pym <anything>": what it hits shrinks (fragile, light, easy to launch).
+        incantations: ["pym"],
+        delivery: (add: [Shrink]),
+        shouts: [("shrink", 0), ("ant swarm", 1), ("ants", 1)],
+        moves: [
+            (name: "shrink", cooldown: 1.2, ops: [Transform]),
+            (name: "ant swarm", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "ant swarm", form: Insect, mech: [Swarm, Flies, Grab], scale: 0.3, mass: 0.5, count: 8, temperament: Aggressive, intensity: 0.8)),
+            ]),
+        ],
+        // Tiny: quick and nimble (the hitbox stays the same — cosmetic costume).
+        transform: Some((
+            costume: "ant",
+            body: (moves: (speed: 1.2, accel: 1.3, jump: 1.2, air_control: 1.3)),
+            graft: Some((mechanics: [Fast])),
+        )),
+    ),
+    (
+        id: "chaos_magic",
+        name: "Chaos Magic",
+        kind: Origin,
+        pickup: Some((name: "hex orb", form: Ball, element: Psychic, scale: 0.45)),
+        names: ["chaos magic", "scarlet witch's powers", "hex magic", "wanda's powers", "the darkhold's power",
+                "chaos magic powers"],
+        graft: Some((element: Some(Psychic))),
+        // "hex <anything>": seeks and bursts (Psychic: victims float — juggle them).
+        incantations: ["hex"],
+        delivery: (element: Some(Psychic), add: [Homing, Explodes]),
+        shouts: [("hex bolt", 0), ("hex", 0), ("chaos wave", 1), ("chaos", 1)],
+        moves: [
+            (name: "hex bolt", cooldown: 1.0, ops: [
+                Cast(recipe: (name: "hex bolt", form: Ball, mech: [Homing, Fast, Explodes], element: Psychic, scale: 0.7)),
+            ]),
+            (name: "chaos wave", cooldown: 5.0, cost: 14.0, ops: [Explode(radius: 6.0, damage: 10.0, knockback: 18.0, element: Psychic)]),
+        ],
+    ),
+    (
+        id: "power_cosmic",
+        name: "Power Cosmic",
+        kind: Origin,
+        pickup: Some((name: "cosmic cube", form: Boulder, element: Atomic, scale: 0.45)),
+        names: ["power cosmic", "the power cosmic", "cosmic cube", "the cosmic cube", "herald's power",
+                "power of galactus"],
+        body: (immune: [Atomic]),
+        shouts: [("cosmic blast", 0), ("surf", 1), ("surfboard", 1), ("surf's up", 1)],
+        moves: [
+            (name: "cosmic blast", cooldown: 1.0, ops: [
+                Cast(recipe: (name: "cosmic blast", form: Ball, mech: [Fast, Explodes], element: Atomic, scale: 1.0)),
+            ]),
+            (name: "surf", cooldown: 2.0, ops: [Transform]),
+        ],
+        // Board glide: ride a piloted cosmic surfboard (no Fast — flight stays below skilled movement).
+        transform: Some((
+            costume: "norrin radd",
+            pilot: Some((name: "cosmic surfboard", form: Vehicle, mech: [Flies, Glide, Piloted], element: Atomic, scale: 2.4, mass: 50.0)),
+        )),
+    ),
+    (
+        id: "photon_power",
+        name: "Photon Energy",
+        kind: Origin,
+        pickup: Some((name: "tesseract shard", form: Boulder, element: Electric, scale: 0.4)),
+        names: ["photon powers", "binary powers", "kree energy", "tesseract energy", "photon energy", "binary form power"],
+        body: (immune: [Fire]),
+        shouts: [("photon blast", 0), ("binary", 1), ("go binary", 1), ("binary form", 1)],
+        moves: [
+            (name: "photon blast", cooldown: 0.8, ops: [
+                Cast(recipe: (name: "photon blast", form: Ball, mech: [Fast, Blunt, Explodes], scale: 0.9, mass: 20.0)),
+            ]),
+            (name: "binary", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Binary: glowing flight (cap 17 m/s), fire/electric-proof, every cast Fast.
+        transform: Some((
+            costume: "captain marvel",
+            body: (immune: [Fire, Electric], moves: (thrust: 22.0, thrust_max: 17.0, gravity: 0.5, glide: 0.4)),
+            graft: Some((mechanics: [Fast])),
+        )),
+    ),
+    (
+        id: "mystic_arts",
+        name: "The Mystic Arts",
+        kind: Origin,
+        pickup: Some((name: "sling ring", form: Ball, element: Psychic, scale: 0.35)),
+        names: ["mystic arts", "the mystic arts", "sorcerer supreme powers", "book of vishanti", "kamar-taj training",
+                "cloak of levitation power"],
+        // The cloak: a little lighter in the air.
+        body: (moves: (gravity: 0.9, air_control: 1.15)),
+        graft: Some((element: Some(Psychic))),
+        // "by the crimson bands of cyttorak <anything>" and friends: it chains what it hits and seeks.
+        incantations: ["by the crimson bands of cyttorak", "by the hoary hosts of hoggoth", "by the vishanti"],
+        delivery: (element: Some(Psychic), add: [Link, Homing]),
+        shouts: [("sling ring", 0), ("open a portal", 0), ("shield of seraphim", 1), ("seraphim shield", 1)],
+        moves: [
+            // A sparkling portal pair (first where you aim, second at your next aim / near you).
+            (name: "sling ring", cooldown: 3.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "sling ring portal", form: Wall, mech: [Portal], scale: 2.0)),
+            ]),
+            (name: "shield of seraphim", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "shield of seraphim", form: Dome, mech: [Barrier, Repel], element: Psychic)),
+            ]),
+        ],
+    ),
+    (
+        id: "cyttorak_gem",
+        name: "Crimson Gem of Cyttorak",
+        kind: Origin,
+        pickup: Some((name: "crimson gem of cyttorak", form: Boulder, element: Light, scale: 0.45)),
+        names: ["crimson gem of cyttorak", "gem of cyttorak", "juggernaut powers", "cyttorak's gem", "cyttorak gem"],
+        body: (moves: (speed: 0.95, gravity: 1.15)),
+        graft: Some((mechanics: [Charge])),
+        shouts: [("unstoppable", 0), ("unstoppable charge", 0), ("ground pound", 1), ("juggernaut slam", 1)],
+        moves: [
+            // Plow a trench straight through terrain and whoever is in it, then barrel in after it.
+            (name: "unstoppable charge", cooldown: 3.0, cost: 10.0, ops: [
+                Carve(length: 10.0, radius: 1.3, damage: 14.0),
+                Impulse(fwd: 24.0, up: 0.5),
+                Shove(range: 3.4, angle: 45.0, damage: 12.0, knockback: 26.0),
+            ]),
+            (name: "ground pound", cooldown: 3.0, cost: 8.0, ops: [
+                Impulse(fwd: 0.0, up: -30.0),
+                SlamOnLand(radius: 4.5, damage: 18.0, knockback: 22.0, carve: 2.6),
+            ]),
+        ],
+    ),
+    (
+        id: "stretch",
+        name: "Cosmic Rays (Stretch)",
+        kind: Origin,
+        pickup: Some((name: "cosmic ray cloud", form: Blob0, element: Atomic, scale: 0.5)),
+        names: ["cosmic rays", "cosmic ray exposure", "cosmic ray storm", "unstable molecules",
+                "mister fantastic's powers"],
+        body: (bounce: true),
+        incantations: ["stretch"],
+        delivery: (add: [Returning, Grab], remove: [DropFromSky], from_fist: true, arm: true),
+        shouts: [("stretch punch", 0), ("stretch swing", 1), ("stretch", 1)],
+        moves: [
+            (name: "stretch punch", cooldown: 0.6, ops: [
+                Cast(recipe: (name: "stretch punch", form: Ball, mech: [Returning, Blunt, Fast], scale: 0.7, mass: 25.0)),
+            ]),
+            (name: "stretch swing", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 38.0, speed: 30.0)]),
+        ],
+    ),
+    (
+        id: "flame_on",
+        name: "Human Torch Flame",
+        kind: Origin,
+        pickup: Some((name: "cosmic flame", form: Ball, element: Light, scale: 0.4)),
+        names: ["human torch's powers", "flame on power", "johnny storm's powers", "pyrokinesis mutation",
+                "fire powers marvel"],
+        body: (immune: [Fire], weak: [Water]),
+        shouts: [("fireball", 0), ("nova flame", 0), ("flame on", 1)],
+        moves: [
+            (name: "fireball", cooldown: 0.9, ops: [
+                Cast(recipe: (name: "fireball", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 0.9)),
+            ]),
+            (name: "flame on", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((
+            costume: "human torch",
+            body: (immune: [Fire], weak: [Water], moves: (thrust: 20.0, thrust_max: 16.0, gravity: 0.5, glide: 0.45)),
+            graft: Some((element: Some(Fire))),
+        )),
+    ),
+    (
+        id: "phasing",
+        name: "Phasing",
+        kind: Origin,
+        pickup: Some((name: "phase shard", form: Blob0, element: Psychic, scale: 0.4)),
+        // Never-list: no intangibility to hits. Adapted as walking through WALLS (a portal through the
+        // terrain you aim at) and short phase-steps.
+        names: ["phasing", "phasing powers", "shadowcat's powers", "intangibility", "kitty pryde's powers"],
+        body: (moves: (accel: 1.1, air_control: 1.1)),
+        shouts: [("phase", 0), ("phase through", 0), ("phase step", 1)],
+        moves: [
+            (name: "phase through", cooldown: 2.5, cost: 7.0, ops: [Portal(depth: 7.0)]),
+            (name: "phase step", cooldown: 1.2, cost: 4.0, ops: [Blink(dist: 7.0, afterimage: true)]),
+        ],
+    ),
+    (
+        id: "super_speed_mutant",
+        name: "Mutant Super Speed",
+        kind: Origin,
+        pickup: Some((name: "speedster spark", form: Ball, element: Electric, scale: 0.35)),
+        names: ["quicksilver's powers", "super speed mutation", "speedster mutation"],
+        body: (moves: (speed: 1.2, accel: 1.35)),
+        graft: Some((mechanics: [Fast])),
+        shouts: [("speed blitz", 0), ("blitz", 0), ("whirlwind", 1)],
+        moves: [
+            (name: "speed blitz", cooldown: 1.8, cost: 6.0, ops: [
+                Blink(dist: 14.0, afterimage: true),
+                Shove(range: 3.0, angle: 70.0, damage: 10.0, knockback: 12.0),
+            ]),
+            (name: "whirlwind", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "speed whirlwind", form: Pillar, mech: [Spin, Homing, Repel], element: Wind, scale: 3.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "chi_iron_fist",
+        name: "Chi of Shou-Lao",
+        kind: Origin,
+        pickup: Some((name: "heart of shou-lao", form: Ball, element: Light, scale: 0.4)),
+        names: ["chi of shou-lao", "iron fist powers", "shou-lao's heart", "power of the iron fist"],
+        shouts: [("iron fist", 0), ("chi punch", 0), ("dragon kick", 1)],
+        moves: [
+            // The glowing punch: short range, huge launch.
+            (name: "iron fist", cooldown: 2.2, cost: 8.0, ops: [Shove(range: 2.6, angle: 30.0, damage: 20.0, knockback: 28.0)]),
+            (name: "dragon kick", cooldown: 1.6, cost: 5.0, ops: [
+                Impulse(fwd: 14.0, up: 8.0),
+                Shove(range: 3.0, angle: 50.0, damage: 12.0, knockback: 16.0, up: 0.6),
+            ]),
+        ],
+    ),
+    (
+        id: "sonic_scream",
+        name: "Banshee's Scream",
+        kind: Origin,
+        pickup: Some((name: "sonic crystal", form: Boulder, element: Psychic, scale: 0.35)),
+        // ("sonic scream" alone is DC's Canary Cry icon — only a holder's shout here.)
+        names: ["banshee's scream", "banshee powers", "sonic scream mutation", "banshee's sonic scream"],
+        // Rides the scream: a gentle glide.
+        body: (moves: (glide: 0.3)),
+        shouts: [("scream", 0), ("sonic scream", 0), ("sonic boom", 1)],
+        moves: [
+            (name: "sonic scream", cooldown: 2.5, cost: 8.0, ops: [Field(strength: -48.0, radius: 9.0, secs: 0.7, at: Front, dist: 4.5)]),
+            (name: "sonic boom", cooldown: 5.0, cost: 12.0, ops: [Explode(radius: 5.5, damage: 8.0, knockback: 20.0, element: Wind)]),
+        ],
+    ),
+    // ---------------------------------------------------------------- DC / Invincible / superhero IP
+    // ================================================================ SUPERMAN — Kryptonian under a yellow sun
+    (
+        id: "kryptonian",
+        name: "Kryptonian Powers",
+        kind: Origin,
+        pickup: Some((name: "kryptonian crystal", form: Boulder, element: Light, scale: 0.45)),
+        names: ["kryptonian", "yellow sun", "kryptonian powers", "yellow sun powers", "power of the yellow sun",
+                "son of krypton", "daughter of krypton", "house of el", "powers of krypton"],
+        // Flight (capped 17), fire/ice shrug, kryptonite (Poison) drains the power.
+        body: (moves: (thrust: 28.0, thrust_max: 17.0, gravity: 0.85, jump: 1.2), immune: [Fire, Ice], weak: [Poison]),
+        // Super-strength: everything you make hits like a truck (launches through buildings, §1a).
+        graft: Some((mechanics: [Heavy])),
+        incantations: ["up up and away"],
+        delivery: (add: [Fast, Heavy], remove: [DropFromSky], from_fist: true),
+        shouts: [("heat vision", 0), ("laser eyes", 0), ("eye beams", 0), ("super breath", 1), ("freeze breath", 1),
+                 ("arctic breath", 1)],
+        moves: [
+            // A scorching line along your gaze: carves terrain, hits whoever stands in it.
+            (name: "heat vision", cooldown: 2.0, cost: 8.0, ops: [Carve(length: 26.0, radius: 0.7, damage: 12.0)]),
+            // Freeze breath: an Ice cone that shoves hard.
+            (name: "super breath", cooldown: 4.0, cost: 10.0, ops: [
+                Shove(range: 8.0, angle: 40.0, damage: 4.0, knockback: 22.0, element: Ice, up: 0.3),
+            ]),
+        ],
+    ),
+    // ================================================================ THE FLASH — the Speed Force
+    (
+        id: "speed_force",
+        name: "The Speed Force",
+        kind: Origin,
+        pickup: Some((name: "speed force spark", form: Ball, element: Electric, scale: 0.4)),
+        names: ["speed force", "the speed force", "speed force powers", "speedster powers", "fastest man alive",
+                "scarlet speedster"],
+        // A Fast body (run/accel), not flight; lightning doesn't hurt a speedster.
+        body: (moves: (speed: 1.3, accel: 1.6, air_control: 1.25), immune: [Electric]),
+        graft: Some((mechanics: [Fast], element: Some(Electric))),
+        shouts: [("blitz", 0), ("speed blitz", 0), ("flash step", 0), ("lightning throw", 1), ("throw lightning", 1)],
+        moves: [
+            // Blink dash with an afterimage, then a crackling hit where you land.
+            (name: "speed blitz", cooldown: 1.4, cost: 6.0, ops: [
+                Blink(dist: 15.0, afterimage: true),
+                Shove(range: 3.2, angle: 60.0, damage: 8.0, knockback: 12.0, element: Electric),
+            ]),
+            (name: "lightning throw", cooldown: 1.5, ops: [
+                Cast(recipe: (name: "thrown lightning", form: Ball, mech: [Fast, Pierce], element: Electric, scale: 0.6, mass: 5.0)),
+            ]),
+        ],
+    ),
+    // ================================================================ WONDER WOMAN — Amazon of Themyscira
+    (
+        id: "amazon",
+        name: "Gifts of the Amazons",
+        kind: Origin,
+        pickup: Some((name: "amazon bracelet", form: Ball, element: Light, scale: 0.35)),
+        names: ["amazon", "amazonian", "amazon warrior", "themysciran", "daughter of themyscira", "gifts of the gods",
+                "amazonian strength", "amazon powers"],
+        body: (moves: (jump: 1.15, speed: 1.05)),
+        // Bracelets: everything you make also blocks / reflects (Guard).
+        graft: Some((mechanics: [Guard])),
+        incantations: ["great hera", "by hera"],
+        delivery: (add: [Guard, Returning]),
+        shouts: [("lasso", 0), ("lasso of truth", 0), ("golden lasso", 0), ("bracelets", 1), ("bracelets up", 1),
+                 ("submission", 1)],
+        moves: [
+            // The lasso: chain the aimed player to you.
+            (name: "lasso of truth", cooldown: 3.0, cost: 6.0, ops: [Link(range: 22.0)]),
+            // Bracelets of Submission: a held Guard (perfect-parry reflects bullets and beams).
+            (name: "bracelets of submission", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "bracelets of submission", form: Shield, mech: [Guard, Bounce], scale: 0.8, mass: 10.0)),
+            ]),
+        ],
+    ),
+    // ================================================================ AQUAMAN — Atlantean
+    (
+        id: "atlantean",
+        name: "Atlantean Blood",
+        kind: Origin,
+        pickup: Some((name: "atlantean pearl", form: Ball, element: Light, scale: 0.4)),
+        names: ["atlantean", "atlantean blood", "atlantean powers", "king of the seven seas", "king of atlantis",
+                "lord of the seas"],
+        body: (immune: [Water], moves: (speed: 1.05)),
+        graft: Some((element: Some(Water))),
+        // A loyal shark circles you (a stand-style companion: Protective; hits on it are hits on you).
+        companion: Some((recipe: (name: "loyal shark", form: Fish, mech: [Flies, Charge, Grab], element: Water, scale: 2.0, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("sharks", 0), ("summon sharks", 0), ("shark attack", 0), ("tidal wave", 1),
+                 ("the sea obeys", 1)],
+        moves: [
+            (name: "summon sharks", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "shark swarm", form: Fish, mech: [Swarm, Charge, Grab], element: Water, scale: 1.6, mass: 60.0, count: 4, temperament: Aggressive, intensity: 0.9)),
+            ]),
+            (name: "tidal wave", cooldown: 4.0, cost: 10.0, ops: [
+                Shove(range: 9.0, angle: 70.0, damage: 6.0, knockback: 20.0, element: Water, up: 0.4),
+            ]),
+        ],
+    ),
+    // ================================================================ MARTIAN MANHUNTER — Martian
+    (
+        id: "martian",
+        name: "Martian Physiology",
+        kind: Origin,
+        pickup: Some((name: "martian orb", form: Ball, element: Psychic, scale: 0.4)),
+        names: ["martian", "green martian", "martian powers", "martian physiology", "son of mars", "martian shapeshifting"],
+        // Flies (capped) - and the classic weakness: fire drains the power. No phasing, no invisibility.
+        body: (moves: (thrust: 22.0, thrust_max: 15.0, gravity: 0.8), weak: [Fire]),
+        graft: Some((element: Some(Psychic))),
+        shouts: [("martian vision", 0), ("mind blast", 0), ("density shift", 1), ("martian form", 1), ("shapeshift", 1)],
+        moves: [
+            // A narrow Psychic blast: whoever it hits floats (juggle window) - never mind control.
+            (name: "martian vision", cooldown: 1.6, cost: 6.0, ops: [
+                Shove(range: 11.0, angle: 10.0, damage: 10.0, knockback: 10.0, element: Psychic, up: 0.5),
+            ]),
+            (name: "density shift", cooldown: 2.0, ops: [Transform]),
+        ],
+        // Grown, dense war-form: heavier, slower, everything you make grows what it hits.
+        transform: Some((
+            costume: "martian_war_form",
+            body: (moves: (speed: 0.9, jump: 1.1, thrust: 20.0, thrust_max: 13.0, gravity: 0.9), weak: [Fire]),
+            graft: Some((mechanics: [Heavy, Grow])),
+        )),
+    ),
+    // ================================================================ SHAZAM — say the word
+    (
+        id: "shazam",
+        name: "The Power of Shazam",
+        kind: Origin,
+        pickup: Some((name: "magic lightning bolt", form: Ball, element: Electric, scale: 0.4)),
+        names: ["shazam", "power of shazam", "the power of shazam", "shazam powers", "champion of shazam",
+                "rock of eternity", "wisdom of solomon"],
+        // "shazam <phrase>": whatever you say arrives on a bolt of magic lightning.
+        incantations: ["shazam"],
+        delivery: (element: Some(Electric), add: [Explodes]),
+        // Saying SHAZAM! (alone) toggles the transformation - with a lightning strike on yourself, both ways.
+        shouts: [("magic lightning", 0), ("lightning strike", 0), ("shazam", 1)],
+        moves: [
+            (name: "magic lightning", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "magic lightning", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
+            ]),
+            (name: "shazam", cooldown: 2.0, ops: [
+                Explode(radius: 3.5, damage: 10.0, knockback: 14.0, element: Electric),
+                Transform,
+            ]),
+        ],
+        transform: Some((
+            costume: "captain_marvel",
+            body: (moves: (thrust: 26.0, thrust_max: 17.0, gravity: 0.8, jump: 1.25, speed: 1.1), immune: [Electric]),
+            graft: Some((mechanics: [Blunt], element: Some(Electric))),
+        )),
+    ),
+    // ================================================================ BATMAN — bat-tech / the utility belt
+    (
+        id: "bat_tech",
+        name: "Bat-Tech",
+        kind: Origin,
+        pickup: Some((name: "utility belt", form: Boulder, element: Shadow, scale: 0.4)),
+        names: ["bat-tech", "utility belt", "the utility belt", "wayne tech", "wayne enterprises tech",
+                "batman's gadgets", "bat gadgets"],
+        // Cape glide + tight air control. No powers - just prep time.
+        body: (moves: (glide: 0.55, air_control: 1.2)),
+        // Every gadget banks off walls (Ricochet): the detective's angles.
+        graft: Some((mechanics: [Ricochet])),
+        shouts: [("grapple", 0), ("grappling hook", 0), ("grapple gun", 0), ("smoke", 1), ("smoke pellet", 1),
+                 ("smoke bomb", 1)],
+        moves: [
+            // The grapple gun: a tether-reel to whatever you aim at.
+            (name: "grapple gun", cooldown: 1.2, cost: 3.0, ops: [Reel(range: 45.0, speed: 32.0)]),
+            // Smoke pellet + backflip: a Shadow burst (vision only) and you're gone.
+            (name: "smoke pellet", cooldown: 5.0, cost: 6.0, ops: [
+                Explode(radius: 5.5, damage: 1.0, knockback: 3.0, element: Shadow),
+                Impulse(fwd: -10.0, up: 7.0),
+            ]),
+        ],
+    ),
+    // ================================================================ THE EMOTIONAL SPECTRUM — power rings
+    (
+        id: "green_lantern_ring",
+        name: "Green Lantern Ring",
+        kind: Origin,
+        pickup: Some((name: "green power ring", form: Ball, element: Poison, scale: 0.3)),
+        names: ["green lantern ring", "power ring", "green power ring", "lantern ring", "ring of will",
+                "green ring", "willpower ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // "In brightest day <phrase>": the oath makes the construct bigger and heavier.
+        incantations: ["in brightest day", "in brightest day in blackest night"],
+        delivery: (add: [Heavy], scale_mult: 1.4),
+        shouts: [("giant fist", 0), ("ring fist", 0), ("construct fist", 0), ("ring shield", 1), ("lantern shield", 1)],
+        moves: [
+            (name: "construct fist", cooldown: 1.2, ops: [
+                Cast(recipe: (name: "construct fist", form: Ball, mech: [Blunt, Heavy, Fast], scale: 2.2, mass: 120.0)),
+            ]),
+            (name: "ring shield", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "ring shield", form: Dome, mech: [Barrier, Guard])),
+            ]),
+        ],
+    ),
+    (
+        id: "yellow_lantern_ring",
+        name: "Yellow Lantern Ring (Fear)",
+        kind: Origin,
+        pickup: Some((name: "yellow power ring", form: Ball, element: Electric, scale: 0.3)),
+        names: ["yellow lantern ring", "yellow power ring", "ring of fear", "sinestro's ring", "sinestro corps ring",
+                "fear ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Fear: every construct casts a Shadow (vision vignette on hit).
+        graft: Some((element: Some(Shadow))),
+        // Sinestro's oath opener: the construct becomes a Homing nightmare.
+        incantations: ["in blackest day"],
+        delivery: (element: Some(Shadow), add: [Homing]),
+        shouts: [("nightmare", 0), ("fear construct", 0), ("yellow cage", 1), ("fear cage", 1)],
+        moves: [
+            // A nightmare construct that flanks from out of view (Sneaky).
+            (name: "fear construct", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "fear construct", form: Blob, mech: [Flies, Grab], element: Shadow, scale: 2.2, mass: 60.0, temperament: Sneaky, intensity: 0.9)),
+            ]),
+            (name: "yellow cage", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "yellow cage", form: Cage, mech: [Trap, Barrier], element: Shadow, scale: 2.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "red_lantern_ring",
+        name: "Red Lantern Ring (Rage)",
+        kind: Origin,
+        pickup: Some((name: "red power ring", form: Ball, element: Light, scale: 0.3)),
+        names: ["red lantern ring", "red power ring", "ring of rage", "atrocitus's ring", "rage ring", "red ring of rage"],
+        // Rage burns: fire can't hurt you, and you move like you mean it.
+        body: (immune: [Fire], moves: (speed: 1.1, accel: 1.2, thrust: 22.0, thrust_max: 15.0, gravity: 0.85)),
+        graft: Some((element: Some(Fire))),
+        shouts: [("napalm", 0), ("napalm vomit", 0), ("rage plasma", 0), ("blood rage", 1), ("red rage", 1)],
+        moves: [
+            // Napalm vomit: a Fire Breath cone.
+            (name: "napalm vomit", cooldown: 2.5, cost: 8.0, ops: [
+                Shove(range: 7.0, angle: 35.0, damage: 8.0, knockback: 8.0, element: Fire),
+            ]),
+            // Blood rage: lunge and maul.
+            (name: "blood rage", cooldown: 3.0, cost: 8.0, ops: [
+                Impulse(fwd: 22.0, up: 3.0),
+                Shove(range: 3.2, angle: 60.0, damage: 12.0, knockback: 18.0, element: Fire),
+            ]),
+        ],
+    ),
+    (
+        id: "orange_lantern_ring",
+        name: "Orange Lantern Ring (Avarice)",
+        kind: Origin,
+        pickup: Some((name: "orange power ring", form: Ball, element: Earth, scale: 0.3)),
+        names: ["orange lantern ring", "orange power ring", "ring of avarice", "larfleeze's ring", "avarice ring",
+                "greed ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Avarice: everything you make grabs whatever it touches.
+        graft: Some((mechanics: [Grab])),
+        shouts: [("mine", 0), ("it's mine", 0), ("all mine", 0), ("orange lanterns", 1), ("my lanterns", 1)],
+        moves: [
+            // MINE! Rip a trench toward what you want and yank the first player in it to you.
+            (name: "mine", cooldown: 3.0, cost: 8.0, ops: [Carve(length: 18.0, radius: 0.8, damage: 4.0, pull: true)]),
+            // The stolen: a swarm of orange constructs that grab (Larfleeze's hoard).
+            (name: "orange lanterns", cooldown: 7.0, ops: [
+                Cast(recipe: (name: "orange lantern constructs", form: Biped, mech: [Swarm, Grab, Flies], scale: 1.2, mass: 30.0, count: 5, temperament: Aggressive, intensity: 0.8)),
+            ]),
+        ],
+    ),
+    (
+        id: "blue_lantern_ring",
+        name: "Blue Lantern Ring (Hope)",
+        kind: Origin,
+        pickup: Some((name: "blue power ring", form: Ball, element: Light, scale: 0.3)),
+        names: ["blue lantern ring", "blue power ring", "ring of hope", "saint walker's ring", "hope ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Hope shields: every construct blocks and reflects. (Blue light never heals players here.)
+        graft: Some((mechanics: [Guard, Barrier])),
+        shouts: [("all will be well", 0), ("hope shield", 0), ("hope burst", 1), ("hope blast", 1)],
+        moves: [
+            (name: "all will be well", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "hope dome", form: Dome, mech: [Barrier, Guard, Bounce], scale: 1.2)),
+            ]),
+            (name: "hope burst", cooldown: 4.0, cost: 8.0, ops: [Field(strength: -45.0, radius: 6.0, secs: 0.8)]),
+        ],
+    ),
+    (
+        id: "indigo_lantern_ring",
+        name: "Indigo Tribe Ring (Compassion)",
+        kind: Origin,
+        pickup: Some((name: "indigo power ring", form: Ball, element: Psychic, scale: 0.3)),
+        names: ["indigo lantern ring", "indigo tribe ring", "indigo power ring", "ring of compassion", "compassion ring"],
+        body: (moves: (thrust: 22.0, thrust_max: 15.0, gravity: 0.8)),
+        graft: Some((element: Some(Psychic))),
+        // "Nok <phrase>": the construct comes with a portal pair (the tribe's teleport).
+        incantations: ["nok"],
+        delivery: (add: [Portal]),
+        shouts: [("nok", 0), ("indigo teleport", 0), ("indigo passage", 1), ("compassion", 1)],
+        moves: [
+            // Indigo teleport: a long blink.
+            (name: "nok", cooldown: 2.0, cost: 7.0, ops: [Blink(dist: 20.0, afterimage: true)]),
+            // Open a way through the wall you aim at.
+            (name: "indigo passage", cooldown: 4.0, cost: 8.0, ops: [Portal(depth: 8.0)]),
+        ],
+    ),
+    (
+        id: "violet_lantern_ring",
+        name: "Violet Lantern Ring (Love)",
+        kind: Origin,
+        pickup: Some((name: "violet power ring", form: Ball, element: Psychic, scale: 0.3)),
+        names: ["violet lantern ring", "violet power ring", "star sapphire ring", "ring of love", "zamaron ring",
+                "love ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Love binds: everything you make clings (Sticky).
+        graft: Some((mechanics: [Sticky])),
+        shouts: [("love crystal", 0), ("sapphire crystal", 0), ("embrace", 1), ("love's embrace", 1)],
+        moves: [
+            // The Star Sapphire crystal: snaps shut around the aimed player (Trap - brief, breakable).
+            (name: "love crystal", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "love crystal", form: Cage, mech: [Trap], element: Psychic, scale: 2.0)),
+            ]),
+            (name: "love's embrace", cooldown: 3.0, cost: 6.0, ops: [Link(range: 24.0)]),
+        ],
+    ),
+    (
+        id: "white_lantern_ring",
+        name: "White Lantern Ring (Life)",
+        kind: Origin,
+        pickup: Some((name: "white power ring", form: Ball, element: Light, scale: 0.3)),
+        names: ["white lantern ring", "white power ring", "ring of life", "entity's ring"],
+        body: (moves: (thrust: 26.0, thrust_max: 17.0, gravity: 0.8)),
+        // White light is every colour at once: constructs block AND grab.
+        graft: Some((mechanics: [Guard, Grab])),
+        shouts: [("restore", 0), ("life restore", 0), ("white light", 1), ("the white light", 1)],
+        moves: [
+            // Life: rebuild shattered terrain and your own constructs nearby (never heals players).
+            (name: "life", cooldown: 4.0, cost: 10.0, ops: [Restore(radius: 10.0)]),
+            (name: "white light", cooldown: 5.0, cost: 12.0, ops: [Explode(radius: 6.0, damage: 10.0, knockback: 18.0)]),
+        ],
+    ),
+    (
+        id: "black_lantern_ring",
+        name: "Black Lantern Ring (Death)",
+        kind: Origin,
+        pickup: Some((name: "black power ring", form: Ball, element: Shadow, scale: 0.3)),
+        names: ["black lantern ring", "black power ring", "ring of death", "nekron's ring", "death ring"],
+        body: (immune: [Shadow], moves: (thrust: 22.0, thrust_max: 15.0, gravity: 0.85)),
+        graft: Some((element: Some(Shadow))),
+        shouts: [("rise", 0), ("black lanterns rise", 0), ("black rings", 1)],
+        moves: [
+            // Rise: the terrain you aim at tears loose and lurches after your enemies (§3c) - no reviving players.
+            (name: "rise", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "black lantern", form: Biped, mech: [Grab, Walks], element: Shadow, scale: 1.9, temperament: Aggressive, intensity: 0.9), modifier: true),
+            ]),
+            (name: "black rings", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "black rings", form: Ball, mech: [Swarm, Homing, Sticky], element: Shadow, scale: 0.3, count: 6)),
+            ]),
+        ],
+    ),
+    // ================================================================ INVINCIBLE — Viltrumite
+    (
+        id: "viltrumite",
+        name: "Viltrumite Physiology",
+        kind: Origin,
+        pickup: Some((name: "viltrumite blood", form: Blob0, element: Light, scale: 0.4)),
+        names: ["viltrumite", "viltrumite powers", "viltrumite blood", "half-viltrumite", "viltrumite physiology"],
+        body: (moves: (thrust: 30.0, thrust_max: 17.0, gravity: 0.8, jump: 1.2)),
+        graft: Some((mechanics: [Blunt, Heavy])),
+        shouts: [("haymaker", 0), ("think mark", 0), ("viltrumite punch", 0), ("plow through", 1), ("plough through", 1),
+                 ("fly through", 1)],
+        moves: [
+            // A haymaker that sends people through buildings (§1a punch-through).
+            (name: "haymaker", cooldown: 1.8, cost: 6.0, ops: [
+                Impulse(fwd: 18.0, up: 2.0),
+                Shove(range: 3.4, angle: 50.0, damage: 16.0, knockback: 30.0, up: 0.3),
+            ]),
+            // Plough through: a flying charge that carves a tunnel through whatever's in the way.
+            (name: "plow through", cooldown: 4.0, cost: 12.0, ops: [
+                Impulse(fwd: 28.0, up: 0.0),
+                Carve(length: 14.0, radius: 1.3, damage: 10.0),
+            ]),
+        ],
+    ),
+    // ================================================================ BEN 10 — the Omnitrix
+    (
+        id: "omnitrix",
+        name: "The Omnitrix",
+        kind: Origin,
+        pickup: Some((name: "omnitrix", form: Ball, element: Poison, scale: 0.35)),
+        names: ["omnitrix", "the omnitrix", "ultimatrix", "omniverse omnitrix", "ben 10 watch", "omnitrix watch"],
+        // "omnitrix <alien>" / "hero time <alien>": whatever you name, you BECOME (Piloted - human-size = a suit,
+        // bigger = you ride it). No random pick exists in the data; typing a wrong alien is the canon joke.
+        incantations: ["omnitrix", "hero time", "it's hero time", "its hero time"],
+        delivery: (add: [Piloted]),
+        shouts: [("it's hero time", 0), ("its hero time", 0), ("hero time", 0), ("four arms", 0), ("heatblast", 1),
+                 ("going hero", 1)],
+        moves: [
+            (name: "four arms", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "four arms", form: Biped, mech: [Piloted, Grab, Blunt, Heavy], scale: 2.5, mass: 400.0)),
+            ]),
+            (name: "heatblast", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "heatblast", form: Biped, mech: [Piloted, Shoots, Breath], element: Fire, scale: 2.0, mass: 90.0)),
+            ]),
+        ],
+    ),
+    // ================================================================ POWER RANGERS — it's morphin time
+    (
+        id: "power_morpher",
+        name: "Power Morpher",
+        kind: Origin,
+        pickup: Some((name: "power coin", form: Ball, element: Electric, scale: 0.3)),
+        names: ["power morpher", "the power morpher", "morpher", "power coin", "it's morphin time", "its morphin time",
+                "morphin time", "morphing grid"],
+        // The Ranger suit: acrobatic, and every construct is a Power Weapon (Blade).
+        body: (moves: (speed: 1.1, jump: 1.2, air_control: 1.15)),
+        graft: Some((mechanics: [Blade])),
+        // Holders shout it again to call the Dinozords (5 Transforms zords: then "combine" = a Megazord, §5d-bis).
+        shouts: [("it's morphin time", 0), ("its morphin time", 0), ("dinozords", 0), ("dinozords power up", 0),
+                 ("megazord", 1), ("megazord power up", 1), ("megazord sequence has been initiated", 1)],
+        moves: [
+            (name: "dinozords power up", cooldown: 12.0, ops: [
+                Cast(recipe: (name: "dinozords", form: Quadruped, mech: [Transforms, Swarm, Charge, Stomp], scale: 4.0, mass: 2000.0, count: 5, features: [Armor, Cockpit])),
+            ]),
+            // Megazord: climb into the cockpit (eject = back out).
+            (name: "megazord", cooldown: 3.0, ops: [Transform]),
+        ],
+        transform: Some((
+            costume: "megazord",
+            pilot: Some((name: "megazord", form: Kaiju, mech: [Blade, Stomp, Piloted, Heavy], scale: 14.0, mass: 80000.0, features: [Cockpit, Armor])),
+        )),
+    ),
+    // ================================================================ POWERPUFF GIRLS — Chemical X
+    (
+        id: "chemical_x",
+        name: "Chemical X",
+        kind: Origin,
+        pickup: Some((name: "chemical x vial", form: Ball, element: Shadow, scale: 0.35)),
+        names: ["chemical x", "sugar spice and everything nice", "powerpuff powers", "powerpuff power"],
+        // Tiny, fast fliers: thrust flight capped, very agile.
+        body: (moves: (thrust: 28.0, thrust_max: 17.0, gravity: 0.75, speed: 1.15, air_control: 1.35)),
+        graft: Some((mechanics: [Fast])),
+        shouts: [("flurry", 0), ("powerpuff punch", 0), ("eye beams", 1), ("laser eyes", 1)],
+        moves: [
+            (name: "flurry", cooldown: 0.5, ops: [Shove(range: 3.0, angle: 50.0, damage: 6.0, knockback: 12.0)]),
+            (name: "eye beams", cooldown: 2.0, cost: 6.0, ops: [Carve(length: 18.0, radius: 0.4, damage: 8.0)]),
+        ],
+    ),
+    // ================================================================ THE INCREDIBLES — the super suit
+    (
+        id: "super_suit",
+        name: "Incredibles Super Suit",
+        kind: Origin,
+        pickup: Some((name: "incredibles super suit", form: Boulder, element: Light, scale: 0.45)),
+        names: ["super suit", "incredibles super suit", "incredi-suit", "incredible super suit", "the incredibles suit",
+                "edna's super suit", "incredibles powers"],
+        // Fire-proof fabric (no capes!).
+        body: (immune: [Fire], moves: (speed: 1.1, jump: 1.15)),
+        graft: Some((mechanics: [Blunt])),
+        shouts: [("incredible punch", 0), ("super strength", 0), ("stretch", 1), ("elastic", 1), ("elastigirl", 1)],
+        moves: [
+            // Mr. Incredible's punch.
+            (name: "incredible punch", cooldown: 1.8, cost: 6.0, ops: [
+                Shove(range: 3.5, angle: 50.0, damage: 14.0, knockback: 24.0, up: 0.3),
+            ]),
+            // Elastigirl's stretch: reach out and yank yourself there.
+            (name: "stretch", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 30.0, speed: 30.0)]),
+        ],
+    ),
+    // ================================================================ BEAST BOY — animal morph
+    (
+        id: "animal_morph",
+        name: "Animal Morph",
+        kind: Origin,
+        pickup: Some((name: "animal morph serum", form: Blob0, element: Poison, scale: 0.4)),
+        names: ["animal morph", "beast boy powers", "changeling powers", "animal shapeshifting", "animal shapeshifter"],
+        body: (moves: (jump: 1.1)),
+        // "morph into <animal>": the animal you name, ridden (Piloted) - your own shapeshift.
+        incantations: ["morph into", "change into", "turn into"],
+        delivery: (add: [Piloted]),
+        shouts: [("pounce", 0), ("beast pounce", 0), ("beast form", 1), ("animal form", 1)],
+        moves: [
+            (name: "pounce", cooldown: 1.5, cost: 5.0, ops: [
+                Impulse(fwd: 20.0, up: 6.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 12.0),
+            ]),
+            (name: "beast form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // A green gorilla-beast: stronger, jumpier; every construct charges.
+        transform: Some((costume: "green_gorilla", body: (moves: (speed: 1.15, jump: 1.3, accel: 1.2)), graft: Some((mechanics: [Blunt, Charge])))),
     ),
 ]

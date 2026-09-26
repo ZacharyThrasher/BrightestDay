@@ -90,9 +90,12 @@ fn power_events(evs: &[GameEvent]) -> Vec<PowerEvent> {
 fn shipped_table_parses_with_the_full_roster() {
     let t = PowerTable::parse(powers::SHIPPED_RON).expect("assets/powers.ron parses");
     let fruits = t.powers.iter().filter(|p| p.kind.is_fruit()).count();
-    let stands = t.powers.len() - fruits;
+    let stands = t.powers.iter().filter(|p| p.kind.is_stand()).count();
+    let origins = t.powers.iter().filter(|p| p.kind.is_origin()).count();
     assert!(fruits >= 20, "{fruits} fruits");
     assert!(stands >= 12, "{stands} stands");
+    assert!(origins >= 40, "{origins} origins (Marvel + DC packs merged)");
+    assert_eq!(fruits + stands + origins, t.powers.len());
     assert_eq!(t.powers.len(), PowerTable::get().powers.len(), "the shared table is the shipped one");
     let rules = bd_sim::rules::MatchRules::default();
     for (k, p) in t.powers.iter().enumerate() {
@@ -100,15 +103,29 @@ fn shipped_table_parses_with_the_full_roster() {
         assert!(!p.names.is_empty(), "{} has names for the lexicon", p.id);
         assert!(!p.moves.is_empty() && p.moves.len() <= 2, "{}: 1–2 moves", p.id);
         assert!(p.shouts.iter().all(|(_, s)| (*s as usize) < p.moves.len()), "{}: shout slot", p.id);
-        assert_eq!(p.kind.is_fruit(), p.companion.is_none(), "{}: stands (only) have a companion", p.id);
+        if p.kind.is_stand() {
+            assert!(p.companion.is_some(), "{}: stands have a companion", p.id);
+        } else if p.kind.is_fruit() {
+            assert!(p.companion.is_none(), "{}: fruits have no companion", p.id);
+        }
         if p.kind.is_fruit() {
             assert!(!p.incantations.is_empty(), "{}: fruits have an incantation", p.id);
         }
+        // Never-list (origin packs): flight stays below skilled movement (thrust caps <= 17 m/s).
+        let bodies = std::iter::once(&p.body).chain(p.transform.as_ref().map(|t| &t.body));
+        for b in bodies.filter(|_| p.kind.is_origin()) {
+            assert!(b.moves.thrust <= 0.0 || b.moves.thrust_max <= 17.0, "{}: flight cap {}", p.id, b.moves.thrust_max);
+        }
         for m in &p.moves {
+            assert!(m.cooldown.is_finite() && m.cooldown >= 0.05 && m.cost.is_finite() && m.cost >= 0.0, "{}: move {}", p.id, m.name);
+            assert!(!m.ops.is_empty(), "{}: move {} does something", p.id, m.name);
             for op in &m.ops {
                 if let MoveOp::Cast { recipe, .. } = op {
                     let r = bd_sim::willpower::validate_recipe(recipe.to_recipe(), &rules);
                     assert!(r.scale.is_finite() && !r.name.is_empty());
+                }
+                if let MoveOp::TimeStop { .. } = op {
+                    assert!(p.kind.is_stand(), "{}: only stands stop time", p.id);
                 }
                 if matches!(op, MoveOp::Transform) {
                     assert!(p.transform.is_some(), "{}: Transform move needs a transform", p.id);
@@ -330,6 +347,173 @@ fn logia_scatter_dodges_then_cools_down() {
     assert!(w.player(A).unwrap().health() < 100.0);
 }
 
+// ------------------------------------------------------------------------------------ origins
+
+#[test]
+fn origin_is_a_themed_pickup_and_a_second_origin_replaces_the_first() {
+    let mut w = duel(2);
+    stand_at(&mut w, A, 0.0, 0.0);
+    stand_at(&mut w, B, 20.0, 0.0);
+    let spider = pid("spider_bite");
+    assert!(PowerTable::get().def(spider).unwrap().kind.is_origin());
+    w.player_mut(A).unwrap().willpower = 100.0;
+    let aim = eye_aim(&w, A, Vec3::new(0.0, -0.5, -1.0));
+    let cid = w.cast(A, grants("radioactive spider", "spider_bite"), None, aim).expect("origin cast");
+    {
+        let c = w.constructs.get(cid).unwrap();
+        assert_eq!(c.recipe.grants.as_deref(), Some("spider_bite"));
+        assert_eq!(c.recipe.name, "radioactive spider", "themed pickup");
+        assert!(c.recipe.mechanics.is_empty(), "inert");
+    }
+    assert_eq!(w.powers.fruits.len(), 1);
+    assert_eq!(power_of(&w, A), None, "not grabbed yet");
+    run(&mut w, 60);
+    let at = w.constructs.get(cid).unwrap().pos;
+    stand_at(&mut w, A, at.x, at.z);
+    let evs = run(&mut w, 3);
+    assert_eq!(power_of(&w, A), Some(spider));
+    assert!(power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Gained { player: A, .. })));
+    assert!(w.powers.fruits.is_empty() && w.constructs.get(cid).is_none(), "pickup taken");
+    // A second origin replaces the first (no overdose); the old one drops at the holder's feet.
+    assert!(w.grant_power(A, "gamma"));
+    let evs = run(&mut w, 1);
+    let p = w.player(A).unwrap();
+    assert!(p.alive, "no explosion");
+    assert_eq!(p.power.id, Some(pid("gamma")));
+    assert!(!power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Overdose { .. })));
+    assert!(w.powers.fruits.iter().any(|f| f.power == spider), "the spider drops where A stood");
+    // A devil fruit on top of an origin also just replaces it (one slot); the origin drops.
+    assert!(w.grant_power(A, "gomu_gomu"));
+    run(&mut w, 1);
+    assert!(w.player(A).unwrap().alive);
+    assert_eq!(power_of(&w, A), Some(pid("gomu_gomu")));
+    assert!(w.powers.fruits.iter().any(|f| f.power == pid("gamma")));
+    // ...and an origin on top of a fruit replaces the fruit (it drops, nobody explodes).
+    assert!(w.grant_power(A, "kryptonian"));
+    run(&mut w, 1);
+    assert!(w.player(A).unwrap().alive);
+    assert_eq!(power_of(&w, A), Some(pid("kryptonian")));
+    assert!(w.powers.fruits.iter().any(|f| f.power == pid("gomu_gomu")));
+    // A stand replaces an origin too (the origin drops); an origin replaces a stand (it is gone).
+    assert!(w.grant_power(A, "star_platinum"));
+    run(&mut w, 1);
+    assert!(w.powers.fruits.iter().any(|f| f.power == pid("kryptonian")));
+    let stand = w.player(A).unwrap().power.companion.expect("stand out");
+    assert!(w.grant_power(A, "viltrumite"));
+    run(&mut w, 1);
+    assert!(w.player(A).unwrap().alive && w.constructs.get(stand).is_none());
+    assert_eq!(power_of(&w, A), Some(pid("viltrumite")));
+}
+
+#[test]
+fn origin_drops_where_its_holder_is_koed() {
+    let mut w = duel(2);
+    stand_at(&mut w, A, 10.0, -6.0);
+    stand_at(&mut w, B, -20.0, 0.0);
+    run(&mut w, 5);
+    assert!(w.grant_power(A, "green_lantern_ring"));
+    run(&mut w, 2);
+    let spot = w.player(A).unwrap().mv.pos;
+    w.player_mut(A).unwrap().mv.pos.y = -100.0;
+    w.tick(&[]);
+    assert!(!w.player(A).unwrap().alive);
+    assert_eq!(power_of(&w, A), None);
+    assert_eq!(w.powers.fruits.len(), 1);
+    let f = w.powers.fruits[0];
+    assert_eq!(f.power, pid("green_lantern_ring"));
+    assert!((f.last_pos - spot).length() < 1.5, "the ring seeks a new bearer where A fell");
+    run(&mut w, 60);
+    let at = w.constructs.get(w.powers.fruits[0].construct).unwrap().pos;
+    stand_at(&mut w, B, at.x, at.z);
+    run(&mut w, 3);
+    assert_eq!(power_of(&w, B), Some(pid("green_lantern_ring")));
+}
+
+#[test]
+fn origins_ignore_water_seastone_and_void_sink_but_honor_authored_weakness() {
+    let mut w = duel(2);
+    stand_at(&mut w, A, 0.0, 0.0);
+    stand_at(&mut w, B, 0.0, 3.0);
+    assert!(w.grant_power(A, "kryptonian"));
+    // Water: no drain.
+    let splash = HitInfo::new(A, Some(B), HitKind::Thrown, 5.0, 2.0, Vec3::X, Vec3::ZERO).with_element(Element::Water);
+    w.apply_hit(splash);
+    let evs = run(&mut w, 1);
+    let p = w.player(A).unwrap();
+    assert!(p.power.active() && p.power.drained == 0.0, "water never drains an origin");
+    assert!(!power_events(&evs).iter().any(|e| matches!(e, PowerEvent::Drained { .. })));
+    // Seastone chain: nothing.
+    w.player_mut(B).unwrap().willpower = 100.0;
+    let chain = recipe("seastone chain", Form::Whip, &[Mechanic::Link], Element::Light, 1.5);
+    let cid = w.cast(B, chain, None, eye_aim(&w, B, Vec3::NEG_Z)).unwrap();
+    let pa = w.player(A).unwrap().hull(w.params()).center();
+    w.apply_hit(HitInfo::new(A, Some(B), HitKind::Melee, 2.0, 1.0, Vec3::NEG_Z, pa).with_construct(cid));
+    run(&mut w, 2);
+    let p = w.player(A).unwrap();
+    assert!(!p.power.seastone && p.power.active(), "seastone is a devil-fruit weakness only");
+    w.links.clear();
+    // Void: no faster sinking (a devil fruit user does sink faster).
+    let gravity = |id: &str, over_void: bool| {
+        let pw = powers::PlayerPower { id: Some(pid(id)), over_void, ..Default::default() };
+        let mut m = bd_sim::movement::MoveModifiers::default();
+        pw.modify_movement(false, &mut m);
+        m.gravity_scale
+    };
+    assert_eq!(gravity("kryptonian", true), gravity("kryptonian", false), "origins don't sink faster");
+    assert!(gravity("gomu_gomu", true) > gravity("gomu_gomu", false), "fruits do");
+    // An authored weakness still drains: kryptonite (Poison).
+    let kryptonite = HitInfo::new(A, Some(B), HitKind::Thrown, 5.0, 2.0, Vec3::X, Vec3::ZERO).with_element(Element::Poison);
+    w.apply_hit(kryptonite);
+    let p = w.player(A).unwrap();
+    assert!(p.power.drained > 0.0 && !p.power.active(), "kryptonite drains a kryptonian");
+}
+
+#[test]
+fn every_origin_kit_runs_its_moves_and_transform() {
+    let t = PowerTable::get();
+    for id in t.origin_ids() {
+        let key = t.def(id).unwrap().id.clone();
+        let mut w = duel(2);
+        stand_at(&mut w, A, 0.0, 0.0);
+        stand_at(&mut w, B, 0.0, -6.0);
+        assert!(w.grant_power(A, &key), "{key}");
+        run(&mut w, 2);
+        for slot in 0..2u8 {
+            w.player_mut(A).unwrap().willpower = 100.0;
+            let _ = w.power_move(A, slot);
+            run(&mut w, 30);
+            let _ = w.power_move(A, slot); // toggles a transform back / fires again
+            run(&mut w, 30);
+        }
+        let p = w.player(A).unwrap();
+        assert!(!p.alive || p.power.id.is_some(), "{key}: still held");
+        assert!(p.mv.pos.is_finite(), "{key}");
+    }
+}
+
+#[test]
+fn origins_work_with_devil_fruits_toggled_off() {
+    let mut cfg = SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() };
+    cfg.rules.devil_fruits = false;
+    let mut w = World::new(cfg);
+    w.add_player(A, "a".into(), Corps::Willpower).unwrap();
+    w.start_live();
+    w.tick(&[]);
+    w.player_mut(A).unwrap().spawn_shield = 0.0;
+    stand_at(&mut w, A, 0.0, 0.0);
+    assert!(!w.grant_power(A, "gomu_gomu"));
+    w.player_mut(A).unwrap().willpower = 100.0;
+    let aim = eye_aim(&w, A, Vec3::new(0.0, -0.5, -1.0));
+    let cid = w.cast(A, grants("speed force", "speed_force"), None, aim).expect("origin cast");
+    run(&mut w, 60);
+    let at = w.constructs.get(cid).map(|c| c.pos).expect("pickup still there");
+    stand_at(&mut w, A, at.x, at.z);
+    run(&mut w, 3);
+    assert_eq!(power_of(&w, A), Some(pid("speed_force")));
+    w.player_mut(A).unwrap().willpower = 100.0;
+    w.power_move(A, 0).expect("origin moves work");
+}
+
 // ------------------------------------------------------------------------------------ stands
 
 #[test]
@@ -511,10 +695,49 @@ fn random_fruit_and_stand_arrow_pick_deterministically() {
     };
     let (a, fruit) = pick(9);
     let def = PowerTable::get().def(a.expect("a stand")).unwrap();
-    assert!(!def.kind.is_fruit());
+    assert!(def.kind.is_stand());
     let fk = fruit.expect("a fruit key");
     assert!(PowerTable::get().def(PowerTable::get().index_of(&fk).unwrap()).unwrap().kind.is_fruit());
     assert_eq!(pick(9), pick(9));
+}
+
+#[test]
+fn random_pools_never_cross() {
+    let t = PowerTable::parse(powers::SHIPPED_RON).expect("powers.ron parses");
+    let fruits: Vec<u16> = t.ids_of(false).collect();
+    let stands: Vec<u16> = t.ids_of(true).collect();
+    let origins: Vec<u16> = t.origin_ids().collect();
+    let muts: Vec<u16> = t.mutagen_ids().collect();
+    assert!(!fruits.is_empty() && !stands.is_empty() && origins.len() >= 40 && !muts.is_empty());
+    for &id in &fruits {
+        let d = t.def(id).unwrap();
+        assert!(d.kind.is_fruit() && !d.id.starts_with(powers::MUTAGEN_PREFIX), "devil fruit pool: {}", d.id);
+    }
+    assert!(stands.iter().all(|&id| t.def(id).unwrap().kind.is_stand()), "stand arrow: only stands");
+    assert!(origins.iter().all(|&id| t.def(id).unwrap().kind.is_origin()));
+    assert!(muts.iter().all(|&id| t.def(id).unwrap().kind.is_fruit()), "mutagens stay fruit-like");
+    // Every power belongs to exactly one pool.
+    assert_eq!(fruits.len() + stands.len() + origins.len() + muts.len(), t.powers.len());
+    // Many rolls: each random key only ever lands in its own pool.
+    let mut w = duel(1);
+    stand_at(&mut w, A, 0.0, 0.0);
+    for k in 0..60 {
+        w.player_mut(A).unwrap().willpower = 100.0;
+        let key = [powers::RANDOM_FRUIT, powers::RANDOM_STAND, powers::RANDOM_ORIGIN][k % 3];
+        let aim = eye_aim(&w, A, Vec3::new(0.0, -0.3, -1.0));
+        let cid = w.cast(A, grants("mystery", key), None, aim).expect("never says no");
+        let got = if key == powers::RANDOM_STAND {
+            power_of(&w, A).expect("stand")
+        } else {
+            w.powers.fruits.iter().find(|f| f.construct == cid).expect("a pickup").power
+        };
+        let d = PowerTable::get().def(got).unwrap();
+        match k % 3 {
+            0 => assert!(d.kind.is_fruit() && !d.id.starts_with(powers::MUTAGEN_PREFIX), "devil fruit rolled {}", d.id),
+            1 => assert!(d.kind.is_stand(), "stand arrow rolled {}", d.id),
+            _ => assert!(d.kind.is_origin(), "random origin rolled {}", d.id),
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------ chaos
@@ -537,7 +760,7 @@ fn chaos_powers(seed: u64, ticks: u32) -> (u64, u64, u64, usize) {
                 let k = rng.below(t.powers.len() as u32) as u16;
                 cw.world.grant_power(id, &t.def(k).unwrap().id.clone());
             } else if r < 0.006 {
-                let key = if rng.chance(0.5) { powers::RANDOM_FRUIT } else { powers::RANDOM_STAND };
+                let key = [powers::RANDOM_FRUIT, powers::RANDOM_STAND, powers::RANDOM_ORIGIN][rng.below(3) as usize];
                 let aim = { let p = cw.world.player(id).unwrap(); Aim::new(p.eye(cw.world.params()), p.look()) };
                 let _ = cw.world.cast(id, grants("mystery", key), None, aim);
             } else if r < 0.03 {

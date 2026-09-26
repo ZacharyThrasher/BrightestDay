@@ -82,7 +82,8 @@ impl World {
     /// Is this power allowed by the lobby rules right now?
     pub(crate) fn power_allowed(&self, def: &PowerDef) -> bool {
         let r = &self.cfg.rules;
-        r.powers_enabled && if def.kind.is_fruit() { r.devil_fruits } else { r.stands }
+        // Origins have no lobby toggle of their own (feature freeze): the powers toggle gates them.
+        r.powers_enabled && if def.kind.is_fruit() { r.devil_fruits } else if def.kind.is_stand() { r.stands } else { true }
     }
 
     /// Cast modifier pipeline, step 1 (powers; party effects run after). `Err(done)` = the
@@ -123,7 +124,8 @@ impl World {
         Ok(r)
     }
 
-    /// Pre-damage hook: water drain, seastone marks, Logia scatter, immunities, rubber, Bara Bara.
+    /// Pre-damage hook: water drain (fruits) / authored weaknesses (any power), seastone marks
+    /// (fruits), Logia scatter, immunities, rubber, Bara Bara.
     /// `None` = the hit is cancelled entirely.
     pub(crate) fn powers_on_hit(&mut self, ti: usize, hit: HitInfo) -> Option<HitInfo> {
         let Some(def) = self.players[ti].power.def() else { return Some(hit) };
@@ -134,19 +136,19 @@ impl World {
         let delivered_by = hit.construct.and_then(|c| self.constructs.get(c));
         let (blade, pierce, seastone) = delivered_by.map_or((false, false, false), |c| (c.has(Mechanic::Blade), c.has(Mechanic::Pierce), is_seastone(&c.recipe)));
         let rules = &PowerTable::get().rules;
-        if def.kind.is_fruit() {
-            if seastone {
-                self.players[ti].power.seastone_mark = 0.5;
-            }
-            let weak = def.body.weak.contains(&hit.element);
-            if (hit.element == Element::Water || weak) && hit.element != Element::Light {
-                let p = &mut self.players[ti].power;
-                let fresh = p.drained <= 0.0;
-                p.drained = p.drained.max(rules.drain_secs);
-                if fresh {
-                    let secs = p.drained;
-                    self.inject_event(GameEvent::Power(PowerEvent::Drained { player: id, secs }));
-                }
+        let fruit = def.kind.is_fruit();
+        if fruit && seastone {
+            self.players[ti].power.seastone_mark = 0.5;
+        }
+        // Water drains devil fruits only; an authored weakness (kryptonite = Poison) drains any power.
+        let weak = def.body.weak.contains(&hit.element);
+        if ((fruit && hit.element == Element::Water) || weak) && hit.element != Element::Light {
+            let p = &mut self.players[ti].power;
+            let fresh = p.drained <= 0.0;
+            p.drained = p.drained.max(rules.drain_secs);
+            if fresh {
+                let secs = p.drained;
+                self.inject_event(GameEvent::Power(PowerEvent::Drained { player: id, secs }));
             }
         }
         let pw = &self.players[ti].power;
@@ -215,7 +217,7 @@ impl World {
         self.inject_event(GameEvent::Power(PowerEvent::Scattered { player: id, from, to, element }));
     }
 
-    /// KO: the power is lost; a fruit respawns where its eater died.
+    /// KO: the power is lost; a fruit / origin respawns where its holder died.
     pub(crate) fn powers_on_ko(&mut self, i: usize) {
         if self.players[i].power.id.is_none() {
             return;

@@ -385,6 +385,17 @@ disable it while linked; fruit users sink faster in the void.
 **Stands:** cast the stand's name (or "stand arrow" → random): held until KO; a second stand replaces
 the first. "Time stop" stands never freeze others (the never-list): the world greys and the *user*
 moves at ×2 for 1.5 s instead.
+**Origins** (`kind: Origin`: radioactive spider, gamma, kryptonian, speed force, power rings,
+viltrumite, omnitrix…): cast the origin's name → a small themed **pickup** at the aim point (`pickup`:
+name + an inert form/element look — a radioactive spider, a gamma canister, a power ring); anyone can
+grab it; held until KO, then it drops where you fell, like a fruit (the fight over it is emergent). None
+of the devil-fruit rules: no Water drain, no seastone, no faster void sinking. An authored `weak`
+element still drains any power for 3 s (kryptonite = Poison). Gated only by the powers toggle.
+Transforms and companions are data on any kind (a Zoan-style origin is still `Origin`).
+**One power slot:** a new power always replaces the one you hold (a replaced fruit/origin drops at your
+feet; a replaced stand is gone), **except fruit on fruit → you explode**. **Random pools never cross:**
+"devil fruit" rolls devil fruits only (never origins or mutagens), "stand arrow" only stands, "mutagen"
+only `mutagen_*`, `random:origin` only origins.
 Other franchises' power systems (Naruto jutsu, MHA quirks, bending, Nen, Pokémon moves…) are added
 later **as data in this template only**.
 
