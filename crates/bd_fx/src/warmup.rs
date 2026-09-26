@@ -39,13 +39,13 @@ pub fn spawn_warmup(world: &mut World) -> Vec<Entity> {
     let disc = world.resource_mut::<Assets<Mesh>>().add(Circle::new(0.5).mesh().resolution(48));
     let mut out = Vec::new();
     if let Some(Some(p)) = parts.first() {
-        for translucent in [true, false] {
+        for mat in [mats.construct(true), mats.construct(false), mats.construct_overlay.clone()] {
             out.push(
                 world
                     .spawn((
                         Name::new("bd_fx warmup construct"),
                         Mesh3d(p.mesh.clone()),
-                        MeshMaterial3d(mats.construct(translucent)),
+                        MeshMaterial3d(mat),
                         MeshTag(slot),
                         Transform::default(),
                         NotShadowCaster,

@@ -462,6 +462,12 @@ fn seg_seg_dist(a: Vec3, b: Vec3, c: Vec3, d: Vec3) -> f32 {
 }
 
 impl World {
+    /// Set flammable terrain (leaves / wood) alight around `pos` (chemistry, COMBAT.md §9).
+    pub fn ignite_terrain(&mut self, pos: Vec3, radius: f32, by: Option<PlayerId>) {
+        let World { constructs, voxels, .. } = self;
+        constructs.chemistry_mut().ignite_area(voxels, pos, radius, by);
+    }
+
     /// Portal gun impact: place the owner's next ring (A, then B, alternating) on the surface at
     /// `point` facing `normal`. With both placed the pair opens; later shots move one end at a time
     /// (Portal-game style) and refresh the pair's lifetime.

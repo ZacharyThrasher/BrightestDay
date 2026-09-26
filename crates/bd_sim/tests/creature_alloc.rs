@@ -13,6 +13,17 @@ use bd_sim::constructs::SpawnParams;
 use bd_sim::rules::WillpowerMode;
 use bd_sim::world::{ArenaSource, SimConfig, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 struct Counting;
 
 static COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -93,7 +104,7 @@ fn creature_ticks_do_not_allocate() {
             let pl = w.player_mut(id).unwrap();
             pl.mv.pos = p;
             pl.mv.vel = Vec3::ZERO;
-            pl.health = 100.0;
+            pl.damage_pct = 0.0;
             pl.alive = true;
             pl.spawn_shield = 0.0;
         }

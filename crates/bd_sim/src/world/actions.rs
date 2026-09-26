@@ -76,9 +76,9 @@ impl World {
             let wants_shove = p.pressed & buttons::SECONDARY != 0 && p.shove_cd <= 0.0;
             let view = p.view_tick;
             if wants_blast {
-                self.players[i].blast_cd = BLAST_COOLDOWN;
+                self.players[i].blast_cd = self.cfg.tuning.ring.blast_cooldown; // TUNING HOOK
                 let origin = eye + look * 0.4;
-                let spec = crate::weapons::gun_spec(crate::weapons::GunArchetype::Ring);
+                let spec = self.cfg.tuning.ring.blast_spec(); // TUNING HOOK
                 self.events.push(GameEvent::ShotFired {
                     owner: id,
                     construct: None,
@@ -88,11 +88,18 @@ impl World {
                     recoil: spec.recoil,
                     pellets: 1,
                 });
-                self.fire_projectile(ProjectileSpawn::ring_blast(id, origin, look), view, Some(id));
+                // TUNING HOOK: ring blast numbers from `tuning.ring`.
+                let mut shot = ProjectileSpawn::ring_blast(id, origin, look);
+                shot.vel = look.normalize_or_zero() * spec.speed;
+                shot.damage = spec.damage;
+                shot.knockback = spec.knockback;
+                shot.radius = spec.radius;
+                shot.life = self.cfg.tuning.ring.blast_lifetime;
+                self.fire_projectile(shot, view, Some(id));
                 self.recoil(id, look, spec.recoil);
             }
             if wants_shove {
-                self.players[i].shove_cd = SHOVE_COOLDOWN;
+                self.players[i].shove_cd = self.cfg.tuning.ring.shove_cooldown; // TUNING HOOK
                 self.ring_shove(i, eye, look);
             }
         }
@@ -104,11 +111,13 @@ impl World {
         let id = self.players[i].id;
         self.events.push(GameEvent::Shove { player: id, origin: eye, dir: look });
         let base = self.cfg.move_params.clone();
-        let cos = SHOVE_HALF_ANGLE.cos();
+        // TUNING HOOK: shove numbers from `tuning.ring`.
+        let (shove_range, shove_kb) = (self.cfg.tuning.ring.shove_range, self.cfg.tuning.ring.shove_knockback);
+        let cos = self.cfg.tuning.ring.shove_half_angle.cos();
         let in_cone = |p: Vec3| {
             let d = p - eye;
             let len = d.length();
-            len <= SHOVE_RANGE && (len < 0.5 || d.dot(look) / len >= cos)
+            len <= shove_range && (len < 0.5 || d.dot(look) / len >= cos)
         };
         let mut targets = [None; bd_core::MAX_PLAYERS];
         let mut n = 0;
@@ -124,7 +133,7 @@ impl World {
         }
         for (tid, c) in targets.iter().flatten().copied() {
             let dir = (look + (c - eye).normalize_or_zero()) * 0.5;
-            self.apply_hit(HitInfo::new(tid, Some(id), HitKind::RingShove, 0.0, SHOVE_KNOCKBACK, dir, c).with_impact(0.8));
+            self.apply_hit(HitInfo::new(tid, Some(id), HitKind::RingShove, 0.0, shove_kb, dir, c).with_impact(0.8));
         }
         for c in self.constructs.iter_mut() {
             if c.owner == id || c.attached() || !c.active() || matches!(c.category, FormCategory::Structure) {
@@ -133,7 +142,7 @@ impl World {
             if in_cone(c.center()) {
                 let m = c.mass().max(1.0);
                 let resist = if c.has(Mechanic::Heavy) { FIELD_RESIST } else { 1.0 };
-                c.vel += look * (SHOVE_KNOCKBACK * resist * (80.0 / m).clamp(0.1, 1.5));
+                c.vel += look * (shove_kb * resist * (80.0 / m).clamp(0.1, 1.5));
             }
         }
         for pr in &mut self.projectiles {
@@ -154,8 +163,10 @@ impl World {
     /// Would this recipe cost `player` right now? (validated recipe, cost). For UI previews.
     pub fn preview_cost(&self, player: PlayerId, recipe: Recipe) -> (Recipe, f32) {
         let r = validate_recipe(recipe, &self.cfg.rules);
-        let uses = self.player(player).map_or(0, |p| p.casts.uses(&r.name, self.tick));
-        let cost = if self.cfg.rules.infinite_willpower() { 0.0 } else { base_cost(&r) * staleness(uses) };
+        // TUNING HOOK: costs from `tuning.willpower`.
+        let wt = &self.cfg.tuning.willpower;
+        let uses = self.player(player).map_or(0, |p| p.casts.uses_in(&r.name, self.tick, wt.stale_window));
+        let cost = if self.cfg.rules.infinite_willpower() { 0.0 } else { wt.base_cost(&r) * wt.staleness(uses) };
         (r, cost)
     }
 
@@ -163,6 +174,20 @@ impl World {
     /// under the crosshair; animate terrain if a modifier phrase is aimed at terrain; otherwise pay
     /// and spawn (replacing the oldest in a full slot). Piloted casts seat the caster.
     pub fn cast(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
+        self.cast_shaped(player, recipe, shape, None, aim)
+    }
+
+    /// [`Self::cast`] with a two-mode icon's hand-authored robot shape (`alt_shape`; `shape` is the
+    /// alt / vehicle). A fresh construct stores it, the Transforms component uses its boxes, and
+    /// clients get it once in `ConstructShapes`. Ignored by grafts.
+    pub fn cast_shaped(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
+        self.pending_alt_shape = alt_shape.map(sanitize_shape);
+        let res = self.cast_plain(player, recipe, shape, aim);
+        self.pending_alt_shape = None;
+        res
+    }
+
+    fn cast_plain(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
         // PARTY HOOK: after-cast hooks (Echo, Mini-Me) look for this cast's spawn from here.
         let ev0 = self.events.len();
         let res = self.cast_inner(player, recipe, shape, aim);
@@ -205,6 +230,22 @@ impl World {
         let mut recipe = recipe;
         crate::party::modify_cast(self, i, &mut recipe);
         let shape = shape.map(sanitize_shape);
+        // Curated icons: normalise the stored spec to real size ONCE here (the client model is built
+        // from the same normalised spec, so `shape_scale` / `body_box` / `timing_height` agree and the
+        // rescale is ~1). A two-mode icon's robot shape uses the alt (vehicle) shape's factor, as
+        // `bd_shapes::transform_rig_icon` does.
+        let shape = match shape {
+            Some(s) if matches!(recipe.model, bd_core::mechanics::ModelSource::Icon(_)) => {
+                let f = bd_shapes::icon_scale_factor(&recipe, &s);
+                let mut s = s;
+                bd_shapes::scale_spec(&mut s, f);
+                if let Some(robot) = self.pending_alt_shape.as_mut() {
+                    bd_shapes::scale_spec(robot, f);
+                }
+                Some(s)
+            }
+            other => other,
+        };
 
         // Where does the aim land?
         let cw = CollisionWorld::new(&self.voxels, &self.colliders);
@@ -248,20 +289,25 @@ impl World {
         if self.cfg.rules.infinite_willpower() || self.free_cast {
             return Ok(());
         }
+        let regen_pause = self.cfg.tuning.willpower.regen_pause; // TUNING HOOK
         let p = &mut self.players[i];
         if cost > p.willpower + 1e-4 {
             return Err(CastError::NotEnoughWillpower { cost, have: p.willpower });
         }
         p.willpower = (p.willpower - cost).max(0.0);
-        p.regen_pause = REGEN_PAUSE_AFTER_CAST;
+        p.regen_pause = regen_pause;
         Ok(())
     }
 
     fn graft(&mut self, i: usize, cid: ConstructId, add: Recipe) -> Result<ConstructId, CastError> {
         let id = self.players[i].id;
-        let uses = self.players[i].casts.uses(&add.name, self.tick);
+        // TUNING HOOK: costs / integrity from `tuning` (integrity ignores the balance cost knobs).
+        let wt = &self.cfg.tuning.willpower;
+        let uses = self.players[i].casts.uses_in(&add.name, self.tick, wt.stale_window);
         // PARTY HOOK: `party_cost_ratio` makes party-grafted mechanics free (None in FFA).
-        let cost = base_cost(&add) * staleness(uses) * GRAFT_COST_FRACTION * self.party_cost_ratio.unwrap_or(1.0);
+        let cost = wt.base_cost(&add) * wt.staleness(uses) * wt.graft_cost_fraction * self.party_cost_ratio.unwrap_or(1.0);
+        let integrity_cost = cost * wt.adjustment_ratio(&add);
+        let integrity_gain = self.cfg.tuning.construct.integrity_for_cost(integrity_cost) * 0.25;
         self.pay(i, cost)?;
         self.players[i].casts.record(&add.name, self.tick);
         let grow = add.has(Mechanic::Grow);
@@ -275,7 +321,7 @@ impl World {
             if shrink {
                 c.resize(crate::space::SHRINK_SCALE);
             }
-            c.integrity = (c.integrity + integrity_for_cost(cost) * 0.25).min(c.max_integrity * 1.5);
+            c.integrity = (c.integrity + integrity_gain).min(c.max_integrity * 1.5);
             c.max_integrity = c.max_integrity.max(c.integrity);
         }
         if let Some(r) = merged {
@@ -296,8 +342,9 @@ impl World {
         let est_scale = 3.0;
         recipe.scale = est_scale;
         let recipe = validate_recipe(recipe, &self.cfg.rules);
-        let uses = self.players[i].casts.uses(&recipe.name, self.tick);
-        let cost = base_cost(&recipe) * staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
+        let wt = &self.cfg.tuning.willpower; // TUNING HOOK
+        let uses = self.players[i].casts.uses_in(&recipe.name, self.tick, wt.stale_window);
+        let cost = wt.base_cost(&recipe) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
         self.pay(i, cost)?;
         let outcome = apply_extract(&mut self.voxels, &op);
         if outcome.model.voxels.is_empty() {
@@ -336,10 +383,13 @@ impl World {
         if colossal && self.constructs.owned_by(id).any(|c| c.colossal) {
             return Err(CastError::ColossalLimit);
         }
-        let uses = self.players[i].casts.uses(&recipe.name, self.tick);
+        // TUNING HOOK: costs / integrity from `tuning` (integrity ignores the balance cost knobs).
+        let wt = &self.cfg.tuning.willpower;
+        let uses = self.players[i].casts.uses_in(&recipe.name, self.tick, wt.stale_window);
         // PARTY HOOK: cost ratio (party grafts are free); free casts skip paying, staleness and
         // slot replacement (they are children of the cast they copy).
-        let cost = if model.is_some() { 0.0 } else { base_cost(&recipe) * staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
+        let cost = if model.is_some() { 0.0 } else { wt.base_cost(&recipe) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
+        let integrity_cost = cost * wt.adjustment_ratio(&recipe);
         if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
             self.players[i].casts.record(&recipe.name, self.tick);
@@ -431,7 +481,7 @@ impl World {
             vel,
             target,
             cost,
-            integrity: integrity_for_cost(cost.max(6.0)),
+            integrity: self.cfg.tuning.construct.integrity_for_cost(integrity_cost.max(6.0)), // TUNING HOOK
             forming,
             life,
             tick: self.tick,
@@ -442,6 +492,9 @@ impl World {
             c.suit = suit;
         }
         self.events.push(GameEvent::ConstructSpawned { id: cid, owner: id, recipe: Box::new(recipe.clone()), pos, rot, forming, cost });
+        if let Some(alt) = self.pending_alt_shape.take() {
+            self.attach_alt_shape(cid, alt);
+        }
         if piloted {
             self.seat(id, cid, 0, suit);
         }
@@ -456,6 +509,17 @@ impl World {
             self.create_portal(id, a, b, PORTAL_LIFETIME, Some(cid));
         }
         Ok(cid)
+    }
+
+    /// Store an authored robot shape on `cid` and tell clients (once).
+    pub(crate) fn attach_alt_shape(&mut self, cid: ConstructId, alt: ShapeSpec) {
+        if self.constructs.set_alt_shape(cid, alt) {
+            if let Some(c) = self.constructs.get(cid) {
+                if let Some(a) = c.alt_shape.clone() {
+                    self.events.push(GameEvent::ConstructShapes { id: cid, shape: c.shape.clone(), alt_shape: a });
+                }
+            }
+        }
     }
 
     /// Fields for Attract / Repel constructs (follow the construct, die with it).
@@ -663,6 +727,7 @@ impl World {
         p.mv.vel = if vel.is_finite() { vel } else { Vec3::Y * 10.0 };
         p.mv.grounded = false;
         p.mv.prev_buttons = p.input.buttons;
+        p.mv.hop_chain = 0;
         p.mv.tumble = if tumble { TUMBLE_SECS } else { 0.0 };
         p.eject_cd = 0.5;
         let v = p.mv.vel;
@@ -701,7 +766,16 @@ impl World {
     /// PARTY HOOK: a free cast for party effects (Echo, Mini-Me, Copycat, Sidekick): validated and
     /// placed exactly like a fresh cast (never grafts / animates terrain), but costs nothing, adds
     /// no staleness, replaces nothing (it is a child of `parent`) and refunds nothing on dismiss.
-    pub(crate) fn spawn_free(&mut self, player: PlayerId, recipe: Recipe, aim: Aim, parent: Option<ConstructId>) -> Result<ConstructId, CastError> {
+    /// `shape` / `alt_shape`: the copied construct's voxel shape and authored robot shape, if any.
+    pub(crate) fn spawn_free(
+        &mut self,
+        player: PlayerId,
+        recipe: Recipe,
+        aim: Aim,
+        parent: Option<ConstructId>,
+        shape: Option<ShapeSpec>,
+        alt_shape: Option<ShapeSpec>,
+    ) -> Result<ConstructId, CastError> {
         let Some(i) = self.pidx(player) else { return Err(CastError::UnknownPlayer) };
         if self.match_state.phase == crate::rules::MatchPhase::Ended {
             return Err(CastError::MatchOver);
@@ -723,8 +797,11 @@ impl World {
         let aim_point = world_hit.map(|h| h.point).unwrap_or(origin + dir * 12.0);
         let aim_normal = world_hit.map(|h| h.normal).unwrap_or(-dir);
         self.free_cast = true;
-        let res = self.spawn_cast(i, recipe, None, None, origin, dir, aim_point, aim_normal);
+        let res = self.spawn_cast(i, recipe, shape.map(sanitize_shape), None, origin, dir, aim_point, aim_normal);
         self.free_cast = false;
+        if let (Ok(id), Some(alt)) = (res, alt_shape) {
+            self.attach_alt_shape(id, sanitize_shape(alt));
+        }
         if let Ok(id) = res {
             if let Some(c) = self.constructs.get_mut(id) {
                 // No parent ⇒ its own parent: party copies never count toward slot limits.
@@ -737,7 +814,7 @@ impl World {
 }
 
 /// Clamp an untrusted shape (prim count / sizes / NaNs).
-fn sanitize_shape(mut s: ShapeSpec) -> ShapeSpec {
+pub(crate) fn sanitize_shape(mut s: ShapeSpec) -> ShapeSpec {
     s.prims.truncate(256);
     s.parts.truncate(64);
     s.prims.retain(|p| p.center.is_finite() && p.size.is_finite() && p.rot_deg.is_finite());

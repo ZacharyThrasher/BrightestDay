@@ -30,7 +30,7 @@ use crate::events::GameEvent;
 use crate::geom;
 use crate::movement::{MoveModifiers, PlayerState};
 use crate::projectile::{ProjectileKind, ProjectileSpawn, effects};
-use crate::weapons::{GunArchetype, GunSpec, HitscanShot, WeaponPhase, WeaponState, archetype_for, pellet_dirs, spec_for};
+use crate::weapons::{GunArchetype, GunSpec, HitscanShot, WeaponPhase, WeaponState, archetype_for, pellet_dirs};
 
 /// Max fall speed (m/s) while hovering on a downward minigun stream.
 pub const MINIGUN_SINK: f32 = 4.0;
@@ -69,7 +69,7 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
     let Some(arch) = archetype_for(&c.recipe) else { return };
     let o = env.owner;
     let dt = env.dt();
-    let spec = spec_for(&c.recipe, arch);
+    let spec = env.ctx.tuning.spec_for(&c.recipe, arch); // TUNING HOOK
     let mut ws = match c.weapon {
         Some(w) if w.arch == arch => w,
         _ => WeaponState::new(arch, &spec),

@@ -14,6 +14,17 @@ use bd_sim::rules::{CapMode, MatchPhase, ScaleLimit, WillpowerMode};
 use bd_sim::space::{LinkEnd, PortalEnd};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, TargetHint, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 const C: PlayerId = PlayerId(3);
@@ -35,6 +46,14 @@ fn duel(n: u8) -> World {
         p.spawn_shield = 0.0;
     }
     w
+}
+
+/// Smash model: KOs only through a blast zone — tag the victim, drop them into the void.
+#[allow(dead_code)]
+fn blast_ko(w: &mut World, victim: PlayerId, killer: PlayerId) {
+    w.apply_hit(bd_sim::combat::HitInfo::new(victim, Some(killer), bd_sim::combat::HitKind::RingBlast, 1.0, 0.0, Vec3::X, Vec3::ZERO));
+    w.player_mut(victim).unwrap().mv.pos.y = -100.0;
+    w.tick(&[]);
 }
 
 fn place(w: &mut World, id: PlayerId, pos: Vec3) {
@@ -116,8 +135,7 @@ fn warmup_counts_down_then_live_then_ended_and_rematch() {
     for p in &mut w.players {
         p.spawn_shield = 0.0;
     }
-    w.apply_hit(hit(B, Some(A), 500.0, 0.0, Vec3::X));
-    w.tick(&[]);
+    blast_ko(&mut w, B, A);
     assert_eq!(w.match_state.phase, MatchPhase::Ended);
     assert_eq!(w.match_state.winner, Some(A));
     // Rematch resets scores.
@@ -130,7 +148,7 @@ fn warmup_counts_down_then_live_then_ended_and_rematch() {
 fn time_limit_ends_match_with_best_score_winner() {
     let mut w = duel(3);
     w.cfg.rules.time_limit = 1.0;
-    w.apply_hit(hit(C, Some(B), 500.0, 0.0, Vec3::X));
+    blast_ko(&mut w, C, B);
     run(&mut w, 130);
     assert_eq!(w.match_state.phase, MatchPhase::Ended);
     assert_eq!(w.match_state.winner, Some(B));
@@ -159,16 +177,20 @@ fn join_and_leave_mid_match_leave_no_dangling_refs() {
 
 #[test]
 fn knockback_scales_with_missing_health_and_tumbles() {
+    // Smash model: knockback grows with damage % (after the hit) and the hit's damage.
     let mut w = duel(2);
     let v0 = {
         let r = w.apply_hit(hit(B, Some(A), 0.0, 10.0, Vec3::X));
         r.knockback
     };
-    assert!((v0 - 10.0).abs() < 1e-3);
-    w.player_mut(B).unwrap().health = 20.0;
-    let r = w.apply_hit(hit(B, Some(A), 0.0, 10.0, Vec3::X));
-    assert!((r.knockback - 10.0 * (1.0 + 1.25 * 0.8)).abs() < 1e-3);
-    assert!(w.player(B).unwrap().mv.tumble > 0.0, "20 m/s knockback tumbles");
+    assert!((v0 - 10.0).abs() < 1e-3, "0 % takes the move's base knockback");
+    w.player_mut(B).unwrap().damage_pct = 80.0;
+    let r = w.apply_hit(hit(B, Some(A), 20.0, 10.0, Vec3::X));
+    let t = w.cfg.tuning.smash.clone();
+    assert!((w.player(B).unwrap().damage_pct - 100.0).abs() < 1e-3, "damage adds %");
+    assert!((r.knockback - bd_sim::smash::knockback(&t, 10.0, 20.0, 100.0, 1.0, 1.0)).abs() < 1e-3);
+    assert!(r.knockback > 18.0);
+    assert!(w.player(B).unwrap().mv.tumble > 0.0, "high knockback tumbles");
     assert!(w.player(B).unwrap().mv.vel.y > 0.0, "guaranteed lift");
 }
 
@@ -182,12 +204,12 @@ fn melee_momentum_bonus_is_bounded() {
     h.kind = HitKind::Melee;
     let r = w.apply_hit(h);
     assert!((r.damage - 15.0).abs() < 1e-3, "v_close 23 → +50 %: {}", r.damage);
-    w.player_mut(B).unwrap().health = 100.0;
+    w.player_mut(B).unwrap().damage_pct = 0.0;
     w.player_mut(A).unwrap().mv.vel = Vec3::new(200.0, 0.0, 0.0);
     let r = w.apply_hit(h);
     assert!((r.damage - 16.0).abs() < 1e-3, "capped at +60 %");
     // Ranged hits get nothing.
-    w.player_mut(B).unwrap().health = 100.0;
+    w.player_mut(B).unwrap().damage_pct = 0.0;
     let r = w.apply_hit(hit(B, Some(A), 10.0, 5.0, Vec3::X));
     assert!((r.damage - 10.0).abs() < 1e-3);
 }
@@ -223,7 +245,7 @@ fn spawn_shield_blocks_damage_both_ways() {
     w.player_mut(B).unwrap().spawn_shield = 1.5;
     let r = w.apply_hit(hit(B, Some(A), 50.0, 10.0, Vec3::X));
     assert!(!r.applied);
-    assert_eq!(w.player(B).unwrap().health, 100.0);
+    assert_eq!(w.player(B).unwrap().health(), 100.0);
     assert!(w.events().iter().any(|e| matches!(e, GameEvent::Blocked { .. })));
     // A shielded attacker deals nothing.
     let r = w.apply_hit(hit(A, Some(B), 50.0, 10.0, Vec3::X));
@@ -249,7 +271,8 @@ fn wall_splat_damages_carves_and_bounces() {
     let mut w = duel(2);
     // The lab's east wall: x ∈ [24, 25], z ∈ [-6, 6], y ∈ [8, 12].
     place(&mut w, B, Vec3::new(21.0, 8.0, 0.0));
-    let r = w.apply_hit(hit(B, Some(A), 0.0, 32.0, Vec3::X));
+    // Tumbling but below the punch-through speed (a 32 m/s launch would plow through the wall).
+    let r = w.apply_hit(hit(B, Some(A), 0.0, 20.0, Vec3::X));
     assert!(r.knockback > 15.0);
     let ev = run(&mut w, 30);
     let splat = ev.iter().find_map(|e| match e {
@@ -260,7 +283,7 @@ fn wall_splat_damages_carves_and_bounces() {
     assert!(speed > 15.0 && dmg > 0.0 && dmg <= 30.0);
     assert!(normal.x < -0.9);
     assert!(ev.iter().any(|e| matches!(e, GameEvent::Carve { .. })), "crater");
-    assert!(w.player(B).unwrap().health < 100.0);
+    assert!(w.player(B).unwrap().health() < 100.0);
     assert!(w.player(B).unwrap().last_attacker.is_some_and(|(a, _)| a == A));
 }
 
@@ -337,14 +360,14 @@ fn elements_apply_statuses_and_water_electric_backfires() {
     place(&mut w, C, Vec3::new(30.0, 8.0, 0.0));
     w.apply_hit(hit(B, Some(A), 5.0, 0.0, Vec3::Z).with_element(Element::Fire));
     assert!(w.player(B).unwrap().status.active(bd_sim::status::StatusKind::Burn));
-    let hp = w.player(B).unwrap().health;
+    let hp = w.player(B).unwrap().health();
     run(&mut w, 120);
-    assert!(w.player(B).unwrap().health < hp - 2.0, "burn ticks");
+    assert!(w.player(B).unwrap().health() < hp - 2.0, "burn ticks");
     // A soaks himself, then zaps B: the chain arcs back to the wet caster.
-    let a_hp = w.player(A).unwrap().health;
+    let a_hp = w.player(A).unwrap().health();
     w.player_mut(A).unwrap().status.apply(bd_sim::status::StatusKind::Wet, 4.0, None);
     w.apply_hit(hit(B, Some(A), 10.0, 0.0, Vec3::Z).with_element(Element::Electric));
-    assert!(w.player(A).unwrap().health < a_hp, "water + electric backfires on a wet caster");
+    assert!(w.player(A).unwrap().health() < a_hp, "water + electric backfires on a wet caster");
     assert!(w.player(B).unwrap().status.active(bd_sim::status::StatusKind::Stun));
 }
 
@@ -648,7 +671,7 @@ fn shrink_and_grow_change_hull_knockback_and_replicate() {
     let hull = w.hull_of(B).unwrap();
     assert!((hull.max.y - hull.min.y - 1.8 * 1.6).abs() < 1e-3);
     let r = w.apply_hit(hit(B, Some(A), 0.0, 10.0, Vec3::X));
-    assert!((r.knockback - 5.0).abs() < 1e-3, "grown takes ×0.5 kb");
+    assert!((r.knockback - 10.0 / 1.6).abs() < 1e-3, "grown weighs 1.6");
     assert_eq!(w.snapshot_for(Some(A)).players.iter().find(|p| p.id == B.0).unwrap().size, 160);
     run(&mut w, (6.5 / DT) as u32);
     assert_eq!(w.player(B).unwrap().size.scale, 1.0);
@@ -694,7 +717,7 @@ fn power_suit_absorbs_damage_and_keeps_movement() {
     run(&mut w, 90);
     let integ = w.constructs.get(suit).unwrap().integrity;
     w.apply_hit(hit(A, Some(B), 10.0, 0.0, Vec3::X));
-    assert_eq!(w.player(A).unwrap().health, 100.0, "suit took it");
+    assert_eq!(w.player(A).unwrap().health(), 100.0, "suit took it");
     assert!(w.constructs.get(suit).unwrap().integrity < integ);
     let x0 = w.player(A).unwrap().mv.pos.x;
     let right = PlayerInput { move_x: 1, ..Default::default() };

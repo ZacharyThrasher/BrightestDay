@@ -30,6 +30,10 @@ pub struct CameraUpdateSet;
 pub enum CameraRig {
     #[default]
     FirstPerson,
+    /// Over-the-shoulder rig (`present::camera3p` places the camera after this module).
+    ThirdPerson,
+    /// A scripted / auto-director camera (`present::soak`, benchmarks) places the camera.
+    Director,
 }
 
 /// Where the local eye is this frame (already interpolated) and how fast it moves.
@@ -154,6 +158,8 @@ fn update_player_camera(
             tf.translation = anchor.eye + base_rot * shake.offset;
             tf.rotation = base_rot * shake.rotation;
         }
+        // Placed by `present::camera3p` / the director right after this system.
+        CameraRig::ThirdPerson | CameraRig::Director => {}
     }
 
     if let Projection::Perspective(p) = proj.as_mut() {

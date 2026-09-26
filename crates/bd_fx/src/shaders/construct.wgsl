@@ -12,7 +12,7 @@
 #import bevy_pbr::{
     mesh_functions,
     view_transformations::position_world_to_clip,
-    mesh_view_bindings::{view, globals},
+    mesh_view_bindings::{view, globals, lights},
 }
 #import bd_fx::common::{hash1, hash3i, vnoise, fog_factor, fog_color, ease_out_back}
 #ifdef TONEMAP_IN_SHADER
@@ -105,6 +105,11 @@ fn vertex(v: Vertex) -> VOut {
     let wp = (world_from_local * vec4<f32>(p, 1.0)).xyz;
     out.world_pos = wp;
     out.clip = position_world_to_clip(wp);
+#ifdef FX_OVERLAY
+    // Reverse-Z: remap depth into [0.5, 1] so nothing farther than 2x the near plane can hide it,
+    // while keeping the word's own depth order (self-occlusion stays correct).
+    out.clip.z = (0.5 + 0.5 * out.clip.z / out.clip.w) * out.clip.w;
+#endif
     out.world_normal = mesh_functions::mesh_normal_local_to_world(n, v.instance_index);
     out.uv = v.uv;
     out.packed = u32(v.uv_b.x + 0.5);
@@ -166,8 +171,14 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let is_core = tint == 3u;
     let core_col = c.core.rgb;
 
+    // Daylight adaptation: bright ambient (sunny maps) ⇒ denser, more saturated body and a dark
+    // contour band inside the bright edge lines so constructs still pop against sky/grass.
+    let amb = max(max(lights.ambient_color.r, lights.ambient_color.g), lights.ambient_color.b) * view.exposure;
+    let day = smoothstep(0.12, 0.45, amb);
+    let contour = (1.0 - smoothstep(sw * 2.6 - px, sw * 2.6 + px, strong_d)) * (1.0 - strong);
+
     // Emission.
-    var e = base * (0.42 + 0.38 * ao);
+    var e = base * (0.42 + 0.38 * ao) * (1.0 + 0.3 * day);
     e += base * bevel * 0.35;
     e += base * fres * 1.8;
     e += mix(base, core_col, 0.35) * grid * 0.9;
@@ -193,9 +204,15 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
         e = mix(e, hot * (0.7 + 0.6 * strong), clamp(heat * 0.85, 0.0, 1.0));
     }
 
-    // Opacity: translucent body, solid lines and rims.
+    // Dark contour (day only; also skips the hot core).
+    if !is_core {
+        e = mix(e, c.dark.rgb * 0.5, contour * day * 0.75);
+    }
+
+    // Opacity: translucent body, solid lines and rims; much denser in daylight.
     var alpha = c.misc.z * (0.62 + 0.25 * ao);
-    alpha = max(alpha, max(strong, max(fres * 0.9, grid * 0.6)));
+    alpha = mix(alpha, max(alpha, 0.92), day);
+    alpha = max(alpha, max(strong, max(fres * 0.9, max(grid * 0.6, contour * day))));
     if is_core { alpha = max(alpha, 0.85); }
 
     // Integrity: cracks (white-hot seams across the model) + flicker.

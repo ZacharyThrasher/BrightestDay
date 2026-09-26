@@ -17,6 +17,7 @@ use bd_core::mechanics::Element;
 use bd_core::{ConstructId, PlayerId, Vec3};
 use serde::{Deserialize, Serialize};
 
+/// Legacy health cap (the Smash model uses damage %; kept for old callers).
 pub const MAX_HEALTH: f32 = 100.0;
 /// Knockback (m/s, after multipliers) above which the victim tumbles.
 pub const TUMBLE_IMPULSE: f32 = 14.0;

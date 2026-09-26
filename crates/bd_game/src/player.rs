@@ -243,8 +243,13 @@ fn movement_tick(
     mut respawned: MessageWriter<PlayerRespawned>,
     mut look: ResMut<LookAngles>,
     frozen: Res<PlayerFrozen>,
+    active: Option<Res<crate::sim_bridge::ActiveWorld>>,
     mut q: Query<&mut PlayerSim, With<LocalPlayer>>,
 ) {
+    // A bd_sim World drives the local player (practice / host / client prediction): see sim_bridge.
+    if active.is_some() {
+        return;
+    }
     let Some(arena) = arena else { return };
     if frozen.0 {
         for mut sim in &mut q {

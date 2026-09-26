@@ -13,6 +13,17 @@ use bd_sim::rules::WillpowerMode;
 use bd_sim::weapons::{GunArchetype, HitscanShot};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 const C: PlayerId = PlayerId(3);
@@ -174,7 +185,7 @@ fn rocket_self_knockback_without_self_damage() {
     }
     assert!(evs.iter().any(|e| matches!(e, GameEvent::Explosion { .. })));
     let p = w.player(A).unwrap();
-    assert_eq!(p.health, 100.0, "no self damage");
+    assert_eq!(p.health(), 100.0, "no self damage");
     assert!(p.mv.vel.y > 5.0 || p.mv.pos.y > 9.0, "rocket jump: {} {}", p.mv.vel, p.mv.pos);
 }
 
@@ -255,8 +266,12 @@ fn head_zone_crits_and_ko_confirmation() {
     assert!((r.damage - 10.0).abs() < 1e-3, "melee exempt");
     // Streaks, doubles, shutdowns.
     w.player_mut(C).unwrap().streak = 3;
-    w.apply_hit(HitInfo::new(B, Some(A), HitKind::Shot, 500.0, 0.0, Vec3::NEG_Z, body));
-    w.apply_hit(HitInfo::new(C, Some(A), HitKind::Shot, 500.0, 0.0, Vec3::NEG_Z, body));
+    w.apply_hit(HitInfo::new(B, Some(A), HitKind::Shot, 1.0, 0.0, Vec3::NEG_Z, body));
+    w.apply_hit(HitInfo::new(C, Some(A), HitKind::Shot, 1.0, 0.0, Vec3::NEG_Z, body));
+    // Smash model: KOs through the blast zone (both this tick).
+    w.player_mut(B).unwrap().mv.pos.y = -100.0;
+    w.player_mut(C).unwrap().mv.pos.y = -100.0;
+    w.tick(&[]);
     let kos: Vec<(u16, bool, bool)> = w
         .events()
         .iter()

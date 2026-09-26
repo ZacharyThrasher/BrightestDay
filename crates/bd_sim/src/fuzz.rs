@@ -167,6 +167,7 @@ pub fn describe(r: &Recipe) -> String {
 /// Random lobby rules (covers no-limits / double / infinite / chaos caps).
 pub fn random_rules(rng: &mut SimRng) -> MatchRules {
     MatchRules {
+        scoring: if rng.chance(0.25) { crate::rules::Scoring::Stock { lives: 1 + rng.below(3) as u8 } } else { crate::rules::Scoring::TimedKos },
         scale: [ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits][rng.below(3) as usize],
         willpower: [WillpowerMode::Normal, WillpowerMode::Double, WillpowerMode::Infinite][rng.below(3) as usize],
         caps: if rng.chance(0.5) { CapMode::Normal } else { CapMode::Chaos },

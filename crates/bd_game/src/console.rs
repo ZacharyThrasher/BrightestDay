@@ -1,0 +1,701 @@
+//! Ring console — type a phrase, the ring builds it (docs/DESIGN.md north star).
+//!
+//! * **Open** with Enter or T (rebindable). A single minimal line appears at bottom-centre; while it is
+//!   open `UiFocus::typing` sets the TYPING bit (movement keys become text) but mouse aim, mouse-side
+//!   tethers, reel and momentum stay live.
+//! * History ↑/↓ (the player's own casts only — the ring never lists or suggests vocabulary: "the
+//!   mystery is the fun"), Enter casts and closes, Shift+Enter casts and keeps typing, empty Enter
+//!   recasts the last phrase, Esc closes.
+//! * **Quick-cast** slots 1–4 cast the loadout phrases (lobby) when the console is closed.
+//! * **Resolution**: `World::parse_power_phrase` (power shouts → `PowerMove`, incantation prefix →
+//!   cast with the power's delivery) → `Lexicon::resolve` → `SimCommand::Cast`. Graft phrases set
+//!   `aim.modifier` (the sim grafts onto the own construct under the crosshair / animates terrain).
+//!   Stand-rush tokens (ORA / MUDA / …) are sent live as `StandRush(n)` while typing.
+//! * **Feels instant**: [`RingCue::Forming`] fires on the key press (viewmodel ring flare + sound)
+//!   before the sim answers. The construct itself is the only feedback — nothing on screen explains
+//!   what the ring understood. Improvised phrases are silently appended to `logs/unresolved.txt` so
+//!   playtests grow the vocabulary.
+//! * No per-frame allocation while idle: every system early-outs on a closed console.
+//!
+//! [`Caster`] is the shared cast path (voice uses it too).
+
+use crate::audio::PlaySfx;
+use crate::camera::ViewAnchor;
+use crate::input::{LookAngles, UiFocus};
+use crate::lobby::prefs::{Action, KeyBinds, UiPrefs};
+use crate::lobby::UiSet;
+use crate::sim_bridge::{ActiveWorld, Cmd, SimCommand, WorldViews};
+use crate::state::{AppState, InGameMenu};
+use crate::util::core_v3;
+use bd_core::corps::Corps;
+use bd_lexicon::{Lexicon, Resolution, ResolutionKind};
+use bd_sim::powers::{PowerPhrase, PowerTable};
+use bd_sim::{Aim, TargetHint};
+use bevy::ecs::system::SystemParam;
+use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::input::ButtonState;
+use bevy::picking::Pickable;
+use bevy::prelude::*;
+use std::io::Write as _;
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex};
+
+/// Longest phrase the console accepts (the lexicon truncates at 120 chars anyway).
+const MAX_CHARS: usize = 96;
+const HISTORY: usize = 64;
+
+// ------------------------------------------------------------------------------------------ lexicon
+
+/// The loaded vocabulary (inserted once the background load finishes; shared, read-only).
+#[derive(Resource, Clone)]
+pub struct RingLexicon(pub Arc<Lexicon>);
+
+#[derive(Resource)]
+struct LexiconLoad(Mutex<Option<Receiver<Lexicon>>>);
+
+fn start_lexicon_load() -> LexiconLoad {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let spawned = std::thread::Builder::new().name("lexicon-load".into()).spawn(move || {
+        let dir = crate::assets_dir();
+        let t = std::time::Instant::now();
+        let lex = match Lexicon::load(dir.join("lexicon.bin")) {
+            Ok(l) => l,
+            Err(e) => {
+                warn!("lexicon.bin unavailable ({e}); ring falls back to curated icons");
+                Lexicon::icons_only(&Lexicon::icon_files(&dir))
+            }
+        };
+        info!("lexicon: {} entries + {} icons in {:.0} ms", lex.len(), lex.icon_count(), t.elapsed().as_secs_f64() * 1e3);
+        let _ = tx.send(lex);
+    });
+    if let Err(e) = spawned {
+        warn!("lexicon: could not spawn loader thread: {e}");
+    }
+    LexiconLoad(Mutex::new(Some(rx)))
+}
+
+fn poll_lexicon(mut commands: Commands, load: Option<Res<LexiconLoad>>) {
+    let Some(load) = load else { return };
+    let Ok(mut guard) = load.0.lock() else { return };
+    let Some(rx) = guard.as_ref() else { return };
+    match rx.try_recv() {
+        Ok(lex) => {
+            commands.insert_resource(RingLexicon(Arc::new(lex)));
+            *guard = None;
+            commands.remove_resource::<LexiconLoad>();
+        }
+        Err(std::sync::mpsc::TryRecvError::Empty) => {}
+        Err(_) => {
+            *guard = None;
+            commands.remove_resource::<LexiconLoad>();
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------ state
+
+/// Local, instant feedback for the viewmodel / audio (fires on the key press, before the sim).
+#[derive(Message, Clone, Copy, Debug, PartialEq)]
+pub enum RingCue {
+    /// A cast left the ring (voice or typed).
+    Forming { voice: bool },
+    /// A stand-rush token went out.
+    Rush,
+    /// The console opened (ring wakes up) / closed.
+    Wake,
+    Sleep,
+}
+
+#[derive(Resource, Default)]
+pub struct RingConsole {
+    pub open: bool,
+    pub buf: String,
+    history: Vec<String>,
+    hist: Option<usize>,
+    draft: String,
+    pub last: Option<String>,
+    rush_sent: u16,
+    dirty: bool,
+    caret_t: f32,
+    /// Phrases cast before the lexicon finished loading.
+    pending: Vec<(String, bool)>,
+}
+
+impl RingConsole {
+    fn set_buf(&mut self, s: &str) {
+        self.buf.clear();
+        self.buf.push_str(s);
+        self.dirty = true;
+    }
+}
+
+#[derive(Component)]
+struct ConsoleRoot;
+#[derive(Component)]
+struct ConsoleText;
+#[derive(Component)]
+struct ConsoleCaret;
+#[derive(Component)]
+struct ConsoleLine;
+
+pub struct ConsolePlugin;
+
+impl Plugin for ConsolePlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(start_lexicon_load())
+            .init_resource::<RingConsole>()
+            .add_message::<RingCue>()
+            .add_systems(Startup, spawn_console_ui)
+            .add_systems(PreUpdate, poll_lexicon)
+            .add_systems(Update, (console_keys, quick_cast, flush_pending).chain().in_set(UiSet::Input))
+            .add_systems(Update, draw_console.in_set(UiSet::Draw))
+            .add_systems(OnExit(AppState::InGame), close_on_exit);
+    }
+}
+
+fn close_on_exit(mut c: ResMut<RingConsole>, mut focus: ResMut<UiFocus>) {
+    c.open = false;
+    c.buf.clear();
+    c.dirty = true;
+    focus.typing = false;
+}
+
+pub fn corps_color(c: Corps) -> Color {
+    let k = c.color();
+    Color::srgb(k[0], k[1], k[2])
+}
+
+// ------------------------------------------------------------------------------------------ cast path
+
+/// Everything a cast needs. Shared by the console, quick-cast slots and voice.
+#[derive(SystemParam)]
+pub struct Caster<'w> {
+    lex: Option<Res<'w, RingLexicon>>,
+    active: Option<Res<'w, ActiveWorld>>,
+    views: Res<'w, WorldViews>,
+    look: Res<'w, LookAngles>,
+    anchor: Res<'w, ViewAnchor>,
+    aim_ray: Option<Res<'w, crate::present::camera3p::AimRay>>,
+    prefs: Res<'w, UiPrefs>,
+    cmds: MessageWriter<'w, SimCommand>,
+    cues: MessageWriter<'w, RingCue>,
+    sfx: MessageWriter<'w, PlaySfx>,
+}
+
+/// What a phrase turned into.
+#[derive(Debug)]
+pub enum Resolved {
+    PowerMove(u8),
+    Rush(u16),
+    Cast { res: Box<Resolution>, incantation: bool },
+}
+
+/// Resolution order: power phrase → lexicon.
+pub fn resolve_phrase(lex: &Lexicon, power: PowerPhrase, text: &str, spoken: bool) -> Resolved {
+    let (t, incantation) = match power {
+        PowerPhrase::Move(slot) => return Resolved::PowerMove(slot),
+        PowerPhrase::Incantation { rest } => (rest, true),
+        PowerPhrase::Plain => (text.to_string(), false),
+    };
+    let res = if spoken { lex.resolve_spoken(&t) } else { lex.resolve(&t) };
+    if let Some(n) = res.stand_rush
+        && res.kind == ResolutionKind::Graft
+        && !incantation
+    {
+        return Resolved::Rush(n);
+    }
+    Resolved::Cast { res: Box::new(res), incantation }
+}
+
+impl Caster<'_> {
+    pub fn lexicon_ready(&self) -> bool {
+        self.lex.is_some()
+    }
+
+    /// Does the local player hold a stand (rush tokens drive it live)?
+    pub fn has_stand(&self) -> bool {
+        let Some(a) = self.active.as_ref() else { return false };
+        a.local.and_then(|id| a.world.player_power(id)).is_some_and(|d| d.companion.is_some())
+    }
+
+    pub fn rush(&mut self, n: u16) {
+        if n == 0 {
+            return;
+        }
+        self.cmds.write(SimCommand::local(Cmd::StandRush(n)));
+        self.cues.write(RingCue::Rush);
+    }
+
+    /// Cast `text`. Returns false when there is no world to cast into (nothing happens).
+    /// `rush_already` = stand-rush tokens of this phrase already sent live.
+    pub fn cast(&mut self, text: &str, spoken: bool, rush_already: u16) -> bool {
+        let text = text.trim();
+        if text.is_empty() {
+            return false;
+        }
+        let Some(active) = self.active.as_ref() else { return false };
+        let Some(local) = active.local else { return false };
+        let Some(lex) = self.lex.as_ref().map(|l| l.0.clone()) else { return false };
+        let power = active.world.parse_power_phrase(local, text);
+        // Instant local feedback on the same frame as the key press.
+        self.cues.write(RingCue::Forming { voice: spoken });
+        match resolve_phrase(&lex, power, text, spoken) {
+            Resolved::PowerMove(slot) => {
+                self.cmds.write(SimCommand::local(Cmd::PowerMove(slot)));
+            }
+            Resolved::Rush(n) => {
+                let n = n.saturating_sub(rush_already);
+                self.rush(n);
+            }
+            Resolved::Cast { res, incantation } => {
+                // The crosshair ray (third person aims from the eye toward what the camera sees).
+                let (eye, dir) = match self.aim_ray.as_ref() {
+                    Some(r) if r.dir.is_finite() && r.dir.length_squared() > 0.5 => (r.origin, r.dir),
+                    _ => (self.anchor.eye, self.look.forward()),
+                };
+                let modifier = res.kind == ResolutionKind::Graft;
+                let target_hint = self.aimed_enemy(eye, dir).map(TargetHint::Player);
+                let aim = Aim { origin: core_v3(eye), dir: core_v3(dir), target_hint, modifier };
+                if Lexicon::is_fallback(&res) {
+                    log_unresolved(text, spoken, &res);
+                }
+                let res = *res;
+                self.cmds.write(SimCommand::local(Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation }));
+            }
+        }
+        true
+    }
+
+    /// Nearest living enemy within a small cone of the crosshair (for autonomous constructs).
+    fn aimed_enemy(&self, eye: Vec3, dir: Vec3) -> Option<bd_core::PlayerId> {
+        let mut best: Option<(f32, bd_core::PlayerId)> = None;
+        for p in &self.views.players {
+            if p.is_local || !p.alive() {
+                continue;
+            }
+            let to = p.pos + Vec3::Y * 1.0 - eye;
+            let d = to.length();
+            if !(0.5..150.0).contains(&d) {
+                continue;
+            }
+            let ang = to.normalize().dot(dir).clamp(-1.0, 1.0).acos();
+            // Wider cone up close (a body is big when near).
+            let limit = 0.10f32.max((1.2 / d).atan());
+            if ang < limit && best.is_none_or(|(b, _)| ang < b) {
+                best = Some((ang, p.id));
+            }
+        }
+        best.map(|(_, id)| id)
+    }
+}
+
+/// Append a fallback phrase to `logs/unresolved.txt` (next to `assets/`).
+fn log_unresolved(text: &str, spoken: bool, res: &Resolution) {
+    let dir = crate::assets_dir().parent().map(|p| p.join("logs")).unwrap_or_else(|| "logs".into());
+    let line = format!(
+        "{}\t{}\t{}\t{:?}\tignored=[{}]\tconf={:.2}\n",
+        timestamp(),
+        if spoken { "voice" } else { "typed" },
+        text.replace(['\t', '\n', '\r'], " "),
+        res.recipe.form,
+        res.ignored.join(", "),
+        res.confidence
+    );
+    let write = || -> std::io::Result<()> {
+        std::fs::create_dir_all(&dir)?;
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("unresolved.txt"))?;
+        f.write_all(line.as_bytes())
+    };
+    if let Err(e) = write() {
+        warn!("could not log unresolved phrase: {e}");
+    }
+}
+
+/// UTC "YYYY-MM-DD HH:MM:SS" without a date crate (civil-from-days).
+pub fn timestamp() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    format!("{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}", rem / 3600, rem / 60 % 60, rem % 60)
+}
+
+/// Rush tokens typed so far in `buf` (complete tokens only; a trailing partial token counts once
+/// it completes). Words that aren't pure rush words count 0.
+pub fn count_rush_tokens(buf: &str) -> u16 {
+    let rules = &PowerTable::get().rules;
+    let mut total = 0u16;
+    for w in buf.split(|c: char| c.is_whitespace() || c == ',' || c == '!' || c == '-') {
+        let w: String = w.chars().filter(|c| c.is_ascii_alphabetic()).map(|c| c.to_ascii_uppercase()).collect();
+        if w.is_empty() {
+            continue;
+        }
+        let mut i = 0;
+        let mut n = 0u16;
+        let mut last: Option<char> = None;
+        let b = w.as_bytes();
+        let mut ok = true;
+        while i < b.len() {
+            let rest = &w[i..];
+            if let Some(t) = rules.rush_tokens.iter().find(|t| rest.starts_with(t.as_str())) {
+                n += 1;
+                i += t.len();
+                last = t.chars().last();
+            } else if last == Some(b[i] as char) {
+                // WRYYYY: trailing repeats of a token's last letter.
+                i += 1;
+            } else if rules.rush_tokens.iter().any(|t| t.starts_with(rest)) {
+                break; // a token being typed
+            } else {
+                ok = false;
+                break;
+            }
+        }
+        if ok {
+            total = total.saturating_add(n);
+        }
+    }
+    total
+}
+
+// ------------------------------------------------------------------------------------------ input
+
+fn gameplay(state: &AppState, menu: &InGameMenu) -> bool {
+    *state == AppState::InGame && !menu.0
+}
+
+#[allow(clippy::too_many_arguments)]
+fn console_keys(
+    mut typed: MessageReader<KeyboardInput>,
+    mut keys: ResMut<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    binds: Res<KeyBinds>,
+    state: Res<State<AppState>>,
+    menu: Res<InGameMenu>,
+    time: Res<Time<Real>>,
+    mut focus: ResMut<UiFocus>,
+    mut console: ResMut<RingConsole>,
+    oath: Res<crate::oath::OathState>,
+    mut caster: Caster,
+) {
+    let live = gameplay(state.get(), &menu) && caster.active.is_some() && !oath.open;
+    if !live {
+        typed.clear();
+        if console.open {
+            console.open = false;
+            console.dirty = true;
+        }
+        if focus.typing && !oath.open {
+            focus.typing = false;
+        }
+        return;
+    }
+    let console = &mut *console;
+    let shift = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+    let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]);
+    let open_keys = [binds.get(Action::Console), binds.get(Action::ConsoleAlt)];
+    let mut eat_esc = false;
+    let mut edited = false;
+    if !console.open {
+        // Mouse-bound console key.
+        if open_keys.iter().any(|b| matches!(b, crate::lobby::prefs::Bind::Mouse(_)) && b.just_pressed(&keys, &mouse)) {
+            console.open = true;
+            console.dirty = true;
+            caster.cues.write(RingCue::Wake);
+        }
+    }
+    for ev in typed.read() {
+        if ev.state != ButtonState::Pressed {
+            continue;
+        }
+        if !console.open {
+            if keys.any_pressed([KeyCode::AltLeft, KeyCode::AltRight]) {
+                continue; // Alt+Enter = fullscreen
+            }
+            if open_keys.iter().any(|b| b.key() == Some(ev.key_code)) || (ev.key_code == KeyCode::NumpadEnter && open_keys.contains(&crate::lobby::prefs::Bind::Key(KeyCode::Enter))) {
+                console.open = true;
+                console.dirty = true;
+                console.hist = None;
+                console.rush_sent = 0;
+                caster.cues.write(RingCue::Wake);
+            }
+            continue;
+        }
+        match &ev.logical_key {
+            Key::Enter => {
+                let text = std::mem::take(&mut console.buf);
+                let phrase = if text.trim().is_empty() { console.last.clone() } else { Some(text.trim().to_string()) };
+                if let Some(p) = phrase {
+                    if console.history.last() != Some(&p) {
+                        if console.history.len() >= HISTORY {
+                            console.history.remove(0);
+                        }
+                        console.history.push(p.clone());
+                    }
+                    console.last = Some(p.clone());
+                    if caster.lexicon_ready() {
+                        caster.cast(&p, false, console.rush_sent);
+                    } else {
+                        console.pending.push((p, false));
+                        caster.cues.write(RingCue::Forming { voice: false });
+                    }
+                    caster.sfx.write(PlaySfx::new("cast_confirm").gain(0.55));
+                }
+                console.rush_sent = 0;
+                console.hist = None;
+                console.dirty = true;
+                if !shift {
+                    console.open = false;
+                    caster.cues.write(RingCue::Sleep);
+                }
+                // Swallow the rest of this frame's keys? No: keep reading so nothing is lost — any
+                // further keys this frame reopen/type as usual.
+            }
+            Key::Escape => {
+                console.open = false;
+                console.buf.clear();
+                console.hist = None;
+                console.rush_sent = 0;
+                console.dirty = true;
+                eat_esc = true;
+                caster.cues.write(RingCue::Sleep);
+            }
+            Key::Backspace => {
+                if ctrl {
+                    let t = console.buf.trim_end().len();
+                    let cut = console.buf[..t].rfind(' ').map(|i| i + 1).unwrap_or(0);
+                    console.buf.truncate(cut);
+                } else {
+                    console.buf.pop();
+                }
+                edited = true;
+            }
+            Key::ArrowUp | Key::ArrowDown => {
+                let n = console.history.len();
+                if n == 0 {
+                    continue;
+                }
+                let up = matches!(ev.logical_key, Key::ArrowUp);
+                let next = match (console.hist, up) {
+                    (None, true) => {
+                        console.draft = console.buf.clone();
+                        Some(n - 1)
+                    }
+                    (None, false) => None,
+                    (Some(i), true) => Some(i.saturating_sub(1)),
+                    (Some(i), false) => (i + 1 < n).then_some(i + 1),
+                };
+                console.hist = next;
+                let s = match next {
+                    Some(i) => console.history[i].clone(),
+                    None => std::mem::take(&mut console.draft),
+                };
+                console.set_buf(&s);
+            }
+            _ => {
+                let text = ev.text.as_ref().map(|t| t.as_str()).or(match &ev.logical_key {
+                    Key::Character(c) => Some(c.as_str()),
+                    Key::Space => Some(" "),
+                    _ => None,
+                });
+                if let Some(t) = text {
+                    for c in t.chars() {
+                        if !c.is_control() && console.buf.chars().count() < MAX_CHARS {
+                            console.buf.push(c);
+                            edited = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if eat_esc {
+        // Esc closed the console: it must not also open the pause menu this frame.
+        keys.clear_just_pressed(KeyCode::Escape);
+    }
+    if console.open {
+        // Keys that are text while typing must not also act as game keys this frame.
+        for a in [Action::Oath, Action::Dismiss, Action::Power, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Scoreboard] {
+            if let Some(k) = binds.get(a).key() {
+                keys.clear_just_pressed(k);
+            }
+        }
+        console.caret_t += time.delta_secs();
+    }
+    if edited {
+        console.dirty = true;
+        console.hist = None;
+        // Live stand rush: every completed ORA is one punch now.
+        if caster.has_stand() {
+            let n = count_rush_tokens(&console.buf);
+            if n > console.rush_sent {
+                caster.rush(n - console.rush_sent);
+                console.rush_sent = n;
+            }
+        }
+    }
+    let want = console.open;
+    if focus.typing != want && !oath.open {
+        focus.typing = want;
+    }
+}
+
+/// 1–4: cast the loadout phrases (console closed).
+#[allow(clippy::too_many_arguments)]
+fn quick_cast(
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    binds: Res<KeyBinds>,
+    state: Res<State<AppState>>,
+    menu: Res<InGameMenu>,
+    console: Res<RingConsole>,
+    oath: Res<crate::oath::OathState>,
+    party: Option<Res<crate::lobby::party::PartyUi>>,
+    mut caster: Caster,
+) {
+    if console.open || oath.open || !gameplay(state.get(), &menu) || caster.active.is_none() || party.as_ref().is_some_and(|p| p.phase == Some(bd_sim::party::PartyPhase::Pick)) {
+        return;
+    }
+    for (i, a) in [Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4].into_iter().enumerate() {
+        if binds.just_pressed(a, &keys, &mouse) {
+            let phrase = caster.prefs.loadout[i].clone();
+            if !phrase.trim().is_empty() {
+                caster.cast(&phrase, false, 0);
+            }
+        }
+    }
+}
+
+/// Casts typed before the lexicon finished loading go out as soon as it is ready.
+fn flush_pending(mut console: ResMut<RingConsole>, mut caster: Caster) {
+    if console.pending.is_empty() || !caster.lexicon_ready() {
+        return;
+    }
+    for (p, spoken) in std::mem::take(&mut console.pending) {
+        caster.cast(&p, spoken, 0);
+    }
+}
+
+// ------------------------------------------------------------------------------------------ drawing
+
+fn spawn_console_ui(mut commands: Commands) {
+    commands
+        .spawn((
+            Name::new("RingConsole"),
+            ConsoleRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                left: percent(50),
+                bottom: percent(16),
+                width: px(720),
+                margin: UiRect::left(px(-360)),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: px(6),
+                ..default()
+            },
+            Visibility::Hidden,
+            Pickable::IGNORE,
+            GlobalZIndex(55),
+        ))
+        .with_children(|root| {
+            root.spawn((
+                ConsoleText,
+                Text::new(""),
+                TextFont::from_font_size(30.0),
+                TextColor(Color::WHITE),
+                TextShadow { offset: Vec2::new(0.0, 0.0), color: Color::srgba(0.2, 1.0, 0.35, 0.8) },
+                TextLayout::justify(Justify::Center),
+            ))
+            .with_children(|t| {
+                t.spawn((ConsoleCaret, TextSpan::new("_"), TextFont::from_font_size(30.0), TextColor(Color::WHITE)));
+            });
+            // The hard-light underline: a thin corps-coloured beam, brighter in the middle.
+            root.spawn((
+                ConsoleLine,
+                Node { width: px(420), height: px(2), ..default() },
+                BackgroundGradient::from(bevy::ui::LinearGradient::new(
+                    bevy::ui::LinearGradient::TO_RIGHT,
+                    vec![
+                        bevy::ui::ColorStop::new(Color::NONE, percent(0)),
+                        bevy::ui::ColorStop::new(Color::srgba(0.3, 1.0, 0.45, 0.95), percent(50)),
+                        bevy::ui::ColorStop::new(Color::NONE, percent(100)),
+                    ],
+                )),
+            ));
+        });
+}
+
+#[allow(clippy::type_complexity)]
+fn draw_console(
+    mut console: ResMut<RingConsole>,
+    active: Option<Res<ActiveWorld>>,
+    prefs: Res<UiPrefs>,
+    mut root: Query<&mut Visibility, With<ConsoleRoot>>,
+    mut text: Query<(&mut Text, &mut TextShadow), With<ConsoleText>>,
+    mut caret: Query<&mut TextColor, With<ConsoleCaret>>,
+    mut line: Query<&mut BackgroundGradient, With<ConsoleLine>>,
+) {
+    if console.open {
+        // Caret blink (no allocation).
+        let on = (console.caret_t * 2.2) as i32 % 2 == 0;
+        for mut c in &mut caret {
+            let want = Color::srgba(1.0, 1.0, 1.0, if on { 0.9 } else { 0.0 });
+            if c.0 != want {
+                c.0 = want;
+            }
+        }
+    }
+    if !console.dirty {
+        return;
+    }
+    console.dirty = false;
+    let vis = if console.open { Visibility::Inherited } else { Visibility::Hidden };
+    for mut v in &mut root {
+        *v = vis;
+    }
+    let corps = active.as_ref().and_then(|a| a.local_player().map(|p| p.corps)).unwrap_or(prefs.corps);
+    let c = corps_color(corps);
+    for (mut t, mut sh) in &mut text {
+        t.0.clear();
+        t.0.push_str(&console.buf);
+        sh.color = c.with_alpha(0.85);
+    }
+    for mut bg in &mut line {
+        if let Some(bevy::ui::Gradient::Linear(l)) = bg.0.first_mut()
+            && l.stops.len() == 3
+        {
+            l.stops[1].color = c.with_alpha(0.95);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rush_counts_live() {
+        assert_eq!(count_rush_tokens("ORA"), 1);
+        assert_eq!(count_rush_tokens("ora ora or"), 2);
+        assert_eq!(count_rush_tokens("ORAORAORA"), 3);
+        assert_eq!(count_rush_tokens("mudamuda"), 2);
+        assert_eq!(count_rush_tokens("WRYYYYY"), 1);
+        assert_eq!(count_rush_tokens("hammer"), 0);
+        assert_eq!(count_rush_tokens("orange"), 0);
+    }
+
+    #[test]
+    fn timestamp_shape() {
+        let t = timestamp();
+        assert_eq!(t.len(), 19);
+        assert!(t.starts_with("20"));
+    }
+}

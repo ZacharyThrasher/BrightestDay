@@ -7,7 +7,7 @@ use bd_voxel::{CarveOp, CarveShape, CollapseLimits, VoxelWorld};
 
 use super::World;
 use crate::combat::*;
-use crate::events::{GameEvent, KoCause};
+use crate::events::GameEvent;
 use crate::geom;
 use crate::space::{GROW_SCALE, LINK_MAX_LEN, LinkEnd, RESIZE_SECS, SHRINK_SCALE};
 use crate::status::{StatusKind, element_statuses};
@@ -25,10 +25,25 @@ pub const CHAIN_RADIUS: f32 = 6.0;
 /// Pieces bigger than `max_component` count as supported (they float, Cube-World style).
 pub const SIM_COLLAPSE_LIMITS: CollapseLimits = CollapseLimits { max_component: 6_000, max_total: 12_000 };
 
+/// Collapse limits for "ember" carves (fire burn-outs, chips: spheres ≤ [`EMBER_RADIUS`]). A single
+/// burnt-out voxel high in a big tree would otherwise flood thousands of voxels looking for an
+/// anchor (~0.7 ms each, a dozen per fire step); a smaller search still drops burnt-off twigs.
+pub const EMBER_COLLAPSE_LIMITS: CollapseLimits = CollapseLimits { max_component: 256, max_total: 512 };
+/// Sphere radius at or below which a carve uses [`EMBER_COLLAPSE_LIMITS`].
+pub const EMBER_RADIUS: f32 = 0.35;
+
+/// The collapse limits a carve op is checked with (a pure function of the op, so clients agree).
+pub fn collapse_limits_for(op: &CarveOp) -> CollapseLimits {
+    match op.shape {
+        CarveShape::Sphere { radius, .. } if radius <= EMBER_RADIUS => EMBER_COLLAPSE_LIMITS,
+        _ => SIM_COLLAPSE_LIMITS,
+    }
+}
+
 /// Apply a replicated carve exactly as the host did (use this on clients too).
 pub fn apply_carve_op(voxels: &mut VoxelWorld, op: &CarveOp) -> bd_voxel::CarveOutcome {
     let removed = voxels.carve(op);
-    let falling = voxels.detect_collapse(&removed, SIM_COLLAPSE_LIMITS);
+    let falling = voxels.detect_collapse(&removed, collapse_limits_for(op));
     bd_voxel::CarveOutcome { removed, falling }
 }
 
@@ -117,23 +132,44 @@ impl World {
             }
         }
         let cockpit = self.players[ti].seat.is_some_and(|s| !s.suit);
-        let health = {
+        // Smash model: damage adds %; knockback grows with % (COMBAT.md §1a). No health, no
+        // lethal hits — KOs only through the blast zones.
+        let st = &self.cfg.tuning.smash;
+        let pct = {
             let p = &mut self.players[ti];
-            p.health = (p.health - damage).max(0.0);
-            p.health
+            p.damage_pct = (p.damage_pct + damage).clamp(0.0, 9999.0);
+            p.damage_pct
         };
-        // Lobby knob `knockback_scale` (1.0 = shipped, bit-identical).
-        let kb_mult = knock_mult(health) * element_knockback(hit.element) * self.players[ti].size.knockback_taken() * self.cfg.rules.knockback_scale;
-        let kb = if cockpit { 0.0 } else { base_kb * (1.0 + bonus) * kb_mult };
-        let dir = knockback_dir(dir_in, hit.element);
-        let tumble = kb > TUMBLE_IMPULSE;
+        let suit = self.players[ti].seat.is_some_and(|s| s.suit);
+        let weight = crate::smash::weight(st, self.players[ti].size.scale, suit);
+        let elem_kb = match hit.element {
+            Element::Water => self.cfg.tuning.hit.water_knockback,
+            Element::Wind => self.cfg.tuning.hit.wind_knockback,
+            _ => 1.0,
+        };
+        let kb = if cockpit {
+            0.0
+        } else {
+            crate::smash::knockback(st, base_kb * (1.0 + bonus) * elem_kb, damage, pct, weight, self.cfg.rules.knockback_scale)
+        };
+        let lift = if hit.element == Element::Wind { self.cfg.tuning.hit.wind_min_lift } else { self.cfg.tuning.hit.min_lift };
+        let dir = lifted_dir(dir_in, lift);
+        let tumble = kb > self.cfg.tuning.hit.tumble_impulse;
+        let launch = kb >= st.kb_min_launch;
+        let tumble_secs = crate::smash::tumble_secs(st, kb);
         if kb > 0.0 {
             let mv = &mut self.players[ti].mv;
             let vd = mv.vel.dot(dir);
             if vd < 0.0 {
                 mv.vel -= dir * vd.max(-kb);
             }
-            mv.apply_impulse(dir * kb, if tumble { TUMBLE_SECS } else { 0.0 });
+            mv.apply_impulse(dir * kb, if tumble { tumble_secs } else { 0.0 });
+        }
+        if launch {
+            let p = &mut self.players[ti];
+            p.launch = Some(crate::smash::LaunchState { t: 0.0, speed: kb, di: 0.0, source: hit.source });
+            p.tech_buffer = 99.0;
+            self.events.push(GameEvent::Launched { player: hit.target, source: hit.source, speed: kb, dir, pct });
         }
         // Credit.
         if let (Some(s), false) = (hit.source, self_hit) {
@@ -150,7 +186,7 @@ impl World {
         if damage > 0.0 {
             self.interrupt_oath(ti);
         }
-        let lethal = health <= 0.0;
+        let lethal = false;
         let weight = hit.impact * if hit.kind == HitKind::HeavyMelee { 1.3 } else { 1.0 };
         let impact = impact_fx(damage, kb, weight, dir, v_close);
         self.events.push(GameEvent::Hit {
@@ -193,11 +229,7 @@ impl World {
         if hit.element == Element::Electric && hit.kind != HitKind::Chain && !lethal {
             self.electric_chain(ti, &hit, damage);
         }
-        if lethal {
-            let killer = if self_hit { self.credit(ti) } else { hit.source.or_else(|| self.credit(ti)) };
-            let cause = if hit.kind == HitKind::WallSplat { KoCause::WallSplat } else { KoCause::Damage };
-            self.ko(ti, killer, cause);
-        }
+
         none.applied = true;
         none.damage = damage;
         none.knockback = kb;
@@ -278,39 +310,65 @@ impl World {
             return;
         }
         let p = &mut self.players[i];
-        p.health = (p.health - dmg).max(0.0);
+        p.damage_pct = (p.damage_pct + dmg.max(0.0)).min(9999.0);
         if let Some(s) = src.filter(|s| *s != p.id) {
             p.last_attacker = Some((s, self.tick));
         }
-        if p.health <= 0.0 {
-            let killer = src.filter(|s| *s != self.players[i].id).or_else(|| self.credit(i));
-            self.ko(i, killer, KoCause::Status);
-        } else {
-            self.interrupt_oath(i);
-        }
+        self.interrupt_oath(i);
     }
 
     /// Tumbling impacts recorded by movement: bonus damage, a crater, a bounce.
     pub(crate) fn resolve_wall_splats(&mut self) {
-        let base = self.cfg.move_params.clone();
         for i in 0..self.players.len() {
             let Some(w) = self.players[i].pending_splat.take() else { continue };
+            self.splat_player(i, w);
+        }
+    }
+
+    /// One wall splat: % from the impact speed, a crater, a bounce (credited to the last attacker).
+    pub(crate) fn splat_player(&mut self, i: usize, w: crate::movement::WallHit) {
+        let base = self.cfg.move_params.clone();
+        {
             if !self.players[i].alive {
-                continue;
+                return;
             }
-            let dmg = splat_damage(w.speed);
+            let th = &self.cfg.tuning.hit;
+            let (dmg, bounce, crater) = (th.splat_damage(w.speed), th.splat_bounce, th.splat_crater_radius);
             let hull = self.players[i].hull(&base);
             let point = hull.center() - w.normal * (hull.half().x + 0.25);
             // Bounce off at 30 % of the impact speed.
-            self.players[i].mv.vel += w.normal * (w.speed * SPLAT_BOUNCE);
+            self.players[i].mv.vel += w.normal * (w.speed * bounce);
             let id = self.players[i].id;
             self.events.push(GameEvent::WallSplat { player: id, point, normal: w.normal, speed: w.speed, damage: dmg });
-            self.request_carve(CarveRequest { center: point, radius: SPLAT_CRATER_RADIUS, power: 0.8 });
+            self.request_carve(CarveRequest { center: point, radius: crater, power: 0.8 });
             let source = self.credit(i);
             let mut hit = HitInfo::new(id, source, HitKind::WallSplat, dmg, 0.0, w.normal, point);
             hit.impact = 1.2;
             self.apply_hit(hit);
         }
+    }
+
+    /// Launch a player with velocity `vel` exactly as a launching hit would (tumble, DI window,
+    /// punch-through, `Launched` event) — powers, tools and tests.
+    pub fn launch_player(&mut self, id: PlayerId, vel: Vec3, source: Option<PlayerId>) {
+        let Some(i) = self.pidx(id) else { return };
+        if !self.players[i].alive || !vel.is_finite() {
+            return;
+        }
+        let speed = vel.length();
+        let secs = crate::smash::tumble_secs(&self.cfg.tuning.smash, speed);
+        let tick = self.tick;
+        let p = &mut self.players[i];
+        if let Some(s) = source.filter(|s| *s != id) {
+            p.last_attacker = Some((s, tick));
+        }
+        p.mv.vel = vel;
+        p.mv.grounded = false;
+        p.mv.tumble = p.mv.tumble.max(secs);
+        p.launch = Some(crate::smash::LaunchState { t: 0.0, speed, di: 0.0, source });
+        p.tech_buffer = 99.0;
+        let pct = p.damage_pct;
+        self.events.push(GameEvent::Launched { player: id, source, speed, dir: vel / speed.max(1e-6), pct });
     }
 
     /// Integrity damage to a construct.
@@ -492,7 +550,7 @@ impl World {
 
     /// Apply due carves within the per-tick budgets (at least one per tick when any is due).
     pub(crate) fn apply_carves(&mut self) {
-        let mut ops = 0usize;
+        let mut ops = self.carve_ops_used;
         let mut budget = self.cfg.carve_voxel_budget;
         while let Some(&(due, op)) = self.carve_queue.front() {
             if due > self.tick {
@@ -526,4 +584,18 @@ impl World {
     pub(crate) fn ground_point_below(&self, p: Vec3) -> Option<Vec3> {
         bd_core::voxel::raycast(&self.voxels, p, Vec3::NEG_Y, 30.0).map(|h| h.point)
     }
+}
+
+/// Knockback direction with guaranteed lift (tuning `min_lift`).
+fn lifted_dir(dir: Vec3, lift: f32) -> Vec3 {
+    let mut d = dir.normalize_or_zero();
+    if d == Vec3::ZERO {
+        d = Vec3::Y;
+    }
+    let lift = lift.clamp(0.0, 1.0);
+    if d.y < lift {
+        let h = Vec3::new(d.x, 0.0, d.z).normalize_or_zero();
+        d = (h * (1.0 - lift * lift).sqrt() + Vec3::Y * lift).normalize_or(Vec3::Y);
+    }
+    d
 }

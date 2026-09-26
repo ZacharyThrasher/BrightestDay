@@ -761,6 +761,12 @@ pub struct Construct {
     pub slice: Option<SliceCut>,
     /// World bookkeeping: last transformer state announced (`Transformed` events).
     pub xform_seen: u8,
+    /// Two-mode icons: the hand-authored robot shape (`shape` is the alt / vehicle). Clients rig
+    /// the transformation with `bd_shapes::transform_rig_authored(shape, alt_shape, cap)`.
+    pub alt_shape: Option<Box<ShapeSpec>>,
+    /// With `alt_shape`: the collision boxes (half, local centre) of [alt, robot] — the Transforms
+    /// component swaps between them instead of guessing the robot silhouette.
+    pub authored_boxes: Option<[(Vec3, Vec3); 2]>,
 }
 
 /// Where a slice half was cut from its parent (all in the parent's local frame, metres).
@@ -925,6 +931,8 @@ pub struct ConstructCtx<'a> {
     pub rules: &'a MatchRules,
     /// Below this height things fall out of the world.
     pub void_y: f32,
+    /// TUNING HOOK: combat numbers (form damage table, guns, creature attacks).
+    pub tuning: &'a crate::tuning::CombatTuning,
 }
 
 impl ConstructCtx<'_> {
@@ -1152,6 +1160,8 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         portal_cd: 0.0,
         slice: None,
         xform_seen: 0,
+        alt_shape: None,
+        authored_boxes: None,
         weapon: if category == FormCategory::Held {
             crate::weapons::archetype_for(&p.recipe).map(|a| crate::weapons::WeaponState::new(a, &crate::weapons::spec_for(&p.recipe, a)))
         } else {
@@ -1234,6 +1244,11 @@ impl ConstructStore {
 
     pub fn next_id(&self) -> u32 {
         self.next_id
+    }
+
+    /// Terrain chemistry state, mutable (world entry points such as `World::ignite_terrain`).
+    pub fn chemistry_mut(&mut self) -> &mut chemistry::Chemistry {
+        &mut self.chem
     }
 
     /// Terrain chemistry state (burning voxels), read-only.
@@ -1482,6 +1497,17 @@ impl ConstructStore {
         });
         // Anything riding / held by a removed construct is released.
         components::release_orphans(&mut self.items);
+    }
+
+    /// Attach a hand-authored robot shape to a (two-mode) construct: stores it and the authored
+    /// alt / robot collision boxes (computed once here, never per tick).
+    pub fn set_alt_shape(&mut self, id: ConstructId, robot: ShapeSpec) -> bool {
+        let Some(c) = self.get_mut(id) else { return false };
+        let alt_box = (c.half, c.local_center);
+        let robot_box = body_box(&c.recipe, Some(&robot));
+        c.authored_boxes = Some([alt_box, robot_box]);
+        c.alt_shape = Some(Box::new(robot));
+        true
     }
 
     /// Drop everything (match reset). No events.

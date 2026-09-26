@@ -387,12 +387,13 @@ impl World {
     /// Recoil: an impulse opposite the aim (×0.35 on the ground, ×1.0 in the air), never a
     /// tumble — shotgun-jumps, rocket-jumps, minigun hovering (COMBAT.md §4b).
     pub fn recoil(&mut self, player: PlayerId, aim: Vec3, strength: f32) {
+        let ground_recoil = self.cfg.tuning.ring.ground_recoil;
         let Some(i) = self.pidx(player) else { return };
         let p = &mut self.players[i];
         if !p.alive || !strength.is_finite() || strength <= 0.0 || p.seat.is_some_and(|s| !s.suit) {
             return;
         }
-        let k = if p.mv.grounded { crate::combat::GROUND_RECOIL } else { 1.0 };
+        let k = if p.mv.grounded { ground_recoil } else { 1.0 };
         let dv = -aim.normalize_or_zero() * (strength.min(40.0) * k);
         p.mv.apply_impulse(dv, 0.0);
     }

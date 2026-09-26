@@ -199,7 +199,7 @@ fn setup_scene(mut commands: Commands, args: Res<Args>, mut orbit: ResMut<Orbit>
         "kaiju" => (Vec3::new(0.0, 6.0, -14.0), 26.0, 0.3, 0.12),
         "mech" => (Vec3::new(9.0, 2.2, 6.0), 8.0, -0.4, 0.15),
         "portal" => (Vec3::new(-14.0, 1.8, -4.0), 10.0, 0.9, 0.12),
-        "guns" => (Vec3::new(4.0, 1.4, 12.0), 6.5, 0.2, 0.2),
+        "guns" => (Vec3::new(12.5, 1.0, 16.0), 9.5, 0.0, 0.3),
         "words" => (Vec3::new(0.0, 2.0, 7.0), 9.0, 0.0, 0.1),
         "train" => (Vec3::new(14.0, 1.5, -6.0), 10.0, -0.9, 0.2),
         "creatures" => (Vec3::new(0.0, 1.5, 6.0), 12.0, 0.1, 0.25),
@@ -588,23 +588,25 @@ fn guns_demo(
     mut zap: MessageWriter<ZapFx>,
 ) {
     let dt = time.delta_secs();
-    let base = Vec3::new(3.0, 1.4, 12.0);
+    // Clear lane at z = 16, firing along +X.
+    let base = Vec3::new(8.0, 1.4, 16.0);
+    let yaw = -std::f32::consts::FRAC_PI_2;
     let color = Corps::Willpower.color();
     for mut g in &mut q {
         if g.entity.is_none() {
-            let at = Transform::from_translation(base).with_rotation(Quat::from_rotation_y(0.9));
+            let at = Transform::from_translation(base).with_rotation(Quat::from_rotation_y(yaw));
             g.entity = Some(spawn_construct(&mut commands, &models, "gun", Corps::Willpower, at, None, 0.2, AnimKind::Held, None, 7));
         }
         g.t += dt;
-        let dir = (Quat::from_rotation_y(0.9) * Vec3::NEG_Z).normalize();
+        let dir = (Quat::from_rotation_y(yaw) * Vec3::NEG_Z).normalize();
         let muzzle_pos = base + dir * 0.9 + Vec3::Y * 0.35;
-        let period = if args.stress { 0.35 } else { 0.7 };
+        let period = if args.stress { 0.35 } else if args.view == "guns" { 0.45 } else { 0.7 };
         if g.t >= period {
             g.t = 0.0;
             g.shots += 1;
-            let kind = g.shots % 4;
+            let kind = if args.view == "guns" { [3, 0, 3, 1, 3, 2][(g.shots % 6) as usize] } else { g.shots % 4 };
             muzzle.write(MuzzleFx { pos: muzzle_pos, dir, color, scale: if kind == 3 { 1.8 } else { 1.0 } });
-            let side = Quat::from_rotation_y(0.9) * Vec3::X;
+            let side = Quat::from_rotation_y(yaw) * Vec3::X;
             casing.write(CasingFx { pos: base + Vec3::Y * 0.4, vel: side * 2.2 + Vec3::Y * 2.8, color, floor: Some(0.0), scale: 1.0 });
             let hit = muzzle_pos + dir * 9.0 - Vec3::Y * muzzle_pos.y;
             match kind {

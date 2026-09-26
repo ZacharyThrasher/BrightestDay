@@ -20,7 +20,7 @@ use serde::Deserialize;
 
 use crate::construct::{ConstructMeshCache, FxSlot, ModelKey, SlotAlloc, construct_gpu, write_slot};
 use crate::effects::{ShatterScratch, shatter_model};
-use crate::font::{SPACE_ADVANCE, all_chars, glyph_bits, glyph_spec};
+use crate::font::{ITALIC, SPACE_ADVANCE, all_chars, glyph_bits, glyph_spec};
 use crate::gpu::FxUpload;
 use crate::material::FxMaterials;
 use crate::palette::Palette;
@@ -192,7 +192,15 @@ struct OnoWordState {
     local: bool,
     serial: u64,
     shattered: bool,
+    /// World half extents (m) of the laid-out word (for de-overlapping).
+    ext: Vec2,
+    /// Smoothed de-overlap offset (world).
+    stack: Vec3,
 }
+
+/// Words within this distance of each other compete; at most MAX_NEAR stay visible.
+const NEAR_RADIUS: f32 = 4.0;
+const MAX_NEAR: usize = 2;
 
 #[derive(Resource, Default)]
 struct OnoRuntime {
@@ -223,8 +231,16 @@ fn build_glyphs(mut glyphs: ResMut<GlyphCache>, mut cache: ResMut<ConstructMeshC
         let model = bd_shapes::voxelize(&glyph_spec(&bits));
         let parts = cache.insert_now(ModelKey::Named("glyph", c as u32), &model, &mut meshes);
         let Some(Some(p)) = parts.first() else { continue };
-        let shear = (bits.h as f32 - 1.0) / 3.0;
-        let advance = (bits.w as f32 + shear.floor() + 1.0) * model.voxel_size;
+        // Smooth italic: shear the glyph mesh (about its centre) instead of stepping voxels.
+        if let Some(mut mesh) = meshes.get_mut(&p.mesh)
+            && let Some(bevy::mesh::VertexAttributeValues::Float32x3(pos)) = mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
+        {
+            for v in pos.iter_mut() {
+                v[0] += v[1] * ITALIC;
+            }
+        }
+        // glyph + italic step (1) + drop extrusion (1) + gap (1)
+        let advance = (bits.w as f32 + 2.5) * model.voxel_size;
         glyphs.glyphs.insert(c, Glyph { model: Arc::new(model), mesh: p.mesh.clone(), offset: p.offset, advance });
     }
 }
@@ -296,9 +312,25 @@ fn spawn_words(
                 None => continue,
             }
         }
+        let perf = m.style == OnoStyle::Performance;
+        if perf {
+            // One fixed near-crosshair slot: the new performance word replaces the old one.
+            for mut w in live.iter_mut().filter(|w| !w.shattered && w.style == OnoStyle::Performance) {
+                w.hold = w.hold.min((w.age - w.pop).max(0.0));
+            }
+        } else {
+            let p = fin3(m.pos);
+            let mut near: Vec<Mut<OnoWordState>> = live.iter_mut().filter(|w| !w.shattered && w.style == OnoStyle::Impact && w.base.distance(p) < NEAR_RADIUS && w.hold > w.age - w.pop).collect();
+            if near.len() >= MAX_NEAR {
+                near.sort_by(|a, b| b.age.total_cmp(&a.age));
+                let drop = near.len() + 1 - MAX_NEAR;
+                for w in near.iter_mut().take(drop) {
+                    w.hold = w.hold.min((w.age - w.pop).max(0.0));
+                }
+            }
+        }
         let mut rng = FxRng::new(m.event_id ^ (rt.serial << 20) ^ 0x0A0A);
         rt.serial += 1;
-        let perf = m.style == OnoStyle::Performance;
         // Colour: corps colour leaning toward the material tint.
         let mut color = m.color;
         if let Some((r, g, b)) = tint {
@@ -328,7 +360,7 @@ fn spawn_words(
             .spawn((Name::new(format!("ono {upper}")), Transform::from_translation(fin3(m.pos)), Visibility::Visible))
             .id();
         let stagger = if perf { 0.02 } else { 0.03 };
-        let jit = if perf { 0.03 } else { 0.07 + 0.1 * impact.min(1.5) };
+        let jit = if perf { 0.0 } else { 0.025 + 0.035 * impact.min(1.5) };
         let mut letters = Vec::with_capacity(placed.len());
         for (i, (c, lx)) in placed.iter().enumerate() {
             let g = &glyphs.glyphs[c];
@@ -337,7 +369,7 @@ fn spawn_words(
             let e = commands
                 .spawn((
                     Mesh3d(g.mesh.clone()),
-                    MeshMaterial3d(mats.construct(false)),
+                    MeshMaterial3d(if perf { mats.construct_overlay.clone() } else { mats.construct(false) }),
                     MeshTag(slot),
                     FxSlot(slot),
                     Transform::from_translation(centre).with_scale(Vec3::ZERO),
@@ -352,7 +384,7 @@ fn spawn_words(
                 centre,
                 delay: i as f32 * stagger,
                 jitter_rot: rng.range(-jit, jit),
-                jitter_scale: 1.0 + rng.range(-0.5, 0.5) * jit,
+                jitter_scale: 1.0 + rng.range(-0.5, 0.5) * jit * 0.6,
             });
         }
         let height = if perf { 0.05 } else { (0.3 + 0.3 * impact.min(2.0)) * size_k };
@@ -368,6 +400,8 @@ fn spawn_words(
             color,
             rainbow,
             scale: height / (7.0 * bd_core::CONSTRUCT_VOXEL_SIZE),
+            ext: Vec2::new(width * 0.5, 9.0 * bd_core::CONSTRUCT_VOXEL_SIZE * 0.5) * (height / (7.0 * bd_core::CONSTRUCT_VOXEL_SIZE)),
+            stack: Vec3::ZERO,
             roll: if perf { 0.0 } else { rng.range(-0.18, 0.18) },
             local: m.local_player,
             serial: rt.serial,
@@ -381,17 +415,62 @@ fn ease_back(x: f32, s: f32) -> f32 {
     1.0 + (s + 1.0) * x * x * x + s * x * x
 }
 
+/// Screen-space de-overlap: performance word first (fixed slot), then impact words oldest → newest;
+/// a word that overlaps an already placed one is pushed up (camera up) until it is clear.
+fn resolve_overlaps(cam: &GlobalTransform, items: &mut [(Entity, Vec3, Vec2, u64, bool, Vec3)], placed: &mut Vec<Vec4>) {
+    let (cp, right, upv, fwd) = (cam.translation(), cam.right().as_vec3(), cam.up().as_vec3(), cam.forward().as_vec3());
+    items.sort_by_key(|it| (!it.4, it.3));
+    placed.clear();
+    for it in items.iter_mut() {
+        let rel = it.1 - cp;
+        let d = rel.dot(fwd).max(0.3);
+        let u = rel.dot(right) / d;
+        let v0 = rel.dot(upv) / d;
+        let (hw, hh) = (it.2.x / d, it.2.y / d);
+        let mut v = v0;
+        for _ in 0..8 {
+            let mut moved = false;
+            for p in placed.iter() {
+                if (u - p.x).abs() < hw + p.z && (v - p.y).abs() < hh + p.w {
+                    v = p.y + p.w + hh + 0.01;
+                    moved = true;
+                }
+            }
+            if !moved {
+                break;
+            }
+        }
+        placed.push(Vec4::new(u, v, hw, hh));
+        it.5 = upv * ((v - v0) * d);
+    }
+}
+
 fn animate_words(
     time: Res<Time>,
     cams: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut up: ResMut<FxUpload>,
-    mut words: Query<(&mut OnoWordState, &mut Transform)>,
+    mut words: Query<(Entity, &mut OnoWordState, &mut Transform)>,
     mut letters: Query<&mut Transform, Without<OnoWordState>>,
+    mut items: Local<Vec<(Entity, Vec3, Vec2, u64, bool, Vec3)>>,
+    mut placed: Local<Vec<Vec4>>,
 ) {
     let dt = time.delta_secs();
     let now = time.elapsed_secs();
     let cam = camera(&cams);
-    for (mut w, mut tf) in &mut words {
+    items.clear();
+    for (e, w, tf) in &words {
+        if !w.shattered {
+            items.push((e, tf.translation - w.stack, w.ext, w.serial, w.style == OnoStyle::Performance, Vec3::ZERO));
+        }
+    }
+    if let Some(cam) = cam {
+        resolve_overlaps(&cam, &mut items, &mut placed);
+    }
+    let k = 1.0 - (-dt * 18.0).exp();
+    for (e, mut w, mut tf) in &mut words {
+        let target = items.iter().find(|it| it.0 == e).map(|it| it.5).unwrap_or(Vec3::ZERO);
+        let st = w.stack;
+        w.stack = st + (target - st) * k;
         w.age += dt;
         let age = w.age;
         let s = w.scale;
@@ -408,7 +487,7 @@ fn animate_words(
                 let pos = w.base + drift * s.max(0.3) * 2.0;
                 let to_cam = (cam_pos - pos).normalize_or_zero();
                 let pos = pos + to_cam * 0.4;
-                tf.translation = pos;
+                tf.translation = pos + w.stack;
                 let facing = Transform::from_translation(pos).looking_to(-to_cam, Vec3::Y).rotation;
                 tf.rotation = facing * Quat::from_rotation_z(w.roll);
             }
@@ -420,7 +499,7 @@ fn animate_words(
         for (i, l) in w.letters.iter().enumerate() {
             let t = age - l.delay;
             let pop = if t <= 0.0 { 0.0 } else { ease_back(t / w.pop, 2.6) };
-            let wob = (age * 17.0 + i as f32 * 1.3).sin() * (0.1 * (-age * 4.0).exp() + 0.02) * (0.5 + w.impact.min(1.5));
+            let wob = (age * 17.0 + i as f32 * 1.3).sin() * (0.06 * (-age * 5.0).exp() + 0.008) * (0.5 + 0.5 * w.impact.min(1.5));
             let bounce = (age * 11.0 + i as f32 * 0.8).sin() * 0.06 * (-age * 3.0).exp();
             if let Ok(mut lt) = letters.get_mut(l.entity) {
                 lt.translation = l.centre + Vec3::Y * bounce;

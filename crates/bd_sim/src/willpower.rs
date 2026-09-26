@@ -82,6 +82,36 @@ fn truncate_name(s: &mut String) {
 /// scale per form (and lobby [`crate::rules::ScaleLimit`]), mass, count (≤ 6, swarms ≤ 12), payload
 /// nesting depth 1, bounded name/mechanics/features.
 pub fn validate_recipe(recipe: Recipe, rules: &MatchRules) -> Recipe {
+    let raw_scale = recipe.scale;
+    let mut r = validate_inner(recipe, rules);
+    // Readability: a creature under ~0.9 m is an unreadable speck (Pikachu at its canon 0.4 m is 8
+    // voxels) — raise it, unless the phrase asked for small (tiny/mini/small…: the lexicon then puts
+    // the scale well below the form default / under 0.3 m for icons), which keeps a ~0.5 m floor.
+    // Top-level only (payload projectiles and swarm units stay small); idempotent on re-validation.
+    if r.form.category() == FormCategory::Creature && !r.has(Mechanic::Swarm) {
+        let explicit_small = if !raw_scale.is_finite() {
+            false
+        } else if (raw_scale - CREATURE_SMALL_FLOOR).abs() < 1e-3 {
+            true // our own floor, re-validated
+        } else if matches!(r.model, bd_core::mechanics::ModelSource::Icon(_)) {
+            raw_scale < 0.3
+        } else {
+            raw_scale < form_spec(r.form).default_scale * 0.75
+        };
+        let floor = if explicit_small { CREATURE_SMALL_FLOOR } else { CREATURE_READABLE_FLOOR };
+        let (_, hi) = rules.scale_range(0.0, form_spec(r.form).max_scale);
+        r.scale = r.scale.max(floor.min(hi));
+    }
+    r
+}
+
+/// Minimum creature height (m) for readability (see [`validate_recipe`]).
+pub const CREATURE_READABLE_FLOOR: f32 = 0.9;
+/// Minimum for creatures the phrase explicitly asked to be small (not exactly any form default:
+/// re-validation recognises it).
+pub const CREATURE_SMALL_FLOOR: f32 = 0.55;
+
+fn validate_inner(recipe: Recipe, rules: &MatchRules) -> Recipe {
     let mut r = recipe.normalized();
     truncate_name(&mut r.name);
     r.mechanics.truncate(MAX_MECHANICS);
@@ -93,7 +123,7 @@ pub fn validate_recipe(recipe: Recipe, rules: &MatchRules) -> Recipe {
     let max_count = if r.has(Mechanic::Swarm) { MAX_SWARM_COUNT } else { MAX_COUNT };
     r.count = r.count.clamp(1, max_count);
     if let Some(p) = r.payload.take() {
-        let mut p = validate_recipe(*p, rules);
+        let mut p = validate_inner(*p, rules);
         p.payload = None;
         r.payload = Some(Box::new(p));
     }
@@ -149,8 +179,13 @@ impl CastHistory {
 
     /// Uses of `word` within the staleness window ending at `now`.
     pub fn uses(&self, word: &str, now: Tick) -> u32 {
+        self.uses_in(word, now, STALE_WINDOW_SECS)
+    }
+
+    /// [`Self::uses`] with a tuned window (TUNING HOOK: `tuning.willpower.stale_window`).
+    pub fn uses_in(&self, word: &str, now: Tick, window_secs: f32) -> u32 {
         let h = word_hash(word);
-        let window = (STALE_WINDOW_SECS / DT) as Tick;
+        let window = (window_secs / DT) as Tick;
         self.entries.iter().filter(|(eh, t)| *t > 0 && *eh == h && now.saturating_sub(*t) <= window).count() as u32
     }
 
@@ -260,6 +295,34 @@ pub enum OathError {
 mod tests {
     use super::*;
     use bd_core::mechanics::Recipe;
+
+    #[test]
+    fn creatures_get_a_readable_minimum_scale() {
+        use bd_core::mechanics::ModelSource;
+        let rules = MatchRules::default();
+        let mk = |form, scale: f32, icon: bool| {
+            let mut r = Recipe::unknown("x");
+            r.form = form;
+            r.scale = scale;
+            if icon {
+                r.model = ModelSource::Icon("pikachu".into());
+            }
+            r
+        };
+        let pika = validate_recipe(mk(Form::Quadruped, 0.4, true), &rules);
+        assert!((pika.scale - CREATURE_READABLE_FLOOR).abs() < 1e-4, "{}", pika.scale);
+        let tiny_pika = validate_recipe(mk(Form::Quadruped, 0.16, true), &rules);
+        assert!((tiny_pika.scale - CREATURE_SMALL_FLOOR).abs() < 1e-4, "{}", tiny_pika.scale);
+        let tiny_dog = validate_recipe(mk(Form::Quadruped, 1.2 * 0.4, false), &rules);
+        assert!((tiny_dog.scale - CREATURE_SMALL_FLOOR).abs() < 1e-4, "{}", tiny_dog.scale);
+        let bug = validate_recipe(mk(Form::Insect, 0.5, false), &rules);
+        assert!((bug.scale - CREATURE_READABLE_FLOOR).abs() < 1e-4, "{}", bug.scale);
+        // Idempotent (party re-validates), and non-creatures are untouched.
+        for r in [pika, tiny_pika, tiny_dog, bug] {
+            assert_eq!(validate_recipe(r.clone(), &rules).scale, r.scale);
+        }
+        assert_eq!(validate_recipe(mk(Form::Gauntlet, 0.4, false), &rules).scale, 0.4);
+    }
 
     #[test]
     fn oaths_parse_from_asset() {

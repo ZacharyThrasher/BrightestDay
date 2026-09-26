@@ -309,7 +309,7 @@ fn beams(mut fx: ResMut<FxParticles>, mut msgs: MessageReader<BeamFx>) {
             let t0 = i as f32 / segs as f32;
             let t1 = (i + 1) as f32 / segs as f32;
             let c = a + d * ((t0 + t1) * 0.5);
-            fx.emit(Emit { kind: PKind::Beam, flags: PFlags::PLAIN, pos: c, vel: d / segs as f32, size: w, color: hot, emissive: 7.0, life: 0.45, ..default() });
+            fx.emit(Emit { kind: PKind::Beam, flags: PFlags::PLAIN, pos: c, vel: d / segs as f32, size: w, color: hot, emissive: 7.0, life: 0.6, ..default() });
             fx.emit(Emit { kind: PKind::Beam, flags: PFlags::PLAIN, pos: c, vel: d / segs as f32, size: w * 2.2, color: m.color, emissive: 1.4, life: 0.18, ..default() });
         }
         // Quake-style spiral of cubes that drift outward and fade.

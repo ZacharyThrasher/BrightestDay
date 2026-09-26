@@ -17,7 +17,7 @@ use bd_core::input::{PlayerInput, buttons};
 use bd_core::voxel::VoxelQuery;
 
 use super::params::MoveParams;
-use super::state::{BUTTON_BITS, CHAIN_SHIFT, HOP_CHAIN_MAX, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit, hull_at};
+use super::state::{BUTTON_BITS, HOP_CHAIN_MAX, LandEvent, MoveEvents, MoveModifiers, PlayerState, WallHit, hull_at};
 use super::tether;
 use super::world::{Broadphase, CollisionWorld, Hit, SKIN, safe_t};
 
@@ -164,7 +164,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     s.vel = clamp_speed(s.vel, p.hard_cap_speed * 4.0);
     sanitize_mods(&mut s.mods);
     let inp = Inp::new(input, s.prev_buttons & BUTTON_BITS);
-    let mut chain = s.hop_chain().min(HOP_CHAIN_MAX);
+    let mut chain = s.hop_chain.min(HOP_CHAIN_MAX);
     let speed0 = s.horizontal_speed();
     let mut bp = Broadphase::new();
     bp.prime(world, s.hull(p), s.vel * dt);
@@ -201,10 +201,10 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     let wants_jump = fresh || (p.auto_hop && inp.held(buttons::JUMP));
     let coyote = !s.grounded && s.coyote_ok && s.air_time <= p.coyote_time;
     if wants_jump && (s.grounded || coyote) {
-        // While grounded `air_time` is minus the time since touchdown (0 on the touchdown tick).
+        // While grounded `since_landing` is the time since touchdown (0 on the touchdown tick).
         let from_ground = s.grounded;
-        let touchdown = from_ground && s.air_time > -0.5 * dt;
-        if from_ground && -s.air_time < p.land_grace {
+        let touchdown = from_ground && s.since_landing < 0.5 * dt;
+        if from_ground && s.since_landing < p.land_grace {
             chain = (chain + 1).min(HOP_CHAIN_MAX);
         }
         let gv = if s.grounded { s.ground_vel } else { Vec3::ZERO };
@@ -251,7 +251,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
             }
         } else {
             // Landing grace: just after touchdown friction barely bites (a slightly late hop keeps its speed).
-            let grace = if -s.air_time < p.land_grace { p.land_grace_friction } else { 1.0 };
+            let grace = if s.since_landing < p.land_grace { p.land_grace_friction } else { 1.0 };
             apply_friction(&mut rel, p.friction, p.stop_speed, dt, grace);
             if inp.wish_h != Vec3::ZERO {
                 let ws = if s.crouched { p.crouch_speed } else { p.run_speed } * speed_mult;
@@ -334,10 +334,11 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     categorize(s, &inp, &mut bp, world, p, g, was_grounded, jumped, rope_acc, out.floor_impact, dt, &mut ev);
 
     // Hop chain: broken by real ground friction (stayed down past the grace) or a slide.
-    if s.grounded && (s.sliding || -s.air_time >= p.land_grace) {
+    if s.grounded && (s.sliding || s.since_landing >= p.land_grace) {
         chain = 0;
     }
-    s.prev_buttons = inp.held | (chain as u16) << CHAIN_SHIFT;
+    s.prev_buttons = inp.held;
+    s.hop_chain = chain;
     ev.hop_chain = chain;
     ev.speed_gain = s.horizontal_speed() - speed0;
     ev
@@ -699,8 +700,9 @@ fn categorize<V: VoxelQuery + ?Sized>(
             s.grounded = true;
             s.ground_normal = n;
             s.ground_vel = h.vel;
-            // Grounded: minus the time since touchdown (bounded; only the first `land_grace` matters).
-            s.air_time = if was_grounded { (s.air_time - dt).max(-10.0) } else { 0.0 };
+            // Grounded: time since touchdown (bounded; only the first `land_grace` matters).
+            s.since_landing = if was_grounded { (s.since_landing + dt).min(10.0) } else { 0.0 };
+            s.air_time = 0.0;
             s.coyote_ok = true;
             if !was_grounded && s.crouched && inp.held(buttons::CROUCH) && !s.sliding && new_rel.length() >= p.slide_min_speed {
                 let mut r = new_rel;
@@ -715,6 +717,7 @@ fn categorize<V: VoxelQuery + ?Sized>(
                 s.air_time = 0.0;
             }
             s.air_time += dt;
+            s.since_landing = 0.0;
             s.grounded = false;
             s.ground_normal = Vec3::Y;
             s.ground_vel = Vec3::ZERO;

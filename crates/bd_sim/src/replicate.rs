@@ -141,6 +141,10 @@ pub mod pflags {
     pub const SUIT: u16 = 1 << 10;
     pub const HOOK_L_ATTACHED: u16 = 1 << 11;
     pub const HOOK_R_ATTACHED: u16 = 1 << 12;
+    /// Flying from a launch (draw the trail; intensity in `PlayerSnap::launch`).
+    pub const LAUNCHED: u16 = 1 << 13;
+    /// Stock mode: out of lives.
+    pub const ELIMINATED: u16 = 1 << 14;
 }
 
 /// Compact render state of one player (sent for everyone, including the recipient).
@@ -152,7 +156,12 @@ pub struct PlayerSnap {
     pub pos: QPos,
     pub vel: QVel,
     pub look: QLook,
-    pub health: u8,
+    /// Damage % in tenths (0.1 % steps, up to 6553.5 %).
+    pub pct: u16,
+    /// Launch trail intensity 0–255 (launch speed / `launch_trail_kb`); 0 = not launched.
+    pub launch: u8,
+    /// Stock mode lives (255 = timed match).
+    pub stocks: u8,
     pub willpower: u8,
     /// `StatusSet::bits()`.
     pub status: u8,
@@ -191,9 +200,11 @@ pub struct OwnState {
     pub ground_normal: Option<Vec3>,
     /// `None` = zero.
     pub ground_vel: Option<Vec3>,
-    /// slide_cooldown, jump_buffer, air_time, gas, gas_regen_delay, burst_cooldown, tumble.
-    pub timers: [f32; 7],
+    /// slide_cooldown, jump_buffer, air_time, gas, gas_regen_delay, burst_cooldown, tumble,
+    /// since_landing.
+    pub timers: [f32; 8],
     pub prev_buttons: u16,
+    pub hop_chain: u8,
     /// `None` = idle (default).
     pub hooks: [Option<Hook>; 2],
     /// `None` = default modifiers.
@@ -213,8 +224,9 @@ impl OwnState {
             bits,
             ground_normal: (s.ground_normal != Vec3::Y).then_some(s.ground_normal),
             ground_vel: (s.ground_vel != Vec3::ZERO).then_some(s.ground_vel),
-            timers: [s.slide_cooldown, s.jump_buffer, s.air_time, s.gas, s.gas_regen_delay, s.burst_cooldown, s.tumble],
+            timers: [s.slide_cooldown, s.jump_buffer, s.air_time, s.gas, s.gas_regen_delay, s.burst_cooldown, s.tumble, s.since_landing],
             prev_buttons: s.prev_buttons,
+            hop_chain: s.hop_chain,
             hooks: [(s.hooks[0] != idle).then_some(s.hooks[0]), (s.hooks[1] != idle).then_some(s.hooks[1])],
             mods: (s.mods != MoveModifiers::default()).then_some(s.mods),
             size,
@@ -237,6 +249,7 @@ impl OwnState {
             slide_cooldown: f(self.timers[0]),
             jump_buffer: f(self.timers[1]),
             air_time: f(self.timers[2]),
+            since_landing: f(self.timers[7]),
             coyote_ok: self.bits & 8 != 0,
             gas: f(self.timers[3]),
             gas_regen_delay: f(self.timers[4]),
@@ -244,6 +257,7 @@ impl OwnState {
             burst_cooldown: f(self.timers[5]),
             tumble: f(self.timers[6]),
             prev_buttons: self.prev_buttons,
+            hop_chain: self.hop_chain.min(crate::movement::HOP_CHAIN_MAX),
             hooks: [self.hooks[0].unwrap_or_default(), self.hooks[1].unwrap_or_default()],
             mods: self.mods.unwrap_or_default(),
         }

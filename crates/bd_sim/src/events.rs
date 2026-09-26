@@ -22,12 +22,15 @@ use crate::willpower::OathError;
 /// Why a KO happened.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum KoCause {
+    /// Legacy (health model): never produced by the Smash model.
     Damage,
     /// Fell into the void / left the arena bounds.
     Void,
     WallSplat,
-    /// Damage over time (burn / poison).
+    /// Damage over time (burn / poison). Legacy: never produced by the Smash model.
     Status,
+    /// Launched out through a side / top blast zone (`Ko.zone`).
+    BlastZone,
 }
 
 /// Why a construct left the world (other than shattering).
@@ -131,7 +134,27 @@ pub enum GameEvent {
         pos: Vec3,
         vel: Vec3,
         yaw: f32,
+        /// Blast zone crossed (None for other KOs).
+        zone: Option<crate::smash::BlastZone>,
+        /// Star KO (top zone): play the twinkle, poof after this many seconds.
+        poof_delay: f32,
+        /// Killer's KO total after this KO (incl. any shutdown bonus).
+        killer_kos: u16,
+        /// Victim's damage % when KO'd.
+        pct: f32,
+        /// Stock mode: victim's lives left (None in timed matches).
+        stocks_left: Option<u8>,
     },
+    /// Stock mode: out of lives.
+    Eliminated { player: PlayerId },
+    /// A hit launched a player (knockback ≥ `kb_min_launch`): trail + telemetry.
+    Launched { player: PlayerId, source: Option<PlayerId>, speed: f32, dir: Vec3, pct: f32 },
+    /// A launch ended in play (landed / tethered / tumble over) — the player recovered.
+    Recovered { player: PlayerId, source: Option<PlayerId>, pct: f32 },
+    /// Jump just before a wall / ground contact while tumbling: splat cancelled.
+    Tech { player: PlayerId, pos: Vec3, normal: Vec3 },
+    /// A launched player plowed through terrain: `entry` → `exit` (debris burst, CRASH).
+    PunchThrough { player: PlayerId, entry: Vec3, exit: Vec3, material: u8 },
     Respawn { player: PlayerId, pos: Vec3, shield: f32 },
     /// A projectile left a hand / weapon. Clients simulate it from here (ballistic).
     ProjectileFired { id: u16, owner: PlayerId, kind: ProjectileKind, origin: Vec3, vel: Vec3 },
@@ -228,6 +251,10 @@ pub enum GameEvent {
     /// Burning terrain voxels changed (chemistry VFX): newly lit / went out (burnt or doused).
     /// Voxel coordinates as i16 (the arena fits).
     FireVoxels { lit: Vec<[i16; 3]>, out: Vec<[i16; 3]> },
+    /// Authored shapes of a construct that clients can't rebuild from the recipe alone (a two-mode
+    /// icon's robot `alt_shape`, with its alt `shape`). Sent once, right after `ConstructSpawned`,
+    /// and in late-join manifests.
+    ConstructShapes { id: ConstructId, shape: Option<Box<bd_core::shape::ShapeSpec>>, alt_shape: Box<bd_core::shape::ShapeSpec> },
     /// A slice half: draw its parent's model clipped by `cut` (sent right after its
     /// `ConstructSpawned`, and in late-join manifests).
     ConstructSliced { id: ConstructId, parent: ConstructId, cut: crate::constructs::SliceCut },

@@ -15,11 +15,18 @@ dev = ["bevy/dynamic_linking"]
 # Profiling: writes a chrome://tracing JSON (trace-*.json) in the working directory.
 # Build into a separate target dir to avoid rebuilding Bevy back and forth.
 profile = ["bevy/trace_chrome"]
+# Push-to-talk voice casting (local Whisper on CPU; needs CMake + MSVC, see crates/bd_voice/README.md).
+voice = ["bd_voice/whisper"]
 
 [dependencies]
 bd_core.workspace = true
 bd_voxel.workspace = true
 bd_sim.workspace = true
+bd_lexicon.workspace = true
+bd_voice.workspace = true
+bd_shapes.workspace = true
+bd_fx.workspace = true
+bd_net.workspace = true
 serde.workspace = true
 ron.workspace = true
 bytemuck = { version = "1", features = ["derive"] }

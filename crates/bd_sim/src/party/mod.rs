@@ -191,11 +191,14 @@ pub trait PhraseSource: Send + Sync {
     fn random_recipe(&self, seed: u64) -> Option<Recipe>;
 }
 
+/// A copied construct's (voxel shape, authored robot shape).
+pub(crate) type Shapes = (Option<bd_core::shape::ShapeSpec>, Option<bd_core::shape::ShapeSpec>);
+
 /// Something a hook does later (at the end of tick `due`).
 #[derive(Clone, Debug)]
 pub(crate) enum Scheduled {
     /// A free cast (Echo). `parent` = the construct it echoes.
-    Cast { due: Tick, player: PlayerId, recipe: Box<Recipe>, aim: Aim, parent: Option<ConstructId> },
+    Cast { due: Tick, player: PlayerId, recipe: Box<Recipe>, aim: Aim, parent: Option<ConstructId>, shapes: Box<Shapes> },
     Explosion { due: Tick, e: Explosion },
     Portal { due: Tick, owner: PlayerId, pos: Vec3 },
     Field { due: Tick, owner: PlayerId, pos: Vec3, radius: f32, strength: f32, secs: f32 },
@@ -634,11 +637,11 @@ impl World {
         Ok(())
     }
 
-    /// Host arena regeneration off the tick thread: while this returns `Some(src)` (from the end of
-    /// a round until the next starts) build `World::build_arena(src)` on a worker and hand it to
-    /// [`Self::provide_party_arena`]. If nothing was provided when the round starts, the world
-    /// builds it synchronously when `timings.auto_rematch` (headless / tests) and otherwise keeps
-    /// the current terrain — never a hitch on a live host.
+    /// Optional host override for the next round's terrain. The world already regenerates carved
+    /// terrain between rounds by itself (`World::prefetch_arena` on a worker thread at RoundEnd,
+    /// swapped in when the next round starts; not ready ⇒ current terrain kept). A host that wants
+    /// to supply its own build can, while this returns `Some(src)`, hand one to
+    /// [`Self::provide_party_arena`]; it takes precedence.
     pub fn party_arena_request(&self) -> Option<ArenaSource> {
         let p = self.party.as_ref()?;
         let between = matches!(p.phase, PartyPhase::RoundEnd | PartyPhase::Pick | PartyPhase::Reveal) && p.round < p.settings.rounds;
@@ -745,12 +748,19 @@ impl World {
         let pending = p.pending_arena.take();
         let round = p.round;
         if !first {
+            // Host-provided terrain first, else the world's worker-thread prefetch (started at
+            // RoundEnd); nothing ready ⇒ keep the current terrain. Never builds on the tick.
+            let src = self.cfg.arena;
             if let Some(b) = pending {
                 let (v, a, s) = *b;
                 self.swap_arena(v, a, s);
-            } else if self.arena_needs_regen() && self.cfg.timings.auto_rematch {
-                let (v, a, s) = World::build_arena(self.cfg.arena);
-                self.swap_arena(v, a, s);
+                if self.prefetched_arena_ready() {
+                    let _ = self.take_prefetched_arena_for(src); // superseded
+                }
+            } else if self.arena_needs_regen() {
+                if let Some((v, a, s)) = self.take_prefetched_arena_for(src) {
+                    self.swap_arena(v, a, s);
+                }
             }
         }
         self.match_state.round = round as u32;
@@ -787,9 +797,14 @@ impl World {
             }
         }
         let round = party.round;
+        let more = round < party.settings.rounds;
         party.phase = PartyPhase::RoundEnd;
         party.phase_time = 0.0;
         self.party = Some(party);
+        // Build the next round's terrain on a worker thread while scores / picks show.
+        if more && self.arena_needs_regen() {
+            self.prefetch_arena();
+        }
         self.events.push(GameEvent::PartyRoundEnd { round, results, winners });
         self.party_phase_event();
     }

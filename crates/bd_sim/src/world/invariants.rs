@@ -47,8 +47,11 @@ impl World {
             if s.hooks.iter().any(|h| !fin3(h.pos) || !fin3(h.vel) || !h.rope_len.is_finite()) {
                 return Err(format!("player {:?} non-finite hook", p.id));
             }
-            if !(p.health.is_finite() && (0.0..=crate::combat::MAX_HEALTH + 1e-3).contains(&p.health)) {
-                return Err(format!("player {:?} health {}", p.id, p.health));
+            if !(p.damage_pct.is_finite() && (0.0..=10000.0).contains(&p.damage_pct)) {
+                return Err(format!("player {:?} damage % {}", p.id, p.damage_pct));
+            }
+            if p.eliminated && p.alive {
+                return Err(format!("player {:?} eliminated but alive", p.id));
             }
             if !(p.willpower.is_finite() && (-1e-3..=wmax + 1e-3).contains(&p.willpower)) {
                 return Err(format!("player {:?} willpower {}", p.id, p.willpower));
@@ -190,7 +193,7 @@ impl World {
             h.write(&[p.id.0, p.alive as u8]);
             v3(&mut h, p.mv.pos);
             v3(&mut h, p.mv.vel);
-            h.write_f32(p.health);
+            h.write_f32(p.damage_pct);
             h.write_f32(p.willpower);
             h.write_f32(p.size.scale);
             h.write(&p.kos.to_le_bytes());

@@ -19,6 +19,7 @@ pub const PORTAL_SHADER: Handle<Shader> = uuid_handle!("b1d0f7a2-3c55-4e61-9a2e-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct ConstructMaterialKey {
     pub translucent: bool,
+    pub overlay: bool,
 }
 
 /// The hard-light construct surface. One instance per variant is shared by every construct part;
@@ -29,11 +30,13 @@ pub struct ConstructMaterial {
     #[storage(0, read_only)]
     pub constructs: Handle<ShaderBuffer>,
     pub translucent: bool,
+    /// Drawn in front of the world (depth remapped to the near range): screen-anchored text.
+    pub overlay: bool,
 }
 
 impl From<&ConstructMaterial> for ConstructMaterialKey {
     fn from(m: &ConstructMaterial) -> Self {
-        ConstructMaterialKey { translucent: m.translucent }
+        ConstructMaterialKey { translucent: m.translucent, overlay: m.overlay }
     }
 }
 
@@ -60,6 +63,9 @@ impl Material for ConstructMaterial {
         key: MaterialPipelineKey<Self>,
     ) -> Result<(), SpecializedMeshPipelineError> {
         descriptor.primitive.cull_mode = Some(Face::Back);
+        if key.bind_group_data.overlay {
+            descriptor.vertex.shader_defs.push("FX_OVERLAY".into());
+        }
         if key.bind_group_data.translucent {
             // Depth-write the front shell so a part never shows its own far side (stable look while
             // other, farther parts still show through — sorted back to front per part entity).
@@ -134,6 +140,8 @@ impl Material for PortalMaterial {
 pub struct FxMaterials {
     pub construct_translucent: Handle<ConstructMaterial>,
     pub construct_solid: Handle<ConstructMaterial>,
+    /// Solid, always in front of the world (performance words).
+    pub construct_overlay: Handle<ConstructMaterial>,
     pub particles: Handle<ParticleMaterial>,
     pub portal: Handle<PortalMaterial>,
 }
@@ -159,17 +167,18 @@ pub fn build(app: &mut App) {
 /// Create the shared materials (needs [`FxBuffers`]; called from `particles::build` after gpu).
 pub fn create(world: &mut World) -> FxMaterials {
     let bufs = world.resource::<FxBuffers>().clone();
-    let (construct_translucent, construct_solid) = {
+    let (construct_translucent, construct_solid, construct_overlay) = {
         let mut mats = world.resource_mut::<Assets<ConstructMaterial>>();
         (
-            mats.add(ConstructMaterial { constructs: bufs.constructs.clone(), translucent: true }),
-            mats.add(ConstructMaterial { constructs: bufs.constructs.clone(), translucent: false }),
+            mats.add(ConstructMaterial { constructs: bufs.constructs.clone(), translucent: true, overlay: false }),
+            mats.add(ConstructMaterial { constructs: bufs.constructs.clone(), translucent: false, overlay: false }),
+            mats.add(ConstructMaterial { constructs: bufs.constructs.clone(), translucent: false, overlay: true }),
         )
     };
     let particles = world
         .resource_mut::<Assets<ParticleMaterial>>()
         .add(ParticleMaterial { particles: bufs.particles.clone(), anchors: bufs.anchors.clone() });
     let portal = world.resource_mut::<Assets<PortalMaterial>>().add(PortalMaterial { constructs: bufs.constructs.clone() });
-    FxMaterials { construct_translucent, construct_solid, particles, portal }
+    FxMaterials { construct_translucent, construct_solid, construct_overlay, particles, portal }
 }
 

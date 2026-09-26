@@ -1013,11 +1013,11 @@ fn hop_chain_counts_clean_hops_and_resets() {
     assert_eq!(e.hop_chain, 1, "the first hop after a fall within the grace counts");
     let mut s = PlayerState::new(Vec3::new(0.0, 0.01, 0.0), &p);
     settle(&mut s, &cw, &p);
-    s.prev_buttons |= 5 << 12;
+    s.hop_chain = 5;
     s.vel = Vec3::new(14.0, 0.0, 0.0);
     let e = step_player(&mut s, &input(YAW_PX, 0.0, 0, 1, CROUCH), &cw, &p, DT);
     assert!(s.sliding && e.hop_chain == 0);
-    // Respawn-style writes of plain buttons reset it too, and garbage high input bits never leak in.
+    // Garbage high input bits never leak into the chain.
     s.prev_buttons = JUMP;
     assert_eq!(s.hop_chain(), 0);
     step_player(&mut s, &input(YAW_PX, 0.0, 0, 1, 0xF000), &cw, &p, DT);

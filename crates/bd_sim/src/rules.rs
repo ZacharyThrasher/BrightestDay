@@ -43,6 +43,16 @@ pub enum CapMode {
     Chaos,
 }
 
+/// How a match is won (COMBAT.md §1a).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Scoring {
+    /// Most KOs when the clock runs out (or first to `ko_target`). Default FFA; party rounds.
+    #[default]
+    TimedKos,
+    /// `lives` stocks each; last player standing wins (the clock still caps the match).
+    Stock { lives: u8 },
+}
+
 /// Largest construct scale in [`ScaleLimit::NoLimits`] (m).
 pub const NO_LIMITS_MAX_SCALE: f32 = 60.0;
 /// A construct at or above this scale is "colossal" (≤ 1 per player).
@@ -52,6 +62,7 @@ pub const COLOSSAL_SCALE: f32 = 24.0;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MatchRules {
+    pub scoring: Scoring,
     pub scale: ScaleLimit,
     pub willpower: WillpowerMode,
     pub caps: CapMode,
@@ -81,6 +92,7 @@ pub struct MatchRules {
 impl Default for MatchRules {
     fn default() -> Self {
         Self {
+            scoring: Scoring::TimedKos,
             scale: ScaleLimit::Normal,
             willpower: WillpowerMode::Normal,
             caps: CapMode::Normal,

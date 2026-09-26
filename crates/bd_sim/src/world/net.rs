@@ -27,7 +27,8 @@ pub struct PredictCtx {
     pub suit: bool,
 }
 
-fn player_snap(p: &Player) -> PlayerSnap {
+fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
+    let trail_kb = trail_kb.max(1.0);
     use pflags::*;
     let mut f = 0u16;
     let set = |f: &mut u16, b: u16, on: bool| {
@@ -48,6 +49,8 @@ fn player_snap(p: &Player) -> PlayerSnap {
     set(&mut f, SUIT, p.seat.is_some_and(|s| s.suit));
     set(&mut f, HOOK_L_ATTACHED, p.mv.hooks[0].attached());
     set(&mut f, HOOK_R_ATTACHED, p.mv.hooks[1].attached());
+    set(&mut f, LAUNCHED, p.launch.is_some());
+    set(&mut f, ELIMINATED, p.eliminated);
     let hook = |i: usize| (p.mv.hooks[i].phase != HookPhase::Idle).then_some(QPos::new(p.mv.hooks[i].pos));
     PlayerSnap {
         id: p.id.0,
@@ -55,7 +58,9 @@ fn player_snap(p: &Player) -> PlayerSnap {
         pos: QPos::new(p.mv.pos),
         vel: QVel::new(p.mv.vel),
         look: QLook::new(p.input.yaw, p.input.pitch),
-        health: p.health.clamp(0.0, 255.0).round() as u8,
+        pct: (p.damage_pct * 10.0).round().clamp(0.0, 65535.0) as u16,
+        launch: p.launch.map_or(0, |l| (l.speed / trail_kb * 255.0).round().clamp(1.0, 255.0) as u8),
+        stocks: p.stocks.unwrap_or(255),
         willpower: p.willpower.clamp(0.0, 255.0).round() as u8,
         status: p.status.bits(),
         size: (p.size.scale * 100.0).round().clamp(1.0, 255.0) as u8,
@@ -92,7 +97,8 @@ impl World {
             None => out.party = None,
         }
         out.players.clear();
-        out.players.extend(self.players.iter().map(player_snap));
+        let trail = self.cfg.tuning.smash.launch_trail_kb;
+        out.players.extend(self.players.iter().map(|p| player_snap(p, trail)));
         out.constructs.clear();
         for c in self.constructs.iter() {
             if c.gone.is_some() {
@@ -206,7 +212,9 @@ impl World {
             let p = &mut self.players[i];
             let fl = s.flags();
             p.alive = fl & pflags::ALIVE != 0;
-            p.health = s.health as f32;
+            p.damage_pct = s.pct as f32 / 10.0;
+            p.stocks = (s.stocks != 255).then_some(s.stocks);
+            p.eliminated = fl & pflags::ELIMINATED != 0;
             p.willpower = s.willpower as f32;
             p.size.scale = s.size_scale();
             p.size.target = p.size.scale;
@@ -428,6 +436,15 @@ impl World {
                     self.prefetch_arena();
                 }
             }
+            GameEvent::ConstructShapes { id, shape, alt_shape } => {
+                if let Some(c) = self.constructs.get_mut(*id) {
+                    if shape.is_some() {
+                        c.shape = shape.clone();
+                    }
+                }
+                let alt = super::actions::sanitize_shape((**alt_shape).clone());
+                self.constructs.set_alt_shape(*id, alt);
+            }
             GameEvent::ConstructSliced { id, cut, .. } => {
                 if let Some(c) = self.constructs.get_mut(*id) {
                     c.slice = Some(*cut);
@@ -493,6 +510,9 @@ impl World {
             });
             if let Some(cut) = c.slice {
                 v.push(GameEvent::ConstructSliced { id: c.id, parent: cut.parent, cut });
+            }
+            if let Some(a) = c.alt_shape.clone() {
+                v.push(GameEvent::ConstructShapes { id: c.id, shape: c.shape.clone(), alt_shape: a });
             }
         }
         v

@@ -683,7 +683,7 @@ fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
     }
     if c.recipe.form == Form::Hammer && s.swing == Swing::Secondary {
         // Ground pound: ring shockwave around the feet.
-        let spec = form_spec(Form::Hammer);
+        let spec = ctx.tuning.form_spec(Form::Hammer); // TUNING HOOK
         for t in ctx.enemies_of(c.owner) {
             let d = geom::dist_sq_point_aabb(&t.hull, o.pos).sqrt();
             if d > POUND_RADIUS || (t.pos.y - o.pos.y).abs() > 2.5 {
@@ -716,8 +716,8 @@ struct HitSpec {
     impact: f32,
 }
 
-fn hit_spec(c: &Construct, s: &HeldState) -> HitSpec {
-    let spec = form_spec(c.recipe.form);
+fn hit_spec(c: &Construct, s: &HeldState, t: &crate::tuning::CombatTuning) -> HitSpec {
+    let spec = t.form_spec(c.recipe.form); // TUNING HOOK
     let (dm, km) = mech_mult(c);
     let mut dmg = spec.damage * dm;
     let mut kb = spec.knockback * km;
@@ -726,13 +726,13 @@ fn hit_spec(c: &Construct, s: &HeldState) -> HitSpec {
     match s.swing {
         Swing::Heavy => {
             let k = s.heavy_k.clamp(0.0, 1.0);
-            dmg *= 1.0 + (HEAVY_DMG - 1.0) * k;
-            kb *= 1.0 + (HEAVY_KB - 1.0) * k;
+            dmg *= 1.0 + (t.hit.heavy_damage - 1.0) * k;
+            kb *= 1.0 + (t.hit.heavy_knockback - 1.0) * k;
             kind = HitKind::HeavyMelee;
             impact = 1.5;
         }
         Swing::Combo2 if c.recipe.form == Form::Sword => {
-            dmg *= FINISHER_MULT;
+            dmg *= t.hit.finisher_mult;
             kb *= 1.3;
             impact = 1.3;
         }
@@ -763,7 +763,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     for k in 0..n {
         prev[k] = m0.transform_point3(local[k]);
     }
-    let hs = hit_spec(c, s);
+    let hs = hit_spec(c, s, env.ctx.tuning);
     // The whip's secondary is a terrain lash (tether), not an attack; the sword's is a parry stance.
     let form = c.recipe.form;
     if (form == Form::Whip || form == Form::Sword) && s.swing == Swing::Secondary {
@@ -901,7 +901,7 @@ fn dive_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
 /// Landing shockwave (hammer dive slam, transformer landing slam): crater + radial knockback, scaled
 /// by the fall speed (the fall also counts as closing speed for the bounded momentum bonus).
 pub(super) fn slam(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, at: Vec3, fall_speed: f32, kind: HeldFx) {
-    let spec = form_spec(if c.category == FormCategory::Held { c.recipe.form } else { Form::Hammer });
+    let spec = env.ctx.tuning.form_spec(if c.category == FormCategory::Held { c.recipe.form } else { Form::Hammer }); // TUNING HOOK
     let (dm, km) = mech_mult(c);
     let strength = (1.0 + (fall_speed - 15.0).max(0.0) / 30.0).clamp(1.0, 2.0);
     let crater = SLAM_CRATER * if c.recipe.element == Element::Earth { 1.26 } else { 1.0 } * strength.sqrt();
@@ -1064,7 +1064,7 @@ fn spin(c: &mut Construct, s: &HeldState) {
 
 /// Swept thrown-item contact with enemies. Returns true if it hit someone.
 fn thrown_hits(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, p0: Vec3, p1: Vec3) -> bool {
-    let spec = form_spec(c.recipe.form);
+    let spec = env.ctx.tuning.form_spec(c.recipe.form); // TUNING HOOK
     let (dm, km) = mech_mult(c);
     let r = c.half.max_element().clamp(0.2, 0.8);
     let mut any = false;

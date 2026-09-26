@@ -179,11 +179,13 @@ pub fn after_cast(w: &mut World, player: PlayerId, id: ConstructId, aim: Aim, ev
     let recipe = c.recipe.clone();
     let category = c.category;
     let pos = c.center();
+    // Copies keep an icon's authored shapes (vehicle + robot).
+    let shapes: super::Shapes = (c.shape.as_deref().cloned(), c.alt_shape.as_deref().cloned());
     if hooks & hb::ECHO != 0 {
         let delay = hook_param(party, player, |h| if let Hook::Echo { delay } = h { Some(*delay) } else { None }).unwrap_or(1.0);
         let due = w.tick + ticks(delay).max(1);
         if let Some(party) = w.party.as_mut() {
-            party.scheduled.push(Scheduled::Cast { due, player, recipe: Box::new(recipe.clone()), aim, parent: Some(id) });
+            party.scheduled.push(Scheduled::Cast { due, player, recipe: Box::new(recipe.clone()), aim, parent: Some(id), shapes: Box::new(shapes.clone()) });
         }
     }
     if hooks & hb::MINI_ME != 0 {
@@ -193,7 +195,7 @@ pub fn after_cast(w: &mut World, player: PlayerId, id: ConstructId, aim: Aim, ev
         if category != FormCategory::Creature && !mini.mechanics.contains(&Mechanic::Flies) {
             mini.mechanics.push(Mechanic::Flies);
         }
-        if let Ok(m) = w.spawn_free(player, mini, aim, Some(id)) {
+        if let Ok(m) = w.spawn_free(player, mini, aim, Some(id), shapes.0, shapes.1) {
             if let Some(party) = w.party.as_mut() {
                 party.companions.push((m, id));
             }
@@ -392,10 +394,11 @@ fn on_hit(w: &mut World, party: &mut PartyState, target: PlayerId, source: Optio
     if hooks & hb::COPYCAT != 0 && party.player(target).is_some_and(|p| p.cd_copycat <= 0.0) {
         let Some(c) = construct.and_then(|c| w.constructs.get(c)).filter(|c| c.owner != target) else { return };
         let recipe = c.recipe.clone();
+        let (shape, alt) = (c.shape.as_deref().cloned(), c.alt_shape.as_deref().cloned());
         let Some(me) = w.player(target).filter(|p| p.alive) else { return };
         let aim = Aim::new(me.eye(w.params()), me.look());
         let pos = me.mv.pos;
-        if let Ok(id) = w.spawn_free(target, recipe, aim, None) {
+        if let Ok(id) = w.spawn_free(target, recipe, aim, None, shape, alt) {
             if let Some(p) = party.player_mut(target) {
                 p.cd_copycat = COPYCAT_COOLDOWN;
             }
@@ -417,6 +420,8 @@ fn on_ko(w: &mut World, party: &mut PartyState, victim: PlayerId, killer: Option
             fx(w, k, PartyFx::KaijuGrow, at, Some(id));
         }
     }
+    // Smash model: every KO happens in a blast zone, so the bomb goes where they last stood.
+    let pos = if pos.is_finite() && w.in_play(pos, 0.0) { pos } else { w.player(victim).map_or(pos, |p| p.last_safe_pos) };
     if party.hooks_of(victim) & hb::LAST_WORDS != 0 && pos.is_finite() && w.in_play(pos, 0.0) {
         let e = Explosion { pos, radius: 4.0, damage: 20.0, knockback: 18.0, source: Some(victim), construct: None, element: Element::Fire, carve_radius: 1.5, self_damage: false };
         party.scheduled.push(Scheduled::Explosion { due: w.tick + ticks(LAST_WORDS_FUSE), e });
@@ -466,8 +471,9 @@ fn run_scheduled(w: &mut World, party: &mut PartyState) {
             continue;
         }
         match party.scheduled.remove(k) {
-            Scheduled::Cast { player, recipe, aim, parent, .. } => {
-                if let Ok(id) = w.spawn_free(player, *recipe, aim, parent) {
+            Scheduled::Cast { player, recipe, aim, parent, shapes, .. } => {
+                let (shape, alt) = *shapes;
+                if let Ok(id) = w.spawn_free(player, *recipe, aim, parent, shape, alt) {
                     let at = w.constructs.get(id).map_or(Vec3::ZERO, |c| c.center());
                     fx(w, player, PartyFx::Echo, at, Some(id));
                 }
@@ -576,7 +582,7 @@ fn per_player(w: &mut World, party: &mut PartyState, dt: f32) {
                     let mut r = crate::bots::recipe("sidekick spirit", Form::Blob, &[Mechanic::Flies], Element::Light, 0.7);
                     r.temperament = Temperament::Protective;
                     r.intensity = 0.9;
-                    if let Ok(s) = w.spawn_free(id, r, aim, None) {
+                    if let Ok(s) = w.spawn_free(id, r, aim, None, None, None) {
                         party.players[k].sidekick = Some(s);
                         let at = w.constructs.get(s).map_or(Vec3::ZERO, |c| c.center());
                         fx(w, id, PartyFx::Sidekick, at, Some(s));

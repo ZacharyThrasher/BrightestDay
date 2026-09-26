@@ -1,7 +1,10 @@
 //! Instanced debris rendering.
 //!
-//! One storage buffer holds [`DEBRIS_CAPACITY`] instances (48 B each) and is rewritten each frame
-//! (`queue.write_buffer` into the same GPU buffer — no reallocation, no bind-group churn). The pool
+//! One storage buffer holds [`DEBRIS_CAPACITY`] instances (48 B each). Each frame the live range is
+//! copied into a persistent staging `Vec` shared with the render world (`DebrisStaging`, capacity
+//! reused — no per-frame allocation) and a render-world system `queue.write_buffer`s just that
+//! range into the existing GPU buffer (no asset modification → no re-extraction, no bind-group
+//! churn; previously the whole ~1 MB pool was `to_vec`'d into the asset every frame). The pool
 //! is drawn by `DEBRIS_CAPACITY / BATCH` entities that share one mesh (a batch of `BATCH` unit
 //! cubes) and one material; each entity's `MeshTag` is its first instance index, so Bevy's
 //! automatic batching turns the whole pool into a single multi-draw. Batches past the live count
@@ -14,7 +17,11 @@ use bevy::camera::visibility::NoFrustumCulling;
 use bevy::mesh::{Indices, MeshTag, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy::render::render_resource::AsBindGroup;
-use bevy::render::storage::ShaderBuffer;
+use bevy::render::render_asset::RenderAssets;
+use bevy::render::renderer::RenderQueue;
+use bevy::render::storage::{GpuShaderBuffer, ShaderBuffer};
+use bevy::render::{Render, RenderApp, RenderSystems};
+use std::sync::{Arc, Mutex};
 use bevy::shader::ShaderRef;
 use bytemuck::{Pod, Zeroable};
 
@@ -80,6 +87,18 @@ pub struct DebrisRenderHandles {
 #[derive(Component)]
 pub struct DebrisBatch(pub usize);
 
+/// Instances waiting for the GPU (shared main world → render world).
+#[derive(Default)]
+struct Staging {
+    data: Vec<DebrisInstance>,
+    /// Instances to write from index 0 (0 = nothing pending).
+    len: usize,
+    buffer: Option<AssetId<ShaderBuffer>>,
+}
+
+#[derive(Resource, Clone, Default)]
+struct DebrisStaging(Arc<Mutex<Staging>>);
+
 pub struct DebrisRenderPlugin;
 
 impl Plugin for DebrisRenderPlugin {
@@ -88,7 +107,25 @@ impl Plugin for DebrisRenderPlugin {
         app.add_plugins(MaterialPlugin::<DebrisMaterial>::default())
             .add_systems(Startup, setup_debris_render)
             .add_systems(Update, upload_debris.in_set(FrameSet::Present).after(super::simulate_debris));
+        let staging = DebrisStaging::default();
+        staging.0.lock().unwrap_or_else(|e| e.into_inner()).data.reserve_exact(DEBRIS_CAPACITY);
+        app.insert_resource(staging.clone());
+        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
+            render_app.insert_resource(staging).add_systems(Render, write_debris_gpu.in_set(RenderSystems::PrepareResources));
+        }
     }
+}
+
+/// Render world: copy the staged live range straight into the existing GPU buffer.
+fn write_debris_gpu(staging: Res<DebrisStaging>, buffers: Res<RenderAssets<GpuShaderBuffer>>, queue: Res<RenderQueue>) {
+    let mut s = staging.0.lock().unwrap_or_else(|e| e.into_inner());
+    if s.len == 0 {
+        return;
+    }
+    let Some(gpu) = s.buffer.and_then(|id| buffers.get(id)) else { return };
+    let n = s.len.min(s.data.len());
+    queue.write_buffer(&gpu.buffer, 0, bytemuck::cast_slice(&s.data[..n]));
+    s.len = 0;
 }
 
 /// `BATCH` unit cubes in one mesh; UV.x = cube index within the batch.
@@ -156,7 +193,7 @@ fn setup_debris_render(
 fn upload_debris(
     pool: Res<DebrisPool>,
     handles: Res<DebrisRenderHandles>,
-    mut buffers: ResMut<Assets<ShaderBuffer>>,
+    staging: Res<DebrisStaging>,
     mut batches: Query<(&DebrisBatch, &mut Visibility)>,
     mut last_live: Local<usize>,
 ) {
@@ -165,9 +202,17 @@ fn upload_debris(
     if live == 0 && *last_live == 0 {
         return;
     }
+    // Upload whole batches up to the larger of this and last frame's live count, so slots that
+    // just died are overwritten with their hidden instances too.
+    let instances = pool.instances();
+    let upto = (live.max(*last_live).div_ceil(BATCH) * BATCH).min(instances.len());
     *last_live = live;
-    if let Some(mut buf) = buffers.get_mut(&handles.buffer) {
-        buf.data = Some(bytemuck::cast_slice(pool.instances()).to_vec());
+    {
+        let mut s = staging.0.lock().unwrap_or_else(|e| e.into_inner());
+        s.buffer = Some(handles.buffer.id());
+        s.data.clear();
+        s.data.extend_from_slice(&instances[..upto]);
+        s.len = upto;
     }
     let visible_batches = live.div_ceil(BATCH).max(1);
     for (b, mut vis) in &mut batches {

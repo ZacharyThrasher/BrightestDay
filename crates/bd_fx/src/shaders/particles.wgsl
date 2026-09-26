@@ -251,7 +251,7 @@ fn vertex(v: Vertex) -> VOut {
             rot = basis_from_dir(seg);
             have_rot = true;
             let u = 1.0 - t;
-            size = size0 * (u * u * u * 0.85 + 0.15 * u);
+            size = size0 * (u * u * u * 0.75 + 0.25 * u);
             col = col * (0.35 + 0.65 * u * u);
         } else if kind == K_FLASH {
             pos = p.p0.xyz;

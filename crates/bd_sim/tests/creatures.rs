@@ -15,6 +15,17 @@ use bd_sim::rng::Fnv64;
 use bd_sim::rules::WillpowerMode;
 use bd_sim::world::{ArenaSource, SimConfig, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 const GROUND: f32 = 8.0;
@@ -50,7 +61,7 @@ fn pin(w: &mut World, id: PlayerId, pos: Vec3) {
     let p = w.player_mut(id).unwrap();
     p.mv.pos = pos;
     p.mv.vel = Vec3::ZERO;
-    p.health = 100.0;
+    p.damage_pct = 0.0;
     p.alive = true;
 }
 

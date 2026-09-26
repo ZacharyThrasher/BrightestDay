@@ -1,0 +1,294 @@
+//! Wire messages (inside bd_net's session envelope). Bump `bd_net::PROTOCOL_VERSION` if these
+//! change incompatibly.
+//!
+//! Lanes: everything is reliable + ordered except [`S2C::Snapshot`] (latest-only lane).
+//! Order on the reliable lane is load-bearing: `WorldInit → TerrainLog* → WorldReady → Events /
+//! TerrainCheck…` and every tick's `Events` precede the snapshot of that tick.
+
+use bd_core::corps::Corps;
+use bd_core::input::PlayerInput;
+use bd_core::mechanics::Recipe;
+use bd_core::shape::ShapeSpec;
+use bd_core::{ConstructId, PlayerId, Tick};
+use bd_net::InputPacket;
+use bd_sim::settings::GameSettings;
+use bd_sim::{Aim, GameEvent, SimConfig, SnapshotDelta};
+use serde::{Deserialize, Serialize};
+
+use crate::sim_bridge::Cmd;
+
+/// Longest phrase / costume / loadout string accepted from a peer.
+pub const MAX_TEXT: usize = 80;
+/// Largest client-supplied construct shape (prims) the host accepts; bigger ones are dropped
+/// (the host builds the shape from the recipe instead).
+pub const MAX_SHAPE_PRIMS: usize = 512;
+
+/// Costume (cosmetic; sent in the lobby and at join).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NetCostume {
+    pub phrase: String,
+    pub seed: u32,
+    pub accent: Option<[f32; 3]>,
+    pub head_scale: f32,
+    /// `bd_shapes::costume::acc` bits to hide.
+    pub hide: u32,
+}
+
+impl Default for NetCostume {
+    fn default() -> Self {
+        Self { phrase: "knight".into(), seed: 0, accent: None, head_scale: 1.0, hide: 0 }
+    }
+}
+
+/// What a player shows the lobby (their own choice; the host sanitises it).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NetProfile {
+    pub costume: NetCostume,
+    pub loadout: [String; 4],
+}
+
+impl Default for NetProfile {
+    fn default() -> Self {
+        Self { costume: NetCostume::default(), loadout: ["hammer".into(), "shield".into(), "wings".into(), "rocket launcher".into()] }
+    }
+}
+
+fn clean_text(s: &str) -> String {
+    s.chars().filter(|c| !c.is_control()).take(MAX_TEXT).collect()
+}
+
+/// Oversized client-supplied shapes are dropped (the host builds the shape from the recipe).
+fn small(s: Option<ShapeSpec>) -> Option<ShapeSpec> {
+    s.filter(|s| s.prims.len() <= MAX_SHAPE_PRIMS && s.parts.len() <= MAX_SHAPE_PRIMS)
+}
+
+fn fin(v: f32, d: f32) -> f32 {
+    if v.is_finite() { v } else { d }
+}
+
+impl NetProfile {
+    /// Untrusted → safe.
+    pub fn sanitized(mut self) -> Self {
+        self.costume.phrase = clean_text(&self.costume.phrase);
+        self.costume.head_scale = fin(self.costume.head_scale, 1.0).clamp(0.7, 1.35);
+        self.costume.accent = self.costume.accent.map(|a| a.map(|c| fin(c, 1.0).clamp(0.0, 1.0)));
+        for l in self.loadout.iter_mut() {
+            *l = clean_text(l);
+        }
+        self
+    }
+}
+
+/// Which map a match is played on (generation is deterministic from kind + seed).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NetMapKind {
+    #[default]
+    Archipelago,
+    Miami,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NetMap {
+    pub kind: NetMapKind,
+    pub seed: u64,
+    /// `content_hash` of the freshly generated terrain (0 = unknown yet). A client whose build
+    /// generates different voxels (another game version) refuses to play instead of desyncing.
+    pub pristine_hash: u64,
+}
+
+/// Generate a map's terrain: `(voxels, arena info, seed)`. ~150 ms+: call on a worker.
+pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_voxel::ArenaInfo, u64) {
+    match kind {
+        NetMapKind::Archipelago => {
+            let (w, i) = bd_voxel::generate_arena(seed);
+            (w, i, seed)
+        }
+        NetMapKind::Miami => {
+            let (w, m) = bd_voxel::generate_miami(seed);
+            (w, m.arena, seed)
+        }
+    }
+}
+
+/// One lobby row.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LobbyPlayer {
+    pub id: PlayerId,
+    pub name: String,
+    pub corps: Corps,
+    pub ready: bool,
+    pub is_host: bool,
+    pub profile: NetProfile,
+    /// Round trip to the host (ms; 0 for the host itself).
+    pub rtt_ms: u16,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct LobbyInfo {
+    pub players: Vec<LobbyPlayer>,
+    pub settings: GameSettings,
+    pub map: NetMap,
+    /// A match is running (joiners go straight in).
+    pub in_match: bool,
+}
+
+/// Commands a client may ask the host to run for its player. Mirrors `sim_bridge::Cmd` minus
+/// host-only tools.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NetCmd {
+    /// `seq` = client cast sequence (echoed in [`S2C::CastResult`] for predicted spawns).
+    Cast { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim, incantation: bool },
+    PowerMove(u8),
+    StandRush(u16),
+    OathBegin,
+    OathProgress { correct_chars: u16, accuracy: f32 },
+    OathResult { accuracy: f32, seconds: f32 },
+    OathCancel,
+    Dismiss,
+    DismissOne(ConstructId),
+    ToggleTransform,
+    Eject,
+    PartyPick(u8),
+}
+
+impl NetCmd {
+    /// Client side: which bridge commands travel to the host (`GrantPower` is a local tool).
+    pub fn from_cmd(c: &Cmd, cast_seq: u32) -> Option<Self> {
+        Some(match c.clone() {
+            Cmd::Cast { recipe, shape, alt_shape, aim, incantation } => {
+                let shape = small(shape);
+                NetCmd::Cast { seq: cast_seq, recipe, shape, alt_shape: small(alt_shape), aim, incantation }
+            }
+            Cmd::PowerMove(s) => NetCmd::PowerMove(s),
+            Cmd::StandRush(n) => NetCmd::StandRush(n),
+            Cmd::OathBegin => NetCmd::OathBegin,
+            Cmd::OathProgress { correct_chars, accuracy } => NetCmd::OathProgress { correct_chars, accuracy },
+            Cmd::OathResult { accuracy, seconds } => NetCmd::OathResult { accuracy, seconds },
+            Cmd::OathCancel => NetCmd::OathCancel,
+            Cmd::Dismiss => NetCmd::Dismiss,
+            Cmd::DismissOne(id) => NetCmd::DismissOne(id),
+            Cmd::ToggleTransform => NetCmd::ToggleTransform,
+            Cmd::Eject => NetCmd::Eject,
+            Cmd::PartyPick(i) => NetCmd::PartyPick(i),
+            Cmd::GrantPower(_) => return None,
+        })
+    }
+
+    /// Host side: validate an untrusted command and turn it into a bridge command.
+    pub fn into_cmd(self) -> Option<Cmd> {
+        Some(match self {
+            NetCmd::Cast { recipe, shape, alt_shape, aim, incantation, .. } => {
+                let shape = small(shape);
+                // The sim validates the recipe and re-checks the aim against the caster's eye.
+                let aim = Aim { origin: aim.origin, dir: aim.dir, target_hint: aim.target_hint, modifier: aim.modifier };
+                Cmd::Cast { recipe, shape, alt_shape: small(alt_shape), aim, incantation }
+            }
+            NetCmd::PowerMove(s) => Cmd::PowerMove(s.min(1)),
+            NetCmd::StandRush(n) => Cmd::StandRush(n.min(64)),
+            NetCmd::OathBegin => Cmd::OathBegin,
+            NetCmd::OathProgress { correct_chars, accuracy } => Cmd::OathProgress { correct_chars, accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0) },
+            NetCmd::OathResult { accuracy, seconds } => {
+                Cmd::OathResult { accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0), seconds: fin(seconds, 60.0).clamp(0.5, 600.0) }
+            }
+            NetCmd::OathCancel => Cmd::OathCancel,
+            NetCmd::Dismiss => Cmd::Dismiss,
+            NetCmd::DismissOne(id) => Cmd::DismissOne(id),
+            NetCmd::ToggleTransform => Cmd::ToggleTransform,
+            NetCmd::Eject => Cmd::Eject,
+            NetCmd::PartyPick(i) => Cmd::PartyPick(i.min(8)),
+        })
+    }
+}
+
+/// Client → host.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum C2S {
+    Profile(NetProfile),
+    Ready(bool),
+    /// Inputs (with redundancy) + the newest snapshot tick decoded (delta baseline ack).
+    Input { packet: InputPacket<PlayerInput>, snap_ack: Tick },
+    Cmd(NetCmd),
+    /// The snapshot baseline was unknown: send a keyframe.
+    KeyframeReq,
+    /// Terrain / world desync detected: send the whole world again.
+    Resync,
+}
+
+/// Everything a joining (or resyncing) client needs to rebuild the world.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorldInit {
+    pub cfg: SimConfig,
+    pub map: NetMap,
+    /// Seed of the terrain currently loaded (regenerate from it, then replay the log).
+    pub arena_seed: u64,
+    pub tick: Tick,
+    /// `ConstructSpawned` for every live construct.
+    pub manifest: Vec<GameEvent>,
+    /// Number of terrain events that follow in `TerrainLog` chunks.
+    pub terrain_events: u32,
+}
+
+/// What became of a client's cast.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum CastOutcome {
+    /// New construct (its `ConstructSpawned` event follows).
+    Spawned(ConstructId),
+    /// Grafted onto an existing construct.
+    Grafted(ConstructId),
+    Failed(bd_sim::events::CastError),
+}
+
+/// Host → client.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum S2C {
+    Lobby(LobbyInfo),
+    WorldInit(Box<WorldInit>),
+    /// Terrain edits since the arena was generated, in order (chunked).
+    TerrainLog(Vec<GameEvent>),
+    /// End of the init stream.
+    WorldReady,
+    /// Events of one or more ticks, in sim order.
+    Events { tick: Tick, events: Vec<GameEvent> },
+    /// Terrain hash after every event sent so far (desync detection).
+    TerrainCheck { tick: Tick, hash: u64 },
+    /// Outcome of the client's cast `seq` (sent just before the events that contain the spawn).
+    CastResult { seq: u32, outcome: CastOutcome },
+    /// The match ended / host went back to the lobby.
+    BackToLobby,
+    /// Latest lane.
+    Snapshot(SnapshotDelta),
+}
+
+/// Does this event change terrain (logged for late joiners)?
+pub fn is_terrain_event(e: &GameEvent) -> bool {
+    matches!(e, GameEvent::Carve { .. } | GameEvent::Extracted { .. } | GameEvent::Power(bd_sim::powers::PowerEvent::Restored { .. }) | GameEvent::ArenaReset { .. })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hostile_profile_is_cleaned() {
+        let p = NetProfile {
+            costume: NetCostume { phrase: "\u{7}x".repeat(500), seed: 1, accent: Some([f32::NAN, 9.0, -1.0]), head_scale: f32::INFINITY, hide: 0 },
+            loadout: ["a".repeat(1000), String::new(), "\n".into(), "ok".into()],
+        }
+        .sanitized();
+        assert!(p.costume.phrase.chars().count() <= MAX_TEXT);
+        assert_eq!(p.costume.accent, Some([1.0, 1.0, 0.0]));
+        assert_eq!(p.costume.head_scale, 1.0);
+        assert!(p.loadout.iter().all(|l| l.chars().count() <= MAX_TEXT && !l.contains('\n')));
+    }
+
+    #[test]
+    fn roundtrip_messages() {
+        let m = C2S::Input { packet: InputPacket { view_tick: 12.5, inputs: vec![PlayerInput::default()] }, snap_ack: 9 };
+        let b = bd_net::codec::encode(&m);
+        let back: C2S = bd_net::codec::decode(&b).unwrap();
+        assert!(matches!(back, C2S::Input { snap_ack: 9, .. }));
+        let s = S2C::TerrainCheck { tick: 5, hash: 77 };
+        let back: S2C = bd_net::codec::decode(&bd_net::codec::encode(&s)).unwrap();
+        assert!(matches!(back, S2C::TerrainCheck { tick: 5, hash: 77 }));
+    }
+}

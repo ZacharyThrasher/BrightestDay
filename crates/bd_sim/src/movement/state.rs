@@ -114,9 +114,11 @@ pub struct PlayerState {
     pub sliding: bool,
     pub slide_cooldown: f32,
     pub jump_buffer: f32,
-    /// Airborne: seconds since leaving the ground (> 0). Grounded: minus the seconds since landing
-    /// (≤ 0; drives the landing grace). Use [`PlayerState::ground_time`] for the latter.
+    /// Airborne: seconds since leaving the ground (> 0). Grounded: 0.
     pub air_time: f32,
+    /// Grounded: seconds since touchdown (0 on the touchdown tick, capped at 10; drives the landing
+    /// grace). Airborne: 0. Read it with [`PlayerState::ground_time`].
+    pub since_landing: f32,
     /// A coyote jump is still available (walked off a ledge, haven't jumped).
     pub coyote_ok: bool,
     pub gas: f32,
@@ -125,10 +127,10 @@ pub struct PlayerState {
     pub burst_cooldown: f32,
     /// Remaining tumble seconds (knockback): reduced air control until landing or tethering.
     pub tumble: f32,
-    /// Buttons held last tick (low 12 bits, [`BUTTON_BITS`]) with the hop chain packed into the top 4
-    /// bits (so snapshots carry it without a new field). Read the chain with [`PlayerState::hop_chain`];
-    /// writing plain button bits here (respawn / eject) resets it.
+    /// Buttons held last tick ([`BUTTON_BITS`]).
     pub prev_buttons: u16,
+    /// Consecutive clean hops (see [`MoveEvents::hop_chain`]), ≤ [`HOP_CHAIN_MAX`].
+    pub hop_chain: u8,
     pub hooks: [Hook; 2],
     pub mods: MoveModifiers,
 }
@@ -146,6 +148,7 @@ impl PlayerState {
             slide_cooldown: 0.0,
             jump_buffer: 0.0,
             air_time: 0.0,
+            since_landing: 0.0,
             coyote_ok: false,
             gas: p.gas_max,
             gas_regen_delay: 0.0,
@@ -153,6 +156,7 @@ impl PlayerState {
             burst_cooldown: 0.0,
             tumble: 0.0,
             prev_buttons: 0,
+            hop_chain: 0,
             hooks: [Hook::default(); 2],
             mods: MoveModifiers::default(),
         }
@@ -194,13 +198,13 @@ impl PlayerState {
     /// Consecutive clean hops (see [`MoveEvents::hop_chain`]).
     #[inline]
     pub fn hop_chain(&self) -> u8 {
-        (self.prev_buttons >> CHAIN_SHIFT) as u8
+        self.hop_chain
     }
 
     /// Seconds since landing while grounded (0 on the touchdown tick); 0 while airborne.
     #[inline]
     pub fn ground_time(&self) -> f32 {
-        if self.grounded { (-self.air_time).max(0.0) } else { 0.0 }
+        if self.grounded { self.since_landing.max(0.0) } else { 0.0 }
     }
 
     pub fn tethered(&self) -> bool {
@@ -234,9 +238,8 @@ impl PlayerState {
 }
 
 /// Bits of [`PlayerState::prev_buttons`] that hold buttons (`bd_core::input::buttons` uses 0..=8).
-pub const BUTTON_BITS: u16 = (1 << CHAIN_SHIFT) - 1;
-pub(crate) const CHAIN_SHIFT: u16 = 12;
-/// The hop chain saturates here (4 bits).
+pub const BUTTON_BITS: u16 = (1 << 12) - 1;
+/// The hop chain saturates here.
 pub const HOP_CHAIN_MAX: u8 = 15;
 
 #[inline]

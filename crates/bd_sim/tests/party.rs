@@ -20,6 +20,17 @@ use bd_sim::rules::{MatchPhase, ScaleLimit, WillpowerMode};
 use bd_sim::settings::{GameMode, GameSettings, PartySettings, Preset};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 const C: PlayerId = PlayerId(3);
@@ -64,7 +75,12 @@ fn ffa_cfg() -> SimConfig {
 /// Recorded before the party / settings change on the same code (and re-verified by building the
 /// tree with every party hunk reverted: identical). Only movement / combat changes by other
 /// engineers should ever move it — if they do, re-record it with `print_ffa_hashes`.
-const FFA_NOCAST_STATE_HASH: u64 = 0xba74_0f28_1dcd_25fa;
+// Re-recorded after the Smash damage model (COMBAT.md §1a) deliberately changed combat; the
+// party-reverted build matched the original record (0xba74_0f28_1dcd_25fa).
+// It also includes the §5i anti-snowball defaults (`tuning.snowball`: respawn with full willpower,
+// shutdown +1), which move it on their own; `CombatTuning::legacy()` restores the old snowball
+// behaviour. The tuning plumbing itself was verified bit-identical by A/B build (tests/tuning.rs).
+const FFA_NOCAST_STATE_HASH: u64 = 0xe20f_5f18_1d6b_a9ff;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {
@@ -456,6 +472,27 @@ fn arena_regen_request_between_rounds() {
     assert!(evs.iter().any(|e| matches!(e, GameEvent::ArenaReset { .. })));
     assert_eq!(w.party().unwrap().phase, PartyPhase::Round);
     assert_eq!(w.party().unwrap().round, 2);
+    // Without a host-provided arena the world's own worker-thread prefetch regenerates it.
+    w.request_carve(bd_sim::combat::CarveRequest { center: w.arena.center, radius: 2.0, power: 1.0 });
+    for _ in 0..3 {
+        w.tick(&[]);
+    }
+    let p = w.party.as_mut().unwrap();
+    p.phase = PartyPhase::Round;
+    w.match_state.phase = MatchPhase::Ended; // round over
+    let mut evs = Vec::new();
+    for _ in 0..(8 * 120) {
+        evs.extend_from_slice(w.tick(&[]));
+        if w.party().unwrap().phase == PartyPhase::Pick {
+            w.party_choose(A, 0).ok();
+            w.party_choose(B, 0).ok();
+        }
+        if w.party().unwrap().round == 3 {
+            break;
+        }
+    }
+    assert_eq!(w.party().unwrap().round, 3);
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::ArenaReset { .. })), "prefetched terrain swapped in");
 }
 
 #[test]
@@ -701,8 +738,8 @@ fn growth_spurt_and_kaiju_heart() {
     assert_eq!(w.constructs.get(k).unwrap().recipe.form, Form::Kaiju);
     // A KO grows the live creatures.
     let before = w.constructs.get(b).map(|c| c.size_scale);
-    w.player_mut(B).unwrap().health = 1.0;
     w.apply_hit(HitInfo::new(B, Some(A), HitKind::RingBlast, 50.0, 5.0, Vec3::X, Vec3::ZERO));
+    w.player_mut(B).unwrap().mv.pos.y = -100.0; // Smash model: KOs only through a blast zone
     let evs = run(&mut w, 1);
     assert_eq!(fx_count(&evs, PartyFx::KaijuGrow), 1);
     if let (Some(b0), Some(c)) = (before, w.constructs.get(b)) {
@@ -762,8 +799,8 @@ fn pinata_copycat_last_words() {
     assert_eq!(fx_count(&evs, PartyFx::Copycat), 1);
     assert!(w.constructs.iter().any(|c| c.owner == A && c.recipe.form == Form::Boulder));
     // Last Words: KO'd ⇒ a bomb goes off where A fell.
-    w.player_mut(A).unwrap().health = 1.0;
     w.apply_hit(HitInfo::new(A, Some(B), HitKind::RingBlast, 50.0, 3.0, Vec3::X, Vec3::ZERO));
+    w.player_mut(A).unwrap().mv.pos.y = -100.0; // Smash model: KOs only through a blast zone
     let evs = run(&mut w, 130);
     assert_eq!(fx_count(&evs, PartyFx::LastWords), 1);
     assert!(evs.iter().any(|e| matches!(e, GameEvent::Explosion { source: Some(s), element: Element::Fire, .. } if *s == A)));

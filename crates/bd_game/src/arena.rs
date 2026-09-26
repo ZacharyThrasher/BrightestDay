@@ -77,6 +77,8 @@ pub enum MapKind {
     Arena,
     /// The movement tutorial course (stations + timed peak run).
     Tutorial,
+    /// Vice-City-sunset city arena (bd_voxel `generate_miami`).
+    Miami,
 }
 
 impl MapKind {
@@ -84,6 +86,7 @@ impl MapKind {
         match s {
             "arena" | "archipelago" => Some(MapKind::Arena),
             "tutorial" | "course" => Some(MapKind::Tutorial),
+            "miami" => Some(MapKind::Miami),
             _ => None,
         }
     }
@@ -100,14 +103,110 @@ pub struct MapInfo {
     pub center: Vec3,
     pub void_y: f32,
     pub tutorial: Option<bd_voxel::TutorialInfo>,
+    /// The sim's view of the map (FFA maps only; `None` for the tutorial).
+    pub arena: Option<ArenaInfo>,
+    /// Sea level (Miami): water surface / splash height.
+    pub water_y: Option<f32>,
+    /// City maps: water colours (sRGB), sun colour (sRGB), fog end distance (m), neon boost.
+    pub water_color: Option<([f32; 3], [f32; 3])>,
+    pub sun_color: Option<[f32; 3]>,
+    pub fog_end: Option<f32>,
+    pub neon_boost: f32,
+}
+
+/// A second, untouched copy of the current FFA map's voxels for a `bd_sim::World` (the rendered
+/// `ArenaWorld` is the client-side mirror). Built on the loader thread next to the render copy;
+/// practice / NET host take it with [`SimArenaCopy::take`]. Taking it marks the render copy for
+/// regeneration when the game is left (it will have been carved).
+#[derive(Resource, Default)]
+pub struct SimArenaCopy {
+    slot: Option<(VoxelWorld, ArenaInfo, u64)>,
+    pub taken: bool,
+}
+
+impl SimArenaCopy {
+    /// `(voxels, info, arena seed)`.
+    pub fn take(&mut self) -> Option<(VoxelWorld, ArenaInfo, u64)> {
+        let s = self.slot.take();
+        if s.is_some() {
+            self.taken = true;
+        }
+        s
+    }
+    pub fn is_ready(&self) -> bool {
+        self.slot.is_some()
+    }
+}
+
+/// Generate `kind` with `seed` (the render copy; call twice for a sim copy).
+pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<ArenaInfo>) {
+    match kind {
+        MapKind::Arena => {
+            let (world, info) = generate_arena(seed);
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                water_y: None,
+                water_color: None,
+                sun_color: None,
+                fog_end: None,
+                neon_boost: 0.0,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Miami => {
+            let (world, m) = bd_voxel::generate_miami(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                water_y: Some(m.water_y),
+                water_color: Some((m.water_color, m.water_deep)),
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Tutorial => {
+            let (world, info) = bd_voxel::generate_tutorial();
+            let map = MapInfo {
+                kind,
+                spawns: vec![v3(info.peak_start)],
+                spawn_yaw: Some(info.peak_yaw),
+                center: v3(info.start_finish.0),
+                void_y: info.void_y,
+                tutorial: Some(info),
+                arena: None,
+                water_y: None,
+                water_color: None,
+                sun_color: None,
+                fog_end: None,
+                neon_boost: 0.0,
+            };
+            (world, map, None)
+        }
+    }
 }
 
 /// The map to load/play. Change it (and enter `AppState::Loading`) to switch maps.
 #[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CurrentMap(pub MapKind);
 
+type GenResult = (VoxelWorld, MapInfo, Option<ArenaInfo>, Option<VoxelWorld>);
+
 #[derive(Resource)]
-struct ArenaGenTask(Task<(VoxelWorld, MapInfo, Option<ArenaInfo>)>, MapKind);
+struct ArenaGenTask(Task<GenResult>, MapKind);
 
 /// Which map the current `ArenaWorld` holds.
 #[derive(Resource, Default)]
@@ -127,6 +226,8 @@ impl Plugin for ArenaPlugin {
         app.add_message::<Explode>()
             .insert_resource(CurrentMap(map))
             .init_resource::<LoadedMap>()
+            .init_resource::<SimArenaCopy>()
+            .add_systems(OnExit(AppState::InGame), regen_after_play)
             .add_systems(Update, (start_generation, finish_generation, remesh_dirty_chunks).chain().before(FrameSet::Sim))
             .add_systems(Update, explode_at_crosshair.run_if(gameplay_active).in_set(FrameSet::Input))
             .add_systems(Update, handle_explosions.in_set(FrameSet::Present).before(crate::debris::DebrisSimSet))
@@ -166,36 +267,21 @@ fn start_generation(
     blockers.arena_pending = true;
     let task = AsyncComputeTaskPool::get().spawn(async move {
         let t = std::time::Instant::now();
-        let r = match kind {
-            MapKind::Arena => {
-                let (world, info) = generate_arena(ARENA_SEED);
-                let map = MapInfo {
-                    kind,
-                    spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
-                    spawn_yaw: None,
-                    center: v3(info.center),
-                    void_y: info.void_y,
-                    tutorial: None,
-                };
-                (world, map, Some(info))
-            }
-            MapKind::Tutorial => {
-                let (world, info) = bd_voxel::generate_tutorial();
-                let map = MapInfo {
-                    kind,
-                    spawns: vec![v3(info.peak_start)],
-                    spawn_yaw: Some(info.peak_yaw),
-                    center: v3(info.start_finish.0),
-                    void_y: info.void_y,
-                    tutorial: Some(info),
-                };
-                (world, map, None)
-            }
-        };
+        let (world, map, info) = generate_map(kind, ARENA_SEED);
+        // The sim's own copy (bd_voxel worlds are not Clone): generated again, same seed.
+        let sim = info.is_some().then(|| generate_map(kind, ARENA_SEED).0);
         info!("{kind:?} generated in {:.0} ms", t.elapsed().as_secs_f32() * 1000.0);
-        r
+        (world, map, info, sim)
     });
     commands.insert_resource(ArenaGenTask(task, kind));
+}
+
+/// Leaving the game after a sim world took the terrain copy: the render mirror was carved, so
+/// regenerate both copies (behind the menu).
+fn regen_after_play(sim_copy: Res<SimArenaCopy>, mut loaded: ResMut<LoadedMap>) {
+    if sim_copy.taken {
+        loaded.0 = None;
+    }
 }
 
 fn srgb3(c: [f32; 3]) -> LinearRgba {
@@ -211,10 +297,16 @@ fn finish_generation(
     mut ground: ResMut<DebrisGround>,
     mut blockers: ResMut<LoadingBlockers>,
     mut loaded: ResMut<LoadedMap>,
+    mut sim_copy: ResMut<SimArenaCopy>,
 ) {
     let Some(mut task) = task else { return };
     let kind = task.1;
-    let Some((mut world, map, arena_info)) = check_ready(&mut task.0) else { return };
+    let Some((mut world, map, arena_info, sim_world)) = check_ready(&mut task.0) else { return };
+    sim_copy.slot = match (sim_world, arena_info.clone()) {
+        (Some(w), Some(i)) => Some((w, i, ARENA_SEED)),
+        _ => None,
+    };
+    sim_copy.taken = false;
     commands.remove_resource::<ArenaGenTask>();
 
     // Environment from the map (the tutorial keeps the current sky).
@@ -224,6 +316,13 @@ fn finish_generation(
         env.horizon = srgb3(info.sky_horizon);
         env.fog_color = srgb3(info.fog_color);
         env.ambient_brightness = 500.0 + info.ambient * 1400.0;
+    }
+    // City maps: sunset key light + fog distance.
+    if let Some(c) = map.sun_color {
+        env.sun_color = Color::srgb(c[0], c[1], c[2]);
+    }
+    if let Some(f) = map.fog_end {
+        env.fog_visibility = f.clamp(120.0, 2000.0);
     }
 
     world.drain_dirty();
@@ -284,8 +383,11 @@ fn explode_at_crosshair(
     look: Res<LookAngles>,
     cam: Query<&Transform, With<PlayerCamera>>,
     mut out: MessageWriter<Explode>,
+    active: Option<Res<crate::sim_bridge::ActiveWorld>>,
 ) {
-    if !keys.just_pressed(KeyCode::KeyG) {
+    // G is the power key while a sim world runs; the debug explosion stays on Shift+G there.
+    let shift = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+    if !keys.just_pressed(KeyCode::KeyG) || (active.is_some() && !shift) {
         return;
     }
     let (Some(arena), Ok(cam)) = (arena, cam.single()) else { return };

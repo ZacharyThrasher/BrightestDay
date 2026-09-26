@@ -1766,6 +1766,16 @@ fn advance_transform(c: &mut Construct, env: &Env<'_>, claim: bool) {
 /// The collision box follows the silhouette: the alt mode lies long (vehicle), the robot stands
 /// up (its length becomes its height). Swaps the box's long horizontal axis with the vertical one.
 fn reshape_for_mode(c: &mut Construct, mode: XMode) {
+    // Two-mode icons: the authored alt / robot boxes (from `alt_shape`).
+    if let Some([alt, robot]) = c.authored_boxes {
+        let (half, lc) = if mode == XMode::Robot { robot } else { alt };
+        let bottom = c.bounds().min.y;
+        c.half = half * c.size_scale;
+        c.local_center = lc * c.size_scale;
+        let nb = c.bounds().min.y;
+        c.pos.y += bottom - nb;
+        return;
+    }
     let h = c.half;
     let long = h.z.max(h.x);
     let short = h.z.min(h.x);

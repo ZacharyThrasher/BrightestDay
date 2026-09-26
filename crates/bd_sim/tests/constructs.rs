@@ -12,6 +12,17 @@ use bd_sim::rules::{CapMode, WillpowerMode};
 use bd_sim::space::{LinkEnd, PortalEnd};
 use bd_sim::world::{Aim, ArenaSource, SimConfig, TargetHint, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 const C: PlayerId = PlayerId(3);
@@ -91,7 +102,7 @@ fn hits_from(ev: &[GameEvent], cid: ConstructId, target: PlayerId) -> usize {
 }
 
 fn health(w: &World, id: PlayerId) -> f32 {
-    w.player(id).unwrap().health
+    w.player(id).unwrap().health()
 }
 
 fn pos(w: &World, id: PlayerId) -> Vec3 {
@@ -283,7 +294,7 @@ fn blade_slices_a_wall_into_two_falling_halves() {
     let c = w.constructs.get(wall).unwrap();
     let (rot0, center) = (c.rot, c.center());
     // Any Blade hit (a sword swing, a thrown saw…) goes through the same counter.
-    w.apply_construct_hit(ConstructHit { target: wall, source: Some(B), damage: 6.0, impulse: Vec3::new(0.0, 0.0, 4.0), blade: true, point: center + Vec3::new(0.5, 0.0, 0.0) });
+    w.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: wall, source: Some(B), damage: 6.0, impulse: Vec3::new(0.0, 0.0, 4.0), blade: true, point: center + Vec3::new(0.5, 0.0, 0.0) });
     let ev = run(&mut w, 2);
     assert!(w.constructs.get(wall).is_none(), "the sliced wall is replaced by its halves");
     let halves: Vec<ConstructId> = w.constructs.iter().filter(|c| c.parent == Some(wall)).map(|c| c.id).collect();
@@ -301,7 +312,7 @@ fn blade_slices_a_wall_into_two_falling_halves() {
     let wall2 = cast_at(&mut w2, A, r("wall", Form::Wall, &[], Element::Light, 6.0), Vec3::new(0.0, G, -7.0), None);
     run(&mut w2, 40);
     let c2 = w2.constructs.get(wall2).unwrap().center();
-    w2.apply_construct_hit(ConstructHit { target: wall2, source: Some(B), damage: 6.0, impulse: Vec3::ZERO, blade: false, point: c2 });
+    w2.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: wall2, source: Some(B), damage: 6.0, impulse: Vec3::ZERO, blade: false, point: c2 });
     run(&mut w2, 2);
     assert!(w2.constructs.get(wall2).is_some());
 }
@@ -342,7 +353,7 @@ fn ice_freezes_a_fire_creature_solid_and_the_next_hit_shatters_it() {
     run(&mut w, 30);
     assert!((w.constructs.get(wolf).unwrap().pos - p0).length() < 0.6, "frozen solid: it can't move");
     let pt = w.constructs.get(wolf).unwrap().center();
-    w.apply_construct_hit(ConstructHit { target: wolf, source: Some(A), damage: 1.0, impulse: Vec3::X, blade: false, point: pt });
+    w.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: wolf, source: Some(A), damage: 1.0, impulse: Vec3::X, blade: false, point: pt });
     let ev = run(&mut w, 2);
     assert!(ev.iter().any(|e| matches!(e, GameEvent::ConstructShattered { id, .. } if *id == wolf)), "brittle: the next hit shatters it");
 }
@@ -566,10 +577,10 @@ fn blade_on_a_kaiju_nape_is_a_weak_point() {
     let k = w.constructs.get(kaiju).unwrap();
     let (center, rot, half, i0) = (k.center(), k.rot, k.half, k.integrity);
     // Belly vs nape (top rear), same blade hit.
-    w.apply_construct_hit(ConstructHit { target: kaiju, source: Some(A), damage: 5.0, impulse: Vec3::ZERO, blade: true, point: center });
+    w.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: kaiju, source: Some(A), damage: 5.0, impulse: Vec3::ZERO, blade: true, point: center });
     let i1 = w.constructs.get(kaiju).unwrap().integrity;
     let nape = center + rot * Vec3::new(0.0, half.y * 0.9, half.z * 0.5);
-    w.apply_construct_hit(ConstructHit { target: kaiju, source: Some(A), damage: 5.0, impulse: Vec3::ZERO, blade: true, point: nape });
+    w.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: kaiju, source: Some(A), damage: 5.0, impulse: Vec3::ZERO, blade: true, point: nape });
     let i2 = w.constructs.get(kaiju).unwrap().integrity;
     assert!(((i1 - i2) - 3.0 * (i0 - i1)).abs() < 1e-3, "nape takes ×3: body {} nape {}", i0 - i1, i1 - i2);
 }

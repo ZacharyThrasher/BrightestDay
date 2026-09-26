@@ -200,7 +200,8 @@ impl BotBrain {
         let params = w.params();
         let eye = me.eye(params);
         let pos = me.mv.pos;
-        let hp = me.health;
+        // Smash model: high damage % = fragile (big knockback) → play safe.
+        let pct = me.damage_pct;
         // ---------------------------------------------------------------- oath
         if let OathState::Reciting { started, .. } = me.oath {
             act.input.buttons |= buttons::TYPING;
@@ -229,7 +230,11 @@ impl BotBrain {
                 w.players
                     .iter()
                     .filter(|p| p.alive && p.id != self.id && !p.shielded())
-                    .min_by(|a, b| (a.mv.pos - pos).length_squared().total_cmp(&(b.mv.pos - pos).length_squared()))
+                    // Nearest, but a high-% enemy (easy launch) counts as closer.
+                    .min_by(|a, b| {
+                        let score = |q: &crate::world::Player| (q.mv.pos - pos).length_squared() / (1.0 + q.damage_pct / 60.0);
+                        score(a).total_cmp(&score(b))
+                    })
                     .map(|p| p.id)
             });
         }
@@ -262,7 +267,7 @@ impl BotBrain {
             self.strafe_t = self.rng.range(0.4, 1.4);
             self.strafe = if self.rng.chance(0.5) { 1.0 } else { -1.0 };
         }
-        let low = hp < 30.0;
+        let low = pct > 110.0;
         let melee = w.constructs.held_by(self.id).is_some_and(|c| crate::constructs::form_spec(c.recipe.form).speed <= 0.0);
         let close_to = if melee { 2.0 } else { 9.0 };
         let mut move_z: i8 = if low { -1 } else if dist > close_to { 1 } else if dist < 4.0 && !melee { -1 } else { 0 };
@@ -392,7 +397,11 @@ impl BotBrain {
                     }
                 }
             }
-            if dist < 3.5 && (hp < 60.0 || self.rng.chance(0.02)) {
+            // Shove to defend when fragile, or to push a hurt enemy off a ledge (edge = no ground
+            // a few metres behind them, seen from us).
+            let away = Vec3::new(t.mv.pos.x - pos.x, 0.0, t.mv.pos.z - pos.z).normalize_or_zero();
+            let edge = raycast(&w.voxels, t.mv.pos + away * 3.0 + Vec3::Y * 0.5, Vec3::NEG_Y, 12.0).is_none();
+            if dist < 3.5 && (pct > 60.0 || edge || self.rng.chance(0.02)) {
                 b |= buttons::SECONDARY;
             }
         }

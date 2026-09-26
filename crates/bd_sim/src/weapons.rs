@@ -187,7 +187,13 @@ pub fn archetype_for(r: &Recipe) -> Option<GunArchetype> {
 /// Spec for a recipe: archetype numbers scaled by caliber (`scale` vs the form default) and
 /// dual-wield. Giant guns: slower cadence, more damage and knockback, more recoil, slower rounds.
 pub fn spec_for(r: &Recipe, a: GunArchetype) -> GunSpec {
-    let mut s = gun_spec(a);
+    scale_spec(gun_spec(a), r, a)
+}
+
+/// Caliber / dual-wield / trait scaling of an archetype spec (TUNING HOOK: shared by
+/// [`spec_for`] and `tuning::CombatTuning::spec_for`, which starts from the tuned row).
+pub fn scale_spec(spec: GunSpec, r: &Recipe, a: GunArchetype) -> GunSpec {
+    let mut s = spec;
     let d = form_spec(r.form).default_scale.max(0.1);
     let k = (r.scale / d).sqrt().clamp(0.6, 2.5);
     s.damage *= k;

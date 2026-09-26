@@ -25,18 +25,27 @@ mod audio;
 mod automation;
 mod camera;
 mod cli;
+mod console;
 mod debris;
 mod hud;
 mod input;
 mod juice;
+mod lobby;
 mod menu;
+mod net;
+mod oath;
 mod player;
+mod practice;
+mod present;
 mod render;
 mod settings;
+mod sim_bridge;
 mod state;
 mod tick;
 mod tutorial;
 mod util;
+mod viewmodel;
+mod voice_ui;
 mod warmup;
 mod window;
 
@@ -116,5 +125,9 @@ fn main() {
             audio::AudioFxPlugin,
             tutorial::TutorialPlugin,
         ))
+        .add_plugins(sim_bridge::SimBridgePlugin)
+        .add_plugins((practice::PracticePlugin, present::PresentPlugin))
+        .add_plugins(net::NetPlugin)
+        .add_plugins(lobby::UiPlugin)
         .run();
 }

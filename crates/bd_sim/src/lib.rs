@@ -16,6 +16,8 @@
 //! - [`weapons`]: gun archetypes (DOOM feel) + the generic weapon state machine.
 //! - [`bots`]: AI players for tests, practice and stress; [`fuzz`]: random recipes + chaos worlds.
 //! - [`settings`]: every lobby knob + presets; [`party`]: Party mode (rounds, picks, effects).
+//! - [`tuning`]: every combat / economy number (`assets/tuning/combat.ron`, [`World::set_tuning`]);
+//!   [`telemetry`]: hidden per-match balance recorder (`logs/matches/*.json`, tournaments).
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
@@ -35,8 +37,11 @@ pub mod replicate;
 pub mod rng;
 pub mod rules;
 pub mod settings;
+pub mod smash;
 pub mod space;
 pub mod status;
+pub mod telemetry;
+pub mod tuning;
 pub mod weapons;
 pub mod willpower;
 pub mod world;

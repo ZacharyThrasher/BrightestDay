@@ -1068,11 +1068,12 @@ fn mults(c: &Construct, prof: &Profile) -> (f32, f32) {
     (d, kb)
 }
 
-fn base_damage(c: &Construct) -> (f32, f32) {
+fn base_damage(c: &Construct, t: &crate::tuning::CombatTuning) -> (f32, f32) {
+    // TUNING HOOK: form table + swarm unit damage from `tuning`.
     if swarm::is_unit(c) {
-        return (swarm::UNIT_DAMAGE, 3.0);
+        return (t.creature.swarm_unit_damage, 3.0);
     }
-    let s = super::form_spec(c.recipe.form);
+    let s = t.form_spec(c.recipe.form);
     let d = if c.category == FormCategory::Creature { s.damage.max(3.0) } else { 8.0 };
     let kb = if c.category == FormCategory::Creature { s.knockback.max(4.0) } else { 9.0 };
     (d, kb)
@@ -1091,7 +1092,7 @@ fn attack_window(
     tm: &ai::Timing,
     out: &mut ConstructOut,
 ) {
-    let (bd, bk) = base_damage(c);
+    let (bd, bk) = base_damage(c, env.ctx.tuning);
     let (dm, km) = mults(c, prof);
     let fwd = flat(c.forward()).normalize_or(Vec3::NEG_Z);
     let aim = c.ai.attack.aim;
@@ -1128,7 +1129,7 @@ fn attack_window(
             c.vel.x = aim.x * CHARGE_SPEED;
             c.vel.z = aim.z * CHARGE_SPEED;
             let dir = flat(aim).normalize_or(fwd) + Vec3::Y * 0.35;
-            strike(c, env, here + fwd * (k.radius * 0.6), k.radius + 0.4, bd * 1.2 * dm, CHARGE_KB * km, dir, impact_of(c, k, kind), out);
+            strike(c, env, here + fwd * (k.radius * 0.6), k.radius + 0.4, bd * 1.2 * dm, env.ctx.tuning.creature.charge_knockback * km, dir, impact_of(c, k, kind), out);
         }
         AttackKind::Swoop => {
             c.vel = aim * SWOOP_SPEED;
@@ -1218,8 +1219,9 @@ fn stomp(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, out: &mut C
     let (dm, km) = mults(c, prof);
     let ring = stomp_ring(k);
     let at = c.pos + flat(c.forward()) * (k.radius * 0.3);
-    let dmg = if k.kaiju { 18.0 } else { 10.0 } * dm;
-    let kb = if k.kaiju { 20.0 } else { 14.0 } * km;
+    let ct = &env.ctx.tuning.creature; // TUNING HOOK
+    let dmg = if k.kaiju { ct.stomp_damage_kaiju } else { ct.stomp_damage } * dm;
+    let kb = if k.kaiju { ct.stomp_knockback_kaiju } else { ct.stomp_knockback } * km;
     for t in env.ctx.enemies_of(c.owner) {
         let d = flat(t.pos - at).length();
         if d > ring || (t.pos.y - at.y) > 2.0 + k.h * 0.1 || !c.hits.insert(player_key(t.id)) {
@@ -1253,7 +1255,7 @@ fn stomp(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, out: &mut C
 
 #[allow(clippy::too_many_arguments)]
 fn tail_sweep(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, u0: f32, u1: f32, tm: &ai::Timing, out: &mut ConstructOut) {
-    let (bd, _) = base_damage(c);
+    let (bd, _) = base_damage(c, env.ctx.tuning);
     let (dm, km) = mults(c, prof);
     let reach = k.radius + k.h * 0.9 + 1.0;
     let here = c.pos;
@@ -1276,7 +1278,7 @@ fn tail_sweep(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, u0: f3
         let tang = Vec3::new(-d.z, 0.0, d.x).normalize_or_zero();
         let dir = d.normalize_or_zero() * 0.6 + tang * 0.8 + Vec3::Y * 0.5;
         out.player_hits.push(
-            HitInfo::new(t.id, Some(c.owner), HitKind::Creature, bd * 1.3 * dm, 20.0 * km, dir, t.pos)
+            HitInfo::new(t.id, Some(c.owner), HitKind::Creature, bd * 1.3 * dm, env.ctx.tuning.creature.tail_knockback * km, dir, t.pos)
                 .with_element(c.recipe.element)
                 .with_construct(c.id)
                 .with_impact(impact_of(c, k, AttackKind::TailSweep)),
@@ -1326,7 +1328,7 @@ fn breath(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, out: &mut 
             continue;
         }
         out.player_hits.push(
-            HitInfo::new(t.id, Some(c.owner), HitKind::Creature, BREATH_DMG * dm, kb * km, aim, p)
+            HitInfo::new(t.id, Some(c.owner), HitKind::Creature, env.ctx.tuning.creature.breath_damage * dm, kb * km, aim, p)
                 .with_element(c.recipe.element)
                 .with_construct(c.id)
                 .with_impact(0.5),
@@ -1371,7 +1373,7 @@ fn spit(c: &mut Construct, env: &Env<'_>, k: &Kind, out: &mut ConstructOut) {
         spawn_payload(c, env, mouth, aim * 24.0, out);
         return;
     }
-    let (bd, bk) = base_damage(c);
+    let (bd, bk) = base_damage(c, env.ctx.tuning);
     out.projectiles.push(ProjectileSpawn {
         owner: c.owner,
         construct: Some(c.id),
@@ -1450,7 +1452,7 @@ fn step_hold(c: &mut Construct, env: &Env<'_>, k: &Kind, out: &mut ConstructOut)
     let hold_pt = if constrict { c.center() } else { c.center() + fwd * (k.radius + 0.7) + Vec3::Y * (k.h * 0.2) };
     let want = ((hold_pt - t.hull.center()) * 12.0).clamp_length_max(30.0) + c.vel;
     out.impulses.push((pid, want - t.vel, 0.0));
-    let (bd, _) = base_damage(c);
+    let (bd, _) = base_damage(c, env.ctx.tuning);
     if constrict {
         c.ai.attack.pulse -= dt;
         if c.ai.attack.pulse <= 0.0 {

@@ -86,11 +86,12 @@ fn drive(
     entities: Query<()>,
     mut rng: ResMut<VfxRng>,
     mut auto: ResMut<AutoState>,
-    (mut explode, mut debris, mut impacts, mut exit): (
+    (mut explode, mut debris, mut impacts, mut exit, sim_args): (
         MessageWriter<Explode>,
         MessageWriter<SpawnDebris>,
         MessageWriter<Impact>,
         MessageWriter<AppExit>,
+        Option<Res<crate::practice::SimArgs>>,
     ),
 ) {
     let dt = time.delta_secs();
@@ -155,7 +156,10 @@ fn drive(
     }
 
     // --bench: continuous G-style explosions across the view.
+    // (Scenarios like `--scenario brawl` bring their own load: no synthetic explosions.)
+    let scenario = sim_args.as_ref().is_some_and(|a| a.scenario.is_some() || a.soak_view);
     if let (Some(_), Some(arena), Some(tf)) = (cli.bench, arena.as_deref(), cam_tf)
+        && !scenario
         && tg >= 0.0
         && tg >= auto.bench_next
     {

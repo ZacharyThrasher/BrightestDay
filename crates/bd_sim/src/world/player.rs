@@ -5,7 +5,6 @@ use bd_core::input::PlayerInput;
 use bd_core::{ConstructId, PlayerId, Tick, Vec3};
 use serde::{Deserialize, Serialize};
 
-use crate::combat::MAX_HEALTH;
 use crate::movement::{MoveEvents, MoveParams, PlayerState};
 use crate::space::SizeState;
 use crate::status::StatusSet;
@@ -40,7 +39,21 @@ pub struct Player {
     pub last_input_seq: u32,
     /// Interpolation tick the client was looking at (lag compensation), if networked.
     pub view_tick: Option<f64>,
-    pub health: f32,
+    /// Smash damage % (COMBAT.md §1a): 0 at spawn, uncapped; knockback grows with it.
+    pub damage_pct: f32,
+    /// Last position standing on ground (Smash KOs happen off-map: "where they fell" effects —
+    /// fruits, Last Words — use this).
+    pub last_safe_pos: Vec3,
+    /// Flying from a launch (DI window, trail, punch-through).
+    pub launch: Option<crate::smash::LaunchState>,
+    /// Plowing through terrain (punch-through): entry point, material, carved tunnel end.
+    pub punch: Option<crate::smash::PunchState>,
+    /// Seconds since Jump was last pressed while tumbling (tech buffer).
+    pub tech_buffer: f32,
+    /// Stock mode: lives left (`None` in timed matches)…
+    pub stocks: Option<u8>,
+    /// …and out of lives (spectating until the next match).
+    pub eliminated: bool,
     pub willpower: f32,
     pub alive: bool,
     pub respawn_timer: f32,
@@ -91,7 +104,13 @@ impl Player {
             released: 0,
             last_input_seq: 0,
             view_tick: None,
-            health: MAX_HEALTH,
+            damage_pct: 0.0,
+            last_safe_pos: pos,
+            launch: None,
+            punch: None,
+            tech_buffer: 99.0,
+            stocks: None,
+            eliminated: false,
             willpower: 100.0,
             alive: false,
             respawn_timer: 0.0,

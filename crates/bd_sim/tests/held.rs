@@ -13,6 +13,17 @@ use bd_sim::status::StatusKind;
 use bd_sim::weapons::GunArchetype;
 use bd_sim::world::{Aim, ArenaSource, SimConfig, World};
 
+/// Smash model: tests written against health read `100 − damage %` (same comparisons).
+#[allow(dead_code)]
+trait HealthShim {
+    fn health(&self) -> f32;
+}
+impl HealthShim for bd_sim::Player {
+    fn health(&self) -> f32 {
+        100.0 - self.damage_pct
+    }
+}
+
 const A: PlayerId = PlayerId(1);
 const B: PlayerId = PlayerId(2);
 const C: PlayerId = PlayerId(3);
@@ -215,6 +226,8 @@ fn gauntlet_uppercut_launches() {
     let ev = act(&mut w, A, yaw, pitch, buttons::SECONDARY, 1, 20);
     assert!(has_fx(&ev, HeldFx::Uppercut));
     assert!(!hits_on(&ev, B).is_empty());
+    // (Smash model: 0 % takes base knockback; give the rise a few more ticks.)
+    run(&mut w, 8);
     assert!(w.player(B).unwrap().mv.pos.y > GROUND + 1.0, "launched up");
 }
 
@@ -236,7 +249,7 @@ fn perfect_shield_parry_reflects_a_projectile_to_its_shooter() {
         ev.extend_from_slice(w.tick(&[(A, a_in), (B, b_off)]));
     }
     assert!(has_fx(&ev, HeldFx::Parry), "perfect parry");
-    assert_eq!(w.player(A).unwrap().health, 100.0, "parrier untouched");
+    assert_eq!(w.player(A).unwrap().health(), 100.0, "parrier untouched");
     assert!(
         ev.iter().any(|e| matches!(e, GameEvent::Hit { target, source: Some(s), kind: HitKind::RingBlast, .. } if *target == B && *s == A)),
         "B eats its own reflected blast"
@@ -260,7 +273,7 @@ fn late_shield_block_absorbs_a_projectile() {
         ev.extend_from_slice(w.tick(&[(A, a_in), (B, b_off)]));
     }
     assert!(has_fx(&ev, HeldFx::Block) && !has_fx(&ev, HeldFx::Parry));
-    assert_eq!(w.player(A).unwrap().health, 100.0);
+    assert_eq!(w.player(A).unwrap().health(), 100.0);
     assert!(hits_on(&ev, B).is_empty());
 }
 
@@ -285,7 +298,7 @@ fn shield_parry_staggers_a_melee_attacker() {
         ev.extend_from_slice(w.tick(&[(A, a_in), (B, b_off)]));
     }
     assert!(has_fx(&ev, HeldFx::Parry), "parried");
-    assert_eq!(w.player(A).unwrap().health, 100.0);
+    assert_eq!(w.player(A).unwrap().health(), 100.0);
     assert!(
         ev.iter().any(|e| matches!(e, GameEvent::StatusApplied { player, status: StatusKind::Stun, .. } if *player == B)),
         "attacker staggered"
@@ -458,7 +471,7 @@ fn rocket_jump_beats_a_plain_jump() {
     }
     let plain = 9.4f32 * 9.4 / (2.0 * 25.0);
     assert!(apex > plain + 1.0, "rocket jump apex {apex} vs plain {plain}");
-    assert_eq!(w.player(A).unwrap().health, 100.0, "no self damage");
+    assert_eq!(w.player(A).unwrap().health(), 100.0, "no self damage");
 }
 
 #[test]
@@ -669,7 +682,7 @@ fn power_suit_absorbs_damage_and_punches() {
     run(&mut w, 100);
     let integ = w.constructs.get(suit).unwrap().integrity;
     w.apply_hit(bd_sim::combat::HitInfo::new(A, Some(B), HitKind::Shot, 10.0, 0.0, Vec3::X, Vec3::ZERO));
-    assert_eq!(w.player(A).unwrap().health, 100.0, "the suit took it");
+    assert_eq!(w.player(A).unwrap().health(), 100.0, "the suit took it");
     assert!(w.constructs.get(suit).unwrap().integrity < integ);
     place(&mut w, B, Vec3::new(0.0, GROUND, 4.4));
     let (yaw, pitch) = aim_at(&w, A, B);

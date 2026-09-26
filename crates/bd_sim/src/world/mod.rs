@@ -32,6 +32,7 @@ mod invariants;
 mod net;
 mod player;
 mod projectiles;
+mod punch;
 mod spatial;
 
 use std::collections::VecDeque;
@@ -43,7 +44,6 @@ use bd_core::{DT, MAX_PLAYERS, PlayerId, Tick, Vec3};
 use bd_voxel::{ArenaInfo, CarveOp, VoxelWorld, generate_arena, generate_flat_test};
 use serde::{Deserialize, Serialize};
 
-use crate::combat::{KO_CREDIT_SECS, MAX_HEALTH};
 use crate::constructs::{ConstructOut, ConstructStore, PlayerView};
 use crate::events::{GameEvent, GoneReason, move_flags};
 use crate::history::HullHistory;
@@ -55,7 +55,7 @@ use crate::space::{ForceField, Link, PortalPair};
 use crate::willpower::OathTable;
 
 pub use actions::{Aim, TargetHint};
-pub use combat::{SIM_COLLAPSE_LIMITS, apply_carve_op};
+pub use combat::{EMBER_COLLAPSE_LIMITS, SIM_COLLAPSE_LIMITS, apply_carve_op, collapse_limits_for};
 pub use invariants::{MAX_CONSTRUCTS, MAX_PROJECTILES};
 pub use net::PredictCtx;
 pub use player::{Player, Seat};
@@ -90,6 +90,8 @@ pub struct SimConfig {
     pub check_invariants: bool,
     /// Party mode (COMBAT.md §5g); `None` = FFA. Built by `settings::GameSettings::sim_config`.
     pub party: Option<crate::settings::PartySettings>,
+    /// TUNING HOOK: every combat / economy number (`assets/tuning/combat.ron`, COMBAT.md §5i).
+    pub tuning: crate::tuning::CombatTuning,
 }
 
 impl Default for SimConfig {
@@ -106,6 +108,7 @@ impl Default for SimConfig {
             oaths: OathTable::default(),
             check_invariants: cfg!(debug_assertions),
             party: None,
+            tuning: crate::tuning::CombatTuning::default(),
         }
     }
 }
@@ -148,6 +151,10 @@ pub struct World {
     arena_seed: u64,
     /// Last invariant violation seen by the per-tick check (release builds keep running).
     pub last_invariant_error: Option<(Tick, String)>,
+    /// Carve ops already applied this tick (punch-through) — counted against `carves_per_tick`.
+    pub(crate) carve_ops_used: usize,
+    /// `cast_shaped`'s authored robot shape while the cast runs (consumed by `spawn_cast`).
+    pending_alt_shape: Option<bd_core::shape::ShapeSpec>,
     /// Burning voxels last announced (`FireVoxels`).
     fire_seen: Vec<bd_core::IVec3>,
     /// Next arena being built on a worker thread (never on the tick): (source, job).
@@ -217,6 +224,8 @@ impl World {
             next_space_id: 1,
             arena_seed,
             last_invariant_error: None,
+            pending_alt_shape: None,
+            carve_ops_used: 0,
             fire_seen: Vec::with_capacity(crate::constructs::chemistry::MAX_BURNING),
             arena_job: None,
             party,
@@ -305,6 +314,9 @@ impl World {
         let pos = self.arena.center;
         let mut p = Player::new(id, name.clone(), corps, pos, &self.cfg.move_params);
         p.willpower = self.cfg.rules.willpower_max();
+        if let crate::rules::Scoring::Stock { lives } = self.cfg.rules.scoring {
+            p.stocks = Some(lives.max(1));
+        }
         let at = self.players.partition_point(|q| q.id < id);
         self.players.insert(at, p);
         self.events.push(GameEvent::PlayerJoined { player: id, name, corps });
@@ -389,6 +401,8 @@ impl World {
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);
 
+        self.carve_ops_used = 0;
+        self.punch_through(dt); // Smash: launched players plow through terrain (world/punch.rs)
         self.step_movement(dt);
         self.push_players_apart(dt);
         self.solve_links(dt);
@@ -450,6 +464,9 @@ impl World {
             p.eject_cd = (p.eject_cd - dt).max(0.0);
             p.size.step(dt);
             if !p.alive {
+                if p.eliminated {
+                    continue;
+                }
                 p.respawn_timer -= dt;
                 if p.respawn_timer <= 0.0 {
                     self.respawn(i);
@@ -497,16 +514,60 @@ impl World {
             let mut params = p.params(base);
             crate::party::hooks::tweak_params(party.as_ref(), p.id, &mut params); // PARTY HOOK (Slippery)
             let was_tumbling = p.mv.tumble > 0.0;
+            // Smash: tech buffer (Jump pressed while tumbling) and DI (steer the launch).
+            let sm = &cfg.tuning.smash;
+            if was_tumbling && p.pressed & buttons::JUMP != 0 {
+                p.tech_buffer = 0.0;
+            } else {
+                p.tech_buffer = (p.tech_buffer + dt).min(99.0);
+            }
+            if let Some(l) = p.launch.as_mut() {
+                let max = sm.di_max_deg.to_radians();
+                if l.t < sm.di_ramp_secs && l.di < max && !p.input.held(buttons::TYPING) {
+                    let (sy, cy) = p.input.yaw.sin_cos();
+                    let wish = (Vec3::new(-sy, 0.0, -cy) * p.input.move_z.clamp(-1, 1) as f32 + Vec3::new(cy, 0.0, -sy) * p.input.move_x.clamp(-1, 1) as f32).normalize_or_zero();
+                    let step = (max * dt / sm.di_ramp_secs.max(dt)).min(max - l.di);
+                    l.di += crate::smash::di_rotate(&mut p.mv.vel, wish, step);
+                }
+                l.t += dt;
+            }
             let pre_vel = p.mv.vel;
+            let pre_tumble = p.mv.tumble;
+            // Plowing through rock is flight, not running: no ground friction in the tunnel.
+            if p.punch.is_some() {
+                p.mv.grounded = false;
+            }
             let pre_center = p.hull(base).center();
             let cw = CollisionWorld::new(voxels, colliders).ignoring(crate::movement::ColliderId::Player(p.id));
             let ev = step_player(&mut p.mv, &input, &cw, &params, dt);
             constructs.post_move(p.id, &p.input, &mut p.mv, pre_vel, &ev, &params);
             p.move_events = ev;
+            // Plowing through terrain: landing on the tunnel floor doesn't end the tumble.
+            if p.punch.is_some() && pre_tumble > 0.0 && p.mv.tumble <= 0.0 {
+                p.mv.tumble = (pre_tumble - dt).max(dt);
+            }
             // Wall splat: tumbling into a wall fast (resolved after the loop; needs &mut self).
             p.pending_splat = ev.wall_hit.filter(|w| {
-                was_tumbling && w.normal.y.abs() < 0.7 && w.speed > crate::combat::SPLAT_MIN_SPEED
+                was_tumbling && w.normal.y.abs() < 0.7 && w.speed > cfg.tuning.hit.splat_min_speed
             });
+            if p.mv.grounded {
+                p.last_safe_pos = p.mv.pos;
+            }
+            // Tech: Jump pressed just before a wall / ground contact while tumbling.
+            let contact = ev.wall_hit.map(|w| w.normal).or(ev.landed.map(|_| Vec3::Y));
+            if let Some(n) = contact.filter(|_| was_tumbling && p.tech_buffer <= cfg.tuning.smash.tech_window) {
+                p.pending_splat = None;
+                p.mv.vel *= 0.3;
+                p.mv.tumble = 0.0;
+                p.launch = None;
+                p.tech_buffer = 99.0;
+                events.push(GameEvent::Tech { player: p.id, pos: p.mv.pos, normal: n });
+            }
+            // The launch is over once the tumble ends in play (landed / tethered / timed out).
+            if let Some(l) = p.launch.filter(|_| p.mv.tumble <= 0.0) {
+                p.launch = None;
+                events.push(GameEvent::Recovered { player: p.id, source: l.source, pct: p.damage_pct });
+            }
             // Portals + fields (shared with client prediction).
             let tethered = p.mv.tethered();
             if let Some((portal, rot)) = spatial::player_portals(&mut p.mv, &mut p.input, &mut p.portal_cd, &params, pre_center, pre_vel, portals) {
@@ -581,22 +642,29 @@ impl World {
         }
     }
 
+    /// Smash blast zones: below the void, past the side bounds (+ margin), over the top (+ margin,
+    /// a star KO). The only way to be KO'd.
     fn check_out_of_bounds(&mut self) {
-        let b = self.arena.bounds;
+        // Blast zones: the terrain's own extent + margins (ArenaInfo.bounds already pads it).
+        let b = self.voxels.bounds();
         let void_y = self.arena.void_y;
+        let (side, top) = (self.cfg.tuning.smash.blast_margin_side, self.cfg.tuning.smash.blast_margin_top);
         for i in 0..self.players.len() {
             let p = &self.players[i];
             if !p.alive {
                 continue;
             }
             let pos = p.mv.pos;
-            let out = !pos.is_finite()
-                || pos.y < void_y
-                || pos.x < b.min.x
-                || pos.x > b.max.x
-                || pos.z < b.min.z
-                || pos.z > b.max.z
-                || pos.y > b.max.y + 60.0;
+            let zone = if !pos.is_finite() || pos.y < void_y {
+                Some(crate::smash::BlastZone::Bottom)
+            } else if pos.y > b.max.y + top {
+                Some(crate::smash::BlastZone::Top)
+            } else if pos.x < b.min.x - side || pos.x > b.max.x + side || pos.z < b.min.z - side || pos.z > b.max.z + side {
+                Some(crate::smash::BlastZone::Side)
+            } else {
+                None
+            };
+            let out = zone.is_some();
             if out && !self.cfg.rules.void_ko && pos.is_finite() {
                 // Lobby knob "void off": back onto a spawn point, no KO.
                 let id = p.id;
@@ -606,9 +674,10 @@ impl World {
                 p.mv.vel = Vec3::ZERO;
                 p.mv.release_tethers();
                 self.events.push(GameEvent::VoidRescue { player: id, pos: at });
-            } else if out {
+            } else if let Some(z) = zone {
                 let killer = self.credit(i);
-                self.ko(i, killer, crate::events::KoCause::Void);
+                let cause = if z == crate::smash::BlastZone::Bottom { crate::events::KoCause::Void } else { crate::events::KoCause::BlastZone };
+                self.ko_zone(i, killer, cause, Some(z));
             }
         }
     }
@@ -666,6 +735,7 @@ impl World {
                 history: &self.history,
                 rules: &self.cfg.rules,
                 void_y: self.arena.void_y,
+                tuning: &self.cfg.tuning, // TUNING HOOK
             };
             self.constructs.update(&ctx, &mut self.cout);
         }
@@ -752,7 +822,8 @@ impl World {
     fn step_willpower(&mut self, dt: f32) {
         let infinite = self.cfg.rules.infinite_willpower();
         let max = self.cfg.rules.willpower_max();
-        let regen = crate::willpower::REGEN_PER_SEC * self.cfg.rules.regen_mult();
+        let regen = self.cfg.tuning.willpower.regen_per_sec * self.cfg.rules.regen_mult();
+        let starved = self.cfg.tuning.willpower.starved_decay;
         for i in 0..self.players.len() {
             let id = self.players[i].id;
             if infinite {
@@ -762,13 +833,13 @@ impl World {
             let upkeep: f32 = self
                 .constructs
                 .owned_by(id)
-                .map(|c| crate::willpower::upkeep_per_sec(&c.recipe, c.pilot.is_some()))
+                .map(|c| self.cfg.tuning.willpower.upkeep_per_sec(&c.recipe, c.pilot.is_some()))
                 .sum();
             let p = &mut self.players[i];
             let gain = if p.regen_pause > 0.0 { 0.0 } else { regen };
             p.willpower = (p.willpower + (gain - upkeep) * dt).clamp(0.0, max);
             if p.willpower <= 0.0 && upkeep > 0.0 {
-                self.constructs.decay_owner(id, crate::willpower::STARVED_DECAY_PER_SEC, dt);
+                self.constructs.decay_owner(id, starved, dt);
             }
         }
     }
@@ -870,7 +941,11 @@ impl World {
 
     /// Load pre-built terrain (rematch / party rounds) and tell clients to regenerate it.
     pub(crate) fn swap_arena(&mut self, voxels: VoxelWorld, arena: ArenaInfo, seed: u64) {
-        self.voxels = voxels;
+        // Freeing tens of MB of chunks isn't free either: drop the old terrain on a worker.
+        let old = std::mem::replace(&mut self.voxels, voxels);
+        if std::thread::Builder::new().name("bd_arena_drop".into()).spawn(move || drop(old)).is_err() {
+            // (thread spawn failed: `old` was moved into the failed closure and dropped here)
+        }
         self.arena = arena;
         self.arena_seed = seed;
         self.carve_queue.clear();
@@ -959,6 +1034,13 @@ impl World {
             p.size = Default::default();
             p.streak = 0;
             p.last_ko_tick = None;
+            p.damage_pct = 0.0;
+            p.launch = None;
+            p.eliminated = false;
+            p.stocks = match self.cfg.rules.scoring {
+                crate::rules::Scoring::Stock { lives } => Some(lives.max(1)),
+                crate::rules::Scoring::TimedKos => None,
+            };
         }
         for i in 0..self.players.len() {
             self.respawn(i);
@@ -969,12 +1051,26 @@ impl World {
         if self.match_state.phase != MatchPhase::Live {
             return;
         }
-        let target = self.cfg.rules.ko_target.max(1);
-        let reached = self.players.iter().any(|p| p.kos >= target);
         let timeout = self.match_state.phase_time >= self.cfg.rules.time_limit;
-        if reached || timeout {
+        let (over, stock_winner) = match self.cfg.rules.scoring {
+            crate::rules::Scoring::TimedKos => {
+                let target = self.cfg.rules.ko_target.max(1);
+                (self.players.iter().any(|p| p.kos >= target), None)
+            }
+            crate::rules::Scoring::Stock { .. } => {
+                // Last standing wins (the clock still caps it: most stocks, then lowest %).
+                let standing: Vec<&Player> = self.players.iter().filter(|p| !p.eliminated).collect();
+                let over = self.players.len() >= 2 && standing.len() <= 1;
+                let best = standing
+                    .iter()
+                    .max_by(|a, b| a.stocks.cmp(&b.stocks).then(b.damage_pct.total_cmp(&a.damage_pct)).then(b.id.cmp(&a.id)))
+                    .map(|p| p.id);
+                (over, best)
+            }
+        };
+        if over || timeout {
             let rows = self.scoreboard();
-            let winner = rows.first().map(|r| r.player);
+            let winner = stock_winner.or(rows.first().map(|r| r.player));
             self.match_state.phase = MatchPhase::Ended;
             self.match_state.phase_time = 0.0;
             self.match_state.winner = winner;
@@ -990,17 +1086,21 @@ impl World {
     /// Who gets credit for a KO of player `i` right now (last attacker within 6 s).
     pub(crate) fn credit(&self, i: usize) -> Option<PlayerId> {
         let p = &self.players[i];
-        let window = (KO_CREDIT_SECS / DT) as Tick;
+        let window = (self.cfg.tuning.hit.ko_credit_secs.max(0.0) / DT) as Tick;
         p.last_attacker.filter(|(a, t)| *a != p.id && self.tick.saturating_sub(*t) <= window && self.pidx(*a).is_some()).map(|(a, _)| a)
     }
 
     pub(crate) fn ko(&mut self, i: usize, killer: Option<PlayerId>, cause: crate::events::KoCause) {
+        self.ko_zone(i, killer, cause, None);
+    }
+
+    pub(crate) fn ko_zone(&mut self, i: usize, killer: Option<PlayerId>, cause: crate::events::KoCause, zone: Option<crate::smash::BlastZone>) {
         self.powers_on_ko(i); // POWERS HOOK: power lost; a fruit respawns where you died
         let live = self.match_state.live();
         let victim = self.players[i].id;
-        let (victim_corps, pos, vel, yaw, victim_streak) = {
+        let (victim_corps, pos, vel, yaw, victim_streak, pct) = {
             let p = &self.players[i];
-            (p.corps, p.mv.pos, p.mv.vel, p.input.yaw, p.streak)
+            (p.corps, p.mv.pos, p.mv.vel, p.input.yaw, p.streak, p.damage_pct)
         };
         if let Some(seat) = self.players[i].seat.take() {
             if let Some(c) = self.constructs.get_mut(seat.construct) {
@@ -1014,7 +1114,8 @@ impl World {
         {
             let p = &mut self.players[i];
             p.alive = false;
-            p.health = 0.0;
+            p.launch = None;
+            p.punch = None;
             p.respawn_timer = self.cfg.rules.respawn_secs; // lobby knob (default RESPAWN_SECS)
             p.mv.release_tethers();
             p.mv.vel = Vec3::ZERO;
@@ -1028,15 +1129,35 @@ impl World {
             }
             p.last_attacker = None;
             p.streak = 0;
+            // Stock mode: lose a life; out of lives = eliminated (no respawn this match).
+            if live {
+                if let Some(s) = p.stocks.as_mut() {
+                    *s = s.saturating_sub(1);
+                    if *s == 0 {
+                        p.eliminated = true;
+                    }
+                }
+            }
+        }
+        let stocks_left = self.players[i].stocks;
+        if self.players[i].eliminated && live {
+            self.events.push(GameEvent::Eliminated { player: victim });
         }
         let mut streak = 0;
         let mut double = false;
+        let mut killer_kos = 0;
+        let (shutdown_streak, shutdown_bonus) = (self.cfg.tuning.snowball.shutdown_streak, self.cfg.tuning.snowball.shutdown_bonus);
         if let Some(ki) = killer.filter(|k| *k != victim).and_then(|k| self.pidx(k)) {
             let tick = self.tick;
             let k = &mut self.players[ki];
             if live {
                 k.kos = k.kos.saturating_add(1);
+                // Anti-snowball: ending a streak is worth extra (tuning `snowball`).
+                if victim_streak >= shutdown_streak {
+                    k.kos = k.kos.saturating_add(shutdown_bonus);
+                }
             }
+            killer_kos = k.kos;
             k.streak = k.streak.saturating_add(1);
             streak = k.streak;
             double = k.last_ko_tick.is_some_and(|t| tick.saturating_sub(t) as f32 * DT <= 1.0);
@@ -1055,6 +1176,11 @@ impl World {
             pos,
             vel,
             yaw,
+            zone,
+            poof_delay: if zone == Some(crate::smash::BlastZone::Top) { self.cfg.tuning.smash.star_ko_delay } else { 0.0 },
+            killer_kos,
+            pct,
+            stocks_left,
         });
     }
 
@@ -1088,13 +1214,17 @@ impl World {
         let id = self.players[i].id;
         let pos = self.pick_spawn(id);
         let base = self.cfg.move_params.clone();
-        let wp_min = self.cfg.rules.willpower_max() * 0.5;
+        let wp_min = self.cfg.rules.willpower_max() * self.cfg.tuning.snowball.respawn_willpower_frac;
+        let respawn_pct = self.cfg.tuning.smash.respawn_pct;
         let shield = self.cfg.rules.spawn_shield_secs; // lobby knob (default SPAWN_SHIELD_SECS)
         let p = &mut self.players[i];
         p.mv = crate::movement::PlayerState::new(pos, &base);
         p.mv.prev_buttons = p.input.buttons;
         p.alive = true;
-        p.health = MAX_HEALTH;
+        p.last_safe_pos = pos;
+        p.damage_pct = respawn_pct;
+        p.launch = None;
+        p.tech_buffer = 99.0;
         p.willpower = p.willpower.max(wp_min);
         p.spawn_shield = shield;
         p.respawn_timer = 0.0;
