@@ -82,6 +82,30 @@ cast → **validate/clamp** (scale per form min/max, mass, count ≤ 6, swarm �
 - Limits per player: 1 held, 1 worn, 3 structures, 2 objects in flight, 2 creatures (1 Kaiju).
   Casting over a limit replaces the oldest in that slot.
 
+## 3b. Concentration (constructs depend on the wielder's focus)
+Canon: constructs fade when the wielder is distracted, unconscious or far away. So:
+- Owner **tumbling** (big knockback) → all their constructs flicker and lose 15% integrity/s while it
+  lasts (pilots are ejected only if the construct shatters).
+- Owner **KO'd** → all their constructs dissolve (voxels drift apart and fade over ~0.6 s).
+- Owner **far away** (> 45 m from a construct; creatures/structures only) → it dims and loses 5%
+  integrity/s. Colossal constructs use 90 m.
+Counterplay: the answer to a kaiju is often its summoner.
+
+## 3c. Animating the world (grafting onto terrain)
+Casting a graft phrase ("legs", "wings", "rockets", "fire", "angry") while aiming at terrain lifts the
+connected voxel piece there (a tree, a boulder, a pillar top, a chunk of ruin — extraction bounded to
+~6k voxels, cut at a deterministic plane like structural collapse) out of the island, wraps it in the
+caster's hard light, and makes it a construct with that mechanic: a tree with legs walks at your enemy,
+a boulder with wings flies, a pillar with rockets launches. Its voxel model *is* the extracted terrain
+(original colours tinted by corps light). When it shatters, terrain-coloured debris falls. Cost: like a
+Creature/Object of that size. Replicated as a deterministic `CarveOp` + construct spawn.
+
+## 3d. Power suits
+A human-scale construct with `Piloted` ("iron man suit", "power armor", "mech suit", "exosuit") is a
+suit: it wraps the pilot (first-person kept, slight hard-light overlay on the view edges), keeps the
+pilot's own movement mostly (bhop/tether still work at ×0.85 speed) and replaces LMB/RMB with the
+suit's mechanics; it absorbs hits with its integrity first, shattering off in chunks.
+
 ## 4. Forms (default behaviour; mechanics layer on top)
 ### Held (LMB primary / RMB secondary; empty hand = ring blast + ring shove)
 Every melee held item: tap LMB = quick attack (anticipation 70 ms, active 90 ms, recovery 160 ms);
