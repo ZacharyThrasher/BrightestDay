@@ -1,0 +1,11 @@
+[package]
+name = "bd_lexicon"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+bd_core.workspace = true
+glam.workspace = true
+serde.workspace = true
+

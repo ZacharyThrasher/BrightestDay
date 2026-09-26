@@ -1,0 +1,14 @@
+// Corps oaths recited as a typing test to refill willpower (press F in game).
+// These are ORIGINAL placeholder verses in the spirit of the lantern oaths. Replace any line with your
+// own text — the game just needs one string per corps. Keep them ~15–25 words: long enough to be a
+// real test under pressure, short enough to finish mid-fight.
+{
+    Willpower: "In brightest day I stand my ground, no fear can move me, no dark can drown; my will is light, my light is mine.",
+    Rage:      "Blood in my teeth and fire in my hands, I break what stands against me and I burn what will not kneel.",
+    Greed:     "All that shines belongs to me, every spark and every star; what I take I keep, and I take it all.",
+    Fear:      "Let terror be the lamp I carry; what you dread I make real, and in the dark I am the light you fear.",
+    Hope:      "When every star goes out I keep one burning; the night is long but it is not forever, so rise.",
+    Compassion:"I feel the hurt of every heart, and I carry it gently; no one falls alone while I still shine.",
+    Love:      "For every heart that waited in the dark, I light the way home; love is the fire that never fails.",
+    Life:      "From the first dawn to the last, all living light answers my call; rise, breathe, and shine again.",
+}

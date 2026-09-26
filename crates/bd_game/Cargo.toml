@@ -1,0 +1,13 @@
+[package]
+name = "bd_game"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "brightest_day"
+path = "src/main.rs"
+
+[dependencies]
+bd_core.workspace = true
+

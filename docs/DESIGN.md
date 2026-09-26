@@ -1,0 +1,131 @@
+# Brightest Day — Design (north star)
+
+A native (Rust + Bevy) **1–8 player free-for-all voxel arena fighter**. Every player wears a lantern
+ring. You move like Quake/Source (air-strafe, bunny-hop, slide) and swing like the Attack on Titan fan
+game (dual tethers, reel, gas boost). You fight by **constructing**: type a word — `hammer`, `mjolnir`,
+`parachute`, `godzilla`, `pikachu`, `captain america's shield` — and your ring builds it out of hard
+light voxels in your corps colour. Everything shatters into cubes.
+
+> **Owner's standing priority:** gameplay, mechanics, animation and functionality >>> art fidelity.
+> This is a fighting/party game that must primarily **FEEL** good, and **player skill expression is the
+> highlight**. When time is short, spend it on feel, responsiveness, readable animation (anticipation,
+> follow-through, squash), and mechanical depth — never on visual detail. Simple voxel shapes + great
+> motion beat detailed models + stiff motion.
+
+## Pillars (in priority order)
+1. **Feel.** Snappy, tight, low latency. Mouse look is applied every rendered frame from raw input,
+   never tick-quantised. Movement is simulated at a fixed 120 Hz with render interpolation. No
+   floatiness: heavy gravity, crisp acceleration, weighty impacts (hit-stop, shake, FOV punch).
+2. **Freedom of expression.** Mechanically skilled movement is the strongest movement. Flying
+   constructs (wings, jetpack) exist but are slower than a well-executed bhop → tether → swing chain.
+   Any word can become a construct; the same word is always the same construct (learnable).
+3. **Impact.** Terrain, trees, towers and constructs are voxels and break into physical debris cubes.
+   Explosions leave craters. Clashes should look like a fight between Green Lanterns.
+4. **Focus.** Minimal on-screen text. Health and willpower are shown diegetically (ring glow,
+   first-person hand, screen-edge light fractures; other players' aura). No AI/LLM anywhere.
+
+## Vocabulary vs. mechanics (the core architectural rule)
+- **External knowledge explains words.** ConceptNet, WordNet/OMW, dariusk/corpora, and Pokémon data
+  (PokeAPI CSVs) are processed *offline* by `tools/lexicon_build` into `assets/lexicon.bin`. They tell
+  us that *maul ≈ hammer*, *parachutes slow falls*, *claws grasp*, *scorpions have tails*,
+  *Charizard is a fire/flying dragon-shaped thing, 1.7 m, 90 kg*.
+- **Brightest Day alone decides physics.** `bd_core::mechanics` defines a closed set of mechanic tags
+  (`Hammer`, `SlowFall`, `Grab`, `ArticulatedTail`, …) and their parameters. `bd_sim` implements what
+  each tag *does*. The lexicon never contains behaviour, only tags + parameters.
+- **We construct like the player.** A construct is a `Recipe`: a body plan + mechanic tags + scale +
+  element + name. Voxel shapes are generated procedurally from the recipe (plus a small set of curated
+  icon models for pop-culture items). Unknown words fall back gracefully via WordNet hypernyms
+  ("sledge" → hammer) and ConceptNet relations; truly unknown words make a generic glowing blob with a
+  flash of "?" — never nothing.
+- **Pop culture is data.** `assets/icons.ron` curates iconic things (Mjolnir: Hammer+Returning+Electric;
+  Cap's shield: Shield+Returning+Ricochet; Godzilla: Kaiju biped+ArticulatedTail+Breath(atomic);
+  lightsaber, batarang, web-shooter, Pokéball…). All ~1000 Pokémon come in automatically from
+  PokeAPI data (shape → body plan, types → element, height/weight → scale/mass).
+
+## Impact (designed from scratch — every hit is a small event)
+A hit communicates on five channels at once, scaled by a single `impact` scalar (≈ momentum
+transferred) so small hits stay small and big hits are *huge*:
+1. **Time** — hit-stop freezes attacker + victim (and their constructs) for 30–140 ms scaled by impact;
+   the rest of the world keeps running so it reads as *contact*, not lag. Local-only, render-side.
+2. **Body** — victim gets knockback along the hit vector with guaranteed lift; high-impact hits put the
+   victim into a *tumble* state (reduced air control, spinning debris trail) until they touch ground or
+   tether. Tumbling into a wall = *wall splat*: bonus damage, a voxel crater at the contact, a bounce.
+3. **World** — anything the hit or the flying victim touches breaks: voxels are carved and become
+   physical debris cubes that inherit the hit's velocity (not a generic puff). Big hits shockwave
+   loose debris outward. Explosions carve craters; kaiju footsteps crack the ground.
+4. **Light** — constructs are hard light. On clash, both constructs flash white, emit a ring of
+   their-colour shards, and lose integrity; a construct at 0 integrity *shatters* into its own voxels,
+   which tumble, glow, and fade to nothing over ~1.5 s. Two constructs colliding is itself a clash.
+5. **Camera/audio** — directional screen shake (along hit vector, very short), brief FOV punch, a
+   chromatic/white flash for the victim, low-frequency thump + crack layered by material. Your own
+   hits must be as satisfying to *give* as they are dramatic to *receive*.
+
+## Game rules (FFA)
+- 1–8 players, one arena of floating Cube-World-style voxel islands over a void.
+- **Health 100.** As health drops, **knockback taken increases** (Smash-style). KO by health reaching 0
+  **or** falling into the void / out of bounds. Respawn after 3 s at the spawn farthest from enemies
+  with 1.5 s spawn shield. Match: first to 10 KOs or 8 minutes; last hitter within 5 s gets void KOs.
+- **Willpower** (0–100) powers constructs: cast cost scales with recipe size/power; summons and held
+  weapons drain upkeep. At low willpower, recite your **corps oath** (a typing test, the Lantern oaths
+  from the vault image) to refill; speed and accuracy set the refill. You're vulnerable while reciting.
+- **Corps = player colour.** Willpower green, Rage red, Greed orange, Fear yellow, Hope blue,
+  Compassion indigo, Love violet, Life white (8 players ⇒ 8 corps). Constructs glow in your colour.
+- **Always-available ring blast** (LMB with no construct held): quick light bolt, low damage, some
+  knockback — so nobody is ever helpless.
+
+## Controls (defaults, rebindable later)
+| input | action |
+|---|---|
+| mouse | look (raw, per-frame) |
+| WASD | move (Quake/Source accel; air-strafe gains speed) |
+| Space | jump (hold = auto-hop within buffer window) |
+| Ctrl | crouch / slide at speed |
+| Shift | gas boost (meter) |
+| Q / E (and Mouse4/5) | left / right tether — hold to stay attached, release to fling |
+| Mouse wheel / R | reel in while tethered |
+| LMB / RMB | use construct primary / secondary (ring blast when empty) |
+| Enter or T | open ring console: type a construct, Enter to cast (mouse aim + tethers stay live; momentum preserved) |
+| 1–4 | quick-cast loadout slots (words chosen in lobby) |
+| F | recite oath (willpower recharge typing test) |
+| X | dismiss your constructs |
+| Tab | scoreboard |
+
+## Tech architecture
+Cargo workspace in `game/`:
+
+| crate | role | depends on |
+|---|---|---|
+| `bd_core` | shared types: math (glam), ids, `VoxelQuery` trait, `mechanics` (tags, `Recipe`, `BodyPlan`, `Element`), corps/colours, constants | glam, serde |
+| `bd_voxel` | chunked voxel world, materials, DDA raycast, carve ops (sphere/box → removed voxels), chunk mesher (culled faces + baked AO → plain vertex arrays), arena generator (seeded) | bd_core |
+| `bd_sim` | deterministic 120 Hz simulation: player movement + tethers, constructs (recipe → voxel model + behaviour), combat, damage/knockback, match rules. Headless, unit-tested. | bd_core, bd_voxel |
+| `bd_lexicon` | runtime resolver: text → `Recipe` using `assets/lexicon.bin` + `assets/icons.ron` | bd_core |
+| `bd_net` | protocol (serde+bincode), WebSocket transport on a tokio thread, host/client sessions, cloudflared quick-tunnel launcher | bd_core |
+| `bd_game` | the Bevy 0.19 app (bin `brightest_day`): render, input, camera, VFX/debris, audio, menus, glue | all |
+
+Offline tools (`tools/`): `lexicon_build` (Python: downloads + processes ConceptNet/WordNet/corpora/PokeAPI
+→ `assets/lexicon.bin` + a human-readable `assets/lexicon_preview.json`), `sfxgen` (procedural WAVs).
+
+### Units & constants
+- 1 world unit = 1 m. **Voxel = 0.5 m** for terrain; construct models use 0.25 m voxels.
+- Y up. Player collision hull: AABB 0.8 × 1.8 × 0.8 m (crouch 1.1 m); eye at 1.6 m.
+- Sim tick 120 Hz (`bd_core::TICK_HZ`). Network send rate: client input every tick batched to 60 Hz,
+  host snapshots at 30–60 Hz.
+
+### Netcode
+Listen-server, **fully host-authoritative with client-side prediction and reconciliation** (Quake/Source
+model). Movement is a pure deterministic function `step_player(state, input, world, dt)` shared by host
+and client. Clients send sequenced inputs (with redundancy); they predict their own player immediately,
+and when a snapshot arrives with `last_processed_input_seq` they reset to the authoritative state and
+replay unacknowledged inputs (smoothing any residual error visually over ~100 ms). Knockback, grabs and
+launches therefore "just work". Remote players are interpolated ~2 snapshots in the past; hitscan and
+melee are lag-compensated on the host by rewinding other players' hulls to the shooter's view time.
+Casts are sent as text + aim; the host resolves and broadcasts the spawn. Voxel destruction is
+replicated as deterministic carve ops (`center, radius, seed`), so every client applies identical edits
+and spawns its own cosmetic debris. Transport: WebSocket; host listens on localhost and launches
+`cloudflared tunnel --url http://localhost:PORT`; the `*.trycloudflare.com` words are the lobby code.
+Direct `ip:port` also works for LAN.
+
+### Performance budget
+144+ fps on the dev box (RTX 5080) with 8 players, 50 constructs and 20k debris cubes. Chunk remesh
+off the main thread. Present mode: `AutoNoVsync` by default (toggle). No per-frame allocations in hot
+paths.

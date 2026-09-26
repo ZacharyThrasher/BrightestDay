@@ -1,0 +1,12 @@
+[package]
+name = "bd_sim"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+bd_core.workspace = true
+bd_voxel.workspace = true
+glam.workspace = true
+serde.workspace = true
+

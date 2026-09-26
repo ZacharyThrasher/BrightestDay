@@ -1,0 +1,40 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/bd_core",
+    "crates/bd_voxel",
+    "crates/bd_sim",
+    "crates/bd_lexicon",
+    "crates/bd_net",
+    "crates/bd_game",
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+bd_core = { path = "crates/bd_core" }
+bd_voxel = { path = "crates/bd_voxel" }
+bd_sim = { path = "crates/bd_sim" }
+bd_lexicon = { path = "crates/bd_lexicon" }
+bd_net = { path = "crates/bd_net" }
+glam = { version = "0.30", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }
+ron = "0.10"
+rand = "0.9"
+rand_pcg = "0.9"
+noise = "0.9"
+
+# Fast iteration in dev while keeping the game playable (Bevy recommends this).
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

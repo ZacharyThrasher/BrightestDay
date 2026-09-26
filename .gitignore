@@ -1,0 +1,5 @@
+/target
+/tools/lexicon_build/cache/
+*.pyc
+__pycache__/
+
