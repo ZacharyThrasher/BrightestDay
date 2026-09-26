@@ -99,6 +99,11 @@ Everything below is committed and green unless noted.
 - DOUBLE JUMP: one air jump (restored on land / tether attach / being hit), keeps momentum with a small
   wish-direction redirect but NEVER adds horizontal speed; never fires from held-jump bhop; hard-light
   step burst; bots use it for recovery.
+- OATH SECTIONS + VOICE: each authored line of oaths.ron is a section; client rotates sections,
+  OathBegin{section} (sim looks up length from its own table). Voice: hold V in the overlay, or just
+  yell your oath via push-to-talk (>=0.7 similarity -> recital, checked before casting); voice never
+  gets the speed bonus. FIXES a bug: sim OathTable parser failed on the new string-keyed oaths.ron
+  and silently fell back to 110 chars.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
