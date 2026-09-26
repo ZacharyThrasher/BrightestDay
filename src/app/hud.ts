@@ -23,9 +23,10 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', parent?: HT
 function setText(e: HTMLElement, t: string) { if (e.textContent !== t) e.textContent = t; }
 function setStyle(e: HTMLElement, k: string, v: string) { if ((e.style as any)[k] !== v) (e.style as any)[k] = v; }
 
-export const SCENE_KEYS = ['duel', 'playground', 'sandbox', 'flat'] as const; // PvP focus: the duel first; PvE scenes stay in code for tests/eval only
+export const SCENE_KEYS = ['duel', 'city', 'playground', 'sandbox', 'flat'] as const; // PvP focus: the duel first; PvE scenes stay in code for tests/eval only
 
 const OBJECTIVES: Record<string, string> = {
+  city: 'Big city duel map — skyscrapers to swing from, rooftops to hop, a highway, sky bridges and a park in the middle. Your rival starts at the far end of the boulevard.',
   duel: '1v1 duel arena — practise on the dummy at the far spawn. Online matches and AI rivals coming.',
   playground: 'Free roam — ring run through the city, cross the canyon (east), climb the tower (west), turret outpost & drone field (south).',
   arena: 'Open arena — try anything.',

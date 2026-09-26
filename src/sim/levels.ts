@@ -1,7 +1,7 @@
 import { Vector3, Quaternion } from 'three';
 import type { World } from './world.js';
 
-export const SCENES = ['duel', 'arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'playground', 'flat', 'sandbox', 'race', 'horde'] as const;
+export const SCENES = ['duel', 'city', 'arena', 'gap', 'tower', 'barrage', 'falling', 'boulder', 'drones', 'playground', 'flat', 'sandbox', 'race', 'horde'] as const;
 export type SceneName = (typeof SCENES)[number];
 
 function rng(seed: number) {
@@ -32,6 +32,9 @@ export function buildScene(w: World, name: SceneName): SceneInfo {
   switch (name) {
     case 'duel':
       buildDuelArena(w, info);
+      break;
+    case 'city':
+      buildCity(w, info);
       break;
     case 'flat':
       ground(w);
@@ -316,4 +319,118 @@ function buildDuelArena(w: World, info: SceneInfo) {
   info.aims.wall = new Vector3(0, 11, 4);
   // practice target where the rival would stand (replaced by a real opponent in matches)
   w.addEntity('dummy', new Vector3(0, 1.2, -36), { hostile: false, label: 'rival (practice dummy)' });
+}
+
+/**
+ * Big city duel map (~500 m square), built for fights: wide streets (≥ 28 m), a huge open central
+ * park (~170 m square, only low cover, trees and a monument) ringed by the tallest towers (tether
+ * anchors all around the brawl), plazas, a wide central boulevard, an elevated highway, sky bridges,
+ * low-rise edges with rooftop gaps, and a tall perimeter. Point-symmetric (every building has a twin
+ * at (-x, -z)) so neither spawn is favoured. Spawns at z = ±190 on the boulevard, facing each other.
+ */
+function buildCity(w: World, info: SceneInfo) {
+  const r = rng(20260926);
+  ground(w, 1600);
+  const N = 4; // lots from -N..N on each axis
+  const LOT = 56; // lot pitch: footprint ≤ 28 m leaves ≥ 28 m streets
+  const HALF = (N + 0.5) * LOT; // 252
+  const col = () => PALETTE[Math.floor(r() * PALETTE.length)];
+  const box = (x: number, y: number, z: number, sx: number, sy: number, sz: number, c: number, kind: 'building' | 'wall' | 'rock' = 'building') => {
+    w.addBox(new Vector3(x, y, z), new Vector3(sx, sy, sz), c, kind);
+    if (x !== 0 || z !== 0) w.addBox(new Vector3(-x, y, -z), new Vector3(sx, sy, sz), c, kind); // point-symmetric twin
+  };
+  const cyl = (x: number, y: number, z: number, rad: number, h: number, c: number) => {
+    w.addCylinder(new Vector3(x, y, z), rad, h, c, 'rock');
+    if (x !== 0 || z !== 0) w.addCylinder(new Vector3(-x, y, -z), rad, h, c, 'rock');
+  };
+  const wedge = (x: number, y: number, z: number, sx: number, sy: number, sz: number, yaw: number, c = 0xe4c28f) => {
+    w.addWedge(new Vector3(x, y, z), new Vector3(sx, sy, sz), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw), c);
+    w.addWedge(new Vector3(-x, y, -z), new Vector3(sx, sy, sz), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw + Math.PI), c);
+  };
+  // perimeter (70 m) — the city's edge
+  const wallC = 0xd9d2c0;
+  box(0, 35, -HALF - 6, 2 * HALF + 16, 70, 4, wallC, 'wall');
+  box(-HALF - 6, 35, 0, 4, 70, 2 * HALF + 16, wallC, 'wall');
+
+  const towers: { x: number; z: number; h: number; w: number; d: number }[] = [];
+  for (let gx = -N; gx <= N; gx++) {
+    for (let gz = -N; gz <= N; gz++) {
+      if (gz > 0 || (gz === 0 && gx > 0)) continue; // the twin handles it
+      const cx = gx * LOT, cz = gz * LOT;
+      const ring = Math.max(Math.abs(gx), Math.abs(gz));
+      if (ring <= 1) continue; // central park (built once below)
+      if (gx === 0) continue; // central boulevard
+      if (Math.abs(gx) === 3 && Math.abs(gz) === 3) { buildPlaza(cx, cz); continue; }
+      if (ring === N && r() < 0.15) continue; // an empty lot now and then at the edge
+      // tallest towers ring the park; mid-rise beyond; low-rise at the edges
+      const base = ring === 2 ? 70 + r() * 90 : ring === 3 ? 26 + r() * 36 : 8 + r() * 16;
+      const n = ring === N && r() < 0.6 ? 2 : 1; // low-rise lots split in two (rooftop gaps to hop)
+      for (let i = 0; i < n; i++) {
+        const bw = n === 2 ? 11 + r() * 2 : 18 + r() * 10;
+        const bd = 18 + r() * 10;
+        const ox = n === 2 ? (i === 0 ? -7.5 : 7.5) : (r() - 0.5) * 2;
+        const h = n === 2 ? base * (0.7 + r() * 0.5) : base;
+        const x = cx + ox, z = cz + (r() - 0.5) * 2;
+        const c = col();
+        box(x, h / 2, z, bw, h, bd, c);
+        if (h > 50) {
+          let y = h, tw = bw, td = bd;
+          for (let t = 0; t < 2 + Math.floor(r() * 2); t++) {
+            tw *= 0.72; td *= 0.72;
+            const th = 10 + r() * 18;
+            box(x, y + th / 2, z, tw, th, td, t % 2 ? c : col());
+            y += th;
+          }
+          if (r() < 0.6) cyl(x, y + 8, z, 0.5, 16, 0xc9d6e8); // antenna
+          towers.push({ x, z, h, w: bw, d: bd });
+        } else if (r() < 0.35) {
+          box(x + bw * 0.2, h + 2, z - bd * 0.2, 4, 4, 4, 0xa9c1d9); // rooftop box (cover)
+        }
+      }
+    }
+  }
+  // sky bridges between neighbouring towers across a street
+  for (let i = 0; i < towers.length; i++) {
+    for (let j = i + 1; j < towers.length; j++) {
+      const a = towers[i], b = towers[j];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const y = Math.min(a.h, b.h) * (0.45 + r() * 0.3);
+      if (Math.abs(dz) < 6 && Math.abs(dx) > 40 && Math.abs(dx) < 70 && r() < 0.6) {
+        box((a.x + b.x) / 2, y, (a.z + b.z) / 2, Math.abs(dx) - (a.w + b.w) / 2 + 1, 1.2, 5, 0xc9d6e8);
+      } else if (Math.abs(dx) < 6 && Math.abs(dz) > 40 && Math.abs(dz) < 70 && r() < 0.6) {
+        box((a.x + b.x) / 2, y, (a.z + b.z) / 2, 5, 1.2, Math.abs(dz) - (a.d + b.d) / 2 + 1, 0xc9d6e8);
+      }
+    }
+  }
+  // elevated highway along the street between the tower ring and the mid-rise (twin mirrors it), on pillars, with an on-ramp
+  const hz = -LOT * 2.5, hy = 12;
+  box(-HALF / 2, hy, hz, HALF - 4, 1.4, 14, 0xb8c7a8, 'rock');
+  for (let x = -HALF + 20; x < -8; x += 34) cyl(x, hy / 2, hz, 1.6, hy, 0xd9d2c0);
+  wedge(-HALF + 34, hy / 2, hz + 14, 12, hy, 24, 0);
+
+  // central park: ~170 m of open ground — low walls, tree clumps, a monument; nothing tall except
+  // the monument, so machines and dragons have room and the towers around it are the anchors
+  const P = 1.5 * LOT; // park half size (84)
+  for (const [x, z] of [[-40, -30], [30, -45], [-55, 10], [50, 5], [-20, -60], [10, -25]] as [number, number][]) {
+    cyl(x, 3, z, 0.6, 6, 0xb3a58f);
+    box(x, 7.5, z, 6, 3, 6, 0xb8c7a8);
+  }
+  for (const [x, z, sx, sz] of [[0, -18, 16, 1], [-30, 0, 1, 12], [35, -30, 10, 1], [-60, -50, 1, 14]] as [number, number, number, number][]) box(x, 0.8, z, sx, 1.6, sz, PALETTE[1], 'wall');
+  wedge(-25, 1.5, -40, 8, 3, 10, Math.PI / 2);
+  w.addCylinder(new Vector3(0, 7, 0), 2.4, 14, PALETTE[6], 'rock'); // monument (tether anchor in the middle)
+  void P;
+  // plazas: skate ramps + a stepped fountain block
+  function buildPlaza(cx: number, cz: number) {
+    wedge(cx - 10, 1.5, cz, 8, 3, 10, 0);
+    wedge(cx + 10, 2.5, cz + 8, 8, 5, 12, Math.PI / 2);
+    box(cx, 1, cz - 10, 12, 2, 12, PALETTE[3]);
+    box(cx, 2.5, cz - 10, 6, 1, 6, PALETTE[6]);
+  }
+
+  info.spawn.set(0, 1, 190);
+  info.yaw = 0; // facing -z down the boulevard, toward the park
+  info.aims.spawn_b = new Vector3(0, 1, -190);
+  info.aims.ground_ahead = new Vector3(0, 0, 178);
+  info.aims.wall = new Vector3(40, 10, 150);
+  w.addEntity('dummy', new Vector3(0, 1.2, -190), { hostile: false, label: 'rival (practice dummy)' });
 }
