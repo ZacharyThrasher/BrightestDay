@@ -104,6 +104,14 @@ transferred) so small hits stay small and big hits are *huge*:
 | X | dismiss your constructs |
 | Tab | scoreboard |
 
+## Movement tutorial
+Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
+tether swing, dual tether + reel, boost + release fling — then the **Peak Run** that chains them all.
+Each station shows a translucent **ghost** running the ideal line first (recorded from the real
+movement code driven by a scripted bot, so every station is provably doable), a 3–5 word hint, and
+(tutorial only) a speedometer. Peak Run has bronze/silver/gold times based on the bot's time and
+remembers your best. Minimal text; the ghost teaches by showing.
+
 ## Tech architecture
 Cargo workspace in `game/`:
 

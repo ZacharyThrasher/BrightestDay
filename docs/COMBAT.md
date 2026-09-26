@@ -188,8 +188,10 @@ body-blocks projectiles, intercepts attackers), Playful (bouncy erratic pathing,
 random targets), Lazy (slow, sits down, heavy roadblock), Chaotic (attacks anyone but its owner,
 including constructs), Sneaky (flanks from out of view, dim glow). Abstract nouns alone ("rage",
 "sadness") make a **spirit**: a flying wisp creature carrying the word's temperament + element.
-Crude/ambiguous words resolve to their literal physical sense ("horny" = horned) or are ignored — the
-closed mechanic set means the ring can only ever express what we designed.
+Profanity is allowed and useful (intensifiers: "fucking huge hammer"; tone: "pissed off shark" →
+Aggressive); crude words resolve through their physical sense like any word. Only slurs/hate speech are
+blocked (in phrases and player names). Ambiguous words prefer the literal physical sense ("horny" =
+horned). The closed mechanic set means the ring can only ever express what we designed.
 
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m

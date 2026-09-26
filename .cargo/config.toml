@@ -1,0 +1,8 @@
+# Workspace build settings.
+[env]
+# The `cmake` crate omits optimisation flags under the Visual Studio generator; whisper.cpp (bd_voice)
+# is ~7x slower without these.
+CMAKE_C_FLAGS_RELEASE = "/MD /O2 /Ob2 /DNDEBUG"
+CMAKE_CXX_FLAGS_RELEASE = "/MD /O2 /Ob2 /DNDEBUG /EHsc"
+CMAKE_C_FLAGS_RELWITHDEBINFO = "/MD /Zi /O2 /Ob1 /DNDEBUG"
+CMAKE_CXX_FLAGS_RELWITHDEBINFO = "/MD /Zi /O2 /Ob1 /DNDEBUG /EHsc"

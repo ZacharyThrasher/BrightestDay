@@ -3,6 +3,23 @@ name = "bd_voice"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
+description = "Experimental push-to-talk voice input for Brightest Day (local Whisper, CPU only)"
+
+[features]
+default = []
+# Real implementation: cpal mic capture + whisper.cpp (via whisper-rs) on CPU threads.
+# Needs CMake + MSVC (and optionally LLVM/libclang for bindgen). See README.md.
+# Without it the crate is a zero-dependency stub whose `VoiceInput::new` returns `Err(Unavailable)`.
+whisper = ["dep:whisper-rs", "dep:cpal", "dep:crossbeam-channel"]
 
 [dependencies]
+whisper-rs = { version = "0.16", optional = true }
+cpal = { version = "0.17", optional = true }
+crossbeam-channel = { version = "0.5", optional = true }
 
+[dev-dependencies]
+hound = "3.5"
+
+[[example]]
+name = "ptt"
+required-features = ["whisper"]
