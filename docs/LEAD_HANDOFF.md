@@ -50,6 +50,13 @@ hardening gate + property tests.
 - UI polish: stock/timed scoring on rules page + scoreboard; first-person held items too large (giant
   hammer); title occasionally missing on first frames.
 
+- **Weight pass (presentation half) — launch when the client perf engineer finishes** (they own
+  present/render/debris + bd_fx right now): DESIGN.md "Weight & power fantasy (pass 2)": tiered +
+  asymmetric hit-stop, victim hit-shake, nudge-zoom, finisher flash (comfort-gated), directional sparks,
+  scorch/crack decals, heavy-hit ducking, final-blow slow-mo, construct weight (footstep shake by
+  distance, summon events by size, held-weapon view lag/aim shove), juice.ron hot reload; wire the
+  shapes engineer's weighted timing fns into bd_sim held.rs/creature.rs + client.
+
 ## Queue (do next)
 1. When world engineer finishes: dedicated **sim perf pass** on a quiet machine (FFA soak p99 briefly
    4.3 ms reported under load; kaiju/creature work suspected).
