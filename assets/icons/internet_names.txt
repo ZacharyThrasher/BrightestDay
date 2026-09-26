@@ -1,0 +1,1233 @@
+# Brightest Day tier-A names: internet culture, memes, toys, sports, everyday objects, mythology & folklore,
+# cryptids, legendary artifacts, D&D, tech mascots. Format: name | aliases | QID or blank | hint: form + mechanics
+# (QIDs left blank rather than guessed; resolve via Wikidata label search at build time.)
+tric trac baraboom | tric trac |  | hint: Biped + Stomp, Repel; element Wind
+cocofanto elefanto | coconut elephant |  | hint: Quadruped + Stomp, Shoots; element Earth
+burbaloni luliloli | burbaloni loliloli; capybara coconut |  | hint: Quadruped + Guard, Heavy
+graipuss medussi | grape octopus |  | hint: Blob + Constrict, Swarm; element Poison
+tigrrullini watermellini | watermelon tiger |  | hint: Quadruped + Charge, Fast
+il cacto hipopotamo | cactus hippo |  | hint: Quadruped + Pierce, Charge; element Earth
+zibra zubra zibralini | zibra zubra |  | hint: Quadruped + Fast, Charge
+espressona signora | espresso lady |  | hint: Biped + Breath; element Fire
+odin din din dun | odindin dindun |  | hint: Biped + Stomp, Heavy
+bananita dolfinita | banana dolphin |  | hint: Fish + Bounce, Fast; element Water
+lasagnito pup | lasagna puppy |  | hint: Quadruped + Sticky, Charge
+coca-colino frizzelino | coca colino |  | hint: Bomb + Explodes, Fast; element Water
+taco bell campaniro | taco bell campanero |  | hint: Pillar + Repel; element Wind
+dolpalero dalfala | red sneaker dolphin |  | hint: Fish + Walks, Fast; element Water
+los tralaleritos | tralaleritos; baby tralaleros |  | hint: Fish + Walks, Swarm; element Water
+nuclearo dinossauro | nuclear dinosaur |  | hint: Kaiju + Breath, Stomp; element Atomic
+sneaknoggin | sneaker head brainrot |  | hint: Biped + Bounce, Fast
+spaghettino malfunziono | spaghetti brainrot |  | hint: Blob + Constrict, Sticky
+mozzarello confusione | mozzarella brainrot |  | hint: Blob + Sticky, Bounce
+fiorino toscano | olive tree brainrot |  | hint: Pillar + Shoots; element Earth
+pepperino pizza | pizza brainrot |  | hint: Disc + Sticky, Ricochet; element Fire
+capitano cornetto | croissant captain |  | hint: Biped + Guard
+tracotucotulu delapeladustuz | tracotucotulu |  | hint: Biped + Fast; temperament Sneaky
+garamararam | garamararamraman |  | hint: Biped + Stomp
+matteo | matteo brainrot |  | hint: Biped + Heavy, Stomp
+job job job sahur | job sahur |  | hint: Biped + Blunt, Charge; element Earth
+tob tobi tobi | tob tobi |  | hint: Biped + Bounce
+blueberrinni octopussini | blueberry octopus |  | hint: Blob + Constrict, Swarm
+svinina bombardino | pig bomber |  | hint: Bird + Flies, Shoots; element Fire
+bombini gusini | bombini goose |  | hint: Bird + Flies, Shoots; element Fire
+cavallo virtuoso | virtuoso horse |  | hint: Quadruped + Charge, Fast
+pot hotspot | hotspot brainrot |  | hint: Biped + Beam; element Electric
+chicleteira bicicleteira | chicleteira |  | hint: Vehicle + Fast, Sticky
+la grande combinasion | grande combinasion |  | hint: Kaiju + Stomp, Swarm
+los tungtungtungcitos | tungtungcitos |  | hint: Biped + Blunt, Swarm; element Earth
+ballerino lololo | ballerino |  | hint: Biped + Spin, Fast
+bulbito bandito | bulb bandit |  | hint: Biped + Beam; element Electric
+brri brri bicus dicus bombicus | bicus dicus |  | hint: Biped + Blade, Guard
+gangster footera | gangster football |  | hint: Biped + Shoots, Fast
+rhino toasterino | toaster rhino |  | hint: Quadruped + Charge, Shoots; element Fire
+frulli frulla | frulli |  | hint: Bird + Flies, Spin
+penguino cocosino | coconut penguin |  | hint: Biped + Bounce; element Ice
+salamino penguino | salami penguin |  | hint: Biped + Heavy; element Ice
+ganganzelli trulala | ganganzelli |  | hint: Biped + Spin
+cacto hipopotamo | cactopotamo |  | hint: Quadruped + Pierce, Charge; element Earth
+orangutini ananassini | pineapple orangutan |  | hint: Biped + Grab, Pierce
+tigroligre frutonni | tigroligre |  | hint: Quadruped + Charge
+pakrahmatmamat | pakrah |  | hint: Biped + Charge
+tralalita tralala | tralalita |  | hint: Fish + Walks, Fast; element Water
+soviet brainrot | soviet brainrot character |  | hint: Biped + Stomp, Heavy
+steal a brainrot | steal a brainrot npc |  | hint: Biped + Grab, Fast; temperament Sneaky
+dragon cannelloni | dragon canneloni |  | hint: Kaiju + Breath, Flies; element Fire
+los combinasionas | combinasionas |  | hint: Kaiju + Swarm, Stomp
+esok sekolah | esok sekolah brainrot |  | hint: Biped + Stomp
+ketupat kepat | ketupat |  | hint: Ball + Bounce
+secret lucky block | lucky block |  | hint: Bomb + Explodes, Swarm
+nibi the beaver | nibi; diva beaver |  | hint: Quadruped + Barrier; element Water
+biscuits the seal | biscuits seal |  | hint: Fish + Bounce; element Water
+hua hua panda | hua hua |  | hint: Quadruped + Bounce; temperament Lazy
+fiona the hippo | fiona hippo |  | hint: Quadruped + Charge, Grab; element Water
+snowball the cockatoo | dancing cockatoo |  | hint: Bird + Flies, Spin
+keyboard cat | fatso the cat |  | hint: Quadruped + Repel
+lil bub | lilbub |  | hint: Quadruped; temperament Lazy
+hamster violin | sad hamster |  | hint: Quadruped; temperament Fearful
+huh cat | huh |  | hint: Quadruped + Repel
+silly cat | goofy cat |  | hint: Quadruped + Bounce; temperament Playful
+smudge the cat | table cat; woman yelling at cat |  | hint: Quadruped + Repel
+polite cat | polite cat meme |  | hint: Quadruped + Guard
+crunchy cat | crunchy cat luna |  | hint: Quadruped; temperament Lazy
+pop cat | popcat; oatmeal cat |  | hint: Quadruped + Grab
+bingus | hairless cat bingus |  | hint: Quadruped; temperament Sneaky
+flork | flork of cows |  | hint: Biped; temperament Playful
+walter the dog | walter; monster truck dog |  | hint: Quadruped + Charge
+kermit sipping tea | but that's none of my business |  | hint: Biped; temperament Lazy
+hampter | hampter meme |  | hint: Quadruped + Swarm
+shoebill | shoebill stare; shoebill stork |  | hint: Bird + Beam; element Psychic
+pallas cat | manul; pallas's cat |  | hint: Quadruped; temperament Aggressive
+fat bear | fat bear week; bear 480 otis |  | hint: Quadruped + Heavy, Stomp
+honey badger | honey badger don't care |  | hint: Quadruped + Charge; temperament Aggressive
+goat scream | screaming goat |  | hint: Quadruped + Repel; element Wind
+dramatic chipmunk | dramatic look |  | hint: Quadruped + Beam
+grumpy frog | frog meme |  | hint: Biped + Bounce
+dat boi | here come dat boi; unicycle frog |  | hint: Vehicle + Fast, Bounce
+lenny the lobster | lobster meme |  | hint: Arachnid + Grab
+sad frog | feels frog |  | hint: Biped; element Water
+bongo cat | bongocat |  | hint: Quadruped + Repel
+ceiling cat | ceiling cat is watching |  | hint: Quadruped + DropFromSky
+lolcat | i can has cheezburger |  | hint: Quadruped; temperament Playful
+serious cat | srs cat |  | hint: Quadruped + Beam
+colonel meow | colonel meow cat |  | hint: Quadruped; temperament Aggressive
+shiba inu | shibe |  | hint: Quadruped + Charge; temperament Playful
+cat vibing | cat vibing to street music |  | hint: Quadruped; temperament Playful
+rat dance | rat dancing meme |  | hint: Quadruped + Spin
+dancing dog | vibing dog |  | hint: Quadruped + Spin
+hippo birthday | moo deng cake |  | hint: Quadruped + Charge
+peanut butter jelly time | banana dance |  | hint: Biped + Spin
+dancing hotdog | snapchat hotdog |  | hint: Biped + Spin; element Fire
+coffin dance | dancing pallbearers |  | hint: Biped + Swarm, Stomp
+goose attack | angry goose |  | hint: Bird + Charge, Grab
+mr fresh | fresh the dog |  | hint: Quadruped; temperament Playful
+el gato | el gato cat |  | hint: Quadruped; temperament Playful
+frog in a hat | hat frog |  | hint: Biped + Bounce
+seal of approval | approving seal |  | hint: Fish + Bounce; element Water
+bonk dog | go to jail dog |  | hint: Quadruped + Blunt
+sealand seal | sea lion |  | hint: Fish + Bounce; element Water
+distracted boyfriend | distracted bf |  | hint: Biped; temperament Sneaky
+galaxy brain | expanding brain |  | hint: Blob + Beam; element Psychic
+big brain | big brain time |  | hint: Blob; element Psychic
+wojak | feels guy |  | hint: Biped; temperament Lazy
+doomer | doomer wojak |  | hint: Biped; element Shadow; temperament Lazy
+npc | npc wojak; npc meme |  | hint: Biped + Swarm
+brain rot | brainrot |  | hint: Blob; temperament Chaotic
+skull emoji | 💀; skull |  | hint: Blob; element Shadow
+fire emoji | 🔥 |  | hint: Ball + Explodes; element Fire
+crying laughing emoji | 😂 |  | hint: Ball + Bounce
+poop emoji | 💩 |  | hint: Blob + Sticky; element Poison
+eggplant emoji | 🍆 |  | hint: Staff + Blunt
+thinking emoji | 🤔 |  | hint: Ball; element Psychic
+hundred emoji | 💯 |  | hint: Disc + Ricochet
+goat emoji | 🐐; the goat |  | hint: Quadruped + Charge
+clown emoji | 🤡; clown |  | hint: Biped; temperament Chaotic
+nerd emoji | 🤓; um actually |  | hint: Biped + Beam; element Psychic
+sus emoji | ඞ |  | hint: Biped + Blade; temperament Sneaky
+mlg glasses | deal with it glasses; thug life glasses |  | hint: Shield + DropFromSky
+dorito | mlg dorito |  | hint: Disc + Blade, Fast
+mountain dew | mlg dew |  | hint: Bomb + Explodes; element Poison
+hitmarker | mlg hitmarker |  | hint: Gun + Shoots, Fast
+illuminati triangle | illuminati confirmed |  | hint: Pillar + Beam; element Psychic
+companion meme cube | weighted cube |  | hint: Boulder + Heavy
+sanic | gotta go fast |  | hint: Ball + Fast, Spin
+dancing baby | oogachaka baby |  | hint: Biped + Spin
+epic sax guy | sax guy |  | hint: Gun + Repel; element Wind
+harlem shake | do the harlem shake |  | hint: Biped + Swarm; temperament Chaotic
+gangnam style | horse dance |  | hint: Quadruped + Bounce
+planking | planker |  | hint: Platform + Barrier
+dab | dabbing |  | hint: Gauntlet + Blade
+floss dance | the floss |  | hint: Biped + Spin
+fortnite default dance | default dance |  | hint: Biped + Spin
+griddy | hit the griddy |  | hint: Biped + Fast
+t-pose | t pose; assert dominance |  | hint: Biped + Repel
+slenderman | slender man; slendy |  | hint: Biped + Constrict; element Shadow; temperament Sneaky
+jeff the killer | jeff |  | hint: Biped + Blade; temperament Sneaky
+siren head | sirenhead |  | hint: Kaiju + Repel, Stomp; element Wind
+cartoon cat | cartoon cat trevor henderson |  | hint: Biped + Fast, Charge; element Shadow
+long horse | long horse trevor henderson |  | hint: Quadruped + Stomp
+backrooms entity | smiler |  | hint: Biped; element Shadow; temperament Sneaky
+huggy wuggy | huggy |  | hint: Biped + Grab, Constrict
+freddy fazbear | freddy |  | hint: Biped + Grab; temperament Sneaky
+the grimace | grimace blob |  | hint: Blob + Bounce
+larry the lobster | larry |  | hint: Arachnid + Grab
+big red button | do not press button |  | hint: Bomb + Explodes
+doomsday clock | midnight clock |  | hint: Pillar + Explodes
+nuke | nuke incoming |  | hint: Bomb + Explodes, DropFromSky; element Atomic
+emotional damage | emotional damage meme |  | hint: Bomb + Explodes; element Psychic
+jet2 holiday | nothing beats a jet2 holiday |  | hint: Vehicle + Flies, Piloted
+performative male | matcha man |  | hint: Biped; temperament Lazy
+matcha latte | matcha |  | hint: Bomb + Explodes; element Poison
+clock strikes 12 | midnight arrives |  | hint: Pillar + Repel
+white rabbit pointing at a clock | late rabbit |  | hint: Quadruped + Fast
+don't tap the glass | tap the glass |  | hint: Wall + Barrier; element Water
+grow a garden | grow a garden seed |  | hint: Pillar + Grow; element Earth
+happy ghast | ghast balloon |  | hint: Blob + Flies, Piloted
+steve's lava chicken | lava chicken |  | hint: Bird + Explodes; element Fire
+lirili larila elephant | larila |  | hint: Quadruped + Stomp
+ai slop | slop |  | hint: Blob + Sticky; element Poison
+big arch | big arch burger |  | hint: Boulder + Heavy
+gugu gaga penguin | gugu gaga |  | hint: Biped + Bounce; element Ice
+kitkat heist | chocolate heist |  | hint: Bomb; temperament Sneaky
+saxophone gets louder | louder sax |  | hint: Gun + Repel; element Wind
+flying cat | falling cat meme |  | hint: Bird + Flies, SlowFall
+funko pop | funko |  | hint: Biped + Swarm
+beanie baby | beanie babies |  | hint: Blob + Swarm; temperament Lazy
+cabbage patch kid | cabbage patch doll |  | hint: Biped; temperament Playful
+troll doll | good luck troll |  | hint: Biped; temperament Playful
+polly pocket | polly |  | hint: Cage + Trap
+my little pony toy | pony figure |  | hint: Quadruped + Bounce
+g.i. joe | action man |  | hint: Biped + Shoots
+army men | plastic army men; green army men |  | hint: Biped + Swarm, Shoots
+toy soldier | tin soldier |  | hint: Biped + Pierce
+jack-o-lantern | jack o lantern |  | hint: Bomb + Explodes; element Fire
+rocking horse | hobby horse |  | hint: Quadruped + Bounce, Piloted
+radio flyer wagon | red wagon |  | hint: Vehicle + Fast
+tonka truck | toy dump truck |  | hint: Vehicle + Heavy, Charge
+remote control car | rc car |  | hint: Vehicle + Fast, Homing
+toy drone | quadcopter toy |  | hint: Bird + Flies; features Rotor
+kite | stunt kite |  | hint: Parachute + Glide
+frisbee | flying disc |  | hint: Disc + Ricochet
+boomerang toy | plastic boomerang |  | hint: Disc + Returning
+spinning top | top |  | hint: Disc + Spin
+dreidel | dreidl |  | hint: Disc + Spin
+marbles | marble; bag of marbles |  | hint: Ball + Swarm, Ricochet
+jacks | jacks game |  | hint: Ball + Swarm, Pierce
+kendama | kendama toy |  | hint: Whip + Returning
+diabolo | chinese yoyo |  | hint: Disc + Spin, Pull
+cup and ball | bilboquet |  | hint: Whip + Returning
+bop it | bop-it |  | hint: Hammer + Blunt, Bounce
+simon game | simon says toy |  | hint: Disc + Beam
+etch a sketch | etch-a-sketch |  | hint: Shield + Guard
+lite brite | lite-brite |  | hint: Wall + Beam
+view-master | view master |  | hint: Gun; element Psychic
+magna-tiles | magnetic tiles |  | hint: Wall + Barrier
+k'nex | knex |  | hint: Wall + Barrier
+lincoln logs | toy logs |  | hint: Wall + Barrier; element Earth
+wooden blocks | alphabet blocks; abc blocks |  | hint: Boulder + Swarm
+building blocks | toy blocks |  | hint: Wall + Barrier
+mega bloks | megablocks |  | hint: Wall + Barrier
+meccano | erector set |  | hint: Wall; features Gears
+play-doh | playdough; play doh |  | hint: Blob + Sticky
+slime toy | gak |  | hint: Blob + Sticky
+kinetic sand | moon sand |  | hint: Wall; element Earth
+silly putty | putty egg |  | hint: Ball + Bounce, Sticky
+magic sand | aqua sand |  | hint: Blob; element Water
+stress toy | squeeze toy |  | hint: Ball + Bounce
+squishmallow | squishmallows |  | hint: Blob + Bounce; temperament Lazy
+jellycat | jellycat plush |  | hint: Blob + Bounce
+build-a-bear | build a bear |  | hint: Biped + Guard
+care bear | care bears |  | hint: Biped + Beam
+sylvanian families | calico critters |  | hint: Biped + Swarm
+shopkins | shopkin |  | hint: Ball + Swarm
+lol surprise | lol surprise doll |  | hint: Bomb + Explodes
+hatchimals | hatchimal |  | hint: Bird + Explodes
+bakugan | bakugan ball |  | hint: Ball + Launch, Grow
+tech deck | fingerboard |  | hint: Vehicle + Fast
+yo-kai watch | yokai watch |  | hint: Gauntlet; element Psychic
+trading card | pokemon card; tcg card |  | hint: Disc + Swarm, Fast
+pog | pogs; slammer |  | hint: Disc + Blunt, Swarm
+tazos | tazo |  | hint: Disc + Swarm
+crazy bones | gogo's crazy bones |  | hint: Ball + Swarm
+water beads | orbeez |  | hint: Ball + Swarm, Bounce; element Water
+bubble wand | bubbles; bubble blower |  | hint: Staff + Shoots; element Water
+bubble machine | bubble gun |  | hint: Gun + Shoots, Bounce; element Water
+confetti cannon | confetti popper |  | hint: Cannon + Repel
+party popper | party cracker |  | hint: Gun + Explodes
+kazoo | kazoo meme |  | hint: Gun + Repel; element Wind
+slide whistle | swanee whistle |  | hint: Gun + Repel; element Wind
+jumping bean | mexican jumping bean |  | hint: Ball + Bounce
+spring toy | coil spring |  | hint: Trampoline + Bounce
+jack in the box clown | pop goes the weasel |  | hint: Bomb + Launch
+wind-up toy | wind up mouse; chattering teeth |  | hint: Biped + Grab, Fast
+sock monkey | sock puppet |  | hint: Biped; temperament Playful
+hand puppet | puppet |  | hint: Gauntlet + Grab
+marionette | string puppet |  | hint: Biped + Link
+nutcracker doll | nutcracker |  | hint: Biped + Grab, Blunt
+matryoshka | russian doll; nesting doll |  | hint: Biped + Swarm, Shrink
+porcelain doll | creepy doll |  | hint: Biped; element Shadow; temperament Sneaky
+voodoo doll | poppet |  | hint: Biped + Link; element Shadow
+barbie dreamhouse | dreamhouse |  | hint: Wall + Barrier
+toy train | model train |  | hint: Vehicle + Fast; features Wheels
+toy robot | tin robot |  | hint: Biped + Shoots; features Gears
+robosapien | robo sapien |  | hint: Biped + Stomp
+tickle toy | giggle toy |  | hint: Biped; temperament Playful
+glow stick | glowstick |  | hint: Staff
+light saber toy | toy lightsaber |  | hint: Sword + Blade
+foam sword | pool sword |  | hint: Sword + Bounce
+foam finger | we're number one finger |  | hint: Gauntlet + Blunt
+spud gun | potato gun; potato cannon |  | hint: Cannon + Shoots
+cap gun | toy pistol |  | hint: Gun + Shoots
+slingshot | catapult toy |  | hint: Bow + Shoots
+bb gun | airsoft gun |  | hint: Gun + Shoots, Fast
+paintball gun | paintball marker |  | hint: Gun + Shoots, Sticky
+laser tag gun | laser tag |  | hint: Gun + Beam
+water pistol | squirt pistol |  | hint: Gun + Shoots; element Water
+snow globe | snowglobe |  | hint: Dome + Barrier; element Ice
+music box | ballerina music box |  | hint: Bomb; element Psychic
+kaleidoscope | kaleidoscope toy |  | hint: Staff; element Psychic
+magic wand toy | toy wand |  | hint: Staff + Shoots
+gyroscope | gyro |  | hint: Disc + Spin
+newton's cradle | newtons cradle |  | hint: Wall + Bounce
+lava lamp | lava lamp toy |  | hint: Pillar; element Fire
+plasma ball | plasma globe |  | hint: Ball + Attract; element Electric
+fuzzy dice | dice pair |  | hint: Ball + Bounce
+rubber band ball | band ball |  | hint: Ball + Bounce, Heavy
+yo-yo ball | yoyo ball |  | hint: Ball + Returning
+paddle ball | paddleball |  | hint: Shield + Bounce, Returning
+stilts | pogo stilts |  | hint: Biped + Walks
+hula hoop | hoop |  | hint: Disc + Spin
+jump rope | skipping rope |  | hint: Whip + Pull
+tug of war rope | tug rope |  | hint: Whip + Link, Pull
+sled | toboggan |  | hint: Vehicle + Fast; element Ice
+skateboard | skate deck |  | hint: Vehicle + Fast, Piloted
+scooter | kick scooter |  | hint: Vehicle + Fast, Piloted
+roller skates | rollerblades |  | hint: Wings + Fast
+heelys | wheelies |  | hint: Wings + Fast
+bumper car | dodgem |  | hint: Vehicle + Bounce, Piloted
+teacup ride | spinning teacups |  | hint: Vehicle + Spin, Piloted
+carousel horse | merry go round |  | hint: Pillar + Spin
+ferris wheel | big wheel |  | hint: Pillar + Spin
+roller coaster car | coaster car |  | hint: Vehicle + Fast, Piloted
+zipline | zip line |  | hint: Whip + Link
+trampoline park | big trampoline |  | hint: Trampoline + Bounce
+ball pit | ball pool |  | hint: Cage + Trap, Swarm
+water slide | slip n slide |  | hint: Ramp + Launch; element Water
+see-saw | seesaw; teeter totter |  | hint: Platform + Launch
+swing set | playground swing |  | hint: Whip + Launch
+monkey bars | jungle gym |  | hint: Cage + Trap
+sandbox | sandpit |  | hint: Platform; element Earth
+baseball | baseball ball |  | hint: Ball + Fast
+softball | softball ball |  | hint: Ball + Fast
+tennis ball | tennis balls |  | hint: Ball + Bounce, Fast
+tennis racket | tennis racquet |  | hint: Shield + Guard, Bounce
+badminton racket | shuttlecock |  | hint: Shield + Guard
+ping pong paddle | table tennis bat |  | hint: Shield + Guard, Ricochet
+ping pong ball | table tennis ball |  | hint: Ball + Bounce, Ricochet
+volleyball | wilson; volley ball |  | hint: Ball + Bounce
+beach ball | inflatable ball |  | hint: Ball + Bounce, SlowFall
+american football | pigskin |  | hint: Ball + Fast, Homing
+rugby ball | rugby |  | hint: Ball + Charge
+dodgeball | dodge ball |  | hint: Ball + Bounce, Fast
+kickball | playground ball |  | hint: Ball + Bounce
+medicine ball | med ball |  | hint: Ball + Heavy
+kettlebell | kettle bell |  | hint: Hammer + Heavy, Blunt
+dumbbell | dumbell |  | hint: Hammer + Heavy, Blunt
+barbell | weight bar |  | hint: Staff + Heavy
+weight plate | plate |  | hint: Disc + Heavy
+yoga ball | exercise ball |  | hint: Ball + Bounce
+punching bag | heavy bag |  | hint: Pillar + Barrier
+lacrosse stick | lacrosse |  | hint: Staff + Shoots, Pull
+field hockey stick | hockey sticks |  | hint: Staff + Blunt
+hurling stick | hurley |  | hint: Staff + Blunt
+polo mallet | mallet |  | hint: Hammer + Blunt
+croquet mallet | croquet |  | hint: Hammer + Blunt
+cricket ball | leather ball |  | hint: Ball + Fast, Heavy
+hockey puck | puck |  | hint: Disc + Ricochet, Fast
+curling broom | curling brush |  | hint: Staff + Repel; element Ice
+ski poles | ski pole |  | hint: Spear + Pierce; element Ice
+skis | ski |  | hint: Vehicle + Fast; element Ice
+snowboard | snow board |  | hint: Vehicle + Fast; element Ice
+surfboard | surf board |  | hint: Vehicle + Fast; element Water
+bodyboard | boogie board |  | hint: Vehicle + Fast; element Water
+kayak paddle | paddle |  | hint: Staff + Blunt; element Water
+canoe | kayak |  | hint: Vehicle + Fast, Piloted; element Water
+javelin throw | olympic javelin |  | hint: Spear + Pierce
+discus throw | olympic discus |  | hint: Disc + Fast
+hammer throw | olympic hammer |  | hint: Whip + Heavy, Blunt
+pole vault | vaulting pole |  | hint: Staff + Launch
+hurdle | hurdles |  | hint: Wall + Barrier
+starting pistol | starter gun |  | hint: Gun + Repel
+relay baton | baton |  | hint: Staff + Fast
+boxing ring | ring ropes |  | hint: Cage + Trap, Bounce
+wrestling ring | wwe ring |  | hint: Cage + Trap, Bounce
+steel chair | folding chair |  | hint: Hammer + Blunt, Heavy
+championship belt | title belt |  | hint: Gauntlet + Guard
+fencing foil | foil; epee; sabre |  | hint: Sword + Pierce, Fast
+archery bow | recurve bow |  | hint: Bow + Shoots
+dartboard | dart board |  | hint: Shield + Guard
+darts | dart |  | hint: Spear + Pierce, Swarm
+pool cue | cue stick |  | hint: Spear + Pierce
+billiard ball | pool ball |  | hint: Ball + Ricochet
+cue ball | white ball |  | hint: Ball + Ricochet, Fast
+bowling alley | lane |  | hint: Ramp + Launch
+golf ball | golf balls |  | hint: Ball + Fast, Ricochet
+golf cart | caddy cart |  | hint: Vehicle + Piloted
+golf flag | pin flag |  | hint: Pillar + Barrier
+tee | golf tee |  | hint: Pillar + Launch
+horseshoe | horseshoes |  | hint: Disc + Ricochet
+cornhole bag | bean bag |  | hint: Ball + Sticky
+frisbee golf disc | disc golf |  | hint: Disc + Ricochet
+skipping stone | flat stone |  | hint: Disc + Ricochet, Bounce
+water polo ball | polo ball |  | hint: Ball + Bounce; element Water
+basketball hoop | basket |  | hint: Cage + Trap
+soccer goal | football goal; goal net |  | hint: Cage + Trap
+hockey goal | hockey net |  | hint: Cage + Trap
+scoreboard | jumbotron |  | hint: Wall + Beam
+referee whistle | whistle |  | hint: Gun + Repel; element Wind
+stopwatch | stop watch |  | hint: Disc; element Psychic
+trophy | golden trophy |  | hint: Hammer + Blunt
+medal | gold medal |  | hint: Disc + Ricochet
+stanley cup | hockey cup |  | hint: Hammer + Blunt, Heavy
+bike | bicycle |  | hint: Vehicle + Fast, Piloted
+unicycle | one wheel |  | hint: Vehicle + Fast, Piloted
+tandem bike | tandem bicycle |  | hint: Vehicle + Fast, Piloted
+bmx | bmx bike |  | hint: Vehicle + Fast, Bounce
+tricycle | trike |  | hint: Vehicle + Piloted
+mascot costume | sports mascot |  | hint: Biped; temperament Playful
+foam hand | giant foam hand |  | hint: Gauntlet + Blunt
+hot dog cannon | hotdog cannon |  | hint: Cannon + Shoots
+kiss cam | stadium kiss cam |  | hint: Wall + Beam
+wave | stadium wave |  | hint: Wall + Repel
+rubber boot | wellington boot |  | hint: Hammer + Blunt
+boot | stomping boot |  | hint: Hammer + Stomp
+umbrella hat | hat umbrella |  | hint: Parachute + SlowFall
+selfie stick | selfie pole |  | hint: Staff + Blunt
+fanny pack | bum bag |  | hint: Cage + Trap
+backpack | school bag |  | hint: Jetpack + Thrust
+suitcase | luggage |  | hint: Boulder + Heavy
+rolling suitcase | trolley bag |  | hint: Vehicle + Charge
+briefcase | attache case |  | hint: Shield + Guard
+lunchbox | lunch box |  | hint: Shield + Guard
+thermos | flask |  | hint: Bomb + Explodes; element Fire
+coffee mug | mug |  | hint: Hammer + Blunt; element Fire
+teapot | tea pot |  | hint: Cannon + Breath; element Water
+kettle | whistling kettle |  | hint: Cannon + Breath; element Fire
+blender | kitchen blender |  | hint: Blob + Spin, Blade
+food processor | processor |  | hint: Blob + Spin, Blade
+microwave | microwave oven |  | hint: Wall + Beam; element Fire
+oven mitt | oven glove |  | hint: Gauntlet + Guard; element Fire
+rolling pin | baking pin |  | hint: Hammer + Blunt
+spatula | fish slice |  | hint: Shield + Launch
+whisk | egg whisk |  | hint: Hammer + Spin
+ladle | soup ladle |  | hint: Hammer + Blunt; element Water
+pizza cutter | pizza wheel |  | hint: Disc + Blade, Spin
+cheese grater | grater |  | hint: Shield + Blade
+colander | strainer |  | hint: Shield + Guard
+spork | spoon fork |  | hint: Spear + Pierce
+chopsticks | chop sticks |  | hint: Spear + Pierce, Swarm
+fork | dinner fork |  | hint: Spear + Pierce
+spoon | big spoon |  | hint: Hammer + Blunt
+butter knife | table knife |  | hint: Sword + Blade
+cleaver | meat cleaver |  | hint: Axe + Blade
+wok | wok pan |  | hint: Shield + Guard; element Fire
+cast iron skillet | cast iron |  | hint: Hammer + Blunt, Heavy
+baguette | french bread |  | hint: Sword + Blunt
+loaf of bread | bread loaf |  | hint: Boulder + Bounce
+wheel of cheese | cheese wheel |  | hint: Boulder + Heavy
+watermelon | melon |  | hint: Ball + Explodes; element Water
+pineapple | pineapple grenade |  | hint: Bomb + Explodes
+coconut | coconuts |  | hint: Ball + DropFromSky, Blunt
+cabbage | my cabbages |  | hint: Ball + Bounce
+potato | spud |  | hint: Ball + Blunt
+onion | onion layers |  | hint: Ball; element Poison
+rotisserie chicken | roast chicken |  | hint: Ball; element Fire
+turkey | thanksgiving turkey |  | hint: Ball + Heavy
+fish slap | wet fish; slapping fish |  | hint: Hammer + Blunt; element Water
+cream pie | pie to the face |  | hint: Ball + Sticky
+custard pie | pie |  | hint: Ball + Sticky
+cake | birthday cake |  | hint: Bomb + Explodes, Sticky
+wedding cake | tiered cake |  | hint: Pillar + Sticky
+donut | doughnut |  | hint: Disc + Ricochet
+bagel | bagels |  | hint: Disc + Ricochet
+pretzel | soft pretzel |  | hint: Whip + Constrict
+spaghetti | pasta |  | hint: Whip + Constrict, Sticky
+meatball | meatballs |  | hint: Ball + Swarm
+taco | tacos |  | hint: Cage + Trap
+burrito | burrito wrap |  | hint: Cage + Constrict
+hot dog | hotdog |  | hint: Staff + Blunt
+hamburger | burger |  | hint: Boulder + Heavy
+pizza slice | pizza |  | hint: Disc + Sticky; element Fire
+french fries | fries |  | hint: Spear + Swarm
+popcorn | pop corn |  | hint: Ball + Swarm, Bounce; element Fire
+gumball machine | gumball |  | hint: Wall + Shoots
+bubble gum | gum |  | hint: Ball + Sticky
+jawbreaker | gobstopper |  | hint: Ball + Heavy
+lollipop | lolly |  | hint: Hammer + Sticky
+candy cane | candycane |  | hint: Staff + Pull
+mentos and coke | diet coke and mentos |  | hint: Bomb + Explodes, Thrust; element Water
+soda can | pop can |  | hint: Bomb + Explodes, Fast; element Water
+energy drink | monster energy |  | hint: Jetpack + Thrust, Fast
+milk carton | milk |  | hint: Bomb + Explodes; element Water
+ketchup bottle | ketchup |  | hint: Gun + Beam, Sticky
+mustard bottle | mustard |  | hint: Gun + Beam, Sticky
+hot sauce | sriracha |  | hint: Gun + Breath; element Fire
+salt shaker | salt |  | hint: Gun + Shoots, Swarm
+pepper grinder | pepper mill |  | hint: Staff + Spin
+fire hydrant | hydrant |  | hint: Pillar + Beam; element Water
+mailbox | post box |  | hint: Pillar + Grab
+trash can | garbage can; bin |  | hint: Cage + Trap
+dumpster | skip bin |  | hint: Cage + Trap, Heavy
+dumpster fire | burning dumpster |  | hint: Cage + Trap; element Fire
+porta potty | portaloo; porta john |  | hint: Cage + Trap; element Poison
+toilet | loo |  | hint: Cage + Trap; element Water
+bathtub | bath tub |  | hint: Vehicle + Piloted; element Water
+shower head | showerhead |  | hint: Gun + Beam; element Water
+hair dryer | hairdryer |  | hint: Gun + Beam, Repel; element Wind
+vacuum cleaner | hoover |  | hint: Gun + Attract; element Wind
+mop | wet mop |  | hint: Staff + Blunt; element Water
+broom | broomstick |  | hint: Staff + Flies, Piloted
+feather duster | duster |  | hint: Staff + Repel
+iron | clothes iron |  | hint: Hammer + Blunt; element Fire
+ironing board | iron board |  | hint: Shield + Guard
+washing machine | washer |  | hint: Blob + Spin; element Water
+tumble dryer | clothes dryer |  | hint: Blob + Spin; element Wind
+fridge | refrigerator |  | hint: Wall + Barrier; element Ice
+freezer | chest freezer |  | hint: Cage + Trap; element Ice
+dishwasher | dish washer |  | hint: Wall; element Water
+lawn mower | lawnmower |  | hint: Vehicle + Blade, Spin
+riding mower | ride-on mower |  | hint: Vehicle + Blade, Piloted
+leaf rake | rake |  | hint: Staff + Pull
+garden hose | hose |  | hint: Whip + Beam; element Water
+sprinkler | lawn sprinkler |  | hint: Pillar + Spin; element Water
+wheelbarrow | wheel barrow |  | hint: Vehicle + Charge
+lawn flamingo | pink flamingo |  | hint: Pillar + Swarm
+scarecrow | straw man |  | hint: Biped; temperament Fearful
+garden rake trap | step on a rake |  | hint: Ramp + Launch, Blunt
+shovel | spade |  | hint: Axe + Blunt; element Earth
+pitchfork | hay fork |  | hint: Spear + Pierce
+chainsaw | chain saw |  | hint: Sword + Blade, Spin
+power drill | drill |  | hint: Spear + Spin, Pierce
+nail gun | nailgun |  | hint: Gun + Shoots, Pierce
+staple gun | stapler |  | hint: Gun + Shoots, Sticky
+duct tape | duck tape |  | hint: Whip + Sticky, Link
+glue stick | glue |  | hint: Gun + Sticky
+hot glue gun | glue gun |  | hint: Gun + Sticky; element Fire
+wrench | spanner |  | hint: Hammer + Blunt
+monkey wrench | pipe wrench |  | hint: Hammer + Blunt, Heavy
+sledgehammer | sledge |  | hint: Hammer + Blunt, Heavy
+toolbox | tool box |  | hint: Boulder + Heavy
+ladder | step ladder |  | hint: Ramp + Launch
+tape measure | measuring tape |  | hint: Whip + Returning
+magnifying glass | magnifier |  | hint: Staff + Beam; element Fire
+flashlight | torch |  | hint: Staff + Beam
+lamp | desk lamp |  | hint: Staff + Beam
+lava lamp light | lavalamp |  | hint: Pillar; element Fire
+ceiling fan | fan |  | hint: Disc + Spin, Repel; element Wind
+box fan | electric fan |  | hint: Wall + Repel; element Wind
+space heater | heater |  | hint: Wall + Breath; element Fire
+air conditioner | aircon; ac unit |  | hint: Wall + Breath; element Ice
+alarm clock | clock |  | hint: Bomb + Repel
+grandfather clock | pendulum clock |  | hint: Pillar + Heavy
+cuckoo clock | cuckoo |  | hint: Wall + Shoots
+hourglass | sand timer |  | hint: Pillar; element Earth
+calculator | calc |  | hint: Shield + Guard
+keyboard | mechanical keyboard |  | hint: Shield + Blunt
+computer mouse | mouse |  | hint: Ball + Link
+monitor | computer screen |  | hint: Wall + Beam
+laptop | notebook computer |  | hint: Shield + Guard
+cd | compact disc |  | hint: Disc + Ricochet, Blade
+dvd | dvd logo; bouncing dvd logo |  | hint: Disc + Ricochet, Bounce
+vhs tape | vhs |  | hint: Boulder + Blunt
+cassette tape | cassette |  | hint: Disc + Link
+record | vinyl record |  | hint: Disc + Blade, Spin
+boombox | ghetto blaster |  | hint: Wall + Repel; element Wind
+jukebox | juke box |  | hint: Wall + Repel
+microphone | mic |  | hint: Staff + Repel; element Wind
+megaphone | bullhorn |  | hint: Gun + Repel; element Wind
+electric guitar | guitar |  | hint: Axe + Blunt; element Electric
+drum kit | drums |  | hint: Wall + Repel
+cymbal | crash cymbal |  | hint: Disc + Repel, Blade
+tuba | sousaphone |  | hint: Cannon + Repel; element Wind
+bagpipes | bag pipes |  | hint: Gun + Repel; element Wind
+accordion | squeezebox |  | hint: Wall + Bounce
+triangle instrument | triangle |  | hint: Disc + Repel
+cowbell | more cowbell |  | hint: Hammer + Blunt, Repel
+gong | gong bang |  | hint: Shield + Repel
+tv remote | remote control |  | hint: Gun + Beam; element Psychic
+game controller | gamepad |  | hint: Gauntlet + Blunt
+joystick | arcade stick |  | hint: Staff + Blunt
+arcade machine | arcade cabinet |  | hint: Wall + Barrier
+smartphone | phone |  | hint: Shield + Beam
+iphone | apple phone |  | hint: Shield + Beam
+airpods | earbuds |  | hint: Ball + Swarm
+tamagotchi egg | digital pet |  | hint: Blob + Grow
+flip phone | razr |  | hint: Shield + Guard
+pager | beeper |  | hint: Disc; element Electric
+satellite dish | dish |  | hint: Wall + Beam
+traffic light | stop light |  | hint: Pillar + Beam
+stop sign | stop |  | hint: Shield + Guard
+road sign | yield sign |  | hint: Shield + Guard
+speed bump | speed hump |  | hint: Ramp + Launch
+barricade | police barrier |  | hint: Wall + Barrier
+jersey barrier | concrete barrier |  | hint: Wall + Barrier, Heavy
+manhole cover | manhole |  | hint: Disc + Heavy, Ricochet
+sewer grate | storm drain |  | hint: Wall + Trap
+parking meter | meter |  | hint: Pillar + Barrier
+street lamp | lamp post |  | hint: Pillar + Beam
+phone booth | telephone box |  | hint: Cage + Trap, Portal
+bus stop | bus shelter |  | hint: Wall + Barrier
+park bench | bench |  | hint: Wall + Barrier
+picnic table | table |  | hint: Wall + Barrier
+beach umbrella | parasol |  | hint: Parachute + SlowFall
+lawn chair | deck chair |  | hint: Wall + Bounce
+bean bag chair | beanbag |  | hint: Blob + Bounce; temperament Lazy
+massage chair | recliner |  | hint: Vehicle + Piloted; temperament Lazy
+rocking chair | rocker |  | hint: Vehicle + Bounce
+hammock | hammock bed |  | hint: Trampoline + Bounce
+waterbed | water bed |  | hint: Trampoline + Bounce; element Water
+bunk bed | bunkbed |  | hint: Wall + Barrier
+pillow | pillow fight |  | hint: Hammer + Bounce
+blanket fort | pillow fort |  | hint: Dome + Barrier
+sleeping bag | sleeping sack |  | hint: Cage + Trap
+tent | camping tent |  | hint: Dome + Barrier
+campfire | bonfire |  | hint: Pillar + Breath; element Fire
+marshmallow on a stick | toasted marshmallow |  | hint: Staff + Sticky; element Fire
+fire pit | firepit |  | hint: Trampoline; element Fire
+grill | bbq; barbecue |  | hint: Wall + Breath; element Fire
+cooler | ice chest |  | hint: Boulder; element Ice
+inflatable pool | kiddie pool |  | hint: Trampoline; element Water
+pool float | flamingo float; inflatable flamingo |  | hint: Vehicle + Bounce; element Water
+inner tube | rubber ring |  | hint: Disc + Bounce; element Water
+life jacket | life vest |  | hint: Cape + SlowFall
+snorkel | snorkel mask |  | hint: Cape; element Water
+scuba tank | air tank |  | hint: Jetpack + Thrust; element Water
+fishing rod | fishing pole |  | hint: Whip + Pull
+fishing net | net |  | hint: Cage + Trap; element Water
+lasso | lariat |  | hint: Whip + Pull, Constrict
+pinwheel | windmill toy |  | hint: Disc + Spin; element Wind
+weathervane | weather vane |  | hint: Pillar + Spin; element Wind
+wind chime | chimes |  | hint: Pillar + Repel; element Wind
+birdhouse | bird house |  | hint: Cage + Swarm
+bird feeder | feeder |  | hint: Pillar + Attract
+beehive | bee hive |  | hint: Bomb + Swarm; element Poison
+wasp nest | hornet nest |  | hint: Bomb + Swarm, Explodes; element Poison
+ant farm | ant colony |  | hint: Cage + Swarm
+fish tank | aquarium |  | hint: Cage + Trap; element Water
+hamster wheel | exercise wheel |  | hint: Vehicle + Spin, Piloted
+cat tree | cat tower |  | hint: Pillar + Barrier
+laser pointer | laser pen |  | hint: Staff + Beam
+red dot | laser dot |  | hint: Staff + Beam, Homing
+catnip | nip |  | hint: Bomb + Attract
+litter box | cat litter |  | hint: Cage + Trap; element Poison
+dog bone | chew toy |  | hint: Staff + Blunt
+tennis ball launcher | ball thrower |  | hint: Staff + Shoots
+leash | dog lead |  | hint: Whip + Link, Pull
+cone of shame | dog cone |  | hint: Shield + Guard
+squeaky toy | squeaker |  | hint: Ball + Bounce
+zeus | jupiter |  | hint: Biped + Beam; element Electric
+poseidon | neptune |  | hint: Biped + Pierce; element Water
+hades | pluto |  | hint: Biped; element Shadow
+athena | minerva |  | hint: Biped + Guard
+ares | mars god |  | hint: Biped + Charge; temperament Aggressive
+apollo | apollo god |  | hint: Biped + Shoots
+artemis | diana |  | hint: Biped + Shoots, Homing
+hermes | mercury god |  | hint: Biped + Fast, Flies
+hephaestus | vulcan |  | hint: Biped + Blunt; element Fire
+dionysus | bacchus |  | hint: Biped; temperament Chaotic
+hera | juno |  | hint: Biped; element Psychic
+aphrodite | venus |  | hint: Biped + Attract
+demeter | ceres |  | hint: Biped; element Earth
+persephone | proserpina |  | hint: Biped; element Earth
+nike goddess | winged victory; victoria |  | hint: Biped + Flies
+eros | cupid |  | hint: Biped + Shoots, Flies
+atlas | titan atlas |  | hint: Kaiju + Heavy
+prometheus | fire bringer |  | hint: Biped; element Fire
+kronos | cronus; saturn titan |  | hint: Kaiju + Grab
+gaia | mother earth |  | hint: Kaiju; element Earth
+typhon | typhoeus |  | hint: Kaiju + Breath, Flies; element Fire
+echidna monster | echidna mother of monsters |  | hint: Serpent + Constrict
+charybdis | whirlpool monster |  | hint: Blob + Attract; element Water
+harpy | harpies |  | hint: Bird + Grab, Swarm
+siren | sirens |  | hint: Bird + Attract; element Water
+centaur | centaurs |  | hint: Quadruped + Shoots, Fast
+satyr | satyrs |  | hint: Biped + Bounce
+nymph | dryad |  | hint: Biped; element Earth
+naiad | water nymph |  | hint: Biped; element Water
+cyclops | cyclopes |  | hint: Biped + Stomp, Heavy
+gorgon sisters | stheno; euryale |  | hint: Biped + Beam; element Earth
+nemean lion | nemean |  | hint: Quadruped + Guard, Charge
+erymanthian boar | erymanthian |  | hint: Quadruped + Charge
+stymphalian birds | stymphalian |  | hint: Bird + Swarm, Pierce
+ceryneian hind | golden hind |  | hint: Quadruped + Fast
+cretan bull | cretan |  | hint: Quadruped + Charge
+mares of diomedes | diomedes horses |  | hint: Quadruped + Charge, Swarm
+geryon | three bodied giant |  | hint: Biped + Heavy
+ladon | hesperides dragon |  | hint: Serpent + Constrict
+talos | bronze giant |  | hint: Kaiju + Stomp, Heavy
+argus panoptes | hundred eyed giant |  | hint: Biped + Beam
+cerastes | horned serpent |  | hint: Serpent + Pierce
+python (myth) | delphic python |  | hint: Serpent + Constrict
+hippocampus | sea horse (myth) |  | hint: Fish + Charge; element Water
+hippogriff | hippogryph |  | hint: Quadruped + Flies
+empusa | empousa |  | hint: Biped; temperament Sneaky
+lamia | lamia monster |  | hint: Serpent + Constrict; temperament Sneaky
+furies | erinyes |  | hint: Bird + Swarm; element Fire
+fates | moirai |  | hint: Biped + Link
+charon | ferryman |  | hint: Vehicle + Piloted; element Shadow
+thanatos | death god |  | hint: Biped; element Shadow
+hypnos | sleep god |  | hint: Biped; element Psychic
+chronos | time god |  | hint: Biped; element Psychic
+achilles | achilles hero |  | hint: Biped + Pierce, Fast
+hercules | heracles |  | hint: Biped + Heavy, Grab
+perseus | perseus hero |  | hint: Biped + Blade
+theseus | theseus hero |  | hint: Biped + Blade
+jason and the argonauts | argo; argonaut |  | hint: Vehicle; features Sails
+spartan | spartan warrior; this is sparta |  | hint: Biped + Guard, Pierce
+hoplite | greek hoplite |  | hint: Biped + Guard, Pierce
+gladiator | roman gladiator |  | hint: Biped + Blade, Guard
+roman legionary | legionnaire |  | hint: Biped + Guard, Swarm
+trident |  |  | hint: Spear + Pierce; element Water
+caduceus | hermes staff |  | hint: Staff + Link
+thunderbolt of zeus | zeus bolt; master bolt |  | hint: Spear + Homing; element Electric
+helm of darkness | cap of invisibility |  | hint: Cape; temperament Sneaky
+golden fleece | fleece |  | hint: Cape + Guard
+labrys | double axe |  | hint: Axe + Blade
+harpe | perseus sickle |  | hint: Sword + Blade
+golden apple | apple of discord |  | hint: Ball + Attract
+ambrosia | nectar |  | hint: Bomb
+chariot of helios | sun chariot |  | hint: Vehicle + Flies; element Fire
+achilles shield | shield of achilles |  | hint: Shield + Guard
+labyrinth | maze |  | hint: Wall + Barrier
+colossus of rhodes | colossus |  | hint: Kaiju + Stomp
+odin | allfather |  | hint: Biped; element Psychic
+thor | thor god |  | hint: Biped + Blunt; element Electric
+freya | freyja |  | hint: Biped + Flies
+tyr | tyr god |  | hint: Biped + Blade
+heimdall | heimdallr |  | hint: Biped + Beam
+baldur | balder |  | hint: Biped
+hel | hela |  | hint: Biped; element Shadow
+frigg | frigga |  | hint: Biped; element Psychic
+surtr | surt |  | hint: Kaiju + Breath; element Fire
+ymir | frost giant ymir |  | hint: Kaiju + Stomp; element Ice
+jotunn | frost giant; jotun |  | hint: Kaiju + Stomp; element Ice
+fire giant | muspel giant |  | hint: Kaiju + Breath; element Fire
+nidhogg | niðhöggr |  | hint: Serpent + Grab; element Poison
+ratatoskr | yggdrasil squirrel |  | hint: Quadruped + Fast
+huginn and muninn | odin's ravens |  | hint: Bird + Swarm, Flies
+geri and freki | odin's wolves |  | hint: Quadruped + Swarm, Charge
+tanngrisnir | thor's goats |  | hint: Quadruped + Charge
+draugr | draugar |  | hint: Biped + Heavy; element Shadow
+einherjar | einherji |  | hint: Biped + Swarm
+dwarf smith | norse dwarf |  | hint: Biped + Blunt
+dark elf | svartalf |  | hint: Biped; element Shadow; temperament Sneaky
+light elf | ljosalf |  | hint: Biped
+troll | mountain troll |  | hint: Biped + Heavy, Stomp; element Earth
+kraken (norse) | hafgufa |  | hint: Kaiju + Constrict; element Water
+yggdrasil | world tree |  | hint: Pillar + Barrier; element Earth
+bifrost | rainbow bridge |  | hint: Ramp + Portal
+brisingamen | freya's necklace |  | hint: Cape
+skidbladnir | folding ship |  | hint: Vehicle + Piloted; features Sails
+naglfar | ship of nails |  | hint: Vehicle + Pierce, Piloted
+megingjord | belt of strength |  | hint: Gauntlet + Grow
+jarngreipr | iron gloves |  | hint: Gauntlet + Grab
+hofund | heimdall's sword |  | hint: Sword + Blade
+tyrfing | cursed sword |  | hint: Sword + Blade; element Shadow
+gram | sigurd's sword |  | hint: Sword + Blade
+laevateinn | lævateinn |  | hint: Sword; element Fire
+viking longship | longship; drakkar |  | hint: Vehicle + Piloted; features Sails
+berserker | berserk |  | hint: Biped + Charge; temperament Aggressive
+shieldmaiden | shield maiden |  | hint: Biped + Guard
+ra | re; sun god ra |  | hint: Bird + Beam; element Fire
+horus | eye of horus |  | hint: Bird + Beam
+osiris | osiris god |  | hint: Biped; element Shadow
+isis | isis goddess |  | hint: Biped + Flies
+set | seth |  | hint: Quadruped; element Wind; temperament Chaotic
+thoth | ibis god |  | hint: Bird; element Psychic
+bastet | bast; cat goddess |  | hint: Quadruped + Fast
+sekhmet | lion goddess |  | hint: Biped; element Fire
+sobek | crocodile god |  | hint: Biped + Grab; element Water
+apep | apophis |  | hint: Serpent + Constrict; element Shadow
+ammit | devourer of the dead |  | hint: Quadruped + Grab
+bennu | bennu bird |  | hint: Bird; element Fire
+khepri | scarab god |  | hint: Insect
+scarab | scarab beetle |  | hint: Insect + Swarm
+mummy | mummified pharaoh |  | hint: Biped + Constrict
+pharaoh | king tut |  | hint: Biped; element Psychic
+sarcophagus | coffin |  | hint: Cage + Trap
+ankh | ankh staff |  | hint: Staff
+was sceptre | was staff |  | hint: Staff + Pierce
+khopesh | sickle sword |  | hint: Sword + Blade
+pyramid | great pyramid |  | hint: Pillar + Barrier, Heavy
+obelisk | egyptian obelisk |  | hint: Pillar + DropFromSky
+lamassu | shedu |  | hint: Quadruped + Flies, Guard
+gilgamesh | gilgamesh king |  | hint: Biped + Heavy
+humbaba | huwawa |  | hint: Kaiju + Breath
+tiamat (babylon) | primordial sea |  | hint: Kaiju; element Water
+marduk | marduk god |  | hint: Biped; element Electric
+pazuzu | pazuzu demon |  | hint: Bird; element Wind
+mushussu | sirrush |  | hint: Quadruped + Pierce
+ziggurat | temple tower |  | hint: Ramp + Launch
+djinn | genie; jinn |  | hint: Blob + Flies; element Wind
+roc | rukh |  | hint: Bird + Grab, Flies
+simurgh | simorgh |  | hint: Bird + Flies; element Wind
+magic carpet | flying carpet |  | hint: Platform + Flies, Piloted
+magic lamp | genie lamp |  | hint: Bomb + Swarm
+ghoul | ghul |  | hint: Biped + Grab; element Shadow
+tanuki statue | shigaraki tanuki |  | hint: Boulder + Heavy
+kitsune mask | fox mask |  | hint: Shield; element Fire
+tengu mask | red tengu |  | hint: Shield; element Wind
+oni mask | hannya mask; hannya |  | hint: Shield; element Fire
+kanabo | oni club |  | hint: Hammer + Blunt, Heavy
+yamata no orochi | orochi; eight headed serpent |  | hint: Kaiju + Breath, Constrict; element Poison
+raijin | thunder god |  | hint: Biped + Repel; element Electric
+fujin | wind god |  | hint: Biped + Repel; element Wind
+ryujin | dragon king |  | hint: Serpent; element Water
+kirin | qilin |  | hint: Quadruped + Fast; element Fire
+baku | dream eater |  | hint: Quadruped; element Psychic
+jorogumo | spider woman |  | hint: Arachnid + Sticky; temperament Sneaky
+tsuchigumo | earth spider |  | hint: Arachnid + Grab; element Earth
+nekomata | two tailed cat |  | hint: Quadruped; element Fire
+bakeneko | monster cat |  | hint: Quadruped; temperament Sneaky
+kamaitachi | sickle weasel |  | hint: Quadruped + Blade, Fast; element Wind
+yuki-onna | snow woman |  | hint: Biped + Breath; element Ice
+rokurokubi | long neck woman |  | hint: Serpent + Grab
+nukekubi | flying head |  | hint: Blob + Flies
+futakuchi-onna | two mouthed woman |  | hint: Biped + Grab
+kuchisake-onna | slit mouthed woman |  | hint: Biped + Blade; temperament Sneaky
+noppera-bo | faceless ghost |  | hint: Biped; temperament Sneaky
+yurei | onryo; japanese ghost |  | hint: Blob + Flies; element Shadow
+hitodama | will o wisp (japan) |  | hint: Ball + Homing; element Fire
+onibi | demon fire |  | hint: Ball + Homing; element Fire
+umibozu | sea monk |  | hint: Kaiju; element Water
+ushi-oni | ox demon |  | hint: Arachnid + Charge
+nurikabe | wall yokai |  | hint: Wall + Walks, Barrier
+ittan-momen | flying cloth |  | hint: Cape + Flies, Constrict
+chochin-obake | lantern ghost |  | hint: Blob + Bounce; element Fire
+bake-zori | sandal yokai |  | hint: Biped + Bounce
+mokumokuren | eyes in the wall |  | hint: Wall + Beam
+tsukumogami | possessed object |  | hint: Blob; temperament Chaotic
+zashiki-warashi | house child spirit |  | hint: Biped; temperament Playful
+akaname | filth licker |  | hint: Biped + Sticky
+azukiarai | bean washer |  | hint: Biped + Swarm
+amabie | amabie spirit |  | hint: Fish; element Water
+namazu | earthquake catfish |  | hint: Fish + Stomp; element Earth
+kodama | tree spirit |  | hint: Biped + Swarm; element Earth
+shisa | shisa lion dog |  | hint: Quadruped + Guard
+komainu | lion dog guardian |  | hint: Quadruped + Guard
+maneki-neko | lucky cat; beckoning cat |  | hint: Quadruped + Attract
+daruma doll | daruma |  | hint: Boulder + Bounce
+kokeshi doll | kokeshi |  | hint: Pillar + Barrier
+teru teru bozu | rain doll |  | hint: Parachute + SlowFall
+katana (myth) | kusanagi; kusanagi no tsurugi |  | hint: Sword + Blade; element Wind
+muramasa | cursed katana |  | hint: Sword + Blade; element Shadow
+yata no kagami | sacred mirror |  | hint: Shield + Guard, Beam
+yasakani no magatama | magatama |  | hint: Disc
+chinese dragon | lung; loong |  | hint: Serpent + Flies; element Water
+fenghuang bird | chinese phoenix |  | hint: Bird; element Fire
+bai ze | baize |  | hint: Quadruped; element Psychic
+pixiu | pi xiu |  | hint: Quadruped + Attract
+taotie | tao tie |  | hint: Blob + Attract
+nian | nian beast |  | hint: Quadruped + Charge
+nezha | ne zha |  | hint: Biped + Spin; element Fire
+zhong kui | demon queller |  | hint: Biped + Blade
+erlang shen | three eyed god |  | hint: Biped + Beam
+zhu bajie | pigsy |  | hint: Biped + Heavy
+sha wujing | sandy |  | hint: Biped; element Water
+white bone demon | baigujing |  | hint: Biped; element Shadow; temperament Sneaky
+jade emperor | jade emperor god |  | hint: Biped; element Psychic
+chang'e | moon goddess |  | hint: Biped + Flies
+hou yi | archer yi |  | hint: Biped + Shoots
+jade rabbit | moon rabbit |  | hint: Quadruped + Bounce
+terracotta warrior | terracotta army |  | hint: Biped + Swarm; element Earth
+guandao | guan dao |  | hint: Spear + Blade
+fire lance | chinese rocket |  | hint: Rocket + Explodes; element Fire
+lion dance | dancing lion |  | hint: Quadruped + Bounce; temperament Playful
+dragon dance | dancing dragon |  | hint: Serpent + Swarm
+foo dog | guardian lion |  | hint: Quadruped + Guard
+qilin statue | kirin statue |  | hint: Quadruped + Guard
+gumiho | nine tailed fox korea |  | hint: Quadruped; element Fire; temperament Sneaky
+dokkaebi | korean goblin |  | hint: Biped + Blunt; temperament Playful
+haetae | haechi |  | hint: Quadruped + Guard
+bulgasari | iron eater |  | hint: Kaiju + Heavy
+garuda | garuda bird |  | hint: Bird + Grab, Flies
+naga | nagas |  | hint: Serpent; element Water
+airavata | white elephant |  | hint: Quadruped + Stomp
+hanuman | monkey god |  | hint: Biped + Grow, Flies
+ganesha | ganesh |  | hint: Biped + Heavy
+kali | kali goddess |  | hint: Biped + Swarm, Blade
+vishnu chakra | sudarshana chakra |  | hint: Disc + Returning, Blade
+trishula | trishul |  | hint: Spear + Pierce; element Electric
+vajra | indra's thunderbolt |  | hint: Hammer; element Electric
+brahmastra | brahmastra weapon |  | hint: Rocket + Explodes; element Atomic
+makara | makara creature |  | hint: Fish + Grab; element Water
+rakshasa | rakshas |  | hint: Biped; temperament Aggressive
+vetala | vetal |  | hint: Blob + Flies; element Shadow
+yali | vyala |  | hint: Quadruped + Guard
+kinnara | kinnari |  | hint: Bird; temperament Playful
+barong | barong dance |  | hint: Quadruped + Guard
+rangda | rangda witch |  | hint: Biped; temperament Chaotic
+bakunawa | moon eating serpent |  | hint: Serpent + Attract
+aswang | aswang monster |  | hint: Biped; temperament Sneaky
+manananggal | manananggal flier |  | hint: Bird; temperament Sneaky
+tikbalang | horse demon |  | hint: Biped + Fast
+kapre | tree giant |  | hint: Biped; element Earth; temperament Lazy
+pontianak | kuntilanak |  | hint: Blob; temperament Sneaky
+toyol | tuyul |  | hint: Biped + Fast; temperament Sneaky
+feathered serpent statue | kukulcan statue |  | hint: Serpent + Guard
+tlaloc | rain god |  | hint: Biped; element Water
+huitzilopochtli | sun war god |  | hint: Biped; element Fire
+xolotl | xolotl dog |  | hint: Quadruped; element Shadow
+ahuizotl | ahuizotl water dog |  | hint: Quadruped + Grab; element Water
+cipactli | cipactli crocodile |  | hint: Quadruped + Grab
+jaguar warrior | ocelotl warrior |  | hint: Biped + Fast
+eagle warrior | cuauhtli warrior |  | hint: Biped + Flies
+macuahuitl | aztec sword |  | hint: Sword + Blade
+camazotz | bat god |  | hint: Bird + Grab; element Shadow
+alebrije | alebrijes |  | hint: Quadruped + Flies; temperament Playful
+la llorona (myth) | weeping woman |  | hint: Blob + Breath; element Water
+el cucuy | coco |  | hint: Biped; temperament Sneaky
+nahual | nagual |  | hint: Quadruped; temperament Sneaky
+tupilaq | tupilak |  | hint: Biped; temperament Sneaky
+skinwalker | skin walker |  | hint: Quadruped + Fast; temperament Sneaky
+thunderbird totem | totem pole |  | hint: Pillar + Barrier
+piasa bird | piasa |  | hint: Bird + Grab
+mishipeshu | underwater panther |  | hint: Quadruped; element Water
+kokopelli | flute player |  | hint: Biped; temperament Playful
+coyote trickster | coyote |  | hint: Quadruped; temperament Sneaky
+curupira | backwards feet |  | hint: Biped + Fast; element Fire
+boitata | fire serpent |  | hint: Serpent; element Fire
+saci | saci perere |  | hint: Biped + Spin; element Wind
+el tunche | tunche |  | hint: Blob; temperament Sneaky
+koschei | koschei the deathless |  | hint: Biped; element Shadow
+zmey gorynych | zmey |  | hint: Kaiju + Breath, Flies; element Fire
+leshy | forest spirit |  | hint: Biped; element Earth
+domovoi | house spirit |  | hint: Biped; temperament Protective
+rusalka | river maiden |  | hint: Biped; element Water
+vodyanoy | water grandfather |  | hint: Biped + Grab; element Water
+kikimora | kikimora spirit |  | hint: Biped; temperament Sneaky
+firebird (slavic) | zhar-ptitsa |  | hint: Bird; element Fire
+alkonost | alkonost bird |  | hint: Bird; element Psychic
+sirin | sirin bird |  | hint: Bird; element Psychic
+likho | one eyed likho |  | hint: Biped; temperament Chaotic
+strzyga | strigoi |  | hint: Bird + Grab
+vampire | dracula |  | hint: Biped + Flies; element Shadow
+werewolf | wolfman; lycanthrope |  | hint: Biped + Charge; temperament Aggressive
+upir | upyr |  | hint: Biped + Grab; element Shadow
+chort | chert |  | hint: Biped; temperament Chaotic
+bannik | bath spirit |  | hint: Biped; element Fire
+poludnitsa | lady midday |  | hint: Biped + Blade
+tugarin | tugarin serpent |  | hint: Serpent; element Fire
+mortar and pestle | baba yaga's mortar |  | hint: Vehicle + Flies, Piloted
+kolobok | runaway bun |  | hint: Ball + Fast, Bounce
+leprechaun | leprechauns |  | hint: Biped + Fast; temperament Sneaky
+pot of gold | leprechaun gold |  | hint: Boulder + Attract
+selkie | seal folk |  | hint: Fish; element Water
+kelpie | water horse |  | hint: Quadruped + Grab; element Water
+each-uisge | each uisge |  | hint: Quadruped + Grab; element Water
+púca | pooka |  | hint: Quadruped; temperament Chaotic
+changeling | fairy changeling |  | hint: Biped; temperament Sneaky
+fairy | fae; faerie |  | hint: Insect + Flies, Swarm
+pixie | pixies |  | hint: Insect + Flies, Swarm
+brownie | house brownie |  | hint: Biped; temperament Playful
+redcap | red cap |  | hint: Biped + Charge
+boggart | bogeyman |  | hint: Biped; temperament Sneaky
+will-o'-the-wisp | will o wisp; wisp |  | hint: Ball + Homing
+black dog | barghest |  | hint: Quadruped + Charge; element Shadow
+cu sith | cù-sìth |  | hint: Quadruped + Charge
+cait sith | cat sith |  | hint: Quadruped; temperament Sneaky
+wyrm | wyrms |  | hint: Serpent + Constrict
+wyvern | wyverns |  | hint: Bird + Flies, ArticulatedTail
+welsh dragon | y ddraig goch |  | hint: Kaiju + Breath, Flies; element Fire
+green knight | the green knight |  | hint: Biped + Guard
+giant's causeway giant | finn mccool |  | hint: Kaiju + Stomp
+cernunnos | horned god |  | hint: Biped; element Earth
+morrigan | the morrigan |  | hint: Bird + Swarm; element Shadow
+dagda's club | the dagda's club |  | hint: Hammer + Blunt, Heavy
+gae bulg | gáe bulg |  | hint: Spear + Pierce
+claiomh solais | sword of light |  | hint: Sword + Beam
+spear of lugh | lugh's spear |  | hint: Spear + Homing; element Fire
+holy grail | grail |  | hint: Bomb
+round table | king arthur's table |  | hint: Platform + Barrier
+lady of the lake | lady of the lake hand |  | hint: Biped; element Water
+merlin | merlin wizard |  | hint: Biped; element Psychic
+questing beast | glatisant |  | hint: Quadruped + Fast
+black knight | 'tis but a scratch |  | hint: Biped + Guard
+killer rabbit | rabbit of caerbannog |  | hint: Quadruped + Charge; temperament Aggressive
+anansi | kwaku anansi |  | hint: Arachnid + Sticky; temperament Sneaky
+mami wata | mami water |  | hint: Serpent; element Water
+tokoloshe | tikoloshe |  | hint: Biped; temperament Sneaky
+impundulu | lightning bird |  | hint: Bird; element Electric
+grootslang | great snake |  | hint: Serpent + Constrict
+mokele-mbembe | mokele mbembe |  | hint: Quadruped + Stomp; element Water
+ninki nanka | ninki-nanka |  | hint: Serpent; element Water
+adze | firefly vampire |  | hint: Insect; temperament Sneaky
+bunyip | bunyips |  | hint: Quadruped; element Water
+rainbow serpent | rainbow snake |  | hint: Serpent; element Water
+drop bear | dropbear |  | hint: Quadruped + DropFromSky, Grab
+yowie ape | australian yeti |  | hint: Biped + Stomp
+taniwha | taniwha guardian |  | hint: Serpent; element Water
+moa | giant moa |  | hint: Bird + Charge
+jersey devil | leeds devil |  | hint: Bird + Flies; temperament Sneaky
+dover demon | dover |  | hint: Biped; temperament Sneaky
+flatwoods monster | braxton county monster |  | hint: Biped + Breath; element Poison
+fresno nightcrawler | nightcrawler cryptid |  | hint: Biped + Walks
+lizard man | lizard man of scape ore |  | hint: Biped + Grab
+thunderbird cryptid | giant bird |  | hint: Bird + Grab
+jackalope | jackalopes |  | hint: Quadruped + Pierce, Bounce
+fouke monster | boggy creek monster |  | hint: Biped + Stomp
+ogopogo | lake serpent |  | hint: Serpent + Constrict; element Water
+champ | champy |  | hint: Serpent; element Water
+beast of bodmin | bodmin beast |  | hint: Quadruped + Charge
+owlman | owl man |  | hint: Bird; temperament Sneaky
+mongolian death worm | olgoi-khorkhoi |  | hint: Serpent; element Electric
+yeren | chinese wildman |  | hint: Biped + Stomp
+almas | almasty |  | hint: Biped; temperament Sneaky
+orang pendek | orang-pendek |  | hint: Biped + Fast
+skunk ape | skunkape |  | hint: Biped; element Poison
+grey alien | little green men; roswell alien |  | hint: Biped + Beam; element Psychic
+ufo | flying saucer |  | hint: Vehicle + Flies, Beam
+alien abduction beam |  |  | hint: Vehicle + Beam, Attract
+crop circle | crop circles |  | hint: Platform + Portal
+men in black | mib agent |  | hint: Biped + Beam
+shadow people | shadow person |  | hint: Biped; element Shadow; temperament Sneaky
+hat man | the hat man |  | hint: Biped; element Shadow; temperament Sneaky
+rake cryptid | the rake |  | hint: Biped + Blade; temperament Sneaky
+mothman statue | mothman point pleasant |  | hint: Pillar + Beam
+bloody mary | bloody mary mirror |  | hint: Wall + Portal
+headless chicken | mike the headless chicken |  | hint: Bird; temperament Chaotic
+goatman | goat man |  | hint: Biped + Charge
+pope lick monster | pope lick |  | hint: Biped + Charge
+bunnyman | bunny man |  | hint: Biped + Blade
+durandal | durendal |  | hint: Sword + Blade
+joyeuse | charlemagne's sword |  | hint: Sword + Blade
+clarent | sword of peace |  | hint: Sword + Blade
+arondight | lancelot's sword |  | hint: Sword + Blade
+galatine | gawain's sword |  | hint: Sword; element Fire
+rhongomyniad | rhongomiant |  | hint: Spear + Pierce, Beam
+carnwennan | arthur's dagger |  | hint: Sword; temperament Sneaky
+zulfiqar | dhu al-fiqar |  | hint: Sword + Blade
+tizona | el cid's sword |  | hint: Sword + Blade
+colada | colada sword |  | hint: Sword + Blade
+green dragon crescent blade | guan yu's blade |  | hint: Spear + Blade
+sword of damocles | damocles |  | hint: Sword + DropFromSky
+seven branched sword | shichishito |  | hint: Sword + Blade
+ark of the covenant | the ark |  | hint: Bomb + Beam
+philosopher's stone | philosophers stone |  | hint: Ball; element Psychic
+seven league boots | seven-league boots |  | hint: Wings + Fast
+cloak of invisibility | invisibility cloak |  | hint: Cape; temperament Sneaky
+flying broom | witch's broom |  | hint: Staff + Flies, Piloted
+crystal ball | scrying ball |  | hint: Ball; element Psychic
+magic mirror | mirror mirror |  | hint: Shield + Guard, Beam
+cornucopia | horn of plenty |  | hint: Cannon + Shoots
+harp of dagda | dagda's harp |  | hint: Shield; element Psychic
+thor's belt | megingjörð |  | hint: Gauntlet + Heavy
+hammer of the gods | war hammer (myth) |  | hint: Hammer + Blunt; element Electric
+aegis of athena | gorgon shield |  | hint: Shield + Guard, Beam
+shield of ajax | ajax shield |  | hint: Shield + Guard, Heavy
+boots of hermes | flying boots |  | hint: Wings + Fast
+bow of heracles | heracles bow |  | hint: Bow + Shoots; element Poison
+lyre of orpheus | orpheus lyre |  | hint: Shield; element Psychic
+pandora's jar | pithos |  | hint: Bomb + Swarm
+the one ring (myth) | ring of gyges |  | hint: Disc; temperament Sneaky
+kladenets | self-swinging sword |  | hint: Sword + Returning
+flaming sword | sword of fire |  | hint: Sword; element Fire
+cursed skull | crystal skull |  | hint: Ball; element Psychic
+voodoo pin | hex pin |  | hint: Spear + Pierce; element Shadow
+witch's cauldron | cauldron |  | hint: Bomb + Breath; element Poison
+monkey's paw | the monkey's paw |  | hint: Gauntlet + Grab
+dreamcatcher | dream catcher |  | hint: Cage + Trap
+horseshoe (lucky) | lucky horseshoe |  | hint: Disc + Attract
+four leaf clover | lucky clover |  | hint: Disc
+rabbit's foot | lucky rabbit foot |  | hint: Staff
+evil eye amulet | nazar |  | hint: Shield + Beam
+aboleth | aboleths |  | hint: Fish + Grab; element Psychic
+ankheg | ankhegs |  | hint: Insect + Breath; element Poison
+basilisk (d&d) | basilisk lizard |  | hint: Quadruped + Beam; element Earth
+blink dog | blink dogs |  | hint: Quadruped + Portal, Fast
+bugbear | bugbears |  | hint: Biped + Grab; temperament Sneaky
+carrion crawler | carrion crawlers |  | hint: Serpent + Grab; element Poison
+chuul | chuuls |  | hint: Arachnid + Grab; element Water
+cloaker | cloakers |  | hint: Cape + Flies, Constrict
+death knight | death knights |  | hint: Biped + Blade; element Shadow
+demilich | demilich skull |  | hint: Blob + Flies, Attract; element Shadow
+dracolich | dracoliches |  | hint: Kaiju + Breath, Flies; element Shadow
+drider | driders |  | hint: Arachnid + Shoots
+duergar | grey dwarf |  | hint: Biped + Grow
+ettin | two headed giant |  | hint: Biped + Blunt, Stomp
+flail snail | flail snails |  | hint: Blob + Blunt
+flameskull | flame skull |  | hint: Blob + Flies; element Fire
+githyanki | githyanki warrior |  | hint: Biped + Blade; element Psychic
+gnoll | gnolls |  | hint: Biped + Charge
+goblin (d&d) | goblins |  | hint: Biped + Swarm; temperament Sneaky
+hobgoblin | hobgoblins |  | hint: Biped + Guard
+hook horror | hook horrors |  | hint: Biped + Grab
+intellect devourer | brain dog |  | hint: Quadruped; element Psychic
+kuo-toa | kuo toa |  | hint: Biped + Sticky; element Water
+lizardfolk | lizard folk |  | hint: Biped + Grab
+marid | water genie |  | hint: Biped; element Water
+myconid | mushroom folk |  | hint: Biped + Swarm; element Poison
+nothic | nothics |  | hint: Biped + Beam
+ochre jelly | ochre ooze |  | hint: Blob + Sticky; element Poison
+black pudding | black ooze |  | hint: Blob + Sticky; element Poison
+grey ooze | gray ooze |  | hint: Blob + Sticky
+otyugh | otyughs |  | hint: Blob + Grab; element Poison
+peryton | perytons |  | hint: Bird + Charge
+purple worm | purple worms |  | hint: Kaiju + Grab; element Earth
+remorhaz | remorhazes |  | hint: Serpent; element Fire
+roper | ropers |  | hint: Pillar + Pull, Grab
+shambling mound | shambler |  | hint: Blob + Constrict; element Earth
+stirge | stirges |  | hint: Insect + Swarm
+umber hulk | umber hulks |  | hint: Biped + Grab; element Psychic
+xorn | xorns |  | hint: Blob; element Earth
+yuan-ti | yuan ti |  | hint: Serpent; element Poison
+kenku | kenku bird |  | hint: Bird; temperament Sneaky
+tabaxi | cat folk |  | hint: Biped + Fast
+aarakocra | bird folk |  | hint: Bird + Flies
+tortle | tortles |  | hint: Biped + Guard
+warforged | warforged construct |  | hint: Biped + Guard
+tiefling | tieflings |  | hint: Biped; element Fire
+dragonborn | dragonborn warrior |  | hint: Biped + Breath; element Fire
+kobold trapper | kobold swarm |  | hint: Biped + Swarm, Trap
+treant | treants |  | hint: Biped + Stomp; element Earth
+flesh golem | flesh golems |  | hint: Biped + Heavy; element Electric
+shield guardian | guardian construct |  | hint: Biped + Guard; temperament Protective
+animated armor | living armor |  | hint: Biped + Guard
+flying sword | dancing sword |  | hint: Sword + Flies, Homing
+rug of smothering | smothering rug |  | hint: Cape + Constrict
+helmed horror | helmed horrors |  | hint: Biped + Guard, Flies
+wraith | wraiths |  | hint: Blob + Flies; element Shadow
+banshee (d&d) | wailing spirit |  | hint: Blob + Repel; element Shadow
+will-o-wisp (d&d) | wisp light |  | hint: Ball; element Electric
+vampire spawn | vampire spawns |  | hint: Biped + Grab
+zombie | zombies |  | hint: Biped + Swarm, Grab
+skeleton | skeletons |  | hint: Biped + Swarm
+ghoul (d&d) | ghouls |  | hint: Biped + Grab
+ghost | ghosts |  | hint: Blob + Flies; element Shadow
+specter | spectre |  | hint: Blob + Flies; element Shadow
+shadow demon | shadows |  | hint: Blob; element Shadow; temperament Sneaky
+nightmare steed | nightmare horse |  | hint: Quadruped + Flies; element Fire
+hell hound (d&d) | hellhound d&d |  | hint: Quadruped + Breath; element Fire
+imp | imps |  | hint: Insect + Flies; temperament Sneaky
+quasit | quasits |  | hint: Insect; temperament Sneaky
+balor | balors |  | hint: Kaiju + Pull; element Fire
+pit fiend | pit fiends |  | hint: Kaiju; element Fire
+erinyes (d&d) | fallen angel |  | hint: Biped + Flies
+glabrezu | pincer demon |  | hint: Biped + Grab
+hezrou | toad demon |  | hint: Biped; element Poison
+vrock | vulture demon |  | hint: Bird + Swarm
+marilith | six armed demon |  | hint: Serpent + Blade
+lemure | lemures |  | hint: Blob + Swarm
+succubus | incubus |  | hint: Biped + Attract
+deva | angel |  | hint: Biped + Flies
+solar | solar angel |  | hint: Biped + Beam
+pegasus (d&d) | celestial horse |  | hint: Quadruped + Flies
+unicorn | unicorns |  | hint: Quadruped + Pierce, Charge
+couatl | couatls |  | hint: Serpent + Flies
+ki-rin | kirin d&d |  | hint: Quadruped + Flies
+sahuagin | sea devil |  | hint: Biped; element Water
+merrow | merrows |  | hint: Fish + Grab
+sea hag | green hag |  | hint: Biped; temperament Sneaky
+night hag | night hags |  | hint: Biped; element Psychic
+harpy (d&d) | harpies d&d |  | hint: Bird + Attract
+hook horror swarm | hook |  | hint: Biped + Swarm
+giant spider | giant spiders |  | hint: Arachnid + Sticky
+phase spider | phase spiders |  | hint: Arachnid + Portal
+giant ape | great ape |  | hint: Kaiju + Grab
+cockatrice | cockatrices |  | hint: Bird; element Earth
+dire wolf | dire wolves |  | hint: Quadruped + Charge
+worg | wargs; warg |  | hint: Quadruped + Charge
+hydra (d&d) | five headed hydra |  | hint: Kaiju + Swarm
+red dragon | red dragons |  | hint: Kaiju + Breath, Flies; element Fire
+blue dragon | blue dragons |  | hint: Kaiju + Beam, Flies; element Electric
+green dragon | green dragons |  | hint: Kaiju + Breath, Flies; element Poison
+black dragon | black dragons |  | hint: Kaiju + Breath, Flies; element Poison
+white dragon | white dragons |  | hint: Kaiju + Breath, Flies; element Ice
+gold dragon | gold dragons |  | hint: Kaiju + Breath, Flies; element Fire
+silver dragon | silver dragons |  | hint: Kaiju + Breath, Flies; element Ice
+bronze dragon | bronze dragons |  | hint: Kaiju + Beam, Flies; element Electric
+brass dragon | brass dragons |  | hint: Kaiju + Breath, Flies; element Fire
+copper dragon | copper dragons |  | hint: Kaiju + Breath, Flies; element Poison
+dragon turtle | dragon turtles |  | hint: Kaiju + Breath, Guard; element Water
+kraken (d&d) | kraken d&d |  | hint: Kaiju + Constrict; element Electric
+storm giant | storm giants |  | hint: Kaiju + Beam; element Electric
+frost giant (d&d) | frost giants |  | hint: Kaiju + Stomp; element Ice
+hill giant | hill giants |  | hint: Kaiju + Stomp
+stone giant | stone giants |  | hint: Kaiju + Shoots; element Earth
+cloud giant | cloud giants |  | hint: Kaiju + Flies; element Wind
+fire giant (d&d) | fire giants |  | hint: Kaiju + Blunt; element Fire
+empyrean | titan d&d |  | hint: Kaiju + Beam
+eye of vecna | vecna's eye |  | hint: Ball + Beam; element Shadow
+acererak | acererak lich |  | hint: Biped + Beam
+strahd | strahd von zarovich |  | hint: Biped + Flies; element Shadow
+lolth | spider queen |  | hint: Arachnid + Sticky
+orcus | orcus demon |  | hint: Kaiju; element Shadow
+tomb of horrors | green devil face |  | hint: Wall + Portal
+wand of fireballs | fireball wand |  | hint: Staff + Shoots; element Fire
+staff of power |  |  | hint: Staff + Beam
+ring of invisibility (d&d) | invisible ring |  | hint: Disc; temperament Sneaky
+boots of speed | speed boots |  | hint: Wings + Fast
+cloak of elvenkind | elven cloak |  | hint: Cape; temperament Sneaky
+decanter of endless water | endless water |  | hint: Gun + Beam; element Water
+necklace of fireballs | fireball necklace |  | hint: Bomb + Explodes, Swarm; element Fire
+horn of blasting | blasting horn |  | hint: Gun + Repel; element Wind
+rope of entanglement | entangle rope |  | hint: Whip + Constrict
+bigby's hand | bigbys hand |  | hint: Gauntlet + Grab
+mordenkainen's sword | spectral sword |  | hint: Sword + Flies
+tenser's floating disk | floating disk |  | hint: Platform + Flies
+leomund's tiny hut | tiny hut |  | hint: Dome + Barrier
+wall of force | force wall |  | hint: Wall + Barrier
+spiritual weapon | spirit hammer |  | hint: Hammer + Flies, Homing
+spirit guardians | spirit guardian |  | hint: Dome + Repel
+misty step | teleport step |  | hint: Platform + Portal
+thunderwave | thunder wave |  | hint: Dome + Repel; element Electric
+lightning bolt spell | lightning bolt |  | hint: Staff + Beam; element Electric
+ice storm | hail storm |  | hint: Bomb + DropFromSky; element Ice
+meteor swarm | meteors |  | hint: Boulder + DropFromSky, Swarm; element Fire
+cone of cold | frost cone |  | hint: Staff + Breath; element Ice
+web spell | web |  | hint: Cage + Sticky, Trap
+grease spell | grease |  | hint: Ramp + Launch
+tasha's hideous laughter | hideous laughter |  | hint: Bomb; element Psychic
+healing potion | health potion |  | hint: Bomb
+mimic swarm | mimics |  | hint: Blob + Swarm, Grab
+dungeon master screen | dm screen |  | hint: Wall + Barrier
+tavern | inn |  | hint: Wall + Barrier
+mozilla dinosaur | mozilla |  | hint: Kaiju + Breath; element Fire
+thunderbird mascot | thunderbird bird mascot |  | hint: Bird + Flies; element Electric
+python snake | python logo |  | hint: Serpent + Constrict
+php elephant | elephpant |  | hint: Quadruped + Stomp
+postgres elephant | slonik |  | hint: Quadruped + Stomp
+hadoop elephant | hadoop |  | hint: Quadruped + Heavy
+mysql dolphin | sakila |  | hint: Fish + Fast; element Water
+kubernetes wheel | k8s |  | hint: Disc + Spin
+gnu | gnu head |  | hint: Quadruped + Charge
+beastie | bsd daemon |  | hint: Biped + Pierce; element Fire
+openbsd puffy | puffy |  | hint: Fish + Pierce
+wilber | gimp mascot |  | hint: Quadruped; temperament Playful
+kiki the cyber squirrel | krita mascot |  | hint: Quadruped + Fast
+mastodon mascot | mastodon |  | hint: Quadruped + Stomp
+bluesky butterfly | butterfly logo |  | hint: Insect + Flies
+twitter bird | larry the bird; tweet |  | hint: Bird + Swarm, Flies
+x logo | x |  | hint: Disc + Blade
+discord wumpus | wumpus |  | hint: Biped; temperament Playful
+clyde discord |  |  | hint: Biped; temperament Playful
+steam logo | steam |  | hint: Disc + Spin
+xbox ring | red ring of death |  | hint: Disc + Explodes
+windows logo | windows |  | hint: Wall + Barrier
+apple logo | bitten apple |  | hint: Ball + Bounce
+google pin | map pin |  | hint: Spear + DropFromSky, Pierce
+wifi symbol | wifi |  | hint: Dome + Repel; element Electric
+bluetooth | blue tooth |  | hint: Disc + Link
+usb stick | usb |  | hint: Spear + Pierce
+usb cable | cable |  | hint: Whip + Link; element Electric
+ethernet cable | lan cable |  | hint: Whip + Link
+power strip | extension lead |  | hint: Whip + Link; element Electric
+loading spinner | buffering wheel |  | hint: Disc + Spin
+cursor | mouse pointer |  | hint: Spear + Pierce
+captcha | i am not a robot |  | hint: Cage + Trap
+cookie banner | accept cookies |  | hint: Wall + Barrier
+popup ad | pop up |  | hint: Wall + Barrier, Swarm
+spam | spam email |  | hint: Disc + Swarm
+virus | computer virus |  | hint: Blob + Swarm; element Poison
+trojan | trojan virus |  | hint: Quadruped; temperament Sneaky
+firewall | fire wall |  | hint: Wall + Barrier; element Fire
+bug | software bug |  | hint: Insect + Swarm
+rubber duck debugger | debug duck |  | hint: Ball + Bounce
+stack overflow | overflow |  | hint: Pillar + DropFromSky
+kernel panic | panic |  | hint: Bomb + Explodes
+segfault | segmentation fault |  | hint: Bomb + Explodes
+merge conflict | git conflict |  | hint: Wall + Barrier
+git | git branch |  | hint: Whip + Link
+the cloud | cloud server |  | hint: Platform + Flies
+server rack | data center |  | hint: Wall + Barrier; element Electric
+gpu | graphics card |  | hint: Boulder + Heavy; element Fire
+raspberry pi | rpi |  | hint: Disc; element Electric
+arduino | arduino board |  | hint: Disc; element Electric
+robot arm | industrial robot |  | hint: Gauntlet + Grab
+boston dynamics dog | robot dog; spot robot |  | hint: Quadruped + Fast
+delivery robot | starship robot |  | hint: Vehicle + Homing
+tesla bot | humanoid robot |  | hint: Biped + Stomp
+drone swarm | drones |  | hint: Bird + Swarm, Flies
+self driving car | robotaxi |  | hint: Vehicle + Homing
+3d printer | 3d printing |  | hint: Wall + Shoots
+vr headset | vr goggles |  | hint: Shield; element Psychic

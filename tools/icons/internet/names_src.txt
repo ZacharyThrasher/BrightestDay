@@ -1,0 +1,1310 @@
+# name | aliases | form + mechanics (element)
+## Italian brainrot & brainrot-adjacent
+tric trac baraboom | tric trac | Biped + Stomp, Repel (Wind)
+cocofanto elefanto | coconut elephant | Quadruped + Stomp, Shoots (Earth)
+burbaloni luliloli | burbaloni loliloli; capybara coconut | Quadruped + Guard, Heavy
+graipuss medussi | grape octopus | Blob + Constrict, Swarm (Poison)
+tigrrullini watermellini | watermelon tiger | Quadruped + Charge, Fast
+il cacto hipopotamo | cactus hippo | Quadruped + Pierce, Charge (Earth)
+zibra zubra zibralini | zibra zubra | Quadruped + Fast, Charge
+espressona signora | espresso lady | Biped + Breath (Fire)
+odin din din dun | odindin dindun | Biped + Stomp, Heavy
+bananita dolfinita | banana dolphin | Fish + Bounce, Fast (Water)
+lasagnito pup | lasagna puppy | Quadruped + Sticky, Charge
+coca-colino frizzelino | coca colino | Bomb + Explodes, Fast (Water)
+taco bell campaniro | taco bell campanero | Pillar + Repel (Wind)
+dolpalero dalfala | red sneaker dolphin | Fish + Walks, Fast (Water)
+los tralaleritos | tralaleritos; baby tralaleros | Fish + Walks, Swarm (Water)
+nuclearo dinossauro | nuclear dinosaur | Kaiju + Breath, Stomp (Atomic)
+sneaknoggin | sneaker head brainrot | Biped + Bounce, Fast
+spaghettino malfunziono | spaghetti brainrot | Blob + Constrict, Sticky
+mozzarello confusione | mozzarella brainrot | Blob + Sticky, Bounce
+fiorino toscano | olive tree brainrot | Pillar + Shoots (Earth)
+pepperino pizza | pizza brainrot | Disc + Sticky, Ricochet (Fire)
+capitano cornetto | croissant captain | Biped + Guard
+tracotucotulu delapeladustuz | tracotucotulu | Biped + Fast, Sneaky
+garamararam | garamararamraman | Biped + Stomp
+matteo | matteo brainrot | Biped + Heavy, Stomp
+job job job sahur | job sahur | Biped + Blunt, Charge (Earth)
+tob tobi tobi | tob tobi | Biped + Bounce
+blueberrinni octopussini | blueberry octopus | Blob + Constrict, Swarm
+svinina bombardino | pig bomber | Bird + Flies, Shoots (Fire)
+bombini gusini | bombini goose | Bird + Flies, Shoots (Fire)
+cavallo virtuoso | virtuoso horse | Quadruped + Charge, Fast
+pot hotspot | hotspot brainrot | Biped + Beam (Electric)
+chicleteira bicicleteira | chicleteira | Vehicle + Fast, Sticky
+la grande combinasion | grande combinasion | Kaiju + Stomp, Swarm
+los tungtungtungcitos | tungtungcitos | Biped + Blunt, Swarm (Earth)
+ballerino lololo | ballerino | Biped + Spin, Fast
+bulbito bandito | bulb bandit | Biped + Beam (Electric)
+brri brri bicus dicus bombicus | bicus dicus | Biped + Blade, Guard
+gangster footera | gangster football | Biped + Shoots, Fast
+rhino toasterino | toaster rhino | Quadruped + Charge, Shoots (Fire)
+frulli frulla | frulli | Bird + Flies, Spin
+penguino cocosino | coconut penguin | Biped + Bounce (Ice)
+salamino penguino | salami penguin | Biped + Heavy (Ice)
+ganganzelli trulala | ganganzelli | Biped + Spin
+cacto hipopotamo | cactopotamo | Quadruped + Pierce, Charge (Earth)
+orangutini ananassini | pineapple orangutan | Biped + Grab, Pierce
+tigroligre frutonni | tigroligre | Quadruped + Charge
+pakrahmatmamat | pakrah | Biped + Charge
+tralalita tralala | tralalita | Fish + Walks, Fast (Water)
+soviet brainrot | soviet brainrot character | Biped + Stomp, Heavy
+steal a brainrot | steal a brainrot npc | Biped + Grab, Fast, Sneaky
+dragon cannelloni | dragon canneloni | Kaiju + Breath, Flies (Fire)
+los combinasionas | combinasionas | Kaiju + Swarm, Stomp
+esok sekolah | esok sekolah brainrot | Biped + Stomp
+ketupat kepat | ketupat | Ball + Bounce
+secret lucky block | lucky block | Bomb + Explodes, Swarm
+## Viral animals & creatures
+nibi the beaver | nibi; diva beaver | Quadruped + Barrier (Water)
+biscuits the seal | biscuits seal | Fish + Bounce (Water)
+hua hua panda | hua hua | Quadruped + Lazy, Bounce
+fiona the hippo | fiona hippo | Quadruped + Charge, Grab (Water)
+snowball the cockatoo | dancing cockatoo | Bird + Flies, Spin
+keyboard cat | fatso the cat | Quadruped + Repel
+lil bub | lilbub | Quadruped + Lazy
+hamster violin | sad hamster | Quadruped + Fearful
+huh cat | huh | Quadruped + Repel
+silly cat | goofy cat | Quadruped + Bounce, Playful
+smudge the cat | table cat; woman yelling at cat | Quadruped + Repel
+polite cat | polite cat meme | Quadruped + Guard
+crunchy cat | crunchy cat luna | Quadruped + Lazy
+pop cat | popcat; oatmeal cat | Quadruped + Grab
+bingus | hairless cat bingus | Quadruped + Sneaky
+flork | flork of cows | Biped + Playful
+walter the dog | walter; monster truck dog | Quadruped + Charge
+kermit sipping tea | but that's none of my business | Biped + Lazy
+hampter | hampter meme | Quadruped + Swarm
+shoebill | shoebill stare; shoebill stork | Bird + Beam (Psychic)
+blobfish | sad blobfish | Blob + Lazy (Water)
+axolotl | axolotls; mexican walking fish | Fish + Walks (Water)
+quokka | smiling quokka | Quadruped + Bounce, Playful
+pallas cat | manul; pallas's cat | Quadruped + Aggressive
+fat bear | fat bear week; bear 480 otis | Quadruped + Heavy, Stomp
+honey badger | honey badger don't care | Quadruped + Charge, Aggressive
+goat scream | screaming goat | Quadruped + Repel (Wind)
+dramatic chipmunk | dramatic look | Quadruped + Beam
+grumpy frog | frog meme | Biped + Bounce
+dat boi | here come dat boi; unicycle frog | Vehicle + Fast, Bounce
+lenny the lobster | lobster meme | Arachnid + Grab
+sad frog | feels frog | Biped + Water
+bongo cat | bongocat | Quadruped + Repel
+ceiling cat | ceiling cat is watching | Quadruped + DropFromSky
+lolcat | i can has cheezburger | Quadruped + Playful
+serious cat | srs cat | Quadruped + Beam
+colonel meow | colonel meow cat | Quadruped + Aggressive
+shiba inu | shibe | Quadruped + Charge, Playful
+corgi | corgi butt | Quadruped + Fast, Playful
+pug | pug life | Quadruped + Heavy
+sad pablo | pablo escobar waiting | Biped + Lazy
+cat vibing | cat vibing to street music | Quadruped + Playful
+rat dance | rat dancing meme | Quadruped + Spin
+dancing dog | vibing dog | Quadruped + Spin
+hippo birthday | moo deng cake | Quadruped + Charge
+peanut butter jelly time | banana dance | Biped + Spin
+dancing hotdog | snapchat hotdog | Biped + Spin, Fire
+coffin dance | dancing pallbearers | Biped + Swarm, Stomp
+goose attack | angry goose | Bird + Charge, Grab
+seagull | chip stealing seagull | Bird + Grab, Swarm
+pigeon | pigeon meme | Bird + Swarm
+raccoon | trash panda | Quadruped + Grab, Sneaky
+possum | opossum; screaming possum | Quadruped + Fearful
+mr fresh | fresh the dog | Quadruped + Playful
+el gato | el gato cat | Quadruped + Playful
+trash panda | trash bandit | Quadruped + Grab, Sneaky
+shrimp | shrimp meme | Fish + Swarm (Water)
+crab | crab meme | Arachnid + Grab
+opossum | possum mode | Quadruped + Lazy
+frog in a hat | hat frog | Biped + Bounce
+seal of approval | approving seal | Fish + Bounce (Water)
+bonk dog | go to jail dog | Quadruped + Blunt
+sealand seal | sea lion | Fish + Bounce (Water)
+## Classic & recent memes as constructs
+distracted boyfriend | distracted bf | Biped + Sneaky
+drake hotline | hotline bling pose | Biped + Repel
+galaxy brain | expanding brain | Blob + Beam (Psychic)
+big brain | big brain time | Blob + Psychic
+wojak | feels guy | Biped + Lazy
+doomer | doomer wojak | Biped + Lazy, Shadow
+npc | npc wojak; npc meme | Biped + Swarm
+soyjak | soy face | Biped + Repel
+yes chad | nordic gamer | Biped + Guard
+brain rot | brainrot | Blob + Chaotic
+skull emoji | 💀; skull | Blob + Shadow
+fire emoji | 🔥 | Ball + Explodes (Fire)
+crying laughing emoji | 😂 | Ball + Bounce
+poop emoji | 💩 | Blob + Sticky (Poison)
+eggplant emoji | 🍆 | Staff + Blunt
+thinking emoji | 🤔 | Ball + Psychic
+hundred emoji | 💯 | Disc + Ricochet
+goat emoji | 🐐; the goat | Quadruped + Charge
+clown emoji | 🤡; clown | Biped + Playful, Chaotic
+nerd emoji | 🤓; um actually | Biped + Beam (Psychic)
+sus emoji | ඞ | Biped + Blade, Sneaky
+mlg glasses | deal with it glasses; thug life glasses | Shield + DropFromSky
+dorito | mlg dorito | Disc + Blade, Fast
+mountain dew | mlg dew | Bomb + Explodes, Poison
+hitmarker | mlg hitmarker | Gun + Shoots, Fast
+illuminati triangle | illuminati confirmed | Pillar + Beam (Psychic)
+companion meme cube | weighted cube | Boulder + Heavy
+sanic | gotta go fast | Ball + Fast, Spin
+dancing baby | oogachaka baby | Biped + Spin
+epic sax guy | sax guy | Gun + Repel (Wind)
+harlem shake | do the harlem shake | Biped + Swarm, Chaotic
+gangnam style | horse dance | Quadruped + Bounce
+planking | planker | Platform + Barrier
+dab | dabbing | Gauntlet + Blade
+floss dance | the floss | Biped + Spin
+fortnite default dance | default dance | Biped + Spin
+griddy | hit the griddy | Biped + Fast
+t-pose | t pose; assert dominance | Biped + Repel
+slenderman | slender man; slendy | Biped + Sneaky, Constrict (Shadow)
+jeff the killer | jeff | Biped + Blade, Sneaky
+siren head | sirenhead | Kaiju + Repel, Stomp (Wind)
+cartoon cat | cartoon cat trevor henderson | Biped + Fast, Charge (Shadow)
+long horse | long horse trevor henderson | Quadruped + Stomp
+backrooms entity | smiler | Biped + Sneaky (Shadow)
+huggy wuggy | huggy | Biped + Grab, Constrict
+freddy fazbear | freddy | Biped + Grab, Sneaky
+the grimace | grimace blob | Blob + Bounce
+larry the lobster | larry | Arachnid + Grab
+big red button | do not press button | Bomb + Explodes
+doomsday clock | midnight clock | Pillar + Explodes
+nuke | tactical nuke; nuke incoming | Bomb + Explodes, DropFromSky (Atomic)
+emotional damage | emotional damage meme | Bomb + Explodes (Psychic)
+ohio | only in ohio | Blob + Chaotic
+skibidi rizz | rizz | Ball + Homing (Psychic)
+aura | aura points; +1000 aura | Dome + Barrier (Light)
+mewing | mewing streak | Biped + Guard
+sigma face | sigma stare | Biped + Beam (Psychic)
+fanum tax | fanum | Biped + Grab, Fast
+gyatt | gyat | Blob + Bounce
+edging | edge lord | Sword + Blade (Shadow)
+touch grass | grass touching | Platform + Earth
+goblin mode | goblin | Biped + Chaotic
+rizzler | the rizzler | Biped + Pull
+demure | very demure | Biped + Calm
+brat summer | brat | Biped + Chaotic
+hawk tuah | spit on that thang | Gun + Shoots (Water)
+mogging | mog | Biped + Heavy
+jet2 holiday | nothing beats a jet2 holiday | Vehicle + Flies, Piloted
+performative male | matcha man | Biped + Lazy
+matcha latte | matcha | Bomb + Explodes (Poison)
+clock strikes 12 | midnight arrives | Pillar + Repel
+white rabbit pointing at a clock | late rabbit | Quadruped + Fast
+don't tap the glass | tap the glass | Wall + Barrier (Water)
+grow a garden | grow a garden seed | Pillar + Grow (Earth)
+happy ghast | ghast balloon | Blob + Flies, Piloted
+steve's lava chicken | lava chicken | Bird + Explodes (Fire)
+lirili larila elephant | larila | Quadruped + Stomp
+ai slop | slop | Blob + Sticky (Poison)
+big arch | big arch burger | Boulder + Heavy
+gugu gaga penguin | gugu gaga | Biped + Bounce (Ice)
+kitkat heist | chocolate heist | Bomb + Sneaky
+saxophone gets louder | louder sax | Gun + Repel (Wind)
+flying cat | falling cat meme | Bird + Flies, SlowFall
+lana's alligator | alligator tour guide | Quadruped + Grab (Water)
+jean phil | symmetrical bob | Biped + Blunt
+misery girl | misery | Biped + Shadow
+star by face | celebrity lookalike | Biped + Psychic
+viking clap | huh clap | Biped + Repel (Wind)
+## Toys & collectibles
+funko pop | funko | Biped + Swarm
+beanie baby | beanie babies | Blob + Swarm, Lazy
+cabbage patch kid | cabbage patch doll | Biped + Playful
+troll doll | good luck troll | Biped + Playful
+polly pocket | polly | Cage + Trap
+my little pony toy | pony figure | Quadruped + Bounce
+g.i. joe | action man | Biped + Shoots
+army men | plastic army men; green army men | Biped + Swarm, Shoots
+toy soldier | tin soldier | Biped + Pierce
+jack-o-lantern | jack o lantern | Bomb + Explodes (Fire)
+rocking horse | hobby horse | Quadruped + Bounce, Piloted
+radio flyer wagon | red wagon | Vehicle + Fast
+tonka truck | toy dump truck | Vehicle + Heavy, Charge
+remote control car | rc car | Vehicle + Fast, Homing
+toy drone | quadcopter toy | Bird + Flies, Rotor
+kite | stunt kite | Parachute + Glide
+frisbee | flying disc | Disc + Ricochet
+boomerang toy | plastic boomerang | Disc + Returning
+spinning top | top | Disc + Spin
+dreidel | dreidl | Disc + Spin
+marbles | marble; bag of marbles | Ball + Swarm, Ricochet
+jacks | jacks game | Ball + Swarm, Pierce
+kendama | kendama toy | Whip + Returning
+diabolo | chinese yoyo | Disc + Spin, Pull
+cup and ball | bilboquet | Whip + Returning
+bop it | bop-it | Hammer + Blunt, Bounce
+simon game | simon says toy | Disc + Beam
+etch a sketch | etch-a-sketch | Shield + Guard
+lite brite | lite-brite | Wall + Beam
+view-master | view master | Gun + Psychic
+magna-tiles | magnetic tiles | Wall + Barrier
+k'nex | knex | Wall + Barrier
+lincoln logs | toy logs | Wall + Barrier (Earth)
+wooden blocks | alphabet blocks; abc blocks | Boulder + Swarm
+building blocks | toy blocks | Wall + Barrier
+mega bloks | megablocks | Wall + Barrier
+meccano | erector set | Wall + Gears
+play-doh | playdough; play doh | Blob + Sticky
+slime toy | slime; gak | Blob + Sticky
+kinetic sand | moon sand | Wall + Earth
+silly putty | putty egg | Ball + Bounce, Sticky
+magic sand | aqua sand | Blob + Water
+stress toy | squeeze toy | Ball + Bounce
+squishmallow | squishmallows | Blob + Bounce, Lazy
+jellycat | jellycat plush | Blob + Bounce
+build-a-bear | build a bear | Biped + Guard
+care bear | care bears | Biped + Beam
+sylvanian families | calico critters | Biped + Swarm
+shopkins | shopkin | Ball + Swarm
+lol surprise | lol surprise doll | Bomb + Explodes
+hatchimals | hatchimal | Bird + Explodes
+bakugan | bakugan ball | Ball + Launch, Grow
+tech deck | fingerboard | Vehicle + Fast
+yo-kai watch | yokai watch | Gauntlet + Psychic
+trading card | pokemon card; tcg card | Disc + Swarm, Fast
+pog | pogs; slammer | Disc + Blunt, Swarm
+tazos | tazo | Disc + Swarm
+crazy bones | gogo's crazy bones | Ball + Swarm
+water beads | orbeez | Ball + Swarm, Bounce (Water)
+bubble wand | bubbles; bubble blower | Staff + Shoots (Water)
+bubble machine | bubble gun | Gun + Shoots, Bounce (Water)
+confetti cannon | confetti popper | Cannon + Repel
+party popper | party cracker | Gun + Explodes
+kazoo | kazoo meme | Gun + Repel (Wind)
+slide whistle | swanee whistle | Gun + Repel (Wind)
+jumping bean | mexican jumping bean | Ball + Bounce
+spring toy | coil spring | Trampoline + Bounce
+jack in the box clown | pop goes the weasel | Bomb + Launch
+wind-up toy | wind up mouse; chattering teeth | Biped + Grab, Fast
+chattering teeth | wind-up teeth | Blob + Grab, Fast
+sock monkey | sock puppet | Biped + Playful
+hand puppet | puppet | Gauntlet + Grab
+marionette | string puppet | Biped + Link
+nutcracker doll | nutcracker | Biped + Grab, Blunt
+matryoshka | russian doll; nesting doll | Biped + Swarm, Shrink
+porcelain doll | creepy doll | Biped + Sneaky (Shadow)
+voodoo doll | poppet | Biped + Link (Shadow)
+barbie dreamhouse | dreamhouse | Wall + Barrier
+toy train | model train | Vehicle + Fast, Wheels
+toy robot | tin robot | Biped + Shoots, Gears
+robosapien | robo sapien | Biped + Stomp
+tickle toy | giggle toy | Biped + Playful
+glow stick | glowstick | Staff + Light
+light saber toy | toy lightsaber | Sword + Blade
+foam sword | pool sword | Sword + Bounce
+foam finger | we're number one finger | Gauntlet + Blunt
+spud gun | potato gun; potato cannon | Cannon + Shoots
+cap gun | toy pistol | Gun + Shoots
+slingshot | catapult toy | Bow + Shoots
+bb gun | airsoft gun | Gun + Shoots, Fast
+paintball gun | paintball marker | Gun + Shoots, Sticky
+laser tag gun | laser tag | Gun + Beam
+water pistol | squirt pistol | Gun + Shoots (Water)
+snow globe | snowglobe | Dome + Barrier (Ice)
+music box | ballerina music box | Bomb + Psychic
+kaleidoscope | kaleidoscope toy | Staff + Psychic
+magic wand toy | toy wand | Staff + Shoots
+gyroscope | gyro | Disc + Spin
+newton's cradle | newtons cradle | Wall + Bounce
+lava lamp | lava lamp toy | Pillar + Fire
+plasma ball | plasma globe | Ball + Electric, Attract
+fuzzy dice | dice pair | Ball + Bounce
+rubber band ball | band ball | Ball + Bounce, Heavy
+yo-yo ball | yoyo ball | Ball + Returning
+paddle ball | paddleball | Shield + Bounce, Returning
+stilts | pogo stilts | Biped + Walks
+hula hoop | hoop | Disc + Spin
+jump rope | skipping rope | Whip + Pull
+tug of war rope | tug rope | Whip + Link, Pull
+sled | toboggan | Vehicle + Fast (Ice)
+skateboard | skate deck | Vehicle + Fast, Piloted
+scooter | kick scooter | Vehicle + Fast, Piloted
+roller skates | rollerblades | Wings + Fast
+heelys | wheelies | Wings + Fast
+hoverboard | self-balancing scooter | Vehicle + Fast, Piloted
+go-kart | go kart | Vehicle + Fast, Piloted
+bumper car | dodgem | Vehicle + Bounce, Piloted
+teacup ride | spinning teacups | Vehicle + Spin, Piloted
+carousel horse | merry go round | Pillar + Spin
+ferris wheel | big wheel | Pillar + Spin
+roller coaster car | coaster car | Vehicle + Fast, Piloted
+zipline | zip line | Whip + Link
+trampoline park | big trampoline | Trampoline + Bounce
+ball pit | ball pool | Cage + Trap, Swarm
+water slide | slip n slide | Ramp + Launch (Water)
+see-saw | seesaw; teeter totter | Platform + Launch
+swing set | playground swing | Whip + Launch
+monkey bars | jungle gym | Cage + Trap
+sandbox | sandpit | Platform + Earth
+## Sports & games equipment
+baseball | baseball ball | Ball + Fast
+softball | softball ball | Ball + Fast
+tennis ball | tennis balls | Ball + Bounce, Fast
+tennis racket | tennis racquet | Shield + Guard, Bounce
+badminton racket | shuttlecock | Shield + Guard
+ping pong paddle | table tennis bat | Shield + Guard, Ricochet
+ping pong ball | table tennis ball | Ball + Bounce, Ricochet
+volleyball | wilson; volley ball | Ball + Bounce
+beach ball | inflatable ball | Ball + Bounce, SlowFall
+american football | pigskin | Ball + Fast, Homing
+rugby ball | rugby | Ball + Charge
+dodgeball | dodge ball | Ball + Bounce, Fast
+kickball | playground ball | Ball + Bounce
+medicine ball | med ball | Ball + Heavy
+kettlebell | kettle bell | Hammer + Heavy, Blunt
+dumbbell | dumbell | Hammer + Heavy, Blunt
+barbell | weight bar | Staff + Heavy
+weight plate | plate | Disc + Heavy
+yoga ball | exercise ball | Ball + Bounce
+punching bag | heavy bag | Pillar + Barrier
+lacrosse stick | lacrosse | Staff + Shoots, Pull
+field hockey stick | hockey sticks | Staff + Blunt
+hurling stick | hurley | Staff + Blunt
+polo mallet | mallet | Hammer + Blunt
+croquet mallet | croquet | Hammer + Blunt
+cricket ball | leather ball | Ball + Fast, Heavy
+hockey puck | puck | Disc + Ricochet, Fast
+curling broom | curling brush | Staff + Repel (Ice)
+ski poles | ski pole | Spear + Pierce (Ice)
+skis | ski | Vehicle + Fast (Ice)
+snowboard | snow board | Vehicle + Fast (Ice)
+surfboard | surf board | Vehicle + Fast (Water)
+bodyboard | boogie board | Vehicle + Fast (Water)
+kayak paddle | paddle | Staff + Blunt (Water)
+canoe | kayak | Vehicle + Fast, Piloted (Water)
+javelin throw | olympic javelin | Spear + Pierce
+discus throw | olympic discus | Disc + Fast
+hammer throw | olympic hammer | Whip + Heavy, Blunt
+pole vault | vaulting pole | Staff + Launch
+hurdle | hurdles | Wall + Barrier
+starting pistol | starter gun | Gun + Repel
+relay baton | baton | Staff + Fast
+boxing ring | ring ropes | Cage + Trap, Bounce
+wrestling ring | wwe ring | Cage + Trap, Bounce
+steel chair | folding chair | Hammer + Blunt, Heavy
+championship belt | title belt | Gauntlet + Guard
+fencing foil | foil; epee; sabre | Sword + Pierce, Fast
+archery bow | recurve bow | Bow + Shoots
+dartboard | dart board | Shield + Guard
+darts | dart | Spear + Pierce, Swarm
+pool cue | cue stick | Spear + Pierce
+billiard ball | pool ball | Ball + Ricochet
+cue ball | white ball | Ball + Ricochet, Fast
+bowling alley | lane | Ramp + Launch
+golf ball | golf balls | Ball + Fast, Ricochet
+golf cart | caddy cart | Vehicle + Piloted
+golf flag | pin flag | Pillar + Barrier
+tee | golf tee | Pillar + Launch
+horseshoe | horseshoes | Disc + Ricochet
+cornhole bag | bean bag | Ball + Sticky
+frisbee golf disc | disc golf | Disc + Ricochet
+skipping stone | flat stone | Disc + Ricochet, Bounce
+water polo ball | polo ball | Ball + Bounce (Water)
+basketball hoop | hoop; basket | Cage + Trap
+soccer goal | football goal; goal net | Cage + Trap
+hockey goal | hockey net | Cage + Trap
+scoreboard | jumbotron | Wall + Beam
+referee whistle | whistle | Gun + Repel (Wind)
+stopwatch | stop watch | Disc + Psychic
+trophy | golden trophy | Hammer + Blunt
+medal | gold medal | Disc + Ricochet
+stanley cup | hockey cup | Hammer + Blunt, Heavy
+bike | bicycle | Vehicle + Fast, Piloted
+unicycle | one wheel | Vehicle + Fast, Piloted
+tandem bike | tandem bicycle | Vehicle + Fast, Piloted
+bmx | bmx bike | Vehicle + Fast, Bounce
+tricycle | trike | Vehicle + Piloted
+mascot costume | sports mascot | Biped + Playful
+foam hand | giant foam hand | Gauntlet + Blunt
+hot dog cannon | hotdog cannon | Cannon + Shoots
+kiss cam | stadium kiss cam | Wall + Beam
+wave | stadium wave | Wall + Repel
+## Everyday funny objects
+rubber boot | wellington boot | Hammer + Blunt
+boot | stomping boot | Hammer + Stomp
+umbrella hat | hat umbrella | Parachute + SlowFall
+selfie stick | selfie pole | Staff + Blunt
+fanny pack | bum bag | Cage + Trap
+backpack | school bag | Jetpack + Thrust
+suitcase | luggage | Boulder + Heavy
+rolling suitcase | trolley bag | Vehicle + Charge
+briefcase | attache case | Shield + Guard
+lunchbox | lunch box | Shield + Guard
+thermos | flask | Bomb + Explodes (Fire)
+coffee mug | mug | Hammer + Blunt (Fire)
+teapot | tea pot | Cannon + Breath (Water)
+kettle | whistling kettle | Cannon + Breath (Fire)
+blender | kitchen blender | Blob + Spin, Blade
+food processor | processor | Blob + Spin, Blade
+microwave | microwave oven | Wall + Beam (Fire)
+oven mitt | oven glove | Gauntlet + Guard (Fire)
+rolling pin | baking pin | Hammer + Blunt
+spatula | fish slice | Shield + Launch
+whisk | egg whisk | Hammer + Spin
+ladle | soup ladle | Hammer + Blunt (Water)
+pizza cutter | pizza wheel | Disc + Blade, Spin
+cheese grater | grater | Shield + Blade
+colander | strainer | Shield + Guard
+spork | spoon fork | Spear + Pierce
+chopsticks | chop sticks | Spear + Pierce, Swarm
+fork | dinner fork | Spear + Pierce
+spoon | big spoon | Hammer + Blunt
+butter knife | table knife | Sword + Blade
+cleaver | meat cleaver | Axe + Blade
+wok | wok pan | Shield + Guard (Fire)
+cast iron skillet | cast iron | Hammer + Blunt, Heavy
+baguette | french bread | Sword + Blunt
+loaf of bread | bread loaf | Boulder + Bounce
+wheel of cheese | cheese wheel | Boulder + Heavy
+watermelon | melon | Ball + Explodes (Water)
+pineapple | pineapple grenade | Bomb + Explodes
+coconut | coconuts | Ball + DropFromSky, Blunt
+cabbage | my cabbages | Ball + Bounce
+potato | spud | Ball + Blunt
+onion | onion layers | Ball + Poison
+rotisserie chicken | roast chicken | Ball + Fire
+turkey | thanksgiving turkey | Ball + Heavy
+fish slap | wet fish; slapping fish | Hammer + Blunt (Water)
+cream pie | pie to the face | Ball + Sticky
+custard pie | pie | Ball + Sticky
+cake | birthday cake | Bomb + Explodes, Sticky
+wedding cake | tiered cake | Pillar + Sticky
+donut | doughnut | Disc + Ricochet
+bagel | bagels | Disc + Ricochet
+pretzel | soft pretzel | Whip + Constrict
+spaghetti | pasta | Whip + Constrict, Sticky
+meatball | meatballs | Ball + Swarm
+taco | tacos | Cage + Trap
+burrito | burrito wrap | Cage + Constrict
+hot dog | hotdog | Staff + Blunt
+hamburger | burger | Boulder + Heavy
+pizza slice | pizza | Disc + Sticky, Fire
+french fries | fries | Spear + Swarm
+popcorn | pop corn | Ball + Swarm, Bounce (Fire)
+gumball machine | gumball | Wall + Shoots
+bubble gum | gum | Ball + Sticky
+jawbreaker | gobstopper | Ball + Heavy
+lollipop | lolly | Hammer + Sticky
+candy cane | candycane | Staff + Pull
+mentos and coke | diet coke and mentos | Bomb + Explodes, Thrust (Water)
+soda can | pop can | Bomb + Explodes, Fast (Water)
+energy drink | monster energy | Jetpack + Thrust, Fast
+milk carton | milk | Bomb + Explodes (Water)
+ketchup bottle | ketchup | Gun + Beam, Sticky
+mustard bottle | mustard | Gun + Beam, Sticky
+hot sauce | sriracha | Gun + Breath (Fire)
+salt shaker | salt | Gun + Shoots, Swarm
+pepper grinder | pepper mill | Staff + Spin
+fire hydrant | hydrant | Pillar + Beam (Water)
+mailbox | post box | Pillar + Grab
+trash can | garbage can; bin | Cage + Trap
+dumpster | skip bin | Cage + Trap, Heavy
+dumpster fire | burning dumpster | Cage + Trap (Fire)
+porta potty | portaloo; porta john | Cage + Trap (Poison)
+toilet | loo | Cage + Trap (Water)
+bathtub | bath tub | Vehicle + Piloted (Water)
+shower head | showerhead | Gun + Beam (Water)
+hair dryer | hairdryer | Gun + Beam, Repel (Wind)
+vacuum cleaner | hoover | Gun + Attract (Wind)
+mop | wet mop | Staff + Blunt (Water)
+broom | broomstick | Staff + Flies, Piloted
+feather duster | duster | Staff + Repel
+iron | clothes iron | Hammer + Blunt (Fire)
+ironing board | iron board | Shield + Guard
+washing machine | washer | Blob + Spin (Water)
+tumble dryer | clothes dryer | Blob + Spin (Wind)
+fridge | refrigerator | Wall + Barrier (Ice)
+freezer | chest freezer | Cage + Trap (Ice)
+dishwasher | dish washer | Wall + Water
+lawn mower | lawnmower | Vehicle + Blade, Spin
+riding mower | ride-on mower | Vehicle + Blade, Piloted
+leaf rake | rake | Staff + Pull
+garden hose | hose | Whip + Beam (Water)
+sprinkler | lawn sprinkler | Pillar + Spin (Water)
+wheelbarrow | wheel barrow | Vehicle + Charge
+lawn flamingo | pink flamingo | Pillar + Swarm
+scarecrow | straw man | Biped + Fearful
+garden rake trap | step on a rake | Ramp + Launch, Blunt
+shovel | spade | Axe + Blunt (Earth)
+pitchfork | hay fork | Spear + Pierce
+chainsaw | chain saw | Sword + Blade, Spin
+power drill | drill | Spear + Spin, Pierce
+nail gun | nailgun | Gun + Shoots, Pierce
+staple gun | stapler | Gun + Shoots, Sticky
+duct tape | duck tape | Whip + Sticky, Link
+glue stick | glue | Gun + Sticky
+hot glue gun | glue gun | Gun + Sticky (Fire)
+wrench | spanner | Hammer + Blunt
+monkey wrench | pipe wrench | Hammer + Blunt, Heavy
+crowbar | pry bar | Axe + Blunt
+sledgehammer | sledge | Hammer + Blunt, Heavy
+toolbox | tool box | Boulder + Heavy
+ladder | step ladder | Ramp + Launch
+tape measure | measuring tape | Whip + Returning
+magnifying glass | magnifier | Staff + Beam (Fire)
+flashlight | torch | Staff + Beam
+lamp | desk lamp | Staff + Beam
+lava lamp light | lavalamp | Pillar + Fire
+ceiling fan | fan | Disc + Spin, Repel (Wind)
+box fan | electric fan | Wall + Repel (Wind)
+space heater | heater | Wall + Breath (Fire)
+air conditioner | aircon; ac unit | Wall + Breath (Ice)
+alarm clock | clock | Bomb + Repel
+grandfather clock | pendulum clock | Pillar + Heavy
+cuckoo clock | cuckoo | Wall + Shoots
+hourglass | sand timer | Pillar + Earth
+calculator | calc | Shield + Guard
+keyboard | mechanical keyboard | Shield + Blunt
+computer mouse | mouse | Ball + Link
+monitor | computer screen | Wall + Beam
+laptop | notebook computer | Shield + Guard
+cd | compact disc | Disc + Ricochet, Blade
+dvd | dvd logo; bouncing dvd logo | Disc + Ricochet, Bounce
+vhs tape | vhs | Boulder + Blunt
+cassette tape | cassette | Disc + Link
+record | vinyl record | Disc + Blade, Spin
+boombox | ghetto blaster | Wall + Repel (Wind)
+jukebox | juke box | Wall + Repel
+microphone | mic | Staff + Repel (Wind)
+megaphone | bullhorn | Gun + Repel (Wind)
+electric guitar | guitar | Axe + Blunt (Electric)
+drum kit | drums | Wall + Repel
+cymbal | crash cymbal | Disc + Repel, Blade
+tuba | sousaphone | Cannon + Repel (Wind)
+bagpipes | bag pipes | Gun + Repel (Wind)
+accordion | squeezebox | Wall + Bounce
+triangle instrument | triangle | Disc + Repel
+cowbell | more cowbell | Hammer + Blunt, Repel
+gong | gong bang | Shield + Repel
+tv remote | remote control | Gun + Beam (Psychic)
+game controller | gamepad | Gauntlet + Blunt
+joystick | arcade stick | Staff + Blunt
+arcade machine | arcade cabinet | Wall + Barrier
+smartphone | phone | Shield + Beam
+iphone | apple phone | Shield + Beam
+airpods | earbuds | Ball + Swarm
+tamagotchi egg | digital pet | Blob + Grow
+flip phone | razr | Shield + Guard
+pager | beeper | Disc + Electric
+satellite dish | dish | Wall + Beam
+traffic light | stop light | Pillar + Beam
+stop sign | stop | Shield + Guard
+road sign | yield sign | Shield + Guard
+speed bump | speed hump | Ramp + Launch
+barricade | police barrier | Wall + Barrier
+jersey barrier | concrete barrier | Wall + Barrier, Heavy
+manhole cover | manhole | Disc + Heavy, Ricochet
+sewer grate | storm drain | Wall + Trap
+parking meter | meter | Pillar + Barrier
+street lamp | lamp post | Pillar + Beam
+phone booth | telephone box | Cage + Trap, Portal
+bus stop | bus shelter | Wall + Barrier
+park bench | bench | Wall + Barrier
+picnic table | table | Wall + Barrier
+beach umbrella | parasol | Parachute + SlowFall
+lawn chair | deck chair | Wall + Bounce
+bean bag chair | beanbag | Blob + Bounce, Lazy
+massage chair | recliner | Vehicle + Lazy, Piloted
+rocking chair | rocker | Vehicle + Bounce
+hammock | hammock bed | Trampoline + Bounce
+waterbed | water bed | Trampoline + Bounce (Water)
+bunk bed | bunkbed | Wall + Barrier
+pillow | pillow fight | Hammer + Bounce
+blanket fort | pillow fort | Dome + Barrier
+sleeping bag | sleeping sack | Cage + Trap
+tent | camping tent | Dome + Barrier
+campfire | bonfire | Pillar + Breath (Fire)
+marshmallow on a stick | toasted marshmallow | Staff + Sticky (Fire)
+fire pit | firepit | Trampoline + Fire
+grill | bbq; barbecue | Wall + Breath (Fire)
+cooler | ice chest | Boulder + Ice
+inflatable pool | kiddie pool | Trampoline + Water
+pool float | flamingo float; inflatable flamingo | Vehicle + Bounce (Water)
+inner tube | rubber ring | Disc + Bounce (Water)
+life jacket | life vest | Cape + SlowFall
+snorkel | snorkel mask | Cape + Water
+scuba tank | air tank | Jetpack + Thrust (Water)
+fishing rod | fishing pole | Whip + Pull
+fishing net | net | Cage + Trap (Water)
+lasso | lariat | Whip + Pull, Constrict
+pinwheel | windmill toy | Disc + Spin (Wind)
+weathervane | weather vane | Pillar + Spin (Wind)
+wind chime | chimes | Pillar + Repel (Wind)
+birdhouse | bird house | Cage + Swarm
+bird feeder | feeder | Pillar + Attract
+beehive | bee hive | Bomb + Swarm (Poison)
+wasp nest | hornet nest | Bomb + Swarm, Explodes (Poison)
+ant farm | ant colony | Cage + Swarm
+fish tank | aquarium | Cage + Trap (Water)
+hamster wheel | exercise wheel | Vehicle + Spin, Piloted
+cat tree | cat tower | Pillar + Barrier
+laser pointer | laser pen | Staff + Beam
+red dot | laser dot | Staff + Beam, Homing
+catnip | nip | Bomb + Attract
+litter box | cat litter | Cage + Trap (Poison)
+dog bone | chew toy | Staff + Blunt
+tennis ball launcher | ball thrower | Staff + Shoots
+leash | dog lead | Whip + Link, Pull
+cone of shame | dog cone | Shield + Guard
+squeaky toy | squeaker | Ball + Bounce
+## Greek & Roman mythology
+zeus | jupiter | Biped + Beam (Electric)
+poseidon | neptune | Biped + Pierce (Water)
+hades | pluto | Biped + Shadow
+athena | minerva | Biped + Guard
+ares | mars god | Biped + Charge, Aggressive
+apollo | apollo god | Biped + Shoots (Light)
+artemis | diana | Biped + Shoots, Homing
+hermes | mercury god | Biped + Fast, Flies
+hephaestus | vulcan | Biped + Blunt (Fire)
+dionysus | bacchus | Biped + Chaotic
+hera | juno | Biped + Psychic
+aphrodite | venus | Biped + Attract
+demeter | ceres | Biped + Earth
+persephone | proserpina | Biped + Earth
+nike goddess | winged victory; victoria | Biped + Flies
+eros | cupid | Biped + Shoots, Flies
+pan | faun god | Biped + Repel
+atlas | titan atlas | Kaiju + Heavy
+prometheus | fire bringer | Biped + Fire
+kronos | cronus; saturn titan | Kaiju + Grab
+gaia | mother earth | Kaiju + Earth
+typhon | typhoeus | Kaiju + Breath, Flies (Fire)
+echidna monster | echidna mother of monsters | Serpent + Constrict
+scylla | scylla monster | Kaiju + Grab, Swarm (Water)
+charybdis | whirlpool monster | Blob + Attract (Water)
+harpy | harpies | Bird + Grab, Swarm
+siren | sirens | Bird + Attract (Water)
+centaur | centaurs | Quadruped + Shoots, Fast
+satyr | satyrs | Biped + Bounce
+nymph | dryad | Biped + Earth
+naiad | water nymph | Biped + Water
+cyclops | cyclopes | Biped + Stomp, Heavy
+gorgon sisters | stheno; euryale | Biped + Beam (Earth)
+nemean lion | nemean | Quadruped + Guard, Charge
+erymanthian boar | erymanthian | Quadruped + Charge
+stymphalian birds | stymphalian | Bird + Swarm, Pierce
+ceryneian hind | golden hind | Quadruped + Fast
+cretan bull | cretan | Quadruped + Charge
+mares of diomedes | diomedes horses | Quadruped + Charge, Swarm
+geryon | three bodied giant | Biped + Heavy
+ladon | hesperides dragon | Serpent + Constrict
+talos | bronze giant | Kaiju + Stomp, Heavy
+argus panoptes | hundred eyed giant | Biped + Beam
+cerastes | horned serpent | Serpent + Pierce
+python (myth) | delphic python | Serpent + Constrict
+hippocampus | sea horse (myth) | Fish + Charge (Water)
+hippogriff | hippogryph | Quadruped + Flies
+empusa | empousa | Biped + Sneaky
+lamia | lamia monster | Serpent + Constrict, Sneaky
+furies | erinyes | Bird + Swarm (Fire)
+fates | moirai | Biped + Link
+charon | ferryman | Vehicle + Piloted (Shadow)
+thanatos | death god | Biped + Shadow
+hypnos | sleep god | Biped + Psychic
+chronos | time god | Biped + Psychic
+achilles | achilles hero | Biped + Pierce, Fast
+hercules | heracles | Biped + Heavy, Grab
+perseus | perseus hero | Biped + Blade
+theseus | theseus hero | Biped + Blade
+odysseus | ulysses | Biped + Shoots
+jason and the argonauts | argo; argonaut | Vehicle + Sails
+spartan | spartan warrior; this is sparta | Biped + Guard, Pierce
+hoplite | greek hoplite | Biped + Guard, Pierce
+gladiator | roman gladiator | Biped + Blade, Guard
+roman legionary | legionnaire | Biped + Guard, Swarm
+trident | poseidon's trident | Spear + Pierce (Water)
+caduceus | hermes staff | Staff + Link
+thunderbolt of zeus | zeus bolt; master bolt | Spear + Electric, Homing
+helm of darkness | cap of invisibility | Cape + Sneaky
+golden fleece | fleece | Cape + Guard
+labrys | double axe | Axe + Blade
+harpe | perseus sickle | Sword + Blade
+golden apple | apple of discord | Ball + Attract
+ambrosia | nectar | Bomb + Light
+chariot of helios | sun chariot | Vehicle + Flies, Fire
+achilles shield | shield of achilles | Shield + Guard
+labyrinth | maze | Wall + Barrier
+colossus of rhodes | colossus | Kaiju + Stomp
+## Norse mythology
+odin | allfather | Biped + Psychic
+thor | thor god | Biped + Blunt (Electric)
+loki | trickster god | Biped + Sneaky, Swarm
+freya | freyja | Biped + Flies
+tyr | tyr god | Biped + Blade
+heimdall | heimdallr | Biped + Beam
+baldur | balder | Biped + Light
+hel | hela | Biped + Shadow
+frigg | frigga | Biped + Psychic
+surtr | surt | Kaiju + Breath (Fire)
+ymir | frost giant ymir | Kaiju + Stomp (Ice)
+jotunn | frost giant; jotun | Kaiju + Stomp (Ice)
+fire giant | muspel giant | Kaiju + Breath (Fire)
+nidhogg | niðhöggr | Serpent + Grab (Poison)
+ratatoskr | yggdrasil squirrel | Quadruped + Fast
+huginn and muninn | odin's ravens | Bird + Swarm, Flies
+geri and freki | odin's wolves | Quadruped + Swarm, Charge
+tanngrisnir | thor's goats | Quadruped + Charge
+draugr | draugar | Biped + Heavy (Shadow)
+einherjar | einherji | Biped + Swarm
+dwarf smith | norse dwarf | Biped + Blunt
+dark elf | svartalf | Biped + Sneaky (Shadow)
+light elf | ljosalf | Biped + Light
+troll | mountain troll | Biped + Heavy, Stomp (Earth)
+kraken (norse) | hafgufa | Kaiju + Constrict (Water)
+yggdrasil | world tree | Pillar + Barrier (Earth)
+bifrost | rainbow bridge | Ramp + Portal
+gjallarhorn | horn of heimdall | Gun + Repel (Wind)
+draupnir | odin's ring | Disc + Swarm
+brisingamen | freya's necklace | Cape + Light
+skidbladnir | folding ship | Vehicle + Sails, Piloted
+naglfar | ship of nails | Vehicle + Pierce, Piloted
+megingjord | belt of strength | Gauntlet + Grow
+jarngreipr | iron gloves | Gauntlet + Grab
+hofund | heimdall's sword | Sword + Blade
+tyrfing | cursed sword | Sword + Blade (Shadow)
+gram | sigurd's sword | Sword + Blade
+laevateinn | lævateinn | Sword + Fire
+viking longship | longship; drakkar | Vehicle + Sails, Piloted
+berserker | berserk | Biped + Charge, Aggressive
+shieldmaiden | shield maiden | Biped + Guard
+## Egyptian & Mesopotamian
+ra | re; sun god ra | Bird + Beam (Fire)
+horus | eye of horus | Bird + Beam
+osiris | osiris god | Biped + Shadow
+isis | isis goddess | Biped + Flies
+set | seth | Quadruped + Wind, Chaotic
+thoth | ibis god | Bird + Psychic
+bastet | bast; cat goddess | Quadruped + Fast
+sekhmet | lion goddess | Biped + Fire
+sobek | crocodile god | Biped + Grab (Water)
+apep | apophis | Serpent + Constrict (Shadow)
+ammit | devourer of the dead | Quadruped + Grab
+bennu | bennu bird | Bird + Fire
+khepri | scarab god | Insect + Light
+scarab | scarab beetle | Insect + Swarm
+mummy | mummified pharaoh | Biped + Constrict
+pharaoh | king tut | Biped + Psychic
+sarcophagus | coffin | Cage + Trap
+ankh | ankh staff | Staff + Light
+was sceptre | was staff | Staff + Pierce
+khopesh | sickle sword | Sword + Blade
+pyramid | great pyramid | Pillar + Barrier, Heavy
+obelisk | egyptian obelisk | Pillar + DropFromSky
+lamassu | shedu | Quadruped + Flies, Guard
+gilgamesh | gilgamesh king | Biped + Heavy
+humbaba | huwawa | Kaiju + Breath
+tiamat (babylon) | primordial sea | Kaiju + Water
+marduk | marduk god | Biped + Electric
+pazuzu | pazuzu demon | Bird + Wind
+mushussu | sirrush | Quadruped + Pierce
+ziggurat | temple tower | Ramp + Launch
+djinn | genie; jinn | Blob + Flies (Wind)
+ifrit | efreet | Biped + Fire
+roc | rukh | Bird + Grab, Flies
+simurgh | simorgh | Bird + Flies, Wind
+magic carpet | flying carpet | Platform + Flies, Piloted
+magic lamp | genie lamp | Bomb + Swarm
+ghoul | ghul | Biped + Grab (Shadow)
+## Japanese folklore & yokai
+tanuki statue | shigaraki tanuki | Boulder + Heavy
+kitsune mask | fox mask | Shield + Fire
+tengu mask | red tengu | Shield + Wind
+oni mask | hannya mask; hannya | Shield + Fire
+kanabo | oni club | Hammer + Blunt, Heavy
+yamata no orochi | orochi; eight headed serpent | Kaiju + Breath, Constrict (Poison)
+raijin | thunder god | Biped + Repel (Electric)
+fujin | wind god | Biped + Repel (Wind)
+ryujin | dragon king | Serpent + Water
+kirin | qilin | Quadruped + Fire, Fast
+baku | dream eater | Quadruped + Psychic
+nue | nue chimera | Quadruped + Electric
+jorogumo | spider woman | Arachnid + Sticky, Sneaky
+tsuchigumo | earth spider | Arachnid + Grab (Earth)
+nekomata | two tailed cat | Quadruped + Fire
+bakeneko | monster cat | Quadruped + Sneaky
+kamaitachi | sickle weasel | Quadruped + Blade, Fast (Wind)
+yuki-onna | snow woman | Biped + Breath (Ice)
+rokurokubi | long neck woman | Serpent + Grab
+nukekubi | flying head | Blob + Flies
+futakuchi-onna | two mouthed woman | Biped + Grab
+kuchisake-onna | slit mouthed woman | Biped + Blade, Sneaky
+noppera-bo | faceless ghost | Biped + Sneaky
+yurei | onryo; japanese ghost | Blob + Flies (Shadow)
+hitodama | will o wisp (japan) | Ball + Homing (Fire)
+onibi | demon fire | Ball + Homing (Fire)
+umibozu | sea monk | Kaiju + Water
+ushi-oni | ox demon | Arachnid + Charge
+nurikabe | wall yokai | Wall + Walks, Barrier
+ittan-momen | flying cloth | Cape + Flies, Constrict
+chochin-obake | lantern ghost | Blob + Bounce (Fire)
+bake-zori | sandal yokai | Biped + Bounce
+mokumokuren | eyes in the wall | Wall + Beam
+tsukumogami | possessed object | Blob + Chaotic
+zashiki-warashi | house child spirit | Biped + Playful
+akaname | filth licker | Biped + Sticky
+azukiarai | bean washer | Biped + Swarm
+amabie | amabie spirit | Fish + Water
+namazu | earthquake catfish | Fish + Stomp (Earth)
+kodama | tree spirit | Biped + Earth, Swarm
+shisa | shisa lion dog | Quadruped + Guard
+komainu | lion dog guardian | Quadruped + Guard
+maneki-neko | lucky cat; beckoning cat | Quadruped + Attract
+daruma doll | daruma | Boulder + Bounce
+kokeshi doll | kokeshi | Pillar + Barrier
+teru teru bozu | rain doll | Parachute + SlowFall
+katana (myth) | kusanagi; kusanagi no tsurugi | Sword + Blade, Wind
+muramasa | cursed katana | Sword + Blade (Shadow)
+masamune | holy katana | Sword + Blade (Light)
+yata no kagami | sacred mirror | Shield + Guard, Beam
+yasakani no magatama | magatama | Disc + Light
+## Chinese folklore
+chinese dragon | lung; loong | Serpent + Flies, Water
+fenghuang bird | chinese phoenix | Bird + Fire
+bai ze | baize | Quadruped + Psychic
+pixiu | pi xiu | Quadruped + Attract
+taotie | tao tie | Blob + Attract
+nian | nian beast | Quadruped + Charge
+nezha | ne zha | Biped + Spin, Fire
+zhong kui | demon queller | Biped + Blade
+erlang shen | three eyed god | Biped + Beam
+zhu bajie | pigsy | Biped + Heavy
+sha wujing | sandy | Biped + Water
+white bone demon | baigujing | Biped + Sneaky (Shadow)
+jade emperor | jade emperor god | Biped + Psychic
+chang'e | moon goddess | Biped + Flies
+hou yi | archer yi | Biped + Shoots
+jade rabbit | moon rabbit | Quadruped + Bounce
+terracotta warrior | terracotta army | Biped + Swarm (Earth)
+guandao | guan dao | Spear + Blade
+fire lance | chinese rocket | Rocket + Explodes (Fire)
+lion dance | dancing lion | Quadruped + Bounce, Playful
+dragon dance | dancing dragon | Serpent + Swarm
+foo dog | guardian lion | Quadruped + Guard
+qilin statue | kirin statue | Quadruped + Guard
+gumiho | nine tailed fox korea | Quadruped + Sneaky, Fire
+dokkaebi | korean goblin | Biped + Blunt, Playful
+haetae | haechi | Quadruped + Guard
+bulgasari | iron eater | Kaiju + Heavy
+## South & Southeast Asian
+garuda | garuda bird | Bird + Grab, Flies
+naga | nagas | Serpent + Water
+airavata | white elephant | Quadruped + Stomp
+hanuman | monkey god | Biped + Grow, Flies
+ganesha | ganesh | Biped + Heavy
+kali | kali goddess | Biped + Swarm, Blade
+shiva | shiva god | Biped + Beam
+vishnu chakra | sudarshana chakra | Disc + Returning, Blade
+trishula | trishul | Spear + Pierce (Electric)
+vajra | indra's thunderbolt | Hammer + Electric
+brahmastra | brahmastra weapon | Rocket + Explodes (Atomic)
+makara | makara creature | Fish + Grab (Water)
+rakshasa | rakshas | Biped + Aggressive
+vetala | vetal | Blob + Flies (Shadow)
+yali | vyala | Quadruped + Guard
+kinnara | kinnari | Bird + Playful
+barong | barong dance | Quadruped + Guard
+rangda | rangda witch | Biped + Chaotic
+bakunawa | moon eating serpent | Serpent + Attract
+aswang | aswang monster | Biped + Sneaky
+manananggal | manananggal flier | Bird + Sneaky
+tikbalang | horse demon | Biped + Fast
+kapre | tree giant | Biped + Lazy (Earth)
+pontianak | kuntilanak | Blob + Sneaky
+toyol | tuyul | Biped + Sneaky, Fast
+## Americas
+feathered serpent statue | kukulcan statue | Serpent + Guard
+tlaloc | rain god | Biped + Water
+huitzilopochtli | sun war god | Biped + Fire
+xolotl | xolotl dog | Quadruped + Shadow
+ahuizotl | ahuizotl water dog | Quadruped + Grab (Water)
+cipactli | cipactli crocodile | Quadruped + Grab
+jaguar warrior | ocelotl warrior | Biped + Fast
+eagle warrior | cuauhtli warrior | Biped + Flies
+macuahuitl | aztec sword | Sword + Blade
+camazotz | bat god | Bird + Grab (Shadow)
+alebrije | alebrijes | Quadruped + Flies, Playful
+la llorona (myth) | weeping woman | Blob + Breath (Water)
+el cucuy | coco | Biped + Sneaky
+nahual | nagual | Quadruped + Sneaky
+tupilaq | tupilak | Biped + Sneaky
+skinwalker | skin walker | Quadruped + Sneaky, Fast
+thunderbird totem | totem pole | Pillar + Barrier
+piasa bird | piasa | Bird + Grab
+horned serpent | uktena | Serpent + Pierce
+mishipeshu | underwater panther | Quadruped + Water
+kokopelli | flute player | Biped + Playful
+coyote trickster | coyote | Quadruped + Sneaky
+curupira | backwards feet | Biped + Fast (Fire)
+boitata | fire serpent | Serpent + Fire
+saci | saci perere | Biped + Spin (Wind)
+el tunche | tunche | Blob + Sneaky
+## Slavic, Baltic & Eastern European
+koschei | koschei the deathless | Biped + Shadow
+zmey gorynych | zmey | Kaiju + Breath, Flies (Fire)
+leshy | forest spirit | Biped + Earth
+domovoi | house spirit | Biped + Protective
+rusalka | river maiden | Biped + Water
+vodyanoy | water grandfather | Biped + Grab (Water)
+kikimora | kikimora spirit | Biped + Sneaky
+firebird (slavic) | zhar-ptitsa | Bird + Fire
+alkonost | alkonost bird | Bird + Psychic
+sirin | sirin bird | Bird + Psychic
+likho | one eyed likho | Biped + Chaotic
+strzyga | strigoi | Bird + Grab
+vampire | dracula | Biped + Flies (Shadow)
+werewolf | wolfman; lycanthrope | Biped + Charge, Aggressive
+upir | upyr | Biped + Grab (Shadow)
+chort | chert | Biped + Chaotic
+bannik | bath spirit | Biped + Fire
+poludnitsa | lady midday | Biped + Blade
+tugarin | tugarin serpent | Serpent + Fire
+mortar and pestle | baba yaga's mortar | Vehicle + Flies, Piloted
+kolobok | runaway bun | Ball + Fast, Bounce
+## Celtic & British Isles
+leprechaun | leprechauns | Biped + Sneaky, Fast
+pot of gold | leprechaun gold | Boulder + Attract
+selkie | seal folk | Fish + Water
+kelpie | water horse | Quadruped + Grab (Water)
+each-uisge | each uisge | Quadruped + Grab (Water)
+púca | pooka | Quadruped + Chaotic
+changeling | fairy changeling | Biped + Sneaky
+fairy | fae; faerie | Insect + Flies, Swarm
+pixie | pixies | Insect + Flies, Swarm
+brownie | house brownie | Biped + Playful
+redcap | red cap | Biped + Charge
+boggart | bogeyman | Biped + Sneaky
+will-o'-the-wisp | will o wisp; wisp | Ball + Homing (Light)
+black dog | barghest | Quadruped + Charge (Shadow)
+cu sith | cù-sìth | Quadruped + Charge
+cait sith | cat sith | Quadruped + Sneaky
+wyrm | wyrms | Serpent + Constrict
+wyvern | wyverns | Bird + Flies, ArticulatedTail
+welsh dragon | y ddraig goch | Kaiju + Breath, Flies (Fire)
+green knight | the green knight | Biped + Guard
+giant's causeway giant | finn mccool | Kaiju + Stomp
+cernunnos | horned god | Biped + Earth
+morrigan | the morrigan | Bird + Swarm (Shadow)
+dagda's club | the dagda's club | Hammer + Blunt, Heavy
+gae bulg | gáe bulg | Spear + Pierce
+claiomh solais | sword of light | Sword + Beam
+spear of lugh | lugh's spear | Spear + Homing (Fire)
+holy grail | grail | Bomb + Light
+round table | king arthur's table | Platform + Barrier
+lady of the lake | lady of the lake hand | Biped + Water
+merlin | merlin wizard | Biped + Psychic
+questing beast | glatisant | Quadruped + Fast
+black knight | 'tis but a scratch | Biped + Guard
+killer rabbit | rabbit of caerbannog | Quadruped + Charge, Aggressive
+holy hand grenade | holy hand grenade of antioch | Bomb + Explodes, Light
+## African & other
+anansi | kwaku anansi | Arachnid + Sticky, Sneaky
+mami wata | mami water | Serpent + Water
+tokoloshe | tikoloshe | Biped + Sneaky
+impundulu | lightning bird | Bird + Electric
+grootslang | great snake | Serpent + Constrict
+mokele-mbembe | mokele mbembe | Quadruped + Stomp (Water)
+ninki nanka | ninki-nanka | Serpent + Water
+adze | firefly vampire | Insect + Sneaky
+bunyip | bunyips | Quadruped + Water
+rainbow serpent | rainbow snake | Serpent + Water
+drop bear | dropbear | Quadruped + DropFromSky, Grab
+yowie ape | australian yeti | Biped + Stomp
+taniwha | taniwha guardian | Serpent + Water
+moa | giant moa | Bird + Charge
+## Cryptids & urban legends
+jersey devil | leeds devil | Bird + Flies, Sneaky
+dover demon | dover | Biped + Sneaky
+flatwoods monster | braxton county monster | Biped + Breath (Poison)
+fresno nightcrawler | nightcrawler cryptid | Biped + Walks
+lizard man | lizard man of scape ore | Biped + Grab
+thunderbird cryptid | giant bird | Bird + Grab
+jackalope | jackalopes | Quadruped + Pierce, Bounce
+fouke monster | boggy creek monster | Biped + Stomp
+ogopogo | lake serpent | Serpent + Constrict (Water)
+champ | champy | Serpent + Water
+beast of bodmin | bodmin beast | Quadruped + Charge
+owlman | owl man | Bird + Sneaky
+mongolian death worm | olgoi-khorkhoi | Serpent + Electric
+yeren | chinese wildman | Biped + Stomp
+almas | almasty | Biped + Sneaky
+orang pendek | orang-pendek | Biped + Fast
+skunk ape | skunkape | Biped + Poison
+grey alien | little green men; roswell alien | Biped + Beam (Psychic)
+ufo | flying saucer | Vehicle + Flies, Beam
+alien abduction beam | tractor beam | Vehicle + Beam, Attract
+crop circle | crop circles | Platform + Portal
+men in black | mib agent | Biped + Beam
+shadow people | shadow person | Biped + Sneaky (Shadow)
+hat man | the hat man | Biped + Sneaky (Shadow)
+rake cryptid | the rake | Biped + Blade, Sneaky
+mothman statue | mothman point pleasant | Pillar + Beam
+bloody mary | bloody mary mirror | Wall + Portal
+headless chicken | mike the headless chicken | Bird + Chaotic
+goatman | goat man | Biped + Charge
+pope lick monster | pope lick | Biped + Charge
+bunnyman | bunny man | Biped + Blade
+## Legendary weapons & artifacts
+durandal | durendal | Sword + Blade
+joyeuse | charlemagne's sword | Sword + Blade
+clarent | sword of peace | Sword + Blade
+arondight | lancelot's sword | Sword + Blade
+galatine | gawain's sword | Sword + Fire
+rhongomyniad | rhongomiant | Spear + Pierce, Beam
+carnwennan | arthur's dagger | Sword + Sneaky
+zulfiqar | dhu al-fiqar | Sword + Blade
+tizona | el cid's sword | Sword + Blade
+colada | colada sword | Sword + Blade
+green dragon crescent blade | guan yu's blade | Spear + Blade
+sword of damocles | damocles | Sword + DropFromSky
+spear of longinus | holy lance; lance of longinus | Spear + Pierce, Light
+seven branched sword | shichishito | Sword + Blade
+ark of the covenant | the ark | Bomb + Beam, Light
+philosopher's stone | philosophers stone | Ball + Psychic
+seven league boots | seven-league boots | Wings + Fast
+cloak of invisibility | invisibility cloak | Cape + Sneaky
+flying broom | witch's broom | Staff + Flies, Piloted
+crystal ball | scrying ball | Ball + Psychic
+magic mirror | mirror mirror | Shield + Guard, Beam
+cornucopia | horn of plenty | Cannon + Shoots
+harp of dagda | dagda's harp | Shield + Psychic
+thor's belt | megingjörð | Gauntlet + Heavy
+hammer of the gods | war hammer (myth) | Hammer + Blunt, Electric
+aegis of athena | gorgon shield | Shield + Guard, Beam
+shield of ajax | ajax shield | Shield + Guard, Heavy
+boots of hermes | flying boots | Wings + Fast
+bow of heracles | heracles bow | Bow + Shoots, Poison
+lyre of orpheus | orpheus lyre | Shield + Psychic
+pandora's jar | pithos | Bomb + Swarm
+the one ring (myth) | ring of gyges | Disc + Sneaky
+kladenets | self-swinging sword | Sword + Returning
+flaming sword | sword of fire | Sword + Fire
+cursed skull | crystal skull | Ball + Psychic
+voodoo pin | hex pin | Spear + Pierce, Shadow
+witch's cauldron | cauldron | Bomb + Breath (Poison)
+monkey's paw | the monkey's paw | Gauntlet + Grab
+dreamcatcher | dream catcher | Cage + Trap
+horseshoe (lucky) | lucky horseshoe | Disc + Attract
+four leaf clover | lucky clover | Disc + Light
+rabbit's foot | lucky rabbit foot | Staff + Light
+evil eye amulet | nazar | Shield + Beam
+## Dungeons & Dragons bestiary
+aboleth | aboleths | Fish + Psychic, Grab
+ankheg | ankhegs | Insect + Breath (Poison)
+basilisk (d&d) | basilisk lizard | Quadruped + Beam (Earth)
+blink dog | blink dogs | Quadruped + Portal, Fast
+bugbear | bugbears | Biped + Grab, Sneaky
+carrion crawler | carrion crawlers | Serpent + Grab (Poison)
+chuul | chuuls | Arachnid + Grab (Water)
+cloaker | cloakers | Cape + Flies, Constrict
+death knight | death knights | Biped + Blade (Shadow)
+demilich | demilich skull | Blob + Flies, Attract (Shadow)
+dracolich | dracoliches | Kaiju + Breath, Flies (Shadow)
+drider | driders | Arachnid + Shoots
+duergar | grey dwarf | Biped + Grow
+ettin | two headed giant | Biped + Blunt, Stomp
+flail snail | flail snails | Blob + Blunt
+flameskull | flame skull | Blob + Flies (Fire)
+githyanki | githyanki warrior | Biped + Blade (Psychic)
+gnoll | gnolls | Biped + Charge
+goblin (d&d) | goblins | Biped + Swarm, Sneaky
+hobgoblin | hobgoblins | Biped + Guard
+hook horror | hook horrors | Biped + Grab
+intellect devourer | brain dog | Quadruped + Psychic
+kuo-toa | kuo toa | Biped + Sticky (Water)
+lizardfolk | lizard folk | Biped + Grab
+marid | water genie | Biped + Water
+myconid | mushroom folk | Biped + Swarm (Poison)
+nothic | nothics | Biped + Beam
+ochre jelly | ochre ooze | Blob + Sticky (Poison)
+black pudding | black ooze | Blob + Sticky (Poison)
+grey ooze | gray ooze | Blob + Sticky
+otyugh | otyughs | Blob + Grab (Poison)
+peryton | perytons | Bird + Charge
+purple worm | purple worms | Kaiju + Grab (Earth)
+remorhaz | remorhazes | Serpent + Fire
+roper | ropers | Pillar + Pull, Grab
+shambling mound | shambler | Blob + Constrict (Earth)
+stirge | stirges | Insect + Swarm
+umber hulk | umber hulks | Biped + Grab (Psychic)
+xorn | xorns | Blob + Earth
+yuan-ti | yuan ti | Serpent + Poison
+kenku | kenku bird | Bird + Sneaky
+tabaxi | cat folk | Biped + Fast
+aarakocra | bird folk | Bird + Flies
+tortle | tortles | Biped + Guard
+warforged | warforged construct | Biped + Guard
+tiefling | tieflings | Biped + Fire
+dragonborn | dragonborn warrior | Biped + Breath (Fire)
+kobold trapper | kobold swarm | Biped + Swarm, Trap
+treant | treants | Biped + Stomp (Earth)
+iron golem | iron golems | Biped + Heavy, Breath (Poison)
+flesh golem | flesh golems | Biped + Heavy (Electric)
+shield guardian | guardian construct | Biped + Guard, Protective
+animated armor | living armor | Biped + Guard
+flying sword | dancing sword | Sword + Flies, Homing
+rug of smothering | smothering rug | Cape + Constrict
+helmed horror | helmed horrors | Biped + Guard, Flies
+wraith | wraiths | Blob + Flies (Shadow)
+banshee (d&d) | wailing spirit | Blob + Repel (Shadow)
+will-o-wisp (d&d) | wisp light | Ball + Electric
+vampire spawn | vampire spawns | Biped + Grab
+zombie | zombies | Biped + Swarm, Grab
+skeleton | skeletons | Biped + Swarm
+ghoul (d&d) | ghouls | Biped + Grab
+ghost | ghosts | Blob + Flies (Shadow)
+specter | spectre | Blob + Flies (Shadow)
+shadow demon | shadows | Blob + Sneaky (Shadow)
+nightmare steed | nightmare horse | Quadruped + Fire, Flies
+hell hound (d&d) | hellhound d&d | Quadruped + Breath (Fire)
+imp | imps | Insect + Flies, Sneaky
+quasit | quasits | Insect + Sneaky
+balor | balors | Kaiju + Whip (Fire)
+pit fiend | pit fiends | Kaiju + Fire
+erinyes (d&d) | fallen angel | Biped + Flies
+glabrezu | pincer demon | Biped + Grab
+hezrou | toad demon | Biped + Poison
+vrock | vulture demon | Bird + Swarm
+marilith | six armed demon | Serpent + Blade
+lemure | lemures | Blob + Swarm
+succubus | incubus | Biped + Attract
+deva | angel | Biped + Flies (Light)
+solar | solar angel | Biped + Beam (Light)
+pegasus (d&d) | celestial horse | Quadruped + Flies
+unicorn | unicorns | Quadruped + Pierce, Charge (Light)
+couatl | couatls | Serpent + Flies
+ki-rin | kirin d&d | Quadruped + Flies
+sahuagin | sea devil | Biped + Water
+merrow | merrows | Fish + Grab
+sea hag | green hag | Biped + Sneaky
+night hag | night hags | Biped + Psychic
+harpy (d&d) | harpies d&d | Bird + Attract
+hook horror swarm | hook | Biped + Swarm
+giant spider | giant spiders | Arachnid + Sticky
+phase spider | phase spiders | Arachnid + Portal
+giant ape | great ape | Kaiju + Grab
+cockatrice | cockatrices | Bird + Earth
+dire wolf | dire wolves | Quadruped + Charge
+worg | wargs; warg | Quadruped + Charge
+hydra (d&d) | five headed hydra | Kaiju + Swarm
+red dragon | red dragons | Kaiju + Breath, Flies (Fire)
+blue dragon | blue dragons | Kaiju + Beam, Flies (Electric)
+green dragon | green dragons | Kaiju + Breath, Flies (Poison)
+black dragon | black dragons | Kaiju + Breath, Flies (Poison)
+white dragon | white dragons | Kaiju + Breath, Flies (Ice)
+gold dragon | gold dragons | Kaiju + Breath, Flies (Fire)
+silver dragon | silver dragons | Kaiju + Breath, Flies (Ice)
+bronze dragon | bronze dragons | Kaiju + Beam, Flies (Electric)
+brass dragon | brass dragons | Kaiju + Breath, Flies (Fire)
+copper dragon | copper dragons | Kaiju + Breath, Flies (Poison)
+dragon turtle | dragon turtles | Kaiju + Breath, Guard (Water)
+kraken (d&d) | kraken d&d | Kaiju + Constrict (Electric)
+storm giant | storm giants | Kaiju + Beam (Electric)
+frost giant (d&d) | frost giants | Kaiju + Stomp (Ice)
+hill giant | hill giants | Kaiju + Stomp
+stone giant | stone giants | Kaiju + Shoots (Earth)
+cloud giant | cloud giants | Kaiju + Flies (Wind)
+fire giant (d&d) | fire giants | Kaiju + Blunt (Fire)
+empyrean | titan d&d | Kaiju + Beam
+vecna | the hand of vecna | Gauntlet + Grab (Shadow)
+eye of vecna | vecna's eye | Ball + Beam (Shadow)
+acererak | acererak lich | Biped + Beam
+strahd | strahd von zarovich | Biped + Flies (Shadow)
+bahamut | platinum dragon | Kaiju + Beam, Flies (Light)
+lolth | spider queen | Arachnid + Sticky
+demogorgon | demogorgon prince | Kaiju + Psychic
+orcus | orcus demon | Kaiju + Shadow
+tomb of horrors | green devil face | Wall + Portal
+wand of fireballs | fireball wand | Staff + Shoots (Fire)
+staff of power | power staff | Staff + Beam
+ring of invisibility (d&d) | invisible ring | Disc + Sneaky
+boots of speed | speed boots | Wings + Fast
+cloak of elvenkind | elven cloak | Cape + Sneaky
+decanter of endless water | endless water | Gun + Beam (Water)
+necklace of fireballs | fireball necklace | Bomb + Explodes, Swarm (Fire)
+horn of blasting | blasting horn | Gun + Repel (Wind)
+rope of entanglement | entangle rope | Whip + Constrict
+bigby's hand | bigbys hand | Gauntlet + Grab
+mordenkainen's sword | spectral sword | Sword + Flies
+tenser's floating disk | floating disk | Platform + Flies
+leomund's tiny hut | tiny hut | Dome + Barrier
+wall of force | force wall | Wall + Barrier
+spiritual weapon | spirit hammer | Hammer + Flies, Homing
+spirit guardians | spirit guardian | Dome + Repel
+misty step | teleport step | Platform + Portal
+thunderwave | thunder wave | Dome + Repel (Electric)
+lightning bolt spell | lightning bolt | Staff + Beam (Electric)
+ice storm | hail storm | Bomb + DropFromSky (Ice)
+meteor swarm | meteors | Boulder + DropFromSky, Swarm (Fire)
+cone of cold | frost cone | Staff + Breath (Ice)
+web spell | web | Cage + Sticky, Trap
+grease spell | grease | Ramp + Launch
+tasha's hideous laughter | hideous laughter | Bomb + Psychic
+healing potion | health potion | Bomb + Light
+mimic swarm | mimics | Blob + Swarm, Grab
+dungeon master screen | dm screen | Wall + Barrier
+tavern | inn | Wall + Barrier
+## Tech mascots & internet brands
+mozilla dinosaur | mozilla | Kaiju + Breath (Fire)
+thunderbird mascot | thunderbird bird mascot | Bird + Flies (Electric)
+python snake | python logo | Serpent + Constrict
+php elephant | elephpant | Quadruped + Stomp
+postgres elephant | slonik | Quadruped + Stomp
+hadoop elephant | hadoop | Quadruped + Heavy
+mysql dolphin | sakila | Fish + Fast (Water)
+kubernetes wheel | k8s | Disc + Spin
+gnu | gnu head | Quadruped + Charge
+beastie | bsd daemon | Biped + Pierce (Fire)
+openbsd puffy | puffy | Fish + Pierce
+wilber | gimp mascot | Quadruped + Playful
+kiki the cyber squirrel | krita mascot | Quadruped + Fast
+mastodon mascot | mastodon | Quadruped + Stomp
+bluesky butterfly | butterfly logo | Insect + Flies
+twitter bird | larry the bird; tweet | Bird + Swarm, Flies
+x logo | x | Disc + Blade
+discord wumpus | wumpus | Biped + Playful
+clyde discord | clyde | Biped + Playful
+steam logo | steam | Disc + Spin
+xbox ring | red ring of death | Disc + Explodes
+blue shell | spiny shell | Rocket + Homing, Explodes
+windows logo | windows | Wall + Barrier
+apple logo | bitten apple | Ball + Bounce
+google pin | map pin | Spear + DropFromSky, Pierce
+wifi symbol | wifi | Dome + Repel (Electric)
+bluetooth | blue tooth | Disc + Link
+usb stick | usb | Spear + Pierce
+usb cable | cable | Whip + Link, Electric
+ethernet cable | lan cable | Whip + Link
+power strip | extension lead | Whip + Link (Electric)
+loading spinner | buffering wheel | Disc + Spin
+cursor | mouse pointer | Spear + Pierce
+captcha | i am not a robot | Cage + Trap
+cookie banner | accept cookies | Wall + Barrier
+popup ad | pop up | Wall + Barrier, Swarm
+spam | spam email | Disc + Swarm
+virus | computer virus | Blob + Swarm (Poison)
+trojan | trojan virus | Quadruped + Sneaky
+firewall | fire wall | Wall + Barrier (Fire)
+bug | software bug | Insect + Swarm
+rubber duck debugger | debug duck | Ball + Bounce
+stack overflow | overflow | Pillar + DropFromSky
+kernel panic | panic | Bomb + Explodes
+segfault | segmentation fault | Bomb + Explodes
+merge conflict | git conflict | Wall + Barrier
+git | git branch | Whip + Link
+the cloud | cloud server | Platform + Flies
+server rack | data center | Wall + Barrier (Electric)
+gpu | graphics card | Boulder + Heavy (Fire)
+raspberry pi | rpi | Disc + Electric
+arduino | arduino board | Disc + Electric
+robot arm | industrial robot | Gauntlet + Grab
+boston dynamics dog | robot dog; spot robot | Quadruped + Fast
+delivery robot | starship robot | Vehicle + Homing
+tesla bot | humanoid robot | Biped + Stomp
+drone swarm | drones | Bird + Swarm, Flies
+self driving car | robotaxi | Vehicle + Homing
+3d printer | 3d printing | Wall + Shoots
+vr headset | vr goggles | Shield + Psychic
