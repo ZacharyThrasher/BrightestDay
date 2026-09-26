@@ -16,9 +16,12 @@ light voxels in your corps colour. Everything shatters into cubes.
 1. **Feel.** Snappy, tight, low latency. Mouse look is applied every rendered frame from raw input,
    never tick-quantised. Movement is simulated at a fixed 120 Hz with render interpolation. No
    floatiness: heavy gravity, crisp acceleration, weighty impacts (hit-stop, shake, FOV punch).
-2. **Freedom of expression.** Mechanically skilled movement is the strongest movement. Flying
-   constructs (wings, jetpack) exist but are slower than a well-executed bhop → tether → swing chain.
-   Any word can become a construct; the same word is always the same construct (learnable).
+2. **Freedom of expression — two co-equal axes: movement and construct creativity.** Mechanically
+   skilled movement is the strongest movement (flying constructs are slower than a well-executed
+   bhop → tether → swing chain). Equally, *what you build* is skill: phrases compose mechanics
+   ("a flaming hammer with rockets that returns"), fresh ideas are rewarded, clever counters pay, and
+   systemic interactions let players invent combos. Neither axis dominates (see COMBAT.md §0).
+   Any phrase can become a construct; the same phrase is always the same construct (learnable).
 3. **Impact.** Terrain, trees, towers and constructs are voxels and break into physical debris cubes.
    Explosions leave craters. Clashes should look like a fight between Green Lanterns.
 4. **Focus.** Minimal on-screen text. Health and willpower are shown diegetically (ring glow,
