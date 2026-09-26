@@ -305,6 +305,40 @@ Resize (Shrink/Grow), Holds (+Link):
   or 25 dmg). Counter: Blade.
 Playtests log per-mechanic usage + win rate; unused → merge, dominant → counter/nerf.
 
+## 5g. Party mode (round-based, fully configurable)
+**Structure:** N rounds (default 7). A round ends at the round KO target or time limit; points per KO
+(+ round-win bonus) accumulate into party standings. Between rounds: a ~12 s **pick** — each player picks
+**1 of 3** random party effects that apply to *their* constructs for the rest of the party (effects
+stack across rounds). **First place** (party standings) gets only **2** choices. **Last place** gets
+their 3 plus a 4th card, **Boom or Bust**: a 50/50 coin flip → a random **Legendary** or a random
+**Cursed** effect. Ties: every tied player gets that rule. Picks lock in with a reveal (everyone sees
+what everyone took); unpicked on timeout = random. No duplicate picks of the same effect per player.
+**Effects are behaviour, never numbers** (owner rule): most are a *standing graft* merged into every
+recipe that player casts (reusing the composition engine), some add event hooks. Examples:
+- Common/wacky: **Bouncy Castle** (everything you build Bounces), **Clingy** (all your projectiles/
+  objects are Sticky), **Heat Seekers** (everything Homes), **Spicy** (Fire on everything), **Shocking**
+  (Electric), **Party Popper** (your constructs Explode into confetti when they shatter), **Mini-Me**
+  (every cast also makes a tiny copy that follows it), **Clown Car** (constructs Swarm ×3 but tiny),
+  **Growth Spurt** (constructs Grow over their lifetime), **Chain Gang** (whatever your constructs hit
+  gets Linked to them), **Portal Pals** (shattered constructs leave a portal pair), **Magnet Brain**
+  (constructs Attract debris + enemy projectiles), **Rebound** (constructs Ricochet), **Legs Day**
+  (everything gets Walks), **Wings Day** (everything Flies), **Boomerang** (everything Returns), **Road
+  Rage** (every construct Charges), **Friendly Fire-ant** (Aggressive temperament on everything).
+- **Legendary** (Boom): **Worthy** (every held item becomes Returning + Electric and can Thor-fly),
+  **Kaiju Heart** (your creatures grow a size class with each KO you get), **Echo** (each cast repeats
+  1 s later as a free second copy), **Roll Out** (all your constructs Transform), **Main Character**
+  (your constructs can't be shattered by a single hit — they break in two stages, splitting first).
+- **Cursed** (Bust): **Butterfingers** (held items sometimes slip and fly off), **Piñata** (when hit
+  you drop small random constructs other players can grab), **Wild Magic** (25% of your casts resolve as
+  a random phrase), **Reverse Card** (your projectiles curve back toward you after 1 s), **Loud**
+  (your constructs honk and glow extra bright — no sneaking), **Slippery** (ice under your feet:
+  low friction everywhere — secretly great for bhop players).
+Effects are data (`assets/party_effects.ron`), easy to extend.
+**Settings (lobby, all gameplay knobs):** mode (FFA / Party), rounds, round KO target, round time,
+points per KO / round win, pick timer, Boom-or-Bust on/off, first-place-2-choices on/off, effect pools
+(common/legendary/cursed toggles), plus every MatchRules knob (scale, willpower, caps, respawn time,
+spawn shield, gravity scale, gas regen, knockback scale, void on/off, islands regen), saved as presets.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more
