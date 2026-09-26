@@ -11,6 +11,7 @@ members = [
     "crates/bd_voice",
     "crates/bd_fx",
     "crates/bd_audio",
+    "crates/bd_music",
 ]
 
 [workspace.package]

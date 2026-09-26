@@ -1,0 +1,82 @@
+// Orbit (floating) — The Blue Danube for zero-g: a shimmering tremolo intro with a hard-light
+// horn call, the first waltz theme on a soft pulse lead with bell "poms", an original G-major
+// second waltz, and glassy sine pads. Drive adds a gentle waltz pulse and a bell arpeggio.
+(
+    title: "Blue Danube",
+    composer: "Johann Strauss II (1825-1899)",
+    work: "An der schönen blauen Donau (The Blue Danube), Op. 314, Waltz No. 1 (1867)",
+    source: "First waltz theme from the public-domain score (written from memory); the second waltz, intro, harmony and arrangement are original to Brightest Day.",
+    role: "Orbit map — floating",
+    key: "D",
+    time: (3, 4),
+    bpm: 156.0,
+    gain_db: -2.7,
+    layers: (lead: 0.15, drive: 0.6, base_floor: 0.85),
+    channels: [
+        (name: "mel", inst: "lead50", stem: Lead, pan: -0.1),
+        (name: "hl", inst: "hardlight", stem: Lead, pan: 0.15, echo: (ticks: 144, vol: 0.3)),
+        (name: "harm", inst: "pluck25", stem: Base, pan: 0.25),
+        (name: "pad", inst: "glass", stem: Base, pan: -0.25),
+        (name: "arp", inst: "hl_bell", stem: Drive, pan: 0.35, vol: 0.7),
+        (name: "bass", inst: "bass_pluck", stem: Base),
+        (name: "drums", drums: true, stem: Drive, vol: 0.55),
+        (name: "hats", drums: true, stem: Drive, pan: -0.3, vol: 0.45),
+    ],
+    patterns: {
+        "th31": "o4 d4 f+4 a4 | o4 a2 o5 a4 | o5 a4 r4 f+4 | o5 f+4 r4 o4 d4 | o4 d4 f+4 a4 | o4 a2 o5 a4 | o5 a4 r4 g4 | o5 g4 r4 o4 c+4 |
+                 o4 c+4 e4 b4 | o4 b2 o5 b4 | o5 b4 r4 g4 | o5 g4 r4 o4 c+4 | o4 c+4 e4 b4 | o4 b2 o5 b4 | o5 b4 r4 f+4 | o5 f+4 r4 o4 d4 |
+                 o4 d4 f+4 a4 | o5 d2 o6 d4 | o6 d4 r4 o5 a4 | o5 a4 r4 o4 d4 | o4 d4 f+4 a4 | o5 d2 o6 d4 | o6 d4 r4 o5 b4 | o5 b4 r4 o4 e4 |
+                 o4 e4 g4 b4 | o4 b2. | o4 b4 g+4 a4 | o5 f+2. | o5 f+4 d4 o4 d4 | o4 e2 a4 | o4 a4 g4 e4 |",
+        "thEndR": "o4 d2 r4 |", "thEndP": "o4 d2 o4 d4 |",
+        "w2": "o4 b2 o5 d4 | o5 g2. | o5 e2 c4 | o5 a2. | o5 f+2 a4 | o6 c2. | o5 b2 a4 | o5 g2. |
+               o4 b2 o5 d4 | o5 f=2. | o5 e2 g4 | o6 c2. | o5 b2 g4 | o5 a2 f+4 | o5 g2. | o5 e4 c+4 o4 d4 |",
+        // oom-pa-pa by chord
+        "cD": "r4 o4 {f+ a d}4 {f+ a d}4 |", "cA7": "r4 o4 {e g a c+}4 {e g a c+}4 |", "cG": "r4 o4 {g b d}4 {g b d}4 |",
+        "cEm": "r4 o4 {e g b}4 {e g b}4 |", "cE7": "r4 o4 {e g+ b d}4 {e g+ b d}4 |", "cC": "r4 o4 {e g c}4 {e g c}4 |",
+        "cAm": "r4 o4 {e a c=}4 {e a c=}4 |", "cD7": "r4 o4 {f+ a c= d}4 {f+ a c= d}4 |", "cG7": "r4 o4 {f= g b d}4 {f= g b d}4 |",
+        "bD": "o2 d4 r2 |", "bA": "o2 a4 r2 |", "bG": "o2 g4 r2 |", "bE": "o2 e4 r2 |", "bC": "o3 c4 r2 |",
+        "Cth": "[$cD]6 [$cA7]8 $cD $cD [$cD]6 $cG $cG $cEm $cEm r4 o4 {e g+ b d}4 {e a c+}4 | $cD $cD $cA7 $cA7 $cD",
+        "Bth": "[$bD]6 [$bA]8 $bD $bD [$bD]6 $bG $bG $bE $bE $bE $bD $bD $bA $bA $bD",
+        "Pth": "o4 f+2.^2.^2.^2.^2.^2. | o4 g2.^2.^2.^2.^2.^2.^2.^2. | o4 f+2.^2.^2.^2.^2.^2.^2.^2. |
+                o4 g2.^2. | o4 g2.^2. | o4 g+2 a4 | o4 f+2.^2. | o4 g2.^2. | o4 f+2. |",
+        "Xth": "[o5 d4 f+4 a4 |]6 [o5 c+4 e4 a4 |]8 [o5 d4 f+4 a4 |]8 [o5 d4 g4 b4 |]2 [o5 e4 g4 b4 |]2 o5 e4 g+4 b4 | [o5 d4 f+4 a4 |]2 [o5 c+4 e4 a4 |]2 o5 d4 f+4 a4 |",
+        "Cw2": "$cG $cG $cAm $cAm $cD7 $cD7 $cG $cG $cG $cG7 $cC $cC $cG $cD7 $cG $cA7",
+        "Bw2": "$bG $bG $bA $bA $bD $bD $bG $bG $bG $bG $bC $bC $bD $bD $bG $bA",
+        "Pw2": "o4 d2.^2. | o4 e2.^2. | o4 f+2.^2. | o4 d2.^2. | o4 d2. | o4 f=2. | o4 e2.^2. | o4 d2. | o4 c2. | o4 d2. | o4 g2. |",
+        "Xw2": "[o5 d4 g4 b4 |]2 [o5 e4 a4 o6 c4 |]2 [o5 d4 f+4 a4 |]2 [o5 d4 g4 b4 |]3 o5 f=4 g4 b4 | [o5 e4 g4 o6 c4 |]2 o5 d4 g4 b4 | o5 d4 f+4 a4 | o5 d4 g4 b4 | o5 c+4 e4 a4 |",
+        "waltz": "[k2. |]31 k4 k4 k4 |", "tick": "[r4 h4 h4 |]32",
+    },
+    sections: [
+        (name: "intro", bars: 8, parts: {
+            "harm": "@arpsoft [o4 {d f+ a}2. |]6 o4 {c+ e g a}2. | o4 {e g a}2. |",
+            "hl": "o3 d2 f+4 | o3 a2. | o3 a2. | r2. | o3 d2 f+4 | o3 a2. | o3 g2. | o3 a2 r4 |",
+            "mel": "r2. | r2. | r2. | r2. | r2. | r2. | r2. | r2 o4 d4 |",
+            "arp": "@hl_bell r2. | o6 a4 r2 | r2. | o6 f+4 r2 | r2. | o6 d4 r2 | r2. | o6 c+4 r2 |",
+            "bass": "@bass [o2 d2. |]6 o2 a2. | o2 a2. |",
+        }),
+        (name: "a", bars: 32, parts: {
+            "mel": "$th31 $thEndR", "harm": "$Cth", "bass": "$Bth", "pad": "$Pth", "arp": "$Xth",
+            "drums": "$waltz", "hats": "$tick",
+        }),
+        (name: "b", bars: 16, key: "G", parts: {
+            "hl": "$w2", "harm": "$Cw2", "bass": "$Bw2", "pad": "$Pw2", "arp": "$Xw2",
+            "drums": "[k2. |]15 k4 k4 k4 |", "hats": "[r4 h4 h4 |]16",
+        }),
+        (name: "a2", bars: 32, parts: {
+            "hl": "$th31 $thEndP", "mel": "@glass k12 v7 $th31 $thEndP k0",
+            "harm": "$Cth", "bass": "$Bth", "pad": "$Pth", "arp": "$Xth",
+            "drums": "$waltz", "hats": "$tick",
+        }),
+        (name: "end", bars: 4, parts: {
+            "mel": "o4 e2 a4 | o4 a4 g4 e4 | o4 d2.^2. |",
+            "hl": "o4 c+2 e4 | o4 e4 d4 c+4 | o3 a2.^2. |",
+            "harm": "$cA7 $cA7 @arpsoft o4 {d f+ a}2.^2. |",
+            "pad": "o4 g2.^2. | o4 f+2.^2. |",
+            "arp": "r2. | r2. | o6 d4 a4 o7 d4 | r2. |",
+            "bass": "$bA $bA @bass o2 d2.^2. |",
+        }),
+    ],
+    order: ["intro", "a", "b", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

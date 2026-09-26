@@ -1,0 +1,87 @@
+// Party mode (card pick / chaos) — Offenbach's Can-can as a cheeky chip galop: oom-pah bass and
+// off-beat stabs, a duty-sweep pulse lead, hard-light plucks, key changes up and down.
+(
+    title: "Can-can",
+    composer: "Jacques Offenbach (1819-1880)",
+    work: "Orphée aux enfers — \"Galop infernal\" (the Can-can) (1858)",
+    source: "Can-can tune from the public-domain score (written from memory); the second strain, harmony and arrangement are original to Brightest Day.",
+    role: "Party mode",
+    key: "C",
+    time: (2, 4),
+    bpm: 140.0,
+    gain_db: -3.0,
+    layers: (lead: 0.15, drive: 0.45, base_floor: 0.8),
+    channels: [
+        (name: "mel", inst: "sweep", stem: Lead, pan: -0.1),
+        (name: "hl", inst: "hl_pluck", stem: Lead, pan: 0.15, echo: (ticks: 48, vol: 0.25)),
+        (name: "harm", inst: "stab", stem: Base, pan: 0.25),
+        (name: "arp", inst: "arp", stem: Drive, pan: -0.3, vol: 0.8),
+        (name: "bass", inst: "bass_pluck", stem: Base),
+        (name: "drums", drums: true, stem: Drive),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
+    ],
+    patterns: {
+        "pa1": "o4 c4 d8 f8 | o4 e8 d8 g4 | o4 g4 g8 a8 | o4 e8 f8 d4 | o4 d4 d8 f8 | o4 e8 d8 c8 o5 c8 | o4 b8 a8 g8 f8 | o4 e8 d8 o3 g4 |",
+        "pa2": "o4 c4 d8 f8 | o4 e8 d8 g4 | o4 g4 g8 a8 | o4 e8 f8 d4 | o4 d4 d8 f8 | o4 e8 d8 c8 g8 | o4 d8 e8 c4 | o4 c8 r8 o5 c8 r8 |",
+        "B": "o5 g8 g8 g8 g8 | o5 a8 g8 f8 e8 | o5 f8 f8 f8 f8 | o5 g8 f8 e8 d8 | o5 e8 e8 e8 e8 | o5 f8 e8 d8 c8 | o4 b8 o5 d8 g8 f8 | o5 e4 d4 |
+              o5 g8 g8 g8 g8 | o5 a8 g8 f8 e8 | o5 f8 f8 f8 f8 | o5 g8 f8 e8 d8 | o5 e8 g8 o6 c8 o5 g8 | o5 f8 d8 o4 b8 o5 d8 | o5 c4 o4 g4 | o5 c4 r4 |",
+        "bC": "o3 c8 r8 o2 g8 r8 |", "bG": "o2 g8 r8 d8 r8 |", "bF": "o2 f8 r8 o3 c8 r8 |",
+        "sC": "r8 o4 {c e g}8 r8 {c e g}8 |", "sG7": "r8 o4 {d f g b}8 r8 {d f g b}8 |", "sG": "r8 o4 {d g b}8 r8 {d g b}8 |",
+        "sF": "r8 o4 {c f a}8 r8 {c f a}8 |",
+        "HA": "$sC $sC $sG7 $sG7 $sG7 $sC $sG7 $sG $sC $sC $sG7 $sG7 $sG7 $sC r8 o4 {d f g b}8 r8 {c e g}8 | $sC",
+        "BA": "$bC $bC $bG $bG $bG $bC $bG $bG $bC $bC $bG $bG $bG $bC o2 g8 r8 o3 c8 r8 | $bC",
+        "HB": "$sC $sF $sG7 $sG7 $sC $sF $sG7 r8 o4 {c e g}8 r8 {d g b}8 | $sC $sF $sG7 $sG7 $sC $sG7 $sC $sC",
+        "BB": "$bC $bF $bG $bG $bC $bF $bG o3 c8 r8 o2 g8 r8 | $bC $bF $bG $bG $bC $bG $bC $bC",
+        "XA": "[o5 {c e g}8 r8 r4 | r2 | o5 {d f b}8 r8 r4 | r2 |]4",
+        "gal": "[k8 s8 k8 s8 |]7 s16 s16 s16 s16 t16 t16 m16 m16 |",
+        "hh": "[[h8]4 |]8",
+    },
+    sections: [
+        (name: "intro", bars: 4, parts: {
+            "mel": "o4 g8 r8 g8 r8 | o4 g8 r8 g8 r8 | o5 g8 r8 g8 r8 | o5 g4 o4 g4 |",
+            "harm": "r2 | r2 | r2 | r4 o4 {d g b}4 |",
+            "bass": "o2 g8 r8 g8 r8 | o2 g8 r8 g8 r8 | o2 g8 r8 g8 r8 | o2 g4 d4 |",
+            "drums": "[s16]8 | [s16]8 | [s16]8 | s16 s16 s16 s16 t8 k8 |",
+        }),
+        (name: "a", bars: 16, parts: {
+            "mel": "$pa1 $pa2", "harm": "$HA", "bass": "$BA", "arp": "$XA",
+            "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "b", bars: 16, parts: {
+            "mel": "$B", "hl": "k-12 $B k0", "harm": "$HB", "bass": "$BB",
+            "arp": "[o5 {c e g}16 r16 r8 r4 |]16",
+            "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "a2", bars: 16, parts: {
+            "hl": "@hardlight $pa1 $pa2", "mel": "@lead12 v8 k12 $pa1 $pa2 k0", "harm": "$HA", "bass": "$BA", "arp": "$XA",
+            "drums": "c8 s8 k8 s8 | [k8 s8 k8 s8 |]6 s16 s16 s16 s16 t16 t16 m16 m16 | $gal", "hats": "$hh $hh",
+        }),
+        (name: "c", bars: 16, parts: {
+            "mel": "k5 $pa1 $pa2 k0", "hl": "k-7 $pa1 $pa2 k0", "harm": "k5 $HA k0", "bass": "k5 $BA k0", "arp": "k5 $XA k0",
+            "drums": "c8 s8 k8 s8 | [k8 s8 k8 s8 |]6 s16 s16 s16 s16 t16 t16 m16 m16 | $gal", "hats": "$hh $hh",
+        }),
+        (name: "b2", bars: 16, parts: {
+            "hl": "@hardlight $B", "mel": "@run25 v9 k-12 $B k0", "harm": "$HB", "bass": "$BB",
+            "arp": "[o5 {c e g}16 r16 r8 r4 |]16",
+            "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "d", bars: 16, parts: {
+            "mel": "k7 $pa1 $pa2 k0", "hl": "@hardlight k-5 $pa1 $pa2 k0", "harm": "k7 $HA k0", "bass": "k7 $BA k0", "arp": "k7 $XA k0",
+            "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "a3", bars: 16, parts: {
+            "mel": "$pa1 $pa2", "hl": "@hardlight k12 $pa1 $pa2 k0", "harm": "$HA", "bass": "$BA", "arp": "$XA",
+            "drums": "c8 s8 k8 s8 | [k8 s8 k8 s8 |]6 s16 s16 s16 s16 t16 t16 m16 m16 | $gal", "hats": "$hh $hh",
+        }),
+        (name: "end", bars: 4, parts: {
+            "mel": "o4 d4 d8 f8 | o4 e8 d8 c8 g8 | o4 d8 e8 c4 | o5 c8 r8 o4 c8 r8 |",
+            "hl": "@hardlight o5 d4 d8 f8 | o5 e8 d8 c8 g8 | o5 d8 e8 c4 | o6 c8 r8 r4 |",
+            "harm": "$sG7 $sC r8 o4 {d f g b}8 r8 {c e g}8 | o4 {c e g}8 r8 {c e g}8 r8 |",
+            "bass": "$bG $bC o2 g8 r8 o3 c8 r8 | o3 c8 r8 o2 c8 r8 |",
+            "drums": "k8 s8 k8 s8 | k8 s8 k8 s8 | s16 s16 s16 s16 t16 t16 m16 m16 | c8 r8 k8 r8 |",
+        }),
+    ],
+    order: ["intro", "a", "b", "a2", "c", "b2", "d", "a3"],
+    loop_to: "a",
+    ending: "end",
+)

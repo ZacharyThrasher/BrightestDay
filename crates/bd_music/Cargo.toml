@@ -1,0 +1,14 @@
+[package]
+name = "bd_music"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "Brightest Day's adaptive chiptune soundtrack: text-authored songs, deterministic band-limited chip synth, layered stems, stingers"
+
+[dependencies]
+serde.workspace = true
+ron.workspace = true
+
+[[example]]
+name = "render"
+path = "examples/render.rs"

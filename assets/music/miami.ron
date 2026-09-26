@@ -1,0 +1,108 @@
+// Miami — Mozart's "Rondo alla Turca" as neon synthwave chip: a filtered-saw octave bassline,
+// four-on-the-floor, soft chord pads, hard-light echoes. The A-minor theme and the C-major
+// episode follow the score; the A-major refrain is an original melody in the Turkish-march rhythm.
+(
+    title: "Alla Turca",
+    composer: "Wolfgang Amadeus Mozart (1756-1791)",
+    work: "Piano Sonata No. 11 in A major, K. 331, III. Rondo \"Alla Turca\" (1783)",
+    source: "A-minor theme and C-major episode from the public-domain score (written from memory); the refrain melody, harmony, bassline and arrangement are original to Brightest Day.",
+    role: "Miami map",
+    key: "Am",
+    time: (2, 4),
+    bpm: 124.0,
+    gain_db: -3.9,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "mel", inst: "lead25", stem: Lead, pan: -0.1),
+        (name: "hl", inst: "hardlight", stem: Lead, pan: 0.15, echo: (ticks: 72, vol: 0.32)),
+        (name: "harm", inst: "arpsoft", stem: Base, pan: 0.2),
+        (name: "arp", inst: "stab", stem: Drive, pan: -0.3),
+        (name: "bass", inst: "synthbass", stem: Base),
+        (name: "drums", drums: true, stem: Drive),
+        (name: "hats", drums: true, stem: Drive, pan: 0.2, vol: 0.7),
+    ],
+    patterns: {
+        "p1": "o5 c8 r8 d16 c16 o4 b16 o5 c16 | o5 e8 r8 f16 e16 d+16 e16 | o5 b16 a16 g+16 a16 b16 a16 g+16 a16 | o6 c4 o5 a8 o6 c8 |
+               o5 b8 a8 g8 a8 | o5 b8 a8 g8 a8 | o5 b8 a8 g8 f+8 | o5 e4 o4 b16 a16 g+16 a16 |",
+        "p2_7": "o5 c8 r8 d16 c16 o4 b16 o5 c16 | o5 e8 r8 f16 e16 d+16 e16 | o5 b16 a16 g+16 a16 b16 a16 g+16 a16 | o6 c4 o5 a8 b8 |
+                 o6 c8 o5 b8 a8 g+8 | o5 a8 e8 f8 d8 | o5 c4 o4 b8. a16 |",
+        "endP": "o4 a4 o4 b16 a16 g+16 a16 |", "endEF": "o4 a4 o5 e8 f8 |", "endR": "o4 a4 r4 |",
+        "C8": "o5 g8 g8 a16 g16 f16 e16 | o5 d4 e8 f8 | o5 g8 g8 a16 g16 f16 e16 | o5 d4 c8 d8 |
+               o5 e8 e8 f16 e16 d16 c16 | o4 b4 o5 c8 d8 | o5 e8 e8 f16 e16 d16 c16 | o4 b4 b16 a16 g+16 a16 |",
+        "R7": "o5 a8 b8 o6 c+8 c+8 | o6 d16 c+16 o5 b16 a16 g+8 e8 | o5 a8 b8 o6 c+8 c+8 | o6 d16 c+16 o5 b16 a16 b4 |
+               o6 c+8 d8 e8 e8 | o6 f+16 e16 d16 c+16 d8 o5 a8 | o5 b8 o6 c+16 d16 e8 o5 g+8 |",
+        "rEndP": "o5 a4 o4 b16 a16 g+16 a16 |", "rEnd": "o5 a4 r4 |",
+        // bass (filtered saw octaves)
+        "bA": "[o2 a8 o3 a8]2 |", "bE": "[o2 e8 o3 e8]2 |", "bB": "[o2 b8 o3 b8]2 |", "bC": "[o2 c8 o3 c8]2 |",
+        "bG": "[o2 g8 o3 g8]2 |", "bD": "[o2 d8 o3 d8]2 |",
+        // pads
+        "hAm": "o4 {a c e}2 |", "hEm": "o4 {g b e}2 |", "hB7": "o4 {f+ a b d+}2 |", "hE7": "o4 {g+ b d e}2 |",
+        "hDm": "o4 {f a d}2 |", "hC": "o4 {g c e}2 |", "hG": "o4 {g b d}2 |", "hA": "o4 {a c+ e}2 |",
+        "hE": "o4 {g+ b e}2 |", "hD": "o4 {f+ a d}2 |", "hCad": "o4 {a c e}4 {g+ b d e}4 |",
+        // off-beat stabs
+        "sAm": "[r8 o4 {a c e}8]2 |", "sEm": "[r8 o4 {g b e}8]2 |", "sB7": "[r8 o4 {f+ a b d+}8]2 |", "sE7": "[r8 o4 {g+ b d e}8]2 |",
+        "sDm": "[r8 o4 {f a d}8]2 |", "sC": "[r8 o4 {g c e}8]2 |", "sG": "[r8 o4 {g b d}8]2 |", "sA": "[r8 o4 {a c+ e}8]2 |",
+        "sE": "[r8 o4 {g+ b e}8]2 |", "sD": "[r8 o4 {f+ a d}8]2 |", "sCad": "r8 o4 {a c e}8 r8 {g+ b d e}8 |",
+        // progressions (16 bars)
+        "Hth": "$hAm $hAm $hAm $hAm $hEm $hEm $hB7 $hEm $hAm $hAm $hAm $hAm $hE7 $hDm $hCad $hAm",
+        "Bth": "$bA $bA $bA $bA $bE $bE $bB $bE $bA $bA $bA $bA $bE $bD $bE $bA",
+        "Sth": "$sAm $sAm $sAm $sAm $sEm $sEm $sB7 $sEm $sAm $sAm $sAm $sAm $sE7 $sDm $sCad $sAm",
+        "Hc": "$hC $hG $hC $hG $hAm $hE $hAm $hE $hAm $hAm $hAm $hAm $hE7 $hDm $hCad $hAm",
+        "Bc": "$bC $bG $bC $bG $bA $bE $bA $bE $bA $bA $bA $bA $bE $bD $bE $bA",
+        "Sc": "$sC $sG $sC $sG $sAm $sE $sAm $sE $sAm $sAm $sAm $sAm $sE7 $sDm $sCad $sAm",
+        "Hr": "[$hA $hE $hA $hE $hA $hD $hE $hA]2", "Br": "[$bA $bE $bA $bE $bA $bD $bE $bA]2", "Sr": "[$sA $sE $sA $sE $sA $sD $sE $sA]2",
+        "d16": "[k4 s4 | k4 s4 | k4 s4 | k8 k8 s4 |]3 k4 s4 | k4 s4 | k4 s4 | s16 s16 s16 s16 t16 t16 m16 m16 |",
+        "h16": "[[h8]4 |]16",
+        "h16x": "[h16 h16 h8 h16 h16 h8 |]16",
+    },
+    sections: [
+        (name: "intro", bars: 4, parts: {
+            "mel": "r2 | r2 | r2 | r4 o4 b16 a16 g+16 a16 |",
+            "harm": "$hAm $hAm $hAm $hE",
+            "bass": "$bA $bA $bA $bE",
+            "drums": "k4 k4 | k4 k4 | k4 k4 | k8 k8 k16 k16 s16 s16 |",
+            "hats": "[h8]4 | [h8]4 | [h16]8 | [h16]8 |",
+        }),
+        (name: "a", bars: 16, parts: {
+            "mel": "$p1 $p2_7 $endP",
+            "harm": "$Hth", "bass": "$Bth", "arp": "$Sth", "drums": "$d16", "hats": "$h16",
+        }),
+        (name: "a2", bars: 16, parts: {
+            "hl": "$p1 $p2_7 $endEF",
+            "mel": "@lead12 v7 k-12 $p1 $p2_7 $endEF k0",
+            "harm": "$Hth", "bass": "$Bth", "arp": "$Sth", "drums": "$d16", "hats": "$h16x",
+        }),
+        (name: "c", bars: 16, parts: {
+            "mel": "$C8 $p2_7 $endR",
+            "hl": "r2 | r2 | r2 | r2 | r2 | r2 | r2 | r2 | @hl_bell k12 $p2_7 k0 r2 |",
+            "harm": "$Hc", "bass": "$Bc", "arp": "$Sc", "drums": "$d16", "hats": "$h16",
+        }),
+        (name: "r", bars: 16, parts: {
+            "hl": "$R7 $rEnd $R7 $rEndP",
+            "mel": "@lead12 v7 r2 | r2 | r2 | r2 | r2 | r2 | r2 | r2 | k-12 $R7 k0 r2 |",
+            "harm": "$Hr", "bass": "$Br", "arp": "$Sr", "drums": "$d16", "hats": "$h16x",
+        }),
+        (name: "a3", bars: 16, parts: {
+            "mel": "$p1 $p2_7 $endR",
+            "hl": "k-12 $p1 $p2_7 $endR k0",
+            "harm": "$Hth", "bass": "$Bth", "arp": "$Sth",
+            "drums": "c4 s4 | [k4 s4 | k4 s4 | k8 k8 s4 | k4 s4 |]3 k4 s4 | k4 s4 | s16 s16 s16 s16 t16 t16 m16 m16 |",
+            "hats": "$h16x",
+        }),
+        (name: "r2", bars: 16, parts: {
+            "mel": "$R7 $rEnd $R7 $rEndP",
+            "hl": "k12 @hl_bell $R7 $rEnd $R7 $rEndP k0",
+            "harm": "$Hr", "bass": "$Br", "arp": "$Sr", "drums": "$d16", "hats": "$h16x",
+        }),
+        (name: "end", bars: 3, parts: {
+            "mel": "o5 c4 o4 b8. a16 | o4 a8 r8 o5 a8 r8 | o5 a4 r4 |",
+            "hl": "o5 e4 d8. c16 | o5 c8 r8 o6 c8 r8 | o6 c4 r4 |",
+            "harm": "$hCad o4 {a c e}8 r8 {a c e}8 r8 | o4 {a c e}4 r4 |",
+            "bass": "$bE o2 a8 r8 o3 a8 r8 | o2 a4 r4 |",
+            "drums": "k8 k8 s16 s16 s16 s16 | k8 r8 s8 r8 | c4 r4 |",
+        }),
+    ],
+    order: ["intro", "a", "a2", "c", "r", "a3", "r2"],
+    loop_to: "a",
+    ending: "end",
+)

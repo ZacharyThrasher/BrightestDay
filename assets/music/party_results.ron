@@ -1,0 +1,93 @@
+// Party results — the William Tell gallop: a hard-light trumpet call, the galloping theme in E,
+// original strains of galloping 16ths in A major and C# minor, and a cheeky key lift to G.
+(
+    title: "William Tell",
+    composer: "Gioachino Rossini (1792-1868)",
+    work: "Guillaume Tell (William Tell), Overture — IV. Finale, \"March of the Swiss Soldiers\" (1829)",
+    source: "Trumpet call and gallop rhythm/opening of the finale theme from the public-domain score (written from memory, freely continued); the strains, harmony and arrangement are original to Brightest Day.",
+    role: "Party mode results",
+    key: "E",
+    time: (2, 4),
+    bpm: 144.0,
+    gain_db: -3.5,
+    layers: (lead: 0.15, drive: 0.45, base_floor: 0.8),
+    channels: [
+        (name: "mel", inst: "lead25", stem: Lead, pan: -0.1),
+        (name: "hl", inst: "hl_brass", stem: Lead, pan: 0.15, echo: (ticks: 48, vol: 0.22)),
+        (name: "harm", inst: "stab", stem: Base, pan: 0.25),
+        (name: "arp", inst: "run12", stem: Drive, pan: -0.3, vol: 0.6),
+        (name: "bass", inst: "bass_pluck", stem: Base),
+        (name: "drums", drums: true, stem: Drive),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
+    ],
+    patterns: {
+        "ga1": "o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 a8 b8 | o5 c+8 c+16 c+16 c+8 c+16 c+16 | o5 c+8 c+16 c+16 o4 b8 g+8 |
+                o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 a8 b8 | o5 c+8 o4 b8 a8 g+8 | o4 f+4 b4 |",
+        "ga2": "o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 a8 b8 | o5 c+8 c+16 c+16 c+8 c+16 c+16 | o5 c+8 c+16 c+16 o4 b8 g+8 |
+                o4 e8 e16 e16 g+8 b8 | o5 e8 e16 e16 d+8 c+8 | o4 b8 a8 g+8 f+8 | o4 e4 r4 |",
+        "bE": "o2 e8 r8 b8 r8 |", "bA": "o2 a8 r8 o3 e8 r8 |", "bB": "o2 b8 r8 f+8 r8 |", "bD": "o2 d8 r8 a8 r8 |",
+        "bCs": "o2 c+8 r8 g+8 r8 |", "bGs": "o2 g+8 r8 d+8 r8 |", "bFs": "o2 f+8 r8 o3 c+8 r8 |",
+        "sE": "r8 o4 {e g+ b}8 r8 {e g+ b}8 |", "sA": "r8 o4 {e a c+}8 r8 {e a c+}8 |", "sB7": "r8 o4 {d+ f+ a b}8 r8 {d+ f+ a b}8 |",
+        "sB": "r8 o4 {d+ f+ b}8 r8 {d+ f+ b}8 |", "sD": "r8 o4 {d f+ a}8 r8 {d f+ a}8 |", "sE7": "r8 o4 {d e g+ b}8 r8 {d e g+ b}8 |",
+        "sCs": "r8 o4 {e g+ c+}8 r8 {e g+ c+}8 |", "sGs7": "r8 o4 {d+ f+ g+ b+}8 r8 {d+ f+ g+ b+}8 |", "sFs": "r8 o4 {f+ a c+}8 r8 {f+ a c+}8 |",
+        "HA": "$sE $sE $sA $sE $sE $sE $sA $sB $sE $sE $sA $sE $sE $sA $sB7 $sE",
+        "BA": "$bE $bE $bA $bE $bE $bE $bA $bB $bE $bE $bA $bE $bE $bA $bB $bE",
+        "xE": "[o5 e16 g+16 b16 g+16]2 |", "xA": "[o5 e16 a16 o6 c+16 o5 a16]2 |", "xB": "[o5 d+16 f+16 b16 f+16]2 |", "xB7": "[o5 d+16 f+16 a16 f+16]2 |",
+        "XA": "$xE $xE $xA $xE $xE $xE $xA $xB $xE $xE $xA $xE $xE $xA $xB7 $xE",
+        "strA": "o5 c+16 e16 a16 e16 c+16 e16 a16 e16 | o5 c+16 e16 a16 e16 b16 a16 g+16 f+16 | o5 e16 g+16 b16 g+16 e16 g+16 b16 g+16 |
+                 o5 e16 g+16 b16 g+16 a16 g+16 f+16 e16 | o5 d16 f+16 a16 f+16 d16 f+16 a16 f+16 | o5 d16 f+16 a16 f+16 g+16 f+16 e16 d16 |",
+        "strB": "$strA o5 e16 d16 c+16 o4 b16 o5 c+16 d16 e16 g+16 | o5 a8 e8 c+8 o4 a8 |
+                 $strA o5 f+16 e16 d+16 c+16 o4 b16 a16 g+16 f+16 | o4 b8 d+8 f+8 a8 |",
+        "strHl": "o4 a2 | a2 | g+2 | b2 | a2 | f+2 | g+2 | e2 | o4 a2 | a2 | g+2 | b2 | a2 | f+2 | a2 | b2 |",
+        "HB": "$sA $sA $sE $sE $sD $sD $sE7 $sA $sA $sA $sE $sE $sD $sD $sB7 $sB7",
+        "BB": "$bA $bA $bE $bE $bD $bD $bE $bA $bA $bA $bE $bE $bD $bD $bB $bB",
+        "stC": "o5 c+16 e16 g+16 e16 c+16 e16 g+16 e16 | o5 c+16 e16 g+16 e16 f+16 e16 d+16 c+16 | o4 b+16 o5 d+16 g+16 d+16 o4 b+16 o5 d+16 g+16 d+16 |
+                o5 c+16 e16 g+16 o6 c+16 o5 g+16 e16 c+16 o4 g+16 | o5 c+16 f+16 a16 f+16 c+16 f+16 a16 f+16 | o5 c+16 e16 g+16 e16 c+16 e16 g+16 e16 |
+                o5 d+16 f+16 a16 f+16 d+16 f+16 a16 f+16 | o5 b8 a8 f+8 d+8 |",
+        "HC": "[$sCs $sCs $sGs7 $sCs $sFs $sCs $sB7 $sB7]2", "BC": "[$bCs $bCs $bGs $bCs $bFs $bCs $bB $bB]2",
+        "gal": "[k8 r8 s8 r8 |]7 s16 s16 s16 s16 t16 t16 m16 m16 |",
+        "hh": "[h8 h16 h16 h8 h16 h16 |]8",
+    },
+    sections: [
+        (name: "intro", bars: 4, parts: {
+            "hl": "o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 e8 a8 | o4 e8 e16 e16 e8 e16 e16 | o4 e8 e16 e16 b4 |",
+            "bass": "o2 e4 r4 | o2 e4 r4 | o2 e4 r4 | o2 b4 r4 |",
+            "drums": "[s16]8 | [s16]8 | [s16]8 | s16 s16 s16 s16 t8 k8 |",
+        }),
+        (name: "a", bars: 16, parts: {
+            "mel": "$ga1 $ga2", "harm": "$HA", "bass": "$BA", "arp": "$XA", "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "b", bars: 16, key: "A", parts: {
+            "mel": "@run25 $strB", "hl": "$strHl", "harm": "$HB", "bass": "$BB", "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "a2", bars: 16, parts: {
+            "hl": "@hardlight $ga1 $ga2", "mel": "@lead12 v8 k12 $ga1 $ga2 k0", "harm": "$HA", "bass": "$BA", "arp": "$XA",
+            "drums": "c8 r8 s8 r8 | [k8 r8 s8 r8 |]6 s16 s16 s16 s16 t16 t16 m16 m16 | $gal", "hats": "$hh $hh",
+        }),
+        (name: "c", bars: 16, key: "C#m", parts: {
+            "mel": "@run12 $stC $stC", "hl": "[o4 g+2 | g+2 | g+2 | g+2 | o4 a2 | g+2 | a2 | a2 |]2", "harm": "$HC", "bass": "$BC",
+            "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "b2", bars: 16, key: "A", parts: {
+            "hl": "@hl_pluck $strB", "mel": "$strHl", "harm": "$HB", "bass": "$BB", "drums": "$gal $gal", "hats": "$hh $hh",
+        }),
+        (name: "d", bars: 16, parts: {
+            "mel": "k3 $ga1 $ga2 k0", "hl": "@hardlight k-9 $ga1 $ga2 k0", "harm": "k3 $HA k0", "bass": "k3 $BA k0", "arp": "k3 $XA k0",
+            "drums": "c8 r8 s8 r8 | [k8 r8 s8 r8 |]6 s16 s16 s16 s16 t16 t16 m16 m16 | $gal", "hats": "$hh $hh",
+        }),
+        (name: "a3", bars: 16, parts: {
+            "mel": "$ga1 $ga2", "hl": "@hardlight k-12 $ga1 $ga2 k0", "harm": "$HA", "bass": "$BA", "arp": "$XA",
+            "drums": "c8 r8 s8 r8 | [k8 r8 s8 r8 |]6 s16 s16 s16 s16 t16 t16 m16 m16 | $gal", "hats": "$hh $hh",
+        }),
+        (name: "end", bars: 3, parts: {
+            "mel": "o4 b8 a8 g+8 f+8 | o4 e8 r8 o5 e8 r8 | o5 e4 r4 |",
+            "hl": "o4 d+8 c+8 o3 b8 a8 | o3 g+8 r8 o4 g+8 r8 | o4 b4 r4 |",
+            "harm": "$sB7 o4 {e g+ b}8 r8 {e g+ b}8 r8 | o4 {e g+ b}4 r4 |",
+            "bass": "$bB o2 e8 r8 o3 e8 r8 | o2 e4 r4 |",
+            "drums": "s16 s16 s16 s16 t16 t16 m16 m16 | k8 r8 k8 r8 | c4 r4 |",
+        }),
+    ],
+    order: ["intro", "a", "b", "a2", "c", "b2", "d", "a3"],
+    loop_to: "a",
+    ending: "end",
+)

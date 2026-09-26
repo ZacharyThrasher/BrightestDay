@@ -1,0 +1,106 @@
+// Archipelago (combat) — the storm of Vivaldi's Summer, third movement: repeated-note G tremolo and
+// plunging G-minor scales, arranged as a chip combat track with an original hard-light brass theme,
+// a chromatic "lightning" build over a D pedal, and driving 3/4 drums.
+(
+    title: "Summer Storm",
+    composer: "Antonio Vivaldi (1678-1741)",
+    work: "The Four Seasons, Violin Concerto in G minor RV 315 \"L'estate\", III. Presto (1725)",
+    source: "Built on the opening gestures of the public-domain score (repeated-note tremolo, descending G-minor scale runs); themes, harmony and arrangement original to Brightest Day.",
+    role: "Archipelago map — combat",
+    key: "Gm",
+    time: (3, 4),
+    bpm: 160.0,
+    gain_db: -4.3,
+    layers: (lead: 0.15, drive: 0.5, base_floor: 0.75),
+    channels: [
+        (name: "mel", inst: "run12", stem: Lead, vol: 1.3, pan: -0.1),
+        (name: "hl", inst: "hl_brass", stem: Lead, vol: 1.2, pan: 0.15, echo: (ticks: 48, vol: 0.2)),
+        (name: "harm", inst: "arp", stem: Base, pan: 0.25),
+        (name: "arp", inst: "stab", stem: Drive, pan: -0.3),
+        (name: "bass", inst: "bass", stem: Base, vol: 0.85),
+        (name: "drums", drums: true, stem: Drive, vol: 1.25),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.75),
+    ],
+    patterns: {
+        "runA": "[o5 g16]12 | o6 g16 f16 e16 d16 c16 o5 b16 a16 g16 f+16 e16 d16 c16 | o4 b16 o5 d16 g16 b16 o6 d8 o5 b8 g8 d8 |
+                 o5 f+16 a16 o6 d16 f+16 a4 r4 | [o5 c16]4 [o5 e16]4 [o5 g16]4 | o6 c16 o5 b16 a16 g16 f16 e16 d16 c16 o4 b16 a16 g16 f+16 |
+                 o4 f+16 a16 o5 c16 d16 f+16 a16 o6 c16 d16 f+8 r8 | o6 g8 r8 o5 d8 r8 o4 g8 r8 |",
+        "runB": "[o5 d16]12 | o6 d16 c16 o5 b16 a16 g16 f16 e16 d16 c16 o4 b16 a16 g16 | o4 g16 b16 o5 e16 g16 b8 g8 e8 o4 b8 |
+                 o4 a16 o5 c16 f16 a16 o6 c8 e8 o5 a8 f8 | [o5 b16 a16 b16 o6 c16]3 | o6 d16 c16 o5 b16 a16 g16 f+16 g16 a16 b16 a16 g16 f+16 |
+                 o5 e16 d16 c16 o4 b16 a16 g16 f+16 a16 o5 c16 e16 d16 c16 | o4 b8 o5 d8 f+8 a8 o6 c8 f+8 |",
+        "brass": "o5 g4. a8 b4 | o6 c4. o5 b8 a4 | o5 f+2 a4 | o5 g2. | o5 g4. f8 e4 | o5 e4. d8 c4 | o5 d4 f+4 a4 | o6 c2 o5 a4 |
+                  o5 b4. a8 g4 | o6 c4. d8 e4 | o6 f2 e4 | o6 d2. | o6 e4. d8 c4 | o6 c4 o5 b4 a4 | o5 a2 f+4 | o5 d2. |",
+        // one bar per chord
+        "hGm": "o4 {g b d}2. |", "hD": "o4 {f+ a d}2. |", "hD7": "o4 {f+ a c d}2. |", "hCm": "o4 {g c e}2. |",
+        "hBb": "o4 {f b d}2. |", "hEb": "o4 {g b e}2. |", "hF": "o4 {f a c e}2. |",
+        "bG": "[o2 g8 o3 g8]3 |", "bD": "[o2 d8 o3 d8]3 |", "bC": "[o2 c8 o3 c8]3 |", "bBb": "[o2 b8 o3 b8]3 |",
+        "bEb": "[o2 e8 o3 e8]3 |", "bF": "[o2 f8 o3 f8]3 |",
+        "sGm": "[r8 o4 {g b d}8]3 |", "sD": "[r8 o4 {f+ a d}8]3 |", "sD7": "[r8 o4 {f+ a c d}8]3 |", "sCm": "[r8 o4 {g c e}8]3 |",
+        "sBb": "[r8 o4 {f b d}8]3 |", "sEb": "[r8 o4 {g b e}8]3 |", "sF": "[r8 o4 {f a c e}8]3 |",
+        "HA": "$hGm $hGm $hGm $hD $hCm $hCm $hD7 $hGm $hBb $hBb $hEb $hF $hBb $hGm $hCm $hD7",
+        "BA": "$bG $bG $bG $bD $bC $bC $bD $bG $bBb $bBb $bEb $bF $bBb $bG $bC $bD",
+        "SA": "$sGm $sGm $sGm $sD $sCm $sCm $sD7 $sGm $sBb $sBb $sEb $sF $sBb $sGm $sCm $sD7",
+        "HB": "$hGm $hCm $hD $hGm $hEb $hCm $hD $hD7 $hGm $hCm $hF $hBb $hEb $hCm $hD $hD7",
+        "BB": "$bG $bC $bD $bG $bEb $bC $bD $bD $bG $bC $bF $bBb $bEb $bC $bD $bD",
+        "SB": "$sGm $sCm $sD $sGm $sEb $sCm $sD $sD7 $sGm $sCm $sF $sBb $sEb $sCm $sD $sD7",
+        "dA": "[k8 k8 s4 k8 s8 |]7 k8 s8 s8 s16 s16 m8 t8 |",
+        "hh": "[h8]6 |",
+    },
+    sections: [
+        (name: "intro", bars: 4, parts: {
+            "harm": "@stab v6 [o4 g16]12 | v8 [o4 g16]12 | v11 [o4 g16]12 | v14 [o4 g16]8 [o4 f+16]4 |",
+            "bass": "o2 g2. | o2 g2. | o2 g2. | o2 d2. |",
+            "drums": "k2. | k2. | k4 k4 k4 | s8 s8 s16 s16 s16 s16 t8 t8 |",
+        }),
+        (name: "a", bars: 16, parts: {
+            "mel": "$runA $runB",
+            "harm": "$HA", "bass": "$BA", "arp": "$SA",
+            "drums": "$dA $dA", "hats": "[$hh]16",
+        }),
+        (name: "a2", bars: 16, parts: {
+            "mel": "$runA $runB",
+            "hl": "@hl_pluck k-12 $runA $runB k0",
+            "harm": "$HA", "bass": "$BA", "arp": "$SA",
+            "drums": "$dA $dA", "hats": "[h16 h16 h8 h16 h16 h8 h8 h8 |]16",
+        }),
+        (name: "b", bars: 16, parts: {
+            "hl": "$brass",
+            "harm": "$HB", "bass": "$BB",
+            "arp": "@pluck12 [o5 g16 d16 b16 d16]3 | [o5 g16 e16 c16 e16]3 | [o5 f+16 d16 a16 d16]3 | [o5 g16 d16 b16 d16]3 |
+                    [o5 g16 e16 b16 e16]3 | [o5 g16 e16 c16 e16]3 | [o5 f+16 d16 a16 d16]3 | [o5 f+16 c16 a16 c16]3 |
+                    [o5 g16 d16 b16 d16]3 | [o5 g16 e16 c16 e16]3 | [o5 f16 c16 a16 c16]3 | [o5 f16 d16 b16 d16]3 |
+                    [o5 g16 e16 b16 e16]3 | [o5 g16 e16 c16 e16]3 | [o5 f+16 d16 a16 d16]3 | [o5 f+16 c16 a16 c16]3 |",
+            "drums": "$dA $dA", "hats": "[$hh]16",
+        }),
+        (name: "c", bars: 8, parts: {
+            "mel": "@lead25 o5 d2. | e-2. | e=2. | f2. | f+2. | g2. | a2. | o6 c4 o5 a4 f+4 |",
+            "hl": "[o4 {d f+ a}8 r8 r4 r4 |]7 o4 {d f+ a c}8 r8 {d f+ a c}8 r8 {d f+ a c}8 r8 |",
+            "harm": "@stab v6 [o4 d16]12 | v7 [o4 d16]12 | v8 [o4 d16]12 | v9 [o4 d16]12 | v10 [o4 d16]12 | v11 [o4 d16]12 | v13 [o4 d16]12 | v15 [o4 d16]12 |",
+            "bass": "[[o2 d8]6 |]8",
+            "drums": "[k4 r4 k4 |]4 [k8 k8 s4 s4 |]2 [s16]12 | s8 s8 t8 t8 m8 m8 |",
+            "hats": "[$hh]6 [h16]24",
+        }),
+        (name: "b2", bars: 16, parts: {
+            "hl": "$brass",
+            "mel": "@lead25 v8 k-12 $brass k0",
+            "harm": "$HB", "bass": "$BB", "arp": "$SB",
+            "drums": "$dA $dA", "hats": "[h16 h16 h8 h16 h16 h8 h8 h8 |]16",
+        }),
+        (name: "a3", bars: 16, parts: {
+            "mel": "$runA $runB",
+            "hl": "@hl_pluck k-12 $runA $runB k0",
+            "harm": "$HA", "bass": "$BA", "arp": "$SA",
+            "drums": "c4 s4 k8 s8 | [k8 k8 s4 k8 s8 |]6 k8 s8 s8 s16 s16 m8 t8 | $dA", "hats": "[h16 h16 h8 h16 h16 h8 h8 h8 |]16",
+        }),
+        (name: "end", bars: 2, parts: {
+            "mel": "o6 g16 f16 e16 d16 c16 o5 b16 a16 g16 f+16 e16 d16 c16 | o4 b8 r8 o4 g4 r4 |",
+            "hl": "o4 {f+ a c d}2. | o4 {g b d}4 r2 |",
+            "harm": "$hD7 o4 {g b d}4 r2 |",
+            "bass": "$bD o2 g4 r2 |",
+            "drums": "[s16]12 | c4 r2 |",
+        }),
+    ],
+    order: ["intro", "a", "a2", "b", "c", "b2", "a3"],
+    loop_to: "a",
+    ending: "end",
+)

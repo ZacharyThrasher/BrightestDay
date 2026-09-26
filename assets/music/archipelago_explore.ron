@@ -1,0 +1,132 @@
+// Archipelago (exploration) — Vivaldi's Spring, first movement: the ritornello, then original
+// chip episodes in the spirit of the sonnet it paints: birdsong (trilled pulse + hard-light
+// chirps), murmuring brooks (16th-note arpeggios), and a thunderstorm in C# minor.
+(
+    title: "Spring",
+    composer: "Antonio Vivaldi (1678-1741)",
+    work: "The Four Seasons, Violin Concerto in E major RV 269 \"La primavera\", I. Allegro (1725)",
+    source: "Ritornello opening from the public-domain score (written from memory); episodes, harmony and arrangement original to Brightest Day.",
+    role: "Archipelago map — exploration",
+    key: "E",
+    time: (4, 4),
+    bpm: 104.0,
+    gain_db: -4.8,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    instruments: {
+        // Whole-tone trill (a chip arp macro) for the birds.
+        "trill": (wave: Pulse, duty: 0.125, attack: 0.004, decay: 0.5, sustain: 0.55, release: 0.1, vol: 0.62,
+                  arp: [0, 2], arp_rate: 16.0, lp_hz: 6000.0),
+    },
+    channels: [
+        (name: "mel", inst: "lead25", stem: Lead, vol: 1.15, pan: -0.12),
+        (name: "hl", inst: "hardlight", stem: Lead, vol: 1.15, pan: 0.14, echo: (ticks: 72, vol: 0.25)),
+        (name: "harm", inst: "arp30", stem: Base, pan: 0.25),
+        (name: "arp", inst: "pluck12", stem: Drive, pan: -0.3, vol: 0.8),
+        (name: "bass", inst: "bass", stem: Base, vol: 0.9),
+        (name: "drums", drums: true, stem: Drive, vol: 0.9),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.75),
+    ],
+    patterns: {
+        "rit": "o5 g8 g8 g8 f16 e16 b4. b16 a16 | o5 g8 g8 g8 f16 e16 b4. b16 a16 |
+                o5 g8 a16 b16 a8 g8 f4 d8 o4 b8 | o5 g8 a16 b16 a8 g8 f8 d8 e4 |",
+        "rit_lo": "o5 e8 e8 e8 d16 c16 g4. g16 f16 | o5 e8 e8 e8 d16 c16 g4. g16 f16 |
+                   o5 e8 f16 g16 f8 e8 d4 o4 b8 g8 | o5 e8 f16 g16 f8 e8 d8 o4 b8 g4 |",
+        "ritH": "o4 {g b e}1 | o4 {g b e}1 | o4 {g b e}2 {d f a b}2 | o4 {g b e}2 {d f a b}4 {g b e}4 |",
+        "ritB": "[o2 e8]8 | [o2 e8]8 | [o2 e8]4 [o2 b8]4 | [o2 e8]4 o2 b8 b8 e8 e8 |",
+        "ritX": "[o4 e16 g16 b16 g16]4 | [o4 e16 g16 b16 g16]4 | [o4 e16 g16 b16 g16]2 [o4 d16 f16 a16 f16]2 |
+                 [o4 e16 g16 b16 g16]2 o4 d16 f16 a16 f16 e16 g16 b16 g16 |",
+        "dR": "k4 s4 k8 k8 s4 | k4 s4 k8 k8 s4 | k4 s4 k8 k8 s4 | k8 k8 s8 s16 s16 k8 s8 s8 s8 |",
+        "hR": "[h8]8 | [h8]8 | [h8]8 | [h8]4 o4 h8 h8 |",
+        // birds
+        "birds": "o6 e2. r4 | o5 b2. r4 | o6 d2. r4 | o6 e2 r2 | o6 c2. r4 | o5 a2 b2 | o6 d2 f2 | o6 e1 |",
+        "chirps": "r2 o6 b16 g16 b16 g16 e8 r8 | r2 o6 g16 e16 g16 e16 o5 b8 r8 | r2 o6 a16 f16 a16 f16 d8 r8 | r2 o6 b16 g16 e16 g16 b8 r8 |
+                   r2 o6 a16 e16 c16 e16 a8 r8 | r2 o6 c16 o5 a16 o6 d16 o5 b16 o6 d8 r8 | r2 o6 f16 d16 a16 f16 b8 r8 | r2 o6 g16 b16 o7 e8 r4 |",
+        "birdH": "@glass o4 b1 | g1 | a1 | g1 | a1 | a2 b2 | a1 | g1 |",
+        "birdB": "o2 e1 | o2 e1 | o2 b1 | o2 e1 | o2 a1 | o2 a2 b2 | o2 b1 | o2 e1 |",
+        "birdX": "[r8 o5 {e g b}8]4 | [r8 o5 {e g b}8]4 | [r8 o5 {d f a}8]4 | [r8 o5 {e g b}8]4 |
+                  [r8 o5 {c e a}8]4 | [r8 o5 {c e a}8]2 [r8 o5 {d f b}8]2 | [r8 o5 {d f a}8]4 | [r8 o5 {e g b}8]4 |",
+        // brook
+        "brook": "[o4 e16 g16 b16 g16]4 | [o4 c16 e16 g16 e16]4 | [o4 c16 e16 a16 e16]4 | [o4 d16 f16 a16 f16]4 |
+                  [o4 e16 g16 b16 g16]4 | [o4 c16 e16 g16 e16]4 | [o4 c16 e16 a16 e16]4 | [o4 d16 f16 a16 f16]4 |",
+        "brookmel": "o5 b2 g2 | o5 e1 | o5 c2 e2 | o5 d1 | o5 e2 g2 | o5 b2 g2 | o5 a2 f2 | o5 d2 f2 |",
+        "brookB": "[o2 e4]4 | [o2 c4]4 | [o2 a4]4 | [o2 b4]4 | [o2 e4]4 | [o2 c4]4 | [o2 f4]4 | [o2 b4]4 |",
+        // thunder (C# minor)
+        "storm": "o6 c16 o5 b16 a16 g16 f16 e16 d16 c16 e16 g16 o6 c16 e16 g8 r8 |
+                  o6 g16 f16 e16 d16 c16 o5 b16 a16 g16 f16 e16 d16 c16 o4 b16 o5 c16 d16 e16 |
+                  o5 g16 b+16 o6 d16 f16 g8 r8 o6 f16 d16 o5 b+16 g16 f8 r8 |
+                  o5 e16 g16 o6 c16 e16 g4 c4 o5 g4 |
+                  o5 a16 g16 f16 e16 d16 c16 o4 b16 a16 o5 c16 e16 a16 o6 c16 e8 r8 |
+                  o5 f16 e16 d16 c16 o4 b16 a16 g16 f16 a16 o5 c16 f16 a16 o6 c8 r8 |
+                  o5 g16 b+16 o6 d16 f16 g8 r8 o6 f16 d16 o5 b+16 g16 f8 r8 |
+                  o5 f16 a16 b16 o6 d16 f8 r8 o6 d16 o5 b16 a16 f16 d8 r8 |",
+        "stormH": "@stab [o3 {c e g}16]16 | [o3 {c e g}16]16 | [o3 {g b+ d f}16]16 | [o3 {c e g}16]16 |
+                   [o3 {a c e}16]16 | [o3 {f a c}16]16 | [o3 {g b+ d f}16]16 | [o3 {d f a b}16]16 |",
+        "stormB": "[o2 c8]8 | [o2 c8]8 | [o2 g8]8 | [o2 c8]8 | [o2 a8]8 | [o2 f8]8 | [o2 g8]8 | [o2 b8]8 |",
+        "stormD": "[t16 t16 t16 t16 m8 m8 t16 t16 t16 t16 s8 s8 |]7 k8 s16 s16 s8 s8 m8 m8 t8 t8 |",
+    },
+    sections: [
+        (name: "intro", bars: 2, parts: {
+            "harm": "o4 {g b e}1 | o4 {d f a b}1 |",
+            "bass": "o2 e1 | o2 b1 |",
+            "hats": "[h8]8 | [h8]4 h8 h8 h16 h16 h16 h16 |",
+        }),
+        (name: "a", bars: 8, parts: {
+            "mel": "$rit r1 | r1 | r1 | r1 |",
+            "hl": "r1 | r1 | r1 | r1 | $rit",
+            "harm": "$ritH $ritH", "bass": "$ritB $ritB", "arp": "$ritX $ritX",
+            "drums": "$dR $dR", "hats": "$hR $hR",
+        }),
+        (name: "birds", bars: 8, parts: {
+            "mel": "@trill $birds",
+            "hl": "@hl_pluck $chirps",
+            "harm": "$birdH", "bass": "$birdB", "arp": "$birdX",
+            "drums": "[k4 r4 k4 r4 |]7 k8 k8 s8 s8 m8 m8 t8 t8 |",
+            "hats": "[r8 h8]32",
+        }),
+        (name: "a2", bars: 8, parts: {
+            "hl": "$rit $rit_lo",
+            "mel": "$rit_lo $rit",
+            "harm": "$ritH $ritH", "bass": "$ritB $ritB", "arp": "$ritX $ritX",
+            "drums": "$dR $dR", "hats": "$hR $hR",
+        }),
+        (name: "brook", bars: 8, parts: {
+            "hl": "$brookmel",
+            "harm": "@pluck25 $brook",
+            "bass": "@bass_pluck $brookB",
+            "arp": "k12 @pluck12 [r8 o4 e8]4 | [r8 o4 e8]4 | [r8 o4 e8]4 | [r8 o4 f8]4 | [r8 o4 e8]4 | [r8 o4 e8]4 | [r8 o4 e8]4 | [r8 o4 f8]4 |",
+            "drums": "[k4 r4 k4 r4 |]7 k4 s4 k8 s8 s8 s8 |",
+            "hats": "[r8 h8]32",
+        }),
+        (name: "a3", bars: 8, parts: {
+            "hl": "$rit $rit_lo",
+            "mel": "$rit_lo $rit",
+            "harm": "$ritH $ritH", "bass": "$ritB $ritB", "arp": "$ritX $ritX",
+            "drums": "c4 s4 k8 k8 s4 | k4 s4 k8 k8 s4 | k4 s4 k8 k8 s4 | k8 k8 s8 s16 s16 k8 s8 s8 s8 | $dR",
+            "hats": "$hR $hR",
+        }),
+        (name: "storm", bars: 8, key: "C#m", parts: {
+            "mel": "@run12 $storm",
+            "hl": "@hl_brass o4 {c e g}1 | r1 | o4 {g b+ d f}1 | r1 | o4 {a c e}1 | o4 {f a c}1 | o4 {g b+ d f}1 | o4 {d f a b}1 |",
+            "harm": "$stormH", "bass": "$stormB",
+            "drums": "$stormD",
+            "hats": "[h16]128",
+        }),
+        (name: "a4", bars: 8, parts: {
+            "mel": "$rit $rit_lo",
+            "hl": "$rit_lo $rit",
+            "harm": "$ritH $ritH", "bass": "$ritB $ritB", "arp": "$ritX $ritX",
+            "drums": "c4 s4 k8 k8 s4 | k4 s4 k8 k8 s4 | k4 s4 k8 k8 s4 | k8 k8 s8 s16 s16 k8 s8 s8 s8 | $dR",
+            "hats": "$hR $hR",
+        }),
+        (name: "end", bars: 2, parts: {
+            "mel": "o5 g8 a16 b16 a8 g8 f8 d8 e4 | o5 e2 r2 |",
+            "hl": "o5 e8 f16 g16 f8 e8 d8 o4 b8 g4 | o4 b2 r2 |",
+            "harm": "o4 {g b e}2 {d f a b}4 {g b e}4 | o4 {g b e}2 r2 |",
+            "bass": "[o2 e8]4 o2 b8 b8 e8 e8 | o2 e2 r2 |",
+            "drums": "k8 k8 s8 s16 s16 k8 s8 s8 s8 | c2 r2 |",
+        }),
+    ],
+    order: ["intro", "a", "birds", "a2", "brook", "a3", "storm", "a4"],
+    loop_to: "a",
+    ending: "end",
+)

@@ -1,0 +1,83 @@
+// Orbit (combat) — Ride of the Valkyries in 9/8: the galloping motif on hard-light brass over a
+// whirling 16th-note string ostinato, an original battle episode of dotted-quarter hammer blows,
+// and gallop drums.
+(
+    title: "Valkyries",
+    composer: "Richard Wagner (1813-1883)",
+    work: "Die Walküre, WWV 86B, Act III prelude \"Walkürenritt\" (Ride of the Valkyries) (1856, premiered 1870)",
+    source: "The Valkyrie motif (arpeggio climb and its rhythm) from the public-domain score (written from memory); ostinato, episodes, harmony and arrangement original to Brightest Day.",
+    role: "Orbit map — combat",
+    key: "Bm",
+    time: (9, 8),
+    bpm: 144.0,
+    gain_db: -5.1,
+    layers: (lead: 0.15, drive: 0.5, base_floor: 0.75),
+    channels: [
+        (name: "mel", inst: "lead25", stem: Lead, vol: 1.1, pan: -0.12),
+        (name: "hl", inst: "hl_brass", stem: Lead, vol: 1.2, pan: 0.12, echo: (ticks: 144, vol: 0.25)),
+        (name: "harm", inst: "arp", stem: Base, pan: 0.25),
+        (name: "arp", inst: "run12", stem: Drive, pan: -0.3, vol: 0.7),
+        (name: "bass", inst: "bass", stem: Base, vol: 0.9),
+        (name: "drums", drums: true, stem: Drive, vol: 1.25),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
+    ],
+    patterns: {
+        "ride": "o4 b8. f+16 b8 o5 d4. o4 b4. | o5 d8. o4 b16 o5 d8 f+4. d4. | o5 f+8. d16 f+8 a4. o4 a4. | o5 d8. o4 a16 o5 d8 f+4.^4. |
+                 o4 a8. e16 a8 o5 c+4. o4 a4. | o5 c+8. o4 a16 o5 c+8 e4. c+4. | o5 e8. c+16 e8 g4. o4 g4. | o5 c+8. o4 g16 o5 c+8 e4.^4. |
+                 o4 b8. f+16 b8 o5 d4. o4 b4. | o5 d8. o4 b16 o5 d8 f+4. d4. | o5 f+8. d16 f+8 a4. o4 a4. | o5 d8. o4 a16 o5 d8 f+4.^4. |
+                 o5 e8. o4 b16 o5 e8 g4. e4. | o5 g8. e16 g8 b4. g4. | o5 f+8. c+16 f+8 a+4. f+4. | o5 a+8. f+16 a+8 o6 c+4. o5 f+4. |",
+        "hammer": "o5 f+4. d4. o4 b4. | o5 g4. d4. o4 b4. | o5 g4. e4. o4 b4. | o5 f+4. c+4. o4 a+4. |
+                   o5 b4. f+4. d4. | o5 b4. g4. d4. | o6 c=4. o5 g4. e4. | o5 f+4. a+4. o6 c+4. |",
+        "hBm": "o4 {b d f+}2.^4. |", "hD": "o4 {a d f+}2.^4. |", "hA": "o4 {a c+ e}2.^4. |", "hA7": "o4 {g a c+ e}2.^4. |",
+        "hEm": "o4 {g b e}2.^4. |", "hF7": "o4 {f+ a+ c+ e}2.^4. |", "hG": "o4 {g b d}2.^4. |", "hC": "o4 {g c= e}2.^4. |",
+        "hF": "o4 {f+ a+ c+}2.^4. |",
+        "oBm": "[o5 f+16 e16 d16 e16 f+16 b16]3 |", "oD": "[o5 f+16 e16 d16 e16 f+16 a16]3 |", "oA": "[o5 e16 d16 c+16 d16 e16 a16]3 |",
+        "oA7": "[o5 e16 d16 c+16 d16 e16 g16]3 |", "oEm": "[o5 g16 f+16 e16 f+16 g16 b16]3 |", "oF7": "[o5 f+16 e16 c+16 e16 f+16 a+16]3 |",
+        "oG": "[o5 g16 f+16 d16 f+16 g16 b16]3 |", "oC": "[o5 g16 e16 c=16 e16 g16 o6 c=16]3 |",
+        "bB": "[o2 b8 b8 o3 b8]3 |", "bD": "[o2 d8 d8 o3 d8]3 |", "bA": "[o2 a8 a8 o3 a8]3 |", "bE": "[o2 e8 e8 o3 e8]3 |",
+        "bF": "[o2 f+8 f+8 o3 f+8]3 |", "bG": "[o2 g8 g8 o3 g8]3 |", "bC": "[o3 c=8 c=8 o4 c=8]3 |",
+        "stab": "[o4 {b d f+}8 r8 r8]3 | [o4 {g b d}8 r8 r8]3 | [o4 {g b e}8 r8 r8]3 | [o4 {f+ a+ c+}8 r8 r8]3 |
+                 [o4 {b d f+}8 r8 r8]3 | [o4 {g b d}8 r8 r8]3 | [o4 {g c= e}8 r8 r8]3 | [o4 {f+ a+ c+ e}8 r8 r8]3 |",
+        "Hr": "$hBm $hBm $hD $hD $hA $hA $hA7 $hA7 $hBm $hBm $hD $hD $hEm $hEm $hF7 $hF7",
+        "Br": "$bB $bB $bD $bD $bA $bA $bA $bA $bB $bB $bD $bD $bE $bE $bF $bF",
+        "Or": "$oBm $oBm $oD $oD $oA $oA $oA7 $oA7 $oBm $oBm $oD $oD $oEm $oEm $oF7 $oF7",
+        "Hh": "$hBm $hG $hEm $hF $hBm $hG $hC $hF7", "Bh": "$bB $bG $bE $bF $bB $bG $bC $bF",
+        "Oh": "$oBm $oG $oEm $oF7 $oBm $oG $oC $oF7",
+        "gallop": "k8 r8 s8 k8 r8 s8 k8 s8 s8 |", "gallop2": "k8 k8 s8 k8 k8 s8 k8 s8 s16 s16 |",
+        "fill": "s16 s16 s16 s16 s16 s16 t16 t16 t16 t16 t16 t16 m8 m8 m8 |",
+        "d16": "[$gallop $gallop $gallop $gallop2]3 $gallop $gallop $gallop $fill",
+        "hh": "[h8]9 |",
+    },
+    sections: [
+        (name: "intro", bars: 2, parts: {
+            "harm": "@pluck12 $oBm $oBm",
+            "bass": "$bB $bB",
+            "drums": "[t16]18 | [t16]12 m16 m16 m16 m16 s16 s16 |",
+        }),
+        (name: "a", bars: 16, parts: {
+            "hl": "$ride", "harm": "$Hr", "bass": "$Br", "arp": "$Or",
+            "drums": "$d16", "hats": "[$hh]16",
+        }),
+        (name: "b", bars: 8, parts: {
+            "mel": "$hammer", "hl": "$stab", "harm": "$Hh", "bass": "$Bh", "arp": "$Oh",
+            "drums": "[$gallop2]7 $fill", "hats": "[$hh]8",
+        }),
+        (name: "a2", bars: 16, parts: {
+            "hl": "$ride", "mel": "k12 v9 $ride k0", "harm": "$Hr", "bass": "$Br", "arp": "$Or",
+            "drums": "c8 r8 s8 k8 r8 s8 k8 s8 s8 | [$gallop $gallop $gallop2 $gallop]3 $gallop $gallop $fill", "hats": "[$hh]16",
+        }),
+        (name: "c", bars: 8, parts: {
+            "hl": "$hammer", "mel": "@stab $stab", "harm": "$Hh", "bass": "$Bh", "arp": "$Oh",
+            "drums": "[$gallop2]6 $fill $fill", "hats": "[h16]144",
+        }),
+        (name: "end", bars: 2, parts: {
+            "hl": "o5 a+8. f+16 a+8 o6 c+4. o5 f+4. | o5 b2.^4. |",
+            "mel": "o4 f+2.^4. | o5 {b d f+}2.^4. |",
+            "harm": "$hF7 $hBm", "bass": "$bF o2 b2.^4. |",
+            "drums": "$fill c2.^4. |",
+        }),
+    ],
+    order: ["intro", "a", "b", "a2", "c"],
+    loop_to: "a",
+    ending: "end",
+)

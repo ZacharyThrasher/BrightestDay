@@ -1,0 +1,62 @@
+// Stingers: short musical punctuation fired by the game (bd_music::StingerKind). Each section is
+// named after a kind and written in its own `key`; at play time it is transposed into the relative
+// key of the current track and lands on the next beat (ko, streak) or bar line (the rest).
+// ko / streak follow the track's tempo; the others use their own `bpm`.
+(
+    title: "Stingers",
+    composer: "various (public domain) + original",
+    key: "C",
+    time: (4, 4),
+    bpm: 120.0,
+    gain_db: -2.0,
+    channels: [
+        (name: "lead", inst: "hardlight", stem: Lead, pan: 0.1),
+        (name: "harm", inst: "lead25", stem: Lead, pan: -0.2),
+        (name: "bass", inst: "bass", stem: Base),
+        (name: "drums", drums: true, stem: Drive, vol: 0.9),
+    ],
+    sections: [
+        // Beethoven, Symphony No. 5 in C minor, Op. 67 (1808): the "fate" motif.
+        (name: "ko", key: "Cm", bars: 1, parts: {
+            "lead": "o5 q6 r8 g8 g8 g8 q8 e-2 |",
+            "harm": "@hl_brass o4 q6 r8 g8 g8 g8 q8 e-2 |",
+            "bass": "o3 r2 c2 |",
+            "drums": "r2 t4 r4 |",
+        }),
+        // Original: rising chip flourish.
+        (name: "streak", key: "C", bars: 1, parts: {
+            "lead": "o4 l16 c e g o5 c e g o6 c4. r4 |",
+            "harm": "@hl_bell r4 r8 o6 c8 e8 g8 o7 c4 |",
+            "drums": "r4 r8 x8 r2 |",
+        }),
+        // Dies irae (Gregorian chant, 13th c.): the first phrase, on organ.
+        (name: "match_point", key: "Dm", bpm: 96.0, bars: 2, parts: {
+            "lead": "@hl_organ o5 f4 e4 f4 d4 | e4 c4 d2 |",
+            "harm": "@hl_organ o4 f4 e4 f4 d4 | e4 c4 d2 |",
+            "bass": "o2 d1 | d1 |",
+            "drums": "c4 r4 t4 r4 | t8 t8 t8 t8 t4 r4 |",
+        }),
+        // J. S. Bach, Toccata and Fugue in D minor, BWV 565: the opening flourish and the
+        // diminished-seventh climb to the D minor chord.
+        (name: "last_standing", key: "Dm", bpm: 92.0, bars: 3, parts: {
+            "lead": "@hl_organ o5 a32 g32 a16^4. r2 | g32 f32 e32 d32 c+4. d2 |
+                     o3 c+32 e32 g32 b-32 o4 c+32 e32 g32 b-32 o5 c+32 e32 g32 b-32 o6 c+8 d2 |",
+            "harm": "@hl_organ o4 a32 g32 a16^4. r2 | g32 f32 e32 d32 c+4. d2 | r2 o4 {dfa}2 |",
+            "bass": "o2 r1 | r2 d2 | r2 d2 |",
+            "drums": "r1 | r1 | r2 c2 |",
+        }),
+        // Original fanfare (the fallback when a track has no ending of its own).
+        (name: "victory", key: "C", bpm: 144.0, bars: 2, parts: {
+            "lead": "@hl_brass o5 c8. c16 c8 e8 g4 e8 g8 | o6 c2. r4 |",
+            "harm": "o4 e8. e16 e8 g8 o5 c4 o4 g8 o5 c8 | e2. r4 |",
+            "bass": "o3 c4 g4 c4 g4 | c2. r4 |",
+            "drums": "k8 r8 s8 r8 k8 k8 s8 s16 s16 | c2. r4 |",
+        }),
+        // Original: the sad hard-light trombone.
+        (name: "defeat", key: "C", bpm: 100.0, bars: 2, parts: {
+            "lead": "@hl_sad o4 q7 g4 ~f+4 ~f4 q8 ~e4^1 |",
+            "bass": "o3 r2 r4 c4^1 |",
+            "drums": "r1 | r2 t4 r4 |",
+        }),
+    ],
+)

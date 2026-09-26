@@ -1,0 +1,96 @@
+// Final stock — Flight of the Bumblebee: a buzzing 12.5 % pulse bee in chromatic 16ths, heroic
+// hard-light half notes above it, octave-leaping "swarm" episodes, and a breakdown that rebuilds.
+(
+    title: "Bumblebee",
+    composer: "Nikolai Rimsky-Korsakov (1844-1908)",
+    work: "The Tale of Tsar Saltan — \"Flight of the Bumblebee\" (1899-1900)",
+    source: "The chromatic bumblebee line from the public-domain score (written from memory, simplified); counter-melodies, swarm episodes, harmony and arrangement original to Brightest Day.",
+    role: "Final stock / last minute",
+    key: "Am",
+    time: (4, 4),
+    bpm: 160.0,
+    gain_db: -4.1,
+    layers: (lead: 0.15, drive: 0.45, base_floor: 0.8),
+    channels: [
+        (name: "mel", inst: "run12", stem: Lead, pan: -0.12),
+        (name: "hl", inst: "hardlight", stem: Lead, pan: 0.15, echo: (ticks: 72, vol: 0.22)),
+        (name: "harm", inst: "arp", stem: Base, pan: 0.25),
+        (name: "arp", inst: "stab", stem: Drive, pan: -0.3),
+        (name: "bass", inst: "bass", stem: Base, vol: 0.9),
+        (name: "drums", drums: true, stem: Drive, vol: 1.25),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
+    ],
+    patterns: {
+        "swoop": "o6 e16 d+16 d16 c+16 d16 c+16 c16 o5 b16 o6 c16 o5 b16 a+16 a16 g+16 g16 f+16 f16 |
+                  o5 e16 f16 e16 d+16 e16 f16 f+16 g16 g+16 a16 a+16 b16 o6 c16 c+16 d16 d+16 |",
+        "t1": "o5 a16 g+16 g16 f+16 f16 a+16 a16 g+16 a16 g+16 g16 f+16 f16 f+16 g16 g+16 |",
+        "T": "$t1 $t1 o5 a16 g+16 g16 f+16 f16 a+16 a16 g+16 a16 a+16 b16 o6 c16 c+16 d16 d+16 e16 |
+              o6 e16 d+16 d16 c+16 d16 c+16 c16 o5 b16 o6 c16 o5 b16 a+16 a16 g+16 g16 f+16 f16 |",
+        "hT": "o4 {a c e}1 | o4 {a c e}1 | o4 {a c e}1 | o4 {g+ b d e}1 |",
+        "bT": "[o2 a8 o3 a8]4 | [o2 a8 o3 a8]4 | [o2 a8 o3 a8]4 | [o2 e8 o3 e8]4 |",
+        "sT": "[r8 o4 {a c e}8]4 | [r8 o4 {a c e}8]4 | [r8 o4 {a c e}8]4 | [r8 o4 {g+ b d e}8]4 |",
+        "cT": "o4 a2 o5 c2 | o5 e2 d2 | o5 c2 e2 | o4 g+1 |",
+        "swarm": "[o5 a16 o6 a16 o5 e16 o6 e16]4 | [o5 a16 o6 a16 o5 f16 o6 f16]4 | [o5 a16 o6 a16 o5 d16 o6 d16]4 | [o5 g+16 o6 g+16 o5 e16 o6 e16]4 |
+                  [o5 a16 o6 a16 o5 e16 o6 e16]4 | [o5 a16 o6 a16 o5 f16 o6 f16]4 | [o5 a16 o6 a16 o5 d16 o6 d16]4 |
+                  o5 e16 f16 f+16 g16 g+16 a16 a+16 b16 o6 c16 c+16 d16 d+16 e16 f16 f+16 g+16 |",
+        "swarmHl": "o5 e1 | o5 f1 | o5 d2 f2 | o5 e1 | o5 a1 | o6 c1 | o5 f2 a2 | o5 g+1 |",
+        "swarmH": "[o4 {a c e}1 | o4 {a c f}1 | o4 {a d f}1 | o4 {g+ b e}1 |]2",
+        "swarmB": "[[o2 a8 o3 a8]4 | [o2 f8 o3 f8]4 | [o2 d8 o3 d8]4 | [o2 e8 o3 e8]4 |]2",
+        "swarmS": "[[r8 o4 {a c e}8]4 | [r8 o4 {a c f}8]4 | [r8 o4 {a d f}8]4 | [r8 o4 {g+ b e}8]4 |]2",
+        "dA": "k8 k8 s8 k8 k8 k8 s8 k8 |", "dF": "k8 s16 s16 s8 s16 s16 t16 t16 t16 t16 m16 m16 m16 m16 |",
+        "d4": "[$dA]3 $dF", "h16": "[[h16]16 |]4",
+    },
+    sections: [
+        (name: "intro", bars: 2, parts: {
+            "mel": "$swoop",
+            "bass": "o2 e1 | o2 e2 e8 e8 e8 e8 |",
+            "harm": "o4 {g+ b d e}1 | o4 {g+ b d e}1 |",
+            "drums": "r1 | s16 s16 s16 s16 s16 s16 s16 s16 t16 t16 t16 t16 m16 m16 m16 m16 |",
+        }),
+        (name: "a", bars: 8, parts: {
+            "mel": "$T $T", "hl": "$cT $cT", "harm": "$hT $hT", "bass": "$bT $bT", "arp": "$sT $sT",
+            "drums": "$d4 $d4", "hats": "$h16 $h16",
+        }),
+        (name: "b", bars: 8, parts: {
+            "mel": "k5 $T k0 $T", "hl": "k5 $cT k0 $cT", "harm": "k5 $hT k0 $hT", "bass": "k5 $bT k0 $bT", "arp": "k5 $sT k0 $sT",
+            "drums": "$d4 $d4", "hats": "$h16 $h16",
+        }),
+        (name: "c", bars: 8, parts: {
+            "mel": "k7 $T k0 $T", "hl": "@hl_brass k7 $cT k0 $cT", "harm": "k7 $hT k0 $hT", "bass": "k7 $bT k0 $bT", "arp": "k7 $sT k0 $sT",
+            "drums": "$d4 $d4", "hats": "$h16 $h16",
+        }),
+        (name: "d", bars: 8, parts: {
+            "mel": "$swarm", "hl": "@hl_brass $swarmHl", "harm": "$swarmH", "bass": "$swarmB", "arp": "$swarmS",
+            "drums": "c8 k8 s8 k8 k8 k8 s8 k8 | [$dA]6 $dF", "hats": "$h16 $h16",
+        }),
+        (name: "a2", bars: 8, parts: {
+            "hl": "@hl_pluck $T $T", "mel": "@lead25 $cT $cT", "harm": "$hT $hT", "bass": "$bT $bT", "arp": "$sT $sT",
+            "drums": "c8 k8 s8 k8 k8 k8 s8 k8 | [$dA]2 $dF $d4", "hats": "$h16 $h16",
+        }),
+        (name: "b2", bars: 8, parts: {
+            "mel": "k5 $T k0 $T", "hl": "@hl_brass k5 $cT k0 $cT", "harm": "k5 $hT k0 $hT", "bass": "k5 $bT k0 $bT", "arp": "k5 $sT k0 $sT",
+            "drums": "$d4 $d4", "hats": "$h16 $h16",
+        }),
+        (name: "e", bars: 8, parts: {
+            "hl": "@hl_pluck v9 k-12 $T $T k0",
+            "harm": "@arpsoft $hT $hT",
+            "bass": "[o2 a4 r4 a4 r4 |]7 o2 e8 e8 e8 e8 e8 e8 e8 e8 |",
+            "drums": "[k4 r4 r4 r4 |]4 [k4 s4 k4 s4 |]2 [k8 s8]4 | [s16]16 |",
+            "hats": "[r4 h4]8 [[h8]8 |]2 [[h16]16 |]2",
+        }),
+        (name: "c2", bars: 8, parts: {
+            "mel": "k7 $T k0 $T", "hl": "k7 $cT k0 $cT", "harm": "k7 $hT k0 $hT", "bass": "k7 $bT k0 $bT", "arp": "k7 $sT k0 $sT",
+            "drums": "c8 k8 s8 k8 k8 k8 s8 k8 | [$dA]2 $dF $d4", "hats": "$h16 $h16",
+        }),
+        (name: "end", bars: 2, parts: {
+            "mel": "o6 e16 d+16 d16 c+16 d16 c+16 c16 o5 b16 o6 c16 o5 b16 a+16 a16 g+16 g16 f+16 f16 | o5 e8 r8 o4 a4 r2 |",
+            "hl": "o4 g+1 | o4 a4 r2. |",
+            "harm": "o4 {g+ b d e}1 | o4 {a c e}4 r2. |",
+            "bass": "[o2 e8 o3 e8]4 | o2 a4 r2. |",
+            "drums": "$dF c4 r2. |",
+        }),
+    ],
+    order: ["intro", "a", "b", "c", "d", "a2", "b2", "e", "c2"],
+    loop_to: "a",
+    ending: "end",
+)

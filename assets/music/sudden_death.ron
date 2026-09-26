@@ -1,0 +1,104 @@
+// Sudden death — In the Hall of the Mountain King. The intro accelerates from a sneaking reedy
+// pulse (112 bpm) to a stampede; the loop runs at 168 bpm (and the game can push SetTempo on top).
+// Original "troll chase" episodes and a chromatic breakdown between statements of the theme.
+(
+    title: "Mountain King",
+    composer: "Edvard Grieg (1843-1907)",
+    work: "Peer Gynt, Op. 23 — \"I Dovregubbens hall\" (In the Hall of the Mountain King) (1875)",
+    source: "Theme and its F#-major answer from the public-domain score (written from memory); episodes, harmony and arrangement original to Brightest Day.",
+    role: "Sudden death / overtime",
+    key: "Bm",
+    time: (4, 4),
+    bpm: 168.0,
+    gain_db: -3.0,
+    layers: (lead: 0.15, drive: 0.45, base_floor: 0.8),
+    channels: [
+        (name: "mel", inst: "reed", stem: Lead, pan: -0.1),
+        (name: "hl", inst: "hardlight", stem: Lead, pan: 0.15, echo: (ticks: 48, vol: 0.22)),
+        (name: "harm", inst: "stab", stem: Base, pan: 0.25),
+        (name: "arp", inst: "run12", stem: Drive, pan: -0.3, vol: 0.65),
+        (name: "bass", inst: "pizz", stem: Base),
+        (name: "drums", drums: true, stem: Drive),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.7),
+    ],
+    patterns: {
+        "thA": "o3 b8 c+8 d8 e8 f+8 d8 f+4 | o3 e+8 c+8 e+4 e=8 c=8 e=4 | o3 b8 c+8 d8 e8 f+8 d8 f+8 b8 | o3 a8 f+8 d8 f+8 a2 |",
+        "thB": "o4 f+8 g+8 a+8 b8 o5 c+8 o4 a+8 o5 c+4 | o4 b+8 g+8 b+4 b=8 g=8 b=4 | o4 f+8 g+8 a+8 b8 o5 c+8 o4 a+8 o5 c+8 f+8 | o5 e8 c+8 o4 a+8 o5 c+8 e2 |",
+        "bB": "o2 b8 r8 f+8 r8 b8 r8 f+8 r8 |", "bD": "o2 d8 r8 a8 r8 d8 r8 a8 r8 |", "bF": "o2 f+8 r8 c+8 r8 f+8 r8 c+8 r8 |",
+        "bE": "o2 e8 r8 b8 r8 e8 r8 b8 r8 |",
+        "BA": "$bB o2 c+8 r8 g+8 r8 o3 c=8 r8 o2 g8 r8 | $bB $bD",
+        "BB": "$bF o2 g+8 r8 d+8 r8 o2 g8 r8 d8 r8 | $bF $bF",
+        "HA": "[r4 o4 {b d f+}4]2 | r4 o4 {c+ e+ g+ b}4 r4 {c= e g}4 | [r4 o4 {b d f+}4]2 | [r4 o4 {a d f+}4]2 |",
+        "HB": "[r4 o4 {c+ f+ a+}4]2 | r4 o4 {g+ b+ d+}4 r4 {g b d}4 | [r4 o4 {c+ f+ a+}4]2 | [r4 o4 {c+ e f+ a+}4]2 |",
+        "XA": "[o4 b16 o5 d16 f+16 d16]4 | [o4 b16 o5 c+16 e+16 g+16]2 [o4 g16 o5 c=16 e16 c=16]2 | [o4 b16 o5 d16 f+16 d16]4 | [o4 a16 o5 d16 f+16 d16]4 |",
+        "XB": "[o4 a+16 o5 c+16 f+16 c+16]4 | [o4 g+16 b+16 o5 d+16 o4 b+16]2 [o4 g16 b16 o5 d16 o4 b16]2 | [o4 a+16 o5 c+16 f+16 c+16]4 | [o4 a+16 o5 c+16 e16 c+16]4 |",
+        "dA": "k4 s4 k8 k8 s4 |", "dB": "k8 k8 s8 k8 k8 k8 s8 s8 |", "dF": "k8 s16 s16 s8 s8 t16 t16 t16 t16 m8 m8 |",
+        "troll": "o5 b16 a+16 a16 g+16 g16 f+16 f16 e16 d+16 d16 c+16 c=16 o4 b8 r8 | o4 f+8 b8 o5 d8 f+8 b4 r4 |
+                  o5 f+16 f16 e16 d+16 d16 c+16 c=16 o4 b16 a+16 a16 g+16 g16 f+8 r8 | o4 c+8 f+8 a+8 o5 c+8 f+4 r4 |
+                  o5 b16 a+16 a16 g+16 g16 f+16 f16 e16 d+16 d16 c+16 c=16 o4 b8 r8 | o4 f+8 b8 o5 d8 f+8 b4 r4 |
+                  o5 g8 f+8 e8 d8 c+8 d8 e8 c+8 | o5 f+4 o4 f+4 o5 f+4 r4 |",
+        "trollH": "[r4 o4 {b d f+}4]4 | [r4 o4 {c+ f+ a+}4]4 | [r4 o4 {b d f+}4]4 | r4 o4 {e g b}4 r4 {c+ f+ a+}4 | [r4 o4 {c+ f+ a+}4]2 |",
+        "trollB": "$bB $bB $bF $bF $bB $bB o2 e8 r8 b8 r8 f+8 r8 c+8 r8 | $bF",
+        "trollX": "[[o4 b16 o5 d16 f+16 d16]4 |]2 [[o4 a+16 o5 c+16 f+16 c+16]4 |]2 [[o4 b16 o5 d16 f+16 d16]4 |]2 [o4 b16 o5 e16 g16 e16]2 [o4 a+16 o5 c+16 f+16 c+16]2 | [o4 a+16 o5 c+16 f+16 c+16]4 |",
+        "h8": "[h8]8 |", "h16": "[h16]16 |",
+    },
+    sections: [
+        (name: "intro", bars: 2, bpm: 112.0, parts: {
+            "bass": "o2 b4 r4 f+4 r4 | o2 b4 r4 f+4 r4 |",
+            "hats": "r2 r4 h4 | r2 h4 h4 |",
+        }),
+        (name: "a1", bars: 8, bpm: 112.0, accel_to: 124.0, parts: {
+            "mel": "$thA $thA", "bass": "$BA $BA", "harm": "v8 $HA $HA",
+            "hats": "[r4 h4]16",
+        }),
+        (name: "a2", bars: 8, bpm: 124.0, accel_to: 140.0, parts: {
+            "mel": "$thA @lead25 k-12 $thB k0", "hl": "k12 $thA k0 $thB", "bass": "$BA $BB", "harm": "v10 $HA $HB",
+            "arp": "$XA $XB", "drums": "[k4 r4 k4 r4 |]7 k8 k8 s8 s8 s8 s8 s8 s8 |", "hats": "[$h8]8",
+        }),
+        (name: "a3", bars: 8, bpm: 140.0, accel_to: 164.0, parts: {
+            "mel": "@lead25 $thA k-12 $thB k0", "hl": "k12 $thA k0 $thB", "bass": "$BA $BB", "harm": "$HA $HB",
+            "arp": "$XA $XB", "drums": "[$dA]7 $dF", "hats": "[$h8]8",
+        }),
+        (name: "a4", bars: 8, parts: {
+            "mel": "@lead25 $thA k-12 $thB k0", "hl": "k12 $thA k0 $thB", "bass": "$BA $BB", "harm": "$HA $HB",
+            "arp": "$XA $XB", "drums": "c4 s4 k8 k8 s4 | [$dB]6 $dF", "hats": "[$h16]8",
+        }),
+        (name: "a5", bars: 8, parts: {
+            "hl": "k12 $thA $thA k0", "mel": "@lead12 v8 k24 $thA $thA k0", "bass": "$BA $BA", "harm": "$HA $HA",
+            "arp": "$XA $XA", "drums": "[$dB]7 $dF", "hats": "[$h16]8",
+        }),
+        (name: "b", bars: 8, parts: {
+            "mel": "@run25 $troll", "hl": "@hl_pluck k-12 $troll k0", "bass": "$trollB", "harm": "$trollH",
+            "arp": "$trollX", "drums": "[$dB]7 $dF", "hats": "[$h16]8",
+        }),
+        (name: "a6", bars: 8, parts: {
+            "mel": "@lead25 $thA k-12 $thB k0", "hl": "@hl_brass k12 $thA k0 $thB", "bass": "$BA $BB", "harm": "$HA $HB",
+            "arp": "$XA $XB", "drums": "c4 s4 k8 k8 s4 | [$dB]6 $dF", "hats": "[$h16]8",
+        }),
+        (name: "c", bars: 8, parts: {
+            "mel": "@lead25 o4 b1 | o5 c=1 | c+1 | d1 | d+1 | e1 | e+1 | f+1 |",
+            "hl": "@hl_brass [o4 {b d f+}8 r8 r4 r2 |]4 [o4 {c+ f+ a+}8 r8 r4 r2 |]4",
+            "bass": "$bB $bB $bB $bB $bF $bF $bF $bF",
+            "drums": "[k4 r4 k4 r4 |]4 [k8 s8 k8 s8 k8 s8 k8 s8 |]2 [s16]16 | [s16]8 t16 t16 t16 t16 m16 m16 m16 m16 |",
+            "hats": "[$h8]4 [$h16]4",
+        }),
+        (name: "b2", bars: 8, parts: {
+            "hl": "$troll", "mel": "@run12 k12 v8 $troll k0", "bass": "$trollB", "harm": "$trollH",
+            "arp": "$trollX", "drums": "[$dB]7 $dF", "hats": "[$h16]8",
+        }),
+        (name: "a7", bars: 8, parts: {
+            "hl": "k12 $thA $thB k0", "mel": "@lead25 $thA k-12 $thB k0", "bass": "$BA $BB", "harm": "$HA $HB",
+            "arp": "$XA $XB", "drums": "c4 s4 k8 k8 s4 | [$dB]6 $dF", "hats": "[$h16]8",
+        }),
+        (name: "end", bars: 2, parts: {
+            "mel": "@lead25 o4 b8 c+8 d8 e8 f+8 d8 f+4 | o4 b4 r4 o3 b4 r4 |",
+            "hl": "o5 b8 c+8 d8 e8 f+8 d8 f+4 | o5 b4 r4 o4 b4 r4 |",
+            "harm": "[r4 o4 {b d f+}4]2 | o4 {b d f+}4 r4 {b d f+}4 r4 |",
+            "bass": "$bB o2 b4 r4 b4 r4 |",
+            "drums": "$dF c4 r4 k4 r4 |",
+        }),
+    ],
+    order: ["intro", "a1", "a2", "a3", "a4", "a5", "b", "a6", "c", "b2", "a7"],
+    loop_to: "a4",
+    ending: "end",
+)
