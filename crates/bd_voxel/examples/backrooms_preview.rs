@@ -196,6 +196,10 @@ fn shade(w: &VoxelWorld, look: &Look, eye: Vec3, dir: Vec3) -> Vec3 {
 
 fn shot(w: &VoxelWorld, look: &Look, eye: Vec3, target: Vec3, fov: f32, wpx: u32, hpx: u32) -> RgbImage {
     let fwd = (target - eye).normalize();
+    // The same view in game: feet = eye - 1.6 m, yaw 0 = -Z (degrees).
+    let yaw = (-fwd.x).atan2(-fwd.z).to_degrees();
+    let pitch = fwd.y.asin().to_degrees();
+    println!("  in-game: --pos {:.1},{:.1},{:.1} --look {yaw:.0},{pitch:.0}", eye.x, eye.y - 1.6, eye.z);
     let right = fwd.cross(Vec3::Y).normalize();
     let up = right.cross(fwd);
     let tan = (fov.to_radians() * 0.5).tan();
