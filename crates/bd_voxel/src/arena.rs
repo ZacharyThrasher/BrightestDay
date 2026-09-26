@@ -53,6 +53,49 @@ pub struct ArenaInfo {
     pub fog_color: [f32; 3],
     /// Suggested ambient light level (0–1).
     pub ambient: f32,
+    /// Map-defined gravity by altitude (Orbit: normal gravity on the islands, fading to ~zero-g
+    /// above). `None` = full gravity everywhere (every other map; the sim skips the hook entirely).
+    pub gravity: Option<GravityProfile>,
+}
+
+/// Gravity by altitude — the one data-driven sim hook for maps (DESIGN.md "Maps: Orbit").
+///
+/// Full gravity at or below `full_below`, smoothly (Hermite) fading to `min_scale` at `zero_above`
+/// and constant above. Pure IEEE `+ - * /` so the host, predicting clients and every generated copy
+/// of the map agree bit-for-bit. Players get it through `MoveModifiers::gravity_scale`, constructs,
+/// projectiles and (client-side) debris multiply their own gravity by it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GravityProfile {
+    pub full_below: f32,
+    pub zero_above: f32,
+    /// Scale at and above `zero_above` (keep > 0 so anything adrift eventually sinks back).
+    pub min_scale: f32,
+}
+
+impl GravityProfile {
+    /// Gravity multiplier at height `y` (1 = normal).
+    #[inline]
+    pub fn scale_at(&self, y: f32) -> f32 {
+        if y.is_nan() || y <= self.full_below {
+            // Also catches NaN (never happens for live bodies; full gravity is the safe answer).
+            return 1.0;
+        }
+        if y >= self.zero_above {
+            return self.min_scale;
+        }
+        let span = self.zero_above - self.full_below;
+        let t = if span > 0.0 { ((y - self.full_below) / span).min(1.0) } else { 1.0 };
+        let s = t * t * (3.0 - 2.0 * t);
+        1.0 + (self.min_scale - 1.0) * s
+    }
+}
+
+impl ArenaInfo {
+    /// Gravity multiplier at height `y` on this map (1 everywhere without a profile).
+    #[inline]
+    pub fn gravity_scale_at(&self, y: f32) -> f32 {
+        self.gravity.map_or(1.0, |g| g.scale_at(y))
+    }
 }
 
 const VS: f32 = VOXEL_SIZE;
@@ -882,6 +925,7 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
         sky_horizon: [0.80, 0.90, 1.0],
         fog_color: [0.74, 0.85, 0.98],
         ambient: 0.38,
+        gravity: None,
     };
     (w, info)
 }
@@ -960,6 +1004,7 @@ pub fn generate_flat_test(size_m: f32) -> (VoxelWorld, ArenaInfo) {
         sky_horizon: [0.80, 0.90, 1.0],
         fog_color: [0.74, 0.85, 0.98],
         ambient: 0.38,
+        gravity: None,
     };
     (w, info)
 }

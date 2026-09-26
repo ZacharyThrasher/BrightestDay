@@ -164,6 +164,8 @@ pub struct ClientCore {
     token: u64,
     last_hit_at: f64,
     pace_base: Option<f64>,
+    /// Other players' shouts (drained every frame by `present::shout`).
+    pub shouts: Vec<(PlayerId, crate::present::shout::ShoutLine)>,
 }
 
 impl ClientCore {
@@ -209,6 +211,7 @@ impl ClientCore {
             },
             last_hit_at: 0.0,
             pace_base: None,
+            shouts: Vec::new(),
         })
     }
 
@@ -456,6 +459,11 @@ impl ClientCore {
                 }
             }
             S2C::Snapshot(_) => {}
+            S2C::Shout { player, line } => {
+                if self.shouts.len() < 32 {
+                    self.shouts.push((player, line));
+                }
+            }
         }
     }
 

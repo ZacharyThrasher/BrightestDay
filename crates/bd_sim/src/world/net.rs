@@ -51,6 +51,7 @@ fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
     set(&mut f, HOOK_R_ATTACHED, p.mv.hooks[1].attached());
     set(&mut f, LAUNCHED, p.launch.is_some());
     set(&mut f, ELIMINATED, p.eliminated);
+    set(&mut f, CHARGING, p.charge.active);
     let hook = |i: usize| (p.mv.hooks[i].phase != HookPhase::Idle).then_some(QPos::new(p.mv.hooks[i].pos));
     PlayerSnap {
         id: p.id.0,
@@ -67,6 +68,7 @@ fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
         hooks: [hook(0), hook(1)],
         seat: p.seat.map(|s| (s.construct.0, s.part)),
         power: p.power.snap(), // POWERS HOOK
+        charge: p.charge.wire(), // CHARGE HOOK
     }
 }
 
@@ -231,6 +233,7 @@ impl World {
             p.spawn_shield = if fl & pflags::SHIELD != 0 { p.spawn_shield.max(DT) } else { 0.0 };
             p.seat = s.seat.map(|(c, part)| Seat { construct: ConstructId(c), part, suit: fl & pflags::SUIT != 0 });
             p.power.apply_snap(s.power); // POWERS HOOK (prediction reads the power's movement mods)
+            p.charge.apply_wire(fl & pflags::CHARGING != 0, s.charge); // CHARGE HOOK
             if Some(id) == local {
                 if let Some(own) = &snap.own {
                     p.mv = own.to_state();
@@ -499,6 +502,10 @@ impl World {
         self.constructs.movement_mods(player, input, st, &mut mods);
         if let Some(p) = self.player(player) {
             p.power.modify_movement(st.grounded, &mut mods); // POWERS HOOK (same order as the host)
+        }
+        crate::charge::modify_movement(&self.cfg.tuning.charge, input, st.grounded, &mut mods); // CHARGE HOOK (same order as the host)
+        if let Some(g) = self.arena.gravity {
+            mods.gravity_scale *= g.scale_at(st.pos.y); // MAP HOOK: gravity by altitude (same as the host)
         }
         mods
     }

@@ -37,12 +37,20 @@ use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 
+/// Procedural hand animation (sway, bob, tethers, ring, recoil, …): see the module docs.
+#[path = "viewmodel_anim.rs"]
+mod anim;
+#[allow(unused_imports)]
+pub use anim::{HandsPublishSet, ViewmodelHands};
+
 /// Where the local held construct is drawn in first person (SIM reads this).
 #[derive(Resource, Debug, Clone, Copy, Default)]
 pub struct FirstPersonHeld {
     pub construct: Option<ConstructId>,
     /// World-space grip transform (grip at origin, item points −Z).
     pub grip: Transform,
+    /// The same grip in camera space (`viewmodel_anim` re-places the item from this frame's camera).
+    pub grip_local: Transform,
     /// First person + a held construct: SIM should place the visual at `grip`.
     pub active: bool,
 }
@@ -83,9 +91,6 @@ struct VmState {
     kick_pitch: Spring,
     kick_back: Spring,
     punch: Spring,
-    sway_x: Spring,
-    sway_y: Spring,
-    last_look: Option<(f32, f32)>,
     swing: Option<ActiveSwing>,
     held: Option<(ConstructId, Form)>,
     power_down: Option<f32>,
@@ -93,8 +98,6 @@ struct VmState {
     /// Costume/corps the hands were built for.
     built_for: Option<(String, u32, u32, u32, u8)>,
     time: f32,
-    tether_l: Spring,
-    tether_r: Spring,
     ring_key: [f32; 3],
     /// Fingertip offsets from the elbow (unscaled arm space), from the glove mesh.
     tip: [Vec3; 2],
@@ -133,6 +136,8 @@ const ELBOW_R: Vec3 = Vec3::new(0.24, -0.27, -0.06);
 const FIST_R: Vec3 = Vec3::new(0.16, -0.135, -0.34);
 const FIST_L: Vec3 = Vec3::new(-0.2, -0.17, -0.33);
 /// First-person held items are drawn smaller (a viewmodel convention; the world model is unchanged).
+/// Huge items are clamped further by screen coverage where the visual is placed
+/// (`present::constructs::clamp_first_person`), so a giant hammer never covers the view.
 const HELD_VIEW_SCALE: f32 = 0.24;
 /// Gloves are drawn a bit slimmer than the body's arms so they frame the view instead of filling it.
 const ARM_SCALE: f32 = 0.48;
@@ -146,7 +151,15 @@ impl Plugin for ViewmodelPlugin {
             .init_resource::<VmState>()
             .add_systems(Startup, (setup_assets, spawn_fractures))
             .add_systems(Update, vm_keys.in_set(UiSet::Input))
-            .add_systems(Update, (attach_viewmodel, rebuild_hands, vm_events, animate_viewmodel, draw_fractures, draw_percent).chain().in_set(UiSet::Draw));
+            .add_plugins(anim::HandAnimPlugin)
+            // Before `sync_constructs` reads `FirstPersonHeld` (same-frame grip).
+            .add_systems(
+                Update,
+                (attach_viewmodel, rebuild_hands, vm_events, anim::drive_hand_anim, animate_viewmodel, draw_fractures, draw_percent)
+                    .chain()
+                    .in_set(UiSet::Draw)
+                    .before(crate::present::PresentSet::Sync),
+            );
     }
 }
 
@@ -461,14 +474,13 @@ fn animate_viewmodel(
     look: Res<LookAngles>,
     state: Res<State<AppState>>,
     active: Option<Res<ActiveWorld>>,
-    input: Res<crate::input::LocalInputState>,
     oath: Res<crate::oath::OathState>,
     voice: Res<crate::voice_ui::VoiceUi>,
     assets: Res<VmAssets>,
     mut mats: ResMut<Assets<StandardMaterial>>,
     mut st: ResMut<VmState>,
     mut held_out: ResMut<FirstPersonHeld>,
-    cams: Query<&GlobalTransform, With<PlayerCamera>>,
+    (pose, anchor, mut hands_out): (Res<anim::HandPose>, Res<crate::camera::ViewAnchor>, ResMut<ViewmodelHands>),
     mut root: Query<(&mut Transform, &mut Visibility), (With<VmRoot>, Without<VmArm>)>,
     mut arms: Query<(&VmArm, &mut Transform), Without<VmRoot>>,
     mut light: Query<&mut PointLight, With<VmRingLight>>,
@@ -477,12 +489,14 @@ fn animate_viewmodel(
     let st = &mut *st;
     st.time += dt;
     let me = active.as_ref().and_then(|a| a.local_player());
-    let show = *state.get() == AppState::InGame && !prefs.third_person && me.is_some_and(|p| p.alive && p.seat.is_none_or(|s| s.suit));
+    // (A KO keeps the hands up for a moment so they can drop.)
+    let show = *state.get() == AppState::InGame && !prefs.third_person && me.is_some_and(|p| (p.alive || pose.ko_visible) && p.seat.is_none_or(|s| s.suit));
     let Ok((mut root_tf, mut vis)) = root.single_mut() else { return };
     let want = if show { Visibility::Inherited } else { Visibility::Hidden };
     if *vis != want {
         *vis = want;
     }
+    hands_out.active = show;
     if !show {
         held_out.active = false;
         held_out.construct = None;
@@ -495,24 +509,9 @@ fn animate_viewmodel(
     st.kick_pitch.step(dt, 28.0, 0.75);
     st.kick_back.step(dt, 28.0, 0.8);
     st.punch.step(dt, 22.0, 0.55);
-    let (yaw, pitch) = (look.yaw, look.pitch);
-    if let Some((ly, lp)) = st.last_look {
-        let dy = (yaw - ly + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
-        let dp = pitch - lp;
-        st.sway_x.v += (dy / dt.max(1e-3)).clamp(-12.0, 12.0) * 0.012;
-        st.sway_y.v += (dp / dt.max(1e-3)).clamp(-12.0, 12.0) * 0.012;
-    }
-    st.last_look = Some((yaw, pitch));
-    st.sway_x.step(dt, 14.0, 0.8);
-    st.sway_y.step(dt, 14.0, 0.8);
-    let b = input.current.buttons;
-    let tl = if b & bd_core::input::buttons::TETHER_L != 0 { 1.0 } else { 0.0 };
-    let tr = if b & bd_core::input::buttons::TETHER_R != 0 { 1.0 } else { 0.0 };
-    st.tether_l.x += (tl - st.tether_l.x) * (1.0 - (-14.0 * dt).exp());
-    st.tether_r.x += (tr - st.tether_r.x) * (1.0 - (-14.0 * dt).exp());
-
-    root_tf.translation = Vec3::new(st.sway_x.x.clamp(-0.05, 0.05) * 0.6, -st.sway_y.x.clamp(-0.05, 0.05) * 0.6, st.kick_back.x.clamp(-0.1, 0.25) * 0.06);
-    root_tf.rotation = Quat::from_euler(EulerRot::YXZ, st.sway_x.x.clamp(-0.1, 0.1) * 0.5, (st.kick_pitch.x * 0.012).clamp(-0.05, 0.35), 0.0);
+    // Look sway, bob, tethers, ring, recoil…: `anim::HandPose` (frame-rate independent springs).
+    root_tf.translation = pose.root_t + Vec3::new(0.0, 0.0, st.kick_back.x.clamp(-0.1, 0.25) * 0.06);
+    root_tf.rotation = pose.root_r * Quat::from_rotation_x((st.kick_pitch.x * 0.012).clamp(-0.05, 0.35));
 
     // --- swing curve (right hand frame)
     // Rest: the item is held up at the side (tilted up and out), clear of the crosshair.
@@ -543,18 +542,23 @@ fn animate_viewmodel(
     for (arm, mut tf) in &mut arms {
         let base = if arm.right { ELBOW_R } else { ELBOW_L };
         let yaw0 = if arm.right { 0.16 } else { -0.20 };
-        let (ext, lift) = if arm.right { (st.punch.x.clamp(-0.25, 0.1) + st.tether_r.x * -0.06, st.tether_r.x * 0.25) } else { (st.tether_l.x * -0.14, st.tether_l.x * 0.45) };
+        let ext = if arm.right { st.punch.x.clamp(-0.25, 0.1) } else { 0.0 };
         let pitch0 = if arm.right { 0.30 } else { 0.22 };
-        let mut rot = Quat::from_euler(EulerRot::YXZ, yaw0, pitch0 + lift, 0.0);
+        let h = if arm.right { anim::RIGHT } else { anim::LEFT };
+        // Procedural pose: rotate about the fist (aim / twist), then offset the fist.
+        let mut rot = pose.hand_r[h] * Quat::from_euler(EulerRot::YXZ, yaw0, pitch0, 0.0);
         if arm.right && swinging {
             // The arm follows a softened version of the item's swing.
             rot = rot * Quat::IDENTITY.slerp(swing_tf.rotation, 0.35);
         }
         let tip = st.tip[if arm.right { 0 } else { 1 }];
-        let fist = if arm.right { FIST_R } else { FIST_L };
-        let elbow = if tip == Vec3::ZERO { base } else { fist - rot * (tip * ARM_SCALE) };
-        tf.translation = elbow + Vec3::new(0.0, lift * 0.06, ext);
+        let fist = (if arm.right { FIST_R } else { FIST_L }) + pose.hand_t[h];
+        let elbow = if tip == Vec3::ZERO { base + pose.hand_t[h] } else { fist - rot * (tip * ARM_SCALE) };
+        tf.translation = elbow + Vec3::new(0.0, 0.0, ext);
         tf.rotation = rot;
+        // Where the rope leaves the hand (camera space).
+        let tip_local = if tip == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.32) } else { tip };
+        hands_out.local[h] = root_tf.transform_point(tf.transform_point(tip_local));
     }
 
     // --- ring glow = willpower
@@ -577,7 +581,7 @@ fn animate_viewmodel(
     if voice.listening {
         target += voice.level * 1.2;
     }
-    target += st.flare * 2.0;
+    target += st.flare * 2.0 + pose.glow;
     st.glow += (target - st.glow) * (1.0 - (-18.0 * dt).exp());
     let pct = strain_pct(me);
     let ring_col = corps_color(corps).mix(&strain_color(pct), (pct / 60.0).clamp(0.0, 1.0));
@@ -601,7 +605,7 @@ fn animate_viewmodel(
     let held = st.held;
     held_out.construct = held.map(|h| h.0);
     held_out.active = held.is_some();
-    if let (Some(_), Ok(cam)) = (held, cams.single()) {
+    if held.is_some() {
         let arm_r = arms.iter().find(|(a, _)| a.right).map(|(_, t)| *t).unwrap_or_default();
         let tip = if st.tip[0] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.32) } else { st.tip[0] };
         let hand = Transform::from_translation(tip);
@@ -609,8 +613,11 @@ fn animate_viewmodel(
         // The item's hand frame looks along the camera (not the arm), so aim stays honest.
         // Swings play out ahead of the hand; at rest the item hugs the side of the view.
         let grip_local = Transform { translation: local.translation, rotation: root_tf.rotation, scale: Vec3::ONE }.mul_transform(swing_tf);
-        let cam_tf = cam.compute_transform();
-        held_out.grip = cam_tf.mul_transform(Transform { scale: grip_local.scale * HELD_VIEW_SCALE, ..grip_local });
+        held_out.grip_local = Transform { scale: grip_local.scale * HELD_VIEW_SCALE, ..grip_local };
+        // This frame's view (the camera's GlobalTransform is still last frame's here);
+        // `anim::publish_hands` re-places the item from the final camera transform in PostUpdate.
+        let cam_tf = Transform::from_translation(anchor.eye).with_rotation(look.rotation());
+        held_out.grip = cam_tf.mul_transform(held_out.grip_local);
     }
 }
 

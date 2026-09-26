@@ -1,11 +1,13 @@
 //! Render the generated arena to a PNG so the layout can be reviewed without the game.
 //!
 //! ```text
-//! cargo run -p bd_voxel --example preview --release -- [seed] [out.png] [--flat | --tutorial | --map miami]
+//! cargo run -p bd_voxel --example preview --release -- [seed] [out.png] [--flat | --tutorial | --map miami|orbit]
 //! ```
 //! Default output: `docs/arena_preview.png` (`docs/tutorial_preview.png` with `--tutorial`,
-//! `docs/miami_preview.png` with `--map miami`; relative to the workspace root). City maps also get a
-//! water plane, their sky palette and a bottom row of three sun-lit perspective "hero shots".
+//! `docs/miami_preview.png` with `--map miami`, `docs/orbit_preview.png` with `--map orbit`; relative to the
+//! workspace root). City maps also get a water plane, their sky palette and a bottom row of three
+//! sun-lit perspective "hero shots"; Orbit gets a space backdrop instead (stars, the planet below with
+//! its atmosphere limb, the moon) and no water.
 //! Red markers = spawns (tutorial: station starts). Layout:
 //! top row = two isometric views from opposite corners; bottom row = top-down height/material map
 //! (10 m grid, spawns marked) and a side elevation looking north.
@@ -17,7 +19,7 @@ use std::time::Instant;
 use bd_core::VOXEL_SIZE;
 use bd_core::voxel::AIR;
 use bd_voxel::noise::{hash_v, signed};
-use bd_voxel::{ArenaInfo, MapInfo, VoxelWorld, generate_arena, generate_flat_test, generate_miami, material_def};
+use bd_voxel::{ArenaInfo, MapInfo, VoxelWorld, generate_arena, generate_flat_test, generate_miami, generate_orbit, material_def};
 use glam::{IVec3, Vec3};
 use image::{Rgb, RgbImage};
 
@@ -50,6 +52,16 @@ impl Look {
     }
     fn from_map(m: &MapInfo) -> Self {
         let c = |a: [f32; 3]| [a[0] * 255.0, a[1] * 255.0, a[2] * 255.0];
+        if is_space(m) {
+            // Space: near-black top fading to the planet's blue limb glow; no water.
+            return Self {
+                sky_top: [4.0, 6.0, 16.0],
+                sky_mid: Some([10.0, 18.0, 44.0]),
+                sky_bot: [60.0, 110.0, 190.0],
+                water: None,
+                grade: Some([[1.05, 1.02, 0.98], [0.92, 0.92, 1.0], [0.80, 0.84, 1.0]]),
+            };
+        }
         Self {
             sky_top: c(m.sky_zenith),
             sky_mid: Some(c(m.sky_mid)),
@@ -425,6 +437,8 @@ fn main() {
         "docs/tutorial_preview.png"
     } else if map.as_deref() == Some("miami") {
         "docs/miami_preview.png"
+    } else if map.as_deref() == Some("orbit") {
+        "docs/orbit_preview.png"
     } else {
         "docs/arena_preview.png"
     };
@@ -436,7 +450,8 @@ fn main() {
     let (world, info) = if let Some(name) = map.as_deref() {
         let (w, m) = match name {
             "miami" => generate_miami(seed),
-            other => panic!("unknown map {other:?} (known: miami)"),
+            "orbit" => generate_orbit(seed),
+            other => panic!("unknown map {other:?} (known: miami, orbit)"),
         };
         LOOK.with(|l| *l.borrow_mut() = Look::from_map(&m));
         let a = m.arena.clone();
@@ -536,7 +551,99 @@ fn lin_srgb(c: f32) -> u8 {
     (c.max(0.0).powf(1.0 / 2.2) * 255.0).clamp(0.0, 255.0) as u8
 }
 
+fn is_space(m: &MapInfo) -> bool {
+    m.arena.gravity.is_some()
+}
+
+/// Orbit backdrop (the reference for the client's `space.wgsl`): layered stars, the planet far below
+/// (oceans, continents, clouds, day/night terminator with city lights, atmosphere limb + halo), the
+/// moon and the sun.
+fn space_lin(m: &MapInfo, dir: Vec3) -> Vec3 {
+    use bd_voxel::noise::{fbm3, hash3, unit};
+    let sun = m.arena.sun_dir;
+    // Planet: radius R, centre far below (camera ≈ 320 m "altitude" in impostor units).
+    let (rp, cy) = (5000.0f32, -5320.0f32);
+    let oc = Vec3::new(0.0, -cy, 0.0); // eye − centre (eye at the origin)
+    let b = oc.dot(dir);
+    let c = oc.length_squared() - rp * rp;
+    let h = b * b - c;
+    // Limb glow / halo from the closest approach of the ray to the planet.
+    let closest = (oc - dir * b).length();
+    let halo_d = ((closest - rp) / 220.0).max(0.0);
+    let mut col = Vec3::new(0.004, 0.006, 0.018);
+    if h > 0.0 && -b - h.sqrt() > 0.0 {
+        let t = -b - h.sqrt();
+        let p = oc + dir * t; // relative to the centre
+        let n = p / rp;
+        let ndl = n.dot(sun);
+        let day = ((ndl + 0.08) / 0.3).clamp(0.0, 1.0);
+        let q = n * 3.2;
+        let land = fbm3(q.x, q.y, q.z, 7, 5);
+        let is_land = land > 0.08;
+        let lat = n.z.abs();
+        let base = if is_land {
+            let dry = fbm3(q.x * 2.0, q.y * 2.0, q.z * 2.0, 11, 3);
+            let green = Vec3::new(0.10, 0.22, 0.07);
+            let desert = Vec3::new(0.42, 0.33, 0.18);
+            let ice = Vec3::new(0.85, 0.9, 0.95);
+            let g = green.lerp(desert, ((dry + 0.2) * 1.8).clamp(0.0, 1.0));
+            g.lerp(ice, ((lat - 0.82) * 8.0).clamp(0.0, 1.0))
+        } else {
+            let shallow = ((land + 0.05) * 8.0).clamp(0.0, 1.0);
+            Vec3::new(0.01, 0.05, 0.16).lerp(Vec3::new(0.03, 0.16, 0.30), shallow)
+        };
+        let cq = n * 5.0 + Vec3::new(0.0, 0.0, 0.0);
+        let cloud = ((fbm3(cq.x, cq.y * 1.8, cq.z, 23, 5) - 0.05) * 2.2).clamp(0.0, 1.0);
+        let lit = base.lerp(Vec3::splat(0.9), cloud * 0.85) * (0.03 + 1.25 * day * ndl.max(0.0).sqrt());
+        col = lit;
+        // City lights on the night side.
+        if is_land && day < 0.5 {
+            let cell = n * 140.0;
+            let hh = unit(hash3(cell.x.floor() as i32, cell.y.floor() as i32, cell.z.floor() as i32, 5));
+            if hh > 0.93 && land > 0.14 {
+                col += Vec3::new(1.0, 0.7, 0.35) * (1.0 - day * 2.0) * (1.0 - cloud) * 0.6;
+            }
+        }
+        // Atmosphere rim (fresnel).
+        let rim = (1.0 + n.dot(dir)).clamp(0.0, 1.0);
+        let rimk = rim * rim * rim * rim;
+        col = col.lerp(Vec3::new(0.25, 0.5, 1.0) * (0.2 + 0.9 * day), rimk * 0.8);
+    } else {
+        // Stars: three layers of hashed cells.
+        for (k, (scale, bright)) in [(90.0f32, 0.9f32), (220.0, 0.55), (520.0, 0.35)].iter().enumerate() {
+            let q = dir * *scale;
+            let cell = q.floor();
+            let hsh = hash3(cell.x as i32, cell.y as i32, cell.z as i32, 101 + k as u32);
+            if unit(hsh) > 0.97 {
+                // A point star at a hashed spot in the cell (not the whole cell).
+                let jit = Vec3::new(unit(hsh.rotate_left(3)), unit(hsh.rotate_left(11)), unit(hsh.rotate_left(19))) * 0.6 + 0.2;
+                let d = (q - cell - jit).length();
+                let tint = unit(hsh.rotate_left(7));
+                let a = (1.0 - d / 0.22).max(0.0);
+                col += Vec3::new(0.8 + 0.2 * tint, 0.85, 1.0 - 0.2 * tint) * *bright * a * a * 2.0;
+            }
+        }
+        // Atmosphere halo above the limb.
+        col += Vec3::new(0.12, 0.3, 0.8) * (-halo_d).exp() * 0.9 * (0.3 + 0.7 * (sun.y * 0.5 + 0.5));
+    }
+    // Moon.
+    let moon_dir = Vec3::new(0.55, 0.22, -0.8).normalize();
+    let md = dir.dot(moon_dir);
+    if md > 0.9985 {
+        let nn = (1.0 - md) / 0.0015;
+        let crater = fbm3(dir.x * 400.0, dir.y * 400.0, dir.z * 400.0, 3, 3);
+        col = Vec3::splat(0.55 + 0.15 * crater) * (1.0 - nn * 0.5);
+    }
+    // Sun.
+    let cs = dir.dot(sun).max(0.0);
+    col += Vec3::new(1.0, 0.95, 0.85) * (cs.powf(400.0) * 6.0 + cs.powf(12.0) * 0.08);
+    col
+}
+
 fn sky_lin(m: &MapInfo, dir: Vec3) -> Vec3 {
+    if is_space(m) {
+        return space_lin(m, dir);
+    }
     let sun = m.arena.sun_dir;
     let l = |a: [f32; 3]| Vec3::new(a[0].powf(2.2), a[1].powf(2.2), a[2].powf(2.2));
     let t = dir.y.clamp(-0.2, 1.0);
@@ -554,7 +661,7 @@ fn sky_lin(m: &MapInfo, dir: Vec3) -> Vec3 {
 fn shade_ray(w: &VoxelWorld, m: &MapInfo, eye: Vec3, dir: Vec3) -> Vec3 {
     let sun = m.arena.sun_dir;
     let sc = Vec3::new(m.sun_color[0].powf(2.2), m.sun_color[1].powf(2.2), m.sun_color[2].powf(2.2)) * 2.2;
-    let amb = Vec3::new(0.55, 0.42, 0.62) * m.arena.ambient;
+    let amb = if is_space(m) { Vec3::new(0.34, 0.42, 0.62) } else { Vec3::new(0.55, 0.42, 0.62) } * m.arena.ambient;
     let fog = Vec3::new(m.arena.fog_color[0].powf(2.2), m.arena.fog_color[1].powf(2.2), m.arena.fog_color[2].powf(2.2));
     let hit = bd_core::voxel::raycast(w, eye, dir, 420.0);
     let t_water = if dir.y < -1e-4 { (m.water_y - eye.y) / dir.y } else { f32::INFINITY };
@@ -640,6 +747,15 @@ fn perspective(w: &VoxelWorld, m: &MapInfo, eye: Vec3, target: Vec3, fov_deg: f3
 /// Three establishing shots: skyline from the beach, down Ocean Drive, over Brickell towards the sun.
 fn hero_shots(w: &VoxelWorld, m: &MapInfo) -> Vec<RgbImage> {
     let (wpx, hpx) = (760, 440);
+    if is_space(m) {
+        // Spawn view from the Flats toward the station, the station close up, and down past the
+        // Crash Site toward the planet.
+        return vec![
+            perspective(w, m, Vec3::new(86.0, 40.0, 6.0), Vec3::new(0.0, 52.0, 0.0), 70.0, wpx, hpx),
+            perspective(w, m, Vec3::new(30.0, 64.0, 42.0), Vec3::new(0.0, 54.0, 0.0), 66.0, wpx, hpx),
+            perspective(w, m, Vec3::new(-20.0, 75.0, 20.0), Vec3::new(40.0, 10.0, -70.0), 74.0, wpx, hpx),
+        ];
+    }
     vec![
         perspective(w, m, Vec3::new(95.0, 22.0, -100.0), Vec3::new(-45.0, 34.0, 25.0), 52.0, wpx, hpx),
         perspective(w, m, Vec3::new(56.0, 9.0, -98.0), Vec3::new(50.0, 11.0, 0.0), 64.0, wpx, hpx),

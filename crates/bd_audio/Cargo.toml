@@ -11,11 +11,14 @@ default = ["device", "sim"]
 device = ["dep:cpal"]
 # GameEvent / MoveEvents -> cue mapping (the same mapping the client and the offline renderer use).
 sim = ["dep:bd_sim"]
+# The chip soundtrack on the Music bus (bd_music adapter + track/stinger director).
+music = ["dep:bd_music"]
 
 [dependencies]
 bd_core.workspace = true
 bd_voxel.workspace = true
 bd_sim = { workspace = true, optional = true }
+bd_music = { path = "../bd_music", optional = true }
 glam.workspace = true
 serde.workspace = true
 ron.workspace = true

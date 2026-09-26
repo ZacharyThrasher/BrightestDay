@@ -43,6 +43,8 @@ pub struct CombatTuning {
     pub willpower: WillpowerTuning,
     pub construct: ConstructTuning,
     pub snowball: AntiSnowball,
+    /// CHARGE HOOK: hold-to-power-up refill + movement (`crate::charge`).
+    pub charge: crate::charge::ChargeTuning,
 }
 
 impl Default for CombatTuning {
@@ -57,6 +59,7 @@ impl Default for CombatTuning {
             willpower: WillpowerTuning::default(),
             construct: ConstructTuning::default(),
             snowball: AntiSnowball::default(),
+            charge: crate::charge::ChargeTuning::default(),
         }
     }
 }
@@ -924,6 +927,7 @@ impl CombatTuning {
         self.willpower = self.willpower.validated();
         self.construct = self.construct.validated();
         self.snowball = self.snowball.validated();
+        self.charge = self.charge.validated();
         self
     }
 

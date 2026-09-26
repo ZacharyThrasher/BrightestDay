@@ -29,8 +29,8 @@ pub mod player;
 pub mod song;
 pub mod synth;
 
-pub use player::{DebugLog, MusicCommand, MusicPlayer, MusicStatus, OUT_STEMS};
-pub use song::{MusicError, MusicLibrary, Song, Stem, StingerKind, TrackId, TrackInfo};
+pub use player::{AdaptPhase, DebugLog, MusicCommand, MusicPlayer, MusicStatus, OUT_STEMS, Style};
+pub use song::{MusicError, MusicLibrary, RemixStyle, Song, Stem, StingerKind, TrackId, TrackInfo};
 
 /// `assets/music` inside this repository (for tools and tests).
 pub fn default_music_dir() -> std::path::PathBuf {

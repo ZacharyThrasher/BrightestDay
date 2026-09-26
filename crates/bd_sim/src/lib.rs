@@ -22,6 +22,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod bots;
+pub mod charge;
 pub mod combat;
 pub mod constructs;
 pub mod events;

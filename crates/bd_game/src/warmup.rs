@@ -204,6 +204,30 @@ fn track_loading(
 
 fn spawn_loading_screen(mut commands: Commands, mut progress: ResMut<LoadingProgress>) {
     *progress = LoadingProgress::default();
+    // UI pipelines the menus use that the loading screen itself doesn't (box shadows — the title's
+    // hard-light voxels —, gradients, rounded corners): drawn once *under* the opaque loading screen
+    // so they are compiled before the title appears (otherwise the logo can be missing for its
+    // first frames while those pipelines compile).
+    commands.spawn((
+        Name::new("UiWarmup"),
+        LoadingScreen,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(40),
+            top: px(40),
+            width: px(24),
+            height: px(24),
+            border_radius: BorderRadius::all(px(4)),
+            ..default()
+        },
+        BackgroundColor(Color::WHITE),
+        BackgroundGradient::from(bevy::ui::LinearGradient::new(
+            bevy::ui::LinearGradient::TO_RIGHT,
+            vec![bevy::ui::ColorStop::new(Color::WHITE, percent(0)), bevy::ui::ColorStop::new(Color::BLACK.with_alpha(0.0), percent(100))],
+        )),
+        BoxShadow::new(Color::WHITE.with_alpha(0.6), px(0), px(0), px(1), px(12)),
+        GlobalZIndex(99),
+    ));
     commands
         .spawn((
             Name::new("LoadingScreen"),

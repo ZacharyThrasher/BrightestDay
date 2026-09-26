@@ -3,9 +3,11 @@
 //! Called from `held.rs` for held constructs with a gun archetype (`weapons::archetype_for`: hand
 //! cannon / super shotgun / minigun / rocket / railgun, plus bow / cannon / staff / disc). The
 //! generic [`WeaponState`] machine (in `weapons.rs`) decides *when*; this turns shots into
-//! projectiles (100 % shooter-velocity inheritance and lag compensation are applied by the world),
-//! lag-compensated hitscan beams, recoil impulses (the world applies air ×1.0 / ground ×0.35) and
-//! `ShotFired` juice (archetype, muzzle, recoil, pellets).
+//! lag-compensated hitscan rays (hand cannon, per-pellet super shotgun, minigun, railgun) and
+//! projectiles (rockets, bows, cannons, payload / explosive / ricochet / portal rounds; 100 %
+//! shooter-velocity inheritance and lag compensation are applied by the world), recoil impulses
+//! (the world applies air ×1.0 / ground ×0.35) and `ShotFired` juice (archetype, muzzle, recoil,
+//! pellets). Hitscan rounds emit `ShotTrace` so clients draw a chunky voxel tracer.
 //!
 //! * **Alt-fire (RMB) per archetype:** hand cannon = fan-the-hammer 3-shot burst (1.2 s cd); super
 //!   shotgun = both barrels at once (double recoil: the big shotgun-jump), then reload-snap; minigun =
@@ -38,6 +40,8 @@ pub const MINIGUN_SINK: f32 = 4.0;
 pub const BEAM_DAMAGE: f32 = 3.0;
 pub const BEAM_RANGE: f32 = 30.0;
 pub const BEAM_PERIOD: f32 = 0.1;
+/// Reach of hitscan gun rounds (m).
+pub const HITSCAN_RANGE: f32 = 250.0;
 
 /// Does this held construct fire like a gun?
 pub fn is_gun(c: &Construct) -> bool {
@@ -141,16 +145,10 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
                 s.beam_t = BEAM_PERIOD;
                 let dmg = BEAM_DAMAGE * if c.has(Mechanic::Heavy) { 1.5 } else { 1.0 };
                 out.hitscans.push(HitscanShot {
-                    owner: c.owner,
                     construct: Some(c.id),
-                    origin: o.eye,
-                    dir: o.look,
                     range: BEAM_RANGE,
-                    damage: dmg,
-                    knockback: 3.0,
                     element: c.recipe.element,
-                    pierce: 0,
-                    wall: 0.0,
+                    ..HitscanShot::new(c.owner, o.eye, o.look, dmg, 3.0)
                 });
             }
         }
@@ -167,6 +165,19 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
         WeaponPhase::Idle => AnimState::Idle,
     };
     c.set_anim(anim, env.tick());
+}
+
+/// Does this gun fire lag-compensated hitscan rays (vs projectiles)? Hitscan archetypes do, unless
+/// the round's point is its flight: payloads, explosive rounds, ricochets, portal shots.
+pub fn fires_hitscan(c: &Construct, arch: GunArchetype, spec: &GunSpec) -> bool {
+    spec.speed <= 0.0
+        || (spec.hitscan
+            && c.recipe.payload.is_none()
+            && spec.explode.is_none()
+            && !c.has(Mechanic::Explodes)
+            && !c.has(Mechanic::Ricochet)
+            && !c.has(Mechanic::Portal)
+            && arch != GunArchetype::Disc)
 }
 
 /// Fire one shot (all its pellets) along `dir`. `dmg_k` / `speed_k` scale the round; `recoil_k`
@@ -205,24 +216,37 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
     if recoil > 0.0 {
         out.recoils.push((c.owner, dir, recoil));
     }
-    if speed <= 0.0 {
-        out.hitscans.push(HitscanShot {
-            owner: c.owner,
-            construct: Some(c.id),
-            origin: o.eye,
-            dir,
-            range: 250.0,
-            damage: dmg,
-            knockback: kb,
-            element: c.recipe.element,
-            pierce: spec.pierce,
-            wall: 1.0,
-        });
-        return;
-    }
     let ricochet = if c.has(Mechanic::Ricochet) || arch == GunArchetype::Disc { 2 } else { 0 };
+    let fx = ray_effects(c);
+    // Hitscan (COMBAT.md §4b): players move 20–50 m/s, so the hand cannon, every super-shotgun
+    // pellet, the minigun and the railgun are instant, lag-compensated rays. Rounds whose point is
+    // the flight stay projectiles: payloads, explosive rounds, ricochets and portal shots.
+    let ray = fires_hitscan(c, arch, spec);
     let mut dirs = [Vec3::ZERO; 16];
     let n = pellet_dirs(dir, spec.pellets, spec.spread_deg, &mut dirs);
+    if ray {
+        let beam = arch == GunArchetype::Railgun || spec.pierce > 0;
+        for d in &dirs[..n] {
+            out.hitscans.push(HitscanShot {
+                owner: c.owner,
+                construct: Some(c.id),
+                origin: o.eye,
+                dir: *d,
+                range: HITSCAN_RANGE,
+                damage: dmg,
+                knockback: kb,
+                element: c.recipe.element,
+                pierce: spec.pierce,
+                wall: if beam { 1.0 } else { 0.0 },
+                muzzle,
+                falloff_start: spec.falloff_start,
+                chip: spec.chip,
+                effects: fx,
+                trace: (!beam).then_some(arch),
+            });
+        }
+        return;
+    }
     for d in &dirs[..n] {
         out.projectiles.push(ProjectileSpawn {
             owner: c.owner,
@@ -238,7 +262,7 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
             explode,
             hit_kind: HitKind::Shot,
             ricochet,
-            effects: ray_effects(c),
+            effects: fx,
             falloff_start: spec.falloff_start,
             chip: spec.chip,
             muzzle_speed: speed,

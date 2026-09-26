@@ -27,6 +27,7 @@ import sounds_weapons  # noqa: E402,F401  (registers guns + ring blast)
 import sounds_streak  # noqa: E402  (registers KO streak sets)
 import sounds_transform  # noqa: E402,F401  (robot <-> vehicle transformations)
 import sounds_ambience  # noqa: E402,F401  (world ambience beds/emitters + danger/mix cues)
+import sounds_charge  # noqa: E402,F401  (ring charge aura + shout words)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

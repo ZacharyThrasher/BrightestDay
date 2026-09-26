@@ -7,6 +7,7 @@
 //! authored movement routes between them (used by bots, the camera director and the route tests).
 
 pub mod miami;
+pub mod orbit;
 
 use std::ops::Deref;
 
@@ -15,6 +16,7 @@ use glam::Vec3;
 use crate::arena::ArenaInfo;
 
 pub use miami::{MIAMI_SIZE_VOXELS, generate_miami};
+pub use orbit::{ORBIT_SIZE_VOXELS, generate_orbit};
 
 /// A named area of the map (for spawn logic, bots, the camera and UI callouts).
 #[derive(Clone, Debug, PartialEq)]

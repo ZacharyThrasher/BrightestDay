@@ -174,6 +174,10 @@ pub enum GameEvent {
     },
     /// A hitscan beam (railgun): draw the lingering beam from `origin` to `end`.
     Hitscan { owner: PlayerId, origin: Vec3, end: Vec3, hits: u8 },
+    /// A hitscan gun round (hand cannon / minigun round / one super-shotgun pellet): the client
+    /// draws a fast, short-lived chunky voxel tracer `from` the muzzle `to` the impact, then the
+    /// impact FX. `normal` is zero when the round flew to max range; `hit_player` = who it struck.
+    ShotTrace { owner: PlayerId, archetype: GunArchetype, from: Vec3, to: Vec3, normal: Vec3, hit_player: Option<PlayerId> },
     /// A construct was cast; clients build its model from the recipe (same phrase = same model).
     ConstructSpawned {
         id: ConstructId,
@@ -277,6 +281,9 @@ pub enum GameEvent {
     PartyEnd { podium: Vec<crate::party::PartyStanding> },
     /// A party effect did something visible (confetti, honk, echo, slip…) for client juice.
     PartyFx { player: PlayerId, fx: crate::party::PartyFx, pos: Vec3, construct: Option<ConstructId> },
+    /// CHARGE HOOK: a player's power-up started / filled the pool / was broken by a hit / was
+    /// released (`held` = seconds into the charge). The aura itself follows `pflags::CHARGING`.
+    Charge { player: PlayerId, kind: crate::charge::ChargeEvent, held: f32 },
 }
 
 /// What [`GameEvent::HeldFx`] reports (COMBAT.md §4 Held / Worn, §4b, §5d).

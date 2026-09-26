@@ -2,8 +2,11 @@
 //! read-only look at the [`World`]. Used by tests, practice mode and the stress / soak benches.
 //!
 //! Behaviour (deterministic: seeded RNG, reads only world state):
-//! * picks the nearest threat (preferring whoever hit it last), aims with **lead** for the 90 m/s
-//!   ring blast, turn-rate limited and noisy by difficulty;
+//! * picks the nearest threat (preferring whoever hit it last) and aims like a person
+//!   ([`AimProfile`]): it sees the target **late** (per-bot reaction delay, 150–350 ms by
+//!   difficulty) and extrapolates only part of that, its aim **trails** a target that sweeps across
+//!   its view (error grows with angular speed), wobbles with gaussian-ish jitter, sometimes
+//!   **overshoots** a big flick, and leads projectiles by their real muzzle speed (hitscan: none);
 //! * strafes, **bunny-hops** at range (held jump + air strafing), backs off at low health;
 //! * **tethers** across gaps toward its target and fires an emergency tether when falling toward
 //!   the void (using the real `query_anchor` crosshair query);
@@ -12,7 +15,7 @@
 //!   weapon, mid → creature / thrown object, hurt → wall / dome / parachute);
 //! * recites the oath when willpower is low and nobody is near.
 //!
-//! `difficulty` 0..1 scales reaction (turn speed), aim noise, bhop use and typing speed.
+//! `difficulty` 0..1 scales reaction delay, turn speed, aim error, bhop use and typing speed.
 
 use bd_core::corps::Corps;
 use bd_core::input::{PlayerInput, buttons};
@@ -20,7 +23,6 @@ use bd_core::mechanics::{Element, Form, Mechanic, ModelSource, Recipe, Temperame
 use bd_core::voxel::raycast;
 use bd_core::{DT, PlayerId, Tick, Vec3};
 
-use crate::combat::BLAST_SPEED;
 use crate::movement::{CollisionWorld, query_anchor};
 use crate::rng::SimRng;
 use crate::willpower::{OathState, base_cost};
@@ -121,6 +123,48 @@ pub fn word_list() -> WordList {
     }
 }
 
+/// How a bot aims (COMBAT.md §4b: hitscan bots must not be aimbots). All angles in radians.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AimProfile {
+    /// Perception delay (s): the bot aims at where the target *was* this long ago.
+    pub reaction: f32,
+    /// Fraction of the (delayed) target velocity extrapolated over the reaction delay (0 = none,
+    /// 1 = perfect compensation for straight-line movers).
+    pub predict: f32,
+    /// Gaussian-ish aim wobble σ (rad) on a stationary target.
+    pub jitter: f32,
+    /// Tracking lag (s): the aim trails a target crossing the view by `angular speed × tracking`.
+    pub tracking: f32,
+    /// Chance that a big flick (> [`FLICK_ANGLE`]) overshoots…
+    pub overshoot_chance: f32,
+    /// …by about this fraction of the flick.
+    pub overshoot: f32,
+    /// Max turn rate (rad/s).
+    pub turn_rate: f32,
+}
+
+/// A re-aim larger than this (rad) is a flick (may overshoot).
+pub const FLICK_ANGLE: f32 = 0.35;
+/// Perception history length (ticks): ≥ the slowest reaction delay.
+const SEEN_TICKS: usize = 64;
+
+impl AimProfile {
+    /// Difficulty 0..1 → aim numbers (reaction 350 → 150 ms, jitter ≈ 2° → 0.2°, …).
+    pub fn for_difficulty(difficulty: f32) -> Self {
+        let d = if difficulty.is_finite() { difficulty.clamp(0.0, 1.0) } else { 0.5 };
+        let e = 1.0 - d;
+        Self {
+            reaction: 0.35 - 0.20 * d,
+            predict: 0.5 + 0.45 * d,
+            jitter: 0.004 + 0.030 * e,
+            tracking: 0.02 + 0.10 * e,
+            overshoot_chance: 0.2 + 0.5 * e,
+            overshoot: 0.08 + 0.2 * e,
+            turn_rate: 4.0 + 14.0 * d,
+        }
+    }
+}
+
 /// What a bot wants to do this tick.
 #[derive(Clone, Debug, Default)]
 pub struct BotAction {
@@ -146,7 +190,19 @@ pub struct BotBrain {
     yaw: f32,
     pitch: f32,
     noise: (f32, f32),
+    noise_goal: (f32, f32),
     noise_t: f32,
+    aim: AimProfile,
+    /// Perception ring: the current target's (chest, velocity) per tick, newest at `seen_head`.
+    seen: [(Vec3, Vec3); SEEN_TICKS],
+    seen_head: usize,
+    seen_n: usize,
+    seen_of: Option<PlayerId>,
+    /// Slowly varying multiplier on the tracking-lag trail.
+    trail_k: f32,
+    /// Active flick overshoot (yaw, pitch), decaying.
+    overshoot: (f32, f32),
+    overshoot_cd: f32,
     tether_t: f32,
     tether_dir: Option<Vec3>,
     cast_cd: f32,
@@ -159,6 +215,9 @@ impl BotBrain {
     pub fn new(id: PlayerId, difficulty: f32, seed: u64) -> Self {
         let mut rng = SimRng::new(seed ^ (id.0 as u64).wrapping_mul(0x9E37_79B9));
         let cast_cd = rng.range(1.0, 4.0);
+        let mut aim = AimProfile::for_difficulty(difficulty);
+        // Per-bot personality: reaction varies ±15 % between bots of the same difficulty.
+        aim.reaction *= rng.range(0.85, 1.15);
         Self {
             id,
             difficulty: difficulty.clamp(0.0, 1.0),
@@ -172,7 +231,16 @@ impl BotBrain {
             yaw: 0.0,
             pitch: 0.0,
             noise: (0.0, 0.0),
+            noise_goal: (0.0, 0.0),
             noise_t: 0.0,
+            aim,
+            seen: [(Vec3::ZERO, Vec3::ZERO); SEEN_TICKS],
+            seen_head: 0,
+            seen_n: 0,
+            seen_of: None,
+            trail_k: 1.0,
+            overshoot: (0.0, 0.0),
+            overshoot_cd: 0.0,
             tether_t: 0.0,
             tether_dir: None,
             cast_cd,
@@ -239,26 +307,69 @@ impl BotBrain {
             });
         }
         let target = self.target.and_then(|t| w.player(t));
-        // ---------------------------------------------------------------- aim (with lead)
-        let (aim_point, dist) = match target {
+        // ---------------------------------------------------------------- aim (human-like)
+        // Perceive late: remember the target every tick, aim from the sample `reaction` ago.
+        if self.seen_of != self.target {
+            self.seen_of = self.target;
+            self.seen_n = 0;
+            // A new target is a flick: it may overshoot.
+            self.overshoot_cd = 0.0;
+        }
+        let lead_speed = self.lead_speed(w);
+        let (aim_point, dist, omega) = match target {
             Some(t) => {
                 let chest = t.hull(params).center();
-                let d = (chest - eye).length();
-                let lead = d / BLAST_SPEED * self.difficulty.max(0.3);
-                // Our shots inherit our velocity: lead with the relative velocity.
-                (chest + (t.mv.vel - me.mv.vel) * lead, d)
+                self.seen_head = (self.seen_head + 1) % SEEN_TICKS;
+                self.seen[self.seen_head] = (chest, t.mv.vel);
+                self.seen_n = (self.seen_n + 1).min(SEEN_TICKS);
+                let delay = ((self.aim.reaction / dt).round() as usize).clamp(1, SEEN_TICKS - 1);
+                let back = delay.min(self.seen_n - 1);
+                let (c0, v0) = self.seen[(self.seen_head + SEEN_TICKS - back) % SEEN_TICKS];
+                let d = (c0 - eye).length();
+                // Partial extrapolation over the reaction delay, plus the round's flight time
+                // (our rounds inherit our velocity: lead with the relative velocity).
+                let rel = v0 - me.mv.vel;
+                let flight = if lead_speed > 0.0 { d / lead_speed * (0.5 + 0.5 * self.difficulty) } else { 0.0 };
+                let mut p = c0 + v0 * (back as f32 * dt * self.aim.predict) + rel * flight;
+                // Tracking lag: the crosshair trails a target sweeping across the view.
+                let los = (c0 - eye).normalize_or_zero();
+                let lat = rel - los * rel.dot(los);
+                p -= lat * (self.aim.tracking * self.trail_k);
+                (p, (chest - eye).length(), lat.length() / d.max(1.0))
             }
-            None => (w.arena.center + Vec3::Y * 2.0, (w.arena.center - pos).length()),
+            None => (w.arena.center + Vec3::Y * 2.0, (w.arena.center - pos).length(), 0.0),
         };
+        // Gaussian-ish wobble (sum of three uniforms), growing with the target's angular speed;
+        // the crosshair drifts toward each new sample instead of jumping.
         self.noise_t -= dt;
         if self.noise_t <= 0.0 {
-            self.noise_t = 0.3;
-            let amp = 0.12 * (1.0 - self.difficulty) + 0.01;
-            self.noise = (self.rng.range(-amp, amp), self.rng.range(-amp, amp) * 0.6);
+            self.noise_t = self.rng.range(0.12, 0.25);
+            let sigma = self.aim.jitter + 0.2 * omega * self.aim.tracking;
+            let g = |r: &mut SimRng| (r.range(-1.0, 1.0) + r.range(-1.0, 1.0) + r.range(-1.0, 1.0)) * sigma;
+            self.noise_goal = (g(&mut self.rng), g(&mut self.rng) * 0.7);
+            self.trail_k = self.rng.range(0.2, 1.2);
         }
+        let k = (12.0 * dt).min(1.0);
+        self.noise.0 += (self.noise_goal.0 - self.noise.0) * k;
+        self.noise.1 += (self.noise_goal.1 - self.noise.1) * k;
+        let decay = (-dt / 0.12).exp();
+        self.overshoot = (self.overshoot.0 * decay, self.overshoot.1 * decay);
+        self.overshoot_cd = (self.overshoot_cd - dt).max(0.0);
         let to = (aim_point - eye).normalize_or_zero();
         let mut want_yaw = (-to.x).atan2(-to.z) + self.noise.0;
         let mut want_pitch = to.y.clamp(-1.0, 1.0).asin() + self.noise.1;
+        if target.is_some() && self.overshoot_cd <= 0.0 {
+            let (dy, dp) = (wrap_angle(want_yaw - self.yaw), want_pitch - self.pitch);
+            if dy.abs() + dp.abs() > FLICK_ANGLE {
+                self.overshoot_cd = 0.6;
+                if self.rng.chance(self.aim.overshoot_chance) {
+                    let f = self.aim.overshoot * self.rng.range(0.5, 1.2);
+                    self.overshoot = (dy * f, dp * f);
+                }
+            }
+        }
+        want_yaw += self.overshoot.0;
+        want_pitch += self.overshoot.1;
         // ---------------------------------------------------------------- movement plan
         let h_to = Vec3::new(aim_point.x - pos.x, 0.0, aim_point.z - pos.z);
         let h_dir = h_to.normalize_or_zero();
@@ -367,7 +478,7 @@ impl BotBrain {
             }
         }
         // ---------------------------------------------------------------- turn (reaction-limited)
-        let turn = (4.0 + 14.0 * self.difficulty) * dt;
+        let turn = self.aim.turn_rate * dt;
         let dy = wrap_angle(want_yaw - self.yaw);
         self.yaw = wrap_angle(self.yaw + dy.clamp(-turn, turn));
         self.pitch = (self.pitch + (want_pitch - self.pitch).clamp(-turn, turn)).clamp(-1.5, 1.5);
@@ -383,7 +494,9 @@ impl BotBrain {
         let tethering = self.tether_dir.is_some();
         if let Some(t) = target {
             let visible = raycast(&w.voxels, eye, aim_point - eye, dist).is_none();
-            if !tethering && visible && aim_err < 0.12 && !t.shielded() {
+            // No trigger before the target has been seen for a reaction time.
+            let reacted = self.seen_n as f32 * dt >= self.aim.reaction;
+            if !tethering && visible && reacted && aim_err < 0.12 && !t.shielded() {
                 match held {
                     Some(c) if crate::constructs::form_spec(c.recipe.form).speed <= 0.0 => {
                         if dist < 3.2 + c.half.z * 2.0 {
@@ -417,6 +530,11 @@ impl BotBrain {
         self.cast_cd -= dt;
         let wp = me.willpower;
         let near = w.players.iter().filter(|p| p.alive && p.id != self.id).map(|p| (p.mv.pos - pos).length()).fold(f32::INFINITY, f32::min);
+        // CHARGE HOOK: power up when low and safe (crate::charge).
+        if crate::charge::bot_wants_charge(w, me, near, &mut self.rng) {
+            act.input = crate::charge::bot_charge_input(act.input);
+            return act;
+        }
         if wp < 20.0 && near > 18.0 && me.mv.grounded && !w.rules().infinite_willpower() {
             let len = w.cfg.oaths.len(me.corps);
             let cps = 4.0 + 6.0 * self.difficulty;
@@ -455,6 +573,28 @@ impl BotBrain {
             }
         }
         act
+    }
+}
+
+impl BotBrain {
+    /// This bot's aim numbers (after its personal reaction jitter).
+    pub fn aim_profile(&self) -> AimProfile {
+        self.aim
+    }
+
+    /// Speed of the round the bot's weapon fires (for lead): the ring blast, a held projectile
+    /// gun's muzzle speed, or 0 for hitscan / melee (no lead).
+    fn lead_speed(&self, w: &World) -> f32 {
+        match w.constructs.held_by(self.id) {
+            None => w.cfg.tuning.ring.blast_speed,
+            Some(c) => match crate::weapons::archetype_for(&c.recipe) {
+                Some(a) => {
+                    let spec = w.cfg.tuning.spec_for(&c.recipe, a);
+                    if crate::constructs::gun::fires_hitscan(c, a, &spec) { 0.0 } else { spec.speed }
+                }
+                None => 0.0,
+            },
+        }
     }
 }
 

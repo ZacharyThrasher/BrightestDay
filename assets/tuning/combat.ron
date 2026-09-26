@@ -3,11 +3,11 @@
 // willpower.form_cost), not damage. Never shown to players.
 (
     ring: (
-        blast_speed: 75.0,
+        blast_speed: 180.0,
         blast_damage: 12.0,
         blast_knockback: 9.0,
         blast_cooldown: 0.4,
-        blast_radius: 0.25,
+        blast_radius: 0.35,
         blast_lifetime: 1.4,
         blast_recoil: 0.8,
         ground_recoil: 0.35,
@@ -272,7 +272,7 @@
         (
             arch: HandCannon,
             cadence: 0.35,
-            damage: 16.0,
+            damage: 13.0,
             knockback: 11.0,
             speed: 140.0,
             recoil: 2.5,
@@ -312,7 +312,7 @@
         (
             arch: Minigun,
             cadence: 0.071428575,
-            damage: 5.0,
+            damage: 4.5,
             knockback: 3.0,
             speed: 120.0,
             recoil: 0.08571429,
@@ -352,7 +352,7 @@
         (
             arch: Railgun,
             cadence: 1.1,
-            damage: 45.0,
+            damage: 40.0,
             knockback: 20.0,
             speed: 0.0,
             recoil: 6.0,
@@ -475,7 +475,7 @@
         form_cost: [
             (
                 form: Gun,
-                mult: 2.0,
+                mult: 2.6,
             ),
             (
                 form: Staff,
@@ -510,5 +510,15 @@
         respawn_willpower_frac: 1.0,
         shutdown_streak: 3,
         shutdown_bonus: 1,
+    ),
+    // Hold-to-charge (anime power-up): willpower/s at full ramp (on top of passive regen), quadratic ramp
+    // seconds, re-charge delay after a hit, and movement while holding (ground speed / air control / jump).
+    charge: (
+        rate_per_sec: 4.5,
+        ramp_secs: 0.8,
+        stagger_secs: 0.6,
+        ground_speed_mult: 0.2,
+        air_control_mult: 0.3,
+        jump_mult: 0.5,
     ),
 )

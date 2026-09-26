@@ -64,8 +64,12 @@ pub struct GunSpec {
     pub damage: f32,
     /// Knockback per projectile / pellet.
     pub knockback: f32,
-    /// Muzzle speed (m/s); 0 = hitscan.
+    /// Muzzle speed (m/s); 0 = hitscan-only (railgun). Hitscan guns keep a speed for the rounds
+    /// that still fly (payload / explosive / ricochet / portal variants).
     pub speed: f32,
+    /// Lag-compensated hitscan (hand cannon, super shotgun per pellet, minigun, railgun): players
+    /// move 20–50 m/s, so slow slugs read as unfair. Behaviour, not a number: never tuned.
+    pub hitscan: bool,
     /// Recoil impulse on the shooter per shot (m/s, opposite the aim; ×0.35 on the ground).
     pub recoil: f32,
     pub pellets: u8,
@@ -95,6 +99,7 @@ const BASE: GunSpec = GunSpec {
     damage: 16.0,
     knockback: 11.0,
     speed: 140.0,
+    hitscan: false,
     recoil: 2.5,
     pellets: 1,
     spread_deg: 0.0,
@@ -116,12 +121,14 @@ pub fn gun_spec(a: GunArchetype) -> GunSpec {
     use GunArchetype::*;
     match a {
         Ring => GunSpec { cadence: crate::combat::BLAST_COOLDOWN, damage: crate::combat::BLAST_DAMAGE, knockback: crate::combat::BLAST_KNOCKBACK, speed: crate::combat::BLAST_SPEED, recoil: 0.8, radius: crate::combat::BLAST_RADIUS, kind: ProjectileKind::RingBlast, ..BASE },
-        HandCannon => GunSpec { chip: 0.35, ..BASE },
+        // Hitscan balance pass: 16 → 13 (docs/BALANCE_REPORT.md).
+        HandCannon => GunSpec { damage: 13.0, chip: 0.35, hitscan: true, ..BASE },
         SuperShotgun => GunSpec {
             cadence: 0.25,
             damage: 8.0,
             knockback: 2.0,
             speed: 110.0,
+            hitscan: true,
             recoil: 9.0,
             pellets: 9,
             spread_deg: 4.0,
@@ -131,7 +138,7 @@ pub fn gun_spec(a: GunArchetype) -> GunSpec {
             radius: 0.12,
             ..BASE
         },
-        Minigun => GunSpec { cadence: 1.0 / 14.0, damage: 5.0, knockback: 3.0, speed: 120.0, recoil: 1.2 / 14.0, spin_up: 0.4, spin_down: 0.3, radius: 0.12, ..BASE },
+        Minigun => GunSpec { cadence: 1.0 / 14.0, damage: 4.5, knockback: 3.0, speed: 120.0, hitscan: true, recoil: 1.2 / 14.0, spin_up: 0.4, spin_down: 0.3, radius: 0.12, ..BASE },
         Rocket => GunSpec {
             cadence: 0.8,
             damage: 30.0,
@@ -143,7 +150,7 @@ pub fn gun_spec(a: GunArchetype) -> GunSpec {
             radius: 0.3,
             ..BASE
         },
-        Railgun => GunSpec { cadence: 1.1, damage: 45.0, knockback: 20.0, speed: 0.0, recoil: 6.0, charge: 0.5, pierce: 2, ..BASE },
+        Railgun => GunSpec { cadence: 1.1, damage: 40.0, knockback: 20.0, speed: 0.0, hitscan: true, recoil: 6.0, charge: 0.5, pierce: 2, ..BASE },
         Bow => GunSpec { cadence: 0.3, damage: 30.0, knockback: 14.0, speed: 90.0, recoil: 0.5, charge: 1.0, kind: ProjectileKind::Arrow, ..BASE },
         Cannon => GunSpec {
             cadence: 1.0,
@@ -393,11 +400,14 @@ pub fn pellet_dirs(aim: Vec3, pellets: u8, spread_deg: f32, out: &mut [Vec3; 16]
     n
 }
 
-/// A lag-compensated hitscan beam (railgun).
+/// A lag-compensated hitscan ray: the railgun beam, and every hand cannon / minigun round and
+/// super-shotgun pellet (COMBAT.md §4b). Resolved by `World::hitscan` against other players
+/// rewound to the shooter's view tick.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HitscanShot {
     pub owner: bd_core::PlayerId,
     pub construct: Option<bd_core::ConstructId>,
+    /// Ray origin (the shooter's eye: what the crosshair saw).
     pub origin: Vec3,
     pub dir: Vec3,
     pub range: f32,
@@ -408,6 +418,52 @@ pub struct HitscanShot {
     pub pierce: u8,
     /// Solid terrain (m) it punches through.
     pub wall: f32,
+    /// Where the visible tracer starts (the gun's muzzle); `origin` if zero.
+    #[serde(default)]
+    pub muzzle: Vec3,
+    /// Damage / knockback fall off beyond this distance (to 30 % at +18 m, like pellets); 0 = never.
+    #[serde(default)]
+    pub falloff_start: f32,
+    /// Terrain chip radius where the ray ends on terrain (0 = none).
+    #[serde(default)]
+    pub chip: f32,
+    /// `projectile::effects` bits the round carries (Pull yanks; Shrink/Grow/Link ride the construct).
+    #[serde(default)]
+    pub effects: u8,
+    /// `Some(archetype)`: a gun round — the client draws a chunky voxel tracer (`GameEvent::ShotTrace`).
+    /// `None`: a beam (railgun / staff) — `GameEvent::Hitscan`.
+    #[serde(default)]
+    pub trace: Option<GunArchetype>,
+}
+
+impl HitscanShot {
+    /// A plain single-target beam from `origin` (no pierce, no wall punch, no tracer).
+    pub fn new(owner: bd_core::PlayerId, origin: Vec3, dir: Vec3, damage: f32, knockback: f32) -> Self {
+        Self {
+            owner,
+            construct: None,
+            origin,
+            dir,
+            range: 250.0,
+            damage,
+            knockback,
+            element: bd_core::mechanics::Element::Light,
+            pierce: 0,
+            wall: 0.0,
+            muzzle: origin,
+            falloff_start: 0.0,
+            chip: 0.0,
+            effects: 0,
+            trace: None,
+        }
+    }
+}
+
+/// Distance falloff shared by pellets and hitscan rounds: 1 up to `start`, then linear to 30 % at
+/// `start + 18 m`. `start <= 0` = no falloff.
+#[inline]
+pub fn falloff(start: f32, dist: f32) -> f32 {
+    if start > 0.0 { (1.0 - (dist - start).max(0.0) / 18.0).max(0.3) } else { 1.0 }
 }
 
 #[cfg(test)]

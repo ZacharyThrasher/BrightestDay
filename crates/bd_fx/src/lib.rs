@@ -34,6 +34,7 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
 mod arcs;
+mod aura;
 mod construct;
 mod effects;
 mod extras;
@@ -45,16 +46,20 @@ mod meshing;
 mod onomatopoeia;
 pub mod palette;
 mod particles;
+mod shout;
 mod transformers;
 mod util;
 mod warmup;
 
 pub use construct::{AnimLayers, AutoForm, ConstructEnd, ConstructMeshCache, ConstructParts, ConstructVisual, ModelKey};
+pub use meshing::VoxelColors;
 pub use arcs::{ArcFx, ZapFx};
+pub use aura::{AuraBurstFx, ChargeAuraFx};
 pub use effects::{BurstFx, BurstKind, ClashFx, ShatterModelFx, SmokeFx, TrailFx};
 pub use extras::{ChainFx, ForceFieldFx, PortalFx};
 pub use guns::{BarrelSpin, BeamFx, CasingFx, ImpactFx, MuzzleFx, ProjectileFx, ProjectileKind};
 pub use onomatopoeia::{OnoLanguage, OnoMode, OnoStyle, OnoWord, OnomatopoeiaSettings, OnomatopoeiaTable, SpawnOnomatopoeia};
+pub use shout::{SHOUT_MAX_CHARS, Shout, ShoutPhase, ShoutSettings, ShoutSfx, ShoutTable, layout_shout, sanitize_shout, shout_intensity, size_boost, typed_energy, voice_energy};
 pub use material::{ConstructMaterial, ParticleMaterial, PortalMaterial};
 pub use particles::{Emit, FxParticles, PKind, PFlags};
 pub use transformers::{CombineFx, TransformFx};
@@ -139,9 +144,11 @@ impl Plugin for BdFxPlugin {
         construct::build(app);
         effects::build(app);
         arcs::build(app);
+        aura::build(app);
         extras::build(app);
         guns::build(app);
         onomatopoeia::build(app);
+        shout::build(app);
         transformers::build(app);
     }
 

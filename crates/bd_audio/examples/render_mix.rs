@@ -1059,12 +1059,12 @@ fn write_png(path: &Path, mono: &[f32], real: &[u16], hdr: &[f32]) {
     let h = h_spec + h_strip;
     let mut img = vec![18u8; w * h * 3];
     let bin_hz = SR as f32 / n_fft as f32;
-    // Normalise to the loudest 0.1 % of cells, 75 dB of range.
+    // Normalise to the loudest 0.1 % of cells, 70 dB of range.
     let mut all: Vec<f32> = spec.iter().flat_map(|f| f.iter().step_by(8).copied()).collect();
     all.sort_by(f32::total_cmp);
     let top = all.get(all.len().saturating_sub(1 + all.len() / 1000)).copied().unwrap_or(0.0);
     let cmap = |v: f32| -> [u8; 3] {
-        let t = ((v - (top - 75.0)) / 75.0).clamp(0.0, 1.0);
+        let t = ((v - (top - 70.0)) / 70.0).clamp(0.0, 1.0);
         let stops = [[0.0, 0.0, 4.0], [60.0, 15.0, 110.0], [180.0, 55.0, 120.0], [250.0, 140.0, 40.0], [252.0, 250.0, 180.0]];
         let x = t * 4.0;
         let i = (x as usize).min(3);
@@ -1080,10 +1080,12 @@ fn write_png(path: &Path, mono: &[f32], real: &[u16], hdr: &[f32]) {
             let frac = 1.0 - py as f32 / (h_spec - 1) as f32;
             let hz = 30.0 * (20000.0f32 / 30.0).powf(frac);
             let k = ((hz / bin_hz) as usize).clamp(1, n_fft / 2 - 1);
-            let mut v = -200.0f32;
+            // Mean power over the frames in this pixel (max-pooling paints transients as a bed).
+            let mut acc = 0.0f64;
             for fr in &spec[f0..f1] {
-                v = v.max(fr[k]);
+                acc += 10f64.powf(fr[k] as f64 / 10.0);
             }
+            let v = (10.0 * (acc / (f1 - f0) as f64 + 1e-20).log10()) as f32;
             let c = cmap(v);
             let o = (py * w + px) * 3;
             img[o..o + 3].copy_from_slice(&c);

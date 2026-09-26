@@ -14,11 +14,13 @@
 //! | [`camera3p`] | over-the-shoulder rig (piloting / comfort), crosshair ray + projectile aim correction |
 //! | [`local`] | local player: respawn facing, death cam, hop chain feedback |
 //! | [`water`] | city-map sea: animated water plane + splashes |
+//! | [`space`] | Orbit: space sky (stars, planet, moon), far silhouettes, zero-g dust, space / re-entry KOs, speed lines |
 //! | [`soak`] / [`record`] | `--soak-view` chaos viewer, `--record` frame capture (PNG sequence or piped to ffmpeg) |
 //! | [`director`] | spectator director camera (interest scoring, occlusion-safe framing, slow-mo) |
 
 pub mod animated_terrain;
 pub mod camera3p;
+pub mod charge;
 pub mod constructs;
 pub mod director;
 pub mod guns;
@@ -27,8 +29,10 @@ pub mod local;
 pub mod players;
 pub mod powers;
 pub mod record;
+pub mod shout;
 pub mod soak;
 pub mod sound;
+pub mod space;
 pub mod terrain;
 pub mod water;
 
@@ -68,8 +72,10 @@ impl Plugin for PresentPlugin {
                 director::DirectorPlugin,
                 record::RecordPlugin,
             ))
-            .add_plugins(water::WaterPlugin);
-        app.add_systems(Update, perf_experiments);
+            .add_plugins((water::WaterPlugin, space::SpacePlugin, shout::ShoutPlugin))
+            .add_plugins(charge::ChargePlugin); // CHARGE: aura, world dim, audio cues
+        app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
+        app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;
         app.add_warmup(|w: &mut World| {
             for e in bd_fx::spawn_warmup(w) {
@@ -112,6 +118,23 @@ pub fn bq(q: bd_core::Quat) -> Quat {
 #[inline]
 pub fn gv(v: Vec3) -> bd_core::Vec3 {
     bd_core::Vec3::from_array(v.to_array())
+}
+
+/// `BD_SHOT_CAM=x,y,z,yaw_deg,pitch_deg` — dev screenshots: pin the gameplay camera (look checks
+/// such as Miami's neon, animated terrain). Never set in play.
+fn shot_camera(mut cams: Query<&mut Transform, With<crate::camera::PlayerCamera>>) {
+    static V: std::sync::OnceLock<Option<[f32; 5]>> = std::sync::OnceLock::new();
+    let Some(v) = V.get_or_init(|| {
+        let s = std::env::var("BD_SHOT_CAM").ok()?;
+        let f: Vec<f32> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+        (f.len() == 5).then(|| [f[0], f[1], f[2], f[3], f[4]])
+    }) else {
+        return;
+    };
+    for mut t in &mut cams {
+        t.translation = Vec3::new(v[0], v[1], v[2]);
+        t.rotation = Quat::from_euler(EulerRot::YXZ, v[3].to_radians(), v[4].to_radians(), 0.0);
+    }
 }
 
 fn perf_experiments(ono: Option<ResMut<bd_fx::OnomatopoeiaSettings>>, fx: Option<ResMut<bd_fx::FxSettings>>) {

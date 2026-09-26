@@ -77,13 +77,14 @@ impl Default for AudioSettings {
 /// Music commands forwarded to the music source (bd_music's `MusicPlayer` in the client).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MusicCommand {
-    Play(u16),
+    /// Switch track (on the next bar line); `track` is the music library's track index.
+    Play { track: u16, skip_intro: bool },
     Stop,
     /// 0..1: stems fade in/out on bar lines.
     Intensity(f32),
-    /// Tempo multiplier (sudden death / final stock).
-    Tempo(f32),
-    /// Beat-quantised stinger (id defined by the music crate: KO, streak, match point, victory…).
+    /// Tempo multiplier (sudden death / final stock), ramped.
+    Tempo { multiplier: f32, ramp_secs: f32 },
+    /// Beat/bar-quantised stinger (index into the music crate's stinger kinds).
     Stinger(u8),
 }
 
@@ -92,6 +93,11 @@ pub trait MusicSource: Send {
     /// Overwrite `out` (interleaved stereo, `out.len() / 2` frames at the mixer's sample rate).
     fn render(&mut self, out: &mut [f32]);
     fn command(&mut self, cmd: MusicCommand);
+    /// The current track carries real sub-bass (808 remix variants): the Music bus then opens its
+    /// high-pass down to ~32 Hz and ducks the music's lows under impacts / explosions instead.
+    fn sub_bass(&self) -> bool {
+        false
+    }
 }
 
 /// Everything a new voice needs (resolved on the game thread).
@@ -330,6 +336,10 @@ pub struct Mixer {
     music_lp: [Svf; 2],
     music_gain: Ramp,
     music_sent: (f32, f32),
+    music_sub: bool,
+    music_low_env: f32,
+    music_low_cut: f32,
+    music_lowshelf: [Biquad; 2],
     master_gain: Ramp,
     compressor: Compressor,
     limiter: Limiter,
@@ -388,6 +398,10 @@ pub(crate) fn build(cfg: &MixConfig, sample_rate: u32) -> (Mixer, Producer<Cmd>,
         music_lp: [Svf::new(OPEN_HZ, 0.707, sr); 2],
         music_gain: Ramp::new(0.0),
         music_sent: (-1.0, -1.0),
+        music_sub: false,
+        music_low_env: -120.0,
+        music_low_cut: 0.0,
+        music_lowshelf: [Biquad::default(); 2],
         master_gain: Ramp::new(0.0),
         compressor: Compressor::new(&cfg.night, sr),
         limiter: Limiter::new(&cfg.limiter, sr),
@@ -616,8 +630,7 @@ impl Mixer {
             key: finite_or(p.priority, 50.0),
             ..Voice::default()
         };
-        let hp = if v.cue.hpf_hz > 0.0 { v.cue.hpf_hz } else { 10.0 };
-        v.hp = [Svf::new(hp, 0.707, sr); 2];
+        v.hp = [Svf::new(20.0, 0.707, sr); 2];
         v.lp = [Svf::new(OPEN_HZ, 0.707, sr); 2];
     }
 
@@ -655,7 +668,7 @@ impl Mixer {
             let a = d.amount();
             duck_db += d.spec.depth_db * a;
             if d.spec.music {
-                duck_music_db += d.spec.depth_db * a;
+                duck_music_db += d.spec.music_db.unwrap_or(d.spec.depth_db) * a;
             }
             duck_lpf = duck_lpf.min(lerp_hz(OPEN_HZ, d.spec.lpf_hz, a));
             d.t += dt;
@@ -830,7 +843,11 @@ impl Mixer {
             v.fresh = false;
             v.lp[0].set(sp.lpf, 0.707, sr);
             v.lp[1].set(sp.lpf, 0.707, sr);
-            let use_hp = v.cue.hpf_hz > 0.0;
+            let use_hp = sp.hpf > 20.0;
+            if use_hp {
+                v.hp[0].set(sp.hpf, 0.707, sr);
+                v.hp[1].set(sp.hpf, 0.707, sr);
+            }
             let width = v.cue.width;
             let data: &[i16] = &pcm.data;
             let busb = &mut self.bus_buf[bus];
@@ -1039,13 +1056,39 @@ impl Mixer {
                 self.music_sent.0 = mix.music_intensity;
             }
             if self.music_sent.1 != mix.music_tempo {
-                mus.command(MusicCommand::Tempo(mix.music_tempo));
+                mus.command(MusicCommand::Tempo { multiplier: mix.music_tempo, ramp_secs: 1.5 });
                 self.music_sent.1 = mix.music_tempo;
             }
             self.music_buf.fill(0.0);
             mus.render(&mut self.music_buf);
             let bp = mix.bus[Bus::Music.index()];
-            let mg = db_to_lin(bp.gain_db + vol(st.music) + duck_music_db + sc_db);
+            // Fixed-level bed: ducked only by the explicit (heavy-hit / KO) ducks, never by every hit confirm.
+            let mg = db_to_lin(bp.gain_db + vol(st.music) + duck_music_db);
+            // Sub-bass variants: open the high-pass, and duck the music's lows under World impacts.
+            let sub = mus.sub_bass();
+            if sub != self.music_sub {
+                self.music_sub = sub;
+                let hz = if sub { 32.0 } else { self.cfg.music_carve.hpf_hz.max(10.0) };
+                for f in self.music_hp.iter_mut() {
+                    f.set(hz, 0.707, sr);
+                }
+            }
+            if sub {
+                let lowkey = self.bus_buf[Bus::Impacts.index()]
+                    .iter()
+                    .zip(self.bus_buf[Bus::Weapons.index()].iter())
+                    .fold(0.0f32, |a, (x, y)| a.max((x + y).abs()));
+                let k_db = lin_to_db(lowkey);
+                let c = if k_db > self.music_low_env { coef(0.005, block_rate) } else { coef(0.25, block_rate) };
+                self.music_low_env += (k_db - self.music_low_env) * c;
+                let cut = -9.0 * smoothstep(-36.0, -18.0, self.music_low_env);
+                if (cut - self.music_low_cut).abs() > 0.1 {
+                    self.music_low_cut = cut;
+                    for b in self.music_lowshelf.iter_mut() {
+                        b.set_low_shelf(120.0, cut, sr);
+                    }
+                }
+            }
             self.music_gain.to(mg, n);
             let lp_on = bp.lpf_hz < 19000.0;
             if lp_on {
@@ -1060,6 +1103,10 @@ impl Mixer {
                 r = self.music_hp[3].hp(b);
                 l = self.music_notch[0].process(l);
                 r = self.music_notch[1].process(r);
+                if self.music_sub {
+                    l = self.music_lowshelf[0].process(l);
+                    r = self.music_lowshelf[1].process(r);
+                }
                 if lp_on {
                     l = self.music_lp[0].lp(l);
                     r = self.music_lp[1].lp(r);
@@ -1139,6 +1186,7 @@ impl Mixer {
 }
 
 struct Spatial {
+    hpf: f32,
     total_db: f32,
     send_db: f32,
     pan: f32,
@@ -1155,6 +1203,7 @@ fn spatialise(v: &Voice, l: &Listener, right: Vec3, mix: &MixParams) -> Spatial 
     let mut send = db + cue.send_db + bus.send_db;
     let mut lpf = if cue.lpf_hz > 0.0 { cue.lpf_hz } else { OPEN_HZ };
     let mut pan = 0.0;
+    let mut hpf = cue.hpf_hz;
     let mut silent = false;
     if v.spatial {
         let rel = v.pos - l.pos;
@@ -1175,6 +1224,9 @@ fn spatialise(v: &Voice, l: &Listener, right: Vec3, mix: &MixParams) -> Spatial 
         let z = dir.dot(l.fwd);
         let near = smoothstep(0.3, 2.0, d);
         pan = x.clamp(-1.0, 1.0) * near;
+        if cue.far_hpf_hz > 0.0 {
+            hpf = hpf.max(cue.far_hpf_hz * smoothstep(cue.min_dist * 2.0, 45.0, d));
+        }
         let behind = (-z).max(0.0) * near;
         // Air absorption: highs roll off with distance.
         let air = OPEN_HZ * (-d * cue.air / 110.0).exp();
@@ -1195,7 +1247,7 @@ fn spatialise(v: &Voice, l: &Listener, right: Vec3, mix: &MixParams) -> Spatial 
         send += mix.remote_gain_db;
         lpf = lpf.min(mix.remote_lpf_hz);
     }
-    Spatial { total_db: db, send_db: send, pan, lpf, spatial: v.spatial, silent }
+    Spatial { hpf, total_db: db, send_db: send, pan, lpf, spatial: v.spatial, silent }
 }
 
 /// Equal-power pan law (−3 dB centre).

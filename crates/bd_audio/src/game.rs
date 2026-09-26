@@ -112,8 +112,16 @@ struct Stride {
     was_grounded: bool,
 }
 
+/// A player's charge aura loop.
+struct ChargeLoop {
+    player: PlayerId,
+    handle: VoiceHandle,
+    started: f32,
+}
+
 pub struct SimAudio {
     time: f32,
+    charges: Vec<ChargeLoop>,
     occl_budget: u32,
     guns: Vec<GunLoop>,
     strides: [Stride; 256],
@@ -129,7 +137,7 @@ impl Default for SimAudio {
 
 impl SimAudio {
     pub fn new() -> Self {
-        Self { time: 0.0, occl_budget: 0, guns: Vec::new(), strides: [Stride::default(); 256], occlusion_per_frame: 24 }
+        Self { time: 0.0, charges: Vec::new(), occl_budget: 0, guns: Vec::new(), strides: [Stride::default(); 256], occlusion_per_frame: 24 }
     }
 
     /// Start of a frame.
@@ -179,7 +187,68 @@ impl SimAudio {
         }
     }
 
-    /// Voice one simulation event.
+    /// The mix's reaction to an event, without voicing it: combat heat, heavy-hit / KO / final-blow
+    /// ducks, the danger "rung bell", fauna scare. The client calls this for every event (its
+    /// presenters voice the events); [`SimAudio::event`] calls it too.
+    pub fn react<W: VoxelQuery + ?Sized>(
+        &mut self,
+        e: &GameEvent,
+        ctx: &SimCtx<W>,
+        engine: &mut AudioEngine,
+        director: &mut MixDirector,
+        ambience: Option<&mut AmbienceDirector>,
+    ) {
+        let local = ctx.local;
+        let ear = ctx.ear;
+        match e {
+            GameEvent::Hit { target, source, point, lethal, impact, .. } => {
+                let heavy = impact.strength > 1.0 || impact.heavy;
+                let local_attacker = source.is_some() && *source == local;
+                let local_victim = Some(*target) == local;
+                if local_attacker || local_victim {
+                    director.combat(1.0);
+                    if heavy {
+                        director.heavy_hit(engine);
+                        // Rung bell: a heavy hit taken while already in danger.
+                        if local_victim && director.weights().danger > 0.5 {
+                            engine.play("tinnitus", PlayOpts::ui().gain_db(-4.0));
+                        }
+                    }
+                    if *lethal {
+                        if ctx.match_point {
+                            director.final_blow(engine);
+                        } else {
+                            engine.play("final_blow_suck", PlayOpts::ui().gain_db(-6.0));
+                        }
+                    }
+                } else {
+                    director.combat_at(0.5, *point, ear);
+                }
+            }
+            GameEvent::WallSplat { point, .. } => director.combat_at(0.6, *point, ear),
+            GameEvent::Ko { killer: Some(k), .. } if Some(*k) == local => director.ko_confirm(engine),
+            GameEvent::Explosion { pos, radius, .. } => {
+                director.combat_at(0.8, *pos, ear);
+                if let Some(a) = ambience {
+                    a.scare(*pos, (radius / 5.0).min(1.5), ear);
+                }
+                if pos.distance(ear) < 25.0 && *radius >= 4.0 {
+                    director.heavy_hit(engine);
+                }
+            }
+            GameEvent::ShotFired { owner, muzzle, .. } => {
+                if Some(*owner) == local {
+                    director.combat(0.3);
+                } else {
+                    director.combat_at(0.25, *muzzle, ear);
+                }
+            }
+            GameEvent::Clash { point, .. } => director.combat_at(0.5, *point, ear),
+            _ => {}
+        }
+    }
+
+    /// Voice one simulation event (and react to it). The offline renderer's full mapping.
     pub fn event<W: VoxelQuery + ?Sized>(
         &mut self,
         e: &GameEvent,
@@ -188,6 +257,7 @@ impl SimAudio {
         director: &mut MixDirector,
         ambience: Option<&mut AmbienceDirector>,
     ) {
+        self.react(e, ctx, engine, director, ambience);
         let local = ctx.local;
         let ear = ctx.ear;
         match e {
@@ -219,32 +289,13 @@ impl SimAudio {
                     let o = if local_attacker || local_victim { PlayOpts::ui() } else { self.at(ctx, p) };
                     engine.play("hit_crit", o);
                 }
-                if local_attacker || local_victim {
-                    director.combat(1.0);
-                    if heavy {
-                        director.heavy_hit(engine);
-                        // Rung bell: a heavy hit taken while already in danger.
-                        if local_victim && director.weights().danger > 0.5 {
-                            engine.play("tinnitus", PlayOpts::ui().gain_db(-4.0));
-                        }
-                    }
-                    if *lethal {
-                        if ctx.match_point {
-                            director.final_blow(engine);
-                        } else {
-                            engine.play("final_blow_suck", PlayOpts::ui().gain_db(-6.0));
-                        }
-                    }
-                } else {
-                    director.combat_at(0.5, p, ear);
-                }
+                let _ = lethal;
             }
             GameEvent::Blocked { point, .. } => {
                 engine.play("shield_block", self.at(ctx, *point));
             }
             GameEvent::WallSplat { player, point, speed, .. } => {
                 engine.play("wall_splat", self.by(ctx, Some(*player), *point).gain_db(((speed / 25.0).clamp(0.6, 1.2)).log10() * 20.0));
-                director.combat_at(0.6, *point, ear);
             }
             GameEvent::Ko { victim, killer, streak, double, void, shutdown, pos, .. } => {
                 let p = *pos;
@@ -256,7 +307,6 @@ impl SimAudio {
                     let name = join(&mut buf, "ko_streak_", corps);
                     let step = (*streak).clamp(1, 5) as u8;
                     if Some(*k) == local {
-                        director.ko_confirm(engine);
                         engine.play(name, PlayOpts::ui().step(step));
                         if *void {
                             engine.play("ko_accent_void", PlayOpts::ui());
@@ -282,13 +332,6 @@ impl SimAudio {
                 let big = *radius >= 4.0;
                 engine.play(if big { "explosion_big" } else { "explosion_small" }, self.at(ctx, p));
                 engine.play("debris_patter", self.at(ctx, p).gain_db(-4.0));
-                director.combat_at(0.8, p, ear);
-                if let Some(a) = ambience {
-                    a.scare(p, (radius / 5.0).min(1.5), ear);
-                }
-                if p.distance(ear) < 25.0 && big {
-                    director.heavy_hit(engine);
-                }
             }
             GameEvent::Carve { op } => {
                 if let bd_voxel::CarveShape::Sphere { center, radius } = op.shape
@@ -337,11 +380,6 @@ impl SimAudio {
                 if !name.is_empty() {
                     engine.play(name, o);
                 }
-                if Some(*owner) == local {
-                    director.combat(0.3);
-                } else {
-                    director.combat_at(0.25, *muzzle, ear);
-                }
             }
             GameEvent::ShotTrace { from, to, normal, hit_player, .. } => {
                 if *normal != Vec3::ZERO && hit_player.is_none() && from.distance(*to) > 0.5 {
@@ -359,7 +397,6 @@ impl SimAudio {
             }
             GameEvent::Clash { point, strength, .. } => {
                 engine.play("clash", self.at(ctx, *point).gain_db(((0.6 + strength * 0.4).min(1.3)).log10() * 20.0));
-                director.combat_at(0.5, *point, ear);
             }
             GameEvent::ConstructSpawned { owner, pos, .. } => {
                 let o = self.by(ctx, Some(*owner), *pos);
@@ -401,6 +438,11 @@ impl SimAudio {
                     _ => {}
                 }
             }
+            GameEvent::Charge { player, kind, .. } => {
+                if let Some(p) = (ctx.pos_of)(*player) {
+                    self.charge(ctx, *player, *kind, p, engine);
+                }
+            }
             GameEvent::Tech { pos, .. } => {
                 engine.play("shield_block", self.at(ctx, *pos).pitch(1.6).gain_db(-4.0));
             }
@@ -438,6 +480,59 @@ impl SimAudio {
             }
             _ => {}
         }
+    }
+
+    /// CHARGE HOOK (anime power-up): start / full / broken / released for `player` at `pos`.
+    pub fn charge<W: VoxelQuery + ?Sized>(&mut self, ctx: &SimCtx<W>, player: PlayerId, kind: bd_sim::charge::ChargeEvent, pos: Vec3, engine: &mut AudioEngine) {
+        use bd_sim::charge::ChargeEvent as C;
+        let o = self.by(ctx, Some(player), pos);
+        let stop = |s: &mut Self, engine: &mut AudioEngine, fade: f32| {
+            s.charges.retain(|c| {
+                if c.player == player {
+                    engine.stop(c.handle, fade);
+                    false
+                } else {
+                    true
+                }
+            });
+        };
+        match kind {
+            C::Start => {
+                stop(self, engine, 0.05);
+                if let Some(h) = engine.play("charge_loop", o.gain_db(-8.0)) {
+                    self.charges.push(ChargeLoop { player, handle: h, started: self.time });
+                }
+            }
+            C::Full => {
+                engine.play("charge_full", o);
+            }
+            C::Broken => {
+                stop(self, engine, 0.03);
+                engine.play("charge_break", o);
+            }
+            C::Released => {
+                stop(self, engine, 0.25);
+                engine.play("charge_release", o);
+            }
+        }
+    }
+
+    /// Per frame: charge auras follow their player and rise with how long they have charged
+    /// (pitch 1 → 1.5, +8 dB over ~3 s). `pos_of` = current position (None = gone → stop).
+    pub fn charge_frame(&mut self, local: Option<PlayerId>, pos_of: &dyn Fn(PlayerId) -> Option<Vec3>, engine: &mut AudioEngine) {
+        let now = self.time;
+        self.charges.retain(|c| match pos_of(c.player) {
+            Some(p) => {
+                let level = ((now - c.started) / 3.0).clamp(0.0, 1.0);
+                let p = if Some(c.player) == local { engine.listener().pos } else { p };
+                engine.update(c.handle, p, -8.0 + 8.0 * level, 1.0 + 0.5 * level * level, 0.0);
+                true
+            }
+            None => {
+                engine.stop(c.handle, 0.1);
+                false
+            }
+        });
     }
 
     /// The local player's predicted movement events (client) — same sounds as `Move`, own-voiced.

@@ -1,6 +1,6 @@
 //! Practice mode: a local authoritative `bd_sim::World` on the chosen map with N bots.
 //!
-//! * `OnEnter(AppState::InGame)` with `GameMode::Practice` on a sim map (Archipelago / Miami — the
+//! * `OnEnter(AppState::InGame)` with `GameMode::Practice` on a sim map (Archipelago / Miami / Orbit — the
 //!   tutorial keeps its standalone movement path) builds the world from the sim-side terrain copy
 //!   the arena loader prepared ([`crate::arena::SimArenaCopy`]), adds the local player (id 0) + bots
 //!   and inserts [`ActiveWorld`] (`SimRole::Offline`). The bridge ticks it at 120 Hz.
@@ -72,6 +72,11 @@ impl SimArgs {
     pub fn brawl(&self) -> bool {
         self.scenario.as_deref() == Some("brawl")
     }
+
+    /// `--scenario showcase` (`crate::showcase` builds its own world).
+    pub fn showcase(&self) -> bool {
+        self.scenario.as_deref() == Some("showcase")
+    }
 }
 
 /// Practice lobby knobs (the UI may change them before entering).
@@ -133,7 +138,7 @@ fn start_practice(
     existing: Option<Res<ActiveWorld>>,
     prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
 ) {
-    if *mode != GameMode::Practice || map.0 == MapKind::Tutorial || existing.is_some() || args.soak_view {
+    if *mode != GameMode::Practice || map.0 == MapKind::Tutorial || existing.is_some() || args.soak_view || args.showcase() {
         return;
     }
     let seed = args.seed;

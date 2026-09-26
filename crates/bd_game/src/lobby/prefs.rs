@@ -136,6 +136,7 @@ pub enum Action {
     ConsoleAlt,
     Voice,
     Oath,
+    Charge,
     Dismiss,
     Power,
     Transform,
@@ -147,7 +148,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub const ALL: [Action; 22] = [
+    pub const ALL: [Action; 23] = [
         Action::Forward,
         Action::Back,
         Action::Left,
@@ -162,6 +163,7 @@ impl Action {
         Action::ConsoleAlt,
         Action::Voice,
         Action::Oath,
+        Action::Charge,
         Action::Dismiss,
         Action::Power,
         Action::Transform,
@@ -193,6 +195,7 @@ impl Action {
             Action::ConsoleAlt => "ring_console_alt",
             Action::Voice => "voice",
             Action::Oath => "oath",
+            Action::Charge => "charge",
             Action::Dismiss => "dismiss",
             Action::Power => "power",
             Action::Transform => "transform",
@@ -220,6 +223,7 @@ impl Action {
             Action::ConsoleAlt => "RING CONSOLE (ALT)",
             Action::Voice => "VOICE (HOLD)",
             Action::Oath => "RECITE OATH",
+            Action::Charge => "CHARGE (HOLD)",
             Action::Dismiss => "DISMISS",
             Action::Power => "POWER (TAP / HOLD)",
             Action::Transform => "TRANSFORM",
@@ -234,7 +238,7 @@ impl Action {
     pub fn keys_only(self) -> bool {
         matches!(
             self,
-            Action::Forward | Action::Back | Action::Left | Action::Right | Action::Jump | Action::Crouch | Action::Boost | Action::TetherL | Action::TetherR | Action::Reel
+            Action::Forward | Action::Back | Action::Left | Action::Right | Action::Jump | Action::Crouch | Action::Boost | Action::TetherL | Action::TetherR | Action::Reel | Action::Charge
         )
     }
 
@@ -255,6 +259,7 @@ impl Action {
             Action::ConsoleAlt => K::KeyT,
             Action::Voice => K::KeyV,
             Action::Oath => K::KeyF,
+            Action::Charge => K::KeyZ,
             Action::Dismiss => K::KeyX,
             Action::Power => K::KeyG,
             Action::Transform => return Bind::Mouse(MouseButton::Middle),
@@ -344,6 +349,30 @@ impl OnoPref {
     }
 }
 
+/// Shout callouts (present::shout): everyone's words / only mine / none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ShoutPref {
+    #[default]
+    On,
+    Mine,
+    Off,
+}
+
+impl ShoutPref {
+    pub fn next(self, d: i32) -> Self {
+        let all = [ShoutPref::On, ShoutPref::Mine, ShoutPref::Off];
+        let i = all.iter().position(|x| *x == self).unwrap_or(0) as i32;
+        all[(i + d).rem_euclid(3) as usize]
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            ShoutPref::On => "ON",
+            ShoutPref::Mine => "MINE ONLY",
+            ShoutPref::Off => "OFF",
+        }
+    }
+}
+
 /// Costume (sent once at join).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -373,6 +402,8 @@ pub struct UiPrefs {
     pub third_person: bool,
     pub ono: OnoPref,
     pub ono_manga: bool,
+    /// Shout callouts: On / Mine only / Off.
+    pub shout: ShoutPref,
     /// Small numeric damage % at the bottom (off by default: the ring and the screen edges say it).
     pub show_percent: bool,
     /// Last lobby settings (host).
@@ -393,6 +424,7 @@ impl Default for UiPrefs {
             third_person: false,
             ono: OnoPref::BigHits,
             ono_manga: false,
+            shout: ShoutPref::On,
             show_percent: false,
             game: Default::default(),
             map: "arena".into(),
@@ -465,6 +497,7 @@ fn sync_binds(kb: Res<KeyBinds>, focus: Res<crate::input::UiFocus>, mut prefs: R
         tether_l: if typing { none } else { k(Action::TetherL) },
         tether_r: if typing { none } else { k(Action::TetherR) },
         reel: if typing { none } else { k(Action::Reel) },
+        charge: if typing { none } else { k(Action::Charge) },
     };
     let s = &*shell;
     let same = s.forward == want.forward
@@ -476,7 +509,8 @@ fn sync_binds(kb: Res<KeyBinds>, focus: Res<crate::input::UiFocus>, mut prefs: R
         && s.boost == want.boost
         && s.tether_l == want.tether_l
         && s.tether_r == want.tether_r
-        && s.reel == want.reel;
+        && s.reel == want.reel
+        && s.charge == want.charge;
     if !same {
         *shell = want;
     }

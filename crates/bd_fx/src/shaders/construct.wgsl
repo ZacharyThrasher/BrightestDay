@@ -1,7 +1,8 @@
 // Hard-light construct surface.
 //
 // Mesh (bd_fx meshing of bd_shapes::mesh_part): per voxel face, uv = face corner (0/1),
-// uv_b.x = palette slot | strong-edge bits << 2 | weak-point bit << 6, uv_b.y = AO shade.
+// uv_b.x = palette slot | strong-edge bits << 2 | weak-point bit << 6 | has-colour << 7 |
+// RGB565 sRGB voxel colour << 8 (terrain lifted by a graft), uv_b.y = AO shade.
 // Per-construct state: `constructs[mesh tag]`.
 //
 // Look: emissive corps colour, bright contour lines on geometric creases (strong edges), a faint
@@ -137,7 +138,14 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let tint = in.packed & 3u;
     let edges = (in.packed >> 2u) & 15u;
     let weak = (in.packed >> 6u) & 1u;
-    let base = palette(c, tint);
+    var base = palette(c, tint);
+    // Terrain voxels (animated world): their own material colour, tinted with hard light.
+    let earthy = ((in.packed >> 7u) & 1u) == 1u;
+    if earthy {
+        let q = in.packed >> 8u;
+        let srgb = vec3<f32>(f32((q >> 11u) & 31u) / 31.0, f32((q >> 5u) & 63u) / 63.0, f32(q & 31u) / 31.0);
+        base = mix(pow(srgb, vec3<f32>(2.2)) * 1.15, c.primary.rgb, 0.28);
+    }
     let t = globals.time;
 
     let N = normalize(in.world_normal);
@@ -214,6 +222,7 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     alpha = mix(alpha, max(alpha, 0.92), day);
     alpha = max(alpha, max(strong, max(fres * 0.9, max(grid * 0.6, contour * day))));
     if is_core { alpha = max(alpha, 0.85); }
+    if earthy { alpha = max(alpha, 0.88); }
 
     // Integrity: cracks (white-hot seams across the model) + flicker.
     let integ = c.state.x;

@@ -79,6 +79,8 @@ pub enum MapKind {
     Tutorial,
     /// Vice-City-sunset city arena (bd_voxel `generate_miami`).
     Miami,
+    /// Asteroid ring + wrecked station in low orbit (bd_voxel `generate_orbit`; gravity by altitude).
+    Orbit,
 }
 
 impl MapKind {
@@ -87,6 +89,7 @@ impl MapKind {
             "arena" | "archipelago" => Some(MapKind::Arena),
             "tutorial" | "course" => Some(MapKind::Tutorial),
             "miami" => Some(MapKind::Miami),
+            "orbit" | "space" => Some(MapKind::Orbit),
             _ => None,
         }
     }
@@ -172,6 +175,26 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 arena: Some(info.clone()),
                 water_y: Some(m.water_y),
                 water_color: Some((m.water_color, m.water_deep)),
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Orbit => {
+            let (world, m) = bd_voxel::generate_orbit(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the planet is drawn by `present::space`.
+                water_y: None,
+                water_color: None,
                 sun_color: Some(m.sun_color),
                 fog_end: Some(m.fog_end),
                 neon_boost: m.neon_boost,

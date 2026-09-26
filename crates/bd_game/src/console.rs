@@ -180,6 +180,8 @@ pub struct Caster<'w> {
     cmds: MessageWriter<'w, SimCommand>,
     cues: MessageWriter<'w, RingCue>,
     sfx: MessageWriter<'w, PlaySfx>,
+    /// Shout callouts (present::shout): the phrase bursts out as big letters.
+    shouts: MessageWriter<'w, crate::present::shout::ShoutCast>,
 }
 
 /// What a phrase turned into.
@@ -239,6 +241,7 @@ impl Caster<'_> {
         let power = active.world.parse_power_phrase(local, text);
         // Instant local feedback on the same frame as the key press.
         self.cues.write(RingCue::Forming { voice: spoken });
+        self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
         match resolve_phrase(&lex, power, text, spoken) {
             Resolved::PowerMove(slot) => {
                 self.cmds.write(SimCommand::local(Cmd::PowerMove(slot)));

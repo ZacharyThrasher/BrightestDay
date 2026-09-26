@@ -29,6 +29,7 @@ forwarding. If it can't start, LAN play still works.
 | 1–4 | your four saved phrases |
 | G | power (tap / hold) · Mouse 3: transform · E: eject |
 | F | recite your oath to recharge willpower |
+| Z (hold) | charge |
 | X | dismiss your constructs · Tab: scores · F3: performance |
 
 That's all the help there is. Everything else is for you to find out.

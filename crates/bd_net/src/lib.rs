@@ -51,7 +51,7 @@ pub const DEFAULT_PORT: u16 = 27960;
 
 /// Wire protocol version. Bump whenever the session envelope or any game message type changes
 /// incompatibly; mismatching clients are rejected during the handshake with a clear message.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2; // v2: C2S::Shout / S2C::Shout (bd_game shout callouts)
 
 /// Magic number at the start of the handshake so random HTTP clients are rejected fast.
 pub const PROTOCOL_MAGIC: u32 = 0x4244_4E54; // "BDNT"

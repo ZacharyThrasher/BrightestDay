@@ -196,6 +196,12 @@ impl World {
             h.write_f32(p.damage_pct);
             h.write_f32(p.willpower);
             h.write_f32(p.size.scale);
+            if p.charge != Default::default() {
+                // CHARGE HOOK (nothing written while idle: matches without charging are unchanged).
+                h.write(&[p.charge.active as u8]);
+                h.write_f32(p.charge.held);
+                h.write_f32(p.charge.stagger);
+            }
             h.write(&p.kos.to_le_bytes());
             h.write(&p.deaths.to_le_bytes());
         }

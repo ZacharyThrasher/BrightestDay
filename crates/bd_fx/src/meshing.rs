@@ -1,6 +1,6 @@
 //! Worker-thread meshing: bd_shapes `mesh_part` → Bevy `Mesh` with the construct shader's packed
-//! attributes (strong-edge bits, weak-point bit, palette slot, AO), centred per part so identical
-//! parts share one mesh (content-hashed).
+//! attributes (strong-edge bits, weak-point bit, palette slot, AO, optional per-voxel colour),
+//! centred per part so identical parts share one mesh (content-hashed).
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -10,6 +10,20 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 use glam::IVec3;
+
+/// Per-voxel colours for models that are not pure hard light (terrain lifted by a graft keeps its
+/// materials): `parts[i]` maps part `i`'s model voxels to an sRGB colour. Voxels without an entry
+/// (or parts past the end) use the construct palette.
+#[derive(Clone, Debug, Default)]
+pub struct VoxelColors {
+    pub parts: Vec<HashMap<IVec3, [u8; 3]>>,
+}
+
+/// RGB565 of an sRGB colour.
+#[inline]
+fn rgb565(c: [u8; 3]) -> u32 {
+    ((c[0] as u32 >> 3) << 11) | ((c[1] as u32 >> 2) << 5) | (c[2] as u32 >> 3)
+}
 
 /// One part's mesh, positions relative to `offset` (model rest-pose metres).
 pub struct BuiltPart {
@@ -41,7 +55,15 @@ fn unit(axis: usize) -> IVec3 {
 }
 
 /// Convert one bd_shapes part mesh into render vertex arrays.
+///
+/// `uv_b.x` packs (exact in f32, < 2^24): palette slot (2 bits) | strong edges (4) | weak point (1) |
+/// has-colour (1) | RGB565 colour (16).
 pub fn build_part_mesh(pm: &PartMesh, voxel_size: f32, offset: Vec3, weak: &[(Vec3, f32)]) -> Option<(Mesh, u64)> {
+    build_part_mesh_colored(pm, voxel_size, offset, weak, None)
+}
+
+/// [`build_part_mesh`] with optional per-voxel colours (keys = the part's model voxel coordinates).
+pub fn build_part_mesh_colored(pm: &PartMesh, voxel_size: f32, offset: Vec3, weak: &[(Vec3, f32)], colors: Option<&HashMap<IVec3, [u8; 3]>>) -> Option<(Mesh, u64)> {
     if pm.is_empty() {
         return None;
     }
@@ -101,7 +123,8 @@ pub fn build_part_mesh(pm: &PartMesh, voxel_size: f32, offset: Vec3, weak: &[(Ve
         let centre = v.as_vec3();
         let cm = Vec3::new(centre.x, centre.y, centre.z) * s;
         let is_weak = weak.iter().any(|(c, r)| c.distance_squared(cm) <= r * r);
-        let packed = tint as u32 | (bits << 2) | ((is_weak as u32) << 6);
+        let color = colors.and_then(|m| m.get(v)).map_or(0, |c| (1 << 7) | (rgb565(*c) << 8));
+        let packed = tint as u32 | (bits << 2) | ((is_weak as u32) << 6) | color;
         for k in 0..4 {
             let p = pm.positions[q * 4 + k];
             positions.push([p[0] - offset.x, p[1] - offset.y, p[2] - offset.z]);
@@ -133,6 +156,11 @@ pub fn build_part_mesh(pm: &PartMesh, voxel_size: f32, offset: Vec3, weak: &[(Ve
 
 /// Mesh every part of a model (runs on the async compute pool).
 pub fn build_model(model: &VoxelModel) -> BuiltModel {
+    build_model_colored(model, None)
+}
+
+/// [`build_model`] with per-voxel colours.
+pub fn build_model_colored(model: &VoxelModel, colors: Option<&VoxelColors>) -> BuiltModel {
     let s = model.voxel_size;
     let mut parts = Vec::with_capacity(model.parts.len());
     let mut seen: HashMap<u64, usize> = HashMap::new();
@@ -151,7 +179,8 @@ pub fn build_model(model: &VoxelModel) -> BuiltModel {
             .filter(|w| w.part_index == pi)
             .map(|w| (Vec3::new(w.center.x, w.center.y, w.center.z), w.radius))
             .collect();
-        match build_part_mesh(&pm, s, offset, &weak) {
+        let pc = colors.and_then(|c| c.parts.get(pi)).filter(|m| !m.is_empty());
+        match build_part_mesh_colored(&pm, s, offset, &weak, pc) {
             Some((mesh, content)) => {
                 seen.entry(content).or_insert(pi);
                 parts.push(Some(BuiltPart { mesh, offset, content }));
@@ -160,4 +189,43 @@ pub fn build_model(model: &VoxelModel) -> BuiltModel {
         }
     }
     BuiltModel { parts }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bd_core::shape::Tint;
+    use bevy::mesh::VertexAttributeValues;
+
+    fn part(voxels: Vec<(IVec3, Tint)>) -> bd_shapes::PartModel {
+        let vmin = voxels.iter().fold(IVec3::MAX, |a, (v, _)| a.min(*v));
+        let vmax = voxels.iter().fold(IVec3::MIN, |a, (v, _)| a.max(*v));
+        bd_shapes::PartModel { id: 0, parent: 0, parent_index: 0, pivot: glam::Vec3::ZERO, role: None, voxels, vmin, vmax, depth: 0, voxel_size: 0.5 }
+    }
+
+    fn packed(mesh: &Mesh) -> Vec<u32> {
+        match mesh.attribute(Mesh::ATTRIBUTE_UV_1) {
+            Some(VertexAttributeValues::Float32x2(v)) => v.iter().map(|p| p[0] as u32).collect(),
+            _ => panic!("uv_b missing"),
+        }
+    }
+
+    #[test]
+    fn voxel_colours_pack_exactly() {
+        let p = part(vec![(IVec3::new(0, 0, 0), Tint::Primary), (IVec3::new(1, 0, 0), Tint::Primary)]);
+        let pm = bd_shapes::mesh_part(&p);
+        let mut colors = HashMap::new();
+        colors.insert(IVec3::new(0, 0, 0), [255u8, 0, 0]);
+        let (mesh, _) = build_part_mesh_colored(&pm, 0.5, Vec3::ZERO, &[], Some(&colors)).unwrap();
+        let v = packed(&mesh);
+        let red = v.iter().filter(|x| (*x >> 7) & 1 == 1).count();
+        assert_eq!(red, 5 * 4, "5 exposed faces of the coloured voxel");
+        assert!(v.iter().filter(|x| (*x >> 7) & 1 == 1).all(|x| x >> 8 == 0xF800));
+        assert!(v.iter().all(|x| *x < (1 << 24)), "exact in f32");
+        // Without colours nothing is flagged, and the content hash differs.
+        let (plain, h0) = build_part_mesh(&pm, 0.5, Vec3::ZERO, &[]).unwrap();
+        assert!(packed(&plain).iter().all(|x| (*x >> 7) == 0));
+        let (_, h1) = build_part_mesh_colored(&pm, 0.5, Vec3::ZERO, &[], Some(&colors)).unwrap();
+        assert_ne!(h0, h1);
+    }
 }

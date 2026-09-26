@@ -108,7 +108,15 @@ impl World {
                 }
             }
         }
-        p.vel.y -= p.spec.kind.gravity() * dt;
+        let g = p.spec.kind.gravity();
+        if g > 0.0 {
+            // MAP HOOK: gravity by altitude. Off the plain ballistic curve => re-published like a bent shot.
+            let k = self.arena.gravity_scale_at(p.pos.y);
+            if k != 1.0 {
+                bent = true;
+            }
+            p.vel.y -= g * k * dt;
+        }
         let p0 = p.pos;
         let p1 = p0 + p.vel * dt;
         let r = p.spec.radius;
@@ -365,18 +373,24 @@ impl World {
     }
 
     fn projectile_effects(&mut self, s: &ProjectileSpawn, target: PlayerId, point: Vec3) {
-        if s.effects & effects::SHRINK != 0 {
+        self.ray_effects(s.owner, s.effects, target, point);
+    }
+
+    /// On-hit side effects a round carries (`projectile::effects` bits); shared by projectiles and
+    /// hitscan rounds.
+    fn ray_effects(&mut self, owner: PlayerId, fx: u8, target: PlayerId, point: Vec3) {
+        if fx & effects::SHRINK != 0 {
             self.resize_player(target, SHRINK_SCALE, RESIZE_SECS);
         }
-        if s.effects & effects::GROW != 0 {
+        if fx & effects::GROW != 0 {
             self.resize_player(target, GROW_SCALE, RESIZE_SECS);
         }
-        if s.effects & effects::LINK != 0 {
+        if fx & effects::LINK != 0 {
             let ground = self.ground_point_below(point).unwrap_or(point);
-            self.create_link(Some(s.owner), LinkEnd::Player(target), LinkEnd::Point(ground), LINK_MAX_LEN, LINK_LIFETIME);
+            self.create_link(Some(owner), LinkEnd::Player(target), LinkEnd::Point(ground), LINK_MAX_LEN, LINK_LIFETIME);
         }
-        if s.effects & effects::PULL != 0 {
-            let to = self.player(s.owner).map(|o| o.mv.pos);
+        if fx & effects::PULL != 0 {
+            let to = self.player(owner).map(|o| o.mv.pos);
             if let (Some(to), Some(i)) = (to, self.pidx(target)) {
                 let d = (to - self.players[i].mv.pos).normalize_or_zero();
                 self.players[i].mv.apply_impulse(d * 12.0 + Vec3::Y * 3.0, 0.0);
@@ -398,82 +412,163 @@ impl World {
         p.mv.apply_impulse(dv, 0.0);
     }
 
-    /// Lag-compensated hitscan (railgun): passes through up to `pierce` players and `wall` metres
-    /// of terrain, damages the first enemy construct it meets. Returns players hit.
+    /// Lag-compensated hitscan: railgun beams and every hitscan gun round (hand cannon, minigun,
+    /// each super-shotgun pellet; COMBAT.md §4b). Other players are tested where the shooter's
+    /// screen showed them (hulls rewound to the shooter's `view_tick`, ≤ 250 ms). Passes through
+    /// up to `pierce` players and `wall` metres of terrain; the first enemy construct on the ray
+    /// takes the hit (only a piercing ray continues through a thin one); a raised guard blocks
+    /// (a perfect parry sends the round straight back at its shooter). Hits keep the gun's feel:
+    /// distance falloff, the bounded momentum bonus (the shooter's own speed along the aim — what
+    /// their movement added), head-zone crits, knockback, terrain chips. Returns players hit.
     pub fn hitscan(&mut self, s: crate::weapons::HitscanShot) -> u8 {
+        self.hitscan_ray(s, false)
+    }
+
+    fn hitscan_ray(&mut self, s: crate::weapons::HitscanShot, reflected: bool) -> u8 {
+        use crate::constructs::held::{Guarded, guard_check};
+        use crate::events::HeldFx;
         let dir = s.dir.normalize_or_zero();
-        if dir == Vec3::ZERO || !s.origin.is_finite() || !s.damage.is_finite() {
+        if dir == Vec3::ZERO || !s.origin.is_finite() || !s.damage.is_finite() || !s.knockback.is_finite() {
             return 0;
         }
-        let range = s.range.clamp(1.0, 400.0);
+        let range = if s.range.is_finite() { s.range.clamp(1.0, 400.0) } else { 250.0 };
         // Terrain, punching through thin walls.
         let mut end = range;
+        let mut normal = Vec3::ZERO;
+        let mut on_terrain = false;
         let mut from = 0.0f32;
-        let mut wall_left = s.wall.clamp(0.0, 4.0);
+        let mut wall_left = if s.wall.is_finite() { s.wall.clamp(0.0, 4.0) } else { 0.0 };
         for _ in 0..8 {
             let Some(h) = raycast(&self.voxels, s.origin + dir * from, dir, range - from) else { break };
             let t_hit = from + h.t;
+            let n = if h.normal == bd_core::IVec3::ZERO { -dir } else { h.normal.as_vec3() };
             let mut t = t_hit + 0.01;
             let mut thick = 0.0;
-            while t < range && self.voxels.is_solid(bd_core::voxel::world_to_voxel(s.origin + dir * t)) {
-                t += 0.1;
-                thick += 0.1;
-                if thick > wall_left {
-                    break;
+            if wall_left > 0.0 {
+                while t < range && self.voxels.is_solid(bd_core::voxel::world_to_voxel(s.origin + dir * t)) {
+                    t += 0.1;
+                    thick += 0.1;
+                    if thick > wall_left {
+                        break;
+                    }
                 }
             }
-            if thick > wall_left {
+            if wall_left <= 0.0 || thick > wall_left {
                 end = t_hit;
+                normal = n;
+                on_terrain = true;
                 break;
             }
             wall_left -= thick;
             from = t;
         }
-        // First enemy construct on the beam takes the hit and stops it unless it is thin.
-        if let Some((cid, t, _)) = self.constructs.segment_query(s.origin, s.origin + dir * end, 0.05, Some(s.owner)) {
+        // First enemy construct on the ray takes the hit; only a piercing ray goes on through a thin one.
+        if let Some((cid, t, n)) = self.constructs.segment_query(s.origin, s.origin + dir * end, 0.05, Some(s.owner)) {
             let at = s.origin + dir * (t * end);
             let thin = self.constructs.get(cid).is_some_and(|c| c.half.min_element() * 2.0 <= 1.0);
             self.apply_construct_hit(ConstructHit { pierce: s.pierce > 0, blunt: false, target: cid, source: Some(s.owner), damage: s.damage, impulse: dir * s.knockback, blade: false, point: at });
-            if !thin {
+            if !(thin && s.pierce > 0) {
                 end *= t;
+                normal = if n.is_finite() && n != Vec3::ZERO { n } else { -dir };
+                on_terrain = false;
             }
         }
-        // Players, rewound to what the shooter saw.
-        let view = self.player(s.owner).and_then(|p| p.view_tick).and_then(|v| self.history.clamp_view(v));
+        // Players, rewound to what the shooter saw (a parried round flies in the host's present).
+        let view = if reflected { None } else { self.player(s.owner).and_then(|p| p.view_tick).and_then(|v| self.history.clamp_view(v)) };
         let base = &self.cfg.move_params;
-        let mut hits: [(f32, PlayerId); bd_core::MAX_PLAYERS] = [(0.0, PlayerId(0)); bd_core::MAX_PLAYERS];
+        let mut hits: [(f32, PlayerId, Vec3); bd_core::MAX_PLAYERS] = [(0.0, PlayerId(0), Vec3::ZERO); bd_core::MAX_PLAYERS];
         let mut n = 0;
         let p1 = s.origin + dir * end;
         for pl in &self.players {
             if pl.id == s.owner || !pl.alive || n >= hits.len() {
                 continue;
             }
+            let now = pl.hull(base);
             let hull = match view {
-                Some(v) => self.history.hull_at(pl.id, v).unwrap_or_else(|| pl.hull(base)),
-                None => pl.hull(base),
+                Some(v) => self.history.hull_at(pl.id, v).unwrap_or(now),
+                None => now,
             };
             if let Some((t, _)) = geom::segment_aabb(s.origin, p1, &hull) {
-                hits[n] = (t, pl.id);
+                // Body-relative shift (rewound hull → current hull) so the head zone reads the part
+                // of the body the shooter actually hit.
+                hits[n] = (t, pl.id, now.min - hull.min);
                 n += 1;
             }
         }
         hits[..n].sort_by(|a, b| a.0.total_cmp(&b.0));
-        let take = n.min(s.pierce as usize + 1);
-        let shooter_vel = self.player(s.owner).map_or(Vec3::ZERO, |p| p.mv.vel);
-        for &(t, pid) in &hits[..take] {
+        let limit = s.pierce as usize + 1;
+        // Bounded momentum bonus: the shooter's own velocity along the aim (what their movement added).
+        let closing = self.player(s.owner).map_or(0.0, |p| p.mv.vel.dot(dir)).max(0.0);
+        let impact = if s.trace.is_some() { 1.0 + s.damage / 40.0 } else { 1.6 };
+        let mut taken = 0usize;
+        let mut last: Option<(f32, PlayerId)> = None;
+        let mut stopped = false;
+        for &(t, pid, shift) in &hits[..n] {
+            if taken >= limit {
+                break;
+            }
             let point = s.origin + (p1 - s.origin) * t;
-            let tv = self.player(pid).map_or(Vec3::ZERO, |p| p.mv.vel);
-            let mut hit = HitInfo::new(pid, Some(s.owner), HitKind::Shot, s.damage, s.knockback, dir, point)
+            // HELD ENGINEER HOOK: a raised guard facing the shot stops the round (COMBAT.md §4, §8).
+            let view_of = self.player(pid).map(|tp| (tp.eye(&self.cfg.move_params), tp.look()));
+            let guard = view_of.and_then(|(eye, look)| guard_check(&self.constructs, pid, eye, look, s.origin, s.pierce > 0).map(|g| (g, eye)));
+            if let Some(((verdict, gid), eye)) = guard {
+                match verdict {
+                    Guarded::Parry => {
+                        self.events.push(GameEvent::HeldFx { id: gid, owner: pid, fx: HeldFx::Parry, pos: point, dir: -dir, strength: 1.5 });
+                        let back = self.player(s.owner).filter(|o| o.alive).map(|o| o.hull(&self.cfg.move_params).center());
+                        if let (false, Some(b)) = (reflected, back) {
+                            let mut r = s;
+                            r.owner = pid;
+                            r.construct = None;
+                            r.origin = eye;
+                            r.muzzle = point;
+                            r.dir = (b - eye).normalize_or_zero();
+                            r.pierce = 0;
+                            r.wall = 0.0;
+                            self.hitscan_ray(r, true);
+                        }
+                    }
+                    Guarded::Block => {
+                        self.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: gid, source: Some(s.owner), damage: s.damage * 0.5, impulse: Vec3::ZERO, blade: false, point });
+                        self.events.push(GameEvent::HeldFx { id: gid, owner: pid, fx: HeldFx::Block, pos: point, dir, strength: s.damage / 10.0 });
+                    }
+                }
+                last = Some((t, pid));
+                stopped = true;
+                break;
+            }
+            let fall = crate::weapons::falloff(s.falloff_start, (point - s.origin).length());
+            let at = point + shift;
+            let mut hit = HitInfo::new(pid, Some(s.owner), HitKind::Shot, s.damage * fall, s.knockback * fall, dir, at)
                 .with_element(s.element)
-                .with_closing((shooter_vel - tv).dot(dir).max(0.0))
-                .with_impact(1.6);
+                .with_closing(closing)
+                .with_impact(impact);
             hit.construct = s.construct;
             self.apply_hit(hit);
+            if s.effects & effects::PULL != 0 {
+                // (Shrink / Grow / Link ride the delivering construct in `apply_hit`.)
+                self.ray_effects(s.owner, effects::PULL, pid, at);
+            }
+            taken += 1;
+            last = Some((t, pid));
         }
-        if take > 0 && take == s.pierce as usize + 1 {
-            end *= hits[take - 1].0.max(0.0);
+        if let Some((t, _)) = last.filter(|_| stopped || taken == limit) {
+            end *= t.max(0.0);
+            normal = -dir;
+            on_terrain = false;
         }
-        self.events.push(GameEvent::Hitscan { owner: s.owner, origin: s.origin, end: s.origin + dir * end, hits: take as u8 });
-        take as u8
+        let stop = s.origin + dir * end;
+        if on_terrain && s.chip > 0.0 {
+            self.request_carve(CarveRequest { center: stop, radius: s.chip, power: 0.4 });
+        }
+        match s.trace {
+            Some(archetype) => {
+                let from = if s.muzzle == Vec3::ZERO || !s.muzzle.is_finite() { s.origin } else { s.muzzle };
+                let hit_player = if taken > 0 { last.map(|l| l.1) } else { None };
+                self.events.push(GameEvent::ShotTrace { owner: s.owner, archetype, from, to: stop, normal, hit_player });
+            }
+            None => self.events.push(GameEvent::Hitscan { owner: s.owner, origin: s.origin, end: stop, hits: taken as u8 }),
+        }
+        taken as u8
     }
 }

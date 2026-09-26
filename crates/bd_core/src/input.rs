@@ -15,6 +15,8 @@ pub mod buttons {
     pub const SECONDARY: u16 = 1 << 7;
     /// Ring console or oath is open: movement keys are ignored, momentum/aim/tethers stay live.
     pub const TYPING: u16 = 1 << 8;
+    /// Held: charge (power up) — slowly refills willpower; can't act; feet planted. (v1.4)
+    pub const CHARGE: u16 = 1 << 9;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]

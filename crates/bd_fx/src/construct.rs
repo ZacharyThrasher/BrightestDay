@@ -14,7 +14,7 @@ use bevy::tasks::{AsyncComputeTaskPool, Task, block_on, poll_once};
 use crate::effects::{ShatterScratch, shatter_model};
 use crate::gpu::{AnchorGpu, ConstructGpu, FxUpload, MAX_ANCHORS, MAX_SLOTS};
 use crate::material::FxMaterials;
-use crate::meshing::{BuiltModel, build_model};
+use crate::meshing::{BuiltModel, VoxelColors, build_model, build_model_colored};
 use crate::palette::Palette;
 use crate::particles::{Emit, EmitSystems, FxParticles, PFlags, PKind};
 use crate::util::{aff, fin, v3};
@@ -83,6 +83,9 @@ pub struct ConstructVisual {
     pub seed: u32,
     /// 0..1 heat glow (minigun barrels, overcharged weapons): orange-white bloom.
     pub heat: f32,
+    /// Per-voxel colours (terrain animated by a graft keeps its materials, tinted with hard light).
+    /// Only read when the model is first meshed; pair it with a per-construct model (`key: None`).
+    pub colors: Option<Arc<VoxelColors>>,
 }
 
 impl ConstructVisual {
@@ -102,10 +105,15 @@ impl ConstructVisual {
             opacity: 0.72,
             seed: 0,
             heat: 0.0,
+            colors: None,
         }
     }
     pub fn with_key(mut self, key: ShapeKey) -> Self {
         self.key = Some(key);
+        self
+    }
+    pub fn with_colors(mut self, colors: Arc<VoxelColors>) -> Self {
+        self.colors = Some(colors);
         self
     }
     pub fn with_accent(mut self, accent: [f32; 3]) -> Self {
@@ -186,19 +194,25 @@ pub struct ConstructMeshCache {
     by_content: HashMap<u64, Handle<Mesh>>,
     /// Keeps `Ptr`-keyed models alive so their address cannot be reused by another model.
     keepalive: HashMap<ModelKey, Arc<VoxelModel>>,
+    /// Meshed, waiting for their upload slot (see [`MAX_UPLOAD_VERTS_PER_FRAME`]), oldest first.
+    uploading: Vec<(ModelKey, BuiltModel)>,
 }
 
 impl ConstructMeshCache {
     /// Start meshing a model now (e.g. loadout slots at match start). No-op if cached/pending.
     pub fn prewarm(&mut self, key: ModelKey, model: &Arc<VoxelModel>) {
-        if self.models.contains_key(&key) || self.pending.contains_key(&key) {
+        self.prewarm_colored(key, model, None);
+    }
+    /// [`Self::prewarm`] with per-voxel colours.
+    pub fn prewarm_colored(&mut self, key: ModelKey, model: &Arc<VoxelModel>, colors: Option<Arc<VoxelColors>>) {
+        if self.models.contains_key(&key) || self.pending.contains_key(&key) || self.uploading.iter().any(|(k, _)| *k == key) {
             return;
         }
         if matches!(key, ModelKey::Ptr(_)) {
             self.keepalive.insert(key.clone(), model.clone());
         }
         let m = model.clone();
-        let task = AsyncComputeTaskPool::get().spawn(async move { build_model(&m) });
+        let task = AsyncComputeTaskPool::get().spawn(async move { build_model_colored(&m, colors.as_deref()) });
         self.pending.insert(key, task);
     }
     pub fn get(&self, key: &ModelKey) -> Option<&Arc<Vec<Option<CachedPart>>>> {
@@ -232,6 +246,7 @@ impl ConstructMeshCache {
     /// Drop every cached mesh (e.g. between matches).
     pub fn clear(&mut self) {
         self.models.clear();
+        self.uploading.clear();
         self.by_content.clear();
         self.keepalive.clear();
     }
@@ -423,7 +438,7 @@ fn init_constructs(
     alloc.now = time.elapsed_secs_f64();
     for (e, v, tf) in &new {
         let key = ModelKey::of(v);
-        cache.prewarm(key.clone(), &v.model);
+        cache.prewarm_colored(key.clone(), &v.model, v.colors.clone());
         let slot = alloc.slot();
         let anchor = alloc.anchor();
         commands.entity(e).insert((
@@ -460,7 +475,7 @@ fn init_constructs(
         for (pe, _, _) in rt.parts.drain(..) {
             commands.entity(pe).despawn();
         }
-        cache.prewarm(key.clone(), &v.model);
+        cache.prewarm_colored(key.clone(), &v.model, v.colors.clone());
         rt.key = key;
         rt.model_ptr = ptr;
         rt.pose = vec![glam::Affine3A::IDENTITY; v.model.parts.len()];
@@ -470,9 +485,13 @@ fn init_constructs(
     }
 }
 
+/// Finished meshes handed to the GPU per frame (vertices; at least one model per frame), so a burst
+/// of first casts (or match-start prewarm) never uploads megabytes in one frame.
+pub const MAX_UPLOAD_VERTS_PER_FRAME: usize = 120_000;
+
 fn poll_mesh_tasks(mut cache: ResMut<ConstructMeshCache>, mut meshes: ResMut<Assets<Mesh>>, mut stats: ResMut<FxStats>) {
     let cache = &mut *cache;
-    let mut done: Vec<(ModelKey, BuiltModel)> = Vec::new();
+    let done = &mut cache.uploading;
     cache.pending.retain(|k, task| {
         if task.is_finished()
             && let Some(built) = block_on(poll_once(task))
@@ -482,11 +501,20 @@ fn poll_mesh_tasks(mut cache: ResMut<ConstructMeshCache>, mut meshes: ResMut<Ass
         }
         true
     });
-    for (k, built) in done {
+    let mut budget = MAX_UPLOAD_VERTS_PER_FRAME;
+    let mut first = true;
+    while let Some((_, built)) = cache.uploading.first() {
+        let verts: usize = built.parts.iter().flatten().map(|p| p.mesh.count_vertices()).sum();
+        if !first && verts > budget {
+            break;
+        }
+        first = false;
+        budget = budget.saturating_sub(verts);
+        let (k, built) = cache.uploading.remove(0);
         let parts = cache.adopt(built, &mut meshes);
         cache.models.insert(k, Arc::new(parts));
     }
-    stats.pending_mesh_tasks = cache.pending.len();
+    stats.pending_mesh_tasks = cache.pending.len() + cache.uploading.len();
     stats.cached_models = cache.models.len();
 }
 

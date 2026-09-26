@@ -334,6 +334,7 @@ fn handle_requests(
                     let seed = (now_secs().to_bits() ^ 0x9E37_79B9_7F4A_7C15).max(1);
                     let kind = match map.0 {
                         crate::arena::MapKind::Miami => proto::NetMapKind::Miami,
+                        crate::arena::MapKind::Orbit => proto::NetMapKind::Orbit,
                         _ => proto::NetMapKind::Archipelago,
                     };
                     let nm = proto::NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
@@ -477,6 +478,7 @@ fn match_flow(
             if let Some(c) = net.client.as_ref() {
                 let want = match c.map.kind {
                     proto::NetMapKind::Miami => crate::arena::MapKind::Miami,
+                    proto::NetMapKind::Orbit => crate::arena::MapKind::Orbit,
                     proto::NetMapKind::Archipelago => crate::arena::MapKind::Arena,
                 };
                 if current_map.0 != want {

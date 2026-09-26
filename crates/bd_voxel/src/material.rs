@@ -33,8 +33,9 @@ pub struct MaterialDef {
     /// Never removed by carving (island cores). Also the anchor for structural-collapse detection.
     pub indestructible: bool,
     pub debris: DebrisClass,
-    /// 0 = normal lit surface, 1 = fully self-lit. The mesher bakes less AO into emissive voxels;
-    /// the client may add glow/bloom for these.
+    /// 0 = normal lit surface, 1 = fully self-lit. The mesher bakes less AO into emissive voxels
+    /// and writes this value to the per-vertex `ChunkMesh::emissive` channel; the client adds
+    /// glow/bloom from it (neon ≥ 0.5 blooms by the map's `neon_boost`).
     pub emissive: f32,
 }
 
@@ -92,6 +93,23 @@ pub mod mat {
     pub const PAINT_RED: Material = 46;
     pub const STEEL: Material = 47;
     pub const ROOF_DARK: Material = 48;
+    // ---- Orbit (asteroids + station wreck) ----
+    /// Grey-tan asteroid dust (walkable tops).
+    pub const REGOLITH: Material = 49;
+    /// Dark asteroid rock.
+    pub const BASALT: Material = 50;
+    /// Pale blue water ice (slightly self-lit so it reads against space).
+    pub const ICE: Material = 51;
+    /// Station hull plating.
+    pub const HULL_PANEL: Material = 52;
+    /// Solar-array cells (deep blue, faint sheen).
+    pub const SOLAR_CELL: Material = 53;
+    /// Hazard / marking paint.
+    pub const HAZARD_ORANGE: Material = 54;
+    /// Station running lights (full glow).
+    pub const STATION_LIGHT: Material = 55;
+    /// Burnt, blackened hull (re-entry scorch, blast damage).
+    pub const SCORCHED: Material = 56;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -106,7 +124,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 49] = [
+pub static MATERIALS: [MaterialDef; 57] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -173,6 +191,15 @@ pub static MATERIALS: [MaterialDef; 49] = [
     def("red paint", [232, 64, 70], 0.05, 1.0, D::Stone),
     def("steel", [128, 138, 156], 0.05, 1.6, D::Stone),
     def("dark roof", [96, 92, 110], 0.06, 1.0, D::Stone),
+    // ---- Orbit (49..) ----
+    def("regolith", [168, 160, 150], 0.09, 0.6, D::Dirt),
+    def("basalt", [78, 74, 90], 0.08, 1.2, D::Stone),
+    glow(def("ice", [176, 222, 246], 0.07, 0.7, D::Crystal), 0.12),
+    def("hull panel", [216, 220, 230], 0.04, 1.1, D::Stone),
+    glow(def("solar cell", [40, 70, 170], 0.06, 0.5, D::Crystal), 0.18),
+    def("hazard paint", [255, 136, 40], 0.04, 1.0, D::Stone),
+    glow(def("station light", [255, 238, 204], 0.03, 0.6, D::Crystal), 1.0),
+    def("scorched hull", [62, 58, 64], 0.08, 1.0, D::Stone),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

@@ -233,7 +233,7 @@ impl World {
         if p.oath.reciting() {
             return Err(CastError::Reciting);
         }
-        if p.status.stunned() || p.seat.is_some_and(|s| !s.suit) {
+        if p.status.stunned() || p.charge.active || p.seat.is_some_and(|s| !s.suit) {
             return Err(CastError::Busy);
         }
         let base = self.cfg.move_params.clone();

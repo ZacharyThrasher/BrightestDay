@@ -92,6 +92,9 @@ pub struct CueParams {
     /// Frequency carve: high-pass (Hz, 0 = off) and low-pass (Hz, 0 = off) for this role.
     pub hpf_hz: f32,
     pub lpf_hz: f32,
+    /// Distance low-cut: far sources lose their body (Hz reached at ~45 m; 0 = off). Stops the
+    /// sub punch of every distant gun/impact in a brawl from summing into a constant rumble.
+    pub far_hpf_hz: f32,
     /// Minimum time between two plays of this sound (s); extra plays are dropped (0 = off).
     pub cooldown: f32,
     /// Occlusion strength multiplier (0 = ignores walls, e.g. body-conducted own sounds).
@@ -117,6 +120,7 @@ impl Default for CueParams {
             gain_jitter_db: 1.0,
             hpf_hz: 0.0,
             lpf_hz: 0.0,
+            far_hpf_hz: 0.0,
             cooldown: 0.0,
             occlusion: 1.0,
             width: 1.0,
@@ -142,6 +146,7 @@ pub struct CueSpec {
     pub gain_jitter_db: Option<f32>,
     pub hpf_hz: Option<f32>,
     pub lpf_hz: Option<f32>,
+    pub far_hpf_hz: Option<f32>,
     pub cooldown: Option<f32>,
     pub occlusion: Option<f32>,
     pub width: Option<f32>,
@@ -167,6 +172,7 @@ impl CueSpec {
             gain_jitter_db,
             hpf_hz,
             lpf_hz,
+            far_hpf_hz,
             cooldown,
             occlusion,
             width
@@ -224,6 +230,7 @@ fn sanitize(p: &mut CueParams) {
     p.gain_jitter_db = f(p.gain_jitter_db, 0.0, 12.0, 0.0);
     p.hpf_hz = f(p.hpf_hz, 0.0, 20000.0, 0.0);
     p.lpf_hz = f(p.lpf_hz, 0.0, 24000.0, 0.0);
+    p.far_hpf_hz = f(p.far_hpf_hz, 0.0, 2000.0, 0.0);
     p.cooldown = f(p.cooldown, 0.0, 10.0, 0.0);
     p.occlusion = f(p.occlusion, 0.0, 2.0, 1.0);
     p.width = f(p.width, 0.0, 1.0, 1.0);

@@ -145,6 +145,8 @@ pub mod pflags {
     pub const LAUNCHED: u16 = 1 << 13;
     /// Stock mode: out of lives.
     pub const ELIMINATED: u16 = 1 << 14;
+    /// Powering up (hold time in `PlayerSnap::charge`).
+    pub const CHARGING: u16 = 1 << 15;
 }
 
 /// Compact render state of one player (sent for everyone, including the recipient).
@@ -174,6 +176,10 @@ pub struct PlayerSnap {
     /// POWERS HOOK: held power + its state flags (COMBAT.md §5h).
     #[serde(default)]
     pub power: crate::powers::PowerSnap,
+    /// CHARGE HOOK: hold time of the current charge in 1/20 s (0 = not charging; see
+    /// `crate::charge::ChargeState::wire`).
+    #[serde(default)]
+    pub charge: u8,
 }
 
 impl PlayerSnap {

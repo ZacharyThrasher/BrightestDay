@@ -117,6 +117,14 @@ mechanic / element / weight (KRAK, SPLOOSH, ZZAK, VWOOP, KRANG, DOOM…; data ta
 `assets/fx/onomatopoeia.ron`), size by impact. Performance words where timing is skill: PERFECT (perfect
 bhop, perfect oath), GOOD / SLOW (oath grades), PARRY!. Manga mode (ドドド, ゴゴゴ). Settings: Off /
 Big hits only (default) / Full comic; rate-limited; world-space, never HUD clutter.
+**Shout callouts** (the payoff for yelling): the phrase a player casts bursts out of their ring as big
+voxel letters (per-letter slam + squash, shockwave), holds, then its voxels stream into the construct as
+it forms. Size / punch / shake / hold scale with how hard they shouted (mic peak for voice; CAPS, "!!!",
+"HAMMERRRR", hype words for typing — `shout:` in `assets/fx/onomatopoeia.ron`) × construct size (a
+no-limits MOON shakes the word). Your own shout lives in the lower-right (never over the crosshair) and
+is flung at the construct; others' float above them, readable at range. Phrase text is replicated
+(≤ 48 chars) and slur-filtered on every receiver. Setting: Shout words On / Mine only / Off; comfort →
+gentle (no shake / flashes).
 
 ### Hit & KO confirmation (lessons from Valorant's feedback loop)
 - **Crit layer:** players have a head zone (×1.5 for guns, ring blast, thrown objects; melee exempt);
@@ -167,6 +175,7 @@ flares brighter per step + one corps-emblem pulse near the crosshair; no banner 
 | 1–4 | quick-cast loadout slots (words chosen in lobby) |
 | V (hold) | *experimental* voice cast: say the phrase, release to cast (local Whisper on CPU → same lexicon resolver) |
 | F | recite oath (willpower recharge typing test) |
+| Z (hold) | charge: slow willpower refill; can't act, feet planted, a hit breaks it (COMBAT.md §2) |
 | X | dismiss your constructs |
 | Tab | scoreboard |
 

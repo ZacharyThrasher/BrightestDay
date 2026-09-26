@@ -70,6 +70,7 @@ pub fn timing(e: &GameEvent, me: Option<PlayerId>, w: &World) -> Timing {
         | E::PartyFx { player, .. } => t(is_me(*player)),
         E::StatusApplied { player, source, .. } => t(is_me(*player) || is_me_opt(*source)),
         E::ProjectileFired { owner, .. } | E::ShotFired { owner, .. } | E::Hitscan { owner, .. } => t(is_me(*owner)),
+        E::ShotTrace { owner, hit_player, .. } => t(is_me(*owner) || is_me_opt(*hit_player)),
         E::ProjectileEnded { hit_player, .. } => t(is_me_opt(*hit_player)),
         E::HeldFx { owner, .. } => t(is_me(*owner)),
         E::ConstructSpawned { owner, .. } => t(is_me(*owner)),

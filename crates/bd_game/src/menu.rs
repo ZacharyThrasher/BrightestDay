@@ -19,6 +19,7 @@ use crate::settings::{ComfortSettings, Settings, FOV_MAX, FOV_MIN};
 use crate::state::{AfterLoading, AppState, GameMode, InGameMenu};
 use bd_core::corps::Corps;
 use bd_sim::settings::{GameMode as SimMode, GameSettings, Preset};
+use bd_sim::rules::Scoring;
 use bd_sim::{CapMode, ScaleLimit, WillpowerMode};
 use bevy::ecs::system::SystemParam;
 use bevy::input::keyboard::{Key, KeyboardInput};
@@ -100,6 +101,7 @@ enum Knob {
     Voice,
     Ono,
     OnoLang,
+    Shout,
     // match rules
     Map,
     Preset,
@@ -107,6 +109,8 @@ enum Knob {
     Scale,
     Willpower,
     Caps,
+    Scoring,
+    Lives,
     KoTarget,
     TimeLimit,
     Respawn,
@@ -249,7 +253,15 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             v
         }
         MenuPage::Rules => {
-            let mut v = vec![Header("MATCH"), Value(K::Preset), Value(K::Mode), Value(K::KoTarget), Value(K::TimeLimit), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)];
+            let mut v = vec![Header("MATCH"), Value(K::Preset), Value(K::Mode)];
+            if c.prefs.game.mode != SimMode::Party {
+                // Party rounds are always timed KOs (their own knobs below).
+                v.push(Value(K::Scoring));
+                v.push(if matches!(c.prefs.game.rules.scoring, Scoring::Stock { .. }) { Value(K::Lives) } else { Value(K::KoTarget) });
+            } else {
+                v.push(Value(K::KoTarget));
+            }
+            v.extend([Value(K::TimeLimit), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
             v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Caps), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
@@ -296,7 +308,7 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
             v.extend([Header("VIEW"), Value(K::Fov), Value(K::ThirdPerson), Value(K::ShowPercent)]);
             v.extend([Header("COMFORT"), Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
             v.extend([Header("GRAPHICS"), Value(K::Vsync), Value(K::Fullscreen), Value(K::Aa)]);
-            v.extend([Header("SOUND"), Value(K::Volume), Value(K::Ono), Value(K::OnoLang)]);
+            v.extend([Header("SOUND"), Value(K::Volume), Value(K::Ono), Value(K::OnoLang), Value(K::Shout)]);
             if c.voice {
                 v.push(Value(K::Voice));
             }
@@ -328,6 +340,10 @@ fn page_rows(page: MenuPage, c: &Ctx) -> Vec<Row> {
         }
     }
 }
+
+/// Stock scoring: lives when switched on / the most the knob allows.
+const STOCK_DEFAULT_LIVES: u8 = 3;
+const STOCK_MAX_LIVES: u8 = 9;
 
 fn on_off(b: bool) -> String {
     if b { "ON".into() } else { "OFF".into() }
@@ -380,8 +396,10 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Voice => (lbl("VOICE CASTING"), on_off(c.prefs.voice)),
         Knob::Ono => (lbl("COMIC WORDS"), c.prefs.ono.label().into()),
         Knob::OnoLang => (lbl("COMIC STYLE"), if c.prefs.ono_manga { "MANGA".into() } else { "CLASSIC".into() }),
+        Knob::Shout => (lbl("SHOUT WORDS"), c.prefs.shout.label().into()),
         Knob::Map => (lbl("MAP"), match map_of(c.prefs) {
             MapKind::Miami => "MIAMI".into(),
+            MapKind::Orbit => "ORBIT".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -397,6 +415,14 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             WillpowerMode::Infinite => "INFINITE".into(),
         }),
         Knob::Caps => (lbl("CONSTRUCT CAPS"), if r.caps == CapMode::Chaos { "CHAOS".into() } else { "NORMAL".into() }),
+        Knob::Scoring => (lbl("SCORING"), match r.scoring {
+            Scoring::TimedKos => "TIMED KOS".into(),
+            Scoring::Stock { .. } => "STOCK".into(),
+        }),
+        Knob::Lives => (lbl("LIVES"), match r.scoring {
+            Scoring::Stock { lives } => lives.max(1).to_string(),
+            Scoring::TimedKos => "-".into(),
+        }),
         Knob::KoTarget => (lbl("KOS TO WIN"), r.ko_target.to_string()),
         Knob::TimeLimit => (lbl("TIME LIMIT"), mmss(r.time_limit)),
         Knob::Respawn => (lbl("RESPAWN"), format!("{:.1} S", r.respawn_secs)),
@@ -508,9 +534,18 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             c.prefs.ono_manga = !c.prefs.ono_manga;
             game = false;
         }
+        Knob::Shout => {
+            c.prefs.shout = c.prefs.shout.next(dir);
+            game = false;
+        }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami], map_of(c.prefs), dir);
-            c.prefs.map = if m == MapKind::Miami { "miami".into() } else { "arena".into() };
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit], map_of(c.prefs), dir);
+            c.prefs.map = match m {
+                MapKind::Miami => "miami",
+                MapKind::Orbit => "orbit",
+                _ => "arena",
+            }
+            .into();
         }
         Knob::Preset => {
             let cur = preset_of(g);
@@ -524,6 +559,17 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Scale => g.rules.scale = cycle(&[ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits], g.rules.scale, dir),
         Knob::Willpower => g.rules.willpower = cycle(&[WillpowerMode::Normal, WillpowerMode::Double, WillpowerMode::Infinite], g.rules.willpower, dir),
         Knob::Caps => g.rules.caps = if g.rules.caps == CapMode::Chaos { CapMode::Normal } else { CapMode::Chaos },
+        Knob::Scoring => {
+            g.rules.scoring = match g.rules.scoring {
+                Scoring::TimedKos => Scoring::Stock { lives: STOCK_DEFAULT_LIVES },
+                Scoring::Stock { .. } => Scoring::TimedKos,
+            }
+        }
+        Knob::Lives => {
+            if let Scoring::Stock { lives } = &mut g.rules.scoring {
+                *lives = (*lives as i32 + dir).clamp(1, STOCK_MAX_LIVES as i32) as u8;
+            }
+        }
         Knob::KoTarget => g.rules.ko_target = (g.rules.ko_target as i32 + dir * if fine { 1 } else { 5 }).clamp(1, 200) as u16,
         Knob::TimeLimit => g.rules.time_limit = (g.rules.time_limit + d * 60.0).clamp(60.0, 3600.0),
         Knob::Respawn => g.rules.respawn_secs = (g.rules.respawn_secs + d * 0.5).clamp(0.0, 30.0),

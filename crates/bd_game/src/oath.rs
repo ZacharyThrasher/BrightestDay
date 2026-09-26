@@ -71,8 +71,10 @@ impl OathTexts {
     fn load() -> Self {
         let path = crate::assets_dir().join("oaths.ron");
         let text = std::fs::read_to_string(&path).unwrap_or_default();
-        let map = match ron::from_str::<HashMap<Corps, String>>(&text) {
-            Ok(m) => m.into_iter().map(|(k, v)| (k.name().to_string(), v)).collect(),
+        // String keys (not `Corps`) so an oath for a corps the game doesn't have yet (e.g. Death)
+        // doesn't make the whole file fail to parse.
+        let map = match ron::from_str::<HashMap<String, String>>(&text) {
+            Ok(m) => m.into_iter().map(|(k, v)| (k, v.split_whitespace().collect::<Vec<_>>().join(" "))).collect(),
             Err(e) => {
                 warn!("oaths.ron: {e}");
                 HashMap::new()
@@ -479,6 +481,9 @@ mod tests {
     #[test]
     fn oaths_parse() {
         let o = OathTexts::load();
-        assert_eq!(o.0.len(), 8, "every corps has an oath");
+        for c in Corps::ALL {
+            let s = o.0.get(c.name()).unwrap_or_else(|| panic!("no oath for {}", c.name()));
+            assert!(!s.contains('\n') && !s.contains("  "), "{} oath not collapsed: {s:?}", c.name());
+        }
     }
 }

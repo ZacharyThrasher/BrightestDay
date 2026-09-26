@@ -136,7 +136,7 @@ impl World {
             return Err(PowerError::Cooldown);
         }
         let only_transform = mv.ops.iter().all(|o| matches!(o, MoveOp::Transform));
-        if p.status.stunned() || p.oath.reciting() || (p.seat.is_some_and(|s| !s.suit) && !only_transform) {
+        if p.status.stunned() || p.oath.reciting() || p.charge.active || (p.seat.is_some_and(|s| !s.suit) && !only_transform) {
             return Err(PowerError::Busy);
         }
         let cost = if self.cfg.rules.infinite_willpower() { 0.0 } else { mv.cost };

@@ -620,7 +620,7 @@ pub fn walk(c: &mut Construct, env: &Env<'_>, k: &Kind, allow_void: bool) {
     {
         c.pos.y = gy;
     }
-    c.vel.y -= GRAVITY * dt;
+    c.vel.y -= GRAVITY * env.ctx.gravity_at(c.pos.y) * dt;
     c.vel.y = c.vel.y.max(-60.0);
     let mut next = c.pos + c.vel * dt;
     let hmove = Vec3::new(next.x - c.pos.x, 0.0, next.z - c.pos.z);

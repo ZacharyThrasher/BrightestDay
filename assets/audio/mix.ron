@@ -23,15 +23,17 @@
     sidechain: (depth_db: -4.0, shelf_db: -7.0, shelf_hz: 4500.0, threshold_db: -40.0, knee_db: 12.0, attack: 0.003, release: 0.18),
     limiter: (ceiling_db: -1.0, knee_db: 3.0, lookahead_ms: 1.5, release: 0.12),
     voices: (max_real: 48, max_total: 192, fade: 0.012, own_gain_db: 1.5, own_priority: 10.0),
-    music_carve: (hpf_hz: 60.0, notch_hz: 7500.0, notch_q: 0.6, notch_db: -8.0),
+    // Music leaves < 60 Hz to impacts (32 Hz for sub-bass remixes, ducked under impacts instead)
+    // and dips 5-12 kHz for the feedback band.
+    music_carve: (hpf_hz: 60.0, notch_hz: 7500.0, notch_q: 0.6, notch_db: -4.0),
     night: (threshold_db: -26.0, ratio: 3.0, makeup_db: 5.0),
     ducks: {
         // DESIGN.md "Weight & power fantasy": duck −6…−9 dB for ~300 ms on heavy+ hits.
-        "heavy_hit": (depth_db: -7.5, lpf_hz: 20000.0, attack: 0.004, hold: 0.12, release: 0.22, music: true),
+        "heavy_hit": (depth_db: -7.5, lpf_hz: 20000.0, attack: 0.004, hold: 0.12, release: 0.22, music: true, music_db: -3.5),
         // Negative space on a KO you dealt: the streak note rings (~250 ms).
-        "ko_confirm": (depth_db: -8.0, lpf_hz: 20000.0, attack: 0.008, hold: 0.14, release: 0.12, music: true),
+        "ko_confirm": (depth_db: -8.0, lpf_hz: 20000.0, attack: 0.008, hold: 0.14, release: 0.12, music: true, music_db: -4.0),
         // The final blow: the world is sucked out for a beat, then floods back.
-        "final_blow": (depth_db: -14.0, lpf_hz: 450.0, attack: 0.02, hold: 0.2, release: 0.65, music: true),
+        "final_blow": (depth_db: -14.0, lpf_hz: 450.0, attack: 0.02, hold: 0.2, release: 0.65, music: true, music_db: -9.0),
     },
     // Bus trims every snapshot blends from.
     base: (
@@ -39,21 +41,22 @@
             Foley: (gain_db: -1.0),
             Ambience: (gain_db: 6.0),
             Ui: (gain_db: -2.0),
-            Music: (gain_db: -9.0),
+            // The soundtrack is calibrated to -23 LUFS: a fixed bed under the SFX.
+            Music: (gain_db: 0.0),
         },
     ),
     snapshots: {
         "Exploration": (fade_in: 2.0, fade_out: 2.0, music_intensity: 0.3),
         "Combat": (
             fade_in: 0.4, fade_out: 3.5,
-            buses: { Ambience: (gain_db: -4.0), Music: (gain_db: -8.0) },
+            buses: { Ambience: (gain_db: -4.0) },
             music_intensity: 0.85,
         ),
         // Local player at high damage %: the world muffles, the heartbeat comes up (director).
         "Danger": (
             fade_in: 1.2, fade_out: 0.8,
             world_lpf_hz: 1900.0, world_gain_db: -2.5,
-            buses: { Feedback: (gain_db: 1.0), Music: (lpf_hz: 1500.0) },
+            buses: { Feedback: (gain_db: 1.0) },
             music_intensity: 1.0, music_tempo: 1.08,
         ),
         // KO'd / respawning: underwater, far away.
@@ -66,24 +69,29 @@
         "RingOpen": (
             fade_in: 0.12, fade_out: 0.3,
             world_gain_db: -5.0, world_lpf_hz: 4200.0, reverb_db: -3.0,
-            buses: { Ambience: (gain_db: -4.0), Music: (gain_db: -15.0) },
+            buses: { Ambience: (gain_db: -4.0), Music: (gain_db: -4.0, lpf_hz: 4000.0) },
         ),
         // Orbit above the atmosphere: vacuum. Only body-conducted thumps and your own sounds.
         "Space": (
             fade_in: 1.2, fade_out: 1.0,
             remote_gain_db: -22.0, remote_lpf_hz: 260.0, reverb_db: -40.0,
-            buses: { Ambience: (gain_db: -6.0), Foley: (gain_db: 1.5), Music: (lpf_hz: 2500.0) },
+            buses: { Ambience: (gain_db: -6.0), Foley: (gain_db: 1.5), Music: (gain_db: -3.0, lpf_hz: 1500.0) },
+        ),
+        // Esc overlay in game (the world keeps running: it is multiplayer).
+        "Pause": (
+            fade_in: 0.15, fade_out: 0.3,
+            world_gain_db: -8.0, world_lpf_hz: 3000.0,
+            buses: { Music: (gain_db: -6.0, lpf_hz: 2000.0) },
         ),
         "Menu": (
             fade_in: 0.5, fade_out: 0.8,
             world_gain_db: -12.0, world_lpf_hz: 2600.0,
-            buses: { Ambience: (gain_db: -8.0), Music: (gain_db: -4.0) },
+            buses: { Ambience: (gain_db: -8.0) },
             music_intensity: 0.15,
         ),
         "Lobby": (
             fade_in: 0.5, fade_out: 0.8,
             world_gain_db: -6.0,
-            buses: { Music: (gain_db: -6.0) },
             music_intensity: 0.4,
         ),
     },

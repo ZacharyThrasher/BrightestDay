@@ -7,7 +7,7 @@
 //! | flag | meaning |
 //! |---|---|
 //! | `--practice` | skip the title menu and enter the practice scene |
-//! | `--map arena`, `--map tutorial` | which world to load (tutorial = movement course); goes straight in game |
+//! | `--map arena`, `--map miami`, `--map orbit`, `--map tutorial` | which world to load (tutorial = movement course); goes straight in game |
 //! | `--menu <page>` | open the menu on `title` / `settings` / `join` |
 //! | `--screenshot <path>` | save a PNG of the primary window |
 //! | `--screenshot-at <t1,t2,..>` | when (default: 0.5 s before `--quit-after`, else 3 s); several times ⇒ `<stem>_<i>.png` |

@@ -23,6 +23,8 @@
         gain_jitter_db: 1.0,
         hpf_hz: 0.0,
         lpf_hz: 0.0,
+        // Distant sources lose their body: the sub punch belongs to what is close.
+        far_hpf_hz: 110.0,
         cooldown: 0.0,
         occlusion: 1.0,
         width: 1.0,
@@ -35,11 +37,11 @@
         "construct": (bus: Constructs, priority: 55.0, max_instances: 5, min_dist: 3.0, max_dist: 110.0, send_db: -8.0, pitch_cents: 0.0, gain_jitter_db: 0.8),
         "combat": (bus: Impacts, priority: 70.0, max_instances: 5, min_dist: 3.0, max_dist: 170.0, send_db: -9.0, pitch_cents: 35.0, gain_jitter_db: 1.2),
         "destruction": (bus: Impacts, priority: 40.0, max_instances: 4, min_dist: 3.0, max_dist: 120.0, send_db: -9.0, pitch_cents: 45.0, gain_jitter_db: 1.5),
-        "weapon": (bus: Weapons, priority: 65.0, max_instances: 4, min_dist: 4.0, max_dist: 240.0, rolloff: 0.9, air: 0.8, send_db: -6.0, pitch_cents: 25.0, gain_jitter_db: 1.0),
+        "weapon": (bus: Weapons, far_hpf_hz: 160.0, priority: 65.0, max_instances: 4, min_dist: 4.0, max_dist: 240.0, rolloff: 0.9, air: 0.8, send_db: -6.0, pitch_cents: 25.0, gain_jitter_db: 1.0),
         "transform": (bus: Constructs, priority: 55.0, max_instances: 4, min_dist: 4.0, max_dist: 140.0, send_db: -8.0, pitch_cents: 0.0),
         "vehicle": (bus: Weapons, priority: 45.0, max_instances: 3, min_dist: 5.0, max_dist: 160.0, send_db: -9.0, pitch_cents: 0.0),
         // Beds + positional ambience: quiet, wide, lowest priority, first to go under the window.
-        "ambience": (bus: Ambience, priority: 10.0, max_instances: 4, min_dist: 6.0, max_dist: 160.0, air: 1.2, send_db: -11.0, pitch_cents: 60.0, gain_jitter_db: 2.0),
+        "ambience": (bus: Ambience, far_hpf_hz: 0.0, priority: 10.0, max_instances: 4, min_dist: 6.0, max_dist: 160.0, air: 1.2, send_db: -11.0, pitch_cents: 60.0, gain_jitter_db: 2.0),
         // Feedback: "you did something" — 2D, bright, above the HDR window, ducks the World.
         "feedback": (bus: Feedback, priority: 95.0, max_instances: 3, hdr: false, send_db: -120.0, pitch_cents: 0.0, gain_jitter_db: 0.3),
         "ko_streak": (bus: Feedback, priority: 100.0, max_instances: 2, hdr: false, min_dist: 8.0, max_dist: 200.0, send_db: -16.0, pitch_cents: 0.0, gain_jitter_db: 0.0),
@@ -61,11 +63,11 @@
         "hit_heavy": (priority: 80.0, max_instances: 4),
         "wall_splat": (priority: 80.0),
         "ko_shatter": (priority: 88.0, max_instances: 3, max_dist: 220.0, send_db: -7.0),
-        "explosion_big": (priority: 85.0, max_instances: 3, min_dist: 6.0, max_dist: 320.0, rolloff: 0.9, air: 0.7, send_db: -5.0),
-        "explosion_small": (priority: 75.0, max_instances: 4, min_dist: 4.0, max_dist: 220.0, air: 0.8, send_db: -6.0),
-        "kaiju_stomp": (priority: 80.0, min_dist: 8.0, max_dist: 300.0, rolloff: 0.85, air: 0.6, send_db: -6.0),
+        "explosion_big": (far_hpf_hz: 45.0, priority: 85.0, max_instances: 3, min_dist: 6.0, max_dist: 320.0, rolloff: 0.9, air: 0.7, send_db: -5.0),
+        "explosion_small": (far_hpf_hz: 70.0, priority: 75.0, max_instances: 4, min_dist: 4.0, max_dist: 220.0, air: 0.8, send_db: -6.0),
+        "kaiju_stomp": (far_hpf_hz: 35.0, priority: 80.0, min_dist: 8.0, max_dist: 300.0, rolloff: 0.85, air: 0.6, send_db: -6.0),
         "kaiju_roar": (priority: 75.0, min_dist: 8.0, max_dist: 300.0, rolloff: 0.85, send_db: -6.0),
-        "collapse_rumble": (priority: 60.0, min_dist: 6.0, max_dist: 260.0, air: 0.7, send_db: -6.0),
+        "collapse_rumble": (far_hpf_hz: 45.0, priority: 60.0, min_dist: 6.0, max_dist: 260.0, air: 0.7, send_db: -6.0),
         "debris_patter": (priority: 20.0, max_instances: 3, max_dist: 60.0, send_db: -14.0),
         "clash": (bus: Constructs, priority: 72.0, pitch_cents: 0.0),
         "construct_shatter": (bus: Constructs, priority: 65.0, pitch_cents: 0.0),
@@ -85,6 +87,16 @@
         "gun_railgun_charge": (priority: 60.0, pitch_cents: 0.0),
         "ring_blast": (bus: Constructs, priority: 55.0, pitch_cents: 0.0),
         "ring_blast_hit": (bus: Constructs, priority: 60.0, pitch_cents: 0.0),
+
+        // ---- charge (anime power-up) + shout words ----------------------------------------------
+        "charge_loop": (bus: Constructs, priority: 60.0, max_instances: 3, min_dist: 3.0, max_dist: 90.0, pitch_cents: 0.0, gain_jitter_db: 0.0),
+        "charge_full": (bus: Constructs, priority: 75.0, max_instances: 2, pitch_cents: 0.0),
+        "charge_break": (bus: Constructs, priority: 70.0, max_instances: 2, pitch_cents: 0.0),
+        "charge_release": (bus: Constructs, priority: 55.0, max_instances: 2, pitch_cents: 0.0),
+        "shout_erupt": (bus: Constructs, priority: 55.0, max_instances: 2, pitch_cents: 0.0),
+        "shout_slam": (bus: Impacts, priority: 70.0, max_instances: 2, pitch_cents: 0.0),
+        "shout_release": (bus: Constructs, priority: 45.0, max_instances: 2, pitch_cents: 0.0),
+        "shout_fizzle": (bus: Constructs, priority: 35.0, max_instances: 2, pitch_cents: 0.0),
 
         // ---- feedback (5-12 kHz, above the window) ----------------------------------------------
         "hit_confirm": (bus: Feedback, priority: 95.0, hdr: false, send_db: -120.0, pitch_cents: 15.0, gain_jitter_db: 0.5, max_instances: 3, cooldown: 0.03),

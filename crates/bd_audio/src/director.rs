@@ -35,11 +35,13 @@ pub struct MixInputs {
     pub vacuum: f32,
     /// Final stock / match point / sudden death: music tempo lifts.
     pub sudden_death: bool,
+    /// In-game pause overlay open.
+    pub paused: bool,
 }
 
 impl Default for MixInputs {
     fn default() -> Self {
-        Self { scene: Scene::Menu, damage_pct: 0.0, alive: true, ring_open: false, vacuum: 0.0, sudden_death: false }
+        Self { scene: Scene::Menu, damage_pct: 0.0, alive: true, ring_open: false, vacuum: 0.0, sudden_death: false, paused: false }
     }
 }
 
@@ -53,6 +55,7 @@ pub struct SnapshotWeights {
     pub danger: f32,
     pub ko: f32,
     pub ring: f32,
+    pub pause: f32,
 }
 
 pub struct MixDirector {
@@ -144,6 +147,7 @@ impl MixDirector {
         let t_danger = if in_game && inp.alive { smoothstep(90.0, 160.0, inp.damage_pct) } else { 0.0 };
         let t_ko = if in_game && !inp.alive { 1.0 } else { 0.0 };
         let t_ring = if in_game && inp.ring_open && inp.alive { 1.0 } else { 0.0 };
+        let t_pause = if in_game && inp.paused { 1.0 } else { 0.0 };
         let w = &mut self.w;
         w.menu = fade(w.menu, t_menu, "Menu");
         w.lobby = fade(w.lobby, t_lobby, "Lobby");
@@ -152,6 +156,7 @@ impl MixDirector {
         w.danger = fade(w.danger, t_danger, "Danger");
         w.ko = fade(w.ko, t_ko, "KO");
         w.ring = fade(w.ring, t_ring, "RingOpen");
+        w.pause = fade(w.pause, t_pause, "Pause");
         let w = *w;
 
         let mut p = cfg.base_params();
@@ -163,7 +168,7 @@ impl MixDirector {
                 p = p.blend(s, wt);
             }
         }
-        for (name, wt) in [("Danger", w.danger), ("KO", w.ko), ("RingOpen", w.ring)] {
+        for (name, wt) in [("Danger", w.danger), ("KO", w.ko), ("RingOpen", w.ring), ("Pause", w.pause)] {
             if let Some(s) = snap(name) {
                 p = p.blend(s, wt);
             }

@@ -203,11 +203,13 @@ pub struct DuckSpec {
     pub release: f32,
     /// Also duck the music.
     pub music: bool,
+    /// Music duck depth (dB) if different from `depth_db` (the music is a bed: duck it less).
+    pub music_db: Option<f32>,
 }
 
 impl Default for DuckSpec {
     fn default() -> Self {
-        Self { depth_db: -6.0, lpf_hz: OPEN_HZ, attack: 0.01, hold: 0.1, release: 0.25, music: true }
+        Self { depth_db: -6.0, lpf_hz: OPEN_HZ, attack: 0.01, hold: 0.1, release: 0.25, music: true, music_db: None }
     }
 }
 

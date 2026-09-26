@@ -85,6 +85,7 @@ pub enum NetMapKind {
     #[default]
     Archipelago,
     Miami,
+    Orbit,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,6 +106,10 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
         }
         NetMapKind::Miami => {
             let (w, m) = bd_voxel::generate_miami(seed);
+            (w, m.arena, seed)
+        }
+        NetMapKind::Orbit => {
+            let (w, m) = bd_voxel::generate_orbit(seed);
             (w, m.arena, seed)
         }
     }
@@ -216,6 +221,9 @@ pub enum C2S {
     KeyframeReq,
     /// Terrain / world desync detected: send the whole world again.
     Resync,
+    /// Cosmetic: the phrase this player just cast, for everyone's shout callout (host re-sanitises,
+    /// rate-limits and relays it as [`S2C::Shout`]).
+    Shout(crate::present::shout::ShoutLine),
 }
 
 /// Everything a joining (or resyncing) client needs to rebuild the world.
@@ -261,6 +269,8 @@ pub enum S2C {
     BackToLobby,
     /// Latest lane.
     Snapshot(SnapshotDelta),
+    /// Cosmetic: `player` shouted `line` (receivers re-sanitise and slur-filter it).
+    Shout { player: PlayerId, line: crate::present::shout::ShoutLine },
 }
 
 /// Does this event change terrain (logged for late joiners)?

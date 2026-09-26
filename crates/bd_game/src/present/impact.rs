@@ -118,8 +118,11 @@ fn present_hits(
     mut rng: ResMut<crate::debris::VfxRng>,
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
+    arena: Option<Res<crate::arena::ArenaWorld>>,
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
+    // Orbit presents top / bottom KOs itself (`present::space`: drift into the stars, re-entry).
+    let orbit = arena.is_some_and(|a| a.info.kind == crate::arena::MapKind::Orbit);
     let (mut sfx, mut burst, mut ono, mut shatter, mut impulses) = fx_out;
     freeze.now = time.elapsed_secs_f64();
     let Some(active) = active else {
@@ -258,6 +261,7 @@ fn present_hits(
                     shake.write(CameraShakeEvent { trauma: 0.6, dir: bv(*vel).normalize_or_zero() });
                 }
                 match zone {
+                    Some(BlastZone::Top) if orbit => {}
                     Some(BlastZone::Top) => {
                         // Star KO: they shrink into a twinkle in the sky; poof after the delay.
                         commands.spawn(StarKo { pos: p, t: 0.0, delay: poof_delay.max(0.3), color: corps_rgb(*victim_corps), poofed: false });

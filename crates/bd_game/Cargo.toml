@@ -15,6 +15,8 @@ dev = ["bevy/dynamic_linking"]
 # Profiling: writes a chrome://tracing JSON (trace-*.json) in the working directory.
 # Build into a separate target dir to avoid rebuilding Bevy back and forth.
 profile = ["bevy/trace_chrome"]
+# Perf checks: counting global allocator, prints `ALLOCS` per-frame allocation stats in game.
+alloc-count = []
 # Push-to-talk voice casting (local Whisper on CPU; needs CMake + MSVC, see crates/bd_voice/README.md).
 voice = ["bd_voice/whisper"]
 
@@ -31,3 +33,5 @@ serde.workspace = true
 ron.workspace = true
 bytemuck = { version = "1", features = ["derive"] }
 bevy = { version = "0.19.1" }
+# Same rodio as bevy_audio (features unify): SFX are pre-decoded to PCM at load (src/pcm.rs).
+rodio = { version = "0.22", default-features = false }

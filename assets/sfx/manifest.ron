@@ -1138,6 +1138,86 @@
             sequence: false,
             stereo: false,
         ), // ring console close: soft falling air + faint shimmer
+        "charge_loop": (
+            files: ["sfx/charge_loop_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; power-up aura: E drone + rising pentatonic shimmer + crackle grains; game raises speed 1.0->1.5x (E->B) and gain with charge
+        "charge_full": (
+            files: ["sfx/charge_full_1.ogg", "sfx/charge_full_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // pool full: bright Em chord flash + E sub whump + sparkle
+        "charge_break": (
+            files: ["sfx/charge_break_1.ogg", "sfx/charge_break_2.ogg", "sfx/charge_break_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // charge interrupted: aura sputters out - falling, detuning hard light + crackle
+        "charge_release": (
+            files: ["sfx/charge_release_1.ogg", "sfx/charge_release_2.ogg", "sfx/charge_release_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // charge let go calmly: soft exhale, the aura settling down onto E
+        "shout_erupt": (
+            files: ["sfx/shout_erupt_1.ogg", "sfx/shout_erupt_2.ogg", "sfx/shout_erupt_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // letters leaving the ring: quick rising hard-light whoosh
+        "shout_slam": (
+            files: ["sfx/shout_slam_1.ogg", "sfx/shout_slam_2.ogg", "sfx/shout_slam_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // headline word lands: hard-light letter slam - crack + comic bonk + low thump
+        "shout_release": (
+            files: ["sfx/shout_release_1.ogg", "sfx/shout_release_2.ogg", "sfx/shout_release_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // letters shatter into cubes and stream into the construct: shimmering in-key granular rush
+        "shout_fizzle": (
+            files: ["sfx/shout_fizzle_1.ogg", "sfx/shout_fizzle_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // failed cast: letters crumble - dull falling ticks, slightly out of tune
     },
     ko_streak: (
         key: "E minor pentatonic",

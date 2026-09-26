@@ -14,8 +14,20 @@
 //! @lead             instrument change;  k-12  transpose (semitones, absolute)
 //! [ ... ]3          repeat;  $name  insert a named pattern;  |  bar check;  ; comment
 //! ```
-//! Drum channels use `k s h o c t m x n` (kick, snare, closed hat, open hat, crash, low tom,
-//! mid tom, clap, metallic blip) with the same lengths, rests, `v`, `[ ]`, `$`, `|`.
+//! Drum channels use `k s h o c t m x n` (chip kit: kick, snare, closed hat, open hat, crash, low
+//! tom, mid tom, clap, metallic blip) and `K S X G H O C b W R I` (modern kit: synth kick, snare,
+//! clap, gated snare, hats, crash, cowbell, noise riser, reverse cymbal, impact) with the same
+//! lengths, rests, `v`, `[ ]`, `$`, `|`, plus `p3` (pitch offset in semitones for following hits).
+//!
+//! Groove: `!` before a note/hit accents it (+3 volume), `?` makes it a ghost (40 % volume).
+//!
+//! Chord-driven parts (a section with `chords`): `R T F S O N` are the root, third, fifth,
+//! seventh (octave if none), octave and ninth of the chord sounding at that moment; `X` / `Y` play
+//! the triad / seventh chord as an arpeggio. `R` uses a slash chord's bass. `u4` places roots in the
+//! octave starting 4 semitones above the current `o` (keeps bass lines in one register).
+//!
+//! Chord progressions: `"G | G | D7/F# | D | Em C | %"` — bars split by `|`, up to 4 chords per
+//! bar (evenly split), `%` repeats the previous bar; `$name` and `[ ]n` work as in parts.
 
 use std::collections::BTreeMap;
 
@@ -45,6 +57,146 @@ pub struct Note {
     pub inst: u8,
     /// Slide from the previous pitch.
     pub glide: bool,
+    /// Drum pitch offset in semitones (drum channels).
+    pub pitch: i8,
+}
+
+/// A chord symbol: root / bass pitch classes and the intervals of its tones.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Chord {
+    pub root: i32,
+    pub bass: i32,
+    pub third: i32,
+    pub fifth: i32,
+    pub seventh: Option<i32>,
+}
+
+/// A chord starting at `tick` (section-relative).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChordAt {
+    pub tick: u32,
+    pub chord: Chord,
+}
+
+/// Parse a chord symbol: `G Gm G7 Gmaj7 Gm7 Gdim Gdim7 Gm7b5 Gsus4 Gsus2 Gaug G5 G6 Gm6 G9`,
+/// optional slash bass (`D7/F#`); `#`/`b` accidentals. `transpose` shifts it.
+pub fn parse_chord(sym: &str, transpose: i32) -> Result<Chord, String> {
+    let (main, slash) = match sym.split_once('/') {
+        Some((a, b)) => (a, Some(b)),
+        None => (sym, None),
+    };
+    let pc_of = |s: &str| -> Result<(i32, usize), String> {
+        let mut it = s.chars();
+        let l = it.next().ok_or_else(|| format!("empty chord '{sym}'"))?.to_ascii_lowercase();
+        let pc = letter_pc(l).ok_or_else(|| format!("bad chord root in '{sym}'"))?;
+        match it.next() {
+            Some('#') => Ok((pc + 1, 2)),
+            Some('b') => Ok((pc - 1, 2)),
+            _ => Ok((pc, 1)),
+        }
+    };
+    let (root, used) = pc_of(main)?;
+    let q = &main[used..];
+    let (third, fifth, seventh) = match q {
+        "" | "maj" => (4, 7, None),
+        "m" | "min" => (3, 7, None),
+        "7" | "9" => (4, 7, Some(10)),
+        "maj7" | "M7" => (4, 7, Some(11)),
+        "m7" | "m9" => (3, 7, Some(10)),
+        "mmaj7" => (3, 7, Some(11)),
+        "dim" => (3, 6, None),
+        "dim7" => (3, 6, Some(9)),
+        "m7b5" => (3, 6, Some(10)),
+        "sus4" => (5, 7, None),
+        "sus2" => (2, 7, None),
+        "7sus4" => (5, 7, Some(10)),
+        "aug" | "+" => (4, 8, None),
+        "5" => (7, 12, None),
+        "6" => (4, 7, Some(9)),
+        "m6" => (3, 7, Some(9)),
+        _ => return Err(format!("unknown chord quality '{q}' in '{sym}'")),
+    };
+    let root = (root + transpose).rem_euclid(12);
+    let bass = match slash {
+        Some(b) => (pc_of(b)?.0 + transpose).rem_euclid(12),
+        None => root,
+    };
+    Ok(Chord { root, bass, third, fifth, seventh })
+}
+
+/// Map notes written in bars of `src_bar` ticks onto bars of `dst_bar` ticks by doubling the first
+/// beat (`dst_bar - src_bar` must be one beat): a 3/4 waltz becomes 4/4 (`d4 f#4 a4` → `d2 f#4 a4`),
+/// 9/8 becomes 12/8.
+pub fn remeter(notes: &mut [Note], src_bar: u32, dst_bar: u32) {
+    let extra = dst_bar.saturating_sub(src_bar).max(1);
+    let map = |t: u32| {
+        let bar = t / src_bar;
+        let x = t % src_bar;
+        bar * dst_bar + if x < extra { 2 * x } else { x + extra }
+    };
+    for n in notes {
+        let s = map(n.tick);
+        let e = map(n.tick + n.len);
+        n.tick = s;
+        n.len = e.saturating_sub(s).max(1);
+    }
+}
+
+/// Swing: delay every off-beat `unit` (e.g. every second 16th) by `amount` × `unit`.
+pub fn swing(notes: &mut [Note], amount: f32, unit: u32) {
+    let d = (amount.clamp(0.0, 0.75) * unit as f32).round() as u32;
+    if d == 0 || unit == 0 {
+        return;
+    }
+    for n in notes {
+        if n.tick % (2 * unit) == unit {
+            n.tick += d;
+            n.len = n.len.saturating_sub(d).max(1);
+        }
+    }
+}
+
+/// Parse a chord progression for a section of `bars` bars.
+pub fn parse_chords(
+    src: &str,
+    patterns: &BTreeMap<String, String>,
+    bar_ticks: u32,
+    bars: u32,
+    transpose: i32,
+) -> Result<Vec<ChordAt>, String> {
+    let text = strip_comments(src);
+    let text = expand_macros(&text, patterns, 0)?;
+    let text = expand_repeats(&text)?;
+    let mut out: Vec<ChordAt> = Vec::new();
+    let mut prev: Vec<Chord> = Vec::new();
+    let mut bar = 0u32;
+    for cell in text.split('|') {
+        let toks: Vec<&str> = cell.split_whitespace().collect();
+        if toks.is_empty() {
+            continue;
+        }
+        let chords: Vec<Chord> = if toks == ["%"] {
+            if prev.is_empty() {
+                return Err("'%' with no previous bar".into());
+            }
+            prev.clone()
+        } else {
+            toks.iter().map(|t| parse_chord(t, transpose)).collect::<Result<_, _>>()?
+        };
+        if chords.len() > 4 || !bar_ticks.is_multiple_of(chords.len() as u32) {
+            return Err(format!("chord bar {} has {} chords (1, 2 or 4 fit a bar)", bar + 1, chords.len()));
+        }
+        let step = bar_ticks / chords.len() as u32;
+        for (i, c) in chords.iter().enumerate() {
+            out.push(ChordAt { tick: bar * bar_ticks + i as u32 * step, chord: *c });
+        }
+        prev = chords;
+        bar += 1;
+    }
+    if bar != bars {
+        return Err(format!("chord progression has {bar} bars, section has {bars}"));
+    }
+    Ok(out)
 }
 
 impl Note {
@@ -72,6 +224,8 @@ pub struct PartCtx<'a> {
     pub bar_ticks: u32,
     pub transpose: i32,
     pub inst_index: &'a dyn Fn(&str) -> Option<u8>,
+    /// The section's chord track (enables `R T F S O N X Y`).
+    pub chords: Option<&'a [ChordAt]>,
 }
 
 /// Key signature for a key name like `G`, `Bb`, `F#m`, `Dm`. Returns (accidentals, tonic pc, minor).
@@ -260,9 +414,55 @@ struct Parser<'a> {
     last: Option<usize>,
     last_key: Option<u8>,
     glide_next: bool,
+    /// Pending `!` (+1) / `?` (-1) for the next note.
+    accent: i8,
+    /// Drum pitch offset (`p`).
+    dpitch: i8,
+    /// Root placement offset for chord degrees (`u`).
+    uoff: i32,
 }
 
 impl Parser<'_> {
+    /// The chord sounding at the current tick.
+    fn chord_now(&self) -> Result<Chord, String> {
+        let chords = self.ctx.chords.ok_or_else(|| self.err("chord degrees need a section with `chords`"))?;
+        chords.iter().rev().find(|c| c.tick <= self.tick).or(chords.first()).map(|c| c.chord).ok_or_else(|| self.err("empty chord track"))
+    }
+
+    /// Root key of the current chord in the current octave (honouring `u`), using the slash bass
+    /// for `bass = true`.
+    fn root_key(&self, c: &Chord, bass: bool) -> i32 {
+        let pc = if bass { c.bass } else { c.root };
+        let base = (self.octave + 1) * 12 + self.uoff + self.transpose;
+        base + (pc - base).rem_euclid(12)
+    }
+
+    fn degree_key(&self, d: char) -> Result<i32, String> {
+        let c = self.chord_now()?;
+        let root = self.root_key(&c, false);
+        let key = match d {
+            'R' => self.root_key(&c, true),
+            'T' => root + c.third,
+            'F' => root + c.fifth,
+            'S' => root + c.seventh.unwrap_or(12),
+            'O' => root + 12,
+            _ => root + 14,
+        };
+        if !(12..=120).contains(&key) {
+            return Err(self.err(format!("chord degree out of range (midi {key})")));
+        }
+        Ok(key)
+    }
+
+    fn take_vol(&mut self) -> u8 {
+        let v = match std::mem::take(&mut self.accent) {
+            1 => (self.vol + 3).min(15),
+            -1 => ((f32::from(self.vol) * 0.4).round() as u8).max(1),
+            _ => self.vol,
+        };
+        v
+    }
+
     fn err(&self, msg: impl std::fmt::Display) -> String {
         let a = self.i.saturating_sub(24);
         let b = (self.i + 16).min(self.s.len());
@@ -372,7 +572,9 @@ impl Parser<'_> {
 
     fn push_note(&mut self, key: u8, chord: [u8; 3], len: u32) {
         let glide = std::mem::take(&mut self.glide_next);
-        self.notes.push(Note { tick: self.tick, len, q: self.q, key, chord, vol: self.vol, inst: self.inst, glide });
+        let vol = self.take_vol();
+        let pitch = if self.ctx.drums { self.dpitch } else { 0 };
+        self.notes.push(Note { tick: self.tick, len, q: self.q, key, chord, vol, inst: self.inst, glide, pitch });
         self.last = Some(self.notes.len() - 1);
         self.last_key = Some(key);
         self.tick += len;
@@ -471,6 +673,39 @@ impl Parser<'_> {
                     self.inst = (self.ctx.inst_index)(&name).ok_or_else(|| self.err(format!("unknown instrument @{name}")))?;
                 }
                 '~' => self.glide_next = true,
+                '!' => self.accent = 1,
+                '?' => self.accent = -1,
+                'p' if self.ctx.drums => {
+                    let n = self.number().ok_or_else(|| self.err("p needs a signed number"))?;
+                    self.dpitch = n.clamp(-48, 48) as i8;
+                }
+                'u' if !self.ctx.drums => {
+                    let n = self.unsigned().ok_or_else(|| self.err("u needs 0..11"))?;
+                    self.uoff = (n as i32).clamp(0, 11);
+                }
+                d @ ('R' | 'T' | 'F' | 'S' | 'O' | 'N') if !self.ctx.drums => {
+                    let k = self.degree_key(d)?;
+                    let len = self.length()?;
+                    self.push_note(k as u8, [0; 3], len);
+                    self.ties(None)?;
+                }
+                d @ ('X' | 'Y') if !self.ctx.drums => {
+                    let c = self.chord_now()?;
+                    let r = self.root_key(&c, false);
+                    let mut keys = [r, r + c.third, r + c.fifth, r + c.seventh.unwrap_or(12)];
+                    let n = if d == 'X' { 3 } else { 4 };
+                    if keys.iter().take(n).any(|&k| !(12..=120).contains(&k)) {
+                        return Err(self.err("chord out of range"));
+                    }
+                    keys.sort_unstable();
+                    let mut chord = [0u8; 3];
+                    for (slot, &k) in chord.iter_mut().zip(keys.iter().take(n).skip(1)) {
+                        *slot = k as u8;
+                    }
+                    let len = self.length()?;
+                    self.push_note(keys[0] as u8, chord, len);
+                    self.ties(None)?;
+                }
                 'r' => {
                     let l = self.length()?;
                     self.last = None;
@@ -562,6 +797,9 @@ pub fn parse_part(src: &str, ctx: &PartCtx) -> Result<(Vec<Note>, u32), String> 
         last: None,
         last_key: None,
         glide_next: false,
+        accent: 0,
+        dpitch: 0,
+        uoff: 0,
     };
     p.run()?;
     let _ = p.last_key;
@@ -574,7 +812,7 @@ mod tests {
 
     fn ctx<'a>(pats: &'a BTreeMap<String, String>, key: &str, drums: bool) -> PartCtx<'a> {
         let (key_sig, _, _) = key_signature(key).unwrap();
-        PartCtx { patterns: pats, key_sig, drums, bar_ticks: WHOLE, transpose: 0, inst_index: &|_| Some(0) }
+        PartCtx { patterns: pats, key_sig, drums, bar_ticks: WHOLE, transpose: 0, inst_index: &|_| Some(0), chords: None }
     }
 
     #[test]

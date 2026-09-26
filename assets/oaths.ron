@@ -1,14 +1,25 @@
 // Corps oaths recited as a typing test to refill willpower (press F in game).
-// These are ORIGINAL placeholder verses in the spirit of the lantern oaths. Replace any line with your
-// own text — the game just needs one string per corps. Keep them ~15–25 words: long enough to be a
-// real test under pressure, short enough to finish mid-fight.
+// Oath texts supplied by the owner (the Lantern Corps oaths are DC Comics' - private use only; swap
+// them for original verses before any public release). One string per corps; whitespace/newlines are
+// collapsed to single spaces, so the recital is exactly the characters you see.
+// `Death` has no corps in game yet; it is kept here for when one exists (unknown keys are ignored).
 {
-    Willpower: "In brightest day I stand my ground, no fear can move me, no dark can drown; my will is light, my light is mine.",
-    Rage:      "Blood in my teeth and fire in my hands, I break what stands against me and I burn what will not kneel.",
-    Greed:     "All that shines belongs to me, every spark and every star; what I take I keep, and I take it all.",
-    Fear:      "Let terror be the lamp I carry; what you dread I make real, and in the dark I am the light you fear.",
-    Hope:      "When every star goes out I keep one burning; the night is long but it is not forever, so rise.",
-    Compassion:"I feel the hurt of every heart, and I carry it gently; no one falls alone while I still shine.",
-    Love:      "For every heart that waited in the dark, I light the way home; love is the fire that never fails.",
-    Life:      "From the first dawn to the last, all living light answers my call; rise, breathe, and shine again.",
+    "Death": "The Blackest Night falls from the skies, The darkness grows as all light dies,
+              We crave your hearts and your demise, By my black hand, the dead shall rise!",
+    "Rage": "With blood and rage of crimson red, Ripped from a corpse so freshly dead,
+             Together with our hellish hate, We'll burn you all--That is your fate!",
+    "Greed": "This power is mine this is my light, be it in brightest day or blackest night.
+              I lay claim to all within my sight. To take what I want, THAT IS MY RIGHT!",
+    "Fear": "In blackest day, in brightest night, Beware your fears made into light
+             Let those who try to stop what's right, Burn like my power... Sinestro's might!",
+    "Willpower": "In brightest day, in blackest night, No evil shall escape my sight.
+                  Let those who worship evil's might, Beware my power, Green Lantern's light!!!",
+    "Hope": "In fearful day, in raging night, With strong hearts full, our souls ignite,
+             When all seems lost in the War of Light, Look to the stars-- For hope burns bright!",
+    "Compassion": "Tor lorek san, bor nakka mur, Natromo faan tornek wot ur.
+                   Ter Lantern ker lo Abin Sur, Taan lek lek nok--Formorrow Sur!",
+    "Love": "For hearts long lost and full of fright, For those alone in blackest night,
+             Accept our ring and join our fight, Love conquers all-- with violet light!",
+    "Life": "Through Rage and Love, Hope and Fright, Compassion, Greed and Will to fight,
+             Let darkness cower at the sight Of Life, Behold the power of White Lantern's light.",
 }

@@ -60,7 +60,7 @@ impl Default for AimRay {
 }
 
 #[derive(Resource, Default)]
-struct Boom {
+pub(crate) struct Boom {
     dist: f32,
 }
 
@@ -108,7 +108,7 @@ fn update_mode(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn place_camera(
+pub(crate) fn place_camera(
     time: Res<Time<Real>>,
     mode: Res<ViewMode>,
     rig: Res<CameraRig>,

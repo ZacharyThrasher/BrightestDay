@@ -432,6 +432,7 @@ impl World {
         self.apply_inputs(inputs);
         self.step_match(dt);
         self.step_player_timers(dt);
+        self.step_charge(dt); // CHARGE HOOK: hold-to-power-up (crate::charge)
 
         // Constructs feed movement.
         self.colliders.clear();
@@ -517,7 +518,7 @@ impl World {
     }
 
     fn step_movement(&mut self, dt: f32) {
-        let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, party, .. } = self;
+        let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, party, arena, .. } = self;
         let base = &cfg.move_params;
         for p in players.iter_mut() {
             p.move_events = Default::default();
@@ -548,6 +549,10 @@ impl World {
             }
             constructs.movement_mods(p.id, &p.input, &p.mv, &mut mods);
             p.power.modify_movement(p.mv.grounded, &mut mods); // POWERS HOOK (body, time stop, void sink)
+            crate::charge::modify_movement(&cfg.tuning.charge, &p.input, p.mv.grounded, &mut mods); // CHARGE HOOK (feet planted)
+            if let Some(g) = arena.gravity {
+                mods.gravity_scale *= g.scale_at(p.mv.pos.y); // MAP HOOK: gravity by altitude (Orbit)
+            }
             p.mv.mods = mods;
             let input = if p.status.stunned() { stunned_input(&p.input) } else { p.input };
             let mut params = p.params(base);
@@ -770,6 +775,7 @@ impl World {
                 history: &self.history,
                 rules: &self.cfg.rules,
                 void_y: self.arena.void_y,
+                gravity: self.arena.gravity, // MAP HOOK (Orbit gravity by altitude)
                 tuning: &self.cfg.tuning, // TUNING HOOK
             };
             self.constructs.update(&ctx, &mut self.cout);

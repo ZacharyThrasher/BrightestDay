@@ -1,4 +1,5 @@
-//! Tab scoreboard (hold): minimal — corps bar, name, KOs, falls (and party points), match clock.
+//! Tab scoreboard (hold): minimal — corps bar, name, KOs, falls (and party points / stock lives),
+//! match clock + scoring line ("STOCK · 3 LIVES" / "FIRST TO 10 KOS").
 //! Rebuilt only while held and only when the numbers change.
 
 use crate::console::corps_color;
@@ -46,12 +47,22 @@ fn draw_board(
         return;
     };
     let w = &a.world;
-    let rows = w.scoreboard();
+    let mut rows = w.scoreboard();
     let secs = w.time_left().max(0.0) as u64;
+    let stock = match w.rules().scoring {
+        bd_sim::rules::Scoring::Stock { lives } if w.party().is_none() => Some(lives.max(1)),
+        _ => None,
+    };
+    let lives_of = |id: bd_core::PlayerId| w.player(id).map(|p| if p.eliminated { 0 } else { p.stocks.unwrap_or(0) });
+    if stock.is_some() {
+        // Stock: most lives first (eliminated last), then the usual KO order.
+        rows.sort_by_key(|r| std::cmp::Reverse(lives_of(r.player).unwrap_or(0)));
+    }
     // Cheap signature: rebuild only when something shown changed.
     let mut sig: u64 = 1469598103934665603 ^ secs;
     for r in &rows {
         sig = (sig ^ ((r.player.0 as u64) << 32 | (r.kos as u64) << 16 | r.deaths as u64)).wrapping_mul(1099511628211);
+        sig = (sig ^ lives_of(r.player).unwrap_or(0) as u64).wrapping_mul(1099511628211);
     }
     if let Some(p) = w.party() {
         for s in &p.players {
@@ -90,13 +101,24 @@ fn draw_board(
                 Text::new(format!("{}:{:02}", secs / 60, secs % 60)),
                 TextFont::from_font_size(16.0),
                 TextColor(Color::srgba(1.0, 1.0, 1.0, 0.55)),
+                Node { align_self: AlignSelf::Center, ..default() },
+            ));
+            let scoring = match (stock, party) {
+                (Some(l), _) => format!("STOCK · {l} {}", if l == 1 { "LIFE" } else { "LIVES" }),
+                (None, Some(_)) => "PARTY".to_string(),
+                (None, None) => format!("FIRST TO {} KOS", w.rules().ko_target),
+            };
+            root.spawn((
+                Text::new(scoring),
+                TextFont::from_font_size(11.0),
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.35)),
                 Node { margin: UiRect::bottom(px(6)), align_self: AlignSelf::Center, ..default() },
             ));
             let header = |r: &mut ChildSpawnerCommands| {
                 r.spawn(Node { flex_direction: FlexDirection::Row, column_gap: px(10), ..default() }).with_children(|h| {
                     h.spawn(Node { width: px(4), ..default() });
                     h.spawn((Text::new(""), Node { flex_grow: 1.0, ..default() }));
-                    for label in ["KO", "FALLS"].into_iter().chain(party.map(|_| "PTS")) {
+                    for label in stock.map(|_| "LIVES").into_iter().chain(["KO", "FALLS"]).chain(party.map(|_| "PTS")) {
                         h.spawn((Text::new(label), TextFont::from_font_size(12.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.4)), Node { width: px(56), ..default() }, TextLayout::justify(Justify::Right)));
                     }
                 });
@@ -114,8 +136,9 @@ fn draw_board(
                 .with_children(|row| {
                     row.spawn((Node { width: px(4), height: px(22), ..default() }, BackgroundColor(c)));
                     row.spawn((Text::new(name.to_uppercase()), TextFont::from_font_size(19.0), TextColor(Color::WHITE.with_alpha(if me { 1.0 } else { 0.8 })), Node { flex_grow: 1.0, ..default() }));
-                    for v in [Some(r.kos), Some(r.deaths), pts].into_iter().flatten() {
-                        row.spawn((Text::new(v.to_string()), TextFont::from_font_size(19.0), TextColor(c.mix(&Color::WHITE, 0.5)), Node { width: px(56), ..default() }, TextLayout::justify(Justify::Right)));
+                    let lives = stock.and(lives_of(r.player)).map(|l| if l == 0 { "OUT".to_string() } else { l.to_string() });
+                    for v in lives.into_iter().chain([Some(r.kos), Some(r.deaths), pts].into_iter().flatten().map(|v| v.to_string())) {
+                        row.spawn((Text::new(v), TextFont::from_font_size(19.0), TextColor(c.mix(&Color::WHITE, 0.5)), Node { width: px(56), ..default() }, TextLayout::justify(Justify::Right)));
                     }
                 });
             }

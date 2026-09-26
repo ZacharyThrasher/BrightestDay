@@ -113,6 +113,9 @@ pub struct DebrisSettings {
     pub kill_y: f32,
     /// Multiplies dt (hit-stop hooks in here if the world should freeze too).
     pub time_scale: f32,
+    /// The map's gravity by altitude (Orbit: debris drifts in the zero-g band). Set by
+    /// `present::space`; `None` = plain `gravity` everywhere.
+    pub gravity_profile: Option<bd_voxel::GravityProfile>,
 }
 
 impl Default for DebrisSettings {
@@ -126,6 +129,7 @@ impl Default for DebrisSettings {
             fade_secs: 0.7,
             kill_y: -120.0,
             time_scale: 1.0,
+            gravity_profile: None,
         }
     }
 }
@@ -300,7 +304,11 @@ fn step_particle(p: &mut Particle, dt: f32, s: &DebrisSettings, col: Option<&dyn
         return;
     }
 
-    p.vel.y -= s.gravity * dt;
+    let g = match s.gravity_profile {
+        Some(gp) => s.gravity * gp.scale_at(p.pos.y),
+        None => s.gravity,
+    };
+    p.vel.y -= g * dt;
     p.vel *= 1.0 / (1.0 + s.drag * dt);
     let d = p.vel * dt;
     let mut pos = p.pos;

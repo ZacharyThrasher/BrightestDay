@@ -934,11 +934,19 @@ pub struct ConstructCtx<'a> {
     pub rules: &'a MatchRules,
     /// Below this height things fall out of the world.
     pub void_y: f32,
+    /// Map gravity by altitude (Orbit); `None` = full gravity everywhere.
+    pub gravity: Option<bd_voxel::GravityProfile>,
     /// TUNING HOOK: combat numbers (form damage table, guns, creature attacks).
     pub tuning: &'a crate::tuning::CombatTuning,
 }
 
 impl ConstructCtx<'_> {
+    /// Gravity multiplier at height `y` (map gravity profile; 1 without one).
+    #[inline]
+    pub fn gravity_at(&self, y: f32) -> f32 {
+        self.gravity.map_or(1.0, |g| g.scale_at(y))
+    }
+
     pub fn player(&self, id: PlayerId) -> Option<&PlayerView> {
         self.players.iter().find(|p| p.id == id)
     }

@@ -8,7 +8,7 @@ docs/CLIENT_INTEGRATION.md, docs/TESTING.md, docs/BALANCE_REPORT.md. Memory: bri
 ## Process
 - Workers = Opus subagents with strict file ownership + their own CARGO_TARGET_DIR; they never commit.
 - Lead verifies (tests / galleries / screenshots / benches) and commits with the Co-Authored-By trailer.
-- bd_core contract v1.3 (Transforms, Recipe.grants). Change only via lead; patch literal call sites.
+- bd_core contract v1.4 (v1.3 Transforms, Recipe.grants; v1.4 `input::buttons::CHARGE`). Change only via lead; patch literal call sites.
 - Gate: `tools/check.ps1` (fmt/clippy/tests/soak/bench/smoke). Perf gates: frame p99 < 7 ms (quiet
   machine), sim tick p99 < 1 ms, no hitch > 16 ms after load. Never taskkill all cargo (kill own PIDs).
 - Usage limits have interrupted workers before: on resume, check `git status` + `cargo check

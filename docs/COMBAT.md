@@ -94,6 +94,14 @@ reduces air control but you can always tether out of it (a skill save).
 - Upkeep: held/worn constructs drain 0.6/s, creatures 1.5/s (Kaiju 4/s), structures 0.3/s. At 0
   willpower your constructs start losing integrity quickly and shatter.
 - Can't cast if cost > current willpower (the ring flickers — diegetic "no").
+- **Charging (hold Z, bd_core v1.4 `buttons::CHARGE`; `bd_sim::charge`, `tuning.charge`):** the anime power-up —
+  the easy, loud, exposed refill (the oath stays the skilful, faster one). Refill `rate_per_sec` 4.5/s (× the
+  willpower mode's regen multiplier) on top of passive regen, ramping in quadratically over 0.8 s (tapping earns
+  ~nothing); ignores the post-cast regen pause. While charging you can't attack, cast or use powers; on the
+  ground speed ×0.2 (feet planted), in the air air-control ×0.3, jump ×0.5 (pure function of the input, so
+  prediction matches). Any hit / DoT breaks it; still holding, it restarts cold after a 0.6 s stagger. Releasing
+  ends it. Replicated as `pflags::CHARGING` + `PlayerSnap::charge` (hold time, 1/20 s) + `GameEvent::Charge`
+  (start / full / broken / released). Bots charge when low and nobody is within ~16 m.
 
 ## 3. Construct lifecycle
 cast → **validate/clamp** (scale per form min/max, mass, count ≤ 6, swarm ≤ 12) → pay → **forming**
@@ -141,23 +149,34 @@ swept arcs sampled every tick (no misses from low tick sampling). Animation driv
 | Cannon | 28 / 24 | slow heavy ball, big recoil (rocket-jump tech) | — |
 | Staff | 8 / 8 | element bolt | hold = Beam if tagged |
 | Disc | 8 / 8 | throw (always Returning, Ricochet ×2) | — |
-Ring blast (empty hand): a meaty fist of light — 75 m/s chunky bolt, 12 dmg, 9 kb, 0.4 s cadence, same
-fire/hit juice as guns (§4b).
+Ring blast (empty hand): a meaty fist of light — a fat, fast chunky bolt (180 m/s, 0.35 m swept sphere:
+players move 20–50 m/s, so it has to arrive), 12 dmg, 9 kb, 0.4 s cadence, same fire/hit juice as guns (§4b).
 
 ### 4b. Guns — DOOM feel, never pea shooters
 Principles: (1) every shot is an event — low cadence, high damage, big knockback; (2) **guns are
 movement tools** — recoil impulse opposite the aim on the shooter (air ×1.0, ground ×0.35), enabling
 shotgun-jumps, rocket-jumps and minigun hovering; projectiles inherit 100% of the shooter's velocity;
-the bounded momentum bonus (§0) uses projectile-vs-target closing speed; (3) visible chunky voxel
-projectiles with tracers (only the railgun is hitscan, lag-compensated); (4) fire is instant and
-client-predicted, the host confirms hits.
-| archetype (phrase → recipe) | cadence | per shot | recoil (m/s) | notes |
-|---|---|---|---|---|
-| Hand cannon (gun/pistol/revolver/rifle) | 0.35 s | 16 dmg, 11 kb, 140 m/s slug | 2.5 | small terrain chip |
-| Super shotgun (shotgun/blunderbuss; Gun + Shoots + count≥3) | 2 shots, 0.9 s reload-snap | 9 pellets × 8 dmg, 18 kb total point blank, falloff > 12 m | 9 | shotgun-jump; pairs with tethers (meathook combo) |
-| Minigun (minigun/gatling/machine gun; Gun + Spin) | 0.4 s spin-up, then 14/s | 5 dmg, 3 kb, 120 m/s | 1.2/s continuous | point down = hover; spin-down 0.3 s |
-| Rocket (rocket launcher/bazooka; Gun/Cannon + Explodes) | 0.8 s | 30 dmg center, r=3.5 m carve, 22 kb | 4 | rocket-jump (self kb, no self damage) |
-| Railgun (railgun/sniper/laser rifle; Gun + Pierce/Beam) | 0.5 s charge, 1.1 s cycle | 45 dmg, 20 kb, pierces 2 players + thin walls | 6 | hitscan, lag-compensated, lingering beam |
+the bounded momentum bonus (§0) uses projectile-vs-target closing speed (hitscan: the shooter's own
+velocity along the aim); (3) **hitscan where speed would be unfair** (owner decision: players move
+20–50 m/s, so slow slugs feel weak) — hand cannon, super shotgun (one ray per pellet, fixed learnable
+spread + falloff), minigun and railgun are instant rays, lag-compensated by rewinding other players to
+the shooter's `view_tick` (≤ 250 ms). Each round still reads as a physical slug: the client draws a
+chunky voxel tracer streaking muzzle → impact in a few frames (`ShotTrace`), then impact chips. Rockets,
+cannons, bows, payload rounds (sharks, anvils), explosive / ricochet / portal rounds and thrown things
+stay projectiles (splash, arcs, rocket-jumps). A raised guard blocks a hitscan round; a perfect parry
+fires it back at the shooter; (4) fire is instant and client-predicted, the host confirms hits.
+| archetype (phrase → recipe) | delivery | cadence | per shot | recoil (m/s) | notes |
+|---|---|---|---|---|---|
+| Hand cannon (gun/pistol/revolver/rifle) | **hitscan** (lag-comp), chunky slug tracer | 0.35 s | 13 dmg, 11 kb | 2.5 | small terrain chip; alt = fan-the-hammer |
+| Super shotgun (shotgun/blunderbuss; Gun + Shoots + count≥3) | **hitscan**, 9 rays (fixed 4° pattern), pellet tracers | 2 shots, 0.9 s reload-snap | 9 pellets × 8 dmg, 18 kb total point blank, falloff > 12 m (→ 30 % at 30 m) | 9 | shotgun-jump; pairs with tethers (meathook combo) |
+| Minigun (minigun/gatling/machine gun; Gun + Spin) | **hitscan**, small slug tracers | 0.4 s spin-up, then 14/s | 4.5 dmg, 3 kb | 1.2/s continuous | point down = hover; spin-down 0.3 s |
+| Rocket (rocket launcher/bazooka; Gun/Cannon + Explodes) | projectile 45 m/s | 0.8 s | 30 dmg center, r=3.5 m carve, 22 kb | 4 | rocket-jump (self kb, no self damage) |
+| Railgun (railgun/sniper/laser rifle; Gun + Pierce/Beam) | **hitscan**, lingering beam | 0.5 s charge, 1.1 s cycle | 40 dmg, 20 kb, pierces 2 players + thin walls | 6 | — |
+| Bow / Cannon / Staff / Disc | projectile | see §4 table | | | arcs, splash, ricochet |
+Hitscan rounds keep the gun's feel: recoil, the bounded momentum bonus (shooter velocity along the aim),
+head-zone crits, knockback, terrain chips. A hitscan gun whose round *is* the point stays a projectile:
+`payload` rounds, Explodes, Ricochet and Portal variants. Damage numbers after the hitscan balance pass
+(hand cannon 16 → 13, minigun 5 → 4.5, railgun 45 → 40; docs/BALANCE_REPORT.md).
 Caliber scales with `scale` (giant gun: slower, heavier, more recoil); `payload` swaps the round
 (sharks, anvils: slow heavy novelty rounds); count 2 = dual wield (alternating).
 **Feel pipeline** — fire: viewmodel kick (pitch + push back, spring recovery ~150 ms; aim itself never

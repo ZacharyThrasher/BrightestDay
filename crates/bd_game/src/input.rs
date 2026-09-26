@@ -92,6 +92,8 @@ pub struct Bindings {
     pub tether_l: KeyCode,
     pub tether_r: KeyCode,
     pub reel: KeyCode,
+    /// Hold to charge (power up).
+    pub charge: KeyCode,
 }
 
 impl Default for Bindings {
@@ -107,6 +109,7 @@ impl Default for Bindings {
             tether_l: KeyCode::KeyQ,
             tether_r: KeyCode::KeyE,
             reel: KeyCode::KeyR,
+            charge: KeyCode::KeyZ,
         }
     }
 }
@@ -137,7 +140,7 @@ impl LocalInputState {
         let (mut mx, mut mz) = (self.move_x, self.move_z);
         if typing {
             b |= buttons::TYPING;
-            b &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST);
+            b &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST | buttons::CHARGE);
             mx = 0;
             mz = 0;
         }
@@ -301,6 +304,7 @@ fn sample_frame_input(
         buttons::TETHER_R,
     );
     bit(k(binds.reel), kj(binds.reel), buttons::REEL);
+    bit(k(binds.charge), kj(binds.charge), buttons::CHARGE);
     bit(m(MouseButton::Left), mj(MouseButton::Left), buttons::PRIMARY);
     bit(m(MouseButton::Right), mj(MouseButton::Right), buttons::SECONDARY);
 

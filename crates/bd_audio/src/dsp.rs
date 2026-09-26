@@ -165,6 +165,18 @@ impl Biquad {
             [(a + 1.0) - (a - 1.0) * cw + sa, 2.0 * ((a - 1.0) - (a + 1.0) * cw), (a + 1.0) - (a - 1.0) * cw - sa],
         );
     }
+    /// Low shelf (slope 1).
+    pub fn set_low_shelf(&mut self, fc: f32, gain_db: f32, sr: f32) {
+        let a = 10f32.powf(gain_db / 40.0);
+        let w0 = 2.0 * PI * fc.clamp(10.0, sr * 0.49) / sr;
+        let (sw, cw) = w0.sin_cos();
+        let alpha = sw / 2.0 * 2f32.sqrt();
+        let sa = 2.0 * a.sqrt() * alpha;
+        self.set_coefs(
+            [a * ((a + 1.0) - (a - 1.0) * cw + sa), 2.0 * a * ((a - 1.0) - (a + 1.0) * cw), a * ((a + 1.0) - (a - 1.0) * cw - sa)],
+            [(a + 1.0) + (a - 1.0) * cw + sa, -2.0 * ((a - 1.0) + (a + 1.0) * cw), (a + 1.0) + (a - 1.0) * cw - sa],
+        );
+    }
     /// K-weighting stage coefficients (BS.1770) are passed in directly.
     pub fn from_coefs(b: [f32; 3], a: [f32; 3]) -> Self {
         let mut s = Self::default();

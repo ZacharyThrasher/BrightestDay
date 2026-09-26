@@ -45,13 +45,54 @@ pub struct BuiltModel {
     pub model: Arc<VoxelModel>,
     pub key: Option<ShapeKey>,
     pub rig: Option<Arc<TransformRig>>,
+    /// Per-voxel colours (terrain animated by a graft).
+    pub colors: Option<Arc<bd_fx::VoxelColors>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 enum ModelSrc {
     Recipe(ShapeKey),
-    /// Explicit shape / extracted model: per construct.
+    /// Curated icon shape (+ alt shape): cached by recipe key + spec content, so the second
+    /// "mjolnir" reuses the first one's model and meshes.
+    Icon(ShapeKey, u64),
+    /// Extracted terrain / slice halves: per construct.
     Construct(ConstructId),
+}
+
+fn hash_spec(h: &mut impl std::hash::Hasher, s: &ShapeSpec) {
+    use std::hash::Hash;
+    s.prims.len().hash(h);
+    for p in &s.prims {
+        p.kind.hash(h);
+        p.tint.hash(h);
+        p.part.hash(h);
+        p.subtract.hash(h);
+        for v in [p.center, p.size, p.rot_deg] {
+            v.x.to_bits().hash(h);
+            v.y.to_bits().hash(h);
+            v.z.to_bits().hash(h);
+        }
+    }
+    for p in &s.parts {
+        p.id.hash(h);
+        p.parent.hash(h);
+        p.role.hash(h);
+        p.pivot.x.to_bits().hash(h);
+        p.pivot.y.to_bits().hash(h);
+        p.pivot.z.to_bits().hash(h);
+    }
+}
+
+fn icon_hash(shape: &ShapeSpec, alt: Option<&ShapeSpec>, name: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    hash_spec(&mut h, shape);
+    if let Some(a) = alt {
+        hash_spec(&mut h, a);
+    }
+    // Transformer rigs are seeded by the name.
+    name.hash(&mut h);
+    h.finish()
 }
 
 #[derive(Resource, Default)]
@@ -100,7 +141,8 @@ impl Plugin for ConstructsPlugin {
             .init_resource::<SwingCache>()
             .init_resource::<Provisionals>()
             .add_systems(OnExit(AppState::InGame), clear_constructs)
-            .add_systems(Update, (predicted_casts, construct_events, sync_constructs).chain().in_set(PresentSet::Sync));
+            .add_systems(Update, (predicted_casts, construct_events, sync_constructs).chain().in_set(PresentSet::Sync))
+            .add_systems(Update, prewarm_models.after(sync_constructs));
     }
 }
 
@@ -111,8 +153,10 @@ fn clear_constructs(mut commands: Commands, mut map: ResMut<ConstructEntities>) 
 }
 
 fn model_src(c: &bd_sim::constructs::Construct) -> ModelSrc {
-    if c.model.is_some() || c.shape.is_some() || c.slice.is_some() {
+    if c.model.is_some() || c.slice.is_some() {
         ModelSrc::Construct(c.id)
+    } else if let Some(s) = c.shape.as_deref() {
+        ModelSrc::Icon(ShapeKey::of(&c.recipe), icon_hash(s, c.alt_shape.as_deref(), &c.recipe.name))
     } else {
         ModelSrc::Recipe(ShapeKey::of(&c.recipe))
     }
@@ -122,16 +166,23 @@ fn start_build(cache: &mut ModelCache, src: ModelSrc, c: &bd_sim::constructs::Co
     if cache.ready.contains_key(&src) || cache.pending.contains_key(&src) {
         return;
     }
-    let recipe: Recipe = c.recipe.clone();
-    let shape: Option<ShapeSpec> = c.shape.as_deref().cloned();
-    let alt: Option<ShapeSpec> = c.alt_shape.as_deref().cloned();
+    let task = AsyncComputeTaskPool::get().spawn(build_task(src.clone(), c.recipe.clone(), c.shape.as_deref().cloned(), c.alt_shape.as_deref().cloned(), c.model.clone()));
+    cache.pending.insert(src, task);
+}
+
+/// The model build for `src` (worker thread).
+fn build_task(src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Option<ShapeSpec>, terrain: Option<Arc<bd_sim::constructs::VoxelModel>>) -> impl std::future::Future<Output = BuiltModel> + Send + 'static {
     let key = match &src {
         ModelSrc::Recipe(k) => Some(k.clone()),
-        ModelSrc::Construct(_) => None,
+        ModelSrc::Icon(..) | ModelSrc::Construct(_) => None,
     };
-    let task = AsyncComputeTaskPool::get().spawn(async move {
-        // Terrain lifted by a graft keeps its own voxel list in the sim; the client shows the
-        // recipe's shape for it (same footprint, hard light).
+    async move {
+        // Terrain lifted by a graft: its own voxels (materials tinted with hard light) + the
+        // phrase's hard-light limbs.
+        if let Some(t) = terrain {
+            let (m, colors) = super::animated_terrain::terrain_construct_model(&recipe, &t);
+            return BuiltModel { model: Arc::new(m), key: None, rig: None, colors: Some(Arc::new(colors)) };
+        }
         let transforms = recipe.has(Mechanic::Transforms);
         let rig = match (&shape, &alt) {
             (Some(s), Some(a)) if transforms => Some(Arc::new(bd_shapes::transform_rig_icon(&recipe, s, a))),
@@ -151,9 +202,104 @@ fn start_build(cache: &mut ModelCache, src: ModelSrc, c: &bd_sim::constructs::Co
             (None, Some(s)) => Arc::new(bd_shapes::build_icon_model(&recipe, s).1),
             (None, None) => Arc::new(bd_shapes::build_model(&recipe).1),
         };
-        BuiltModel { model, key: if rig.is_some() { None } else { key }, rig }
-    });
-    cache.pending.insert(src, task);
+        BuiltModel { model, key: if rig.is_some() { None } else { key }, rig, colors: None }
+    }
+}
+
+// ------------------------------------------------------------------------------ match-start prewarm
+
+/// DESIGN.md "Loadout slots are pre-built at match start": the bots' vocabulary and the local
+/// loadout phrases get their models built (worker threads) and meshed + uploaded (bd_fx, budgeted
+/// per frame) before anyone casts them, so a first cast never waits on — or uploads — a fresh model
+/// mid-fight. Re-runs when the match rules (scale limits) or the loadout change.
+#[derive(Default)]
+struct Prewarm {
+    rules: Option<bd_sim::MatchRules>,
+    loadout: Option<[String; 4]>,
+    /// Loadout phrases resolving on a worker (the lexicon is big; never on the frame).
+    resolving: Option<Task<Vec<(ModelSrc, Recipe, Option<ShapeSpec>, Option<ShapeSpec>)>>>,
+    /// Models to hand to bd_fx once built.
+    mesh: Vec<ModelSrc>,
+}
+
+fn src_for(recipe: &Recipe, shape: Option<&ShapeSpec>, alt: Option<&ShapeSpec>) -> ModelSrc {
+    match shape {
+        Some(s) => ModelSrc::Icon(ShapeKey::of(recipe), icon_hash(s, alt, &recipe.name)),
+        None => ModelSrc::Recipe(ShapeKey::of(recipe)),
+    }
+}
+
+fn prewarm_one(cache: &mut ModelCache, st: &mut Prewarm, src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Option<ShapeSpec>) {
+    if !cache.ready.contains_key(&src) && !cache.pending.contains_key(&src) {
+        let task = AsyncComputeTaskPool::get().spawn(build_task(src.clone(), recipe, shape, alt, None));
+        cache.pending.insert(src.clone(), task);
+    }
+    if !st.mesh.contains(&src) {
+        st.mesh.push(src);
+    }
+}
+
+fn prewarm_models(
+    active: Option<Res<ActiveWorld>>,
+    lex: Option<Res<crate::console::RingLexicon>>,
+    prefs: Option<Res<crate::lobby::prefs::UiPrefs>>,
+    mut cache: ResMut<ModelCache>,
+    mut meshes: ResMut<bd_fx::ConstructMeshCache>,
+    mut st: Local<Prewarm>,
+) {
+    let st = &mut *st;
+    let rules = active.as_ref().map(|a| a.world.rules().clone()).or_else(|| prefs.as_ref().map(|p| p.game.rules.clone())).unwrap_or_default();
+    if st.rules.as_ref() != Some(&rules) {
+        let w = bd_sim::bots::word_list();
+        for r in w.melee.iter().chain(&w.ranged).chain(&w.summon).chain(&w.thrown).chain(&w.defence).chain(&w.mobility) {
+            let r = bd_sim::willpower::validate_recipe(r.clone(), &rules);
+            prewarm_one(&mut cache, st, ModelSrc::Recipe(ShapeKey::of(&r)), r, None, None);
+        }
+        st.rules = Some(rules.clone());
+        st.loadout = None;
+    }
+    if let (Some(lex), Some(prefs)) = (lex.as_ref(), prefs.as_ref())
+        && st.resolving.is_none()
+        && st.loadout.as_ref() != Some(&prefs.loadout)
+    {
+        st.loadout = Some(prefs.loadout.clone());
+        let (lex, phrases, rules) = (lex.0.clone(), prefs.loadout.clone(), rules.clone());
+        st.resolving = Some(AsyncComputeTaskPool::get().spawn(async move {
+            phrases
+                .iter()
+                .filter(|p| !p.trim().is_empty())
+                .map(|p| lex.resolve(p.trim()))
+                .filter(|res| res.kind != bd_lexicon::ResolutionKind::Graft)
+                .map(|res| {
+                    let r = bd_sim::willpower::validate_recipe(res.recipe, &rules);
+                    (src_for(&r, res.shape.as_ref(), res.alt_shape.as_ref()), r, res.shape, res.alt_shape)
+                })
+                .collect()
+        }));
+    }
+    if let Some(t) = st.resolving.as_mut()
+        && let Some(list) = check_ready(t)
+    {
+        st.resolving = None;
+        for (src, r, shape, alt) in list {
+            prewarm_one(&mut cache, st, src, r, shape, alt);
+        }
+    }
+    // Built → bd_fx meshing (the same Arc / key a live construct will use, so it hits the cache).
+    if !st.mesh.is_empty() {
+        let cache = &*cache;
+        st.mesh.retain(|src| match cache.ready.get(src) {
+            Some(b) => {
+                let key = match &b.key {
+                    Some(k) => bd_fx::ModelKey::Shape(k.clone()),
+                    None => bd_fx::ModelKey::Ptr(Arc::as_ptr(&b.model) as usize),
+                };
+                meshes.prewarm(key, &b.model);
+                false
+            }
+            None => cache.pending.contains_key(src),
+        });
+    }
 }
 
 fn attack_of(kind: u8, aim: Vec3) -> Attack {
@@ -432,6 +578,9 @@ fn sync_constructs(
                 if let Some(k) = built.key.clone() {
                     vis = vis.with_key(k);
                 }
+                if let Some(cols) = built.colors.clone() {
+                    vis = vis.with_colors(cols);
+                }
                 if let Some(a) = c.recipe.accent {
                     vis = vis.with_accent(Color::srgb(a[0], a[1], a[2]).to_linear().to_f32_array_no_alpha());
                 }
@@ -488,7 +637,7 @@ fn sync_constructs(
                 let mut hidden = false;
                 if cv.attached() && local_owned && first_person {
                     match fp_held.as_deref() {
-                        Some(h) if h.active && h.construct == Some(cv.id) => *tf = h.grip,
+                        Some(h) if h.active && h.construct == Some(cv.id) => *tf = clamp_first_person(h.grip, &vis.model),
                         _ => hidden = c.recipe.form != Form::Parachute && c.category != FormCategory::Held,
                     }
                 } else if !frozen {
@@ -561,6 +710,30 @@ fn sync_constructs(
             commands.entity(e).remove::<SfxLoopEmitter>().try_insert(ConstructEnd::Dismiss { duration: 0.3 });
         }
     }
+}
+
+/// First-person held items: the farthest a held model may reach from the hand (m, view space).
+/// UI's viewmodel draws held items at a fixed fraction of world size; huge ones (a "giant hammer")
+/// would still cover the view, so their scale is clamped by this screen-coverage budget.
+const FP_MAX_REACH: f32 = 0.36;
+
+fn clamp_first_person(grip: Transform, model: &VoxelModel) -> Transform {
+    let b = &model.bounds;
+    let reach = (0..8)
+        .map(|i| {
+            let c = bd_core::Vec3::new(
+                if i & 1 == 0 { b.min.x } else { b.max.x },
+                if i & 2 == 0 { b.min.y } else { b.max.y },
+                if i & 4 == 0 { b.min.z } else { b.max.z },
+            );
+            c.length()
+        })
+        .fold(0.0f32, f32::max);
+    let s = grip.scale.max_element();
+    if !(reach.is_finite() && s.is_finite()) || reach * s <= FP_MAX_REACH || reach <= 0.0 {
+        return grip;
+    }
+    Transform { scale: grip.scale * (FP_MAX_REACH / (reach * s)), ..grip }
 }
 
 /// Where a construct sits this frame.
@@ -700,7 +873,7 @@ fn predicted_casts(
             let key = ShapeKey::of(&r);
             let task = AsyncComputeTaskPool::get().spawn(async move {
                 let model = Arc::new(bd_shapes::build_model(&r).1);
-                BuiltModel { model, key: Some(key), rig: None }
+                BuiltModel { model, key: Some(key), rig: None, colors: None }
             });
             cache.pending.insert(src.clone(), task);
         }

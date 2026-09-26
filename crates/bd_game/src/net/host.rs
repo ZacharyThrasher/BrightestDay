@@ -145,6 +145,8 @@ pub struct HostCore {
     pub terrain_check_every: u64,
     pub port: u16,
     pub lan: bool,
+    /// Shouts received from remote players (drained by `present::shout`, which relays them).
+    pub shouts_in: Vec<(PlayerId, crate::present::shout::ShoutLine)>,
 }
 
 impl HostCore {
@@ -184,6 +186,7 @@ impl HostCore {
             terrain_check_every: TERRAIN_CHECK_EVERY,
             port,
             lan: s.lan,
+            shouts_in: Vec::new(),
         })
     }
 
@@ -459,6 +462,11 @@ impl HostCore {
                     r.last_keyframe = now;
                     r.enc.reset();
                     self.stats.keyframes += 1;
+                }
+            }
+            C2S::Shout(line) => {
+                if self.remotes[i].in_world && self.shouts_in.len() < 32 {
+                    self.shouts_in.push((from, line));
                 }
             }
             C2S::Resync => {

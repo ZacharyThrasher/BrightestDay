@@ -150,18 +150,19 @@ impl OnomatopoeiaTable {
 
 // ------------------------------------------------------------------------------------ internals
 
-struct Glyph {
-    model: Arc<VoxelModel>,
-    mesh: Handle<Mesh>,
+pub(crate) struct Glyph {
+    pub(crate) model: Arc<VoxelModel>,
+    pub(crate) mesh: Handle<Mesh>,
     /// Mesh centre in glyph model space (m).
-    offset: Vec3,
+    pub(crate) offset: Vec3,
     /// Advance (m, before word scale).
-    advance: f32,
+    pub(crate) advance: f32,
 }
 
+/// Shared with [`crate::shout`].
 #[derive(Resource, Default)]
-struct GlyphCache {
-    glyphs: HashMap<char, Glyph>,
+pub(crate) struct GlyphCache {
+    pub(crate) glyphs: HashMap<char, Glyph>,
 }
 
 struct Letter {

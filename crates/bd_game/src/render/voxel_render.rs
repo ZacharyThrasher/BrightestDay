@@ -13,10 +13,18 @@
 //! nearest-to-[`RemeshQueue::focus`] first (the camera).
 //!
 //! All chunks share one vertex-coloured material ([`VoxelMaterials::opaque`]); Bevy batches them.
+//! It is a `StandardMaterial` extended with a neon glow ([`VoxelGlow`]): the mesher's per-vertex
+//! emissive channel rides in the vertex colour's alpha (ignored by the opaque PBR path), and
+//! materials with emissive ≥ 0.5 (neon, crystals) gain `base colour × weight × neon_boost` of raw HDR
+//! emission so they bloom. `neon_boost` = the map's (`MapInfo::neon_boost`; 0 on Archipelago ⇒
+//! output identical to a plain `StandardMaterial`).
 
 use bevy::camera::primitives::Aabb;
 use bevy::camera::visibility::NoAutoAabb;
-use bevy::asset::RenderAssetUsages;
+use bevy::asset::{load_internal_asset, uuid_handle, RenderAssetUsages};
+use bevy::pbr::{ExtendedMaterial, MaterialExtension, MaterialPlugin};
+use bevy::render::render_resource::AsBindGroup;
+use bevy::shader::ShaderRef;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::*;
@@ -32,8 +40,14 @@ pub fn chunk_mesh_aabb(cm: &ChunkMesh) -> Option<Aabb> {
     Aabb::enclosing(cm.positions.iter().map(|p| Vec3::from_array(*p)))
 }
 
-/// Moves the arrays into a Bevy mesh (no copies). CPU data is dropped after GPU upload.
-pub fn chunk_mesh_into_bevy(cm: ChunkMesh) -> Mesh {
+/// Moves the arrays into a Bevy mesh (no copies). CPU data is dropped after GPU upload. The
+/// emissive channel is packed into the colour alpha (see the module docs).
+pub fn chunk_mesh_into_bevy(mut cm: ChunkMesh) -> Mesh {
+    if cm.emissive.len() == cm.colors.len() {
+        for (c, e) in cm.colors.iter_mut().zip(&cm.emissive) {
+            c[3] = e.clamp(0.0, 1.0);
+        }
+    }
     Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD)
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, cm.positions)
         .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, cm.normals)
@@ -41,10 +55,31 @@ pub fn chunk_mesh_into_bevy(cm: ChunkMesh) -> Mesh {
         .with_inserted_indices(Indices::U32(cm.indices))
 }
 
+const VOXEL_SHADER: Handle<Shader> = uuid_handle!("6c1f3a50-8e2b-4d71-9c3e-5b0f7a2d9e11");
+
+/// Neon glow extension of the terrain material.
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
+pub struct VoxelGlow {
+    /// x = neon boost (map), y = glow gain, zw unused.
+    #[uniform(100)]
+    pub params: Vec4,
+}
+
+/// Emission gain on top of `neon_boost` (neon base colour × boost × gain, raw HDR).
+pub const NEON_GAIN: f32 = 1.6;
+
+impl MaterialExtension for VoxelGlow {
+    fn fragment_shader() -> ShaderRef {
+        VOXEL_SHADER.into()
+    }
+}
+
+pub type VoxelMaterial = ExtendedMaterial<StandardMaterial, VoxelGlow>;
+
 #[derive(Resource, Clone)]
 pub struct VoxelMaterials {
     /// Shared vertex-colour terrain material.
-    pub opaque: Handle<StandardMaterial>,
+    pub opaque: Handle<VoxelMaterial>,
 }
 
 /// Render entity of one chunk.
@@ -152,21 +187,41 @@ pub struct VoxelRenderPlugin;
 
 impl Plugin for VoxelRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<RemeshQueue>()
+        load_internal_asset!(app, VOXEL_SHADER, "voxel.wgsl", Shader::from_wgsl);
+        app.add_plugins(MaterialPlugin::<VoxelMaterial>::default())
+            .init_resource::<RemeshQueue>()
             .add_systems(Startup, create_materials)
-            .add_systems(PostUpdate, drive_remesh_queue);
+            .add_systems(PostUpdate, drive_remesh_queue)
+            .add_systems(Update, sync_neon_boost);
     }
 }
 
-fn create_materials(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
-    let opaque = materials.add(StandardMaterial {
-        base_color: Color::WHITE,
-        perceptual_roughness: 0.92,
-        metallic: 0.0,
-        reflectance: 0.25,
-        ..default()
+fn create_materials(mut commands: Commands, mut materials: ResMut<Assets<VoxelMaterial>>) {
+    let opaque = materials.add(VoxelMaterial {
+        base: StandardMaterial {
+            base_color: Color::WHITE,
+            perceptual_roughness: 0.92,
+            metallic: 0.0,
+            reflectance: 0.25,
+            ..default()
+        },
+        extension: VoxelGlow { params: Vec4::new(0.0, NEON_GAIN, 0.0, 0.0) },
     });
     commands.insert_resource(VoxelMaterials { opaque });
+}
+
+/// The loaded map's neon boost → the terrain material (only when the map changes).
+fn sync_neon_boost(arena: Option<Res<crate::arena::ArenaWorld>>, vm: Option<Res<VoxelMaterials>>, mut materials: ResMut<Assets<VoxelMaterial>>) {
+    let (Some(arena), Some(vm)) = (arena, vm) else { return };
+    if !arena.is_changed() {
+        return;
+    }
+    let boost = arena.info.neon_boost.max(0.0);
+    if materials.get(&vm.opaque).is_some_and(|m| m.extension.params.x != boost)
+        && let Some(mut m) = materials.get_mut(&vm.opaque)
+    {
+        m.extension.params.x = boost;
+    }
 }
 
 fn drive_remesh_queue(

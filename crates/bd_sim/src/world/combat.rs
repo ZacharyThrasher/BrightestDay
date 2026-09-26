@@ -187,6 +187,10 @@ impl World {
         if damage > 0.0 {
             self.interrupt_oath(ti);
         }
+        // CHARGE HOOK: any hit breaks a power-up.
+        if damage > 0.0 || kb > 0.5 {
+            self.interrupt_charge(ti);
+        }
         let lethal = false;
         let weight = hit.impact * if hit.kind == HitKind::HeavyMelee { 1.3 } else { 1.0 };
         let impact = impact_fx(damage, kb, weight, dir, v_close);
@@ -316,6 +320,7 @@ impl World {
             p.last_attacker = Some((s, self.tick));
         }
         self.interrupt_oath(i);
+        self.interrupt_charge(i); // CHARGE HOOK
     }
 
     /// Tumbling impacts recorded by movement: bonus damage, a crater, a bounce.
@@ -463,11 +468,12 @@ impl World {
             let held = s.construct.and_then(|c| self.constructs.get(c)).is_some_and(|c| c.attached());
             self.fire_projectile(s, view, held.then_some(s.owner));
         }
-        for (pid, aim, strength) in out.recoils.drain(..) {
-            self.recoil(pid, aim, strength);
-        }
+        // Hitscan before recoil: the momentum bonus reads the shooter's velocity at the trigger pull.
         for h in out.hitscans.drain(..) {
             self.hitscan(h);
+        }
+        for (pid, aim, strength) in out.recoils.drain(..) {
+            self.recoil(pid, aim, strength);
         }
         for (pid, dv, tumble) in out.impulses.drain(..) {
             if let Some(i) = self.pidx(pid) {

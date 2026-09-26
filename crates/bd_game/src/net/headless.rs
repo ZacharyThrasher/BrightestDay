@@ -89,7 +89,11 @@ pub fn run_host(cli: &NetCli) -> i32 {
             }
         }
     }
-    let kind = if cli.map.as_deref() == Some("miami") { NetMapKind::Miami } else { NetMapKind::Archipelago };
+    let kind = match cli.map.as_deref() {
+        Some("miami") => NetMapKind::Miami,
+        Some("orbit") => NetMapKind::Orbit,
+        _ => NetMapKind::Archipelago,
+    };
     let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 }, cli.seed);
     let mut active = ActiveWorld::new(world, Some(host.me), SimRole::Host);
     let mut bots: Vec<BotBrain> = Vec::new();

@@ -2,7 +2,9 @@
 //!
 //! Output is plain data ([`ChunkMesh`]) in world-space metres so the client can upload it to any
 //! renderer (Bevy: `Mesh::ATTRIBUTE_POSITION / NORMAL / COLOR` + `Indices::U32`). Colours are
-//! **linear** RGBA with AO, face shading and jitter baked in; alpha is always 1.
+//! **linear** RGBA with AO, face shading and jitter baked in; alpha is always 1. A separate per-vertex
+//! [`ChunkMesh::emissive`] channel carries the material's self-light (0 = lit surface … 1 = neon), so a
+//! renderer can add glow on top (e.g. Miami's `neon_boost`) without re-deriving materials.
 //!
 //! Meshing only reads `&VoxelWorld`, so any number of chunks can be meshed in parallel on worker
 //! threads (use one [`Mesher`] scratch per thread to avoid allocations).
@@ -21,6 +23,8 @@ pub struct ChunkMesh {
     pub normals: Vec<[f32; 3]>,
     /// Linear RGBA.
     pub colors: Vec<[f32; 4]>,
+    /// Per-vertex emissive weight: the voxel material's [`crate::MaterialDef::emissive`] (0 … 1).
+    pub emissive: Vec<f32>,
     pub indices: Vec<u32>,
 }
 
@@ -29,6 +33,7 @@ impl ChunkMesh {
         self.positions.clear();
         self.normals.clear();
         self.colors.clear();
+        self.emissive.clear();
         self.indices.clear();
     }
     pub fn is_empty(&self) -> bool {
@@ -197,6 +202,7 @@ impl Mesher {
                             let occl = AO_CURVE[ao[k] as usize];
                             let light = (occl + (1.0 - occl) * emissive) * shade;
                             out.colors.push([c[0] * light, c[1] * light, c[2] * light, 1.0]);
+                            out.emissive.push(emissive);
                         }
                         // Split along the diagonal whose endpoints differ most (so a single dark or
                         // bright corner fans smoothly instead of forming a hard triangle); tie →
@@ -257,6 +263,20 @@ mod tests {
         // Unoccluded ⇒ full AO everywhere.
         let top: Vec<_> = (0..m.vertex_count()).filter(|&i| m.normals[i][1] > 0.5).collect();
         assert_eq!(top.len(), 4);
+    }
+
+    #[test]
+    fn emissive_channel_follows_material() {
+        let mut w = VoxelWorld::centered(IVec3::new(64, 64, 64));
+        w.set(IVec3::new(1, 1, 1), crate::material::mat::STONE);
+        w.set(IVec3::new(5, 1, 1), crate::material::mat::NEON_PINK);
+        let m = mesh_chunk(&w, IVec3::ZERO);
+        assert_eq!(m.emissive.len(), m.vertex_count());
+        let lit = m.emissive.iter().filter(|e| **e == 0.0).count();
+        let neon = m.emissive.iter().filter(|e| **e == 1.0).count();
+        assert_eq!((lit, neon), (24, 24));
+        // Colours are unchanged by the channel (alpha stays 1).
+        assert!(m.colors.iter().all(|c| c[3] == 1.0));
     }
 
     #[test]

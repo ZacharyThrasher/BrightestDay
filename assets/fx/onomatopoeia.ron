@@ -47,4 +47,23 @@
         "medal_bronze": (en: ["BRONZE"], manga: ["BRONZE"], tint: Some((0.90, 0.55, 0.30))),
         "ko":        (en: ["K.O.!"], manga: ["K.O.!"], tint: None, size: 1.4),
     },
+    // ---- Shout callouts (bd_fx::shout): the words a player types / yells burst out as letters.
+    // amplifiers: whole words (lower-case) that pump a shout up (+energy; any one also adds the
+    //   flourish: second shockwave + shine sweep). Hype words only — never franchise names.
+    // joiners: attack-name style "<kicker> <joiner> <headline>" → small kicker line over a huge
+    //   headline ("GOMU GOMU NO" / "PISTOL").
+    // voice_talk / voice_yell: peak mic level (0..1 = -60..-6 dBFS) where talking turns into a yell
+    //   and where a full yell is reached (tune per mic if yells look small).
+    shout: (
+        amplifiers: {
+            "super": 0.25, "mega": 0.35, "ultra": 0.45, "giga": 0.5, "hyper": 0.35, "omega": 0.45,
+            "ultimate": 0.45, "final": 0.3, "max": 0.3, "maximum": 0.35, "turbo": 0.3, "supreme": 0.35,
+            "infinite": 0.4, "almighty": 0.4, "true": 0.15, "grand": 0.2, "god": 0.3,
+            "mighty": 0.2, "special": 0.2, "secret": 0.2, "technique": 0.25,
+            "unleash": 0.3, "behold": 0.3, "eat": 0.15, "taste": 0.15, "feel": 0.15,
+        },
+        joiners: ["no"],
+        voice_talk: 0.55,
+        voice_yell: 0.92,
+    ),
 )

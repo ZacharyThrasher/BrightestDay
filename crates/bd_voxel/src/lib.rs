@@ -9,7 +9,7 @@
 //! - [`arena`]: the seeded Archipelago arena and a flat movement lab.
 //! - [`tutorial`]: the movement tutorial course (stations + peak run).
 //! - [`city`]: the reusable city kit (towers, deco hotels, streets, palms, bridges, ship, props).
-//! - [`maps`]: themed city maps built from the kit ([`generate_miami`]).
+//! - [`maps`]: themed maps built from the kits ([`generate_miami`], [`generate_orbit`]).
 //!
 //! Typical host/client flow:
 //! ```
@@ -35,10 +35,10 @@ pub mod noise;
 pub mod tutorial;
 pub mod world;
 
-pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, generate_arena, generate_flat_test};
+pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, generate_arena, generate_flat_test};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use material::{DebrisClass, MATERIALS, MaterialDef, mat, material_def};
-pub use maps::{District, MIAMI_SIZE_VOXELS, MapInfo, Route, RouteKind, generate_miami};
+pub use maps::{District, MIAMI_SIZE_VOXELS, MapInfo, ORBIT_SIZE_VOXELS, Route, RouteKind, generate_miami, generate_orbit};
 pub use mesh::{ChunkMesh, Mesher, mesh_chunk};
 pub use tutorial::{Medals, Station, TutorialInfo, generate_tutorial, medals_from_bot};
 pub use world::{CHUNK_SIZE, CHUNK_VOLUME, VoxelWorld, chunk_of, chunk_origin};

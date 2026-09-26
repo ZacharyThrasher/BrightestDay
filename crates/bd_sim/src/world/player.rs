@@ -89,6 +89,8 @@ pub struct Player {
     pub portal_pending: Option<crate::space::PortalEnd>,
     /// POWERS HOOK: held player power (devil fruit / stand), COMBAT.md §5h.
     pub power: crate::powers::PlayerPower,
+    /// CHARGE HOOK: holding the charge button (anime power-up, `crate::charge`).
+    pub charge: crate::charge::ChargeState,
 }
 
 impl Player {
@@ -136,6 +138,7 @@ impl Player {
             portal_slot: 0,
             portal_pending: None,
             power: Default::default(),
+            charge: Default::default(),
         }
     }
 
@@ -157,9 +160,9 @@ impl Player {
         self.input.look_dir()
     }
 
-    /// Stunned, reciting or seated in a cockpit: can't attack.
+    /// Stunned, reciting, charging or seated in a cockpit: can't attack.
     pub fn busy(&self) -> bool {
-        !self.alive || self.status.stunned() || self.oath.reciting() || self.seat.is_some_and(|s| !s.suit)
+        !self.alive || self.status.stunned() || self.oath.reciting() || self.charge.active || self.seat.is_some_and(|s| !s.suit)
     }
 
     pub fn shielded(&self) -> bool {

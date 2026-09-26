@@ -624,6 +624,7 @@ pub fn generate_miami(seed: u64) -> (VoxelWorld, MapInfo) {
         sky_horizon: [1.0, 0.62, 0.42],
         fog_color: [0.96, 0.58, 0.60],
         ambient: 0.46,
+        gravity: None,
     };
     let districts = vec![
         District { name: "brickell", center: Vec3::new(-66.0, ROAD_Y, 20.0), area: [-96.0, -67.0, -36.0, 96.0] },

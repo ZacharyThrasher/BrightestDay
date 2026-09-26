@@ -89,7 +89,7 @@ pub struct ProjectileSpawn {
 }
 
 impl ProjectileSpawn {
-    /// The empty-hand ring blast (COMBAT.md §4): 90 m/s, 7 dmg, 5 kb.
+    /// The empty-hand ring blast (COMBAT.md §4): a fat 0.35 m bolt at 180 m/s, 12 dmg, 9 kb.
     pub fn ring_blast(owner: PlayerId, pos: Vec3, dir: Vec3) -> Self {
         use crate::combat::*;
         Self {

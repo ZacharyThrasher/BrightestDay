@@ -75,6 +75,8 @@ const ER_TAPS: [(f32, f32, f32); 6] =
 
 pub struct Reverb {
     sr: f32,
+    /// Send high-pass: sub never feeds the tail (no low-end mud build-up).
+    in_hp: crate::dsp::Svf,
     lines: [Delay; LINES],
     damp: [f32; LINES],
     pre: Delay,
@@ -100,6 +102,7 @@ impl Reverb {
         let p = ReverbParams::default();
         let mut r = Self {
             sr,
+            in_hp: crate::dsp::Svf::new(160.0, 0.707, sr),
             lines,
             damp: [0.0; LINES],
             pre: Delay::new((0.09 * sr) as usize),
@@ -181,7 +184,7 @@ impl Reverb {
         let a = self.damp_a;
         let norm = 1.0 / (LINES as f32).sqrt();
         for f in 0..n {
-            let mono = 0.5 * (inp[2 * f] + inp[2 * f + 1]);
+            let mono = self.in_hp.hp(0.5 * (inp[2 * f] + inp[2 * f + 1]));
             // Early reflections read from the (un-predelayed) send.
             self.er.push(mono);
             let mut el = 0.0;
@@ -232,6 +235,7 @@ impl Reverb {
         for d in self.damp.iter_mut() {
             *d = flush(*d);
         }
+        self.in_hp.sanitize();
         self.slap_lp[0] = flush(self.slap_lp[0]);
     }
 

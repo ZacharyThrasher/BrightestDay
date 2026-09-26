@@ -44,11 +44,13 @@ pub const MOMENTUM_MAX_BONUS: f32 = 0.6;
 pub const STREAK_SPEED: f32 = 20.0;
 
 // Ring (empty hand): a meaty fist of light (COMBAT.md §4).
-pub const BLAST_SPEED: f32 = 75.0;
+/// Fast and fat (players move 20–50 m/s): still a readable bolt, but it arrives.
+pub const BLAST_SPEED: f32 = 180.0;
 pub const BLAST_DAMAGE: f32 = 12.0;
 pub const BLAST_KNOCKBACK: f32 = 9.0;
 pub const BLAST_COOLDOWN: f32 = 0.4;
-pub const BLAST_RADIUS: f32 = 0.25;
+/// Swept-sphere radius of the ring blast (m).
+pub const BLAST_RADIUS: f32 = 0.35;
 pub const BLAST_LIFETIME: f32 = 1.4;
 /// Recoil impulses on the ground are scaled by this (in the air ×1.0) — COMBAT.md §4b.
 pub const GROUND_RECOIL: f32 = 0.35;

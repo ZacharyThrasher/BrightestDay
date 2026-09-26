@@ -146,7 +146,7 @@ fn spin(c: &mut Construct, dt: f32) {
 
 /// Swept move of the centre with voxel collision (reflect), then footprint ground resolution.
 fn ballistic(c: &mut Construct, env: &Env<'_>, dt: f32) {
-    c.vel.y -= GRAVITY * c.body.gravity * dt;
+    c.vel.y -= GRAVITY * c.body.gravity * env.ctx.gravity_at(c.pos.y) * dt;
     let v = env.ctx.voxels;
     sweep(c, env, dt);
     // Ground under the footprint.
@@ -238,7 +238,7 @@ fn sweep(c: &mut Construct, env: &Env<'_>, dt: f32) {
 /// Ground walker: gravity + ground following with step-up.
 fn walk(c: &mut Construct, env: &Env<'_>, dt: f32) {
     let v = env.ctx.voxels;
-    c.vel.y -= GRAVITY * c.body.gravity * dt;
+    c.vel.y -= GRAVITY * c.body.gravity * env.ctx.gravity_at(c.pos.y) * dt;
     // Pivot → feet offset (objects pivot at their centre, structures / creatures at their feet).
     let foot = (c.pos.y - c.bounds().min.y).max(0.0);
     c.pos.y -= foot;

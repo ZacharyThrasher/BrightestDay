@@ -46,6 +46,9 @@ pub mod output;
 #[cfg(feature = "sim")]
 pub mod game;
 
+#[cfg(feature = "music")]
+pub mod music;
+
 pub use acoustics::{ListenerSpace, SpaceEstimate, SpacePreset, occlusion};
 pub use ambience::{AmbienceDirector, EmitterMap, MapAudio, MapAudioTable, Zone};
 pub use bank::{Pcm, SoundBank, SoundData, SoundId};
