@@ -31,10 +31,10 @@ use bd_core::mechanics::{Element, Form, FormCategory, Mechanic, Recipe};
 use bd_core::{ConstructId, PlayerId, Tick};
 use serde::{Deserialize, Serialize};
 
+use crate::World;
 use crate::combat::HitKind;
 use crate::events::{GameEvent, KoCause};
 use crate::legendary::{self, LegendaryTuning, NoveltySet, PhraseKey};
-use crate::World;
 
 /// Longest phrase kept for the feed / highlights (the shout words cap, `bd_fx::SHOUT_MAX_CHARS`).
 pub const PHRASE_MAX: usize = 48;
@@ -173,28 +173,28 @@ impl FreedomTuning {
 
 /// Kill-feed verbs (data table; index = the `verb` byte of [`FeedLine`]).
 pub const VERBS: &[&str] = &[
-    "bonked",      // 0 default
-    "flattened",   // 1 heavy / dropped / stomped / crushed / earth
-    "zapped",      // 2 electric
-    "torched",     // 3 fire / atomic
-    "frozen",      // 4 ice
-    "launched",    // 5 launch / bounce
-    "skewered",    // 6 pierce
-    "sliced",      // 7 blade
-    "blown up",    // 8 explodes / explosion
-    "chomped",     // 9 creature
-    "swarmed",     // 10 swarm
-    "squeezed",    // 11 grab / constrict
-    "lasered",     // 12 beam
-    "washed away", // 13 water
-    "blown away",  // 14 wind
-    "poisoned",    // 15 poison
-    "run over",    // 16 charge / fast / vehicle
-    "shot",        // 17 shoots / guns
-    "blasted",     // 18 ring blast / no construct
+    "bonked",       // 0 default
+    "flattened",    // 1 heavy / dropped / stomped / crushed / earth
+    "zapped",       // 2 electric
+    "torched",      // 3 fire / atomic
+    "frozen",       // 4 ice
+    "launched",     // 5 launch / bounce
+    "skewered",     // 6 pierce
+    "sliced",       // 7 blade
+    "blown up",     // 8 explodes / explosion
+    "chomped",      // 9 creature
+    "swarmed",      // 10 swarm
+    "squeezed",     // 11 grab / constrict
+    "lasered",      // 12 beam
+    "washed away",  // 13 water
+    "blown away",   // 14 wind
+    "poisoned",     // 15 poison
+    "run over",     // 16 charge / fast / vehicle
+    "shot",         // 17 shoots / guns
+    "blasted",      // 18 ring blast / no construct
     "mind-blasted", // 19 psychic
-    "swallowed",   // 20 shadow
-    "sent flying", // 21 blast zone with no construct
+    "swallowed",    // 20 shadow
+    "sent flying",  // 21 blast zone with no construct
 ];
 /// `verb` byte for a KO with no killer ("Sam fell").
 pub const VERB_FELL: u8 = 255;
@@ -402,7 +402,8 @@ impl Book {
         self.wildest.truncate(3);
     }
     fn offer_line(&mut self, score: f32, line: FeedLine) {
-        if line.phrase.is_empty() || self.lines.iter().any(|(_, l)| l.phrase.eq_ignore_ascii_case(&line.phrase) && l.victim == line.victim) {
+        if line.phrase.is_empty() || self.lines.iter().any(|(_, l)| l.phrase.eq_ignore_ascii_case(&line.phrase) && l.victim == line.victim)
+        {
             return;
         }
         self.lines.push((score, line));
@@ -730,7 +731,13 @@ pub(crate) fn end_of_tick(w: &mut World) {
                 let hit = hit.filter(|h| Some(h.2) == killer && w.tick.saturating_sub(h.4) <= credit);
                 let tag = hit.and_then(|h| f.tag(h.1).map(|t| (t.clone(), h.3)));
                 let line = match (&tag, killer) {
-                    (Some((t, kind)), _) => FeedLine { victim, killer, phrase: t.phrase.clone(), verb: verb_with_kind(t.verb, Some(*kind)), legendary: t.legendary },
+                    (Some((t, kind)), _) => FeedLine {
+                        victim,
+                        killer,
+                        phrase: t.phrase.clone(),
+                        verb: verb_with_kind(t.verb, Some(*kind)),
+                        legendary: t.legendary,
+                    },
                     (None, Some(_)) => {
                         let verb = if cause == KoCause::BlastZone || zone.is_some() { 21 } else { 18 };
                         FeedLine { victim, killer, phrase: String::new(), verb, legendary: false }
@@ -785,7 +792,13 @@ mod tests {
 
     #[test]
     fn feed_text_and_filter() {
-        let line = FeedLine { victim: PlayerId(1), killer: Some(PlayerId(2)), phrase: "King Kong on a skateboard".into(), verb: 1, legendary: false };
+        let line = FeedLine {
+            victim: PlayerId(1),
+            killer: Some(PlayerId(2)),
+            phrase: "King Kong on a skateboard".into(),
+            verb: 1,
+            legendary: false,
+        };
         let none = |_: &str| false;
         assert_eq!(feed_text(&line, "Sam", Some("Jake"), none), "Sam was flattened by KING KONG ON A SKATEBOARD");
         let bad = |w: &str| w.eq_ignore_ascii_case("kong");

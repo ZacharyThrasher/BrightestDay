@@ -92,7 +92,8 @@ pub fn post_move(store: &ConstructStore, pid: PlayerId, input: &PlayerInput, st:
             continue;
         }
         let bounce = eff_has(c, Mechanic::Bounce);
-        let launch = eff_has(c, Mechanic::Launch);
+        // SURF: a gliding (surf) ramp is ridden, never a launch pad.
+        let launch = eff_has(c, Mechanic::Launch) && !(c.recipe.form == bd_core::mechanics::Form::Ramp && eff_has(c, Mechanic::Glide));
         if !bounce && !launch {
             continue;
         }

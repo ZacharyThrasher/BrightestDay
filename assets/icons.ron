@@ -3986,4 +3986,22 @@
         )),
         source: "Warner Bros. (The Iron Giant)",
     ),
+    // SURF: a steep gliding ramp of hard light (60°: a surf face — movement/surf.rs). Glide marks it
+    // steep and never a launch pad (world/actions.rs place_structure, constructs/structure.rs).
+    IconEntry(
+        names: ["surf ramp", "surfing ramp", "surf ramps", "half pipe", "halfpipe", "half-pipe", "quarter pipe", "quarterpipe", "quarter-pipe", "skate ramp", "skateboard ramp", "skate park ramp", "vert ramp"],
+        recipe: (
+            name: "Surf Ramp",
+            form: Ramp,
+            mechanics: [Glide],
+            element: Light,
+            scale: 12.0,
+            mass: 400.0,
+            count: 1,
+            accent: Some((0.6, 0.9, 1.0)),
+            model: Procedural(seed: 71),
+        ),
+        shape: None,
+        source: "generic (CS surf / skateparks)",
+    ),
 ]

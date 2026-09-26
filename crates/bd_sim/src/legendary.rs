@@ -29,8 +29,9 @@ pub const MAX_TOKENS: usize = 12;
 
 /// Words that carry no concept ("a", "the", "with", …) — dropped before hashing.
 const STOP: &[&str] = &[
-    "a", "an", "the", "of", "with", "and", "on", "in", "at", "to", "for", "that", "this", "it", "is", "my", "your", "some", "into", "onto", "from", "by", "its", "are", "be",
-    "who", "which", "very", "so", "too", "just", "now", "please", "big", "giant", "huge", "small", "tiny", "little", "mega", "super",
+    "a", "an", "the", "of", "with", "and", "on", "in", "at", "to", "for", "that", "this", "it", "is", "my", "your", "some", "into", "onto",
+    "from", "by", "its", "are", "be", "who", "which", "very", "so", "too", "just", "now", "please", "big", "giant", "huge", "small",
+    "tiny", "little", "mega", "super",
 ];
 
 /// FNV-1a (stable across platforms/runs).
@@ -83,7 +84,8 @@ impl PhraseKey {
             v.dedup();
             v
         };
-        let key = if toks.is_empty() { fnv(phrase.trim().to_ascii_lowercase().as_bytes()) ^ 0x5bd1_e995 } else { fnv(toks.join(" ").as_bytes()) };
+        let key =
+            if toks.is_empty() { fnv(phrase.trim().to_ascii_lowercase().as_bytes()) ^ 0x5bd1_e995 } else { fnv(toks.join(" ").as_bytes()) };
         PhraseKey { key, tokens }
     }
 }
@@ -276,7 +278,7 @@ pub fn chance(n: &Novelty, t: &LegendaryTuning) -> f32 {
 /// The deterministic roll: its own RNG from (seed, tick, caster, phrase) — host and any replica
 /// running the same cast agree, and no other random stream moves.
 pub fn roll(seed: u64, tick: Tick, player: PlayerId, phrase_key: u64, chance: f32) -> bool {
-    if !(chance > 0.0) {
+    if chance.is_nan() || chance <= 0.0 {
         return false;
     }
     let s = seed ^ tick.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ ((player.0 as u64) << 56) ^ phrase_key.rotate_left(29) ^ 0x1E6E_17DA_u64;

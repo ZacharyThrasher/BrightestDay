@@ -77,6 +77,12 @@ pub enum Cue {
     WorldDuck,
     /// Beat-quantised music stinger.
     MusicStinger,
+    /// An erasing orb in flight (Hollow Purple): start / stop the travel roar.
+    OrbTravel { on: bool },
+    /// The orb deleted something (terrain / construct / player hit).
+    EraseImpact,
+    /// A fusion windup's two orbs merge.
+    MergeFlash,
 }
 
 impl Cue {
@@ -90,6 +96,9 @@ impl Cue {
             Cue::UltFire => "ult_fire",
             Cue::WorldDuck => "world_duck",
             Cue::MusicStinger => "music_stinger",
+            Cue::OrbTravel { .. } => "purple_travel_loop",
+            Cue::EraseImpact => "erase_impact",
+            Cue::MergeFlash => "merge_flash",
         }
     }
 }
@@ -353,7 +362,7 @@ fn spawn_tint(mut commands: Commands) {
 }
 
 /// Element → grade / cut-in accent (linear RGB); Light uses the caster's corps colour.
-fn element_rgb(e: Element, corps: [f32; 3]) -> [f32; 3] {
+pub(super) fn element_rgb(e: Element, corps: [f32; 3]) -> [f32; 3] {
     match e {
         Element::Light => corps,
         Element::Fire => [1.0, 0.32, 0.06],

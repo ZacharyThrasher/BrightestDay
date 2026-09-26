@@ -83,10 +83,12 @@ fn push_word(text: &str, start: usize, end: usize, out: &mut Vec<Word>) {
 }
 
 /// Words that open a phrase without meaning anything ("ok now make it bigger").
-const FILLER: &[&str] = &["ok", "okay", "now", "please", "and", "then", "oh", "hey", "yo", "quick", "quickly", "alright", "right", "so", "just", "go"];
+const FILLER: &[&str] =
+    &["ok", "okay", "now", "please", "and", "then", "oh", "hey", "yo", "quick", "quickly", "alright", "right", "so", "just", "go"];
 /// Light verbs before a pronoun ("make it …", "give it …") or a graft ("put wings on it").
 const LIGHT: &[&str] = &[
-    "make", "set", "give", "let", "have", "turn", "get", "put", "add", "attach", "stick", "strap", "slap", "light", "paint", "coat", "cover",
+    "make", "set", "give", "let", "have", "turn", "get", "put", "add", "attach", "stick", "strap", "slap", "light", "paint", "coat",
+    "cover",
 ];
 const PRONOUN: &[&str] = &["it", "that", "them", "this", "those"];
 /// Joiners between a light verb's pronoun and the rest that the resolver would only ignore.
@@ -210,10 +212,10 @@ fn it_rest(text: &str, rest: String, keys: &[&str]) -> Option<Refer> {
     if rest.is_empty() {
         return None;
     }
-    if keys.len() == 1 {
-        if let Some((_, canon)) = COMPARATIVE.iter().find(|(w, _)| *w == keys[0]) {
-            return Some(Refer::It { rest: shout_case(text, canon) });
-        }
+    if keys.len() == 1
+        && let Some((_, canon)) = COMPARATIVE.iter().find(|(w, _)| *w == keys[0])
+    {
+        return Some(Refer::It { rest: shout_case(text, canon) });
     }
     Some(Refer::It { rest })
 }
@@ -232,7 +234,9 @@ fn again(ws: &[Word]) -> Option<Refer> {
     let had_again = keys.contains(&"again");
     match k.as_slice() {
         [] if had_again => Some(Refer::Again { count: None }),
-        ["encore"] | ["repeat"] | ["more"] | ["another"] | ["same"] | ["same", "thing"] | ["same", "again"] => Some(Refer::Again { count: None }),
+        ["encore"] | ["repeat"] | ["more"] | ["another"] | ["same"] | ["same", "thing"] | ["same", "again"] => {
+            Some(Refer::Again { count: None })
+        }
         ["do", p] | ["do", p, "over"] if PRONOUN.contains(p) && had_again => Some(Refer::Again { count: None }),
         ["once", "more"] => Some(Refer::Again { count: None }),
         ["one", "more"] | ["another", "one"] => Some(Refer::Again { count: Some(1) }),
@@ -243,7 +247,8 @@ fn again(ws: &[Word]) -> Option<Refer> {
 }
 
 /// Prepositions that aim a phrase at someone ("missile at Jake", "bees on Sam").
-const AIM_PREP: &[&str] = &["at", "on", "onto", "toward", "towards", "after", "against", "vs", "versus", "upon", "over", "for", "to", "into"];
+const AIM_PREP: &[&str] =
+    &["at", "on", "onto", "toward", "towards", "after", "against", "vs", "versus", "upon", "over", "for", "to", "into"];
 /// Words allowed after the name ("at Jake's head now!").
 const AFTER_NAME: &[&str] = &["now", "please", "head", "face", "feet", "butt", "back", "again", "plz"];
 
@@ -262,7 +267,10 @@ fn match_name(span: &[Word], names: &[Vec<String>], spoken: bool, common_word: i
         // Exact: the full name, the name without spaces / digits, or its first word (≥ 3 letters).
         // One word of a multi-word name ("tony" for "Big Tony"), 3+ letters.
         let word_of = |w: &str| toks.len() > 1 && toks.iter().any(|t| t.len() >= 3 && t.chars().all(|c| c.is_ascii_alphabetic()) && t == w);
-        let exact = text == full || squashed == full_sq || (letters_only.len() >= 3 && squashed == letters_only) || (span.len() == 1 && word_of(&text));
+        let exact = text == full
+            || squashed == full_sq
+            || (letters_only.len() >= 3 && squashed == letters_only)
+            || (span.len() == 1 && word_of(&text));
         let d = if exact {
             Some(0)
         } else if common_word(&text) {
@@ -275,10 +283,10 @@ fn match_name(span: &[Word], names: &[Vec<String>], spoken: bool, common_word: i
             let mut d_best: Option<usize> = None;
             for c in cands.iter().filter(|c| c.len() >= 3) {
                 let limit = max_typo(c.len().max(squashed.len()), spoken);
-                if limit > 0 {
-                    if let Some(d) = dl_distance(squashed.as_bytes(), c.as_bytes(), limit) {
-                        d_best = Some(d_best.map_or(d, |b: usize| b.min(d)));
-                    }
+                if limit > 0
+                    && let Some(d) = dl_distance(squashed.as_bytes(), c.as_bytes(), limit)
+                {
+                    d_best = Some(d_best.map_or(d, |b: usize| b.min(d)));
                 }
                 // Voice: "jake" heard as "jay k" / "shake" — same consonant skeleton.
                 if spoken && squashed.len() >= 3 && d_best.is_none() {
@@ -290,10 +298,10 @@ fn match_name(span: &[Word], names: &[Vec<String>], spoken: bool, common_word: i
             }
             d_best
         };
-        if let Some(d) = d {
-            if best.is_none_or(|(_, bd)| d < bd) {
-                best = Some((i, d));
-            }
+        if let Some(d) = d
+            && best.is_none_or(|(_, bd)| d < bd)
+        {
+            best = Some((i, d));
         }
     }
     best
@@ -305,7 +313,8 @@ pub(crate) fn target_player(text: &str, names: &[&str], spoken: bool, common_wor
     if names.is_empty() {
         return None;
     }
-    let norm: Vec<Vec<String>> = names.iter().map(|n| normalize_key(n).split(' ').filter(|t| !t.is_empty()).take(4).map(String::from).collect()).collect();
+    let norm: Vec<Vec<String>> =
+        names.iter().map(|n| normalize_key(n).split(' ').filter(|t| !t.is_empty()).take(4).map(String::from).collect()).collect();
     let ws = words(text);
     let n = ws.len();
     if n < 3 {
@@ -313,13 +322,14 @@ pub(crate) fn target_player(text: &str, names: &[&str], spoken: bool, common_wor
     }
     // Scan preposition positions from the end (the aim is the phrase's tail): "<rest> <prep> <name> [tail]".
     for p in (1..n - 1).rev() {
-        let name_from = if ws[p].key == "on" && ws.get(p + 1).is_some_and(|w| w.key == "top") && ws.get(p + 2).is_some_and(|w| w.key == "of") {
-            p + 3
-        } else if is(&ws[p], AIM_PREP) {
-            p + 1
-        } else {
-            continue;
-        };
+        let name_from =
+            if ws[p].key == "on" && ws.get(p + 1).is_some_and(|w| w.key == "top") && ws.get(p + 2).is_some_and(|w| w.key == "of") {
+                p + 3
+            } else if is(&ws[p], AIM_PREP) {
+                p + 1
+            } else {
+                continue;
+            };
         if name_from >= n {
             continue;
         }
@@ -393,7 +403,19 @@ mod tests {
 
     #[test]
     fn ordinary_phrases_are_not_references() {
-        for s in ["hammer", "bigger hammer", "a sword that returns", "king kong on a skateboard", "make", "it", "flaming sword", "three swords", "lighter", "missile at jake", "hit"] {
+        for s in [
+            "hammer",
+            "bigger hammer",
+            "a sword that returns",
+            "king kong on a skateboard",
+            "make",
+            "it",
+            "flaming sword",
+            "three swords",
+            "lighter",
+            "missile at jake",
+            "hit",
+        ] {
             assert_eq!(refer(s), None, "{s}");
         }
     }

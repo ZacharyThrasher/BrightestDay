@@ -13,3 +13,10 @@ serde.workspace = true
 proptest.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+[features]
+# BACKROOMS map (maps/backrooms.rs) — off while in development; see docs/COORDINATION.md.
+backrooms = []
+
+[[example]]
+name = "backrooms_preview"
+required-features = ["backrooms"]

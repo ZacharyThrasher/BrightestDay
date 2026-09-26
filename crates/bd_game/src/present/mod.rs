@@ -35,8 +35,8 @@ pub mod players;
 pub mod powers;
 pub mod record;
 pub mod shout;
-#[allow(dead_code)] // SIGNATURE: cut-in alert / title / domain grade / strike markers — plugin wired after the shout, charge and cut-in work lands
-pub mod signature;
+pub mod signature; // SIGNATURE: cut-in DANGER alert, domain grade, strike markers, audio cues
+pub mod signature_fx; // SIGNATURE: fusion windup (Merge), erasing orbs (Hollow Purple)
 pub mod soak;
 pub mod sound;
 pub mod space;
@@ -89,7 +89,8 @@ impl Plugin for PresentPlugin {
             .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
-            .add_plugins(surf::SurfPlugin); // SURF: hard-light surf lines + wind rush
+            .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
+            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

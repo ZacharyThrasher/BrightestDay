@@ -20,11 +20,11 @@ use crate::lobby::UiSet;
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
 use crate::state::AppState;
 use bd_core::{ConstructId, PlayerId};
-use bd_fx::{BurstFx, BurstKind, Emit, FxParticles, PKind, PFlags};
+use bd_fx::{BurstFx, BurstKind, Emit, FxParticles, PFlags, PKind};
 use bd_lexicon::{Lexicon, Refer};
+use bd_sim::GameEvent;
 use bd_sim::freedom::{FeedLine, FreedomEvent, Highlights};
 use bd_sim::replicate::cflags;
-use bd_sim::GameEvent;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 
@@ -238,7 +238,13 @@ fn read_events(
     }
 }
 
-fn draw_feed(mut commands: Commands, mut feed: ResMut<KillFeed>, root: Query<Entity, With<FeedRoot>>, kids: Query<Entity, With<FeedEntry>>, mut texts: Query<(&FeedEntry, &mut TextColor)>) {
+fn draw_feed(
+    mut commands: Commands,
+    mut feed: ResMut<KillFeed>,
+    root: Query<Entity, With<FeedRoot>>,
+    kids: Query<Entity, With<FeedEntry>>,
+    mut texts: Query<(&FeedEntry, &mut TextColor)>,
+) {
     let Ok(root) = root.single() else { return };
     if feed.dirty {
         feed.dirty = false;
@@ -339,7 +345,13 @@ struct FreedomTest {
 /// `BD_FREEDOM_TEST=1` (practice): t=2.5 s a (forced) legendary "KING KONG ON A SKATEBOARD!!!",
 /// 6.5 s a sputtering "GIANT DRAGON" at 1.5 willpower, 9.5 s two bots KO'd by those constructs
 /// (real sim hits → real feed lines), 12 s the match ends (highlights). Screenshot at ~4.5 / 8 / 10.5 / 14.
-fn freedom_test_world(time: Res<Time<Real>>, state: Res<State<AppState>>, lex: Option<Res<RingLexicon>>, active: Option<ResMut<ActiveWorld>>, mut st: ResMut<FreedomTest>) {
+fn freedom_test_world(
+    time: Res<Time<Real>>,
+    state: Res<State<AppState>>,
+    lex: Option<Res<RingLexicon>>,
+    active: Option<ResMut<ActiveWorld>>,
+    mut st: ResMut<FreedomTest>,
+) {
     if *state.get() != AppState::InGame || lex.is_none() {
         return;
     }
@@ -378,8 +390,13 @@ fn freedom_test_world(time: Res<Time<Real>>, state: Res<State<AppState>>, lex: O
         }
         3 if t >= 9.5 => {
             // Two bots are KO'd by those constructs (the real hit + blast-zone path, so the feed is real).
-            let mine: Vec<(ConstructId, bool)> =
-                active.world.constructs.owned_by(me).filter(|c| c.parent.is_none()).map(|c| (c.id, c.flair & cflags::LEGENDARY != 0)).collect();
+            let mine: Vec<(ConstructId, bool)> = active
+                .world
+                .constructs
+                .owned_by(me)
+                .filter(|c| c.parent.is_none())
+                .map(|c| (c.id, c.flair & cflags::LEGENDARY != 0))
+                .collect();
             let gold = mine.iter().find(|m| m.1).map(|m| m.0);
             let other = mine.iter().rev().find(|m| !m.1).map(|m| m.0);
             let bots: Vec<PlayerId> = active.bots.iter().map(|b| b.id).take(2).collect();

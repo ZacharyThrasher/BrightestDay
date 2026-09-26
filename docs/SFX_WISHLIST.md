@@ -24,6 +24,9 @@ frequent. Missing names are silent (callers already emit them).
 | domain_open / domain_hum_loop / domain_shatter | signature | dome erupt boom, inside drone, break |
 | ult_charge / ult_fire | signature | beam ultimate windup + fire |
 | strike_telegraph / strike_beam_loop | orbital strike | ground marker hum, downward beam |
+| purple_travel_loop | erasing orb (Hollow Purple) | a huge sphere tearing the air: low roar + hiss, loopable, doppler-friendly; `SignatureCue` start/stop |
+| erase_impact | erasing orb | something deleted: a hollow "vwump" + crumble (terrain / construct / player hit) |
+| merge_flash | fusion windup | the blue + red orbs merging: a sucking inhale then a bright crack |
 | legendary_sting | freedom bundle | short golden shimmer sting (hidden mechanic — no "reward" voice) |
 | sputter | freedom bundle | flickering, underpowered cast |
 | ads_in / ads_out | camera/ADS | subtle cloth/weapon raise |

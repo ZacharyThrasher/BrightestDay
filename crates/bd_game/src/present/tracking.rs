@@ -144,8 +144,10 @@ pub struct TrackingTuning {
     pub reveal_summon_scale: f32,
     /// Hits with at least this knockback (or flagged heavy) reveal the victim.
     pub reveal_heavy_kb: f32,
-    /// Charging pings this often (s).
+    /// Charging pings again this often (s; 0 = only when it starts).
     pub reveal_charge_every: f32,
+    /// Only ping players you can't see (occluded): never a ring around someone in plain view.
+    pub reveal_only_hidden: bool,
     // ---- speed trails
     pub trails: bool,
     /// Trails start at / are full at this speed (m/s).
@@ -230,12 +232,12 @@ impl Default for TrackingTuning {
             beacon_emissive: 1.4,
             beacon_pieces: 4,
             reveal: true,
-            reveal_secs: 0.6,
+            reveal_secs: 0.5,
             reveal_r0: 0.5,
-            reveal_r1: 2.6,
-            reveal_thick: 0.05,
+            reveal_r1: 1.8,
+            reveal_thick: 0.04,
             reveal_px: 0.0022,
-            reveal_emissive: 1.3,
+            reveal_emissive: 2.0,
             reveal_near: 1.2,
             reveal_segments: 24,
             reveal_cooldown: 0.5,
@@ -243,7 +245,8 @@ impl Default for TrackingTuning {
             reveal_max_dist: 160.0,
             reveal_summon_scale: 3.0,
             reveal_heavy_kb: 18.0,
-            reveal_charge_every: 1.2,
+            reveal_charge_every: 0.0,
+            reveal_only_hidden: true,
             trails: true,
             trail_speed: 12.0,
             trail_full_speed: 28.0,
@@ -946,8 +949,8 @@ fn draw_tracking(
         }
     }
 
-    // ---- reveal pulses (charging pings keep coming while charging).
-    if t.reveal {
+    // ---- reveal pulses (optionally repeated while charging: `reveal_charge_every` > 0).
+    if t.reveal && t.reveal_charge_every > 0.0 {
         for v in views.players.iter().filter(|v| !v.is_local && v.alive() && v.has(pflags::CHARGING)) {
             let due = st.last_pulse.iter().find(|(id, _)| *id == v.id).is_none_or(|(_, at)| now - at >= t.reveal_charge_every);
             if due {
@@ -958,6 +961,7 @@ fn draw_tracking(
     let life = t.reveal_secs.max(0.05);
     let n = t.reveal_segments.clamp(6, 48) as usize;
     let mut ring = [Vec3::ZERO; 48];
+    let voxels = arena.as_ref().filter(|_| t.reveal_only_hidden && !st.pulses.is_empty()).map(|a| a.read());
     for p in st.pulses.iter_mut() {
         if p.t == 0.0 {
             cues.write(TrackingCue { kind: TrackingCueKind::RevealPing, player: p.player, other: None, pos: p.pos, local: false });
@@ -971,12 +975,25 @@ fn draw_tracking(
         if u >= 1.0 || d < t.reveal_min_dist || d > t.reveal_max_dist {
             continue;
         }
+        // Only where you can't see them (the point is "through walls"): no rings around visible players.
+        if let Some(w) = voxels.as_ref() {
+            let to = p.pos - eye;
+            let len = to.length();
+            let seen = len < 1e-3 || bd_core::voxel::raycast(&**w, super::gv(eye), super::gv(to / len), (len - 0.6).max(0.0)).is_none();
+            if seen {
+                continue;
+            }
+        }
         let ease = 1.0 - (1.0 - u) * (1.0 - u);
         let r = (t.reveal_r0 + (t.reveal_r1 - t.reveal_r0) * ease) * p.scale;
-        let em = t.reveal_emissive * (1.0 - u).powf(1.5) * if calm { 0.7 } else { 1.0 };
+        // Opaque hard light: fade by thinning (dimming would just darken it), keep it bright + soft.
+        let em = t.reveal_emissive * if calm { 0.8 } else { 1.0 };
+        let thin = (1.0 - u).powf(1.5);
+        let col = [0.35 + p.color[0] * 0.65, 0.35 + p.color[1] * 0.65, 0.35 + p.color[2] * 0.65];
         view_ring(eye, p.pos, r, &mut ring[..n]);
-        xray_polyline(fx, eye, &ring[..n], true, t.reveal_thick.max(d * t.reveal_px), p.color, em, t.reveal_near);
+        xray_polyline(fx, eye, &ring[..n], true, t.reveal_thick.max(d * t.reveal_px) * thin, col, em, t.reveal_near);
     }
+    drop(voxels);
     st.pulses.retain(|p| p.t < life);
 
     // ---- speed trails.
@@ -1031,7 +1048,8 @@ fn draw_tracking(
                 let kk = prev.2.max(s.2);
                 if kk > 0.01 && prev.0.distance_squared(s.0) < 36.0 {
                     let th = t.trail_thick * fade * kk * scale * v.size;
-                    let em = t.trail_emissive * fade.powf(1.2) * kk * scale;
+                    // Fade by thinning (opaque hard light darkens if dimmed).
+                    let em = t.trail_emissive * (0.6 + 0.4 * fade) * scale.max(0.75);
                     if fx.immediate_segment(prev.0, s.0, th, color, em, PFlags::PLAIN) {
                         drawn += 1;
                         budget = budget.saturating_sub(1);

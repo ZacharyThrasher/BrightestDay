@@ -1061,7 +1061,7 @@ fn test_casts(
         let flat = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(Vec3::NEG_Z);
         let dir = (Quat::from_rotation_y(yaw.to_radians()) * flat - Vec3::Y * 0.15).normalize();
         let aim = bd_sim::Aim::new(gv(anchor.eye), gv(dir));
-        info!("summon test: casting {phrase:?} at yaw {yaw}");
+        info!("summon test: casting {phrase:?} at yaw {yaw} from eye {:?} look yaw {:.1} deg", anchor.eye, look.yaw.to_degrees());
         cmds.write(SimCommand::local(Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation: false }));
     }
 }

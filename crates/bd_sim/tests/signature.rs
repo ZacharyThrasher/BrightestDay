@@ -702,7 +702,8 @@ fn hollow_purple_knockback_grows_into_a_ko_at_mid_percent() {
         }
         0.0
     };
-    let (low, mid) = (speed_at(0.0), speed_at(90.0));
+    let (low, mid, high) = (speed_at(0.0), speed_at(90.0), speed_at(150.0));
+    eprintln!("hollow purple launch speed: 0% {low:.1} m/s, 90% {mid:.1} m/s, 150% {high:.1} m/s");
     assert!(mid > low * 1.25, "grows with damage: {low} -> {mid}");
     assert!(mid >= 50.0, "mid % is KO territory: {mid}");
 }

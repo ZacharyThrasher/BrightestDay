@@ -110,6 +110,43 @@ pub mod mat {
     pub const STATION_LIGHT: Material = 55;
     /// Burnt, blackened hull (re-entry scorch, blast damage).
     pub const SCORCHED: Material = 56;
+    // ---- Backrooms (liminal room kits) ----
+    /// Mustard office wallpaper and its faint stripe.
+    pub const WALLPAPER: Material = 57;
+    pub const WALLPAPER_STRIPE: Material = 58;
+    /// Moist office carpet and its damp patches.
+    pub const CARPET: Material = 59;
+    pub const CARPET_DAMP: Material = 60;
+    /// Drop-ceiling tile (soft: punches through easily).
+    pub const CEILING_TILE: Material = 61;
+    /// Fluorescent ceiling panel (full glow) and a dead one.
+    pub const FLUORESCENT: Material = 62;
+    pub const FLUORESCENT_DEAD: Material = 63;
+    /// Poolrooms: white tile and pale grout.
+    pub const POOL_TILE: Material = 64;
+    pub const POOL_GROUT: Material = 65;
+    /// Parking-garage concrete (darker than the city's).
+    pub const GARAGE_CONCRETE: Material = 66;
+    /// Hotel corridor carpet (burgundy) and its gold pattern; cream hotel wall.
+    pub const HOTEL_CARPET: Material = 67;
+    pub const HOTEL_CARPET_GOLD: Material = 68;
+    pub const HOTEL_WALL: Material = 69;
+    /// Dark playground rubber matting.
+    pub const PLAY_MAT: Material = 70;
+    /// Ball-pit balls (very soft).
+    pub const BALL_RED: Material = 71;
+    pub const BALL_BLUE: Material = 72;
+    pub const BALL_YELLOW: Material = 73;
+    pub const BALL_GREEN: Material = 74;
+    /// The impossible room: painted daylight sky and clouds (self-lit).
+    pub const SKY_PAINT: Material = 75;
+    pub const CLOUD: Material = 76;
+    /// The void under the building (indestructible, near black).
+    pub const VOID_BLACK: Material = 77;
+    /// Indestructible building frame (outer posts, slab-edge ring, columns, parapet).
+    pub const SHELL: Material = 78;
+    /// Black plastic (office chairs, bins, cabinets).
+    pub const PLASTIC_BLACK: Material = 79;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -124,7 +161,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 57] = [
+pub static MATERIALS: [MaterialDef; 80] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -200,6 +237,46 @@ pub static MATERIALS: [MaterialDef; 57] = [
     def("hazard paint", [255, 136, 40], 0.04, 1.0, D::Stone),
     glow(def("station light", [255, 238, 204], 0.03, 0.6, D::Crystal), 1.0),
     def("scorched hull", [62, 58, 64], 0.08, 1.0, D::Stone),
+    // ---- Backrooms (57..) ----
+    def("wallpaper", [204, 188, 106], 0.04, 0.6, D::Stone),
+    def("wallpaper stripe", [186, 169, 92], 0.04, 0.6, D::Stone),
+    def("carpet", [156, 140, 90], 0.07, 0.45, D::Dirt),
+    def("damp carpet", [122, 110, 70], 0.07, 0.45, D::Dirt),
+    def("ceiling tile", [228, 222, 204], 0.03, 0.3, D::Dirt),
+    glow(def("fluorescent panel", [255, 250, 230], 0.02, 0.4, D::Crystal), 1.0),
+    def("dead fluorescent", [158, 160, 154], 0.03, 0.4, D::Crystal),
+    def("pool tile", [232, 240, 242], 0.02, 0.8, D::Stone),
+    def("pool grout", [176, 204, 214], 0.03, 0.8, D::Stone),
+    def("garage concrete", [150, 150, 146], 0.06, 1.0, D::Stone),
+    def("hotel carpet", [124, 32, 44], 0.06, 0.45, D::Dirt),
+    def("hotel carpet gold", [190, 142, 62], 0.05, 0.45, D::Dirt),
+    def("hotel wall", [230, 214, 178], 0.04, 0.6, D::Stone),
+    def("play mat", [38, 40, 68], 0.06, 0.5, D::Dirt),
+    def("red ball", [236, 64, 64], 0.10, 0.2, D::Sand),
+    def("blue ball", [64, 116, 240], 0.10, 0.2, D::Sand),
+    def("yellow ball", [250, 212, 64], 0.10, 0.2, D::Sand),
+    def("green ball", [72, 204, 96], 0.10, 0.2, D::Sand),
+    glow(def("sky paint", [120, 184, 246], 0.03, 0.6, D::Stone), 0.62),
+    glow(def("cloud", [244, 247, 255], 0.03, 0.6, D::Stone), 0.7),
+    MaterialDef {
+        name: "void",
+        color: [8, 8, 12],
+        jitter: 0.02,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    MaterialDef {
+        name: "backrooms frame",
+        color: [140, 134, 118],
+        jitter: 0.04,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    def("black plastic", [44, 44, 50], 0.05, 0.5, D::Stone),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

@@ -160,7 +160,14 @@ fn sputter_never_produces_nothing_and_never_overspends() {
                 })
                 .unwrap();
             assert!(paid <= have + 1e-4, "never exceeds what's left: {paid} > {have}");
-            assert!(c.recipe.scale <= v.scale + 1e-4 && c.recipe.count <= v.count, "scaled down: {} ×{} vs {} ×{}", c.recipe.scale, c.recipe.count, v.scale, v.count);
+            assert!(
+                c.recipe.scale <= v.scale + 1e-4 && c.recipe.count <= v.count,
+                "scaled down: {} ×{} vs {} ×{}",
+                c.recipe.scale,
+                c.recipe.count,
+                v.scale,
+                v.count
+            );
             assert!(c.recipe.scale < v.scale - 1e-4 || c.recipe.count < v.count || have >= full * 0.9, "smaller than asked");
             let spec = bd_sim::constructs::forms::form_spec(r.form);
             assert!(c.recipe.scale >= spec.min_scale - 1e-4, "floor");
@@ -228,7 +235,13 @@ fn shout_energy_bonus_is_clamped_and_voice_equals_typing() {
 // ------------------------------------------------------------------------------------ legendary
 
 fn rich() -> Recipe {
-    let mut r = recipe("King Kong", Form::Kaiju, &[Mechanic::Blunt, Mechanic::Grab, Mechanic::Charge, Mechanic::Fast, Mechanic::Heavy], Element::Light, 22.0);
+    let mut r = recipe(
+        "King Kong",
+        Form::Kaiju,
+        &[Mechanic::Blunt, Mechanic::Grab, Mechanic::Charge, Mechanic::Fast, Mechanic::Heavy],
+        Element::Light,
+        22.0,
+    );
     r.temperament = Temperament::Aggressive;
     r.mount = Some(Box::new(recipe("skateboard", Form::Vehicle, &[Mechanic::Fast], Element::Light, 20.0)));
     r.normalized()
@@ -287,7 +300,14 @@ fn legendary_is_golden_modest_deterministic_and_replicas_agree() {
         w.player_mut(A).unwrap().willpower = 100.0;
         let aim = aim_of(&w, A);
         let n0 = w.events().len();
-        let id = cast_said(&mut w, A, recipe("sword", Form::Sword, &[Mechanic::Blade], Element::Light, 1.0), "sword of a thousand truths", 0, aim);
+        let id = cast_said(
+            &mut w,
+            A,
+            recipe("sword", Form::Sword, &[Mechanic::Blade], Element::Light, 1.0),
+            "sword of a thousand truths",
+            0,
+            aim,
+        );
         let evs = w.events()[n0..].to_vec();
         (w, id, evs)
     };
@@ -300,7 +320,14 @@ fn legendary_is_golden_modest_deterministic_and_replicas_agree() {
     let mut plain = duel();
     plain.player_mut(A).unwrap().willpower = 100.0;
     let aim = aim_of(&plain, A);
-    let pid = cast_said(&mut plain, A, recipe("sword", Form::Sword, &[Mechanic::Blade], Element::Light, 1.0), "sword of a thousand truths", 0, aim);
+    let pid = cast_said(
+        &mut plain,
+        A,
+        recipe("sword", Form::Sword, &[Mechanic::Blade], Element::Light, 1.0),
+        "sword of a thousand truths",
+        0,
+        aim,
+    );
     let pc = plain.constructs.get(pid).unwrap();
     assert!(!freedom::is_legendary(&plain, pid));
     let ratio = c.max_integrity / pc.max_integrity;

@@ -37,7 +37,8 @@ pub fn beacon_pillar(
         let taper = 1.0 - 0.6 * a;
         let p0 = feet + Vec3::Y * (height * a);
         let p1 = feet + Vec3::Y * (height * b);
-        fx.immediate_segment(p0, p1, base * taper * (0.4 + 0.6 * k), color, emissive * k * (1.0 - 0.5 * a), PFlags::PLAIN);
+        // Opaque hard light: fade by thinning (dimming would only darken it).
+        fx.immediate_segment(p0, p1, base * taper * k, color, emissive * (0.6 + 0.4 * k) * (1.0 - 0.4 * a), PFlags::PLAIN);
     }
 }
 

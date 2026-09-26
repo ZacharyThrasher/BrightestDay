@@ -6,6 +6,8 @@
 //! client renders the surface and splashes), extra sky/lighting colours, named districts and the
 //! authored movement routes between them (used by bots, the camera director and the route tests).
 
+#[cfg(feature = "backrooms")]
+pub mod backrooms;
 pub mod miami;
 pub mod orbit;
 

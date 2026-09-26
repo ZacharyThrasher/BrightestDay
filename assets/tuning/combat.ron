@@ -651,7 +651,7 @@
         scale_cap_mult: 2.5,
         max_scale: 30.0,
         beam_caliber: 2.5,
-        windup: 0.7,
+        windup: 0.6,
         held_life: 10.0,
         cost_mult: 1.35,
         alert_cost: 45.0,
@@ -687,6 +687,25 @@
             abduct_accel: 40.0,
             abduct_max: 8.0,
             cost_mult: 1.25,
+        ),
+        // Erasing orbs (bd_sim::signature::orb): a Beam signature whose phrase Pierces and is fired / thrown
+        // (HOLLOW PURPLE). A Ball of diameter (+ diameter_shout x shout power, x (1 + full_bar_bonus) from a full
+        // bar) forms in the hand for the windup, then flies straight at speed m/s for range m, ignoring
+        // everything: a carve of radius x carve_radius_mult (min 1 m) every carve_spacing m at carve_power, every
+        // touched construct (not the caster's) takes construct_damage, every touched player is hit once for
+        // damage % with base knockback (Smash formula). Its Attract field is the suction wake.
+        orb: (
+            diameter: 3.5,
+            diameter_shout: 0.6,
+            full_bar_bonus: 0.15,
+            speed: 50.0,
+            range: 120.0,
+            carve_radius_mult: 1.0,
+            carve_spacing: 1.2,
+            carve_power: 3.0,
+            damage: 28.0,
+            knockback: 36.0,
+            construct_damage: 100000.0,
         ),
     ),
     // FREEDOM (bd_sim::freedom / bd_sim::legendary; hidden, never shown to players). A full shout (typed

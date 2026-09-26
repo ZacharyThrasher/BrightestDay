@@ -610,9 +610,11 @@ impl World {
             Form::Dome => (caster_feet, face, Vec3::ZERO),
             Form::Platform => (aim, face, Vec3::ZERO),
             Form::Ramp => {
-                // Rises away from the caster at 30°.
+                // Rises away from the caster at 30°; a gliding ramp ("surf ramp", "half pipe": Glide)
+                // stands at 60° — a surf face (movement/surf.rs).
                 let foot = self.ground_point_below(aim + Vec3::Y * 1.0).unwrap_or(aim);
-                let tilt = Quat::from_rotation_x(30f32.to_radians());
+                let deg = if r.mechanics.contains(&Mechanic::Glide) { 60f32 } else { 30.0 };
+                let tilt = Quat::from_rotation_x(deg.to_radians());
                 (foot, face * tilt, Vec3::ZERO)
             }
             _ => {

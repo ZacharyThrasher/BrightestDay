@@ -165,10 +165,10 @@ fn highlights_panel(root: &mut ChildSpawnerCommands, h: &bd_sim::freedom::Highli
     lines.push(("WILDEST", wild));
     let kos: Vec<(String, bool)> = h.ko_lines.iter().map(|l| (crate::lobby::feed::feed_line_text(l, a, lex), l.legendary)).collect();
     lines.push(("BEST KOS", kos));
-    if let Some(b) = &h.biggest {
-        if let Some(s) = phrase(&b.phrase) {
-            lines.push(("BIGGEST", vec![(format!("{s}  \u{2014} {} \u{b7} {:.0} m", name(b.player), b.size_m.max(0.0)), b.legendary)]));
-        }
+    if let Some(b) = &h.biggest
+        && let Some(s) = phrase(&b.phrase)
+    {
+        lines.push(("BIGGEST", vec![(format!("{s}  \u{2014} {} \u{b7} {:.0} m", name(b.player), b.size_m.max(0.0)), b.legendary)]));
     }
     if let Some((p, n)) = h.creative {
         lines.push(("MOST CREATIVE", vec![(format!("{} \u{b7} {n} unique phrase{}", name(p), if n == 1 { "" } else { "s" }), false)]));
