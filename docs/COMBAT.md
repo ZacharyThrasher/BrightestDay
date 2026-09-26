@@ -388,9 +388,8 @@ later **as data in this template only**.
 1. **Balance with willpower cost, not damage** — a strong combo keeps its behaviour and gets pricier
    (preserves "creativity changes behaviour, not numbers").
 2. **Counterplay over parity** — the bar is "nothing unanswerable", not "everything equal".
-3. **Soft anti-snowball (FFA):** respawn with full willpower; streakers glow brighter + their streak sound
-   announces them; shutdown (ending a 3+ streak) = +1 point; out-of-combat health regen (after 5 s
-   untouched, 6 HP/s) — regen, not healing (the never-list still bans constructs that heal players).
+3. **Soft anti-snowball (FFA):** respawn at 0% with full willpower; streakers glow brighter + their streak
+   sound announces them; shutdown (ending a 3+ streak) = +1 point. (Smash model: no regen.)
 4. **Hidden** (mystery tenet): no stats, tooltips or DPS displays.
 5. **Party / no-limits are deliberately unbalanced** — fun > fair; the lobby opts in.
 6. **Data-driven:** per-match local telemetry (`logs/matches/*.json`), bot-vs-bot tournaments over random

@@ -124,9 +124,11 @@ flares brighter per step + one corps-emblem pulse near the crosshair; no banner 
 
 ## Game rules (FFA)
 - 1–8 players, one arena of floating Cube-World-style voxel islands over a void.
-- **Health 100.** As health drops, **knockback taken increases** (Smash-style). KO by health reaching 0
-  **or** falling into the void / out of bounds. Respawn after 3 s at the spawn farthest from enemies
-  with 1.5 s spawn shield. Match: first to 10 KOs or 8 minutes; last hitter within 5 s gets void KOs.
+- **Smash model (COMBAT.md §1a):** no health — **damage %** rises with every hit and knockback grows
+  with it; KO only by being launched out through a blast zone (void/water below, sides, top = star KO).
+  DI and teching reward skill; tethers are the recovery. Respawn at 0% after 3 s at the spawn farthest
+  from enemies with a spawn shield. Scoring: Stock or Timed KOs (default: first to 10 KOs or 8 minutes);
+  last hitter within 6 s gets the KO.
 - **Willpower** (0–100) powers constructs: cast cost scales with recipe size/power; summons and held
   weapons drain upkeep. At low willpower, recite your **corps oath** (a typing test, the Lantern oaths
   from the vault image) to refill; speed and accuracy set the refill. You're vulnerable while reciting.
