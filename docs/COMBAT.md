@@ -48,7 +48,27 @@ mid-fight, reciting the oath), and loadout design (the 4 quick-cast slots are a 
 Nothing ever takes control fully away from a player for more than ~0.35 s. Stuns are micro; tumble
 reduces air control but you can always tether out of it (a skill save).
 
-## 1. Players
+## 1a. SMASH MODEL (owner decision — supersedes health-based rules below and in §5i)
+- **No health bar.** Each player has **damage %** ("strain"), starting at 0%, uncapped (display to 999).
+  Damage numbers elsewhere in this doc now mean **% added** (same values).
+- **KO only by leaving the arena:** blast zones = void/water below (existing `void_y`/`water_y`), plus
+  side and top bounds (arena bounds + margin ~25 m sides, ~40 m top). Top KO = "star KO" (a twinkle in
+  the sky, delayed poof). Last attacker within 6 s gets credit (existing rule).
+- **Knockback (Smash-style):** `kb = (base + growth · (pct_after / 100) · (dmg / 10 + 1)) · (1 / weight) · kb_scale`
+  applied along the hit vector with guaranteed lift; weight 1.0 default (Grow ×1.6 heavier, Shrink ×0.5
+  lighter, suits/pilots heavier). Tuned so ~120–160% + a heavy hit launches off a mid-size island.
+  High knockback → **tumble** + a launch trail that intensifies with speed.
+- **DI (directional influence):** during launch, holding a movement direction rotates the launch
+  vector up to ±15° (skill expression). **Tech:** pressing Jump within 0.15 s of a wall/ground contact
+  while tumbling cancels the splat/bounce (skill). **Tethers + recovery:** tether fires out of tumble
+  as now (the best recovery in any platform fighter). Wall splat still adds %.
+- **Respawn** at 0% with full willpower; brief spawn shield. No health regen.
+- **Scoring (lobby):** Stock (N lives, last standing) or Timed KOs (default FFA) — party rounds use Timed.
+- **Readability:** everyone's hard-light body glow shifts white → gold → orange → red with visible
+  cracks as % rises (readable at 40 m); your own % shown diegetically on the ring + screen-edge
+  fractures; an optional small numeric % (setting, off by default — mystery/minimal UI).
+
+## 1. Players (legacy health model — superseded by §1a)
 - Health 100. `knock_mult = 1 + 1.25 · (1 − hp/100)` (low hp flies further).
 - Hit reaction: knockback impulse with minimum upward component; if impulse > 14 m/s → **tumble**
   (air control ×0.25, spin VFX) until ground contact, tether attach, or 1.2 s.
@@ -376,7 +396,8 @@ later **as data in this template only**.
 6. **Data-driven:** per-match local telemetry (`logs/matches/*.json`), bot-vs-bot tournaments over random
    recipes, a balance report flagging outliers (e.g. damage-per-willpower > 2× median, win-rate skews,
    never-used mechanics), and all combat numbers in hot-reloadable `assets/tuning/combat.ron`.
-Targets: focused-fire TTK from full ≈ 2–4 s; burst combos faster with setup; void KOs ≈ 30–50% of KOs.
+Targets (Smash model): typical KO % ≈ 110–170; a focused fight from 0% to KO ≈ 8–15 s; heavy/creative
+burst setups faster; strong recoveries (tethers/constructs) save ~40% of launches.
 
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
