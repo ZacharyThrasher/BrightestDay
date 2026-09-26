@@ -177,6 +177,15 @@ the costume's gloves + ring. UI: turntable preview, 3–4 seed variants per phra
 tweaks (accent colour, head scale, accessory toggles), preset gallery for non-typers. The costume
 phrase + seed + tweaks are sent once at join.
 
+## Party mode UI (client)
+Lobby: mode toggle (FFA / Party) + a settings panel exposing every `GameSettings` knob with presets
+(Classic, Party, Chaos, Movement Gods). Between rounds: standings strip (corps-coloured, minimal), then
+the **pick screen** — 2/3/4 hard-light cards floating in front of the camera (name ≤ 3 words, one-line
+description, a small looping voxel illustration of the behaviour); number keys or click to pick; a
+visible timer; locked picks reveal around the table; **Boom or Bust** is a spinning coin that lands on a
+gold (Legendary) or purple-black (Cursed) face with its own sting. Party end: podium on the Heart island
+with everyone's stacked effects listed.
+
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
 tether swing, dual tether + reel, boost + release fling — then the **Peak Run** that chains them all.
