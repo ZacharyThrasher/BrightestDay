@@ -3,8 +3,8 @@
 // Colours: "rrggbb" hex (or a few names). Variants are patches over `look` (fields they set replace the base).
 // Typing a name picks the character; extra words matching a variant's name/words pick that variant;
 // VARIANT in the costume editor cycles them. Never listed in UI (MYSTERY tenet).
-// Rig/regions: see crates/bd_shapes/src/costume/style.rs. Emblem rows: top row first, character's
-// left is the viewer's right... no: row text reads as seen from the FRONT (left char = viewer's left).
+// Rig/regions: see crates/bd_shapes/src/costume/style.rs. Mosaic rows (emblem, face_paint) read as seen
+// from the front: top row first, left char = the viewer's left; back_emblem reads as seen from behind.
 [
     // ================================================================ Jujutsu Kaisen
     (
@@ -180,7 +180,7 @@
         ),
     ),
     (
-        names: ["sakura", "sakura haruno", "haruno sakura"],
+        names: ["sakura haruno", "haruno sakura"],
         source: "Naruto",
         look: (
             skin: "f7dcc8",
@@ -225,7 +225,7 @@
         ),
     ),
     (
-        names: ["rock lee", "lee"],
+        names: ["rock lee"],
         source: "Naruto",
         look: (
             skin: "f5d6bc",
@@ -385,7 +385,7 @@
         ),
     ),
     (
-        names: ["trunks", "future trunks"],
+        names: ["future trunks", "trunks dbz"],
         source: "Dragon Ball",
         look: (
             skin: "f6d6b4",
@@ -496,7 +496,7 @@
         ),
     ),
     (
-        names: ["ace", "portgas d ace", "portgas d. ace", "fire fist ace"],
+        names: ["portgas d ace", "portgas d. ace", "fire fist ace", "ace one piece"],
         source: "One Piece",
         look: (
             skin: "e8c098",
@@ -526,7 +526,7 @@
         ),
     ),
     (
-        names: ["law", "trafalgar law", "trafalgar d water law"],
+        names: ["trafalgar law", "trafalgar d water law"],
         source: "One Piece",
         look: (
             skin: "d8a878",
@@ -810,7 +810,7 @@
         ],
     ),
     (
-        names: ["power", "power csm", "blood devil"],
+        names: ["power csm", "power chainsaw man", "blood devil"],
         source: "Chainsaw Man",
         look: (
             skin: "f7e0d0",
@@ -852,7 +852,7 @@
         ),
     ),
     (
-        names: ["l", "l lawliet", "ryuzaki"],
+        names: ["l lawliet", "ryuzaki"],
         source: "Death Note",
         look: (
             skin: "f7e8e0",
@@ -865,7 +865,7 @@
         ),
     ),
     (
-        names: ["light yagami", "kira", "light"],
+        names: ["light yagami", "kira"],
         source: "Death Note",
         look: (
             skin: "f5dac6",
@@ -877,7 +877,7 @@
         ),
     ),
     (
-        names: ["edward elric", "ed elric", "fullmetal alchemist", "edward"],
+        names: ["edward elric", "ed elric", "fullmetal alchemist"],
         source: "Fullmetal Alchemist",
         look: (
             skin: "f5d6bc",
@@ -904,7 +904,7 @@
         ),
     ),
     (
-        names: ["spike spiegel", "spike", "cowboy bebop"],
+        names: ["spike spiegel", "cowboy bebop"],
         source: "Cowboy Bebop",
         look: (
             skin: "f2d4b8",
@@ -932,7 +932,7 @@
         ),
     ),
     (
-        names: ["ash ketchum", "ash", "satoshi"],
+        names: ["ash ketchum", "satoshi"],
         source: "Pokemon",
         look: (
             skin: "f2cca8",
@@ -1034,7 +1034,7 @@
         ),
     ),
     (
-        names: ["guts", "berserk", "black swordsman guts"],
+        names: ["black swordsman guts"],
         source: "Berserk",
         look: (
             skin: "e2b890",
@@ -1102,7 +1102,7 @@
         ),
     ),
     (
-        names: ["mob", "shigeo kageyama", "mob psycho"],
+        names: ["shigeo kageyama", "mob psycho"],
         source: "Mob Psycho 100",
         look: (
             skin: "f5dac6",
@@ -1163,7 +1163,7 @@
         ),
     ),
     (
-        names: ["peach", "princess peach", "princess toadstool"],
+        names: ["princess peach", "princess toadstool"],
         source: "Nintendo",
         look: (
             skin: "f9e0d0",
@@ -1248,7 +1248,7 @@
         ],
     ),
     (
-        names: ["master chief", "spartan-117", "john-117", "spartan 117", "chief"],
+        names: ["master chief", "spartan-117", "john-117", "spartan 117"],
         source: "Halo",
         look: (
             skin: "e0b89a",
@@ -1295,7 +1295,7 @@
         ),
     ),
     (
-        names: ["steve", "minecraft steve", "minecraft"],
+        names: ["steve", "minecraft steve"],
         source: "Minecraft",
         look: (
             skin: "c89878",
@@ -1310,7 +1310,7 @@
         ),
     ),
     (
-        names: ["alex", "minecraft alex"],
+        names: ["minecraft alex"],
         source: "Minecraft",
         look: (
             skin: "f5d6bc",
@@ -1339,7 +1339,7 @@
         ),
     ),
     (
-        names: ["cloud", "cloud strife"],
+        names: ["cloud strife", "cloud ff7"],
         source: "Final Fantasy VII",
         look: (
             skin: "f5dac6",
@@ -1397,7 +1397,7 @@
         ),
     ),
     (
-        names: ["ezio", "ezio auditore", "assassin", "assassins creed", "altair"],
+        names: ["ezio", "ezio auditore", "assassins creed", "altair"],
         source: "Assassin's Creed",
         look: (
             skin: "e8c4a4",
@@ -1427,7 +1427,7 @@
         ),
     ),
     (
-        names: ["solid snake", "snake", "metal gear"],
+        names: ["solid snake", "metal gear"],
         source: "Metal Gear Solid",
         look: (
             skin: "e8c4a4",
@@ -1475,7 +1475,7 @@
         ),
     ),
     (
-        names: ["ken", "ken masters"],
+        names: ["ken masters"],
         source: "Street Fighter",
         look: (
             skin: "f0cca8",
@@ -1503,7 +1503,7 @@
         ),
     ),
     (
-        names: ["scorpion", "hanzo hasashi", "get over here"],
+        names: ["scorpion mk", "scorpion mortal kombat", "hanzo hasashi", "get over here"],
         source: "Mortal Kombat",
         look: (
             skin: "e8c4a4",
@@ -1579,7 +1579,7 @@
         ),
     ),
     (
-        names: ["nathan drake", "drake", "uncharted"],
+        names: ["nathan drake", "uncharted"],
         source: "Uncharted",
         look: (
             skin: "e8c4a4",
@@ -1637,7 +1637,7 @@
         ),
     ),
     (
-        names: ["leon", "leon kennedy", "leon s kennedy", "resident evil"],
+        names: ["leon kennedy", "leon s kennedy", "resident evil"],
         source: "Resident Evil",
         look: (
             skin: "f5dac6",
@@ -1650,7 +1650,7 @@
         ),
     ),
     (
-        names: ["tracer", "lena oxton"],
+        names: ["tracer overwatch", "lena oxton"],
         source: "Overwatch",
         look: (
             skin: "f5dac6",
@@ -1664,7 +1664,7 @@
         ),
     ),
     (
-        names: ["mercy", "angela ziegler"],
+        names: ["mercy overwatch", "angela ziegler"],
         source: "Overwatch",
         look: (
             skin: "f7e2d4",
@@ -1690,7 +1690,7 @@
         ),
     ),
     (
-        names: ["reaper", "gabriel reyes"],
+        names: ["reaper overwatch", "gabriel reyes"],
         source: "Overwatch",
         look: (
             hair: (style: Short, color: "1a1a1e"),
@@ -1745,7 +1745,7 @@
         ),
     ),
     (
-        names: ["aloy", "horizon zero dawn", "horizon"],
+        names: ["aloy", "horizon zero dawn"],
         source: "Horizon",
         look: (
             skin: "f5d6bc",
@@ -1792,7 +1792,7 @@
         ),
     ),
     (
-        names: ["luke skywalker", "luke", "jedi"],
+        names: ["luke skywalker", "luke"],
         source: "Star Wars",
         look: (
             skin: "f5d6bc",
@@ -1810,7 +1810,7 @@
         ],
     ),
     (
-        names: ["han solo", "han", "solo"],
+        names: ["han solo"],
         source: "Star Wars",
         look: (
             skin: "f0cca8",
@@ -1853,7 +1853,7 @@
         ),
     ),
     (
-        names: ["stormtrooper", "storm trooper", "trooper", "imperial stormtrooper"],
+        names: ["stormtrooper", "storm trooper", "imperial stormtrooper"],
         source: "Star Wars",
         look: (
             helmet: Trooper("f0f0f2", "1a1a1e"),
@@ -1866,7 +1866,7 @@
         ),
     ),
     (
-        names: ["boba fett", "boba", "bounty hunter"],
+        names: ["boba fett", "boba"],
         source: "Star Wars",
         look: (
             helmet: Boba("5a7a5a", "16161a", "c8302a"),
@@ -1952,7 +1952,7 @@
     ),
     // ================================================================ film / tv
     (
-        names: ["neo", "the one", "thomas anderson", "the matrix", "matrix"],
+        names: ["neo", "thomas anderson", "the matrix", "matrix"],
         source: "The Matrix",
         look: (
             skin: "f0d8c4",
@@ -1988,7 +1988,7 @@
         ),
     ),
     (
-        names: ["john wick", "baba yaga", "wick"],
+        names: ["john wick"],
         source: "John Wick",
         look: (
             skin: "e8c8a8",
@@ -2133,7 +2133,7 @@
         ),
     ),
     (
-        names: ["indiana jones", "indy", "indiana"],
+        names: ["indiana jones", "indy"],
         source: "Indiana Jones",
         look: (
             skin: "e8c4a4",
@@ -2178,7 +2178,7 @@
         ),
     ),
     (
-        names: ["ghostface", "ghost face", "scream"],
+        names: ["ghostface", "ghost face"],
         source: "Scream",
         look: (
             skin: "f2f2f2",
@@ -2218,7 +2218,7 @@
         ),
     ),
     (
-        names: ["michael myers", "the shape", "halloween"],
+        names: ["michael myers"],
         source: "Halloween",
         look: (
             skin: "f2eee8",
@@ -2249,7 +2249,7 @@
         ],
     ),
     (
-        names: ["rick sanchez", "rick", "rick and morty"],
+        names: ["rick sanchez", "rick and morty"],
         source: "Rick and Morty",
         look: (
             skin: "f2e0d0",
@@ -2301,7 +2301,7 @@
         ),
     ),
     (
-        names: ["eleven", "stranger things", "el"],
+        names: ["eleven", "stranger things"],
         source: "Stranger Things",
         look: (
             skin: "f7e0d0",
@@ -2328,7 +2328,7 @@
         ),
     ),
     (
-        names: ["james bond", "bond", "007", "agent 007"],
+        names: ["james bond", "007", "agent 007"],
         source: "James Bond",
         look: (
             skin: "f0d0b0",
@@ -2353,7 +2353,7 @@
         ),
     ),
     (
-        names: ["doc brown", "emmett brown", "doc"],
+        names: ["doc brown", "emmett brown"],
         source: "Back to the Future",
         look: (
             skin: "f0d4bc",
@@ -2492,7 +2492,7 @@
         ),
     ),
     (
-        names: ["the flash", "flash", "barry allen", "scarlet speedster"],
+        names: ["the flash", "barry allen", "scarlet speedster"],
         source: "DC",
         look: (
             skin: "f2d0b0",
@@ -2521,7 +2521,7 @@
         ),
     ),
     (
-        names: ["green lantern", "hal jordan", "lantern", "john stewart"],
+        names: ["green lantern", "hal jordan", "john stewart"],
         source: "DC",
         look: (
             skin: "f0d0b0",
@@ -2563,7 +2563,7 @@
         ),
     ),
     (
-        names: ["robin", "dick grayson", "boy wonder"],
+        names: ["robin dc", "dick grayson", "boy wonder", "robin batman"],
         source: "DC",
         look: (
             skin: "f2d0b0",
@@ -2614,7 +2614,7 @@
         ],
     ),
     (
-        names: ["miles morales", "miles", "spider-verse", "into the spider-verse"],
+        names: ["miles morales", "spider-verse", "into the spider-verse"],
         source: "Marvel",
         look: (
             skin: "a8714a",
@@ -2645,7 +2645,7 @@
         ),
     ),
     (
-        names: ["captain america", "steve rogers", "cap"],
+        names: ["captain america", "steve rogers"],
         source: "Marvel",
         look: (
             skin: "f0d0b0",
@@ -2735,7 +2735,7 @@
             hands: Gloves("1c1c22"),
             feet: (kind: HighBoots, color: "1c1c22"),
             emblem: (rows: ["S.....S", ".S...S.", "..SSS.."], pal: {'S': "c8cfd8"}, y: 18),
-            acc: [Necklace("c8cfd8"), Claws("c8cfd8"), Hat_placeholder],
+            acc: [Necklace("c8cfd8"), Claws("c8cfd8")],
         ),
     ),
     (
@@ -2846,7 +2846,7 @@
         ),
     ),
     (
-        names: ["storm", "ororo munroe"],
+        names: ["storm x-men", "storm xmen", "ororo munroe"],
         source: "Marvel",
         look: (
             skin: "8a5a3a",
@@ -2901,7 +2901,8 @@
             top: (cut: Coat, color: "8a3a2a", alt: "3a3a40"),
             legs: (cut: Pants, color: "2a2a30"),
             feet: (kind: Boots, color: "3a2a1a"),
-            acc: [Holsters("3a3a40"), Headphones_placeholder],
+            hat: Headphones("8a8f99"),
+            acc: [Holsters("3a3a40")],
         ),
         variants: [
             (name: "unmasked", words: ["peter", "quill"]),
@@ -2981,7 +2982,7 @@
         ),
     ),
     (
-        names: ["bumblebee", "bee"],
+        names: ["bumblebee"],
         source: "Transformers",
         look: (
             helmet: Prime("f0c020", "3a3a40", "8ae0ff"),
@@ -3007,7 +3008,7 @@
     ),
     // ================================================================ TMNT
     (
-        names: ["leonardo", "leo", "leonardo tmnt"],
+        names: ["leonardo", "leonardo tmnt"],
         source: "TMNT",
         look: (
             skin: "6fa83a",
@@ -3088,7 +3089,7 @@
         ),
     ),
     (
-        names: ["april o'neil", "april oneil", "april"],
+        names: ["april o'neil", "april oneil"],
         source: "TMNT",
         look: (
             skin: "f7e0d0",

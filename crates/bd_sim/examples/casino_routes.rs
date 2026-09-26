@@ -256,14 +256,14 @@ fn roulette_surf(w: &VoxelWorld, m: &MapInfo) -> RunResult {
     let mut cols = Vec::new();
     push_surf_colliders(&m.surf_lines, &mut cols);
     let p = MoveParams::default();
-    let l0 = m.surf_lines[1];
+    let l0 = m.surf_lines[3];
     let (st, ct) = l0.face_deg.to_radians().sin_cos();
     let ridge = (l0.a + l0.b) * 0.5;
     let d = (l0.b - l0.a).normalize();
     let radial = Vec3::new(ridge.x, 0.0, ridge.z).normalize();
     let n = -radial * st + Vec3::Y * ct;
     // 1.2 m down the inner face; the hull's face-side bottom corner just off it (0.8 m box).
-    let point = ridge - radial * (1.2 * ct) - Vec3::Y * (1.2 * st);
+    let point = ridge - radial * (2.0 * ct) - Vec3::Y * (2.0 * st);
     let corner = Vec3::new(0.4 * radial.x.signum(), 0.0, 0.4 * radial.z.signum());
     let mut s = PlayerState::new(point - corner + n * 0.05, &p);
     s.grounded = false;

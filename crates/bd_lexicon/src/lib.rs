@@ -19,6 +19,7 @@
 mod data;
 mod fuzzy;
 mod icons;
+mod intent;
 mod invocation;
 mod norm;
 mod parse;
@@ -41,6 +42,7 @@ use bd_core::shape::ShapeSpec;
 
 pub use data::LoadError;
 pub use icons::IconDef;
+pub use intent::{Delivery, Intent};
 pub use invocation::{MAX_TITLE as SIGNATURE_MAX_TITLE, SignatureCall, SignatureKind};
 pub use norm::{MAX_INPUT_CHARS, MAX_TOKENS, normalize_key};
 pub use phonetic::phonetic_key;

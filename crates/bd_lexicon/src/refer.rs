@@ -9,14 +9,14 @@
 //! * [`crate::Lexicon::refer`]: "make it bigger", "set it on fire", "give it wings", "put rockets on
 //!   it", "ignite it", "it explodes", bare comparatives ("bigger!", "even faster") → [`Refer::It`];
 //!   "again!", "another one", "one more", "two more", "3 more" → [`Refer::Again`].
-//! * [`crate::Lexicon::target_player`]: "<phrase> at|on|onto|toward|after|against|on top of <name>"
-//!   where `<name>` is one of the given display names (case-insensitive; typos and, for voice
-//!   transcripts, sound-alikes accepted). The name words are removed from the phrase, so they can
-//!   never resolve as nouns ("sam" never becomes a random entity).
+//! * [`crate::Lexicon::target_player`]: "<phrase> at|on|onto|toward|after|against|on top of|around …
+//!   <name>" and "<verb> <name> [with <thing>]" where `<name>` is one of the given display names
+//!   (case-insensitive; camelCase / gamertag words, typos and, for voice transcripts, sound-alikes
+//!   accepted). The name words are removed from the phrase, so they can never resolve as nouns ("sam"
+//!   never becomes a random entity) or as a mount ("meteor on ethan"). Grammar + data: `intent.rs`,
+//!   `data/intent.ron`; the staged entry point is [`crate::Lexicon::intent`].
 
-use crate::fuzzy::{dl_distance, max_typo};
 use crate::norm::normalize_key;
-use crate::phonetic::phonetic_key;
 
 /// What a phrase refers to (see the module docs).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,19 +35,27 @@ pub struct Targeted {
     pub rest: String,
     /// Index into the `names` slice given to [`crate::Lexicon::target_player`].
     pub player: usize,
+    /// How it reaches them: the preposition's (or target verb's) delivery ("on" → Onto, "at" → At).
+    pub via: crate::intent::Delivery,
+    /// The words read as the name ("eaton", "jay k").
+    pub heard: String,
+    /// 0 = exact name; else a typo / sound-alike distance.
+    pub dist: u8,
+    /// "<verb> <name> …" form ("cage ethan"): the verb words (then `rest` starts with them).
+    pub verb: Option<String>,
 }
 
 /// One word of the input: byte span in the original text + normalised form.
 #[derive(Clone, Debug)]
-struct Word {
-    start: usize,
-    end: usize,
-    key: String,
+pub(crate) struct Word {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) key: String,
 }
 
 /// Split into words (alphanumeric runs, inner apostrophes kept), each with its normalised key.
 /// Words that normalise to nothing are dropped. At most 24 words (the lexicon reads 16 tokens).
-fn words(text: &str) -> Vec<Word> {
+pub(crate) fn words(text: &str) -> Vec<Word> {
     let mut out = Vec::new();
     let chars: Vec<(usize, char)> = text.char_indices().take(256).collect();
     let limit = chars.last().map_or(0, |(b, c)| b + c.len_utf8());
@@ -246,111 +254,6 @@ fn again(ws: &[Word]) -> Option<Refer> {
     }
 }
 
-/// Prepositions that aim a phrase at someone ("missile at Jake", "bees on Sam").
-const AIM_PREP: &[&str] =
-    &["at", "on", "onto", "toward", "towards", "after", "against", "vs", "versus", "upon", "over", "for", "to", "into"];
-/// Words allowed after the name ("at Jake's head now!").
-const AFTER_NAME: &[&str] = &["now", "please", "head", "face", "feet", "butt", "back", "again", "plz"];
-
-/// Match a span of words against the display names. Returns (name index, edit distance).
-fn match_name(span: &[Word], names: &[Vec<String>], spoken: bool, common_word: impl Fn(&str) -> bool) -> Option<(usize, usize)> {
-    let text: String = span.iter().map(|w| w.key.as_str()).collect::<Vec<_>>().join(" ");
-    let squashed: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    let mut best: Option<(usize, usize)> = None;
-    for (i, toks) in names.iter().enumerate() {
-        if toks.is_empty() {
-            continue;
-        }
-        let full = toks.join(" ");
-        let full_sq: String = toks.concat();
-        let letters_only: String = full_sq.chars().filter(|c| c.is_ascii_alphabetic()).collect();
-        // Exact: the full name, the name without spaces / digits, or its first word (≥ 3 letters).
-        // One word of a multi-word name ("tony" for "Big Tony"), 3+ letters.
-        let word_of = |w: &str| toks.len() > 1 && toks.iter().any(|t| t.len() >= 3 && t.chars().all(|c| c.is_ascii_alphabetic()) && t == w);
-        let exact = text == full
-            || squashed == full_sq
-            || (letters_only.len() >= 3 && squashed == letters_only)
-            || (span.len() == 1 && word_of(&text));
-        let d = if exact {
-            Some(0)
-        } else if common_word(&text) {
-            None // "fire" stays fire unless a player is literally called Fire
-        } else {
-            let mut cands: Vec<&str> = vec![full_sq.as_str(), letters_only.as_str()];
-            if toks.len() > 1 {
-                cands.extend(toks.iter().map(String::as_str).filter(|t| t.len() >= 4));
-            }
-            let mut d_best: Option<usize> = None;
-            for c in cands.iter().filter(|c| c.len() >= 3) {
-                let limit = max_typo(c.len().max(squashed.len()), spoken);
-                if limit > 0
-                    && let Some(d) = dl_distance(squashed.as_bytes(), c.as_bytes(), limit)
-                {
-                    d_best = Some(d_best.map_or(d, |b: usize| b.min(d)));
-                }
-                // Voice: "jake" heard as "jay k" / "shake" — same consonant skeleton.
-                if spoken && squashed.len() >= 3 && d_best.is_none() {
-                    let (a, b) = (phonetic_key(&squashed), phonetic_key(c));
-                    if a.len() >= 2 && a == b {
-                        d_best = Some(1);
-                    }
-                }
-            }
-            d_best
-        };
-        if let Some(d) = d
-            && best.is_none_or(|(_, bd)| d < bd)
-        {
-            best = Some((i, d));
-        }
-    }
-    best
-}
-
-/// See [`crate::Lexicon::target_player`]. `common_word(key)` = the span is itself a known word (then
-/// only an exact name match counts).
-pub(crate) fn target_player(text: &str, names: &[&str], spoken: bool, common_word: impl Fn(&str) -> bool) -> Option<Targeted> {
-    if names.is_empty() {
-        return None;
-    }
-    let norm: Vec<Vec<String>> =
-        names.iter().map(|n| normalize_key(n).split(' ').filter(|t| !t.is_empty()).take(4).map(String::from).collect()).collect();
-    let ws = words(text);
-    let n = ws.len();
-    if n < 3 {
-        return None;
-    }
-    // Scan preposition positions from the end (the aim is the phrase's tail): "<rest> <prep> <name> [tail]".
-    for p in (1..n - 1).rev() {
-        let name_from =
-            if ws[p].key == "on" && ws.get(p + 1).is_some_and(|w| w.key == "top") && ws.get(p + 2).is_some_and(|w| w.key == "of") {
-                p + 3
-            } else if is(&ws[p], AIM_PREP) {
-                p + 1
-            } else {
-                continue;
-            };
-        if name_from >= n {
-            continue;
-        }
-        // The name is 1–3 words, followed only by harmless tail words.
-        for len in (1..=3.min(n - name_from)).rev() {
-            let tail = &ws[name_from + len..];
-            if !tail.iter().all(|w| AFTER_NAME.contains(&w.key.as_str())) {
-                continue;
-            }
-            if let Some((i, _)) = match_name(&ws[name_from..name_from + len], &norm, spoken, &common_word) {
-                let rest = text[..ws[p].start].trim().trim_end_matches([',', '-', ':', ';']).trim().to_string();
-                if rest.is_empty() {
-                    return None;
-                }
-                return Some(Targeted { rest, player: i });
-            }
-        }
-    }
-    None
-}
-
 impl crate::Lexicon {
     /// "it" / "again" grammar — see [`Refer`]. Pure text; `None` for an ordinary phrase.
     pub fn refer(&self, text: &str) -> Option<Refer> {
@@ -362,7 +265,7 @@ impl crate::Lexicon {
     /// `spoken`, sound-alikes) accepted unless the word is itself a known noun ("sword on fire" never
     /// targets a player called "Fyre"; one literally called "Fire" still matches exactly).
     pub fn target_player(&self, text: &str, names: &[&str], spoken: bool) -> Option<Targeted> {
-        target_player(text, names, spoken, |k| self.lookup(k).is_some())
+        crate::intent::find_target(text, names, spoken, &|k| self.common_word(k))
     }
 }
 
@@ -436,6 +339,10 @@ mod tests {
     }
 
     const NAMES: [&str; 4] = ["Jake", "Sam", "Alex_99", "Big Tony"];
+
+    fn target_player(s: &str, names: &[&str], spoken: bool, common: impl Fn(&str) -> bool) -> Option<Targeted> {
+        crate::intent::find_target(s, names, spoken, &common)
+    }
 
     fn aim(s: &str, spoken: bool) -> Option<(String, &'static str)> {
         target_player(s, &NAMES, spoken, |k| matches!(k, "fire" | "sword" | "hammer")).map(|t| (t.rest, NAMES[t.player]))
