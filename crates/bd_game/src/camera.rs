@@ -1,7 +1,8 @@
 //! First-person camera.
 //!
 //! Final camera transform (PostUpdate, before transform propagation):
-//! `translation = ViewAnchor.eye + shake offset`, `rotation = LookAngles (this frame's mouse) × shake`.
+//! `translation = ViewAnchor.eye + shake offset`,
+//! `rotation = LookAngles (this frame's mouse) × strafe lean ([`ViewRoll`]) × shake`.
 //! Whoever owns the local view (placeholder noclip player now, bd_sim's predicted player later)
 //! writes the *interpolated* eye position and velocity to [`ViewAnchor`] every frame.
 //!
@@ -41,6 +42,29 @@ pub enum CameraRig {
 pub struct ViewAnchor {
     pub eye: Vec3,
     pub velocity: Vec3,
+}
+
+/// Quake-style view lean (radians, + = lean right), smoothed. Strafing leans up to ~1°, a tether
+/// swing up to ~2.5°; off in ADS and with [`ComfortSettings::roll_on`] off. Both rigs apply it about
+/// the view axis only (aim and the crosshair ray never change).
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct ViewRoll(pub f32);
+
+impl ViewRoll {
+    const STRAFE_DEG: f32 = 1.0;
+    const SWING_DEG: f32 = 2.5;
+
+    /// The lean rotation to put between the look rotation and shake.
+    pub fn quat(&self) -> Quat {
+        Quat::from_rotation_z(-self.0)
+    }
+
+    /// Target lean for a sideways speed (m/s along the view's right) — linear up to full at
+    /// `full` m/s, like Quake's `cl_rollspeed`.
+    fn target(side: f32, swinging: bool) -> f32 {
+        let (deg, full) = if swinging { (Self::SWING_DEG, 16.0) } else { (Self::STRAFE_DEG, 9.0) };
+        (side / full).clamp(-1.0, 1.0) * deg.to_radians()
+    }
 }
 
 /// Speed-based widening + punch spring, in horizontal degrees added to the base FOV.
@@ -92,6 +116,7 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ViewAnchor>()
             .init_resource::<CameraRig>()
+            .init_resource::<ViewRoll>()
             .add_systems(Startup, spawn_camera)
             .configure_sets(PostUpdate, CameraUpdateSet.before(TransformSystems::Propagate))
             .add_systems(
@@ -144,6 +169,9 @@ fn update_player_camera(
     settings: Res<Settings>,
     comfort: Res<ComfortSettings>,
     rig: Res<CameraRig>,
+    ads: Option<Res<crate::present::ads::AdsState>>,
+    me: Query<&crate::player::PlayerSim, With<crate::player::LocalPlayer>>,
+    mut roll: ResMut<ViewRoll>,
     window: Single<&Window, With<PrimaryWindow>>,
     cam: Single<(&mut Transform, &mut Projection, &mut DynamicFov), With<PlayerCamera>>,
 ) {
@@ -151,12 +179,21 @@ fn update_player_camera(
     let dt = time.delta_secs().min(0.1);
     dfov.step(dt, anchor.velocity.length(), comfort.speed_fov, comfort.fov_kick > 0.0);
 
-    // Rotation never rolls: yaw/pitch from this frame's mouse, shake adds only pitch/yaw.
+    // Yaw/pitch from this frame's mouse; the only roll is the subtle strafe / swing lean (about the
+    // view axis, so aim is untouched); shake adds only pitch/yaw.
     let base_rot = look.rotation();
+    let aimed = ads.map_or(0.0, |a| a.blend.clamp(0.0, 1.0));
+    let want = if comfort.roll_on() && *rig != CameraRig::Director {
+        let swinging = me.single().is_ok_and(|s| s.state.tethered());
+        ViewRoll::target(anchor.velocity.dot(base_rot * Vec3::X), swinging) * (1.0 - aimed)
+    } else {
+        0.0
+    };
+    roll.0 += (want - roll.0) * (1.0 - (-7.0 * dt).exp());
     match *rig {
         CameraRig::FirstPerson => {
             tf.translation = anchor.eye + base_rot * shake.offset;
-            tf.rotation = base_rot * shake.rotation;
+            tf.rotation = base_rot * roll.quat() * shake.rotation;
         }
         // Placed by `present::camera3p` / the director right after this system.
         CameraRig::ThirdPerson | CameraRig::Director => {}

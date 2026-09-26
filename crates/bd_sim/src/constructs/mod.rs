@@ -820,10 +820,15 @@ impl Construct {
     /// CONSTRUCT ENGINEER: a held form that `Flies` without `Returning` ("a flying hammer", §0)
     /// leaves the hand and hunts on its own. It runs the Object controller + generic components
     /// (a free body, not attached) and still occupies the owner's Held slot. Flies + Returning
-    /// stays with the held controller (Mjolnir / Thor flight).
+    /// stays with the held controller (Mjolnir / Thor flight). FREEDOM HOOK: so does a held form that
+    /// `DropFromSky` without `Returning` — a volley ("rain of arrows", "shower of swords") or a
+    /// dropped weapon ("drop a sword on Jake") falls from the sky like an object.
     #[inline]
     pub fn free_flier(&self) -> bool {
-        self.category == FormCategory::Held && self.pilot.is_none() && self.recipe.has(Mechanic::Flies) && !self.recipe.has(Mechanic::Returning)
+        self.category == FormCategory::Held
+            && self.pilot.is_none()
+            && (self.recipe.has(Mechanic::Flies) || self.recipe.has(Mechanic::DropFromSky))
+            && !self.recipe.has(Mechanic::Returning)
     }
 
     #[inline]

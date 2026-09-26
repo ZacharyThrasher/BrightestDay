@@ -104,6 +104,8 @@ enum Knob {
     OutlinePatterns,
     Comfort,
     SpeedFov,
+    /// Strafe / tether-swing camera lean.
+    Roll,
     Shake,
     FovKick,
     LandingDip,
@@ -505,7 +507,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                     v.extend([Header("MIX"), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono)]);
                 }
                 SettingsTab::Comfort => {
-                    v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
+                    v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Roll), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
                 }
                 SettingsTab::Hud => {
                     v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::ShowPercent)]);
@@ -579,6 +581,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::OutlinePatterns => (lbl("  COLOUR-BLIND PATTERNS"), on_off(c.prefs.outline_patterns)),
         Knob::Comfort => (lbl("COMFORT PRESET"), on_off(s.comfort.is_comfort_preset())),
         Knob::SpeedFov => (lbl("  SPEED FOV"), on_off(s.comfort.speed_fov)),
+        Knob::Roll => (lbl("  STRAFE LEAN"), on_off(s.comfort.roll_on())),
         Knob::Shake => (lbl("  CAMERA SHAKE"), pct(s.comfort.shake)),
         Knob::FovKick => (lbl("  FOV KICKS"), pct(s.comfort.fov_kick)),
         Knob::LandingDip => (lbl("  LANDING DIP"), pct(s.comfort.landing_dip)),
@@ -761,6 +764,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::SpeedFov => {
             s.comfort.speed_fov = !s.comfort.speed_fov;
+            game = false;
+        }
+        Knob::Roll => {
+            s.comfort.strafe_roll = Some(!s.comfort.roll_on());
             game = false;
         }
         Knob::Shake | Knob::FovKick | Knob::LandingDip | Knob::Flashes | Knob::Vignette => {
@@ -2127,7 +2134,7 @@ mod tests {
         let knobs = [
             Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
             Knob::AdsSpeed, Knob::ShowPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
-            Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
+            Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Roll, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
             Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
             Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,
             Knob::Voice, Knob::Ono, Knob::OnoLang, Knob::Shout,

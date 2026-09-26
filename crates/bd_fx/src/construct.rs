@@ -86,6 +86,47 @@ pub struct ConstructVisual {
     /// Per-voxel colours (terrain animated by a graft keeps its materials, tinted with hard light).
     /// Only read when the model is first meshed; pair it with a per-construct model (`key: None`).
     pub colors: Option<Arc<VoxelColors>>,
+    /// PRESENCE: the element surface layered over the hard light (heat shimmer, frost rim, arcs…).
+    pub look: HardLightLook,
+}
+
+/// PRESENCE: an element "material" layered over the hard-light surface by `construct.wgsl` (no
+/// extra draw: two spare palette lanes). `element` 0 = none; 1 Light, 2 Fire, 3 Electric, 4 Ice,
+/// 5 Water, 6 Wind, 7 Earth, 8 Poison, 9 Psychic, 10 Shadow, 11 Atomic ([`HardLightLook::code`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct HardLightLook {
+    pub element: u8,
+    /// 0..1.5 strength (the game fades it with distance / tier).
+    pub amount: f32,
+    /// 0..1 emissive surge in the element colour (manifest spike, unstable pulse).
+    pub surge: f32,
+}
+
+impl HardLightLook {
+    /// Shader code of an element (see the type doc).
+    pub fn code(e: bd_core::mechanics::Element) -> u8 {
+        use bd_core::mechanics::Element::*;
+        match e {
+            Light => 1,
+            Fire => 2,
+            Electric => 3,
+            Ice => 4,
+            Water => 5,
+            Wind => 6,
+            Earth => 7,
+            Poison => 8,
+            Psychic => 9,
+            Shadow => 10,
+            Atomic => 11,
+        }
+    }
+    /// Packed into the construct params: `dark.a = element + surge·0.99`, `core.a = amount`.
+    pub fn pack(&self) -> (f32, f32) {
+        if self.element == 0 {
+            return (0.0, 0.0);
+        }
+        (self.element as f32 + fin(self.surge, 0.0).clamp(0.0, 1.0) * 0.99, fin(self.amount, 0.0).clamp(0.0, 1.5))
+    }
 }
 
 impl ConstructVisual {
@@ -106,6 +147,7 @@ impl ConstructVisual {
             seed: 0,
             heat: 0.0,
             colors: None,
+            look: HardLightLook::default(),
         }
     }
     pub fn with_key(mut self, key: ShapeKey) -> Self {
@@ -738,6 +780,7 @@ fn write_construct_params(
         let flash = v.flash.max(rt.auto_flash);
         let mut g = construct_gpu(&pal, v.integrity, reveal, flash, v.dim, v.model.voxel_size, v.seed, v.opacity, dissolving, origin, 1.0 / radius);
         g.primary[3] = fin(v.heat, 0.0).clamp(0.0, 1.0);
+        (g.dark[3], g.core[3]) = v.look.pack();
         write_slot(&mut up, slot.0, g);
         write_anchor(&mut up, anchor.0, AnchorGpu::from_affine(&root, v.ring.unwrap_or(pos)));
     }

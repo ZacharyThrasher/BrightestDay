@@ -481,6 +481,8 @@ impl World {
         let flavor = crate::freedom::spawn_prelude(self, i, &mut recipe, model.is_some());
         // CONSTRUCTS rules: a kind the lobby turned off steers to the nearest allowed kind (or fizzles).
         self.steer_by_limits(id, &mut recipe)?;
+        // POWER-UPS HOOK: giants / meteors need a pickup (Locked → the small version; Loaded → spent below).
+        let spend = crate::pickups::gate_cast(self, id, &mut recipe);
         let colossal = is_colossal(&recipe);
         if colossal && self.constructs.owned_by(id).filter(|c| c.colossal).count() >= self.cfg.rules.colossal_limit() {
             return Err(CastError::ColossalLimit);
@@ -551,6 +553,10 @@ impl World {
             (aim_point, Quat::IDENTITY, Vec3::ZERO)
         } else {
             match category {
+                // FREEDOM HOOK: a held volley / dropped weapon falls onto the aim point (lifted by the drop)
+                FormCategory::Held if recipe.has(Mechanic::DropFromSky) && !recipe.has(Mechanic::Returning) && !recipe.has(Mechanic::Flies) => {
+                    (aim_point, geom::look_rotation(Vec3::new(look.x * 0.1, -1.0, look.z * 0.1).normalize_or(Vec3::NEG_Y)), Vec3::ZERO)
+                }
                 FormCategory::Held => (p.eye(&base), geom::look_rotation(look), Vec3::ZERO),
                 FormCategory::Worn => (p.hull(&base).center(), yaw_face, Vec3::ZERO),
                 FormCategory::Object => {
@@ -613,6 +619,9 @@ impl World {
         }
         self.events.push(GameEvent::ConstructSpawned { id: cid, owner: id, recipe: Box::new(recipe.clone()), pos, rot, forming, cost });
         crate::freedom::after_spawn(self, i, cid, &recipe, flavor, sputter); // FREEDOM HOOK: golden / sputter flags, feed tag
+        if let Some(k) = spend {
+            crate::pickups::spend(self, id, k); // POWER-UPS HOOK: the FULL-size payoff used the pickup
+        }
         if let Some(alt) = self.pending_alt_shape.take() {
             self.attach_alt_shape(cid, alt);
         }

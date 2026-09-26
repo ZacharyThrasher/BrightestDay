@@ -37,7 +37,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Connect feel a6409611d34036099 — hit assist (melee volume+magnetism, projectile/hitscan magnetism),
   weight-pass-2 juice (hit-stop, contact resistance, camera punch, sparks, KO slow-mo; juice.ron),
   LUNGE fix (owner can't feel it: measure trigger rate, loosen, make it felt), railgun early-release shot.
-- Anti-juggle a98da5aecac02be4b — knockback decay + short immunity; also owns the FFA hash A/B
+- Anti-juggle a98da5aecac02be4b (DONE: combat.ron juggle{}, white outline guard, FFA hash 0x0279296707d1b7e0) — knockback decay + short immunity; also owns the FFA hash A/B
   (currently 0xd1a37fca9b34c73d failing — cause is juggle or casino edits).
 - Signature a67f94557763852e1 — ENERGY ATTACKS = HAND BEAMS (final flash/kamehameha/galick… no gun
   model; 2-hand charge orb + palm beam 1P/3P; canonical title when recognised).
@@ -50,7 +50,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Character costumes abe83e88bc70188b0 — style library + ~150 iconic looks (gojo/vader/...) + icon-derived
   fallback; gallery docs/costume_gallery.png is the bar.
 - Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (transforms
-  ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (static), Valley of the
+  ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (static), Valley (DONE, registered; easy falls climb KEPT per owner) of the
   End a39d259b62dd1312d (water-walk as flavour), Ember a12534acdde2f59c8 (lava = void), Hyperline
   a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b (DONE, registered; surf murk fix sent to feel-polish), High Roller casino
   a668e5a109aacf9fa (optional slots/roulette; its routes example was missing mid-work).

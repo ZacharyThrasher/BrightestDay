@@ -440,20 +440,15 @@ fn log_intent(text: &str, spoken: bool, heard_conf: Option<f32>, plan: &crate::l
         None => ("power".to_string(), "-".to_string(), format!("{} conf={:.2}", res.signature(), res.confidence)),
     };
     let line = format!(
-        "{}	{}	{}	{}	{}	{}	{}	{}
-",
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
         timestamp(),
         if spoken { "voice" } else { "typed" },
         heard_conf.map_or("-".to_string(), |c| format!("{c:.2}")),
-        text.replace(['	', '
-', '
-'], " "),
+        text.replace(['\t', '\n', '\r'], " "),
         if stages.is_empty() { "-".to_string() } else { stages },
         target,
         plan.delivery.map_or("-".to_string(), |d| format!("{d:?}").to_lowercase()),
-        summary.replace(['	', '
-', '
-'], " "),
+        summary.replace(['\t', '\n', '\r'], " "),
     );
     let write = || -> std::io::Result<()> {
         std::fs::create_dir_all(&dir)?;

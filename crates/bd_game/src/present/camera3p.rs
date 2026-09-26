@@ -517,7 +517,7 @@ fn update_mode(
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) fn place_camera(
     time: Res<Time<Real>>,
-    view: (Res<ViewMode>, Res<CameraRig>, Res<ViewAnchor>, Res<LookAngles>, Res<CameraShake>),
+    view: (Res<ViewMode>, Res<CameraRig>, Res<ViewAnchor>, Res<LookAngles>, Res<CameraShake>, Res<crate::camera::ViewRoll>),
     comfort: Res<ComfortSettings>,
     ads: Res<super::ads::AdsState>,
     prefs: Option<Res<UiPrefs>>,
@@ -530,7 +530,7 @@ pub(crate) fn place_camera(
     mut cam: Query<(&mut Transform, &mut Projection), With<PlayerCamera>>,
     mut hulls: Local<Vec<(Vec3, Vec3)>>,
 ) {
-    let (mode, rig, anchor, look, shake) = view;
+    let (mode, rig, anchor, look, shake, roll) = view;
     let Ok((mut tf, mut proj)) = cam.single_mut() else { return };
     let guard = if active.is_none() { arena.as_ref().map(|a| a.read()) } else { None };
     let vox: &dyn VoxelQuery = match (active.as_deref(), guard.as_deref()) {
@@ -619,7 +619,8 @@ pub(crate) fn place_camera(
         let pos = solve.pivot + back * boom.min(st.boom).clamp(0.0, hard);
         st.offset = rot.inverse() * (pos - anchor.eye);
         tf.translation = pos + rot * shake.offset;
-        tf.rotation = rot * shake.rotation;
+        // Strafe / swing lean (camera.rs) about the view axis: aim and the boom are untouched.
+        tf.rotation = rot * roll.quat() * shake.rotation;
     } else {
         st.offset = Vec3::ZERO;
         st.boom = f32::INFINITY;

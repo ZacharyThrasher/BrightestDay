@@ -202,6 +202,7 @@ fn shade(w: &VoxelWorld, info: &MapInfo, boxes: &[(Vec3, Vec3, Quat)], eye: Vec3
     col
 }
 
+#[allow(clippy::too_many_arguments)]
 fn shot(w: &VoxelWorld, info: &MapInfo, boxes: &[(Vec3, Vec3, Quat)], eye: Vec3, target: Vec3, fov: f32, wpx: u32, hpx: u32) -> RgbImage {
     let fwd = (target - eye).normalize();
     let right = fwd.cross(Vec3::Y).normalize();

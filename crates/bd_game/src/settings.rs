@@ -80,8 +80,8 @@ impl Default for Settings {
     }
 }
 
-/// Motion comfort (docs/DESIGN.md "Motion comfort"). The camera never rolls regardless of these.
-/// Mirrored into a `ComfortSettings` resource that every camera effect reads.
+/// Motion comfort (docs/DESIGN.md "Motion comfort"). The only camera roll is the subtle strafe /
+/// swing lean ([`ComfortSettings::roll_on`]), off in the comfort preset. Mirrored into a `ComfortSettings` resource that every camera effect reads.
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ComfortSettings {
@@ -97,17 +97,26 @@ pub struct ComfortSettings {
     pub flashes: f32,
     /// Comfort vignette strength (edge darkening scaled by speed / turn rate; 0 = off).
     pub vignette: f32,
+    /// Strafe / tether-swing camera lean (~1-2.5 deg). `None` = automatic: on, except for
+    /// comfort-style settings (saved before this option existed, or the preset).
+    pub strafe_roll: Option<bool>,
 }
 
 impl Default for ComfortSettings {
     fn default() -> Self {
-        Self { shake: 1.0, speed_fov: true, fov_kick: 1.0, landing_dip: 1.0, flashes: 1.0, vignette: 0.0 }
+        Self { shake: 1.0, speed_fov: true, fov_kick: 1.0, landing_dip: 1.0, flashes: 1.0, vignette: 0.0, strafe_roll: None }
     }
 }
 
 impl ComfortSettings {
     /// The one-click Comfort preset.
-    pub const COMFORT: Self = Self { shake: 0.0, speed_fov: false, fov_kick: 0.0, landing_dip: 0.0, flashes: 0.0, vignette: 0.7 };
+    pub const COMFORT: Self =
+        Self { shake: 0.0, speed_fov: false, fov_kick: 0.0, landing_dip: 0.0, flashes: 0.0, vignette: 0.7, strafe_roll: None };
+
+    /// Whether the strafe / swing camera lean is on (see [`Self::strafe_roll`]).
+    pub fn roll_on(&self) -> bool {
+        self.strafe_roll.unwrap_or(self.speed_fov || self.fov_kick > 0.0 || self.shake > 0.0)
+    }
 
     pub fn is_comfort_preset(&self) -> bool {
         *self == Self::COMFORT

@@ -107,6 +107,98 @@ pub enum NetMapKind {
     Hyperline,
 }
 
+impl NetMapKind {
+    /// Every map, in menu order (the end-of-match vote shows them all). A new variant must be added
+    /// here too: [`NetMapKind::index`] is exhaustive and the `map_list_is_complete` test checks it.
+    pub const ALL: [NetMapKind; 13] = [
+        NetMapKind::Archipelago,
+        NetMapKind::Miami,
+        NetMapKind::Orbit,
+        NetMapKind::Backrooms,
+        NetMapKind::Sakura,
+        NetMapKind::Ember,
+        NetMapKind::Mirrorfold,
+        NetMapKind::Casino,
+        NetMapKind::Valley,
+        NetMapKind::Cybertron,
+        NetMapKind::Lair,
+        NetMapKind::GiantsRoom,
+        NetMapKind::Hyperline,
+    ];
+
+    /// Position in [`NetMapKind::ALL`].
+    pub fn index(self) -> usize {
+        match self {
+            NetMapKind::Archipelago => 0,
+            NetMapKind::Miami => 1,
+            NetMapKind::Orbit => 2,
+            NetMapKind::Backrooms => 3,
+            NetMapKind::Sakura => 4,
+            NetMapKind::Ember => 5,
+            NetMapKind::Mirrorfold => 6,
+            NetMapKind::Casino => 7,
+            NetMapKind::Valley => 8,
+            NetMapKind::Cybertron => 9,
+            NetMapKind::Lair => 10,
+            NetMapKind::GiantsRoom => 11,
+            NetMapKind::Hyperline => 12,
+        }
+    }
+
+    /// Display name (the lobby's map knob uses the same words).
+    pub fn name(self) -> &'static str {
+        match self {
+            NetMapKind::Archipelago => "ARCHIPELAGO",
+            NetMapKind::Miami => "MIAMI",
+            NetMapKind::Orbit => "ORBIT",
+            NetMapKind::Backrooms => "BACKROOMS",
+            NetMapKind::Sakura => "SAKURA KEEP",
+            NetMapKind::Ember => "EMBER",
+            NetMapKind::Mirrorfold => "MIRRORFOLD",
+            NetMapKind::Casino => "HIGH ROLLER",
+            NetMapKind::Valley => "VALLEY OF THE END",
+            NetMapKind::Cybertron => "CYBERTRON",
+            NetMapKind::Lair => "TURTLE LAIR",
+            NetMapKind::GiantsRoom => "GIANT'S ROOM",
+            NetMapKind::Hyperline => "HYPERLINE",
+        }
+    }
+
+    /// The render / menu map kind.
+    pub fn map_kind(self) -> crate::arena::MapKind {
+        use crate::arena::MapKind;
+        match self {
+            NetMapKind::Archipelago => MapKind::Arena,
+            NetMapKind::Miami => MapKind::Miami,
+            NetMapKind::Orbit => MapKind::Orbit,
+            NetMapKind::Backrooms => MapKind::Backrooms,
+            NetMapKind::Sakura => MapKind::Sakura,
+            NetMapKind::Ember => MapKind::Ember,
+            NetMapKind::Mirrorfold => MapKind::Mirrorfold,
+            NetMapKind::Casino => MapKind::Casino,
+            NetMapKind::Valley => MapKind::Valley,
+            NetMapKind::Cybertron => MapKind::Cybertron,
+            NetMapKind::Lair => MapKind::Lair,
+            NetMapKind::GiantsRoom => MapKind::GiantsRoom,
+            NetMapKind::Hyperline => MapKind::Hyperline,
+        }
+    }
+
+    /// From a render / menu map kind (the tutorial is not a match map: Archipelago).
+    pub fn from_map_kind(m: crate::arena::MapKind) -> Self {
+        Self::ALL.into_iter().find(|k| k.map_kind() == m).unwrap_or_default()
+    }
+}
+
+/// The vote for the next match while a match is over (protocol v23).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct NextVote {
+    /// One vote per player (the latest click).
+    pub votes: Vec<(PlayerId, NetMapKind)>,
+    /// Seconds until the next match starts (at send time).
+    pub secs_left: f32,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NetMap {
     pub kind: NetMapKind,
@@ -194,6 +286,10 @@ pub struct LobbyInfo {
     pub map: NetMap,
     /// A match is running (joiners go straight in).
     pub in_match: bool,
+    /// Protocol v23: the match is over and the lobby votes on the next map.
+    pub vote: Option<NextVote>,
+    /// Protocol v23: competitive stats of the current / finished match (host-authoritative).
+    pub stats: Vec<bd_sim::match_stats::StatLine>,
 }
 
 /// Commands a client may ask the host to run for its player. Mirrors `sim_bridge::Cmd` minus
@@ -311,6 +407,8 @@ pub enum C2S {
     /// Cosmetic: the phrase this player just cast, for everyone's shout callout (host re-sanitises,
     /// rate-limits and relays it as [`S2C::Shout`]).
     Shout(crate::present::shout::ShoutLine),
+    /// The match is over: this player's pick for the next map (protocol v23; the latest one counts).
+    MapVote(NetMapKind),
 }
 
 /// Everything a joining (or resyncing) client needs to rebuild the world.
@@ -417,6 +515,17 @@ mod tests {
             }
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn map_list_is_complete() {
+        for (i, k) in NetMapKind::ALL.iter().enumerate() {
+            assert_eq!(k.index(), i, "{k:?}");
+            assert_eq!(NetMapKind::from_map_kind(k.map_kind()), *k);
+            assert!(!k.name().is_empty());
+        }
+        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::MapVote(NetMapKind::Lair))).unwrap();
+        assert!(matches!(back, C2S::MapVote(NetMapKind::Lair)));
     }
 
     #[test]

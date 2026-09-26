@@ -79,7 +79,7 @@ pub const POCKET_Y: f32 = 38.0;
 /// from (`HALO_R`, `HALO_Y`) at angle [`HALO_START`] in toward the pockets and down by
 /// [`HALO_DROP`] (gravity along the line keeps a rider's speed up through the lap).
 pub const HALO_R: f32 = 20.5;
-pub const HALO_Y: f32 = 50.5;
+pub const HALO_Y: f32 = 49.5;
 pub const HALO_IN: f32 = 4.5;
 pub const HALO_DROP: f32 = 5.0;
 pub const HALO_START: f32 = std::f32::consts::FRAC_PI_3;
@@ -492,9 +492,10 @@ fn build_floor_props(c: &mut City, slots: &mut Vec<SlotMachine>) {
             chip_stack(c, Vec3::new(q.x, FLOOR_Y, q.y), 1.4, [3, 6, 4][k], &pal, (k * 2 + j) as u32 * 31 + 5);
         }
     }
-    // Chip-stack steps on the felt: 1.5 → 3 → 4.5 m, up to the surf halo (four clusters).
+    // Chip-stack steps on the felt: 1.5 → 3 → 4.5 m, up to the surf halo's lower half (four
+    // clusters N → W → S, clear of the east chandeliers' swing line).
     for q in 0..4 {
-        let a = TAU / 8.0 + q as f32 * TAU / 4.0;
+        let a = TAU / 4.0 + q as f32 * TAU / 6.0;
         for (i, (da, rr, n, cr)) in [(-0.10f32, 25.6f32, 3, 1.2f32), (0.0, 25.4, 6, 1.3), (0.11, 24.6, 9, 1.4)].iter().enumerate() {
             let b = a + da;
             chip_stack(c, Vec3::new(dcos(b) * rr, FELT_Y, dsin(b) * rr), *cr, *n, &pal, (q * 3 + i) as u32 * 17 + 3);
@@ -611,8 +612,8 @@ fn pick_spawns(c: &City) -> Vec<Vec3> {
         (-36.0, -30.0, FLOOR_Y),
         (40.0, 8.0, FLOOR_Y),
         (-40.0, -9.0, FLOOR_Y),
-        (0.0, 25.0, FELT_Y),
-        (0.0, -25.0, FELT_Y),
+        (25.0, 0.0, FELT_Y),
+        (-25.0, 0.0, FELT_Y),
         (10.0, 40.0, MEZZ_Y),
         (-10.0, -40.0, MEZZ_Y),
         (32.0, 20.0, ROOF_Y),

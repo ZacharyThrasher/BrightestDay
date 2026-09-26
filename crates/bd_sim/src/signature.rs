@@ -295,6 +295,11 @@ impl World {
         sig: SignatureCast,
     ) -> Result<ConstructId, CastError> {
         let sig = sig.sanitized();
+        // POWER-UPS HOOK: an ultimate needs its pickup; without it, the plain phrase (never a no).
+        let gate = crate::pickups::gate_signature(self, player, sig.kind);
+        if gate == crate::pickups::Gate::Locked {
+            return self.cast_shaped(player, recipe, shape, None, aim);
+        }
         let t = self.cfg.tuning.signature.clone();
         let full_bar = self.player(player).is_some_and(|p| p.willpower >= self.cfg.rules.willpower_max() - 0.5);
         let amped = amplify(recipe.clone(), sig, &t, &self.cfg.rules, full_bar);
@@ -311,6 +316,9 @@ impl World {
         let shape = if orb { None } else { shape };
         let res = self.cast_shaped(player, amped, shape, None, aim);
         self.signature.cast = None;
+        if res.is_ok() && gate == crate::pickups::Gate::Loaded {
+            crate::pickups::spend(self, player, crate::pickups::GateKind::Ultimate); // POWER-UPS HOOK
+        }
         if let (Ok(cid), Some([a, b])) = (res, sig.merge) {
             let secs = self.constructs.get(cid).map_or(0.0, |c| c.forming_t);
             let pos = self.constructs.get(cid).map_or(aim.origin, |c| c.pos);

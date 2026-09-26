@@ -180,7 +180,7 @@ pub fn form_name(x: Form) -> &'static str {
     }
 }
 
-pub const ALL_MECHANIC: [Mechanic; 40] = [
+pub const ALL_MECHANIC: [Mechanic; 41] = [
     Mechanic::Blunt,
     Mechanic::Blade,
     Mechanic::Pierce,
@@ -221,6 +221,7 @@ pub const ALL_MECHANIC: [Mechanic; 40] = [
     Mechanic::Grow,
     Mechanic::Link,
     Mechanic::Transforms,
+    Mechanic::Extends,
 ];
 #[inline]
 pub fn mechanic_index(x: Mechanic) -> u8 {
@@ -265,6 +266,7 @@ pub fn mechanic_index(x: Mechanic) -> u8 {
         Mechanic::Grow => 37,
         Mechanic::Link => 38,
         Mechanic::Transforms => 39,
+        Mechanic::Extends => 40,
     }
 }
 pub fn mechanic_from_name(s: &str) -> Option<Mechanic> {
@@ -309,6 +311,7 @@ pub fn mechanic_from_name(s: &str) -> Option<Mechanic> {
         "Grow" => Mechanic::Grow,
         "Link" => Mechanic::Link,
         "Transforms" => Mechanic::Transforms,
+        "Extends" => Mechanic::Extends,
         _ => return None,
     })
 }
@@ -354,6 +357,7 @@ pub fn mechanic_name(x: Mechanic) -> &'static str {
         Mechanic::Grow => "Grow",
         Mechanic::Link => "Link",
         Mechanic::Transforms => "Transforms",
+        Mechanic::Extends => "Extends",
     }
 }
 

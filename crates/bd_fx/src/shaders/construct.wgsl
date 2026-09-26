@@ -227,6 +227,92 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     if is_core { alpha = max(alpha, 0.85); }
     if earthy { alpha = max(alpha, 0.88); }
 
+    // PRESENCE element surface (present::presence): dark.a = element code + surge·0.99,
+    // core.a = strength (already faded by distance / tier on the CPU). One uniform branch per
+    // construct; silhouette + lines stay — this only modulates emission (and frosts ice a little).
+    let look = c.dark.a;
+    let amt = c.core.a;
+    if look >= 1.0 && amt > 0.001 {
+        let code = u32(look);
+        let surge = fract(look) / 0.99;
+        let lp = in.local.xyz;
+        let wp = in.world_pos;
+        var ec = base;
+        if code == 2u {
+            // Fire: a flickering hot core with heat licking upward through the body.
+            ec = vec3<f32>(1.0, 0.32, 0.06);
+            let lick = vnoise(lp * 2.2 + vec3<f32>(0.0, -t * 3.2, c.misc.y * 0.1));
+            let heat = smoothstep(0.45, 0.95, lick) * (0.55 + 0.45 * sin(t * 23.0 + in.vhash * 6.28));
+            e += ec * (heat * 2.2 + fres * 1.1) * amt;
+            e *= 1.0 + 0.12 * amt * sin(t * 17.0 + wp.y * 3.0);
+        } else if code == 3u {
+            // Electric: arcs crawling over the surface, flickering on and off.
+            ec = vec3<f32>(0.75, 0.85, 1.0);
+            let q = lp * 2.6 + vec3<f32>(t * 2.1, -t * 1.3, t * 1.7);
+            let arc = 1.0 - smoothstep(0.0, 0.05, abs(vnoise(q) - 0.5));
+            let on = step(0.35, hash1(u32(t * 24.0) + u32(c.misc.y)));
+            e += ec * arc * on * 3.2 * amt;
+            alpha = max(alpha, arc * on * amt);
+        } else if code == 4u {
+            // Ice: a frosted, refractive rim, a milky body and a few voxel glints.
+            ec = vec3<f32>(0.6, 0.88, 1.0);
+            e = mix(e, e * 0.6 + ec * 0.35, 0.5 * amt);
+            e += ec * pow(fres, 1.4) * 2.4 * amt;
+            let glint = step(0.992, hash1(u32(in.vhash * 9973.0) + u32(t * 3.0)));
+            e += vec3<f32>(3.0) * glint * amt;
+            alpha = max(alpha, (0.35 + 0.3 * vnoise(lp * 6.0)) * amt);
+        } else if code == 5u {
+            // Water: caustic light flowing across it.
+            ec = vec3<f32>(0.2, 0.55, 1.0);
+            let c1 = vnoise(wp * 1.9 + vec3<f32>(t * 0.7, t * 0.2, t * 0.5));
+            let c2 = vnoise(wp * 2.6 - vec3<f32>(t * 0.6, t * 0.35, -t * 0.2));
+            let caus = pow(clamp(1.0 - abs(c1 - c2) * 5.0, 0.0, 1.0), 3.0);
+            e += (ec * 0.7 + vec3<f32>(0.4)) * caus * 1.7 * amt;
+        } else if code == 6u {
+            // Wind: bright lines streaming across it.
+            ec = vec3<f32>(0.7, 1.0, 0.85);
+            let sl = fract(dot(wp, vec3<f32>(0.62, 0.25, 0.74)) * 1.3 - t * 2.4);
+            let line = smoothstep(0.88, 1.0, sl) * (0.4 + 0.6 * vnoise(wp * 0.7 + vec3<f32>(t)));
+            e += ec * line * 2.0 * amt;
+        } else if code == 7u {
+            // Earth: a darker, stony body split by glowing molten cracks.
+            ec = vec3<f32>(1.0, 0.45, 0.12);
+            let nv = vnoise(lp * 1.7 + vec3<f32>(c.misc.y * 0.21)) + 0.5 * vnoise(lp * 3.6) - 0.75;
+            let crack = 1.0 - smoothstep(0.018, 0.045, abs(nv));
+            e *= 1.0 - 0.3 * amt * (1.0 - crack);
+            e = mix(e, ec * (2.6 + 0.6 * sin(t * 2.3 + lp.y)), crack * amt);
+            alpha = max(alpha, crack * amt);
+        } else if code == 8u {
+            // Poison: toxic spots welling up and bursting.
+            ec = vec3<f32>(0.45, 1.0, 0.2);
+            let spot = smoothstep(0.72, 0.8, vnoise(lp * 3.1 + vec3<f32>(0.0, -t * 0.9, t * 0.3)));
+            e += ec * spot * (1.3 + 0.7 * sin(t * 5.0)) * amt;
+        } else if code == 9u {
+            // Psychic: slow swirling bands (the imaginary-mass look, on voxels) + a violet rim.
+            ec = vec3<f32>(0.8, 0.35, 1.0);
+            let ang = atan2(lp.z, lp.x);
+            let b1 = 0.5 + 0.5 * sin(ang * 3.0 + lp.y * 3.5 - t * 2.0);
+            let b2 = 0.5 + 0.5 * sin(ang * -2.0 + lp.y * 5.0 + t * 1.3);
+            e += ec * pow(b1 * b2, 2.0) * 1.8 * amt + ec * fres * 1.2 * amt;
+        } else if code == 10u {
+            // Shadow: the body swallows light, a hot violet void rim.
+            ec = vec3<f32>(0.55, 0.2, 1.0);
+            e = mix(e, vec3<f32>(0.02, 0.0, 0.05), 0.6 * amt * (1.0 - fres));
+            e += ec * pow(fres, 1.6) * 2.8 * amt;
+        } else if code == 11u {
+            // Atomic: a radiant, throbbing glow.
+            ec = vec3<f32>(0.35, 1.0, 0.4);
+            let pulse = 0.5 + 0.5 * sin(t * 6.0);
+            e += ec * (0.35 + 0.65 * pulse) * (0.4 + 0.8 * (1.0 - ndv)) * amt;
+        } else {
+            // Light: a soft breathing bloom on the rims.
+            e += base * (fres * 1.3 + 0.25 + 0.25 * sin(t * 3.0 + wp.y)) * amt;
+        }
+        // The surge: an emissive spike in the element colour (manifest / unstable pulses).
+        e += (ec * 3.5 + vec3<f32>(0.6)) * surge;
+        alpha = max(alpha, surge * 0.8);
+    }
+
     // Integrity: cracks (white-hot seams across the model) + flicker.
     let integ = c.state.x;
     if integ < 0.8 {

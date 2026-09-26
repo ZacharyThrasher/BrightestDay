@@ -440,3 +440,22 @@ fn railgun_early_release_fires_a_scaled_shot() {
     assert!(tap.1 < full.1, "knockback scales too");
     assert!(tap.2 < half.2 && half.2 < full.2, "recoil (and the client's beam width) scales too");
 }
+
+/// A lunge swing that connects clears the lunge cooldown (chains stay fluid); a whiff keeps it.
+#[test]
+fn connecting_lunge_clears_the_cooldown() {
+    let t = CombatTuning::default();
+    assert!(t.assist.lunge.hit_resets_cooldown);
+    let run = |dist: f32, aim_off: f32| {
+        let mut w = standing(&t, Some(Weapon::Sword), dist);
+        let eye = w.player(A).unwrap().eye(w.params());
+        let d = w.hull_of(B).unwrap().center() - eye;
+        let dir = bd_core::Quat::from_rotation_y(aim_off.to_radians()) * d;
+        let ev = shoot(&mut w, dir, buttons::PRIMARY, 50);
+        let lunged = ev.iter().any(|e| matches!(e, GameEvent::Assist { player, kind: bd_sim::hook::AssistEvent::Lunge, .. } if *player == A));
+        (lunged, hits_on_b(&ev) > 0, w.player(A).unwrap().assist.lunge_cd)
+    };
+    let (lunged, hit, cd) = run(4.8, 0.0);
+    assert!(lunged && hit, "lunge connects at 4.8 m");
+    assert_eq!(cd, 0.0, "a connecting lunge clears the cooldown");
+}

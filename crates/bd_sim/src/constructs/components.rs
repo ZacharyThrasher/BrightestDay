@@ -397,7 +397,9 @@ fn yaw_toward(c: &mut Construct, dir: Vec3, rate: f32, dt: f32) {
 pub fn init(c: &mut Construct) {
     c.comp.eff = effective(&c.recipe);
     c.body.loco = match c.category {
-        FormCategory::Held if c.free_flier() => Loco::Fly,
+        FormCategory::Held if c.free_flier() => {
+            if eff_has(c, Mechanic::DropFromSky) { Loco::Kinematic } else { Loco::Fly }
+        }
         FormCategory::Held | FormCategory::Worn => Loco::Kinematic,
         FormCategory::Structure => Loco::Static,
         FormCategory::Creature => {
@@ -610,8 +612,9 @@ pub fn drive(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         }
         c.set_anim(AnimState::Windup, env.tick());
     }
-    // DropFromSky (non-objects): hang with a shadow telegraph, then fall.
-    if eff_has(c, Mechanic::DropFromSky) && !c.comp.dropped && c.category != FormCategory::Object && c.model.is_none() {
+    // DropFromSky (non-objects): hang with a shadow telegraph, then fall. (A falling held volley runs
+    // the Object controller, which drops it.)
+    if eff_has(c, Mechanic::DropFromSky) && !c.comp.dropped && c.category != FormCategory::Object && c.model.is_none() && !c.free_flier() {
         c.comp.drop_t += dt;
         if c.comp.drop_t < DROP_TELEGRAPH {
             c.body.claim(Driver::Hold);

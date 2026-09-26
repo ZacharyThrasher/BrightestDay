@@ -309,6 +309,51 @@ pub(crate) fn gate_cast(w: &World, player: PlayerId, r: &mut bd_core::mechanics:
     spend_kind
 }
 
+/// POWER-UPS HOOK (powers `set_tier`): a tier at or above `awakening_min_tier` needs an Awakening.
+/// Returns (the tier to take, spend the pickup). Locked: the highest free tier, or — already there
+/// — the plain "power up" flare.
+pub(crate) fn gate_tier(w: &mut World, i: usize, old: u8, tier: u8) -> (u8, bool) {
+    let min = w.cfg.tuning.pickups.awakening_min_tier;
+    if tier <= old || tier < min {
+        return (tier, false);
+    }
+    match gate(w, w.players[i].id, GateKind::Awakening) {
+        Gate::Free => (tier, false),
+        Gate::Loaded => (tier, true),
+        Gate::Locked => {
+            let to = (min - 1).max(old);
+            if to == old {
+                w.ascend(i, None, 0, false);
+            }
+            (to, false)
+        }
+    }
+}
+
+/// POWER-UPS HOOK (powers `op_transform`): turning a transformation on needs an Awakening. `None` =
+/// Locked (the plain "power up" flare played; stay as you are); `Some(spend)` otherwise.
+pub(crate) fn gate_awakening(w: &mut World, i: usize, on: bool) -> Option<bool> {
+    if !on {
+        return Some(false);
+    }
+    match gate(w, w.players[i].id, GateKind::Awakening) {
+        Gate::Free => Some(false),
+        Gate::Loaded => Some(true),
+        Gate::Locked => {
+            w.ascend(i, None, 0, false);
+            None
+        }
+    }
+}
+
+/// POWER-UPS HOOK (`cast_signature`): does this signature kind need an Ultimate?
+pub(crate) fn gate_signature(w: &World, player: PlayerId, kind: SignatureKind) -> Gate {
+    if !w.cfg.tuning.pickups.ultimates.contains(&kind) {
+        return Gate::Free;
+    }
+    gate(w, player, GateKind::Ultimate)
+}
+
 // ------------------------------------------------------------------------------ spots
 
 /// Pickup spots for this arena: the map's override, else derived — the centre, the midpoints

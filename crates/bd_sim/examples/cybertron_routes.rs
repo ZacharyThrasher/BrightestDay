@@ -22,7 +22,7 @@ use bd_sim::movement::testkit::*;
 use bd_sim::movement::*;
 use bd_sim::world::map_mech::{MapMechState, MoverPhase, MoverState, push_mover_colliders};
 use bd_sim::{SimConfig, World};
-use bd_voxel::maps::cybertron::{self, CROWN_R, CROWN_Y, EXPRESS_TOP, RING_TOP, STREET, generate_cybertron};
+use bd_voxel::maps::cybertron::{self, CROWN_R, CROWN_Y, STREET, generate_cybertron};
 use bd_voxel::{MapInfo, VoxelWorld};
 
 fn horiz(v: Vec3) -> Vec3 {

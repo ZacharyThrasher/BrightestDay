@@ -39,6 +39,9 @@ pub struct PowerDef {
     /// Technique tiers: (1-based tier, names). Empty for other kinds (their tiers are phrases the
     /// game parses for a held power, never lexicon entries).
     pub tiers: Vec<(u8, Vec<String>)>,
+    /// `claim: ["infinity"]`: names kept even when they are very common words (power names
+    /// otherwise yield single common words to the everyday lexicon).
+    pub claim: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -325,7 +328,13 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
                 }
             }
         }
-        out.push(PowerDef { id, names, incantations, kind, pickup, tiers });
+        let claim: Vec<String> = get("claim").map(strings).unwrap_or_default().iter().map(|c| normalize_key(c)).filter(|c| !c.is_empty()).collect();
+        for c in &claim {
+            if !names.iter().any(|n| normalize_key(n) == *c) {
+                names.push(c.clone());
+            }
+        }
+        out.push(PowerDef { id, names, incantations, kind, pickup, tiers, claim });
     }
     (out, warnings)
 }

@@ -49,6 +49,45 @@ pub const REJOIN_SECS: f64 = 90.0;
 const TOKEN_WAIT_SECS: f64 = 1.5;
 /// Commands per second a client may issue (burst = 2×).
 const CMD_RATE: f32 = 20.0;
+/// Seconds the lobby votes on the next map once a match is over (the host can start it sooner).
+pub const VOTE_SECS: f32 = 15.0;
+/// Stats refresh cadence (ticks) while a match runs (the lobby carries them to clients).
+const STATS_EVERY: u64 = 60;
+
+/// The vote for the next match (open while the match is over).
+#[derive(Clone, Debug)]
+pub struct VoteState {
+    /// When the next match starts (`now_secs`).
+    pub deadline: f64,
+    pub votes: Vec<(PlayerId, NetMapKind)>,
+}
+
+/// Top-voted map; ties broken by `seed`; no votes = the current map again.
+pub fn tally(votes: &[(PlayerId, NetMapKind)], current: NetMapKind, seed: u64) -> NetMapKind {
+    let mut count = [0u32; NetMapKind::ALL.len()];
+    for (_, k) in votes {
+        count[k.index()] += 1;
+    }
+    let best = count.iter().copied().max().unwrap_or(0);
+    if best == 0 {
+        return current;
+    }
+    let tied: Vec<NetMapKind> = NetMapKind::ALL.into_iter().filter(|k| count[k.index()] == best).collect();
+    // splitmix64: any seed spreads evenly over the tied maps.
+    let mut z = seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^= z >> 31;
+    tied[(z % tied.len() as u64) as usize]
+}
+
+/// Is the match over (FFA results / party podium)? The vote runs then.
+pub fn match_over(w: &World) -> bool {
+    match w.party() {
+        Some(p) => p.phase == bd_sim::party::PartyPhase::PartyEnd,
+        None => w.match_state.phase == bd_sim::MatchPhase::Ended,
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct HostStart {
@@ -147,6 +186,11 @@ pub struct HostCore {
     pub lan: bool,
     /// Shouts received from remote players (drained by `present::shout`, which relays them).
     pub shouts_in: Vec<(PlayerId, crate::present::shout::ShoutLine)>,
+    /// Next-map vote (Some while the match is over).
+    pub vote: Option<VoteState>,
+    /// Competitive stats of the match (observed every tick; sent in the lobby info).
+    pub match_stats: bd_sim::match_stats::MatchStats,
+    pub stats_lines: Vec<bd_sim::match_stats::StatLine>,
 }
 
 impl HostCore {
@@ -187,6 +231,9 @@ impl HostCore {
             port,
             lan: s.lan,
             shouts_in: Vec::new(),
+            vote: None,
+            match_stats: Default::default(),
+            stats_lines: Vec::new(),
         })
     }
 
@@ -232,7 +279,45 @@ impl HostCore {
             let rtt_ms = self.session.rtt(p.id).map_or(0, |r| (r * 1000.0).clamp(0.0, 9999.0) as u16);
             players.push(LobbyPlayer { id: p.id, name: p.name.clone(), corps: p.corps, ready, is_host, profile, rtt_ms });
         }
-        LobbyInfo { players, settings: self.settings.clone(), map: self.map, in_match: self.in_match }
+        let vote = self.vote.as_ref().map(|v| NextVote { votes: v.votes.clone(), secs_left: (v.deadline - now_secs()).max(0.0) as f32 });
+        LobbyInfo { players, settings: self.settings.clone(), map: self.map, in_match: self.in_match, vote, stats: self.stats_lines.clone() }
+    }
+
+    /// `player` picks `kind` for the next match (ignored unless a vote is open).
+    pub fn cast_vote(&mut self, player: PlayerId, kind: NetMapKind) {
+        let Some(v) = self.vote.as_mut() else { return };
+        v.votes.retain(|(p, _)| *p != player);
+        v.votes.push((player, kind));
+        self.lobby_dirty = true;
+    }
+
+    /// The vote's time is up (or the host said go): build the next match now.
+    pub fn vote_due(&self) -> bool {
+        self.vote.as_ref().is_some_and(|v| now_secs() >= v.deadline)
+    }
+
+    /// Start the next match now (host click).
+    pub fn vote_now(&mut self) {
+        if let Some(v) = self.vote.as_mut() {
+            v.deadline = v.deadline.min(now_secs());
+            self.lobby_dirty = true;
+        }
+    }
+
+    /// Keep at least `secs` on the clock (the host is changing the rules).
+    pub fn hold_vote(&mut self, secs: f64) {
+        if let Some(v) = self.vote.as_mut() {
+            let at = now_secs() + secs;
+            if v.deadline < at {
+                v.deadline = at;
+                self.lobby_dirty = true;
+            }
+        }
+    }
+
+    /// The map the next match is played on (top vote, random among ties, else the same map).
+    pub fn next_map(&self, seed: u64) -> NetMapKind {
+        tally(self.vote.as_ref().map_or(&[][..], |v| &v.votes[..]), self.map.kind, seed)
     }
 
     pub fn set_settings(&mut self, s: GameSettings) {
@@ -263,6 +348,9 @@ impl HostCore {
             ..Default::default()
         };
         let mut cfg = settings.sim_config(base);
+        // The next match comes from the host's vote (a fresh world), not the sim's own timer.
+        cfg.timings.auto_rematch = false;
+        cfg.timings.ended_secs = VOTE_SECS;
         if map.kind != NetMapKind::Archipelago {
             // The sim can only regenerate archipelagos between rounds.
             cfg.rules.regen_islands_between_rounds = false;
@@ -275,12 +363,23 @@ impl HostCore {
     }
 
     /// A match world is live: put everyone in it and initialise every client.
+    ///
+    /// Also starts every following match (the vote's pick, on a fresh world swapped into
+    /// `active`): scores, stats and saved reconnect slots belong to the old match and are dropped;
+    /// names, corps and costumes live in the session / lobby and carry over.
     pub fn start_match(&mut self, active: &mut ActiveWorld, map: NetMap, terrain: TerrainHasher) {
         self.in_match = true;
         self.terrain = terrain;
         self.map = map;
         self.terrain_log.clear();
         self.ev_buf.clear();
+        self.vote = None;
+        self.departed.clear();
+        self.match_stats = Default::default();
+        self.stats_lines.clear();
+        for r in &mut self.remotes {
+            r.pending_casts.clear();
+        }
         let players: Vec<(PlayerId, String, Corps)> = self.session.players().iter().map(|p| (p.id, p.name.clone(), p.corps)).collect();
         for (id, name, corps) in players {
             if active.world.player(id).is_none() {
@@ -311,6 +410,7 @@ impl HostCore {
     /// Back to the lobby (match torn down).
     pub fn end_match(&mut self) {
         self.in_match = false;
+        self.vote = None;
         self.departed.clear();
         self.terrain_log.clear();
         self.ev_buf.clear();
@@ -490,6 +590,7 @@ impl HostCore {
                     self.shouts_in.push((from, line));
                 }
             }
+            C2S::MapVote(kind) => self.cast_vote(from, kind),
             C2S::Resync => {
                 if now - self.remotes[i].last_resync > 2.0 {
                     self.remotes[i].last_resync = now;
@@ -538,6 +639,20 @@ impl HostCore {
         }
         if self.remotes.iter().any(|r| !r.pending_casts.is_empty()) {
             self.match_casts(&active.tick_events);
+        }
+        // Competitive stats (an observer: never touches the world) + the next-map vote.
+        self.match_stats.observe_events(&active.tick_events, &active.world);
+        let over = match_over(&active.world);
+        if active.world.tick % STATS_EVERY == 0 || over != self.vote.is_some() {
+            self.stats_lines = self.match_stats.lines_for(&active.world);
+            self.lobby_dirty |= over;
+        }
+        if over && self.vote.is_none() {
+            self.vote = Some(VoteState { deadline: now_secs() + f64::from(VOTE_SECS), votes: Vec::new() });
+            self.lobby_dirty = true;
+        } else if !over && self.vote.is_some() {
+            self.vote = None;
+            self.lobby_dirty = true;
         }
         if self.remotes.iter().any(|r| r.in_world) {
             self.ev_buf.extend_from_slice(&active.tick_events);

@@ -626,6 +626,9 @@ pub struct PowerDef {
     /// Names the lexicon maps to this id ("gum gum fruit", "star platinum").
     #[serde(default)]
     pub names: Vec<String>,
+    /// Names the lexicon keeps for this power even when they are very common words ("infinity").
+    #[serde(default)]
+    pub claim: Vec<String>,
     #[serde(default)]
     pub body: BodyDef,
     #[serde(default)]

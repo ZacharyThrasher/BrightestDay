@@ -79,7 +79,7 @@ fn movers_cycle_deterministically_and_always_telegraph() {
         let (mut w, floor) = make(false);
         live(&mut w);
         let mut log = Vec::new();
-        for k in 0..(40 * TICK_HZ) as u32 {
+        for k in 0..40 * TICK_HZ {
             // Wander back and forth across the slab (sometimes on it, sometimes not).
             let t = k as f32 / TICK_HZ as f32;
             let yaw = if (t * 0.25).fract() < 0.5 { -std::f32::consts::FRAC_PI_2 } else { std::f32::consts::FRAC_PI_2 };
@@ -183,7 +183,7 @@ fn prediction_matches_the_host_across_a_transforming_panel() {
     }
     client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
     let (mut bad, mut on_slab, mut checked_cols) = (0, 0, 0);
-    for k in 0..(30 * TICK_HZ) as u32 {
+    for k in 0..30 * TICK_HZ {
         // Run east–west over the slab, hopping.
         let t = k as f32 / TICK_HZ as f32;
         let yaw = if (t * 0.2).fract() < 0.5 { -std::f32::consts::FRAC_PI_2 } else { std::f32::consts::FRAC_PI_2 };

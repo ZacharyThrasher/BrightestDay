@@ -450,6 +450,9 @@ pub struct WorldSnapshot {
     /// Party mode state (`None` in FFA): phase, clock, standings, owned effects, own offer.
     #[serde(default)]
     pub party: Option<crate::party::PartySnap>,
+    /// POWER-UPS: live map pickups (empty while the mode is off). Static between phase changes.
+    #[serde(default)]
+    pub pickups: Vec<crate::pickups::Pickup>,
 }
 
 /// A snapshot encoded against an acknowledged baseline.
@@ -475,6 +478,9 @@ pub struct SnapshotDelta {
     /// Party state when it changed (or on a keyframe). `Some(None)` = left party mode.
     #[serde(default)]
     pub party: Option<Option<crate::party::PartySnap>>,
+    /// POWER-UPS: the whole pickup list when it changed (or on a keyframe with any).
+    #[serde(default)]
+    pub pickups: Option<Vec<crate::pickups::Pickup>>,
 }
 
 /// Merge-walk two id-sorted lists: changed/new items of `cur`, and ids missing from `cur`.
@@ -550,6 +556,9 @@ impl SnapshotDelta {
         if (ago == 0 && cur.party.is_some()) || (ago > 0 && b.party != cur.party) {
             d.party = Some(cur.party.clone());
         }
+        if (ago == 0 && !cur.pickups.is_empty()) || (ago > 0 && b.pickups != cur.pickups) {
+            d.pickups = Some(cur.pickups.clone());
+        }
         d
     }
 
@@ -578,6 +587,7 @@ impl SnapshotDelta {
             fields: self.fields.clone().unwrap_or_else(|| b.fields.clone()),
             links: self.links.clone().unwrap_or_else(|| b.links.clone()),
             party: self.party.clone().unwrap_or_else(|| b.party.clone()),
+            pickups: self.pickups.clone().unwrap_or_else(|| b.pickups.clone()),
         })
     }
 }

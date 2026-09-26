@@ -132,6 +132,8 @@ pub struct ClientCore {
     pub phase: ClientPhase,
     pub me: Option<PlayerId>,
     pub lobby: LobbyInfo,
+    /// When `lobby` arrived (`now_secs`; the vote countdown runs from it).
+    pub lobby_at: f64,
     /// Map of the current / last world init.
     pub map: NetMap,
     profile: NetProfile,
@@ -181,6 +183,7 @@ impl ClientCore {
             phase: ClientPhase::Connecting,
             me: None,
             lobby: LobbyInfo::default(),
+            lobby_at: 0.0,
             map: NetMap::default(),
             profile: profile.sanitized(),
             ready: false,
@@ -225,6 +228,11 @@ impl ClientCore {
     pub fn set_ready(&mut self, r: bool) {
         self.ready = r;
         self.session.send(&C2S::Ready(r));
+    }
+
+    /// The match is over: pick the next map (the host counts the latest pick per player).
+    pub fn vote_map(&mut self, kind: NetMapKind) {
+        self.session.send(&C2S::MapVote(kind));
     }
 
     /// Forward a bridge command to the host. Casts get a client cast sequence number (returned),
@@ -384,6 +392,7 @@ impl ClientCore {
         match m {
             S2C::Lobby(l) => {
                 self.lobby = l;
+                self.lobby_at = now_secs();
             }
             S2C::WorldInit(init) => {
                 self.stats.inits += 1;

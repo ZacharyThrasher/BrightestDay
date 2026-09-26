@@ -187,6 +187,8 @@ impl World {
             LinkEnd::Point(p) => LinkEndSnap::Point(QPos::new(p)),
         };
         out.links.extend(self.links.iter().map(|l| LinkSnap { id: l.id, a: end(&l.a), b: end(&l.b), max_len: (l.max_len * 4.0).round().clamp(1.0, 255.0) as u8 }));
+        out.pickups.clear();
+        out.pickups.extend_from_slice(&self.pickups.items); // POWER-UPS
     }
 
     // ------------------------------------------------------------------------------ client
@@ -405,6 +407,8 @@ impl World {
         for l in &snap.links {
             self.links.push(Link { id: l.id, owner: None, a: end(&l.a), b: end(&l.b), max_len: l.max_len as f32 / 4.0, expires: Tick::MAX, hp: 1.0 });
         }
+        self.pickups.items.clear();
+        self.pickups.items.extend_from_slice(&snap.pickups); // POWER-UPS: the host's list, drawn as is
         // Colliders for prediction.
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);

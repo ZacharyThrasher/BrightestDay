@@ -28,6 +28,7 @@ pub mod host;
 pub mod proto;
 pub mod terrain_hash;
 pub mod timing;
+pub mod vote;
 
 #[cfg(test)]
 mod tests;
@@ -90,6 +91,18 @@ pub enum NetRequest {
     Kick(PlayerId),
     /// Leave / close the lobby and return to the menu.
     Leave,
+    /// The match is over: my pick for the next map (anyone).
+    VoteMap(proto::NetMapKind),
+    /// Host: start the next match now (don't wait for the vote's countdown).
+    NextMatchNow,
+}
+
+/// The next-map vote as the UI shows it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct VoteView {
+    pub votes: Vec<(PlayerId, proto::NetMapKind)>,
+    /// When the next match starts (`bd_net::now_secs`).
+    pub deadline: f64,
 }
 
 /// Client-side predicted construct spawns (for presentation; client role only).
@@ -171,6 +184,12 @@ pub struct NetStatus {
     pub players: Vec<LobbyPlayer>,
     pub settings: GameSettings,
     pub in_match: bool,
+    /// The map being played (or last played).
+    pub map: proto::NetMapKind,
+    /// Some while the match is over and the lobby votes on the next map.
+    pub vote: Option<VoteView>,
+    /// Competitive stats of the match (host-authoritative).
+    pub match_stats: Vec<bd_sim::match_stats::StatLine>,
     /// Short text for a centred banner (connection problems). `None` = nothing to show.
     pub banner: Option<String>,
     pub stats: NetStats,
@@ -236,7 +255,7 @@ impl Plugin for NetPlugin {
             .add_systems(Startup, (cli_start, spawn_net_ui))
             .add_systems(
                 Update,
-                (handle_requests, net_poll, emit_remote_cmds, match_flow).chain().after(FrameSet::Input).before(BridgeSet::Commands).before(FrameSet::Sim),
+                (handle_requests, vote::host_vote_flow, net_poll, emit_remote_cmds, match_flow).chain().after(FrameSet::Input).before(BridgeSet::Commands).before(FrameSet::Sim),
             )
             .add_systems(SimTick, host_pre_tick.in_set(SimSet::Input))
             .add_systems(SimTick, client_predict.in_set(SimSet::Simulate))
@@ -374,6 +393,20 @@ fn handle_requests(
                     next.set(AppState::Menu);
                 }
             }
+            NetRequest::VoteMap(k) => {
+                if let Some(h) = net.host.as_mut() {
+                    let me = h.me;
+                    h.cast_vote(me, k);
+                }
+                if let Some(c) = net.client.as_mut() {
+                    c.vote_map(k);
+                }
+            }
+            NetRequest::NextMatchNow => {
+                if let Some(h) = net.host.as_mut() {
+                    h.vote_now();
+                }
+            }
         }
     }
 }
@@ -389,6 +422,7 @@ fn net_poll(
     mut hitstop: ResMut<crate::juice::HitStopState>,
     state: Res<State<AppState>>,
     mut next: ResMut<NextState<AppState>>,
+    mut current_map: ResMut<crate::arena::CurrentMap>,
 ) {
     let t0 = now_secs();
     let net = &mut *net;
@@ -409,7 +443,14 @@ fn net_poll(
         let out = c.update(world);
         if let Some(w) = out.new_world {
             match active.as_deref_mut().filter(|a| a.role == SimRole::Client) {
-                Some(a) => a.world = w,
+                Some(a) => {
+                    // The next match may be on another map: the render mirror follows.
+                    let want = c.map.kind.map_kind();
+                    if current_map.0 != want {
+                        current_map.0 = want;
+                    }
+                    vote::swap_world(a, w);
+                }
                 None => net.pending_world = Some(w),
             }
         }
@@ -468,7 +509,7 @@ fn match_flow(
     state: Res<State<AppState>>,
     mut next: ResMut<NextState<AppState>>,
     mut mode: ResMut<GameMode>,
-    active: Option<Res<ActiveWorld>>,
+    mut active: Option<ResMut<ActiveWorld>>,
     mut current_map: ResMut<crate::arena::CurrentMap>,
 ) {
     let net = &mut *net;
@@ -516,15 +557,29 @@ fn match_flow(
             let Some(w) = net.pending_world.take() else { return };
             if let Some(h) = net.host.as_mut() {
                 let seed = w.arena_seed();
-                let mut a = ActiveWorld::new(w, Some(h.me), SimRole::Host);
-                h.start_match(&mut a, net.pending_map, net.pending_hasher.take().unwrap_or_default());
-                a.push_event(GameEvent::ArenaReset { seed });
-                commands.insert_resource(a);
+                let (map, hasher) = (net.pending_map, net.pending_hasher.take().unwrap_or_default());
+                let want = map.kind.map_kind();
+                if current_map.0 != want {
+                    current_map.0 = want;
+                }
+                match active.as_deref_mut().filter(|a| a.role == SimRole::Host) {
+                    // The next match (vote): swap the world in place, clients get a fresh init.
+                    Some(a) => {
+                        vote::swap_world(a, w);
+                        h.start_match(a, map, hasher);
+                        a.push_event(GameEvent::ArenaReset { seed });
+                    }
+                    None => {
+                        let mut a = ActiveWorld::new(w, Some(h.me), SimRole::Host);
+                        h.start_match(&mut a, map, hasher);
+                        a.push_event(GameEvent::ArenaReset { seed });
+                        commands.insert_resource(a);
+                    }
+                }
             } else if let Some(c) = net.client.as_ref() {
                 let a = ActiveWorld::new(w, c.me, SimRole::Client);
                 commands.insert_resource(a);
             }
-            let _ = active;
         }
     }
 }
@@ -683,6 +738,9 @@ fn update_status(mut net: ResMut<NetState>, mut status: ResMut<NetStatus>, mut l
             status.players = l.players;
             status.settings = l.settings;
             status.in_match = h.in_match;
+            status.map = h.map.kind;
+            status.vote = h.vote.as_ref().map(|v| VoteView { votes: v.votes.clone(), deadline: v.deadline });
+            status.match_stats = l.stats;
             status.phase = if h.in_match && in_game {
                 NetPhase::InGame
             } else if net.build.is_some() || net.pending_world.is_some() {
@@ -698,6 +756,9 @@ fn update_status(mut net: ResMut<NetState>, mut status: ResMut<NetStatus>, mut l
             status.players = c.lobby.players.clone();
             status.settings = c.lobby.settings.clone();
             status.in_match = c.lobby.in_match;
+            status.map = c.map.kind;
+            status.vote = c.lobby.vote.as_ref().map(|v| VoteView { votes: v.votes.clone(), deadline: c.lobby_at + f64::from(v.secs_left) });
+            status.match_stats.clone_from(&c.lobby.stats);
             status.lobby_code = bd_net::lobby_code_from_url(c.session.url());
             status.phase = match &c.phase {
                 ClientPhase::Connecting => NetPhase::Connecting,

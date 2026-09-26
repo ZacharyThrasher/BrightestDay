@@ -273,8 +273,14 @@ impl World {
             return Err(PowerError::NoSuchMove);
         }
         let old = self.players[i].power.tier;
+        // POWER-UPS HOOK: top tiers need an Awakening pickup (Locked: the highest free tier / a plain flare).
+        let (tier, spend) = crate::pickups::gate_tier(self, i, old, tier);
         if old == tier {
             return Ok(());
+        }
+        if spend {
+            let pid = self.players[i].id;
+            crate::pickups::spend(self, pid, crate::pickups::GateKind::Awakening);
         }
         let pw = &mut self.players[i].power;
         pw.tier = tier;
@@ -1304,6 +1310,8 @@ impl World {
         };
         let id = self.players[i].id;
         let on = !self.players[i].power.transformed;
+        // POWER-UPS HOOK: an awakening needs its pickup (Locked: the plain power-up flare, no form).
+        let Some(spend) = crate::pickups::gate_awakening(self, i, on) else { return Ok(()) };
         if let Some(pilot) = &t.pilot {
             if on {
                 if self.players[i].seat.is_some() {
@@ -1340,6 +1348,9 @@ impl World {
         if on && t.ascend.is_some() {
             let power = self.players[i].power.id;
             self.ascend(i, power, 0, true);
+        }
+        if spend {
+            crate::pickups::spend(self, id, crate::pickups::GateKind::Awakening); // POWER-UPS HOOK
         }
         Ok(())
     }

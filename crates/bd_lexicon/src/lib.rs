@@ -366,7 +366,8 @@ impl Lexicon {
             .collect();
         incant.sort_by(|a: &(Vec<String>, usize), b| b.0.len().cmp(&a.0.len()).then(a.0.cmp(&b.0)));
         if let Some(d) = &data {
-            shadow_domain_aliases(&mut icons, d);
+            let claimed: Vec<String> = powers.iter().flat_map(|p| p.claim.iter().cloned()).collect();
+            shadow_domain_aliases(&mut icons, d, &claimed);
         }
         Lexicon { data, icons, t, powers, incant, sig: invocation::SignatureTable::default_table() }
     }
@@ -498,13 +499,17 @@ impl Lexicon {
 /// Domain packs (`assets/icons/*.ron`) may not hijack common words: an alias like "scorpion" (a game
 /// tank) that is a hand-anchored or common lexicon word is dropped (with a load warning). The base
 /// `icons.ron` is curated alongside the lexicon and keeps all its aliases.
-fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
+fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData, claimed: &[String]) {
     let mut drop: Vec<String> = Vec::new();
     for (alias, &idx) in icons.alias.iter() {
         let Some(def) = icons.defs.get(idx) else {
             continue;
         };
         if def.file == "icons.ron" {
+            continue;
+        }
+        if def.file == "powers.ron" && claimed.iter().any(|c| c == alias) {
+            // a power's explicit `claim` ("infinity" is Limitless, not a spirit)
             continue;
         }
         if def.file == "powers.ron" {

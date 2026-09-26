@@ -18,7 +18,7 @@
 //!   a filling glow at the nape while someone hijacks it.
 
 use super::sound::{MixDuck, Sfx3d};
-use super::{bq, bv, corps_rgb, PresentSet};
+use super::{bv, corps_rgb, PresentSet};
 use crate::camera::PlayerCamera;
 use crate::juice::{CameraShakeEvent, HitStop};
 use crate::settings::ComfortSettings;
@@ -156,7 +156,7 @@ pub fn limb_of_model_part(m: &VoxelModel, i: usize) -> Limb {
 
 /// Render transform of a construct (interpolated view).
 fn view_tf(views: &WorldViews, id: ConstructId) -> Option<(Vec3, Quat, f32)> {
-    views.constructs.iter().find(|v| v.id == id).map(|v| (bv(v.pos), bq(v.rot), v.size))
+    views.constructs.iter().find(|v| v.id == id).map(|v| (v.pos, v.rot, v.size))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -421,7 +421,7 @@ fn weak_markers(
         });
         let _ = (&m.mat, &m.halo);
         m.flash = (m.flash - dt).max(0.0);
-        let (p, r, s) = (bv(v.pos), bq(v.rot), v.size);
+        let (p, r, s) = (v.pos, v.rot, v.size);
         for (k, w) in wps.iter().enumerate() {
             let Some(&(core, halo)) = m.ents.get(k) else { continue };
             let at = p + r * (bv(w.pos) * s);
@@ -570,7 +570,7 @@ fn animate_fx(
                     continue;
                 }
                 let a = (ring.t / 0.2).min(1.0) * (1.0 - ((ring.t - (life - 0.15)) / 0.15).clamp(0.0, 1.0));
-                if let Some(m) = materials.get_mut(&mat.0) {
+                if let Some(mut m) = materials.get_mut(&mat.0) {
                     m.base_color.set_alpha(a);
                 }
                 tf.scale = Vec3::splat(ring.r_max);
@@ -580,7 +580,7 @@ fn animate_fx(
                 tf.scale = Vec3::new(r, 1.0, r);
                 tf.translation = ring.origin;
                 let left = 1.0 - (r / ring.r_max.max(0.1));
-                if let Some(m) = materials.get_mut(&mat.0) {
+                if let Some(mut m) = materials.get_mut(&mat.0) {
                     let fade = left.clamp(0.0, 1.0).sqrt();
                     m.emissive = LinearRgba::from(m.base_color) * (2.0 * fade);
                 }
@@ -612,7 +612,7 @@ fn animate_fx(
             continue;
         }
         let k = (ping.t / 0.15).min(1.0) * (1.0 - ((ping.t - 1.1) / 0.3).clamp(0.0, 1.0));
-        tf.translation = bv(p.pos) + Vec3::Y * (2.8 + 0.2 * (ping.t * 6.0).sin());
+        tf.translation = p.pos + Vec3::Y * (2.8 + 0.2 * (ping.t * 6.0).sin());
         tf.scale = Vec3::splat(0.35 * k.max(0.01));
     }
     for (e, mut f) in &mut fades {

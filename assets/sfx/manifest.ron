@@ -1618,6 +1618,166 @@
             sequence: false,
             stereo: false,
         ), // a tower / scaffold streaking past close: short doppler swish + passing hum, 0.6-1 s
+        "presence_shing": (
+            files: ["sfx/presence_shing_1.ogg", "sfx/presence_shing_2.ogg", "sfx/presence_shing_3.ogg", "sfx/presence_shing_4.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // Normal-tier manifest: crisp hard-light "shing" (upward FM glint into a ringing E6/B6)
+        "presence_gather_big": (
+            files: ["sfx/presence_gather_big_1.ogg", "sfx/presence_gather_big_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // Big-tier gather: ~0.9 s swell pulled INTO the hands (reverse chord + inward pings), ends on the peak
+        "presence_gather_titan": (
+            files: ["sfx/presence_gather_titan_1.ogg", "sfx/presence_gather_titan_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // Titan-tier gather: 1.6 s sub rise (E1 -> E2) + air pulled inward + chord crescendo, cut on the peak
+        "presence_manifest_big": (
+            files: ["sfx/presence_manifest_big_1.ogg", "sfx/presence_manifest_big_2.ogg", "sfx/presence_manifest_big_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // Big-tier manifest: hard-light chord hit + E2 thump + short shard shimmer
+        "presence_manifest_titan": (
+            files: ["sfx/presence_manifest_titan_1.ogg", "sfx/presence_manifest_titan_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -12.0,
+            sequence: false,
+            stereo: false,
+        ), // Titan-tier manifest: implosion snap, deep E1 drop, huge chord bloom, long falling shard rain
+        "presence_hum_light": (
+            files: ["sfx/presence_hum_light_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; hard light at rest: soft E drone with a slow shimmer
+        "presence_hum_fire": (
+            files: ["sfx/presence_hum_fire_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; fire: a low roar (resonant brown noise, grained) + crackle + an E drone under it
+        "presence_hum_ice": (
+            files: ["sfx/presence_hum_ice_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; ice: glassy high shimmer (fast-beating E5/B5/E6) + faint tinks over a cold E2
+        "presence_hum_electric": (
+            files: ["sfx/presence_hum_electric_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; electric: an in-key mains buzz (E2 saw, fluttering) + crackle bursts
+        "presence_hum_water": (
+            files: ["sfx/presence_hum_water_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; water: flowing resonant noise + rising bubble blips
+        "presence_hum_wind": (
+            files: ["sfx/presence_hum_wind_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; wind: a streaming resonant whoosh + a soft whistle on B5
+        "presence_hum_earth": (
+            files: ["sfx/presence_hum_earth_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; earth: grinding low rumble + stone grit ticks over an E1 drone
+        "presence_hum_psychic": (
+            files: ["sfx/presence_hum_psychic_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; psychic: a phasing, slowly beating drone with a wide vibrato
+        "presence_hum_shadow": (
+            files: ["sfx/presence_hum_shadow_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; shadow: a void — low E1/B1 swallowing drone, slow sub pulse, a faint high whisper
+        "presence_hum_poison": (
+            files: ["sfx/presence_hum_poison_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; poison: slow thick bubbling + a sour, beating drone
+        "presence_hum_atomic": (
+            files: ["sfx/presence_hum_atomic_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; atomic: a throbbing radiant E drone (6 Hz) + geiger ticks
     },
     ko_streak: (
         key: "E minor pentatonic",

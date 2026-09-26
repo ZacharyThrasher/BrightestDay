@@ -174,6 +174,12 @@ pub enum Mechanic {
     /// key), by "transform"/"roll out" grafts, or autonomously. Multiple owned Transforms vehicles can
     /// combine into one giant (Devastator). (v1.2)
     Transforms,
+    /// Telescopes at will (Ruyi Jingu Bang, power pole, extending sword, stretchy fist): a held melee
+    /// weapon whose length is live state. Swings twirl in big arcs; a charged release shoots it out
+    /// tens of metres as a line strike and snaps it back; charged while aimed down (or in the air) it
+    /// grows into a falling pillar that craters a line; alt-fire into a surface plants it and vaults
+    /// the wielder along the aim. Creatures that carry it strike from far outside their body. (v1.7)
+    Extends,
 }
 
 /// Mechanical/visual sub-assemblies a construct is built with ("steam powered train" → Boiler,

@@ -121,7 +121,7 @@ fn spawns_are_standable_spread_balanced_and_clear() {
         if s.x < 0.0 { west += 1 } else { east += 1 }
         // Not in a choke: open street in a 3 m radius (no wall within reach of the hull).
         for a in 0..16 {
-            let d = Vec3::new((a as f32 * 0.3927).cos(), 0.0, (a as f32 * 0.3927).sin()) * 3.0;
+            let d = Vec3::new((a as f32 * std::f32::consts::FRAC_PI_8).cos(), 0.0, (a as f32 * std::f32::consts::FRAC_PI_8).sin()) * 3.0;
             assert!(!w.is_solid(world_to_voxel(*s + d + Vec3::Y)), "spawn {i} at {s} is hemmed in");
         }
         // Clear of the transforming pieces (extended and folded), gates and surf lines.
@@ -215,7 +215,7 @@ fn transforming_pieces_extend_into_empty_space_and_gates_are_open() {
         for (c, n) in [(g.a, g.a_normal), (g.b, g.b_normal)] {
             for a in 0..12 {
                 let r = g.radius * 0.8;
-                let ang = a as f32 * 0.5236;
+                let ang = a as f32 * std::f32::consts::FRAC_PI_6;
                 let p = c + Vec3::new(0.0, ang.sin() * r, ang.cos() * r) + n * 0.5;
                 assert!(!w.is_solid(world_to_voxel(p)), "gate disc blocked at {p}");
             }
@@ -237,7 +237,6 @@ fn ko_geometry_and_indestructible_frames() {
         }
         assert_eq!(w.get(IVec3::new(0, y, 3)), AIR, "the Well shaft is blocked at y = {}", y as f32 * 0.5);
     }
-    assert!(WELL_R >= 9.0);
     // Off the plate's rim: nothing to land on down to the void.
     for (x, z) in [(124.0f32, 0.0f32), (-124.0, 10.0), (0.0, -86.0)] {
         for y in (VOID_Y * 2.0) as i32..(STREET * 2.0) as i32 {

@@ -2213,6 +2213,7 @@
         id: "limitless",
         name: "Limitless",
         kind: Technique,
+        claim: ["infinity"],
         names: ["limitless", "the limitless", "infinity", "mugen", "gojo's infinity", "limitless technique", "limitless infinity",
                 "six eyes", "limit less", "gojo limitless"],
         // Infinity: shots and thrown things crawl as they near you (they still arrive, late).

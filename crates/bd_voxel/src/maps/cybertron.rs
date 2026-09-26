@@ -1014,23 +1014,13 @@ pub fn portals() -> Vec<MapPortal> {
 
 // ------------------------------------------------------------------------------------------------
 
-fn dbg_prune(c: &mut City, what: &str) {
-    if std::env::var("CYB_PRUNE").is_ok() {
-        eprintln!("prune after {what}: {}", c.w.prune_unanchored());
-    }
-}
-
 /// Build Cybertron. Deterministic for a given seed (the layout is fixed; details vary).
 pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
     let mut c = City::new(VoxelWorld::centered(CYBERTRON_SIZE_VOXELS), seed ^ 0x0c1b_e270_0000);
     plate(&mut c);
-    dbg_prune(&mut c, "plate(&mut c);");
     rust_bay(&mut c);
-    dbg_prune(&mut c, "rust_bay(&mut c);");
     well(&mut c);
-    dbg_prune(&mut c, "well(&mut c);");
     hall_of_records(&mut c);
-    dbg_prune(&mut c, "hall_of_records(&mut c);");
     // Iacon spires / obelisks and their Kaon tower / smokestack rotations (180° about the Well).
     let spires: [(f32, f32, f32, f32); 5] = [(-72.0, 36.0, 62.0, 5.0), (-48.0, 34.0, 46.0, 4.0), (-86.0, -32.0, 70.0, 5.5), (-62.0, -38.0, 54.0, 4.5), (-26.0, -46.0, 42.0, 4.0)];
     for &(x, z, h, hw) in &spires {
@@ -1042,9 +1032,7 @@ pub fn generate_cybertron(seed: u64) -> (VoxelWorld, MapInfo) {
         smokestack(&mut c, -x, -z, h + 8.0);
     }
     gladiator_pit(&mut c);
-    dbg_prune(&mut c, "gladiator_pit(&mut c);");
     expressways(&mut c);
-    dbg_prune(&mut c, "expressways(&mut c);");
     gate(&mut c, GATE_IACON, 1.0, mat::ENERGON_FRAME);
     gate(&mut c, GATE_KAON, -1.0, mat::EMBER_FRAME);
     // Low cover on the central lane approaches (rotation-symmetric).

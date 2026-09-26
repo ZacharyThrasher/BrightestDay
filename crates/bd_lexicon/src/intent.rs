@@ -440,7 +440,7 @@ pub(crate) fn find_target(
     for name_from in (2..n).rev() {
         let Some((prep, p)) = d.preps.iter().find_map(|pr| {
             let k = pr.words.split(' ').count();
-            (name_from > k && phrase_at(&ws, name_from - k, &pr.words)).then_some((pr, name_from - k))
+            (name_from > k && phrase_at(&ws, name_from - k, &pr.words)).then(|| (pr, name_from - k))
         }) else {
             continue;
         };
