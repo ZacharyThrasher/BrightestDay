@@ -180,6 +180,17 @@ Autonomous constructs (creatures, or anything with Flies/Homing/Charge) pick tar
 last aim/hit, else nearest enemy. Voxel shapes gain visible parts for mechanics (wings, rockets,
 spikes, tail, jaw, horns) on any form, so the victim can *read* what a combination will do.
 
+## 5c. Temperament (abstract/emotion words → behaviour)
+Autonomous constructs have a `Temperament` + intensity from the phrase ("very angry bees"). It changes
+*behaviour and animation*, not stats: Aggressive (relentless pursuit across the map, faster attack
+rhythm, twitchy), Fearful (kites at range, uses cover, fires its payload), Protective (orbits owner,
+body-blocks projectiles, intercepts attackers), Playful (bouncy erratic pathing, knockback pranks,
+random targets), Lazy (slow, sits down, heavy roadblock), Chaotic (attacks anyone but its owner,
+including constructs), Sneaky (flanks from out of view, dim glow). Abstract nouns alone ("rage",
+"sadness") make a **spirit**: a flying wisp creature carrying the word's temperament + element.
+Crude/ambiguous words resolve to their literal physical sense ("horny" = horned) or are ignored — the
+closed mechanic set means the ring can only ever express what we designed.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more

@@ -195,6 +195,29 @@ pub enum Feature {
     Cage,
 }
 
+/// How an autonomous construct *behaves* (creatures, swarms, anything with Flies/Walks/Homing/Charge).
+/// Emotion/attitude words map here ("very angry bees" → Aggressive, intensity high). Game-owned:
+/// bd_sim decides what each temperament does; it changes behaviour and animation, not just numbers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Temperament {
+    #[default]
+    Calm,
+    /// Never retreats, pursues relentlessly, faster attack rhythm, twitchy animation.
+    Aggressive,
+    /// Keeps distance, uses cover, attacks from range with its payload.
+    Fearful,
+    /// Orbits and guards the owner, intercepts projectiles and attackers.
+    Protective,
+    /// Bouncy erratic movement, pranks (knockback-heavy), random targets.
+    Playful,
+    /// Slow, sometimes stops and sits; heavy — becomes a roadblock.
+    Lazy,
+    /// Lurches, attacks anyone (players or constructs) except its owner.
+    Chaotic,
+    /// Approaches from behind/out of view, dimmer glow.
+    Sneaky,
+}
+
 /// Elemental flavour. Changes effects/particles and adds a status on hit.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Element {
@@ -251,6 +274,11 @@ pub struct Recipe {
     /// Mechanical sub-assemblies (sorted, unique). See [`Feature`].
     #[serde(default)]
     pub features: Vec<Feature>,
+    #[serde(default)]
+    pub temperament: Temperament,
+    /// 0..1 strength of the temperament ("slightly" ≈ 0.3, plain ≈ 0.6, "very"/"extremely" ≈ 0.9+).
+    #[serde(default)]
+    pub intensity: f32,
 }
 
 impl Recipe {
@@ -271,6 +299,7 @@ impl Recipe {
             self.mass = 10.0;
         }
         self.count = self.count.max(1);
+        self.intensity = if self.intensity.is_finite() { self.intensity.clamp(0.0, 1.0) } else { 0.0 };
         self
     }
 
@@ -288,6 +317,8 @@ impl Recipe {
             model: ModelSource::Procedural { seed: 0 },
             payload: None,
             features: vec![],
+            temperament: Temperament::Calm,
+            intensity: 0.0,
         }
     }
 }
