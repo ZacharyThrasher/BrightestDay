@@ -88,6 +88,8 @@ export class Player {
   shape: any;
   tune: MoveTuning = { ...MOVE };
   /** diagnostics */
+  /** seconds left during which the soft speed ceiling is not applied (set by construct launches) */
+  launchGrace = 0;
   stats = { maxSpeed: 0, landings: 0, jumps: 0, speedAtLastLanding: 0, lastLaunchSpeed: 0 };
   onHit: HitHandler | null = null;
   /** last intended horizontal movement direction (for climbing, construct helpers) */
@@ -261,6 +263,16 @@ export class Player {
 
     this.applyTetherForces(input, dt, anyTether);
 
+    // soft ceiling: only the excess above softCap is dragged (see tuning.ts)
+    if (this.launchGrace > 0) this.launchGrace -= dt;
+    else {
+      const s0 = this.vel.length();
+      const e = s0 - T.softCap;
+      if (e > 0) {
+        const ne = Math.max(0, e - (T.softCapDragLin * e + T.softCapDragQuad * e * e) * dt);
+        this.vel.multiplyScalar((T.softCap + ne) / s0);
+      }
+    }
     // speed limit (safety, not gameplay)
     const sp = this.vel.length();
     if (sp > T.maxSpeed) this.vel.multiplyScalar(T.maxSpeed / sp);

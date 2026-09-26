@@ -60,7 +60,7 @@ test('ramp keeps momentum and launches upward', async () => {
   let maxY = 0;
   run(w, 3, () => { maxY = Math.max(maxY, w.player.pos.y - 0.9); return { moveZ: 1 }; });
   console.log('ramp: approach', sp.toFixed(1), 'max feet height', maxY.toFixed(1), '(ramp top 8)');
-  assert.ok(maxY > 11, 'ramp should launch well above its top');
+  assert.ok(maxY > 10.5, 'ramp should launch well above its top'); // 11.3 before the PvP soft cap, 10.9 with it
 });
 
 test('tether swing builds speed and release keeps it', async () => {

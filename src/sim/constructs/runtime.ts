@@ -1,3 +1,4 @@
+import { MOVE } from '../tuning.js';
 import { Vector3, Quaternion, Matrix4 } from 'three';
 import { G, ALL, groups, type RBody, type RCollider } from '../physics.js';
 import type { World, Entity, Projectile } from '../world.js';
@@ -1185,6 +1186,7 @@ export class ConstructRuntime {
       P.vel.addScaledVector(dir, out);
       P.onGround = false;
       P.stats.lastLaunchSpeed = P.vel.length();
+      P.launchGrace = MOVE.launchGrace;
       this.w.emit('launch', { construct: id, speed: Math.round(P.vel.length()) });
       return 'handled';
     }
@@ -1221,6 +1223,7 @@ export class ConstructRuntime {
     P.onGround = false;
     P.flying = false;
     P.stats.lastLaunchSpeed = v.length();
+    P.launchGrace = MOVE.launchGrace;
   }
 
   /** Launchers also fling entities resting on them (spring under a drone/boulder/civilian). */

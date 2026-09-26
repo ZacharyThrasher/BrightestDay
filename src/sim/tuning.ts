@@ -38,8 +38,15 @@ export const MOVE = {
   flyAccel: 22,
   flyOverspeedDrag: 0.12, // fraction of excess speed removed per second above cruise
   flyDiveGravity: 0.65, // fraction of gravity applied along a dive
+  // PvP speed ceiling: below softCap nothing changes (the feel is untouched). Above it, a drag that grows
+  // with the excess (linear + quadratic) bleeds stacked speed back down, so bursts still feel huge but
+  // can't be sustained. Launches from constructs are exempt for a moment so they still land where aimed.
+  softCap: 28,
+  softCapDragLin: 0.5, // 1/s on the excess
+  softCapDragQuad: 0.08, // 1/(m) on excess² (boost alone now peaks ≈ 45 m/s instead of ≈ 64)
+  launchGrace: 1.6, // seconds of no soft-cap drag after a construct launches you
   // global
-  maxSpeed: 160,
+  maxSpeed: 70,
   playerRadius: 0.4,
   playerHalfHeight: 0.5, // capsule half-height (cylinder part) -> total 1.8 m
   playerMass: 80,

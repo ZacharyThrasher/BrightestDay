@@ -47,3 +47,37 @@ Decided by the project owner: PvP focus; **online matches + AI "rival lanterns"*
   and varying them to stay inspired. Difficulty = typing speed, aim error, reaction time, idea repertoire.
 - Bots are also the automated test opponents for PvP (bot vs bot matches must finish and be won by the
   better settings more often than not).
+
+## Speed vs. hitting (movement is defence, constructs are offence)
+Owner feedback: the movement's weight/momentum feels good — keep it. So speed is only trimmed at the extreme
+and hitting is solved on the construct side.
+
+**Speed tiers (measured, `test/movement.test.ts`)**
+
+| technique | before | now | note |
+|---|---|---|---|
+| run / bhop | 11 | 11 | unchanged |
+| air-strafe | 24.6 | 24.6 | unchanged |
+| tether swing peak | 33.6 | 31.9 | barely touched |
+| boost peak | 63.7 | 43.7 → 28.7 after 2 s | stacked speed bleeds back |
+| flight cruise | 17 | 17 | unchanged |
+| ramp launch (30 m/s in) | 11.3 m | 10.9 m | |
+
+Mechanism: a soft ceiling (`MOVE.softCap` 28 m/s). Below it nothing changes; above it the excess is dragged
+(linear + quadratic), construct launches are exempt for 1.6 s. Hard cap 70 m/s (was 160).
+
+**Hitting a fast target: lock-on + honest tracking.** You aim with a crosshair, but you *type*, so pixel aim
+isn't the skill:
+1. **Lock-on at cast time:** "him/her/the enemy/them" always resolves to the opponent; the crosshair also locks
+   the opponent if they're within a generous cone (~15°) or within 6 m of the aim ray. Locked casts show a
+   lock marker.
+2. **Predictive intercept:** projectiles, strikes and chasers lead the target (aim at where they will be,
+   from their velocity), re-planned every tick for homing things.
+3. **Speed tiers, so escaping costs something:** fast strikes (hammer/fist lunge, ~45–60 m/s) commit their
+   direction at launch — a juke dodges them; chasers (hands, dogs, missiles, cars) track continuously with
+   a max speed just above the sustainable player speed (~30–34 m/s) but a limited turn rate — outrunning
+   needs boost/tether bursts, and hard direction changes, walls and line of sight shake them; area
+   constructs (cages, domes, fields, explosions, walls across the path, floors that launch) don't need to
+   hit a point at all, they deny space — the answer to a very mobile opponent.
+4. **Counters are constructs too:** shields/walls block, mirrors reflect, decoys pull locks, cutting a
+   chaser's tether/destroying it. Nothing is unavoidable; everything costs willpower and goes stale if spammed.
