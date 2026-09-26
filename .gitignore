@@ -1,0 +1,9 @@
+node_modules/
+dist/
+out/
+release/
+models/
+tools/asr-bench/data/
+*.log
+.DS_Store
+eval/results/tmp/

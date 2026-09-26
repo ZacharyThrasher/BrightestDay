@@ -1,0 +1,34 @@
+import RAPIER from '@dimforge/rapier3d-compat';
+
+export type Rapier = typeof RAPIER;
+export type RWorld = InstanceType<Rapier['World']>;
+export type RBody = InstanceType<Rapier['RigidBody']>;
+export type RCollider = InstanceType<Rapier['Collider']>;
+
+let ready: Promise<Rapier> | null = null;
+
+/** Initialise the Rapier WASM module once (works in Node and in the browser). */
+export function initPhysics(): Promise<Rapier> {
+  if (!ready) ready = (RAPIER as any).init({}).then(() => RAPIER);
+  return ready!;
+}
+
+/** Collision membership bits. */
+export const G = {
+  WORLD: 1,
+  PLAYER: 2,
+  CONSTRUCT: 4,
+  ENTITY: 8,
+  PROJECTILE: 16,
+  CARGO: 32, // entities currently held by a construct (don't collide with their holder)
+} as const;
+
+export const ALL = 0xffff;
+
+/** Rapier interaction groups: high 16 bits = membership, low 16 = filter. */
+export function groups(member: number, filter: number): number {
+  return ((member & 0xffff) << 16) | (filter & 0xffff);
+}
+
+/** What the player's movement collides with. */
+export const PLAYER_MOVE_FILTER = groups(G.PLAYER, G.WORLD | G.CONSTRUCT | G.ENTITY);

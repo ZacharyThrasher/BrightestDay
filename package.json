@@ -1,0 +1,27 @@
+{
+  "name": "hardlight",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hard-light imagination-to-construct sandbox (research prototype)",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "start": "npm run build && electron .",
+    "test": "tsx --test test/*.test.ts",
+    "eval": "tsx eval/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.186.0",
+    "electron": "^44.4.5",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
