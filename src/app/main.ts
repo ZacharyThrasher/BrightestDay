@@ -70,6 +70,8 @@ class App implements HardlightApp {
     window.addEventListener('resize', () => this.gr.resize());
     canvas.addEventListener('click', () => { if (!this.input.locked && !this.consoleOpen) this.input.requestLock(); });
     document.addEventListener('pointerlockchange', () => this.updateMenu());
+    // never fail silently: if the OS/browser refuses mouse capture, say so
+    document.addEventListener('pointerlockerror', () => this.hud.toast('warn', 'Couldn’t capture the mouse — click again (after Esc, Windows needs a second before re-capturing)'));
     // voice bridge (filled in by the voice integrator; absent in the web build)
     const v = window.hardlight?.voice;
     v?.onPartial?.((t) => this.setTranscript(t, false));

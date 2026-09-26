@@ -15,6 +15,7 @@
     "web": "npm run build && node tools/serve.mjs dist/web 5173",
     "screenshots": "npm run build && node tools/screenshot.mjs",
     "perf": "npm run build && node tools/perf.mjs",
+    "smoke:ui": "npm run build && xvfb-run -a node tools/ui-smoke.mjs",
     "smoke:electron": "npm run build && xvfb-run -a electron . --no-sandbox --smoke-test=3000"
   },
   "dependencies": {

@@ -145,8 +145,11 @@ app.whenReady().then(() => {
   installS2Bridge(() => settings.system2);
   ipcMain.on('hl:s2-mode', (e) => { e.returnValue = settings.system2?.mode ?? 'hybrid'; });
   Menu.setApplicationMenu(null);
-  // deny every permission request except the microphone (for push-to-talk)
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));
+  // deny every permission request except what the game needs: microphone (push-to-talk),
+  // pointer lock (mouse look — without it "click to play" silently does nothing) and fullscreen
+  const allowed = new Set(['media', 'pointerLock', 'fullscreen']);
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
   // block any non-file network request (defence in depth on top of the CSP)
   session.defaultSession.webRequest.onBeforeRequest((details, cb) => {
     const ok = details.url.startsWith('file://') || details.url.startsWith('devtools://') || details.url.startsWith('data:') || details.url.startsWith('blob:');
