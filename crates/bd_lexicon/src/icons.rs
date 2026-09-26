@@ -18,8 +18,71 @@ pub struct IconEntry {
     pub recipe: Recipe,
     #[serde(default)]
     pub shape: Option<ShapeSpec>,
+    /// Second hand-authored mode for `Transforms` icons (robot mode when `shape` is the alt/vehicle
+    /// mode). Panels that move between modes share `part` ids with `shape`.
+    #[serde(default)]
+    pub alt_shape: Option<ShapeSpec>,
     #[serde(default)]
     pub source: String,
+}
+
+/// Only what resolution needs at load time; shapes stay as source text until first used.
+#[derive(Deserialize)]
+struct IconHead {
+    names: Vec<String>,
+    recipe: Recipe,
+    #[serde(default)]
+    source: String,
+}
+
+/// A voxel model kept as RON text and parsed on first use (icon files are ~1 MB of shapes; parsing
+/// them all at startup cost more than the rest of the lexicon load).
+#[derive(Clone, Debug, Default)]
+pub struct LazyShape {
+    src: Option<String>,
+    cell: std::sync::OnceLock<Option<ShapeSpec>>,
+}
+
+impl LazyShape {
+    fn from_src(src: Option<String>) -> Self {
+        let src = src
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s != "None");
+        LazyShape {
+            src,
+            cell: std::sync::OnceLock::new(),
+        }
+    }
+    fn ready(shape: Option<ShapeSpec>) -> Self {
+        let cell = std::sync::OnceLock::new();
+        let src = shape.as_ref().map(|_| String::new());
+        let _ = cell.set(shape);
+        LazyShape { src, cell }
+    }
+    pub fn is_some(&self) -> bool {
+        self.src.is_some()
+    }
+    /// Parse (once) and return the shape; a malformed shape yields None (see `parse_error`).
+    pub fn get(&self) -> Option<&ShapeSpec> {
+        self.cell
+            .get_or_init(|| {
+                let src = self.src.as_deref()?;
+                ron::Options::default()
+                    .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+                    .from_str::<Option<ShapeSpec>>(src)
+                    .ok()
+                    .flatten()
+            })
+            .as_ref()
+    }
+    pub fn parse_error(&self) -> Option<String> {
+        let src = self.src.as_deref().filter(|s| !s.is_empty())?;
+        ron::Options::default()
+            .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+            .from_str::<Option<ShapeSpec>>(src)
+            .err()
+            .map(|e| e.to_string())
+    }
 }
 
 /// A loaded icon.
@@ -29,7 +92,10 @@ pub struct IconDef {
     pub id: String,
     pub names: Vec<String>,
     pub recipe: Recipe,
-    pub shape: Option<ShapeSpec>,
+    /// Curated model (alt/vehicle mode for two-mode icons); parsed lazily.
+    pub shape: LazyShape,
+    /// Robot mode of a two-mode (`Transforms`) icon; parsed lazily.
+    pub alt_shape: LazyShape,
     pub source: String,
     /// Mechanics it contributes as a modifier/graft ("mjolnir hammer", aiming + "mjolnir").
     pub graft: Vec<Mechanic>,
@@ -56,7 +122,7 @@ pub struct Icons {
 
 /// Split the top-level RON list into entry substrings (with their 1-based start line), honouring strings
 /// and comments. Tolerates a missing `[`/`]` and trailing commas.
-fn split_entries(src: &str) -> Vec<(usize, &str)> {
+pub(crate) fn split_entries(src: &str) -> Vec<(usize, &str)> {
     let b = src.as_bytes();
     let n = b.len();
     let mut i = 0;
@@ -182,7 +248,7 @@ impl Icons {
     pub fn parse_files(files: &[(String, String)]) -> Icons {
         // RON parsing is the expensive part: parse files on parallel threads, then add them in
         // priority order (so "earlier names win" stays deterministic).
-        type Parsed = Vec<Result<IconEntry, String>>;
+        type Parsed = Vec<Result<Lite, String>>;
         let parse_one = |(fname, src): &(String, String)| -> Parsed {
             let entries = split_entries(src);
             if entries.is_empty() && !src.trim().is_empty() {
@@ -191,7 +257,7 @@ impl Icons {
             entries
                 .into_iter()
                 .map(|(line, text)| {
-                    ron::from_str::<IconEntry>(text)
+                    parse_lite(text)
                         .map_err(|err| format!("{fname}:{line}: skipped malformed icon: {err}"))
                 })
                 .collect()
@@ -230,7 +296,26 @@ impl Icons {
         )]))
     }
 
-    fn add(&mut self, e: IconEntry, file: &str) {
+    /// Power names (powers.ron) take their names over from earlier icons (a stand beats a character pack
+    /// entry of the same name): existing aliases are released first, with a warning.
+    pub fn add_power(&mut self, e: IconEntry) {
+        let e = Lite::from(e);
+        for n in &e.names {
+            let k = normalize_key(n);
+            if let Some(old) = self.alias.remove(&k) {
+                let owner = self
+                    .defs
+                    .get(old)
+                    .map(|d| format!("{} ({})", d.id, d.file))
+                    .unwrap_or_default();
+                self.warnings
+                    .push(format!("powers.ron: name \"{n}\" taken over from {owner}"));
+            }
+        }
+        self.add(e, "powers.ron");
+    }
+
+    fn add(&mut self, e: Lite, file: &str) {
         let id = match &e.recipe.model {
             ModelSource::Icon(id) if !id.is_empty() => id.clone(),
             _ => e
@@ -321,10 +406,77 @@ impl Icons {
             names: e.names,
             recipe,
             shape: e.shape,
+            alt_shape: e.alt_shape,
             source: e.source,
             graft,
             file: file.to_string(),
         });
+    }
+}
+
+/// An icon entry with its shapes still unparsed.
+pub(crate) struct Lite {
+    names: Vec<String>,
+    recipe: Recipe,
+    source: String,
+    shape: LazyShape,
+    alt_shape: LazyShape,
+}
+
+impl From<IconEntry> for Lite {
+    fn from(e: IconEntry) -> Lite {
+        Lite {
+            names: e.names,
+            recipe: e.recipe,
+            source: e.source,
+            shape: LazyShape::ready(e.shape),
+            alt_shape: LazyShape::ready(e.alt_shape),
+        }
+    }
+}
+
+/// Parse one entry, deferring `shape`/`alt_shape`: the entry's top-level fields are split textually,
+/// the shape texts kept, and only names/recipe/source deserialised. Falls back to a full parse (for
+/// an exact error message) when the split doesn't work.
+fn parse_lite(text: &str) -> Result<Lite, String> {
+    let t = text.trim();
+    let body = match t.find('(') {
+        Some(p)
+            if t[..p]
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_') =>
+        {
+            &t[p..]
+        }
+        _ => t,
+    };
+    let f = crate::powers::fields(body);
+    let mut head = String::from("(");
+    let (mut shape, mut alt) = (None, None);
+    for (k, v) in &f {
+        match k.as_str() {
+            "shape" => shape = Some(v.clone()),
+            "alt_shape" => alt = Some(v.clone()),
+            _ => {
+                head.push_str(k);
+                head.push(':');
+                head.push_str(v);
+                head.push(',');
+            }
+        }
+    }
+    head.push(')');
+    match ron::from_str::<IconHead>(&head) {
+        Ok(h) if !f.is_empty() => Ok(Lite {
+            names: h.names,
+            recipe: h.recipe,
+            source: h.source,
+            shape: LazyShape::from_src(shape),
+            alt_shape: LazyShape::from_src(alt),
+        }),
+        _ => ron::from_str::<IconEntry>(text)
+            .map(Lite::from)
+            .map_err(|e| e.to_string()),
     }
 }
 

@@ -22,6 +22,7 @@ mod icons;
 mod norm;
 mod parse;
 mod phonetic;
+mod powers;
 pub mod tables;
 
 #[cfg(feature = "builder")]
@@ -50,6 +51,23 @@ pub enum ResolutionKind {
     Graft,
 }
 
+/// A command-like phrase the game should treat as an *action* on constructs the caster already owns,
+/// rather than (only) as mechanics to add. The resolver cannot see game state, so it reports the
+/// intent and the game decides (and falls back to the ordinary graft/construct when it doesn't apply).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GraftAction {
+    /// "transform", "make it transform", "robot mode", "switch modes": toggle the aimed construct's
+    /// mode if it already has `Transforms`, otherwise graft `Transforms` onto it.
+    Transform,
+    /// "roll out", "transform and roll out", "autobots roll out": toggle *every* owned Transforms
+    /// construct (no aim needed).
+    RollOut,
+    /// "combine", "form devastator", "merge": merge the caster's owned Transforms constructs into one
+    /// combiner (the game requires ≥ 3). For a bare combiner name ("devastator") the resolution is a
+    /// normal Construct and this is only a hint the game may honour when the caster owns ≥ 3.
+    Combine,
+}
+
 /// The phrase read as a graft: what it adds to whatever it is cast onto. Always populated, even for
 /// constructs ("wings" is a Wings construct *and* a Flies graft), so aiming decides.
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -65,6 +83,8 @@ pub struct Graft {
     pub temperament: Option<Temperament>,
     pub intensity: Option<f32>,
     pub payload: Option<Box<Recipe>>,
+    /// Set for command phrases ("roll out", "combine"); see [`GraftAction`].
+    pub action: Option<GraftAction>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -75,6 +95,15 @@ pub struct Resolution {
     pub graft: Graft,
     /// Curated voxel model for icons (Mjolnir, Godzilla, Pikachu...), else None (procedural).
     pub shape: Option<ShapeSpec>,
+    /// Second curated mode for two-mode (`Transforms`) icons — robot mode when `shape` is the
+    /// vehicle/beast mode; panels share `part` ids. None for single-mode icons and procedural constructs.
+    pub alt_shape: Option<ShapeSpec>,
+    /// Power id whose incantation prefixed the phrase ("gomu gomu no pistol" -> "gomu_gomu"; the rest of
+    /// the phrase resolved normally). The game applies that power's delivery if the caster holds it.
+    pub incantation: Option<String>,
+    /// Stand-rush punches typed ("ORA ORA ORA" / "MUDAMUDAMUDA" -> 3). When set with nothing else in
+    /// the phrase, `kind` is Graft and the game should drive the caster's stand, not build anything.
+    pub stand_rush: Option<u16>,
     /// 0..1. 0 = nothing recognised.
     pub confidence: f32,
     /// Human-readable reasoning, e.g. "maul → hammer (WordNet hypernym)", "hamer → hammer (typo)".
@@ -153,6 +182,9 @@ pub struct Lexicon {
     pub(crate) data: Option<data::LexData>,
     pub(crate) icons: icons::Icons,
     pub(crate) t: Tables,
+    pub(crate) powers: Vec<powers::PowerDef>,
+    /// (incantation tokens, power index), longest first
+    pub(crate) incant: Vec<(Vec<String>, usize)>,
 }
 
 impl Lexicon {
@@ -164,10 +196,47 @@ impl Lexicon {
         let bytes = std::fs::read(path)?;
         let data = data::LexData::parse(bytes)?;
         let files = path.parent().map(Self::icon_files).unwrap_or_default();
+        let powers = path
+            .parent()
+            .and_then(|d| std::fs::read_to_string(d.join("powers.ron")).ok());
         Ok(Self::assemble(
             Some(data),
             icons::Icons::parse_files(&files),
+            powers.as_deref(),
         ))
+    }
+
+    /// Build from raw parts: lexicon.bin bytes, icon files `(name, ron)` in priority order, powers.ron.
+    pub fn from_parts(
+        bytes: Vec<u8>,
+        icon_files: &[(String, String)],
+        powers_ron: Option<&str>,
+    ) -> Result<Lexicon, LoadError> {
+        let data = data::LexData::parse(bytes)?;
+        Ok(Self::assemble(
+            Some(data),
+            icons::Icons::parse_files(icon_files),
+            powers_ron,
+        ))
+    }
+
+    /// Ids of the powers loaded from powers.ron (plus nothing else).
+    pub fn power_ids(&self) -> Vec<&str> {
+        self.powers.iter().map(|p| p.id.as_str()).collect()
+    }
+
+    /// True when the ring had to improvise: nothing (or only part) of the phrase was understood. The
+    /// game logs these to `logs/unresolved.txt` so playtests grow the vocabulary. Never means "no".
+    pub fn is_fallback(res: &Resolution) -> bool {
+        if res.stand_rush.is_some() || res.graft.action.is_some() {
+            return false;
+        }
+        let unknown_words = res.ignored.iter().any(|w| !w.ends_with("(blocked)"));
+        let nothing = res.recipe.form == Form::Blob0
+            && res.graft.mechanics.is_empty()
+            && res.graft.element.is_none()
+            && res.incantation.is_none();
+        nothing || unknown_words || res.confidence < 0.35
     }
 
     /// Read `<dir>/icons.ron` and `<dir>/icons/*.ron` (sorted) as (file name, contents).
@@ -205,12 +274,27 @@ impl Lexicon {
         Ok(Self::assemble(
             Some(data),
             icons::Icons::parse_files(icon_files),
+            None,
         ))
     }
 
     /// Icons-only fallback (no lexicon.bin): curated names still resolve, everything else is a blob.
     pub fn icons_only(icon_files: &[(String, String)]) -> Lexicon {
-        Self::assemble(None, icons::Icons::parse_files(icon_files))
+        Self::assemble(None, icons::Icons::parse_files(icon_files), None)
+    }
+
+    /// Parse every icon shape now (they are otherwise parsed lazily on first use) and report the ones
+    /// that are malformed — for tools/tests; the game never needs to call this.
+    pub fn validate_icon_shapes(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        for d in &self.icons.defs {
+            for (what, s) in [("shape", &d.shape), ("alt_shape", &d.alt_shape)] {
+                if let Some(e) = s.parse_error() {
+                    out.push(format!("{}: [{}] {what}: {e}", d.file, d.id));
+                }
+            }
+        }
+        out
     }
 
     /// Non-fatal problems found while loading icon files (malformed entries, duplicate names).
@@ -218,7 +302,11 @@ impl Lexicon {
         &self.icons.warnings
     }
 
-    fn assemble(data: Option<data::LexData>, icons: icons::Icons) -> Lexicon {
+    fn assemble(
+        data: Option<data::LexData>,
+        icons: icons::Icons,
+        powers_ron: Option<&str>,
+    ) -> Lexicon {
         let mut t = Tables {
             adj: HashMap::new(),
             verb: HashMap::new(),
@@ -256,10 +344,36 @@ impl Lexicon {
             }
         }
         let mut icons = icons;
+        let (powers, warn) = powers_ron.map(powers::parse_powers).unwrap_or_default();
+        icons.warnings.extend(warn);
+        if powers_ron.is_some() {
+            for p in &powers {
+                icons.add_power(powers::power_entry(p));
+            }
+            for e in powers::random_entries() {
+                icons.add_power(e);
+            }
+        }
+        let mut incant: Vec<(Vec<String>, usize)> = powers
+            .iter()
+            .enumerate()
+            .flat_map(|(i, p)| {
+                p.incantations
+                    .iter()
+                    .map(move |s| (s.split(' ').map(String::from).collect(), i))
+            })
+            .collect();
+        incant.sort_by(|a: &(Vec<String>, usize), b| b.0.len().cmp(&a.0.len()).then(a.0.cmp(&b.0)));
         if let Some(d) = &data {
             shadow_domain_aliases(&mut icons, d);
         }
-        Lexicon { data, icons, t }
+        Lexicon {
+            data,
+            icons,
+            t,
+            powers,
+            incant,
+        }
     }
 
     /// Number of lexicon entries (not counting icons).
@@ -388,6 +502,7 @@ impl Lexicon {
                 seed: data::fnv64(key.as_bytes()) as u32,
             },
             payload: None,
+            grants: None,
             features: parse::bits_to_feats(rec.feat),
             temperament: temper.unwrap_or_default(),
             intensity: if temper.is_some() { 0.6 } else { 0.0 },
@@ -415,6 +530,17 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
         };
         if def.file == "icons.ron" {
             continue;
+        }
+        if def.file == "powers.ron" {
+            // power names keep everything except single very common words ("cream" stays food)
+            let common_single = !alias.contains(' ')
+                && d.entry_id(alias)
+                    .and_then(|id| d.rec(id))
+                    .map(|r| r.rank_f() >= 4.5)
+                    .unwrap_or(false);
+            if !common_single {
+                continue;
+            }
         }
         let Some(rec) = d.entry_id(alias).and_then(|id| d.rec(id)) else {
             continue;
@@ -452,6 +578,30 @@ fn shadow_domain_aliases(icons: &mut icons::Icons, d: &data::LexData) {
 #[cfg(test)]
 mod lib_tests {
     use super::*;
+
+    const TWO_MODE: &str = r#"[
+        IconEntry(
+            names: ["test prime", "testbot"],
+            recipe: (name: "Test Prime", form: Vehicle, mechanics: [Charge, Transforms], element: Light,
+                     scale: 8.0, mass: 9000.0, count: 1, accent: None, model: Icon("test_prime")),
+            shape: Some((prims: [(kind: Box, center: (0.0, 4.0, 0.0), size: (8.0, 8.0, 20.0), part: 1)])),
+            alt_shape: Some((prims: [(kind: Box, center: (0.0, 16.0, 0.0), size: (8.0, 12.0, 4.0), part: 1),
+                                     (kind: Box, center: (0.0, 25.0, 0.0), size: (3.0, 3.0, 3.0), part: 2)])),
+            source: "test",
+        ),
+    ]"#;
+
+    #[test]
+    fn two_mode_icons_expose_alt_shape() {
+        let lex = Lexicon::icons_only(&[("t.ron".into(), TWO_MODE.into())]);
+        assert!(lex.load_warnings().is_empty(), "{:?}", lex.load_warnings());
+        let r = lex.resolve("testbot");
+        assert!(r.recipe.has(Mechanic::Transforms));
+        assert!(r.shape.is_some() && r.alt_shape.is_some());
+        let r = lex.resolve("roll out");
+        assert_eq!(r.kind, ResolutionKind::Graft);
+        assert_eq!(r.graft.action, Some(GraftAction::RollOut));
+    }
 
     #[test]
     fn signature_is_stable_and_order_free() {

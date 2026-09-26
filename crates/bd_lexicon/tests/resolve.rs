@@ -6,7 +6,7 @@ use Mechanic::*;
 use bd_core::mechanics::{
     Element, Feature, Form, FormCategory, Mechanic, ModelSource, Temperament,
 };
-use bd_lexicon::{Resolution, ResolutionKind};
+use bd_lexicon::{GraftAction, Resolution, ResolutionKind};
 
 fn r(text: &str) -> Option<Resolution> {
     common::lex().map(|l| l.resolve(text))
@@ -510,4 +510,66 @@ fn speed_budget() {
     eprintln!("average resolve: {avg_us:.0} µs");
     // tests build at opt-level 1; release is ~3x faster. Budget: < 1 ms in release.
     assert!(avg_us < 2500.0, "average {avg_us} µs");
+}
+
+// ---------------------------------------------------------------------------------------- transformers
+#[test]
+fn transformers_vocabulary() {
+    check!("transformer shark", |x| {
+        x.recipe.form == Form::Fish && x.recipe.has(Transforms)
+    });
+    check!("a tank that transforms", |x| {
+        x.recipe.form == Form::Vehicle && x.recipe.has(Transforms)
+    });
+    check!("transforming car", |x| {
+        x.recipe.form == Form::Vehicle && x.recipe.has(Transforms)
+    });
+    check!("robot in disguise", |x| { x.recipe.has(Transforms) });
+    check!("robots in disguise", |x| {
+        x.recipe.has(Transforms) && x.recipe.count >= 3
+    });
+    check!("transformer", |x| { x.recipe.has(Transforms) });
+    check!("autobots", |x| {
+        x.recipe.form == Form::Biped
+            && x.recipe.count == 3
+            && x.recipe.has(Transforms)
+            && x.recipe.temperament == Temperament::Protective
+    });
+    check!("decepticons", |x| {
+        x.recipe.count == 3
+            && x.recipe.has(Transforms)
+            && x.recipe.temperament == Temperament::Aggressive
+    });
+    check!("optimus prime", |x| { x.recipe.has(Transforms) });
+}
+
+#[test]
+fn transformer_commands() {
+    let act = |p: &str, a: GraftAction| {
+        let Some(x) = r(p) else { return };
+        assert_eq!(x.graft.action, Some(a), "{p:?} -> {:?}", x.explanation);
+        assert_eq!(x.kind, ResolutionKind::Graft, "{p:?}");
+        assert!(x.graft.mechanics.contains(&Transforms), "{p:?}");
+    };
+    act("roll out", GraftAction::RollOut);
+    act("Autobots, roll out!", GraftAction::RollOut);
+    act("transform and roll out", GraftAction::RollOut);
+    act("transform", GraftAction::Transform);
+    act("make it transform", GraftAction::Transform);
+    act("robot mode", GraftAction::Transform);
+    act("combine", GraftAction::Combine);
+    act("form devastator", GraftAction::Combine);
+    check!("form devastator", |x| {
+        x.recipe.form == Form::Kaiju || x.recipe.scale >= 10.0
+    });
+    // ordinary phrases carry no action
+    check!("hammer", |x| { x.graft.action.is_none() });
+}
+
+#[test]
+fn all_icon_shapes_parse() {
+    let Some(l) = common::lex() else { return };
+    let bad = l.validate_icon_shapes();
+    assert!(bad.is_empty(), "{bad:#?}");
+    assert!(l.icon_count() >= 97);
 }

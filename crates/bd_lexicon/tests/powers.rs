@@ -1,0 +1,114 @@
+//! Powers vocabulary (COMBAT.md §5h) against a fixture powers.ron (the real file is loaded the same way).
+
+use bd_core::mechanics::{Form, Mechanic};
+use bd_lexicon::{Lexicon, ResolutionKind};
+use std::sync::OnceLock;
+
+const POWERS: &str = r#"[
+    Power(id: "gomu_gomu", names: ["gomu gomu no mi", "gum-gum fruit", "rubber fruit"],
+          incantation: Some("gomu gomu no"), body: (traits: [BounceBody])),
+    Power(id: "mera_mera", names: ["mera mera no mi", "flame-flame fruit", "fire fruit"],
+          incantation: Some("mera mera no")),
+    Power(id: "star_platinum", kind: Stand, names: ["star platinum"], companion: Some((form: Biped))),
+    Power(id: "the_world", kind: Stand, names: ["the world", "za warudo"], companion: Some((form: Biped))),
+    Power(id: "killer_queen", kind: Stand, names: ["killer queen"], companion: Some((form: Biped))),
+]"#;
+
+fn lex() -> Option<&'static Lexicon> {
+    static L: OnceLock<Option<Lexicon>> = OnceLock::new();
+    L.get_or_init(|| {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+        let bytes = std::fs::read(dir.join("lexicon.bin")).ok()?;
+        Lexicon::from_parts(bytes, &Lexicon::icon_files(&dir), Some(POWERS)).ok()
+    })
+    .as_ref()
+}
+
+#[test]
+fn fruits_and_stands_grant_powers() {
+    let Some(l) = lex() else { return };
+    for (p, id, form) in [
+        ("gum-gum fruit", "gomu_gomu", Form::Ball),
+        ("gomu gomu no mi", "gomu_gomu", Form::Ball),
+        ("rubber fruit", "gomu_gomu", Form::Ball),
+        ("flame flame fruit", "mera_mera", Form::Ball),
+        ("star platinum", "star_platinum", Form::Biped),
+        ("ZA WARUDO", "the_world", Form::Biped),
+        ("the world", "the_world", Form::Biped),
+        ("killer queen", "killer_queen", Form::Biped),
+        ("devil fruit", "random:devil_fruit", Form::Ball),
+        ("stand arrow", "random:stand", Form::Spear),
+    ] {
+        let r = l.resolve(p);
+        assert_eq!(
+            r.recipe.grants.as_deref(),
+            Some(id),
+            "{p:?} -> {:?}",
+            r.explanation
+        );
+        assert_eq!(r.recipe.form, form, "{p:?}");
+    }
+    assert!(
+        l.resolve("giant gum-gum fruit").recipe.scale > 0.5,
+        "modifiers still apply"
+    );
+    assert!(l.resolve("hammer").recipe.grants.is_none());
+}
+
+#[test]
+fn incantations_prefix_any_phrase() {
+    let Some(l) = lex() else { return };
+    let r = l.resolve("gomu gomu no pistol");
+    assert_eq!(r.incantation.as_deref(), Some("gomu_gomu"));
+    // a curated "gomu gomu no pistol" icon (anime pack) may win over the generic pistol
+    assert!(
+        r.recipe.form == Form::Gun || r.shape.is_some() || r.recipe.form == Form::Gauntlet,
+        "{:?}",
+        r.explanation
+    );
+    let r = l.resolve("gomu gomu no anvil");
+    assert_eq!(r.incantation.as_deref(), Some("gomu_gomu"));
+    assert_eq!(r.recipe.form, Form::Anvil);
+    let r = l.resolve("Mera Mera no giant fist");
+    assert_eq!(r.incantation.as_deref(), Some("mera_mera"));
+    assert_eq!(r.recipe.form, Form::Gauntlet);
+    assert!(l.resolve("gomu gomu no").incantation.is_some());
+    assert!(l.resolve("giant hammer").incantation.is_none());
+}
+
+#[test]
+fn stand_rush() {
+    let Some(l) = lex() else { return };
+    for (p, n) in [
+        ("ORA ORA ORA", 3),
+        ("MUDAMUDAMUDA", 3),
+        ("ora", 1),
+        ("DORARARA dora", 2),
+        ("WRYYYYY", 1),
+    ] {
+        let r = l.resolve(p);
+        assert_eq!(r.stand_rush, Some(n), "{p:?}");
+        assert_eq!(r.kind, ResolutionKind::Graft);
+        assert!(r.recipe.has(Mechanic::Blunt));
+    }
+    assert_eq!(l.resolve("orange").stand_rush, None);
+    assert_eq!(l.resolve("dora the explorer").stand_rush, None);
+}
+
+#[test]
+fn never_says_no_and_fallback_logging() {
+    let Some(l) = lex() else { return };
+    for p in ["", "   ", "???", "qwxzvbnm", "🔥", "hammer"] {
+        let r = l.resolve(p);
+        assert!(!r.recipe.name.is_empty() && r.recipe.scale > 0.0, "{p:?}");
+    }
+    assert!(Lexicon::is_fallback(&l.resolve("qwxzvbnm")));
+    assert!(Lexicon::is_fallback(&l.resolve("")));
+    assert!(Lexicon::is_fallback(&l.resolve("hammer qwxzvbnm")));
+    assert!(!Lexicon::is_fallback(&l.resolve("hammer")));
+    assert!(!Lexicon::is_fallback(
+        &l.resolve("giant flaming hammer with rockets")
+    ));
+    assert!(!Lexicon::is_fallback(&l.resolve("roll out")));
+    assert!(!Lexicon::is_fallback(&l.resolve("ORA ORA")));
+}

@@ -616,6 +616,7 @@ def entry_from(base: Entry, key: str, display: str | None = None) -> Entry:
     e.graft = list(base.graft) if base.graft else None
     e.gelem = base.gelem
     e.size_src = base.size_src
+    e.temper = base.temper
     return e
 
 
@@ -640,6 +641,8 @@ def apply_word_anchor(e: Entry, spec: dict):
         e.mass = spec["w"]
     if spec.get("count"):
         e.count = spec["count"]
+    if spec.get("t"):
+        e.temper = spec["t"]
     if "g" in spec:
         e.graft = list(spec["g"])
     if spec.get("part"):

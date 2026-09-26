@@ -15,7 +15,71 @@ use crate::fuzzy::{deletes1, dl_distance, edits1, max_typo};
 use crate::norm::{Tok, normalize_key, singulars, squeeze2, squeeze3, tokenize};
 use crate::phonetic::phonetic_key;
 use crate::tables::*;
-use crate::{Graft, Lexicon, Resolution, ResolutionKind};
+use crate::{Graft, GraftAction, Lexicon, Resolution, ResolutionKind};
+
+/// Combiner names that "form X" / a bare "X" refer to (GraftAction::Combine).
+const COMBINERS: &[&str] = &[
+    "devastator",
+    "voltron",
+    "bruticus",
+    "superion",
+    "menasor",
+    "predaking",
+    "computron",
+    "defensor",
+    "megazord",
+    "combiner",
+    "gestalt",
+];
+
+/// Command phrases (already normalised; articles/fillers/pronouns/"make it" removed).
+fn action_of(phrase: &str) -> Option<GraftAction> {
+    let p = phrase.trim();
+    let p = p
+        .strip_prefix("autobots ")
+        .or_else(|| p.strip_prefix("decepticons "))
+        .or_else(|| p.strip_prefix("constructicons "))
+        .unwrap_or(p);
+    match p {
+        "roll out"
+        | "transform and roll out"
+        | "transform roll out"
+        | "rollout"
+        | "lets roll"
+        | "transform all"
+        | "everyone transform"
+        | "all transform" => Some(GraftAction::RollOut),
+        "transform"
+        | "transform now"
+        | "transform back"
+        | "transforms"
+        | "transforming"
+        | "switch mode"
+        | "switch modes"
+        | "change mode"
+        | "change modes"
+        | "robot mode"
+        | "vehicle mode"
+        | "car mode"
+        | "alt mode"
+        | "beast mode"
+        | "transform into robot"
+        | "transform into a robot"
+        | "mode switch" => Some(GraftAction::Transform),
+        "combine" | "combine them" | "merge" | "merge them" | "unite" | "combine into one"
+        | "combiner" | "combine and form" | "gestalt" => Some(GraftAction::Combine),
+        _ => {
+            let rest = p
+                .strip_prefix("form ")
+                .or_else(|| p.strip_prefix("combine into "))
+                .or_else(|| p.strip_prefix("combine to form "))
+                .or_else(|| p.strip_prefix("combine and form "))?;
+            COMBINERS
+                .contains(&rest.trim())
+                .then_some(GraftAction::Combine)
+        }
+    }
+}
 
 pub(crate) fn bits_to_mechs(b: u64) -> Vec<Mechanic> {
     ALL_MECHANIC
@@ -1322,6 +1386,127 @@ impl Lexicon {
     // ------------------------------------------------------------------------------------------ top level
     pub(crate) fn resolve_mode(&self, text: &str, spoken: bool) -> Resolution {
         let (toks, bangs) = tokenize(text);
+        // stand rush: "ORA ORA ORA", "MUDAMUDAMUDA" — each cry is one punch, not a construct
+        let cries: Vec<Option<u16>> = toks
+            .iter()
+            .map(|t| crate::powers::rush_count(&t.text))
+            .collect();
+        let n_cry_toks = cries.iter().filter(|c| c.is_some()).count();
+        let others: Vec<Tok> = toks
+            .iter()
+            .zip(&cries)
+            .filter(|(t, c)| {
+                c.is_none() && !matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler))
+            })
+            .map(|(t, _)| t.clone())
+            .collect();
+        let punches: u16 = cries
+            .iter()
+            .flatten()
+            .fold(0u16, |a, b| a.saturating_add(*b));
+        if n_cry_toks > 0 && (others.is_empty() || n_cry_toks >= 2) {
+            let mut res = if others.is_empty() {
+                self.rush_resolution(punches)
+            } else {
+                let mut r = self.resolve_body(others, bangs, spoken);
+                r.explanation
+                    .insert(0, format!("stand rush \u{00d7}{punches}"));
+                r
+            };
+            res.stand_rush = Some(punches);
+            return res;
+        }
+        self.resolve_body(toks, bangs, spoken)
+    }
+
+    fn rush_resolution(&self, punches: u16) -> Resolution {
+        let mut recipe = Recipe::unknown(&format!("stand rush \u{00d7}{punches}"));
+        recipe.form = Form::Gauntlet;
+        recipe.mechanics = vec![Mechanic::Blunt, Mechanic::Fast];
+        recipe.scale = 0.6;
+        recipe.mass = 5.0;
+        recipe.temperament = Temperament::Aggressive;
+        recipe.intensity = (0.5 + punches as f32 * 0.05).min(1.0);
+        Resolution {
+            kind: ResolutionKind::Graft,
+            recipe: recipe.normalized(),
+            graft: Graft {
+                mechanics: vec![Mechanic::Blunt, Mechanic::Fast],
+                scale_mul: 1.0,
+                ..Default::default()
+            },
+            shape: None,
+            alt_shape: None,
+            incantation: None,
+            stand_rush: Some(punches),
+            confidence: 1.0,
+            explanation: vec![format!(
+                "stand rush: {punches} punch{}",
+                if punches == 1 { "" } else { "es" }
+            )],
+            ignored: Vec::new(),
+        }
+    }
+
+    /// Incantation prefix ("gomu gomu no <phrase>") then the normal (typed/spoken) resolution.
+    fn resolve_body(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
+        let skip = toks
+            .iter()
+            .take_while(|t| {
+                matches!(
+                    gram_of(&t.text),
+                    Some(Gram::Article | Gram::Filler | Gram::Cast)
+                )
+            })
+            .count();
+        let whole: String = toks[skip.min(toks.len())..]
+            .iter()
+            .map(|t| t.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        // the power's own name ("gomu gomu no mi") is not an incantation; a curated icon for the full
+        // move ("gomu gomu no pistol") resolves as that icon *and* keeps the incantation tag
+        let whole_icon = self
+            .icons
+            .alias
+            .get(&whole)
+            .and_then(|&i| self.icons.defs.get(i));
+        let whole_is_power_name = whole_icon.map(|d| d.file == "powers.ron").unwrap_or(false);
+        let whole_is_icon = whole_icon.is_some();
+        for (words, pi) in self.incant.iter().filter(|_| !whole_is_power_name) {
+            let n = words.len();
+            if toks.len() >= skip + n
+                && toks[skip..skip + n]
+                    .iter()
+                    .zip(words)
+                    .all(|(t, w)| t.text == *w)
+            {
+                let Some(p) = self.powers.get(*pi) else {
+                    continue;
+                };
+                let rest: Vec<Tok> = toks[skip + n..].to_vec();
+                let mut res = if whole_is_icon {
+                    self.resolve_mode_inner(toks.clone(), bangs, spoken)
+                } else if rest.is_empty() {
+                    let mut r = self.resolve_mode_inner(Vec::new(), bangs, spoken);
+                    r.kind = ResolutionKind::Graft;
+                    r.confidence = 0.8;
+                    r
+                } else {
+                    self.resolve_mode_inner(rest, bangs, spoken)
+                };
+                res.incantation = Some(p.id.clone());
+                res.explanation.insert(
+                    0,
+                    format!("{} \u{2192} {} incantation", words.join(" "), p.id),
+                );
+                return res;
+            }
+        }
+        self.resolve_mode_inner(toks, bangs, spoken)
+    }
+
+    fn resolve_mode_inner(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
         let res = self.resolve_tokens(toks.clone(), bangs, spoken, 0);
         if !spoken || toks.is_empty() {
             return res;
@@ -1433,7 +1618,77 @@ impl Lexicon {
                 c.entry = None;
             }
         }
-        self.interpret(&chunks, bangs, &mut cx, depth)
+        let phrase = cx.phrase.clone();
+        let mut res = self.interpret(&chunks, bangs, &mut cx, depth);
+        self.apply_action(&phrase, &mut res);
+        res
+    }
+
+    /// Transformer command phrases -> graft actions (see `GraftAction`).
+    fn apply_action(&self, phrase: &str, res: &mut Resolution) {
+        let Some(action) = action_of(phrase) else {
+            // a bare combiner name is a construct, with a hint that it can be formed by combining
+            if COMBINERS.contains(&phrase) {
+                res.graft.action = Some(GraftAction::Combine);
+            }
+            return;
+        };
+        res.graft.action = Some(action);
+        if !res.graft.mechanics.contains(&Mechanic::Transforms) {
+            res.graft.mechanics.push(Mechanic::Transforms);
+            res.graft.mechanics.sort();
+        }
+        res.kind = ResolutionKind::Graft;
+        res.explanation.insert(
+            0,
+            match action {
+                GraftAction::Transform => {
+                    "transform \u{2192} toggle mode / add Transforms (graft)".to_string()
+                }
+                GraftAction::RollOut => {
+                    "roll out \u{2192} every Transforms construct switches mode".to_string()
+                }
+                GraftAction::Combine => {
+                    "combine \u{2192} merge owned transformers into a combiner".to_string()
+                }
+            },
+        );
+        res.confidence = res.confidence.max(0.9);
+        if action == GraftAction::Combine {
+            // what the combination becomes: a named combiner if given, else Devastator, else a generic giant
+            let name = phrase
+                .rsplit(' ')
+                .next()
+                .filter(|w| COMBINERS.contains(w))
+                .unwrap_or("devastator");
+            let giant = self.lookup(name).unwrap_or_else(|| {
+                let mut r = Recipe::unknown("combiner");
+                r.form = Form::Kaiju;
+                r.mechanics = vec![Mechanic::Stomp, Mechanic::Heavy, Mechanic::Transforms];
+                r.scale = 20.0;
+                r.mass = 50_000.0;
+                r.normalized()
+            });
+            if let Some(&i) = self.icons.alias.get(name)
+                && let Some(d) = self.icons.defs.get(i)
+            {
+                res.shape = d.shape.get().cloned();
+                res.alt_shape = d.alt_shape.get().cloned();
+            }
+            // a combiner is always a Kaiju-scale Transforms giant, whatever the source data says
+            let mut giant = giant;
+            if giant.form != Form::Kaiju {
+                giant.form = Form::Kaiju;
+                giant.scale = giant.scale.max(20.0);
+                giant.mass = giant.mass.max(50_000.0);
+            }
+            giant
+                .mechanics
+                .extend([Mechanic::Transforms, Mechanic::Stomp, Mechanic::Heavy]);
+            res.recipe = giant.normalized();
+        } else if res.recipe.form == Form::Blob0 || res.recipe.name.is_empty() {
+            res.recipe.mechanics = vec![Mechanic::Transforms];
+        }
     }
 
     fn interpret(&self, chunks: &[Chunk], bangs: usize, cx: &mut Cx, depth: u8) -> Resolution {
@@ -1881,6 +2136,14 @@ impl Lexicon {
             }
         }
         let head = np.head.clone();
+        let alt_shape = match head {
+            Some((Head::Icon(i), _, _)) => self
+                .icons
+                .defs
+                .get(i)
+                .and_then(|d| d.alt_shape.get().cloned()),
+            _ => None,
+        };
         let (mut recipe, shape, head_conf, head_flags, head_graft, head_gelem) = match head.clone()
         {
             Some((Head::Icon(i), _, plural)) => {
@@ -1903,7 +2166,14 @@ impl Lexicon {
                 }
                 let g = d.map(|d| d.graft.clone()).unwrap_or_default();
                 let ge = d.map(|d| d.recipe.element).filter(|e| *e != Element::Light);
-                (r, d.and_then(|d| d.shape.clone()), 1.0f32, 0u16, g, ge)
+                (
+                    r,
+                    d.and_then(|d| d.shape.get().cloned()),
+                    1.0f32,
+                    0u16,
+                    g,
+                    ge,
+                )
             }
             Some((Head::Entry(id), ref text, plural)) => {
                 let text = text.clone();
@@ -1982,6 +2252,7 @@ impl Lexicon {
             temperament: gtemp.and_then(|(t, _)| ALL_TEMPERAMENT.get(t as usize).copied()),
             intensity: gtemp.map(|(_, v)| v),
             payload: mods.payload.clone(),
+            action: None,
         };
         // construct recipe
         if head.is_none() {
@@ -2013,6 +2284,9 @@ impl Lexicon {
         {
             *seed = fnv64(format!("{:?}", graft.mechanics).as_bytes()) as u32;
         }
+        if recipe.name.trim().is_empty() {
+            recipe.name = "light".to_string(); // the ring never says no: an empty cast is a glowing blob
+        }
         let recipe = recipe.normalized();
         let mut confidence = match head {
             Some(_) => head_conf.max(0.05) * cx.conf_mul,
@@ -2031,6 +2305,9 @@ impl Lexicon {
             recipe,
             graft,
             shape,
+            alt_shape,
+            incantation: None,
+            stand_rush: None,
             confidence: confidence.clamp(0.0, 1.0),
             explanation: std::mem::take(&mut cx.why),
             ignored: std::mem::take(&mut cx.ignored),

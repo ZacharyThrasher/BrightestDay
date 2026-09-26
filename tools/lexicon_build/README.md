@@ -68,6 +68,18 @@ CARGO_TARGET_DIR=target/lexicon cargo run -p bd_lexicon --example probe -- "gian
 CARGO_TARGET_DIR=target/lexicon cargo test -p bd_lexicon -- --nocapture     # incl. coverage report
 ```
 
+## Transformers, powers and commands (runtime, no rebuild needed)
+* `Mechanic::Transforms` vocabulary lives in `anchors.py` (transformer/robot in disguise/autobots/…).
+  Command phrases are recognised at runtime and reported as `Resolution::graft.action`
+  (`GraftAction::Transform` "transform"/"robot mode", `RollOut` "roll out", `Combine` "combine"/
+  "form devastator"); two-mode icons expose `Resolution::alt_shape` (`IconEntry.alt_shape`).
+* `assets/powers.ron` (COMBAT.md §5h) is read at load by a tolerant field scanner (`id`, `names`,
+  `incantation(s)`, `kind`/`companion`): power names become constructs with `Recipe::grants`
+  (fruits → small Ball, stands → Protective flying Biped; "devil fruit"/"stand arrow" grant
+  `random:devil_fruit` / `random:stand`), incantation prefixes set `Resolution::incantation` and the rest
+  of the phrase resolves normally, and ORA/MUDA/DORA/ARI/WRYY cries set `Resolution::stand_rush`.
+* `Lexicon::is_fallback(&res)` flags improvised resolutions for `logs/unresolved.txt`.
+
 ## Maintenance
 * New bd_core enum variant → `python tools/lexicon_build/gen_tables.py` (regenerates
   `crates/bd_lexicon/src/tables.rs`; exhaustive matches make a stale table a compile error), then map
