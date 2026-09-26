@@ -372,3 +372,35 @@ pub fn transform_rig_icon(recipe: &Recipe, alt: &ShapeSpec, robot: &ShapeSpec) -
     crate::voxelize::scale_spec(&mut r, f);
     crate::transform::transform_rig_authored(&a, &r, voxel_cap(recipe.form))
 }
+
+/// Weight factor for mass-scaled motion (1 = authored timing): `1 + 0.45·log10(mass / reference)`
+/// (+0.3 Heavy, +0.1 Blunt/Stomp, −0.2 Fast), clamped 0.6..2.2. The reference mass is what the form
+/// "should" weigh at its scale (held ~6 kg; creatures/objects scale with size³), so a normal sword is
+/// ≈1, an anvil-hammer ≈2, a kaiju ≈2.2 and a feather ≈0.6. Client and sim must use the same value.
+pub fn weight_of(recipe: &Recipe) -> f32 {
+    let s = quantize_scale(recipe.scale);
+    let base = suggested_scale(recipe.form).max(0.1);
+    let reference = match recipe.form.category() {
+        FormCategory::Held => 6.0 * (s / base).powi(3),
+        FormCategory::Worn => 8.0,
+        FormCategory::Creature => 80.0 * (s / 1.8).powi(3),
+        FormCategory::Structure => 400.0 * (s / base).powi(3),
+        FormCategory::Object => 40.0 * (s / base).powi(3),
+    }
+    .max(0.1);
+    let m = if recipe.mass.is_finite() && recipe.mass > 0.0 { recipe.mass } else { reference };
+    let mut w = 1.0 + 0.45 * (m / reference).log10();
+    if recipe.has(Mechanic::Heavy) {
+        w += 0.3;
+    }
+    if recipe.has(Mechanic::Blunt) || recipe.has(Mechanic::Stomp) {
+        w += 0.1;
+    }
+    if recipe.has(Mechanic::Fast) {
+        w -= 0.2;
+    }
+    if recipe.form == Form::Kaiju {
+        w = w.max(1.8);
+    }
+    if w.is_finite() { w.clamp(0.6, 2.2) } else { 1.0 }
+}

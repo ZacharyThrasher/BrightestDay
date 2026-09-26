@@ -688,6 +688,8 @@ mod costumes;
 mod transforms;
 #[path = "gallery_parts/iconscale.rs"]
 mod iconscale;
+#[path = "gallery_parts/weight.rs"]
+mod weight;
 
 // ------------------------------------------------------------------------------------- main
 
@@ -699,7 +701,7 @@ fn main() {
     let docs = root.join("docs");
     let tile: usize = val("--tile").and_then(|s| s.parse().ok()).unwrap_or(180);
     let filter = val("--filter").map(|s| s.to_lowercase());
-    let any_mode = has("--forms") || has("--anims") || has("--icons") || has("--combos") || has("--machines") || has("--costumes") || has("--features") || has("--transforms") || has("--iconscale");
+    let any_mode = has("--forms") || has("--anims") || has("--icons") || has("--combos") || has("--machines") || has("--costumes") || has("--features") || has("--transforms") || has("--iconscale") || has("--weight");
     let do_forms = has("--forms") || !any_mode;
     let do_anims = has("--anims") || !any_mode;
 
@@ -800,6 +802,9 @@ fn main() {
         if val("--only").is_none() {
             transforms::icons(&docs, lex.as_ref());
         }
+    }
+    if has("--weight") {
+        weight::run(&docs);
     }
     if has("--iconscale") {
         let lex = machines::lexicon(&root);

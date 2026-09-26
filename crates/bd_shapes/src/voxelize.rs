@@ -102,6 +102,9 @@ pub struct VoxelModel {
     /// Mesh sharing: `instances[i]` says part `i` has the same voxels as part `source` shifted by
     /// `offset` (m, rest pose). Canonical parts point at themselves with a zero offset.
     pub instances: Vec<PartInstance>,
+    /// Weight factor for mass-scaled motion (`forms::weight_of`; 1 = authored timing). Set it from the
+    /// recipe (`model.weight = weight_of(&recipe)`) on client *and* sim (`attack_timing_hw`) together.
+    pub weight: f32,
 }
 
 /// Mesh-instancing info for one part: render part `i` as `pose[i] * T(offset) * mesh[source]`.
@@ -526,7 +529,7 @@ fn voxelize_grid(spec: &ShapeSpec, voxel_size: f32) -> VoxelModel {
             rig.kinds[i] = crate::anim::PartKind::Machine;
         }
     }
-    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat, weak_points, unit_m: voxel_size, machine, instances }
+    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat, weak_points, unit_m: voxel_size, machine, instances, weight: 1.0 }
 }
 
 /// Assemble a model from explicit parts (voxels in model space, pivots in metres). Parts must be
@@ -571,7 +574,7 @@ pub(crate) fn model_from_parts(mut parts: Vec<PartModel>, voxel_size: f32) -> Vo
         }
     }
     let instances = part_instances(&parts);
-    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat: None, weak_points, unit_m: voxel_size, machine, instances }
+    VoxelModel { parts, bounds, voxel_count: count, voxel_size, rig, seat: None, weak_points, unit_m: voxel_size, machine, instances, weight: 1.0 }
 }
 
 /// Voxelise a spec whose unit is `unit_m` metres, one voxel per unit (e.g. costumes at 1/16 m).

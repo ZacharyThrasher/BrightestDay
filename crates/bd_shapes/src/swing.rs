@@ -354,3 +354,68 @@ pub fn swing_curve(form: Form, kind: SwingKind) -> SwingCurve {
         ]),
     }
 }
+
+/// A swing curve re-timed and re-shaped for a construct's weight (see `forms::weight_of`; 1 = the
+/// authored curve exactly). Heavier: longer, deeper wind-up (more coil/stretch), an active window that
+/// stays short (slightly *snappier*), a bigger follow-through past the strike and a slower settle.
+/// Lighter: everything quicker and tighter. The sim must sweep hitboxes along this same curve.
+pub fn swing_curve_weighted(form: Form, kind: SwingKind, weight: f32) -> SwingCurve {
+    let mut c = swing_curve(form, kind);
+    let w = if weight.is_finite() { weight.clamp(0.5, 2.5) } else { 1.0 };
+    if (w - 1.0).abs() < 1e-4 || c.keys.len() < 2 {
+        return c;
+    }
+    let (a, act, r) = (c.anticipation, c.active, c.recovery);
+    let mut ka = w.powf(0.75);
+    let kc = w.powf(-0.3).clamp(0.8, 1.15);
+    let mut kr = w.powf(0.7);
+    // Keep the whole swing under 1.55 s.
+    let total = a * ka + act * kc + r * kr;
+    if total > 1.55 {
+        let f = ((1.55 - act * kc) / (a * ka + r * kr)).max(0.1);
+        ka *= f;
+        kr *= f;
+    }
+    let remap = |t: f32| -> f32 {
+        if t <= a {
+            t * ka
+        } else if t <= a + act {
+            a * ka + (t - a) * kc
+        } else {
+            a * ka + act * kc + (t - a - act) * kr
+        }
+    };
+    let rest = c.keys[0];
+    let strike_t = a + act;
+    let strike = c.keys.iter().copied().min_by(|x, y| (x.t - strike_t).abs().total_cmp(&(y.t - strike_t).abs())).unwrap_or(rest);
+    let last_t = c.keys[c.keys.len() - 1].t;
+    let wind = 1.0 + 0.3 * (w - 1.0);
+    let over = 1.0 + 0.35 * (w - 1.0);
+    for k in c.keys.iter_mut() {
+        let t0 = k.t;
+        if (t0 - a).abs() < 1e-4 && a > 0.0 {
+            // Deeper coil.
+            k.euler_deg = rest.euler_deg + (k.euler_deg - rest.euler_deg) * wind;
+            k.pos = rest.pos + (k.pos - rest.pos) * wind;
+            k.stretch = 1.0 + (k.stretch - 1.0) * (1.0 + 0.6 * (w - 1.0));
+        } else if (t0 - strike.t).abs() < 1e-4 {
+            k.stretch = 1.0 + (k.stretch - 1.0) * (1.0 + 0.5 * (w - 1.0));
+        } else if t0 > strike.t && t0 < last_t - 1e-4 {
+            // Follow-through past the strike, then settle.
+            k.euler_deg = rest.euler_deg + (k.euler_deg - rest.euler_deg) * over;
+            k.pos = rest.pos + (k.pos - rest.pos) * over;
+            k.stretch = 1.0 + (k.stretch - 1.0) * over;
+        }
+        k.t = remap(t0);
+    }
+    c.hold_at = remap(c.hold_at);
+    c.anticipation = a * ka;
+    c.active = act * kc;
+    c.recovery = r * kr;
+    // Exact end = duration (keys are monotonic after a monotonic remap).
+    let d = c.duration();
+    if let Some(l) = c.keys.last_mut() {
+        l.t = d;
+    }
+    c
+}

@@ -53,6 +53,9 @@ pub enum AnimState {
     Cast,
     /// Humanoid: knocked-back tumble spinning at `spin` rad/s about the body centre; limbs flail.
     Tumble { spin: f32 },
+    /// Launched by a big hit travelling along `dir` (model space): the body spins end over end about
+    /// the axis ⟂ `dir` at `spin` rad/s with arms and legs trailing, then (the caller) lands/recovers.
+    Launched { dir: Vec3, spin: f32 },
 }
 
 /// Ring-arm cast: pull back (anticipation), thrust (active: spawn the construct at its end), hold +
@@ -99,10 +102,22 @@ impl AttackTiming {
     }
 }
 
-/// Size-scaled attack timing (big creatures telegraph longer). Charge/Breath telegraphs are fixed by
-/// COMBAT.md (0.4 s / 0.6 s) so players learn them.
+/// Size- and weight-scaled attack timing for `model` (its rig height and `model.weight`; see
+/// [`attack_timing_hw`]).
 pub fn attack_timing(model: &VoxelModel, attack: Attack) -> AttackTiming {
-    let sf = (model.rig.height / 2.0).max(0.1).powf(0.3).clamp(0.85, 2.0);
+    attack_timing_hw(model.rig.height, attack, model.weight)
+}
+
+/// Attack timing from rig height (m) and weight factor (`forms::weight_of`, 1 = authored). Big
+/// creatures telegraph longer; heavier ones wind up longer, strike a little *snappier* (short active
+/// window) and settle slower. Charge/Breath telegraphs stay fixed by COMBAT.md (0.4 s / 0.6 s) so
+/// players learn them. The sim must call this with the same inputs so hitboxes match the pose.
+pub fn attack_timing_hw(height: f32, attack: Attack, weight: f32) -> AttackTiming {
+    let h = if height.is_finite() { height } else { 2.0 };
+    let sf = (h / 2.0).max(0.1).powf(0.3).clamp(0.85, 2.0);
+    let w = if weight.is_finite() { weight.clamp(0.5, 2.5) } else { 1.0 };
+    let (wa, wc, wr) = (w.powf(0.6), w.powf(-0.2).clamp(0.85, 1.1), w.powf(0.5));
+    let fixed = matches!(attack, Attack::Charge | Attack::Breath { .. });
     let (a, c, r) = match attack {
         Attack::Bite => (0.2 * sf, 0.08 * sf, 0.25 * sf),
         Attack::Swipe => (0.18 * sf, 0.1 * sf, 0.25 * sf),
@@ -112,7 +127,10 @@ pub fn attack_timing(model: &VoxelModel, attack: Attack) -> AttackTiming {
         Attack::Breath { .. } => (0.6, 1.2, 0.35 * sf),
         Attack::Lash => (0.12, 0.12, 0.2),
     };
-    AttackTiming { anticipation: a, active: c, recovery: r }
+    if fixed {
+        return AttackTiming { anticipation: a, active: c, recovery: r * wr };
+    }
+    AttackTiming { anticipation: a * wa, active: c * wc, recovery: r * wr }
 }
 
 /// Additive local transform of a part about its pivot (offset in metres, parent space).
@@ -190,6 +208,7 @@ fn sanitize(a: AnimState) -> AnimState {
         AnimState::Slide { speed } => AnimState::Slide { speed: fin(speed, 0.0).clamp(0.0, 200.0) },
         AnimState::Swing { side, lean } => AnimState::Swing { side, lean: fin(lean, 0.0).clamp(-1.0, 1.0) },
         AnimState::Tumble { spin } => AnimState::Tumble { spin: fin(spin, 6.0).clamp(-60.0, 60.0) },
+        AnimState::Launched { dir, spin } => AnimState::Launched { dir: fin3(dir), spin: fin(spin, 8.0).clamp(-60.0, 60.0) },
         other => other,
     }
 }
@@ -359,7 +378,7 @@ impl Rig {
                 continue;
             }
             let ext = (p.vmax - p.vmin + glam::IVec3::ONE).as_vec3();
-            if !p.voxels.is_empty() && ext.x <= ext.y * 0.75 && ext.x <= ext.z * 0.75 && (ext.y - ext.z).abs() <= 2.0 {
+            if p.role == Some(PartRole::Other) && !p.voxels.is_empty() && ext.x <= ext.y * 0.75 && ext.x <= ext.z * 0.75 && (ext.y - ext.z).abs() <= 2.0 {
                 kinds[i] = PartKind::Wheel(ext.y.max(ext.z) * 0.5 * p.voxel_size);
             } else {
                 kinds[i] = PartKind::Sway;
@@ -578,7 +597,7 @@ impl Frame {
             AnimState::Forming { duration } => forming_local(m, i, t, duration, false),
             AnimState::Dismiss { duration } => forming_local(m, i, t, duration, true),
             AnimState::Aim { yaw, pitch } => aim_layer(m, i, yaw, pitch),
-            a @ (AnimState::Slide { .. } | AnimState::TetherFire { .. } | AnimState::Swing { .. } | AnimState::Cast | AnimState::Tumble { .. }) => humanoid_local(m, i, a, t),
+            a @ (AnimState::Slide { .. } | AnimState::TetherFire { .. } | AnimState::Swing { .. } | AnimState::Cast | AnimState::Tumble { .. } | AnimState::Launched { .. }) => humanoid_local(m, i, a, t),
         }
     }
 }
@@ -1047,7 +1066,7 @@ fn attack_local(m: &VoxelModel, i: usize, atk: Attack, t: f32, tm: &AttackTiming
                 _ => Local::IDENTITY,
             }
         }
-        Attack::Stomp => stomp_local(rig, kind, t, t1, t2, t3),
+        Attack::Stomp => stomp_local(rig, kind, t, t1, t2, t3, m.weight),
         Attack::TailSweep => {
             let yaw = track(t, &[K(0.0, 0.0, Linear), K(t1, -0.5, OutCubic), K(t2, TAU + 0.25, InOutQuad), K(t3, TAU, OutBack)]);
             // Angular speed proxy for trailing lag.
@@ -1121,16 +1140,19 @@ fn loco_leg(rig: &Rig, l: &LegRig, lo: &Loco) -> Local {
     }
 }
 
-fn stomp_local(rig: &Rig, kind: PartKind, t: f32, t1: f32, t2: f32, t3: f32) -> Local {
+fn stomp_local(rig: &Rig, kind: PartKind, t: f32, t1: f32, t2: f32, t3: f32, weight: f32) -> Local {
     use Ease::*;
     let h = rig.height;
     let rec = t3 - t2;
+    let wk = weight.clamp(0.5, 2.5);
     // Body: rise & lean back on the anticipation, slam + squash on impact, springy recovery.
     let sq = track(t, &[K(0.0, 1.0, Linear), K(t1 * 0.35, 0.94, OutQuad), K(t1, 1.05, OutCubic), K(t2, 0.86, InCubic), K(t2 + 0.25 * rec, 1.04, OutQuad), K(t2 + 0.6 * rec, 0.99, InOutSine), K(t3, 1.0, InOutSine)]);
     let lift = track(t, &[K(0.0, 0.0, Linear), K(t1 * 0.35, -0.01, OutQuad), K(t1, 0.05, OutCubic), K(t2, -0.04, InCubic), K(t2 + 0.3 * rec, 0.01, OutQuad), K(t3, 0.0, InOutSine)]);
     let lean = track(t, &[K(0.0, 0.0, Linear), K(t1, 0.12, OutCubic), K(t2, -0.1, InCubic), K(t2 + 0.3 * rec, 0.03, OutQuad), K(t3, 0.0, InOutSine)]);
     let shift = track(t, &[K(0.0, 0.0, Linear), K(t1, 0.07, OutCubic), K(t2, 0.0, InCubic), K(t3, 0.0, Linear)]);
-    let impact = if t >= t2 { spring_impulse(t - t2, 6.0, 9.0) } else { 0.0 };
+    // Heavier: deeper squash on impact, lower & slower ring-out.
+    let impact = if t >= t2 { spring_impulse(t - t2, 6.0 / wk.sqrt(), 9.0 / wk) * wk.sqrt() } else { 0.0 };
+    let sq = 1.0 + (sq - 1.0) * wk.sqrt();
     match rig.gait {
         Gait::Quadruped => {
             // Rear up on the hind legs, slam the front down.
@@ -1203,11 +1225,15 @@ const OutSine2: Ease = Ease::OutQuad;
 
 // ------------------------------------------------------------------------------------ hit react
 
+/// Exaggerated hit reaction: the body is shoved along the hit (hips first) so the spine reads as a
+/// C-curve — shoulders and legs lag behind, the head whips back (chin snap), arms fling and trail —
+/// and at high strength the feet leave the ground; then a snappy spring recovery.
 fn hit_local(m: &VoxelModel, i: usize, dir: Vec3, strength: f32, t: f32) -> Local {
     let rig = &m.rig;
     let s = strength.clamp(0.0, 1.5);
     let d = Vec3::new(dir.x, 0.0, dir.z).normalize_or(Vec3::Z);
     let axis = Vec3::Y.cross(d).normalize_or(Vec3::X);
+    // Fast attack (45 ms), then a quick damped ring-out.
     let env = |t: f32| -> f32 {
         if t < 0.0 {
             0.0
@@ -1215,26 +1241,41 @@ fn hit_local(m: &VoxelModel, i: usize, dir: Vec3, strength: f32, t: f32) -> Loca
             (t / 0.045 * PI * 0.5).sin()
         } else {
             let u = t - 0.045;
-            (-u * 8.0).exp() * (u * 17.0).cos()
+            (-u * 9.5).exp() * (u * 15.0).cos()
         }
     };
     let e = env(t) * s;
-    let lag = env(t - 0.05) * s;
+    let lag = env(t - 0.035) * s;
+    let lag2 = env(t - 0.06) * s;
     let pulse = (-t * 14.0).exp() * s;
     let h = rig.height;
+    let pivot = m.parts[i].pivot;
+    // Feet leave the ground on big hits.
+    let air = (s - 0.55).max(0.0) * (PI * (t / 0.32).clamp(0.0, 1.0)).sin();
     match rig.kinds[i] {
         PartKind::Root => {
-            let sq = 1.0 - 0.1 * pulse;
-            Local {
-                rot: Quat::from_axis_angle(axis, 0.3 * e),
-                pos: d * (0.05 * h * s * (1.0 - (-t * 25.0).exp()) * (-t * 5.0).exp()),
-                scale: Vec3::new(1.0 + 0.05 * pulse, sq, 1.0 + 0.05 * pulse),
-            }
+            let shove = d * (0.1 * h * s * (1.0 - (-t * 30.0).exp()) * (-t * 4.5).exp());
+            // Upper body lags (top toward −d) about the hips.
+            let hip = Vec3::Y * rig.leg_len.max(h * 0.3);
+            let q = Quat::from_axis_angle(axis, -0.42 * e);
+            let mut l = about(q, hip, pivot);
+            l.pos += shove + Vec3::Y * (0.22 * h * air);
+            let sq = 1.0 - 0.14 * pulse;
+            l.scale = Vec3::new(1.0 + 0.07 * pulse, sq, 1.0 + 0.07 * pulse);
+            l
         }
-        PartKind::Head => Local::rot(Quat::from_axis_angle(axis, -0.45 * lag)),
-        PartKind::Jaw => Local::rot(rx(-0.35 * pulse)),
-        PartKind::Tail { k, .. } | PartKind::Chain { k, .. } => Local::rot(Quat::from_axis_angle(axis, -0.3 * env(t - 0.03 * (k as f32 + 1.0)) * s)),
-        PartKind::Arm(_) | PartKind::Wing(_) => Local::rot(Quat::from_axis_angle(axis, -0.5 * lag)),
+        // Chin snaps back: the head whips along the hit after the torso.
+        PartKind::Head => Local::rot(Quat::from_axis_angle(axis, 0.75 * lag2) * rx(-0.25 * pulse)),
+        PartKind::Jaw => Local::rot(rx(-0.45 * pulse)),
+        // Arms fling back and out, trailing.
+        PartKind::Arm(sd) => Local::rot(Quat::from_axis_angle(axis, 1.1 * lag) * rz(sd as f32 * 0.7 * lag.abs())),
+        // Legs trail the shoved hips (feet swing back toward the attacker), more when airborne.
+        PartKind::Leg(k) => {
+            let side = rig.legs.get(k as usize).map_or(1.0, |l| l.side);
+            Local::rot(Quat::from_axis_angle(axis, 0.5 * lag + 0.35 * air) * rz(side * 0.12 * air))
+        }
+        PartKind::Wing(_) => Local::rot(Quat::from_axis_angle(axis, 0.8 * lag)),
+        PartKind::Tail { k, .. } | PartKind::Chain { k, .. } => Local::rot(Quat::from_axis_angle(axis, -0.45 * env(t - 0.03 * (k as f32 + 1.0)) * s)),
         _ => Local::IDENTITY,
     }
 }
@@ -1288,7 +1329,7 @@ fn humanoid_local(m: &VoxelModel, i: usize, a: AnimState, t: f32) -> Local {
     let rig = &m.rig;
     let speed = match a {
         AnimState::Slide { speed } => speed,
-        AnimState::Swing { .. } | AnimState::Tumble { .. } => 9.0,
+        AnimState::Swing { .. } | AnimState::Tumble { .. } | AnimState::Launched { .. } => 9.0,
         _ => 0.0,
     };
     let lo = Loco { speed, ..Default::default() };
@@ -1411,6 +1452,71 @@ fn humanoid_local(m: &VoxelModel, i: usize, a: AnimState, t: f32) -> Local {
                 _ => Local::IDENTITY,
             }
         }
+        AnimState::Launched { dir, spin } => {
+            // End-over-end about the axis ⟂ travel; limbs stream behind (toward −dir in body space).
+            let d = Vec3::new(dir.x, 0.0, dir.z).normalize_or(Vec3::Z);
+            let axis = Vec3::Y.cross(d).normalize_or(Vec3::X);
+            let ang = (t * spin).rem_euclid(TAU);
+            let com = Vec3::Y * (h * 0.5);
+            let trail = 0.9 + 0.12 * (t * 11.0).sin();
+            match kind {
+                PartKind::Root => about(Quat::from_axis_angle(axis, ang), com, pivot),
+                PartKind::Arm(sd) => {
+                    let sd = sd as f32;
+                    Local::rot(Quat::from_axis_angle(axis, -trail * 1.6) * rz(sd * (0.5 + 0.2 * (t * 9.0 + sd).sin())))
+                }
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    Local::rot(Quat::from_axis_angle(axis, -trail * 0.7 + 0.15 * (t * 8.0 + side).sin()) * rz(side * 0.25))
+                }
+                PartKind::Head => Local::rot(Quat::from_axis_angle(axis, -0.35)),
+                PartKind::Tail { k, .. } => Local::rot(Quat::from_axis_angle(axis, -0.4 / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
         _ => Local::IDENTITY,
+    }
+}
+
+// ----------------------------------------------------------------------------------- footfalls
+
+/// A foot planting (legged creatures, costumes, walking constructs): drive camera shake / ground
+/// cracks / dust from `impact` (≈ 0.2 for a person, ≈ 1 for a horse, 5+ for a kaiju).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Footfall {
+    /// Leg part index (pose with `pose[part]` for the posed foot; `pos` is the rest-pose foot).
+    pub part: usize,
+    /// Rest-pose foot position (model space, m; y = ground).
+    pub pos: Vec3,
+    /// Impact scalar: size^0.8 × weight × speed factor.
+    pub impact: f32,
+}
+
+/// Feet that planted between locomotion states `(prev_distance → now_distance)` at `speed` (at most
+/// one per leg per call). Same gait phase as `pose`, so the event lines up with the visible step.
+/// Allocation-free apart from pushing into `out`.
+pub fn footfalls(model: &VoxelModel, speed: f32, prev_distance: f32, now_distance: f32, out: &mut Vec<Footfall>) {
+    let rig = &model.rig;
+    if rig.legs.is_empty() || !matches!(rig.gait, Gait::Biped | Gait::Quadruped | Gait::Hexapod | Gait::Octopod) {
+        return;
+    }
+    let sp = fin(speed, 0.0).clamp(0.0, 500.0);
+    let (d0, d1) = (fin(prev_distance, 0.0).clamp(-1e6, 1e6), fin(now_distance, 0.0).clamp(-1e6, 1e6));
+    if sp < 0.05 || d1 <= d0 {
+        return;
+    }
+    let a = Loco::new(rig, sp, d0, false, 0.0);
+    let b = Loco::new(rig, sp, d1, false, 0.0);
+    let size = (rig.height / 2.0).clamp(0.1, 40.0).powf(0.8);
+    let impact = size * model.weight.clamp(0.5, 2.5) * (0.35 + 0.65 * smoothstep(0.5, 8.0, sp));
+    for leg in &rig.legs {
+        let off = leg_offset(rig, leg, b.mode);
+        // Stance begins at cycle phase 0 (leg_cycle): count crossings of whole cycles.
+        let n0 = (a.phase + off).floor();
+        let n1 = (b.phase + off).floor();
+        if n1 > n0 {
+            let p = model.parts[leg.part].pivot;
+            out.push(Footfall { part: leg.part, pos: Vec3::new(p.x, model.bounds.min.y, p.z), impact });
+        }
     }
 }

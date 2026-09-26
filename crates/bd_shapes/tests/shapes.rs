@@ -57,6 +57,7 @@ fn anims() -> Vec<AnimState> {
         AnimState::Swing { side: 0, lean: 0.5 },
         AnimState::Cast,
         AnimState::Tumble { spin: 8.0 },
+        AnimState::Launched { dir: Vec3::new(1.0, 0.2, 0.3), spin: 9.0 },
     ]
 }
 
