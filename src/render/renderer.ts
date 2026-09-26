@@ -5,7 +5,8 @@ import {
 import type { World, GameEvent } from '../sim/world.js';
 import type { ConstructSpec } from '../sim/constructs/spec.js';
 import { G, groups } from '../sim/physics.js';
-import { QUALITY, HARDLIGHT_COLOR, ENTITY_COLORS, type RenderOptions } from './config.js';
+import { QUALITY, HARDLIGHT_COLOR, ENTITY_COLORS, RIVAL, type RenderOptions } from './config.js';
+import type { Player } from '../sim/player.js';
 import { Environment } from './environment.js';
 import { buildStatics } from './statics.js';
 import { PostPipeline } from './post.js';
@@ -32,7 +33,16 @@ export interface RenderStats {
   entities: number;
 }
 
-interface ProjSnap { prev: Vector3; curr: Vector3; vel: Vector3; reflected: boolean; seen: number }
+interface ProjSnap { prev: Vector3; curr: Vector3; vel: Vector3; reflected: boolean; seen: number; rival: boolean }
+
+/** Another lantern in the world (the rival): its own rig, interpolated from sim ticks. */
+interface OtherView {
+  id: string;
+  rig: PlayerRig;
+  prev: Vector3; curr: Vector3; vPrev: Vector3; vCurr: Vector3;
+  tPrev: Record<'L' | 'R', Vector3 | null>; tCurr: Record<'L' | 'R', Vector3 | null>;
+  seen: number;
+}
 
 const UP = new Vector3(0, 1, 0);
 
@@ -78,6 +88,11 @@ export class GameRenderer {
   /** Where the camera looked from last frame (for HUD projection). */
   readonly camPos = new Vector3();
   hideRig = false;
+  /** Other lanterns' rigs (the rival wears the RIVAL suit/ring). */
+  private others = new Map<string, OtherView>();
+  private rivalColor = new Color(RIVAL.ring);
+  /** Interpolated positions of every lantern this frame (HUD markers, damage numbers). */
+  readonly playerPos = new Map<string, Vector3>();
 
   constructor(readonly canvas: HTMLCanvasElement, opts: Partial<RenderOptions> = {}) {
     this.opts = { quality: 'high', fov: 75, constructColor: HARDLIGHT_COLOR, ...opts };
@@ -189,6 +204,11 @@ export class GameRenderer {
     this.fx.clear();
     this.markers.build(w);
     this.projs.clear();
+    for (const o of this.others.values()) o.rig.dispose(this.scene);
+    this.others.clear();
+    this.playerPos.clear();
+    this.constructs.localOwner = w.player.id;
+    this.constructs.rivalColor.copy(this.rivalColor);
     this.listener = (e) => this.onEvent(e);
     w.listeners.push(this.listener);
     this.pPrev.copy(w.player.pos); this.pCurr.copy(w.player.pos);
@@ -222,6 +242,7 @@ export class GameRenderer {
     this.boosting = P.gas < this.gasPrev - 0.01 ? 1 : Math.max(0, this.boosting - 0.2);
     this.gasPrev = P.gas;
     for (const ev of P.events) this.onPlayerEvent(ev);
+    this.tickOthers(w);
     this.constructs.tick(w, this.rig.handR);
     this.entities.tick(w);
     this.markers.tick(w);
@@ -230,19 +251,74 @@ export class GameRenderer {
       const t = pr.body.translation();
       const v = pr.body.linvel();
       let s = this.projs.get(pr.id);
-      if (!s) { s = { prev: new Vector3(t.x, t.y, t.z), curr: new Vector3(t.x, t.y, t.z), vel: new Vector3(), reflected: pr.reflected, seen: 0 }; this.projs.set(pr.id, s); }
+      if (!s) { s = { prev: new Vector3(t.x, t.y, t.z), curr: new Vector3(t.x, t.y, t.z), vel: new Vector3(), reflected: pr.reflected, seen: 0, rival: false }; this.projs.set(pr.id, s); }
       s.prev.copy(s.curr); s.curr.set(t.x, t.y, t.z); s.vel.set(v.x, v.y, v.z); s.reflected = pr.reflected; s.seen = this.tickCount;
+      s.rival = !!pr.ownerPlayer && pr.ownerPlayer !== P.id;
     }
     for (const [id, s] of this.projs) {
       if (s.seen === this.tickCount) continue;
       // projectile vanished: small puff where it died (mint if a construct stopped it)
-      const col = this.blockedThisTick > 0 || s.reflected ? this.color : new Color(ENTITY_COLORS.projectile);
+      const col = s.rival ? this.rivalColor : this.blockedThisTick > 0 || s.reflected ? this.color : new Color(ENTITY_COLORS.projectile);
       this.fx.glow(s.curr, col, 1.2, 0.2, 2.5);
       this.fx.sparks(s.curr, col, 8, 9, { size: 0.05, life: 0.3 });
       if (this.blockedThisTick > 0) this.fx.ring(s.curr, col, 0.3, 2.2, 0.25, 2);
       this.projs.delete(id);
     }
     this.blockedThisTick = 0;
+  }
+
+  /** Snapshot the other lanterns for interpolation (create / drop rigs as players join / leave). */
+  private tickOthers(w: World) {
+    for (const p of w.players) {
+      if (p === w.player) continue;
+      let o = this.others.get(p.id);
+      if (!o) {
+        o = {
+          id: p.id, rig: new PlayerRig(this.scene, this.rivalColor, RIVAL.suit), prev: p.pos.clone(), curr: p.pos.clone(), vPrev: p.vel.clone(), vCurr: p.vel.clone(),
+          tPrev: { L: null, R: null }, tCurr: { L: null, R: null }, seen: 0,
+        };
+        this.others.set(p.id, o);
+      }
+      const jumped = o.curr.distanceTo(p.pos) > 8; // respawn / teleport: don't smear across the map
+      o.prev.copy(jumped ? p.pos : o.curr); o.curr.copy(p.pos);
+      o.vPrev.copy(o.vCurr); o.vCurr.copy(p.vel);
+      for (const side of ['L', 'R'] as const) {
+        const t = p.tethers[side];
+        o.tPrev[side] = o.tCurr[side];
+        o.tCurr[side] = t ? t.origin.clone() : null;
+        if (!o.tPrev[side] && o.tCurr[side]) o.tPrev[side] = o.tCurr[side]!.clone();
+      }
+      o.seen = this.tickCount;
+    }
+    for (const [id, o] of this.others) if (o.seen !== this.tickCount) { o.rig.dispose(this.scene); this.others.delete(id); }
+  }
+
+  /** Per render frame: pose the other lanterns (hit flash, collapse when down, spawn shimmer). */
+  private frameOthers(w: World, alpha: number, dt: number) {
+    for (const o of this.others.values()) {
+      const p = w.playerById(o.id);
+      if (!p) continue;
+      const pos = o.prev.clone().lerp(o.curr, alpha);
+      const vel = o.vPrev.clone().lerp(o.vCurr, alpha);
+      this.playerPos.set(o.id, pos);
+      const tL = o.tCurr.L && o.tPrev.L ? o.tPrev.L.clone().lerp(o.tCurr.L, alpha) : null;
+      const tR = o.tCurr.R && o.tPrev.R ? o.tPrev.R.clone().lerp(o.tCurr.R, alpha) : null;
+      const fallen = p.alive ? 0 : Math.min(1, (w.time - p.diedAt) * 2.5);
+      o.rig.update({ pos, vel: p.riding ? new Vector3() : vel, lookYaw: p.yaw, lookPitch: p.pitch, onGround: p.onGround, sliding: p.sliding, flying: p.flying, boosting: false, tetherL: tL, tetherR: tR, castTarget: null, fallen }, dt, this.time);
+      o.rig.setVisible(p.alive || w.time - p.diedAt < 1.4);
+      o.rig.setFlash(this.flashOf(w, p));
+      for (const [tp, hand] of [[tL, o.rig.handL], [tR, o.rig.handR]] as const) if (tp) this.fx.beams.push(hand, tp, 0.06, 0.08, this.rivalColor, 2.2);
+      if (p.isProtected && Math.random() < dt * 8) this.fx.ring(pos.clone().setY(pos.y - 0.8), this.rivalColor, 0.4, 1.6, 0.35, 1.6);
+    }
+  }
+
+  /** Red hit flash strength of a lantern right now (fades over 0.35 s). */
+  private flashOf(w: World, p: Player) { const a = w.time - p.hurtAt; return a >= 0 && a < 0.35 ? 1 - a / 0.35 : 0; }
+
+  /** A lantern's ring hand (for cast effects): the local rig, or that player's rig. */
+  private handOf(id: string | undefined): Vector3 {
+    if (!id || id === this.world?.player.id) return this.rig.handR;
+    return this.others.get(id)?.rig.handR ?? this.rig.handR;
   }
 
   private onPlayerEvent(ev: string) {
@@ -269,14 +345,35 @@ export class GameRenderer {
       case 'smash': if (pos) { this.fx.impact(pos, this.color, 1.6); this.fx.dust(pos, 12); this.fovKick += 2; } break;
       case 'explosion': if (pos) { this.fx.explosion(pos, e.radius ?? 8, new Color('#ffb04d').lerp(this.color, 0.35)); this.fovKick += 5; } break;
       case 'launch': {
-        const f = w.player.pos.clone().setY(w.player.pos.y - 0.9);
+        const lp = w.playerById(e.player) ?? w.player;
+        const f = lp.pos.clone().setY(lp.pos.y - 0.9);
         this.fx.ring(f, this.color, 0.8, 7, 0.45, 3);
         this.fx.sparks(f, this.color, 24, 14, { up: 0.9, size: 0.06 });
         this.fovKick += 7;
         break;
       }
       case 'blocked': this.blockedThisTick++; break;
-      case 'player_hit': this.hurt = 1; this.fx.sparks(w.player.pos, new Color('#ff5a4d'), 12, 8); break;
+      case 'player_hit': if (!e.target || e.target === w.player.id) { this.hurt = 1; this.fx.sparks(w.player.pos, new Color('#ff5a4d'), 12, 8); } break;
+      // PvP: hits, knock-outs, respawns
+      case 'player_damage': {
+        const at = pos ?? w.playerById(e.target)?.pos;
+        if (at) { this.fx.sparks(at, new Color('#ff5a4d'), 10 + Math.min(20, e.amount | 0), 9, { size: 0.06 }); this.fx.glow(at, new Color('#ff6a4d'), 0.9, 0.18, 2.5); }
+        if (e.target === w.player.id) this.hurt = Math.min(1, this.hurt + 0.35 + (e.amount ?? 0) / 60);
+        else if (e.attacker === w.player.id) this.fovKick += 0.8;
+        break;
+      }
+      case 'player_killed': {
+        const vp = w.playerById(e.target);
+        const at = pos ?? vp?.pos;
+        const col = e.target === w.player.id ? this.color : this.rivalColor;
+        if (at) { this.fx.explosion(at, 3, col); this.fx.sparks(at, col, 40, 12, { up: 0.6, size: 0.08, life: 1.1 }); }
+        if (e.target === w.player.id) this.hurt = 1;
+        this.fovKick += 4;
+        break;
+      }
+      case 'player_respawn': if (pos) { const col = e.id === w.player.id ? this.color : this.rivalColor; this.fx.ring(pos.clone().setY(pos.y - 0.8), col, 0.5, 5, 0.6, 3); this.fx.sparks(pos, col, 24, 10, { up: 0.9, size: 0.06 }); } break;
+      case 'player_shielded': { const tp = w.playerById(e.target); if (tp) this.fx.ring(tp.pos.clone(), new Color('#fff4c2'), 0.6, 1.8, 0.25, 2); break; }
+      case 'player_thrown': this.fovKick += 2; break;
       case 'entity_damage': {
         this.entities.onDamage(e.id);
         const ent = w.entities.get(e.id);
@@ -303,9 +400,11 @@ export class GameRenderer {
       case 'machine_beam': this.constructs.onMachineEvent(e); break;
       case 'construct_formed': {
         const c = w.constructs.get(e.id);
-        if (c?.insts[0]) { this.castTarget = c.insts[0].pos.clone(); this.castT = 0.55; }
-        this.fx.glow(this.rig.handR, this.color, 1.5, 0.3, 4);
-        this.fx.ring(this.rig.handR.clone(), this.color, 0.2, 2.2, 0.3, 3);
+        const mine = !e.owner || e.owner === w.player.id;
+        if (mine && c?.insts[0]) { this.castTarget = c.insts[0].pos.clone(); this.castT = 0.55; }
+        const hand = this.handOf(e.owner), col = mine ? this.color : this.rivalColor;
+        this.fx.glow(hand, col, 1.5, 0.3, 4);
+        this.fx.ring(hand.clone(), col, 0.2, 2.2, 0.3, 3);
         break;
       }
       case 'construct_modified': {
@@ -314,11 +413,16 @@ export class GameRenderer {
         break;
       }
       case 'construct_rejected':
-        this.fx.sparks(this.rig.handR, new Color('#ff5a6a'), 14, 5, { size: 0.04, life: 0.35 });
-        this.fx.glow(this.rig.handR, new Color('#ff5a6a'), 0.8, 0.25, 2);
+        this.fx.sparks(this.handOf(e.owner), new Color('#ff5a6a'), 14, 5, { size: 0.04, life: 0.35 });
+        this.fx.glow(this.handOf(e.owner), new Color('#ff5a6a'), 0.8, 0.25, 2);
         break;
       case 'construct_throw': this.fovKick += 1; break;
-      case 'grabbed': if (e.entity) { const ent = w.entities.get(e.entity); if (ent) this.fx.ring(w.entityPos(ent), this.color, 0.5, 3, 0.3, 2.5); } break;
+      case 'grabbed': {
+        if (e.entity) { const ent = w.entities.get(e.entity); if (ent) this.fx.ring(w.entityPos(ent), this.color, 0.5, 3, 0.3, 2.5); }
+        const gp = w.playerById(e.player);
+        if (gp) this.fx.ring(gp.pos.clone(), gp === w.player ? this.rivalColor : this.color, 0.5, 3, 0.3, 2.5);
+        break;
+      }
       case 'civilian_hurt': { const ent = w.entities.get(e.id); if (ent) this.fx.ring(w.entityPos(ent), new Color('#ff4d5e'), 0.5, 4, 0.6, 2.5); break; }
       // world content: destructibles, robots, bystanders, waves, race
       case 'entity_destroyed': if (pos) { this.fx.dust(pos, 14); this.fx.sparks(pos, new Color(e.entityType === 'crate' ? ENTITY_COLORS.crate : '#fff1d6'), 10, 7, { size: 0.06, life: 0.5 }); this.fovKick += 0.8; } break;
@@ -378,22 +482,27 @@ export class GameRenderer {
     const rs: RigState = {
       pos, vel: P.riding ? new Vector3() : vel, lookYaw: view.yaw, lookPitch: view.pitch, onGround: P.onGround, sliding: P.sliding, flying: P.flying,
       boosting: this.boosting > 0.5, tetherL: tL, tetherR: tR, castTarget: this.castT > 0 ? this.castTarget : null,
+      fallen: P.alive ? 0 : Math.min(1, (w.time - P.diedAt) * 2.5),
     };
     this.rig.update(rs, dt, this.time);
-    // hide the rig when the camera is pulled inside it
+    this.rig.setFlash(this.flashOf(w, P));
+    this.playerPos.set(P.id, pos);
+    // hide the rig when the camera is pulled inside it (and once a downed lantern has dissolved)
     const tooClose = camPos.distanceTo(pos) < 0.9;
-    this.rig.setVisible(!tooClose && !this.hideRig);
+    this.rig.setVisible(!tooClose && !this.hideRig && (P.alive || w.time - P.diedAt < 1.4));
+    if (P.alive && P.isProtected && Math.random() < dt * 8) this.fx.ring(pos.clone().setY(pos.y - 0.8), this.color, 0.4, 1.6, 0.35, 1.6);
 
     // ---- views
     this.fx.beams.begin();
     this.fx.projectiles.begin();
+    this.frameOthers(w, alpha, dt);
     this.constructs.frame(alpha, dt, this.time, this.rig.handR);
     this.constructs.frameGhosts(w, this.time);
     this.entities.frame(alpha, dt, this.time, pos);
     this.markers.frame(dt, this.time);
     for (const s of this.projs.values()) {
       const p = s.prev.clone().lerp(s.curr, alpha);
-      this.fx.projectiles.push(p, s.vel, s.reflected ? this.color : new Color(ENTITY_COLORS.projectile));
+      this.fx.projectiles.push(p, s.vel, s.rival ? this.rivalColor : s.reflected ? this.color : new Color(ENTITY_COLORS.projectile));
     }
     // tethers
     for (const side of ['L', 'R'] as const) {

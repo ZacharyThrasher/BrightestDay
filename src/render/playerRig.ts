@@ -19,6 +19,8 @@ export interface RigState {
   tetherL: Vector3 | null; // anchor/hook tip points
   tetherR: Vector3 | null;
   castTarget: Vector3 | null; // point the ring hand should present toward (construct forming)
+  /** 0 = standing, 1 = collapsed (a downed lantern topples over) */
+  fallen?: number;
 }
 
 type Prim = 'capsule' | 'sphere' | 'box';
@@ -74,12 +76,15 @@ export class PlayerRig {
   private prevVel = new Vector3();
   private crouchY = 0;
   private armOverride = { L: 0, R: 0 };
+  private flash = 0;
+  private static readonly HURT = new Color('#ff3b3b');
   readonly handL = new Vector3();
   readonly handR = new Vector3();
   readonly back = new Vector3();
   readonly feet = new Vector3();
 
-  constructor(scene: Scene, ringColor: Color) {
+  /** `suit` overrides colours of the default hero (the rival lantern wears a tinted suit). */
+  constructor(scene: Scene, ringColor: Color, suit: Partial<typeof SUIT> = {}) {
     this.root.name = 'player';
     const B = (name: string, parent: Object3D | null, x: number, y: number, z: number) => {
       const o = new Object3D();
@@ -108,7 +113,8 @@ export class PlayerRig {
     B('ftR', knR, 0, -0.43, 0);
     void neck;
 
-    const base = new Color(SUIT.base), panel = new Color(SUIT.panel), accent = new Color(SUIT.accent), skin = new Color(SUIT.skin), hair = new Color(SUIT.hair);
+    const S = { ...SUIT, ...suit };
+    const base = new Color(S.base), panel = new Color(S.panel), accent = new Color(S.accent), skin = new Color(S.skin), hair = new Color(S.hair);
     const P = (bone: string, prim: Prim, pos: [number, number, number], scale: [number, number, number], color: Color, rot: [number, number, number] = [0, 0, 0]) => {
       const m = new Matrix4().compose(new Vector3(...pos), new Quaternion().setFromEuler(new Euler(...rot)), new Vector3(...scale));
       this.pieces.push({ bone: this.bones[bone], prim, local: m, color });
@@ -162,7 +168,7 @@ export class PlayerRig {
     }
     // emissive bits: ring, visor, chest emblem (original rhombus, not a lantern)
     this.ring = new Mesh(new TorusGeometry(0.05, 0.018, 8, 20), energyMat(ringColor, 3.5));
-    this.visor = new Mesh(new BoxGeometry(0.19, 0.045, 0.02), energyMat(new Color(SUIT.visor), 1.6));
+    this.visor = new Mesh(new BoxGeometry(0.19, 0.045, 0.02), energyMat(new Color(S.visor), 1.6));
     this.emblem = new Mesh(new OctahedronGeometry(0.06, 0), energyMat(ringColor, 2.2));
     this.emblem.scale.set(0.9, 1.3, 0.25);
     this.bones.haR.add(this.ring);
@@ -181,6 +187,23 @@ export class PlayerRig {
   setVisible(v: boolean) {
     this.root.visible = v;
     for (const m of Object.values(this.meshes)) m.visible = v;
+  }
+
+  /** Hit flash: tint the suit toward red by `k` (0..1); only rewrites instance colours when it changes. */
+  setFlash(k: number) {
+    k = Math.max(0, Math.min(1, k));
+    if (Math.abs(k - this.flash) < 0.02 && !(k === 0 && this.flash !== 0)) return;
+    this.flash = k;
+    const counters: Record<Prim, number> = { capsule: 0, sphere: 0, box: 0 };
+    const c = new Color();
+    for (const p of this.pieces) this.meshes[p.prim].setColorAt(counters[p.prim]++, c.copy(p.color).lerp(PlayerRig.HURT, k * 0.75));
+    for (const im of Object.values(this.meshes)) if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  }
+
+  /** Scene objects to remove when this rig goes away. */
+  dispose(scene: Scene) {
+    scene.remove(this.root);
+    for (const m of Object.values(this.meshes)) { scene.remove(m); m.dispose(); }
   }
 
   update(s: RigState, dt: number, time: number) {
@@ -271,8 +294,10 @@ export class PlayerRig {
     this.bodyRoll = damp(this.bodyRoll, -this.lean.z * (s.flying ? 0.7 : 0.3), 8, dt);
     const bob = this.w.run * Math.abs(Math.sin(ph)) * 0.06 * stride;
     this.crouchY = damp(this.crouchY, this.w.slide * -0.42 + this.w.air * 0.05, 14, dt);
-    this.root.position.set(s.pos.x, s.pos.y - 0.9 + bob + this.crouchY, s.pos.z);
+    const fall = Math.max(0, Math.min(1, s.fallen ?? 0));
+    this.root.position.set(s.pos.x, s.pos.y - 0.9 + bob + this.crouchY - fall * 0.35, s.pos.z);
     this.root.rotation.set(0, this.yaw, 0);
+    if (fall > 0) this.root.rotateX(-fall * Math.PI * 0.47);
     // pitch/roll around the body centre (pelvis), so flying rotates the whole figure
     const pel = this.bones.pelvis;
     pel.rotation.x += this.bodyPitch;

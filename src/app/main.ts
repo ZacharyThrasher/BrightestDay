@@ -16,6 +16,7 @@ import type { Embedder } from '../lang/interpreter.js';
 import { FocusMeter, CastClock, CastRecords, Combo, Completer, QuickSlots, type CastTiming, type Suggestion } from './typing.js';
 import { LOCAL_PLAYER } from '../sim/inspiration.js';
 import { installLobby } from './lobby.js';
+import { attachPracticeBot, type BotHandle } from '../lang/practice.js';
 
 const DT = 1 / 60;
 const MAX_STEPS = 6;
@@ -32,6 +33,9 @@ class App implements HardlightApp {
   world!: World;
   director!: Director;
   scene: SceneName = 'duel';
+  /** "Practice vs bot": a scripted rival lantern ('p2') and duel rules in the current scene. */
+  practice = false;
+  bot: BotHandle | null = null;
   readonly gr: GameRenderer;
   readonly input: Input;
   readonly hud: HUD;
@@ -96,12 +100,19 @@ class App implements HardlightApp {
     document.addEventListener('pointerlockerror', () => this.hud.toast('warn', 'Couldn’t capture the mouse — click again (after Esc, Windows needs a second before re-capturing)'));
   }
 
-  async loadScene(name: SceneName) {
+  async loadScene(name: SceneName, opts: { practice?: boolean } = {}) {
     if (this.loading) return;
     this.loading = true;
     try {
       const w = await World.create();
       const info = buildScene(w, name);
+      this.practice = !!opts.practice;
+      this.bot = null;
+      if (this.practice) {
+        // a rival lantern typing through its own ring, and the duel rules (warmup, first to 3, respawns)
+        this.bot = attachPracticeBot(w, { name: 'practice bot' });
+        w.startMatch();
+      }
       const old = this.world;
       const oldSaved = this.director?.interp.saved;
       this.world = w;
@@ -232,10 +243,10 @@ class App implements HardlightApp {
     if (!w) return;
     if (a === 'console') this.openConsole();
     else if (a === 'dismiss') { const id = w.constructs.focusId; if (id) w.constructs.dismiss(id); }
-    else if (a === 'dismiss_all') w.constructs.dismissAll();
+    else if (a === 'dismiss_all') { for (const c of [...w.constructs.list.values()]) if (c.owner === this.playerId) w.constructs.dismiss(c.id); }
     else if (a === 'help') this.hud.toggleHelp();
     else if (a === 'perf') this.hud.togglePerf();
-    else if (a === 'reset') void this.loadScene(this.scene);
+    else if (a === 'reset') void this.loadScene(this.scene, { practice: this.practice }); // in a duel: rematch
     else if (a === 'fullscreen') { if (window.hardlight?.toggleFullscreen) window.hardlight.toggleFullscreen(); }
     else if (a.startsWith('quick_')) {
       const slot = this.quick.get(Number(a.slice(6)));
@@ -432,7 +443,7 @@ class App implements HardlightApp {
       <div class="menu-card">
         <div class="logo">HARD<span>LIGHT</span></div>
         <div class="tag">imagine it · the ring makes it real</div>
-        <button class="play">Click to play</button>
+        <div class="modes"><button class="play">Click to play</button><button class="practice">Practice vs bot</button></div>
         <div class="scenes"></div>
         <div class="settings">
           <label>Mouse sensitivity <input type="range" min="0.2" max="4" step="0.05" name="sens"><output></output></label>
@@ -445,6 +456,7 @@ class App implements HardlightApp {
         <div class="foot">F1 controls · settings.json next to the app overrides defaults</div>
       </div>`;
     installLobby(m.querySelector('.menu-card')!, this.hud); // "Play online" panel
+    (m.querySelector('button.practice') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); void this.startPractice(); };
     const sc = m.querySelector('.scenes')!;
     SCENE_KEYS.forEach((s, i) => {
       const b = document.createElement('button');
@@ -494,6 +506,13 @@ class App implements HardlightApp {
 
   setManual(on: boolean) { this.manual = on; this.updateMenu(); }
 
+  /** Menu → "Practice vs bot": the duel arena, a scripted rival, first to 3. */
+  async startPractice(scene: SceneName = 'duel') {
+    await this.loadScene(scene, { practice: true });
+    this.hud.toast('info', 'Practice duel — first to 3 knockouts. Type “punch him”, “drop a piano on him”, “grab him and throw him”…', 6000);
+    this.input.requestLock();
+  }
+
   nextFrame(): Promise<void> { return new Promise((r) => this.frameWaiters.push(r)); }
 }
 
@@ -509,7 +528,7 @@ async function boot() {
   const test = params.has('test');
   if (test) app.setManual(true);
   const scene = (params.get('scene') as SceneName) || 'duel';
-  await app.loadScene(scene);
+  await app.loadScene(scene, { practice: params.has('practice') });
   app.start();
   void app.initLanguageLayers();
   (window as any).hardlightApp = app as HardlightApp;
@@ -538,6 +557,8 @@ function installTestHooks(app: App) {
     aimAt(p: [number, number, number]) { const r = aimAt(app.world, new Vector3(...p)); app.input.yaw = r.yaw; app.input.pitch = r.pitch; return r; },
     teleport(p: [number, number, number], v: [number, number, number] = [0, 0, 0]) { app.world.player.teleport(new Vector3(...p), new Vector3(...v)); app.gr.tick(); app.gr.tick(); },
     async scene(name: SceneName) { await app.loadScene(name); },
+    /** Load a practice duel (bot rival + match rules). */
+    async practice(name: SceneName = 'duel') { await app.loadScene(name, { practice: true }); },
     preview(text: string) { app.openConsole(); app.hud.consoleInput.value = text; app.preview(text); },
     closeConsole() { app.closeConsole(); },
     async commit(text: string) { const r = await app.commit(text); return r ? { applied: r.applied, summary: r.summary, clamps: r.clamps, abstain: r.abstain, source: r.source } : null; },
