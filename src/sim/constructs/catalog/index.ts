@@ -11,10 +11,27 @@ import type { Joint, Part } from '../spec.js';
 import { tank } from './tank.js';
 import { car, motorcycle, helicopter, airplane } from './vehicles.js';
 import { dog, dragon, spider, robot, mech } from './creatures.js';
+import * as B from './beasts.js';
+import * as M from './monsters.js';
+import * as R from './rides.js';
 
 export type { CatalogEntry } from './types.js';
 
-export const CATALOG: CatalogEntry[] = [tank, motorcycle, car, helicopter, airplane, mech, robot, dog, dragon, spider];
+/** Combat creatures, monsters and war vehicles. Listed before the core entries: their specific names ("wolf",
+ * "griffin", "monster truck", "fighter jet", "titan") deliberately win over the core entries' catch-all synonyms. */
+export const COMBAT_CATALOG: CatalogEntry[] = [
+  // beasts
+  B.wolf, B.raptor, B.bigcat, B.shark, B.bees, B.piranhas, B.bats, B.eagle, B.rhino, B.bull, B.elephant, B.bear, B.gorilla, B.trex,
+  B.croc, B.kangaroo, B.scorpion, B.crab, B.spiderQueen, B.kraken, B.cobra, B.horse,
+  // monsters
+  M.golem, M.titan, M.cyclops, M.ogre, M.yeti, M.minotaur, M.werewolf, M.zombies, M.skeletons, M.mummy, M.ghost,
+  M.iceDragon, M.stormDragon, M.hydra, M.kaiju, M.mechaKaiju, M.sandworm, M.griffin, M.phoenix,
+  // rides & war machines
+  R.monsterTruck, R.dozer, R.steamroller, R.train, R.drillTank, R.wreckingCrane, R.battleship, R.hovercraft, R.submarine,
+  R.jetFighter, R.bomber, R.ufo, R.hoverbike, R.rocketRide, R.coaster, R.chariot,
+];
+
+export const CATALOG: CatalogEntry[] = [...COMBAT_CATALOG, tank, motorcycle, car, helicopter, airplane, mech, robot, dog, dragon, spider];
 
 export const CATALOG_BY_ID = new Map<string, CatalogEntry>(CATALOG.map((e) => [e.id, e]));
 
