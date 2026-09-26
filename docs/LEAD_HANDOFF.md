@@ -118,6 +118,12 @@ Everything below is committed and green unless noted.
   hatch_open, hatch_close, rotor_spinup, exhaust_puff, kaiju_step, footstep_heavy.
   Two bd_sim tests fail from in-flight world/* work (flying_cage_*, opposing_constructs_clash*) — recheck.
   SHOUT WORDS DONE; open design call: remote shouts draw on top through walls (~1 s) — world_on_top.
+- LEXICON RELATIONS (lexicon worker resumed): size relations ("T-rex sized duck", "size of a house"),
+  magnitude table (nuclear/planetary/micro), mount/riding ("King Kong on a skateboard" -> mount attached
+  + locomotion; maybe bd_core v1.6), EMITTER relation ("satellite death beam" -> satellite is the
+  construct, beam is its attack), sky delivery + volley words (meteor shower, rain of arrows).
+  Sim side of the orbital strike (hover high above aim, ground telegraph, tracking beam with slew cap)
+  -> signature worker. Resolve cost is per-cast (~0.1-10 ms), not per-frame.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
