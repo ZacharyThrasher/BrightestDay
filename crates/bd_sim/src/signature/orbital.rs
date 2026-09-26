@@ -6,8 +6,8 @@
 //!
 //! 1. **Placement** ([`spawn_point`]): `altitude` metres above the ground at the aim point (clamped to
 //!    the map's ceiling), nudged along the aim azimuth so it sits within ~`view_elev_deg` of the
-//!    caster's view when that keeps the beam within 45° of vertical. It hovers there (its own
-//!    Flies / emitters are switched off on the live construct: the strike below replaces them).
+//!    caster's view when that keeps the beam within 45° of vertical. It hovers there, pinned every tick (its own
+//!    emitters are switched off on the live construct: the strike below replaces them).
 //! 2. **Telegraph**: a ground TARGET MARKER at the impact point for `telegraph` s before the first
 //!    beam — [`GameEvent::OrbitalStrike`] `phase: Telegraph` (everyone sees it; counterplay).
 //! 3. **The strike**: for `strike_secs` the beam comes down from the emitter to the marker point and
@@ -75,7 +75,7 @@ pub struct OrbitalTuning {
     /// Attract (abduction): upward acceleration in the beam (m/s², gravity is 25), up to `abduct_max` m/s.
     pub abduct_accel: f32,
     pub abduct_max: f32,
-    /// THE orbital cost knob: existing cast cost (autonomous + scale) × this.
+    /// THE orbital cost knob: existing cast cost (autonomous + scale) × this, never more than a full bar.
     pub cost_mult: f32,
 }
 
@@ -137,7 +137,10 @@ impl OrbitalTuning {
 
 /// An emitter that flies and is dropped from the sky strikes from orbit.
 pub fn is_orbital(r: &Recipe) -> bool {
-    !matches!(r.form.category(), FormCategory::Held | FormCategory::Worn)
+    // Worn things stay on the body; a held form (the lexicon's satellite is a Disc) only when it is a
+    // free flier (Flies without Returning), which the sim already treats as an autonomous object.
+    r.form.category() != FormCategory::Worn
+        && !(r.form.category() == FormCategory::Held && r.has(Mechanic::Returning))
         && r.has(Mechanic::DropFromSky)
         && r.has(Mechanic::Flies)
         && (r.has(Mechanic::Beam) || r.has(Mechanic::Shoots) || r.has(Mechanic::Breath))
@@ -190,7 +193,7 @@ pub fn spawn_point(w: &World, caster_eye: Vec3, aim_point: Vec3) -> (Vec3, Vec3)
     (ground + dir * shift + Vec3::Y * alt, ground)
 }
 
-/// A fresh orbital construct: switch off its own flying / emitting (the strike replaces them) and
+/// A fresh orbital construct: switch off its own emitting / homing (the strike replaces them) and
 /// start the first telegraph.
 pub(crate) fn register(w: &mut World, cid: ConstructId, anchor: Vec3, ground: Vec3) {
     let Some(c) = w.constructs.get_mut(cid) else { return };
@@ -215,8 +218,7 @@ pub(crate) fn register(w: &mut World, cid: ConstructId, anchor: Vec3, ground: Ve
     c.recipe.mechanics.retain(|m| {
         !matches!(
             m,
-            Mechanic::Flies
-                | Mechanic::Homing
+            Mechanic::Homing
                 | Mechanic::DropFromSky
                 | Mechanic::Beam
                 | Mechanic::Shoots
@@ -502,9 +504,15 @@ mod tests {
         let mut plain = r.clone();
         plain.mechanics.retain(|m| *m != Mechanic::DropFromSky);
         assert!(!is_orbital(&plain), "a flying beam emitter is a plain flier");
-        let mut gun = r.clone();
-        gun.form = Form::Gun;
-        assert!(!is_orbital(&gun), "held things never orbit");
+        // The lexicon's "SATELLITE DEATH BEAM": a Disc (held form) that flies free.
+        let mut disc = r.clone();
+        disc.form = Form::Disc;
+        assert!(is_orbital(&disc), "a free-flying disc satellite orbits");
+        disc.mechanics.push(Mechanic::Returning);
+        assert!(!is_orbital(&disc.normalized()), "a returning disc is a thrown weapon");
+        let mut cape = r.clone();
+        cape.form = Form::Cape;
+        assert!(!is_orbital(&cape), "worn things stay on the body");
     }
 
     #[test]

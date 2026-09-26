@@ -727,6 +727,8 @@ pub struct Construct {
     pub colossal: bool,
     /// Size multiplier from Shrink/Grow (1 = normal).
     pub size_scale: f32,
+    /// FREEDOM HOOK: presentation bits `replicate::cflags::LEGENDARY | SPUTTER` (`crate::freedom`).
+    pub flair: u8,
     /// Set by behaviours / damage; the world removes it in [`ConstructStore::reap`].
     pub gone: Option<GoneReason>,
     /// Shattered this tick (impulse) — reported by `reap`.
@@ -1150,6 +1152,7 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         priced_autonomous: false,
         colossal: p.colossal,
         size_scale: 1.0,
+        flair: 0,
         gone: None,
         shatter: None,
         parent: None,

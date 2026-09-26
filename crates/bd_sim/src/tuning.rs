@@ -53,6 +53,8 @@ pub struct CombatTuning {
     pub assist: crate::melee_assist::AssistTuning,
     /// SIGNATURE HOOK: signature casts (`crate::signature`, COMBAT.md §5j).
     pub signature: crate::signature::SignatureTuning,
+    /// FREEDOM HOOK: shout bonus, sputter floor, "it" resize range, hidden legendary rolls (`crate::freedom`).
+    pub freedom: crate::freedom::FreedomTuning,
 }
 
 impl Default for CombatTuning {
@@ -72,6 +74,7 @@ impl Default for CombatTuning {
             summon: crate::world::bounds::SummonTuning::default(),
             assist: crate::melee_assist::AssistTuning::default(),
             signature: crate::signature::SignatureTuning::default(),
+            freedom: crate::freedom::FreedomTuning::default(),
         }
     }
 }
@@ -949,6 +952,7 @@ impl CombatTuning {
         self.summon = self.summon.validated();
         self.assist = self.assist.validated(); // ASSIST HOOK
         self.signature = self.signature.validated(); // SIGNATURE HOOK
+        self.freedom = self.freedom.validated(); // FREEDOM HOOK
         self
     }
 

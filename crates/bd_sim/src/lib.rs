@@ -28,9 +28,11 @@ pub mod constructs;
 pub mod dodge; // DODGE: intangibility window + hits restore the air jump (movement/air_jump.rs, dodge.rs)
 pub mod events;
 pub mod extract;
+pub mod freedom; // FREEDOM HOOK: "it", name targeting, sputter, shout bonus, kill feed, highlights
 pub mod fuzz;
 pub mod geom;
 pub mod history;
+pub mod legendary; // FREEDOM HOOK: hidden novelty-driven legendary rolls (never shown)
 pub mod hook; // ASSIST HOOK: hook-and-strike (tethers hook players)
 pub mod melee_assist; // ASSIST HOOK: melee lunge (Destiny-style dash, aim nudge)
 pub mod movement;

@@ -469,7 +469,7 @@ fn orbital_cost_is_existing_pricing_times_one_knob() {
     let (_, rec, _, cost) = spawned(&w.events()[n0..]).unwrap();
     let wt = &w.tuning().willpower;
     let plain = wt.base_cost_as(&rec, wt.is_autonomous(&rec));
-    assert!((cost - plain * t.cost_mult).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
+    assert!((cost - (plain * t.cost_mult).min(100.0)).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
 }
 
 #[test]
@@ -577,4 +577,28 @@ fn prediction_matches_the_host_around_signatures() {
         }
     }
     assert_eq!(bad, 0, "prediction diverged on {bad} ticks");
+}
+
+/// The lexicon's exact shape for "SATELLITE DEATH BEAM": a Disc named "satellite", 4 m, Shadow,
+/// Dish + Antenna, Beam + Flies + DropFromSky (a held form that flies free).
+#[test]
+fn lexicon_satellite_shape_strikes_from_orbit() {
+    use bd_core::mechanics::Feature;
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let mut r = recipe("satellite", Form::Disc, &[Mechanic::Beam, Mechanic::Flies, Mechanic::DropFromSky], Element::Shadow, 4.0);
+    r.features = vec![Feature::Dish, Feature::Antenna];
+    let pct0 = w.player(B).unwrap().damage_pct;
+    let (id, target) = cast_orbital(&mut w, r, 20.0);
+    let mut phases = Vec::new();
+    for _ in 0..((t.telegraph + 1.5) / DT) as usize {
+        w.player_mut(B).unwrap().mv.vel = Vec3::ZERO;
+        let evs = w.tick(&[]).to_vec();
+        phases.extend(strikes(&evs).into_iter().map(|s| s.0));
+    }
+    let c = w.constructs.get(id).expect("alive");
+    assert!(!c.attached(), "a free-flying satellite, not a disc in the hand");
+    assert!(c.pos.y - target.y > t.altitude_min - 1.0, "hovers high: {}", c.pos.y - target.y);
+    assert!(phases.contains(&StrikePhase::Strike), "{phases:?}");
+    assert!(w.player(B).unwrap().damage_pct > pct0, "the beam came down on B");
 }

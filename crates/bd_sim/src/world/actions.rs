@@ -211,6 +211,7 @@ impl World {
     fn cast_plain(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
         // PARTY HOOK: after-cast hooks (Echo, Mini-Me) look for this cast's spawn from here.
         let ev0 = self.events.len();
+        let outer = crate::freedom::begin_cast(self, player); // FREEDOM HOOK: the phrase / shout energy / "it" resize of this cast
         let res = self.cast_inner(player, recipe, shape, aim);
         // PARTY HOOK: the party cost discount (set by `party::modify_cast`) is per cast.
         self.party_cost_ratio = None;
@@ -218,6 +219,7 @@ impl World {
             Err(reason) => self.events.push(GameEvent::CastFailed { player, reason }),
             Ok(id) => crate::party::hooks::after_cast(self, player, id, aim, ev0), // PARTY HOOK (no-op in FFA)
         }
+        crate::freedom::end_cast(self, outer); // FREEDOM HOOK
         res
     }
 
@@ -342,6 +344,11 @@ impl World {
             _ => 0.0,
         };
         let cost = cost + surcharge;
+        // FREEDOM HOOK: an "it" resize is paid like buying the bigger construct; an unaffordable graft
+        // still applies — it drains what's left and gains integrity only for what was paid.
+        let (resize, resize_cost) = crate::freedom::graft_resize(self, i, cid);
+        let (cost, paid) = crate::freedom::drain_afford(self, i, cost + resize_cost);
+        let integrity_gain = integrity_gain * paid;
         self.pay(i, cost)?;
         self.players[i].casts.record(&add.name, self.tick);
         let grow = add.has(Mechanic::Grow);
@@ -361,6 +368,7 @@ impl World {
             c.integrity = (c.integrity + integrity_gain).min(c.max_integrity * 1.5);
             c.max_integrity = c.max_integrity.max(c.integrity);
         }
+        crate::freedom::graft_after(self, cid, resize, paid); // FREEDOM HOOK
         if let Some(r) = merged {
             self.events.push(GameEvent::Grafted { player: id, id: cid, recipe: Box::new(r.clone()), cost });
             self.attach_space_effects(cid, &r);
@@ -382,6 +390,7 @@ impl World {
         let wt = &self.cfg.tuning.willpower; // TUNING HOOK
         let uses = self.players[i].casts.uses_in(&recipe.name, self.tick, wt.stale_window);
         let cost = wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0); // PARTY HOOK
+        let (cost, _) = crate::freedom::drain_afford(self, i, cost); // FREEDOM HOOK: never refuse for willpower
         self.pay(i, cost)?;
         let outcome = apply_extract(&mut self.voxels, &op);
         if outcome.model.voxels.is_empty() {
@@ -417,6 +426,9 @@ impl World {
         typed: TypedPricing,
     ) -> Result<ConstructId, CastError> {
         let id = self.players[i].id;
+        // FREEDOM HOOK: shout bonus (≤ +15 %), hidden legendary roll, novelty / highlights bookkeeping.
+        let mut recipe = recipe;
+        let flavor = crate::freedom::spawn_prelude(self, i, &mut recipe, model.is_some());
         let colossal = is_colossal(&recipe);
         if colossal && self.constructs.owned_by(id).any(|c| c.colossal) {
             return Err(CastError::ColossalLimit);
@@ -428,6 +440,11 @@ impl World {
         // slot replacement (they are children of the cast they copy).
         let cost = if model.is_some() { 0.0 } else { wt.base_cost_as(&recipe, typed.autonomous) * wt.staleness(uses) * self.party_cost_ratio.unwrap_or(1.0) };
         let cost = crate::signature::cost(self, &recipe, cost); // SIGNATURE HOOK: signature / orbital cost multiplier
+        // FREEDOM HOOK: never refuse for willpower — an unaffordable cast sputters (scaled down to fit,
+        // drains everything left; a tiny fizzle at ~0).
+        let (stale, ratio) = (wt.staleness(uses), self.party_cost_ratio.unwrap_or(1.0));
+        let price = |w: &World, r: &Recipe| crate::signature::cost(w, r, w.cfg.tuning.willpower.base_cost_as(r, typed.autonomous) * stale * ratio);
+        let (cost, sputter) = if model.is_some() { (cost, false) } else { crate::freedom::afford(self, i, &mut recipe, cost, &price) };
         let integrity_cost = cost * wt.adjustment_ratio_as(&recipe, typed.autonomous);
         if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
@@ -534,6 +551,7 @@ impl World {
             c.priced_autonomous = typed.autonomous && willpower_autonomous_form(c.recipe.form); // TUNING HOOK
         }
         self.events.push(GameEvent::ConstructSpawned { id: cid, owner: id, recipe: Box::new(recipe.clone()), pos, rot, forming, cost });
+        crate::freedom::after_spawn(self, i, cid, &recipe, flavor, sputter); // FREEDOM HOOK: golden / sputter flags, feed tag
         if let Some(alt) = self.pending_alt_shape.take() {
             self.attach_alt_shape(cid, alt);
         }

@@ -172,8 +172,7 @@ impl Plugin for OutlinePlugin {
         app.add_warmup(warmup_hull);
         if std::env::var_os("BD_OUTLINE_STATS").is_some() {
             // Dev measurement: CPU cost of the outline systems + hull count, printed every 5 s.
-            app.init_resource::<OutlineCost>()
-                .add_systems(PostUpdate, (cost_start.before(camera_layer), cost_end.after(update_outlines)));
+            app.init_resource::<OutlineCost>().add_systems(PostUpdate, (cost_start.before(camera_layer), cost_end.after(update_outlines)));
         }
         if dev_test().is_some() {
             app.add_systems(Update, dev_views.after(crate::sim_bridge::BridgeSet::Views).before(super::PresentSet::Events)).add_systems(
@@ -357,10 +356,10 @@ fn cost_end(mut c: ResMut<OutlineCost>, time: Res<Time<Real>>, hulls: Query<&Out
 
 // ------------------------------------------------------------------------------------ dev hook
 
-/// `BD_OUTLINE_TEST=pct:140,self,cam:60,yaw:30,h:2` — look checks / screenshots (never set in play):
+/// `BD_OUTLINE_TEST=pct:140,self,cam:60,yaw:30,h:2,corps:0` — look checks / screenshots (never set in play):
 /// `pct` forces every player's shown damage % (render side only), `self` gives the local body the
 /// full outline, `cam` pins the gameplay camera `cam` metres from the local player (`yaw` degrees
-/// around it, `h` metres above its feet).
+/// around it, `h` metres above its feet), `corps` puts every player (and their hard light) in one corps.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct DevTest {
     pct: Option<f32>,
@@ -368,6 +367,7 @@ struct DevTest {
     cam: Option<f32>,
     yaw: f32,
     h: f32,
+    corps: Option<u8>,
 }
 
 fn dev_test() -> Option<DevTest> {
@@ -384,6 +384,7 @@ fn dev_test() -> Option<DevTest> {
                 "cam" => t.cam = f,
                 "yaw" => t.yaw = f.unwrap_or(0.0),
                 "h" => t.h = f.unwrap_or(1.6),
+                "corps" => t.corps = f.map(|c| c as u8),
                 _ => {}
             }
         }
@@ -391,11 +392,23 @@ fn dev_test() -> Option<DevTest> {
     })
 }
 
-fn dev_views(mut views: ResMut<WorldViews>) {
+fn dev_views(mut views: ResMut<WorldViews>, active: Option<ResMut<ActiveWorld>>) {
     let Some(t) = dev_test() else { return };
     for v in views.players.iter_mut() {
         if let Some(p) = t.pct {
             v.damage_pct = p;
+        }
+    }
+    // Worst case: everyone (bodies + constructs) in one corps colour.
+    if let (Some(c), Some(mut a)) = (t.corps, active) {
+        let c = Corps::from_index(c);
+        if a.world.players.iter().any(|p| p.corps != c) {
+            for p in a.world.players.iter_mut() {
+                p.corps = c;
+            }
+        }
+        for v in views.players.iter_mut() {
+            v.corps = c;
         }
     }
 }

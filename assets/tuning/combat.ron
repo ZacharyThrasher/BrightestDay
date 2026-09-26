@@ -666,7 +666,7 @@
         // crosshair); cooldown s, repeat. Pulses every pulse s: damage / knockback (x Heavy 1.5 / Fast 0.8),
         // a carve of carve_radius every carve_every s (Earth x2; Fire / Atomic ignite). Attract = abduction:
         // lift at abduct_accel m/s^2 up to abduct_max m/s, no damage. Breath = beam_radius x2. Cost = the
-        // existing cast cost x cost_mult.
+        // existing cast cost x cost_mult, never more than a full bar.
         orbital: (
             altitude: 30.0,
             altitude_min: 22.0,

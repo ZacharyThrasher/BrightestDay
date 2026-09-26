@@ -25,5 +25,7 @@ All workers edit and build the SAME working tree. One broken edit blocks everyon
    validation errors only show up at startup). After changing cameras, materials, shaders or anything
    that runs during Loading, run the copied release exe with
    `--screenshot target\smoke\<you>.png --quit-after 10` and confirm it gets past Loading.
+   Classic startup killer: reading a Message type whose registering plugin isn't added (yet). If you
+   read another feature's message, also `add_message::<T>()` it in YOUR plugin (idempotent).
 6. **Never commit.** The lead commits green checkpoints often, so `git diff` stays small and readable.
 6. The owner is at the machine playtesting: prefer headless/offscreen/record modes.

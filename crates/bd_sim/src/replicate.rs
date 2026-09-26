@@ -312,6 +312,10 @@ pub mod cflags {
     pub const PILOTED: u8 = 1 << 2;
     pub const COLOSSAL: u8 = 1 << 3;
     pub const SUIT: u8 = 1 << 4;
+    /// FREEDOM HOOK: a legendary construct (golden; hidden roll, `crate::legendary`).
+    pub const LEGENDARY: u8 = 1 << 5;
+    /// FREEDOM HOOK: cast without enough willpower — a scaled-down, flickering version.
+    pub const SPUTTER: u8 = 1 << 6;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

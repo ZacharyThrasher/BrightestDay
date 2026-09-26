@@ -175,6 +175,8 @@ pub struct World {
     pub(crate) recall_log: Vec<(bd_core::ConstructId, Tick)>,
     /// SIGNATURE HOOK: the signature cast in progress + live orbital emitters (`crate::signature`).
     pub(crate) signature: crate::signature::SignatureState,
+    /// FREEDOM HOOK: cast metas, novelty ring, kill-feed tags, highlights (`crate::freedom`).
+    pub(crate) freedom: crate::freedom::FreedomState,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -240,6 +242,7 @@ impl World {
             powers: crate::powers::PowerWorld::default(), // POWERS HOOK
             recall_log: Vec::new(), // BOUNDS HOOK
             signature: Default::default(), // SIGNATURE HOOK
+            freedom: Default::default(), // FREEDOM HOOK
             cfg,
         }
     }
@@ -469,6 +472,7 @@ impl World {
         self.reap_constructs();
         self.apply_carves();
         self.check_match_end();
+        crate::freedom::end_of_tick(self); // FREEDOM HOOK: kill feed + highlights (a scan of this tick's events)
 
         if self.cfg.check_invariants {
             if let Err(e) = self.check_invariants() {

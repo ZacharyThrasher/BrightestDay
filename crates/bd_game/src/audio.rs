@@ -188,6 +188,10 @@ pub struct AudioFxPlugin;
 impl Plugin for AudioFxPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<PlaySfx>()
+            // Audio reads cues from features whose plugins may not be added yet; registering a
+            // message twice is a no-op, reading an unregistered one panics at startup.
+            .add_message::<crate::present::tracking::TrackingCue>()
+            .add_message::<crate::present::signature::SignatureCue>()
             .add_systems(Startup, start_load)
             .add_systems(Update, finish_load.run_if(resource_exists::<AudioLoading>))
             .add_systems(OnExit(AppState::InGame), leave_game)

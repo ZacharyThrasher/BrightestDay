@@ -103,6 +103,8 @@ struct Pending {
     title: String,
     element: Element,
     form: Form,
+    /// An orbital emitter (frame the emitter, not its caster).
+    orbital: bool,
     age: f32,
 }
 
@@ -394,6 +396,7 @@ fn spectacle_events(
                     title: recipe.name.clone(),
                     element: recipe.element,
                     form: recipe.form,
+                    orbital: bd_sim::signature::is_orbital(recipe),
                     age: 0.0,
                 });
             }
@@ -497,7 +500,7 @@ fn alert_spectacles(
         let (sev, inside) = if mine { (0.6, false) } else { severity(eye, center, p.sp.radius) };
         // What the window shows: the construct erupting; a held ultimate (a beam in someone's hands)
         // frames its caster instead.
-        let held = matches!(p.form.category(), FormCategory::Held | FormCategory::Worn);
+        let held = matches!(p.form.category(), FormCategory::Held | FormCategory::Worn) && !p.orbital;
         let body = bodies.iter().find(|(_, b)| b.id == p.owner).map(|(e, _)| e);
         let target = match (held, body, entity) {
             (true, Some(b), _) => Some(CutInTarget::Entity { entity: b, radius: 2.4 }),

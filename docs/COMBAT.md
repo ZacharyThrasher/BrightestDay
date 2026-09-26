@@ -560,7 +560,7 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
   crosshair ground point) — good movement outruns it; pulses every 0.1 s (3 dmg ×Heavy/Fast, element
   status), carves every 0.3 s; 3 s cooldown, then the next strike while the construct lives. Attract =
   abduction (lifts, no damage); Breath = a wider column (fire ignites); Shoots = a hail of bolts. Cost =
-  the existing (autonomous + scale) price × 1.25. Meteor showers need nothing new (count + DropFromSky).
+  the existing (autonomous + scale) price × 1.25, never more than a full bar. Meteor showers need nothing new (count + DropFromSky).
 - **Presentation, no freeze, no control taken:** any spawn costing ≥ 45 or ≥ 12 m (signatures, kaiju,
   no-limits moons — one generic path, `signature::spectacle`) gets a picture-in-picture cut-in DANGER
   alert for everyone (side of the threat, corps colour, title, severity by distance / inside the radius),

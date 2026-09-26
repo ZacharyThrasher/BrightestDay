@@ -295,7 +295,8 @@ impl World {
         let wt = &self.cfg.tuning.willpower;
         let uses = self.player(player).map_or(0, |p| p.casts.uses_in(&r.name, self.tick, wt.stale_window));
         let plain = wt.base_cost_as(&r, wt.is_autonomous(&r)) * wt.staleness(uses);
-        let plain = if is_orbital(&r) { plain * self.cfg.tuning.signature.orbital.cost_mult } else { plain };
+        let pool = self.cfg.rules.willpower_max();
+        let plain = if is_orbital(&r) { (plain * self.cfg.tuning.signature.orbital.cost_mult).min(pool) } else { plain };
         let cost = signature_cost(plain, &self.cfg.tuning.signature, self.cfg.rules.willpower_max());
         (r, cost)
     }
@@ -329,9 +330,11 @@ pub(crate) fn cost(w: &World, recipe: &Recipe, plain: f32) -> f32 {
         return plain;
     }
     let t = &w.cfg.tuning.signature;
-    let plain = if is_orbital(recipe) { plain * t.orbital.cost_mult } else { plain };
+    let pool = w.cfg.rules.willpower_max();
+    // An orbital emitter (autonomous + big already) × its knob, never more than a full bar.
+    let plain = if is_orbital(recipe) { (plain * t.orbital.cost_mult).min(pool) } else { plain };
     match w.signature.cast {
-        Some(_) => signature_cost(plain, t, w.cfg.rules.willpower_max()),
+        Some(_) => signature_cost(plain, t, pool),
         None => plain,
     }
 }

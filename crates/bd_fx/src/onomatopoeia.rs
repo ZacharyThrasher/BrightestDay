@@ -485,7 +485,9 @@ fn animate_words(
                 tf.translation = cam_pos + fwd * 0.9 + down * (0.11 + 0.02 * (age * 3.0).min(1.0));
                 tf.rotation = cam_rot;
             } else {
-                let drift = w.dir * (0.5 * (1.0 - (-age * 5.0).exp())) + Vec3::Y * (0.35 + 0.25 * age);
+                // Readability (outline pass): only a small lean along the hit — a launched victim flies
+                // *along* `dir`, so a word drifting with it sat on top of them; it rises instead.
+                let drift = w.dir * (0.15 * (1.0 - (-age * 5.0).exp())) + Vec3::Y * (0.5 + 0.25 * age);
                 let pos = w.base + drift * s.max(0.3) * 2.0;
                 let to_cam = (cam_pos - pos).normalize_or_zero();
                 let pos = pos + to_cam * 0.4;
