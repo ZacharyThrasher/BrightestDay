@@ -294,11 +294,11 @@ impl Action {
             Action::Slot3 => K::Digit3,
             Action::Slot4 => K::Digit4,
             // CAMERA: F5 is the long-standing "change view" key and free here (F3 perf, F4 render,
-            // F11 fullscreen); B sits by the movement hand; C = gun alt-fire (rarely used).
+            // F11 fullscreen); B sits by the movement hand; H = gun alt-fire (rarely used; C is a hard-wired crouch alias).
             Action::ToggleView => K::F5,
             Action::Shoulder => K::KeyB,
             Action::Aim => return Bind::Mouse(MouseButton::Right),
-            Action::AltFire => K::KeyC,
+            Action::AltFire => K::KeyH,
             // Dodge on the thumb while holding W. Not Caps Lock: it toggles caps, and CAPS in the ring
             // console means "yelling" (shout energy).
             Action::Dodge => K::AltLeft,

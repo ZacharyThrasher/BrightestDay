@@ -7,6 +7,7 @@
 //! consumed keys apply to this frame's tick input) … → [`UiSet::Draw`] after the bridge's views.
 
 pub mod costume;
+pub mod feed; // FREEDOM: kill feed, highlights data, "it" / names / again planner
 pub mod party;
 pub mod prefs;
 pub mod preview;

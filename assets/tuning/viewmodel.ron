@@ -122,10 +122,13 @@
     support_pistol_len: 0.2,
 
     // --- aim down sights (AdsState.blend): sight this far ahead / below the crosshair; motion left; recoil share
-    ads_dist: 0.26,
-    ads_sight_drop: 0.012,
+    ads_dist: 0.3,
+    ads_sight_drop: 0.015,
     ads_motion: 0.25,
     ads_kick: 0.6,
+    // The gun is drawn larger while aimed (<= 3x, <= ads_max_reach m) so its sight sits ads_hand_drop m above the fist.
+    ads_hand_drop: 0.11,
+    ads_max_reach: 0.75,
 
     // --- guns: extra kick on top of the base kick, scaled per archetype
     gun_kick_pitch: 2.5,

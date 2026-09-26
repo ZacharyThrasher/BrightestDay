@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-use bd_core::mechanics::{Form, FormCategory, Mechanic, ModelSource};
+use bd_core::mechanics::{Element, Form, FormCategory, Mechanic, ModelSource};
 use serde::Deserialize;
 
 use crate::norm::{Tok, normalize_key};
@@ -44,6 +44,15 @@ pub struct SignatureCall {
     pub title: String,
     /// The invocation words used ("domain expansion"), `None` for a tagged name / "!!!".
     pub invocation: Option<String>,
+    /// A fusion-style windup from the data (`windup: Some(Merge(Water, Fire))`): an orb of each element
+    /// forms at either hand and they merge before the release (presentation only; any kind).
+    pub windup: Option<(Element, Element)>,
+}
+
+/// A windup look carried by a tagged name (data).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+pub enum Windup {
+    Merge(Element, Element),
 }
 
 /// Longest title (the sim's recipe-name bound).
@@ -69,6 +78,8 @@ struct NameRow {
     kind: SignatureKind,
     #[serde(default)]
     title: Option<String>,
+    #[serde(default)]
+    windup: Option<Windup>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -89,6 +100,9 @@ pub(crate) struct Invocation {
     pub alone: Option<String>,
 }
 
+/// A tagged name: (kind, display title, windup look).
+pub(crate) type Tag = (SignatureKind, Option<String>, Option<Windup>);
+
 /// The parsed `signatures.ron`.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SignatureTable {
@@ -97,7 +111,7 @@ pub(crate) struct SignatureTable {
     /// Longest first.
     pub suffixes: Vec<Invocation>,
     /// normalised name → (kind, optional display title).
-    pub names: HashMap<String, (SignatureKind, Option<String>)>,
+    pub names: HashMap<String, Tag>,
     pub bang_beams: usize,
 }
 
@@ -138,7 +152,7 @@ impl SignatureTable {
         for n in f.names {
             let k = normalize_key(&n.name);
             if !k.is_empty() {
-                names.entry(k).or_insert((n.kind, n.title));
+                names.entry(k).or_insert((n.kind, n.title, n.windup));
             }
         }
         SignatureTable { prefixes: conv(f.invocations), suffixes: conv(f.suffixes), names, bang_beams: f.bang_beams }
@@ -202,13 +216,13 @@ pub(crate) fn infer_kind(res: &Resolution) -> SignatureKind {
 
 impl Lexicon {
     /// Tagged famous ultimate for a normalised name.
-    fn tagged(&self, key: &str) -> Option<(SignatureKind, Option<String>)> {
+    fn tagged(&self, key: &str) -> Option<Tag> {
         self.sig.names.get(key).cloned()
     }
 
     /// Tag of the construct a phrase resolved to: its display name, else its curated icon id
     /// ("giant kamehameha" is still the Kamehameha icon).
-    fn tag_of_recipe(&self, res: &Resolution) -> Option<(SignatureKind, Option<String>)> {
+    fn tag_of_recipe(&self, res: &Resolution) -> Option<Tag> {
         self.tagged(&normalize_key(&res.recipe.name)).or_else(|| match &res.recipe.model {
             ModelSource::Icon(id) => self.tagged(&normalize_key(&id.replace('_', " "))),
             ModelSource::Procedural { .. } => None,
@@ -286,7 +300,8 @@ impl Lexicon {
         };
         res.explanation.insert(0, format!("{} \u{2192} signature {kind:?}", inv.words.join(" ")));
         res.confidence = res.confidence.max(0.9);
-        res.signature = Some(SignatureCall { kind, title: clip_title(title), invocation: Some(inv.words.join(" ")) });
+        let windup = tag.as_ref().and_then(|t| t.2).map(|Windup::Merge(a, b)| (a, b));
+        res.signature = Some(SignatureCall { kind, title: clip_title(title), invocation: Some(inv.words.join(" ")), windup });
         Some(res)
     }
 
@@ -297,21 +312,21 @@ impl Lexicon {
         }
         let name_key = normalize_key(&res.recipe.name);
         let tag = self.tagged(whole).map(|t| (t, whole.to_string())).or_else(|| self.tag_of_recipe(res).map(|t| (t, name_key.clone())));
-        if let Some(((kind, title), key)) = tag {
+        if let Some(((kind, title, windup), key)) = tag {
             Self::as_construct(res);
             let title = title.unwrap_or_else(|| {
                 // Curated icons carry proper capitalisation ("Kamehameha"); lexicon names are lower-case.
                 if res.recipe.name.chars().any(|c| c.is_uppercase()) { res.recipe.name.clone() } else { title_case(&key) }
             });
             res.explanation.insert(0, format!("{key} \u{2192} signature {kind:?}"));
-            res.signature = Some(SignatureCall { kind, title: clip_title(title), invocation: None });
+            res.signature = Some(SignatureCall { kind, title: clip_title(title), invocation: None, windup: windup.map(|Windup::Merge(a, b)| (a, b)) });
             return;
         }
         let beam = res.kind == ResolutionKind::Construct && res.recipe.has(Mechanic::Beam);
         if self.sig.bang_beams > 0 && bangs >= self.sig.bang_beams && beam {
             let title = if res.recipe.name.is_empty() { title_case(whole) } else { title_case(&res.recipe.name.to_lowercase()) };
             res.explanation.insert(0, format!("{bangs}\u{00d7}! beam \u{2192} signature Beam"));
-            res.signature = Some(SignatureCall { kind: SignatureKind::Beam, title: clip_title(title), invocation: None });
+            res.signature = Some(SignatureCall { kind: SignatureKind::Beam, title: clip_title(title), invocation: None, windup: None });
         }
     }
 }

@@ -399,6 +399,7 @@ impl World {
         // Colliders for prediction.
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);
+        crate::movement::push_surf_colliders(&self.arena.surf_lines, &mut self.colliders); // SURF: map surf lines
         self.assist_push_player_colliders(); // ASSIST HOOK: other players are hook targets for prediction
     }
 

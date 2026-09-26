@@ -399,10 +399,12 @@ fn willpower_costs_regen_pause_staleness_and_refund() {
     let before = w.player(A).unwrap().willpower;
     assert_eq!(w.dismiss(A), 1);
     assert!((w.player(A).unwrap().willpower - before - 15.6 * 0.25).abs() < 1e-2);
-    // Can't afford → CastFailed.
+    // Can't afford → never refused (FREEDOM bundle): a scaled-down sputtering version that drains
+    // what's left (bd_sim::freedom::afford; tests/freedom.rs has the full rule).
     w.player_mut(A).unwrap().willpower = 5.0;
-    let err = w.cast(A, hammer, None, aim).unwrap_err();
-    assert!(matches!(err, CastError::NotEnoughWillpower { .. }));
+    let id = w.cast(A, hammer, None, aim).unwrap();
+    assert!(bd_sim::freedom::is_sputtering(&w, id));
+    assert_eq!(w.player(A).unwrap().willpower, 0.0);
 }
 
 #[test]

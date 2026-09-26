@@ -56,6 +56,21 @@ pub struct ArenaInfo {
     /// Map-defined gravity by altitude (Orbit: normal gravity on the islands, fading to ~zero-g
     /// above). `None` = full gravity everywhere (every other map; the sim skips the hook entirely).
     pub gravity: Option<GravityProfile>,
+    /// SURF: CS-style surf lines (smooth hard-light prisms: the sim builds their colliders with
+    /// `bd_sim::movement::surf_line`, the client draws them). Not voxels: a 0.5 m voxel staircase is
+    /// walkable steps, not a surfable slope — and hard light can't be carved away.
+    pub surf_lines: Vec<SurfLine>,
+}
+
+/// A CS-style surf line: a triangular prism of hard light whose ridge runs from `a` to `b`
+/// (descending when `b` is lower), each side a face `face_deg` from horizontal with `width` metres of
+/// slope. Surf it on either face; the ends dump you onto whatever is below.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SurfLine {
+    pub a: Vec3,
+    pub b: Vec3,
+    pub face_deg: f32,
+    pub width: f32,
 }
 
 /// Gravity by altitude — the one data-driven sim hook for maps (DESIGN.md "Maps: Orbit").
@@ -907,6 +922,26 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
         }
     }
 
+    // ---- Surf lines (hard light; no RNG drawn, so the voxels are unchanged) --------------------------
+    // Spire Slide: off the Spire Garden's edge (high, NE) down onto the Long Meadow lane (E) — surf
+    // into a bhop. Crag Chute: off the Crag (high, SW) over the gap down to the Sandbar (low, SE).
+    // Offset `side` metres to the outside of the arch that already spans each gap (the arches are
+    // voxel staircases: walkable, not surfable; the line must not run through them).
+    let surf_line = |from: Vec2, from_r: f32, from_top: f32, to: Vec2, to_r: f32, to_top: f32, side: f32| {
+        let dir = (to - from).normalize();
+        let mut out = Vec2::new(-dir.y, dir.x);
+        if out.dot(from + to) < 0.0 {
+            out = -out;
+        }
+        let a = from + dir * (from_r * 0.7) + out * side;
+        let b = to - dir * (to_r + 4.0) + out * side;
+        SurfLine { a: Vec3::new(a.x, from_top + 7.0, a.y), b: Vec3::new(b.x, to_top + 11.0, b.y), face_deg: 60.0, width: 8.0 }
+    };
+    let surf_lines = vec![
+        surf_line(spire_c, 15.0, spire_top, meadow_c, 13.0, meadow_top, 12.0),
+        surf_line(crag_c, 15.0, crag_top, sand_c, 20.0, sand_top, 9.0),
+    ];
+
     let mut w = g.w;
     w.prune_unanchored();
     w.mark_all_dirty();
@@ -926,6 +961,7 @@ pub fn generate_arena(seed: u64) -> (VoxelWorld, ArenaInfo) {
         fog_color: [0.74, 0.85, 0.98],
         ambient: 0.38,
         gravity: None,
+        surf_lines,
     };
     (w, info)
 }
@@ -1005,6 +1041,7 @@ pub fn generate_flat_test(size_m: f32) -> (VoxelWorld, ArenaInfo) {
         fog_color: [0.74, 0.85, 0.98],
         ambient: 0.38,
         gravity: None,
+        surf_lines: Vec::new(),
     };
     (w, info)
 }

@@ -41,6 +41,7 @@ pub mod soak;
 pub mod sound;
 pub mod space;
 pub mod summon_ping;
+pub mod surf; // SURF: map surf lines drawn as hard light, surf wind rush
 pub mod terrain;
 pub mod tracking; // TRACKING: ring compass, beacons, reveal pulses, speed trails, lunge glow, hook ropes
 pub mod water;
@@ -87,7 +88,8 @@ impl Plugin for PresentPlugin {
             .add_plugins(construct_anim::ConstructAnimPlugin) // role x event construct animation
             .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
-            .add_plugins(air_moves::AirMovesPlugin); // AIR JUMP / DODGE: hard-light step + streak
+            .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
+            .add_plugins(surf::SurfPlugin); // SURF: hard-light surf lines + wind rush
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

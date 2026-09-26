@@ -191,6 +191,10 @@ pub struct VmTuning {
     pub ads_motion: f32,
     /// Recoil share while aimed (it still kicks; it recovers onto the sight line).
     pub ads_kick: f32,
+    /// Sight height above the gripping fist while aimed (m): the gun is drawn larger (≤ 3×) to fit…
+    pub ads_hand_drop: f32,
+    /// …but never reaches further than this from the hand (m).
+    pub ads_max_reach: f32,
 
     // guns (on top of the base kick in `viewmodel`): per archetype scale
     pub gun_kick_pitch: f32,
@@ -321,10 +325,12 @@ impl Default for VmTuning {
             support_fore: 0.45,
             support_drop: 0.015,
             support_pistol_len: 0.2,
-            ads_dist: 0.26,
-            ads_sight_drop: 0.012,
+            ads_dist: 0.3,
+            ads_sight_drop: 0.015,
             ads_motion: 0.25,
             ads_kick: 0.6,
+            ads_hand_drop: 0.11,
+            ads_max_reach: 0.75,
             gun_kick_pitch: 2.5,
             gun_kick_back: 0.25,
             gun_kick_up: 0.2,
@@ -708,22 +714,39 @@ fn infer_grip(min: Vec3, max: Vec3, form: Form) -> Vec3 {
 fn geom_with_grip(tu: &VmTuning, min: Vec3, max: Vec3, form: Form, grip: Vec3) -> HeldGeom {
     let reach = (0..8)
         .map(|i| {
-            let c = Vec3::new(if i & 1 == 0 { min.x } else { max.x }, if i & 2 == 0 { min.y } else { max.y }, if i & 4 == 0 { min.z } else { max.z });
+            let c = Vec3::new(
+                if i & 1 == 0 { min.x } else { max.x },
+                if i & 2 == 0 { min.y } else { max.y },
+                if i & 4 == 0 { min.z } else { max.z },
+            );
             (c - grip).length()
         })
         .fold(0.0f32, f32::max);
     let fore_len = (grip.z - min.z).max(0.0);
     // Two-handed guns without a tagged Support: under the barrel, part way to the muzzle.
-    let support = two_handed(form).then(|| Vec3::new(grip.x, grip.y + (max.y - grip.y) * 0.1, grip.z - fore_len * tu.support_fore.clamp(0.0, 1.0)));
+    let support =
+        two_handed(form).then(|| Vec3::new(grip.x, grip.y + (max.y - grip.y) * 0.1, grip.z - fore_len * tu.support_fore.clamp(0.0, 1.0)));
     HeldGeom { grip, reach, support, fore_len, sight: Vec3::new(grip.x, max.y, grip.z.min(max.z)) }
 }
 
 /// Aim-down-sights placement (root space, before sway): the item along the camera axis with its
 /// sight on the eye line just under the crosshair. Returns the palm (grip) point and the scale.
+/// The gun is drawn bigger while aimed (up to 3× / `ads_max_reach`) so the sight rises
+/// `ads_hand_drop` above the gripping fist: the fist stays below the sight line.
 pub fn ads_palm(tu: &VmTuning, geom: &HeldGeom, scale: f32) -> (Vec3, f32) {
-    let s = place_item(tu, geom, Vec3::ZERO, Quat::IDENTITY, scale).scale.x;
+    let hip = hip_scale(tu, geom, scale);
+    let rise = (geom.sight.y - geom.grip.y).max(0.01);
+    let max_s = if geom.reach > 0.0 { tu.ads_max_reach / geom.reach } else { hip * 3.0 };
+    let s = (tu.ads_hand_drop / rise).clamp(hip, hip * 3.0).min(max_s).max(1e-3);
     let sight_at = Vec3::new(0.0, -tu.ads_sight_drop, -tu.ads_dist);
     (sight_at + (geom.grip - geom.sight) * s, s)
+}
+
+/// The hip (not aimed) view scale: `scale`, clamped so the item never reaches further than
+/// `grip_max_reach` from the hand.
+pub fn hip_scale(tu: &VmTuning, geom: &HeldGeom, scale: f32) -> f32 {
+    let s = if scale.is_finite() { scale.max(1e-3) } else { 1.0 };
+    if geom.reach * s > tu.grip_max_reach && geom.reach > 0.0 { tu.grip_max_reach / geom.reach } else { s }
 }
 
 /// Dev A/B switch (`BD_VM_LEGACY_GRIP=1`): draw held items the pre-grip way (before/after shots).
@@ -743,7 +766,11 @@ pub struct GripFrame {
 }
 
 pub fn grip_frame(tu: &VmTuning, aims: bool, swing: Option<&Transform>) -> GripFrame {
-    let (fist, arm, item) = if aims { (tu.grip_gun_fist, tu.grip_gun_arm, tu.grip_gun_item) } else { (tu.grip_melee_fist, tu.grip_melee_arm, tu.grip_melee_item) };
+    let (fist, arm, item) = if aims {
+        (tu.grip_gun_fist, tu.grip_gun_arm, tu.grip_gun_item)
+    } else {
+        (tu.grip_melee_fist, tu.grip_melee_arm, tu.grip_melee_item)
+    };
     let arm_rest = Quat::from_euler(EulerRot::YXZ, arm[0], arm[1], 0.0);
     let item_rest = Quat::from_euler(EulerRot::YXZ, item[0], item[1], item[2]);
     let fist = v3a(fist);
@@ -755,7 +782,12 @@ pub fn grip_frame(tu: &VmTuning, aims: bool, swing: Option<&Transform>) -> GripF
             let g = arm_rest.inverse() * item_rest;
             let k = if aims { 1.0 } else { tu.grip_wrist.clamp(0.0, 1.0) };
             let arm_rot = arm_rest.slerp((s.rotation * g.inverse()).normalize(), k);
-            GripFrame { arm_rot, item_rot: s.rotation.normalize(), fist: fist + s.translation * tu.grip_swing_reach, item_scale: s.scale.max_element() }
+            GripFrame {
+                arm_rot,
+                item_rot: s.rotation.normalize(),
+                fist: fist + s.translation * tu.grip_swing_reach,
+                item_scale: s.scale.max_element(),
+            }
         }
     }
 }
@@ -763,10 +795,12 @@ pub fn grip_frame(tu: &VmTuning, aims: bool, swing: Option<&Transform>) -> GripF
 /// Place a gripped item (root space): its grip point on `palm`, rotation `rot`, uniform `scale`
 /// (the view scale, clamped so it never reaches further than `grip_max_reach`).
 pub fn place_item(tu: &VmTuning, geom: &HeldGeom, palm: Vec3, rot: Quat, scale: f32) -> Transform {
-    let mut s = if scale.is_finite() { scale.max(1e-3) } else { 1.0 };
-    if geom.reach * s > tu.grip_max_reach && geom.reach > 0.0 {
-        s = tu.grip_max_reach / geom.reach;
-    }
+    place_item_scaled(geom, palm, rot, hip_scale(tu, geom, scale))
+}
+
+/// [`place_item`] with an exact (already clamped) scale.
+pub fn place_item_scaled(geom: &HeldGeom, palm: Vec3, rot: Quat, s: f32) -> Transform {
+    let s = if s.is_finite() { s.max(1e-3) } else { 1.0 };
     Transform { translation: palm - rot * (geom.grip * s), rotation: rot, scale: Vec3::splat(s) }
 }
 
@@ -1661,7 +1695,7 @@ mod demo {
                     d.cast_done = true;
                     d.cast = Some("hand cannon");
                 }
-                if t > 1.0 && ((t * 2.5) % 1.0) < 0.15 {
+                if t > 1.8 && ((t * 2.5) % 1.0) < 0.15 {
                     ov.held |= buttons::PRIMARY;
                 }
             }
@@ -2051,9 +2085,8 @@ mod tests {
         let tu = VmTuning::default();
         let g = held_geom(&VmTuning::default(), &aabb([-0.1, -0.2, -1.2], [0.1, 0.35, 0.15]), Form::Gun);
         let (palm, s) = ads_palm(&tu, &g, 0.24);
-        let item = place_item(&tu, &g, palm, Quat::IDENTITY, 0.24);
+        let item = place_item_scaled(&g, palm, Quat::IDENTITY, s);
         let sight = item.transform_point(g.sight);
-        assert!(item.scale.x == s);
         assert!(sight.x.abs() < 1e-5 && (sight.y + tu.ads_sight_drop).abs() < 1e-5 && (sight.z + tu.ads_dist).abs() < 1e-5, "{sight}");
     }
 

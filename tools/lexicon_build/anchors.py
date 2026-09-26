@@ -442,6 +442,10 @@ WORD_ANCHORS = {
     "cape": dict(f="Cape", m=["Glide"], g=["Glide"]),
     # --- natural phenomena & energies ---
     "fire": dict(f="Ball", m=[], e="Fire", g=[]),
+    # bare colour words: an element tint (as a graft: just the element), never a person / a cape
+    "red": dict(f="Ball", m=[], e="Fire", g=[]),
+    "blue": dict(f="Ball", m=[], e="Water", g=[]),
+    "purple": dict(f="Ball", m=[], e="Psychic", g=[]),
     "flame": dict(f="Ball", m=[], e="Fire", g=[]),
     "flames": dict(f="Ball", m=[], e="Fire", g=[]),
     "fireball": dict(f="Ball", m=["Explodes"], e="Fire"),
@@ -1539,6 +1543,8 @@ PURE = {
     "webs": ("Light", "Sticky"), "glue": ("Light", "Sticky"), "honey": ("Light", "Sticky"),
     "bullets": ("Light", None), "arrows": ("Light", "Pierce"), "darts": ("Poison", "Pierce"),
     "needles": ("Light", "Pierce"), "quills": ("Light", "Pierce"),
+    # bare colour words are an element tint, never a person ("red" was a bolshevik, "blue" a cape)
+    "red": ("Fire", None), "blue": ("Water", None), "purple": ("Psychic", None),
 }
 
 # WordNet lexicographer-file fallbacks so every concrete noun resolves to *something* sensible.

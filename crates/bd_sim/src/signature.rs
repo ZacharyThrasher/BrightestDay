@@ -25,6 +25,7 @@
 //! aim point and strikes down with a telegraphed, tracking beam (the one per-tick piece; zero cost
 //! without orbitals).
 
+pub mod orb;
 pub mod orbital;
 
 use bd_core::mechanics::{Form, FormCategory, Mechanic, ModelSource, Recipe};
@@ -37,6 +38,7 @@ use crate::events::CastError;
 use crate::rules::MatchRules;
 use crate::world::{Aim, World};
 
+pub use orb::{OrbTuning, SigFx, is_piercing_orb};
 pub use orbital::{OrbitalTuning, StrikePhase, is_orbital};
 
 /// Per-world signature state (`World::signature`): the cast in progress + live orbital emitters.
@@ -44,6 +46,7 @@ pub use orbital::{OrbitalTuning, StrikePhase, is_orbital};
 pub(crate) struct SignatureState {
     pub(crate) cast: Option<SignatureCtx>,
     pub(crate) orbitals: Vec<orbital::Orbital>,
+    pub(crate) orbs: Vec<orb::Orb>,
 }
 
 /// What fantasy a signature expresses (mirrors `bd_lexicon::SignatureKind`; the game maps them).
@@ -61,15 +64,23 @@ pub struct SignatureCast {
     pub kind: SignatureKind,
     /// 0..1: how hard it was shouted (voice loudness / CAPS / "!!!"). Scales the result a little.
     pub power: f32,
+    /// A fusion-style windup (`windup: Merge(a, b)` in `assets/signatures.ron`): an orb of each
+    /// element forms at either hand and they merge (presentation; announced as [`SigFx::Merge`]).
+    #[serde(default)]
+    pub merge: Option<[bd_core::mechanics::Element; 2]>,
 }
 
 impl SignatureCast {
     pub fn new(kind: SignatureKind, power: f32) -> Self {
-        Self { kind, power }.sanitized()
+        Self { kind, power, merge: None }.sanitized()
+    }
+    pub fn with_merge(mut self, a: bd_core::mechanics::Element, b: bd_core::mechanics::Element) -> Self {
+        self.merge = Some([a, b]);
+        self
     }
     /// Untrusted → safe.
     pub fn sanitized(self) -> Self {
-        Self { kind: self.kind, power: if self.power.is_finite() { self.power.clamp(0.0, 1.0) } else { 0.0 } }
+        Self { kind: self.kind, power: if self.power.is_finite() { self.power.clamp(0.0, 1.0) } else { 0.0 }, merge: self.merge }
     }
 }
 
@@ -106,6 +117,8 @@ pub struct SignatureTuning {
     pub bot_chance: f32,
     /// Orbital strikes (an emitter that Flies + DropFromSky), see [`orbital`].
     pub orbital: OrbitalTuning,
+    /// Erasing orbs (a piercing Beam signature: Hollow Purple), see [`orb`].
+    pub orb: OrbTuning,
 }
 
 impl Default for SignatureTuning {
@@ -119,7 +132,7 @@ impl Default for SignatureTuning {
             scale_cap_mult: 2.5,
             max_scale: 30.0,
             beam_caliber: 2.5,
-            windup: 0.7,
+            windup: 0.6,
             held_life: 10.0,
             cost_mult: 1.35,
             alert_cost: 45.0,
@@ -127,6 +140,7 @@ impl Default for SignatureTuning {
             bot_willpower: 85.0,
             bot_chance: 0.2,
             orbital: OrbitalTuning::default(),
+            orb: OrbTuning::default(),
         }
     }
 }
@@ -154,6 +168,7 @@ impl SignatureTuning {
         self.bot_willpower = fin(self.bot_willpower, d.bot_willpower, 0.0, 200.0);
         self.bot_chance = fin(self.bot_chance, d.bot_chance, 0.0, 1.0);
         self.orbital = self.orbital.validated();
+        self.orb = self.orb.validated();
         self
     }
 
@@ -200,7 +215,8 @@ const DOMAIN_DROPS: [Mechanic; 13] = [
 
 /// Rewrite an ordinary resolution into its signature form, using existing mechanics only. The
 /// result is pre-validation: the cast pipeline clamps everything except the lifted scale.
-pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &MatchRules) -> Recipe {
+/// `full_bar`: cast from a full willpower bar (charged up) — a slightly bigger orb.
+pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &MatchRules, full_bar: bool) -> Recipe {
     let sig = sig.sanitized();
     let p = sig.power;
     let grow = t.scale_mult + t.scale_mult_shout * p;
@@ -224,6 +240,9 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
                 // A creature / an orbital emitter keeps its body: bigger, with a Beam.
                 r.mechanics.push(Mechanic::Beam);
                 r.scale *= grow;
+            } else if is_piercing_orb(&r) {
+                // A piercing thing that is fired / thrown: an erasing orb (Hollow Purple).
+                r = orb::orb_recipe(r, &t.orb, p, full_bar);
             } else {
                 // The railgun archetype (Gun + Beam): hold to charge, a lingering piercing beam.
                 r.form = Form::Gun;
@@ -269,7 +288,8 @@ impl World {
     ) -> Result<ConstructId, CastError> {
         let sig = sig.sanitized();
         let t = self.cfg.tuning.signature.clone();
-        let amped = amplify(recipe.clone(), sig, &t, &self.cfg.rules);
+        let full_bar = self.player(player).is_some_and(|p| p.willpower >= self.cfg.rules.willpower_max() - 0.5);
+        let amped = amplify(recipe.clone(), sig, &t, &self.cfg.rules, full_bar);
         let (_, cost) = self.preview_signature_cost(player, amped.clone());
         let have = self.player(player).map_or(0.0, |p| p.willpower);
         if cost > have + 1e-4 && !self.cfg.rules.infinite_willpower() {
@@ -279,8 +299,15 @@ impl World {
         let shape = if sig.kind == SignatureKind::Domain { None } else { shape };
         let aim = Aim { modifier: false, ..aim };
         self.signature.cast = Some(SignatureCtx { scale: amped.scale, form: amped.form, kind: sig.kind });
+        let orb = sig.kind == SignatureKind::Beam && is_piercing_orb(&amped);
+        let shape = if orb { None } else { shape };
         let res = self.cast_shaped(player, amped, shape, None, aim);
         self.signature.cast = None;
+        if let (Ok(cid), Some([a, b])) = (res, sig.merge) {
+            let secs = self.constructs.get(cid).map_or(0.0, |c| c.forming_t);
+            let pos = self.constructs.get(cid).map_or(aim.origin, |c| c.pos);
+            self.events.push(crate::events::GameEvent::SignatureFx { id: cid, owner: player, fx: SigFx::Merge { a, b, secs }, pos, dir: aim.dir });
+        }
         res
     }
 
@@ -344,9 +371,12 @@ pub(crate) fn orbital_spawn(w: &World, recipe: &Recipe, caster_eye: Vec3, aim_po
     if is_orbital(recipe) { orbital::spawn_point(w, caster_eye, aim_point).0 } else { pos }
 }
 
-/// After the spawn: an orbital emitter starts its strike cycle.
+/// After the spawn: an orbital emitter starts its strike cycle; a Beam signature's erasing orb its
+/// windup.
 pub(crate) fn orbital_spawned(w: &mut World, cid: ConstructId, recipe: &Recipe, caster_eye: Vec3, aim_point: Vec3) {
-    if is_orbital(recipe) {
+    if w.signature.cast.is_some_and(|c| c.kind == SignatureKind::Beam) && is_piercing_orb(recipe) {
+        orb::register(w, cid);
+    } else if is_orbital(recipe) {
         let (anchor, ground) = orbital::spawn_point(w, caster_eye, aim_point);
         orbital::register(w, cid, anchor, ground);
     }
@@ -355,6 +385,7 @@ pub(crate) fn orbital_spawned(w: &mut World, cid: ConstructId, recipe: &Recipe, 
 /// World::tick, after constructs: orbital strikes.
 pub(crate) fn step(w: &mut World, dt: f32) {
     orbital::step(w, dt);
+    orb::step(w, dt);
 }
 
 /// Forming time: at least the readable windup.
@@ -447,14 +478,14 @@ mod tests {
         let t = SignatureTuning::default();
         let rules = MatchRules::default();
         let bouncy = rec(Form::Trampoline, &[Mechanic::Bounce, Mechanic::Flies], 4.0);
-        let d = amplify(bouncy, SignatureCast::new(SignatureKind::Domain, 0.0), &t, &rules);
+        let d = amplify(bouncy, SignatureCast::new(SignatureKind::Domain, 0.0), &t, &rules, false);
         assert_eq!(d.form, Form::Dome);
         for m in [Mechanic::Barrier, Mechanic::Trap, Mechanic::Bounce] {
             assert!(d.has(m), "{m:?}");
         }
         assert!(!d.has(Mechanic::Flies));
         assert!((d.scale - 16.0).abs() < 1e-4);
-        let loud = amplify(rec(Form::Dome, &[], 4.0), SignatureCast::new(SignatureKind::Domain, 1.0), &t, &rules);
+        let loud = amplify(rec(Form::Dome, &[], 4.0), SignatureCast::new(SignatureKind::Domain, 1.0), &t, &rules, false);
         assert!((loud.scale - 20.0).abs() < 1e-4);
     }
 
@@ -466,6 +497,7 @@ mod tests {
             SignatureCast::new(SignatureKind::Beam, 0.5),
             &t,
             &MatchRules::default(),
+            false,
         );
         assert_eq!(b.form, Form::Gun);
         assert_eq!(crate::weapons::archetype_for(&b), Some(crate::weapons::GunArchetype::Railgun));
@@ -477,9 +509,9 @@ mod tests {
     fn caps_and_hostile_power() {
         let t = SignatureTuning::default();
         let rules = MatchRules::default();
-        let k = amplify(rec(Form::Kaiju, &[], 22.0), SignatureCast { kind: SignatureKind::Summon, power: f32::NAN }, &t, &rules);
+        let k = amplify(rec(Form::Kaiju, &[], 22.0), SignatureCast { kind: SignatureKind::Summon, power: f32::NAN, merge: None }, &t, &rules, false);
         assert!(k.scale <= t.max_scale + 1e-4);
-        let h = amplify(rec(Form::Hammer, &[], 1.2), SignatureCast { kind: SignatureKind::Transformation, power: 99.0 }, &t, &rules);
+        let h = amplify(rec(Form::Hammer, &[], 1.2), SignatureCast { kind: SignatureKind::Transformation, power: 99.0, merge: None }, &t, &rules, false);
         assert!(h.has(Mechanic::Heavy) && h.scale <= form_spec(Form::Hammer).max_scale * t.scale_cap_mult + 1e-4);
         assert_eq!(SignatureTuning { cost_mult: f32::NAN, ..Default::default() }.validated(), t);
     }

@@ -195,6 +195,7 @@ impl ActiveWorld {
             Cmd::Signature { recipe, shape, aim, sig } => {
                 let _ = w.cast_signature(player, *recipe, shape, aim, sig);
             }
+            Cmd::CastMeta(meta) => w.set_cast_meta(player, meta), // FREEDOM HOOK
         }
     }
 }
@@ -233,6 +234,9 @@ pub enum Cmd {
     /// what it invokes; the sim amplifies it (`World::cast_signature`). Treated like `Cast` by NET
     /// (cast sequence, prediction). `recipe.name` carries the title.
     Signature { recipe: Box<Recipe>, shape: Option<ShapeSpec>, aim: Aim, sig: bd_sim::signature::SignatureCast },
+    /// FREEDOM HOOK (`bd_sim::freedom`): how the next cast was said — the phrase (kill feed), shout
+    /// energy (≤ +15 %), an "it" resize. Sent right before its `Cast` / `Signature`; host-sanitised.
+    CastMeta(bd_sim::freedom::CastMeta),
 }
 
 /// Who issues a command.

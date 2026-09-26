@@ -35,7 +35,7 @@ pub mod noise;
 pub mod tutorial;
 pub mod world;
 
-pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, generate_arena, generate_flat_test};
+pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, SurfLine, generate_arena, generate_flat_test};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use material::{DebrisClass, MATERIALS, MaterialDef, mat, material_def};
 pub use maps::{District, MIAMI_SIZE_VOXELS, MapInfo, ORBIT_SIZE_VOXELS, Route, RouteKind, generate_miami, generate_orbit};

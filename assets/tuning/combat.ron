@@ -689,4 +689,27 @@
             cost_mult: 1.25,
         ),
     ),
+    // FREEDOM (bd_sim::freedom / bd_sim::legendary; hidden, never shown to players). A full shout (typed
+    // CAPS / "!!!" or a real yell, equal) adds energy_max_bonus scale / intensity. "make it bigger" resizes
+    // by resize_min..resize_max (and the rules' scale range). An unaffordable cast sputters down to
+    // sputter_floor of the asked scale (or the form minimum) and drains what's left. Legendary: chance =
+    // fresh x personal x (base + (cap - base) x richness); fresh = 0 once anyone cast the phrase this match
+    // (else fresh_floor..1 by unseen concept words), richness points / rich_full, personal = 1/(1+uses)^2
+    // over personal_window s. A legendary construct: scale x scale, intensity + intensity, integrity x integrity.
+    freedom: (
+        energy_max_bonus: 0.15,
+        resize_min: 0.5,
+        resize_max: 2.0,
+        sputter_floor: 0.35,
+        legendary: (
+            base: 0.01,
+            cap: 0.12,
+            fresh_floor: 0.35,
+            rich_full: 5.0,
+            personal_window: 45.0,
+            scale: 1.2,
+            intensity: 0.2,
+            integrity: 1.3,
+        ),
+    ),
 )

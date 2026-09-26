@@ -184,6 +184,10 @@ pub struct Caster<'w> {
     shouts: MessageWriter<'w, crate::present::shout::ShoutCast>,
     /// SIGNATURE HOOK: how hard a signature was shouted (CAPS / "!!!" / amplifier words).
     shout_table: Option<Res<'w, bd_fx::ShoutTable>>,
+    /// SIGNATURE HOOK: peak mic level of the push-to-talk utterance (a spoken signature's power).
+    sig_voice: Option<Res<'w, crate::present::signature::SignatureVoice>>,
+    /// FREEDOM HOOK: the last phrase ("again!" repeats it).
+    memo: Option<ResMut<'w, crate::lobby::feed::CastMemo>>,
 }
 
 /// What a phrase turned into.
@@ -241,10 +245,18 @@ impl Caster<'_> {
         let Some(local) = active.local else { return false };
         let Some(lex) = self.lex.as_ref().map(|l| l.0.clone()) else { return false };
         let power = active.world.parse_power_phrase(local, text);
+        // FREEDOM HOOK: "it" = your newest construct, "again!" / "two more" re-cast, "missile at Jake"
+        // aims at Jake — text steps before the resolver (lobby/feed.rs); what doesn't apply casts as said.
+        let plan = match &power {
+            PowerPhrase::Plain => crate::lobby::feed::plan_cast(&lex, &active.world, local, text, spoken, self.memo.as_ref().and_then(|m| m.last.as_deref())),
+            _ => crate::lobby::feed::CastPlan::plain(text),
+        };
+        let voice_peak = spoken.then(|| self.sig_voice.as_ref().map_or(0.8, |v| v.peak));
+        let energy = crate::lobby::feed::cast_energy(text, voice_peak, self.shout_table.as_deref());
         // Instant local feedback on the same frame as the key press.
         self.cues.write(RingCue::Forming { voice: spoken });
         self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
-        match resolve_phrase(&lex, power, text, spoken) {
+        match resolve_phrase(&lex, power, &plan.text, spoken) {
             Resolved::PowerMove(slot) => {
                 self.cmds.write(SimCommand::local(Cmd::PowerMove(slot)));
             }
@@ -258,16 +270,35 @@ impl Caster<'_> {
                     Some(r) if r.dir.is_finite() && r.dir.length_squared() > 0.5 => (r.origin, r.dir),
                     _ => (self.anchor.eye, self.look.forward()),
                 };
-                let modifier = res.kind == ResolutionKind::Graft;
-                let target_hint = self.aimed_enemy(eye, dir).map(TargetHint::Player);
+                let modifier = res.kind == ResolutionKind::Graft || plan.graft_onto.is_some();
+                let target_hint = match (plan.graft_onto, plan.target) {
+                    (Some(id), _) => Some(TargetHint::Construct(id)),
+                    (None, Some(p)) => Some(TargetHint::Player(p)),
+                    (None, None) => self.aimed_enemy(eye, dir).map(TargetHint::Player),
+                };
                 let aim = Aim { origin: core_v3(eye), dir: core_v3(dir), target_hint, modifier };
                 if Lexicon::is_fallback(&res) {
                     log_unresolved(text, spoken, &res);
                 }
-                let res = *res;
+                let mut res = *res;
+                if let Some(n) = plan.count {
+                    res.recipe.count = n.max(1);
+                }
+                // FREEDOM HOOK: the words (kill feed), shout energy and an "it" resize go just before the cast.
+                let resize = if plan.graft_onto.is_some() { res.graft.scale_mul } else { 1.0 };
+                let meta = bd_sim::freedom::CastMeta { resize, ..bd_sim::freedom::CastMeta::new(&plan.said, energy) };
+                self.cmds.write(SimCommand::local(Cmd::CastMeta(meta)));
+                if !plan.repeat
+                    && let Some(m) = self.memo.as_mut()
+                {
+                    m.last = Some(text.to_string());
+                }
                 // SIGNATURE HOOK (COMBAT.md §5j): "domain expansion …", "kamehameha" → a signature cast.
                 let cmd = match res.signature.as_ref().filter(|_| !incantation) {
-                    Some(s) => signature_cmd(res.recipe, res.shape, aim, s, text, self.shout_table.as_deref()),
+                    Some(s) => {
+                        let level = spoken.then(|| self.sig_voice.as_ref().map_or(0.8, |v| v.peak));
+                        signature_cmd(res.recipe, res.shape, aim, s, text, self.shout_table.as_deref(), level)
+                    }
                     None => Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation },
                 };
                 self.cmds.write(SimCommand::local(cmd));
@@ -302,7 +333,17 @@ impl Caster<'_> {
 /// SIGNATURE HOOK: a signature resolution → `Cmd::Signature` (the sim amplifies it). The title rides
 /// in `recipe.name` (cut-in label, staleness); `power` 0..1 = how hard it was shouted (typed energy:
 /// CAPS / "!!!" / stretched letters / amplifier words; `bd_fx::typed_energy` ≈ 0.35 calm … 2.3).
-pub fn signature_cmd(mut recipe: bd_core::mechanics::Recipe, shape: Option<bd_core::shape::ShapeSpec>, aim: Aim, s: &bd_lexicon::SignatureCall, text: &str, table: Option<&bd_fx::ShoutTable>) -> Cmd {
+/// `voice` = the utterance's peak mic level when spoken (`bd_fx::voice_energy`). A data windup
+/// (`Merge(a, b)`) rides along for the presentation.
+pub fn signature_cmd(
+    mut recipe: bd_core::mechanics::Recipe,
+    shape: Option<bd_core::shape::ShapeSpec>,
+    aim: Aim,
+    s: &bd_lexicon::SignatureCall,
+    text: &str,
+    table: Option<&bd_fx::ShoutTable>,
+    voice: Option<f32>,
+) -> Cmd {
     use bd_lexicon::SignatureKind as L;
     use bd_sim::signature::{SignatureCast, SignatureKind as S};
     let kind = match s.kind {
@@ -311,15 +352,20 @@ pub fn signature_cmd(mut recipe: bd_core::mechanics::Recipe, shape: Option<bd_co
         L::Transformation => S::Transformation,
         L::Summon => S::Summon,
     };
-    let energy = match table {
-        Some(t) => bd_fx::typed_energy(text, t),
-        None => bd_fx::typed_energy(text, &bd_fx::ShoutTable::default()),
+    let fallback = bd_fx::ShoutTable::default();
+    let t = table.unwrap_or(&fallback);
+    let energy = match voice {
+        Some(level) => bd_fx::voice_energy(level, text, t),
+        None => bd_fx::typed_energy(text, t),
     };
     let power = ((energy - 0.35) / 1.4).clamp(0.0, 1.0);
     if !s.title.is_empty() {
         recipe.name = s.title.clone();
     }
-    Cmd::Signature { recipe: Box::new(recipe), shape, aim: Aim { modifier: false, ..aim }, sig: SignatureCast::new(kind, power) }
+    Cmd::Signature { recipe: Box::new(recipe), shape, aim: Aim { modifier: false, ..aim }, sig: match s.windup {
+        Some((a, b)) => SignatureCast::new(kind, power).with_merge(a, b),
+        None => SignatureCast::new(kind, power),
+    } }
 }
 
 /// Append a fallback phrase to `logs/unresolved.txt` (next to `assets/`).

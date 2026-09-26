@@ -450,6 +450,7 @@ impl World {
             self.pay(i, cost)?;
             self.players[i].casts.record(&recipe.name, self.tick);
         }
+        crate::freedom::legendary_boost(self, &mut recipe, flavor); // FREEDOM HOOK: hidden, so never priced
         if self.free_cast && self.constructs.len() >= super::MAX_CONSTRUCTS - 8 {
             return Err(CastError::Busy);
         }

@@ -1421,7 +1421,7 @@
         source: "Bleach",
     ),
     IconEntry(
-        names: ["hollow purple", "hollow technique purple", "murasaki", "gojo's purple", "purple gojo", "hollow purple gojo"],
+        names: ["hollow purple", "hollow technique purple", "murasaki", "gojo's purple", "purple gojo", "hollow purple gojo", "cursed technique purple", "hollow technique murasaki"],
         recipe: (
             name: "Hollow Purple",
             form: Cannon,
@@ -1463,7 +1463,7 @@
         source: "Jujutsu Kaisen",
     ),
     IconEntry(
-        names: ["reversal red", "cursed technique reversal red", "red gojo", "gojo's red"],
+        names: ["reversal red", "cursed technique reversal red", "red gojo", "gojo's red", "cursed technique red", "red reversal"],
         recipe: (
             name: "Reversal: Red",
             form: Ball,
@@ -1479,7 +1479,7 @@
         source: "Jujutsu Kaisen",
     ),
     IconEntry(
-        names: ["lapse blue", "cursed technique lapse blue", "blue gojo", "gojo's blue"],
+        names: ["lapse blue", "cursed technique lapse blue", "blue gojo", "gojo's blue", "cursed technique blue", "blue lapse"],
         recipe: (
             name: "Lapse: Blue",
             form: Ball,

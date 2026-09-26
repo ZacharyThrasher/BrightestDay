@@ -83,4 +83,8 @@
     dodge_iframes: 0.13,
     wall_refresh: true,
     wall_refresh_same_wall_lockout: 30.0,
+    surf: true,
+    surf_air_accel: 120.0,
+    surf_min_angle: 45.0,
+    surf_max_angle: 80.0,
 )

@@ -66,7 +66,7 @@ fn spawn_ropes(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mat
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn update_ropes(
     clock: Res<TickClock>,
     anchor: Res<ViewAnchor>,

@@ -19,7 +19,9 @@ pub struct ScoreboardPlugin;
 
 impl Plugin for ScoreboardPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_code_tag).add_systems(Update, (draw_board, draw_code_tag).in_set(UiSet::Draw));
+        app.add_plugins(crate::lobby::feed::FeedPlugin) // FREEDOM: kill feed + highlights data
+            .add_systems(Startup, spawn_code_tag)
+            .add_systems(Update, (draw_board, draw_code_tag).in_set(UiSet::Draw));
     }
 }
 
@@ -35,8 +37,12 @@ fn draw_board(
     active: Option<Res<ActiveWorld>>,
     roots: Query<Entity, With<BoardRoot>>,
     mut last_sig: Local<u64>,
+    highlights: Res<crate::lobby::feed::MatchHighlights>,
+    lex: Option<Res<crate::console::RingLexicon>>,
 ) {
-    let held = *state.get() == AppState::InGame && !menu.0 && !focus.typing && binds.pressed(Action::Scoreboard, &keys, &mouse);
+    // FREEDOM: the board doubles as the results screen while an FFA match is over (+ highlights).
+    let ended = active.as_ref().is_some_and(|a| a.world.match_state.phase == bd_sim::MatchPhase::Ended && a.world.party().is_none());
+    let held = *state.get() == AppState::InGame && !menu.0 && ((!focus.typing && binds.pressed(Action::Scoreboard, &keys, &mouse)) || ended);
     let Some(a) = active.filter(|_| held) else {
         if !roots.is_empty() {
             for e in &roots {
@@ -59,7 +65,7 @@ fn draw_board(
         rows.sort_by_key(|r| std::cmp::Reverse(lives_of(r.player).unwrap_or(0)));
     }
     // Cheap signature: rebuild only when something shown changed.
-    let mut sig: u64 = 1469598103934665603 ^ secs;
+    let mut sig: u64 = 1469598103934665603 ^ secs ^ ((ended as u64) << 40) ^ ((highlights.0.is_some() as u64) << 41) ^ ((lex.is_some() as u64) << 42);
     for r in &rows {
         sig = (sig ^ ((r.player.0 as u64) << 32 | (r.kos as u64) << 16 | r.deaths as u64)).wrapping_mul(1099511628211);
         sig = (sig ^ lives_of(r.player).unwrap_or(0) as u64).wrapping_mul(1099511628211);
@@ -142,7 +148,43 @@ fn draw_board(
                     }
                 });
             }
+            if let Some(h) = highlights.0.as_ref().filter(|_| ended) {
+                highlights_panel(root, h, &a, lex.as_deref());
+            }
         });
+}
+
+/// FREEDOM: end-of-match highlights under the results (ranked host-side; only sizes / counts shown).
+fn highlights_panel(root: &mut ChildSpawnerCommands, h: &bd_sim::freedom::Highlights, a: &ActiveWorld, lex: Option<&crate::console::RingLexicon>) {
+    use crate::lobby::feed::GOLD;
+    let blocked = |w: &str| lex.is_none_or(|l| l.0.is_blocked_name(w));
+    let name = |id: bd_core::PlayerId| a.world.player(id).map_or_else(|| format!("P{}", id.0), |p| p.name.clone());
+    let phrase = |p: &str| bd_sim::freedom::filter_phrase(p, blocked).map(|s| s.to_uppercase());
+    let mut lines: Vec<(&'static str, Vec<(String, bool)>)> = Vec::new();
+    let wild: Vec<(String, bool)> = h.wildest.iter().filter_map(|p| phrase(&p.phrase).map(|s| (format!("\u{201c}{s}\u{201d}  \u{2014} {}", name(p.player)), p.legendary))).collect();
+    lines.push(("WILDEST", wild));
+    let kos: Vec<(String, bool)> = h.ko_lines.iter().map(|l| (crate::lobby::feed::feed_line_text(l, a, lex), l.legendary)).collect();
+    lines.push(("BEST KOS", kos));
+    if let Some(b) = &h.biggest {
+        if let Some(s) = phrase(&b.phrase) {
+            lines.push(("BIGGEST", vec![(format!("{s}  \u{2014} {} \u{b7} {:.0} m", name(b.player), b.size_m.max(0.0)), b.legendary)]));
+        }
+    }
+    if let Some((p, n)) = h.creative {
+        lines.push(("MOST CREATIVE", vec![(format!("{} \u{b7} {n} unique phrase{}", name(p), if n == 1 { "" } else { "s" }), false)]));
+    }
+    root.spawn((
+        Text::new("HIGHLIGHTS"),
+        TextFont::from_font_size(12.0),
+        TextColor(Color::srgba(1.0, 1.0, 1.0, 0.45)),
+        Node { margin: UiRect::top(px(14)), align_self: AlignSelf::Center, ..default() },
+    ));
+    for (label, rows) in lines.into_iter().filter(|(_, r)| !r.is_empty()) {
+        root.spawn((Text::new(label), TextFont::from_font_size(11.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.38)), Node { margin: UiRect::top(px(6)), ..default() }));
+        for (text, gold) in rows {
+            root.spawn((Text::new(text), TextFont::from_font_size(16.0), TextColor(if gold { GOLD } else { Color::srgba(1.0, 1.0, 1.0, 0.88) })));
+        }
+    }
 }
 
 fn spawn_code_tag(mut commands: Commands) {

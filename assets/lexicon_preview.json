@@ -8,36 +8,36 @@
    "Anvil": 8545,
    "Arachnid": 1615,
    "Axe": 626,
-   "Ball": 29375,
-   "Biped": 96676,
-   "Bird": 33968,
-   "Blob": 11267,
+   "Ball": 29491,
+   "Biped": 96624,
+   "Bird": 33967,
+   "Blob": 11245,
    "Blob0": 51,
    "Bomb": 3054,
    "Boulder": 7016,
    "Bow": 298,
    "Cage": 2635,
    "Cannon": 2571,
-   "Cape": 3149,
+   "Cape": 3148,
    "Disc": 10173,
    "Dome": 629,
-   "Fish": 5170,
+   "Fish": 5153,
    "Gauntlet": 3614,
    "Gun": 5402,
-   "Hammer": 7011,
+   "Hammer": 7008,
    "Insect": 28463,
    "Jetpack": 2864,
    "Kaiju": 5587,
    "Parachute": 179,
    "Pillar": 87200,
    "Platform": 5313,
-   "Quadruped": 88696,
+   "Quadruped": 88673,
    "Ramp": 659,
    "Rocket": 4274,
    "Serpent": 1612,
-   "Shield": 5075,
+   "Shield": 5076,
    "Spear": 866,
-   "Staff": 2068,
+   "Staff": 2070,
    "Sword": 3208,
    "Trampoline": 662,
    "Vehicle": 76360,
@@ -1811,6 +1811,28 @@
    "t": null
   },
   {
+   "k": "red",
+   "d": null,
+   "f": "Ball",
+   "m": [],
+   "e": "Fire",
+   "s": 0.4,
+   "w": 1.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 6.82,
+   "g": [],
+   "ge": "Fire",
+   "ft": [],
+   "fl": 2224,
+   "x": [
+    "red (hand anchor → Ball)",
+    "red → bolshevik → radical → person (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
    "k": "fire",
    "d": null,
    "f": "Ball",
@@ -1879,6 +1901,28 @@
    "fl": 2065,
    "x": [
     "eyes (hand anchor → Ball)"
+   ],
+   "t": null
+  },
+  {
+   "k": "blue",
+   "d": null,
+   "f": "Ball",
+   "m": [],
+   "e": "Water",
+   "s": 0.4,
+   "w": 1.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 6.63,
+   "g": [],
+   "ge": "Water",
+   "ft": [],
+   "fl": 2096,
+   "x": [
+    "blue (hand anchor → Ball)",
+    "blue → clothing (WordNet hypernym)"
    ],
    "t": null
   },
@@ -1986,58 +2030,6 @@
     "eye (hand anchor → Ball)"
    ],
    "t": null
-  },
-  {
-   "k": "to go",
-   "d": "to-go",
-   "f": "Ball",
-   "m": [],
-   "e": "Light",
-   "s": 0.4,
-   "w": 1.0,
-   "n": 1,
-   "a": null,
-   "c": 0.361,
-   "r": 6.51,
-   "g": [
-    "Ricochet"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "to go = take-out (Wikidata alias)",
-    "take out ≈ food (Wikidata)",
-    "food (anchor -> Ball)"
-   ],
-   "t": null
-  },
-  {
-   "k": "food fight",
-   "d": null,
-   "f": "Ball",
-   "m": [
-    "Sticky",
-    "Swarm"
-   ],
-   "e": "Light",
-   "s": 0.4,
-   "w": 1.0,
-   "n": 8,
-   "a": null,
-   "c": 1.0,
-   "r": 6.5,
-   "g": [
-    "Ricochet",
-    "Sticky"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 1040,
-   "x": [
-    "food fight (hand anchor → Ball)"
-   ],
-   "t": "Chaotic"
   },
   {
    "k": "and",

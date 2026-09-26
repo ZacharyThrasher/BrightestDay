@@ -139,3 +139,32 @@ fn signatures_resolve_fast_and_never_panic() {
     let per = t.elapsed().as_secs_f64() * 1e3 / 50.0;
     assert!(per < 5.0, "{per:.2} ms per signature resolve");
 }
+
+#[test]
+fn hollow_purple_is_the_flagship() {
+    let Some(l) = common::lex() else { return };
+    for p in ["hollow purple", "HOLLOW PURPLE!!!", "cursed technique purple", "murasaki"] {
+        let r = l.resolve(p);
+        let s = r.signature.as_ref().unwrap_or_else(|| panic!("{p:?}: {:?}", r.explanation));
+        assert_eq!(s.kind, SignatureKind::Beam, "{p:?}");
+        assert_eq!(s.windup, Some((Element::Water, Element::Fire)), "{p:?}: the blue + red merge");
+        assert!(r.recipe.has(Mechanic::Pierce), "{p:?}: it goes through things");
+        assert_eq!(r.recipe.element, Element::Psychic);
+    }
+    // The halves stay themselves.
+    assert!(l.resolve("reversal red").recipe.has(Mechanic::Repel));
+    assert!(l.resolve("cursed technique blue").recipe.has(Mechanic::Attract));
+}
+
+#[test]
+fn bare_colour_words_are_element_tints() {
+    let Some(l) = common::lex() else { return };
+    for (p, e) in [("red", Element::Fire), ("blue", Element::Water), ("purple", Element::Psychic)] {
+        let r = l.resolve(p);
+        assert_eq!(r.graft.element.or(Some(r.recipe.element)), Some(e), "{p:?}: {:?}", r.explanation);
+        assert_ne!(r.recipe.form, bd_core::mechanics::Form::Biped, "{p:?} is not a person");
+        assert_ne!(r.recipe.form, bd_core::mechanics::Form::Cape, "{p:?} is not a cape");
+    }
+    assert_eq!(l.resolve("lapse blue").recipe.name, "Lapse: Blue");
+    assert_eq!(l.resolve("reversal red").recipe.name, "Reversal: Red");
+}

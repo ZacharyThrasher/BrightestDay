@@ -185,6 +185,8 @@ pub struct SignaturePlugin;
 
 impl Plugin for SignaturePlugin {
     fn build(&self, app: &mut App) {
+        // Messages this plugin writes / reads that other plugins own (idempotent registration).
+        app.add_message::<CutIn>().add_message::<FovPunch>().add_message::<ScreenFlash>().add_message::<GameEvents>().add_message::<SimCommand>();
         app.add_message::<SignatureCue>()
             .init_resource::<Spectacles>()
             .init_resource::<SigDev>()
@@ -713,7 +715,7 @@ fn dev_test(
         let aim = bd_sim::Aim::new(gv(eye), gv((anchor.eye - eye).normalize_or(Vec3::NEG_Z)));
         info!("signature test: bot {bot:?} casts {phrase:?} from {dist} m @ {yaw}°");
         let cmd = match res.signature.as_ref() {
-            Some(s) => crate::console::signature_cmd(res.recipe.clone(), res.shape.clone(), aim, s, phrase, None),
+            Some(s) => crate::console::signature_cmd(res.recipe.clone(), res.shape.clone(), aim, s, phrase, None, None),
             None => crate::sim_bridge::Cmd::Cast {
                 recipe: Box::new(res.recipe),
                 shape: res.shape,

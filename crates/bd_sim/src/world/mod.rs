@@ -448,6 +448,7 @@ impl World {
         // Constructs feed movement.
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);
+        crate::movement::push_surf_colliders(&self.arena.surf_lines, &mut self.colliders); // SURF: map surf lines
 
         self.carve_ops_used = 0;
         self.punch_through(dt); // Smash: launched players plow through terrain (world/punch.rs)

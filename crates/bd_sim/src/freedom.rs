@@ -38,6 +38,8 @@ use crate::World;
 
 /// Longest phrase kept for the feed / highlights (the shout words cap, `bd_fx::SHOUT_MAX_CHARS`).
 pub const PHRASE_MAX: usize = 48;
+/// A cast meta is used by that player's next cast within this many ticks (0.5 s), else dropped.
+pub const META_TTL: Tick = 60;
 /// Constructs whose phrase is remembered for the feed (ring; old ones are forgotten).
 pub const TAG_CAP: usize = 192;
 /// Shout energy (`bd_fx::typed_energy` / `voice_energy`) at or below this is calm (no bonus).
@@ -457,7 +459,7 @@ impl FreedomState {
 
 impl World {
     /// The client's words / energy for `player`'s next cast (send it right before the cast). Used by
-    /// the next `cast*` of that player within 2 ticks; a newer meta replaces an unused one.
+    /// the next `cast*` of that player within [`META_TTL`] ticks; a newer meta replaces an unused one.
     pub fn set_cast_meta(&mut self, player: PlayerId, meta: CastMeta) {
         let meta = meta.sanitized();
         let f = &mut self.freedom;
@@ -491,7 +493,7 @@ pub(crate) fn begin_cast(w: &mut World, player: PlayerId) -> Option<Current> {
     let meta = match f.pending.iter().position(|(p, _, _)| *p == player) {
         Some(k) => {
             let (_, m, at) = f.pending.swap_remove(k);
-            if tick.saturating_sub(at) <= 2 { m } else { CastMeta::default() }
+            if tick.saturating_sub(at) <= META_TTL { m } else { CastMeta::default() }
         }
         None => match f.cur.as_ref().filter(|c| c.player == player) {
             Some(outer) => outer.meta.clone(),
@@ -542,10 +544,6 @@ pub(crate) fn spawn_prelude(w: &mut World, i: usize, recipe: &mut Recipe, terrai
     let n = legendary::novelty(&w.freedom.novelty, &key, recipe, uses, lt);
     let chance = legendary::chance(&n, lt);
     let legendary = legendary::roll(w.cfg.seed, w.tick, id, key.key, chance);
-    if legendary {
-        recipe.scale = (recipe.scale * lt.scale).min((hi * lt.scale).max(recipe.scale));
-        recipe.intensity = (recipe.intensity + lt.intensity).min(1.0);
-    }
     if !colossal_before && crate::willpower::is_colossal(recipe) {
         recipe.scale = crate::rules::COLOSSAL_SCALE - 0.01; // a bonus never turns a cast into a colossal one
     }
@@ -554,8 +552,8 @@ pub(crate) fn spawn_prelude(w: &mut World, i: usize, recipe: &mut Recipe, terrai
     let f = &mut w.freedom;
     let fresh_for_player = legendary::record(&mut f.novelty, &key, id);
     if fresh_for_player && !phrase.is_empty() {
-        match f.book.unique.iter_mut().find(|(p, _)| *p == id) {
-            Some((_, c)) => *c = c.saturating_add(1),
+        match f.book.unique.iter().position(|(p, _)| *p == id) {
+            Some(k) => f.book.unique[k].1 = f.book.unique[k].1.saturating_add(1),
             None if f.book.unique.len() < 32 => f.book.unique.push((id, 1)),
             None => {}
         }
@@ -567,6 +565,24 @@ pub(crate) fn spawn_prelude(w: &mut World, i: usize, recipe: &mut Recipe, terrai
     }
     f.book.offer_wild(score, pick, key.key);
     Flavor { legendary, score }
+}
+
+/// FREEDOM HOOK (`spawn_cast`, after paying): the legendary empowerment — +20 % scale (may pass the
+/// form clamp by that much, never into colossal), + intensity. Free: never priced (the roll is hidden,
+/// so the cost must not give it away).
+pub(crate) fn legendary_boost(w: &World, recipe: &mut Recipe, flavor: Flavor) {
+    if !flavor.legendary {
+        return;
+    }
+    let lt = &w.cfg.tuning.freedom.legendary;
+    let spec = crate::constructs::forms::form_spec(recipe.form);
+    let (_, hi) = w.cfg.rules.scale_range(spec.min_scale, spec.max_scale);
+    let colossal_before = crate::willpower::is_colossal(recipe);
+    recipe.scale = (recipe.scale * lt.scale).min((hi * lt.scale).max(recipe.scale));
+    recipe.intensity = (recipe.intensity + lt.intensity).min(1.0);
+    if !colossal_before && crate::willpower::is_colossal(recipe) {
+        recipe.scale = crate::rules::COLOSSAL_SCALE - 0.01;
+    }
 }
 
 /// FREEDOM HOOK (`spawn_cast`, before paying): never refuse for willpower. If `cost` can't be paid,
@@ -701,8 +717,8 @@ pub(crate) fn end_of_tick(w: &mut World) {
             GameEvent::Hit { target, source: Some(src), construct: Some(cid), kind, .. } => {
                 let (target, src, cid, kind, tick) = (*target, *src, *cid, *kind, w.tick);
                 let lh = &mut w.freedom.last_hit;
-                match lh.iter_mut().find(|e| e.0 == target) {
-                    Some(e) => *e = (target, cid, src, kind, tick),
+                match lh.iter().position(|e| e.0 == target) {
+                    Some(p) => lh[p] = (target, cid, src, kind, tick),
                     None if lh.len() < 32 => lh.push((target, cid, src, kind, tick)),
                     None => {}
                 }
@@ -794,7 +810,7 @@ mod tests {
         r.element = Element::Light;
         r.mechanics = vec![Mechanic::Pierce];
         assert_eq!(verb_text(verb_for(&r)), "skewered");
-        r.mechanics = vec![Mechanic::Explodes, Mechanic::Pierce];
+        r.mechanics = vec![Mechanic::Pierce, Mechanic::Explodes]; // sorted (Recipe::has binary-searches)
         assert_eq!(verb_text(verb_for(&r)), "blown up");
         r.mechanics = vec![Mechanic::Launch];
         assert_eq!(verb_text(verb_for(&r)), "launched");

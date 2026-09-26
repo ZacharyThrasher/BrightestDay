@@ -602,3 +602,144 @@ fn lexicon_satellite_shape_strikes_from_orbit() {
     assert!(phases.contains(&StrikePhase::Strike), "{phases:?}");
     assert!(w.player(B).unwrap().damage_pct > pct0, "the beam came down on B");
 }
+
+// ================================================================================ Hollow Purple
+
+use bd_sim::signature::SigFx;
+
+fn hollow_purple() -> Recipe {
+    let mut r = recipe("Hollow Purple", Form::Cannon, &[Mechanic::Pierce, Mechanic::Explodes, Mechanic::Heavy], Element::Psychic, 2.0);
+    r.name = "Hollow Purple".into();
+    r
+}
+
+/// A faces -Z; a stone wall 14–18 m ahead; B's wall construct at 22 m; B at 28 m.
+fn purple_range() -> (World, Vec3) {
+    let mut w = duel();
+    let a = w.player(A).unwrap().mv.pos;
+    let vs = bd_core::VOXEL_SIZE;
+    let v = |p: Vec3| bd_core::IVec3::new((p.x / vs).floor() as i32, (p.y / vs).floor() as i32, (p.z / vs).floor() as i32);
+    w.voxels.fill_box(v(a + Vec3::new(-4.0, 0.0, -18.0)), v(a + Vec3::new(4.0, 5.0, -14.0)), 3);
+    w.player_mut(B).unwrap().mv.pos = a + Vec3::new(0.0, 0.0, -28.0);
+    w.player_mut(B).unwrap().willpower = 100.0;
+    let b_eye = a + Vec3::new(0.0, 1.6, -28.0);
+    w.cast(B, recipe("wall", Form::Wall, &[Mechanic::Barrier], Element::Light, 4.0), None, Aim::new(b_eye, Vec3::new(0.0, -0.3, 1.0).normalize())).unwrap();
+    for _ in 0..30 {
+        w.tick(&[]);
+    }
+    w.player_mut(A).unwrap().willpower = 100.0;
+    (w, a)
+}
+
+fn cast_purple(w: &mut World) -> ConstructId {
+    let aim = aim_of(w, A);
+    let aim = Aim::new(aim.origin, Vec3::NEG_Z);
+    w.cast_signature(A, hollow_purple(), None, aim, SignatureCast::new(SignatureKind::Beam, 1.0).with_merge(Element::Water, Element::Fire)).expect("cast")
+}
+
+#[test]
+fn hollow_purple_winds_up_then_erases_a_tunnel_constructs_and_players() {
+    let (mut w, a) = purple_range();
+    let wall_id = w.constructs.iter().find(|c| c.owner == B && c.recipe.form == Form::Wall).map(|c| c.id).expect("B's wall");
+    let n0 = w.events().len();
+    let orb = cast_purple(&mut w);
+    let (_, rec, forming, cost) = spawned(&w.events()[n0..]).unwrap();
+    assert_eq!(rec.form, Form::Ball);
+    assert!(rec.scale >= 3.5, "a LARGE sphere: {}", rec.scale);
+    assert!(rec.has(Mechanic::Attract), "suction wake");
+    assert!(forming >= 0.55 && forming <= 0.8, "windup {forming}");
+    assert!(cost > 50.0 && cost <= 100.0, "most of the bar: {cost}");
+    let mut evs: Vec<GameEvent> = w.events()[n0..].to_vec();
+    let mut launch_at = None;
+    let mut b_launch: Option<f32> = None;
+    let mut time = 0.0;
+    for _ in 0..(4.0 / DT) as usize {
+        let e = w.tick(&[]).to_vec();
+        time += DT;
+        for x in &e {
+            match x {
+                GameEvent::SignatureFx { id, fx: SigFx::Launch { .. }, .. } if *id == orb => launch_at = launch_at.or(Some(time)),
+                GameEvent::Launched { player, speed, .. } if *player == B => b_launch = b_launch.or(Some(*speed)),
+                _ => {}
+            }
+        }
+        evs.extend(e);
+    }
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::SignatureFx { fx: SigFx::Merge { a: Element::Water, b: Element::Fire, .. }, .. })), "blue + red merge");
+    let launch_at = launch_at.expect("released");
+    assert!(launch_at >= forming - 0.02, "released after the windup: {launch_at}");
+    // The tunnel: the wall is bored through along the path.
+    let vs = bd_core::VOXEL_SIZE;
+    let mut air = 0;
+    for dz in 14..=18 {
+        let p = a + Vec3::new(0.0, 1.5, -(dz as f32) - 0.25);
+        let v = bd_core::IVec3::new((p.x / vs).floor() as i32, (p.y / vs).floor() as i32, (p.z / vs).floor() as i32);
+        air += (w.voxels.get(v) == 0) as u32;
+    }
+    assert_eq!(air, 5, "a tunnel through the wall");
+    // Everything in the way is erased; B was launched, hard but survivable at 0 %.
+    assert!(w.constructs.get(wall_id).is_none_or(|c| c.gone.is_some()), "B's wall erased");
+    let s = b_launch.expect("B launched");
+    assert!((25.0..=60.0).contains(&s), "launch speed at low %: {s}");
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::SignatureFx { id, fx: SigFx::End, .. } if *id == orb)), "it ends");
+    assert!(w.constructs.get(orb).is_none_or(|c| c.gone.is_some()));
+}
+
+#[test]
+fn hollow_purple_knockback_grows_into_a_ko_at_mid_percent() {
+    let speed_at = |pct: f32| {
+        let (mut w, _) = purple_range();
+        w.player_mut(B).unwrap().damage_pct = pct;
+        cast_purple(&mut w);
+        for _ in 0..(3.0 / DT) as usize {
+            for e in w.tick(&[]).to_vec() {
+                if let GameEvent::Launched { player, speed, .. } = e {
+                    if player == B {
+                        return speed;
+                    }
+                }
+            }
+        }
+        0.0
+    };
+    let (low, mid) = (speed_at(0.0), speed_at(90.0));
+    assert!(mid > low * 1.25, "grows with damage: {low} -> {mid}");
+    assert!(mid >= 50.0, "mid % is KO territory: {mid}");
+}
+
+#[test]
+fn hollow_purple_is_deterministic_and_predicted() {
+    use bd_core::input::PlayerInput;
+    let run = || {
+        let (mut w, _) = purple_range();
+        cast_purple(&mut w);
+        for _ in 0..(3.5 / DT) as usize {
+            w.tick(&[]);
+        }
+        (w.state_hash(), w.voxels.content_hash())
+    };
+    assert_eq!(run(), run());
+    // The caster strafes during the windup and flight; a replica predicts them exactly.
+    let (mut host, _) = purple_range();
+    cast_purple(&mut host);
+    let mut client = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
+    for e in host.construct_manifest() {
+        client.apply_event(&e);
+    }
+    client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+    let mut bad = 0;
+    for k in 0..300u32 {
+        let inp = PlayerInput { move_x: if k % 80 < 40 { 1 } else { -1 }, ..Default::default() };
+        let mut s = client.player(A).unwrap().mv;
+        client.predict_player(A, &mut s, &inp);
+        for e in host.tick(&[(A, inp)]).to_vec() {
+            client.apply_event(&e);
+        }
+        client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+        let h = host.player(A).unwrap().mv;
+        if (h.pos - s.pos).length() > 1e-4 || (h.vel - s.vel).length() > 1e-3 {
+            bad += 1;
+        }
+    }
+    assert_eq!(bad, 0, "prediction diverged on {bad} ticks");
+}

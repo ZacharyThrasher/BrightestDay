@@ -55,6 +55,8 @@ pub struct ExtraMoves {
     pub dodge_base: Vec3,
     /// Normal of the last wall that refreshed the air jump (zero = none since ground / tether).
     pub last_wall: Vec3,
+    /// Normal of the surf face touched last tick (zero = not surfing; `super::surf`).
+    pub surf_n: Vec3,
 }
 
 impl Default for ExtraMoves {
@@ -68,6 +70,7 @@ impl Default for ExtraMoves {
             dodge_dir: Vec3::ZERO,
             dodge_base: Vec3::ZERO,
             last_wall: Vec3::ZERO,
+            surf_n: Vec3::ZERO,
         }
     }
 }
@@ -119,6 +122,9 @@ impl ExtraMoves {
         }
         if !self.last_wall.is_finite() {
             self.last_wall = Vec3::ZERO;
+        }
+        if !self.surf_n.is_finite() {
+            self.surf_n = Vec3::ZERO;
         }
     }
 }

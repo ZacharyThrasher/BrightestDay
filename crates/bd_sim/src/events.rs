@@ -301,6 +301,9 @@ pub enum GameEvent {
     /// (show the ground target marker at `point` for `secs`), `Strike` (the beam is live for `secs`;
     /// `Hitscan` events carry its moving end point), `End` (cooldown `secs`).
     OrbitalStrike { id: ConstructId, owner: PlayerId, phase: crate::signature::StrikePhase, point: Vec3, radius: f32, secs: f32 },
+    /// SIGNATURE HOOK (`crate::signature`): a signature's moments for presentation / audio — a fusion
+    /// windup (`Merge`), an erasing orb's launch / erase / end (`crate::signature::orb`).
+    SignatureFx { id: ConstructId, owner: PlayerId, fx: crate::signature::SigFx, pos: Vec3, dir: Vec3 },
     /// FREEDOM HOOK (`crate::freedom`): kill-feed line (the killer construct's phrase as cast), a
     /// legendary construct appeared (golden sting), end-of-match highlights.
     Freedom(crate::freedom::FreedomEvent),

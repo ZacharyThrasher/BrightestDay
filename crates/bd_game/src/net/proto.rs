@@ -157,6 +157,8 @@ pub enum NetCmd {
     PartyPick(u8),
     /// A signature cast (`Cmd::Signature`); `seq` like `Cast`.
     Signature { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, aim: Aim, sig: bd_sim::signature::SignatureCast },
+    /// FREEDOM HOOK: how the next cast was said (`Cmd::CastMeta`).
+    CastMeta(bd_sim::freedom::CastMeta),
 }
 
 impl NetCmd {
@@ -188,6 +190,7 @@ impl NetCmd {
             Cmd::PartyPick(i) => NetCmd::PartyPick(i),
             Cmd::GrantPower(_) => return None,
             Cmd::Signature { recipe, shape, aim, sig } => NetCmd::Signature { seq: cast_seq, recipe, shape: small(shape), aim, sig },
+            Cmd::CastMeta(m) => NetCmd::CastMeta(m),
         })
     }
 
@@ -218,6 +221,11 @@ impl NetCmd {
                 // The sim validates the recipe, re-checks the aim and caps the amplified scale / cost.
                 let aim = Aim { origin: aim.origin, dir: aim.dir, target_hint: aim.target_hint, modifier: false };
                 Cmd::Signature { recipe, shape: small(shape), aim, sig: sig.sanitized() }
+            }
+            // Untrusted words: the shout sanitiser, then the sim's own clamp (energy is a u8 already).
+            NetCmd::CastMeta(m) => {
+                let phrase = bd_fx::sanitize_shout(&m.phrase, bd_fx::SHOUT_MAX_CHARS);
+                Cmd::CastMeta(bd_sim::freedom::CastMeta { phrase, ..m }.sanitized())
             }
         })
     }
@@ -317,7 +325,7 @@ mod tests {
     fn signature_cmd_roundtrips_and_is_sanitised() {
         use bd_sim::signature::{SignatureCast, SignatureKind};
         let aim = Aim::new(bd_core::Vec3::ZERO, bd_core::Vec3::NEG_Z);
-        let sig = SignatureCast { kind: SignatureKind::Domain, power: f32::NAN };
+        let sig = SignatureCast { kind: SignatureKind::Domain, power: f32::NAN, merge: None };
         let cmd = Cmd::Signature { recipe: Box::new(Recipe::unknown("Domain Expansion")), shape: None, aim, sig };
         let nc = NetCmd::from_cmd(&cmd, 7).expect("travels");
         assert_eq!(nc.cast_seq(), Some(7));
@@ -325,6 +333,22 @@ mod tests {
         let C2S::Cmd(nc) = back else { panic!("cmd") };
         match nc.into_cmd() {
             Some(Cmd::Signature { sig, .. }) => assert_eq!(sig.power, 0.0),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn cast_meta_travels_and_is_sanitised() {
+        let hostile = bd_sim::freedom::CastMeta { phrase: format!("KING KONG\u{7}<b>{}", "!".repeat(400)), energy: 255, resize: f32::INFINITY };
+        let nc = NetCmd::from_cmd(&Cmd::CastMeta(hostile), 3).expect("travels");
+        assert_eq!(nc.cast_seq(), None, "not a cast itself");
+        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::Cmd(nc))).unwrap();
+        let C2S::Cmd(nc) = back else { panic!("cmd") };
+        match nc.into_cmd() {
+            Some(Cmd::CastMeta(m)) => {
+                assert!(m.phrase.starts_with("KING KONG") && m.phrase.len() <= bd_sim::freedom::PHRASE_MAX && !m.phrase.contains('<'));
+                assert_eq!((m.energy, m.resize), (255, 1.0));
+            }
             other => panic!("{other:?}"),
         }
     }

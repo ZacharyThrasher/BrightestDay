@@ -594,17 +594,18 @@ fn animate_viewmodel(
                 let fist = gf.fist + pose.hand_t[anim::RIGHT] + Vec3::new(0.0, 0.0, ext);
                 let mut palm = fist - rot * (tip * ARM_SCALE) + rot * (palm_of(tip) * ARM_SCALE);
                 let mut item_rot = pose.hand_r[anim::RIGHT] * gf.item_rot;
-                let scale = HELD_VIEW_SCALE * gf.item_scale;
+                let mut scale = anim::hip_scale(tu, &geom, HELD_VIEW_SCALE * gf.item_scale);
                 if ads_blend > 0.0 {
                     // Aim down sights: up to the eye along the camera axis, sight under the crosshair.
-                    let (ads_palm, _) = anim::ads_palm(tu, &geom, scale);
+                    let (ads_palm, ads_scale) = anim::ads_palm(tu, &geom, scale);
+                    scale += (ads_scale - scale) * ads_blend;
                     let arm_rest = Quat::from_euler(EulerRot::YXZ, tu.grip_gun_arm[0], tu.grip_gun_arm[1], 0.0);
                     rot = rot.slerp(anim::reach_rot(arm_rest, ELBOW_R, ads_palm), ads_blend);
                     palm = palm.lerp(ads_palm, ads_blend);
                     item_rot = item_rot.slerp(Quat::IDENTITY, ads_blend);
                 }
                 let elbow = palm - rot * (palm_of(tip) * ARM_SCALE);
-                (rot, elbow, Some((anim::place_item(tu, &geom, palm, item_rot, scale), geom)))
+                (rot, elbow, Some((anim::place_item_scaled(&geom, palm, item_rot, scale), geom)))
             }
             _ => {
                 let rot = pose.hand_r[anim::RIGHT] * Quat::from_euler(EulerRot::YXZ, 0.16, 0.30, 0.0);

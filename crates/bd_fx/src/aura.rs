@@ -10,7 +10,7 @@
 //! * **pressure ring + cracks** (immediate, standing only) — a glowing ring pressed into the ground
 //!   and radial cracks that grow with `level`;
 //! * **shockwave** — set [`ChargeAuraFx::pulse`] for one frame: a ring of light dashes races out;
-//! * **far pillar** — beyond ~18 m a vertical light pillar keeps the charger readable at any range
+//! * **far pillar** — beyond ~14 m a vertical light pillar keeps the charger readable at any range
 //!   (thickness grows with distance so it never drops under a few pixels); flames scale up too.
 //!
 //! One-shots: [`AuraBurstFx`] (full-charge burst / broken collapse).
@@ -275,6 +275,17 @@ fn emit_auras(
                     fx.immediate_segment(prev, p, th, ring_col, e, PFlags::PLAIN);
                     prev = p;
                 }
+                // Ground glow (instead of a point light): two fainter inner rings read as a lit disc.
+                for (kr, ke) in [(0.68f32, 0.45f32), (0.4, 0.3)] {
+                    let r2 = rr * kr;
+                    let mut prev = Vec3::new(feet.x + r2, y - 0.005, feet.z);
+                    for i in 1..=18 {
+                        let an = i as f32 / 18.0 * std::f32::consts::TAU;
+                        let p = Vec3::new(feet.x + an.cos() * r2, y - 0.005, feet.z + an.sin() * r2);
+                        fx.immediate_segment(prev, p, th * 2.2, col, e * ke, PFlags::PLAIN);
+                        prev = p;
+                    }
+                }
                 // Radial cracks: fixed layout per aura, length grows with the level.
                 let cracks = 7;
                 let reach = (0.35 + (0.7 + 1.4 * lv) * k) * hs;
@@ -320,11 +331,11 @@ fn emit_auras(
         }
 
         // ---- far pillar: readable at any range.
-        let far = ((d - 18.0) / 14.0).clamp(0.0, 1.0);
+        let far = ((d - 14.0) / 12.0).clamp(0.0, 1.0);
         if far > 0.0 && !fp {
             let flick = if a.calm { 1.0 } else { 0.85 + 0.15 * (a.t * 23.0).sin() };
             let top = feet + Vec3::Y * (h + (3.0 + 4.0 * lv) * hs);
-            let th = (d * 0.0032).max(0.1);
+            let th = (d * 0.005).max(0.1);
             fx.immediate_segment(feet, top, th, col, (2.6 + 2.0 * lv) * far * k * flick, PFlags::PLAIN);
             // A hot core line inside it.
             fx.immediate_segment(feet + Vec3::Y * 0.2, top - Vec3::Y * 0.4, th * 0.4, hot, 4.0 * far * k * flick, PFlags::PLAIN);

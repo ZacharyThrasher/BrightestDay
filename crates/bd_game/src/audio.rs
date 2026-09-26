@@ -192,6 +192,8 @@ impl Plugin for AudioFxPlugin {
             // message twice is a no-op, reading an unregistered one panics at startup.
             .add_message::<crate::present::tracking::TrackingCue>()
             .add_message::<crate::present::signature::SignatureCue>()
+            .add_message::<bd_fx::ShoutSfx>()
+            .add_message::<crate::sim_bridge::GameEvents>()
             .add_systems(Startup, start_load)
             .add_systems(Update, finish_load.run_if(resource_exists::<AudioLoading>))
             .add_systems(OnExit(AppState::InGame), leave_game)

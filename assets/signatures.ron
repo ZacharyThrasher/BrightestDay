@@ -13,6 +13,8 @@
 //              `alone` = what a bare invocation builds ("domain expansion" on its own).
 // suffixes:    "<rest> <words>" ("fire domain").
 // names:       famous ultimates; the whole phrase, or the construct it resolves to, carries the tag.
+// windup:     optional look of the release windup: Merge(a, b) = an orb of each element at either
+//             hand, pulled together (fusion moves). Presentation only.
 // bang_beams:  a phrase with at least this many "!" that resolves to a Beam construct is a Beam
 //              signature ("HYPER BEAM!!!"). 0 = off.
 (
@@ -68,7 +70,7 @@
         (name: "big bang attack", kind: Beam),
         (name: "special beam cannon", kind: Beam),
         (name: "masenko", kind: Beam),
-        (name: "hollow purple", kind: Beam),
+        (name: "hollow purple", kind: Beam, windup: Some(Merge(Water, Fire))),
         (name: "getsuga tensho", kind: Beam),
         (name: "rasenshuriken", kind: Beam),
         (name: "hyper beam", kind: Beam),

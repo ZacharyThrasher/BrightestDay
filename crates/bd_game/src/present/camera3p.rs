@@ -514,7 +514,7 @@ fn update_mode(
 }
 
 /// Place the gameplay camera (third person / the dolly), apply ADS zoom, solve the crosshair.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) fn place_camera(
     time: Res<Time<Real>>,
     view: (Res<ViewMode>, Res<CameraRig>, Res<ViewAnchor>, Res<LookAngles>, Res<CameraShake>),
@@ -1080,6 +1080,35 @@ mod tests {
         wall.fill_box(Vec3::new(-5.0, 0.0, -10.5), Vec3::new(5.0, 5.0, -10.0));
         let (q, _) = crosshair_point(&wall, None, &[], cam, fwd, ray_start(cam, fwd, eye), AIM_RANGE);
         assert!(path_blocked(&wall, eye, q).is_none());
+    }
+
+    /// Perf budget: the whole per-frame third-person solve (2 lateral probes, the boom cone, the
+    /// crosshair ray, both parallax probes) on the real Miami map. `cargo test -- --ignored
+    /// camera_cost` prints µs per frame.
+    #[test]
+    #[ignore]
+    fn camera_cost_on_miami() {
+        let (w, info) = bd_voxel::maps::miami::generate_miami(1);
+        let mut rng = crate::util::Rng::new(7);
+        let n = 4000;
+        let t0 = std::time::Instant::now();
+        let mut sink = 0.0f32;
+        for k in 0..n {
+            let s = info.spawns[k % info.spawns.len()];
+            let eye = v3(s) + Vec3::new(rng.range(-6.0, 6.0), 1.6, rng.range(-6.0, 6.0));
+            let (rot, fwd, back, up) = frame(rng.range(0.0, std::f32::consts::TAU), rng.range(-0.8, 0.8));
+            for side in [1.0f32, -1.0] {
+                let o = rot * Vec3::new(SHOULDER.x * side, 0.0, 0.0);
+                sink += ray_t(&w, eye, o.normalize(), SHOULDER.x + PAD).unwrap_or(0.0);
+            }
+            let b = solve_boom(&w, eye, rot * SHOULDER, back, up, BOOM + SPEED_BOOM);
+            let cam = b.pivot + back * b.hard;
+            let (p, _) = crosshair_point(&w, None, &[], cam, fwd, ray_start(cam, fwd, eye), AIM_RANGE);
+            sink += path_blocked(&w, eye, p).map_or(0.0, |q| q.x) + path_blocked(&w, eye + Vec3::X * 0.3, p).map_or(0.0, |q| q.y);
+        }
+        let us = t0.elapsed().as_secs_f64() * 1e6 / n as f64;
+        println!("CAMERA_COST {us:.1} us per frame (sink {sink})");
+        assert!(us < 500.0, "{us} µs");
     }
 
     #[test]

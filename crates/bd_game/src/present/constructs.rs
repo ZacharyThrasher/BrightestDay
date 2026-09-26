@@ -704,6 +704,14 @@ fn sync_constructs(
                 }
                 vis.layers.set(&layers[..n]);
                 vis.integrity = cv.integrity;
+                // FREEDOM HOOK: a sputtering cast reuses the low-integrity flicker; a legendary one is gold.
+                if cv.flags & cflags::SPUTTER != 0 {
+                    vis.integrity = vis.integrity.min(0.3);
+                }
+                if cv.flags & cflags::LEGENDARY != 0 && vis.corps_color != crate::lobby::feed::GOLD_LINEAR {
+                    vis.corps_color = crate::lobby::feed::GOLD_LINEAR;
+                    vis.accent = Some(crate::lobby::feed::GOLD_ACCENT_LINEAR);
+                }
                 vis.flash = sc.flash;
                 // Owner out of willpower: the construct dims.
                 vis.dim = owner_view.map_or(0.0, |v| if v.willpower < 5.0 { 0.45 } else { 0.0 });

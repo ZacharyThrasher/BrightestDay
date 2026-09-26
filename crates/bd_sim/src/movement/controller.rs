@@ -270,7 +270,8 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
                 ctrl *= p.tumble_air_control;
             }
             let ws = p.run_speed * speed_mult;
-            accelerate(&mut s.vel, inp.wish_h, ws.min(p.air_wish_cap), p.air_accel * ws * dt * ctrl);
+            let aa = super::surf::air_accel(s, p); // SURF: surf_air_accel on a surf face, else air_accel
+            accelerate(&mut s.vel, inp.wish_h, ws.min(p.air_wish_cap), aa * ws * dt * ctrl);
             if inp.fwd_only && p.wstrafe_assist > 0.0 && s.mods.thrust <= 0.0 && !s.tethered() {
                 wstrafe_assist(&mut s.vel, inp.fwd_h, p.wstrafe_assist, ws.min(p.air_wish_cap), p.air_accel * ws * dt * ctrl);
             }
@@ -303,7 +304,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     // ---------------------------------------------------------------- 8. speed caps
     let h = Vec3::new(s.vel.x, 0.0, s.vel.z);
     let hs = h.length();
-    if hs > p.soft_cap_speed {
+    if hs > p.soft_cap_speed && !super::surf::surfing(s, p) {
         let e = hs - p.soft_cap_speed;
         let e2 = (e - (p.soft_cap_linear * e + p.soft_cap_quadratic * e * e) * dt).max(0.0);
         let k = (p.soft_cap_speed + e2) / hs;
@@ -342,6 +343,7 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     }
     // AIR JUMP / DODGE: back on landing, a tether attach, or a (different) wall / surf-ramp touch.
     super::air_jump::refresh(s, out.wall, p, &mut ev);
+    super::surf::update_contact(s, out.wall, p); // SURF: remember a surf face for next tick
     s.prev_buttons = inp.held;
     s.hop_chain = chain;
     ev.hop_chain = chain;

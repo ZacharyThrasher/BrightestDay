@@ -172,6 +172,16 @@ pub struct MoveParams {
     /// Degrees: a wall whose normal is within this of the last refreshing wall's doesn't refresh
     /// again until ground, another wall or a tether attach (no single-wall climbing). 0 = off.
     pub wall_refresh_same_wall_lockout: f32,
+
+    // ---------------------------------------------------------------- surfing (surf.rs)
+    /// CS-style surfing on steep unwalkable slopes (off = those slopes are just slippery walls).
+    pub surf: bool,
+    /// Air acceleration while surfing (replaces ir_accel; the wish cap stays ir_wish_cap).
+    pub surf_air_accel: f32,
+    /// A face counts as surf between these angles from horizontal (degrees; below the minimum it is
+    /// walkable ground, above the maximum a wall).
+    pub surf_min_angle: f32,
+    pub surf_max_angle: f32,
 }
 
 impl Default for MoveParams {
@@ -268,6 +278,11 @@ impl Default for MoveParams {
             dodge_iframes: 0.13,
             wall_refresh: true,
             wall_refresh_same_wall_lockout: 30.0,
+
+            surf: true,
+            surf_air_accel: 120.0,
+            surf_min_angle: 45.0,
+            surf_max_angle: 80.0,
         }
     }
 }

@@ -6,10 +6,11 @@
 //!
 //! * **Aura** — a bd_fx [`ChargeAuraFx`] per charger (flames, sparks, lifting pebbles in the
 //!   terrain's colour, pressure ring + cracks, shockwave pulse every ~0.6 s → 0.45 s as it builds,
-//!   a light pillar at range) + a corps-coloured point light washing the ground.
+//!   a light pillar at range). No point lights (clustered lighting costs the whole screen): the
+//!   ground glow is the emissive pressure ring + glow disc.
 //! * **Pop** — the charger's hard-light body gets an emissive boost (brighter palette → bloom) and a
 //!   faint white sheen.
-//! * **World dim** — while any charger is in view, the world's shadows + midtones lose up to ~8 %
+//! * **World dim** — while any charger is in view, the world's shadows + midtones lose up to ~6.5 % (measured ~7–9 % darker on screen)
 //!   (eased over ~0.3 s; multiple chargers don't stack). Done in the camera's `ColorGrading`
 //!   section gains (free: the uniform is applied anyway): highlights — the chargers' boosted
 //!   bodies, auras, projectiles, constructs' bright edges — are barely touched, and UI isn't graded.
@@ -23,7 +24,6 @@
 //!   (see [`scenario`]).
 
 use super::PresentSet;
-use super::impact::FlashLight;
 use super::players::PlayerBody;
 use super::sound::Sfx3d;
 use crate::camera::PlayerCamera;
@@ -36,13 +36,12 @@ use bd_fx::{AuraBurstFx, ChargeAuraFx, ConstructVisual};
 use bd_sim::GameEvent;
 use bd_sim::charge::{ChargeEvent, WIRE_STEPS_PER_SEC};
 use bd_sim::replicate::pflags;
-use bevy::light::NotShadowCaster;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::view::ColorGrading;
 
 /// Peak world dim (fraction of shadow / midtone luminance removed).
-pub const DIM_MAX: f32 = 0.08;
+pub const DIM_MAX: f32 = 0.065;
 /// Seconds of hold time for the aura to reach full size.
 const LEVEL_SECS: f32 = 3.5;
 
@@ -167,7 +166,6 @@ fn ground_color(arena: Option<&crate::arena::ArenaWorld>, feet: Vec3) -> [f32; 3
 
 #[allow(clippy::too_many_arguments)]
 fn charge_events(
-    mut commands: Commands,
     mut events: MessageReader<GameEvents>,
     active: Option<Res<ActiveWorld>>,
     views: Res<WorldViews>,
@@ -201,19 +199,6 @@ fn charge_events(
                 cues.write(cue(ChargeCueKind::Full));
                 burst.write(AuraBurstFx { pos, color, height, scale: 0.9 + 0.6 * level, flash: flashes > 0.01, broken: false, ground });
                 sfx.write(Sfx3d::at("oath_complete", pos + Vec3::Y).gain(0.9).pitch(1.15));
-                if flashes > 0.01 {
-                    commands.spawn((
-                        FlashLight { t: 0.0, life: 0.3, peak: 1.4e6 * flashes },
-                        PointLight {
-                            color: super::rgb_color([0.5 + color[0] * 0.5, 0.5 + color[1] * 0.5, 0.5 + color[2] * 0.5]),
-                            intensity: 0.0,
-                            range: 14.0,
-                            shadow_maps_enabled: false,
-                            ..default()
-                        },
-                        Transform::from_translation(pos + Vec3::Y * height * 0.6),
-                    ));
-                }
             }
             ChargeEvent::Broken => {
                 cues.write(cue(ChargeCueKind::Broken));
@@ -247,7 +232,7 @@ fn sync_auras(
     cams: Query<&GlobalTransform, With<PlayerCamera>>,
     mut auras: ResMut<Auras>,
     mut loops: ResMut<ChargeLoops>,
-    mut q: Query<(&mut ChargeAuraFx, &mut Transform, &mut PointLight)>,
+    mut q: Query<(&mut ChargeAuraFx, &mut Transform)>,
     mut cues: MessageWriter<ChargeCue>,
 ) {
     loops.0.clear();
@@ -274,15 +259,6 @@ fn sync_auras(
                         ChargeAura,
                         ChargeAuraFx::new(color, v.id.0 as u32 * 7919 + 17),
                         Transform::from_translation(v.pos),
-                        PointLight {
-                            color: super::rgb_color(color),
-                            intensity: 0.0,
-                            range: 8.0,
-                            radius: 0.4,
-                            shadow_maps_enabled: false,
-                            ..default()
-                        },
-                        NotShadowCaster,
                     ))
                     .id();
                 auras.0.entry(v.id).or_insert(AuraSlot { entity: e, intensity: 0.0, held: 0.0, next_pulse: 0.25, was_on: false })
@@ -310,7 +286,7 @@ fn sync_auras(
             slot.next_pulse = 0.25;
         }
         slot.was_on = on;
-        let Ok((mut aura, mut tf, mut light)) = q.get_mut(slot.entity) else { continue };
+        let Ok((mut aura, mut tf)) = q.get_mut(slot.entity) else { continue };
         tf.translation = v.pos;
         aura.intensity = slot.intensity;
         aura.level = level;
@@ -325,10 +301,6 @@ fn sync_auras(
         aura.first_person = v.is_local && !third;
         aura.calm = calm;
         aura.pulse |= pulse;
-        // The aura lights its surroundings (ground wash in corps colour).
-        let flicker = if calm { 1.0 } else { 0.9 + 0.1 * (slot.held * 21.0).sin() };
-        light.intensity = slot.intensity * (3.0e5 + 6.0e5 * level) * flicker;
-        light.range = 6.0 + 4.0 * level;
         if slot.intensity > 0.02 {
             loops.0.push(ChargeLoop { player: v.id, pos: v.pos, level, intensity: slot.intensity, local: v.is_local });
         }

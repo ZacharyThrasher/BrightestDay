@@ -165,12 +165,12 @@ fn place(scene: &str, active: &mut ActiveWorld) -> Option<(bd_core::Vec3, f32, f
         p.mv.vel = bd_core::Vec3::ZERO;
     }
     // (Run with `--bots 1`: that bot is the target.)
-    if let (Some(t), Some(id)) = (target, w.players.iter().map(|p| p.id).find(|id| *id != me)) {
-        if let Some(p) = w.player_mut(id) {
-            p.mv.pos = t;
-            p.mv.vel = bd_core::Vec3::ZERO;
-            p.spawn_shield = 0.0;
-        }
+    if let (Some(t), Some(id)) = (target, w.players.iter().map(|p| p.id).find(|id| *id != me))
+        && let Some(p) = w.player_mut(id)
+    {
+        p.mv.pos = t;
+        p.mv.vel = bd_core::Vec3::ZERO;
+        p.spawn_shield = 0.0;
     }
     if scene == "gun" {
         let eye = feet + bd_core::Vec3::Y * 1.6;

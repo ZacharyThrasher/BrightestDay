@@ -625,6 +625,14 @@ pub fn generate_miami(seed: u64) -> (VoxelWorld, MapInfo) {
         fog_color: [0.96, 0.58, 0.60],
         ambient: 0.46,
         gravity: None,
+        // SURF: Causeway Chute — off the north Brickell tower's roof (jump south from its edge) down
+        // the z = 60 cross street, over the avenue, onto the north causeway's canal bridge.
+        surf_lines: vec![crate::arena::SurfLine {
+            a: Vec3::new(-94.0, towers[3].roof_y() + 4.0, N_CAUSEWAY_Z),
+            b: Vec3::new(-40.0, 18.0, N_CAUSEWAY_Z),
+            face_deg: 60.0,
+            width: 8.0,
+        }],
     };
     let districts = vec![
         District { name: "brickell", center: Vec3::new(-66.0, ROAD_Y, 20.0), area: [-96.0, -67.0, -36.0, 96.0] },

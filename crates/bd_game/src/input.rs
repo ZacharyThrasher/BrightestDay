@@ -123,7 +123,7 @@ impl Default for Bindings {
             tether_r: KeyCode::KeyE,
             reel: KeyCode::KeyR,
             charge: KeyCode::KeyZ,
-            dodge: KeyCode::CapsLock,
+            dodge: KeyCode::AltLeft,
         }
     }
 }

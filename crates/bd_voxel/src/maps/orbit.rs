@@ -844,6 +844,7 @@ pub fn generate_orbit(seed: u64) -> (VoxelWorld, MapInfo) {
         fog_color: [0.02, 0.035, 0.08],
         ambient: 0.34,
         gravity: Some(GRAVITY),
+        surf_lines: Vec::new(),
     };
     let districts = vec![
         District { name: "station", center, area: [-HUB_R, -HUB_R, HUB_R, HUB_R] },
