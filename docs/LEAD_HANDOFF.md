@@ -87,6 +87,12 @@ Everything below is committed and green unless noted.
   through walls, speed trails; melee lunge magnetism (sim, range/cone/LOS, cooldown), in-range weapon
   glow, hook-and-strike (tether hooks players, reel + one-shot slam; escapable; rules toggle).
   Same bounds worker also does visible summon placement + off-screen ping + tiny live preview camera.
+- SIGNATURE MOVES (owner: "domain expansion called by name should give a dopamine spike"): invocation
+  grammar + data `signature` tags; generic Domain mode (15-20 m sealed dome, element-transformed
+  interior, sure-hit homing, big willpower cost, charge synergy); ultimate beams with windup.
+  NO FREEZE (owner rejected taking control away) -> fighting-game "cut-in" DANGER alert via the shared
+  PiP camera API (CutIn message in present/summon_ping.rs, built by the bounds worker); title letters
+  via shout words.
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
