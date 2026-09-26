@@ -240,9 +240,11 @@ fn animate_fusions(
             i += 1;
             continue;
         };
+        // They are pulled into the gathering orb (the construct itself) when it is there.
+        let c = views.construct(fu.id).map_or(c, |v| v.pos);
         // Grow at the hands, then get pulled together (ease-in: it snaps shut at the end).
         let pull = k * k * k;
-        let size = 0.12 + 0.3 * k.min(0.6) / 0.6;
+        let size = 0.2 + 0.5 * k.min(0.6) / 0.6;
         let wobble = (fu.t * 30.0).sin() * 0.02 * k;
         for (n, from) in [l, r].into_iter().enumerate() {
             if let Ok(mut tf) = orbs.get_mut(fu.orbs[n]) {
