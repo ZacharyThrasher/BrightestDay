@@ -320,4 +320,6 @@ pub struct MoveEvents {
     pub air_jumped: bool,
     /// A dodge started this tick (direction: `PlayerState::extra.dodge_dir`).
     pub dodged: bool,
+    /// A wall / surf-ramp touch gave back the air jump / air dodge: the surface normal.
+    pub wall_refresh: Option<Vec3>,
 }

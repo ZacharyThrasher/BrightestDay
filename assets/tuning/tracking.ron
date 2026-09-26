@@ -1,24 +1,41 @@
 // Tracking + melee/hook presentation (bd_game present/tracking.rs). Hot-reloaded. Missing fields use defaults.
 // Defaults = the Rust defaults (a bd_game unit test checks parity). Never shown to players.
 (
-    // Ring compass: a filament from your ring toward the nearest enemy (or whoever hit you in the last
-    // compass_attacker_secs), longer/brighter with distance (near..far m), gone while they're on screen + in sight.
+    // Ring compass: while the nearest enemy (or whoever hit you in the last compass_attacker_secs) is off screen
+    // or hidden, the ring fires a sonar dart every dart_period (close..far m -> near..far values) that flies
+    // dart_len m toward them and pops into sparks; a tiny needle on the ring's rim faces them. Comfort: constant
+    // speed, no sparks. Both off while they're on screen + in sight.
     compass: true,
     compass_attacker_secs: 5.0,
-    compass_near: 8.0,
-    compass_far: 60.0,
-    compass_len_min: 0.08,
-    compass_len_max: 0.32,
-    compass_thick: 0.0032,
-    compass_tip_thick: 0.0011,
-    compass_emissive_min: 0.6,
-    compass_emissive_max: 2.6,
+    compass_near: 10.0,
+    compass_far: 70.0,
     compass_screen_margin: 0.8,
     compass_fade_rate: 6.0,
     compass_min_forward: 0.35,
-    compass_segments: 10,
-    compass_wobble: 0.012,
-    compass_wobble_hz: 0.7,
+    dart_period_near: 1.2,
+    dart_period_far: 1.6,
+    dart_attacker_period: 0.85,
+    dart_secs_near: 0.26,
+    dart_secs_far: 0.48,
+    dart_attacker_speed: 0.85,
+    dart_len: 2.5,
+    dart_head: 0.07,
+    dart_head_width: 0.04,
+    dart_thick: 0.008,
+    dart_streak: 0.45,
+    dart_emissive_near: 5.0,
+    dart_emissive_far: 1.8,
+    dart_attacker_boost: 1.3,
+    dart_sparks: 5,
+    dart_spark_speed: 1.6,
+    dart_spark_life: 0.16,
+    dart_spark_size: 0.018,
+    ring_needle: true,
+    ring_radius: 0.02,
+    ring_needle_len: 0.016,
+    ring_needle_thick: 0.004,
+    ring_needle_emissive: 4.5,
+    ring_from_light: (0.0, 0.06, 0.02),
     // Lantern beacons: faint pillars on players beyond min_dist (fully in by + fade_dist, out toward max_dist).
     beacon: true,
     beacon_min_dist: 60.0,

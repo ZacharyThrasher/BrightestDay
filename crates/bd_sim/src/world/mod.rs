@@ -661,6 +661,9 @@ impl World {
             if ev.dodged {
                 flags |= move_flags::DODGE;
             }
+            if ev.wall_refresh.is_some() {
+                flags |= move_flags::WALL_REFRESH;
+            }
             if flags != 0 {
                 events.push(GameEvent::Move { player: p.id, flags, speed: p.mv.speed() });
             }

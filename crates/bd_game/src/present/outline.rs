@@ -46,8 +46,9 @@ pub const PULSE_HZ_MAX: f32 = 1.3;
 /// Line widths (px at 1× width): outer edge from the silhouette, inner dark line.
 const OUTER_PX: f32 = 3.0;
 const INNER_PX: f32 = 1.25;
-/// Brightest channel of the corps line (linear): under the bloom knee (threshold 1, softness 0.35).
-const LINE_LUMA: f32 = 0.62;
+/// Brightest channel of the corps line (linear): under the camera's bloom threshold (1.0; the soft
+/// knee from 0.65 passes only ~3 % of it), so the line stays crisp.
+const LINE_LUMA: f32 = 0.85;
 
 /// What the viewer chose.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -104,7 +105,7 @@ pub fn outline_params(corps: Corps, damage_pct: f32, pulse01: f32, own: bool, st
     let breath = if style.pulse { pulse01.clamp(0.0, 1.0) } else { 0.6 };
     let w = if style.width.is_finite() { style.width.clamp(0.5, 2.0) } else { 1.0 };
     let mut col = line_color(corps.color());
-    let mut gain = 1.0 + 0.45 * d * breath;
+    let mut gain = 1.0 + 0.25 * d * breath;
     let mut outer = (OUTER_PX + 1.0 * d + 0.6 * d * breath) * w;
     let mut inner = (INNER_PX * w).max(0.9);
     let mut pat = [0.0, 1.0, 0.0];
@@ -169,6 +170,11 @@ impl Plugin for OutlinePlugin {
         );
         use crate::warmup::WarmupAppExt;
         app.add_warmup(warmup_hull);
+        if std::env::var_os("BD_OUTLINE_STATS").is_some() {
+            // Dev measurement: CPU cost of the outline systems + hull count, printed every 5 s.
+            app.init_resource::<OutlineCost>()
+                .add_systems(PostUpdate, (cost_start.before(camera_layer), cost_end.after(update_outlines)));
+        }
         if dev_test().is_some() {
             app.add_systems(Update, dev_views.after(crate::sim_bridge::BridgeSet::Views).before(super::PresentSet::Events)).add_systems(
                 PostUpdate,
@@ -318,6 +324,37 @@ fn update_outlines(
     }
 }
 
+// ------------------------------------------------------------------------------------ dev stats
+
+#[derive(Resource, Default)]
+struct OutlineCost {
+    start: Option<std::time::Instant>,
+    us: Vec<f32>,
+    next: f32,
+    elapsed: f32,
+}
+
+fn cost_start(mut c: ResMut<OutlineCost>) {
+    c.start = Some(std::time::Instant::now());
+}
+
+fn cost_end(mut c: ResMut<OutlineCost>, time: Res<Time<Real>>, hulls: Query<&OutlineHulls>) {
+    if let Some(s) = c.start.take() {
+        c.us.push(s.elapsed().as_secs_f32() * 1e6);
+    }
+    c.elapsed += time.delta_secs();
+    if c.elapsed < c.next || c.us.is_empty() {
+        return;
+    }
+    c.next = c.elapsed + 5.0;
+    let mut v = std::mem::take(&mut c.us);
+    v.sort_by(|a, b| a.total_cmp(b));
+    let avg = v.iter().sum::<f32>() / v.len() as f32;
+    let p99 = v[((v.len() as f32 * 0.99) as usize).min(v.len() - 1)];
+    let n: usize = hulls.iter().map(|h| h.hulls.len()).sum();
+    println!("OUTLINE frames={} cpu_avg_us={avg:.1} cpu_p99_us={p99:.1} roots={} hulls={n}", v.len(), hulls.iter().count());
+}
+
 // ------------------------------------------------------------------------------------ dev hook
 
 /// `BD_OUTLINE_TEST=pct:140,self,cam:60,yaw:30,h:2` — look checks / screenshots (never set in play):
@@ -429,9 +466,9 @@ mod tests {
             let l = line_color(c.color());
             let m = l[0].max(l[1]).max(l[2]);
             assert!((m - LINE_LUMA).abs() < 1e-4, "{c:?} {l:?}");
-            // Hottest (max danger, peak breath) stays near the knee (≤ 0.65 × 1.45).
+            // Hottest (max danger, peak breath) barely enters the soft knee (0.85 × 1.25 ≈ 1.06).
             let g = outline_params(c, 999.0, 1.0, false, OutlineStyle::default());
-            assert!(g.outer[0].max(g.outer[1]).max(g.outer[2]) < 0.95);
+            assert!(g.outer[0].max(g.outer[1]).max(g.outer[2]) < 1.1);
             // Inner line is dark.
             assert!(g.inner[0].max(g.inner[1]).max(g.inner[2]) < 0.05);
         }

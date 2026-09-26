@@ -121,9 +121,10 @@ LOW_EXEMPT = {'hit_crit', 'heartbeat'}
 HIGH_EXEMPT = {'heartbeat'}
 FOLEY = {'footstep', 'jump', 'land_light', 'slide_loop', 'boost_burst', 'boost_loop', 'tether_fire', 'tether_attach',
          'tether_release', 'tether_reel_loop', 'shell_casing', 'gun_shotgun_reload', 'debris_patter',
-         'transform_panel_click', 'break_leaves'}                     # < 10 % below 150 Hz
+         'transform_panel_click', 'break_leaves', 'hatch_open', 'hatch_close', 'exhaust_puff', 'air_jump', 'dodge',
+         'lunge', 'hook_fire', 'hook_attach', 'hook_reel_loop', 'hook_break', 'ads_in', 'ads_out'}  # < 10 % below 150 Hz
 HEAVY = {'explosion_small', 'explosion_big', 'kaiju_stomp', 'hit_heavy', 'wall_splat', 'collapse_rumble',
-         'ko_shatter', 'land_heavy'}                                   # >= 30 % below 150 Hz
+         'ko_shatter', 'land_heavy', 'kaiju_step', 'hook_slam', 'domain_open', 'ult_fire'}  # >= 30 % below 150 Hz
 
 
 def analyse(x, loop):

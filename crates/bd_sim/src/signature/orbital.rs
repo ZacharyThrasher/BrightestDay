@@ -72,8 +72,8 @@ pub struct OrbitalTuning {
     pub knockback: f32,
     pub carve_every: f32,
     pub carve_radius: f32,
-    /// Attract (abduction): upward speed given per pulse (m/s), capped at `abduct_max`.
-    pub abduct_lift: f32,
+    /// Attract (abduction): upward acceleration in the beam (m/s², gravity is 25), up to `abduct_max` m/s.
+    pub abduct_accel: f32,
     pub abduct_max: f32,
     /// THE orbital cost knob: existing cast cost (autonomous + scale) × this.
     pub cost_mult: f32,
@@ -98,8 +98,8 @@ impl Default for OrbitalTuning {
             knockback: 5.0,
             carve_every: 0.3,
             carve_radius: 1.2,
-            abduct_lift: 3.5,
-            abduct_max: 14.0,
+            abduct_accel: 40.0,
+            abduct_max: 8.0,
             cost_mult: 1.25,
         }
     }
@@ -128,7 +128,7 @@ impl OrbitalTuning {
         self.knockback = fin(self.knockback, d.knockback, 0.0, 100.0);
         self.carve_every = fin(self.carve_every, d.carve_every, DT, 10.0);
         self.carve_radius = fin(self.carve_radius, d.carve_radius, 0.0, 6.0);
-        self.abduct_lift = fin(self.abduct_lift, d.abduct_lift, 0.0, 50.0);
+        self.abduct_accel = fin(self.abduct_accel, d.abduct_accel, 0.0, 200.0);
         self.abduct_max = fin(self.abduct_max, d.abduct_max, 0.0, 60.0);
         self.cost_mult = fin(self.cost_mult, d.cost_mult, 0.0, 10.0);
         self
@@ -215,7 +215,15 @@ pub(crate) fn register(w: &mut World, cid: ConstructId, anchor: Vec3, ground: Ve
     c.recipe.mechanics.retain(|m| {
         !matches!(
             m,
-            Mechanic::Flies | Mechanic::Homing | Mechanic::DropFromSky | Mechanic::Beam | Mechanic::Shoots | Mechanic::Breath | Mechanic::Charge | Mechanic::Thrust | Mechanic::Walks
+            Mechanic::Flies
+                | Mechanic::Homing
+                | Mechanic::DropFromSky
+                | Mechanic::Beam
+                | Mechanic::Shoots
+                | Mechanic::Breath
+                | Mechanic::Charge
+                | Mechanic::Thrust
+                | Mechanic::Walks
         )
     });
     crate::constructs::components::on_graft(c);
@@ -242,7 +250,14 @@ pub(crate) fn register(w: &mut World, cid: ConstructId, anchor: Vec3, ground: Ve
         list.remove(0);
     }
     list.push(o);
-    w.events.push(GameEvent::OrbitalStrike { id: cid, owner: o.owner, phase: StrikePhase::Telegraph, point: ground, radius, secs: t.telegraph });
+    w.events.push(GameEvent::OrbitalStrike {
+        id: cid,
+        owner: o.owner,
+        phase: StrikePhase::Telegraph,
+        point: ground,
+        radius,
+        secs: t.telegraph,
+    });
 }
 
 /// SIGNATURE HOOK (World::tick, after constructs): hover, telegraph, strike, cool down.
@@ -257,7 +272,14 @@ pub(crate) fn step(w: &mut World, dt: f32) {
         let alive = w.constructs.get(o.construct).is_some_and(|c| c.gone.is_none());
         if !alive {
             if o.phase == StrikePhase::Strike {
-                w.events.push(GameEvent::OrbitalStrike { id: o.construct, owner: o.owner, phase: StrikePhase::End, point: o.point, radius: o.radius, secs: 0.0 });
+                w.events.push(GameEvent::OrbitalStrike {
+                    id: o.construct,
+                    owner: o.owner,
+                    phase: StrikePhase::End,
+                    point: o.point,
+                    radius: o.radius,
+                    secs: 0.0,
+                });
             }
             w.signature.orbitals.remove(i);
             continue;
@@ -276,11 +298,21 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                     o.t = 0.0;
                     o.pulse_t = 0.0;
                     o.carve_t = 0.0;
-                    w.events.push(GameEvent::OrbitalStrike { id: o.construct, owner: o.owner, phase: StrikePhase::Strike, point: o.point, radius: o.radius, secs: t.strike_secs });
+                    w.events.push(GameEvent::OrbitalStrike {
+                        id: o.construct,
+                        owner: o.owner,
+                        phase: StrikePhase::Strike,
+                        point: o.point,
+                        radius: o.radius,
+                        secs: t.strike_secs,
+                    });
                 }
             }
             StrikePhase::Strike => {
                 track(w, &mut o, &t, dt);
+                if o.abduct {
+                    lift(w, &o, &t, dt);
+                }
                 o.pulse_t -= dt;
                 if o.pulse_t <= 0.0 {
                     o.pulse_t += t.pulse;
@@ -289,7 +321,14 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                 if o.t >= t.strike_secs {
                     o.phase = StrikePhase::End;
                     o.t = 0.0;
-                    w.events.push(GameEvent::OrbitalStrike { id: o.construct, owner: o.owner, phase: StrikePhase::End, point: o.point, radius: o.radius, secs: t.cooldown });
+                    w.events.push(GameEvent::OrbitalStrike {
+                        id: o.construct,
+                        owner: o.owner,
+                        phase: StrikePhase::End,
+                        point: o.point,
+                        radius: o.radius,
+                        secs: t.cooldown,
+                    });
                 }
             }
             StrikePhase::End => {
@@ -297,7 +336,14 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                     o.phase = StrikePhase::Telegraph;
                     o.t = 0.0;
                     o.point = goal(w, &o, &t).unwrap_or(o.point);
-                    w.events.push(GameEvent::OrbitalStrike { id: o.construct, owner: o.owner, phase: StrikePhase::Telegraph, point: o.point, radius: o.radius, secs: t.telegraph });
+                    w.events.push(GameEvent::OrbitalStrike {
+                        id: o.construct,
+                        owner: o.owner,
+                        phase: StrikePhase::Telegraph,
+                        point: o.point,
+                        radius: o.radius,
+                        secs: t.telegraph,
+                    });
                 }
             }
         }
@@ -341,6 +387,28 @@ fn track(w: &World, o: &mut Orbital, t: &OrbitalTuning, dt: f32) {
     o.point = bd_core::voxel::raycast(&w.voxels, top, Vec3::NEG_Y, o.anchor.y + 80.0).map_or(Vec3::new(p.x, o.point.y, p.z), |h| h.point);
 }
 
+/// Attract (UFO abduction): everyone in the column rises toward the emitter (every tick, smooth).
+fn lift(w: &mut World, o: &Orbital, t: &OrbitalTuning, dt: f32) {
+    let origin = o.anchor - Vec3::Y * 1.0;
+    let seg = o.point - origin;
+    let seg_len2 = seg.length_squared().max(1e-6);
+    let base = w.cfg.move_params.clone();
+    for p in w.players.iter_mut() {
+        if p.id == o.owner || !p.alive || p.spawn_shield > 0.0 {
+            continue;
+        }
+        let c = p.hull(&base).center();
+        let k = ((c - origin).dot(seg) / seg_len2).clamp(0.0, 1.0);
+        if (c - (origin + seg * k)).length() > o.radius + 0.5 || c.y > origin.y - 2.0 {
+            continue;
+        }
+        let up = (t.abduct_max - p.mv.vel.y).clamp(0.0, t.abduct_accel * dt);
+        if up > 0.0 {
+            p.mv.apply_impulse(Vec3::Y * up, 0.0);
+        }
+    }
+}
+
 /// One beam pulse: hits along the column, visuals, carves.
 fn pulse(w: &mut World, o: &mut Orbital, t: &OrbitalTuning) {
     let origin = o.anchor - Vec3::Y * 1.0;
@@ -367,14 +435,13 @@ fn pulse(w: &mut World, o: &mut Orbital, t: &OrbitalTuning) {
         hits = hits.saturating_add(1);
         let pid = p.id;
         if o.abduct {
-            // UFO abduction: lifted toward the emitter instead of blasted.
-            let p = &mut w.players[i];
-            let up = (t.abduct_max - p.mv.vel.y).clamp(0.0, t.abduct_lift);
-            p.mv.apply_impulse(Vec3::Y * up, 0.0);
-            continue;
+            continue; // lifted every tick in `lift`, never blasted
         }
         let out = Vec3::new(c.x - end.x, 0.0, c.z - end.z).normalize_or(Vec3::X) * 0.6 + Vec3::Y * 0.4;
-        let hit = HitInfo::new(pid, Some(o.owner), HitKind::Shot, t.damage * o.dmg_mult, t.knockback, out, c).with_element(o.element).with_construct(o.construct).with_impact(0.35);
+        let hit = HitInfo::new(pid, Some(o.owner), HitKind::Shot, t.damage * o.dmg_mult, t.knockback, out, c)
+            .with_element(o.element)
+            .with_construct(o.construct)
+            .with_impact(0.35);
         w.apply_hit(hit);
     }
     match o.emit {

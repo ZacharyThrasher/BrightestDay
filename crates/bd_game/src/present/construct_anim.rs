@@ -169,6 +169,10 @@ fn animate_constructs(
         };
         let Some(mut overlay) = overlay else { continue };
         let a = &mut *anim;
+        // A shout asked the later bricks to wait for its letters (bd_fx shout ↔ assembly hook).
+        if let Some(asm) = assembly.as_deref() {
+            a.anim.hold_stages(asm.hold_request);
+        }
         // Events.
         if let Some(list) = inbox.pending.remove(&sc.id) {
             for (ev, _) in list {
@@ -300,7 +304,12 @@ fn animate_constructs(
         // Assembly hook for other effects (shout words).
         let asm = a.anim.assembly();
         if asm.active {
+            let sched = a.anim.stage_schedule();
+            let scale = tf.scale.max_element().clamp(0.05, 50.0);
             let st = ConstructAssembly {
+                slots: sched.map(|(p, _, _)| world(p)),
+                land_in: sched.map(|(_, s, _)| s),
+                radius: sched.map(|(_, _, r)| r * scale),
                 progress: asm.progress,
                 stage: asm.stage,
                 stages: asm.stages,
@@ -308,6 +317,8 @@ fn animate_constructs(
                 next_world: asm.next.map(|(p, _)| world(p)),
                 next_in: asm.next.map_or(0.0, |(_, s)| s),
                 total: a.anim.assembly_seconds(),
+                // Consumed above (hold_stages); requesters write it again each frame.
+                hold_request: 0.0,
             };
             match assembly {
                 Some(mut s) => *s = st,

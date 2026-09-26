@@ -1,12 +1,14 @@
 //! Air jump + dodge presentation (sim: `bd_sim::movement` air_jump.rs / dodge.rs).
 //!
-//! * **Air jump** — a hard-light *step* under the feet: a corps-coloured tile flash, a ring of light
+//! * **Air jump** — a hard-light *step* under the feet: a corps-coloured tile of light chips, a ring of light
 //!   chips racing outward on the step's plane, sparks spilling down (bd_fx particles). A small
 //!   push-off camera kick for the local player (an FOV punch; the knee dip lives in `player.rs`),
 //!   both comfort-gated. SFX: the `jump` cue pitched up (audio worker: a dedicated `air_jump` cue).
 //! * **Dodge** — a hard-light streak along the path (a thinning beam) plus three fading afterimage
 //!   silhouettes, corps-coloured; a small FOV pulse (comfort-gated). SFX: `boost_burst` pitched up
 //!   (audio worker: a dedicated `dodge` whoosh).
+//! * **Wall refresh** — a small corps-coloured scuff (a few chips + shards kicked off the surface)
+//!   and a quiet high tick (`land_light` pitched up; audio worker: `wall_refresh`).
 //! * Remote players: from the replicated `GameEvent::Move` flags (`AIR_JUMP` / `DODGE`) at the
 //!   interpolated view position; the local player: from this frame's (predicted) `MoveEvents`.
 //! * `--scenario airjump` (+ `--record`): two players hop / air-jump / dodge in front of the
@@ -15,7 +17,7 @@
 use super::sound::Sfx3d;
 use super::{PresentSet, bv, corps_rgb};
 use crate::juice::FovPunch;
-use crate::player::{FrameMoveEvents, LocalPlayer, PlayerSim};
+use crate::player::{FrameMoveEvents, LocalPlayer, MoveTuning, PlayerSim};
 use crate::settings::ComfortSettings;
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
 use bd_fx::{BurstFx, BurstKind, Emit, FxParticles, PFlags, PKind};
@@ -52,6 +54,7 @@ fn air_move_fx(
     views: Res<WorldViews>,
     local_q: Query<&PlayerSim, With<LocalPlayer>>,
     comfort: Res<ComfortSettings>,
+    tuning: Res<MoveTuning>,
     mut fx: Option<ResMut<FxParticles>>,
     mut burst: MessageWriter<BurstFx>,
     mut sfx: MessageWriter<Sfx3d>,
@@ -62,10 +65,11 @@ fn air_move_fx(
         return;
     };
     let flashes = comfort.flashes.clamp(0.0, 1.0);
+    let (dist, secs) = (tuning.0.dodge_distance, tuning.0.dodge_time.max(1e-3));
     // Remote players (the local one is played from its own predicted events below).
     for ev in events.read() {
         let GameEvent::Move { player, flags, .. } = &ev.event else { continue };
-        if active.local == Some(*player) || flags & (move_flags::AIR_JUMP | move_flags::DODGE) == 0 {
+        if active.local == Some(*player) || flags & (move_flags::AIR_JUMP | move_flags::DODGE | move_flags::WALL_REFRESH) == 0 {
             continue;
         }
         let Some(v) = views.player(*player) else { continue };
@@ -73,13 +77,18 @@ fn air_move_fx(
         let seed = ev.tick as u32 ^ (player.0 as u32).wrapping_mul(0x9E37_79B9);
         if flags & move_flags::AIR_JUMP != 0 {
             step_fx(fx.as_deref_mut(), &mut burst, v.pos, color, v.size, flashes, seed);
-            sfx.write(Sfx3d::at("jump", v.pos).gain(0.5).pitch(1.25));
+            sfx.write(Sfx3d::at("air_jump", v.pos).gain(0.8));
+        }
+        if flags & move_flags::WALL_REFRESH != 0 {
+            // No normal on the wire: a scuff at the body.
+            scuff_fx(fx.as_deref_mut(), &mut burst, v.pos + Vec3::Y * 0.9 * v.size, Vec3::ZERO, color, seed);
+            sfx.write(Sfx3d::at("land_light", v.pos + Vec3::Y).gain(0.22).pitch(1.6));
         }
         if flags & move_flags::DODGE != 0 {
             let h = Vec3::new(v.vel.x, 0.0, v.vel.z);
-            let path = h * 0.15;
+            let path = h * secs;
             streak_fx(fx.as_deref_mut(), v.pos, path, color, v.size, seed);
-            sfx.write(Sfx3d::at("boost_burst", v.pos + Vec3::Y).gain(0.45).pitch(1.4));
+            sfx.write(Sfx3d::at("dodge", v.pos + Vec3::Y).gain(0.8));
         }
     }
     // The local player.
@@ -91,23 +100,28 @@ fn air_move_fx(
         if ev.air_jumped {
             let pos = bv(sim.state.pos);
             step_fx(fx.as_deref_mut(), &mut burst, pos, color, v.size, flashes, seed);
-            sfx.write(Sfx3d::at("jump", pos).gain(0.55).pitch(1.25));
+            sfx.write(Sfx3d::at("air_jump", pos));
             fov.write(FovPunch { degrees: 0.9 });
+        }
+        if let Some(n) = ev.wall_refresh {
+            let n = bv(n);
+            let at = bv(sim.state.pos) + Vec3::Y * 0.9 * v.size - n * 0.42 * v.size;
+            scuff_fx(fx.as_deref_mut(), &mut burst, at, n, color, seed);
+            sfx.write(Sfx3d::at("land_light", at).gain(0.25).pitch(1.6));
         }
         if ev.dodged {
             let x = sim.state.extra;
-            let t = 0.15;
-            let path = bv(x.dodge_base) * t + bv(x.dodge_dir) * 4.0;
+            let path = bv(x.dodge_base) * secs + bv(x.dodge_dir) * dist;
             // Start from where the burst began (this frame's state is already one tick in).
-            let pos = bv(sim.state.pos) - bv(x.dodge_base + x.dodge_dir * (4.0 / t)) * bd_core::DT;
+            let pos = bv(sim.state.pos) - bv(x.dodge_base + x.dodge_dir * (dist / secs)) * bd_core::DT;
             streak_fx(fx.as_deref_mut(), pos, path, color, v.size, seed);
-            sfx.write(Sfx3d::at("boost_burst", pos + Vec3::Y).gain(0.5).pitch(1.4));
+            sfx.write(Sfx3d::at("dodge", pos + Vec3::Y));
             fov.write(FovPunch { degrees: 1.6 });
         }
     }
 }
 
-/// The hard-light step: tile flash + outward ring on the step plane + sparks spilling down.
+/// The hard-light step: a glowing tile of chips + outward ring on the step plane + sparks spilling down.
 fn step_fx(
     fx: Option<&mut FxParticles>,
     burst: &mut MessageWriter<BurstFx>,
@@ -122,18 +136,6 @@ fn step_fx(
     burst.write(BurstFx { kind: BurstKind::Shards, pos: at, dir: Vec3::NEG_Y, scale: 0.55 * s, color: Some(color) });
     let Some(fx) = fx else { return };
     let mut j = Jit(seed | 1);
-    // Tile flash (a bright wash only when flashes are on; a dim one otherwise).
-    let white = [color[0] * 0.5 + 0.5, color[1] * 0.5 + 0.5, color[2] * 0.5 + 0.5];
-    fx.emit(Emit {
-        kind: PKind::Flash,
-        flags: PFlags::PLAIN,
-        pos: at,
-        size: 0.75 * s,
-        color: white,
-        emissive: 2.0 + 4.0 * flashes,
-        life: 0.12,
-        ..default()
-    });
     // Ring: chips on the step's plane racing out and settling (drag) — a hex-ish platform edge.
     let n = 20;
     for i in 0..n {
@@ -162,11 +164,36 @@ fn step_fx(
             pos: at + Vec3::new(a.cos() * r, 0.0, a.sin() * r),
             size: 0.2 * s,
             color,
-            emissive: 2.5,
+            // Brighter with flashes on (comfort: a calm glow).
+            emissive: 1.5 + 2.5 * flashes,
             life: 0.18,
             gravity: 0.0,
             seed: j.0 ^ i,
             flags: PFlags::PLAIN,
+            ..default()
+        });
+    }
+}
+
+/// Wall refresh: a small hard-light scuff where the body touched the wall (subtle: a few chips
+/// kicked off the surface and a faint spark).
+fn scuff_fx(fx: Option<&mut FxParticles>, burst: &mut MessageWriter<BurstFx>, at: Vec3, n: Vec3, color: [f32; 3], seed: u32) {
+    burst.write(BurstFx { kind: BurstKind::Shards, pos: at, dir: n, scale: 0.25, color: Some(color) });
+    let Some(fx) = fx else { return };
+    let mut j = Jit(seed | 5);
+    for i in 0..5u32 {
+        let side = Vec3::new(j.f() - 0.5, j.f() - 0.2, j.f() - 0.5);
+        fx.emit(Emit {
+            pos: at,
+            vel: n * 2.5 + side * 2.0,
+            size: 0.06,
+            color,
+            emissive: 3.0,
+            life: 0.2,
+            gravity: 0.6,
+            drag: 4.0,
+            seed: j.0 ^ i,
+            flags: PFlags::PLAIN | PFlags::WHITE_BIRTH,
             ..default()
         });
     }
@@ -199,7 +226,7 @@ fn streak_fx(fx: Option<&mut FxParticles>, start: Vec3, path: Vec3, color: [f32;
         let f = k as f32 / 3.0;
         let base = start + path * f;
         let life = 0.12 + 0.08 * f;
-        for (h, sz) in [(0.45f32, 0.34f32), (1.05, 0.44), (1.55, 0.3)] {
+        for (h, sz) in [(0.45f32, 0.24f32), (1.05, 0.3), (1.55, 0.2)] {
             fx.emit(Emit {
                 pos: base + Vec3::Y * h * s,
                 vel: path.normalize_or_zero() * 0.6,
@@ -267,7 +294,7 @@ pub mod scenario {
             let side = bd_core::Vec3::new(-dir.z, 0.0, dir.x);
             spots.clear();
             // Flat ground for both actors and their whole moves.
-            let ok = [(1u8, 9.0f32, -2.5f32), (2, 12.0, 3.0)].iter().all(|&(id, d, lat)| {
+            let ok = [(1u8, 5.5f32, -1.6f32), (2, 7.0, 1.8)].iter().all(|&(id, d, lat)| {
                 let p = me + dir * d + side * lat;
                 let probe =
                     [-4.5f32, 0.0, 4.5].iter().all(|o| ground_at(&active.world, p.x + side.x * o, p.z + side.z * o, me.y).is_some());
@@ -301,7 +328,7 @@ pub mod scenario {
         }
         active.bots.clear();
         look.yaw = yaw;
-        look.pitch = -0.05;
+        look.pitch = -0.12;
         sc.start_tick = active.world.tick;
         sc.placed = true;
         info!("air jump scenario: placed {} players, yaw {:.0}°", spots.len(), yaw.to_degrees());

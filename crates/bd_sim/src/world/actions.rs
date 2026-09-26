@@ -639,7 +639,17 @@ impl World {
     pub fn begin_oath(&mut self, player: PlayerId, section: u8) -> bool {
         let Some(i) = self.pidx(player) else { return false };
         let p = &mut self.players[i];
-        if !p.alive || p.oath.reciting() {
+        if !p.alive {
+            return false;
+        }
+        if let OathState::Reciting { started, len, progress: 0, .. } = &mut p.oath {
+            // Sent again before any progress (voice mode, or the first typed letter): restart the
+            // clock where the recital really starts. Only ever makes the host's floor stricter.
+            *started = self.tick;
+            *len = self.cfg.oaths.section_len(p.corps, section);
+            return true;
+        }
+        if p.oath.reciting() {
             return false;
         }
         let len = self.cfg.oaths.section_len(p.corps, section);
@@ -662,7 +672,14 @@ impl World {
 
     /// The client finished the typing test: validate plausibility, refill, end the recital.
     pub fn oath_result(&mut self, player: PlayerId, accuracy: f32, seconds: f32) -> Result<f32, OathError> {
-        let res = self.oath_result_inner(player, accuracy, seconds);
+        self.oath_result_as(player, accuracy, seconds, false)
+    }
+
+    /// [`Self::oath_result`] for a typed (`voice = false`) or spoken recital. Same formula and
+    /// plausibility check; a spoken one gets `tuning.willpower.oath_voice_slack` before the
+    /// host-measured time floors its claimed speaking time (Whisper's latency is not the player's).
+    pub fn oath_result_as(&mut self, player: PlayerId, accuracy: f32, seconds: f32, voice: bool) -> Result<f32, OathError> {
+        let res = self.oath_result_inner(player, accuracy, seconds, voice);
         match res {
             Ok(refill) => self.events.push(GameEvent::OathFinished { player, refill }),
             Err(reason) => self.events.push(GameEvent::OathRejected { player, reason }),
@@ -670,9 +687,10 @@ impl World {
         res
     }
 
-    fn oath_result_inner(&mut self, player: PlayerId, accuracy: f32, seconds: f32) -> Result<f32, OathError> {
+    fn oath_result_inner(&mut self, player: PlayerId, accuracy: f32, seconds: f32, voice: bool) -> Result<f32, OathError> {
         let Some(i) = self.pidx(player) else { return Err(OathError::UnknownPlayer) };
         let pool = self.cfg.rules.willpower_max();
+        let slack = if voice { self.cfg.tuning.willpower.oath_voice_slack.max(OATH_LATENCY_SLACK) } else { OATH_LATENCY_SLACK };
         let tick = self.tick;
         let p = &mut self.players[i];
         if !p.alive {
@@ -686,8 +704,8 @@ impl World {
         if !seconds.is_finite() || !accuracy.is_finite() || seconds < min || host_elapsed + OATH_LATENCY_SLACK < min {
             return Err(OathError::Implausible);
         }
-        // Never credit a time faster than the host saw (minus network slack).
-        let t = seconds.max(host_elapsed - OATH_LATENCY_SLACK).max(min);
+        // Never credit a time faster than the host saw (minus network / transcription slack).
+        let t = seconds.max(host_elapsed - slack).max(min);
         let refill = oath_refill(accuracy, t, len, pool);
         p.willpower = (p.willpower + refill).min(pool);
         Ok(refill)

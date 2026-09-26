@@ -523,6 +523,58 @@ fn bots_recite_rotating_oath_sections() {
 }
 
 #[test]
+fn spoken_oath_equals_typed_at_the_same_pace() {
+    use bd_sim::willpower::{oath_min_secs, oath_target_secs};
+    let mut w = duel(2);
+    let corps = w.player(A).unwrap().corps;
+    let len = w.cfg.oaths.section_len(corps, 0);
+    let pace = oath_target_secs(len) * 0.8; // faster than target: earns the speed bonus
+    let ticks = |s: f32| (s / DT).ceil() as u32;
+    // Typed: the result arrives as the last letter lands.
+    w.player_mut(A).unwrap().willpower = 0.0;
+    assert!(w.begin_oath(A, 0));
+    run(&mut w, ticks(pace));
+    let typed = w.oath_result(A, 1.0, pace).unwrap();
+    assert!(typed > 110.0, "speed bonus: {typed}");
+    // Spoken at the same pace, the transcript arriving 1.5 s after release: same refill.
+    assert!(w.begin_oath(A, 0));
+    run(&mut w, ticks(pace + 1.5));
+    let spoken = w.oath_result_as(A, 1.0, pace, true).unwrap();
+    assert!((spoken - typed).abs() < 0.5, "spoken {spoken} vs typed {typed}");
+    // (The same late report as *typing* is floored by the host's clock.)
+    assert!(w.begin_oath(A, 0));
+    run(&mut w, ticks(pace + 1.5));
+    assert!(w.oath_result(A, 1.0, pace).unwrap() < typed - 5.0);
+    // Impossible pace is still rejected for voice (OATH_MAX_CPS), however the latency falls.
+    let min = oath_min_secs(len);
+    assert!(w.begin_oath(A, 0));
+    run(&mut w, ticks(min + 1.5));
+    assert!(w.oath_result_as(A, 1.0, min * 0.7, true).is_err());
+    assert!(w.begin_oath(A, 0));
+    run(&mut w, 2);
+    assert!(w.oath_result_as(A, 1.0, pace, true).is_err(), "result before the host saw min time");
+    // Re-sending OathBegin before any progress restarts the clock (voice mode / first typed key):
+    // a pause after opening the overlay costs neither typing nor voice.
+    assert!(w.begin_oath(A, 0));
+    run(&mut w, ticks(5.0));
+    assert!(w.begin_oath(A, 0), "restart");
+    run(&mut w, ticks(pace));
+    let after_pause = w.oath_result(A, 1.0, pace).unwrap();
+    assert!((after_pause - typed).abs() < 0.5, "{after_pause} vs {typed}");
+    // …but not once progress has been reported.
+    assert!(w.begin_oath(A, 0));
+    w.oath_progress(A, 12, 1.0);
+    let started = |w: &World| match w.player(A).unwrap().oath {
+        bd_sim::willpower::OathState::Reciting { started, .. } => started,
+        _ => panic!(),
+    };
+    let s0 = started(&w);
+    run(&mut w, 10);
+    assert!(!w.begin_oath(A, 0));
+    assert_eq!(started(&w), s0);
+}
+
+#[test]
 fn oath_section_comes_from_the_host_table() {
     let mut w = duel(2);
     let corps = w.player(A).unwrap().corps;

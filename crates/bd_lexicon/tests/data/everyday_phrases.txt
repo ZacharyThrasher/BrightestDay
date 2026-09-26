@@ -526,3 +526,15 @@ parachute | Parachute
 jetpack | Jetpack
 wings | Wings
 cape | Cape
+
+# relations layer + leftover words (src/relations.rs)
+destroying robot | Biped | Explodes
+lumbering bear | Quadruped | Heavy
+glimmering sword | Sword
+skateboarding gorilla | Biped | Fast
+knight riding a horse | Biped | Charge
+meteor shower | Boulder | DropFromSky
+rain of arrows | Spear | DropFromSky
+satellite death beam | Disc | DropFromSky
+duck the size of a house | Bird
+nuclear bomb | Bomb | Explodes

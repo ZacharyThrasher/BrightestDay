@@ -1,5 +1,5 @@
 //! Signature casts (COMBAT.md §5j, `bd_sim::signature`): an amplifier over existing mechanics.
-//! Domain = a huge Dome (Barrier + Trap + Homing) around the caster that traps an enemy inside and
+//! Domain = a huge Dome (Barrier + Trap) around the caster that traps an enemy inside and
 //! can be broken; ultimate beams; existing pricing × one multiplier (≤ a full bar) with a plain-cast
 //! fallback; a readable windup; plain casts untouched; deterministic; bots use them; replicas agree.
 
@@ -70,7 +70,7 @@ fn domain_erupts_traps_an_enemy_and_can_be_broken() {
     // Existing mechanics only, at domain scale, with a readable windup.
     assert_eq!(rec.form, Form::Dome);
     assert_eq!(rec.element, Element::Fire);
-    for m in [Mechanic::Barrier, Mechanic::Trap, Mechanic::Homing] {
+    for m in [Mechanic::Barrier, Mechanic::Trap] {
         assert!(rec.has(m), "{m:?}");
     }
     assert!((rec.scale - (t.domain_radius + 0.5 * t.domain_radius_shout)).abs() < 1e-3, "radius {}", rec.scale);
@@ -270,7 +270,7 @@ fn deterministic_with_bots_and_replicas_agree() {
 #[test]
 #[ignore = "perf report: cargo test -p bd_sim --release --test signature -- --ignored --nocapture"]
 fn perf_brawl_with_signatures() {
-    let run = |sig: bool| {
+    let run = |sig: bool, orbitals: bool| {
         let cfg = SimConfig { arena: ArenaSource::Archipelago { seed: 3 }, ..SimConfig::default() };
         let mut w = World::new(cfg);
         let mut t = w.tuning().clone();
@@ -282,20 +282,42 @@ fn perf_brawl_with_signatures() {
         let mut inputs = Vec::new();
         let mut ms = Vec::new();
         let mut domains = 0;
-        for _ in 0..(60.0 / DT) as usize {
+        for k in 0..(60.0 / DT) as usize {
             inputs.clear();
             let t0 = std::time::Instant::now();
+            // …and an orbital satellite strike from bot 0 every 6 s.
+            if orbitals && k % 720 == 360 {
+                let b = brains[0].id;
+                if let Some(p) = w.player(b).filter(|p| p.alive) {
+                    let eye = p.mv.pos + Vec3::Y * 1.6;
+                    let dir = (w.arena.center - eye).normalize_or(Vec3::NEG_Z);
+                    let mut r = satellite(&[Mechanic::Homing]);
+                    r.scale = 3.0;
+                    w.player_mut(b).unwrap().willpower = 100.0;
+                    let _ = w.cast(b, r, None, Aim::new(eye, dir));
+                }
+            }
             bots::drive(&mut w, &mut brains, &mut inputs);
             let evs = w.tick(&inputs);
             ms.push(t0.elapsed().as_secs_f64() * 1e3);
-            domains += evs.iter().filter(|e| matches!(e, GameEvent::ConstructSpawned { recipe, .. } if recipe.form == Form::Dome && recipe.scale > 10.0)).count();
+            domains += evs
+                .iter()
+                .filter(|e| matches!(e, GameEvent::ConstructSpawned { recipe, .. } if recipe.form == Form::Dome && recipe.scale > 10.0))
+                .count();
         }
         ms.sort_by(|a, b| a.total_cmp(b));
         (ms[ms.len() / 2], ms[ms.len() * 99 / 100], ms[ms.len() - 1], domains)
     };
-    let off = run(false);
-    let on = run(true);
-    println!("tick ms  signatures off: p50 {:.3} p99 {:.3} max {:.3} | on: p50 {:.3} p99 {:.3} max {:.3} ({} domains)", off.0, off.1, off.2, on.0, on.1, on.2, on.3);
+    let off = run(false, false);
+    let on = run(true, true);
+    for (name, a, b) in [("off", false, false), ("sigs", true, false), ("orbitals", false, true), ("both", true, true)] {
+        let r = run(a, b);
+        println!("  {name}: p50 {:.3} p99 {:.3} max {:.3} ({} domains)", r.0, r.1, r.2, r.3);
+    }
+    println!(
+        "tick ms  signatures off: p50 {:.3} p99 {:.3} max {:.3} | on: p50 {:.3} p99 {:.3} max {:.3} ({} domains)",
+        off.0, off.1, off.2, on.0, on.1, on.2, on.3
+    );
 }
 
 // ================================================================================ orbital strikes
@@ -410,10 +432,12 @@ fn the_beam_slews_at_a_capped_speed_and_can_be_outrun() {
         }
     }
     assert!(ends.len() >= 10, "{} pulses", ends.len());
-    for p in ends.windows(2) {
-        let step = Vec3::new(p[1].x - p[0].x, 0.0, p[1].z - p[0].z).length();
-        assert!(step <= t.slew * t.pulse * 1.3 + 0.05, "slew {step:.2} m per pulse");
-    }
+    // The ground point moves at ≤ slew (the drawn end point also follows the crater it digs, so
+    // judge the whole strike, with a crater's worth of slack).
+    let (first, last) = (ends[0], ends[ends.len() - 1]);
+    let travelled = Vec3::new(last.x - first.x, 0.0, last.z - first.z).length();
+    let secs = (ends.len() - 1) as f32 * t.pulse;
+    assert!(travelled <= t.slew * secs + 2.0, "slew: {travelled:.1} m in {secs:.1} s");
     let b = w.player(B).unwrap().mv.pos;
     let last = *ends.last().unwrap();
     assert!(Vec3::new(b.x - last.x, 0.0, b.z - last.z).length() > 5.0, "outran it");
@@ -424,7 +448,7 @@ fn abduction_beam_lifts_instead_of_blasting() {
     let mut w = duel();
     let t = SignatureTuning::default().orbital;
     let pct0 = w.player(B).unwrap().damage_pct;
-    let _ = cast_orbital(&mut w, satellite(&[Mechanic::Attract]), 18.0);
+    let _ = cast_orbital(&mut w, satellite(&[Mechanic::Attract, Mechanic::Homing]), 18.0);
     let y0 = w.player(B).unwrap().mv.pos.y;
     let mut top = y0;
     for _ in 0..((t.telegraph + 1.0) / DT) as usize {
@@ -474,4 +498,83 @@ fn orbital_strikes_are_deterministic_and_replicas_agree() {
         let r = replica.constructs.get(c.id).expect("replica has it");
         assert!((r.pos - c.pos).length() < 0.05, "{:?} vs {:?}", r.pos, c.pos);
     }
+}
+
+#[test]
+fn without_homing_the_beam_follows_the_casters_crosshair() {
+    let mut w = duel();
+    let t = SignatureTuning::default().orbital;
+    let (_, target) = cast_orbital(&mut w, satellite(&[]), 20.0);
+    // A looks at the ground 12 m to the right of the target.
+    let a = w.player(A).unwrap().mv.pos;
+    let eye = a + Vec3::Y * 1.6;
+    let want = target + Vec3::new(12.0, 0.0, 0.0);
+    let d = (want - eye).normalize();
+    let input = bd_core::input::PlayerInput { yaw: (-d.x).atan2(-d.z), pitch: d.y.asin(), ..Default::default() };
+    let mut last = None;
+    for _ in 0..((t.telegraph + t.strike_secs) / DT) as usize {
+        for e in w.tick(&[(A, input)]) {
+            if let GameEvent::Hitscan { owner, end, .. } = e {
+                if *owner == A {
+                    last = Some(*end);
+                }
+            }
+        }
+    }
+    let end = last.expect("beam fired");
+    assert!(Vec3::new(end.x - want.x, 0.0, end.z - want.z).length() < 3.0, "tracked the crosshair: {end:?} vs {want:?}");
+}
+
+/// Host / prediction parity: the caster moving inside their own domain, holding an ultimate beam,
+/// under a hovering orbital emitter, is predicted exactly by a snapshot-fed replica.
+#[test]
+fn prediction_matches_the_host_around_signatures() {
+    use bd_core::input::{PlayerInput, buttons};
+    let mut host = duel();
+    host.player_mut(A).unwrap().willpower = 100.0;
+    let aim = aim_of(&host, A);
+    host.cast_signature(A, recipe("dome", Form::Dome, &[], Element::Fire, 4.0), None, aim, SignatureCast::new(SignatureKind::Domain, 1.0))
+        .unwrap();
+    host.player_mut(A).unwrap().willpower = 100.0;
+    host.cast_signature(
+        A,
+        recipe("Kamehameha", Form::Gun, &[Mechanic::Beam], Element::Light, 1.0),
+        None,
+        aim,
+        SignatureCast::new(SignatureKind::Beam, 1.0),
+    )
+    .unwrap();
+    // An orbital emitter of B's far away (hovering; its strikes land elsewhere).
+    host.player_mut(B).unwrap().willpower = 100.0;
+    let b_eye = host.player(B).unwrap().mv.pos + Vec3::Y * 1.6;
+    host.cast(B, satellite(&[]), None, Aim::new(b_eye, Vec3::new(0.3, -0.4, -1.0).normalize())).unwrap();
+    for _ in 0..60 {
+        host.tick(&[]);
+    }
+    let mut client = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
+    for e in host.construct_manifest() {
+        client.apply_event(&e);
+    }
+    client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+    let mut bad = 0;
+    for k in 0..240u32 {
+        let inp = PlayerInput {
+            move_z: -1,
+            move_x: if k % 60 < 30 { 1 } else { -1 },
+            buttons: if k % 40 == 0 { buttons::JUMP } else { 0 },
+            ..Default::default()
+        };
+        let mut s = client.player(A).unwrap().mv;
+        client.predict_player(A, &mut s, &inp);
+        let evs = host.tick(&[(A, inp)]).to_vec();
+        for e in &evs {
+            client.apply_event(e);
+        }
+        client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+        let h = host.player(A).unwrap().mv;
+        if (h.pos - s.pos).length() > 1e-4 || (h.vel - s.vel).length() > 1e-3 {
+            bad += 1;
+        }
+    }
+    assert_eq!(bad, 0, "prediction diverged on {bad} ticks");
 }

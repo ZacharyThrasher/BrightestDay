@@ -5,7 +5,7 @@
 //! 1. rewrites the ordinary recipe with mechanics that already exist ([`amplify`]):
 //!    * **Domain** → a sealed hard-light `Dome` around the caster (radius ~16–20 m by how hard it was
 //!      shouted) with `Barrier` (stops projectiles, takes the hits), `Trap` (snaps shut on an enemy
-//!      inside) and `Homing`, keeping the phrase's element / emitters / fields (a Fire domain, a
+//!      inside), keeping the phrase's element / emitters / fields (a Fire domain, a
 //!      bouncy-castle domain, a shrine that `Shoots`);
 //!    * **Beam** → an ultimate-caliber `Gun` + `Beam` (the railgun archetype: its hold-to-charge *is*
 //!      the telegraphed windup); a creature keeps its body and gains `Beam`;
@@ -208,7 +208,9 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
         SignatureKind::Domain => {
             r.form = Form::Dome;
             r.mechanics.retain(|m| !DOMAIN_DROPS.contains(m));
-            r.mechanics.extend([Mechanic::Barrier, Mechanic::Trap, Mechanic::Homing]);
+            // (No Homing: on a dome wrapped around its caster it only switched the shell to walking physics.)
+            r.mechanics.retain(|m| *m != Mechanic::Homing);
+            r.mechanics.extend([Mechanic::Barrier, Mechanic::Trap]);
             r.scale = t.domain_radius + t.domain_radius_shout * p;
             r.count = 1;
             r.mass = r.mass.max(5_000.0);
@@ -444,7 +446,7 @@ mod tests {
         let bouncy = rec(Form::Trampoline, &[Mechanic::Bounce, Mechanic::Flies], 4.0);
         let d = amplify(bouncy, SignatureCast::new(SignatureKind::Domain, 0.0), &t, &rules);
         assert_eq!(d.form, Form::Dome);
-        for m in [Mechanic::Barrier, Mechanic::Trap, Mechanic::Homing, Mechanic::Bounce] {
+        for m in [Mechanic::Barrier, Mechanic::Trap, Mechanic::Bounce] {
             assert!(d.has(m), "{m:?}");
         }
         assert!(!d.has(Mechanic::Flies));

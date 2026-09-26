@@ -321,6 +321,7 @@ fn sync_auras(
             aura.ground_color = ground_color(arena.as_deref(), v.pos);
         }
         aura.view_distance = cam.distance(v.pos);
+        aura.eye = cam;
         aura.first_person = v.is_local && !third;
         aura.calm = calm;
         aura.pulse |= pulse;
@@ -479,11 +480,11 @@ pub mod scenario {
         }
     }
 
-    fn ground_at(w: &bd_sim::World, x: f32, z: f32, near_y: f32) -> Option<bd_core::Vec3> {
-        let from = bd_core::Vec3::new(x, near_y + 20.0, z);
-        let hit = bd_core::voxel::raycast(&w.voxels, from, bd_core::Vec3::NEG_Y, 60.0)?;
+    fn ground_at(w: &bd_sim::World, x: f32, z: f32, near_y: f32, tol: f32) -> Option<bd_core::Vec3> {
+        let from = bd_core::Vec3::new(x, near_y + tol + 4.0, z);
+        let hit = bd_core::voxel::raycast(&w.voxels, from, bd_core::Vec3::NEG_Y, tol * 2.0 + 8.0)?;
         let y = hit.point.y;
-        ((y - near_y).abs() < 14.0).then_some(bd_core::Vec3::new(x, y + 0.05, z))
+        ((y - near_y).abs() < tol).then_some(bd_core::Vec3::new(x, y + 0.05, z))
     }
 
     fn place(mut sc: ResMut<ChargeScenario>, time: Res<Time<Real>>, mut active: ResMut<ActiveWorld>, mut look: ResMut<LookAngles>) {
@@ -504,8 +505,13 @@ pub mod scenario {
             let mut all: Vec<(u8, f32, f32)> = sc.chargers.clone();
             all.push((5, 8.0, 5.0));
             for &(id, d, lat) in &all {
-                let p = me + dir * d + side * lat;
-                match ground_at(&active.world, p.x, p.z, me.y) {
+                // Near spots want flat-ish ground; far ones may sit on another island.
+                let tol = if d > 20.0 { 30.0 } else { 6.0 };
+                let found = [1.0f32, 0.9, 1.1, 0.8, 1.25].iter().find_map(|k| {
+                    let p = me + dir * (d * k) + side * lat;
+                    ground_at(&active.world, p.x, p.z, me.y, tol)
+                });
+                match found {
                     Some(g) => spots.push((id, g)),
                     None => {
                         ok = false;

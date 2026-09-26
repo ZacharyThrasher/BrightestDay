@@ -148,7 +148,7 @@ pub enum NetCmd {
     /// Oath section index (the host looks the length up in its own table; never sent by the client).
     OathBegin { section: u8 },
     OathProgress { correct_chars: u16, accuracy: f32 },
-    OathResult { accuracy: f32, seconds: f32 },
+    OathResult { accuracy: f32, seconds: f32, voice: bool },
     OathCancel,
     Dismiss,
     DismissOne(ConstructId),
@@ -179,7 +179,7 @@ impl NetCmd {
             Cmd::StandRush(n) => NetCmd::StandRush(n),
             Cmd::OathBegin { section } => NetCmd::OathBegin { section },
             Cmd::OathProgress { correct_chars, accuracy } => NetCmd::OathProgress { correct_chars, accuracy },
-            Cmd::OathResult { accuracy, seconds } => NetCmd::OathResult { accuracy, seconds },
+            Cmd::OathResult { accuracy, seconds, voice } => NetCmd::OathResult { accuracy, seconds, voice },
             Cmd::OathCancel => NetCmd::OathCancel,
             Cmd::Dismiss => NetCmd::Dismiss,
             Cmd::DismissOne(id) => NetCmd::DismissOne(id),
@@ -205,8 +205,8 @@ impl NetCmd {
             // Out of any oath's range → section 0 (the sim also falls back per corps).
             NetCmd::OathBegin { section } => Cmd::OathBegin { section: if (section as usize) < bd_sim::willpower::MAX_OATH_SECTIONS { section } else { 0 } },
             NetCmd::OathProgress { correct_chars, accuracy } => Cmd::OathProgress { correct_chars, accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0) },
-            NetCmd::OathResult { accuracy, seconds } => {
-                Cmd::OathResult { accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0), seconds: fin(seconds, 60.0).clamp(0.5, 600.0) }
+            NetCmd::OathResult { accuracy, seconds, voice } => {
+                Cmd::OathResult { accuracy: fin(accuracy, 0.0).clamp(0.0, 1.0), seconds: fin(seconds, 60.0).clamp(0.5, 600.0), voice }
             }
             NetCmd::OathCancel => Cmd::OathCancel,
             NetCmd::Dismiss => Cmd::Dismiss,
@@ -347,6 +347,11 @@ mod tests {
             let back: NetCmd = bd_net::codec::decode(&bd_net::codec::encode(&n)).unwrap();
             assert!(matches!(back, NetCmd::OathBegin { section } if section == sent));
             assert!(matches!(back.into_cmd(), Some(Cmd::OathBegin { section }) if section == got), "{sent}");
+        }
+        for voice in [false, true] {
+            let n = NetCmd::from_cmd(&Cmd::OathResult { accuracy: f32::NAN, seconds: 5.0, voice }, 0).unwrap();
+            let back: NetCmd = bd_net::codec::decode(&bd_net::codec::encode(&n)).unwrap();
+            assert!(matches!(back.into_cmd(), Some(Cmd::OathResult { accuracy: 0.0, seconds: 5.0, voice: v }) if v == voice));
         }
     }
 }

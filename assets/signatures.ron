@@ -2,7 +2,7 @@
 //
 // A signature cast is an ordinary resolution (the rest of the phrase resolves normally: element,
 // features, icon) that the sim then AMPLIFIES with existing mechanics (bd_sim::signature):
-//   Domain         -> a huge sealed Dome (Barrier + Trap + Homing) of the phrase's element, around the caster
+//   Domain         -> a huge sealed Dome (Barrier + Trap) of the phrase's element, around the caster
 //   Beam           -> an ultimate-scale Beam with a telegraphed windup
 //   Summon         -> the thing itself at ultimate scale
 //   Transformation -> the caster's construct at ultimate scale and weight

@@ -21,10 +21,11 @@ forwarding. If it can't start, LAN play still works.
 | Mouse | look |
 | WASD / Space / Ctrl | move / jump (hold to keep hopping) / crouch-slide |
 | Shift | gas boost |
+| Left Alt | dodge |
 | Q / E (or Mouse 4 / 5) | left / right tether — hold to stay attached, release to fling |
 | Wheel / R | reel in |
 | LMB / RMB | use what you're holding (empty hand: ring blast / shove) |
-| F5 · B · RMB with a gun | first ⇄ third person · swap shoulder · aim down sights (the gun's alt-fire moves to Left Alt) |
+| F5 · B · RMB with a gun | first ⇄ third person · swap shoulder · aim down sights (the gun's alt-fire moves to C) |
 | Enter or T | open the ring — type anything, Enter to make it |
 | V (hold) | say it instead of typing it (if built with voice) |
 | 1–4 | your four saved phrases |

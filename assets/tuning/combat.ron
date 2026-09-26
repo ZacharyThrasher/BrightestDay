@@ -501,6 +501,7 @@
         graft_cost_fraction: 0.5,
         dismiss_refund: 0.25,
         starved_decay: 0.35,
+        oath_voice_slack: 2.0,
     ),
     construct: (
         integrity_base: 20.0,
@@ -633,7 +634,7 @@
         ),
     ),
     // Signature casts (bd_sim::signature, COMBAT.md §5j): "domain expansion ...", "kamehameha", "bankai" —
-    // an amplifier over existing mechanics. Domain = Dome + Barrier + Trap + Homing of the phrase's element,
+    // an amplifier over existing mechanics. Domain = Dome + Barrier + Trap of the phrase's element,
     // radius domain_radius + domain_radius_shout x shout power (0..1), lives domain_life s. Summon /
     // Transformation scale x (scale_mult + scale_mult_shout x power), capped at form max x scale_cap_mult and
     // max_scale. Beam = railgun at caliber beam_caliber. Forming >= windup s (readable, the caster keeps
@@ -657,5 +658,35 @@
         alert_scale: 12.0,
         bot_willpower: 85.0,
         bot_chance: 0.2,
+        // Orbital strikes (bd_sim::signature::orbital): an emitter (Shoots / Beam / Breath) that Flies and is
+        // placed with DropFromSky ("satellite death beam") hovers altitude m above the aim point (clamped to
+        // [altitude_min, altitude_max] and ceiling_margin under the map top; nudged to within view_elev_deg of
+        // the caster's eye), shows a ground marker for telegraph s, then the beam comes down for strike_secs,
+        // tracking at <= slew m/s (Homing: the nearest enemy within track_radius; else the caster's
+        // crosshair); cooldown s, repeat. Pulses every pulse s: damage / knockback (x Heavy 1.5 / Fast 0.8),
+        // a carve of carve_radius every carve_every s (Earth x2; Fire / Atomic ignite). Attract = abduction:
+        // lift at abduct_accel m/s^2 up to abduct_max m/s, no damage. Breath = beam_radius x2. Cost = the
+        // existing cast cost x cost_mult.
+        orbital: (
+            altitude: 30.0,
+            altitude_min: 22.0,
+            altitude_max: 40.0,
+            ceiling_margin: 6.0,
+            view_elev_deg: 32.0,
+            telegraph: 0.7,
+            strike_secs: 2.5,
+            cooldown: 3.0,
+            slew: 6.5,
+            track_radius: 12.0,
+            beam_radius: 1.4,
+            pulse: 0.1,
+            damage: 3.0,
+            knockback: 5.0,
+            carve_every: 0.3,
+            carve_radius: 1.2,
+            abduct_accel: 40.0,
+            abduct_max: 8.0,
+            cost_mult: 1.25,
+        ),
     ),
 )

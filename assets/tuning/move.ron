@@ -81,4 +81,6 @@
     dodge_exit_speed: 5.0,
     dodge_cooldown: 1.1,
     dodge_iframes: 0.13,
+    wall_refresh: true,
+    wall_refresh_same_wall_lockout: 30.0,
 )

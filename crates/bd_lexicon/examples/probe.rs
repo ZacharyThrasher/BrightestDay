@@ -75,6 +75,9 @@ fn main() {
         for e in &r.explanation {
             println!("    - {e}");
         }
+        if let Some(m) = &rc.mount {
+            println!("  mount: {} {:?} scale={:.2} {:?} feat={:?}", m.name, m.form, m.scale, m.mechanics, m.features);
+        }
         if !r.ignored.is_empty() {
             println!("    ignored: {:?}", r.ignored);
         }

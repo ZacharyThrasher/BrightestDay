@@ -12,9 +12,12 @@
 //! * Not while a hook is attached (the rope owns you: release first — momentum is kept — then
 //!   jump), not while tumbling (Smash hitstun: that press is the tech input), not while holding
 //!   charge.
-//! * Restored on landing, on a tether attach and when hit (`World::apply_hit`: Smash recovery). Not
-//!   on wall touch (voxel arenas are all walls: it would be an infinite wall climb). A worn air move
-//!   (wing flap / cape dash, `constructs::worn::pre_move`) replaces it.
+//! * Restored on landing, on a tether attach, when hit (`World::apply_hit`: Smash recovery) and on
+//!   touching a wall or steep / surf-ramp surface in the air (owner: "emergent, like CS surfing"),
+//!   except the same wall again (normal within `wall_refresh_same_wall_lockout`° of the last
+//!   refreshing wall) until ground, another wall or a tether attach: chimney kicks and surf lines
+//!   work, single-wall climbing doesn't. The air dodge comes back with it. A worn Jump construct
+//!   (wing flap, cape dash, parachute, jetpack: `constructs::worn::pre_move`) takes the press instead.
 //!
 //! Host and client prediction run it inside `step_player` with identical inputs.
 
@@ -50,6 +53,8 @@ pub struct ExtraMoves {
     pub dodge_dir: Vec3,
     /// Horizontal velocity the dodge rides on (and hands back at the end).
     pub dodge_base: Vec3,
+    /// Normal of the last wall that refreshed the air jump (zero = none since ground / tether).
+    pub last_wall: Vec3,
 }
 
 impl Default for ExtraMoves {
@@ -62,6 +67,7 @@ impl Default for ExtraMoves {
             since_dodge: SINCE_DODGE_CAP,
             dodge_dir: Vec3::ZERO,
             dodge_base: Vec3::ZERO,
+            last_wall: Vec3::ZERO,
         }
     }
 }
@@ -110,6 +116,9 @@ impl ExtraMoves {
             self.dodge_dir = Vec3::ZERO;
             self.dodge_base = Vec3::ZERO;
             self.dodge_left = 0.0;
+        }
+        if !self.last_wall.is_finite() {
+            self.last_wall = Vec3::ZERO;
         }
     }
 }
@@ -185,4 +194,28 @@ fn landing_soon<V: VoxelQuery + ?Sized>(s: &PlayerState, world: &CollisionWorld<
         Some(h) => h.normal.y >= p.walkable_normal_y,
         None => bp.sweep(world, hull.translate(a), b - a).is_some_and(|h| h.normal.y >= p.walkable_normal_y),
     }
+}
+
+/// End of `step_player`: give back the air jump + air dodge on landing and on a tether attach
+/// (which also clear the same-wall lockout), or on touching a wall / steep surface in the air this
+/// tick (`wall`: the slide move's non-walkable contact) unless it is the last refreshing wall again.
+pub(crate) fn refresh(s: &mut PlayerState, wall: Option<super::state::WallHit>, p: &MoveParams, ev: &mut MoveEvents) {
+    let x = &mut s.extra;
+    if s.grounded || ev.tether_attached.iter().any(|a| *a) {
+        x.restore();
+        x.last_wall = Vec3::ZERO;
+        return;
+    }
+    let Some(w) = wall.filter(|_| p.wall_refresh) else { return };
+    // Nothing to give back: no refresh (and no lockout), so touching a wall early costs nothing.
+    if !(x.air_jump_used || x.air_dodge_used) || !w.normal.is_finite() {
+        return;
+    }
+    let lock = p.wall_refresh_same_wall_lockout;
+    if lock > 0.0 && x.last_wall != Vec3::ZERO && w.normal.dot(x.last_wall) >= lock.to_radians().cos() {
+        return;
+    }
+    x.restore();
+    x.last_wall = w.normal;
+    ev.wall_refresh = Some(w.normal);
 }

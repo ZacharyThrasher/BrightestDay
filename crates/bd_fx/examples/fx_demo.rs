@@ -117,11 +117,15 @@ fn main() {
         }
     })
     .add_systems(Update, despawn_warmup)
-    .add_systems(Startup, setup_gallery.after(setup_models).run_if(|a: Res<Args>| !a.stress && a.view != "words"))
+    .add_systems(Startup, setup_gallery.after(setup_models).run_if(|a: Res<Args>| !a.stress && a.view != "words" && a.view != "summon"))
+    .add_systems(Update, summon_demo::run.run_if(|a: Res<Args>| a.view == "summon"))
     .add_systems(Startup, setup_stress.after(setup_models).run_if(|a: Res<Args>| a.stress))
     .add_systems(Update, (orbit_camera, drive_anims, cycle_gallery, gallery_extras, guns_demo, keys, stress_churn, automation, words_demo, transformer_demo));
     app.run();
 }
+
+#[path = "fx_demo_parts/summon_demo.rs"]
+mod summon_demo;
 
 // ------------------------------------------------------------------------------------ models
 
@@ -169,6 +173,7 @@ fn setup_models(mut models: ResMut<Models>) {
     d.push(("gun", def(Form::Gun, 1, &[], Some(1.6), &[], Element::Light)));
     d.push(("wall", def(Form::Wall, 1, &[], Some(4.0), &[], Element::Light)));
     d.push(("biped", def(Form::Biped, 1, &[], Some(2.6), &[], Element::Water)));
+    d.push(("tank", def(Form::Vehicle, 2, &[], Some(6.0), &[Feature::Treads, Feature::Turret], Element::Light)));
     for (n, m) in d.iter() {
         info!("model {n}: {} voxels, {} parts", m.model.voxel_count, m.model.parts.len());
     }
@@ -205,6 +210,7 @@ fn setup_scene(mut commands: Commands, args: Res<Args>, mut orbit: ResMut<Orbit>
         "creatures" => (Vec3::new(0.0, 1.5, 6.0), 12.0, 0.1, 0.25),
         "transform" => (Vec3::new(-7.0, 1.5, 14.0), 7.0, 0.6, 0.2),
         "combiner" => (Vec3::new(-2.0, 3.0, 24.0), 16.0, 0.3, 0.2),
+        "summon" => (Vec3::new(1.5, 2.2, 1.0), 15.0, 0.75, 0.22),
         _ => (Vec3::new(0.0, 3.0, 0.0), if args.stress { 60.0 } else { 36.0 }, 0.6, 0.35),
     };
     *orbit = Orbit { yaw: args.angle.unwrap_or(yaw), pitch, dist, target };

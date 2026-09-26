@@ -285,7 +285,7 @@ pub fn run_client(cli: &NetCli) -> i32 {
                         c.send_cmd(&Cmd::OathBegin { section });
                     }
                     if let Some((accuracy, seconds)) = act.finish_oath {
-                        c.send_cmd(&Cmd::OathResult { accuracy, seconds });
+                        c.send_cmd(&Cmd::OathResult { accuracy, seconds, voice: false });
                     }
                     if act.dismiss {
                         c.send_cmd(&Cmd::Dismiss);

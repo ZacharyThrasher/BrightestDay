@@ -57,10 +57,9 @@ use crate::camera::{CameraUpdateSet, PlayerCamera, ViewAnchor};
 use crate::lobby::prefs::UiPrefs;
 use crate::sim_bridge::{ActiveWorld, Cmd, GameEvents, SimCommand, WorldViews};
 use crate::state::{AppState, InGameMenu};
-use crate::warmup::WarmupItem;
 use bd_core::mechanics::{Form, FormCategory};
 use bd_core::ConstructId;
-use bd_fx::{BurstFx, BurstKind, ConstructMaterial, ConstructVisual};
+use bd_fx::{BurstFx, BurstKind, ConstructVisual};
 use bd_sim::GameEvent;
 use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{CameraOutputMode, ClearColorConfig, Viewport};
@@ -210,7 +209,6 @@ impl Plugin for SummonPingPlugin {
                 PostUpdate,
                 (
                     (summon_ping, update_cutins).chain().in_set(CutInSet).run_if(in_state(AppState::InGame)),
-                    warmup_preview.run_if(in_state(AppState::Loading)),
                 )
                     .after(CameraUpdateSet)
                     .before(bevy::camera::CameraUpdateSystems)
@@ -369,7 +367,8 @@ fn setup(mut commands: Commands, cams: Query<Entity, With<PlayerCamera>>) {
         // LDR: tonemapped in the material shader (matches the gameplay look), no post pass.
         Tonemapping::KhronosPbrNeutral,
         DebandDither::Disabled,
-        ClusterConfig::None,
+        // One light cluster (never zero-sized; the hard-light material is unlit anyway).
+        ClusterConfig::Single,
         // The hard-light shader reads the view's fog uniform: bind one that never fogs (alpha 0).
         DistanceFog { color: Color::NONE, directional_light_color: Color::NONE, directional_light_exponent: 1.0, falloff: FogFalloff::Linear { start: 1.0e6, end: 2.0e6 } },
         RenderLayers::layer(PREVIEW_LAYER),
@@ -464,31 +463,6 @@ fn clear_all(
     }
     for mut v in &mut ui {
         *v = Visibility::Hidden;
-    }
-}
-
-/// Loading: point the (tiny, corner) cut-in camera at the warm-up constructs so its construct
-/// pipelines compile behind the loading screen, not on the first summon.
-fn warmup_preview(
-    mut commands: Commands,
-    items: Query<Entity, (With<WarmupItem>, With<MeshMaterial3d<ConstructMaterial>>, Without<RenderLayers>)>,
-    main: Query<&Transform, (With<PlayerCamera>, Without<SummonPreviewCam>)>,
-    mut cam: Query<(&mut Camera, &mut Transform, &mut Projection), With<SummonPreviewCam>>,
-) {
-    for e in &items {
-        commands.entity(e).insert(RenderLayers::from_layers(&[0, PREVIEW_LAYER]));
-    }
-    let (Ok(m), Ok((mut c, mut tf, mut proj))) = (main.single(), cam.single_mut()) else { return };
-    *tf = *m;
-    if let Projection::Perspective(p) = proj.as_mut() {
-        p.fov = 90f32.to_radians();
-    }
-    let vp = Viewport { physical_position: UVec2::ZERO, physical_size: UVec2::splat(4), ..default() };
-    if !same_vp(c.viewport.as_ref(), &vp) {
-        c.viewport = Some(vp);
-    }
-    if !c.is_active {
-        c.is_active = true;
     }
 }
 

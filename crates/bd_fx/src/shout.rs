@@ -387,6 +387,14 @@ const SLAM: f32 = 0.24;
 /// Local shouts: flung toward the construct for this long before they shatter (crosses the centre
 /// of the screen for well under 0.25 s).
 const THROW: f32 = 0.14;
+/// Summon hook: letter voxels need this long to reach the ring beam and ride it to a brick (s);
+/// stages landing sooner than this after release are skipped.
+const BRICK_LEAD: f32 = 0.16;
+/// Summon hook: while the target is assembling, the words hold at most this long after the last
+/// letter lands, then become its bricks (s).
+const BRICK_HOLD: f32 = 0.3;
+/// Summon hook: first leg (letter voxel → ring beam), seconds.
+const BRICK_TO_RING: f32 = 0.1;
 
 struct SLetter {
     entity: Entity,
@@ -586,6 +594,7 @@ fn animate_shouts(
     settings: Res<ShoutSettings>,
     cams: Query<(&Camera, &GlobalTransform, &Projection), With<Camera3d>>,
     targets: Query<&GlobalTransform, With<ConstructVisual>>,
+    mut assemblies: Query<&mut crate::ConstructAssembly>,
     mut up: ResMut<FxUpload>,
     mut fx: ResMut<FxParticles>,
     mut sfx: MessageWriter<ShoutSfx>,
@@ -606,6 +615,29 @@ fn animate_shouts(
         st.boost += (target_boost - st.boost) * (1.0 - (-dt * 6.0).exp());
         let intensity = shout_intensity(s.energy, st.boost);
         let age = st.age;
+        // Summon assembly hook: the target construct is snapping its bricks on right now — keep the
+        // hold short and ask its later stages to wait, so the letters release while bricks are
+        // still to land and stream in *as* those bricks (finish_shouts).
+        if !s.fizzle
+            && s.stream_to.is_none()
+            && let Some(t) = s.target
+            && let Ok(mut a) = assemblies.get_mut(t)
+            && a.progress < 1.0
+        {
+            // Short, punchy hold while bricks wait for the letters…
+            st.hold = st.hold.min(BRICK_HOLD);
+            let throw = if s.local { THROW } else { 0.0 };
+            let release_in = (st.land + st.hold - age).max(0.0) + throw;
+            // …and ask the later stages to wait (capped by the animator) so the first one still to
+            // land lands just as the letter voxels arrive along the beam.
+            let n = (a.stages as usize).min(5);
+            if let Some(first) = (1..n).find(|&k| a.land_in[k] > 0.0) {
+                let need = release_in + BRICK_LEAD - a.land_in[first];
+                if need > 0.0 {
+                    a.hold_request = a.hold_request.max(need);
+                }
+            }
+        }
         let toward = s.target.and_then(|t| targets.get(t).ok()).map_or(fin3(s.toward), |g| g.translation());
         // ---- root placement
         let (pos, rot, unit) = if s.local {
@@ -767,6 +799,7 @@ fn finish_shouts(
     mut shouts: Query<(Entity, &Shout, &mut ShoutState)>,
     letters: Query<&GlobalTransform>,
     targets: Query<(&ConstructVisual, &GlobalTransform, &FxAnchor, &ConstructRuntime)>,
+    assemblies: Query<&crate::ConstructAssembly>,
 ) {
     let rt = &mut *rt;
     for (e, s, mut st) in &mut shouts {
@@ -835,6 +868,75 @@ fn finish_shouts(
                 local: s.local,
                 entity: e,
             });
+            commands.entity(e).despawn();
+            continue;
+        }
+        // Summon assembly hook: the target is still snapping bricks on — the letter voxels fly into
+        // the ring beam, then ride it to the stages still to land, arriving as each stage lands.
+        let asm = s.target.filter(|_| target.is_some()).and_then(|t| assemblies.get(t).ok()).filter(|a| a.pending(BRICK_LEAD).next().is_some());
+        if let Some(a) = asm {
+            let n_stages = a.pending(BRICK_LEAD).count().max(1);
+            let total: usize =
+                st.letters.iter().filter(|l| Some(l.line) != hidden_line).filter_map(|l| glyphs.glyphs.get(&l.ch)).map(|g| g.model.voxel_count).sum::<usize>().max(1);
+            // Two particles per voxel (to the ring, then along the beam): half the usual count.
+            let cap = (settings.stream_cap as f32 * fx_settings.particle_budget.clamp(0.0, 1.0) * 0.5).max(24.0);
+            let keep = (cap / total as f32).min(1.0);
+            let ring = fin3(a.ring);
+            let mut k = 0usize;
+            for l in &st.letters {
+                if Some(l.line) == hidden_line {
+                    continue;
+                }
+                let (Some(g), Ok(lgt)) = (glyphs.glyphs.get(&l.ch), letters.get(l.entity)) else { continue };
+                centre += lgt.translation();
+                shown += 1;
+                let tf = lgt.affine() * bevy::math::Affine3A::from_translation(-g.offset);
+                let size = (g.model.voxel_size * tf.matrix3.x_axis.length() * 1.4).clamp(0.03, 0.22);
+                for part in &g.model.parts {
+                    for (vx, tint) in &part.voxels {
+                        if matches!(tint, bd_core::shape::Tint::Dark) || fx.rng.f() > keep {
+                            continue;
+                        }
+                        // Round-robin over the stages still to land (no allocation).
+                        let pick = k % n_stages;
+                        k += 1;
+                        let Some((_, slot, secs, radius)) = a.pending(BRICK_LEAD).nth(pick) else { continue };
+                        let wp = tf.transform_point3(v3(part.voxel_center(*vx)));
+                        let to_ring = BRICK_TO_RING * (0.8 + 0.4 * fx.rng.f());
+                        let brick = slot + fx.rng.vec() * radius.clamp(0.05, 20.0) * 0.8;
+                        let color = pal.slot(if fx.rng.f() < 0.75 { 0 } else { 3 });
+                        let (s1, s2) = (fx.rng.next_u32(), fx.rng.next_u32());
+                        let ring_j = ring + fx.rng.vec() * 0.08;
+                        fx.emit(Emit {
+                            kind: PKind::Stream,
+                            flags: if settings.gentle { 0 } else { PFlags::WHITE_BIRTH },
+                            pos: wp,
+                            vel: ring_j,
+                            size,
+                            color,
+                            emissive: 2.6,
+                            life: to_ring,
+                            anchor: 0,
+                            seed: s1,
+                            ..default()
+                        });
+                        fx.emit(Emit {
+                            kind: PKind::Stream,
+                            pos: ring,
+                            vel: brick,
+                            size: size * 0.9,
+                            color,
+                            emissive: 3.0,
+                            life: (secs - to_ring).max(0.05),
+                            anchor: 0,
+                            seed: s2,
+                            delay: to_ring,
+                            ..default()
+                        });
+                    }
+                }
+            }
+            sfx.write(ShoutSfx { phase: ShoutPhase::Release { streamed: true }, pos: centre / shown.max(1) as f32, intensity, local: s.local, entity: e });
             commands.entity(e).despawn();
             continue;
         }

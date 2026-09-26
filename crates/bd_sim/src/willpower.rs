@@ -243,6 +243,10 @@ pub const OATH_TARGET_CPS: f32 = 6.5;
 pub const OATH_MAX_CPS: f32 = 20.0;
 /// Network slack when comparing a client's claimed time with host-measured time (s).
 pub const OATH_LATENCY_SLACK: f32 = 0.6;
+/// Slack for a **spoken** recital (`tuning.willpower.oath_voice_slack`): the host's clock also runs
+/// while Whisper transcribes (not the player's time), so voice gets more before the host-measured
+/// time floors the claimed time. The plausibility check (`OATH_MAX_CPS`) is unchanged.
+pub const OATH_VOICE_SLACK: f32 = 2.0;
 /// Fraction of progress refunded when damage interrupts the recital.
 pub const OATH_INTERRUPT_FRACTION: f32 = 0.5;
 

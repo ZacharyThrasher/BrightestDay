@@ -15,9 +15,9 @@
 //!   performance word. Esc cancels (no refill). `OathInterrupted` from the sim closes it.
 //! * **Voice** (when voice is available): before the first letter, hold the voice key ≥
 //!   [`VOICE_HOLD_SECS`] to speak the section instead (a quick tap still types its letter). The
-//!   transcript is scored by [`voice_match`] (accuracy only — voice reports
-//!   `seconds = max(measured, target)`, so it never earns the speed bonus; typing stays the fast,
-//!   skilful path). And a normal push-to-talk utterance that recites a section of your own oath
+//!   transcript is scored by [`voice_match`] (accuracy) and timed by the SPEAKING time (voice key
+//!   down → release, never Whisper's latency): the same refill formula, speed bonus and grade as
+//!   typing — same skill ceiling (owner). And a normal push-to-talk utterance that recites a section of your own oath
 //!   ([`voice_match::YELL_MATCH`]) is an oath recital, not a cast ([`OathVoice::claim`], checked by
 //!   voice_ui before the ring resolver): it goes through the same `OathBegin` → `OathResult`.
 //!   Either way the result waits until `oath_min_secs(len)` has passed since `OathBegin` (the
@@ -75,16 +75,6 @@ impl Grade {
             Grade::Slow
         }
     }
-    /// A spoken recital is graded by accuracy only (it has no pace to judge).
-    pub fn of_voice(accuracy: f32) -> Grade {
-        if accuracy >= 0.97 {
-            Grade::Perfect
-        } else if accuracy >= 0.85 {
-            Grade::Good
-        } else {
-            Grade::Slow
-        }
-    }
     pub fn key(self) -> &'static str {
         match self {
             Grade::Perfect => "perfect",
@@ -129,6 +119,31 @@ impl OathTexts {
             warn!("oaths.ron: {e}");
             Self::default()
         })
+    }
+    /// Up to `n` distinctive words of `c`'s oath (common short words dropped, first-seen order,
+    /// comma-separated) for Whisper's bias prompt, so a spoken recital transcribes as the oath
+    /// ("Sinestro's", "Abin Sur", the Compassion words).
+    pub fn bias_words(&self, c: Corps, n: usize) -> String {
+        const COMMON: &[&str] = &[
+            "the", "and", "all", "our", "your", "with", "who", "for", "from", "into", "that", "this", "those", "what", "when", "within",
+            "shall", "let", "made", "full", "long", "seems", "take", "want", "join", "try", "stop", "look", "lay",
+        ];
+        let mut seen = std::collections::HashSet::new();
+        let mut out: Vec<&str> = Vec::new();
+        for s in self.sections(c) {
+            for w in s.split(|ch: char| !(ch.is_alphanumeric() || ch == '\'')) {
+                let w = w.trim_matches('\'');
+                let lw = w.to_lowercase();
+                if w.chars().count() < 3 || COMMON.contains(&lw.as_str()) || !seen.insert(lw) {
+                    continue;
+                }
+                if out.len() >= n {
+                    return out.join(", ");
+                }
+                out.push(w);
+            }
+        }
+        out.join(", ")
     }
     /// The recital sections of `c`'s oath (never empty).
     pub fn sections(&self, c: Corps) -> &[String] {
@@ -294,10 +309,12 @@ fn route_transcript(o: &mut OathState, texts: &OathTexts, me: Option<Corps>, tex
         return true;
     }
     if o.open {
-        let VoicePhase::Listening { t, .. } = o.voice else { return false };
+        let VoicePhase::Listening { t, released } = o.voice else { return false };
         let section: String = o.text.iter().collect();
         let accuracy = voice_match::similarity(text, &section);
-        o.voice = VoicePhase::Sealing { accuracy, seconds: t.max(measured).max(target_secs(o.text.len())) };
+        // Speaking time (key down → release; Whisper's latency is not the player's): same formula,
+        // same speed bonus and grade as typing.
+        o.voice = VoicePhase::Sealing { accuracy, seconds: released.unwrap_or(t).max(0.05) };
         o.ptt = false;
         o.dirty = true;
         return true;
@@ -306,7 +323,7 @@ fn route_transcript(o: &mut OathState, texts: &OathTexts, me: Option<Corps>, tex
     let Some(corps) = me else { return false };
     let sections = texts.sections(corps);
     let Some((section, accuracy)) = voice_match::yelled_section(text, sections) else { return false };
-    let seconds = measured.max(target_secs(sections[section].chars().count()));
+    let seconds = measured.max(0.05);
     o.yell = Some(Yell { corps, section: section as u8, accuracy, seconds });
     true
 }
@@ -325,7 +342,7 @@ impl OathVoice<'_> {
     pub fn ptt(&self) -> bool {
         self.state.ptt
     }
-    /// A finished transcript (`measured` = seconds from push-to-talk down to now). `true` = it was
+    /// A finished transcript (`measured` = speaking time: push-to-talk down → release). `true` = it was
     /// an oath recital (the overlay's spoken recital, or a section of your own oath yelled outside
     /// it) — don't cast it.
     pub fn claim(&mut self, text: &str, measured: f32) -> bool {
@@ -457,7 +474,12 @@ fn oath_keys(
     let voice_down = binds.pressed(Action::Voice, &keys, &mouse);
     if o.typing_focus && voice.available() && !o.started && o.voice == VoicePhase::Off && binds.just_pressed(Action::Voice, &keys, &mouse) {
         o.voice = VoicePhase::Arming { held: 0.0, letter: None };
+        // The recital really starts now: restart the host's clock (it only restarts before any
+        // progress), so a pause after opening the overlay costs nothing — same as typing below.
+        cmds.write(SimCommand::local(Cmd::OathBegin { section: o.section }));
+        o.since_begin = 0.0;
     }
+    let was_started = o.started;
     let mut finished = false;
     for ev in typed.read() {
         if ev.state != ButtonState::Pressed || finished {
@@ -526,6 +548,11 @@ fn oath_keys(
         _ => {}
     }
     o.ptt = matches!(o.voice, VoicePhase::Listening { released: None, .. });
+    if o.started && !was_started {
+        // First typed letter: restart the host's clock here (typing is timed from the first key).
+        cmds.write(SimCommand::local(Cmd::OathBegin { section: o.section }));
+        o.since_begin = 0.0;
+    }
     // Hint line under the bar.
     // (Built only when it changes: no per-frame allocation.)
     let hint: Option<&str> = match &o.voice {
@@ -575,7 +602,7 @@ fn oath_keys(
     let result = if finished {
         let acc = o.accuracy();
         let secs = o.elapsed.max(0.05);
-        Some((acc, secs, Grade::of(acc, secs, len)))
+        Some((acc, secs, Grade::of(acc, secs, len), false))
     } else if let VoicePhase::Sealing { accuracy, seconds } = o.voice {
         if o.reported < len {
             // Spoken in full: an interrupting hit refunds like a finished-but-unsealed recital.
@@ -585,12 +612,12 @@ fn oath_keys(
             cmds.write(SimCommand::local(Cmd::OathProgress { correct_chars: len16(len), accuracy }));
         }
         // Never before the host's plausibility floor (whisper latency usually covers it).
-        (o.since_begin >= oath_min_secs(len16(len))).then_some((accuracy, seconds, Grade::of_voice(accuracy)))
+        (o.since_begin >= oath_min_secs(len16(len))).then_some((accuracy, seconds, Grade::of(accuracy, seconds, len), true))
     } else {
         None
     };
-    if let Some((acc, secs, g)) = result {
-        cmds.write(SimCommand::local(Cmd::OathResult { accuracy: acc, seconds: secs }));
+    if let Some((acc, secs, g, voice)) = result {
+        cmds.write(SimCommand::local(Cmd::OathResult { accuracy: acc, seconds: secs, voice }));
         sfx.write(PlaySfx::new("oath_complete").gain(0.8));
         // Performance word: bd_fx's hard-light voxel word near the crosshair when available,
         // else the overlay's own text word.
@@ -829,9 +856,6 @@ mod tests {
         assert_eq!(Grade::of(0.9, t, len), Grade::Good);
         assert_eq!(Grade::of(0.6, t, len), Grade::Slow);
         assert_eq!(Grade::of(1.0, t * 3.0, len), Grade::Slow);
-        assert_eq!(Grade::of_voice(0.99), Grade::Perfect);
-        assert_eq!(Grade::of_voice(0.9), Grade::Good);
-        assert_eq!(Grade::of_voice(0.6), Grade::Slow);
     }
 
     #[test]
@@ -850,6 +874,18 @@ mod tests {
         }
         // Death has no corps yet: parsed, ignored by the game.
         assert!(o.by_corps.contains_key("Death"));
+    }
+
+    #[test]
+    fn bias_words_carry_the_oaths_odd_words() {
+        let t = texts();
+        let fear = t.bias_words(Corps::Fear, 24);
+        assert!(fear.contains("Sinestro's") && !fear.contains("those"), "{fear}");
+        let comp = t.bias_words(Corps::Compassion, 24);
+        for w in ["lorek", "nakka", "Natromo", "tornek", "Abin", "Formorrow"] {
+            assert!(comp.contains(w), "{w} missing from {comp}");
+        }
+        assert!(t.bias_words(Corps::Willpower, 3).split(", ").count() == 3);
     }
 
     #[test]
@@ -892,13 +928,17 @@ mod tests {
         // A construct phrase goes on to the ring resolver.
         assert!(!route_transcript(&mut o, &t, Some(Corps::Willpower), "giant hammer", 1.0));
         assert!(o.yell.is_none());
-        // Your own oath's second line: claimed, section 1, no speed bonus possible.
+        // Your own oath's second line: claimed, section 1, timed by the speaking time.
         let spoken = "let those who worship evils might beware my power green lanterns light";
-        assert!(route_transcript(&mut o, &t, Some(Corps::Willpower), spoken, 3.0));
+        assert!(route_transcript(&mut o, &t, Some(Corps::Willpower), spoken, 5.0));
         let y = o.yell.take().unwrap();
         assert_eq!((y.corps, y.section), (Corps::Willpower, 1));
         let len = t.sections(Corps::Willpower)[1].chars().count();
-        assert!(y.accuracy > 0.95 && (y.seconds - target_secs(len)).abs() < 1e-4, "{y:?}");
+        // 77 chars in 5 s ≈ 15 chars/s: fast speech, faster than the target, still humanly plausible.
+        assert!(y.accuracy > 0.95 && y.seconds == 5.0 && 5.0 < target_secs(len), "{y:?}");
+        assert!(y.seconds >= oath_min_secs(len16(len)));
+        // Spoken fast and clean it earns the same grade (and speed bonus) as fast typing.
+        assert_eq!(Grade::of(y.accuracy, y.seconds, len), Grade::Perfect);
         // Another corps' oath is just words (cast as usual); so is anything when dead.
         assert!(!route_transcript(&mut o, &t, Some(Corps::Rage), spoken, 3.0));
         assert!(!route_transcript(&mut o, &t, None, spoken, 3.0));
@@ -913,7 +953,7 @@ mod tests {
         o.start(Corps::Fear, 1, &sec, true);
         // Typing mode: a transcript is not the overlay's (old behaviour).
         assert!(!route_transcript(&mut o, &t, Some(Corps::Fear), "in blackest day", 1.0));
-        o.voice = VoicePhase::Listening { t: 4.0, released: Some(3.5) };
+        o.voice = VoicePhase::Listening { t: 6.4, released: Some(5.5) };
         assert!(route_transcript(
             &mut o,
             &t,
@@ -923,12 +963,19 @@ mod tests {
         ));
         let VoicePhase::Sealing { accuracy, seconds } = o.voice else { panic!("{:?}", o.voice) };
         assert!(accuracy > 0.95, "{accuracy}");
-        assert!((seconds - target_secs(sec.chars().count())).abs() < 1e-4, "voice never beats the target time");
+        // Timed key-down → release (5.5 s), not until the transcript arrived (6.4 s).
+        assert_eq!(seconds, 5.5);
+        assert!(seconds >= oath_min_secs(len16(sec.chars().count())), "fast speech passes the host's floor");
+        assert!(seconds < target_secs(sec.chars().count()), "a fast speaker beats the target time");
         // A slow speaker keeps their (slower) time.
         o.voice = VoicePhase::Listening { t: 30.0, released: Some(29.0) };
         assert!(route_transcript(&mut o, &t, Some(Corps::Fear), "burn like my power", 30.0));
         let VoicePhase::Sealing { accuracy, seconds } = o.voice else { panic!() };
-        assert!(accuracy < 0.5 && seconds == 30.0, "{accuracy} {seconds}");
+        assert!(accuracy < 0.5 && seconds == 29.0, "{accuracy} {seconds}");
+        // Still holding when Whisper's clip limit cut it: the time so far.
+        o.voice = VoicePhase::Listening { t: 8.2, released: None };
+        assert!(route_transcript(&mut o, &t, Some(Corps::Fear), "burn like my power", 8.2));
+        assert!(matches!(o.voice, VoicePhase::Sealing { seconds, .. } if seconds == 8.2));
         // Cancelled while Whisper ran: the late transcript is dropped (neither oath nor cast).
         let mut focus = UiFocus::default();
         o.voice = VoicePhase::Listening { t: 1.0, released: Some(1.0) };

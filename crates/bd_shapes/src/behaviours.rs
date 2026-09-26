@@ -46,6 +46,9 @@ use crate::roles::{self, Role, Roles};
 use crate::voxelize::VoxelModel;
 
 const STEP: f32 = 1.0 / 120.0;
+/// Longest a shout may hold back the assembly's later stages (s): the core is up at once, so the
+/// silhouette stays close to final.
+pub const MAX_STAGE_DELAY: f32 = 0.45;
 const MAX_CUES: usize = 8;
 
 // ------------------------------------------------------------------------------------ inputs
@@ -231,10 +234,13 @@ pub struct ConstructAnimator {
     seed: u32,
     // Assembly timing.
     asm_total: f32,
+    /// Extra wait before stages ≥ 1 (a shout's letters become those bricks; see [Self::hold_stages]).
+    stage_delay: f32,
     asm_flight: f32,
     asm_snap: f32,
     asm_step: f32,
     stage_center: [Vec3; 5],
+    stage_radius: [f32; 5],
     stage_landed: u8,
     has_jaw: bool,
     drive: AnimDrive,
@@ -268,6 +274,24 @@ impl ConstructAnimator {
         for s in 0..5 {
             if counts[s] > 0 {
                 stage_center[s] /= counts[s] as f32;
+            }
+        }
+        // How far a stage's bricks spread around its centroid (targets for streamed voxels).
+        let mut stage_radius = [0.0f32; 5];
+        for (p, m) in roles.parts.iter().zip(&model.parts) {
+            if m.voxels.is_empty() {
+                continue;
+            }
+            let s = (p.stage as usize).min(4);
+            let b = m.aabb();
+            let r = stage_center[s].distance(p.center) + 0.35 * (b.max - b.min).max_element();
+            stage_radius[s] = stage_radius[s].max(r);
+        }
+        // A stage with no bricks of its own (the lock stage of a hatch-only model): the whole body.
+        for s in 0..5 {
+            if counts[s] == 0 {
+                stage_center[s] = roles.center;
+                stage_radius[s] = 0.3 * roles.size;
             }
         }
         let has_jaw = roles.parts.iter().any(|p| p.role == Role::Jaw);
@@ -307,10 +331,12 @@ impl ConstructAnimator {
             prev_speed: 0.0,
             seed,
             asm_total: total,
+            stage_delay: 0.0,
             asm_flight: flight,
             asm_snap: snap,
             asm_step: step,
             stage_center,
+            stage_radius,
             stage_landed: 0,
             has_jaw,
             drive: AnimDrive::default(),
@@ -332,7 +358,7 @@ impl ConstructAnimator {
 
     /// Seconds the summon assembly takes for this model.
     pub fn assembly_seconds(&self) -> f32 {
-        self.asm_total
+        self.asm_total + self.stage_delay
     }
 
     fn cue(&mut self, c: Cue) {
@@ -432,11 +458,36 @@ impl ConstructAnimator {
                 break;
             }
         }
-        Assembly { active: t < self.asm_total, progress: (t / self.asm_total).clamp(0.0, 1.0), stage, stages, next }
+        let total = self.asm_total + self.stage_delay;
+        Assembly { active: t < total, progress: (t / total).clamp(0.0, 1.0), stage, stages, next }
+    }
+
+    /// Per-stage schedule (model space): `(slot centroid, seconds until it lands, spread radius)`
+    /// for stages `..roles.stages` (unused entries are zero). Seconds are relative to now (≤ 0 =
+    /// landed); all `f32::MIN` when no assembly is playing.
+    pub fn stage_schedule(&self) -> [(Vec3, f32, f32); 5] {
+        let mut out = [(Vec3::ZERO, f32::MIN, 0.0); 5];
+        let Some(t) = self.summon else { return out };
+        for (k, o) in out.iter_mut().enumerate().take(self.roles.stages.min(5) as usize) {
+            *o = (self.stage_center[k], self.land_time(k as u8) - t, self.stage_radius[k]);
+        }
+        out
+    }
+
+    /// Push the not-yet-started stages (≥ 1) back by `secs` more (total wait capped at
+    /// [`MAX_STAGE_DELAY`]) — a shout is about to shatter and its letters should arrive *as* those
+    /// bricks. The core (stage 0, the bulk of the silhouette) is never delayed, and nothing already
+    /// on screen is taken back: once stage 1 has started, further requests are ignored.
+    pub fn hold_stages(&mut self, secs: f32) {
+        let Some(t) = self.summon else { return };
+        if !(secs.is_finite() && secs > 0.0) || self.roles.stages < 2 || t >= self.stage_start(1) {
+            return;
+        }
+        self.stage_delay = (self.stage_delay + secs).min(MAX_STAGE_DELAY);
     }
 
     fn stage_start(&self, k: u8) -> f32 {
-        k as f32 * self.asm_step
+        k as f32 * self.asm_step + if k >= 1 { self.stage_delay } else { 0.0 }
     }
 
     /// When stage `k`'s bricks touch their slots.
@@ -519,7 +570,7 @@ impl ConstructAnimator {
                     }
                 }
             }
-            if t > self.asm_total + 0.3 {
+            if t > self.asm_total + self.stage_delay + 0.3 {
                 self.summon = None;
             }
         }
@@ -759,7 +810,7 @@ impl ConstructAnimator {
             return Some(Local { pos, scale: Vec3::splat(s.max(0.001)), ..Local::IDENTITY });
         }
         let t = self.summon?;
-        if t > self.asm_total + 0.25 {
+        if t > self.asm_total + self.stage_delay + 0.25 {
             return None;
         }
         let k = info.stage;

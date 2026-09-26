@@ -15,6 +15,10 @@
 //!   the title here.
 //! * **Screen grade**: an element-coloured tint (≤ 10 % alpha, eased, steady — never a flash) while
 //!   the local player is inside a live domain.
+//! * **Orbital strike markers** (`GameEvent::OrbitalStrike`): a hard-light ring in the caster's corps
+//!   colour at the impact point — wide, closing in and pulsing faster through the telegraph (the
+//!   counterplay window), steady under the live beam (the beam itself is the existing `Hitscan`
+//!   visuals), gone at the end; players near the point get the `alert_danger` cue.
 //! * **Audio / music hooks**: [`SignatureCue`] messages (bd_audio / bd_music are owned elsewhere):
 //!   `alert_danger`, `domain_open`, `domain_hum_loop` (start / stop), `domain_shatter`, `ult_charge`,
 //!   `ult_fire`, `world_duck`, `music_stinger`.
@@ -125,6 +129,51 @@ struct Spectacles {
 #[derive(Component)]
 struct DomainTint;
 
+/// An orbital strike's ground TARGET MARKER (a hard-light ring that closes in and pulses while the
+/// strike is telegraphed, then burns steady under the live beam).
+#[derive(Component)]
+struct StrikeMarker {
+    id: ConstructId,
+    radius: f32,
+    /// Seconds into the current phase / phase length.
+    t: f32,
+    secs: f32,
+    live: bool,
+    mat: Handle<StandardMaterial>,
+    color: [f32; 3],
+}
+
+/// Peak mic level (0..1) of the current / last push-to-talk utterance: a spoken signature's power
+/// (read by `console::Caster` when it sends `Cmd::Signature`).
+#[derive(Resource, Default)]
+pub struct SignatureVoice {
+    pub peak: f32,
+    was_listening: bool,
+}
+
+fn track_voice(voice: Option<Res<crate::voice_ui::VoiceUi>>, mut sv: ResMut<SignatureVoice>) {
+    let Some(v) = voice else { return };
+    if v.listening && !sv.was_listening {
+        sv.peak = 0.0;
+    }
+    if v.listening {
+        sv.peak = sv.peak.max(v.level);
+    }
+    sv.was_listening = v.listening;
+}
+
+/// Ring segments per marker.
+const MARKER_SEGMENTS: usize = 20;
+
+#[derive(Resource)]
+struct MarkerAssets {
+    mesh: Handle<Mesh>,
+}
+
+/// Queued marker changes from the event reader (applied where Commands / assets are at hand).
+#[derive(Resource, Default)]
+struct MarkerQueue(Vec<(ConstructId, PlayerId, bd_sim::signature::StrikePhase, Vec3, f32, f32)>);
+
 /// Max tint alpha inside a domain (comfort: a steady grade, never a flash).
 const TINT_MAX: f32 = 0.10;
 /// Wait this long for the construct's entity before alerting on its position alone.
@@ -137,19 +186,154 @@ impl Plugin for SignaturePlugin {
         app.add_message::<SignatureCue>()
             .init_resource::<Spectacles>()
             .init_resource::<SigDev>()
-            .add_systems(Startup, spawn_tint)
-            .add_systems(Update, (spectacle_events.in_set(PresentSet::Events), (alert_spectacles, domain_state).chain().in_set(PresentSet::Sync)))
+            .init_resource::<MarkerQueue>()
+            .init_resource::<SignatureVoice>()
+            .add_systems(PreUpdate, track_voice)
+            .add_systems(Startup, (spawn_tint, marker_assets))
+            .add_systems(
+                Update,
+                (
+                    spectacle_events.in_set(PresentSet::Events),
+                    (alert_spectacles, domain_state, strike_markers).chain().in_set(PresentSet::Sync),
+                ),
+            )
             .add_systems(Update, (dev_test, dev_world).chain().before(crate::tick::FrameSet::Input))
             .add_systems(OnExit(AppState::InGame), clear);
     }
 }
 
-fn clear(mut s: ResMut<Spectacles>, mut tint: Query<&mut BackgroundColor, With<DomainTint>>) {
+fn clear(
+    mut commands: Commands,
+    mut s: ResMut<Spectacles>,
+    mut q: ResMut<MarkerQueue>,
+    markers: Query<Entity, With<StrikeMarker>>,
+    mut tint: Query<&mut BackgroundColor, With<DomainTint>>,
+) {
     s.pending.clear();
     s.live.clear();
     s.tint = 0.0;
+    q.0.clear();
+    for e in &markers {
+        commands.entity(e).despawn();
+    }
     for mut b in &mut tint {
         b.0 = Color::NONE;
+    }
+}
+
+fn marker_assets(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    commands.insert_resource(MarkerAssets { mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)) });
+}
+
+/// Orbital strike markers: spawn on Telegraph, go steady on Strike, fade out on End; animate.
+#[allow(clippy::too_many_arguments)]
+fn strike_markers(
+    time: Res<Time>,
+    active: Option<Res<ActiveWorld>>,
+    views: Res<WorldViews>,
+    assets: Option<Res<MarkerAssets>>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+    mut queue: ResMut<MarkerQueue>,
+    mut markers: Query<(Entity, &mut StrikeMarker, &mut Transform)>,
+    mut cues: MessageWriter<SignatureCue>,
+) {
+    use bd_sim::signature::StrikePhase;
+    let dt = time.delta_secs();
+    let local = active.as_ref().and_then(|a| a.local);
+    let me = local.and_then(|id| views.player(id)).map(|v| v.pos);
+    for (id, owner, phase, point, radius, secs) in queue.0.drain(..) {
+        let existing = markers.iter_mut().find(|(_, m, _)| m.id == id).map(|(e, ..)| e);
+        let corps = active.as_ref().map_or([1.0, 1.0, 1.0], |a| corps_rgb(a.corps_of(owner)));
+        let mine = local == Some(owner);
+        let near = me.is_some_and(|p| Vec3::new(p.x - point.x, 0.0, p.z - point.z).length() < radius + 10.0);
+        let cue = |c: Cue, sev: f32| SignatureCue { cue: c, pos: point, severity: sev, mine, element: Element::Light, construct: id };
+        match phase {
+            StrikePhase::Telegraph => {
+                if let Some(e) = existing {
+                    commands.entity(e).despawn();
+                }
+                if !mine && near {
+                    cues.write(cue(Cue::AlertDanger, 1.0));
+                }
+                let Some(assets) = assets.as_ref() else { continue };
+                let mat = mats.add(StandardMaterial {
+                    base_color: rgb_color(corps).with_alpha(0.0),
+                    emissive: LinearRgba::rgb(corps[0] * 4.0, corps[1] * 4.0, corps[2] * 4.0),
+                    unlit: true,
+                    alpha_mode: AlphaMode::Add,
+                    ..default()
+                });
+                let root = commands
+                    .spawn((
+                        Name::new("StrikeMarker"),
+                        StrikeMarker { id, radius, t: 0.0, secs: secs.max(0.05), live: false, mat: mat.clone(), color: corps },
+                        Transform::from_translation(point + Vec3::Y * 0.08),
+                        Visibility::default(),
+                    ))
+                    .id();
+                for k in 0..MARKER_SEGMENTS {
+                    let a = k as f32 / MARKER_SEGMENTS as f32 * std::f32::consts::TAU;
+                    let seg = std::f32::consts::TAU / MARKER_SEGMENTS as f32 * 0.62;
+                    let child = commands
+                        .spawn((
+                            Mesh3d(assets.mesh.clone()),
+                            MeshMaterial3d(mat.clone()),
+                            Transform::from_translation(Vec3::new(a.cos(), 0.0, a.sin()))
+                                .with_rotation(Quat::from_rotation_y(-a))
+                                .with_scale(Vec3::new(0.12, 0.06, seg)),
+                            bevy::light::NotShadowCaster,
+                        ))
+                        .id();
+                    commands.entity(root).add_child(child);
+                }
+                // The crosshair bars (the lock-on).
+                for r in [0.0f32, std::f32::consts::FRAC_PI_2] {
+                    let child = commands
+                        .spawn((
+                            Mesh3d(assets.mesh.clone()),
+                            MeshMaterial3d(mat.clone()),
+                            Transform::from_rotation(Quat::from_rotation_y(r)).with_scale(Vec3::new(1.2, 0.05, 0.1)),
+                            bevy::light::NotShadowCaster,
+                        ))
+                        .id();
+                    commands.entity(root).add_child(child);
+                }
+            }
+            StrikePhase::Strike => {
+                if let Some(e) = existing
+                    && let Ok((_, mut m, _)) = markers.get_mut(e)
+                {
+                    m.live = true;
+                    m.t = 0.0;
+                    m.secs = secs.max(0.05);
+                }
+                cues.write(cue(Cue::UltFire, if near { 1.0 } else { 0.5 }));
+            }
+            StrikePhase::End => {
+                if let Some(e) = existing {
+                    commands.entity(e).despawn();
+                }
+            }
+        }
+    }
+    for (_, mut m, mut tf) in &mut markers {
+        m.t += dt;
+        let k = (m.t / m.secs).clamp(0.0, 1.0);
+        // Telegraph: a wide ring closing onto the impact point, pulsing faster as it locks;
+        // live: steady at the beam's radius with a slow throb.
+        let (r, glow) = if m.live {
+            (m.radius * (1.0 + 0.08 * (m.t * 9.0).sin()), 1.0)
+        } else {
+            let pulse = 0.55 + 0.45 * (m.t * (8.0 + 16.0 * k)).sin().abs();
+            (m.radius * (3.0 - 2.0 * k), pulse)
+        };
+        tf.scale = Vec3::new(r, 1.0, r);
+        if let Some(mut mat) = mats.get_mut(&m.mat) {
+            let c = m.color;
+            let g = 4.0 * glow;
+            mat.emissive = LinearRgba::rgb(c[0] * g, c[1] * g, c[2] * g);
+        }
     }
 }
 
@@ -183,7 +367,13 @@ fn element_rgb(e: Element, corps: [f32; 3]) -> [f32; 3] {
 
 // ------------------------------------------------------------------------------------ systems
 
-fn spectacle_events(mut events: MessageReader<GameEvents>, active: Option<Res<ActiveWorld>>, mut s: ResMut<Spectacles>, mut cues: MessageWriter<SignatureCue>) {
+fn spectacle_events(
+    mut events: MessageReader<GameEvents>,
+    active: Option<Res<ActiveWorld>>,
+    mut s: ResMut<Spectacles>,
+    mut mq: ResMut<MarkerQueue>,
+    mut cues: MessageWriter<SignatureCue>,
+) {
     let Some(active) = active else {
         events.clear();
         return;
@@ -197,7 +387,15 @@ fn spectacle_events(mut events: MessageReader<GameEvents>, active: Option<Res<Ac
                     continue; // a late joiner's manifest / a client re-spawn
                 }
                 let Some(sp) = spectacle(recipe, *cost, *forming, t) else { continue };
-                s.pending.push(Pending { id: *id, owner: *owner, sp, title: recipe.name.clone(), element: recipe.element, form: recipe.form, age: 0.0 });
+                s.pending.push(Pending {
+                    id: *id,
+                    owner: *owner,
+                    sp,
+                    title: recipe.name.clone(),
+                    element: recipe.element,
+                    form: recipe.form,
+                    age: 0.0,
+                });
             }
             GameEvent::ConstructGone { id, .. } => {
                 if let Some(i) = s.live.iter().position(|l| l.id == *id) {
@@ -212,9 +410,21 @@ fn spectacle_events(mut events: MessageReader<GameEvents>, active: Option<Res<Ac
                 }
                 s.pending.retain(|p| p.id != *id);
             }
+            GameEvent::OrbitalStrike { id, owner, phase, point, radius, secs } => {
+                if mq.0.len() < 64 {
+                    mq.0.push((*id, *owner, *phase, bv(*point), *radius, *secs));
+                }
+            }
             GameEvent::ShotFired { owner, construct: Some(c), muzzle, .. } => {
                 if let Some(l) = s.live.iter().find(|l| l.id == *c && l.sp.kind == SignatureKind::Beam) {
-                    cues.write(SignatureCue { cue: Cue::UltFire, pos: bv(*muzzle), severity: 0.8, mine: local == Some(*owner), element: l.element, construct: l.id });
+                    cues.write(SignatureCue {
+                        cue: Cue::UltFire,
+                        pos: bv(*muzzle),
+                        severity: 0.8,
+                        mine: local == Some(*owner),
+                        element: l.element,
+                        construct: l.id,
+                    });
                 }
             }
             _ => {}
@@ -501,7 +711,13 @@ fn dev_test(
         info!("signature test: bot {bot:?} casts {phrase:?} from {dist} m @ {yaw}°");
         let cmd = match res.signature.as_ref() {
             Some(s) => crate::console::signature_cmd(res.recipe.clone(), res.shape.clone(), aim, s, phrase, None),
-            None => crate::sim_bridge::Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation: false },
+            None => crate::sim_bridge::Cmd::Cast {
+                recipe: Box::new(res.recipe),
+                shape: res.shape,
+                alt_shape: res.alt_shape,
+                aim,
+                incantation: false,
+            },
         };
         dev.casts.push((bot, cmd));
     }
@@ -529,10 +745,22 @@ mod tests {
 
     #[test]
     fn cue_names_are_the_wishlist() {
-        let names: Vec<&str> = [Cue::AlertDanger, Cue::DomainOpen, Cue::DomainHum { on: true }, Cue::DomainShatter, Cue::UltCharge, Cue::UltFire, Cue::WorldDuck, Cue::MusicStinger]
-            .iter()
-            .map(|c| c.name())
-            .collect();
-        assert_eq!(names, ["alert_danger", "domain_open", "domain_hum_loop", "domain_shatter", "ult_charge", "ult_fire", "world_duck", "music_stinger"]);
+        let names: Vec<&str> = [
+            Cue::AlertDanger,
+            Cue::DomainOpen,
+            Cue::DomainHum { on: true },
+            Cue::DomainShatter,
+            Cue::UltCharge,
+            Cue::UltFire,
+            Cue::WorldDuck,
+            Cue::MusicStinger,
+        ]
+        .iter()
+        .map(|c| c.name())
+        .collect();
+        assert_eq!(
+            names,
+            ["alert_danger", "domain_open", "domain_hum_loop", "domain_shatter", "ult_charge", "ult_fire", "world_duck", "music_stinger"]
+        );
     }
 }

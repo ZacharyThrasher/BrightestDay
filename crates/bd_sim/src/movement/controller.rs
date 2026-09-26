@@ -340,9 +340,8 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     if s.grounded && (s.sliding || s.since_landing >= p.land_grace) {
         chain = 0;
     }
-    if s.grounded || ev.tether_attached.iter().any(|a| *a) {
-        s.extra.restore(); // AIR JUMP / DODGE: back on landing and on a tether attach
-    }
+    // AIR JUMP / DODGE: back on landing, a tether attach, or a (different) wall / surf-ramp touch.
+    super::air_jump::refresh(s, out.wall, p, &mut ev);
     s.prev_buttons = inp.held;
     s.hop_chain = chain;
     ev.hop_chain = chain;

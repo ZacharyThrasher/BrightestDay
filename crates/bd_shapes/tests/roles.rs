@@ -299,6 +299,37 @@ fn summon_assembles_in_role_order_then_rests() {
 }
 
 #[test]
+fn a_shout_can_hold_the_later_stages_but_never_the_core() {
+    let tank = machine(Form::Vehicle, 7.0, &[Mechanic::Piloted], &[Feature::Treads, Feature::Turret]);
+    let mut a = ConstructAnimator::new(&tank, 1);
+    let base = a.assembly_seconds();
+    a.event(AnimEvent::Summon);
+    let dt = 1.0 / 120.0;
+    a.update(&AnimDrive { time: dt, ..Default::default() }, dt);
+    let before = a.stage_schedule();
+    a.hold_stages(0.3);
+    a.hold_stages(5.0); // capped
+    let after = a.stage_schedule();
+    assert!((after[0].1 - before[0].1).abs() < 1e-6, "core never waits");
+    for k in 1..a.roles.stages as usize {
+        let d = after[k].1 - before[k].1;
+        assert!((d - bd_shapes::behaviours::MAX_STAGE_DELAY).abs() < 1e-4, "stage {k} delayed by {d}");
+    }
+    assert!((a.assembly_seconds() - base - bd_shapes::behaviours::MAX_STAGE_DELAY).abs() < 1e-4);
+    // Once stage 1 is on screen nothing is taken back.
+    let mut t = dt;
+    while t < base + 0.5 {
+        t += dt;
+        a.update(&AnimDrive { time: t, ..Default::default() }, dt);
+    }
+    let s = a.stage_schedule();
+    a.hold_stages(0.3);
+    assert_eq!(s, a.stage_schedule());
+    // Slots are spread around real geometry.
+    assert!(after.iter().take(a.roles.stages as usize).all(|(_, _, r)| *r > 0.0 && r.is_finite()));
+}
+
+#[test]
 fn behaviours_are_finite_and_bounded_for_any_input() {
     let mut models = Vec::new();
     for f in ALL_FORMS {

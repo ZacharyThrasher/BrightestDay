@@ -40,8 +40,10 @@ pub struct VoiceUi {
     raw_level: f32,
     held: bool,
     spin: f32,
-    /// Seconds since push-to-talk last went down (a spoken oath's measured time).
+    /// Seconds since push-to-talk last went down.
     since_ptt: f32,
+    /// How long push-to-talk was held last time (the utterance's speaking time).
+    last_hold: f32,
 }
 
 impl VoiceUi {
@@ -66,7 +68,7 @@ impl Plugin for VoicePlugin {
     }
 }
 
-fn start_voice(prefs: Res<UiPrefs>, lex: Option<Res<RingLexicon>>, mut v: ResMut<VoiceUi>) {
+fn start_voice(prefs: Res<UiPrefs>, lex: Option<Res<RingLexicon>>, oaths: Res<crate::oath::OathTexts>, mut v: ResMut<VoiceUi>) {
     if !prefs.voice {
         if v.input.is_some() {
             v.input = None;
@@ -84,7 +86,10 @@ fn start_voice(prefs: Res<UiPrefs>, lex: Option<Res<RingLexicon>>, mut v: ResMut
     let Some(lex) = lex else { return };
     let cfg = VoiceConfig {
         model_path: crate::assets_dir().join("models").join("ggml-base.en-q5_1.bin"),
-        initial_prompt: lex.0.bias_prompt(60),
+        // The ring's vocabulary, then the player's own corps oath (so a spoken recital transcribes as
+        // the oath: "Sinestro's", "Abin Sur", the Compassion words). Last, so it survives Whisper's
+        // prompt-token cap.
+        initial_prompt: format!("{}, {}", lex.0.bias_prompt(60), oaths.bias_words(prefs.corps, 24)),
         ..Default::default()
     };
     match VoiceInput::new(cfg) {
@@ -120,6 +125,10 @@ fn voice_frame(
     // The oath overlay holds push-to-talk itself while reciting by voice (it owns the keyboard).
     let held = (in_play && binds.pressed(Action::Voice, &keys, &mouse)) || oath.ptt();
     let v = &mut *v;
+    if v.held && !held {
+        // Speaking time of this utterance (a spoken oath is timed by it, not by Whisper's latency).
+        v.last_hold = v.since_ptt;
+    }
     v.since_ptt = if held && !v.held { 0.0 } else { (v.since_ptt + dt).min(600.0) };
     if let Some(input) = v.input.as_ref() {
         if held != v.held {
@@ -144,7 +153,8 @@ fn voice_frame(
                     debug!("voice: {text:?} ({ms} ms)");
                     // OATH HOOK (before the ring resolver): the overlay's spoken recital, or a section
                     // of your own oath yelled outside it, is an oath recital — not a cast.
-                    if oath.claim(&text, v.since_ptt) {
+                    let spoken = if v.held { v.since_ptt } else { v.last_hold };
+                    if oath.claim(&text, spoken) {
                         continue;
                     }
                     caster.cast(&text, true, 0);

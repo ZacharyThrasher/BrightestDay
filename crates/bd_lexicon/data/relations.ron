@@ -1,0 +1,186 @@
+// Relations layer data (crates/bd_lexicon/src/relations.rs). Word lists are normalised (lowercase,
+// hyphens -> spaces: "t-rex-sized" is typed tokens "t rex sized"). Behaviour words map onto the closed
+// bd_core sets only. Edit freely; no lexicon rebuild needed (embedded at compile time).
+(
+    // A whole phrase equal to one of these never goes through relations (names / idioms).
+    guard_phrases: ["man of steel", "iron man", "ride the lightning", "on fire", "cat on a hot tin roof",
+        "man on the moon", "fly on the wall", "ghost in the shell", "ghost rider", "knight rider",
+        "easy rider", "road runner", "sky blue", "space bar", "rain boots", "pie in the sky"],
+
+    // ---------------------------------------------------------------- size relations
+    // "X sized Y" / "X size Y": X is only a size reference for the construct Y.
+    size_markers: ["sized", "size", "scale"],
+    // "Y <phrase> X": Y gets X's typical size times `mul`.
+    size_of: [
+        (words: "half the size of", mul: 0.5),
+        (words: "twice the size of", mul: 2.0),
+        (words: "twice as big as", mul: 2.0),
+        (words: "the size of", mul: 1.0),
+        (words: "size of", mul: 1.0),
+        (words: "as big as", mul: 1.0),
+        (words: "as large as", mul: 1.0),
+        (words: "as tall as", mul: 1.0),
+        (words: "as huge as", mul: 1.0),
+        (words: "as small as", mul: 1.0),
+        (words: "bigger than", mul: 1.5),
+        (words: "larger than", mul: 1.5),
+        (words: "taller than", mul: 1.5),
+        (words: "huger than", mul: 1.5),
+        (words: "smaller than", mul: 0.66),
+        (words: "tinier than", mul: 0.5),
+        (words: "shorter than", mul: 0.66),
+    ],
+
+    // ---------------------------------------------------------------- magnitude words
+    // Stripped from the phrase and applied on top of the result. `scale` multiplies (all stacked
+    // factors are capped to [scale_mul_min, scale_mul_max]); `abs` sets the top size tier in metres
+    // (the sim clamps to the match's ScaleLimit: Normal = form max, Huge x2.5, NoLimits 60 m).
+    // Blast size in bd_sim comes from scale (size_k) and Atomic element (x1.3).
+    magnitude: [
+        (words: "thermonuclear", scale: 4.0, mech: [Explodes], element: Some(Atomic)),
+        (words: "nuclear", scale: 3.0, mech: [Explodes], element: Some(Atomic)),
+        (words: "atomic", scale: 3.0, mech: [Explodes], element: Some(Atomic)),
+        (words: "planetary destroying", abs: Some(60.0), mech: [Heavy]),
+        (words: "planet destroying", abs: Some(60.0), mech: [Heavy]),
+        (words: "world destroying", abs: Some(60.0), mech: [Heavy]),
+        (words: "world ending", abs: Some(60.0), mech: [Heavy]),
+        (words: "earth shattering", abs: Some(60.0), mech: [Heavy, Stomp]),
+        (words: "universe destroying", abs: Some(60.0), mech: [Heavy]),
+        (words: "apocalyptic", abs: Some(60.0), mech: [Heavy]),
+        (words: "planetary", abs: Some(60.0)),
+        (words: "galactic", abs: Some(60.0)),
+        (words: "cosmic", abs: Some(60.0)),
+        (words: "universal", abs: Some(60.0)),
+        (words: "larger than life", scale: 2.0),
+        (words: "giga", scale: 3.0),
+        (words: "mega", scale: 2.5),
+        (words: "ultra", scale: 2.0),
+        (words: "hyper", scale: 1.5),
+        (words: "micro", scale: 0.3),
+        (words: "nano", scale: 0.2),
+    ],
+    scale_mul_min: 0.05,
+    scale_mul_max: 40.0,
+
+    // Behaviour phrases that are awkward as single adjectives.
+    modifiers: [
+        (words: "laser guided", mech: [Homing]),
+        (words: "heat seeking", mech: [Homing]),
+        (words: "radar guided", mech: [Homing]),
+        (words: "gps guided", mech: [Homing]),
+    ],
+
+    // ---------------------------------------------------------------- riding / mounts
+    // "X riding (a) Y" (or "Y riding X" when only X is rideable), "X on (a) Y", ...
+    ride_words: ["riding", "rides", "ridin", "astride", "atop", "aboard", "mounted on", "on top of", "on", "surfing on", "standing on"],
+    // "X in (a) Y" / "X driving Y" / "X with a Y": Y must be a vehicle you sit in.
+    vehicle_words: ["driving", "piloting", "flying", "inside", "in", "with"],
+    // "skateboarding gorilla" -> gorilla on a skateboard
+    gerunds: [
+        ("skateboarding", "skateboard"), ("surfing", "surfboard"), ("skiing", "skis"), ("snowboarding", "snowboard"),
+        ("sledding", "sled"), ("sledging", "sled"), ("biking", "bicycle"), ("cycling", "bicycle"),
+        ("bicycling", "bicycle"), ("rollerblading", "rollerblades"), ("rollerskating", "roller skates"),
+        ("skating", "roller skates"), ("jetskiing", "jet ski"), ("jet skiing", "jet ski"), ("roller skating", "roller skates"), ("roller blading", "rollerblades"),
+        ("skate boarding", "skateboard"), ("snow boarding", "snowboard"), ("hover boarding", "hoverboard"), ("hoverboarding", "hoverboard"),
+        ("pogoing", "pogo stick"), ("unicycling", "unicycle"), ("motorcycling", "motorcycle"),
+        ("scootering", "scooter"), ("kayaking", "kayak"), ("canoeing", "canoe"), ("parasailing", "parachute"),
+        ("tobogganing", "sled"), ("broomriding", "broom"),
+    ],
+    // mount size relative to the rider: boards span under the feet, vehicles/creatures carry it
+    board_ratio: 0.8,
+    vehicle_ratio: 2.2,
+    creature_ratio: 1.4,
+    // a creature mount must be at least this tall (m) and at least `creature_min_rel` x the rider
+    creature_min_scale: 1.2,
+    creature_min_rel: 0.5,
+    // what a rider takes from its mount (the mount's model/features travel with it in Recipe::mount)
+    mount_locomotion: [Fast, Flies, Glide, Charge, Thrust, SlowFall, Bounce],
+    // what a rider stops doing on a mount (it rolls/flies instead of stomping along)
+    mount_drops: [Stomp, Walks],
+
+    // ---------------------------------------------------------------- emitters & sky delivery
+    // "<X> <attack>": when X is a spawnable thing, X is the construct and the attack is its mechanics.
+    // `host`: also a payload host ("shark cannon" = a cannon shooting sharks) when X is a creature.
+    attacks: [
+        (words: "death beam", mech: [Beam], element: Some(Shadow)),
+        (words: "death ray", mech: [Beam], element: Some(Shadow)),
+        (words: "death laser", mech: [Beam], element: Some(Shadow)),
+        (words: "laser beam", mech: [Beam]),
+        (words: "laser beams", mech: [Beam]),
+        (words: "beam", mech: [Beam]),
+        (words: "beams", mech: [Beam]),
+        (words: "laser", mech: [Beam]),
+        (words: "lasers", mech: [Beam]),
+        (words: "ray", mech: [Beam]),
+        (words: "rays", mech: [Beam]),
+        (words: "blast", mech: [Shoots, Explodes]),
+        (words: "breath", mech: [Breath]),
+        (words: "cannon", mech: [Shoots, Heavy], host: true),
+        (words: "missiles", mech: [Shoots, Homing]),
+        (words: "missile", mech: [Shoots, Homing]),
+        (words: "barrage", mech: [Shoots], count: Some(8)),
+        (words: "strike", mech: [DropFromSky, Explodes], strike: true),
+        (words: "bombardment", mech: [DropFromSky, Explodes, Shoots], strike: true),
+    ],
+    // adjectives that put the emitter in the sky (stripped from X)
+    sky_words: ["orbital", "space", "sky", "heavens", "celestial", "stratospheric", "low orbit", "from orbit", "from space", "from above"],
+    // things that are sky emitters by themselves
+    sky_emitters: ["satellite", "spy satellite", "space station", "ufo", "flying saucer", "gunship", "spaceship",
+        "space ship", "mothership", "death star", "blimp", "zeppelin", "airship", "drone", "attack helicopter"],
+    // what "orbital laser" (sky word, no thing) spawns
+    default_sky_emitter: "satellite",
+    // count for a "missile strike" style volley of projectiles
+    strike_count: 4,
+
+    // ---------------------------------------------------------------- volleys
+    // "shower of X" / "X shower": many X; `drop` = they fall from the sky.
+    volleys: [
+        (word: "shower", count: 12, drop: true),
+        (word: "rain", count: 12, drop: true),
+        (word: "hail", count: 12, drop: true),
+        (word: "downpour", count: 12, drop: true),
+        (word: "storm", count: 12, drop: true),
+        (word: "barrage", count: 10, drop: false),
+        (word: "volley", count: 10, drop: false),
+        (word: "salvo", count: 8, drop: false),
+        (word: "torrent", count: 12, drop: false),
+    ],
+
+    // ---------------------------------------------------------------- leftover words
+    // A content word nothing else used ("destroying", "lumbering") becomes a light graft on the result
+    // instead of vanishing: first this table (by word or by stem), then the ordinary single-word graft
+    // reading of its stem ("glimmering" -> "glimmer"), accepted at >= leftover_min_conf.
+    leftover_min_conf: 0.5,
+    leftover_max_mechs: 2,
+    // (suffix, replacement) stems tried in order; a doubled final consonant is also undone ("running")
+    leftover_suffixes: [("ing", ""), ("ing", "e"), ("ed", ""), ("ed", "e"), ("d", ""), ("ers", ""), ("er", ""),
+        ("er", "e"), ("s", ""), ("es", ""), ("ly", ""), ("ily", "y"), ("y", ""), ("y", "e"), ("ness", ""),
+        ("ful", ""), ("ion", ""), ("ion", "e"), ("ive", ""), ("ive", "e"), ("ish", "")],
+    leftovers: [
+        (words: ["destroy", "destroyer", "destruction", "annihilate", "obliterate", "devastate", "demolish",
+            "wreck", "ravage", "raze", "doom", "decimate", "eradicate", "nuke", "detonate"],
+            mech: [Explodes, Heavy]),
+        (words: ["lumber", "trudge", "trample", "rampage", "thunder", "quake", "thud"], mech: [Heavy, Stomp]),
+        (words: ["sparkle", "glitter", "shimmer", "twinkle", "gleam", "glimmer", "glisten", "dazzle", "radiant"],
+            element: Some(Light)),
+        (words: ["rage", "fury", "furious", "enrage", "wrath", "berserk", "snarl", "growl", "vicious"],
+            temperament: Some(Aggressive)),
+        (words: ["scare", "timid", "cower", "coward", "nervous", "shy", "skittish"], temperament: Some(Fearful)),
+        (words: ["guard", "loyal", "faithful", "brave", "noble", "heroic"], temperament: Some(Protective)),
+        (words: ["giggle", "silly", "goofy", "cheeky", "prank", "mischief", "wiggle"], temperament: Some(Playful)),
+        (words: ["sleep", "sleepy", "yawn", "snooze", "drowsy", "sluggish"], temperament: Some(Lazy)),
+        (words: ["crazy", "insane", "deranged", "mad", "unhinged", "wild", "feral"], temperament: Some(Chaotic)),
+        (words: ["zoom", "dash", "whoosh", "zip", "scurry", "sprint", "hurry", "turbo", "nitro"], mech: [Fast]),
+        (words: ["soar", "hover", "levitate", "float", "flutter"], mech: [Flies]),
+        (words: ["hunt", "chase", "stalk", "seek", "track", "pursue"], mech: [Homing]),
+        (words: ["spin", "twirl", "whirl", "swirl", "tornado", "cyclone"], mech: [Spin]),
+        (words: ["bounce", "boing", "hop", "spring"], mech: [Bounce]),
+        (words: ["stab", "impale", "skewer", "puncture"], mech: [Pierce]),
+        (words: ["slash", "slice", "shred", "cleave", "carve"], mech: [Blade]),
+        (words: ["crush", "pummel", "pound", "bash", "clobber", "wallop"], mech: [Blunt]),
+        (words: ["freeze", "frost", "chill", "glacial"], element: Some(Ice)),
+        (words: ["scorch", "blaze", "sizzle", "sear", "incinerate", "inferno"], element: Some(Fire)),
+        (words: ["shock", "zap", "jolt", "crackle", "buzz"], element: Some(Electric)),
+        (words: ["haunt", "spook", "curse", "sinister", "creep"], element: Some(Shadow)),
+    ],
+)

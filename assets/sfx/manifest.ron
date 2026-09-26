@@ -1218,6 +1218,336 @@
             sequence: false,
             stereo: false,
         ), // failed cast: letters crumble - dull falling ticks, slightly out of tune
+        "assemble_click": (
+            files: ["sfx/assemble_click_1.ogg", "sfx/assemble_click_2.ogg", "sfx/assemble_click_3.ogg", "sfx/assemble_click_4.ogg", "sfx/assemble_click_5.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // tiny hard-light snap per assembly stage (caller pitches it up per stage); in E, < 120 ms
+        "assemble_lock": (
+            files: ["sfx/assemble_lock_1.ogg", "sfx/assemble_lock_2.ogg", "sfx/assemble_lock_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // final assembly lock: heavier clunk + E-minor shimmer
+        "hatch_open": (
+            files: ["sfx/hatch_open_1.ogg", "sfx/hatch_open_2.ogg", "sfx/hatch_open_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // hatch hinge opening: latch click + short hinge creak + air
+        "hatch_close": (
+            files: ["sfx/hatch_close_1.ogg", "sfx/hatch_close_2.ogg", "sfx/hatch_close_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // hatch closing: short hinge swing -> satisfying clunk + latch
+        "rotor_spinup": (
+            files: ["sfx/rotor_spinup_1.ogg", "sfx/rotor_spinup_2.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // ~1.5 s rising rotor whirr; tail = the rotor_loop steady state
+        "rotor_loop": (
+            files: ["sfx/rotor_loop_1.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: steady rotor whirr (blade chop + turbine whine)
+        "exhaust_puff": (
+            files: ["sfx/exhaust_puff_1.ogg", "sfx/exhaust_puff_2.ogg", "sfx/exhaust_puff_3.ogg", "sfx/exhaust_puff_4.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // short pneumatic puff: valve click + resonant gas burst
+        "kaiju_step": (
+            files: ["sfx/kaiju_step_1.ogg", "sfx/kaiju_step_2.ogg", "sfx/kaiju_step_3.ogg", "sfx/kaiju_step_4.ogg", "sfx/kaiju_step_5.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // kaiju footfall: sub thump + ground crack + debris (smaller than kaiju_stomp)
+        "footstep_heavy": (
+            files: ["sfx/footstep_heavy_1.ogg", "sfx/footstep_heavy_2.ogg", "sfx/footstep_heavy_3.ogg", "sfx/footstep_heavy_4.ogg", "sfx/footstep_heavy_5.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // heavy suit/robot step: thud + metal sole + a little grit
+        "air_jump": (
+            files: ["sfx/air_jump_1.ogg", "sfx/air_jump_2.ogg", "sfx/air_jump_3.ogg", "sfx/air_jump_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // hard-light step "pop" midair: E-minor tick + soft air puff
+        "dodge": (
+            files: ["sfx/dodge_1.ogg", "sfx/dodge_2.ogg", "sfx/dodge_3.ogg", "sfx/dodge_4.ogg", "sfx/dodge_5.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // quick dodge whoosh (shaped resonant air, 150-250 ms)
+        "lunge": (
+            files: ["sfx/lunge_1.ogg", "sfx/lunge_2.ogg", "sfx/lunge_3.ogg", "sfx/lunge_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -23.0,
+            sequence: false,
+            stereo: false,
+        ), // committed dash: foot scuff + short forward whoosh
+        "hook_fire": (
+            files: ["sfx/hook_fire_1.ogg", "sfx/hook_fire_2.ogg", "sfx/hook_fire_3.ogg", "sfx/hook_fire_4.ogg"],
+            category: "tether",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -23.0,
+            sequence: false,
+            stereo: false,
+        ), // hook launch "thwip": latch + FM zip + cable twang
+        "hook_attach": (
+            files: ["sfx/hook_attach_1.ogg", "sfx/hook_attach_2.ogg", "sfx/hook_attach_3.ogg"],
+            category: "tether",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // hook bites: damped metal + chips + taut cable
+        "hook_reel_loop": (
+            files: ["sfx/hook_reel_loop_1.ogg"],
+            category: "tether",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // loop; hook winch: geared motor + ratchet
+        "hook_break": (
+            files: ["sfx/hook_break_1.ogg", "sfx/hook_break_2.ogg", "sfx/hook_break_3.ogg"],
+            category: "tether",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // hook line snaps: sharp crack + whipping recoil + ping
+        "hook_slam": (
+            files: ["sfx/hook_slam_1.ogg", "sfx/hook_slam_2.ogg", "sfx/hook_slam_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // pulled-in slam: short rush -> heavy thud + stone break
+        "reveal_pulse": (
+            files: ["sfx/reveal_pulse_1.ogg", "sfx/reveal_pulse_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -26.0,
+            sequence: false,
+            stereo: false,
+        ), // soft sonar-like hard-light ping + faint return
+        "recall_blink": (
+            files: ["sfx/recall_blink_1.ogg", "sfx/recall_blink_2.ogg", "sfx/recall_blink_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // hard-light blink-in: short reverse swell into a bright ping
+        "summon_ping": (
+            files: ["sfx/summon_ping_1.ogg", "sfx/summon_ping_2.ogg"],
+            category: "ui",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -30.0,
+            sequence: false,
+            stereo: false,
+        ), // tiny UI tick (E minor)
+        "alert_danger": (
+            files: ["sfx/alert_danger_1.ogg", "sfx/alert_danger_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // one clean escalating alarm figure ~0.6 s (caller varies pitch/gain by severity)
+        "domain_open": (
+            files: ["sfx/domain_open_1.ogg", "sfx/domain_open_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // dome eruption: rising rush -> sub boom + crack + E-minor chord bloom
+        "domain_hum_loop": (
+            files: ["sfx/domain_hum_loop_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -26.0,
+            sequence: false,
+            stereo: true,
+        ), // stereo loop: inside-the-dome drone in E, slow shimmer
+        "domain_shatter": (
+            files: ["sfx/domain_shatter_1.ogg", "sfx/domain_shatter_2.ogg", "sfx/domain_shatter_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -12.0,
+            sequence: false,
+            stereo: false,
+        ), // the dome breaks: big hard-light shatter, E1 sub, long falling shard rain
+        "ult_charge": (
+            files: ["sfx/ult_charge_1.ogg", "sfx/ult_charge_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // ~1.5 s rising ultimate windup, lands on E
+        "ult_fire": (
+            files: ["sfx/ult_fire_1.ogg", "sfx/ult_fire_2.ogg", "sfx/ult_fire_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -9.0,
+            sequence: false,
+            stereo: false,
+        ), // beam ultimate fires: snap + huge E sub + FM beam zap + sustained beam chord; heavy carve
+        "strike_telegraph": (
+            files: ["sfx/strike_telegraph_1.ogg", "sfx/strike_telegraph_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // ~2 s ominous ground-marker hum: dissonant high cluster, accelerating pulse
+        "strike_beam_loop": (
+            files: ["sfx/strike_beam_loop_1.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: orbital beam hammering down - roaring E drone, falling hard-light runs, crackle
+        "legendary_sting": (
+            files: ["sfx/legendary_sting_1.ogg", "sfx/legendary_sting_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // short golden shimmer (sparkle, not a reward voice)
+        "sputter": (
+            files: ["sfx/sputter_1.ogg", "sfx/sputter_2.ogg", "sfx/sputter_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // flickering underpowered cast: E tone gating on/off, sagging, crackle
+        "ads_in": (
+            files: ["sfx/ads_in_1.ogg", "sfx/ads_in_2.ogg", "sfx/ads_in_3.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -30.0,
+            sequence: false,
+            stereo: false,
+        ), // aim down sights: subtle cloth/weapon raise + settle tick
+        "ads_out": (
+            files: ["sfx/ads_out_1.ogg", "sfx/ads_out_2.ogg", "sfx/ads_out_3.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -30.0,
+            sequence: false,
+            stereo: false,
+        ), // leave sights: subtle cloth/weapon lower
+        "view_toggle": (
+            files: ["sfx/view_toggle_1.ogg", "sfx/view_toggle_2.ogg"],
+            category: "ui",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -32.0,
+            sequence: false,
+            stereo: false,
+        ), // camera/view toggle: very subtle bright whoosh
     },
     ko_streak: (
         key: "E minor pentatonic",

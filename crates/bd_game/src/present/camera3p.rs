@@ -53,11 +53,11 @@ use serde::{Deserialize, Serialize};
 // ------------------------------------------------------------------------------------ tuning
 
 /// Hip over-the-shoulder offset (look space: +x right, +y up) and boom length.
-const SHOULDER: Vec3 = Vec3::new(0.55, 0.18, 0.0);
-const BOOM: f32 = 3.2;
+const SHOULDER: Vec3 = Vec3::new(0.8, 0.4, 0.0);
+const BOOM: f32 = 3.0;
 /// Aiming down sights: tighter over the shoulder.
-const SHOULDER_ADS: Vec3 = Vec3::new(0.46, 0.1, 0.0);
-const BOOM_ADS: f32 = 1.45;
+const SHOULDER_ADS: Vec3 = Vec3::new(0.85, 0.34, 0.0);
+const BOOM_ADS: f32 = 1.9;
 /// Extra boom at high speed (bhop / swing / launch read better), comfort-gated.
 const SPEED_BOOM: f32 = 0.9;
 /// 1P ⇄ 3P dolly duration.
@@ -229,6 +229,7 @@ impl Plugin for Camera3pPlugin {
             .add_systems(OnEnter(AppState::InGame), |mut st: ResMut<CamState>| st.snap = true)
             .add_systems(Update, update_mode.in_set(FrameSet::Input))
             .add_systems(Update, override_local_view.in_set(FrameSet::Present).after(BridgeSet::Views).before(super::PresentSet::Events))
+            .add_systems(Update, anchor_preview_3p.in_set(FrameSet::Present))
             .add_systems(
                 PostUpdate,
                 (place_camera, update_indicator)
@@ -628,8 +629,7 @@ pub(crate) fn place_camera(
     if ads.blend > 0.0
         && let Projection::Perspective(p) = proj.as_mut()
     {
-        let z = 1.0 + (ads.zoom - 1.0) * ads.blend;
-        p.fov = 2.0 * ((p.fov * 0.5).tan() / z.max(1.0)).atan();
+        p.fov = 2.0 * ((p.fov * 0.5).tan() / ads.view_zoom.max(1.0)).atan();
     }
 
     // Crosshair: from the camera (without shake), past the character.
@@ -702,6 +702,38 @@ fn correct_aim(
         last.yaw = c.yaw;
         last.pitch = c.pitch;
     }
+}
+
+/// Third person: the tether ring on the crosshair answers for the *converged* ray (the one a tether
+/// press will fire along), not the eye's straight-ahead ray.
+fn anchor_preview_3p(
+    st: Res<CamState>,
+    aim: Res<AimRay>,
+    tuning: Res<MoveTuning>,
+    active: Option<Res<ActiveWorld>>,
+    arena: Option<Res<ArenaWorld>>,
+    mut preview: ResMut<crate::player::AnchorPreview>,
+) {
+    if st.offset.length_squared() < 1e-4 {
+        return;
+    }
+    let params = active.as_ref().map_or(&tuning.0, |a| &a.world.cfg.move_params);
+    let q = match (active.as_deref(), arena.as_deref()) {
+        (Some(a), _) => {
+            let cw = bd_sim::movement::CollisionWorld::new(&a.world.voxels, &[]);
+            bd_sim::movement::query_anchor(&cw, core_v3(aim.origin), core_v3(aim.dir), params)
+        }
+        (None, Some(ar)) => {
+            let w = ar.read();
+            let cw = bd_sim::movement::CollisionWorld::new(&*w, &[]);
+            bd_sim::movement::query_anchor(&cw, core_v3(aim.origin), core_v3(aim.dir), params)
+        }
+        _ => None,
+    };
+    *preview = match q {
+        Some(q) => crate::player::AnchorPreview { valid: true, assisted: q.assisted, point: v3(q.point), dist: q.dist },
+        None => crate::player::AnchorPreview::default(),
+    };
 }
 
 /// Ticks whose look direction aims something: firing / alt / ADS held, or a tether press.

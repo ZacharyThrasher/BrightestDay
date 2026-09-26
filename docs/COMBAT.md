@@ -111,9 +111,17 @@ reduces air control but you can always tether out of it (a skill save).
   half-length section earns the full refill in half the time and `oath_min_secs` (20 cps) still scales.
   **Voice:** in the overlay, hold the voice key ≥ 0.2 s before the first letter to speak the section
   (a tap still types its letter); outside it, a push-to-talk utterance that matches a section of your own
-  oath (≥ 0.7, `oath::voice_match`) is a recital, not a cast. Voice is graded by accuracy only and reports
-  `seconds = max(measured, target)` (never the speed bonus); the result waits until `oath_min_secs` has
-  passed since `OathBegin` (you stay reciting — vulnerable, can't cast — until then).
+  oath (≥ 0.7, `oath::voice_match`) is a recital, not a cast. Voice has the same skill ceiling as
+  typing (owner): accuracy = the word similarity, `seconds` = the speaking time (voice key down → release,
+  never Whisper's latency), then the same refill formula, speed bonus and PERFECT/GOOD/SLOW grade. The
+  host floor still applies (`OATH_MAX_CPS` 20 chars/s; fast speech is ~12–16). The result waits until
+  `oath_min_secs` has passed since `OathBegin` (you stay reciting — vulnerable, can't cast — until then).
+  Whisper's bias prompt carries your corps oath's distinctive words (`OathTexts::bias_words`).
+  Clock parity: the client re-sends `OathBegin` at the first typed key / at voice-key down, which restarts the
+  host's clock if no progress has been reported (only ever stricter), so a pause after opening the overlay
+  costs neither. `OathResult { voice }`: a spoken result gets `tuning.willpower.oath_voice_slack` (2 s)
+  instead of the 0.6 s network slack before the host's own elapsed time floors the claimed speaking time
+  (Whisper's latency isn't the player's); the 20 cps plausibility check is the same.
 - Cast cost = `category_base · size_factor · (1 + 0.15·#mechanics) · count_factor · staleness`.
   - bases: Held 12, Worn 15, Structure 10, Object 14, Creature 25 (Kaiju 60).
   - autonomous non-creatures (Held / Structure / Object that Flies or Walks: "flying hammer", "wall with legs") are priced like creatures (base 25, upkeep 1.5/s), judged on the phrase as typed — party/power grafts never raise a price; a typed graft that makes your construct hunt pays the difference. Behaviour unchanged (balance pass 2, `tuning.willpower.autonomous_*`).
@@ -532,7 +540,7 @@ ultimates (`kamehameha` Beam, `unlimited void` Domain, `spirit bomb` Summon, `te
 Transformation…, matched on the phrase or the construct it resolves to); a Beam yelled with ≥ 3 "!".
 `<rest>` resolves like any phrase (element, mechanics, icon). The sim (`bd_sim::signature`,
 `tuning.signature`) then rewrites the recipe with mechanics that already exist:
-- **Domain** → `Dome` + Barrier + Trap + Homing of the phrase's element around the caster, radius 16 m
+- **Domain** → `Dome` + Barrier + Trap of the phrase's element around the caster, radius 16 m
   (+ up to 4 m by shout power), 6 s; keeps the rest's emitters / fields / traits (a shrine that Shoots, a
   bouncy-castle domain that Bounces); drops movers (Flies, Walks, Charge, Swarm, Piloted…). Everything
   else is the ordinary Dome/Trap/Barrier behaviour: an enemy inside is snapped up by the Trap, projectiles
@@ -543,6 +551,16 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
 - Cost = the existing cast cost × `cost_mult` (1.35), never more than a full bar; unaffordable → the plain
   phrase is cast instead (the ring never says no). Forming ≥ 0.7 s (a readable windup; the caster keeps
   moving). Held / worn ultimates expire after 10 s. Bots at ≥ 85 willpower shout one 20% of the time.
+- **Orbital strikes** (`signature::orbital`, `tuning.signature.orbital`; "SATELLITE DEATH BEAM", "UFO
+  abduction beam", "dragon breath from the sky"): not a new verb — an emitter (Shoots / Beam / Breath)
+  that Flies and is placed with DropFromSky hovers ~30 m (22–40, under the map ceiling, nudged to within
+  ~32° of the caster's view) above the aim point. A ground TARGET MARKER (corps-coloured ring, closing and
+  pulsing; `GameEvent::OrbitalStrike { Telegraph }`) shows 0.7 s before the beam comes down; the beam
+  lives 2.5 s and **tracks** at ≤ 6.5 m/s (Homing: the nearest enemy near the point; else the caster's
+  crosshair ground point) — good movement outruns it; pulses every 0.1 s (3 dmg ×Heavy/Fast, element
+  status), carves every 0.3 s; 3 s cooldown, then the next strike while the construct lives. Attract =
+  abduction (lifts, no damage); Breath = a wider column (fire ignites); Shoots = a hail of bolts. Cost =
+  the existing (autonomous + scale) price × 1.25. Meteor showers need nothing new (count + DropFromSky).
 - **Presentation, no freeze, no control taken:** any spawn costing ≥ 45 or ≥ 12 m (signatures, kaiju,
   no-limits moons — one generic path, `signature::spectacle`) gets a picture-in-picture cut-in DANGER
   alert for everyone (side of the threat, corps colour, title, severity by distance / inside the radius),

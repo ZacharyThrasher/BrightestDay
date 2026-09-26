@@ -162,6 +162,8 @@ pub fn pre_move(store: &ConstructStore, owner: PlayerId, input: &PlayerInput, st
                 st.apply_impulse(dv, 0.0);
                 fx(GameEvent::HeldFx { id: c.id, owner: c.owner, fx: HeldFx::CapeDash, pos: c.pos, dir: fwd, strength: 1.0 });
             }
+            // AIR JUMP: Jump in the air belongs to the canopy / jetpack (no hop on the deploy press).
+            WornKind::Parachute | WornKind::Jetpack => st.extra.air_jump_used = true,
             _ => {}
         }
     }

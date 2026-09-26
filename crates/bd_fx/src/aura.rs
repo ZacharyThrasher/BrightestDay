@@ -39,6 +39,9 @@ pub struct ChargeAuraFx {
     pub ground_color: [f32; 3],
     /// Distance from the viewing camera (LOD + minimum on-screen size).
     pub view_distance: f32,
+    /// Viewing camera position: most flames hug the silhouette as seen from here (an outline
+    /// aura that never hides the body).
+    pub eye: Vec3,
     /// The local first-person player: keep the flames off the camera (only the outer shell).
     pub first_person: bool,
     /// Comfort: steady ring (no wobble), softer shockwaves.
@@ -60,6 +63,7 @@ impl ChargeAuraFx {
             ground: None,
             ground_color: [0.4, 0.34, 0.26],
             view_distance: 10.0,
+            eye: Vec3::ZERO,
             first_person: false,
             calm: false,
             pulse: false,
@@ -145,6 +149,9 @@ fn emit_auras(
         // particles are opaque, the charger's body must stay readable through the gaps).
         let rate = (90.0 + 120.0 * lv) * k * budget * lod * if fp { 0.35 } else { 1.0 };
         a.credit[0] += rate * dt;
+        // Silhouette angle (perpendicular to the view, in the ground plane).
+        let to_eye = Vec3::new(a.eye.x - feet.x, 0.0, a.eye.z - feet.z);
+        let rim = if to_eye.length_squared() > 1e-4 { to_eye.z.atan2(to_eye.x) + std::f32::consts::FRAC_PI_2 } else { 0.0 };
         let mut guard = 0;
         while a.credit[0] >= 1.0 && guard < 128 {
             guard += 1;
@@ -152,7 +159,11 @@ fn emit_auras(
             let r = &mut rng;
             // First person: keep the flames low and wide (peripheral, never over the camera).
             let yn = r.f() * if fp { 0.45 } else { 1.0 };
-            let ang = r.f() * std::f32::consts::TAU;
+            let ang = if !fp && r.f() < 0.72 {
+                rim + if r.f() < 0.5 { 0.0 } else { std::f32::consts::PI } + r.range(-0.45, 0.45)
+            } else {
+                r.f() * std::f32::consts::TAU
+            };
             let bulge = (std::f32::consts::PI * (yn * 1.1).min(1.0)).sin();
             let taper = 1.0 - 0.6 * ((yn - 0.8) / 0.2).clamp(0.0, 1.0);
             let shell = (0.48 + 0.14 * lv) * hs * (0.72 + 0.35 * bulge) * taper;
@@ -164,7 +175,7 @@ fn emit_auras(
             let inward = if yn > 0.75 && !fp { -radial * (0.6 + 0.4 * lv) } else { radial * 0.15 };
             let swirl = Vec3::new(-s, 0.0, c) * r.range(-0.3, 0.3);
             let vel = Vec3::Y * (1.6 + 1.3 * lv) * hs * r.range(0.8, 1.2) + inward + swirl;
-            let whiten = r.range(0.0, 0.12) + 0.06 * lv;
+            let whiten = r.range(0.0, 0.08) + 0.05 * lv;
             let seed = r.next_u32();
             let size = (0.045 + 0.025 * lv) * hs * r.range(0.75, 1.25) * grow;
             let life = r.range(0.22, 0.36) * (0.9 + 0.3 * lv) * if fp { 0.6 } else { 1.0 };

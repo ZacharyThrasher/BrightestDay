@@ -35,6 +35,8 @@ pub mod players;
 pub mod powers;
 pub mod record;
 pub mod shout;
+#[allow(dead_code)] // SIGNATURE: cut-in alert / title / domain grade / strike markers — plugin wired after the shout, charge and cut-in work lands
+pub mod signature;
 pub mod soak;
 pub mod sound;
 pub mod space;

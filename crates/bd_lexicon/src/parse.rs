@@ -506,7 +506,7 @@ impl Lexicon {
         self.t.blocked.contains(t)
     }
 
-    fn known_token(&self, t: &str) -> bool {
+    pub(crate) fn known_token(&self, t: &str) -> bool {
         if t.is_empty() {
             return false;
         }
@@ -516,7 +516,7 @@ impl Lexicon {
         self.data.as_ref().map(|d| d.token_id(t).is_some()).unwrap_or(false)
     }
 
-    fn token_rank(&self, t: &str) -> u8 {
+    pub(crate) fn token_rank(&self, t: &str) -> u8 {
         let Some(d) = self.data.as_ref() else {
             return 0;
         };
@@ -623,7 +623,9 @@ impl Lexicon {
                 continue; // the left part must be a real, reasonably common word
             }
             let rr = self.token_rank(r) as u32;
-            if self.known_token(r) && !self.is_blocked(r) && rr >= 60 {
+            // an inflection is not the second word of a compound ("glimmering" is not "glimmer ing")
+            let suffix = matches!(r, "ing" | "ings" | "ed" | "er" | "ers" | "est" | "ly" | "ness" | "ish");
+            if self.known_token(r) && !self.is_blocked(r) && rr >= 60 && !suffix {
                 let score = 40 + lr + rr;
                 if best.as_ref().is_none_or(|b| score > b.0) {
                     best = Some((score, l.to_string(), r.to_string()));
@@ -820,6 +822,9 @@ impl Lexicon {
                 cx.note(format!("{s} \u{2192} {w} (typo)"));
                 cx.conf_mul *= 0.9;
                 push1(w, &mut out);
+            } else if self.known_stem(s) {
+                // an inflected known word ("glimmering", "hammering"): keep it for the leftover pass
+                push1(s, &mut out);
             } else if let Some((a, b)) = self.compound(s) {
                 cx.note(format!("{s} \u{2192} {a} + {b} (compound)"));
                 cx.conf_mul *= 0.85;
@@ -1366,11 +1371,29 @@ impl Lexicon {
     }
 
     pub(crate) fn resolve_tokens(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8) -> Resolution {
+        let mut res = self.resolve_tokens_inner(toks, bangs, spoken, depth, true);
+        if depth == 0 {
+            // leftover content words become light grafts, never vanish silently (relations.rs)
+            self.absorb_leftovers(&mut res, bangs, spoken);
+        }
+        res
+    }
+
+    /// `relations`: try the relations layer (relations.rs: sizes, mounts, emitters, volleys) first.
+    pub(crate) fn resolve_tokens_inner(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8, relations: bool) -> Resolution {
         let mut cx = Cx { spoken, phrase: String::new(), why: Vec::new(), ignored: Vec::new(), conf_mul: 1.0, unknown: 0 };
         // an exact curated/lexicon name is taken as typed (no typo/compound repair of its words)
         let whole = toks.iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
         let exact = toks.len() > 1 && (self.icons.alias.contains_key(&whole) || self.entry(&whole).is_some());
         let toks = if exact { toks } else { self.repair(toks, &mut cx) };
+        // relations layer (relations.rs); sub-phrases resolve with it off
+        if relations
+            && depth == 0
+            && let Some(mut r) = self.relations(&toks, bangs, spoken)
+        {
+            r.explanation.splice(0..0, cx.why.drain(..));
+            return r;
+        }
         cx.phrase = toks
             .iter()
             .filter(|t| !matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast | Gram::MakeIt | Gram::Pronoun)))

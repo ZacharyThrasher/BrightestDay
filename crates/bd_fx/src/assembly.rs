@@ -24,4 +24,22 @@ pub struct ConstructAssembly {
     pub next_in: f32,
     /// Seconds the whole assembly takes for this construct.
     pub total: f32,
+    /// Per stage (`..stages`): the slot centroid (world), seconds until its bricks land (≤ 0 =
+    /// already landed) and the slot spread radius (m) — so streamed voxels can land *as* the bricks.
+    pub slots: [Vec3; 5],
+    pub land_in: [f32; 5],
+    pub radius: [f32; 5],
+    /// Written by effects that want the later stages to wait for them (the shout asks for its
+    /// letters to arrive as bricks): seconds to push the not-yet-started stages back. The game
+    /// consumes it each frame (`ConstructAnimator::hold_stages`, capped) and resets it to 0.
+    pub hold_request: f32,
+}
+
+impl ConstructAssembly {
+    /// Stages still to land at least `lead` seconds from now: `(stage, slot, seconds, radius)`.
+    pub fn pending(&self, lead: f32) -> impl Iterator<Item = (usize, Vec3, f32, f32)> + '_ {
+        (0..(self.stages as usize).min(5))
+            .filter(move |&k| self.land_in[k] >= lead && self.slots[k].is_finite())
+            .map(|k| (k, self.slots[k], self.land_in[k], self.radius[k]))
+    }
 }

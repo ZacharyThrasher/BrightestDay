@@ -2,9 +2,13 @@
 //! tracker? how could we easily enable players to seek each other?"). No minimap, no markers, no
 //! text — hard light in the world only (mystery tenet):
 //!
-//! * **Ring compass** — a thin filament drifts from your ring toward the nearest enemy (or whoever
-//!   hit you in the last few seconds): longer and brighter the farther they are, gone while they
-//!   are on screen and in sight. Behind you it swings to the screen side to turn toward.
+//! * **Ring compass** (owner: an intuition, not a GPS) — while the nearest enemy (or whoever hit you
+//!   in the last few seconds) is off screen or hidden, the ring fires a **sonar dart** every
+//!   ~1.2–1.6 s: a tiny hard-light arrowhead with a comet streak that shoots ~2.5 m toward them
+//!   (toward the screen side to turn to when they're behind you), accelerating, then pops into a few
+//!   sparks — faster / brighter when close or when it's your attacker. The ring itself carries a tiny
+//!   **needle** highlight on the rim facing them. Both off while they're on screen and in sight;
+//!   comfort keeps the dart at constant speed without sparks.
 //! * **Lantern beacons** — players beyond ~60 m wear a faint, tall pillar in their corps colour
 //!   that pokes over terrain and fades out as you close in (`bd_fx::beacon::beacon_pillar`).
 //! * **Loud actions reveal** — firing a gun, summoning something big, charging and taking a heavy
@@ -21,7 +25,7 @@
 //! All numbers: `assets/tuning/tracking.ron` ([`TrackingTuning`], hot-reloaded; written with the
 //! defaults if missing). Everything is drawn with the particle pool's immediate cubes (no new
 //! pipeline, nothing to warm up, no per-frame allocation after the first frames).
-//! `--scenario tracking --tracking-shot filament|beacon|reveal|trails|hook|victim` stages each one
+//! `--scenario tracking --tracking-shot compass|beacon|reveal|trails|hook|victim` stages each one
 //! for screenshots (see [`scenario`]).
 
 use std::path::PathBuf;
@@ -30,7 +34,7 @@ use std::time::SystemTime;
 use bd_core::PlayerId;
 use bd_core::voxel::Aabb;
 use bd_fx::beacon::{beacon_pillar, tapered_stroke, view_ring, xray_polyline};
-use bd_fx::{BurstFx, BurstKind, ConstructVisual, FxParticles, PFlags};
+use bd_fx::{BurstFx, BurstKind, ConstructVisual, Emit, FxParticles, PFlags, PKind};
 use bd_sim::GameEvent;
 use bd_sim::charge::ChargeEvent;
 use bd_sim::hook::AssistEvent;
@@ -59,32 +63,54 @@ use crate::viewmodel::{HandsPublishSet, ViewmodelHands};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TrackingTuning {
-    // ---- ring compass
+    // ---- ring compass: sonar dart + ring-face needle
     pub compass: bool,
     /// Whoever hit you within this many seconds is tracked instead of the nearest enemy.
     pub compass_attacker_secs: f32,
-    /// Distance where the filament starts growing / is at full length + brightness (m).
+    /// "Close" / "far" distances (m) for the dart's cadence, speed and brightness.
     pub compass_near: f32,
     pub compass_far: f32,
-    /// Filament length (m) near / far.
-    pub compass_len_min: f32,
-    pub compass_len_max: f32,
-    /// Thickness at the ring / at the tip (m).
-    pub compass_thick: f32,
-    pub compass_tip_thick: f32,
-    /// Emissive near / far.
-    pub compass_emissive_min: f32,
-    pub compass_emissive_max: f32,
-    /// On screen = inside this fraction of the view (and in sight): the filament fades out.
+    /// On screen = inside this fraction of the view (and in sight): dart + needle are off.
     pub compass_screen_margin: f32,
-    /// Fade speed (1/s).
+    /// Fade speed (1/s) of the needle / dart spawning.
     pub compass_fade_rate: f32,
-    /// A target behind you bends the filament to the screen side (least forward component).
+    /// A target behind you sends the dart toward the screen side to turn to (least forward component).
     pub compass_min_forward: f32,
-    pub compass_segments: u32,
-    /// Drift wobble amplitude (m) and frequency (Hz).
-    pub compass_wobble: f32,
-    pub compass_wobble_hz: f32,
+    /// Seconds between darts: close / far (× `dart_attacker_period` for whoever hit you).
+    pub dart_period_near: f32,
+    pub dart_period_far: f32,
+    pub dart_attacker_period: f32,
+    /// Flight time (s) close / far (× `dart_attacker_speed` for the attacker).
+    pub dart_secs_near: f32,
+    pub dart_secs_far: f32,
+    pub dart_attacker_speed: f32,
+    /// Distance the dart travels from the ring (m).
+    pub dart_len: f32,
+    /// Arrowhead length / half-width, stroke thickness (m); comet streak length at full speed (m).
+    pub dart_head: f32,
+    pub dart_head_width: f32,
+    pub dart_thick: f32,
+    pub dart_streak: f32,
+    /// Brightness close / far, × `dart_attacker_boost` for the attacker.
+    pub dart_emissive_near: f32,
+    pub dart_emissive_far: f32,
+    pub dart_attacker_boost: f32,
+    /// The pop at the end: spark count, speed (m/s), life (s), size (m). Comfort: no sparks, no
+    /// acceleration (constant speed).
+    pub dart_sparks: u32,
+    pub dart_spark_speed: f32,
+    pub dart_spark_life: f32,
+    pub dart_spark_size: f32,
+    /// Ring-face needle: a tiny highlight on the ring's rim on the side facing the target.
+    pub ring_needle: bool,
+    /// Ring rim radius in the ring's local units (× the arm's scale), needle length / thickness in the
+    /// same units, brightness.
+    pub ring_radius: f32,
+    pub ring_needle_len: f32,
+    pub ring_needle_thick: f32,
+    pub ring_needle_emissive: f32,
+    /// Where the ring sits relative to the viewmodel's ring light (arm-local units): read-only lookup.
+    pub ring_from_light: [f32; 3],
     // ---- lantern beacons
     pub beacon: bool,
     /// Beacons appear beyond `beacon_min_dist`, fully in by `+ beacon_fade_dist` (m)…
@@ -166,20 +192,35 @@ impl Default for TrackingTuning {
         Self {
             compass: true,
             compass_attacker_secs: 5.0,
-            compass_near: 8.0,
-            compass_far: 60.0,
-            compass_len_min: 0.08,
-            compass_len_max: 0.32,
-            compass_thick: 0.0032,
-            compass_tip_thick: 0.0011,
-            compass_emissive_min: 0.6,
-            compass_emissive_max: 2.6,
+            compass_near: 10.0,
+            compass_far: 70.0,
             compass_screen_margin: 0.8,
             compass_fade_rate: 6.0,
             compass_min_forward: 0.35,
-            compass_segments: 10,
-            compass_wobble: 0.012,
-            compass_wobble_hz: 0.7,
+            dart_period_near: 1.2,
+            dart_period_far: 1.6,
+            dart_attacker_period: 0.85,
+            dart_secs_near: 0.26,
+            dart_secs_far: 0.48,
+            dart_attacker_speed: 0.85,
+            dart_len: 2.5,
+            dart_head: 0.07,
+            dart_head_width: 0.04,
+            dart_thick: 0.008,
+            dart_streak: 0.45,
+            dart_emissive_near: 5.0,
+            dart_emissive_far: 1.8,
+            dart_attacker_boost: 1.3,
+            dart_sparks: 5,
+            dart_spark_speed: 1.6,
+            dart_spark_life: 0.16,
+            dart_spark_size: 0.018,
+            ring_needle: true,
+            ring_radius: 0.02,
+            ring_needle_len: 0.016,
+            ring_needle_thick: 0.004,
+            ring_needle_emissive: 4.5,
+            ring_from_light: [0.0, 0.06, 0.02],
             beacon: true,
             beacon_min_dist: 60.0,
             beacon_fade_dist: 20.0,
@@ -394,11 +435,27 @@ struct HookLink {
     t: f32,
 }
 
+/// A sonar dart in flight (camera space: it belongs to the view, never left behind by your speed).
+#[derive(Clone, Copy, Debug)]
+struct Dart {
+    origin: Vec3,
+    dir: Vec3,
+    t: f32,
+    secs: f32,
+    emissive: f32,
+    color: [f32; 3],
+}
+
 #[derive(Resource)]
 pub struct TrackingState {
     now: f32,
     attacker: Option<(PlayerId, f32)>,
     compass_fade: f32,
+    darts: Vec<Dart>,
+    dart_timer: f32,
+    /// The viewmodel ring in camera space (centre, axis, arm scale), from last frame's transforms.
+    ring_cam: Option<(Vec3, Vec3, f32)>,
+    seed: u32,
     pulses: Vec<Pulse>,
     last_pulse: Vec<(PlayerId, f32)>,
     trails: Vec<Trail>,
@@ -413,6 +470,10 @@ impl Default for TrackingState {
             now: 0.0,
             attacker: None,
             compass_fade: 0.0,
+            darts: Vec::with_capacity(4),
+            dart_timer: 0.3,
+            ring_cam: None,
+            seed: 0x9E37_79B9,
             pulses: Vec::with_capacity(32),
             last_pulse: Vec::with_capacity(16),
             trails: Vec::with_capacity(MAX_TRAILS),
@@ -488,6 +549,9 @@ fn reset(mut state: ResMut<TrackingState>, mut reels: ResMut<HookReels>) {
     let s = &mut *state;
     s.attacker = None;
     s.compass_fade = 0.0;
+    s.darts.clear();
+    s.dart_timer = 0.3;
+    s.ring_cam = None;
     s.pulses.clear();
     s.last_pulse.clear();
     s.trails.clear();
@@ -506,7 +570,8 @@ fn tracking_events(
     views: Res<WorldViews>,
     tuning: Res<TrackingTuningRes>,
     mut state: ResMut<TrackingState>,
-    mut sfx: MessageWriter<Sfx3d>,
+    // Voiced by crate::audio from the TrackingCue messages (hook_fire, hook_break, lunge…).
+    _sfx: MessageWriter<Sfx3d>,
     mut cues: MessageWriter<TrackingCue>,
     mut burst: MessageWriter<BurstFx>,
 ) {
@@ -554,29 +619,24 @@ fn tracking_events(
                             state.links.push(HookLink { hooker: *player, hand: *hand, victim: *v, t: 0.0 });
                         }
                         cues.write(cue(TrackingCueKind::HookThwip));
-                        sfx.write(Sfx3d::at("tether_attach", p).gain(0.95).pitch(1.3));
                         burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::ZERO, scale: 0.6, color: Some(color) });
                     }
                     AssistEvent::HookBroken { hand, .. } => {
                         state.links.retain(|l| !(l.hooker == *player && l.hand == *hand));
                         cues.write(cue(TrackingCueKind::HookSnap));
-                        sfx.write(Sfx3d::at("break_hardlight", p).gain(0.55).pitch(1.45));
                         burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::ZERO, scale: 0.45, color: Some(color) });
                     }
                     AssistEvent::SlamReady => {
                         state.links.retain(|l| l.hooker != *player);
                         cues.write(cue(TrackingCueKind::SlamReady));
-                        sfx.write(Sfx3d::at("tether_release", p).gain(0.6).pitch(1.5));
                     }
                     AssistEvent::Slam => {
                         cues.write(cue(TrackingCueKind::Slam));
-                        sfx.write(Sfx3d::at("break_hardlight", p).gain(1.0).pitch(0.55));
                         burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 1.5, color: Some(color) });
                         burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::Y, scale: 1.5, color: Some(color) });
                     }
                     AssistEvent::Lunge => {
                         cues.write(cue(TrackingCueKind::Lunge));
-                        sfx.write(Sfx3d::at("mix_whoosh_out", p).gain(0.5).pitch(1.4));
                     }
                 }
             }
@@ -670,6 +730,14 @@ fn on_screen(cam: &Transform, fov: (f32, f32), p: Vec3, margin: f32) -> bool {
     x.abs() < margin && y.abs() < margin
 }
 
+/// Read-only lookup of the first-person ring: point lights (the viewmodel's ring light is the one
+/// whose grandparent is named "Viewmodel"), parents, names.
+type ViewmodelRingQuery<'w, 's> = (
+    Query<'w, 's, (&'static GlobalTransform, &'static ChildOf), With<PointLight>>,
+    Query<'w, 's, &'static ChildOf>,
+    Query<'w, 's, &'static Name>,
+);
+
 #[allow(clippy::too_many_arguments)]
 fn draw_tracking(
     time: Res<Time<Real>>,
@@ -685,6 +753,7 @@ fn draw_tracking(
     mut fx: ResMut<FxParticles>,
     mut reels: ResMut<HookReels>,
     mut cues: MessageWriter<TrackingCue>,
+    (cam_gt, vm): (Query<&GlobalTransform, With<PlayerCamera>>, ViewmodelRingQuery<'_, '_>),
 ) {
     reels.0.clear();
     // `BD_PERF_OFF=tracking`: A/B perf runs.
@@ -733,39 +802,126 @@ fn draw_tracking(
         }
     }
     st.compass_fade += (want - st.compass_fade) * (1.0 - (-t.compass_fade_rate * dt).exp());
-    if let (Some(tv), Some(me)) = (target, me)
-        && st.compass_fade > 0.01
-    {
-        let ring = hands.world[1];
+    // The viewmodel ring (read-only): from its point light's last-frame transform, in camera space.
+    st.ring_cam = None;
+    if let Ok(cgt) = cam_gt.single() {
+        let (lights, parents, names) = &vm;
+        for (lgt, of) in lights.iter() {
+            let Ok(root) = parents.get(of.parent()) else { continue };
+            if !names.get(root.parent()).is_ok_and(|n| n.as_str() == "Viewmodel") {
+                continue;
+            }
+            let (s, r, p) = lgt.to_scale_rotation_translation();
+            let ring_w = p - r * (Vec3::from_array(t.ring_from_light) * s);
+            let (_, cr, cp) = cgt.to_scale_rotation_translation();
+            st.ring_cam = Some((cr.inverse() * (ring_w - cp), cr.inverse() * (r * Vec3::X), s.x.max(1e-3)));
+            break;
+        }
+    }
+    let ring_now = st.ring_cam.map(|(c, a, s)| (eye + rot * c, (rot * a).normalize_or(Vec3::X), s));
+    if let (Some(tv), Some(me)) = (target, me) {
         let c = chest(tv);
         let dist = c.distance(me.pos);
         let far = smooth(t.compass_near, t.compass_far, dist);
-        let len = t.compass_len_min + (t.compass_len_max - t.compass_len_min) * far;
-        let d = (rot.inverse() * (c - ring)).normalize_or(Vec3::NEG_Z);
-        let dc = if -d.z < t.compass_min_forward {
-            let lat = Vec2::new(d.x, d.y).normalize_or(Vec2::X);
-            let k = (1.0 - t.compass_min_forward * t.compass_min_forward).max(0.0).sqrt();
-            Vec3::new(lat.x * k, lat.y * k, -t.compass_min_forward)
-        } else {
-            d
-        };
-        let dir = rot * dc;
-        let (side, up) = (rot * Vec3::X, rot * Vec3::Y);
-        let wob = t.compass_wobble * if calm { 0.5 } else { 1.0 };
-        let ph = now * std::f32::consts::TAU * t.compass_wobble_hz;
-        let n = t.compass_segments.clamp(2, 24) as usize;
-        st.scratch.clear();
-        for i in 0..=n {
-            let s = i as f32 / n as f32;
-            let base = ring + dir * (len * s) - up * (0.12 * len * s * s);
-            let w = (side * (ph + s * 7.0).sin() + up * (ph * 1.3 + s * 5.0).cos() * 0.6) * (wob * s);
-            st.scratch.push(base + w);
-        }
-        let k = st.compass_fade;
-        let e = t.compass_emissive_min + (t.compass_emissive_max - t.compass_emissive_min) * far;
+        let lerp = |a: f32, b: f32| a + (b - a) * far;
+        let attacker = st.attacker.is_some_and(|(id, at)| id == tv.id && now - at <= t.compass_attacker_secs);
         let own = super::corps_rgb(me.corps);
-        let theirs = super::corps_rgb(tv.corps);
-        tapered_stroke(fx, &st.scratch, t.compass_thick * (0.5 + 0.5 * k), t.compass_tip_thick * k, own, theirs, e * 0.7 * k, e * k, 1.0);
+        let hot = [0.45 + own[0] * 0.55, 0.45 + own[1] * 0.55, 0.45 + own[2] * 0.55];
+        let origin = ring_now.map_or(hands.world[1], |r| r.0);
+        // Sonar dart: every ~1.2-1.6 s while they're off screen / hidden.
+        if want > 0.5 {
+            st.dart_timer -= dt;
+            if st.dart_timer <= 0.0 && st.darts.len() < 4 {
+                st.dart_timer = lerp(t.dart_period_near, t.dart_period_far) * if attacker { t.dart_attacker_period } else { 1.0 };
+                let d = (rot.inverse() * (c - origin)).normalize_or(Vec3::NEG_Z);
+                let dc = if -d.z < t.compass_min_forward {
+                    let lat = Vec2::new(d.x, d.y).normalize_or(Vec2::X);
+                    let k = (1.0 - t.compass_min_forward * t.compass_min_forward).max(0.0).sqrt();
+                    Vec3::new(lat.x * k, lat.y * k, -t.compass_min_forward)
+                } else {
+                    d
+                };
+                st.darts.push(Dart {
+                    origin: rot.inverse() * (origin - eye),
+                    dir: dc,
+                    t: 0.0,
+                    secs: (lerp(t.dart_secs_near, t.dart_secs_far) * if attacker { t.dart_attacker_speed } else { 1.0 }).max(0.05),
+                    emissive: lerp(t.dart_emissive_near, t.dart_emissive_far) * if attacker { t.dart_attacker_boost } else { 1.0 },
+                    color: own,
+                });
+            }
+        } else {
+            // Back in view: the next dart comes soon after they leave it again.
+            st.dart_timer = st.dart_timer.min(0.25);
+        }
+        // Ring-face needle: a tiny highlight on the rim facing them.
+        if t.ring_needle
+            && st.compass_fade > 0.01
+            && let Some((rc, axis, s)) = ring_now
+        {
+            let d = (c - rc).normalize_or_zero();
+            let radial = (d - axis * d.dot(axis)).normalize_or_zero();
+            if radial != Vec3::ZERO {
+                let rim = rc + radial * (t.ring_radius * s);
+                let tang = axis.cross(radial).normalize_or_zero();
+                let half = t.ring_needle_len * s * 0.5;
+                let k = st.compass_fade * if calm { 1.0 } else { 0.85 + 0.15 * (now * 6.0).sin() };
+                let e = t.ring_needle_emissive * k;
+                fx.immediate_segment(rim - tang * half, rim + tang * half, t.ring_needle_thick * s, hot, e, PFlags::PLAIN);
+                fx.immediate_segment(rim, rim + radial * (half * 1.2), t.ring_needle_thick * s * 0.7, hot, e, PFlags::PLAIN);
+            }
+        }
+    } else {
+        st.dart_timer = st.dart_timer.min(0.25);
+    }
+    // Darts in flight (camera space): arrowhead + comet streak, accelerating, popping into sparks.
+    let mut i = 0;
+    while i < st.darts.len() {
+        let d = st.darts[i];
+        let dt_u = d.t + dt;
+        let u = (dt_u / d.secs).min(1.0);
+        let s = if calm { u } else { u * u };
+        let dir = (rot * d.dir).normalize_or(rot * Vec3::NEG_Z);
+        let p = eye + rot * (d.origin + d.dir * (t.dart_len * s));
+        let hot = [0.5 + d.color[0] * 0.5, 0.5 + d.color[1] * 0.5, 0.5 + d.color[2] * 0.5];
+        if dt_u >= d.secs {
+            if !calm {
+                for _ in 0..t.dart_sparks.min(12) {
+                    st.seed ^= st.seed << 13;
+                    st.seed ^= st.seed >> 17;
+                    st.seed ^= st.seed << 5;
+                    let h = |k: u32| ((st.seed.rotate_left(k) & 0xFFFF) as f32 / 65535.0) * 2.0 - 1.0;
+                    let r = Vec3::new(h(0), h(11), h(22)).normalize_or(Vec3::Y);
+                    fx.emit(Emit {
+                        kind: PKind::Ballistic,
+                        flags: PFlags::PLAIN,
+                        pos: p,
+                        vel: dir * (t.dart_spark_speed * 0.8) + r * t.dart_spark_speed,
+                        size: t.dart_spark_size,
+                        color: hot,
+                        emissive: d.emissive,
+                        life: t.dart_spark_life,
+                        gravity: 0.0,
+                        drag: 4.0,
+                        seed: st.seed,
+                        ..Default::default()
+                    });
+                }
+            }
+            st.darts.swap_remove(i);
+            continue;
+        }
+        st.darts[i].t = dt_u;
+        let em = d.emissive * (u * 8.0).min(1.0);
+        let view = (p - eye).normalize_or(dir);
+        let side = dir.cross(view).normalize_or(rot * Vec3::X);
+        let back = p - dir * t.dart_head;
+        let w = t.dart_head_width;
+        fx.immediate_segment(p, back + side * w, t.dart_thick, hot, em, PFlags::PLAIN);
+        fx.immediate_segment(p, back - side * w, t.dart_thick, hot, em, PFlags::PLAIN);
+        let streak = t.dart_streak * if calm { 0.5 } else { (2.0 * u).clamp(0.15, 1.0) };
+        tapered_stroke(fx, &[back - dir * streak, back], t.dart_thick * 0.15, t.dart_thick * 0.8, d.color, hot, em * 0.1, em * 0.7, 10.0);
+        i += 1;
     }
 
     // ---- lantern beacons.
@@ -971,7 +1127,7 @@ fn draw_tracking(
 
 /// `--practice --scenario tracking --bots 3 --tracking-shot <shot>`: stages one tracking feature in
 /// front of the camera for screenshots (bots stand down; the scenario drives them):
-/// `filament` (an enemy far behind you), `beacon` (an enemy ~85 m ahead), `reveal` (an enemy
+/// `compass` (an enemy far behind you: sonar dart + ring needle), `beacon` (an enemy ~85 m ahead), `reveal` (an enemy
 /// behind terrain firing a gun + one charging), `trails` (three enemies circling fast),
 /// `hook` (you hook an enemy with a sword, reel in and slam), `victim` (an enemy hooks you).
 #[cfg(test)]
@@ -1063,8 +1219,9 @@ pub mod scenario {
             let side = bd_core::Vec3::new(-dir.z, 0.0, dir.x);
             let w = &active.world;
             let spots: Option<Vec<(u8, bd_core::Vec3)>> = match sc.shot.as_str() {
-                "filament" => {
-                    ground_at(w, me.x - dir.x * 30.0 + side.x * 12.0, me.z - dir.z * 30.0 + side.z * 12.0, me.y, 30.0).map(|g| vec![(1, g)])
+                "compass" | "filament" => {
+                    // Behind you, off to the right: the darts fly toward the right edge.
+                    ground_at(w, me.x - dir.x * 14.0 + side.x * 20.0, me.z - dir.z * 14.0 + side.z * 20.0, me.y, 30.0).map(|g| vec![(1, g)])
                 }
                 "beacon" => ground_at(w, me.x + dir.x * 85.0, me.z + dir.z * 85.0, me.y, 60.0).map(|g| vec![(1, g)]),
                 "reveal" => {

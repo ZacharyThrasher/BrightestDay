@@ -633,6 +633,9 @@ pub struct WillpowerTuning {
     pub dismiss_refund: f32,
     /// At 0 willpower a player's constructs lose this fraction of max integrity per second.
     pub starved_decay: f32,
+    /// Spoken oath recital: seconds of transcription latency the host forgives before its own
+    /// measured time floors the claimed speaking time (`willpower::OATH_VOICE_SLACK`).
+    pub oath_voice_slack: f32,
 }
 
 impl Default for WillpowerTuning {
@@ -669,6 +672,7 @@ impl Default for WillpowerTuning {
             graft_cost_fraction: willpower::GRAFT_COST_FRACTION,
             dismiss_refund: willpower::DISMISS_REFUND,
             starved_decay: willpower::STARVED_DECAY_PER_SEC,
+            oath_voice_slack: willpower::OATH_VOICE_SLACK,
         }
     }
 }
@@ -712,6 +716,7 @@ impl WillpowerTuning {
         self.graft_cost_fraction = fin(self.graft_cost_fraction, d.graft_cost_fraction, 0.0, 5.0);
         self.dismiss_refund = fin(self.dismiss_refund, d.dismiss_refund, 0.0, 1.0);
         self.starved_decay = fin(self.starved_decay, d.starved_decay, 0.0, 10.0);
+        self.oath_voice_slack = fin(self.oath_voice_slack, d.oath_voice_slack, willpower::OATH_LATENCY_SLACK, 10.0);
         self
     }
 

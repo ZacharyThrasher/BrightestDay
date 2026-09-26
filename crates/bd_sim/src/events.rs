@@ -90,6 +90,8 @@ pub mod move_flags {
     pub const AIR_JUMP: u16 = 1 << 9;
     /// A dodge started (hard-light streak).
     pub const DODGE: u16 = 1 << 10;
+    /// A wall / surf-ramp touch gave back the air jump (a small scuff at the contact).
+    pub const WALL_REFRESH: u16 = 1 << 11;
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

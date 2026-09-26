@@ -1,3 +1,5 @@
+"""Generates assets/icons/games.ron. Usage: python tools/icons/games/gen.py [out.ron] [gallery.txt]
+(DSL in dsl.py, hand shapes in shapes.py; names.py writes games_names.txt from names_data.py.)"""
 import sys
 from dsl import R, E, emit, emit_gallery, ENTRIES
 from shapes import get
@@ -808,18 +810,25 @@ def _drop_names_owned_elsewhere():
     taken = taken_before("games.ron")
     kept, seen = [], set(taken)
     for e in ENTRIES:
-        names = e[0]
-        nn = [x for x in names if norm(x) and OWNED_BY.get(norm(x), "games.ron") == "games.ron"
-              and (norm(x) not in seen or norm(x) in {norm(y) for y in names[:names.index(x)]})]
+        nn, mine = [], set()  # mine: keys this entry already kept (spelling variants of a KEPT name stay)
+        for x in e[0]:
+            k = norm(x)
+            if not k:
+                nn.append(x)
+            elif OWNED_BY.get(k, "games.ron") == "games.ron" and (k not in seen or k in mine):
+                nn.append(x)
+                mine.add(k)
         if not nn:
             continue
-        seen.update(norm(x) for x in nn)
+        seen.update(mine)
         kept.append((nn,) + tuple(e[1:]))
     ENTRIES[:] = kept
 
 
 if __name__ == "__main__":
+    import pathlib
     _drop_names_owned_elsewhere()
-    n, ns = emit(sys.argv[1])
-    emit_gallery(sys.argv[2])
+    out = sys.argv[1] if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parents[3] / "assets/icons/games.ron"
+    n, ns = emit(out)
+    emit_gallery(sys.argv[2] if len(sys.argv) > 2 else None)
     print(f"{n} entries, {ns} with shapes")

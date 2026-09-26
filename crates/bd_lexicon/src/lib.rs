@@ -25,6 +25,8 @@ mod parse;
 mod phonetic;
 mod pokemon;
 mod powers;
+mod refer;
+mod relations;
 pub mod tables;
 
 #[cfg(feature = "builder")]
@@ -42,6 +44,7 @@ pub use icons::IconDef;
 pub use invocation::{MAX_TITLE as SIGNATURE_MAX_TITLE, SignatureCall, SignatureKind};
 pub use norm::{MAX_INPUT_CHARS, MAX_TOKENS, normalize_key};
 pub use phonetic::phonetic_key;
+pub use refer::{Refer, Targeted};
 
 /// Is the phrase a whole construct, or only modifiers to graft onto something you aim at?
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

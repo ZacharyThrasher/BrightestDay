@@ -166,6 +166,12 @@ pub struct MoveParams {
     pub dodge_cooldown: f32,
     /// Seconds after the dodge starts during which attacks pass through (see `crate::dodge`).
     pub dodge_iframes: f32,
+    /// Touching a wall / steep (unwalkable, surfable) surface in the air gives back the air jump
+    /// and the air dodge (not the dodge cooldown).
+    pub wall_refresh: bool,
+    /// Degrees: a wall whose normal is within this of the last refreshing wall's doesn't refresh
+    /// again until ground, another wall or a tether attach (no single-wall climbing). 0 = off.
+    pub wall_refresh_same_wall_lockout: f32,
 }
 
 impl Default for MoveParams {
@@ -260,6 +266,8 @@ impl Default for MoveParams {
             dodge_exit_speed: 5.0,
             dodge_cooldown: 1.1,
             dodge_iframes: 0.13,
+            wall_refresh: true,
+            wall_refresh_same_wall_lockout: 30.0,
         }
     }
 }

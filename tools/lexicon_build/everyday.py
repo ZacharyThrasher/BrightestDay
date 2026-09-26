@@ -553,4 +553,13 @@ EVERYDAY = {
     "bird nest": dict(f="Cage", m=["Trap", "Swarm"], s=0.4),
     "spider web": dict(f="Cage", m=["Sticky", "Trap"]),
     "cobweb": dict(f="Cage", m=["Sticky", "Trap"], e="Shadow"),
+    # ------------------------------------------------------------------ sky emitters & rides (relations.rs)
+    "satellite": dict(f="Disc", m=["Flies", "Beam"], s=4.0, w=1000.0, ft=["Dish", "Antenna"]),
+    "spy satellite": dict(f="Disc", m=["Flies", "Beam"], s=4.0, w=1000.0, ft=["Dish", "Antenna"]),
+    "space station": dict(f="Disc", m=["Flies", "Beam"], s=12.0, w=50000.0, ft=["Dish", "Antenna", "Windows"]),
+    "gunship": dict(f="Vehicle", m=["Flies", "Shoots", "Piloted"], s=6.0, w=8000.0, ft=["Rotor", "Barrels", "Cockpit"]),
+    "attack helicopter": dict(f="Vehicle", m=["Flies", "Shoots", "Piloted"], s=5.0, w=6000.0, ft=["Rotor", "Barrels", "Cockpit"]),
+    "jet ski": dict(f="Vehicle", m=["Fast", "Piloted"], e="Water", s=1.2, w=300.0, ft=["Jet"]),
+    "gravity bomb": dict(f="Bomb", m=["Explodes", "Attract"], e="Psychic", s=0.6, w=20.0, g=["Attract"]),
+    "jetski": dict(f="Vehicle", m=["Fast", "Piloted"], e="Water", s=1.2, w=300.0, ft=["Jet"]),
 }

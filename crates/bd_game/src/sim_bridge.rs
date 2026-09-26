@@ -170,8 +170,8 @@ impl ActiveWorld {
                 w.begin_oath(player, section);
             }
             Cmd::OathProgress { correct_chars, accuracy } => w.oath_progress(player, correct_chars, accuracy),
-            Cmd::OathResult { accuracy, seconds } => {
-                let _ = w.oath_result(player, accuracy, seconds);
+            Cmd::OathResult { accuracy, seconds, voice } => {
+                let _ = w.oath_result_as(player, accuracy, seconds, voice);
             }
             Cmd::OathCancel => w.cancel_oath(player),
             Cmd::Dismiss => {
@@ -215,7 +215,8 @@ pub enum Cmd {
     /// Start reciting one section of the corps oath (the host looks the length up itself).
     OathBegin { section: u8 },
     OathProgress { correct_chars: u16, accuracy: f32 },
-    OathResult { accuracy: f32, seconds: f32 },
+    /// `voice` = spoken (timed by speaking time; the host forgives transcription latency).
+    OathResult { accuracy: f32, seconds: f32, voice: bool },
     OathCancel,
     /// X: dismiss every own construct.
     Dismiss,

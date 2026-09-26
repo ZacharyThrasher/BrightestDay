@@ -145,6 +145,13 @@ pub struct Audio {
     alive_players: usize,
     match_point_fired: bool,
     ended: bool,
+    /// Orbital strike loops (telegraph hum / beam) per emitter construct.
+    strikes: Vec<(bd_core::ConstructId, VoiceHandle)>,
+    /// Hook rope reel loops per (hooker, victim).
+    reels: Vec<(PlayerId, PlayerId, VoiceHandle, bool)>,
+    ads_active: bool,
+    /// Domain drone loops per construct.
+    domains: Vec<(bd_core::ConstructId, VoiceHandle)>,
 }
 
 type Loaded = Result<(bd_audio::AudioAssets, Option<MusicLib>), String>;
@@ -186,7 +193,7 @@ impl Plugin for AudioFxPlugin {
             .add_systems(OnExit(AppState::InGame), leave_game)
             .add_systems(
                 Update,
-                (forward_messages, local_movement, world_audio, apply_settings)
+                (forward_messages, local_movement, world_audio, hooks_audio, apply_settings)
                     .chain()
                     .after(FrameSet::Present)
                     .run_if(resource_exists::<Audio>),
@@ -318,6 +325,10 @@ fn finish_load(world: &mut World) {
         alive_players: 0,
         match_point_fired: false,
         ended: false,
+        strikes: Vec::new(),
+        reels: Vec::new(),
+        ads_active: false,
+        domains: Vec::new(),
     });
     info!("audio: {} sounds, {:.0} MB PCM, {} Hz", assets.bank.len(), assets.bank.bytes() as f32 / 1e6, rate);
 }
@@ -572,6 +583,26 @@ fn world_audio(
                     }
                     let _ = (killer, streak);
                 }
+                GameEvent::ConstructRecalled { to, .. } => {
+                    a.engine.play("recall_blink", PlayOpts::at(*to));
+                }
+                GameEvent::OrbitalStrike { id, phase, point, .. } => {
+                    use bd_sim::signature::StrikePhase as S;
+                    if let Some(i) = a.strikes.iter().position(|s| s.0 == *id) {
+                        let (_, h) = a.strikes.swap_remove(i);
+                        a.engine.stop(h, if *phase == S::End { 0.4 } else { 0.05 });
+                    }
+                    let name = match phase {
+                        S::Telegraph => Some("strike_telegraph"),
+                        S::Strike => Some("strike_beam_loop"),
+                        S::End => None,
+                    };
+                    if let Some(n) = name
+                        && let Some(h) = a.engine.play(n, PlayOpts::at(*point))
+                    {
+                        a.strikes.push((*id, h));
+                    }
+                }
                 GameEvent::Charge { player, kind, .. } => {
                     if let Some(p) = pos_of(*player) {
                         a.sim.charge(&ctx, *player, *kind, p, &mut a.engine);
@@ -648,6 +679,94 @@ fn world_audio(
     a.engine.advance(dt);
 }
 
+/// In-flight workers' audio hooks: tracking / hook ropes, ADS.
+fn hooks_audio(
+    mut audio: ResMut<Audio>,
+    mut tracking: MessageReader<crate::present::tracking::TrackingCue>,
+    reels: Option<Res<crate::present::tracking::HookReels>>,
+    ads: Option<Res<crate::present::ads::AdsState>>,
+    mut signature: MessageReader<crate::present::signature::SignatureCue>,
+) {
+    use crate::present::tracking::TrackingCueKind as K;
+    let a = &mut *audio;
+    // Signature spectacles (cut-in alarm, domains, ultimates).
+    for s in signature.read() {
+        use crate::present::signature::Cue as C;
+        let at = if s.mine { PlayOpts::own() } else { PlayOpts::at(gv(s.pos)) };
+        match s.cue {
+            C::AlertDanger => {
+                let sev = s.severity.clamp(0.0, 1.0);
+                a.engine.play("alert_danger", PlayOpts::ui().gain_db(-6.0 + 6.0 * sev).pitch(1.0 + 0.12 * sev));
+            }
+            C::DomainHum { on } => {
+                if let Some(i) = a.domains.iter().position(|d| d.0 == s.construct) {
+                    let (_, h) = a.domains.swap_remove(i);
+                    a.engine.stop(h, 0.3);
+                }
+                if on && let Some(h) = a.engine.play("domain_hum_loop", PlayOpts::at(gv(s.pos))) {
+                    a.domains.push((s.construct, h));
+                }
+            }
+            C::WorldDuck => {
+                let mut d = a.mix.duck("heavy_hit");
+                d.hold = 0.3;
+                a.engine.duck(d);
+            }
+            C::MusicStinger => {
+                #[cfg(feature = "music")]
+                if let Some(m) = a.music.as_mut() {
+                    m.stinger(bd_music::StingerKind::Streak, &mut a.engine);
+                }
+            }
+            c => {
+                a.engine.play(c.name(), at);
+            }
+        }
+    }
+    for c in tracking.read() {
+        let name = match c.kind {
+            K::HookThwip => "hook_fire",
+            K::HookSnap => "hook_break",
+            K::SlamReady => "hook_attach",
+            K::Slam => "hook_slam",
+            K::Lunge => "lunge",
+            K::RevealPing => "reveal_pulse",
+            K::GlowOn => continue,
+        };
+        let o = if c.local && matches!(c.kind, K::Lunge | K::HookThwip) { PlayOpts::own() } else { PlayOpts::at(gv(c.pos)) };
+        a.engine.play(name, o);
+    }
+    // Rope reel loops: one per live rope, pitched by closing speed.
+    if let Some(r) = reels {
+        for e in a.reels.iter_mut() {
+            e.3 = false;
+        }
+        for rope in &r.0 {
+            let pitch = 0.9 + (rope.closing / 30.0).clamp(0.0, 0.6);
+            let gain = -6.0 + (rope.closing / 20.0).clamp(0.0, 1.0) * 6.0;
+            if let Some(e) = a.reels.iter_mut().find(|e| e.0 == rope.hooker && e.1 == rope.victim) {
+                e.3 = true;
+                a.engine.update(e.2, gv(rope.pos), gain, pitch, f32::NAN);
+            } else if let Some(h) = a.engine.play("hook_reel_loop", PlayOpts::at(gv(rope.pos)).gain_db(gain)) {
+                a.reels.push((rope.hooker, rope.victim, h, true));
+            }
+        }
+        let engine = &mut a.engine;
+        a.reels.retain(|e| {
+            if !e.3 {
+                engine.stop(e.2, 0.08);
+            }
+            e.3
+        });
+    }
+    if let Some(ads) = ads
+        && ads.active != a.ads_active
+    {
+        a.ads_active = ads.active;
+        a.engine.play(if ads.active { "ads_in" } else { "ads_out" }, PlayOpts::own());
+    }
+}
+
 /// Match point / last standing stingers.
 #[cfg(feature = "music")]
 fn music_moments(e: &GameEvent, w: &ActiveWorld, alive: &mut usize, mp: &mut bool, m: &mut bd_audio::music::MusicDirector, engine: &mut AudioEngine) {
@@ -703,6 +822,12 @@ fn apply_settings(mut audio: ResMut<Audio>, settings: Res<Settings>) {
 fn leave_game(audio: Option<ResMut<Audio>>) {
     let Some(mut audio) = audio else { return };
     let a = &mut *audio;
+    for (_, h) in a.domains.drain(..).chain(a.strikes.drain(..)) {
+        a.engine.stop(h, 0.1);
+    }
+    for (_, _, h, _) in a.reels.drain(..) {
+        a.engine.stop(h, 0.05);
+    }
     for h in a.own.iter_mut().filter_map(Option::take) {
         a.engine.stop(h, 0.1);
     }

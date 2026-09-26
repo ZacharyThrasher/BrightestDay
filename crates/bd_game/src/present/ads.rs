@@ -25,6 +25,8 @@ use bevy::prelude::*;
 
 /// Default time to full zoom (s), divided by `CameraPrefs::ads_speed`.
 pub const ADS_SECS: f32 = 0.13;
+/// Over the shoulder, ADS zooms this much less (fraction of the extra zoom).
+pub const THIRD_ZOOM_CUT: f32 = 0.4;
 
 /// Aim-down-sights state for this frame.
 #[derive(Resource, Debug, Clone, Copy)]
@@ -37,11 +39,14 @@ pub struct AdsState {
     pub zoom: f32,
     /// The gun in hand, if any.
     pub gun: Option<GunArchetype>,
+    /// Zoom applied to the view this frame (eased; milder over the shoulder: the camera also
+    /// moves in, and a narrow FOV behind a body reads claustrophobic).
+    pub view_zoom: f32,
 }
 
 impl Default for AdsState {
     fn default() -> Self {
-        Self { active: false, blend: 0.0, zoom: 1.0, gun: None }
+        Self { active: false, blend: 0.0, zoom: 1.0, gun: None, view_zoom: 1.0 }
     }
 }
 
@@ -157,6 +162,7 @@ fn ads_input(
 
 fn ads_blend(
     time: Res<Time<Real>>,
+    mode: Res<ViewMode>,
     comfort: Res<ComfortSettings>,
     prefs: Option<Res<UiPrefs>>,
     mut ads: ResMut<AdsState>,
@@ -176,7 +182,13 @@ fn ads_blend(
     if ads.blend != blend {
         ads.blend = blend;
     }
-    let s = sens_scale(blend, ads.zoom, cam.ads_sens());
+    // Over the shoulder the camera also dollies in, so the FOV zooms less.
+    let zoom = 1.0 + (ads.zoom - 1.0) * (1.0 - THIRD_ZOOM_CUT * mode.blend);
+    let vz = 1.0 + (zoom - 1.0) * blend;
+    if ads.view_zoom != vz {
+        ads.view_zoom = vz;
+    }
+    let s = sens_scale(blend, zoom, cam.ads_sens());
     if (scale.0 - s).abs() > 1e-6 {
         scale.0 = s;
     }
