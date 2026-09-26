@@ -23,7 +23,7 @@ export const VERBS: Record<string, VerbClass> = {
   jab: 'strike', poke: 'strike', attack: 'strike', destroy: 'strike', wreck: 'strike', beat: 'strike', 'take out': 'strike', have: 'create', 'knock out': 'strike', spank: 'strike',
   bop: 'strike', boop: 'strike', clock: 'strike', nail: 'strike', skewer: 'strike', impale: 'strike', dropkick: 'strike', karate: 'strike', demolish: 'strike',
   // grab
-  grab: 'grab', seize: 'grab', snatch: 'grab', grip: 'grab', grasp: 'grab', 'pick up': 'grab', take: 'grab', nab: 'grab', clutch: 'grab', collect: 'grab', fetch: 'pull',
+  grab: 'grab', seize: 'grab', snatch: 'grab', steal: 'grab', nick: 'grab', swipe: 'strike', hijack: 'grab', commandeer: 'grab', grip: 'grab', grasp: 'grab', 'pick up': 'grab', take: 'grab', nab: 'grab', clutch: 'grab', collect: 'grab', fetch: 'pull',
   pinch: 'grab', squeeze: 'crush', hold: 'hold', carry: 'carry', hug: 'grab', scoop: 'grab', 'scoop up': 'grab', pluck: 'grab', capture: 'trap', catch: 'catch',
   // throw
   throw: 'throw', toss: 'throw', fling: 'throw', hurl: 'throw', chuck: 'throw', yeet: 'throw', lob: 'throw', pitch: 'throw', send: 'throw', slingshot: 'throw',
@@ -156,6 +156,7 @@ export const ENTITY_NOUNS: Record<string, string> = {
   drone: 'drone', drones: 'drone', robot: 'robot', robots: 'robot', bot: 'robot', bots: 'robot', droid: 'robot', droids: 'robot', android: 'robot', androids: 'robot', mech: 'robot', mechs: 'robot', walker: 'robot', walkers: 'robot',
   enemy: 'hostile', enemies: 'hostile', bad: 'hostile', baddie: 'hostile', baddies: 'hostile', 'bad guys': 'hostile', target: 'hostile', targets: 'hostile', foe: 'hostile', foes: 'hostile', hostile: 'hostile', hostiles: 'hostile', villain: 'hostile', villains: 'hostile', monster: 'hostile', monsters: 'hostile',
   ufo: 'drone', ufos: 'drone', machine: 'drone', machines: 'drone', flyer: 'drone', flyers: 'drone', quadcopter: 'drone', 'flying thing': 'drone', buzzers: 'drone', buzzer: 'drone', mosquito: 'drone', mosquitoes: 'drone',
+  opponent: 'opponent', opponents: 'opponent', rival: 'opponent', rivals: 'opponent', 'other player': 'opponent', 'enemy lantern': 'opponent', 'other lantern': 'opponent', challenger: 'opponent', nemesis: 'opponent',
   turret: 'turret', turrets: 'turret', gun: 'turret', cannon: 'turret', shooter: 'turret', sentry: 'turret', tower_gun: 'turret', emplacement: 'turret', launcher: 'turret',
   civilian: 'civilian', civilians: 'civilian', guy: 'civilian', person: 'civilian', man: 'civilian', woman: 'civilian', lady: 'civilian', dude: 'civilian', kid: 'civilian', child: 'civilian', people: 'civilian',
   pedestrian: 'civilian', citizen: 'civilian', victim: 'civilian', faller: 'civilian', human: 'civilian', fella: 'civilian', fellow: 'civilian', girl: 'civilian', boy: 'civilian', worker: 'civilian', hostage: 'civilian',

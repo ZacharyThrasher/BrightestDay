@@ -40,6 +40,7 @@ async function main() {
     const e: any = d.interp.lastEffect;
     console.log(`  fns=[${(e?.functions ?? []).join(',')}] intents=${(e?.intents ?? []).join('/')} targets=${(e?.targetKinds ?? []).join('/')} mods=[${(e?.modifications ?? []).join(',')}]`);
     if (r.messages.length) console.log(`  msgs: ${r.messages.join(' | ')}`);
+    if (r.approximations.length) console.log(`  approx: ${r.approximations.join(' | ')}`);
     for (let i = 0; i < 30; i++) w.step({ ...NO_INPUT, yaw: w.player.yaw, pitch: w.player.pitch });
   }
 }

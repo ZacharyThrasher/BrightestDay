@@ -34,6 +34,8 @@ interface Ctx {
   aimPoint: Vector3;
   aimEntity: Entity | null;
   aimConstruct: Construct | null;
+  /** PvP: the lantern under the crosshair (if the world reports players as collider owners) */
+  aimPlayer: string | null;
   aimNormal: Vector3;
   focus: Construct | null;
   corrections: Correction[];
@@ -239,8 +241,11 @@ export class Interpreter {
     const own = this.w.ownerOf(aim.collider);
     const aimEntity = own?.kind === 'entity' ? this.w.entities.get(own.id) ?? null : null;
     const aimConstruct = own?.kind === 'construct' ? this.w.constructs.get(own.id) : null;
+    const aimPlayer = (own as any)?.kind === 'player' && String((own as any).id) !== this.myId() ? String((own as any).id) : null;
+    let focus = this.w.constructs.get(this.w.constructs.focusId);
+    if (focus && this.isForeign(focus)) focus = [...this.w.constructs.list.values()].reverse().find((c) => !this.isForeign(c)) ?? null;
     return {
-      aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, focus: this.w.constructs.get(this.w.constructs.focusId),
+      aimPoint: aim.point, aimNormal: aim.normal, aimEntity, aimConstruct, aimPlayer, focus,
       corrections: [], notes: [], approximations: [], unknownWords: [], confidence: 0.92, defaultsUsed: 0, source: 'rule',
       lastEntity: this.lastEntityId ? this.w.entities.get(this.lastEntityId) ?? null : null, createdThisUtterance: [], touchedEntities: new Set(), pending: [],
       modTags: [], intents: new Set(), targetKinds: new Set(), priorOps: [], addressees: null, extraFns: new Set(),
@@ -279,6 +284,13 @@ export class Interpreter {
         const nv = this.embedder.nearestVerb(w);
         if (nv && nv.score >= 0.55) { ctx.approximations.push(`“${w}” ≈ ${nv.verb}`); ctx.confidence -= 0.15; ctx.source = 'embedding'; rep.tokens[i] = nv.verb; }
       }
+    }
+    // PvP possessives: "the enemy's wall", "that thing he made" → "his wall", "his thing"
+    if (this.opponents().length) {
+      const j = rep.tokens.join(' ')
+        .replace(/\b(the enemy|my opponent|the opponent|my rival|the rival|the other guy|that guy|the other lantern)'?s\b/g, 'his')
+        .replace(/\b(that|the|this) (thing|construct|stuff|one|contraption|machine|creation) (that )?(he|she|they|the enemy|my opponent|my rival|the other guy) (just )?(made|built|summoned|conjured|created|has|is riding|is in|rides)\b/g, 'his $2');
+      rep.tokens = j.split(' ').filter(Boolean);
     }
     // "tanks, attack that drone" / "all of you follow me": orders addressed to existing machines
     const addr = this.extractAddressee(rep.tokens, ctx);
@@ -328,6 +340,11 @@ export class Interpreter {
     this.bindDefinites(c, ctx);
     const order = this.tryOrder(c, ctx);
     if (order) return order;
+    // "steal his car" / "hijack their tank": take over a vehicle you can ride
+    if (['steal', 'hijack', 'commandeer', 'nick', 'take'].includes(c.verb ?? '') && c.objects[0]?.ref && ['construct', 'constructs'].includes(c.objects[0].ref.kind)) {
+      const con = this.resolveConstructs(c.objects[0].ref, ctx, c.objects[0])[0];
+      if (con && (isRideable(con.spec) || driveOf(con.spec) || con.spec.behaviors.some((b) => b.type === 'mount'))) { ctx.approximations.push('steal → climb in and take it'); return this.rideOps(con, ctx); }
+    }
     const special = this.reinterpret(c, ctx);
     if (special) return special;
     const v = c.vclass;
@@ -714,8 +731,11 @@ export class Interpreter {
 
   private defaultTarget(ctx: Ctx): Ref {
     if (ctx.aimEntity) return { kind: 'entity', id: ctx.aimEntity.id };
+    if (ctx.aimPlayer) return { kind: 'player', id: ctx.aimPlayer };
     const ne = this.w.constructs.nearestEnemy();
     if (ne) return { kind: 'entity', id: ne.id };
+    const opp = this.opponents()[0];
+    if (opp) return { kind: 'player', id: opp.id };
     return { kind: 'point', p: ctx.aimPoint.toArray() as Vec3 };
   }
 
@@ -822,6 +842,8 @@ export class Interpreter {
   /** Turn a noun phrase into a runtime Ref (entity / self / point / construct). */
   refFor(np: NP | null, ctx: Ctx, forVerb: VerbClass | null): { ref: Ref | null; entities: Entity[]; kind: string } {
     if (!np) return { ref: null, entities: [], kind: 'none' };
+    const opp = this.opponentRef(np, ctx, forVerb);
+    if (opp) return opp;
     const r = np.ref;
     if (r?.kind === 'self') return { ref: { kind: 'self' }, entities: [], kind: 'self' };
     if (r?.kind === 'aim') {
@@ -1023,10 +1045,56 @@ export class Interpreter {
       default:
         if (rel.verb === 'fly' || rel.verb === 'glide') { spec.behaviors.push({ type: 'thrust', accel: 20, axis: [0, 0, 1] }); }
         else if (rel.bareAdjs.length) this.applyMaterials(spec, rel.bareAdjs.map((a) => a), ctx);
-        else ctx.notes.push(`ignored “${rel.raw.join(' ')}”`);
+        else ctx.notes.push(`can’t make it “${rel.raw.join(' ')}” — ignored that part`);
     }
   }
 
+
+  // --------------------------------------------------------------------------- PvP: opponents and their constructs
+
+  private myId(): string { return String((this.w.player as any).id ?? 'local'); }
+
+  /** Other lanterns in the match. Duck-typed: world.opponents (array|fn), world.players (Map|array) or world.opponent. */
+  opponents(): { id: string; pos: Vector3 | null }[] {
+    const W: any = this.w;
+    const me = W.player;
+    const pool: any[] = [];
+    const add = (x: any) => { if (x && typeof x === 'object' && x !== me && !pool.includes(x) && (x.id === undefined || String(x.id) !== this.myId())) pool.push(x); };
+    const src = typeof W.opponents === 'function' ? W.opponents() : W.opponents;
+    if (src && typeof src[Symbol.iterator] === 'function') for (const x of src) add(x);
+    if (W.players && typeof W.players === 'object') for (const x of (W.players instanceof Map ? W.players.values() : Array.isArray(W.players) ? W.players : Object.values(W.players))) add(x);
+    add(W.opponent);
+    const P = this.w.player.pos;
+    return pool.filter((x) => x.alive !== false && x.dead !== true)
+      .map((x) => ({ id: String(x.id ?? 'opponent'), pos: x.pos instanceof Vector3 ? x.pos : null }))
+      .sort((a, b) => (a.pos ? a.pos.distanceTo(P) : 1e9) - (b.pos ? b.pos.distanceTo(P) : 1e9));
+  }
+
+  /** A construct someone else made (construct.owner / spec.owner differs from this player's id). */
+  isForeign(c: Construct): boolean {
+    const o = (c as any).owner ?? (c.spec as any).owner;
+    return o !== undefined && o !== null && String(o) !== this.myId();
+  }
+
+  /** "him", "her", "the enemy", "my rival", "that guy" → the opposing lantern; "his wall" → their construct. */
+  private opponentRef(np: NP, ctx: Ctx, forVerb: VerbClass | null): { ref: Ref | null; entities: Entity[]; kind: string } | null {
+    const r = np.ref;
+    if (r && (r.kind === 'construct' || r.kind === 'constructs') && r.id) {
+      const con = this.w.constructs.get(r.id);
+      if (con && this.isForeign(con)) { ctx.touchedEntities.add(con.id); return { ref: { kind: 'construct', id: con.id }, entities: [], kind: ctx.aimConstruct === con ? 'aimed_entity' : 'other' }; }
+    }
+    const opps = this.opponents();
+    if (!opps.length || !r) return null;
+    const personish = r.kind === 'person' || r.kind === 'entity' && (r.entityType === 'opponent' || r.entityType === 'hostile' || r.entityType === 'civilian' && ['guy', 'dude', 'man', 'person', 'fella', 'fellow', 'lady', 'woman', 'girl', 'boy'].includes(r.noun ?? ''))
+      || (r.kind === 'constructs' && !!forVerb && ENTITY_VERBS.has(forVerb) && !np.concept);
+    if (!personish) return null;
+    // a thing under the crosshair wins for plain pronouns ("him" while aiming at a drone)
+    if (!ctx.aimPlayer && ctx.aimEntity && r.kind === 'person') return null;
+    if (r.kind === 'entity' && r.entityType === 'hostile' && ctx.aimEntity?.hostile && !ctx.aimPlayer) return null;
+    if (r.kind === 'entity' && r.entityType === 'civilian' && !ctx.aimPlayer && [...this.w.entities.values()].some((e) => e.type === 'civilian')) return null;
+    const id = ctx.aimPlayer ?? opps[0].id;
+    return { ref: opps.length > 1 && (r.plural || r.kind === 'constructs') ? { kind: 'opponent' } : { kind: 'player', id }, entities: [], kind: ctx.aimPlayer ? 'aimed_entity' : 'opponent' };
+  }
 
   // --------------------------------------------------------------------------- machines: relative clauses, orders, riding
 
@@ -1051,7 +1119,7 @@ export class Interpreter {
     const obj = rel.objects[0] ?? null;
     const atP = rel.preps.find((p) => ['at', 'to', 'toward', 'towards', 'after', 'on'].includes(p.prep))?.np ?? null;
     const huntT = (np: NP | null): Ref => {
-      if (!np) return { kind: 'all_enemies' };
+      if (!np) return this.opponents().length ? { kind: 'opponent' } : { kind: 'all_enemies' };
       const t = this.refFor(np, ctx, 'strike');
       if (t.ref && t.ref.kind !== 'self') { ctx.targetKinds.add(t.kind); return t.ref; }
       return { kind: 'all_enemies' };
@@ -1274,8 +1342,10 @@ export class Interpreter {
     } else {
       switch (m.goal) {
         case 'hunt': {
-          const e = ctx.aimEntity?.hostile ? ctx.aimEntity : this.w.constructs.nearestEnemy();
+          const e = ctx.aimEntity?.hostile ? ctx.aimEntity : ctx.aimPlayer ? null : this.w.constructs.nearestEnemy();
+          const opp = ctx.aimPlayer ?? this.opponents()[0]?.id ?? null;
           if (e) { tref = { kind: 'entity', id: e.id }; tkind = ctx.aimEntity === e ? 'aimed_entity' : 'nearest_enemy'; this.lastEntityId = e.id; }
+          else if (opp) { tref = { kind: 'player', id: opp }; tkind = ctx.aimPlayer ? 'aimed_entity' : 'opponent'; }
           else { tref = { kind: 'all_enemies' }; tkind = 'nearest_enemy'; }
           break;
         }
@@ -1567,9 +1637,11 @@ export class Interpreter {
           intent('act');
           return [{ op: 'act', target: holder.id, action: 'throw', ref: destRef, speed }];
         }
-        if (patientEnts.length) {
+        const patientPlayer = patient ? this.refFor(patient, ctx, 'throw').ref : null;
+        if (patientEnts.length || patientPlayer?.kind === 'player' || patientPlayer?.kind === 'opponent') {
           // not holding it yet: grab, then throw when the grip closes
-          const spec = create('hand', null, [{ type: 'grab', target: { kind: 'entity', id: patientEnts[0].id }, then: 'hold' }], { at: 'hand', orient: 'along_look' });
+          const who: Ref = patientEnts.length ? { kind: 'entity', id: patientEnts[0].id } : patientPlayer!;
+          const spec = create('hand', null, [{ type: 'grab', target: who, then: 'hold' }], { at: 'hand', orient: 'along_look' });
           ctx.pending.push({ kind: 'throw_after_grab', ref: destRef, speed, opIndex: ctx.priorOps.length });
           intent('create'); intent('act');
           return [{ op: 'create', spec }];
@@ -1710,7 +1782,7 @@ export class Interpreter {
         const vehicle = instrument?.concept && ['vehicle', 'wearable', 'creature'].includes(instrument.concept.cls) ? instrument : objNP?.concept && ['vehicle', 'wearable', 'creature'].includes(objNP.concept.cls) ? objNP : null;
         if (vehicle) { intent('create'); return [{ op: 'create', spec: create(vehicle.concept!.id, vehicle, [], { at: 'self', orient: 'face_away' }) }]; }
         if (v === 'descend') { intent('create'); return [{ op: 'create', spec: create('parachute', null, [], { at: 'self', orient: 'face_away' }) }]; }
-        if (v === 'launch' && patient && tgt.entities.length) {
+        if (v === 'launch' && patient && (tgt.entities.length || tgt.ref?.kind === 'player' || tgt.ref?.kind === 'opponent')) {
           // launch someone else: spring under them
           intent('create'); intent('act');
           return [{ op: 'create', spec: create('spring', null, [], { at: 'under_target', target: tgt.ref!, orient: 'face_away' }, (s) => { s.behaviors = [{ type: 'launch', speed: 30, dir: 'up' }]; }) }];
@@ -1979,6 +2051,12 @@ export class Interpreter {
     const nps: NP[] = [...c.objects, ...c.preps.map((p) => p.np), ...(c.subject ? [c.subject] : [])];
     const fromBefore = c.preps.some((p) => p.prep === 'from' && p.np.tokens.some((w) => ['before', 'earlier', 'last', 'previously', 'yesterday', 'ago'].includes(w)));
     for (const np of nps) {
+      // "his tank", "her wall", "their shield", "his thing": the opponent's constructs
+      if (!np.ref && np.det && ['his', 'her', 'their'].includes(np.det)) {
+        const theirs = [...this.w.constructs.list.values()].filter((x) => this.isForeign(x));
+        const pick = np.concept ? theirs.filter((x) => x.spec.concept === np.concept!.id || (np.conceptWords && x.spec.label.includes(np.conceptWords))) : theirs;
+        if (pick.length) { np.ref = { kind: np.plural ? 'constructs' : 'construct', id: pick[pick.length - 1].id }; continue; }
+      }
       if (np.ref || !np.concept || !np.det) continue;
       if (!['the', 'that', 'this', 'those', 'these', 'my', 'its', 'your'].includes(np.det)) continue;
       if (fromBefore) { (np as any).fromBefore = true; continue; }
@@ -2239,7 +2317,9 @@ export class Interpreter {
   // --------------------------------------------------------------------------- modify / add / control
 
   private opModify(c: Clause, ctx: Ctx, obj: NP | null): Op[] {
-    const targets = obj?.ref || obj?.concept ? this.resolveConstructs(obj.ref, ctx, obj) : ctx.focus ? [ctx.focus] : [];
+    const all = obj?.ref || obj?.concept ? this.resolveConstructs(obj.ref, ctx, obj) : ctx.focus ? [ctx.focus] : [];
+    const targets = all.filter((x) => !this.isForeign(x));
+    if (all.length && !targets.length) return [{ op: 'abstain', reason: 'that’s their construct — you can’t reshape it, but you can smash it' }];
     const intoP = c.preps.find((p) => p.prep === 'into' || p.prep === 'to' && (p.np.concept || p.np.unknownHead));
     if (!targets.length) {
       if (intoP?.np.concept) return [{ op: 'create', spec: this.specFromConcept(intoP.np.concept, intoP.np, null, ctx) }];
@@ -2681,6 +2761,8 @@ export class Interpreter {
       case 'point': return 'there';
       case 'nearest_enemy': return 'nearest enemy';
       case 'all_enemies': return 'all enemies';
+      case 'opponent': return 'your opponent';
+      case 'player': return 'your opponent';
       default: return '';
     }
   }

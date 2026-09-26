@@ -444,7 +444,12 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
     // participles are relative clauses only after the noun ("a saw spinning around me"), not before it ("a walking house")
     const prevW = rest[i - 1] ?? '';
     const preNominal = DETS.has(prevW) || NUMBERS[prevW] !== undefined || /^\d+$/.test(prevW) || !!SIZE_ADJ[prevW] || !!DIM_ADJ[prevW] || !!SPEED_ADJ[prevW] || !!MATERIAL_ADJ[prevW] || IGNORED_ADJ.has(prevW) || COLOR_WORDS.has(prevW);
-    const isRel = !compound && ((REL_PRONOUNS.has(rest[i]) && verbAt(rest, i + 1) && i > 0) || (/ing$/.test(rest[i]) && VERBS[lemma(rest[i])] && i > 0 && !preNominal && !conceptByName.has(rest[i]) && !MATERIAL_ADJ[rest[i]]));
+    // "a dog that sings": an unknown verb still opens a relative clause (so it can be reported, not silently dropped)
+    const nx = rest[i + 1] ?? '';
+    const unknownVerbRel = (rest[i] === 'that' || rest[i] === 'which' || rest[i] === 'who') && i > 0 && /^[a-z]{3,}s$/.test(nx) && !/(ss|us|is)$/.test(nx)
+      && !['looks', 'seems', 'feels', 'goes', 'does', 'has', 'was', 'means', 'stays', 'keeps', 'lets', 'makes', 'gets', 'says', 'sounds', 'comes'].includes(nx)
+      && !conceptByName.has(nx) && !conceptByName.has(nx.slice(0, -1)) && !addonByName.has(nx) && !ENTITY_NOUNS[nx] && !isPrepStart(rest, i + 1) && !DETS.has(nx) && !PRONOUNS_PLURAL.has(nx);
+    const isRel = !compound && ((REL_PRONOUNS.has(rest[i]) && verbAt(rest, i + 1) && i > 0) || unknownVerbRel || (/ing$/.test(rest[i]) && VERBS[lemma(rest[i])] && i > 0 && !preNominal && !conceptByName.has(rest[i]) && !MATERIAL_ADJ[rest[i]]));
     if (isRel) {
       const relToks = rest.slice(REL_PRONOUNS.has(rest[i]) ? i + 1 : i);
       const sub = parseClause(relToks, analogies);
