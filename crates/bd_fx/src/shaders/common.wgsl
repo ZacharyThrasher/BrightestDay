@@ -70,7 +70,12 @@ fn fog_factor(world_pos: vec3<f32>) -> f32 {
 }
 
 fn fog_color() -> vec3<f32> {
+// `fog` is only bound when the view has DistanceFog (the cut-in/preview camera has none).
+#ifdef DISTANCE_FOG
     return fog.base_color.rgb;
+#else
+    return vec3<f32>(0.0);
+#endif
 }
 
 fn ease_out_back(x: f32) -> f32 {
