@@ -18,6 +18,7 @@ import { FocusMeter, CastClock, CastRecords, Combo, Completer, QuickSlots, type 
 import { LOCAL_PLAYER } from '../sim/inspiration.js';
 import { installLobby } from './lobby.js';
 import { attachPracticeBot, type BotHandle } from '../lang/practice.js';
+import { Juice } from './juice/index.js'; // JUICE
 
 const DT = 1 / 60;
 const MAX_STEPS = 6;
@@ -41,6 +42,7 @@ class App implements HardlightApp {
   readonly input: Input;
   readonly hud: HUD;
   readonly actionHud: ActionHud;
+  readonly juice: Juice; // JUICE
   settings: Settings;
   private consoleOpen = false;
   private history: string[] = [];
@@ -94,6 +96,7 @@ class App implements HardlightApp {
     this.hud = new HUD(overlay);
     this.actionHud = new ActionHud(this.hud.root, this.settings.constructColor);
     this.hud.localPlayer = this.playerId;
+    this.juice = new Juice(this); // JUICE
     this.input.onAction = (a, e) => this.onAction(a, e);
     this.setupConsole();
     this.setupMenu();
@@ -128,6 +131,7 @@ class App implements HardlightApp {
       if (old?.inspiration) w.inspiration.restore(old.inspiration.snapshot());
       if (oldSaved) for (const [k, v] of oldSaved) this.director.interp.saved.set(k, v);
       this.gr.setWorld(w);
+      this.juice.setWorld(w); // JUICE
       this.input.yaw = info.yaw;
       this.input.pitch = -0.08;
       w.player.yaw = info.yaw;
@@ -338,6 +342,7 @@ class App implements HardlightApp {
     if (me) me.combo = 1;
     const ok = !!r && r.applied && !r.abstain;
     this.combo.hit(now, ok);
+    this.juice.onCast(r, ok); // JUICE
     if (!r || !ok) return r;
     let flags = {};
     if (timing) { flags = this.records.record(timing); this.saveBests(); }
@@ -463,6 +468,7 @@ class App implements HardlightApp {
       </div>`;
     installLobby(m.querySelector('.menu-card')!, this.hud); // "Play online" panel
     (m.querySelector('button.practice') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); void this.startPractice(); };
+    this.juice.installMenu(m.querySelector('.settings'), () => saveSettings(this.settings)); // JUICE: shake + volume sliders
     const sc = m.querySelector('.scenes')!;
     SCENE_KEYS.forEach((s, i) => {
       const b = document.createElement('button');
@@ -614,6 +620,7 @@ function installTestHooks(app: App) {
       return out;
     },
     hud: app.hud,
+    juice: app.juice, // JUICE: stats(), apply(), sfx, ui
     toggleHelp(on?: boolean) { app.hud.toggleHelp(on); },
     togglePerf() { app.hud.togglePerf(); },
   };

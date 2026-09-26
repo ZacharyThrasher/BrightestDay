@@ -476,6 +476,8 @@ export class EntityViews {
   }
 
   positionOf(id: string): Vector3 | null { return this.views.get(id)?.model.group.position ?? null; }
+  /** JUICE hook: the posed model of an entity (hitstop freeze / squash write its transform after frame()). */
+  objectOf(id: string): Group | null { return this.views.get(id)?.model.group ?? null; }
 }
 
 export function entityLabel(e: Entity) { return e.label; }

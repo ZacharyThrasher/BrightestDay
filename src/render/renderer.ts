@@ -20,6 +20,17 @@ import { defaultSpec } from '../sim/constructs/spec.js';
 
 export interface ViewInput { yaw: number; pitch: number; boosting?: boolean }
 
+/** JUICE hook (src/app/juice): render-only game feel (shake, hitstop, FOV punches). Never touches the sim. */
+export interface RenderJuice {
+  tick(): void;
+  /** apply shake / kicks / kill cam to the posed camera; returns a FOV offset in degrees */
+  camera(cam: PerspectiveCamera, dt: number): number;
+  /** after construct / entity views are posed: hitstop freezes, squash, flashes, HUD numbers */
+  afterViews(dt: number): void;
+  readonly fxTimeScale: number;
+  readonly hurt: number;
+}
+
 export interface RenderStats {
   sceneCalls: number;
   sceneTriangles: number;
@@ -93,6 +104,7 @@ export class GameRenderer {
   private rivalColor = new Color(RIVAL.ring);
   /** Interpolated positions of every lantern this frame (HUD markers, damage numbers). */
   readonly playerPos = new Map<string, Vector3>();
+  juice: RenderJuice | null = null; // JUICE hook
 
   constructor(readonly canvas: HTMLCanvasElement, opts: Partial<RenderOptions> = {}) {
     this.opts = { quality: 'high', fov: 75, constructColor: HARDLIGHT_COLOR, ...opts };
@@ -247,6 +259,7 @@ export class GameRenderer {
     this.gasPrev = P.gas;
     for (const ev of P.events) this.onPlayerEvent(ev);
     this.tickOthers(w);
+    this.juice?.tick(); // JUICE hook
     this.constructs.tick(w, this.rig.handR);
     this.entities.tick(w);
     this.markers.tick(w);
@@ -485,11 +498,12 @@ export class GameRenderer {
     this.camera.position.copy(camPos);
     this.camera.up.copy(UP);
     this.camera.lookAt(camPos.clone().add(camDir));
+    const juiceFov = this.juice ? this.juice.camera(this.camera, dt) : 0; // JUICE hook
     this.fovKick *= Math.exp(-5 * dt);
     const wantFov = this.opts.fov + Math.min(20, Math.max(0, speed - 12) * 0.3) + this.fovKick;
     this.fovSmooth = this.fovSmooth ? this.fovSmooth + (wantFov - this.fovSmooth) * (1 - Math.exp(-6 * dt)) : wantFov;
-    if (Math.abs(this.camera.fov - this.fovSmooth) > 0.01) {
-      this.camera.fov = this.fovSmooth;
+    if (Math.abs(this.camera.fov - (this.fovSmooth + juiceFov)) > 0.01) {
+      this.camera.fov = this.fovSmooth + juiceFov; // JUICE: + juiceFov
       this.camera.updateProjectionMatrix();
       this.fx.setPointScale(this.post.rt.height, this.camera.fov);
     }
@@ -555,7 +569,8 @@ export class GameRenderer {
         this.fx.particles.spawn({ pos: p, vel: vdir.clone().multiplyScalar(-speed * 0.05), color: new Color(1, 1, 1), intensity: 0.35, size: 0.02, life: 0.35, streak: 2.2 + speed * 0.012 });
       }
     }
-    this.fx.update(dt);
+    this.juice?.afterViews(dt); // JUICE hook
+    this.fx.update(dt * (this.juice?.fxTimeScale ?? 1)); // JUICE: particles slow during a whole-view hitstop
     this.fx.beams.end(this.time);
     this.fx.projectiles.end();
 
@@ -573,7 +588,7 @@ export class GameRenderer {
     const sceneTris = info.render.triangles;
     this.hurt = Math.max(0, this.hurt - dt * 2.5);
     const speedFx = Math.min(1, Math.max(0, (speed - 24) / 36));
-    this.post.finish(this.camera, { speed: speedFx, hurt: this.hurt, boost: this.boosting > 0.5 ? 1 : 0, time: this.time });
+    this.post.finish(this.camera, { speed: speedFx, hurt: Math.max(this.hurt, this.juice?.hurt ?? 0), boost: this.boosting > 0.5 ? 1 : 0, time: this.time });
     const t1 = performance.now();
     this.stats = {
       sceneCalls, sceneTriangles: sceneTris, totalCalls: info.render.calls, frameCpuMs: t1 - t0, updateMs: tUpd - t0,
