@@ -1,5 +1,41 @@
 # Lead orchestrator handoff (keep updated)
 
+## >>> CURRENT SNAPSHOT (2026-09-26 16:30) — read this first <<<
+**Committed & green (HEAD builds):** the whole feature wave — audio mixer + music/remixes, shout words,
+charge, hands, camera/ADS, construct animation + summon assembly, bounds/recall/placement + cut-in preview,
+tracking/lunge/hook-and-strike + compass, double jump/dodge/wall refresh/surfing, oath sections + voice
+parity, freedom bundle (it-grammar, targeting, sputter, hidden legendary, kill feed, highlights),
+lexicon relations, signature moves + Hollow Purple, combat.ron actually loaded + hot reload + host sync,
+outlines, Orbit, Backrooms. bd_core contract v1.6, bd_net PROTOCOL_VERSION 8 (map workers will bump more).
+**Owner's playable build:** target\playable\0926_1630\brightest_day.exe (fastrel, smoke-tested);
+target\playable\LATEST.txt always points at the newest verified build.
+**Lead background processes (re-start after a machine restart):** `pwsh -File target\buildwatch.ps1`
+(GREEN/RED status every 90 s → target\build_status.txt) and `pwsh -File target\promote.ps1` (every 30 min:
+GREEN → release build → startup smoke → target\playable\<stamp>\). Lead's own checks use CARGO_TARGET_DIR
+target\lead; workers use target\play (shared) + `--profile fastrel` for exes, BD_HIDDEN_WINDOW=1 for shots.
+**In flight (subagent ids; reports return to this session; SendMessage by id):**
+- Stabilisation A a6b97aa2ebbc1363a — keybinds, settings tabs, PLAYING/DESIGN docs, loose audio hooks
+  (view_toggle, summon_ping, rotor_loop), summon_ping.rs doc comment.
+- Stabilisation B a474d07f59d13ee13 — host-enforced 3P rule, G powers + projectile aim convergence, 3P held
+  items in the costume hand + 3P ADS pose, 3P near-clip fade, tutorial 3P body, Hollow Purple gather
+  distance, readability (debris near camera, dome alpha, others' shot words over ADS), never-refuse powers,
+  thrown items linger, tutorial ghost regen, sputter ring flicker.
+- Map workers (each isolated behind a bd_voxel feature + own target dir; register MapKind/NetMapKind/
+  CLI/picker/audio/music at the end and bump PROTOCOL_VERSION — reconcile the bumps as they land):
+  Sakura Keep af05a4bd42a595302 (Hanamura LAYOUT followed closely, own look; private-use note),
+  Cybertron a2b9a832591c61404 (transforms ADD routes only + space bridge, as flavour),
+  Turtle Lair adf4a2d95abe323d2, Giant's Room ae3814d9e0a766ccd (static; scale cues),
+  Valley of the End a39d259b62dd1312d (water-walk RESTORED as flavour), Ember a12534acdde2f59c8 (lava =
+  void; surge/geysers/obsidian/drift CUT), Hyperline a2bf846d827b78dcb (train; slipstream rule),
+  Mirrorfold a319a5a9539efed5b (folded city; surf curls; no sim code), High Roller casino
+  a668e5a109aacf9fa (optional slot machines/roulette via generic interactables module; odds hidden).
+**Map rule (owner):** flavour must ENHANCE abilities, never force/restrict; competitive quality first.
+**Open offers to owner:** re-add Ember geysers + Giant's Room bed bounce as optional flavour (they
+enhance); basic bot navigation (bots beeline through walls on maze maps).
+**After maps + stabilisation land:** quiet-machine perf + `tools/check.ps1 -Soak -Bench -Smoke`, soak
+seeds 1..8, then package + owner "try these" list. Owner compacts context periodically — keep this
+snapshot current.
+
 Owner: wants autonomous progress; this is a research comparison of orchestration harnesses. Read
 docs/DESIGN.md first (NORTH STAR, MYSTERY tenet, FEATURE FREEZE, snappiness gates), then docs/COMBAT.md
 (§1a Smash model supersedes health; §5h player powers incl. Origin kind; §5i balance), docs/PLAYING.md,
