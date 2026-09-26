@@ -19,11 +19,16 @@ export interface PlayerInput {
   descend: boolean;
   /** get in / out of the nearest rideable construct (edge-triggered; G) */
   use?: boolean;
+  /** construct actions (actions.ts): LMB held = primary, RMB held = secondary; cycle = wheel notches this tick (±) */
+  primary?: boolean;
+  secondary?: boolean;
+  cycle?: number;
 }
 
 export const NO_INPUT: PlayerInput = {
   moveX: 0, moveZ: 0, yaw: 0, pitch: 0, jump: false, crouch: false, boost: false,
   hookL: false, hookR: false, reel: false, flyToggle: false, descend: false,
+  primary: false, secondary: false, cycle: 0,
 };
 
 /** Modifiers contributed by constructs the player is mounted on / wearing. */

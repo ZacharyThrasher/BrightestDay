@@ -15,6 +15,8 @@ export interface Settings {
   focusTimeScale: number;
   /** Real seconds of slowed time in a full focus meter. */
   focusSeconds: number;
+  /** Classic mouse: LMB/RMB fire tethers and the wheel reels (construct actions move to V / B / Tab). */
+  mouseTethers: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // focus time is an offline-practice aid (duels share one clock): off by default
   focusTimeScale: 1,
   focusSeconds: 5,
+  mouseTethers: false,
 };
 
 /** Bridge exposed by the Electron preload (absent in the plain web build). */
@@ -59,6 +62,7 @@ function sanitize(s: Partial<Settings>): Partial<Settings> {
     out.sensUnits = 'source';
   }
   if (typeof s.invertY === 'boolean') out.invertY = s.invertY;
+  if (typeof s.mouseTethers === 'boolean') out.mouseTethers = s.mouseTethers;
   if (typeof s.fov === 'number' && isFinite(s.fov)) out.fov = Math.min(110, Math.max(50, s.fov));
   if (typeof s.constructColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(s.constructColor)) out.constructColor = s.constructColor;
   if (s.graphics === 'low' || s.graphics === 'high') out.graphics = s.graphics;
@@ -83,6 +87,7 @@ export function loadSettings(): Settings {
   if (q.has('quality')) qs.graphics = q.get('quality');
   if (q.has('fov')) qs.fov = Number(q.get('fov'));
   if (q.has('sens')) { qs.mouseSensitivity = Number(q.get('sens')); qs.sensUnits = 'source'; }
+  if (q.has('mouseTethers')) qs.mouseTethers = q.get('mouseTethers') === '1' || q.get('mouseTethers') === 'true';
   if (q.has('invertY')) qs.invertY = q.get('invertY') === '1' || q.get('invertY') === 'true';
   if (q.has('color')) qs.constructColor = '#' + q.get('color')!.replace('#', '');
   if (q.has('focus')) qs.focusTimeScale = q.get('focus') === 'off' ? 1 : Number(q.get('focus'));

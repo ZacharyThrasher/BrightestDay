@@ -6,6 +6,7 @@ import { WorldContent, type EntityAI } from './content.js';
 import { CreativityEconomy } from './inspiration.js';
 import { Match, type MatchRules, type MatchSnapshot } from './match.js';
 import type { BotController } from './bots.js';
+import { ActionSystem } from './constructs/actions.js';
 
 export type Owner =
   | { kind: 'static'; id: string }
@@ -154,6 +155,8 @@ export class World {
   content!: WorldContent;
   /** Creativity economy (novelty → power), per player: `inspiration.of(playerId)`; see inspiration.ts. */
   inspiration!: CreativityEconomy;
+  /** Adaptive construct controls (mouse actions of the equipped construct), per player; see constructs/actions.ts. */
+  actions!: ActionSystem;
   log: GameEvent[] = [];
   scene = 'empty';
   input: PlayerInput = NO_INPUT;
@@ -176,6 +179,7 @@ export class World {
     w.content = new WorldContent(w);
     w.inspiration = new CreativityEconomy(w);
     w.listeners.push((e) => w.match?.onEvent(e));
+    w.actions = new ActionSystem(w);
     return w;
   }
 
@@ -730,9 +734,12 @@ export class World {
     this.input = input;
     this.player.input = input;
     for (const [id, ctl] of this.controllers) { const p = this.playerById(id); if (p && p !== this.player) p.input = ctl.tick(this); }
+    // construct actions read this tick's buttons first (a click acts on the tick it arrives)
+    for (const p of this.players) this.actions.input(p, p.input, dt);
     this.constructs.preStep(dt);
     for (const p of this.players) {
       p.update(p.input, dt);
+      this.actions.step(p, dt);
       if (p !== this.player && (p.input.flyToggle || p.input.use)) p.input = { ...p.input, flyToggle: false, use: false };
     }
     this.updateEntities(dt);

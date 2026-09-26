@@ -100,6 +100,8 @@ export interface MachineState {
   /** idle-with-target: keep aim joints on the target but don't fire */
   holdFire: boolean;
   shots: number; hits: number;
+  /** owner's mouse command (actions.ts): aim joints/weapons follow `aim` until `until`; fire while `fire`; precise = snap aim */
+  cmd?: { aim: Vector3; fire: boolean; until: number; precise: boolean } | null;
 }
 
 /** chase: going for an enemy — capped at COMBAT.chaser speed / turn rate so a mobile target can shake it */
@@ -326,13 +328,15 @@ export class MachineSystem {
     const rider = m.rider ? this.riderOf(c) : null;
     const ridden = !!rider;
     const riderAiming = ridden && this.riderAiming(m, rider!);
+    const cmd = m.cmd && m.cmd.until >= this.w.time ? m.cmd : null;
     if (!def.drive && !ridden && def.brain) this.think(c, inst, m, dt); // stationary brains still pick targets
     else if (!def.drive && ridden && !riderAiming && def.brain) this.acquire(c, inst, m);
-    // what aim joints track: the rider's crosshair while they aim, else the brain's target, else the owner's crosshair
+    // what aim joints track: the owner's mouse command, the rider's crosshair while they aim, else the brain's target, else the owner's crosshair
     const ctlr = rider ?? this.controllerOf(c);
-    const needAim = riderAiming || ridden || def.joints.some((j) => j.aim);
+    const needAim = riderAiming || ridden || !!cmd || def.joints.some((j) => j.aim);
     let aimP: Vector3 | null = null;
-    if (riderAiming) aimP = this.playerAim(ctlr);
+    if (cmd) aimP = cmd.aim;
+    else if (riderAiming) aimP = this.playerAim(ctlr);
     else if (m.target) aimP = this.lead(inst, m.target, def.aimSpeed);
     else if (ridden) aimP = this.playerAim(ctlr);
     if (needAim && !aimP && !def.brain && !ridden && def.joints.some((j) => j.aim)) aimP = this.playerAim(ctlr);
@@ -401,7 +405,7 @@ export class MachineSystem {
   /** Is the rider aiming right now (fired within the last 1.5 s)? */
   private riderAiming(m: MachineState, rider: Player): boolean {
     const inp = rider.input;
-    if (inp.hookL || inp.hookR) m.riderAimAt = this.w.time;
+    if (inp.primary || inp.hookL || inp.hookR) m.riderAimAt = this.w.time;
     return this.w.time - m.riderAimAt < 1.5;
   }
 
@@ -442,7 +446,7 @@ export class MachineSystem {
       // nothing to look at: drift back to rest
       yawD = 0; pitchD = 0;
     }
-    const step = a.rate * dt;
+    const step = m.cmd?.precise && m.cmd.until >= this.w.time ? Infinity : a.rate * dt;
     if (a.yaw) cur.yaw = wrap(cur.yaw + clamp(wrap(yawD - cur.yaw), -step, step));
     if (a.pitch) cur.pitch = cur.pitch + clamp(pitchD - cur.pitch, -step, step);
   }
@@ -782,7 +786,7 @@ export class MachineSystem {
     const def = c.mach!;
     const d = def.drive!;
     const inp = P.input;
-    const ctl: Control = { throttle: 0, yawRate: 0, heading: null, hvel: new Vector3(), alt: null, climb: 0, jump: !!inp.jump, boost: !!inp.boost, land: false };
+    const ctl: Control = { throttle: 0, yawRate: 0, heading: null, hvel: new Vector3(), alt: null, climb: 0, jump: !!inp.jump, boost: !!inp.boost || !!inp.secondary, land: false };
     const turn = d.turn * D2R;
     if (d.mode === 'air') {
       const camYaw = Math.atan2(-Math.sin(P.yaw), -Math.cos(P.yaw)); // heading the camera faces
@@ -1123,8 +1127,9 @@ export class MachineSystem {
     const def = c.mach!;
     const ridden = !!rider;
     const inp = rider?.input;
-    const wantFire = ridden && !!(inp!.hookL || inp!.hookR);
-    const riderAiming = ridden && this.w.time - m.riderAimAt < 1.5;
+    const cmd = m.cmd && m.cmd.until >= this.w.time ? m.cmd : null;
+    const wantFire = (ridden && !!(inp!.primary || inp!.hookL || inp!.hookR)) || !!cmd?.fire;
+    const riderAiming = (ridden && this.w.time - m.riderAimAt < 1.5) || !!cmd;
     const tgt = !riderAiming && !m.holdFire && m.target && this.tPos(m.target, _v) ? m.target : null;
     for (let wi = 0; wi < def.weapons.length; wi++) {
       m.cds[wi] -= dt;
@@ -1133,7 +1138,7 @@ export class MachineSystem {
       let aimAt: Vector3 | null = null;
       if (riderAiming) {
         if (!wantFire) continue;
-        aimAt = this.playerAim(rider!).clone();
+        aimAt = cmd ? cmd.aim.clone() : this.playerAim(rider!).clone();
       } else {
         if (!tgt) continue;
         aimAt = wp.kind === 'melee' ? this.tPos(tgt, new Vector3()) : this.lead(inst, tgt, shotSpeed(wp));

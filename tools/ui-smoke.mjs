@@ -201,6 +201,25 @@ if (!duel.hud.panel || !/–/.test(duel.hud.score ?? '')) await fail(`duel HUD p
 if (duel.hits < 1) await fail(`"smash him with a hammer" did not hurt the bot: ${JSON.stringify(duel)}`);
 if (!duel.dmgShown) console.log('  (note: damage number had already faded when sampled)');
 ok(`practice duel live · bot cast ${duel.botCasts}× · HUD ${JSON.stringify(duel.hud)} · "${duel.summary}" hit the bot (hp ${Math.round(duel.bot)})`);
+// ---- adaptive construct controls: make a hammer, click → it acts (action_start), the prompt names it
+if (!(await state()).locked) { await win.click('canvas#view').catch(() => {}); await win.waitForTimeout(1300); await win.click('canvas#view').catch(() => {}); await win.waitForTimeout(400); }
+await win.keyboard.press('Enter');
+await win.waitForTimeout(150);
+await win.keyboard.type('a hammer');
+await win.keyboard.press('Enter');
+await win.waitForFunction(() => [...window.hardlightApp.world.constructs.list.values()].some((c) => c.spec.concept === 'hammer'), null, { timeout: 5000 }).catch(() => fail('typed "a hammer" formed nothing'));
+await win.waitForFunction(() => /hammer/.test(document.querySelector('.action-prompt')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
+const prompt = await win.evaluate(() => document.querySelector('.action-prompt')?.textContent ?? '');
+if (!/hammer/.test(prompt) || !/LMB/.test(prompt)) await fail(`no action prompt for the hammer ("${prompt}")`);
+ok(`action prompt by the crosshair: "${prompt}"`);
+if (!(await state()).locked) { await win.click('canvas#view').catch(() => {}); await win.waitForTimeout(1300); }
+const n0a = await win.evaluate(() => window.hardlightApp.world.log.filter((e) => e.type === 'action_start').length);
+await win.mouse.down({ button: 'left' });
+await win.waitForTimeout(120);
+await win.mouse.up({ button: 'left' });
+await win.waitForFunction((n) => window.hardlightApp.world.log.filter((e) => e.type === 'action_start').length > n, n0a, { timeout: 5000 }).catch(() => fail('clicking with a hammer equipped fired no action_start'));
+const act = await win.evaluate(() => window.hardlightApp.world.log.filter((e) => e.type === 'action_start').pop());
+ok(`LMB with the hammer equipped → action_start ${JSON.stringify({ kind: act.kind, action: act.action })}`);
 
 console.log('UI smoke OK');
 await app.close();
