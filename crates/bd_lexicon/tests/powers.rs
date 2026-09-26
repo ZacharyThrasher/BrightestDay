@@ -124,3 +124,19 @@ fn every_icon_pack_parses_without_problems() {
         assert!(own.is_empty(), "{pack}: {own:#?}");
     }
 }
+
+#[test]
+fn mutagen_generic_is_random_specific_is_specific() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+    let Ok(l) = Lexicon::load(dir.join("lexicon.bin")) else { return };
+    for p in ["mutagen", "the ooze", "ooze", "mutagen ooze", "mutagen canister", "tcri canister", "ooze of tcri", "tmnt ooze", "MUTAGEN"] {
+        let r = l.resolve(p);
+        assert_eq!(r.recipe.grants.as_deref(), Some("random:mutagen"), "{p:?} -> {:?}", r.explanation);
+        assert_eq!(r.recipe.form, Form::Ball, "{p:?}");
+    }
+    if l.power_ids().contains(&"mutagen_rat") {
+        assert_eq!(l.resolve("rat mutagen").recipe.grants.as_deref(), Some("mutagen_rat"));
+        assert_eq!(l.resolve("turtle mutagen").recipe.grants.as_deref(), Some("mutagen_turtle"));
+        assert_eq!(l.resolve("secret of the ooze").recipe.grants.as_deref(), Some("mutagen_turtle"));
+    }
+}

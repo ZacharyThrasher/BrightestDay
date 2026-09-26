@@ -35,6 +35,7 @@ pub struct PowerDef {
 /// Sentinel `grants` ids for the "random" items; the game picks the actual power (seeded, host-side).
 pub const RANDOM_FRUIT: &str = "random:devil_fruit";
 pub const RANDOM_STAND: &str = "random:stand";
+pub const RANDOM_MUTAGEN: &str = "random:mutagen";
 
 /// Stand-rush cries: each typed cry is one punch of the user's stand.
 const CRIES: &[&str] = &["ora", "muda", "dora", "ari", "wry", "wryy", "oraora", "mudamuda"];
@@ -291,7 +292,31 @@ pub fn random_entries() -> Vec<IconEntry> {
         alt_shape: None,
         source: "powers.ron".to_string(),
     };
-    vec![fruit, arrow]
+    let mut ooze_recipe = grant_recipe("Mutagen", RANDOM_MUTAGEN, PowerKind::Fruit);
+    ooze_recipe.element = Element::Poison;
+    let mutagen = IconEntry {
+        names: [
+            "mutagen",
+            "the ooze",
+            "ooze",
+            "mutagen ooze",
+            "mutagen canister",
+            "tcri canister",
+            "ooze of tcri",
+            "tmnt ooze",
+            "a mutagen",
+            "some mutagen",
+            "random mutagen",
+            "mutagen vial",
+        ]
+        .map(String::from)
+        .to_vec(),
+        recipe: ooze_recipe.normalized(),
+        shape: None,
+        alt_shape: None,
+        source: "powers.ron".to_string(),
+    };
+    vec![fruit, arrow, mutagen]
 }
 
 fn title_case(s: &str) -> String {
