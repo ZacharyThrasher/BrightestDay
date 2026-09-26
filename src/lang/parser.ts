@@ -20,7 +20,7 @@ export interface RefWord {
   which?: 'nearest' | 'all' | 'that' | 'other' | 'last' | 'first';
 }
 
-export interface AddonUse { addon: Addon; where: string | null; count: number }
+export interface AddonUse { addon: Addon; where: string | null; count: number; explicit?: boolean }
 
 export interface NP {
   tokens: string[];
@@ -71,7 +71,7 @@ const DETS = new Set(['a', 'an', 'the', 'that', 'this', 'those', 'these', 'my', 
 const REL_PRONOUNS = new Set(['that', 'which', 'who', 'what']);
 const SPLITTERS = ['and then', 'then', 'after that', 'afterwards', 'and also', 'also', 'plus', 'and now', 'now', 'next'];
 const CORRECTION = /(?:\b(?:no wait|no no|wait no|wait|actually no|i mean|i meant|scratch that|make that|on second thought|nope|correction|er no|uh no|never mind|nevermind|forget that|forget it)\b|(?:^|[,\-]\s*|\bno\s+)(?:actually|sorry|rather)\b|\b(?:actually|sorry|rather)\s*,|(?:^|,|\s)no\s*,|,\s*no\b)/;
-const RELATION_WORDS: Record<string, string> = { back: 'back', rear: 'back', behind: 'back', front: 'front', nose: 'front', face: 'front', top: 'top', roof: 'top', bottom: 'bottom', underside: 'bottom', base: 'bottom', underneath: 'bottom', side: 'sides', sides: 'sides', edges: 'sides', left: 'sides', right: 'sides', end: 'tip', ends: 'tip', tip: 'tip', tips: 'tip', around: 'around', all: 'around', everywhere: 'around' };
+const RELATION_WORDS: Record<string, string> = { head: 'head', heads: 'head', shoulder: 'top', shoulders: 'top', belly: 'bottom', underbelly: 'bottom', hood: 'top', deck: 'top', back: 'back', rear: 'back', behind: 'back', front: 'front', nose: 'front', face: 'front', top: 'top', roof: 'top', bottom: 'bottom', underside: 'bottom', base: 'bottom', underneath: 'bottom', side: 'sides', sides: 'sides', edges: 'sides', left: 'sides', right: 'sides', end: 'tip', ends: 'tip', tip: 'tip', tips: 'tip', around: 'around', all: 'around', everywhere: 'around' };
 
 // ------------------------------------------------------------------------------- normalisation
 
@@ -82,8 +82,27 @@ const CONTRACTIONS: [RegExp, string][] = [
   [/\bya\b/g, 'you'], [/\bu\b/g, 'you'], [/\bcuz\b/g, 'because'], [/\bplz\b/g, 'please'], [/\btho\b/g, 'though'],
 ];
 
-export function normalize(text: string): { text: string; corrections: number } {
+/**
+ * Typed-chat shorthand → words ("a car w/ 2 cannons", "tank+missiles", "shoooot", "x3", "ur", "thx").
+ * Idempotent; runs before typo repair so the repair sees real words.
+ */
+export function expandShorthand(text: string): string {
   let t = ` ${text.toLowerCase()} `;
+  t = t.replace(/[’‘`]/g, "'");
+  t = t.replace(/\bw\/o\b/g, ' without ').replace(/\bw\/(?=\s|[a-z0-9])/g, ' with ').replace(/\s\+\s*|\s*\+\s/g, ' with ').replace(/(?<=[a-z])\+(?=[a-z])/g, ' with ');
+  t = t.replace(/\s*&\s*/g, ' and ').replace(/(?<=[a-z] )n(?= [a-z])/g, 'and');
+  t = t.replace(/(?<=[a-z0-9] )w(?= [a-z0-9])/g, 'with');
+  // counts: "x3", "3x", "tanks x 3" → "3 tanks"
+  t = t.replace(/\b([a-z]+)\s+x\s?(\d+)\b/g, (_m, w, n) => ` ${n} ${w} `).replace(/\bx(\d+)\b/g, ' $1 times ');
+  // stretched letters: "shoooot" → "shoot", "pleeease" → "pleease" (repair collapses further)
+  t = t.replace(/([a-z])\1{2,}/g, '$1$1');
+  const SHORT: Record<string, string> = { ur: 'your', urs: 'yours', r: 'are', pls: 'please', plz: 'please', plox: 'please', pleez: 'please', thx: '', thanx: '', thnx: '', ty: '', tysm: '', tyvm: '', lol: '', lmao: '', rofl: '', kthx: '', k: 'ok', kk: 'ok', ppl: 'people', bc: 'because', cuz: 'because', coz: 'because', b4: 'before', l8r: 'later', gr8: 'great', m8: 'mate', thru: 'through', tho: 'though', ya: 'you', yu: 'you', yo: 'yo', heli: 'helicopter', helo: 'helicopter', copter: 'helicopter', lazer: 'laser', lazers: 'lasers', missle: 'missile', missles: 'missiles', rn: '', asap: '', btw: '', imo: '', idk: '', omg: '', smth: 'something', sth: 'something', sum: 'some', wit: 'with', wiht: 'with', whit: 'with', teh: 'the', da: 'the', dat: 'that', dis: 'this', dem: 'them', em: 'them', ma: 'my', mah: 'my', gimme: 'give me', lemme: 'let me', gotta: 'got to', wanna: 'want to', gonna: 'going to', ima: 'i will', imma: 'i will', ill: 'i will' };
+  t = t.replace(/\b[a-z0-9]+\b/g, (w) => (w in SHORT ? SHORT[w] : w));
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+export function normalize(text: string): { text: string; corrections: number } {
+  let t = ` ${expandShorthand(text)} `;
   t = t.replace(/[’‘`]/g, "'").replace(/[“”]/g, '"').replace(/\s*[—–]\s*|\.\.\.+|…/g, ' , ');
   for (const [re, rep] of CONTRACTIONS) t = t.replace(re, rep);
   t = t.replace(/\b(out of|made of|made out of|of) (hard )?light\b/g, ' ');
@@ -422,7 +441,10 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
     const p = isPrepStart(rest, i);
     // relative clause: "that orbits me", "which spins", or participle "orbiting me"
     const compound = conceptByName.has(`${rest[i]} ${rest[i + 1] ?? ''}`) || conceptByName.has(`${rest[i]} ${singular(rest[i + 1] ?? '')}`);
-    const isRel = !compound && ((REL_PRONOUNS.has(rest[i]) && verbAt(rest, i + 1) && i > 0) || (/ing$/.test(rest[i]) && VERBS[lemma(rest[i])] && i > 0 && !conceptByName.has(rest[i]) && !MATERIAL_ADJ[rest[i]]));
+    // participles are relative clauses only after the noun ("a saw spinning around me"), not before it ("a walking house")
+    const prevW = rest[i - 1] ?? '';
+    const preNominal = DETS.has(prevW) || NUMBERS[prevW] !== undefined || /^\d+$/.test(prevW) || !!SIZE_ADJ[prevW] || !!DIM_ADJ[prevW] || !!SPEED_ADJ[prevW] || !!MATERIAL_ADJ[prevW] || IGNORED_ADJ.has(prevW) || COLOR_WORDS.has(prevW);
+    const isRel = !compound && ((REL_PRONOUNS.has(rest[i]) && verbAt(rest, i + 1) && i > 0) || (/ing$/.test(rest[i]) && VERBS[lemma(rest[i])] && i > 0 && !preNominal && !conceptByName.has(rest[i]) && !MATERIAL_ADJ[rest[i]]));
     if (isRel) {
       const relToks = rest.slice(REL_PRONOUNS.has(rest[i]) ? i + 1 : i);
       const sub = parseClause(relToks, analogies);
@@ -456,6 +478,7 @@ function parseClause(toksIn: string[], analogies: string[]): Clause | null {
     if (prev && prev.prep === 'with' && (s.prep === 'on' || s.prep === 'at' || s.prep === 'in' || s.prep === 'along' || s.prep === 'around' || s.prep === 'under' || s.prep === 'underneath') && np.tokens.some((w) => RELATION_WORDS[w])) {
       const rel = np.tokens.map((w) => RELATION_WORDS[w]).find(Boolean) ?? null;
       for (const a of prev.np.addons) a.where = rel;
+      (prev.np as any).where = rel;
       continue;
     }
     if (s.prep === 'with' && !np.addons.length && !np.concept && !np.ref && np.tokens.some((w) => RELATION_WORDS[w])) continue;
@@ -521,7 +544,7 @@ function splitAnd(toks: string[]): string[][] {
 // ------------------------------------------------------------------------------- noun phrases
 
 function singular(w: string): string {
-  if (conceptByName.has(w) || ENTITY_NOUNS[w]) return w;
+  if (conceptByName.has(w) || ENTITY_NOUNS[w] && !conceptByName.has(w.replace(/s$/, ''))) return w;
   if (w.endsWith('ies')) return w.slice(0, -3) + 'y';
   if (w.endsWith('ves')) {
     const a = w.slice(0, -1), b = w.slice(0, -3) + 'f', c = w.slice(0, -3) + 'fe';
@@ -665,6 +688,7 @@ export function parseNP(toksIn: string[], analogies: string[]): NP {
     np.ref = { kind: 'entity', entityType: ENTITY_NOUNS[entKey], plural, noun: entKey, which };
     np.plural = plural;
     if (!(matches.length && !refDet)) return np;
+    if (np.count !== null) np.ref = null; // "5 robots", "an army of robots": making them, not pointing at them
   }
 
   if (matches.length) {
@@ -681,7 +705,7 @@ export function parseNP(toksIn: string[], analogies: string[]): NP {
       }
     } else {
       // only add-ons ("rockets", "wheels"): the phrase is add-on material
-      for (const m of matches) if (m.addon) np.addons.push({ addon: m.addon, where: null, count: /s$/.test(m.words) ? 2 : 1 });
+      for (const m of matches) if (m.addon) np.addons.push({ addon: m.addon, where: null, count: np.count ?? (/s$/.test(m.words) ? 2 : 1), explicit: np.count !== null });
     }
     // unknown words after the head are probably the real head ("glove thing", "hammer guy")
     np.unknownWords = remaining;

@@ -1,5 +1,5 @@
 /** Cheap ASR-error repair: edit distance + a crude phonetic key, only against the game's own vocabulary. */
-import { VERBS, SIZE_ADJ, DIM_ADJ, SPEED_ADJ, MATERIAL_ADJ, ENTITY_NOUNS, FILLERS, NUMBERS, IGNORED_ADJ, COLOR_WORDS, PREPOSITIONS, SELF_WORDS, PRONOUNS_CONSTRUCT, PRONOUNS_PERSON, PRONOUNS_PLURAL, PLACE_NOUNS, ARRANGEMENT_WORDS, lemma } from './words.js';
+import { VERBS, SIZE_ADJ, DIM_ADJ, SPEED_ADJ, MATERIAL_ADJ, ENTITY_NOUNS, FILLERS, NUMBERS, IGNORED_ADJ, COLOR_WORDS, PREPOSITIONS, SELF_WORDS, PRONOUNS_CONSTRUCT, PRONOUNS_PERSON, PRONOUNS_PLURAL, PLACE_NOUNS, ARRANGEMENT_WORDS, MACHINE_WORDS, lemma } from './words.js';
 import { conceptByName, addonByName } from './lexicon.js';
 
 /** A few hundred very common English words that must never be "corrected" into game vocabulary. */
@@ -24,7 +24,7 @@ function build() {
   const words = new Set<string>();
   const addAll = (xs: Iterable<string>) => { for (const x of xs) for (const w of x.split(' ')) if (w.length >= 3) words.add(w); };
   addAll(Object.keys(VERBS)); addAll(conceptByName.keys()); addAll(addonByName.keys()); addAll(Object.keys(SIZE_ADJ)); addAll(Object.keys(DIM_ADJ));
-  addAll(Object.keys(SPEED_ADJ)); addAll(Object.keys(MATERIAL_ADJ)); addAll(Object.keys(ENTITY_NOUNS)); addAll(Object.keys(NUMBERS)); addAll(PLACE_NOUNS); addAll(Object.keys(ARRANGEMENT_WORDS));
+  addAll(Object.keys(SPEED_ADJ)); addAll(Object.keys(MATERIAL_ADJ)); addAll(Object.keys(ENTITY_NOUNS)); addAll(Object.keys(NUMBERS)); addAll(PLACE_NOUNS); addAll(Object.keys(ARRANGEMENT_WORDS)); addAll(MACHINE_WORDS);
   vocab = [...words];
   known = new Set([...words, ...FILLERS, ...IGNORED_ADJ, ...COLOR_WORDS, ...PREPOSITIONS.flatMap((p) => p.split(' ')), ...SELF_WORDS, ...PRONOUNS_CONSTRUCT, ...PRONOUNS_PERSON, ...PRONOUNS_PLURAL, ...FUNCTION_WORDS]);
   phon = new Map();
@@ -127,6 +127,13 @@ export function repair(tokens: string[], mode: 'unknown' | 'aggressive' = 'unkno
     if (merged) { out.push(...merged); corrections.push({ from: w, to: merged.join(' '), how: 'edit' }); continue; }
     const isKnown = isKnownWord(w);
     if (isKnown && mode === 'unknown') { out.push(w); continue; }
+    // typed stretching: "shoooot" / "pleease" / "attackk" → the word with doubled letters collapsed
+    if (!isKnown && /([a-z])\1/.test(w)) {
+      const cands = [w.replace(/([a-z])\1+/g, '$1$1'), w.replace(/([a-z])\1+/g, '$1')];
+      for (let i = 0; i < w.length - 1; i++) if (w[i] === w[i + 1]) cands.push(w.slice(0, i) + w.slice(i + 1));
+      const hit = cands.find((c) => c !== w && isKnownWord(c));
+      if (hit) { out.push(hit); corrections.push({ from: w, to: hit, how: 'edit' }); continue; }
+    }
     const gameWord = known!.has(w) && !COMMON_SET.has(w);
     if (isKnown && mode === 'aggressive' && (STOP.has(w) || FILLERS.has(w) || conceptByName.has(w) || VERBS[lemma(w)] || gameWord)) { out.push(w); continue; }
     if (mode === 'aggressive' && (STOP.has(w) || IGNORED_ADJ.has(w) || PREPOSITIONS.includes(w) || COLOR_WORDS.has(w))) { out.push(w); continue; }
