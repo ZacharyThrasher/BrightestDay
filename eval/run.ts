@@ -17,6 +17,7 @@ import { NO_INPUT } from '../src/sim/player.js';
 import { Director } from '../src/lang/director.js';
 import type { EffectReport } from '../src/lang/types.js';
 import { loadSemantic, type SemanticIndex } from '../src/lang/semantic.js';
+import { INSPIRED_AT } from '../src/sim/inspiration.js';
 
 import { writeFileSync as wfs, existsSync } from 'node:fs';
 import { RecordProvider, ReplayProvider, type S2Provider } from '../src/lang/escalate.js';
@@ -86,6 +87,7 @@ export async function runItem(item: Item): Promise<ItemResult> {
   let maxY = w.player.pos.y;
   let maxSpeed = 0;
   d.interp.s2Key = item.id;
+  const tCommit = w.time;
   const res = await d.commit(item.utterance);
   const rep = { ...(d.interp.lastEffect as any) };
   const heldDuring = new Set<string>();
@@ -115,6 +117,12 @@ export async function runItem(item: Item): Promise<ItemResult> {
     if (a.hurt && !b.hurt) obs.add('target_hurt');
   }
   if (after.constructs > before.constructs) obs.add('construct_created');
+  // creativity economy (EVAL_SPEC_MACHINES.md): what the game itself reported for this utterance
+  for (const ev of w.log) {
+    if (ev.t < tCommit) continue;
+    if (ev.type === 'inspiration' && ev.stale) obs.add('stale_penalty');
+    if ((ev.type === 'inspiration' && !ev.stale && ev.mul > 1 && ev.novelty >= INSPIRED_AT) || ev.type === 'creative_solution') obs.add('creative_bonus');
+  }
 
   const e = item.expect;
   const reasons: string[] = [];

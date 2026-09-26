@@ -2,6 +2,7 @@ import { Vector3, Quaternion } from 'three';
 import { initPhysics, G, ALL, groups, type Rapier, type RWorld, type RBody, type RCollider } from './physics.js';
 import { Player, type PlayerInput, NO_INPUT } from './player.js';
 import { ConstructRuntime } from './constructs/runtime.js';
+import { CreativityEconomy } from './inspiration.js';
 
 export type Owner =
   | { kind: 'static'; id: string }
@@ -74,6 +75,8 @@ export class World {
   goals: Goal[] = [];
   rings: RaceRing[] = [];
   constructs!: ConstructRuntime;
+  /** Creativity economy (novelty → power), per player: `inspiration.of(playerId)`; see inspiration.ts. */
+  inspiration!: CreativityEconomy;
   log: GameEvent[] = [];
   scene = 'empty';
   input: PlayerInput = NO_INPUT;
@@ -92,6 +95,7 @@ export class World {
     w.eq = new w.R.EventQueue(true);
     w.player = new Player(w);
     w.constructs = new ConstructRuntime(w);
+    w.inspiration = new CreativityEconomy(w);
     w.player.onHit = (c, n, p) => w.constructs.onPlayerTouch(c, n, p);
     return w;
   }

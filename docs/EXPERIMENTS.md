@@ -4,6 +4,11 @@ Everything here was measured in this repository; commands to reproduce are liste
 Negative and partial results are kept on purpose. UNKNOWN = not measured (usually: needs a real Windows
 PC with an RTX 3080, a real microphone, or a human player).
 
+> **Voice input was dropped by design decision** (typing is part of the skill: play as fast as you can
+> type). The ASR measurements are summarised in [`experiments/ASR.md`](experiments/ASR.md); the code and
+> bench are in git history (≤ `c644bb9`). Mentions of ASR below are kept as history; the interpreter's
+> "ASR repair" now serves as typo repair.
+
 ## 0. Environment constraints (affect every result below)
 
 - Built in a Linux cloud container: 4 vCPU, no GPU, no audio device. The target is Windows 10/11 + RTX 3080-class.
@@ -186,3 +191,94 @@ launches aimed at a wall face instead of its top; elevators stopped short; kinem
 it" created two hands (no cross-clause sequencing). Each fix is general (e.g. every ballistic launch now
 samples the path and clears the tallest obstacle). Remaining failures are mostly honest physics (wings from
 standing height can't cross a 25 m gap; orbiting shields leave gaps).
+
+## 8. Typing as a skill + the creativity economy (tuning notes)
+
+Voice was dropped (see the note at the top); the typed console became part of the skill. Everything below
+is scripted/simulated in this container: **no human has played it yet** (feel is UNKNOWN).
+
+**Typing while moving.** Opening the console no longer releases the mouse or kills momentum: pointer lock
+stays (mouse look keeps aiming, so "that" = what's under the crosshair at Enter), movement keys pause,
+velocity is untouched, a held tether (Q/E or mouse button) stays attached and a slide in progress keeps
+sliding (`Input.startTyping`). Checked by `tools/ui-smoke.mjs` in the real Electron build (airborne 24.0 →
+24.0 m/s after 0.7 s typing; a held Q-tether survives the console; the previous code released it).
+
+**Focus time — now offline practice only, off by default.** The project moved to 1v1 online duels
+(`docs/PVP_DESIGN.md`): both players share one clock, so the world can't slow for one typist. The
+mechanism stays as a practice option (`focusTimeScale`, menu "Focus time (practice)") and is forced off
+whenever `App.sharedClock` is set (the netcode's job); the smoke test checks both. What makes typing a
+PvP-fair skill instead: you never stop (momentum, held tethers, slides and mouse aim continue while you
+type), casting speed (Tab completion, empty-Enter recast, Shift+Enter chaining, 1–9 quick-cast), and the
+combo feeding the per-player inspiration curve — while stale spam of quick-casts is self-limiting. The
+measurements below were made before the pivot and still describe the practice option.
+While the console is open the fixed 60 Hz sim gets fewer ticks per real second (dt never
+changes, so the sim stays deterministic). A meter holds 5 real seconds of slow time and refills in 10 s
+while the console is closed; once dry, time runs normally until it's back to 25 %. Chosen with a scripted
+typist on the `falling` scene (`npx tsx tools/focus-sweep.ts`: 0.5 s reaction, then N chars at a constant
+rate; world-state judged — was the civilian unhurt?). Cells: outcome (world seconds elapsed at the cast).
+
+| typist | "catch him" ×1.0 | ×0.5 | **×0.35** | ×0.2 | "a trampoline under him" ×1.0 | ×0.5 | **×0.35** | ×0.2 |
+|---|---|---|---|---|---|---|---|---|
+| 3 cps (~35 wpm) | hurt (3.5) | saved | saved | saved | hurt | hurt | hurt | hurt (meter ran dry) |
+| 5 cps (~60 wpm) | saved (2.3) | saved | saved | saved | hurt (4.9) | hurt (2.5) | **saved (1.8)** | saved |
+| 8 cps (~95 wpm) | saved | saved | saved | saved | hurt (3.3) | saved (1.7) | saved (1.2) | saved |
+| 12 cps | saved | saved | saved | saved | hurt (2.4) | saved | saved | saved |
+
+×0.35 is where the gradient is right: without focus only a terse command in time works; at ×0.35 a ~60 wpm
+typist can type a descriptive rescue, slower typists must be concise, and ×0.2 is so forgiving that speed
+stops mattering. Median dev-set command = 19 chars (p75 28), i.e. ~3.3 s at 60 wpm: one median command per
+meter for an average typist, two for a fast one. `settings.json`: `focusTimeScale` (1 = off), `focusSeconds`;
+the menu has off / 50 % / 35 % / 20 %.
+
+**Speed tools.** Tab / → accept a faint inline completion (history words > saved designs > concept ids >
+add-ons > verbs > synonyms; Tab again cycles); ↑/↓ history; empty Enter recasts the last command;
+Shift/Ctrl+Enter forms and keeps the console open; 1–9 quick-cast (saved designs, then the latest distinct
+typed commands; scenes moved to Alt+1–9). Typos stay fine: the interpreter's repair (`fuzzy.ts`) turns
+"a tnak with wigns" into "a tank with wings". Cast timer (console open → Enter), chars/s and personal bests
+are shown after each typed cast; successful casts within 6 s build a combo (×1.15 per step on inspiration
+gains, max ×1.6).
+
+**Creativity economy** (`src/sim/inspiration.ts`, `test/inspiration.test.ts`). Each cast's signature =
+noun (label head), concept id, grafted add-on parts (roles after the base form's prefix), label adjectives,
+physical materials, size bucket, count/arrangement, behaviours (with mode), joint motions, placement,
+targets (entity types), verbs — plus all pairs of the "idea" kinds (pairs share a saturating weight of 4, so
+combinations dominate). Freshness of a feature = exp(-1.2 × recent uses) (uses decay ×0.85 per cast and
+with a 120 s time constant), ×1.3 if never used before. Novelty = fresh share of the weight × (0.55 + 0.45 ×
+richness). Measured sequences (drones scene, through the Director):
+
+| cast | novelty | power × | cost × | note |
+|---|---|---|---|---|
+| a wall | 0.65 | 1.31 | 0.76 | "✦ Inspired — new: wall" |
+| a wall (2nd) | 0.20 | 1.15 | 0.87 | quiet |
+| a wall (3rd) | 0.07 | 0.85 | 1.17 | "Stale — you've made 3 walls in a row" |
+| a wall (4th) | 0.03 | 0.77 | 1.31 | stale |
+| a tank ×3 | 0.84 → 0.26 → 0.10 | | | third is stale |
+| a tank with wings | 0.46 | 1.22 | 0.82 | "new: wing + tank" — new combination on a stale idea |
+| three hammers orbiting me | 0.89 | 1.50 | 0.67 | |
+| three swords orbiting me | 0.63 | 1.50 | 0.67 | variation: "new: sword" |
+| a shark with helicopter blades | 0.91 | 1.84 | 0.54 | mash-up |
+
+Meter: +0.3 × (novelty − 0.3) per cast (×combo when positive), relaxes toward 0.3 with a 75 s time
+constant; start 0.4. Power × = (0.8 + 0.8 × meter) × (1 + 0.25 × (novelty − 0.3)); stale casts (novelty <
+0.18) get 0.7–0.85 and never the meter's bonus; clamped to 0.5–2. It scales behaviour speeds/forces
+(strike, throw, home, shoot, field, launch, thrust, blast; weapon/drive only downwards until the validator
+has caps for them) and lifetime, **after** validation and never beyond `LIMITS`; energy cost × 1/power
+(0.5–1.6). Willpower cap 85–125 and regen ×0.7–1.6 follow the meter. Felt difference in the test: the
+same "punch that drone" went from strike speed 59 / cost 5.2 (fresh) to 31 / 10.1 (4th in a row).
+
+The economy is **per player** (`world.inspiration.of(playerId)`, one Director per player sets the caster),
+so in a duel each lantern has their own usage history, meter and streaks: player 1 spamming walls goes stale
+(0.65 → 0.20 → 0.07 → 0.03) while player 2's first wall is fresh (0.65).
+
+Creative solutions: an outcome is attributed to a construct (explicit `by`, else the construct that last
+touched / shot / reflected / blasted the target) and pays its OWNER inspiration (+ willpower) × unusualness
+(conventional tool for the job ×0.35; halves each time the same noun solves the same job; never for hurting
+yourself). Duel jobs: take the rival down +0.15, first hit on them per construct +0.04, break one of their
+constructs +0.08, block their shot +0.05 (once per construct). Test (synthetic duel events): rival taken
+down with a piano +0.15, hit with a piano +0.04, hit with a cannon +0.01, their wall broken with a whale
++0.08. PvE jobs kept for the eval scenes: a drone downed by a dropped piano +0.12, by a cannon +0.04, the
+piano again +0.06. The duel events (`player_damage`, `player_killed`, `construct_destroyed`, `blocked.from`)
+are the contract for whoever implements PvP damage.
+
+The eval harness now records `creative_bonus` / `stale_penalty` as OBSERVED functions from the game's own
+`inspiration` / `creative_solution` events (dev set unchanged: 78/78).

@@ -13,13 +13,14 @@ import { loadSettings, saveSettings, type Settings } from './settings.js';
 import { IpcProvider } from '../lang/ipc-provider.js';
 import { loadSemantic } from '../lang/semantic.js';
 import type { Embedder } from '../lang/interpreter.js';
+import { FocusMeter, CastClock, CastRecords, Combo, Completer, QuickSlots, type CastTiming, type Suggestion } from './typing.js';
+import { LOCAL_PLAYER } from '../sim/inspiration.js';
 
 const DT = 1 / 60;
 const MAX_STEPS = 6;
 
-/** Public surface for the voice module (and anything else that wants to drive the ring). */
+/** Public surface for anything that wants to drive the ring (tools, tests). */
 export interface HardlightApp {
-  setTranscript(partialText: string, isFinal: boolean): void;
   commit(text: string): Promise<CommitResult | null>;
   preview(text: string): void;
   readonly world: World;
@@ -46,8 +47,25 @@ class App implements HardlightApp {
   manual = false;
   private loading = false;
   private frameWaiters: (() => void)[] = [];
-  private voiceActive = false;
   private commitsInFlight = 0;
+  // ---- typing as a skill (see typing.ts)
+  readonly focus: FocusMeter;
+  readonly clock = new CastClock();
+  readonly records = new CastRecords();
+  readonly combo = new Combo();
+  readonly completer = new Completer();
+  readonly quick = new QuickSlots();
+  private suggestion: Suggestion | null = null;
+  private tabCycle: { prefix: string; cands: string[]; idx: number; value: string } | null = null;
+  /** World speed actually applied this frame (1 = normal; < 1 while focus time slows the world). */
+  timeScale = 1;
+  /** The local lantern (the creativity economy is per player). */
+  playerId = LOCAL_PLAYER;
+  /**
+   * True in an online duel: both players share one clock, so focus time (offline practice only) must
+   * never slow the world there. The netcode sets this.
+   */
+  sharedClock = false;
   /** Optional language layers, attached to every new Director (System 1.5 word vectors, System 2 LLM). */
   private embedder: Embedder | null = null;
   private s2: { provider: IpcProvider; mode: 'hybrid' | 'always' } | null = null;
@@ -58,12 +76,15 @@ class App implements HardlightApp {
 
   constructor(readonly canvas: HTMLCanvasElement, readonly overlay: HTMLElement) {
     this.settings = loadSettings();
+    this.focus = new FocusMeter(this.settings.focusTimeScale, this.settings.focusSeconds);
+    this.loadBests();
     this.gr = new GameRenderer(canvas, { quality: this.settings.graphics, fov: this.settings.fov, constructColor: this.settings.constructColor });
     document.documentElement.style.setProperty('--hl', this.settings.constructColor);
     this.input = new Input(canvas);
     this.input.sensitivity = this.settings.mouseSensitivity;
     this.input.invertY = this.settings.invertY;
     this.hud = new HUD(overlay);
+    this.hud.localPlayer = this.playerId;
     this.input.onAction = (a, e) => this.onAction(a, e);
     this.setupConsole();
     this.setupMenu();
@@ -72,10 +93,6 @@ class App implements HardlightApp {
     document.addEventListener('pointerlockchange', () => this.updateMenu());
     // never fail silently: if the OS/browser refuses mouse capture, say so
     document.addEventListener('pointerlockerror', () => this.hud.toast('warn', 'Couldn’t capture the mouse — click again (after Esc, Windows needs a second before re-capturing)'));
-    // voice bridge (filled in by the voice integrator; absent in the web build)
-    const v = window.hardlight?.voice;
-    v?.onPartial?.((t) => this.setTranscript(t, false));
-    v?.onFinal?.((t) => this.setTranscript(t, true));
   }
 
   async loadScene(name: SceneName) {
@@ -85,10 +102,15 @@ class App implements HardlightApp {
       const w = await World.create();
       const info = buildScene(w, name);
       const old = this.world;
+      const oldSaved = this.director?.interp.saved;
       this.world = w;
       this.scene = name;
       this.director = new Director(w);
+      this.director.playerId = this.playerId;
       this.configureDirector();
+      // the ring remembers what you have already imagined (and your saved designs) across scene changes and resets
+      if (old?.inspiration) w.inspiration.restore(old.inspiration.snapshot());
+      if (oldSaved) for (const [k, v] of oldSaved) this.director.interp.saved.set(k, v);
       this.gr.setWorld(w);
       this.input.yaw = info.yaw;
       this.input.pitch = -0.08;
@@ -156,18 +178,18 @@ class App implements HardlightApp {
       this.frameTimes.push(dt * 1000);
       if (this.frameTimes.length > 4000) this.frameTimes.splice(0, 2000);
       if (this.world && !this.loading) {
-        if (!this.manual) {
-          this.acc += Math.min(dt, 0.25);
-          let steps = 0;
-          while (this.acc >= DT && steps < MAX_STEPS) { this.stepSim(this.input.sample()); this.acc -= DT; steps++; }
-          if (steps === MAX_STEPS) this.acc = 0; // too slow: drop time instead of spiralling
-        }
+        if (!this.manual) this.advance(dt);
         const alpha = this.manual ? 1 : this.acc / DT;
         this.gr.render(alpha, dt, { yaw: this.input.yaw, pitch: this.input.pitch });
         this.renderCpu.push(this.gr.stats.frameCpuMs);
         if (this.renderCpu.length > 4000) this.renderCpu.splice(0, 2000);
         const th = performance.now();
-        this.hud.update({ world: this.world, renderer: this.gr, fps: this.fps, frameMs: this.frameMs, simMs: this.simMs, consoleOpen: this.consoleOpen, locked: this.input.locked });
+        this.hud.update({
+          world: this.world, renderer: this.gr, fps: this.fps, frameMs: this.frameMs, simMs: this.simMs, consoleOpen: this.consoleOpen, locked: this.input.locked,
+          playerId: this.playerId,
+          focus: { meter: this.focus.meter, active: this.focus.active, enabled: this.focus.enabled },
+          combo: { n: this.combo.n, left: this.combo.left(th) },
+        });
         this.hudTimes.push(performance.now() - th);
         if (this.hudTimes.length > 4000) this.hudTimes.splice(0, 2000);
       }
@@ -177,6 +199,19 @@ class App implements HardlightApp {
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
+  }
+
+  /**
+   * Advance the fixed-step sim by one rendered frame of `dt` real seconds. Focus time: while typing the
+   * 60 Hz sim simply gets fewer ticks per real second (dt never changes, so the sim stays deterministic).
+   */
+  advance(dt: number): number {
+    this.timeScale = this.focus.update(dt, this.consoleOpen && !this.sharedClock);
+    this.acc += Math.min(dt, 0.25) * this.timeScale;
+    let steps = 0;
+    while (this.acc >= DT && steps < MAX_STEPS) { this.stepSim(this.input.sample()); this.acc -= DT; steps++; }
+    if (steps === MAX_STEPS) this.acc = 0; // too slow: drop time instead of spiralling
+    return steps;
   }
 
   stepSim(inp: PlayerInput) {
@@ -201,16 +236,10 @@ class App implements HardlightApp {
     else if (a === 'perf') this.hud.togglePerf();
     else if (a === 'reset') void this.loadScene(this.scene);
     else if (a === 'fullscreen') { if (window.hardlight?.toggleFullscreen) window.hardlight.toggleFullscreen(); }
-    else if (a === 'voice_down') {
-      const v = window.hardlight?.voice;
-      this.voiceActive = true;
-      this.hud.setListening(true);
-      if (v?.start) v.start(); else this.hud.toast('note', 'Voice is not connected in this build — press Enter to type instead.', 3500);
-    } else if (a === 'voice_up') {
-      if (!this.voiceActive) return;
-      this.voiceActive = false;
-      this.hud.setListening(false);
-      window.hardlight?.voice?.stop?.();
+    else if (a.startsWith('quick_')) {
+      const slot = this.quick.get(Number(a.slice(6)));
+      if (slot) void this.cast(slot.text, null, `quick-cast ${slot.key}`);
+      else this.hud.toast('note', 'Nothing in that quick-cast slot yet — anything you type that forms goes into slot 1.', 3000);
     } else if (a.startsWith('scene_')) {
       const i = Number(a.slice(6)) - 1;
       const name = SCENE_KEYS[i];
@@ -222,17 +251,26 @@ class App implements HardlightApp {
 
   private setupConsole() {
     const inp = this.hud.consoleInput;
-    inp.addEventListener('input', () => this.preview(inp.value));
+    inp.addEventListener('input', () => {
+      this.clock.key(performance.now());
+      this.tabCycle = null;
+      this.preview(inp.value);
+      this.updateSuggestion();
+    });
     inp.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         e.preventDefault();
-        const text = inp.value.trim();
-        this.closeConsole();
-        if (text) { this.history.push(text); void this.commit(text); }
+        this.submit(e.shiftKey || e.ctrlKey);
       } else if (e.code === 'Escape') {
         e.preventDefault();
         this.closeConsole();
+      } else if (e.code === 'Tab') {
+        e.preventDefault();
+        this.acceptSuggestion();
+      } else if (e.code === 'ArrowRight' && this.suggestion && inp.selectionStart === inp.value.length) {
+        e.preventDefault();
+        this.acceptSuggestion();
       } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
         e.preventDefault();
         if (!this.history.length) return;
@@ -240,6 +278,7 @@ class App implements HardlightApp {
         this.histIdx = Math.max(0, Math.min(this.history.length, this.histIdx + (e.code === 'ArrowUp' ? -1 : 1)));
         inp.value = this.history[this.histIdx] ?? '';
         this.preview(inp.value);
+        this.updateSuggestion();
       } else if (e.code === 'F1' || e.code === 'F3') {
         e.preventDefault();
         if (e.code === 'F1') this.hud.toggleHelp(); else this.hud.togglePerf();
@@ -247,24 +286,111 @@ class App implements HardlightApp {
     });
   }
 
+  /** Enter: form what's typed (empty = recast the last command). `chain` keeps the console open. */
+  private submit(chain: boolean) {
+    const inp = this.hud.consoleInput;
+    const text = inp.value.trim();
+    const now = performance.now();
+    if (!text) {
+      const last = this.history[this.history.length - 1];
+      if (!chain) this.closeConsole();
+      if (last) void this.cast(last, null, 'recast');
+      return;
+    }
+    const timing = this.clock.commit(now, text);
+    this.history.push(text);
+    if (chain) {
+      inp.value = '';
+      this.histIdx = -1;
+      this.clock.open(now);
+      this.gr.setPreview([]);
+      this.updateSuggestion();
+    } else this.closeConsole();
+    void this.cast(text, timing, null);
+  }
+
+  /**
+   * One cast through the ring: feeds the typing combo into the creativity economy, then records
+   * timing, bests, completion vocabulary and quick-cast slots from the result.
+   */
+  private async cast(text: string, timing: CastTiming | null, quickNote: string | null): Promise<CommitResult | null> {
+    const now = performance.now();
+    const me = this.world?.inspiration.of(this.playerId);
+    if (me) me.combo = this.combo.peek(now);
+    const r = await this.commit(text);
+    if (me) me.combo = 1;
+    const ok = !!r && r.applied && !r.abstain;
+    this.combo.hit(now, ok);
+    if (!r || !ok) return r;
+    let flags = {};
+    if (timing) { flags = this.records.record(timing); this.saveBests(); }
+    this.hud.showCast(timing, this.records.best, { ...flags, quick: quickNote ?? undefined });
+    if (!quickNote) {
+      this.completer.learn(text);
+      if (r.ops.some((o) => o.op === 'create')) this.quick.noteTyped(text);
+    }
+    for (const o of r.ops) if (o.op === 'control' && o.action === 'save' && o.name) this.quick.addSaved(o.name);
+    this.completer.setSaved(this.director?.interp.saved.keys() ?? []);
+    this.hud.setQuickSlots(this.quick.slots());
+    return r;
+  }
+
+  private updateSuggestion() {
+    this.suggestion = this.completer.suggest(this.hud.consoleInput.value);
+    this.hud.setGhost(this.suggestion?.suffix ?? '');
+  }
+
+  /** Tab: take the ghost completion; Tab again right away cycles through the other candidates. */
+  private acceptSuggestion() {
+    const inp = this.hud.consoleInput;
+    const cyc = this.tabCycle;
+    if (cyc && inp.value === cyc.value && cyc.cands.length > 1) {
+      cyc.idx = (cyc.idx + 1) % cyc.cands.length;
+      cyc.value = inp.value = `${cyc.prefix}${cyc.cands[cyc.idx]} `;
+    } else if (this.suggestion) {
+      const sg = this.suggestion;
+      const prefix = inp.value.slice(0, inp.value.length - sg.fragment);
+      inp.value = `${prefix}${sg.word} `;
+      this.tabCycle = { prefix, cands: sg.candidates, idx: 0, value: inp.value };
+    } else return;
+    this.suggestion = null;
+    this.hud.setGhost('');
+    this.clock.key(performance.now());
+    this.preview(inp.value);
+  }
+
   openConsole() {
     if (this.consoleOpen) return;
     this.consoleOpen = true;
     this.histIdx = -1;
-    this.input.gameplay = false;
-    this.input.release();
+    // movement keys stop; momentum, held tethers, a slide in progress and mouse aim carry on
+    this.input.startTyping(!!this.world?.player.sliding);
+    this.clock.open(performance.now());
     this.hud.setConsole(true);
     this.hud.consoleInput.value = '';
+    this.suggestion = null;
+    this.tabCycle = null;
     this.hud.consoleInput.focus();
   }
 
   closeConsole() {
     this.consoleOpen = false;
-    this.input.gameplay = true;
+    this.input.stopTyping();
+    this.clock.close();
     this.hud.setConsole(false);
     this.hud.consoleInput.blur();
     this.gr.setPreview([]);
+    this.suggestion = null;
   }
+
+  private loadBests() {
+    try {
+      const b = JSON.parse(localStorage.getItem('hardlight.bests') ?? 'null');
+      if (b && typeof b === 'object') this.records.best = { cast: typeof b.cast === 'number' ? b.cast : null, cps: typeof b.cps === 'number' ? b.cps : null, casts: Number(b.casts) || 0 };
+    } catch { /* storage unavailable: bests are per session */ }
+  }
+
+  private saveBests() { try { localStorage.setItem('hardlight.bests', JSON.stringify(this.records.best)); } catch { /* ignore */ } }
 
   preview(text: string) {
     if (!this.director) return;
@@ -297,21 +423,6 @@ class App implements HardlightApp {
     }
   }
 
-  /** Voice module entry point: partials drive the ghost preview, finals commit. */
-  setTranscript(partialText: string, isFinal: boolean) {
-    const t = (partialText ?? '').trim();
-    this.hud.setTranscript(t, isFinal);
-    if (isFinal) {
-      this.hud.setListening(false);
-      this.gr.setPreview([]);
-      if (t) { this.history.push(t); void this.commit(t); }
-      setTimeout(() => this.hud.setTranscript('', false), 2500);
-    } else {
-      this.hud.setListening(true);
-      this.preview(t);
-    }
-  }
-
   // ------------------------------------------------------------------------------------ menu
 
   private setupMenu() {
@@ -328,6 +439,7 @@ class App implements HardlightApp {
           <label>Invert Y <input type="checkbox" name="inv"></label>
           <label>Construct colour <input type="color" name="color"></label>
           <label>Graphics <select name="gfx"><option value="high">high</option><option value="low">low</option></select></label>
+          <label>Focus time (practice) <select name="focus"><option value="1">off</option><option value="0.5">50%</option><option value="0.35">35%</option><option value="0.2">20%</option></select></label>
         </div>
         <div class="foot">F1 controls · settings.json next to the app overrides defaults</div>
       </div>`;
@@ -341,10 +453,12 @@ class App implements HardlightApp {
     const q = <T extends Element>(s: string) => m.querySelector(s) as unknown as T;
     const sens = q<HTMLInputElement>('input[name=sens]'), fov = q<HTMLInputElement>('input[name=fov]');
     const inv = q<HTMLInputElement>('input[name=inv]'), color = q<HTMLInputElement>('input[name=color]'), gfx = q<HTMLSelectElement>('select[name=gfx]');
+    const focus = q<HTMLSelectElement>('select[name=focus]');
+    const focusOpt = () => { const v = this.settings.focusTimeScale; return [...focus.options].reduce((a, o) => (Math.abs(Number(o.value) - v) < Math.abs(Number(a.value) - v) ? o : a)).value; };
     const sync = () => {
       sens.value = String(this.settings.mouseSensitivity); (sens.nextElementSibling as HTMLOutputElement).value = this.settings.mouseSensitivity.toFixed(2);
       fov.value = String(this.settings.fov); (fov.nextElementSibling as HTMLOutputElement).value = String(this.settings.fov);
-      inv.checked = this.settings.invertY; color.value = this.settings.constructColor; gfx.value = this.settings.graphics;
+      inv.checked = this.settings.invertY; color.value = this.settings.constructColor; gfx.value = this.settings.graphics; focus.value = focusOpt();
     };
     sync();
     const apply = () => {
@@ -354,6 +468,8 @@ class App implements HardlightApp {
       this.settings.constructColor = color.value;
       const gfxChanged = gfx.value !== this.settings.graphics;
       this.settings.graphics = gfx.value as any;
+      if (focus.value !== focusOpt()) this.settings.focusTimeScale = Number(focus.value);
+      this.focus.target = this.settings.focusTimeScale;
       this.input.sensitivity = this.settings.mouseSensitivity;
       this.input.invertY = this.settings.invertY;
       this.gr.setFov(this.settings.fov);
@@ -363,7 +479,7 @@ class App implements HardlightApp {
       sync();
       if (gfxChanged) this.hud.toast('note', 'Graphics quality applies after restart (or reload).');
     };
-    for (const e of [sens, fov, inv, color, gfx]) { e.addEventListener('input', apply); e.addEventListener('click', (ev) => ev.stopPropagation()); }
+    for (const e of [sens, fov, inv, color, gfx, focus]) { e.addEventListener('input', apply); e.addEventListener('click', (ev) => ev.stopPropagation()); }
     m.querySelector('.settings')!.addEventListener('click', (ev) => ev.stopPropagation());
     m.addEventListener('click', () => this.input.requestLock());
     this.updateMenu();

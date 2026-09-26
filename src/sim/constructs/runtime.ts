@@ -73,16 +73,22 @@ export class ConstructRuntime {
 
   get(id: string | null | undefined) { return id ? this.list.get(id) ?? null : null; }
 
+  /** Willpower cap (the creativity economy raises/lowers it; LIMITS.energyMax without it). */
+  get energyMax() { return this.w.inspiration?.energyMax ?? LIMITS.energyMax; }
+
   // ------------------------------------------------------------------ spawning
 
   /** Validate + place + build. The ONLY way a proposal becomes physics. */
-  spawn(proposal: ConstructSpec, opts: { at?: { pos: Vector3; quat: Quaternion }; name?: string } = {}): SpawnResult {
-    const report = validateSpec(proposal, this.energy);
+  spawn(proposal: ConstructSpec, opts: { at?: { pos: Vector3; quat: Quaternion }; name?: string; internal?: boolean } = {}): SpawnResult {
+    const boost = opts.internal ? null : this.w.inspiration?.price('create', proposal, null); // creativity economy
+    const report = validateSpec(proposal, this.energy / (boost?.costMul ?? 1));
     if (report.rejected) {
       this.w.emit('construct_rejected', { label: proposal.label, reason: report.rejected });
       return { construct: null, report };
     }
     const spec = report.spec;
+    boost?.shape(spec);
+    report.cost *= boost?.costMul ?? 1;
     this.normalizeMotion(spec);
     const id = this.w.uid('c');
     const extent = specExtent(spec);
@@ -99,6 +105,7 @@ export class ConstructRuntime {
     this.initBehaviors(c);
     this.enforceBudget();
     this.w.emit('construct_formed', { id, label: spec.label, clamps: report.clamps, cost: Math.round(report.cost), source: spec.provenance.source });
+    boost?.done(c);
     return { construct: c, report };
   }
 
@@ -107,9 +114,12 @@ export class ConstructRuntime {
     const c = this.list.get(id);
     if (!c) return { ok: false, report: { spec: edited, clamps: [], rejected: 'nothing to modify', cost: 0, mass: 0 } };
     const refund = c.cost;
-    const report = validateSpec(edited, this.energy + refund);
+    const boost = this.w.inspiration?.price('modify', edited, c.spec); // creativity economy
+    const report = validateSpec(edited, (this.energy + refund) / (boost?.costMul ?? 1));
     if (report.rejected) { this.w.emit('construct_rejected', { label: edited.label, reason: report.rejected }); return { ok: false, report }; }
     const spec = report.spec;
+    boost?.shape(spec);
+    report.cost *= boost?.costMul ?? 1;
     this.normalizeMotion(spec);
     const poses = c.insts.map((i) => ({ pos: i.pos.clone(), quat: i.quat.clone(), vel: i.vel.clone(), cargo: i.cargo, strike: i.strike, grab: i.grab, phase: i.phase }));
     const oldCount = c.insts.length;
@@ -137,6 +147,7 @@ export class ConstructRuntime {
     this.initBehaviors(c, true);
     this.focusId = id;
     this.w.emit('construct_modified', { id, label: spec.label, clamps: report.clamps });
+    boost?.done(c);
     return { ok: true, report };
   }
 
@@ -160,7 +171,7 @@ export class ConstructRuntime {
     this.build(c, keepPoses[0].pos, keepPoses[0].quat, keepPoses);
     c.insts.forEach((i, k) => (i.cargo = keepPoses[k].cargo));
     c.version++;
-    const r = this.spawn(one, { at: pose });
+    const r = this.spawn(one, { at: pose, internal: true });
     if (r.construct && cargo) r.construct.insts[0].cargo = cargo;
     if (r.construct) this.energy += r.report.cost; // splitting isn't new work
     return r.construct;
@@ -175,7 +186,7 @@ export class ConstructRuntime {
     this.destroyBodies(c, true);
     this.list.delete(id);
     this.removed.push(c);
-    this.energy = Math.min(LIMITS.energyMax, this.energy + c.cost * 0.3);
+    this.energy = Math.min(this.energyMax, this.energy + c.cost * 0.3);
     if (this.focusId === id) this.focusId = [...this.list.keys()].pop() ?? null;
     this.w.emit('construct_dismissed', { id, label: c.spec.label, reason });
   }
@@ -667,7 +678,7 @@ export class ConstructRuntime {
   }
 
   preStep(dt: number) {
-    this.energy = Math.min(LIMITS.energyMax, this.energy + LIMITS.energyRegen * dt);
+    this.energy = Math.min(this.energyMax, this.energy + LIMITS.energyRegen * (this.w.inspiration?.regenMul ?? 1) * dt);
     const P = this.w.player;
     for (const c of [...this.list.values()]) {
       if (this.w.time >= c.expires) { this.dismiss(c.id, 'expired'); continue; }
@@ -1253,7 +1264,7 @@ export class ConstructRuntime {
 
   isSoft(id: string) { const c = this.list.get(id); return !!c && (c.spec.soft || !!has(c.spec, 'cushion')); }
 
-  noteImpact(id: string, _entityId: string, _dv: number) { const c = this.list.get(id); if (c) c.impacts++; }
+  noteImpact(id: string, entityId: string, dv: number) { const c = this.list.get(id); if (c) { c.impacts++; this.w.emit('construct_hit', { construct: id, entity: entityId, dv: Math.round(dv) }); } }
 
   private enforceBudget() {
     let total = 0;
