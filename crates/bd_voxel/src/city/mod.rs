@@ -192,11 +192,14 @@ pub struct City {
     pub rng: Rng,
     /// Registered indestructible anchor voxels (also pushed to the world as collapse hints).
     pub anchors: Vec<IVec3>,
+    /// Interior air pockets to seal at the end of generation (render-only face culling of closed
+    /// floors): (seed voxel, box min, box max). See [`VoxelWorld::seal_enclosed_air`].
+    pub interiors: Vec<(IVec3, IVec3, IVec3)>,
 }
 
 impl City {
     pub fn new(w: VoxelWorld, seed: u64) -> Self {
-        Self { w, rng: Rng::new(seed), anchors: Vec::new() }
+        Self { w, rng: Rng::new(seed), anchors: Vec::new(), interiors: Vec::new() }
     }
 
     pub fn seed(&mut self) -> u32 {
@@ -417,8 +420,16 @@ impl City {
         Vec3::new(e.x, top_y, e.y)
     }
 
-    /// Finish generation: remove anything not connected to an indestructible voxel, mark all chunks
-    /// dirty and hand back the world.
+    /// Register a closed interior pocket around `seed` (metres), bounded by the box `lo..hi`
+    /// (metres). If the pocket is really sealed when generation finishes, its inner faces are not
+    /// meshed until something opens it.
+    pub fn interior(&mut self, seed: Vec3, lo: Vec3, hi: Vec3) {
+        let f = |p: Vec3| (p / VS).floor().as_ivec3();
+        self.interiors.push((f(seed), f(lo), f(hi)));
+    }
+
+    /// Finish generation: remove anything not connected to an indestructible voxel, seal closed
+    /// interiors (render-only), mark all chunks dirty and hand back the world.
     pub fn finish(self) -> VoxelWorld {
         self.finish_counted().0
     }
@@ -427,6 +438,7 @@ impl City {
     pub fn finish_counted(self) -> (VoxelWorld, usize) {
         let mut w = self.w;
         let n = w.prune_unanchored();
+        w.seal_enclosed_air(&self.interiors);
         w.mark_all_dirty();
         (w, n)
     }

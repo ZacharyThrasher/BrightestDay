@@ -155,16 +155,31 @@ pub fn generate_miami(seed: u64) -> (VoxelWorld, MapInfo) {
             crown: Crown::NeonBand(mat::NEON_CYAN),
             ..mk(wx, (-9.0, 11.0), 21)
         },
+        // Sunset-mirror towers: cool glass below, the upper floors reflecting the sunset (ragged gradient),
+        // thin white floor lines and wide mullions so the warm glass reads as a mirror, not brick.
         TowerSpec {
-            glass: mat::GLASS_SUNSET,
-            glass_alt: Some((mat::GLASS_TEAL, 0.15)),
+            glass: mat::GLASS_TEAL,
+            glass_top: Some((mat::GLASS_SUNSET, 0.4)),
+            glass_alt: Some((mat::GLASS_BLUE, 0.15)),
             setbacks: vec![(13, 2.0)],
             open_floors: vec![8],
             crown: Crown::Helipad,
             spandrel: mat::STUCCO_WHITE,
+            spandrel_h: 0.5,
+            frame: mat::STUCCO_WHITE,
+            mullion_every: 6,
             ..mk(wx, (28.0, 50.0), 17)
         },
-        TowerSpec { glass: mat::GLASS_SUNSET, crown: Crown::Flat, mullion_every: 3, ..mk(wx, (70.0, 88.0), 11) },
+        TowerSpec {
+            glass: mat::GLASS_BLUE,
+            glass_top: Some((mat::GLASS_SUNSET, 0.3)),
+            crown: Crown::Flat,
+            spandrel: mat::STUCCO_WHITE,
+            spandrel_h: 0.5,
+            frame: mat::STUCCO_WHITE,
+            mullion_every: 6,
+            ..mk(wx, (70.0, 88.0), 11)
+        },
         // East column.
         TowerSpec { crown: Crown::Flat, glass_alt: Some((mat::GLASS_SUNSET, 0.12)), ..mk(ex, (-53.0, -37.0), 10) },
         TowerSpec {

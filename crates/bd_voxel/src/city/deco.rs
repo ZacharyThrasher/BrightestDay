@@ -89,6 +89,12 @@ impl City {
             let q = Vec2::new((u - mid).abs() - mid, (v - dp * 0.5).abs() - dp * 0.5);
             q.max(Vec2::ZERO).length() + q.x.max(q.y).min(0.0)
         };
+        for k in 1..s.floors {
+            let y0 = s.base_y + k as f32 * fh;
+            let c = f.world(Vec2::new(mid + 2.25, dp * 0.5));
+            let (bl, bh) = (s.rect.min - 3.0, s.rect.max + 3.0);
+            self.interior(Vec3::new(c.x, y0 + 1.25, c.y), Vec3::new(bl.x, y0 - 1.0, bl.y), Vec3::new(bh.x, y0 + fh + 1.0, bh.y));
+        }
         self.fill_with(lo, hi, |p, _, _| {
             let l = f.local(Vec2::new(p.x, p.z));
             let (u, v) = (l.x, l.y);

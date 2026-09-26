@@ -143,7 +143,7 @@ pub static MATERIALS: [MaterialDef; 49] = [
     def("concrete", [206, 198, 190], 0.05, 1.0, D::Stone),
     glow(def("teal glass", [72, 186, 200], 0.05, 0.5, D::Crystal), 0.12),
     glow(def("blue glass", [84, 132, 196], 0.05, 0.5, D::Crystal), 0.12),
-    glow(def("sunset glass", [252, 198, 170], 0.05, 0.5, D::Crystal), 0.18),
+    glow(def("sunset glass", [255, 184, 150], 0.05, 0.5, D::Crystal), 0.22),
     def("mullion", [168, 176, 190], 0.04, 1.2, D::Stone),
     MaterialDef {
         name: "structural core",

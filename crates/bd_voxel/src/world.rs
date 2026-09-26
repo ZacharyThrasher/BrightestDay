@@ -39,11 +39,14 @@ pub(crate) struct Chunk {
     pub(crate) voxels: Box<[Material; CHUNK_VOLUME]>,
     /// Number of non-air voxels (lets the mesher skip empty chunks).
     pub(crate) solid: u32,
+    /// Render-only: bit set = this air voxel is sealed inside a closed building interior (see
+    /// [`VoxelWorld::seal_enclosed_air`]). `None` = no enclosed air in this chunk.
+    pub(crate) enclosed: Option<Box<[u64; CHUNK_VOLUME / 64]>>,
 }
 
 impl Chunk {
     fn new() -> Self {
-        Self { voxels: Box::new([AIR; CHUNK_VOLUME]), solid: 0 }
+        Self { voxels: Box::new([AIR; CHUNK_VOLUME]), solid: 0, enclosed: None }
     }
 }
 
@@ -58,6 +61,8 @@ pub struct VoxelWorld {
     /// Known indestructible voxels deep in each island. Only a *search hint* for collapse detection
     /// (best-first search heads towards the nearest one); correctness never depends on it.
     anchor_hints: Vec<IVec3>,
+    /// Any chunk carries enclosed-air bits (render-only face culling of sealed interiors).
+    has_enclosed: bool,
 }
 
 impl VoxelWorld {
@@ -76,6 +81,7 @@ impl VoxelWorld {
             dirty_flag: vec![false; n],
             dirty_list: Vec::new(),
             anchor_hints: Vec::new(),
+            has_enclosed: false,
         }
     }
 
@@ -187,7 +193,8 @@ impl VoxelWorld {
                 slot.insert(Chunk::new())
             }
         };
-        let cell = &mut ch.voxels[local_index(v & CHUNK_MASK)];
+        let li = local_index(v & CHUNK_MASK);
+        let cell = &mut ch.voxels[li];
         let prev = *cell;
         if prev != m {
             *cell = m;
@@ -195,6 +202,14 @@ impl VoxelWorld {
                 (true, false) => ch.solid += 1,
                 (false, true) => ch.solid -= 1,
                 _ => {}
+            }
+        }
+        if self.has_enclosed {
+            if let Some(bits) = ch.enclosed.as_mut() {
+                bits[li >> 6] &= !(1u64 << (li & 63));
+            }
+            if m == AIR && prev != AIR {
+                self.unseal_around(v);
             }
         }
         prev
@@ -302,6 +317,14 @@ impl VoxelWorld {
         if y1 <= y0 {
             return;
         }
+        if self.has_enclosed {
+            // Keep the enclosed-air bits exact (rare at runtime): go voxel by voxel.
+            for y in y0.max(self.voxel_min().y)..y1.min(self.voxel_max().y) {
+                self.set_raw(IVec3::new(x, y, z), m);
+            }
+            self.mark_region_dirty(IVec3::new(x, y0, z), IVec3::new(x, y1 - 1, z));
+            return;
+        }
         let lo = self.voxel_min().y.max(y0);
         let hi = self.voxel_max().y.min(y1);
         let mut y = lo;
@@ -377,6 +400,122 @@ impl VoxelWorld {
     /// Fill a sphere given in metres.
     pub fn fill_sphere(&mut self, center: Vec3, radius: f32, m: Material, only_air: bool) {
         self.fill_ellipsoid(center, Vec3::splat(radius), m, only_air);
+    }
+
+    // ----- enclosed air (render-only) -------------------------------------------------------------
+
+    /// Does any chunk carry enclosed-air bits?
+    #[inline]
+    pub fn has_enclosed_air(&self) -> bool {
+        self.has_enclosed
+    }
+
+    /// Is `v` air sealed inside a closed interior (its bounding faces can't be seen from anywhere a
+    /// player can be, so the mesher skips them)? Never affects collision, carving or hashing.
+    #[inline]
+    pub fn is_enclosed_air(&self, v: IVec3) -> bool {
+        if !self.has_enclosed {
+            return false;
+        }
+        match self.chunk_slot(chunk_of(v)).and_then(|s| self.chunks[s].as_ref()) {
+            Some(ch) => match &ch.enclosed {
+                Some(bits) => {
+                    let li = local_index(v & CHUNK_MASK);
+                    bits[li >> 6] & (1u64 << (li & 63)) != 0
+                }
+                None => false,
+            },
+            None => false,
+        }
+    }
+
+    fn set_enclosed_bit(&mut self, v: IVec3, on: bool) {
+        let Some(s) = self.chunk_slot(chunk_of(v)) else { return };
+        let Some(ch) = self.chunks[s].as_mut() else { return };
+        let li = local_index(v & CHUNK_MASK);
+        if on {
+            let bits = ch.enclosed.get_or_insert_with(|| Box::new([0u64; CHUNK_VOLUME / 64]));
+            bits[li >> 6] |= 1u64 << (li & 63);
+        } else if let Some(bits) = ch.enclosed.as_mut() {
+            bits[li >> 6] &= !(1u64 << (li & 63));
+        }
+    }
+
+    /// Generation-time: for each `(seed, box_min, box_max)`, flood the air around `seed` inside the
+    /// inclusive voxel box; if the flood never reaches the box boundary (the air pocket is sealed by
+    /// solids, e.g. a closed building floor), mark the whole pocket as enclosed air. Returns the number
+    /// of voxels sealed. Removing any voxel next to a pocket later unseals it (and dirties the chunks
+    /// that can see it), so blasting a facade reveals the floors behind it. Render-only: collision,
+    /// carving, collapse and `content_hash` never look at these bits.
+    pub fn seal_enclosed_air(&mut self, seeds: &[(IVec3, IVec3, IVec3)]) -> usize {
+        let mut total = 0;
+        let mut visited: Vec<bool> = Vec::new();
+        let mut stack: Vec<IVec3> = Vec::new();
+        let mut pocket: Vec<IVec3> = Vec::new();
+        for &(seed, lo, hi) in seeds {
+            if self.get(seed) != AIR || self.is_enclosed_air(seed) || !self.in_bounds(seed) {
+                continue;
+            }
+            let size = hi - lo + IVec3::ONE;
+            if size.cmple(IVec3::ZERO).any() || seed.cmplt(lo).any() || seed.cmpgt(hi).any() {
+                continue;
+            }
+            let idx = |v: IVec3| {
+                let r = v - lo;
+                (r.x + size.x * (r.z + size.z * r.y)) as usize
+            };
+            visited.clear();
+            visited.resize((size.x * size.y * size.z) as usize, false);
+            stack.clear();
+            pocket.clear();
+            stack.push(seed);
+            visited[idx(seed)] = true;
+            let mut sealed = true;
+            'flood: while let Some(v) = stack.pop() {
+                pocket.push(v);
+                for d in [IVec3::X, IVec3::NEG_X, IVec3::Y, IVec3::NEG_Y, IVec3::Z, IVec3::NEG_Z] {
+                    let n = v + d;
+                    if self.get(n) != AIR {
+                        continue;
+                    }
+                    if n.cmplt(lo).any() || n.cmpgt(hi).any() || !self.in_bounds(n) {
+                        sealed = false;
+                        break 'flood;
+                    }
+                    let i = idx(n);
+                    if !visited[i] {
+                        visited[i] = true;
+                        stack.push(n);
+                    }
+                }
+            }
+            if sealed {
+                for &v in &pocket {
+                    self.set_enclosed_bit(v, true);
+                }
+                self.has_enclosed = true;
+                total += pocket.len();
+            }
+        }
+        total
+    }
+
+    /// A voxel at `v` just became air: every enclosed pocket touching it is now open to the world.
+    fn unseal_around(&mut self, v: IVec3) {
+        let dirs = [IVec3::X, IVec3::NEG_X, IVec3::Y, IVec3::NEG_Y, IVec3::Z, IVec3::NEG_Z];
+        let mut stack: Vec<IVec3> = dirs.iter().map(|&d| v + d).filter(|&n| self.is_enclosed_air(n)).collect();
+        while let Some(u) = stack.pop() {
+            if !self.is_enclosed_air(u) {
+                continue;
+            }
+            self.set_enclosed_bit(u, false);
+            self.mark_voxel_dirty(u);
+            for d in dirs {
+                if self.is_enclosed_air(u + d) {
+                    stack.push(u + d);
+                }
+            }
+        }
     }
 
     // ----- queries -------------------------------------------------------------------------------

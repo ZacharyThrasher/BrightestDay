@@ -133,7 +133,14 @@ impl City {
                 if hw < 0.0 || x.abs() > hw {
                     return None;
                 }
-                let shell = x.abs() > hw - 0.7 || y < s.keel_y + VS;
+                // Shell: the outer band in plan, the keel, and any voxel whose neighbour below / fore / aft
+                // is outside the hull (bow rake, stern cap) so the hull is watertight.
+                let out = |h: f32| h < 0.0 || x.abs() > h - 0.2;
+                let shell = x.abs() > hw - 0.7
+                    || y < s.keel_y + VS
+                    || out(hull_hw(a, y - VS))
+                    || out(hull_hw(a - VS, y))
+                    || out(hull_hw(a + VS, y));
                 if !shell {
                     // Inner deck + main deck slab.
                     if (dy - 4.5..dy - 4.0).contains(&y) || y >= dy - VS {
@@ -233,6 +240,12 @@ impl City {
             }
             None
         });
+        // The closed hull holds (below / above the inner deck).
+        for y in [s.keel_y + 1.5, dy - 2.25] {
+            let seed = s.world(0.0, y, 0.0);
+            let (a, b) = (s.world(-b2 - 1.0, s.keel_y - 1.0, -l2 - 2.0), s.world(b2 + 1.0, dy + 1.0, l2 + rake + 2.0));
+            self.interior(seed, a.min(b), a.max(b));
+        }
         // Pool on the sun deck (flush), deck chairs row.
         let (pa0, pa1) = pool_a;
         let p0 = s.world(-hhw + 2.5, top - VS, pa0);

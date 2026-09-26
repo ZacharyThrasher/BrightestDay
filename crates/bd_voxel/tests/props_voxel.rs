@@ -356,7 +356,8 @@ fn check_mesh(w: &VoxelWorld, c: IVec3, m: &ChunkMesh) -> Result<(), TestCaseErr
         let n = Vec3::from(m.normals[t[0] as usize]);
         prop_assert!((p[1] - p[0]).cross(p[2] - p[0]).dot(n) > 0.0, "triangle winding must face its normal");
     }
-    // Brute-force: 4 vertices per solid voxel face that borders air.
+    // Brute-force: 4 vertices per solid voxel face that borders *visible* air (not below the world
+    // floor, not sealed interior air — see `VoxelWorld::is_enclosed_air`).
     let mut faces = 0usize;
     if let Some(data) = w.chunk_data(c) {
         let base = chunk_origin(c);
@@ -367,7 +368,13 @@ fn check_mesh(w: &VoxelWorld, c: IVec3, m: &ChunkMesh) -> Result<(), TestCaseErr
                     if data[local_index(l)] == AIR {
                         continue;
                     }
-                    faces += N6.iter().filter(|d| w.get(base + l + **d) == AIR).count();
+                    faces += N6
+                        .iter()
+                        .filter(|d| {
+                            let n = base + l + **d;
+                            w.get(n) == AIR && n.y >= w.voxel_min().y && !w.is_enclosed_air(n)
+                        })
+                        .count();
                 }
             }
         }

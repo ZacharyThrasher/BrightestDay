@@ -79,6 +79,10 @@ const CORNERS: [(i32, i32); 4] = [(-1, -1), (1, -1), (1, 1), (-1, 1)];
 /// Reusable per-thread scratch for meshing.
 pub struct Mesher {
     padded: Vec<Material>,
+    /// Padded "never visible" flags for air cells: sealed interior air (see
+    /// [`VoxelWorld::is_enclosed_air`]) and the space below the world floor. Faces towards these are
+    /// culled; AO still only looks at `padded`, so lighting is unchanged.
+    hidden: Vec<bool>,
     /// Linear base colours per material id.
     base: [[f32; 3]; 256],
 }
@@ -95,7 +99,7 @@ impl Mesher {
         for (i, d) in MATERIALS.iter().enumerate() {
             base[i] = [srgb_to_linear(d.color[0]), srgb_to_linear(d.color[1]), srgb_to_linear(d.color[2])];
         }
-        Self { padded: vec![AIR; P_VOL], base }
+        Self { padded: vec![AIR; P_VOL], hidden: vec![false; P_VOL], base }
     }
 
     /// Copy the chunk plus a one-voxel apron into the padded scratch buffer.
@@ -125,6 +129,23 @@ impl Mesher {
                 }
             }
         }
+        // Hidden air: below the world floor (nobody is ever down there) + sealed interiors.
+        self.hidden.fill(false);
+        let floor = world.voxel_min().y;
+        let enclosed = world.has_enclosed_air();
+        if o.y - 1 < floor || enclosed {
+            for y in -1..=CHUNK_SIZE {
+                for z in -1..=CHUNK_SIZE {
+                    for x in -1..=CHUNK_SIZE {
+                        let v = o + IVec3::new(x, y, z);
+                        let i = pidx(x + 1, y + 1, z + 1);
+                        if self.padded[i] == AIR && (v.y < floor || (enclosed && world.is_enclosed_air(v))) {
+                            self.hidden[i] = true;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Mesh one chunk into `out` (cleared first).
@@ -136,6 +157,7 @@ impl Mesher {
         self.gather(world, chunk);
         let origin = chunk_origin(chunk);
         let pad = &self.padded;
+        let hidden = &self.hidden;
         let solid = |x: i32, y: i32, z: i32| pad[pidx(x, y, z)] != AIR;
 
         for y in 1..=CHUNK_SIZE {
@@ -149,7 +171,7 @@ impl Mesher {
                     let mut color: Option<[f32; 3]> = None;
                     for (fi, f) in FACES.iter().enumerate() {
                         let a = IVec3::new(x, y, z) + f.n;
-                        if solid(a.x, a.y, a.z) {
+                        if solid(a.x, a.y, a.z) || hidden[pidx(a.x, a.y, a.z)] {
                             continue;
                         }
                         let c = *color.get_or_insert_with(|| jitter_color(self.base[m as usize], m, world_v));

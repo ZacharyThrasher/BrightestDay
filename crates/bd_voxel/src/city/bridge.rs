@@ -114,7 +114,8 @@ impl City {
                 let (s0, s1) = (t0 * len, t1 * len);
                 let rib_y = |sp: f32| ry - 1.0 + rise * dsin(PI * ((sp - s0) / (s1 - s0)).clamp(0.0, 1.0));
                 for sg in [-1.0f32, 1.0] {
-                    let off = sg * (hw - 0.5);
+                    // Ribs stay inside the deck width (no stubs sticking out over the water to get stuck on).
+                    let off = sg * (hw - 0.8);
                     let mut sp = s0;
                     while sp <= s1 {
                         let c2 = s.a + e * sp + n * off;
@@ -139,8 +140,8 @@ impl City {
                 while sp < s1 - 3.0 {
                     let y = rib_y(sp);
                     if y > ry + 7.0 {
-                        let a = s.a + e * sp + n * (hw - 0.5);
-                        let b = s.a + e * sp - n * (hw - 0.5);
+                        let a = s.a + e * sp + n * (hw - 0.8);
+                        let b = s.a + e * sp - n * (hw - 0.8);
                         self.tube(Vec3::new(a.x, y, a.y), Vec3::new(b.x, y, b.y), 0.5, mat::STEEL, false);
                     }
                     sp += 6.0;

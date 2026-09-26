@@ -42,8 +42,14 @@ pub struct TowerSpec {
     pub glass: Material,
     /// Second glass tint scattered over panels (reflections), with probability.
     pub glass_alt: Option<(Material, f32)>,
+    /// Sky-reflection gradient: panels above this fraction of the height (with a ragged, per-panel
+    /// edge) use this glass — e.g. the upper floors mirroring a sunset.
+    pub glass_top: Option<(Material, f32)>,
     pub frame: Material,
     pub spandrel: Material,
+    /// Height of the spandrel band at each floor line (m; 1.0 = solid-looking bands, 0.5 = sleek
+    /// all-glass curtain wall).
+    pub spandrel_h: f32,
     /// Mullion spacing in voxels.
     pub mullion_every: i32,
     /// Wrap-around balcony slabs (1.5 m) with a 1 m rail on every floor above the lobby.
@@ -69,8 +75,10 @@ impl TowerSpec {
             corner_r: 0.0,
             glass: mat::GLASS_TEAL,
             glass_alt: None,
+            glass_top: None,
             frame: mat::MULLION,
             spandrel: mat::CONCRETE,
+            spandrel_h: 1.0,
             mullion_every: 4,
             balconies: false,
             balcony_rail: mat::STUCCO_WHITE,
@@ -188,9 +196,9 @@ impl City {
                     return Some(if along_i.rem_euclid(s.mullion_every * 2) == 0 { s.frame } else { s.glass });
                 }
                 if open {
-                    return (along_i.rem_euclid(s.mullion_every * 2) == 0 || within < 1.0).then_some(s.frame);
+                    return (along_i.rem_euclid(s.mullion_every * 2) == 0 || within < s.spandrel_h).then_some(s.frame);
                 }
-                if within < 1.0 {
+                if within < s.spandrel_h {
                     return Some(match neon_top {
                         Some(n) if k == top_k - 1 => n,
                         _ => s.spandrel,
@@ -198,6 +206,15 @@ impl City {
                 }
                 if along_i.rem_euclid(s.mullion_every) == 0 {
                     return Some(s.frame);
+                }
+                let panel_hash = |salt: u32| {
+                    let panel = along_i.div_euclid(s.mullion_every);
+                    (hash3(panel, k, if x_face { 1 } else { 2 }, seed ^ salt) >> 8) as f32 * (1.0 / 16_777_216.0)
+                };
+                if let Some((top, frac)) = s.glass_top
+                    && rel / h > frac + 0.25 * (panel_hash(0x7a11) - 0.5)
+                {
+                    return Some(top);
                 }
                 if let Some((alt, prob)) = s.glass_alt {
                     let panel = along_i.div_euclid(s.mullion_every);
@@ -218,6 +235,17 @@ impl City {
             }
             None
         });
+        // Closed floors (render-only sealing): generous box so skybridge-linked floors seal together.
+        for k in 1..s.floors {
+            if s.open_floors.contains(&k) {
+                continue;
+            }
+            let y0 = s.base_y + k as f32 * fh;
+            let seed = Vec3::new(c.x + s.core_half + 0.75, y0 + 1.25, c.y);
+            let lo = Vec3::new(s.rect.min.x - 40.0, y0 - 1.0, s.rect.min.y - 40.0);
+            let hi = Vec3::new(s.rect.max.x + 40.0, y0 + fh + 1.0, s.rect.max.y + 40.0);
+            self.interior(seed, lo, hi);
+        }
         // Core down to the bedrock + anchors.
         let cl = Vec3::new(c.x - s.core_half, 0.0, c.y - s.core_half);
         let ch = Vec3::new(c.x + s.core_half, s.base_y, c.y + s.core_half);
