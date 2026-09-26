@@ -16,9 +16,15 @@ light voxels in your corps colour. Everything shatters into cubes.
 > that the only thing limiting them is their mind — not the game. I want them excitedly yelling out
 > anything they can think of." Consequences: the ring **never says no** (every phrase yields something
 > sensible, instantly — forming starts on the same frame); failures are invisible or charming, never
-> an error; the "≈" note is brief and delightful, not a correction; voice (push-to-talk) is a
+> an error (and never explained — see the mystery tenet); voice (push-to-talk) is a
 > first-class way to play, not a gimmick; unresolved/fallback phrases are logged locally
 > (`logs/unresolved.txt`) so every playtest grows the vocabulary.
+>
+> **TENET — THE MYSTERY IS THE FUN (owner):** never reveal what the player's options are and never
+> explain effects or mechanics. No codex, no power/fruit/stand lists, no autocomplete suggestions, no
+> "≈" understanding notes, no mechanic descriptions on party cards (names only), no counter tables in
+> UI. Help = controls only. Feedback is the construct itself and what it does. The movement tutorial
+> stays (opt-in; ghosts show, 3–5 word hints). Emergent gameplay comes from creative thinking + movement.
 >
 > **FEATURE FREEZE (2026-09-26).** No new *systems*. Growth only as data (icons, powers, words) that
 > composes existing closed-set pieces. Core = movement + ring constructs + destruction + FFA; every other
