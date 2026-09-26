@@ -93,6 +93,9 @@ Everything below is committed and green unless noted.
   NO FREEZE (owner rejected taking control away) -> fighting-game "cut-in" DANGER alert via the shared
   PiP camera API (CutIn message in present/summon_ping.rs, built by the bounds worker); title letters
   via shout words.
+- CAMERA: 1st/3rd person toggle as first-class modes (over-shoulder, collision, crosshair-truth aim
+  convergence, "Allow third person" rule) + ADS in both (RMB with guns, accuracy only — movement
+  untouched; ADS input bit after charge's in bd_core v1.4; AdsState resource read by the hands worker).
 - Weight pass: bd_shapes half COMMITTED (bb3269e). Call sites still to switch together: bd_sim
   held.rs:252 swing_curve_weighted, ai.rs:495 attack_timing_hw, creature.rs:820, tests/creatures.rs:303;
   client present/constructs.rs:137/456, viewmodel.rs:428, bd_fx model weight + SecondaryMotion +
