@@ -200,6 +200,14 @@ visible timer; locked picks reveal around the table; **Boom or Bust** is a spinn
 gold (Legendary) or purple-black (Cursed) face with its own sting. Party end: podium on the Heart island
 with everyone's stacked effects listed.
 
+## Maps
+Hand-designed movement layouts + a reusable themed **city kit** (skyscrapers with floors, art-deco
+hotels, streets, palms, beach, water, bridges, ships, billboards). Layout is gameplay (lanes, anchors,
+gaps, sightlines) so it's designed, not generated from phrases. Maps: **Archipelago** (floating islands
+over the void), **Miami** (Vice City sunset; Brickell tower swing-canyon, Ocean Drive bhop boulevard,
+beach, port + cruise ship, causeway over water — water is out of bounds with a splash), Tutorial. Future
+cities (Tokyo, NYC) = mostly city-kit data. Lobby map picker.
+
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,
 tether swing, dual tether + reel, boost + release fling — then the **Peak Run** that chains them all.
