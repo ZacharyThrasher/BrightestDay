@@ -241,6 +241,33 @@ piloted (Kaiju-tier upkeep for colossal things). Balance = the Attack-on-Titan l
 are devastating but slow; **weak points** (joints, cockpit, "nape") take ×3 from Blade/Pierce, and
 swingers can tether onto the giant and ride its limbs. Shattered → pilot ejected tumbling.
 
+## 5d-bis. Transformers (Mechanic::Transforms) — a birthday-present feature, make it great
+- **Two modes, one body.** A Transforms construct has an alt mode (usually a vehicle/animal) and a robot
+  mode built from the *same panels*: bd_shapes splits the alt model into ~10–24 rigid panels and maps them
+  to robot roles (cab/hood → chest, doors → back-wings, wheels → shoulders/calves, rear → legs, grille →
+  abdomen, headlights → eyes, a small head unfolds from inside). Transformation = a staggered
+  mechanical sequence (~0.9 s): each panel does 1–3 discrete moves (rotate on a hinge, slide, flip) with
+  snappy easing and tiny overshoot, panels ordered outside-in, then the robot "stands up". Reverse for
+  robot → vehicle. Readable silhouette change; sparks + an original mechanical cascade sound.
+- **Be the transformer:** human-scale Transforms + Piloted = a power suit (§3d) with a transform key
+  (default: Mouse3 / V-tap when voice is off / "transform" graft). Vehicle mode: drive (ground speed
+  cap 24 m/s — below skilled bhop/swing chains; ramps launch; ram = Charge), no ring attacks. Robot mode:
+  normal movement ×0.9 + the suit's weapons (Optimus: ion blaster + energon axe; Megatron: fusion cannon;
+  Bumblebee: arm blaster + stinger). Transforming mid-air from vehicle → robot = **landing slam**
+  (Stomp at the landing point, scaled by fall speed) — a skill combo.
+- **Autonomous transformers** (summoned) drive fast toward the target in alt mode, transform ~12 m away
+  and fight in robot mode, transform back to reposition.
+- **Works on anything:** "a tank that transforms", "transformer shark", "robot in disguise", grafting
+  "transform" onto your own vehicle/creature. Procedural robot modes are generated from any alt model.
+- **Combiners:** with ≥ 3 owned Transforms vehicles, "combine"/"devastator"/"form devastator" merges them
+  into one Kaiju-scale robot (each becomes a limb/torso) — ~2 s spectacular sequence, one per player.
+- **Phrases:** "roll out" transforms all your Transforms constructs; "autobots"/"decepticons" summon a
+  squad of 3 mini transformers; "transform" alone = graft/toggle.
+- **Icons with two hand-authored modes:** Optimus Prime (semi truck), Bumblebee (muscle car), Megatron
+  (tank/cannon), Starscream (jet), Soundwave (boombox → robot; spits Swarm minions), Grimlock (T-rex,
+  Breath fire), Shockwave, Jazz, Ironhide, Ratchet, Arcee (motorbike), Devastator (combiner), Unicron
+  (planet ⇄ robot, no-limits only).
+
 ## 5e. No-limits mode (lobby option)
 Lobby toggles: Scale (Normal / Huge / **No limits**), Willpower (Normal / Double / Infinite), Construct
 caps (Normal / Chaos). "Throw a moon": colossal Objects form above the caster while the cast is held,
