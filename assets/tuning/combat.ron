@@ -968,6 +968,8 @@
         leak_above: 0.8,
         leak_after_secs: 5.0,
         leak_per_sec: 2.5,
+        combo_refill: 3.0,
+        combo_refill_cap: 1.0,
     ),
     giants: (
         enabled: true,

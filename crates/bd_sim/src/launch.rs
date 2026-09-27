@@ -58,6 +58,11 @@ pub struct LaunchTuning {
     pub leak_after_secs: f32,
     /// …willpower leaks at this rate (per second) down to `leak_above`.
     pub leak_per_sec: f32,
+    /// Owner 2026-09-27: landing combos refills a little. Each hit that EXTENDS a chain on the same
+    /// target (its 2nd, 3rd… juggle step) gives the attacker this much willpower…
+    pub combo_refill: f32,
+    /// …but never lifts them above this fraction of the bar (1 = up to full).
+    pub combo_refill_cap: f32,
 }
 
 impl Default for LaunchTuning {
@@ -74,6 +79,8 @@ impl Default for LaunchTuning {
             leak_above: 0.8,
             leak_after_secs: 5.0,
             leak_per_sec: 2.5,
+            combo_refill: 3.0,
+            combo_refill_cap: 1.0,
         }
     }
 }
@@ -91,6 +98,8 @@ impl LaunchTuning {
             full_mult: fin(self.full_mult, d.full_mult, mid_mult, 4.0).max(mid_mult),
             mid_frac: fin(self.mid_frac, d.mid_frac, 0.05, 0.95),
             top_exp: fin(self.top_exp, d.top_exp, 0.25, 4.0),
+            combo_refill: fin(self.combo_refill, d.combo_refill, 0.0, 50.0),
+            combo_refill_cap: fin(self.combo_refill_cap, d.combo_refill_cap, 0.0, 1.0),
             regen_mult: fin(self.regen_mult, d.regen_mult, 0.0, 10.0),
             charge_mult: fin(self.charge_mult, d.charge_mult, 0.0, 10.0),
             oath_mult: fin(self.oath_mult, d.oath_mult, 0.0, 10.0),
@@ -215,5 +224,21 @@ mod tests {
     fn validated_keeps_the_curve_monotone() {
         let t = LaunchTuning { empty_mult: 2.0, mid_mult: 1.0, full_mult: f32::NAN, ..LaunchTuning::default() }.validated();
         assert!(t.empty_mult <= t.mid_mult && t.mid_mult <= t.full_mult);
+    }
+}
+
+/// WILLPOWER = LAUNCH: a hit that extended a chain on `target` (its 2nd+ juggle step) refills the
+/// attacker a little ([`LaunchTuning::combo_refill`], never above [`LaunchTuning::combo_refill_cap`]
+/// of the bar). A free function so the hit path can call it while other tuning is borrowed.
+pub fn combo_refill(rules: &MatchRules, t: &LaunchTuning, players: &mut [crate::world::Player], source: Option<PlayerId>, target: PlayerId, chain_hits: u8) {
+    if !active(rules) || chain_hits < 2 {
+        return;
+    }
+    let Some(s) = source.filter(|s| *s != target) else { return };
+    let cap = t.combo_refill_cap.clamp(0.0, 1.0) * rules.willpower_max();
+    if let Some(p) = players.iter_mut().find(|p| p.id == s)
+        && p.willpower < cap
+    {
+        p.willpower = (p.willpower + t.combo_refill.max(0.0)).min(cap);
     }
 }

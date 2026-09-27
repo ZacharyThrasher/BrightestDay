@@ -262,3 +262,28 @@ fn bots_ffa_with_the_rule_on_runs_clean() {
     assert!(hits > 0, "bots fought");
     assert!(charges > 0, "bots charged");
 }
+
+#[test]
+fn landing_a_combo_refills_a_little() {
+    // Owner 2026-09-27: combos refill willpower (2nd+ step of a chain on the same target).
+    for launch in [false, true] {
+        let mut w = duel(launch);
+        w.player_mut(A).unwrap().willpower = 20.0;
+        let mut steps = Vec::new();
+        for k in 0..3 {
+            let pos = w.player(B).unwrap().mv.pos;
+            let r = w.apply_hit(HitInfo::new(B, Some(A), HitKind::Melee, 6.0, 30.0, Vec3::X, pos));
+            assert!(r.applied);
+            steps.push(w.player(A).unwrap().willpower);
+            for _ in 0..(6 + k) {
+                w.tick(&[]);
+            }
+        }
+        let gain = steps[2] - 20.0;
+        if launch {
+            assert!(gain > 1.0, "chain hits refill the attacker with the rule on: {steps:?}");
+        } else {
+            assert!(gain < 1.0, "no combo refill with the rule off: {steps:?}");
+        }
+    }
+}

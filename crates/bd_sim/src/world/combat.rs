@@ -197,6 +197,8 @@ impl World {
         }
         if juggles {
             self.players[ti].juggle.on_hit(&self.cfg.tuning.juggle, kb_raw, self.tick); // JUGGLE
+            let (target, chain) = (self.players[ti].id, self.players[ti].juggle.hits);
+            crate::launch::combo_refill(&self.cfg.rules, &self.cfg.tuning.launch, &mut self.players, hit.source, target, chain); // WILLPOWER = LAUNCH: combos refill
         }
         let lift = if hit.element == Element::Wind { self.cfg.tuning.hit.wind_min_lift } else { self.cfg.tuning.hit.min_lift };
         let dir = lifted_dir(dir_in, lift);
