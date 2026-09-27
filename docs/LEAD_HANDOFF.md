@@ -10,7 +10,7 @@ limit": transformers ac8ee05cf893e0d7a, first call+burn af777fcacba53177b, taunt
 a19704f3303170491, confirm ad187c347f9f2ba18, polish anime a4fa97d61ab1c061d, western a40b1865d6f802416, games
 aeae5288ad2ea246a, presentation polish adfd01597aacca6ec, hotbar(+total limit, dismiss) a8d6f2446ee742e1e, re:zero
 acd4d6d26159eff21, menu feel a14308b17de8ac354, franchise themes a278fc098502e8992, lookout map a45935edaeceede09,
-map vote a125fb485b4c478dd. DONE this session: myth+derived polish (6586019).
+map vote a125fb485b4c478dd. Transformers interim report received (dino/beast/train/boat/colossus archetypes, suits = you are the robot, voice orders from the cockpit, 'a helicopter robot' lexicon stage, 3P framing, protocol 50; open: combined-giant test fails, no after strips); its FX helper a8fec52367d94f983 (transform sounds/footfalls/vehicle voices) stopped mid-task. DONE this session: myth+derived polish (6586019).
 
 ## >>> USAGE GUARD (07:15): weekly all-models 73% used, 5-hour 20%. Owner: "leave enough usage to get a build/zip out".
 ZIP: `git -C ../bd_dist checkout --detach <green sha>` + copy assets/lexicon.bin + assets/models/ggml-base.en-q5_1.bin into bd_dist,
