@@ -1,5 +1,20 @@
 # Lead orchestrator handoff (keep updated)
 
+## >>> FIRST AFTER THE OCT 2 RESET: TRANSFORMERS V3 — MOBILITY PARITY + SAUCE (owner 15:00) <<<
+Owner: piloted transformers feel slow/clunky vs on-foot freedom; hard to catch/follow people; robot hit/shoot anims lack sauce;
+"make EVERYTHING feel to the level of hollow purple".
+MOBILITY: (1) pilot's movement kit carries into robot mode (bhop, air strafe, double jump, dodge chains, wall refresh; weight-
+scaled, same inputs/momentum); (2) tethers from the robot's hand (swing, reel to anchors / to enemies); (3) chase tools:
+boost-dash chains steering toward the combo target, vehicle mode = sprint (instant accel, dash→transform speed carry, flash-
+transform pop-out into melee range), flyers fast + fully 3D; (4) measure time-to-close 30 m→melee vs a bhopping bot, on foot
+vs piloted — target: piloted ≥ on foot.
+SAUCE: every robot strike / blaster / transform attack through the move-presentation grammar (gather: blaster charge glow,
+servo coil; release: trails, muzzle flash; world reaction: sparks, metal shards, skid scars, shockwaves; clean exit);
+impact frames + camera kick on heavies/finishers; per-archetype weapon look + sound; + STAGE 4 (tiered asymmetric hitstop,
+metal crunch + bass drop). Then STAGE 5 (PvP-safe Focus dodge).
+THEN: a system-by-system Hollow-Purple audit pass (robots, guns, melee weapons, summons/constructs, vehicles, powers) with
+frame sheets per system, fixing the weakest first.
+
 ## >>> TRANSFORMERS V2 QUEUE (owner 13:50: "queue it all, get as much done now as you can") <<<
 Owner: transformers feel like "a bigger guy" → spam (hard to see, combos unintuitive). Approved Devastation-style plan for PvP:
 1 HERO SCALE (~3.5–5 m piloted by default; giant only when asked) + tighter camera + string magnetism on human targets;
