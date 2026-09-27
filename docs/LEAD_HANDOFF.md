@@ -1,6 +1,14 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> RESUME HERE (2026-09-27 12:55) — ZIP from c8f5cb4, all queued work DONE <<<
+## >>> RESUME HERE (2026-09-27 13:20) — EVERYTHING DONE, ZIP from 6f8916b <<<
+All workers finished + committed: franchise themes 59186c0 (+Re:Zero), menu feel + Lookout 9bb58e8, presentation polish
+6f8916b. Full suite green (1,518 core + 290 bd_game). dist/BrightestDay-win64.zip (159.7 MB) from 6f8916b; smokes OK on
+arena + lookout. NO workers running. Weekly usage ~96%: next work after Oct 2 reset.
+Open follow-ups: willpower-launch owner questions; FOCUS key unbound; summoned characters in ring colour vs own colours;
+Aquaman tidal-wave construct wall tint; Reel tether drowning web strand; map-vote cards keyboard/pad nav; Quit/Leave
+confirmation; reinhard/elsa name clashes (use sword saint / elsa bowel hunter); streaming voice off (tested worse).
+
+## >>> (older) RESUME HERE (2026-09-27 12:55) — ZIP from c8f5cb4, all queued work DONE <<<
 dist/BrightestDay-win64.zip (159.7 MB) from c8f5cb4: full suite green (1,330 core + 290 bd_game), practice smoke OK.
 Landed since 11:10: tooltips 71e3004, polish western+games 68369e7, anime e323bc8, bare black flash/jajanken a047a2c,
 transformer costume-hook fix b2d9603 (named transformers keep truck/car/tank/jet/dino), WILLPOWER = LAUNCH rule 2caf73f,
