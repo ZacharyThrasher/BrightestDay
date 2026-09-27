@@ -476,3 +476,38 @@ fn remixes_are_deterministic_for_any_callback_size() {
         assert_eq!(fixed, y, "{t}: output depends on callback size");
     }
 }
+
+/// Overlay layers (Gear Fifth's "drums"): a cue toggles a percussion layer on top of the playing
+/// track, locked to its grid, fading in and back out to exactly the plain track.
+#[test]
+fn overlay_layer_adds_drums_on_top_and_fades_back_out() {
+    let lib = lib();
+    let drums = bd_music::overlay_id("drums").expect("drums overlay");
+    let mut plain = player(&lib, "archipelago_combat", 0.6);
+    let mut with = player(&lib, "archipelago_combat", 0.6);
+    let a = render(&mut plain, 2.0, 256);
+    let b = render(&mut with, 2.0, 256);
+    assert_eq!(a, b, "identical before the cue");
+    with.command(MusicCommand::Overlay { id: drums, on: true });
+    assert_eq!(with.status().overlays, 1);
+    let a = render(&mut plain, 4.0, 256);
+    let b = render(&mut with, 4.0, 256);
+    let diff: f32 = a.iter().zip(&b).map(|(x, y)| (x - y) * (x - y)).sum::<f32>() / a.len() as f32;
+    let sig: f32 = a.iter().map(|x| x * x).sum::<f32>() / a.len() as f32;
+    assert!(diff > sig * 0.01, "the drums are audible: diff {diff} vs track {sig}");
+    assert!(b.iter().all(|x| x.is_finite() && x.abs() <= 1.0));
+    // Fades in: the first half second is quieter than the last.
+    let win = |v: &[f32], w: &[f32]| v.iter().zip(w).map(|(x, y)| (x - y) * (x - y)).sum::<f32>();
+    let n = (0.5 * SR as f32) as usize * 2;
+    assert!(win(&a[..n], &b[..n]) < win(&a[a.len() - n..], &b[b.len() - n..]), "fade in");
+    // Off: fades out; after the fade and the tails the layer is silent (the stems are the plain
+    // track again; the limiter makes the mix match up to tiny differences).
+    with.command(MusicCommand::Overlay { id: drums, on: false });
+    assert_eq!(with.status().overlays, 0);
+    let _ = render(&mut plain, 3.0, 256);
+    let _ = render(&mut with, 3.0, 256);
+    let a = render(&mut plain, 2.0, 256);
+    let b = render(&mut with, 2.0, 256);
+    let d: f32 = a.iter().zip(&b).map(|(x, y)| (x - y).abs()).fold(0.0, f32::max);
+    assert!(d < 1e-6, "back to the plain track: max diff {d}");
+}

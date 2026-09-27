@@ -75,6 +75,10 @@ fn render_and_commands_never_allocate() {
         (9000, MusicCommand::SetStyle(Style::Remix(Some(RemixStyle::Trap)))),
         (9100, MusicCommand::SetIntensity(1.0)),
         (9900, MusicCommand::SetTempo { multiplier: 1.2, ramp_secs: 1.0 }),
+        // Overlay layer (Gear Fifth's drums) on and off.
+        (400, MusicCommand::Overlay { id: bd_music::overlay_id("drums").expect("drums"), on: true }),
+        (2600, MusicCommand::Overlay { id: bd_music::overlay_id("drums").expect("drums"), on: false }),
+        (9200, MusicCommand::Overlay { id: bd_music::overlay_id("drums").expect("drums"), on: true }),
     ];
     WATCH.with(|w| w.set(true));
     for i in 0..11_000 {

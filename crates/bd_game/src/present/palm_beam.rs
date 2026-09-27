@@ -475,12 +475,9 @@ fn place_orbs(
             l.intensity = o.charge * if first { 30_000.0 } else { 120_000.0 * o.caliber } * bright;
             l.range = if first { 3.0 } else { 5.0 + 5.0 * o.caliber };
         }
-        // The presence gather: energy pulled in from around (swells with size × charge).
-        if o.charge > 0.05 {
-            let (size, charge) = match o.ball {
-                Some((d, g)) => (d, 0.3 + 0.7 * g),
-                None => (0.6 + 0.8 * o.caliber, o.charge),
-            };
+        // The presence gather for charging palms (held balls feed it from presence::held_energy).
+        if o.charge > 0.05 && o.ball.is_none() {
+            let (size, charge) = (0.6 + 0.8 * o.caliber, o.charge);
             let world_at = if first { cam.translation + cam.forward() * 1.2 - cam.up() * 0.3 } else { pos };
             gather.write(GatherFx {
                 at: world_at,
@@ -514,24 +511,6 @@ fn place_orbs(
                 });
             }
         }
-    }
-    // Held energy balls (any size, anyone's): feed the gather from the ball itself.
-    for c in active.world.constructs.iter() {
-        if c.recipe.form != Form::Ball || f.orbs.iter().any(|o| o.id == c.id) {
-            continue;
-        }
-        let Some(h) = bd_sim::signature::orb::hold_view(c) else { continue };
-        let pos = views.construct(c.id).map_or(bv(c.pos), |v| v.pos);
-        let color = saturate(energy_rgb(c.recipe.element, corps_rgb(active.corps_of(c.owner))), 1.25);
-        gather.write(GatherFx {
-            at: pos,
-            element: c.recipe.element,
-            owner: Some(c.owner),
-            key: c.id.0,
-            size: h.diameter,
-            charge: 0.3 + 0.7 * h.growth,
-            color: (c.recipe.element == Element::Light).then_some(color),
-        });
     }
 }
 

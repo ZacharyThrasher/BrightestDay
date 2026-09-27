@@ -1582,7 +1582,7 @@ pub(super) fn drive_hand_anim(
         charging,
         charge_held: me.charge.held.max(ascending * 4.0),
         charge_full: me.charge.full,
-        palms: palms.is_some() || ball_palms || st.anim.thrusting(),
+        palms: palms.is_some() || ball_palms || anim.thrusting(),
         palm_charge,
         overhead,
         held: held.is_some(),

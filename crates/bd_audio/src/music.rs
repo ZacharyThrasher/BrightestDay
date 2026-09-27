@@ -47,6 +47,7 @@ impl MusicSource for ChipMusic {
                 2 => bd_music::Style::Shuffle,
                 _ => bd_music::Style::Classic,
             }),
+            MusicCommand::Overlay { layer, on } => bd_music::MusicCommand::Overlay { id: bd_music::OverlayId(layer), on },
         };
         self.player.command(c);
     }
@@ -111,12 +112,41 @@ pub struct MusicDirector {
     calm_for: f32,
     since_ko: f32,
     ended: bool,
+    /// Overlay layers switched on (bit per `bd_music::OverlayId`).
+    overlays: u8,
 }
 
 impl MusicDirector {
     pub fn new(lib: Arc<MusicLibrary>, style: MusicStyle, seed: u64) -> Self {
         let _ = seed;
-        Self { lib, style, sent_style: None, current: None, fighting: false, calm_for: 0.0, since_ko: 99.0, ended: false }
+        Self { lib, style, sent_style: None, current: None, fighting: false, calm_for: 0.0, since_ko: 99.0, ended: false, overlays: 0 }
+    }
+
+    /// Turn a named overlay layer ("drums": Gear Fifth) on / off. Unknown names do nothing.
+    /// Returns whether the name is a layer.
+    pub fn overlay(&mut self, name: &str, on: bool, engine: &mut AudioEngine) -> bool {
+        let Some(id) = bd_music::overlay_id(name) else { return false };
+        let bit = 1u8 << (id.0 & 7);
+        if (self.overlays & bit != 0) != on {
+            self.overlays ^= bit;
+            engine.music(MusicCommand::Overlay { layer: id.0, on });
+        }
+        true
+    }
+
+    /// Overlay layers currently on (bit per `bd_music::OverlayId`).
+    pub fn overlays(&self) -> u8 {
+        self.overlays
+    }
+
+    /// Every overlay layer off (leaving a match).
+    pub fn overlays_off(&mut self, engine: &mut AudioEngine) {
+        for i in 0..8u8 {
+            if self.overlays & (1 << i) != 0 {
+                engine.music(MusicCommand::Overlay { layer: i, on: false });
+            }
+        }
+        self.overlays = 0;
     }
 
     pub fn current(&self) -> Option<&'static str> {

@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use crate::notation::PPQ;
+use crate::overlay::{OverlayId, Overlays};
 use crate::song::{Adaptive, AutoParam, AutoTarget, Lofi, MAX_CHANNELS, MusicLibrary, Pump, RemixStyle, Song, StingerKind, TrackId};
 use crate::synth::{CONTROL, Drum, DrumVoice, StemFilter, Svf, Voice, sin_turns};
 
@@ -54,6 +55,9 @@ pub enum MusicCommand {
     /// Choose classic / remix / shuffle. If a track is playing and resolves differently, the player
     /// switches to the new version on the next bar line.
     SetStyle(Style),
+    /// Turn a named overlay layer ([`crate::overlay`], e.g. "drums") on / off: it locks to the
+    /// playing track's 16ths and fades in / out.
+    Overlay { id: OverlayId, on: bool },
 }
 
 /// Where a remix is in its explore → build → drop cycle.
@@ -97,6 +101,8 @@ pub struct MusicStatus {
     /// and sidechain the music sub under impacts / explosions.
     pub sub_bass: bool,
     pub hpf_hz: f32,
+    /// Overlay layers switched on (bit `i` = [`OverlayId`] `i`).
+    pub overlays: u8,
 }
 
 /// Fixed-size logs for tests and the offline report (no allocation).
@@ -346,6 +352,9 @@ struct Ctl {
     sting_pending: Option<StingerKind>,
     switch_at: Option<usize>,
     sting_at: Option<(usize, StingerKind, f32)>,
+    /// Main deck 16ths crossed this block: (sample offset, pattern step 0..32) — overlay layers.
+    steps: [(usize, u8); 8],
+    nsteps: usize,
 }
 
 struct Deck {
@@ -805,6 +814,12 @@ impl Deck {
                 return;
             }
         }
+        // Overlay layers lock to the main deck's 16ths (two-bar pattern: odd bars 0..16, even 16..32).
+        if main && self.tick.is_multiple_of(PPQ / 4) && ctl.nsteps < ctl.steps.len() {
+            let in_bar = ((self.tick % song.bar_ticks.max(1)) / (PPQ / 4)).min(15) as u8;
+            ctl.steps[ctl.nsteps] = (offset, in_bar + if self.bars % 2 == 0 { 16 } else { 0 });
+            ctl.nsteps += 1;
+        }
         if main && self.tick.is_multiple_of(song.beat_ticks) {
             log.beat(now);
             self.beat = (self.tick % song.bar_ticks) / song.beat_ticks.max(1);
@@ -1187,6 +1202,7 @@ pub struct MusicPlayer {
     requested: Option<TrackId>,
     rot: u32,
     rng: u32,
+    overlays: Overlays,
 }
 
 impl MusicPlayer {
@@ -1217,6 +1233,7 @@ impl MusicPlayer {
             requested: None,
             rot: 0,
             rng: 0x1234_5678,
+            overlays: Overlays::new(f),
         }
     }
 
@@ -1306,6 +1323,7 @@ impl MusicPlayer {
                     self.tempo.set(multiplier.clamp(0.25, 4.0), blocks);
                 }
             }
+            MusicCommand::Overlay { id, on } => self.overlays.set(id, on),
             MusicCommand::SetStyle(s) => {
                 if s == self.style {
                     return;
@@ -1364,6 +1382,7 @@ impl MusicPlayer {
             phase: d.phase,
             sub_bass: meta.is_some_and(|m| m.sub_bass),
             hpf_hz: meta.map_or(60.0, |m| m.hpf_hz),
+            overlays: self.overlays.mask(),
         }
     }
 
@@ -1486,6 +1505,8 @@ impl MusicPlayer {
             sting_pending: self.pending_sting,
             switch_at: None,
             sting_at: None,
+            steps: [(0, 0); 8],
+            nsteps: 0,
         };
         {
             let deck = &mut self.decks[a];
@@ -1530,6 +1551,9 @@ impl MusicPlayer {
             let song = &lib.stingers.song;
             self.sting.process(song, false, CONTROL, &mut ctl3, &mut self.log, &mut self.out_l, &mut self.out_r, true);
         }
+        // Overlay layers (drums…) on the main deck's 16ths, into the drive stem.
+        let n = ctl.nsteps.min(ctl.steps.len());
+        self.overlays.render(&ctl.steps[..n], &mut self.out_l[1], &mut self.out_r[1]);
         // Resume a held track once its stinger's sequence has finished.
         let main = &mut self.decks[self.active];
         if main.held && !self.sting.seq {

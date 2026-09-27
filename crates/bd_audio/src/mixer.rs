@@ -94,6 +94,9 @@ pub enum MusicCommand {
     Stinger(u8),
     /// Style setting: 0 = classic chip, 1 = remixes, 2 = shuffle.
     Style(u8),
+    /// A named overlay layer on / off (index into the music crate's overlay table, e.g. Gear
+    /// Fifth's "drums"): locked to the playing track, fading in / out.
+    Overlay { layer: u8, on: bool },
 }
 
 /// A music generator that runs on the audio thread. Must not allocate, lock or block in `render`.

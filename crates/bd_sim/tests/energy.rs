@@ -471,3 +471,37 @@ fn two_thrown_balls_meet_and_burst() {
     assert!((10.0..30.0).contains(&mid), "at the meeting point, not on a player: {mid:.1} m out");
     assert!(w.constructs.get(fa).is_none_or(|c| c.gone.is_some()) && w.constructs.get(fb).is_none_or(|c| c.gone.is_some()));
 }
+
+/// Tick cost (`--release -- --ignored --nocapture`): the same duel idle vs. two ultimates clashing
+/// (pouring, boring, pulsing) plus a held ball growing.
+#[test]
+#[ignore = "perf probe (release build)"]
+fn energy_tick_cost() {
+    let run = |energy: bool| {
+        let mut w = duel(30.0);
+        w.cfg.rules.willpower = bd_sim::rules::WillpowerMode::Infinite;
+        if energy {
+            give_hands(&mut w, A, Vec3::NEG_Z, true);
+            give_hands(&mut w, B, Vec3::Z, true);
+        }
+        let mut times = Vec::new();
+        for k in 0..1800u32 {
+            let b = if energy { buttons::PRIMARY } else { 0 };
+            if energy && k == 600 {
+                // A third caster's ball appears mid-fight (held, growing).
+                let _ = w.cast(A, fireball(), None, aim(&w, A, Vec3::NEG_Z));
+            }
+            let t0 = std::time::Instant::now();
+            w.tick(&[(A, inp(0.0, 0.0, b)), (B, inp(PI, 0.0, b))]);
+            times.push(t0.elapsed().as_secs_f64() * 1000.0);
+            for p in &mut w.players {
+                p.willpower = 100.0;
+            }
+        }
+        times.sort_by(|a, b| a.total_cmp(b));
+        (times[times.len() / 2], times[times.len() * 99 / 100], times[times.len() - 1])
+    };
+    let off = run(false);
+    let on = run(true);
+    eprintln!("ENERGY tick ms (p50, p99, max): idle {off:?}, beams clashing + ball {on:?}");
+}

@@ -567,11 +567,15 @@ fn sync_bodies(
         let ads_k = if v.is_local && gun { ads.blend } else { 0.0 };
         // Palm energy (`Form::Hands`): both hands cup it low in front while it charges, then thrust
         // straight at the aim for the beam.
-        let palms = held.is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands);
-        let palm_charging = palms
-            && held.and_then(|c| views.construct(c.id)).is_some_and(|c| bd_sim::weapons::WeaponPhase::from_u8(c.weapon & 7) == bd_sim::weapons::WeaponPhase::Charging);
+        // An energy ball in the hands: cupped in front when small, both arms up when it's overhead.
+        let ball = active.and_then(|a| a.world.constructs.iter().filter(|c| c.owner == v.id).find_map(bd_sim::signature::orb::hold_view));
+        let palms = held.is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands) || ball.is_some();
+        let palm_charging = ball.is_some()
+            || palms
+                && held.and_then(|c| views.construct(c.id)).is_some_and(|c| bd_sim::weapons::WeaponPhase::from_u8(c.weapon & 7) == bd_sim::weapons::WeaponPhase::Charging);
         let (arm_t, ads_t) = match gun {
-            _ if palms && b.raise.since_shot < 0.9 => (1.0, 0.0),
+            _ if ball.is_some_and(|h| h.overhead) => (1.0, 1.0),
+            _ if palms && b.raise.since_shot < 0.9 && ball.is_none() => (1.0, 0.0),
             _ if palms => (if palm_charging { 0.5 } else { 0.0 }, 0.0),
             true if firing || b.raise.since_shot < 0.9 || ads_k > 0.05 => (1.0, ads_k),
             true => (0.45, 0.0),
@@ -691,7 +695,8 @@ fn gun_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Loca
 }
 
 /// Palm energy: BOTH arms come up together and in toward the middle (the hands meet around the
-/// orb / the beam's root). `raise.arm` 0.5 = cupped low in front (charging), 1 = along the aim.
+/// orb / the beam's root). `raise.arm` 0.5 = cupped low in front (charging), 1 = along the aim;
+/// `raise.ads` blends to both arms straight UP (a big energy ball held overhead).
 fn palm_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Local]) {
     use bd_core::Quat as Q;
     for l in locals.iter_mut() {
@@ -700,10 +705,13 @@ fn palm_pose(h: &HandRig, raise: Raise, pitch: f32, locals: &mut [bd_shapes::Loc
     if raise.arm <= 1e-3 {
         return;
     }
-    let up = std::f32::consts::FRAC_PI_2 + pitch.clamp(-1.1, 1.1);
+    let aim = std::f32::consts::FRAC_PI_2 + pitch.clamp(-1.1, 1.1);
+    let sky = std::f32::consts::PI * 0.93;
+    let up = aim + (sky - aim) * raise.ads.clamp(0.0, 1.0);
+    let spread = 1.0 - 0.6 * raise.ads.clamp(0.0, 1.0);
     for (side, inward) in [(1usize, 0.32f32), (0, -0.32)] {
         if let Some(r) = h.root[side].filter(|&r| r < locals.len()) {
-            locals[r] = bd_shapes::Local::rot(Q::from_rotation_y(inward * raise.arm) * Q::from_rotation_x(up * raise.arm));
+            locals[r] = bd_shapes::Local::rot(Q::from_rotation_y(inward * spread * raise.arm) * Q::from_rotation_x(up * raise.arm));
         }
     }
 }

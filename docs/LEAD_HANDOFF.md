@@ -22,6 +22,9 @@ worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
+- Alloc regression ab43ff90cb8b781a2 — bd_sim tests/alloc.rs steady_state_tick_does_not_allocate (5>3),
+  unowned since 18:47; find + fix per-tick allocations without changing the FFA hash.
+- Lead 21:25: practice first spawn honours `--look` (18c9647) — map workers kept hitting it.
 - Powers integration a11d2e8eb52e53787 — AscendTints → costume (SSJ gold hair, sharingan eyes, Gear 5
   toon), PowerCue → audio (stingers, generic music overlay layer = Gear 5 drums), technique orb on clients,
   Gear 4 extra air jumps (generic modifier), Rinnegan near-camera shell + caster title letters too big.

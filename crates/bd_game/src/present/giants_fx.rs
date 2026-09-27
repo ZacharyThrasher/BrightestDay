@@ -455,7 +455,7 @@ fn weak_markers(
         let m = fx.markers.entry(v.id).or_insert_with(|| {
             let col = corps_rgb(active.corps_of(c.owner));
             let mat = materials.add(glow(col, 4.0, false));
-            let halo = materials.add(glow(col, 0.6, true));
+            let halo = materials.add(glow(col, 0.35, true));
             let ents = wps
                 .iter()
                 .map(|_| {
@@ -479,7 +479,7 @@ fn weak_markers(
                 *tf = Transform::from_translation(at).with_scale(Vec3::splat(base * pulse * boost));
             }
             if let Ok(mut tf) = tfs.get_mut(halo) {
-                *tf = Transform::from_translation(at).with_scale(Vec3::splat(base * 2.6 * pulse * boost));
+                *tf = Transform::from_translation(at).with_scale(Vec3::splat(base * 1.8 * pulse * boost));
             }
         }
     }
@@ -899,7 +899,7 @@ pub mod scenario {
                         *cd = 99.0;
                     }
                 }
-                if t < 1.6 {
+                if t < 3.6 {
                     let back = n - sc.dir * 2.2 + Vec3::Y * 0.2;
                     if let Some(p) = active.world.player_mut(me) {
                         p.mv.pos = back;
@@ -907,8 +907,8 @@ pub mod scenario {
                     }
                 }
                 aim(&mut look, eye, n);
-                let c = ((t - 1.6) / 1.4).fract();
-                if t > 1.6 && c < 0.06 {
+                let c = ((t - 3.6) / 1.4).fract();
+                if t > 3.6 && c < 0.06 {
                     ov.held = buttons::PRIMARY;
                 }
             }

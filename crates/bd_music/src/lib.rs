@@ -22,16 +22,20 @@
 //! * Output is interleaved stereo at the player's sample rate, already high-passed (60 Hz) and
 //!   low-passed (11.5 kHz); at intensity 1 tracks are calibrated to ≈ -23 LUFS integrated.
 //! * [`MusicPlayer::status`] gives bar/beat/tempo for beat-synced visuals.
+//! * [`MusicCommand::Overlay`] toggles a named overlay layer ([`overlay`]: Gear Fifth's "drums")
+//!   locked to the playing track's 16th grid, fading in / out.
 //! * Remix variants (`assets/music/remix`): [`MusicCommand::SetStyle`] picks Classic / Remix /
 //!   Shuffle; remixes filter down when exploring and build into a bar-quantised DROP when intensity
 //!   crosses into combat; `status().sub_bass` / `hpf_hz` tell the mixer to open its sub band.
 
 pub mod analysis;
 pub mod notation;
+pub mod overlay;
 pub mod player;
 pub mod song;
 pub mod synth;
 
+pub use overlay::{OverlayId, overlay_id, overlay_name};
 pub use player::{AdaptPhase, DebugLog, MusicCommand, MusicPlayer, MusicStatus, OUT_STEMS, Style};
 pub use song::{MusicError, MusicLibrary, RemixStyle, Song, Stem, StingerKind, TrackId, TrackInfo};
 
