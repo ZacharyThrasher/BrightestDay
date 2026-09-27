@@ -823,10 +823,10 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         if c.has(Mechanic::Transforms) && s.transform_t > 0.0 && was_vehicle != s.vehicle {
             let v3 = &env.ctx.tuning.transformer.v3;
             if s.vehicle && !flies(c) && !c.has(Mechanic::Thrust) && wheeled(c) {
-                let top = pilot_speed(c, true) * env.ctx.tuning.transformer.robot_row(c).vehicle_speed;
+                let top = pilot_speed(c, true) * env.ctx.tuning.transformer.robot_row(c).vehicle_speed * v3.vehicle_top;
                 super::kit::launch_vehicle(c, v3, top);
-            } else if !s.vehicle {
-                super::kit::pop_out(c, &mut s, &pv, env, out);
+            } else if !s.vehicle && !super::kit::pop_out(c, &mut s, &pv, env, out) {
+                super::kit::unfold(c, v3);
             }
         }
     }
@@ -861,7 +861,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let speed = if flier {
         flight_speed(c, jet)
     } else if rolling {
-        pilot_speed(c, rolling) * veh_speed
+        pilot_speed(c, rolling) * veh_speed * if transformer { env.ctx.tuning.transformer.v3.vehicle_top } else { 1.0 }
     } else if fighter {
         pilot_speed(c, rolling) * robot_speed
     } else {

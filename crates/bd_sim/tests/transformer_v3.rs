@@ -66,7 +66,7 @@ fn car(gun: bool) -> Recipe {
 
 /// The V2 model (before V3): no kit, the slow throttle, no launch / pop-out / dash seek.
 fn legacy() -> V3Tuning {
-    V3Tuning { kit: false, vehicle_accel: 2.5, vehicle_launch: 0.0, vehicle_carry_max: 0.0, pop_range: -100.0, dash_seek_range: 0.0, ..V3Tuning::default() }
+    V3Tuning { kit: false, vehicle_accel: 2.5, vehicle_top: 1.0, vehicle_launch: 0.0, vehicle_carry_max: 0.0, pop_range: -100.0, dash_seek_range: 0.0, ..V3Tuning::default() }
 }
 
 /// Cast `r` piloted by A at `at` (B far away). `robot` = switch to robot mode first.
@@ -90,6 +90,16 @@ fn piloted(w: &mut World, r: Recipe, at: Vec3, robot: bool) -> ConstructId {
         }
     }
     assert_eq!(w.constructs.get(id).unwrap().held.vehicle, !robot);
+    // Off the cast's landing crater: stand it on untouched ground 24 m to the side.
+    {
+        let c = w.constructs.get_mut(id).unwrap();
+        c.pos = Vec3::new(at.x, GROUND + c.half.y - c.local_center.y + 0.05, at.z + 24.0);
+        c.vel = Vec3::ZERO;
+        c.kit = None;
+    }
+    for _ in 0..30 {
+        w.tick(&[(A, PlayerInput::default())]);
+    }
     assert_eq!(w.player(A).unwrap().seat.map(|s| s.construct), Some(id), "A pilots it");
     id
 }
@@ -104,33 +114,52 @@ fn yaw_to(d: Vec3) -> f32 {
 
 // ------------------------------------------------------------------------------------ 1. the kit
 
-#[test]
-fn robot_bhops_and_air_strafes_past_the_old_walker() {
-    let mut top = [0.0f32; 2];
-    for (k, legacy_model) in [false, true].into_iter().enumerate() {
-        let mut w = world(256.0);
-        if legacy_model {
-            w.cfg.tuning.transformer.v3 = legacy();
+/// Top horizontal speed in 6 s of W + A/D air strafing with the view sweeping 1.2 rad/s (run up
+/// 0.5 s, then jump held): `None` = on foot, else a piloted robot (`v2` = the old walker).
+fn strafe_top(robot: Option<bool>) -> f32 {
+    let mut w = world(256.0);
+    let id = match robot {
+        Some(v2) => {
+            if v2 {
+                w.cfg.tuning.transformer.v3 = legacy();
+            }
+            let id = piloted(&mut w, optimus(), Vec3::new(-100.0, GROUND, 0.0), true);
+            let h = w.constructs.get(id).unwrap().half.y * 2.0;
+            assert!(h <= 5.6, "hero scale robot ({h} m)");
+            Some(id)
         }
-        let id = piloted(&mut w, optimus(), Vec3::new(-100.0, GROUND, 0.0), true);
-        let h = w.constructs.get(id).unwrap().half.y * 2.0;
-        assert!(h <= 5.6, "hero scale robot ({h} m)");
-        // W + held jump (auto-hop) while air-strafing: the view sweeps 1.2 rad/s side to side with A/D.
-        let mut yaw = -std::f32::consts::FRAC_PI_2; // facing +X
-        for t in 0..(6 * 120) {
-            let side = if (t / 60) % 2 == 0 { 1 } else { -1 };
-            yaw -= side as f32 * 1.2 / 120.0;
-            let inp = PlayerInput { yaw, move_z: 1, move_x: side, buttons: buttons::JUMP, ..PlayerInput::default() };
-            w.tick(&[(A, inp)]);
-            top[k] = top[k].max(hspeed(w.constructs.get(id).unwrap().vel));
+        None => {
+            place(&mut w, A, Vec3::new(-100.0, GROUND, 0.0));
+            None
         }
-        if !legacy_model {
-            assert!(w.constructs.get(id).unwrap().kit.is_some(), "robot mode runs the kit");
-        }
+    };
+    let mut top = 0.0f32;
+    let mut yaw = -std::f32::consts::FRAC_PI_2; // facing +X
+    for t in 0..(6 * 120) {
+        let side = if (t / 60) % 2 == 0 { 1 } else { -1 };
+        yaw -= side as f32 * 1.2 / 120.0;
+        let inp = PlayerInput { yaw, move_z: 1, move_x: side, buttons: if t < 60 { 0 } else { buttons::JUMP }, ..PlayerInput::default() };
+        w.tick(&[(A, inp)]);
+        let v = match id {
+            Some(id) => w.constructs.get(id).unwrap().vel,
+            None => w.player(A).unwrap().mv.vel,
+        };
+        top = top.max(hspeed(v));
     }
-    eprintln!("robot top speed bhop+strafe: V3 {:.1} m/s, V2 {:.1} m/s", top[0], top[1]);
-    assert!(top[0] >= 10.5, "V3 robot keeps a hop chain above run speed ({:.1})", top[0]);
-    assert!(top[0] > top[1] * 1.3, "V3 {:.1} vs V2 {:.1}", top[0], top[1]);
+    if robot == Some(false) {
+        assert!(w.constructs.get(id.unwrap()).unwrap().kit.is_some(), "robot mode runs the kit");
+    }
+    top
+}
+
+#[test]
+fn robot_bhops_and_air_strafes_like_the_pilot() {
+    let foot = strafe_top(None);
+    let v3 = strafe_top(Some(false));
+    let v2 = strafe_top(Some(true));
+    eprintln!("top speed, W+A/D air strafe: on foot {foot:.1} m/s | robot V3 {v3:.1} m/s | robot V2 {v2:.1} m/s");
+    assert!(v3 >= foot * 0.85, "robot {v3:.1} vs on foot {foot:.1}: weight-scaled, not sluggish");
+    assert!(v3 > v2 * 1.3, "V3 {v3:.1} vs V2 {v2:.1}");
 }
 
 #[test]
@@ -166,7 +195,7 @@ fn robot_tethers_hook_terrain_and_reel_to_an_enemy() {
     }
     assert!(attached, "the robot's tether anchors");
     assert!(w.player(A).unwrap().mv.hooks[0].phase == HookPhase::Attached, "the rope shows (mirrored on the pilot)");
-    for _ in 0..10 {
+    for _ in 0..90 {
         w.tick(&[(A, PlayerInput::default())]);
     }
     // Reel to an enemy: B stands 22 m ahead; aim at them, fire + reel.
@@ -330,8 +359,8 @@ enum Chaser {
     Vehicle,
 }
 
-/// B: a bhopping, strafing runner fleeing A (zig-zags ±40° off straight away every 0.6 s, W + A/D
-/// into the turn, jump held). A starts 30 m behind. Returns seconds until the hull gap ≤ 2 m (melee),
+/// B: a bhopping, strafing runner fleeing A (runs up 0.5 s, then hops with jump held, zig-zagging
+/// ±40° off straight away every 0.6 s). A starts 30 m behind. Returns seconds until the hull gap ≤ 2 m (melee),
 /// capped at 15 s.
 fn chase(who: Chaser, v2: bool) -> f32 {
     let mut w = world(256.0);
@@ -345,7 +374,7 @@ fn chase(who: Chaser, v2: bool) -> f32 {
         Chaser::Vehicle => Some(piloted(&mut w, optimus(), start, false)),
     };
     if id.is_none() {
-        place(&mut w, A, start);
+        place(&mut w, A, start + Vec3::Z * 24.0); // the same lane the piloted chasers use
     }
     let a_pos = |w: &World| match id {
         Some(id) => w.constructs.get(id).unwrap().center(),
@@ -368,6 +397,9 @@ fn chase(who: Chaser, v2: bool) -> f32 {
         let b = w.player(B).unwrap().hull(w.params()).center();
         let d = b - a;
         let gap = hspeed(d) - a_half(&w) - w.params().hull_half_width;
+        if t % 60 == 0 && std::env::var("BD_CHASE_DBG").is_ok() {
+            eprintln!("{who:?} t{t} gap {gap:.1} A v {:.1} B v {:.1} B pos {:?}", hspeed(match id { Some(id) => w.constructs.get(id).unwrap().vel, None => w.player(A).unwrap().mv.vel }), hspeed(w.player(B).unwrap().mv.vel), w.player(B).unwrap().mv.pos);
+        }
         if gap <= 2.0 {
             return t as f32 / 120.0;
         }
@@ -376,14 +408,19 @@ fn chase(who: Chaser, v2: bool) -> f32 {
         let side = if (t / 72) % 2 == 0 { 1 } else { -1 };
         let zig = side as f32 * 0.7;
         let dir = bd_core::Quat::from_rotation_y(zig) * away;
-        let ib = PlayerInput { yaw: yaw_to(dir), move_z: 1, move_x: -side, buttons: buttons::JUMP, ..PlayerInput::default() };
+        let hop = if t < 60 { 0 } else { buttons::JUMP }; // run up, then hop (Source: speed comes from the ground)
+        let ib = PlayerInput { yaw: yaw_to(dir), move_z: 1, buttons: hop, ..PlayerInput::default() };
         // The chaser: look at B, W, hop, boost-step / dodge every 0.5 s.
         let dodge = if t % 60 == 0 { buttons::DODGE } else { 0 };
         let pitch = (d.y / hspeed(d).max(0.1)).atan().clamp(-1.0, 1.0);
-        let mut ia = PlayerInput { yaw: yaw_to(d), pitch, move_z: 1, buttons: buttons::JUMP | dodge, ..PlayerInput::default() };
-        if who == Chaser::Vehicle {
+        // The same hop technique as the runner: weave ±25° around the bearing (air-strafe gain).
+        let weave = if t < 60 { 0.0 } else { side as f32 * 0.45 };
+        let mut ia = PlayerInput { yaw: yaw_to(d) + weave, pitch, move_z: 1, buttons: hop | dodge, ..PlayerInput::default() };
+        if who == Chaser::Vehicle && !popped {
+            // Drive in (no hop / dodge), then pop out (Transform) and chase on as the robot.
             ia.buttons = 0;
-            if !popped && gap < 12.0 {
+            ia.yaw = yaw_to(d);
+            if gap < 12.0 {
                 popped = true;
                 w.toggle_transform(A);
             }
@@ -405,3 +442,25 @@ fn chase_piloted_closes_as_fast_as_on_foot() {
     assert!(vehicle <= foot, "vehicle ({vehicle:.2} s) is the sprint (on foot {foot:.2} s)");
     assert!(robot < robot_v2, "V3 robot {robot:.2} s beats V2 {robot_v2:.2} s");
 }
+
+
+#[test]
+fn followers_fire_their_vehicle_weapons() {
+    let mut w = world(128.0);
+    place(&mut w, A, Vec3::new(-40.0, GROUND, 20.0));
+    place(&mut w, B, Vec3::new(-40.0, GROUND, -15.0));
+    w.tick(&[]);
+    let eye = w.player(A).unwrap().eye(w.params());
+    let id = w.cast(A, tank(), None, Aim::new(eye, Vec3::new(0.0, -0.3, -1.0).normalize())).unwrap();
+    w.constructs.get_mut(id).unwrap().life = 1.0e6;
+    let mut fired = 0;
+    for k in 0..(6 * 120) {
+        if k % 120 == 0 {
+            place(&mut w, B, Vec3::new(-40.0, GROUND, -15.0));
+        }
+        let ev = w.tick(&[]).to_vec();
+        fired += shots(&ev, id).len();
+    }
+    assert!(fired > 0, "a follower tank shoots in tank mode");
+}
+

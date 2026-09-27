@@ -39,6 +39,15 @@ enum Script {
     Beast,
     /// Voice: "<kit> combo", then "<kit's blaster>", then "transform" — all said mid-fight.
     Voice,
+    /// V3 SAUCE: light string hits, a held heavy, a blaster shot, then the string to its ender and
+    /// Transform (the vehicle attack + finisher) — every beat of the move grammar in one strip.
+    Sauce,
+}
+
+/// V3 SAUCE script times: (the ender's tap, the Transform press 0.13 s after it).
+fn sauce_times(string_hits: u8) -> (f32, f32) {
+    let ender = 5.7 + (string_hits.max(1) - 1) as f32 * 0.33;
+    (ender, ender + 0.13)
 }
 
 /// Combat frame-strip shots (TRANSFORMER COMBAT + TRANSFORMERS FEEL): the phrase each one casts,
@@ -66,6 +75,10 @@ fn combat_shot(shot: &str) -> Option<(&'static str, bool, Script)> {
         "unicron" => ("unicron", true, String),
         "smallcar" => ("a small robot that turns into a car", true, String),
         "voice" => ("optimus prime", true, Voice),
+        "sauce_truck" => ("optimus prime", true, Sauce),
+        "sauce_jet" => ("starscream", true, Sauce),
+        "sauce_tank" => ("a transforming tank", true, Sauce),
+        "sauce_dino" => ("grimlock", true, Sauce),
         _ => return None,
     })
 }
@@ -99,6 +112,82 @@ pub fn build(app: &mut App) {
     let shot = args.windows(2).find(|w| w[0] == "--pilot-shot").map(|w| w[1].clone()).unwrap_or_else(|| "truck".into());
     info!("piloting scenario: {shot}");
     app.insert_resource(PilotScenario { shot, ..Default::default() }).add_systems(Update, script.run_if(resource_exists::<ActiveWorld>));
+    // V3 SAUCE strips: `BD_SAUCE_STRIP=<dir>` — a fixed side camera + frames at the script's beats.
+    if let Ok(dir) = std::env::var("BD_SAUCE_STRIP") {
+        app.insert_resource(SauceStrip { dir: dir.into(), ..Default::default() })
+            .add_systems(Update, sauce_strip.after(script).run_if(resource_exists::<ActiveWorld>))
+            .add_systems(
+                bevy::prelude::PostUpdate,
+                sauce_camera
+                    .after(crate::camera::CameraUpdateSet)
+                    .after(crate::present::camera3p::place_camera)
+                    .before(bevy::transform::TransformSystems::Propagate),
+            );
+    }
+}
+
+/// `BD_SAUCE_STRIP` state: the side camera's anchor and which beats were captured.
+#[derive(bevy::prelude::Resource, Default)]
+struct SauceStrip {
+    dir: std::path::PathBuf,
+    /// (look-at point, camera position), fixed once the robot stands in its lane.
+    cam: Option<(bevy::prelude::Vec3, bevy::prelude::Vec3)>,
+    taken: u32,
+    burst_at: Option<f32>,
+    finish_at: Option<f32>,
+}
+
+/// Frames at the script's beats: light hit, heavy coil, heavy release, blaster, ender, the vehicle
+/// attack (×2), the finisher (×2) — the same beats with the sauce on or off (`BD_TF_SAUCE=0`).
+fn sauce_strip(mut commands: bevy::prelude::Commands, sc: Res<PilotScenario>, active: Res<ActiveWorld>, mut st: ResMut<SauceStrip>) {
+    use bevy::render::view::screenshot::{Screenshot, save_to_disk};
+    use bd_sim::constructs::brawl::XPhase;
+    let Some(id) = sc.id else { return };
+    let Some(c) = active.world.constructs.get(id) else { return };
+    let t = sc.t;
+    if st.cam.is_none() && t > 2.45 {
+        let d = bevy::prelude::Vec3::new(sc.dir.x, 0.0, sc.dir.z).normalize_or(bevy::prelude::Vec3::NEG_Z);
+        let side = bevy::prelude::Vec3::new(-d.z, 0.0, d.x);
+        let ctr = c.center();
+        let at = bevy::prelude::Vec3::new(ctr.x, ctr.y, ctr.z) + d * 4.0;
+        let k = (c.half.y * 2.0 / 4.8).max(1.0); // bigger bodies (a dino) get a wider shot
+        st.cam = Some((at, at + side * 14.0 * k + bevy::prelude::Vec3::Y * 3.0 * k));
+    }
+    match c.brawl.xatk {
+        XPhase::Burst if st.burst_at.is_none() => st.burst_at = Some(t),
+        XPhase::Finish if st.finish_at.is_none() => st.finish_at = Some(t),
+        _ => {}
+    }
+    let row = active.world.cfg.tuning.transformer.robot_row(c);
+    let (ender, _) = sauce_times(row.string_hits);
+    // Heavy release / ender: just past the impact frame's hold (the hit-stop still holds the pose).
+    let beats = [
+        Some(2.64),
+        Some(4.05 + row.heavy_hold * 0.75),
+        Some(4.05 + row.heavy_hold + 0.2),
+        Some(5.04),
+        Some(ender + 0.2),
+        st.burst_at.map(|b| b + 0.12),
+        st.burst_at.map(|b| b + 0.32),
+        st.finish_at.map(|f| f + 0.05),
+        st.finish_at.map(|f| f + 0.3),
+    ];
+    let k = st.taken as usize;
+    if let Some(Some(at)) = beats.get(k)
+        && t >= *at
+    {
+        st.taken += 1;
+        let path = st.dir.join(format!("{}_{k}.png", sc.shot));
+        info!("sauce strip: beat {k} at t={t:.2} -> {}", path.display());
+        commands.spawn(Screenshot::primary_window()).observe(save_to_disk(path));
+    }
+}
+
+fn sauce_camera(st: Res<SauceStrip>, mut cams: bevy::prelude::Query<&mut bevy::prelude::Transform, bevy::prelude::With<crate::camera::PlayerCamera>>) {
+    let Some((at, pos)) = st.cam else { return };
+    for mut tf in &mut cams {
+        *tf = bevy::prelude::Transform::from_translation(pos).looking_at(at, bevy::prelude::Vec3::Y);
+    }
 }
 
 /// The most open, flat ground near `me`: a spot with a clear lane (samples every 4 m for 60 m,
@@ -314,9 +403,9 @@ fn script(
             let Some((_, want_robot, how)) = combat_shot(s) else { return };
             face(&mut look, dir, -0.18);
             let Some(dummy) = sc.dummy else { return };
-            let (center, half, robot) = {
+            let (center, half, robot, string_hits) = {
                 let Some(c) = active.world.constructs.get(id) else { return };
-                (c.center(), c.half, !c.held.vehicle)
+                (c.center(), c.half, !c.held.vehicle, active.world.cfg.tuning.transformer.robot_row(c).string_hits)
             };
             if t > 1.2 && sc.step == 0 {
                 sc.step = 1;
@@ -330,6 +419,7 @@ fn script(
                 Script::String => 3.75,
                 Script::Beast => 5.3,
                 Script::Voice => 2.7,
+                Script::Sauce => sauce_times(string_hits).1,
             };
             if t > 2.4 && !busy && t < hold_until {
                 let at = center + dir * (half.x.max(half.z) + 1.6);
@@ -369,6 +459,26 @@ fn script(
                         sc.step = 3;
                         let ok = active.world.toggle_transform(me);
                         info!("piloting scenario: burst out -> {ok}");
+                    }
+                }
+                // Light taps, a held heavy, a blaster shot, the string to its ender, Transform.
+                Script::Sauce => {
+                    let (ender_at, transform_at) = sauce_times(string_hits);
+                    let n = string_hits.max(1) as usize;
+                    let light = (n - 1).min(3);
+                    let mut held = 0;
+                    let taps = (0..light).map(|i| 2.6 + i as f32 * 0.33).chain((0..n).map(|i| ender_at - (n - 1 - i) as f32 * 0.33));
+                    if taps.into_iter().any(|k| t > k && t < k + 0.05) || (t > 4.05 && t < 4.75) {
+                        held |= buttons::PRIMARY;
+                    }
+                    if t > 5.0 && t < 5.05 {
+                        held |= buttons::SECONDARY;
+                    }
+                    ov.held = held;
+                    if t > transform_at && sc.step == 1 {
+                        sc.step = 3;
+                        let ok = active.world.toggle_transform(me);
+                        info!("piloting scenario: sauce transform attack -> {ok}");
                     }
                 }
                 // Said, not pressed.

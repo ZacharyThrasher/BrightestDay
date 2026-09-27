@@ -255,6 +255,9 @@ pub struct TfSauce {
     hum: bool,
     xatk: XPhase,
     skid_prev: Option<(Vec3, Vec3)>,
+    /// Vehicle mode: the pilot's aim yaw last frame + the swivel cue's cooldown (turrets / chin guns).
+    aim_yaw: Option<f32>,
+    swivel_cd: f32,
     fx_t: f32,
     /// Robot colour (the owner's corps, linear).
     color: [f32; 3],
@@ -277,6 +280,8 @@ fn attach(mut commands: Commands, active: Option<Res<ActiveWorld>>, views: Res<W
             hum: false,
             xatk: XPhase::None,
             skid_prev: None,
+            aim_yaw: None,
+            swivel_cd: 0.0,
             fx_t: 0.0,
             color,
         });
@@ -295,7 +300,7 @@ fn smear(pen: &mut Pen, c: Vec3, dir: Vec3, h: f32, side: f32, k: f32, color: [f
     let right = d.cross(Vec3::Y).normalize_or(Vec3::X);
     let r = h * (0.36 + 0.1 * k);
     let segs = 9;
-    let thick = (0.05 + 0.035 * k) * h.sqrt();
+    let thick = (0.07 + 0.045 * k) * h.sqrt();
     for j in 0..n.max(1) {
         let off = (j as f32 - (n.max(1) - 1) as f32 * 0.5) * h * 0.08;
         // Sweep plane: a flat arc across the front (strikes), a vertical one (rising).
@@ -406,7 +411,7 @@ fn events(
                     let sd = (d + j.dir() * 0.35).normalize_or(d);
                     pen.put(Emit { flags: PFlags::STRETCH | PFlags::PLAIN, pos: p, vel: sd * j.range(10.0, 22.0), size: 0.035 * size, color: st.energy, emissive: 8.0, life: 0.1, gravity: 0.0, spin: 3.0, ..default() });
                 }
-                if st.casing || *archetype == GunArchetype::Cannon {
+                if st.casing || matches!(archetype, GunArchetype::Cannon | GunArchetype::Minigun) {
                     // Blast: a smoke ring ⟂ the barrel + an ejected casing tumbling out the side.
                     let smoke = Look { body: Body::Smoke, main: [0.5, 0.48, 0.45], dark: [0.2; 3], glow: 0.8, size: 0.6 * size, ..default() };
                     pen.ring(&smoke, p, d, 0.2 * size, 4.0 + 3.0 * size, 10.0, 0.6);
@@ -424,13 +429,22 @@ fn events(
                 }
                 if first {
                     shot_ids.push(*id);
-                    let name = if *archetype == GunArchetype::Rocket { "tfs_missile_whoosh" } else { st.shot };
+                    // Vehicle weapons too (turret cannon, MG, missiles, chin gun): the archetype picks
+                    // the voice; an MG's rounds keep the gun presentation's own crack.
+                    let name = match archetype {
+                        GunArchetype::Rocket => Some("tfs_missile_whoosh"),
+                        GunArchetype::Minigun => None,
+                        GunArchetype::Cannon if !f.robot => Some("tfs_shell_thump"),
+                        _ => Some(st.shot),
+                    };
                     let pitch = (f.pitch() * 0.9 + 0.1).clamp(0.6, 1.4);
-                    sfx.write(Sfx3d::at(name, p).pitch(pitch).gain((0.7 + 0.15 * w).min(1.1)));
+                    if let Some(name) = name {
+                        sfx.write(Sfx3d::at(name, p).pitch(pitch).gain((0.7 + 0.15 * w).min(1.1)));
+                    }
                     // Recoil rock (robot or hull), a small kick for the local pilot.
                     s.pose = Pose::Recoil;
                     s.pose_u = 0.0;
-                    s.pose_k = if st.casing { 1.6 } else { 1.0 };
+                    s.pose_k = if *archetype == GunArchetype::Cannon || matches!(s.weapon, Weapon::Shell) { 1.8 } else if *archetype == GunArchetype::Minigun { 0.35 } else { 1.0 };
                     s.pose_dir = d;
                     if f.local {
                         shake.write(CameraShakeEvent { trauma: if matches!(s.weapon, Weapon::Shell) { 0.22 } else { 0.07 }, dir: -d });
@@ -633,6 +647,22 @@ fn frame(
         let mut j = Jit(f.id.0.wrapping_mul(0x9E37_79B9) ^ (time.elapsed_secs() * 211.0) as u32 | 1);
         let mut pen = Pen { fx: &mut *fx, motes: 1.0, scale: 1.0, cam: eye, avoid: None };
         s.fx_t += dt;
+        // ---- Turret swivel (vehicle mode, a turret / chin gun following a fast aim change).
+        s.swivel_cd = (s.swivel_cd - dt).max(0.0);
+        if !f.robot && matches!(s.weapon, Weapon::Shell | Weapon::ChinGun) {
+            if let Some(yaw) = views.player(c.owner).filter(|p| p.seat.is_some_and(|(sid, _)| sid == f.id)).map(|p| p.yaw) {
+                if let Some(prev) = s.aim_yaw {
+                    let dy = (yaw - prev + PI).rem_euclid(TAU) - PI;
+                    if dy.abs() / dt.max(1e-3) > 1.6 && s.swivel_cd <= 0.0 {
+                        s.swivel_cd = 0.45;
+                        sfx.write(Sfx3d::at("tfs_turret_swivel", centre + Vec3::Y * c.half.y).pitch(f.pitch().clamp(0.7, 1.3)).gain(0.6));
+                    }
+                }
+                s.aim_yaw = Some(yaw);
+            }
+        } else {
+            s.aim_yaw = None;
+        }
         // ---- GATHER: a heavy's hold (servo coil + motes and energy lines into the fist + hum).
         let b = &c.brawl;
         let want_coil = if f.robot && f.settled && !b.heavy_done && b.hold > 0.06 && row.heavy_hold > 0.0 { (b.hold / row.heavy_hold).clamp(0.0, 1.0) } else { 0.0 };

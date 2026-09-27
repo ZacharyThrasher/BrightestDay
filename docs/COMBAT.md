@@ -729,6 +729,38 @@ Stages 1+2 of the owner-approved Devastation-for-PvP plan (`bd_sim` `constructs/
 - Measured (scripted 20 s duel on a still 1.8 m dummy, `transformer_v2::v2_measure`): see
   `docs/piloting/V2_NOTES.md`. Strip: `docs/piloting/v2_before_after.png` (side camera).
 
+## 5d-sexies. Transformers V3 — mobility parity, chase tools, alt-mode weapons (owner: "too slow/clunky compared to the rest of the game … hard to catch up to / follow people"; "megatron not being able to shoot while in tank form")
+Code: `bd_sim` `constructs/kit.rs` (+ hooks in `pilot::step_piloted`); numbers in `combat.ron` →
+`transformer.v3` (serde-defaulted); tests `bd_sim/tests/transformer_v3.rs`; notes `docs/piloting/V2_NOTES.md`.
+- **The pilot's kit in robot mode:** a piloted fighting body (robot mode, or a beast mode) up to
+  `kit_max_height` (7 m; giants / combiners keep the heavy walker) moves with the PLAYER controller
+  (`movement::step_player`): bhop / ground-strafe acceleration, air strafing, the air jump, walls,
+  slides, gas boost and **both tethers from the robot's hand** (swing, reel to anchors, hook an enemy
+  and reel to them; the ropes render through the pilot's replicated hooks). Same inputs and momentum
+  rules; hull / eye / hand / step scaled to the robot (`MoveParams::scaled`); speed = the archetype
+  row's `robot_speed` clamped to [`kit_speed_min` 0.9, `kit_speed_max` 1.1] (weight-scaled, never
+  sluggish), jump ×`kit_jump`. Dodge stays the robot's **boost-step** (perfect-dodge window) and its
+  speed carries into the hop chain. Flying robots thrust on held Jump in the air. The state lives in
+  `Construct::kit` — host-side like every cockpit, so seat prediction never fights the pilot. A
+  transform that leaves the feet inside terrain stands them on it.
+- **Chase tools:** a forward-ish boost-step (wish within `dash_seek_cos` of the target) **steers at the
+  chase target** (the combo-target pick rule, else the nearest enemy ~35° off the look, else the last
+  one hit in front) within `dash_seek_range`; back / side steps stay defensive. **Vehicle = the
+  sprint:** throttle response `vehicle_accel` (9/s, was 2.5), top speed ×`vehicle_top` (1.35), and
+  robot → vehicle launches it along your momentum at ≥ `vehicle_launch` × top (a dash's / hop's speed
+  kept up to `vehicle_carry_max` × top). **Flash-transform pop-out:** vehicle → robot with an enemy
+  ahead within `pop_range` (16 m) is a `pop_secs` (0.22 s) transform that dashes you (the on-foot
+  melee-lunge dash, led by their velocity) to `pop_gap` off them, facing them — drive in, pop out,
+  hit. Otherwise vehicle → robot brakes to `unfold_carry` (16 m/s).
+- **Alt-mode weapons (from data, never names; `kit::armament`):** tank (treads, or a turret without
+  wheels) = a turret on the crosshair independent of the hull: RMB main-cannon shell (arcing, splash),
+  LMB coaxial MG; jet = nose cannons (LMB) + missiles (RMB); helicopter / hoverer = chin gun (LMB) +
+  rocket pods (RMB); car / truck / bike = RMB boost-ram (`ram_boost` × top for `ram_secs`, the rams
+  hit), LMB gun only with Barrels / Turret. Host-authoritative like the robot blaster (`pilot::shoot`:
+  `GameEvent::ShotFired` + projectiles) plus `HeldFx::VehicleFire` (strength = gun code) for the
+  presentation. Followers fire them at targets within `ai_range`. Protocol v56.
+- Deterministic; FFA golden hash unchanged (bots don't pilot transformers).
+
 ## 5d-bis. Transformers (Mechanic::Transforms) — a birthday-present feature, make it great
 - **Two modes, one body.** A Transforms construct has an alt mode (usually a vehicle/animal) and a robot
   mode built from the *same panels*: bd_shapes splits the alt model into ~10–24 rigid panels and maps them

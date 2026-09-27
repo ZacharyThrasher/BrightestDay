@@ -944,6 +944,7 @@ impl TransformerTuning {
         self.buffer_secs = fin(self.buffer_secs, d.buffer_secs, 0.0, 0.5);
         self.early_xform_secs = fin(self.early_xform_secs, d.early_xform_secs, 0.0, 0.5);
         self.dodge_grace_secs = fin(self.dodge_grace_secs, d.dodge_grace_secs, 0.0, 2.0);
+        self.v3.sanitize(); // TRANSFORMERS V3
         self.rules.truncate(64);
         self.archetypes.truncate(32);
         if self.archetypes.is_empty() {

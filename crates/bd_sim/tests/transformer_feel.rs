@@ -569,6 +569,9 @@ fn a_combined_giant_fights_as_the_colossus() {
     w.tick(&[]);
     let eye = w.player(A).unwrap().eye(w.params());
     w.cfg.rules.limits = bd_sim::rules::ConstructLimits::chaos();
+    // V3: the dozers' treads make them tanks; keep their shells from cratering B's spot (this
+    // test is about the colossus quake, not the alt-mode guns: transformer_v3 covers those).
+    w.cfg.tuning.transformer.v3.ai_range = 0.0;
     let dozer = feats(recipe("transforming bulldozer", Form::Vehicle, &[Mechanic::Charge, Mechanic::Heavy, Mechanic::Transforms], Element::Light, 4.0), &[Feature::Treads, Feature::Cab, Feature::Plow], 1500.0);
     let mut ids = Vec::new();
     for k in 0..3 {

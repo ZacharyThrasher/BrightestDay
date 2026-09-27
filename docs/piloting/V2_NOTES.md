@@ -103,3 +103,58 @@ masher regression guard).
   a 4.6 m robot. Generic transformers use a ratio of 1 (the robot stands as tall as the alt is long).
 - "Said big" means recipe scale ≥ 7. The lexicon's `big` is ×1.4, so "big optimus" (8.4) keeps its size.
   Combiners keep their size through the colossus row's `giant: true` (combat.ron).
+
+## Transformers V3: mobility parity, chase tools, alt-mode weapons
+
+Rules: COMBAT.md §5d-sexies. Code: `bd_sim/src/constructs/kit.rs`, hooked in `pilot::step_piloted`.
+Tests: `bd_sim/tests/transformer_v3.rs`.
+
+### Measured: the chase (`transformer_v3::chase_piloted_closes_as_fast_as_on_foot`)
+
+The runner is a bhopping strafer. It runs up for 0.5 s, then hops with jump held, weaving ±40° off
+straight away every 0.6 s. It gains from ~10 to ~16 m/s over 15 s. The chaser starts 30 m behind. It
+uses the same technique: it runs up, hops, weaves ±25° around the bearing, and presses boost-step /
+dodge every 0.5 s. The vehicle drives in, pops out at 12 m, then chases on as the robot. The number is
+the time until the hull gap is ≤ 2 m (capped at 15 s).
+
+| chaser | V2 (before) | V3 (after) |
+|---|---|---|
+| on foot (reference; the on-foot dodge adds no sustained speed) | 13.5 s | 13.5 s |
+| piloted robot (Optimus, 4.6 m) | 13.7 s | **4.7 s** |
+| vehicle → pop-out | 15 s (never) | **2.8 s** |
+
+The test asserts robot ≤ on foot, vehicle ≤ on foot, and V3 robot < V2 robot. Top speed with W + A/D
+air strafing (`robot_bhops_and_air_strafes_like_the_pilot`): on foot 10.5 m/s, V3 robot 9.5 m/s, V2
+robot 5.9 m/s. A skilled on-foot player (tethers, real strafe timing) is faster than this script.
+Tethers also work from the robot now.
+
+The robot beats on foot mostly because of the boost-step. It holds `dash_speed` (20 m/s) for
+`dash_secs`, and in the air the kit keeps that speed (Source air rules). The on-foot dodge never raises
+sustained speed. If robots out-chase people too hard in playtests, look at `dodge_cd` / `dash_speed`
+first. The kit itself is at parity.
+
+### Vehicle weapons: events for presentation (V3 SAUCE)
+
+- Every shot: `GameEvent::ShotFired { construct: Some(id), archetype, muzzle, dir, .. }`. The
+  archetypes are Cannon for the tank shell, Minigun for the coax / nose / chin / car gun, and Rocket
+  for missiles / rocket pods. Shells and missiles are `ProjectileKind::CannonBall` with an explosion.
+- Plus `GameEvent::HeldFx { fx: HeldFx::VehicleFire (61), pos: muzzle, dir, strength: code }` with
+  these codes (`kit::VehicleGun`): 1 tank shell, 2 coax MG, 3 jet nose cannon (salvo alternates
+  sides), 4 missile, 5 chin gun, 6 rocket pod (4-round salvo), 7 car gun, 8 boost-ram (`pos` = the
+  tail, `dir` = backward; a `HeldFx::Thrust` fires with it).
+- The tank turret aims at the pilot's crosshair, so the turret's yaw / pitch is the pilot's look (the
+  replicated player yaw / pitch). There is no separate turret state on the wire.
+- Pop-out: `HeldFx::Transform` with strength ≈ +4 (`TRANSFORM_SECS / pop_secs`), the same
+  speed-scaled cue as combat snaps.
+
+### For the lead
+
+- The masher guard (`masher_input_still_cant_farm_free_vehicle_attacks`) is green in the final state:
+  0 / 17 masher transform presses become vehicle attacks. The timed player is unchanged at 8 / 8
+  (Optimus) and 9 / 10 (car). The 3 / 17 seen mid-work most likely came from an interim pop-out that set the
+  body's velocity straight at the dummy. That put every random vehicle → robot press right on the
+  target, so more enders connected. The final pop-out is a short lunge that stops `pop_gap` off the
+  target, and the early-Transform buffer is untouched. So the guard stays as it is: the rise was a
+  side effect of the interim build, not of timed-play-like hits going up.
+- `Construct::kit` is host-only (not replicated). Client prediction of cockpit seats is unchanged
+  (none, except titans).

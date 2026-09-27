@@ -1910,6 +1910,8 @@ fn transform_attacks(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         let robot = c.comp.xform.mode == XMode::Robot;
         if robot || super::brawl::moving(c) {
             super::brawl::ai(c, env, out);
+        } else if let Some(t) = env.target_for(c).filter(|_| !c.comp.xform.combined) {
+            super::kit::ai_vehicle_fire(c, env, out, t.hull.center()); // TRANSFORMERS V3: alt-mode weapons
         }
         if !creature || robot || super::brawl::moving(c) {
             return;

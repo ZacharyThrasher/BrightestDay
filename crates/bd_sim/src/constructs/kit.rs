@@ -85,6 +85,8 @@ pub struct V3Tuning {
     pub dash_seek_cos: f32,
     /// Vehicle throttle response (1/s; 2.5 = the V2 truck, ~10 = instant).
     pub vehicle_accel: f32,
+    /// Transformer vehicle top speed multiplier (the sprint: faster than a hop chain).
+    pub vehicle_top: f32,
     /// Robot → vehicle: the vehicle starts at least at this fraction of its top speed.
     pub vehicle_launch: f32,
     /// ... and keeps up to this multiple of its top speed of the momentum it transformed out of.
@@ -96,6 +98,9 @@ pub struct V3Tuning {
     /// ... that carries you to this far off them (m, from the body's edge) at up to `pop_speed` m/s.
     pub pop_gap: f32,
     pub pop_speed: f32,
+    /// Vehicle → robot (no pop-out): the robot keeps at most this horizontal speed (m/s) — it
+    /// unfolds and brakes instead of sailing a jet's 40 m/s across the map.
+    pub unfold_carry: f32,
     /// Robot-mode fliers: thrust on held Jump in the air (m/s², top m/s).
     pub fly_thrust: f32,
     pub fly_max: f32,
@@ -130,12 +135,14 @@ impl Default for V3Tuning {
             dash_seek_range: 40.0,
             dash_seek_cos: 0.3,
             vehicle_accel: 9.0,
+            vehicle_top: 1.35,
             vehicle_launch: 0.7,
             vehicle_carry_max: 1.3,
             pop_range: 16.0,
             pop_secs: 0.22,
             pop_gap: 1.2,
             pop_speed: 40.0,
+            unfold_carry: 16.0,
             fly_thrust: 34.0,
             fly_max: 24.0,
             ram_boost: 1.35,
@@ -150,6 +157,56 @@ impl Default for V3Tuning {
             car_gun: gun(0.14, 110.0, 2.8, 1.5, false, 1),
             ai_range: 45.0,
         }
+    }
+}
+
+fn fin(v: f32, d: f32, lo: f32, hi: f32) -> f32 {
+    if v.is_finite() { v.clamp(lo, hi) } else { d }
+}
+
+impl GunTuning {
+    fn sanitize(&mut self, d: &GunTuning) {
+        self.cd = fin(self.cd, d.cd, 0.03, 10.0);
+        self.speed = fin(self.speed, d.speed, 5.0, 400.0);
+        self.dmg = fin(self.dmg, d.dmg, 0.0, 200.0);
+        self.kb = fin(self.kb, d.kb, 0.0, 200.0);
+        self.salvo = self.salvo.clamp(1, 8);
+    }
+}
+
+impl V3Tuning {
+    /// Clamp hostile / broken numbers (host tuning reload) to sane ranges.
+    pub fn sanitize(&mut self) {
+        let d = V3Tuning::default();
+        self.kit_max_height = fin(self.kit_max_height, d.kit_max_height, 0.0, 40.0);
+        self.kit_speed = fin(self.kit_speed, d.kit_speed, 0.1, 3.0);
+        self.kit_speed_min = fin(self.kit_speed_min, d.kit_speed_min, 0.1, 3.0);
+        self.kit_speed_max = fin(self.kit_speed_max, d.kit_speed_max, self.kit_speed_min, 3.0);
+        self.kit_jump = fin(self.kit_jump, d.kit_jump, 0.2, 3.0);
+        self.dash_seek_range = fin(self.dash_seek_range, d.dash_seek_range, 0.0, 200.0);
+        self.dash_seek_cos = fin(self.dash_seek_cos, d.dash_seek_cos, -1.0, 1.0);
+        self.vehicle_accel = fin(self.vehicle_accel, d.vehicle_accel, 0.1, 120.0);
+        self.vehicle_top = fin(self.vehicle_top, d.vehicle_top, 0.2, 3.0);
+        self.vehicle_launch = fin(self.vehicle_launch, d.vehicle_launch, 0.0, 2.0);
+        self.vehicle_carry_max = fin(self.vehicle_carry_max, d.vehicle_carry_max, 0.0, 3.0);
+        self.pop_range = fin(self.pop_range, d.pop_range, -100.0, 60.0);
+        self.pop_secs = fin(self.pop_secs, d.pop_secs, 0.05, 2.0);
+        self.pop_gap = fin(self.pop_gap, d.pop_gap, 0.0, 10.0);
+        self.pop_speed = fin(self.pop_speed, d.pop_speed, 1.0, 120.0);
+        self.unfold_carry = fin(self.unfold_carry, d.unfold_carry, 0.0, 80.0);
+        self.fly_thrust = fin(self.fly_thrust, d.fly_thrust, 0.0, 200.0);
+        self.fly_max = fin(self.fly_max, d.fly_max, 0.0, 80.0);
+        self.ram_boost = fin(self.ram_boost, d.ram_boost, 0.0, 4.0);
+        self.ram_secs = fin(self.ram_secs, d.ram_secs, 0.0, 3.0);
+        self.ram_cd = fin(self.ram_cd, d.ram_cd, 0.05, 30.0);
+        self.ai_range = fin(self.ai_range, d.ai_range, 0.0, 200.0);
+        self.shell.sanitize(&d.shell);
+        self.coax.sanitize(&d.coax);
+        self.nose.sanitize(&d.nose);
+        self.missile.sanitize(&d.missile);
+        self.chin.sanitize(&d.chin);
+        self.rockets.sanitize(&d.rockets);
+        self.car_gun.sanitize(&d.car_gun);
     }
 }
 
@@ -198,14 +255,17 @@ pub fn step_body(c: &mut Construct, pv: &PlayerView, env: &Env<'_>, row_speed: f
     let t = &env.ctx.tuning.transformer.v3;
     let params = params(c, env.ctx.params);
     let off = sole(c);
-    let mut k = c.kit.unwrap_or_else(|| {
-        let mut k = PlayerState::new(c.pos + off, &params);
-        k.prev_buttons = pv.input.buttons; // no phantom press on the first tick
-        k.grounded = c.grounded;
-        k
-    });
+    let mut k = c.kit.unwrap_or_else(|| fresh(c, &params, pv.input.buttons));
     k.pos = c.pos + off;
+    // A transform swaps the collision box (the robot stands taller than the vehicle's centre):
+    // stand the feet on the surface they ended up inside, like the walker did.
+    if let Some(gy) = sunk(env.ctx.voxels, k.pos, c.half.y * 1.8) {
+        k.pos.y = gy;
+        k.vel.y = k.vel.y.max(0.0);
+    }
     k.vel = if c.vel.is_finite() { c.vel } else { Vec3::ZERO };
+    // The moveset may have launched the body (a launcher hop, an air string's float, knockback).
+    k.grounded = c.grounded && k.vel.y <= 0.5;
     // Dodge is the robot's boost-step (brawl), not the on-foot dodge.
     let mut inp = pv.input;
     inp.buttons &= !buttons::DODGE;
@@ -220,6 +280,7 @@ pub fn step_body(c: &mut Construct, pv: &PlayerView, env: &Env<'_>, row_speed: f
     }
     let pilot = c.pilot.unwrap_or(PlayerId(u8::MAX));
     let cw = CollisionWorld::new(env.ctx.voxels, &cols).ignoring(ColliderId::Player(pilot));
+    crate::melee_assist::dash_pre_move(&mut k, &params, env.dt()); // the pop-out's dash (the on-foot melee lunge)
     let _ = step_player(&mut k, &inp, &cw, &params, env.dt());
     if !k.pos.is_finite() || !k.vel.is_finite() {
         c.kit = None;
@@ -231,6 +292,32 @@ pub fn step_body(c: &mut Construct, pv: &PlayerView, env: &Env<'_>, row_speed: f
     c.kit = Some(k);
 }
 
+/// The top of the terrain the feet at `feet` are buried in (searching up to `up` m), if any.
+fn sunk<V: bd_core::voxel::VoxelQuery + ?Sized>(v: &V, feet: Vec3, up: f32) -> Option<f32> {
+    use bd_core::voxel::world_to_voxel;
+    let base = world_to_voxel(feet + Vec3::Y * 0.05);
+    if !v.is_solid(base) {
+        return None;
+    }
+    let top = world_to_voxel(feet + Vec3::Y * up);
+    let mut y = base.y;
+    while y <= top.y {
+        let cell = bd_core::IVec3::new(base.x, y, base.z);
+        if !v.is_solid(cell) {
+            return Some(y as f32 * bd_core::VOXEL_SIZE);
+        }
+        y += 1;
+    }
+    None
+}
+
+fn fresh(c: &Construct, params: &MoveParams, buttons: u16) -> PlayerState {
+    let mut k = PlayerState::new(c.pos + sole(c), params);
+    k.prev_buttons = buttons; // no phantom press on the first tick
+    k.grounded = c.grounded;
+    k
+}
+
 /// Leave the kit (vehicle mode, a transform attack, the pilot hopped out): ropes let go.
 pub fn drop_kit(c: &mut Construct) {
     c.kit = None;
@@ -240,31 +327,35 @@ fn flat(v: Vec3) -> Vec3 {
     Vec3::new(v.x, 0.0, v.z)
 }
 
-/// The chase target: the combo-target pick rule on the pilot's crosshair, else the enemy the pilot
-/// last hit / aimed at when it's in front (within ~60° of the look) and in `range`.
-pub fn chase_target(c: &Construct, pv: &PlayerView, env: &Env<'_>, range: f32) -> Option<Vec3> {
+/// The chase target: the combo-target pick rule on the pilot's crosshair, else the nearest enemy in
+/// `range` within ~35° of the look (flat), else the one the pilot last hit if
+/// it's in front (~60°). The point is led by `lead` s of the target's velocity.
+pub fn chase_target(c: &Construct, pv: &PlayerView, env: &Env<'_>, range: f32, lead: f32) -> Option<Vec3> {
+    use crate::powers::combo_target::{clear_line, pick};
     let here = c.center();
     let voxels = env.ctx.voxels;
-    let cands = env.ctx.enemies_of(c.owner).filter(|e| Some(e.id) != c.pilot).map(|e| (e.id, e.hull));
     let eye = here + Vec3::Y * c.half.y * 0.6;
-    let picked = crate::powers::combo_target::pick(eye, pv.look, cands, |a, b| crate::powers::combo_target::clear_line(voxels, a, b));
-    let id = picked.or(pv.last_target)?;
-    let e = env.ctx.enemies_of(c.owner).find(|e| e.id == id)?;
-    let p = e.hull.center();
-    let d = p - here;
-    if d.length() > range {
-        return None;
-    }
-    if picked.is_none() && flat(d).normalize_or_zero().dot(flat(pv.look).normalize_or_zero()) < 0.5 {
-        return None;
-    }
-    Some(p)
+    let foe = |e: &&PlayerView| Some(e.id) != c.pilot && (e.hull.center() - here).length() <= range;
+    let picked = pick(eye, pv.look, env.ctx.enemies_of(c.owner).filter(foe).map(|e| (e.id, e.hull)), |a, b| clear_line(voxels, a, b));
+    let look = flat(pv.look).normalize_or(flat(c.forward()).normalize_or(Vec3::NEG_Z));
+    let cone = |p: Vec3, cos: f32| flat(p - here).normalize_or_zero().dot(look) >= cos;
+    let id = picked
+        .or_else(|| {
+            env.ctx
+                .enemies_of(c.owner)
+                .filter(foe)
+                .filter(|e| cone(e.hull.center(), 0.82))
+                .min_by(|a, b| (a.hull.center() - here).length_squared().total_cmp(&(b.hull.center() - here).length_squared()))
+                .map(|e| e.id)
+        })
+        .or(pv.last_target.filter(|t| env.ctx.enemies_of(c.owner).filter(foe).any(|e| e.id == *t && cone(e.hull.center(), 0.5))))?;
+    env.ctx.enemies_of(c.owner).find(|e| e.id == id).map(|e| e.hull.center() + e.vel * lead)
 }
 
 /// A boost-step aimed forward-ish steers at the chase target: the flat direction to dash in.
 pub fn dash_seek(c: &Construct, pv: &PlayerView, env: &Env<'_>, wish: Vec3) -> Option<Vec3> {
     let t = &env.ctx.tuning.transformer.v3;
-    let p = chase_target(c, pv, env, t.dash_seek_range)?;
+    let p = chase_target(c, pv, env, t.dash_seek_range, 0.0)?;
     let dir = flat(p - c.center()).normalize_or_zero();
     if dir == Vec3::ZERO {
         return None;
@@ -283,20 +374,33 @@ pub fn launch_vehicle(c: &mut Construct, t: &V3Tuning, top: f32) {
     c.rot = crate::geom::yaw_rotation(dir);
 }
 
+/// Vehicle → robot without a pop-out: brake the horizontal speed to `unfold_carry`.
+pub fn unfold(c: &mut Construct, t: &V3Tuning) {
+    let h = flat(c.vel);
+    let l = h.length();
+    if l > t.unfold_carry && l > 1e-3 {
+        let k = t.unfold_carry / l;
+        c.vel = Vec3::new(c.vel.x * k, c.vel.y, c.vel.z * k);
+    }
+}
+
 /// Vehicle → robot with an enemy ahead inside `pop_range`: a fast transform that carries the robot
 /// to melee range facing them. Returns true when it popped.
 pub fn pop_out(c: &mut Construct, s: &mut HeldState, pv: &PlayerView, env: &Env<'_>, out: &mut ConstructOut) -> bool {
     let t = &env.ctx.tuning.transformer.v3;
-    let Some(p) = chase_target(c, pv, env, t.pop_range + c.half.z.max(c.half.x)).or_else(|| nearest_ahead(c, env, t.pop_range)) else { return false };
+    let body = c.half.x.max(c.half.z);
+    let Some(p) = chase_target(c, pv, env, t.pop_range + body, t.pop_secs).or_else(|| nearest_ahead(c, env, t.pop_range)) else { return false };
     let d = flat(p - c.center());
     let dir = d.normalize_or(flat(c.forward()).normalize_or(Vec3::NEG_Z));
-    let body = c.half.x.max(c.half.z);
-    let gap = (d.length() - body - t.pop_gap).max(0.0);
     let secs = t.pop_secs.max(0.05);
-    let v = (gap / secs).min(t.pop_speed);
-    c.vel = Vec3::new(dir.x * v, c.vel.y.max(1.5), dir.z * v);
     c.rot = crate::geom::yaw_rotation(dir);
     s.transform_t = s.transform_t.min(secs);
+    // The body dashes in on the kit's melee lunge (stops `pop_gap` off their hull).
+    let params = params(c, env.ctx.params);
+    let mut k = c.kit.unwrap_or_else(|| fresh(c, &params, pv.input.buttons));
+    let gap = (d.length() - body - t.pop_gap).max(0.0);
+    k.lunge = crate::melee_assist::LungeDash { t: secs + 0.15, to: Vec3::new(p.x, c.pos.y + (k.chest(&params) - k.pos).y, p.z), speed: (gap / secs).clamp(8.0, t.pop_speed), exit: 4.0, stop: body + t.pop_gap + 0.4, lateral: 0.0 };
+    c.kit = Some(k);
     let speed = (super::pilot::TRANSFORM_SECS / secs).max(1.0);
     fx(out, c, HeldFx::Transform, c.center(), dir, speed);
     true
@@ -380,7 +484,7 @@ fn fire(c: &Construct, out: &mut ConstructOut, g: &GunTuning, aim: Vec3, nose: b
         let dir = (aim + fan).normalize_or(aim);
         // Arcing shells get a small lift so they land on the crosshair at mid range.
         let dir = if g.explode && arch == GunArchetype::Cannon { (dir + Vec3::Y * 0.04).normalize_or(dir) } else { dir };
-        super::pilot::shoot(c, out, from, dir, g.speed, g.dmg * k, g.kb * k, g.explode, arch, if g.explode { 1.5 } else { 0.2 });
+        super::pilot::shoot(c, out, from, dir, g.speed, g.dmg * k, g.kb * k, g.explode, arch, if c.pilot.is_none() { 0.0 } else if g.explode { 1.5 } else { 0.2 }); // recoil kicks the pilot's camera only
         fx(out, c, HeldFx::VehicleFire, from, dir, code as u8 as f32);
     }
 }
@@ -436,11 +540,12 @@ pub fn vehicle_fire(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &m
     fired
 }
 
-/// A follower's vehicle weapons: fire at `target` when it's in range (and, for fixed guns, ahead).
+/// A follower's vehicle weapons (call it in vehicle mode): fire at `target` when it's in range (and,
+/// for fixed guns, ahead).
 pub fn ai_vehicle_fire(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, target: Vec3) {
     let t = &env.ctx.tuning.transformer.v3;
     let arm = armament(c);
-    if arm == Armament::None || c.held.transform_t > 0.0 || !c.held.vehicle {
+    if arm == Armament::None {
         return;
     }
     let d = target - c.center();
@@ -459,10 +564,15 @@ pub fn ai_vehicle_fire(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut,
     let dt = env.dt();
     s.cd1 = (s.cd1 - dt).max(0.0);
     s.cd2 = (s.cd2 - dt).max(0.0);
-    let ram_ok = !matches!(arm, Armament::Car { .. }) || dist < 18.0;
-    let trig = Trigger { hold1: true, press2: ram_ok };
+    // Followers pace their heavy weapon (half the pilot's rate) so a squad doesn't shell a
+    // 0 % player off the map; the light gun is theirs to use.
+    let heavy = !matches!(arm, Armament::Car { .. }) || dist < 18.0;
+    let trig = Trigger { hold1: true, press2: heavy };
     let top = crate::constructs::pilot::VEHICLE_SPEED;
-    let _ = vehicle_fire(c, &mut s, env, out, aim, trig, top);
+    let fired = vehicle_fire(c, &mut s, env, out, aim, trig, top);
+    if matches!(fired, Some(VehicleGun::TankShell | VehicleGun::Missile | VehicleGun::Rocket | VehicleGun::RamBoost)) {
+        s.cd2 *= 2.0;
+    }
     c.held.cd1 = s.cd1;
     c.held.cd2 = s.cd2;
     c.held.dash_t = s.dash_t;
