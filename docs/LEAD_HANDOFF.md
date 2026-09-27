@@ -43,7 +43,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
 - Costumes abe83e88bc70188b0 DONE (205 looks, summon hook, grammar; open: 1P hands palette colours in viewmodel.rs, Doom Slayer≈Chief) — got 2 scope adds: exact character name in a SUMMON → costume construct
   ("goku" → Goku-looking construct, "GIANT GOKU" stacks); slot mix-and-match ("gojo but bald",
   "donatello with a straw hat", "goku x luffy"; unknown modifiers ignored). Power phrases still win.
-- Connect feel a6409611d34036099 — hit assist (melee volume+magnetism, projectile/hitscan magnetism),
+- Connect feel a6409611d34036099 DONE (open: railgun beam width not scaled on early release; alloc.rs 5>3 ticks regression from wave, unowned) — hit assist (melee volume+magnetism, projectile/hitscan magnetism),
   weight-pass-2 juice (hit-stop, contact resistance, camera punch, sparks, KO slow-mo; juice.ron),
   LUNGE fix (owner can't feel it: measure trigger rate, loosen, make it felt), railgun early-release shot.
 - Anti-juggle a98da5aecac02be4b (DONE: combat.ron juggle{}, white outline guard, FFA hash 0x0279296707d1b7e0) — knockback decay + short immunity; also owns the FFA hash A/B

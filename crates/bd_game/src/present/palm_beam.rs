@@ -294,6 +294,8 @@ fn track_palms(
     }
 }
 
+type Cams<'w, 's> = Query<'w, 's, &'static Transform, (With<PlayerCamera>, Without<PalmPart>, Without<SimConstruct>)>;
+
 type PartQuery<'w, 's> =
     Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<PalmPart>, Without<SimConstruct>, Without<PlayerCamera>)>;
 
@@ -310,7 +312,7 @@ fn place_palms(
     mut fx: ResMut<FxParticles>,
     mut parts: PartQuery,
     mut lights: Query<&mut PointLight, With<PalmPart>>,
-    cam: Query<&Transform, (With<PlayerCamera>, Without<PalmPart>, Without<SimConstruct>)>,
+    cam: Cams,
     constructs: Query<(&SimConstruct, &Transform), Without<PalmPart>>,
     (mut shake, mut fov): (MessageWriter<CameraShakeEvent>, MessageWriter<FovPunch>),
 ) {

@@ -38,13 +38,13 @@ fn no_energy_name_resolves_to_a_gun() {
         "ultimate beam",
         "LASER BEAM!!!",
     ] {
-        palms(&l, p);
+        palms(l, p);
         let r = l.resolve(p);
         assert_eq!(r.signature.as_ref().map(|s| s.kind), Some(SignatureKind::Beam), "{p:?}");
     }
     // Plain energy casts (not ultimates) come from the palms too.
     for p in ["repulsor", "repulsor blast", "unibeam", "ki blast", "energy blast", "energy beam", "laser beam", "photon beam"] {
-        palms(&l, p);
+        palms(l, p);
         assert!(l.resolve(p).signature.is_none(), "{p:?} is not an ultimate");
     }
 }
