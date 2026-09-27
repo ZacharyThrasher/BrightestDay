@@ -186,6 +186,7 @@ impl World {
             let (o, d) = self.resolve_aim(i, &a);
             (i, o, d)
         });
+        self.combo_steer(i); // COMBO TARGET: a chain step / focused move goes for the target
         let r = self.power_move_inner(i, player, slot);
         self.powers.move_aim = None;
         r
@@ -250,7 +251,7 @@ impl World {
         // (`chain::move_cost`; `cost` is only a weight lifting the tier). Held moves have their own
         // per-slot cooldowns, so no staleness steps on top.
         let cost = super::chain::move_cost(&self.cfg.tuning.willpower.sparks, &self.cfg.rules, mv, 0);
-        if cost > p.willpower + 1e-4 {
+        if cost > p.willpower + 1e-4 && !crate::launch::active(&self.cfg.rules) {
             return Err(PowerError::NotEnoughWillpower);
         }
         // Run the ops; the move only counts (cost + cooldown) if the first op did something.
@@ -486,7 +487,7 @@ impl World {
             return Ok(());
         }
         let p = &mut self.players[i];
-        if cost > p.willpower + 1e-4 {
+        if cost > p.willpower + 1e-4 && !crate::launch::active(&self.cfg.rules) {
             return Err(CastError::NotEnoughWillpower { cost, have: p.willpower });
         }
         p.willpower = (p.willpower - cost).max(0.0);
@@ -1054,7 +1055,8 @@ impl World {
                 let dir = Vec3::new(look.x, look.y * 0.5, look.z).normalize_or(flat(look));
                 let want = dist.clamp(0.5, 40.0);
                 let cw = CollisionWorld::new(&self.voxels, self.colliders()).ignoring(crate::movement::ColliderId::Player(id));
-                let mut d = want;
+                // COMBO TARGET: a blink at the target lands in front of them, not through them
+                let mut d = self.combo_blink_cap(i, hull.center(), dir, want);
                 let h = hull.half().y;
                 for off in [Vec3::ZERO, Vec3::Y * (h - 0.15), Vec3::Y * -(h - 0.15)] {
                     if let Some(hit) = raycast_world(&cw, hull.center() + off, dir, want + 0.5, false) {

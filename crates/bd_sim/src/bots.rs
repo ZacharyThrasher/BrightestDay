@@ -319,13 +319,18 @@ impl BotBrain {
         if self.retarget <= 0.0 || !self.target.is_some_and(valid) {
             self.retarget = 1.0;
             let attacker = me.last_attacker.map(|a| a.0).filter(|a| valid(*a));
+            // WILLPOWER = LAUNCH: loaded (≥ 70 % of the bar) → hunt the KO: high-% enemies count as
+            // much closer (and ignore who hit us). Off = the shipped scoring.
+            let hunt = crate::launch::active(w.rules()) && me.willpower >= 0.7 * w.rules().willpower_max();
+            let pct_k = if hunt { 25.0 } else { 60.0 };
+            let attacker = if hunt { None } else { attacker };
             self.target = attacker.or_else(|| {
                 w.players
                     .iter()
                     .filter(|p| p.alive && p.id != self.id && !p.shielded())
                     // Nearest, but a high-% enemy (easy launch) counts as closer.
                     .min_by(|a, b| {
-                        let score = |q: &crate::world::Player| (q.mv.pos - pos).length_squared() / (1.0 + q.damage_pct / 60.0);
+                        let score = |q: &crate::world::Player| (q.mv.pos - pos).length_squared() / (1.0 + q.damage_pct / pct_k);
                         score(a).total_cmp(&score(b))
                     })
                     .map(|p| p.id)
@@ -624,7 +629,8 @@ impl BotBrain {
             };
             if !group.is_empty() {
                 let r = group[self.rng.below(group.len() as u32) as usize].clone();
-                if base_cost(&r) + 10.0 < wp {
+                // WILLPOWER = LAUNCH: never refused — cast anyway (spend builds %, charge cashes in).
+                if base_cost(&r) + 10.0 < wp || crate::launch::active(w.rules()) {
                     let look = bd_core::input::look_dir(self.yaw, self.pitch);
                     let mut aim = Aim::new(eye, look);
                     aim.target_hint = self.target.map(TargetHint::Player);

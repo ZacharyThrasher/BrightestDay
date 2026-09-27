@@ -291,7 +291,7 @@ impl World {
                 cost = n as f32 * rules.segment_size();
                 surcharge = extra as f32 * rules.segment_size();
             }
-            if cost > self.players[i].willpower + 1e-4 {
+            if cost > self.players[i].willpower + 1e-4 && !crate::launch::active(&self.cfg.rules) {
                 return Err(PowerError::NotEnoughWillpower);
             }
         }

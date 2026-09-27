@@ -15,7 +15,7 @@ fn attack_names_are_not_power_grants() {
     }
     // "mugetsu" was compound-repaired into "mug + senketsu" and granted Kamui Senketsu; "za warudo"
     // was a name of The World; "godspeed" a Nen tier name (so "thunderclap and flash godspeed" split).
-    for p in ["mugetsu", "za warudo", "godspeed", "thunderclap and flash godspeed"] {
+    for p in ["mugetsu", "za warudo", "godspeed", "thunderclap and flash godspeed", "black flash", "jajanken", "ja jan ken"] {
         assert_eq!(grants(p), None, "{p:?} must stay a move, not a grant");
     }
 }

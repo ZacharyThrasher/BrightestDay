@@ -71,6 +71,7 @@ fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
         charge: p.charge.wire(), // CHARGE HOOK
         ready: crate::readiness::ReadySnap::of(&p.power), // POWER HUD
         tell: crate::taunt::tell_byte(p.alive, p.taunt.kind, p.input.held(bd_core::input::buttons::VOICE)), // TAUNT & VOICE TELL
+        hunt: crate::powers::combo_target::wire(p.power.toolbox.hunt.as_ref()), // COMBO TARGET
     }
 }
 

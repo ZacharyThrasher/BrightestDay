@@ -943,6 +943,24 @@
         immune_dmg: 0.5,
         splats: true,
     ),
+    // WILLPOWER = LAUNCH (bd_sim::launch; host rule MatchRules.willpower_launch, off by default). Knockback of
+    // every hit x curve(attacker's bar at hit time): empty_mult at 0 -> mid_mult at mid_frac (linear) -> full_mult
+    // at a full bar (shaped by top_exp). Damage % untouched. Passive regen x regen_mult, charging x charge_mult,
+    // oath refills x oath_mult. Anti-camp: above leak_above of the bar, leak_per_sec/s after leak_after_secs s
+    // without a cast / move (not while charging / reciting), down to that line.
+    launch: (
+        empty_mult: 0.55,
+        mid_mult: 1.0,
+        full_mult: 1.35,
+        mid_frac: 0.5,
+        top_exp: 1.4,
+        regen_mult: 0.4,
+        charge_mult: 2.2,
+        oath_mult: 1.25,
+        leak_above: 0.8,
+        leak_after_secs: 5.0,
+        leak_per_sec: 2.5,
+    ),
     giants: (
         enabled: true,
         min_height: 6.0,

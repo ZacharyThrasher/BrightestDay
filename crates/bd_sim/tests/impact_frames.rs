@@ -73,13 +73,18 @@ fn fire(w: &mut World, slot: u8) -> (Vec<(CritFx, f32)>, f32) {
 #[test]
 fn the_black_flash_shout_always_sparks_black() {
     let table = PowerTable::get();
-    let def = table.def(table.index_of("black_flash").unwrap()).unwrap();
+    let def = table.def(table.index_of("black_flash_technique").unwrap()).unwrap();
     let shout = def.moves.iter().find(|m| m.name == "black flash").unwrap();
     assert_eq!(shout.crit, Some((2.5, CritFx::BlackFlash)), "a data flag, not a name check");
     assert_eq!(shout.juice.as_ref().and_then(|j| j.impact_frame.as_deref()), Some("black_flash"));
-    let slot = slot_of("black_flash", "black flash");
+    // The bare shout fires this move for anyone (a one-off borrow; the technique grants from "kokusen" /
+    // "black flash technique").
+    let ix = bd_sim::powers::toolbox::MoveIndex::shipped();
+    let m = ix.read(table, None, "black flash").move_ref().expect("\"black flash\" is a move");
+    assert_eq!(m.resolve(table).map(|(p, mv)| (p.id.as_str(), mv.name.as_str())), Some(("black_flash_technique", "black flash")));
+    let slot = slot_of("black_flash_technique", "black flash");
     let mut w = duel();
-    assert!(w.grant_power(A, "black_flash"));
+    assert!(w.grant_power(A, "black_flash_technique"));
     for k in 0..12 {
         let (crits, dealt) = fire(&mut w, slot);
         assert_eq!(crits.len(), 1, "shout {k}: exactly one Black Flash crit ({crits:?})");
@@ -90,9 +95,9 @@ fn the_black_flash_shout_always_sparks_black() {
 
 #[test]
 fn moves_without_the_flag_still_roll() {
-    let slot = slot_of("black_flash", "divergent fist");
+    let slot = slot_of("black_flash_technique", "divergent fist");
     let mut w = duel();
-    assert!(w.grant_power(A, "black_flash"));
+    assert!(w.grant_power(A, "black_flash_technique"));
     let mut crits = 0;
     let n = 60;
     for _ in 0..n {
@@ -104,10 +109,10 @@ fn moves_without_the_flag_still_roll() {
 
 #[test]
 fn guaranteed_crits_are_deterministic() {
-    let slot = slot_of("black_flash", "black flash");
+    let slot = slot_of("black_flash_technique", "black flash");
     let run = || {
         let mut w = duel();
-        w.grant_power(A, "black_flash");
+        w.grant_power(A, "black_flash_technique");
         let mut out = Vec::new();
         for _ in 0..4 {
             let (_, d) = fire(&mut w, slot);

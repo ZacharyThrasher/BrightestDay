@@ -153,7 +153,7 @@ fn script(
     if sc.real {
         let w = &mut active.world;
         if !sc.granted {
-            sc.granted = w.grant_power(attacker, "black_flash");
+            sc.granted = w.grant_power(attacker, "black_flash_technique");
         }
         if let Some(a) = w.player_mut(attacker) {
             a.power.move_cd = Default::default();
@@ -163,7 +163,7 @@ fn script(
             a.input.yaw = (-d.x).atan2(-d.z);
         }
         let slot = bd_sim::powers::PowerTable::get()
-            .index_of("black_flash")
+            .index_of("black_flash_technique")
             .and_then(|i| bd_sim::powers::PowerTable::get().def(i))
             .and_then(|d| d.moves.iter().position(|m| m.name == "black flash"))
             .unwrap_or(1) as u8;

@@ -236,7 +236,7 @@ fire gomu gomu no rocket => rocket{fire}
 @hold sharingan | homing chidori => chidori{homing}
 @hold rinnegan | giant almighty push => almighty push{giant}
 @hold rinnegan | reverse almighty push => almighty push{reverse}
-@hold black_flash | black flash but fire => black flash{fire}
+@hold black_flash_technique | black flash but fire => black flash{fire}
 
 # ---- fusion
 rasengan + chidori => rasengan + chidori

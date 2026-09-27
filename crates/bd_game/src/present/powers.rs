@@ -14,6 +14,7 @@ pub mod costume;
 mod dev;
 pub mod juice;
 pub mod movefx; // TOOLBOX PRESENTATION: the move presentation grammar (per op beats × style bodies, poses, sounds)
+pub mod combo_mark; // COMBO TARGET: the hunted mark, the attacker's outline, the focus key
 pub mod op_visuals; // OP VISUALS: every generic-op event's beat (markers, telegraphs, tethers, strikes, auras)
 pub mod stand_ghost; // PRESENTATION POLISH: a borrowed Stand move shows the Stand's own model stepping out
 pub mod ultimate; // PRESENTATION POLISH: the ultimate frame (gather → element silhouette → aftermath)
@@ -55,7 +56,7 @@ pub struct PowersPlugin;
 impl Plugin for PowersPlugin {
     fn build(&self, app: &mut App) {
         dev::build(app);
-        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin, op_visuals::OpVisualsPlugin, time_fx::TimeFxPlugin, stand_ghost::StandGhostPlugin, ultimate::UltimatePlugin))
+        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin, op_visuals::OpVisualsPlugin, time_fx::TimeFxPlugin, stand_ghost::StandGhostPlugin, ultimate::UltimatePlugin, combo_mark::ComboMarkPlugin))
             .init_resource::<SpaceEntities>()
             .init_resource::<TimeStopGrey>()
             .add_systems(Startup, setup)

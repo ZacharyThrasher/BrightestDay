@@ -221,6 +221,17 @@ pub fn bot_wants_charge(w: &crate::World, me: &Player, near: f32, rng: &mut SimR
         return false;
     }
     let max = w.rules().willpower_max();
+    if crate::launch::active(w.rules()) {
+        // WILLPOWER = LAUNCH: the bar is launch power — top it up whenever it's safe-ish, fill it
+        // (nearly) all the way, then go hunting.
+        if holding(&me.input) {
+            return me.willpower < max * 0.95 && near > 9.0;
+        }
+        if !me.mv.grounded || near <= 13.0 {
+            return false;
+        }
+        return me.willpower < max * 0.4 || (me.willpower < max * 0.7 && near > 22.0 && rng.chance(0.05));
+    }
     if holding(&me.input) {
         // Already powering up: keep going while safe and not yet (nearly) full.
         return me.willpower < max * 0.9 && near > 11.0;

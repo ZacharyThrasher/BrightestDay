@@ -354,7 +354,7 @@ const KEY_SECTIONS: [(&str, &[Action]); 4] = [
     ("MOVE", &[Action::Forward, Action::Back, Action::Left, Action::Right, Action::Jump, Action::Crouch, Action::Boost, Action::Dodge, Action::TetherL, Action::TetherR, Action::Reel]),
     (
         "RING",
-        &[Action::Console, Action::ConsoleAlt, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Oath, Action::Charge, Action::Power, Action::Transform, Action::Dismiss],
+        &[Action::Console, Action::ConsoleAlt, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Oath, Action::Charge, Action::Power, Action::Focus, Action::Transform, Action::Dismiss],
     ),
     ("VIEW / AIM", &[Action::ToggleView, Action::Shoulder, Action::Aim, Action::AltFire]),
     ("OTHER", &[Action::Scoreboard, Action::Taunt, Action::Unstick]),

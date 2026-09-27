@@ -51,6 +51,10 @@ fn the_famous_lines_fire_the_famous_moves() {
     fires("dirty deeds done dirt cheap", "kit_valentine", "d4c");
     fires("funny valentine ultimate", "kit_valentine", "love train");
     fires("summoning jutsu", "kit_jiraiya", "summon gamabunta");
+    // Owner call: bare attack names fire the one-off move; the techniques grant from their other names.
+    fires("black flash", "black_flash_technique", "black flash");
+    fires("jajanken", "gon_kit", "jajanken rock");
+    fires("ja jan ken", "gon_kit", "jajanken rock");
 }
 
 #[test]
@@ -103,7 +107,7 @@ fn reworked_headliners_keep_their_shape() {
     assert!(matches!(bf.crit, Some((_, bd_sim::powers::CritFx::BlackFlash))));
     assert_eq!(bf.juice.as_ref().and_then(|j| j.impact_frame.as_deref()), Some("black_flash"));
     // Divergent Fist is two impacts from one swing.
-    let df = mv("black_flash", None, "divergent fist");
+    let df = mv("black_flash_technique", None, "divergent fist");
     assert!(df.ops.iter().any(|o| matches!(o, MoveOp::DelayedHit { .. })));
     // Kaio-ken rush: a flurry, and the body pays.
     let kr = mv("kaioken", None, "kaioken rush");

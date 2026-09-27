@@ -2312,7 +2312,7 @@
         kind: Kit,
         names: ["gon", "gon freecss", "gon freecs", "gon's", "gone freecss", "gon free css"],
         fx: "chi",
-        shouts: [("Jajanken Rock", 0), ("first comes rock", 0), ("jan ken guu", 0), ("jajanken gu", 0),
+        shouts: [("Jajanken Rock", 0), ("Jajanken", 0), ("ja jan ken", 0), ("jajan ken", 0), ("jan ken", 0), ("jan ken pon", 0), ("first comes rock", 0), ("jan ken guu", 0), ("jajanken gu", 0),
                  ("jajanken paper", 1), ("jan ken paa", 1), ("jajanken pa", 1),
                  ("jajanken scissors", 2), ("jan ken chi", 2), ("jajanken chi", 2),
                  ("adult gon", 3), ("gon transformation", 3), ("gon full power", 3),

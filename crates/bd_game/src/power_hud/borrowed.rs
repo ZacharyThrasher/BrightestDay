@@ -7,9 +7,9 @@
 //!   staleness step: repeating costs more sparks — cycle!). Unused chips fade after a while.
 //! * **Chain pips**: a line with separators ("bamf -> hulk smash -> pistol") shows one pip per link;
 //!   each pops as its move fires, the next one to fire breathes.
-//! * **Tab** (the scoreboard key, like the power cards): the moves' names are listed on their own
-//!   card in the Tab label row (`labels.rs` `moves_card`: each chip's glyph + name, in chip order), so
-//!   they never pile onto the power cards (TEXT CLUTTER).
+//! * **Tab** (the scoreboard key): no always-on names — the POWER HOTBAR (`hotbar`) is the one bar
+//!   now (its slots + Tab tray already cover "the moves you fired"), so these chips stay quiet;
+//!   `labels.rs` pops a hover tooltip for the hotbar's own icons instead (TEXT CLUTTER, avoided).
 //!
 //! Inputs: [`MoveFxFired`] with `borrowed` (the local player's, from the sim's `PowerEvent::Fired`),
 //! the own `ToolboxSnap` (host cooldowns, repeats, the pending chain — docs/toolbox/PRESENTATION_API.md),

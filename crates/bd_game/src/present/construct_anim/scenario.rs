@@ -151,7 +151,11 @@ fn face(look: &mut LookAngles, d: Vec3, pitch: f32) {
 
 fn cast(active: &mut ActiveWorld, lex: &bd_lexicon::Lexicon, me: PlayerId, phrase: &str, dir: Vec3) -> Option<ConstructId> {
     let it = lex.intent(phrase, &[], false);
-    let r = it.resolution;
+    let mut r = it.resolution;
+    // The console's costume hook, exactly as a summon runs it (transformers keep their own body).
+    if bd_shapes::costume::summon::apply(phrase, &mut r.recipe, &mut r.shape) {
+        r.alt_shape = None;
+    }
     info!("piloting scenario: \"{phrase}\" -> {} pilot {:?}", r.signature(), it.pilot);
     let eye = active.world.player(me).map(|p| p.eye(active.world.params()))?;
     match active.world.cast_shaped(me, r.recipe, r.shape, r.alt_shape, bd_sim::Aim::new(eye, (dir + Vec3::new(0.0, -0.35, 0.0)).normalize_or_zero())) {

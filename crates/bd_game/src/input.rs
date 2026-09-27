@@ -175,6 +175,8 @@ pub struct LocalInputState {
     /// (`VOICE`) held this frame, and a tap latch — tells only, never read by movement or combat.
     pub tell_held: u16,
     pub tell_latched: u16,
+    /// COMBO TARGET (`present::powers::combo_mark`): the focus key held (`buttons::FOCUS`).
+    pub focus_held: u16,
     /// Move axes latched on the tick typing began; sent unchanged until typing ends.
     typing_move: Option<(i8, i8)>,
     /// Buttons held across the end of typing that weren't being sent: dropped until released.
@@ -184,7 +186,7 @@ pub struct LocalInputState {
 impl LocalInputState {
     /// Builds and records the input for the next tick. Called once per tick.
     pub fn next_tick(&mut self, look: LookAngles, typing: bool) -> PlayerInput {
-        let mut b = ((self.held | self.latched) & !self.ext_mask) | self.ext_held | self.ext_latched | self.tell_held | self.tell_latched;
+        let mut b = ((self.held | self.latched) & !self.ext_mask) | self.ext_held | self.ext_latched | self.tell_held | self.tell_latched | self.focus_held;
         self.latched = 0;
         self.ext_latched = 0;
         self.tell_latched = 0;

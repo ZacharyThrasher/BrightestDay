@@ -51,11 +51,13 @@ const PIP: f32 = 20.0;
 const PICKUP: f32 = 30.0;
 
 #[derive(Resource)]
-struct Strip {
+pub(crate) struct Strip {
     root: Entity,
-    icons: [(Entity, Handle<IconMaterial>); SLOTS],
+    /// Icon entities (`labels::tooltip` hit-tests these to find a hovered held power under Tab).
+    pub(crate) icons: [(Entity, Handle<IconMaterial>); SLOTS],
     pips: [(Entity, Handle<IconMaterial>); HUD_TIMERS],
-    pickup: (Entity, Handle<IconMaterial>),
+    /// The carried-pickup icon (also hit-tested for its hover tooltip).
+    pub(crate) pickup: (Entity, Handle<IconMaterial>),
     arc: (Entity, Handle<IconMaterial>),
 }
 
@@ -81,7 +83,6 @@ fn spawn_strip(mut commands: Commands, mut mats: ResMut<Assets<IconMaterial>>) {
     let root = commands
         .spawn((
             Name::new("PowerHudStrip"),
-            super::labels::StripRoot,
             Node {
                 position_type: PositionType::Absolute,
                 left: px(0),

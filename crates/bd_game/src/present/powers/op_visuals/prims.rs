@@ -158,6 +158,9 @@ pub enum MarkKind {
     Captured,
     /// Held in a command grab.
     Held,
+    /// COMBO TARGET (`combo_mark`): a toolbox command is hunting you — three chevrons closing on
+    /// the chest + a quarry pin overhead (distinct from the brief `Hunted` reticle).
+    Quarry,
 }
 
 /// Draw a marker on a body. `feet` / `size` place it (a point marker passes its point and 1).
@@ -373,6 +376,45 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
                 seg(pen, v, c + side - Vec3::Y * 0.35 * s, c + side * 0.6 - Vec3::Y * 0.35 * s, 0.05 * ts, look.main, glow);
             }
         }
+        MarkKind::Quarry => {
+            // Three chevrons turning round the chest, breathing in toward it (the string is coming).
+            let c = feet + Vec3::Y * 1.0 * s;
+            let breathe = 0.5 + 0.5 * (t * 7.0).sin();
+            let rad = (0.95 - 0.18 * breathe) * s * far.min(1.6);
+            let arm = 0.24 * s * far.min(1.6);
+            let spin = t * 1.3;
+            let col = mix3(look.main, look.core, 0.15 * breathe);
+            for k in 0..3 {
+                let a = spin + k as f32 * TAU / 3.0;
+                let out = v.right * a.cos() + v.up * a.sin();
+                let side = v.up * a.cos() - v.right * a.sin();
+                let tip = c + out * rad;
+                seg(pen, v, tip, tip + (out + side * 0.9) * arm, 0.05 * ts, col, glow * 1.4);
+                seg(pen, v, tip, tip + (out - side * 0.9) * arm, 0.05 * ts, col, glow * 1.4);
+            }
+            // The quarry pin: a downward chevron over the head, bobbing (findable across the map).
+            let bob = head + Vec3::Y * (0.08 * (t * 3.0).sin()) * hs;
+            let w = 0.3 * hs;
+            seg(pen, v, bob + v.right * w + Vec3::Y * w * 0.7, bob, 0.07 * ts, look.main, glow * 1.6 * p);
+            seg(pen, v, bob - v.right * w + Vec3::Y * w * 0.7, bob, 0.07 * ts, look.main, glow * 1.6 * p);
+            seg(pen, v, bob + Vec3::Y * w * 0.25, bob - Vec3::Y * w * 0.15, 0.05 * ts, look.core, glow * 1.2);
+        }
+    }
+}
+
+/// COMBO TARGET: the attacker's own view of their target — a subtle outline (thin, dim corner
+/// ticks round the body), readable but never louder than the fight.
+pub fn quarry_outline(pen: &mut Pen, v: &View, look: &Look, feet: Vec3, size: f32, t: f32) {
+    let s = size.max(0.3);
+    let c = feet + Vec3::Y * 1.0 * s;
+    let far = ((c - v.cam).length() / 12.0).clamp(1.0, 2.4);
+    let (hw, hh) = (0.62 * s * far.min(1.5), 1.15 * s);
+    let arm = 0.22 * s * far.min(1.5);
+    let g = look.glow * 0.55 * (t / 0.12).min(1.0);
+    for (sx, sy) in [(1.0f32, 1.0f32), (-1.0, 1.0), (-1.0, -1.0), (1.0, -1.0)] {
+        let corner = c + v.right * sx * hw + v.up * sy * hh;
+        seg(pen, v, corner, corner - v.right * sx * arm, 0.022 * far, look.main, g);
+        seg(pen, v, corner, corner - v.up * sy * arm, 0.022 * far, look.main, g);
     }
 }
 
@@ -387,6 +429,19 @@ pub fn self_marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, t: f32,
             let k = (left / total.max(0.1)).clamp(0.0, 1.0);
             arc(pen, v, c, n, 0.1, PI * 0.5, k, 20, 0.012, look.main, look.glow * 1.3 * p);
             circle(pen.fx, c, n, 0.13, 20, 0.006, look.core, look.glow * 0.6 * p, 0.0);
+        }
+        MarkKind::Quarry => {
+            // Three chevrons pointing in at a small ring: something is hunting you.
+            let r = 0.11;
+            circle(pen.fx, c, n, 0.035, 12, 0.006, look.core, look.glow * 0.9 * p, 0.0);
+            for k in 0..3 {
+                let a = t * 1.3 + k as f32 * TAU / 3.0;
+                let out = v.right * a.cos() + v.up * a.sin();
+                let side = v.up * a.cos() - v.right * a.sin();
+                let tip = c + out * r;
+                seg(pen, v, tip, tip + (out + side * 0.9) * 0.045, 0.01, look.main, look.glow * 1.3 * p);
+                seg(pen, v, tip, tip + (out - side * 0.9) * 0.045, 0.01, look.main, look.glow * 1.3 * p);
+            }
         }
         MarkKind::Lock | MarkKind::Hunted => {
             let half = 0.1 + 0.05 * (1.0 - strength);

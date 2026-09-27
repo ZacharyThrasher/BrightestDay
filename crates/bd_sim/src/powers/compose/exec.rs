@@ -143,14 +143,16 @@ impl World {
         let memo = self.compose_memo(i);
         let remembered = |max: f32| memo.and_then(|m| m.last.filter(|f| self.compose_age(m.last_tick) <= max && self.forced_valid(i, *f)));
         match t {
-            Target::Aim | Target::Ground | Target::Everyone => None,
+            // COMBO TARGET: an untargeted step of a hunting command goes for the hunt
+            Target::Aim => self.combo_forced(i),
+            Target::Ground | Target::Everyone => None,
             Target::Me => Some(Forced::Me),
             Target::Player(id) => {
                 let ok = id != me && self.player(id).is_some_and(|q| q.alive && (q.mv.pos - self.players[i].mv.pos).length() <= TARGET_RANGE);
-                if ok { Some(Forced::Player(id)) } else { self.compose_aimed_enemy(i) }
+                if ok { Some(Forced::Player(id)) } else { self.combo_forced(i).or_else(|| self.compose_aimed_enemy(i)) }
             }
-            Target::Pronoun => remembered(PRONOUN_SECS).filter(|f| matches!(f, Forced::Player(_))).or_else(|| self.compose_aimed_enemy(i)),
-            Target::Same => remembered(SAME_SECS).or_else(|| self.compose_aimed_enemy(i)),
+            Target::Pronoun => remembered(PRONOUN_SECS).filter(|f| matches!(f, Forced::Player(_))).or_else(|| self.combo_forced(i)).or_else(|| self.compose_aimed_enemy(i)),
+            Target::Same => remembered(SAME_SECS).or_else(|| self.combo_forced(i)).or_else(|| self.compose_aimed_enemy(i)),
             Target::Nearest => self.compose_nearest_enemy(i),
             Target::It => {
                 // your newest live construct, else the one under the crosshair
@@ -206,7 +208,7 @@ impl World {
         }
         let rules = &self.cfg.rules;
         let cost = if rules.infinite_willpower() { 0.0 } else { move_sparks(&rules.sparks(&self.cfg.tuning.willpower.sparks), &mv, uses, rules.pool_segments()) as f32 * rules.segment_size() };
-        if cost > p.willpower + 1e-4 {
+        if cost > p.willpower + 1e-4 && !crate::launch::active(&self.cfg.rules) {
             return Err(PowerError::NotEnoughWillpower);
         }
         // Target → aim: every aimed op (a lunge, a spell, a pull, a swap…) now points at it.

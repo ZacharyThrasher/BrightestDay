@@ -274,7 +274,7 @@ fn black_flash_crit_rate_and_determinism() {
         let mut w = duel(2);
         stand_at(&mut w, A, 0.0, 0.0);
         stand_at(&mut w, B, 0.0, 40.0);
-        assert!(w.grant_power(A, "black_flash"));
+        assert!(w.grant_power(A, "black_flash_technique"));
         let mut crits = Vec::with_capacity(n);
         for _ in 0..n {
             let evs0 = w.events().len();
@@ -293,7 +293,7 @@ fn black_flash_crit_rate_and_determinism() {
     // Ranged hits never crit.
     let mut w = duel(2);
     stand_at(&mut w, B, 0.0, 40.0);
-    w.grant_power(A, "black_flash");
+    w.grant_power(A, "black_flash_technique");
     for _ in 0..200 {
         let d = hit(&mut w, B, A, HitKind::Shot, 10.0);
         assert!(d < 11.0);

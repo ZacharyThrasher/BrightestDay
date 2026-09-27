@@ -333,7 +333,7 @@ fn golden_borrowed_shouts_and_names() {
     fires("domain expansion unlimited void", "gojo_kit", "unlimited void");
     fires("idle death gamble", "hakari_kit", "idle death gamble");
     // Names grant (a technique / tier) — never a borrow; bare character names stay the costume.
-    for plain in ["water breathing", "one for all", "full cowl", "black flash", "gojo", "sukuna", "deku", "bakugo", "saitama", "tanjiro"] {
+    for plain in ["water breathing", "one for all", "full cowl", "black flash technique", "gojo", "sukuna", "deku", "bakugo", "saitama", "tanjiro"] {
         assert_eq!(reads(plain), None, "{plain:?} is not a move reading");
     }
 }

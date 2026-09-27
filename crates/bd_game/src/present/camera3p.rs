@@ -995,6 +995,7 @@ pub fn tutorial_view(sim: &PlayerSim, alpha: f32, (yaw, pitch): (f32, f32), corp
         seat: None,
         power: Default::default(),
         tell: 0,
+        hunt: None,
     }
 }
 

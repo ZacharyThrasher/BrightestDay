@@ -190,6 +190,10 @@ pub struct PlayerSnap {
     /// now + speaking a cast by voice (presentation only).
     #[serde(default)]
     pub tell: u8,
+    /// COMBO TARGET (protocol v51): the player this one's toolbox command is hunting, id + 1
+    /// (0 = none; `crate::powers::combo_target::unwire`). The target shows a "hunted" mark.
+    #[serde(default)]
+    pub hunt: u8,
 }
 
 impl PlayerSnap {

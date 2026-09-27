@@ -345,6 +345,8 @@ pub struct PlayerView {
     pub power: PowerSnap,
     /// TAUNT & VOICE TELL: `bd_sim::taunt::tell` bits (the taunt playing, speaking a cast).
     pub tell: u8,
+    /// COMBO TARGET: the player this one is hunting (`PlayerSnap::hunt`).
+    pub hunt: Option<PlayerId>,
 }
 
 impl PlayerView {
@@ -607,6 +609,7 @@ fn build_views(
             seat: b.seat.map(|(c, p)| (ConstructId(c), p)),
             power: b.power,
             tell: b.tell, // TAUNT & VOICE TELL
+            hunt: bd_sim::powers::combo_target::unwire(b.hunt), // COMBO TARGET
         });
     }
     let tick16 = curr.tick as u16;

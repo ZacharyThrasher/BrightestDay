@@ -53,7 +53,7 @@ impl World {
         // You perform it yourself: its own willpower weight is yours to pay (a copied ultimate is
         // never a discount ultimate). Cast ops still pay the cast pipeline's price as usual.
         let price = if self.cfg.rules.infinite_willpower() { 0.0 } else { mv.cost.max(0.0) };
-        if price > self.players[i].willpower + 1e-4 {
+        if price > self.players[i].willpower + 1e-4 && !crate::launch::active(&self.cfg.rules) {
             return Err(PowerError::NotEnoughWillpower);
         }
         let id = self.players[i].id;

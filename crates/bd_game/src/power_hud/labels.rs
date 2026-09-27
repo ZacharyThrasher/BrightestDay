@@ -1,430 +1,400 @@
-//! Tab labels over YOUR power icons (owner: "when a player presses tab, show the names of the
-//! powers/abilities they have … put a label that appears above their power icon when they tab"
-//! + "give a suggestion on how it functions"). The one place powers are named.
+//! HOVER TOOLTIP over YOUR power icons (owner feedback, verbatim: "this is very confusing--idk what
+//! ability is what, and I don't know what all the things under rinnegan mean. Maybe only have a
+//! tooltip come up when they hover over the actual ability?"). The one place powers are named.
 //!
-//! While the scoreboard key (Tab) is held, a small card pops above the strip for each held power,
-//! in the strip's slot order and wearing the icon's own colour + glyph chip:
-//! * the power's name, or its active tier / form's ("SUPER SAIYAN BLUE", "NIKA · GEAR FIFTH"),
-//!   burning in the form's aura colour;
-//! * usage chips derived from the data alone (no per-power authoring): per move, its input — a
-//!   keycap from YOUR power bind (tap / HOLD), a speech bubble for a shouted move (say or type it:
-//!   one path; the phrase itself is never shown: mystery) — and a verb from a small closed table
-//!   mapped from the move's op (PROJECTILE, BEAM, BLAST, STRIKE, PULL, DASH, SHIELD, DODGE,
-//!   SUMMON, FORM, AURA, GRAB, TRAP); then a FORM shout for a tiered power and its passives
-//!   ("ALWAYS").
-//! * a carried map pickup gets a small card of its own (GIANT / AWAKENING / ULTIMATE);
-//! * the borrowed moves on the strip's chips get one card listing them (chip glyph + name, in chip
-//!   order) — in the row with the others, so names never pile onto a power card.
+//! While Tab is held there is NO always-on name row and NO big power card — just icons (`strip`,
+//! `hotbar::hud`) plus the scoreboard. Tab already frees the cursor for hotbar drag-and-drop
+//! (`hotbar::hud::TabEdit`); this module reuses that SAME cursor + hit-testing to find the one icon
+//! under the mouse and pop ONE compact tooltip beside it:
+//! * a **hotbar slot** or **tray / recent chip** (`hotbar::hud::TabEdit::hover`, plus the tray list):
+//!   its bound name, a one-line plain description derived from its move's op (`bind_desc`), how to
+//!   fire it in words ("Press 3", "Drag to a slot" — never a glyph), its spark cost and cooldown.
+//! * a **held power's icon** (this module's own hit-test against the strip's icon rects): the
+//!   power's name / current form burning large, then its moves listed compactly, one per line in
+//!   plain words ("Tap G — Almighty Push: shove everyone away") — derived from the data alone (no
+//!   per-power authoring), so a rework never goes stale.
+//! * the **carried map pickup**: its name + a one-line description of what it unlocks.
 //!
-//! Only what you HOLD (never what could be obtained). The row lives inside the strip's root (so
-//! it rides the strip's position and pop) and still shows when the strip is switched off. Rebuilt
-//! only when what it shows changes; the fade just rewrites alphas while it runs.
+//! Only what you HOLD (never what could be obtained): the mystery tenet. Nodes are spawned once;
+//! text / display only change while a tooltip is actually showing (Tab dwell time is short).
 //!
 //! Dev: `BD_TAB_TEST=1` holds Tab (screenshots).
 
-use super::derive::{self, Gem};
-use super::strip::{IconMaterial, IconParams};
+use super::derive::PowerHud;
+use super::strip::Strip;
 use super::PowerHudState;
+use crate::console::RingLexicon;
+use crate::hotbar::hud::{bind_fill, bind_sparks, Over, TabEdit};
+use crate::hotbar::{Hotbar, SlotBind};
 use crate::lobby::prefs::{Action, KeyBinds};
+use crate::sim_bridge::{ActiveWorld, ViewKeys};
 use crate::state::{AppState, InGameMenu};
 use bd_sim::pickups::GateKind;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 
-/// Longest power label (chars) before it is shortened.
-const TAG_CHARS: usize = 28;
-/// Power card width (px; definite so its wrapped usage rows size it): three fit at 1280.
-const CARD_W: f32 = 292.0;
-const CHIP: f32 = 15.0;
-/// Fade in / out (s).
-const FADE_IN: f32 = 0.08;
-const FADE_OUT: f32 = 0.16;
-
-/// Marks the strip's root (the label row is inserted as its first child).
-#[derive(Component)]
-pub struct StripRoot;
-
-#[derive(Component)]
-struct LabelRow;
-
-/// Base colours of a label node (the fade scales their alpha).
-#[derive(Component, Clone, Copy, Default)]
-struct Fade {
-    text: Option<Color>,
-    bg: Option<Color>,
-    border: Option<Color>,
-}
-
-#[derive(Resource, Default)]
-struct Labels {
-    row: Option<Entity>,
-    sig: u64,
-    built: bool,
-    fade: f32,
-    applied: f32,
-    /// Materials and their base alpha (faded with the rest).
-    mats: Vec<(Handle<IconMaterial>, f32)>,
-    /// One shared glyph material per verb.
-    verb_mats: Vec<Handle<IconMaterial>>,
-}
+/// Longest bound name (chars) before it is shortened.
+const TAG_CHARS: usize = 40;
+/// Tooltip card width (px; definite so wrapped lines size it consistently).
+const CARD_W: f32 = 300.0;
+/// Held-power move lines shown before the list is capped (every power ships well under this).
+const MAX_LINES: usize = 8;
+const HEADER_H: f32 = 24.0;
+const DESC_H: f32 = 16.0;
+const META_H: f32 = 16.0;
+const LINE_H: f32 = 16.0;
+const PAD: f32 = 14.0;
 
 pub fn build(app: &mut App) {
-    app.init_resource::<Labels>().add_systems(Update, (attach, update).chain().in_set(crate::present::PresentSet::Sync));
+    app.add_systems(Startup, attach).add_systems(Update, update.in_set(crate::present::PresentSet::Sync));
 }
 
-fn tab_test() -> bool {
-    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *V.get_or_init(|| std::env::var("BD_TAB_TEST").ok().and_then(|v| v.parse::<f32>().ok()).is_some_and(|v| v > 0.0))
+// ------------------------------------------------------------------------------------------- UI
+
+/// The one tooltip's spawned entities (spawned once; text / display flip per frame).
+#[derive(Resource)]
+struct Tooltip {
+    root: Entity,
+    title: Entity,
+    desc: Entity,
+    meta: Entity,
+    /// Fixed pool of line rows (a held power's move list); unused ones stay hidden.
+    lines: Vec<Entity>,
 }
 
-/// Put the (hidden) label row above the strip's icons.
-fn attach(mut commands: Commands, roots: Query<Entity, Added<StripRoot>>, mut labels: ResMut<Labels>) {
-    for root in &roots {
-        let row = commands
-            .spawn((
-                Name::new("PowerTabLabels"),
-                LabelRow,
-                Node { display: Display::None, flex_direction: FlexDirection::Row, align_items: AlignItems::FlexEnd, justify_content: JustifyContent::Center, column_gap: px(8), margin: UiRect::bottom(px(6)), ..default() },
-                Pickable::IGNORE,
-            ))
-            .id();
-        commands.entity(root).insert_children(0, &[row]);
-        labels.row = Some(row);
-        labels.built = false;
-    }
+fn attach(mut commands: Commands) {
+    let mut title = Entity::PLACEHOLDER;
+    let mut desc = Entity::PLACEHOLDER;
+    let mut meta = Entity::PLACEHOLDER;
+    let mut lines: Vec<Entity> = Vec::with_capacity(MAX_LINES);
+    let root = commands
+        .spawn((
+            Name::new("PowerTooltip"),
+            Node {
+                position_type: PositionType::Absolute,
+                display: Display::None,
+                flex_direction: FlexDirection::Column,
+                row_gap: px(3),
+                padding: UiRect::new(px(9), px(9), px(6), px(7)),
+                max_width: px(CARD_W),
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::all(px(4)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.012, 0.035, 0.92)),
+            BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.22)),
+            Pickable::IGNORE,
+            GlobalZIndex(120),
+        ))
+        .with_children(|r| {
+            title = r.spawn((Text::new(""), TextFont::from_font_size(15.0), TextColor(Color::WHITE), TextLayout::default(), Pickable::IGNORE)).id();
+            desc = r
+                .spawn((Node { display: Display::None, ..default() }, Text::new(""), TextFont::from_font_size(12.0), TextColor(Color::srgba(0.86, 0.9, 1.0, 0.88)), TextLayout::default(), Pickable::IGNORE))
+                .id();
+            meta = r.spawn((Node { display: Display::None, ..default() }, Text::new(""), TextFont::from_font_size(11.0), TextColor(Color::srgba(0.7, 0.8, 0.95, 0.8)), Pickable::IGNORE)).id();
+            for _ in 0..MAX_LINES {
+                lines.push(
+                    r.spawn((
+                        Node { display: Display::None, ..default() },
+                        Text::new(""),
+                        TextFont::from_font_size(12.0),
+                        TextColor(Color::srgba(0.88, 0.92, 1.0, 0.92)),
+                        TextLayout::default(),
+                        Pickable::IGNORE,
+                    ))
+                    .id(),
+                );
+            }
+        })
+        .id();
+    commands.insert_resource(Tooltip { root, title, desc, meta, lines });
 }
 
-fn hash(sig: &mut u64, v: u64) {
-    *sig = (*sig ^ v).wrapping_mul(1099511628211);
-}
-
-/// What the cards show: per display slot (power, tier, form, active), drained, the pickup, the
-/// power key.
-fn signature(gems: &[Gem], drained: bool, pickup: Option<GateKind>, key: &str, moves: &[Option<super::borrowed::Chip>]) -> u64 {
-    let mut sig = 0xcbf2_9ce4_8422_2325u64;
-    for c in moves {
-        hash(&mut sig, c.map_or(0, |c| (c.mv as *const _ as u64) ^ (c.glyph as u64) << 56));
-    }
-    for g in gems {
-        hash(&mut sig, g.power.map_or(0, |p| p as u64 + 1) << 16 | (g.tier as u64) << 8 | (g.transformed as u64) << 1 | g.active as u64);
-    }
-    hash(&mut sig, drained as u64 | pickup.map_or(0, |k| k as u64 + 1) << 4);
-    hash(&mut sig, key.bytes().fold(0u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64)));
-    sig
-}
-
-#[allow(clippy::too_many_arguments)]
-fn update(
-    mut commands: Commands,
-    time: Res<Time<Real>>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    binds: Res<KeyBinds>,
-    focus: Res<crate::input::UiFocus>,
-    state: Res<State<AppState>>,
-    menu: Res<InGameMenu>,
-    st: Res<PowerHudState>,
-    borrowed: Option<Res<super::borrowed::BorrowedHud>>,
-    mut labels: ResMut<Labels>,
-    mut mats: ResMut<Assets<IconMaterial>>,
-    mut nodes: Query<&mut Node, With<LabelRow>>,
-    mut faded: Query<(&Fade, Option<&mut TextColor>, Option<&mut BackgroundColor>, Option<&mut BorderColor>)>,
-) {
-    let Some(row) = labels.row else { return };
-    let hud = &st.0;
-    let tab = (!focus.typing && binds.pressed(Action::Scoreboard, &keys, &mouse)) || tab_test();
-    let pickup = hud.pickup.map(|p| p.0);
-    let moves: &[Option<super::borrowed::Chip>] = borrowed.as_ref().map_or(&[], |b| &b.chips[..]);
-    let has_moves = moves.iter().any(|c| c.is_some());
-    let want = tab && *state.get() == AppState::InGame && !menu.0 && (hud.count > 0 || pickup.is_some() || has_moves);
-    let dt = time.delta_secs().clamp(0.0, 0.1);
-    labels.fade = if want { (labels.fade + dt / FADE_IN).min(1.0) } else { (labels.fade - dt / FADE_OUT).max(0.0) };
-    let visible = labels.fade > 0.0;
-    if let Ok(mut n) = nodes.get_mut(row) {
-        let d = if visible { Display::Flex } else { Display::None };
+fn set_display(nodes: &mut Query<&mut Node>, e: Entity, on: bool) {
+    if let Ok(mut n) = nodes.get_mut(e) {
+        let d = if on { Display::Flex } else { Display::None };
         if n.display != d {
             n.display = d;
         }
     }
-    if !visible {
-        return;
-    }
-    // Rebuild on change (only while it shows; fading out keeps the last cards).
-    let key = binds.get(Action::Power).label();
-    let sig = signature(&hud.gems, hud.drained, pickup, &key, moves);
-    if want && (!labels.built || sig != labels.sig) {
-        labels.sig = sig;
-        labels.built = true;
-        labels.mats.clear();
-        commands.entity(row).despawn_related::<Children>();
-        let fade = labels.fade;
-        let mut cx = Cx { fade, mats: &mut mats, labels: &mut labels, key: &key, drained: hud.drained };
-        commands.entity(row).with_children(|r| {
-            // In the strip's slot order (the icons never jump around; neither do the cards).
-            for (k, g) in hud.gems.iter().enumerate() {
-                let Some(id) = g.power else { continue };
-                let Some(def) = bd_sim::powers::PowerTable::get().def(id) else { continue };
-                let (label, form) = power_label(def, g.tier, g.transformed);
-                let hints = power_hints(def, id, g.tier, g.transformed, if g.active { 0 } else { 1 });
-                power_card(r, &mut cx, k, &label, form, g.look, &hints);
-            }
-            if let Some(kind) = pickup {
-                pickup_card(r, &mut cx, kind);
-            }
-            if has_moves {
-                moves_card(r, &mut cx, moves);
-            }
-        });
-        labels.applied = fade;
-        return;
-    }
-    // Fade: rewrite alphas only while it moves.
-    if (labels.fade - labels.applied).abs() > 1e-3 {
-        let f = labels.fade;
-        labels.applied = f;
-        for (fd, t, bg, b) in &mut faded {
-            if let (Some(c), Some(mut t)) = (fd.text, t) {
-                t.0 = c.with_alpha(c.alpha() * f);
-            }
-            if let (Some(c), Some(mut bg)) = (fd.bg, bg) {
-                bg.0 = c.with_alpha(c.alpha() * f);
-            }
-            if let (Some(c), Some(mut b)) = (fd.border, b) {
-                *b = BorderColor::all(c.with_alpha(c.alpha() * f));
-            }
-        }
-        let all: Vec<(Handle<IconMaterial>, f32)> = labels.mats.iter().cloned().chain(labels.verb_mats.iter().map(|h| (h.clone(), VERB_ALPHA))).collect();
-        for (h, a) in all {
-            if let Some(mut m) = mats.get_mut(&h) {
-                m.params.color.w = a * f;
-            }
-        }
+}
+
+fn set_text(texts: &mut Query<&mut Text>, e: Entity, s: &str) {
+    if let Ok(mut t) = texts.get_mut(e)
+        && t.0 != s
+    {
+        t.0 = s.to_string();
     }
 }
 
-/// Build context.
-struct Cx<'a, 'b> {
-    fade: f32,
-    mats: &'a mut Assets<IconMaterial>,
-    labels: &'b mut Labels,
-    key: &'a str,
-    drained: bool,
+// --------------------------------------------------------------------------------------- hover
+
+/// The one thing under the cursor right now (Tab held, hit-tested against the hotbar's own
+/// slot / tray hover — `TabEdit::hover` — plus this module's own test against the strip's icons).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Target {
+    /// A held power's strip icon (its display slot index).
+    Power(usize),
+    Pickup,
+    /// A hotbar slot (keys 1-4).
+    Slot(usize),
+    /// A tray chip (recent moves / your held powers' moves, shown while Tab is held).
+    Tray(usize),
 }
 
-const VERB_ALPHA: f32 = 0.9;
-const VERB_RGB: [f32; 3] = [0.78, 0.84, 0.95];
+fn hit(hits: &Query<(&ComputedNode, &UiGlobalTransform)>, e: Entity, p: Vec2) -> bool {
+    hits.get(e).is_ok_and(|(c, t)| c.contains_point(*t, p))
+}
 
-impl Cx<'_, '_> {
-    fn text(&self, r: &mut ChildSpawnerCommands, s: &str, size: f32, c: Color) {
-        r.spawn((Text::new(s.to_string()), TextFont::from_font_size(size), TextColor(c.with_alpha(c.alpha() * self.fade)), Fade { text: Some(c), ..default() }, Pickable::IGNORE));
+/// What's hovered: the hotbar's own hover (slot / tray) takes priority (it already excludes a
+/// drag-in-progress); otherwise this module hit-tests the held-power icons + the pickup icon
+/// itself, using the SAME freed cursor (`TabEdit::cursor`, physical via the window's scale).
+fn resolve_target(edit: &TabEdit, bar: &Hotbar, hud: &PowerHud, strip: &Strip, hits: &Query<(&ComputedNode, &UiGlobalTransform)>, scale: f32) -> Option<Target> {
+    if !edit.on || edit.drag.is_some() {
+        return None;
     }
-
-    fn icon(&mut self, p: IconParams) -> Handle<IconMaterial> {
-        let a = p.color.w;
-        let h = self.mats.add(IconMaterial { params: IconParams { color: Vec4::new(p.color.x, p.color.y, p.color.z, a * self.fade), ..p } });
-        self.labels.mats.push((h.clone(), a));
-        h
+    match edit.hover {
+        Some(Over::Slot(k)) if bar.slots.get(k).is_some_and(|s| !s.is_empty()) => return Some(Target::Slot(k)),
+        Some(Over::Tray(j)) if j < edit.tray.len() => return Some(Target::Tray(j)),
+        _ => {}
     }
-
-    fn verb_mat(&mut self, v: Verb) -> Handle<IconMaterial> {
-        if self.labels.verb_mats.is_empty() {
-            let mats = &mut *self.mats;
-            self.labels.verb_mats = Verb::ALL
-                .iter()
-                .map(|v| {
-                    mats.add(IconMaterial {
-                        params: IconParams {
-                            color: Vec4::new(VERB_RGB[0], VERB_RGB[1], VERB_RGB[2], VERB_ALPHA),
-                            a: Vec4::new(v.glyph() as f32, 1.0, -1.0, 0.0),
-                            b: Vec4::new(1.0, 0.0, 0.0, 0.0),
-                            c: Vec4::new(1.0, 1.0, 1.0, 0.0),
-                        },
-                    })
-                })
-                .collect();
+    let p = edit.cursor? * scale;
+    for (k, (e, _)) in strip.icons.iter().enumerate() {
+        if hud.gems[k].power.is_some() && hit(hits, *e, p) {
+            return Some(Target::Power(k));
         }
-        let k = Verb::ALL.iter().position(|x| *x == v).unwrap_or(0);
-        let h = self.labels.verb_mats[k].clone();
-        if let Some(mut m) = self.mats.get_mut(&h) {
-            m.params.color.w = VERB_ALPHA * self.fade;
-        }
-        h
     }
-}
-
-fn lin(c: [f32; 3]) -> Color {
-    Color::linear_rgb(c[0], c[1], c[2])
-}
-
-/// The card frame: dark, an accent underline in the power's colour.
-fn card<'a>(r: &'a mut ChildSpawnerCommands, cx: &Cx, accent: Color, width: Option<f32>) -> EntityCommands<'a> {
-    let bg = Color::srgba(0.0, 0.01, 0.03, 0.78);
-    let border = accent.with_alpha(0.85);
-    r.spawn((
-        Node {
-            flex_direction: FlexDirection::Column,
-            row_gap: px(3),
-            padding: UiRect::new(px(7), px(7), px(4), px(5)),
-            border: UiRect::bottom(px(2)),
-            border_radius: BorderRadius::all(px(3)),
-            width: width.map_or(Val::Auto, |w| px(w)),
-            flex_shrink: 0.0,
-            ..default()
-        },
-        BackgroundColor(bg.with_alpha(bg.alpha() * cx.fade)),
-        BorderColor::all(border.with_alpha(border.alpha() * cx.fade)),
-        Fade { bg: Some(bg), border: Some(border), ..default() },
-        Pickable::IGNORE,
-    ))
+    if hud.pickup.is_some() && hit(hits, strip.pickup.0, p) {
+        return Some(Target::Pickup);
+    }
+    None
 }
 
 #[allow(clippy::too_many_arguments)]
-fn power_card(r: &mut ChildSpawnerCommands, cx: &mut Cx, k: usize, label: &str, form: bool, look: derive::Look, hints: &[Hint]) {
-    let accent = lin(if form { look.form_color } else { look.color });
-    card(r, cx, accent, Some(CARD_W)).with_children(|c| {
-        // Name row: the icon's chip + the name (a form burns in its aura colour).
-        c.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(5), ..default() }, Pickable::IGNORE)).with_children(|n| {
-            let (col, f) = (look.color, look.form_color);
-            let h = cx.icon(IconParams {
-                color: Vec4::new(col[0], col[1], col[2], 1.0),
-                a: Vec4::new(look.glyph as f32, 1.0, if form { 1.0 } else { -1.0 }, 0.0),
-                b: Vec4::new(0.0, 0.0, cx.drained as u8 as f32, 0.0),
-                c: Vec4::new(f[0], f[1], f[2], k as f32 * 1.7),
-            });
-            n.spawn((Node { width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, ..default() }, MaterialNode(h), Pickable::IGNORE));
-            let tc = if cx.drained {
-                Color::srgba(0.6, 0.6, 0.6, 0.7)
-            } else if form {
-                lin(look.form_color).mix(&Color::WHITE, 0.3)
-            } else {
-                Color::WHITE.with_alpha(0.92)
-            };
-            cx.text(n, label, 13.0, tc);
-        });
-        // Usage: input + verb per move, then passives (wraps inside the card).
-        c.spawn((Node { flex_direction: FlexDirection::Row, flex_wrap: FlexWrap::Wrap, align_items: AlignItems::Center, column_gap: px(7), row_gap: px(3), ..default() }, Pickable::IGNORE)).with_children(|u| {
-            for h in hints {
-                u.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(3), flex_shrink: 0.0, ..default() }, Pickable::IGNORE)).with_children(|g| {
-                    input_chip(g, cx, h.input);
-                    verb_chip(g, cx, h.verb);
-                });
-            }
-        });
-    });
+fn update(
+    edit: Res<TabEdit>,
+    bar: Res<Hotbar>,
+    st: Res<PowerHudState>,
+    strip: Option<Res<Strip>>,
+    active: Option<Res<ActiveWorld>>,
+    keys: Res<ViewKeys>,
+    binds: Res<KeyBinds>,
+    lex: Option<Res<RingLexicon>>,
+    state: Res<State<AppState>>,
+    menu: Res<InGameMenu>,
+    window: Option<Single<&Window, With<PrimaryWindow>>>,
+    hits: Query<(&ComputedNode, &UiGlobalTransform)>,
+    tip: Option<Res<Tooltip>>,
+    mut nodes: Query<&mut Node>,
+    mut texts: Query<&mut Text>,
+) {
+    let Some(tip) = tip else { return };
+    let hide = |nodes: &mut Query<&mut Node>| set_display(nodes, tip.root, false);
+    if *state.get() != AppState::InGame || menu.0 {
+        hide(&mut nodes);
+        return;
+    }
+    let scale = window.as_ref().map_or(1.0, |w| w.scale_factor());
+    let (Some(strip), Some(a)) = (strip.as_deref(), active.as_deref()) else {
+        hide(&mut nodes);
+        return;
+    };
+    let Some(target) = resolve_target(&edit, &bar, &st.0, strip, &hits, scale) else {
+        hide(&mut nodes);
+        return;
+    };
+    let held = a.local_player().map(|p| &p.power);
+    let tb = keys.curr.own.as_ref().and_then(|o| o.toolbox).filter(|_| keys.valid);
+    let Some(content) = build_content(target, &bar, &st, a, held, tb, lex.as_deref(), &binds, &edit.tray) else {
+        hide(&mut nodes);
+        return;
+    };
+    set_text(&mut texts, tip.title, &content.title);
+    set_display(&mut nodes, tip.desc, !content.desc.is_empty());
+    set_text(&mut texts, tip.desc, &content.desc);
+    set_display(&mut nodes, tip.meta, !content.meta.is_empty());
+    set_text(&mut texts, tip.meta, &content.meta);
+    for (i, &le) in tip.lines.iter().enumerate() {
+        let on = i < content.lines.len();
+        set_display(&mut nodes, le, on);
+        if on {
+            set_text(&mut texts, le, &content.lines[i]);
+        }
+    }
+    // Beside the cursor, clamped inside the window (never overlaps the edge, never truncated).
+    let (ww, wh) = window.as_ref().map_or((1280.0, 720.0), |w| (w.width(), w.height()));
+    let est_h = HEADER_H + if content.desc.is_empty() { 0.0 } else { DESC_H } + if content.meta.is_empty() { 0.0 } else { META_H } + content.lines.len() as f32 * LINE_H + PAD;
+    let c = edit.cursor.unwrap_or_default();
+    let x = (c.x + 22.0).min((ww - CARD_W - 8.0).max(8.0)).max(8.0);
+    let y = (c.y - 8.0).min((wh - est_h - 8.0).max(8.0)).max(8.0);
+    if let Ok(mut n) = nodes.get_mut(tip.root) {
+        let (l, t) = (px(x), px(y));
+        if n.left != l || n.top != t {
+            n.left = l;
+            n.top = t;
+        }
+    }
+    set_display(&mut nodes, tip.root, true);
 }
 
-fn pickup_card(r: &mut ChildSpawnerCommands, cx: &mut Cx, kind: GateKind) {
-    let (col, glyph) = derive::pickup_look(kind);
-    let name = match kind {
+// ---------------------------------------------------------------------------------- content (pure)
+
+/// What a tooltip shows: a title, an optional one-line description, a "how to fire it / cost /
+/// cooldown" meta line, and/or (a held power's icon) a compact per-move list.
+#[derive(Clone, Debug, Default, PartialEq)]
+struct TooltipContent {
+    title: String,
+    desc: String,
+    meta: String,
+    lines: Vec<String>,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_content(
+    target: Target,
+    bar: &Hotbar,
+    st: &PowerHudState,
+    a: &ActiveWorld,
+    held: Option<&bd_sim::powers::PlayerPower>,
+    tb: Option<bd_sim::powers::chain::ToolboxSnap>,
+    lex: Option<&RingLexicon>,
+    binds: &KeyBinds,
+    tray: &[crate::hotbar::Entry],
+) -> Option<TooltipContent> {
+    let hud = &st.0;
+    match target {
+        Target::Power(k) => {
+            let g = hud.gems[k];
+            let id = g.power?;
+            let def = bd_sim::powers::PowerTable::get().def(id)?;
+            let key = binds.get(Action::Power).label();
+            let cooldown_secs = def.moves_at(g.tier).first().map_or(0.0, |m| m.cooldown);
+            Some(power_content(def, id, g.tier, g.transformed, if g.active { 0 } else { 1 }, &key, g.shown, cooldown_secs))
+        }
+        Target::Pickup => hud.pickup.map(|(kind, life)| pickup_content(kind, life)),
+        Target::Slot(k) => {
+            let s = bar.slots.get(k)?;
+            if s.is_empty() {
+                return None;
+            }
+            let (fill, uses) = bind_fill(&s.bind, st, held, tb);
+            let sparks = bind_sparks(&s.bind, &s.phrase, s.def, a, lex, uses);
+            let key = binds.get([Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4][k]).label();
+            let cooldown_secs = s.def.map_or(0.0, |d| d.cooldown);
+            Some(bind_content(title_text(&s.phrase), &s.bind, s.def, s.power, &format!("Press {key}"), sparks, Some(fill), cooldown_secs))
+        }
+        Target::Tray(j) => {
+            let e = tray.get(j)?;
+            let (fill, uses) = bind_fill(&e.bind, st, held, tb);
+            let sparks = bind_sparks(&e.bind, &e.phrase, e.def, a, lex, uses);
+            let cooldown_secs = e.def.map_or(0.0, |d| d.cooldown);
+            Some(bind_content(title_text(&e.phrase), &e.bind, e.def, e.power, "Drag to a slot", sparks, Some(fill), cooldown_secs))
+        }
+    }
+}
+
+/// A hotbar slot / tray entry's tooltip: its bound name, a plain description, how to fire it, its
+/// spark cost and cooldown state.
+fn bind_content(
+    title: String,
+    bind: &SlotBind,
+    def: Option<&'static bd_sim::powers::MoveDef>,
+    power: Option<&'static bd_sim::powers::PowerDef>,
+    fire: &str,
+    sparks: u32,
+    fill: Option<f32>,
+    cooldown_secs: f32,
+) -> TooltipContent {
+    let desc = bind_desc(bind, def, power);
+    let cost = if sparks == 0 { "Free".to_string() } else { format!("{sparks} spark{}", if sparks == 1 { "" } else { "s" }) };
+    let cd = match fill {
+        Some(f) if f >= 0.999 => "Ready".to_string(),
+        Some(f) => format!("{:.1}s", (cooldown_secs * (1.0 - f)).max(0.0)),
+        None => String::new(),
+    };
+    let meta = [fire.to_string(), cost, cd].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("   ·   ");
+    TooltipContent { title, desc, meta, lines: Vec::new() }
+}
+
+/// A bind's one-line plain description, derived from its move's first op (never authored per
+/// power) — a granted power names itself, a plain construct stays generic (mystery tenet).
+fn bind_desc(bind: &SlotBind, def: Option<&'static bd_sim::powers::MoveDef>, power: Option<&'static bd_sim::powers::PowerDef>) -> String {
+    match bind {
+        SlotBind::Empty => String::new(),
+        SlotBind::Phrase { .. } => match power {
+            Some(p) => format!("Grants {}", short_name(p.name.trim())),
+            None => "Casts your bound phrase".to_string(),
+        },
+        _ => def.and_then(move_verb).map(|v| verb_desc(v).to_string()).unwrap_or_else(|| "Fires a move".to_string()),
+    }
+}
+
+/// A held power's icon tooltip: its name / current form (large), then its moves compactly, one
+/// per line in plain words ("Tap G — Almighty Push: shove everyone away").
+fn power_content(def: &'static bd_sim::powers::PowerDef, id: u16, tier: u8, transformed: bool, slot: usize, key: &str, ready: f32, cooldown_secs: f32) -> TooltipContent {
+    let (title, _) = power_label(def, tier, transformed);
+    let meta = if ready >= 0.999 { "Ready".to_string() } else { format!("{:.1}s", (cooldown_secs * (1.0 - ready)).max(0.0)) };
+    let hints = power_hints(def, id, tier, transformed, slot);
+    let lines = hints.iter().take(MAX_LINES).map(|h| format!("{} — {}: {}", input_text(h.input, key), h.name, lower_first(verb_desc(h.verb)))).collect();
+    TooltipContent { title, desc: String::new(), meta, lines }
+}
+
+fn pickup_content(kind: GateKind, life: f32) -> TooltipContent {
+    let title = match kind {
         GateKind::Giant => "GIANT",
         GateKind::Awakening => "AWAKENING",
         GateKind::Ultimate => "ULTIMATE",
-    };
-    card(r, cx, lin(col), None).with_children(|c| {
-        c.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(5), ..default() }, Pickable::IGNORE)).with_children(|n| {
-            let h = cx.icon(IconParams { color: Vec4::new(col[0], col[1], col[2], 1.0), a: Vec4::new(glyph as f32, 1.0, -1.0, 0.0), b: Vec4::new(3.0, 0.0, 0.0, 0.0), c: Vec4::new(1.0, 1.0, 1.0, 0.0) });
-            n.spawn((Node { width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, ..default() }, MaterialNode(h), Pickable::IGNORE));
-            cx.text(n, name, 13.0, Color::WHITE.with_alpha(0.92));
-        });
-    });
+    }
+    .to_string();
+    let desc = match kind {
+        GateKind::Giant => "Unlocks your giant form",
+        GateKind::Awakening => "Unlocks your strongest transformation",
+        GateKind::Ultimate => "Unlocks your ultimate move",
+    }
+    .to_string();
+    TooltipContent { title, desc, meta: format!("{:.0}% left", (life * 100.0).clamp(0.0, 100.0)), lines: Vec::new() }
 }
 
-/// The borrowed moves on the strip's chips: one row each (the chip's glyph in its colour + the
-/// move's name), in chip order.
-fn moves_card(r: &mut ChildSpawnerCommands, cx: &mut Cx, chips: &[Option<super::borrowed::Chip>]) {
-    card(r, cx, Color::srgba(0.85, 0.9, 1.0, 0.8), None).with_children(|c| {
-        for (k, ch) in chips.iter().enumerate() {
-            let Some(ch) = ch else { continue };
-            c.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(5), ..default() }, Pickable::IGNORE)).with_children(|n| {
-                let col = ch.color;
-                let h = cx.icon(IconParams {
-                    color: Vec4::new(col[0], col[1], col[2], 1.0),
-                    a: Vec4::new(ch.glyph as f32, 1.0, -1.0, 0.0),
-                    b: Vec4::new(1.0, 0.0, 0.0, 0.0),
-                    c: Vec4::new(1.0, 1.0, 1.0, 3.1 + k as f32),
-                });
-                n.spawn((Node { width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, ..default() }, MaterialNode(h), Pickable::IGNORE));
-                cx.text(n, &clip(&ch.mv.name.to_uppercase(), TAG_CHARS), 12.0, Color::WHITE.with_alpha(0.92));
-            });
-        }
-    });
+fn title_text(phrase: &str) -> String {
+    let t = phrase.trim();
+    if t.is_empty() { "UNBOUND".to_string() } else { clip(&t.to_uppercase(), TAG_CHARS) }
 }
 
-/// A verb chip: glyph + word.
-fn verb_chip(r: &mut ChildSpawnerCommands, cx: &mut Cx, v: Verb) {
-    let bg = Color::srgba(0.75, 0.85, 1.0, 0.09);
-    let h = cx.verb_mat(v);
-    r.spawn((
-        Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(2), padding: UiRect::new(px(2), px(5), px(0), px(0)), height: px(15), flex_shrink: 0.0, border_radius: BorderRadius::all(px(3)), ..default() },
-        BackgroundColor(bg.with_alpha(bg.alpha() * cx.fade)),
-        Fade { bg: Some(bg), ..default() },
-        Pickable::IGNORE,
-    ))
-    .with_children(|c| {
-        c.spawn((Node { width: px(12), height: px(12), flex_shrink: 0.0, ..default() }, MaterialNode(h), Pickable::IGNORE));
-        cx.text(c, v.word(), 10.0, Color::srgba(0.85, 0.9, 1.0, 0.9));
-    });
-}
-
-/// The input: a keycap (your actual power bind), "HOLD" + keycap, a speech bubble (shout: say or
-/// type it), or "ALWAYS".
-fn input_chip(r: &mut ChildSpawnerCommands, cx: &mut Cx, i: Input) {
-    let f = cx.fade;
-    let keycap = |r: &mut ChildSpawnerCommands, cx: &Cx| {
-        let (border, bg) = (Color::srgba(1.0, 1.0, 1.0, 0.6), Color::srgba(1.0, 1.0, 1.0, 0.08));
-        r.spawn((
-            Node { padding: UiRect::axes(px(3), px(0)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(2)), height: px(14), align_items: AlignItems::Center, flex_shrink: 0.0, ..default() },
-            BorderColor::all(border.with_alpha(border.alpha() * f)),
-            BackgroundColor(bg.with_alpha(bg.alpha() * f)),
-            Fade { bg: Some(bg), border: Some(border), ..default() },
-            Pickable::IGNORE,
-        ))
-        .with_children(|k| cx.text(k, cx.key, 10.0, Color::WHITE.with_alpha(0.9)));
-    };
-    let dim = Color::srgba(1.0, 1.0, 1.0, 0.55);
+/// How a move / passive is triggered, spelled out in words (never a glyph).
+fn input_text(i: Input, key: &str) -> String {
     match i {
-        Input::Tap => keycap(r, cx),
-        Input::Hold => {
-            cx.text(r, "HOLD", 9.0, dim);
-            keycap(r, cx);
-        }
-        Input::Always => cx.text(r, "ALWAYS", 9.0, dim),
-        Input::Shout => {
-            // A speech bubble: rounded body, three dots, a tail at the bottom-left.
-            let white = Color::srgba(1.0, 1.0, 1.0, 0.85);
-            let ink = Color::srgba(0.0, 0.02, 0.06, 0.9);
-            r.spawn((Node { width: px(16), height: px(15), flex_shrink: 0.0, ..default() }, Pickable::IGNORE)).with_children(|b| {
-                b.spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: px(0),
-                        top: px(1),
-                        width: px(16),
-                        height: px(10),
-                        border_radius: BorderRadius::all(px(4)),
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        column_gap: px(2),
-                        ..default()
-                    },
-                    BackgroundColor(white.with_alpha(white.alpha() * f)),
-                    Fade { bg: Some(white), ..default() },
-                    Pickable::IGNORE,
-                ))
-                .with_children(|d| {
-                    for _ in 0..3 {
-                        d.spawn((Node { width: px(2), height: px(2), ..default() }, BackgroundColor(ink.with_alpha(ink.alpha() * f)), Fade { bg: Some(ink), ..default() }, Pickable::IGNORE));
-                    }
-                });
-                b.spawn((
-                    Node { position_type: PositionType::Absolute, left: px(3), top: px(10), width: px(4), height: px(4), ..default() },
-                    BackgroundColor(white.with_alpha(white.alpha() * f)),
-                    Fade { bg: Some(white), ..default() },
-                    Pickable::IGNORE,
-                ));
-            });
-        }
+        Input::Tap => format!("Press {key}"),
+        Input::Hold => format!("Hold {key}"),
+        Input::Shout => "Say it".to_string(),
+        Input::Always => "Always on".to_string(),
+    }
+}
+
+fn lower_first(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),
+        None => String::new(),
+    }
+}
+
+/// A short, plain, generic one-liner for verb `v` (never per-power authoring).
+fn verb_desc(v: Verb) -> &'static str {
+    match v {
+        Verb::Projectile => "Fires a projectile",
+        Verb::Beam => "Fires a beam",
+        Verb::Blast => "Blasts the area around you",
+        Verb::Strike => "A melee strike",
+        Verb::Pull => "Pulls enemies toward you",
+        Verb::Dash => "Dashes or teleports",
+        Verb::Shield => "Raises a shield",
+        Verb::Dodge => "Dodges automatically",
+        Verb::Summon => "Summons a construct",
+        Verb::Form => "Changes your form",
+        Verb::Aura => "A passive effect",
+        Verb::Grab => "Grabs the target",
+        Verb::Trap => "Traps the target",
     }
 }
 
@@ -450,44 +420,6 @@ enum Verb {
 }
 
 impl Verb {
-    fn word(self) -> &'static str {
-        match self {
-            Verb::Projectile => "PROJECTILE",
-            Verb::Beam => "BEAM",
-            Verb::Blast => "BLAST",
-            Verb::Strike => "STRIKE",
-            Verb::Pull => "PULL",
-            Verb::Dash => "DASH",
-            Verb::Shield => "SHIELD",
-            Verb::Dodge => "DODGE",
-            Verb::Summon => "SUMMON",
-            Verb::Form => "FORM",
-            Verb::Aura => "AURA",
-            Verb::Grab => "GRAB",
-            Verb::Trap => "TRAP",
-        }
-    }
-
-    /// Its tiny glyph (the power-icon SDF set; each verb its own shape).
-    fn glyph(self) -> u8 {
-        use crate::power_hud::derive::glyph as g;
-        match self {
-            Verb::Projectile => g::CIRCLE,
-            Verb::Beam => g::DIAMOND,
-            Verb::Blast => g::STAR4,
-            Verb::Strike => g::BOLT,
-            Verb::Pull => g::CRESCENT,
-            Verb::Dash => g::CHEVRON_UP,
-            Verb::Shield => g::HEXAGON,
-            Verb::Dodge => g::CHEVRON_DOWN,
-            Verb::Summon => g::CLAW,
-            Verb::Form => g::TRIANGLE,
-            Verb::Aura => g::RING,
-            Verb::Grab => g::CROSS,
-            Verb::Trap => g::X,
-        }
-    }
-
     const ALL: [Verb; 13] =
         [Verb::Projectile, Verb::Beam, Verb::Blast, Verb::Strike, Verb::Pull, Verb::Dash, Verb::Shield, Verb::Dodge, Verb::Summon, Verb::Form, Verb::Aura, Verb::Grab, Verb::Trap];
 }
@@ -505,10 +437,12 @@ enum Input {
     Always,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Hint {
     input: Input,
     verb: Verb,
+    /// The move's own name (or a generic label for a form-shout / passive).
+    name: String,
 }
 
 /// The verb of a cast recipe (by what it becomes).
@@ -590,10 +524,20 @@ fn effect_verb(e: &bd_sim::powers::PowerEffect) -> Verb {
     }
 }
 
+/// The name of a passive effect, for its tooltip line (generic; a passive isn't a specific move).
+fn passive_name(e: &bd_sim::powers::PowerEffect) -> &'static str {
+    use bd_sim::powers::PowerEffect as E;
+    match e {
+        E::AutoDodge { .. } => "Auto-Dodge",
+        E::ProjectileSlowField { .. } => "Slow Field",
+        _ => "Passive",
+    }
+}
+
 /// How power `def` (at `tier`, `transformed`, in held `slot`: 0 = active) is used: per move its
-/// input and verb — the active power's first two moves are the power key (tap / hold), the rest
-/// (and another held power's moves, when they have a shout) are shouted — then a FORM shout for a
-/// tiered power, then its passives ("always"). Derived from the data alone.
+/// input, verb and own name — the active power's first two moves are the power key (tap / hold),
+/// the rest (and another held power's moves, when they have a shout) are shouted — then a FORM
+/// shout for a tiered power, then its passives ("always"). Derived from the data alone.
 fn power_hints(def: &'static bd_sim::powers::PowerDef, id: u16, tier: u8, transformed: bool, slot: usize) -> Vec<Hint> {
     let tier_shouts = def.tier(tier).map(|t| t.shouts.as_slice()).unwrap_or(&[]);
     let shoutable = |k: usize| tier_shouts.iter().chain(def.shouts.iter()).any(|(_, s)| *s as usize == k);
@@ -610,20 +554,20 @@ fn power_hints(def: &'static bd_sim::powers::PowerDef, id: u16, tier: u8, transf
             }
             _ => Input::Shout,
         };
-        out.push(Hint { input, verb });
+        out.push(Hint { input, verb, name: m.name.trim().to_string() });
     }
     // Tiers are picked by saying their name.
     if !def.tiers.is_empty() && !out.iter().any(|h| h.verb == Verb::Form) {
-        out.push(Hint { input: Input::Shout, verb: Verb::Form });
+        out.push(Hint { input: Input::Shout, verb: Verb::Form, name: "Transform".to_string() });
     }
-    // Passives: a stand / clone at your side, then effects (one chip per verb).
+    // Passives: a stand / clone at your side, then effects (one line per verb).
     let view = bd_sim::powers::HeldView { id, def, tier, transformed, slot };
-    let passives = def.companion.as_ref().map(|_| Verb::Summon).into_iter().chain(view.effects().map(effect_verb));
-    for verb in passives {
-        let h = Hint { input: Input::Always, verb };
-        if !out.contains(&h) {
-            out.push(h);
+    let passives = def.companion.as_ref().map(|_| (Verb::Summon, "Companion".to_string())).into_iter().chain(view.effects().map(|e| (effect_verb(e), passive_name(e).to_string())));
+    for (verb, name) in passives {
+        if out.iter().any(|h| h.input == Input::Always && h.verb == verb) {
+            continue;
         }
+        out.push(Hint { input: Input::Always, verb, name });
     }
     out
 }
@@ -750,37 +694,75 @@ mod tests {
         assert_eq!(hints("shadow_clone", 0, false, 0), vec![(Tap, Summon), (Hold, Strike), (Always, Summon)]);
         // Not the active power: its moves are shouted (the key fires the active one).
         assert_eq!(hints("super_saiyan", 0, false, 1)[..2], [(Shout, Dash), (Shout, Beam)]);
-        // Every verb has its own glyph.
-        for (i, a) in Verb::ALL.iter().enumerate() {
-            for b in &Verb::ALL[i + 1..] {
-                assert_ne!(a.glyph(), b.glyph(), "{a:?} / {b:?}");
-            }
+        // Every verb has its own short, plain, non-empty description.
+        for v in Verb::ALL {
+            let d = verb_desc(v);
+            assert!(!d.is_empty() && d.chars().count() < 40, "{v:?}: {d:?}");
         }
-        // Every power yields at least one hint.
+        // Every power yields at least one hint, and every hint has a non-empty name.
         for (i, d) in PowerTable::get().powers.iter().enumerate() {
-            assert!(!power_hints(d, i as u16, 0, false, 0).is_empty(), "{} has no hint", d.id);
+            let hs = power_hints(d, i as u16, 0, false, 0);
+            assert!(!hs.is_empty(), "{} has no hint", d.id);
+            assert!(hs.iter().all(|h| !h.name.trim().is_empty()), "{}: {hs:?}", d.id);
         }
     }
 
     #[test]
-    fn signature_tracks_what_is_shown() {
-        let mut g = [Gem::default(); derive::SLOTS];
-        let a = signature(&g, false, None, "G", &[]);
-        g[0].power = Some(3);
-        let b = signature(&g, false, None, "G", &[]);
-        g[0].tier = 2;
-        let c = signature(&g, false, None, "G", &[]);
-        assert!(a != b && b != c);
-        assert_ne!(c, signature(&g, false, None, "F", &[]), "a rebind shows");
-        assert_ne!(c, signature(&g, true, None, "G", &[]));
-        assert_ne!(c, signature(&g, false, Some(GateKind::Giant), "G", &[]));
-        g[0].ready = 0.3;
-        assert_eq!(c, signature(&g, false, None, "G", &[]), "cooldowns don't rebuild");
-        // A borrowed move on a chip adds / changes the moves card.
-        let mv: &'static bd_sim::powers::MoveDef = Box::leak(Box::new(bd_sim::powers::MoveDef { name: "pistol".into(), ..Default::default() }));
-        let chip = super::super::borrowed::Chip { mv, key: 0, color: [1.0; 3], glyph: 2, cd: 1.0, left: 0.0, flash: 0.0, stale: 0, idle: 0.0 };
-        assert_ne!(c, signature(&g, false, None, "G", &[Some(chip)]), "a borrowed move shows");
-        let worn = super::super::borrowed::Chip { stale: 2, left: 0.5, ..chip };
-        assert_eq!(signature(&g, false, None, "G", &[Some(chip)]), signature(&g, false, None, "G", &[Some(worn)]), "wear / cooldown don't rebuild");
+    fn power_tooltip_lines_are_short_plain_and_well_formed() {
+        // Every held power's icon tooltip: a title, at least one line, and every line follows
+        // "<how to fire> — <name>: <description>" with no doubled spaces / empty pieces.
+        for (i, d) in PowerTable::get().powers.iter().enumerate() {
+            let c = power_content(d, i as u16, 0, false, 0, "G", 1.0, 2.0);
+            assert!(!c.title.is_empty(), "{}", d.id);
+            assert!(!c.lines.is_empty(), "{}: no tooltip lines", d.id);
+            for l in &c.lines {
+                assert!(!l.is_empty() && !l.contains("  ") && l.contains(" — ") && l.contains(": "), "{}: {l:?}", d.id);
+            }
+        }
+        // Cooling: a fractional-second countdown, not "Ready".
+        let d = PowerTable::get().def(pid("rinnegan")).unwrap();
+        let cooling = power_content(d, pid("rinnegan"), 0, false, 0, "G", 0.5, 4.0);
+        assert_eq!(cooling.meta, "2.0s");
+        let ready = power_content(d, pid("rinnegan"), 0, false, 0, "G", 1.0, 4.0);
+        assert_eq!(ready.meta, "Ready");
+    }
+
+    #[test]
+    fn bind_meta_joins_only_the_parts_that_are_there() {
+        // A fresh, free, ready hotbar slot: every part shows, joined once each.
+        let full = bind_content("HAMMER".into(), &SlotBind::Empty, None, None, "Press 1", 0, Some(1.0), 2.0);
+        assert_eq!(full.meta, "Press 1   ·   Free   ·   Ready");
+        // A tray chip (no live cooldown known): no trailing separator, no "None".
+        let tray = bind_content("HAMMER".into(), &SlotBind::Empty, None, None, "Drag to a slot", 3, None, 2.0);
+        assert_eq!(tray.meta, "Drag to a slot   ·   3 sparks");
+        // Singular / plural spark wording.
+        let one = bind_content("X".into(), &SlotBind::Empty, None, None, "Press 2", 1, Some(0.5), 4.0);
+        assert!(one.meta.contains("1 spark   ") || one.meta.ends_with("1 spark"), "{:?}", one.meta);
+        assert!(!one.meta.contains("1 sparks"));
+    }
+
+    #[test]
+    fn bind_desc_names_a_grant_never_a_plain_phrase() {
+        let power = PowerTable::get().def(pid("rinnegan")).unwrap();
+        assert_eq!(bind_desc(&SlotBind::Phrase { signature: false }, None, Some(power)), "Grants Rinnegan");
+        assert_eq!(bind_desc(&SlotBind::Phrase { signature: false }, None, None), "Casts your bound phrase");
+        assert_eq!(bind_desc(&SlotBind::Empty, None, None), "");
+    }
+
+    #[test]
+    fn pickup_tooltip_has_a_title_and_description_for_every_kind() {
+        for k in GateKind::ALL {
+            let c = pickup_content(k, 0.42);
+            assert!(!c.title.is_empty() && !c.desc.is_empty());
+            assert_eq!(c.meta, "42% left");
+        }
+    }
+
+    #[test]
+    fn input_text_is_spelled_out_never_a_glyph() {
+        assert_eq!(input_text(Input::Tap, "G"), "Press G");
+        assert_eq!(input_text(Input::Hold, "G"), "Hold G");
+        assert_eq!(input_text(Input::Shout, "G"), "Say it");
+        assert_eq!(input_text(Input::Always, "G"), "Always on");
     }
 }

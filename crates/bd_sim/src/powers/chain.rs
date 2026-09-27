@@ -646,7 +646,7 @@ impl World {
             return Err(PowerError::Cooldown);
         }
         let cost = move_cost(&self.cfg.tuning.willpower.sparks, &self.cfg.rules, mv, uses);
-        if cost > p.willpower + 1e-4 {
+        if cost > p.willpower + 1e-4 && !crate::launch::active(&self.cfg.rules) {
             return Err(PowerError::NotEnoughWillpower);
         }
         let from = p.mv.pos;

@@ -16,9 +16,11 @@
 //!   sweep, ready flare, form duration ring; the slim willpower arc (+ a cost flicker for the phrase
 //!   being typed); the carried map pickup; your statuses as small pips with duration sweeps. Hidden
 //!   when you hold nothing; a soft pop the first time you gain a power.
-//! * **Tab labels** ([`labels`]): while Tab is held, a card over the strip per held power — its
-//!   name / active form and usage chips (input from your binds + a verb from its data). The one
-//!   place powers are named.
+//! * **Hover tooltip** ([`labels`]): while Tab is held there is NO always-on card — hovering one
+//!   icon (a hotbar slot, a held power's icon, a tray chip, the carried pickup) pops ONE compact
+//!   tooltip beside it: its name, a plain one-line description, how to fire it in words, its spark
+//!   cost and cooldown (a held power's icon lists its moves compactly instead). The one place
+//!   powers are named.
 //!
 //! * **Willpower** ([`will`], READABILITY): whole SPARKS (`MatchRules::willpower_segments`; every
 //!   cast costs whole sparks) in [`PowerHud::will`] — drawn around the crosshair by [`gauge`]

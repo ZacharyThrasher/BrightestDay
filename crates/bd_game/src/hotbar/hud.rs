@@ -8,11 +8,13 @@
 //!   A pinned slot wears a small gold stud; a slot whose thing is still out (a construct you called)
 //!   burns an outer ring. Constructs / signatures in a slot show the ring glyph / a star in your
 //!   corps colour. Empty slots are faint rings. The old borrowed-move chips fold into this (one bar).
-//! * **Tab** (the scoreboard key, held): names under each slot (staggered so they never collide —
-//!   the approved Tab-labels rule), a tray of recent moves + your held powers' moves beside the bar,
-//!   the cursor freed (keyboard play goes on: `input::SoftCursor`). Drag slot → slot swaps, slot →
-//!   off the bar clears, tray → slot binds; click-click swaps, a double click / right-click pins.
-//!   Keyboard: Tab + slot key selects, another slot key swaps, the same one pins, Delete clears.
+//! * **Tab** (the scoreboard key, held): NO always-on names — a tray of recent moves + your held
+//!   powers' moves shows beside the bar, the cursor freed (keyboard play goes on:
+//!   `input::SoftCursor`). Hovering one slot / tray chip pops its compact tooltip (owner: "only have
+//!   a tooltip come up when they hover over the actual ability" — `power_hud::labels`, which reuses
+//!   this module's freed cursor + hit-testing). Drag slot → slot swaps, slot → off the bar clears,
+//!   tray → slot binds; click-click swaps, a double click / right-click pins. Keyboard: Tab + slot
+//!   key selects, another slot key swaps, the same one pins, Delete clears.
 //!
 //! Nodes are spawned once; a frame writes a material / text only when its quantised value changed.
 
@@ -25,8 +27,9 @@ use crate::power_hud::PowerHudState;
 use crate::present::powers::movefx;
 use crate::sim_bridge::{ActiveWorld, ViewKeys};
 use crate::state::{AppState, InGameMenu};
+use bd_sim::powers::chain::ToolboxSnap;
 use bd_sim::powers::toolbox::MoveRef;
-use bd_sim::powers::MoveOp;
+use bd_sim::powers::{MoveDef, MoveOp, PlayerPower};
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -40,7 +43,6 @@ const PIP: f32 = 5.0;
 const DRAG_PX: f32 = 7.0;
 /// Two clicks on one slot within this long pin it.
 const DOUBLE_CLICK: f32 = 0.35;
-const TAG_CHARS: usize = 14;
 
 // ------------------------------------------------------------------------------------------ editing
 
@@ -298,7 +300,6 @@ pub(crate) struct SlotNodes {
     digit: Entity,
     pin: Entity,
     pips: [Entity; PIPS],
-    tag: Entity,
 }
 
 /// TOTAL LIMIT pips (the lobby offers up to 8).
@@ -354,22 +355,11 @@ fn spawn_slot(commands: &mut Commands, mats: &mut Assets<IconMaterial>, size: f3
     });
     let pip_row = commands.spawn((Node { flex_direction: FlexDirection::Row, column_gap: px(2), height: px(PIP), margin: UiRect::top(px(2)), ..default() }, Pickable::IGNORE)).id();
     commands.entity(pip_row).add_children(&pips);
-    let tag = commands
-        .spawn((
-            Node { position_type: PositionType::Absolute, top: px(size + PIP + 3.0), display: Display::None, ..default() },
-            Text::new(""),
-            TextFont::from_font_size(10.0),
-            TextColor(Color::WHITE),
-            TextShadow { offset: Vec2::new(1.0, 1.0), color: Color::srgba(0.0, 0.0, 0.0, 0.95) },
-            TextLayout::no_wrap(),
-            Pickable::IGNORE,
-        ))
-        .id();
     let holder = commands
         .spawn((Node { flex_direction: FlexDirection::Column, align_items: AlignItems::Center, flex_shrink: 0.0, ..default() }, Pickable::IGNORE))
         .id();
-    commands.entity(holder).add_children(&[icon, pip_row, tag]);
-    SlotNodes { holder, icon, mat, digit, pin, pips, tag }
+    commands.entity(holder).add_children(&[icon, pip_row]);
+    SlotNodes { holder, icon, mat, digit, pin, pips }
 }
 
 /// Spawn the bar once, into the strip's icon row (after the held powers / pickup).
@@ -484,8 +474,9 @@ fn slot_state(s: &super::Slot, a: &ActiveWorld, lex: Option<&crate::console::Rin
     }
 }
 
-/// Whole sparks a slot costs now (0 = free / unknown).
-fn slot_sparks(s: &super::Slot, a: &ActiveWorld, lex: Option<&crate::console::RingLexicon>, uses: u32) -> u32 {
+/// Whole sparks `bind` (bound as `phrase`, presenting as `def`) costs now (0 = free / unknown).
+/// Shared by a bar slot and a tray entry alike (the tooltip prices a tray entry the same way).
+pub(crate) fn bind_sparks(bind: &SlotBind, phrase: &str, def: Option<&'static MoveDef>, a: &ActiveWorld, lex: Option<&crate::console::RingLexicon>, uses: u32) -> u32 {
     let w = &a.world;
     if w.rules().infinite_willpower() {
         return 0;
@@ -493,11 +484,11 @@ fn slot_sparks(s: &super::Slot, a: &ActiveWorld, lex: Option<&crate::console::Ri
     let bar = w.cfg.rules.pool_segments();
     let t = &w.rules().sparks(&w.cfg.tuning.willpower.sparks);
     let seg = w.rules().segment_size().max(1e-3);
-    match (&s.bind, s.def) {
+    match (bind, def) {
         (SlotBind::Move { .. } | SlotBind::Composed(_) | SlotBind::Twist(_), Some(mv)) => bd_sim::powers::chain::move_sparks(t, mv, uses, bar),
         (SlotBind::Phrase { signature }, _) => {
             let (Some(lex), Some(me)) = (lex, a.local) else { return 0 };
-            let res = lex.0.resolve(&s.phrase);
+            let res = lex.0.resolve(phrase);
             let cost = if *signature || res.signature.is_some() { w.preview_signature_cost(me, res.recipe).1 } else { w.preview_cost(me, res.recipe).1 };
             (cost / seg).ceil().max(0.0) as u32
         }
@@ -505,13 +496,20 @@ fn slot_sparks(s: &super::Slot, a: &ActiveWorld, lex: Option<&crate::console::Ri
     }
 }
 
-fn q(x: f32) -> f32 {
-    (x * 96.0).round() / 96.0
+/// Cooldown fill (0 fresh … 1 ready) + repeat count for `bind`: a move fired while its power is
+/// HELD reads the power gem (never a second, borrowed cooldown to double-dip), everything else the
+/// host's toolbox row. Shared by the bar (`draw`) and the hover tooltip (`power_hud::labels`).
+pub(crate) fn bind_fill(bind: &SlotBind, hud: &PowerHudState, held: Option<&PlayerPower>, tb: Option<ToolboxSnap>) -> (f32, u32) {
+    let held_mv = bind.move_ref().filter(|m| held.is_some_and(|p| held_sel(p, *m).is_some()));
+    match (held_mv, bind.cd_key(), tb) {
+        (Some(m), _, _) => (hud.0.gems.iter().find(|g| g.power == Some(m.power)).map_or(1.0, |g| g.shown), 0),
+        (None, Some(key), Some(tb)) => tb.cds.iter().find(|c| c.0 == key).map_or((1.0, 0), |c| (1.0 - c.1 as f32 / 255.0, c.2 as u32)),
+        _ => (1.0, 0),
+    }
 }
 
-fn tag_text(s: &str) -> String {
-    let t: String = s.trim().to_uppercase().chars().take(TAG_CHARS).collect();
-    if s.trim().chars().count() > TAG_CHARS { format!("{}…", t.trim_end()) } else { t }
+fn q(x: f32) -> f32 {
+    (x * 96.0).round() / 96.0
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -578,18 +576,13 @@ fn draw(
         // cooldown fill: held → the power's gem; else the host's toolbox row
         let (fill, uses, empty) = {
             let s = &bar.slots[k];
-            let held_mv = s.bind.move_ref().filter(|m| held.is_some_and(|p| held_sel(p, *m).is_some()));
-            let (f, u) = match (held_mv, s.bind.cd_key(), tb) {
-                (Some(m), _, _) => (hud.0.gems.iter().find(|g| g.power == Some(m.power)).map_or(1.0, |g| g.shown), 0),
-                (None, Some(key), Some(tb)) => tb.cds.iter().find(|c| c.0 == key).map_or((1.0, 0), |c| (1.0 - c.1 as f32 / 255.0, c.2 as u32)),
-                _ => (1.0, 0),
-            };
+            let (f, u) = bind_fill(&s.bind, &hud, held, tb);
             (f, u, s.is_empty())
         };
         if refresh {
             let (sp, st) = {
                 let s = &bar.slots[k];
-                (if empty { 0 } else { slot_sparks(s, a, lex.as_deref(), uses) }, slot_state(s, a, lex.as_deref()))
+                (if empty { 0 } else { bind_sparks(&s.bind, &s.phrase, s.def, a, lex.as_deref(), uses) }, slot_state(s, a, lex.as_deref()))
             };
             cache.sparks[k] = sp;
             if bar.slots[k].state != st {
@@ -652,8 +645,6 @@ fn draw(
                 }
             }
         }
-        // Tab: the name under the slot (staggered rows)
-        tag(&mut q_text, &mut q_node, nd.tag, edit_on && !s.is_empty(), &s.phrase, k);
     }
     // TOTAL LIMIT: pips (filled = things out) while the rule is on; on a refusal (or while the
     // dismiss window is open) they pulse warm and the dismiss key's cap shows beside them
@@ -702,7 +693,6 @@ fn draw(
         {
             m.params = p;
         }
-        tag(&mut q_text, &mut q_node, nd.tag, true, &e.phrase, j);
     }
     // the drag ghost follows the cursor
     let ghost = match (edit.drag, edit.cursor) {
@@ -729,26 +719,6 @@ fn draw(
             && m.params != p
         {
             m.params = p;
-        }
-    }
-}
-
-fn tag(q_text: &mut Query<(&mut Text, &mut TextColor)>, q_node: &mut Query<&mut Node>, e: Entity, on: bool, phrase: &str, k: usize) {
-    if let Ok(mut nd) = q_node.get_mut(e) {
-        let d = if on { Display::Flex } else { Display::None };
-        if nd.display != d {
-            nd.display = d;
-        }
-        // staggered: even slots on the first line, odd ones a line lower (names never collide)
-        let top = px(ICON + PIP + 3.0 + if k % 2 == 1 { 11.0 } else { 0.0 });
-        if on && nd.top != top {
-            nd.top = top;
-        }
-    }
-    if on && let Ok((mut t, _)) = q_text.get_mut(e) {
-        let s = tag_text(phrase);
-        if t.0 != s {
-            t.0 = s;
         }
     }
 }
@@ -804,11 +774,5 @@ mod tests {
         key_edit(&mut h, &mut sel, 0);
         key_edit(&mut h, &mut sel, 0);
         assert!(!h.slots[0].pinned, "and unpins");
-    }
-
-    #[test]
-    fn tags_are_short() {
-        assert_eq!(tag_text("reinhardt ultimate"), "REINHARDT ULTI…");
-        assert_eq!(tag_text("bamf"), "BAMF");
     }
 }

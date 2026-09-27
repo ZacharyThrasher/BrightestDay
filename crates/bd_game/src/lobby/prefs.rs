@@ -180,10 +180,13 @@ pub enum Action {
     Unstick,
     /// TAUNT: tap = the next wordless taunt (flex, beckon, shrug, bow), hold = dance (`bd_sim::taunt`).
     Taunt,
+    /// COMBO TARGET: hold = the toolbox's soft target persists across separate commands
+    /// (`bd_sim::powers::combo_target`). Unbound by default.
+    Focus,
 }
 
 impl Action {
-    pub const ALL: [Action; 30] = [
+    pub const ALL: [Action; 31] = [
         Action::Forward,
         Action::Back,
         Action::Left,
@@ -214,6 +217,7 @@ impl Action {
         Action::Dodge,
         Action::Unstick,
         Action::Taunt,
+        Action::Focus,
     ];
     pub const COUNT: usize = Self::ALL.len();
 
@@ -253,6 +257,7 @@ impl Action {
             Action::Dodge => "dodge",
             Action::Unstick => "unstick",
             Action::Taunt => "taunt",
+            Action::Focus => "focus_target",
         }
     }
 
@@ -288,6 +293,7 @@ impl Action {
             Action::Dodge => "DODGE",
             Action::Unstick => "UNSTICK",
             Action::Taunt => "TAUNT (TAP / HOLD = DANCE)",
+            Action::Focus => "FOCUS TARGET (HOLD)",
         }
     }
 
@@ -346,6 +352,8 @@ impl Action {
             Action::Unstick => return Bind::Unbound,
             // TAUNT: Y — free, off the combat keys but a finger's reach from the movement hand.
             Action::Taunt => K::KeyY,
+            // COMBO TARGET: an accessibility / controller aid, not needed to play — nothing by default.
+            Action::Focus => return Bind::Unbound,
         })
     }
 }
