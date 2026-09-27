@@ -370,7 +370,9 @@ fn present_hits(
                     // Launch hits feel HUGE: an extra kick scaled by launch speed.
                     let k = (speed / 40.0).clamp(0.0, 1.5);
                     fov.write(FovPunch { degrees: 3.0 * k });
-                    shake.write(CameraShakeEvent { trauma: (0.2 + 0.3 * k).min(0.8), dir: bv(*dir) });
+                    // LAUNCH FEEL: a punch, not a spin — the view stays level while you tumble (the body
+                    // tumbles, the camera doesn't), so the kick is capped well below the old 0.8.
+                    shake.write(CameraShakeEvent { trauma: (0.15 + 0.2 * k).min(0.45), dir: bv(*dir) });
                 }
                 freeze.freeze_player(*player, (0.03 + speed / 800.0).min(0.1));
             }

@@ -165,6 +165,9 @@ enum Knob {
     /// WILLPOWER = LAUNCH: willpower scales how hard you launch; casts are never refused
     /// (`MatchRules::willpower_launch`, `bd_sim::launch`).
     WillpowerLaunch,
+    /// CLASSIC LAUNCH: the pre-launch-feel knockback / tumble for A/B (`MatchRules::classic_launch`,
+    /// `bd_sim::smash::launch_knockback`).
+    ClassicLaunch,
     /// TOTAL LIMIT: most active things (constructs + powers) per player (`MatchRules::active_limit`).
     ActiveLimit,
     /// FIRST CALL: the first to use a named thing owns it; others get its rival version (`MatchRules::first_call`).
@@ -475,7 +478,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             }
             v.push(Value(K::TimeLimit));
             v.extend([Header("ARENA"), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
-            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::RepeatCost), Value(K::WillpowerLaunch), Value(K::ActiveLimit), Value(K::FirstCall), Value(K::Burn), Value(K::Powers)]);
+            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::RepeatCost), Value(K::WillpowerLaunch), Value(K::ClassicLaunch), Value(K::ActiveLimit), Value(K::FirstCall), Value(K::Burn), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
@@ -712,6 +715,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Powerups => (lbl("POWER-UPS"), on_off(r.powerups)),
         Knob::RepeatCost => (lbl("REPEATS COST MORE"), on_off(r.repeat_cost)),
         Knob::WillpowerLaunch => (lbl("WILLPOWER = LAUNCH"), on_off(r.willpower_launch)),
+        Knob::ClassicLaunch => (lbl("CLASSIC LAUNCH"), on_off(r.classic_launch)),
         Knob::ActiveLimit => (lbl("TOTAL LIMIT"), if r.active_limit == 0 { "OFF".into() } else { r.active_limit.to_string() }),
         Knob::FirstCall => (lbl("FIRST CALL"), on_off(r.first_call)),
         Knob::Burn => (lbl("BURN ON DEATH"), match r.burn {
@@ -1007,6 +1011,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Powerups => g.rules.powerups = !g.rules.powerups,
         Knob::RepeatCost => g.rules.repeat_cost = !g.rules.repeat_cost,
         Knob::WillpowerLaunch => g.rules.willpower_launch = !g.rules.willpower_launch,
+        Knob::ClassicLaunch => g.rules.classic_launch = !g.rules.classic_launch,
         Knob::ActiveLimit => g.rules.active_limit = cycle(&bd_sim::limit::LIMIT_VALUES, g.rules.active_limit, dir),
         Knob::FirstCall => g.rules.first_call = !g.rules.first_call,
         Knob::Burn => {

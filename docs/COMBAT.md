@@ -80,6 +80,21 @@ reduces air control but you can always tether out of it (a skill save).
   vector up to ±15° (skill expression). **Tech:** pressing Jump within 0.15 s of a wall/ground contact
   while tumbling cancels the splat/bounce (skill). **Tethers + recovery:** tether fires out of tumble
   as now (the best recovery in any platform fighter). Wall splat still adds %.
+- **Launch feel** (owner: "players spend so much time getting flung around"; default, `smash::launch_knockback`,
+  `combat.ron` → `smash.curve_*` / `hitstun_*`, host-synced; lobby **CLASSIC LAUNCH** rule restores the old behaviour
+  exactly — the FFA golden hash reproduces). **Curve:** a move's base knockback is scaled ×`curve_base_low` (0.35) at 0 %,
+  rising to ×1 at `curve_base_full_pct` (90 %); strong moves keep up to `curve_strong_keep` (0.65) more of it early
+  (quadratic in base/`curve_strong_kb` 20); the growth term is ×`curve_growth_mult` (1.15) — still base + growth × %,
+  monotonic in % and strength; WILLPOWER = LAUNCH and juggle decay multiply the result. A sword poke at 0 % shoves
+  ~half as far and never tumbles; a hammer at 120 %+ launches harder than before. **Hitstun:** only the first
+  `hitstun_secs_min + kb · per_kb` (0.15 s + 0.01 s per m/s, cap 0.75 s) of a tumble blocks the air jump / air dodge
+  (`PlayerState::tumble_free` = the actionable tail, replicated in `OwnState`, predicted); after it you can air jump
+  (it lifts, but only turns the launch ×0.35 of the usual redirect), air dodge, tether and cast while the tumble keeps
+  its reduced air control (so a KO launch is still a KO unless you recover well). DI unchanged (±15°). Launched bots
+  DI / drift toward their last ground. Camera: the launch kick is capped (trauma ≤ 0.45); the view stays level, only
+  the body tumbles. Telemetry: `MatchReport.control` (alive / hitstun / tumble / launched-air seconds);
+  `tournament --launch-ab [--bot-di]` prints classic vs modern. Bot FFA (240 × 180 s): hitstun 4.6 % → 2.4 % of alive
+  time, KOs 0.51 → 0.48 per player-minute, credited KO % median 129 → 142.
 - **Juggle protection** (owner: "a cooldown after a player has been hit so they can't just be knocked
   around endlessly"; `bd_sim::juggle`, `combat.ron` → `juggle`, hot reload). Per victim: a **chain hit**
   is one whose knockback (before decay) is ≥ `chain_min_kb` (14 m/s = a hit that tumbles you); every hit a

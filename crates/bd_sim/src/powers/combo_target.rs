@@ -173,6 +173,11 @@ impl World {
             });
             pick(eye, dir, cands, |a, b| clear_line(&self.voxels, a, b)).map(|t| Hunt { target: t, named: false, lost: 0.0, anchor: look })
         };
+        if std::env::var_os("BD_COMBO_LOG").is_some() {
+            let (eye, dir) = aim.map_or((self.players[i].eye(&self.cfg.move_params), look), |a| self.resolve_aim(i, a));
+            let others: Vec<(u8, Vec3, bool)> = self.players.iter().map(|q| (q.id.0, q.hull(&self.cfg.move_params).center(), clear_line(&self.voxels, eye, q.hull(&self.cfg.move_params).center()))).collect();
+            eprintln!("COMBO acquire p{} eye {eye:?} dir {dir:?} view {:?} -> {hunt:?} others {others:?}", self.players[i].id.0, self.players[i].view_tick);
+        }
         self.players[i].power.toolbox.hunt = hunt;
     }
 

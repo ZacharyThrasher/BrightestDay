@@ -115,7 +115,11 @@ fn ffa_cfg() -> SimConfig {
 // 0x0279_2967_07d1_b7e0; the anchor filter alone moves it (the cut / let-go don't fire in this run
 // once bots stop hooking undersides); without the filter the rope cut fires here too (bots hooked
 // under Archipelago islands) = 0x1692_0cf5_2e05_5120.
-const FFA_NOCAST_STATE_HASH: u64 = 0x4d16_0c05_399e_513e;
+// Re-recorded (was 0x4d16_0c05_399e_513e) for LAUNCH FEEL (the modern launch is the new default:
+// low-% knockback curve + short hitstun then actionable mid-flight, smash.rs / world/combat.rs /
+// movement; launched bots DI toward their last ground, dodge.rs). A/B verified on the same tree:
+// the CLASSIC LAUNCH host rule reproduces 0x4d16_0c05_399e_513e exactly (`print_ffa_hashes`).
+const FFA_NOCAST_STATE_HASH: u64 = 0x048d_7136_c425_d843;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {
@@ -137,6 +141,11 @@ fn print_ffa_hashes() {
     let a = ffa_run(ffa_cfg(), false);
     let b = ffa_run(ffa_cfg(), true);
     println!("FFA nocast state={:#x} events={:#x} | casts state={:#x} events={:#x}", a.0, a.1, b.0, b.1);
+    // LAUNCH FEEL A/B: the CLASSIC LAUNCH rule reproduces the pre-launch-feel hash.
+    let mut classic = ffa_cfg();
+    classic.rules.classic_launch = true;
+    let c = ffa_run(classic, false);
+    println!("FFA nocast CLASSIC LAUNCH state={:#x} events={:#x}", c.0, c.1);
 }
 
 // ================================================================================ settings

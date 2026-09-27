@@ -101,7 +101,9 @@ impl Default for VoiceConfig {
             warm_up: true,
             whisper_logs: false,
             vad: dsp::VadParams::default(),
-            stream: Some(dsp::PauseParams::default()),
+            // measured (tools/voice_bench): per-beat Whisper loses context — chains 29 % → 23 %
+            // hit, p90 +300 ms. Off until a streaming decoder keeps the context.
+            stream: None,
             smart_tail: true,
             raw_transcript: false,
         }

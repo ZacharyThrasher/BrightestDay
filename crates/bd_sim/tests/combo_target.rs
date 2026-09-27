@@ -340,3 +340,12 @@ fn deterministic() {
     assert_eq!(run(), run());
 }
 
+
+#[test]
+fn a_crosshair_aim_picks_too() {
+    let mut w = arena(2);
+    let eye = w.player(A).unwrap().eye(&w.cfg.move_params);
+    let dir = bd_core::input::look_dir(0.0, -0.05);
+    w.toolbox(A, vec![kit("tracer blink"), kit("doomfist punch")], Some(bd_sim::world::Aim::new(eye, dir))).unwrap();
+    assert_eq!(w.combo_target(A), Some(B));
+}

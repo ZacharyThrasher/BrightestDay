@@ -2,9 +2,7 @@
 //! console reads (voice == typing: after this step a spoken line goes through exactly the typed
 //! path, `console::Caster::cast_heard` → `toolbox::command_for` / the lexicon).
 //!
-//! * [`bias_prompt`]: Whisper is primed with the names players shout most (the moves / characters
-//!   the data spells the most ways — every mishearing a content worker added is a vote), so
-//!   "Rasengan" comes out as *Rasengan*, not "raising gun".
+//! * [`bias_prompt`]: Whisper's prompt (measured: a prompt matters, WHICH names barely does).
 //! * [`heard_line`]: what Whisper still gets wrong is repaired PIECE BY PIECE (a chain's steps each
 //!   on their own), and only where the piece would otherwise mean nothing — a piece that already
 //!   reads as a move, a described move, a twist or a clean ordinary thing is never touched, so
@@ -30,74 +28,13 @@ use bd_sim::powers::{norm_words, PowerTable};
 
 use crate::toolbox;
 
-/// Whisper's biasing prompt: the ring's curated names (a few), the player's `oath` words, then the
-/// most-shouted character and move names (last = weighed most; voice_ui appends player names after).
-/// Whisper keeps at most 224 prompt tokens: the list stays well under that.
+/// Whisper's biasing prompt: the ring's curated names + the player's `oath` words (voice_ui appends
+/// player names last). MEASURED (tools/voice_bench, 512 clips of famous moves / chains / shouts):
+/// no prompt 50.0 % → this prompt 54.5 %; swapping in the 66 most-shouted move and character names
+/// scored the same (54.5–54.7 %) but cost +13 ms p50 Whisper time and hijacked more constructs, so
+/// the vocabulary is left to [`heard_line`]'s repairs instead.
 pub fn bias_prompt(lex: &Lexicon, oath: &str) -> String {
-    let (kits, moves) = shouted_names(lex);
-    let mut out: Vec<String> = Vec::new();
-    let icons = lex.bias_prompt(16);
-    if !icons.is_empty() {
-        out.push(icons);
-    }
-    if !oath.trim().is_empty() {
-        out.push(oath.trim().to_string());
-    }
-    out.push(kits.join(", "));
-    out.push(moves.join(", "));
-    out.join(", ")
-}
-
-/// Title Case of a normalised phrase ("getsuga tensho" → "Getsuga Tensho").
-fn title(s: &str) -> String {
-    s.split(' ')
-        .map(|w| {
-            let mut c = w.chars();
-            c.next().map(|f| f.to_uppercase().chain(c).collect::<String>()).unwrap_or_default()
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// The character names and move names players shout most, most-shouted LAST: coined words only
-/// (Whisper spells everyday words fine), ranked by how many ways the hand-written data spells them.
-fn shouted_names(lex: &Lexicon) -> (Vec<String>, Vec<String>) {
-    const KITS: usize = 22;
-    const MOVES: usize = 44;
-    let t = PowerTable::get();
-    let coined = |s: &str| s.split(' ').any(|w| w.len() > 2 && !lex.is_everyday_word(w));
-    let mut moves: HashMap<String, usize> = HashMap::new();
-    let mut kits: HashMap<String, usize> = HashMap::new();
-    for p in t.powers.iter().filter(|p| p.derived.is_none()) {
-        let mut per_slot: HashMap<u8, (usize, Option<&str>)> = HashMap::new();
-        for (s, slot) in &p.shouts {
-            let e = per_slot.entry(*slot).or_default();
-            e.0 += 1;
-            if e.1.is_none() && t.proper_shouts.contains(s) {
-                e.1 = Some(s.as_str());
-            }
-        }
-        for (n, s) in per_slot.into_values() {
-            if let Some(s) = s.filter(|s| coined(s) && s.split(' ').count() <= 3) {
-                let e = moves.entry(s.to_string()).or_default();
-                *e = (*e).max(n);
-            }
-        }
-        if p.kind.is_kit() {
-            let name = norm_words(&p.name);
-            if coined(&name) && name.split(' ').count() <= 2 {
-                kits.insert(name, p.names.len());
-            }
-        }
-    }
-    let top = |m: HashMap<String, usize>, n: usize| -> Vec<String> {
-        let mut v: Vec<(String, usize)> = m.into_iter().collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-        let mut out: Vec<String> = v.into_iter().take(n).map(|(s, _)| title(&s)).collect();
-        out.reverse(); // most-shouted last
-        out
-    };
-    (top(kits, KITS), top(moves, MOVES))
+    format!("{}, {}", lex.bias_prompt(60), oath)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -236,7 +173,7 @@ thread_local! {
 }
 
 /// Time budget for the repairs of one heard line (a line that already reads never gets near it).
-const REPAIR_BUDGET_MS: u64 = 25;
+const REPAIR_BUDGET_MS: u64 = 50;
 
 thread_local! {
     static DEADLINE: std::cell::Cell<Option<std::time::Instant>> = const { std::cell::Cell::new(None) };

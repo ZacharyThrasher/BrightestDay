@@ -161,6 +161,10 @@ fn draw(
     if views.player(local.unwrap_or(PlayerId(u8::MAX))).is_some_and(|v| v.hunt.is_some()) {
         marks.predicted = None;
     }
+    if std::env::var_os("BD_COMBO_LOG").is_some() {
+        let hs: Vec<(u8, Option<PlayerId>)> = views.players.iter().map(|v| (v.id.0, v.hunt)).collect();
+        info!("combo marks: own {own:?} views {hs:?}");
+    }
     let hunted = |id: PlayerId| views.players.iter().any(|h| h.alive() && h.hunt == Some(id) && Some(h.id) != local);
     let any = own.is_some() || views.players.iter().any(|v| v.hunt.is_some());
     if !any {
