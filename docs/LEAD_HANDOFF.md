@@ -1,5 +1,16 @@
 # Lead orchestrator handoff (keep updated)
 
+## >>> OVERNIGHT POLISH WAVE (2026-09-27 05:50) — owner asleep <<<
+Owner decisions: taunt YES, voice-cast tell YES, NO invisibility (not even shimmer), COMIC TEXT FULL (done 68a5c96).
+Owner asks: keep polishing/animation passes so as many powers as possible feel special; ANY transformer must
+feel awesome; complete voice fluidity; + FIRST CALL match rule (first to say a named thing owns it; denied
+player gets a rival version, never a no); + CLICK TO CONFIRM option (translucent ghost preview + cost, click
+or say "go" to make it real). Workers: transformers ac8ee05cf893e0d7a · first call af777fcacba53177b ·
+taunt+voice tell acfc48138ceb773a3 · voice fluidity a19704f3303170491 · click-to-confirm ad187c347f9f2ba18 ·
+polish anime a4fa97d61ab1c061d · polish western a40b1865d6f802416 · polish games aeae5288ad2ea246a ·
+polish myth+derived a2dbaaf286b58876d · presentation polish adfd01597aacca6ec (serves docs/toolbox/POLISH_REQUESTS.md).
+Verify each report (tests + frame sheets), commit via target/stage_eol.py at green. No zips.
+
 ## >>> RESUME HERE (2026-09-27 05:30) — TOOLBOX WAVE COMPLETE <<<
 HEAD e7e5a7a, all green: bd_sim+bd_lexicon+bd_fx+bd_shapes 1,170 tests, bd_game 222. NO workers running.
 Landed tonight: sparks cost model, transformer combat, animation pass, impact frames (+REDUCE FLASHES),
