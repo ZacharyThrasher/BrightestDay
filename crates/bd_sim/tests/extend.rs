@@ -115,7 +115,7 @@ fn duel(dist: f32) -> World {
 fn charged_thrust_extends_and_hits_far_away() {
     let mut w = duel(26.0);
     // Aim level at B's chest (a flat arena: pitch ≈ 0).
-    let ev = act(&mut w, A, 0.0, -0.01, buttons::PRIMARY, 90, 5);
+    let ev = act(&mut w, A, 0.0, -0.01, buttons::PRIMARY, 90, 13);
     assert!(has_fx(&ev, HeldFx::Extend), "thrust fired");
     let c = w.constructs.held_by(A).expect("held");
     assert!(c.held.ext > 15.0, "pole extended ({})", c.held.ext);
@@ -220,6 +220,11 @@ fn twirl_combo_hits_and_finisher_is_heavy() {
     for _ in 0..3 {
         let ev = act(&mut w, A, 0.0, -0.05, buttons::PRIMARY, 1, 30);
         kinds.extend(hits_on(&ev, B).into_iter().map(|h| h.0));
+        for e in &ev {
+            if let GameEvent::HeldFx { fx: HeldFx::SwingStart, strength, .. } = e {
+                eprintln!("swing start {strength}");
+            }
+        }
         // Keep B in reach.
         place(&mut w, B, Vec3::new(0.0, GROUND, 30.0 - 2.6));
     }

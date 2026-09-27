@@ -54,8 +54,10 @@ impl World {
 
     /// [`parse_phrase`] for `player`'s current power.
     pub fn parse_power_phrase(&self, player: PlayerId, text: &str) -> PowerPhrase {
-        let id = self.player(player).and_then(|p| p.power.id).filter(|_| self.cfg.rules.powers_enabled);
-        parse_phrase(id, text)
+        match self.player(player).filter(|_| self.cfg.rules.powers_enabled) {
+            Some(p) => p.power.parse_phrase(text),
+            None => PowerPhrase::Plain,
+        }
     }
 
     // ------------------------------------------------------------------------------ commands
@@ -1111,7 +1113,7 @@ impl World {
             let to = (me + look.normalize_or_zero() * 1.6 - from).normalize_or(-look);
             q.mv.release_tethers();
             q.mv.extra.cancel_dodge(&mut q.mv.vel);
-            q.mv.vel = to * speed + Vec3::Y * 2.5;
+            q.mv.vel = to * speed + Vec3::Y * 4.0;
             q.mv.grounded = false;
             q.mv.tumble = q.mv.tumble.max(0.25);
             let tid = q.id;

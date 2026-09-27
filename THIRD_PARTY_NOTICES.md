@@ -15,6 +15,7 @@ used only as words a player may type.
 | Bevy and the Rust crate ecosystem | engine and libraries | MIT / Apache-2.0 (see each crate) |
 | whisper.cpp / ggml-base.en model (optional voice) | local speech recognition | MIT |
 | cloudflared | quick-tunnel hosting (bundled exe) | Apache-2.0 |
+| System Reference Document 5.1 (Wizards of the Coast) | spell / monster / magic-item NAMES as trigger words in `assets/icons/tabletop.ron` (no rules text) | CC BY 4.0 (attribution below) |
 
 Because `assets/lexicon.bin` includes material derived from ConceptNet (CC BY-SA 4.0), that file is
 shared under CC BY-SA 4.0. All sound effects are procedurally synthesised (`tools/sfxgen`) and all
@@ -92,3 +93,18 @@ Hyperline map is inspired by Spider-Man: Across the Spider-Verse for private use
 (Only the mood of the train chase is referenced — a sleek white train racing through a vertical city shaft past giant ring
 gates. The name, layout, geometry, backdrop and sounds are Brightest Day's own; no Sony/Marvel assets, logos, names or text are
 used — `crates/bd_voxel/src/maps/hyperline.rs`, `crates/bd_game/src/present/hyperline.rs`.)
+
+## Tabletop vocabulary (`assets/icons/tabletop.ron`, `tools/icons/tabletop/gen.py`)
+
+This work includes material taken from the System Reference Document 5.1 ("SRD 5.1") by Wizards of
+the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1
+is licensed under the Creative Commons Attribution 4.0 International License available at
+https://creativecommons.org/licenses/by/4.0/legalcode.
+(Only spell, monster and magic-item names are used, as words a player may type; every in-game effect is
+Brightest Day's own mapping onto its existing mechanics. No SRD rules text is reproduced.)
+
+Non-SRD Dungeons & Dragons names (beholder, mind flayer / illithid, displacer beast, umber hulk, githyanki,
+hook horror, and the Bigby's / Tasha's / Otto's / Otiluke's / Evard's / Melf's / Mordenkainen's / Leomund's /
+Tenser's spell prefixes) are Wizards of the Coast product identity, used only as trigger words for private
+use; replace them before any public release. (Entries tagged "Dungeons & Dragons (name only; private use)"
+in `assets/icons/tabletop.ron`; the older D&D entries in `assets/icons/internet.ron` fall under the same note.)

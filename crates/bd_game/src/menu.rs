@@ -96,6 +96,8 @@ enum Knob {
     AdsSens,
     AdsSpeed,
     ShowPercent,
+    /// POWER HUD: the minimal strip (held powers' icons, cooldown sweeps, willpower arc, statuses).
+    PowerHud,
     SummonPreview,
     /// TRACKING: enemy compass strip on / off.
     EnemyCompass,
@@ -512,7 +514,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                     v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Roll), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
                 }
                 SettingsTab::Hud => {
-                    v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::ShowPercent)]);
+                    v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::ShowPercent), Value(K::PowerHud)]);
                     v.extend([Header("WORDS"), Value(K::Shout), Value(K::Ono), Value(K::OnoLang)]);
                     v.extend([Header("SUMMONS"), Value(K::SummonPreview)]);
                 }
@@ -576,6 +578,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::AdsSens => (lbl("ADS SENSITIVITY"), format!("{:.2}X", c.prefs.camera.ads_sens())),
         Knob::AdsSpeed => (lbl("ADS ZOOM SPEED"), format!("{:.2}X", c.prefs.camera.ads_speed())),
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
+        Knob::PowerHud => (lbl("POWER HUD"), on_off(c.prefs.power_hud)),
         Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
         Knob::EnemyCompass => (lbl("ENEMY COMPASS"), on_off(c.prefs.enemy_compass)),
         Knob::Outlines => (lbl("PLAYER OUTLINES"), on_off(c.prefs.outlines)),
@@ -739,6 +742,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::ShowPercent => {
             c.prefs.show_percent = !c.prefs.show_percent;
+            game = false;
+        }
+        Knob::PowerHud => {
+            c.prefs.power_hud = !c.prefs.power_hud;
             game = false;
         }
         Knob::SummonPreview => {
@@ -2143,7 +2150,7 @@ mod tests {
         let all: Vec<Row> = SettingsTab::ALL.into_iter().flat_map(|t| settings_rows(t, true)).collect();
         let knobs = [
             Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
-            Knob::AdsSpeed, Knob::ShowPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
+            Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
             Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Roll, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
             Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
             Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,

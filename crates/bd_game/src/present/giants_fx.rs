@@ -186,9 +186,55 @@ fn giant_events(
     let ring = fx.ring.get_or_insert_with(|| meshes.add(ring_mesh())).clone();
     // Distance falloff for camera channels (1 at the camera … 0 at `r`).
     let near = |p: Vec3, r: f32| (1.0 - eye.distance(p) / r).clamp(0.0, 1.0);
+    let corps_of = |id: ConstructId| active.world.constructs.get(id).map_or([1.0, 1.0, 1.0], |c| corps_rgb(active.corps_of(c.owner)));
     for ev in events.read() {
+        // TITANS: the pilot's dash thud, the landing crunch, a piloted stomp's gravitas.
+        match &ev.event {
+            GameEvent::Move { player, flags, .. } => {
+                use bd_sim::events::move_flags;
+                let seated = active.world.player(*player).and_then(|p| p.seat).filter(|s| !s.suit).and_then(|s| active.world.constructs.get(s.construct)).filter(|c| bd_sim::constructs::titan::walks(c));
+                if let Some(c) = seated {
+                    let p = bv(c.pos);
+                    let local = active.local == Some(*player);
+                    if flags & move_flags::DODGE != 0 {
+                        sfx.write(Sfx3d::at("boost_burst", p).pitch(0.55).gain(1.1));
+                        sfx.write(Sfx3d::at("land_heavy", p).pitch(0.6));
+                        burst.write(BurstFx { kind: BurstKind::Dust, pos: p + Vec3::Y * 0.3, dir: Vec3::Y, scale: 1.6, color: None });
+                        if local {
+                            shake.write(CameraShakeEvent { trauma: 0.12, dir: Vec3::ZERO });
+                        }
+                    }
+                    if flags & move_flags::LAND_HARD != 0 {
+                        sfx.write(Sfx3d::at("land_heavy", p).pitch(0.5).gain(1.3));
+                        sfx.write(Sfx3d::at("kaiju_step", p).gain(1.2));
+                        burst.write(BurstFx { kind: BurstKind::Dust, pos: p + Vec3::Y * 0.3, dir: Vec3::Y, scale: 2.4, color: None });
+                        let k = if local { 1.0 } else { near(p, 50.0) };
+                        if k > 0.0 {
+                            shake.write(CameraShakeEvent { trauma: 0.3 * k, dir: Vec3::NEG_Y });
+                        }
+                    }
+                }
+                continue;
+            }
+            GameEvent::HeldFx { id, fx: bd_sim::events::HeldFx::PilotAttack, pos, dir, strength, .. } if dir.y < -0.9 && *strength >= 1.5 => {
+                // A piloted stomp: dust ring, boom, shake with distance.
+                let p = bv(*pos);
+                let col = corps_of(*id);
+                burst.write(BurstFx { kind: BurstKind::Dust, pos: p + Vec3::Y * 0.3, dir: Vec3::Y, scale: 2.8, color: None });
+                burst.write(BurstFx { kind: BurstKind::Shards, pos: p + Vec3::Y * 0.3, dir: Vec3::Y, scale: 1.4, color: Some(col) });
+                commands.spawn((Transform::from_translation(p + Vec3::Y * 0.5), dust(22.0, 1.0, 0.9), Fade { left: 2.2 }));
+                sfx.write(Sfx3d::at("kaiju_stomp", p).gain(1.1));
+                sfx.write(Sfx3d::at("amb_distant_boom", p).pitch(0.55).gain(1.1));
+                let k = near(p, 60.0);
+                if k > 0.0 {
+                    shake.write(CameraShakeEvent { trauma: 0.3 * k, dir: Vec3::NEG_Y });
+                    duck.duck(0.3 * k);
+                }
+                continue;
+            }
+            _ => {}
+        }
         let GameEvent::Giant(g) = &ev.event else { continue };
-        let corps_of = |id: ConstructId| active.world.constructs.get(id).map_or([1.0, 1.0, 1.0], |c| corps_rgb(active.corps_of(c.owner)));
         match g {
             GiantEvent::Born { .. } => {}
             GiantEvent::Warn { id, kind, secs, .. } => {
@@ -676,11 +722,11 @@ pub mod scenario {
             let c = me + d * dist;
             let Some(y0) = ground(w, c.x, c.z, me.y) else { continue };
             let mut ok = true;
-            'grid: for i in -3..=3 {
-                for j in -3..=3 {
-                    let (x, z) = (c.x + i as f32 * 4.5, c.z + j as f32 * 4.5);
+            'grid: for i in -2..=2 {
+                for j in -2..=2 {
+                    let (x, z) = (c.x + i as f32 * 4.0, c.z + j as f32 * 4.0);
                     match ground(w, x, z, y0) {
-                        Some(y) if (y - y0).abs() < 1.2 => {}
+                        Some(y) if (y - y0).abs() < 2.0 => {}
                         _ => {
                             ok = false;
                             break 'grid;
@@ -730,7 +776,7 @@ pub mod scenario {
         let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
         let (Some(&owner), Some(&far)) = (others.first(), others.get(1)) else { return };
         if !sc.placed {
-            let Some((spot, dir)) = find_spot(&active.world, my_pos, 22.0) else {
+            let Some((spot, dir)) = [22.0, 18.0, 26.0, 14.0].iter().find_map(|d| find_spot(&active.world, my_pos, *d)) else {
                 if sc.t > 8.0 {
                     warn!("giants scenario: no open ground near the spawn");
                     sc.placed = true;

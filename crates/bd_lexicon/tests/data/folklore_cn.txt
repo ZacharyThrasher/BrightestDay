@@ -1,0 +1,116 @@
+# Brightest Day - Sun Wukong + Chinese folklore corpus. Same line format as intent_golden.txt:
+#   category | phrase | expectations        (see intent_golden.txt for the expectation tokens)
+# Every line must also NOT be a fallback (Lexicon::is_fallback). Categories starting "gold_" must all hold.
+# Sources: Journey to the West, Fengshen Yanyi, Romance of the Three Kingdoms, Chinese mythology (public domain).
+# Roster: Ethan, Jake, Sam, Alex_99, Mia, Big Tony, xX_Nova_Xx, DragonSlayer, Zoe
+
+# =====================================================================================================
+# golden: the staff + telescoping weapons (Mechanic::Extends)
+# =====================================================================================================
+gold_staff | RUYI JINGU BANG | form=Spear +Extends +Blunt
+gold_staff | ruyi jingu bang | form=Spear +Extends name~ruyi
+gold_staff | ruyi | form=Spear +Extends
+gold_staff | summon the monkey king's staff | form=Spear +Extends
+gold_staff | monkey king staff | form=Spear +Extends
+gold_staff | wukong's staff | form=Spear +Extends
+gold_staff | golden cudgel | form=Spear +Extends
+gold_staff | as-you-will staff | form=Spear +Extends
+gold_staff | compliant golden-hooped rod | form=Spear +Extends
+gold_staff | extending staff | form=Spear +Extends
+gold_staff | monkey staff | form=Spear +Extends
+gold_staff | power pole | form=Spear +Extends -Shoots
+gold_staff | nyoibo | form=Spear +Extends -Shoots
+gold_staff | gum gum pistol | cat=Held +Extends -Shoots
+gold_staff | extending sword | form=Sword +Extends
+gold_staff | extendable sword | form=Sword +Extends
+gold_staff | telescoping spear | form=Spear +Extends
+gold_staff | telescopic spear | form=Spear +Extends
+gold_staff | extending spear | form=Spear +Extends
+gold_staff | stretchy fist | form=Gauntlet +Extends
+gold_staff | stretching fist | form=Gauntlet +Extends
+gold_staff | stretchy punch | form=Gauntlet +Extends
+gold_staff | rubber fist | form=Gauntlet +Extends
+gold_staff | extending pole | cat=Held +Extends
+gold_staff | telescoping staff | cat=Held +Extends
+gold_staff | retractable staff | cat=Held +Extends
+
+# =====================================================================================================
+# golden: Sun Wukong's kit
+# =====================================================================================================
+gold_wukong | sun wukong | cat=Creature form=Biped +Extends
+gold_wukong | summon the monkey king | cat=Creature +Extends
+gold_wukong | monkey king | cat=Creature +Extends
+gold_wukong | somersault cloud | +Piloted +Flies
+gold_wukong | jindou yun | +Piloted +Flies
+gold_wukong | hair clones | +Swarm n>=5
+gold_wukong | clone army of monkeys | +Swarm n>=5
+gold_wukong | 72 transformations | +Transforms
+gold_wukong | seventy-two transformations | +Transforms
+gold_wukong | fiery golden eyes | +Beam el=Fire
+gold_wukong | golden headband | +Constrict/Trap
+gold_wukong | tightening crown | +Constrict/Trap
+gold_wukong | peaches of immortality | cat=Object
+gold_wukong | zhu bajie's rake | cat=Held +Blunt
+gold_wukong | sha wujing's spade | cat=Held +Blade
+gold_wukong | bull demon king | +Charge +Stomp
+gold_wukong | iron fan | +Repel el=Wind
+gold_wukong | princess iron fan's fan | +Repel el=Wind
+gold_wukong | white bone demon | cat=Creature el=Shadow
+gold_wukong | dragon king | form=Serpent +Flies
+gold_wukong | dragon king of the east sea | form=Serpent el=Water
+
+# =====================================================================================================
+# golden: Nezha, Erlang Shen
+# =====================================================================================================
+gold_deity | nezha's wind fire wheels | +Piloted +Fast el=Fire
+gold_deity | wind fire wheels | +Piloted
+gold_deity | universe ring | +Returning
+gold_deity | qiankun circle | +Returning
+gold_deity | huntian ling | form=Whip +Constrict
+gold_deity | fire-tipped spear | form=Spear +Pierce el=Fire
+gold_deity | ERLANG'S THIRD EYE | +Beam
+gold_deity | three-pointed double-edged blade | form=Spear +Blade +Pierce
+gold_deity | xiaotian | cat=Creature +Homing
+gold_deity | howling celestial dog | cat=Creature +Homing
+gold_deity | erlang shen | cat=Creature
+
+# =====================================================================================================
+# golden: mythology + beasts
+# =====================================================================================================
+gold_myth | hou yi's bow | form=Bow +Shoots
+gold_myth | shoot down the suns | +DropFromSky el=Fire
+gold_myth | moon goddess chang'e | cat=Creature +Flies/SlowFall
+gold_myth | chang e | cat=Creature +Flies/SlowFall
+gold_myth | chang'e the moon goddess | cat=Creature +Flies/SlowFall
+gold_myth | jade rabbit | cat=Creature +Bounce
+gold_myth | jade emperor | cat=Creature
+gold_myth | pangu's axe | form=Axe +Heavy
+gold_myth | nuwa's five-coloured stones | +Barrier
+gold_myth | summon a chinese dragon | form=Serpent +Flies
+gold_myth | chinese dragon | form=Serpent +Flies
+gold_myth | qilin | form=Quadruped +Charge
+gold_myth | fenghuang | form=Bird +Flies
+gold_myth | nian beast | cat=Creature el=Fire
+gold_myth | jiangshi | cat=Creature +Bounce
+gold_myth | pixiu | form=Quadruped +Attract
+gold_myth | nine tailed fox | cat=Creature
+gold_myth | huli jing | cat=Creature
+gold_myth | stone lions | form=Quadruped n>=2
+gold_myth | foo dogs | form=Quadruped n>=2
+
+# =====================================================================================================
+# golden: Three Kingdoms, history, festivals
+# =====================================================================================================
+gold_hist | guan yu's blade | cat=Held +Blade
+gold_hist | green dragon crescent blade | cat=Held +Blade +Heavy
+gold_hist | lu bu's halberd | form=Spear +Pierce +Blade
+gold_hist | red hare | +Piloted +Fast
+gold_hist | zhuge liang's repeating crossbow | +Shoots +Fast
+gold_hist | straw boats | +Barrier
+gold_hist | terracotta army | +Swarm n>=5
+gold_hist | terracotta warriors | +Swarm n>=5
+gold_hist | great wall | +Barrier
+gold_hist | firecrackers | +Explodes
+gold_hist | dragon dance | form=Serpent
+gold_hist | sky lanterns | +Flies
+gold_hist | kongming lanterns | +Flies +SlowFall

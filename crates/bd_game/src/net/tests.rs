@@ -438,6 +438,7 @@ fn match_swap_to_another_map() {
     let mut build: Option<std::thread::JoinHandle<(World, NetMap, super::terrain_hash::TerrainHasher)>> = None;
     let (mut ended_at, mut voted, mut swapped_at, mut stats_seen) = (None, false, None, false);
     let mut first_ids = Vec::new();
+    let mut voter_before = None;
     while now_secs() - t0 < 40.0 {
         let t = now_secs() - t0;
         host.poll(Some(&mut active), &mut cmds);
@@ -454,6 +455,7 @@ fn match_swap_to_another_map() {
             first_ids = bots.iter().filter_map(|b| b.core.me).collect();
             if let Some(p) = active.world.player_mut(first_ids[0]) {
                 p.kos = 4;
+                voter_before = Some((p.name.clone(), p.corps));
             }
             active.world.match_state.phase = MatchPhase::Ended;
             ended_at = Some(t);
@@ -519,7 +521,8 @@ fn match_swap_to_another_map() {
         assert!(active.world.player(id).is_some(), "{id:?} in the new match");
     }
     let voter = active.world.player(first_ids[0]).expect("voter");
-    assert_eq!((voter.name.as_str(), voter.corps, voter.kos), ("voter", Corps::Rage, 0));
+    assert_eq!(Some((voter.name.clone(), voter.corps)), voter_before, "name / corps carry over");
+    assert_eq!(voter.kos, 0, "scores reset");
     assert_eq!(active.world.match_state.phase, MatchPhase::Warmup, "a fresh match");
     assert!(stats_seen, "stats reached the client");
 }

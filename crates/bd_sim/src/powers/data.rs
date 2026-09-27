@@ -571,7 +571,7 @@ pub struct TierDef {
     pub body: Option<BodyDef>,
     /// Added to the base graft.
     pub graft: Option<GraftDef>,
-    /// Added to the base effects.
+    /// Replace the base effects while on (empty = keep the base's): tier numbers are totals.
     pub effects: Vec<PowerEffect>,
     /// Replace the base moves while on (empty = keep).
     pub moves: Vec<MoveDef>,

@@ -130,6 +130,8 @@ pub struct ViewMode {
     pub piloting: bool,
     /// Boom length for piloting (m).
     pub pilot_dist: f32,
+    /// GIANTS: seated in a titan (cockpit walker): a head-height cockpit view, no boom.
+    pub cockpit: bool,
     /// A director camera owns the view (soak viewer, brawl bench).
     pub director: bool,
     /// Dolly 0 (eye) … 1 (over the shoulder), eased.
@@ -486,6 +488,9 @@ fn update_mode(
     if let (Some((cid, _)), Some(a)) = (seat, active.as_ref()) {
         let size = a.world.constructs.get(cid).map_or(3.0, |c| c.half.max_element() * 2.0);
         mode.pilot_dist = (size * 1.6 + 3.0).clamp(5.0, 30.0);
+        mode.cockpit = a.world.constructs.get(cid).is_some_and(bd_sim::constructs::titan::walks);
+    } else {
+        mode.cockpit = false;
     }
 
     // The dolly.
@@ -547,7 +552,11 @@ pub(crate) fn place_camera(
     let cut = comfort_cut(&comfort);
 
     if *rig == CameraRig::ThirdPerson {
-        let (offset, boom) = if mode.piloting {
+        let (offset, boom) = if mode.piloting && mode.cockpit {
+            // GIANTS: the titan cockpit — the pilot rides the head; look out over its brow.
+            let f = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or_zero();
+            (f * 0.9 - Vec3::Y * 0.4, 0.05)
+        } else if mode.piloting {
             (Vec3::Y * mode.pilot_dist * 0.25, mode.pilot_dist)
         } else {
             // Shoulder side: preferred, or auto-swapped away from a wall.

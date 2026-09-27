@@ -260,7 +260,7 @@ dnd_spell | blade barrier | form=Wall +Blade
 dnd_spell | spike growth | +Pierce
 dnd_spell | moonbeam | +Beam
 dnd_spell | hunter's mark | +Homing
-dnd_spell | hex | el=Shadow
+dnd_spell | hex curse | el=Shadow
 dnd_spell | bless | el=Light
 dnd_spell | fire storm | +Explodes
 dnd_spell | delayed blast fireball | el=Fire +Explodes

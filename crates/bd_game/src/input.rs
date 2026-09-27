@@ -179,8 +179,10 @@ impl LocalInputState {
         self.ext_latched = 0;
         let (mut mx, mut mz) = (self.move_x, self.move_z);
         if typing {
-            // Keep running on what was held when the ring opened; aim still steers it.
-            (mx, mz) = *self.typing_move.get_or_insert((mx, mz));
+            // Keep running on what was being sent when the ring opened (the last live tick, so a
+            // letter typed before the first typing tick can't latch); aim still steers it.
+            let live = (self.current.move_x, self.current.move_z);
+            (mx, mz) = *self.typing_move.get_or_insert(if self.current.held(buttons::TYPING) { (0, 0) } else { live });
             b |= buttons::TYPING;
             b &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST | buttons::CHARGE | buttons::DODGE);
         } else {
@@ -420,6 +422,7 @@ mod tests {
     #[test]
     fn typing_latches_movement() {
         let mut s = LocalInputState { move_z: 1, held: buttons::JUMP | buttons::TETHER_L, ..Default::default() };
+        s.next_tick(LookAngles::default(), false);
         let i = s.next_tick(LookAngles::default(), true);
         assert_eq!((i.move_x, i.move_z), (0, 1));
         assert!(i.held(buttons::TYPING));
@@ -444,6 +447,7 @@ mod tests {
     #[test]
     fn closing_typing_hands_off_cleanly() {
         let mut s = LocalInputState { move_z: 1, held: buttons::TETHER_R, ..Default::default() };
+        s.next_tick(LookAngles::default(), false);
         s.next_tick(LookAngles::default(), true);
         // Released W while typing, still holding Space + a keyboard tether key at close.
         s.move_z = 0;
@@ -467,6 +471,7 @@ mod tests {
         assert_eq!(i.move_z, 1);
         // A fresh ring latches afresh.
         s.move_z = -1;
+        s.next_tick(LookAngles::default(), false);
         assert_eq!(s.next_tick(LookAngles::default(), true).move_z, -1);
     }
 }

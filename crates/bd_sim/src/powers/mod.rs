@@ -196,9 +196,12 @@ impl HeldView {
     /// Effects in effect (base, tier, transform).
     pub fn effects(&self) -> impl Iterator<Item = &'static PowerEffect> + use<> {
         let def = self.def;
+        // A tier that lists effects REPLACES the base ones (tier numbers are totals: SSJ3 is ×1.45,
+        // not ×1.15 × 1.45); a tier without effects keeps the base.
         let t: &'static [PowerEffect] = def.tier(self.tier).map(|t| t.effects.as_slice()).unwrap_or(&[]);
+        let base: &'static [PowerEffect] = if t.is_empty() { &def.effects } else { &[] };
         let x: &'static [PowerEffect] = if self.transformed { def.transform.as_ref().map(|t| t.effects.as_slice()).unwrap_or(&[]) } else { &[] };
-        def.effects.iter().chain(t.iter()).chain(x.iter())
+        base.iter().chain(t.iter()).chain(x.iter())
     }
 }
 

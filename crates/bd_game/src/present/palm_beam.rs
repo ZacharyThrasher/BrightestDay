@@ -349,7 +349,7 @@ fn place_palms(
         });
         let firing = f.beams.iter().any(|b| b.construct == o.id && b.t < b.dur);
         let want = if firing {
-            0.8
+            if first { 0.3 } else { 0.8 }
         } else if charging {
             level.max(0.05)
         } else {
@@ -444,6 +444,7 @@ fn place_palms(
             spawn(&mut commands, &assets.cylinder, &m[1]),
             spawn(&mut commands, &assets.sphere, &m[2]),
         ];
+        debug!("palm beam: {owner:?} {:.1} m, radius {radius:.2}, {secs:.2} s", from.distance(end));
         f.beams.push(Beam { owner, construct, end, color, radius, dur: secs, t: 0.0, parts: parts_e, mats: m, spark: 0.0, mine });
         // Juice: the caster's kick (the viewmodel thrusts), everyone near feels it.
         let k = (radius / 1.1).clamp(0.2, 1.0);
@@ -488,7 +489,8 @@ fn place_palms(
         let place = [
             (from + dir * flare * 0.5, cone_rot, Vec3::new(r, flare, r)),
             (from + dir * (flare + rest * 0.5), rot, Vec3::new(r, rest.max(0.001), r)),
-            (from + dir * len * 0.5, rot, Vec3::new(r * 1.7, len.max(0.001), r * 1.7)),
+            // The glow only past the flare (in first person it would otherwise wash over the view).
+            (from + dir * (flare + rest * 0.5), rot, Vec3::new(r * 1.7, rest.max(0.001), r * 1.7)),
             (to, Quat::IDENTITY, Vec3::splat((r * 2.2).max(0.001))),
         ];
         for (e, (p, q, s)) in b.parts.iter().zip(place) {

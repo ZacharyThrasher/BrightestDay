@@ -391,8 +391,8 @@ pub fn swing_curve_extends(kind: SwingKind) -> SwingCurve {
         S::Combo(_) => curve("staff_overhead_windmill", kind, 0.13, 0.1, 0.34, 0.13, &[
             (0.0, 35.0, 0.0, 0.0, REST, 1.0, Linear),
             (0.13, 175.0, 8.0, 0.0, [0.15, 0.25, 0.2], 0.85, OutCubic),
-            (0.23, -62.0, 0.0, 0.0, [0.12, -0.22, -0.3], 1.2, InCubic),
-            (0.3, -95.0, 0.0, 0.0, [0.22, -0.2, -0.2], 1.0, OutQuad),
+            (0.23, -28.0, 0.0, 0.0, [0.12, -0.18, -0.3], 1.2, InCubic),
+            (0.3, -70.0, 0.0, 0.0, [0.22, -0.2, -0.2], 1.0, OutQuad),
             (0.47, -325.0, 0.0, 0.0, REST, 1.0, InOutSine),
         ]),
         S::Heavy => curve("staff_coil_thrust", kind, 0.2, 0.08, 0.3, 0.2, &[

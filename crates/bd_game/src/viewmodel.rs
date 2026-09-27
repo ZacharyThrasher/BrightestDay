@@ -98,6 +98,8 @@ struct VmState {
     held: Option<(ConstructId, Form)>,
     power_down: Option<f32>,
     power_long_sent: bool,
+    /// Seconds since the last G tap (a second tap inside the window cycles the active power).
+    power_since_tap: f32,
     /// Costume/corps the hands were built for.
     built_for: Option<(String, u32, u32, u32, u8)>,
     time: f32,
@@ -397,6 +399,7 @@ fn vm_keys(
     // Power: tap = move 0 (on release), hold ≥ 0.28 s = move 1 (fires at the threshold).
     const HOLD: f32 = 0.28;
     let has_power = a.world.player_power(me.id).is_some();
+    st.power_since_tap = (st.power_since_tap + time.delta_secs()).min(9.0);
     if binds.just_pressed(Action::Power, &keys, &mouse) {
         st.power_down = Some(0.0);
         st.power_long_sent = false;
@@ -412,7 +415,10 @@ fn vm_keys(
         }
         if binds.just_released(Action::Power, &keys, &mouse) {
             if t < HOLD && has_power {
-                cmds.write(SimCommand::local(Cmd::PowerMove(0, aim)));
+                // G double-tap: the next held power becomes the active one (powers mix).
+                let slot = if st.power_since_tap < 0.3 { bd_sim::powers::move_sel::CYCLE } else { 0 };
+                cmds.write(SimCommand::local(Cmd::PowerMove(slot, aim)));
+                st.power_since_tap = if slot == 0 { 0.0 } else { 9.0 };
             }
             st.power_down = None;
         }

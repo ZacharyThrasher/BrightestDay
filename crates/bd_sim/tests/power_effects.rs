@@ -72,6 +72,12 @@ fn pct(w: &World, id: PlayerId) -> f32 {
 
 /// A hit on `target` from `source` (fresh %, so knockback doesn't carry players away).
 fn hit(w: &mut World, target: PlayerId, source: PlayerId, kind: HitKind, damage: f32) -> f32 {
+    // Fresh victim: no juggle decay, no momentum bonus.
+    for id in [target, source] {
+        let p = w.player_mut(id).unwrap();
+        p.juggle = Default::default();
+        p.mv.vel = Vec3::ZERO;
+    }
     w.player_mut(target).unwrap().damage_pct = 0.0;
     let before = pct(w, target);
     let at = w.player(target).unwrap().mv.pos + Vec3::Y;
@@ -485,7 +491,7 @@ fn universal_pull_yanks_the_aimed_enemy() {
         run(&mut w, 1)
     });
     assert!(evs.iter().any(|e| matches!(e, PowerEvent::Yanked { target: Some(B), .. })));
-    run(&mut w, 24);
+    run(&mut w, 36);
     let to = w.player(B).unwrap().mv.pos;
     assert!((to - Vec3::new(0.0, 8.0, 0.0)).length() < (from - Vec3::new(0.0, 8.0, 0.0)).length() - 6.0, "pulled in: {from} → {to}");
 }

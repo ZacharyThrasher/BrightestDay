@@ -53,7 +53,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Character costumes abe83e88bc70188b0 — style library + ~150 iconic looks (gojo/vader/...) + icon-derived
   fallback; gallery docs/costume_gallery.png is the bar.
 - Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (DONE; gaps: vehicles do not drive on movers, Hall reads dark, amb_energon_crackle+amb_cybertron_core wishlist) (transforms
-  ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (static), Valley (DONE, registered; easy falls climb KEPT per owner) of the
+  ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (DONE, static; bed bounce still an open offer), Valley (DONE, registered; easy falls climb KEPT per owner) of the
   End a39d259b62dd1312d (water-walk as flavour), Ember a12534acdde2f59c8 (lava = void), Hyperline
   a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b (DONE, registered; surf murk fix sent to feel-polish), High Roller casino
   a668e5a109aacf9fa (optional slots/roulette; its routes example was missing mid-work).

@@ -360,7 +360,7 @@ impl NetCmd {
                 Cmd::Cast { recipe, shape, alt_shape: small(alt_shape), aim, incantation }
             }
             // The sim re-checks the aim against the caster's eye / look (`World::resolve_aim`).
-            NetCmd::PowerMove { slot, aim } => Cmd::PowerMove(slot.min(1), aim.map(|a| Aim { target_hint: None, modifier: false, ..a })),
+            NetCmd::PowerMove { slot, aim } => Cmd::PowerMove(slot, aim.map(|a| Aim { target_hint: None, modifier: false, ..a })),
             NetCmd::StandRush(n) => Cmd::StandRush(n.min(64)),
             // Out of any oath's range → section 0 (the sim also falls back per corps).
             NetCmd::OathBegin { section } => Cmd::OathBegin { section: if (section as usize) < bd_sim::willpower::MAX_OATH_SECTIONS { section } else { 0 } },

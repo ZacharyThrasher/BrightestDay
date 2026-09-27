@@ -520,6 +520,9 @@ pub struct UiPrefs {
     pub shout: ShoutPref,
     /// Small numeric damage % at the bottom (off by default: the ring and the screen edges say it).
     pub show_percent: bool,
+    /// POWER HUD: the minimal strip (held powers, cooldowns, forms, willpower, pickup, statuses).
+    /// On by default; the ring gems / motes are diegetic and always on.
+    pub power_hud: bool,
     /// Off-screen summon ping shows a tiny preview window of the construct (off = arrow only).
     pub summon_preview: bool,
     /// TRACKING: the enemy compass strip at the top of the screen (`present::tracking`).
@@ -551,6 +554,7 @@ impl Default for UiPrefs {
             ono_manga: false,
             shout: ShoutPref::On,
             show_percent: false,
+            power_hud: true,
             summon_preview: true,
             enemy_compass: true,
             outlines: true,
@@ -833,6 +837,7 @@ mod tests {
         let mut p = UiPrefs::default();
         p.shout = ShoutPref::Mine;
         p.show_percent = true;
+        p.power_hud = false;
         p.summon_preview = false;
         p.enemy_compass = false;
         p.outlines = false;
