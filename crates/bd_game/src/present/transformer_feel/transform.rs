@@ -268,7 +268,7 @@ pub fn cascade(
             match e.kind {
                 TransformEventKind::Lock => {
                     // One click per lock, throttled so a fast sequence stays a ratchet, not a smear.
-                    let gap = if snap { 0.06 } else { 0.028 + 0.012 * class as f32 };
+                    let gap = if snap { 0.06 } else { [0.014, 0.02, 0.032][class] };
                     let budget = if snap { 3 } else { 40 };
                     if audible && f.click_gap <= 0.0 && f.clicks_this_seq < budget {
                         f.click_gap = gap;
@@ -284,10 +284,11 @@ pub fn cascade(
                         shower(fx, wp, w, scale, &mut j, snap);
                     }
                 }
-                TransformEventKind::Unlatch if !snap && class > 0 && audible => {
-                    if f.click_gap <= 0.0 && j.f() < 0.35 {
-                        f.click_gap = 0.02;
-                        sfx.write(Sfx3d::at("transform_panel_click", wp).pitch((pitch * 1.25).clamp(0.8, 1.8)).gain(0.3));
+                // The unfold beat: plates unlatching outside-in — a lighter, higher tick run.
+                TransformEventKind::Unlatch if !snap && audible => {
+                    if f.click_gap <= 0.0 && j.f() < 0.75 {
+                        f.click_gap = [0.012, 0.018, 0.028][class];
+                        sfx.write(Sfx3d::at("transform_panel_click", wp).pitch((pitch * 1.25 * j.range(0.95, 1.05)).clamp(0.8, 1.8)).gain(0.32));
                     }
                 }
                 TransformEventKind::HeadUp => {

@@ -152,14 +152,15 @@ pub fn events(
             }
             GameEvent::CreatureAttack { id, kind, phase: ph, .. } => {
                 let Some(&e) = map.0.get(id) else { continue };
-                let Ok(f) = q.get(e) else { continue };
+                let Ok(mut f) = q.get_mut(e) else { continue };
                 let Some(c) = active.world.constructs.get(*id) else { continue };
                 let p = bv(c.center());
                 let pitch = f.pitch();
                 let w = f.weight();
                 let k = AttackKind::from_u8(*kind);
-                if *ph == phase::TELEGRAPH && matches!(k, AttackKind::TailSweep | AttackKind::Breath | AttackKind::Charge | AttackKind::Stomp) && !roars.iter().any(|(r, _)| r == id) {
+                if *ph == phase::TELEGRAPH && matches!(k, AttackKind::TailSweep | AttackKind::Breath | AttackKind::Charge | AttackKind::Stomp) && !roars.iter().any(|(r, _)| r == id) && f.roar_in.is_none() && f.since_roar > 2.5 {
                     roars.push((*id, now));
+                    f.since_roar = 0.0;
                     sfx.write(Sfx3d::at("kaiju_roar", p).pitch((pitch * 1.1).clamp(0.6, 1.5)).gain((0.55 + 0.2 * w).min(1.1)));
                 } else if *ph == phase::ACTIVE {
                     match k {
@@ -191,11 +192,13 @@ pub fn layers(
 ) {
     let dt = time.delta_secs().min(0.1);
     for (mut f, mut vis, gt) in &mut q {
+        f.since_roar += dt;
         // Beast roar as the beast mode arrives.
         if let Some(t) = f.roar_in.as_mut() {
             *t -= dt;
             if *t <= 0.0 {
                 f.roar_in = None;
+                f.since_roar = 0.0;
                 let pitch = f.pitch();
                 let w = f.weight();
                 sfx.write(Sfx3d::at("kaiju_roar", gt.translation() + Vec3::Y * f.height * 0.5).pitch((pitch * 1.1).clamp(0.6, 1.5)).gain((0.7 + 0.2 * w).min(1.2)));

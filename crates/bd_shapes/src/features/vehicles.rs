@@ -9,7 +9,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use bd_core::mechanics::Feature::*;
 use bd_core::mechanics::Mechanic::*;
-use bd_core::shape::PrimKind;
+use bd_core::shape::{Part, PartRole, PrimKind};
 use glam::Vec3;
 
 use super::kit::*;
@@ -18,6 +18,7 @@ use crate::build::{A, C, D, P, odd, v3};
 
 
 use crate::forms::G;
+use crate::voxelize::SEAT_PART;
 
 pub(crate) fn vehicle(g: &mut G) {
     // Seeded default look (drawn first so the plain car/truck/tank variety is stable).
@@ -547,11 +548,17 @@ fn motorcycle(g: &mut G) {
     // Fork legs down to the front axle, front fender, handlebars with grips.
     b.sym(|b, s| {
         b.bar(head + v3(s, 0.0, 0.0), v3(s, axle_y, zf), 1.0, A);
-        b.bx(v3(s * (bw * 0.5 + 2.0), bar_y, head.z + 1.0), v3(1.0, 1.0, 2.0), D);
+        b.bx(v3(s * (bw * 0.5 + 1.5), bar_y, head.z + 1.0), v3(1.0, 1.0, 2.0), D);
     });
     b.bx(v3(0.0, top + 0.5, zf), v3((bw - 1.0).max(1.0), 1.0, wd * 0.7), P);
     b.bar(head, v3(0.0, bar_y, head.z + 1.0), 1.0, D);
-    b.bar(v3(-(bw * 0.5 + 1.5), bar_y, head.z + 1.0), v3(bw * 0.5 + 1.5, bar_y, head.z + 1.0), 1.0, A);
+    b.bar(v3(-(bw * 0.5 + 1.0), bar_y, head.z + 1.0), v3(bw * 0.5 + 1.0, bar_y, head.z + 1.0), 1.0, A);
+    // Fast: a sport fairing wrapped round the steering head (instead of the generic speed fins).
+    if g.take(Fast) {
+        let b = &mut g.b;
+        b.el(head + v3(0.0, -0.8, -0.8), v3(bw + 1.0, (wd * 0.55).max(2.5), (r * 1.2).max(2.5)), A);
+        b.bxr(head + v3(0.0, 1.2, -0.6), v3((bw - 1.0).max(1.0), 1.5, 1.0), v3(-30.0, 0.0, 0.0), C);
+    }
     if g.take_feat(Headlight) {
         headlight(&mut g.b, head + v3(0.0, -0.5, -1.5), Vec3::NEG_Z, 1.5);
     } else {
@@ -567,6 +574,16 @@ fn motorcycle(g: &mut G) {
     let side = bw * 0.5 + 1.0;
     g.b.bar(v3(side - 0.5, axle_y, mid), v3(side, axle_y + 0.5, zr - r * 0.5), 1.0, D);
     exhaust_pipe(&mut g.b, 0, v3(side, axle_y + 0.5, zr + r * 0.3), v3(0.0, 0.25, 1.0), 1.0, ex);
+    // The rider sits astride the saddle (no generic cockpit tub on top).
+    seat(g, v3(0.0, top + 2.0, l * 0.12));
+}
+
+/// Declares the pilot seat (`SEAT_PART`) where the body wants it, so `Mechanic::Piloted` doesn't add
+/// the generic cockpit tub on top.
+fn seat(g: &mut G, at: Vec3) {
+    if g.has(Piloted) && !g.b.spec.parts.iter().any(|p| p.id == SEAT_PART) {
+        g.b.spec.parts.push(Part { id: SEAT_PART, parent: 0, pivot: at, role: PartRole::Other });
+    }
 }
 
 // ---------------------------------------------------------------------------------- speedboat
@@ -601,6 +618,12 @@ fn speedboat(g: &mut G) {
     if g.take_feat(Headlight) {
         headlight(&mut g.b, v3(0.0, hd + 1.0, -l * 0.44), Vec3::NEG_Z, 1.5);
     }
+    // Fast: glowing speed stripes down both flanks (instead of the generic swept speed fins).
+    if g.take(Fast) {
+        g.b.sym(|b, s| {
+            b.bx(v3(s * (w * 0.5 + 0.1), y + hd * 0.2, l * 0.02), v3(1.0, 1.0, l * 0.62), C);
+        });
+    }
     // Outboard motor on the transom: cowl, leg down into the water, spinning propeller.
     let mo = v3(0.0, hd + 1.0, zs + 1.2);
     let b = &mut g.b;
@@ -613,6 +636,7 @@ fn speedboat(g: &mut G) {
     exhaust_pipe(&mut g.b, 0, mo + v3(0.0, 1.0, 1.8), v3(0.0, 0.4, 1.0), 1.0, ex);
     // Wake spray off the stern when it moves.
     g.b.puff(PuffSpec { part: 0, at: v3(0.0, 0.5, zs + 1.0), dir: v3(0.0, 0.6, 1.0).normalize(), size: 1.4, per_rev: 0.0, wheel: None, idle_hz: 0.0, per_m: 0.5 });
+    seat(g, v3(0.0, hd + 1.0, l * 0.2));
 }
 
 // ---------------------------------------------------------------------------------- submarine

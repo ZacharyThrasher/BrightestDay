@@ -224,7 +224,7 @@ fn script(
         "drift" => {
             ov.move_z = 1;
             let yaw0 = (-dir.x).atan2(-dir.z);
-            let turn = if t > 2.6 && t < 4.2 { (t - 2.6) * 1.5 } else if t >= 4.2 { 2.4 } else { 0.0 };
+            let turn = if t > 2.6 && t < 4.1 { 0.9 + (t - 2.6) * 2.4 } else if t >= 4.1 { 4.5 } else { 0.0 };
             look.yaw = yaw0 + turn;
             look.pitch = -0.35;
             ov.held = if t > 2.5 && t < 4.1 { buttons::DODGE } else { 0 };

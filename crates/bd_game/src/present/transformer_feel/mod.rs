@@ -145,6 +145,7 @@ pub struct TfFeel {
     pub(crate) dist: f32,
     pub(crate) air_t: f32,
     pub(crate) fall: f32,
+    pub(crate) step_gap: f32,
     // --- vehicle
     pub(crate) engine: Option<Entity>,
     pub(crate) screech: Option<Entity>,
@@ -157,6 +158,7 @@ pub struct TfFeel {
     pub(crate) swing_side: bool,
     /// Seconds until the beast-mode roar (a beast alt arriving).
     pub(crate) roar_in: Option<f32>,
+    pub(crate) since_roar: f32,
 }
 
 impl TfFeel {
@@ -185,6 +187,7 @@ impl TfFeel {
             dist: 0.0,
             air_t: 0.0,
             fall: 0.0,
+            step_gap: 0.0,
             engine: None,
             screech: None,
             slip: 0.0,
@@ -194,6 +197,7 @@ impl TfFeel {
             burst_t: 0.0,
             swing_side: false,
             roar_in: None,
+            since_roar: 99.0,
         }
     }
 

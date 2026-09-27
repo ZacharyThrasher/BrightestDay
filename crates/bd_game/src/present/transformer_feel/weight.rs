@@ -40,6 +40,7 @@ pub fn steps(
         let w = f.weight();
         let pitch = f.pitch();
         let near = eye.distance(gt.translation());
+        f.step_gap = (f.step_gap - dt).max(0.0);
         // ---- landing
         if !grounded {
             f.air_t += dt;
@@ -82,6 +83,11 @@ pub fn steps(
         bd_shapes::footfalls(model, speed, d0, dist, &mut feet);
         let class = size_class(f.height);
         for foot in feet.iter() {
+            // One footfall at a time (a render hitch can cross both feet in one frame).
+            if f.step_gap > 0.0 {
+                continue;
+            }
+            f.step_gap = (0.14 + 0.05 * w).min(0.4);
             let p = gt.transform_point(Vec3::from_array(foot.pos.to_array()));
             let pace = (speed / (2.0 + 1.5 * w)).clamp(0.5, 1.4);
             match class {

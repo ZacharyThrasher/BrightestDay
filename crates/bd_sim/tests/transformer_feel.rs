@@ -560,7 +560,9 @@ fn a_combined_giant_fights_as_the_colossus() {
     }
     let mut say = Recipe::unknown("combine");
     say.name = "combine".into();
-    let _ = w.cast(A, say, None, Aim::new(eye, Vec3::NEG_Z));
+    let n = w.constructs.iter().filter(|c| c.owner == A && c.gone.is_none()).count();
+    let r = w.cast(A, say, None, Aim::new(eye, Vec3::NEG_Z));
+    eprintln!("owned {n} ids {ids:?} combine -> {r:?}");
     let mut ev = Vec::new();
     for k in 0..(40 * 120) {
         if k % 90 == 0 {

@@ -155,9 +155,9 @@ fn motorcycle_and_speedboat_bodies() {
     let (_, bike) = build_model(&recipe(Form::Vehicle, 4.0, &[Mechanic::Charge, Mechanic::Fast], &[Wheels, Exhaust, Headlight], 3));
     assert_eq!(count(&bike, PartRole::Wheel), 2, "a bike has two in-line wheels");
     let e = extent(&bike);
-    assert!(e.x * 2.0 <= e.z, "a bike is narrow: {e}");
-    let (_, car) = build_model(&recipe(Form::Vehicle, 4.0, &[Mechanic::Charge], &[Wheels, Exhaust, Windows, Headlight], 3));
+    let (_, car) = build_model(&recipe(Form::Vehicle, 4.0, &[Mechanic::Charge, Mechanic::Fast], &[Wheels, Exhaust, Windows, Headlight], 3));
     assert_eq!(count(&car, PartRole::Wheel), 4, "windows keep the car");
+    assert!(e.x * 1.6 <= e.z && e.x < extent(&car).x, "a bike is narrow: {e} (car {})", extent(&car));
     let (_, boat) = build_model(&recipe(Form::Vehicle, 6.0, &[Mechanic::Charge, Mechanic::Fast], &[Propeller, Exhaust], 3));
     assert!(count(&boat, PartRole::Rotor) >= 1 && count(&boat, PartRole::Wheel) == 0 && count(&boat, PartRole::Fin) == 0);
     let (_, sub) = build_model(&recipe(Form::Vehicle, 6.0, &[], &[Propeller, Fins], 3));

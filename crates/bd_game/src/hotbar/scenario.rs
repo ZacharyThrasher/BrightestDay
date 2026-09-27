@@ -45,8 +45,7 @@ fn run(
     mut bar: ResMut<Hotbar>,
     mut edit: ResMut<TabEdit>,
     mut win: ResMut<super::dismiss::DismissWindow>,
-    mut look: ResMut<crate::input::LookAngles>,
-    mut set: ParamSet<(Caster, super::fire::KeyFire, ResMut<ActiveWorld>, MessageWriter<SimCommand>)>,
+    mut set: ParamSet<(Caster, super::fire::KeyFire, ResMut<ActiveWorld>, MessageWriter<SimCommand>, ResMut<crate::input::LookAngles>)>,
 ) {
     if lex.is_none() {
         return; // the ring can't read yet: the script starts when it can
@@ -85,7 +84,7 @@ fn run(
         // a fresh default loadout, auto-bind on
         let l = ["hammer".to_string(), "shield".into(), "wings".into(), "rocket launcher".into()];
         *bar = Hotbar::from_prefs(&l, &[false; 4]);
-        look.pitch = -0.08;
+        set.p4().pitch = -0.08;
         sc.step = 1;
     } else if at(&sc, 1, 2.0) {
         set.p0().cast("reinhardt ultimate", false, 0);
