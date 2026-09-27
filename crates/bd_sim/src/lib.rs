@@ -34,6 +34,7 @@ pub mod freedom; // FREEDOM HOOK: "it", name targeting, sputter, shout bonus, ki
 pub mod fuzz;
 pub mod geom;
 pub mod history;
+pub mod launch; // WILLPOWER = LAUNCH: host rule — willpower scales knockback, casts never refused (off = no-op)
 pub mod limit; // TOTAL LIMIT: a host rule capping each player's active things (constructs + powers; off = no-op)
 pub mod legendary; // FREEDOM HOOK: hidden novelty-driven legendary rolls (never shown)
 pub mod match_stats; // SCOREBOARD: competitive per-player stats (observer over events; never writes the world)

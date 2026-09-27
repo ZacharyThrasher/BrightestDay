@@ -31,6 +31,8 @@ pub mod ops;
 mod tests;
 pub mod chain;
 pub mod toolbox;
+/// COMBO TARGET: a chain's soft target (pick, steer, drop, hold-to-focus).
+pub mod combo_target;
 /// VERB GRAMMAR: describe-a-power composed moves (docs/toolbox/COMPOSED_MOVE.md).
 pub mod compose;
 /// MODIFIERS & FUSION: twisted / fused moves ("giant rasengan", "rasengan + amaterasu").

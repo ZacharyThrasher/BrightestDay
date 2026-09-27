@@ -185,7 +185,10 @@ impl World {
         } else {
             crate::constructs::legend::armor(&self.constructs, hit.target, &self.cfg.tuning.legendary).min(crate::constructs::weapon_class::armor(&self.constructs, hit.target, &self.cfg.tuning.weapons))
         };
-        let kb = kb_raw * j_kb * armor;
+        // WILLPOWER = LAUNCH (`crate::launch`): the attacker's bar at hit time scales the launch (×1
+        // with the rule off; never splats / self hits). Juggle counting below keeps `kb_raw`.
+        let loaded = if self_hit || hit.kind == HitKind::WallSplat { 1.0 } else { self.launch_mult(hit.source) };
+        let kb = kb_raw * j_kb * armor * loaded;
         if armor < 1.0 && kb_raw > 0.0 {
             if let Some(c) = self.constructs.held_by(hit.target) {
                 self.events.push(GameEvent::HeldFx { id: c.id, owner: hit.target, fx: crate::events::HeldFx::Armor, pos: hit.point, dir: dir_in.normalize_or_zero(), strength: armor });
@@ -343,12 +346,14 @@ impl World {
 
     fn interrupt_oath(&mut self, i: usize) {
         let pool = self.cfg.rules.willpower_max();
+        let oath_scale = crate::launch::oath_scale(self);
         let p = &mut self.players[i];
         if let OathState::Reciting { started, len, progress, accuracy } = p.oath {
             let elapsed = self.tick.saturating_sub(started) as f32 * DT;
             let est = (elapsed * crate::willpower::OATH_TARGET_CPS).min(len as f32) as u16;
             let prog = if progress > 0 { progress } else { est };
             let refill = oath_partial(prog, accuracy, len, pool);
+            let refill = refill * oath_scale; // WILLPOWER = LAUNCH: faster refills (×1 off)
             p.willpower = (p.willpower + refill).min(pool);
             p.oath = OathState::Idle;
             let id = p.id;
@@ -431,6 +436,12 @@ impl World {
     pub fn apply_construct_hit(&mut self, hit: ConstructHit) -> bool {
         if !hit.damage.is_finite() {
             return false;
+        }
+        // WILLPOWER = LAUNCH: a loaded attacker knocks constructs further too (×1 with the rule off).
+        let mut hit = hit;
+        let k = self.launch_mult(hit.source);
+        if k != 1.0 {
+            hit.impulse *= k;
         }
         self.constructs.damage(&hit, &mut self.events)
     }

@@ -58,6 +58,9 @@ pub struct CombatTuning {
     /// JUGGLE: per-victim juggle protection — knockback decay inside a chain, then a short guard
     /// (`crate::juggle`, COMBAT.md §1a).
     pub juggle: crate::juggle::JuggleTuning,
+    /// WILLPOWER = LAUNCH (`crate::launch`, host rule `MatchRules::willpower_launch`): the launch
+    /// curve, refill multipliers and the anti-camp leak.
+    pub launch: crate::launch::LaunchTuning,
     /// INTERACT HOOK: High Roller's slot machines + roulette house spin (`world/interactables.rs`).
     pub casino: crate::world::interactables::CasinoTuning,
     /// GIANTS: weak points, limbs, topple, shockwaves, command, hijack (`constructs/giant.rs`).
@@ -98,6 +101,7 @@ impl Default for CombatTuning {
             signature: crate::signature::SignatureTuning::default(),
             freedom: crate::freedom::FreedomTuning::default(),
             juggle: crate::juggle::JuggleTuning::default(),
+            launch: crate::launch::LaunchTuning::default(),
             casino: crate::world::interactables::CasinoTuning::default(),
             giants: crate::constructs::giant::GiantTuning::default(),
             pickups: crate::pickups::PickupTuning::default(),
@@ -1002,6 +1006,7 @@ impl CombatTuning {
         self.signature = self.signature.validated(); // SIGNATURE HOOK
         self.freedom = self.freedom.validated(); // FREEDOM HOOK
         self.juggle = self.juggle.validated(); // JUGGLE
+        self.launch = self.launch.validated(); // WILLPOWER = LAUNCH
         self.casino = self.casino.validated(); // INTERACT HOOK
         self.giants = self.giants.validated(); // GIANTS
         self.pickups = self.pickups.validated(); // POWER-UPS

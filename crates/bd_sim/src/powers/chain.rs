@@ -134,12 +134,14 @@ pub struct Toolbox {
     /// isn't re-sent, so the bare look would miss what the crosshair is on (parallax). `None` =
     /// aim along the look.
     pub aim_rel: Option<[f32; 6]>,
+    /// COMBO TARGET (`powers::combo_target`): the command's soft target, `None` = none.
+    pub hunt: Option<super::combo_target::Hunt>,
 }
 
 impl Toolbox {
     /// Anything to tick?
     pub fn live(&self) -> bool {
-        self.active > 0.0 || self.land || !self.queue.is_empty() || self.cds.iter().any(|c| c.mv != 0)
+        self.active > 0.0 || self.land || !self.queue.is_empty() || self.hunt.is_some() || self.cds.iter().any(|c| c.mv != 0)
     }
 
     /// In a move's active phase (a new command waits for its end).
@@ -436,6 +438,8 @@ impl World {
         // 3P re-aim: remember the crosshair ray relative to the look for the steps that fire later
         let rel = aim.map(|a| self.aim_relative(i, &a));
         self.players[i].power.toolbox.aim_rel = rel;
+        // COMBO TARGET: named > held focus > the crosshair pick (steers every step as it fires)
+        self.combo_acquire(i, &steps, aim.as_ref());
         if self.players[i].power.toolbox.busy() || self.op_busy(player) {
             // The input buffer: wait for the active phase to end.
             self.players[i].power.toolbox.queue = steps;
@@ -461,6 +465,10 @@ impl World {
     /// every command it applies, except the toolbox's own).
     pub fn toolbox_interrupt(&mut self, player: PlayerId) {
         if let Some(i) = self.pidx(player) {
+            // COMBO TARGET: another command ends it (unless focus holds it across commands)
+            if !self.players[i].input.held(bd_core::input::buttons::FOCUS) {
+                self.players[i].power.toolbox.hunt = None;
+            }
             if !self.players[i].power.toolbox.queue.is_empty() {
                 self.stop_chain(i, PowerError::Busy);
             }
@@ -542,6 +550,7 @@ impl World {
                     let (o, d) = self.resolve_aim(i, &a);
                     (i, o, d)
                 });
+                self.combo_steer(i); // COMBO TARGET
                 let r = self.fire_borrowed(i, mv, kit);
                 self.powers.move_aim = None;
                 r
@@ -557,9 +566,12 @@ impl World {
                 r
             }
             // MODIFIERS & FUSION (powers/twist/exec.rs): prices, cools and aims itself.
-            ToolStep::Twist(t) => self.fire_twist(i, *t, aim),
+            ToolStep::Twist(t) => {
+                let aim = self.combo_aim(i, aim); // COMBO TARGET
+                self.fire_twist(i, *t, aim)
+            }
             ToolStep::Cast { recipe, shape, alt_shape, incantation, signature } => {
-                let a = aim.unwrap_or_else(|| {
+                let a = self.combo_aim(i, aim).unwrap_or_else(|| {
                     let p = &self.players[i];
                     Aim::new(p.eye(&self.cfg.move_params), p.look())
                 });
@@ -799,6 +811,10 @@ impl World {
                         tb.land = false;
                     }
                 }
+            }
+            // COMBO TARGET: its drop rules (chain over, looked away, lost sight, KO…)
+            if self.players[i].power.toolbox.hunt.is_some() {
+                self.combo_tick(i, dt);
             }
             if self.players[i].power.toolbox.queue.is_empty() {
                 continue;

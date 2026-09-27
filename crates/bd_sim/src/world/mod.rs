@@ -493,6 +493,7 @@ impl World {
         self.step_powers(dt); // POWERS HOOK: stands, fruits, drain/seastone, time stop (no-op without powers)
         self.step_pickups(); // POWER-UPS HOOK: map pickups (no-op while MatchRules::powerups is off)
         self.step_willpower(dt);
+        crate::launch::leak(self, dt); // WILLPOWER = LAUNCH: anti-camp leak (off = no-op)
         // PARTY HOOK: effect hooks (this tick's events so far, scheduled casts, per-tick effects);
         // before the reap so whatever they break is removed this tick.
         crate::party::hooks::end_of_tick(self, dt);
@@ -945,7 +946,9 @@ impl World {
     fn step_willpower(&mut self, dt: f32) {
         let infinite = self.cfg.rules.infinite_willpower();
         let max = self.cfg.rules.willpower_max();
-        let regen = self.cfg.tuning.willpower.regen_per_sec * self.cfg.rules.regen_mult();
+        // WILLPOWER = LAUNCH: slow passive regen, and no starvation at 0 (casts are never refused).
+        let regen = self.cfg.tuning.willpower.regen_per_sec * self.cfg.rules.regen_mult() * crate::launch::regen_scale(self);
+        let starves = !crate::launch::never_refuse(self);
         let starved = self.cfg.tuning.willpower.starved_decay;
         for i in 0..self.players.len() {
             let id = self.players[i].id;
@@ -961,7 +964,7 @@ impl World {
             let p = &mut self.players[i];
             let gain = if p.regen_pause > 0.0 { 0.0 } else { regen };
             p.willpower = (p.willpower + (gain - upkeep) * dt).clamp(0.0, max);
-            if p.willpower <= 0.0 && upkeep > 0.0 {
+            if p.willpower <= 0.0 && upkeep > 0.0 && starves {
                 self.constructs.decay_owner(id, starved, dt);
             }
         }

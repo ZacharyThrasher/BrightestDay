@@ -599,7 +599,8 @@ pub(crate) fn legendary_boost(w: &World, recipe: &mut Recipe, flavor: Flavor) {
 /// shrink the recipe (count first, then scale, to `sputter_floor` of the asked scale / the form
 /// minimum) toward what's left, and charge **everything left**. Returns (cost to pay, sputtering).
 pub(crate) fn afford(w: &World, i: usize, recipe: &mut Recipe, cost: f32, price: &dyn Fn(&World, &Recipe) -> f32) -> (f32, bool) {
-    if w.cfg.rules.infinite_willpower() || w.free_cast {
+    // WILLPOWER = LAUNCH: no sputter — the full cast fires; `pay` drains to 0.
+    if w.cfg.rules.infinite_willpower() || w.free_cast || crate::launch::never_refuse(w) {
         return (cost, false);
     }
     let have = w.players[i].willpower.max(0.0);
@@ -685,6 +686,9 @@ pub(crate) fn drain_afford(w: &World, i: usize, cost: f32) -> (f32, f32) {
     let have = w.players[i].willpower.max(0.0);
     if cost <= have + 1e-4 || cost <= 0.0 {
         return (cost, 1.0);
+    }
+    if crate::launch::never_refuse(w) {
+        return (have, 1.0); // WILLPOWER = LAUNCH: drains what's left, applies in full
     }
     (have, (have / cost).clamp(0.0, 1.0))
 }

@@ -28,6 +28,9 @@ pub mod buttons {
     /// Held: the taunt key (tap = the next wordless taunt, hold = dance; `bd_sim::taunt`).
     /// Presentation only — never read by movement or combat.
     pub const TAUNT: u16 = 1 << 13;
+    /// Held: COMBO TARGET focus — the toolbox's soft target persists across separate commands
+    /// (`bd_sim::powers::combo_target`). Never read by movement.
+    pub const FOCUS: u16 = 1 << 14;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]

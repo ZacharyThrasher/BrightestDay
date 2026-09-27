@@ -152,6 +152,11 @@ pub struct MatchRules {
     /// (live constructs + held powers); at the cap a call that would add one doesn't happen (free).
     /// 0 = off (unlimited, the shipped default).
     pub active_limit: u8,
+    /// WILLPOWER = LAUNCH (owner idea, A/B test; `crate::launch`): willpower is how hard you launch,
+    /// not whether you can cast — casts are never refused, every hit's knockback scales with the
+    /// attacker's bar at hit time, charging / the oath refill fast, passive regen is slow. Off = the
+    /// shipped rules.
+    pub willpower_launch: bool,
 }
 
 /// Default / range of [`MatchRules::willpower_segments`] (8: see `willpower::QUANTIZE_BIAS`).
@@ -184,6 +189,7 @@ impl Default for MatchRules {
             first_call: false,
             burn: crate::first_call::BurnScope::Off,
             active_limit: 0,
+            willpower_launch: false,
         }
     }
 }

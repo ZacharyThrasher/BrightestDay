@@ -36,3 +36,46 @@ fn phrases_land_in_their_archetype() {
         assert_eq!(t.archetype_of(&r).name, want, "{phrase}: {:?} {:?}", r.form, r.features);
     }
 }
+
+/// PLAYTEST BUG: "optimus prime" came out as the costume biped (the COSTUME SUMMON HOOK replaced
+/// the Transformers icon), so transforming gave a blocky humanoid, not a truck. A character whose
+/// resolution transforms keeps its own two-mode body: the vehicle / beast alt mode, the curated
+/// robot shape, its archetype. Plain characters still wear their costume.
+#[test]
+fn transformer_characters_keep_their_alt_mode_through_the_costume_hook() {
+    use bd_core::mechanics::{Form, Mechanic};
+    let Some(lex) = lex() else {
+        eprintln!("SKIP: no assets/lexicon.bin");
+        return;
+    };
+    let t = bd_sim::tuning::CombatTuning::default().transformer;
+    for (phrase, form, want) in [
+        ("optimus prime", Form::Vehicle, "truck"),
+        ("optimus", Form::Vehicle, "truck"),
+        ("bumblebee", Form::Vehicle, "car"),
+        ("megatron", Form::Vehicle, "tank"),
+        ("starscream", Form::Vehicle, "jet"),
+        ("grimlock", Form::Kaiju, "dino"),
+        ("soundwave", Form::Biped, "car"),
+        ("arcee", Form::Vehicle, "bike"),
+        ("optimus primal", Form::Quadruped, "beast"),
+        ("jazz transformer", Form::Vehicle, "car"),
+    ] {
+        let res = lex.intent(phrase, &[], false).resolution;
+        let (mut r, mut shape) = (res.recipe, res.shape);
+        // The console's costume hook (console.rs / toolbox.rs), exactly as a summon runs it.
+        let costumed = bd_shapes::costume::summon::apply(phrase, &mut r, &mut shape);
+        assert!(!costumed, "{phrase}: the costume must not replace a transformer's body");
+        assert!(r.has(Mechanic::Transforms), "{phrase}");
+        assert_eq!(r.form, form, "{phrase}: the alt mode");
+        assert!(res.alt_shape.is_some(), "{phrase}: the curated robot mode");
+        let r = bd_sim::willpower::validate_recipe(r, &bd_sim::rules::MatchRules::default());
+        assert_eq!(t.archetype_of(&r).name, want, "{phrase}");
+    }
+    // Plain characters still wear their costume.
+    for phrase in ["goku", "reinhardt"] {
+        let res = lex.intent(phrase, &[], false).resolution;
+        let (mut r, mut shape) = (res.recipe, res.shape);
+        assert!(bd_shapes::costume::summon::apply(phrase, &mut r, &mut shape), "{phrase} wears its costume");
+    }
+}

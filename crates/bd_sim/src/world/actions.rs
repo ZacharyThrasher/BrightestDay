@@ -441,8 +441,9 @@ impl World {
             return Ok(());
         }
         let regen_pause = self.cfg.tuning.willpower.regen_pause; // TUNING HOOK
+        let never = crate::launch::never_refuse(self); // WILLPOWER = LAUNCH: fires anyway, drains to 0
         let p = &mut self.players[i];
-        if cost > p.willpower + 1e-4 {
+        if cost > p.willpower + 1e-4 && !never {
             return Err(CastError::NotEnoughWillpower { cost, have: p.willpower });
         }
         p.willpower = (p.willpower - cost).max(0.0);
@@ -952,6 +953,7 @@ impl World {
         let pool = self.cfg.rules.willpower_max();
         let slack = if voice { self.cfg.tuning.willpower.oath_voice_slack.max(OATH_LATENCY_SLACK) } else { OATH_LATENCY_SLACK };
         let tick = self.tick;
+        let oath_scale = crate::launch::oath_scale(self); // WILLPOWER = LAUNCH: faster refills (×1 off)
         let p = &mut self.players[i];
         if !p.alive {
             p.oath = OathState::Idle;
@@ -966,7 +968,7 @@ impl World {
         }
         // Never credit a time faster than the host saw (minus network / transcription slack).
         let t = seconds.max(host_elapsed - slack).max(min);
-        let refill = oath_refill(accuracy, t, len, pool);
+        let refill = oath_refill(accuracy, t, len, pool) * oath_scale;
         p.willpower = (p.willpower + refill).min(pool);
         Ok(refill)
     }

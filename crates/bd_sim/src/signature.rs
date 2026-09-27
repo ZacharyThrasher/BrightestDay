@@ -326,7 +326,7 @@ impl World {
         let amped = amplify(recipe.clone(), sig, &t, &self.cfg.rules, full_bar);
         let (_, cost) = self.preview_signature_cost(player, amped.clone());
         let have = self.player(player).map_or(0.0, |p| p.willpower);
-        if cost > have + 1e-4 && !self.cfg.rules.infinite_willpower() {
+        if cost > have + 1e-4 && !self.cfg.rules.infinite_willpower() && !crate::launch::never_refuse(self) {
             // The ring never says no: the plain phrase instead of a failed ultimate.
             return self.cast_shaped(player, recipe, shape, None, aim);
         }

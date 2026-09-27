@@ -157,7 +157,7 @@ impl crate::World {
     pub(crate) fn step_charge(&mut self, dt: f32) {
         let t = self.cfg.tuning.charge.clone();
         let max = self.cfg.rules.willpower_max();
-        let mult = self.cfg.rules.regen_mult();
+        let mult = self.cfg.rules.regen_mult() * crate::launch::charge_scale(self); // WILLPOWER = LAUNCH (×1 off)
         let ended = self.match_state.phase == crate::rules::MatchPhase::Ended;
         for p in &mut self.players {
             let c = &mut p.charge;

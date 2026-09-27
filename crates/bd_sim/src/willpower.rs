@@ -323,6 +323,11 @@ impl CastHistory {
     pub fn clear(&mut self) {
         *self = Self::default();
     }
+
+    /// Tick of the newest recorded cast / move (0 = none) — WILLPOWER = LAUNCH's anti-camp leak.
+    pub fn last_tick(&self) -> Tick {
+        self.entries.iter().map(|e| e.1).max().unwrap_or(0)
+    }
 }
 
 // ----------------------------------------------------------------------------------------- oath
