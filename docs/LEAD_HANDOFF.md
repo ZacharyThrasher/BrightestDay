@@ -1,6 +1,6 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> QUEUE (owner 11:20: "go THROUGH the weekly reset") <<<
+## >>> QUEUE (owner 11:20: "go THROUGH the weekly reset") <<< LAUNCHED 11:45: tooltips a106dd6e6fcc24630 (sonnet), willpower=launch a0bc4dd250598b558, combo target a80692b240e7df828; resumed voice a19704f3303170491 + polish anime/western/games. If the weekly cap stops them: after Oct 2 01:00Z SendMessage each id "continue".
 Run now, and if the weekly cap hits, resume right after the reset (Oct 2 01:00Z):
 1. HUD TOOLTIPS (owner screenshot: Tab card + overlapping names are confusing) → Tab shows icons only; hovering ONE
    ability shows its tooltip (name, what it does, how to fire). 2. WILLPOWER = LAUNCH host rule (A/B vs current): casts
