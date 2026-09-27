@@ -812,7 +812,7 @@
         names: ["optimus prime", "optimus", "optimus primes", "optimus prime's", "orion pax", "optimus prim", "optimist prime",
                 "optimus prine", "opimus prime", "optimus pryme"],
         fx: "energy",
-        shouts: [("optimus energon axe", 0), ("ion blaster", 2), ("shoot the ion blaster", 2), ("ion blaster gun", 2), ("optimus matrix of leadership", 7), ("optimus axe slam", 4)],
+        shouts: [("optimus energon axe", 0), ("ion blaster", 2), ("shoot the ion blaster", 2), ("ion blaster gun", 2), ("Matrix Of Leadership", 7), ("optimus axe slam", 4)],
         moves: [
             // THE COMBO: the piloted truck's string on foot — three heavy slashes 0.3 s apart, each
             // driving a step in, and the energon-axe finisher that sends them across the map (the
@@ -2866,7 +2866,7 @@
         kind: Kit,
         names: ["acme", "wile e coyote", "wile e. coyote", "wile coyote", "the coyote", "acme corporation", "acme products",
                 "wiley coyote", "wile e coyote's"],
-        shouts: [("acme portable hole", 1), ("acme anvil", 0), ("anvil from the sky", 0), ("acme dynamite", 2), ("rocket skates", 3), ("acme catalogue", 5), ("acme catalog", 5)],
+        shouts: [("Portable Hole", 1), ("acme anvil", 0), ("anvil from the sky", 0), ("acme dynamite", 2), ("rocket skates", 3), ("acme catalogue", 5), ("acme catalog", 5)],
         moves: [
             // An anvil whistles down onto the aim. It's always an anvil.
             (name: "anvil", tags: [Primary], cooldown: 2.0, cost: 3.0, ops: [

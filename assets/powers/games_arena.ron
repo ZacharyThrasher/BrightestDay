@@ -1017,7 +1017,7 @@
         names: ["raze", "raze valorant", "tayane alves", "razes", "raze's"],
         fx: "fire",
         shouts: [("blast pack", 0), ("satchel", 0), ("satchel jump", 0), ("raze boom bot", 1), ("raze boombot", 1), ("paint shells", 2),
-                 ("raze showstopper", 3), ("show stopper", 3),
+                 ("Showstopper", 3), ("show stopper", 3),
                  ("raze rocket", 3)],
         moves: [
             // BLAST PACK: the satchel under your feet — it launches YOU, far, and bowls anyone near.
@@ -1571,7 +1571,7 @@
         kind: Kit,
         names: ["yasuo", "yas", "yasuo's", "yasou", "ya so", "yassuo", "yasuo league"],
         fx: "wind",
-        shouts: [("steel tempest", 0), ("yasuo gathering storm", 1), ("yasuo tornado", 1), ("yasuo wind wall", 2), ("windwall", 2), ("sweeping blade", 3),
+        shouts: [("steel tempest", 0), ("Gathering Storm", 1), ("yasuo tornado", 1), ("yasuo wind wall", 2), ("windwall", 2), ("sweeping blade", 3),
                  ("last breath", 4),
                  ("yasuo q", 0), ("yasuo w", 2), ("yasuo e", 3), ("yasuo r", 4)],
         moves: [
@@ -1608,7 +1608,7 @@
         kind: Kit,
         names: ["lee sin", "leesin", "lee sins", "lee sin's", "lee", "blind monk", "the blind monk", "lee sin league"],
         fx: "chi",
-        shouts: [("lee sonic wave", 0), ("resonating strike", 1), ("lee sin safeguard", 2), ("dragon's rage", 4), ("lee dragons rage", 4),
+        shouts: [("Sonic Wave", 0), ("resonating strike", 1), ("lee sin safeguard", 2), ("dragon's rage", 4), ("lee dragons rage", 4),
                  ("Insec", 4), ("insec kick", 4),
                  ("lee sin q", 0), ("lee sin w", 2), ("lee sin e", 3), ("lee sin r", 4)],
         moves: [
@@ -1643,7 +1643,7 @@
         kind: Kit,
         names: ["blitzcrank", "blitz", "blitz crank", "blitzcrank's", "blitzcrank league"],
         fx: "tech",
-        shouts: [("Rocket Grab", 0), ("blitzcrank power fist", 1), ("blitz overdrive", 2), ("static field", 3),
+        shouts: [("Rocket Grab", 0), ("Power Fist", 1), ("blitz overdrive", 2), ("static field", 3),
                  ("blitzcrank q", 0), ("blitzcrank w", 2), ("blitzcrank e", 1), ("blitzcrank r", 3),
                  ("blitzcrank hook", 0), ("blitz hook", 0)],
         moves: [
@@ -1807,7 +1807,7 @@
         kind: Kit,
         names: ["dota", "dota items", "dota 2", "dota two"],
         fx: "light",
-        shouts: [("Blink Dagger", 0), ("dagger blink", 0), ("black king bar", 1), ("dota bkb", 1), ("b k b", 1), ("Force Staff", 2),
+        shouts: [("Blink Dagger", 0), ("dagger blink", 0), ("black king bar", 1), ("Bkb", 1), ("b k b", 1), ("Force Staff", 2),
                  ("eul's scepter", 3), ("euls scepter", 3), ("euls", 3), ("eul's", 3), ("shadow blade", 4),
                  ("refresher orb", 5), ("dota mjollnir", 6), ("abyssal blade", 7)],
         moves: [
@@ -3117,7 +3117,7 @@
         kind: Kit,
         names: ["heavy tf2", "tf2 heavy", "heavy weapons guy", "heavy weapons", "the heavy"],
         fx: "rigid",
-        shouts: [("heavy sandvich", 0), ("sand vich", 0), ("heavy minigun", 1), ("heavy sasha", 1), ("killing gloves of boxing", 2), ("kgb", 2)],
+        shouts: [("Sandvich", 0), ("sand vich", 0), ("heavy minigun", 1), ("heavy sasha", 1), ("killing gloves of boxing", 2), ("kgb", 2)],
         moves: [
             // SANDVICH: sit down, eat — you come back (a hit interrupts the meal).
             (name: "sandvich", cooldown: 20.0, cost: 6.0, tags: [], fx: "holy", ops: [Mend(pct: 10.0, per_s: 8.0, secs: 3.0)],

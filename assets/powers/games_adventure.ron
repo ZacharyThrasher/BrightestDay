@@ -181,7 +181,7 @@
         shouts: [("groundpound", 0), ("butt stomp", 0), ("mario ground pound", 0),
                  ("long jump", 1), ("mario long jump", 1),
                  ("cappy throw", 2), ("hat throw", 2), ("throw cappy", 2), ("cap throw", 2), ("cappy capture", 2), ("mario capture", 2),
-                 ("mario fire flower", 3), ("mario super star", 4), ("mario star power", 4), ("mario starman", 4), ("star man", 4), ("mario invincibility star", 4), ("mario super star power", 4),
+                 ("mario fire flower", 3), ("Super Star", 4), ("mario star power", 4), ("mario starman", 4), ("star man", 4), ("mario invincibility star", 4), ("mario super star power", 4),
                  ("fludd", 5), ("f l u d d", 5), ("fludd hover", 5), ("mario flood hover", 5), ("hover nozzle", 5), ("flud", 5),
                  ("fluid hover", 5),
                  ("mario mega mushroom", 6), ("mega mario", 6), ("giant mario", 6),

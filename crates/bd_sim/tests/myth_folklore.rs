@@ -58,7 +58,7 @@ fn god_and_move_names_fire_the_famous_move() {
     want("wrath of zeus", "myth_zeus", "wrath of zeus");
     want("keraunos", "myth_zeus", "thunderbolt");
     want("poseidon's earthquake", "myth_poseidon", "earthquake");
-    want("tsunami", "myth_poseidon", "tidal wave");
+    want("poseidon tsunami", "myth_poseidon", "tidal wave");
     want("poseidon tidal wave", "myth_poseidon", "tidal wave");
     want("hades helm of darkness", "myth_hades", "helm of darkness");
     want("medusa gaze", "myth_medusa", "petrifying gaze");
@@ -273,7 +273,7 @@ fn the_tidal_wave_carries_them_off() {
     let mut w = duel();
     stand(&mut w, B, 0.0, -7.0);
     let before = w.player(B).unwrap().mv.pos;
-    say(&mut w, "tsunami");
+    say(&mut w, "poseidon tsunami");
     run(&mut w, secs(0.8));
     let after = w.player(B).unwrap().mv.pos;
     assert!(before.z - after.z > 5.0, "swept {before} -> {after}");

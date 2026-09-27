@@ -283,7 +283,8 @@ fn famous_moves_do_the_famous_thing() {
     fires("thunderclap", "kit_hulk", "thunderclap");
     fires("puny god", "kit_hulk", "puny god");
     fires("thor's bifrost", "kit_thor", "bifrost");
-    fires("mjolnir", "kit_thor", "mjolnir");
+    // SHOUT HYGIENE: bare "mjolnir" summons the curated Mjolnir construct; Thor's move is "thor mjolnir"
+    fires("thor mjolnir", "kit_thor", "mjolnir");
     fires("spidey sense", "kit_spider_man", "spider sense");
     fires("web zip", "kit_spider_man", "web zip");
     fires("eye of agamotto", "kit_doctor_strange", "eye of agamotto");
@@ -339,7 +340,7 @@ fn famous_moves_do_the_famous_thing() {
     fires("88 miles per hour", "kit_back_to_the_future", "88 miles per hour");
     fires("atomic breath", "kit_godzilla", "atomic breath");
     fires("ice palace", "kit_elsa", "ice palace");
-    fires("ocean wave", "kit_moana", "ocean wave");
+    fires("moana ocean wave", "kit_moana", "ocean wave");
     fires("bruno's vision", "kit_encanto", "bruno's vision");
     fires("jack-jack attack", "kit_incredibles", "jack jack attack");
 }

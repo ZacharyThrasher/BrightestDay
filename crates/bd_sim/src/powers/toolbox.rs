@@ -569,6 +569,12 @@ fn pick_kit_move_why(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, Ki
             return Some((*slot, KitMatch::Exact, true));
         }
     }
+    // A loose reading never spans the character's name said AGAIN ("nobara nail into nobara
+    // resonance" is two kit phrases, not one fuzzy one).
+    let kw: Vec<&str> = kit.split(' ').collect();
+    if rest.windows(kw.len()).any(|w| w == kw.as_slice()) {
+        return None;
+    }
     // 2. a whole word of a move's name / shouts ("doomfist punch" → "rocket punch", even if
     //    another move is tagged Primary: the character's own word wins over the slot word)
     if let Some((k, hits)) = best_overlap(def, moves, &rest, true)
@@ -708,19 +714,19 @@ fn weak_pieces(part: &str, is_move: &dyn Fn(&str) -> bool) -> Vec<String> {
     let mut i = 0;
     while i < pieces.len() {
         let mut took = false;
-        let far = (i + MAX_PROTECTED_SPAN - 1).min(pieces.len() - 1);
+        // only WORD separators are protected ("huff and puff"); a spoken comma always separates
+        // ("room, shambles" is two steps even though "room shambles" is a shout)
+        let mut far = i;
+        while far + 1 < pieces.len() && far + 1 < i + MAX_PROTECTED_SPAN && seps.get(far).is_some_and(|s| s.chars().all(char::is_alphabetic)) {
+            far += 1;
+        }
         for j in (i + 1..=far).rev() {
             let mut joined = pieces[i].clone();
             for k in i..j {
                 let sep = seps.get(k).map(String::as_str).unwrap_or(" ");
-                if matches!(sep, "," | ";") {
-                    joined.push_str(sep);
-                    joined.push(' ');
-                } else {
-                    joined.push(' ');
-                    joined.push_str(sep);
-                    joined.push(' ');
-                }
+                joined.push(' ');
+                joined.push_str(sep);
+                joined.push(' ');
                 joined.push_str(&pieces[k + 1]);
             }
             let joined = clean_step(&joined);

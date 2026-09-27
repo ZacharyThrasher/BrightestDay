@@ -85,7 +85,7 @@ fn owner_examples_fire_the_characters_move() {
     kit("optimus prime ultimate", "kit_optimus_prime", "matrix of leadership");
     kit("optimus prime axe slam", "kit_optimus_prime", "axe slam");
     kit("optimus prime heavy", "kit_optimus_prime", "heavy");
-    borrow("energon axe", "kit_optimus_prime", "combo");
+    borrow("optimus energon axe", "kit_optimus_prime", "combo");
     borrow("matrix of leadership", "kit_optimus_prime", "matrix of leadership");
     kit("optimus prime dash", "kit_optimus_prime", "charge");
     kit("optimus prime block", "kit_optimus_prime", "shield");
@@ -132,7 +132,8 @@ fn avatar_bending_reads() {
     kit("korra avatar state", "kit_korra", "avatar state");
     kit("amon take your bending", "kit_amon", "take your bending");
     kit("sokka boomerang", "kit_sokka", "boomerang");
-    borrow("yip yip", "kit_aang", "yip yip");
+    // SHOUT HYGIENE: bare "yip yip" summons Appa (a curated icon); the kit form fires the move
+    borrow("aang yip yip", "kit_aang", "yip yip");
     borrow("bloodbending", "kit_katara", "bloodbending");
     borrow("dragon of the west", "kit_iroh", "dragon's breath");
     kit("optimus prime shoot", "kit_optimus_prime", "ion blaster");

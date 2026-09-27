@@ -39,6 +39,12 @@ impl Default for View {
     }
 }
 
+/// A small, brief flash. The engine's flash cube darkens as it grows (a big one ends as a black
+/// block), so every op flash goes through here: ≤ 0.6 m, ≤ 0.09 s.
+pub fn flash(pen: &mut Pen, pos: Vec3, size: f32, color: [f32; 3], glow: f32, life: f32) {
+    pen.flash(pos, size.min(0.6), color, glow, life.min(0.09));
+}
+
 /// An immediate line, dropped when it would sit in the lens (both ends ≤ 0.9 m from the camera).
 pub fn seg(pen: &mut Pen, v: &View, a: Vec3, b: Vec3, thick: f32, color: [f32; 3], glow: f32) {
     if a.distance_squared(v.cam) < 0.81 && b.distance_squared(v.cam) < 0.81 {
@@ -258,8 +264,8 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
         }
         MarkKind::Brand => {
             // Black flames that cling: dark motes licking up off the body, a smouldering ring at the feet.
-            let dark = Look { body: Body::Flame, main: [0.015, 0.005, 0.02], core: mix3([0.02, 0.0, 0.02], look.main, 0.5), glow: 0.5, size: 1.4, ..*look };
-            let n = if pen.fx.rng.f() < 0.9 { 2 } else { 1 };
+            let dark = Look { body: Body::Flame, main: [0.015, 0.005, 0.02], core: mix3([0.02, 0.0, 0.02], look.main, 0.5), glow: 0.5, size: 3.2 * s, ..*look };
+            let n = 4;
             for _ in 0..n {
                 let a = pen.fx.rng.f() * TAU;
                 let h = pen.fx.rng.f() * 1.7 * s;
@@ -269,7 +275,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             }
             if pen.fx.rng.f() < 0.35 {
                 let q = chest + pen.fx.rng.dir() * 0.3 * s;
-                let ember = Look { body: Body::Flame, main: look.main, core: look.core, glow: look.glow * 0.8, size: 0.6, ..*look };
+                let ember = Look { body: Body::Flame, main: look.main, core: look.core, glow: look.glow * 0.8, size: 1.4, ..*look };
                 pen.mote(&ember, q, Vec3::Y * 1.5, 0.35, 0.0);
             }
             circle(pen.fx, feet + Vec3::Y * 0.05, Vec3::Y, 0.55 * s, 16, 0.05 * ts, [0.02, 0.0, 0.02], 0.2, t);
@@ -500,11 +506,11 @@ pub fn strike(pen: &mut Pen, look: &Look, kind: StrikeKind, pos: Vec3, ground: O
                 pen.burst(&shards, pos, 0.5, 5.0, Some(across), 0.5, 0.35);
                 pen.burst(&shards, pos, 0.5, 5.0, Some(-across), 0.5, 0.35);
             }
-            pen.flash(pos, 0.9 * look.size, look.core, look.glow * 1.5, 0.08);
+            flash(pen, pos, 0.9 * look.size, look.core, look.glow * 1.5, 0.08);
         }
         StrikeKind::Bolt => {
             let g = ground.unwrap_or(pos);
-            pen.flash(g + Vec3::Y * 0.6, 1.0, look.core, look.glow * 1.6, 0.1);
+            flash(pen, g + Vec3::Y * 0.6, 1.0, look.core, look.glow * 1.6, 0.1);
             pen.ring(look, g + Vec3::Y * 0.1, Vec3::Y, 0.3, r * 4.0, 1.2, 0.3);
             let sparks = Look { body: Body::Bolt, ..*look };
             pen.burst(&sparks, g + Vec3::Y * 0.3, 1.2, 9.0, Some(Vec3::Y), 1.1, 0.35);
@@ -515,13 +521,13 @@ pub fn strike(pen: &mut Pen, look: &Look, kind: StrikeKind, pos: Vec3, ground: O
             pen.beam(g, g + Vec3::Y * 18.0, r * 0.45, look.main, look.glow * 1.1, 0.45);
             pen.beam(g, g + Vec3::Y * 18.0, r * 0.15, look.core, look.glow * 2.2, 0.35);
             pen.ring(look, g + Vec3::Y * 0.1, Vec3::Y, 0.3, r * 3.5, 1.4, 0.4);
-            pen.flash(g + Vec3::Y * 1.0, 1.0, look.core, look.glow * 1.4, 0.14);
+            flash(pen, g + Vec3::Y * 1.0, 1.0, look.core, look.glow * 1.4, 0.14);
             let halo = Look { body: Body::Halo, ..*look };
             pen.burst(&halo, g + Vec3::Y * 0.5, 1.0, 3.0, Some(Vec3::Y), 0.4, 0.8);
         }
         StrikeKind::Void => {
             pen.implode(look, pos, r * 1.2, 0.1, 1.2);
-            pen.flash(pos, 0.9, look.main, look.glow, 0.14);
+            flash(pen, pos, 0.9, look.main, look.glow, 0.14);
             pen.ring(look, pos, Vec3::Y, 0.2, r * 3.5, 1.0, 0.3);
             pen.burst(look, pos, 1.0, r * 2.5, None, 0.0, 0.4);
         }
@@ -553,7 +559,7 @@ pub fn bolt_now(pen: &mut Pen, look: &Look, from: Vec3, to: Vec3, u: f32, seed: 
 /// A radial impact star (a hit landing: beams out of the point, a flash, sparks back along `dir`).
 pub fn impact_star(pen: &mut Pen, look: &Look, pos: Vec3, dir: Vec3, size: f32) {
     let s = size.clamp(0.3, 3.0);
-    pen.flash(pos, 0.9 * s, look.core, look.glow * 1.5, 0.1);
+    flash(pen, pos, 0.9 * s, look.core, look.glow * 1.5, 0.1);
     for k in 0..6 {
         let d = pen.fx.rng.dir();
         pen.beam(pos + d * 0.2 * s, pos + d * (0.9 + 0.6 * (k % 3) as f32 * 0.5) * s, 0.05 * s, if k % 2 == 0 { look.core } else { look.main }, look.glow * 1.6, 0.12);
@@ -711,7 +717,8 @@ pub fn aura(pen: &mut Pen, v: &View, look: &Look, kind: AuraKind, feet: Vec3, si
             let styled = Look { main: col, core: col2, ..*look };
             // Streaming off the body (two motes a frame, budgeted by the pen).
             if !own_fp {
-                for _ in 0..2 {
+                let styled = Look { size: styled.size * 1.8, ..styled };
+                for _ in 0..4 {
                     let a = pen.fx.rng.f() * TAU;
                     let h = pen.fx.rng.f() * 1.8 * s;
                     let q = feet + Vec3::new(a.cos() * 0.38 * s, h, a.sin() * 0.38 * s);
@@ -721,7 +728,8 @@ pub fn aura(pen: &mut Pen, v: &View, look: &Look, kind: AuraKind, feet: Vec3, si
             let p = 0.7 + 0.3 * (t * 6.0).sin();
             circle(pen.fx, feet + Vec3::Y * 0.06, Vec3::Y, 0.8 * s * (1.0 + 0.08 * (t * 6.0).sin()), 24, 0.05 * s, col, glow * p, t * 2.0);
             if !own_fp {
-                circle(pen.fx, chest, Vec3::Y, 0.55 * s, 18, 0.025 * s, col2, glow * 0.8 * p, -t * 3.0);
+                circle(pen.fx, chest, Vec3::Y, 0.6 * s, 18, 0.045 * s, col2, glow * 1.2 * p, -t * 3.0);
+                circle(pen.fx, feet + Vec3::Y * (0.2 + (t * 1.5).fract() * 1.8) * s, Vec3::Y, 0.7 * s, 18, 0.04 * s, col, glow * (1.0 - (t * 1.5).fract()), t);
             }
             if left < 1.2 && ((t * 10.0) as u32) % 2 == 0 {
                 circle(pen.fx, feet + Vec3::Y * 0.9 * s, Vec3::Y, 0.7 * s, 18, 0.03 * s, look.core, glow, 0.0);
@@ -888,7 +896,7 @@ pub fn heal_pulse(pen: &mut Pen, look: &Look, feet: Vec3, size: f32, amount: f32
         let q = feet + Vec3::new(a.cos() * 0.5 * s, 0.6 + 0.3 * i as f32 * s, a.sin() * 0.5 * s);
         cross(pen, look, q, 0.1 * s, Vec3::Y * 1.6, 0.8);
     }
-    pen.flash(feet + Vec3::Y * 1.0 * s, 1.1 * s, look.core, look.glow * 0.8, 0.15);
+    flash(pen, feet + Vec3::Y * 1.0 * s, 1.1 * s, look.core, look.glow * 0.8, 0.15);
 }
 
 // ───────────────────────────────────────────────────────────────── extras
@@ -903,10 +911,11 @@ pub fn crescent(pen: &mut Pen, v: &View, look: &Look, pos: Vec3, dir: Vec3, widt
     let span = if flat { side } else { (Vec3::Y * 0.8 + side * 0.6).normalize() };
     let half = width.clamp(0.5, 12.0) * 0.5;
     let n = 14;
+    let far = ((pos - v.cam).length() / 12.0).clamp(1.0, 2.2);
     for ghost in 0..3 {
         let back = dir * ghost as f32 * 0.55;
         let g = glow * [1.0, 0.45, 0.2][ghost];
-        let th = [0.16, 0.1, 0.06][ghost] * look.size;
+        let th = [0.3, 0.18, 0.1][ghost] * look.size * far;
         let mut prev = None;
         for i in 0..=n {
             let f = i as f32 / n as f32 * 2.0 - 1.0;
@@ -941,7 +950,7 @@ pub fn orb(pen: &mut Pen, v: &View, look: &Look, c: Vec3, r: f32, t: f32, bolt: 
             let d = Vec3::new(h01((t * 30.0) as u32 ^ k * 11) - 0.5, h01((t * 30.0) as u32 ^ k * 29) - 0.5, h01((t * 30.0) as u32 ^ k * 47) - 0.5).normalize_or(Vec3::Y);
             zig(pen.fx, c, c + d * (r * 2.8), 4, 0.15 + look.jitter * 0.3, (t * 40.0) as u32 ^ k.wrapping_mul(977), 0.03, if k % 2 == 0 { look.core } else { look.main }, glow * 2.0);
         }
-        pen.flash(c, r * 1.5, look.core, glow * 0.6, 0.05);
+        flash(pen, c, r * 1.5, look.core, glow * 0.6, 0.05);
         return;
     }
     // Three rings on turning axes + a hot core cube: reads as a spinning ball of wind / energy.
@@ -951,6 +960,13 @@ pub fn orb(pen: &mut Pen, v: &View, look: &Look, c: Vec3, r: f32, t: f32, bolt: 
         circle(pen.fx, c, n, r * (0.8 + 0.12 * k as f32), 14, 0.03 * r.max(0.3) * 2.0, if k == 1 { look.core } else { look.main }, glow * 1.3, t * 12.0);
     }
     cbox(pen, v, c, Quat::from_rotation_y(t * 8.0) * Quat::from_rotation_x(t * 5.0), Vec3::splat(r * 0.7), look.core, glow * 1.6);
+    // Wind tearing round it: motes flung tangentially off the surface.
+    for k in 0..2 {
+        let a = t * 30.0 + k as f32 * PI;
+        let d = Vec3::new(a.cos(), (t * 7.0 + k as f32).sin() * 0.5, a.sin()).normalize();
+        let tan = Vec3::Y.cross(d).normalize_or(d);
+        pen.mote(look, c + d * r, tan * 6.0, 0.2, 0.0);
+    }
 }
 
 /// Spiral shreds flung off a grinding contact (called per frame while it grinds).
@@ -968,7 +984,9 @@ pub fn grind_shreds(pen: &mut Pen, look: &Look, c: Vec3, axis: Vec3, t: f32) {
 /// closes as the jumper arrives (`u` 0..1 of the flight).
 #[allow(clippy::too_many_arguments)]
 pub fn arc_preview(pen: &mut Pen, v: &View, look: &Look, from: Vec3, to: Vec3, apex: f32, ground: Option<Vec3>, u: f32, t: f32) {
-    let top = from.y.max(to.y) + apex.clamp(0.5, 40.0);
+    // apex < 0: the jumper's own view — only the landing ring (the arc would cross the lens).
+    let own = apex < 0.0;
+    let top = from.y.max(to.y) + apex.abs().clamp(0.5, 40.0);
     let n = 24;
     let at = |f: f32| {
         let mut p = from.lerp(to, f);
@@ -979,7 +997,7 @@ pub fn arc_preview(pen: &mut Pen, v: &View, look: &Look, from: Vec3, to: Vec3, a
     };
     for i in (0..n).step_by(2) {
         let f0 = i as f32 / n as f32;
-        if f0 < u {
+        if f0 < u || own {
             continue;
         }
         seg(pen, v, at(f0), at(f0 + 1.0 / n as f32), 0.03, look.main, look.glow * 0.5);

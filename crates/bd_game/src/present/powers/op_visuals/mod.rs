@@ -660,7 +660,7 @@ impl Ctx<'_> {
                 let at = bv(*to) + Vec3::Y;
                 pen.ring(&look, at, Vec3::Y, 0.4, 6.0, 1.2, 0.45);
                 pen.ring(&look, at, (at - v.cam).normalize_or(Vec3::Z), 0.3, 5.0, 1.0, 0.4);
-                pen.flash(bv(*from) + Vec3::Y, 1.0, look.main, look.glow, 0.12);
+                prims::flash(pen, bv(*from) + Vec3::Y, 1.0, look.main, look.glow, 0.12);
                 snd(w, "recall_whoosh", at, 1.0, 0.9);
                 snd(w, "mv_time_tick", at, 0.8, 0.8);
             }
@@ -822,7 +822,7 @@ impl Ctx<'_> {
                 self.pool.add(Fx { kind: Kind::Aura(aura), look, owner: *player, dur: secs.clamp(0.1, 10.0), r: angle.to_radians(), ..default() });
                 if let Some(pv) = self.views.player(*player) {
                     let c = chest(pv);
-                    pen.flash(c, 0.9, look.core, look.glow, 0.1);
+                    prims::flash(pen, c, 0.9, look.core, look.glow, 0.1);
                     snd(w, match kind {
                         StanceKind::Deflect => "saber_swoosh",
                         StanceKind::Counter => "presence_shing",
@@ -837,7 +837,7 @@ impl Ctx<'_> {
                 match kind {
                     StanceKind::Deflect => {
                         // Sent back: sparks sprayed along the new heading, a ring where it turned.
-                        pen.flash(p, 0.9, look.core, look.glow * 1.4, 0.08);
+                        prims::flash(pen, p, 0.9, look.core, look.glow * 1.4, 0.08);
                         let sparks = Look { body: Body::Bolt, ..look };
                         pen.burst(&sparks, p, 0.8, 9.0, Some(d.normalize_or(Vec3::Y)), 0.4, 0.25);
                         pen.ring(&look, p, d.normalize_or(Vec3::Y), 0.15, 5.0, 0.7, 0.2);
@@ -855,7 +855,7 @@ impl Ctx<'_> {
                         }
                     }
                     StanceKind::Guard => {
-                        pen.flash(p, 0.8, look.core, look.glow, 0.08);
+                        prims::flash(pen, p, 0.8, look.core, look.glow, 0.08);
                         pen.ring(&look, p, d.normalize_or(Vec3::Y), 0.2, 4.0, 0.8, 0.25);
                         snd(w, "shield_block", p, 1.0, 0.9);
                     }
@@ -875,7 +875,7 @@ impl Ctx<'_> {
                         self.pool.kill(|f| f.kind == Kind::Aura(AuraKind::Glare) && f.owner == pl);
                         self.pool.add(Fx { kind: Kind::Aura(AuraKind::Glare), look, owner: *player, dur: secs.clamp(0.3, 10.0) + 0.3, ..default() });
                         if let Some(c) = chest_p {
-                            pen.flash(c + Vec3::Y, 0.7, look.core, look.glow, 0.12);
+                            prims::flash(pen, c + Vec3::Y, 0.7, look.core, look.glow, 0.12);
                             snd(w, "ult_charge", c, 0.5, 1.0);
                             snd(w, "heartbeat", c, 0.8, 0.7);
                         }
@@ -890,7 +890,7 @@ impl Ctx<'_> {
                         if let Some(tv) = target.and_then(|t| self.views.player(t)) {
                             let head = tv.pos + Vec3::Y * 2.1 * tv.size;
                             if *frac >= 1.0 {
-                                pen.flash(chest(tv), 0.8, look.core, look.glow * 1.5, 0.1);
+                                prims::flash(pen, chest(tv), 0.8, look.core, look.glow * 1.5, 0.1);
                                 snd(w, "hit_crit", head, 2.0, 0.45);
                             } else {
                                 snd(w, "needle_tick", head, 1.6, 0.4);
@@ -919,7 +919,7 @@ impl Ctx<'_> {
                         }
                         self.pool.kill(|f| f.kind == Kind::Aura(AuraKind::Glare) && f.owner == pl);
                         if let Some(c) = chest_p {
-                            pen.flash(c + Vec3::Y * 0.3, 0.8, look.core, look.glow * 1.3, 0.1);
+                            prims::flash(pen, c + Vec3::Y * 0.3, 0.8, look.core, look.glow * 1.3, 0.1);
                             snd(w, "golden_gun", c, 0.9, 1.0);
                             snd(w, "gun_handcannon", c, 0.8, 0.8);
                             if self.involved(*player, None) {
@@ -1014,7 +1014,7 @@ impl Ctx<'_> {
                     SeekPhase::Catch => {
                         let pl = *player;
                         self.pool.kill(|f| f.kind == Kind::Trail && f.owner == pl);
-                        pen.flash(p, 0.6, look.core, look.glow, 0.08);
+                        prims::flash(pen, p, 0.6, look.core, look.glow, 0.08);
                         snd(w, "recall_catch", p, 1.0, 0.8);
                     }
                 }
@@ -1225,7 +1225,7 @@ impl Ctx<'_> {
                 let yaw = self.views.player(*player).map_or(0.0, |x| x.yaw);
                 let feet = p - Vec3::Y * 1.0;
                 pen.ghost(feet, yaw, 1.0, silver.main, silver.glow * 0.7, 0.6);
-                pen.flash(p, 0.8, silver.core, silver.glow * 1.4, 0.1);
+                prims::flash(pen, p, 0.8, silver.core, silver.glow * 1.4, 0.1);
                 // Time bends: a slow wide ring off the dodge, a second one in the move's colour.
                 pen.ring(&silver, p, Vec3::Y, 0.5, 5.0, 1.6, 0.9);
                 pen.ring(&look, p, (p - v.cam).normalize_or(Vec3::Z), 0.4, 3.5, 1.2, 0.8);
@@ -1249,7 +1249,7 @@ impl Ctx<'_> {
                     let h = hand_of(pv, self.hands, self.local);
                     pen.beam(h, p, 0.06, color, 3.0, 0.14);
                 }
-                pen.flash(p + n * 0.1, 0.6, color, 3.0, 0.1);
+                prims::flash(pen, p + n * 0.1, 0.6, color, 3.0, 0.1);
                 pen.ring(&look, p + n * 0.05, n, 0.2, 4.0, 0.8, 0.25);
                 snd(w, "mv_hardlight", p, if *orange { 0.85 } else { 1.15 }, 0.8);
             }
@@ -1263,7 +1263,7 @@ impl Ctx<'_> {
                     self.pool.add(Fx { kind: Kind::Aura(AuraKind::Empower), look, owner: *player, dur: secs.clamp(0.2, 10.0), flag: rainbow, ..default() });
                     pen.ring(&look, pv.pos + Vec3::Y * 0.1, Vec3::Y, 0.4, 9.0, 1.6, 0.4);
                     pen.burst(&look, chest(pv), 1.4, 6.0, Some(Vec3::Y), 1.0, 0.6);
-                    pen.flash(chest(pv), 0.9, look.core, look.glow, 0.12);
+                    prims::flash(pen, chest(pv), 0.9, look.core, look.glow, 0.12);
                     snd(w, "presence_manifest_big", chest(pv), 1.0, 0.9);
                     snd(w, "power_ready", chest(pv), 0.9, 0.4);
                 } else {
@@ -1281,7 +1281,7 @@ impl Ctx<'_> {
                     self.pool.add(Fx { kind: Kind::Marker(MarkKind::Captured), look, owner: *player, construct: Some(cid), a: p, dur: secs.clamp(0.2, 10.0), ..default() });
                     self.pool.add(Fx { kind: Kind::Tether(TetherBody::Spirit), look, owner: *player, construct: Some(cid), b: p, phase: 1, dur: 0.6, ..default() });
                     pen.implode(&look, p, 2.0, 0.25, 1.0);
-                    pen.flash(p, 0.8, look.core, look.glow, 0.1);
+                    prims::flash(pen, p, 0.8, look.core, look.glow, 0.1);
                     snd(w, "summon_ping", p, 0.8, 0.9);
                     snd(w, "transform_combine", p, 1.3, 0.5);
                 } else {
@@ -1303,7 +1303,7 @@ impl Ctx<'_> {
                     let rs = pen.fx.rng.next_u32();
                     zig(pen.fx, a, b, 10, 0.3, rs, 0.04, look.core, look.glow * 2.0);
                 }
-                pen.flash(b, 1.0, look.core, look.glow * 1.5, 0.12);
+                prims::flash(pen, b, 1.0, look.core, look.glow * 1.5, 0.12);
                 pen.ring(&look, b, d, 0.15, 4.0, 0.6, 0.25);
                 pen.burst(&look, b, 0.6, 5.0, Some(-d), 0.9, 0.3);
                 snd(w, "bfg_zap", b, 1.5, 0.35);
@@ -1321,7 +1321,7 @@ impl Ctx<'_> {
                 if !*burst {
                     self.marker(*player, *target, MarkKind::Delayed, look, secs.clamp(0.2, 12.0));
                     if let Some(tv) = self.views.player(*target) {
-                        pen.flash(chest(tv), 0.7, look.main, look.glow, 0.1);
+                        prims::flash(pen, chest(tv), 0.7, look.main, look.glow, 0.1);
                         snd(w, "storm_mark", chest(tv), 1.2, 0.6);
                     }
                     return;
@@ -1349,7 +1349,7 @@ impl Ctx<'_> {
                 if !*strike {
                     self.marker(*player, *target, MarkKind::Tag, look, secs.clamp(0.3, 30.0));
                     if let Some(tv) = self.views.player(*target) {
-                        pen.flash(chest(tv), 0.6, look.core, look.glow, 0.08);
+                        prims::flash(pen, chest(tv), 0.6, look.core, look.glow, 0.08);
                         snd(w, "lodge_thunk", chest(tv), 1.1, 0.8);
                     }
                     return;
@@ -1368,7 +1368,7 @@ impl Ctx<'_> {
                     let l = 0.9 + 0.5 * (k % 3) as f32;
                     pen.beam(c + d * 0.1, c + d * l, 0.06, if k % 2 == 0 { look.core } else { look.main }, look.glow * 1.8, 0.2);
                 }
-                pen.flash(c, 0.8, look.core, look.glow * 1.3, 0.08);
+                prims::flash(pen, c, 0.8, look.core, look.glow * 1.3, 0.08);
                 let ink = Look { body: Body::Liquid, main: look.main, ..look };
                 pen.burst(&ink, c, 1.0, 5.0, None, 0.0, 0.5);
                 pen.ring(&look, c, (c - v.cam).normalize_or(Vec3::Z), 0.2, 6.0, 1.0, 0.3);
@@ -1415,7 +1415,7 @@ impl Ctx<'_> {
                     f.t = 0.0;
                     f.dur = secs.clamp(0.05, 3.0) + 0.05;
                 }
-                pen.flash(to, 0.8, look.core, look.glow * 1.3, 0.08);
+                prims::flash(pen, to, 0.8, look.core, look.glow * 1.3, 0.08);
                 snd(w, "gun_minigun_spinup", to, 1.6, 0.7);
                 snd(w, "hit_heavy", to, 0.9, 0.8);
                 if self.involved(player, nearest_player(self.views, to, 2.5)) {
@@ -1429,7 +1429,7 @@ impl Ctx<'_> {
                 for k in 0..4 {
                     pen.ring(&look, to + d * k as f32 * 0.9, d, 0.3 + 0.2 * k as f32, 6.0, 1.0, 0.25 + 0.05 * k as f32);
                 }
-                pen.flash(to, 1.1, look.core, look.glow * 1.5, 0.1);
+                prims::flash(pen, to, 1.1, look.core, look.glow * 1.5, 0.1);
                 pen.burst(&look, to, 1.6, 10.0, Some(d), 0.6, 0.45);
                 snd(w, "charge_release", to, 1.0, 1.0);
                 snd(w, "explosion_small", to, 1.1, 0.8);
@@ -1460,8 +1460,8 @@ impl Ctx<'_> {
                 let up = Vec3::Y * 1.0;
                 pen.beam(from + up, to + up, 0.12, yellow.main, yellow.glow * 2.0, 0.2);
                 pen.beam(from + up, to + up, 0.04, yellow.core, yellow.glow * 3.0, 0.14);
-                pen.flash(from + up, 1.0, yellow.core, yellow.glow, 0.08);
-                pen.flash(to + up, 0.9, yellow.core, yellow.glow * 1.5, 0.1);
+                prims::flash(pen, from + up, 1.0, yellow.core, yellow.glow, 0.08);
+                prims::flash(pen, to + up, 0.9, yellow.core, yellow.glow * 1.5, 0.1);
                 pen.ring(&yellow, to + Vec3::Y * 0.1, Vec3::Y, 0.3, 6.0, 1.0, 0.3);
                 self.pool.kill(|f| f.kind == Kind::Marker(MarkKind::Seal) && f.owner == player);
                 snd(w, "recall_blink", to, 1.2, 1.0);
@@ -1472,7 +1472,7 @@ impl Ctx<'_> {
                 // ring and a "shunk" where it reappears.
                 let up = Vec3::Y * 1.0;
                 pen.beam(from, from + up * 2.0, 0.05, look.core, look.glow * 2.0, 0.12);
-                pen.flash(from + up, 0.7, look.main, look.glow, 0.06);
+                prims::flash(pen, from + up, 0.7, look.main, look.glow, 0.06);
                 pen.ring(&look, to + up, (to + up - v.cam).normalize_or(Vec3::Z), 0.2, 3.0, 0.8, 0.25);
                 pen.beam(to, to + up * 2.0, 0.08, look.main, look.glow * 1.6, 0.1);
                 snd(w, "recall_blink", from, 0.8, 0.8);
@@ -1481,7 +1481,7 @@ impl Ctx<'_> {
             ToolboxFx::Copy => {
                 // The red eye flares: tomoe spin at the face.
                 let red = Look { main: [1.0, 0.08, 0.08], core: [1.0, 0.7, 0.6], ..look };
-                pen.flash(from, 0.5, red.main, red.glow * 1.5, 0.2);
+                prims::flash(pen, from, 0.5, red.main, red.glow * 1.5, 0.2);
                 pen.ring(&red, from, (from - v.cam).normalize_or(Vec3::Z), 0.05, 1.5, 0.6, 0.35);
                 snd(w, "reveal_pulse", from, 0.8, 0.7);
             }
@@ -1489,7 +1489,7 @@ impl Ctx<'_> {
                 // A thin red line eye to eye; the victim is dazed for the status time.
                 let red = Look { main: [1.0, 0.1, 0.12], core: [1.0, 0.75, 0.7], ..look };
                 pen.beam(from, to, 0.025, red.core, red.glow * 2.5, 0.35);
-                pen.flash(to, 0.4, red.main, red.glow, 0.15);
+                prims::flash(pen, to, 0.4, red.main, red.glow, 0.15);
                 if let Some(t) = nearest_player(self.views, to, 1.5).filter(|t| *t != player) {
                     self.marker(player, t, MarkKind::Dazed, red, secs.clamp(0.2, 3.0));
                 }
@@ -1499,7 +1499,7 @@ impl Ctx<'_> {
                 // A white nova off the face: only the people who looked get it (the sim decides).
                 let white = Look { main: [1.0, 1.0, 0.95], core: [1.0, 1.0, 1.0], ..look };
                 if !self.near(from, 2.0) {
-                    pen.flash(from, 1.6, white.core, white.glow * 2.0, 0.14);
+                    prims::flash(pen, from, 1.6, white.core, white.glow * 2.0, 0.14);
                 }
                 pen.ring(&white, from, Vec3::Y, 0.4, size.clamp(2.0, 30.0) * 2.2, 1.6, 0.4);
                 snd(w, "storm_nova", from, 1.3, 0.9);
@@ -1556,7 +1556,7 @@ impl Ctx<'_> {
             ToolboxFx::Wave => {
                 let flat = op_of(self.mv(player), |o| if let MoveOp::Wave { width, .. } = o { Some(*width) } else { None }).is_some_and(|wd| wd <= 2.0) && matches!(look.body, Body::Halo | Body::Energy);
                 self.pool.add(Fx { kind: Kind::Crescent, look, owner: player, a: from + Vec3::Y * 1.0, b: to + Vec3::Y * 1.0, r: size.clamp(0.5, 12.0), dur: secs.clamp(0.05, 5.0), flag: flat, ..default() });
-                pen.flash(from + Vec3::Y, 0.7, look.core, look.glow * 1.2, 0.08);
+                prims::flash(pen, from + Vec3::Y, 0.7, look.core, look.glow * 1.2, 0.08);
                 snd(w, "blade_wave", from, 1.0, 1.0);
             }
         }
@@ -1588,7 +1588,7 @@ fn claw(pen: &mut Pen, look: &Look, p: Vec3, size: f32) {
         let d = Vec3::new(a.cos(), 0.6 * if k % 2 == 0 { 1.0 } else { -1.0 }, a.sin()).normalize();
         pen.beam(p + d * 0.9 * size, p + d * 0.2 * size, 0.06 * size, look.main, look.glow * 1.5, 0.18);
     }
-    pen.flash(p, 0.9 * size, look.core, look.glow, 0.1);
+    prims::flash(pen, p, 0.9 * size, look.core, look.glow, 0.1);
 }
 
 fn status_element(s: StatusKind) -> Element {
@@ -1764,7 +1764,7 @@ fn step(
                     f.live = false;
                     continue;
                 };
-                let r = 0.28 * ov.size;
+                let r = 0.4 * ov.size;
                 let (hand, fwd) = if Some(ov.id) == local && fp {
                     (hands.world[1] + v.fwd * 0.25, v.fwd)
                 } else {
@@ -1789,7 +1789,8 @@ fn step(
                 }
             }
             Kind::Arc => {
-                prims::arc_preview(&mut pen, &v, &look, f.a, f.b, f.r, Some(f.b), u, f.t);
+                let own = Some(f.owner) == local && fp;
+                prims::arc_preview(&mut pen, &v, &look, f.a, f.b, if own { -1.0 } else { f.r }, Some(f.b), u, f.t);
             }
             Kind::Surge => {
                 // The front's foot: a foam line racing along the run, spray off its top.
@@ -1825,7 +1826,7 @@ fn step(
                     // The reveal: the chosen pip bursts.
                     let c = if Some(ov.id) == local && fp { v.cam + v.fwd * 2.5 + v.up * 0.85 } else { ov.pos + Vec3::Y * 2.7 * ov.size };
                     let top = c + v.up * 0.45;
-                    pen.flash(top, 0.6, look.core, look.glow * 1.6, 0.15);
+                    prims::flash(&mut pen, top, 0.6, look.core, look.glow * 1.6, 0.15);
                     pen.burst(&look, top, 0.8, 3.0, None, 0.0, 0.4);
                     sfx.write(Sfx3d::at("summon_ping", c).pitch(1.6).gain(0.8));
                 }
@@ -1889,7 +1890,7 @@ fn step(
                         // Sharp turns flare (the homing reads as a decision, not a drift).
                         let turn = f.dir.dot(sv.normalize_or(f.dir));
                         if turn < 0.9 && f.n > 2 {
-                            pen.flash(p, 0.5, look.core, look.glow, 0.08);
+                            prims::flash(&mut pen, p, 0.5, look.core, look.glow, 0.08);
                         }
                         f.dir = sv.normalize_or(f.dir);
                         f.n = f.n.saturating_add(1);

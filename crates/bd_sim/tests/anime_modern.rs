@@ -316,8 +316,9 @@ fn golden_kit_phrases_fire_the_characters_own_move() {
 fn golden_borrowed_shouts_and_names() {
     // Famous shouts anyone can borrow (no power held).
     fires("boogie woogie", "todo_kit", "boogie woogie");
-    fires("clap", "todo_kit", "boogie woogie");
-    fires("resonance", "nobara_kit", "resonance");
+    // SHOUT HYGIENE: a bare everyday word ("clap") is never global — the kit form is.
+    fires("todo clap", "todo_kit", "boogie woogie");
+    fires("straw doll resonance", "nobara_kit", "resonance");
     fires("bungee gum", "hisoka_kit", "bungee gum");
     fires("detroit smash", "one_for_all", "detroit smash");
     fires("howitzer impact", "bakugo_kit", "howitzer impact");
@@ -345,10 +346,10 @@ fn golden_chains_split_into_the_right_moves() {
     let is_move = |s: &str| ix.read(t, None, s).is_move();
     let steps = |s: &str| -> Vec<Option<(String, String)>> { split_chain(s, &is_move).iter().map(|p| reads(p)).collect() };
     let m = |p: &str, n: &str| Some((p.to_string(), n.to_string()));
-    assert_eq!(steps("clap -> clap -> todo black flash"), vec![m("todo_kit", "boogie woogie"), m("todo_kit", "boogie woogie"), m("todo_kit", "black flash")]);
+    assert_eq!(steps("todo clap -> todo clap -> todo black flash"), vec![m("todo_kit", "boogie woogie"), m("todo_kit", "boogie woogie"), m("todo_kit", "black flash")]);
     assert_eq!(steps("gojo blue then gojo red then hollow purple").len(), 3);
     assert_eq!(steps("hisoka bungee gum -> hisoka bungee snap"), vec![m("hisoka_kit", "bungee gum"), m("hisoka_kit", "bungee snap")]);
-    assert_eq!(steps("nobara nail into resonance"), vec![m("nobara_kit", "nail"), m("nobara_kit", "resonance")]);
+    assert_eq!(steps("nobara nail into nobara resonance"), vec![m("nobara_kit", "nail"), m("nobara_kit", "resonance")]);
     assert_eq!(steps("deku full cowl > deku detroit smash > deku ultimate").len(), 3);
     assert_eq!(steps("edward elric pillar -> bakugo howitzer impact"), vec![m("edward_kit", "alchemy pillar"), m("bakugo_kit", "howitzer impact")]);
 }

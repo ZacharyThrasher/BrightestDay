@@ -165,10 +165,11 @@ fn hero_moves_by_kit_name_slot_word_and_mishearing() {
     check("final smash", "ssb_smash", "final smash");
     check("volcanic viper", "gg_sol_badguy", "volcanic viper");
     // Shooters / party.
-    check("build a wall", "fn_builder", "build a wall");
+    // SHOUT HYGIENE: "build a wall" / "shockwave grenade" are ordinary things (the lexicon builds them)
+    check("fortnite build a wall", "fn_builder", "build a wall");
     check("crank 90s", "fn_builder", "crank 90s");
     check("chug jug", "fn_builder", "chug jug");
-    check("shockwave grenade", "fn_builder", "shockwave grenade");
+    check("fortnite shockwave grenade", "fn_builder", "shockwave grenade");
     check("rocket jump", "tf2_soldier", "rocket jump");
     check("sandvich", "tf2_heavy", "sandvich");
     check("ubercharge", "tf2_medic", "ubercharge");
