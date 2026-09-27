@@ -22,7 +22,8 @@ worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
-- Alloc regression ab43ff90cb8b781a2 — bd_sim tests/alloc.rs steady_state_tick_does_not_allocate (5>3),
+- Stuck-under-floor investigation (spawned 22:05) — bots alive at y≈-1.8 under the flat arena slab.
+- Alloc regression ab43ff90cb8b781a2 DONE in 1647958 (freedom.rs per-KO Vec; test had neutral aim) — bd_sim tests/alloc.rs steady_state_tick_does_not_allocate (5>3),
   unowned since 18:47; find + fix per-tick allocations without changing the FFA hash.
 - Lead 21:25: practice first spawn honours `--look` (18c9647) — map workers kept hitting it.
 - Powers integration a11d2e8eb52e53787 — AscendTints → costume (SSJ gold hair, sharingan eyes, Gear 5
@@ -31,7 +32,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
 - Powers a8211d8337e51dbfe DONE (committed 1e4398a).
 - Lead: COPY CODE fix DONE (verified OS round trip) — bevy `system_clipboard` feature on bd_game (was in-process fallback buffer only;
   copy/paste never reached the OS). Toast says "couldn't copy" on error. Verify + commit when green.
-- Signature PHASE 4 a67f94557763852e1 (resumed) — saturated/glowy palm beams (HDR core+body+halo, bloom,
+- Signature PHASE 4 a67f94557763852e1 DONE (committed 87c732a + visual follow-up; clash: releasing fire does not end your beam — owner may revisit; spirit bomb cut-in PiP frames empty sky) — saturated/glowy palm beams (HDR core+body+halo, bloom,
   world light) + PHYSICAL beams (travelling head, steerable, carve tunnels, blocked by barriers) + BEAM
   CLASH (junction ball drifts toward weaker push; hold to pour willpower; bail anytime; detonates). + GENERIC hold-to-grow thrown energy (palms→overhead by size, tap = base, hit knocks it loose, physical/carving) + generic energy collisions (beam/beam, beam/orb push-back, orb/orb). Presence worker: gather radius scales with tier, motes sampled from surroundings, driven by held size.
 - Match rules a68a4dbccc61a4edc DONE (committed) — per-type construct caps, THEN (scope add) an optional power-up pickup
