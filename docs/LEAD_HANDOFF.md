@@ -1,6 +1,6 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> FIRST AFTER THE OCT 2 RESET: TRANSFORMERS V3 — MOBILITY PARITY + SAUCE (owner 15:00) <<<
+## >>> TRANSFORMERS V3 — MOBILITY PARITY + SAUCE (owner 15:00; "just do it now" → LAUNCHED 15:05: mobility af2fef3de5620506e, sauce ac3b2111c196425e2; stage 3 buffer a9056082deff4a726). If the weekly cap stops them, SendMessage each id "continue" after Oct 2. <<<
 Owner: piloted transformers feel slow/clunky vs on-foot freedom; hard to catch/follow people; robot hit/shoot anims lack sauce;
 "make EVERYTHING feel to the level of hollow purple".
 MOBILITY: (1) pilot's movement kit carries into robot mode (bhop, air strafe, double jump, dodge chains, wall refresh; weight-
