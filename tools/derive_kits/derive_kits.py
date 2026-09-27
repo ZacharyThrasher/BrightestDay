@@ -2101,7 +2101,7 @@ def show(k: dict) -> str:
     lines = [f"{c.display}  [{c.pack}]  names={c.kit_names}  fx={k['fx'] or '-'}",
              f"   data: form={c.form} elem={c.element}->{k['prof'].elem} temper={c.temperament} mech={sorted(c.mech)} weapon={k['prof'].weapon} flav={k['prof'].flav} notes={c.notes[:60]!r}"]
     for mv in k["moves"]:
-        lines.append(f"   {('/'.join(mv.tags) or 'bonus'):16} {mv.name:24} {'; '.join(o.split('(')[0] for o in mv.ops)}")
+        lines.append(f"   {('/'.join(mv.tags) or 'bonus'):16} {mv.name:24} {mv.tpl}")
     return "\n".join(lines)
 
 

@@ -157,7 +157,8 @@ fn cartoon_kits_and_shouts() {
     kit("cyborg sonic cannon", "kit_cyborg", "sonic cannon");
     kit("beast boy t rex", "kit_beast_boy", "t rex");
     kit("rick portal gun", "kit_rick", "portal gun");
-    kit("pickle rick rat armor", "kit_pickle_rick", "rat armor");
+    kit("pickle rick armor", "kit_pickle_rick", "rat armor");
+    kit("pickle rick laser", "kit_pickle_rick", "laser");
     kit("the doctor sonic screwdriver", "kit_the_doctor", "sonic screwdriver");
     kit("doctor who tardis", "kit_the_doctor", "tardis");
     kit("jake stretchy punch", "kit_jake", "stretchy punch");
@@ -215,8 +216,14 @@ fn bare_kit_names_never_fire_a_move() {
     let mut bad = Vec::new();
     for p in mine.powers.iter().filter(|p| p.kind == PowerKind::Kit) {
         for n in p.names.iter().chain(std::iter::once(&p.name)) {
-            if ix().read(t(), None, n) != Reading::Plain {
-                bad.push(format!("{} {n:?} -> {:?}", p.id, reads(n)));
+            match ix().read(t(), None, n) {
+                Reading::Plain => {}
+                // Another file's move that happens to share the name (Lucio's "soundwave"): a
+                // homonym the validator reports; not a leak of this file's kit grammar.
+                Reading::Borrow(m) if t().def(m.power).is_some_and(|d| mine.powers.iter().all(|q| q.id != d.id)) => {
+                    eprintln!("note: bare {n:?} borrows another file's move {:?}", reads(n));
+                }
+                _ => bad.push(format!("{} {n:?} -> {:?}", p.id, reads(n))),
             }
         }
     }

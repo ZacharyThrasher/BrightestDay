@@ -451,3 +451,35 @@ fn table_parse_index_and_reading_are_fast() {
     eprintln!("{} powers: parse {:.1} ms, index {:.1} ms, reading {per:.1} µs / phrase", t.powers.len(), parse.as_secs_f64() * 1e3, index.as_secs_f64() * 1e3);
     assert!(per < 500.0, "{per} µs per reading");
 }
+
+/// A borrowed time stop works for a player who holds NO power: the world greys AND they speed up
+/// (host and prediction alike: `PowerSnap::time_speed` carries the speed).
+#[test]
+fn a_borrowed_time_stop_speeds_a_powerless_player() {
+    let t = PowerTable::get();
+    let ix = MoveIndex::shipped();
+    let (_, m) = ix
+        .shouts()
+        .filter(|(_, m)| m.resolve(t).is_some_and(|(_, mv)| mv.ops.iter().any(|o| matches!(o, bd_sim::powers::MoveOp::TimeStop { .. }))))
+        .min_by_key(|(s, m)| (m.pack(), s.to_string()))
+        .expect("some move stops time");
+    let mut w = duel();
+    w.player_mut(A).unwrap().willpower = 100.0;
+    assert!(w.player(A).unwrap().power.id.is_none());
+    w.borrow_move(A, m, false, None).expect("borrowed time stop");
+    let evs = run(&mut w, 1);
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::TimeStop { player: A, .. }))));
+    let pw = &w.player(A).unwrap().power;
+    let mut mods = bd_sim::movement::MoveModifiers::default();
+    pw.modify_movement(true, &mut mods);
+    assert!(mods.speed_mult > 1.2, "sped up: {}", mods.speed_mult);
+    // prediction: a client mirror built from the snapshot speeds up the same
+    let mut mirror = PlayerPower::default();
+    mirror.apply_snap(pw.snap());
+    let mut m2 = bd_sim::movement::MoveModifiers::default();
+    mirror.modify_movement(true, &mut m2);
+    assert!((m2.speed_mult - mods.speed_mult).abs() < 0.03, "{} vs {}", m2.speed_mult, mods.speed_mult);
+    // and it runs out
+    run(&mut w, ticks(3.5));
+    assert!(w.player(A).unwrap().power.time_stop <= 0.0);
+}

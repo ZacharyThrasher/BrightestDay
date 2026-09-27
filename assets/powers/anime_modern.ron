@@ -976,7 +976,7 @@
         id: "life_fibers",
         name: "Kamui Senketsu",
         kind: Technique,
-        names: ["kamui senketsu", "senketsu", "kamui", "life fibers", "life fiber synchronize", "life fiber synchronization", "jinba ittai",
+        names: ["kamui senketsu", "senketsu", "life fibers", "life fiber synchronize", "life fiber synchronization", "jinba ittai",
                 "kill la kill", "senketsu kamui", "godrobe"],
         effects: [PowerMult(damage: 1.15, speed: 1.15)],
         body: (moves: (jump: 1.25, air_control: 1.3)),

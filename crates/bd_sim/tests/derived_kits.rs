@@ -1,6 +1,7 @@
 //! AUTO-KITS (docs/toolbox/AUTO_KITS.md): the GENERATED character kits — `assets/powers/zz_derived_kits.ron`,
-//! written by `python tools/derive_kits/derive_kits.py` — give every character-like icon / costume that no
-//! hand-made kit names a `kind: Kit` ("<obscure character> ultimate" does something in character).
+//! written by `python tools/derive_kits/derive_kits.py`, compact template ids expanded by `powers::derive` —
+//! give the most-named characters no hand-made kit covers a `kind: Kit` ("<character> ultimate" does
+//! something in character).
 //!
 //! Covered here: the file sorts last and fits the table, coverage counts, derived kits never grant / shout,
 //! every derived kit answers the slot words with the right move, HAND KITS ALWAYS WIN, golden phrases for
@@ -79,7 +80,8 @@ fn coverage_every_character_has_a_kit() {
     let moves: usize = derived().map(|(_, p)| p.moves.len()).sum();
     let names: usize = derived().map(|(_, p)| p.names.len()).sum();
     eprintln!("characters with a kit: {hand} hand-made -> {} with derived kits ({dk} derived kits, {moves} moves, {names} names)", hand + dk);
-    assert!(dk >= 3000, "only {dk} derived kits: did the generator lose its sources?");
+    assert!(dk >= 1000, "only {dk} derived kits: did the generator lose its sources?");
+    assert!(t.powers.len() < MAX_POWERS, "the derived budget must leave the table room");
 }
 
 #[test]
@@ -200,22 +202,25 @@ fn golden_phrases_obscure_characters() {
     let ix = MoveIndex::shipped();
     let t = table();
     let golden: &[(&str, MoveTag, &str)] = &[
-        ("pepe le pew ultimate", MoveTag::Ultimate, "dk_pepe_le_pew"),
-        ("howard the duck special", MoveTag::Ultimate, "dk_howard_the_duck"),
-        ("krang combo", MoveTag::Combo, "dk_krang"),
-        ("glamrock freddy block", MoveTag::Defense, "dk_glamrock_freddy"),
-        ("ned flanders super", MoveTag::Ultimate, "dk_ned_flanders"),
-        ("tremors graboid dash", MoveTag::Movement, "dk_tremors_graboid"),
-        ("doge attack", MoveTag::Primary, "dk_doge"),
-        ("charmander ultimate", MoveTag::Ultimate, "dk_charmander"),
-        ("motobug ult", MoveTag::Ultimate, "dk_motobug"),
-        ("killer frost's counter", MoveTag::Counter, "dk_killer_frost"),
-        ("rupert the bear punch", MoveTag::Primary, "dk_rupert_the_bear"),
-        ("beholder ultimate", MoveTag::Ultimate, "dk_beholder"),
+        ("slenderman ultimate", MoveTag::Ultimate, "dk_slenderman"),
+        ("jon snow combo", MoveTag::Combo, "dk_jon_snow"),
+        ("eric cartman ultimate", MoveTag::Ultimate, "dk_eric_cartman"),
+        ("garchomp ultimate", MoveTag::Ultimate, "dk_garchomp"),
+        ("zapp brannigan dodge", MoveTag::Movement, "dk_zapp_brannigan"),
+        ("catbus attack", MoveTag::Primary, "dk_catbus"),
+        ("mongolian death worm special", MoveTag::Ultimate, "dk_mongolian_death_worm"),
+        ("court of owls block", MoveTag::Defense, "dk_court_of_owls"),
+        ("michael scott super", MoveTag::Ultimate, "dk_michael_scott"),
+        ("lockheed attack", MoveTag::Primary, "dk_lockheed"),
+        ("kenshin counter", MoveTag::Counter, "dk_kenshin"),
+        ("martian manhunter's ultimate", MoveTag::Ultimate, "dk_martian_manhunter"),
     ];
     let mut hits = 0;
     for (phrase, tag, id) in golden {
-        let Some(m) = kit_of(ix, phrase) else { panic!("{phrase:?}: not a kit move") };
+        let Some(m) = kit_of(ix, phrase) else {
+            eprintln!("{phrase:?}: no kit move (cut by the budget after a regeneration?)");
+            continue;
+        };
         let (def, mv) = m.resolve(t).expect("resolves");
         if !is_derived(def) {
             eprintln!("{phrase:?}: now a hand kit ({}) — fine, hand wins", def.id);
@@ -229,11 +234,11 @@ fn golden_phrases_obscure_characters() {
         hits += 1;
     }
     assert!(hits >= golden.len() / 2, "most golden characters should still be derived ({hits}/{})", golden.len());
-    // the Pokémon get their own move names (vocab.py POKEMON)
-    if let Some(m) = kit_of(ix, "charmander ultimate") {
+    // the Pokémon get their own move names (vocab.py POKEMON): Garchomp's ultimate is Earthquake
+    if let Some(m) = kit_of(ix, "garchomp ultimate") {
         let (def, mv) = m.resolve(t).unwrap();
         if is_derived(def) {
-            assert_eq!(mv.name, "overheat");
+            assert_eq!(mv.name, "earthquake");
         }
     }
 }
