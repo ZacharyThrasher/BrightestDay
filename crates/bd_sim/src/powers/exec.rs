@@ -172,6 +172,15 @@ impl World {
     /// clamped to the look when the rules forbid third person); every op that reads the eye / look
     /// (casts, dashes, blinks, "at aim" placements) uses it for this move. `None` = the look.
     pub fn power_move_aimed(&mut self, player: PlayerId, slot: u8, aim: Option<Aim>) -> Result<(), PowerError> {
+        // FIRST CALL HOOK: a rival's / burned power fires its rival / echo move (None while off).
+        if let Some(r) = self.call_power_move(player, slot, aim) {
+            return r;
+        }
+        self.power_move_plain(player, slot, aim)
+    }
+
+    /// [`Self::power_move_aimed`] without the FIRST CALL gate.
+    pub(crate) fn power_move_plain(&mut self, player: PlayerId, slot: u8, aim: Option<Aim>) -> Result<(), PowerError> {
         let Some(i) = self.pidx(player) else { return Err(PowerError::UnknownPlayer) };
         self.powers.move_aim = aim.map(|a| {
             let (o, d) = self.resolve_aim(i, &a);
@@ -560,6 +569,11 @@ impl World {
         // A power is permanent until KO, so a "weaker" power would be a new system; the construct
         // is the charming fallback and the power stays a real purchase. A FORM you can't afford is
         // the plain "power up" flare (the moment, not the form).
+        // TOTAL LIMIT (crate::limit): a NEW power at the cap doesn't happen, free (re-selecting a held
+        // one, or replacing — max powers, a second stand — keeps the total).
+        if direct && self.at_active_limit(self.players[i].id) && t.index_of(key).is_none_or(|pid| self.power_would_add(i, pid)) {
+            return Some(Err(CastError::AtLimit));
+        }
         if self.power_pay(i, cost).is_err() {
             if form {
                 self.power_up_flare(i);
@@ -754,6 +768,7 @@ impl World {
         let tier = pw.tier;
         let id = self.players[i].id;
         self.inject_event(GameEvent::Power(PowerEvent::Gained { player: id, power, how }));
+        self.call_gain(i, power); // FIRST CALL HOOK: holding it is using it (claim / life log; no-op while off)
         if def.companion.is_some() && self.players[i].power.companion.is_none() {
             self.spawn_companion(i);
         }
@@ -1727,7 +1742,8 @@ impl World {
                 let Some(c) = self.constructs.get(f.construct).filter(|c| c.gone.is_none()) else { continue };
                 let b = geom::inflate(&c.bounds(), 0.35);
                 for (pi, p) in self.players.iter().enumerate() {
-                    if p.alive && p.seat.is_none_or(|s| s.suit) && p.hull(base).intersects(&b) {
+                    // TOTAL LIMIT: at the cap a pickup that would add a power stays on the map
+                    if p.alive && p.seat.is_none_or(|s| s.suit) && p.hull(base).intersects(&b) && !self.limit_refuses_power(pi, f.power) {
                         found = Some((k, pi));
                         break 'outer;
                     }

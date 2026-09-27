@@ -60,12 +60,22 @@ fn steps_of(text: &str) -> Vec<bd_sim::powers::chain::ToolStep> {
         .collect()
 }
 
-fn dev(time: Res<Time<Real>>, active: Option<Res<ActiveWorld>>, mut st: ResMut<Dev>, stats: Res<OpVisStats>, mut cmds: MessageWriter<SimCommand>) {
+#[allow(clippy::too_many_arguments)]
+fn dev(
+    time: Res<Time<Real>>,
+    active: Option<Res<ActiveWorld>>,
+    mut st: ResMut<Dev>,
+    stats: Res<OpVisStats>,
+    ult: Res<super::super::ultimate::UltimateStats>,
+    mv: Res<super::super::movefx::MoveFxStats>,
+    mut cmds: MessageWriter<SimCommand>,
+) {
     let Some(active) = active else { return };
     st.t += time.delta_secs();
     if env("BD_OPVIS_STATS").is_some() && st.t - st.log_t >= 1.0 {
         st.log_t = st.t;
-        info!("op_visuals stats t={:.1}: live {} peak {} started {} step {:.0} us", st.t, stats.live, stats.peak, stats.started, stats.step_us);
+        info!("op_visuals stats t={:.1}: live {} peak {} started {} step {:.0} us imm_dropped {}", st.t, stats.live, stats.peak, stats.started, stats.step_us, stats.imm_dropped);
+        info!("presentation stats t={:.1}: movefx live {} step {:.0} us | ultimate live {} started {} step {:.0} us", st.t, mv.live, mv.step_us, ult.live, ult.started, ult.step_us);
     }
     // The scene's own move goes at t ≈ 2.6 s (movefx dev).
     let then_at = 2.62 + env("BD_OPVIS_THEN_AT").and_then(|v| v.parse::<f32>().ok()).unwrap_or(1.5);

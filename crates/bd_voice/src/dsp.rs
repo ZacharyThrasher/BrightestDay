@@ -143,6 +143,80 @@ pub fn find_speech(x: &[f32], rate: u32, p: &VadParams) -> Option<SpeechSpan> {
     Some(SpeechSpan { start, end, speech_ms })
 }
 
+/// Pause detection for spoken chains ([`split_at_pauses`], the streaming path and the auto-cut).
+#[derive(Clone, Copy, Debug)]
+pub struct PauseParams {
+    /// A silent run at least this long between two stretches of speech separates them (a spoken
+    /// chain's beat: "teleport … rasengan"). Word gaps inside a phrase are ~50–200 ms.
+    pub min_pause_ms: u32,
+    /// A stretch of speech shorter than this is merged into its neighbour (a breath, a click).
+    pub min_segment_ms: u32,
+    /// Silence kept on each side of a cut segment (Whisper wants a little room).
+    pub pad_ms: u32,
+}
+
+impl Default for PauseParams {
+    fn default() -> Self {
+        Self { min_pause_ms: 380, min_segment_ms: 220, pad_ms: 100 }
+    }
+}
+
+/// Per-frame speech flags (the [`find_speech`] threshold) and the frame length in samples.
+pub fn voiced_frames(x: &[f32], rate: u32, p: &VadParams) -> (Vec<bool>, usize) {
+    let frame = ms_to_samples(p.frame_ms, rate).max(1);
+    if x.len() < frame {
+        return (Vec::new(), frame);
+    }
+    let db: Vec<f32> = x.chunks(frame).map(|f| 20.0 * rms(f).max(1e-7).log10()).collect();
+    let mut sorted = db.clone();
+    sorted.sort_by(|a, b| a.total_cmp(b));
+    let floor = sorted[sorted.len() / 10];
+    let peak = *sorted.last().unwrap();
+    let thr = p.abs_threshold_db.max((floor + p.rel_threshold_db).min(peak - 15.0));
+    (db.iter().map(|&d| d > thr).collect(), frame)
+}
+
+/// Cuts a clip at its pauses: sample ranges of each stretch of speech separated by at least
+/// `min_pause_ms` of silence (padded, in order). One range when there is no such pause; empty when
+/// there is no speech. Chains spoken with beats ("nightcrawler teleport … rasengan … chidori") come
+/// out one move per range.
+pub fn split_at_pauses(x: &[f32], rate: u32, p: &PauseParams) -> Vec<(usize, usize)> {
+    let vad = VadParams::default();
+    let (voiced, frame) = voiced_frames(x, rate, &vad);
+    let fms = vad.frame_ms.max(1);
+    let min_gap = (p.min_pause_ms / fms).max(1) as usize;
+    let min_seg = (p.min_segment_ms / fms).max(1) as usize;
+    // runs of speech (first frame, one past the last), bridging gaps shorter than a pause
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    for (i, &v) in voiced.iter().enumerate() {
+        if !v {
+            continue;
+        }
+        match runs.last_mut() {
+            Some(r) if i - r.1 < min_gap => r.1 = i + 1,
+            _ => runs.push((i, i + 1)),
+        }
+    }
+    // a blip too short to be a phrase joins its nearer neighbour
+    let mut k = 0;
+    while runs.len() > 1 && k < runs.len() {
+        if runs[k].1 - runs[k].0 >= min_seg {
+            k += 1;
+            continue;
+        }
+        let gap_prev = if k > 0 { runs[k].0 - runs[k - 1].1 } else { usize::MAX };
+        let gap_next = if k + 1 < runs.len() { runs[k + 1].0 - runs[k].1 } else { usize::MAX };
+        if gap_prev <= gap_next {
+            runs[k - 1].1 = runs[k].1;
+        } else {
+            runs[k + 1].0 = runs[k].0;
+        }
+        runs.remove(k);
+    }
+    let pad = ms_to_samples(p.pad_ms, rate);
+    runs.iter().map(|&(a, b)| ((a * frame).saturating_sub(pad), (b * frame + pad).min(x.len()))).collect()
+}
+
 /// Scale so the peak sits at `target` (gain capped at `max_gain`; never attenuates below 1x
 /// unless the clip clips).
 pub fn normalize_peak(x: &mut [f32], target: f32, max_gain: f32) {
@@ -228,6 +302,33 @@ mod tests {
         y[8000..8100].iter_mut().for_each(|s| *s = 0.8);
         let s = find_speech(&y, rate, &VadParams::default()).unwrap();
         assert!(s.speech_ms < 250);
+    }
+
+    #[test]
+    fn pauses_cut_a_spoken_chain() {
+        let rate = 16_000;
+        let hush = |ms| vec![0.0005f32; ms_to_samples(ms, rate)];
+        // "teleport" · 120 ms word gap · "behind" · 500 ms beat · "rasengan" · 450 ms · "chidori"
+        let mut x = hush(200);
+        x.extend(tone(200.0, rate, 400, 0.3));
+        x.extend(hush(120));
+        x.extend(tone(220.0, rate, 300, 0.3));
+        x.extend(hush(500));
+        x.extend(tone(180.0, rate, 500, 0.3));
+        x.extend(hush(450));
+        x.extend(tone(240.0, rate, 450, 0.3));
+        x.extend(hush(250));
+        let segs = split_at_pauses(&x, rate, &PauseParams::default());
+        assert_eq!(segs.len(), 3, "{segs:?}");
+        assert!(segs.windows(2).all(|w| w[0].1 <= w[1].0), "ordered, disjoint: {segs:?}");
+        // a clip with only word gaps is one segment; silence is none
+        let mut y = hush(200);
+        y.extend(tone(200.0, rate, 400, 0.3));
+        y.extend(hush(150));
+        y.extend(tone(200.0, rate, 400, 0.3));
+        y.extend(hush(200));
+        assert_eq!(split_at_pauses(&y, rate, &PauseParams::default()).len(), 1);
+        assert!(split_at_pauses(&hush(1000), rate, &PauseParams::default()).len() <= 1);
     }
 
     #[test]

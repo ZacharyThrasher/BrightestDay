@@ -14,7 +14,7 @@ proptest.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [features]
-default = ["backrooms", "sakura", "ember", "mirror", "casino", "valley", "cybertron", "lair", "giant", "hyperline"]
+default = ["backrooms", "sakura", "ember", "mirror", "casino", "valley", "cybertron", "lair", "giant", "hyperline", "lookout"]
 # BACKROOMS map (maps/backrooms.rs).
 backrooms = []
 # HIGH ROLLER casino map (maps/casino.rs): slot machines + the giant roulette.
@@ -35,6 +35,8 @@ sakura = []
 giant = []
 # MIRRORFOLD map (maps/mirror.rs): the folded city (surf curls, hanging towers).
 mirror = []
+# THE LOOKOUT map (maps/lookout.rs): the sky temple over the clouds.
+lookout = []
 
 [[example]]
 name = "backrooms_preview"
@@ -75,3 +77,7 @@ required-features = ["giant"]
 [[example]]
 name = "mirror_preview"
 required-features = ["mirror"]
+
+[[example]]
+name = "lookout_preview"
+required-features = ["lookout"]

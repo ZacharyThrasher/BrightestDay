@@ -255,8 +255,10 @@ fn vertex(v: Vertex) -> VOut {
             col = col * (0.35 + 0.65 * u * u);
         } else if kind == K_FLASH {
             pos = p.p0.xyz;
-            size = size0 * (0.35 + 0.65 * sqrt(t));
-            col = col * (1.0 - t) * (1.0 - t);
+            // Pop out fast, then COLLAPSE while still lit: the cube is opaque, so a flash that only
+            // darkened ended as a big black block. Colour dims a little; size carries the fade.
+            size = size0 * (0.35 + 0.65 * sqrt(min(t / 0.3, 1.0))) * (1.0 - smoothstep(0.3, 1.0, t));
+            col = col * (1.0 - 0.5 * t);
         }
 
         // Life shaping.

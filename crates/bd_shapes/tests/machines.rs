@@ -126,7 +126,7 @@ fn gears_counter_rotate_and_wheels_share_meshes() {
 #[test]
 fn archetypes_move() {
     use Feature::*;
-    for (feats, want) in [(&[Rotor][..], "rotor"), (&[Treads, Turret, Barrels][..], "tank"), (&[Sails, Mast][..], "ship"), (&[Jet, Fins][..], "plane"), (&[Propeller, Fins][..], "sub")] {
+    for (feats, want) in [(&[Rotor][..], "rotor"), (&[Treads, Turret, Barrels][..], "tank"), (&[Sails, Mast][..], "ship"), (&[Jet, Fins][..], "plane"), (&[Propeller, Fins][..], "sub"), (&[Wheels, Exhaust][..], "bike"), (&[Propeller, Exhaust][..], "boat")] {
         let (_, m) = build_model(&recipe(Form::Vehicle, 6.0, &[], feats, 3));
         let moving = m.machine.motions.iter().filter(|x| **x != Motion::None).count();
         assert!(moving >= 1, "{want}: nothing moves");
@@ -135,6 +135,33 @@ fn archetypes_move() {
             assert!(m.machine.motions.iter().any(|x| matches!(x, Motion::Scroll { .. })));
         }
     }
+}
+
+/// Data-keyed bodies: Wheels + Exhaust without a cab / windows / cockpit is a narrow two-wheeler;
+/// Propeller without fins / wheels is a speedboat (fins keep the submarine, windows keep the car).
+#[test]
+fn motorcycle_and_speedboat_bodies() {
+    use bd_core::shape::PartRole;
+    use Feature::*;
+    let count = |m: &VoxelModel, r: PartRole| m.parts.iter().filter(|p| p.role == Some(r)).count();
+    let extent = |m: &VoxelModel| {
+        let (mut lo, mut hi) = (glam::IVec3::MAX, glam::IVec3::MIN);
+        for p in m.parts.iter().filter(|p| !p.voxels.is_empty()) {
+            lo = lo.min(p.vmin);
+            hi = hi.max(p.vmax);
+        }
+        (hi - lo + glam::IVec3::ONE).as_vec3()
+    };
+    let (_, bike) = build_model(&recipe(Form::Vehicle, 4.0, &[Mechanic::Charge, Mechanic::Fast], &[Wheels, Exhaust, Headlight], 3));
+    assert_eq!(count(&bike, PartRole::Wheel), 2, "a bike has two in-line wheels");
+    let e = extent(&bike);
+    assert!(e.x * 2.0 <= e.z, "a bike is narrow: {e}");
+    let (_, car) = build_model(&recipe(Form::Vehicle, 4.0, &[Mechanic::Charge], &[Wheels, Exhaust, Windows, Headlight], 3));
+    assert_eq!(count(&car, PartRole::Wheel), 4, "windows keep the car");
+    let (_, boat) = build_model(&recipe(Form::Vehicle, 6.0, &[Mechanic::Charge, Mechanic::Fast], &[Propeller, Exhaust], 3));
+    assert!(count(&boat, PartRole::Rotor) >= 1 && count(&boat, PartRole::Wheel) == 0 && count(&boat, PartRole::Fin) == 0);
+    let (_, sub) = build_model(&recipe(Form::Vehicle, 6.0, &[], &[Propeller, Fins], 3));
+    assert!(count(&sub, PartRole::Fin) >= 1, "fins keep the submarine");
 }
 
 // ------------------------------------------------------------------------------------ costumes

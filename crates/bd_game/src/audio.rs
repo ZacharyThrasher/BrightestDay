@@ -15,6 +15,10 @@
 //!   caster) / a legendary sting at the spot (anyone else); every Ascend burst → a whoomp + sub hit;
 //!   a form's music layer ("drums": Gear Fifth) → the soundtrack's overlay layer on / off
 //!   ([`power_cue_plan`]).
+//! * Franchise themes ([`themes`]): the LOCAL player's own power uses (moves, forms, gains, swaps)
+//!   of a franchise swell its original theme in on the music's theme layer (bd_audio's
+//!   `ThemeDirector`: keep-alive, minimum hold, re-entry cooldown); Settings → Sound → Franchise
+//!   themes turns it off.
 //! * Loading: `sfx/` is decoded on a worker thread during the loading screen. With `--record` the
 //!   mixer runs offline in lock-step with the fixed capture clock and writes `<record>.wav`
 //!   (nothing is played aloud); otherwise one cpal output stream.
@@ -84,11 +88,23 @@ pub struct AudioPrefs {
     pub night_mode: bool,
     pub mono: bool,
     pub music_style: MusicStylePref,
+    /// Franchise themes: using a franchise's powers swells its (original) theme in over the map
+    /// music. Missing in older settings files = on.
+    pub franchise_themes: bool,
 }
 
 impl Default for AudioPrefs {
     fn default() -> Self {
-        Self { world: 1.0, ambience: 1.0, feedback: 1.0, music: 0.7, night_mode: false, mono: false, music_style: MusicStylePref::Classic }
+        Self {
+            world: 1.0,
+            ambience: 1.0,
+            feedback: 1.0,
+            music: 0.7,
+            night_mode: false,
+            mono: false,
+            music_style: MusicStylePref::Classic,
+            franchise_themes: true,
+        }
     }
 }
 
@@ -217,6 +233,9 @@ impl Plugin for AudioFxPlugin {
                     .run_if(resource_exists::<Audio>),
             )
             .add_systems(Last, offline_capture);
+        // Franchise themes: after the frame's events are out, beside the other audio systems.
+        #[cfg(feature = "music")]
+        app.add_systems(Update, themes::franchise_themes.after(FrameSet::Present).after(apply_settings).run_if(resource_exists::<Audio>));
     }
 }
 
@@ -386,6 +405,7 @@ fn map_key(k: MapKind) -> &'static str {
         MapKind::Lair => "lair",
         MapKind::GiantsRoom => "giant",
         MapKind::Hyperline => "hyperline",
+        MapKind::Lookout => "lookout",
     }
 }
 
@@ -950,6 +970,15 @@ fn apply_settings(mut audio: ResMut<Audio>, settings: Res<Settings>) {
     }
     audio.settings = Some(key);
     let p = settings.audio.sanitized();
+    #[cfg(feature = "music")]
+    {
+        let a = &mut *audio;
+        if let Some(m) = a.music.as_mut()
+            && m.themes.enabled() != p.franchise_themes
+        {
+            m.set_themes_enabled(p.franchise_themes, &mut a.engine);
+        }
+    }
     audio.engine.set_settings(AudioSettings {
         master: settings.master_volume,
         world: p.world,
@@ -987,6 +1016,7 @@ fn leave_game(audio: Option<ResMut<Audio>>) {
     #[cfg(feature = "music")]
     if let Some(m) = a.music.as_mut() {
         m.overlays_off(&mut a.engine);
+        m.themes_off(&mut a.engine);
     }
     a.remote_prev.clear();
     a.ended = false;
@@ -1049,6 +1079,93 @@ fn write_wav(path: &std::path::Path, sr: u32, s: &[i16]) -> std::io::Result<()> 
     f.flush()
 }
 
+/// Franchise themes: which of the local player's power uses wake a theme, and which theme.
+#[cfg(feature = "music")]
+pub mod themes {
+    use super::*;
+    use bd_sim::powers::{PowerEvent, PowerTable, SHIPPED_FILES};
+    use std::sync::OnceLock;
+
+    /// The power a game event says `local` just used (a move, a form, a gain, a swap). Other
+    /// players' uses never touch the local soundtrack.
+    pub fn used_power(e: &GameEvent, local: Option<PlayerId>) -> Option<u16> {
+        let (player, power) = match e {
+            GameEvent::Power(
+                PowerEvent::Move { player, power, .. }
+                | PowerEvent::Gained { player, power, .. }
+                | PowerEvent::Selected { player, power, .. },
+            ) => (*player, *power),
+            GameEvent::Power(PowerEvent::Ascend { player, power: Some(power), .. }) => (*player, *power),
+            _ => return None,
+        };
+        (Some(player) == local).then_some(power)
+    }
+
+    /// Source file of every power in the shipped table (index = power id), e.g.
+    /// `base_one_piece.ron` — the franchise table's per-file mapping. Built once by walking the
+    /// shipped files in table order (exact: entries load in file order).
+    pub fn power_files() -> &'static [&'static str] {
+        static F: OnceLock<Vec<&'static str>> = OnceLock::new();
+        F.get_or_init(|| {
+            let table = PowerTable::get();
+            let mut out = Vec::with_capacity(table.powers.len());
+            let (mut fi, mut pos) = (0usize, 0usize);
+            for p in &table.powers {
+                let needle = format!("id: \"{}\"", p.id);
+                let mut found = None;
+                for (k, (name, text)) in SHIPPED_FILES.iter().enumerate().skip(fi) {
+                    let from = if k == fi { pos } else { 0 };
+                    if let Some(i) = text.get(from..).and_then(|t| t.find(&needle)) {
+                        found = Some((k, from + i + needle.len(), *name));
+                        break;
+                    }
+                }
+                match found {
+                    Some((k, at, name)) => {
+                        (fi, pos) = (k, at);
+                        out.push(name);
+                    }
+                    None => out.push(""),
+                }
+            }
+            out
+        })
+    }
+
+    /// The theme track (music library index) a power's franchise plays, if any.
+    pub fn theme_of(m: &bd_audio::music::MusicDirector, power: u16) -> Option<u16> {
+        let def = PowerTable::get().def(power)?;
+        let file = power_files().get(usize::from(power)).copied().filter(|f| !f.is_empty());
+        m.franchise_theme(&def.id, file, def.music.as_deref())
+    }
+
+    /// The local player's own power uses → the music director's theme layer.
+    pub(super) fn franchise_themes(
+        mut audio: ResMut<Audio>,
+        mut events: MessageReader<GameEvents>,
+        active: Option<Res<ActiveWorld>>,
+        mut cache: Local<HashMap<u16, Option<u16>>>,
+    ) {
+        let local = active.as_ref().and_then(|w| w.local);
+        let a = &mut *audio;
+        let Some(m) = a.music.as_mut() else {
+            events.clear();
+            return;
+        };
+        if local.is_none() || !m.themes.enabled() {
+            events.clear();
+            return;
+        }
+        for ev in events.read() {
+            let Some(power) = used_power(&ev.event, local) else { continue };
+            let theme = *cache.entry(power).or_insert_with(|| theme_of(m, power));
+            if let Some(t) = theme {
+                m.theme_used(t, &mut a.engine);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod power_cue_tests {
     use super::*;
@@ -1091,5 +1208,95 @@ mod power_cue_tests {
             let f = format!("{}/../../assets/sfx/{n}_1.ogg", env!("CARGO_MANIFEST_DIR"));
             assert!(std::path::Path::new(&f).exists(), "{f}");
         }
+    }
+}
+
+#[cfg(all(test, feature = "music"))]
+mod franchise_theme_tests {
+    use super::themes::{power_files, theme_of, used_power};
+    use super::*;
+    use bd_sim::powers::{PowerEvent, PowerTable};
+
+    fn director() -> bd_audio::music::MusicDirector {
+        let lib = std::sync::Arc::new(bd_music::MusicLibrary::load_dir(&bd_music::default_music_dir()).expect("music loads"));
+        bd_audio::music::MusicDirector::new(lib, bd_audio::music::MusicStyle::Classic, 1)
+    }
+
+    #[test]
+    fn only_the_local_players_own_uses_count() {
+        let me = Some(PlayerId(1));
+        let mv = |p: u8| GameEvent::Power(PowerEvent::Move { player: PlayerId(p), power: 7, slot: 0 });
+        assert_eq!(used_power(&mv(1), me), Some(7));
+        assert_eq!(used_power(&mv(2), me), None, "someone else's move");
+        assert_eq!(used_power(&mv(1), None), None, "no local player (menus, spectating)");
+        let asc = |power| GameEvent::Power(PowerEvent::Ascend { player: PlayerId(1), power, tier: 1, transform: false, awakening: true });
+        assert_eq!(used_power(&asc(Some(9)), me), Some(9));
+        assert_eq!(used_power(&asc(None), me), None, "a plain power-up has no franchise");
+        assert_eq!(
+            used_power(&GameEvent::Power(PowerEvent::Lost { player: PlayerId(1), power: 7 }), me),
+            None,
+            "losing it is not using it"
+        );
+    }
+
+    #[test]
+    fn every_power_knows_its_file() {
+        let t = PowerTable::get();
+        let files = power_files();
+        assert_eq!(files.len(), t.powers.len());
+        assert!(files.iter().all(|f| !f.is_empty()), "every power found in its file");
+        let file = |id: &str| files[usize::from(t.index_of(id).unwrap_or_else(|| panic!("{id}")))];
+        assert_eq!(file("gomu_gomu"), "base_one_piece.ron");
+        assert_eq!(file("kit_luffy"), "anime_classics.ron");
+        assert_eq!(file("star_platinum"), "base_jojo.ron");
+        assert_eq!(file("kit_optimus_prime"), "tv_cartoons.ron");
+        assert_eq!(files.last().copied(), bd_sim::powers::SHIPPED_FILES.last().map(|f| f.0));
+    }
+
+    #[test]
+    fn franchise_powers_resolve_to_their_themes() {
+        let m = director();
+        let t = PowerTable::get();
+        let theme = |id: &str| theme_of(&m, t.index_of(id).unwrap_or_else(|| panic!("no power {id}")));
+        let lib = bd_music::MusicLibrary::load_dir(&bd_music::default_music_dir()).expect("music");
+        let name = |x: Option<u16>| x.and_then(|i| lib.track(bd_music::TrackId(i))).map(|s| s.info.name.clone());
+        assert_eq!(name(theme("gomu_gomu")).as_deref(), Some("open_sea_jig"), "per-file (devil fruit)");
+        assert_eq!(name(theme("kit_luffy")).as_deref(), Some("open_sea_jig"), "by id");
+        assert_eq!(name(theme("kit_leonardo")).as_deref(), Some("sewer_surf_stomp"));
+        assert_eq!(name(theme("mutagen_turtle")).as_deref(), Some("sewer_surf_stomp"));
+        assert_eq!(name(theme("kit_optimus_prime")).as_deref(), Some("chrome_titans"));
+        assert_eq!(name(theme("super_saiyan")).as_deref(), Some("sky_burst_overdrive"));
+        assert_eq!(name(theme("kit_naruto")).as_deref(), Some("shadow_step_shinobi"));
+        assert_eq!(name(theme("star_platinum")).as_deref(), Some("menace_disco_strut"));
+        assert_eq!(name(theme("kryptonian")).as_deref(), Some("skyline_vanguard"));
+        assert_eq!(name(theme("kit_jedi")).as_deref(), Some("distant_stars_march"));
+        assert_eq!(name(theme("ssb_pikachu")).as_deref(), Some("tall_grass_trek"));
+        assert_eq!(name(theme("adv_link")).as_deref(), Some("wildwood_valor"));
+        assert_eq!(name(theme("waterbending")).as_deref(), Some("four_winds_accord"));
+        assert_eq!(name(theme("myth_zeus")).as_deref(), Some("old_gods_thunder"));
+        assert_eq!(theme("kit_ichigo"), None, "no theme for unmapped franchises");
+        // Every mapped id in the table exists (typos would silently map nothing).
+        for f in &lib.franchises {
+            for id in f.ids.iter().filter(|i| !i.contains('*')) {
+                assert!(t.index_of(id).is_some(), "franchises.ron: {}: no power '{id}'", f.name);
+            }
+            for file in &f.files {
+                assert!(
+                    bd_sim::powers::SHIPPED_FILES.iter().any(|(n, _)| n.trim_end_matches(".ron") == file),
+                    "{}: no file {file}",
+                    f.name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_setting_defaults_on_and_survives_old_settings_files() {
+        assert!(AudioPrefs::default().franchise_themes);
+        let old: AudioPrefs = ron::from_str("(music: 0.5, mono: true)").expect("old settings parse");
+        assert!(old.franchise_themes, "missing = on");
+        let off = AudioPrefs { franchise_themes: false, ..AudioPrefs::default() };
+        let back: AudioPrefs = ron::from_str(&ron::to_string(&off).expect("ser")).expect("de");
+        assert!(!back.franchise_themes, "round-trips");
     }
 }

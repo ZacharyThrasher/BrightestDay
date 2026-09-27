@@ -6,9 +6,11 @@
 //!   from the replicated world, the rest from `bd_sim::match_stats` (host-authoritative, carried to
 //!   clients in the lobby info; practice observes its own world). The local row is tinted, the
 //!   leader wears a small voxel crown.
-//! * Once a match is over: the next-map vote — a card per registered map (`NetMapKind::ALL`),
-//!   votes as pips in each voter's corps colour, a countdown the host can click to start now, and a
-//!   host RULES button (the Match Rules page; the countdown waits while it is open). Practice: a
+//! * Once a match is over: the next-map vote (rules: `net::map_vote`) — a card per offered map
+//!   (default 2) + RANDOM, votes as pips in each voter's corps colour (hidden until I voted: until
+//!   then only who voted shows, as filled squares by the countdown), my locked pick stamped,
+//!   RANDOM's roulette when it wins, a countdown the host can click to start now, and a host RULES
+//!   button (the Match Rules page; the countdown waits while it is open). Practice: every map, a
 //!   click is the pick (the same map = rematch).
 //!
 //! Rebuilt only when something shown changes.
@@ -19,7 +21,8 @@
 use crate::console::corps_color;
 use crate::lobby::prefs::{Action, KeyBinds};
 use crate::lobby::UiSet;
-use crate::net::proto::NetMapKind;
+use crate::net::map_vote;
+use crate::net::proto::{NetMapKind, VotePick};
 use crate::net::{NetRequest, NetRole, NetStatus};
 use crate::sim_bridge::{ActiveWorld, SimRole};
 use crate::state::{AfterLoading, AppState, InGameMenu};
@@ -36,7 +39,7 @@ struct VoteRoot;
 #[derive(Component)]
 struct CodeTag;
 #[derive(Component)]
-struct MapCard(NetMapKind);
+struct MapCard(VotePick);
 /// Host: start the next match now.
 #[derive(Component)]
 struct GoNow;
@@ -56,6 +59,9 @@ const COL_W: f32 = 54.0;
 const CARD_W: f32 = 118.0;
 const CARD_H: f32 = 56.0;
 const CARDS_PER_ROW: usize = 7;
+/// Cards when only a few are on offer (the default: 2 + RANDOM).
+const BIG_CARD_W: f32 = 196.0;
+const BIG_CARD_H: f32 = 104.0;
 
 pub struct ScoreboardPlugin;
 
@@ -63,10 +69,11 @@ impl Plugin for ScoreboardPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(crate::lobby::feed::FeedPlugin) // FREEDOM: kill feed
             .init_resource::<LocalStats>()
+            .init_resource::<MyPick>()
             .add_systems(Startup, spawn_code_tag)
             .add_systems(SimTick, observe_local.in_set(SimSet::Post))
             .add_systems(OnExit(AppState::InGame), |mut s: ResMut<LocalStats>| s.0 = MatchStats::default())
-            .add_systems(Update, (vote_clicks, draw_board, draw_vote, tick_count, draw_code_tag).chain().in_set(UiSet::Draw))
+            .add_systems(Update, (vote_clicks, draw_board, draw_vote, tick_count, animate_vote, draw_code_tag).chain().in_set(UiSet::Draw))
             .add_systems(Update, dev_match_secs.run_if(|| env_f32("BD_MATCH_SECS").is_some()));
     }
 }
@@ -333,7 +340,16 @@ fn draw_board(
 
 /// What the vote panel shows (None = hidden).
 struct VoteShow {
-    votes: Vec<(PlayerId, NetMapKind)>,
+    /// The cards: offered maps (+ RANDOM).
+    cards: Vec<VotePick>,
+    /// Picks this player may see (empty while hidden).
+    votes: Vec<(PlayerId, VotePick)>,
+    /// Who has voted (always shown).
+    voted: Vec<PlayerId>,
+    locked: bool,
+    /// Decided (RANDOM's roulette lands on it when `rolled`).
+    result: Option<NetMapKind>,
+    rolled: bool,
     current: NetMapKind,
     deadline: Option<f64>,
     host: bool,
@@ -346,12 +362,72 @@ fn vote_show(state: &AppState, menu: &InGameMenu, a: Option<&ActiveWorld>, net: 
         return None;
     }
     match a.role {
-        SimRole::Offline => Some(VoteShow { votes: Vec::new(), current: NetMapKind::from_map_kind(current.0), deadline: None, host: false, practice: true }),
+        // Practice: every map, a click is the pick.
+        SimRole::Offline => Some(VoteShow {
+            cards: NetMapKind::ALL.into_iter().map(VotePick::Map).collect(),
+            votes: Vec::new(),
+            voted: Vec::new(),
+            locked: false,
+            result: None,
+            rolled: false,
+            current: NetMapKind::from_map_kind(current.0),
+            deadline: None,
+            host: false,
+            practice: true,
+        }),
         _ => {
             let n = net?;
             let v = n.vote.as_ref()?;
-            Some(VoteShow { votes: v.votes.clone(), current: n.map, deadline: Some(v.deadline), host: n.role == NetRole::Host, practice: false })
+            let mut cards: Vec<VotePick> = v.offers.iter().copied().map(VotePick::Map).collect();
+            if v.random {
+                cards.push(VotePick::Random);
+            }
+            Some(VoteShow {
+                cards,
+                votes: v.votes.clone(),
+                voted: v.voted.clone(),
+                locked: v.locked,
+                result: v.result,
+                rolled: v.rolled,
+                current: n.map,
+                deadline: Some(v.deadline),
+                host: n.role == NetRole::Host,
+                practice: false,
+            })
         }
+    }
+}
+
+/// My pick, as clicked (shown at once, before the host's echo; the stamp animates from `at`).
+#[derive(Resource, Default)]
+struct MyPick {
+    pick: Option<VotePick>,
+    at: f64,
+}
+
+/// The LOCKED stamp on my card (slams in).
+#[derive(Component)]
+struct Stamp {
+    born: f64,
+}
+
+/// RANDOM's reveal: the card's name spins through the maps and lands on `result` at `end`.
+#[derive(Component)]
+struct Roulette {
+    result: NetMapKind,
+    end: f64,
+}
+
+const STAMP_SECS: f64 = 0.2;
+/// The roulette shows the result for this long before the map loads.
+const ROULETTE_LAND: f64 = 0.6;
+/// Names the roulette flicks through.
+const ROULETTE_STEPS: usize = 22;
+
+fn pick_slot(p: VotePick) -> u64 {
+    match p {
+        VotePick::Map(k) => k.index() as u64,
+        VotePick::Random => 63,
     }
 }
 
@@ -364,6 +440,7 @@ fn draw_vote(
     net: Option<Res<NetStatus>>,
     current: Res<crate::arena::CurrentMap>,
     mut free: ResMut<crate::input::FreeCursor>,
+    mut my: ResMut<MyPick>,
     roots: Query<Entity, With<VoteRoot>>,
     mut last_sig: Local<u64>,
 ) {
@@ -378,12 +455,30 @@ fn draw_vote(
             }
             *last_sig = 0;
         }
+        if my.pick.is_some() {
+            *my = MyPick::default();
+        }
         return;
     };
-    let mine = a.local.and_then(|me| v.votes.iter().find(|(p, _)| *p == me).map(|(_, k)| *k));
+    // Mine: the host's word once it has it, else what I clicked (shown at once).
+    let me = a.local;
+    let server_mine = me.and_then(|me| v.votes.iter().find(|(p, _)| *p == me).map(|(_, k)| *k));
+    let mine = server_mine.or(my.pick);
+    let i_voted = mine.is_some() || me.is_some_and(|me| v.voted.contains(&me));
     let mut sig: u64 = 0xcbf2_9ce4_8422_2325 ^ (v.current.index() as u64) << 8 ^ (v.host as u64) << 16 ^ (v.practice as u64) << 17;
+    hash(&mut sig, (v.locked as u64) << 1 | (v.rolled as u64) << 2 | v.result.map_or(0, |k| k.index() as u64 + 1) << 3);
+    hash(&mut sig, mine.map_or(99, pick_slot));
+    for c in &v.cards {
+        hash(&mut sig, pick_slot(*c) | 1 << 12);
+    }
     for (p, k) in &v.votes {
-        hash(&mut sig, (p.0 as u64) << 8 | k.index() as u64);
+        hash(&mut sig, (p.0 as u64) << 8 | pick_slot(*k));
+    }
+    for p in &v.voted {
+        hash(&mut sig, (p.0 as u64) << 20);
+    }
+    for p in &a.world.players {
+        hash(&mut sig, (p.id.0 as u64) << 28 | 1 << 40);
     }
     if sig == *last_sig && !roots.is_empty() {
         return;
@@ -392,13 +487,24 @@ fn draw_vote(
     for e in &roots {
         commands.entity(e).despawn();
     }
-    let mut count = [0usize; NetMapKind::ALL.len()];
+    let slot = |p: VotePick| match p {
+        VotePick::Map(k) => k.index(),
+        VotePick::Random => NetMapKind::ALL.len(),
+    };
+    let mut count = [0usize; NetMapKind::ALL.len() + 1];
     for (_, k) in &v.votes {
-        count[k.index()] += 1;
+        count[slot(*k)] += 1;
     }
     let top = count.iter().copied().max().unwrap_or(0);
     let local_c = a.local_player().map(|p| corps_color(p.corps));
-    let width = CARDS_PER_ROW as f32 * (CARD_W + 8.0) + if v.practice { 0.0 } else { 96.0 } + 24.0;
+    // Few cards (the default: 2 + RANDOM) are big; the whole pool packs into a grid.
+    let big = v.cards.len() <= 6;
+    let (cw, ch) = if big { (BIG_CARD_W, BIG_CARD_H) } else { (CARD_W, CARD_H) };
+    let per_row = if big { v.cards.len().max(1) } else { CARDS_PER_ROW };
+    let width = per_row as f32 * (cw + 8.0) + if v.practice { 0.0 } else { 96.0 } + 24.0;
+    // Once my (locked) pick is in, or the vote is decided, the other cards step back.
+    let settled = v.result.is_some() || (v.locked && mine.is_some());
+    let stamp_born = if server_mine.is_none() || my.pick == server_mine { my.at } else { 0.0 };
     commands
         .spawn((
             Name::new("NextMapVote"),
@@ -420,44 +526,145 @@ fn draw_vote(
             GlobalZIndex(76),
         ))
         .with_children(|root| {
-            root.spawn(Node { flex_direction: FlexDirection::Row, flex_wrap: FlexWrap::Wrap, column_gap: px(8), row_gap: px(8), flex_grow: 1.0, ..default() }).with_children(|grid| {
-                for k in NetMapKind::ALL {
-                    let n = count[k.index()];
-                    let picked = mine == Some(k);
-                    let lit = n > 0 && n == top;
-                    let border = match (picked, local_c) {
-                        (true, Some(c)) => c,
-                        _ if k == v.current => Color::srgba(1.0, 1.0, 1.0, 0.35),
-                        _ => Color::srgba(1.0, 1.0, 1.0, 0.08),
+            root.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                justify_content: JustifyContent::Center,
+                column_gap: px(8),
+                row_gap: px(8),
+                flex_grow: 1.0,
+                ..default()
+            })
+            .with_children(|grid| {
+                for &card in &v.cards {
+                    let n = count[slot(card)];
+                    let picked = mine == Some(card);
+                    let won = match (v.result, card) {
+                        (Some(r), VotePick::Map(k)) => !v.rolled && r == k,
+                        (Some(_), VotePick::Random) => v.rolled,
+                        _ => false,
                     };
-                    grid.spawn((
-                        MapCard(k),
-                        Button,
+                    let lit = won || (v.result.is_none() && n > 0 && n == top);
+                    let dim = settled && !picked && !won;
+                    let is_current = card == VotePick::Map(v.current);
+                    let border = if won {
+                        GOLD
+                    } else {
+                        match (picked, local_c) {
+                            (true, Some(c)) => c,
+                            _ if is_current => Color::srgba(1.0, 1.0, 1.0, 0.35),
+                            _ => Color::srgba(1.0, 1.0, 1.0, if dim { 0.04 } else { 0.1 }),
+                        }
+                    };
+                    let bg = if won {
+                        GOLD.with_alpha(0.22)
+                    } else if lit {
+                        Color::srgba(1.0, 1.0, 1.0, 0.16)
+                    } else if picked {
+                        local_c.unwrap_or(Color::WHITE).with_alpha(0.14)
+                    } else {
+                        Color::srgba(1.0, 1.0, 1.0, if dim { 0.02 } else { 0.05 })
+                    };
+                    let mut e = grid.spawn((
+                        MapCard(card),
                         Node {
-                            width: px(CARD_W),
-                            height: px(CARD_H),
+                            width: px(cw),
+                            height: px(ch),
                             flex_direction: FlexDirection::Column,
                             justify_content: JustifyContent::SpaceBetween,
-                            padding: UiRect::axes(px(8), px(6)),
-                            border: UiRect::all(px(if picked { 2.0 } else { 1.0 })),
+                            padding: UiRect::axes(px(if big { 12.0 } else { 8.0 }), px(if big { 10.0 } else { 6.0 })),
+                            border: UiRect::all(px(if picked || won { 3.0 } else { 1.0 })),
                             ..default()
                         },
                         BorderColor::all(border),
-                        BackgroundColor(if lit { Color::srgba(1.0, 1.0, 1.0, 0.16) } else { Color::srgba(1.0, 1.0, 1.0, 0.05) }),
-                    ))
-                    .with_children(|card| {
-                        card.spawn((Text::new(k.name()), TextFont::from_font_size(12.0), TextColor(Color::srgba(1.0, 1.0, 1.0, if lit || picked { 0.95 } else { 0.7 })), Pickable::IGNORE));
-                        card.spawn((Node { flex_direction: FlexDirection::Row, column_gap: px(3), height: px(10), ..default() }, Pickable::IGNORE)).with_children(|pips| {
-                            for (p, _) in v.votes.iter().filter(|(_, x)| *x == k) {
+                        BackgroundColor(bg),
+                    ));
+                    // A locked pick (or a decided vote) can't be clicked again.
+                    if !settled || v.practice {
+                        e.insert(Button);
+                    }
+                    e.with_children(|card_ui| {
+                        let name_a = if dim {
+                            0.35
+                        } else if lit || picked {
+                            0.97
+                        } else {
+                            0.78
+                        };
+                        let name = match card {
+                            VotePick::Map(k) => k.name(),
+                            VotePick::Random => "RANDOM",
+                        };
+                        let mut t = card_ui.spawn((
+                            Text::new(name),
+                            TextFont::from_font_size(if big { 17.0 } else { 12.0 }),
+                            TextColor(if won { GOLD } else { Color::srgba(1.0, 1.0, 1.0, name_a) }),
+                            Pickable::IGNORE,
+                        ));
+                        if let (VotePick::Random, Some(r), true) = (card, v.result, v.rolled) {
+                            t.insert(Roulette { result: r, end: v.deadline.unwrap_or(0.0) });
+                        }
+                        if card == VotePick::Random && big && !v.rolled {
+                            card_ui.spawn((
+                                Text::new("?"),
+                                TextFont::from_font_size(30.0),
+                                TextColor(Color::srgba(1.0, 1.0, 1.0, if dim { 0.2 } else { 0.55 })),
+                                Node { position_type: PositionType::Absolute, right: px(12), top: px(4), ..default() },
+                                Pickable::IGNORE,
+                            ));
+                        }
+                        let pip = if big { 12.0 } else { 10.0 };
+                        card_ui.spawn((Node { flex_direction: FlexDirection::Row, column_gap: px(3), height: px(pip), ..default() }, Pickable::IGNORE)).with_children(|pips| {
+                            for (p, _) in v.votes.iter().filter(|(_, x)| *x == card) {
                                 let c = corps_color(a.corps_of(*p));
-                                pips.spawn((Node { width: px(10), height: px(10), ..default() }, BackgroundColor(c), Pickable::IGNORE));
+                                pips.spawn((Node { width: px(pip), height: px(pip), ..default() }, BackgroundColor(c), Pickable::IGNORE));
                             }
                         });
+                        // My pick, locked in: a stamp slams onto the card.
+                        if picked && v.locked && !v.practice {
+                            let c = local_c.unwrap_or(Color::WHITE);
+                            card_ui
+                                .spawn((
+                                    Stamp { born: stamp_born },
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        right: px(8),
+                                        bottom: px(8),
+                                        padding: UiRect::axes(px(6), px(2)),
+                                        border: UiRect::all(px(2)),
+                                        ..default()
+                                    },
+                                    BorderColor::all(c),
+                                    BackgroundColor(c.with_alpha(0.18)),
+                                    UiTransform { rotation: Rot2::degrees(-8.0), ..default() },
+                                    Pickable::IGNORE,
+                                ))
+                                .with_children(|s| {
+                                    s.spawn((Text::new("LOCKED"), TextFont::from_font_size(if big { 12.0 } else { 9.0 }), TextColor(c.mix(&Color::WHITE, 0.4)), Pickable::IGNORE));
+                                });
+                        }
                     });
                 }
             });
             if !v.practice {
                 root.spawn(Node { flex_direction: FlexDirection::Column, align_items: AlignItems::Center, row_gap: px(8), width: px(84), ..default() }).with_children(|side| {
+                    // Who has voted (not what): a filled square per voter, an outline per holdout.
+                    side.spawn((
+                        Node { flex_direction: FlexDirection::Row, flex_wrap: FlexWrap::Wrap, justify_content: JustifyContent::Center, column_gap: px(3), row_gap: px(3), width: px(80), ..default() },
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|row| {
+                        for p in &a.world.players {
+                            let c = corps_color(p.corps);
+                            let done = v.voted.contains(&p.id) || (Some(p.id) == me && i_voted);
+                            row.spawn((
+                                Node { width: px(9), height: px(9), border: UiRect::all(px(1)), ..default() },
+                                BorderColor::all(c.with_alpha(if done { 1.0 } else { 0.6 })),
+                                BackgroundColor(if done { c } else { Color::NONE }),
+                                Pickable::IGNORE,
+                            ));
+                        }
+                    });
                     let mut go = side.spawn((
                         Node { width: px(72), height: px(72), justify_content: JustifyContent::Center, align_items: AlignItems::Center, border: UiRect::all(px(2)), ..default() },
                         BorderColor::all(local_c.unwrap_or(Color::WHITE).with_alpha(if v.host { 0.9 } else { 0.35 })),
@@ -496,6 +703,53 @@ fn tick_count(net: Option<Res<NetStatus>>, mut q: Query<&mut Text, With<CountTex
     }
 }
 
+/// The LOCKED stamp slams in (big → settled) and RANDOM's roulette spins down onto its map.
+fn animate_vote(
+    mut stamps: Query<(&Stamp, &mut UiTransform)>,
+    mut spins: Query<(&Roulette, &mut Text, &mut TextColor)>,
+    mut sfx: MessageWriter<crate::audio::PlaySfx>,
+    mut last_step: Local<Option<usize>>,
+) {
+    let now = bd_net::now_secs();
+    for (s, mut tf) in &mut stamps {
+        let k = ((now - s.born) / STAMP_SECS).clamp(0.0, 1.0) as f32;
+        let scale = 1.0 + 1.4 * (1.0 - k) * (1.0 - k);
+        if (tf.scale.x - scale).abs() > 1e-3 {
+            tf.scale = Vec2::splat(scale);
+        }
+    }
+    if spins.is_empty() {
+        *last_step = None;
+    }
+    let n = NetMapKind::ALL.len();
+    for (r, mut t, mut col) in &mut spins {
+        let left = r.end - now;
+        let landed = left <= ROULETTE_LAND;
+        let (name, color) = if landed {
+            (r.result.name(), GOLD)
+        } else {
+            // Ease-out over the spin: a fast flicker first, slowing down onto the result.
+            let u = (1.0 - (left - ROULETTE_LAND) / (map_vote::ROULETTE_SECS - ROULETTE_LAND)).clamp(0.0, 1.0);
+            let steps = ((ROULETTE_STEPS as f64 * (1.0 - (1.0 - u).powi(3))) as usize).min(ROULETTE_STEPS);
+            let k = (r.result.index() + n * 4 - (ROULETTE_STEPS - steps) % n) % n;
+            if *last_step != Some(steps) {
+                *last_step = Some(steps);
+                sfx.write(crate::audio::PlaySfx::new("ui_move"));
+            }
+            (NetMapKind::ALL[k].name(), Color::WHITE)
+        };
+        if t.0 != name {
+            t.0 = name.to_string();
+            if landed {
+                sfx.write(crate::audio::PlaySfx::new("cast_confirm"));
+            }
+        }
+        if col.0 != color {
+            col.0 = color;
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn vote_clicks(
     cards: Query<(&Interaction, &MapCard), Changed<Interaction>>,
@@ -510,6 +764,8 @@ fn vote_clicks(
     mut next: ResMut<NextState<AppState>>,
     mut pause: ResMut<InGameMenu>,
     mut menu: ResMut<crate::menu::MenuState>,
+    net: Option<Res<NetStatus>>,
+    mut my: ResMut<MyPick>,
 ) {
     for (i, mut bg) in &mut hover {
         let a = bg.0.alpha();
@@ -523,11 +779,12 @@ fn vote_clicks(
         if *i != Interaction::Pressed {
             continue;
         }
-        sfx.write(crate::audio::PlaySfx::new("ui_select"));
         match active.as_deref_mut().filter(|a| a.role == SimRole::Offline) {
             // Practice: the click is the pick (the same map = rematch now).
             Some(a) => {
-                let want = card.0.map_kind();
+                let VotePick::Map(k) = card.0 else { continue };
+                sfx.write(crate::audio::PlaySfx::new("ui_select"));
+                let want = k.map_kind();
                 if want == current.0 {
                     a.world.rematch();
                 } else {
@@ -537,6 +794,16 @@ fn vote_clicks(
                 }
             }
             None => {
+                let v = net.as_ref().and_then(|n| n.vote.as_ref());
+                let me = net.as_ref().and_then(|n| n.me);
+                let already = my.pick.is_some() || me.is_some_and(|me| v.is_some_and(|v| v.voted.contains(&me)));
+                // Locked: the first pick stands (the host would ignore another anyway).
+                if v.is_none_or(|v| v.result.is_some() || (v.locked && already)) || my.pick == Some(card.0) {
+                    continue;
+                }
+                let locked = v.is_some_and(|v| v.locked);
+                sfx.write(crate::audio::PlaySfx::new(if locked { "cast_confirm" } else { "ui_select" }));
+                *my = MyPick { pick: Some(card.0), at: bd_net::now_secs() };
                 req.write(NetRequest::VoteMap(card.0));
             }
         }

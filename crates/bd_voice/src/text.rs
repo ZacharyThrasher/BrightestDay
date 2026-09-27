@@ -4,6 +4,47 @@
 /// `(music)`, `*laughs*`), turn punctuation into spaces (keeping in-word apostrophes, e.g.
 /// "america's"), and collapse whitespace.
 pub fn normalize_transcript(raw: &str) -> String {
+    let marked = clean(raw);
+    collapse_repeats(tokens(&marked)).into_iter().map(|(w, _)| w).collect::<Vec<_>>().join(" ")
+}
+
+/// [`normalize_transcript`] that keeps the BEATS Whisper heard: a comma / full stop / "!" / "?"
+/// between two words becomes ", " — the typed chain separator ("Rasengan! Chidori!" →
+/// "rasengan, chidori"; the reader splits there only when every piece is a move or a clean thing,
+/// so "a big, flaming hammer" stays one hammer). What the game casts from.
+pub fn normalize_line(raw: &str) -> String {
+    let marked = clean(raw);
+    let mut out = String::with_capacity(marked.len());
+    for (k, (w, beat)) in collapse_repeats(tokens(&marked)).into_iter().enumerate() {
+        if k > 0 {
+            out.push_str(if beat { ", " } else { " " });
+        }
+        out.push_str(w);
+    }
+    out
+}
+
+/// Whisper's pause punctuation, marked in [`clean`]'s output.
+const BEAT: char = '\u{1}';
+
+/// The words of [`clean`]'s output, each with "a beat came right before it" (never the first).
+fn tokens(marked: &str) -> Vec<(&str, bool)> {
+    let mut out: Vec<(&str, bool)> = Vec::new();
+    let mut beat = false;
+    for t in marked.split_whitespace() {
+        if t.chars().all(|c| c == BEAT) {
+            beat = !out.is_empty();
+        } else {
+            out.push((t, beat));
+            beat = false;
+        }
+    }
+    out
+}
+
+/// Lowercased, accent-folded, annotations dropped, punctuation → spaces (pause punctuation →
+/// a [`BEAT`] token), in-word apostrophes kept.
+fn clean(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     let mut depth_sq = 0u32;
     let mut depth_paren = 0u32;
@@ -27,22 +68,40 @@ pub fn normalize_transcript(raw: &str) -> String {
                     out.push(fold_accent(l));
                 }
             }
+            ',' | '.' | '!' | '?' | ';' | ':' | '\u{2026}' => {
+                // a beat, unless glued inside a token ("3.5", "u.s.")
+                let prev = i.checked_sub(1).map(|j| chars[j].is_alphanumeric()).unwrap_or(false);
+                let next = chars.get(i + 1).map(|c| c.is_alphanumeric()).unwrap_or(false);
+                if prev && next {
+                    out.push(' ');
+                } else {
+                    out.push(' ');
+                    out.push(BEAT);
+                    out.push(' ');
+                }
+            }
             _ => out.push(' '),
         }
     }
-    collapse_repeats(out.split_whitespace().collect()).join(" ")
+    out
 }
 
 /// Whisper's classic failure on short clips is looping ("charizard charizard", "p k chip p k
 /// chip p k …"). Spoken commands essentially never repeat a phrase back-to-back, so drop any
-/// immediately repeated n-gram (n = 1..=4), including a truncated trailing copy.
-fn collapse_repeats(mut w: Vec<&str>) -> Vec<&str> {
-    for n in (1..=4).rev() {
+/// immediately repeated n-gram (n = 1..=16), including a truncated trailing copy.
+fn collapse_repeats(mut w: Vec<(&str, bool)>) -> Vec<(&str, bool)> {
+    // (up to 16 words: Whisper also loops whole spoken chains, "fireball jutsu hollow purple
+    // fireball jutsu hollow purple fire…")
+    for n in (1..=16).rev() {
         let mut i = 0;
         while i + n < w.len() {
             // Count how many words after w[i..i+n] continue the cycle (may end mid-cycle).
             let mut k = 0;
-            while i + n + k < w.len() && w[i + n + k] == w[i + (k % n)] {
+            while i + n + k < w.len() && w[i + n + k].0 == w[i + (k % n)].0 {
+                k += 1;
+            }
+            // a last word cut off mid-copy ("… explosive raise nong, explosive raise n") still ends it
+            if k >= n && i + n + k + 1 == w.len() && w[i + (k % n)].0.starts_with(w[w.len() - 1].0) {
                 k += 1;
             }
             if k >= n {
@@ -74,7 +133,25 @@ fn fold_accent(c: char) -> char {
 
 #[cfg(test)]
 mod tests {
+    use super::normalize_line as line;
     use super::normalize_transcript as n;
+
+    #[test]
+    fn beats_kept_as_commas() {
+        assert_eq!(line("Rasengan! Chidori!"), "rasengan, chidori");
+        assert_eq!(line("Nightcrawler teleport. Reinhardt ultimate."), "nightcrawler teleport, reinhardt ultimate");
+        assert_eq!(line(" Flaming hammer."), "flaming hammer");
+        assert_eq!(line("A big, flaming hammer"), "a big, flaming hammer");
+        assert_eq!(line("Charizard. Charizard."), "charizard");
+        assert_eq!(line("3.5 swords"), "3 5 swords");
+        assert_eq!(line("Captain America's shield, then Mjölnir"), "captain america's shield, then mjolnir");
+        assert_eq!(line("[BLANK_AUDIO]"), "");
+        assert_eq!(line("... Kamehameha..."), "kamehameha");
+        assert_eq!(n("Rasengan! Chidori!"), "rasengan chidori", "the plain clean-up has no beats");
+        // Whisper looping a whole spoken chain, the last copy cut off mid-word
+        assert_eq!(line("Explosive Raise Nong, Explosive Raise Nong, Explosive Raise Nong, Explosive Raise N"), "explosive raise nong");
+        assert_eq!(line("Titan Transformation then Mukman Launcher, Titan Transformation then Mukman Launcher, Titan Transformation then Mukman L"), "titan transformation then mukman launcher");
+    }
 
     #[test]
     fn basics() {

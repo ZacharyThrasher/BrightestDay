@@ -70,6 +70,7 @@ fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
         power: p.power.snap(), // POWERS HOOK
         charge: p.charge.wire(), // CHARGE HOOK
         ready: crate::readiness::ReadySnap::of(&p.power), // POWER HUD
+        tell: crate::taunt::tell_byte(p.alive, p.taunt.kind, p.input.held(bd_core::input::buttons::VOICE)), // TAUNT & VOICE TELL
     }
 }
 
@@ -194,6 +195,8 @@ impl World {
         out.links.extend(self.links.iter().map(|l| LinkSnap { id: l.id, a: end(&l.a), b: end(&l.b), max_len: (l.max_len * 4.0).round().clamp(1.0, 255.0) as u8 }));
         out.pickups.clear();
         out.pickups.extend_from_slice(&self.pickups.items); // POWER-UPS
+        // FIRST CALL HOOK: claims / burns / marks, only while a rule is on (FFA snapshots unchanged)
+        out.first_call = if self.call_rules_on() { Some(self.first_call.snap.clone()) } else { None };
     }
 
     // ------------------------------------------------------------------------------ client
@@ -422,6 +425,7 @@ impl World {
         }
         self.pickups.items.clear();
         self.pickups.items.extend_from_slice(&snap.pickups); // POWER-UPS: the host's list, drawn as is
+        self.first_call.snap = snap.first_call.clone().unwrap_or_default(); // FIRST CALL: the host's claims / burns / marks
         // Colliders for prediction.
         self.colliders.clear();
         self.constructs.write_colliders(&mut self.colliders);

@@ -208,6 +208,7 @@ fn feed(
     table: Option<Res<movefx::table::MoveFx>>,
     keys: Res<ViewKeys>,
     mut events: MessageReader<GameEvents>,
+    hotbar: Option<Res<crate::hotbar::Hotbar>>,
     mut hud: ResMut<BorrowedHud>,
 ) {
     let local = active.as_ref().and_then(|a| a.local);
@@ -221,7 +222,8 @@ fn feed(
         }
     }
     for f in fired.read() {
-        if !f.borrowed || Some(f.player) != local {
+        // POWER HOTBAR: the bar's slots (+ its Tab tray) show the moves you fired — one strip.
+        if !f.borrowed || Some(f.player) != local || hotbar.is_some() {
             continue;
         }
         let corps = active.as_ref().and_then(|a| a.local_player()).map_or([0.3, 1.0, 0.45], |p| p.corps.color());

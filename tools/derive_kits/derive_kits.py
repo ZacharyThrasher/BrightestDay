@@ -331,6 +331,12 @@ def profile(c: S.Char) -> Prof:
     best = sorted(fk.items(), key=lambda x: (-x[1], x[0]))
     if best and best[0][1] >= 1.5:
         flav = best[0][0]
+    # POLISH: plants (grass Pokémon, dryads, Swamp Thing, Poison Ivy) are "nature" whatever their data
+    # element says (the icons file grass types under Earth: razor leaf and solar beam, not rock throw
+    # and earthquake). The element stays in the closed set (Earth roots, Poison spores).
+    if (c.key in V.GRASS_POKEMON or any(n in V.GRASS_POKEMON or n in V.NATURE_NAMES for n in c.names)
+            or (kw(V.NATURE_WORDS) >= 2 and elem in ("Earth", "Poison", "Light", "Wind"))):
+        flav = "nature"
     # weapon
     weapon = None
     wk = {w: kw(ws) for w, ws in V.WEAPON_WORDS.items()}
@@ -416,7 +422,9 @@ class Ctx:
         self.c, self.p, self.en = c, p, en
         self.m = c.mech
         self.E = p.elem
-        self.ev = V.ELEM.get(p.elem)
+        self.nature = p.flav == "nature"
+        # a plant speaks its flavour's words (razor leaf), not its element's (rock throw)
+        self.ev = None if self.nature else V.ELEM.get(p.elem)
         self.fv = V.FLAVOUR.get(p.flav) if p.flav else None
         self.used_adj: set[str] = set()
         self.agg = {"Aggressive": 1.1, "Chaotic": 1.05, "Calm": 1.0, "Protective": 0.95, "Lazy": 1.05, "Fearful": 0.9,
@@ -446,7 +454,19 @@ class Ctx:
         return "" if self.E == "Light" else f", element: {self.E}"
 
     def st(self):
+        if self.nature:
+            return "Poison"  # spores
         return self.ev["status"] if self.ev else None
+
+    def pk(self) -> dict:
+        """The Pokémon move names for this character's type (grass types: "Nature")."""
+        return V.POKEMON["Nature"] if self.nature else V.POKEMON.get(self.E, V.POKEMON["Light"])
+
+    def rot(self, salt: str, xs: list[str]) -> list[str]:
+        """`xs` rotated by a stable per-character amount: two characters with the same template don't
+        share its first-choice name (validation still falls through to the next one)."""
+        k = self.rnd("rot" + salt, len(xs))
+        return xs[k:] + xs[:k]
 
     def adjs(self, physical: bool) -> list[str]:
         if not physical and self.ev:
@@ -473,8 +493,9 @@ class Ctx:
         elif self.fv:
             v = self.fv[key]
         else:
-            v = {"bolt": ["energy blast", "force bolt"], "ray": ["energy beam", "force beam"], "storm": ["all out assault", "last resort", "full force"],
-                 "ward": ["force field", "iron will"], "step": ["quick step", "sidestep"]}[key]
+            v = {"bolt": ["force bolt", "kinetic bolt", "energy bolt", "impact bolt"], "ray": ["energy beam", "force beam", "kinetic ray"],
+                 "storm": ["all out assault", "last resort", "total onslaught"],
+                 "ward": ["force field", "iron will", "kinetic field"], "step": ["quick step", "sidestep", "fast feet"]}[key]
         v = list(v)
         k = self.rnd("v" + key, len(v))
         return v[k:] + v[:k]
@@ -483,6 +504,8 @@ class Ctx:
         rgb = self.c.accent or (self.c.colors[1] if len(self.c.colors) > 1 else self.c.colors[0] if self.c.colors else None)
         if rgb is None and self.ev:
             rgb = self.ev["color"]
+        if rgb is None and self.nature:
+            rgb = (0.45, 0.85, 0.3)
         if rgb is None:
             return None
         return f"Some(({fmt(rgb[0])}, {fmt(rgb[1])}, {fmt(rgb[2])}))"
@@ -618,7 +641,10 @@ def t_bolt(ctx: Ctx) -> Move:
     E = ctx.E
     v = ctx.vocab("bolt")
     if ctx.c.pack == "pokemon":
-        v = [V.POKEMON.get(E, V.POKEMON["Light"])["bolt"]] + v
+        v = [ctx.pk()["bolt"]] + v
+    if ctx.nature:
+        ops = [f"Cast(recipe: {recipe(v[0], 'Disc', ['Blade', 'Fast'], E, 0.35, 1.5, 3)})"]
+        return Move(v, ops, cd=0.8, cost=2.0, family="bolt")
     if E == "Electric":
         ops = [f"Explode(radius: 2.6, damage: {ctx.d(10)}, knockback: {ctx.kb(12)}, element: Electric, at: Aim)"]
     elif E == "Psychic":
@@ -684,6 +710,14 @@ def t_whip(ctx: Ctx) -> Move:
     return Move(names, ops, cd=1.0, cost=3.0, family="whip")
 
 
+def t_vine(ctx: Ctx) -> Move:
+    names = ctx.rot("vine", ["vine whip", "thorn lash", "creeping vine", "bramble whip"])
+    if ctx.c.pack == "pokemon":
+        names = ["vine whip"] + names
+    ops = [f"Hook(range: 18.0, speed: 55.0, pull: 22.0, damage: {ctx.d(8)}, status: Some(Stun), secs: 0.2)"]
+    return Move(names, ops, cd=1.1, cost=3.0, fx="nature", family="vine")
+
+
 def t_spin(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
     names = [f"{a[0]} spin", "whirlwind", f"{a[1]} cyclone"]
@@ -707,7 +741,9 @@ PRIMARY = [
     ("smash", lambda x: 2 * ("Blunt" in x.m) + 3 * (x.p.weapon == "hammer") + (x.p.heavy and x.p.humanoid) * 1.5, t_smash),
     ("stomp", lambda x: 3 * ("Stomp" in x.m) + 1 * (x.c.form == "Kaiju"), t_stomp),
     ("bolt", lambda x: 2.5 * ("Shoots" in x.m) + 3 * (x.p.weapon in ("gun", "bow")) + 2 * (x.p.weapon == "knives" and "Blade" not in x.m)
-     + 2.2 * (x.E != "Light" and not x.p.beast) + (x.p.flav in ("tech", "mystic", "holy")) + 2 * (x.c.pack == "pokemon"), t_bolt),
+     + 2.2 * (x.E != "Light" and not x.p.beast) + (x.p.flav in ("tech", "mystic", "holy")) + 2 * (x.c.pack == "pokemon")
+     + 3 * (x.p.flav == "nature"), t_bolt),
+    ("vine", lambda x: (3.5 + 2 * ("Pull" in x.m or "Constrict" in x.m or "Grab" in x.m or x.c.form == "Serpent")) * (x.p.flav == "nature"), t_vine),
     ("beam", lambda x: 3.2 * ("Beam" in x.m) - 1 * (x.c.pack == "pokemon"), t_beam),
     ("breath", lambda x: 5 * ("Breath" in x.m), t_breath),
     ("bite", lambda x: 2.4 * x.p.beast + 1.5 * (x.p.weapon == "claws" and x.p.beast) + 0.6 * (x.p.beast and "Shoots" not in x.m), t_bite),
@@ -722,7 +758,7 @@ PRIMARY = [
 
 def m_blur(ctx: Ctx) -> Move:
     v = V.FLAVOUR["speed"]["step"] if ctx.E == "Light" else [f"{ctx.adj(False)[0]} surge"]
-    names = list(v) + ["blur", "afterimage"]
+    names = ctx.rot("blur", list(dict.fromkeys(list(v) + ["blur", "afterimage", "quick blur", "flash step"])))
     ops = ["Blink(dist: 12.0, afterimage: true)"]
     return Move(names, ops, cd=2.5, cost=3.0, fx="speedforce" if ctx.E in ("Light", "Electric") else "", family="blink")
 
@@ -730,6 +766,9 @@ def m_blur(ctx: Ctx) -> Move:
 def m_streak(ctx: Ctx) -> Move:
     a = ctx.adj(False)
     names = [f"{a[0]} streak", "blitz", f"{a[1]} streak"]
+    if ctx.p.weapon in ("sword", "axe", "knives", "spear"):
+        # the swordsman's dash: through them and out the other side, the cut landing as you pass
+        names = ctx.rot("passcut", ["passing slash", "iaido dash", "flash draw", "crossing slash", "quickdraw"]) + names
     ops = [f"Ram(speed: 36.0, secs: 0.35, damage: {ctx.d(6)}, knockback: {ctx.kb(10)}, through: true, keep: 0.4{ctx.el()})"]
     return Move(names, ops, cd=3.0, cost=4.0, fx="speedforce" if ctx.E in ("Light", "Electric") else "", family="streak")
 
@@ -746,16 +785,16 @@ def m_teleport(ctx: Ctx) -> Move:
 
 
 def m_ambush(ctx: Ctx) -> Move:
-    names = ["ambush", "backstab step", "from the shadows"]
+    names = ctx.rot("ambush", ["ambush", "backstab step", "behind you", "flank them"])
     return Move(names, ["WarpTo(range: 30.0, cone: 12.0, behind: 2.0)"], cd=5.0, cost=4.0, fx="smoke" if ctx.E == "Light" else "", family="warp")
 
 
 def m_fly(ctx: Ctx) -> Move:
     if ctx.c.form == "Bird" or "Glide" in ctx.m:
-        names = ["swoop", "take wing", "sky dive"]
+        names = ctx.rot("fly", ["swoop", "take wing", "sky dive", "wingbeat", "glide in"])
         ops = ["Impulse(fwd: 18.0, up: 6.0)", "SelfStatus(status: Float, secs: 0.8)"]
     else:
-        names = ["take flight", "sky surge", "soar"]
+        names = ctx.rot("fly", ["take flight", "sky surge", "soar", "liftoff", "updraft", "rise up"])
         ops = ["Impulse(fwd: 14.0, up: 12.0)", "SelfStatus(status: Float, secs: 1.2)"]
     if ctx.c.pack == "pokemon":
         names = ["fly"] + names
@@ -769,20 +808,21 @@ def m_boost(ctx: Ctx) -> Move:
 
 def m_leap(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["ground slam", "crater drop", f"{a[0]} bound"]
+    names = ctx.rot("leap", ["crater drop", "meteor hop", "heavy landing", "shockwave drop", "bounding stride", "cratering"])
     ops = ["Leap(range: 24.0, apex: 8.0)", f"SlamOnLand(radius: {ctx.rad(4.2)}, damage: {ctx.d(10)}, knockback: {ctx.kb(14)}, carve: 1.0)"]
     return Move(names, ops, cd=4.0, cost=4.0, fx="earth" if ctx.E == "Light" else "", family="leap")
 
 
 def m_charge(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = [f"{a[0]} charge", "bull charge", "stampede charge"] if ctx.p.beast else [f"{a[0]} charge", "shoulder charge", "bulldozer"]
+    names = [f"{a[0]} charge"] + ctx.rot("charge", ["bull charge", "stampede charge", "raging bull"] if ctx.p.beast
+                                         else ["shoulder charge", "bulldozer", "coming through", "battering ram"])
     ops = [f"Ram(speed: 24.0, secs: 0.7, damage: {ctx.d(9)}, knockback: {ctx.kb(16)}, up: 0.2, through: true, keep: 0.5{ctx.el()})"]
     return Move(names, ops, cd=3.5, cost=4.0, family="charge")
 
 
 def m_pounce(ctx: Ctx) -> Move:
-    names = ["pounce", "spring", "leaping pounce"]
+    names = ctx.rot("pounce", ["pounce", "spring", "leaping pounce", "lunge", "go for throat"])
     ops = [f"Pounce(range: 20.0, speed: 40.0, cone: 12.0, damage: {ctx.d(7)}, knockback: {ctx.kb(8)}, bounce: 7.0)"]
     return Move(names, ops, cd=3.0, cost=3.0, family="pounce")
 
@@ -818,6 +858,7 @@ def evasive_style(ctx: Ctx) -> str:
 
 def m_roll(ctx: Ctx) -> Move:
     names, fwd, up, ev, blink = EVASIVE[evasive_style(ctx)]
+    names = ctx.rot("evasive", list(names))
     ops = []
     if blink:
         ops.append(f"Blink(dist: {fmt(blink)}, afterimage: true)")
@@ -859,13 +900,14 @@ def m_phase(ctx: Ctx) -> Move:
 def m_elem_step(ctx: Ctx) -> Move:
     v = ctx.vocab("step")
     if ctx.c.pack == "pokemon":
-        v = [V.POKEMON.get(ctx.E, V.POKEMON["Light"])["step"]] + v
+        v = [ctx.pk()["step"]] + v
     return Move(v, ["Blink(dist: 12.0, afterimage: true)"], cd=3.0, cost=3.0, family="blink")
 
 
 MOVEMENT = [
     ("blur", lambda x: 4 * ("Fast" in x.m) + 2 * (x.p.flav == "speed") - 4 * x.p.heavy, m_blur),
-    ("streak", lambda x: 2 * ("Fast" in x.m) + 2 * ("Charge" in x.m and "Fast" in x.m) - 3 * x.p.heavy, m_streak),
+    ("streak", lambda x: 2 * ("Fast" in x.m) + 2 * ("Charge" in x.m and "Fast" in x.m) + 2.6 * (x.p.weapon in ("sword", "knives", "spear") and not x.p.heavy)
+     - 3 * x.p.heavy, m_streak),
     ("teleport", lambda x: 5 * ("Portal" in x.m) + 1.5 * x.r("mage") + 1.2 * (x.r("sneak") >= 2) + 2 * (x.E == "Psychic") + 1 * (x.E == "Shadow"), m_teleport),
     ("warp", lambda x: (1.2 * x.r("sneak") + 0.5 * (x.E == "Shadow")) * x.has("WarpTo") - 1, m_ambush),
     ("fly", lambda x: 4 * ("Flies" in x.m) + (x.c.form == "Bird") + ("Glide" in x.m), m_fly),
@@ -879,7 +921,7 @@ MOVEMENT = [
     ("rollout", lambda x: 6 * (x.p.vehicle == "car") + 3 * (x.p.vehicle == "tank"), m_rollout),
     ("bounce", lambda x: 3 * ("Bounce" in x.m), m_bounce),
     ("phase", lambda x: (3 * (x.p.flav == "spirit") + 1 * ("Shrink" in x.m)) * x.has("Phase"), m_phase),
-    ("elemstep", lambda x: 1.2 * (x.E != "Light") + 1 * (x.c.pack == "pokemon"), m_elem_step),
+    ("elemstep", lambda x: 1.2 * (x.E != "Light") + 1 * (x.c.pack == "pokemon") + 1.5 * (x.p.flav == "nature"), m_elem_step),
     ("roll", lambda x: 1.0 + 1.5 * (x.c.temperament in ("Fearful", "Playful", "Sneaky", "Lazy")), m_roll),
 ]
 
@@ -887,7 +929,7 @@ MOVEMENT = [
 # ---------------------------------------------------------------------------- DEFENSE (+ Counter) templates
 
 def d_parry(ctx: Ctx) -> Move:
-    names = ["en garde", "turn the blade", "deflecting stance"]
+    names = ctx.rot("parry", ["en garde", "deflecting stance", "answer in kind", "steel reply", "perfect read", "turnabout"])
     ops = [f"Counter(secs: 0.6, damage: {ctx.d(11)}, knockback: {ctx.kb(15)}, up: 0.2{ctx.el()})"]
     return Move(names, ops, cd=6.0, cost=4.0, family="counter")
 
@@ -896,8 +938,8 @@ def d_guard(ctx: Ctx) -> Move:
     a = ctx.adj(True)
     names = ["bulwark stance"] if ctx.p.weapon == "shield" else []
     if ctx.p.beast:
-        names += ["hackles up", "defensive crouch", "bristling stance"]
-    names += [f"{a[0]} stance", "iron wall", f"{a[1]} stance"]
+        names += ctx.rot("hackles", ["hackles up", "defensive crouch", "bristling stance", "low growl"])
+    names += ctx.rot("guard", [f"{a[0]} stance", "iron wall", f"{a[1]} stance", "stone wall", "immovable stance"])
     ops = ["Counter(secs: 1.0)"]
     if ctx.has("Deflect"):
         ops.append("Deflect(secs: 1.0, angle: 80.0)")
@@ -905,14 +947,14 @@ def d_guard(ctx: Ctx) -> Move:
 
 
 def d_deflect(ctx: Ctx) -> Move:
-    names = ["deflect", "bullet time", "turn aside"]
+    names = ctx.rot("deflect", ["deflect", "bullet time", "turn aside", "swat away", "too slow"])
     return Move(names, ["Deflect(secs: 1.1, angle: 90.0)", "Counter(secs: 0.3)"], cd=6.0, cost=4.0, family="deflect")
 
 
 def d_ward(ctx: Ctx) -> Move:
     v = ctx.vocab("ward")
     if ctx.c.pack == "pokemon":
-        v = [V.POKEMON.get(ctx.E, V.POKEMON["Light"])["ward"]] + v
+        v = [ctx.pk()["ward"]] + v
     st = ctx.st()
     ops = ["Field(strength: -45.0, radius: 4.5, secs: 1.0)", "Counter(secs: 0.4)"]
     if st and ctx.has("Zone"):
@@ -921,19 +963,21 @@ def d_ward(ctx: Ctx) -> Move:
 
 
 def d_brace(ctx: Ctx) -> Move:
-    names = ["thick hide", "brace", "unmovable"] if ctx.p.beast else ["brace", "unmovable", "hold the line"]
+    names = ctx.rot("brace", ["thick hide", "iron hide", "dig in", "bristle up"] if ctx.p.beast
+                    else ["unmovable", "hold fast", "stand firm", "dig in", "iron will", "stand fast"])
     ops = ["Empower(secs: 3.0, damage: 1.0, armor: 0.5)", "Counter(secs: 0.5)"]
     return Move(names, ops, cd=8.0, cost=5.0, family="brace")
 
 
 def d_evade(ctx: Ctx) -> Move:
     names = {"Fearful": ["duck and cover", "flinch", "cower"], "Sneaky": ["sixth sense", "slip", "misdirection"]}.get(
-        ctx.c.temperament, ["perfect evasion", "sixth sense", "slip"])
+        ctx.c.temperament, ["perfect evasion", "sixth sense", "slip", "read it", "too slow"])
+    names = ctx.rot("evade", names)
     return Move(names, ["Evade(secs: 0.5, slow: 0.6, speed: 1.4, blink: 3.0)"], cd=6.0, cost=4.0, family="evade")
 
 
 def d_smoke(ctx: Ctx) -> Move:
-    names = ["smoke veil", "smoke screen", "vanishing act"]
+    names = ctx.rot("smoke", ["smoke veil", "smoke screen", "vanishing act", "smoke out"])
     ops = ["Zone(radius: 5.0, secs: 3.0, status: Some(Shadow))", "Evade(secs: 0.4)"]
     return Move(names, ops, cd=8.0, cost=5.0, fx="smoke", family="smoke")
 
@@ -942,6 +986,8 @@ def d_heal(ctx: Ctx) -> Move:
     names = ["regenerate", "healing factor", "second wind"] if ctx.kwr("healing_factor") else ["second wind", "mend", "restoration"]
     if ctx.p.flav == "holy":
         names = ["healing glow", "blessing"] + names
+    if ctx.nature:
+        names = (["synthesis"] if ctx.c.pack == "pokemon" else []) + ctx.rot("heal", ["synthesis", "photosynthesis", "bloom", "sap mend"])
     ops = ["Mend(pct: 18.0, per_s: 3.0, secs: 3.0)", "Counter(secs: 0.3)"]
     return Move(names, ops, cd=9.0, cost=5.0, fx="holy" if ctx.E == "Light" else "", family="heal")
 
@@ -950,6 +996,13 @@ def d_shell(ctx: Ctx) -> Move:
     names = ["hunker down", "curl up", "bristle"]
     ops = [f"Counter(secs: 1.2, damage: {ctx.d(6)}, knockback: {ctx.kb(10)})"]
     return Move(names, ops, cd=6.0, cost=4.0, family="shell")
+
+
+def d_thorns(ctx: Ctx) -> Move:
+    names = ctx.rot("thorns", ["thorn wall", "thorn hedge", "bramble ward", "bramble hedge"])
+    ops = ["Field(strength: -40.0, radius: 4.5, secs: 0.8)", f"Counter(secs: 0.5, damage: {ctx.d(8)}, knockback: {ctx.kb(12)})",
+           "Zone(radius: 4.0, secs: 3.0, slow: 0.35, dps: 2.0, follow: true)"]
+    return Move(names, ops, cd=7.0, cost=5.0, fx="nature", family="thorns")
 
 
 def d_phase(ctx: Ctx) -> Move:
@@ -964,7 +1017,9 @@ DEFENSE = [
     ("brace", lambda x: 2.5 * x.p.heavy + 1 * ("Armor" in x.c.features) + 0.5 * x.p.beast, d_brace),
     ("evade", lambda x: (1.5 * (x.c.temperament in ("Fearful", "Sneaky")) + 1 * ("Fast" in x.m) + 1 * x.p.small) * x.has("Evade"), d_evade),
     ("smoke", lambda x: 2.2 * (x.r("sneak") >= 2) * x.has("Zone", "Evade") + 1 * (x.kwr("sneak") > 0), d_smoke),
-    ("heal", lambda x: (4 * (x.kwr("healer") > 0) + 4 * (x.kwr("healing_factor") > 0) + 1.5 * (x.p.flav == "holy" and x.c.temperament == "Protective")) * x.has("Mend"), d_heal),
+    ("heal", lambda x: (4 * (x.kwr("healer") > 0) + 4 * (x.kwr("healing_factor") > 0) + 1.5 * (x.p.flav == "holy" and x.c.temperament == "Protective")
+                        + 4.2 * (x.p.flav == "nature")) * x.has("Mend"), d_heal),
+    ("thorns", lambda x: 4.6 * (x.p.flav == "nature") * x.has("Zone", "Counter"), d_thorns),
     ("shell", lambda x: 2 * ("Spikes" in x.c.features) + 2 * (x.c.form in ("Insect", "Arachnid") and "Guard" in x.m) + 1.5 * ("shell" in x.c.weapons), d_shell),
     ("phase", lambda x: 3 * (x.p.flav == "spirit") * x.has("Phase"), d_phase),
 ]
@@ -974,14 +1029,16 @@ DEFENSE = [
 
 def c_flurry(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
-    names = [f"{a[0]} onslaught", "thousand cuts", f"{a[1]} onslaught"]
+    names = [f"{a[0]} onslaught"] + ctx.rot("flurry", ["thousand cuts", f"{a[1]} onslaught", "whirling steel", "steel storm"])
+    if ctx.nature:
+        names = ([ctx.pk()["combo"]] if ctx.c.pack == "pokemon" else []) + ctx.rot("petal", ["petal dance", "whirling petals", "thousand petals"])
     ops = [f"Barrage(hits: 6, interval: 0.08, range: {ctx.rad(3.4)}, angle: 55.0, damage: {ctx.d(4)}, knockback: 2.0, finish: {ctx.kb(16)}, advance: 3.0{ctx.el()})"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=2.5), family="barrage")
 
 
 def c_barrage(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
-    names = [f"{a[0]} pummeling", "hundred fists", f"{a[1]} pummeling"]
+    names = [f"{a[0]} pummeling"] + ctx.rot("fists", ["hundred fists", f"{a[1]} pummeling", "fist storm", "knuckle storm"])
     if ctx.p.beast:
         names = [f"{a[0]} mauling", "frenzy", f"{a[1]} frenzy"]
     ops = [f"Barrage(hits: 8, interval: 0.07, range: {ctx.rad(3.0)}, angle: 50.0, damage: {ctx.d(3)}, knockback: 2.0, finish: {ctx.kb(18)}, advance: 2.0{ctx.el()})"]
@@ -1005,7 +1062,7 @@ def c_blitz(ctx: Ctx) -> Move:
 
 def c_launcher(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["launcher", f"{a[0]} uppercut", "skyfall"]
+    names = ctx.rot("launch", ["launcher", f"{a[0]} uppercut", "skyfall", "rising uppercut", "up you go", "sky high"])
     ops = [f"Shove(range: 3.4, angle: 60.0, damage: {ctx.d(8)}, knockback: 4.0, up: 1.4{ctx.el()})", "Impulse(fwd: 2.0, up: 13.0)",
            f"SlamOnLand(radius: {ctx.rad(3.6)}, damage: {ctx.d(11)}, knockback: {ctx.kb(16)}, carve: 0.8)"]
     return Move(names, ops, cd=7.0, cost=8.0, juice=juice(ctx, shake=0.2), family="launcher")
@@ -1016,10 +1073,10 @@ def c_grab(ctx: Ctx) -> Move:
         names = ["constrict", "coil crush", "crushing coils"]
         ops = [f"Grab(range: 3.4, hold: 0.45, damage: {ctx.d(12)}, knockback: {ctx.kb(16)}, up: 0.2)"]
     elif ctx.p.beast or ctx.c.form == "Kaiju":
-        names = ["seize and toss", "shake and throw", "savage toss"]
+        names = ctx.rot("toss", ["seize and toss", "shake and throw", "savage toss", "ragdoll"])
         ops = [f"Grab(range: 3.4, hold: 0.3, damage: {ctx.d(10)}, knockback: {ctx.kb(24)}, up: 0.4)"]
     else:
-        names = ["suplex", "body slam", "grapple throw"]
+        names = ctx.rot("suplex", ["suplex", "body slam", "grapple throw", "german suplex", "hip toss"])
         ops = [f"Grab(range: 3.2, hold: 0.3, damage: {ctx.d(10)}, knockback: {ctx.kb(22)}, up: 0.35, back: true)"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=3.0, shake=0.15), family="grab")
 
@@ -1028,7 +1085,7 @@ def c_volley(ctx: Ctx) -> Move:
     a = ctx.adj(False)
     names = [f"{a[0]} volley", "suppressing fire" if ctx.p.weapon == "gun" or ctx.p.flav == "tech" else f"{a[1]} volley", f"{a[1]} salvo"]
     if ctx.c.pack == "pokemon":
-        names = [V.POKEMON.get(ctx.E, V.POKEMON["Light"])["combo"]] + names
+        names = [ctx.pk()["combo"]] + names
     ops = [f"Salvo(count: 6, delay: 0.25, interval: 0.08, radius: 2.2, damage: {ctx.d(6)}, knockback: {ctx.kb(8)}{ctx.el()}, at: Aim, spread: 3.5)"]
     return Move(names, ops, cd=7.0, cost=8.0, juice=juice(ctx, punch=2.0), family="volley")
 
@@ -1063,7 +1120,7 @@ def c_maul(ctx: Ctx) -> Move:
         ops = [f"Pounce(range: 12.0, speed: 36.0, cone: 12.0, damage: {ctx.d(5)}, knockback: 2.0)",
                f"Barrage(hits: 4, interval: 0.1, range: 3.0, angle: 70.0, damage: {ctx.d(4)}, knockback: 2.0, finish: {ctx.kb(14)}{ctx.el()})"]
     if ctx.c.pack == "pokemon":
-        names = [V.POKEMON.get(ctx.E, V.POKEMON["Light"])["combo"]] + names
+        names = [ctx.pk()["combo"]] + names
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=2.5), family="maul")
 
 
@@ -1096,19 +1153,29 @@ def c_drill(ctx: Ctx) -> Move:
 
 
 def c_follow(ctx: Ctx) -> Move:
-    names = ["follow through", "decisive blow", "coup de grace"]
+    names = ctx.rot("follow", ["follow through", "decisive blow", "coup de grace", "perfect timing", "clean finish"])
     ops = [f"Finisher(lunge: 18.0, range: 3.5, angle: 60.0, damage: {ctx.d(12)}, knockback: {ctx.kb(18)}{ctx.el()}, window: 1.2, mult: 2.0)"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=3.0), family="finisher")
 
 
 def c_swarm(ctx: Ctx) -> Move:
-    names = ["overwhelm", "dogpile", "gang up"]
+    names = ctx.rot("swarm", ["overwhelm", "dogpile", "gang up", "pile on", "swarm them"])
     ops = [f"Salvo(count: 8, delay: 0.3, interval: 0.07, radius: 1.8, damage: {ctx.d(5)}, knockback: {ctx.kb(6)}{ctx.el()}, spread: 5.0, seek: true)"]
     return Move(names, ops, cd=7.0, cost=8.0, juice=juice(ctx, punch=2.0), family="swarm")
 
 
+def c_roots(ctx: Ctx) -> Move:
+    names = ctx.rot("roots", ["root eruption", "tangleroot", "grasping vines", "entangle", "root snare"])
+    if ctx.c.pack == "pokemon":
+        names = ["ingrain"] + names
+    ops = [f"Erupt(length: 18.0, width: 2.0, height: 2.6, count: 6, element: Earth, damage: {ctx.d(10)}, launch: 11.0)",
+           "Zone(radius: 4.5, secs: 2.5, slow: 0.5, at: Aim)"]
+    return Move(names, ops, cd=7.0, cost=8.0, fx="nature", family="roots")
+
+
 COMBO = [
-    ("barrage", lambda x: 2 * ("Blade" in x.m) + 2.5 * (x.p.weapon in ("sword", "axe", "knives", "spear")), c_flurry),
+    ("roots", lambda x: 3.4 * (x.p.flav == "nature") * x.has("Erupt"), c_roots),
+    ("barrage", lambda x: 2 * ("Blade" in x.m) + 2.5 * (x.p.weapon in ("sword", "axe", "knives", "spear")) + 1.5 * (x.p.flav == "nature"), c_flurry),
     ("fists", lambda x: 1.5 + 1 * (x.p.weapon == "fists") + 1 * ("Blunt" in x.m) * x.p.humanoid - 2 * x.p.beast, c_barrage),
     ("rush", lambda x: (2 * (x.p.weapon == "fists") + 1.5 * (x.p.flav == "chi") + 1 * (x.c.pack == "anime")) * x.has("Rush") * x.p.humanoid, c_rush),
     ("blitz", lambda x: 2.5 * ("Fast" in x.m) + 1.5 * (x.r("sneak") >= 2) + 1 * ("Portal" in x.m) - 2 * x.p.heavy, c_blitz),
@@ -1143,7 +1210,7 @@ def u_storm(ctx: Ctx) -> Move:
     E = ctx.E
     v = ctx.vocab("storm")
     if ctx.c.pack == "pokemon":
-        v = [V.POKEMON.get(E, V.POKEMON["Light"])["storm"]] + v
+        v = [ctx.pk()["storm"]] + v
     el = ctx.el()
     if E == "Water" and ctx.has("Surge"):
         ops = [f"Surge(width: 12.0, dist: 40.0, speed: 15.0, push: 18.0, damage: {ctx.d(10)}, element: Water)"]
@@ -1198,7 +1265,7 @@ def u_meteor(ctx: Ctx) -> Move:
 
 def u_blades(ctx: Ctx) -> Move:
     a = ctx.adj(False)
-    names = ["thousand cuts", f"{a[0]} tempest", "last cut"]
+    names = ctx.rot("blades", ["thousand cuts", f"{a[0]} tempest", "severing edge", "edge of ruin"])
     if ctx.has("Wave"):
         ops = [f"Barrage(hits: 8, interval: 0.09, range: 3.6, angle: 70.0, damage: {ctx.d(5)}, knockback: 2.0, finish: {ctx.kb(26)}, blink: true{ctx.el()})",
                f"Wave(length: 30.0, speed: 36.0, width: 7.0, carve: 1.0, damage: {ctx.d(14)}, knockback: {ctx.kb(18)}{ctx.el()})"]
@@ -1216,7 +1283,7 @@ def u_cannon(ctx: Ctx) -> Move:
 
 
 def u_lockon(ctx: Ctx) -> Move:
-    names = ["dead aim", "target lock", "marked for death"]
+    names = ctx.rot("lockon", ["dead aim", "target lock", "marked for death", "bullseye", "one shot one kill"])
     ops = [f"LockOn(secs: 1.6, range: 55.0, damage: {ctx.d(30)}, knockback: {ctx.kb(12)}, angle: 30.0)"]
     return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=3.0, shake=0.15), family="lockon")
 
@@ -1232,21 +1299,22 @@ def u_summon(ctx: Ctx) -> Move:
     form = {"Insect": "Insect", "Arachnid": "Arachnid", "Bird": "Bird", "Fish": "Fish", "Serpent": "Serpent", "Quadruped": "Quadruped"}.get(c.form, "Biped")
     minion = {"Insect": "swarm", "Arachnid": "brood", "Bird": "flock", "Fish": "school", "Serpent": "nest", "Quadruped": "pack"}.get(form, "horde")
     mech = ["Swarm"] + (["Flies"] if "Flies" in ctx.m or form in ("Insect", "Bird") else []) + ([m for m in ("Blade", "Blunt", "Shoots", "Grab", "Breath") if m in ctx.m][:1])
-    names = [f"call the {minion}", f"unleash the {minion}", "legion"]
+    names = ctx.rot("summon", ["legion", f"{minion} rising", "all of us", "call to arms", f"{minion} unleashed"])
     rec = recipe(f"{c.display} {minion}".lower(), form, mech, ctx.E, 0.7, 30.0, 6, "temperament: Aggressive, intensity: 1.0")
     ops = [f"Cast(recipe: {rec}, signature: Some(Summon))"]
     return Move(names, ops, cd=24.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="summon")
 
 
 def u_stampede(ctx: Ctx) -> Move:
-    names = ["stampede", "rampage", "unstoppable"]
+    names = ctx.rot("stampede", ["stampede", "rampage", "unstoppable", "trample", "juggernaut run"])
     ops = [f"Empower(secs: 5.0, damage: 1.2, armor: 0.7, contact: {ctx.d(7)}, contact_kb: {ctx.kb(16)}, contact_cd: 0.4{ctx.el()})",
            f"Ram(speed: 28.0, secs: 1.4, damage: {ctx.d(12)}, knockback: {ctx.kb(20)}, through: true, steer: 60.0, keep: 0.5{ctx.el()})"]
     return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0], debris=12.0), family="stampede")
 
 
 def u_overdrive(ctx: Ctx) -> Move:
-    names = V.FLAVOUR["speed"]["storm"] if ctx.E == "Light" else [f"{ctx.adj(False)[0]} overdrive", "overdrive"]
+    names = ctx.rot("overdrive", ["overdrive", "mach storm", "blur storm", "velocity storm", "mach frenzy"]) if ctx.E == "Light" \
+        else [f"{ctx.adj(False)[0]} overdrive", "overdrive"]
     ops = ["TimeStop(secs: 1.2, speed: 1.6)",
            f"Barrage(hits: 7, interval: 0.1, range: 3.4, angle: 70.0, damage: {ctx.d(5)}, knockback: 2.0, finish: {ctx.kb(24)}, blink: true{ctx.el()})"]
     return Move(list(names), ops, cd=20.0, cost=40.0, fx="speedforce" if ctx.E in ("Light", "Electric") else "",
@@ -1254,7 +1322,7 @@ def u_overdrive(ctx: Ctx) -> Move:
 
 
 def u_gamble(ctx: Ctx) -> Move:
-    names = ["wild card", "chaos gambit", "roll the dice"]
+    names = ctx.rot("gamble", ["wild card", "chaos gambit", "double or nothing", "jackpot"])
     e = ctx.E if ctx.E != "Light" else "Fire"
     picks = [
         f"[Explode(radius: 7.0, damage: {ctx.d(20)}, knockback: {ctx.kb(26)}, carve: 2.0, element: {e}, at: Aim)]",
@@ -1267,7 +1335,7 @@ def u_gamble(ctx: Ctx) -> Move:
 
 
 def u_guardian(ctx: Ctx) -> Move:
-    names = ["unbreakable", "bulwark", "rallying cry"]
+    names = ctx.rot("guardian", ["unbreakable", "bulwark", "rallying cry", "last stand", "guardian vow"])
     ops = ["Empower(secs: 6.0, damage: 1.15, armor: 0.4)", "Mend(pct: 20.0)" if ctx.has("Mend") else "Counter(secs: 1.0)",
            f"Explode(radius: {ctx.rad(6)}, damage: {ctx.d(8)}, knockback: {ctx.kb(22)}{ctx.el()})"]
     return Move(names, ops, cd=22.0, cost=40.0, fx="holy" if ctx.E == "Light" else "", juice=ult_juice(ctx, names[0], ripple=6.0), family="guardian")
@@ -1283,7 +1351,7 @@ def u_piledriver(ctx: Ctx) -> Move:
 
 
 def u_assassinate(ctx: Ctx) -> Move:
-    names = ["assassinate", "death from above", "silent kill"]
+    names = ctx.rot("assassinate", ["assassinate", "death from above", "silent kill", "nothing personal", "quiet end"])
     ops = ["WarpTo(range: 40.0, cone: 15.0, behind: 2.0)", f"Shove(range: 3.2, angle: 60.0, damage: {ctx.d(18)}, knockback: {ctx.kb(18)}{ctx.el()})"]
     return Move(names, ops, cd=20.0, cost=40.0, fx="smoke" if ctx.E == "Light" else "", juice=ult_juice(ctx, names[0], punch=4.0),
                 crit="Some((2.0, Spark))", family="assassinate")
@@ -1311,7 +1379,7 @@ def u_courage(ctx: Ctx) -> Move:
 
 def u_knockout(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = [f"{a[0]} knockout", "knockout blow", "lights out"]
+    names = [f"{a[0]} knockout"] + ctx.rot("knockout", ["knockout blow", "out cold", "seeing stars", "haymaker finale"])
     ops = [f"Drill(speed: 34.0, secs: 0.5, grind: 0.0, damage: {ctx.d(24)}, knockback: {ctx.kb(34)}, up: 0.3{ctx.el()})"] if ctx.has("Drill") else \
         [f"Ram(speed: 34.0, secs: 0.5, damage: {ctx.d(24)}, knockback: {ctx.kb(34)}, up: 0.3{ctx.el()})"]
     return Move(names, ops, cd=18.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=6.0), family="knockout")
@@ -1319,39 +1387,39 @@ def u_knockout(ctx: Ctx) -> Move:
 
 def u_beatdown(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["beatdown", f"{a[0]} beatdown", "no mercy"]
+    names = ctx.rot("beatdown", ["beatdown", f"{a[0]} beatdown", "no mercy", "rain of blows", "pummel parade"])
     ops = [f"Barrage(hits: 10, interval: 0.07, range: 3.2, angle: 60.0, damage: {ctx.d(3)}, knockback: 2.0, finish: {ctx.kb(26)}, advance: 4.0{ctx.el()})"]
     return Move(names, ops, cd=18.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=4.0), family="beatdown")
 
 
 def u_toprope(ctx: Ctx) -> Move:
-    names = ["from the top rope", "diving finale", "high flyer"]
+    names = ctx.rot("toprope", ["diving finale", "high flyer", "flying elbow", "springboard splash"])
     ops = ["Leap(range: 18.0, apex: 7.0)", f"SlamOnLand(radius: {ctx.rad(5)}, damage: {ctx.d(18)}, knockback: {ctx.kb(24)}, carve: 1.2)"]
     return Move(names, ops, cd=18.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="toprope")
 
 
 def u_rage(ctx: Ctx) -> Move:
-    names = ["blind rage", "berserker", "lose it"]
+    names = ctx.rot("rage", ["berserker", "lose it", "fury unleashed", "raging bull"])
     ops = [f"Empower(secs: 6.0, damage: 1.4, armor: 0.7, contact: {ctx.d(5)}, contact_kb: {ctx.kb(12)}, contact_cd: 0.5{ctx.el()})",
            f"Ram(speed: 26.0, secs: 0.8, damage: {ctx.d(12)}, knockback: {ctx.kb(22)}, through: true, keep: 0.4{ctx.el()})"]
     return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0], debris=10.0), family="rage")
 
 
 def u_nap(ctx: Ctx) -> Move:
-    names = ["nap time", "snooze", "hibernate"]
+    names = ctx.rot("nap", ["nap time", "snooze", "hibernate", "catnap", "sweet dreams"])
     ops = ["Mend(pct: 30.0, per_s: 4.0, secs: 4.0)", "Zone(radius: 7.0, secs: 3.0, slow: 0.55)", "Counter(secs: 1.0)"]
     return Move(names, ops, cd=24.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=2.0, shake=0.1), family="nap")
 
 
 def u_freakout(ctx: Ctx) -> Move:
-    names = ["freak out", "total panic", "scream and flail"]
+    names = ctx.rot("freakout", ["freak out", "total panic", "run for it", "nope nope nope"])
     ops = ["Evade(secs: 0.6, slow: 0.8, speed: 1.5)", "Empower(secs: 5.0, damage: 1.3, armor: 0.6)",
            f"Barrage(hits: 9, interval: 0.07, range: 3.0, angle: 90.0, damage: {ctx.d(3)}, knockback: 3.0, finish: {ctx.kb(22)}, advance: 2.0)"]
     return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=3.0), family="freakout")
 
 
 def u_showstopper(ctx: Ctx) -> Move:
-    names = ["showstopper", "grand finale", "ta da"]
+    names = ctx.rot("show", ["showstopper", "grand finale", "ta da", "encore", "curtain call"])
     ops = [f"Explode(radius: {ctx.rad(6)}, damage: {ctx.d(8)}, knockback: {ctx.kb(14)}{ctx.el()})",
            "Zone(radius: 6.0, secs: 1.5, status: Some(Float))",
            f"Salvo(count: 5, delay: 0.9, interval: 0.12, radius: 2.4, damage: {ctx.d(9)}, knockback: {ctx.kb(12)}, spread: 6.0, seek: true)"]
@@ -1365,6 +1433,54 @@ def u_throttle(ctx: Ctx) -> Move:
     return Move(names, ops, cd=20.0, cost=40.0, fx="hardlight" if ctx.E == "Light" else "", juice=ult_juice(ctx, names[0], debris=12.0), family="throttle")
 
 
+def u_sigbeam(ctx: Ctx) -> Move:
+    key = ctx.p.flav if (ctx.E == "Light" or ctx.nature) else ctx.E
+    names = ctx.rot("beam", list(V.CANNON.get(key, V.CANNON[None])))
+    if ctx.c.pack == "pokemon":
+        names = [V.POKEMON_BEAM.get("Nature" if ctx.nature else ctx.E, "hyper beam")] + names
+    rec = recipe(names[0], "Hands", ["Beam"], ctx.E, 1.35)
+    return Move(names, [f"Cast(recipe: {rec}, signature: Some(Beam))"], cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="sigbeam")
+
+
+def u_solar(ctx: Ctx) -> Move:
+    names = (["solar beam"] if ctx.c.pack == "pokemon" else []) + ctx.rot("solar", ["solar beam", "sunlight beam", "photon bloom"])
+    rec = recipe(names[0], "Hands", ["Beam"], "Light", 1.35)
+    return Move(names, [f"Cast(recipe: {rec}, signature: Some(Beam))"], cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="solar")
+
+
+def u_overgrowth(ctx: Ctx) -> Move:
+    names = ([ctx.pk()["storm"]] if ctx.c.pack == "pokemon" else []) + ctx.vocab("storm")
+    ops = [f"Erupt(length: 11.0, height: 4.0, element: Earth, damage: {ctx.d(8)}, launch: 6.0, shape: Ring, at: Aim)",
+           f"Zone(radius: {ctx.rad(6)}, secs: 4.0, status: Some(Poison), dps: 3.0, slow: 0.4, at: Aim)",
+           f"Salvo(count: 5, delay: 1.0, interval: 0.15, radius: 2.8, damage: {ctx.d(12)}, knockback: {ctx.kb(14)}, element: Earth, up: 1.0, at: Aim, spread: 4.0, seek: true)"]
+    return Move(names, ops, cd=20.0, cost=40.0, fx="nature", juice=ult_juice(ctx, names[0]), family="overgrowth")
+
+
+def u_pressure(ctx: Ctx) -> Move:
+    names = ctx.rot("pressure", ["hidden palm", "delayed death", "silent finish", "touch of death", "quiet touch", "vital tap"])
+    if ctx.p.weapon in ("sword", "knives", "spear", "axe"):
+        # the iaido: one stroke, the blade back in its sheath, and a beat later it lands
+        names = ctx.rot("iai", ["sheathe", "iai finale", "last draw", "one stroke", "already over"]) + names
+    ops = ["Impulse(fwd: 6.0, up: 0.0)", f"Shove(range: 3.0, angle: 45.0, damage: {ctx.d(6)}, knockback: 2.0{ctx.el()})",
+           f"DelayedHit(range: 6.0, cone: 30.0, secs: 1.3, damage: {ctx.d(26)}, knockback: {ctx.kb(32)}, up: 0.4{ctx.el()})"]
+    return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="pressure")
+
+
+def u_apex(ctx: Ctx) -> Move:
+    names = ctx.rot("apex", ["apex predator", "kill bite", "primal fury", "king of beasts", "wild hunt"])
+    ops = ["GazeStun(range: 12.0, cone: 80.0, secs: 0.5, status: Stun, aimed: false)",
+           f"Pounce(range: 24.0, speed: 44.0, cone: 14.0, damage: {ctx.d(10)}, knockback: 3.0, bounce: 2.0{ctx.el()})",
+           f"Barrage(hits: 5, interval: 0.08, range: 3.2, angle: 90.0, damage: {ctx.d(4)}, knockback: 2.0, finish: {ctx.kb(26)}, advance: 3.0{ctx.el()})"]
+    return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="apex")
+
+
+def u_titanfall(ctx: Ctx) -> Move:
+    names = ctx.rot("titan", ["world breaker", "earth shatter", "meteor fall", "earthbreaker", "sky crash", "heavens fall"])
+    ops = ["Empower(secs: 1.6, damage: 1.0, armor: 0.6)", "Leap(range: 26.0, apex: 13.0)",
+           f"SlamOnLand(radius: {ctx.rad(7.5)}, damage: {ctx.d(20)}, knockback: {ctx.kb(26)}, carve: 3.0)"]
+    return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="titanfall")
+
+
 def u_timestop(ctx: Ctx) -> Move:
     names = ["time stop", "stopwatch", "borrowed time"]
     ops = ["TimeStop(secs: 2.0, speed: 2.0)"] + (["Rewind(secs: 0.0)"] if False else [])
@@ -1372,11 +1488,29 @@ def u_timestop(ctx: Ctx) -> Move:
 
 
 ULTIMATE = [
-    ("storm", lambda x: 3.5 * (x.E != "Light") + 1.5 * (x.p.flav in ("mystic", "holy", "tech", "spirit", "glitch", "ink")) + 3 * (x.c.pack == "pokemon"), u_storm),
+    ("storm", lambda x: 3.5 * (x.E != "Light") + 1.5 * (x.p.flav in ("mystic", "holy", "tech", "spirit", "glitch", "ink")) + 3 * (x.c.pack == "pokemon")
+     - 6 * (x.p.flav == "nature"), u_storm),
+    # POLISH: the signature beam — blasters and casters with an element (or a holy / tech / mystic / chi
+    # flavour) gather it at the palms. Not for beasts (their ultimate is the hunt) or plants (solar beam).
+    ("sigbeam", lambda x: (2.6 * ("Beam" in x.m) + 1.2 * ("Shoots" in x.m) + 1.4 * (x.p.flav in ("holy", "tech", "mystic", "chi", "spirit"))
+                           + 2.4 * (x.E in ("Fire", "Electric", "Ice", "Water", "Psychic", "Shadow", "Atomic", "Wind")) + 0.8 * (x.r("mage") >= 2)
+                           + 2 * (x.c.pack == "pokemon" and "Beam" in x.m) - 3 * x.p.beast - 2 * (x.E == "Earth") - 1.5 * x.p.heavy)
+     * (x.p.flav != "nature") * (x.p.vehicle is None), u_sigbeam),
+    ("solar", lambda x: 5.6 * (x.p.flav == "nature"), u_solar),
+    ("overgrowth", lambda x: 5.4 * (x.p.flav == "nature") * x.has("Erupt", "Salvo"), u_overgrowth),
+    ("pressure", lambda x: (0.4 + 1.2 * (x.c.temperament == "Calm" and x.p.humanoid) + 1.5 * (x.p.flav == "chi")
+                            + 0.4 * (x.p.weapon in (None, "fists")) + 1.8 * (x.p.weapon in ("sword", "knives", "spear") and x.c.temperament in ("Calm", "Sneaky"))
+                            - 2 * x.p.beast) * x.has("DelayedHit"), u_pressure),
+    ("apex", lambda x: (3.4 * x.p.beast + 0.8 * (x.p.weapon == "claws") + 0.6 * (x.c.temperament == "Aggressive") - 1.0 * (x.E != "Light"))
+     * x.has("GazeStun", "Pounce", "Barrage") * (x.p.vehicle is None)
+     # a predator: not a fairy / a bug on the wing, not a goofy or timid animal (Big Bird, Bluey's dad)
+     * (not (x.p.small and "Flies" in x.m)) * (x.c.temperament not in ("Playful", "Fearful", "Lazy")), u_apex),
+    ("titanfall", lambda x: (2.2 * (x.p.heavy and x.p.humanoid) + 1.5 * (x.c.form == "Kaiju") + 1.0 * ("Stomp" in x.m) + 0.8 * (x.r("brute") >= 3))
+     * x.has("Leap") * (x.p.vehicle is None), u_titanfall),
     ("awaken", lambda x: (3 * (x.c.form == "Kaiju") + 2 * ("Grow" in x.m) + 1.5 * (x.p.heavy and x.p.humanoid) + 0.5 * (x.c.temperament == "Aggressive")), u_awaken),
     ("meteor", lambda x: 2 * ("Flies" in x.m) * (("Blunt" in x.m) + x.p.heavy + ("Stomp" in x.m)) + 1 * ("DropFromSky" in x.m), u_meteor),
-    ("blades", lambda x: 2 * ("Blade" in x.m) + 2.5 * (x.p.weapon in ("sword", "axe", "knives", "spear")), u_blades),
-    ("cannon", lambda x: 3 * ("Beam" in x.m) + 1 * (x.p.weapon == "gun" and x.p.flav == "tech"), u_cannon),
+    ("blades", lambda x: 1.5 * ("Blade" in x.m) + 2 * (x.p.weapon in ("sword", "axe", "knives", "spear")), u_blades),
+    ("cannon", lambda x: 2 * ("Beam" in x.m) + 1 * (x.p.weapon == "gun" and x.p.flav == "tech"), u_cannon),
     ("lockon", lambda x: (2.5 * (x.p.weapon in ("gun", "bow")) + 1.2 * ("Shoots" in x.m) + 1 * (x.kwr("gunner") > 0)
                           + 1 * (x.c.temperament == "Calm")) * x.has("LockOn"), u_lockon),
     ("bombard", lambda x: 1.8 * ("Shoots" in x.m) + 1.5 * ("Explodes" in x.m) + 1.5 * (x.p.vehicle == "tank") + 1 * (x.p.weapon == "bow"), u_bombard),
@@ -1653,12 +1787,32 @@ def build_kit(c: S.Char, en: S.Enums, rules: Rules) -> dict | None:
         kit_fx = ctx.ev["fx"]
     elif ctx.fv:
         kit_fx = ctx.fv["fx"]
+    else:
+        kit_fx = plain_fx(ctx)
     if kit_fx and rules.fx and kit_fx not in rules.fx:
         kit_fx = ""
     for mv in moves:
         if mv.fx == kit_fx or (rules.fx and mv.fx not in rules.fx):
             mv.fx = ""
     return {"char": c, "prof": p, "moves": moves, "fx": kit_fx, "trace": trace, "ctx": ctx}
+
+
+def plain_fx(ctx: Ctx) -> str:
+    """POLISH: a BODY for a kit with no element and no flavour (1,300 of them drew plain hard light): beasts
+    rake in amber streaks, blade fighters cut steel crescents, clowns and panickers go slapstick, fighters
+    and bruisers throw dusty shockwaves. Gunslingers / archers keep the clean energy default."""
+    p, t = ctx.p, ctx.c.temperament
+    if p.beast:
+        return "feral"
+    if p.weapon in ("sword", "axe", "knives", "spear"):
+        return "blade"
+    if p.weapon in ("gun", "bow", "whip"):
+        return ""
+    if t in ("Playful", "Fearful", "Chaotic"):
+        return "toon"
+    if p.humanoid or p.heavy or p.weapon in ("hammer", "fists", "staff", "shield"):
+        return "brawl"
+    return ""
 
 
 # ============================================================================ template ids (bd_sim powers/derive.rs)
@@ -1677,7 +1831,9 @@ FAMILY_TPL = {
     ("combo", "barrage"): "Flurry", ("combo", "fists"): "FistBarrage", ("combo", "rush"): "Rush", ("combo", "blitz"): "Blitz",
     ("combo", "launcher"): "Launcher", ("combo", "volley"): "Volley", ("combo", "sweep"): "Sweep", ("combo", "lash"): "TailLash",
     ("combo", "curse"): "Curse", ("combo", "wave"): "Crescent", ("combo", "drill"): "Drill", ("combo", "finisher"): "FollowThrough",
-    ("combo", "swarm"): "Dogpile",
+    ("combo", "swarm"): "Dogpile", ("combo", "roots"): "Roots", ("primary", "vine"): "Vine", ("defense", "thorns"): "Thorns",
+    ("ultimate", "sigbeam"): "SigBeam", ("ultimate", "solar"): "SolarBeam", ("ultimate", "overgrowth"): "Overgrowth",
+    ("ultimate", "pressure"): "Pressure", ("ultimate", "apex"): "Apex", ("ultimate", "titanfall"): "Titanfall",
     ("ultimate", "storm"): "Storm", ("ultimate", "awaken"): "Awaken", ("ultimate", "meteor"): "Meteor", ("ultimate", "blades"): "Blades",
     ("ultimate", "cannon"): "Cannon", ("ultimate", "lockon"): "DeadAim", ("ultimate", "bombard"): "Bombard",
     ("ultimate", "stampede"): "Stampede", ("ultimate", "overdrive"): "Overdrive", ("ultimate", "gamble"): "Gamble",
@@ -1700,6 +1856,8 @@ MAUL_TPL = {"maul": "Maul", "frenzy": "Frenzy", "rend": "Rend", "pack hunt": "Pa
 
 def bolt_kind(ctx: Ctx) -> str:
     E, w = ctx.E, ctx.p.weapon
+    if ctx.nature:
+        return "Leaf"
     if E == "Electric":
         return "Thunder"
     if E == "Psychic":
@@ -1946,14 +2104,17 @@ def ron_kit(k: dict, pid: str) -> str:
         d.append(f"tm: {c.temperament}")
     if abs(ctx.p.size - 1.0) > 1e-6:
         d.append(f"sz: {fmt(ctx.p.size)}")
-    if ctx.p.weapon == "bow":
-        d.append("wp: Some(Bow)")
+    wp = {"bow": "Bow", "sword": "Sword", "axe": "Axe", "spear": "Spear", "knives": "Knives"}.get(ctx.p.weapon or "")
+    if wp:
+        d.append(f"wp: Some({wp})")
     col = ctx.color()
     if col:
         d.append(f"col: {col}")
     fr = impact_frame(ctx)
     if fr:
         d.append(f'fr: Some("{fr}")')
+    if ctx.p.elem2 and ctx.p.elem2 != ctx.E and any(m.tpl == "SigBeam" for m in k["moves"]):
+        d.append(f"e2: Some({ctx.p.elem2})")
     mv = ", ".join(f'({m.tpl}, "{m.name}")' for m in k["moves"])
     d.append(f"mv: [{mv}]")
     return f'    (id: "{pid}", name: "{disp}", kind: Kit{fx}, names: [{names}],\n     derived: Some(({", ".join(d)}))),\n'

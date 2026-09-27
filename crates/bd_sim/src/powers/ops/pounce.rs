@@ -109,13 +109,13 @@ impl World {
 
     pub(crate) fn step_pounces(&mut self, dt: f32) {
         let base = self.cfg.move_params.clone();
-        for i in 0..MAX_PLAYERS.min(self.players.len()) {
+        // Every slot: a departed player's leftover lunge is cleared too (OPS_REVIEW low).
+        for i in 0..MAX_PLAYERS {
             let Some(mut pc) = self.powers.ops.pounces[i] else { continue };
-            let p = &self.players[i];
-            if p.id != pc.owner || !p.alive || p.status.stunned() {
+            let Some(p) = self.players.get(i).filter(|p| p.id == pc.owner && p.alive && !p.status.stunned()) else {
                 self.powers.ops.pounces[i] = None;
                 continue;
-            }
+            };
             pc.t += dt;
             let my = p.hull(&base);
             let me = my.center();

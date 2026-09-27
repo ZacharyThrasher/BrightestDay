@@ -123,6 +123,46 @@ impl Preset {
     }
 }
 
+/// Most maps a next-map vote offers when not showing the whole pool.
+pub const MAP_CHOICES_MAX: u8 = 12;
+
+/// The next-map vote after a match (host lobby rules; bd_game `net::map_vote` runs it). Not a sim
+/// knob: it never reaches [`SimConfig`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MapVoteRules {
+    /// Maps offered after a match (0 = every map in the pool).
+    pub choices: u8,
+    /// Offer a RANDOM card too (a pool map not among the choices, rolled when it wins).
+    pub random: bool,
+    /// A player sees who voted, not what, until they have voted themselves.
+    pub hidden: bool,
+    /// A cast vote can't be changed (the host ignores re-votes).
+    pub locked: bool,
+    /// Maps left out of the pool: bit `i` = bd_game `NetMapKind::ALL[i]` (0 = every map).
+    pub pool_off: u32,
+}
+
+impl Default for MapVoteRules {
+    fn default() -> Self {
+        Self { choices: 2, random: true, hidden: true, locked: true, pool_off: 0 }
+    }
+}
+
+impl MapVoteRules {
+    /// The pre-rules vote: every map, visible picks, changeable.
+    pub fn open_all() -> Self {
+        Self { choices: 0, random: false, hidden: false, locked: false, pool_off: 0 }
+    }
+
+    pub fn validated(mut self) -> Self {
+        if self.choices != 0 {
+            self.choices = self.choices.clamp(1, MAP_CHOICES_MAX);
+        }
+        self
+    }
+}
+
 /// Every lobby knob.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -135,11 +175,20 @@ pub struct GameSettings {
     /// Multiplies gas regen on ground / in the air / on a tether (0..4).
     pub gas_regen_scale: f32,
     pub party: PartySettings,
+    /// The next-map vote (offers, RANDOM, hidden / locked picks, map pool).
+    pub vote: MapVoteRules,
 }
 
 impl Default for GameSettings {
     fn default() -> Self {
-        Self { mode: GameMode::Ffa, rules: MatchRules::default(), gravity_scale: 1.0, gas_regen_scale: 1.0, party: PartySettings::default() }
+        Self {
+            mode: GameMode::Ffa,
+            rules: MatchRules::default(),
+            gravity_scale: 1.0,
+            gas_regen_scale: 1.0,
+            party: PartySettings::default(),
+            vote: MapVoteRules::default(),
+        }
     }
 }
 
@@ -181,6 +230,7 @@ impl GameSettings {
         self.gravity_scale = fin(self.gravity_scale, 1.0).clamp(0.25, 3.0);
         self.gas_regen_scale = fin(self.gas_regen_scale, 1.0).clamp(0.0, 4.0);
         self.party = self.party.validated();
+        self.vote = self.vote.validated();
         self
     }
 

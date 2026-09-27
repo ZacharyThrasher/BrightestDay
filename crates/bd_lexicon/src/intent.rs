@@ -16,7 +16,8 @@
 //!    an existing relation ("rain arrows" → "rain of arrows", a volley). Data: `data/intent.ron`.
 //! 4. the resolver ([`crate::Lexicon::resolve`] / `resolve_spoken`), whose own order is:
 //!    **invocation/signature** ("domain expansion …", "bankai …") → **pokémon grammar** ("pikachu use
-//!    thunderbolt") → incantation prefix ("gomu gomu no …") → **relations** (sizes, mounts, emitters,
+//!    thunderbolt") → incantation prefix ("gomu gomu no …") → **transformer grammar** ("a helicopter
+//!    robot", "a robot that turns into a train", "a dinobot": transformer.rs) → **relations** (sizes, mounts, emitters,
 //!    volleys) → **compounds** / exact names → **resolver** grammar → **leftover words** (light grafts)
 //!    → signature tags (famous ultimates by name, yelled beams).
 //!

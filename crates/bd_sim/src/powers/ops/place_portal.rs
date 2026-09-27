@@ -55,12 +55,12 @@ impl World {
 
     /// A KO (or a player leaving) forgets their ends.
     pub(crate) fn step_portal_guns(&mut self) {
-        for i in 0..MAX_PLAYERS.min(self.players.len()) {
-            if let Some(g) = self.powers.ops.portal_guns[i] {
-                let p = &self.players[i];
-                if p.id != g.owner || !p.alive {
-                    self.powers.ops.portal_guns[i] = None;
-                }
+        // Every slot: a departed player's leftover ends are forgotten too (OPS_REVIEW low).
+        for i in 0..MAX_PLAYERS {
+            if let Some(g) = self.powers.ops.portal_guns[i]
+                && !self.players.get(i).is_some_and(|p| p.id == g.owner && p.alive)
+            {
+                self.powers.ops.portal_guns[i] = None;
             }
         }
     }

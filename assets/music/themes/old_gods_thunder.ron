@@ -1,0 +1,67 @@
+// Thunder of the Old Gods — franchise theme for the world-mythology powers (Olympians, the Norse
+// pantheon, heroes of legend, the Great Sage and the rest of the folklore table).
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: an epic
+// "choir-chip" — slow supersaw choir pads and a sine choir lead, war-drum toms, a driving string
+// ostinato, hard-light horns and a thunder impact. No melody, hook, bassline or lyric of any
+// existing theme (film score or choral work) is quoted or paraphrased.
+// Structure: sting (thunder + choir swell) | a (choir) b (horns) c (hall of heroes, F major) b2 | end.
+(
+    title: "Thunder of the Old Gods",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: epic mythology",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (epic choir-and-drums idiom, chip instrumentation).",
+    role: "Franchise theme: mythology and folklore powers",
+    key: "Dm",
+    time: (4, 4),
+    bpm: 100.0,
+    gain_db: -6.3,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    instruments: {
+        // The chip choir: a soft sine "aah" with slow attack and a wide, slow vibrato.
+        "choir": (wave: Sine, attack: 0.09, decay: 0.6, sustain: 0.85, release: 0.35, vol: 0.9,
+                  vib_depth: 18.0, vib_rate: 4.6, vib_delay: 0.25),
+    },
+    channels: [
+        (name: "choir", inst: "choir", stem: Lead, pan: -0.1, echo: (ticks: 192, vol: 0.25)),
+        (name: "horn", inst: "hl_brass", stem: Lead, pan: 0.2, vol: 0.8),
+        (name: "pad", inst: "rx_pad", stem: Base, pan: 0.0, vol: 0.9, gen: "o3 X1 |"),
+        (name: "strings", inst: "run25", stem: Drive, pan: -0.25, vol: 0.65, gen: "o4 [R8 F8]4 |"),
+        (name: "bass", inst: "bass", stem: Base, gen: "o2 u4 R4. R8 R4 O4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.1, gen: "t4 t8 t8 k4 m8 m8 |"),
+        (name: "hits", drums: true, stem: Drive, pan: 0.2, vol: 0.7, gen: "r2 s4 r4 |"),
+    ],
+    patterns: {
+        "chA": "Dm | Dm | Bb | Bb | Gm | Gm | A | A |",
+        "chB": "Dm | C | Bb | A | Dm | C | Bb | A |",
+        "chC": "F | C | Dm | Bb | F | C | Gm | A |",
+        // ---- tunes (all original) ----
+        "mA": "o5 d2 f2 | o5 a2. g4 | o5 f2 d2 | o5 f1 | o5 g2 b2 | o5 a2. g4 | o5 e2 c+2 | o5 e1 |",
+        "mB": "o5 a4. g8 f4 a4 | o5 g4. f8 e4 g4 | o5 f4. d8 f4 b4 | o5 a2 c+4 e4 |
+               o5 a4. b8 o6 c4 d4 | o6 e4. d8 c4 o5 g4 | o6 d4. c8 o5 b4 f4 | o5 a1 |",
+        "mC": "o5 c2 f4 a4 | o5 g2. e4 | o5 f2 a4 o6 d4 | o6 d2 c4 o5 b4 |
+               o5 a2 o6 c4 f4 | o6 e2. c4 | o6 d2 o5 b4 g4 | o5 a2 c+4 e4 |",
+        // choir answers under the horns (a sixth / third below)
+        "cB": "o5 d2 c2 | o5 c2 o4 g2 | o4 b2 o5 d2 | o5 c+2 o4 a2 | o5 d2 f2 | o5 e2 g2 | o5 f2 d2 | o5 c+1 |",
+    },
+    sections: [
+        // The sting: a thunder impact, a riser and the choir swelling up.
+        (name: "sting", bars: 2, chords: "Dm | Dm |", mute: ["strings", "hits"], parts: {
+            "choir": "o4 a1 | o5 d2 a2 |",
+            "horn": "r1 | o4 d2 f2 |",
+            "drums": "I2 R2 | t4 t8 t8 m4 m4 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", parts: { "choir": "$mA", "drums": "c4 t8 t8 k4 m8 m8 | [t4 t8 t8 k4 m8 m8 |]7" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "horn": "$mB", "choir": "$cB" }),
+        (name: "c", bars: 8, chords: "$chC", parts: { "choir": "$mC", "horn": "k-12 $mC k0",
+            "drums": "c4 t8 t8 k4 m8 m8 | [t4 t8 t8 k4 m8 m8 |]6 t8 t8 m8 m8 [t16]8 |" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "horn": "$mB", "choir": "$mB", "drums": "c4 t8 t8 k4 m8 m8 | [t4 t8 t8 k4 m8 m8 |]7" }),
+        (name: "end", bars: 2, chords: "Dm | Dm |", mute: ["strings", "hits"], parts: {
+            "choir": "o5 a2 o6 d2 | o6 d1 |",
+            "horn": "o5 d2 f2 | o5 a1 |",
+            "drums": "t8 t8 m8 m8 t4 t4 | c1 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

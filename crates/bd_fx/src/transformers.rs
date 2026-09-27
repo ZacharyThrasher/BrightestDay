@@ -35,12 +35,28 @@ pub struct TransformFx {
     events: Arc<Vec<TransformEvent>>,
     last_t: f32,
     head_flare: f32,
+    /// TRANSFORMER FEEL: `rig.robot` part index per `RobotRole::group()` (u8::MAX = none) — the
+    /// robot's own clips (walk, attacks) ride on the panels (see [`pose_override`]).
+    groups: [u8; 6],
+    /// The alt model carries animatable roles (a beast's legs / jaw / tail, a car's wheels): settled
+    /// in alt mode it animates like any construct (clip layers + role behaviours).
+    alt_animates: bool,
 }
 
 impl TransformFx {
     pub fn new(rig: Arc<TransformRig>, to_robot: bool) -> Self {
         let events = Arc::new(sequence_events(&rig));
-        TransformFx { rig, t: 0.0, to_robot, auto: true, speed: 1.0, events, last_t: 0.0, head_flare: 0.0 }
+        let groups = robot_groups(&rig.robot);
+        let alt_animates = rig.alt.parts.iter().any(|p| matches!(p.role, Some(r) if !matches!(r, bd_core::shape::PartRole::Other | bd_core::shape::PartRole::Support)));
+        TransformFx { rig, t: 0.0, to_robot, auto: true, speed: 1.0, events, last_t: 0.0, head_flare: 0.0, groups, alt_animates }
+    }
+    /// The sequence's events (alt → robot order; reversed play mirrors `time`) — sounds / sparks.
+    pub fn events(&self) -> &[TransformEvent] {
+        &self.events
+    }
+    /// Settled in alt mode with an animatable alt model: pose it with the normal clip layers.
+    pub fn alt_settled_animates(&self) -> bool {
+        !self.to_robot && self.t >= 1.0 && self.alt_animates
     }
     /// Start a new transformation in `to_robot` direction from t = 0.
     pub fn restart(&mut self, to_robot: bool) {
@@ -87,9 +103,66 @@ fn advance(time: Res<Time>, mut q: Query<&mut TransformFx>) {
     }
 }
 
-/// Posed override used by `construct::pose_constructs`.
-pub(crate) fn pose_override(tf: &TransformFx, out: &mut [glam::Affine3A]) {
-    bd_shapes::pose_transform(&tf.rig, fin(tf.t, 0.0), tf.to_robot, out);
+/// `rig.robot` part index per robot group (0 torso, 1 head, 2/3 arms, 4/5 legs; see
+/// `bd_shapes::transform::assemble`, which skips empty limb groups).
+fn robot_groups(robot: &bd_shapes::VoxelModel) -> [u8; 6] {
+    use bd_core::shape::PartRole as R;
+    let mut g = [u8::MAX; 6];
+    for (i, p) in robot.parts.iter().enumerate().take(u8::MAX as usize) {
+        let k = match p.role {
+            None => 0,
+            Some(R::Head) => 1,
+            Some(R::ArmLeft) => 2,
+            Some(R::ArmRight) => 3,
+            Some(R::LegBackLeft) => 4,
+            Some(R::LegBackRight) => 5,
+            _ => continue,
+        };
+        if g[k] == u8::MAX {
+            g[k] = i as u8;
+        }
+    }
+    g
+}
+
+/// Most robot-model parts evaluated (torso, head, 2 arms, 2 legs).
+const ROBOT_PARTS: usize = 8;
+
+/// Posed override used by `construct::pose_constructs`: the panel sequence, plus (TRANSFORMER FEEL)
+/// the robot's own motion — `layers` (the construct's locomotion / attack clips) evaluated on the
+/// biped `rig.robot` and carried by every panel of that body group, so a robot-mode transformer
+/// WALKS (legs stride, arms swing, attacks play) instead of gliding as a statue. Eased in over the
+/// stand-up beat and out as it starts folding, so the sequence itself is untouched.
+pub(crate) fn pose_override(tf: &TransformFx, layers: &[(bd_shapes::AnimState, f32)], out: &mut [glam::Affine3A]) {
+    let t = fin(tf.t, 0.0).clamp(0.0, 1.0);
+    bd_shapes::pose_transform(&tf.rig, t, tf.to_robot, out);
+    let w = if tf.to_robot { smooth(0.8, 1.0, t) } else { 1.0 - smooth(0.0, 0.2, t) };
+    let n = tf.rig.robot.parts.len();
+    if w <= 1e-3 || layers.is_empty() || n == 0 || n > ROBOT_PARTS {
+        return;
+    }
+    let mut grp = [glam::Affine3A::IDENTITY; ROBOT_PARTS];
+    bd_shapes::pose_layered(&tf.rig.robot, layers, &mut grp[..n]);
+    if w < 1.0 {
+        for g in grp.iter_mut().take(n) {
+            let (s, r, p) = g.to_scale_rotation_translation();
+            *g = glam::Affine3A::from_scale_rotation_translation(glam::Vec3::ONE.lerp(s, w), glam::Quat::IDENTITY.slerp(r, w), p * w);
+        }
+    }
+    for (o, p) in out.iter_mut().zip(tf.rig.panels.iter()).skip(1) {
+        let gi = tf.groups[p.role.group()] as usize;
+        if let Some(g) = grp.get(gi).filter(|_| gi < n) {
+            let m = *g * *o;
+            if m.is_finite() {
+                *o = m;
+            }
+        }
+    }
+}
+
+fn smooth(a: f32, b: f32, x: f32) -> f32 {
+    let u = ((x - a) / (b - a)).clamp(0.0, 1.0);
+    u * u * (3.0 - 2.0 * u)
 }
 
 fn spark_burst(fx: &mut FxParticles, p: Vec3, color: [f32; 3], n: usize, speed: f32, size: f32) {

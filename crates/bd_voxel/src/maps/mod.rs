@@ -20,6 +20,8 @@ pub mod giant;
 pub mod hyperline;
 #[cfg(feature = "lair")]
 pub mod lair;
+#[cfg(feature = "lookout")]
+pub mod lookout;
 pub mod miami;
 #[cfg(feature = "mirror")]
 pub mod mirror;
@@ -47,6 +49,8 @@ pub use ember::{EMBER_SIZE_VOXELS, generate_ember};
 pub use giant::{GIANT_SIZE_VOXELS, generate_giant};
 #[cfg(feature = "hyperline")]
 pub use hyperline::{HYPERLINE_SIZE_VOXELS, generate_hyperline};
+#[cfg(feature = "lookout")]
+pub use lookout::{LOOKOUT_SIZE_VOXELS, generate_lookout};
 pub use miami::{MIAMI_SIZE_VOXELS, generate_miami};
 #[cfg(feature = "mirror")]
 pub use mirror::{MIRROR_SIZE_VOXELS, generate_mirror};

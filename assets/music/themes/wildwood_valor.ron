@@ -1,0 +1,63 @@
+// Wildwood Valor — franchise theme for the elf-hero adventure kits (the green-tunic swordsman, the
+// ancient tablet, the golden relic and the demon king).
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: a heroic overworld
+// chip tune — a galloping bass and snare, harp arpeggios, a bold pulse melody with a lydian lift,
+// and a mysterious D-minor forest episode. It deliberately avoids the famous overworld and
+// "item" fanfares: no melody, hook, bassline or lyric of any existing theme is quoted or
+// paraphrased.
+// Structure: sting (call to adventure) | a (overworld) b (lift) c (forest) a2 b2 | end.
+(
+    title: "Wildwood Valor",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: heroic overworld adventure",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (gallop rhythm, harp arps, chip palette).",
+    role: "Franchise theme: overworld-adventure kits",
+    key: "F",
+    time: (4, 4),
+    bpm: 132.0,
+    gain_db: -5.8,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "lead", inst: "lead25", stem: Lead, pan: -0.1, echo: (ticks: 72, vol: 0.22)),
+        (name: "brass", inst: "hl_brass", stem: Lead, pan: 0.2, vol: 0.65),
+        (name: "harp", inst: "arpsoft", stem: Base, pan: 0.25, gen: "o4 [R16 T16 F16 O16]4 |"),
+        (name: "pad", inst: "harm50", stem: Base, pan: -0.2, vol: 0.7, gen: "o4 X1 |"),
+        (name: "bass", inst: "bass", stem: Base, gen: "o2 u4 R8 R16 R16 R8 R16 R16 F8 F16 F16 F8 F16 F16 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.0, gen: "k8 k16 k16 s8 k16 k16 k8 k16 k16 s8 s16 s16 |"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.45, gen: "[h8]8 |"),
+    ],
+    patterns: {
+        "chA": "F | Dm | Bb | C | F | Am | Bb | C |",
+        "chB": "Bb | C | Am | Dm | Gm | C | F | F |",
+        "chC": "Dm | Bb | C | Am | Dm | Bb | Gm | C |",
+        // ---- tunes (all original) ----
+        "mA": "o5 c4 f8. g16 a4 o6 c4 | o6 d4. c8 o5 a4 f4 | o5 g4 b8. a16 g4 d4 | o5 e2 g4 c4 |
+               o5 c4 f8. g16 a4 o6 c4 | o6 e4. d8 c4 o5 a4 | o5 b4 o6 d4 c4 o5 b4 | o6 c2. r4 |",
+        "mB": "o6 d2 f4. e8 | o6 e2 g4 e4 | o6 c2 e4. d8 | o6 d1 |
+               o5 b2 o6 d4. c8 | o5 b4 a4 g4 e4 | o5 f4. g8 a4 o6 c4 | o6 f2. r4 |",
+        "mC": "o5 d4 a8 d8 f4 e4 | o5 d4 b8 d8 f4 e4 | o5 e4 g8 e8 c4 d4 | o5 e2 a2 |
+               o5 f4 a8 f8 d4 f4 | o5 f4 b8 f8 d4 f4 | o5 g4 b8 o6 d8 c4 o5 b4 | o5 g2 e2 |",
+    },
+    sections: [
+        // The sting: a rising call to adventure.
+        (name: "sting", bars: 2, chords: "C | F |", mute: ["harp"], parts: {
+            "lead": "o5 c8 e8 g8 o6 c8 e4 r8 e8 | o6 f2. r4 |",
+            "brass": "o4 g8 o5 c8 e8 g8 o6 c4 r8 c8 | o6 c2. r4 |",
+            "drums": "k8 k16 k16 s8 k16 k16 k8 k16 k16 [s16]4 | c2 r2 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", mute: ["pad"], parts: { "lead": "$mA" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "brass": "k-12 $mB k0" }),
+        (name: "c", bars: 8, chords: "$chC", mute: ["hats"], parts: { "lead": "$mC", "brass": "o4 d1 | o4 d1 | o4 e1 | o4 e1 | o4 f1 | o4 f1 | o4 g1 | o4 g1 |",
+            "drums": "[k4 r4 s4 r4 |]7 k8 k16 k16 s8 k16 k16 [s16]8 |" }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "lead": "$mA", "brass": "k-12 $mA k0" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "lead": "$mB", "brass": "$mB" }),
+        (name: "end", bars: 2, chords: "F | F |", mute: ["harp", "hats"], parts: {
+            "lead": "o5 c4 f8. g16 a4 o6 c4 | o6 f2. r4 |",
+            "brass": "o4 a4 o5 c8. d16 f4 a4 | o5 a2. r4 |",
+            "drums": "k8 k16 k16 s8 k16 k16 [s16]8 | c2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

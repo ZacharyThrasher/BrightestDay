@@ -105,12 +105,14 @@ pub enum NetMapKind {
     GiantsRoom,
     /// Hyperline (protocol v22; the train's slipstream is map-generated, same on host and clients).
     Hyperline,
+    /// The Lookout (protocol bump with the map).
+    Lookout,
 }
 
 impl NetMapKind {
     /// Every map, in menu order (the end-of-match vote shows them all). A new variant must be added
     /// here too: [`NetMapKind::index`] is exhaustive and the `map_list_is_complete` test checks it.
-    pub const ALL: [NetMapKind; 13] = [
+    pub const ALL: [NetMapKind; 14] = [
         NetMapKind::Archipelago,
         NetMapKind::Miami,
         NetMapKind::Orbit,
@@ -124,6 +126,7 @@ impl NetMapKind {
         NetMapKind::Lair,
         NetMapKind::GiantsRoom,
         NetMapKind::Hyperline,
+        NetMapKind::Lookout,
     ];
 
     /// Position in [`NetMapKind::ALL`].
@@ -142,6 +145,7 @@ impl NetMapKind {
             NetMapKind::Lair => 10,
             NetMapKind::GiantsRoom => 11,
             NetMapKind::Hyperline => 12,
+            NetMapKind::Lookout => 13,
         }
     }
 
@@ -161,6 +165,7 @@ impl NetMapKind {
             NetMapKind::Lair => "TURTLE LAIR",
             NetMapKind::GiantsRoom => "GIANT'S ROOM",
             NetMapKind::Hyperline => "HYPERLINE",
+            NetMapKind::Lookout => "THE LOOKOUT",
         }
     }
 
@@ -181,6 +186,7 @@ impl NetMapKind {
             NetMapKind::Lair => MapKind::Lair,
             NetMapKind::GiantsRoom => MapKind::GiantsRoom,
             NetMapKind::Hyperline => MapKind::Hyperline,
+            NetMapKind::Lookout => MapKind::Lookout,
         }
     }
 
@@ -190,11 +196,34 @@ impl NetMapKind {
     }
 }
 
-/// The vote for the next match while a match is over (protocol v23).
+/// A next-map vote pick (protocol v46): a map card or the RANDOM card.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VotePick {
+    Map(NetMapKind),
+    Random,
+}
+
+/// The vote for the next match while a match is over (protocol v23; per-viewer since v46 — see
+/// `net::map_vote`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct NextVote {
-    /// One vote per player (the latest click).
-    pub votes: Vec<(PlayerId, NetMapKind)>,
+    /// The picks this viewer may see: all of them once they voted (or hidden votes are off, or the
+    /// vote is decided), else none.
+    pub votes: Vec<(PlayerId, VotePick)>,
+    /// Who has voted (always shown — not what).
+    pub voted: Vec<PlayerId>,
+    /// The maps on the cards (host-drawn from the pool).
+    pub offers: Vec<NetMapKind>,
+    /// A RANDOM card is offered.
+    pub random: bool,
+    /// Picks are withheld from this viewer until they vote.
+    pub hidden: bool,
+    /// A cast vote can't be changed.
+    pub locked: bool,
+    /// The decided map (the last moments: RANDOM's roulette lands on it).
+    pub result: Option<NetMapKind>,
+    /// `result` was rolled by RANDOM.
+    pub rolled: bool,
     /// Seconds until the next match starts (at send time).
     pub secs_left: f32,
 }
@@ -263,6 +292,10 @@ pub fn build_terrain(kind: NetMapKind, seed: u64) -> (bd_voxel::VoxelWorld, bd_v
             let (w, m) = bd_voxel::generate_hyperline(seed);
             (w, m.arena, seed)
         }
+        NetMapKind::Lookout => {
+            let (w, m) = bd_voxel::generate_lookout(seed);
+            (w, m.arena, seed)
+        }
     }
 }
 
@@ -320,6 +353,8 @@ pub enum NetCmd {
     /// UNSTICK (protocol v35): move me to the safest spawn (`World::request_unstick`: host-side
     /// cooldown, damage lockout unless stuck, queued until it can fire).
     Unstick,
+    /// POWER HOTBAR (protocol v47): dismiss a held power by slot (`Cmd::DropPower`).
+    DropPower(u16),
 }
 
 impl NetCmd {
@@ -354,6 +389,7 @@ impl NetCmd {
             Cmd::Signature { recipe, shape, aim, sig } => NetCmd::Signature { seq: cast_seq, recipe, shape: small(shape), aim, sig },
             Cmd::CastMeta(m) => NetCmd::CastMeta(m),
             Cmd::Unstick => NetCmd::Unstick,
+            Cmd::DropPower(p) => NetCmd::DropPower(p),
         })
     }
 
@@ -395,6 +431,7 @@ impl NetCmd {
             }
             // The sim enforces the cooldown / lockout itself.
             NetCmd::Unstick => Cmd::Unstick,
+            NetCmd::DropPower(p) => Cmd::DropPower(p),
         })
     }
 }
@@ -421,8 +458,9 @@ pub enum C2S {
     /// Cosmetic: the phrase this player just cast, for everyone's shout callout (host re-sanitises,
     /// rate-limits and relays it as [`S2C::Shout`]).
     Shout(crate::present::shout::ShoutLine),
-    /// The match is over: this player's pick for the next map (protocol v23; the latest one counts).
-    MapVote(NetMapKind),
+    /// The match is over: this player's pick for the next map (protocol v23; v46: a [`VotePick`],
+    /// validated by the host — on offer, and the first one stands when votes are locked).
+    MapVote(VotePick),
 }
 
 /// Everything a joining (or resyncing) client needs to rebuild the world.
@@ -543,8 +581,8 @@ mod tests {
             assert_eq!(NetMapKind::from_map_kind(k.map_kind()), *k);
             assert!(!k.name().is_empty());
         }
-        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::MapVote(NetMapKind::Lair))).unwrap();
-        assert!(matches!(back, C2S::MapVote(NetMapKind::Lair)));
+        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::MapVote(VotePick::Map(NetMapKind::Lair)))).unwrap();
+        assert!(matches!(back, C2S::MapVote(VotePick::Map(NetMapKind::Lair))));
     }
 
     #[test]
@@ -555,6 +593,16 @@ mod tests {
         assert!(matches!(back, C2S::Input { snap_ack: 9, epoch: 3, .. }));
         let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::Cmd(NetCmd::Unstick))).unwrap();
         assert!(matches!(back, C2S::Cmd(NetCmd::Unstick)));
+        // POWER HOTBAR (v47): dismiss a power by slot; the TOTAL LIMIT rule rides the settings
+        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::Cmd(NetCmd::DropPower(417)))).unwrap();
+        assert!(matches!(back, C2S::Cmd(NetCmd::DropPower(417))));
+        let mut g = GameSettings::default();
+        g.rules.active_limit = 4;
+        let back: GameSettings = bd_net::codec::decode(&bd_net::codec::encode(&g)).unwrap();
+        assert_eq!(back.rules.active_limit, 4);
+        let e = bd_sim::GameEvent::CastFailed { player: bd_core::PlayerId(3), reason: bd_sim::events::CastError::AtLimit };
+        let back: bd_sim::GameEvent = bd_net::codec::decode(&bd_net::codec::encode(&e)).unwrap();
+        assert_eq!(back, e);
         let s = S2C::TerrainCheck { tick: 5, hash: 77 };
         let back: S2C = bd_net::codec::decode(&bd_net::codec::encode(&s)).unwrap();
         assert!(matches!(back, S2C::TerrainCheck { tick: 5, hash: 77 }));

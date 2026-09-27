@@ -29,6 +29,7 @@ mod cli;
 mod combat_tuning;
 mod console;
 mod debris;
+mod hotbar; // POWER HOTBAR: keys 1–4 as a dynamic power bar (auto-bind, Tab drag-drop, dismiss by slot)
 mod hud;
 mod input;
 mod juice;
@@ -52,6 +53,7 @@ mod tutorial;
 mod unstick;
 mod util;
 mod viewmodel;
+mod voice_fluency; // VOICE FLUENCY: transcript → the line the console reads (voice == typing)
 mod voice_ui;
 mod warmup;
 mod window;
@@ -140,6 +142,7 @@ fn main() {
         .add_plugins(lobby::UiPlugin)
         .add_plugins(showcase::ShowcasePlugin)
         .add_plugins(power_hud::PowerHudPlugin) // POWER HUD: ring gems, motes, minimal strip
+        .add_plugins(hotbar::HotbarPlugin) // POWER HOTBAR (after the strip + prefs)
         .add_plugins(readability::ReadabilityPlugin) // READABILITY: damage heat ramp, KO smoke, over-head %
         .add_plugins(alloc_count::AllocCountPlugin)
         .add_plugins(unstick::UnstickPlugin) // UNSTICK: Esc-menu / key request, timer, arrival shimmer

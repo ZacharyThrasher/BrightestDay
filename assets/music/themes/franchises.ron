@@ -1,0 +1,71 @@
+// Franchise → theme mapping (bd_music::franchise). Every theme in this folder is an ORIGINAL
+// Brightest Day composition that evokes a franchise's genre and energy — never its actual music.
+// When the local player uses a power / kit / costume listed here, its theme swells in on the
+// theme layer (bd_audio MusicDirector: cooldowns, keep-alive, most-recent-wins; Settings → Sound →
+// Franchise themes). Docs: docs/music/franchise_themes.md.
+//
+// A power resolves in this order (first match wins):
+//   1. its own `music: Some("<franchise or theme>")` key in assets/powers/*.ron ("none" opts out);
+//   2. `ids` below (exact ids; `prefix*`, `*suffix` or `*contains*` globs);
+//   3. `files` below (every power in assets/powers/<file>.ron).
+// An id or file may appear in one franchise only (checked at load).
+[
+    (name: "turtles", title: "Mutant ninja turtles", theme: "sewer_surf_stomp",
+     ids: ["mutagen_*", "kit_leonardo", "kit_raphael", "kit_donatello", "kit_michelangelo", "kit_splinter",
+           "kit_shredder", "kit_casey_jones"]),
+    (name: "pirate", title: "Pirate adventure (devil fruits, the straw-hat crew, haki)", theme: "open_sea_jig",
+     files: ["base_one_piece"],
+     ids: ["kit_luffy", "kit_zoro", "kit_sanji", "kit_ace", "kit_law", "kit_whitebeard", "kit_kaido", "kit_aokiji",
+           "kit_akainu", "kit_kizaru", "kit_shanks", "kit_blackbeard", "kit_mihawk", "kit_hancock", "kit_doflamingo",
+           "kit_nami", "kit_usopp", "kit_franky", "kit_brook", "kit_robin", "kit_katakuri", "kit_enel", "kit_crocodile",
+           "kit_chopper", "kit_kid", "kit_big_mom", "observation_haki", "armament_haki", "kit_jack_sparrow"]),
+    (name: "robots", title: "Transforming robots", theme: "chrome_titans",
+     ids: ["kit_optimus_prime", "kit_megatron", "kit_bumblebee", "kit_starscream", "kit_soundwave", "kit_grimlock",
+           "kit_jazz", "kit_ironhide", "kit_ratchet", "kit_shockwave", "kit_devastator", "kit_unicron", "kit_arcee",
+           "kit_ultra_magnus", "kit_bulkhead", "kit_wheeljack", "kit_optimus_primal"]),
+    (name: "saiyan", title: "Power-up martial arts (golden auras, energy waves, fusion)", theme: "sky_burst_overdrive",
+     ids: ["kit_goku", "kit_vegeta", "kit_gohan", "kit_piccolo", "kit_frieza", "kit_cell", "kit_broly", "kit_krillin",
+           "kit_trunks", "kit_jiren", "kit_beerus", "kit_vegito", "kit_gogeta", "kit_buu", "kit_tien", "kit_yamcha",
+           "kit_roshi", "kit_hit", "kit_goku_black", "ultra_instinct", "super_saiyan", "kaioken"]),
+    (name: "shinobi", title: "Ninja villages and chakra techniques", theme: "shadow_step_shinobi",
+     ids: ["kit_naruto", "kit_sasuke", "kit_kakashi", "kit_itachi", "kit_obito", "kit_minato", "kit_madara", "kit_pain",
+           "kit_gaara", "kit_rock_lee", "kit_might_guy", "kit_jiraiya", "kit_hinata", "kit_neji", "kit_sakura",
+           "kit_boruto", "kit_shikamaru", "kit_orochimaru", "kit_tsunade", "kit_deidara", "kit_kisame", "kit_hashirama",
+           "eight_gates", "byakugan", "ninjutsu", "sage_mode", "kurama_mode", "sharingan", "rinnegan", "shadow_clone"]),
+    (name: "bizarre", title: "Stand users", theme: "menace_disco_strut",
+     files: ["base_jojo"],
+     ids: ["kit_jotaro", "kit_dio", "kit_giorno", "kit_josuke", "kit_kira", "kit_joseph", "kit_jonathan", "kit_polnareff",
+           "kit_diavolo", "kit_pucci", "kit_kakyoin", "kit_bucciarati", "kit_jolyne", "kit_mista", "kit_johnny"]),
+    (name: "heroes", title: "Comic-book superheroes", theme: "skyline_vanguard",
+     files: ["base_marvel", "base_dc"],
+     ids: ["kit_nightcrawler", "kit_wolverine", "kit_cyclops", "kit_storm", "kit_magneto", "kit_jean_grey", "kit_iceman",
+           "kit_gambit", "kit_colossus", "kit_rogue", "kit_psylocke", "kit_quicksilver", "kit_deadpool", "kit_cable",
+           "kit_juggernaut", "kit_professor_x", "kit_shadowcat", "kit_spider_man", "kit_miles_morales", "kit_iron_man",
+           "kit_thor", "kit_hulk", "kit_captain_america", "kit_doctor_strange", "kit_scarlet_witch", "kit_black_panther",
+           "kit_ant_man", "kit_vision", "kit_captain_marvel", "kit_thanos", "kit_loki", "kit_groot", "kit_rocket_raccoon",
+           "kit_star_lord", "kit_ghost_rider", "kit_venom", "kit_doctor_doom", "kit_the_thing", "kit_human_torch",
+           "kit_mister_fantastic", "kit_invisible_woman", "kit_shang_chi", "kit_black_widow", "kit_hawkeye",
+           "kit_silver_surfer", "kit_superman", "kit_flash", "kit_batman", "kit_wonder_woman", "kit_green_lantern",
+           "kit_aquaman", "kit_cyborg", "kit_joker", "kit_harley_quinn", "kit_darkseid", "kit_shazam", "kit_bane",
+           "kit_catwoman", "kit_zatanna"]),
+    (name: "space", title: "Space opera (laser-sword knights, armoured hunters)", theme: "distant_stars_march",
+     ids: ["kit_jedi", "kit_sith", "kit_mandalorian"]),
+    (name: "critters", title: "Pocket creatures and their trainers", theme: "tall_grass_trek",
+     ids: ["ssb_pikachu", "*_pokemon", "dk_ash_ketchum", "dk_ash_s_pikachu", "dk_abra_kadabra", "dk_aerodactyl", "dk_alakazam",
+           "dk_arcanine", "dk_articuno", "dk_beedrill", "dk_blastoise", "dk_blaziken", "dk_butterfree", "dk_charmander",
+           "dk_clefairy", "dk_cubone", "dk_ditto", "dk_dragonite", "dk_electrode", "dk_espeon", "dk_flareon", "dk_garchomp",
+           "dk_gardevoir", "dk_glaceon", "dk_greninja", "dk_growlithe", "dk_hitmonchan", "dk_hitmonlee", "dk_ho_oh",
+           "dk_infernape", "dk_jolteon", "dk_koffing", "dk_lapras", "dk_leafeon", "dk_lucario", "dk_lugia", "dk_machamp",
+           "dk_meowth", "dk_mew", "dk_mimikyu", "dk_moltres", "dk_mr_mime", "dk_nidoking", "dk_ninetales", "dk_pichu",
+           "dk_pidgeot", "dk_psyduck", "dk_raichu", "dk_rayquaza", "dk_sceptile", "dk_scyther", "dk_slowpoke", "dk_starmie",
+           "dk_sylveon", "dk_tauros", "dk_tentacruel"]),
+    (name: "overworld", title: "Elf-hero overworld adventure", theme: "wildwood_valor",
+     ids: ["adv_link", "adv_sheikah_slate", "adv_triforce", "ssb_ganondorf"]),
+    (name: "elements", title: "Elemental bending", theme: "four_winds_accord",
+     ids: ["airbending", "waterbending", "earthbending", "firebending", "avatar_state", "metalbending", "lavabending",
+           "combustionbending", "kit_aang", "kit_katara", "kit_toph", "kit_zuko", "kit_azula", "kit_iroh", "kit_korra",
+           "kit_sokka", "kit_amon", "kit_ozai", "kit_ty_lee"]),
+    (name: "myth", title: "World mythology and folklore", theme: "old_gods_thunder",
+     files: ["myth_folklore", "base_folklore"],
+     ids: ["myth_*"]),
+]

@@ -28,11 +28,15 @@ use bd_sim::rules::UNLIMITED;
 use bd_sim::{ConstructLimits, ScaleLimit, WillpowerMode};
 use bevy::ecs::system::SystemParam;
 use bevy::input::keyboard::{Key, KeyboardInput};
-use bevy::input::mouse::{AccumulatedMouseScroll, MouseButtonInput};
+use bevy::input::gamepad::Gamepad;
+use bevy::input::mouse::MouseButtonInput;
 use bevy::input::ButtonState;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
 use bevy::ui::{ColorStop, LinearGradient};
+
+mod nav; // MENU FEEL: focus arbitration (last-used device), key repeat, scroll window, slider curves
+mod widgets; // MENU FEEL: sliders / toggles / segmented / pickers + the mouse side of the shell
 
 // ------------------------------------------------------------------------------------------ model
 
@@ -102,6 +106,11 @@ enum Knob {
     PowerHud,
     /// READABILITY: the willpower gauge around the crosshair (`UiPrefs::crosshair_gauge`).
     CrosshairGauge,
+    /// POWER HOTBAR: moves you say go onto the 1–4 bar (`UiPrefs::auto_bind`).
+    AutoBind,
+    /// CLICK TO CONFIRM: a committed phrase shows a ghost first; click makes it real
+    /// (`UiPrefs::click_to_confirm`, `console::confirm`).
+    ClickToConfirm,
     /// READABILITY: other players' damage % over their heads (`UiPrefs::enemy_percent`).
     EnemyPercent,
     SummonPreview,
@@ -135,6 +144,7 @@ enum Knob {
     AmbienceVol,
     FeedbackVol,
     MusicStyle,
+    FranchiseThemes,
     NightMode,
     Mono,
     Voice,
@@ -152,6 +162,12 @@ enum Knob {
     Sparks,
     /// Repeats of the same cast / move cost an extra spark each (`MatchRules::repeat_cost`).
     RepeatCost,
+    /// TOTAL LIMIT: most active things (constructs + powers) per player (`MatchRules::active_limit`).
+    ActiveLimit,
+    /// FIRST CALL: the first to use a named thing owns it; others get its rival version (`MatchRules::first_call`).
+    FirstCall,
+    /// BURN ON DEATH: OFF / NAMED / EVERYTHING (`MatchRules::burn`).
+    Burn,
     /// CONSTRUCTS: Normal / Chaos / Custom quick switch over every [`Lim`].
     Caps,
     /// CONSTRUCTS: one per-kind cap (`MatchRules::limits`).
@@ -187,6 +203,16 @@ enum Knob {
     PoolCommon,
     PoolLegend,
     PoolCursed,
+    /// NEXT MAP (`GameSettings::vote`, `net::map_vote`): maps offered after a match (2 / 3 / 4 / ALL).
+    VoteChoices,
+    /// NEXT MAP: a RANDOM card too.
+    VoteRandom,
+    /// NEXT MAP: picks hidden until you've voted.
+    VoteHidden,
+    /// NEXT MAP: a vote can't be changed.
+    VoteLocked,
+    /// MAP POOL: `NetMapKind::ALL[i]` can be offered.
+    VotePool(u8),
     // customize
     Corps,
     Variant,
@@ -331,7 +357,7 @@ const KEY_SECTIONS: [(&str, &[Action]); 4] = [
         &[Action::Console, Action::ConsoleAlt, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Oath, Action::Charge, Action::Power, Action::Transform, Action::Dismiss],
     ),
     ("VIEW / AIM", &[Action::ToggleView, Action::Shoulder, Action::Aim, Action::AltFire]),
-    ("OTHER", &[Action::Scoreboard, Action::Unstick]),
+    ("OTHER", &[Action::Scoreboard, Action::Taunt, Action::Unstick]),
 ];
 
 impl Row {
@@ -446,7 +472,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             }
             v.push(Value(K::TimeLimit));
             v.extend([Header("ARENA"), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
-            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::RepeatCost), Value(K::Powers)]);
+            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::RepeatCost), Value(K::ActiveLimit), Value(K::FirstCall), Value(K::Burn), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
@@ -459,6 +485,8 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             }
             v.extend([Header("PHYSICS"), Value(K::Knockback), Value(K::Gravity), Value(K::GasRegen), Value(K::TetherHooks)]);
             v.extend([Header("VIEW"), Value(K::AllowThird)]);
+            v.extend([Header("NEXT MAP"), Value(K::VoteChoices), Value(K::VoteRandom), Value(K::VoteHidden), Value(K::VoteLocked), Header("MAP POOL")]);
+            v.extend((0..crate::net::proto::NetMapKind::ALL.len() as u8).map(|i| Value(K::VotePool(i))));
             if c.prefs.game.mode == SimMode::Party {
                 v.extend([
                     Header("PARTY"),
@@ -501,9 +529,11 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                 SettingsTab::Gameplay => {
                     v.extend([Header("VIEW"), Value(K::ThirdPerson), Value(K::Shoulder)]);
                     v.extend([Header("AIM DOWN SIGHTS"), Value(K::AdsMode), Value(K::AdsSpeed)]);
+                    v.extend([Header("RING"), Value(K::ClickToConfirm)]);
                     if c.voice {
-                        v.extend([Header("RING"), Value(K::Voice)]);
+                        v.push(Value(K::Voice));
                     }
+                    v.extend([Header("HOTBAR"), Value(K::AutoBind)]);
                 }
                 SettingsTab::Controls => {
                     v.extend([Header("MOUSE"), Value(K::Sensitivity), Value(K::AdsSens), Value(K::InvertY)]);
@@ -524,7 +554,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                 }
                 SettingsTab::Audio => {
                     v.extend([Header("VOLUME"), Value(K::Volume), Value(K::MusicVol), Value(K::WorldVol), Value(K::AmbienceVol), Value(K::FeedbackVol)]);
-                    v.extend([Header("MIX"), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono)]);
+                    v.extend([Header("MIX"), Value(K::MusicStyle), Value(K::FranchiseThemes), Value(K::NightMode), Value(K::Mono)]);
                 }
                 SettingsTab::Comfort => {
                     v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Roll), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::ReduceFlashes), Value(K::Vignette)]);
@@ -575,9 +605,13 @@ fn map_of(p: &UiPrefs) -> MapKind {
     MapKind::from_cli(&p.map).filter(|m| *m != MapKind::Tutorial).unwrap_or(MapKind::Arena)
 }
 
+/// Presets cover the match, not the next-map vote (kept as the host set it).
 fn preset_of(g: &GameSettings) -> Option<Preset> {
-    Preset::ALL.into_iter().find(|p| GameSettings::preset(*p) == *g)
+    Preset::ALL.into_iter().find(|p| GameSettings { vote: g.vote.clone(), ..GameSettings::preset(*p) } == *g)
 }
+
+/// NEXT MAP choices, in knob order (0 = the whole pool).
+const VOTE_CHOICES: [u8; 4] = [2, 3, 4, 0];
 
 /// READABILITY: the UI word for a willpower segment (the owner's pick). Code says "segments".
 pub const SPARKS: &str = "SPARKS";
@@ -600,6 +634,8 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
         Knob::PowerHud => (lbl("POWER HUD"), on_off(c.prefs.power_hud)),
         Knob::CrosshairGauge => (lbl("CROSSHAIR GAUGE"), on_off(c.prefs.crosshair_gauge)),
+        Knob::AutoBind => (lbl("AUTO-BIND POWERS"), on_off(c.prefs.auto_bind)),
+        Knob::ClickToConfirm => (lbl("CLICK TO CONFIRM"), on_off(c.prefs.click_to_confirm)),
         Knob::EnemyPercent => (lbl("ENEMY DAMAGE %"), c.prefs.enemy_percent.label().into()),
         Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
         Knob::EnemyCompass => (lbl("ENEMY COMPASS"), on_off(c.prefs.enemy_compass)),
@@ -627,6 +663,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::AmbienceVol => (lbl("  AMBIENCE"), format!("{:.0}%", s.audio.ambience * 100.0)),
         Knob::FeedbackVol => (lbl("  HIT FEEDBACK"), format!("{:.0}%", s.audio.feedback * 100.0)),
         Knob::MusicStyle => (lbl("MUSIC STYLE"), s.audio.music_style.label().into()),
+        Knob::FranchiseThemes => (lbl("FRANCHISE THEMES"), on_off(s.audio.franchise_themes)),
         Knob::NightMode => (lbl("REDUCED DYNAMIC RANGE"), on_off(s.audio.night_mode)),
         Knob::Mono => (lbl("MONO AUDIO"), on_off(s.audio.mono)),
         Knob::Voice => (lbl("VOICE CASTING"), on_off(c.prefs.voice)),
@@ -646,6 +683,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             MapKind::Lair => "TURTLE LAIR".into(),
             MapKind::GiantsRoom => "GIANT'S ROOM".into(),
             MapKind::Hyperline => "HYPERLINE".into(),
+            MapKind::Lookout => "THE LOOKOUT".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -670,6 +708,13 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         }),
         Knob::Powerups => (lbl("POWER-UPS"), on_off(r.powerups)),
         Knob::RepeatCost => (lbl("REPEATS COST MORE"), on_off(r.repeat_cost)),
+        Knob::ActiveLimit => (lbl("TOTAL LIMIT"), if r.active_limit == 0 { "OFF".into() } else { r.active_limit.to_string() }),
+        Knob::FirstCall => (lbl("FIRST CALL"), on_off(r.first_call)),
+        Knob::Burn => (lbl("BURN ON DEATH"), match r.burn {
+            bd_sim::first_call::BurnScope::Off => "OFF".into(),
+            bd_sim::first_call::BurnScope::Named => "NAMED".into(),
+            bd_sim::first_call::BurnScope::Everything => "EVERYTHING".into(),
+        }),
         Knob::Limit(l) => {
             let mut lim = r.limits;
             (lbl(l.label()), lim_text(*l.get(&mut lim)))
@@ -707,6 +752,14 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::PoolCommon => (lbl("COMMON CARDS"), on_off(pa.pool_common)),
         Knob::PoolLegend => (lbl("LEGENDARY CARDS"), on_off(pa.pool_legendary)),
         Knob::PoolCursed => (lbl("CURSED CARDS"), on_off(pa.pool_cursed)),
+        Knob::VoteChoices => (lbl("MAP CHOICES"), if g.vote.choices == 0 { "ALL".into() } else { g.vote.choices.to_string() }),
+        Knob::VoteRandom => (lbl("RANDOM OPTION"), on_off(g.vote.random)),
+        Knob::VoteHidden => (lbl("HIDE VOTES UNTIL YOU VOTE"), on_off(g.vote.hidden)),
+        Knob::VoteLocked => (lbl("LOCK VOTES"), on_off(g.vote.locked)),
+        Knob::VotePool(i) => {
+            let name = crate::net::proto::NetMapKind::ALL.get(i as usize).map_or("?", |k| k.name());
+            (format!("  {name}"), on_off(g.vote.pool_off & (1 << i) == 0))
+        }
         Knob::Corps => (lbl("CORPS"), c.prefs.corps.name().to_uppercase()),
         Knob::Variant => {
             // Character looks have their own variant count (blindfold / sunglasses / eyes…).
@@ -777,6 +830,14 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::CrosshairGauge => {
             c.prefs.crosshair_gauge = !c.prefs.crosshair_gauge;
+            game = false;
+        }
+        Knob::AutoBind => {
+            c.prefs.auto_bind = !c.prefs.auto_bind;
+            game = false;
+        }
+        Knob::ClickToConfirm => {
+            c.prefs.click_to_confirm = !c.prefs.click_to_confirm;
             game = false;
         }
         Knob::EnemyPercent => {
@@ -874,6 +935,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             s.audio.music_style = s.audio.music_style.next(dir);
             game = false;
         }
+        Knob::FranchiseThemes => {
+            s.audio.franchise_themes = !s.audio.franchise_themes;
+            game = false;
+        }
         Knob::NightMode => {
             s.audio.night_mode = !s.audio.night_mode;
             game = false;
@@ -899,7 +964,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair, MapKind::GiantsRoom, MapKind::Hyperline], map_of(c.prefs), dir);
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair, MapKind::GiantsRoom, MapKind::Hyperline, MapKind::Lookout], map_of(c.prefs), dir);
             c.prefs.map = match m {
                 MapKind::Miami => "miami",
                 MapKind::Orbit => "orbit",
@@ -913,6 +978,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
                 MapKind::Lair => "lair",
                 MapKind::GiantsRoom => "giant",
                 MapKind::Hyperline => "train",
+                MapKind::Lookout => "lookout",
                 _ => "arena",
             }
             .into();
@@ -923,7 +989,8 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
                 Some(p) => cycle(&Preset::ALL, p, dir),
                 None => Preset::Classic,
             };
-            *g = GameSettings::preset(next);
+            let vote = g.vote.clone();
+            *g = GameSettings { vote, ..GameSettings::preset(next) };
         }
         Knob::Mode => g.mode = if g.mode == SimMode::Party { SimMode::Ffa } else { SimMode::Party },
         Knob::Scale => g.rules.scale = cycle(&[ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits], g.rules.scale, dir),
@@ -935,6 +1002,12 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Caps => g.rules.limits = if g.rules.limits == ConstructLimits::default() { ConstructLimits::chaos() } else { ConstructLimits::default() },
         Knob::Powerups => g.rules.powerups = !g.rules.powerups,
         Knob::RepeatCost => g.rules.repeat_cost = !g.rules.repeat_cost,
+        Knob::ActiveLimit => g.rules.active_limit = cycle(&bd_sim::limit::LIMIT_VALUES, g.rules.active_limit, dir),
+        Knob::FirstCall => g.rules.first_call = !g.rules.first_call,
+        Knob::Burn => {
+            use bd_sim::first_call::BurnScope as B;
+            g.rules.burn = cycle(&[B::Off, B::Named, B::Everything], g.rules.burn, dir)
+        }
         Knob::Limit(l) => {
             let v = l.get(&mut g.rules.limits);
             *v = l.step(*v, dir);
@@ -975,6 +1048,18 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::PoolCommon => g.party.pool_common = !g.party.pool_common,
         Knob::PoolLegend => g.party.pool_legendary = !g.party.pool_legendary,
         Knob::PoolCursed => g.party.pool_cursed = !g.party.pool_cursed,
+        Knob::VoteChoices => g.vote.choices = cycle(&VOTE_CHOICES, g.vote.choices, dir),
+        Knob::VoteRandom => g.vote.random = !g.vote.random,
+        Knob::VoteHidden => g.vote.hidden = !g.vote.hidden,
+        Knob::VoteLocked => g.vote.locked = !g.vote.locked,
+        Knob::VotePool(i) => {
+            let all = (1u32 << crate::net::proto::NetMapKind::ALL.len()) - 1;
+            let off = g.vote.pool_off ^ (1 << i);
+            // The pool never empties: the last map stays in.
+            if off & all != all {
+                g.vote.pool_off = off;
+            }
+        }
         Knob::Corps => {
             c.prefs.corps = cycle(&Corps::ALL, c.prefs.corps, dir);
             game = false;
@@ -1120,11 +1205,12 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MenuState>()
+            .init_resource::<widgets::MenuNav>()
             .add_systems(OnEnter(AppState::Menu), enter_menu)
             .add_systems(OnExit(AppState::Menu), |mut m: ResMut<MenuState>| m.rebuild = true)
             .add_systems(
                 Update,
-                (toggle_pause, net_pages, menu_input, menu_mouse, push_profile, rebuild_menu, style_rows, animate_title)
+                (toggle_pause, net_pages, menu_input, widgets::menu_mouse, widgets::restore_focus, push_profile, rebuild_menu, style_rows, widgets::style_controls, animate_title)
                     .chain()
                     .after(crate::lobby::UiSet::Input)
                     .run_if(not(in_state(AppState::Loading))),
@@ -1297,11 +1383,10 @@ fn activate(row: Row, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
     match row {
         Row::Button(a, _) => act(a, menu, io, state),
         Row::Value(k) => {
-            let game = step_knob(k, &mut io.ctx(in_game), 1, false);
-            if game && io.net.as_ref().is_some_and(|n| n.role == NetRole::Host) {
-                io.req.write(NetRequest::SetSettings(io.prefs.game.clone()));
+            // MENU FEEL: toggles flip, segmented / pickers advance, a slider just takes focus.
+            if let Some(game) = widgets::activate_value(k, &mut io.ctx(in_game)) {
+                widgets::changed(menu, io, game);
             }
-            menu.rebuild = true;
         }
         Row::Text(Field::JoinCode) => act(Act::Connect, menu, io, state),
         Row::Text(_) => {
@@ -1513,6 +1598,8 @@ fn menu_input(
     state: Res<State<AppState>>,
     mut menu: ResMut<MenuState>,
     mut io: MenuIo,
+    mut nav: ResMut<widgets::MenuNav>,
+    pads: Query<&Gamepad>,
 ) {
     if !menu_open(state.get(), &io.pause) {
         typed.clear();
@@ -1631,18 +1718,21 @@ fn menu_input(
         typed.clear();
     }
 
-    let up = keys.just_pressed(KeyCode::ArrowUp) || (!typing && keys.just_pressed(KeyCode::KeyW));
-    let down = keys.just_pressed(KeyCode::ArrowDown) || (!typing && keys.just_pressed(KeyCode::KeyS)) || keys.just_pressed(KeyCode::Tab);
-    let left = keys.just_pressed(KeyCode::ArrowLeft) || (!typing && keys.just_pressed(KeyCode::KeyA));
-    let right = keys.just_pressed(KeyCode::ArrowRight) || (!typing && keys.just_pressed(KeyCode::KeyD));
+    // MENU FEEL: held arrows / WASD / d-pad repeat (accelerating); key use takes focus from the mouse.
+    let intent = nav.keys.read(&keys, &pads, typing, time.delta_secs());
+    let (up, down, left, right) = (intent.up > 0, intent.down > 0, intent.left > 0, intent.right > 0);
     let alt = keys.any_pressed([KeyCode::AltLeft, KeyCode::AltRight]);
-    let enter = !alt && (keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::NumpadEnter) || (!typing && keys.just_pressed(KeyCode::Space)));
+    let enter = intent.pad_confirm || !alt && (keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::NumpadEnter) || (!typing && keys.just_pressed(KeyCode::Space)));
     let fine = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+    let esc = (keys.just_pressed(KeyCode::Escape) && menu.page != MenuPage::Pause) || intent.pad_back;
+    if intent.any() || enter || esc {
+        nav.arb.key_nav();
+    }
 
     // Settings tabs: Q / E anywhere on the page, ←/→ on the tab strip.
     if menu.page == MenuPage::Settings && !typing {
         let on_strip = current == Row::Tabs;
-        let d = (keys.just_pressed(KeyCode::KeyE) || (on_strip && right)) as i32 - (keys.just_pressed(KeyCode::KeyQ) || (on_strip && left)) as i32;
+        let d = (keys.just_pressed(KeyCode::KeyE) || (on_strip && right)) as i32 - (keys.just_pressed(KeyCode::KeyQ) || (on_strip && left)) as i32 + intent.pad_tab;
         if d != 0 {
             menu.set_tab(menu.tab.step(d));
             io.sfx.write(PlaySfx::new("ui_move"));
@@ -1650,29 +1740,39 @@ fn menu_input(
         }
     }
 
-    if up {
-        menu.cursor = next_selectable(&rows, menu.cursor, -1);
-        io.sfx.write(PlaySfx::new("ui_move"));
+    // A fresh press wraps at the list ends; a held key stops there.
+    for _ in 0..intent.up {
+        let n = next_selectable(&rows, menu.cursor, -1);
+        if intent.held_v && n > menu.cursor {
+            break;
+        }
+        menu.cursor = n;
     }
-    if down {
-        menu.cursor = next_selectable(&rows, menu.cursor, 1);
+    for _ in 0..intent.down {
+        let n = next_selectable(&rows, menu.cursor, 1);
+        if intent.held_v && n < menu.cursor {
+            break;
+        }
+        menu.cursor = n;
+    }
+    if up || down {
         io.sfx.write(PlaySfx::new("ui_move"));
     }
     if (left || right)
         && let Row::Value(k) = current
     {
-        let game = step_knob(k, &mut io.ctx(in_game), if right { 1 } else { -1 }, fine);
-        if game && io.net.as_ref().is_some_and(|n| n.role == NetRole::Host) {
-            io.req.write(NetRequest::SetSettings(io.prefs.game.clone()));
+        // MENU FEEL: per control (toggle → on / ← off, segments stop at the ends); held = faster.
+        let (dir, fires) = if right { (1, intent.right) } else { (-1, intent.left) };
+        if let Some(game) = widgets::nudge(k, &mut io.ctx(in_game), dir, fine, fires * nav.keys.slide_boost()) {
+            widgets::changed(menu, &mut io, game);
+            io.sfx.write(PlaySfx::new("ui_move"));
         }
-        menu.rebuild = true;
-        io.sfx.write(PlaySfx::new("ui_move"));
     }
     if enter {
         activate(current, menu, &mut io, state.get());
         io.sfx.write(PlaySfx::new("ui_select"));
     }
-    if keys.just_pressed(KeyCode::Escape) && menu.page != MenuPage::Pause {
+    if esc {
         back(menu, state.get(), &mut io.pause);
         io.sfx.write(PlaySfx::new("ui_back"));
     }
@@ -1681,60 +1781,6 @@ fn menu_input(
     }
     // Blinking caret on text rows.
     if typing && ((menu.caret_t * 2.0) as i32) != (((menu.caret_t - time.delta_secs()) * 2.0) as i32) {
-        menu.rebuild = true;
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn menu_mouse(
-    tabs_q: Query<(&Interaction, &TabButton), Changed<Interaction>>,
-    rows_q: Query<(&Interaction, &MenuRow), Changed<Interaction>>,
-    all_rows: Query<(&Interaction, &MenuRow)>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    scroll: Res<AccumulatedMouseScroll>,
-    state: Res<State<AppState>>,
-    costume_view: Option<Res<crate::lobby::costume_view::CostumeView>>,
-    mut menu: ResMut<MenuState>,
-    mut io: MenuIo,
-) {
-    if !menu_open(state.get(), &io.pause) || menu.capture.is_some() {
-        return;
-    }
-    let in_game = *state.get() == AppState::InGame;
-    let menu = &mut *menu;
-    for (i, t) in &tabs_q {
-        if *i == Interaction::Pressed && menu.page == MenuPage::Settings && menu.tab != t.0 {
-            menu.set_tab(t.0);
-            io.sfx.write(PlaySfx::new("ui_select"));
-            return;
-        }
-    }
-    let rows = io.rows(menu.page, menu.tab, in_game);
-    // Over the costume preview the wheel zooms the model instead (`lobby::costume_view`).
-    let wheel_on_preview = menu.page == MenuPage::Costume && costume_view.is_some_and(|v| v.pointer_on_preview);
-    if scroll.delta.y.abs() > 0.0 && rows.len() > MAX_VISIBLE && !wheel_on_preview {
-        let d = if scroll.delta.y > 0.0 { -1 } else { 1 };
-        menu.cursor = next_selectable(&rows, menu.cursor, d);
-        menu.rebuild = true;
-    }
-    for (i, row) in &rows_q {
-        if matches!(i, Interaction::Hovered | Interaction::Pressed) && row.0 < rows.len() && rows[row.0].selectable() && menu.cursor != row.0 {
-            menu.cursor = row.0;
-        }
-    }
-    let hovered = all_rows.iter().find(|(i, _)| matches!(i, Interaction::Hovered | Interaction::Pressed)).map(|(_, r)| r.0);
-    let Some(idx) = hovered else { return };
-    let Some(&row) = rows.get(idx) else { return };
-    if mouse.just_pressed(MouseButton::Left) {
-        activate(row, menu, &mut io, state.get());
-        io.sfx.write(PlaySfx::new("ui_select"));
-    } else if mouse.just_pressed(MouseButton::Right)
-        && let Row::Value(k) = row
-    {
-        let game = step_knob(k, &mut io.ctx(in_game), -1, false);
-        if game && io.net.as_ref().is_some_and(|n| n.role == NetRole::Host) {
-            io.req.write(NetRequest::SetSettings(io.prefs.game.clone()));
-        }
         menu.rebuild = true;
     }
 }
@@ -1830,7 +1876,7 @@ fn animate_title(menu: Res<MenuState>, prefs: Res<UiPrefs>, mut q: Query<(&Title
 }
 
 #[allow(clippy::too_many_arguments)]
-fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: MenuIo, state: Res<State<AppState>>, roots: Query<Entity, With<MenuRoot>>) {
+fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: MenuIo, state: Res<State<AppState>>, roots: Query<Entity, With<MenuRoot>>, nav: Res<widgets::MenuNav>) {
     let open = menu_open(state.get(), &io.pause);
     if !menu.rebuild && (open == !roots.is_empty()) {
         return;
@@ -1856,15 +1902,7 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
     let pinned = rows.first() == Some(&Row::Tabs);
     let lo = usize::from(pinned);
     let vis = MAX_VISIBLE - lo;
-    let cur = menu.cursor.max(lo);
-    menu.scroll = menu.scroll.max(lo);
-    if cur < menu.scroll {
-        menu.scroll = cur.saturating_sub(1).max(lo);
-    }
-    if cur >= menu.scroll + vis {
-        menu.scroll = cur + 1 - vis;
-    }
-    menu.scroll = menu.scroll.min(n.saturating_sub(vis).max(lo));
+    menu.scroll = nav::follow(menu.cursor, menu.scroll, n, vis, lo);
     let (from, to) = (menu.scroll, (menu.scroll + vis).min(n));
     let tab = menu.tab;
     let corps = crate::console::corps_color(io.prefs.corps);
@@ -1991,6 +2029,7 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                     ));
                     continue;
                 }
+                let mut control = None;
                 let (label, value): (String, Option<String>) = match *row {
                     Row::Button(_, l) => (l.to_string(), None),
                     Row::Value(k) => {
@@ -1999,6 +2038,7 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                         let mut p = prefs_snapshot.clone();
                         let c = Ctx { settings: &mut s, prefs: &mut p, net, voice: ctx_voice, in_game };
                         let (l, v) = knob_text(k, &c);
+                        control = Some((k, widgets::classify(k, &c)));
                         (l, Some(v))
                     }
                     Row::Text(f) => {
@@ -2026,8 +2066,9 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                     MenuRow(i),
                     Button,
                     Node {
-                        width: px(if wide { 560.0 } else { 360.0 }),
+                        width: px(if wide { 600.0 } else { 360.0 }),
                         height: px(if wide { 31.0 } else { 40.0 }),
+                        padding: UiRect::left(px(nav.row_pad(page, tab, menu_ref.cursor, i))),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
                         column_gap: px(14),
@@ -2049,13 +2090,18 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                     }
                     if let Some(v) = value {
                         let corps_value = matches!(row, Row::Value(Knob::Corps));
-                        r.spawn((
-                            RowValue(i),
-                            Text::new(v),
-                            TextFont::from_font_size(if wide { 20.0 } else { 22.0 }),
-                            TextColor(if corps_value { crate::console::corps_color(prefs_snapshot.corps) } else { Color::srgba(1.0, 1.0, 1.0, 0.55) }),
-                            Node { flex_grow: if text_row { 1.0 } else { 0.0 }, ..default() },
-                        ));
+                        let color = if corps_value { crate::console::corps_color(prefs_snapshot.corps) } else { Color::srgba(1.0, 1.0, 1.0, 0.55) };
+                        if let Some((k, ctl)) = &control {
+                            widgets::spawn_control(r, i, *k, ctl, v, color, glow);
+                        } else {
+                            r.spawn((
+                                RowValue(i),
+                                Text::new(v),
+                                TextFont::from_font_size(if wide { 20.0 } else { 22.0 }),
+                                TextColor(color),
+                                Node { flex_grow: if text_row { 1.0 } else { 0.0 }, ..default() },
+                            ));
+                        }
                     }
                 });
             }
@@ -2256,11 +2302,11 @@ mod tests {
         let all: Vec<Row> = SettingsTab::ALL.into_iter().flat_map(|t| settings_rows(t, true)).collect();
         let knobs = [
             Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
-            Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::CrosshairGauge, Knob::EnemyPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
+            Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::CrosshairGauge, Knob::AutoBind, Knob::ClickToConfirm, Knob::EnemyPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
             Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Roll, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
             Knob::ReduceFlashes, Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::PortalViews, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
-            Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,
-            Knob::Voice, Knob::Ono, Knob::OnoLang, Knob::Shout,
+            Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::FranchiseThemes, Knob::NightMode,
+            Knob::Mono, Knob::Voice, Knob::Ono, Knob::OnoLang, Knob::Shout,
         ];
         for k in knobs {
             assert_eq!(all.iter().filter(|r| **r == Row::Value(k)).count(), 1, "{k:?}");
@@ -2283,6 +2329,10 @@ mod tests {
         let controls = page_rows(MenuPage::Settings, SettingsTab::Controls, &c);
         assert!(controls.contains(&Row::Key(Action::Unstick)));
         assert_eq!(KeyBinds::default().get(Action::Unstick), Bind::Unbound, "unbound by default");
+        // TAUNT & VOICE TELL: the taunt key is listed and on Y by default, clashing with nothing.
+        assert!(controls.contains(&Row::Key(Action::Taunt)));
+        assert_eq!(KeyBinds::default().get(Action::Taunt), Bind::Key(KeyCode::KeyY));
+        assert!(KeyBinds::default().conflicts().is_empty());
     }
 
     #[test]
@@ -2342,6 +2392,42 @@ mod tests {
         // Colossal only shows in no-limits lobbies.
         c.prefs.game.rules.scale = ScaleLimit::Normal;
         assert!(!page_rows(MenuPage::Rules, SettingsTab::Gameplay, &c).contains(&Row::Value(Knob::Limit(Lim::Colossal))));
+    }
+
+    /// NEXT MAP: the vote rules are host lobby knobs (step → the lobby settings, which the host
+    /// re-sends and the prefs persist); presets leave them alone; the pool never empties.
+    #[test]
+    fn next_map_rules_are_lobby_knobs() {
+        let mut s = Settings::default();
+        let mut p = UiPrefs::default();
+        let mut c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice: true, in_game: false };
+        let rows = page_rows(MenuPage::Rules, SettingsTab::Gameplay, &c);
+        let at = rows.iter().position(|r| *r == Row::Header("NEXT MAP")).expect("NEXT MAP section");
+        assert_eq!(rows[at + 1..at + 5], [Row::Value(Knob::VoteChoices), Row::Value(Knob::VoteRandom), Row::Value(Knob::VoteHidden), Row::Value(Knob::VoteLocked)]);
+        assert!(rows.contains(&Row::Value(Knob::VotePool(12))));
+        assert_eq!(knob_text(Knob::VoteChoices, &c).1, "2");
+        assert!(step_knob(Knob::VoteChoices, &mut c, 1, false), "a lobby rule");
+        assert_eq!(c.prefs.game.vote.choices, 3);
+        step_knob(Knob::VoteChoices, &mut c, 1, false);
+        step_knob(Knob::VoteChoices, &mut c, 1, false);
+        assert_eq!(knob_text(Knob::VoteChoices, &c).1, "ALL");
+        for k in [Knob::VoteRandom, Knob::VoteHidden, Knob::VoteLocked] {
+            assert_eq!(knob_text(k, &c).1, "ON", "{k:?} defaults on");
+            assert!(step_knob(k, &mut c, -1, false));
+            assert_eq!(knob_text(k, &c).1, "OFF");
+        }
+        // A preset changes the match, not the vote rules (and still reads as that preset).
+        let vote = c.prefs.game.vote.clone();
+        step_knob(Knob::Preset, &mut c, 1, false);
+        assert_eq!(c.prefs.game.vote, vote);
+        assert!(preset_of(&c.prefs.game).is_some());
+        // The pool: toggle maps out, but never the last one.
+        for i in 0..crate::net::proto::NetMapKind::ALL.len() as u8 {
+            step_knob(Knob::VotePool(i), &mut c, -1, false);
+        }
+        assert_eq!(crate::net::map_vote::pool(&c.prefs.game.vote).len(), 1, "the last map stays in");
+        let last = crate::net::proto::NetMapKind::ALL.len() as u8 - 1;
+        assert_eq!(knob_text(Knob::VotePool(last), &c).1, "ON");
     }
 
     #[test]

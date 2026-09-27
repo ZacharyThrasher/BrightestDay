@@ -517,6 +517,14 @@ impl World {
     }
 
     fn fire_step(&mut self, i: usize, step: ToolStep, aim: Option<Aim>) -> Result<(), PowerError> {
+        // FIRST CALL HOOK: a claimed / burned thing fires as its rival / echo version (no-op while off)
+        let (step, gate) = self.call_step(i, step);
+        let r = self.fire_step_plain(i, step, aim);
+        self.call_done(gate, r.is_ok());
+        r
+    }
+
+    fn fire_step_plain(&mut self, i: usize, step: ToolStep, aim: Option<Aim>) -> Result<(), PowerError> {
         let player = self.players[i].id;
         let r = match step {
             ToolStep::Held(sel) => {
@@ -607,6 +615,12 @@ impl World {
         if mv.ops.iter().all(|o| matches!(o, MoveOp::Transform | MoveOp::Tier(_))) {
             return Err(PowerError::NoSuchMove);
         }
+        // TRANSFORMERS FEEL: seated in a transformer, the move is the ROBOT's ("optimus prime combo",
+        // "ion blaster": `constructs::brawl::order_for_move`).
+        if let Some(r) = self.pilot_move(i, mr, mv, kit) {
+            return r;
+        }
+        let p = &self.players[i];
         // a Lockout (hack / silence) locks borrowed moves too
         if p.status.stunned() || p.oath.reciting() || p.charge.active || p.seat.is_some_and(|s| !s.suit) || self.locked_at(i) {
             return Err(PowerError::Busy);
@@ -662,6 +676,53 @@ impl World {
         let (secs, land) = active_phase(mv);
         self.set_active(i, secs, land);
         Ok(())
+    }
+
+    /// TRANSFORMERS FEEL: a move said while seated in a transformer becomes a robot order
+    /// (`constructs::brawl::order`): a cockpit pilot's every move; a suit wearer's combos and
+    /// ultimates (the rest fire from your own body — you ARE the transformer). Free (the robot's own
+    /// moveset), but the move's cooldown applies; `Fired` still plays its title / juice. None = not
+    /// seated in a transformer (the normal rules apply).
+    fn pilot_move(&mut self, i: usize, mr: MoveRef, mv: &'static MoveDef, kit: bool) -> Option<Result<(), PowerError>> {
+        use crate::constructs::brawl::{self, Order};
+        let p = &self.players[i];
+        let seat = p.seat?;
+        let o = brawl::order_for_move(mv);
+        if seat.suit && !matches!(o, Order::Combo | Order::Super) {
+            return None;
+        }
+        if !self.constructs.get(seat.construct).is_some_and(|c| c.gone.is_none() && c.has(bd_core::mechanics::Mechanic::Transforms)) {
+            return None;
+        }
+        if p.status.stunned() || self.locked_at(i) {
+            return Some(Err(PowerError::Busy));
+        }
+        if p.power.toolbox.cd_of(mr).is_some_and(|c| c.left > 0.0) {
+            return Some(Err(PowerError::Cooldown));
+        }
+        let c = self.constructs.get_mut(seat.construct)?;
+        if !brawl::order(c, o) {
+            return None;
+        }
+        let busy = brawl::order_secs(c, o, &self.cfg.tuning.transformer);
+        let from = c.center();
+        let player = self.players[i].id;
+        let (_, dir) = self.eye_look(i);
+        let cd = mv.cooldown * effects::cooldown_mult(&self.players[i].power);
+        let p = &mut self.players[i];
+        let slot = p.power.toolbox.slot_for(mr);
+        slot.uses = 1;
+        slot.left = cd;
+        slot.full = cd.max(0.05);
+        slot.since = 0.0;
+        let step = p.power.toolbox.fired;
+        let how = if kit { FireHow::Kit } else { FireHow::Borrowed };
+        let op = mv.ops.iter().find(|o| !matches!(o, MoveOp::Transform | MoveOp::Tier(_))).map_or(OpKind::Other, op_kind);
+        let element = move_element(mv);
+        self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: mr, how, op, element, from, to: from, dir, step, sparks: 0 }));
+        // A chain's next step waits for the robot to finish this one.
+        self.set_active(i, busy, false);
+        Some(Ok(()))
     }
 
     /// The `Fired` event of a held move (called by `power_move_inner` after it ran).

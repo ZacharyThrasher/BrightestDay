@@ -178,10 +178,12 @@ pub enum Action {
     Dodge,
     /// UNSTICK: to the safest spawn (also in the Esc menu). Unbound by default.
     Unstick,
+    /// TAUNT: tap = the next wordless taunt (flex, beckon, shrug, bow), hold = dance (`bd_sim::taunt`).
+    Taunt,
 }
 
 impl Action {
-    pub const ALL: [Action; 29] = [
+    pub const ALL: [Action; 30] = [
         Action::Forward,
         Action::Back,
         Action::Left,
@@ -211,6 +213,7 @@ impl Action {
         Action::AltFire,
         Action::Dodge,
         Action::Unstick,
+        Action::Taunt,
     ];
     pub const COUNT: usize = Self::ALL.len();
 
@@ -249,6 +252,7 @@ impl Action {
             Action::AltFire => "alt_fire",
             Action::Dodge => "dodge",
             Action::Unstick => "unstick",
+            Action::Taunt => "taunt",
         }
     }
 
@@ -283,6 +287,7 @@ impl Action {
             Action::AltFire => "ALT FIRE (GUNS)",
             Action::Dodge => "DODGE",
             Action::Unstick => "UNSTICK",
+            Action::Taunt => "TAUNT (TAP / HOLD = DANCE)",
         }
     }
 
@@ -339,6 +344,8 @@ impl Action {
             Action::Dodge => K::AltLeft,
             // UNSTICK: an escape hatch, not a combat key — nothing by default.
             Action::Unstick => return Bind::Unbound,
+            // TAUNT: Y — free, off the combat keys but a finger's reach from the movement hand.
+            Action::Taunt => K::KeyY,
         })
     }
 }
@@ -547,7 +554,13 @@ impl Default for CostumePref {
 pub struct UiPrefs {
     pub name: String,
     pub corps: Corps,
+    /// POWER HOTBAR: keys 1–4 (`crate::hotbar`) — each slot's phrase (a move or a construct).
     pub loadout: [String; 4],
+    /// POWER HOTBAR: pinned slots (auto-bind never replaces them).
+    pub loadout_pins: [bool; 4],
+    /// POWER HOTBAR: a move you SAY (the host confirmed it fired) goes onto the 1–4 bar
+    /// (Settings → Gameplay → AUTO-BIND POWERS; on by default: it only adds convenience).
+    pub auto_bind: bool,
     pub costume: CostumePref,
     pub voice: bool,
     pub third_person: bool,
@@ -567,6 +580,14 @@ pub struct UiPrefs {
     pub enemy_percent: EnemyPercent,
     /// Off-screen summon ping shows a tiny preview window of the construct (off = arrow only).
     pub summon_preview: bool,
+    /// CLICK TO CONFIRM (gameplay; off by default): a committed phrase (Enter / end of an utterance /
+    /// a quick-cast slot) projects a translucent ghost of what it will do and cost; primary click —
+    /// or a spoken / typed confirm word — makes it real, secondary click / Esc / a new phrase drops
+    /// it (`console::confirm`). Client-side only: the sim sees the confirmed command alone.
+    pub click_to_confirm: bool,
+    /// The small word list that confirms a pending ghost, said or typed as the whole line ("go",
+    /// "do it"…; `console::confirm::is_confirm_word` normalises case / punctuation).
+    pub confirm_words: Vec<String>,
     /// TRACKING: the enemy compass strip at the top of the screen (`present::tracking`).
     pub enemy_compass: bool,
     /// Player outlines (present::outline): on/off, width multiplier (0.5–2), colour-blind patterns.
@@ -592,6 +613,8 @@ impl Default for UiPrefs {
             name: "Lantern".into(),
             corps: Corps::Willpower,
             loadout: ["hammer".into(), "shield".into(), "wings".into(), "rocket launcher".into()],
+            loadout_pins: [false; 4],
+            auto_bind: true,
             costume: CostumePref::default(),
             voice: true,
             third_person: false,
@@ -603,6 +626,8 @@ impl Default for UiPrefs {
             crosshair_gauge: true,
             enemy_percent: EnemyPercent::NearCrosshair,
             summon_preview: true,
+            click_to_confirm: false,
+            confirm_words: crate::console::confirm::DEFAULT_WORDS.iter().map(|w| w.to_string()).collect(),
             enemy_compass: true,
             outlines: true,
             outline_width: 1.0,
@@ -913,6 +938,8 @@ mod tests {
         assert!(p.third_person && !p.voice);
         assert_eq!(p.shout, ShoutPref::On);
         assert!(p.outlines && p.summon_preview && p.enemy_compass);
+        assert!(!p.click_to_confirm, "click to confirm is off unless chosen");
+        assert_eq!(p.confirm_words, UiPrefs::default().confirm_words);
         assert!(p.crosshair_gauge && p.enemy_percent == EnemyPercent::NearCrosshair);
         assert_eq!(p.camera, crate::present::camera3p::CameraPrefs::default());
         let kb = KeyBinds::from_map(&p.binds);
@@ -929,6 +956,8 @@ mod tests {
         p.crosshair_gauge = false;
         p.enemy_percent = EnemyPercent::All;
         p.summon_preview = false;
+        p.click_to_confirm = true;
+        p.confirm_words = vec!["engage".into(), "do it".into()];
         p.enemy_compass = false;
         p.outlines = false;
         p.outline_width = 1.75;
@@ -948,6 +977,26 @@ mod tests {
         let back: UiPrefs = ron::from_str(&t).unwrap();
         assert_eq!(p, back);
         assert_eq!(KeyBinds::from_map(&back.binds), kb);
+    }
+
+    /// POWER HOTBAR: a save from before the hotbar (plain construct phrases, no pins / auto-bind)
+    /// loads its phrases unchanged, unpinned, auto-bind on; the new fields round-trip.
+    #[test]
+    fn hotbar_prefs_migrate_and_roundtrip() {
+        let old = r#"(name: "Old", loadout: ("giant sword", "shield", "", "a dragon"))"#;
+        let p: UiPrefs = ron::from_str(old).unwrap();
+        assert_eq!(p.loadout, ["giant sword".to_string(), "shield".into(), String::new(), "a dragon".into()]);
+        assert_eq!(p.loadout_pins, [false; 4]);
+        assert!(p.auto_bind, "on by default");
+        let bar = crate::hotbar::Hotbar::from_prefs(&p.loadout, &p.loadout_pins);
+        assert_eq!(bar.slots[0].phrase, "giant sword");
+        assert!(bar.slots[2].is_empty());
+        let mut q = p.clone();
+        q.loadout[1] = "reinhardt ultimate".into();
+        q.loadout_pins = [false, true, false, false];
+        q.auto_bind = false;
+        let t = ron::ser::to_string_pretty(&q, Default::default()).unwrap();
+        assert_eq!(ron::from_str::<UiPrefs>(&t).unwrap(), q);
     }
 
     #[test]

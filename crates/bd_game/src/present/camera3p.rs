@@ -431,6 +431,90 @@ fn player_hulls(views: &WorldViews, out: &mut Vec<(Vec3, Vec3)>) {
     }
 }
 
+// ------------------------------------------------------------------------------------ piloting framing
+
+fn id_local(a: &ActiveWorld) -> PlayerId {
+    a.local.unwrap_or(PlayerId(u8::MAX))
+}
+
+/// Does the segment `a`→`b` pass through the box `[lo, hi]` (slab test)?
+fn segment_hits_box(a: Vec3, b: Vec3, lo: Vec3, hi: Vec3) -> bool {
+    let d = b - a;
+    let (mut t0, mut t1) = (0.0f32, 1.0f32);
+    for k in 0..3 {
+        let (o, v, l, h) = (a[k], d[k], lo[k], hi[k]);
+        if v.abs() < 1e-6 {
+            if o < l || o > h {
+                return false;
+            }
+            continue;
+        }
+        let (mut ta, mut tb) = ((l - o) / v, (h - o) / v);
+        if ta > tb {
+            std::mem::swap(&mut ta, &mut tb);
+        }
+        t0 = t0.max(ta);
+        t1 = t1.min(tb);
+        if t0 > t1 {
+            return false;
+        }
+    }
+    true
+}
+
+/// PILOTING FRAMING (TRANSFORMERS FEEL; owner: the fight must read in third person): the boom
+/// `(dist, side, up)` for a standing body with the nearest enemy in front of it kept VISIBLE —
+/// when the line from the camera to them would pass through your own robot, the boom slides
+/// further over the shoulder (then rises) until it clears (Devastation-style: your robot on the
+/// left third, the enemy at the centre-right). Lying bodies (vehicles) keep the chase boom.
+fn frame_fight(c: &bd_sim::constructs::Construct, eye: Vec3, look: &LookAngles, base: (f32, f32, f32), views: &WorldViews) -> (f32, f32, f32) {
+    let (dist, side, up) = base;
+    let h = c.half.y * 2.0;
+    if h < c.half.x.max(c.half.z) * 2.0 * 0.9 {
+        return base;
+    }
+    let b = c.bounds();
+    let pad = 0.25;
+    let (lo, hi) = (v3(b.min) - Vec3::splat(pad), v3(b.max) + Vec3::splat(pad));
+    let center = (lo + hi) * 0.5;
+    let rot = Quat::from_euler(EulerRot::YXZ, look.yaw, look.pitch, 0.0);
+    let fwd = rot * Vec3::NEG_Z;
+    let flat_fwd = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or_zero();
+    let r = rot * Vec3::X;
+    let right = Vec3::new(r.x, 0.0, r.z).normalize_or_zero();
+    let back = -fwd;
+    // The enemy that matters: the nearest living other player within ~24 m, in front of the view.
+    let mut target: Option<(f32, Vec3, f32)> = None;
+    for p in views.players.iter().filter(|p| !p.is_local && p.alive()) {
+        let s = p.size.max(0.2);
+        let mid = p.pos + Vec3::Y * 0.9 * s;
+        let d = mid - center;
+        let dist_t = Vec3::new(d.x, 0.0, d.z).length();
+        if dist_t > 24.0 || Vec3::new(d.x, 0.0, d.z).normalize_or_zero().dot(flat_fwd) < 0.2 {
+            continue;
+        }
+        if target.is_none_or(|t| dist_t < t.0) {
+            target = Some((dist_t, mid, 1.8 * s));
+        }
+    }
+    let Some((_, mid, tall)) = target else { return base };
+    let cam = |s: f32, u: f32| eye + right * s + Vec3::Y * (u + dist * 0.12) + back * dist;
+    let clear = |s: f32, u: f32| {
+        let p = cam(s, u);
+        // The body and the head of the target, and the point under them (their feet on the ground).
+        [mid, mid + Vec3::Y * tall * 0.45, mid - Vec3::Y * tall * 0.45].iter().all(|t| !segment_hits_box(p, *t, lo, hi))
+    };
+    let step = (0.22 * h).max(0.6);
+    for k in 0..10 {
+        let s = side + step * k as f32;
+        let u = up + if k >= 5 { (k - 4) as f32 * 0.12 * h } else { 0.0 };
+        if clear(s, u) {
+            return (dist, s, u);
+        }
+    }
+    (dist * 1.1, side + step * 5.0, up + 0.6 * h)
+}
+
 // ------------------------------------------------------------------------------------ systems
 
 #[allow(clippy::too_many_arguments)]
@@ -446,7 +530,7 @@ fn update_mode(
     comfort: Res<ComfortSettings>,
     prefs: Option<ResMut<UiPrefs>>,
     active: Option<Res<ActiveWorld>>,
-    views: Res<WorldViews>,
+    (views, look): (Res<WorldViews>, Res<LookAngles>),
     mut mode: ResMut<ViewMode>,
     mut st: ResMut<CamState>,
     mut rig: ResMut<CameraRig>,
@@ -497,10 +581,12 @@ fn update_mode(
             Some(c) => {
                 let h = c.half.y * 2.0;
                 let len = c.half.x.max(c.half.z) * 2.0;
-                if h >= len * 0.9 {
-                    ((1.6 * h).clamp(6.0, 22.0), c.half.x + 1.2, -0.3 * h)
-                } else {
-                    ((1.2 * len + 3.0).clamp(6.0, 24.0), 0.0, 0.6)
+                let base = if h >= len * 0.9 { ((1.6 * h).clamp(6.0, 22.0), c.half.x + 1.2, -0.3 * h) } else { ((1.2 * len + 3.0).clamp(6.0, 24.0), 0.0, 0.6) };
+                // FRAMING (TRANSFORMERS FEEL): never hide the fight behind your own robot.
+                let eye = views.player(id_local(a)).map(|v| v.pos + Vec3::Y * 1.6 * v.size.max(0.2));
+                match eye {
+                    Some(eye) => frame_fight(c, eye, &look, base, &views),
+                    None => base,
                 }
             }
             None => (8.0, 0.0, 1.0),
@@ -908,6 +994,7 @@ pub fn tutorial_view(sim: &PlayerSim, alpha: f32, (yaw, pitch): (f32, f32), corp
         hooks,
         seat: None,
         power: Default::default(),
+        tell: 0,
     }
 }
 

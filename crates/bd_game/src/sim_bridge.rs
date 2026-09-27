@@ -156,6 +156,10 @@ impl ActiveWorld {
     /// Apply one command for `player` to the authoritative world.
     pub fn apply_command(&mut self, player: PlayerId, cmd: Cmd) {
         let w = &mut self.world;
+        // TAUNT: any command (a cast, a power, dismiss…) is input — it ends a wordless taunt.
+        if let Some(p) = w.player_mut(player) {
+            p.taunt.stop();
+        }
         // TOOLBOX: a new cast / move stops a pending chain (the toolbox's own command replaces it).
         if matches!(cmd, Cmd::Cast { .. } | Cmd::PowerMove(..) | Cmd::Signature { .. }) {
             w.toolbox_interrupt(player);
@@ -206,6 +210,10 @@ impl ActiveWorld {
             Cmd::Unstick => {
                 w.request_unstick(player); // UNSTICK (host-validated: cooldown, damage lockout, queued)
             }
+            // POWER HOTBAR: DISMISS BY SLOT lets a held power go ("x → 3": Star Platinum)
+            Cmd::DropPower(power) => {
+                w.drop_power(player, power);
+            }
         }
     }
 }
@@ -255,6 +263,8 @@ pub enum Cmd {
     /// UNSTICK: move me to the safest spawn (Esc menu / bound key; `World::request_unstick` queues it
     /// behind the cooldown / damage lockout).
     Unstick,
+    /// POWER HOTBAR (DISMISS BY SLOT): let the held power go (table index; `World::drop_power`).
+    DropPower(u16),
 }
 
 /// Who issues a command.
@@ -333,6 +343,8 @@ pub struct PlayerView {
     pub hooks: [Option<Vec3>; 2],
     pub seat: Option<(ConstructId, u8)>,
     pub power: PowerSnap,
+    /// TAUNT & VOICE TELL: `bd_sim::taunt::tell` bits (the taunt playing, speaking a cast).
+    pub tell: u8,
 }
 
 impl PlayerView {
@@ -594,6 +606,7 @@ fn build_views(
             hooks: [hook(0), hook(1)],
             seat: b.seat.map(|(c, p)| (ConstructId(c), p)),
             power: b.power,
+            tell: b.tell, // TAUNT & VOICE TELL
         });
     }
     let tick16 = curr.tick as u16;

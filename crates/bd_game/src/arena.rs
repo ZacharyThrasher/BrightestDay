@@ -105,6 +105,9 @@ pub enum MapKind {
     /// Hyperline: an endless high-speed train chase (a static voxel train, the world streams past;
     /// the SLIPSTREAM wind; bd_voxel `generate_hyperline`, backdrop `present::hyperline`).
     Hyperline,
+    /// The Lookout: a white-tiled sky temple floating over a sea of clouds, Korin's tower below
+    /// (bd_voxel `generate_lookout`, clouds `present::lookout`; private-use Dragon Ball fan map).
+    Lookout,
 }
 
 impl MapKind {
@@ -124,6 +127,7 @@ impl MapKind {
             "lair" | "turtle_lair" | "tmnt" => Some(MapKind::Lair),
             "giant" | "giants_room" | "bedroom" => Some(MapKind::GiantsRoom),
             "train" | "hyperline" => Some(MapKind::Hyperline),
+            "lookout" | "the_lookout" | "kami" | "kamis_lookout" | "gods_temple" => Some(MapKind::Lookout),
             _ => None,
         }
     }
@@ -408,6 +412,26 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 tutorial: None,
                 arena: Some(info.clone()),
                 // Indoors: no sea; the sunbeam + dust are drawn by `present::giant`.
+                water_y: None,
+                water_color: None,
+                sun_color: Some(m.sun_color),
+                fog_end: Some(m.fog_end),
+                neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Lookout => {
+            let (world, m) = bd_voxel::generate_lookout(seed);
+            let info = m.arena.clone();
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                // No sea: the clouds far below are drawn by `present::lookout`.
                 water_y: None,
                 water_color: None,
                 sun_color: Some(m.sun_color),

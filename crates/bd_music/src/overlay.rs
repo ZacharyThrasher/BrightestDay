@@ -225,7 +225,7 @@ mod tests {
         let mut step = 0u8;
         for _ in 0..(48_000 * 4 / CONTROL) {
             let (mut l, mut r) = ([0.0f32; CONTROL], [0.0f32; CONTROL]);
-            let steps: Vec<(usize, u8)> = (0..CONTROL).filter(|i| (sample + i) % 6000 == 0).map(|i| (i, 0)).collect();
+            let steps: Vec<(usize, u8)> = (0..CONTROL).filter(|i| (sample + i).is_multiple_of(6000)).map(|i| (i, 0)).collect();
             let steps: Vec<(usize, u8)> = steps
                 .into_iter()
                 .map(|(i, _)| {

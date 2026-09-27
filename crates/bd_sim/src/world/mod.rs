@@ -187,6 +187,8 @@ pub struct World {
     pub interact: interactables::InteractState,
     /// POWER-UPS HOOK: map pickups + who carries what (`crate::pickups`; empty while the mode is off).
     pub pickups: crate::pickups::PickupWorld,
+    /// FIRST CALL HOOK: claims / burns / rival + echo marks (`crate::first_call`; empty while the rules are off).
+    pub first_call: crate::first_call::FirstCallWorld,
 }
 
 fn build_arena(src: ArenaSource) -> (VoxelWorld, ArenaInfo, u64) {
@@ -256,6 +258,7 @@ impl World {
             map_mech: Default::default(), // MAP MECH HOOK
             interact: interactables::InteractState::new(cfg.seed), // INTERACT HOOK
             pickups: Default::default(), // POWER-UPS HOOK
+            first_call: Default::default(), // FIRST CALL HOOK
             cfg,
         };
         w.map_mech_init(false); // MAP MECH HOOK: movers folded + space-bridge portals
@@ -398,6 +401,7 @@ impl World {
         }
         self.projectiles.retain(|p| !p.dead);
         self.remove_space_refs_player(id);
+        self.call_leave(id); // FIRST CALL HOOK: their claims are free again
         self.events.push(GameEvent::PlayerLeft { player: id });
         true
     }
@@ -477,6 +481,7 @@ impl World {
         self.push_players_apart(dt);
         self.solve_links(dt);
         self.step_unstick(dt); // UNSTICK: no-progress tracking + queued unstick requests (world/unstick.rs)
+        crate::taunt::step(self, dt); // TAUNT: wordless taunts (tap / hold, rate limit, any input cancels; no gameplay effect)
         self.check_out_of_bounds();
         self.record_history();
 
@@ -1134,6 +1139,7 @@ impl World {
     fn reset_round(&mut self) {
         self.powers_reset_round(); // POWERS HOOK: powers + fruits don't survive a new round
         self.pickups.reset(); // POWER-UPS HOOK: pickups don't survive a new round
+        self.first_call.reset(); // FIRST CALL HOOK: claims and burns last one match
         self.interact_reset(); // INTERACT HOOK: slot effects / jackpot luck end with the round
         self.constructs.clear();
         self.projectiles.clear();
@@ -1219,6 +1225,7 @@ impl World {
 
     pub(crate) fn ko_zone(&mut self, i: usize, killer: Option<PlayerId>, cause: crate::events::KoCause, zone: Option<crate::smash::BlastZone>) {
         self.powers_on_ko(i); // POWERS HOOK: power lost; a fruit respawns where you died
+        self.call_ko(i); // FIRST CALL HOOK: BURN ON DEATH burns what this life used (no-op while off)
         let live = self.match_state.live();
         let victim = self.players[i].id;
         let (victim_corps, pos, vel, yaw, victim_streak, pct) = {
@@ -1361,6 +1368,7 @@ impl World {
         p.input.yaw = (-to.x).atan2(-to.z);
         p.input.pitch = 0.0;
         self.events.push(GameEvent::Respawn { player: id, pos, shield });
+        self.call_respawn(i); // FIRST CALL HOOK: the ring sheds last life's ash (no-op while off)
     }
 
     /// Is `p` inside the arena bounds grown by `margin` (and above the void)?

@@ -142,6 +142,11 @@ pub struct FxParticles {
     budget: usize,
     dropped: usize,
     pub rng: FxRng,
+    /// Immediate scope ([`FxParticles::scope`]): a module's cap on the shared immediate region and
+    /// a distance floor for line / box thickness (camera, metres per metre of distance).
+    imm_limit: usize,
+    floor: Option<(Vec3, f32)>,
+    scope_dropped: usize,
 }
 
 impl Default for FxParticles {
@@ -158,6 +163,9 @@ impl Default for FxParticles {
             budget: 12_000,
             dropped: 0,
             rng: FxRng::new(0xB0D1),
+            imm_limit: IMM_CAP,
+            floor: None,
+            scope_dropped: 0,
         }
     }
 }
@@ -187,22 +195,57 @@ impl FxParticles {
 
     /// Place an immediate (this-frame-only) cube. `kind` must be [`PKind::Static`].
     #[inline]
-    pub fn immediate(&mut self, e: Emit) -> bool {
-        if self.imm.len() >= IMM_CAP {
+    pub fn immediate(&mut self, mut e: Emit) -> bool {
+        if self.imm.len() >= self.imm_limit {
+            self.scope_dropped += 1;
             return false;
+        }
+        if let Some((cam, k)) = self.floor {
+            e.size = e.size.max(e.pos.distance(cam) * k);
+            (e.size, e.emissive) = fade_thin(e.size, e.color, e.emissive);
         }
         self.imm.push(e.to_gpu(self.now));
         true
     }
 
+    /// Open an immediate SCOPE for one presentation module: at most `budget` more immediate cubes
+    /// this scope (so one module's burst of markers can't starve every other module's lines), and
+    /// every immediate line / box at least `px` × its distance from `cam` thick (≈ a pixel floor: a
+    /// 3 cm line at 40 m is sub-pixel). Close it with [`FxParticles::end_scope`].
+    pub fn scope(&mut self, cam: Vec3, px: f32, budget: usize) {
+        self.imm_limit = (self.imm.len() + budget).min(IMM_CAP);
+        self.floor = (px > 0.0 && cam.is_finite()).then_some((cam, px));
+        self.scope_dropped = 0;
+    }
+
+    /// Close the scope; returns how many immediate cubes it dropped over its budget.
+    pub fn end_scope(&mut self) -> usize {
+        self.imm_limit = IMM_CAP;
+        self.floor = None;
+        std::mem::take(&mut self.scope_dropped)
+    }
+
+    /// Immediate cubes left in the current scope (the whole region outside a scope).
+    pub fn imm_left(&self) -> usize {
+        self.imm_limit.saturating_sub(self.imm.len())
+    }
+
     /// Immediate oriented box: centre, rotation, full size per axis.
     #[inline]
     pub fn immediate_box(&mut self, centre: Vec3, rot: Quat, size: Vec3, color: [f32; 3], emissive: f32, flags: u32) -> bool {
-        if self.imm.len() >= IMM_CAP {
+        if self.imm.len() >= self.imm_limit {
+            self.scope_dropped += 1;
             return false;
         }
         let q = if rot.is_finite() { rot } else { Quat::IDENTITY };
         let c = if centre.is_finite() { centre } else { Vec3::ZERO };
+        let (size, emissive) = match self.floor {
+            Some((cam, k)) => {
+                let (f, em) = fade_thin(1.0, color, emissive);
+                (size.max(Vec3::splat(c.distance(cam) * k)) * f, em)
+            }
+            None => (size, emissive),
+        };
         self.imm.push(ParticleGpu {
             p0: [c.x, c.y, c.z, 1.0],
             v0: [q.x, q.y, q.z, q.w],
@@ -232,6 +275,20 @@ impl FxParticles {
     pub fn now(&self) -> f32 {
         self.now
     }
+}
+
+/// Immediate cubes are opaque and their colour is `color × emissive`, so a bright line FADED by its
+/// emissive goes black (the dark rings / black blocks at the end of a fade). Inside a scope a bright
+/// colour fading below 1 thins instead (area ≈ light), keeping its colour; deliberately dark colours
+/// (smoke, ink, a void core) keep their low emissive.
+#[inline]
+fn fade_thin(size: f32, color: [f32; 3], emissive: f32) -> (f32, f32) {
+    let bright = color[0].max(color[1]).max(color[2]);
+    if emissive >= 1.0 || bright < 0.3 || !emissive.is_finite() {
+        return (size, emissive);
+    }
+    let k = emissive.max(0.0);
+    (size * k.sqrt(), 1.0)
 }
 
 #[derive(Component)]

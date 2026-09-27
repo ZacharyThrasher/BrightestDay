@@ -259,6 +259,14 @@
          words: ["smoke", "smoky", "smokey", "sulfur", "sulphur", "brimstone", "bamf", "soot", "smog"]),
         (n: 64, id: "petal", kind: Style, title: "PETAL", element: Some(Wind), fx: "paper", color: Some((1.0, 0.7, 0.8)),
          words: ["petal", "petals", "flower", "floral", "blossom", "cherry blossom", "sakura", "rose", "paper", "origami", "cards", "card"]),
+        // ================================================================ FIRST CALL / BURN ON DEATH (wordless: never said)
+        // Put on by the host (bd_sim::first_call, assets/first_call.ron), never read from a phrase.
+        // RIVAL: someone else owns this thing — the same move, a touch quicker and lighter; the opposite
+        // element's modifier rides with it (the dark twin). No tier change: never pricier.
+        (n: 240, id: "rival", kind: Style, speed: 1.1, knockback: 0.9, words: []),
+        // ECHO: burned for you (BURN ON DEATH) — ashen, silent, weaker, one tier cheaper, same cooldown.
+        (n: 241, id: "echo", kind: Style, damage: 0.6, knockback: 0.6, size: 0.8, secs: 0.8, speed: 0.9, tier: -1,
+         color: Some((0.55, 0.52, 0.5)), silent: true, words: []),
     ],
 
     fusion: (

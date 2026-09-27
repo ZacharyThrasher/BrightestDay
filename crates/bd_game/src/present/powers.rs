@@ -15,6 +15,9 @@ mod dev;
 pub mod juice;
 pub mod movefx; // TOOLBOX PRESENTATION: the move presentation grammar (per op beats × style bodies, poses, sounds)
 pub mod op_visuals; // OP VISUALS: every generic-op event's beat (markers, telegraphs, tethers, strikes, auras)
+pub mod stand_ghost; // PRESENTATION POLISH: a borrowed Stand move shows the Stand's own model stepping out
+pub mod ultimate; // PRESENTATION POLISH: the ultimate frame (gather → element silhouette → aftermath)
+pub mod time_fx; // PRESENTATION POLISH: time stop / Witch Time moments (the bubble, the stopped world, the resume)
 
 use super::players::PlayerBody;
 use super::sound::Sfx3d;
@@ -52,12 +55,12 @@ pub struct PowersPlugin;
 impl Plugin for PowersPlugin {
     fn build(&self, app: &mut App) {
         dev::build(app);
-        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin, op_visuals::OpVisualsPlugin))
+        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin, op_visuals::OpVisualsPlugin, time_fx::TimeFxPlugin, stand_ghost::StandGhostPlugin, ultimate::UltimatePlugin))
             .init_resource::<SpaceEntities>()
             .init_resource::<TimeStopGrey>()
             .add_systems(Startup, setup)
             .add_systems(OnExit(AppState::InGame), clear)
-            .add_systems(Update, (power_events, sync_space, time_stop_grey).chain().in_set(PresentSet::Sync));
+            .add_systems(Update, (power_events, sync_space).chain().in_set(PresentSet::Sync));
     }
 }
 
@@ -172,12 +175,9 @@ fn power_events(
                     }
                 }
                 // Swapped: both ends flash + the linked arc (`movefx`).
-                PowerEvent::TimeStop { player, .. } => {
-                    if let Some(v) = views.player(*player) {
-                        burst.write(BurstFx { kind: BurstKind::Flash, pos: v.pos + Vec3::Y, dir: Vec3::Y, scale: 3.0, color: Some(corps_rgb(v.corps)) });
-                    }
-                    sfx.write(Sfx3d::ui("gun_railgun_charge").pitch(0.5).exempt());
-                }
+                // TimeStop: the whole moment (bubble, stopped world, sounds) is `time_fx`'s — a 3 m
+                // flash cube here filled the caster's own view.
+                PowerEvent::TimeStop { .. } => {}
                 PowerEvent::Transformed { player, .. } => {
                     if let Some(v) = views.player(*player) {
                         burst.write(BurstFx { kind: BurstKind::Shards, pos: v.pos + Vec3::Y, dir: Vec3::Y, scale: 1.6, color: Some(corps_rgb(v.corps)) });
@@ -353,6 +353,8 @@ fn sync_space(
     });
 }
 
+/// Superseded by [`time_fx`] (the bubble, the tinted stopped world, the resume kick); kept for A/B.
+#[allow(dead_code)]
 fn time_stop_grey(
     time: Res<Time<Real>>,
     views: Res<WorldViews>,

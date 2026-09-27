@@ -341,6 +341,15 @@ pub fn step_suit(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         c.held = s;
         return;
     }
+    // SMALL TRANSFORMERS (FEEL pass): you ARE the transformer. The suit fights with its archetype
+    // like a piloted one (strings, heavies, the blaster, transform attacks, voice orders); its
+    // body is YOUR body, so whatever the moveset does to the robot's velocity is handed to you.
+    if c.has(Mechanic::Transforms) {
+        if suit_transformer(c, &mut s, &pilot, env, out) {
+            c.held = s;
+            return;
+        }
+    }
     if s.transform_req {
         s.transform_req = false;
         toggle(c, &mut s, !pilot.grounded, -pilot.vel.y, env, out);
@@ -357,10 +366,106 @@ pub fn step_suit(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     } else if s.vehicle {
         ram(c, &mut s, &pilot, env, out);
         c.set_anim(AnimState::Move, env.tick());
+    } else if c.has(Mechanic::Transforms) {
+        suit_brawl(c, &mut s, &pilot, env, out);
     } else {
         suit_attacks(c, &mut s, &pilot, env, out);
     }
     c.held = s;
+}
+
+/// Hand the moveset's velocity change to the suit's wearer (the suit has no body of its own).
+fn push_wearer(c: &Construct, pilot: &PlayerView, out: &mut ConstructOut) {
+    let dv = c.vel - pilot.vel;
+    if dv.is_finite() && dv.length_squared() > 0.25 {
+        out.impulses.push((pilot.id, dv.clamp_length_max(60.0), 0.0));
+    }
+}
+
+/// A transformer suit's transform attack / voice-ordered burst. Returns true when it ran this tick
+/// (the caller skips the rest of the suit step).
+fn suit_transformer(c: &mut Construct, s: &mut HeldState, pilot: &PlayerView, env: &Env<'_>, out: &mut ConstructOut) -> bool {
+    use super::brawl;
+    let t = &env.ctx.tuning.transformer;
+    // Voice orders that need the other body first (vehicle mode): a burst straight from the
+    // vehicle, a boost, or a fast snap to robot for the rest.
+    if s.transform_t <= 0.0 && c.brawl.xatk == brawl::XPhase::None && s.vehicle && c.brawl.order != brawl::Order::None {
+        c.held = *s;
+        vehicle_order(c, env, out, pilot.look, pilot.vel);
+        *s = c.held;
+    }
+    let start = s.transform_req && s.transform_t <= 0.0 && ((!s.vehicle && brawl::wants_xattack(c)) || (s.vehicle && brawl::wants_burst_out(c, t)));
+    if !start && c.brawl.xatk == brawl::XPhase::None {
+        return false;
+    }
+    let again = s.transform_req && !start;
+    s.transform_req = false;
+    c.held = *s;
+    c.vel = pilot.vel;
+    c.grounded = pilot.grounded;
+    if start {
+        if c.held.vehicle {
+            brawl::burst_out(c, env, out, pilot.look);
+        } else {
+            brawl::start_xattack(c, env, out, pilot.look);
+        }
+    } else {
+        brawl::step_xattack(c, env, out, again, pilot.grounded);
+    }
+    push_wearer(c, pilot, out);
+    c.set_anim(if c.held.vehicle { AnimState::Move } else { AnimState::Active }, env.tick());
+    *s = c.held;
+    true
+}
+
+/// A transformer suit in robot mode: the archetype's moveset on your own body.
+fn suit_brawl(c: &mut Construct, s: &mut HeldState, pilot: &PlayerView, env: &Env<'_>, out: &mut ConstructOut) {
+    use super::brawl;
+    c.held = *s;
+    let mut bi = brawl::Input::of_pilot(&pilot.input, pilot.pressed, pilot.look, false);
+    // Your own dodge is the suit's boost-step (movement handles it; a dodged hit opens the
+    // counter: `World::apply_hit` → `brawl::open_counter`).
+    bi.dodge = false;
+    if pilot.busy {
+        bi = brawl::Input { aim: bi.aim, wish: bi.wish, ..brawl::Input::default() };
+    }
+    let order_x = brawl::run_order(c, env, &mut bi);
+    c.vel = pilot.vel;
+    c.grounded = pilot.grounded;
+    brawl::robot(c, env, out, &bi, pilot.grounded);
+    brawl::land(c, env, out, pilot.grounded);
+    push_wearer(c, pilot, out);
+    *s = c.held;
+    if order_x {
+        s.transform_req = true;
+    }
+    let moving = Vec3::new(pilot.vel.x, 0.0, pilot.vel.z).length_squared() > 1.0;
+    if c.anim_state != AnimState::Active {
+        c.set_anim(if moving { AnimState::Move } else { AnimState::Idle }, env.tick());
+    }
+}
+
+/// A voice order said while in VEHICLE mode (not a beast): "... super" bursts straight out of the
+/// vehicle into the transform attack, "... dash" is a boost, anything else snaps to robot first
+/// (a fast combat transform) and carries on there.
+fn vehicle_order(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, look: Vec3, vel: Vec3) {
+    use super::brawl::{self, Order};
+    match c.brawl.order {
+        Order::Super => {
+            c.brawl.order = Order::None;
+            brawl::start_xattack(c, env, out, look);
+        }
+        Order::Dash => {
+            c.brawl.order = Order::None;
+            let f = Vec3::new(c.forward().x, 0.0, c.forward().z).normalize_or(Vec3::NEG_Z);
+            let a = env.ctx.tuning.transformer.robot_row(c);
+            let burst = a.drift_boost.max(8.0);
+            c.vel = vel + f * burst;
+            fx(out, c, HeldFx::Thrust, c.center() - f * c.half.z, -f, 1.5);
+        }
+        Order::None => {}
+        _ => brawl::snap_robot(c, env, out),
+    }
 }
 
 /// Vehicle mode: running into enemies fast rams them (Charge).
@@ -627,14 +732,36 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     }
     tick_timers(&mut s, dt);
     s.third_person = true;
+    // BEAST MODES (FEEL pass): a transformer whose alt mode walks (a T-rex, a gorilla) fights in
+    // that mode too, with its archetype's `alt` row (bites, tail sweeps, breath, pounces, roars).
+    let tt = &env.ctx.tuning.transformer;
+    let beast_mode = c.has(Mechanic::Transforms) && s.vehicle && !(flies(c) || c.has(Mechanic::Thrust)) && !wheeled(c) && super::brawl::beast_alt(c, tt);
+    // VOICE ORDERS (`brawl::order`: "optimus prime combo", "ion blaster", "energon axe"…): this
+    // tick's scripted buttons. Vehicle mode first bursts / boosts / snaps to robot.
+    let mut bi = super::brawl::Input::of_pilot(&pv.input, pv.pressed, pv.look, false);
+    if c.has(Mechanic::Transforms) && c.brawl.order != super::brawl::Order::None && s.transform_t <= 0.0 && c.brawl.xatk == super::brawl::XPhase::None {
+        c.held = s;
+        if s.vehicle && !beast_mode {
+            vehicle_order(c, env, out, pv.look, c.vel);
+        } else if super::brawl::run_order(c, env, &mut bi) {
+            c.held.transform_req = true;
+        }
+        s = c.held;
+    }
     // TRANSFORMER COMBAT (`brawl.rs`): Transform during / right after a string = a transform attack
     // (the vehicle bursts through the target, then the robot's finisher); while it runs it drives
-    // the body, and a second Transform press brings the finisher early.
+    // the body, and a second Transform press brings the finisher early. In a beast mode it is the
+    // robot bursting out of the beast into its finisher.
     if c.has(Mechanic::Transforms) {
         if s.transform_req && !s.vehicle && s.transform_t <= 0.0 && super::brawl::wants_xattack(c) {
             s.transform_req = false;
             c.held = s;
             super::brawl::start_xattack(c, env, out, pv.look);
+            s = c.held;
+        } else if s.transform_req && beast_mode && s.transform_t <= 0.0 && super::brawl::wants_burst_out(c, tt) {
+            s.transform_req = false;
+            c.held = s;
+            super::brawl::burst_out(c, env, out, pv.look);
             s = c.held;
         }
         if c.brawl.xatk != super::brawl::XPhase::None {
@@ -671,9 +798,16 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     // top speed / grip / drift / turn rate (combat.ron `transformer.archetypes`).
     let transformer = c.has(Mechanic::Transforms);
     let brawler = transformer && !s.vehicle && !rolling && !flier;
+    let beast = beast_mode && !rolling && !flier;
+    let fighter = brawler || beast;
     let (robot_speed, air_control, veh_speed, veh_grip, drift_boost, veh_turn) = if transformer {
-        let a = env.ctx.tuning.transformer.archetype_of(&c.recipe);
-        (a.robot_speed, a.air_control, a.vehicle_speed, a.vehicle_grip, a.drift_boost, a.vehicle_turn)
+        let t = &env.ctx.tuning.transformer;
+        let a = t.robot_row(c);
+        let (rs, ac) = match t.alt_row(c).filter(|_| beast) {
+            Some(b) => (b.robot_speed, b.air_control),
+            None => (a.robot_speed, a.air_control),
+        };
+        (rs, ac, a.vehicle_speed, a.vehicle_grip, a.drift_boost, a.vehicle_turn)
     } else {
         (1.0, 1.0, 1.0, 1.0, 0.0, 1.0)
     };
@@ -681,7 +815,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         flight_speed(c, jet)
     } else if rolling {
         pilot_speed(c, rolling) * veh_speed
-    } else if brawler {
+    } else if fighter {
         pilot_speed(c, rolling) * robot_speed
     } else {
         pilot_speed(c, rolling)
@@ -777,10 +911,10 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             c.brawl.drift_t = 0.0;
         }
         c.vel = Vec3::new(fwd.x * along + lateral.x, c.vel.y, fwd.z * along + lateral.z);
-    } else if !flier {
+    } else if !flier && c.brawl.pounce_t <= 0.0 {
         let wish = (cam_fwd * inp.move_z.clamp(-1, 1) as f32 + cam_right * inp.move_x.clamp(-1, 1) as f32).normalize_or_zero();
         let want = wish * speed;
-        let blend = if brawler && !c.grounded { blend * air_control } else { blend };
+        let blend = if fighter && !c.grounded { blend * air_control } else { blend };
         c.vel.x += (want.x - c.vel.x) * blend;
         c.vel.z += (want.z - c.vel.z) * blend;
     }
@@ -793,11 +927,14 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     }
     // TRANSFORMER COMBAT: robot-mode strings / heavies / air combos / blaster / boost-step (these
     // may override the velocity: the boost-step, a lunge, the air float).
-    if brawler && s.transform_t <= dt {
+    if fighter && s.transform_t <= dt {
         c.held = s;
-        let bi = super::brawl::Input::of_pilot(&inp, pv.pressed, pv.look, false);
         let grounded = c.grounded;
-        super::brawl::robot(c, env, out, &bi, grounded);
+        if beast {
+            super::brawl::beast(c, env, out, &bi, grounded);
+        } else {
+            super::brawl::robot(c, env, out, &bi, grounded);
+        }
         s = c.held;
     }
     if flier {
@@ -805,7 +942,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     } else {
         integrate(c, env);
     }
-    if brawler {
+    if fighter {
         super::brawl::land(c, env, out, c.grounded);
     }
     if s.slam_armed {
@@ -833,7 +970,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             s = ps;
         }
     } else {
-        if !brawler {
+        if !fighter {
             pilot_attacks(c, &mut s, &pv, env, out, fwd);
         }
         if c.anim_state != AnimState::Active {

@@ -11,10 +11,12 @@ assets/music/stingers.ron      KO, streak, match point, last standing, victory, 
 assets/music/<track>.ron       one track per file (the track name is the file stem)
 assets/music/remix/kit.ron     remix instruments (808, reese, supersaw, ...) and genre templates
 assets/music/remix/<track>_<style>.ron   remix variants (31), each a data variant of a base track
+assets/music/themes/<theme>.ron   franchise themes (12 original pieces) + themes/franchises.ron (power -> theme)
 crates/bd_music/src/notation.rs  the MML dialect parser (bar-checked)
 crates/bd_music/src/song.rs      RON schema -> compiled songs, MusicLibrary
 crates/bd_music/src/synth.rs     oscillators, envelopes, arps, vibrato, glides, NES noise drums, filters
 crates/bd_music/src/player.rs    MusicPlayer: sequencer, decks, stems, stingers, adaptive API
+crates/bd_music/src/franchise.rs  franchise -> theme mapping (per power key, per id, per power file)
 crates/bd_music/src/analysis.rs  LUFS / true peak / spectra / WAV (tools and tests only)
 crates/bd_music/examples/render.rs  offline renders, the report, the medley, calibration, lint
 ```
@@ -106,6 +108,26 @@ Lo-fi variants just open up (no riser). Stingers and `SetTempo` work unchanged o
 `Play { track }` with a classic id is resolved through the style. A remix id, e.g.
 `lib.track_id("menu_house")`, plays that exact variant. Changing the style while a track plays
 switches versions on the next bar line.
+
+## Franchise themes
+
+`assets/music/themes/` holds 12 ORIGINAL chip pieces composed from scratch for Brightest Day. Each
+one evokes a franchise's genre and energy through tempo, mode, instrumentation and groove only; no
+existing theme's melody, hook, bassline or lyric is used. The genres are surf-punk, a shanty jig,
+80s synth-rock, J-rock, a shinobi breakbeat, disco-funk, a hero fanfare, a space march, an 8-bit
+adventure, a heroic overworld, a four-elements world piece and an epic choir. They are ordinary
+songs (the remix kit's instruments and templates are available to them) with a 2-bar `sting`
+intro. `MusicCommand::Theme { track }` plays one on the **theme layer**:
+
+- It swells in on the map track's next beat, starting with its sting.
+- The map track ducks out but keeps sequencing, so it comes back in place when the theme fades out.
+- A theme → theme change happens on a bar line.
+- KO and streak stingers follow the theme's grid and key; the big stingers cut it.
+
+`themes/franchises.ron` maps powers to themes. bd_audio's `ThemeDirector` decides when a theme plays:
+local player only, 12 s keep-alive, 6 s minimum hold, 8 s re-entry cooldown, and the Settings toggle.
+Full details, the track list and the mapping are in `docs/music/franchise_themes.md`.
+`render -- --themes` renders every theme and a swell demo, and `--calibrate --themes` levels them.
 
 ## Song files
 

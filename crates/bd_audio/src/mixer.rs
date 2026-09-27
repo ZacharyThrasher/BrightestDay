@@ -97,6 +97,11 @@ pub enum MusicCommand {
     /// A named overlay layer on / off (index into the music crate's overlay table, e.g. Gear
     /// Fifth's "drums"): locked to the playing track, fading in / out.
     Overlay { layer: u8, on: bool },
+    /// The franchise theme layer: `Some(track)` swells that theme in over the playing track (on
+    /// its next beat), `None` fades it back out.
+    Theme {
+        track: Option<u16>,
+    },
 }
 
 /// A music generator that runs on the audio thread. Must not allocate, lock or block in `render`.

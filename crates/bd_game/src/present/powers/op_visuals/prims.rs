@@ -33,16 +33,27 @@ pub struct View {
     pub fwd: Vec3,
 }
 
+impl View {
+    /// How much a glyph grows with distance so it keeps (roughly) its on-screen size and still reads
+    /// at thumbnail scale in a busy FFA: ×1 inside 11 m … ×3.6 at 40 m (lines also get the pixel
+    /// floor of the immediate scope, `FxParticles::scope`).
+    pub fn grow(&self, p: Vec3) -> f32 {
+        (p.distance(self.cam) / 11.0).clamp(1.0, 3.6)
+    }
+}
+
 impl Default for View {
     fn default() -> Self {
         Self { cam: Vec3::ZERO, right: Vec3::X, up: Vec3::Y, fwd: Vec3::NEG_Z }
     }
 }
 
-/// A small, brief flash. The engine's flash cube darkens as it grows (a big one ends as a black
-/// block), so every op flash goes through here: ≤ 0.6 m, ≤ 0.09 s.
+/// A brief flash on a key beat. The engine flash cube now collapses while lit (it used to darken
+/// into a black block), so it may be bigger: it grows with distance (a strike 30 m off still
+/// blooms), ≤ 2.4 m, ≤ 0.16 s; the pen shrinks it away near the camera.
 pub fn flash(pen: &mut Pen, pos: Vec3, size: f32, color: [f32; 3], glow: f32, life: f32) {
-    pen.flash(pos, size.min(0.6), color, glow, life.min(0.09));
+    let far = (pos.distance(pen.cam) / 16.0).clamp(1.0, 2.2);
+    pen.flash(pos, (size * far).min(2.4), color, glow, life.min(0.16));
 }
 
 /// An immediate line, dropped when it would sit in the lens (both ends ≤ 0.9 m from the camera).
@@ -158,10 +169,21 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
     // Lines thicken with distance (a 1-px mark at 30 m reads as nothing): ×1 … ×2.4.
     let far = ((chest - v.cam).length() / 12.0).clamp(1.0, 2.4);
     let ts = s * far;
-    let head = feet + Vec3::Y * 2.35 * s;
+    // Overhead glyphs grow with distance and ride a little higher (clear of the body you aim at).
+    let grow = v.grow(chest);
+    let hs = s * grow;
+    let head = feet + Vec3::Y * (2.35 * s + 0.4 * (grow - 1.0));
     let p = pulse(t, left);
     let fade_in = (t / 0.12).min(1.0);
-    let glow = look.glow * fade_in;
+    let glow = look.glow * fade_in * (0.85 + 0.25 * grow);
+    // Applied: a camera-facing ping races out from the body (the eye goes to it across the map);
+    // far away it keeps pinging softly every 1.6 s (a marked player must stay findable in the crowd).
+    let (pt, pk) = if t < 0.28 { (t, 1.0) } else if grow > 1.6 { ((t - 0.28) % 1.6, 0.5) } else { (1.0, 0.0) };
+    if pt < 0.28 && pk > 0.0 && kind != MarkKind::Lock {
+        let k = pt / 0.28;
+        let n = (chest - v.cam).normalize_or(v.fwd);
+        circle(pen.fx, chest, n, (0.4 + 1.3 * k) * hs, 20, (0.07 * (1.0 - k) + 0.015) * ts * pk, mix3(look.core, look.main, k), look.glow * 2.2 * pk * (1.0 - k).max(0.5), t * 3.0);
+    }
     match kind {
         MarkKind::Tag => {
             // The nail: driven in at an angle, its head glinting out of the body.
@@ -173,7 +195,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             seg(pen, v, out, out - d * 0.08, 0.13 * ts, mix3(look.core, look.main, 0.3), glow * p * 1.4);
             // The diamond overhead, spinning; flickers in the last 1.5 s (it is about to be used / run out).
             let flick = if left < 1.5 && ((t * 12.0) as u32) % 2 == 0 { 0.35 } else { 1.0 };
-            let r = 0.26 * s;
+            let r = 0.26 * hs;
             let a = t * 2.4;
             let h = Vec3::new(a.cos(), 0.0, a.sin()) * r;
             let pts = [head + Vec3::Y * r * 1.4, head + h, head - Vec3::Y * r * 1.4, head - h];
@@ -181,6 +203,10 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             for k in 0..4 {
                 seg(pen, v, pts[k], pts[(k + 1) % 4], 0.035 * ts, c, glow * p * flick * 1.3);
             }
+            // A solid gem inside the outline: a filled shape reads at thumbnail scale where a thin
+            // outline doesn't.
+            let q = Quat::from_rotation_y(a) * Quat::from_rotation_z(PI * 0.25);
+            cbox(pen, v, head, q * Quat::from_rotation_x(0.3), Vec3::new(r * 0.75, r * 0.75, r * 0.3), look.main, glow * p * flick);
             seg(pen, v, head - Vec3::Y * r * 1.4, chest + Vec3::Y * 0.9 * s, 0.012, look.main, glow * 0.5 * flick);
         }
         MarkKind::Delayed => {
@@ -191,8 +217,8 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             circle(pen.fx, chest, Vec3::new(0.0, 0.2, 1.0), r * 0.85, 16, 0.03 * ts, look.main, glow * 0.8 * p, t * 2.0);
             // The clock over the head: an arc that empties as the burst nears (readable from afar).
             let n = (head - v.cam).normalize_or(v.fwd);
-            arc(pen, v, head, n, 0.36 * s, PI * 0.5, k, 20, 0.07 * ts, mix3(look.core, look.main, 0.4), glow * 1.4 * p);
-            face_ring(pen, v, head, 0.4 * s, 20, 0.018 * ts, look.dark, 0.5, 0.0);
+            arc(pen, v, head, n, 0.36 * hs, PI * 0.5, k, 20, 0.07 * ts, mix3(look.core, look.main, 0.4), glow * 1.4 * p);
+            face_ring(pen, v, head, 0.4 * hs, 20, 0.018 * ts, look.dark, 0.5, 0.0);
         }
         MarkKind::Lock | MarkKind::Hunted => {
             // Four corner brackets round the body, closing in and squaring up as the lock grows.
@@ -230,18 +256,18 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             // A broken halo that glitches: dashed, jumping, blinking cubes.
             let jump = ((t * 14.0) as u32).wrapping_mul(2654435761);
             let ph = h01(jump) * 0.6;
-            dashed_ring(pen, v, head, Vec3::Y, 0.42 * s, 12, 0.05 * ts, look.main, glow * p, ph);
+            dashed_ring(pen, v, head, Vec3::Y, 0.42 * hs, 12, 0.05 * ts, look.main, glow * p, ph);
             for k in 0..4u32 {
                 let r = h01(jump ^ (k * 97));
                 if r < 0.5 {
                     continue;
                 }
                 let a = h01(jump.wrapping_add(k * 13)) * TAU;
-                let q = head + Vec3::new(a.cos(), (r - 0.75) * 0.8, a.sin()) * 0.5 * s;
-                cbox(pen, v, q, Quat::IDENTITY, Vec3::splat(0.09 * s), if k % 2 == 0 { look.core } else { look.main }, glow * 1.4);
+                let q = head + Vec3::new(a.cos(), (r - 0.75) * 0.8, a.sin()) * 0.5 * hs;
+                cbox(pen, v, q, Quat::IDENTITY, Vec3::splat(0.09 * hs), if k % 2 == 0 { look.core } else { look.main }, glow * 1.4);
             }
             // A slash through it (no powers).
-            seg(pen, v, head - v.right * 0.35 * s - Vec3::Y * 0.2 * s, head + v.right * 0.35 * s + Vec3::Y * 0.2 * s, 0.05 * ts, look.main, glow * p);
+            seg(pen, v, head - v.right * 0.35 * hs - Vec3::Y * 0.2 * hs, head + v.right * 0.35 * hs + Vec3::Y * 0.2 * hs, 0.05 * ts, look.main, glow * p);
         }
         MarkKind::Dazed => {
             // A spiral over the eyes, turning; three sparks orbiting the head.
@@ -258,17 +284,34 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             }
             for k in 0..3 {
                 let a = t * 4.0 + k as f32 * TAU / 3.0;
-                let q = head - Vec3::Y * 0.3 * s + Vec3::new(a.cos(), 0.0, a.sin()) * 0.4 * s;
-                cbox(pen, v, q, Quat::from_rotation_y(a), Vec3::splat(0.07 * s), look.core, glow * 1.5);
+                let q = head - Vec3::Y * 0.3 * s + Vec3::new(a.cos(), 0.0, a.sin()) * 0.4 * hs;
+                cbox(pen, v, q, Quat::from_rotation_y(a), Vec3::splat(0.07 * hs), look.core, glow * 1.5);
             }
         }
         MarkKind::Brand => {
-            // Black flames that cling: dark motes licking up off the body, a smouldering ring at the feet.
-            let dark = Look { body: Body::Flame, main: [0.015, 0.005, 0.02], core: mix3([0.02, 0.0, 0.02], look.main, 0.5), glow: 0.5, size: 3.2 * s, ..*look };
-            let n = 4;
+            // Black flames that CLING to the whole body: tongues of black fire licking up round the
+            // silhouette (they read from across the map), a sickly purple-red core inside them, dark
+            // motes rising off, a smouldering ring at the feet.
+            let sick = mix3([0.55, 0.05, 0.3], look.main, 0.3);
+            for k in 0..8 {
+                let a = k as f32 / 8.0 * TAU + (t * 0.7).sin() * 0.3;
+                let r = 0.34 * s;
+                let base = feet + Vec3::new(a.cos() * r, 0.05, a.sin() * r);
+                let lick = (1.3 + 0.5 * ((t * 7.0 + k as f32 * 1.9).sin() * 0.5 + 0.5)) * s;
+                let sway = Vec3::new((t * 5.0 + k as f32).sin(), 0.0, (t * 4.3 + k as f32 * 2.0).cos()) * 0.12 * s;
+                let mid = base + Vec3::Y * lick * 0.55 + sway;
+                let tip = base + Vec3::Y * lick + sway * 2.0 - Vec3::new(a.cos(), 0.0, a.sin()) * 0.12 * s;
+                seg(pen, v, base, mid, 0.13 * ts, [0.012, 0.004, 0.016], 0.4);
+                seg(pen, v, mid, tip, 0.07 * ts, [0.012, 0.004, 0.016], 0.4);
+                if k % 2 == 0 {
+                    seg(pen, v, base + Vec3::Y * 0.1, mid, 0.04 * ts, sick, look.glow * 0.8);
+                }
+            }
+            let dark = Look { body: Body::Flame, main: [0.015, 0.005, 0.02], core: mix3([0.02, 0.0, 0.02], sick, 0.5), glow: 0.5, size: 3.6 * s, ..*look };
+            let n = 6;
             for _ in 0..n {
                 let a = pen.fx.rng.f() * TAU;
-                let h = pen.fx.rng.f() * 1.7 * s;
+                let h = pen.fx.rng.f() * 1.9 * s;
                 let q = feet + Vec3::new(a.cos() * 0.32 * s, h, a.sin() * 0.32 * s);
                 let up = Vec3::Y * (1.2 + pen.fx.rng.f());
                 pen.mote(&dark, q, up, 0.5, 0.0);
@@ -305,8 +348,8 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
         }
         MarkKind::Captured => {
             // A crown over the possessed thing (three points), and a soft glow ring round it.
-            let c = feet + Vec3::Y * (1.9 * s + 0.5);
-            let r = 0.32 * s.max(1.0);
+            let c = feet + Vec3::Y * (1.9 * s + 0.5 + 0.4 * (grow - 1.0));
+            let r = 0.32 * s.max(1.0) * grow;
             for k in 0..6 {
                 let a0 = t * 1.5 + k as f32 * TAU / 6.0;
                 let a1 = t * 1.5 + (k + 1) as f32 * TAU / 6.0;
@@ -710,6 +753,24 @@ pub fn aura(pen: &mut Pen, v: &View, look: &Look, kind: AuraKind, feet: Vec3, si
     let chest = feet + Vec3::Y * 1.05 * s;
     let glow = look.glow * k;
     let front = Vec3::new(front.x, 0.0, front.z).normalize_or(Vec3::NEG_Z);
+    // Far away (≥ ~18 m) a super state / phase reads as a SILHOUETTE: a lit outline round the body,
+    // facing you, breathing — motes alone are noise at thumbnail scale.
+    let grow = v.grow(chest);
+    if !own_fp && grow > 1.2 && matches!(kind, AuraKind::Empower | AuraKind::Phase | AuraKind::Glare) {
+        let n = (chest - v.cam).normalize_or(v.fwd);
+        let side = Vec3::Y.cross(n).normalize_or(v.right);
+        let upv = n.cross(side).normalize_or(Vec3::Y);
+        let col = if rainbow { hue(t * 0.9) } else { look.main };
+        let br = 0.8 + 0.2 * (t * 5.0).sin();
+        let (rx, ry) = (0.62 * s * (0.9 + 0.1 * grow), 1.2 * s);
+        let mut prev = chest + upv * ry;
+        for i in 1..=20 {
+            let a = i as f32 / 20.0 * TAU;
+            let q = chest + side * a.sin() * rx + upv * a.cos() * ry;
+            seg(pen, v, prev, q, 0.035 * s * grow, col, glow * 1.4 * br * (grow - 1.0).min(1.0));
+            prev = q;
+        }
+    }
     match kind {
         AuraKind::Empower => {
             let col = if rainbow { hue(t * 0.9) } else { look.main };
@@ -909,37 +970,50 @@ pub fn crescent(pen: &mut Pen, v: &View, look: &Look, pos: Vec3, dir: Vec3, widt
     let side = Vec3::Y.cross(dir).normalize_or(Vec3::X);
     // The crescent's span axis: across the travel, upright (a slash) or flat (a disc).
     let span = if flat { side } else { (Vec3::Y * 0.8 + side * 0.6).normalize() };
+    // The bow: mostly ACROSS the travel (a wave front — seen from behind it is an arch, not a line),
+    // a little forward.
+    let across = span.cross(dir).normalize_or(Vec3::Y);
+    let bow_dir = if flat { dir } else { (across * 0.75 + dir * 0.45).normalize() };
     let half = width.clamp(0.5, 12.0) * 0.5;
-    let n = 14;
-    let far = ((pos - v.cam).length() / 12.0).clamp(1.0, 2.2);
+    // CLEAN: one smooth bowed blade tapering to two points (many thin segments, no chunky cubes),
+    // a white-hot edge on its leading side, two soft afterimages in its own colour (never dark
+    // blocks), a thin seam of light along its trailing edge.
+    let n = 24;
+    let far = v.grow(pos).min(2.0);
+    let edge = mix3(look.core, [1.0; 3], 0.35);
+    let tail = mix3(look.main, look.dark, 0.25);
     for ghost in 0..3 {
-        let back = dir * ghost as f32 * 0.55;
-        let g = glow * [1.0, 0.45, 0.2][ghost];
-        let th = [0.3, 0.18, 0.1][ghost] * look.size * far;
+        let back = dir * ghost as f32 * (0.45 + 0.1 * half);
+        let g = glow * [1.0, 0.5, 0.22][ghost];
+        let th = [0.34, 0.18, 0.1][ghost] * look.size * far * (0.8 + 0.05 * half);
+        let col = if ghost == 0 { look.main } else { tail };
         let mut prev = None;
         for i in 0..=n {
             let f = i as f32 / n as f32 * 2.0 - 1.0;
             let bow = (1.0 - f * f) * half * 0.45;
-            let thin = 1.0 - f.abs() * 0.8;
-            let q = pos - back + span * f * half + dir * bow;
-            if let Some(pq) = prev {
-                seg(pen, v, pq, q, th * thin, if ghost == 0 { look.main } else { look.dark }, g);
+            let thin = (1.0 - f * f).max(0.0).powf(0.6).max(0.08);
+            let q = pos - back + span * f * half + bow_dir * bow;
+            if let Some((pq, pt)) = prev {
+                let tt: f32 = (thin + pt) * 0.5;
+                seg(pen, v, pq, q, th * tt, col, g);
                 if ghost == 0 {
-                    seg(pen, v, pq + dir * 0.06, q + dir * 0.06, th * thin * 0.35, look.core, g * 1.8);
+                    seg(pen, v, pq + dir * th * 0.6, q + dir * th * 0.6, th * tt * 0.4, edge, g * 2.2);
                 }
             }
-            prev = Some(q);
+            prev = Some((q, thin));
         }
     }
     if flat {
         // A disc spins: a ring inside the crescent.
-        circle(pen.fx, pos, Vec3::Y, half * 0.6, 16, 0.04, look.core, glow, t * 20.0);
+        circle(pen.fx, pos, Vec3::Y, half * 0.6, 20, 0.03, look.core, glow, t * 20.0);
     }
-    if pen.fx.rng.f() < 0.7 {
-        let f = pen.fx.rng.f() * 2.0 - 1.0;
-        let q = pos + span * f * half;
+    if pen.fx.rng.f() < 0.6 {
+        // Sparks shed off the tips (thin streaks whatever the style's body: no cube spray).
+        let f = if pen.fx.rng.f() < 0.5 { -0.9 } else { 0.9 };
+        let q = pos + span * f * half + bow_dir * (1.0 - f * f) * half * 0.45;
         let rd = pen.fx.rng.dir();
-        pen.mote(look, q, -dir * 3.0 + rd, 0.35, 0.0);
+        let spark = Look { body: Body::Streak, ..*look };
+        pen.mote(&spark, q, -dir * 4.0 + rd * 0.8, 0.3, 0.0);
     }
 }
 
@@ -1035,7 +1109,10 @@ pub fn portal_oval(pen: &mut Pen, v: &View, c: Vec3, normal: Vec3, color: [f32; 
     let upv = if n.y.abs() > 0.8 { Vec3::Z } else { Vec3::Y };
     let side = upv.cross(n).normalize_or(Vec3::X);
     let up = n.cross(side).normalize_or(Vec3::Y);
-    let (rw, rh) = (0.75, 1.15);
+    // It OPENS: springs out of the impact point with a little overshoot (0.2 s).
+    let k = (t / 0.2).min(1.0);
+    let open = 1.0 + 2.7 * (k - 1.0).powi(3) + 1.7 * (k - 1.0).powi(2);
+    let (rw, rh) = (0.75 * open, 1.15 * open);
     let segs = 28;
     let c = c + n * 0.04;
     let mut prev = c + side * rw;

@@ -928,6 +928,11 @@ fn base_cooldown(kind: AttackKind) -> f32 {
 }
 
 fn try_start_attack(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, target: Target, out: &mut ConstructOut) {
+    // TRANSFORMERS FEEL: a transformer's ROBOT mode (and any transform attack in flight) fights
+    // with its archetype's moveset (`brawl::ai`, from `components::transform_attacks`).
+    if (is_robot(c) || super::brawl::moving(c)) && c.pilot.is_none() {
+        return;
+    }
     let Some(tp) = target_pos(env, target) else { return };
     let here = c.center();
     let tcenter = match target {

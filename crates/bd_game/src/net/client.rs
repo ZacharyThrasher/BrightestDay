@@ -233,9 +233,15 @@ impl ClientCore {
         self.session.send(&C2S::Ready(r));
     }
 
-    /// The match is over: pick the next map (the host counts the latest pick per player).
+    /// The match is over: pick a map card for the next match (see [`ClientCore::vote`]).
     pub fn vote_map(&mut self, kind: NetMapKind) {
-        self.session.send(&C2S::MapVote(kind));
+        self.vote(VotePick::Map(kind));
+    }
+
+    /// The match is over: my next-map pick (the host validates it: on offer; the first one stands
+    /// when votes are locked).
+    pub fn vote(&mut self, pick: VotePick) {
+        self.session.send(&C2S::MapVote(pick));
     }
 
     /// Forward a bridge command to the host. Casts get a client cast sequence number (returned),

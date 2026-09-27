@@ -186,6 +186,10 @@ pub struct PlayerSnap {
     /// POWER HUD: each held power's readiness + form time left (`crate::readiness`; motes / gems).
     #[serde(default)]
     pub ready: crate::readiness::ReadySnap,
+    /// TAUNT & VOICE TELL (protocol v45): [`crate::taunt::tell`] bits — the wordless taunt playing
+    /// now + speaking a cast by voice (presentation only).
+    #[serde(default)]
+    pub tell: u8,
 }
 
 impl PlayerSnap {
@@ -473,6 +477,9 @@ pub struct WorldSnapshot {
     /// POWER-UPS: live map pickups (empty while the mode is off). Static between phase changes.
     #[serde(default)]
     pub pickups: Vec<crate::pickups::Pickup>,
+    /// FIRST CALL / BURN ON DEATH: claims, burns, rival / echo marks (`None` while both rules are off).
+    #[serde(default)]
+    pub first_call: Option<crate::first_call::CallSnap>,
 }
 
 /// A snapshot encoded against an acknowledged baseline.
@@ -501,6 +508,9 @@ pub struct SnapshotDelta {
     /// POWER-UPS: the whole pickup list when it changed (or on a keyframe with any).
     #[serde(default)]
     pub pickups: Option<Vec<crate::pickups::Pickup>>,
+    /// FIRST CALL: the whole state when it changed (or on a keyframe with any). `Some(None)` = off.
+    #[serde(default)]
+    pub first_call: Option<Option<crate::first_call::CallSnap>>,
 }
 
 /// Merge-walk two id-sorted lists: changed/new items of `cur`, and ids missing from `cur`.
@@ -579,6 +589,9 @@ impl SnapshotDelta {
         if (ago == 0 && !cur.pickups.is_empty()) || (ago > 0 && b.pickups != cur.pickups) {
             d.pickups = Some(cur.pickups.clone());
         }
+        if (ago == 0 && cur.first_call.is_some()) || (ago > 0 && b.first_call != cur.first_call) {
+            d.first_call = Some(cur.first_call.clone());
+        }
         d
     }
 
@@ -608,6 +621,7 @@ impl SnapshotDelta {
             links: self.links.clone().unwrap_or_else(|| b.links.clone()),
             party: self.party.clone().unwrap_or_else(|| b.party.clone()),
             pickups: self.pickups.clone().unwrap_or_else(|| b.pickups.clone()),
+            first_call: self.first_call.clone().unwrap_or_else(|| b.first_call.clone()),
         })
     }
 }

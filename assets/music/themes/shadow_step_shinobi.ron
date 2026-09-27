@@ -1,0 +1,76 @@
+// Shadow Step Shinobi — franchise theme for the ninja-village kits and chakra techniques.
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: a shinobi
+// pentatonic flute (with breathy glides) over a syncopated breakbeat, taiko toms, plucked koto
+// ostinatos in a Japanese "in"-scale colour, and a fast 16th ninja-run chorus. No melody, hook,
+// bassline or lyric of any existing theme is quoted or paraphrased.
+// Structure: sting (flute swoop + taiko) | a b c (koto break) a2 b2 | end.
+(
+    title: "Shadow Step Shinobi",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: shinobi action",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (pentatonic flute, breakbeat, taiko, koto colour).",
+    role: "Franchise theme: ninja kits and chakra techniques",
+    key: "Dm",
+    time: (4, 4),
+    bpm: 144.0,
+    gain_db: -4.1,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    instruments: {
+        // Breathy bamboo flute: triangle + a touch of pulse brightness via vibrato and glide.
+        "shaku": (wave: Triangle, attack: 0.04, decay: 0.4, sustain: 0.85, release: 0.12, vol: 0.95,
+                  vib_depth: 22.0, vib_rate: 5.2, vib_delay: 0.18, glide: 0.06),
+    },
+    channels: [
+        (name: "flute", inst: "shaku", stem: Lead, pan: -0.1, echo: (ticks: 72, vol: 0.25)),
+        (name: "koto", inst: "hl_pluck", stem: Lead, pan: 0.25, vol: 0.7),
+        (name: "pad", inst: "rx_pad", stem: Base, pan: -0.2, vol: 0.7, gen: "o3 X1 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "o2 u4 R8 r8 R8 O8 r8 R8 O8 R8 |"),
+        (name: "arp", inst: "pluck12", stem: Drive, pan: 0.3, vol: 0.6, gen: "o5 [R16 F16 O16 F16]4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.05, gen: "K8 r8 S8 r16 K16 r8 K8 S8 r8 |"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.2, vol: 0.5, gen: "[H16 ?H16]8 |"),
+        (name: "taiko", drums: true, stem: Drive, pan: -0.2, vol: 0.9),
+    ],
+    patterns: {
+        "chA": "Dm | Dm | Bb | C | Dm | Dm | Gm | A |",
+        "chB": "Bb | C | Dm | Dm | Bb | C | A | A |",
+        "chC": "Dm | Eb | Dm | Eb | Gm | A | Dm | A |",
+        // ---- tunes (all original) ----
+        "mA": "o5 d4. f8 g4 a4 | o5 c4 a8 g8 ~f2 | o5 d4. f8 g8 a8 b4 | o5 a4 g8 e8 ~g2 |
+               o5 a4. o6 c8 d4 c8 o5 a8 | o5 g4 a8 g8 f4 d4 | o5 g4. b8 a8 g8 d4 | o5 e2 ~a2 |",
+        "mB": "o6 d8 c8 o5 a8 g8 f8 g8 a8 o6 c8 | o6 c4 o5 g4 e4 g4 | o5 a16 g16 f16 d16 f8 a8 o6 d4 c4 | o6 d2. r4 |
+               o6 f8 d8 c8 o5 a8 b8 a8 f8 d8 | o5 e8 g8 o6 c8 e8 d4 c4 | o6 c+4 o5 a4 e4 c+4 | o5 e1 |",
+        "kotoC": "o4 d8 a8 o5 d8 f8 e-8 d8 o4 a8 f8 | o4 e-8 b8 o5 e-8 g8 f8 e-8 o4 b8 g8 |
+                  o4 d8 a8 o5 d8 f8 e-8 d8 o4 a8 f8 | o4 e-8 b8 o5 e-8 g8 f8 e-8 o4 b8 g8 |
+                  o4 g8 o5 d8 g8 b8 a8 g8 d8 o4 b8 | o4 a8 o5 e8 a8 o6 c+8 o5 b8 a8 e8 c+8 |
+                  o4 d8 a8 o5 d8 f8 e-8 d8 o4 a8 f8 | o4 a8 o5 e8 a8 o6 c+8 o5 b8 a8 e8 c+8 |",
+        "fluteC": "r1 | r1 | o5 a2 ~b2 | o5 a1 | o5 g2 b2 | o5 a1 | o5 d2 f2 | o5 e1 |",
+        // koto: plucked chord tones under the second verse
+        "kotoA": "[o4 R8 F8 O8 F8 ]16 |",
+        "taikoA": "[t4 r8 t8 m4 t8 t8 | t4 r4 m4 r4 |]4",
+        "taikoC": "[t4 t8 t8 m4 t4 |]7 t8 t8 m8 m8 t16 t16 t16 t16 m16 m16 m16 m16 |",
+    },
+    sections: [
+        // The sting: a flute swoop over a taiko roll.
+        (name: "sting", bars: 2, chords: "Dm | Dm |", mute: ["arp"], parts: {
+            "flute": "o5 d16 f16 g16 a16 o6 c4 ~d2 | o6 d8 r8 c8 o5 a8 g8 f8 d4 |",
+            "taiko": "t8 t8 m8 m8 t16 t16 t16 t16 m16 m16 m16 m16 | t4 r4 m4 r4 |",
+            "drums": "r1 | K8 r8 S8 r16 K16 r8 K8 S8 r8 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", mute: ["arp"], parts: { "flute": "$mA", "taiko": "$taikoA" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "flute": "$mB", "koto": "k-12 $mB k0" }),
+        (name: "c", bars: 8, chords: "$chC", mute: ["arp", "hats"], parts: {
+            "koto": "$kotoC", "flute": "$fluteC", "taiko": "$taikoC",
+            "drums": "[r1 |]4 [K8 r8 S8 r16 K16 r8 K8 S8 r8 |]3 [S16]16 |",
+        }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "flute": "$mA", "koto": "$kotoA", "taiko": "$taikoA" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "flute": "$mB", "koto": "$mB", "taiko": "$taikoA" }),
+        (name: "end", bars: 2, chords: "Dm | Dm |", mute: ["arp", "hats"], parts: {
+            "flute": "o5 a4. o6 c8 d4 ~f4 | o6 d2. r4 |",
+            "taiko": "t8 t8 m8 m8 t4 t4 | t2 r2 |",
+            "drums": "K8 r8 S8 K8 [S16]8 | C2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

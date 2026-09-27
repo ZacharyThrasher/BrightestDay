@@ -72,6 +72,17 @@ pub struct VoiceConfig {
     pub whisper_logs: bool,
     /// Energy VAD tuning.
     pub vad: dsp::VadParams,
+    /// STREAMING (spoken chains): while the key is held, a stretch of speech followed by a pause
+    /// ([`dsp::PauseParams::min_pause_ms`]) is cut off and transcribed at once ([`VoiceEvent::Partial`]),
+    /// so "teleport … rasengan … chidori" starts firing while you are still talking. `None` = one
+    /// transcript per press.
+    pub stream: Option<dsp::PauseParams>,
+    /// Skip the release tail when the speech had already ended before the key came up (the last
+    /// ~160 ms were silent): saves `tail_ms` on every cast from a player who lets go late.
+    pub smart_tail: bool,
+    /// Dev tools (the voice bench): `Final` / `Partial` carry Whisper's raw text instead of
+    /// [`text::normalize_transcript`]'s clean-up, so clean-ups can be compared offline.
+    pub raw_transcript: bool,
 }
 
 impl Default for VoiceConfig {
@@ -90,6 +101,9 @@ impl Default for VoiceConfig {
             warm_up: true,
             whisper_logs: false,
             vad: dsp::VadParams::default(),
+            stream: Some(dsp::PauseParams::default()),
+            smart_tail: true,
+            raw_transcript: false,
         }
     }
 }
@@ -129,6 +143,11 @@ pub enum VoiceEvent {
     /// (includes the capture tail) and Whisper's confidence 0..1 (mean token probability of the
     /// text tokens; low = likely misheard). The game only logs it (local intent log).
     Final { text: String, ms: u32, confidence: f32 },
+    /// STREAMING: a stretch of speech that ended in a pause while the key is still held (one beat
+    /// of a spoken chain), cleaned like `Final`. More may follow; the press still ends with `Final`
+    /// or `Discarded` (the rest after the last pause — often nothing). `ms` = pause detected →
+    /// text. No `Transcribing` precedes it (you are still talking).
+    Partial { text: String, ms: u32, confidence: f32 },
     /// The clip was thrown away; nothing will be cast.
     Discarded(DiscardReason),
     /// Something went wrong (model missing, device lost, …). Voice may be unusable.

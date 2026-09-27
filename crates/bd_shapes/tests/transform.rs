@@ -73,6 +73,8 @@ fn vehicles_and_creatures_transform() {
         (Form::Vehicle, 6.0, vec![Treads, Turret, Barrels]),
         (Form::Vehicle, 7.0, vec![Jet, Fins]),
         (Form::Vehicle, 5.0, vec![Rotor]),
+        (Form::Vehicle, 4.0, vec![Wheels, Exhaust, Headlight]),
+        (Form::Vehicle, 6.0, vec![Propeller, Exhaust]),
         (Form::Fish, 5.0, vec![]),
         (Form::Quadruped, 3.0, vec![]),
         (Form::Hammer, 2.4, vec![]),

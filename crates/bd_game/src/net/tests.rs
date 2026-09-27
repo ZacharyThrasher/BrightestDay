@@ -421,7 +421,8 @@ fn vote_tally() {
 #[test]
 fn match_swap_to_another_map() {
     use bd_sim::MatchPhase;
-    let settings = bd_sim::settings::GameSettings::default();
+    // Every map on the cards (the client votes Miami whatever the rotation offers).
+    let settings = bd_sim::settings::GameSettings { vote: bd_sim::settings::MapVoteRules::open_all(), ..Default::default() };
     let mut host =
         HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
     host.terrain_check_every = TICK_HZ as u64;

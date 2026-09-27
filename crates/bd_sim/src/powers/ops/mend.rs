@@ -37,13 +37,14 @@ impl World {
     }
 
     pub(crate) fn step_mends(&mut self, dt: f32) {
-        for i in 0..MAX_PLAYERS.min(self.players.len()) {
+        // Every slot (not just the live player count): a slot left behind by a player who left is
+        // cleared too, so `adventure_active` goes quiet again (OPS_REVIEW low).
+        for i in 0..MAX_PLAYERS {
             let Some(mut m) = self.powers.ops.mends[i] else { continue };
-            let p = &mut self.players[i];
-            if p.id != m.owner || !p.alive {
+            let Some(p) = self.players.get_mut(i).filter(|p| p.id == m.owner && p.alive) else {
                 self.powers.ops.mends[i] = None;
                 continue;
-            }
+            };
             let t = dt.min(m.left);
             p.damage_pct = (p.damage_pct - m.per_s * t).max(0.0);
             m.left -= dt;

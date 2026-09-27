@@ -29,6 +29,7 @@ mod powers;
 mod refer;
 mod relations;
 pub mod tables;
+mod transformer;
 
 #[cfg(feature = "builder")]
 pub mod builder;
@@ -473,7 +474,21 @@ impl Lexicon {
     /// Resolve a speech-to-text transcript: adjacent-token merging, sound-alike keys and looser typo
     /// thresholds ("picked you" -> Pikachu, "mule near" -> Mjolnir, "god zilla" -> Godzilla).
     pub fn resolve_spoken(&self, text: &str) -> Resolution {
+        // VOICE == TYPING: words the typed reading understands plainly (nothing ignored, confident)
+        // read exactly as typed; the sound-alike rescue is for what typing would NOT understand
+        // ("picked you" -> Pikachu, "mule near" -> Mjolnir), never a re-reading of right words
+        // ("shadow ball" is not Cthulhu, "limit break" is not a porg). Voice fluency bench.
+        let typed = self.resolve_mode(text, false);
+        if Self::heard_exactly(&typed) {
+            return typed;
+        }
         self.resolve_mode(text, true)
+    }
+
+    /// A typed resolution that needs no sound-alike help: nothing improvised, no word ignored,
+    /// confidence >= 0.85 ("mule near" 0.76 and "spirit bum" 0.73 still get rescued).
+    fn heard_exactly(res: &Resolution) -> bool {
+        !Self::is_fallback(res) && res.ignored.is_empty() && res.confidence >= 0.85
     }
 
     /// Exact lookup of a normalised key (icons first), no phrase parsing.

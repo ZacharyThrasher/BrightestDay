@@ -23,6 +23,8 @@
 //!   "judgment cut end", "sonic homing attack -> chaos control"); `BD_MOVEFX_AT=0.1,0.4,0.9` sets the
 //!   shot offsets (s after it fires), `BD_MOVEFX_PITCH=<deg>` the look pitch, `BD_MOVEFX_DUMMY=<m>`
 //!   how far down the stage the first target stands (any scene; default 14).
+//! * `BD_MOVEFX_OBSDIST=<m>` (`obs` view): how far ahead of the camera the actor stands (default 9;
+//!   20 / 40 = the thumbnail-scale readability checks).
 //! * `BD_MOVEFX_SPAM=<n>`: perf — every bot (and you) fires the scene's move every 0.4 s from t = 3 s,
 //!   `n` rounds; `MoveFxStats` (live beats, peak, step µs) is logged each second.
 
@@ -89,6 +91,14 @@ fn phrase_offsets() -> &'static [f32] {
 /// How far along the stage the first target stands (`BD_MOVEFX_DUMMY`, m; default 14).
 fn dummy_dist() -> f32 {
     env("BD_MOVEFX_DUMMY").and_then(|v| v.parse().ok()).unwrap_or(14.0)
+}
+
+/// `obs` view: how far ahead the actor stands (`BD_MOVEFX_OBSDIST`, m; default 9).
+fn obs_dist() -> f32 {
+    if !observer() {
+        return 9.0;
+    }
+    env("BD_MOVEFX_OBSDIST").and_then(|v| v.parse().ok()).unwrap_or(9.0)
 }
 
 fn phrase_pitch() -> f32 {
@@ -216,6 +226,17 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
     }
     if let Some(p) = active.world.player_mut(me.0) {
         p.willpower = p.willpower.max(100.0);
+    }
+    // `obs` at a distance: the camera (you) hangs back `BD_MOVEFX_OBSDIST` m from the stage, level
+    // with it (pinned: the islands may not reach that far).
+    if observer() && obs_dist() > 9.0 {
+        let ground = bd_core::voxel::raycast(&active.world.voxels, stage + bd_core::Vec3::Y * 12.0, bd_core::Vec3::NEG_Y, 40.0).map_or(origin.y, |h| h.point.y);
+        let at = origin + fwd * (9.0 - obs_dist());
+        if let Some(p) = active.world.player_mut(me.0) {
+            p.mv.pos = bd_core::Vec3::new(at.x, ground + 0.6, at.z);
+            p.mv.vel = bd_core::Vec3::ZERO;
+            p.spawn_shield = 1.0;
+        }
     }
     dev.actor = Some(if observer() { others.first().copied().unwrap_or(me.0) } else { me.0 });
     if let (Some(f), Some(a)) = (dev.fired_at, dev.actor)

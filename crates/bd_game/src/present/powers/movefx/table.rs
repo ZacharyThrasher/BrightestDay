@@ -110,6 +110,9 @@ pub struct StyleDef {
     /// The comic word its blasts say (an `assets/fx/onomatopoeia.ron` key: "bamf", "boing"…);
     /// "" = the generic explosion word, "none" = no word.
     pub word: String,
+    /// What ends a Rubber limb: "" / "fist" (a fist), "none" (a bare strand), "glob" (a sticky splat:
+    /// a web glob).
+    pub tip: String,
 }
 
 impl Default for StyleDef {
@@ -130,7 +133,8 @@ impl Default for StyleDef {
             size: 1.0,
             sound: StyleSound::default(),
             glyph: 0,
-            word: String::new(),
+            word: String::new(),
+            tip: String::new(),
         }
     }
 }

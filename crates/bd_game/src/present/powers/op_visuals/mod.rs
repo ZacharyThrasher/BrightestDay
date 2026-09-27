@@ -58,6 +58,11 @@ use std::f32::consts::PI;
 pub const MAX_FX: usize = 128;
 /// Concurrent lock-on channels.
 pub const MAX_LOCKS: usize = 8;
+/// This module's share of the shared immediate region per frame (bd_fx `IMM_CAP` = 8192): a burst
+/// of markers / tethers can never starve the other modules' lines (arcs, lightning, guns, movefx).
+pub const IMM_BUDGET: usize = 2600;
+/// Line pixel floor (thickness ≥ this × distance): ~2 px at 1080p — a 3 cm line at 40 m is sub-pixel.
+pub const LINE_FLOOR: f32 = 0.0022;
 const LOOKS: usize = 16;
 
 /// What an op event is drawn with (the mapping table; [`visual_of`] is exhaustive, so a new
@@ -371,6 +376,8 @@ pub struct OpVisStats {
     pub peak: usize,
     pub started: u64,
     pub step_us: f32,
+    /// Immediate cubes dropped over [`IMM_BUDGET`] last frame.
+    pub imm_dropped: usize,
 }
 
 /// Per player, the last time a strike word was said (a salvo says its word once, not per bolt).
@@ -537,6 +544,7 @@ fn intake(
     let budget = settings.as_ref().map_or(1.0, |s| s.particle_budget).clamp(0.15, 1.0);
     let view = view_of(&cams);
     let mut pen = Pen { fx: &mut fx, motes: table.t.beats.motes * budget, scale: 1.0, cam: view.cam, avoid: None };
+    pen.fx.scope(view.cam, LINE_FLOOR, IMM_BUDGET / 4);
     let mut c = Ctx {
         views: &views,
         active: &active,
@@ -556,6 +564,7 @@ fn intake(
     for o in buf.drain(..) {
         c.start(&o, &mut pen, &mut w);
     }
+    pen.fx.end_scope();
 }
 
 struct Ctx<'a> {
@@ -1246,11 +1255,14 @@ impl Ctx<'_> {
                     self.pool.add(Fx { kind: Kind::Portal, look, owner: *player, a: p, dir: n, flag: *orange, dur: 20.0, ..default() });
                 }
                 if let Some(pv) = self.views.player(*player) {
+                    // The shot: a fat bolt of portal colour with a white core, hand → wall.
                     let h = hand_of(pv, self.hands, self.local);
-                    pen.beam(h, p, 0.06, color, 3.0, 0.14);
+                    pen.beam(h, p, 0.14, color, 3.5, 0.16);
+                    pen.beam(h, p, 0.05, [1.0, 0.97, 0.9], 5.0, 0.1);
                 }
-                prims::flash(pen, p + n * 0.1, 0.6, color, 3.0, 0.1);
-                pen.ring(&look, p + n * 0.05, n, 0.2, 4.0, 0.8, 0.25);
+                prims::flash(pen, p + n * 0.15, 1.2, color, 4.0, 0.12);
+                pen.ring(&look, p + n * 0.05, n, 0.2, 6.0, 1.2, 0.3);
+                pen.burst(&look, p + n * 0.1, 0.8, 5.0, Some(n), 0.8, 0.35);
                 snd(w, "mv_hardlight", p, if *orange { 0.85 } else { 1.15 }, 0.8);
             }
             OpEvent::Empowered { player, secs, on } => {
@@ -1630,6 +1642,7 @@ fn step(
     let v = view_of(&cams);
     let budget = settings.as_ref().map_or(1.0, |s| s.particle_budget).clamp(0.15, 1.0);
     let mut pen = Pen { fx: &mut fx, motes: table.t.beats.motes * budget, scale: 1.0, cam: v.cam, avoid: None };
+    pen.fx.scope(v.cam, LINE_FLOOR, IMM_BUDGET);
     let local = active.local;
     let fp = hands.active;
     let pool = &mut *pool;
@@ -1985,8 +1998,9 @@ fn step(
             }
         }
     }
+    let imm_dropped = pen.fx.end_scope();
     let live = pool.fx.iter().filter(|f| f.live).count();
-    *stats = OpVisStats { live, peak: pool.peak, started: pool.started, step_us: t0.elapsed().as_secs_f32() * 1e6 };
+    *stats = OpVisStats { live, peak: pool.peak, started: pool.started, step_us: t0.elapsed().as_secs_f32() * 1e6, imm_dropped };
 }
 
 /// What an entry does as it ends: a leap lands in a crater, a crescent dissipates.

@@ -54,13 +54,8 @@ pub const VOTE_SECS: f32 = 15.0;
 /// Stats refresh cadence (ticks) while a match runs (the lobby carries them to clients).
 const STATS_EVERY: u64 = 60;
 
-/// The vote for the next match (open while the match is over).
-#[derive(Clone, Debug)]
-pub struct VoteState {
-    /// When the next match starts (`now_secs`).
-    pub deadline: f64,
-    pub votes: Vec<(PlayerId, NetMapKind)>,
-}
+/// The vote for the next match (open while the match is over; rules in `net::map_vote`).
+pub use super::map_vote::VoteState;
 
 /// Top-voted map; ties broken by `seed`; no votes = the current map again.
 pub fn tally(votes: &[(PlayerId, NetMapKind)], current: NetMapKind, seed: u64) -> NetMapKind {
@@ -190,6 +185,8 @@ pub struct HostCore {
     pub shouts_in: Vec<(PlayerId, crate::present::shout::ShoutLine)>,
     /// Next-map vote (Some while the match is over).
     pub vote: Option<VoteState>,
+    /// Which maps have been played / offered this session (fair next-map offers).
+    pub rotation: super::map_vote::Rotation,
     /// Competitive stats of the match (observed every tick; sent in the lobby info).
     pub match_stats: bd_sim::match_stats::MatchStats,
     pub stats_lines: Vec<bd_sim::match_stats::StatLine>,
@@ -234,6 +231,7 @@ impl HostCore {
             lan: s.lan,
             shouts_in: Vec::new(),
             vote: None,
+            rotation: super::map_vote::Rotation::new(now_secs().to_bits() ^ u64::from(port)),
             match_stats: Default::default(),
             stats_lines: Vec::new(),
         })
@@ -281,16 +279,31 @@ impl HostCore {
             let rtt_ms = self.session.rtt(p.id).map_or(0, |r| (r * 1000.0).clamp(0.0, 9999.0) as u16);
             players.push(LobbyPlayer { id: p.id, name: p.name.clone(), corps: p.corps, ready, is_host, profile, rtt_ms });
         }
-        let vote = self.vote.as_ref().map(|v| NextVote { votes: v.votes.clone(), secs_left: (v.deadline - now_secs()).max(0.0) as f32 });
+        let vote = self.vote.as_ref().map(|v| v.view_for(self.me, now_secs()));
         LobbyInfo { players, settings: self.settings.clone(), map: self.map, in_match: self.in_match, vote, stats: self.stats_lines.clone() }
     }
 
-    /// `player` picks `kind` for the next match (ignored unless a vote is open).
-    pub fn cast_vote(&mut self, player: PlayerId, kind: NetMapKind) {
-        let Some(v) = self.vote.as_mut() else { return };
-        v.votes.retain(|(p, _)| *p != player);
-        v.votes.push((player, kind));
-        self.lobby_dirty = true;
+    /// `player` picks the map card `kind` for the next match (see [`HostCore::cast_pick`]).
+    pub fn cast_vote(&mut self, player: PlayerId, kind: NetMapKind) -> bool {
+        self.cast_pick(player, VotePick::Map(kind))
+    }
+
+    /// `player`'s next-map pick. Ignored unless a vote is open, the pick is on offer and (votes
+    /// locked) the player hasn't voted yet. Returns whether it counted.
+    pub fn cast_pick(&mut self, player: PlayerId, pick: VotePick) -> bool {
+        let Some(v) = self.vote.as_mut() else { return false };
+        let ok = v.cast(player, pick);
+        self.lobby_dirty |= ok;
+        ok
+    }
+
+    /// Host tool (dev auto-swap): the next match is on `kind`, now — no vote needed.
+    pub fn force_next(&mut self, kind: NetMapKind) {
+        if let Some(v) = self.vote.as_mut() {
+            v.result = Some((kind, false));
+            v.deadline = v.deadline.min(now_secs());
+            self.lobby_dirty = true;
+        }
     }
 
     /// The vote's time is up (or the host said go): build the next match now.
@@ -317,9 +330,20 @@ impl HostCore {
         }
     }
 
-    /// The map the next match is played on (top vote, random among ties, else the same map).
+    /// The map the next match is played on for the votes so far (`map_vote`: top pick, fair roll
+    /// among ties, RANDOM rolled off the cards; nobody voted = a roll among the cards).
     pub fn next_map(&self, seed: u64) -> NetMapKind {
-        tally(self.vote.as_ref().map_or(&[][..], |v| &v.votes[..]), self.map.kind, seed)
+        self.vote.as_ref().map_or(self.map.kind, |v| v.decide(seed).0)
+    }
+
+    /// The vote is due: decide it once. `Some(map)` = build it now; `None` while RANDOM's roulette
+    /// reveal plays (the countdown moves on; call again when due).
+    pub fn settle_vote(&mut self, seed: u64) -> Option<NetMapKind> {
+        let v = self.vote.as_mut()?;
+        let first = v.result.is_none();
+        let r = v.settle(seed, now_secs());
+        self.lobby_dirty |= first;
+        r
     }
 
     pub fn set_settings(&mut self, s: GameSettings) {
@@ -373,6 +397,7 @@ impl HostCore {
         self.in_match = true;
         self.terrain = terrain;
         self.map = map;
+        self.rotation.played(map.kind);
         self.terrain_log.clear();
         self.ev_buf.clear();
         self.vote = None;
@@ -530,7 +555,17 @@ impl HostCore {
             self.lobby_dirty = false;
             self.last_lobby_sent = now;
             let l = self.lobby();
-            self.session.broadcast(&S2C::Lobby(l));
+            match self.vote.as_ref().filter(|v| v.hidden) {
+                // Hidden votes: every client gets its own view (picks only once it voted).
+                Some(v) => {
+                    let ids: Vec<PlayerId> = self.session.players().iter().map(|p| p.id).filter(|id| *id != self.me).collect();
+                    for id in ids {
+                        let view = LobbyInfo { vote: Some(v.view_for(id, now)), ..l.clone() };
+                        self.session.send(id, &S2C::Lobby(view));
+                    }
+                }
+                None => self.session.broadcast(&S2C::Lobby(l)),
+            }
         }
         self.cost(t0);
     }
@@ -609,7 +644,9 @@ impl HostCore {
                     self.shouts_in.push((from, line));
                 }
             }
-            C2S::MapVote(kind) => self.cast_vote(from, kind),
+            C2S::MapVote(pick) => {
+                self.cast_pick(from, pick);
+            }
             C2S::Resync => {
                 if now - self.remotes[i].last_resync > 2.0 {
                     self.remotes[i].last_resync = now;
@@ -667,7 +704,7 @@ impl HostCore {
             self.lobby_dirty |= over;
         }
         if over && self.vote.is_none() {
-            self.vote = Some(VoteState { deadline: now_secs() + f64::from(VOTE_SECS), votes: Vec::new() });
+            self.vote = Some(VoteState::open(&self.settings.vote, &mut self.rotation, self.map.kind, now_secs() + f64::from(VOTE_SECS)));
             self.lobby_dirty = true;
         } else if !over && self.vote.is_some() {
             self.vote = None;

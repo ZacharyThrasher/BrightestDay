@@ -75,6 +75,24 @@ pub enum Channel {
     Oath,
     /// Charging willpower: planted wide stance, fists pulled to the hips, trembling harder over time.
     Charge,
+    // ---- TAUNT: wordless body taunts (`bd_sim::taunt`; `t` = seconds since the taunt started) ----
+    /// Double-biceps flex: arms up and out, two pumps, a glance at the ring-hand bicep.
+    Flex,
+    /// "Come here": ring hand out, palm up, two beckons pulling back to the chest, chin up.
+    Beckon,
+    /// Shrug (elbows out, palms up, head tilt) then a dismissive brush-off flick of the ring hand.
+    Shrug,
+    /// A theatrical bow: ring arm sweeps across the belly, off arm out behind, a deep bend.
+    Bow,
+    /// A little bounce dance: hips sway, knees pump, fists punch up on the beat (loops).
+    Dance,
+}
+
+impl Channel {
+    /// A wordless taunt (not "busy with the ring").
+    pub fn is_taunt(self) -> bool {
+        matches!(self, Channel::Flex | Channel::Beckon | Channel::Shrug | Channel::Bow | Channel::Dance)
+    }
 }
 
 pub(crate) fn sanitize_motion(m: BodyMotion) -> BodyMotion {
@@ -301,6 +319,9 @@ fn channel_local(m: &VoxelModel, i: usize, kind: Channel, w: f32, t: f32) -> Loc
     if w <= 1e-4 {
         return Local::IDENTITY;
     }
+    if kind.is_taunt() {
+        return taunt_local(m, i, kind, w, if t.is_finite() { t.max(0.0) } else { 0.0 });
+    }
     // Ease in over 0.12 s (the caller eases out through `w`).
     let e = w * Ease::OutBack.apply(smoothstep(0.0, 0.12, t));
     match kind {
@@ -350,6 +371,169 @@ fn channel_local(m: &VoxelModel, i: usize, kind: Channel, w: f32, t: f32) -> Loc
                 _ => Local::IDENTITY,
             }
         }
+        // Taunts returned above.
+        _ => Local::IDENTITY,
+    }
+}
+
+// ------------------------------------------------------------------------------------ taunts
+
+/// Seconds a taunt pose plays before it settles (the dance loops until the caller drops it).
+pub fn taunt_duration(kind: Channel) -> f32 {
+    match kind {
+        Channel::Flex => 1.1,
+        Channel::Beckon => 1.0,
+        Channel::Shrug => 0.95,
+        Channel::Bow => 1.25,
+        Channel::Dance => 4.0,
+        _ => 0.0,
+    }
+}
+
+/// A smooth hump centred on `c`, `width` wide (0 outside).
+fn bump(t: f32, c: f32, width: f32) -> f32 {
+    let x = ((t - c) / (width * 0.5)).clamp(-1.0, 1.0);
+    let y = 1.0 - x * x;
+    y * y
+}
+
+/// Wordless taunts: big, readable silhouettes from any angle (the observer's view first), settling
+/// back to rest by [`taunt_duration`] (and through `w` when cancelled).
+fn taunt_local(m: &VoxelModel, i: usize, kind: Channel, w: f32, t: f32) -> Local {
+    let rig = &m.rig;
+    let ll = rig.leg_len.max(0.1);
+    let pivot = m.parts[i].pivot;
+    let hip = Vec3::Y * ll;
+    let dur = taunt_duration(kind);
+    // In / hold / out envelope (the dance only eases in).
+    let env = |a: f32, out: f32| track(t, &[K(0.0, 0.0, Ease::Linear), K(a, 1.0, Ease::OutBack), K(out, 1.0, Ease::Linear), K(dur, 0.0, Ease::InOutSine)]);
+    match kind {
+        Channel::Flex => {
+            let e = w * env(0.16, 0.86);
+            // Two pumps and a glance at the ring-hand bicep.
+            let pump = bump(t, 0.34, 0.2) + bump(t, 0.6, 0.2);
+            let look = w * track(t, &[K(0.45, 0.0, Ease::Linear), K(0.6, 1.0, Ease::OutCubic), K(0.88, 1.0, Ease::Linear), K(1.02, 0.0, Ease::InOutSine)]);
+            match rig.kinds[i] {
+                // Both fists thrown up and out (a big V — reads from across the map), pumping twice.
+                // (Rig limbs are one segment or a chain sharing the kind: a chain curls into biceps.)
+                PartKind::Arm(sd) => {
+                    let s = sd as f32;
+                    Local::rot(rz(s * (2.2 + 0.22 * pump) * e) * rx((-0.2 - 0.1 * pump) * e))
+                }
+                PartKind::Root => {
+                    let mut l = about(rx(0.07 * e + 0.03 * pump * e), hip, pivot);
+                    l.pos.y -= 0.04 * ll * e;
+                    let sq = 0.03 * pump * e;
+                    l.scale = Vec3::new(1.0 + sq, 1.0, 1.0 + sq);
+                    l
+                }
+                PartKind::Head => Local::rot(ry(-0.6 * look) * rz(-0.12 * look) * rx(-0.12 * look + 0.05 * e)),
+                PartKind::Leg(k) => {
+                    let s = leg_side(m, k);
+                    Local::rot(rz(s * 0.14 * e) * rx(0.08 * e))
+                }
+                PartKind::Tail { k, .. } => Local::rot(rx(-0.2 * pump * e / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        Channel::Beckon => {
+            let e = w * env(0.14, 0.8);
+            let pull = bump(t, 0.36, 0.22) + bump(t, 0.62, 0.22);
+            match rig.kinds[i] {
+                // Ring hand out front, then curls back toward the chest on each beckon.
+                PartKind::Arm(1) => Local::rot(rz((0.3 + 0.1 * pull) * e) * rx((1.35 + 0.75 * pull) * e)),
+                // Off hand on the hip.
+                PartKind::Arm(sd) => {
+                    let s = sd as f32;
+                    Local::rot(rz(s * 0.55 * e) * rx(-0.35 * e))
+                }
+                // Side-on, weight back, chin up (and a nod up with each beckon).
+                PartKind::Root => about(ry(0.32 * e) * rx((0.1 + 0.04 * pull) * e), hip, pivot),
+                PartKind::Head => Local::rot(ry(-0.3 * e) * rx((0.2 + 0.16 * pull) * e)),
+                PartKind::Leg(k) => {
+                    let lead = leg_side(m, k) < 0.0;
+                    Local::rot(rx(if lead { 0.28 } else { -0.14 } * e))
+                }
+                PartKind::Tail { k, .. } => Local::rot(ry(0.3 * pull * e / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        Channel::Shrug => {
+            let e = w * env(0.12, 0.76);
+            // Then the brush-off: the ring hand flicks out, the body turns away.
+            let flick = w * track(t, &[K(0.46, 0.0, Ease::Linear), K(0.58, 1.0, Ease::OutCubic), K(0.72, 0.85, Ease::Linear), K(0.95, 0.0, Ease::InOutSine)]);
+            let shrug = e * (1.0 - 0.5 * flick);
+            match rig.kinds[i] {
+                PartKind::Arm(1) => {
+                    let s = 1.0;
+                    Local::rot(rz(s * (0.55 * shrug + 1.15 * flick)) * rx(0.7 * shrug + 0.3 * flick))
+                }
+                PartKind::Arm(sd) => {
+                    let s = sd as f32;
+                    Local::rot(rz(s * 0.55 * e) * rx(0.7 * e))
+                }
+                PartKind::Root => {
+                    let mut l = about(ry(0.22 * flick) * rz(-0.05 * shrug) * rx(0.05 * shrug), hip, pivot);
+                    // Up on the toes for the shrug.
+                    l.pos.y += 0.025 * ll * shrug;
+                    l
+                }
+                PartKind::Head => Local::rot(ry(0.3 * flick) * rz(0.28 * shrug) * rx(0.1 * shrug + 0.12 * flick)),
+                PartKind::Tail { k, .. } => Local::rot(rz(0.25 * shrug / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        Channel::Bow => {
+            let bend = w * track(t, &[K(0.0, 0.0, Ease::Linear), K(0.3, 1.0, Ease::InOutSine), K(0.82, 1.0, Ease::Linear), K(dur, 0.0, Ease::InOutSine)]);
+            let sweep = w * track(t, &[K(0.0, 0.0, Ease::Linear), K(0.22, 1.0, Ease::OutBack), K(0.86, 1.0, Ease::Linear), K(dur, 0.0, Ease::InOutSine)]);
+            let lean = 0.62;
+            match rig.kinds[i] {
+                PartKind::Root => about(rx(-lean * bend), hip, pivot),
+                PartKind::Head => Local::rot(rx(-0.15 * bend)),
+                // Ring arm sweeps across the belly; the off arm flourishes out behind.
+                PartKind::Arm(1) => Local::rot(rz(-0.55 * sweep) * rx(0.75 * sweep + 0.4 * lean * bend)),
+                PartKind::Arm(sd) => {
+                    let s = sd as f32;
+                    Local::rot(rz(s * 0.75 * sweep) * rx(-0.55 * sweep))
+                }
+                // Legs undo the hip bend (feet stay planted), the ring side's foot slides back.
+                PartKind::Leg(k) => {
+                    let back = leg_side(m, k) > 0.0;
+                    Local::rot(rx(lean * bend + if back { -0.22 } else { 0.1 } * bend))
+                }
+                PartKind::Tail { k, .. } => Local::rot(rx(0.35 * bend / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        Channel::Dance => {
+            let e = w * smoothstep(0.0, 0.18, t);
+            // 132 bpm: a dip on every beat, hips / fists alternate every beat.
+            let ph = t * TAU * 2.2;
+            let dip = 0.5 + 0.5 * ph.cos();
+            let alt = (ph * 0.5).sin();
+            match rig.kinds[i] {
+                PartKind::Root => {
+                    let mut l = about(rz(0.2 * alt * e) * ry(0.34 * alt * e) * rx(-0.06 * e), hip, pivot);
+                    l.pos.y -= 0.08 * ll * (1.0 - dip) * e;
+                    l
+                }
+                PartKind::Leg(k) => {
+                    let s = leg_side(m, k);
+                    let knee = (0.42 * (s * alt).max(0.0) + 0.1 * (1.0 - dip)) * e;
+                    Local::rot(rz(-0.2 * alt * e + s * 0.06 * e) * rx(knee))
+                }
+                // Disco point: one fist punches up to the sky, the other drops across the hips.
+                PartKind::Arm(sd) => {
+                    let s = sd as f32;
+                    let up = (0.5 + 0.5 * s * alt).clamp(0.0, 1.0);
+                    Local::rot(rz(s * (0.3 - 0.18 * up) * e) * rx((0.35 + 2.45 * up) * e))
+                }
+                PartKind::Head => Local::rot(rz(-0.16 * alt * e) * ry(-0.2 * alt * e) * rx((0.08 - 0.16 * (1.0 - dip)) * e)),
+                PartKind::Tail { k, .. } => Local::rot(ry(0.5 * alt * e / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        _ => Local::IDENTITY,
     }
 }
 
@@ -430,5 +614,65 @@ mod tests {
                 assert!(a.translation.distance(b.translation) < 0.02, "{kind:?} settles by {d}s");
             }
         }
+    }
+
+    /// Taunts: finite for any time / weight, the feet stay on the floor (they are grounded poses),
+    /// they read (the flex raises both fists above the head line of the idle body, the bow drops
+    /// the head), and the timed ones are back at rest by their end.
+    #[test]
+    fn taunts_read_keep_the_feet_down_and_settle() {
+        let m = body();
+        let base = (AnimState::Locomotion { speed: 0.0, distance: 0.0, airborne: false }, 0.3);
+        let taunts = [Channel::Flex, Channel::Beckon, Channel::Shrug, Channel::Bow, Channel::Dance];
+        for kind in taunts {
+            let d = taunt_duration(kind);
+            for k in 0..=24 {
+                let t = d * k as f32 / 24.0;
+                let (lo, p) = lowest(&m, &[base, (AnimState::Channel { kind, w: 1.0 }, t)]);
+                assert!(p.iter().all(|x| x.is_finite()), "{kind:?} @ {t}");
+                assert!((-0.2..0.25).contains(&lo), "{kind:?} @ {t}: lowest voxel {lo}");
+            }
+            let (_, p) = lowest(&m, &[base, (AnimState::Channel { kind, w: f32::NAN }, f32::INFINITY)]);
+            assert!(p.iter().all(|x| x.is_finite()), "{kind:?} junk");
+            if kind != Channel::Dance {
+                let (_, rest) = lowest(&m, &[base]);
+                let (_, end) = lowest(&m, &[base, (AnimState::Channel { kind, w: 1.0 }, d)]);
+                for (a, b) in rest.iter().zip(&end) {
+                    assert!(a.translation.distance(b.translation) < 0.02, "{kind:?} settles by {d}s");
+                }
+            }
+        }
+        // Readable: the highest voxel of a flexing body is far above the idle arms' reach, the bow's
+        // head is lower than standing.
+        let top = |layers: &[(AnimState, f32)]| {
+            let mut p = vec![Affine3A::IDENTITY; m.parts.len()];
+            pose_layered(&m, layers, &mut p);
+            let mut hi = f32::MIN;
+            for (i, part) in m.parts.iter().enumerate() {
+                for (v, _) in &part.voxels {
+                    hi = hi.max(p[i].transform_point3(part.voxel_center(*v)).y);
+                }
+            }
+            hi
+        };
+        let stand = top(&[base]);
+        let bow = top(&[base, (AnimState::Channel { kind: Channel::Bow, w: 1.0 }, 0.5)]);
+        assert!(bow < stand - 0.15, "the bow bends ({bow} vs {stand})");
+        let arm_tip = |layers: &[(AnimState, f32)]| {
+            let mut p = vec![Affine3A::IDENTITY; m.parts.len()];
+            pose_layered(&m, layers, &mut p);
+            let mut hi = f32::MIN;
+            for (i, part) in m.parts.iter().enumerate() {
+                if matches!(m.rig.kinds[i], PartKind::Arm(_)) {
+                    for (v, _) in &part.voxels {
+                        hi = hi.max(p[i].transform_point3(part.voxel_center(*v)).y);
+                    }
+                }
+            }
+            hi
+        };
+        let idle_arm = arm_tip(&[base]);
+        let flex_arm = arm_tip(&[base, (AnimState::Channel { kind: Channel::Flex, w: 1.0 }, 0.5)]);
+        assert!(flex_arm > idle_arm + 0.25, "flex raises the fists ({flex_arm} vs {idle_arm})");
     }
 }

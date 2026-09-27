@@ -1,0 +1,68 @@
+// Distant Stars March — franchise theme for the space-opera kits (laser-sword knights, their dark
+// rivals, armoured bounty hunters).
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: a space-opera
+// march in chip — dotted brass rhythms, a military snare, timpani toms, a lydian-tinged lyrical horn
+// theme and a D-minor imperial-style menace section. It deliberately avoids the famous triplet
+// pickups and march figures of existing film scores: no melody, hook, bassline or lyric of any
+// existing theme is quoted or paraphrased.
+// Structure: sting (brass call) | a (march) b (lyrical) c (menace) a2 b2 | end.
+(
+    title: "Distant Stars March",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: space opera",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (march tempo and snare, brass-led chip orchestration).",
+    role: "Franchise theme: space-opera kits",
+    key: "D",
+    time: (4, 4),
+    bpm: 112.0,
+    gain_db: -4.3,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "brass", inst: "hl_brass", stem: Lead, pan: -0.1, echo: (ticks: 96, vol: 0.2)),
+        (name: "horn", inst: "lead50", stem: Lead, pan: 0.2, vol: 0.65),
+        (name: "chords", inst: "harm50", stem: Base, pan: 0.2, gen: "o4 X4 X8 X8 X4 X4 |"),
+        (name: "strings", inst: "arpsoft", stem: Base, pan: -0.25, vol: 0.8, gen: "o4 Y1 |"),
+        (name: "bass", inst: "bass", stem: Base, gen: "o2 u4 R4 R8. R16 F4 R4 |"),
+        (name: "timp", drums: true, stem: Drive, vol: 1.0, gen: "t4 r4 t4 r4 |"),
+        (name: "snare", drums: true, stem: Drive, pan: 0.15, vol: 0.85, gen: "s8. s16 s8 s8 s8. s16 s8 s16 s16 |"),
+    ],
+    patterns: {
+        "chA": "D | G/D | D | A | Bm | G | Em | A |",
+        "chB": "G | D/F# | Em | D | G | D | E | A |",
+        "chC": "Dm | Bb | Gm | A | Dm | Bb | Gm | A |",
+        // ---- tunes (all original) ----
+        "mA": "o5 f4. e8 d4 a4 | o5 b4. a8 g4 d4 | o5 f8. g16 a8. b16 a4 f4 | o5 e2. r4 |
+               o5 f4. g8 a4 o6 d4 | o6 d8. o5 b16 a8. g16 b4 g4 | o5 e8. f16 g8. a16 b4 e4 | o5 a2 e4 c4 |",
+        "mB": "o5 d2 g4. a8 | o5 a2 f4 d4 | o5 g2 b4. a8 | o5 f2. r4 |
+               o5 b2 o6 d4. c8 | o6 d2 o5 a4 f4 | o5 g+2 b4 e4 | o5 c2 e2 |",
+        "mC": "o4 d8 d8 d8. e16 f=4 a4 | o4 b-4. a8 b-4 o5 d4 | o5 d4. c=8 o4 b-4 g4 | o4 a2. r4 |
+               o5 d8 d8 d8. e16 f=4 a4 | o5 b-4. a8 b-4 o6 d4 | o6 d4 c=4 o5 b-4 g4 | o5 a2 c+4 e4 |",
+        // counter-horn under the lyrical theme
+        "hB": "o4 b2 o5 d2 | o5 d2 o4 a2 | o4 b2 o5 e2 | o5 d2. r4 | o5 d2 g2 | o5 f2 d2 | o5 e2 d2 | o5 e1 |",
+    },
+    sections: [
+        // The sting: a rising brass call over a snare roll.
+        (name: "sting", bars: 2, chords: "A | D |", parts: {
+            "brass": "o5 a8. a16 o6 d4 r4 d8. e16 | o6 f2. r4 |",
+            "horn": "o5 e8. e16 a4 r4 a8. a16 | o5 a2. r4 |",
+            "snare": "[s16]16 | c4 r4 r2 |",
+            "timp": "t4 t8 t8 t4 t8 t8 | t4 r4 r2 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", mute: ["strings"], parts: { "brass": "$mA" }),
+        (name: "b", bars: 8, chords: "$chB", mute: ["chords"], parts: { "horn": "$mB", "brass": "$hB",
+            "snare": "[r1 |]4 [s8. s16 s8 s8 s8. s16 s8 s16 s16 |]3 [s16]16 |" }),
+        (name: "c", bars: 8, chords: "$chC", parts: { "brass": "$mC", "horn": "k-12 $mC k0",
+            "timp": "[t8 t8 t8 r8 t4 r4 |]7 t8 t8 t8 t8 t16 t16 t16 t16 t16 t16 t16 t16 |" }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "brass": "$mA", "horn": "k-12 $mA k0" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "brass": "$mB", "horn": "$hB" }),
+        (name: "end", bars: 2, chords: "D | D |", mute: ["strings"], parts: {
+            "brass": "o5 a8. a16 o6 d4 f4 a4 | o6 d2. r4 |",
+            "horn": "o5 f8. f16 a4 o6 d4 f4 | o5 a2. r4 |",
+            "snare": "s8. s16 s8 s8 [s16]8 | c2 r2 |",
+            "timp": "t4 t4 t8 t8 t8 t8 | t2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

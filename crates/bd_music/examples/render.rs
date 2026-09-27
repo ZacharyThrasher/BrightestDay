@@ -6,6 +6,8 @@
 //! cargo run --release -p bd_music --example render -- --medley target/music/medley.wav
 //! cargo run --release -p bd_music --example render -- --stingers target/music/stingers.wav
 //! cargo run --release -p bd_music --example render -- --lint [--track name]
+//! cargo run --release -p bd_music --example render -- --themes        # franchise themes: WAVs + swell demos + report
+//! cargo run --release -p bd_music --example render -- --calibrate --themes   # calibrate only the themes (or --track name)
 //! ```
 
 use std::path::{Path, PathBuf};
@@ -35,6 +37,7 @@ struct Args {
     calibrate: bool,
     drop_at: Option<f32>,
     remix_medley: Option<PathBuf>,
+    themes: bool,
 }
 
 fn parse_args() -> Args {
@@ -55,6 +58,7 @@ fn parse_args() -> Args {
         calibrate: false,
         drop_at: None,
         remix_medley: None,
+        themes: false,
     };
     let v: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -111,6 +115,7 @@ fn parse_args() -> Args {
                 i += 1;
             }
             "--all" | "--report" => a.all = true,
+            "--themes" => a.themes = true,
             "--lint" => a.lint = true,
             "--list" => a.list = true,
             other => eprintln!("ignoring unknown argument {other}"),
@@ -285,7 +290,13 @@ fn main() {
         return;
     }
     if args.calibrate {
-        calibrate(&lib, &dir);
+        let only_themes = args.themes;
+        let only = args.track.clone();
+        calibrate(&lib, &dir, &|s: &bd_music::Song| (!only_themes || s.info.theme) && only.as_deref().is_none_or(|t| t == s.info.name));
+        return;
+    }
+    if args.themes {
+        themes_report(&lib, &args.out_dir);
         return;
     }
     if let Some(path) = &args.stingers {
@@ -737,9 +748,9 @@ fn write_png(path: &Path, w: u32, h: u32, rgb: &[u8]) -> std::io::Result<()> {
     std::fs::write(path, out)
 }
 /// Measure every track at intensity 1 and rewrite its gain_db so it lands on -23 LUFS integrated.
-fn calibrate(lib: &Arc<MusicLibrary>, dir: &Path) {
+fn calibrate(lib: &Arc<MusicLibrary>, dir: &Path, pick: &dyn Fn(&bd_music::Song) -> bool) {
     const TARGET: f32 = -23.0;
-    for s in &lib.tracks {
+    for s in lib.tracks.iter().filter(|s| pick(s)) {
         let name = &s.info.name;
         let r = render_track(lib, name, 1.0, None, 0.0);
         let lufs = integrated_lufs(&r.audio, SR);
@@ -806,4 +817,92 @@ fn render_remix_medley(lib: &Arc<MusicLibrary>, path: &Path, secs: f32) {
         true_peak_db(&audio),
         path.display()
     );
+}
+
+// ------------------------------------------------------------------------------------------------
+// Franchise themes: each theme on its own (intro + loop + 4 s), and a "swell" demo through the real
+// theme-layer API over a map track: 6.2 s of the map track, the theme swells in on a beat and plays
+// 16 s, fades out, 6 s of the map track again. Writes <theme>.wav, <theme>_swell.wav and
+// themes_report.md (length, loop, loudness, peaks, clipping, entrance timing).
+// ------------------------------------------------------------------------------------------------
+
+fn themes_report(lib: &Arc<MusicLibrary>, out_dir: &Path) {
+    std::fs::create_dir_all(out_dir).ok();
+    let mut md = String::from(
+        "# Franchise themes render report\n\n48 kHz stereo. Standalone = the theme from its sting through one loop + 4 s at \
+         intensity 1.0. Swell = `archipelago_combat` at intensity 0.6 for 6.2 s, `Theme` on (enters on the next map beat), \
+         16 s, `Theme` off (2.5 s fade), 6 s. Peak must stay under -2 dBFS (the safety limiter's knee).\n\n\
+         | theme | title | bpm | key | loop s | total s | LUFS 1.0 | LUFS 0.3 | dBTP | sample peak | swell: map LUFS / theme LUFS / after | entrance on map beat | CPU ms per s |\n\
+         |---|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+    );
+    let map = lib.track_id("archipelago_combat").expect("archipelago_combat");
+    let mut worst_peak = -99.0f32;
+    for (id, s) in lib.themes() {
+        let name = &s.info.name;
+        let hi = render_track(lib, name, 1.0, None, 4.0);
+        let lo = render_track(lib, name, 0.3, Some(40.0), 0.0);
+        write_wav16(&out_dir.join(format!("{name}.wav")), SR, &hi.audio).expect("wav");
+        let secs = hi.audio.len() as f64 / 2.0 / f64::from(SR);
+        let loop_s = (hi.wrap.unwrap_or(0).saturating_sub(hi.loop_start.unwrap_or(0))) as f64 / f64::from(SR);
+        let l_hi = integrated_lufs(&hi.audio, SR);
+        let l_lo = integrated_lufs(&lo.audio, SR);
+        let tp = true_peak_db(&hi.audio);
+        let pk = sample_peak_db(&hi.audio);
+        worst_peak = worst_peak.max(pk);
+        let cpu = hi.secs_cpu * 1000.0 / secs;
+        // Swell demo through the real API.
+        let mut p = MusicPlayer::new(Arc::clone(lib), SR);
+        p.command(MusicCommand::SetIntensity(0.6));
+        p.command(MusicCommand::Play { track: map, skip_intro: true });
+        let mut audio: Vec<f32> = Vec::new();
+        let mut buf = vec![0.0f32; 256 * 2];
+        fn run(p: &mut MusicPlayer, audio: &mut Vec<f32>, secs: f32) {
+            let mut buf = [0.0f32; 256 * 2];
+            let target = audio.len() / 2 + (secs * SR as f32) as usize;
+            while audio.len() / 2 < target {
+                p.render(&mut buf);
+                audio.extend_from_slice(&buf);
+            }
+        }
+        // 6.2 s: between the map's beats, so the entrance visibly waits for the next one.
+        run(&mut p, &mut audio, 6.2);
+        let on_at = audio.len() / 2;
+        p.command(MusicCommand::Theme { track: Some(id) });
+        let mut entered = None;
+        let mut on_beat = false;
+        while audio.len() / 2 < on_at + (16.0 * SR as f32) as usize {
+            p.render(&mut buf);
+            audio.extend_from_slice(&buf);
+            if entered.is_none() && p.theme_debug_log().bar_n > 0 {
+                let e = p.theme_debug_log().bars[0];
+                let beats = p.debug_log();
+                on_beat = beats.beats.iter().take(beats.beat_n.min(64)).any(|&b| b == e);
+                entered = Some(e);
+            }
+        }
+        let off_at = audio.len() / 2;
+        p.command(MusicCommand::Theme { track: None });
+        run(&mut p, &mut audio, 8.5);
+        let seg = |a: usize, b: usize| integrated_lufs(&audio[2 * a..2 * b], SR);
+        let sr = SR as usize;
+        let map_l = seg(0, on_at);
+        let theme_l = seg(on_at + sr, off_at);
+        let after_l = seg(off_at + 3 * sr, audio.len() / 2);
+        let wait = entered.map_or(f64::NAN, |e| (e as f64 - on_at as f64) / f64::from(SR));
+        write_wav16(&out_dir.join(format!("{name}_swell.wav")), SR, &audio).expect("wav");
+        md.push_str(&format!(
+            "| {name} | {} | {} | {} | {loop_s:.1} | {secs:.1} | {l_hi:.1} | {l_lo:.1} | {tp:.1} | {pk:.1} | {map_l:.1} / {theme_l:.1} / {after_l:.1} | {} (+{wait:.2} s) | {cpu:.2} |\n",
+            s.info.title,
+            s.bpm,
+            s.info.key,
+            if on_beat { "yes" } else { "no" },
+        ));
+        println!(
+            "{name:22} {secs:6.1}s loop {loop_s:5.1}s  LUFS {l_hi:6.1} / {l_lo:6.1}  TP {tp:5.1}  peak {pk:5.1}  swell {map_l:6.1} -> {theme_l:6.1} -> {after_l:6.1}  entrance +{wait:.2}s  cpu {cpu:.2}"
+        );
+    }
+    md.push_str(&format!("\nLoudest sample peak across the themes: {worst_peak:.1} dBFS.\n"));
+    let path = out_dir.join("themes_report.md");
+    std::fs::write(&path, md).expect("report");
+    println!("themes report -> {}", path.display());
 }

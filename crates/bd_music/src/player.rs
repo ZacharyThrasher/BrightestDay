@@ -23,6 +23,19 @@ const CUT_FADE_SECS: f32 = 0.25;
 const OPEN_HZ: f32 = 21_000.0;
 /// Width of supersaw side signals in the channel pan.
 const SIDE_W: f32 = 0.7;
+/// Theme layer ([`MusicCommand::Theme`]): the theme's own fade-in. Short, because each theme's
+/// `intro` is written as the swell (its signature sting) and has to land on the beat.
+pub const THEME_IN_SECS: f32 = 0.35;
+/// The map track ducks out under a theme over this long...
+pub const THEME_DUCK_SECS: f32 = 0.9;
+/// ...and swells back while the theme fades out over this long.
+pub const THEME_OUT_SECS: f32 = 2.5;
+/// Fast theme cut when a big stinger takes over (match point, last standing, victory, defeat, stop).
+pub const THEME_CUT_SECS: f32 = 0.4;
+/// The map track's level under a theme (it keeps sequencing, so it resumes in place).
+const THEME_BED: f32 = 0.0;
+/// Themes are battle themes: they never play thinner than this intensity.
+const THEME_MIN_INTENSITY: f32 = 0.7;
 
 /// Which versions of the soundtrack play (a game setting: "Music: Classic chip / Remixes / Shuffle").
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -58,6 +71,11 @@ pub enum MusicCommand {
     /// Turn a named overlay layer ([`crate::overlay`], e.g. "drums") on / off: it locks to the
     /// playing track's 16ths and fades in / out.
     Overlay { id: OverlayId, on: bool },
+    /// The franchise theme layer (`assets/music/themes`): `Some(track)` swells that theme in on the
+    /// playing track's next beat (the map track ducks out underneath and keeps its place); another
+    /// theme while one plays switches on the theme's next bar line; `None` fades it back out.
+    /// Repeating the playing theme is a no-op (and cancels a fade-out).
+    Theme { track: Option<TrackId> },
 }
 
 /// Where a remix is in its explore → build → drop cycle.
@@ -103,6 +121,10 @@ pub struct MusicStatus {
     pub hpf_hz: f32,
     /// Overlay layers switched on (bit `i` = [`OverlayId`] `i`).
     pub overlays: u8,
+    /// The theme on the theme layer (playing, or fading out).
+    pub theme: Option<TrackId>,
+    /// Theme layer level 0..1 (the map track sits at `1 - level` or lower).
+    pub theme_level: f32,
 }
 
 /// Fixed-size logs for tests and the offline report (no allocation).
@@ -355,6 +377,8 @@ struct Ctl {
     /// Main deck 16ths crossed this block: (sample offset, pattern step 0..32) — overlay layers.
     steps: [(usize, u8); 8],
     nsteps: usize,
+    /// First main-deck beat line crossed this block (sample offset) — theme entrances.
+    beat_at: Option<usize>,
 }
 
 struct Deck {
@@ -377,6 +401,8 @@ struct Deck {
     stem_gain: [Ramp; 3],
     duck: [Ramp; 3],
     fade: Ramp,
+    /// Theme-layer crossfade (map decks duck under a theme; theme decks swell in / out).
+    xfade: Ramp,
     gain: f32,
     bars: u32,
     beat: u32,
@@ -436,6 +462,7 @@ impl Deck {
             stem_gain: [Ramp::at(0.0); 3],
             duck: [Ramp::at(1.0); 3],
             fade: Ramp::at(1.0),
+            xfade: Ramp::at(1.0),
             gain: 1.0,
             bars: 0,
             beat: 0,
@@ -817,10 +844,13 @@ impl Deck {
         // Overlay layers lock to the main deck's 16ths (two-bar pattern: odd bars 0..16, even 16..32).
         if main && self.tick.is_multiple_of(PPQ / 4) && ctl.nsteps < ctl.steps.len() {
             let in_bar = ((self.tick % song.bar_ticks.max(1)) / (PPQ / 4)).min(15) as u8;
-            ctl.steps[ctl.nsteps] = (offset, in_bar + if self.bars % 2 == 0 { 16 } else { 0 });
+            ctl.steps[ctl.nsteps] = (offset, in_bar + if self.bars.is_multiple_of(2) { 16 } else { 0 });
             ctl.nsteps += 1;
         }
         if main && self.tick.is_multiple_of(song.beat_ticks) {
+            if ctl.beat_at.is_none() {
+                ctl.beat_at = Some(offset);
+            }
             log.beat(now);
             self.beat = (self.tick % song.bar_ticks) / song.beat_ticks.max(1);
             if let Some(k) = ctl.sting_pending.filter(|k| !k.on_bar()) {
@@ -1151,7 +1181,7 @@ impl Deck {
         let gain = self.gain;
         let pump = self.pump;
         for i in 0..span {
-            let f = self.fade.next() * gain;
+            let f = self.fade.next() * gain * self.xfade.next();
             let p = match pump {
                 Some(pm) => {
                     if self.pump_att > 0 {
@@ -1203,11 +1233,23 @@ pub struct MusicPlayer {
     rot: u32,
     rng: u32,
     overlays: Overlays,
+    /// Franchise theme layer: two decks so a theme switch hands off on a bar line.
+    themes: [Deck; 2],
+    theme_active: usize,
+    /// The theme asked for (`None` = off / fading out).
+    theme_req: Option<TrackId>,
+    /// A theme waiting for its entrance (beat) or switch (bar line).
+    theme_pending: Option<TrackId>,
+    /// The current fade-out is a fast cut (a big stinger / stop).
+    theme_cut: bool,
+    theme_log: DebugLog,
+    /// Current map-deck level under the theme layer (new map tracks start at it).
+    main_x: f32,
 }
 
 impl MusicPlayer {
-    /// Build a player. Allocates all voice/echo state up front (≈ 5.5 MB at 48 kHz, mostly the
-    /// 1.2 s echo lines of 3 decks × 8 channels); nothing is allocated afterwards.
+    /// Build a player. Allocates all voice/echo state up front (≈ 9 MB at 48 kHz, mostly the
+    /// 1.2 s echo lines of 5 decks × 8 channels); nothing is allocated afterwards.
     pub fn new(lib: Arc<MusicLibrary>, sample_rate: u32) -> Self {
         let sr = sample_rate.clamp(8_000, 192_000);
         let f = sr as f32;
@@ -1234,6 +1276,13 @@ impl MusicPlayer {
             rot: 0,
             rng: 0x1234_5678,
             overlays: Overlays::new(f),
+            themes: [Deck::new(f), Deck::new(f)],
+            theme_active: 0,
+            theme_req: None,
+            theme_pending: None,
+            theme_cut: false,
+            theme_log: DebugLog::default(),
+            main_x: 1.0,
         }
     }
 
@@ -1310,6 +1359,7 @@ impl MusicPlayer {
                 self.pending_play = None;
                 self.pending_stop = true;
                 self.requested = None;
+                self.cut_theme();
             }
             MusicCommand::SetIntensity(x) => {
                 if x.is_finite() {
@@ -1324,6 +1374,15 @@ impl MusicPlayer {
                 }
             }
             MusicCommand::Overlay { id, on } => self.overlays.set(id, on),
+            MusicCommand::Theme { track } => {
+                let t = track.filter(|t| self.lib.track(*t).is_some());
+                self.theme_req = t;
+                self.theme_cut = false;
+                self.theme_pending = match t {
+                    Some(t) if self.theme_playing() != Some(t) => Some(t),
+                    _ => None,
+                };
+            }
             MusicCommand::SetStyle(s) => {
                 if s == self.style {
                     return;
@@ -1359,6 +1418,34 @@ impl MusicPlayer {
         self.command(MusicCommand::Stop);
     }
 
+    /// The theme the theme layer is sequencing (fading in, playing or fading out).
+    fn theme_playing(&self) -> Option<TrackId> {
+        let d = &self.themes[self.theme_active];
+        match (d.seq, d.src) {
+            (true, Some(Src::Track(i))) => Some(TrackId(i as u16)),
+            _ => None,
+        }
+    }
+
+    /// A theme is up (or swelling up) over the map track.
+    fn theme_dominant(&self) -> bool {
+        self.theme_req.is_some() && self.theme_playing() == self.theme_req
+    }
+
+    /// Fast theme exit (a big stinger / stop).
+    fn cut_theme(&mut self) {
+        if self.theme_req.is_some() || self.theme_pending.is_some() {
+            self.theme_cut = true;
+        }
+        self.theme_req = None;
+        self.theme_pending = None;
+    }
+
+    /// Deck log of the theme layer (tests / tools): bar lines of the playing theme.
+    pub fn theme_debug_log(&self) -> &DebugLog {
+        &self.theme_log
+    }
+
     pub fn status(&self) -> MusicStatus {
         let d = &self.decks[self.active];
         let (track, meta) = match d.src {
@@ -1383,6 +1470,8 @@ impl MusicPlayer {
             sub_bass: meta.is_some_and(|m| m.sub_bass),
             hpf_hz: meta.map_or(60.0, |m| m.hpf_hz),
             overlays: self.overlays.mask(),
+            theme: self.theme_playing(),
+            theme_level: if self.theme_playing().is_some() { self.themes[self.theme_active].xfade.cur } else { 0.0 },
         }
     }
 
@@ -1408,9 +1497,11 @@ impl MusicPlayer {
         let lib = Arc::clone(&self.lib);
         let Some(song) = lib.track(track) else { return };
         let intensity = self.intensity;
+        let main_x = self.main_x;
         let d = &mut self.decks[deck];
         let pos = if skip_intro { song.loop_idx } else { 0 };
         d.start(Src::Track(usize::from(track.0)), song, pos, delay);
+        d.xfade = Ramp::at(main_x);
         d.init_adaptive(intensity);
         let g = d.intensity_targets(song, intensity);
         d.stem_gain = [Ramp::at(g[0]), Ramp::at(g[1]), Ramp::at(g[2])];
@@ -1430,7 +1521,8 @@ impl MusicPlayer {
         let lib = Arc::clone(&self.lib);
         let bank = &lib.stingers;
         let Some(sec) = bank.sections.get(kind.index()).copied().flatten() else { return false };
-        let (tonic, minor) = match self.decks[self.active].src {
+        let key_src = if self.theme_dominant() { self.themes[self.theme_active].src } else { self.decks[self.active].src };
+        let (tonic, minor) = match key_src {
             Some(Src::Track(i)) => lib.tracks.get(i).map_or((0, false), |s| (s.tonic, s.minor)),
             _ => (0, false),
         };
@@ -1449,6 +1541,143 @@ impl MusicPlayer {
         self.sting_kind = Some(kind);
         self.log.stinger_start = Some(self.sample + delay as u64);
         true
+    }
+
+    /// Start `track` on theme deck `deck` at `delay` samples, its level ramping from `from` to 1.
+    fn start_theme(&mut self, deck: usize, track: TrackId, delay: usize, from: f32) {
+        let lib = Arc::clone(&self.lib);
+        let Some(song) = lib.track(track) else { return };
+        let sr = self.sr as f32;
+        let intensity = self.intensity.max(THEME_MIN_INTENSITY);
+        let d = &mut self.themes[deck];
+        d.start(Src::Track(usize::from(track.0)), song, 0, delay);
+        d.init_adaptive(intensity);
+        let g = d.intensity_targets(song, intensity);
+        d.stem_gain = [Ramp::at(g[0]), Ramp::at(g[1]), Ramp::at(g[2])];
+        d.update_rate(song, 1.0);
+        d.update_echo();
+        d.xfade = Ramp::at(from);
+        d.xfade.set(1.0, THEME_IN_SECS * sr);
+        for m in &mut self.decks {
+            m.xfade.set(THEME_BED, THEME_DUCK_SECS * sr);
+        }
+        self.theme_cut = false;
+        self.theme_log = DebugLog::default();
+    }
+
+    /// The theme layer for one block: entrances (next map beat), switches (theme bar line),
+    /// crossfades, and overlay stingers while a theme is up. Returns the theme's 16ths (for
+    /// overlay layers) and a stinger request that landed on its grid.
+    #[allow(clippy::type_complexity)]
+    fn theme_block(
+        &mut self,
+        lib: &Arc<MusicLibrary>,
+        map_beat: Option<usize>,
+        sting: bool,
+    ) -> ([(usize, u8); 8], usize, Option<(usize, StingerKind, f32)>) {
+        let sr = self.sr as f32;
+        let ta = self.theme_active;
+        // Entrance: on the map track's next beat (at once when nothing plays; after a holding
+        // stinger — match point, last standing — has finished).
+        if let Some(t) = self.theme_pending
+            && !self.themes[ta].seq
+        {
+            let main = &self.decks[self.active];
+            let at = if main.held {
+                None
+            } else if main.seq {
+                map_beat
+            } else {
+                Some(0)
+            };
+            if let Some(off) = at {
+                self.theme_pending = None;
+                let deck = if self.themes[ta].idle() { ta } else { 1 - ta };
+                self.start_theme(deck, t, off, 0.0);
+                self.theme_active = deck;
+            }
+        }
+        let ta = self.theme_active;
+        // Crossfade targets.
+        let dominant = self.theme_dominant();
+        let (t_target, t_secs) = match (dominant, self.theme_cut) {
+            (true, _) => (1.0, THEME_IN_SECS),
+            (false, true) => (0.0, THEME_CUT_SECS),
+            (false, false) => (0.0, THEME_OUT_SECS),
+        };
+        let x = &mut self.themes[ta].xfade;
+        if (x.target - t_target).abs() > 1e-6 {
+            x.set(t_target, t_secs * sr);
+        }
+        let (m_target, m_secs) = if dominant { (THEME_BED, THEME_DUCK_SECS) } else { (1.0, t_secs) };
+        for m in &mut self.decks {
+            if (m.xfade.target - m_target).abs() > 1e-6 {
+                m.xfade.set(m_target, m_secs * sr);
+            }
+        }
+        let mut ctl = Ctl {
+            sample0: self.sample,
+            intensity: self.intensity.max(THEME_MIN_INTENSITY),
+            tempo: 1.0,
+            switch_pending: self.theme_pending.is_some() && self.themes[ta].seq,
+            sting_pending: if sting { self.pending_sting } else { None },
+            switch_at: None,
+            sting_at: None,
+            steps: [(0, 0); 8],
+            nsteps: 0,
+            beat_at: None,
+        };
+        {
+            let deck = &mut self.themes[ta];
+            if let Some(song) = Self::song_of(lib, deck.src) {
+                deck.process(song, true, CONTROL, &mut ctl, &mut self.theme_log, &mut self.out_l, &mut self.out_r, false);
+            }
+        }
+        let tb = 1 - ta;
+        if let Some(off) = ctl.switch_at {
+            // Theme -> theme on the old theme's bar line (it releases over CUT_FADE_SECS).
+            if let Some(t) = self.theme_pending.take() {
+                let lvl = self.themes[ta].xfade.cur;
+                self.start_theme(tb, t, off, lvl);
+                self.theme_active = tb;
+                let deck = &mut self.themes[tb];
+                if let Some(song) = Self::song_of(lib, deck.src) {
+                    let mut ctl2 = Ctl { switch_pending: false, switch_at: None, nsteps: 0, ..ctl };
+                    deck.process(song, true, CONTROL, &mut ctl2, &mut self.theme_log, &mut self.out_l, &mut self.out_r, false);
+                    ctl.sting_pending = ctl2.sting_pending;
+                    if ctl2.sting_at.is_some() {
+                        ctl.sting_at = ctl2.sting_at;
+                    }
+                    // The new theme's grid drives the overlays from here.
+                    for &st in &ctl2.steps[..ctl2.nsteps.min(8)] {
+                        if ctl.nsteps < ctl.steps.len() && st.0 >= off {
+                            ctl.steps[ctl.nsteps] = st;
+                            ctl.nsteps += 1;
+                        }
+                    }
+                }
+            }
+        } else {
+            let deck = &mut self.themes[tb];
+            if let Some(song) = Self::song_of(lib, deck.src) {
+                let mut ctl2 = Ctl { switch_pending: false, sting_pending: None, sting_at: None, switch_at: None, ..ctl };
+                deck.process(song, false, CONTROL, &mut ctl2, &mut self.theme_log, &mut self.out_l, &mut self.out_r, false);
+            }
+        }
+        if sting {
+            self.pending_sting = ctl.sting_pending;
+        }
+        // Faded out: stop sequencing (the deck retires once its voices are quiet).
+        let ta = self.theme_active;
+        let req = self.theme_req;
+        let d = &mut self.themes[ta];
+        let wanted = req.is_some_and(|r| d.src == Some(Src::Track(usize::from(r.0))));
+        if !wanted && d.seq && d.xfade.cur <= 0.0 && d.xfade.target <= 0.0 {
+            d.stop(0.02);
+            self.theme_cut = false;
+        }
+        self.main_x = self.decks[self.active].xfade.cur;
+        (ctl.steps, ctl.nsteps, ctl.sting_at)
     }
 
     fn process_block(&mut self) {
@@ -1487,14 +1716,22 @@ impl MusicPlayer {
             self.pending_stop = false;
         }
         let a = self.active;
+        // Big stingers (match point, last standing, victory, defeat) take over from a theme.
+        if self.pending_sting.is_some_and(|k| k.holds_track() || k.ends_track()) {
+            self.cut_theme();
+        }
+        // While a theme is up, overlay stingers (KO, streak) land on its grid, in its key.
+        let sting_to_theme = self.theme_dominant() && self.pending_sting.is_some_and(|k| !k.on_bar());
         // Duck the lead/drive under overlay stingers.
         let overlay = !self.sting.idle() && self.sting_kind.is_some_and(|k| !k.holds_track() && !k.ends_track());
         let sr = self.sr as f32;
+        let ta = self.theme_active;
         for (s, target) in [(1usize, 0.85f32), (2, 0.5)] {
             let t = if overlay { target } else { 1.0 };
-            let d = &mut self.decks[a].duck[s];
-            if (d.target - t).abs() > 1e-6 {
-                d.set(t, if overlay { 0.02 * sr } else { 0.3 * sr });
+            for d in [&mut self.decks[a].duck[s], &mut self.themes[ta].duck[s]] {
+                if (d.target - t).abs() > 1e-6 {
+                    d.set(t, if overlay { 0.02 * sr } else { 0.3 * sr });
+                }
             }
         }
         let mut ctl = Ctl {
@@ -1502,11 +1739,12 @@ impl MusicPlayer {
             intensity: self.intensity,
             tempo: self.tempo.cur,
             switch_pending: self.pending_play.is_some() || self.pending_stop,
-            sting_pending: self.pending_sting,
+            sting_pending: if sting_to_theme { None } else { self.pending_sting },
             switch_at: None,
             sting_at: None,
             steps: [(0, 0); 8],
             nsteps: 0,
+            beat_at: None,
         };
         {
             let deck = &mut self.decks[a];
@@ -1514,7 +1752,9 @@ impl MusicPlayer {
                 deck.process(song, true, CONTROL, &mut ctl, &mut self.log, &mut self.out_l, &mut self.out_r, false);
             }
         }
-        self.pending_sting = ctl.sting_pending;
+        if !sting_to_theme {
+            self.pending_sting = ctl.sting_pending;
+        }
         let b = 1 - a;
         if let Some(off) = ctl.switch_at {
             self.pending_stop = false;
@@ -1524,9 +1764,15 @@ impl MusicPlayer {
                 // The new deck renders this block from `off`.
                 let deck = &mut self.decks[b];
                 if let Some(song) = Self::song_of(&lib, deck.src) {
-                    let mut ctl2 = Ctl { switch_pending: false, sting_pending: self.pending_sting, sting_at: None, switch_at: None, ..ctl };
+                    let pend = if sting_to_theme { None } else { self.pending_sting };
+                    let mut ctl2 = Ctl { switch_pending: false, sting_pending: pend, sting_at: None, switch_at: None, ..ctl };
                     deck.process(song, true, CONTROL, &mut ctl2, &mut self.log, &mut self.out_l, &mut self.out_r, false);
-                    self.pending_sting = ctl2.sting_pending;
+                    if !sting_to_theme {
+                        self.pending_sting = ctl2.sting_pending;
+                    }
+                    if ctl.beat_at.is_none() {
+                        ctl.beat_at = ctl2.beat_at;
+                    }
                     if ctl2.sting_at.is_some() {
                         ctl.sting_at = ctl2.sting_at;
                     }
@@ -1539,11 +1785,16 @@ impl MusicPlayer {
                 deck.process(song, false, CONTROL, &mut ctl2, &mut self.log, &mut self.out_l, &mut self.out_r, false);
             }
         }
+        // The franchise theme layer (after the map decks: its entrance waits for their beat).
+        let (tsteps, tn, tsting) = self.theme_block(&lib, ctl.beat_at, sting_to_theme);
         if let Some((off, k, bpm)) = ctl.sting_at
             && !self.start_stinger(k, off, Some(bpm))
         {
             // No such stinger in the bank: never leave the track held.
             self.decks[self.active].held = false;
+        }
+        if let Some((off, k, bpm)) = tsting {
+            let _ = self.start_stinger(k, off, Some(bpm));
         }
         let was_playing = !self.sting.idle();
         if was_playing {
@@ -1551,9 +1802,14 @@ impl MusicPlayer {
             let song = &lib.stingers.song;
             self.sting.process(song, false, CONTROL, &mut ctl3, &mut self.log, &mut self.out_l, &mut self.out_r, true);
         }
-        // Overlay layers (drums…) on the main deck's 16ths, into the drive stem.
-        let n = ctl.nsteps.min(ctl.steps.len());
-        self.overlays.render(&ctl.steps[..n], &mut self.out_l[1], &mut self.out_r[1]);
+        // Overlay layers (drums...) on the main deck's 16ths (the theme's while one is up), into
+        // the drive stem.
+        if self.theme_dominant() {
+            self.overlays.render(&tsteps[..tn.min(tsteps.len())], &mut self.out_l[1], &mut self.out_r[1]);
+        } else {
+            let n = ctl.nsteps.min(ctl.steps.len());
+            self.overlays.render(&ctl.steps[..n], &mut self.out_l[1], &mut self.out_r[1]);
+        }
         // Resume a held track once its stinger's sequence has finished.
         let main = &mut self.decks[self.active];
         if main.held && !self.sting.seq {
@@ -1580,7 +1836,7 @@ impl MusicPlayer {
             fl.sanitize();
             fr.sanitize();
         }
-        for d in self.decks.iter_mut().chain(std::iter::once(&mut self.sting)) {
+        for d in self.decks.iter_mut().chain(self.themes.iter_mut()).chain(std::iter::once(&mut self.sting)) {
             for stem in &mut d.stem_svf {
                 for f in stem {
                     f.sanitize();

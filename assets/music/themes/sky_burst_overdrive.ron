@@ -1,0 +1,72 @@
+// Sky Burst Overdrive — franchise theme for the power-up martial-arts kits and techniques (the
+// golden-aura transformations, energy waves, fusion warriors).
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: shouty power-up
+// J-rock chip — a fast rock beat, chip power-chord arpeggios, gang-shout claps, a screaming 12.5 %
+// pulse lead, and a key-change "power up" into the last chorus. No melody, hook, bassline or lyric
+// of any existing theme is quoted or paraphrased.
+// Structure: sting (power-up scream) | a (verse) b (pre) c (chorus) a2 b2 c2 (+2 semitones) | end.
+(
+    title: "Sky Burst Overdrive",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: power-up martial arts",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (J-rock tempo and form, key-change lift, chip instrumentation).",
+    role: "Franchise theme: power-up martial-arts kits and techniques",
+    key: "A",
+    time: (4, 4),
+    bpm: 176.0,
+    gain_db: -4.2,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "lead", inst: "lead12", stem: Lead, pan: -0.1, echo: (ticks: 48, vol: 0.2)),
+        (name: "twin", inst: "lead25", stem: Lead, pan: 0.2, vol: 0.6),
+        (name: "gtr", inst: "arp", stem: Base, pan: 0.18, gen: "o3 [X8]8 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "o2 u4 [R8]8 |"),
+        (name: "arp", inst: "pluck25", stem: Drive, pan: -0.3, vol: 0.7, gen: "o5 [R16 T16 F16 O16]4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.0, gen: "K8 r8 S8 r8 K8 K8 S8 r8 |"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.22, vol: 0.5, gen: "[H8]8 |"),
+        (name: "shout", drums: true, stem: Drive, pan: -0.15, vol: 0.8),
+    ],
+    patterns: {
+        "chA": "F#m | D | E | A | F#m | D | E | E |",
+        "chB": "D | E | C#m | F#m | D | E | Bm | E |",
+        "chC": "A | E | F#m | D | A | E | D E | A |",
+        // ---- tunes (all original) ----
+        "mA": "o5 c8 c8 c8 e8 f4 e8 c8 | o5 d4 f8 a8 r8 a8 f8 d8 | o5 e8 e8 g8 b8 r8 b8 a8 g8 | o5 a2 r4 e8 a8 |
+               o5 c8 c8 c8 e8 a4 g8 f8 | o5 f4 a8 o6 d8 r8 c8 o5 a8 f8 | o5 g8 a8 b8 o6 c8 d4 c8 o5 b8 | o5 b2. r4 |",
+        "mB": "o5 f4. e8 d4 f4 | o5 g4. f8 e4 g4 | o5 e4. g8 b4 o6 c4 | o6 c2 o5 a4 f4 |
+               o5 a4. b8 o6 c4 d4 | o6 e4. d8 c4 o5 b4 | o5 b4 o6 d4 f4 e8 d8 | o6 e1 |",
+        "mC": "o6 e4. c8 o5 a4 o6 c8 e8 | o6 e4 d8 c8 o5 b4 g4 | o5 a4. f8 e4 f8 a8 | o5 a2 f4 a4 |
+               o6 e4. c8 o5 a4 o6 c8 e8 | o6 f4 e8 d8 c4 o5 b4 | o6 d4 c8 d8 e4 g4 | o6 a2. r4 |",
+        // gang shouts: two claps on the "HEY!"
+        "shoutB": "[r1 |]3 r2 r4 X8 X8 | [r1 |]3 r2 X8 X8 X8 X8 |",
+        "shoutC": "[r2 r4 X8 r8 |]7 X8 X8 X8 X8 X4 r4 |",
+        "fill": "S16 S16 S16 S16 S16 S16 S16 S16 K8 K8 S8 S8 |",
+    },
+    sections: [
+        // The sting: a screaming run up into a big shout.
+        (name: "sting", bars: 2, chords: "E | A |", parts: {
+            "lead": "o4 b16 o5 c16 d16 e16 f16 g16 a16 b16 o6 c16 d16 e16 f16 g4 | o6 a4 r8 e8 a4. r8 |",
+            "twin": "o4 [e16]12 g4 | o5 c4 r8 o4 a8 o5 c4. r8 |",
+            "drums": "[S16]16 | C4 r8 K8 K4. r8 |",
+            "shout": "r1 | r4 r8 X8 X4. r8 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", mute: ["arp"], parts: { "lead": "$mA", "drums": "[K8 r8 S8 r8 K8 K8 S8 r8 |]7 $fill" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "twin": "k-12 $mB k0", "shout": "$shoutB" }),
+        (name: "c", bars: 8, chords: "$chC", parts: { "lead": "$mC", "twin": "k-12 $mC k0", "shout": "$shoutC",
+            "drums": "C8 r8 S8 r8 K8 K8 S8 r8 | [K8 r8 S8 r8 K8 K8 S8 r8 |]6 $fill" }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "lead": "$mA", "twin": "k-12 $mA k0" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "lead": "$mB", "twin": "k-12 $mB k0", "shout": "$shoutB" }),
+        // POWER UP: the last chorus a whole step higher.
+        (name: "c2", bars: 8, transpose: 2, chords: "$chC", parts: { "lead": "$mC", "twin": "k-12 $mC k0", "shout": "$shoutC",
+            "drums": "C8 r8 S8 r8 K8 K8 S8 r8 | [K8 r8 S8 r8 K8 K8 S8 r8 |]6 $fill" }),
+        (name: "end", bars: 2, chords: "A | A |", mute: ["arp", "hats"], parts: {
+            "lead": "o6 e4. c8 o5 a4 o6 e4 | o6 a2. r4 |",
+            "twin": "o5 c4. o4 a8 e4 o5 c4 | o5 e2. r4 |",
+            "drums": "K8 K8 S8 K8 [S16]8 | C2 r2 |",
+            "shout": "r2 r4 X8 X8 | X4 r2. |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2", "c2"],
+    loop_to: "a",
+    ending: "end",
+)

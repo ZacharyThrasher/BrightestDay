@@ -61,6 +61,8 @@ pub use maps::{VALLEY_SIZE_VOXELS, generate_valley};
 pub use slipstream::{SlipZone, Slipstream};
 #[cfg(feature = "hyperline")]
 pub use maps::{HYPERLINE_SIZE_VOXELS, generate_hyperline};
+#[cfg(feature = "lookout")]
+pub use maps::{LOOKOUT_SIZE_VOXELS, generate_lookout};
 pub use mesh::{ChunkMesh, Mesher, mesh_chunk};
 pub use tutorial::{Medals, Station, TutorialInfo, generate_tutorial, medals_from_bot};
 pub use world::{CHUNK_SIZE, CHUNK_VOLUME, VoxelWorld, chunk_of, chunk_origin};

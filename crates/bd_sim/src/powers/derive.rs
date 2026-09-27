@@ -42,13 +42,16 @@ pub struct DerivedKit {
     pub col: Option<[f32; 3]>,
     /// Impact-frame style for the ultimate ("comic", "ink", "glitch", "holy", "void").
     pub fr: Option<String>,
+    /// A second element (a Fire + Shadow character): the signature beam's windup fuses one orb of each
+    /// (the Hollow Purple merge, `MoveOp::Cast::merge`). `None` = a plain gathered beam.
+    pub e2: Option<Element>,
     /// (template, move name) in slot order.
     pub mv: Vec<(Tpl, String)>,
 }
 
 impl Default for DerivedKit {
     fn default() -> Self {
-        Self { el: Element::Light, tm: Temperament::Calm, sz: 1.0, wp: None, tech: false, col: None, fr: None, mv: vec![] }
+        Self { el: Element::Light, tm: Temperament::Calm, sz: 1.0, wp: None, tech: false, col: None, fr: None, e2: None, mv: vec![] }
     }
 }
 
@@ -87,6 +90,8 @@ pub enum Tpl {
     Lash,
     Spin,
     Hex,
+    /// POLISH (nature): a thorned vine lashes out, stings and tows them in front of you.
+    Vine,
     // ---- movement
     Blur,
     Streak,
@@ -118,6 +123,9 @@ pub enum Tpl {
     Heal,
     Shell,
     Intangible,
+    /// POLISH (nature): a bramble hedge bursts out round you (repel + a thorny, slowing aura) and the
+    /// first hit is answered.
+    Thorns,
     // ---- combo
     Flurry,
     FistBarrage,
@@ -134,6 +142,8 @@ pub enum Tpl {
     Drill,
     FollowThrough,
     Dogpile,
+    /// POLISH (nature): roots burst up along your aim and the ground at the crosshair grabs at legs.
+    Roots,
     // ---- ultimate
     Storm,
     Awaken,
@@ -161,6 +171,21 @@ pub enum Tpl {
     Showstopper,
     Throttle,
     TimeStop,
+    /// POLISH: a SIGNATURE palm beam in the character's element — gathered at the hands (hold = the
+    /// telegraph), released as a physical beam that bores terrain and can clash; a second element
+    /// (`e2`) fuses two orbs in the windup (the Hollow Purple merge).
+    SigBeam,
+    /// POLISH (nature): sunlight gathered at the palms, released as a golden-green signature beam.
+    SolarBeam,
+    /// POLISH (nature): a ring of thorn-walls cages the crosshair, spores fill it, roots burst up under
+    /// whoever is inside.
+    Overgrowth,
+    /// POLISH (calm masters): one quiet touch — then, a beat later, it lands (a delayed burst).
+    Pressure,
+    /// POLISH (beasts): a roar that locks up whoever is watching, the pounce, the mauling.
+    Apex,
+    /// POLISH (brutes): braced, a huge leap onto the crosshair and a crater where you land.
+    Titanfall,
     // ---- bonus (untagged; Breath / Beam / Stomp / Bolt reuse the primary shapes)
     Grow,
     Shrink,
@@ -206,6 +231,8 @@ pub enum Bolt {
     HomingArrow,
     Knives,
     Energy,
+    /// POLISH (nature): a spinning fan of razor leaves.
+    Leaf,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -309,7 +336,16 @@ impl K<'_> {
     }
     /// The ultimate's landing: title letters, boom, colour, impact frame.
     fn ult(&self, title: &str, extra: &str, punch: f32, shake: f32) -> String {
-        let fr = self.d.fr.as_deref().map(|f| format!(", impact_frame: Some({f:?})")).unwrap_or_default();
+        // POLISH: every derived ultimate lands with an impact frame (the pack's / flavour's, else the
+        // element's look: dark → void, lightning → glitch, fire → holy, the rest ink; clowns comic).
+        let fr = self.d.fr.as_deref().unwrap_or(match self.d.el {
+            Element::Shadow | Element::Psychic | Element::Poison => "void",
+            Element::Electric | Element::Atomic => "glitch",
+            Element::Fire => "holy",
+            _ if matches!(self.d.tm, Temperament::Playful | Temperament::Chaotic | Temperament::Fearful | Temperament::Lazy) => "comic",
+            _ => "ink",
+        });
+        let fr = format!(", impact_frame: Some({fr:?})");
         format!("(title: Some({:?}), boom: true, punch: {punch:.1}, shake: {shake:.2}{extra}{}{fr})", title.to_uppercase(), self.col())
     }
 }
@@ -347,7 +383,7 @@ impl Expander {
         let k = K { d: &d2, agg, kbm: if d.tm == Temperament::Aggressive { 1.05 } else { 1.0 } };
         let mut out = Vec::with_capacity(d.mv.len());
         for (slot, (t, name)) in d.mv.iter().enumerate().take(super::move_sel::MAX_MOVES) {
-            let Some(s) = build(&k, *t, slot, kit_name) else { continue };
+            let Some(s) = build(&k, *t, slot, kit_name, name) else { continue };
             let s = if slot == 4 { ult_juice(&k, *t, s, name) } else { s };
             let ops = self.ops.entry(s.ops.clone()).or_insert_with(|| ron::from_str::<Vec<MoveOp>>(&s.ops).ok()).clone();
             let Some(ops) = ops.filter(|o| !o.is_empty()) else { continue };
@@ -381,8 +417,9 @@ impl Expander {
     }
 }
 
-/// The move shape of template `t` in `slot` (≥ 5 = a bonus move: longer cooldowns).
-fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
+/// The move shape of template `t` in `slot` (≥ 5 = a bonus move: longer cooldowns); `name` is the move's
+/// own name (a signature beam's recipe carries it).
+fn build(k: &K, t: Tpl, slot: usize, kit_name: &str, name: &str) -> Option<Shape> {
     use Tpl::*;
     let bonus = slot >= 5;
     let el = k.el();
@@ -467,8 +504,10 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
                 self::Bolt::HomingArrow => recipe("arrow", "Spear", "Pierce, Fast, Homing", 0.55, 3.0, 1),
                 self::Bolt::Knives => recipe("knives", "Disc", "Blade, Fast", 0.3, 1.0, 3),
                 self::Bolt::Energy => recipe("energy bolt", "Ball", "Fast", 0.45, 5.0, 1),
+                self::Bolt::Leaf => recipe("razor leaf", "Disc", "Blade, Fast", 0.35, 1.5, 3),
             };
-            shape(ops, if bonus { 2.0 } else { 0.8 }, 2.0)
+            let s = shape(ops, if bonus { 2.0 } else { 0.8 }, 2.0);
+            if b == self::Bolt::Leaf { s.fx("nature") } else { s }
         }
         Beam | BeamBounce => shape(
             format!(
@@ -503,8 +542,17 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
             let secs = if st == "Stun" { 0.5 } else { 1.4 };
             shape(format!("[Afflict(range: 30.0, cone: 10.0, status: Some({st}), secs: {}, damage: {}{el})]", f(secs), f(k.dmg(8.0))), 1.0, 3.0)
         }
+        // A skillshot vine: stings, and tows whoever it catches to a stop in front of you (-> ends with
+        // them at arm's length: the combo's range).
+        Vine => shape(format!("[Hook(range: 18.0, speed: 55.0, pull: 22.0, damage: {}, status: Some(Stun), secs: 0.2)]", f(k.dmg(8.0))), 1.1, 3.0).fx("nature"),
         // ------------------------------------------------------------------ movement
         Blur => shape("[Blink(dist: 12.0, afterimage: true)]", 2.5, 3.0).fx(if matches!(k.d.el, Element::Light | Element::Electric) { "speedforce" } else { "" }),
+        // A blade wielder's streak is the swordsman's pass: through them and out the other side, the cut
+        // landing as you pass (harder, the kit's own steel look). -> ends past them, facing away.
+        Streak if matches!(k.d.wp, Some(Wp::Sword | Wp::Axe | Wp::Spear | Wp::Knives)) => {
+            shape(format!("[Ram(speed: 38.0, secs: 0.35, damage: {}, knockback: {}, through: true, keep: 0.3{el})]", f(k.dmg(9.0)), f(k.kb(12.0))), 3.0, 4.0)
+                .juice("(punch: 2.0)".into())
+        }
         Streak => shape(format!("[Ram(speed: 36.0, secs: 0.35, damage: {}, knockback: {}, through: true, keep: 0.4{el})]", f(k.dmg(6.0)), f(k.kb(10.0))), 3.0, 4.0)
             .fx(if matches!(k.d.el, Element::Light | Element::Electric) { "speedforce" } else { "" }),
         Teleport => shape("[Blink(dist: 14.0)]", 3.0, 3.0),
@@ -570,6 +618,16 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
         Heal => shape("[Mend(pct: 18.0, per_s: 3.0, secs: 3.0), Counter(secs: 0.3)]", 9.0, 5.0).fx(if light { "holy" } else { "" }),
         Shell => shape(format!("[Counter(secs: 1.2, damage: {}, knockback: {})]", f(k.dmg(6.0)), f(k.kb(10.0))), 6.0, 4.0),
         Intangible => shape("[Phase(secs: 1.4)]", 7.0, 4.0).fx(if light { "spirit" } else { "" }),
+        Thorns => shape(
+            format!(
+                "[Field(strength: -40.0, radius: 4.5, secs: 0.8), Counter(secs: 0.5, damage: {}, knockback: {}), Zone(radius: 4.0, secs: 3.0, slow: 0.35, dps: 2.0, follow: true)]",
+                f(k.dmg(8.0)),
+                f(k.kb(12.0))
+            ),
+            7.0,
+            5.0,
+        )
+        .fx("nature"),
         // ------------------------------------------------------------------ combo
         Flurry => shape(
             format!(
@@ -696,6 +754,18 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
             8.0,
         )
         .juice("(punch: 2.0)".into()),
+        // Roots tear up out of the ground along your aim (the ground's own material) and the crosshair
+        // turns to grasping undergrowth. -> ends with them launched or bogged down in front of you.
+        Roots => shape(
+            format!(
+                "[Erupt(length: 18.0, width: 2.0, height: 2.6, count: 6, element: Earth, damage: {}, launch: 11.0), Zone(radius: 4.5, secs: 2.5, slow: 0.5, at: Aim)]",
+                f(k.dmg(10.0))
+            ),
+            7.0,
+            8.0,
+        )
+        .fx("nature")
+        .juice("(shake: 0.15, debris: 8.0)".into()),
         // ------------------------------------------------------------------ ultimate
         Storm => {
             let e = k.d.el;
@@ -744,8 +814,19 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
                     f(k.kb(30.0)),
                     f(k.rad(8.0))
                 ),
+                // POLISH: the storm GATHERS first — the air at the crosshair drags everyone into the eye
+                // (and a thunderstorm soaks them: Wet bolts arc on) while the strike marks bloom, then
+                // it lands on the crowd it made.
+                Element::Electric => format!(
+                    "[Field(strength: 28.0, radius: {}, secs: 0.8, at: Aim), Zone(radius: {}, secs: 3.0, status: Some(Wet), at: Aim), Salvo(count: 8, delay: 0.8, interval: 0.12, radius: 3.2, damage: {}, knockback: {}{el}, carve: 1.2, at: Aim, spread: 7.0, seek: true)]",
+                    f(k.rad(9.0)),
+                    f(k.rad(8.0)),
+                    f(k.dmg(13.0)),
+                    f(k.kb(16.0))
+                ),
                 _ => format!(
-                    "[Salvo(count: 8, delay: 0.8, interval: 0.12, radius: 3.2, damage: {}, knockback: {}{el}, carve: 1.2, at: Aim, spread: 8.0, seek: true)]",
+                    "[Field(strength: 26.0, radius: {}, secs: 0.8, at: Aim), Salvo(count: 8, delay: 0.8, interval: 0.12, radius: 3.2, damage: {}, knockback: {}{el}, carve: 1.2, at: Aim, spread: 7.0, seek: true)]",
+                    f(k.rad(9.0)),
                     f(k.dmg(13.0)),
                     f(k.kb(16.0))
                 ),
@@ -901,9 +982,25 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
             22.0,
             40.0,
         ),
-        Knockout => shape(format!("[Drill(speed: 34.0, secs: 0.5, grind: 0.0, damage: {}, knockback: {}, up: 0.3{el})]", f(k.dmg(24.0)), f(k.kb(34.0))), 18.0, 40.0),
+        // POLISH: the knockout is a WINDUP — braced (armoured) while the fist cocks back, a step in, a
+        // marked spot in front of you, then the haymaker lands there. Everyone sees it coming; land it
+        // and it's over. -> ends planted, fist out.
+        Knockout => shape(
+            format!(
+                "[Empower(secs: 0.8, damage: 1.0, armor: 0.6), Impulse(fwd: 5.0, up: 0.0), Salvo(count: 1, delay: 0.5, radius: 2.8, damage: {}, knockback: {}, up: 0.35{el}, at: Front, dist: 2.6)]",
+                f(k.dmg(24.0)),
+                f(k.kb(34.0))
+            ),
+            18.0,
+            40.0,
+        ),
+        // Armoured through the whole string (you don't get knocked out of your own beatdown).
         Beatdown => shape(
-            format!("[Barrage(hits: 10, interval: 0.07, range: 3.2, angle: 60.0, damage: {}, knockback: 2.0, finish: {}, advance: 4.0{el})]", f(k.dmg(3.0)), f(k.kb(26.0))),
+            format!(
+                "[Empower(secs: 1.0, damage: 1.0, armor: 0.7), Barrage(hits: 10, interval: 0.07, range: 3.2, angle: 60.0, damage: {}, knockback: 2.0, finish: {}, advance: 4.0{el})]",
+                f(k.dmg(3.0)),
+                f(k.kb(26.0))
+            ),
             18.0,
             40.0,
         ),
@@ -954,6 +1051,63 @@ fn build(k: &K, t: Tpl, slot: usize, kit_name: &str) -> Option<Shape> {
         )
         .fx(if light { "hardlight" } else { "" }),
         TimeStop => shape("[TimeStop(secs: 2.0, speed: 2.0)]", 24.0, 40.0).fx(if light { "void" } else { "" }),
+        SigBeam | SolarBeam => {
+            let (e, merge) = if t == SolarBeam {
+                (Element::Light, String::new())
+            } else {
+                let m = match k.d.e2 {
+                    Some(b) if !light && b != k.d.el && b != Element::Light => format!(", merge: Some(({:?}, {b:?}))", k.d.el),
+                    _ => String::new(),
+                };
+                (k.d.el, m)
+            };
+            let elp = if e == Element::Light { String::new() } else { format!(", element: {e:?}") };
+            let nm = if name.is_empty() { "signature beam" } else { name };
+            shape(format!("[Cast(recipe: (name: {nm:?}, form: Hands, mech: [Beam]{elp}, scale: 1.35), signature: Some(Beam){merge})]"), 20.0, 40.0)
+        }
+        Overgrowth => shape(
+            format!(
+                "[Erupt(length: 11.0, height: 4.0, element: Earth, damage: {}, launch: 6.0, shape: Ring, at: Aim), Zone(radius: {}, secs: 4.0, status: Some(Poison), dps: 3.0, slow: 0.4, at: Aim), Salvo(count: 5, delay: 1.0, interval: 0.15, radius: 2.8, damage: {}, knockback: {}, element: Earth, up: 1.0, at: Aim, spread: 4.0, seek: true)]",
+                f(k.dmg(8.0)),
+                f(k.rad(6.0)),
+                f(k.dmg(12.0)),
+                f(k.kb(14.0))
+            ),
+            20.0,
+            40.0,
+        )
+        .fx("nature"),
+        Pressure => shape(
+            format!(
+                "[Impulse(fwd: 6.0, up: 0.0), Shove(range: 3.0, angle: 45.0, damage: {}, knockback: 2.0{el}), DelayedHit(range: 6.0, cone: 30.0, secs: 1.3, damage: {}, knockback: {}, up: 0.4{el})]",
+                f(k.dmg(6.0)),
+                f(k.dmg(26.0)),
+                f(k.kb(32.0))
+            ),
+            20.0,
+            40.0,
+        ),
+        Apex => shape(
+            format!(
+                "[GazeStun(range: 12.0, cone: 80.0, secs: 0.5, status: Stun, aimed: false), Pounce(range: 24.0, speed: 44.0, cone: 14.0, damage: {}, knockback: 3.0, bounce: 2.0{el}), Barrage(hits: 5, interval: 0.08, range: 3.2, angle: 90.0, damage: {}, knockback: 2.0, finish: {}, advance: 3.0{el})]",
+                f(k.dmg(10.0)),
+                f(k.dmg(4.0)),
+                f(k.kb(26.0))
+            ),
+            20.0,
+            40.0,
+        ),
+        Titanfall => shape(
+            format!(
+                "[Empower(secs: 1.6, damage: 1.0, armor: 0.6), Leap(range: 26.0, apex: 13.0), SlamOnLand(radius: {}, damage: {}, knockback: {}, carve: 3.0)]",
+                f(k.rad(7.5)),
+                f(k.dmg(20.0)),
+                f(k.kb(26.0))
+            ),
+            20.0,
+            40.0,
+        )
+        .fx(if light { "earth" } else { "" }),
         // ------------------------------------------------------------------ bonus
         Grow => shape("[SelfResize(scale: 1.4, secs: 6.0)]", 12.0, 6.0),
         Shrink => shape("[SelfResize(scale: 0.6, secs: 5.0), Impulse(fwd: 10.0, up: 4.0)]", 10.0, 4.0),
@@ -998,9 +1152,18 @@ fn ult_juice(k: &K, t: Tpl, s: Shape, title: &str) -> Shape {
         Guardian | Showstopper => (", ripple: 6.0", 5.0),
         TimeStop => (", ripple: 12.0", 5.0),
         DeadAim => ("", 3.0),
-        Knockout => ("", 6.0),
+        Knockout => (", at: Front, dist: 2.6, ripple: 3.0", 6.0),
+        SigBeam | SolarBeam => (", debris: -10.0", 6.0),
+        Overgrowth => (", at: Aim, ripple: 7.0, debris: 10.0", 5.0),
+        Apex => (", debris: 10.0", 5.0),
+        Titanfall => (", ripple: 7.0, debris: 16.0", 6.0),
+        Pressure => (", ripple: 2.0", 4.0),
         _ => ("", 5.0),
     };
-    let shake = if t == DeadAim { 0.15 } else { 0.3 };
+    let shake = match t {
+        DeadAim | Pressure => 0.15,
+        Titanfall => 0.38,
+        _ => 0.3,
+    };
     Shape { juice: k.ult(title, extra, punch, shake), ..s }
 }

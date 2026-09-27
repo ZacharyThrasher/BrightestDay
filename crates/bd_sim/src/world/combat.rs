@@ -68,6 +68,13 @@ impl World {
         }
         // DODGE HOOK: attacks pass through a dodging player (crate::dodge: what, lag compensation).
         if crate::dodge::intangible(self, ti, &hit) {
+            // TRANSFORMERS FEEL: a transformer suit's wearer dodged it — a perfect dodge (counter).
+            if let Some(seat) = self.players[ti].seat.filter(|s| s.suit) {
+                let secs = self.cfg.tuning.transformer.counter_secs;
+                if let Some(c) = self.constructs.get_mut(seat.construct) {
+                    crate::constructs::brawl::open_counter(c, secs, hit.point, &mut self.events);
+                }
+            }
             return none;
         }
         // TRANSFORMER COMBAT: a seated pilot's transformer boost-stepping inside its perfect window

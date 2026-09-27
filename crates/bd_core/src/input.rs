@@ -22,6 +22,12 @@ pub mod buttons {
     pub const ADS: u16 = 1 << 10;
     /// Press: dodge — a short intangible burst along WASD (backward with no keys). (movement)
     pub const DODGE: u16 = 1 << 11;
+    /// Held: push-to-talk is listening for a cast (voice cast mode). A tell only — replicated so
+    /// others see the casting body language (`bd_sim::taunt`); never read by movement or combat.
+    pub const VOICE: u16 = 1 << 12;
+    /// Held: the taunt key (tap = the next wordless taunt, hold = dance; `bd_sim::taunt`).
+    /// Presentation only — never read by movement or combat.
+    pub const TAUNT: u16 = 1 << 13;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]

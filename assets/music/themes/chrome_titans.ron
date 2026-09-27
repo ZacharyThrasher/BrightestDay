@@ -1,0 +1,69 @@
+// Chrome Titans — franchise theme for the transforming-robot kits.
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: heroic 80s
+// synth-rock — an octave-arpeggiated saw bass, gated snare, dual-saw lead, and metallic FM
+// "robot voice" stabs; a mechanical riser as the transformation sting. No melody, hook, bassline or
+// lyric of any existing theme is quoted or paraphrased.
+// Structure: sting (transform) | a (D minor drive) b (F major anthem) c (breakdown) a2 b2 | end.
+(
+    title: "Chrome Titans",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: transforming robots",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (80s synth-rock, FM stabs).",
+    role: "Franchise theme: transforming-robot kits",
+    key: "Dm",
+    time: (4, 4),
+    bpm: 132.0,
+    gain_db: -1.8,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    instruments: {
+        // Metallic FM stab: an inharmonic ratio and a fast index drop — the "robot voice".
+        "robo": (wave: Fm, fm_ratio: 1.41, fm_index: 4.0, fm_index_end: 0.6, fm_decay: 0.09, fm_feedback: 0.2,
+                 attack: 0.002, decay: 0.18, sustain: 0.1, release: 0.06, vol: 0.5, gate: 0.7, arp_rate: 50.0, lp_hz: 5200.0),
+    },
+    channels: [
+        (name: "lead", inst: "rx_dualsaw", stem: Lead, pan: -0.08, echo: (ticks: 72, vol: 0.22)),
+        (name: "hl", inst: "hardlight", stem: Lead, pan: 0.2, vol: 0.7),
+        (name: "robo", inst: "robo", stem: Drive, pan: 0.3, gen: "o4 r8 X16 r16 r8 X8 r8 X8 r4 |"),
+        (name: "pad", inst: "rx_pad", stem: Base, pan: -0.15, vol: 0.8, gen: "o3 X1 |"),
+        (name: "bass", inst: "rx_synthbass", stem: Base, gen: "o2 u4 [R8 O8]4 |"),
+        (name: "arp", inst: "rx_pluck", stem: Drive, pan: -0.3, vol: 0.8, gen: "o4 [R16 F16 O16 F16]4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.0, gen: "K4 G4 K8 K8 G4 |"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.2, vol: 0.5, gen: "[H8]8 |"),
+    ],
+    patterns: {
+        "chA": "Dm | Bb | F | C | Dm | Bb | Gm | A |",
+        "chB": "F | C | Dm | Bb | F | C | Bb | A |",
+        "chC": "Gm | Gm | Dm | Dm | Eb | Eb | A | A |",
+        // ---- tunes (all original) ----
+        "mA": "o5 d4 f8 a8 r8 a8 g8 f8 | o5 f4 d8 f8 ~b4 a4 | o5 c4 f8 a8 r8 o6 c8 o5 a8 f8 | o5 g2. r4 |
+               o5 d4 f8 a8 r8 o6 d8 c8 o5 a8 | o5 b4 a8 f8 ~g4 f4 | o5 g8 b8 o6 d8 c8 o5 b8 a8 g8 b8 | o5 a2 c+4 e4 |",
+        "mB": "o5 a2 o6 c4. o5 a8 | o5 g2 e4 g4 | o5 f4. e8 d4 f4 | o5 d2. r4 |
+               o5 a2 o6 c4. d8 | o6 e2 d4 c4 | o6 d4. c8 o5 b4 a4 | o5 a2 ~c+4 e4 |",
+        "mC": "r1 | r1 | r1 | r1 | o5 g2 b2 | o6 d2 e-2 | o6 c+1 | o6 e2 ~a2 |",
+    },
+    sections: [
+        // The sting: a mechanical riser and a climbing arpeggio that locks into the key.
+        (name: "sting", bars: 2, chords: "Dm | A |", mute: ["arp", "hats"], parts: {
+            "lead": "o4 d16 f16 a16 o5 d16 f16 a16 o6 d8 r4 o5 a8 o6 c8 | o6 c+2 ~e4 d8 c+8 |",
+            "drums": "R1 | K8 K8 G8 K8 [G16]8 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", parts: { "lead": "$mA" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "hl": "k-12 $mB k0" }),
+        // Breakdown: bass, pad and robot stabs; the lead comes back for the climb.
+        (name: "c", bars: 8, chords: "$chC", mute: ["arp"], parts: {
+            "lead": "$mC", "hl": "o4 d1 | o4 b1 | o4 a1 | o4 f1 | r1 | r1 | r1 | r1 |",
+            "drums": "[K4 r4 K4 r4 |]4 [K4 G4 K8 K8 G4 |]3 [G16]16 |",
+            "hats": "[r1 |]4 [H8]32 |",
+        }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "lead": "$mA", "hl": "$mA" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "lead": "$mB", "hl": "$mB", "drums": "C4 G4 K8 K8 G4 | [K4 G4 K8 K8 G4 |]6 K8 K8 [G16]8 G8 G8 |" }),
+        (name: "end", bars: 2, chords: "Dm | Dm |", mute: ["arp", "hats", "robo"], parts: {
+            "lead": "o5 d4 f8 a8 o6 d4 ~f4 | o6 d2. r4 |",
+            "hl": "o5 a4 o6 d8 f8 a2 | o6 a2. r4 |",
+            "drums": "K4 G4 K8 K8 [G16]4 | C2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

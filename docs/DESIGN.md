@@ -194,16 +194,16 @@ flares brighter per step + one corps-emblem pulse near the crosshair; no banner 
 | RMB with a gun | aim down sights (hold or toggle; accuracy only, movement untouched) |
 | H | a held gun's alt-fire (RMB aims guns) |
 | Enter or T | open ring console: type a construct, Enter to cast (mouse aim + side-button tethers stay live; momentum preserved) |
-| 1–4 | quick-cast loadout slots (words chosen in lobby) |
+| 1–4 | the POWER HOTBAR: fire a slot (the loadout; a move you SAY auto-binds — `hotbar`, docs/toolbox/HOTBAR.md) |
 | V (hold) | voice cast: say the phrase, release to cast (local Whisper on CPU → same lexicon resolver) |
 | F | recite oath (willpower recharge typing test; can be yelled via voice) |
 | Z (hold) | charge: slow willpower refill; can't act, feet planted, a hit breaks it (COMBAT.md §2) |
 | G (tap / hold) | player power moves |
 | Mouse3 | transform |
 | E while seated | eject |
-| X | dismiss your constructs |
+| X | dismiss your constructs; X then 1–4 dismisses that slot's thing (DISMISS BY SLOT) |
 | F5 / B | first ⇄ third person / swap shoulder |
-| Tab | scoreboard |
+| Tab | scoreboard + your power names; the cursor frees: drag / pin hotbar slots (keyboard play goes on) |
 | Esc · F3 · F11 (Alt+Enter) | menu · perf overlay · fullscreen (reserved: never bindable; F4 = dev tonemapper cycle) |
 
 Rules: one input, one action — rebinding an input another action holds swaps the two (toast names
@@ -477,6 +477,27 @@ a warm haze (fog 300 m), emissive lamp / laptop / nightlight; the client adds th
 drifting dust motes (slow, comfort-safe). Scope note (owner, 2026-09-26): no map-specific sim mechanics —
 the fan and the cat are static, the bed is ordinary terrain. 10 spawns across bed, nightstand, desk,
 bookshelf, floor, track, castle, sock heap; ~0.75 M triangles.
+
+**The Lookout** (`--map lookout`, bd_voxel `maps/lookout.rs` + client `present/lookout.rs`; PRIVATE USE: a Dragon Ball
+fan map of Kami's Lookout / Korin's Tower, see THIRD_PARTY_NOTICES.md): a white-tiled sky temple, one 112 m disc (floor
+72 m) alone in bright high-altitude blue over a sea of clouds; every edge is a Smash KO (void 40 m, sides 24 m past the
+world, star KO 40 m over the top). No map mechanics. **Courtyard** (south half): wide open tiles for big summons and beam
+fights, a teal / sand eight-point mosaic, four stone lanterns as the only cover. **Palace** (north): a 1 m terrace, a
+portico, the hall (grand door + two side arches south, a north door, doors east / west into the wings, blue glass
+windows) with a 23 m atrium up into the drum and dome; wings with outside stairs to their roofs (79 m) and short
+flights on to the hall roof (82 m); four corner turrets and the drum as tether anchors; the dome top (96.5 m) is a tiny,
+coverless, exposed perch. **Time chamber** (east): a domed hall on a stepped plinth, three doorways (W grand door, N, E)
+into a softly glowing white room with two pillars and two low blocks (close quarters), outside stairs to its roof.
+**Grove** (west): palms, hedged flower beds and topiary for cover; small gardens north and south-east. The **rim
+promenade** (r 48–55 m) is kept clear all the way round: a bhop loop. **Recovery**: seven floating rocks round the rim
+(70 m perches, 76 / 80 / 88 m anchors) plus eight far debris chunks, the underside dome with ribs and its long spire
+(tether anchors when knocked off), and **Korin's tower** rising out of the clouds south of the rim — its roof (65 m)
+catches falls and four floating stair rocks (1.5 m rises, one jump each) lead back up onto the rim. Destruction: tiles
+and everything on the disc break, but an indestructible plate 2 m under the floor (and slender cores in the drum
+columns, turrets, chamber corners, Korin's spine and every rock) keeps the disc and its anchors in the sky — no holes to
+the void. 10 spawns, mirrored east / west, all at floor height on the outer ring (r 46–48 m). The client draws the cloud
+sea (a geometric polar grid with baked billow shading, fogged into the horizon; the sky's below-horizon colour follows)
+and ~28 cumulus clusters, drifting very slowly (a third with comfort). ~0.37 M triangles.
 
 ## Movement tutorial
 Main menu → Tutorial: a compact floating course, station by station — bunny-hop, air-strafe, slide,

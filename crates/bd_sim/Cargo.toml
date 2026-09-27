@@ -21,7 +21,7 @@ bincode.workspace = true
 bd_lexicon.workspace = true
 
 [features]
-default = ["backrooms", "ember", "mirror", "casino", "valley", "lair", "hyperline"]
+default = ["backrooms", "ember", "mirror", "casino", "valley", "lair", "hyperline", "lookout"]
 # BACKROOMS map (bd_voxel feature; the route example needs it).
 backrooms = ["bd_voxel/backrooms"]
 # TURTLE LAIR map (bd_voxel feature; the route example needs it).
@@ -42,6 +42,8 @@ cybertron = ["bd_voxel/cybertron"]
 valley = ["bd_voxel/valley"]
 # GIANT'S ROOM map (bd_voxel feature; the route example needs it).
 giant = ["bd_voxel/giant"]
+# THE LOOKOUT map (bd_voxel feature; the route example and tests/lookout.rs need it).
+lookout = ["bd_voxel/lookout"]
 
 [[example]]
 name = "backrooms_routes"
@@ -82,3 +84,7 @@ required-features = ["valley"]
 [[example]]
 name = "giant_routes"
 required-features = ["giant"]
+
+[[example]]
+name = "lookout_routes"
+required-features = ["lookout"]

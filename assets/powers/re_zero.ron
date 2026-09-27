@@ -1,0 +1,1430 @@
+// RE:ZERO — Starting Life in Another World (CONTENT: RE:ZERO worker, docs/toolbox/BRIEF.md). A love letter,
+// private use: character / spell / move NAMES only — no quotes, no incantations (THIRD_PARTY_NOTICES.md).
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+//
+// Two layers:
+//  1. THE MAGIC SYSTEM as a generative spell family. Six attributes — Goa (fire), Huma (ice), Fura (wind),
+//     Dona (earth), Shamak (yin: smoke / darkness / weightlessness) and Minya (crystal stakes) — each a
+//     kit whose moves are the tier prefixes: bare → El → Ul → Al. Say the spell ("huma", "el huma",
+//     "ul huma", "al huma") and it fires, held or not. Every tier ESCALATES: a bare spell is a quick
+//     cantrip (Tiny / Normal presence, no title), El is a real spell with a title, Ul is a Big area
+//     spell with a boom, Al is the Titan-tier showpiece (a pull-in gather, a telegraph, an impact frame).
+//     "<attribute> magic ultimate" also finds the Al spell ("huma magic ultimate" → Al Huma).
+//  2. THE CAST as kits: "<character> <move word>" fires that character's move ("rem morning star",
+//     "subaru return by death", "reinhard ultimate" → Dragon Sword Reid); bare names stay the costume
+//     summon (assets/costumes/characters.ron has the main cast's looks). Famous names are shouts anyone
+//     can borrow ("invisible providence", "al clauzeria", "hundred man slash", "lion's heart").
+//     The Oni form is a TECHNIQUE ("oni form"): say it and you are an oni until KO.
+//
+// Design rule for this file (as in anime_modern.ron): a famous move does the thing it is famous for.
+// Every headline move has its own control feel + the mechanic it's known for + title/colour/style + a
+// chain ending ("-> ends ..."). NO invisibility of any kind: Subaru's Invisible Providence and
+// Petelgeuse's Unseen Hands are HANDS you can see coming in the witch's miasma (fx "witch"); the
+// player is never hidden. Shamak is short, escapable darkness (a Shadow vignette + a light slow).
+// Return by Death is an escape (the generic Rewind), never an instant win and never a lockout.
+[
+    // ================================================================================================
+    // THE SPELL FAMILY — bare / El / Ul / Al. Presence climbs with the prefix: Tiny-ish (cost ≤ 4) →
+    // Normal (8) → Big (20) → Titan (40), cooldowns 0.6 → 1.8 → 5 → 16 s. Tags: bare = Primary, Al =
+    // Ultimate, so "goa magic attack" / "goa magic ult" read too.
+    // ================================================================================================
+
+    // ---------------------------------------------------------------- GOA — fire
+    // Goa is a fist of flame thrown from the palm; El Goa is a heavy fireball whose landing spot is
+    // already burning; Ul Goa is a rain of fire on the crosshair; Al Goa is Roswaal's second sun — the
+    // air around the point is SUCKED IN for a second (everything slides toward it), then it lands.
+    // Jiwald: the heat ray (a straight line of white fire), El Jiwald banks off walls.
+    (
+        id: "rz_goa",
+        name: "Goa",
+        kind: Kit,
+        names: ["goa magic", "goa spell", "goa spells", "fire magic goa", "re zero fire magic", "goa family"],
+        fx: "fire",
+        shouts: [("Goa", 0), ("Goah", 0), ("Gowa", 0),
+                 ("El Goa", 1), ("Elle Goa", 1), ("L Goa", 1), ("Elgoa", 1), ("El Gowa", 1), ("Eru Goa", 1),
+                 ("Ul Goa", 2), ("Ool Goa", 2), ("Ulgoa", 2), ("Oul Goa", 2), ("Uru Goa", 2), ("Ulu Goa", 2),
+                 ("Al Goa", 3), ("All Goa", 3), ("Algoa", 3), ("Ahl Goa", 3), ("Aru Goa", 3), ("Al Gowa", 3),
+                 ("Jiwald", 4), ("Ji Wald", 4), ("Jiwaldo", 4), ("Gee Wald", 4),
+                 ("El Jiwald", 5), ("Elle Jiwald", 5), ("El Ji Wald", 5)],
+        moves: [
+            // A quick palm fireball — the cantrip. -> you don't move.
+            (name: "goa", tags: [Primary], cooldown: 0.7, cost: 3.0, ops: [
+                Cast(recipe: (name: "goa fireball", form: Ball, mech: [Explodes, Fast], element: Fire, scale: 0.5, mass: 6.0)),
+            ], juice: Some((punch: 1.0, color: Some((1.0, 0.5, 0.15))))),
+            // A heavy fireball; the ground where you aimed is already burning when it lands. -> you don't move.
+            (name: "el goa", cooldown: 1.8, cost: 8.0, ops: [
+                Cast(recipe: (name: "el goa fireball", form: Ball, mech: [Explodes, Fast, Heavy], element: Fire, scale: 1.05, mass: 18.0)),
+                Zone(radius: 3.5, secs: 3.0, status: Some(Burn), dps: 3.0, at: Aim),
+            ], juice: Some((title: Some("EL GOA"), punch: 2.0, color: Some((1.0, 0.45, 0.12))))),
+            // A rain of fire: five telegraphed pillars of flame snap onto whoever stands near the
+            // crosshair, and the place keeps burning. -> you don't move; they're scattered and burning.
+            (name: "ul goa", cooldown: 5.0, cost: 20.0, ops: [
+                Salvo(count: 5, delay: 0.45, interval: 0.12, radius: 3.0, damage: 10.0, knockback: 12.0, element: Fire, carve: 0.8,
+                      at: Aim, spread: 5.5, seek: true),
+                Zone(radius: 6.0, secs: 3.5, status: Some(Burn), dps: 3.0, at: Aim),
+            ], juice: Some((title: Some("UL GOA"), boom: true, punch: 3.0, shake: 0.15, ripple: 5.0, at: Aim, color: Some((1.0, 0.4, 0.1))))),
+            // AL GOA — the second sun. A second of GATHER (everything within 11 m of the crosshair slides
+            // in toward it while the warning ring tightens; nothing burns yet), then it LANDS: a crater.
+            // -> you don't move; they are thrown out of a crater.
+            (name: "al goa", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Field(strength: 36.0, radius: 11.0, secs: 1.1, at: Aim),
+                Salvo(count: 1, delay: 1.1, radius: 8.5, damage: 32.0, knockback: 32.0, element: Fire, carve: 3.0, at: Aim),
+            ], juice: Some((title: Some("AL GOA"), boom: true, punch: 6.0, shake: 0.35, ripple: 12.0, at: Aim, debris: 22.0,
+                            color: Some((1.0, 0.55, 0.12)), impact_frame: Some("holy")))),
+            // Jiwald: a line of white heat straight down the crosshair. -> you don't move.
+            (name: "jiwald", cooldown: 1.2, cost: 6.0, ops: [
+                BounceBeam(length: 40.0, bounces: 0, radius: 0.5, damage: 11.0, knockback: 10.0, element: Fire),
+            ], juice: Some((punch: 1.5, color: Some((1.0, 0.85, 0.55))))),
+            // El Jiwald: the heat ray banks off walls twice — the trick shot. -> you don't move.
+            (name: "el jiwald", cooldown: 2.5, cost: 10.0, ops: [
+                BounceBeam(length: 34.0, bounces: 2, radius: 0.6, damage: 13.0, knockback: 12.0, element: Fire),
+            ], juice: Some((title: Some("EL JIWALD"), punch: 2.5, color: Some((1.0, 0.8, 0.45))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- HUMA — ice
+    // Huma is a single icicle; El Huma is Rem's volley of ice lances that leaves the one you aimed at
+    // chilled; Ul Huma is a line of ice spikes racing along the ground; Al Huma is a prison of ice
+    // around the crosshair with a colossal icicle dropping into it.
+    (
+        id: "rz_huma",
+        name: "Huma",
+        kind: Kit,
+        names: ["huma magic", "huma spell", "huma spells", "ice magic huma", "re zero ice magic", "huma family"],
+        fx: "ice",
+        shouts: [("Huma", 0), ("Hooma", 0), ("Hyuma", 0), ("Fuma", 0),
+                 ("El Huma", 1), ("Elle Huma", 1), ("L Huma", 1), ("Elhuma", 1), ("El Hooma", 1), ("El Uma", 1), ("Eru Huma", 1), ("El Fuma", 1),
+                 ("Ul Huma", 2), ("Ool Huma", 2), ("Ulhuma", 2), ("Ul Hooma", 2), ("Oul Huma", 2), ("Uru Huma", 2), ("Ulu Huma", 2),
+                 ("Al Huma", 3), ("All Huma", 3), ("Alhuma", 3), ("Al Hooma", 3), ("Ahl Huma", 3), ("Aru Huma", 3), ("All Hooma", 3)],
+        moves: [
+            // One icicle from the palm. -> you don't move.
+            (name: "huma", tags: [Primary], cooldown: 0.6, cost: 3.0, ops: [
+                Cast(recipe: (name: "huma icicle", form: Spear, mech: [Pierce, Fast], element: Ice, scale: 0.6, mass: 5.0)),
+            ], juice: Some((punch: 1.0, color: Some((0.62, 0.86, 1.0))))),
+            // El Huma: five ice lances in a fan; the one you're looking at is chilled.
+            // -> you don't move; they are slowed.
+            (name: "el huma", cooldown: 1.8, cost: 8.0, ops: [
+                Cast(recipe: (name: "el huma lances", form: Spear, mech: [Swarm, Pierce, Fast], element: Ice, scale: 0.55, mass: 4.0, count: 5)),
+                Afflict(range: 40.0, cone: 10.0, status: Some(Chill), secs: 1.5, element: Ice),
+            ], juice: Some((title: Some("EL HUMA"), punch: 2.0, color: Some((0.55, 0.82, 1.0))))),
+            // Ul Huma: a line of ice spikes bursts out of the ground along your aim and launches whoever
+            // it runs under. -> you don't move; they are in the air over a frozen ridge.
+            (name: "ul huma", cooldown: 5.0, cost: 20.0, ops: [
+                Erupt(length: 20.0, width: 1.8, height: 3.2, count: 7, element: Ice, damage: 12.0, launch: 15.0),
+                Zone(radius: 4.0, secs: 2.5, status: Some(Chill), slow: 0.25, at: Front, dist: 10.0),
+            ], juice: Some((title: Some("UL HUMA"), boom: true, punch: 3.0, shake: 0.15, ripple: 4.0, at: Front, dist: 6.0,
+                            color: Some((0.6, 0.88, 1.0))))),
+            // AL HUMA: an ice prison slams up around the crosshair, then a colossal icicle drops into it.
+            // -> you don't move; they are thrown out of a ring of ice.
+            (name: "al huma", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Erupt(length: 10.0, width: 1.4, height: 5.0, element: Ice, damage: 6.0, launch: 4.0, shape: Ring, at: Aim),
+                Salvo(count: 1, delay: 0.9, radius: 5.0, damage: 28.0, knockback: 26.0, element: Ice, carve: 2.0, at: Aim),
+                Zone(radius: 7.0, secs: 3.5, status: Some(Chill), slow: 0.3, at: Aim),
+            ], juice: Some((title: Some("AL HUMA"), boom: true, punch: 6.0, shake: 0.3, ripple: 10.0, at: Aim, debris: 18.0,
+                            color: Some((0.6, 0.9, 1.0)), impact_frame: Some("holy")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- FURA — wind
+    // Fura is a hard shove of air; El Fura is Ram's cutting wind — thin blades that fly and slice;
+    // Ul Fura is a cyclone planted at the crosshair (it drags them in and lifts them); Al Fura is a
+    // hurricane FRONT that rolls out and carries everyone with it.
+    (
+        id: "rz_fura",
+        name: "Fura",
+        kind: Kit,
+        names: ["fura magic", "fura spell", "fura spells", "wind magic fura", "re zero wind magic", "fura family"],
+        fx: "wind",
+        shouts: [("Fura", 0), ("Fuura", 0), ("Furah", 0), ("Foora", 0),
+                 ("El Fura", 1), ("Elle Fura", 1), ("L Fura", 1), ("Elfura", 1), ("El Foora", 1), ("Eru Fura", 1), ("El Furah", 1),
+                 ("Ul Fura", 2), ("Ool Fura", 2), ("Ulfura", 2), ("Oul Fura", 2), ("Uru Fura", 2), ("Ulu Fura", 2),
+                 ("Al Fura", 3), ("All Fura", 3), ("Alfura", 3), ("Ahl Fura", 3), ("Aru Fura", 3)],
+        moves: [
+            // A palm of wind: little damage, a long shove. -> you don't move; they are sliding away.
+            (name: "fura", tags: [Primary], cooldown: 0.7, cost: 3.0, ops: [
+                Shove(range: 7.5, angle: 30.0, damage: 5.0, knockback: 18.0, element: Wind),
+            ], juice: Some((punch: 1.0, color: Some((0.78, 0.96, 0.88))))),
+            // El Fura: a flying blade of wind that cuts everything on its line. -> you don't move.
+            (name: "el fura", cooldown: 1.6, cost: 8.0, ops: [
+                Wave(length: 26.0, speed: 55.0, width: 3.2, carve: 0.4, damage: 11.0, knockback: 7.0, element: Wind, thin: true),
+            ], juice: Some((title: Some("EL FURA"), punch: 2.0, color: Some((0.75, 0.97, 0.86))))),
+            // Ul Fura: a cyclone at the crosshair — it drags them in, then four gusts throw them up.
+            // -> you don't move; they are up in the air above the crosshair.
+            (name: "ul fura", cooldown: 5.0, cost: 20.0, ops: [
+                Field(strength: 38.0, radius: 8.0, secs: 1.4, at: Aim),
+                Salvo(count: 4, delay: 0.4, interval: 0.2, radius: 3.2, damage: 6.0, knockback: 4.0, up: 1.6, element: Wind, at: Aim, cut: true),
+            ], juice: Some((title: Some("UL FURA"), boom: true, punch: 3.0, shake: 0.15, ripple: 6.0, at: Aim, debris: -12.0,
+                            color: Some((0.72, 0.96, 0.84))))),
+            // AL FURA: a hurricane wall rolls out along your aim and carries everyone it meets, while a
+            // giant blade of wind rides in front of it. -> you don't move; the field is swept clean.
+            (name: "al fura", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Surge(width: 12.0, dist: 34.0, speed: 22.0, push: 30.0, damage: 16.0, element: Wind),
+                Wave(length: 34.0, speed: 60.0, width: 12.0, carve: 0.6, damage: 8.0, knockback: 10.0, element: Wind, thin: true),
+            ], juice: Some((title: Some("AL FURA"), boom: true, punch: 5.0, shake: 0.3, ripple: 9.0, at: Front, dist: 6.0, debris: 20.0,
+                            color: Some((0.8, 1.0, 0.9)), impact_frame: Some("comic")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- DONA — earth
+    // Dona is one pillar of stone under the crosshair; El Dona is a wall; Ul Dona is a line of stone
+    // spikes; Al Dona is the earth closing round them in a ring and then THROWING them to the sky on a
+    // column.
+    (
+        id: "rz_dona",
+        name: "Dona",
+        kind: Kit,
+        names: ["dona magic", "dona spell", "dona spells", "earth magic dona", "re zero earth magic", "dona family"],
+        fx: "earth",
+        shouts: [("Dona", 0), ("Doona", 0), ("Dohna", 0), ("Dóna", 0),
+                 ("El Dona", 1), ("Elle Dona", 1), ("L Dona", 1), ("Eldona", 1), ("El Doona", 1), ("Eru Dona", 1),
+                 ("Ul Dona", 2), ("Ool Dona", 2), ("Uldona", 2), ("Oul Dona", 2), ("Uru Dona", 2), ("Ul Doona", 2),
+                 ("Al Dona", 3), ("All Dona", 3), ("Aldona", 3), ("Ahl Dona", 3), ("Aru Dona", 3), ("All Doona", 3)],
+        moves: [
+            // A pillar punches up under the crosshair. -> you don't move; they pop up.
+            (name: "dona", tags: [Primary], cooldown: 0.9, cost: 4.0, ops: [
+                Erupt(length: 1.0, width: 1.6, height: 3.5, element: Earth, damage: 6.0, launch: 14.0, shape: Pillar, at: Aim),
+            ], juice: Some((punch: 1.0, color: Some((0.62, 0.48, 0.34))))),
+            // El Dona: a wall of earth across your aim. -> you're behind cover.
+            (name: "el dona", tags: [Defense], cooldown: 3.0, cost: 8.0, ops: [
+                Erupt(length: 8.0, width: 1.2, height: 4.0, element: Earth, shape: Wall, dist: 4.0),
+            ], juice: Some((title: Some("EL DONA"), punch: 2.0, color: Some((0.6, 0.46, 0.32))))),
+            // Ul Dona: stone spikes race along the ground. -> you don't move; they're launched.
+            (name: "ul dona", cooldown: 5.0, cost: 20.0, ops: [
+                Erupt(length: 22.0, width: 1.8, height: 3.5, count: 7, element: Earth, damage: 12.0, launch: 16.0),
+            ], juice: Some((title: Some("UL DONA"), boom: true, punch: 3.0, shake: 0.2, ripple: 4.0, at: Front, dist: 8.0, debris: 14.0,
+                            color: Some((0.58, 0.44, 0.3))))),
+            // AL DONA: the earth rings them in, then a column the size of a house throws them skyward.
+            // -> you don't move; they are very high up.
+            (name: "al dona", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Erupt(length: 9.0, width: 1.5, height: 6.0, element: Earth, damage: 6.0, launch: 4.0, shape: Ring, at: Aim),
+                Erupt(length: 1.0, width: 3.0, height: 10.0, element: Earth, damage: 16.0, launch: 30.0, shape: Pillar, at: Aim),
+            ], juice: Some((title: Some("AL DONA"), boom: true, punch: 6.0, shake: 0.35, ripple: 9.0, at: Aim, debris: 24.0,
+                            color: Some((0.62, 0.46, 0.3)), impact_frame: Some("comic")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- SHAMAK — yin
+    // Yin magic doesn't hurt, it DISORIENTS. Shamak throws a cloud of darkness onto the crosshair
+    // (a vision vignette and thick air: short, you walk out of it); El Shamak is a bigger, bursting
+    // cloud; Ul Shamak drowns everything around you in night while you slip back out of it; Al Shamak
+    // — Beatrice's — sends the one you aim at out of this world for a moment (flung far away, unhurt,
+    // in control). Murak makes you weightless; El Murak makes THEM weightless.
+    (
+        id: "rz_shamak",
+        name: "Shamak",
+        kind: Kit,
+        names: ["shamak magic", "shamak spell", "shamak spells", "yin magic", "re zero yin magic", "shamak family"],
+        fx: "shadow",
+        shouts: [("Shamak", 0), ("Shamac", 0), ("Shamack", 0), ("Sha Mak", 0), ("Shamaku", 0), ("Shamuck", 0),
+                 ("El Shamak", 1), ("Elle Shamak", 1), ("L Shamak", 1), ("El Shamac", 1), ("Eru Shamak", 1),
+                 ("Ul Shamak", 2), ("Ool Shamak", 2), ("Ul Shamac", 2), ("Oul Shamak", 2), ("Uru Shamak", 2),
+                 ("Al Shamak", 3), ("All Shamak", 3), ("Al Shamac", 3), ("All Shamac", 3), ("Ahl Shamak", 3), ("Aru Shamak", 3),
+                 ("Murak", 4), ("Muraku", 4), ("Moorak", 4), ("Murack", 4),
+                 ("El Murak", 5), ("Elle Murak", 5), ("El Muraku", 5)],
+        moves: [
+            // A cloud of darkness lands on the crosshair: blinded and wading, briefly. -> you don't move.
+            (name: "shamak", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
+                Zone(radius: 4.5, secs: 2.2, status: Some(Shadow), slow: 0.2, at: Aim),
+            ], juice: Some((ripple: 3.0, at: Aim, color: Some((0.2, 0.08, 0.28))))),
+            // El Shamak: a bigger cloud that bursts as it lands. -> you don't move.
+            (name: "el shamak", cooldown: 2.5, cost: 8.0, ops: [
+                Zone(radius: 7.0, secs: 3.0, status: Some(Shadow), slow: 0.3, at: Aim),
+                Explode(radius: 5.0, damage: 4.0, knockback: 6.0, element: Shadow, at: Aim),
+            ], juice: Some((title: Some("EL SHAMAK"), punch: 2.0, ripple: 5.0, at: Aim, color: Some((0.18, 0.06, 0.26))))),
+            // Ul Shamak: night falls around you — then you're seven metres back, outside it.
+            // -> you end behind your own cloud.
+            (name: "ul shamak", tags: [Defense], cooldown: 7.0, cost: 20.0, ops: [
+                Zone(radius: 10.0, secs: 3.5, status: Some(Shadow), slow: 0.35),
+                Relocate(range: 45.0, cone: 20.0, back: 7.0, me: true),
+            ], juice: Some((title: Some("UL SHAMAK"), boom: true, punch: 3.0, ripple: 10.0, color: Some((0.15, 0.05, 0.22))))),
+            // AL SHAMAK: the one you look at is swallowed into another dimension and spat out far away
+            // (no damage, full control) — a hole of darkness hangs where they stood.
+            // -> you don't move; the fight is yours for a few seconds.
+            (name: "al shamak", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Banish(range: 36.0, dist: 14.0),
+                Zone(radius: 5.0, secs: 2.5, status: Some(Shadow), slow: 0.2, at: Aim),
+            ], juice: Some((title: Some("AL SHAMAK"), boom: true, punch: 5.0, shake: 0.2, ripple: 9.0, at: Aim, debris: -16.0,
+                            color: Some((0.3, 0.08, 0.45)), impact_frame: Some("void")))),
+            // Murak: weightless — a long floating leap. -> ends high and drifting.
+            (name: "murak", tags: [Movement], cooldown: 2.5, cost: 3.0, ops: [
+                Impulse(fwd: 4.0, up: 8.0),
+                SelfStatus(status: Float, secs: 2.5),
+            ], juice: Some((ripple: 2.0, color: Some((0.55, 0.4, 0.75))))),
+            // El Murak: the one you look at loses their weight and drifts up. -> they float (a juggle).
+            (name: "el murak", cooldown: 3.0, cost: 8.0, ops: [
+                Afflict(range: 30.0, cone: 10.0, status: Some(Float), secs: 1.2, up: 6.0, element: Psychic),
+            ], juice: Some((title: Some("EL MURAK"), punch: 1.5, color: Some((0.55, 0.4, 0.75))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- MINYA — crystal stakes
+    // Minya is one violet crystal stake; El Minya (Beatrice's) is a flight of stakes that snap onto
+    // whoever stands near the crosshair and crystallize the one you aimed at for a heartbeat; Ul Minya
+    // cages them in crystal and fills the cage with stakes; Al Minya is a crystal lance that never
+    // misses — it finds the enemy nearest your crosshair round any cover and jumps to three more.
+    (
+        id: "rz_minya",
+        name: "Minya",
+        kind: Kit,
+        names: ["minya magic", "minya spell", "minya spells", "crystal magic minya", "re zero crystal magic", "minya family"],
+        fx: "crystal",
+        shouts: [("Minya", 0), ("Minia", 0), ("Meenya", 0), ("Min Ya", 0), ("Minyah", 0),
+                 ("El Minya", 1), ("Elle Minya", 1), ("L Minya", 1), ("Elminya", 1), ("El Minia", 1), ("Eru Minya", 1), ("El Meenya", 1),
+                 ("Ul Minya", 2), ("Ool Minya", 2), ("Ulminya", 2), ("Oul Minya", 2), ("Uru Minya", 2), ("Ul Minia", 2),
+                 ("Al Minya", 3), ("All Minya", 3), ("Alminya", 3), ("Ahl Minya", 3), ("Aru Minya", 3), ("All Minia", 3)],
+        moves: [
+            // One crystal stake from the palm. -> you don't move.
+            (name: "minya", tags: [Primary], cooldown: 0.7, cost: 3.0, ops: [
+                Cast(recipe: (name: "minya stake", form: Spear, mech: [Pierce, Fast], element: Psychic, scale: 0.65, mass: 5.0)),
+            ], juice: Some((punch: 1.0, color: Some((0.82, 0.55, 1.0))))),
+            // El Minya: six stakes fall on the crosshair, snapping to whoever is near it; the one you aimed
+            // at is crystallized for a heartbeat. -> you don't move.
+            (name: "el minya", cooldown: 1.8, cost: 8.0, ops: [
+                Salvo(count: 6, delay: 0.25, interval: 0.06, radius: 1.5, damage: 6.0, knockback: 6.0, element: Psychic, at: Aim, spread: 3.5, seek: true, cut: true),
+                Afflict(range: 45.0, cone: 10.0, status: Some(Stun), secs: 0.45, element: Psychic),
+            ], juice: Some((title: Some("EL MINYA"), punch: 2.0, color: Some((0.8, 0.5, 1.0))))),
+            // Ul Minya: a crystal cage round the crosshair, then eight stakes rain inside it.
+            // -> you don't move; they're in a cage full of stakes.
+            (name: "ul minya", cooldown: 5.0, cost: 20.0, ops: [
+                Erupt(length: 7.0, width: 1.0, height: 3.5, element: Psychic, damage: 6.0, launch: 4.0, shape: Ring, at: Aim),
+                Salvo(count: 8, delay: 0.5, interval: 0.05, radius: 1.6, damage: 5.0, knockback: 5.0, element: Psychic, at: Aim, spread: 3.0, seek: true, cut: true),
+            ], juice: Some((title: Some("UL MINYA"), boom: true, punch: 3.0, shake: 0.15, ripple: 5.0, at: Aim, color: Some((0.78, 0.5, 1.0))))),
+            // AL MINYA: a crystal lance that finds them — round cover, from enemy to enemy — and comes back.
+            // -> you don't move; up to four of them are pierced.
+            (name: "al minya", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Seeker(recipe: (name: "al minya lance", form: Spear, mech: [Pierce, Heavy], element: Psychic, scale: 2.0, mass: 80.0),
+                       range: 55.0, cone: 30.0, speed: 38.0, damage: 20.0, knockback: 22.0, element: Psychic, hits: 4, chain: 14.0),
+            ], juice: Some((title: Some("AL MINYA"), boom: true, punch: 5.0, shake: 0.25, ripple: 6.0, debris: 12.0,
+                            color: Some((0.85, 0.55, 1.0)), impact_frame: Some("glitch")))),
+        ],
+    ),
+
+    // ================================================================================================
+    // THE CAST — kits. "<character> <move word>"; famous names are shouts anyone can borrow.
+    // ================================================================================================
+
+    // ---------------------------------------------------------------- Subaru Natsuki
+    // The boy who keeps coming back. Invisible Providence: a black hand of the witch's miasma reaches
+    // out of him, SEIZES the one you look at (they're lifted), squeezes — and a beat later flings them
+    // (it hurts him too: a little self-damage). Shamak: his one spell — smoke where he stands and he's
+    // out the back of it. Cor Leonis: he takes the weight — a guard window and a long armoured beat.
+    // RETURN BY DEATH: the witch's miasma bursts where he stands (her hands close on that spot), and
+    // he is back where he was three seconds ago, as hurt as he was then (never more). An escape, not a
+    // win. The whip: a crack that stings and staggers.
+    (
+        id: "rz_subaru_kit",
+        name: "Subaru Natsuki",
+        kind: Kit,
+        names: ["subaru", "subaru natsuki", "natsuki subaru", "subaru kun", "barusu", "subaru's", "suba ru", "subaru natsuki's",
+                "subaru re zero"],
+        fx: "witch",
+        shouts: [("Invisible Providence", 0), ("invisible providance", 0), ("subaru unseen hand", 0),
+                 ("subaru shamak", 1),
+                 ("Cor Leonis", 2), ("core leonis", 2), ("kor leonis", 2), ("cor leonys", 2), ("core leo nis", 2), ("corleonis", 2),
+                 ("Return By Death", 3), ("returned by death", 3), ("Return Be Death", 3), ("Shi Ni Modori", 3), ("shinimodori", 3),
+                 ("return by death rewind", 3),
+                 ("Re Zero", 3), ("Rezero", 3), ("Ree Zero", 3), ("Re:Zero", 3), ("Re Zero Kara Hajimeru", 3), ("Starting Life In Another World", 3),
+                 ("subaru whip", 4), ("subaru's whip", 4)],
+        moves: [
+            // A hand of miasma seizes the one you look at (they lift, weightless), squeezes, and a beat
+            // later throws them along your look. Nobody under the crosshair = nothing happens, nothing
+            // spent. -> you stay put; they are flung away from you.
+            (name: "invisible providence", tags: [Primary], cooldown: 2.2, cost: 8.0, ops: [
+                Afflict(range: 22.0, cone: 12.0, status: Some(Float), secs: 0.7, damage: 7.0, up: 3.0, element: Shadow),
+                DelayedHit(range: 22.0, cone: 12.0, secs: 0.45, damage: 9.0, knockback: 20.0, up: 0.4, element: Shadow),
+                Strain(pct: 3.0),
+            ], juice: Some((title: Some("INVISIBLE PROVIDENCE"), punch: 2.5, shake: 0.12, color: Some((0.42, 0.08, 0.52)),
+                            impact_frame: Some("void")))),
+            // Shamak (his): a cloud of black smoke where he stands, and he's seven metres back out of it.
+            // -> ends behind the cloud, facing it.
+            (name: "shamak", tags: [Movement], cooldown: 4.0, cost: 6.0, fx: "shadow", ops: [
+                Zone(radius: 5.0, secs: 2.2, status: Some(Shadow), slow: 0.25),
+                Relocate(range: 45.0, cone: 20.0, back: 7.0, me: true),
+            ], juice: Some((title: Some("SHAMAK"), ripple: 4.0, color: Some((0.12, 0.05, 0.16))))),
+            // Cor Leonis: he shoulders the weight — the first hit in the next second is nothing, and for
+            // five seconds after he barely moves when hit. -> you're rooted and armoured.
+            (name: "cor leonis", tags: [Defense], cooldown: 12.0, cost: 12.0, fx: "holy", ops: [
+                Counter(secs: 1.0),
+                Empower(secs: 5.0, armor: 0.55),
+            ], juice: Some((title: Some("COR LEONIS"), ripple: 5.0, punch: 2.0, color: Some((1.0, 0.82, 0.45))))),
+            // RETURN BY DEATH: the miasma bursts where you stand (the witch's hands close on that spot —
+            // a blast of dark and a shroud that blinds whoever's there), then you are where you were three
+            // seconds ago, with the damage you had then if it was less. -> ends three seconds back.
+            (name: "return by death", tags: [Ultimate], cooldown: 20.0, cost: 30.0, ops: [
+                Explode(radius: 5.0, damage: 0.0, knockback: 16.0, element: Shadow),
+                Zone(radius: 5.0, secs: 2.5, status: Some(Shadow), slow: 0.25),
+                Rewind(secs: 3.0),
+            ], juice: Some((title: Some("RETURN BY DEATH"), boom: true, punch: 5.0, shake: 0.25, ripple: 8.0, debris: -18.0,
+                            color: Some((0.3, 0.02, 0.38)), impact_frame: Some("void")))),
+            // The whip: a snapping lash that stings (a micro-stagger). -> you don't move.
+            (name: "whip", cooldown: 1.0, cost: 3.0, fx: "web", ops: [
+                Hook(range: 14.0, speed: 70.0, damage: 6.0, status: Some(Stun), secs: 0.2),
+            ], juice: Some((punch: 1.5, color: Some((0.35, 0.25, 0.2))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Emilia
+    // The half-elf of ice. Her icicles fly in volleys, her walls go up in a breath, her Ice Brand Arts
+    // make weapons of ice in her hand; she skates across the field on a sheet of ice she makes as she
+    // goes, and she calls Puck. Her Al Huma is heavier and colder than the book's.
+    (
+        id: "rz_emilia_kit",
+        name: "Emilia",
+        kind: Kit,
+        names: ["emilia", "emilia tan", "emilia-tan", "emilia chan", "emilia sama", "emiria", "emillia", "emilia's", "half elf emilia",
+                "emilia re zero"],
+        fx: "ice",
+        shouts: [("emilia icicles", 0), ("emilia icicle volley", 0),
+                 ("emilia ice wall", 1),
+                 ("Ice Brand Arts", 2), ("aisu burando atsu", 2), ("ice brand art", 2), ("emilia ice sword", 2),
+                 ("emilia ice skate", 3), ("emilia skate", 3),
+                 ("emilia icicle rain", 4),
+                 ("emilia puck", 5), ("emilia summon puck", 5),
+                 ("emilia al huma", 6)],
+        moves: [
+            // A volley of three icicles from her palm. -> you don't move.
+            (name: "icicle volley", tags: [Primary], cooldown: 0.8, cost: 4.0, ops: [
+                Cast(recipe: (name: "emilia icicles", form: Spear, mech: [Swarm, Pierce, Fast], element: Ice, scale: 0.55, mass: 4.0, count: 3)),
+            ], juice: Some((punch: 1.2, color: Some((0.7, 0.9, 1.0))))),
+            // A wall of ice goes up across her aim, and anything thrown at her bounces back.
+            // -> you're behind a wall.
+            (name: "ice wall", tags: [Defense], cooldown: 4.0, cost: 8.0, ops: [
+                Erupt(length: 9.0, width: 1.2, height: 4.0, element: Ice, shape: Wall, dist: 3.5),
+                Deflect(secs: 1.0, angle: 70.0),
+            ], juice: Some((title: Some("ICE WALL"), punch: 2.0, color: Some((0.7, 0.9, 1.0))))),
+            // Ice Brand Arts: an ice sword forms in her hand as she cuts — and stays. -> you hold an ice sword.
+            (name: "ice brand arts", cooldown: 8.0, cost: 10.0, ops: [
+                Shove(range: 3.6, angle: 100.0, damage: 9.0, knockback: 10.0, element: Ice),
+                Cast(recipe: (name: "emilia ice sword", form: Sword, mech: [Blade], element: Ice, scale: 1.1)),
+            ], juice: Some((title: Some("ICE BRAND ARTS"), punch: 2.5, color: Some((0.75, 0.92, 1.0))))),
+            // She skates: a fast glide forward on a ridge of ice she lays down as she goes.
+            // -> ends sliding, grounded, far forward.
+            (name: "ice skate", tags: [Movement], cooldown: 2.5, cost: 4.0, ops: [
+                Impulse(fwd: 24.0, up: 1.5),
+                Erupt(length: 12.0, width: 1.4, height: 0.3, element: Ice),
+            ], juice: Some((ripple: 2.0, color: Some((0.75, 0.92, 1.0))))),
+            // Icicles rain around the crosshair. -> you don't move.
+            (name: "icicle rain", tags: [Combo], cooldown: 3.0, cost: 10.0, ops: [
+                Salvo(count: 8, delay: 0.4, interval: 0.08, radius: 2.0, damage: 6.0, knockback: 6.0, element: Ice, at: Aim, spread: 6.0, seek: true, cut: true),
+            ], juice: Some((title: Some("ICICLE RAIN"), punch: 2.0, color: Some((0.65, 0.88, 1.0))))),
+            // Puck comes out: a little grey cat spirit that stays by her and breathes frost on anyone near.
+            (name: "puck", cooldown: 14.0, cost: 12.0, fx: "spirit", ops: [
+                Cast(recipe: (name: "puck", form: Quadruped, mech: [Flies, Breath], element: Ice, scale: 0.45, mass: 6.0,
+                              temperament: Protective, intensity: 0.8)),
+            ], juice: Some((title: Some("PUCK"), ripple: 3.0, color: Some((0.8, 0.85, 0.95))))),
+            // Al Huma (hers): the ice prison, the giant icicle and a blizzard on top.
+            // -> you don't move; they are thrown from a ring of ice into a blizzard.
+            (name: "al huma", tags: [Ultimate], cooldown: 18.0, cost: 40.0, ops: [
+                Erupt(length: 11.0, width: 1.5, height: 5.5, element: Ice, damage: 6.0, launch: 4.0, shape: Ring, at: Aim),
+                Salvo(count: 1, delay: 0.9, radius: 5.5, damage: 30.0, knockback: 26.0, element: Ice, carve: 2.0, at: Aim),
+                Zone(radius: 9.0, secs: 4.0, status: Some(Chill), slow: 0.35, at: Aim),
+            ], juice: Some((title: Some("AL HUMA"), boom: true, punch: 6.0, shake: 0.3, ripple: 11.0, at: Aim, debris: 18.0,
+                            color: Some((0.7, 0.92, 1.0)), impact_frame: Some("holy")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Puck — the Great Spirit
+    // The little cat is a Great Spirit of fire and ice; if she is ever in danger he becomes the Beast of
+    // the End. Eternal winter: the air freezes around him — everyone near is slowed to a crawl inside a
+    // wall of ice (they can still move and fight), and a burst of cold throws them.
+    (
+        id: "rz_puck_kit",
+        name: "Puck",
+        kind: Kit,
+        names: ["puck", "great spirit puck", "puck the great spirit", "the great spirit", "great spirit", "pack the great spirit",
+                "puck's", "puck re zero"],
+        fx: "ice",
+        shouts: [("puck icicles", 0),
+                 ("puck barrier", 1),
+                 ("Beast Of The End", 2), ("the beast of the end", 2), ("puck beast form", 2), ("puck true form", 2),
+                 ("puck eternal winter", 3), ("puck ultimate winter", 3), ("puck blizzard", 3)],
+        moves: [
+            // A spray of small icicles. -> you don't move.
+            (name: "icicles", tags: [Primary], cooldown: 0.7, cost: 3.0, ops: [
+                Cast(recipe: (name: "puck icicles", form: Spear, mech: [Swarm, Pierce, Fast], element: Ice, scale: 0.4, mass: 3.0, count: 3)),
+            ], juice: Some((punch: 1.0, color: Some((0.75, 0.9, 1.0))))),
+            // A shell of frost: the next hit is turned aside. -> you're untouched.
+            (name: "barrier", tags: [Defense], cooldown: 6.0, cost: 6.0, ops: [
+                Counter(secs: 1.0, damage: 8.0, knockback: 12.0, element: Ice),
+            ], juice: Some((ripple: 3.0, color: Some((0.75, 0.92, 1.0))))),
+            // The Beast of the End: a giant grey cat of ice steps out and hunts.
+            (name: "beast of the end", cooldown: 30.0, cost: 30.0, fx: "spirit", ops: [
+                Cast(recipe: (name: "beast of the end", form: Quadruped, mech: [Breath, Heavy, Stomp, Walks], element: Ice, scale: 3.0, mass: 400.0,
+                              temperament: Aggressive, intensity: 1.0)),
+            ], juice: Some((title: Some("BEAST OF THE END"), boom: true, punch: 5.0, shake: 0.3, ripple: 10.0, color: Some((0.8, 0.88, 1.0))))),
+            // ETERNAL WINTER: a burst of cold, a ring of ice round you, and the air freezes thick for five
+            // seconds wherever you walk. -> you're the centre of a blizzard.
+            (name: "eternal winter", tags: [Ultimate], cooldown: 28.0, cost: 40.0, ops: [
+                Explode(radius: 9.0, damage: 12.0, knockback: 14.0, element: Ice),
+                Erupt(length: 22.0, width: 1.4, height: 4.0, element: Ice, shape: Ring),
+                Zone(radius: 14.0, secs: 5.0, status: Some(Chill), slow: 0.45, follow: true),
+            ], juice: Some((title: Some("ETERNAL WINTER"), boom: true, punch: 6.0, shake: 0.35, ripple: 14.0, debris: 20.0,
+                            color: Some((0.8, 0.92, 1.0)), impact_frame: Some("holy")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Rem
+    // The blue oni maid and her MORNING STAR: an iron ball on a long chain. It is slow and heavy, it
+    // swings out on its chain and comes back (fx "morningstar": a steel chain that stretches from her
+    // hand, sags, and snaps home with a clank), it can be THROWN to drag someone in, and whirled round
+    // her. El Huma (hers): ice lances. Oni form: the horn — faster, harder, and she hits whoever she
+    // touches. Demon rush: she closes the distance like a thrown boulder.
+    (
+        id: "rz_rem_kit",
+        name: "Rem",
+        kind: Kit,
+        names: ["rem", "rem chan", "rem re zero", "rem's", "remu", "rem the maid", "the blue oni", "blue oni rem"],
+        fx: "morningstar",
+        shouts: [("rem morning star", 0), ("rem's morning star", 0), ("rems morning star", 0), ("rem flail", 0), ("rem morningstar", 0),
+                 ("rem chain pull", 1), ("rem flail throw", 1),
+                 ("rem flail spin", 2), ("rem morning star spin", 2),
+                 ("rem demon rush", 3), ("rem oni rush", 3),
+                 ("rem el huma", 4),
+                 ("rem oni form", 5), ("rem oni mode", 5), ("rem horn", 5),
+                 ("rem flail guard", 6),
+                 ("rem heal", 7), ("rem healing magic", 7)],
+        moves: [
+            // The swing: the ball goes out six metres on its chain and hits like a truck.
+            // -> you don't move; they're sent flying.
+            (name: "morning star", tags: [Primary], cooldown: 1.0, cost: 6.0, ops: [
+                Shove(range: 6.5, angle: 40.0, damage: 12.0, knockback: 16.0, up: 0.3),
+            ], juice: Some((punch: 2.5, shake: 0.1, color: Some((0.62, 0.66, 0.74))))),
+            // The throw: the ball flies out on the chain and drags whoever it hits back to her.
+            // -> they arrive at your feet (chain into "rem morning star").
+            (name: "morning star pull", cooldown: 3.0, cost: 6.0, ops: [
+                Hook(range: 20.0, speed: 45.0, pull: 24.0, damage: 8.0),
+            ], juice: Some((punch: 2.0, color: Some((0.62, 0.66, 0.74))))),
+            // The whirl: the ball goes round her on its chain, again and again, and she walks forward in it.
+            // -> ends moving forward, everyone around thrown.
+            (name: "morning star spin", tags: [Combo], cooldown: 3.5, cost: 10.0, ops: [
+                Barrage(hits: 5, interval: 0.13, range: 5.5, angle: 179.0, damage: 5.0, knockback: 5.0, finish: 18.0, advance: 3.0),
+            ], juice: Some((title: Some("MORNING STAR"), punch: 2.0, shake: 0.12, color: Some((0.62, 0.66, 0.74))))),
+            // Demon rush: she lunges at whoever you look at and bounces off them. -> ends airborne over them.
+            (name: "demon rush", tags: [Movement], cooldown: 2.0, cost: 5.0, fx: "feral", ops: [
+                Pounce(range: 24.0, speed: 44.0, cone: 12.0, damage: 10.0, knockback: 14.0, bounce: 4.0),
+            ], juice: Some((punch: 2.5, color: Some((0.55, 0.75, 1.0))))),
+            // El Huma (hers): four ice lances, and the one you aim at chilled. -> you don't move.
+            (name: "el huma", cooldown: 2.0, cost: 8.0, fx: "ice", ops: [
+                Cast(recipe: (name: "rem ice lances", form: Spear, mech: [Swarm, Pierce, Fast], element: Ice, scale: 0.6, mass: 5.0, count: 4)),
+                Afflict(range: 40.0, cone: 10.0, status: Some(Chill), secs: 1.5, element: Ice),
+            ], juice: Some((title: Some("EL HUMA"), punch: 2.0, color: Some((0.55, 0.82, 1.0))))),
+            // Oni form: the horn. For eight seconds she hits much harder, shrugs hits off, and anyone she
+            // touches is struck. -> you're glowing and wading in.
+            (name: "oni form", tags: [Ultimate], cooldown: 26.0, cost: 30.0, fx: "chi", ops: [
+                Explode(radius: 4.0, damage: 0.0, knockback: 14.0, element: Ice),
+                Empower(secs: 8.0, damage: 1.35, armor: 0.7, contact: 6.0, contact_kb: 10.0, contact_cd: 0.6, element: Ice),
+            ], juice: Some((title: Some("ONI"), boom: true, punch: 4.0, shake: 0.2, ripple: 6.0, color: Some((0.72, 0.9, 1.0))))),
+            // The chain as a shield: she spins it in front of her — thrown things come back, and whoever
+            // hits her eats the ball. -> you're planted.
+            (name: "morning star guard", tags: [Defense, Counter], cooldown: 5.0, cost: 6.0, ops: [
+                Deflect(secs: 1.2, angle: 90.0),
+                Counter(secs: 0.8, damage: 12.0, knockback: 18.0),
+            ], juice: Some((punch: 1.5, color: Some((0.62, 0.66, 0.74))))),
+            // Water healing: she closes her wounds. -> you don't move.
+            (name: "healing magic", cooldown: 14.0, cost: 8.0, fx: "water", ops: [
+                Mend(pct: 12.0, per_s: 2.0, secs: 3.0),
+            ], juice: Some((ripple: 2.5, color: Some((0.45, 0.75, 1.0))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Ram
+    // The pink oni maid: wind. El Fura is her cutting wind. Clairvoyance: she looks through the eyes of
+    // whoever she marks — then her wind cutter FINDS them, wherever they are. The broken horn: a short
+    // burst of the oni she used to be.
+    (
+        id: "rz_ram_kit",
+        name: "Ram",
+        kind: Kit,
+        names: ["ram", "ram chan", "ram re zero", "ram's", "ramu", "ram the maid", "the red oni", "red oni ram", "pink oni ram"],
+        fx: "wind",
+        shouts: [("ram el fura", 0),
+                 ("ram clairvoyance", 1), ("ram's clairvoyance", 1), ("rams clairvoyance", 1),
+                 ("ram wind cutter", 2),
+                 ("ram ul fura", 3),
+                 ("ram horn", 4), ("ram oni horn", 4), ("ram oni form", 4),
+                 ("ram wind step", 5),
+                 ("ram wind barrier", 6)],
+        moves: [
+            // El Fura (hers): a flying blade of wind. -> you don't move.
+            (name: "el fura", tags: [Primary], cooldown: 1.3, cost: 8.0, ops: [
+                Wave(length: 26.0, speed: 58.0, width: 3.4, carve: 0.4, damage: 11.0, knockback: 8.0, element: Wind, thin: true),
+            ], juice: Some((title: Some("EL FURA"), punch: 2.0, color: Some((1.0, 0.72, 0.82))))),
+            // Clairvoyance: she marks the one she looks at — for ten seconds she can see through their eyes.
+            (name: "clairvoyance", cooldown: 6.0, cost: 4.0, fx: "psychic", ops: [
+                Tag(range: 60.0, cone: 18.0, secs: 10.0),
+            ], juice: Some((title: Some("CLAIRVOYANCE"), color: Some((1.0, 0.6, 0.8))))),
+            // Wind cutter: blades strike everyone she's marked, wherever they are, and a blade flies out.
+            // -> you don't move.
+            (name: "wind cutter", tags: [Combo], cooldown: 4.0, cost: 10.0, ops: [
+                TagStrike(damage: 12.0, knockback: 12.0, up: 0.3, element: Wind),
+                Wave(length: 20.0, speed: 55.0, width: 3.0, carve: 0.3, damage: 6.0, knockback: 6.0, element: Wind, thin: true),
+            ], juice: Some((title: Some("WIND CUTTER"), punch: 2.5, color: Some((1.0, 0.7, 0.82))))),
+            // Ul Fura (hers): a storm of blades — a huge crescent and the wind throwing everyone near her
+            // back. -> you're alone in the middle of it.
+            (name: "ul fura", tags: [Ultimate], cooldown: 18.0, cost: 40.0, ops: [
+                Field(strength: -40.0, radius: 8.0, secs: 0.4),
+                Wave(length: 34.0, speed: 60.0, width: 10.0, carve: 0.8, damage: 18.0, knockback: 16.0, element: Wind, thin: true),
+            ], juice: Some((title: Some("UL FURA"), boom: true, punch: 5.0, shake: 0.3, ripple: 8.0, debris: 18.0,
+                            color: Some((1.0, 0.72, 0.84)), impact_frame: Some("comic")))),
+            // The horn: for five seconds she is an oni again — a gale bursts off her. -> you're glowing.
+            (name: "oni horn", cooldown: 24.0, cost: 20.0, fx: "chi", ops: [
+                Explode(radius: 4.0, damage: 0.0, knockback: 16.0, element: Wind),
+                Empower(secs: 5.0, damage: 1.25, armor: 0.8),
+            ], juice: Some((title: Some("ONI"), boom: true, punch: 3.0, ripple: 5.0, color: Some((1.0, 0.65, 0.8))))),
+            // A step on the wind: forward and up, and she hangs there. -> ends airborne, floating.
+            (name: "wind step", tags: [Movement], cooldown: 2.0, cost: 3.0, ops: [
+                Impulse(fwd: 16.0, up: 7.0),
+                SelfStatus(status: Float, secs: 0.8),
+            ], juice: Some((ripple: 1.5, color: Some((1.0, 0.75, 0.85))))),
+            // A barrier of wind: thrown things come back and whoever's close is pushed off.
+            (name: "wind barrier", tags: [Defense], cooldown: 5.0, cost: 6.0, ops: [
+                Deflect(secs: 1.0, angle: 120.0),
+                Field(strength: -30.0, radius: 5.0, secs: 0.5),
+            ], juice: Some((ripple: 4.0, color: Some((1.0, 0.75, 0.85))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Beatrice
+    // The spirit of the Forbidden Library. El Minya: a flight of violet stakes. Al Shamak: the one she
+    // points at is gone into another dimension (and spat back out far away). Murak: weightless. E.M.M.:
+    // the absolute defense — for a moment nothing touches her and every thrown thing turns round.
+    // Door Crossing: any door leads to her library — each call opens a doorway on the surface she looks
+    // at, and the last two are linked (walk through one, out of the other).
+    (
+        id: "rz_beatrice_kit",
+        name: "Beatrice",
+        kind: Kit,
+        names: ["beatrice", "betty", "beako", "beatrice re zero", "beatrice's", "bea trice", "beatris", "beako's", "betty re zero"],
+        fx: "crystal",
+        shouts: [("beatrice el minya", 0), ("beako el minya", 0),
+                 ("beatrice al shamak", 1),
+                 ("E.M.M.", 2), ("E M M", 2), ("EMM", 2), ("E.M.M", 2), ("beatrice emm", 2), ("beatrice e m m", 2),
+                 ("Door Crossing", 3), ("Tobira Watari", 3), ("the door crossing", 3),
+                 ("beatrice murak", 4),
+                 ("beatrice ul minya", 5),
+                 ("beatrice shamak", 6)],
+        moves: [
+            // El Minya (hers): stakes fall on the crosshair and the one she aimed at crystallizes.
+            // -> you don't move.
+            (name: "el minya", tags: [Primary], cooldown: 1.4, cost: 8.0, ops: [
+                Salvo(count: 6, delay: 0.22, interval: 0.05, radius: 1.5, damage: 6.0, knockback: 6.0, element: Psychic, at: Aim, spread: 3.5, seek: true, cut: true),
+                Afflict(range: 45.0, cone: 10.0, status: Some(Stun), secs: 0.45, element: Psychic),
+            ], juice: Some((title: Some("EL MINYA"), punch: 2.0, color: Some((0.82, 0.52, 1.0))))),
+            // Al Shamak (hers): gone — to another dimension and back, far away. -> you don't move.
+            (name: "al shamak", tags: [Ultimate], cooldown: 16.0, cost: 40.0, fx: "shadow", ops: [
+                Banish(range: 38.0, dist: 14.0),
+                Zone(radius: 5.0, secs: 2.5, status: Some(Shadow), slow: 0.2, at: Aim),
+            ], juice: Some((title: Some("AL SHAMAK"), boom: true, punch: 5.0, shake: 0.2, ripple: 9.0, at: Aim, debris: -16.0,
+                            color: Some((0.35, 0.1, 0.5)), impact_frame: Some("void")))),
+            // E.M.M.: for a moment nothing touches her, and everything thrown at her turns round.
+            // -> you're untouched and rooted.
+            (name: "e m m", tags: [Defense], cooldown: 9.0, cost: 10.0, fx: "holy", ops: [
+                Counter(secs: 1.5),
+                Deflect(secs: 1.5, angle: 180.0),
+            ], juice: Some((title: Some("E.M.M."), ripple: 5.0, punch: 2.0, color: Some((1.0, 0.88, 0.6))))),
+            // Door Crossing: a doorway on the surface she looks at; the last two doors are one passage.
+            // -> you stand by a door (say it again to open the other end).
+            (name: "door crossing", tags: [Movement], cooldown: 0.8, cost: 4.0, fx: "void", ops: [
+                PlacePortal(range: 50.0, secs: 16.0),
+            ], juice: Some((title: Some("DOOR CROSSING"), ripple: 2.0, color: Some((0.9, 0.7, 0.35))))),
+            // Murak (hers): the one she looks at floats away, weightless. -> they drift up (a juggle).
+            (name: "murak", cooldown: 3.0, cost: 6.0, fx: "psychic", ops: [
+                Afflict(range: 32.0, cone: 10.0, status: Some(Float), secs: 1.2, up: 6.0, element: Psychic),
+            ], juice: Some((title: Some("MURAK"), punch: 1.5, color: Some((0.75, 0.55, 1.0))))),
+            // Ul Minya (hers): a crystal cage round the crosshair, filled with stakes.
+            (name: "ul minya", tags: [Combo], cooldown: 5.0, cost: 20.0, ops: [
+                Erupt(length: 7.0, width: 1.0, height: 3.5, element: Psychic, damage: 6.0, launch: 4.0, shape: Ring, at: Aim),
+                Salvo(count: 8, delay: 0.5, interval: 0.05, radius: 1.6, damage: 5.0, knockback: 5.0, element: Psychic, at: Aim, spread: 3.0, seek: true, cut: true),
+            ], juice: Some((title: Some("UL MINYA"), boom: true, punch: 3.0, ripple: 5.0, at: Aim, color: Some((0.8, 0.5, 1.0))))),
+            // Shamak (hers): darkness on the crosshair. -> you don't move.
+            (name: "shamak", cooldown: 1.5, cost: 4.0, fx: "shadow", ops: [
+                Zone(radius: 5.0, secs: 2.4, status: Some(Shadow), slow: 0.22, at: Aim),
+            ], juice: Some((ripple: 3.0, at: Aim, color: Some((0.2, 0.08, 0.28))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Reinhard van Astrea — the Sword Saint
+    // The strongest man alive, and it shows in how LITTLE he moves. His divine protections: he sees the
+    // hit coming — it's slipped, the world slows for him and he's behind whoever threw it. The Dragon
+    // Sword Reid only leaves its sheath for the worthy: with nobody under the crosshair it simply stays
+    // sheathed (nothing spent); with someone there it is a SURE HIT — that person is struck wherever the
+    // cut goes — and the slash itself carves a canyon across the arena. The Phoenix: the divine
+    // protection that won't let him fall — the wounds close in a burst of fire.
+    (
+        id: "rz_reinhard_kit",
+        name: "Reinhard van Astrea",
+        kind: Kit,
+        names: ["reinhard van astrea", "reinhard astrea", "reinhard", "sword saint", "the sword saint", "sword saint reinhard",
+                "reinhard the sword saint", "van astrea", "reinhard's", "reinhardt van astrea", "rinehart van astrea", "reinhard van astria"],
+        fx: "holy",
+        shouts: [("reinhard strike", 0), ("sword saint strike", 0),
+                 ("reinhard divine protection", 1), ("sword saint divine protection", 1), ("Divine Protection Of Arrow Evasion", 1),
+                 ("Yayoke No Kago", 1),
+                 ("Dragon Sword Reid", 2), ("Ryuken Reid", 2), ("the dragon sword reid", 2), ("dragon sword read", 2), ("dragon sword reed", 2),
+                 ("dragon sword raid", 2), ("reinhard draws his sword", 2),
+                 ("reinhard step", 3), ("sword saint step", 3),
+                 ("reinhard flurry", 4), ("sword saint flurry", 4),
+                 ("Divine Protection Of The Phoenix", 5), ("reinhard phoenix", 5), ("phoenix divine protection", 5)],
+        moves: [
+            // A single cut, barely a motion — but it hurls them. -> you don't move.
+            (name: "sword saint strike", tags: [Primary], cooldown: 0.8, cost: 6.0, ops: [
+                Shove(range: 4.2, angle: 80.0, damage: 11.0, knockback: 18.0),
+            ], juice: Some((punch: 2.0, color: Some((1.0, 0.92, 0.7))))),
+            // Divine protection: the next hit in the next 0.6 s is slipped; the world slows for 1.5 s and
+            // he is behind whoever threw it. -> you're behind them, the world slow.
+            (name: "divine protection", tags: [Defense, Counter], cooldown: 5.0, cost: 6.0, ops: [
+                Evade(secs: 0.6, slow: 1.5, speed: 1.8, blink: 3.0),
+            ], juice: Some((title: Some("DIVINE PROTECTION"), ripple: 3.0, color: Some((1.0, 0.95, 0.75))))),
+            // DRAGON SWORD REID: only for the worthy (someone under the crosshair — else it stays in its
+            // sheath). A sure hit on them, and a cut that splits the arena.
+            // -> you don't move; they are launched a very long way.
+            (name: "dragon sword reid", tags: [Ultimate], cooldown: 30.0, cost: 40.0, ops: [
+                Afflict(range: 55.0, cone: 14.0, damage: 26.0, knockback: 32.0, up: 0.5),
+                Wave(length: 55.0, speed: 80.0, width: 5.0, carve: 1.2, damage: 10.0, knockback: 8.0, thin: true),
+            ], juice: Some((title: Some("DRAGON SWORD REID"), boom: true, punch: 7.0, shake: 0.4, ripple: 10.0, debris: 24.0,
+                            color: Some((1.0, 0.95, 0.8)), impact_frame: Some("holy")))),
+            // He's simply further on. -> ends grounded, far forward.
+            (name: "sword saint step", tags: [Movement], cooldown: 1.2, cost: 3.0, ops: [
+                Blink(dist: 16.0, afterimage: true),
+            ], juice: Some((ripple: 1.5, color: Some((1.0, 0.95, 0.8))))),
+            // A flurry of cuts faster than the eye, around them. -> ends beside them.
+            (name: "sword saint flurry", tags: [Combo], cooldown: 3.0, cost: 10.0, fx: "blade", ops: [
+                Barrage(hits: 6, interval: 0.07, range: 3.6, angle: 120.0, damage: 4.0, knockback: 3.0, finish: 20.0, blink: true),
+            ], juice: Some((punch: 2.0, color: Some((1.0, 0.95, 0.8))))),
+            // The Phoenix: the wounds close in a burst of fire that throws everyone back. -> you're whole-ish.
+            (name: "divine protection of the phoenix", cooldown: 30.0, cost: 20.0, fx: "fire", ops: [
+                Mend(pct: 25.0, per_s: 3.0, secs: 3.0),
+                Explode(radius: 5.0, damage: 0.0, knockback: 18.0, element: Fire),
+            ], juice: Some((title: Some("DIVINE PROTECTION OF THE PHOENIX"), boom: true, punch: 3.0, ripple: 7.0,
+                            color: Some((1.0, 0.6, 0.2))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Wilhelm van Astrea — the Sword Demon
+    // An old man with a sword who has done nothing else his whole life. The flurry is his: nine cuts
+    // walking forward. The draw: one step and one cut. The whale hunter: a charge that cuts through
+    // everything on the line. He parries.
+    (
+        id: "rz_wilhelm_kit",
+        name: "Wilhelm van Astrea",
+        kind: Kit,
+        names: ["wilhelm", "wilhelm van astrea", "wilhelm astrea", "sword demon", "the sword demon", "wilhelm trias", "wilhelm's",
+                "sword demon wilhelm", "vilhelm"],
+        fx: "blade",
+        shouts: [("wilhelm draw", 0),
+                 ("Sword Demon Flurry", 1), ("wilhelm flurry", 1), ("Kenki", 1),
+                 ("wilhelm parry", 2),
+                 ("wilhelm whale hunter", 3), ("whale hunter charge", 3),
+                 ("wilhelm lunge", 4)],
+        moves: [
+            // One step, one cut. -> ends a step forward.
+            (name: "sword demon draw", tags: [Primary], cooldown: 0.7, cost: 5.0, ops: [
+                Impulse(fwd: 12.0, up: 0.0),
+                Shove(range: 3.6, angle: 70.0, damage: 10.0, knockback: 10.0),
+            ], juice: Some((punch: 2.0, color: Some((0.9, 0.9, 0.95))))),
+            // Nine cuts, walking forward, the last one throws. -> ends in their face.
+            (name: "sword demon flurry", tags: [Combo], cooldown: 3.0, cost: 10.0, ops: [
+                Barrage(hits: 9, interval: 0.07, range: 3.6, angle: 70.0, damage: 3.5, knockback: 2.0, finish: 16.0, advance: 4.0),
+            ], juice: Some((title: Some("SWORD DEMON"), punch: 2.5, shake: 0.12, color: Some((0.9, 0.9, 0.95)), impact_frame: Some("ink")))),
+            // The parry: the next hit is turned and answered. -> you're planted.
+            (name: "parry", tags: [Defense, Counter], cooldown: 3.5, cost: 5.0, ops: [
+                Counter(secs: 0.6, damage: 14.0, knockback: 16.0),
+            ], juice: Some((punch: 1.5, color: Some((0.9, 0.9, 0.95))))),
+            // The whale hunter: a charge that cuts through everyone on the line. -> ends far forward.
+            (name: "whale hunter", tags: [Ultimate], cooldown: 16.0, cost: 30.0, ops: [
+                Ram(speed: 32.0, secs: 0.6, damage: 16.0, knockback: 18.0, through: true),
+                Carve(length: 18.0, radius: 0.5, damage: 0.0),
+            ], juice: Some((title: Some("WHALE HUNTER"), boom: true, punch: 4.0, shake: 0.25, color: Some((0.9, 0.9, 0.95)), impact_frame: Some("ink")))),
+            // A lunge at whoever you look at. -> ends airborne over them.
+            (name: "lunge", tags: [Movement], cooldown: 1.6, cost: 4.0, ops: [
+                Pounce(range: 18.0, speed: 40.0, cone: 10.0, damage: 7.0, knockback: 8.0, bounce: 3.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Julius Juukulius — the finest of knights
+    // A knight with a rapier and six quasi-spirits (Ia, Kua, Aro, Ik, In, Neh — fire, water, wind, earth,
+    // yin, yang) orbiting him. His thrust is the combo finisher (it lands harder on someone he's just
+    // hit). The six spirits strike the crosshair in turn. AL CLAUZERIA: the six colours gather into
+    // his blade and merge into one beam of rainbow light.
+    (
+        id: "rz_julius_kit",
+        name: "Julius Juukulius",
+        kind: Kit,
+        names: ["julius", "julius juukulius", "julius euclius", "julius juukulius's", "julius's", "the finest of knights",
+                "finest of knights", "julius yukulius", "juliusu"],
+        fx: "prism",
+        shouts: [("julius thrust", 0), ("clarissa thrust", 0),
+                 ("julius quasi spirits", 1), ("six quasi spirits", 1), ("ia kua aro ik in neh", 1), ("julius spirits", 1),
+                 ("Al Clauzeria", 2), ("Al Clauseria", 2), ("Al Crauseria", 2), ("All Clauzeria", 2), ("al clau zeria", 2),
+                 ("al claw zeria", 2), ("al clausaria", 2), ("Al Kurauzeria", 2),
+                 ("julius guard", 3),
+                 ("julius step", 4)],
+        moves: [
+            // A lunging thrust that bites deep on anyone you've just hit. -> ends in their face.
+            (name: "clarissa thrust", tags: [Primary], cooldown: 1.0, cost: 6.0, fx: "blade", ops: [
+                Finisher(lunge: 10.0, range: 3.8, angle: 35.0, damage: 10.0, knockback: 12.0, window: 1.2, mult: 1.8),
+            ], juice: Some((punch: 2.0, color: Some((0.95, 0.85, 1.0))))),
+            // The six quasi-spirits strike the crosshair one after another. -> you don't move.
+            (name: "quasi spirits", tags: [Combo], cooldown: 3.0, cost: 10.0, ops: [
+                Salvo(count: 6, delay: 0.3, interval: 0.1, radius: 2.0, damage: 5.0, knockback: 6.0, at: Aim, spread: 5.0, seek: true),
+            ], juice: Some((title: Some("IA KUA ARO IK IN NEH"), punch: 2.0, color: Some((1.0, 0.8, 0.95))))),
+            // AL CLAUZERIA: the six colours gather at his blade — yin and yang (In and Neh) at either hand —
+            // merge, and are released as one beam of rainbow light.
+            (name: "al clauzeria", tags: [Ultimate], cooldown: 20.0, cost: 40.0, ops: [
+                Cast(recipe: (name: "al clauzeria", form: Cannon, mech: [Beam, Pierce, Explodes], element: Light, scale: 1.8),
+                     signature: Some(Beam), merge: Some((Light, Shadow))),
+            ], juice: Some((title: Some("AL CLAUZERIA"), boom: true, punch: 6.0, shake: 0.3, color: Some((1.0, 0.85, 1.0)), impact_frame: Some("holy")))),
+            // The knight's guard: the next hit is answered with the point. -> you're planted.
+            (name: "knight's guard", tags: [Defense, Counter], cooldown: 4.0, cost: 6.0, fx: "blade", ops: [
+                Counter(secs: 0.9, damage: 12.0, knockback: 14.0),
+            ]),
+            // A graceful step. -> ends grounded, forward.
+            (name: "knight's step", tags: [Movement], cooldown: 1.2, cost: 3.0, ops: [
+                Blink(dist: 10.0, afterimage: true),
+            ], juice: Some((color: Some((1.0, 0.85, 1.0))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Crusch Karsten
+    // The duchess with the Hundred-Man Slash: a blade of wind cut from her sword that flies across the
+    // whole arena and splits everything in its path. Her Divine Protection of Wind Reading: she reads
+    // the attack before it comes.
+    (
+        id: "rz_crusch_kit",
+        name: "Crusch Karsten",
+        kind: Kit,
+        names: ["crusch", "crusch karsten", "karsten", "crusch's", "kurusu", "krusch", "crush karsten", "crusch karsten's"],
+        fx: "wind",
+        shouts: [("crusch wind blade", 0),
+                 ("Hundred Man Slash", 1), ("Hundred-Man Slash", 1), ("hundred men slash", 1), ("Hyakunin Ichitachi", 1), ("hundred man cut", 1),
+                 ("Divine Protection Of Wind Reading", 2), ("crusch wind reading", 2),
+                 ("crusch charge", 3)],
+        moves: [
+            // A small wind blade from the sword. -> you don't move.
+            (name: "wind blade", tags: [Primary], cooldown: 0.9, cost: 5.0, ops: [
+                Wave(length: 18.0, speed: 55.0, width: 2.5, carve: 0.3, damage: 8.0, knockback: 7.0, element: Wind, thin: true),
+            ], juice: Some((punch: 1.5, color: Some((0.6, 0.95, 0.75))))),
+            // HUNDRED-MAN SLASH: one cut, and a blade of wind wide as a house flies the length of the arena.
+            // -> you don't move.
+            (name: "hundred man slash", tags: [Ultimate], cooldown: 16.0, cost: 40.0, ops: [
+                Wave(length: 55.0, speed: 75.0, width: 8.0, carve: 1.0, damage: 20.0, knockback: 16.0, element: Wind, thin: true),
+            ], juice: Some((title: Some("HUNDRED-MAN SLASH"), boom: true, punch: 5.0, shake: 0.3, debris: 20.0,
+                            color: Some((0.6, 1.0, 0.8)), impact_frame: Some("comic")))),
+            // Wind Reading: the next hit is read and slipped, and she steps past. -> behind the attacker.
+            (name: "wind reading", tags: [Defense, Counter], cooldown: 5.0, cost: 6.0, ops: [
+                Evade(secs: 0.5, slow: 0.8, speed: 1.5, blink: 2.5),
+            ], juice: Some((ripple: 2.0, color: Some((0.6, 1.0, 0.8))))),
+            // The charge of the Karsten knights. -> ends far forward, grounded.
+            (name: "karsten charge", tags: [Movement], cooldown: 3.0, cost: 6.0, ops: [
+                Ram(speed: 26.0, secs: 0.6, damage: 10.0, knockback: 16.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Felix Argyle — the Blue Knight
+    // The best healer in the kingdom. He knows exactly how mana flows through a body: he mends his own,
+    // and he can make someone else's turn on them (a touch, and a beat later it bursts).
+    (
+        id: "rz_felix_kit",
+        name: "Felix Argyle",
+        kind: Kit,
+        names: ["felix argyle", "ferris argyle", "felix re zero", "ferris re zero", "ferri chan", "felis argyle", "felix argyle's",
+                "the blue knight", "ferri"],
+        fx: "water",
+        shouts: [("felix heal", 0), ("ferris heal", 0), ("felix healing", 0),
+                 ("felix mana burst", 1), ("ferris mana burst", 1),
+                 ("felix cat leap", 2), ("ferris leap", 2),
+                 ("felix scratch", 3), ("ferris scratch", 3),
+                 ("felix full restoration", 4), ("ferris full restoration", 4), ("blue knight heal", 4)],
+        moves: [
+            // Water healing: a lot, now, and more over four seconds. -> you don't move.
+            (name: "heal", tags: [Defense], cooldown: 12.0, cost: 10.0, ops: [
+                Mend(pct: 30.0, per_s: 4.0, secs: 4.0),
+            ], juice: Some((title: Some("HEAL"), ripple: 3.0, color: Some((0.5, 0.8, 1.0))))),
+            // Mana burst: a touch, and their own mana ruptures a beat later. -> you're close.
+            (name: "mana burst", tags: [Combo], cooldown: 4.0, cost: 10.0, ops: [
+                DelayedHit(range: 5.0, cone: 20.0, secs: 0.6, damage: 14.0, knockback: 12.0, element: Water),
+            ], juice: Some((title: Some("MANA BURST"), punch: 2.0, color: Some((0.4, 0.7, 1.0))))),
+            // A cat's leap onto the crosshair. -> ends where you looked.
+            (name: "cat leap", tags: [Movement], cooldown: 2.0, cost: 3.0, ops: [
+                Leap(range: 20.0, apex: 5.0),
+            ]),
+            // A quick scratch. -> you don't move.
+            (name: "scratch", tags: [Primary], cooldown: 0.5, cost: 2.0, fx: "feral", ops: [
+                Shove(range: 3.0, angle: 60.0, damage: 6.0, knockback: 10.0),
+            ]),
+            // Full restoration: the Blue Knight at his best — most of your wounds gone at once, more over
+            // five seconds, and a ring of water throws everyone off you while he works. -> you don't move.
+            (name: "full restoration", tags: [Ultimate], cooldown: 40.0, cost: 30.0, ops: [
+                Mend(pct: 55.0, per_s: 5.0, secs: 5.0),
+                Explode(radius: 4.5, damage: 0.0, knockback: 14.0, element: Water),
+            ], juice: Some((title: Some("BLUE KNIGHT"), boom: true, ripple: 6.0, punch: 3.0, color: Some((0.45, 0.72, 1.0))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Garfiel Tinsel — the Shield of Sanctuary
+    // Half-beast, all attitude. Shields strapped to his arms (the guard, the rush), earth magic (he RIPS a
+    // boulder out of the ground and drags it to him as cover and a weapon), the Divine Protection of the
+    // Earth Soul (the ground heals him), and his tiger form: he grows huge, hits like a landslide and
+    // tramples whoever he touches.
+    (
+        id: "rz_garfiel_kit",
+        name: "Garfiel Tinsel",
+        kind: Kit,
+        names: ["garfiel", "garfiel tinsel", "garfiel's", "garfield tinsel", "garf re zero", "garfiel tinsel's", "gar fiel"],
+        fx: "feral",
+        shouts: [("garfiel shield", 0), ("garfiel guard", 0),
+                 ("garfiel rush", 1), ("garfiel shield rush", 1),
+                 ("garfiel boulder", 2), ("garfiel rock rip", 2),
+                 ("garfiel pounce", 3), ("tiger pounce garfiel", 3),
+                 ("garfiel tiger form", 4), ("garfiel tiger", 4), ("garfiel beast form", 4),
+                 ("garfiel earth soul", 5), ("Divine Protection Of The Earth Soul", 5)],
+        moves: [
+            // The arm shields up: the next hit is answered. -> you're planted.
+            (name: "shield guard", tags: [Defense, Counter], cooldown: 4.0, cost: 6.0, fx: "shield", ops: [
+                Counter(secs: 0.8, damage: 12.0, knockback: 16.0),
+                Deflect(secs: 0.8, angle: 80.0),
+            ]),
+            // Shield-fists, walking forward. -> ends in their face.
+            (name: "shield rush", tags: [Combo], cooldown: 3.0, cost: 10.0, fx: "brawl", ops: [
+                Barrage(hits: 6, interval: 0.1, range: 3.4, angle: 60.0, damage: 4.5, knockback: 3.0, finish: 18.0, advance: 3.5),
+            ], juice: Some((punch: 2.5, shake: 0.15))),
+            // Earth magic: he tears a boulder out of the ground where he looks and drags it home — through
+            // anyone in the way. -> a rock lands in front of you.
+            (name: "boulder rip", tags: [Primary], cooldown: 3.0, cost: 8.0, fx: "earth", ops: [
+                Haul(range: 30.0, radius: 1.6, speed: 30.0, damage: 10.0),
+            ], juice: Some((punch: 2.0, debris: 10.0))),
+            // A tiger's pounce at whoever you look at. -> ends airborne over them.
+            (name: "tiger pounce", tags: [Movement], cooldown: 2.0, cost: 4.0, ops: [
+                Pounce(range: 22.0, speed: 40.0, cone: 12.0, damage: 10.0, knockback: 12.0, bounce: 5.0),
+            ], juice: Some((punch: 2.0))),
+            // TIGER FORM: huge, heavy, and everyone he touches is trampled. -> you're a giant for 8 s.
+            (name: "tiger form", tags: [Ultimate], cooldown: 30.0, cost: 30.0, ops: [
+                SelfResize(scale: 1.5, secs: 8.0),
+                Empower(secs: 8.0, damage: 1.3, armor: 0.6, contact: 8.0, contact_kb: 14.0, contact_cd: 0.6, element: Earth),
+                Explode(radius: 4.5, damage: 0.0, knockback: 16.0, element: Earth),
+            ], juice: Some((title: Some("TIGER FORM"), boom: true, punch: 5.0, shake: 0.3, ripple: 7.0, color: Some((1.0, 0.75, 0.25))))),
+            // The Earth Soul: standing on the ground, his wounds close. -> you don't move.
+            (name: "earth soul", cooldown: 16.0, cost: 8.0, fx: "earth", ops: [
+                Mend(pct: 10.0, per_s: 3.0, secs: 5.0),
+            ], juice: Some((ripple: 2.5, color: Some((0.75, 0.6, 0.35))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Otto Suwen
+    // A merchant with the Divine Protection of the Spirit of Speech: he talks to animals, and they
+    // come. Insects from the grass, birds from the sky — a swarm that hunts for him. Magic ore
+    // fire-stones, and his land dragon Frufoo to ride.
+    (
+        id: "rz_otto_kit",
+        name: "Otto Suwen",
+        kind: Kit,
+        names: ["otto", "otto suwen", "otto's", "otto the merchant", "otto suwen's", "oto suwen"],
+        fx: "nature",
+        shouts: [("otto bugs", 0), ("otto insects", 0),
+                 ("Spirit Of Speech", 1), ("Divine Protection Of The Spirit Of Speech", 1), ("otto spirit of speech", 1), ("otto animal swarm", 1),
+                 ("otto fire stone", 2), ("otto magic stone", 2),
+                 ("Frufoo", 3), ("otto land dragon", 3),
+                 ("otto run", 4)],
+        moves: [
+            // A cloud of insects out of the grass. -> you don't move.
+            (name: "bug swarm", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "otto's insect swarm", form: Insect, mech: [Swarm, Flies, Homing], element: Poison, scale: 0.2, mass: 1.0, count: 6,
+                              temperament: Aggressive)),
+            ], juice: Some((punch: 1.0, color: Some((0.5, 0.75, 0.3))))),
+            // SPIRIT OF SPEECH: he calls every animal in earshot — a flock of birds dives on the enemy.
+            (name: "spirit of speech", tags: [Ultimate], cooldown: 22.0, cost: 30.0, ops: [
+                Cast(recipe: (name: "otto's bird flock", form: Bird, mech: [Swarm, Flies, Homing, Blade], scale: 0.4, mass: 2.0, count: 8,
+                              temperament: Aggressive, intensity: 0.9)),
+                Cast(recipe: (name: "otto's rat pack", form: Quadruped, mech: [Swarm, Fast, Walks], scale: 0.3, mass: 2.0, count: 6,
+                              temperament: Aggressive)),
+            ], juice: Some((title: Some("SPIRIT OF SPEECH"), boom: true, punch: 3.0, ripple: 6.0, color: Some((0.55, 0.85, 0.35))))),
+            // A fire-stone, thrown. -> you don't move.
+            (name: "fire stone", tags: [Combo], cooldown: 2.0, cost: 6.0, fx: "fire", ops: [
+                Cast(recipe: (name: "magic fire stone", form: Bomb, mech: [Explodes, Fast], element: Fire, scale: 0.4, mass: 3.0)),
+            ]),
+            // Frufoo, his land dragon: ride it. -> you're mounted.
+            (name: "frufoo", tags: [Movement], cooldown: 20.0, cost: 12.0, fx: "earth", ops: [
+                Cast(recipe: (name: "land dragon frufoo", form: Quadruped, mech: [Charge, Fast, Walks], element: Earth, scale: 1.6, mass: 120.0,
+                              temperament: Calm)),
+            ], juice: Some((title: Some("FRUFOO"), ripple: 3.0))),
+            // Run away (he's good at it): eight metres back, fast. -> ends behind where you were.
+            (name: "run", tags: [Defense], cooldown: 3.0, cost: 3.0, fx: "toon", ops: [
+                Relocate(range: 45.0, cone: 20.0, back: 8.0, me: true),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Roswaal L Mathers — the court magician
+    // The clown who is the strongest mage in the kingdom: all four attributes at once, and he FLIES.
+    // His Al Goa lands while he hangs in the air above it.
+    (
+        id: "rz_roswaal_kit",
+        name: "Roswaal L Mathers",
+        kind: Kit,
+        names: ["roswaal", "roswaal l mathers", "roswaal mathers", "roswall", "roswal", "ros waal", "roswaal's", "the court magician",
+                "roswaal el mathers", "roz waal"],
+        fx: "mystic",
+        shouts: [("roswaal el goa", 0),
+                 ("roswaal flight", 1), ("roswaal fly", 1), ("roswaal levitate", 1),
+                 ("roswaal four elements", 2), ("roswaal all elements", 2), ("roswaal element barrage", 2),
+                 ("roswaal al goa", 3),
+                 ("roswaal ul dona", 4), ("roswaal earth wall", 4)],
+        moves: [
+            // El Goa (his): two fireballs. -> you don't move.
+            (name: "el goa", tags: [Primary], cooldown: 1.4, cost: 8.0, fx: "fire", ops: [
+                Cast(recipe: (name: "roswaal fireballs", form: Ball, mech: [Swarm, Explodes, Fast], element: Fire, scale: 0.8, mass: 12.0, count: 2)),
+                Zone(radius: 3.0, secs: 2.5, status: Some(Burn), dps: 3.0, at: Aim),
+            ], juice: Some((title: Some("EL GOA"), punch: 2.0, color: Some((1.0, 0.45, 0.12))))),
+            // He rises and hangs in the air. -> ends high, floating.
+            (name: "flight", tags: [Movement], cooldown: 3.0, cost: 4.0, ops: [
+                Impulse(fwd: 3.0, up: 14.0),
+                SelfStatus(status: Float, secs: 3.0),
+            ], juice: Some((ripple: 3.0, color: Some((0.75, 0.55, 1.0))))),
+            // All four attributes at once: fire falls on the crosshair, earth spikes race at it, a wind blade
+            // flies, and ice lances follow. -> you don't move.
+            (name: "four elements", tags: [Combo], cooldown: 6.0, cost: 20.0, ops: [
+                Salvo(count: 3, delay: 0.4, interval: 0.1, radius: 2.6, damage: 8.0, knockback: 10.0, element: Fire, at: Aim, spread: 3.0, seek: true),
+                Erupt(length: 16.0, width: 1.4, height: 2.8, count: 5, element: Earth, damage: 8.0, launch: 12.0),
+                Wave(length: 22.0, speed: 55.0, width: 3.0, carve: 0.3, damage: 7.0, knockback: 6.0, element: Wind, thin: true),
+                Cast(recipe: (name: "roswaal ice lances", form: Spear, mech: [Swarm, Pierce, Fast], element: Ice, scale: 0.5, mass: 4.0, count: 3)),
+            ], juice: Some((title: Some("FOUR ELEMENTS"), boom: true, punch: 3.5, shake: 0.2, color: Some((0.85, 0.6, 1.0))))),
+            // Al Goa (his): he rises into the air, and the second sun lands under him.
+            // -> ends airborne above a crater.
+            (name: "al goa", tags: [Ultimate], cooldown: 18.0, cost: 40.0, fx: "fire", ops: [
+                Impulse(fwd: 0.0, up: 12.0),
+                SelfStatus(status: Float, secs: 2.5),
+                Field(strength: 36.0, radius: 11.0, secs: 1.1, at: Aim),
+                Salvo(count: 1, delay: 1.1, radius: 9.0, damage: 32.0, knockback: 32.0, element: Fire, carve: 3.0, at: Aim),
+            ], juice: Some((title: Some("AL GOA"), boom: true, punch: 6.0, shake: 0.35, ripple: 12.0, at: Aim, debris: 22.0,
+                            color: Some((1.0, 0.55, 0.12)), impact_frame: Some("holy")))),
+            // Ul Dona (his): a wall of earth goes up. -> you're behind cover.
+            (name: "ul dona", tags: [Defense], cooldown: 4.0, cost: 10.0, fx: "earth", ops: [
+                Erupt(length: 10.0, width: 1.6, height: 5.0, element: Earth, shape: Wall, dist: 4.0),
+            ], juice: Some((title: Some("UL DONA"), punch: 2.0))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Elsa Granhiert — the Bowel Hunter
+    // An assassin with a kukri who fights like a dance: wall-to-wall, blade out. The flurry is fast
+    // and forward; the thrown kukri comes back; the finale ("bowel hunter") bites deepest on someone
+    // she's already cut (chain the flurry into it). She heals from wounds that should kill her.
+    (
+        id: "rz_elsa_kit",
+        name: "Elsa Granhiert",
+        kind: Kit,
+        names: ["elsa granhiert", "elsa", "elsa the bowel hunter", "the bowel hunter", "elsa granhirte", "elsa granhert", "elsa re zero",
+                "gut hunter elsa", "elsa granhiert's"],
+        fx: "blood",
+        shouts: [("elsa kukri", 0), ("elsa slash", 0),
+                 ("elsa kukri flurry", 1), ("elsa flurry", 1),
+                 ("Bowel Hunter", 2), ("Gut Hunter", 2), ("bowl hunter", 2), ("elsa bowel hunter", 2),
+                 ("elsa kukri throw", 3), ("elsa thrown kukri", 3),
+                 ("elsa leap", 4), ("elsa wall run", 4),
+                 ("elsa regenerate", 5)],
+        moves: [
+            // A darting slash. -> ends a step forward.
+            (name: "kukri", tags: [Primary], cooldown: 0.5, cost: 4.0, fx: "blade", ops: [
+                Impulse(fwd: 9.0, up: 0.0),
+                Shove(range: 3.2, angle: 70.0, damage: 8.0, knockback: 6.0),
+            ], juice: Some((punch: 1.5, color: Some((0.8, 0.1, 0.12))))),
+            // Eight cuts, driving forward. -> ends in their face.
+            (name: "kukri flurry", tags: [Combo], cooldown: 3.0, cost: 10.0, ops: [
+                Barrage(hits: 8, interval: 0.07, range: 3.4, angle: 80.0, damage: 3.5, knockback: 2.0, finish: 12.0, advance: 5.0),
+            ], juice: Some((punch: 2.0, color: Some((0.8, 0.1, 0.12))))),
+            // BOWEL HUNTER: a lunge and a cut that crits on anyone she's hit in the last 1.5 s.
+            // -> ends in their face (or past them).
+            (name: "bowel hunter", tags: [Ultimate], cooldown: 12.0, cost: 20.0, ops: [
+                Finisher(lunge: 18.0, range: 3.8, angle: 50.0, damage: 14.0, knockback: 18.0, window: 1.5, mult: 2.2),
+            ], juice: Some((title: Some("BOWEL HUNTER"), punch: 4.0, shake: 0.2, color: Some((0.75, 0.05, 0.1)), impact_frame: Some("ink")))),
+            // The kukri, thrown: it finds them round cover, jumps to one more, and comes back.
+            (name: "kukri throw", cooldown: 3.0, cost: 6.0, fx: "blade", ops: [
+                Seeker(recipe: (name: "kukri", form: Disc, mech: [Blade, Fast], scale: 0.5, mass: 2.0), range: 40.0, cone: 25.0, speed: 36.0,
+                       damage: 8.0, knockback: 6.0, hits: 2, chain: 8.0),
+            ]),
+            // A leap at whoever you look at, off them and up. -> ends airborne.
+            (name: "wall run", tags: [Movement], cooldown: 1.6, cost: 4.0, ops: [
+                Pounce(range: 22.0, speed: 40.0, cone: 12.0, damage: 6.0, knockback: 6.0, bounce: 8.0),
+            ]),
+            // The curse keeps her alive: wounds close. -> you don't move.
+            (name: "regenerate", tags: [Defense], cooldown: 16.0, cost: 8.0, ops: [
+                Mend(pct: 14.0, per_s: 3.0, secs: 4.0),
+            ], juice: Some((ripple: 2.0, color: Some((0.7, 0.05, 0.1))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Petelgeuse Romanee-Conti — Sloth
+    // The Archbishop of Sloth. His Authority: the UNSEEN HANDS — black hands of miasma that burst out of
+    // the ground under his victims and throw them into the air (seen by everyone, like everything
+    // here). One hand grabs and slams. His fingers possess other bodies (he steals an enemy's summon).
+    // BRAIN TREMBLING: the madness — he bites his own fingers, hits harder, and hands erupt all round him.
+    (
+        id: "rz_petelgeuse_kit",
+        name: "Petelgeuse Romanee-Conti",
+        kind: Kit,
+        names: ["petelgeuse", "petelgeuse romanee conti", "betelgeuse romanee conti", "petelguese", "betelguese", "betelgeuse", "archbishop of sloth",
+                "sloth archbishop", "petelgeuse's", "betelgeuse re zero", "petel geuse", "petergeuse", "the archbishop of sloth"],
+        fx: "witch",
+        shouts: [("Unseen Hands", 0), ("Unseen Hand", 0), ("Mienai Te", 0), ("unseen hands of sloth", 0), ("petelgeuse hands", 0),
+                 ("petelgeuse grab", 1), ("unseen hand crush", 1),
+                 ("Brain Trembling", 2), ("brain trembles", 2), ("my brain trembles", 2), ("my brain is trembling", 2), ("brain shaking", 2),
+                 ("Authority Of Sloth", 3), ("sloth authority", 3),
+                 ("petelgeuse possession", 4), ("finger possession", 4),
+                 ("petelgeuse pull", 5)],
+        moves: [
+            // UNSEEN HANDS: six hands burst from the ground round the crosshair, snapping to whoever's near,
+            // and throw them up. -> you don't move; they're in the air.
+            (name: "unseen hands", tags: [Primary], cooldown: 1.6, cost: 8.0, ops: [
+                Salvo(count: 6, delay: 0.35, interval: 0.07, radius: 1.8, damage: 6.0, knockback: 6.0, up: 1.6, element: Shadow, at: Aim,
+                      spread: 4.5, seek: true, cut: true),
+            ], juice: Some((title: Some("UNSEEN HANDS"), punch: 2.0, color: Some((0.3, 0.05, 0.35))))),
+            // One hand: grab the one in front, lift, slam. -> they land thrown along your look.
+            (name: "unseen hand crush", tags: [Combo], cooldown: 3.0, cost: 8.0, ops: [
+                Grab(range: 5.0, hold: 0.45, damage: 13.0, knockback: 12.0, up: 0.6, lift: 4.0),
+            ], juice: Some((punch: 2.5, shake: 0.15, color: Some((0.3, 0.05, 0.35))))),
+            // BRAIN TREMBLING: he bites his fingers bloody (self-damage), hits harder for five seconds, and
+            // hands erupt all round him. -> you're twitching in a ring of hands.
+            (name: "brain trembling", cooldown: 20.0, cost: 20.0, ops: [
+                Salvo(count: 8, delay: 0.3, interval: 0.05, radius: 2.0, damage: 5.0, knockback: 8.0, up: 1.2, element: Shadow, spread: 7.0, cut: true),
+                Empower(secs: 5.0, damage: 1.3, armor: 0.9),
+                Strain(pct: 5.0),
+            ], juice: Some((title: Some("BRAIN TREMBLING"), boom: true, punch: 3.0, shake: 0.25, ripple: 7.0, color: Some((0.5, 0.1, 0.5))))),
+            // AUTHORITY OF SLOTH: a thicket of hands over the whole crosshair area, and the air goes thick.
+            // -> you don't move; they're juggled in the hands.
+            (name: "authority of sloth", tags: [Ultimate], cooldown: 24.0, cost: 40.0, ops: [
+                Salvo(count: 14, delay: 0.5, interval: 0.06, radius: 2.2, damage: 6.0, knockback: 6.0, up: 1.8, element: Shadow, at: Aim,
+                      spread: 9.0, seek: true, cut: true),
+                Zone(radius: 9.0, secs: 3.0, status: Some(Shadow), slow: 0.3, at: Aim),
+            ], juice: Some((title: Some("AUTHORITY OF SLOTH"), boom: true, punch: 5.0, shake: 0.3, ripple: 12.0, at: Aim,
+                            color: Some((0.3, 0.02, 0.35)), impact_frame: Some("void")))),
+            // A finger possesses the enemy summon you look at (ride it if it can be ridden).
+            (name: "possession", cooldown: 16.0, cost: 12.0, ops: [
+                Capture(range: 30.0, secs: 6.0, ride: true),
+            ], juice: Some((title: Some("POSSESSION"), ripple: 3.0, color: Some((0.3, 0.05, 0.35))))),
+            // A hand throws him at the crosshair. -> you arrive where you looked.
+            (name: "unseen hand pull", tags: [Movement], cooldown: 2.0, cost: 3.0, ops: [
+                Reel(range: 26.0, speed: 30.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Regulus Corneas — Greed
+    // The Archbishop of Greed. LION'S HEART: his heart stops time for his body — for a moment NOTHING
+    // hurts him (a short invulnerable window, then it's over; never a lockout on anyone). A flicked
+    // pebble that goes through everything. A swing of the arm that throws the air itself. LITTLE KING:
+    // he walks through you, invulnerable, and everything he touches breaks.
+    (
+        id: "rz_regulus_kit",
+        name: "Regulus Corneas",
+        kind: Kit,
+        names: ["regulus", "regulus corneas", "archbishop of greed", "greed archbishop", "regulus's", "regulus corneus", "regulas",
+                "the archbishop of greed"],
+        fx: "holy",
+        shouts: [("Lion's Heart", 0), ("Lions Heart", 0), ("lion heart regulus", 0), ("Shishi No Shinzou", 0),
+                 ("regulus pebble", 1), ("regulus flick", 1),
+                 ("regulus air wave", 2), ("regulus swing", 2),
+                 ("Little King", 3), ("Authority Of Greed", 3), ("regulus little king", 3),
+                 ("regulus stomp", 4)],
+        moves: [
+            // LION'S HEART: for 1.5 s nothing that hits him counts, and he barely moves when struck.
+            // -> you're untouchable, briefly.
+            (name: "lion's heart", tags: [Defense], cooldown: 8.0, cost: 10.0, ops: [
+                Counter(secs: 1.5),
+                Empower(secs: 1.5, armor: 0.2),
+            ], juice: Some((title: Some("LION'S HEART"), ripple: 4.0, punch: 2.0, color: Some((1.0, 1.0, 0.95))))),
+            // A flicked pebble that nothing stops. -> you don't move.
+            (name: "pebble flick", tags: [Primary], cooldown: 1.0, cost: 6.0, ops: [
+                BounceBeam(length: 45.0, bounces: 0, radius: 0.3, damage: 12.0, knockback: 20.0),
+            ], juice: Some((punch: 2.0, color: Some((1.0, 1.0, 0.95))))),
+            // A swing of the arm: the air itself becomes a wall that flies. -> you don't move.
+            (name: "air wave", tags: [Combo], cooldown: 3.0, cost: 10.0, ops: [
+                Wave(length: 22.0, speed: 50.0, width: 7.0, carve: 0.9, damage: 12.0, knockback: 16.0),
+            ], juice: Some((punch: 2.5, shake: 0.15, color: Some((1.0, 1.0, 0.95))))),
+            // LITTLE KING: untouchable, he charges straight through everyone on the line.
+            // -> ends far forward, untouched.
+            (name: "little king", tags: [Ultimate], cooldown: 22.0, cost: 30.0, ops: [
+                Counter(secs: 1.2),
+                Ram(speed: 22.0, secs: 1.0, damage: 16.0, knockback: 24.0, through: true),
+            ], juice: Some((title: Some("LITTLE KING"), boom: true, punch: 4.0, shake: 0.25, color: Some((1.0, 1.0, 0.95)), impact_frame: Some("holy")))),
+            // A stamp of the foot that breaks the ground. -> you don't move.
+            (name: "stomp", cooldown: 2.5, cost: 8.0, fx: "earth", ops: [
+                Explode(radius: 4.0, damage: 10.0, knockback: 14.0, carve: 1.5),
+            ], juice: Some((punch: 2.0, shake: 0.15))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Capella Emerada Lugunica — Lust
+    // The Archbishop of Lust. Her Authority is METAMORPHOSIS (she becomes a black dragon — here: she
+    // grows vast and her body hits like one), her dragon blood is a curse that spreads from body to
+    // body, and her arm stretches into a tentacle that drags you in.
+    (
+        id: "rz_capella_kit",
+        name: "Capella Emerada Lugunica",
+        kind: Kit,
+        names: ["capella", "capella emerada lugunica", "capella emerada", "archbishop of lust", "lust archbishop", "capella's",
+                "the archbishop of lust"],
+        fx: "chaos",
+        shouts: [("Authority Of Lust", 0), ("capella metamorphosis", 0), ("capella dragon form", 0),
+                 ("capella dragon blood", 1), ("dragon blood curse", 1),
+                 ("capella tentacle", 2), ("capella flesh whip", 2),
+                 ("capella regenerate", 3)],
+        moves: [
+            // AUTHORITY OF LUST: she grows vast, armoured, and crushes whoever she touches.
+            // -> you're a giant for 7 s.
+            (name: "metamorphosis", tags: [Ultimate], cooldown: 28.0, cost: 30.0, ops: [
+                SelfResize(scale: 1.6, secs: 7.0),
+                Empower(secs: 7.0, damage: 1.3, armor: 0.6, contact: 8.0, contact_kb: 14.0, contact_cd: 0.6, element: Shadow),
+                Explode(radius: 4.5, damage: 0.0, knockback: 16.0, element: Shadow),
+            ], juice: Some((title: Some("AUTHORITY OF LUST"), boom: true, punch: 5.0, shake: 0.3, ripple: 7.0, color: Some((0.6, 0.05, 0.3))))),
+            // Dragon blood: a curse on the one you look at that burns them and jumps to anyone near them.
+            (name: "dragon blood", tags: [Combo], cooldown: 8.0, cost: 12.0, fx: "blood", ops: [
+                Contagion(range: 25.0, cone: 12.0, status: Burn, secs: 4.0, spread: 5.0),
+            ], juice: Some((title: Some("DRAGON BLOOD"), punch: 2.0, color: Some((0.7, 0.05, 0.1))))),
+            // Her arm stretches into a tentacle and drags them to her. -> they arrive at your feet.
+            (name: "tentacle", tags: [Primary], cooldown: 2.5, cost: 6.0, fx: "rubber", ops: [
+                Hook(range: 16.0, speed: 60.0, pull: 20.0, damage: 8.0),
+            ], juice: Some((punch: 2.0, color: Some((0.6, 0.1, 0.25))))),
+            // Nothing stays hurt on her body for long. -> you don't move.
+            (name: "regenerate", tags: [Defense], cooldown: 14.0, cost: 8.0, fx: "blood", ops: [
+                Mend(pct: 18.0, per_s: 3.0, secs: 3.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Sirius Romanee-Conti — Wrath
+    // The Archbishop of Wrath, wrapped in bandages and chains. Her Authority links hearts: what she feels
+    // they feel — here, a brand of fire on the one she looks at that SPREADS to anyone near them (the
+    // pain is shared). Her chains burn.
+    (
+        id: "rz_sirius_kit",
+        name: "Sirius Romanee-Conti",
+        kind: Kit,
+        names: ["sirius", "sirius romanee conti", "archbishop of wrath", "wrath archbishop", "sirius's", "the archbishop of wrath",
+                "sirius re zero"],
+        fx: "hellfire",
+        shouts: [("Authority Of Wrath", 0), ("sirius shared pain", 0), ("shared pain link", 0), ("sirius pain link", 0),
+                 ("sirius chain", 1), ("sirius fire chain", 1),
+                 ("sirius chain whirl", 2),
+                 ("sirius wrath", 3)],
+        moves: [
+            // AUTHORITY OF WRATH: she's linked to the one she looks at — a chain to her, and a burning brand
+            // that jumps to whoever stands near them. -> they're chained to you and burning.
+            (name: "shared pain", tags: [Primary], cooldown: 9.0, cost: 12.0, ops: [
+                Contagion(range: 25.0, cone: 12.0, status: Burn, secs: 4.0, spread: 6.0),
+                Link(range: 25.0),
+            ], juice: Some((title: Some("AUTHORITY OF WRATH"), punch: 2.0, ripple: 3.0, color: Some((1.0, 0.4, 0.1))))),
+            // A burning chain thrown and hauled back. -> they arrive at your feet, burning.
+            (name: "fire chain", tags: [Combo], cooldown: 2.5, cost: 6.0, ops: [
+                Hook(range: 18.0, speed: 55.0, pull: 20.0, damage: 8.0, status: Some(Burn), secs: 1.2),
+            ], juice: Some((punch: 2.0, color: Some((1.0, 0.45, 0.1))))),
+            // The chains whirl round her. -> everyone near is thrown.
+            (name: "chain whirl", tags: [Defense], cooldown: 3.0, cost: 8.0, ops: [
+                Shove(range: 5.0, angle: 179.0, damage: 8.0, knockback: 14.0, element: Fire),
+            ], juice: Some((punch: 2.0))),
+            // WRATH: an explosion of fire around her. -> you're in a crater.
+            (name: "wrath", tags: [Ultimate], cooldown: 20.0, cost: 30.0, ops: [
+                Explode(radius: 8.0, damage: 18.0, knockback: 20.0, element: Fire, carve: 2.0),
+                Zone(radius: 7.0, secs: 3.0, status: Some(Burn), dps: 3.0),
+            ], juice: Some((title: Some("WRATH"), boom: true, punch: 5.0, shake: 0.3, ripple: 9.0, debris: 18.0, color: Some((1.0, 0.35, 0.08))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Echidna — the Witch of Greed
+    // The witch who wants to KNOW everything. Her dream castle: a domain where no one else may use a
+    // power while it stands (they still move and fight). Greed for knowledge: she replays, as her own,
+    // the last move an enemy used near her. Her contract marks you; later it collects.
+    (
+        id: "rz_echidna_kit",
+        name: "Echidna",
+        kind: Kit,
+        names: ["echidna", "witch of greed", "the witch of greed", "echidna's", "ekidona", "ekidna", "echidna re zero"],
+        fx: "mystic",
+        shouts: [("Witch's Tea Party", 0), ("Dream Castle", 0), ("echidna dream castle", 0), ("echidna tea party", 0),
+                 ("echidna greed", 1), ("echidna copy", 1),
+                 ("echidna contract", 2), ("witch's contract", 2),
+                 ("echidna collect", 3), ("contract fulfilled", 3),
+                 ("echidna el minya", 4)],
+        moves: [
+            // THE WITCH'S TEA PARTY: her dream castle rises; inside it no one else can use a power for
+            // three seconds, and the air is thick. -> you're the host.
+            (name: "dream castle", tags: [Ultimate], cooldown: 30.0, cost: 40.0, ops: [
+                Cast(recipe: (name: "dream castle", form: Dome, mech: [Barrier, Trap], element: Psychic, scale: 2.0), signature: Some(Domain)),
+                Zone(radius: 13.0, secs: 3.0, slow: 0.35, lockout: true),
+            ], juice: Some((title: Some("WITCH'S TEA PARTY"), boom: true, punch: 5.0, shake: 0.2, ripple: 13.0, color: Some((0.95, 0.95, 1.0)),
+                            impact_frame: Some("void")))),
+            // Greed for knowledge: the last move an enemy used near her, replayed as hers.
+            (name: "greed for knowledge", tags: [Combo], cooldown: 8.0, cost: 6.0, ops: [
+                CopyLast(range: 30.0, secs: 8.0),
+            ], juice: Some((title: Some("WITCH OF GREED"), ripple: 3.0, color: Some((0.9, 0.9, 1.0))))),
+            // The contract: a mark on the one she looks at, for twelve seconds.
+            (name: "contract", cooldown: 4.0, cost: 4.0, ops: [
+                Tag(range: 50.0, cone: 18.0, secs: 12.0),
+            ], juice: Some((color: Some((0.9, 0.9, 1.0))))),
+            // It collects: everyone under contract is struck and dragged to her. -> they arrive at your feet.
+            (name: "collect", tags: [Primary], cooldown: 5.0, cost: 10.0, ops: [
+                TagStrike(damage: 12.0, knockback: 6.0, element: Psychic, pull: 22.0),
+            ], juice: Some((title: Some("CONTRACT"), punch: 2.5, color: Some((0.9, 0.9, 1.0))))),
+            // El Minya (hers). -> you don't move.
+            (name: "el minya", cooldown: 1.8, cost: 8.0, fx: "crystal", ops: [
+                Salvo(count: 6, delay: 0.25, interval: 0.06, radius: 1.5, damage: 6.0, knockback: 6.0, element: Psychic, at: Aim, spread: 3.5, seek: true, cut: true),
+            ], juice: Some((title: Some("EL MINYA"), punch: 2.0, color: Some((0.8, 0.5, 1.0))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Satella — the Jealous Witch
+    // The witch whose shadow swallowed half the world. Her black hands reach from far away and drag
+    // you in; they rise in a thicket round the crosshair; one embraces you. THE SHADOW: a vast black
+    // tide rolls out from her across the arena, carrying everything with it (a rider is thrown clear
+    // after a second — never held), and the ground it passed stays dark.
+    (
+        id: "rz_satella_kit",
+        name: "Satella",
+        kind: Kit,
+        names: ["satella", "satela", "the jealous witch", "jealous witch", "witch of envy", "the witch of envy", "satella's", "sa tella",
+                "satellah", "satella re zero"],
+        fx: "witch",
+        shouts: [("satella hands", 0), ("the witch's hands", 0), ("witch's hands", 0),
+                 ("satella tendrils", 1), ("shadow tendrils of envy", 1),
+                 ("satella embrace", 2), ("the witch's embrace", 2),
+                 ("Shadow Of Envy", 3), ("the witch's shadow", 3), ("satella shadow", 3), ("the jealous witch's shadow", 3),
+                 ("satella shadow step", 4)],
+        moves: [
+            // A black hand reaches out, seizes the first one it meets and drags them to her.
+            // -> they arrive at your feet, half blind.
+            (name: "witch's hands", tags: [Primary], cooldown: 2.0, cost: 6.0, ops: [
+                Hook(range: 26.0, speed: 40.0, pull: 24.0, damage: 6.0, status: Some(Shadow), secs: 1.2),
+            ], juice: Some((punch: 2.0, color: Some((0.2, 0.0, 0.25))))),
+            // A thicket of shadow rising round the crosshair. -> you don't move; they're in the air.
+            (name: "shadow tendrils", tags: [Combo], cooldown: 3.0, cost: 10.0, ops: [
+                Salvo(count: 10, delay: 0.4, interval: 0.05, radius: 2.0, damage: 5.0, knockback: 6.0, up: 1.4, element: Shadow, at: Aim,
+                      spread: 7.0, seek: true, cut: true),
+            ], juice: Some((punch: 2.0, color: Some((0.2, 0.0, 0.25))))),
+            // The embrace: seized, lifted, thrown. -> they land along your look.
+            (name: "embrace", cooldown: 3.5, cost: 8.0, ops: [
+                Grab(range: 5.0, hold: 0.45, damage: 14.0, knockback: 14.0, up: 0.5, lift: 3.0),
+            ], juice: Some((punch: 2.5, color: Some((0.2, 0.0, 0.25))))),
+            // THE SHADOW OF ENVY: a black tide twelve metres wide creeps out across the arena and carries
+            // everyone before it; behind it the ground stays dark. -> you stand behind your shadow.
+            (name: "shadow of envy", tags: [Ultimate], cooldown: 35.0, cost: 40.0, ops: [
+                Surge(width: 12.0, dist: 40.0, speed: 10.0, push: 20.0, damage: 16.0, element: Shadow),
+                Zone(radius: 14.0, secs: 5.0, status: Some(Shadow), slow: 0.35, at: Front, dist: 14.0),
+            ], juice: Some((title: Some("THE JEALOUS WITCH"), boom: true, punch: 6.0, shake: 0.35, ripple: 14.0, debris: -22.0,
+                            color: Some((0.12, 0.0, 0.16)), impact_frame: Some("void")))),
+            // She moves as her shadow does. -> ends grounded, forward.
+            (name: "shadow step", tags: [Movement], cooldown: 1.5, cost: 3.0, ops: [
+                Blink(dist: 12.0, afterimage: true),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- The Three Great Mabeasts
+    // The White Whale drifting in its fog (anyone in the fog is blinded and slowed), the Great Rabbit —
+    // a flood of tiny rabbits that eats everything — and the Black Serpent's plague.
+    (
+        id: "rz_mabeasts_kit",
+        name: "The Three Great Mabeasts",
+        kind: Kit,
+        names: ["mabeast", "mabeasts", "three great mabeasts", "the three great mabeasts", "great mabeasts", "mabeast re zero"],
+        fx: "spirit",
+        shouts: [("Hakugei", 0), ("mabeast white whale", 0), ("the white whale's fog", 0),
+                 ("Daiusagi", 1), ("Ousagi", 1), ("mabeast great rabbit", 1),
+                 ("Kokuja", 2), ("mabeast black serpent", 2)],
+        moves: [
+            // The White Whale: a vast flying whale, and its fog on the crosshair.
+            (name: "white whale", tags: [Ultimate], cooldown: 40.0, cost: 40.0, ops: [
+                Cast(recipe: (name: "white whale", form: Fish, mech: [Flies, Heavy, Breath], element: Water, scale: 4.0, mass: 900.0,
+                              temperament: Aggressive, intensity: 1.0)),
+                Zone(radius: 10.0, secs: 4.0, status: Some(Shadow), slow: 0.25, at: Aim),
+            ], juice: Some((title: Some("WHITE WHALE"), boom: true, punch: 5.0, shake: 0.3, ripple: 12.0, color: Some((0.9, 0.92, 0.95))))),
+            // The Great Rabbit: a flood of tiny rabbits.
+            (name: "great rabbit", tags: [Combo], cooldown: 24.0, cost: 20.0, ops: [
+                Cast(recipe: (name: "great rabbit", form: Quadruped, mech: [Swarm, Fast, Walks], scale: 0.3, mass: 1.0, count: 10,
+                              temperament: Aggressive, intensity: 0.8)),
+            ], juice: Some((title: Some("GREAT RABBIT"), punch: 2.0, ripple: 5.0, color: Some((0.95, 0.95, 0.95))))),
+            // The Black Serpent: a plague on the one you look at that jumps to whoever is near them.
+            (name: "black serpent", tags: [Primary], cooldown: 10.0, cost: 12.0, fx: "poison", ops: [
+                Contagion(range: 30.0, cone: 12.0, status: Poison, secs: 5.0, spread: 5.0),
+            ], juice: Some((title: Some("BLACK SERPENT"), punch: 2.0, color: Some((0.2, 0.3, 0.15))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Priscilla Barielle
+    // The sun princess: the world bends to suit her. The Yang Sword Volakia is drawn out of the air — a
+    // sword of the sun that burns only what she wishes; drawn, it cuts a burning crescent across the
+    // arena and stays in her hand. The world's favour: whatever comes at her simply misses.
+    (
+        id: "rz_priscilla_kit",
+        name: "Priscilla Barielle",
+        kind: Kit,
+        names: ["priscilla barielle", "priscilla", "priscilla bariel", "priscilla re zero", "the sun princess", "priscilla barielle's", "priscilla benedict"],
+        fx: "fire",
+        shouts: [("Yang Sword Volakia", 0), ("Yoken Volakia", 0), ("sun sword volakia", 0),
+                 ("priscilla slash", 1),
+                 ("priscilla favor", 2), ("the world's favor", 2), ("the world favors me", 2),
+                 ("priscilla step", 3)],
+        moves: [
+            // YANG SWORD VOLAKIA: drawn from the air in a burst of sunlight — a burning crescent crosses the
+            // arena and the sword stays in her hand. -> you hold the Yang Sword.
+            (name: "yang sword volakia", tags: [Ultimate], cooldown: 24.0, cost: 40.0, ops: [
+                Wave(length: 40.0, speed: 60.0, width: 7.0, carve: 0.8, damage: 18.0, knockback: 16.0, element: Fire, thin: true),
+                Cast(recipe: (name: "yang sword volakia", form: Sword, mech: [Blade], element: Fire, scale: 1.3)),
+            ], juice: Some((title: Some("YANG SWORD VOLAKIA"), boom: true, punch: 6.0, shake: 0.3, debris: 16.0, color: Some((1.0, 0.55, 0.15)),
+                            impact_frame: Some("holy")))),
+            // A burning cut. -> ends a step forward.
+            (name: "sun slash", tags: [Primary], cooldown: 0.8, cost: 6.0, ops: [
+                Impulse(fwd: 8.0, up: 0.0),
+                Shove(range: 3.8, angle: 90.0, damage: 10.0, knockback: 12.0, element: Fire),
+            ], juice: Some((punch: 2.0, color: Some((1.0, 0.6, 0.2))))),
+            // The world's favour: the next thing that would hit her misses, and she's past it.
+            (name: "the world's favor", tags: [Defense, Counter], cooldown: 5.0, cost: 6.0, fx: "holy", ops: [
+                Evade(secs: 0.6, slow: 1.0, speed: 1.5, blink: 2.0),
+            ], juice: Some((ripple: 2.0, color: Some((1.0, 0.8, 0.35))))),
+            // A regal step forward. -> ends grounded.
+            (name: "sun step", tags: [Movement], cooldown: 1.4, cost: 3.0, ops: [
+                Blink(dist: 12.0, afterimage: true),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Lye Batenkaitos — Gluttony
+    // The Archbishop of Gluttony EATS names and memories — and with them, abilities: he replays as his
+    // own the last move an enemy used near him. Twin daggers, and the pounce of a starving thing.
+    (
+        id: "rz_gluttony_kit",
+        name: "Lye Batenkaitos",
+        kind: Kit,
+        names: ["lye batenkaitos", "lye bateinkaitos", "archbishop of gluttony", "gluttony archbishop", "roy alphard", "louis arneb",
+                "the archbishop of gluttony", "rai batenkaitos"],
+        fx: "blood",
+        shouts: [("Authority Of Gluttony", 0), ("gluttony eat", 0), ("eat his name", 0), ("eat her name", 0), ("gluttony devour", 0),
+                 ("gluttony daggers", 1), ("gluttony flurry", 1),
+                 ("gluttony pounce", 2)],
+        moves: [
+            // AUTHORITY OF GLUTTONY: he eats what he saw — the last move an enemy used near him is his now.
+            (name: "eat", tags: [Ultimate], cooldown: 10.0, cost: 8.0, ops: [
+                CopyLast(range: 30.0, secs: 8.0),
+            ], juice: Some((title: Some("GLUTTONY"), ripple: 4.0, punch: 2.0, color: Some((0.55, 0.15, 0.2))))),
+            // Twin daggers, eight cuts, driving forward. -> ends in their face.
+            (name: "dagger flurry", tags: [Combo, Primary], cooldown: 2.5, cost: 8.0, fx: "blade", ops: [
+                Barrage(hits: 8, interval: 0.07, range: 3.2, angle: 80.0, damage: 3.5, knockback: 2.0, finish: 14.0, advance: 4.0),
+            ], juice: Some((punch: 2.0))),
+            // A starving pounce at whoever you look at. -> ends airborne over them.
+            (name: "pounce", tags: [Movement], cooldown: 1.8, cost: 4.0, fx: "feral", ops: [
+                Pounce(range: 22.0, speed: 42.0, cone: 12.0, damage: 8.0, knockback: 10.0, bounce: 5.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================================================
+    // THE ONI FORM — a technique: say "oni form" and you ARE an oni until KO (the horn glows, you run
+    // faster, hit much harder, and every move comes out as an oni's — but the horn burns you a little
+    // while it's out). G tap = the morning star; G hold = demon rush; "oni el huma", "oni roar".
+    // ================================================================================================
+    (
+        id: "rz_oni",
+        name: "Oni Form",
+        kind: Technique,
+        names: ["oni form", "oni mode", "oni blood", "awaken the oni", "horn of the oni", "oni horn form", "demon oni form", "oni transformation",
+                "oni no katachi", "onee form"],
+        effects: [PowerMult(speed: 1.2, damage: 1.25, knockback: 1.15), SelfDrain(damage_pct_per_s: 0.4)],
+        body: (moves: (accel: 1.3, jump: 1.15)),
+        ascend: Some((color: Some((0.72, 0.9, 1.0)), intensity: 1.4, title: Some("ONI"), stable: false, eye_glow: Some((0.6, 0.85, 1.0)))),
+        fx: "morningstar",
+        shouts: [("oni morning star", 0), ("oni flail", 0),
+                 ("oni demon rush", 1), ("oni rush", 1),
+                 ("oni el huma", 2), ("oni ice lances", 2),
+                 ("oni howl", 3)],
+        moves: [
+            // G tap: the morning star, heavier and further. -> you don't move; they fly.
+            (name: "oni morning star", cooldown: 0.9, cost: 6.0, ops: [
+                Shove(range: 7.0, angle: 45.0, damage: 13.0, knockback: 18.0, up: 0.4),
+            ], juice: Some((punch: 3.0, shake: 0.12, color: Some((0.62, 0.66, 0.74))))),
+            // G hold: demon rush. -> ends airborne over them.
+            (name: "demon rush", cooldown: 1.6, cost: 5.0, fx: "feral", ops: [
+                Pounce(range: 26.0, speed: 48.0, cone: 14.0, damage: 11.0, knockback: 15.0, bounce: 5.0),
+            ], juice: Some((punch: 2.5, color: Some((0.6, 0.85, 1.0))))),
+            // Oni El Huma: a volley of ice lances. -> you don't move.
+            (name: "oni el huma", cooldown: 2.0, cost: 8.0, fx: "ice", ops: [
+                Cast(recipe: (name: "oni ice lances", form: Spear, mech: [Swarm, Pierce, Fast], element: Ice, scale: 0.65, mass: 5.0, count: 5)),
+                Afflict(range: 40.0, cone: 10.0, status: Some(Chill), secs: 1.5, element: Ice),
+            ], juice: Some((title: Some("EL HUMA"), punch: 2.0, color: Some((0.55, 0.82, 1.0))))),
+            // The oni's roar: everyone near is thrown back. -> you're alone.
+            (name: "oni roar", cooldown: 6.0, cost: 10.0, fx: "chi", ops: [
+                Explode(radius: 5.0, damage: 6.0, knockback: 20.0, element: Ice),
+            ], juice: Some((title: Some("ONI"), boom: true, punch: 3.0, ripple: 6.0, color: Some((0.72, 0.9, 1.0))))),
+        ],
+    ),
+]

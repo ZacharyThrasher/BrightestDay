@@ -1,6 +1,7 @@
 //! `Form::Vehicle` archetypes chosen from the recipe's features: locomotive (Boiler / Smokestack +
 //! Wheels|Pistons), helicopter (Rotor), ship (Sails / Mast), plane (Jet / Propeller), tank (Treads /
-//! Turret), crane truck (CraneArm), else car / truck / tank by seed. Origin = ground centre, front −Z.
+//! Turret), motorcycle (Wheels + Exhaust, no Cab / Windows / Cockpit), speedboat (Propeller, no Fins /
+//! Wheels), submarine (Propeller + Fins), crane truck (CraneArm), else car / truck / tank by seed. Origin = ground centre, front −Z.
 //! Scale (`g.l`, units) = overall length. Features the archetype builds are marked handled; the rest
 //! are placed generically afterwards.
 
@@ -31,6 +32,10 @@ pub(crate) fn vehicle(g: &mut G) {
         tank(g);
     } else if g.feat(Jet) || (g.feat(Propeller) && (g.has(Flies) || g.has(Glide))) || (g.has(Flies) && !g.feat(Wheels)) {
         plane(g);
+    } else if g.feat(Wheels) && g.feat(Exhaust) && !g.feat(Cab) && !g.feat(Windows) && !g.feat(Cockpit) {
+        motorcycle(g);
+    } else if g.feat(Propeller) && !g.feat(Fins) && !g.feat(Wheels) {
+        speedboat(g);
     } else if g.feat(Propeller) || g.feat(Fins) {
         submarine(g);
     } else if g.feat(CraneArm) {
@@ -511,6 +516,103 @@ fn car(g: &mut G, variant: u32) {
         });
     }
     let _ = PI;
+}
+
+// --------------------------------------------------------------------------------- motorcycle
+
+/// Wheels + Exhaust with no cab / windows / cockpit: a narrow two-wheeler — two in-line wheels, fork
+/// and handlebars, fuel tank, seat, engine block and an exhaust along the right side. Front −Z.
+fn motorcycle(g: &mut G) {
+    let l = g.l.max(10.0);
+    let wd = odd(l * 0.36).max(5.0);
+    let r = wd * 0.5;
+    let axle_y = r + 0.5;
+    let bw = odd(l * 0.13).max(3.0);
+    let (zf, zr) = (-l * 0.5 + r, l * 0.5 - r);
+    let top = axle_y + r;
+    let head = v3(0.0, top + wd * 0.35, zf + r * 0.55);
+    let bar_y = head.y + 1.5;
+    let b = &mut g.b;
+    // Engine block (finned cylinders) + frame backbone between the wheels.
+    let mid = (zf + zr) * 0.5 + l * 0.02;
+    b.bx(v3(0.0, axle_y + 0.5, mid), v3(bw + 1.0, wd * 0.55, l * 0.3), D);
+    b.bx(v3(0.0, axle_y + 0.5, mid), v3(bw + 2.0, 1.0, l * 0.18), A);
+    b.bar(head, v3(0.0, top - 0.5, zr - r * 0.6), 1.5, D);
+    // Tank, seat + seat cowl, rear fender with a tail light.
+    b.el(v3(0.0, top + 1.0, -l * 0.07), v3(bw + 1.0, (wd * 0.5).max(2.5), l * 0.3), P);
+    b.bx(v3(0.0, top + 1.0, l * 0.14), v3(bw, 1.5, l * 0.24), D);
+    b.bx(v3(0.0, top + 1.5, l * 0.27), v3(bw, 2.0, l * 0.08), P);
+    b.bx(v3(0.0, top + 0.5, zr), v3(bw, 1.0, wd * 0.9), P);
+    b.bx(v3(0.0, top + 0.5, zr + r + 0.3), v3((bw - 1.0).max(1.0), 1.0, 1.0), C);
+    // Fork legs down to the front axle, front fender, handlebars with grips.
+    b.sym(|b, s| {
+        b.bar(head + v3(s, 0.0, 0.0), v3(s, axle_y, zf), 1.0, A);
+        b.bx(v3(s * (bw * 0.5 + 2.0), bar_y, head.z + 1.0), v3(1.0, 1.0, 2.0), D);
+    });
+    b.bx(v3(0.0, top + 0.5, zf), v3((bw - 1.0).max(1.0), 1.0, wd * 0.7), P);
+    b.bar(head, v3(0.0, bar_y, head.z + 1.0), 1.0, D);
+    b.bar(v3(-(bw * 0.5 + 1.5), bar_y, head.z + 1.0), v3(bw * 0.5 + 1.5, bar_y, head.z + 1.0), 1.0, A);
+    if g.take_feat(Headlight) {
+        headlight(&mut g.b, head + v3(0.0, -0.5, -1.5), Vec3::NEG_Z, 1.5);
+    } else {
+        g.b.bx(head + v3(0.0, -0.5, -1.0), Vec3::ONE, C);
+    }
+    // In-line wheels roll with distance.
+    for (z, boss) in [(zf, 0.0), (zr, 1.0)] {
+        wheel(&mut g.b, 0, v3(0.0, axle_y, z), wd, 2.0, WheelStyle::Tire, boss);
+    }
+    g.handle_feat(Wheels);
+    // Exhaust: a pipe from the engine along the right side, out past the rear axle.
+    let ex = g.take_feat(Exhaust);
+    let side = bw * 0.5 + 1.0;
+    g.b.bar(v3(side - 0.5, axle_y, mid), v3(side, axle_y + 0.5, zr - r * 0.5), 1.0, D);
+    exhaust_pipe(&mut g.b, 0, v3(side, axle_y + 0.5, zr + r * 0.3), v3(0.0, 0.25, 1.0), 1.0, ex);
+}
+
+// ---------------------------------------------------------------------------------- speedboat
+
+/// Propeller on the water (no fins, no wheels, no flight): a speedboat — hull with a rounded bow,
+/// chine stripe, gunwale, cockpit well with seats, raked windscreen, outboard motor + spinning
+/// propeller at the stern. Front −Z.
+fn speedboat(g: &mut G) {
+    let l = g.l.max(12.0);
+    let w = odd(l * 0.34).max(5.0);
+    let hd = (l * 0.16).max(2.5);
+    let y = hd * 0.5 + 0.5;
+    let zs = l * 0.5;
+    let b = &mut g.b;
+    // Hull: square stern half + ellipsoid bow, chine stripe, gunwale, raised bow deck.
+    b.bx(v3(0.0, y, l * 0.12), v3(w, hd, l * 0.76), P);
+    b.el(v3(0.0, y, -l * 0.2), v3(w, hd, l * 0.6), P);
+    b.el(v3(0.0, y - hd * 0.3, -l * 0.02), v3(w + 0.6, 1.0, l * 0.94), A);
+    b.bx(v3(0.0, hd + 0.5, l * 0.14), v3(w + 0.4, 1.0, l * 0.72), D);
+    b.el(v3(0.0, hd + 0.5, -l * 0.22), v3(w - 1.0, 1.5, l * 0.46), A);
+    // Cockpit well (carved), two seats, raked windscreen with a frame.
+    b.cut_bx(v3(0.0, hd + 0.5, l * 0.2), v3(w - 2.0, 2.0, l * 0.34));
+    b.sym(|b, s| {
+        b.bx(v3(s * (w * 0.25), hd, l * 0.16), v3((w * 0.3).max(1.0), 1.0, 1.5), D);
+        b.bx(v3(s * (w * 0.25), hd + 1.0, l * 0.16 + 1.0), v3((w * 0.3).max(1.0), 2.0, 1.0), D);
+    });
+    b.bxr(v3(0.0, hd + 1.5, l * 0.01), v3(w - 1.0, 2.5, 1.0), v3(-35.0, 0.0, 0.0), C);
+    b.bx(v3(0.0, hd + 2.6, l * 0.01 + 0.8), v3(w - 1.0, 1.0, 1.0), D);
+    if g.take_feat(Windows) {
+        g.b.sym(|b, s| window_row(b, s * (w * 0.5), y + 0.3, -l * 0.15, l * 0.3, 1.0));
+    }
+    if g.take_feat(Headlight) {
+        headlight(&mut g.b, v3(0.0, hd + 1.0, -l * 0.44), Vec3::NEG_Z, 1.5);
+    }
+    // Outboard motor on the transom: cowl, leg down into the water, spinning propeller.
+    let mo = v3(0.0, hd + 1.0, zs + 1.2);
+    let b = &mut g.b;
+    b.bx(mo, v3(3.0, 3.5, 2.5), D);
+    b.bx(mo + v3(0.0, 1.5, 0.0), v3(3.2, 1.0, 2.7), A);
+    b.bar(mo + v3(0.0, -1.5, 0.3), v3(0.0, 1.0, zs + 1.5), 1.0, D);
+    rotor(&mut g.b, 0, v3(0.0, 1.0, zs + 2.5), Vec3::Z, (hd * 0.45).max(1.5), 3, 26.0, A);
+    g.handle_feat(Propeller);
+    let ex = g.take_feat(Exhaust);
+    exhaust_pipe(&mut g.b, 0, mo + v3(0.0, 1.0, 1.8), v3(0.0, 0.4, 1.0), 1.0, ex);
+    // Wake spray off the stern when it moves.
+    g.b.puff(PuffSpec { part: 0, at: v3(0.0, 0.5, zs + 1.0), dir: v3(0.0, 0.6, 1.0).normalize(), size: 1.4, per_rev: 0.0, wheel: None, idle_hz: 0.0, per_m: 0.5 });
 }
 
 // ---------------------------------------------------------------------------------- submarine

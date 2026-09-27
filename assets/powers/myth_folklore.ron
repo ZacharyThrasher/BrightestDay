@@ -37,12 +37,13 @@
             (name: "thunderbolt", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
                 Explode(radius: 3.2, damage: 13.0, knockback: 16.0, carve: 0.8, element: Electric, at: Aim),
             ], juice: Some((title: Some("KERAUNOS"), punch: 2.5, shake: 0.12, at: Aim, ripple: 3.0, color: Some((0.7, 0.85, 1.0))))),
-            // The sky answers: marks rain across the crosshair and bolts land one after another.
+            // The sky answers: marks rain across the crosshair and bolts land one after another — and
+            // each bolt follows your hand: sweep the crosshair and you CONDUCT the storm across them.
             // Everyone sees the marks — step out or eat the storm. -> ends with you free to move.
             (name: "wrath of zeus", tags: [Ultimate], cooldown: 16.0, cost: 12.0, ops: [
                 Salvo(count: 7, delay: 0.9, interval: 0.12, radius: 3.2, damage: 13.0, knockback: 18.0, element: Electric, carve: 1.2,
-                      at: Aim, spread: 8.0, seek: true),
-            ], juice: Some((title: Some("WRATH OF ZEUS"), boom: true, punch: 5.0, shake: 0.3, at: Aim, color: Some((0.75, 0.88, 1.0))))),
+                      at: Aim, spread: 8.0, seek: true, track: true),
+            ], juice: Some((title: Some("WRATH OF ZEUS"), boom: true, punch: 5.0, shake: 0.3, at: Aim, color: Some((0.75, 0.88, 1.0)), ripple: 8.0, impact_frame: Some("holy")))),
             // Aetos Dios: the eagle takes you up above the fight. -> ends airborne, hanging, looking down.
             (name: "eagle of zeus", tags: [Movement], cooldown: 5.0, cost: 4.0, ops: [
                 Impulse(fwd: 9.0, up: 17.0),
@@ -61,7 +62,7 @@
             (name: "descent from olympus", cooldown: 4.0, cost: 5.0, ops: [
                 Impulse(fwd: 8.0, up: -30.0),
                 SlamOnLand(radius: 5.5, damage: 14.0, knockback: 18.0, carve: 1.5),
-            ], juice: Some((title: Some("OLYMPIAN DESCENT"), boom: true, shake: 0.2, color: Some((0.7, 0.85, 1.0))))),
+            ], juice: Some((title: Some("OLYMPIAN DESCENT"), boom: true, shake: 0.2, color: Some((0.7, 0.85, 1.0)), impact_frame: Some("holy")))),
         ],
     ),
     // ---------------------------------------------------------------- POSEIDON — the earth-shaker
@@ -90,7 +91,7 @@
             // catches with it. Jump the crest or dodge through. -> ends with them far away and soaked.
             (name: "tidal wave", tags: [Ultimate], cooldown: 18.0, cost: 12.0, ops: [
                 Surge(width: 12.0, dist: 42.0, speed: 15.0, push: 19.0, damage: 10.0, element: Water),
-            ], juice: Some((title: Some("TIDAL WAVE"), boom: true, punch: 5.0, shake: 0.3, color: Some((0.25, 0.55, 1.0))))),
+            ], juice: Some((title: Some("TIDAL WAVE"), boom: true, punch: 5.0, shake: 0.3, color: Some((0.25, 0.55, 1.0)), debris: 14.0, impact_frame: Some("ink")))),
             // The earth-shaker strikes the ground: a quake under you and a rift torn along your aim.
             // -> ends grounded; everyone near is launched.
             (name: "earthquake", tags: [Combo], cooldown: 8.0, cost: 8.0, ops: [
@@ -175,7 +176,7 @@
             (name: "open the underworld", cooldown: 12.0, cost: 8.0, ops: [
                 Explode(radius: 4.0, damage: 6.0, knockback: 2.0, carve: 3.4, element: Shadow, at: Aim),
                 Field(strength: 36.0, radius: 6.0, secs: 1.4, at: Aim),
-            ], juice: Some((title: Some("THE GATES OPEN"), boom: true, at: Aim, shake: 0.2, debris: -12.0, color: Some((0.25, 0.1, 0.3))))),
+            ], juice: Some((title: Some("THE GATES OPEN"), boom: true, at: Aim, shake: 0.2, debris: -12.0, color: Some((0.25, 0.1, 0.3)), impact_frame: Some("void")))),
         ],
     ),
     // ---------------------------------------------------------------- HERMES — messenger of the gods
@@ -500,7 +501,7 @@
         id: "myth_achilles",
         name: "Achilles",
         kind: Kit,
-        fx: "rigid",
+        fx: "blade",
         names: ["achilles", "achilleus", "akhilleus", "achillies", "achilles son of peleus", "swift footed achilles", "achillis"],
         shouts: [("spear of achilles", 0), ("pelian spear", 0),
                  ("swift footed", 1), ("swift-footed", 1), ("podarkes", 1),
@@ -1148,7 +1149,7 @@
                 Surge(width: 12.0, dist: 45.0, speed: 13.0, push: 16.0, damage: 12.0, element: Fire),
                 Salvo(count: 8, delay: 1.2, interval: 0.15, radius: 3.0, damage: 10.0, knockback: 14.0, element: Fire, carve: 1.2,
                       at: Front, dist: 20.0, spread: 14.0),
-            ], juice: Some((title: Some("RAGNAROK"), boom: true, punch: 6.0, shake: 0.4, color: Some((1.0, 0.35, 0.05))))),
+            ], juice: Some((title: Some("RAGNAROK"), boom: true, punch: 6.0, shake: 0.4, color: Some((1.0, 0.35, 0.05)), impact_frame: Some("holy")))),
             // Muspelheim's heat: the ground around you burns.
             (name: "muspelheim", tags: [Defense], cooldown: 12.0, cost: 6.0, ops: [
                 Zone(radius: 8.0, secs: 4.0, status: Some(Burn), dps: 3.0, at: Me, follow: true),
@@ -1280,7 +1281,7 @@
         id: "myth_tyr",
         name: "Tyr",
         kind: Kit,
-        fx: "rigid",
+        fx: "blade",
         names: ["tyr", "tiw", "tyr the one handed", "tyr god of war", "tir", "teer"],
         shouts: [("oath of tyr", 0), ("hand in the wolf's mouth", 0), ("tyr's oath", 0),
                  ("sword of tyr", 1), ("tyr's sword", 1), ("tiwaz strike", 1)],
@@ -1470,7 +1471,7 @@
             // The burning eye: the sun's full stare, a beam with a windup.
             (name: "eye of ra", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
                 Cast(recipe: (name: "eye of ra", form: Hands, mech: [Beam], element: Fire, scale: 1.5), signature: Some(Beam)),
-            ], juice: Some((title: Some("EYE OF RA"), boom: true, punch: 5.0, color: Some((1.0, 0.7, 0.2))))),
+            ], juice: Some((title: Some("EYE OF RA"), boom: true, punch: 5.0, color: Some((1.0, 0.7, 0.2)), impact_frame: Some("holy")))),
             // Sail the solar barque across the sky.
             (name: "solar barque", tags: [Movement], cooldown: 30.0, cost: 8.0, ops: [
                 Cast(recipe: (name: "solar barque", form: Vehicle, mech: [Piloted, Flies], element: Light, scale: 3.0, features: [Sails])),
@@ -1507,7 +1508,7 @@
             // The scales: marked now, judged in two seconds wherever they are.
             (name: "weighing of the heart", tags: [Ultimate], cooldown: 12.0, cost: 8.0, ops: [
                 DelayedHit(range: 45.0, cone: 10.0, secs: 2.0, damage: 20.0, knockback: 18.0, up: 0.5, element: Shadow),
-            ], juice: Some((title: Some("WEIGHING OF THE HEART"), color: Some((0.95, 0.8, 0.35))))),
+            ], juice: Some((title: Some("WEIGHING OF THE HEART"), color: Some((0.95, 0.8, 0.35)), boom: true, impact_frame: Some("void")))),
             // A jackal lunge. -> ends at them.
             (name: "jackal strike", tags: [Primary], cooldown: 0.9, cost: 3.0, ops: [
                 Impulse(fwd: 14.0, up: 0.5),
@@ -1820,7 +1821,7 @@
             (name: "sudarshan chakra", tags: [Ultimate, Primary], cooldown: 9.0, cost: 8.0, ops: [
                 Seeker(recipe: (name: "sudarshan chakra", form: Disc, mech: [Blade, Spin], element: Light, scale: 1.3),
                        range: 55.0, cone: 35.0, speed: 40.0, damage: 12.0, knockback: 12.0, up: 0.2, element: Light, hits: 5, chain: 22.0),
-            ], juice: Some((title: Some("SUDARSHAN CHAKRA"), boom: true, punch: 3.0, color: Some((1.0, 0.8, 0.3))))),
+            ], juice: Some((title: Some("SUDARSHAN CHAKRA"), boom: true, punch: 3.0, color: Some((1.0, 0.8, 0.3)), impact_frame: Some("holy")))),
             // Panchajanya: the conch's blast throws everyone off you.
             (name: "panchajanya", tags: [Defense], cooldown: 9.0, cost: 5.0, ops: [
                 Explode(radius: 8.0, damage: 4.0, knockback: 26.0, element: Wind),
@@ -1867,11 +1868,11 @@
                 Carve(length: 32.0, radius: 1.5, damage: 20.0),
                 Explode(radius: 4.0, damage: 8.0, knockback: 16.0, element: Fire, at: Aim),
             ], juice: Some((title: Some("TRINETRA"), boom: true, punch: 6.0, shake: 0.3, ripple: 5.0, at: Front, dist: 6.0,
-                            color: Some((1.0, 0.5, 0.15))))),
+                            color: Some((1.0, 0.5, 0.15)), impact_frame: Some("holy")))),
             // Tandava: a spinning flurry that rises into a final blow. -> ends airborne above them.
             (name: "tandava", tags: [Combo], cooldown: 12.0, cost: 8.0, ops: [
                 Barrage(hits: 7, interval: 0.1, range: 4.0, angle: 179.0, damage: 5.0, knockback: 4.0, finish: 20.0, advance: 3.0, up: 0.6),
-            ], juice: Some((title: Some("TANDAVA"), boom: true, punch: 3.0, color: Some((0.45, 0.7, 1.0))))),
+            ], juice: Some((title: Some("TANDAVA"), boom: true, punch: 3.0, color: Some((0.45, 0.7, 1.0)), impact_frame: Some("ink")))),
             // The trishula: a thrust with long reach. -> ends a step in.
             (name: "trishula", tags: [Primary], cooldown: 0.9, cost: 3.0, ops: [
                 Impulse(fwd: 8.0, up: 0.0),
@@ -1918,7 +1919,7 @@
             (name: "leap to lanka", tags: [Movement, Ultimate], cooldown: 9.0, cost: 7.0, ops: [
                 Leap(range: 85.0, apex: 14.0),
                 SlamOnLand(radius: 6.0, damage: 13.0, knockback: 20.0, carve: 1.8),
-            ], juice: Some((title: Some("THE GREAT LEAP"), boom: true, punch: 4.0, color: Some((1.0, 0.55, 0.15))))),
+            ], juice: Some((title: Some("THE GREAT LEAP"), boom: true, punch: 4.0, color: Some((1.0, 0.55, 0.15)), shake: 0.3, impact_frame: Some("ink")))),
             // He grows: huge, heavy, and everything next to him is shoved away. -> ends giant.
             (name: "grow giant", tags: [Defense], cooldown: 22.0, cost: 8.0, ops: [
                 SelfResize(scale: 1.6, secs: 12.0),
@@ -1928,7 +1929,7 @@
             // (hitting whoever is in its way) and lands at your feet.
             (name: "lift the mountain", tags: [Combo], cooldown: 12.0, cost: 8.0, ops: [
                 Haul(range: 55.0, radius: 3.5, speed: 24.0, damage: 14.0),
-            ], juice: Some((title: Some("DRONAGIRI"), boom: true, shake: 0.3, color: Some((0.85, 0.6, 0.3))))),
+            ], juice: Some((title: Some("DRONAGIRI"), boom: true, shake: 0.3, color: Some((0.85, 0.6, 0.3)), impact_frame: Some("ink")))),
             // The gada: up and down on them. -> ends grounded, a small crater.
             (name: "gada", tags: [Primary], cooldown: 1.4, cost: 4.0, ops: [
                 Shove(range: 3.5, angle: 60.0, damage: 14.0, knockback: 16.0, up: 0.4),
@@ -2072,7 +2073,7 @@
             (name: "fury of kali", tags: [Ultimate], cooldown: 14.0, cost: 9.0, ops: [
                 Barrage(hits: 8, interval: 0.09, range: 3.8, angle: 110.0, damage: 5.0, knockback: 3.0, finish: 24.0, advance: 6.0,
                         element: Shadow),
-            ], juice: Some((title: Some("MAHAKALI"), boom: true, punch: 3.0, color: Some((0.2, 0.25, 0.6))))),
+            ], juice: Some((title: Some("MAHAKALI"), boom: true, punch: 3.0, color: Some((0.2, 0.25, 0.6)), impact_frame: Some("void")))),
             // The khadga: a curved cut. -> ends in place.
             (name: "khadga", tags: [Primary], cooldown: 0.8, cost: 3.0, ops: [
                 Carve(length: 5.0, radius: 0.8, damage: 13.0),
@@ -2115,7 +2116,7 @@
             (name: "raijin's storm", tags: [Ultimate], cooldown: 16.0, cost: 11.0, ops: [
                 Salvo(count: 8, delay: 0.8, interval: 0.1, radius: 3.0, damage: 11.0, knockback: 14.0, element: Electric, carve: 0.8,
                       at: Aim, spread: 9.0, seek: true),
-            ], juice: Some((title: Some("RAIJIN"), boom: true, punch: 4.0, shake: 0.3, at: Aim))),
+            ], juice: Some((title: Some("RAIJIN"), boom: true, punch: 4.0, shake: 0.3, at: Aim, impact_frame: Some("glitch")))),
             // A drum roll: beat after beat in front of you. -> ends with them knocked back.
             (name: "drum roll", tags: [Combo], cooldown: 7.0, cost: 6.0, ops: [
                 Barrage(hits: 5, interval: 0.12, range: 5.0, angle: 90.0, damage: 5.0, knockback: 5.0, finish: 20.0, element: Electric),
@@ -2197,7 +2198,7 @@
                 Zone(radius: 10.0, secs: 4.0, status: Some(Wet), at: Me),
                 Salvo(count: 5, delay: 0.9, interval: 0.15, radius: 3.0, damage: 10.0, knockback: 12.0, element: Electric, at: Me, spread: 10.0,
                       seek: true),
-            ], juice: Some((title: Some("SUSANOO"), boom: true, shake: 0.3, color: Some((0.5, 0.65, 0.85))))),
+            ], juice: Some((title: Some("SUSANOO"), boom: true, shake: 0.3, color: Some((0.5, 0.65, 0.85)), impact_frame: Some("ink")))),
             // Cast out of heaven: a plunge from above. -> ends grounded.
             (name: "banished from heaven", tags: [Movement], cooldown: 5.0, cost: 5.0, ops: [
                 Impulse(fwd: 6.0, up: 16.0),
@@ -2527,11 +2528,11 @@
                 SelfResize(scale: 1.6, secs: 12.0),
                 Explode(radius: 6.0, damage: 5.0, knockback: 18.0, element: Light),
                 Empower(secs: 6.0, damage: 1.2, armor: 0.6),
-            ], juice: Some((title: Some("SEVENTY-TWO TRANSFORMATIONS"), boom: true, punch: 5.0, shake: 0.3, color: Some((1.0, 0.78, 0.2))))),
+            ], juice: Some((title: Some("SEVENTY-TWO TRANSFORMATIONS"), boom: true, punch: 5.0, shake: 0.3, color: Some((1.0, 0.78, 0.2)), debris: 14.0, ripple: 6.0, impact_frame: Some("ink")))),
             // Havoc in Heaven: through them all, staff whirling. -> ends past them.
             (name: "havoc in heaven", tags: [Combo], cooldown: 12.0, cost: 8.0, ops: [
                 Barrage(hits: 6, interval: 0.1, range: 4.5, angle: 140.0, damage: 6.0, knockback: 5.0, finish: 24.0, advance: 10.0, up: 0.4),
-            ], juice: Some((title: Some("HAVOC IN HEAVEN"), punch: 3.0, color: Some((1.0, 0.78, 0.2))))),
+            ], juice: Some((title: Some("HAVOC IN HEAVEN"), punch: 3.0, color: Some((1.0, 0.78, 0.2)), impact_frame: Some("ink")))),
             // The Ruyi Jingu Bang itself, in your hand (twirl / charged thrust / plant and vault).
             (name: "ruyi staff", tags: [Defense], cooldown: 8.0, cost: 4.0, ops: [
                 Cast(recipe: (name: "ruyi jingu bang", form: Spear, mech: [Blunt, Extends], element: Light, scale: 2.4, mass: 60.0)),
@@ -2603,7 +2604,7 @@
             // The third eye opens: a beam of truth.
             (name: "third eye", tags: [Ultimate], cooldown: 16.0, cost: 9.0, ops: [
                 Cast(recipe: (name: "eye of truth", form: Hands, mech: [Beam], element: Light, scale: 1.3), signature: Some(Beam)),
-            ], juice: Some((title: Some("EYE OF TRUTH"), boom: true, punch: 5.0, color: Some((0.95, 0.95, 1.0))))),
+            ], juice: Some((title: Some("EYE OF TRUTH"), boom: true, punch: 5.0, color: Some((0.95, 0.95, 1.0)), impact_frame: Some("holy")))),
             // Xiaotian, the celestial hound that bit the Monkey King.
             (name: "xiaotian", tags: [Combo], cooldown: 12.0, cost: 6.0, ops: [
                 Cast(recipe: (name: "xiaotian quan", form: Quadruped, mech: [Walks, Fast, Blade, Charge], element: Light, scale: 1.2,
@@ -3230,10 +3231,11 @@
                  ("king arthur the round table", 1), ("to me my knights", 1),
                  ("camelot", 2), ("walls of camelot", 2), ("for camelot", 2),
                  ("red dragon of pendragon", 3), ("y ddraig goch", 3), ("king arthur the red dragon", 3),
-                 ("arthur's charge", 4), ("charge of the knights", 4)],
+                 ("arthur's charge", 4), ("charge of the knights", 4),
+                 ("light of excalibur", 5), ("excalibur's light", 5), ("swing excalibur", 5), ("excalibur strike", 5)],
         moves: [
             // The sword comes out of the stone in a burst of light, and it is in your hand.
-            (name: "sword in the stone", tags: [Ultimate], cooldown: 20.0, cost: 8.0, ops: [
+            (name: "sword in the stone", cooldown: 20.0, cost: 8.0, ops: [
                 Explode(radius: 6.0, damage: 6.0, knockback: 18.0, element: Light),
                 Cast(recipe: (name: "caliburn", form: Sword, mech: [Blade, Heavy], element: Light, scale: 1.4)),
             ], juice: Some((title: Some("THE SWORD IN THE STONE"), boom: true, punch: 5.0, color: Some((1.0, 0.95, 0.75))))),
@@ -3255,6 +3257,17 @@
             (name: "arthur's charge", tags: [Movement, Primary], cooldown: 4.0, cost: 5.0, ops: [
                 Ram(speed: 26.0, secs: 1.1, damage: 11.0, knockback: 20.0, pin: true, wall: 14.0, element: Light),
             ]),
+            // EXCALIBUR: the blade blazes like thirty torches. Raised, it flares (braced through the
+            // swing, a flash at the blade that throws back anyone close), then it comes down and a golden
+            // crescent of light rolls out across the map, carving a trench through whatever stands in
+            // it. Not the sword (say "excalibur" for the sword itself) — the king's blow with it.
+            // -> ends planted, the sword down, a trench ahead of you.
+            (name: "excalibur", tags: [Ultimate], cooldown: 20.0, cost: 12.0, fx: "holy", ops: [
+                Empower(secs: 0.9, armor: 0.6),
+                Explode(radius: 3.5, damage: 4.0, knockback: 12.0, element: Light, at: Front, dist: 2.0),
+                Wave(length: 46.0, speed: 26.0, width: 9.0, carve: 1.4, damage: 18.0, knockback: 24.0, up: 0.3, element: Light),
+            ], juice: Some((title: Some("EXCALIBUR"), boom: true, punch: 6.0, shake: 0.35, ripple: 6.0, at: Front, dist: 4.0,
+                            color: Some((1.0, 0.88, 0.45)), impact_frame: Some("holy")))),
         ],
     ),
     // ---------------------------------------------------------------- MERLIN — the enchanter
@@ -3487,7 +3500,7 @@
             // swept along. Hook a person and they're hauled in instead. -> ends with cover at your feet.
             (name: "fish up the islands", tags: [Ultimate], cooldown: 9.0, cost: 8.0, ops: [
                 Haul(range: 55.0, radius: 3.4, speed: 24.0, damage: 14.0),
-            ], juice: Some((title: Some("MANAIAKALANI"), boom: true, punch: 4.0, shake: 0.3, color: Some((0.3, 0.75, 0.7))))),
+            ], juice: Some((title: Some("MANAIAKALANI"), boom: true, punch: 4.0, shake: 0.3, color: Some((0.3, 0.75, 0.7)), debris: -12.0, impact_frame: Some("ink")))),
             // The rope lasso flies at the aimed foe: caught, they're slowed like the sun he snared,
             // and tied to you. -> ends with them slow and roped.
             (name: "lasso the sun", tags: [Combo], cooldown: 7.0, cost: 5.0, ops: [
@@ -3654,7 +3667,7 @@
         id: "myth_ogun",
         name: "Ogun",
         kind: Kit,
-        fx: "rigid",
+        fx: "blade",
         names: ["ogun", "ogoun", "ogou", "ogum", "ògún", "ogun the ironsmith", "ogun god of iron", "ogun onire"],
         shouts: [("clear the path", 0), ("ogun clears the way", 0), ("cut the road", 0), ("the path of ogun", 0), ("ogun's machete", 0),
                  ("iron skin", 1), ("skin of iron", 1),
@@ -4020,11 +4033,15 @@
             (name: "tree toss", tags: [Combo], cooldown: 7.0, cost: 5.0, ops: [
                 Haul(range: 30.0, radius: 1.6, speed: 26.0, damage: 10.0),
             ]),
-            // The roar in the woods.
-            (name: "sasquatch roar", tags: [Ultimate], cooldown: 10.0, cost: 5.0, ops: [
-                Explode(radius: 7.0, damage: 3.0, knockback: 18.0, element: Psychic),
-                Zone(radius: 9.0, secs: 2.5, slow: 0.4, at: Me),
-            ], juice: Some((boom: true, ripple: 8.0))),
+            // The roar in the woods: everyone who is LOOKING at you freezes (they saw him — nobody
+            // believes them), the shock throws the close ones back, and he's already crashing out of
+            // the treeline through whoever is in the way. -> ends past them, running.
+            (name: "sasquatch roar", tags: [Ultimate], cooldown: 12.0, cost: 6.0, ops: [
+                GazeStun(range: 20.0, cone: 70.0, secs: 0.7, status: Stun, aimed: false),
+                Explode(radius: 6.0, damage: 4.0, knockback: 16.0, element: Psychic),
+                Ram(speed: 28.0, secs: 0.8, damage: 13.0, knockback: 22.0, up: 0.3, through: true, keep: 0.4),
+            ], juice: Some((title: Some("SASQUATCH"), boom: true, punch: 4.0, shake: 0.3, ripple: 8.0, debris: 12.0, color: Some((0.45, 0.32, 0.2)),
+                            impact_frame: Some("comic")))),
         ],
     ),
     // ---------------------------------------------------------------- THE YETI
@@ -4042,7 +4059,7 @@
             // An avalanche rolls down on them.
             (name: "avalanche", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
                 Surge(width: 12.0, dist: 40.0, speed: 15.0, push: 18.0, damage: 9.0, element: Ice),
-            ], juice: Some((title: Some("AVALANCHE"), boom: true, shake: 0.3, color: Some((0.9, 0.95, 1.0))))),
+            ], juice: Some((title: Some("AVALANCHE"), boom: true, shake: 0.3, color: Some((0.9, 0.95, 1.0)), impact_frame: Some("ink")))),
             // A huge snowball, rolled and thrown.
             (name: "yeti snowball", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
                 Cast(recipe: (name: "giant snowball", form: Boulder, mech: [Heavy, Blunt], element: Ice, scale: 1.4)),
@@ -4074,7 +4091,7 @@
             (name: "red eyes", tags: [Ultimate], cooldown: 9.0, cost: 6.0, ops: [
                 GazeStun(range: 24.0, cone: 30.0, secs: 0.7, status: Stun),
                 GazeStun(range: 24.0, cone: 30.0, secs: 2.0, status: Shadow),
-            ], juice: Some((title: Some("MOTHMAN"), color: Some((1.0, 0.1, 0.1))))),
+            ], juice: Some((title: Some("MOTHMAN"), color: Some((1.0, 0.1, 0.1)), impact_frame: Some("void")))),
             // Up on great grey wings. -> ends high, hanging.
             (name: "mothman wings", tags: [Movement], cooldown: 4.0, cost: 3.0, ops: [
                 Impulse(fwd: 8.0, up: 18.0),
@@ -5176,7 +5193,7 @@
         id: "myth_lancelot",
         name: "Sir Lancelot",
         kind: Kit,
-        fx: "rigid",
+        fx: "blade",
         names: ["sir lancelot", "lancelot", "lancelot du lac", "lancelot of the lake", "sir launcelot", "launcelot"],
         shouts: [("lancelot's lance", 0), ("joust", 0), ("the joust", 0), ("lancelot couch the lance", 0),
                  ("lancelot arondight", 1), ("lancelot's sword", 1)],
@@ -5684,7 +5701,7 @@
         id: "myth_ilmarinen",
         name: "Ilmarinen",
         kind: Kit,
-        fx: "rigid",
+        fx: "fire",
         names: ["ilmarinen", "seppo ilmarinen", "the eternal hammerer", "ilmarinen the smith"],
         shouts: [("forge the sampo", 0), ("ilmarinen forges", 0),
                  ("ilmarinen's hammer", 1),
@@ -5776,7 +5793,7 @@
         id: "myth_beowulf",
         name: "Beowulf",
         kind: Kit,
-        fx: "rigid",
+        fx: "brawl",
         names: ["beowulf", "beowulf of the geats", "bee o wolf", "beowolf"],
         shouts: [("tear off grendel's arm", 0), ("grendel's arm", 0), ("wrestle grendel", 0),
                  ("hrunting", 1), ("naegling", 1),
@@ -5788,7 +5805,7 @@
                 Grab(range: 3.2, hold: 0.45, damage: 16.0, knockback: 22.0, up: 0.3),
             ], juice: Some((title: Some("GRENDEL'S ARM"), punch: 3.0))),
             // The sword. -> ends in place.
-            (name: "naegling", tags: [Combo], cooldown: 1.0, cost: 3.0, ops: [
+            (name: "naegling", tags: [Combo], cooldown: 1.0, cost: 3.0, fx: "blade", ops: [
                 Shove(range: 3.6, angle: 70.0, damage: 14.0, knockback: 14.0),
             ]),
             // Down into the mere after Grendel's mother. -> ends grounded, far off.
@@ -5890,7 +5907,6 @@
         id: "myth_william_tell",
         name: "William Tell",
         kind: Kit,
-        fx: "rigid",
         names: ["william tell", "wilhelm tell", "guillaume tell", "tell the crossbowman"],
         shouts: [("the apple shot", 0), ("shoot the apple", 0), ("apple on his head", 0),
                  ("the second bolt", 1), ("tell's second bolt", 1)],

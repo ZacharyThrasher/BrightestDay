@@ -94,6 +94,12 @@ Hyperline map is inspired by Spider-Man: Across the Spider-Verse for private use
 gates. The name, layout, geometry, backdrop and sounds are Brightest Day's own; no Sony/Marvel assets, logos, names or text are
 used — `crates/bd_voxel/src/maps/hyperline.rs`, `crates/bd_game/src/present/hyperline.rs`.)
 
+The Lookout map is modelled on Dragon Ball's Kami's Lookout ("God's temple") and Korin's Tower for private use; replace before any public release.
+(Dragon Ball is Bird Studio/Shueisha/Toei Animation IP. The floating tiled disc, the domed palace, the palm grove, the time-chamber
+building, the underside spire and the tower below — `crates/bd_voxel/src/maps/lookout.rs`, `crates/bd_game/src/present/lookout.rs` —
+are Brightest Day's own layout, geometry and voxel art evoking the location; no Bird Studio/Shueisha/Toei assets, logos, music or text
+are used. The map's music is one of our existing public-domain arrangements, not Dragon Ball music.)
+
 The Doorman's door (vocabulary entry "doorman door" / "doorman's door" / "doorway" / "a door to …" in `assets/icons.ron`)
 names Valve's Deadlock character for private use; replace the name before any public release.
 (Name only, as words a player may type — the doorway portal, its wooden frame, warm light and threshold are Brightest Day's
@@ -193,6 +199,15 @@ Toei Animation); One Piece (Eiichiro Oda / Shueisha / Toei Animation); Bleach (T
 Pierrot); JoJo's Bizarre Adventure (Hirohiko Araki / Shueisha / David Production). Every in-game effect is
 Brightest Day's own mapping onto its generic move operations; no anime assets, logos, dialogue beyond short
 move names and shouts, incantations, lyrics or sounds are used.
+
+## Re:Zero power vocabulary and looks (`assets/powers/re_zero.ron`, the Re:Zero entries in `assets/costumes/characters.ron`)
+
+Character, spell, move, Authority and divine-protection NAMES from Re:ZERO -Starting Life in Another World-
+(Tappei Nagatsuki / Shinichirou Otsuka / Kadokawa / White Fox) are used only as trigger words a player may
+type or say, and the main cast's costume looks are fan tributes, for private use; replace them before any
+public release. Every in-game effect is Brightest Day's own mapping onto its generic move operations; no
+anime or light-novel assets, logos, dialogue beyond short move and spell names, incantations, lyrics or
+sounds are used.
 
 ## TV & cartoon power vocabulary (`assets/powers/tv_cartoons.ron`, `base_cartoons.ron`)
 

@@ -109,6 +109,22 @@ impl ModelCache {
     pub fn len(&self) -> usize {
         self.ready.len()
     }
+
+    /// CLICK TO CONFIRM (the ring's ghost preview, `console::confirm`): the model a fresh cast of
+    /// `recipe` (+ curated shapes) will be drawn with — the same cache entry the real construct then
+    /// uses, so the confirmed cast forms without a second build. Starts the worker build on first ask
+    /// (finished by `sync_constructs`); `None` until it is ready.
+    pub fn request(&mut self, recipe: &Recipe, shape: Option<&ShapeSpec>, alt: Option<&ShapeSpec>) -> Option<BuiltModel> {
+        let src = src_for(recipe, shape, alt);
+        if let Some(b) = self.ready.get(&src) {
+            return Some(b.clone());
+        }
+        if !self.pending.contains_key(&src) {
+            let task = AsyncComputeTaskPool::get().spawn(build_task(src.clone(), recipe.clone(), shape.cloned(), alt.cloned(), None));
+            self.pending.insert(src, task);
+        }
+        None
+    }
 }
 
 /// Per-construct presentation state.
@@ -257,6 +273,13 @@ fn build_task(src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Opti
                 };
                 Arc::new(bd_shapes::transform_rig(&m, bd_sim::rng::word_hash(&recipe.name) as u32))
             })
+        });
+        // TRANSFORMER FEEL: the robot rig (and an animated alt) time their clips like the sim (mass-scaled).
+        let rig = rig.map(|r| {
+            let mut r = Arc::unwrap_or_clone(r);
+            r.alt.weight = weight;
+            r.robot.weight = weight;
+            Arc::new(r)
         });
         let mut model = match (&rig, &shape) {
             (Some(r), _) => r.alt.clone(),
@@ -577,7 +600,7 @@ fn construct_events(
                         // TRANSFORMER COMBAT: |strength| > 1 = a fast combat transform (that × speed).
                         let speed = strength.abs().max(1.0);
                         sc.robot = to_robot;
-                        sfx.write(Sfx3d::at(if to_robot { "transform_to_robot" } else { "transform_to_vehicle" }, p).pitch(speed.sqrt().min(1.6)));
+                        // (Sound: `transformer_feel::transform` — a size-classed bed + clicks synced to the panels.)
                         if speed > 1.2 {
                             sc.flash = sc.flash.max(0.7); // the combat-transform flash
                         }
@@ -824,6 +847,11 @@ fn sync_constructs(
                     if sc.see > 1e-3 || vis.opacity < SOLID_OPACITY - 1e-3 {
                         vis.opacity = SOLID_OPACITY - (SOLID_OPACITY - SEE_THROUGH_OPACITY) * sc.see;
                     }
+                }
+                // FIRST CALL HOOK: a rival version's dark twin palette / an echo's ash (no-op unmarked)
+                let owner_rgb = owner_view.map_or([1.0; 3], |v| v.corps.color());
+                if active.world.first_call.snap.mark_of(cv.id) != 0 {
+                    super::first_call::construct_look(&active.world, cv.id, owner_rgb, &mut vis, time.elapsed_secs());
                 }
                 if let Some(mut l) = looper {
                     let (g, p) = loop_level(c.recipe.form, cv);

@@ -258,7 +258,8 @@ impl World {
         let tier = crate::presence_tier::cast_tier(recipe, weight, false, signature, &crate::presence_tier::TierKnobs::default());
         let mult = crate::signature::domain::cast_cost(self, player, 1.0); // SIGNATURE HOOK: your own domain
         let famous = crate::constructs::legend::famous(recipe);
-        (weight, cast_sparks(&wt.sparks, tier.index(), recipe, famous, autonomous, 0, self.cfg.rules.pool_segments(), mult))
+        let n = cast_sparks(&wt.sparks, tier.index(), recipe, famous, autonomous, 0, self.cfg.rules.pool_segments(), mult);
+        (weight, self.call_cast_sparks(n)) // FIRST CALL HOOK: an echo is a spark cheaper
     }
 
     /// SPARKS: a signature cast's price (the Signature tier, + adjustments, + repeats).
@@ -268,7 +269,7 @@ impl World {
         let famous = crate::constructs::legend::famous(recipe);
         let tier = crate::presence_tier::Tier::Signature.index();
         let n = cast_sparks(&wt.sparks, tier, recipe, famous, wt.is_autonomous(recipe), 0, self.cfg.rules.pool_segments(), mult);
-        self.stale_price(n, uses)
+        self.stale_price(self.call_cast_sparks(n), uses) // FIRST CALL HOOK: an echo is a spark cheaper
     }
 
     /// Willpower for `n` sparks plus the repeat surcharge (+`sparks.stale` per use), capped by the bar.
@@ -310,8 +311,10 @@ impl World {
     fn cast_plain(&mut self, player: PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: Aim) -> Result<ConstructId, CastError> {
         // PARTY HOOK: after-cast hooks (Echo, Mini-Me) look for this cast's spawn from here.
         let ev0 = self.events.len();
+        let (recipe, gate) = self.call_cast(player, recipe); // FIRST CALL HOOK: rival / echo version (no-op while off)
         let outer = crate::freedom::begin_cast(self, player); // FREEDOM HOOK: the phrase / shout energy / "it" resize of this cast
         let res = self.cast_inner(player, recipe, shape, aim);
+        self.call_done(gate, res.is_ok()); // FIRST CALL HOOK: claim / life log / marks
         // PARTY HOOK: the party cost discount (set by `party::modify_cast`) is per cast.
         self.party_cost_ratio = None;
         match res {
@@ -334,6 +337,14 @@ impl World {
         if p.oath.reciting() {
             return Err(CastError::Reciting);
         }
+        // TRANSFORMERS FEEL: a cockpit pilot's words still work mid-fight ("transform", "roll out",
+        // "energon axe" = the robot's own heavy: `constructs::brawl::seated_words`).
+        if let Some(seat) = p.seat.filter(|s| !s.suit && !p.status.stunned()) {
+            if let Some(r) = self.seated_words(player, seat.construct, &recipe) {
+                return r;
+            }
+        }
+        let p = &self.players[i];
         // SIGNATURE HOOK: domain burnout — no casting for a few seconds after a domain ends.
         if p.status.stunned() || p.charge.active || p.seat.is_some_and(|s| !s.suit) || crate::signature::domain::burnt_out(self, player) {
             return Err(CastError::Busy);
@@ -571,6 +582,11 @@ impl World {
         let colossal = is_colossal(&recipe);
         if colossal && self.constructs.owned_by(id).filter(|c| c.colossal).count() >= self.cfg.rules.colossal_limit() {
             return Err(CastError::ColossalLimit);
+        }
+        // TOTAL LIMIT (crate::limit): at the cap a construct that would ADD one more is refused before
+        // anything is paid (a full per-kind cap replaces instead: the total doesn't grow).
+        if self.limit_refuses_construct(id, &recipe) {
+            return Err(CastError::AtLimit);
         }
         // TUNING HOOK: costs / integrity from `tuning` (integrity ignores the balance cost knobs).
         let wt = &self.cfg.tuning.willpower;

@@ -25,6 +25,7 @@ pub mod cli;
 pub mod client;
 pub mod headless;
 pub mod host;
+pub mod map_vote;
 pub mod proto;
 pub mod terrain_hash;
 pub mod timing;
@@ -93,8 +94,8 @@ pub enum NetRequest {
     Kick(PlayerId),
     /// Leave / close the lobby and return to the menu.
     Leave,
-    /// The match is over: my pick for the next map (anyone).
-    VoteMap(proto::NetMapKind),
+    /// The match is over: my pick for the next map (anyone; a map card or RANDOM).
+    VoteMap(proto::VotePick),
     /// Host: start the next match now (don't wait for the vote's countdown).
     NextMatchNow,
 }
@@ -102,9 +103,29 @@ pub enum NetRequest {
 /// The next-map vote as the UI shows it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct VoteView {
-    pub votes: Vec<(PlayerId, proto::NetMapKind)>,
+    /// The picks I may see (none while hidden votes wait for mine).
+    pub votes: Vec<(PlayerId, proto::VotePick)>,
+    /// Who has voted.
+    pub voted: Vec<PlayerId>,
+    /// The map cards.
+    pub offers: Vec<proto::NetMapKind>,
+    /// A RANDOM card.
+    pub random: bool,
+    /// Picks are withheld until I vote.
+    pub hidden: bool,
+    /// My first pick stands.
+    pub locked: bool,
+    /// Decided map (RANDOM's roulette lands on it when `rolled`).
+    pub result: Option<proto::NetMapKind>,
+    pub rolled: bool,
     /// When the next match starts (`bd_net::now_secs`).
     pub deadline: f64,
+}
+
+impl VoteView {
+    pub fn new(v: proto::NextVote, deadline: f64) -> Self {
+        Self { votes: v.votes, voted: v.voted, offers: v.offers, random: v.random, hidden: v.hidden, locked: v.locked, result: v.result, rolled: v.rolled, deadline }
+    }
 }
 
 /// Client-side predicted construct spawns (for presentation; client role only).
@@ -369,6 +390,7 @@ fn handle_requests(
                         crate::arena::MapKind::Lair => proto::NetMapKind::Lair,
                         crate::arena::MapKind::GiantsRoom => proto::NetMapKind::GiantsRoom,
                         crate::arena::MapKind::Hyperline => proto::NetMapKind::Hyperline,
+                        crate::arena::MapKind::Lookout => proto::NetMapKind::Lookout,
                         _ => proto::NetMapKind::Archipelago,
                     };
                     let nm = proto::NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
@@ -398,13 +420,13 @@ fn handle_requests(
                     next.set(AppState::Menu);
                 }
             }
-            NetRequest::VoteMap(k) => {
+            NetRequest::VoteMap(pick) => {
                 if let Some(h) = net.host.as_mut() {
                     let me = h.me;
-                    h.cast_vote(me, k);
+                    h.cast_pick(me, pick);
                 }
                 if let Some(c) = net.client.as_mut() {
-                    c.vote_map(k);
+                    c.vote(pick);
                 }
             }
             NetRequest::NextMatchNow => {
@@ -546,6 +568,7 @@ fn match_flow(
                     proto::NetMapKind::Lair => crate::arena::MapKind::Lair,
                     proto::NetMapKind::GiantsRoom => crate::arena::MapKind::GiantsRoom,
                     proto::NetMapKind::Hyperline => crate::arena::MapKind::Hyperline,
+                    proto::NetMapKind::Lookout => crate::arena::MapKind::Lookout,
                     proto::NetMapKind::Archipelago => crate::arena::MapKind::Arena,
                 };
                 if current_map.0 != want {
@@ -745,7 +768,7 @@ fn update_status(mut net: ResMut<NetState>, mut status: ResMut<NetStatus>, mut l
             status.settings = l.settings;
             status.in_match = h.in_match;
             status.map = h.map.kind;
-            status.vote = h.vote.as_ref().map(|v| VoteView { votes: v.votes.clone(), deadline: v.deadline });
+            status.vote = h.vote.as_ref().map(|v| VoteView::new(v.view_for(h.me, bd_net::now_secs()), v.deadline));
             status.match_stats = l.stats;
             status.phase = if h.in_match && in_game {
                 NetPhase::InGame
@@ -763,7 +786,7 @@ fn update_status(mut net: ResMut<NetState>, mut status: ResMut<NetStatus>, mut l
             status.settings = c.lobby.settings.clone();
             status.in_match = c.lobby.in_match;
             status.map = c.map.kind;
-            status.vote = c.lobby.vote.as_ref().map(|v| VoteView { votes: v.votes.clone(), deadline: c.lobby_at + f64::from(v.secs_left) });
+            status.vote = c.lobby.vote.as_ref().map(|v| VoteView::new(v.clone(), c.lobby_at + f64::from(v.secs_left)));
             status.match_stats.clone_from(&c.lobby.stats);
             status.lobby_code = bd_net::lobby_code_from_url(c.session.url());
             status.phase = match &c.phase {

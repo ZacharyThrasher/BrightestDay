@@ -36,7 +36,7 @@ mod gems;
 mod labels;
 mod motes;
 pub mod scenario;
-mod strip;
+pub mod strip;
 pub mod will;
 
 pub use derive::PowerHud;
@@ -74,7 +74,8 @@ impl Plugin for PowerHudPlugin {
 }
 
 /// Cost preview of the phrase in the ring console (typed; a spoken phrase has no text until it is
-/// cast, so voice has no preview — the arc still drains identically after either).
+/// cast, so voice has no preview — the arc still drains identically after either). CLICK TO
+/// CONFIRM: a pending ghost (typed or spoken) bites what it will spend until it is confirmed.
 #[derive(Resource, Default)]
 struct CostPreview {
     hash: u64,
@@ -151,10 +152,12 @@ fn update_will(
     }
 }
 
-/// Resolve the typed phrase's cost at most every 0.12 s, and only when the text changed.
+/// Resolve the typed phrase's (else the pending ghost's) cost at most every 0.12 s, and only when
+/// the text changed.
 fn cost_preview(
     time: Res<Time<Real>>,
     console: Option<Res<RingConsole>>,
+    ghost: Option<Res<crate::console::confirm::ConfirmGate>>,
     lex: Option<Res<RingLexicon>>,
     active: Option<Res<ActiveWorld>>,
     mut prev: ResMut<CostPreview>,
@@ -165,8 +168,9 @@ fn cost_preview(
         st.0.cost = None;
         return;
     };
-    let text = console.buf.trim();
-    if !console.open || text.is_empty() {
+    let typed = console.buf.trim();
+    let text = if console.open && !typed.is_empty() { typed } else { ghost.as_ref().and_then(|g| g.pending.as_ref()).map_or("", |p| p.text.as_str()) };
+    if text.is_empty() {
         prev.hash = 0;
         prev.value = None;
         st.0.cost = None;

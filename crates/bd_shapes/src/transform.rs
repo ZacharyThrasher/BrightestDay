@@ -884,14 +884,17 @@ pub fn transform_rig_authored(alt: &ShapeSpec, robot: &ShapeSpec, cap: usize) ->
     let first_prim = |s: &ShapeSpec, id: PartId| s.prims.iter().find(|p| p.part == id && !p.subtract).cloned();
     let mut protos = Vec::new();
     let mut placed = Vec::new();
+    // TRANSFORMER FEEL: the authored alt part (index in `am.parts`) each proto comes from.
+    let mut src: Vec<Option<usize>> = Vec::new();
     let alt_c = {
         let all: Vec<(IVec3, Tint)> = am.parts.iter().flat_map(|p| p.voxels.iter().copied()).collect();
         if all.is_empty() { IVec3::ZERO } else { let (a, b) = bbox(&all); (a + b) / 2 }
     };
-    for ap in &am.parts {
+    for (ai, ap) in am.parts.iter().enumerate() {
         if ap.voxels.is_empty() {
             continue;
         }
+        src.push(Some(ai));
         let rp = rm.parts.iter().find(|p| p.id == ap.id && !p.voxels.is_empty());
         match (rp, first_prim(alt, ap.id), first_prim(robot, ap.id)) {
             (Some(rp), Some(pa), Some(pr)) => {
@@ -924,6 +927,7 @@ pub fn transform_rig_authored(alt: &ShapeSpec, robot: &ShapeSpec, cap: usize) ->
         let voxels: Vec<(IVec3, Tint)> = rp.voxels.iter().map(|(v, t)| (*v - shift, *t)).collect();
         let (g, _) = group_of(rp.id);
         let role = if g == 1 { Head } else { role_for(g) };
+        src.push(None);
         placed.push(Placed { proto: protos.len(), rot: IDENTITY_ROT, rmin: a - shift, at: shift });
         protos.push(Proto { role, voxels, scale_mode: 1 });
     }
@@ -944,7 +948,62 @@ pub fn transform_rig_authored(alt: &ShapeSpec, robot: &ShapeSpec, cap: usize) ->
             pivots[g] = Some((p.pivot / k - Vec3::Y * low as f32) * am.voxel_size);
         }
     }
-    assemble(am.voxel_size, &protos, &placed, Some(&pivots))
+    let mut rig = assemble(am.voxel_size, &protos, &placed, Some(&pivots));
+    let order: Vec<Option<usize>> = placed.iter().map(|p| src.get(p.proto).copied().flatten()).collect();
+    animate_alt(&mut rig, &am, &order);
+    rig
+}
+
+/// TRANSFORMER FEEL: the authored alt mode keeps its parts' roles, pivots and hierarchy, so settled
+/// in alt mode it animates like the plain icon — a beast walks, bites and sweeps its tail, wheels
+/// roll (the client poses a settled alt with the normal clip layers when any role animates). Parts
+/// with no animated role (the body, plain `Other` plates, robot-only parts hidden in alt mode) ride
+/// their parent rigidly (`Support`), never sway. `order[k]` = the `am.parts` index of alt part k + 1.
+/// Changes nothing the transformation sequence reads (panels, voxels, bounds).
+fn animate_alt(rig: &mut TransformRig, am: &VoxelModel, order: &[Option<usize>]) {
+    let mut parts = rig.alt.parts.clone();
+    let mut idx_of = vec![0usize; am.parts.len()];
+    for (k, s) in order.iter().enumerate() {
+        if let Some(s) = s.filter(|s| *s < idx_of.len()) {
+            idx_of[s] = k + 1;
+        }
+    }
+    let mut any = false;
+    for k in 1..parts.len() {
+        let Some(ap) = order.get(k - 1).copied().flatten().and_then(|s| am.parts.get(s)) else {
+            parts[k].role = Some(PartRole::Support);
+            continue;
+        };
+        let role = match ap.role {
+            None | Some(PartRole::Other) => PartRole::Support,
+            Some(r) => {
+                any = true;
+                r
+            }
+        };
+        // Nearest authored ancestor that is an earlier panel (parents always precede children).
+        let mut j = ap.parent_index;
+        let mut parent = 0;
+        for _ in 0..64 {
+            let pk = idx_of.get(j).copied().unwrap_or(0);
+            if pk != 0 && pk < k {
+                parent = pk;
+                break;
+            }
+            if j == 0 {
+                break;
+            }
+            j = am.parts.get(j).map_or(0, |p| p.parent_index);
+        }
+        parts[k].role = Some(role);
+        parts[k].pivot = if ap.pivot.is_finite() { ap.pivot } else { parts[k].pivot };
+        parts[k].parent_index = parent;
+        parts[k].parent = parts[parent].id;
+        parts[k].depth = parts[parent].depth.saturating_add(1);
+    }
+    if any {
+        rig.alt = model_from_parts(parts, rig.alt.voxel_size);
+    }
 }
 
 // --------------------------------------------------------------------------------- sequence

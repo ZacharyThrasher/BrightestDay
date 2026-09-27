@@ -62,3 +62,34 @@ constants in `crates/bd_shapes/src/anim_body.rs` (shared with the frame-sheet to
   respected, `particle_budget` scales every continuous emitter); effects skip players beyond 90 m.
 - Worst case continuous emission per player: boost 38/s + streaks 22/s (both only in the air), slide
   sparks ≤ 68/s (on the ground) — ~500 particles/s with 8 players all boosting at once.
+
+## Taunts + voice tell (TAUNT & VOICE TELL, 2026-09-27; owner: "wordless taunt is funny", voice tell "yeah that sounds fine")
+- **Key**: `Taunt` action, default **Y** (Settings → Controls → OTHER; rebindable, mouse buttons allowed).
+  **Tap** = the next taunt of your rotation — FLEX (fists thrown up in a V, two pumps, a glance at the
+  ring arm) → BECKON ("come here": ring hand out, two pulls, chin up, off hand on the hip) → SHRUG
+  (palms out, head tilt, then a brush-off flick and a turn away) → BOW (sweeping bow, ring arm across
+  the belly). **Hold** (≥ 0.3 s) = DANCE (132 bpm bounce, disco point, hip sway) until you let go (≤ 4 s).
+  Taps start on release, so a hold never flashes a wrong taunt.
+- **Rules** (host-owned, `bd_sim::taunt`): no gameplay effect (nothing reads it; a test proves the state
+  hash is identical with and without taunt / voice bits; FFA golden hash unchanged); **any** input — a
+  move key, any button, the wheel, push-to-talk, a command (quick cast, power, dismiss) — ends it on
+  that tick; only from a free body (grounded, not tumbling / launched / seated / stunned / reciting /
+  charging); rate limit = a bucket of 2 refilling one per 3 s, ≥ 1 s between starts.
+- **Wire** (protocol v45): `buttons::TAUNT` / `buttons::VOICE` (1<<13 / 1<<12) ride the normal input;
+  the host sends a `Move` event with the kind in `move_flags::TAUNT` (bits 12..=14; sound + pose clock)
+  and `PlayerSnap::tell` (kind + voice bit; cancels, late joiners).
+- **Client** (`present/taunt.rs`): your own taunt is predicted on your own inputs (instant), others'
+  start on the event and follow the snapshot. `body_motion` plays it as a `Channel` pose
+  (`Channel::{Flex, Beckon, Shrug, Bow, Dance}` in `bd_shapes::anim_body`) that lets go fast
+  (24/s) when cancelled. Tiny wordless stings `taunt_{flex,beckon,shrug,bow,dance}` (tools/sfxgen
+  `sounds_taunt.py`, feedback bus ≈ −28 LUFS); flair: glints off the fists on each flex pump, corps
+  notes bobbing off a dancer. 1P: the hands do a matching gesture (fists curl up / beckon / palms up +
+  brush-off / dip / beat pump) — never the camera.
+- **Voice tell**: while push-to-talk is listening for a cast, others see exactly the typing tell (ring
+  fist to the face, head bowed, ring motes — voice == typing) plus a voice-only cue: corps sound-wave
+  rings rolling forward off the mouth (one every 0.26 s; never on your own first-person view).
+- Sheet: `taunt_voice_sheet.png` — each taunt over time from the observer's front 3/4 and from the
+  taunter's own 3P camera, then typing vs voice tells. Regenerate:
+  `cargo run -p bd_shapes --example taunt_sheet --release [-- --names naruto,knight | --probe]`.
+- In-game: `brightest_day --practice --bots 4 --scenario taunt` — a tapper cycling the rotation, a
+  dancer, a voice caster and a typist side by side.

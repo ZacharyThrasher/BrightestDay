@@ -28,7 +28,10 @@ pub fn read_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, tex
     let r = if powers_on {
         // SHOUT HYGIENE: a non-proper shout yields to the ordinary thing the lexicon reads
         // ("flaming hammer" builds one); a loose kit reading yields to an icon's exact name
-        let thing = |s: &str| plain_thing(lex, s, spoken);
+        // VOICE PARITY: the judge reads the words as TYPED — a phrase that matched a shout / kit
+        // move letter for letter was heard right, and the lexicon's sound-alike rescue must not
+        // re-read it ("chaos control" is not Chaos King Ghidorah, "naruto ultimate" is Naruto's)
+        let thing = |s: &str| plain_thing(lex, s, false);
         let icon = |s: &str| lex.is_icon_name(s);
         let everyday = |w: &str| lex.is_everyday_word(w);
         ix.read_judged(t, held, text, &bd_sim::powers::toolbox::LexJudge { thing: &thing, icon: &icon, everyday: &everyday })
@@ -37,7 +40,8 @@ pub fn read_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, tex
     };
     match r {
         Reading::Borrow(_) => {
-            let res = if spoken { lex.resolve_spoken(text) } else { lex.resolve(text) };
+            // (an exact shout: its words were heard right — judged as typed, see above)
+            let res = lex.resolve(text);
             if res.recipe.grants.is_some() { Reading::Plain } else { r }
         }
         // VOICE PARITY: Whisper spells a shout it doesn't know by sound ("razengan", "chi dori").
@@ -176,7 +180,9 @@ pub fn composed(lex: &Lexicon, powers_on: bool, text: &str, spoken: bool, names:
         return None;
     }
     let r = compose::read(text, names)?;
-    let res = if spoken { lex.resolve_spoken(text) } else { lex.resolve(text) };
+    // (the grammar understood every word: the curated check reads them as typed — voice parity)
+    let _ = spoken;
+    let res = lex.resolve(text);
     (!compose::curated_by_lexicon(text, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)).then_some(r.spec)
 }
 

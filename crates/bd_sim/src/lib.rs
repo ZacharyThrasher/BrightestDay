@@ -29,10 +29,12 @@ pub mod constructs;
 pub mod dodge; // DODGE: intangibility window + hits restore the air jump (movement/air_jump.rs, dodge.rs)
 pub mod events;
 pub mod extract;
+pub mod first_call; // FIRST CALL + BURN ON DEATH: named-thing claims / rival versions, burns / echoes (host rules; off = no-op)
 pub mod freedom; // FREEDOM HOOK: "it", name targeting, sputter, shout bonus, kill feed, highlights
 pub mod fuzz;
 pub mod geom;
 pub mod history;
+pub mod limit; // TOTAL LIMIT: a host rule capping each player's active things (constructs + powers; off = no-op)
 pub mod legendary; // FREEDOM HOOK: hidden novelty-driven legendary rolls (never shown)
 pub mod match_stats; // SCOREBOARD: competitive per-player stats (observer over events; never writes the world)
 pub mod juggle; // JUGGLE: per-victim juggle protection (knockback decay + short guard; COMBAT.md §1a)
@@ -54,6 +56,7 @@ pub mod signature; // SIGNATURE HOOK: signature casts = an amplifier over existi
 pub mod smash;
 pub mod space;
 pub mod status;
+pub mod taunt; // TAUNT & VOICE TELL: wordless body taunts + the voice-cast tell (presentation state, no gameplay effect)
 pub mod telemetry;
 pub mod tuning;
 pub mod weapons;

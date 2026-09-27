@@ -23,3 +23,9 @@ hound = "3.5"
 [[example]]
 name = "ptt"
 required-features = ["whisper"]
+
+# Dev tool (never shipped): the voice fluency bench's Whisper stage (tools/voice_bench/README.md).
+[[example]]
+name = "voice_bench"
+path = "../../tools/voice_bench/transcribe.rs"
+required-features = ["whisper"]

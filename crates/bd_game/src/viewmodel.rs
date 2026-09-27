@@ -42,7 +42,7 @@ use bevy::prelude::*;
 /// Procedural hand animation (sway, bob, tethers, ring, recoil, …): see the module docs.
 #[path = "viewmodel_anim.rs"]
 mod anim;
-pub use anim::{HandsPublishSet, ViewmodelHands};
+pub use anim::{HandPose, HandsPublishSet, ViewmodelHands};
 
 /// Where the local held construct is drawn in first person (SIM reads this).
 #[derive(Resource, Debug, Clone, Copy, Default)]
@@ -181,7 +181,7 @@ impl Plugin for ViewmodelPlugin {
             // Before `sync_constructs` reads `FirstPersonHeld` (same-frame grip).
             .add_systems(
                 Update,
-                (attach_viewmodel, rebuild_hands, hand_tints, vm_events, anim::drive_hand_anim, animate_viewmodel, draw_fractures, draw_percent)
+                (attach_viewmodel, rebuild_hands, hand_tints, vm_events, anim::drive_hand_anim, crate::present::taunt::taunt_hands, animate_viewmodel, draw_fractures, draw_percent)
                     .chain()
                     .in_set(UiSet::Draw)
                     .before(crate::present::PresentSet::Sync),
@@ -451,9 +451,8 @@ fn vm_keys(
     if binds.just_pressed(Action::Transform, &keys, &mouse) {
         cmds.write(SimCommand::local(Cmd::ToggleTransform));
     }
-    if binds.just_pressed(Action::Dismiss, &keys, &mouse) {
-        cmds.write(SimCommand::local(Cmd::Dismiss));
-    }
+    // X (dismiss): POWER HOTBAR owns it now — X then a slot key dismisses that slot's thing, X alone
+    // still dismisses everything (`crate::hotbar::dismiss`).
     if me.seat.is_some_and(|s| !s.suit) && binds.just_pressed(Action::TetherR, &keys, &mouse) {
         cmds.write(SimCommand::local(Cmd::Eject));
     }

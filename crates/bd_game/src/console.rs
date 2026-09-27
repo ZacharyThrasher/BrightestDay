@@ -6,7 +6,8 @@
 //! * History ↑/↓ (the player's own casts only — the ring never lists or suggests vocabulary: "the
 //!   mystery is the fun"), Enter casts and closes, Shift+Enter casts and keeps typing, empty Enter
 //!   recasts the last phrase, Esc closes.
-//! * **Quick-cast** slots 1–4 cast the loadout phrases (lobby) when the console is closed.
+//! * **Keys 1–4**: the POWER HOTBAR (`crate::hotbar`: the loadout made dynamic — auto-bind, Tab
+//!   drag-drop, dismiss by slot). Every line sent here is announced to it ([`crate::hotbar::fire::LineSent`]).
 //! * **TOOLBOX** first (`crate::toolbox::command`): kit moves ("reinhardt charge"), borrowed shouts of
 //!   powers you don't hold, held moves said by name and chains → `Cmd::Toolbox`.
 //! * **Resolution**: `World::parse_power_phrase` (power shouts → `PowerMove`, incantation prefix →
@@ -41,6 +42,8 @@ use bevy::prelude::*;
 use std::io::Write as _;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
+
+pub mod confirm; // CLICK TO CONFIRM: the ring's ghost preview → click / "go" makes it real
 
 /// Longest phrase the console accepts (the lexicon truncates at 120 chars anyway).
 const MAX_CHARS: usize = 96;
@@ -161,9 +164,12 @@ impl Plugin for ConsolePlugin {
             .add_message::<RingCue>()
             .add_systems(Startup, spawn_console_ui)
             .add_systems(PreUpdate, poll_lexicon)
-            .add_systems(Update, (console_keys, quick_cast, flush_pending).chain().in_set(UiSet::Input))
+            .add_message::<crate::hotbar::fire::LineSent>()
+            .add_message::<crate::hotbar::dismiss::DismissReq>()
+            .add_systems(Update, (console_keys, flush_pending).chain().in_set(UiSet::Input))
             .add_systems(Update, draw_console.in_set(UiSet::Draw))
-            .add_systems(OnExit(AppState::InGame), close_on_exit);
+            .add_systems(OnExit(AppState::InGame), close_on_exit)
+            .add_plugins(confirm::ConfirmPlugin);
     }
 }
 
@@ -202,6 +208,12 @@ pub struct Caster<'w> {
     sig_voice: Option<Res<'w, crate::present::signature::SignatureVoice>>,
     /// FREEDOM HOOK: the last phrase ("again!" repeats it).
     memo: Option<ResMut<'w, crate::lobby::feed::CastMemo>>,
+    /// CLICK TO CONFIRM: the pending ghost (`UiPrefs::click_to_confirm`; see [`confirm`]).
+    gate: Option<ResMut<'w, confirm::ConfirmGate>>,
+    /// POWER HOTBAR: every line sent (auto-bind waits for the host's confirmation of it).
+    lines: MessageWriter<'w, crate::hotbar::fire::LineSent>,
+    /// POWER HOTBAR: "dismiss 3" / "dismiss star platinum" (DISMISS BY SLOT) instead of a cast.
+    dismiss: MessageWriter<'w, crate::hotbar::dismiss::DismissReq>,
 }
 
 /// What a phrase turned into.
@@ -252,14 +264,19 @@ impl Caster<'_> {
         if n == 0 {
             return;
         }
-        self.cmds.write(SimCommand::local(Cmd::StandRush(n)));
-        self.cues.write(RingCue::Rush);
+        self.send(Cmd::StandRush(n));
+        if !self.capturing() {
+            self.cues.write(RingCue::Rush);
+        }
     }
 
     /// The instant local "catch" on the commit frame (Enter, a quick-cast slot or the voice phrase
     /// finalising — identical for all): ring flare + hand cast pose (`RingCue::Forming` →
     /// viewmodel / viewmodel_anim) and the confirm sound, before the sim or network answers.
     pub fn commit_feedback(&mut self, spoken: bool) {
+        if self.capturing() {
+            return; // CLICK TO CONFIRM: a ghost is projected, nothing formed yet
+        }
         self.cues.write(RingCue::Forming { voice: spoken });
         self.sfx.write(PlaySfx::new("cast_confirm").gain(0.55));
     }
@@ -271,7 +288,20 @@ impl Caster<'_> {
     }
 
     /// [`Self::cast`] with the speech recogniser's confidence for a spoken phrase (intent log only).
+    /// CLICK TO CONFIRM (`UiPrefs::click_to_confirm`): the phrase becomes a ghost preview instead
+    /// (the same path, captured), and a confirm word ("go", "do it") confirms a pending one.
     pub fn cast_heard(&mut self, text: &str, spoken: bool, rush_already: u16, heard_conf: Option<f32>) -> bool {
+        // POWER HOTBAR: "dismiss 3" / "dismiss star platinum" never casts (hotbar::dismiss).
+        if crate::hotbar::dismiss::is_dismiss_line(text) {
+            self.dismiss.write(crate::hotbar::dismiss::DismissReq(text.to_string()));
+            return true;
+        }
+        self.cast_gated(text, spoken, rush_already, heard_conf)
+    }
+
+    /// The cast path proper: every command goes through [`Self::send`] (captured while a ghost is
+    /// being projected, see [`confirm`]); local feedback, logs and the phrase memo only when live.
+    fn cast_now(&mut self, text: &str, spoken: bool, rush_already: u16, heard_conf: Option<f32>) -> bool {
         let text = text.trim();
         if text.is_empty() {
             return false;
@@ -286,9 +316,14 @@ impl Caster<'_> {
         let roster: Vec<(bd_core::PlayerId, &str)> = active.world.players.iter().filter(|p| p.id != local).map(|p| (p.id, p.name.as_str())).collect();
         if let Some(steps) = crate::toolbox::command_for(&lex, held, active.world.cfg.rules.powers_enabled, text, spoken, &roster) {
             self.commit_feedback(spoken);
-            self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
+            if !self.capturing() {
+                self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
+            }
             let (eye, dir) = self.crosshair();
-            self.cmds.write(SimCommand::local(Cmd::Toolbox { steps, aim: Some(Aim::new(core_v3(eye), core_v3(dir))) }));
+            if !self.capturing() {
+                self.lines.write(crate::hotbar::fire::LineSent { text: text.to_string(), spoken, steps: steps.clone(), signature: false });
+            }
+            self.send(Cmd::Toolbox { steps, aim: Some(Aim::new(core_v3(eye), core_v3(dir))) });
             return true;
         }
         let power = active.world.parse_power_phrase(local, text);
@@ -298,7 +333,7 @@ impl Caster<'_> {
             PowerPhrase::Plain => crate::lobby::feed::plan_cast(&lex, &active.world, local, text, spoken, self.memo.as_ref().and_then(|m| m.last.as_deref())),
             _ => crate::lobby::feed::CastPlan::plain(text),
         };
-        let voice_peak = spoken.then(|| self.sig_voice.as_ref().map_or(0.8, |v| v.peak));
+        let voice_peak = spoken.then(|| self.voice_peak());
         let energy = crate::lobby::feed::cast_energy(text, voice_peak, self.shout_table.as_deref());
         // Instant local feedback on the same frame as the key press.
         self.commit_feedback(spoken);
@@ -309,11 +344,13 @@ impl Caster<'_> {
         };
         // "Did it hear me right?": the title letters show exactly what was heard, or the canonical
         // name of a recognised signature ("final flesh" heard → "FINAL FLASH!!").
-        self.shouts.write(crate::present::shout::ShoutCast { text: shout_text(text, &resolved), spoken });
+        if !self.capturing() {
+            self.shouts.write(crate::present::shout::ShoutCast { text: shout_text(text, &resolved), spoken });
+        }
         match resolved {
             Resolved::PowerMove(slot) => {
                 let (eye, dir) = self.crosshair();
-                self.cmds.write(SimCommand::local(Cmd::PowerMove(slot, Some(Aim::new(core_v3(eye), core_v3(dir))))));
+                self.send(Cmd::PowerMove(slot, Some(Aim::new(core_v3(eye), core_v3(dir)))));
             }
             Resolved::Rush(n) => {
                 let n = n.saturating_sub(rush_already);
@@ -330,10 +367,12 @@ impl Caster<'_> {
                     (None, None) => self.aimed_enemy(eye, dir).map(TargetHint::Player),
                 };
                 let aim = Aim { origin: core_v3(eye), dir: core_v3(dir), target_hint, modifier };
-                if Lexicon::is_fallback(&res) {
-                    log_unresolved(text, spoken, &res);
+                if !self.capturing() {
+                    if Lexicon::is_fallback(&res) {
+                        log_unresolved(text, spoken, &res);
+                    }
+                    log_intent(text, spoken, heard_conf, &plan, &res); // local-only playtest log (logs/intent.log)
                 }
-                log_intent(text, spoken, heard_conf, &plan, &res); // local-only playtest log (logs/intent.log)
                 let mut res = *res;
                 // COSTUME HOOK: costume words ("gojo but bald", "red goku", "gojo with pink hair") dress
                 // the summon only — the construct's mechanics come from the bare character.
@@ -358,24 +397,49 @@ impl Caster<'_> {
                 // FREEDOM HOOK: the words (kill feed), shout energy and an "it" resize go just before the cast.
                 let resize = if plan.graft_onto.is_some() { res.graft.scale_mul } else { 1.0 };
                 let meta = bd_sim::freedom::CastMeta { resize, ..bd_sim::freedom::CastMeta::new(&plan.said, energy) };
-                self.cmds.write(SimCommand::local(Cmd::CastMeta(meta)));
+                self.send(Cmd::CastMeta(meta));
                 if !plan.repeat
+                    && !self.capturing()
                     && let Some(m) = self.memo.as_mut()
                 {
                     m.last = Some(text.to_string());
                 }
                 // SIGNATURE HOOK (COMBAT.md §5j): "domain expansion …", "kamehameha" → a signature cast.
+                let signature = res.signature.is_some() && !incantation;
+                if !self.capturing() {
+                    self.lines.write(crate::hotbar::fire::LineSent { text: text.to_string(), spoken, steps: Vec::new(), signature });
+                }
                 let cmd = match res.signature.as_ref().filter(|_| !incantation) {
                     Some(s) => {
-                        let level = spoken.then(|| self.sig_voice.as_ref().map_or(0.8, |v| v.peak));
+                        let level = spoken.then(|| self.voice_peak());
                         signature_cmd(res.recipe, res.shape, aim, s, text, self.shout_table.as_deref(), level)
                     }
                     None => Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation },
                 };
-                self.cmds.write(SimCommand::local(cmd));
+                self.send(cmd);
             }
         }
         true
+    }
+
+    /// Every command of the cast path: to the sim, or into the ghost being projected.
+    fn send(&mut self, cmd: Cmd) {
+        match self.gate.as_mut().and_then(|g| g.capture.as_mut()) {
+            Some(buf) => buf.push(cmd),
+            None => {
+                self.cmds.write(SimCommand::local(cmd));
+            }
+        }
+    }
+
+    /// A ghost is being projected: nothing reaches the sim, the screen or the logs.
+    fn capturing(&self) -> bool {
+        self.gate.as_ref().is_some_and(|g| g.capture.is_some())
+    }
+
+    /// The push-to-talk utterance's peak mic level (a confirmed ghost keeps the one it was said with).
+    fn voice_peak(&self) -> f32 {
+        self.gate.as_ref().and_then(|g| g.peak).unwrap_or_else(|| self.sig_voice.as_ref().map_or(0.8, |v| v.peak))
     }
 
     /// The crosshair ray `(eye, dir)`: third person converges from the eye on what the camera sees.
@@ -759,32 +823,6 @@ fn console_keys(
     let want = console.open;
     if focus.typing != want && !oath.open {
         focus.typing = want;
-    }
-}
-
-/// 1–4: cast the loadout phrases (console closed).
-#[allow(clippy::too_many_arguments)]
-fn quick_cast(
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    binds: Res<KeyBinds>,
-    state: Res<State<AppState>>,
-    menu: Res<InGameMenu>,
-    console: Res<RingConsole>,
-    oath: Res<crate::oath::OathState>,
-    party: Option<Res<crate::lobby::party::PartyUi>>,
-    mut caster: Caster,
-) {
-    if console.open || oath.open || !gameplay(state.get(), &menu) || caster.active.is_none() || party.as_ref().is_some_and(|p| p.phase == Some(bd_sim::party::PartyPhase::Pick)) {
-        return;
-    }
-    for (i, a) in [Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4].into_iter().enumerate() {
-        if binds.just_pressed(a, &keys, &mouse) {
-            let phrase = caster.prefs.loadout[i].clone();
-            if !phrase.trim().is_empty() {
-                caster.cast(&phrase, false, 0);
-            }
-        }
     }
 }
 

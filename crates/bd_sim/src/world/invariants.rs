@@ -236,6 +236,8 @@ impl World {
             v3(&mut h, pk.pos);
             h.write_u64(pk.until);
         }
+        // FIRST CALL HOOK: claims / burns / marks (empty while the rules are off: hashes unchanged).
+        self.first_call.hash_into(&mut h);
         h.0
     }
 }

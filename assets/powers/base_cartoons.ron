@@ -38,7 +38,7 @@
             (name: "turtle power", tags: [Ultimate], cooldown: 16.0, cost: 6.0, ops: [
                 Cast(recipe: (name: "ninja turtle brothers", form: Biped, mech: [Walks, Blade, Fast, Guard], element: Poison, scale: 1.0,
                               count: 3, temperament: Aggressive, intensity: 0.8)),
-            ], juice: Some((title: Some("TURTLE POWER!"), color: Some((0.45, 1.0, 0.3))))),
+            ], juice: Some((shake: 0.2, boom: true, impact_frame: Some("comic"), title: Some("TURTLE POWER!"), color: Some((0.45, 1.0, 0.3))))),
         ],
         // Ninja turtle hybrid: nimble, and every cast carries the shell (Guard).
         transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), 
@@ -168,6 +168,7 @@
         id: "viltrumite",
         name: "Viltrumite Physiology",
         kind: Origin,
+        fx: "blood",
         pickup: Some((name: "viltrumite blood", form: Blob0, element: Light, scale: 0.4)),
         names: ["viltrumite", "viltrumite powers", "viltrumite blood", "half-viltrumite", "viltrumite physiology"],
         body: (moves: (thrust: 30.0, thrust_max: 17.0, gravity: 0.8, jump: 1.2)),
@@ -198,6 +199,7 @@
         id: "omnitrix",
         name: "The Omnitrix",
         kind: Origin,
+        fx: "atomic",
         pickup: Some((name: "omnitrix", form: Ball, element: Poison, scale: 0.35)),
         names: ["omnitrix", "the omnitrix", "ultimatrix", "omniverse omnitrix", "ben 10 watch", "omnitrix watch"],
         // "omnitrix <alien>" / "hero time <alien>": whatever you name, you BECOME (Piloted - human-size = a suit,
@@ -232,6 +234,7 @@
         id: "power_morpher",
         name: "Power Morpher",
         kind: Origin,
+        fx: "hardlight",
         pickup: Some((name: "power coin", form: Ball, element: Electric, scale: 0.3)),
         names: ["power morpher", "the power morpher", "morpher", "power coin", "it's morphin time", "its morphin time",
                 "morphin time", "morphing grid"],
@@ -270,7 +273,7 @@
                 Barrage(hits: 8, interval: 0.06, range: 2.8, angle: 50.0, damage: 2.5, knockback: 3.0, finish: 18.0, advance: 3.0,
                         up: 0.25, blink: false, element: Light),
             ]),
-            (name: "eye beams", cooldown: 2.0, cost: 6.0, ops: [Carve(length: 18.0, radius: 0.4, damage: 8.0)]),
+            (name: "eye beams", fx: "gaze", cooldown: 2.0, cost: 6.0, ops: [Carve(length: 18.0, radius: 0.4, damage: 8.0)]),
         ],
     ),
     // ================================================================ THE INCREDIBLES — the super suit
@@ -291,7 +294,7 @@
                 Shove(range: 3.5, angle: 50.0, damage: 14.0, knockback: 24.0, up: 0.3),
             ]),
             // Elastigirl's stretch: reach out and yank yourself there.
-            (name: "stretch", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 30.0, speed: 30.0)]),
+            (name: "stretch", fx: "rubber", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 30.0, speed: 30.0)]),
         ],
     ),
     // ================================================================ BEAST BOY — animal morph

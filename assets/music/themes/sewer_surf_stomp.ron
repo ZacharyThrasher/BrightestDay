@@ -1,0 +1,77 @@
+// Sewer Surf Stomp — franchise theme for the mutant-turtle powers and kits.
+// ORIGINAL composition for Brightest Day, written from scratch. It borrows only genre cues —
+// a 90s-cartoon surf-punk feel: a fast skate-punk beat, gnarly duty-swept pulse leads with slides,
+// surf-picked 16ths, power-chord chip arpeggios and a punk eighth-note bass. No melody, hook,
+// bassline or lyric of any existing theme is quoted or paraphrased.
+// Structure: sting (the 2-bar swell the theme enters with) | a b a2 c b2 a3 (loop, ~67 s) | end.
+(
+    title: "Sewer Surf Stomp",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: surf-punk ninja reptiles",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (tempo, surf-punk groove, chip instrumentation).",
+    role: "Franchise theme: mutant-turtle powers and kits",
+    key: "Em",
+    time: (4, 4),
+    bpm: 172.0,
+    gain_db: -4.1,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "lead", inst: "sweep", stem: Lead, pan: -0.1, echo: (ticks: 36, vol: 0.22)),
+        (name: "twin", inst: "lead25", stem: Lead, pan: 0.22, vol: 0.62),
+        (name: "gtr", inst: "arp", stem: Base, pan: 0.18, gen: "o3 [X8]8 |"),
+        (name: "bass", inst: "synthbass", stem: Base, gen: "o2 u4 [R8]6 R8 O8 |"),
+        (name: "arp", inst: "pluck12", stem: Drive, pan: -0.3, vol: 0.8, gen: "o5 [R16 F16 O16 F16]4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.1, gen: "$beat"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.6, gen: "[h8]8 |"),
+    ],
+    patterns: {
+        // ---- harmony ----
+        "chA": "E5 | E5 | C5 | D5 | E5 | E5 | C5 | B5 |",
+        "chB": "G | D | Em | C | G | D | C | B7 |",
+        "chC": "Am | Am | Em | Em | C | D | B | B |",
+        // ---- tunes (all original) ----
+        "mA": "o5 e8 e8 g8 e8 a8 g8 e8 d8 | o5 e4. d8 e8 g8 b4 | o5 c8 c8 e8 c8 g8 e8 c8 o4 b8 | o5 d4 f8 a8 ~b4 a4 |
+               o5 e8 e8 g8 e8 b8 a8 g8 e8 | o6 d4 c8 o5 b8 a8 g8 e4 | o5 g8 a8 g8 e8 c8 d8 e8 c8 | o5 d+4 f4 b4 d+4 |",
+        "mB": "o5 b8 b16 b16 a8 g8 d8 g8 b8 o6 d8 | o6 d4 c+8 o5 a8 f+2 | o5 g8 f+8 e8 f+8 g8 a8 b8 g8 | o5 e2 ~g4 e4 |
+               o5 b8 b16 b16 a8 g8 d8 g8 b8 o6 e8 | o6 f+4 e8 d8 o5 a4 f+4 | o5 g8 e8 g8 a8 b8 o6 c8 d8 e8 | o6 d+2 ~f+4 r4 |",
+        "mC": "r1 | r1 | r1 | r2 o5 b8 o6 c8 d8 e8 | o6 e4. d8 c4 o5 g4 | o5 a4. b8 o6 c4 d4 | o5 d+4 f+4 b4 o6 d+4 | o6 f+2 e4 d+4 |",
+        "callC": "o4 a8 r8 a8 o5 c8 r8 e8 d8 c8 | o4 a4 r4 r2 | o4 e8 r8 e8 g8 r8 b8 a8 g8 | o4 e4 r4 r2 | r1 | r1 | r1 | r1 |",
+        // surf-picked 16ths on the chord's third and fifth
+        "surf": "[@run12 o4 [T16]8 [F16]8 |]8",
+        // ---- drums ----
+        "beat": "k8 r8 s8 k8 r8 k8 s8 r8 |",
+        "fill": "s16 s16 s16 s16 t16 t16 m16 m16 s8 s8 s8 s8 |",
+        "d8": "[$beat]7 $fill",
+        "hatsO": "[h8 o8]4 |",
+    },
+    sections: [
+        // The sting: a rising surf run into the hook — what you hear as the theme swells in.
+        (name: "sting", bars: 2, chords: "B5 | E5 |", parts: {
+            "lead": "o4 e16 f+16 g16 a16 b16 o5 c16 d16 d+16 e4 ~b4 | o5 e8 e8 g8 e8 a8 g8 ~b4 |",
+            "twin": "@run12 o4 [b16]16 | o4 [e16]8 [g16]8 |",
+            "drums": "[s16]8 t16 t16 t16 t16 m16 m16 m16 m16 | c8 r8 s8 k8 r8 k8 s8 s8 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", mute: ["arp"], parts: { "lead": "$mA", "drums": "$d8" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "twin": "$surf", "drums": "$d8" }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "lead": "$mA", "twin": "k-12 $mA k0", "drums": "$d8", "hats": "[$hatsO]8" }),
+        (name: "c", bars: 8, chords: "$chC", mute: ["arp"], parts: {
+            "lead": "$mC", "twin": "$callC",
+            "drums": "[k4 r4 s4 r4 |]3 k4 r4 s8 s8 s8 s8 | [$beat]3 $fill",
+            "hats": "[o4]16 [h8]32 |",
+        }),
+        // b again, a fourth higher: the lift before the last hook.
+        (name: "b2", bars: 8, transpose: 5, chords: "$chB", parts: { "lead": "$mB", "twin": "$surf", "drums": "$d8", "hats": "[$hatsO]8" }),
+        (name: "a3", bars: 8, chords: "$chA", parts: {
+            "lead": "$mA", "twin": "@lead12 k-12 $mA k0",
+            "drums": "c8 r8 s8 k8 r8 k8 s8 r8 | [$beat]6 $fill",
+        }),
+        (name: "end", bars: 2, chords: "E5 | E5 |", mute: ["arp", "hats"], parts: {
+            "lead": "o5 e8 e8 g8 e8 b4 o6 ~e4 | o6 e2. r4 |",
+            "twin": "o4 e8 e8 g8 e8 b4 o5 ~e4 | o5 e2. r4 |",
+            "drums": "k8 k8 s8 k8 s16 s16 s16 s16 s8 s8 | c2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "a2", "c", "b2", "a3"],
+    loop_to: "a",
+    ending: "end",
+)

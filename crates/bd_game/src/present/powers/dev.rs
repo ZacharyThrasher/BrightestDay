@@ -7,7 +7,8 @@
 //! * `cmd`: `!grant <key>` (e.g. `super_saiyan@4`), `!move <slot>` (a power move / selector byte;
 //!   bots aim at the local player), `!tier <n>`, `!swap` (G double-tap), `!costume <phrase>` (a bot
 //!   wears that costume, e.g. `goku`: costume-tint shots), `!say <phrase>` (a bot says a phrase: the
-//!   ring's resolver — power phrase, then the lexicon — and its cast), or — for `me` — any phrase
+//!   ring's resolver — power phrase, then the lexicon — and its cast), `!line <text>` (a bot types a
+//!   whole toolbox line: borrowed moves, chains, twisted casts "giant spirit bomb"), or — for `me` — any phrase
 //!   through the real ring path (lexicon, power shouts, tiers).
 //!
 //! Bots stand down (AI off) once the plan starts. Everyone's willpower is topped up per command.
@@ -175,6 +176,13 @@ fn dev_plan(
             dev.queue.push(send(Cmd::PowerMove(s, aim)));
         } else if let Some(t) = cmd.strip_prefix("!tier ").and_then(|s| s.trim().parse::<u8>().ok()) {
             dev.queue.push(send(Cmd::PowerMove(move_sel::select(0, t), aim)));
+        } else if let Some(phrase) = cmd.strip_prefix("!line ").filter(|_| !is_me) {
+            // A bot types a whole TOOLBOX line (borrowed / kit moves, chains, twisted / fused moves:
+            // "giant spirit bomb", "homing rasengan -> chidori").
+            let Some(lex) = lex.as_ref() else { continue };
+            if let Some(steps) = crate::toolbox::command(&lex.0, None, true, phrase.trim(), false) {
+                dev.queue.push(send(Cmd::Toolbox { steps, aim }));
+            }
         } else if let Some(phrase) = cmd.strip_prefix("!say ").filter(|_| !is_me) {
             let Some(lex) = lex.as_ref() else { continue };
             let power = active.world.parse_power_phrase(id, phrase.trim());

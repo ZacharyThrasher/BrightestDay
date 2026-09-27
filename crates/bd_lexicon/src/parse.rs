@@ -22,7 +22,7 @@ const COMBINERS: &[&str] =
     &["devastator", "voltron", "bruticus", "superion", "menasor", "predaking", "computron", "defensor", "megazord", "combiner", "gestalt"];
 
 /// Command phrases (already normalised; articles/fillers/pronouns/"make it" removed).
-fn action_of(phrase: &str) -> Option<GraftAction> {
+pub(crate) fn action_of(phrase: &str) -> Option<GraftAction> {
     let p = phrase.trim();
     let p =
         p.strip_prefix("autobots ").or_else(|| p.strip_prefix("decepticons ")).or_else(|| p.strip_prefix("constructicons ")).unwrap_or(p);
@@ -1449,6 +1449,17 @@ impl Lexicon {
     }
 
     pub(crate) fn resolve_tokens(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8) -> Resolution {
+        // transformer grammar first ("a helicopter robot", "a robot that turns into a train"): transformer.rs
+        if depth == 0
+            && let Some(r) = self.transformer(&toks, bangs, spoken)
+        {
+            return r;
+        }
+        self.resolve_tokens_plain(toks, bangs, spoken, depth)
+    }
+
+    /// [`Self::resolve_tokens`] without the transformer stage (its alt-mode words resolve here).
+    pub(crate) fn resolve_tokens_plain(&self, toks: Vec<Tok>, bangs: usize, spoken: bool, depth: u8) -> Resolution {
         let mut res = self.resolve_tokens_inner(toks, bangs, spoken, depth, true);
         if depth == 0 {
             // leftover content words become light grafts, never vanish silently (relations.rs)

@@ -49,6 +49,8 @@ pub struct VoiceUi {
     /// The prompt without player names (lexicon bias + your oath) and the roster it was last sent with.
     prompt_base: String,
     roster: Vec<String>,
+    /// STREAMING: the beats of the current press (voice_fluency).
+    beats: crate::voice_fluency::Beats,
 }
 
 impl VoiceUi {
@@ -92,7 +94,13 @@ fn start_voice(prefs: Res<UiPrefs>, lex: Option<Res<RingLexicon>>, oaths: Res<cr
     // The ring's vocabulary, then the player's own corps oath (so a spoken recital transcribes as the
     // oath: "Sinestro's", "Abin Sur", the Compassion words). Player names are appended last by
     // `voice_roster` (Whisper keeps the prompt's tail under its token cap).
-    v.prompt_base = format!("{}, {}", lex.0.bias_prompt(60), oaths.bias_words(prefs.corps, 24));
+    // VOICE FLUENCY: the most-shouted character and move names go last (Whisper weighs the tail most)
+    v.prompt_base = crate::voice_fluency::bias_prompt(&lex.0, &oaths.bias_words(prefs.corps, 24));
+    {
+        // build the sound-alike index off the game thread (the first spoken line would pay for it)
+        let l = lex.0.clone();
+        let _ = std::thread::Builder::new().name("voice-fluency-warm".into()).spawn(move || crate::voice_fluency::warm(&l));
+    }
     v.roster.clear();
     let cfg = VoiceConfig {
         model_path: crate::assets_dir().join("models").join("ggml-base.en-q5_1.bin"),
@@ -175,6 +183,7 @@ fn voice_frame(
     menu: Res<InGameMenu>,
     focus: Res<UiFocus>,
     time: Res<Time<Real>>,
+    lex: Option<Res<RingLexicon>>,
     mut v: ResMut<VoiceUi>,
     mut caster: Caster,
     mut oath: crate::oath::OathVoice,
@@ -209,27 +218,64 @@ fn voice_frame(
                     v.listening = false;
                     v.transcribing = true;
                 }
+                // STREAMING: one beat of a spoken chain ("teleport ... rasengan ... chidori"), heard
+                // while the key is still down: a move fires at once, anything else waits for the rest
+                VoiceEvent::Partial { text, ms, confidence } => {
+                    debug!("voice beat: {text:?} ({ms} ms, confidence {confidence:.2})");
+                    // (the oath overlay's recital is one piece: never fired beat by beat)
+                    match lex.as_ref().filter(|_| !oath.ptt()) {
+                        Some(l) => {
+                            if let Some(line) = v.beats.beat(&l.0, &text) {
+                                caster.cast_heard(&line, true, 0, Some(confidence));
+                            }
+                        }
+                        None => v.beats.hold(&text),
+                    }
+                }
                 VoiceEvent::Final { text, ms, confidence } => {
                     v.transcribing = false;
                     v.listening = false;
                     debug!("voice: {text:?} ({ms} ms, confidence {confidence:.2})");
+                    let said = v.beats.finish(&text);
+                    v.beats.reset();
                     // OATH HOOK (before the ring resolver): the overlay's spoken recital, or a section
                     // of your own oath yelled outside it, is an oath recital — not a cast.
                     let spoken = if v.held { v.since_ptt } else { v.last_hold };
-                    if oath.claim(&text, spoken) {
+                    if oath.claim(&said, spoken) {
                         continue;
                     }
-                    caster.cast_heard(&text, true, 0, Some(confidence));
+                    // VOICE FLUENCY: the transcript → the line the console reads (voice == typing)
+                    let line = match lex.as_ref() {
+                        Some(l) => crate::voice_fluency::heard_line(&l.0, &said),
+                        None => said,
+                    };
+                    caster.cast_heard(&line, true, 0, Some(confidence));
                 }
                 VoiceEvent::Discarded(_) => {
                     v.transcribing = false;
                     v.listening = false;
-                    oath.failed();
+                    // the press's last stretch was silence: what the beats held back casts now
+                    let said = v.beats.finish("");
+                    let fired = v.beats.fired;
+                    v.beats.reset();
+                    let spoken = if v.held { v.since_ptt } else { v.last_hold };
+                    if said.is_empty() {
+                        if fired == 0 {
+                            oath.failed();
+                        }
+                    } else if !oath.claim(&said, spoken) {
+                        let line = match lex.as_ref() {
+                            Some(l) => crate::voice_fluency::heard_line(&l.0, &said),
+                            None => said,
+                        };
+                        caster.cast_heard(&line, true, 0, None);
+                    }
                 }
                 VoiceEvent::Error(e) => {
                     warn!("voice: {e}");
                     v.transcribing = false;
                     v.listening = false;
+                    v.beats.reset();
                     oath.failed();
                     if v.status != VoiceStatus::Ready {
                         v.status = VoiceStatus::Unavailable;

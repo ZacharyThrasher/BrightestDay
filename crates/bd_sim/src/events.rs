@@ -68,6 +68,9 @@ pub enum CastError {
     /// The lobby turned this kind of construct off (`MatchRules::limits`) and nothing near it is
     /// allowed: the ring fizzles, nothing paid.
     Fizzled,
+    /// TOTAL LIMIT (`crate::limit`): the caller already has `MatchRules::active_limit` things out;
+    /// this would add one more. Nothing paid; the ring sputters (dismiss something to make room).
+    AtLimit,
 }
 
 /// Something that went through a portal.
@@ -95,6 +98,19 @@ pub mod move_flags {
     pub const DODGE: u16 = 1 << 10;
     /// A wall / surf-ramp touch gave back the air jump (a small scuff at the contact).
     pub const WALL_REFRESH: u16 = 1 << 11;
+    /// A wordless taunt started: bits 12..=14 hold its `taunt::TauntKind` (1..=5; [`taunt_kind`]).
+    pub const TAUNT: u16 = 0b111 << TAUNT_SHIFT;
+    pub const TAUNT_SHIFT: u16 = 12;
+
+    /// The flags of a taunt start.
+    pub fn taunt(k: crate::taunt::TauntKind) -> u16 {
+        ((k.bits() as u16) << TAUNT_SHIFT) & TAUNT
+    }
+
+    /// The taunt a `Move` event started (`None` for every other movement moment).
+    pub fn taunt_kind(flags: u16) -> crate::taunt::TauntKind {
+        crate::taunt::TauntKind::from_bits(((flags & TAUNT) >> TAUNT_SHIFT) as u8)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -200,6 +216,9 @@ pub enum GameEvent {
     CastFailed { player: PlayerId, reason: CastError },
     /// POWER-UPS (`crate::pickups`): a pickup moment (beacon, appear, take, drop, spend, fade).
     Pickup { id: u16, kind: crate::pickups::GateKind, moment: crate::pickups::PickupMoment, pos: Vec3, player: Option<PlayerId> },
+    /// FIRST CALL / BURN ON DEATH (`crate::first_call`): a claim, a rival version, an echo, a fresh
+    /// call, a burn, the respawn crumble — presentation only (state is in `WorldSnapshot::first_call`).
+    FirstCall(crate::first_call::CallEvent),
     /// A cast was grafted onto an existing construct; `recipe` is the merged result.
     Grafted { player: PlayerId, id: ConstructId, recipe: Box<Recipe>, cost: f32 },
     /// Integrity damage to a construct (flash).
@@ -456,4 +475,11 @@ pub enum HeldFx {
     ChargeShot = 55,
     /// BFG orb tendril from the orb at `pos` along `dir` for `strength` metres (it zapped someone).
     BfgZap = 56,
+    // ---- TRANSFORMERS FEEL (`constructs/brawl.rs`: beast modes) ----
+    /// A beast roars at `pos` along `dir` (a short staggering cone; `strength` = its reach / 6 m).
+    Roar = 57,
+    /// A beast's 360° tail sweep around `pos` (`strength` = radius, m).
+    TailSweep = 58,
+    /// A beast leaps from `pos` along `dir` onto its prey (`strength` = m/s).
+    Pounce = 59,
 }

@@ -378,6 +378,29 @@ pub mod mat {
     /// The keep's painted panel: indigo wave paint and ink.
     pub const SK_PAINT_BLUE: Material = 212;
     pub const SK_INK: Material = 213;
+    // ---- The Lookout (floating sky temple) ----
+    /// Courtyard tiles: white field, grout lines, sand and teal pattern tiles.
+    pub const LK_TILE: Material = 214;
+    pub const LK_GROUT: Material = 215;
+    pub const LK_TILE_SAND: Material = 216;
+    pub const LK_TILE_TEAL: Material = 217;
+    /// Palace plaster (white) and its shaded bands / plinths.
+    pub const LK_WALL: Material = 218;
+    pub const LK_WALL_SHADE: Material = 219;
+    /// Golden trim (dome rings, finials, capitals, door frames).
+    pub const LK_GOLD: Material = 220;
+    /// Indestructible: the plate under the whole disc, palace spines, Korin's spine, rock cores.
+    pub const LK_CORE: Material = 221;
+    /// The disc's underside dome and spire; its rib bands.
+    pub const LK_UNDERSIDE: Material = 222;
+    pub const LK_UNDER_RIB: Material = 223;
+    /// The time chamber's glowing white room.
+    pub const LK_CHAMBER_WHITE: Material = 224;
+    /// Korin's tower: warm stone and red lacquer bands.
+    pub const LK_TOWER_STONE: Material = 225;
+    pub const LK_TOWER_RED: Material = 226;
+    /// Deep blue window glass (palace drum, tower bulb).
+    pub const LK_WINDOW: Material = 227;
 }
 
 const fn def(name: &'static str, color: [u8; 3], jitter: f32, hardness: f32, debris: DebrisClass) -> MaterialDef {
@@ -392,7 +415,7 @@ const fn glow(mut d: MaterialDef, emissive: f32) -> MaterialDef {
 use DebrisClass as D;
 
 /// The material table, indexed by id.
-pub static MATERIALS: [MaterialDef; 214] = [
+pub static MATERIALS: [MaterialDef; 228] = [
     def("air", [0, 0, 0], 0.0, 0.0, D::Dirt),
     def("grass", [98, 196, 64], 0.10, 0.55, D::Grass),
     def("dirt", [168, 112, 62], 0.09, 0.5, D::Dirt),
@@ -850,6 +873,29 @@ pub static MATERIALS: [MaterialDef; 214] = [
     def("cliff rock", [112, 106, 108], 0.08, 1.2, D::Stone),
     def("wave indigo", [40, 82, 150], 0.05, 0.8, D::Stone),
     def("ink", [36, 34, 40], 0.04, 0.9, D::Stone),
+    // ---- The Lookout (214..) ----
+    def("lookout tile", [238, 236, 228], 0.03, 1.0, D::Stone),
+    def("tile grout", [204, 202, 196], 0.03, 1.0, D::Stone),
+    def("sand tile", [226, 204, 158], 0.04, 1.0, D::Stone),
+    def("teal tile", [92, 168, 170], 0.04, 1.0, D::Stone),
+    def("palace plaster", [246, 244, 238], 0.02, 0.9, D::Stone),
+    def("plaster shade", [218, 214, 206], 0.03, 0.9, D::Stone),
+    glow(def("lookout gold", [236, 186, 62], 0.05, 1.1, D::Stone), 0.12),
+    MaterialDef {
+        name: "lookout core",
+        color: [200, 198, 192],
+        jitter: 0.03,
+        hardness: f32::INFINITY,
+        indestructible: true,
+        debris: D::Stone,
+        emissive: 0.0,
+    },
+    def("underside stone", [206, 200, 188], 0.05, 1.2, D::Stone),
+    def("underside rib", [150, 156, 170], 0.04, 1.2, D::Stone),
+    glow(def("chamber white", [252, 252, 248], 0.01, 0.9, D::Stone), 0.5),
+    def("tower stone", [222, 208, 180], 0.05, 1.1, D::Stone),
+    def("tower red", [186, 58, 46], 0.04, 1.0, D::Stone),
+    glow(def("window blue", [58, 92, 150], 0.05, 0.6, D::Crystal), 0.08),
 ];
 
 /// Fallback for ids past the end of the table (loud magenta so bugs are visible).

@@ -19,7 +19,7 @@
 //!   ([`Command::Board`]) seats the caster in their own construct — the world handles it
 //!   (`World::board_command`) before grafting or spawning.
 
-use bd_core::mechanics::{Element, Mechanic, Recipe, Temperament};
+use bd_core::mechanics::{Element, Form, Mechanic, Recipe, Temperament};
 use bd_core::{PlayerId, Vec3};
 
 use super::components::{self, eff_has};
@@ -114,8 +114,14 @@ pub fn run_commands(items: &mut [Construct]) {
                 roll_out(items, owner);
             }
             Command::Combine => {
+                // TRANSFORMERS FEEL: a combiner said by name ("devastator") is a real construct
+                // (the icon, a Kaiju you can pilot): it only turns into the "combine" command when
+                // you own ≥ 3 OTHER transformers to merge — otherwise it stays.
+                let real = items[i].recipe.form != Form::Blob0 && eff_has(&items[i], Mechanic::Transforms);
                 items[i].gone = Some(GoneReason::Spent);
-                components::start_combine(items, owner);
+                if !components::start_combine(items, owner) && real {
+                    items[i].gone = None;
+                }
             }
             Command::Transform if others_transform => {
                 items[i].gone = Some(GoneReason::Spent);

@@ -1312,6 +1312,12 @@ pub struct PowerDef {
     /// into `moves` when the table is built ([`super::derive`]). `None` for every hand-written entry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub derived: Option<super::derive::DerivedKit>,
+    /// Presentation only (never read by the sim): the franchise theme this power wakes on the
+    /// music's theme layer — a franchise or theme name from `assets/music/themes/franchises.ron`
+    /// (`Some("pirate")`), or `"none"` to opt out. `None` = the franchise table decides (by id,
+    /// then by source file). See docs/music/franchise_themes.md.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub music: Option<String>,
 }
 
 impl PowerDef {

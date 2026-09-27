@@ -3,6 +3,8 @@
 //! after [`host::VOTE_SECS`](super::host::VOTE_SECS) or when the host clicks — with the lobby's
 //! current rules (`NetRequest::SetSettings`, the Match Rules page).
 //!
+//! Which maps are on the cards, RANDOM, hidden / locked picks: `super::map_vote` (host rules).
+//!
 //! The next match reuses the join / resync path end to end: the host builds a fresh world on a
 //! worker (`HostCore::build_world`), swaps it into `ActiveWorld` in place and re-sends every
 //! client a `WorldInit` (map kind + seed + rules in `cfg`); clients regenerate that map off-thread
@@ -49,15 +51,39 @@ pub(super) fn host_vote_flow(mut net: ResMut<NetState>, menu: Res<InGameMenu>, a
     if menu.0 {
         h.hold_vote(HOLD_SECS);
     }
+    dev_host_pick(h);
     if !h.vote_due() || net.build.is_some() || net.pending_world.is_some() {
         return;
     }
     let seed = (now_secs().to_bits() ^ 0x9E37_79B9_7F4A_7C15).max(1);
-    let kind = h.next_map(seed);
+    // Decided once; a RANDOM win first plays its roulette (the countdown moves on).
+    let Some(kind) = h.settle_vote(seed) else { return };
     let nm = NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
     let settings = h.settings.clone();
     info!("net: next match on {kind:?}");
     net.build = std::thread::Builder::new().name("bd-net-world".into()).spawn(move || HostCore::build_world(&settings, nm, seed)).ok();
+}
+
+/// Dev / screenshot runs only: `BD_DEV_VOTE_AT=<secs>` makes the host pick the first map card
+/// (`BD_DEV_VOTE_PICK=random`: RANDOM) that long after the vote opened.
+fn dev_host_pick(h: &mut HostCore) {
+    static CFG: std::sync::OnceLock<Option<(f64, bool)>> = std::sync::OnceLock::new();
+    let Some((at, random)) = *CFG.get_or_init(|| {
+        let at: f64 = std::env::var("BD_DEV_VOTE_AT").ok()?.parse().ok()?;
+        Some((at, std::env::var("BD_DEV_VOTE_PICK").is_ok_and(|p| p.eq_ignore_ascii_case("random"))))
+    }) else {
+        return;
+    };
+    let me = h.me;
+    let Some(v) = h.vote.as_ref() else { return };
+    if v.votes.iter().any(|(p, _)| *p == me) || now_secs() < v.deadline - f64::from(super::host::VOTE_SECS) + at {
+        return;
+    }
+    let pick = match (random && v.random, v.offers.first()) {
+        (false, Some(k)) => super::proto::VotePick::Map(*k),
+        _ => super::proto::VotePick::Random,
+    };
+    h.cast_pick(me, pick);
 }
 
 /// Dev / screenshot runs only (no effect unless set): `BD_DEV_SWAP_EVERY=<secs>` makes the host end
@@ -91,9 +117,7 @@ pub(super) fn dev_auto_swap(mut net: ResMut<NetState>, active: Option<ResMut<Act
             let k = maps[*idx % maps.len()];
             *idx += 1;
             *voted = true;
-            let me = h.me;
-            h.cast_vote(me, k);
-            h.vote_now();
+            h.force_next(k);
             info!("dev swap: next map {k:?}");
         }
     } else if now - *since >= *every {

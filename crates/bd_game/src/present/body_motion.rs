@@ -7,7 +7,7 @@
 //! |---|---|---|
 //! | `Motion` | velocity in body space, yaw rate, `GROUNDED` / `CROUCHED` / `BOOSTING` | air pose by vertical speed (tuck rising, reach falling, flail plunging), bank into turns (air-strafe), strafe / backpedal / sprint lean, crouch (the silhouette now matches the 1.1 m hull), gas-boost flight lean |
 //! | `Action` | touchdown (grounded edge + last air vy), `AIR_JUMP`, `DODGE`, `TETHER_RELEASE` | landing squash by fall height (big drops: the lead-foot-forward crouch), air-jump flip in the travel direction, dodge dive, let-go fling (+ a flip when fast) |
-//! | `Channel` | `TYPING` (+ push-to-talk for your own body), `RECITING`, `CHARGING` | typing at the ring (fist up at the face, head bowed), the oath (ring fist raised), the charge stance |
+//! | `Channel` | `TYPING` / speaking a cast by voice (`PlayerSnap::tell`, TAUNT & VOICE TELL), `RECITING`, `CHARGING`, a wordless taunt (`present::taunt::TellViews`) | typing at the ring (fist up at the face, head bowed — voice looks the same), the oath (ring fist raised), the charge stance, the taunts (flex, beckon, shrug, bow, dance) |
 //! | `Forming` | `GameEvent::Respawn` | the ring re-forms you part by part |
 //!
 //! Effects (pooled `bd_fx` particles, rate-limited, [`FxSettings::particle_budget`]-scaled): landing
@@ -157,6 +157,9 @@ fn hot_reload(time: Res<Time<Real>>, mut tuning: ResMut<BodyAnim>, mut last: Loc
 
 // ------------------------------------------------------------------------------------------ state
 
+/// Ease-out rate (1/s) of a cancelled / finished taunt (TAUNT & VOICE TELL).
+const TAUNT_OUT: f32 = 24.0;
+
 /// Most extra layers one body gets from here (motion + action + channel/forming).
 pub const MAX_BODY_LAYERS: usize = 3;
 
@@ -217,7 +220,7 @@ impl Plugin for BodyMotionPlugin {
             .init_resource::<BodyLayers>()
             .init_resource::<Tracks>()
             .add_systems(Update, hot_reload)
-            .add_systems(Update, body_motion.in_set(PresentSet::Sync).before(super::players::BodySync));
+            .add_systems(Update, body_motion.in_set(PresentSet::Sync).before(super::players::BodySync).after(super::taunt::TellSet));
         scenario::build(app);
     }
 }
@@ -248,6 +251,7 @@ fn body_motion(
     frame: Res<FrameMoveEvents>,
     local_q: Query<&PlayerSim, With<LocalPlayer>>,
     voice: Option<Res<crate::voice_ui::VoiceUi>>,
+    tells: Option<Res<super::taunt::TellViews>>,
     fx_settings: Option<Res<FxSettings>>,
     cam: Query<&GlobalTransform, With<crate::camera::PlayerCamera>>,
     mut events: MessageReader<GameEvents>,
@@ -388,24 +392,32 @@ fn body_motion(
             tr.air_vy = 0.0;
         }
         tr.was_grounded = grounded;
-        // Channel (busy with the ring).
+        // Channel (busy with the ring). TAUNT & VOICE TELL: speaking a cast by voice is the typing
+        // pose for everyone (voice == typing: `present::taunt`); a wordless taunt plays when idle.
+        let tell = tells.as_ref().and_then(|t| t.0.get(&v.id).copied()).unwrap_or_default();
         let want = if v.has(pflags::RECITING) {
             Some(Channel::Oath)
-        } else if v.has(pflags::TYPING) || (v.is_local && listening) {
+        } else if v.has(pflags::TYPING) || tell.voice || (v.is_local && listening) {
             Some(Channel::Typing)
         } else if v.has(pflags::CHARGING) {
             Some(Channel::Charge)
         } else {
-            None
+            super::taunt::channel(tell.taunt)
         };
         match (want, tr.channel) {
             (Some(k), Some((c, _))) if k == c => {}
             (Some(k), _) => tr.channel = Some((k, 0.0)),
             (None, _) => {}
         }
-        ease(&mut tr.channel_w, if want.is_some() && !special { 1.0 } else { 0.0 }, if want.is_some() { tu.channel_in } else { tu.channel_out }, dt);
-        if let Some((_, t)) = tr.channel.as_mut() {
+        // A taunt lets go at once (any input cancels it); the ring poses ease out.
+        let out_rate = if tr.channel.is_some_and(|(c, _)| c.is_taunt()) { TAUNT_OUT } else { tu.channel_out };
+        ease(&mut tr.channel_w, if want.is_some() && !special { 1.0 } else { 0.0 }, if want.is_some() { tu.channel_in } else { out_rate }, dt);
+        if let Some((c, t)) = tr.channel.as_mut() {
             *t += dt;
+            // The taunt's own clock (a re-taunt of the same kind restarts it).
+            if c.is_taunt() && want == Some(*c) {
+                *t = tell.t;
+            }
         }
         if want.is_none() && tr.channel_w < 0.01 {
             tr.channel = None;

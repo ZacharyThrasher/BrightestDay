@@ -438,3 +438,57 @@ def mv_paper(r, v):
         add(out, swish(r, 0.05, 2500, 5500, 3.0, 220, [(0, 0), (0.01, 1), (0.05, 0)]), U(r, 0, 0.45), U(r, 0.2, 0.5))
     add(out, crack(r, 4000, 0.0015), 0, 0.5)
     return carve_foley(out, 500, 13000)
+
+
+# =============================================================================== PRESENTATION POLISH
+@sound('mv_time_stop', 'combat', 2, pitch=P_TONAL, lufs=-16, max_dur=2.4,
+       notes='ZA WARUDO: the world sucked into a point (reverse swell), a huge low boom as the bubble '
+             'bursts out, a clock-bell strike, then a drained ringing drone that sinks')
+def mv_time_stop(r, v):
+    d = 2.3
+    out = buf(d)
+    # 1. the suck-in (0 .. 0.35 s): band noise swelling up to a pinch, a rising sine.
+    n = ns(0.35)
+    u = np.linspace(0, 1, n)
+    air = normpk(tvf(pink(n, r), sweep(n, 300, [3600, 3000][v], 2.2), 2.4, 'bp')) * u ** 2.4
+    add(out, air, 0, 0.6)
+    add(out, sine(sweep(n, 90, 420, 2.0), n) * u ** 3, 0, 0.35)
+    # 2. the burst (0.35 s): a saturated sub boom + a pressure whoosh out.
+    add(out, thump(0.9, [70, 62][v], 28, 0.08, 0.35, drive=2.0), 0.35, 1.0)
+    add(out, whoosh(0.7, r, 2400, 300, 1.1, [(0, 1), (0.05, 0.8), (0.7, 0)]), 0.35, 0.4)
+    # 3. the clock bell (0.38 s): metal + an E-minor hard-light ping, long.
+    add(out, material_hit(r, 'metal', 0.8, 1.0), 0.38, 0.55)
+    add(out, hl_ping(r, note(['E3', 'B2'][v]), 1.4, 0.7, glint=0.5), 0.38, 0.6)
+    # 4. the drained world: a low drone gliding down, beating slowly.
+    m = ns(1.8)
+    w = np.linspace(0, 1, m)
+    drone = sine(sweep(m, 82.4, 55.0, 1.0), m) + 0.5 * sine(sweep(m, 83.4, 55.6, 1.0), m)
+    add(out, drone * np.sin(np.pi * np.minimum(w * 1.6, 1.0)) * (1 - w) ** 1.5, 0.45, 0.35)
+    add(out, click(r, 2400, 0.006), 1.3, 0.35)
+    return hp(glue(out, 1.3), 28, 2)
+
+
+@sound('mv_time_resume', 'combat', 2, pitch=P_TONAL, lufs=-18, max_dur=1.2,
+       notes='time resumes: a glassy crack, the world rushing back in (a fast forward whoosh + rising '
+             'noise), a short low thud as everything moves again')
+def mv_time_resume(r, v):
+    out = buf(1.1)
+    add(out, shatter(r, 'glass', 10, 0.25, 0.5, 0.8), 0, 0.45)
+    add(out, crack(r, 3800, 0.002), 0, 0.6)
+    add(out, whoosh(0.6, r, 300, [3200, 2800][v], 1.2, [(0, 0), (0.35, 1), (0.6, 0)]), 0.02, 0.55)
+    add(out, thump(0.4, 120, 45, 0.04, 0.15, drive=1.6), 0.36, 0.7)
+    return hp(out, 35, 2)
+
+
+@sound('mv_ult_gather', 'combat', 3, pitch=P_TONAL, lufs=-19, max_dur=0.5,
+       notes='an ultimate gathers: a fast rising charge whine with sucked-in air, cut dead at the release')
+def mv_ult_gather(r, v):
+    d = 0.2
+    n = ns(d)
+    u = np.linspace(0, 1, n)
+    out = buf(d + 0.01)
+    add(out, sine(sweep(n, [220, 247, 196][v], [1760, 1976, 1568][v], 1.6), n) * u ** 1.5, 0, 0.45)
+    air = normpk(tvf(pink(n, r), sweep(n, 600, 5000, 1.8), 2.0, 'bp')) * u ** 2
+    add(out, air, 0, 0.5)
+    out[n - ns(0.003):n] *= np.linspace(1, 0, ns(0.003))
+    return hp(out, 120, 2)

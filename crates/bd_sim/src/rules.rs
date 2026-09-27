@@ -142,6 +142,16 @@ pub struct MatchRules {
     /// REPEATS COST MORE (owner: host toggle): each repeat of the same cast / move inside the
     /// staleness window adds `SparkTuning::stale` sparks. Off = repeats cost the same as the first.
     pub repeat_cost: bool,
+    /// FIRST CALL (`crate::first_call`): the first player to use a NAMED thing (a famous move, a
+    /// character, a power, a named icon) owns it for the match; anyone else gets its rival version.
+    pub first_call: bool,
+    /// BURN ON DEATH (`crate::first_call`): what a player used in a life is burned for them when
+    /// they are KO'd (named things, or everything); a burned thing comes out as its echo.
+    pub burn: crate::first_call::BurnScope,
+    /// TOTAL LIMIT (owner: host rule; `crate::limit`): at most this many ACTIVE things per player
+    /// (live constructs + held powers); at the cap a call that would add one doesn't happen (free).
+    /// 0 = off (unlimited, the shipped default).
+    pub active_limit: u8,
 }
 
 /// Default / range of [`MatchRules::willpower_segments`] (8: see `willpower::QUANTIZE_BIAS`).
@@ -171,6 +181,9 @@ impl Default for MatchRules {
             powerups: false,
             willpower_segments: DEFAULT_WILLPOWER_SEGMENTS,
             repeat_cost: true,
+            first_call: false,
+            burn: crate::first_call::BurnScope::Off,
+            active_limit: 0,
         }
     }
 }
@@ -200,6 +213,11 @@ impl MatchRules {
             s.stale = 0;
         }
         s
+    }
+
+    /// TOTAL LIMIT: the cap (`None` = off; a hand-edited value is kept in 1..=16).
+    pub fn active_cap(&self) -> Option<u32> {
+        (self.active_limit > 0).then(|| self.active_limit.clamp(1, 16) as u32)
     }
 
     /// Sparks in the Normal pool ([`Self::willpower_segments`], clamped to its range).

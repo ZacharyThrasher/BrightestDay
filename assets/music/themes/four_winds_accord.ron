@@ -1,0 +1,70 @@
+// Four Winds Accord — franchise theme for the elemental bending arts and their masters.
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: a four-elements
+// world-music chip piece — an erhu-like bending hard-light lead, a bamboo flute, guzheng-style
+// plucks, frame drums / taiko and a gong, in A-minor pentatonic colours. Each section is an
+// element: water (flowing), earth (low and heavy), fire (fast 16th runs), air (the flute, high).
+// No melody, hook, bassline or lyric of any existing theme is quoted or paraphrased.
+// Structure: sting (gong + bend) | a water  b earth  c fire  a2 air | end.
+(
+    title: "Four Winds Accord",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: elemental bending",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (pentatonic modes, erhu / flute / zither colours, frame drums).",
+    role: "Franchise theme: elemental bending arts and kits",
+    key: "Am",
+    time: (4, 4),
+    bpm: 120.0,
+    gain_db: -4.5,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    instruments: {
+        "dizi": (wave: Triangle, attack: 0.03, decay: 0.3, sustain: 0.85, release: 0.1, vol: 0.9,
+                 vib_depth: 20.0, vib_rate: 5.6, vib_delay: 0.15, glide: 0.05),
+    },
+    channels: [
+        (name: "erhu", inst: "hl_sad", stem: Lead, pan: -0.1, vol: 0.85, echo: (ticks: 96, vol: 0.22)),
+        (name: "flute", inst: "dizi", stem: Lead, pan: 0.2, vol: 0.8),
+        (name: "zither", inst: "hl_pluck", stem: Base, pan: 0.25, gen: "o4 R8 F8 O8 T8 R8 F8 O8 F8 |"),
+        (name: "pad", inst: "glass", stem: Base, pan: -0.2, vol: 0.45, gen: "o4 X1 |"),
+        (name: "bass", inst: "bass", stem: Base, gen: "o2 u4 R4. R8 F4 R4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.0, gen: "t4 r8 t8 m4 t8 t8 |"),
+        (name: "perc", drums: true, stem: Drive, pan: 0.25, vol: 0.5, gen: "[r8 n8]4 |"),
+    ],
+    patterns: {
+        "chA": "Am | G | F | G | Am | Em | F | G |",
+        "chB": "Dm | Am | Dm | Am | F | G | Am | Am |",
+        "chC": "Am | Am | F | G | Am | Am | F | E |",
+        // ---- tunes (all original) ----
+        "mA": "o5 a4. g8 e4 d4 | o5 d4. e8 g4 ~a4 | o5 c4. d8 e4 c4 | o5 d2. r4 |
+               o5 e4. g8 a4 o6 c4 | o5 b4. a8 g4 e4 | o5 a4 g8 e8 d4 c4 | o5 d2 ~e2 |",
+        "mB": "o4 d4 d8 f8 a4 g4 | o4 e4. g8 a2 | o4 d4 d8 f8 a4 o5 c4 | o5 e2. r4 |
+               o5 c4. d8 c4 o4 a4 | o4 b4. o5 d8 g4 d4 | o5 e4. d8 c4 o4 a4 | o4 a2. r4 |",
+        "mC": "o5 a16 g16 e16 d16 e8 a8 o6 c8 o5 a8 g8 e8 | o5 d16 e16 g16 a16 o6 c8 d8 e4 d4 | o6 c16 d16 c16 o5 a16 g8 a8 o6 c4 o5 a4 |
+               o5 g16 a16 g16 e16 d8 e8 g2 | o6 e16 d16 c16 o5 a16 o6 c8 d8 e8 g8 e8 d8 | o6 c16 d16 e16 g16 a4 g8 e8 d4 |
+               o6 c4 o5 a4 g4 a4 | o5 g+2 b2 |",
+        "earth": "[t4 k8 k8 t4 m4 |]7 t8 t8 m8 m8 t16 t16 t16 t16 m16 m16 m16 m16 |",
+        "fire": "[k8 s8 t16 t16 s8 k8 s8 m16 m16 s8 |]7 [s16]16 |",
+    },
+    sections: [
+        // The sting: a gong, a bending erhu call and a frame-drum run.
+        (name: "sting", bars: 2, chords: "Am | Am |", mute: ["perc"], parts: {
+            "erhu": "o5 e8 ~a4. r4 o6 c8 d8 | o6 e2 ~d4 c4 |",
+            "drums": "c2 t8 t8 m8 m8 | t8 t8 m8 m8 t16 t16 t16 t16 m16 m16 m16 m16 |",
+        }),
+        // Water: flowing erhu over rippling zither.
+        (name: "a", bars: 8, chords: "$chA", parts: { "erhu": "$mA" }),
+        // Earth: low flute and heavy drums.
+        (name: "b", bars: 8, chords: "$chB", mute: ["perc"], parts: { "flute": "$mB", "erhu": "k-12 $mB k0", "drums": "$earth" }),
+        // Fire: fast runs.
+        (name: "c", bars: 8, chords: "$chC", parts: { "erhu": "$mC", "flute": "k-12 $mC k0", "drums": "$fire" }),
+        // Air: the flute carries the water theme up high.
+        (name: "a2", bars: 8, chords: "$chA", parts: { "flute": "k12 $mA k0", "erhu": "$mA", "drums": "c4 r8 t8 m4 t8 t8 | [t4 r8 t8 m4 t8 t8 |]7" }),
+        (name: "end", bars: 2, chords: "Am | Am |", mute: ["perc", "zither"], parts: {
+            "erhu": "o5 e4. g8 a4 o6 ~c4 | o5 a2. r4 |",
+            "flute": "o6 a4. g8 e4 d4 | o6 e2. r4 |",
+            "drums": "t8 t8 m8 m8 t4 t4 | c2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2"],
+    loop_to: "a",
+    ending: "end",
+)

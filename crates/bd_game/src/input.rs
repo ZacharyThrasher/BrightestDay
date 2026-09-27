@@ -76,6 +76,12 @@ pub struct CursorCapture {
 #[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct FreeCursor(pub bool);
 
+/// POWER HOTBAR: Tab held to edit the 1–4 bar (`crate::hotbar::hud`): the cursor shows and is
+/// free, mouse look and the mouse buttons / wheel pause, the KEYBOARD keeps playing (move, jump,
+/// tethers on keys). Cleared → locked again at once (the first frames' mouse deltas are ignored).
+#[derive(Resource, Debug, Default, Clone, Copy)]
+pub struct SoftCursor(pub bool);
+
 /// UI focus flags other modules set.
 #[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct UiFocus {
@@ -165,6 +171,10 @@ pub struct LocalInputState {
     pub ext_held: u16,
     pub ext_latched: u16,
     pub ext_mask: u16,
+    /// TAUNT & VOICE TELL (`present::taunt`): the taunt key (`TAUNT`) and push-to-talk listening
+    /// (`VOICE`) held this frame, and a tap latch — tells only, never read by movement or combat.
+    pub tell_held: u16,
+    pub tell_latched: u16,
     /// Move axes latched on the tick typing began; sent unchanged until typing ends.
     typing_move: Option<(i8, i8)>,
     /// Buttons held across the end of typing that weren't being sent: dropped until released.
@@ -174,9 +184,10 @@ pub struct LocalInputState {
 impl LocalInputState {
     /// Builds and records the input for the next tick. Called once per tick.
     pub fn next_tick(&mut self, look: LookAngles, typing: bool) -> PlayerInput {
-        let mut b = ((self.held | self.latched) & !self.ext_mask) | self.ext_held | self.ext_latched;
+        let mut b = ((self.held | self.latched) & !self.ext_mask) | self.ext_held | self.ext_latched | self.tell_held | self.tell_latched;
         self.latched = 0;
         self.ext_latched = 0;
+        self.tell_latched = 0;
         let (mut mx, mut mz) = (self.move_x, self.move_z);
         if typing {
             // Keep running on what was being sent when the ring opened (the last live tick, so a
@@ -184,7 +195,7 @@ impl LocalInputState {
             let live = (self.current.move_x, self.current.move_z);
             (mx, mz) = *self.typing_move.get_or_insert(if self.current.held(buttons::TYPING) { (0, 0) } else { live });
             b |= buttons::TYPING;
-            b &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST | buttons::CHARGE | buttons::DODGE);
+            b &= !(buttons::JUMP | buttons::CROUCH | buttons::BOOST | buttons::CHARGE | buttons::DODGE | buttons::TAUNT);
         } else {
             if self.typing_move.take().is_some() {
                 // Hand-off to the live keys: letters still down (Space, Q, Shift…) must not fire.
@@ -232,6 +243,7 @@ impl Plugin for InputPlugin {
             .init_resource::<CursorCapture>()
             .init_resource::<UiFocus>()
             .init_resource::<FreeCursor>()
+            .init_resource::<SoftCursor>()
             .init_resource::<Bindings>()
             .init_resource::<LocalInputState>()
             .init_resource::<InputOverride>()
@@ -250,6 +262,8 @@ fn update_cursor_capture(
     time: Res<Time<Real>>,
     mut capture: ResMut<CursorCapture>,
     free: Res<FreeCursor>,
+    soft: Res<SoftCursor>,
+    mut was_soft: Local<bool>,
     window: Single<(&Window, &mut CursorOptions), With<PrimaryWindow>>,
 ) {
     let (window, mut cursor) = window.into_inner();
@@ -263,11 +277,19 @@ fn update_cursor_capture(
     } else if !want && capture.grabbed {
         capture.grabbed = false;
     }
+    // POWER HOTBAR: Tab editing frees the pointer without dropping the capture (keys keep playing);
+    // coming back, the cursor warp's delta is ignored like a fresh grab.
+    let soft = soft.0 && capture.grabbed;
+    if *was_soft && !soft && capture.grabbed {
+        capture.frames_since_grab = 0;
+        capture.secs_since_grab = 0.0;
+    }
+    *was_soft = soft;
     if capture.grabbed {
         capture.frames_since_grab = capture.frames_since_grab.saturating_add(1);
         capture.secs_since_grab += time.delta_secs();
     }
-    let (mode, visible) = if capture.grabbed {
+    let (mode, visible) = if capture.grabbed && !soft {
         (CursorGrabMode::Locked, false)
     } else {
         (CursorGrabMode::None, true)
@@ -283,11 +305,13 @@ fn update_cursor_capture(
 fn apply_mouse_look(
     motion: Res<AccumulatedMouseMotion>,
     capture: Res<CursorCapture>,
+    soft: Res<SoftCursor>,
     settings: Res<Settings>,
     scale: Res<LookScale>,
     mut look: ResMut<LookAngles>,
 ) {
     if !capture.grabbed
+        || soft.0
         || capture.frames_since_grab <= GRAB_IGNORE_FRAMES
         || capture.secs_since_grab < GRAB_IGNORE_SECS
     {
@@ -311,6 +335,7 @@ fn sample_frame_input(
     scroll: Res<AccumulatedMouseScroll>,
     binds: Res<Bindings>,
     capture: Res<CursorCapture>,
+    soft: Res<SoftCursor>,
     ov: Res<InputOverride>,
     mut state: ResMut<LocalInputState>,
 ) {
@@ -328,8 +353,10 @@ fn sample_frame_input(
     }
     let k = |c: KeyCode| keys.pressed(c);
     let kj = |c: KeyCode| keys.just_pressed(c);
-    let m = |b: MouseButton| mouse.pressed(b);
-    let mj = |b: MouseButton| mouse.just_pressed(b);
+    // POWER HOTBAR: while Tab edits the bar the mouse drags slots — its buttons don't play.
+    let soft = soft.0;
+    let m = |b: MouseButton| !soft && mouse.pressed(b);
+    let mj = |b: MouseButton| !soft && mouse.just_pressed(b);
 
     let mut held = 0u16;
     let mut pressed = 0u16;
@@ -375,7 +402,9 @@ fn sample_frame_input(
         MouseScrollUnit::Line => scroll.delta.y,
         MouseScrollUnit::Pixel => scroll.delta.y / 120.0,
     };
-    state.reel_accum = (state.reel_accum + notches).clamp(-127.0, 127.0);
+    if !soft {
+        state.reel_accum = (state.reel_accum + notches).clamp(-127.0, 127.0);
+    }
 }
 
 fn build_tick_input(
@@ -409,6 +438,20 @@ mod tests {
         let b = s.next_tick(LookAngles::default(), false);
         assert!(!b.held(buttons::JUMP));
         assert_eq!(b.seq, a.seq + 1);
+    }
+
+    #[test]
+    fn taunt_tap_latches_and_voice_rides_the_input() {
+        let mut s = LocalInputState::default();
+        s.tell_latched = buttons::TAUNT;
+        assert!(s.next_tick(LookAngles::default(), false).held(buttons::TAUNT));
+        assert!(!s.next_tick(LookAngles::default(), false).held(buttons::TAUNT));
+        s.tell_held = buttons::VOICE;
+        let i = s.next_tick(LookAngles::default(), false);
+        assert!(i.held(buttons::VOICE) && !i.held(buttons::TAUNT));
+        // Typing: the taunt key is a letter.
+        s.tell_held = buttons::TAUNT;
+        assert!(!s.next_tick(LookAngles::default(), true).held(buttons::TAUNT));
     }
 
     #[test]

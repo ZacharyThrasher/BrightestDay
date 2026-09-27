@@ -1,0 +1,67 @@
+// Menace Disco Strut — franchise theme for the stand-user powers and kits.
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: funky slap-bass
+// disco-chip — four-on-the-floor, clap backbeat, open-hat offbeats, octave-popping slap bass,
+// syncopated pulse lead, hard-light brass stabs and a menacing low break. No melody, hook, bassline
+// or lyric of any existing theme is quoted or paraphrased.
+// Structure: sting (dramatic hit) | a (dorian vamp) b (chorus) c (menacing break) a2 b2 | end.
+(
+    title: "Menace Disco Strut",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: bizarre stand battles",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (disco-funk groove, slap-bass chip, brass stabs).",
+    role: "Franchise theme: stand powers and kits",
+    key: "Am",
+    time: (4, 4),
+    bpm: 116.0,
+    gain_db: -3.7,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "lead", inst: "lead25", stem: Lead, pan: -0.12, echo: (ticks: 72, vol: 0.2)),
+        (name: "brass", inst: "hl_brass", stem: Lead, pan: 0.2, vol: 0.75),
+        (name: "stab", inst: "rx_stab", stem: Base, pan: 0.25, gen: "o4 r8 Y8 r4 r8 Y8 r4 |"),
+        (name: "bass", inst: "bass_pluck", stem: Base, vol: 1.1, gen: "o2 u4 R8 O16 r16 R16 R16 O8 r8 R8 O16 R16 r8 |"),
+        (name: "kick", drums: true, stem: Drive, vol: 1.0, gen: "[K4]4 |"),
+        (name: "clap", drums: true, stem: Drive, vol: 0.8, gen: "r4 X4 r4 X4 |"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.22, vol: 0.5, gen: "[?H16 ?H16 O8]4 |"),
+    ],
+    patterns: {
+        "chA": "Am7 | D7 | Am7 | D7 | Fmaj7 | E7 | Am7 | D7 |",
+        "chB": "Fmaj7 | G | Em7 | Am7 | Fmaj7 | G | E7 | E7 |",
+        "chC": "Dm7 | G | Cmaj7 | Fmaj7 | Bm7b5 | E7 | Am7 | E7 |",
+        // ---- tunes (all original) ----
+        "mA": "o5 e8 r16 e16 g8 a8 r8 e8 g8 a16 r16 | o5 f+4 a8 f+16 e16 d8 e8 r4 | o5 c8 r16 c16 e8 g8 r8 a8 o6 c8 o5 a16 r16 | o5 b4 a8 f+8 ~a4 r4 |
+               o5 a8 r16 a16 o6 c8 e8 r8 c8 o5 a8 f8 | o5 g+4 b8 o6 d8 ~e4 r4 | o6 e8 d8 c8 o5 a8 g8 e8 d8 c8 | o5 d4 f+8 a8 o6 c4 r4 |",
+        "mB": "o5 a4. g8 a4 o6 c4 | o6 d4. c8 o5 b4 g4 | o5 b4. a8 g4 e4 | o5 a2. r4 |
+               o5 a4. g8 a4 o6 c4 | o6 d4. e8 f4 d4 | o6 e4 d4 o5 b4 g+4 | o5 g+2 ~b2 |",
+        "mC": "r1 | r1 | r1 | r1 | o5 d2 f2 | o5 e2 g+2 | o5 a2 o6 c2 | o5 b2 o6 ~e2 |",
+        // the menacing low brass line under the break
+        "menace": "o3 d8 r8 d8 f8 r8 a8 g8 f8 | o3 g8 r8 g8 b8 r8 o4 d8 c8 o3 b8 | o3 c8 r8 e8 g8 r8 b8 a8 g8 | o3 f8 r8 a8 o4 c8 r8 e8 d8 c8 |
+                   o3 b2 o4 d2 | o3 e2 g+2 | o3 a2 o4 c2 | o3 b2 g+2 |",
+    },
+    sections: [
+        // The sting: a dramatic pose hit.
+        (name: "sting", bars: 2, chords: "Am7 | E7 |", mute: ["hats"], parts: {
+            "lead": "o5 a16 b16 o6 c16 d16 e8 r8 a4 r4 | o6 g+8 e8 d8 o5 b8 o6 e4 r4 |",
+            "brass": "o4 a4 r4 o5 e4 r4 | o4 g+4 r4 b4 r4 |",
+            "kick": "K4 r4 K4 r4 | K4 K4 K8 K8 K8 K8 |",
+            "clap": "r4 X4 r4 [X16]4 | r4 X4 r8 X8 X8 X8 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", parts: { "lead": "$mA" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "brass": "k-12 $mB k0" }),
+        (name: "c", bars: 8, chords: "$chC", mute: ["hats"], parts: {
+            "lead": "$mC", "brass": "$menace",
+            "clap": "[r4 X4 r4 X4 |]6 r4 X4 X8 X8 X8 X8 | [X16]16 |",
+        }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "lead": "$mA", "brass": "o4 [r8 Y8 r4 r2 |]8" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "lead": "$mB", "brass": "$mB" }),
+        (name: "end", bars: 2, chords: "Am7 | Am7 |", mute: ["hats", "stab"], parts: {
+            "lead": "o5 e8 r16 e16 g8 a8 r8 e8 g8 a8 | o5 a2. r4 |",
+            "brass": "o4 a4 r4 o5 c4 e4 | o5 a2. r4 |",
+            "kick": "[K4]4 | K2 r2 |",
+            "clap": "r4 X4 r4 X4 | X4 r2. |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

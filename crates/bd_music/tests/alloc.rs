@@ -79,6 +79,17 @@ fn render_and_commands_never_allocate() {
         (400, MusicCommand::Overlay { id: bd_music::overlay_id("drums").expect("drums"), on: true }),
         (2600, MusicCommand::Overlay { id: bd_music::overlay_id("drums").expect("drums"), on: false }),
         (9200, MusicCommand::Overlay { id: bd_music::overlay_id("drums").expect("drums"), on: true }),
+        // Franchise theme layer: in over a track, a KO on its grid, a switch, a big stinger cut,
+        // back in, out, and a theme with nothing else playing.
+        (1000, MusicCommand::Theme { track: lib.track_id("sewer_surf_stomp") }),
+        (1400, MusicCommand::Stinger(StingerKind::Ko)),
+        (1700, MusicCommand::Theme { track: lib.track_id("open_sea_jig") }),
+        (3000, MusicCommand::Theme { track: lib.track_id("chrome_titans") }),
+        (3100, MusicCommand::Theme { track: None }),
+        (6000, MusicCommand::Theme { track: lib.track_id("old_gods_thunder") }),
+        (6800, MusicCommand::Theme { track: None }),
+        (10_200, MusicCommand::Stop),
+        (10_600, MusicCommand::Theme { track: lib.track_id("four_winds_accord") }),
     ];
     WATCH.with(|w| w.set(true));
     for i in 0..11_000 {

@@ -1,0 +1,42 @@
+// FIRST CALL + BURN ON DEATH (bd_sim::first_call; two optional host match rules, both off by default).
+// Compiled into bd_sim (every peer substitutes identically). Never shown to players.
+//
+// FIRST CALL: the first player to use a NAMED thing (a famous move, a character, a power, a famous icon)
+// owns it for the match. Anyone else who calls it gets the RIVAL version instead, at the normal price:
+//   moves      -> twisted with `rival.mods` + the modifier of the move's OPPOSITE element (`opposite`)
+//   constructs -> the opposite element, the costume dressed with `costume_words` (the evil-twin look;
+//                 presentation darkens the whole palette under the caller's own corps colour)
+// BURN ON DEATH: everything a player used in a life is burned for them when they are KO'd. Calling a
+// burned thing gives its ECHO: weaker, ashen, the same cooldown, one spark cheaper:
+//   moves      -> twisted with `echo.mods`
+//   constructs -> scale x `scale`, mass x `mass`, `discount` sparks off (never below 1)
+// A thing both claimed by someone else AND burned for you comes out as both (an ashen rival) and is
+// priced as the echo.
+(
+    rival: (
+        // wordless modifiers (assets/move_modifiers.ron) put on every rival move
+        mods: ["rival"],
+        // element -> the modifier that swaps a rival move to its opposite element
+        opposite: [
+            (Light, "shadow"), (Shadow, "holy"), (Fire, "ice"), (Ice, "fire"), (Water, "lightning"),
+            (Electric, "earth"), (Earth, "wind"), (Wind, "earth"), (Poison, "holy"), (Psychic, "shadow"),
+            (Atomic, "ice"),
+        ],
+        // costume grammar words that dress a rival character summon (bd_shapes costume grammar)
+        costume_words: "black",
+    ),
+    echo: (
+        mods: ["echo"],
+        scale: 0.75,
+        mass: 0.6,
+        discount: 1,
+    ),
+    // Words that are never an identity even when some data names them (defensive: a power or a kit
+    // called just "dragon" must not make every dragon claimable).
+    never: ["dragon", "fire", "ice", "light", "punch", "kick", "sword", "hammer", "shield", "charge", "dash", "blast", "beam",
+            "wall", "ball", "bomb", "gun", "fist", "claws", "wings", "tail", "power", "energy", "shadow", "storm"],
+    // Caps (the state is small and fixed-ish; the oldest burn is forgotten first beyond these).
+    max_claims: 512,
+    max_burns: 1024,
+    max_life: 64,
+)

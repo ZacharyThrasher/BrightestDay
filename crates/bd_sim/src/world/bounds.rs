@@ -591,3 +591,121 @@ const RECALL_RING: [(f32, f32); 12] = [
     (90.0, 4.0),
     (-90.0, 4.0),
 ];
+
+// ------------------------------------------------------------------------ spawn preview (client)
+
+/// CLICK TO CONFIRM: where a fresh cast would stand ([`World::preview_spawn`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpawnPreview {
+    /// The recipe the construct would be built from (validated; a signature amplified + lifted).
+    pub recipe: Recipe,
+    /// The curated shape, normalised to real size exactly as the cast stores it.
+    pub shape: Option<ShapeSpec>,
+    /// The construct's pivot (feet-centre / grip) and rotation at spawn.
+    pub pos: Vec3,
+    pub rot: Quat,
+}
+
+impl World {
+    /// CLICK TO CONFIRM (a client-side ghost: the sim never sees it): where a FRESH cast of `recipe`
+    /// (+ curated `shape`) along `aim` would stand right now — the placement half of `cast_inner` /
+    /// `spawn_cast` (aim validation, named delivery, visible placement, orbital emitters), read-only:
+    /// nothing is paid, rolled or recorded, and the power / party / legendary rewrites are skipped.
+    /// `None` = no fresh construct would stand there (a graft onto an own construct under the
+    /// crosshair, a modifier on terrain, boarding, or a caster who can't cast now).
+    pub fn preview_spawn(&self, player: bd_core::PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: super::Aim) -> Option<SpawnPreview> {
+        self.preview_place(player, recipe, shape, aim, None)
+    }
+
+    /// [`Self::preview_spawn`] for a signature cast (`World::cast_signature`): the amplified recipe,
+    /// always a fresh build (a signature never grafts), a domain / erasing orb without its shape.
+    pub fn preview_signature_spawn(&self, player: bd_core::PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: super::Aim, sig: crate::signature::SignatureCast) -> Option<SpawnPreview> {
+        let sig = sig.sanitized();
+        let t = &self.cfg.tuning.signature;
+        let full_bar = self.player(player).is_some_and(|p| p.willpower >= self.cfg.rules.willpower_max() - 0.5);
+        let amped = crate::signature::amplify(recipe, sig, t, &self.cfg.rules, full_bar);
+        let shape = if sig.kind == crate::signature::SignatureKind::Domain { None } else { shape };
+        let lifted = amped.scale.min(t.scale_cap(amped.form, &self.cfg.rules));
+        self.preview_place(player, amped, shape, super::Aim { modifier: false, ..aim }, Some(lifted))
+    }
+
+    fn preview_place(&self, player: bd_core::PlayerId, recipe: Recipe, shape: Option<ShapeSpec>, aim: super::Aim, lifted: Option<f32>) -> Option<SpawnPreview> {
+        use crate::world::TargetHint;
+        let i = self.pidx(player)?;
+        let p = &self.players[i];
+        if !p.alive || self.match_state.phase == crate::rules::MatchPhase::Ended {
+            return None;
+        }
+        let (origin, dir) = self.resolve_aim(i, &aim);
+        let named = self.named_target(i, aim.target_hint, origin);
+        let dir = named.map_or(dir, |n| (n.center - origin).normalize_or(dir));
+        let form = recipe.form;
+        let mut recipe = crate::willpower::validate_recipe(recipe, &self.cfg.rules);
+        if let Some(s) = lifted.filter(|_| recipe.form == form) {
+            recipe.scale = s; // `signature::lift_scale` (the cast's signature context)
+        }
+        let shape = shape.map(super::actions::sanitize_shape).map(|mut s| {
+            if matches!(recipe.model, bd_core::mechanics::ModelSource::Icon(_)) {
+                let f = bd_shapes::icon_scale_factor(&recipe, &s);
+                bd_shapes::scale_spec(&mut s, f);
+            }
+            s
+        });
+        let range = super::actions::CAST_RANGE;
+        let cw = CollisionWorld::new(&self.voxels, &self.colliders);
+        let world_hit = raycast_world(&cw, origin, dir, range, true);
+        if crate::constructs::graft::command_of(&recipe) == Some(crate::constructs::graft::Command::Board) {
+            return None;
+        }
+        if lifted.is_none() && named.is_none() {
+            let hinted = matches!(aim.target_hint, Some(TargetHint::Construct(c)) if self.constructs.get(c).is_some_and(|c| c.owner == player && c.gone.is_none()));
+            let own_hit = self
+                .constructs
+                .segment_query(origin, origin + dir * range, 0.3, None)
+                .filter(|(id, t, _)| self.constructs.get(*id).is_some_and(|c| c.owner == player) && world_hit.is_none_or(|w| *t * range <= w.t + 0.5));
+            if hinted || own_hit.is_some() || aim.modifier {
+                return None; // a graft / an animated piece of terrain, not a fresh construct
+            }
+        }
+        let aim_point = named.map(|n| n.feet).or(world_hit.map(|h| h.point)).unwrap_or(origin + dir * 12.0);
+        let aim_normal = if named.is_some() { Vec3::Y } else { world_hit.map(|h| h.normal).unwrap_or(-dir) };
+        if let Some(n) = named {
+            crate::freedom::deliver::prepare(&mut recipe, n.via);
+        }
+        let base = &self.cfg.move_params;
+        let look = dir;
+        let yaw_face = geom::yaw_rotation(look);
+        let (pos, rot) = match recipe.form.category() {
+            FormCategory::Held if recipe.has(Mechanic::DropFromSky) && !recipe.has(Mechanic::Returning) && !recipe.has(Mechanic::Flies) => {
+                (aim_point, geom::look_rotation(Vec3::new(look.x * 0.1, -1.0, look.z * 0.1).normalize_or(Vec3::NEG_Y)))
+            }
+            FormCategory::Held => (p.eye(base), geom::look_rotation(look)),
+            FormCategory::Worn => (p.hull(base).center(), yaw_face),
+            FormCategory::Object if recipe.has(Mechanic::DropFromSky) || recipe.form == Form::Anvil => (aim_point + Vec3::Y * 12.0, yaw_face),
+            FormCategory::Object => (origin + look, geom::look_rotation(look)),
+            FormCategory::Creature => {
+                let flier = recipe.has(Mechanic::Flies) || matches!(recipe.form, Form::Bird | Form::Insect);
+                let ground = self.ground_point_below(aim_point + aim_normal * 0.3 + Vec3::Y * 0.5);
+                (if flier { aim_point + Vec3::Y * 2.0 } else { ground.unwrap_or(aim_point) }, yaw_face.inverse())
+            }
+            // `World::place_structure`
+            FormCategory::Structure => match recipe.form {
+                Form::Dome => (p.mv.pos, yaw_face),
+                Form::Platform => (aim_point, yaw_face),
+                Form::Ramp => {
+                    let foot = self.ground_point_below(aim_point + Vec3::Y).unwrap_or(aim_point);
+                    let deg = if recipe.mechanics.contains(&Mechanic::Glide) { 60f32 } else { 30.0 };
+                    (foot, yaw_face * Quat::from_rotation_x(deg.to_radians()))
+                }
+                _ => (self.ground_point_below(aim_point + Vec3::Y).unwrap_or(aim_point), yaw_face),
+            },
+        };
+        let pos = if named.is_none() { self.place_visible(i, &recipe, shape.as_ref(), origin, look, rot, pos) } else { pos };
+        let (pos, rot) = match named {
+            Some(n) => self.deliver_place(&recipe, shape.as_ref(), &n, (pos, rot)),
+            None => (pos, rot),
+        };
+        let pos = crate::signature::orbital_spawn(self, &recipe, origin, aim_point, pos);
+        (pos.is_finite() && rot.is_finite()).then_some(SpawnPreview { recipe, shape, pos, rot })
+    }
+}

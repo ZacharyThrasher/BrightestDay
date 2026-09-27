@@ -193,13 +193,25 @@ fn crit_name(fx: CritFx) -> &'static str {
 }
 
 /// The juice `impact_frame` key (+ colour) of a move that just fired.
-fn move_impact_key(views: &WorldViews, player: PlayerId, power: u16, slot: u8) -> Option<(Cow<'static, str>, Option<[f32; 3]>)> {
+fn move_impact_key(views: &WorldViews, player: PlayerId, power: u16, slot: u8) -> Option<(Cow<'static, str>, Option<[f32; 3]>, f32)> {
     let tier = views.player(player).and_then(|v| v.power.held().find(|h| h.0 == power).map(|h| h.1)).unwrap_or(0);
     let d = PowerTable::get().def(power)?;
-    let m = d.moves_at(tier).get(slot as usize)?;
+    def_impact_key(d.moves_at(tier).get(slot as usize)?)
+}
+
+/// A move's impact-frame key, tint and how long after it fires its connect can land: the move's
+/// own active phase (+0.4 s) — a lock-on released at 3 s, a charge slamming a wall at 1.8 s, a
+/// salvo landing at 1.5 s — and a slam waits for its landing (≤ 3 s).
+fn def_impact_key(m: &bd_sim::powers::MoveDef) -> Option<(Cow<'static, str>, Option<[f32; 3]>, f32)> {
     let j = m.juice.as_ref()?;
     let key = j.impact_frame.as_deref().filter(|k| !k.is_empty())?;
-    Some((Cow::Owned(key.to_string()), j.color))
+    let (secs, land) = bd_sim::powers::chain::active_phase(m);
+    let delayed = m.ops.iter().any(|o| {
+        use bd_sim::powers::MoveOp as O;
+        matches!(o, O::Salvo { .. } | O::DelayedHit { .. } | O::TagStrike { .. } | O::Seeker { .. } | O::Surge { .. } | O::LockOn { .. } | O::Ram { .. })
+    });
+    let window = (secs + 0.4).max(if land { 3.0 } else { 0.0 }).max(if delayed { 2.5 } else { 0.0 }).min(4.0);
+    Some((Cow::Owned(key.to_string()), j.color, window))
 }
 
 /// Game events → requests (every trigger but explicit API calls).
@@ -269,8 +281,17 @@ fn triggers(
                 let dir = views.player(*target).zip(views.player(*attacker)).map_or(Vec3::ZERO, |(t, a)| t.pos - a.pos);
                 out.write(ImpactFrameRequest::new(ImpactTrigger::Crit, bv(*point)).between(Some(*attacker), Some(*target)).weight(w).dir(dir).style(style));
             }
-            GameEvent::Power(PowerEvent::Move { player, power, slot }) => {
-                let Some((key, tint)) = move_impact_key(&views, *player, *power, *slot) else { continue };
+            // A held move (`Move`), or a kit / borrowed one (`Fired`; held moves send both: armed
+            // once, from `Move`).
+            GameEvent::Power(pe @ (PowerEvent::Move { .. } | PowerEvent::Fired { .. })) => {
+                let (player, found) = match pe {
+                    PowerEvent::Move { player, power, slot } => (player, move_impact_key(&views, *player, *power, *slot)),
+                    PowerEvent::Fired { player, mv, how, .. } if *how != bd_sim::powers::chain::FireHow::Held => {
+                        (player, mv.resolve(PowerTable::get()).and_then(|(_, m)| def_impact_key(m)))
+                    }
+                    _ => continue,
+                };
+                let Some((key, tint, window)) = found else { continue };
                 // Already connected this tick? Fire now; else arm for the move's window.
                 let hit = st.recent.iter().flatten().filter(|h| h.0 == *player && now - h.5 < 0.15).last().copied();
                 if let Some((a, v, p, w, dir, _)) = hit {
@@ -279,7 +300,7 @@ fn triggers(
                     out.write(q);
                 } else {
                     let slot = st.armed.iter().position(|a| a.as_ref().is_none_or(|a| a.2 < now || a.0 == *player)).unwrap_or(0);
-                    st.armed[slot] = Some((*player, key, now + r.move_window as f64, tint));
+                    st.armed[slot] = Some((*player, key, now + r.move_window.max(window) as f64, tint));
                 }
             }
             GameEvent::Power(PowerEvent::Op(bd_sim::powers::ops::OpEvent::Parried { player, kind: bd_sim::powers::ops::StanceKind::Counter, attacker, pos, dir })) => {

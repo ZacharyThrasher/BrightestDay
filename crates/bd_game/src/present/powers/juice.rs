@@ -116,9 +116,33 @@ fn juice_events(
     let cam = cams.iter().next().map(|g| g.translation()).unwrap_or(Vec3::ZERO);
     let calm = comfort.flashes <= 0.01;
     let local = active.local;
+    // Casters whose TWISTED title already showed this batch (their base move's title is skipped).
+    let mut twisted: [Option<PlayerId>; 8] = [None; 8];
     for ev in events.read() {
         let GameEvent::Power(pe) = &ev.event else { continue };
         match pe {
+            // MODIFIERS & FUSION: a twisted / fused move names itself ("GIANT HOMING RASENGAN"). A
+            // twisted famous CAST ("giant spirit bomb") sends no `Fired` at all, so its title only
+            // exists here; a twisted move's own title replaces its base move's.
+            PowerEvent::Op(bd_sim::powers::ops::OpEvent::Twisted { player, title, element, size, .. }) if !title.trim().is_empty() => {
+                let Some(v) = views.player(*player) else { continue };
+                if let Some(slot) = twisted.iter_mut().find(|s| s.is_none() || **s == Some(*player)) {
+                    *slot = Some(*player);
+                }
+                let color = if *element == Element::Light { corps_rgb(v.corps) } else { bd_fx::palette::element_color(*element) };
+                let mine = Some(*player) == local;
+                let big = *size >= 1.5;
+                let hand = v.pos + Vec3::Y * 1.3 * v.size;
+                let mut sh = bd_fx::Shout::new(bd_fx::sanitize_shout(title, bd_fx::SHOUT_MAX_CHARS), color, if big { 1.9 } else { 1.5 }, mine, hand);
+                sh.head = v.pos + Vec3::Y * 1.95 * v.size;
+                sh.toward = hand + (Quat::from_euler(EulerRot::YXZ, v.yaw, v.pitch, 0.0) * Vec3::NEG_Z) * 6.0;
+                sh.boost = if big { 2.0 } else { 1.5 };
+                sh.seed = ev.tick ^ (player.0 as u64) << 24;
+                sh.compact = mine;
+                sh.title = true;
+                sh.caster = player.0 as u64 + 1;
+                commands.spawn((Name::new("MoveTitle"), sh));
+            }
             PowerEvent::Move { .. } | PowerEvent::Fired { .. } => {
                 // TOOLBOX: a borrowed / kit move sends only `Fired` (a held move sends both: its juice
                 // plays once, from `Move`).
@@ -180,7 +204,7 @@ fn juice_events(
                 if j.shake > 0.0 && (mine || at.distance(cam) < j.ripple.max(8.0) * 2.0) {
                     shake.write(CameraShakeEvent { trauma: j.shake.min(0.4), dir: Vec3::ZERO });
                 }
-                if let Some(title) = j.title.as_deref().filter(|t| !t.is_empty()) {
+                if let Some(title) = j.title.as_deref().filter(|t| !t.is_empty()).filter(|_| !twisted.contains(&Some(*player))) {
                     let hand = v.pos + Vec3::Y * 1.3 * v.size;
                     let mut sh = bd_fx::Shout::new(bd_fx::sanitize_shout(title, bd_fx::SHOUT_MAX_CHARS), color, if j.boom { 1.9 } else { 1.3 }, mine, hand);
                     sh.head = v.pos + Vec3::Y * 1.95 * v.size;

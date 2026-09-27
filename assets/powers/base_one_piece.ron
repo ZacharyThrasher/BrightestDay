@@ -50,7 +50,7 @@
             (name: "red hawk", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
                 Shove(range: 7.0, angle: 14.0, damage: 16.0, knockback: 26.0, element: Fire),
                 Explode(radius: 2.4, damage: 6.0, knockback: 12.0, element: Fire, at: Front, dist: 6.0),
-            ], fx: "fire", juice: Some((title: Some("GOMU GOMU NO RED HAWK"), punch: 3.5, boom: true))),
+            ], fx: "fire", juice: Some((impact_frame: Some("ink"), title: Some("GOMU GOMU NO RED HAWK"), punch: 3.5, boom: true))),
             // The leg stretches sky-high and the heel comes down five metres ahead.
             (name: "axe", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [
                 Explode(radius: 2.6, damage: 14.0, knockback: 20.0, carve: 1.2, element: Earth, at: Front, dist: 5.0),
@@ -73,23 +73,23 @@
                       ("jet bazooka", 3), ("gomu gomu no jet bazooka", 3), ("gum gum jet bazooka", 3),
                       ("Jet Whip", 4), ("gomu gomu no jet whip", 4), ("Jet Axe", 7), ("gomu gomu no jet ono", 7)],
              moves: [
-                 (name: "jet pistol", tags: [Primary], cooldown: 0.35, cost: 2.0, ops: [
+                 (name: "jet pistol", fx: "gear second", tags: [Primary], cooldown: 0.35, cost: 2.0, ops: [
                      Shove(range: 9.0, angle: 9.0, damage: 13.0, knockback: 24.0),
                  ], juice: Some((punch: 1.5))),
-                 (name: "rocket", tags: [Movement], cooldown: 0.9, cost: 3.0, ops: [Reel(range: 46.0, speed: 44.0)]),
-                 (name: "jet gatling", tags: [Combo], cooldown: 2.5, cost: 4.0, ops: [
+                 (name: "rocket", fx: "gear second", tags: [Movement], cooldown: 0.9, cost: 3.0, ops: [Reel(range: 46.0, speed: 44.0)]),
+                 (name: "jet gatling", fx: "gear second", tags: [Combo], cooldown: 2.5, cost: 4.0, ops: [
                      Barrage(hits: 14, interval: 0.035, range: 7.0, angle: 18.0, damage: 2.5, knockback: 4.0, advance: 1.5),
                  ], juice: Some((title: Some("JET GATLING"), shake: 0.15))),
-                 (name: "jet bazooka", tags: [Primary], cooldown: 2.4, cost: 4.0, ops: [
+                 (name: "jet bazooka", fx: "gear second", tags: [Primary], cooldown: 2.4, cost: 4.0, ops: [
                      Shove(range: 6.0, angle: 25.0, damage: 15.0, knockback: 40.0, up: 0.3),
                  ], juice: Some((title: Some("JET BAZOOKA"), punch: 3.0, boom: true))),
-                 (name: "jet whip", tags: [Combo], cooldown: 2.0, cost: 3.0, ops: [Shove(range: 6.5, angle: 130.0, damage: 12.0, knockback: 22.0, up: 0.4)]),
-                 (name: "balloon", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)]),
+                 (name: "jet whip", fx: "gear second", tags: [Combo], cooldown: 2.0, cost: 3.0, ops: [Shove(range: 6.5, angle: 130.0, damage: 12.0, knockback: 22.0, up: 0.4)]),
+                 (name: "balloon", fx: "gear second", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)]),
                  (name: "red hawk", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
                      Shove(range: 7.5, angle: 14.0, damage: 18.0, knockback: 28.0, element: Fire),
                      Explode(radius: 2.6, damage: 7.0, knockback: 14.0, element: Fire, at: Front, dist: 6.5),
-                 ], fx: "fire", juice: Some((title: Some("RED HAWK"), punch: 3.5, boom: true))),
-                 (name: "jet axe", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
+                 ], fx: "fire", juice: Some((impact_frame: Some("ink"), title: Some("RED HAWK"), punch: 3.5, boom: true))),
+                 (name: "jet axe", fx: "gear second", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
                      Explode(radius: 2.8, damage: 16.0, knockback: 22.0, carve: 1.2, element: Earth, at: Front, dist: 5.5),
                  ], juice: Some((title: Some("JET ONO"), shake: 0.2))),
              ]),
@@ -107,26 +107,26 @@
                       ("giant stamp", 7), ("gomu gomu no giant stamp", 7), ("gum gum giant stamp", 7)],
              moves: [
                  // A fist the size of a house, stretched out and snapped back.
-                 (name: "elephant gun", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
+                 (name: "elephant gun", fx: "gear third", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
                      Cast(recipe: (name: "elephant gun", form: Ball, mech: [Returning, Blunt, Heavy, Grow], scale: 3.0, mass: 400.0)),
                  ], juice: Some((title: Some("ELEPHANT GUN"), punch: 4.0, shake: 0.2))),
-                 (name: "rocket", tags: [Movement], cooldown: 1.4, cost: 3.0, ops: [Reel(range: 40.0, speed: 30.0)]),
-                 (name: "elephant gatling", tags: [Combo], cooldown: 7.0, cost: 8.0, ops: [
+                 (name: "rocket", fx: "gear third", tags: [Movement], cooldown: 1.4, cost: 3.0, ops: [Reel(range: 40.0, speed: 30.0)]),
+                 (name: "elephant gatling", fx: "gear third", tags: [Combo], cooldown: 7.0, cost: 8.0, ops: [
                      Barrage(hits: 8, interval: 0.1, range: 9.0, angle: 30.0, damage: 6.0, knockback: 14.0, advance: 0.5),
                  ], juice: Some((title: Some("ELEPHANT GATLING"), shake: 0.3, boom: true))),
-                 (name: "grizzly magnum", tags: [Primary], cooldown: 5.0, cost: 7.0, ops: [
+                 (name: "grizzly magnum", fx: "gear third", tags: [Primary], cooldown: 5.0, cost: 7.0, ops: [
                      Shove(range: 9.0, angle: 30.0, damage: 20.0, knockback: 46.0, up: 0.3),
-                 ], juice: Some((title: Some("GRIZZLY MAGNUM"), punch: 5.0, boom: true))),
-                 (name: "giant whip", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [Shove(range: 9.0, angle: 120.0, damage: 14.0, knockback: 28.0, up: 0.4)]),
-                 (name: "giant balloon", tags: [Defense], cooldown: 7.0, cost: 5.0, ops: [Deflect(secs: 1.6, angle: 180.0)]),
+                 ], juice: Some((impact_frame: Some("ink"), title: Some("GRIZZLY MAGNUM"), punch: 5.0, boom: true))),
+                 (name: "giant whip", fx: "gear third", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [Shove(range: 9.0, angle: 120.0, damage: 14.0, knockback: 28.0, up: 0.4)]),
+                 (name: "giant balloon", fx: "gear third", tags: [Defense], cooldown: 7.0, cost: 5.0, ops: [Deflect(secs: 1.6, angle: 180.0)]),
                  (name: "red hawk", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
                      Shove(range: 7.0, angle: 14.0, damage: 16.0, knockback: 26.0, element: Fire),
                  ], fx: "fire"),
                  // Blow the leg up huge and stamp them into the ground.
-                 (name: "giant stamp", tags: [Ultimate], cooldown: 4.0, cost: 6.0, ops: [
+                 (name: "giant stamp", fx: "gear third", tags: [Ultimate], cooldown: 4.0, cost: 6.0, ops: [
                      Impulse(fwd: 4.0, up: 12.0),
                      SlamOnLand(radius: 6.0, damage: 16.0, knockback: 26.0, carve: 3.0),
-                 ], juice: Some((title: Some("GIANT STAMP")))),
+                 ], juice: Some((impact_frame: Some("ink"), title: Some("GIANT STAMP")))),
              ]),
             (name: "Gear Fourth",
              names: ["gear fourth", "gear 4", "gear four", "fourth gear", "boundman", "bound man", "bounce man", "gia fosu",
@@ -143,24 +143,24 @@
                       ("Culverin", 6), ("gomu gomu no culverin", 6), ("jet culverin", 6),
                       ("King Kong Gun", 7), ("gomu gomu no king kong gun", 7), ("Gum Gum King Kong Gun", 7)],
              moves: [
-                 (name: "kong gun", tags: [Primary], cooldown: 2.5, cost: 6.0, ops: [
+                 (name: "kong gun", fx: "gear fourth", tags: [Primary], cooldown: 2.5, cost: 6.0, ops: [
                      Cast(recipe: (name: "kong gun", form: Ball, mech: [Returning, Blunt, Heavy, Fast], scale: 2.0, mass: 500.0)),
                  ], juice: Some((title: Some("KONG GUN"), punch: 4.0, shake: 0.2, boom: true))),
                  // Boing: coil and spring.
-                 (name: "rocket", tags: [Movement], cooldown: 0.9, cost: 3.0, ops: [Reel(range: 46.0, speed: 42.0), Impulse(fwd: 0.0, up: 4.0)]),
-                 (name: "kong organ", tags: [Combo], cooldown: 6.0, cost: 8.0, ops: [
+                 (name: "rocket", fx: "gear fourth", tags: [Movement], cooldown: 0.9, cost: 3.0, ops: [Reel(range: 46.0, speed: 42.0), Impulse(fwd: 0.0, up: 4.0)]),
+                 (name: "kong organ", fx: "gear fourth", tags: [Combo], cooldown: 6.0, cost: 8.0, ops: [
                      Barrage(hits: 10, interval: 0.07, range: 8.0, angle: 28.0, damage: 5.0, knockback: 12.0, advance: 1.0),
                  ], juice: Some((title: Some("KONG ORGAN"), shake: 0.3, boom: true))),
-                 (name: "leo bazooka", tags: [Primary], cooldown: 4.0, cost: 7.0, ops: [
+                 (name: "leo bazooka", fx: "gear fourth", tags: [Primary], cooldown: 4.0, cost: 7.0, ops: [
                      Shove(range: 6.0, angle: 30.0, damage: 22.0, knockback: 50.0, up: 0.3),
-                 ], juice: Some((title: Some("LEO BAZOOKA"), punch: 5.0, boom: true))),
-                 (name: "whip", tags: [Combo], cooldown: 2.5, cost: 3.0, ops: [Shove(range: 7.0, angle: 130.0, damage: 14.0, knockback: 26.0, up: 0.4)]),
-                 (name: "balloon", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)]),
+                 ], juice: Some((impact_frame: Some("ink"), title: Some("LEO BAZOOKA"), punch: 5.0, boom: true))),
+                 (name: "whip", fx: "gear fourth", tags: [Combo], cooldown: 2.5, cost: 3.0, ops: [Shove(range: 7.0, angle: 130.0, damage: 14.0, knockback: 26.0, up: 0.4)]),
+                 (name: "balloon", fx: "gear fourth", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)]),
                  // Snakeman: a punch that bends around cover and keeps chasing.
-                 (name: "culverin", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
+                 (name: "culverin", fx: "gear fourth", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
                      Seeker(recipe: (name: "culverin", form: Ball, mech: [Blunt, Fast, Returning], scale: 1.0), damage: 16.0, knockback: 26.0, hits: 2, chain: 10.0),
                  ], juice: Some((title: Some("CULVERIN")))),
-                 (name: "king kong gun", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
+                 (name: "king kong gun", fx: "gear fourth", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
                      Cast(recipe: (name: "king kong gun", form: Ball, mech: [Returning, Blunt, Heavy], scale: 3.0, mass: 1200.0),
                           signature: Some(Summon)),
                  ], juice: Some((title: Some("KING KONG GUN"), punch: 6.0, shake: 0.3, boom: true))),
@@ -181,25 +181,25 @@
                       ("bajrang gun", 7), ("gomu gomu no bajrang gun", 7), ("gum gum bajrang gun", 7), ("bajrang", 7)],
              moves: [
                  // Grab the ground like rubber: the aimed terrain comes alive, grabs, bounces and snaps back.
-                 (name: "rubber terrain", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
+                 (name: "rubber terrain", fx: "gear fifth", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
                      Cast(recipe: (name: "rubber ground", form: Blob0, mech: [Grab, Bounce, Returning]), modifier: true),
                  ], juice: Some((title: Some("RUBBER!"), shake: 0.15))),
-                 (name: "rocket", tags: [Movement], cooldown: 0.8, cost: 3.0, ops: [Reel(range: 50.0, speed: 44.0)]),
-                 (name: "gatling", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
+                 (name: "rocket", fx: "gear fifth", tags: [Movement], cooldown: 0.8, cost: 3.0, ops: [Reel(range: 50.0, speed: 44.0)]),
+                 (name: "gatling", fx: "gear fifth", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
                      Barrage(hits: 12, interval: 0.05, range: 9.0, angle: 25.0, damage: 3.5, knockback: 8.0, advance: 1.0),
                  ]),
-                 (name: "bazooka", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [Shove(range: 8.0, angle: 30.0, damage: 16.0, knockback: 48.0, up: 0.5)]),
+                 (name: "bazooka", fx: "gear fifth", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [Shove(range: 8.0, angle: 30.0, damage: 16.0, knockback: 48.0, up: 0.5)]),
                  // A toon leg whips the horizon.
-                 (name: "dawn whip", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [Shove(range: 10.0, angle: 150.0, damage: 14.0, knockback: 30.0, up: 0.6)],
+                 (name: "dawn whip", fx: "gear fifth", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [Shove(range: 10.0, angle: 150.0, damage: 14.0, knockback: 30.0, up: 0.6)],
                   juice: Some((title: Some("DAWN WHIP")))),
-                 (name: "balloon", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.6, angle: 180.0)]),
+                 (name: "balloon", fx: "gear fifth", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.6, angle: 180.0)]),
                  // Snatch a lightning bolt out of the sky like a rope and throw it.
                  (name: "lightning grab", tags: [Primary], cooldown: 6.0, cost: 7.0, ops: [
                      Cast(recipe: (name: "grabbed lightning", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 5.0)),
                  ], fx: "lightning", juice: Some((title: Some("GRAB THE LIGHTNING!"), at: Aim, boom: true))),
-                 (name: "bajrang gun", tags: [Ultimate], cooldown: 8.0, ops: [
+                 (name: "bajrang gun", fx: "gear fifth", tags: [Ultimate], cooldown: 8.0, ops: [
                      Cast(recipe: (name: "bajrang gun", form: Boulder, mech: [DropFromSky, Heavy, Blunt, Bounce], scale: 5.0, mass: 900.0)),
-                 ], juice: Some((title: Some("BAJRANG GUN"), boom: true, punch: 6.0, shake: 0.3))),
+                 ], juice: Some((impact_frame: Some("ink"), title: Some("BAJRANG GUN"), boom: true, punch: 6.0, shake: 0.3))),
              ]),
         ],
     ),
@@ -212,7 +212,7 @@
         // Cartoon physics: whatever you say comes out giant, bouncy and snaps back.
         incantations: ["gomu gomu no", "gum gum", "gear 5", "gear five"],
         delivery: (add: [Grow, Bounce, Returning], remove: [DropFromSky], scale_mult: 1.8, from_fist: true, arm: true),
-        fx: "rubber",
+        fx: "gear fifth",
         shouts: [("nika bajrang gun", 0), ("sun god bajrang gun", 0), ("awaken nika", 1), ("nika awakening", 1), ("drums of liberation", 1)],
         moves: [
             (name: "bajrang gun", cooldown: 5.0, ops: [
@@ -239,12 +239,13 @@
         shouts: [("Hiken", 0), ("Fire Fist", 0), ("hi ken", 0), ("Fire Fist Ace", 0), ("entei", 1), ("flame emperor", 1), ("dai enkai entei", 1),
                  ("fire gun", 2), ("Hidan", 2), ("fire guns", 2),
                  ("hotarubi hidaruma", 3), ("fire fly phosphorescence", 3), ("firefly phosphorescence", 3), ("hotarubi", 3),
-                 ("flame commandment", 4), ("enjomo", 4), ("enjo mo", 4)],
+                 ("flame commandment", 4), ("enjomo", 4), ("enjo mo", 4),
+                 ("hiken fire fist", 0), ("fire fist hiken", 0), ("dai enkai", 1)],
         moves: [
             // A wall of fire the shape of a fist roars out and carries them with it.
             (name: "fire fist", tags: [Primary], cooldown: 2.5, cost: 6.0, ops: [
                 Surge(width: 3.5, dist: 30.0, speed: 30.0, push: 20.0, damage: 12.0, element: Fire),
-            ], juice: Some((title: Some("HIKEN"), punch: 4.0, boom: true, color: Some((1.0, 0.5, 0.15))))),
+            ], juice: Some((impact_frame: Some("ink"), title: Some("HIKEN"), punch: 4.0, boom: true, color: Some((1.0, 0.5, 0.15))))),
             (name: "flame emperor", tags: [Ultimate], cooldown: 12.0, cost: 10.0, ops: [
                 Cast(recipe: (name: "flame emperor", form: Ball, mech: [DropFromSky, Explodes, Heavy], element: Fire, scale: 3.0, mass: 300.0), signature: Some(Summon)),
             ], juice: Some((title: Some("DAI ENKAI: ENTEI"), boom: true, punch: 6.0, at: Aim))),
@@ -283,7 +284,7 @@
             (name: "ice age", tags: [Ultimate], cooldown: 10.0, cost: 10.0, ops: [
                 Erupt(count: 8, length: 18.0, width: 8.0, height: 2.0, launch: 6.0, damage: 6.0, element: Ice),
                 Zone(radius: 9.0, secs: 3.0, status: Some(Chill), slow: 0.55, at: Front, dist: 9.0),
-            ], juice: Some((title: Some("ICE AGE"), boom: true, shake: 0.3))),
+            ], juice: Some((impact_frame: Some("ink"), title: Some("ICE AGE"), boom: true, shake: 0.3))),
             (name: "partisan", tags: [Primary], cooldown: 2.0, ops: [
                 Cast(recipe: (name: "partisan", form: Ball, mech: [Pierce, Fast, Swarm], element: Ice, scale: 0.35, count: 5)),
             ]),
@@ -445,7 +446,7 @@
             // The fist that goes through: a burning piercing lunge.
             (name: "magma fist", tags: [Ultimate], cooldown: 10.0, cost: 9.0, ops: [
                 Drill(speed: 26.0, secs: 0.35, damage: 24.0, knockback: 26.0, element: Fire, up: 0.1),
-            ], juice: Some((title: Some("MAGMA FIST"), punch: 5.0, boom: true))),
+            ], juice: Some((impact_frame: Some("ink"), title: Some("MAGMA FIST"), punch: 5.0, boom: true))),
         ],
     ),
     (
@@ -465,16 +466,16 @@
             (name: "quake punch", tags: [Primary], cooldown: 3.0, cost: 10.0, ops: [
                 Explode(radius: 3.0, damage: 12.0, knockback: 24.0, carve: 1.5, element: Earth, at: Front, dist: 2.5),
                 Wave(length: 30.0, speed: 40.0, width: 5.0, carve: 1.2, damage: 14.0, knockback: 28.0, element: Earth),
-            ], juice: Some((title: Some("GURA GURA NO MI"), boom: true, punch: 5.0, shake: 0.35, ripple: 5.0, at: Front, dist: 2.5))),
+            ], juice: Some((impact_frame: Some("ink"), title: Some("GURA GURA NO MI"), boom: true, punch: 5.0, shake: 0.35, ripple: 5.0, at: Front, dist: 2.5))),
             // The sea stands up: a tsunami rolls out and carries everyone with it.
             (name: "seaquake", tags: [Ultimate], cooldown: 12.0, cost: 14.0, ops: [
                 Surge(width: 16.0, dist: 36.0, speed: 16.0, push: 16.0, damage: 10.0, element: Water),
-            ], fx: "water", juice: Some((title: Some("KAISHIN"), boom: true, punch: 6.0, shake: 0.4))),
+            ], fx: "water", juice: Some((impact_frame: Some("ink"), title: Some("KAISHIN"), boom: true, punch: 6.0, shake: 0.4))),
             // Grab the air and heave: the ground around you tilts and throws everyone.
             (name: "island tilt", tags: [Ultimate], cooldown: 20.0, cost: 14.0, ops: [
                 Explode(radius: 13.0, damage: 8.0, knockback: 18.0, carve: 2.5, element: Earth),
                 Field(strength: -40.0, radius: 16.0, secs: 0.4),
-            ], juice: Some((title: Some("SHIMA YURASHI"), boom: true, punch: 6.0, shake: 0.45, ripple: 16.0, debris: 26.0))),
+            ], juice: Some((impact_frame: Some("ink"), title: Some("SHIMA YURASHI"), boom: true, punch: 6.0, shake: 0.45, ripple: 16.0, debris: 26.0))),
             // A quake wrapped around your body: what comes at you is shaken apart.
             (name: "quake bubble", tags: [Defense], cooldown: 8.0, cost: 6.0, ops: [
                 Deflect(secs: 0.8, angle: 180.0),
@@ -491,7 +492,7 @@
         incantations: ["ope ope no"],
         delivery: (add: [Blade]),
         fx: "hardlight",
-        shouts: [("room", 0), ("ope ope room", 0), ("Room Shambles", 1), ("shambles", 1), ("shamburu", 1),
+        shouts: [("Room", 0), ("ope ope room", 0), ("Room Shambles", 1), ("shambles", 1), ("shamburu", 1),
                  ("gamma knife", 2), ("gamma knife injection", 2), ("gama knife", 2),
                  ("counter shock", 3), ("counter-shock", 3), ("injection shot", 4),
                  ("amputate", 5), ("amputation", 5), ("takt", 6), ("takuto", 6), ("Radio Knife", 7), ("radio knives", 7)],
@@ -503,7 +504,7 @@
             // The blade goes in and the damage happens INSIDE: huge hurt, almost no push.
             (name: "gamma knife", tags: [Ultimate], cooldown: 12.0, cost: 10.0, ops: [
                 Shove(range: 3.6, angle: 25.0, damage: 26.0, knockback: 6.0, element: Psychic),
-            ], juice: Some((title: Some("GAMMA KNIFE"), punch: 4.0, color: Some((0.5, 1.0, 0.7))))),
+            ], juice: Some((impact_frame: Some("ink"), title: Some("GAMMA KNIFE"), punch: 4.0, color: Some((0.5, 1.0, 0.7))))),
             (name: "counter shock", tags: [Combo], cooldown: 4.0, cost: 4.0, ops: [
                 Shove(range: 3.0, angle: 30.0, damage: 10.0, knockback: 12.0, element: Electric),
             ], fx: "lightning", juice: Some((title: Some("COUNTER SHOCK")))),
@@ -524,7 +525,7 @@
     (
         id: "bara_bara",
         name: "Bara Bara no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "energy",
         names: ["bara bara no mi", "chop chop fruit", "chop-chop fruit", "buggy's fruit"],
         body: (blade_immune: true),
         incantations: ["bara bara no"],
@@ -543,7 +544,7 @@
     (
         id: "hana_hana",
         name: "Hana Hana no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "paper",
         names: ["hana hana no mi", "flower flower fruit", "flower-flower fruit", "robin's fruit"],
         incantations: ["hana hana no"],
         delivery: (add: [Grab]),
@@ -561,7 +562,7 @@
     (
         id: "nikyu_nikyu",
         name: "Nikyu Nikyu no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "psychic",
         names: ["nikyu nikyu no mi", "paw paw fruit", "paw-paw fruit", "kuma's fruit"],
         incantations: ["nikyu nikyu no"],
         delivery: (add: [Repel, Launch]),
@@ -578,7 +579,7 @@
     (
         id: "bomu_bomu",
         name: "Bomu Bomu no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "fire",
         names: ["bomu bomu no mi", "bomb bomb fruit", "bomb-bomb fruit", "bomb fruit", "mr 5's fruit"],
         body: (explosion_immune: true),
         incantations: ["bomu bomu no"],
@@ -623,7 +624,7 @@
     (
         id: "bari_bari",
         name: "Bari Bari no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "hardlight",
         names: ["bari bari no mi", "barrier barrier fruit", "barrier-barrier fruit", "barrier fruit", "bartolomeo's fruit"],
         incantations: ["bari bari no"],
         delivery: (add: [Barrier, Guard]),
@@ -636,7 +637,7 @@
     (
         id: "doku_doku",
         name: "Doku Doku no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "poison",
         names: ["doku doku no mi", "venom venom fruit", "venom-venom fruit", "poison fruit", "magellan's fruit"],
         body: (immune: [Poison]),
         graft: Some((element: Some(Poison))),
@@ -655,7 +656,7 @@
     (
         id: "kilo_kilo",
         name: "Kilo Kilo no Mi",
-        kind: Paramecia,
+        kind: Paramecia, fx: "earth",
         names: ["kilo kilo no mi", "kilo kilo fruit", "weight fruit", "miss valentine's fruit"],
         incantations: ["kilo kilo no"],
         delivery: (add: [Heavy]),
@@ -676,7 +677,7 @@
     (
         id: "tori_phoenix",
         name: "Tori Tori no Mi, Model: Phoenix",
-        kind: MythicalZoan,
+        kind: MythicalZoan, fx: "fire",
         names: ["tori tori no mi model phoenix", "phoenix fruit", "bird bird fruit phoenix", "marco's fruit"],
         body: (immune: [Fire]),
         incantations: ["tori tori no"],
@@ -699,7 +700,7 @@
     (
         id: "uo_seiryu",
         name: "Uo Uo no Mi, Model: Seiryu",
-        kind: MythicalZoan,
+        kind: MythicalZoan, fx: "fire",
         names: ["uo uo no mi model seiryu", "fish fish fruit azure dragon", "azure dragon fruit", "kaido's fruit"],
         incantations: ["uo uo no"],
         delivery: (element: Some(Fire), add: [Breath]),
@@ -719,7 +720,7 @@
     (
         id: "ushi_giraffe",
         name: "Ushi Ushi no Mi, Model: Giraffe",
-        kind: Zoan,
+        kind: Zoan, fx: "earth",
         names: ["ushi ushi no mi model giraffe", "giraffe fruit", "ox ox fruit giraffe", "kaku's fruit"],
         incantations: ["ushi ushi no"],
         delivery: (add: [Pierce, Charge]),
@@ -734,7 +735,7 @@
     (
         id: "neko_leopard",
         name: "Neko Neko no Mi, Model: Leopard",
-        kind: Zoan,
+        kind: Zoan, fx: "wind",
         names: ["neko neko no mi model leopard", "leopard fruit", "cat cat fruit leopard", "lucci's fruit"],
         incantations: ["neko neko no"],
         delivery: (add: [Fast, Blade]),
@@ -751,14 +752,14 @@
     (
         id: "inu_okuchi",
         name: "Inu Inu no Mi, Model: Okuchi no Makami",
-        kind: MythicalZoan,
+        kind: MythicalZoan, fx: "ice",
         names: ["inu inu no mi model okuchi no makami", "okuchi no makami fruit", "wolf god fruit", "yamato's fruit"],
         body: (immune: [Ice]),
         incantations: ["inu inu no"],
         delivery: (element: Some(Ice), add: [Charge]),
         shouts: [("wolf god howl", 0), ("narikabura", 0), ("thunder bagua yamato", 0), ("makami", 1), ("okuchi no makami form", 1)],
         moves: [
-            (name: "howl", cooldown: 4.0, ops: [
+            (name: "howl", fx: "lightning", cooldown: 4.0, ops: [
                 Cast(recipe: (name: "ice wolf", form: Quadruped, mech: [Charge, Fast], element: Ice, scale: 1.6, temperament: Aggressive, intensity: 0.8)),
             ]),
             (name: "wolf form", cooldown: 1.5, ops: [Transform]),

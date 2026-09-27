@@ -404,4 +404,37 @@
             (sound: "amb_distant_boom", zone: Sky, per_min: 0.3, min_dist: 200.0, max_dist: 400.0, gain_db: (-14.0, -8.0)),
         ],
     ),
+    "lookout": (
+        // The Lookout: a temple floating in open sky. Almost nothing to reflect off outdoors (short,
+        // airy tail, faint slapback off the palace), but the hall under the drum and dome is a big
+        // stone room with a long bright tail. High-altitude wind is the bed everywhere (stronger
+        // with speed and out at the rim), birds and palm rustle in the gardens, a rare glass chime
+        // off the palace walls. Missing cues (distant cloud-sea rumble, flag / pennant flutter) would
+        // go in docs/SFX_WISHLIST.md.
+        space: (
+            open: (size: 1.8, rt60: 0.9, damping_hz: 6000.0, predelay_ms: 26.0, wet_db: -28.0, er_db: -34.0),
+            enclosed: (size: 0.9, rt60: 2.3, damping_hz: 5200.0, predelay_ms: 12.0, wet_db: -8.0, er_db: -11.0),
+            slap_db: -20.0,
+        ),
+        beds: [
+            (sound: "amb_archipelago_bed", gain_db: -8.0, enclosure: (x0: 0.3, x1: 0.9, db0: 0.0, db1: -12.0)),
+            (sound: "amb_wind_high", gain_db: -3.0, altitude: (x0: 55.0, x1: 95.0, db0: -8.0, db1: 0.0), speed: (x0: 8.0, x1: 40.0, db0: -5.0, db1: 5.0), enclosure: (x0: 0.2, x1: 0.8, db0: 0.0, db1: -18.0)),
+            // Inside the hall / time chamber: room tone replaces the sky.
+            (sound: "amb_interior_tone", gain_db: -4.0, enclosure: (x0: 0.5, x1: 0.95, db0: -40.0, db1: 0.0)),
+        ],
+        loops: [
+            // Gusts over the rim.
+            (sound: "wind_loop", zone: CliffEdge, max_active: 2, radius: 18.0, gain_db: -11.0, lift: 0.5),
+            (sound: "amb_insects_loop", zone: Grass, max_active: 1, radius: 14.0, gain_db: -14.0, fauna: true, lift: 0.3),
+        ],
+        sparkles: [
+            (sound: "amb_palm_rustle", zone: Leaves, per_min: 8.0, min_dist: 3.0, max_dist: 35.0, gain_db: (-8.0, -2.0), lift: (2.0, 8.0)),
+            (sound: "amb_bird", zone: Leaves, per_min: 6.0, min_dist: 6.0, max_dist: 50.0, gain_db: (-9.0, -2.0), fauna: true, lift: (2.0, 8.0)),
+            // Distant birds wheeling in the open sky around the disc.
+            (sound: "amb_bird", zone: Sky, per_min: 4.0, min_dist: 25.0, max_dist: 90.0, gain_db: (-12.0, -5.0), fauna: true),
+            (sound: "amb_glass_chime", zone: Wall, per_min: 0.8, min_dist: 6.0, max_dist: 30.0, gain_db: (-20.0, -13.0), lift: (2.0, 6.0)),
+        ],
+        scare_hold: 3.5,
+        scare_recover: 8.0,
+    ),
 }

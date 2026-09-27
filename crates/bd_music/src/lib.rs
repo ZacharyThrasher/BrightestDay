@@ -27,14 +27,19 @@
 //! * Remix variants (`assets/music/remix`): [`MusicCommand::SetStyle`] picks Classic / Remix /
 //!   Shuffle; remixes filter down when exploring and build into a bar-quantised DROP when intensity
 //!   crosses into combat; `status().sub_bass` / `hpf_hz` tell the mixer to open its sub band.
+//! * Franchise themes (`assets/music/themes`, original pieces; [`franchise`] maps powers to them):
+//!   [`MusicCommand::Theme`] swells a theme in on a bar line over the map track (which keeps its
+//!   place, muted) and fades it back out.
 
 pub mod analysis;
+pub mod franchise;
 pub mod notation;
 pub mod overlay;
 pub mod player;
 pub mod song;
 pub mod synth;
 
+pub use franchise::Franchise;
 pub use overlay::{OverlayId, overlay_id, overlay_name};
 pub use player::{AdaptPhase, DebugLog, MusicCommand, MusicPlayer, MusicStatus, OUT_STEMS, Style};
 pub use song::{MusicError, MusicLibrary, RemixStyle, Song, Stem, StingerKind, TrackId, TrackInfo};

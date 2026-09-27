@@ -649,6 +649,9 @@ pub struct TrackInfo {
     pub base: Option<String>,
     /// File path relative to the music directory.
     pub file: String,
+    /// A franchise theme (`assets/music/themes/`): played on the theme layer
+    /// ([`crate::MusicCommand::Theme`]), never picked as a map / menu track.
+    pub theme: bool,
 }
 
 /// A compiled song, ready for the sequencer.
@@ -945,6 +948,7 @@ pub fn compile_song(name: &str, file: &SongFile, bank: &BTreeMap<String, Instrum
             key: file.key.clone(),
             base: file.base.clone(),
             file: format!("{name}.ron"),
+            theme: false,
         },
         bar_ticks,
         beat_ticks: beat_ticks(file.time),
@@ -1076,6 +1080,8 @@ pub struct MusicLibrary {
     pub variants: Vec<Vec<TrackId>>,
     /// The classic track a remix is based on (index = track index).
     pub base_of: Vec<Option<TrackId>>,
+    /// Franchise → theme mapping (`themes/franchises.ron`; empty without it).
+    pub franchises: Vec<crate::franchise::Franchise>,
 }
 
 /// Sources for [`MusicLibrary::from_sources_with_remixes`].
@@ -1085,6 +1091,11 @@ pub struct Sources<'a> {
     pub tracks: &'a [(&'a str, &'a str)],
     pub kit: &'a str,
     pub remixes: &'a [(&'a str, &'a str)],
+    /// Franchise themes (`themes/<name>.ron`): original songs compiled with the remix kit's
+    /// instruments and templates available (no `base`).
+    pub themes: &'a [(&'a str, &'a str)],
+    /// `themes/franchises.ron` (empty = no franchise mapping).
+    pub franchises: &'a str,
 }
 
 impl MusicLibrary {
@@ -1114,14 +1125,26 @@ impl MusicLibrary {
         let rdir = dir.join("remix");
         let kit = if rdir.join("kit.ron").exists() { read(&rdir.join("kit.ron"))? } else { String::from("()") };
         let remixes = list(&rdir, &["kit"])?;
+        let tdir = dir.join("themes");
+        let themes = list(&tdir, &["franchises"])?;
+        let franchises = if tdir.join("franchises.ron").exists() { read(&tdir.join("franchises.ron"))? } else { String::new() };
         let t: Vec<(&str, &str)> = tracks.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
         let r: Vec<(&str, &str)> = remixes.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
-        Self::from_sources_with_remixes(&Sources { instruments: &instruments, stingers: &stingers, tracks: &t, kit: &kit, remixes: &r })
+        let th: Vec<(&str, &str)> = themes.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+        Self::from_sources_with_remixes(&Sources {
+            instruments: &instruments,
+            stingers: &stingers,
+            tracks: &t,
+            kit: &kit,
+            remixes: &r,
+            themes: &th,
+            franchises: &franchises,
+        })
     }
 
     /// Build from in-memory sources (`(track name, song RON)`), classic tracks only.
     pub fn from_sources(instruments: &str, stingers: &str, tracks: &[(&str, &str)]) -> Result<Self, MusicError> {
-        Self::from_sources_with_remixes(&Sources { instruments, stingers, tracks, kit: "()", remixes: &[] })
+        Self::from_sources_with_remixes(&Sources { instruments, stingers, tracks, kit: "()", remixes: &[], themes: &[], franchises: "" })
     }
 
     pub fn from_sources_with_remixes(src: &Sources) -> Result<Self, MusicError> {
@@ -1191,6 +1214,23 @@ impl MusicLibrary {
             song.info.file = format!("remix/{name}.ron");
             compiled.push(song);
         }
+        // Franchise themes: original songs; the kit's instruments and templates are available.
+        for (name, text) in src.themes {
+            let mut f: SongFile = opts.from_str(text).map_err(|e| MusicError(format!("themes/{name}.ron: {e}")))?;
+            if f.base.is_some() {
+                return Err(MusicError(format!("themes/{name}.ron: a theme is an original song (no `base`)")));
+            }
+            if files.contains_key(*name) || compiled.iter().any(|s| s.info.name == *name) {
+                return Err(MusicError(format!("themes/{name}.ron: a track is already called '{name}'")));
+            }
+            let mut pats = kit.patterns.clone();
+            pats.extend(std::mem::take(&mut f.patterns));
+            f.patterns = pats;
+            let mut song = compile_song(name, &f, &rbank, true).map_err(|e| MusicError(format!("themes/{name}.ron: {e}")))?;
+            song.info.file = format!("themes/{name}.ron");
+            song.info.theme = true;
+            compiled.push(song);
+        }
         compiled.sort_by(|a, b| a.info.name.cmp(&b.info.name));
         if compiled.len() > usize::from(u16::MAX) {
             return Err(MusicError("too many tracks".into()));
@@ -1203,7 +1243,11 @@ impl MusicLibrary {
                 variants[usize::from(b.0)].push(TrackId(i as u16));
             }
         }
-        Ok(Self { tracks: compiled, stingers: StingerBank { song: ssong, sections, keys }, variants, base_of })
+        let franchises = crate::franchise::compile(src.franchises, &|n: &str| {
+            compiled.iter().position(|s| s.info.name == n && s.info.theme).map(|i| TrackId(i as u16))
+        })
+        .map_err(|e| MusicError(format!("themes/franchises.ron: {e}")))?;
+        Ok(Self { tracks: compiled, stingers: StingerBank { song: ssong, sections, keys }, variants, base_of, franchises })
     }
 
     pub fn track_id(&self, name: &str) -> Option<TrackId> {
@@ -1226,6 +1270,21 @@ impl MusicLibrary {
     /// The classic track a remix is based on (itself for classic tracks).
     pub fn classic_of(&self, id: TrackId) -> TrackId {
         self.base_of.get(usize::from(id.0)).copied().flatten().unwrap_or(id)
+    }
+
+    /// Is this a franchise theme (`themes/`)?
+    pub fn is_theme(&self, id: TrackId) -> bool {
+        self.track(id).is_some_and(|s| s.info.theme)
+    }
+
+    /// Every franchise theme.
+    pub fn themes(&self) -> impl Iterator<Item = (TrackId, &Song)> {
+        self.tracks.iter().enumerate().filter(|(_, s)| s.info.theme).map(|(i, s)| (TrackId(i as u16), s))
+    }
+
+    /// The franchise called `name` (case-insensitive).
+    pub fn franchise(&self, name: &str) -> Option<&crate::franchise::Franchise> {
+        self.franchises.iter().find(|f| f.name.eq_ignore_ascii_case(name.trim()))
     }
 }
 

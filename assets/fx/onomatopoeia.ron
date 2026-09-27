@@ -30,6 +30,8 @@
         "zip":       (en: ["ZWIP", "VRRM", "ZOOM"], manga: ["ビュン", "シュッ"], tint: Some((1.00, 0.85, 0.20))),
         "vwump":     (en: ["VWUMP", "FWUMP"], manga: ["ズン", "ゴゴゴ"], tint: Some((0.55, 0.30, 0.95)), size: 1.2),
         "shing":     (en: ["SHING", "SHIIING"], manga: ["キーン", "キン"], tint: Some((1.00, 0.92, 0.60))),
+        "thwip":     (en: ["THWIP", "THWIPP"], manga: ["シッ", "ピッ"], tint: Some((0.95, 0.96, 1.00)), size: 0.9),
+        "snikt":     (en: ["SNIKT", "SNIKT!"], manga: ["キン", "ジッ"], tint: Some((0.85, 0.88, 0.95))),
         // ---- hits by weight
         "hit_light": (en: ["THWAP", "POW", "BAP"], manga: ["パン", "ポン"], tint: None, size: 0.85),
         "hit_heavy": (en: ["WHAM", "KRAKOOM", "SMASH"], manga: ["ドン", "ズドン"], tint: None, size: 1.25),

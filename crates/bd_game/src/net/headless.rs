@@ -102,6 +102,7 @@ pub fn run_host(cli: &NetCli) -> i32 {
         Some("lair") | Some("turtle_lair") | Some("tmnt") => NetMapKind::Lair,
         Some("giant") | Some("giants_room") | Some("bedroom") => NetMapKind::GiantsRoom,
         Some("train") | Some("hyperline") => NetMapKind::Hyperline,
+        Some("lookout") | Some("the_lookout") | Some("kami") | Some("kamis_lookout") | Some("gods_temple") => NetMapKind::Lookout,
         _ => NetMapKind::Archipelago,
     };
     let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind, seed: crate::arena::ARENA_SEED, pristine_hash: 0 }, cli.seed);
@@ -270,9 +271,12 @@ pub fn run_client(cli: &NetCli) -> i32 {
         c.outbox.clear();
         // A match is over: vote for the next map like a player would (a seeded pick).
         match (&c.lobby.vote, voted) {
-            (Some(_), false) => {
-                let pick = NetMapKind::ALL[(cli.seed as usize).wrapping_mul(7).wrapping_add(3) % NetMapKind::ALL.len()];
-                c.vote_map(pick);
+            (Some(v), false) => {
+                // A seeded pick among the cards (+ RANDOM).
+                let n = v.offers.len() + usize::from(v.random);
+                let i = (cli.seed as usize).wrapping_mul(7).wrapping_add(3) % n.max(1);
+                let pick = v.offers.get(i).map_or(super::proto::VotePick::Random, |k| super::proto::VotePick::Map(*k));
+                c.vote(pick);
                 println!("NETVOTE {pick:?} after={:.2}s", now - t0);
                 voted = true;
             }

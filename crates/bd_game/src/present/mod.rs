@@ -22,6 +22,7 @@ pub mod ads;
 pub mod air_moves; // AIR JUMP / DODGE: hard-light step burst, dodge streak, SFX / camera hooks
 pub mod animated_terrain;
 pub mod body_motion; // ANIMATION PASS: player body motion / actions / channels + body effects (anim.ron)
+pub mod taunt; // TAUNT & VOICE TELL: taunt key / push-to-talk bits, local prediction, tells, voice rings, 1P gesture
 pub mod camera3p;
 pub mod camera_shots; // CAMERA: BD_CAM_SHOT dev screenshots
 pub mod valley; // VALLEY OF THE END: water sheets, falls veil, mist, rainbow, water-walk ripples
@@ -39,6 +40,7 @@ pub mod legend; // LEGENDARY: legendary move visuals (storms, recall, waves, cha
 pub mod legend_sound; // LEGENDARY: sound signatures + juice of the legendary move rules (recall, storms, sabers, guns…)
 pub mod local;
 pub mod hyperline; // HYPERLINE: the endless city shaft, ring gates, streaks, sparks (visual only)
+pub mod lookout; // THE LOOKOUT: the cloud sea + cumulus far below the sky temple (visual only)
 pub mod giant; // GIANT'S ROOM: sunbeam through the window + dust motes
 pub mod giants_fx; // GIANTS: weak-point glow, warnings, shockwave rings, severed limbs, topple slam, command ping
 pub mod mirror; // MIRRORFOLD: folded-city backdrop, mirrored void, rift
@@ -56,6 +58,7 @@ pub mod signature_fx; // SIGNATURE: fusion windup (Merge), erasing orbs (Hollow 
 pub mod palm_beam; // SIGNATURE: palm energy (Form::Hands): the orb between the hands + the sustained beam
 pub mod domain; // SIGNATURE: domain expansions (ink tide, eyelid barrier, black orb, the inside world, sure-hit pulses)
 pub mod pickups; // POWER-UPS: map pickups (beacon, heart / orb / star), the loaded hand, their sounds
+pub mod first_call; // FIRST CALL + BURN ON DEATH: sigils, the rival clash, echoes / ash, Tab collection, hotbar states
 pub mod soak;
 pub mod sound;
 pub mod space;
@@ -65,6 +68,7 @@ pub mod terrain;
 pub mod tracking; // TRACKING: ring compass, beacons, reveal pulses, speed trails, lunge glow, hook ropes
 pub mod water;
 pub mod weapon_feel; // WEAPON FEEL: per-class swing sounds, trails, camera, 3P body (assets/tuning/weapons.ron `feel`)
+pub mod transformer_feel; // TRANSFORMER FEEL: transform cascade + camera kick, robot footfalls, engine voices, drift, robot combat / beast sounds
 
 use crate::sim_bridge::{ActiveWorld, BridgeSet, SimRole};
 use crate::tick::FrameSet;
@@ -110,8 +114,10 @@ impl Plugin for PresentPlugin {
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
             .add_plugins(body_motion::BodyMotionPlugin) // ANIMATION PASS: body motion layers + body fx
+            .add_plugins(taunt::TauntPlugin) // TAUNT & VOICE TELL: wordless taunts + the voice-cast tell
             .add_plugins(mirror::MirrorPlugin) // MIRRORFOLD: folded-city backdrop
             .add_plugins(hyperline::HyperlinePlugin) // HYPERLINE: the world streams past the train
+            .add_plugins(lookout::LookoutPlugin) // THE LOOKOUT: the sea of clouds below the temple
             .add_plugins(giant::GiantPlugin) // GIANT'S ROOM: sunbeam + dust motes
             .add_plugins(giants_fx::GiantsFxPlugin) // GIANTS: kaiju you fight (weak points, shockwaves, severed limbs)
             .add_plugins(surf::SurfPlugin) // SURF: hard-light surf lines + wind rush
@@ -122,10 +128,12 @@ impl Plugin for PresentPlugin {
             .add_plugins(impact_frames::ImpactFramesPlugin) // IMPACT FRAMES: freeze frames + hit reactions
             .add_plugins(presence::PresencePlugin) // PRESENCE: every construct's gravitas, by tier
             .add_plugins(pickups::PickupsPlugin) // POWER-UPS: map pickups (no-op while the mode is off)
+            .add_plugins(first_call::FirstCallPlugin) // FIRST CALL + BURN ON DEATH (no-op while both rules are off)
             .add_plugins(extend::ExtendPlugin) // WUKONG: telescoping poles
             .add_plugins(legend::LegendPlugin) // LEGENDARY: legendary move visuals + poses
             .add_plugins(legend_sound::LegendSoundPlugin) // LEGENDARY: move sounds + juice
             .add_plugins(weapon_feel::WeaponFeelPlugin) // WEAPON FEEL: weapon classes sound / look / feel different
+            .add_plugins(transformer_feel::TransformerFeelPlugin) // TRANSFORMER FEEL: any transformer feels awesome
             .add_plugins((portal_view::PortalViewPlugin, portal_cross::PortalCrossPlugin)); // PORTALS: see-through + seamless crossing
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));

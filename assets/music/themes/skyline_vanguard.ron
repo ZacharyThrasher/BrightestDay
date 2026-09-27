@@ -1,0 +1,68 @@
+// Skyline Vanguard — franchise theme for the comic-book superhero origins and kits (both big
+// publishers' capes, mutants and gadget heroes share it).
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: an orchestral
+// hero fanfare in chip — hard-light brass, a 16th-note string ostinato, timpani toms and snare
+// rolls, a soaring second theme and a dark C-minor rally. No melody, hook, bassline or lyric of any
+// existing theme is quoted or paraphrased.
+// Structure: sting (fanfare) | a (main theme) b (soaring) c (rally) a2 b2 | end.
+(
+    title: "Skyline Vanguard",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: comic-book heroes",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (orchestral-hero fanfare idiom, chip instrumentation).",
+    role: "Franchise theme: superhero origins and kits",
+    key: "Eb",
+    time: (4, 4),
+    bpm: 138.0,
+    gain_db: -5.2,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "brass", inst: "hl_brass", stem: Lead, pan: -0.1, echo: (ticks: 96, vol: 0.18)),
+        (name: "lead", inst: "lead50", stem: Lead, pan: 0.2, vol: 0.7),
+        (name: "horns", inst: "harm50", stem: Base, pan: 0.2, gen: "o4 X2 X2 |"),
+        (name: "strings", inst: "run25", stem: Drive, pan: -0.25, vol: 0.7, gen: "o4 [R16 F16 O16 F16]4 |"),
+        (name: "bass", inst: "bass", stem: Base, gen: "o2 u4 R4 R8 R8 F4 R4 |"),
+        (name: "timp", drums: true, stem: Drive, vol: 1.05, gen: "t4 r4 t4 t8 t8 |"),
+        (name: "snare", drums: true, stem: Drive, pan: 0.15, vol: 0.8, gen: "k8 s16 s16 s8 k8 k8 s16 s16 s8 s8 |"),
+        (name: "cym", drums: true, stem: Drive, pan: 0.25, vol: 0.45, gen: "[h8]8 |"),
+    ],
+    patterns: {
+        "chA": "Eb | Ab | Bb | Eb | Cm | Ab | F | Bb |",
+        "chB": "Ab | Bb | Gm | Cm | Ab | Bb | Cm Ab | Bb |",
+        "chC": "Cm | Ab | Fm | G | Cm | Ab | Bb | Bb |",
+        // ---- tunes (all original) ----
+        "mA": "o5 e8 e8 g8 b8 o6 e4 d8 c8 | o6 c4 o5 a8 b8 o6 c2 | o5 b4. a8 g8 f8 d4 | o5 e2. r4 |
+               o5 g8 g8 b8 o6 d8 e4 d8 c8 | o6 c4 o5 a8 g8 a2 | o5 f4 a=8 o6 c8 f4 c4 | o6 d2 ~f4 d4 |",
+        "mB": "o6 c2 e4. d8 | o6 d2 f4 d4 | o6 d4. c8 o5 b4 g4 | o6 c1 |
+               o6 c2 e4. f8 | o6 g2 f4 d4 | o6 e4 d4 c4 e4 | o6 d1 |",
+        "mC": "o4 c4. d8 e4 g4 | o4 a2 g4 e4 | o4 f4. g8 a4 o5 c4 | o5 d2 b=2 |
+               o5 c4. d8 e4 g4 | o5 a2 o6 c2 | o6 d4. c8 d4 f4 | o6 f1 |",
+    },
+    sections: [
+        // The sting: a brass fanfare over a snare roll.
+        (name: "sting", bars: 2, chords: "Bb | Eb |", mute: ["strings", "cym"], parts: {
+            "brass": "o5 b8 b16 b16 o6 e4 r8 o5 b8 o6 e8 g8 | o6 b2. r4 |",
+            "lead": "o5 f8 f16 f16 b4 r8 f8 b8 o6 e8 | o6 g2. r4 |",
+            "snare": "[s16]16 | c4 r4 r2 |",
+            "timp": "t4 t4 t8 t8 t8 t8 | t4 t8 t8 t4 t4 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", parts: { "brass": "$mA" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "brass": "k-12 $mB k0" }),
+        (name: "c", bars: 8, chords: "$chC", mute: ["cym"], parts: {
+            "brass": "$mC", "lead": "r1 | r1 | r1 | r1 | o5 e4. f8 g4 o6 c4 | o6 c2 e2 | o6 f4. e8 f4 a4 | o6 b1 |",
+            "snare": "[r1 |]4 [k8 s16 s16 s8 k8 k8 s16 s16 s8 s8 |]3 [s16]16 |",
+        }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "brass": "$mA", "lead": "$mA" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "lead": "$mB", "brass": "$mB",
+            "snare": "c8 s16 s16 s8 k8 k8 s16 s16 s8 s8 | [k8 s16 s16 s8 k8 k8 s16 s16 s8 s8 |]6 [s16]16 |" }),
+        (name: "end", bars: 2, chords: "Eb | Eb |", mute: ["strings", "cym"], parts: {
+            "brass": "o5 e8 e8 g8 b8 o6 e4 g4 | o6 e2. r4 |",
+            "lead": "o5 b8 b8 o6 e8 g8 b2 | o6 g2. r4 |",
+            "snare": "[s16]16 | c2 r2 |",
+            "timp": "t8 t8 t8 t8 t4 t4 | t2 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)

@@ -15,10 +15,10 @@
         moves: [
             // The stand's finger shoots out and pierces.
             (name: "star finger", tags: [Primary], cooldown: 1.5, cost: 5.0, ops: [Shove(range: 6.0, angle: 10.0, damage: 12.0, knockback: 14.0)],
-             juice: Some((title: Some("STAR FINGER")))),
+             juice: Some((impact_frame: Some("comic"), title: Some("STAR FINGER")))),
             // Never a freeze: the world greys and you alone move fast for a beat.
             (name: "star platinum: the world", tags: [Ultimate], cooldown: 20.0, cost: 20.0, ops: [TimeStop(secs: 1.2, speed: 2.2)],
-             juice: Some((title: Some("STAR PLATINUM: THE WORLD"), boom: true))),
+             juice: Some((title: Some("STAR PLATINUM: THE WORLD"), boom: true, ripple: 16.0, punch: 4.0, color: Some((0.55, 0.4, 0.9))))),
             // ORA ORA ORA: the stand steps out and punches wherever you look; the last one sends them flying.
             (name: "ora rush", tags: [Combo], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
@@ -30,20 +30,25 @@
         id: "the_world",
         name: "The World",
         kind: Stand,
-        names: ["the world stand", "za warudo", "dio's stand"],
+        names: ["the world stand", "dio's stand", "the world stand power"],
         companion: Some((recipe: (name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
         fx: "holy",
-        shouts: [("road roller", 0), ("Road Roller Da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1), ("za warudo toki yo tomare", 1),
-                 ("zah warudo", 1), ("za wardo", 1),
+        shouts: [("road roller", 0), ("Road Roller Da", 0), ("Za Warudo", 1), ("the world", 1), ("toki yo tomare", 1), ("za warudo toki yo tomare", 1),
+                 ("zah warudo", 1), ("za wardo", 1), ("toki wo tomare", 1), ("za warudo toki wo tomare", 1), ("zawarudo", 1),
+                 ("the world time stop", 1), ("dio time stop", 1), ("the world stop time", 1), ("roada rora da", 0), ("rodo rora da", 0),
                  ("muda muda", 2), ("muda muda muda", 2), ("mudamuda", 2), ("mudamudamuda", 2), ("muda rush", 2), ("muda muda rush", 2),
                  ("the world muda", 2), ("the world rush", 2)],
         moves: [
-            (name: "road roller", cooldown: 8.0, ops: [
+            // ROAD ROLLER DA: you LEAP to the crosshair and the steamroller comes down out of the sky on
+            // the spot you land — ride it in. ends: on top of the wreck (chain the muda rush).
+            (name: "road roller", fx: "earth", tags: [Combo], cooldown: 8.0, ops: [
+                Leap(range: 22.0, apex: 8.0),
                 Cast(recipe: (name: "road roller", form: Vehicle, mech: [DropFromSky, Heavy, Blunt], scale: 4.0, mass: 3000.0)),
-            ]),
+            ], juice: Some((title: Some("ROAD ROLLER DA!"), boom: true, punch: 5.0, shake: 0.35, at: Aim, debris: 20.0, color: Some((1.0, 0.82, 0.15)),
+                            impact_frame: Some("comic")))),
             // Never freezes anyone: the world greys and DIO alone moves at ×2.
             (name: "za warudo", tags: [Ultimate], cooldown: 20.0, cost: 25.0, ops: [TimeStop(secs: 1.5, speed: 2.0)],
-             juice: Some((title: Some("ZA WARUDO"), boom: true))),
+             juice: Some((title: Some("ZA WARUDO"), boom: true, ripple: 18.0, punch: 4.0, color: Some((1.0, 0.85, 0.2))))),
             (name: "muda rush", tags: [Combo], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
                      stand: Some((name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0))),
@@ -88,7 +93,8 @@
                  ("Bites The Dust", 3), ("bite the dust", 3), ("killer queen bites the dust", 3),
                  ("baitsa za dasuto", 3), ("bites za dusto", 3), ("third bomb", 3), ("daisan no bakudan", 3),
                  ("stray cat", 4), ("stray cat bubbles", 4), ("air bomb stray cat", 4),
-                 ("bomb that", 5), ("turn it into a bomb", 5)],
+                 ("bomb that", 5), ("turn it into a bomb", 5),
+                 ("killer queen daisan no bakudan", 3)],
         moves: [
             // Touch them: they're a bomb now (the tag lasts 20 s, wherever they run).
             (name: "first bomb", tags: [Primary], cooldown: 1.5, cost: 3.0, ops: [Tag(range: 3.4, cone: 20.0, secs: 20.0)],
@@ -98,7 +104,7 @@
             ], juice: Some((title: Some("SHEER HEART ATTACK")))),
             // Click. Everyone you touched explodes, wherever they are.
             (name: "detonate", tags: [Ultimate, Combo], cooldown: 4.0, cost: 4.0, ops: [TagStrike(damage: 18.0, knockback: 22.0, up: 0.6, element: Fire)],
-             juice: Some((title: Some("*CLICK*"), boom: true, punch: 3.0))),
+             juice: Some((impact_frame: Some("comic"), title: Some("*CLICK*"), boom: true, punch: 3.0))),
             // The third bomb: time blows up and you are back where you were, as unhurt as you were.
             (name: "bites the dust", tags: [Ultimate, Defense], cooldown: 25.0, cost: 10.0, ops: [Rewind(secs: 3.0)],
              juice: Some((title: Some("BITES THE DUST"), boom: true, color: Some((0.95, 0.5, 0.75))))),
@@ -171,7 +177,8 @@
         fx: "blood",
         shouts: [("time erase", 0), ("erase time", 0), ("time skip", 0), ("skip time", 0), ("king crimson time skip", 0), ("toki wo futtobasu", 0),
                  ("king crimson no noryoku", 0), ("erase the time", 0), ("king crimson chop", 1), ("chest punch", 1), ("king crimson punch", 1),
-                 ("epitaph", 2), ("epitaph future", 2), ("predict the future epitaph", 2)],
+                 ("epitaph", 2), ("epitaph future", 2), ("predict the future epitaph", 2),
+                 ("king crimson time erase", 0), ("king crimson erase time", 0)],
         moves: [
             // Time is erased: for a moment nothing can touch you and you step somewhere else, leaving a
             // flicker behind. Still intangible when you arrive: strike first (striking ends it).
@@ -188,7 +195,7 @@
     (
         id: "stone_free",
         name: "Stone Free",
-        kind: Stand,
+        kind: Stand, fx: "hardlight",
         names: ["stone free", "jolyne's stand"],
         companion: Some((recipe: (name: "Stone Free", form: Biped, mech: [Flies, Blunt], scale: 1.9, mass: 70.0), rush_damage: 3.0, rush_knockback: 4.0)),
         shouts: [("string", 0), ("string web", 1)],
@@ -201,14 +208,14 @@
     (
         id: "hierophant_green",
         name: "Hierophant Green",
-        kind: Stand,
+        kind: Stand, fx: "hardlight",
         names: ["hierophant green", "kakyoin's stand"],
         companion: Some((recipe: (name: "Hierophant Green", form: Biped, mech: [Flies, Constrict], scale: 1.9, mass: 60.0), rush_damage: 2.0, rush_knockback: 3.0)),
-        shouts: [("Emerald Splash", 0), ("twenty meter emerald splash", 0), ("tentacle", 1)],
+        shouts: [("Emerald Splash", 0), ("twenty meter emerald splash", 0), ("20 meter emerald splash", 0), ("emerald splash hierophant", 0), ("emerald splosh", 0), ("tentacle", 1)],
         moves: [
             (name: "emerald splash", cooldown: 2.5, ops: [
                 Cast(recipe: (name: "emerald splash", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.25, count: 10)),
-            ]),
+            ], juice: Some((title: Some("EMERALD SPLASH"), punch: 2.0, color: Some((0.2, 1.0, 0.45))))),
             (name: "tentacle", cooldown: 3.0, ops: [
                 Cast(recipe: (name: "hierophant tentacle", form: Serpent, mech: [Grab, Constrict], scale: 2.0)),
             ]),
@@ -217,7 +224,7 @@
     (
         id: "silver_chariot",
         name: "Silver Chariot",
-        kind: Stand,
+        kind: Stand, fx: "rigid",
         names: ["silver chariot", "polnareff's stand"],
         companion: Some((recipe: (name: "Silver Chariot", form: Biped, mech: [Flies, Blade, Fast], scale: 1.9, mass: 60.0), rush_damage: 2.5, rush_knockback: 2.0, rush_range: 3.0)),
         shouts: [("rapier", 0), ("armor off", 1), ("armour off", 1)],
@@ -231,14 +238,14 @@
     (
         id: "magicians_red",
         name: "Magician's Red",
-        kind: Stand,
+        kind: Stand, fx: "fire",
         names: ["magician's red", "magicians red", "avdol's stand"],
         companion: Some((recipe: (name: "Magician's Red", form: Biped, mech: [Flies, Breath], element: Fire, scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 3.0)),
         shouts: [("crossfire hurricane", 0), ("red bind", 1), ("fire ankh", 1)],
         moves: [
             (name: "crossfire hurricane", cooldown: 2.0, ops: [
                 Cast(recipe: (name: "crossfire hurricane", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 1.2)),
-            ]),
+            ], juice: Some((title: Some("CROSSFIRE HURRICANE"), punch: 2.5, color: Some((1.0, 0.45, 0.1))))),
             // A fire ankh that breathes flame.
             (name: "fire ankh", cooldown: 5.0, ops: [Cast(recipe: (name: "fire ankh", form: Pillar, mech: [Breath], element: Fire, scale: 2.0))]),
         ],
@@ -246,39 +253,42 @@
     (
         id: "sticky_fingers",
         name: "Sticky Fingers",
-        kind: Stand,
+        kind: Stand, fx: "rigid",
         names: ["sticky fingers", "bucciarati's stand"],
         companion: Some((recipe: (name: "Sticky Fingers", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
         shouts: [("zipper", 0), ("zip", 0), ("arrivederci", 1)],
         moves: [
             // Zip the wall you aim at open: a portal through it.
             (name: "zipper", cooldown: 3.0, cost: 8.0, ops: [Portal(depth: 8.0)]),
-            (name: "arrivederci", cooldown: 1.5, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 16.0)]),
+            (name: "arrivederci", cooldown: 1.5, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 16.0)],
+             juice: Some((title: Some("ARRIVEDERCI"), punch: 2.0, color: Some((0.35, 0.55, 1.0))))),
         ],
     ),
     (
         id: "the_hand",
         name: "The Hand",
-        kind: Stand,
+        kind: Stand, fx: "void",
         names: ["the hand stand", "okuyasu's stand"],
         companion: Some((recipe: (name: "The Hand", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
-        shouts: [("erase", 0), ("the hand", 0), ("erase space", 1)],
+        shouts: [("erase", 0), ("the hand", 0), ("Za Hando", 0), ("za handoo", 0), ("the hand erase", 0), ("erase space", 1)],
         moves: [
             // Erase a line of space: a trench through terrain, and whoever is in it is pulled to you.
-            (name: "erase", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 12.0, radius: 1.2, pull: true)]),
+            (name: "erase", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 12.0, radius: 1.2, pull: true)],
+             juice: Some((title: Some("ZA HANDO"), punch: 3.0, color: Some((0.3, 0.45, 1.0))))),
             (name: "erase space", cooldown: 2.0, cost: 6.0, ops: [Blink(dist: 7.0)]),
         ],
     ),
     (
         id: "echoes_act3",
         name: "Echoes Act 3",
-        kind: Stand,
+        kind: Stand, fx: "void",
         names: ["echoes act 3", "echoes act three", "koichi's stand"],
         companion: Some((recipe: (name: "Echoes Act 3", form: Biped, mech: [Flies, Heavy], scale: 1.2, mass: 40.0), rush_damage: 2.0, rush_knockback: 2.0)),
         shouts: [("3 freeze", 0), ("three freeze", 0), ("act 3 freeze", 0)],
         moves: [
             // 3 FREEZE: the target becomes heavy and sinks.
-            (name: "3 freeze", cooldown: 5.0, cost: 10.0, ops: [Weigh(range: 12.0, secs: 3.0, down: 18.0)]),
+            (name: "3 freeze", cooldown: 5.0, cost: 10.0, ops: [Weigh(range: 12.0, secs: 3.0, down: 18.0)],
+             juice: Some((title: Some("3 FREEZE"), ripple: 3.0, at: Aim, color: Some((0.3, 0.95, 0.5))))),
             (name: "act 3 punch", cooldown: 0.8, ops: [Shove(range: 2.5, angle: 40.0, damage: 8.0, knockback: 8.0)]),
         ],
     ),

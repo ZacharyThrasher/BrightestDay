@@ -42,10 +42,10 @@ impl World {
     }
 
     pub(crate) fn step_evades(&mut self, dt: f32) {
-        for i in 0..MAX_PLAYERS.min(self.players.len()) {
+        // Every slot: a departed player's leftover window is cleared too (OPS_REVIEW low).
+        for i in 0..MAX_PLAYERS {
             let Some(mut w) = self.powers.ops.evades[i] else { continue };
-            let p = &self.players[i];
-            if p.id != w.owner || !p.alive {
+            if !self.players.get(i).is_some_and(|p| p.id == w.owner && p.alive) {
                 self.powers.ops.evades[i] = None;
                 continue;
             }

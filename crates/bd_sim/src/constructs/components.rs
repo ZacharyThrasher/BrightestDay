@@ -71,6 +71,8 @@ pub const CONSTRICT_SECS: f32 = 1.5;
 pub const XFORM_SECS: f32 = 0.9;
 pub const XFORM_ENGAGE: f32 = 12.0;
 pub const XFORM_DISENGAGE: f32 = 25.0;
+/// TRANSFORMERS FEEL: a beast-alt follower's bout in each mode while fighting (s).
+pub const BEAST_BOUT: f32 = 6.0;
 /// Alt-mode drive speed cap (COMBAT.md §5d-bis: 24 m/s).
 pub const XFORM_DRIVE_SPEED: f32 = 22.0;
 /// Combiner sequence length (s).
@@ -1761,11 +1763,20 @@ fn step_transform(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         return;
     }
     // Autonomous: drive in, transform ~12 m out, fight, transform back to reposition.
+    // TRANSFORMERS FEEL: a BEAST alt (a T-rex, a gorilla) fights as the beast first, then switches
+    // to the robot for a while, and back — both movesets show (`BEAST_BOUT` s each).
     if c.pilot.is_none() && !c.attached() && c.brawl.xatk == super::brawl::XPhase::None {
         let d = env.target_for(c).map(|t| (t.pos - c.pos).length());
         let x = c.comp.xform;
+        let beast = super::brawl::beast_alt(c, &env.ctx.tuning.transformer);
         match x.mode {
-            XMode::Alt if d.is_some_and(|d| d < XFORM_ENGAGE) && x.since > 0.8 => {
+            XMode::Alt if beast && d.is_some_and(|d| d < XFORM_ENGAGE) && x.since > BEAST_BOUT && c.brawl.pounce_t <= 0.0 => {
+                request_transform(c);
+            }
+            XMode::Alt if !beast && d.is_some_and(|d| d < XFORM_ENGAGE) && x.since > 0.8 => {
+                request_transform(c);
+            }
+            XMode::Robot if beast && !x.combined && d.is_some_and(|d| d < XFORM_DISENGAGE) && x.since > BEAST_BOUT * 1.2 => {
                 request_transform(c);
             }
             XMode::Robot if !x.combined && d.is_none_or(|d| d > XFORM_DISENGAGE) && x.since > 2.0 => {
@@ -1891,11 +1902,18 @@ fn xform_locomotion(c: &mut Construct, env: &Env<'_>) {
 fn transform_attacks(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     // TRANSFORMER COMBAT (`brawl.rs`): followers fight like their archetype — strings, transform
     // attacks as the string's extender, the blaster at range, boost-steps and counters.
-    if eff_has(c, Mechanic::Transforms) && !c.comp.xform.busy && !is_creature_ctrl(c) && c.pilot.is_none() && c.comp.xform.hub.is_none() && !c.comp.xform.combined && c.active() && !c.attached() {
-        if c.comp.xform.mode == XMode::Robot || super::brawl::moving(c) {
+    // TRANSFORMERS FEEL: creature-bodied transformers (a T-rex alt) brawl as the robot too (their
+    // beast mode keeps the creature's own bites / tail / breath), and a combined giant fights as
+    // the "colossus" row (stomps, quakes).
+    let creature = is_creature_ctrl(c);
+    if eff_has(c, Mechanic::Transforms) && !c.comp.xform.busy && c.pilot.is_none() && c.comp.xform.hub.is_none() && c.active() && !c.attached() {
+        let robot = c.comp.xform.mode == XMode::Robot;
+        if robot || super::brawl::moving(c) {
             super::brawl::ai(c, env, out);
         }
-        return;
+        if !creature || robot || super::brawl::moving(c) {
+            return;
+        }
     }
     if !eff_has(c, Mechanic::Transforms) || c.comp.xform.mode != XMode::Robot || c.comp.xform.busy || c.comp.xform.punch_cd > 0.0 || is_creature_ctrl(c) || c.pilot.is_some() {
         return;

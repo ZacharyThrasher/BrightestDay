@@ -165,6 +165,8 @@ pub fn run(docs: &std::path::Path, lex: Option<&bd_lexicon::Lexicon>, only: Opti
         ("JET", rec(lex, "fighter jet", Form::Vehicle, 7.0, &[Jet, Fins, Cockpit], 2)),
         ("TANK", rec(lex, "tank", Form::Vehicle, 6.0, &[Treads, Turret, Barrels], 5)),
         ("SHARK", rec(lex, "shark", Form::Fish, 5.0, &[Fins], 1)),
+        ("MOTORCYCLE", rec(lex, "motorcycle", Form::Vehicle, 4.0, &[Wheels, Exhaust, Headlight], 3)),
+        ("SPEEDBOAT", rec(lex, "speedboat", Form::Vehicle, 6.0, &[Propeller, Exhaust], 3)),
     ];
     let mut out = Vec::new();
     for (label, r) in &cases {

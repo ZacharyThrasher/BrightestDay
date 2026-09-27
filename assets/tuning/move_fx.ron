@@ -120,6 +120,119 @@
         // No colour of its own: the move's juice colour / element paints it.
         "gaze": (word: "none", body: Energy, core: (1.0, 0.95, 0.9), glow: 3.5, glyph: 12,
             sound: (release: ("reveal_pulse", 0.7, 0.9), impact: ("mv_hardlight", 0.8, 0.6))),
+        // ------------------------------------------------------------ POLISH: WESTERN (movies / comics / TV)
+        // Spider-Man's web: a THIN white strand from the wrist (not an arm), barely wobbling, a tight
+        // quick THWIP, a small web glob at the tip. Reel = the zip line; Cast = the strand rides the web ball.
+        "web": (word: "thwip", tip: "glob", body: Rubber, color: Some((0.95, 0.96, 1.0)), core: (1.0, 1.0, 1.0), dark: (0.62, 0.64, 0.7), glow: 1.3,
+            wobble: 0.05, speed: 0.75, size: 0.32, glyph: 1,
+            sound: (release: ("tether_fire", 1.55, 0.8), stretch: ("tether_fire", 1.4, 0.9), exit: ("mv_rubber_snap", 1.7, 0.5), impact: ("tether_attach", 1.35, 0.8))),
+        // Doctor Strange / the mystic arts: burning orange spell-rings (mandalas) and sparks, a bright
+        // bell-like chord. Halo body = rings.
+        "mystic": (word: "shing", body: Halo, color: Some((1.0, 0.55, 0.1)), core: (1.0, 0.92, 0.55), dark: (0.4, 0.12, 0.02), glow: 3.6,
+            density: 1.3, jitter: 0.08, rise: 0.2, speed: 0.9, glyph: 3,
+            sound: (release: ("mv_holy", 0.8, 0.9), impact: ("mv_crystal", 0.7, 0.8))),
+        // Scarlet Witch / chaos magic: crackling scarlet wisps that curl and hang, a low warped growl.
+        "chaos": (word: "vwump", body: Smoke, color: Some((0.92, 0.06, 0.2)), core: (1.0, 0.45, 0.5), dark: (0.25, 0.0, 0.05), glow: 2.8,
+            density: 1.2, jitter: 0.2, rise: 0.5, linger: 1.3, glyph: 6,
+            sound: (release: ("mv_cursed", 1.3, 0.9), impact: ("mv_void_thump", 1.3, 0.8))),
+        // The Force: you don't see it, you see what it does — a pale pressure ripple, spiralling dust,
+        // a deep low push. Gust body, dim, no word.
+        "force": (word: "none", body: Gust, color: Some((0.78, 0.86, 1.0)), core: (0.95, 0.97, 1.0), glow: 0.9, density: 0.9, speed: 0.85, glyph: 12,
+            sound: (release: ("mv_gust", 0.55, 1.0), impact: ("mv_void_thump", 0.8, 0.9))),
+        // Wand spells (Harry Potter): a straight, fast jet of coloured light with a little crackle —
+        // a Bolt body with almost no zig-zag, and a sharp crack.
+        "spell": (word: "none", body: Bolt, core: (1.0, 1.0, 1.0), glow: 4.2, jitter: 0.05, speed: 0.6, glyph: 11,
+            sound: (release: ("whip_crack", 1.5, 0.7), impact: ("mv_hardlight", 1.3, 0.7))),
+        // Magneto: metal answers — violet-magenta rings with a steel ring and clang.
+        "magnetism": (word: "clash", body: Halo, color: Some((0.72, 0.2, 0.62)), core: (0.9, 0.9, 0.95), dark: (0.1, 0.1, 0.12), glow: 2.4, glyph: 2,
+            sound: (release: ("grav_grab", 0.8, 0.9), impact: ("mv_rigid_ring", 0.85, 0.9))),
+        // Lightsabers: a hard coloured blade of light, the hum-swoosh and the crackling clash.
+        "saber": (word: "none", body: Energy, core: (1.0, 1.0, 1.0), glow: 4.5, speed: 0.8, glyph: 2,
+            sound: (release: ("saber_swoosh", 1.0, 1.0), impact: ("saber_deflect", 1.0, 0.9))),
+        // Adamantium claws: three bright steel streaks, fast ghosts, a blade swish and a SNIKT.
+        "claws": (word: "snikt", body: Streak, color: Some((0.82, 0.85, 0.92)), core: (1.0, 1.0, 1.0), glow: 2.2, jitter: 0.05,
+            afterimages: 2, speed: 0.7, linger: 0.5, glyph: 2,
+            sound: (release: ("swing_whoosh_medium", 1.2, 1.0), impact: ("blade_wave", 1.3, 0.8))),
+        // Swords / katanas / sais (TMNT, Samurai Jack, ninjas): clean steel crescents, a sharp swish
+        // and a ringing SHING. (Claws say SNIKT; a lightsaber hums — this is plain steel.)
+        "blade": (word: "shing", body: Streak, color: Some((0.88, 0.9, 0.96)), core: (1.0, 1.0, 1.0), glow: 2.0, jitter: 0.03,
+            afterimages: 1, speed: 0.65, linger: 0.45, glyph: 2,
+            sound: (release: ("swing_whoosh_heavy", 1.25, 0.9), impact: ("clash", 1.2, 0.7))),
+        // A steel cable / grapple line / whip cord (Batman's grapnel, metalbending cables, the Mandalorian's
+        // whipcord): a thin dark line with a bright steel glint, taut (hardly any wobble), a zip and a clank.
+        "cable": (word: "none", body: Rubber, color: Some((0.55, 0.57, 0.62)), core: (0.95, 0.97, 1.0), dark: (0.15, 0.15, 0.17), glow: 0.9,
+            wobble: 0.03, speed: 0.7, size: 0.3, glyph: 2,
+            sound: (release: ("hook_fire", 1.1, 0.8), stretch: ("hook_fire", 1.2, 0.8), exit: ("mv_rigid_collapse", 1.3, 0.6), impact: ("hook_attach", 1.0, 0.9))),
+        // Captain America's shield (and every thrown / bashing shield): hard light-blue metal, a
+        // ringing CLANG, a ricochet ding.
+        "shield": (word: "clash", body: Energy, color: Some((0.35, 0.5, 0.95)), core: (0.95, 0.95, 1.0), glow: 2.2, glyph: 2,
+            sound: (release: ("shield_bash", 1.0, 1.0), impact: ("ricochet_ding", 0.9, 0.8))),
+        // Iron Man's repulsors: a pale-cyan hard-light thump with a whine.
+        "repulsor": (word: "thoom", body: Energy, color: Some((0.72, 0.9, 1.0)), core: (1.0, 1.0, 1.0), glow: 4.0, speed: 0.8, glyph: 1,
+            sound: (release: ("mv_hardlight", 0.7, 1.0), impact: ("grav_punt", 1.1, 0.8))),
+        // Hellfire (Ghost Rider, demons): orange flame with a white-hot core and black smoke, chains roar.
+        "hellfire": (word: "fire", body: Flame, color: Some((1.0, 0.5, 0.08)), core: (1.0, 1.0, 0.8), dark: (0.03, 0.02, 0.02), glow: 3.4, rise: 1.3, jitter: 0.1, glyph: 5,
+            sound: (release: ("chain_fire_roar", 1.0, 0.9), impact: ("mv_fire_whoomp", 0.7, 0.9))),
+        // ------------------------------------------------------------ POLISH MYTH & DERIVED: bodies for the
+        // ~1,300 derived kits that had no style (plain "energy" everywhere) + the grass / plant kits.
+        // Grass, vines, flowers (Leafeon, Sceptile, Poison Ivy, Swamp Thing): a whirl of green leaves
+        // that flutter and hang, a leafy FWSSH, a rustle and a crisp snap.
+        "nature": (word: "leaves", body: Paper, color: Some((0.36, 0.82, 0.3)), core: (0.85, 1.0, 0.6), dark: (0.14, 0.34, 0.1), glow: 1.3,
+            density: 1.4, rise: 0.35, linger: 1.3, size: 0.9, glyph: 10,
+            sound: (release: ("break_leaves", 1.1, 0.9), impact: ("mv_gust", 1.3, 0.6))),
+        // (blade fighters use "blade" above.) Fists, brawlers, bruisers: no magic — a dusty shockwave off the knuckles, grit kicked up, a
+        // heavy whoosh and a meaty WHAM. Grain body, pale dust.
+        "brawl": (word: "hit_punch", body: Grain, color: Some((0.9, 0.86, 0.78)), core: (1.0, 0.97, 0.9), dark: (0.46, 0.41, 0.35), glow: 0.8,
+            density: 0.9, rise: 0.25, size: 1.15, speed: 0.85, glyph: 4,
+            sound: (release: ("swing_whoosh_heavy", 1.0, 0.9), impact: ("hit_heavy", 1.0, 0.9))),
+        // Beasts (wolves, big cats, raptors, monsters): ragged amber claw-streaks, a quick swish and a
+        // crunching THWACK. Streak body with two fast ghosts — a pounce you can see.
+        "feral": (word: "thwack", body: Streak, color: Some((1.0, 0.62, 0.28)), core: (1.0, 0.92, 0.8), dark: (0.35, 0.14, 0.05), glow: 1.8,
+            jitter: 0.12, afterimages: 2, speed: 0.7, linger: 0.5, glyph: 2,
+            sound: (release: ("swing_swish_light", 0.8, 1.0), impact: ("heavy_crunch", 1.15, 0.8))),
+        // Slapstick (playful / panicky / cartoon civilians): bright confetti-paper that bursts and
+        // flutters down, a POW, a papery flutter and a springy snap.
+        "toon": (word: "hit_light", body: Paper, color: Some((1.0, 0.72, 0.22)), core: (1.0, 1.0, 0.85), dark: (0.85, 0.3, 0.55), glow: 1.4,
+            density: 1.3, rise: -0.2, linger: 1.1, speed: 0.9, glyph: 0,
+            sound: (release: ("mv_paper", 1.25, 0.9), impact: ("mv_rubber_snap", 1.35, 0.6))),
+        // ------------------------------------------------------------ POLISH: ANIME — Luffy's gears
+        // Same rubber verb, four different bodies (the owner's "stretchy punch ≠ stretchy pole" rule, per gear).
+        // Gear Second: flushed pink skin, a whip-fast snap (the JET prefix), steam hissing off the arm.
+        "gear second": (word: "boing", body: Rubber, color: Some((1.0, 0.56, 0.6)), core: (1.0, 0.92, 0.9), dark: (0.6, 0.16, 0.2), glow: 1.9,
+            wobble: 0.16, speed: 0.7, size: 1.0, afterimages: 2, glyph: 0,
+            sound: (release: ("mv_steam", 1.35, 0.6), stretch: ("mv_rubber_stretch", 1.3, 1.0), exit: ("mv_rubber_snap", 1.25, 1.0), impact: ("hit_medium", 1.05, 0.8))),
+        // Gear Third: bone balloon — a fist the size of a house, slow, heavy wobble, a deep THOOM.
+        "gear third": (word: "thoom", body: Rubber, color: Some((1.0, 0.8, 0.66)), core: (1.0, 0.94, 0.86), dark: (0.5, 0.22, 0.16), glow: 1.2,
+            wobble: 0.34, speed: 1.35, size: 2.7, glyph: 0,
+            sound: (stretch: ("mv_rubber_stretch", 0.6, 1.0), exit: ("mv_rubber_snap", 0.55, 1.0), impact: ("hit_heavy", 0.75, 1.0))),
+        // Gear Fourth: haki-black coiled rubber with red seams — firm (barely wobbles), springy, heavy.
+        "gear fourth": (word: "thoom", body: Rubber, color: Some((0.13, 0.06, 0.07)), core: (0.95, 0.22, 0.18), dark: (0.02, 0.0, 0.0), glow: 2.3,
+            wobble: 0.09, speed: 0.85, size: 1.9, glyph: 0,
+            sound: (stretch: ("mv_rubber_stretch", 0.8, 1.0), exit: ("mv_rubber_snap", 0.75, 1.0), impact: ("hit_heavy", 0.9, 1.0))),
+        // Shunpo / flash step / sonido (Bleach, Dragon Ball's afterimage): NOT the Flash — no lightning, no
+        // colour trail: a soft dark blur, one fading afterimage, a quiet "shh" of cloth. Silent arrival.
+        "shunpo": (word: "none", body: Streak, color: Some((0.16, 0.16, 0.19)), core: (0.95, 0.95, 1.0), dark: (0.02, 0.02, 0.03), glow: 0.9,
+            jitter: 0.0, afterimages: 1, speed: 0.45, linger: 0.35, size: 0.8, glyph: 11,
+            sound: (release: ("mv_gust", 1.7, 0.55), impact: ("mv_gust", 2.0, 0.3))),
+        // Gear Fifth: toon rubber — pure white, absurd wobble, bouncy and joyful, a high BOING.
+        "gear fifth": (word: "boing", body: Rubber, color: Some((1.0, 1.0, 1.0)), core: (1.0, 0.96, 0.72), dark: (0.7, 0.7, 0.78), glow: 2.6,
+            wobble: 0.6, speed: 1.0, size: 1.6, glyph: 0,
+            sound: (stretch: ("mv_rubber_stretch", 1.3, 1.0), exit: ("mv_rubber_snap", 1.45, 1.0), impact: ("mv_rubber_snap", 0.9, 0.8))),
+        // ------------------------------------------------------------ CONTENT: RE:ZERO (assets/powers/re_zero.ron)
+        // The witch's miasma (Satella, Return by Death, Invisible Providence, the Unseen Hands): a black-violet
+        // smoke that CREEPS along the ground and clings, with a sick violet core; a low wet heartbeat thump.
+        "witch": (word: "vwump", body: Smoke, color: Some((0.2, 0.02, 0.26)), core: (0.78, 0.22, 0.9), dark: (0.0, 0.0, 0.0), glow: 1.7,
+            density: 1.5, jitter: 0.12, rise: -0.35, linger: 1.7, size: 1.15, glyph: 6,
+            sound: (release: ("mv_cursed", 0.7, 1.0), impact: ("heartbeat", 0.8, 1.0))),
+        // Rem's morning star: an iron ball on a steel chain — thin, heavy, barely any wobble, slow out, a
+        // rattling chain as it plays out, a crunching CLANK on contact, the chain hauled home.
+        "morningstar": (word: "clash", body: Rubber, color: Some((0.6, 0.63, 0.7)), core: (0.95, 0.96, 1.0), dark: (0.18, 0.18, 0.22), glow: 1.0,
+            wobble: 0.12, speed: 1.2, size: 0.62, glyph: 2,
+            sound: (stretch: ("chain_sweep", 1.0, 1.0), exit: ("chain_pull", 1.0, 0.9), impact: ("heavy_crunch", 0.95, 1.0))),
+        // Julius's six quasi-spirits: bright rainbow-white rings and gem sparks, a bell chord.
+        "prism": (word: "shing", body: Halo, color: Some((1.0, 0.78, 0.96)), core: (1.0, 1.0, 1.0), dark: (0.45, 0.3, 0.6), glow: 3.8,
+            density: 1.4, jitter: 0.1, rise: 0.3, glyph: 3,
+            sound: (release: ("mv_crystal", 1.15, 0.9), impact: ("mv_holy", 1.3, 0.7))),
     },
     aliases: {
         "tech": "hardlight", "hard light": "hardlight", "construct": "hardlight", "digital": "glitch", "pixel": "glitch",
@@ -143,7 +256,17 @@
         "ghost": "spirit", "soul": "spirit",
         "eye": "gaze", "eyes": "gaze", "evil eye": "gaze", "third eye": "gaze", "eye beam": "gaze",
         "cards": "paper", "petal": "paper", "petals": "paper", "gem": "crystal",
+        "gear 2": "gear second", "gear two": "gear second", "gear 3": "gear third", "gear three": "gear third",
+        "gigant": "gear third", "gear 4": "gear fourth", "gear four": "gear fourth", "boundman": "gear fourth",
+        "flash step": "shunpo", "sonido": "shunpo", "afterimage": "shunpo", "gear 5": "gear fifth", "gear five": "gear fifth", "nika": "gear fifth",
         "liquid": "water", "ocean": "water", "vapor": "steam", "mist": "steam",
+        "webs": "web", "webbing": "web", "sorcery": "mystic", "mystic arts": "mystic", "hex": "chaos", "chaos magic": "chaos",
+        "the force": "force", "wand": "spell", "spells": "spell", "magnet": "magnetism", "magnetic": "magnetism",
+        "lightsaber": "saber", "claw": "claws", "adamantium": "claws", "sword": "blade", "katana": "blade", "steel": "blade", "vibranium": "shield", "hell fire": "hellfire",
+        "leaf": "nature", "leaves": "nature", "grass": "nature", "plant": "nature", "vine": "nature", "vines": "nature", "flora": "nature",
+        "fist": "brawl", "fists": "brawl", "brute": "brawl", "beast": "feral", "wild": "feral", "cartoon": "toon", "slapstick": "toon",
+        "miasma": "witch", "witch miasma": "witch", "jealousy": "witch", "flail": "morningstar", "morning star": "morningstar", "chain flail": "morningstar",
+        "rainbow": "prism", "quasi spirits": "prism",
     },
     elements: [
         (Fire, "fire"), (Electric, "lightning"), (Ice, "ice"), (Water, "water"), (Wind, "wind"), (Earth, "earth"),

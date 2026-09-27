@@ -27,6 +27,8 @@ pub struct Look {
     pub linger: f32,
     pub size: f32,
     pub afterimages: u8,
+    /// A Rubber limb's end: 0 fist, 1 none (a bare strand), 2 glob (a sticky splat).
+    pub tip: u8,
 }
 
 impl Default for Look {
@@ -46,6 +48,7 @@ impl Default for Look {
             linger: 1.0,
             size: 1.0,
             afterimages: 0,
+            tip: 0,
         }
     }
 }
@@ -608,7 +611,7 @@ pub fn circle(fx: &mut FxParticles, c: Vec3, normal: Vec3, r: f32, segs: usize, 
 
 /// Elastic limb from `root` to `tip`: `wob` = wobble amplitude now (m), `ph` its phase. Thins as it
 /// stretches (volume kept), a fist blob at the tip. Rubber.
-pub fn rubber_limb(fx: &mut FxParticles, root: Vec3, tip: Vec3, thick: f32, wob: f32, ph: f32, color: [f32; 3], core: [f32; 3], glow: f32) {
+pub fn rubber_limb(fx: &mut FxParticles, root: Vec3, tip: Vec3, thick: f32, wob: f32, ph: f32, color: [f32; 3], core: [f32; 3], glow: f32, end: u8) {
     let d = tip - root;
     let len = d.length();
     if len < 0.02 {
@@ -635,9 +638,23 @@ pub fn rubber_limb(fx: &mut FxParticles, root: Vec3, tip: Vec3, thick: f32, wob:
         }
         prev = p;
     }
+    let rot = Quat::from_rotation_arc(Vec3::Z, d / len);
+    match end {
+        1 => return,
+        2 => {
+            // A glob: a flat sticky splat across the line, a few blobs round it.
+            fx.immediate_box(tip, rot, Vec3::new(thick * 3.2, thick * 3.2, thick * 0.9), color, glow * 0.9, PFlags::PLAIN);
+            for k in 0..4 {
+                let a = k as f32 * 1.57 + ph * 0.1;
+                let o = rot * Vec3::new(a.cos(), a.sin(), 0.0) * thick * 2.0;
+                fx.immediate_box(tip + o, rot, Vec3::splat(thick * 1.1), core, glow, PFlags::PLAIN);
+            }
+            return;
+        }
+        _ => {}
+    }
     // Fist: a chunky box at the tip, squashed along the stretch.
     let squash = (len / 3.0).clamp(0.0, 0.35);
-    let rot = Quat::from_rotation_arc(Vec3::Z, d / len);
     fx.immediate_box(tip, rot, Vec3::new(thick * 2.3 * (1.0 + squash * 0.5), thick * 2.3 * (1.0 + squash * 0.5), thick * 2.3 * (1.0 - squash)), color, glow * 0.8, PFlags::PLAIN);
 }
 

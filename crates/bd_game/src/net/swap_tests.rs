@@ -90,7 +90,8 @@ struct Harness {
 
 impl Harness {
     fn start(first: NetMapKind) -> Self {
-        let settings = bd_sim::settings::GameSettings::default();
+        // Every map on the cards (the swap goes through all of them in a fixed order).
+        let settings = bd_sim::settings::GameSettings { vote: bd_sim::settings::MapVoteRules::open_all(), ..Default::default() };
         let mut host =
             HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
         let port = host.port;

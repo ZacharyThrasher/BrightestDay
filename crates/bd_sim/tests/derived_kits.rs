@@ -243,6 +243,73 @@ fn golden_phrases_obscure_characters() {
     }
 }
 
+/// POLISH: every presentation style a derived kit or move names is a style key / alias in
+/// `assets/tuning/move_fx.ron` (bd_game's `move_fx_every_fx_key…` test only scans RON text, and derived
+/// moves get their `fx` when they are expanded).
+#[test]
+fn derived_fx_keys_exist_in_move_fx() {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/tuning/move_fx.ron");
+    let Ok(src) = std::fs::read_to_string(path) else { return };
+    let norm = |s: &str| s.to_lowercase().replace([' ', '_', '-'], "");
+    let mut keys = HashSet::new();
+    for line in src.lines() {
+        let line = line.split("//").next().unwrap_or("");
+        let mut rest = line;
+        while let Some(a) = rest.find('"') {
+            let Some(b) = rest[a + 1..].find('"') else { break };
+            let key = &rest[a + 1..a + 1 + b];
+            let after = rest[a + 2 + b..].trim_start();
+            if after.starts_with(':') {
+                keys.insert(norm(key));
+            }
+            rest = &rest[a + 2 + b..];
+        }
+    }
+    let mut bad = Vec::new();
+    for (_, p) in derived() {
+        for fx in std::iter::once(&p.fx).chain(p.moves.iter().map(|m| &m.fx)) {
+            if !fx.is_empty() && !keys.contains(&norm(fx)) {
+                bad.push(format!("{}: fx {fx:?}", p.id));
+            }
+        }
+    }
+    bad.dedup();
+    assert!(bad.is_empty(), "unknown move_fx keys:\n{}", bad.iter().take(20).cloned().collect::<Vec<_>>().join("\n"));
+}
+
+/// POLISH: grass-type Pokémon are PLANTS (the icon data files them under Earth): leaf / vine / root / solar
+/// moves in the leaf style, never an earthquake or a rock throw.
+#[test]
+fn grass_types_are_plants_not_rocks() {
+    let t = table();
+    let mut seen = 0;
+    for id in ["dk_chikorita", "dk_venusaur", "dk_sceptile", "dk_leafeon", "dk_treecko", "dk_torterra"] {
+        let Some(p) = t.powers.iter().find(|p| p.id == id) else { continue };
+        seen += 1;
+        assert_eq!(p.fx, "nature", "{id}: kit style");
+        for m in &p.moves {
+            assert!(!["earthquake", "rock throw", "stone bolt", "rock slide"].contains(&m.name.as_str()), "{id}: {:?}", m.name);
+        }
+        let ult = p.moves.iter().find(|m| m.tags.contains(&MoveTag::Ultimate)).expect("ultimate");
+        let ok = ult.ops.iter().any(|o| matches!(o, MoveOp::Cast { signature: Some(_), .. } | MoveOp::Erupt { .. }));
+        assert!(ok, "{id}: the ultimate should be the solar beam or the overgrowth, got {:?}", ult.name);
+    }
+    if seen == 0 {
+        eprintln!("no grass-type derived kits (hand-built now?)");
+    }
+}
+
+/// POLISH: every derived ULTIMATE lands with an impact frame (the pack's, else the element's look).
+#[test]
+fn derived_ultimates_have_impact_frames() {
+    for (_, p) in derived() {
+        for m in p.moves.iter().filter(|m| m.tags.contains(&MoveTag::Ultimate)) {
+            let fr = m.juice.as_ref().and_then(|j| j.impact_frame.as_deref());
+            assert!(fr.is_some_and(|f| !f.is_empty()), "{} {:?}: no impact frame", p.id, m.name);
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------ firing
 
 fn duel() -> World {

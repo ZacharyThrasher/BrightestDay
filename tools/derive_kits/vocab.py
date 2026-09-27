@@ -67,7 +67,7 @@ FLAVOUR = {
     "holy": dict(fx="holy", adj=["radiant", "holy", "divine", "solar", "blessed"], bolt=["radiant bolt", "holy bolt"],
                  ray=["solar beam", "radiant ray"], storm=["judgement", "sunburst", "wrath of heaven"], ward=["sanctuary", "holy ward"],
                  step=["radiant step", "ascension"], noun="radiance"),
-    "mystic": dict(fx="psychic", adj=["arcane", "mystic", "eldritch", "spell", "hexing"], bolt=["arcane bolt", "mystic missile"],
+    "mystic": dict(fx="mystic", adj=["arcane", "mystic", "eldritch", "spell", "hexing"], bolt=["arcane bolt", "mystic missile"],
                    ray=["arcane beam", "eldritch ray"], storm=["arcane storm", "spell barrage", "grand conjuration"],
                    ward=["arcane ward", "mystic ward"], step=["arcane step", "vanishing step"], noun="arcane"),
     "spirit": dict(fx="spirit", adj=["spectral", "ghostly", "haunting", "wailing", "ethereal"], bolt=["spirit bolt", "ghost fire"],
@@ -85,6 +85,51 @@ FLAVOUR = {
     "ink": dict(fx="ink", adj=["inky", "cartoon", "slapstick", "rubbery", "toon"], bolt=["ink blot", "cartoon bomb"],
                 ray=["ink jet", "toon ray"], storm=["looney finale", "anvil drop", "toon mayhem"], ward=["toon stance", "rubber hide"],
                 step=["scram", "toon dash"], noun="ink"),
+    # POLISH: grass / plant characters (grass Pokémon, dryads, Swamp Thing, Poison Ivy). Their element stays
+    # in the closed set (Earth roots, Poison spores); the flavour gives the words, the leaf style and the
+    # nature templates (razor leaf, vine whip, grasping roots, bramble ward, solar beam, overgrowth).
+    "nature": dict(fx="nature", adj=["verdant", "thorny", "blooming", "wild", "overgrown"], bolt=["razor petals", "bullet seed", "seed shot", "thorn volley"],
+                   ray=["solar beam", "sunlight beam"], storm=["overgrowth", "verdant storm", "garden of briars", "petal tempest"],
+                   ward=["bramble ward", "thorn hedge", "thorn wall"], step=["petal drift", "grassy glide"], noun="petal"),
+}
+
+# POLISH: the signature beam ultimate (a gathered palm beam that bores terrain and can clash), named per
+# element / flavour. First name that validates wins (rotated per character).
+CANNON = {
+    "Fire": ["inferno beam", "pyre beam", "phoenix ray"], "Electric": ["railgun", "storm lance", "thunder lance"],
+    "Ice": ["absolute zero", "glacier beam", "frost lance"], "Water": ["hydro beam", "tidal beam", "torrent lance"],
+    "Wind": ["vacuum beam", "gale lance", "cyclone beam"], "Earth": ["tectonic beam", "terra lance"],
+    "Poison": ["venom beam", "toxic torrent", "acid lance"], "Psychic": ["psycho beam", "psionic lance", "mind breaker"],
+    "Shadow": ["umbral beam", "void lance", "abyssal beam"], "Atomic": ["gamma beam", "atomic beam", "nuclear beam"],
+    "tech": ["particle beam", "plasma lance", "ion beam"], "holy": ["judgement ray", "holy lance", "sunlight lance"],
+    "mystic": ["eldritch beam", "arcane lance", "astral beam"], "spirit": ["soul beam", "phantom beam", "spirit lance"],
+    "chi": ["spirit wave", "heavenly beam", "chi wave"], "glitch": ["glitch beam", "fatal error beam", "data stream"],
+    "speed": ["mach beam", "sonic lance"], "ink": ["ink torrent", "toon ray"], "nature": ["solar beam", "sunlight beam"],
+    None: ["maximum beam", "overcharge beam", "all out beam"],
+}
+
+# Plant words (whole words; a name hit counts double, like the other keyword tables). Strict: "rose",
+# "oak", "thorn" are surnames far too often.
+NATURE_WORDS = ["leaf", "leaves", "vine", "vines", "grass", "plant", "flower", "blossom", "petal", "seedling", "sprout", "treant",
+                "dryad", "flora", "floral", "pollen", "spore", "flytrap", "bramble", "photosynth*", "chloro*", "plant lantern",
+                "mandrake", "venus flytrap", "piranha plant", "man plant"]
+# Characters that are plants whatever their words say (their icon element is Earth / Poison).
+NATURE_NAMES = {"swamp thing", "man-thing", "man thing", "groot", "wildvine", "kodama", "medphyll", "floronic man", "audrey ii",
+                "poison ivy", "piranha plant", "treebeard", "petey piranha", "plantera", "the green man", "mother nature",
+                "lirili larila", "bellsprout", "venus flytrap"}
+# Grass-type Pokémon (the icon data files them under Earth; they are plants: razor leaf, not rock throw).
+GRASS_POKEMON = {
+    "bulbasaur", "ivysaur", "venusaur", "oddish", "gloom", "vileplume", "bellossom", "paras", "parasect", "bellsprout", "weepinbell",
+    "victreebel", "exeggcute", "exeggutor", "tangela", "tangrowth", "chikorita", "bayleef", "meganium", "hoppip", "skiploom", "jumpluff",
+    "sunkern", "sunflora", "celebi", "treecko", "grovyle", "sceptile", "lotad", "lombre", "ludicolo", "seedot", "nuzleaf", "shiftry",
+    "shroomish", "breloom", "roselia", "roserade", "budew", "cacnea", "cacturne", "lileep", "cradily", "tropius", "turtwig", "grotle",
+    "torterra", "cherubi", "cherrim", "carnivine", "snover", "abomasnow", "leafeon", "shaymin", "snivy", "servine", "serperior",
+    "pansage", "simisage", "sewaddle", "swadloon", "leavanny", "cottonee", "whimsicott", "petilil", "lilligant", "maractus", "deerling",
+    "sawsbuck", "foongus", "amoonguss", "ferroseed", "ferrothorn", "virizion", "chespin", "quilladin", "chesnaught", "skiddo", "gogoat",
+    "phantump", "trevenant", "pumpkaboo", "gourgeist", "rowlet", "dartrix", "decidueye", "fomantis", "lurantis", "morelull", "shiinotic",
+    "bounsweet", "steenee", "tsareena", "dhelmise", "tapu bulu", "kartana", "grookey", "thwackey", "rillaboom", "gossifleur", "eldegoss",
+    "applin", "flapple", "appletun", "zarude", "sprigatito", "floragato", "meowscarada", "smoliv", "dolliv", "arboliva", "bramblin",
+    "brambleghast", "toedscool", "toedscruel", "capsakid", "scovillain", "ogerpon", "calyrex", "rillaboom",
 }
 
 # Temperament → how a PHYSICAL move is described (the personality of an unarmed / weapon move).
@@ -200,4 +245,11 @@ POKEMON = {
     "Shadow": dict(bolt="shadow ball", storm="phantom force", combo="night slash", step="shadow sneak", ward="detect"),
     "Atomic": dict(bolt="signal beam", storm="hyper beam", combo="double edge", step="extreme speed", ward="protect"),
     "Light": dict(bolt="swift", storm="hyper beam", combo="fury swipes", step="agility", ward="protect"),
+    # POLISH: grass types (flavour "nature"; their data element is Earth / Poison)
+    "Nature": dict(bolt="bullet seed", storm="frenzy plant", combo="petal blizzard", step="grassy glide", ward="synthesis"),
 }
+
+# POLISH: Pokémon signature beams by type (the ultimate when a Pokémon's kit is a blaster).
+POKEMON_BEAM = {"Fire": "sacred fire", "Water": "water spout", "Electric": "discharge", "Ice": "ice beam", "Psychic": "psystrike",
+                "Shadow": "hyper beam", "Atomic": "hyper beam", "Light": "hyper beam", "Nature": "solar beam", "Wind": "aeroblast",
+                "Poison": "gunk shot", "Earth": "hyper beam"}

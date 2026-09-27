@@ -82,7 +82,7 @@ power names, shouts): a colliding alias is dropped, or the colliding move rename
 | Movement | Blur, Streak, Teleport, Vanish, Ambush (warp behind), Fly, Swoop, Boost, Leap (+ slam), Charge, Pounce, Reel, Burrow, Surf, RollOut, Bounce, PhaseDash, ElemStep, Evasive(Roll / Slide / Vault / Springback / Sprint / Sidestep / Flee / Cartwheel / Flop) |
 | Defense + Counter | Parry, Guard (+ deflect), Deflect, Ward (repel + status aura), Brace, Evade, Smoke, Heal, Shell, Intangible |
 | Combo | Flurry, FistBarrage, Rush, Blitz, Launcher (→ slam), Grab(Constrict / Toss / Suplex), Volley, Sweep, Maul(Maul / Frenzy / Rend / PackHunt), TailLash, Curse (lift + delayed burst), Crescent, Drill, FollowThrough (combo-timing crit), Dogpile |
-| Ultimate | Storm (meteor storm, thunderstorm, blizzard, tidal wave, tornado, earthquake + spikes, plague + contagion, psychic singularity, eclipse, meltdown), Awaken (grow + empower), Meteor, Blades, Cannon, DeadAim, Bombard, Summon(the horde), Stampede, Overdrive, Gamble (roulette), Guardian, Piledriver / sky drop, Assassinate, Strafe, Orbital, Throttle; personality finishers: Knockout, Beatdown, TopRope, Rage, Nap, FreakOut, Showstopper, Courage, TimeStop |
+| Ultimate | Storm (meteor storm, thunderstorm, blizzard, tidal wave, tornado, earthquake + spikes, plague + contagion, psychic singularity, eclipse, meltdown), Awaken (grow + empower), Meteor, Blades, Cannon, DeadAim, Bombard, Summon(the horde), Stampede, Overdrive, Gamble (roulette), Guardian, Piledriver / sky drop, Assassinate, Strafe, Orbital, Throttle; personality finishers: Knockout (windup haymaker), Beatdown, TopRope, Rage, Nap, FreakOut, Showstopper, Courage, TimeStop; POLISH: SigBeam (signature palm beam, `e2` = merge windup), Pressure (delayed burst / the iaido), Apex (beasts), Titanfall (brutes), SolarBeam + Overgrowth (plants) |
 
 Numbers: ultimate cost 40 (Titan), combo 8, defense 4-5, movement 3-4, primary 2-3 — the presence floors hand
 kits use; damage / knockback / radius shade a little with size and temperament (Aggressive hits harder, Lazy
@@ -101,3 +101,12 @@ cools down slower), all inside the hand kits' ranges.
 
 Open for TOOLBOX CORE: `powers_check` lints every derived kit with "no shouts" (by design — derived kits add
 nothing borrowable); consider skipping that lint for `dk_*` ids.
+
+## POLISH: MYTH & DERIVED (2026-09-27)
+
+Plants get the `nature` flavour (grass Pokémon list + plant names / words in `vocab.py`; element stays Earth / Poison):
+`Bolt(Leaf)`, `Vine`, `Thorns`, `Roots`, `SolarBeam`, `Overgrowth`, style `nature`. Kits with no element and no flavour
+get a body from `plain_fx` (brawl / feral / blade / toon). Every ultimate carries an impact frame (`derive.rs` default
+by element when the pack gives none). Name lists rotate per character (`Ctx.rot`) and every name is checked against the
+costume grammar (names with "the", "cannon", "leaf", "blast", "power"… are rejected — pick others). Audit, numbers and
+the frame sheet: `docs/toolbox/polish/myth_derived_audit.md`, `myth_derived_after.png`.

@@ -35,6 +35,8 @@ import sounds_powerhud  # noqa: E402,F401  (power HUD ready chime)
 import sounds_legend  # noqa: E402,F401  (LEGENDARY moves: recall, storms, ricochet, saber, waves, heavy/chain blades, guns)
 import sounds_moves  # noqa: E402,F401  (TOOLBOX PRESENTATION: move grammar verbs + style bodies)
 import sounds_weapon_class  # noqa: E402,F401  (WEAPON FEEL: per-class swings, heavy crunch / ground crack, whip crack, shield bash)
+import sounds_transformer_feel  # noqa: E402,F401  (TRANSFORMER FEEL: transform beds / snaps / locks, robot steps, engines, robot combat, beasts)
+import sounds_taunt  # noqa: E402,F401  (TAUNT & VOICE TELL: tiny wordless taunt stings)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

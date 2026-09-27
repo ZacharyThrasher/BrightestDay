@@ -2568,6 +2568,36 @@
             sequence: false,
             stereo: false,
         ), // paper body: a flurry of flutters and a crisp snap
+        "mv_time_stop": (
+            files: ["sfx/mv_time_stop_1.ogg", "sfx/mv_time_stop_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // ZA WARUDO: the world sucked into a point (reverse swell), a huge low boom as the bubble bursts out, a clock-bell strike, then a drained ringing drone that sinks
+        "mv_time_resume": (
+            files: ["sfx/mv_time_resume_1.ogg", "sfx/mv_time_resume_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // time resumes: a glassy crack, the world rushing back in (a fast forward whoosh + rising noise), a short low thud as everything moves again
+        "mv_ult_gather": (
+            files: ["sfx/mv_ult_gather_1.ogg", "sfx/mv_ult_gather_2.ogg", "sfx/mv_ult_gather_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // an ultimate gathers: a fast rising charge whine with sucked-in air, cut dead at the release
         "swing_swish_light": (
             files: ["sfx/swing_swish_light_1.ogg", "sfx/swing_swish_light_2.ogg", "sfx/swing_swish_light_3.ogg", "sfx/swing_swish_light_4.ogg", "sfx/swing_swish_light_5.ogg"],
             category: "combat",
@@ -2648,6 +2678,386 @@
             sequence: false,
             stereo: false,
         ), // WEAPON FEEL shield bash: a flat wood + metal-rim slam and a shove thump
+        "tf_seq_robot_s": (
+            files: ["sfx/tf_seq_robot_s_1.ogg", "sfx/tf_seq_robot_s_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.9 s rising servo bed, small/zippy; clicks come from the game (one per panel lock), lock on the stand-up
+        "tf_seq_robot_m": (
+            files: ["sfx/tf_seq_robot_m_1.ogg", "sfx/tf_seq_robot_m_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.9 s rising servo bed, mid/weighty; clicks come from the game (one per panel lock), lock on the stand-up
+        "tf_seq_robot_l": (
+            files: ["sfx/tf_seq_robot_l_1.ogg", "sfx/tf_seq_robot_l_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.9 s rising servo bed, giant/deep + sub; clicks come from the game (one per panel lock), lock on the stand-up
+        "tf_seq_alt_s": (
+            files: ["sfx/tf_seq_alt_s_1.ogg", "sfx/tf_seq_alt_s_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.9 s falling servo bed, small/zippy; clicks come from the game (one per panel lock), lock on the stand-up
+        "tf_seq_alt_m": (
+            files: ["sfx/tf_seq_alt_m_1.ogg", "sfx/tf_seq_alt_m_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.9 s falling servo bed, mid/weighty; clicks come from the game (one per panel lock), lock on the stand-up
+        "tf_seq_alt_l": (
+            files: ["sfx/tf_seq_alt_l_1.ogg", "sfx/tf_seq_alt_l_2.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.9 s falling servo bed, giant/deep + sub; clicks come from the game (one per panel lock), lock on the stand-up
+        "tf_snap_robot": (
+            files: ["sfx/tf_snap_robot_1.ogg", "sfx/tf_snap_robot_2.ogg", "sfx/tf_snap_robot_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.3 s combat transform to robot: rising ratchet zip + hard lock
+        "tf_snap_alt": (
+            files: ["sfx/tf_snap_alt_1.ogg", "sfx/tf_snap_alt_2.ogg", "sfx/tf_snap_alt_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // 0.3 s combat transform to vehicle: falling ratchet zip + hard lock
+        "tf_lock_s": (
+            files: ["sfx/tf_lock_s_1.ogg", "sfx/tf_lock_s_2.ogg", "sfx/tf_lock_s_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // small body final lock: bright crack + small clunk + ping + puff
+        "tf_lock_m": (
+            files: ["sfx/tf_lock_m_1.ogg", "sfx/tf_lock_m_2.ogg", "sfx/tf_lock_m_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // 6 m final lock: crack + clunk + sub knock + ring + hydraulic hiss
+        "tf_lock_l": (
+            files: ["sfx/tf_lock_l_1.ogg", "sfx/tf_lock_l_2.ogg", "sfx/tf_lock_l_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -12.0,
+            sequence: false,
+            stereo: false,
+        ), // giant final lock: slam + sub drop + long low ring + long hiss + grit
+        "tf_panel_clunk": (
+            files: ["sfx/tf_panel_clunk_1.ogg", "sfx/tf_panel_clunk_2.ogg", "sfx/tf_panel_clunk_3.ogg", "sfx/tf_panel_clunk_4.ogg", "sfx/tf_panel_clunk_5.ogg", "sfx/tf_panel_clunk_6.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // heavy plate clunk (per panel lock on big bodies)
+        "tf_air_whoosh": (
+            files: ["sfx/tf_air_whoosh_1.ogg", "sfx/tf_air_whoosh_2.ogg", "sfx/tf_air_whoosh_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // mid-air transformation: a spinning-panel whoosh with rotor-like flutter
+        "tf_eye_zing": (
+            files: ["sfx/tf_eye_zing_1.ogg", "sfx/tf_eye_zing_2.ogg", "sfx/tf_eye_zing_3.ogg"],
+            category: "transform",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // visor ignites: a short rising FM zing + electric buzz
+        "robot_step_light": (
+            files: ["sfx/robot_step_light_1.ogg", "sfx/robot_step_light_2.ogg", "sfx/robot_step_light_3.ogg", "sfx/robot_step_light_4.ogg", "sfx/robot_step_light_5.ogg", "sfx/robot_step_light_6.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -24.0,
+            sequence: false,
+            stereo: false,
+        ), // small robot foot: metal clank + tiny knock
+        "robot_step_mid": (
+            files: ["sfx/robot_step_mid_1.ogg", "sfx/robot_step_mid_2.ogg", "sfx/robot_step_mid_3.ogg", "sfx/robot_step_mid_4.ogg", "sfx/robot_step_mid_5.ogg", "sfx/robot_step_mid_6.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // 6 m robot foot: metal clang + thud + grit
+        "robot_servo_step": (
+            files: ["sfx/robot_servo_step_1.ogg", "sfx/robot_servo_step_2.ogg", "sfx/robot_servo_step_3.ogg", "sfx/robot_servo_step_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -27.0,
+            sequence: false,
+            stereo: false,
+        ), // knee servo per robot step: a short falling whir + tiny hiss
+        "robot_land": (
+            files: ["sfx/robot_land_1.ogg", "sfx/robot_land_2.ogg", "sfx/robot_land_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // robot landing: crack + metal clang + big thud + shock-absorber hiss
+        "engine_car_loop": (
+            files: ["sfx/engine_car_loop_1.ogg", "sfx/engine_car_loop_2.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: cross-plane V8 burble; the game pitches by speed (~0.7-1.8x)
+        "engine_bike_loop": (
+            files: ["sfx/engine_bike_loop_1.ogg", "sfx/engine_bike_loop_2.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: V-twin (uneven pair firing) with a bright rasp; pitched by speed (~0.8-2.2x)
+        "engine_tank_loop": (
+            files: ["sfx/engine_tank_loop_1.ogg", "sfx/engine_tank_loop_2.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: deep diesel + tread links clanking + a squeal; pitched by speed
+        "engine_jet_loop": (
+            files: ["sfx/engine_jet_loop_1.ogg", "sfx/engine_jet_loop_2.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: turbine whine partials + a shaped roar; pitched by speed (~0.8-1.4x)
+        "tyre_screech_loop": (
+            files: ["sfx/tyre_screech_loop_1.ogg", "sfx/tyre_screech_loop_2.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // loop: tyre squeal (stick-slip tonal + a scrub band); gain by slip
+        "drift_boost_burst": (
+            files: ["sfx/drift_boost_burst_1.ogg", "sfx/drift_boost_burst_2.ogg", "sfx/drift_boost_burst_3.ogg"],
+            category: "vehicle",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // drift boost / boost-step: turbo pop + flame whoosh + rising whistle + thump
+        "robot_swing_heavy": (
+            files: ["sfx/robot_swing_heavy_1.ogg", "sfx/robot_swing_heavy_2.ogg", "sfx/robot_swing_heavy_3.ogg", "sfx/robot_swing_heavy_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // heavy robot swing: servo rise + low heavy whoosh + hydraulic puff
+        "robot_swing_fast": (
+            files: ["sfx/robot_swing_fast_1.ogg", "sfx/robot_swing_fast_2.ogg", "sfx/robot_swing_fast_3.ogg", "sfx/robot_swing_fast_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // fast robot strike: sharp whoosh + servo chirp + snap
+        "robot_punch_heavy": (
+            files: ["sfx/robot_punch_heavy_1.ogg", "sfx/robot_punch_heavy_2.ogg", "sfx/robot_punch_heavy_3.ogg", "sfx/robot_punch_heavy_4.ogg", "sfx/robot_punch_heavy_5.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // heavy metal fist on body: crack + low steel clang + thump + grit
+        "robot_punch_fast": (
+            files: ["sfx/robot_punch_fast_1.ogg", "sfx/robot_punch_fast_2.ogg", "sfx/robot_punch_fast_3.ogg", "sfx/robot_punch_fast_4.ogg", "sfx/robot_punch_fast_5.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // fast metal strike: snap + bright clank + small thump
+        "robot_finisher_crunch": (
+            files: ["sfx/robot_finisher_crunch_1.ogg", "sfx/robot_finisher_crunch_2.ogg", "sfx/robot_finisher_crunch_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // finisher: crack + bending-plate groan + crunch cluster + sub slam + ring
+        "tf_focus_sting": (
+            files: ["sfx/tf_focus_sting_1.ogg", "sfx/tf_focus_sting_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // perfect dodge: a short air swell into a bright chrome chime (E minor)
+        "beast_chomp": (
+            files: ["sfx/beast_chomp_1.ogg", "sfx/beast_chomp_2.ogg", "sfx/beast_chomp_3.ogg", "sfx/beast_chomp_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // metal jaws snapping shut: two clanks + crunch + thump
+        "beast_tail_whoosh": (
+            files: ["sfx/beast_tail_whoosh_1.ogg", "sfx/beast_tail_whoosh_2.ogg", "sfx/beast_tail_whoosh_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // tail sweep: long heavy whoosh + segment clatter
+        "pounce_whoosh": (
+            files: ["sfx/pounce_whoosh_1.ogg", "sfx/pounce_whoosh_2.ogg", "sfx/pounce_whoosh_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // pounce / lunge: rising whoosh + servo growl
+        "taunt_flex": (
+            files: ["sfx/taunt_flex_1.ogg", "sfx/taunt_flex_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // TAUNT flex: "ba-DING" - two hard-light plucks up a fourth + sparkle, a little rubbery boing under it
+        "taunt_beckon": (
+            files: ["sfx/taunt_beckon_1.ogg", "sfx/taunt_beckon_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -29.0,
+            sequence: false,
+            stereo: false,
+        ), // TAUNT beckon: "c'mere, c'mere" - two soft upward whoop chirps (wordless)
+        "taunt_shrug": (
+            files: ["sfx/taunt_shrug_1.ogg", "sfx/taunt_shrug_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -29.0,
+            sequence: false,
+            stereo: false,
+        ), // TAUNT shrug: "meh" - two notes sagging down, then a small brush-off swish
+        "taunt_bow": (
+            files: ["sfx/taunt_bow_1.ogg", "sfx/taunt_bow_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -28.0,
+            sequence: false,
+            stereo: false,
+        ), // TAUNT bow: "ta-da" - a quick rising E-minor run into a soft open chord
+        "taunt_dance": (
+            files: ["sfx/taunt_dance_1.ogg", "sfx/taunt_dance_2.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -29.0,
+            sequence: false,
+            stereo: false,
+        ), // TAUNT dance: a bouncy four-tick groove (132 bpm) over a tiny kick
     },
     ko_streak: (
         key: "E minor pentatonic",

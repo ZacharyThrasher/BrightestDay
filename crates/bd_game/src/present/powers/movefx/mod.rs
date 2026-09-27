@@ -54,6 +54,11 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::transform::TransformSystems;
 
+/// This module's share of the shared immediate region per frame (see op_visuals `IMM_BUDGET`).
+pub const IMM_BUDGET: usize = 2200;
+/// Line pixel floor (thickness ≥ this × distance from the camera).
+pub const LINE_FLOOR: f32 = 0.0022;
+
 /// A move fired, as the presentation reads it. Written for every held power's move
 /// (`PowerEvent::Move`); borrowed moves / chain links / dev harnesses write it directly.
 #[derive(Message, Clone, Copy, Debug)]
@@ -159,6 +164,17 @@ pub fn alias_op(op: &MoveOp) -> Option<MoveOp> {
         MoveOp::MarkRecall { range, .. } | MoveOp::GazeStun { range, .. } | MoveOp::Contagion { range, .. } | MoveOp::Banish { range, .. } => MoveOp::Link { range },
         _ => return None,
     })
+}
+
+/// Ops whose whole beat is OP VISUALS' own (`OpEvent::Toolbox` with the real endpoints): a classic
+/// beat on top DOUBLED them — a WarpTo / recall got a trace to the crosshair beside its own streak,
+/// a Getsuga crescent got a carve trace + a spray of body cubes. Only their pose plays here.
+pub fn op_visual_owned(op: &MoveOp) -> Option<MovePose> {
+    match op {
+        MoveOp::WarpTo { .. } => Some(MovePose::Lunge),
+        MoveOp::MarkRecall { .. } | MoveOp::Wave { .. } => Some(MovePose::Punch),
+        _ => None,
+    }
 }
 
 /// The body pose a move asks for (first person: viewmodel; third person: the player body).
@@ -429,6 +445,11 @@ pub fn look_of(fx: &MoveFx, style: u16, juice_color: Option<[f32; 3]>, el: Optio
         linger: d.linger.clamp(0.2, 5.0),
         size: d.size.clamp(0.2, 4.0),
         afterimages: d.afterimages,
+        tip: match d.tip.trim() {
+            "none" => 1,
+            "glob" => 2,
+            _ => 0,
+        },
     }
 }
 
@@ -592,6 +613,7 @@ fn start(
     cams: Query<&GlobalTransform, With<PlayerCamera>>,
     hands: Res<ViewmodelHands>,
     out: (MessageWriter<Sfx3d>, MessageWriter<CameraShakeEvent>, MessageWriter<DebrisImpulse>, MessageWriter<FovPunch>, MessageWriter<bd_fx::SpawnOnomatopoeia>),
+    mut stand: MessageWriter<super::stand_ghost::StandGhostFx>,
 ) {
     let (mut sfx, mut shake, mut debris, mut fov, mut ono) = out;
     let dt = time.delta_secs().min(0.1);
@@ -608,6 +630,7 @@ fn start(
     let (cam, cam_fwd) = cams.iter().next().map_or((Vec3::ZERO, Vec3::NEG_Z), |g| (g.translation(), g.forward().as_vec3()));
     let budget = settings.as_ref().map_or(1.0, |s| s.particle_budget).clamp(0.15, 1.0);
     let local = active.local;
+    fx.scope(cam, LINE_FLOOR, IMM_BUDGET / 4);
     for f in fired.read() {
         // Synthetic fires carry no sim result (dev HUD scene): chips only, no beats.
         if f.from.is_none() && hud_only() {
@@ -630,14 +653,21 @@ fn start(
         let mut pen = Pen { fx: &mut fx, motes: tb.beats.motes * budget, scale, cam, avoid };
         // A borrowed move of a power with a companion (a Stand): its ghost steps out behind you
         // and throws the move, then fades (presentation only: nothing spawns in the sim).
-        if f.borrowed && f.power.is_some_and(|p| p.companion.is_some()) {
+        if f.borrowed && f.power.is_some_and(|p| super::stand_ghost::wants_ghost(p, f.mv)) {
             let (_, _, body) = super::super::constructs::body_frames(v);
-            let at = v.pos + body * (Vec3::new(0.45, 0.25, 0.35) * v.size);
-            pen.ghost(at, v.yaw, v.size * 1.15, look.main, look.glow * 0.7, 0.6 * look.linger);
+            let at = super::stand_ghost::StandGhostFx::spot(v.pos, body, v.size, own_fp);
+            // The Stand's own model (`stand_ghost`; the particle silhouette until it is built).
+            if let Some(power) = f.power {
+                stand.write(super::stand_ghost::StandGhostFx { power, feet: at, rot: body, fwd: dir, color: look.main, glow: look.glow, size: v.size });
+            }
             pen.burst(&look, at + Vec3::Y * v.size, 0.5, 2.0, None, 0.0, 0.4);
         }
         let mut first_pose = None;
         for op in &f.mv.ops {
+            if let Some(pose) = op_visual_owned(op) {
+                first_pose.get_or_insert(pose);
+                continue;
+            }
             // TOOLBOX content ops present through the classic beat they read as (no allocation:
             // plain value variants).
             let alias = alias_op(op);
@@ -862,6 +892,7 @@ fn start(
             poses.by_player.insert(f.player, (p, 0.0));
         }
     }
+    fx.end_scope();
     // Incanted deliveries with an arm (gomu gomu no <anything>): the rubber arm to the construct.
     for k in 0..side.n_arms {
         let (player, cid) = side.arms[k];
@@ -1019,6 +1050,7 @@ fn step(
     let tb = &table.t;
     let bt = &tb.beats;
     let pool = &mut *pool;
+    fx.scope(cam, LINE_FLOOR, IMM_BUDGET);
     for b in pool.beats.iter_mut().filter(|b| b.live) {
         b.t += dt;
         let look = b.look;
@@ -1335,19 +1367,12 @@ fn step(
                     b.live = false;
                     continue;
                 };
+                // The dial, the caster's outline and the ticks are `time_fx`'s (the whole moment);
+                // here only a slow ripple off the caster twice a second.
                 let c = chest(v);
                 if (b.t * 2.0) as u32 != ((b.t - dt) * 2.0) as u32 {
                     pen.ring(&look, c, Vec3::Y, 0.6, 9.0, 0.8, 0.5);
                 }
-                let fade = ((b.dur - b.t) / 0.4).clamp(0.0, 1.0) * (b.t / 0.2).min(1.0);
-                let (u1, v1) = basis(Vec3::Y);
-                let a1 = b.t * 6.0;
-                let a2 = b.t * 0.6;
-                let h1 = c + (u1 * a1.cos() + v1 * a1.sin()) * 1.1 * v.size;
-                let h2 = c + (u1 * a2.cos() + v1 * a2.sin()) * 0.7 * v.size;
-                pen.fx.immediate_segment(c, h1, 0.03, look.core, look.glow * fade, bd_fx::PFlags::PLAIN);
-                pen.fx.immediate_segment(c, h2, 0.05, look.main, look.glow * fade, bd_fx::PFlags::PLAIN);
-                circle(pen.fx, c, Vec3::Y, 1.2 * v.size, 24, 0.02, look.main, look.glow * 0.4 * fade, 0.0);
             }
             OpKind::Explode => {
                 if look.body == Body::Bolt && b.t < 0.2 {
@@ -1366,6 +1391,7 @@ fn step(
             b.live = false;
         }
     }
+    fx.end_scope();
     let live = pool.beats.iter().filter(|b| b.live).count();
     *stats = MoveFxStats { live, peak: pool.peak, started: pool.started, step_us: t0.elapsed().as_secs_f32() * 1e6 };
 }
@@ -1383,7 +1409,7 @@ fn limb(pen: &mut Pen, look: &Look, from: Vec3, tip: Vec3, t: f32, phase: u8, si
                 1 => 0.6 * (-t * 3.0).exp() + 0.15,
                 _ => 1.0,
             };
-            rubber_limb(pen.fx, from, tip, thick * 1.2, wob, t * 3.5, look.main, look.core, look.glow);
+            rubber_limb(pen.fx, from, tip, thick * 1.2, wob, t * 3.5, look.main, look.core, look.glow, look.tip);
         }
         Body::Rigid => {
             let ext = match phase {
@@ -1400,7 +1426,7 @@ fn limb(pen: &mut Pen, look: &Look, from: Vec3, tip: Vec3, t: f32, phase: u8, si
         }
         Body::Smoke | Body::Liquid | Body::Void => {
             // A tendril: dark body, bright seam, drips / puffs shed along it.
-            rubber_limb(pen.fx, from, tip, thick, 0.08 + look.wobble, t * 2.0, look.dark, look.main, look.glow * 0.6);
+            rubber_limb(pen.fx, from, tip, thick, 0.08 + look.wobble, t * 2.0, look.dark, look.main, look.glow * 0.6, 1);
             if pen.fx.rng.f() < 0.35 {
                 let p = from.lerp(tip, pen.fx.rng.f());
                 pen.mote(look, p, Vec3::ZERO, 0.4, 0.0);
@@ -1430,6 +1456,15 @@ mod tests {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/tuning/move_fx.ron");
         let text = std::fs::read_to_string(&path).expect("assets/tuning/move_fx.ron");
         table::parse(&text).expect("move_fx.ron parses")
+    }
+
+    #[test]
+    fn op_visual_owned_ops_draw_once() {
+        // WarpTo / MarkRecall / Wave present through op_visuals' own beats only (no doubled trace).
+        let warp = MoveOp::WarpTo { range: 30.0, cone: 10.0, behind: 1.5, line: false };
+        assert_eq!(op_visual_owned(&warp), Some(MovePose::Lunge));
+        let blink = MoveOp::Blink { dist: 10.0, afterimage: false };
+        assert_eq!(op_visual_owned(&blink), None);
     }
 
     #[test]

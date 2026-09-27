@@ -739,7 +739,9 @@ fn pose_constructs(
             rt.pose.resize(v.model.parts.len(), glam::Affine3A::IDENTITY);
         }
         match xf {
-            Some(x) if x.rig.alt.parts.len() == v.model.parts.len() => crate::transformers::pose_override(x, &mut rt.pose),
+            // TRANSFORMER FEEL: the sequence + the robot's own clips; settled in an animatable alt mode
+            // (a beast, wheels) the normal layered pose below.
+            Some(x) if x.rig.alt.parts.len() == v.model.parts.len() && !x.alt_settled_animates() => crate::transformers::pose_override(x, v.layers.as_slice(), &mut rt.pose),
             _ => bd_shapes::pose_layered_with(&v.model, v.layers.as_slice(), overlay.map(|o| o.locals.as_slice()).filter(|l| !l.is_empty()), &mut rt.pose),
         }
         // Follow-through (capes, tails, chains) on top of the pose, driven by the root's motion.

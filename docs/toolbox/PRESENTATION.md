@@ -155,3 +155,52 @@ see `movefx/dev.rs`. Frame sheet: `docs/toolbox/presentation_sheet.png`.
   `SpawnOnomatopoeia::source` (caster id + 1) and `accent` (finishers) when you spawn words.
 - The `electric` word key now reads KRAK / ZZAK / KRAKOW (lightning); new hit keys `thoom`, `thrust`,
   `thwack`, `whip_crack`, `hit_punch` are available for `word:` in move_fx.ron styles.
+
+## PRESENTATION POLISH pass (overnight wave, 2026-09-27) — before / after: `docs/toolbox/polish/presentation_after.png`
+- **Readable at 20–40 m** (op visuals + move grammar): every immediate line inside an op-visuals /
+  movefx / ultimate / time scope gets a pixel floor (thickness ≥ 0.0022 × distance: a 3 cm line at 40 m
+  was sub-pixel); target-marker glyphs (tag diamond, countdown clock, lockout halo, daze sparks, crown)
+  grow with distance (`View::grow`: ×1 inside 11 m … ×3.6 at 40 m) and ride a little higher (clear of
+  the body you aim at); a marker PINGS as it lands (a camera-facing ring racing out) and, far away, softly
+  every 1.6 s; a super state / phase / glare far away draws a lit SILHOUETTE outline round the body; op
+  flashes grow with distance (≤ 2.4 m, ≤ 0.16 s).
+- **Fades never go black**: bd_fx immediate cubes are opaque with colour × emissive, so a line faded by
+  its emissive ended as a black ring / block. Inside a scope a bright line fading below 1 now THINS
+  instead (`FxParticles::scope` → `fade_thin`). The engine FLASH cube now pops out fast and collapses
+  while lit (`particles.wgsl`) — no more black blocks at the end of big flashes (every flash user).
+- **Per-module immediate budget**: `FxParticles::scope(cam, px_floor, budget)` / `end_scope()` —
+  op_visuals 2600 (+650 at intake), movefx 2200 (+550 at start), ultimate frames 900, time 700 of the
+  shared 8192 (`OpVisStats::imm_dropped` counts what a scope refused).
+- **Drawn once**: WarpTo / MarkRecall / Wave present through OP VISUALS only (`movefx::op_visual_owned`;
+  their pose still plays) — no carve trace / trace-to-crosshair / body-cube spray on top.
+- **Getsuga & every Wave**: a clean tapered blade (24 thin segments, white-hot leading edge, afterimages
+  in its own colour, tip sparks as thin streaks), bowed ACROSS the travel so it reads as an arch from
+  behind, not a line.
+- **Time stop = an EVENT** (`present/powers/time_fx.rs`, replaces the flat grey): the bubble (a shell in
+  the complement of the move's colour, out to 2 × `juice.ripple` m, ≤ 42) washes every screen it passes
+  with a hue swing, then sucks back; the stopped world drains toward the move's colour; dust hangs frozen
+  round your camera; a clock dial turns under the caster and the caster keeps a lit outline (in colour);
+  tick-tock slowing; TIME RESUMES = a collapsing ring, a saturation kick, `mv_time_resume`. Witch Time
+  (a perfect `Evade`): moonlit violet world, crescent ring, heartbeat. Never touches input.
+- **Ultimate frame** (`present/powers/ultimate.rs`): every move tagged `Ultimate` or Titan+ by its ops
+  (not cast-only moves: the signature pipeline has those) gets gather (0.14 s: motes pour in, a
+  converging ring, `mv_ult_gather`) → release (bloom, camera kick near it, a SKY BEACON for 0.6 s) →
+  the ELEMENT SILHOUETTE: energy = three great circles bursting into a sphere; lightning = bolts
+  hammering the ground round the caster + a jagged ring; holy = a cage of light rays + a shaft + halos
+  climbing; void = a hanging black core, violet rim, space swirling in; fire = a flame column + a ring of
+  fire; ice / crystal = a crown of shards that jut up then shatter; others = a column of the body →
+  aftermath: a cooling scorch ring, drifting motes. Your own in first person: particles + camera only.
+- **Twisted moves name themselves**: `OpEvent::Twisted.title` shows as the move title (a twisted famous
+  CAST — "GIANT SPIRIT BOMB" — sends no `Fired`, so it had no title); the base move's own title is skipped.
+- **Stand ghost** (`present/powers/stand_ghost.rs`): a borrowed move of a Stand power / a Stand user's
+  kit shows the Stand's real model (the same procedural build the held Stand uses), translucent in the
+  move's colour, gliding out and dissolving (your own: out to the right, ahead, never on the aim).
+  Models build once on worker threads at match start; the particle silhouette until then.
+- **Portal gun**: fat tracer + white core, the lone end SPRINGS open (overshoot), a burst off the wall.
+- New style key: `tip: "fist" | "none" | "glob"` (a Rubber limb's end; `web` = a sticky glob).
+- New sounds (tools/sfxgen `sounds_moves.py`): `mv_time_stop`, `mv_time_resume`, `mv_ult_gather`.
+- Impact frames now also arm for kit / borrowed moves (`Fired`), for as long as the move's active phase
+  (+0.4 s; slams wait for landing, delayed strikes 2.5 s) — `present/impact_frames/mod.rs`.
+- Dev: `BD_MOVEFX_OBSDIST=<m>` (obs view: the camera hangs back that far from the stage),
+  `BD_POWERS_TEST … bot1|!line <toolbox line>` (a bot types a whole line: twisted casts, chains),
+  `BD_OPVIS_STATS=1` also logs movefx + ultimate step µs.

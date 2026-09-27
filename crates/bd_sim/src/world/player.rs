@@ -97,6 +97,9 @@ pub struct Player {
     pub juggle: crate::juggle::JuggleState,
     /// UNSTICK: cooldown / queued request / no-progress tracking (`world/unstick.rs`, host-side).
     pub unstick: super::unstick::UnstickState,
+    /// TAUNT: the wordless taunt playing + tap / hold detector + rate limiter (`crate::taunt`,
+    /// host-side, presentation only).
+    pub taunt: crate::taunt::TauntState,
 }
 
 impl Player {
@@ -148,6 +151,7 @@ impl Player {
             assist: Default::default(),
             juggle: Default::default(),
             unstick: Default::default(),
+            taunt: Default::default(),
         }
     }
 

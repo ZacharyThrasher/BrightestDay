@@ -1,0 +1,66 @@
+// Tall Grass Trek — franchise theme for the pocket-creature kits (the electric mouse, its trainers
+// and friends).
+// ORIGINAL composition for Brightest Day, written from scratch. Genre cues only: a bright 8-bit
+// handheld-adventure tune — two square leads, a bouncing triangle bass, 60 Hz chip chord arps and
+// a light noise kit, with a wandering "cave" episode. It deliberately avoids the famous battle-intro
+// runs and anime openings: no melody, hook, bassline or lyric of any existing theme is quoted or
+// paraphrased.
+// Structure: sting (sparkle call) | a (route) b (bright chorus) c (cave) a2 b2 | end.
+(
+    title: "Tall Grass Trek",
+    composer: "Brightest Day (original)",
+    work: "Franchise theme: creature-collecting adventure",
+    source: "Original composition: melody, harmony, bass, drums and arrangement written for Brightest Day. Genre cues only (8-bit handheld palette and tempo).",
+    role: "Franchise theme: pocket-creature kits",
+    key: "G",
+    time: (4, 4),
+    bpm: 152.0,
+    gain_db: -4.6,
+    layers: (lead: 0.15, drive: 0.55, base_floor: 0.8),
+    channels: [
+        (name: "lead", inst: "lead50", stem: Lead, pan: -0.12),
+        (name: "lead2", inst: "lead25", stem: Lead, pan: 0.22, vol: 0.6),
+        (name: "chords", inst: "arp", stem: Base, pan: 0.15, gen: "o4 [X4]4 |"),
+        (name: "bass", inst: "bass", stem: Base, gen: "o2 u4 R8 R8 F8 F8 O8 O8 F8 F8 |"),
+        (name: "arp", inst: "pluck12", stem: Drive, pan: -0.3, vol: 0.6, gen: "o5 [R16 T16 F16 T16]4 |"),
+        (name: "drums", drums: true, stem: Drive, vol: 1.0, gen: "k8 r8 s8 r8 k8 k8 s8 r8 |"),
+        (name: "hats", drums: true, stem: Drive, pan: 0.25, vol: 0.5, gen: "[h8]8 |"),
+    ],
+    patterns: {
+        "chA": "G | C | D | G | Em | C | A7 | D |",
+        "chB": "C | D | Bm | Em | C | D | G | G |",
+        "chC": "Em | C | G | D | Em | C | Am | D |",
+        // ---- tunes (all original) ----
+        "mA": "o5 d8 g8 b8 g8 a4 g8 d8 | o5 e8 g8 o6 c8 o5 g8 e4 c4 | o5 f8 a8 o6 d8 c8 o5 a4 f4 | o5 g2 r8 d8 g8 a8 |
+               o5 b4 a8 g8 e4 g4 | o5 a4 g8 e8 c4 e4 | o5 c+4 e8 g8 a4 c+4 | o5 d2 f4 a4 |",
+        "mB": "o5 e4. d8 e4 g4 | o5 f4. e8 f4 a4 | o5 b4. a8 f4 d4 | o5 e2. r4 |
+               o5 g4. a8 b4 o6 c4 | o6 d4. c8 o5 b4 a4 | o5 b8 o6 d8 g8 d8 o5 b8 g8 d8 g8 | o5 g2 r2 |",
+        "mC": "o5 e8 r8 b8 r8 g8 a8 b8 r8 | o5 c8 r8 g8 r8 e8 d8 e8 r8 | o5 d8 r8 b8 r8 g8 a8 b8 r8 | o5 a2 f4 d4 |
+               o6 e8 r8 o5 b8 r8 g8 a8 b8 r8 | o6 c8 r8 o5 g8 r8 e8 d8 e8 r8 | o5 a8 b8 o6 c8 d8 e4 c4 | o6 d2 c4 o5 a4 |",
+        // second square: harmony a third / sixth under the chorus
+        "hB": "o5 c4. o4 b8 o5 c4 e4 | o5 d4. c8 d4 f4 | o5 d4. o4 b8 b4 f4 | o4 b2. r4 |
+               o5 e4. f8 g4 a4 | o5 a4. a8 g4 f4 | o5 g8 b8 o6 d8 o5 b8 g8 d8 o4 b8 o5 d8 | o4 b2 r2 |",
+    },
+    sections: [
+        // The sting: a sparkling arpeggio call.
+        (name: "sting", bars: 2, chords: "G | G |", mute: ["arp"], parts: {
+            "lead": "o4 g16 b16 o5 d16 g16 b16 o6 d16 g8 r4 o5 d8 g8 | o5 b4 a4 g4 r4 |",
+            "lead2": "o4 d16 g16 b16 o5 d16 g16 b16 o6 d8 r4 o4 b8 o5 d8 | o5 g4 f4 d4 r4 |",
+            "drums": "r2 r4 s8 s8 | k8 r8 s8 r8 k8 k8 s8 s8 |",
+        }),
+        (name: "a", bars: 8, chords: "$chA", mute: ["arp"], parts: { "lead": "$mA" }),
+        (name: "b", bars: 8, chords: "$chB", parts: { "lead": "$mB", "lead2": "$hB" }),
+        (name: "c", bars: 8, chords: "$chC", mute: ["hats"], parts: { "lead": "$mC", "lead2": "k-12 $mC k0",
+            "drums": "[k4 r4 s4 r4 |]7 k8 k8 s8 s8 s16 s16 s16 s16 s8 s8 |" }),
+        (name: "a2", bars: 8, chords: "$chA", parts: { "lead": "$mA", "lead2": "k-12 $mA k0" }),
+        (name: "b2", bars: 8, chords: "$chB", parts: { "lead": "$mB", "lead2": "$hB" }),
+        (name: "end", bars: 2, chords: "G | G |", mute: ["arp", "hats"], parts: {
+            "lead": "o5 d8 g8 b8 o6 d8 g4 r4 | o6 g4 r4 r2 |",
+            "lead2": "o4 b8 o5 d8 g8 b8 o6 d4 r4 | o5 b4 r4 r2 |",
+            "drums": "k8 r8 s8 r8 s16 s16 s16 s16 s8 s8 | k4 r4 r2 |",
+        }),
+    ],
+    order: ["sting", "a", "b", "c", "a2", "b2"],
+    loop_to: "a",
+    ending: "end",
+)
