@@ -3,7 +3,7 @@
 
 use bd_core::Vec3;
 use bd_core::input::{buttons, look_dir};
-use bd_core::voxel::VoxelQuery;
+use bd_core::voxel::{VoxelQuery, raycast};
 
 use super::controller::Inp;
 use super::params::MoveParams;
@@ -110,7 +110,7 @@ pub(crate) fn update_hooks<V: VoxelQuery + ?Sized>(
                 if !held {
                     s.hooks[i] = Hook::default();
                     ev.tether_released[i] = true;
-                } else if !refresh_anchor(&mut s.hooks[i], w) {
+                } else if !refresh_anchor(&mut s.hooks[i], w) || rope_under_terrain(&s.hooks[i], s.chest(p), w) {
                     s.hooks[i] = Hook::default();
                     ev.tether_released[i] = true;
                     ev.tether_broken[i] = true;
@@ -200,6 +200,25 @@ fn refresh_anchor<V: VoxelQuery + ?Sized>(h: &mut Hook, w: &CollisionWorld<V>) -
         },
         None => false,
     }
+}
+
+/// Ropes ignore terrain once attached, so a swing past a ledge could carry the player in *under* it
+/// and the pull would then pin them against the underside forever (alive under the floor, over the
+/// void). A rope that runs up through the underside of solid terrain on its way from the chest to
+/// the anchor is cut against it instead (`tether_broken`). Side / top faces (swinging round a
+/// pillar, a rope over a cliff edge) and an anchor on the underside itself (hanging from a bridge)
+/// are unaffected. Voxels only; player ropes (hook-and-strike) are exempt.
+fn rope_under_terrain<V: VoxelQuery + ?Sized>(h: &Hook, chest: Vec3, w: &CollisionWorld<V>) -> bool {
+    if matches!(h.target, Some(AnchorTarget::Collider(super::world::ColliderId::Player(_)))) {
+        return false;
+    }
+    let d = h.pos - chest;
+    let dist = d.length();
+    // Only an anchor above can pull you up into a ceiling; the last 0.5 m is the anchor's own face.
+    if !(d.y > 0.5 && dist > 1.0) {
+        return false;
+    }
+    raycast(w.voxels, chest, d / dist, dist - 0.5).is_some_and(|hit| hit.t > 0.0 && hit.normal.y < 0)
 }
 
 /// Rope pull, reel, notches and the ratchet. Returns the continuous acceleration applied (for the

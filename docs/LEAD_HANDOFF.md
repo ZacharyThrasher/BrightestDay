@@ -22,6 +22,7 @@ worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
+- Phrase preview tool + "<name> <move>" fix a5e67cb3ad65f8146 — owner-run REPL (phrase_preview.cmd) with plain-English readout + PNG; "reinhardt charge" was a 0.4 m electric ball.
 - Stuck-under-floor investigation (spawned 22:05) — bots alive at y≈-1.8 under the flat arena slab.
 - Alloc regression ab43ff90cb8b781a2 DONE in 1647958 (freedom.rs per-KO Vec; test had neutral aim) — bd_sim tests/alloc.rs steady_state_tick_does_not_allocate (5>3),
   unowned since 18:47; find + fix per-tick allocations without changing the FFA hash.

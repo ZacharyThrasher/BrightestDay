@@ -603,13 +603,17 @@ and add graft / shouts / incantations + delivery. **Generic effects** (`effects:
 `ProjectileSlowField{radius,factor}` (enemy projectiles + thrown objects keep `factor` of their speed per 0.1 s,
 never below 1.6 m/s — they still arrive; hitscan / melee untouched), `SelfDrain{damage_pct_per_s,willpower_per_s}`,
 `PowerMult{damage,speed,knockback,cooldown}` (speed is predicted), `CritChance{chance,mult,fx}` (melee / shove
-connects), `ReadSlow{radius}` (presentation only: incoming shots get a telegraph ring for the holder).
+connects), `ReadSlow{radius}` (presentation only: incoming shots get a telegraph ring for the holder),
+`AirJumps{extra}` (more air jumps per airtime — `MoveModifiers::extra_air_jumps`, predicted; Gear Fourth +2, a springy boing).
 New move ops: `Yank` (Universal Pull), `Singularity` (Planetary Devastation: a rising gravity core pulling
 enemies / loose constructs / ≤ 24 carved chunks, capturing enemies until it collapses or they dodge / tether
 out; announced by the spectacle cut-in), `Tier(n)`, `Cast{signature, merge}` (signature amplifier from a move).
 Moves ≤ 4: G tap, G hold, slots 2 / 3 by their shouts. **ASCEND** (`ascend: (...)` on a power, tier or transform;
 presentation only): the one transformation moment (windup pose → aura → burst → title → tint hook → linger);
-the first time per round is the AWAKENING (longer, music stinger). `claim: ["infinity"]` keeps a common word.
+the first time per round is the AWAKENING (longer, music stinger). The tint hook recolours the body without re-meshing:
+painted costumes tag hair / eye / skin voxels, the construct shader takes the form's `hair_tint` / `eye_glow` / `skin_tint`
+(fading in / out; first-person hands take skin + toon); `toon` = a bright, flat, ink-lined cartoon body (Gear Fifth);
+`music: "drums"` toggles the soundtrack's named overlay layer (bd_music `overlay`: a groove locked to the playing track). `claim: ["infinity"]` keeps a common word.
 **Powers MIX (owner):** a player holds up to `max_powers` = 3 powers. Every held power's body, graft (its
 lend-graft on your constructs) and effects apply at once; G fires the ACTIVE power (per-power cooldowns);
 saying a held power's name makes it active (free), a G double-tap cycles; a shout of any held power runs that

@@ -430,7 +430,8 @@ impl BotBrain {
             let lifts: &[f32] = if falling { &[1.4, 2.5, 0.9, 5.0] } else { &[0.9, 1.4, 0.6] };
             for &lift in lifts {
                 let dir = (hd + Vec3::Y * lift).normalize_or_zero();
-                if let Some(q) = query_anchor(&cw, eye, dir, params).filter(|q| q.point.y > pos.y + 1.0) {
+                // Never the underside of an overhang: that rope only holds us under the ledge.
+                if let Some(q) = query_anchor(&cw, eye, dir, params).filter(|q| q.point.y > pos.y + 1.0 && q.normal.y > -0.5) {
                     let _ = q;
                     self.tether_dir = Some(dir);
                     self.tether_t = 3.0;
