@@ -1,6 +1,28 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> CURRENT SNAPSHOT (2026-09-26 ~18:00) — read this first <<<
+## >>> RESUME HERE (2026-09-27 01:10, pre-compact) <<<
+HEAD aa4f879 (green). Owner OFFLINE for the night: no zips/builds until asked. Last zip shipped to friends:
+7d8b9d3 (22:17). Next zip must include: map-swap input-epoch fix + UNSTICK (e42ad45), gear-5/form-name
+transforms (aa4f879), sparks cost model (in flight), piloting (71e588d).
+STILL RUNNING:
+- a4e1ec2fe1b94906c readability follow-up: spark cost = presence tier (Tiny1/Normal2/Big3/Titan5/Sig6, all
+  castable from a full 8-spark bar; meteor was 1, gun 4, dragon 9), staleness +1 spark/step, thicker gauge,
+  AND fix party test every_graft_effect_transforms_casts (party grafts must be free). Several bd_sim cost
+  asserts (domain/freedom/signature/tuning/world "cost 12 → one spark") fail until this lands.
+- a4e937ca660c1d352 piloting PHASE 2: Devastation transformer combat by ARCHETYPE (car/truck/jet/heli/tank/
+  construction/bike, combat.ron transformer.archetypes; transform-ram → finisher; perfect-dodge counter, no
+  time slow; AI followers) + closer camera for big piloted robots (was ~23 m).
+- legendary visuals SUB-agent (spawned by a760c31dbb5a47116, id unknown): present/legend/{mod,dev}.rs,
+  unreviewed; check its output when it appears.
+QUEUED (owner-approved, after the wave): WORDLESS AFFORDANCE pass (below; ring-glow gauge item already DONE
+by readability; board glow exists). Domain polish (Shrine interior reads as flat red fog; melee sure-hit in
+held.rs; per-element domain music; flat floor disc → follow terrain). Legendary loose ends (old sounds double
+under Catch/Parry; Star-Lord Element Guns became one-shots; chain-pull/stream drag not predicted). Portal
+gaps (palm beams through portals; 3P body pop). Iron fan gust 7 m; bare "chang'e"; "hex" → light.
+Owner rules added tonight (also in memory): SPARKS naming; drive-by-default + eject=follower; Tab = labels
+over OWN power icons only; generalize over special-casing; domains/legendaries generic by mechanic combos.
+
+## >>> OLDER SNAPSHOT (2026-09-26 ~18:00) <<<
 **Committed & green (HEAD builds):** feature wave (audio mixer + music/remixes, shout words, charge,
 hands, camera/ADS, construct animation + assembly, bounds/recall/placement + cut-in preview, tracking/
 lunge/hook + compass, double jump/dodge/wall refresh/surf, oath sections + voice parity, freedom bundle,
@@ -28,7 +50,7 @@ worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
-- Form names transform you a11d2e8eb52e53787 (resumed) — "gear 5" made a gauntlet unless you already held the fruit; now any power's tier/form name grants the power at that tier + full Ascend (gated as Awakening in power-ups mode).
+- Form names transform you a11d2e8eb52e53787 DONE — "gear 5" made a gauntlet unless you already held the fruit; now any power's tier/form name grants the power at that tier + full Ascend (gated as Awakening in power-ups mode).
 - Map-swap spawn bug aced6dcd4fceda058 DONE (input-epoch root cause; swap_tests 3/3 verified by lead) — PLAYTEST: friends spawned inside objects after a map swap (had to rejoin). Root-cause + fix, sim pop-out safety net, UNSTICK (Esc menu + optional key; 10 s cd, damage lockout unless truly stuck; queues), swap-through-all-maps multi-client test. HIGH PRIORITY for next zip.
 - Signature PHASE 5 a67f94557763852e1 DONE (gaps: melee sure-hit not wired, per-element music, flat floor disc lets hills poke through, shrine interior reads as flat red fog) — DOMAINS rebuilt generically: hand sign + ink tide + closing-eyelid barrier + music drop; black veined orb outside; inside = per-element world rewrite (render only); sure-hit assist + element pulses (void = overload, never input-block); fewer sparks inside; Ultimate gate, duration, burnout, barrier HP, domain clash, simple-domain shield.
 - Piloting + cleanup a4e937ca660c1d352 PHASE 1 DONE 71e588d (board = Transform key on foot); PHASE 2 running (transformer combat archetypes + closer robot camera) — (+ flight fix: Vehicle-form fliers were forced to roll; + PHASE 2 Devastation-style transformer combat: robot strings, transform-ram → finisher, drift boost, perfect-dodge counter w/o time slow, AI followers use it; ARCHETYPES from alt-mode data: car/truck/jet/heli/tank/construction/bike each with own moveset + handling, combat.ron transformer.archetypes) — OWNER RULE: rideable/drivable summons (vehicles, mechs, transformers, mounts) DEFAULT TO PILOTED; eject → autonomous follower; monsters/delivery-verb/count>1 stay followers; pilot/ride/drive/get in verbs → Piloted (were Flies/Blunt); board your own summoned vehicle/transformer by command ("get in") or input; gojo-bald stem graft bug; Reinhardt/Captain Falcon etc. costumes; presence tier → bd_sim for the phrase tool; name-move opening move on spawn.
