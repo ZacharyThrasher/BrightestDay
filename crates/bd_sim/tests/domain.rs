@@ -360,3 +360,20 @@ fn domain_tick_cost() {
     let on = run(true);
     eprintln!("DOMAIN tick ms (p50, p99, max): idle {off:?}, two domains clashing + pulses {on:?}");
 }
+
+#[test]
+fn a_domain_stays_where_it_was_cast() {
+    // Owner 2026-09-27: the dome never travels with its caster (walking or warping away).
+    let mut w = duel(30.0);
+    let id = cast_domain(&mut w, A, domain_recipe(Element::Fire, &[]));
+    run(&mut w, 0.2, |_| vec![]);
+    let (c0, _) = radius(&w, id);
+    run(&mut w, 3.0, |_| vec![(A, walk(0.0))]);
+    let (c1, _) = radius(&w, id);
+    assert!(c1.distance(c0) < 0.1, "walking: the dome moved {:.2} m", c1.distance(c0));
+    let far = w.player(A).unwrap().mv.pos + Vec3::new(40.0, 0.0, 0.0);
+    w.player_mut(A).unwrap().mv.pos = far;
+    run(&mut w, 1.0, |_| vec![]);
+    let (c2, _) = radius(&w, id);
+    assert!(c2.distance(c0) < 0.1, "warped away: the dome moved {:.2} m", c2.distance(c0));
+}

@@ -296,6 +296,8 @@ pub(crate) struct Domain {
     /// Sparks spent on it (the clash push).
     spent: f32,
     pulses: u32,
+    /// Owner 2026-09-27: a domain stays where it was cast — the dome never travels with its caster.
+    anchor: Vec3,
 }
 
 #[derive(Debug, Default)]
@@ -334,6 +336,7 @@ pub(crate) fn register(w: &mut World, cid: ConstructId, cost: f32) {
         n_pending: 0,
         spent: cost.max(0.0),
         pulses: 0,
+        anchor: c.pos,
     };
     if w.signature.domain.sure.is_none() {
         w.signature.domain.sure = Some(t.sure(&w.cfg.tuning.assist.aim));
@@ -461,6 +464,11 @@ pub(crate) fn step(w: &mut World, dt: f32) {
     let mut i = 0;
     while i < w.signature.domain.domains.len() {
         let mut d = w.signature.domain.domains[i];
+        // Pinned where it was cast (runs right after the constructs stepped, so this is the tick's pose).
+        if let Some(c) = w.constructs.get_mut(d.construct).filter(|c| c.gone.is_none()) {
+            c.pos = d.anchor;
+            c.vel = Vec3::ZERO;
+        }
         let Some(c) = w.constructs.get(d.construct).filter(|c| c.gone.is_none()) else {
             end(w, &d, &t);
             w.signature.domain.domains.remove(i);
