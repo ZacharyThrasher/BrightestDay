@@ -1,5 +1,21 @@
 # Lead orchestrator handoff (keep updated)
 
+## >>> RESUME HERE (2026-09-27 05:30) — TOOLBOX WAVE COMPLETE <<<
+HEAD e7e5a7a, all green: bd_sim+bd_lexicon+bd_fx+bd_shapes 1,170 tests, bd_game 222. NO workers running.
+Landed tonight: sparks cost model, transformer combat, animation pass, impact frames (+REDUCE FLASHES),
+weapon classes, 7 content packs (~4,000 hand moves, 834 hand kits) + 2,500 derived kits (3,334 characters),
+toolbox core (kits/borrow/chains/validator), describe-a-power verbs, modifiers+fusion (twist), move
+presentation grammar (rubber vs rigid), op visuals, text budget, QA (shout hygiene: Title Case = proper move).
+Protocol v43. Next zip (only when owner asks) = all of the above + swap fix/UNSTICK/gear-5.
+OWNER DECISIONS PENDING: wordless taunt; voice-cast visible to others; real invisibility (recommend shimmer);
+COMIC TEXT default (REDUCED now, maybe FULL).
+FOLLOW-UPS: op visuals subtle at distance / portal shots not captured / WarpTo+Recall double trace;
+small suit transformers + Grimlock brawl; "a helicopter robot" → Biped; Rasenshuriken spawn-on-impact;
+kit can't toggle a technique; many kit characters lack costumes; 1,611 everyday-word shouts still borrow
+(review list via powers_check --hygiene); low-priority OPS_REVIEW loops (mend/evade/pounce/place_portal);
+Grass element for Pokémon derived kits; twisted famous casts show no title. Re-run
+tools/derive_kits/derive_kits.py after any hand content change (--check).
+
 ## >>> TOOLBOX WAVE (2026-09-27 01:25) <<<
 DONE+COMMITTED (03:45): readability sparks, piloting ph2, animation pass, impact frames, weapon feel, content movies/arena/modern anime/adventure/shonen/tv (4835f91). STILL RUNNING: core a079a5f8c47724579 (chain split bug x3 = top), presentation a329aabee7da60639, myth a3510ed93ce15b30b, verbs a5c4f6c13e3bf4ae0, modifiers a8cbb0e963f6f6ccc, autokits a644e7ca3d66b7538 (zz_derived_kits.ron 6.3MB/4.8k > MAX_POWERS 4000 — held OUT of commits until compacted), TEXT CLUTTER acc591824845b5aea, OP VISUALS af2a46141b8d62f38 (draw ~35 new ops' events). QUEUED: small suit transformers + Grimlock brawl, 'a helicopter robot' → Biped; taunt + voice-cast visibility (owner sign-off pending); Rasenshuriken spawn-on-impact op; kit can't toggle a technique ('naruto sage mode'); many kit characters lack costumes (Pain, Guy, Whitebeard, Kaido...).
 CHECKPOINT COMMITS: stage with `python target/stage_eol.py` (git add -A, but index keeps each file's HEAD line endings — workers' edits churn CRLF/LF), then commit. ee3f80b = piloting phase 2 DONE + wave in flight. +02:05 owner picked VERB GRAMMAR a5c4f6c13e3bf4ae0 (describe-a-power, composed-move spec docs/toolbox/COMPOSED_MOVE.md), MODIFIERS & FUSION a8cbb0e963f6f6ccc, AUTO-KITS a644e7ca3d66b7538 (generated assets/powers/derived_kits.ron).
