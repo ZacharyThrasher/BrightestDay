@@ -247,7 +247,7 @@ suit's mechanics; it absorbs hits with its integrity first, shattering off in ch
 
 ## 4. Forms (default behaviour; mechanics layer on top)
 ### Held (LMB primary / RMB secondary; empty hand = ring blast + ring shove)
-Every melee held item: tap LMB = quick attack (anticipation 70 ms, active 90 ms, recovery 160 ms);
+Every melee held item (numbers below are the MEDIUM class; light / heavy / reach / flexible / shield classes change them, §4b-bis): tap LMB = quick attack (anticipation 70 ms, active 90 ms, recovery 160 ms);
 hold LMB = charge (≤ 0.7 s, can move) then release = heavy (×2.2 dmg, ×1.8 kb). Swing hitboxes are
 swept arcs sampled every tick (no misses from low tick sampling). Animation drives the hitbox.
 | form | base dmg / kb | primary | secondary |
@@ -301,6 +301,51 @@ hard-light casings that tinkle and shatter, short camera punch, layered sound (t
 distance tail). Hit: 20–50 ms hit-stop on heavy hits, crisp hit-confirm "thock", victim flinch + shove,
 voxel chips from terrain, onomatopoeia on big hits (BLAM, KA-CHUNK). Ring shove (empty RMB): 4 m cone push
 14 kb, 0 dmg, 1.5 s cd — a defensive reset.
+
+### 4b-bis. Weapon classes — heavy feels heavy, light feels light (`bd_sim::constructs::weapon_class`; owner: "heavy weapons should feel noticeably different than light weapons")
+Every held weapon has a **class derived from its data alone** — form, size vs the form's default
+(`form_spec().default_scale`), `bd_shapes::weight_of` (mass against size) and mechanics, never its name
+(`weapon_class::class_of`). The words carry the data (lexicon anchors: a dagger is 0.6 m / 0.8 kg, a
+greatsword 1.8 m / 12 kg + `Heavy`, a glaive a pole), so anything a player invents with the same data
+gets the same class ("a giant sword", "a tiny hammer", "a 40 kg dagger" are Heavy / Light / Heavy).
+
+| class | generic rule | examples |
+|---|---|---|
+| Light | ≤ 0.72 × size, `Fast` + `Pierce` blades, gauntlets | knife, dagger, rapier, fists |
+| Medium | the rest — **the form's own moveset, numbers unchanged** | sword, katana, mace, hammer, axe |
+| Heavy | `Heavy`, ≥ 1.25 × size, or weight ≥ 1.9 (a titan gauntlet ≥ 1.8 ×) | greatsword, warhammer, great axe, anchor, sledgehammer, buster sword |
+| Reach | spears, blunt plain staffs (a quarterstaff is melee; "fire staff" / "wand" still cast), telescoping poles | spear, bo staff, glaive, halberd, Ruyi staff |
+| Flexible | whips, chains | whip, chain, nunchaku |
+| Shield | shields | shield |
+| Light / Heavy gun | ranged; heavy = cannons, `Spin`, `Explodes`, `Pierce`/`Beam` guns, `Heavy`, ≥ 1.5 × size | pistol, SMG, shotgun, bow / minigun, LMG, rocket, railgun |
+
+What each class does (numbers: `assets/tuning/weapons.ron` → `classes`, merged into `CombatTuning::weapons`,
+hot-reloaded and host-synced with combat.ron; curves: `bd_shapes::swing_class`, swept by the sim and drawn
+by both views at the sim's rate):
+- **Light** — flick curves (~0.6 × the medium wind-up and recovery, half the arc), played ×1.2 faster, a 3-hit string whose third hit
+  crits (×1.35), **jump / dodge / boost cancels the recovery** (keep the string going off a hop), damage ×0.75,
+  knockback ×0.6, hit-stop ×0.6.
+- **Heavy** — overhead chop ↔ wide sweep, a readable wind-up (0.16 s authored, × mass: a greatsword's is
+  ~0.29 s), follow-through that buries the head, damage ×1.1, knockback ×1.4 with launch lift, hit-stop ×1.6;
+  **commitment** (movement, predicted from input like all movement tech): pressing attack on the ground
+  keeps 45 % of your ground speed, holding it runs at ×0.65, letting go throws you 5 m/s into the strike;
+  **super armor** while winding up / charging / swinging (knockback ×0.55, never immunity; the legendary heavy
+  blade's stronger armor wins); whiffs into terrain crack it (crater 1.3 m); a **full charge breaks the ground**
+  (shockwave r 4.5 m around the head: HeavyMelee, knocks up); heavy to carry (run ×0.88, air-strafe ×0.7).
+- **Reach** — thrust, twisting thrust, wide sweep (3-hit), RMB lunge thrust (spears and quarterstaffs); the
+  **tip is the sweet spot** (outer third: ×1.3 damage / knockback, crit). Telescoping poles keep their own
+  moveset untouched (the Ruyi staff is Reach in presentation only).
+- **Flexible** — the tip cracks (outer quarter: ×1.5 damage, crit).
+- **Shield** — the bash steps you in (on release) with knockback ×1.15.
+- **Guns** — heavy guns are heavy to carry (×0.9 / ×0.8) and their recoil shoves you on the ground too
+  (ground recoil ×1.8: the minigun pushes you back, the rocket kicks).
+Legendary rules run on top of the class (a buster sword is a Heavy class blade with its 3-hit momentum combo,
+leap and armor). Presentation per class (`bd_game::present::weapon_feel`, `weapons.ron` → `feel`): swing
+sound (thin swish / mid whoosh / deep heave / thrust dart), connect layer (heavy crunch, shield bash), crit
+sound (tip ding, whip crack), trail (one bright thin streak … a thick dim 4-line smear), your camera (heavy:
+zoom-in while coiling, lurch + downward shake at the strike, floor-crack shake), both hands on heavies and
+poles (1P support hand, 3P left arm), the 3P body leaning into the strike, gun kick (light snappy, heavy shove).
+Charged heavy hits are `HeavyMelee` with a big impact: the impact-frames route fires the anime frame for them.
 
 ### 4c. Melee lunge — no lock-on (owner: "Destiny sword is a great target"; `bd_sim::melee_assist`)
 A lock-on would steal the camera and flatten movement skill. Instead every melee swing has a **lunge**:

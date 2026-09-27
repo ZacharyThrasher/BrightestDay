@@ -316,7 +316,18 @@ impl MoveIndex {
                 j += 1;
             }
         }
+        // The longest kit name that fits wins; SEVERAL kits may share it ("juggernaut": Dota's and
+        // Marvel's) — then the one whose move the words name best wins (exact > whole word > slot
+        // tag > prefix / typo > shape guess), ties to the earlier table entry (hand files before
+        // the generated `zz_` kits).
+        let mut matched: Option<&str> = None;
+        let mut best: Option<(u8, MoveRef, KitMatch)> = None;
         for (kit, pid) in cands.iter().map(|&c| &self.kits[c as usize]) {
+            if let Some(m) = matched {
+                if m != kit.as_str() {
+                    break;
+                }
+            }
             let kw: Vec<&str> = kit.split(' ').collect();
             if kw.len() >= words.len() {
                 continue;
@@ -333,15 +344,19 @@ impl MoveIndex {
             if !fits {
                 continue;
             }
-            let rest: Vec<&str> = words.split_off(kw.len());
-            let def = t.def(*pid)?;
-            if let Some(hit) = pick_kit_move(def, kit, &rest) {
-                return Some((MoveRef::new(*pid, 0, hit.0), hit.1));
+            matched = Some(kit.as_str());
+            let rest = &words[kw.len()..];
+            let Some(def) = t.def(*pid) else { continue };
+            if let Some((slot, why, rank)) = pick_kit_move(def, kit, rest) {
+                let mr = MoveRef::new(*pid, 0, slot);
+                if best.is_none_or(|(r, b, _)| rank > r || (rank == r && mr.power < b.power)) {
+                    best = Some((rank, mr, why));
+                }
             }
-            // A kit matched but no move did: don't try shorter kit names inside a longer one.
-            return None;
         }
-        None
+        // (a kit name matched but no move did: shorter kit names inside it are not tried)
+        let _ = &mut words;
+        best.map(|(_, m, why)| (m, why))
     }
 
     /// How `text` reads for a player holding `held` (see [`Reading`]; `held` = `None` for a
@@ -357,8 +372,12 @@ impl MoveIndex {
                 other => return Reading::Held(other),
             }
         }
-        if let Some((m, _)) = self.kit_move(t, &n) {
-            return Reading::Kit(m);
+        if let Some((m, why)) = self.kit_move(t, &n) {
+            // A line with separators ("spidey sense, web zip, maximum spider", "a then b") is a
+            // chain to split first: only an EXACT kit move may read it whole.
+            if why == KitMatch::Exact || !has_separator(text) {
+                return Reading::Kit(m);
+            }
         }
         // A power's NAME grants (the lexicon): never borrowed, even if some move shouts it.
         if self.is_grant_name(&n) {
@@ -388,8 +407,32 @@ pub fn borrowable(mv: &MoveDef) -> bool {
     mv.ops.iter().any(|o| !matches!(o, MoveOp::Transform | MoveOp::Tier(_)))
 }
 
-/// The kit move `rest` (words after the kit name) names: (slot, why).
-fn pick_kit_move(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, KitMatch)> {
+/// Does a raw line carry a chain separator (punctuation / arrows, or a strong separator word)?
+pub fn has_separator(text: &str) -> bool {
+    if text.contains([',', ';', '>', '→']) {
+        return true;
+    }
+    let n = norm_words(text);
+    n.split(' ').any(|w| w == "then") || n.contains("followed by") || n.contains("after that")
+}
+
+/// The kit move `rest` (words after the kit name) names: (slot, why, rank — how sure: exact 5,
+/// whole word 4, slot tag 3, prefix / typo 2, shape guess 1).
+fn pick_kit_move(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, KitMatch, u8)> {
+    pick_kit_move_why(def, kit, rest).map(|(slot, why, whole)| {
+        let rank = match why {
+            KitMatch::Exact => 5,
+            KitMatch::Fuzzy if whole => 4,
+            KitMatch::Tag(_) => 3,
+            KitMatch::Fuzzy => 2,
+            KitMatch::TagFallback(_) => 1,
+        };
+        (slot, why, rank)
+    })
+}
+
+/// [`pick_kit_move`] without the rank: (slot, why, whole-word hit).
+fn pick_kit_move_why(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, KitMatch, bool)> {
     let moves = def.moves_at(0);
     if moves.is_empty() {
         return None;
@@ -405,13 +448,13 @@ fn pick_kit_move(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, KitMat
     // 1. exact: a move name, or a kit shout (with or without the kit name in front)
     for (k, m) in moves.iter().enumerate() {
         if norm_words(&m.name) == joined {
-            return Some((k as u8, KitMatch::Exact));
+            return Some((k as u8, KitMatch::Exact, true));
         }
     }
     let with_kit = format!("{kit} {joined}");
     for (s, slot) in &def.shouts {
         if (*slot as usize) < moves.len() && (*s == joined || *s == with_kit) {
-            return Some((*slot, KitMatch::Exact));
+            return Some((*slot, KitMatch::Exact, true));
         }
     }
     // 2. a whole word of a move's name / shouts ("doomfist punch" → "rocket punch", even if
@@ -419,24 +462,24 @@ fn pick_kit_move(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, KitMat
     if let Some((k, hits)) = best_overlap(def, moves, &rest, true)
         && enough(hits)
     {
-        return Some((k, KitMatch::Fuzzy));
+        return Some((k, KitMatch::Fuzzy, true));
     }
     // 3. slot words → tags (the first slot word decides)
     let tag = rest.iter().find_map(|w| slot_word(w));
     let tag_ok = enough(rest.iter().filter(|w| slot_word(w).is_some()).count());
     if let Some(tag) = tag.filter(|_| tag_ok) {
         if let Some(k) = moves.iter().position(|m| m.tags.contains(&tag)) {
-            return Some((k as u8, KitMatch::Tag(tag)));
+            return Some((k as u8, KitMatch::Tag(tag), false));
         }
     }
     // 4. prefix / one-typo overlap ("reinhardt chrge", "nightcrawler tele")
     if let Some((k, hits)) = best_overlap(def, moves, &rest, false)
         && enough(hits)
     {
-        return Some((k, KitMatch::Fuzzy));
+        return Some((k, KitMatch::Fuzzy, false));
     }
     // 5. a slot word with no tagged move: the op-shape guess
-    tag.filter(|_| tag_ok).and_then(|tag| tag_fallback(moves, tag).map(|k| (k, KitMatch::TagFallback(tag))))
+    tag.filter(|_| tag_ok).and_then(|tag| tag_fallback(moves, tag).map(|k| (k, KitMatch::TagFallback(tag), false)))
 }
 
 /// Words of `rest` hitting move `slot`'s name / shouts (`whole`: exact words only).

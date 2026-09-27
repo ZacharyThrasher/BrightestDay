@@ -21,7 +21,8 @@
 //! * `phrase` scene (CONTENT: ADVENTURE GAMES): `BD_MOVEFX_PHRASE="<any move phrase or chain>"` is
 //!   fired through the toolbox exactly as a player's line would be (kit / borrowed moves, chains:
 //!   "judgment cut end", "sonic homing attack -> chaos control"); `BD_MOVEFX_AT=0.1,0.4,0.9` sets the
-//!   shot offsets (s after it fires), `BD_MOVEFX_PITCH=<deg>` the look pitch.
+//!   shot offsets (s after it fires), `BD_MOVEFX_PITCH=<deg>` the look pitch, `BD_MOVEFX_DUMMY=<m>`
+//!   how far down the stage the first target stands (any scene; default 14).
 //! * `BD_MOVEFX_SPAM=<n>`: perf — every bot (and you) fires the scene's move every 0.4 s from t = 3 s,
 //!   `n` rounds; `MoveFxStats` (live beats, peak, step µs) is logged each second.
 
@@ -83,6 +84,11 @@ fn phrase_offsets() -> &'static [f32] {
         let v: Vec<f32> = env("BD_MOVEFX_AT").map(|s| s.split(',').filter_map(|x| x.trim().parse().ok()).collect()).unwrap_or_default();
         if v.is_empty() { vec![0.05, 0.25, 0.5, 0.9, 1.4, 2.0] } else { v }
     })
+}
+
+/// How far along the stage the first target stands (`BD_MOVEFX_DUMMY`, m; default 14).
+fn dummy_dist() -> f32 {
+    env("BD_MOVEFX_DUMMY").and_then(|v| v.parse().ok()).unwrap_or(14.0)
 }
 
 fn phrase_pitch() -> f32 {
@@ -190,7 +196,7 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
         spots.push((me.0, stage, side));
     }
     for (k, id) in others.iter().enumerate() {
-        let (want, face) = if observer() && k == 0 { (stage, side) } else { (stage + side * (14.0 + 3.0 * k as f32) + fwd * (1.5 * k as f32), -side) };
+        let (want, face) = if observer() && k == 0 { (stage, side) } else { (stage + side * (dummy_dist() + 3.0 * k as f32) + fwd * (1.5 * k as f32), -side) };
         spots.push((*id, want, face));
     }
     for (id, want, face) in spots {

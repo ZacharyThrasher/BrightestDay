@@ -35,6 +35,8 @@ pub mod toolbox;
 pub mod compose;
 /// MODIFIERS & FUSION: twisted / fused moves ("giant rasengan", "rasengan + amaterasu").
 pub mod twist;
+/// AUTO-KITS: compact generated character kits, expanded at table build (docs/toolbox/AUTO_KITS.md).
+pub mod derive;
 
 use std::collections::VecDeque;
 

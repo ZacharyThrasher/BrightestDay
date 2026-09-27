@@ -346,9 +346,9 @@
         delivery: (add: [Fast, Beam]),
         fx: "holy",
         shouts: [("light speed", 0), ("yata no kagami", 0), ("yasakani no magatama", 1), ("yasakani", 1),
-                 ("light speed kick", 2), ("speed of light kick", 2), ("kick at the speed of light", 2), ("pika pika kick", 2), ("light kick", 2),
-                 ("ama no murakumo", 3), ("amano murakumo", 3), ("light sword", 3), ("sword of light", 3),
-                 ("kizaru laser", 4), ("light laser", 4)],
+                 ("light speed kick", 2), ("speed of light kick", 2), ("kick at the speed of light", 2), ("pika pika kick", 2),
+                 ("ama no murakumo", 3), ("amano murakumo", 3),
+                 ("kizaru laser", 4)],
         moves: [
             (name: "yata no kagami", tags: [Movement], cooldown: 1.5, cost: 7.0, ops: [Blink(dist: 20.0, afterimage: true)]),
             (name: "yasakani no magatama", tags: [Combo], cooldown: 3.0, ops: [
@@ -427,7 +427,7 @@
         fx: "fire",
         shouts: [("great eruption", 0), ("dai funka", 0), ("meteor volcano", 1), ("ryusei kazan", 1),
                  ("hound blaze", 2), ("inugami guren", 2), ("magma hound", 2), ("magma dog", 2),
-                 ("magma pool", 3), ("lava pool", 3), ("magma fist", 4), ("absolute justice", 4)],
+                 ("magma pool", 3), ("magma fist", 4), ("absolute justice", 4)],
         moves: [
             (name: "great eruption", cooldown: 1.5, ops: [
                 Cast(recipe: (name: "magma fist", form: Ball, mech: [Heavy, Blunt, Fast], element: Fire, scale: 1.8, mass: 200.0)),
@@ -458,7 +458,7 @@
         fx: "earth",
         shouts: [("quake punch", 0), ("gura gura punch", 0), ("tremor punch", 0), ("seaquake", 1), ("kaishin", 1), ("sea quake", 1),
                  ("island tilt", 2), ("shima yurashi", 2), ("tilt the island", 2),
-                 ("quake bubble", 3), ("gura gura bubble", 3), ("quake armor", 3)],
+                 ("quake bubble", 3), ("gura gura bubble", 3)],
         moves: [
             // Punch the AIR: it cracks like glass around your fist, and the crack races out ahead,
             // splitting the ground and everyone on the line.

@@ -769,8 +769,8 @@
         moves: [
             // Arise: shadow soldiers stand up out of the ground and hunt your enemies. -> you stay put, they go.
             (name: "arise", cooldown: 10.0, cost: 20.0, ops: [
-                Cast(recipe: (name: "shadow soldiers", form: Biped, mech: [Walks, Blade, Charge], element: Shadow, scale: 1.1, count: 4,
-                              temperament: Aggressive, intensity: 0.9)),
+                RaiseFallen(recipe: (name: "shadow soldiers", form: Biped, mech: [Walks, Blade, Charge], element: Shadow, scale: 1.1, count: 3,
+                                     temperament: Aggressive, intensity: 0.9), count: 4, radius: 35.0),
             ], juice: Some((title: Some("ARISE"), boom: true, punch: 3.0, ripple: 6.0, debris: -8.0, color: Some((0.45, 0.25, 0.95))))),
             // The invisible hand: whoever you look at is slammed down and pinned a beat.
             (name: "ruler's authority", cooldown: 3.0, cost: 6.0, ops: [Weigh(range: 30.0, secs: 1.0, down: 22.0)],
@@ -3223,9 +3223,11 @@
         shouts: [("jinwoo arise", 0), ("shadow extraction", 0), ("jinwoo ruler's authority", 1), ("jinwoo shadow exchange", 2),
                  ("jinwoo dagger rush", 3), ("kamish's wrath", 3), ("monarch's domain", 4), ("jinwoo stealth", 5)],
         moves: [
+            // Arise: every body that fell near you stands back up as your shadow soldier (nobody fallen:
+            // soldiers rise from your own shadow).
             (name: "arise", cooldown: 10.0, cost: 20.0, tags: [Ultimate], ops: [
-                Cast(recipe: (name: "shadow soldiers", form: Biped, mech: [Walks, Blade, Charge], element: Shadow, scale: 1.1, count: 4,
-                              temperament: Aggressive, intensity: 0.9)),
+                RaiseFallen(recipe: (name: "shadow soldiers", form: Biped, mech: [Walks, Blade, Charge], element: Shadow, scale: 1.1, count: 3,
+                                     temperament: Aggressive, intensity: 0.9), count: 4, radius: 35.0),
             ], juice: Some((title: Some("ARISE"), boom: true, ripple: 6.0, debris: -8.0, color: Some((0.45, 0.25, 0.95))))),
             // Ruler's Authority: an invisible hand picks them up and throws them down.
             (name: "ruler's authority", cooldown: 3.0, cost: 8.0, tags: [], ops: [

@@ -812,7 +812,7 @@
         names: ["optimus prime", "optimus", "optimus primes", "optimus prime's", "orion pax", "optimus prim", "optimist prime",
                 "optimus prine", "opimus prime", "optimus pryme"],
         fx: "energy",
-        shouts: [("energon axe", 0), ("ion blaster", 2), ("optimus prime shoot", 2), ("optimus shoot", 2), ("optimus prime blaster", 2), ("optimus prime gun", 2), ("matrix of leadership", 7), ("optimus axe slam", 4)],
+        shouts: [("energon axe", 0), ("ion blaster", 2), ("shoot the ion blaster", 2), ("ion blaster gun", 2), ("matrix of leadership", 7), ("optimus axe slam", 4)],
         moves: [
             // THE COMBO: the piloted truck's string on foot — three heavy slashes 0.3 s apart, each
             // driving a step in, and the energon-axe finisher that sends them across the map (the
@@ -3846,7 +3846,7 @@
         id: "kit_mojo_jojo",
         name: "Mojo Jojo",
         kind: Kit,
-        names: ["mojo jojo", "mojo", "mojo jojo's"],
+        names: ["mojo jojo", "mojo jojo's", "mojo jo jo"],
         shouts: [("mojo jojo robot", 0)],
         moves: [
             // The giant robot.

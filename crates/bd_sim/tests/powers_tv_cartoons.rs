@@ -206,6 +206,23 @@ fn cartoon_kits_and_shouts() {
     }
 }
 
+/// Every name of every kit in the file, said bare, stays the costume summon — even when a shorter
+/// alias of the same character plus the rest of the words could read as a move ("optimus prime" is
+/// never "optimus" + a move called "prime").
+#[test]
+fn bare_kit_names_never_fire_a_move() {
+    let mine = PowerTable::parse(FILE).expect("parses");
+    let mut bad = Vec::new();
+    for p in mine.powers.iter().filter(|p| p.kind == PowerKind::Kit) {
+        for n in p.names.iter().chain(std::iter::once(&p.name)) {
+            if ix().read(t(), None, n) != Reading::Plain {
+                bad.push(format!("{} {n:?} -> {:?}", p.id, reads(n)));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "bare kit names that fire a move: {bad:#?}");
+}
+
 #[test]
 fn chains_split_into_kit_steps() {
     let is_move = |s: &str| ix().read(t(), None, s).is_move();

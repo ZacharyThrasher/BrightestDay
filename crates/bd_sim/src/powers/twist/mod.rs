@@ -418,6 +418,9 @@ impl ModTable {
             m.id = m.id.trim().to_ascii_lowercase();
             m.words.iter_mut().for_each(norm);
             m.words.retain(|w| !w.is_empty());
+            // "rapid-fire" and "rapid fire" normalise alike: keep one
+            let mut seen_w = std::collections::HashSet::new();
+            m.words.retain(|w| seen_w.insert(w.clone()));
             let fin = |v: &mut f32, lo: f32, hi: f32| *v = if v.is_finite() { v.clamp(lo, hi) } else { 1.0 };
             for v in [&mut m.size, &mut m.reach, &mut m.damage, &mut m.knockback, &mut m.speed, &mut m.secs, &mut m.cone, &mut m.arc, &mut m.cooldown] {
                 fin(v, 0.05, 10.0);

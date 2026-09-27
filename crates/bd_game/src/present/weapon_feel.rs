@@ -212,6 +212,8 @@ struct LiveSwing {
     rate: f32,
     /// Trail points (age s, [tip, 3/4, 1/2, 1/4 along the item]), newest last.
     pts: Vec<(f32, [Vec3; 4])>,
+    /// Curve time the trail was last sampled up to.
+    last_t: Option<f32>,
 }
 
 /// Third-person body pose of a player's class swing right now (see [`body_overlay`]).
@@ -309,7 +311,7 @@ fn feel_events(
                             let t0 = if heavy_release { curve.hold_at } else { 0.0 };
                             let rate = held::swing_rate(c, tuning);
                             st.swings.retain(|s| s.id != *id);
-                            st.swings.push(LiveSwing { id: *id, owner: *owner, class, curve, t: t0, rate, pts: Vec::with_capacity(48) });
+                            st.swings.push(LiveSwing { id: *id, owner: *owner, class, curve, t: t0, rate, pts: Vec::with_capacity(96), last_t: None });
                         }
                         if mine && *fx != HeldFx::Lunge && f.windup_zoom > 0.0 && !class.is_gun() {
                             fov.write(FovPunch { degrees: -f.windup_zoom * if *strength >= 1.9 || *fx == HeldFx::ChargeStart { 1.4 } else { 1.0 } });
@@ -529,14 +531,16 @@ pub fn body_overlay(b: BodySwing, arm_roots: [Option<usize>; 2], locals: &mut [b
 
 // ------------------------------------------------------------------------------------ trails
 
-fn item_points(tf: &Transform, vis: &ConstructVisual) -> [Vec3; 4] {
+/// Model-space points along the item (tip, 3/4, 1/2, 1/4 from the grip).
+fn item_locals(vis: &ConstructVisual) -> [Vec3; 4] {
     let b = &vis.model.bounds;
     let (cx, cy) = ((b.min.x + b.max.x) * 0.5, (b.min.y + b.max.y) * 0.5);
     let grip = b.max.z.min(0.0);
     let tip = b.min.z;
-    let at = |f: f32| tf.transform_point(Vec3::new(cx, cy, grip + (tip - grip) * f));
+    let at = |f: f32| Vec3::new(cx, cy, grip + (tip - grip) * f);
     [at(1.0), at(0.75), at(0.5), at(0.25)]
 }
+
 
 #[allow(clippy::too_many_arguments)]
 fn draw_trails(
@@ -577,14 +581,29 @@ fn draw_trails(
             continue;
         }
         let Some((_, tf, vis)) = ents.0.get(&s.id).and_then(|e| items.get(*e).ok()) else { continue };
-        // Record while the blade is live (a hair before and after the hitbox window).
+        // Record while the blade is live (a hair before and after the hitbox window), densely along
+        // the swing curve itself between this frame and the last (a smooth arc at any frame rate):
+        // the item now = `base` × curve(t), so earlier poses of this frame are `base` × curve(t').
         let (a, b) = s.curve.active_window();
-        if s.t >= a - 0.03 && s.t <= b + 0.05 {
-            let p = item_points(tf, vis);
-            if p.iter().all(|v| v.is_finite()) {
-                s.pts.push((0.0, p));
+        let (lo, hi) = (s.last_t.unwrap_or(s.t).max(a - 0.03), s.t.min(b + 0.05));
+        if hi > lo {
+            let to_mat = |m: [f32; 12]| Mat4::from(bevy::math::Affine3A::from_cols_array(&m));
+            let now = to_mat(s.curve.sample(s.t).to_cols_array());
+            let base = tf.to_matrix() * now.inverse();
+            let locals = item_locals(vis);
+            if s.last_t.is_none_or(|l| l < lo) {
+                let m = base * to_mat(s.curve.sample(lo).to_cols_array());
+                s.pts.push(((s.t - lo) / s.rate.max(0.1), locals.map(|p| m.transform_point3(p))));
+            }
+            for (tk, m) in s.curve.sweep(lo, hi, 0.1) {
+                let m = base * to_mat(m.to_cols_array());
+                let p = locals.map(|p| m.transform_point3(p));
+                if p.iter().all(|v| v.is_finite()) {
+                    s.pts.push(((s.t - tk) / s.rate.max(0.1), p));
+                }
             }
         }
+        s.last_t = Some(s.t);
         if s.pts.len() < 2 {
             continue;
         }

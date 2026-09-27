@@ -110,6 +110,8 @@ pub enum OpKind {
     Pulse,
     /// An incanted delivery's arm (gomu gomu no <anything>): a limb to the delivered construct.
     Arm,
+    /// A DelayedHit mark ticking on its target (the sigil follows them until it bursts).
+    Mark,
 }
 
 impl OpKind {
@@ -185,7 +187,7 @@ impl MovePose {
             OpKind::Blink | OpKind::Impulse => Self::Lunge,
             OpKind::Slam => Self::Slam,
             OpKind::Field | OpKind::Room | OpKind::Swap | OpKind::Explode | OpKind::TimeStop => Self::Palms,
-            OpKind::Pulse => Self::Clench,
+            OpKind::Pulse | OpKind::Mark => Self::Clench,
         }
     }
 }
@@ -260,6 +262,8 @@ struct Pool {
     /// Stats for the perf readout: beats started this session / peak live.
     started: u64,
     peak: usize,
+    /// The last move look per player (op rays / marks that arrive around a move draw in it).
+    last: HashMap<PlayerId, Look>,
 }
 
 impl Pool {
@@ -293,6 +297,12 @@ struct Side {
     n_arms: usize,
     booms: [(PlayerId, Vec3, f32); 8],
     n_booms: usize,
+    /// Op rays (BounceBeam legs, Afflict / Disarm bolts): (caster, from, to, element).
+    zaps: [(PlayerId, Vec3, Vec3, Element); 16],
+    n_zaps: usize,
+    /// DelayedHit marks: (caster, target, secs, burst).
+    marks: [(PlayerId, PlayerId, f32, bool); 8],
+    n_marks: usize,
 }
 
 impl Default for Side {
@@ -309,6 +319,10 @@ impl Default for Side {
             n_arms: 0,
             booms: [(p, Vec3::ZERO, 0.0); 8],
             n_booms: 0,
+            zaps: [(p, Vec3::ZERO, Vec3::ZERO, Element::Light); 16],
+            n_zaps: 0,
+            marks: [(p, p, 0.0, false); 8],
+            n_marks: 0,
         }
     }
 }
@@ -320,6 +334,8 @@ impl Side {
         self.n_spawned = 0;
         self.n_arms = 0;
         self.n_booms = 0;
+        self.n_zaps = 0;
+        self.n_marks = 0;
     }
 }
 
@@ -435,7 +451,19 @@ fn play(sfx: &mut MessageWriter<Sfx3d>, c: &Cue, pos: Vec3, pitch: f32, gain: f3
     }
 }
 
-fn intern(s: &str) -> &'static str {
+/// The onomatopoeia key a power move's blast says (`move_fx.ron` style `word`): `None` = no word,
+/// else the key ("explosion" when the style names none).
+pub fn style_word(fx: &MoveFx, mv: &MoveDef, power: Option<&PowerDef>) -> Option<&'static str> {
+    let look = resolve_look(fx, mv, power, [1.0; 3]);
+    let w = fx.def(look.style).word.trim();
+    match w {
+        "" => Some("explosion"),
+        "none" | "-" => None,
+        k => Some(intern(k)),
+    }
+}
+
+pub fn intern(s: &str) -> &'static str {
     static SET: std::sync::OnceLock<std::sync::Mutex<Vec<&'static str>>> = std::sync::OnceLock::new();
     let mut v = SET.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
     if let Some(x) = v.iter().find(|x| **x == s) {
@@ -523,6 +551,16 @@ fn intake(mut events: MessageReader<GameEvents>, views: Res<WorldViews>, mut sid
                     side.swaps[n] = (*a, bv(*a_pos), bv(*b_pos));
                     side.n_swaps += 1;
                 }
+                PowerEvent::Op(bd_sim::powers::ops::OpEvent::Zap { player, from, to, element, .. }) if side.n_zaps < side.zaps.len() => {
+                    let n = side.n_zaps;
+                    side.zaps[n] = (*player, bv(*from), bv(*to), *element);
+                    side.n_zaps += 1;
+                }
+                PowerEvent::Op(bd_sim::powers::ops::OpEvent::Marked { player, target, secs, burst, .. }) if side.n_marks < side.marks.len() => {
+                    let n = side.n_marks;
+                    side.marks[n] = (*player, *target, *secs, *burst);
+                    side.n_marks += 1;
+                }
                 PowerEvent::Delivered { player, construct, arm: true, .. } if side.n_arms < side.arms.len() => {
                     let n = side.n_arms;
                     side.arms[n] = (*player, *construct);
@@ -582,6 +620,7 @@ fn start(
         let Some(v) = views.player(f.player) else { continue };
         let corps = corps_rgb(v.corps);
         let look = resolve_look(&table, f.mv, f.power, corps);
+        pool.last.insert(f.player, look);
         let (eye, look_dir) = eye_look(v);
         let dir = f.dir.filter(|d| d.length_squared() > 0.25).map_or(look_dir, |d| d.normalize());
         let hand = super::super::constructs::hand_transform(v).translation;
@@ -828,6 +867,33 @@ fn start(
         let hand = super::super::constructs::hand_transform(v).translation;
         play(&mut sfx, &table.def(style).sound.stretch, hand, 1.0, 1.0);
         pool.add(Beat { op: OpKind::Arm, look, player, local: Some(player) == local, construct: Some(cid), a: hand, b: hand, dur: 1.3, ..default() }, cap);
+    }
+    // Op rays: a thick beam in the move's colour along every leg, a flare where it bounces.
+    for k in 0..side.n_zaps {
+        let (caster, from, to, el) = side.zaps[k];
+        let corps = views.player(caster).map_or([1.0; 3], |v| corps_rgb(v.corps));
+        let look = pool.last.get(&caster).copied().unwrap_or_else(|| look_of(&table, table.for_element(el).unwrap_or(table.energy), None, Some(el).filter(|e| *e != Element::Light), None, corps));
+        let mut pen = Pen { fx: &mut fx, motes: tb.beats.motes * budget, scale: 1.0, cam, avoid: None };
+        pen.beam(from, to, 0.22 * look.size, look.main, look.glow * 1.4, 0.5);
+        pen.beam(from, to, 0.08 * look.size, look.core, look.glow * 2.2, 0.32);
+        let d = (to - from).normalize_or(Vec3::Z);
+        pen.flash(to, 0.9, look.core, look.glow * 1.5, 0.14);
+        pen.ring(&look, to, d, 0.15, 4.0, 0.5, 0.25);
+        pen.burst(&look, to, 0.5, 4.0, Some(-d), 0.9, 0.3);
+        play(&mut sfx, &tb.sounds.beam, to, 1.3, 0.6);
+    }
+    // DelayedHit: a sigil ticks on the target for the whole countdown; the burst ends it.
+    for k in 0..side.n_marks {
+        let (caster, target, secs, burst) = side.marks[k];
+        if burst {
+            for b in pool.beats.iter_mut().filter(|b| b.live && b.op == OpKind::Mark && b.player == target) {
+                b.live = false;
+            }
+            continue;
+        }
+        let corps = views.player(caster).map_or([1.0; 3], |v| corps_rgb(v.corps));
+        let look = pool.last.get(&caster).copied().unwrap_or_else(|| look_of(&table, table.energy, None, None, None, corps));
+        pool.add(Beat { op: OpKind::Mark, look, player: target, local: Some(target) == local, dur: secs.clamp(0.2, 12.0), ..default() }, cap);
     }
     // Slams land where their explosion went off.
     for k in 0..side.n_booms {
@@ -1310,6 +1376,26 @@ fn step(
                         let d = Vec3::new(a.cos(), 0.3 * ((k % 3) as f32 - 1.0), a.sin());
                         zig(pen.fx, b.a, b.a + d * b.r * 0.8, 6, 0.3 + look.jitter, b.seed.wrapping_add(k * 13 + (b.t * 40.0) as u32), 0.04, look.core, look.glow * 2.0);
                     }
+                }
+            }
+            OpKind::Mark => {
+                let Some(v) = v else {
+                    b.live = false;
+                    continue;
+                };
+                // Two counter-rotating rings round the chest, tightening and ticking faster
+                // toward the burst; a pulse + tick every beat.
+                let c = chest(v);
+                let left = (b.dur - b.t).max(0.0);
+                let rate = if left < 1.0 { 4.0 } else { 2.0 };
+                let r = (0.55 + 0.35 * (left / b.dur.max(0.1))) * v.size;
+                let pulse = 0.6 + 0.4 * ((b.t * rate * std::f32::consts::TAU).cos() * 0.5 + 0.5);
+                circle(pen.fx, c, Vec3::Y, r, 18, 0.045, look.main, look.glow * 1.3 * pulse, b.t * 3.0);
+                circle(pen.fx, c + Vec3::Y * 0.35 * v.size, Vec3::Y, r * 0.7, 14, 0.03, look.core, look.glow * pulse, -b.t * 4.0);
+                circle(pen.fx, c, Vec3::new(0.0, 0.2, 1.0), r * 0.85, 16, 0.03, look.main, look.glow * 0.8 * pulse, b.t * 2.0);
+                if (b.t * rate) as u32 != ((b.t - dt) * rate) as u32 {
+                    pen.flash(c, 0.5 * v.size, look.core, look.glow, 0.1);
+                    sfx.write(Sfx3d::at("needle_tick", c).pitch(if left < 1.0 { 1.3 } else { 1.0 }).gain(0.6));
                 }
             }
             OpKind::Cast | OpKind::Carve | OpKind::Reach | OpKind::Pulse => {

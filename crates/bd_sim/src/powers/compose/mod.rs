@@ -515,6 +515,7 @@ pub fn composed_power() -> &'static PowerDef {
         ascend: None,
         tiers: vec![],
         fx: String::new(),
+        derived: None,
     })
 }
 

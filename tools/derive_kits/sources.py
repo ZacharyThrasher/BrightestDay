@@ -438,6 +438,7 @@ class Claims:
     grant_names: set[str] = field(default_factory=set)
     files: list[str] = field(default_factory=list)
     kits: list[dict] = field(default_factory=list)      # hand kits: {id, names, moves:[{name, tags}], shouts}
+    entries: int = 0                                    # every hand power entry (the table budget)
 
 
 def parse_claims(skip_file: str) -> Claims:
@@ -456,6 +457,7 @@ def parse_claims(skip_file: str) -> Claims:
             pid = (strings(f.get("id")) or [""])[0].lower()
             if not pid:
                 continue
+            cl.entries += 1
             kind = " ".join(idents(f.get("kind")))
             own = [norm_words(pid.replace("_", " "))]
             own += [norm_words(n) for n in strings(f.get("name"))[:1]]
@@ -533,3 +535,49 @@ def icon_names_all() -> set[str]:
             out.update(norm_words(n) for n in strings(m.group(1)))
     out.discard("")
     return out
+
+
+# ------------------------------------------------------------------------------------ popularity
+
+CHAR_FAMILIES = {"fiction_character", "pokemon", "mecha", "kaiju", "robot", "myth_creature", "fiction_other"}
+GENERIC_KINDS = {"type", "taxon"}
+
+
+def popularity(names: set[str]) -> dict[str, dict]:
+    """Wikidata harvest (tools/lexicon_build/data/entities.jsonl.gz, checked in): for every normalised name
+    in `names`, the best CHARACTER match's sitelinks (`char`), the best GENERIC-type match's (`generic`:
+    "dragon", "werewolf") and the best match overall's family (`family`). Missing file = empty map."""
+    import gzip
+    import json
+
+    path = rel("tools", "lexicon_build", "data", "entities.jsonl.gz")
+    out: dict[str, dict] = {}
+    if not os.path.exists(path):
+        return out
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            keys = {norm_words(e.get("label", ""))} | {norm_words(a) for a in e.get("aliases", []) or []}
+            hit = keys & names
+            if not hit:
+                continue
+            sl = int(e.get("sitelinks", 0) or 0)
+            fam = e.get("family", "")
+            kind = e.get("kind", "")
+            for k in hit:
+                r = out.setdefault(k, {"char": 0, "generic": 0, "best": 0, "family": ""})
+                if fam in CHAR_FAMILIES and kind == "instance":
+                    r["char"] = max(r["char"], sl)
+                if kind in GENERIC_KINDS or fam in ("taxon", "breed"):
+                    r["generic"] = max(r["generic"], sl)
+                if sl > r["best"]:
+                    r["best"], r["family"] = sl, fam
+    return out
+
+
+def max_powers() -> int:
+    m = re.search(r"pub const MAX_POWERS: usize = (\d+);", read(rel("crates", "bd_sim", "src", "powers", "data.rs")))
+    return int(m.group(1)) if m else 4000

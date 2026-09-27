@@ -107,3 +107,34 @@ Two routes:
 2–5 frames at 30 fps by default. Attacker and victim visuals are held (`HitFreeze`) and burn in as
 the hot silhouettes. Then the `release` s snap back: the treatment decays, the zoom punch eases out,
 and the style's `sfx_out` plays (Black Flash: the suck during the hold, the crack on release).
+
+## Hit reactions by weight (3P bodies)
+
+`impact_frames/reactions.rs` (`HitReactions`, read by `players::sync_bodies`) makes the victim's
+body sell the hit. It's built from the sim's own numbers and changes no sim outcome:
+
+* **Flinch**: light hits. The rig's own `HitReact` layer, unchanged.
+* **Stagger**: `impact.strength >= 0.35` with no launch. The body leans back off the hit, takes a
+  stumble step and the knees buckle, then it recovers with a small forward overshoot.
+* **Tumble**: launches. These keep the rig's `Launched` / `Tumble` anims.
+* **Wall splat** (`WallSplat`): the body is flattened along the wall normal, spread wide and
+  pressed in. It slides down for a beat, then peels off.
+* **Ground bounce**: a landing out of a launch at more than 9 m/s. Squash, a hop, then the get-up.
+* **Get-up**: after any tumble. A low crouch with the chest forward, rising over 0.42 s.
+
+These are only render-side transforms (a feet-pivoted tilt, an offset and a squash) plus an extra
+`HitReact` flail layer. Nothing moves during a hit-stop.
+
+## Dev and tools
+
+* Sheet and clips: `--practice --bots 2 --scenario impactframes [--if-style all|black_flash,..]
+  [--if-view 1p|bystander] [--if-real] [--if-reduce off|reduced|none] [--third-person] --record
+  <dir> --record-secs 10`. `--if-real` shouts the real "black flash" move.
+* `BD_IF_DEBUG=1` logs the uniform and the render-world state of the pass. `BD_IF_BENCH=1` pins the
+  first frame on for a GPU A/B.
+* Tests: `cargo test -p bd_game --bin brightest_day -- impact_frames` (trigger rules, the WCAG
+  cap, the pref, the envelope, reactions, and that the shipped table and every data key resolve).
+  `cargo test -p bd_sim --test impact_frames` covers the guaranteed crit.
+* Cost: the pass exists only while a frame plays. It's about 12 texture taps plus two short loops
+  per pixel. At 1080p a frame pinned on permanently showed no measurable difference in the
+  60 fps capped runs: avg 16.67 ms and p50 16.67 ms in both A/B runs.

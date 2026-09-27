@@ -107,6 +107,9 @@ pub struct StyleDef {
     pub sound: StyleSound,
     /// HUD chip glyph (power_hud `derive::glyph` ids).
     pub glyph: u8,
+    /// The comic word its blasts say (an `assets/fx/onomatopoeia.ron` key: "bamf", "boing"…);
+    /// "" = the generic explosion word, "none" = no word.
+    pub word: String,
 }
 
 impl Default for StyleDef {
@@ -127,6 +130,7 @@ impl Default for StyleDef {
             size: 1.0,
             sound: StyleSound::default(),
             glyph: 0,
+            word: String::new(),
         }
     }
 }

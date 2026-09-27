@@ -193,7 +193,7 @@
         // fireball and chidori stay as shouts. The Mangekyo tier keeps the same slots (every base
         // shout still works) and adds Tsukuyomi, Amaterasu and Susanoo.
         fx: "blood",
-        shouts: [("copy jutsu", 0), ("sharingan copy", 0), ("copy that jutsu", 0), ("copycat jutsu", 0), ("copy your jutsu", 0), ("copy that", 0),
+        shouts: [("copy jutsu", 0), ("sharingan copy", 0), ("copy that jutsu", 0), ("copycat jutsu", 0), ("copy your jutsu", 0),
                  ("genjutsu", 1), ("sharingan genjutsu", 1), ("genjutsu sharingan", 1), ("gen jutsu", 1), ("genjitsu", 1), ("illusion jutsu", 1),
                  ("fireball jutsu", 2), ("great fireball technique", 2), ("katon goukakyuu no jutsu", 2), ("fire style fireball jutsu", 2),
                  ("chidori", 3), ("chidory", 3), ("chidorie", 3), ("chidori jutsu", 3), ("one thousand birds", 3), ("thousand birds", 3), ("chi dori", 3)],
@@ -220,7 +220,7 @@
              ascend: Some((color: Some((0.8, 0.05, 0.12)), intensity: 1.2, title: Some("MANGEKYO SHARINGAN"), style: Calm,
                            eye_glow: Some((1.0, 0.05, 0.1)), quiet: true)),
              shouts: [("tsukuyomi", 1), ("tsukiyomi", 1), ("tsuki yomi", 1), ("tsukoyomi", 1), ("mangekyo tsukuyomi", 1),
-                      ("amaterasu", 4), ("amatarasu", 4), ("ama terasu", 4), ("amaterasu flames", 4), ("black flames", 4),
+                      ("amaterasu", 4), ("amatarasu", 4), ("ama terasu", 4), ("amaterasu flames", 4),
                       ("susanoo", 5), ("susano o", 5), ("susano'o", 5), ("susanno", 5)],
              moves: [
                  (name: "copy", tags: [Counter], cooldown: 4.0, cost: 4.0, ops: [CopyLast(range: 45.0, secs: 10.0)],

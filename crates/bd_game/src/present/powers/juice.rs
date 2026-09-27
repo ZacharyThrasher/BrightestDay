@@ -328,6 +328,9 @@ fn ripples(
         tf.scale = Vec3::splat(radius);
         if let Some(mut m) = materials.get_mut(&mat.0) {
             let near = cam.map_or(1.0, |c| ripple_near_fade((c.distance(tf.translation) - radius).abs()));
+            // Inside the shell (a 22 m snap ripple around a bystander) it would tint the whole
+            // screen: keep it a faint shimmer — a flash never whites out someone else's view.
+            let near = if cam.is_some_and(|c| c.distance(tf.translation) < radius) { near * 0.12 } else { near };
             let a = 0.24 * (1.0 - u) * (1.0 - u) * near;
             m.base_color = Color::linear_rgba(r.color[0], r.color[1], r.color[2], a);
             let k = 1.8 * (1.0 - u) * near;

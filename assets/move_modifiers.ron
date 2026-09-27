@@ -64,7 +64,7 @@
               "now", "this", "time", "that", "one", "go", "in", "on"],
     articles: ["a", "an", "the", "my", "some", "use", "do", "cast", "throw", "shoot", "unleash", "go", "really", "very", "so", "extra", "just", "like", "uh", "um", "umm", "uhh", "er", "erm", "okay", "ok", "alright", "hey", "now", "then", "and", "super duper"],
     tails: ["but", "with", "except", "only", "plus", "and"],
-    trailing: ["please", "now", "right now", "already", "lol", "bro", "dude", "man", "guys", "yo", "go", "pls", "plz", "thanks", "ok", "okay"],
+    trailing: ["please", "now", "right now", "already", "lol", "bro", "dude", "man", "guys", "go", "pls", "plz", "thanks", "ok", "okay"],
     numbers: [
         ("two", 2), ("twice", 2), ("pair", 2), ("couple", 2), ("three", 3), ("thrice", 3), ("four", 4), ("five", 5), ("six", 6),
         ("seven", 7), ("eight", 8), ("nine", 9), ("ten", 10), ("eleven", 11), ("twelve", 12), ("dozen", 12), ("fifteen", 15),

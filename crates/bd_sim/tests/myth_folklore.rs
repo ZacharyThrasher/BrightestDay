@@ -279,3 +279,17 @@ fn the_tidal_wave_carries_them_off() {
     assert!(before.z - after.z > 5.0, "swept {before} -> {after}");
     assert!(w.player(B).unwrap().damage_pct > 3.0);
 }
+
+#[test]
+fn medusa_stops_only_those_who_look_at_her() {
+    // B looks at Medusa: stone for a moment.
+    let mut w = duel();
+    w.player_mut(B).unwrap().input.yaw = std::f32::consts::PI;
+    say(&mut w, "medusa gaze");
+    assert!(w.player(B).unwrap().status.stunned(), "met her eyes: stunned");
+    // B looks away: nothing.
+    let mut w = duel();
+    w.player_mut(B).unwrap().input.yaw = 0.0;
+    say(&mut w, "look into my eyes");
+    assert!(!w.player(B).unwrap().status.stunned(), "looked away: free");
+}

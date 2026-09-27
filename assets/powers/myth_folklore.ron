@@ -95,7 +95,7 @@
             // -> ends grounded; everyone near is launched.
             (name: "earthquake", tags: [Combo], cooldown: 8.0, cost: 8.0, ops: [
                 Explode(radius: 7.0, damage: 8.0, knockback: 16.0, carve: 1.2, element: Earth),
-                Carve(length: 22.0, radius: 1.3, damage: 11.0),
+                Erupt(length: 22.0, width: 2.5, height: 3.0, count: 7, element: Earth, damage: 11.0, launch: 16.0),
             ], juice: Some((title: Some("EARTHSHAKER"), boom: true, shake: 0.38, debris: 20.0, ripple: 9.0))),
             // Ride the sea-horses: a charge through everyone in your way. -> ends past them, running.
             (name: "hippocampus", tags: [Movement], cooldown: 3.0, cost: 4.0, ops: [
@@ -296,7 +296,7 @@
             // Plague arrows fall on the crosshair from above, one after another. -> ends clear of it.
             (name: "plague arrows", tags: [Combo], cooldown: 12.0, cost: 8.0, ops: [
                 Salvo(count: 6, delay: 0.7, interval: 0.1, radius: 2.2, damage: 7.0, knockback: 6.0, element: Poison, at: Aim, spread: 6.0),
-                Zone(radius: 6.0, secs: 3.0, status: Some(Poison), at: Aim),
+                Contagion(range: 40.0, cone: 12.0, status: Poison, secs: 5.0, spread: 5.0),
             ], juice: Some((title: Some("PLAGUE ARROWS"), at: Aim, color: Some((0.6, 0.8, 0.3))))),
             // The lyre: everyone near you moves as if half-asleep while it plays.
             (name: "lyre of apollo", tags: [Defense], cooldown: 12.0, cost: 6.0, ops: [
@@ -510,8 +510,7 @@
         moves: [
             // The ash spear of Pelion: a lunge with reach. -> ends a step in.
             (name: "spear of achilles", tags: [Primary], cooldown: 0.9, cost: 3.0, ops: [
-                Impulse(fwd: 14.0, up: 0.0),
-                Shove(range: 4.5, angle: 25.0, damage: 14.0, knockback: 17.0),
+                Drill(speed: 30.0, secs: 0.35, damage: 15.0, knockback: 18.0),
             ], juice: Some((punch: 2.0, color: Some((0.95, 0.8, 0.45))))),
             // The fastest runner of the Greeks. -> ends running flat out.
             (name: "swift footed", tags: [Movement], cooldown: 1.4, cost: 3.0, ops: [
@@ -551,12 +550,12 @@
             (name: "harpe", tags: [Primary], cooldown: 0.8, cost: 3.0, ops: [
                 Shove(range: 3.2, angle: 85.0, damage: 12.0, knockback: 9.0),
             ], juice: Some((punch: 1.5))),
-            // Medusa's head held up: everyone in front whose eyes are on you is dragged down heavy
-            // and slow as stone. Look away and it can't touch you.
+            // Medusa's head held up: whoever looks at it turns to stone for a moment. Look away and
+            // it can't touch you.
             (name: "head of medusa", tags: [Ultimate], cooldown: 16.0, cost: 9.0, ops: [
-                Afflict(range: 22.0, cone: 30.0, status: Some(Chill), secs: 2.0, damage: 6.0, element: Earth),
-                Weigh(range: 22.0, secs: 1.6, down: 16.0),
-            ], juice: Some((title: Some("THE GORGON'S HEAD"), boom: true, color: Some((0.55, 0.6, 0.45))))),
+                GazeStun(range: 22.0, cone: 40.0, secs: 1.0, status: Stun),
+                GazeStun(range: 22.0, cone: 40.0, secs: 2.2, status: Chill),
+            ], juice: Some((title: Some("THE GORGON'S HEAD"), boom: true, color: Some((0.55, 0.6, 0.45)), impact_frame: Some("ink")))),
             // The mirror shield turns shots back — as it turned Medusa's own reflection on her.
             (name: "mirror shield", tags: [Defense], cooldown: 7.0, cost: 5.0, ops: [
                 Deflect(secs: 1.2, angle: 80.0),
@@ -589,12 +588,12 @@
                  ("gorgon's shriek", 3), ("gorgon shriek", 3),
                  ("gorgon's blood", 4), ("blood of the gorgon", 4)],
         moves: [
-            // The stare: the aimed enemy, if they're looking at you, is weighed down and slowed to
-            // stone for a moment. Short and escapable — the lesson is don't look.
+            // The stare: everyone in front of her who is LOOKING at her turns to stone for a moment
+            // (stopped dead, then slow as they crack free). Look away and it can't touch you.
             (name: "petrifying gaze", tags: [Ultimate], cooldown: 9.0, cost: 7.0, ops: [
-                Afflict(range: 26.0, cone: 12.0, status: Some(Chill), secs: 1.8, damage: 4.0, element: Earth),
-                Weigh(range: 26.0, secs: 1.4, down: 14.0),
-            ], juice: Some((title: Some("PETRIFYING GAZE"), color: Some((0.5, 0.75, 0.4))))),
+                GazeStun(range: 24.0, cone: 35.0, secs: 0.9, status: Stun),
+                GazeStun(range: 24.0, cone: 35.0, secs: 2.4, status: Chill),
+            ], juice: Some((title: Some("PETRIFYING GAZE"), ripple: 6.0, color: Some((0.5, 0.75, 0.4)), impact_frame: Some("ink")))),
             // The snakes lash out and bite. -> ends in place; they're poisoned.
             (name: "serpent hair", tags: [Primary], cooldown: 0.8, cost: 3.0, ops: [
                 Shove(range: 3.4, angle: 75.0, damage: 9.0, knockback: 6.0, element: Poison),
@@ -779,7 +778,7 @@
             // The box opens: plague, war, famine, sorrow, fire, a swarm — one of them, now, at the crosshair.
             (name: "open the box", tags: [Ultimate, Primary], cooldown: 9.0, cost: 7.0, ops: [
                 Roulette(picks: [
-                    [Zone(radius: 6.0, secs: 4.0, status: Some(Poison), dps: 3.0, at: Aim)],
+                    [Contagion(range: 40.0, cone: 20.0, status: Poison, secs: 5.0, spread: 6.0), Zone(radius: 5.0, secs: 3.0, status: Some(Poison), at: Aim)],
                     [Cast(recipe: (name: "the evils of war", form: Biped, mech: [Walks, Blade], element: Shadow, scale: 1.0, count: 3,
                                    temperament: Aggressive, intensity: 0.8))],
                     [Zone(radius: 7.0, secs: 3.5, slow: 0.55, at: Aim)],
@@ -959,7 +958,7 @@
             (name: "gungnir", tags: [Ultimate, Primary], cooldown: 7.0, cost: 7.0, ops: [
                 Seeker(recipe: (name: "gungnir", form: Spear, mech: [Pierce], element: Light, scale: 2.4),
                        range: 60.0, cone: 32.0, speed: 36.0, damage: 18.0, knockback: 22.0, up: 0.3, element: Light, hits: 1),
-            ], juice: Some((title: Some("GUNGNIR"), boom: true, punch: 4.0, color: Some((1.0, 0.85, 0.45))))),
+            ], juice: Some((title: Some("GUNGNIR"), boom: true, punch: 4.0, color: Some((1.0, 0.85, 0.45)), impact_frame: Some("holy")))),
             // The two ravens dive on your enemies (thought and memory). -> ends with you free to act.
             (name: "huginn and muninn", tags: [Combo], cooldown: 8.0, cost: 5.0, ops: [
                 Cast(recipe: (name: "huginn and muninn", form: Bird, mech: [Flies, Blade, Fast, Homing], element: Shadow, scale: 0.8, count: 2,
@@ -1035,7 +1034,7 @@
                                    temperament: Sneaky, intensity: 0.8))],
                     [Cast(recipe: (name: "loki's hex", form: Ball, mech: [Fast, Shrink, Homing], element: Psychic, scale: 0.4))],
                     [Afflict(range: 22.0, cone: 12.0, status: Some(Shadow), secs: 2.0, damage: 6.0, element: Psychic)],
-                    [Yank(range: 26.0, speed: 24.0, cone: 10.0)],
+                    [Transpose(range: 30.0, cone: 12.0)],
                 ]),
             ], juice: Some((title: Some("A TRICK OF LOKI"), color: Some((0.3, 0.8, 0.35))))),
             // Wildfire. -> ends with a burning patch at the crosshair.
@@ -1143,8 +1142,7 @@
         moves: [
             // A sweeping cut of fire along your aim. -> ends in place; the line keeps burning.
             (name: "flaming sword", tags: [Primary], cooldown: 1.4, cost: 4.0, ops: [
-                Carve(length: 14.0, radius: 1.1, damage: 14.0),
-                Explode(radius: 3.0, damage: 6.0, knockback: 10.0, element: Fire, at: Front, dist: 6.0),
+                Wave(length: 22.0, speed: 34.0, width: 4.0, carve: 0.8, damage: 13.0, knockback: 12.0, element: Fire),
             ], juice: Some((title: Some("SWORD OF SURTR"), punch: 2.5, color: Some((1.0, 0.45, 0.1))))),
             // Ragnarok: a wall of fire rolls out across the world and fire falls behind it.
             (name: "ragnarok", tags: [Ultimate], cooldown: 30.0, cost: 14.0, ops: [
@@ -1525,9 +1523,9 @@
                 Cast(recipe: (name: "ammit the devourer", form: Quadruped, mech: [Charge, Blade, Heavy, Grab], element: Shadow, scale: 2.2,
                               temperament: Aggressive, intensity: 1.0)),
             ], juice: Some((title: Some("AMMIT"), boom: true, color: Some((0.6, 0.45, 0.2))))),
-            // Guide of souls: a step through the underworld. -> ends out of reach.
-            (name: "guide of souls", tags: [Movement], cooldown: 3.0, cost: 4.0, ops: [
-                Blink(dist: 16.0, afterimage: true),
+            // Guide of souls: the psychopomp is simply behind the one you look at. -> ends behind them.
+            (name: "guide of souls", tags: [Movement], cooldown: 4.0, cost: 4.0, ops: [
+                WarpTo(range: 40.0, cone: 20.0, behind: 2.5),
             ], juice: Some((color: Some((0.2, 0.18, 0.25))))),
             // The sands of the Duat hold their legs.
             (name: "sands of the duat", tags: [Defense], cooldown: 10.0, cost: 5.0, ops: [
@@ -1637,10 +1635,10 @@
             (name: "desert wind", tags: [Primary], cooldown: 1.2, cost: 3.0, ops: [
                 Shove(range: 9.0, angle: 40.0, damage: 7.0, knockback: 14.0, element: Fire),
             ], juice: Some((color: Some((1.0, 0.55, 0.2))))),
-            // Plague spreads from the crosshair.
+            // Her plague: it takes the aimed foe and jumps to anyone who comes near them.
             (name: "plague of sekhmet", tags: [Combo], cooldown: 10.0, cost: 5.0, ops: [
-                Zone(radius: 6.0, secs: 4.0, status: Some(Poison), dps: 2.5, at: Aim),
-            ], juice: Some((at: Aim))),
+                Contagion(range: 36.0, cone: 12.0, status: Poison, secs: 5.0, spread: 5.0),
+            ], juice: Some((title: Some("PLAGUE")))),
             // The red beer that calmed her: drink, mend a little.
             (name: "red beer", tags: [Defense], cooldown: 20.0, cost: 5.0, ops: [
                 Mend(pct: 8.0),
@@ -1726,7 +1724,7 @@
             (name: "devour the sun", tags: [Ultimate], cooldown: 24.0, cost: 14.0, ops: [
                 Singularity(dist: 20.0, rise: 7.0, secs: 5.0, radius: 14.0, strength: 34.0, capture: 3.0, chunks: 10,
                             damage: 15.0, knockback: 28.0),
-            ], juice: Some((title: Some("ECLIPSE"), boom: true, punch: 6.0, shake: 0.3, at: Aim, debris: -16.0, color: Some((0.12, 0.05, 0.15))))),
+            ], juice: Some((title: Some("ECLIPSE"), boom: true, punch: 6.0, shake: 0.3, at: Aim, debris: -16.0, color: Some((0.12, 0.05, 0.15)), impact_frame: Some("void")))),
             // The serpent itself, coiling around your enemies.
             (name: "coils of apep", tags: [Combo], cooldown: 18.0, cost: 8.0, ops: [
                 Cast(recipe: (name: "apep", form: Serpent, mech: [Constrict, Grab, Heavy], element: Shadow, scale: 2.6,
@@ -1783,7 +1781,7 @@
             // The curse: a mark that follows them, bursting later.
             (name: "curse of the pharaoh", tags: [Ultimate], cooldown: 12.0, cost: 7.0, ops: [
                 DelayedHit(range: 40.0, cone: 12.0, secs: 2.5, damage: 16.0, knockback: 12.0, element: Poison),
-                Afflict(range: 40.0, cone: 12.0, status: Some(Poison), secs: 2.5),
+                Contagion(range: 40.0, cone: 12.0, status: Poison, secs: 4.0, spread: 4.0),
             ], juice: Some((title: Some("CURSE OF THE PHARAOH"), color: Some((0.6, 0.75, 0.35))))),
             // Linen bandages lash out and drag. -> ends with them pulled in.
             (name: "bandage lash", tags: [Primary], cooldown: 3.5, cost: 4.0, ops: [
@@ -1979,7 +1977,7 @@
             (name: "brahmastra", tags: [Ultimate], cooldown: 26.0, cost: 12.0, ops: [
                 Seeker(recipe: (name: "brahmastra", form: Spear, mech: [Pierce, Fast], element: Light, scale: 1.6),
                        range: 70.0, cone: 30.0, speed: 50.0, damage: 26.0, knockback: 30.0, up: 0.4, element: Light, hits: 1),
-            ], juice: Some((title: Some("BRAHMASTRA"), boom: true, punch: 6.0, shake: 0.3, color: Some((1.0, 0.95, 0.75))))),
+            ], juice: Some((title: Some("BRAHMASTRA"), boom: true, punch: 6.0, shake: 0.3, color: Some((1.0, 0.95, 0.75)), impact_frame: Some("holy")))),
             // Only the bird's eye: a narrow, patient lock on the one in your sights, then a perfect shot.
             (name: "bird's eye", tags: [Combo], cooldown: 8.0, cost: 5.0, ops: [
                 LockOn(secs: 0.8, range: 65.0, damage: 18.0, knockback: 14.0, angle: 6.0),
@@ -2015,7 +2013,7 @@
             (name: "vasavi shakti", tags: [Ultimate], cooldown: 40.0, cost: 12.0, ops: [
                 Seeker(recipe: (name: "vasavi shakti", form: Spear, mech: [Pierce], element: Electric, scale: 2.2),
                        range: 70.0, cone: 35.0, speed: 44.0, damage: 28.0, knockback: 30.0, up: 0.3, element: Electric, hits: 1),
-            ], juice: Some((title: Some("VASAVI SHAKTI"), boom: true, punch: 6.0, shake: 0.3, color: Some((0.8, 0.9, 1.0))))),
+            ], juice: Some((title: Some("VASAVI SHAKTI"), boom: true, punch: 6.0, shake: 0.3, color: Some((0.8, 0.9, 1.0)), impact_frame: Some("holy")))),
             // The Vijaya bow. -> ends drawn again.
             (name: "vijaya", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
                 Cast(recipe: (name: "arrows of vijaya", form: Ball, mech: [Fast, Pierce], element: Fire, scale: 0.35, count: 3)),
@@ -2189,8 +2187,7 @@
         moves: [
             // Kusanagi: a long cut along your aim that mows everything, grass and foes alike.
             (name: "kusanagi", tags: [Primary], cooldown: 1.4, cost: 4.0, ops: [
-                Carve(length: 12.0, radius: 0.8, damage: 14.0),
-                Shove(range: 5.0, angle: 90.0, damage: 4.0, knockback: 12.0, element: Wind),
+                Wave(length: 20.0, speed: 38.0, width: 5.0, carve: 0.6, damage: 13.0, knockback: 10.0, element: Wind, thin: true),
             ], juice: Some((title: Some("KUSANAGI"), punch: 2.0))),
             // Eight vats of sake at the crosshair: everyone in it staggers, drunk and slow.
             (name: "eight vats of sake", tags: [Combo], cooldown: 10.0, cost: 5.0, ops: [
@@ -2580,8 +2577,7 @@
             ], juice: Some((title: Some("HUNTIAN LING"), color: Some((0.9, 0.15, 0.15))))),
             // The fire-tipped spear. -> ends a step in.
             (name: "fire tipped spear", cooldown: 0.9, cost: 3.0, ops: [
-                Impulse(fwd: 12.0, up: 0.0),
-                Shove(range: 4.4, angle: 25.0, damage: 13.0, knockback: 14.0, element: Fire),
+                Drill(speed: 28.0, secs: 0.35, damage: 13.0, knockback: 14.0, element: Fire),
             ]),
             // Three heads, six arms: every weapon at once.
             (name: "three heads six arms", tags: [Ultimate], cooldown: 16.0, cost: 9.0, ops: [
@@ -2713,6 +2709,7 @@
             // The glaive's great crescent sweep. -> ends in place; everything in the arc is hit.
             (name: "green dragon crescent blade", tags: [Primary], cooldown: 1.1, cost: 4.0, ops: [
                 Shove(range: 5.5, angle: 115.0, damage: 15.0, knockback: 17.0),
+                Wave(length: 16.0, speed: 30.0, width: 4.5, damage: 7.0, knockback: 10.0, element: Wind),
             ], juice: Some((punch: 2.5, color: Some((0.3, 0.75, 0.45))))),
             // Red Hare: carried on the charge into the wall.
             (name: "red hare", tags: [Movement], cooldown: 4.0, cost: 5.0, ops: [
@@ -3006,7 +3003,7 @@
                 Seeker(recipe: (name: "gae bolg", form: Spear, mech: [Pierce], element: Shadow, scale: 2.2),
                        range: 55.0, cone: 25.0, speed: 42.0, damage: 16.0, knockback: 14.0, element: Shadow, hits: 1),
                 DelayedHit(range: 55.0, cone: 25.0, secs: 1.4, damage: 12.0, knockback: 16.0, up: 0.3, element: Shadow),
-            ], juice: Some((title: Some("GAE BOLG"), boom: true, punch: 5.0, color: Some((0.75, 0.1, 0.12))))),
+            ], juice: Some((title: Some("GAE BOLG"), boom: true, punch: 5.0, color: Some((0.75, 0.1, 0.12)), impact_frame: Some("holy")))),
             // The salmon leap over the heads of the host. -> ends landing where you look.
             (name: "salmon leap", tags: [Movement], cooldown: 4.0, cost: 4.0, ops: [
                 Leap(range: 32.0, apex: 8.0),
@@ -3210,9 +3207,9 @@
                 Zone(radius: 12.0, secs: 2.0, status: Some(Shadow), at: Me),
             ], juice: Some((title: Some("THE KEEN"), boom: true, ripple: 12.0, shake: 0.25, color: Some((0.75, 0.9, 1.0))))),
             // Drift like a ghost. -> ends out of reach.
-            (name: "banshee drift", tags: [Movement], cooldown: 2.5, cost: 3.0, ops: [
+            (name: "banshee drift", tags: [Movement], cooldown: 4.0, cost: 3.0, ops: [
+                Phase(secs: 1.2),
                 Blink(dist: 12.0, afterimage: true),
-                SelfStatus(status: Float, secs: 0.8),
             ]),
             // The omen: a mark that comes due.
             (name: "death omen", tags: [Combo], cooldown: 9.0, cost: 5.0, ops: [
@@ -3282,8 +3279,7 @@
             ]),
             // He moved the Giant's Dance by magic: a ring of standing stones rises around the crosshair.
             (name: "stonehenge", tags: [Ultimate], cooldown: 18.0, cost: 9.0, ops: [
-                Cast(recipe: (name: "the giant's dance", form: Pillar, mech: [Barrier], element: Earth, scale: 6.0, count: 6)),
-                Zone(radius: 7.0, secs: 3.0, slow: 0.35, at: Aim),
+                Erupt(length: 14.0, height: 5.0, count: 10, element: Earth, damage: 6.0, launch: 8.0, shape: Ring, at: Aim),
             ], juice: Some((title: Some("THE GIANT'S DANCE"), boom: true, at: Aim, shake: 0.2))),
             // An enchantment on the aimed foe: dazed and slow.
             (name: "enchantment", tags: [Combo], cooldown: 7.0, cost: 5.0, ops: [
@@ -3550,7 +3546,7 @@
             ], juice: Some((title: Some("PELE"), boom: true, shake: 0.2, color: Some((1.0, 0.35, 0.05))))),
             // The ground at the crosshair erupts and keeps burning.
             (name: "eruption", tags: [Combo], cooldown: 8.0, cost: 6.0, ops: [
-                Explode(radius: 5.0, damage: 12.0, knockback: 22.0, carve: 2.5, element: Fire, at: Aim),
+                Erupt(length: 3.0, width: 3.0, height: 7.0, element: Fire, damage: 10.0, launch: 22.0, shape: Pillar, at: Aim),
                 Zone(radius: 5.0, secs: 4.0, status: Some(Burn), dps: 3.0, at: Aim),
             ], juice: Some((title: Some("ERUPTION"), boom: true, at: Aim, shake: 0.25))),
             // Pele's hair: threads of volcanic glass. -> ends in place.
@@ -3601,7 +3597,7 @@
             (name: "stories", tags: [Ultimate], cooldown: 8.0, cost: 6.0, ops: [
                 Roulette(picks: [
                     [Cast(recipe: (name: "anansi's web", form: Cage, mech: [Trap, Sticky], element: Light, scale: 2.2))],
-                    [Yank(range: 28.0, speed: 26.0, cone: 10.0)],
+                    [Transpose(range: 28.0, cone: 12.0)],
                     [Afflict(range: 26.0, cone: 12.0, status: Some(Shadow), secs: 2.0, damage: 6.0)],
                     [Blink(dist: 14.0, afterimage: true), Shove(range: 3.2, angle: 179.0, damage: 11.0, knockback: 12.0)],
                     [Disarm(range: 18.0, cone: 12.0, pull: true)],
@@ -3982,7 +3978,7 @@
             ], juice: Some((title: Some("KANTELE"), ripple: 10.0))),
             // He sings a wall up out of the ground.
             (name: "song of making", tags: [Combo], cooldown: 10.0, cost: 5.0, ops: [
-                Cast(recipe: (name: "sung wall", form: Wall, mech: [Barrier], element: Earth, scale: 5.0)),
+                Erupt(length: 8.0, height: 4.0, element: Earth, launch: 6.0, shape: Wall, dist: 4.0),
             ]),
             // The Sampo grinds: flour (a blinding cloud), salt (a stinging spray) or gold (heavy coins).
             (name: "sampo", tags: [Primary], cooldown: 5.0, cost: 4.0, ops: [
@@ -4076,10 +4072,10 @@
                  ("moth swarm", 2), ("mothman swarm", 2),
                  ("omen", 3), ("the mothman omen", 3)],
         moves: [
-            // The red eyes: the aimed one freezes up, dazzled.
+            // The red eyes: whoever meets them freezes up, then sees only dark.
             (name: "red eyes", tags: [Ultimate], cooldown: 9.0, cost: 6.0, ops: [
-                Afflict(range: 26.0, cone: 12.0, status: Some(Stun), secs: 0.8, damage: 4.0, element: Shadow),
-                Afflict(range: 26.0, cone: 12.0, status: Some(Shadow), secs: 2.0),
+                GazeStun(range: 24.0, cone: 30.0, secs: 0.7, status: Stun),
+                GazeStun(range: 24.0, cone: 30.0, secs: 2.0, status: Shadow),
             ], juice: Some((title: Some("MOTHMAN"), color: Some((1.0, 0.1, 0.1))))),
             // Up on great grey wings. -> ends high, hanging.
             (name: "mothman wings", tags: [Movement], cooldown: 4.0, cost: 3.0, ops: [
@@ -4211,9 +4207,10 @@
                  ("golden goose", 3), ("the goose that lays golden eggs", 3),
                  ("chop the beanstalk", 4), ("cut down the beanstalk", 4)],
         moves: [
-            // The beans: a huge stalk shoots up at the crosshair.
+            // The beans: the ground under the crosshair shoots up into a towering stalk, and whoever
+            // stands on it goes up with it (under yourself: you ride it up).
             (name: "magic beans", tags: [Ultimate], cooldown: 14.0, cost: 7.0, ops: [
-                Cast(recipe: (name: "giant beanstalk", form: Pillar, mech: [Launch], element: Earth, scale: 14.0)),
+                Erupt(length: 3.0, width: 3.0, height: 16.0, element: Earth, launch: 22.0, shape: Pillar, at: Aim),
             ], juice: Some((title: Some("THE BEANSTALK"), at: Aim, shake: 0.2, color: Some((0.35, 0.8, 0.3))))),
             // Straight up. -> ends high, hanging.
             (name: "climb the beanstalk", tags: [Movement], cooldown: 5.0, cost: 4.0, ops: [

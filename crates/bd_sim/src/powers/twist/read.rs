@@ -372,7 +372,9 @@ impl<'a> Reader<'a> {
     fn side(&self, toks: &[String]) -> Option<SideReading> {
         let w = self.w();
         let mut toks: &[String] = toks;
-        while toks.len() > 1 && w.articles.contains(&toks[0]) {
+        // leading articles / intensifiers — unless a modifier phrase starts with one ("a
+        // barrage of", "the biggest", "a little")
+        while toks.len() > 1 && w.articles.contains(&toks[0]) && self.mod_at(toks, 0).is_none_or(|(_, len)| len < 2) {
             toks = &toks[1..];
         }
         if toks.is_empty() {

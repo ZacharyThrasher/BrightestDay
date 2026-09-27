@@ -40,7 +40,7 @@ bd_game `power_hud/labels.rs::move_verb` has a wildcard arm now (add a verb arm 
 - Drill — a hand-held orb lunge: dash along the look for `secs` at `speed`; the first enemy met is held against your palm for `grind` s taking ticking damage (you stop with them), then blasted away spinning along the look (`damage`, `knockback`, `element`, `up`); `grind: 0` = one piercing strike (Rasengan grinds, Chidori pierces) — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
 - MarkRecall — first use throws a marker (a small sticky construct, `speed`) that lasts `secs`; using it again while the marker lives teleports you to it (Flying Thunder God); `strike` > 0 = arrive with a cone hit — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
 - WarpTo — teleport to the enemy you look at (`range`, `cone` aim assist, needs no line of sight), arriving `behind` m behind them facing them (Instant Transmission, shunpo behind, sonido); no target = fails (cost refunded) — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
-- CopyLast — replay, as yourself, the last power move an enemy fired within `range` of you in the last `secs` s (Sharingan copy, mimicry); nothing seen = fails — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
+- CopyLast — replay, as yourself, the last power move an enemy fired within `range` of you in the last `secs` s (Sharingan copy, mimicry; you pay the copied move's own `cost`); nothing seen = fails — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
 - GazeStun — enemies within `range` whose view faces you (within `cone`°) get `status` (Stun ≤ 1.2 s / Shadow blind / Chill) for `secs`; `aimed: true` = only the crosshair target (genjutsu, Tsukuyomi, Solar Flare, Medusa) — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
 - Phase — for `secs` (≤ 2.5) you are intangible: hits pass through you and you pass through players (Kamui, King Crimson's skip, ghosting); ends early if you attack — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
 - Banish — warp the aimed thing away: an enemy construct is swallowed (removed), an enemy player is displaced `dist` m (up/away, keeps control, no damage) (Kamui, Shambles-style throwaway) — CONTENT: SHONEN CLASSICS — done (ops/*.rs + ops/live.rs; tests/shonen_classics.rs)
@@ -69,6 +69,7 @@ bd_game `power_hud/labels.rs::move_verb` has a wildcard arm now (add a verb arm 
 - (withdrawn: Resize — duplicate of MYTHOLOGY & FOLKLORE's SelfResize; ADVENTURE GAMES will use SelfResize for Mega / Mini Mushroom) — CONTENT: ADVENTURE GAMES
 - Relocate — teleport to a spot RELATIVE TO A TARGET: `back` m behind it (< 0 = in front, face to face), `side` m to its side, `up` m above it; the target is the composed move's resolved target (a named player, "him", "it", "the dragon"), else the enemy / construct nearest the crosshair (`range`, `cone`, no line of sight needed), else the terrain point under the crosshair; nothing = a plain `dist` m blink (0 = fail). Players face their own look ("behind ethan" = his back), constructs / points face you ("behind the dragon" = its far side). The general form of WarpTo (WarpTo = Relocate with only `back`); either may back the other — VERB GRAMMAR — building
 - PassThrough — step THROUGH the wall / terrain under the crosshair (≤ 3 m ahead) to the open air on its far side (≤ `depth` m of rock), keeping your momentum ("phase through the wall", walk through walls, Kitty Pryde); no wall ahead = fail — VERB GRAMMAR — building
+- Capture — possess the aimed enemy CONSTRUCT (never a player) for `secs` (≤ 8): it becomes yours and turns on its maker; `ride: true` also seats you in it if it can be ridden (a creature, a vehicle, a mech) so you drive it; when time is up you pop out and it goes back (Cappy's capture, Dishonored's Possession, Bend Will, a hijack) — CONTENT: ADVENTURE GAMES — claimed
 
 ## Notes between workers
 - ADVENTURE GAMES → TOOLBOX CORE: a powerless borrower of any `TimeStop` move (Witch Time via `Evade`,
@@ -86,3 +87,15 @@ bd_game `power_hud/labels.rs::move_verb` has a wildcard arm now (add a verb arm 
   power: never assume a held power / companion / tier. A Lockout blocks borrowed moves too.
 - Validate numbers with the `fin()` pattern (a bare `f32::clamp` passes NaN); `powers_check` and
   `cargo test -p bd_sim --test toolbox` reject non-finite numbers in shipped moves.
+- ADVENTURE GAMES → PRESENTATION: the adventure ops send `PowerEvent::Op(OpEvent::…)` beats that
+  nothing draws yet — the most important is **`Telegraph { pos, radius, secs, element }`** (a Salvo
+  strike is MARKED there and lands in `secs`: Judgment Cut's spatial cut lines, Urbosa's bolts,
+  Megaflare / Supernova's warning ring — the readability of the whole op) and **`Strike { pos,
+  radius, element, cut }`** when it lands (`cut: true` = a clean cut / bolt: NO explosion is sent,
+  so without a drawing it's invisible; draw it in the move's `fx` style — a crossing slash for
+  Judgment Cut, a bolt from the sky for Urbosa / Judgment Bolt / Strun Bah Qo). Also: `Pounce`
+  (Start / Hit / Whiff — the homing-attack lock-on line and the bounce), `Evade { dodged: true }`
+  (the perfect-dodge flash that starts Witch Time), `PortalShot { orange }` (a lone blue / orange
+  oval on the wall until its partner opens), `Empowered { on }` (Super Star rainbow / Spartan Rage
+  aura for `secs`), `Mended` (Estus glow). Frames: `BD_MOVEFX_TEST=phrase BD_MOVEFX_PHRASE="…"`
+  (the generic phrase scene added to movefx/dev.rs) fires any kit / borrowed move or chain.

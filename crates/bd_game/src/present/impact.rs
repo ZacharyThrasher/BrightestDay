@@ -150,6 +150,14 @@ fn element_word(e: Element) -> Option<&'static str> {
     })
 }
 
+/// Explosion words held until the end of an event batch (their move's `Fired` comes after its
+/// ops' blasts). Reused buffers: no per-frame allocation.
+#[derive(Default)]
+struct ExplosionWords {
+    pending: Vec<(Option<PlayerId>, Vec3, f32, [f32; 3], u64)>,
+    fired: Vec<(PlayerId, &'static bd_sim::powers::MoveDef, &'static bd_sim::powers::PowerDef)>,
+}
+
 fn event_hash(tick: u64, salt: u64) -> u64 {
     (tick.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ salt.wrapping_mul(0xC2B2_AE3D_27D4_EB4F)).rotate_left(17)
 }
@@ -170,7 +178,13 @@ fn present_hits(
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     arena: Option<Res<crate::arena::ArenaWorld>>,
-    (ads, juice_t, presence): (Option<Res<super::ads::AdsState>>, Res<connect::JuiceTuningRes>, Option<Res<super::presence::PresenceIndex>>),
+    (ads, juice_t, presence, move_fx, mut words): (
+        Option<Res<super::ads::AdsState>>,
+        Res<connect::JuiceTuningRes>,
+        Option<Res<super::presence::PresenceIndex>>,
+        Option<Res<super::powers::movefx::table::MoveFx>>,
+        Local<ExplosionWords>,
+    ),
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
     let _ = &mut hitstop;
@@ -427,9 +441,9 @@ fn present_hits(
                 pushes.add(p, Vec3::ZERO, r);
                 impulses.write(DebrisImpulse { center: p, radius: r * 3.0, strength: 10.0 });
                 if !inside_blast {
-                    let mut o = SpawnOnomatopoeia::key("explosion", p + Vec3::Y * r * 0.5, (r / 3.0).clamp(0.6, 2.0), corps_rgb(corps_of(*source)));
-                    o.event_id = event_hash(ev.tick, (p.x * 13.0) as i64 as u64);
-                    ono.write(o);
+                    // The word waits for the end of the batch: a power move's blast says its
+                    // STYLE's word (a smoke blink BAMFs, it doesn't KA-BOOM) — `movefx` styles.
+                    words.pending.push((*source, p + Vec3::Y * r * 0.5, (r / 3.0).clamp(0.6, 2.0), corps_rgb(corps_of(*source)), event_hash(ev.tick, (p.x * 13.0) as i64 as u64)));
                 }
                 let c = corps_rgb(corps_of(*source));
                 commands.spawn((
@@ -444,9 +458,29 @@ fn present_hits(
                     fov.write(FovPunch { degrees: 2.0 * k });
                 }
             }
+            GameEvent::Power(bd_sim::powers::PowerEvent::Fired { player, mv, .. }) => {
+                if let Some((def, m)) = mv.resolve(bd_sim::powers::PowerTable::get()) {
+                    words.fired.push((*player, m, def));
+                }
+            }
             _ => {}
         }
     }
+    let words = &mut *words;
+    let fired_now = &words.fired;
+    for (source, pos, size, col, id) in words.pending.drain(..) {
+        let fired = source.and_then(|s| fired_now.iter().find(|f| f.0 == s));
+        let key = match (fired, move_fx.as_deref()) {
+            (Some((_, m, def)), Some(t)) => super::powers::movefx::style_word(t, m, Some(def)),
+            _ => Some("explosion"),
+        };
+        if let Some(key) = key {
+            let mut o = SpawnOnomatopoeia::key(key, pos, size, col);
+            o.event_id = id;
+            ono.write(o);
+        }
+    }
+    words.fired.clear();
     let now = freeze.now;
     freeze.players.retain(|_, t| *t > now);
     freeze.constructs.retain(|_, t| *t > now);

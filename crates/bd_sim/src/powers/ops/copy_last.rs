@@ -6,7 +6,7 @@
 //! (power, tier, slot) plus how far away it was. `CopyLast` replays that move's ops as the copier
 //! if it was fired within `range` m and at most `secs` s ago. Ops that act on the ORIGINAL user's own
 //! power (Transform / Tier) and copies of copies are skipped; a move with nothing left to run —
-//! or nothing seen — fails (nothing spent).
+//! or nothing seen — fails (nothing spent). You pay the copied move's own willpower weight (`cost`).
 //! Deterministic, allocation-free.
 
 use super::super::{MoveOp, PowerError, PowerTable};
@@ -50,6 +50,12 @@ impl World {
         if !mv.ops.iter().any(copyable) {
             return Err(PowerError::NoTarget);
         }
+        // You perform it yourself: its own willpower weight is yours to pay (a copied ultimate is
+        // never a discount ultimate). Cast ops still pay the cast pipeline's price as usual.
+        let price = if self.cfg.rules.infinite_willpower() { 0.0 } else { mv.cost.max(0.0) };
+        if price > self.players[i].willpower + 1e-4 {
+            return Err(PowerError::NotEnoughWillpower);
+        }
         let id = self.players[i].id;
         let (eye, look) = self.toolbox_eye_look(i);
         self.toolbox_fx(id, ToolboxFx::Copy, eye, eye + look * 3.0, 0.0, 0.0);
@@ -68,6 +74,11 @@ impl World {
         }
         // Used up: the next copy needs a fresh read.
         self.players[i].power.live.seen = None;
-        first.unwrap_or(Err(PowerError::NoTarget))
+        let r = first.unwrap_or(Err(PowerError::NoTarget));
+        if r.is_ok() {
+            let p = &mut self.players[i];
+            p.willpower = (p.willpower - price).max(0.0);
+        }
+        r
     }
 }

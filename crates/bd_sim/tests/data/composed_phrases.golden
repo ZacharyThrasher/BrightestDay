@@ -228,7 +228,7 @@ slash everyone => slash[Slash] target=Everyone
 flurry => flurry[Flurry]
 barrage => flurry[Flurry]
 rapid punches => flurry[Flurry]
-flurry of punches => NONE
+flurry of punches => flurry[Flurry]
 combo him => flurry[Flurry] target=Pronoun
 beat him up => flurry[Flurry] place=Up target=Pronoun
 spin attack => spin[Spin]

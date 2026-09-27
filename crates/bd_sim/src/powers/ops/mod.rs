@@ -53,6 +53,7 @@ pub use leap::LeapArc;
 pub use seeker::SeekPhase;
 pub use surge::SurgePhase;
 // ADVENTURE GAMES
+mod capture;
 mod empower;
 mod evade;
 mod mend;
@@ -62,6 +63,7 @@ pub mod salvo;
 // MODERN ANIME
 mod erupt;
 mod finisher;
+mod raise_fallen;
 pub mod tag;
 mod transpose;
 // TV & CARTOONS
@@ -142,6 +144,8 @@ pub enum OpEvent {
     PortalShot { player: PlayerId, pos: Vec3, normal: Vec3, orange: bool },
     /// A timed super state started (`secs`) or ended.
     Empowered { player: PlayerId, secs: f32, on: bool },
+    /// `player` captured `construct` for `secs` (`on`) — or let it go (`on: false`, back to its maker).
+    Captured { player: PlayerId, construct: bd_core::ConstructId, pos: Vec3, secs: f32, on: bool },
     /// MOVIES & COMICS: a ray / bolt from an op — a spell hand → target (Afflict, Disarm) or one leg
     /// of a bouncing beam (`target` = who it was aimed at, if anyone).
     Zap { player: PlayerId, from: Vec3, to: Vec3, element: Element, target: Option<PlayerId> },
@@ -267,6 +271,7 @@ pub struct OpState {
     pub(crate) evades: [Option<evade::EvadeWindow>; MAX_PLAYERS],
     pub(crate) portal_guns: [Option<place_portal::PortalGun>; MAX_PLAYERS],
     pub(crate) empowers: [Option<empower::Empowered>; MAX_PLAYERS],
+    pub(crate) captures: [Option<capture::Captured>; MAX_PLAYERS],
     // MOVIES & COMICS: delayed marks (five-point palm, a dusting wave) and live flurries.
     pub(crate) marks: [Option<delayed_hit::DelayedMark>; delayed_hit::MAX_MARKS],
     pub(crate) flurries: [Option<barrage::Flurry>; MAX_PLAYERS],
@@ -311,6 +316,7 @@ impl OpState {
             || self.evades.iter().any(Option::is_some)
             || self.portal_guns.iter().any(Option::is_some)
             || self.empowers.iter().any(Option::is_some)
+            || self.captures.iter().any(Option::is_some)
     }
 }
 
@@ -389,6 +395,7 @@ impl World {
             MoveOp::Mend { pct, per_s, secs } => self.op_mend(i, pct, per_s, secs),
             MoveOp::Evade { secs, slow, speed, blink } => self.op_evade(i, secs, slow, speed, blink),
             MoveOp::PlacePortal { range, secs } => self.op_place_portal(i, range, secs),
+            MoveOp::Capture { range, secs, ride } => self.op_capture(i, range, secs, ride),
             MoveOp::Empower { secs, damage, armor, contact, contact_kb, contact_cd, element } => {
                 self.op_empower(i, empower::EmpowerSpec { secs, damage, armor, contact, contact_kb, contact_cd, element })
             }
@@ -417,6 +424,7 @@ impl World {
                 self.op_erupt(i, erupt::EruptOp { length, width, height, count, element, damage, launch, shape, dist, at })
             }
             MoveOp::Tag { range, cone, secs } => self.op_tag(i, range, cone, secs),
+            MoveOp::RaiseFallen { ref recipe, count, radius } => self.op_raise_fallen(i, recipe, count, radius),
             MoveOp::TagStrike { damage, knockback, up, element, pull } => self.op_tag_strike(i, tag::TagStrikeOp { damage, knockback, up, element, pull }),
             MoveOp::Strain { pct } => self.op_strain(i, pct),
             // SHONEN CLASSICS
@@ -508,6 +516,7 @@ impl World {
             self.step_evades(dt);
             self.step_portal_guns();
             self.step_empowers(dt);
+            self.step_captures(dt);
         }
     }
 

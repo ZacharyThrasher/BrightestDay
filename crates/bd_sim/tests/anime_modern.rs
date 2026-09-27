@@ -352,3 +352,38 @@ fn golden_chains_split_into_the_right_moves() {
     assert_eq!(steps("deku full cowl > deku detroit smash > deku ultimate").len(), 3);
     assert_eq!(steps("edward elric pillar -> bakugo howitzer impact"), vec![m("edward_kit", "alchemy pillar"), m("bakugo_kit", "howitzer impact")]);
 }
+// ------------------------------------------------------------------------------------ RaiseFallen
+
+#[test]
+fn arise_raises_a_soldier_where_each_fallen_body_lies() {
+    let soldier: bd_sim::powers::RecipeDef = ron::from_str(
+        r#"(name: "shadow soldier", form: Biped, mech: [Walks, Blade], element: Shadow, scale: 1.0, count: 3)"#,
+    )
+    .unwrap();
+    let arise = MoveOp::RaiseFallen { recipe: soldier, count: 4, radius: 35.0 };
+    // A body 12 m away: one soldier stands up right there.
+    let mut w = duel(3);
+    stand_at(&mut w, A, 0.0, 10.0);
+    stand_at(&mut w, B, 12.0, 0.0);
+    stand_at(&mut w, C, -30.0, -30.0);
+    w.player_mut(B).unwrap().alive = false;
+    w.player_mut(A).unwrap().willpower = 100.0;
+    let body = pos(&w, B);
+    w.fire_op(A, &arise).expect("arise");
+    for _ in 0..30 {
+        w.tick(&[]);
+    }
+    let mine: Vec<Vec3> = w.constructs.iter().filter(|c| c.owner == A).map(|c| c.pos).collect();
+    assert_eq!(mine.len(), 1, "one body, one soldier: {mine:?}");
+    assert!(Vec3::new(mine[0].x - body.x, 0.0, mine[0].z - body.z).length() < 3.0, "it rose where B fell ({:?} vs {body:?})", mine[0]);
+    // Nobody fallen: an ordinary summon along the aim (the recipe's own count).
+    let mut w = duel(2);
+    stand_at(&mut w, A, 0.0, 10.0);
+    stand_at(&mut w, B, 30.0, 30.0);
+    w.player_mut(A).unwrap().willpower = 100.0;
+    w.fire_op(A, &arise).expect("arise from your own shadow");
+    for _ in 0..30 {
+        w.tick(&[]);
+    }
+    assert!(w.constructs.iter().filter(|c| c.owner == A).count() >= 1);
+}

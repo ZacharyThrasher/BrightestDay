@@ -96,6 +96,16 @@ const KITS: &str = r#"[
         (name: "seismic slam", ops: [Impulse(fwd: 8.0, up: 10.0), SlamOnLand(radius: 5.0, damage: 10.0, knockback: 14.0, carve: 1.0)]),
         (name: "meteor strike", cost: 40.0, ops: [Impulse(fwd: 0.0, up: 16.0), SlamOnLand(radius: 7.0, damage: 20.0, knockback: 24.0, carve: 2.0)]),
      ]),
+    (id: "jugg_blade", name: "Juggernaut", kind: Kit, names: ["juggernaut", "jugg"],
+     moves: [
+        (name: "blade fury", tags: [Combo], ops: [Shove(range: 3.0, angle: 180.0, damage: 4.0, knockback: 4.0)]),
+        (name: "omnislash", tags: [Ultimate], cost: 30.0, ops: [Blink(dist: 6.0)]),
+     ]),
+    (id: "jugg_unstoppable", name: "Juggernaut", kind: Kit, names: ["juggernaut", "cain marko"],
+     moves: [
+        (name: "unstoppable charge", tags: [Movement], ops: [Impulse(fwd: 30.0, up: 0.0)]),
+        (name: "helmet bash", tags: [Primary], ops: [Shove(range: 3.0, angle: 40.0, damage: 8.0, knockback: 10.0)]),
+     ]),
     (id: "zap_fruit", name: "Zap Fruit", kind: Paramecia, names: ["zap fruit"],
      shouts: [("zap", 0), ("big zap", 1), ("zap fruit", 0)],
      moves: [
@@ -137,6 +147,17 @@ fn kit_phrases_find_the_characters_move() {
     // the bare name is the costume summon, and nonsense after a kit name is not a move
     assert_eq!(name("reinhardt"), None);
     assert_eq!(name("doomfist hello there"), None);
+    // two kits share a name: the words pick the kit whose move they name; ties → the earlier entry
+    let owner = |p: &str| ix.kit_move(&t, &norm_words(p)).map(|(m, _)| t.def(m.power).unwrap().id.clone());
+    assert_eq!(owner("juggernaut charge").as_deref(), Some("jugg_unstoppable"));
+    assert_eq!(owner("juggernaut helmet bash").as_deref(), Some("jugg_unstoppable"));
+    assert_eq!(owner("juggernaut omnislash").as_deref(), Some("jugg_blade"));
+    assert_eq!(owner("juggernaut spin").as_deref(), None);
+    assert_eq!(owner("juggernaut ult").as_deref(), Some("jugg_blade"), "only one has an Ultimate tag");
+    // a line with separators is split before any loose kit reading ("spidey sense, web zip, …")
+    assert!(matches!(ix.read(&t, None, "reinhardt charge, doomfist punch"), Reading::Plain));
+    assert!(matches!(ix.read(&t, None, "reinhardt charge then doomfist punch"), Reading::Plain));
+    assert!(matches!(ix.read(&t, None, "reinhardt earthshatter!"), Reading::Kit(_)), "exact with punctuation");
     // a kit name is never a grant name
     assert!(!ix.is_grant_name("reinhardt"));
     assert!(ix.is_grant_name("zap fruit"));
@@ -188,6 +209,8 @@ fn chains_split_on_every_separator_but_keep_plain_phrases_whole() {
     // strong separators always split
     assert_eq!(split("a hammer then a shield"), vec!["a hammer", "a shield"]);
     assert_eq!(split("a -> b -> c -> d -> e -> f -> g -> h -> i -> j").len(), 8, "capped");
+    // a comma chain that starts with a kit name: split, not swallowed by a loose kit reading
+    assert_eq!(split("reinhardt charge, doomfist punch, reinhardt ult"), vec!["reinhardt charge", "doomfist punch", "reinhardt ult"]);
 }
 
 #[test]
