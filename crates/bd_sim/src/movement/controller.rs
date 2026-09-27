@@ -181,6 +181,9 @@ pub fn step_player<V: VoxelQuery + ?Sized>(
     if s.tumble > 0.0 {
         s.tumble = (s.tumble - dt).max(0.0);
     }
+    if s.tumble <= 0.0 {
+        s.tumble_free = 0.0; // LAUNCH FEEL: the actionable tail belongs to the tumble that ended
+    }
     let height = s.height(p);
     if let Some((n, sv)) = bp.depenetrate(world, &mut s.pos, p.hull_half_width, height, p.step_height) {
         s.vel = clip(s.vel, n, sv);
@@ -696,6 +699,7 @@ fn categorize<V: VoxelQuery + ?Sized>(
                 let impact = (-rel.dot(n)).max(floor_impact).max(0.0);
                 ev.landed = Some(LandEvent { impact_speed: impact });
                 s.tumble = 0.0;
+                s.tumble_free = 0.0;
                 rel - n * rel.dot(n)
             } else {
                 // Ground-to-ground: lay velocity onto the new plane keeping its magnitude (crests,

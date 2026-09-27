@@ -112,6 +112,8 @@ pub fn heard_line(lex: &Lexicon, text: &str) -> String {
         return String::new();
     }
     MEMO.with(|m| m.borrow_mut().clear());
+    // repairs get a time budget: a long garbled chain must never hitch the frame
+    DEADLINE.with(|d| d.set(Some(std::time::Instant::now() + std::time::Duration::from_millis(REPAIR_BUDGET_MS))));
     let line = squeeze_elongation(lex, said);
     // Whisper's commas inside ONE name ("Amador, Ray, Suge" for Amaterasu, "Nightcrawler, teleport"):
     // a line that is one named move without them is that move
@@ -229,7 +231,17 @@ thread_local! {
     static MEMO: std::cell::RefCell<HashMap<String, Option<String>>> = std::cell::RefCell::new(HashMap::new());
 }
 
+/// Time budget for the repairs of one heard line (a line that already reads never gets near it).
+const REPAIR_BUDGET_MS: u64 = 25;
+
+thread_local! {
+    static DEADLINE: std::cell::Cell<Option<std::time::Instant>> = const { std::cell::Cell::new(None) };
+}
+
 fn fix_piece_uncached(lex: &Lexicon, p: &str) -> Option<String> {
+    if DEADLINE.with(|d| d.get()).is_some_and(|t| std::time::Instant::now() > t) {
+        return None; // out of budget: keep the piece as heard
+    }
     let n = norm_words(p);
     let words: Vec<&str> = n.split(' ').filter(|w| !w.is_empty()).collect();
     if words.is_empty() || words.len() > 8 {
@@ -606,6 +618,10 @@ impl Sounds {
     /// Unambiguous pick among candidate phrases: every one fires the same move; the one spelled
     /// most like what was heard.
     fn pick(&self, cands: &[usize], heard: &str) -> Option<String> {
+        // a sound-alike starts with the same sound ("our robert duck" is not "harry protego")
+        let first = long_key(heard).chars().next();
+        let cands: Vec<usize> = cands.iter().copied().filter(|&i| self.phrases[i].0.chars().next() == first).collect();
+        let cands = &cands[..];
         let mv = self.phrases[*cands.first()?].2;
         if !cands.iter().all(|&i| self.phrases[i].2 == mv) {
             return None;
@@ -675,7 +691,7 @@ impl Sounds {
             .iter()
             .filter_map(|(k, n, p)| {
                 let d = key_dist(&key, k, cap);
-                (d <= cap && (d == 0 || allowed(k.len()) > 0)).then_some((d, n.as_str(), *p))
+                (d <= cap && (d == 0 || (allowed(k.len()) > 0 && k.as_bytes()[0] == key.as_bytes()[0]))).then_some((d, n.as_str(), *p))
             })
             .collect();
         v.sort_by(|a, b| a.0.cmp(&b.0).then(a.2.cmp(&b.2)));
@@ -765,3 +781,37 @@ impl Beats {
 #[cfg(test)]
 #[path = "../../../tools/voice_bench/reader.rs"]
 mod bench;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lex() -> Option<Lexicon> {
+        Lexicon::load(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/lexicon.bin")).ok()
+    }
+
+    /// Voice == typing: Whisper's habits (loop-cut chants, sound-alike spellings, beats, drawn-out
+    /// vowels, a chain with no separator) are repaired to the typed line; ordinary construct phrases
+    /// are never hijacked.
+    #[test]
+    fn heard_lines_read_like_the_typed_ones() {
+        let Some(lex) = lex() else { return };
+        let same = |heard: &str, typed: &str| {
+            let a = toolbox::command(&lex, None, true, &heard_line(&lex, heard), true);
+            let b = toolbox::command(&lex, None, true, typed, false);
+            assert!(b.is_some(), "{typed:?} must be a move typed");
+            assert_eq!(a, b, "{heard:?} → {:?} should read like {typed:?}", heard_line(&lex, heard));
+        };
+        same("gum pistol", "gum gum pistol");
+        same("captain falcon punch", "captain falcon falcon punch");
+        same("rasengaaaan", "rasengan");
+        same("rasengan, chidori", "rasengan, chidori");
+        same("nightcrawler teleport reinhardt ultimate", "nightcrawler teleport then reinhardt ultimate");
+        for thing in ["flaming hammer", "giant ice sword", "a rubber duck", "rock wall", "a dragon", "shadow ball", "a pirate ship"] {
+            let line = heard_line(&lex, thing);
+            let r = toolbox::command(&lex, None, true, &line, true);
+            let typed = toolbox::command(&lex, None, true, thing, false);
+            assert_eq!(r, typed, "{thing:?} must read as typed (heard line {line:?})");
+        }
+    }
+}

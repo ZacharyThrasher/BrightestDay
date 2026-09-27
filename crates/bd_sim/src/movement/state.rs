@@ -144,6 +144,11 @@ pub struct PlayerState {
     /// seconds left to apply it. Set at launch; consumed by `smash::apply_di` (host and prediction).
     pub di_left: f32,
     pub di_window: f32,
+    /// LAUNCH FEEL: the actionable tail of the current tumble (seconds). While `tumble > tumble_free`
+    /// the player is in hitstun (no air jump / air dodge); after it they act mid-flight while the
+    /// tumble keeps its reduced air control. 0 = the whole tumble is hitstun (classic launch).
+    #[serde(default)]
+    pub tumble_free: f32,
     pub hooks: [Hook; 2],
     pub mods: MoveModifiers,
     /// ASSIST HOOK: melee lunge dash in progress (`crate::melee_assist::dash_pre_move`, stepped by
@@ -181,6 +186,7 @@ impl PlayerState {
             air_dashed: false,
             di_left: 0.0,
             di_window: 0.0,
+            tumble_free: 0.0,
             hooks: [Hook::default(); 2],
             mods: MoveModifiers::default(),
             lunge: Default::default(),
@@ -254,6 +260,27 @@ impl PlayerState {
         if tumble_secs.is_finite() && tumble_secs > 0.0 {
             self.tumble = self.tumble.max(tumble_secs);
         }
+    }
+
+    /// LAUNCH FEEL: in hitstun (tumbling, not yet in the actionable tail): no air jump / air dodge.
+    #[inline]
+    pub fn in_hitstun(&self) -> bool {
+        self.tumble > self.tumble_free
+    }
+
+    /// Hitstun seconds left.
+    #[inline]
+    pub fn hitstun_left(&self) -> f32 {
+        (self.tumble - self.tumble_free).max(0.0)
+    }
+
+    /// LAUNCH FEEL: after a hit extended the tumble, make only `hitstun` of it (or the hitstun that
+    /// was already running, `stun_before`, if longer) hitstun; the rest is actionable.
+    pub fn limit_hitstun(&mut self, stun_before: f32, hitstun: f32) {
+        if self.tumble <= 0.0 || !hitstun.is_finite() {
+            return;
+        }
+        self.tumble_free = (self.tumble - stun_before.max(hitstun).max(0.0)).max(0.0);
     }
 
     /// Drop both tethers (e.g. on death / stun). Momentum is kept.

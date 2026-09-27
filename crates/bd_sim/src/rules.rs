@@ -157,6 +157,11 @@ pub struct MatchRules {
     /// attacker's bar at hit time, charging / the oath refill fast, passive regen is slow. Off = the
     /// shipped rules.
     pub willpower_launch: bool,
+    /// CLASSIC LAUNCH (A/B; `crate::smash::launch_knockback`): the pre-LAUNCH-FEEL knockback and
+    /// tumble — no low-% launch curve, the whole tumble is hitstun (no air jump / air dodge until it
+    /// ends). Off (default) = the modern launch: small hits barely move you early, strong hits at
+    /// high % still send you far, and a short hitstun leaves you actionable mid-flight.
+    pub classic_launch: bool,
 }
 
 /// Default / range of [`MatchRules::willpower_segments`] (8: see `willpower::QUANTIZE_BIAS`).
@@ -190,6 +195,7 @@ impl Default for MatchRules {
             burn: crate::first_call::BurnScope::Off,
             active_limit: 0,
             willpower_launch: false,
+            classic_launch: false,
         }
     }
 }

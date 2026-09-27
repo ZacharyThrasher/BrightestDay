@@ -172,6 +172,7 @@ fn advance<V: VoxelQuery + ?Sized>(s: &mut PlayerState, i: usize, w: &CollisionW
         hook.rope_len = (hit.point - s.chest(p)).length().clamp(p.tether_min_len, p.tether_range.max(p.tether_min_len));
         s.hooks[i] = hook;
         s.tumble = 0.0;
+        s.tumble_free = 0.0;
         ev.tether_attached[i] = true;
         return;
     }

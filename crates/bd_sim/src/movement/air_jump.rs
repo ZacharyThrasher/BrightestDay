@@ -38,6 +38,10 @@ use super::world::{Broadphase, CollisionWorld};
 /// [`ExtraMoves::since_dodge`] saturates here (long ago).
 pub const SINCE_DODGE_CAP: f32 = 10.0;
 
+/// LAUNCH FEEL: an air jump out of a tumble (after hitstun) turns the launch this fraction of the
+/// usual `air_jump_redirect` (the launch is still carried).
+pub const TUMBLE_REDIRECT_SCALE: f32 = 0.35;
+
 /// Air jump + dodge state (part of [`PlayerState`]; replicated to the owner for prediction).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -180,7 +184,7 @@ pub(crate) fn air_jump<V: VoxelQuery + ?Sized>(
         || s.grounded
         || !s.extra.air_jump_left(s.mods.extra_air_jumps)
         || s.tethered()
-        || s.tumble > 0.0
+        || s.in_hitstun() // LAUNCH FEEL: actionable after hitstun (classic: the whole tumble)
         || s.air_time < p.air_jump_delay
         || crate::charge::holding(input)
     {
@@ -198,7 +202,10 @@ pub(crate) fn air_jump<V: VoxelQuery + ?Sized>(
     s.extra.air_jump_used = true;
     s.jump_buffer = 0.0;
     let h = Vec3::new(s.vel.x, 0.0, s.vel.z);
-    let r = redirect(h, inp.wish_h, p.air_jump_redirect);
+    // LAUNCH FEEL: out of hitstun but still carrying a launch, the jump steers only a little (it
+    // lifts you; it can't turn a KO launch around).
+    let frac = if s.tumble > 0.0 { p.air_jump_redirect * TUMBLE_REDIRECT_SCALE } else { p.air_jump_redirect };
+    let r = redirect(h, inp.wish_h, frac);
     s.vel.x = r.x;
     s.vel.z = r.z;
     s.vel.y = s.vel.y.max(p.air_jump_speed * s.mods.jump_mult);

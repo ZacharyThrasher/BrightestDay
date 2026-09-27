@@ -21,7 +21,7 @@ use super::state::{MoveEvents, PlayerState};
 /// Section 6b of `step_player` (after the gas boost, before the ropes / speed caps): timers, start,
 /// burst. `jumped`: a ground or air jump happened this tick.
 pub(crate) fn step(s: &mut PlayerState, inp: &Inp, input: &PlayerInput, p: &MoveParams, dt: f32, jumped: bool, ev: &mut MoveEvents) {
-    let (air, tumbling) = (!s.grounded, s.tumble > 0.0);
+    let (air, tumbling) = (!s.grounded, s.in_hitstun()); // LAUNCH FEEL: actionable after hitstun
     let x = &mut s.extra;
     x.since_dodge = (x.since_dodge + dt).min(super::air_jump::SINCE_DODGE_CAP);
     x.dodge_cd = (x.dodge_cd - dt).max(0.0);

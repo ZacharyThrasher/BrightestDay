@@ -68,6 +68,10 @@ pub fn on_hit(mv: &mut PlayerState) {
 
 // ------------------------------------------------------------------------------------------- bots
 
+/// LAUNCH FEEL A/B control (tools only, e.g. the tournament's `--bot-di`): bots DI under the
+/// classic launch too, so a classic-vs-modern comparison isolates the rule from the bot skill.
+pub static BOT_DI_IN_CLASSIC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// Per-bot state for [`bot_moves`].
 #[derive(Clone, Copy, Debug)]
 pub struct BotMoves {
@@ -123,7 +127,18 @@ pub fn bot_moves(
         *b &= !buttons::JUMP;
     }
     let pos = mv.pos;
-    if !mv.grounded && !mv.extra.air_jump_used && !mv.tethered() && mv.tumble <= 0.0 && mv.air_time > 0.2 {
+    // LAUNCH FEEL: a launched bot DIs / drifts back toward its last ground (modern launch; skilled
+    // bots only), and recovers with the air jump once out of hitstun.
+    let modern = !w.rules().classic_launch;
+    let di = modern || BOT_DI_IN_CLASSIC.load(std::sync::atomic::Ordering::Relaxed);
+    if di && difficulty > 0.35 && me.launch.is_some() && !mv.grounded && !mv.tethered() {
+        let home = Vec3::new(last_ground.x - pos.x, 0.0, last_ground.z - pos.z).normalize_or_zero();
+        if home != Vec3::ZERO {
+            (*mx, *mz) = keys(home);
+        }
+    }
+    let can_jump = if modern { !mv.in_hitstun() } else { mv.tumble <= 0.0 };
+    if !mv.grounded && !mv.extra.air_jump_used && !mv.tethered() && can_jump && mv.air_time > 0.2 {
         let over_void = raycast(&w.voxels, pos + Vec3::Y * 0.5, Vec3::NEG_Y, 20.0).is_none();
         // The rope first (bots.rs looks for an anchor once falling faster than 6 m/s), then this.
         let recover = over_void && mv.vel.y < -6.0 && !roping;
@@ -151,7 +166,7 @@ pub fn bot_moves(
     }
     st.react -= DT;
     let air = !mv.grounded;
-    if st.react > 0.0 || mv.extra.dodge_cd > 0.0 || (air && mv.extra.air_dodge_used) || mv.tumble > 0.0 {
+    if st.react > 0.0 || mv.extra.dodge_cd > 0.0 || (air && mv.extra.air_dodge_used) || mv.in_hitstun() {
         return;
     }
     let side = Vec3::new(-from.z, 0.0, from.x).normalize_or_zero();

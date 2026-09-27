@@ -88,7 +88,7 @@ impl LaunchTuning {
         Self {
             empty_mult,
             mid_mult,
-            full_mult: fin(self.full_mult, d.full_mult, mid_mult, 4.0),
+            full_mult: fin(self.full_mult, d.full_mult, mid_mult, 4.0).max(mid_mult),
             mid_frac: fin(self.mid_frac, d.mid_frac, 0.05, 0.95),
             top_exp: fin(self.top_exp, d.top_exp, 0.25, 4.0),
             regen_mult: fin(self.regen_mult, d.regen_mult, 0.0, 10.0),

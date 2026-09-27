@@ -51,6 +51,44 @@ pub fn knockback(t: &SmashTuning, base_kb: f32, dmg: f32, pct_after: f32, weight
     if kb.is_finite() { kb.min(t.kb_max) } else { 0.0 }
 }
 
+/// LAUNCH FEEL: the knockback every player hit uses. Classic (`MatchRules::classic_launch`) is
+/// exactly [`knockback`]. Modern: the move's base knockback is scaled by [`base_scale`] (small hits
+/// barely displace you at low %; strong hits keep more of their punch) and the growth term by
+/// `curve_growth_mult` — so it stays `base + growth × %`, monotonic in % and in hit strength. The
+/// attacker's WILLPOWER = LAUNCH multiplier (`crate::launch`) and juggle decay multiply the result.
+pub fn launch_knockback(t: &SmashTuning, classic: bool, base_kb: f32, dmg: f32, pct_after: f32, weight: f32, lobby_scale: f32) -> f32 {
+    if classic {
+        return knockback(t, base_kb, dmg, pct_after, weight, lobby_scale);
+    }
+    let base = base_kb.max(0.0) * base_scale(t, base_kb, pct_after);
+    let growth = t.curve_growth_mult * t.kb_growth * (pct_after.max(0.0) / 100.0) * (dmg.max(0.0) / t.kb_dmg_divisor + 1.0);
+    let kb = (base * t.kb_base + growth) / weight.max(0.05) * t.kb_scale * lobby_scale.max(0.0);
+    if kb.is_finite() { kb.min(t.kb_max) } else { 0.0 }
+}
+
+/// Modern launch curve: the fraction of a move's base knockback a hit keeps at `pct` —
+/// `curve_base_low` at 0 % → 1 at `curve_base_full_pct`, plus up to `curve_strong_keep` for strong
+/// moves (base knockback toward `curve_strong_kb`). Non-decreasing in both, within [low, 1].
+pub fn base_scale(t: &SmashTuning, base_kb: f32, pct: f32) -> f32 {
+    let low = t.curve_base_low.clamp(0.0, 1.0);
+    let ramp = (pct.max(0.0) / t.curve_base_full_pct.max(1.0)).min(1.0);
+    let s = (base_kb.max(0.0) / t.curve_strong_kb.max(0.1)).min(1.0);
+    let b = low + (1.0 - low) * ramp + t.curve_strong_keep.max(0.0) * s * s;
+    if b.is_finite() { b.clamp(low, 1.0) } else { 1.0 }
+}
+
+/// LAUNCH FEEL: how much of a tumble of knockback `kb` is hitstun (no air jump / air dodge). Classic:
+/// all of it. Modern: `hitstun_secs_min + kb · per_kb`, capped at `hitstun_secs_max` and never
+/// longer than the tumble itself.
+pub fn hitstun_secs(t: &SmashTuning, classic: bool, kb: f32) -> f32 {
+    let tumble = tumble_secs(t, kb);
+    if classic {
+        return tumble;
+    }
+    let h = (t.hitstun_secs_min + kb.max(0.0) * t.hitstun_secs_per_kb).clamp(t.hitstun_secs_min, t.hitstun_secs_max);
+    if h.is_finite() { h.min(tumble) } else { tumble }
+}
+
 /// Body weight: 1 normally, heavier grown (1.6) / in a power suit (×1.3), lighter shrunk (0.5).
 pub fn weight(t: &SmashTuning, size_scale: f32, suit: bool) -> f32 {
     let s = if size_scale.is_finite() { size_scale } else { 1.0 };

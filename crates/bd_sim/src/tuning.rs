@@ -357,6 +357,21 @@ pub struct SmashTuning {
     pub punch_min_hardness: f32,
     /// Carve power of the punch-through capsule (≥ every destructible hardness).
     pub punch_carve_power: f32,
+    /// LAUNCH FEEL (modern launch, `smash::launch_knockback`; host rule `MatchRules::classic_launch`
+    /// restores the formula above untouched). A move's base knockback is scaled by
+    /// `curve_base_low` at 0 %, rising linearly to ×1 at `curve_base_full_pct`; strong moves
+    /// (base knockback ≥ `curve_strong_kb`) keep up to `curve_strong_keep` more of it early. The
+    /// %-growth term is multiplied by `curve_growth_mult`.
+    pub curve_base_low: f32,
+    pub curve_base_full_pct: f32,
+    pub curve_strong_kb: f32,
+    pub curve_strong_keep: f32,
+    pub curve_growth_mult: f32,
+    /// LAUNCH FEEL: hitstun (no air jump / air dodge) = `min + kb · per_kb`, capped at `max`; the
+    /// rest of the tumble is actionable (still reduced air control while carrying the launch).
+    pub hitstun_secs_min: f32,
+    pub hitstun_secs_per_kb: f32,
+    pub hitstun_secs_max: f32,
 }
 
 impl Default for SmashTuning {
@@ -394,6 +409,14 @@ impl Default for SmashTuning {
             tumble_secs_max: 2.5,
             punch_min_hardness: 0.25,
             punch_carve_power: 4.0,
+            curve_base_low: 0.45,
+            curve_base_full_pct: 90.0,
+            curve_strong_kb: 20.0,
+            curve_strong_keep: 0.25,
+            curve_growth_mult: 1.0,
+            hitstun_secs_min: 0.2,
+            hitstun_secs_per_kb: 0.012,
+            hitstun_secs_max: 0.9,
         }
     }
 }
@@ -431,6 +454,14 @@ impl SmashTuning {
         self.punch_hardness_speed_scale = fin(self.punch_hardness_speed_scale, d.punch_hardness_speed_scale, 0.0, 100.0);
         self.punch_construct_loss_per_kg = fin(self.punch_construct_loss_per_kg, d.punch_construct_loss_per_kg, 0.0, 100.0);
         self.punch_max_carves_per_tick = self.punch_max_carves_per_tick.min(64);
+        self.curve_base_low = fin(self.curve_base_low, d.curve_base_low, 0.0, 1.0);
+        self.curve_base_full_pct = fin(self.curve_base_full_pct, d.curve_base_full_pct, 1.0, 999.0);
+        self.curve_strong_kb = fin(self.curve_strong_kb, d.curve_strong_kb, 0.1, 500.0);
+        self.curve_strong_keep = fin(self.curve_strong_keep, d.curve_strong_keep, 0.0, 1.0);
+        self.curve_growth_mult = fin(self.curve_growth_mult, d.curve_growth_mult, 0.0, 10.0);
+        self.hitstun_secs_min = fin(self.hitstun_secs_min, d.hitstun_secs_min, 0.0, 5.0);
+        self.hitstun_secs_per_kb = fin(self.hitstun_secs_per_kb, d.hitstun_secs_per_kb, 0.0, 1.0);
+        self.hitstun_secs_max = fin(self.hitstun_secs_max, d.hitstun_secs_max, self.hitstun_secs_min, 10.0);
         self
     }
 }

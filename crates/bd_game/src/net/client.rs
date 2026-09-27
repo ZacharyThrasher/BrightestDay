@@ -52,6 +52,7 @@ impl Reconcilable for Pred {
             || p.boosting != q.boosting
             || f(p.gas, q.gas)
             || f(p.tumble, q.tumble)
+            || f(p.tumble_free, q.tumble_free)
             || p.hooks[0].phase != q.hooks[0].phase
             || p.hooks[1].phase != q.hooks[1].phase
             || (p.hooks[0].pos - q.hooks[0].pos).length() > 1e-3

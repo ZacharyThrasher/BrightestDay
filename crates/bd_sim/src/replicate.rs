@@ -221,8 +221,8 @@ pub struct OwnState {
     /// `None` = zero.
     pub ground_vel: Option<Vec3>,
     /// slide_cooldown, jump_buffer, air_time, gas, gas_regen_delay, burst_cooldown, tumble,
-    /// since_landing, di_left, di_window.
-    pub timers: [f32; 10],
+    /// since_landing, di_left, di_window, tumble_free (LAUNCH FEEL).
+    pub timers: [f32; 11],
     pub prev_buttons: u16,
     pub hop_chain: u8,
     /// Worn air moves used: flaps (bits 0–6) | cape dash used (bit 7).
@@ -271,7 +271,7 @@ impl OwnState {
             bits,
             ground_normal: (s.ground_normal != Vec3::Y).then_some(s.ground_normal),
             ground_vel: (s.ground_vel != Vec3::ZERO).then_some(s.ground_vel),
-            timers: [s.slide_cooldown, s.jump_buffer, s.air_time, s.gas, s.gas_regen_delay, s.burst_cooldown, s.tumble, s.since_landing, s.di_left, s.di_window],
+            timers: [s.slide_cooldown, s.jump_buffer, s.air_time, s.gas, s.gas_regen_delay, s.burst_cooldown, s.tumble, s.since_landing, s.di_left, s.di_window, s.tumble_free],
             prev_buttons: s.prev_buttons,
             hop_chain: s.hop_chain,
             air_moves: s.air_flaps.min(127) | (s.air_dashed as u8) << 7,
@@ -315,6 +315,7 @@ impl OwnState {
             air_dashed: self.air_moves & 128 != 0,
             di_left: f(self.timers[8]),
             di_window: f(self.timers[9]),
+            tumble_free: f(self.timers[10]),
             hooks: [self.hooks[0].unwrap_or_default(), self.hooks[1].unwrap_or_default()],
             mods: self.mods.unwrap_or_default(),
             lunge: self.lunge.filter(|l| l.to.is_finite() && l.t.is_finite() && l.speed.is_finite() && l.exit.is_finite() && l.stop.is_finite() && l.lateral.is_finite()).unwrap_or_default(),

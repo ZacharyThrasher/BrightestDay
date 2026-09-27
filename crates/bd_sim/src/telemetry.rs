@@ -168,6 +168,49 @@ struct Attrib {
 
 // ------------------------------------------------------------------------------------- per player
 
+/// LAUNCH FEEL: live-phase seconds a player spent alive, in hitstun (can't air jump / air dodge),
+/// tumbling (hitstun + the actionable tail, reduced air control) and airborne from a launch
+/// (`Player::launch` set, not grounded). Sampled once per tick per alive player.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ControlTime {
+    pub alive: f64,
+    pub hitstun: f64,
+    pub tumble: f64,
+    pub launched_air: f64,
+}
+
+impl ControlTime {
+    pub fn merge(&mut self, o: &ControlTime) {
+        self.alive += o.alive;
+        self.hitstun += o.hitstun;
+        self.tumble += o.tumble;
+        self.launched_air += o.launched_air;
+    }
+    /// Share of alive time in hitstun (out of control), 0..1.
+    pub fn hitstun_frac(&self) -> f64 {
+        if self.alive > 0.0 { self.hitstun / self.alive } else { 0.0 }
+    }
+    pub fn tumble_frac(&self) -> f64 {
+        if self.alive > 0.0 { self.tumble / self.alive } else { 0.0 }
+    }
+    pub fn launched_air_frac(&self) -> f64 {
+        if self.alive > 0.0 { self.launched_air / self.alive } else { 0.0 }
+    }
+    fn sample(&mut self, p: &crate::world::Player) {
+        let dt = f64::from(DT);
+        self.alive += dt;
+        if p.mv.in_hitstun() {
+            self.hitstun += dt;
+        }
+        if p.mv.tumble > 0.0 {
+            self.tumble += dt;
+        }
+        if p.launch.is_some() && !p.mv.grounded {
+            self.launched_air += dt;
+        }
+    }
+}
+
 /// Per-player summary in a report.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlayerReport {
@@ -181,6 +224,8 @@ pub struct PlayerReport {
     pub max_streak: u16,
     pub launches: u32,
     pub recoveries: u32,
+    /// LAUNCH FEEL: time out of control / flying from hits.
+    pub control: ControlTime,
     /// Mechanic indices this player cast most (up to 3).
     pub top_mechanics: Vec<u8>,
     pub winner: bool,
@@ -204,6 +249,7 @@ struct Track {
     first_hit: Option<Tick>,
     last_hit: Option<(Attrib, Tick)>,
     launched: bool,
+    control: ControlTime,
     mech_casts: [u16; MECHANICS.len()],
 }
 
@@ -225,6 +271,7 @@ impl Default for Track {
             first_hit: None,
             last_hit: None,
             launched: false,
+            control: ControlTime::default(),
             mech_casts: [0; MECHANICS.len()],
         }
     }
@@ -287,6 +334,8 @@ pub struct MatchReport {
     pub shutdowns: u32,
     pub launches: u32,
     pub recoveries: u32,
+    /// LAUNCH FEEL: all players' time out of control / flying from hits (summed).
+    pub control: ControlTime,
     pub speed_hist: [u64; SPEED_BINS],
     /// Per mechanic: (players whose top-3 mechanics included it, of those the winners).
     pub mech_wins: [(u32, u32); MECHANICS.len()],
@@ -322,6 +371,7 @@ impl Default for MatchReport {
             shutdowns: 0,
             launches: 0,
             recoveries: 0,
+            control: ControlTime::default(),
             speed_hist: [0; SPEED_BINS],
             mech_wins: [(0, 0); MECHANICS.len()],
             players: Vec::new(),
@@ -368,6 +418,7 @@ impl MatchReport {
         self.shutdowns += o.shutdowns;
         self.launches += o.launches;
         self.recoveries += o.recoveries;
+        self.control.merge(&o.control);
         for (a, b) in self.speed_hist.iter_mut().zip(o.speed_hist.iter()) {
             *a += b;
         }
@@ -443,7 +494,12 @@ impl MatchReport {
         for (i, x) in self.streaks.iter().enumerate() {
             let _ = write!(s, "{}{x}", if i > 0 { "," } else { "" });
         }
-        let _ = write!(s, "],\"shutdowns\":{},\"launches\":{},\"recoveries\":{},\"speed_hist_bin_mps\":{},\"speed_hist\":[", self.shutdowns, self.launches, self.recoveries, SPEED_BIN_WIDTH);
+        let c = &self.control;
+        let _ = write!(
+            s,
+            "],\"shutdowns\":{},\"launches\":{},\"recoveries\":{},\"alive_secs\":{:.1},\"hitstun_secs\":{:.1},\"tumble_secs\":{:.1},\"launched_air_secs\":{:.1},\"speed_hist_bin_mps\":{},\"speed_hist\":[",
+            self.shutdowns, self.launches, self.recoveries, c.alive, c.hitstun, c.tumble, c.launched_air, SPEED_BIN_WIDTH
+        );
         for (i, x) in self.speed_hist.iter().enumerate() {
             let _ = write!(s, "{}{x}", if i > 0 { "," } else { "" });
         }
@@ -644,6 +700,8 @@ impl Telemetry {
             self.report.secs += f64::from(DT);
             for p in &w.players {
                 if p.alive {
+                    self.report.control.sample(p);
+                    self.players[p.id.0 as usize].control.sample(p);
                     let v = p.mv.vel.length();
                     let bin = if v.is_finite() { ((v / SPEED_BIN_WIDTH) as usize).min(SPEED_BINS - 1) } else { SPEED_BINS - 1 };
                     self.report.speed_hist[bin] += 1;
@@ -820,6 +878,7 @@ impl Telemetry {
                     max_streak: t.max_streak,
                     launches: t.launches,
                     recoveries: t.recoveries,
+                    control: t.control,
                     top_mechanics: order.iter().map(|m| *m as u8).collect(),
                     winner: win,
                 });

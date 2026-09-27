@@ -34,8 +34,11 @@ use bevy::picking::Pickable;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-/// Longest bound name (chars) before it is shortened.
-const TAG_CHARS: usize = 40;
+/// Longest power label (chars) before it is shortened.
+const TAG_CHARS: usize = 28;
+/// Longest hotbar-slot / tray-entry title (chars) before it is shortened (bound phrases run longer
+/// than a power's own name, and the tooltip has room).
+const BIND_TAG_CHARS: usize = 40;
 /// Tooltip card width (px; definite so wrapped lines size it consistently).
 const CARD_W: f32 = 300.0;
 /// Held-power move lines shown before the list is capped (every power ships well under this).
@@ -358,7 +361,7 @@ fn pickup_content(kind: GateKind, life: f32) -> TooltipContent {
 
 fn title_text(phrase: &str) -> String {
     let t = phrase.trim();
-    if t.is_empty() { "UNBOUND".to_string() } else { clip(&t.to_uppercase(), TAG_CHARS) }
+    if t.is_empty() { "UNBOUND".to_string() } else { clip(&t.to_uppercase(), BIND_TAG_CHARS) }
 }
 
 /// How a move / passive is triggered, spelled out in words (never a glyph).

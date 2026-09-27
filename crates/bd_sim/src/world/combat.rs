@@ -176,7 +176,8 @@ impl World {
         let kb_raw = if cockpit {
             0.0
         } else {
-            crate::smash::knockback(st, base_kb * (1.0 + bonus) * elem_kb, damage, pct, weight, self.cfg.rules.knockback_scale)
+            // LAUNCH FEEL: the modern low-% curve (classic rule = the old formula).
+            crate::smash::launch_knockback(st, self.cfg.rules.classic_launch, base_kb * (1.0 + bonus) * elem_kb, damage, pct, weight, self.cfg.rules.knockback_scale)
         };
         // LEGENDARY: heavy blades carry super armor through big swings (less knockback, never immune).
         // WEAPON FEEL: heavy-class weapons are armored through their wind-up and swing too (the stronger wins).
@@ -202,6 +203,7 @@ impl World {
         let tumble = kb > self.cfg.tuning.hit.tumble_impulse;
         let launch = kb >= st.kb_min_launch;
         let tumble_secs = crate::smash::tumble_secs(st, kb);
+        let hitstun = crate::smash::hitstun_secs(st, self.cfg.rules.classic_launch, kb); // LAUNCH FEEL
         if kb > 0.0 {
             let mv = &mut self.players[ti].mv;
             mv.extra.cancel_dodge(&mut mv.vel); // DODGE HOOK: knockback ends a (non-intangible) dodge
@@ -209,7 +211,11 @@ impl World {
             if vd < 0.0 {
                 mv.vel -= dir * vd.max(-kb);
             }
+            let stun_before = mv.hitstun_left();
             mv.apply_impulse(dir * kb, if tumble { tumble_secs } else { 0.0 });
+            if tumble && !self.cfg.rules.classic_launch {
+                mv.limit_hitstun(stun_before, hitstun); // LAUNCH FEEL: actionable mid-flight after hitstun
+            }
         }
         if launch {
             let p = &mut self.players[ti];
@@ -424,7 +430,11 @@ impl World {
         crate::dodge::on_hit(&mut p.mv); // …and gives back the air jump + air dodge
         p.mv.vel = vel;
         p.mv.grounded = false;
+        let stun_before = p.mv.hitstun_left();
         p.mv.tumble = p.mv.tumble.max(secs);
+        if !self.cfg.rules.classic_launch {
+            p.mv.limit_hitstun(stun_before, crate::smash::hitstun_secs(&self.cfg.tuning.smash, false, speed)); // LAUNCH FEEL
+        }
         p.launch = Some(crate::smash::LaunchState { t: 0.0, speed, di: 0.0, source });
         crate::smash::start_di(&self.cfg.tuning.smash, &mut p.mv);
         p.tech_buffer = 99.0;

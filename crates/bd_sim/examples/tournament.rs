@@ -9,6 +9,10 @@
 //!         [--before <combat.ron | default>] [--after assets/tuning/combat.ron]
 //!         [--json target/balance/report.json] [--md docs/BALANCE_REPORT.md]
 //!
+//! LAUNCH FEEL: `--classic` runs everything under the CLASSIC LAUNCH rule; `--launch-ab` runs the
+//! same seeds classic (before) vs modern (after) with one tuning; `--bot-di` makes bots DI under
+//! the classic rule too (isolates the rule from the bot skill). Prints time out of control.
+//!
 //! With `--after`, the same seeds run twice (before = `--before`, default = built-in defaults;
 //! after = the file) and the report shows both side by side. Deterministic: same arguments ⇒ same
 //! report (matches run in parallel but are merged in seed order).
@@ -44,6 +48,9 @@ struct Opts {
     after: Option<String>,
     json: String,
     md: String,
+    /// LAUNCH FEEL A/B.
+    classic: bool,
+    launch_ab: bool,
 }
 
 fn opts() -> Opts {
@@ -62,6 +69,8 @@ fn opts() -> Opts {
         after: get("--after"),
         json: get("--json").unwrap_or_else(|| "target/balance/report.json".into()),
         md: get("--md").unwrap_or_else(|| "docs/BALANCE_REPORT.md".into()),
+        classic: args.iter().any(|a| a == "--classic"),
+        launch_ab: args.iter().any(|a| a == "--launch-ab"),
     }
 }
 
@@ -172,12 +181,13 @@ fn random_cast(rng: &mut SimRng) -> Recipe {
 
 // ------------------------------------------------------------------------------------ one match
 
-fn run_match(seed: u64, tuning: &CombatTuning, o: &Opts, pool: &[Recipe]) -> MatchReport {
+fn run_match(seed: u64, tuning: &CombatTuning, o: &Opts, pool: &[Recipe], classic: bool) -> MatchReport {
     let mut cfg = SimConfig { arena: ArenaSource::Archipelago { seed: seed % 16 + 1 }, seed, check_invariants: false, tuning: tuning.clone(), ..SimConfig::default() };
     cfg.timings.warmup_secs = 1.0;
     cfg.timings.auto_rematch = false;
     cfg.rules.time_limit = o.secs;
     cfg.rules.ko_target = o.ko;
+    cfg.rules.classic_launch = classic;
     let mut w = World::new(cfg);
     let mut brains = bots::add_bots(&mut w, 0, 8, 0.7, seed);
     for (k, b) in brains.iter_mut().enumerate() {
@@ -247,7 +257,7 @@ fn run_match(seed: u64, tuning: &CombatTuning, o: &Opts, pool: &[Recipe]) -> Mat
 }
 
 /// All matches for one tuning, in parallel; merged in seed order (deterministic).
-fn run_all(label: &str, tuning: &CombatTuning, o: &Opts, pool: &[Recipe]) -> MatchReport {
+fn run_all(label: &str, tuning: &CombatTuning, o: &Opts, pool: &[Recipe], classic: bool) -> MatchReport {
     let next = AtomicUsize::new(0);
     let slots: Mutex<Vec<Option<MatchReport>>> = Mutex::new(vec![None; o.matches]);
     let t0 = Instant::now();
@@ -259,7 +269,7 @@ fn run_all(label: &str, tuning: &CombatTuning, o: &Opts, pool: &[Recipe]) -> Mat
                     if i >= o.matches {
                         break;
                     }
-                    let r = run_match(o.seed.wrapping_add(i as u64), tuning, o, pool);
+                    let r = run_match(o.seed.wrapping_add(i as u64), tuning, o, pool, classic);
                     if let Ok(mut v) = slots.lock() {
                         v[i] = Some(r);
                     }
@@ -567,11 +577,18 @@ fn main() {
     let pool = phrase_pool();
     let before_t = load_tuning(&o.before);
     let min_casts = ((o.matches as u32) / 5).max(20);
-    let before = run_all("before", &before_t, &o, &pool);
-    let after = o.after.as_ref().map(|p| {
-        let t = load_tuning(p);
-        run_all("after", &t, &o, &pool)
-    });
+    if std::env::args().any(|a| a == "--bot-di") {
+        bd_sim::dodge::BOT_DI_IN_CLASSIC.store(true, Ordering::Relaxed);
+    }
+    let before = run_all("before", &before_t, &o, &pool, o.classic || o.launch_ab);
+    let after = if o.launch_ab {
+        Some(run_all("after", &before_t, &o, &pool, false))
+    } else {
+        o.after.as_ref().map(|p| {
+            let t = load_tuning(p);
+            run_all("after", &t, &o, &pool, o.classic)
+        })
+    };
     let props = proposals(&before, min_casts);
     for p in &props {
         println!("PROPOSAL {p}");
@@ -614,6 +631,29 @@ fn main() {
     line("before", &s);
     if let Some(a) = &after {
         line("after", &summarize(a, min_casts));
+    }
+    // LAUNCH FEEL: time out of control (share of alive time) + KO %.
+    let control = |tag: &str, r: &MatchReport| {
+        let c = &r.control;
+        let kp: Vec<f64> = r.ko_pct_credited.iter().map(|x| f64::from(*x)).collect();
+        let mean = if kp.is_empty() { f64::NAN } else { kp.iter().sum::<f64>() / kp.len() as f64 };
+        println!(
+            "CONTROL {tag}: hitstun {:.2}% | tumble {:.2}% | launched-air {:.2}% of alive time ({:.0} player-s) | launches {} ({:.2}/player-min) | KOs {} ({:.2}/player-min) | credited KO% mean {:.0} median {:.0}",
+            c.hitstun_frac() * 100.0,
+            c.tumble_frac() * 100.0,
+            c.launched_air_frac() * 100.0,
+            c.alive,
+            r.launches,
+            f64::from(r.launches) / (c.alive / 60.0).max(1e-9),
+            r.total_kos(),
+            f64::from(r.total_kos()) / (c.alive / 60.0).max(1e-9),
+            mean,
+            pct(&kp, 0.5)
+        );
+    };
+    control("before", &before);
+    if let Some(a) = &after {
+        control("after", a);
     }
     println!("wrote {} and {}", o.json, o.md);
 }
