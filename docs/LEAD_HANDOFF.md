@@ -42,7 +42,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
   stats table (KOs, falls, SDs, dmg dealt/taken, streak, combo, acc, constructs, stocks, ping).
 - Vocab military + D&D aa338f67f0c63e7fc DONE — content-as-data only (weapons/vehicles/fortifications/support
   calls; SRD spells/monsters/items/class moves; non-SRD names private-use in notices), ~60 golden tests.
-- Wukong + CN folklore a7e87a75ac19851a6 — NEW Mechanic::Extends (contract v1.7): Ruyi staff twirl combos,
+- Wukong + CN folklore a7e87a75ac19851a6 DONE (iron fan gust only 7 m; bare "chang'e" → "change") — NEW Mechanic::Extends (contract v1.7): Ruyi staff twirl combos,
   25-40 m extend thrust, pillar slam, pole vault; plus folklore content pack (Nezha, Erlang, Iron Fan...).
 - Presence/gravitas a1f2fc9e831108f3e DONE (hums unheard; GatherFx needs signature worker wiring) — generic Hollow-Purple grammar for EVERY construct: presence tier
   (scale/cost/legendary/signature; contrast, not max), gather → manifest → element material → presence

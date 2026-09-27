@@ -9,6 +9,8 @@
 //!   (audio worker: a dedicated `dodge` whoosh).
 //! * **Wall refresh** — a small corps-coloured scuff (a few chips + shards kicked off the surface)
 //!   and a quiet high tick (`land_light` pitched up; audio worker: `wall_refresh`).
+//! * **Boing** — a player whose powers give extra air jumps (`PowerEffect::AirJumps`: Gear Fourth)
+//!   bounces off the air: a springy low "boing" layered on the air jump + a wider rubbery ring.
 //! * Remote players: from the replicated `GameEvent::Move` flags (`AIR_JUMP` / `DODGE`) at the
 //!   interpolated view position; the local player: from this frame's (predicted) `MoveEvents`.
 //! * `--scenario airjump` (+ `--record`): two players hop / air-jump / dodge in front of the
@@ -78,6 +80,9 @@ fn air_move_fx(
         if flags & move_flags::AIR_JUMP != 0 {
             step_fx(fx.as_deref_mut(), &mut burst, v.pos, color, v.size, flashes, seed);
             sfx.write(Sfx3d::at("air_jump", v.pos).gain(0.8));
+            if bd_sim::powers::effects::extra_air_jumps_snap(&v.power) > 0 {
+                boing(&mut burst, &mut sfx, v.pos, color, v.size);
+            }
         }
         if flags & move_flags::WALL_REFRESH != 0 {
             // No normal on the wire: a scuff at the body.
@@ -102,6 +107,10 @@ fn air_move_fx(
             step_fx(fx.as_deref_mut(), &mut burst, pos, color, v.size, flashes, seed);
             sfx.write(Sfx3d::at("air_jump", pos));
             fov.write(FovPunch { degrees: 0.9 });
+            if sim.state.mods.extra_air_jumps > 0 {
+                boing(&mut burst, &mut sfx, pos, color, v.size);
+                fov.write(FovPunch { degrees: 0.8 * flashes });
+            }
         }
         if let Some(n) = ev.wall_refresh {
             let n = bv(n);
@@ -119,6 +128,15 @@ fn air_move_fx(
             fov.write(FovPunch { degrees: 1.6 });
         }
     }
+}
+
+/// Gear Fourth's springy air jump: a low rubbery "boing" (a pitched-down hop + a bright twang) and a
+/// wide flattened ring of chips (the air itself gave like a trampoline).
+fn boing(burst: &mut MessageWriter<BurstFx>, sfx: &mut MessageWriter<Sfx3d>, feet: Vec3, color: [f32; 3], size: f32) {
+    let s = size.clamp(0.3, 3.0);
+    sfx.write(Sfx3d::at("air_jump", feet).pitch(0.55).gain(0.9));
+    sfx.write(Sfx3d::at("land_light", feet).pitch(2.1).gain(0.35));
+    burst.write(BurstFx { kind: BurstKind::Shards, pos: feet + Vec3::Y * 0.02, dir: Vec3::NEG_Y, scale: 0.95 * s, color: Some(color) });
 }
 
 /// The hard-light step: a glowing tile of chips + outward ring on the step plane + sparks spilling down.

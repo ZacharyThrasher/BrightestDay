@@ -11,6 +11,10 @@
 //!   the nearest three); charge auras and shout words are voiced here too.
 //! * Every game event feeds the mix director (combat heat, heavy-hit / KO / final-blow ducks,
 //!   danger heartbeat), the ambience (explosions scare the birds) and the soundtrack (stingers).
+//! * Power cues ([`PowerCue`], `present::powers::ascend`): an AWAKENING → the streak stinger (the
+//!   caster) / a legendary sting at the spot (anyone else); every Ascend burst → a whoomp + sub hit;
+//!   a form's music layer ("drums": Gear Fifth) → the soundtrack's overlay layer on / off
+//!   ([`power_cue_plan`]).
 //! * Loading: `sfx/` is decoded on a worker thread during the loading screen. With `--record` the
 //!   mixer runs offline in lock-step with the fixed capture clock and writes `<record>.wav`
 //!   (nothing is played aloud); otherwise one cpal output stream.
@@ -19,6 +23,7 @@ use crate::arena::{ArenaWorld, MapKind};
 use crate::camera::PlayerCamera;
 use crate::player::{FrameMoveEvents, LocalPlayer, PlayerSim};
 use crate::present::gv;
+use crate::present::powers::ascend::PowerCue;
 use crate::present::sound::{MixDuck, Sfx3d, SfxLoopEmitter};
 use crate::settings::Settings;
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
@@ -199,13 +204,14 @@ impl Plugin for AudioFxPlugin {
             .add_message::<crate::present::signature::SignatureCue>()
             .add_message::<bd_fx::ShoutSfx>()
             .add_message::<crate::sim_bridge::GameEvents>()
+            .add_message::<PowerCue>()
             // `BD_PERF_OFF=audio`: no audio at all (A/B perf checks).
             .add_systems(Startup, start_load.run_if(|| !crate::present::perf_off("audio")))
             .add_systems(Update, finish_load.run_if(resource_exists::<AudioLoading>))
             .add_systems(OnExit(AppState::InGame), leave_game)
             .add_systems(
                 Update,
-                (timing_begin, forward_messages, local_movement, world_audio, hooks_audio, apply_settings, timing_end)
+                (timing_begin, forward_messages, local_movement, world_audio, hooks_audio, power_audio, apply_settings, timing_end)
                     .chain()
                     .after(FrameSet::Present)
                     .run_if(resource_exists::<Audio>),
@@ -820,6 +826,73 @@ fn hooks_audio(
     }
 }
 
+/// What one [`PowerCue`] sounds like.
+#[derive(Clone, Debug, PartialEq)]
+pub enum PowerSound {
+    /// A soundtrack stinger, by `bd_music::StingerKind::name` (the existing ones).
+    Stinger(&'static str),
+    /// A one-shot: `at` = `None` for the local player's own (2D), else in the world.
+    Sfx { name: &'static str, at: Option<Vec3>, gain_db: f32, pitch: f32 },
+    /// A soundtrack overlay layer on / off ("drums").
+    Overlay { layer: String, on: bool },
+}
+
+/// The audio a [`PowerCue`] maps to (pure: unit-tested).
+pub fn power_cue_plan(c: &PowerCue) -> Vec<PowerSound> {
+    match c {
+        // The first time you take a form this round: the music answers (the caster), a sting at the
+        // spot for everyone else (the aura + gather sounds are 3D already).
+        PowerCue::Awakening { local: true, .. } => vec![PowerSound::Stinger("streak")],
+        PowerCue::Awakening { pos, .. } => vec![PowerSound::Sfx { name: "legendary_sting", at: Some(*pos), gain_db: -8.0, pitch: 0.9 }],
+        // Every Ascend burst: a low whoomp + a sub hit, deeper and louder for stronger forms.
+        PowerCue::Burst { pos, intensity, local, .. } => {
+            let k = if intensity.is_finite() { intensity.clamp(0.3, 3.0) } else { 1.0 };
+            let at = if *local { None } else { Some(*pos) };
+            let big = ((k - 0.3) / 2.7).clamp(0.0, 1.0);
+            vec![
+                PowerSound::Sfx { name: "ring_blast", at, gain_db: -4.0 + 4.0 * big, pitch: (0.78 - 0.22 * big).clamp(0.5, 0.9) },
+                PowerSound::Sfx { name: "kaiju_stomp", at, gain_db: -10.0 + 5.0 * big, pitch: (1.3 - 0.25 * big).clamp(0.9, 1.4) },
+            ]
+        }
+        PowerCue::Music { layer, on } => vec![PowerSound::Overlay { layer: layer.clone(), on: *on }],
+    }
+}
+
+fn power_audio(mut audio: ResMut<Audio>, mut cues: MessageReader<PowerCue>) {
+    let a = &mut *audio;
+    for c in cues.read() {
+        for s in power_cue_plan(c) {
+            match s {
+                PowerSound::Sfx { name, at, gain_db, pitch } => {
+                    let o = match at {
+                        Some(p) => PlayOpts::at(gv(p)),
+                        None => PlayOpts::own(),
+                    };
+                    a.engine.play(name, o.gain_db(gain_db).pitch(pitch));
+                }
+                PowerSound::Stinger(name) => {
+                    #[cfg(feature = "music")]
+                    if let Some(m) = a.music.as_mut()
+                        && let Some(&k) = bd_music::StingerKind::ALL.iter().find(|k| k.name() == name)
+                    {
+                        m.stinger(k, &mut a.engine);
+                    }
+                    #[cfg(not(feature = "music"))]
+                    let _ = name;
+                }
+                PowerSound::Overlay { layer, on } => {
+                    #[cfg(feature = "music")]
+                    if let Some(m) = a.music.as_mut() {
+                        m.overlay(&layer, on, &mut a.engine);
+                    }
+                    #[cfg(not(feature = "music"))]
+                    let _ = (layer, on);
+                }
+            }
+        }
+    }
+}
+
 /// Match point / last standing stingers.
 #[cfg(feature = "music")]
 fn music_moments(
@@ -911,6 +984,10 @@ fn leave_game(audio: Option<ResMut<Audio>>) {
     for (_, (h, _)) in a.loops.drain() {
         a.engine.stop(h, 0.0);
     }
+    #[cfg(feature = "music")]
+    if let Some(m) = a.music.as_mut() {
+        m.overlays_off(&mut a.engine);
+    }
     a.remote_prev.clear();
     a.ended = false;
 }
@@ -970,4 +1047,49 @@ fn write_wav(path: &std::path::Path, sr: u32, s: &[i16]) -> std::io::Result<()> 
         f.write_all(&v.to_le_bytes())?;
     }
     f.flush()
+}
+
+#[cfg(test)]
+mod power_cue_tests {
+    use super::*;
+
+    #[test]
+    fn power_cues_map_to_stingers_whoomps_and_the_drum_layer() {
+        let pos = Vec3::new(3.0, 1.0, -4.0);
+        let own = power_cue_plan(&PowerCue::Awakening { player: PlayerId(1), power: 7, tier: 4, local: true, pos });
+        assert_eq!(own, vec![PowerSound::Stinger("streak")], "your awakening: the music answers");
+        #[cfg(feature = "music")]
+        assert!(bd_music::StingerKind::ALL.iter().any(|k| k.name() == "streak"), "an existing stinger");
+        let theirs = power_cue_plan(&PowerCue::Awakening { player: PlayerId(2), power: 7, tier: 4, local: false, pos });
+        assert!(matches!(theirs.as_slice(), [PowerSound::Sfx { at: Some(p), .. }] if *p == pos), "someone else's: at the spot");
+        // Bursts: a whoomp + a sub hit, own (2D) for the caster, deeper for stronger forms.
+        let small = power_cue_plan(&PowerCue::Burst { player: PlayerId(1), pos, intensity: 0.6, local: true });
+        let big = power_cue_plan(&PowerCue::Burst { player: PlayerId(1), pos, intensity: 2.8, local: false });
+        assert_eq!(small.len(), 2);
+        let pitch = |v: &[PowerSound]| match v[0] {
+            PowerSound::Sfx { pitch, at, .. } => (pitch, at),
+            _ => panic!(),
+        };
+        assert_eq!(pitch(&small).1, None);
+        assert_eq!(pitch(&big).1, Some(pos));
+        assert!(pitch(&big).0 < pitch(&small).0);
+        let names: Vec<_> = small.iter().filter_map(|s| if let PowerSound::Sfx { name, .. } = s { Some(*name) } else { None }).collect();
+        assert_eq!(names, ["ring_blast", "kaiju_stomp"]);
+        assert!(power_cue_plan(&PowerCue::Burst { player: PlayerId(1), pos, intensity: f32::NAN, local: true }).len() == 2);
+        // Gear Fifth's drums: the overlay layer on / off.
+        assert_eq!(power_cue_plan(&PowerCue::Music { layer: "drums".into(), on: true }), vec![PowerSound::Overlay { layer: "drums".into(), on: true }]);
+        assert_eq!(power_cue_plan(&PowerCue::Music { layer: "drums".into(), on: false }), vec![PowerSound::Overlay { layer: "drums".into(), on: false }]);
+        #[cfg(feature = "music")]
+        assert!(bd_music::overlay_id("drums").is_some(), "the layer exists");
+    }
+
+    #[test]
+    fn every_sound_a_power_cue_plays_is_in_the_cue_table() {
+        let table = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/audio/cues.ron")).expect("cues.ron");
+        for n in ["legendary_sting", "ring_blast", "kaiju_stomp"] {
+            assert!(table.contains(&format!("\"{n}\"")), "{n} missing from cues.ron");
+            let f = format!("{}/../../assets/sfx/{n}_1.ogg", env!("CARGO_MANIFEST_DIR"));
+            assert!(std::path::Path::new(&f).exists(), "{f}");
+        }
+    }
 }

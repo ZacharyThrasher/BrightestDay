@@ -783,7 +783,7 @@ pub mod scenario {
         let (Some(&owner), Some(&far)) = (others.first(), others.get(1)) else { return };
         if !sc.placed {
             // Stage: flat open ground for the kaiju, you on the ground `dist` m away with a clear view.
-            let dist = match sc.shot.as_str() { "stomp" => 10.0, "sever" | "topple" => 16.0, _ => 20.0 };
+            let dist = match sc.shot.as_str() { "stomp" => 7.5, "sever" | "topple" => 16.0, _ => 20.0 };
             let Some((from, spot, dir)) = stage(&active.world, my_pos, dist) else {
                 if sc.t > 6.0 {
                     warn!("giants scenario: no stage found");

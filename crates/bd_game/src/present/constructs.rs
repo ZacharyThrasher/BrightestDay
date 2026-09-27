@@ -977,6 +977,13 @@ fn predicted_casts(
                     commands.entity(e).try_insert(ConstructEnd::Dismiss { duration: 0.3 });
                 }
             }
+            // Learned a technique: no construct — the provisional orb is drawn into you at once.
+            P::Became { seq, .. } => {
+                prov.pending.retain(|p| p.0 != *seq);
+                if let Some(e) = prov.spawned.remove(seq) {
+                    commands.entity(e).try_insert(ConstructEnd::Dismiss { duration: 0.12 });
+                }
+            }
         }
     }
     let dt = time.delta_secs();

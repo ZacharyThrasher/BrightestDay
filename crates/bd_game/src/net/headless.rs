@@ -281,7 +281,7 @@ pub fn run_client(cli: &NetCli) -> i32 {
         }
         for (_, o) in c.cast_results.drain(..) {
             match o {
-                Some(CastOutcome::Spawned(_) | CastOutcome::Grafted(_)) => casts_ok += 1,
+                Some(CastOutcome::Spawned(_) | CastOutcome::Grafted(_) | CastOutcome::Became(_)) => casts_ok += 1,
                 _ => casts_failed += 1,
             }
         }

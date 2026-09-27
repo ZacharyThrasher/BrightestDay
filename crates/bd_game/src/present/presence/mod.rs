@@ -280,7 +280,7 @@ fn presence_events(
                     }
                 }
             }
-            P::Rejected { seq, .. } => {
+            P::Rejected { seq, .. } | P::Became { seq, .. } => {
                 if let Some(i) = st.predicted.iter().position(|p| p.0 == *seq) {
                     let (_, pid) = st.predicted.swap_remove(i);
                     st.live.retain(|l| l.id != pid);

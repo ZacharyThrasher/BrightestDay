@@ -785,6 +785,16 @@ fn detonate(w: &mut World, t: &PalmTuning, at: Vec3, radius: f32, loser: PlayerI
     w.apply_hit(hit);
 }
 
+/// Dev / screenshots: `a` and `b` fire ultimate palm beams at each other (aimed at each other, pouring
+/// while they have willpower) — a beam struggle for a bystander to watch.
+pub fn dev_duel(w: &mut World, a: PlayerId, b: PlayerId) {
+    let base = w.cfg.move_params.clone();
+    let (Some(ea), Some(eb)) = (w.player(a).map(|p| p.eye(&base)), w.player(b).map(|p| p.eye(&base))) else { return };
+    let dmg = w.cfg.tuning.gun_spec(GunArchetype::HandBeam).damage;
+    start(w, a, None, Element::Light, 1.0, 1.0, dmg * 2.5, 40.0, ea, eb - ea, Some(b));
+    start(w, b, None, Element::Psychic, 1.0, 1.0, dmg * 2.5, 40.0, eb, ea - eb, Some(a));
+}
+
 /// BOT HOOK (`bots::drive`): a bot with enough willpower sometimes answers a beam coming at it with
 /// its own (one roll per beam; deterministic).
 pub fn bot_counter(w: &mut World, bot: PlayerId) {

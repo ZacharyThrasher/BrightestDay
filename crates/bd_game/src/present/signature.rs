@@ -674,6 +674,9 @@ struct SigDev {
     base_yaw: Option<f32>,
     /// `me|!hold <secs>`: hold PRIMARY (charge a palm beam / a held weapon) until `t`, then release.
     hold: Option<f32>,
+    /// `me|!clash`: the two bots stand left / right ahead of the camera (pinned until `t`) and fire
+    /// palm beams at each other — a beam struggle seen by a bystander.
+    clash: Option<(Vec3, Vec3, f32, bool)>,
 }
 
 /// Dev: world side of the plan (pins, willpower, bot casts).
@@ -703,10 +706,32 @@ fn dev_world(
             dev.look = None;
         }
     }
-    if dev.pin.is_none() && dev.casts.is_empty() && !dev.boost_me {
+    if dev.pin.is_none() && dev.casts.is_empty() && !dev.boost_me && dev.clash.is_none() {
         return;
     }
     let Some(mut active) = active else { return };
+    if let Some((l, r, until, fired)) = dev.clash {
+        let bots: Vec<PlayerId> = active.bots.iter().take(2).map(|b| b.id).collect();
+        if let [a, b] = bots[..] {
+            if dev.t < until {
+                for (id, at) in [(a, l), (b, r)] {
+                    if let Some(p) = active.world.player_mut(id) {
+                        p.mv.pos = gv(at);
+                        p.mv.vel = bd_core::Vec3::ZERO;
+                        p.willpower = 100.0;
+                    }
+                }
+                if !fired {
+                    bd_sim::signature::palm::dev_duel(&mut active.world, a, b);
+                    dev.clash = Some((l, r, until, true));
+                }
+            } else {
+                dev.clash = None;
+            }
+        } else {
+            dev.clash = None;
+        }
+    }
     if std::mem::take(&mut dev.boost_me)
         && let Some(p) = active.local.and_then(|me| active.world.player_mut(me))
     {
@@ -772,6 +797,16 @@ fn dev_test(
         {
             info!("signature test: hold PRIMARY {secs:.2} s");
             dev.hold = Some(dev.t + secs.clamp(0.0, 10.0));
+            dev.next += 1;
+            continue;
+        }
+        // `me|!clash`: two bots duel with palm beams across the view (a bystander's struggle).
+        if who == "me" && phrase == "!clash" {
+            let fwd = look.forward();
+            let flat = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(Vec3::NEG_Z);
+            let side = flat.cross(Vec3::Y).normalize_or(Vec3::X);
+            let mid = anchor.eye + flat * 16.0 - Vec3::Y * 1.6;
+            dev.clash = Some((mid - side * 11.0, mid + side * 11.0, dev.t + 7.0, false));
             dev.next += 1;
             continue;
         }

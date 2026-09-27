@@ -702,6 +702,10 @@ impl HostCore {
                 GameEvent::ConstructSpawned { id, owner, .. } => (*owner, CastOutcome::Spawned(*id)),
                 GameEvent::Grafted { player, id, .. } => (*player, CastOutcome::Grafted(*id)),
                 GameEvent::CastFailed { player, reason } => (*player, CastOutcome::Failed(*reason)),
+                // A technique learned by saying it: the cast made a power, not a construct.
+                GameEvent::Power(bd_sim::powers::PowerEvent::Gained { player, power, how: bd_sim::powers::GainHow::Learned }) => {
+                    (*player, CastOutcome::Became(*power))
+                }
                 _ => continue,
             };
             let Some(r) = self.remotes.iter_mut().find(|r| r.id == player) else { continue };

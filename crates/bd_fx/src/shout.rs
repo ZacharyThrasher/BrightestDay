@@ -12,6 +12,9 @@
 //! * **Local** shouts (the viewer is the caster) live in the lower-right of the view (the ring hand),
 //!   drawn on top of the world, never over the crosshair; at release they are flung toward the
 //!   construct and stream into it.
+//! * **Compact** local shouts ([`Shout::compact`]: power-move / form titles like "SHINRA TENSEI" for
+//!   their caster): smaller (≤ 6 % of the screen height per letter), further right and lower, a short
+//!   hold — still punchy, never over the aim. Everyone else still sees them big over the caster.
 //! * **World** shouts (someone else) float camera-facing above the caster, distance-scaled so they
 //!   stay readable at range but never fill the screen up close; far away (LOD) only the headline line
 //!   is shown.
@@ -75,6 +78,8 @@ pub struct Shout {
     pub fizzle: bool,
     /// Cosmetic seed (letter jitter).
     pub seed: u64,
+    /// Local only: a title for its caster (power moves, forms) — smaller, off the aim, short hold.
+    pub compact: bool,
 }
 
 impl Shout {
@@ -92,6 +97,7 @@ impl Shout {
             stream_to: None,
             fizzle: false,
             seed: 0,
+            compact: false,
         }
     }
 }
@@ -555,6 +561,7 @@ fn init_shouts(
         }
         let land = letters.last().map_or(0.0, |l| l.delay) + FLY;
         let hold = (0.38 + 0.3 * intensity.min(2.5) + if lay.flourish { 0.15 } else { 0.0 }).min(1.25);
+        let hold = if s.local && s.compact { hold.min(COMPACT_HOLD) } else { hold };
         commands.entity(e).insert(ShoutState {
             letters,
             age: 0.0,
@@ -645,8 +652,10 @@ fn animate_shouts(
             let ws = hs * aspect;
             // Letter height as a fraction of the screen: calm 5 %, a real yell ~15 %, a yelled MOON ~18 %.
             let frac = 0.045 + 0.1 * (intensity / 2.2).min(1.0) + 0.03 * ((intensity - 2.2) / 1.8).clamp(0.0, 1.0);
-            let unit = (frac * hs / GLYPH_H).min(0.46 * ws / st.block.x.max(0.1)).min(0.36 * hs / st.block.y.max(0.1));
-            let mut p = cam_pos + fwd * LOCAL_DEPTH + right * (0.26 * ws) + upv * (-0.2 * hs);
+            // Compact (a caster's power title): ≤ 6 %, the block ≤ 30 % wide / 18 % tall, right and low.
+            let (frac, w_cap, h_cap, cx, cy) = if s.compact { (frac.min(0.06), 0.3, 0.18, 0.3, -0.3) } else { (frac, 0.46, 0.36, 0.26, -0.2) };
+            let unit = (frac * hs / GLYPH_H).min(w_cap * ws / st.block.x.max(0.1)).min(h_cap * hs / st.block.y.max(0.1));
+            let mut p = cam_pos + fwd * LOCAL_DEPTH + right * (cx * ws) + upv * (cy * hs);
             if let Some(t0) = st.throw_at {
                 // Flung out toward the construct: accelerates away (shrinks with perspective).
                 let u = ((age - t0) / THROW).clamp(0.0, 1.0);

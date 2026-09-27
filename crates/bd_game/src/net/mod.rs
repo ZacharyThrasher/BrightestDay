@@ -112,12 +112,15 @@ pub struct VoteView {
 /// `GameEvents` that carry `ConstructSpawned { id }` (or `Grafted`): adopt the provisional visual
 /// as construct `id` and blend its transform to the authoritative one over ~100 ms (no pop).
 /// `Rejected` (host refused, e.g. willpower; `reason: None` = no answer in 2 s): dissolve it.
+/// `Became` (the cast learned a technique: `power`): no construct follows — the provisional one is
+/// drawn into the caster at once.
 #[allow(dead_code)] // read by presentation
 #[derive(Message, Clone, Debug)]
 pub enum PredictedCast {
     Started { seq: u32, recipe: Box<bd_core::mechanics::Recipe>, aim: bd_sim::Aim },
     Confirmed { seq: u32, id: bd_core::ConstructId, grafted: bool },
     Rejected { seq: u32, reason: Option<bd_sim::events::CastError> },
+    Became { seq: u32, power: u16 },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -474,6 +477,7 @@ fn net_poll(
                     Some(proto::CastOutcome::Spawned(id)) => PredictedCast::Confirmed { seq, id, grafted: false },
                     Some(proto::CastOutcome::Grafted(id)) => PredictedCast::Confirmed { seq, id, grafted: true },
                     Some(proto::CastOutcome::Failed(reason)) => PredictedCast::Rejected { seq, reason: Some(reason) },
+                    Some(proto::CastOutcome::Became(power)) => PredictedCast::Became { seq, power },
                     None => PredictedCast::Rejected { seq, reason: None },
                 });
             }

@@ -19,8 +19,8 @@
 //! 6. **Linger**: a low aura for as long as the form is held (`linger: false` = none).
 //!
 //! Awakening extras: a longer, stronger sequence, a camera FOV flourish for the caster
-//! (comfort-gated in `juice`, never taking control), a music stinger ([`PowerCue::Awakening`] + the
-//! wired `SignatureCue::MusicStinger`). `quiet`: the world goes quiet for the caster (a beat of
+//! (comfort-gated in `juice`, never taking control), a music stinger ([`PowerCue::Awakening`]:
+//! `audio.rs` plays the streak stinger for the caster, a sting at the spot for everyone else). `quiet`: the world goes quiet for the caster (a beat of
 //! desaturation + an audio duck; comfort-gated). `music` (Gear Fifth's "drums"): a
 //! [`PowerCue::Music`] on / off while the local player holds that form (the audio side maps it).
 //! `toon`: squash-and-stretch on the body.
@@ -180,7 +180,6 @@ fn ascend_events(
     mut seqs: ResMut<Seqs>,
     mut sfx: MessageWriter<Sfx3d>,
     mut cues: MessageWriter<PowerCue>,
-    mut sig: MessageWriter<SignatureCue>,
     mut fov: MessageWriter<FovPunch>,
 ) {
     if active.is_none() {
@@ -243,7 +242,6 @@ fn ascend_events(
             if let Some(power) = power {
                 cues.write(PowerCue::Awakening { player: *player, power: *power, tier: *tier, local: v.is_local, pos: v.pos });
             }
-            sig.write(SignatureCue { cue: Cue::MusicStinger, pos: v.pos, severity: 0.6, mine: v.is_local, element: Element::Light, construct: bd_core::ConstructId(u32::MAX) });
             if v.is_local {
                 fov.write(FovPunch { degrees: 5.0 });
             }

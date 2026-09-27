@@ -433,6 +433,9 @@ pub enum CastOutcome {
     /// Grafted onto an existing construct.
     Grafted(ConstructId),
     Failed(bd_sim::events::CastError),
+    /// The cast became a power (a technique learned by saying it: `PowerEvent::Gained` with
+    /// `GainHow::Learned`) — no construct follows.
+    Became(u16),
 }
 
 /// Host → client.

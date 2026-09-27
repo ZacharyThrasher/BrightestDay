@@ -565,12 +565,14 @@ fn place_beams(
         let color = saturate(energy_rgb(v.element, corps_rgb(active.corps_of(v.owner))), 1.35);
         let first = mine && hands.active;
         let body_a = if first { 0.7 } else { 0.92 };
-        let intensity = (5.0 + 5.0 * v.size) * bright;
+        // Saturation first: the body stays near 1-2x (bloom catches it, tonemapping keeps the hue);
+        // only the core is white-hot.
+        let intensity = (1.5 + 0.9 * v.size) * bright;
         let m = [
-            emats.add(energy(color, color, CORE, if first { 0.75 } else { 1.0 }, intensity * 2.2)),
+            emats.add(energy(color, color, CORE, if first { 0.75 } else { 1.0 }, intensity * 3.5)),
             emats.add(energy(color, color, BODY, body_a, intensity)),
-            emats.add(energy(color, color, HALO, if first { 0.35 } else { 0.6 }, intensity * 0.8)),
-            emats.add(energy(color, [1.0; 3], BODY, 0.95, intensity * 2.5)),
+            emats.add(energy(color, color, HALO, if first { 0.3 } else { 0.55 }, intensity * 0.6)),
+            emats.add(energy(color, [1.0; 3], BODY, 0.95, intensity * 1.6)),
         ];
         let spawn = |commands: &mut Commands, mesh: &Handle<Mesh>, mat: &Handle<EnergyMaterial>| {
             commands.spawn((Name::new("PalmBeam"), PalmPart, Mesh3d(mesh.clone()), MeshMaterial3d(mat.clone()), Transform::from_scale(Vec3::splat(0.001)), Visibility::Hidden, NotShadowCaster)).id()
@@ -849,8 +851,8 @@ fn place_clashes(
             c.seen = true;
             continue;
         }
-        let m_ball = emats.add(energy(b.color, b.color, CLASH, 0.96, 7.0 * bright));
-        let m_halo = emats.add(energy(b.color, b.color, HALO, 0.7, 5.0 * bright));
+        let m_ball = emats.add(energy(b.color, b.color, CLASH, 0.96, 2.5 * bright));
+        let m_halo = emats.add(energy(b.color, b.color, HALO, 0.6, 1.4 * bright));
         let spawn = |commands: &mut Commands, m: &Handle<EnergyMaterial>| {
             commands.spawn((Name::new("BeamClash"), PalmPart, Mesh3d(assets.sphere.clone()), MeshMaterial3d(m.clone()), Transform::from_translation(p).with_scale(Vec3::splat(0.01)), Visibility::Hidden, NotShadowCaster)).id()
         };
@@ -930,7 +932,7 @@ fn place_clashes(
         if let Some(mut m) = emats.get_mut(&c.mats[0]) {
             let (a, b2) = c.colors;
             m.params.color = Vec4::new(a[0], a[1], a[2], 0.96);
-            m.params.hot = Vec4::new(b2[0], b2[1], b2[2], (7.0 + 10.0 * c.heat) * bright);
+            m.params.hot = Vec4::new(b2[0], b2[1], b2[2], (2.2 + 3.0 * c.heat) * bright);
             m.params.misc.x = now;
         }
         if let Some(mut m) = emats.get_mut(&c.mats[1]) {

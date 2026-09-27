@@ -526,3 +526,71 @@ fn match_swap_to_another_map() {
     assert_eq!(active.world.match_state.phase, MatchPhase::Warmup, "a fresh match");
     assert!(stats_seen, "stats reached the client");
 }
+
+/// Saying a technique on a client: the host answers the cast with `CastOutcome::Became` (a power,
+/// no construct), so the client's provisional cast resolves at once instead of lingering as a
+/// small orb until the 2 s timeout.
+#[test]
+fn learning_a_technique_on_a_client_resolves_the_cast_as_a_power() {
+    use super::proto::CastOutcome;
+    use bd_core::mechanics::{Element, Form};
+    let settings = bd_sim::settings::GameSettings::default();
+    let mut host =
+        HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
+    let port = host.port;
+    let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind: NetMapKind::Archipelago, seed: 1, pristine_hash: 0 }, 7);
+    let mut active = ActiveWorld::new(world, Some(host.me), SimRole::Host);
+    host.start_match(&mut active, map, hasher);
+    active.world.start_live();
+    let mut core = ClientCore::connect(&format!("127.0.0.1:{port}"), "saiyan", Corps::Rage, Default::default()).expect("connect");
+    let ssj = bd_sim::powers::PowerTable::get().index_of("super_saiyan").expect("super_saiyan");
+    let mut cw: Option<World> = None;
+    let mut cmds = Vec::new();
+    let mut sent: Option<u32> = None;
+    let mut outcome = None;
+    let t0 = now_secs();
+    let mut next_tick = t0;
+    while now_secs() - t0 < 10.0 && outcome.is_none() {
+        host.poll(Some(&mut active), &mut cmds);
+        for (id, c) in cmds.drain(..) {
+            active.apply_command(id, c);
+        }
+        while now_secs() >= next_tick {
+            host.pre_tick(&mut active);
+            active.step(None);
+            host.post_tick(&mut active);
+            next_tick += DT as f64;
+        }
+        let out = core.update(cw.as_mut());
+        if let Some(w) = out.new_world {
+            cw = Some(w);
+        }
+        core.outbox.clear();
+        for (seq, o) in core.cast_results.drain(..) {
+            if Some(seq) == sent {
+                outcome = Some(o);
+            }
+        }
+        if let (None, Some(w), ClientPhase::InGame, Some(me)) = (sent, cw.as_ref(), &core.phase, core.me)
+            && core.session.clock().is_synced()
+            && active.world.player(me).is_some_and(|p| p.alive)
+            && now_secs() - t0 > 1.0
+        {
+            if let Some(p) = active.world.player_mut(me) {
+                p.willpower = 100.0;
+            }
+            let p = w.player(me).expect("me");
+            let aim = bd_sim::Aim::new(p.eye(w.params()), bd_core::Vec3::NEG_Z);
+            let mut r = bd_sim::bots::recipe("super saiyan", Form::Ball, &[], Element::Light, 0.35);
+            r.grants = Some("super_saiyan".into());
+            sent = core.send_cmd(&Cmd::Cast { recipe: Box::new(r), shape: None, alt_shape: None, aim, incantation: false });
+            assert!(sent.is_some(), "a cast has a seq");
+        }
+        core.release_events();
+        core.send_inputs(false);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    let me = core.me.expect("joined");
+    assert!(active.world.player(me).is_some_and(|p| p.power.slot_of(ssj).is_some()), "the host granted the technique");
+    assert_eq!(outcome, Some(Some(CastOutcome::Became(ssj))), "the client's cast became a power (not a timeout / failure)");
+}

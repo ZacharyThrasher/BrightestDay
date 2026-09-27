@@ -18,6 +18,10 @@ struct PowerHudScenario {
     placed: bool,
     /// The bot's cooling move is fired this late (s) so it is mid-cooldown in the shot.
     fire_at: Option<(f32, PlayerId, u8, f32)>,
+    /// The bot walks in only after every awakening burst is over (they knock nearby players).
+    bot_in: Option<(f32, bd_core::Vec3, f32)>,
+    /// Where the bot is held for the shot (practice keeps nudging it).
+    hold: Option<bd_core::Vec3>,
     /// `--powerhud-shot tp`: no stands (their companions would hide the bot), bot straight ahead.
     tp: bool,
 }
@@ -48,6 +52,27 @@ fn held_of(w: &bd_sim::World, id: PlayerId, key: &str) -> Option<usize> {
 
 fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: ResMut<ActiveWorld>, mut look: ResMut<LookAngles>) {
     sc.t += time.delta_secs();
+    if let Some((at, to, yaw)) = sc.bot_in
+        && sc.t >= at
+    {
+        sc.bot_in = None;
+        sc.hold = Some(to);
+        if let Some(p) = active.world.player_mut(PlayerId(1)) {
+            p.mv.pos = to;
+            p.mv.vel = bd_core::Vec3::ZERO;
+            // Its brain is gone: drop whatever it was holding (it would keep running).
+            p.input = bd_core::input::PlayerInput { seq: p.input.seq, yaw: yaw + std::f32::consts::PI, ..Default::default() };
+        }
+    }
+    if let Some(to) = sc.hold
+        && let Some(p) = active.world.player_mut(PlayerId(1))
+        && p.alive
+    {
+        p.mv.pos.x = to.x;
+        p.mv.pos.z = to.z;
+        p.mv.vel.x = 0.0;
+        p.mv.vel.z = 0.0;
+    }
     if let Some((at, bot, slot, yaw)) = sc.fire_at
         && sc.t >= at
     {
@@ -62,6 +87,11 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
             p.input.yaw = yaw + std::f32::consts::PI;
         }
         info!("power hud scenario: bot fired at {:.2}", sc.t);
+    }
+    if sc.placed && std::env::var_os("BD_POWERHUD_TRACE").is_some() {
+        if let Some(p) = active.world.player(PlayerId(1)) {
+            info!("bot1 t {:.2} alive {} pos {:?}", sc.t, p.alive, p.mv.pos);
+        }
     }
     if sc.placed || sc.t < 0.8 {
         return;
@@ -116,12 +146,10 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
     w.pickups.items.push(Pickup { id: 900, kind: GateKind::Awakening, phase: PickupPhase::Held, pos, holder: Some(me), until });
     // Bot 1: in front of you, facing you, three powers (one cooling, one in a form).
     if let Some(p) = w.player_mut(bot) {
-        p.mv.pos = bot_at;
-        p.mv.vel = bd_core::Vec3::ZERO;
-        // Sideways while it fires (nothing comes at you), then it turns to face you.
-        p.input.yaw = yaw + std::f32::consts::FRAC_PI_2;
         p.spawn_shield = 0.0;
+        p.input = bd_core::input::PlayerInput { seq: p.input.seq, yaw: p.input.yaw, ..Default::default() };
     }
+    sc.bot_in = Some((sc.t + 1.6, bot_at, yaw));
     let (bot_cooling, theirs) = if sc.tp { ("kryptonian", ["kryptonian", "spider_bite", "super_saiyan"]) } else { ("the_world", ["the_world", "super_saiyan", "gomu_gomu"]) };
     grant_all(w, bot, &theirs);
     if let Some(p) = w.player_mut(bot) {
@@ -145,5 +173,5 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
     look.yaw = yaw;
     look.pitch = -0.12;
     sc.placed = true;
-    info!("power hud scenario placed");
+    info!("power hud scenario placed: me {pos:?}, bot {bot_at:?}, yaw {yaw:.2}");
 }
