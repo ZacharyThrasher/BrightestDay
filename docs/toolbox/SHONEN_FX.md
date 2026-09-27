@@ -35,3 +35,7 @@ Chain note: WarpTo(`line: true`) lands you point-blank in FRONT of the target, f
 chainable Instant Transmission → Kamehameha). The plain version lands behind their back relative to
 THEIR facing, which leaves the warper facing away when the target was looking at them — a client
 "snap the camera to face the target on `Warp` for the local player" would make that version great too.
+
+Costumed summons: `RecipeDef { costume: true }` (data) dresses a Cast's construct as the costume
+character its `name` names (bd_shapes costume summon, host-side, same as a typed "naruto!"): the
+Naruto / Boruto kits' shadow clones, Piccolo's multi-form and Nami's mirage decoy look like them.

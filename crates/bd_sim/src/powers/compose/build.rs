@@ -97,6 +97,9 @@ fn kind_fx(kind: VerbKind) -> &'static str {
         VerbKind::Poison => "poison",
         VerbKind::Blind => "shadow",
         VerbKind::Heal => "holy",
+        VerbKind::Silence | VerbKind::LockOn => "tech",
+        VerbKind::Hex => "cursed",
+        VerbKind::Blast => "energy",
         VerbKind::Stomp | VerbKind::Smash | VerbKind::Slam => "earth",
         _ => "",
     }
@@ -138,6 +141,12 @@ fn kind_cd(kind: VerbKind) -> f32 {
         Heal => 10.0,
         Harden => 10.0,
         TimeStop => 12.0,
+        Disarm => 4.0,
+        Silence => 8.0,
+        LockOn => 6.0,
+        Hex => 6.0,
+        Finisher => 2.0,
+        Blast => 1.2,
     }
 }
 
@@ -582,6 +591,33 @@ pub fn ops_of(k: &Knobs) -> Vec<MoveOp> {
         Heal => ops.push(MoveOp::Mend { pct: (12.0 * k.power).min(20.0), per_s: 3.0, secs: k.secs_or(3.0, 1.0, 5.0) }),
         Harden => ops.push(MoveOp::Empower { secs: k.secs_or(4.0, 2.0, 6.0), damage: 1.1, armor: 0.6, contact: 0.0, contact_kb: 0.0, contact_cd: 0.0, element: el }),
         TimeStop => ops.push(MoveOp::TimeStop { secs: k.secs_or(1.5, 0.5, 3.0), speed: 1.8 }),
+        // ------------------------------------------------------------------ control / finishers
+        Disarm => ops.push(MoveOp::Disarm { range: k.r(28.0).min(60.0), cone: 12.0, pull: matches!(k.place, Place::Toward | Place::Into) || k.target == Target::Me, knockback: k.kb(6.0) }),
+        Silence => ops.push(MoveOp::Lockout { range: k.r(30.0).min(60.0), secs: k.secs_or(1.8, 0.5, 2.5) }),
+        LockOn => ops.push(MoveOp::LockOn { secs: k.secs_or(1.6, 0.6, 3.0), range: k.r(50.0).min(80.0), damage: k.dmg(9.0), knockback: k.kb(14.0), angle: if k.everyone() { 60.0 } else { 30.0 } }),
+        Hex => ops.push(MoveOp::DelayedHit {
+            range: k.r(30.0).min(60.0),
+            cone: 12.0,
+            radius: if k.everyone() { k.r(9.0) } else { 0.0 },
+            secs: k.secs_or(1.5, 0.8, 3.0),
+            damage: k.dmg(12.0),
+            knockback: k.kb(20.0),
+            up: 0.5,
+            element: if el == Element::Light { Element::Shadow } else { el },
+        }),
+        Finisher => ops.push(MoveOp::Finisher {
+            lunge: if k.targeted() { 22.0 } else { 12.0 },
+            range: k.r(3.4),
+            angle: 50.0,
+            damage: k.dmg(10.0),
+            knockback: k.kb(24.0),
+            element: el,
+            up: 0.6,
+            window: 1.2,
+            mult: 2.0,
+            fx: crate::powers::CritFx::Spark,
+        }),
+        Blast => ops.push(MoveOp::BounceBeam { length: k.r(40.0).min(60.0), bounces: if k.count > 1 { (k.count - 1).min(3) } else { 0 }, radius: 0.6, damage: k.dmg(7.0), knockback: k.kb(12.0), element: el }),
     }
     ops
 }

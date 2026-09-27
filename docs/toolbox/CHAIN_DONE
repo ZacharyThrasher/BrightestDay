@@ -11,7 +11,9 @@ SEPARATORS
 - Weak: ",", ";", "into", "and" — split only when some piece is a move and EVERY piece is a move or a
   clean thing on its own (`Lexicon::is_clean_thing`: a fully understood construct / grant). So
   "a big, flaming hammer" stays one hammer, "rock and roll" / "turn it into a dragon" stay whole.
-- A whole line that is itself one move is never split (unless it has an arrow). At most 8 steps.
+- A line with a separator is split FIRST: only an EXACT reading (a shout, an exact kit move, a
+  held shout) keeps it whole — never a loose kit match ("yasuo tornado then last breath" is two
+  steps even though "last breath" is also a Yasuo move word). Arrows always split. At most 8 steps.
 - Steps can be anything: held moves, borrowed moves, kit moves, constructs, grants ("super saiyan,
   kamehameha"), signatures, incantations of a held power.
 

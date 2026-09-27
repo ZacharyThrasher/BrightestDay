@@ -680,7 +680,7 @@ fn pick_target(t: &[Target]) -> Target {
 /// Kinds whose untargeted link after a targeted link keeps that target in a chain.
 pub fn aims_at_target(kind: VerbKind) -> bool {
     use VerbKind::*;
-    matches!(kind, Punch | Kick | Uppercut | Slam | Smash | Flurry | Grab | Pull | Push | Lift | Crush | Freeze | Burn | Shock | Poison | Blind | Stun | Dash | Charge | Swap | Slash)
+    matches!(kind, Disarm | Silence | Hex | Finisher | Blast | Punch | Kick | Uppercut | Slam | Smash | Flurry | Grab | Pull | Push | Lift | Crush | Freeze | Burn | Shock | Poison | Blind | Stun | Dash | Charge | Swap | Slash)
 }
 
 /// Chain continuity: "teleport behind ethan, fire uppercut" — an untargeted aimable link after a

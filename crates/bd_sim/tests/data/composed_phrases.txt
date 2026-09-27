@@ -388,6 +388,32 @@ go small
 ~Grow!
 ~Shrink.
 
+# ---------------------------------------------------------------- control / finishers
+disarm him
+disarm ethan
+silence him
+hack ethan
+emp everyone
+shut him down
+lock on
+lock onto everyone
+hex him
+mark him for death
+doom everyone
+curse him
+finish him
+finisher
+blast him
+fire blast
+laser him
+eye beams
+lightning blast twice
+~Disarm him!
+~Silence him.
+~Lock on!
+~Finish him!
+~Blast him!
+
 # ---------------------------------------------------------------- word order / fillers / mishearings
 behind ethan shadow teleport
 please teleport behind him

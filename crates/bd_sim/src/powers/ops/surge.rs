@@ -18,7 +18,8 @@ use bd_core::mechanics::{Element, Form, Mechanic, ModelSource, Recipe};
 use bd_core::{ConstructId, MAX_PLAYERS, PlayerId, Vec3};
 use serde::{Deserialize, Serialize};
 
-use super::{OpEvent, flat};
+use super::seeker::Struck;
+use super::{OpEvent, fclamp, flat};
 use crate::combat::{ConstructHit, Explosion, HitInfo, HitKind};
 use crate::constructs::{AnimState, SpawnParams};
 use crate::events::{GameEvent, GoneReason};
@@ -32,6 +33,8 @@ pub const MAX_DIST: f32 = 60.0;
 /// Front thickness (m) that catches people (the wall itself is thin).
 const CATCH_DEPTH: f32 = 2.2;
 const MAX_BATTERED: usize = 8;
+/// Longest one enemy rides the front (s): then it throws them clear (never a lock).
+pub const MAX_CARRY: f32 = 1.2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SurgePhase {
@@ -57,7 +60,9 @@ pub(crate) struct Surge {
     push: f32,
     damage: f32,
     element: Element,
-    struck: u16,
+    struck: Struck,
+    /// Seconds each rider has been carried, by id.
+    carried: [Option<(PlayerId, f32)>; MAX_PLAYERS],
     battered: [Option<ConstructId>; MAX_BATTERED],
 }
 
@@ -75,8 +80,18 @@ pub(crate) struct SurgeSpec {
 impl World {
     pub(crate) fn op_surge(&mut self, i: usize, spec: SurgeSpec) -> Result<(), PowerError> {
         let owner = self.players[i].id;
-        if self.powers.ops.surges[i].is_some_and(|s| s.owner == owner) {
-            return Err(PowerError::Busy);
+        match self.powers.ops.surges[i] {
+            Some(s) if s.owner == owner => return Err(PowerError::Busy),
+            // A departed player's wave in this slot: it collapses.
+            Some(s) => {
+                if let Some(c) = self.constructs.get_mut(s.cid) {
+                    if c.gone.is_none() {
+                        c.gone = Some(GoneReason::Spent);
+                    }
+                }
+                self.powers.ops.surges[i] = None;
+            }
+            None => {}
         }
         if self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 {
             return Err(PowerError::Busy);
@@ -154,9 +169,10 @@ impl World {
             width,
             height,
             push,
-            damage: spec.damage.clamp(0.0, 40.0),
+            damage: fclamp(spec.damage, 0.0, 40.0),
             element: spec.element,
-            struck: 0,
+            struck: Struck::default(),
+            carried: [None; MAX_PLAYERS],
             battered: [None; MAX_BATTERED],
         });
         self.op_event(OpEvent::Surge { player: owner, phase: SurgePhase::Start, target: None, pos: start, dir, width, speed, dist });
@@ -237,13 +253,26 @@ impl World {
             let d = c - mid;
             let feet = q.mv.pos.y;
             let inside = d.dot(s.dir).abs() <= CATCH_DEPTH * 0.5 + 0.4 && d.dot(right).abs() <= s.width * 0.5 + 0.4 && feet <= s.pos.y + s.height && c.y >= s.pos.y - 1.0;
-            if !inside || q.mv.extra.dodging() {
+            // A dodge through it, or a tether holding them, and it rolls past.
+            if !inside || q.mv.extra.dodging() || q.mv.tethered() {
                 continue;
             }
-            let bit = 1u16 << k;
             let tid = q.id;
-            if s.struck & bit == 0 {
-                s.struck |= bit;
+            // Ridden long enough: the front throws them clear and lets go.
+            let ride = s.carried.iter().flatten().find(|(id, _)| *id == tid).map_or(0.0, |r| r.1);
+            if ride >= MAX_CARRY {
+                continue;
+            }
+            match s.carried.iter_mut().find(|r| r.is_some_and(|(id, _)| id == tid)) {
+                Some(r) => *r = Some((tid, ride + dt)),
+                None => {
+                    if let Some(r) = s.carried.iter_mut().find(|r| r.is_none()) {
+                        *r = Some((tid, dt));
+                    }
+                }
+            }
+            if !s.struck.has(tid) {
+                s.struck.add(tid);
                 let hit = HitInfo::new(tid, Some(s.owner), HitKind::Melee, s.damage, 6.0, s.dir + Vec3::Y * 0.4, c).with_element(s.element).with_construct(s.cid).with_impact(1.2);
                 self.apply_hit(hit);
                 self.op_event(OpEvent::Surge { player: s.owner, phase: SurgePhase::Catch, target: Some(tid), pos: c, dir: s.dir, width: s.width, speed: s.speed, dist: 0.0 });
@@ -258,7 +287,13 @@ impl World {
             q.mv.vel += s.dir * (s.speed - along);
             q.mv.vel.y = q.mv.vel.y.max(2.5);
             q.mv.grounded = false;
-            q.mv.tumble = q.mv.tumble.max(0.15);
+            if ride == 0.0 {
+                q.mv.tumble = q.mv.tumble.max(0.15);
+            }
+            if ride + dt >= MAX_CARRY {
+                // Thrown clear off the crest.
+                q.mv.vel += s.dir * 4.0 + Vec3::Y * 6.0;
+            }
         }
         // Loose enemy constructs in the front are battered along once.
         let mut found = [None; MAX_BATTERED];

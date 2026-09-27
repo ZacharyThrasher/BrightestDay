@@ -142,6 +142,11 @@ pub struct PowerSnap {
     /// Tier of the active power, then of each other (low 4 bits) | 0x80 = that other is transformed.
     #[serde(default)]
     pub tiers: [u8; 1 + MAX_EXTRA_POWERS],
+    /// TOOLBOX: the running time stop's speed × 50 (0 = none running) — a BORROWED time stop
+    /// (Witch Time, Chaos Control…) speeds a player who holds no power, or holds another one, so
+    /// prediction can't derive it from the held power.
+    #[serde(default)]
+    pub time_speed: u8,
 }
 
 impl PowerSnap {
@@ -346,7 +351,8 @@ impl PlayerPower {
 
     /// Movement modifiers of every held power (host and client prediction both call this).
     pub fn modify_movement(&self, grounded: bool, m: &mut MoveModifiers) {
-        if self.id.is_none() {
+        // TOOLBOX: a borrowed time stop speeds you up whether or not you hold a power.
+        if self.id.is_none() && self.time_stop <= 0.0 {
             return;
         }
         if self.active() {
@@ -397,7 +403,8 @@ impl PlayerPower {
                 tiers[k + 1] = o.tier.min(15) | if o.transformed { 0x80 } else { 0 };
             }
         }
-        PowerSnap { id: self.id.map_or(0, enc), flags: f, others, tiers }
+        let time_speed = if self.time_stop > 0.0 && self.time_speed.is_finite() { (self.time_speed.clamp(1.0, 3.0) * 50.0).round() as u8 } else { 0 };
+        PowerSnap { id: self.id.map_or(0, enc), flags: f, others, tiers, time_speed }
     }
 
     /// Client mirror: take the replicated state (what [`Self::modify_movement`] reads).
@@ -409,7 +416,7 @@ impl PlayerPower {
         self.transformed = s.has(TRANSFORMED);
         self.over_void = s.has(OVER_VOID);
         self.time_stop = if s.has(TIME_STOP) { 1.0 } else { 0.0 };
-        self.time_speed = self.def().map_or(2.0, time_stop_speed);
+        self.time_speed = if s.time_speed > 0 { s.time_speed as f32 / 50.0 } else { self.def().map_or(2.0, time_stop_speed) };
         self.rush_t = if s.has(RUSH) { 0.1 } else { 0.0 };
         self.auto_dodge_cd = if s.has(AUTO_DODGE_READY) { 0.0 } else { 1.0 };
         self.tier = s.tiers[0] & 0x0F;

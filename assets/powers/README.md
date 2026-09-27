@@ -53,3 +53,21 @@ clashes.
 It reads the files at runtime (content edits never need a bd_sim rebuild to check), parses them with
 bd_sim's `PowerTable`, runs the lexicon's own scan, reports cross-file name / shout collisions against
 the whole directory, and with `--coverage` prints what each phrase (one per line) resolves to.
+
+## Budget (TOOLBOX CORE, measured 2026-09-27 with the trimmed `zz_derived_kits.ron`)
+
+The table is compiled into bd_sim and parsed once at startup (on the lexicon loader thread, so
+nothing hitches); ids are `u16` on the wire.
+
+| what | limit | now (3,453 powers, 2.8 MB) |
+|---|---|---|
+| entries in the whole directory | `MAX_POWERS` = 4000 — over it is an ERROR (validator, `PowerTable::shipped`, a stderr note at runtime), never a silent truncation | 3,453 |
+| total RON size | keep ≤ 4 MB (the generated file ≤ 1 MB) | 2.8 MB (generated 0.8 MB) |
+| table parse | ≤ 200 ms fastrel | 125 ms fastrel (≈ 0.5 s debug) |
+| phrase index build | — | ≈ 30 ms debug |
+| lexicon load (lexicon.bin + icons + this dir) | ≤ 100 ms | ≈ 70 ms fastrel |
+| bd_sim rebuild after a data edit | — | ≈ 3.4 s `cargo check -p bd_sim` (the validator needs none) |
+| one phrase reading (kit / borrow index) | — | ≈ 3 µs; a console line incl. lexicon checks 2–7 ms (debug) |
+
+Raising `MAX_POWERS` is cheap (u16 space is 65,535); the real costs are the parse time and binary
+size above — grow the generated file only with that headroom in mind.

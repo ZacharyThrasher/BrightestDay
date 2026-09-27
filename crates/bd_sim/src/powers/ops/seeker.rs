@@ -22,7 +22,7 @@ use bd_core::mechanics::{Element, Mechanic};
 use bd_core::{ConstructId, MAX_PLAYERS, PlayerId, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
-use super::OpEvent;
+use super::{OpEvent, fclamp};
 use crate::combat::{ConstructHit, HitInfo, HitKind};
 use crate::constructs::{AnimState, SpawnParams};
 use crate::events::{GameEvent, GoneReason};
@@ -42,6 +42,23 @@ pub const LOOKAHEAD: f32 = 9.0;
 /// Caught when this close to the thrower's hand (m).
 pub const CATCH_DIST: f32 = 1.3;
 pub const MAX_HITS: u8 = 6;
+
+/// Players already struck, by id (indices shift when someone leaves). Fixed size, no heap.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Struck([Option<PlayerId>; MAX_PLAYERS]);
+
+impl Struck {
+    pub fn has(&self, id: PlayerId) -> bool {
+        self.0.contains(&Some(id))
+    }
+    pub fn add(&mut self, id: PlayerId) {
+        if !self.has(id) {
+            if let Some(slot) = self.0.iter_mut().find(|s| s.is_none()) {
+                *slot = Some(id);
+            }
+        }
+    }
+}
 
 /// A beat of a seeker's flight (presentation: the launch whistle, the strike, the catch).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -89,8 +106,8 @@ pub(crate) struct Seeker {
     t: f32,
     target: Option<PlayerId>,
     hits_left: u8,
-    /// Player indices already struck (bit k = player index k).
-    struck: u16,
+    /// Players already struck.
+    struck: Struck,
     returning: bool,
     /// Seconds spent making no headway against terrain.
     stuck: f32,
@@ -123,8 +140,14 @@ fn turn_toward(dir: Vec3, want: Vec3, max: f32) -> Vec3 {
 impl World {
     pub(crate) fn op_seeker(&mut self, i: usize, spec: SeekerSpec) -> Result<(), PowerError> {
         let owner = self.players[i].id;
-        if self.powers.ops.seekers[i].is_some_and(|s| s.owner == owner) {
-            return Err(PowerError::Busy);
+        match self.powers.ops.seekers[i] {
+            Some(s) if s.owner == owner => return Err(PowerError::Busy),
+            // A departed player's seeker in this slot: its spear goes with it.
+            Some(s) => {
+                self.end_seeker(&s);
+                self.powers.ops.seekers[i] = None;
+            }
+            None => {}
         }
         if self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 {
             return Err(PowerError::Busy);
@@ -186,12 +209,12 @@ impl World {
             t: 0.0,
             target,
             hits_left: spec.hits.clamp(1, MAX_HITS),
-            struck: 0,
+            struck: Struck::default(),
             returning: false,
             stuck: 0.0,
-            damage: spec.damage.clamp(0.0, 60.0),
-            knockback: spec.knockback.clamp(0.0, 70.0),
-            up: spec.up.clamp(0.0, 2.0),
+            damage: fclamp(spec.damage, 0.0, 60.0),
+            knockback: fclamp(spec.knockback, 0.0, 70.0),
+            up: fclamp(spec.up, 0.0, 2.0),
             element: spec.element,
             chain: fin(spec.chain, 18.0, 2.0, 40.0),
             reach: range,
@@ -372,16 +395,15 @@ impl World {
             if s.hits_left == 0 {
                 return;
             }
-            let bit = 1u16 << k;
             let q = &self.players[k];
-            if k == i || !q.alive || s.struck & bit != 0 {
+            if k == i || !q.alive || s.struck.has(q.id) {
                 continue;
             }
             let hull = geom::inflate(&q.hull(base), 0.45);
             let Some((f, _)) = geom::segment_aabb(p0, p1, &hull) else { continue };
             let point = p0 + (p1 - p0) * f;
             let tid = q.id;
-            s.struck |= bit;
+            s.struck.add(tid);
             let dir = s.dir + Vec3::Y * s.up;
             let hit = HitInfo::new(tid, Some(s.owner), HitKind::Thrown, s.damage, s.knockback, dir, point).with_element(s.element).with_construct(s.cid).with_impact(1.6);
             let landed = self.apply_hit(hit).applied;
@@ -411,7 +433,7 @@ impl World {
         let base = &self.cfg.move_params;
         let mut best: Option<(usize, f32)> = None;
         for (k, q) in self.players.iter().enumerate().take(MAX_PLAYERS) {
-            if k == i || !q.alive || q.shielded() || s.struck & (1u16 << k) != 0 {
+            if k == i || !q.alive || q.shielded() || s.struck.has(q.id) {
                 continue;
             }
             let d = (q.hull(base).center() - from).length();

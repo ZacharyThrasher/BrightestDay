@@ -527,6 +527,12 @@ fn every_headline_move_does_something() {
         "block",
         "parry",
         "reflect",
+        "disarm him",
+        "silence him",
+        "lock on",
+        "hex him",
+        "finish him",
+        "blast him",
     ];
     let mut dead = Vec::new();
     for s in phrases {

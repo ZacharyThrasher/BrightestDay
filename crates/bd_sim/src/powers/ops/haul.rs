@@ -18,6 +18,7 @@ use bd_core::mechanics::{Element, Form, Mechanic, ModelSource, Recipe};
 use bd_core::{ConstructId, MAX_PLAYERS, PlayerId, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
+use super::seeker::Struck;
 use super::{OpEvent, flat};
 use crate::combat::{CarveRequest, HitInfo, HitKind};
 use crate::constructs::{AnimState, Loco, SpawnParams};
@@ -56,7 +57,7 @@ pub(crate) struct Haul {
     t: f32,
     secs: f32,
     damage: f32,
-    struck: u16,
+    struck: Struck,
     last: Vec3,
 }
 
@@ -85,8 +86,16 @@ impl World {
             self.op_event(OpEvent::Haul { player: owner, phase: HaulPhase::Player, target: Some(tid), from, to: me, secs: 0.0 });
             return Ok(());
         }
-        if self.powers.ops.hauls[i].is_some_and(|h| h.owner == owner) {
-            return Err(PowerError::Busy);
+        match self.powers.ops.hauls[i] {
+            Some(h) if h.owner == owner => return Err(PowerError::Busy),
+            // A departed player's chunk in this slot: dropped where it is.
+            Some(h) => {
+                if let Some(c) = self.constructs.get_mut(h.cid) {
+                    c.driven = false;
+                }
+                self.powers.ops.hauls[i] = None;
+            }
+            None => {}
         }
         if self.constructs.len() >= crate::world::MAX_CONSTRUCTS - 8 {
             return Err(PowerError::Busy);
@@ -152,7 +161,7 @@ impl World {
             c.set_anim(AnimState::Move, tick);
         }
         self.inject_event(GameEvent::ConstructSpawned { id: cid, owner, recipe: Box::new(recipe), pos: from, rot: Quat::IDENTITY, forming: 0.0, cost: 0.0 });
-        self.powers.ops.hauls[i] = Some(Haul { owner, cid, from, to, t: 0.0, secs, damage, struck: 0, last: from });
+        self.powers.ops.hauls[i] = Some(Haul { owner, cid, from, to, t: 0.0, secs, damage, struck: Struck::default(), last: from });
         self.op_event(OpEvent::Haul { player: owner, phase: HaulPhase::Tear, target: None, from, to, secs });
         Ok(())
     }
@@ -187,14 +196,13 @@ impl World {
         let base = self.cfg.move_params.clone();
         let r = self.constructs.get(h.cid).map_or(1.0, |c| c.half.max_element());
         for k in 0..self.players.len().min(MAX_PLAYERS) {
-            let bit = 1u16 << k;
             let q = &self.players[k];
-            if k == i || !q.alive || h.struck & bit != 0 {
+            if k == i || !q.alive || h.struck.has(q.id) {
                 continue;
             }
             let hull = crate::geom::inflate(&q.hull(&base), r * 0.8);
             let Some((f, _)) = crate::geom::segment_aabb(h.last, pos, &hull) else { continue };
-            h.struck |= bit;
+            h.struck.add(q.id);
             let point = h.last + (pos - h.last) * f;
             let tid = q.id;
             let hit = HitInfo::new(tid, Some(h.owner), HitKind::Thrown, h.damage, 12.0 + h.damage * 0.6, dir + Vec3::Y * 0.3, point).with_element(Element::Earth).with_construct(h.cid).with_impact(1.5);

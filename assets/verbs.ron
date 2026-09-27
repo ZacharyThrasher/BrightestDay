@@ -75,6 +75,13 @@
         (id: "clone", kind: Clone, words: ["clone", "clones", "decoy", "decoys", "duplicate", "multiply", "double", "doppelganger", "afterimage", "after image", "split", "make a clone", "make clones", "illusion", "mirror image", "copies of myself", "copy myself", "clone army"], noun_words: ["double", "illusion", "afterimage", "after image", "split"]),
         (id: "heal", kind: Heal, words: ["heal", "regenerate", "regen", "recover", "patch up", "restore", "cure", "mend", "rejuvenate", "fix me", "heal up", "first aid", "recuperate", "rest"], noun_words: ["rest", "restore"]),
         (id: "harden", kind: Harden, words: ["harden", "armor up", "armour up", "toughen", "toughen up", "steel skin", "iron skin", "stone skin", "go berserk", "berserk", "rage", "enrage", "get angry", "bulk up", "hulk out", "power through", "invincible", "go invincible"], noun_words: ["rage"]),
+        // ------------------------------------------------------------------ CONTROL / FINISHERS
+        (id: "disarm", kind: Disarm, words: ["disarm", "knock the weapon out of his hand", "knock his weapon away", "unarm", "expelliarmus", "strip his weapon", "take his weapon", "steal his weapon", "yoink"]),
+        (id: "silence", kind: Silence, words: ["silence", "hack", "emp", "shut down", "shut him down", "jam", "lock out", "lockout", "seal", "seal his powers", "nullify", "cancel his powers", "mute", "suppress"], noun_words: ["hack", "emp", "jam", "seal"]),
+        (id: "lock_on", kind: LockOn, words: ["lock on", "lock onto", "lockon", "target", "mark targets", "acquire targets", "paint targets", "deadeye", "aimbot"], noun_words: ["target"]),
+        (id: "hex", kind: Hex, words: ["hex", "doom", "mark", "mark for death", "curse", "death mark", "jinx", "condemn", "sentence", "delayed strike", "time bomb"], noun_words: ["mark", "curse", "time bomb", "doom"]),
+        (id: "finisher", kind: Finisher, words: ["finish", "finisher", "finishing blow", "final blow", "coup de grace", "end him", "finish him off", "execute", "killing blow", "deathblow", "death blow"]),
+        (id: "blast", kind: Blast, words: ["blast", "zap beam", "eye beam", "eye beams", "optic blast", "laser", "lasers", "beam attack", "energy blast", "ki blast", "fire a blast", "shoot a beam", "ray"], noun_words: ["laser", "lasers", "ray"]),
         (id: "timestop", kind: TimeStop, words: ["stop time", "time stop", "freeze time", "pause time", "time freeze", "slow time", "slow down time", "slow down", "time slow", "slow motion", "slowmo", "slow mo", "bullet time", "stop the clock", "halt time"]),
     ],
     styles: [

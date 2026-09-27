@@ -170,6 +170,13 @@ pub enum VerbKind {
     Heal,
     Harden,
     TimeStop,
+    // control / finishers
+    Disarm,
+    Silence,
+    LockOn,
+    Hex,
+    Finisher,
+    Blast,
 }
 
 /// Extra behaviour a style lends (beyond its element and look).

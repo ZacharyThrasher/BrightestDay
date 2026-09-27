@@ -298,7 +298,7 @@ def profile(c: S.Char) -> Prof:
     name_text = " ".join([n for n in c.names if n not in titles] + [c.display.lower()])
     # names-list notes are descriptions ("[radiates kryptonite]"); an icon / costume "note" is its franchise
     note_text = (c.notes or "").lower() if c.origin == "names" else ""
-    if note_text and is_title(S.norm_words(note_text), FRANCHISE_TITLES):
+    if note_text and (is_title(S.norm_words(note_text), FRANCHISE_TITLES) or S.norm_words(note_text) in SHARED_NOTES):
         note_text = ""
     ntok, otok = set(tokens(name_text)), set(tokens(note_text))
 
@@ -1757,6 +1757,7 @@ def slug(s: str) -> str:
 
 
 FRANCHISE_TITLES: set[str] = set()
+SHARED_NOTES: set[str] = set()  # a names-list note several characters share is their franchise, not a description
 
 
 def franchise_titles(chars: list[S.Char]) -> set[str]:
@@ -1864,6 +1865,13 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules, rank: dict[str, 
     titles = franchise_titles(chars)
     FRANCHISE_TITLES.clear()
     FRANCHISE_TITLES.update(titles)
+    counts: dict[str, int] = {}
+    for c in chars:
+        if c.notes:
+            n = S.norm_words(c.notes)
+            counts[n] = counts.get(n, 0) + 1
+    SHARED_NOTES.clear()
+    SHARED_NOTES.update(n for n, k in counts.items() if k >= 2)
     spread = word_spread(chars)
     kept = []
     skipped_hand = []

@@ -377,4 +377,57 @@ mod tests {
         assert_eq!(&got[..], &steps[..bd_sim::powers::toolbox::MAX_CHAIN]);
         assert_eq!((a.origin, a.dir), (aim.origin, aim.dir));
     }
+
+    /// MODIFIERS & FUSION through the console path: twisted and fused lines become ONE
+    /// `ToolStep::Twist`; plain moves, constructs, chains and costume mixes keep their paths; voice
+    /// matches typing; the reading stays fast; the host's wire hygiene holds.
+    #[test]
+    fn twisted_and_fused_lines_become_twist_steps() {
+        let Some(lex) = lex() else { return };
+        let cmd = |s: &str, spoken: bool| command(&lex, None, true, s, spoken);
+        let twist_of = |s: &str, spoken: bool| match cmd(s, spoken).as_deref() {
+            Some([ToolStep::Twist(t)]) => Some((**t).clone()),
+            _ => None,
+        };
+        let _ = cmd("homing chidori", false); // warm the indices
+        let t0 = std::time::Instant::now();
+        let lines = [
+            "homing chidori",
+            "triple kamehameha",
+            "ice hollow purple",
+            "black flash but fire",
+            "reverse earthshatter",
+            "rapid fire hadouken",
+            "delayed pulse bomb",
+            "chain lightning rocket punch",
+            "mini spirit bomb",
+            "doomfist giant punch",
+        ];
+        for s in lines {
+            let t = twist_of(s, false).unwrap_or_else(|| panic!("{s:?} → {:?}", cmd(s, false)));
+            assert!(!t.a.mods.is_empty(), "{s:?}");
+            assert_eq!(twist_of(s, true), Some(t), "voice == typing: {s:?}");
+        }
+        let per = t0.elapsed().as_secs_f64() * 1000.0 / (2 * lines.len()) as f64;
+        eprintln!("twist line → command: {per:.3} ms per line");
+        assert!(per < 25.0, "{per} ms");
+        for s in ["rasengan + amaterasu", "fuse rasengan and chidori", "rasengan and chidori combined", "bamf with almighty push"] {
+            assert!(twist_of(s, false).is_some_and(|t| t.b.is_some()), "{s:?} → {:?}", cmd(s, false));
+        }
+        let ch = cmd("giant rasengan -> homing chidori -> ice hollow purple", false).expect("chain");
+        assert_eq!(ch.len(), 3);
+        assert!(matches!(ch[1], ToolStep::Twist(_)) && matches!(ch[2], ToolStep::Twist(_)));
+        assert_eq!(cmd("homing chidori, giant almighty push", false).map(|c| c.len()), Some(2), "weak separators split twists");
+        assert!(matches!(cmd("rasengan and chidori", false).as_deref(), Some([ToolStep::Move { .. }, ToolStep::Move { .. }])), "plain \"and\" is a chain");
+        assert!(matches!(cmd("almighty push", false).as_deref(), Some([ToolStep::Move { .. }])));
+        for s in ["a giant flaming hammer", "three flaming swords", "goku x luffy", "gojo but bald", "giant hammer"] {
+            assert!(!matches!(cmd(s, false).as_deref(), Some([ToolStep::Twist(_)])), "{s:?} must not twist: {:?}", cmd(s, false));
+        }
+        assert!(command(&lex, None, false, "homing chidori", false).is_none(), "powers off: nothing twists");
+        let mut t = twist_of("homing chidori", false).expect("twist");
+        t.a.mods.push(0);
+        t.shot = 3;
+        let clean = sanitize_steps(vec![ToolStep::Twist(Box::new(t))], |s| s);
+        assert!(matches!(&clean[0], ToolStep::Twist(t) if t.shot == 0 && !t.a.mods.contains(&0)));
+    }
 }

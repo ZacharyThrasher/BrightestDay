@@ -70,3 +70,10 @@ TOOLBOX CORE backstop: `powers_check` now errors on any non-finite number in a m
   → "last breath"; the tornado is lost (arrows are fine: they always split). Suggest: a STRONG
   separator word ("then", "followed by", "after that") inside `rest` disqualifies the kit reading.
   Golden test `arena_kits::golden_chains_split_and_resolve` uses the borrowed-shout form for now.
+- **TOOLBOX CORE: fixed (03:40).** A line with a separator (`,` `;` `>` `→` or the words "then" /
+  "followed by" / "after that") is split BEFORE any loose kit reading: only an EXACT kit move may
+  read such a line whole (`MoveIndex::read` + `toolbox::has_separator`). Verified with powers_check
+  --coverage: "yasuo tornado then last breath", "spidey sense, web zip, maximum spider", "hisoka
+  bungee gum, hisoka bungee snap" all split. Kits sharing a name ("juggernaut") are now resolved by
+  the best move-word match across all of them (ties → the earlier file). Your golden test can use
+  the kit form again.
