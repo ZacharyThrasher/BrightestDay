@@ -20,6 +20,11 @@ struct Construct {
     state: vec4<f32>,
     misc: vec4<f32>,
     origin: vec4<f32>,
+    // Costume tints (unused here; keeps the stride of bd_fx::gpu::ConstructGpu).
+    hair: vec4<f32>,
+    eyes: vec4<f32>,
+    skin: vec4<f32>,
+    style: vec4<f32>,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<storage, read> constructs: array<Construct>;

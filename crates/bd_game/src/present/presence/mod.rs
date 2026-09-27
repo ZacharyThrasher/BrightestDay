@@ -171,7 +171,7 @@ impl Plugin for PresencePlugin {
                     (dev::legendary, presence_events).chain().in_set(PresentSet::Events),
                     dev::strips,
                     // After the construct sync (entities exist, transforms placed this frame).
-                    (dev::hold, presence_beats, hold_streams, presence_pools).chain().after(PresentSet::Sync),
+                    (dev::hold, held_energy, presence_beats, hold_streams, presence_pools).chain().after(PresentSet::Sync),
                 ),
             )
             .add_systems(OnExit(AppState::InGame), clear);
@@ -907,6 +907,45 @@ fn smoothstep(a: f32, b: f32, x: f32) -> f32 {
 }
 
 // ------------------------------------------------------------------------------------ hold streams
+
+/// Hold-to-grow energy balls (rasengan in the palms, spirit bomb overhead, fireballs:
+/// `bd_sim::signature::orb::hold_view`, replicated state so clients see it too) feed the shared
+/// gather every frame while they grow. Hollow Purple keeps its bespoke windup.
+fn held_energy(
+    active: Option<Res<ActiveWorld>>,
+    views: Res<WorldViews>,
+    map: Res<ConstructEntities>,
+    tfs: Query<&GlobalTransform, With<ConstructVisual>>,
+    mut out: MessageWriter<gather::GatherFx>,
+) {
+    let Some(active) = active else { return };
+    if disabled() {
+        return;
+    }
+    for c in active.world.constructs.iter() {
+        let Some(h) = bd_sim::signature::orb::hold_view(c) else { continue };
+        if bd_sim::signature::orb::is_erasing_orb(&c.recipe) {
+            continue;
+        }
+        let at = match map.0.get(&c.id).and_then(|&e| tfs.get(e).ok()) {
+            Some(g) => g.translation(),
+            None => match views.construct(c.id) {
+                Some(v) if !v.attached() => v.pos,
+                _ => bv(c.center()),
+            },
+        };
+        out.write(gather::GatherFx {
+            at,
+            element: c.recipe.element,
+            owner: Some(c.owner),
+            key: c.id.0,
+            size: h.diameter,
+            // The stream is already alive at the base size and swells as it grows (overhead = big).
+            charge: (0.25 + 0.75 * h.growth).max(if h.overhead { 0.7 } else { 0.0 }),
+            color: None,
+        });
+    }
+}
 
 /// Continuous gathers ([`gather::GatherFx`]): the stream swells as the held object grows.
 #[allow(clippy::too_many_arguments)]

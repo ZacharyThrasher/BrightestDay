@@ -217,13 +217,18 @@ fn vault_is_predicted_exactly() {
 fn twirl_combo_hits_and_finisher_is_heavy() {
     let mut w = duel(2.6);
     let mut kinds = Vec::new();
-    for _ in 0..3 {
-        let ev = act(&mut w, A, 0.0, -0.05, buttons::PRIMARY, 1, 30);
+    let on = PlayerInput { pitch: -0.05, buttons: buttons::PRIMARY, ..Default::default() };
+    let off = PlayerInput { pitch: -0.05, ..Default::default() };
+    // Presses land in each swing's recovery (a press during a wind-up is not buffered).
+    for k in 0..260 {
+        let press = k == 0 || k == 45 || k == 90;
+        let ev = w.tick(&[(A, if press { on } else { off })]).to_vec();
         kinds.extend(hits_on(&ev, B).into_iter().map(|h| h.0));
-        // Keep B in reach.
-        place(&mut w, B, Vec3::new(0.0, GROUND, 30.0 - 2.6));
+        if !hits_on(&ev, B).is_empty() || k % 30 == 29 {
+            // Keep B in reach (and standing still) for the next swing.
+            place(&mut w, B, Vec3::new(0.0, GROUND, 30.0 - 2.6));
+        }
     }
-    kinds.extend(hits_on(&run(&mut w, 90), B).into_iter().map(|h| h.0));
     assert!(kinds.len() >= 2, "combo connects: {kinds:?}");
     assert!(kinds.contains(&HitKind::HeavyMelee), "windmill finisher: {kinds:?}");
 }

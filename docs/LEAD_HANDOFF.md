@@ -26,7 +26,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
   toon), PowerCue → audio (stingers, generic music overlay layer = Gear 5 drums), technique orb on clients,
   Gear 4 extra air jumps (generic modifier), Rinnegan near-camera shell + caster title letters too big.
 - Powers a8211d8337e51dbfe DONE (committed 1e4398a).
-- Lead: COPY CODE fix — bevy `system_clipboard` feature on bd_game (was in-process fallback buffer only;
+- Lead: COPY CODE fix DONE (verified OS round trip) — bevy `system_clipboard` feature on bd_game (was in-process fallback buffer only;
   copy/paste never reached the OS). Toast says "couldn't copy" on error. Verify + commit when green.
 - Signature PHASE 4 a67f94557763852e1 (resumed) — saturated/glowy palm beams (HDR core+body+halo, bloom,
   world light) + PHYSICAL beams (travelling head, steerable, carve tunnels, blocked by barriers) + BEAM
@@ -41,7 +41,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
   calls; SRD spells/monsters/items/class moves; non-SRD names private-use in notices), ~60 golden tests.
 - Wukong + CN folklore a7e87a75ac19851a6 — NEW Mechanic::Extends (contract v1.7): Ruyi staff twirl combos,
   25-40 m extend thrust, pillar slam, pole vault; plus folklore content pack (Nezha, Erlang, Iron Fan...).
-- Presence/gravitas a1f2fc9e831108f3e — generic Hollow-Purple grammar for EVERY construct: presence tier
+- Presence/gravitas a1f2fc9e831108f3e DONE (hums unheard; GatherFx needs signature worker wiring) — generic Hollow-Purple grammar for EVERY construct: presence tier
   (scale/cost/legendary/signature; contrast, not max), gather → manifest → element material → presence
   (light, hum, motion sigs) → clean exit; presence.ron; waits for signature worker's lock on signature_fx.rs.
 - Power HUD a27df484b4d496738 — what you HAVE + readiness, no words: ring gems (1P) / orbiting motes

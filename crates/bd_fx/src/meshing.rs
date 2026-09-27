@@ -17,6 +17,10 @@ use glam::IVec3;
 #[derive(Clone, Debug, Default)]
 pub struct VoxelColors {
     pub parts: Vec<HashMap<IVec3, [u8; 3]>>,
+    /// Body regions of painted voxels (`bd_shapes::costume::region`: 1 hair, 2 eyes, 3 skin),
+    /// index-aligned like `parts`. The construct shader recolours them from
+    /// `ConstructVisual::costume` at runtime (power forms) — no re-mesh.
+    pub regions: Vec<HashMap<IVec3, u8>>,
 }
 
 /// RGB565 of an sRGB colour.
@@ -57,13 +61,25 @@ fn unit(axis: usize) -> IVec3 {
 /// Convert one bd_shapes part mesh into render vertex arrays.
 ///
 /// `uv_b.x` packs (exact in f32, < 2^24): palette slot (2 bits) | strong edges (4) | weak point (1) |
-/// has-colour (1) | RGB565 colour (16).
+/// has-colour (1) | RGB565 colour (16). `uv_b.y` = AO shade (0.5..1) + 4 × body region (0..3).
 pub fn build_part_mesh(pm: &PartMesh, voxel_size: f32, offset: Vec3, weak: &[(Vec3, f32)]) -> Option<(Mesh, u64)> {
     build_part_mesh_colored(pm, voxel_size, offset, weak, None)
 }
 
 /// [`build_part_mesh`] with optional per-voxel colours (keys = the part's model voxel coordinates).
 pub fn build_part_mesh_colored(pm: &PartMesh, voxel_size: f32, offset: Vec3, weak: &[(Vec3, f32)], colors: Option<&HashMap<IVec3, [u8; 3]>>) -> Option<(Mesh, u64)> {
+    build_part_mesh_painted(pm, voxel_size, offset, weak, colors, None)
+}
+
+/// [`build_part_mesh_colored`] + per-voxel body regions (runtime recolour hooks, see [`VoxelColors`]).
+pub fn build_part_mesh_painted(
+    pm: &PartMesh,
+    voxel_size: f32,
+    offset: Vec3,
+    weak: &[(Vec3, f32)],
+    colors: Option<&HashMap<IVec3, [u8; 3]>>,
+    regions: Option<&HashMap<IVec3, u8>>,
+) -> Option<(Mesh, u64)> {
     if pm.is_empty() {
         return None;
     }
@@ -125,10 +141,11 @@ pub fn build_part_mesh_colored(pm: &PartMesh, voxel_size: f32, offset: Vec3, wea
         let is_weak = weak.iter().any(|(c, r)| c.distance_squared(cm) <= r * r);
         let color = colors.and_then(|m| m.get(v)).map_or(0, |c| (1 << 7) | (rgb565(*c) << 8));
         let packed = tint as u32 | (bits << 2) | ((is_weak as u32) << 6) | color;
+        let region = regions.and_then(|m| m.get(v)).map_or(0.0, |r| f32::from(r & 3) * 4.0);
         for k in 0..4 {
             let p = pm.positions[q * 4 + k];
             positions.push([p[0] - offset.x, p[1] - offset.y, p[2] - offset.z]);
-            uvb.push([packed as f32, pm.shade[q * 4 + k]]);
+            uvb.push([packed as f32, pm.shade[q * 4 + k].clamp(0.0, 3.9) + region]);
         }
     }
 
@@ -180,7 +197,8 @@ pub fn build_model_colored(model: &VoxelModel, colors: Option<&VoxelColors>) -> 
             .map(|w| (Vec3::new(w.center.x, w.center.y, w.center.z), w.radius))
             .collect();
         let pc = colors.and_then(|c| c.parts.get(pi)).filter(|m| !m.is_empty());
-        match build_part_mesh_colored(&pm, s, offset, &weak, pc) {
+        let pr = colors.and_then(|c| c.regions.get(pi)).filter(|m| !m.is_empty());
+        match build_part_mesh_painted(&pm, s, offset, &weak, pc, pr) {
             Some((mesh, content)) => {
                 seen.entry(content).or_insert(pi);
                 parts.push(Some(BuiltPart { mesh, offset, content }));
@@ -227,5 +245,25 @@ mod tests {
         assert!(packed(&plain).iter().all(|x| (*x >> 7) == 0));
         let (_, h1) = build_part_mesh_colored(&pm, 0.5, Vec3::ZERO, &[], Some(&colors)).unwrap();
         assert_ne!(h0, h1);
+    }
+
+    #[test]
+    fn body_regions_ride_the_shade_lane() {
+        let p = part(vec![(IVec3::new(0, 0, 0), Tint::Primary), (IVec3::new(1, 0, 0), Tint::Primary)]);
+        let pm = bd_shapes::mesh_part(&p);
+        let mut colors = HashMap::new();
+        colors.insert(IVec3::new(0, 0, 0), [250u8, 210, 40]);
+        let mut regions = HashMap::new();
+        regions.insert(IVec3::new(0, 0, 0), 1u8);
+        let (mesh, _) = build_part_mesh_painted(&pm, 0.5, Vec3::ZERO, &[], Some(&colors), Some(&regions)).unwrap();
+        let Some(VertexAttributeValues::Float32x2(v)) = mesh.attribute(Mesh::ATTRIBUTE_UV_1) else { panic!() };
+        // Decode like construct.wgsl: region = floor(y / 4), shade = y - 4 region.
+        let hair: Vec<_> = v.iter().filter(|p| (p[1] / 4.0).floor() as u32 == 1).collect();
+        assert_eq!(hair.len(), 5 * 4, "the tagged voxel's faces");
+        assert!(hair.iter().all(|p| (p[0] as u32 >> 7) & 1 == 1), "only painted voxels are tagged");
+        assert!(v.iter().all(|p| {
+            let s = p[1] - 4.0 * (p[1] / 4.0).floor();
+            (0.49..=1.01).contains(&s)
+        }));
     }
 }

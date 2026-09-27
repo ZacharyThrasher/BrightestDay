@@ -436,6 +436,9 @@ fn apply_fx(
                 f.live.push(Fusion { id, owner, a, b, t: 0.0, secs: secs.max(0.2), orbs, mats: hm });
                 cues.write(cue(Cue::UltCharge, a));
             }
+            // Other energy balls (rasengan, spirit bomb, fireball…) are drawn as themselves; their
+            // throw / burst read through their own model, the gather and the ordinary explosion.
+            SigFx::Launch { .. } | SigFx::Erase | SigFx::End if orb.is_none() => {}
             SigFx::Launch { radius, .. } => {
                 let (element, rim) = orb.as_ref().map_or((Element::Psychic, [1.0, 0.42, 1.0]), |o| (o.element, o.rim));
                 if let Some(o) = orb {

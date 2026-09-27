@@ -714,41 +714,7 @@ pub mod scenario {
         ((hit.point.y - near_y).abs() < 2.5).then_some(hit.point.y)
     }
 
-    /// Open, flat ground `dist` m out from `me` (a 28 m square within ±1.2 m of height).
-    fn find_spot(w: &bd_sim::World, me: Vec3, dist: f32) -> Option<(Vec3, Vec3)> {
-        for step in 0..32 {
-            let yaw = step as f32 * std::f32::consts::TAU / 32.0;
-            let d = bd_core::input::look_dir(yaw, 0.0);
-            let c = me + d * dist;
-            let Some(y0) = ground(w, c.x, c.z, me.y) else { continue };
-            let mut ok = true;
-            'grid: for i in -2..=2 {
-                for j in -2..=2 {
-                    let (x, z) = (c.x + i as f32 * 4.0, c.z + j as f32 * 4.0);
-                    match ground(w, x, z, y0) {
-                        Some(y) if (y - y0).abs() < 2.0 => {}
-                        _ => {
-                            ok = false;
-                            break 'grid;
-                        }
-                    }
-                }
-            }
-            // Your side of it too (the approach).
-            for k in 1..4 {
-                let p = me + d * (k as f32 * dist / 4.0);
-                if ground(w, p.x, p.z, me.y).is_none() {
-                    ok = false;
-                }
-            }
-            if ok {
-                return Some((Vec3::new(c.x, y0, c.z), d));
-            }
-        }
-        None
-    }
-
-/// A kaiju spot on flat, open ground (a 16 m square within 1.5 m, nothing overhead) and a spot for
+    /// A kaiju spot on flat, open ground (a 10 m square within 2 m, nothing overhead) and a spot for
     /// you on the ground `dist` m away that sees it. Near you first, then anywhere on the map.
     fn stage(w: &bd_sim::World, me: Vec3, dist: f32) -> Option<(Vec3, Vec3, Vec3)> {
         let top = |x: f32, z: f32| bd_core::voxel::raycast(&w.voxels, Vec3::new(x, 150.0, z), Vec3::NEG_Y, 170.0).map(|h| h.point.y);
@@ -768,15 +734,15 @@ pub mod scenario {
         for c in cands {
             let Some(y0) = top(c.x, c.z) else { continue };
             let spot = Vec3::new(c.x, y0, c.z);
-            let flat = (-2..=2).all(|i| (-2..=2).all(|j| top(c.x + i as f32 * 4.0, c.z + j as f32 * 4.0).is_some_and(|y| (y - y0).abs() < 1.5)));
-            if !flat || !clear_up(spot, 16.0) {
+            let flat = (-1..=1).all(|i| (-1..=1).all(|j| top(c.x + i as f32 * 5.0, c.z + j as f32 * 5.0).is_some_and(|y| (y - y0).abs() < 2.0)));
+            if !flat || !clear_up(spot, 10.0) {
                 continue;
             }
             for k in 0..12 {
                 let a = k as f32 / 12.0 * std::f32::consts::TAU;
                 let d = Vec3::new(a.cos(), 0.0, a.sin());
                 let at = spot - d * dist;
-                let Some(y) = top(at.x, at.z).filter(|y| (y - y0).abs() < 1.5) else { continue };
+                let Some(y) = top(at.x, at.z).filter(|y| (y - y0).abs() < 3.0) else { continue };
                 let from = Vec3::new(at.x, y + 0.05, at.z);
                 let eye = from + Vec3::Y * 1.6;
                 let to = spot + Vec3::Y * 5.0;

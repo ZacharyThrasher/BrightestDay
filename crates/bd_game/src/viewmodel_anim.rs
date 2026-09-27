@@ -247,6 +247,9 @@ pub struct VmTuning {
     /// Release kick (camera-space velocity) and the beam's hold time (s) at full charge.
     pub palm_kick: f32,
     pub palm_hold: f32,
+    /// A big energy ball held overhead: both hands up, palms to the sky.
+    pub palm_overhead_pos: [f32; 3],
+    pub palm_overhead_rot: [f32; 3],
 }
 
 impl Default for VmTuning {
@@ -385,6 +388,8 @@ impl Default for VmTuning {
             palm_thrust_rot: [-0.9, -0.35, -0.6],
             palm_kick: 1.2,
             palm_hold: 0.9,
+            palm_overhead_pos: [0.1, 0.15, 0.05],
+            palm_overhead_rot: [1.1, -0.3, -0.4],
         }
     }
 }
@@ -581,6 +586,8 @@ pub struct AnimInput {
     pub palms: bool,
     /// Its charge 0..1 while PRIMARY is held (0 = not charging).
     pub palm_charge: f32,
+    /// Holding a big energy ball overhead (both hands up).
+    pub overhead: bool,
     pub held: bool,
     pub held_weight: f32,
     /// Holding a two-handed gun: the left hand supports it (unless it's busy).
@@ -890,6 +897,7 @@ pub struct HandAnimator {
     support_w: Spring,
     palm_w: Spring,
     thrust_w: Spring,
+    overhead_w: Spring,
     /// Seconds of the palm-beam thrust left.
     thrust_t: f32,
     coiled: bool,
@@ -1000,6 +1008,11 @@ impl HandAnimator {
         self.hand_pos[RIGHT].kick(Vec3::new(-0.3, 0.1, -1.0) * k);
         self.imp_pos.kick(Vec3::new(0.0, 0.05, 0.35) * k);
         self.imp_rot.kick(Vec3::X * 0.9 * k);
+    }
+
+    /// The palm thrust is still playing (keeps the palm layer on after a ball has left the hands).
+    pub fn thrusting(&self) -> bool {
+        self.thrust_t > 0.0
     }
 
     /// Swing wind-up (held construct): the hand coils back before the swing.
@@ -1207,17 +1220,23 @@ impl HandAnimator {
         let pc = if inp.palm_charge.is_finite() { inp.palm_charge.clamp(0.0, 1.0) } else { 0.0 };
         self.palm_w.step(if inp.palms && pc > 0.0 && self.thrust_t <= 0.0 { 1.0 } else { 0.0 }, po, pz, dt);
         self.thrust_w.step(if inp.palms && self.thrust_t > 0.0 { 1.0 } else { 0.0 }, po * 1.8, 0.75, dt);
-        let (palm_w, thrust_w) = (clamp01(&self.palm_w), clamp01(&self.thrust_w));
+        // A big energy ball overhead (spirit bomb): both hands up, holding it aloft.
+        self.overhead_w.step(if inp.overhead && self.thrust_t <= 0.0 { 1.0 } else { 0.0 }, po, pz, dt);
+        let (palm_w, thrust_w, over_w) = (clamp01(&self.palm_w), clamp01(&self.thrust_w), clamp01(&self.overhead_w));
         let mirror = |v: Vec3| Vec3::new(-v.x, v.y, v.z);
         let mirror_r = |v: Vec3| Vec3::new(v.x, -v.y, -v.z);
-        for (pos, rot, w) in [(tu.palm_charge_pos, tu.palm_charge_rot, palm_w), (tu.palm_thrust_pos, tu.palm_thrust_rot, thrust_w)] {
+        for (pos, rot, w) in [
+            (tu.palm_charge_pos, tu.palm_charge_rot, palm_w),
+            (tu.palm_thrust_pos, tu.palm_thrust_rot, thrust_w),
+            (tu.palm_overhead_pos, tu.palm_overhead_rot, over_w),
+        ] {
             let (p, r) = (v3a(pos), v3a(rot));
             tgt_pos[LEFT] += p * w;
             tgt_rot[LEFT] += r * w;
             tgt_pos[RIGHT] += mirror(p) * w;
             tgt_rot[RIGHT] += mirror_r(r) * w;
         }
-        let pt = tu.palm_tremble * (0.3 + 0.7 * pc * pc) * palm_w.max(0.0) + tu.palm_tremble * 0.5 * thrust_w.max(0.0);
+        let pt = tu.palm_tremble * (0.3 + 0.7 * pc * pc) * palm_w.max(0.0) + tu.palm_tremble * 0.5 * thrust_w.max(0.0) + tu.palm_tremble * 1.5 * over_w.max(0.0);
         tremble[LEFT] += pt;
         tremble[RIGHT] += pt;
         // Launched / tumbling: a little flail.
@@ -1411,10 +1430,18 @@ pub(super) fn drive_hand_anim(
     // Held construct: weight and kind. Palm energy (`Form::Hands`) is nothing in the hand: its own
     // pose layer (charge from the replicated weapon byte, so a client sees it too).
     let palms = a.world.constructs.held_by(local).filter(|c| c.recipe.form == Form::Hands);
-    let palm_charge = palms.and_then(|c| views.construct(c.id)).map_or(0.0, |v| {
+    let mut palm_charge = palms.and_then(|c| views.construct(c.id)).map_or(0.0, |v| {
         let phase = bd_sim::weapons::WeaponPhase::from_u8(v.weapon & 7);
         if phase == bd_sim::weapons::WeaponPhase::Charging { ((v.weapon >> 3) as f32 / 31.0).max(0.02) } else { 0.0 }
     });
+    // An energy ball in our hands (rasengan between the palms, spirit bomb overhead: by size).
+    let ball = a.world.constructs.iter().filter(|c| c.owner == local).find_map(bd_sim::signature::orb::hold_view);
+    let mut ball_palms = false;
+    if let Some(h) = ball.filter(|h| !h.overhead) {
+        ball_palms = true;
+        palm_charge = palm_charge.max(0.3 + 0.7 * h.growth);
+    }
+    let overhead = ball.is_some_and(|h| h.overhead);
     if palm_charge > 0.0 {
         st.last_palm = palm_charge;
     }
@@ -1480,6 +1507,10 @@ pub(super) fn drive_hand_anim(
             GameEvent::ShotFired { owner, construct: Some(_), archetype: GunArchetype::HandBeam, .. } if *owner == local => {
                 anim.palm_release(tu, st.last_palm, motion);
                 st.last_palm = 0.0;
+            }
+            // Our energy ball leaves the hands: the same both-hands thrust.
+            GameEvent::SignatureFx { owner, fx: bd_sim::signature::SigFx::Launch { radius, .. }, .. } if *owner == local => {
+                anim.palm_release(tu, (radius / 2.0).clamp(0.3, 1.0), motion);
             }
             GameEvent::ShotFired { owner, construct: Some(_), archetype, .. } if *owner == local => {
                 let predicted = if a.role == SimRole::Client { 1.0 - tu.gun_predict } else { 1.0 };
@@ -1551,8 +1582,9 @@ pub(super) fn drive_hand_anim(
         charging,
         charge_held: me.charge.held.max(ascending * 4.0),
         charge_full: me.charge.full,
-        palms: palms.is_some(),
+        palms: palms.is_some() || ball_palms || st.anim.thrusting(),
         palm_charge,
+        overhead,
         held: held.is_some(),
         held_weight,
         two_handed: held.is_some_and(|c| two_handed(c.recipe.form)),

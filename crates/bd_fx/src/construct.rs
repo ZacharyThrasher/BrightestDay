@@ -88,6 +88,34 @@ pub struct ConstructVisual {
     pub colors: Option<Arc<VoxelColors>>,
     /// PRESENCE: the element surface layered over the hard light (heat shimmer, frost rim, arcs…).
     pub look: HardLightLook,
+    /// COSTUME TINTS: runtime recolour of the painted body regions (hair / eyes / skin) and the
+    /// toon look — power forms (golden hair, Sharingan eyes, Gear Fifth). No re-mesh: the regions
+    /// ride the mesh ([`VoxelColors::regions`]), the colours ride the per-construct params.
+    pub costume: CostumeTint,
+}
+
+/// Runtime costume recolour ([`ConstructVisual::costume`]): linear RGB + amount 0..1 per region.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CostumeTint {
+    pub hair: Option<([f32; 3], f32)>,
+    pub eyes: Option<([f32; 3], f32)>,
+    pub skin: Option<([f32; 3], f32)>,
+    /// 0..1: bright, flat, ink-lined cartoon look (Gear Fifth).
+    pub toon: f32,
+}
+
+impl CostumeTint {
+    pub fn is_none(&self) -> bool {
+        self.hair.is_none() && self.eyes.is_none() && self.skin.is_none() && self.toon <= 0.0
+    }
+    /// Packed into [`ConstructGpu`] `hair` / `eyes` / `skin` / `style`.
+    pub fn pack(&self) -> [[f32; 4]; 4] {
+        let lane = |x: Option<([f32; 3], f32)>| match x {
+            Some((c, k)) => [fin(c[0], 0.0).clamp(0.0, 8.0), fin(c[1], 0.0).clamp(0.0, 8.0), fin(c[2], 0.0).clamp(0.0, 8.0), fin(k, 0.0).clamp(0.0, 1.0)],
+            None => [0.0; 4],
+        };
+        [lane(self.hair), lane(self.eyes), lane(self.skin), [fin(self.toon, 0.0).clamp(0.0, 1.0), 0.0, 0.0, 0.0]]
+    }
 }
 
 /// PRESENCE: an element "material" layered over the hard-light surface by `construct.wgsl` (no
@@ -148,6 +176,7 @@ impl ConstructVisual {
             heat: 0.0,
             colors: None,
             look: HardLightLook::default(),
+            costume: CostumeTint::default(),
         }
     }
     pub fn with_key(mut self, key: ShapeKey) -> Self {
@@ -382,6 +411,10 @@ pub fn construct_gpu(pal: &Palette, integrity: f32, reveal: f32, flash: f32, dim
         state: [fin(integrity, 1.0).clamp(0.0, 1.0), fin(reveal, 1.0).clamp(0.0, 1.0), fin(flash, 0.0).clamp(0.0, 1.0), fin(dim, 0.0).clamp(0.0, 1.0)],
         misc: [voxel, (seed % 100_000) as f32, fin(opacity, 0.7).clamp(0.05, 1.0), if dissolving { 1.0 } else { 0.0 }],
         origin: [origin.x, origin.y, origin.z, inv_radius],
+        hair: [0.0; 4],
+        eyes: [0.0; 4],
+        skin: [0.0; 4],
+        style: [0.0; 4],
     }
 }
 
@@ -781,6 +814,9 @@ fn write_construct_params(
         let mut g = construct_gpu(&pal, v.integrity, reveal, flash, v.dim, v.model.voxel_size, v.seed, v.opacity, dissolving, origin, 1.0 / radius);
         g.primary[3] = fin(v.heat, 0.0).clamp(0.0, 1.0);
         (g.dark[3], g.core[3]) = v.look.pack();
+        if !v.costume.is_none() {
+            [g.hair, g.eyes, g.skin, g.style] = v.costume.pack();
+        }
         write_slot(&mut up, slot.0, g);
         write_anchor(&mut up, anchor.0, AnchorGpu::from_affine(&root, v.ring.unwrap_or(pos)));
     }

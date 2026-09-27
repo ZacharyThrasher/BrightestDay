@@ -184,7 +184,7 @@ impl Default for ExtendTuning {
             pillar_crater_step: 2.8,
             pillar_crater_power: 1.0,
             vault_reach: 7.5,
-            vault_speed: 21.0,
+            vault_speed: 26.0,
             vault_min_up: 0.5,
             vault_cd: 0.8,
             jab_range: 9.0,

@@ -117,7 +117,7 @@ pub fn terrain_construct_model(recipe: &Recipe, terrain: &TerrainModel) -> (Voxe
         model.bounds = b;
     }
     model.instances = bd_shapes::part_instances(&model.parts);
-    (model, VoxelColors { parts: parts_colors })
+    (model, VoxelColors { parts: parts_colors, ..Default::default() })
 }
 
 #[cfg(test)]

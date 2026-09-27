@@ -252,7 +252,7 @@ fn build_costume(choice: CostumeChoice, lex: Option<Arc<bd_lexicon::Lexicon>>) -
     AsyncComputeTaskPool::get().spawn(async move {
         let tweaks = CostumeTweaks { accent: choice.accent, head_scale: choice.head_scale, hide_accessories: choice.hide };
         let pm = crate::lobby::costume::painted_model(lex.as_deref(), &choice.phrase, choice.seed, tweaks);
-        (Arc::new(pm.model), Arc::new(bd_fx::VoxelColors { parts: pm.colors }))
+        (Arc::new(pm.model), Arc::new(bd_fx::VoxelColors { parts: pm.colors, regions: pm.regions }))
     })
 }
 

@@ -55,7 +55,7 @@ mod util;
 mod warmup;
 
 pub use assembly::ConstructAssembly;
-pub use construct::{AnimLayers, AutoForm, ConstructEnd, ConstructMeshCache, ConstructParts, ConstructVisual, HardLightLook, ModelKey, PartOverlay};
+pub use construct::{AnimLayers, AutoForm, ConstructEnd, ConstructMeshCache, ConstructParts, ConstructVisual, CostumeTint, HardLightLook, ModelKey, PartOverlay};
 pub use meshing::VoxelColors;
 pub use arcs::{ArcFx, ZapFx};
 pub use aura::{AuraBurstFx, ChargeAuraFx};

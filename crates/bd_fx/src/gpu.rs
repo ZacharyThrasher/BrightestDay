@@ -27,7 +27,7 @@ pub const IMM_CAP: usize = 8 * BATCH;
 pub const RING_CAP: usize = 64 * BATCH;
 pub const PARTICLE_CAP: usize = IMM_CAP + RING_CAP;
 
-/// Per-construct shader params (std430, 112 B).
+/// Per-construct shader params (std430, 176 B). Mirrored by `construct.wgsl` and `portal.wgsl`.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Pod, Zeroable, PartialEq)]
 pub struct ConstructGpu {
@@ -42,6 +42,13 @@ pub struct ConstructGpu {
     pub misc: [f32; 4],
     /// Forming origin (world) + 1/radius.
     pub origin: [f32; 4],
+    /// COSTUME TINTS (`ConstructVisual::costume`): hair / eyes / skin region colour (linear rgb) +
+    /// amount (0 = the painted colour).
+    pub hair: [f32; 4],
+    pub eyes: [f32; 4],
+    pub skin: [f32; 4],
+    /// Style: toon amount (0..1), unused ×3.
+    pub style: [f32; 4],
 }
 
 /// Anchor: world transform columns + the owning construct's ring position (stream source).

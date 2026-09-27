@@ -175,7 +175,7 @@ impl Plugin for ViewmodelPlugin {
             // Before `sync_constructs` reads `FirstPersonHeld` (same-frame grip).
             .add_systems(
                 Update,
-                (attach_viewmodel, rebuild_hands, vm_events, anim::drive_hand_anim, animate_viewmodel, draw_fractures, draw_percent)
+                (attach_viewmodel, rebuild_hands, hand_tints, vm_events, anim::drive_hand_anim, animate_viewmodel, draw_fractures, draw_percent)
                     .chain()
                     .in_set(UiSet::Draw)
                     .before(crate::present::PresentSet::Sync),
@@ -336,6 +336,31 @@ fn rebuild_hands(
                 }
             }
         }
+    }
+}
+
+/// COSTUME TINTS on the first-person hands (`present::powers::costume`): a form's skin tint and
+/// Gear Fifth's bright toon look. Written only when it changes; reverts to plain white.
+fn hand_tints(
+    fades: Option<Res<crate::present::powers::costume::CostumeFades>>,
+    active: Option<Res<ActiveWorld>>,
+    assets: Res<VmAssets>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+    mut last: Local<Option<([f32; 3], [f32; 3])>>,
+) {
+    let local = active.as_deref().and_then(|a| a.local);
+    let want = fades.as_deref().and_then(|f| crate::present::powers::costume::local_hand_tint(f, local));
+    if *last == want {
+        return;
+    }
+    *last = want;
+    let (mul, add) = want.unwrap_or(([1.0; 3], [0.0; 3]));
+    if let Some(mut m) = mats.get_mut(&assets.arm_mat) {
+        m.base_color = Color::linear_rgb(mul[0], mul[1], mul[2]);
+        m.emissive = LinearRgba::rgb(add[0], add[1], add[2]);
+    }
+    if let Some(mut m) = mats.get_mut(&assets.finger_mat) {
+        m.emissive = LinearRgba::rgb(add[0], add[1], add[2]);
     }
 }
 

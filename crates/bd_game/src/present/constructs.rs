@@ -260,7 +260,7 @@ fn build_task(src: ModelSrc, recipe: Recipe, shape: Option<ShapeSpec>, alt: Opti
         // Summoned character costume ("goku!"): its palette per voxel, re-derived from the recipe's
         // `costume:` id (bd_shapes::costume::summon), tinted toward the lantern colour by the shader.
         let colors = match (&rig, &shape) {
-            (None, Some(s)) => bd_shapes::costume::summon::summon_colors(&recipe, s, &model).map(|parts| Arc::new(bd_fx::VoxelColors { parts })),
+            (None, Some(s)) => bd_shapes::costume::summon::summon_colors(&recipe, s, &model).map(|parts| Arc::new(bd_fx::VoxelColors { parts, ..Default::default() })),
             _ => None,
         };
         let key = if colors.is_some() { None } else { key };

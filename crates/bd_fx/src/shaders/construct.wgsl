@@ -2,8 +2,10 @@
 //
 // Mesh (bd_fx meshing of bd_shapes::mesh_part): per voxel face, uv = face corner (0/1),
 // uv_b.x = palette slot | strong-edge bits << 2 | weak-point bit << 6 | has-colour << 7 |
-// RGB565 sRGB voxel colour << 8 (terrain lifted by a graft), uv_b.y = AO shade.
-// Per-construct state: `constructs[mesh tag]`.
+// RGB565 sRGB voxel colour << 8 (terrain lifted by a graft), uv_b.y = AO shade + 4 × body region
+// (0 none, 1 hair, 2 eyes, 3 skin: painted costumes). Per-construct state: `constructs[mesh tag]`.
+// Costume tints (power forms): the hair / eyes / skin regions take `hair` / `eyes` / `skin` (rgb,
+// amount); `style.x` = toon (bright, flat, ink-lined).
 //
 // Look: emissive corps colour, bright contour lines on geometric creases (strong edges), a faint
 // per-voxel grid, fresnel rim, scanline shimmer, premultiplied translucency (translucent variant).
@@ -31,6 +33,12 @@ struct Construct {
     misc: vec4<f32>,
     // forming origin xyz (world), 1/radius
     origin: vec4<f32>,
+    // costume tints: rgb + amount per body region
+    hair: vec4<f32>,
+    eyes: vec4<f32>,
+    skin: vec4<f32>,
+    // toon amount, unused x3
+    style: vec4<f32>,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<storage, read> constructs: array<Construct>;
@@ -54,6 +62,7 @@ struct VOut {
     // xyz: local position (cracks), w: reveal transition 0..1 (1 = settled)
     @location(6) local: vec4<f32>,
     @location(7) @interpolate(flat) vhash: f32,
+    @location(8) @interpolate(flat) region: u32,
 }
 
 @vertex
@@ -114,7 +123,9 @@ fn vertex(v: Vertex) -> VOut {
     out.world_normal = mesh_functions::mesh_normal_local_to_world(n, v.instance_index);
     out.uv = v.uv;
     out.packed = u32(v.uv_b.x + 0.5);
-    out.shade = v.uv_b.y;
+    let region = floor(max(v.uv_b.y, 0.0) * 0.25);
+    out.shade = v.uv_b.y - region * 4.0;
+    out.region = u32(region) & 3u;
     out.slot = slot;
     out.local = vec4<f32>(p, s);
     out.vhash = h;
@@ -145,6 +156,23 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
         let q = in.packed >> 8u;
         let srgb = vec3<f32>(f32((q >> 11u) & 31u) / 31.0, f32((q >> 5u) & 63u) / 63.0, f32(q & 31u) / 31.0);
         base = mix(pow(srgb, vec3<f32>(2.2)) * 1.15, c.primary.rgb, 0.28);
+    }
+    // Costume tints (power forms): recolour the tagged body regions; hair and eyes glow a little.
+    let region = in.region;
+    var tint_glow = vec3<f32>(0.0);
+    if region == 1u && c.hair.w > 0.0 {
+        base = mix(base, c.hair.rgb, c.hair.w);
+        tint_glow = c.hair.rgb * (0.55 * c.hair.w);
+    } else if region == 2u && c.eyes.w > 0.0 {
+        base = mix(base, c.eyes.rgb, c.eyes.w);
+        tint_glow = c.eyes.rgb * (2.6 * c.eyes.w);
+    } else if region == 3u && c.skin.w > 0.0 {
+        base = mix(base, c.skin.rgb, 0.8 * c.skin.w);
+    }
+    let toon = c.style.x;
+    if toon > 0.0 && region != 2u {
+        // Gear Fifth: everything goes bright and cartoon-white (skin a little).
+        base = mix(base, vec3<f32>(1.0), select(0.4, 0.15, region == 3u) * toon);
     }
     let t = globals.time;
 
@@ -200,6 +228,7 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let band = smoothstep(0.93, 1.0, fract(in.world_pos.y * 0.23 - t * 0.55 + c.misc.y * 0.013));
     e *= 1.0 + scan * 0.12;
     e += base * band * 0.9;
+    e += tint_glow;
     // Weak points pulse.
     if weak == 1u {
         e += core_col * (0.25 + 0.25 * sin(t * 6.0));
@@ -216,6 +245,13 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     if !is_core {
         e = mix(e, c.dark.rgb * 0.5, contour * day * 0.75);
     }
+    // Toon (Gear Fifth): flat two-tone cel body, a white rim highlight and black ink creases.
+    if toon > 0.0 && !is_core {
+        let cel = base * select(0.78, 1.08, ao > 0.8) * (1.0 + 0.25 * day) + tint_glow;
+        let rim = smoothstep(0.55, 0.85, fres) * 0.45;
+        let inked = mix(cel + vec3<f32>(rim), vec3<f32>(0.015, 0.012, 0.02), strong * 0.9);
+        e = mix(e, inked, toon);
+    }
 
     // Opacity: translucent body, solid lines and rims; much denser in daylight. The daylight floor
     // follows the requested opacity: a see-through request (< 0.7, e.g. a dome with a player inside)
@@ -226,6 +262,7 @@ fn fragment(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     alpha = max(alpha, max(strong, max(fres * 0.9, max(grid * 0.6, contour * day))));
     if is_core { alpha = max(alpha, 0.85); }
     if earthy { alpha = max(alpha, 0.88); }
+    alpha = mix(alpha, max(alpha, 0.96), toon);
 
     // PRESENCE element surface (present::presence): dark.a = element code + surge·0.99,
     // core.a = strength (already faded by distance / tier on the CPU). One uniform branch per
