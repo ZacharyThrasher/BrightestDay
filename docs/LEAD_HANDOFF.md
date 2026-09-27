@@ -1,5 +1,11 @@
 # Lead orchestrator handoff (keep updated)
 
+## >>> USAGE GUARD (07:15): weekly all-models 73% used, 5-hour 20%. Owner: "leave enough usage to get a build/zip out".
+ZIP: `git -C ../bd_dist checkout --detach <green sha>` + copy assets/lexicon.bin + assets/models/ggml-base.en-q5_1.bin into bd_dist,
+then `pwsh -File target/make_zip.ps1` (fastrel+voice → target/dist, smoke screenshot, stage, dist/BrightestDay-win64.zip; old zip → dist/old/).
+Safety zip started 07:15 from 66c98c6. If weekly usage passes ~90%: stop remaining workers (TaskStop), checkpoint green, rebuild zip.
+README maps list (dist/BrightestDay/README.md) needs The Lookout once it lands.
+
 ## >>> OVERNIGHT POLISH WAVE (2026-09-27 05:50) — owner asleep <<<
 Owner decisions: taunt YES, voice-cast tell YES, NO invisibility (not even shimmer), COMIC TEXT FULL (done 68a5c96).
 Owner asks: keep polishing/animation passes so as many powers as possible feel special; ANY transformer must
