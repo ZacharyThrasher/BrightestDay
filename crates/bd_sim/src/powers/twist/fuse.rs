@@ -148,6 +148,7 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
     let mut ops: Vec<MoveOp> = Vec::new();
     let mut after: Option<(f32, Vec<MoveOp>)> = None;
     let mut merged_orb = false;
+    let how: &'static str;
     let others = |d: &MoveDef, skip: Option<usize>| -> Vec<MoveOp> { d.ops.iter().enumerate().filter(|(k, _)| Some(*k) != skip).map(|(_, o)| o.clone()).collect() };
     if let (Some((ca, ra, sa)), Some((cb, rb, sb))) = (first_cast(&a.def), first_cast(&b.def)) {
         // 1. two projectiles → one orb, both behaviours, a Merge windup
@@ -169,6 +170,7 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
         ops.extend(others(&a.def, Some(ca)));
         ops.extend(others(&b.def, Some(cb)));
         merged_orb = true;
+        how = "one orb, both behaviours, a merge windup";
     } else if pa.only_moves() != pb.only_moves() && (pa.attacks() || pb.attacks()) {
         // 2. a movement + an attack: the attack arrives at the end of the movement
         let (m, x) = if pa.only_moves() { (&a.def, &b.def) } else { (&b.def, &a.def) };
@@ -177,25 +179,30 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
         if m.ops.iter().any(instant_move) {
             ops.extend(m.ops.iter().cloned());
             ops.extend(x.ops.iter().cloned());
+            how = "the attack arrives with you";
         } else if m.ops.iter().any(airborne_move) && (xp.blast || xp.melee) && !xp.projectile {
             ops.extend(m.ops.iter().filter(|o| !matches!(o, MoveOp::SlamOnLand { .. })).cloned());
             ops.push(MoveOp::SlamOnLand { radius: (radius * 1.1).clamp(2.5, 9.0), damage: dmg, knockback: kb, carve: 1.2 });
             // the rest of the attack (a status, a buff) rides along
             ops.extend(x.ops.iter().filter(|o| !matches!(o, MoveOp::Shove { .. } | MoveOp::Explode { .. } | MoveOp::Salvo { .. } | MoveOp::SlamOnLand { .. })).cloned());
+            how = "the attack lands as a slam where you come down";
         } else if let (Some(speed), true) = (m.ops.iter().find_map(dash_speed), xp.melee && !xp.projectile) {
             ops.push(MoveOp::Pounce { range: 28.0, speed: speed.clamp(12.0, 40.0), cone: 20.0, damage: dmg, knockback: kb, element: el, up, bounce: 3.0, secs: 0.8 });
             ops.extend(m.ops.iter().filter(|o| dash_speed(o).is_none()).cloned());
             ops.extend(x.ops.iter().filter(|o| !matches!(o, MoveOp::Shove { .. } | MoveOp::Finisher { .. } | MoveOp::Barrage { .. })).cloned());
+            how = "a homing lunge that strikes on contact";
         } else {
             ops.extend(m.ops.iter().cloned());
             let (secs, _) = chain::active_phase(m);
             after = Some((secs.clamp(0.1, 2.0), x.ops.clone()));
+            how = "the attack fires when the movement ends";
         }
     } else if pa.only_field() != pb.only_field() {
         // 3. a field + anything: the thing leaves the field where it lands
         let (fd, x) = if pa.only_field() { (&a.def, &b.def) } else { (&b.def, &a.def) };
         ops.extend(x.ops.iter().cloned());
         ops.extend(fd.ops.iter().cloned().map(place_at_aim));
+        how = "it leaves the field where it lands";
     } else if ((pa.projectile || pa.control) && !pa.melee && pb.melee) || ((pb.projectile || pb.control) && !pb.melee && pa.melee) {
         // 4. a projectile / an affliction + a strike: an imbued strike (the strike takes its
         //    element and behaviours; an affliction rides along onto whoever it hits)
@@ -251,11 +258,13 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
             ops.push(MoveOp::Explode { radius: 3.2, damage: (d * 0.45).max(6.0), knockback: kb.max(12.0), carve: 1.0, element: pel, at: At::Front, dist: 3.0 });
         }
         ops.extend(p.ops.iter().filter(|o| !matches!(o, MoveOp::Cast { .. })).cloned());
+        how = "an imbued strike";
     } else {
         // 5. both, a buff first
         let (first, second) = if pb.buff && !pb.attacks() && !pa.buff { (&b.def, &a.def) } else { (&a.def, &b.def) };
         ops.extend(first.ops.iter().cloned());
         ops.extend(second.ops.iter().cloned());
+        how = "both, in order";
     }
     ops.truncate(12);
 
@@ -297,5 +306,6 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
         merge: Some((ea, eb)),
         title,
         hands: a.hands.max(b.hands),
+        how,
     }
 }

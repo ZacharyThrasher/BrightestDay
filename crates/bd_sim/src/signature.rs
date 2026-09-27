@@ -274,7 +274,9 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
                 });
                 r.mechanics.push(Mechanic::Beam);
                 r.scale = form_spec(Form::Hands).default_scale * t.beam_caliber * t.beam_caliber;
-                r.count = 1;
+                // MODIFIERS & FUSION: "triple kamehameha" keeps its count — the palms fire a fan of
+                // up to three beams (palm::fire); anything else is one pair of hands.
+                r.count = r.count.clamp(1, palm::MAX_HANDS);
             }
         }
         SignatureKind::Summon => {

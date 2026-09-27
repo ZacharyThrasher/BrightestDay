@@ -5,9 +5,10 @@
 //! OUT along the flat aim for `dist` m at `speed` m/s, hugging the ground (it rides up and down
 //! slopes; a cliff taller than itself breaks it early). Every enemy it overtakes is struck once
 //! (`damage`, element status) and CARRIED: while inside the front they ride it at its speed, lifted
-//! a little — surfing a tidal wave, not a tap. `push` is how hard it batters constructs and bursts at
-//! the break. Jumping over the crest (feet above it)
-//! or dodging through it escapes. Loose enemy constructs it meets are battered along. At the end it
+//! a little — surfing a tidal wave, not a tap — for at most `MAX_CARRY` s, then the crest throws
+//! them clear. `push` is how hard it batters constructs and bursts at
+//! the break. Jumping over the crest (feet above it),
+//! dodging through it or hanging on a tether escapes. Loose enemy constructs it meets are battered along. At the end it
 //! breaks with a splash (a knockback-only burst of its element).
 //!
 //! The wall is a `driven` construct (constructs/mod.rs) — visible through ordinary snapshots, never

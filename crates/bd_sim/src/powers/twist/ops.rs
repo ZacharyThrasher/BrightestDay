@@ -218,6 +218,8 @@ pub struct Twisted {
     pub title: String,
     /// Palm beams: pairs of hands fired at once (the recipe's count).
     pub hands: u8,
+    /// A fusion: which rule made it ("an imbued strike"…); "" for a plain twist.
+    pub how: &'static str,
 }
 
 impl Twisted {
@@ -236,6 +238,7 @@ impl Twisted {
             merge: None,
             title: title_of(def),
             hands: 1,
+            how: "",
         }
     }
 

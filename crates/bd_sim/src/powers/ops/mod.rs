@@ -158,8 +158,8 @@ pub enum OpEvent {
     /// SHONEN CLASSICS ops (ops/live.rs): one beat of a Drill / MarkRecall / WarpTo / CopyLast / GazeStun /
     /// Phase / Banish / Rush / Contagion / Wave: `fx` names the beat, `from` / `to` / `secs` / `size` draw it.
     Toolbox { player: PlayerId, fx: live::ToolboxFx, from: Vec3, to: Vec3, secs: f32, size: f32 },
-    /// MODIFIERS & FUSION (powers/twist): a TWISTED / FUSED move fired (sent with its `Fired`, before
-    /// its ops' own events). `a` / `b` = the base moves (`b` = fused with; `None` for a famous cast),
+    /// MODIFIERS & FUSION (powers/twist): a TWISTED / FUSED move fired (sent right BEFORE its
+    /// `Fired`, after its ops' own events). `a` / `b` = the base moves (`b` = fused with; `None` for a famous cast),
     /// `mods` = modifier wire bytes in three groups of `twist::MAX_MODS` (A's, B's, the whole's; 0 =
     /// empty) — `twist::exec::interned(a, b, &mods)` rebuilds the twisted `MoveDef` for presentation.
     /// `title` ("GIANT HOMING RASENGAN", "RASENGAN + AMATERASU"), `element` after swaps, `size` ×,

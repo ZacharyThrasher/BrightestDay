@@ -15,7 +15,7 @@
         "sand":    (en: ["FSSH", "SHHF"], manga: ["ザー"], tint: Some((0.95, 0.82, 0.50))),
         // ---- mechanics / elements
         "explosion": (en: ["BOOM", "KA-BOOM", "BLAMM"], manga: ["ドカーン", "ボン"], tint: Some((1.00, 0.55, 0.15)), size: 1.35),
-        "electric":  (en: ["ZZAK", "BZZT"], manga: ["ビビッ", "ジジッ"], tint: Some((0.60, 0.85, 1.00))),
+        "electric":  (en: ["KRAK", "ZZAK", "KRAKOW"], manga: ["ビビッ", "ジジッ"], tint: Some((0.60, 0.85, 1.00))),
         "fire":      (en: ["FWOOM", "FWOSH"], manga: ["ボッ", "ゴー"], tint: Some((1.00, 0.45, 0.08))),
         "ice":       (en: ["KRSSH", "KRIK"], manga: ["ピキッ"], tint: Some((0.65, 0.92, 1.00))),
         "portal":    (en: ["VWOOP", "FWOMP"], manga: ["ブン"], tint: None),
@@ -33,6 +33,12 @@
         // ---- hits by weight
         "hit_light": (en: ["THWAP", "POW", "BAP"], manga: ["パン", "ポン"], tint: None, size: 0.85),
         "hit_heavy": (en: ["WHAM", "KRAKOOM", "SMASH"], manga: ["ドン", "ズドン"], tint: None, size: 1.25),
+        // by weapon style (assets/fx/text_budget.ron `hit_words`): blades ring, heavies thud, …
+        "thoom":     (en: ["THOOM", "KRUNCH", "THOOMP"], manga: ["ズドン", "ドゴッ"], tint: None, size: 1.25),
+        "thrust":    (en: ["SHUNK", "THUNK"], manga: ["ズッ", "ドス"], tint: None, size: 0.9),
+        "thwack":    (en: ["THWACK", "KONK"], manga: ["バシッ", "ガッ"], tint: None),
+        "whip_crack": (en: ["KRAK!", "SNAP"], manga: ["パシッ", "ピシッ"], tint: None, size: 0.9),
+        "hit_punch": (en: ["POW", "WHAM", "BAM"], manga: ["ドン", "バキ"], tint: None),
         "wall_splat": (en: ["SPLAT", "SPLUTCH"], manga: ["ドゴッ"], tint: None, size: 1.2),
         "clash":     (en: ["KRANG", "SHNNG", "KLANG"], manga: ["ガキン"], tint: Some((1.0, 1.0, 1.0))),
         "kaiju_stomp": (en: ["DOOM", "BOOOM"], manga: ["ズシン", "ドドド"], tint: None, size: 1.8),

@@ -50,6 +50,7 @@ pub mod outline; // player outlines: inverted-hull material + params buffer (Out
 pub mod palette;
 mod particles;
 mod shout;
+pub mod text_budget; // world-text budget & placement (comic words, move titles): assets/fx/text_budget.ron
 mod transformers;
 mod util;
 mod warmup;
@@ -63,6 +64,7 @@ pub use effects::{BurstFx, BurstKind, ClashFx, ShatterModelFx, SmokeFx, TrailFx}
 pub use extras::{ChainFx, ForceFieldFx, PortalFx, door_frame_spec};
 pub use guns::{BarrelSpin, BeamFx, CasingFx, ImpactFx, MuzzleFx, PortalSplit, ProjectileFx, ProjectileKind};
 pub use onomatopoeia::{OnoLanguage, OnoMode, OnoStyle, OnoWord, OnomatopoeiaSettings, OnomatopoeiaTable, SpawnOnomatopoeia};
+pub use text_budget::TextBudget;
 pub use shout::{SHOUT_MAX_CHARS, Shout, ShoutPhase, ShoutSettings, ShoutSfx, ShoutTable, layout_shout, sanitize_shout, shout_intensity, size_boost, typed_energy, voice_energy};
 pub use material::{ConstructMaterial, FxMaterials, ParticleMaterial, PortalMaterial};
 pub use particles::{Emit, FxParticles, PKind, PFlags};
@@ -151,6 +153,7 @@ impl Plugin for BdFxPlugin {
         aura::build(app);
         extras::build(app);
         guns::build(app);
+        text_budget::build(app);
         onomatopoeia::build(app);
         shout::build(app);
         transformers::build(app);

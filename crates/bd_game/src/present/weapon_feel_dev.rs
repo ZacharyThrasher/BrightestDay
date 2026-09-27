@@ -10,6 +10,10 @@
 //!   `<dir>/<slug>_<NN>_<tag>.png` (stitched by `tools/weapon_sheet.py`).
 //! * `BD_WEAPON_CAM=0`: leave the camera alone (first person); otherwise a fixed side view of the
 //!   swing (third person: pair with `--third-person`, `BD_HIDDEN_WINDOW=1`, `--quit-after`).
+//! * `BD_WEAPON_TAPS=<n>`: a flurry — `n` melee taps every `BD_WEAPON_TAP_GAP` s (default 0.3)
+//!   instead of the two-tap string (text-clutter sheets).
+//! * `BD_WEAPON_AT=0.2,0.6,1.2`: shots at these offsets (s) after the first swing / shot instead of
+//!   the class key poses.
 
 use crate::input::{InputOverride, LookAngles};
 use crate::sim_bridge::{ActiveWorld, GameEvents};
@@ -38,6 +42,17 @@ fn shots_dir() -> Option<&'static std::path::Path> {
         Some(std::path::PathBuf::from(d))
     })
     .as_deref()
+}
+
+fn env_f32s(k: &str) -> Vec<f32> {
+    std::env::var(k).ok().map(|s| s.split(',').filter_map(|x| x.trim().parse().ok()).collect()).unwrap_or_default()
+}
+
+/// `BD_WEAPON_TAPS` / `BD_WEAPON_TAP_GAP`: (taps, gap s); `None` = the default two-tap string.
+fn flurry() -> Option<(u32, f32)> {
+    let n: u32 = std::env::var("BD_WEAPON_TAPS").ok()?.parse().ok()?;
+    let gap = env_f32s("BD_WEAPON_TAP_GAP").first().copied().unwrap_or(0.3).max(0.05);
+    Some((n.max(1), gap))
 }
 
 fn pin_camera() -> bool {
@@ -138,6 +153,10 @@ fn dev_world(active: Option<ResMut<ActiveWorld>>, mut dev: ResMut<WeaponDev>, mu
         if win(0.0, 1.2) {
             ov.held = buttons::PRIMARY;
         }
+    } else if let Some((n, gap)) = flurry() {
+        if (0..n).any(|k| win(k as f32 * gap, k as f32 * gap + 0.02)) {
+            ov.held = buttons::PRIMARY;
+        }
     } else if win(0.0, 0.02) || win(0.55, 0.57) {
         ov.held = buttons::PRIMARY;
     }
@@ -154,6 +173,15 @@ fn dev_shots(mut events: MessageReader<GameEvents>, mut dev: ResMut<WeaponDev>, 
     for ev in events.read() {
         let Some(a) = active.as_deref() else { continue };
         match &ev.event {
+            GameEvent::HeldFx { fx: HeldFx::SwingStart, owner, .. } | GameEvent::ShotFired { owner, .. }
+                if Some(*owner) == local && !dev.first_swing && !dev.first_shot && !env_f32s("BD_WEAPON_AT").is_empty() =>
+            {
+                dev.first_swing = true;
+                dev.first_shot = true;
+                for (k, at) in env_f32s("BD_WEAPON_AT").into_iter().enumerate() {
+                    dev.shots.push((t + at, format!("{}t{}ms", k + 1, (at * 1000.0).round() as i32)));
+                }
+            }
             GameEvent::HeldFx { id, fx: HeldFx::SwingStart, owner, strength, .. } if Some(*owner) == local && !dev.first_swing => {
                 dev.first_swing = true;
                 let Some(c) = a.world.constructs.get(*id) else { continue };

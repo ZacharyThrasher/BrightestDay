@@ -22,7 +22,8 @@ WHAT A BORROW DOES
 - Held context: ops are world ops, so they just work. A move that needs a body (a stand's rush) should
   use a generic op that carries it (`Rush(stand: Some(recipe))`, …); otherwise the presentation draws a
   ghost of the power's `companion` for the beat (PRESENTATION_API.md). A borrowed TimeStop / landing
-  slam works for powerless players too (ticked by the toolbox step).
+  slam works for powerless players too: the grey world AND the speed-up (host + prediction:
+  `PowerSnap::time_speed`, protocol v43).
 - A Lockout (hack / silence) on you blocks borrowed moves too.
 
 PRICE (the presence-tier SPARKS model; don't hand-tune)

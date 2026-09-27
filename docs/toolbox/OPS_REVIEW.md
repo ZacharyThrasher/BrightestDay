@@ -22,9 +22,10 @@ The FFA golden hash is untouched (`record_trails` writes only `OpState::trails`)
    no clear-space / ground check — swapping an enemy with a flying construct over the void is an
    instant ring-out (`others: true` can do it to two enemies). Fix: require ground under / free
    space at the destination for players (else refuse, cost refunded).
-4. Surge (MYTHOLOGY & FOLKLORE) `surge.rs:252-261` (low): tumble refreshed every tick while riding
+4. ~~Surge (MYTHOLOGY & FOLKLORE) `surge.rs:252-261` (low): tumble refreshed every tick while riding
    the front, up to ~20 s; only a dodge escapes. Cap the carry per victim (≤ 1.5 s) or let a jump
-   / tether break it.
+   / tether break it.~~ fixed (carry ≤ `MAX_CARRY` 1.2 s per rider then thrown clear, tumble only on
+   the catch, a tether or a dodge escapes)
 
 ## HIGH — non-finite data (bare `f32::clamp` lets NaN through)
 Data numbers aren't sanitised upstream; `x.clamp(a, b)` returns NaN for NaN. Use the `fin()` /
@@ -35,20 +36,21 @@ haul, leap, mend, salvo, place_portal, relocate, self_resize, strain).
 - ~~hook.rs:60-64, 185 (NaN range → hook never ends, `op_busy` stuck true; NaN pull) — ARENA GAMES~~ fixed
 - drill.rs:165, 183 — SHONEN CLASSICS
 - also bare clamps: ~~grab.rs:257-262, counter.rs:35-44, lock_on.rs:44-51, zone.rs:47-50 (ARENA
-  GAMES)~~ fixed (every data clamp in the arena ops goes through `ops::fclamp`); wave.rs:38-45, rush.rs:44-46, gaze_stun.rs:113-115 (SHONEN CLASSICS); seeker.rs:192-194,
-  surge.rs:157 (MYTHOLOGY & FOLKLORE); pounce.rs:143 (ADVENTURE GAMES); tag.rs:90-92, erupt.rs:272
+  GAMES)~~ fixed (every data clamp in the arena ops goes through `ops::fclamp`); wave.rs:38-45, rush.rs:44-46, gaze_stun.rs:113-115 (SHONEN CLASSICS); ~~seeker.rs:192-194,
+  surge.rs:157 (MYTHOLOGY & FOLKLORE)~~ fixed (`fclamp`); pounce.rs:143 (ADVENTURE GAMES); tag.rs:90-92, erupt.rs:272
   (MODERN ANIME).
 TOOLBOX CORE backstop: `powers_check` now errors on any non-finite number in a move, and
 `cargo test -p bd_sim --test toolbox` checks the shipped table.
 
 ## MEDIUM — index safety (players leave → indices shift)
 - "already hit" bitmasks keyed by player index without an id check (wrong player skipped / hit
-  twice after a leave): wave.rs:101/108, seeker.rs:375/414, surge.rs:243, haul.rs:190,
+  twice after a leave): wave.rs:101/108, ~~seeker.rs:375/414, surge.rs:243, haul.rs:190~~ fixed (`seeker::Struck` id set),
   ~~ram.rs:210/223 (also hard-codes `k >= 8`, use `MAX_PLAYERS`)~~ fixed (id array), empower.rs:35/79/87 (per-victim
   `cds`). Copy lock_on.rs:93-97 (an `ids` array alongside).
 - ~~grab.rs:356 `break_grab`, lock_on.rs:65 `break_lock_on` take the slot without checking its owner.~~ fixed (ARENA GAMES)
-- seeker.rs:126, surge.rs:78, haul.rs:88: a slot holding a departed owner's entry is overwritten
-  without ending its driven construct (left behind in the world).
+- ~~seeker.rs:126, surge.rs:78, haul.rs:88: a slot holding a departed owner's entry is overwritten
+  without ending its driven construct (left behind in the world).~~ fixed (the old one is ended /
+  released first)
 - relocate.rs:77: `Forced::Player` becomes an anchor without an alive check.
 
 ## LOW

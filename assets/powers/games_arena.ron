@@ -302,7 +302,7 @@
         kind: Kit,
         names: ["lucio", "lúcio", "loosio", "lucio's", "lucious", "lucio overwatch", "lucio correia dos santos"],
         fx: "air",
-        shouts: [("sonic amplifier", 0), ("soundwave", 1), ("boop", 1), ("wall ride", 2), ("wallride", 2), ("sound barrier", 3), ("amp it up", 4),
+        shouts: [("sonic amplifier", 0), ("lucio soundwave", 1), ("boop", 1), ("wall ride", 2), ("wallride", 2), ("sound barrier", 3), ("amp it up", 4),
                  ("lucio speed", 5), ("lucio heal", 5), ("crossfade", 5), ("lucio beat", 3)],
         moves: [
             (name: "sonic amplifier", cooldown: 0.6, cost: 1.0, tags: [Primary], ops: [

@@ -93,9 +93,9 @@ traces between two points, its limbs / lines, its bursts and rings.
 |---|---|---|---|---|---|
 | **Blink** (+ BlinkCarry) | implosion where you were | burst + flash where you land, a trace between (bolt re-struck, smoke tube, streaks…), a ground ring | Smoke: a lingering puff at BOTH ends | trace fades | lunge |
 | **Impulse** (+ Ram, Pounce, Leap) | — | air tears open behind you (ring ⟂ the dash), backward burst; a ground ring on launches | streak ribbons at shoulders + feet, body motes, afterimages (style `afterimages`) | landing SKID: grit spray + a scar in the ground + skid sound | lunge (1P: speed lines rush past the lens + FOV punch) |
-| **Shove** (+ Surge) | fist flash | cone shockwave (3 rings sweeping out along the cone) | ground crack under the cone (two for big ones), debris flung | Rubber / Rigid / range ≥ 4 m: the limb / spectral fist flies to the end of the cone and snaps back | punch |
+| **Shove** (+ Surge) | fist flash | cone shockwave (3 rings sweeping out along the cone) + the cone's wireframe racing out | ground crack under the cone (two for big ones), debris flung | Rubber / Rigid: the LIMB stretches the whole range (Gum-Gum Pistol: shoulder → fist, wobble, band-snap + boing; rigid: telescoping banded pole, clacks, bell ring); other bodies at range ≥ 4 m: a spectral fist flies out and back | punch |
 | **SlamOnLand** | — | a falling whistle | a DREAD RING on the ground under you that tightens + spins faster as you fall, a dashed drop line, grit lifting | crater ring, dust wall, 6 radial cracks, flash, debris, shake nearby | arms up |
-| **Reel** (+ Hook, Haul) | stretch sound | the limb / line shoots to the anchor | anchor burst + thunk | when you arrive: band snap-back (exit sound) | grab |
+| **Reel** (+ Haul) | stretch sound | the limb / line shoots to the anchor | anchor burst + thunk | when you arrive: band snap-back (exit sound) | grab |
 | **Cast** | gather at the hand | flash + shing | Rubber / Rigid: the ARM stretches to the new construct and follows it (a returning pistol pulls the fist home) | band-snap / telescoping collapse | punch |
 | **Field / Room** (+ Zone) | attract: pulled in / repel: pushed out | ground ring racing to the edge, flash | the boundary rim shimmers; anyone crossing it flares where they cross (+ a membrane bloop) | fades | palms |
 | **Swap** | — | both ends flash at once, bursts + rings at both | an arc between them | fades | palms |
@@ -103,8 +103,6 @@ traces between two points, its limbs / lines, its bursts and rings.
 | **TimeStop** | implosion | two shockwave rings, flash, clock tick | a ripple off you twice a second, two clock hands sweeping round you | fades | palms |
 | **Carve** | — | trace along the line | ground crack along it, end burst | — | punch |
 | **Link / Weigh / Yank** (+ Grab, LockOn, Seeker, Afflict, Lockout) | — | a trace from the hand to the aim | burst at the end | — | grab |
-| **Op rays** (`OpEvent::Zap`: BounceBeam legs, Afflict, Disarm) | — | a THICK beam in the move's colour along every leg + a hot core | a flare + ring + spray at every bounce / hit | fades | — |
-| **DelayedHit** (`OpEvent::Marked`) | — | — | a sigil on the target for the whole countdown: counter-rotating rings tightening round their chest, pulsing + ticking faster in the last second | the burst ends it | — |
 | borrowed move of a power with a companion (a Stand) | the companion's ghost steps out behind you | — | — | fades ~0.6 s | — |
 | everything else | — | body pulse: ring rising off the feet, chest burst | — | — | clench |
 
@@ -119,6 +117,10 @@ shows speed lines rushing past the lens in the body's shape.
 Poses: first person via `MovePoses.local` (viewmodel: punch / palms / grab / lunge); third person
 via `MovePoses::body` in `present/players.rs` (Cast thrust, TetherFire reach, PowerUp palms, and the
 ANIMATION PASS `Dodge` dive for blinks / dashes; its `Land` squash plays on touchdown by itself).
+
+Generic-op event visuals (op rays, target markers — DelayedHit / Tag / LockOn —, hook tethers,
+telegraphs, strikes, state auras) belong to the OP VISUALS worker (`present/powers/op_visuals/`);
+this grammar presents the ops through their classic beat (aliases above) and never draws those.
 
 Other presentation guards landed with this pass: a ripple shell around a bystander (a 22 m snap)
 stays a faint shimmer instead of washing their screen (`juice.rs`), and your own blast is judged at

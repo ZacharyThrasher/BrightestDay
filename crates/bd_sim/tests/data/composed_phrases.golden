@@ -366,6 +366,30 @@ go small => shrink[Shrink]
 ~Shadow clone! => clone[Clone] style=shadow
 ~Grow! => grow[Grow]
 ~Shrink. => shrink[Shrink]
+disarm him => disarm[Disarm] target=Pronoun
+disarm ethan => disarm[Disarm] target=Player(PlayerId(1))
+silence him => silence[Silence] target=Pronoun
+hack ethan => silence[Silence] target=Player(PlayerId(1))
+emp everyone => silence[Silence] target=Everyone
+shut him down => silence[Silence] place=Down target=Pronoun
+lock on => lock_on[LockOn]
+lock onto everyone => lock_on[LockOn] target=Everyone
+hex him => hex[Hex] target=Pronoun
+mark him for death => hex[Hex] place=Toward target=Pronoun
+doom everyone => hex[Hex] target=Everyone
+curse him => hex[Hex] target=Pronoun
+finish him => finisher[Finisher] target=Pronoun
+finisher => finisher[Finisher]
+blast him => blast[Blast] target=Pronoun
+fire blast => blast[Blast] style=fire
+laser him => blast[Blast] target=Pronoun
+eye beams => blast[Blast]
+lightning blast twice => blast[Blast] style=lightning x2
+~Disarm him! => disarm[Disarm] target=Pronoun
+~Silence him. => silence[Silence] target=Pronoun
+~Lock on! => lock_on[LockOn]
+~Finish him! => finisher[Finisher] target=Pronoun
+~Blast him! => blast[Blast] target=Pronoun
 behind ethan shadow teleport => teleport[Teleport] style=shadow place=Behind target=Player(PlayerId(1))
 please teleport behind him => teleport[Teleport] place=Behind target=Pronoun
 just dash => dash[Dash]
@@ -388,6 +412,14 @@ teleprot behind him => teleport[Teleport] place=Behind target=Pronoun
 invisable => vanish[Vanish]
 uppercutt => uppercut[Uppercut]
 electricute him => shock[Shock] target=Pronoun
+cloak myself => vanish[Vanish] target=Me
+ice him => freeze[Freeze] target=Pronoun
+hook him => hook[Grab] target=Pronoun
+spike him => slam[Slam] target=Pronoun
+meteor onto him => slam[Slam] place=Onto target=Pronoun
+duck under him => dodge[Dodge] place=Below target=Pronoun
+rocket dash => NONE
+iron fist => punch[Punch] style=earth
 a dragon => NONE
 giant sword => NONE
 hammer => NONE

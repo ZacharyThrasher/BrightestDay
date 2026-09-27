@@ -6,6 +6,11 @@
 //! then **shatter into their voxels** through the normal shatter path (blending with the impact
 //! debris). Size/boldness/jitter scale with `impact`. Performance words (PERFECT, GOOD, SLOW,
 //! PARRY!, medals) are screen-anchored under the crosshair, small and brief.
+//!
+//! Every impact word goes through the world-text policy ([`crate::text_budget`],
+//! `assets/fx/text_budget.ron`): never in the camera's lap or over the crosshair, size clamped to a
+//! screen fraction, your own hits small / peripheral / brief, a priority-based cap on words near
+//! you, and rapid light hits thinned to every Nth word.
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -25,6 +30,7 @@ use crate::gpu::FxUpload;
 use crate::material::FxMaterials;
 use crate::palette::Palette;
 use crate::particles::{Emit, EmitSystems, FxParticles, PFlags, PKind};
+use crate::text_budget::{LightGate, TextBudget, View, pick_eviction, place_word, priority};
 use crate::util::{FxRng, fin, fin3};
 use crate::{FxSet, FxSettings};
 
@@ -62,23 +68,31 @@ pub struct SpawnOnomatopoeia {
     pub style: OnoStyle,
     /// Deterministic word/jitter choice (e.g. the sim event id).
     pub event_id: u64,
-    /// Events involving the local player get priority under the rate limit.
+    /// Events involving the local player get priority under the rate limit — and are drawn small,
+    /// peripheral and brief (text_budget `own_*`).
     pub local_player: bool,
+    /// Who caused it (e.g. attacker id + 1; 0 = anonymous): rapid light hits from one source are
+    /// thinned to every Nth word (text_budget `light_every`).
+    pub source: u64,
+    /// A crit / finisher / KO: top priority, never thinned, shown even in the reduced mode.
+    pub accent: bool,
 }
 
 impl SpawnOnomatopoeia {
     pub fn key(key: &'static str, pos: Vec3, impact: f32, color: [f32; 3]) -> Self {
-        SpawnOnomatopoeia { word: OnoWord::Key(Cow::Borrowed(key)), pos, dir: Vec3::ZERO, impact, color, style: OnoStyle::Impact, event_id: 0, local_player: false }
+        SpawnOnomatopoeia { word: OnoWord::Key(Cow::Borrowed(key)), pos, dir: Vec3::ZERO, impact, color, style: OnoStyle::Impact, event_id: 0, local_player: false, source: 0, accent: false }
     }
     pub fn performance(key: &'static str, color: [f32; 3]) -> Self {
-        SpawnOnomatopoeia { word: OnoWord::Key(Cow::Borrowed(key)), pos: Vec3::ZERO, dir: Vec3::ZERO, impact: 0.5, color, style: OnoStyle::Performance, event_id: 0, local_player: true }
+        SpawnOnomatopoeia { word: OnoWord::Key(Cow::Borrowed(key)), pos: Vec3::ZERO, dir: Vec3::ZERO, impact: 0.5, color, style: OnoStyle::Performance, event_id: 0, local_player: true, source: 0, accent: true }
     }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OnoMode {
+    /// No comic words and no move titles (`Shout::title`).
     Off,
-    /// Impact words only above `big_hit_threshold` (performance words always).
+    /// "Reduced": impact words only above `big_hit_threshold` or accented (performance words always),
+    /// fewer words near you (text_budget `max_near_reduced`).
     #[default]
     BigHitsOnly,
     FullComic,
@@ -197,17 +211,18 @@ struct OnoWordState {
     ext: Vec2,
     /// Smoothed de-overlap offset (world).
     stack: Vec3,
+    /// Budget priority (text_budget::priority).
+    pri: f32,
+    /// Sticky crosshair push side for own words (0 = not chosen yet).
+    side: i8,
 }
-
-/// Words within this distance of each other compete; at most MAX_NEAR stay visible.
-const NEAR_RADIUS: f32 = 4.0;
-const MAX_NEAR: usize = 2;
 
 #[derive(Resource, Default)]
 struct OnoRuntime {
     tokens: f32,
     serial: u64,
     scratch: ShatterScratch,
+    light: LightGate,
 }
 
 pub fn build(app: &mut App) {
@@ -246,9 +261,17 @@ fn build_glyphs(mut glyphs: ResMut<GlyphCache>, mut cache: ResMut<ConstructMeshC
     }
 }
 
-fn camera(q: &Query<(&Camera, &GlobalTransform), With<Camera3d>>) -> Option<GlobalTransform> {
+type Cams<'w, 's> = Query<'w, 's, (&'static Camera, &'static GlobalTransform, &'static Projection), With<Camera3d>>;
+
+fn camera(q: &Cams) -> Option<(GlobalTransform, View)> {
     // Full-window cameras only (inset viewports, e.g. the summon preview, never own the words).
-    q.iter().filter(|(c, _)| c.is_active && c.viewport.is_none()).max_by_key(|(c, _)| c.order).map(|(_, g)| *g)
+    q.iter().filter(|(c, _, _)| c.is_active && c.viewport.is_none()).max_by_key(|(c, _, _)| c.order).map(|(_, g, p)| {
+        let (fov, aspect) = match p {
+            Projection::Perspective(p) => (fin(p.fov, 1.2), fin(p.aspect_ratio, 1.78)),
+            _ => (1.2, 1.78),
+        };
+        (*g, View::new(g, fov, aspect))
+    })
 }
 
 fn hue(h: f32) -> [f32; 3] {
@@ -270,17 +293,52 @@ fn spawn_words(
     mut alloc: ResMut<SlotAlloc>,
     mut rt: ResMut<OnoRuntime>,
     time: Res<Time>,
+    budget: Res<TextBudget>,
+    cams: Cams,
     mut live: Query<&mut OnoWordState>,
 ) {
     let dt = time.delta_secs();
+    let now = time.elapsed_secs();
+    let cam_pos = camera(&cams).map(|(g, _)| g.translation());
+    let b = &budget.budget;
     rt.tokens = (rt.tokens + settings.max_per_second.max(0.0) * dt).min(settings.max_per_second.max(1.0));
     for m in msgs.read() {
         if settings.mode == OnoMode::Off {
             continue;
         }
         let impact = fin(m.impact, 0.5).clamp(0.0, 3.0);
-        if m.style == OnoStyle::Impact && settings.mode == OnoMode::BigHitsOnly && impact < settings.big_hit_threshold {
+        let perf = m.style == OnoStyle::Performance;
+        if !perf && !m.accent && settings.mode == OnoMode::BigHitsOnly && impact < settings.big_hit_threshold {
             continue;
+        }
+        // Rapid light hits: every Nth word per source (crits / finishers always).
+        if !perf && !rt.light.admit(b, m.source, now, impact, m.accent) {
+            continue;
+        }
+        // The camera is inside the event (you are the blast / the victim up close): no word.
+        if !perf && cam_pos.is_some_and(|c| c.distance(fin3(m.pos)) < budget.placement.skip_cam_dist) {
+            continue;
+        }
+        let pri = priority(b, impact, m.local_player, m.accent);
+        // Global cap near the camera: replace the least important live word, or skip.
+        if !perf && let Some(c) = cam_pos {
+            let p = fin3(m.pos);
+            if p.distance(c) < b.near_cam_m {
+                let max = budget.max_near(settings.mode == OnoMode::BigHitsOnly);
+                let mut near: Vec<Mut<OnoWordState>> = live
+                    .iter_mut()
+                    .filter(|w| !w.shattered && w.style == OnoStyle::Impact && w.hold > w.age - w.pop && w.base.distance(c) < b.near_cam_m)
+                    .collect();
+                let ranks: Vec<(f32, f32)> = near.iter().map(|w| (w.pri, w.age)).collect();
+                match pick_eviction(&ranks, max, pri) {
+                    Ok(None) => {}
+                    Ok(Some(i)) => {
+                        let w = &mut near[i];
+                        w.hold = w.hold.min((w.age - w.pop).max(0.0));
+                    }
+                    Err(()) => continue,
+                }
+            }
         }
         // Rate limit (performance words and local-player events may borrow).
         let floor = if m.local_player || m.style == OnoStyle::Performance { -2.0 } else { 1.0 };
@@ -314,7 +372,6 @@ fn spawn_words(
                 None => continue,
             }
         }
-        let perf = m.style == OnoStyle::Performance;
         if perf {
             // One fixed near-crosshair slot: the new performance word replaces the old one.
             for mut w in live.iter_mut().filter(|w| !w.shattered && w.style == OnoStyle::Performance) {
@@ -322,10 +379,11 @@ fn spawn_words(
             }
         } else {
             let p = fin3(m.pos);
-            let mut near: Vec<Mut<OnoWordState>> = live.iter_mut().filter(|w| !w.shattered && w.style == OnoStyle::Impact && w.base.distance(p) < NEAR_RADIUS && w.hold > w.age - w.pop).collect();
-            if near.len() >= MAX_NEAR {
+            let mut near: Vec<Mut<OnoWordState>> = live.iter_mut().filter(|w| !w.shattered && w.style == OnoStyle::Impact && w.base.distance(p) < b.cluster_m && w.hold > w.age - w.pop).collect();
+            let max_cluster = b.max_cluster.max(1);
+            if near.len() >= max_cluster {
                 near.sort_by(|a, b| b.age.total_cmp(&a.age));
-                let drop = near.len() + 1 - MAX_NEAR;
+                let drop = near.len() + 1 - max_cluster;
                 for w in near.iter_mut().take(drop) {
                     w.hold = w.hold.min((w.age - w.pop).max(0.0));
                 }
@@ -394,7 +452,9 @@ fn spawn_words(
             letters,
             age: 0.0,
             pop: 0.08,
-            hold: settings.hold_scale.max(0.1) * if perf { 0.32 } else { 0.35 + 0.1 * impact.min(1.5) },
+            hold: settings.hold_scale.max(0.1)
+                * if perf { 0.32 } else { 0.35 + 0.1 * impact.min(1.5) }
+                * if m.local_player && !perf && !m.accent { budget.placement.own_hold.clamp(0.1, 1.0) } else { 1.0 },
             impact,
             style: m.style,
             dir: fin3(m.dir),
@@ -408,6 +468,8 @@ fn spawn_words(
             local: m.local_player,
             serial: rt.serial,
             shattered: false,
+            pri,
+            side: 0,
         });
     }
 }

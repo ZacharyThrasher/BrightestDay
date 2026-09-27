@@ -13,7 +13,11 @@ RULES
   summon whenever a kit matches. If the kit name matches but no move does ("doomfist hello"), the
   line falls through to the lexicon as before.
 - Possessives work: "reinhardt's charge", "reinhardts charge". Filler is skipped: "reinhardt use
-  his hammer". Longest kit name wins ("black widow" before "widow").
+  his hammer". Longest kit name wins ("black widow" before "widow"). Several kits sharing a name
+  ("juggernaut": Dota's and Marvel's) → the one whose move the words name best (exact > whole word >
+  slot tag > prefix / typo > shape guess); ties → the earlier file (hand files before `zz_`).
+- A line with a chain separator ("," "then" "->"…) only reads as ONE kit move if it's exact;
+  otherwise it is split first (CHAIN_DONE).
 - Match order for the words after the name:
     1. exact: a move `name`, or a kit shout (with or without the kit name in front);
     2. a WHOLE word of a move's name / shouts ("doomfist punch" → "rocket punch", even if some other

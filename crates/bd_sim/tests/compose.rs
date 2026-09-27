@@ -314,6 +314,7 @@ fn spec_sanitizing_and_keys() {
     let step = ToolStep::Composed(b);
     let cfg = bincode::config::standard();
     let bytes = bincode::serde::encode_to_vec(&step, cfg).unwrap();
+    eprintln!("ToolStep::Composed on the wire: {} bytes", bytes.len());
     assert!(bytes.len() <= 32, "{} bytes", bytes.len());
     let (back, _): (ToolStep, usize) = bincode::serde::decode_from_slice(&bytes, cfg).unwrap();
     assert_eq!(back, step);

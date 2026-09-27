@@ -315,9 +315,27 @@ pub(crate) fn fire(w: &mut World, h: &HitscanShot) -> bool {
     let spec = w.cfg.tuning.spec_for(&c.recipe, GunArchetype::HandBeam);
     let charge = if spec.damage > 1e-3 { ((h.damage / spec.damage - 0.35) / 0.65).clamp(0.0, 1.0) } else { 1.0 };
     let (k, element, owner) = (caliber_t(c.recipe.scale), c.recipe.element, c.owner);
-    start(w, owner, Some(cid), element, k, charge, h.damage, h.knockback, h.origin, h.dir, None);
+    // MODIFIERS & FUSION: a pair of hands with `count` > 1 ("triple kamehameha") fires a FAN of beams
+    // that then steer back onto the aim like any beam (each a little weaker).
+    let n = (c.recipe.count as usize).clamp(1, MAX_HANDS as usize);
+    let per = if n > 1 { HANDS_DAMAGE } else { 1.0 };
+    for j in 0..n {
+        let yaw = match j {
+            0 => 0.0,
+            1 => HANDS_FAN_DEG,
+            _ => -HANDS_FAN_DEG,
+        };
+        let dir = if yaw == 0.0 { h.dir } else { (bd_core::Quat::from_rotation_y(yaw.to_radians()) * h.dir).normalize_or(h.dir) };
+        start(w, owner, Some(cid), element, k, charge, h.damage * per, h.knockback * per, h.origin, dir, None);
+    }
     true
 }
+
+/// Most beams one pair of hands fires at once (a "triple kamehameha").
+pub const MAX_HANDS: u8 = 3;
+/// Fan between those beams (deg) and each one's share of the shot's damage / knockback.
+pub const HANDS_FAN_DEG: f32 = 9.0;
+pub const HANDS_DAMAGE: f32 = 0.7;
 
 #[allow(clippy::too_many_arguments)]
 fn start(

@@ -495,14 +495,24 @@ fn aim_point(active: &ActiveWorld, eye: Vec3, look: Vec3, range: f32) -> (Vec3, 
 
 /// Read the sim's events: side info for this frame's beats, and every held power's move.
 fn intake(mut events: MessageReader<GameEvents>, mut side: ResMut<Side>, mut fired: MessageWriter<MoveFxFired>) {
+    // MODIFIERS & FUSION: a twisted / fused move's `Twisted` comes right before its `Fired`; the
+    // beat then plays the TWISTED move (bigger radii, swapped style / colour, "GIANT …" title).
+    let mut twisted: Option<(bd_core::PlayerId, &'static bd_sim::powers::MoveDef)> = None;
     for ev in events.read() {
         match &ev.event {
             GameEvent::Power(pe) => match pe {
+                PowerEvent::Op(bd_sim::powers::ops::OpEvent::Twisted { player, a: Some(a), b, mods, .. }) => {
+                    twisted = bd_sim::powers::twist::exec::interned(*a, *b, mods).map(|m| (*player, m));
+                }
                 // ANY move (held, borrowed, kit): the TOOLBOX event carries the move id, where the
                 // mover was / is and the aim. (Held moves also send the old `Move`: not read here.)
                 PowerEvent::Fired { player, mv, how, from, to, dir, step, .. } => {
                     let table = PowerTable::get();
                     if let Some((def, m)) = mv.resolve(table) {
+                        let m = match twisted.take() {
+                            Some((p, t)) if p == *player => t,
+                            _ => m,
+                        };
                         fired.write(MoveFxFired {
                             player: *player,
                             mv: m,
@@ -718,7 +728,7 @@ fn start(
                     let r = range.clamp(0.5, 20.0);
                     let half = (angle.clamp(5.0, 170.0) * 0.5).to_radians();
                     b.a = hand;
-                    b.b = hand + dir * r.min(9.0);
+                    b.b = hand + dir * r.min(25.0);
                     b.r = r;
                     b.dur = tb.beats.limb_out + tb.beats.limb_hold + tb.beats.limb_back;
                     b.dur *= s;
@@ -1153,7 +1163,9 @@ fn step(
                 // The limb / spectral fist flies to the end of the cone and snaps back.
                 let from = root(v);
                 let (_, look_dir) = eye_look(v);
-                let far = from + look_dir * b.r.min(9.0);
+                // A stretch body reaches the whole range (Gum-Gum Pistol, the staff's thrust).
+                let reach = if matches!(look.body, Body::Rubber | Body::Rigid) { b.r.min(25.0) } else { b.r.min(9.0) };
+                let far = from + look_dir * reach;
                 let (o, h) = (bt.limb_out * look.speed, bt.limb_hold * look.speed);
                 let tip = if b.t < o {
                     from.lerp(far, ease_out(b.t / o))

@@ -210,6 +210,7 @@ impl World {
             let keep = tw.clone();
             tw = Twisted {
                 after: keep.after,
+                how: keep.how,
                 merge: keep.merge.or(whole.merge),
                 tier: keep.tier.saturating_add(whole.tier),
                 sparks: keep.sparks.saturating_add(whole.sparks),
@@ -300,12 +301,6 @@ impl World {
             let to = self.players[i].mv.pos;
             let fired_step = self.players[i].power.toolbox.fired;
             let element = plan.tw.element.unwrap_or_else(|| super::ops::element_of(&plan.tw.def));
-            if let Some((mr, kit)) = plan.keys[0] {
-                let how = if kit { FireHow::Kit } else { FireHow::Borrowed };
-                let op = plan.tw.def.ops.iter().find(|o| !matches!(o, MoveOp::Transform | MoveOp::Tier(_))).map_or(OpKind::Other, chain::op_kind);
-                let sparks = ((cost + surcharge) / self.cfg.rules.segment_size()).round() as u8;
-                self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: mr, how, op, element, from, to, dir: look, step: fired_step, sparks }));
-            }
             let mut mods = [0u8; 3 * super::MAX_MODS];
             let empty: Vec<u8> = Vec::new();
             let groups = [&step.a.mods, step.b.as_ref().map_or(&empty, |b| &b.mods), &step.mods];
@@ -332,6 +327,13 @@ impl World {
                 shots: plan.tw.shots.len().min(255) as u8,
                 merge: plan.tw.merge.map(|(a, b)| [a, b]),
             });
+            // `Fired` right AFTER `Twisted`: presentation reads the twist, then plays the beat
+            if let Some((mr, kit)) = plan.keys[0] {
+                let how = if kit { FireHow::Kit } else { FireHow::Borrowed };
+                let op = plan.tw.def.ops.iter().find(|o| !matches!(o, MoveOp::Transform | MoveOp::Tier(_))).map_or(OpKind::Other, chain::op_kind);
+                let sparks = ((cost + surcharge) / self.cfg.rules.segment_size()).round() as u8;
+                self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: mr, how, op, element, from, to, dir: look, step: fired_step, sparks }));
+            }
         }
         // ---- the next stage (host-only follow-up at the front of the queue)
         let next = stage + 1;

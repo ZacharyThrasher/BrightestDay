@@ -692,3 +692,56 @@ fn nobody_twisting_leaves_the_world_untouched() {
     assert!(w.toolbox_view(A).is_none());
     let _ = gather(t(), &[]);
 }
+
+// ------------------------------------------------------------------------------ palm beams
+
+/// A pair of hands with count 3 (the lexicon's "triple kamehameha", or the twisted borrowed one)
+/// fires THREE beams at once, fanned, each a little weaker; a plain pair fires one.
+#[test]
+fn a_triple_kamehameha_fires_three_palm_beams() {
+    use bd_core::input::{buttons, PlayerInput};
+    use bd_core::mechanics::Form;
+    use bd_sim::signature::{SignatureCast, SignatureKind};
+    let fire = |count: u8| -> Vec<bd_sim::signature::palm::BeamView> {
+        let mut w = duel();
+        stand(&mut w, B, 0.0, -30.0);
+        w.player_mut(A).unwrap().willpower = 100.0;
+        let mut r = bd_sim::bots::recipe("Kamehameha", Form::Hands, &[Mechanic::Beam], Element::Light, 0.6);
+        r.count = count;
+        let p = w.player(A).unwrap();
+        let aim = bd_sim::Aim::new(p.mv.pos + Vec3::Y * 1.6, Vec3::NEG_Z);
+        w.cast_signature(A, r, None, aim, SignatureCast::new(SignatureKind::Beam, 1.0)).expect("hands");
+        run(&mut w, ticks(0.9));
+        w.player_mut(A).unwrap().willpower = 100.0;
+        let hold = PlayerInput { buttons: buttons::PRIMARY, pitch: -0.02, ..Default::default() };
+        let mut out = Vec::new();
+        for _ in 0..ticks(2.5) {
+            let evs = w.tick(&[(A, hold)]).to_vec();
+            let started: Vec<_> = evs.iter().filter_map(|e| if let GameEvent::PalmBeam(v) = e { Some(*v) } else { None }).collect();
+            if !started.is_empty() {
+                out = started;
+                break;
+            }
+        }
+        out
+    };
+    let one = fire(1);
+    assert_eq!(one.len(), 1, "{one:?}");
+    let three = fire(3);
+    assert_eq!(three.len(), 3, "three beams at once: {three:?}");
+    let yaws: Vec<f32> = three.iter().map(|b| b.dir.x.atan2(-b.dir.z).to_degrees()).collect();
+    assert!(yaws.iter().any(|y| *y > 4.0) && yaws.iter().any(|y| *y < -4.0), "fanned: {yaws:?}");
+}
+
+#[test]
+fn the_twisted_borrowed_kamehameha_keeps_its_three_hands() {
+    let mut w = duel();
+    w.player_mut(A).unwrap().willpower = 100.0;
+    w.toolbox(A, vec![ToolStep::Twist(Box::new(step_of("kamehameha", &["triple"])))], None).expect("triple kamehameha");
+    let evs = run(&mut w, 2);
+    let spawned = evs.iter().find_map(|e| match e {
+        GameEvent::ConstructSpawned { owner: A, recipe, .. } if recipe.form == bd_core::mechanics::Form::Hands => Some(recipe.count),
+        _ => None,
+    });
+    assert_eq!(spawned, Some(3), "{evs:?}");
+}

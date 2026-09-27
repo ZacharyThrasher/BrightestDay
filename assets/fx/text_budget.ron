@@ -1,0 +1,84 @@
+// World-text budget & placement policy (bd_fx::text_budget) — comic words (onomatopoeia) and move
+// titles / shouts. Owner rule: presentation stays dramatic, but nobody ever loses sight of the action
+// or their crosshair (fast competitive FFA). Compiled in; tune here.
+//
+// Screen sizes are fractions of the screen height (letters) / width (whole word). "tan" angles are
+// half-angles in degrees from the crosshair.
+(
+    placement: (
+        // Words are never closer to the camera than this (pushed out along their view ray: same
+        // spot on screen, farther away) — a melee hit's word no longer sits in your lap.
+        min_cam_dist: 3.2,
+        // An anchor this close to the camera (you are inside the event) is dropped outright.
+        skip_cam_dist: 0.9,
+        // The protected cone around the crosshair (half-angle, deg) + a margin. Other people's
+        // words are pushed up out of it (sideways when that would leave the screen); yours to the side.
+        crosshair_deg: 7.0,
+        margin_deg: 1.5,
+        // Letter height clamp (screen-height fraction): big hits stay big at range but never fill
+        // the screen up close.
+        max_letter_h: 0.075,
+        min_letter_h: 0.02,
+        // Whole word width cap (screen-width fraction).
+        max_word_w: 0.30,
+        // Your own hits / hits on you: smaller, off to the side, brief.
+        own_scale: 0.6,
+        own_hold: 0.6,
+        // Own words never sit closer to the crosshair than this (deg): peripheral.
+        own_min_deg: 11.0,
+    ),
+    budget: (
+        // Words anchored within `near_cam_m` of the camera compete for `max_near` slots (per comic
+        // mode). A new word replaces the lowest-priority live one if it is at least as important
+        // (newer wins ties) — else it is skipped.
+        near_cam_m: 18.0,
+        max_near_full: 3,
+        max_near_reduced: 2,
+        // Words within `cluster_m` of each other: at most `max_cluster` (the oldest go first).
+        cluster_m: 4.0,
+        max_cluster: 2,
+        // Rapid light hits: below `light_impact` a source gets a word only every `light_every`-th
+        // hit (the first one of a string always shows); the count resets after `light_reset` s
+        // without a light hit. Crits, finishers, KOs and performance words are never thinned.
+        light_impact: 0.8,
+        light_every: 3,
+        light_reset: 1.0,
+        // Priority = impact + `local_bonus` (you are involved) + `accent_bonus` (crit / finisher / KO).
+        local_bonus: 0.4,
+        accent_bonus: 2.0,
+    ),
+    titles: (
+        // A caster's move titles (a chain) stack in one short column instead of piling up: the
+        // newest takes the base line, older ones shrink and move up, at most `stack_max` alive.
+        stack_max: 2,
+        stack_shrink: 0.7,
+        // A pushed-up (older) title has at most this much hold left.
+        stack_hold: 0.35,
+        // Screen-height gap between stacked titles (fraction of the newer title's height).
+        stack_gap: 0.15,
+        // Other people's titles: shouts whose casters' heads are within this (m) are one caster.
+        same_caster_m: 1.6,
+        // Other people's titles are pushed up out of the crosshair cone too.
+        clear_crosshair: true,
+    ),
+    // Hit word by what hit you: first matching rule wins (an empty field matches anything).
+    // form: the held construct's form (sword, hammer, spear, whip, gauntlet, axe, staff…; "none" for
+    // bare/ring hits); class: weapons.ron class (light, medium, heavy, reach, flexible, shield,
+    // light_gun, heavy_gun); element: fire, electric, ice, water…; heavy: the sim's heavy flag.
+    hit_words: [
+        (element: "electric", key: "electric"),
+        (element: "fire", key: "fire"),
+        (element: "ice", key: "ice"),
+        (element: "water", key: "water"),
+        (class: "heavy", key: "thoom"),
+        (form: "hammer", key: "thoom"),
+        (form: "sword", key: "shing"),
+        (form: "axe", heavy: Some(false), key: "shing"),
+        (form: "spear", key: "thrust"),
+        (form: "staff", key: "thwack"),
+        (form: "whip", key: "whip_crack"),
+        (form: "gauntlet", key: "hit_punch"),
+        (heavy: Some(true), key: "hit_heavy"),
+        (key: "hit_light"),
+    ],
+)
