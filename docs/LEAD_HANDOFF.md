@@ -3,8 +3,9 @@
 ## >>> TRANSFORMERS V2 QUEUE (owner 13:50: "queue it all, get as much done now as you can") <<<
 Owner: transformers feel like "a bigger guy" → spam (hard to see, combos unintuitive). Approved Devastation-style plan for PvP:
 1 HERO SCALE (~3.5–5 m piloted by default; giant only when asked) + tighter camera + string magnetism on human targets;
-2 FLASH WINDOW (0.2–0.33 s at string ends/launchers; chime + gold/blue burst + crosshair pip) → vehicle attack that breaks
-  guard/armor, forces wall splat/launch, opens a branch (rush / launcher / drift back);   ← RUNNING af043d6719e0fb98e
+2 FLASH WINDOW → vehicle attack → branch: stages 1+2 DONE 980a4d3 (zip built from 980a4d3, + Training Field ec7c80a);
+  stage 3 (input buffer, early-Transform buffer, branch-window fix, dodge offset) RUNNING a sonnet worker (see V2_NOTES.md);
+  stages 4–5 after the Oct 2 reset (weekly 97%).
 3 INPUT BUFFER (~150 ms) + explicit dodge/flash cancels + dodge offset (string survives a dodge);
 4 TIERED ASYMMETRIC HITSTOP (light 3–6f, heavy 10–18f, VA 15–25f; attacker ~25% shorter) + metal crunch/bass drop, skid decals;
 5 PvP-SAFE FOCUS DODGE: slows only projectiles/constructs/bots near you; human attackers get longer punishable recovery;
