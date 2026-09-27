@@ -482,4 +482,8 @@ pub enum HeldFx {
     TailSweep = 58,
     /// A beast leaps from `pos` along `dir` onto its prey (`strength` = m/s).
     Pounce = 59,
+    // ---- TRANSFORMERS V2 (`constructs/brawl.rs`) ----
+    /// A cue window opened on the transformer at `pos`: `strength` > 0 = the FLASH window (s; Transform
+    /// now = the vehicle attack), < 0 = the BRANCH window after a vehicle attack connected (−s).
+    Flash = 60,
 }

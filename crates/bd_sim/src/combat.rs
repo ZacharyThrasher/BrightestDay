@@ -130,6 +130,11 @@ pub struct HitInfo {
     /// `damage`). Head-zone crits are detected by the world from `point`.
     #[serde(default)]
     pub crit: bool,
+    /// GUARD BREAK (transformer vehicle attacks, TRANSFORMERS V2): beats guard / counter / deflect
+    /// stances (it breaks them), super armor (legendary / heavy-weapon wind-ups) and a transformer's
+    /// guard order. Dodges (real intangibility) still work.
+    #[serde(default)]
+    pub guard_break: bool,
 }
 
 impl HitInfo {
@@ -147,7 +152,12 @@ impl HitInfo {
             point,
             closing_speed: None,
             crit: false,
+            guard_break: false,
         }
+    }
+    pub fn with_guard_break(mut self) -> Self {
+        self.guard_break = true;
+        self
     }
     pub fn with_crit(mut self) -> Self {
         self.crit = true;

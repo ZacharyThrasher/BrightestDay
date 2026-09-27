@@ -68,4 +68,4 @@ pub use combat::{HitInfo, HitKind, HitResult, ImpactFx};
 pub use events::GameEvent;
 pub use replicate::{DeltaDecoder, DeltaEncoder, SnapshotDelta, WorldSnapshot};
 pub use rules::{ConstructLimits, MatchPhase, MatchRules, ScaleLimit, WillpowerMode};
-pub use world::{Aim, ArenaSource, Player, SimConfig, TargetHint, World};
+pub use world::{Aim, ArenaSource, DummyState, Player, SimConfig, TargetHint, World};

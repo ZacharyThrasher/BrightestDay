@@ -71,6 +71,11 @@ impl World {
         if s.owner != me.id || hit.source == Some(hit.target) || self.powers.ops.unblockable {
             return Some(hit);
         }
+        // TRANSFORMERS V2: a vehicle attack is GUARD-BREAKING — the stance shatters, the hit lands.
+        if hit.guard_break {
+            self.powers.ops.stances[ti] = None;
+            return Some(hit);
+        }
         let center = me.hull(&self.cfg.move_params).center();
         let look = me.look();
         let attacker = hit.source.and_then(|a| self.pidx(a));

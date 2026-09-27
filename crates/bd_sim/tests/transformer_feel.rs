@@ -163,6 +163,7 @@ fn put_b_in_front(w: &mut World, id: ConstructId, gap: f32) {
     let front = c.center() + f * (c.half.x.max(c.half.z) + gap);
     place(w, B, Vec3::new(front.x, GROUND, front.z));
     w.player_mut(B).unwrap().damage_pct = 0.0;
+    w.player_mut(B).unwrap().spawn_shield = 0.0; // a launched B may have been KO'd and respawned
 }
 
 /// A pilot input looking the way the construct faces.
@@ -188,6 +189,12 @@ fn hits_on_b(ev: &[GameEvent]) -> Vec<f32> {
             _ => None,
         })
         .collect()
+}
+
+/// V2: the FLASH window is open (a string's ender / a launcher connected; tests/transformer_v2.rs
+/// covers opening it) — Transform now is the transform attack.
+fn flash(w: &mut World, id: ConstructId) {
+    w.constructs.get_mut(id).unwrap().brawl.flash = 0.3;
 }
 
 fn has_fx(ev: &[GameEvent], fx: HeldFx) -> bool {
@@ -244,6 +251,7 @@ fn a_dino_robot_stampedes_as_the_beast_carrying_its_victim_then_chops() {
     assert_eq!(hits_on_b(&ev).len(), 1);
     put_b_in_front(&mut w, id, 2.0);
     let b0 = w.player(B).unwrap().mv.pos;
+    flash(&mut w, id);
     assert!(w.toggle_transform(A));
     let mut ev = tick_a(&mut w, id, 0, 12);
     {
@@ -278,6 +286,7 @@ fn a_beast_pounces_in_beast_mode_and_as_its_transform_attack() {
     tick_a(&mut w, id, buttons::PRIMARY, 1);
     tick_a(&mut w, id, 0, 8);
     put_b_in_front(&mut w, id, 4.0);
+    flash(&mut w, id);
     assert!(w.toggle_transform(A));
     let ev = tick_a(&mut w, id, 0, 240);
     let c = w.constructs.get(id).unwrap();
@@ -296,6 +305,7 @@ fn a_colossus_quakes_without_splitting_and_stomps() {
     tick_a(&mut w, id, 0, 10);
     // B a few metres off to the side: the quake's ring still reaches.
     put_b_in_front(&mut w, id, 5.0);
+    flash(&mut w, id);
     assert!(w.toggle_transform(A));
     let ev = tick_a(&mut w, id, 0, 200);
     let c = w.constructs.get(id).unwrap();
@@ -316,6 +326,7 @@ fn a_train_carries_its_victim_on_the_plough() {
     tick_a(&mut w, id, 0, 10);
     put_b_in_front(&mut w, id, 3.0);
     let b0 = w.player(B).unwrap().mv.pos;
+    flash(&mut w, id);
     assert!(w.toggle_transform(A));
     let mut carried = false;
     for _ in 0..240 {
@@ -375,6 +386,7 @@ fn a_small_transformer_suit_fights_with_your_own_body() {
     ev.clear();
     ev.extend_from_slice(w.tick(&[(A, inp(buttons::PRIMARY))]));
     ev.extend_from_slice(w.tick(&[(A, inp(0))]));
+    flash(&mut w, id);
     assert!(w.toggle_transform(A));
     let mut burst = false;
     for _ in 0..150 {
@@ -439,8 +451,15 @@ fn voice_orders_work_from_the_cockpit_mid_fight() {
     let ev = tick_a(&mut w, id, 0, 10);
     assert!(ev.iter().any(|e| matches!(e, GameEvent::ShotFired { construct: Some(c), .. } if *c == id)), "the robot fires");
 
-    // "energon axe" (a held weapon, cast): the robot's heavy.
+    // "energon axe" (a held weapon, cast): the robot's heavy. (V2: the combo's vehicle attack
+    // launches — B may have been KO'd off this small arena: wait for the respawn.)
     tick_a(&mut w, id, 0, 60);
+    for _ in 0..2400 {
+        if w.player(B).unwrap().alive {
+            break;
+        }
+        tick_a(&mut w, id, 0, 1);
+    }
     put_b_in_front(&mut w, id, 1.0);
     let axe = recipe("Energon Axe", Form::Axe, &[Mechanic::Blade], Element::Electric, 1.2);
     assert_eq!(w.cast(A, axe, None, aim), Ok(id), "a weapon said from the cockpit is the robot's own");

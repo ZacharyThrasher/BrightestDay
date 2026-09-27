@@ -1091,3 +1091,85 @@ pub fn generate_flat_test(size_m: f32) -> (VoxelWorld, ArenaInfo) {
     };
     (w, info)
 }
+
+/// TRAINING FIELD (practice tool; `--map training`): a big flat open grass square with a subtle 5 m
+/// grid painted on the ground, a plain wall (wall-splat tests), a tall freestanding pillar (tether
+/// anchor tests), and a small ledge/ramp — deliberately plain and cheap to render. Every edge drops
+/// straight to the void a good distance from the middle, so launches / KOs are easy to set up and
+/// watch land. Bright, neutral sky (no mood lighting — this is a lab, not a set). Never offered in
+/// the online map-vote pool: it has no [`crate::maps`] `MapInfo` / no `NetMapKind` variant, it's only
+/// reachable through `--map training` and the practice map picker.
+pub fn generate_training_field(size_m: f32) -> (VoxelWorld, ArenaInfo) {
+    let sv = ((size_m / VS).ceil() as i32).max(64);
+    let mut g = Gen::new(VoxelWorld::centered(IVec3::new(sv, 64, sv)), 1);
+    let (lo, hi) = (g.w.voxel_min(), g.w.voxel_max());
+    let ground = 8.0;
+    let gy = vx(ground);
+    g.w.fill_box(IVec3::new(lo.x, 0, lo.z), IVec3::new(hi.x - 1, 0, hi.z - 1), mat::CORE);
+    g.w.fill_box(IVec3::new(lo.x, 1, lo.z), IVec3::new(hi.x - 1, gy - 4, hi.z - 1), mat::STONE);
+    g.w.fill_box(IVec3::new(lo.x, gy - 3, lo.z), IVec3::new(hi.x - 1, gy - 2, hi.z - 1), mat::DIRT);
+    // Grass top with a subtle 5 m white grid (sports-field style: DISTANCE_MARK lines, not a wall).
+    for x in lo.x..hi.x {
+        for z in lo.z..hi.z {
+            let wx = (x as f32 + 0.5) * VS;
+            let wz = (z as f32 + 0.5) * VS;
+            let line = wx.rem_euclid(5.0) < VS || wz.rem_euclid(5.0) < VS;
+            g.w.set(IVec3::new(x, gy - 1, z), if line { mat::PAINT_WHITE } else { mat::GRASS });
+        }
+    }
+    for x in [lo.x, 0, hi.x - 1] {
+        for z in [lo.z, 0, hi.z - 1] {
+            g.w.add_anchor_hint(IVec3::new(x, 0, z));
+        }
+    }
+    let bx = |g: &mut Gen, min: Vec3, max: Vec3, m: Material| {
+        g.w.fill_box((min / VS).floor().as_ivec3(), (max / VS).ceil().as_ivec3() - IVec3::ONE, m);
+    };
+    // Test wall (north): a plain 12 m x 4 m x 1 m slab square to the axes for clean wall-splat tests.
+    bx(&mut g, Vec3::new(-6.0, ground, 30.0), Vec3::new(6.0, ground + 4.0, 31.0), mat::CONCRETE);
+    // Tether-anchor pillar (east): a single freestanding tower, hinted at the base for bots/tests.
+    bx(&mut g, Vec3::new(28.0, ground, -1.5), Vec3::new(31.0, ground + 22.0, 1.5), mat::STONE);
+    for x in [28, 31] {
+        for z in [-2, 1] {
+            g.w.add_anchor_hint(IVec3::new(vx(x as f32), gy, vx(z as f32)));
+        }
+    }
+    // Small ledge + ramp (west): a 2 m platform with a 1-voxel-step ramp up to it.
+    bx(&mut g, Vec3::new(-34.0, ground, -6.0), Vec3::new(-26.0, ground + 2.0, 6.0), mat::STONE);
+    for i in 0..8 {
+        let x = -26.0 - i as f32;
+        bx(&mut g, Vec3::new(x - 1.0, ground, -6.0), Vec3::new(x, ground + 2.0 * ((i + 1) as f32 / 8.0), 6.0), mat::STONE);
+    }
+
+    let mut spawns = Vec::new();
+    for k in 0..8 {
+        let p = polar(45.0 * k as f32 + 22.5, 12.0);
+        if let Some(s) = g.spawn_near(p.x, p.y, ground + 40.0, &spawns) {
+            spawns.push(s);
+        }
+    }
+    let mut w = g.w;
+    w.prune_unanchored();
+    w.mark_all_dirty();
+    let wb = w.bounds();
+    let info = ArenaInfo {
+        spawns,
+        bounds: Aabb { min: Vec3::new(wb.min.x, -6.0, wb.min.z), max: Vec3::new(wb.max.x, wb.max.y + 40.0, wb.max.z) },
+        void_y: -6.0,
+        center: Vec3::new(0.0, ground, 0.0),
+        // Bright, neutral overhead sun; pale near-white sky. A lab, not a mood piece.
+        sun_dir: Vec3::new(0.28, 0.92, 0.28).normalize(),
+        sky_zenith: [0.55, 0.75, 0.98],
+        sky_horizon: [0.92, 0.95, 1.0],
+        fog_color: [0.90, 0.94, 1.0],
+        ambient: 0.55,
+        gravity: None,
+        surf_lines: Vec::new(),
+        water_sheets: Vec::new(),
+        water_walk: false,
+        interactables: Default::default(),
+        slipstream: None,
+        mechanics: Default::default(),
+    };
+    (w, info)
+}

@@ -158,6 +158,23 @@ fn press(b: u16) -> PlayerInput {
     PlayerInput { buttons: b, ..LOOK() }
 }
 
+/// V2: land the whole string (B put back in front before every hit) until its ender CONNECTS and
+/// opens the flash window — the moment Transform is the transform attack.
+fn string_to_flash(w: &mut World, id: ConstructId) -> Vec<GameEvent> {
+    let mut ev = Vec::new();
+    for _ in 0..8 {
+        let a = CombatTuning::default().transformer.archetype_of(&w.constructs.get(id).unwrap().recipe).clone();
+        ev.extend(tap(w, id, 0));
+        for _ in 0..(a.string_interval * 120.0) as u32 + 2 {
+            if w.constructs.get(id).unwrap().brawl.flash > 0.0 {
+                return ev;
+            }
+            ev.extend(tick_a(w, LOOK(), 1));
+        }
+    }
+    panic!("the string's ender never opened the flash window");
+}
+
 /// One LMB tap (press 1 tick, release), then `after` idle ticks. B is put back in front first.
 fn tap(w: &mut World, id: ConstructId, after: u32) -> Vec<GameEvent> {
     put_b_in_front(w, id, 1.0);
@@ -189,9 +206,9 @@ fn a_robot_string_lands_every_hit_and_ends_stronger() {
 #[test]
 fn a_transform_ram_mid_combo_hits_and_returns_to_robot() {
     let (mut w, id) = robot_duel(optimus(), 1.0);
-    let ev = tap(&mut w, id, 20);
-    assert_eq!(hits_on_b(&ev).len(), 1);
-    // Transform right after the string hit: the vehicle bursts through B.
+    let ev = string_to_flash(&mut w, id);
+    assert!(!hits_on_b(&ev).is_empty());
+    // Transform in the flash window (the string's ender connected): the vehicle bursts through B.
     put_b_in_front(&mut w, id, 4.0);
     let z0 = w.constructs.get(id).unwrap().pos.z;
     assert!(w.toggle_transform(A));
@@ -277,7 +294,7 @@ fn a_perfect_dodge_opens_a_staggering_counter() {
 fn transform_attack(r: Recipe) -> (World, ConstructId, Vec<GameEvent>, Vec3, f32) {
     let name = r.name.clone();
     let (mut w, id) = robot_duel(r, 1.0);
-    let mut ev = tap(&mut w, id, 10);
+    let mut ev = string_to_flash(&mut w, id);
     put_b_in_front(&mut w, id, 3.0);
     let (p0, y0) = (w.constructs.get(id).unwrap().pos, w.constructs.get(id).unwrap().pos.y);
     assert!(w.toggle_transform(A));

@@ -490,7 +490,9 @@ fn frame_fight(c: &bd_sim::constructs::Construct, eye: Vec3, look: &LookAngles, 
         let mid = p.pos + Vec3::Y * 0.9 * s;
         let d = mid - center;
         let dist_t = Vec3::new(d.x, 0.0, d.z).length();
-        if dist_t > 24.0 || Vec3::new(d.x, 0.0, d.z).normalize_or_zero().dot(flat_fwd) < 0.2 {
+        // TRANSFORMERS V2: someone right at your side / feet counts too (a hero-scale brawl is close).
+        let near = dist_t < 3.0 + c.half.x.max(c.half.z) * 2.0;
+        if dist_t > 24.0 || Vec3::new(d.x, 0.0, d.z).normalize_or_zero().dot(flat_fwd) < if near { -0.3 } else { 0.2 } {
             continue;
         }
         if target.is_none_or(|t| dist_t < t.0) {
@@ -581,7 +583,15 @@ fn update_mode(
             Some(c) => {
                 let h = c.half.y * 2.0;
                 let len = c.half.x.max(c.half.z) * 2.0;
-                let base = if h >= len * 0.9 { ((1.6 * h).clamp(6.0, 22.0), c.half.x + 1.2, -0.3 * h) } else { ((1.2 * len + 3.0).clamp(6.0, 24.0), 0.0, 0.6) };
+                // TRANSFORMERS V2 (hero scale, ≤ 5.5 m): a tighter shoulder boom — the robot on the
+                // left third, a 1.8 m opponent at its feet big enough to read.
+                let base = if h >= len * 0.9 && h <= 5.5 {
+                    ((1.3 * h + 1.0).clamp(5.0, 22.0), c.half.x + 1.0, -0.25 * h)
+                } else if h >= len * 0.9 {
+                    ((1.6 * h).clamp(6.0, 22.0), c.half.x + 1.2, -0.3 * h)
+                } else {
+                    ((1.2 * len + 3.0).clamp(6.0, 24.0), 0.0, 0.6)
+                };
                 // FRAMING (TRANSFORMERS FEEL): never hide the fight behind your own robot.
                 let eye = views.player(id_local(a)).map(|v| v.pos + Vec3::Y * 1.6 * v.size.max(0.2));
                 match eye {

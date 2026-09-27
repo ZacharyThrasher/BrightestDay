@@ -10,3 +10,6 @@ TRANSFORMERS FEEL (after the feel pass, 3x3 grids read left to right):
 - `feel_after_devastator.png`: colossus string, quake and smash.
 - `feel_after_smallcar.png`: a 2.4 m suit transformer, fought on your own body.
 - `feel_after_voice.png`: "optimus prime combo", then "ion blaster", then "transform", all said mid-fight.
+
+TRANSFORMERS V2 (COMBAT.md §5d-quinquies; notes + measurements: `V2_NOTES.md`):
+- `v2_before_after.png`: `--pilot-shot combo` from a fixed SIDE camera (`BD_SHOT_CAM=-27,44,-11,-90,-12`). The top rows are before (an 8.7 m Optimus, the 1.8 m dummy lost at its feet) and the bottom rows are after (hero scale 4.6 m: the string connects, the gold flash burst at the ender, the vehicle attack, the finisher). Same frame times.

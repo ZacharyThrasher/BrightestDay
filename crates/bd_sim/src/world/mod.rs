@@ -64,7 +64,7 @@ pub use actions::{Aim, FIRST_PERSON_AIM_SLACK, TargetHint, clamp_to_cone};
 pub use combat::{EMBER_COLLAPSE_LIMITS, SIM_COLLAPSE_LIMITS, apply_carve_op, collapse_limits_for};
 pub use invariants::{MAX_CONSTRUCTS, MAX_PROJECTILES};
 pub use net::PredictCtx;
-pub use player::{Player, Seat};
+pub use player::{DummyState, Player, Seat};
 
 /// Which terrain to build.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -1319,6 +1319,10 @@ impl World {
 
     /// Spawn point farthest from living enemies (ties → lowest index; nobody around → spread by id).
     pub fn pick_spawn(&self, for_player: PlayerId) -> Vec3 {
+        // TRAINING FIELD: a dummy always comes back to its own spot, not a normal spawn.
+        if let Some(d) = self.players.iter().find(|p| p.id == for_player).and_then(|p| p.dummy) {
+            return d.anchor;
+        }
         let spawns = &self.arena.spawns;
         if spawns.is_empty() {
             return self.arena.center + Vec3::Y * 2.0;

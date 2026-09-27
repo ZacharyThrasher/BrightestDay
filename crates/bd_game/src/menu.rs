@@ -78,6 +78,8 @@ enum Act {
     Lobby,
     /// UNSTICK: to the safest spawn (`crate::unstick`; the host queues it behind the cooldown).
     Unstick,
+    /// TRAINING FIELD: LAUNCH <-> STATIONARY (mirrors the F6 key; `crate::practice::DummyToggleRequest`).
+    ToggleDummy,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -580,6 +582,10 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             if c.net_role() != NetRole::Offline {
                 v.push(Button(Act::Lobby, "LOBBY"));
             }
+            // TRAINING FIELD: the dummy only exists offline, on the map its picker last chose.
+            if c.net_role() == NetRole::Offline && map_of(c.prefs) == MapKind::Training {
+                v.push(Button(Act::ToggleDummy, "TOGGLE DUMMY MODE"));
+            }
             v.extend([Button(Act::Customize, "CUSTOMIZE"), Button(Act::Settings, "SETTINGS"), Button(Act::Leave, "LEAVE MATCH")]);
             v
         }
@@ -690,6 +696,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             MapKind::GiantsRoom => "GIANT'S ROOM".into(),
             MapKind::Hyperline => "HYPERLINE".into(),
             MapKind::Lookout => "THE LOOKOUT".into(),
+            MapKind::Training => "TRAINING FIELD".into(),
             _ => "ARCHIPELAGO".into(),
         }),
         Knob::Preset => (lbl("PRESET"), preset_of(g).map_or("CUSTOM".into(), |p| p.name().to_uppercase())),
@@ -972,7 +979,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
             game = false;
         }
         Knob::Map => {
-            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair, MapKind::GiantsRoom, MapKind::Hyperline, MapKind::Lookout], map_of(c.prefs), dir);
+            let m = cycle(&[MapKind::Arena, MapKind::Miami, MapKind::Orbit, MapKind::Backrooms, MapKind::Sakura, MapKind::Ember, MapKind::Mirrorfold, MapKind::Casino, MapKind::Valley, MapKind::Cybertron, MapKind::Lair, MapKind::GiantsRoom, MapKind::Hyperline, MapKind::Lookout, MapKind::Training], map_of(c.prefs), dir);
             c.prefs.map = match m {
                 MapKind::Miami => "miami",
                 MapKind::Orbit => "orbit",
@@ -987,6 +994,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
                 MapKind::GiantsRoom => "giant",
                 MapKind::Hyperline => "train",
                 MapKind::Lookout => "lookout",
+                MapKind::Training => "training",
                 _ => "arena",
             }
             .into();
@@ -1372,6 +1380,7 @@ struct MenuIo<'w> {
     voice: Res<'w, crate::voice_ui::VoiceUi>,
     clipboard: Option<ResMut<'w, bevy::clipboard::Clipboard>>,
     unstick: MessageWriter<'w, crate::unstick::UnstickRequest>,
+    dummy_toggle: MessageWriter<'w, crate::practice::DummyToggleRequest>,
 }
 
 impl MenuIo<'_> {
@@ -1441,6 +1450,9 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
             io.unstick.write(crate::unstick::UnstickRequest);
             io.pause.0 = false;
             menu.rebuild = true;
+        }
+        Act::ToggleDummy => {
+            io.dummy_toggle.write(crate::practice::DummyToggleRequest);
         }
         Act::Leave => {
             io.pause.0 = false;

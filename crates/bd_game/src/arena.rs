@@ -108,6 +108,10 @@ pub enum MapKind {
     /// The Lookout: a white-tiled sky temple floating over a sea of clouds, Korin's tower below
     /// (bd_voxel `generate_lookout`, clouds `present::lookout`; private-use Dragon Ball fan map).
     Lookout,
+    /// Training Field: a big flat open grass square with a 5 m grid, a wall / pillar / ledge for
+    /// combat-feel testing, and a practice dummy (bd_voxel `generate_training_field`). A practice
+    /// tool, not an FFA map: no `NetMapKind` (never in the online map-vote pool).
+    Training,
 }
 
 impl MapKind {
@@ -128,6 +132,7 @@ impl MapKind {
             "giant" | "giants_room" | "bedroom" => Some(MapKind::GiantsRoom),
             "train" | "hyperline" => Some(MapKind::Hyperline),
             "lookout" | "the_lookout" | "kami" | "kamis_lookout" | "gods_temple" => Some(MapKind::Lookout),
+            "training" | "training_field" | "dummy" => Some(MapKind::Training),
             _ => None,
         }
     }
@@ -457,6 +462,24 @@ pub fn generate_map(kind: MapKind, seed: u64) -> (VoxelWorld, MapInfo, Option<Ar
                 sun_color: Some(m.sun_color),
                 fog_end: Some(m.fog_end),
                 neon_boost: m.neon_boost,
+            };
+            (world, map, Some(info))
+        }
+        MapKind::Training => {
+            let (world, info) = bd_voxel::generate_training_field(140.0);
+            let map = MapInfo {
+                kind,
+                spawns: info.spawns.iter().map(|s| v3(*s)).collect(),
+                spawn_yaw: None,
+                center: v3(info.center),
+                void_y: info.void_y,
+                tutorial: None,
+                arena: Some(info.clone()),
+                water_y: None,
+                water_color: None,
+                sun_color: None,
+                fog_end: None,
+                neon_boost: 0.0,
             };
             (world, map, Some(info))
         }

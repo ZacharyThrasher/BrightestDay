@@ -410,7 +410,8 @@ fn suit_transformer(c: &mut Construct, s: &mut HeldState, pilot: &PlayerView, en
             brawl::start_xattack(c, env, out, pilot.look);
         }
     } else {
-        brawl::step_xattack(c, env, out, again, pilot.grounded);
+        let bi = brawl::Input::of_pilot(&pilot.input, pilot.pressed, pilot.look, false);
+        brawl::step_xattack(c, env, out, again, pilot.grounded, &bi);
     }
     push_wearer(c, pilot, out);
     c.set_anim(if c.held.vehicle { AnimState::Move } else { AnimState::Active }, env.tick());
@@ -769,7 +770,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             s.transform_req = false;
             c.held = s;
             let grounded = c.grounded;
-            let flying = super::brawl::step_xattack(c, env, out, again, grounded);
+            let flying = super::brawl::step_xattack(c, env, out, again, grounded, &bi);
             if flying {
                 fly_integrate(c, env);
             } else {

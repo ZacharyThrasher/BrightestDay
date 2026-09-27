@@ -406,6 +406,8 @@ fn map_key(k: MapKind) -> &'static str {
         MapKind::GiantsRoom => "giant",
         MapKind::Hyperline => "hyperline",
         MapKind::Lookout => "lookout",
+        // TRAINING FIELD: a practice tool, not a themed map — plain arena music.
+        MapKind::Training => "archipelago",
     }
 }
 

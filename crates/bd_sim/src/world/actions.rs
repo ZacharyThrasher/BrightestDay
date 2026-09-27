@@ -576,6 +576,17 @@ impl World {
             crate::freedom::deliver::prepare(&mut recipe, n.via); // FREEDOM HOOK: "a car on Ethan" falls on him
         }
         let flavor = crate::freedom::spawn_prelude(self, i, &mut recipe, model.is_some());
+        // TRANSFORMERS V2: piloted = hero scale (after the shout bonus). A two-mode icon's robot can
+        // stand taller than its alt mode is long (Optimus: ~1.45x): cap the ROBOT's height.
+        let robot_ratio = match (shape.as_ref(), self.pending_alt_shape.as_ref()) {
+            (Some(alt), Some(robot)) => {
+                let (a, r) = (bd_shapes::spec_bounds(alt), bd_shapes::spec_bounds(robot));
+                let (len, h) = ((a.max - a.min).max_element(), r.max.y - r.min.y);
+                if len > 1e-3 && h > 1e-3 { (h / len).clamp(0.5, 3.0) } else { 1.0 }
+            }
+            _ => 1.0,
+        };
+        crate::constructs::brawl::hero_scale(&self.cfg.tuning.transformer, &mut recipe, robot_ratio);
         // CONSTRUCTS rules: a kind the lobby turned off steers to the nearest allowed kind (or fizzles).
         self.steer_by_limits(id, &mut recipe)?;
         // POWER-UPS HOOK: giants / meteors need a pickup (Locked → the small version; Loaded → spent below).

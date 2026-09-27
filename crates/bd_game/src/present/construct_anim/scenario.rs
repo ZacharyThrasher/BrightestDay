@@ -327,7 +327,7 @@ fn script(
             // The dummy stands in front until the finishing move starts.
             let busy = active.world.constructs.get(id).is_some_and(|c| c.brawl.xatk != bd_sim::constructs::brawl::XPhase::None || c.brawl.order != bd_sim::constructs::brawl::Order::None);
             let hold_until = match how {
-                Script::String => 3.65,
+                Script::String => 3.75,
                 Script::Beast => 5.3,
                 Script::Voice => 2.7,
             };
@@ -344,10 +344,12 @@ fn script(
             }
             let tap = |ks: &[f32]| ks.iter().any(|&k| t > k && t < k + 0.05);
             match how {
-                // Four taps of LMB (0.3 s apart), then Transform.
+                // Four taps of LMB in rhythm (0.33 s apart: a press during the recovery is dropped
+                // until stage 3's buffer), then Transform 0.12 s after the ender — inside the V2 flash
+                // window.
                 Script::String => {
-                    ov.held = if tap(&[2.6, 2.9, 3.2, 3.5]) { buttons::PRIMARY } else { 0 };
-                    if t > 3.65 && sc.step == 1 {
+                    ov.held = if tap(&[2.6, 2.93, 3.26, 3.59]) { buttons::PRIMARY } else { 0 };
+                    if t > 3.72 && sc.step == 1 {
                         sc.step = 3;
                         let ok = active.world.toggle_transform(me);
                         info!("piloting scenario: transform attack -> {ok}");

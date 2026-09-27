@@ -100,6 +100,21 @@ pub struct Player {
     /// TAUNT: the wordless taunt playing + tap / hold detector + rate limiter (`crate::taunt`,
     /// host-side, presentation only).
     pub taunt: crate::taunt::TauntState,
+    /// TRAINING FIELD: this player is a practice dummy (never has AI / bot input; a normal player
+    /// otherwise, so every hit/launch code path runs exactly as in a real fight). `None` on every
+    /// real player. See `World::apply_hit` (knockback suppression) and `World::pick_spawn` (respawns
+    /// at `anchor` instead of a normal spawn point).
+    pub dummy: Option<DummyState>,
+}
+
+/// TRAINING FIELD dummy config (COMBAT.md n/a — a dev/practice tool, not a rule).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DummyState {
+    /// Fixed spot it respawns to / is reset to (feet position).
+    pub anchor: Vec3,
+    /// STATIONARY: hits land (damage %, hitstun/flinch, impact fx) but knockback displacement is
+    /// suppressed — it stays put. `false` (LAUNCH): a normal player, gets knocked around and KO'd.
+    pub stationary: bool,
 }
 
 impl Player {
@@ -152,6 +167,7 @@ impl Player {
             juggle: Default::default(),
             unstick: Default::default(),
             taunt: Default::default(),
+            dummy: None,
         }
     }
 

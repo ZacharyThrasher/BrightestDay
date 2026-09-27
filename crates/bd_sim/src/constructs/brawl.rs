@@ -258,6 +258,9 @@ pub struct Archetype {
     pub heavy_radius: f32,
     /// Ram / stampede: the first victim is scooped onto the nose (≤ `CARRY_SECS`), then flung.
     pub xattack_carry: bool,
+    /// V2 HERO SCALE: this row is big by nature (a combiner, a colossus): a piloted one keeps its
+    /// size instead of standing at hero scale.
+    pub giant: bool,
 }
 
 impl Default for Archetype {
@@ -303,6 +306,7 @@ impl Default for Archetype {
             strike: StrikeKind::Punch,
             heavy_radius: 0.0,
             xattack_carry: false,
+            giant: false,
         }
     }
 }
@@ -346,6 +350,31 @@ pub struct TransformerTuning {
     /// AI followers: seconds between strings, and boost-step chance per second when close.
     pub ai_string_gap: f32,
     pub ai_dodge_rate: f32,
+    /// V2 FLASH WINDOW: a string's ender or a launcher that CONNECTS opens it (s). Transform inside
+    /// it cancels the melee recovery into the vehicle attack; anywhere else Transform just transforms.
+    pub flash_secs: f32,
+    /// V2 BRANCH: once a vehicle attack connects, this long to pick the follow-up (s): LMB = rush
+    /// (a second pass), RMB / held LMB = the air launch, Transform = drift back into robot melee.
+    pub branch_secs: f32,
+    /// V2: an LMB held this long inside the branch window reads as the heavy (the air launch; s).
+    pub branch_hold: f32,
+    /// V2: vehicle-attack hits launch: at least this much lift (dir.y) and this knockback (m/s).
+    pub vehicle_lift: f32,
+    pub vehicle_min_kb: f32,
+    /// V2: the connect that opens the branch pops them instead: × the row's knockback, and its lift.
+    pub vehicle_pop_kb: f32,
+    pub vehicle_pop_lift: f32,
+    /// V2 launch branch: the juggle launcher's knockback (× the row's heavy) and the robot's rise
+    /// after them (m/s) — matched so the air string connects.
+    pub juggle_kb: f32,
+    pub juggle_rise: f32,
+    /// V2 HERO SCALE: a PILOTED combat transformer's recipe scale (≈ its robot height, m) is capped
+    /// here so it fights 1.8 m players at readable range; recipes at or past `giant_min_scale` (said
+    /// big: "giant optimus", combiners) and `giant` rows keep their size. 0 = off.
+    pub hero_max_scale: f32,
+    pub giant_min_scale: f32,
+    /// AI followers: seconds into the flash window before they take it (a reaction, not a frame-1 read).
+    pub ai_flash_delay: f32,
     /// Ordered: the first rule that matches picks the archetype (unmatched → the first archetype).
     pub rules: Vec<ArchRule>,
     pub archetypes: Vec<Archetype>,
@@ -369,6 +398,18 @@ impl Default for TransformerTuning {
             launch_stun: 0.25,
             ai_string_gap: 0.9,
             ai_dodge_rate: 0.6,
+            flash_secs: 0.3,
+            branch_secs: 0.45,
+            branch_hold: 0.15,
+            vehicle_lift: 0.35,
+            vehicle_min_kb: 22.0,
+            vehicle_pop_kb: 0.35,
+            vehicle_pop_lift: 1.0,
+            juggle_kb: 0.45,
+            juggle_rise: 14.0,
+            hero_max_scale: 4.6,
+            giant_min_scale: 7.0,
+            ai_flash_delay: 0.08,
             rules: vec![
                 rule("helicopter", |r| r.features_any = vec![F::Rotor]),
                 rule("jet", |r| r.features_any = vec![F::Jet]),
@@ -806,6 +847,7 @@ impl Default for TransformerTuning {
                     a.drift_boost = 0.0;
                     a.vehicle_turn = 0.7;
                     a.fx = "tread_dust".into();
+                    a.giant = true;
                 }),
             ],
         }
@@ -871,6 +913,18 @@ impl TransformerTuning {
         self.launch_stun = fin(self.launch_stun, d.launch_stun, 0.0, 1.0);
         self.ai_string_gap = fin(self.ai_string_gap, d.ai_string_gap, 0.1, 10.0);
         self.ai_dodge_rate = fin(self.ai_dodge_rate, d.ai_dodge_rate, 0.0, 10.0);
+        self.flash_secs = fin(self.flash_secs, d.flash_secs, 0.05, 1.5);
+        self.branch_secs = fin(self.branch_secs, d.branch_secs, 0.05, 2.0);
+        self.branch_hold = fin(self.branch_hold, d.branch_hold, 0.02, 1.0);
+        self.vehicle_lift = fin(self.vehicle_lift, d.vehicle_lift, 0.0, 3.0);
+        self.vehicle_min_kb = fin(self.vehicle_min_kb, d.vehicle_min_kb, 0.0, 100.0);
+        self.vehicle_pop_kb = fin(self.vehicle_pop_kb, d.vehicle_pop_kb, 0.0, 2.0);
+        self.vehicle_pop_lift = fin(self.vehicle_pop_lift, d.vehicle_pop_lift, 0.0, 3.0);
+        self.juggle_kb = fin(self.juggle_kb, d.juggle_kb, 0.0, 3.0);
+        self.juggle_rise = fin(self.juggle_rise, d.juggle_rise, 0.0, 40.0);
+        self.hero_max_scale = fin(self.hero_max_scale, d.hero_max_scale, 0.0, 30.0);
+        self.giant_min_scale = fin(self.giant_min_scale, d.giant_min_scale, 0.0, 100.0);
+        self.ai_flash_delay = fin(self.ai_flash_delay, d.ai_flash_delay, 0.0, 1.0);
         self.rules.truncate(64);
         self.archetypes.truncate(32);
         if self.archetypes.is_empty() {
@@ -916,6 +970,22 @@ fn fallback() -> &'static Archetype {
 /// The archetype `recipe` fights as, with the shipped table (tests, tools).
 pub fn archetype_of<'a>(t: &'a TransformerTuning, recipe: &Recipe) -> &'a Archetype {
     t.archetype_of(recipe)
+}
+
+/// V2 HERO SCALE (owner: "transformers are just a bigger guy"): a combat transformer you PILOT stands
+/// at hero scale (≤ `hero_max_scale`, ~3.5–5 m) so its fights with 1.8 m players read and connect.
+/// Generic by data: a recipe said big (scale ≥ `giant_min_scale`: "giant optimus", "huge", a
+/// combiner's own size), a `giant` archetype row (colossus), a squad or a suit keep their size.
+/// Mass is kept (the archetype and the weight of its hits stay). `robot_ratio` = the robot's height
+/// per metre of recipe scale (1 for a generic transformer; a two-mode icon's authored robot can stand
+/// taller than its alt mode is long): the ROBOT stands ≤ `hero_max_scale`. True when it shrank it.
+pub fn hero_scale(t: &TransformerTuning, r: &mut Recipe, robot_ratio: f32) -> bool {
+    let cap = t.hero_max_scale / robot_ratio.clamp(0.5, 3.0);
+    if cap <= 0.0 || !r.has(Mechanic::Transforms) || !r.has(Mechanic::Piloted) || r.count > 1 || r.scale <= cap || r.scale >= t.giant_min_scale || t.archetype_of(r).giant {
+        return false;
+    }
+    r.scale = cap;
+    true
 }
 
 // ------------------------------------------------------------------------------------ state
@@ -1021,6 +1091,31 @@ pub struct BrawlState {
     pub order_n: u8,
     /// Voice orders carried out (tests / tools).
     pub orders: u16,
+    /// V2 FLASH WINDOW left (s): Transform now = the vehicle attack (see `TransformerTuning::flash_secs`).
+    pub flash: f32,
+    /// V2 BRANCH window left (s) after the vehicle attack connected, whether this attack already
+    /// opened / used it, the LMB hold inside it, and the last branch taken (tests / tools).
+    pub branch: f32,
+    pub branch_opened: bool,
+    pub branch_hold: f32,
+    pub last_branch: Branch,
+    /// Flash windows opened / taken, branches taken (tests / tools / the V2 measurements).
+    pub flashes: u16,
+    pub flashes_taken: u16,
+    pub branches: u16,
+}
+
+/// V2: the follow-up picked inside the branch window after a vehicle attack connects.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Branch {
+    #[default]
+    None,
+    /// LMB: the vehicle comes round for a second pass through them.
+    Rush,
+    /// RMB / held LMB: back to robot with a launcher that takes you up after them (air juggle).
+    Launch,
+    /// Transform: a drift-turn back into robot mode facing them, the string open again.
+    Drift,
 }
 
 /// Is the brawl machine moving the body this tick (the AI's locomotion must not override it)?
@@ -1038,6 +1133,21 @@ fn tick_timers(b: &mut BrawlState, dt: f32) {
     b.blaster_cd = (b.blaster_cd - dt).max(0.0);
     b.armor_t = (b.armor_t - dt).max(0.0);
     b.ai_t = (b.ai_t - dt).max(0.0);
+    b.flash = (b.flash - dt).max(0.0);
+    b.branch = (b.branch - dt).max(0.0);
+}
+
+/// V2 FLASH WINDOW: open it (a string's ender / a launcher / a counter just CONNECTED). Everyone sees
+/// the gold burst on the robot (`HeldFx::Flash`, strength = the window, s); the pilot also hears the
+/// chime and sees the crosshair pip (client).
+fn open_flash(c: &mut Construct, t: &TransformerTuning, out: &mut ConstructOut) {
+    if c.held.vehicle || !c.has(Mechanic::Transforms) {
+        return;
+    }
+    c.brawl.flash = t.flash_secs;
+    c.brawl.flashes = c.brawl.flashes.saturating_add(1);
+    let at = c.center() + Vec3::Y * c.half.y * 0.55;
+    fx(out, c, HeldFx::Flash, at, c.forward(), t.flash_secs);
 }
 
 /// PERFECT DODGE hook (the world's hit paths: a hit on the seated cockpit pilot, `counters::on_damage`
@@ -1196,15 +1306,35 @@ fn in_reach(c: &Construct, env: &Env<'_>, center: Vec3, r: f32) -> Vec<(bd_core:
 enum W {
     Light,
     Heavy,
+    /// V2: a vehicle-attack hit — heavy (the impact frame) and GUARD-BREAKING (beats guard / counter /
+    /// deflect stances and super armor).
+    Vehicle,
+    /// V2: a vehicle attack's ticking hits (rotor sweep, grind): guard-breaking, light juice.
+    VehicleTick,
 }
 
 #[allow(clippy::too_many_arguments)]
 fn hit(c: &Construct, out: &mut ConstructOut, target: bd_core::PlayerId, at: Vec3, dmg: f32, kb: f32, dir: Vec3, impact: f32, stun: f32, w: W) {
-    let kind = if w == W::Heavy { HitKind::HeavyMelee } else { HitKind::Melee };
-    out.player_hits.push(HitInfo::new(target, Some(c.owner), kind, dmg, kb, dir.normalize_or(Vec3::Y), at).with_element(c.recipe.element).with_construct(c.id).with_impact(impact));
+    let kind = if matches!(w, W::Heavy | W::Vehicle) { HitKind::HeavyMelee } else { HitKind::Melee };
+    let mut h = HitInfo::new(target, Some(c.owner), kind, dmg, kb, dir.normalize_or(Vec3::Y), at).with_element(c.recipe.element).with_construct(c.id).with_impact(impact);
+    if matches!(w, W::Vehicle | W::VehicleTick) {
+        h = h.with_guard_break();
+    }
+    out.player_hits.push(h);
     if stun > 0.0 {
         out.statuses.push((target, StatusKind::Stun, stun, Some(c.owner)));
     }
+}
+
+/// V2: a vehicle-attack hit: guard-breaking, with a short stun. The connect that opens the branch
+/// POPS them (up and close: × `vehicle_pop_kb`, `vehicle_pop_lift`) so the follow-up you pick
+/// connects; the attack's later hits (the rush's second pass) LAUNCH (≥ `vehicle_lift` up,
+/// ≥ `vehicle_min_kb`) — a launch, or a wall splat.
+#[allow(clippy::too_many_arguments)]
+fn vhit(c: &Construct, t: &TransformerTuning, out: &mut ConstructOut, target: bd_core::PlayerId, at: Vec3, dmg: f32, kb: f32, dir: Vec3, impact: f32) {
+    let f = flat(dir).normalize_or(flat(c.forward()).normalize_or(Vec3::NEG_Z));
+    let (lift, kb) = if c.brawl.branch_opened { (dir.y.max(t.vehicle_lift), kb.max(t.vehicle_min_kb)) } else { (dir.y.max(t.vehicle_pop_lift), kb * t.vehicle_pop_kb) };
+    hit(c, out, target, at, dmg, kb, f + Vec3::Y * lift, impact.max(2.0), t.launch_stun, W::Vehicle);
 }
 
 /// A creature clip event for beast-mode attacks (clients play the bite / swipe / tail / breath /
@@ -1250,12 +1380,12 @@ fn sweep(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, r: f32, dmg: 
 /// A size-scaled ground shockwave at the feet (stomps, quakes, big landings): a ring that knocks
 /// grounded players up and out, and a crater. Returns how many it hit.
 #[allow(clippy::too_many_arguments)]
-fn quake(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, at: Vec3, radius: f32, dmg: f32, kb: f32, fxk: HeldFx) -> u8 {
+fn quake(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, at: Vec3, radius: f32, dmg: f32, kb: f32, fxk: HeldFx, w: W) -> u8 {
     let mut n = 0u8;
     for (id, hp) in in_reach(c, env, at, radius) {
         let d = flat(hp - at);
         let fall = 1.0 - 0.5 * (d.length() / radius.max(0.1)).min(1.0);
-        hit(c, out, id, hp, dmg * fall, kb * fall, d.normalize_or(c.forward()) + Vec3::Y * 1.1, 2.2, 0.0, W::Heavy);
+        hit(c, out, id, hp, dmg * fall, kb * fall, d.normalize_or(c.forward()) + Vec3::Y * 1.1, 2.2, 0.0, w);
         n = n.saturating_add(1);
     }
     out.carves.push(crate::combat::CarveRequest { center: at, radius: (height(c) * 0.18).clamp(1.2, 4.0), power: 0.8 });
@@ -1359,9 +1489,12 @@ pub fn fight(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, inp: &Inp
         c.brawl.heavy_done = true;
         let dir = inp.aim;
         let kb_dir = flat(dir).normalize_or(c.forward()) + Vec3::Y * 0.9;
-        strike(c, env, out, dir, a.string_reach * 1.4 * reach_k(c), a.heavy_dmg * t.counter_mult * dm, a.heavy_kb * t.counter_mult * km, kb_dir, 2.4, t.counter_stun, HeldFx::Uppercut, W::Heavy);
+        let n = strike(c, env, out, dir, a.string_reach * 1.4 * reach_k(c), a.heavy_dmg * t.counter_mult * dm, a.heavy_kb * t.counter_mult * km, kb_dir, 2.4, t.counter_stun, HeldFx::Uppercut, W::Heavy);
         c.brawl.open = t.combo_window;
         c.brawl.cd = a.string_interval;
+        if n > 0 {
+            open_flash(c, t, out); // V2: a counter is a launcher
+        }
         return;
     }
     // LMB: press = the next string hit; held past `heavy_hold` = the heavy.
@@ -1483,9 +1616,11 @@ fn string_hit(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Arch
     // Non-ender hits FLINCH (a small knockback) so the string stays connected; the ender launches.
     let (mult, kmult, impact) = if ender { (1.6, 1.8, 1.6) } else { (1.0, STRING_FLINCH, 1.0 + 0.1 * b.step as f32) };
     let kb_dir = flat(aim).normalize_or(c.forward()) + Vec3::Y * if ender { 0.6 } else { 0.25 };
-    let reach = a.string_reach * reach_k(c);
+    let mut reach = a.string_reach * reach_k(c);
     // MAGNETISM (Devastation-style): the step in carries the robot to the aimed target so the next
-    // hit reaches (a short slide, ≤ `MAGNET_RANGE` past the reach, never through them).
+    // hit reaches (a short slide, ≤ `MAGNET_RANGE` past the reach, never through them). V2: THIS
+    // hit connects too — the strike reaches over the gap the slide is closing (a human-sized target
+    // at your feet or a step away is hit, not whiffed).
     let aim = match aim_target(c, env, aim, reach + MAGNET_RANGE) {
         Some(tp) => {
             let d = flat(tp - c.center());
@@ -1494,12 +1629,16 @@ fn string_hit(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Arch
                 let v = d.normalize_or_zero() * (gap / 0.12).min(18.0);
                 c.vel.x = v.x;
                 c.vel.z = v.z;
+                reach += gap.min(MAGNET_RANGE);
             }
             (tp - c.center()).normalize_or(aim)
         }
         None => aim,
     };
     let n = strike(c, env, out, aim, reach, a.string_dmg * mult * dm, a.string_kb * kmult * km, kb_dir, impact, 0.0, HeldFx::PilotAttack, if ender { W::Heavy } else { W::Light });
+    if ender && n > 0 {
+        open_flash(c, t, out); // V2: the string's end — Transform now = the vehicle attack
+    }
     // Beast bodies bite / claw with their creature clips.
     let d = flat(aim).normalize_or(c.forward());
     match a.strike {
@@ -1549,9 +1688,11 @@ fn air_hit(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archety
 fn heavy(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, t: &TransformerTuning, aim: Vec3, dm: f32, km: f32, grounded: bool) {
     let d = flat(aim).normalize_or(c.forward());
     let reach = a.string_reach * reach_k(c);
+    // V2: a launcher-class heavy that connects opens the flash window.
+    let mut launched = 0u8;
     match a.heavy {
         HeavyKind::Launcher => {
-            strike(c, env, out, aim, reach * 1.2, a.heavy_dmg * dm, a.heavy_kb * km, d * 0.25 + Vec3::Y * 1.4, 2.0, t.launch_stun, HeldFx::Uppercut, W::Heavy);
+            launched = strike(c, env, out, aim, reach * 1.2, a.heavy_dmg * dm, a.heavy_kb * km, d * 0.25 + Vec3::Y * 1.4, 2.0, t.launch_stun, HeldFx::Uppercut, W::Heavy);
             // Fliers follow their launcher up (air combos).
             if a.air_control >= 0.9 {
                 c.vel.y = c.vel.y.max(10.0);
@@ -1559,7 +1700,7 @@ fn heavy(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype
         }
         HeavyKind::Armor => {
             c.brawl.armor_t = c.brawl.armor_t.max(0.3);
-            strike(c, env, out, aim, reach * 1.4, a.heavy_dmg * dm, a.heavy_kb * km, d + Vec3::Y * 0.5, 2.2, t.launch_stun, HeldFx::GroundPound, W::Heavy);
+            launched = strike(c, env, out, aim, reach * 1.4, a.heavy_dmg * dm, a.heavy_kb * km, d + Vec3::Y * 0.5, 2.2, t.launch_stun, HeldFx::GroundPound, W::Heavy);
         }
         HeavyKind::Grind => {
             c.brawl.grind_t -= env.dt();
@@ -1575,7 +1716,7 @@ fn heavy(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype
             // Spin the tail round: everyone around the body is swept away.
             let r = if a.heavy_radius > 0.0 { a.heavy_radius } else { 1.5 + height(c) * 0.45 };
             c.hits.clear();
-            sweep(c, env, out, r, a.heavy_dmg * dm, a.heavy_kb * km, 0.55, 2.0, true, W::Heavy);
+            launched = sweep(c, env, out, r, a.heavy_dmg * dm, a.heavy_kb * km, 0.55, 2.0, true, W::Heavy);
             clip(out, c, AttackKind::TailSweep, ai_phase::TELEGRAPH, d, 0.0);
             clip(out, c, AttackKind::TailSweep, ai_phase::IMPACT, d, 2.0);
             fx(out, c, HeldFx::TailSweep, c.center(), d, r);
@@ -1602,7 +1743,7 @@ fn heavy(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype
             c.brawl.armor_t = c.brawl.armor_t.max(0.3);
             let r = if a.heavy_radius > 0.0 { a.heavy_radius } else { 3.0 + height(c) * 0.55 };
             let at = feet(c);
-            quake(c, env, out, at, r, a.heavy_dmg * dm, a.heavy_kb * km, HeldFx::GroundPound);
+            launched = quake(c, env, out, at, r, a.heavy_dmg * dm, a.heavy_kb * km, HeldFx::GroundPound, W::Heavy);
             clip(out, c, AttackKind::Stomp, ai_phase::IMPACT, d, 2.0);
             c.set_anim(AnimState::Active, env.tick());
         }
@@ -1610,6 +1751,9 @@ fn heavy(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype
     c.brawl.open = t.combo_window;
     c.brawl.cd = a.string_interval;
     c.brawl.step = 0;
+    if launched > 0 && c.brawl.flash <= 0.0 {
+        open_flash(c, t, out);
+    }
 }
 
 /// A pounce covering `dist` m: (horizontal speed ≤ `max_speed`, launch speed up) under the
@@ -1688,9 +1832,10 @@ pub fn land(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, grounded: 
 
 // ------------------------------------------------------------------------------------ transform attacks
 
-/// Can the Transform key start a transform attack now (robot mode, inside the combo window)?
+/// Can the Transform key start a transform attack now (robot mode, inside the V2 FLASH window —
+/// a connected ender / launcher / counter)? Outside it the Transform key just transforms.
 pub fn wants_xattack(c: &Construct) -> bool {
-    c.brawl.xatk == XPhase::None && c.brawl.open > 0.0 && !c.held.vehicle && c.has(Mechanic::Transforms) && c.brawl.pounce_t <= 0.0
+    c.brawl.xatk == XPhase::None && c.brawl.flash > 0.0 && !c.held.vehicle && c.has(Mechanic::Transforms) && c.brawl.pounce_t <= 0.0
 }
 
 /// BEAST MODES: Transform during a beast-mode string = the robot bursts out of the beast straight
@@ -1732,6 +1877,14 @@ pub fn start_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a
     }
     .normalize_or(Vec3::NEG_Z);
     let b = &mut c.brawl;
+    if b.flash > 0.0 {
+        b.flashes_taken = b.flashes_taken.saturating_add(1);
+    }
+    b.flash = 0.0;
+    b.branch = 0.0;
+    b.branch_opened = false;
+    b.branch_hold = 0.0;
+    b.last_branch = Branch::None;
     b.xatk = XPhase::Burst;
     b.xatk_t = 0.0;
     b.xatk_tick = 0.0;
@@ -1752,6 +1905,12 @@ pub fn start_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a
     if a.xattack != XAttack::Quake {
         snap(c, false, t, out);
     }
+    burst_setup(c, env, out, &a, dir, here);
+}
+
+/// The shape's opening beat (a pounce's arc, a stampede's roar, a quake's wind-up); a rush (V2
+/// branch) replays it for the second pass.
+fn burst_setup(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, dir: Vec3, here: Vec3) {
     match a.xattack {
         XAttack::Pounce => {
             let dist = target_point(c, env).map(|tp| flat(tp - here).length()).filter(|d| *d < 16.0).unwrap_or(8.0 + height(c));
@@ -1787,7 +1946,7 @@ fn step_carry(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Arch
     if release || c.brawl.carry_t >= CARRY_SECS {
         c.brawl.carry = None;
         // The fling: whatever speed the nose had, plus the ram's knockback.
-        hit(c, out, id, v.hull.center(), 2.0, a.xattack_kb * km, dir + Vec3::Y * 0.45, 2.2, 0.0, W::Heavy);
+        vhit(c, &env.ctx.tuning.transformer, out, id, v.hull.center(), 2.0, a.xattack_kb * km, dir + Vec3::Y * 0.45, 2.2);
         return;
     }
     let body = c.half.x.max(c.half.z);
@@ -1801,8 +1960,10 @@ fn step_carry(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Arch
 
 /// Advance a transform attack. Sets the body's velocity / facing; returns true while it flies (the
 /// caller integrates with flight, else on the ground). `again` = Transform pressed again (the finisher
-/// comes now). `grounded` = ground contact before this tick.
-pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, again: bool, grounded: bool) -> bool {
+/// comes now; inside the V2 branch window: the drift back into melee). `inp` = this tick's buttons
+/// (the branch: LMB tap = rush, RMB / held LMB = the air launch). `grounded` = ground contact before
+/// this tick.
+pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, again: bool, grounded: bool, inp: &Input) -> bool {
     let t = &env.ctx.tuning.transformer;
     let a = t.robot_row(c).clone();
     let dt = env.dt();
@@ -1848,8 +2009,13 @@ pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, ag
                         };
                         // The first victim of a carrying ram rides the nose (the fling comes later).
                         let scoop = a.xattack_carry && c.brawl.carry.is_none() && matches!(a.xattack, XAttack::Ram | XAttack::Stampede);
-                        let kb = if scoop { a.xattack_kb * km * 0.15 } else { a.xattack_kb * km };
-                        hit(c, out, t2.id, t2.hull.center(), a.xattack_dmg * dm, kb, kb_dir, 1.6, 0.0, W::Light);
+                        if scoop {
+                            hit(c, out, t2.id, t2.hull.center(), a.xattack_dmg * dm, a.xattack_kb * km * 0.15, kb_dir, 2.0, t.launch_stun, W::Vehicle);
+                        } else if a.xattack == XAttack::Grind {
+                            hit(c, out, t2.id, t2.hull.center(), a.xattack_dmg * dm, a.xattack_kb * km, kb_dir, 1.6, 0.0, W::VehicleTick);
+                        } else {
+                            vhit(c, t, out, t2.id, t2.hull.center(), a.xattack_dmg * dm, a.xattack_kb * km, kb_dir, 1.6);
+                        }
                         if scoop {
                             c.brawl.carry = Some(t2.id);
                             c.brawl.carry_t = 0.0;
@@ -1886,7 +2052,7 @@ pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, ag
                     c.rot = Quat::from_rotation_y(c.brawl.xatk_t * 16.0) * geom::yaw_rotation(dir);
                     if tick {
                         c.brawl.xatk_tick = 0.15;
-                        let n = sweep(c, env, out, a.xattack_width, a.xattack_dmg * dm, a.xattack_kb * km, 0.5, 1.0, false, W::Light);
+                        let n = sweep(c, env, out, a.xattack_width, a.xattack_dmg * dm, a.xattack_kb * km, 0.5, 1.0, false, W::VehicleTick);
                         c.brawl.last_xattack_hits = c.brawl.last_xattack_hits.saturating_add(n);
                         fx(out, c, HeldFx::PilotAttack, c.center(), Vec3::Y, 1.2);
                     }
@@ -1921,7 +2087,7 @@ pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, ag
                         if Some(t2.id) == c.pilot || !t2.hull.intersects(&body) || !c.hits.insert(player_key(t2.id)) {
                             continue;
                         }
-                        hit(c, out, t2.id, t2.hull.center(), a.xattack_dmg * dm, a.xattack_kb * km, flat(c.vel).normalize_or(dir) * 0.5 + Vec3::Y * 0.3, 2.0, 0.3, W::Heavy);
+                        vhit(c, t, out, t2.id, t2.hull.center(), a.xattack_dmg * dm, a.xattack_kb * km, flat(c.vel).normalize_or(dir) * 0.5 + Vec3::Y * 0.3, 2.0);
                         clip(out, c, AttackKind::Bite, ai_phase::IMPACT, dir, 2.0);
                         c.brawl.last_xattack_hits = c.brawl.last_xattack_hits.saturating_add(1);
                     }
@@ -1939,13 +2105,38 @@ pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, ag
                         c.brawl.xatk_n = 1;
                         c.hits.clear();
                         let at = feet(c) + dir * c.half.z.max(c.half.x);
-                        let n = quake(c, env, out, at, a.xattack_width.max(3.0 + height(c) * 0.5), a.xattack_dmg * dm, a.xattack_kb * km, HeldFx::GroundPound);
+                        let n = quake(c, env, out, at, a.xattack_width.max(3.0 + height(c) * 0.5), a.xattack_dmg * dm, a.xattack_kb.max(t.vehicle_min_kb) * km, HeldFx::GroundPound, W::Vehicle);
                         clip(out, c, AttackKind::Stomp, ai_phase::IMPACT, dir, 2.5);
                         c.brawl.last_xattack_hits = c.brawl.last_xattack_hits.saturating_add(n);
                     }
                 }
             }
             c.set_anim(AnimState::Move, env.tick());
+            // V2 BRANCH: the first connect opens the branch window (a blue cue on the vehicle).
+            if !c.brawl.branch_opened && c.brawl.last_xattack_hits > 0 {
+                c.brawl.branch_opened = true;
+                c.brawl.branch = t.branch_secs;
+                c.brawl.branch_hold = 0.0;
+                let at = c.center() + Vec3::Y * c.half.y * 0.55;
+                fx(out, c, HeldFx::Flash, at, dir, -t.branch_secs);
+            }
+            if c.brawl.branch > 0.0 {
+                if let Some(b) = pick_branch(c, t, again, inp, dt) {
+                    c.brawl.branch = 0.0;
+                    c.brawl.last_branch = b;
+                    c.brawl.branches = c.brawl.branches.saturating_add(1);
+                    step_carry(c, env, out, &a, km, true);
+                    if matches!(a.xattack, XAttack::Pounce | XAttack::Stampede) {
+                        clip(out, c, AttackKind::Charge, ai_phase::END, dir, 0.0);
+                    }
+                    match b {
+                        Branch::Rush => rush(c, env, out, &a, tp),
+                        Branch::Launch => begin_finish_as(c, env, out, &a, true, dm, km, Some(Finisher::Uppercut)),
+                        Branch::Drift | Branch::None => drift_back(c, env, out, &a, tp),
+                    }
+                    return flying && c.brawl.xatk == XPhase::Burst;
+                }
+            }
             if c.brawl.xatk_t >= a.xattack_secs || (again && c.brawl.xatk_t > 0.1) {
                 step_carry(c, env, out, &a, km, true);
                 if matches!(a.xattack, XAttack::Pounce | XAttack::Stampede) {
@@ -1957,8 +2148,10 @@ pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, ag
             flying
         }
         XPhase::Finish => {
-            let slam_kind = matches!(a.finisher, Finisher::DiveKick | Finisher::DropSlam) || c.brawl.slam_pending;
-            if a.finisher == Finisher::DiveKick && !grounded {
+            // The V2 launch branch is an uppercut whatever the row's finisher is.
+            let own = c.brawl.last_branch != Branch::Launch;
+            let slam_kind = (own && matches!(a.finisher, Finisher::DiveKick | Finisher::DropSlam)) || c.brawl.slam_pending;
+            if own && a.finisher == Finisher::DiveKick && !grounded {
                 // Keep diving at the target; the contact hits.
                 let to = tp.map_or(Vec3::NEG_Y, |p| (p - c.center()).normalize_or(Vec3::NEG_Y));
                 let d = (to + Vec3::NEG_Y * 0.6).normalize_or(Vec3::NEG_Y);
@@ -1998,8 +2191,111 @@ fn near_ground(c: &Construct, env: &Env<'_>, depth: f32) -> bool {
     false
 }
 
-fn begin_finish(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, grounded: bool, dm: f32, km: f32) {
+/// V2 BRANCH input: Transform = drift back; RMB = the launch; an LMB tap = the rush, an LMB held past
+/// `branch_hold` = the launch. None = nothing yet (the default finisher follows the burst).
+fn pick_branch(c: &mut Construct, t: &TransformerTuning, again: bool, inp: &Input, dt: f32) -> Option<Branch> {
+    if again {
+        return Some(Branch::Drift);
+    }
+    if inp.press2 {
+        return Some(Branch::Launch);
+    }
+    let b = &mut c.brawl;
+    if inp.press1 {
+        b.branch_hold = dt.max(1e-4);
+        return None;
+    }
+    if b.branch_hold > 0.0 {
+        if inp.hold1 {
+            b.branch_hold += dt;
+            if b.branch_hold >= t.branch_hold {
+                return Some(Branch::Launch);
+            }
+        } else {
+            return Some(Branch::Rush);
+        }
+    }
+    None
+}
+
+/// V2 BRANCH — rush: the vehicle comes round (a J-turn onto them) for a second pass. One branch per
+/// transform attack; the finisher still follows the second pass.
+fn rush(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, tp: Option<Vec3>) {
+    let here = c.center();
+    let dir = tp.map_or(-c.brawl.xatk_dir, |p| flat(p - here).normalize_or(-c.brawl.xatk_dir)).normalize_or(Vec3::NEG_Z);
+    let b = &mut c.brawl;
+    b.xatk_t = 0.0;
+    b.xatk_tick = 0.0;
+    b.xatk_n = 0;
+    b.xatk_dir = dir;
+    b.carry = None;
+    b.carry_t = 0.0;
+    c.hits.clear();
+    c.rot = geom::yaw_rotation(dir);
+    burst_setup(c, env, out, a, dir, here);
+    fx(out, c, HeldFx::Thrust, here, dir, 1.5);
+}
+
+/// V2 BRANCH — drift: a drift-turn back into ROBOT mode facing them, snapped in close, the string
+/// open again (no finisher: your next LMB is the next hit).
+fn drift_back(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, tp: Option<Vec3>) {
     let t = &env.ctx.tuning.transformer;
+    if c.held.vehicle || c.comp.xform.mode != super::components::XMode::Robot {
+        snap(c, true, t, out);
+    }
+    let here = c.center();
+    let to = tp.map(|p| p - here).filter(|v| flat(*v).length() < 14.0);
+    let dir = to.map_or(-c.brawl.xatk_dir, |v| flat(v).normalize_or(c.brawl.xatk_dir)).normalize_or(Vec3::NEG_Z);
+    c.rot = geom::yaw_rotation(dir);
+    if !c.suit {
+        snap_in(c, env, out, to, dir, here);
+    }
+    c.vel.x *= 0.2;
+    c.vel.z *= 0.2;
+    let b = &mut c.brawl;
+    b.xatk = XPhase::None;
+    b.slam_pending = false;
+    b.step = 0;
+    b.string_done = false;
+    b.open = t.combo_window;
+    b.cd = 0.0;
+    fx(out, c, HeldFx::Thrust, here, dir, 1.0);
+    let _ = a;
+}
+
+/// The robot SNAPS back in on the target (the burst knocked it along the travel): a short lunge
+/// (≤ 9 m) so the next hit connects — never into terrain. V2 (hero scale): a target the vehicle
+/// knocked up is met in the air (a hop ≤ 3 m), so a human-sized victim is still in the swing.
+fn snap_in(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, to: Option<Vec3>, dir: Vec3, here: Vec3) {
+    if let Some(v) = to {
+        let body = c.half.x.max(c.half.z);
+        let gap = (flat(v).length() - (body + 1.2)).clamp(0.0, 9.0);
+        let up = (v.y - c.half.y * 0.25).clamp(0.0, 3.0);
+        let up = if up > 0.3 { up } else { 0.0 };
+        if gap > 0.0 || up > 0.0 {
+            let dest = c.pos + dir * gap + Vec3::Y * up;
+            let mid = dest + c.rot * c.local_center;
+            if !env.ctx.voxels.is_solid(bd_core::voxel::world_to_voxel(mid)) {
+                c.pos = dest;
+                if up > 0.0 {
+                    c.vel.y = c.vel.y.max(3.0);
+                    c.grounded = false;
+                }
+                fx(out, c, HeldFx::Lunge, here, dir, 1.5);
+            }
+        }
+    }
+}
+
+fn begin_finish(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, grounded: bool, dm: f32, km: f32) {
+    begin_finish_as(c, env, out, a, grounded, dm, km, None);
+}
+
+/// The finisher (`fin` overrides the row's: the V2 launch branch is an uppercut).
+#[allow(clippy::too_many_arguments)]
+fn begin_finish_as(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, grounded: bool, dm: f32, km: f32, fin: Option<Finisher>) {
+    let t = &env.ctx.tuning.transformer;
+    let finisher = fin.unwrap_or(a.finisher);
     let grounded = grounded || near_ground(c, env, 1.2);
     c.brawl.xatk = XPhase::Finish;
     c.brawl.xatk_t = 0.0;
@@ -2011,22 +2307,9 @@ fn begin_finish(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Ar
     let here = c.center();
     let to = target_point(c, env).map(|p| p - here).filter(|v| flat(*v).length() < 14.0);
     let dir = to.map_or(c.brawl.xatk_dir, |v| flat(v).normalize_or(c.brawl.xatk_dir));
-    // The robot SNAPS back in on the target (the burst knocked it along the travel): a short lunge
-    // (≤ 9 m) so the finisher connects — never into terrain.
-    if grounded && !c.suit && matches!(a.finisher, Finisher::Uppercut | Finisher::JTurn | Finisher::Axe | Finisher::SpinSlash) {
-        if let Some(v) = to {
-            let body = c.half.x.max(c.half.z);
-            let gap = flat(v).length() - (body + 1.2);
-            if gap > 0.0 {
-                let step = dir * gap.min(9.0);
-                let dest = c.pos + step;
-                let mid = dest + c.rot * c.local_center;
-                if !env.ctx.voxels.is_solid(bd_core::voxel::world_to_voxel(mid)) {
-                    c.pos = dest;
-                    fx(out, c, HeldFx::Lunge, here, dir, 1.5);
-                }
-            }
-        }
+    // The robot SNAPS back in on the target so the finisher connects.
+    if grounded && !c.suit && matches!(finisher, Finisher::Uppercut | Finisher::JTurn | Finisher::Axe | Finisher::SpinSlash) {
+        snap_in(c, env, out, to, dir, here);
     }
     let here = c.center();
     let fall = |c: &mut Construct| {
@@ -2036,7 +2319,7 @@ fn begin_finish(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Ar
     };
     let rk = reach_k(c);
     let mut n = 0u8;
-    match a.finisher {
+    match finisher {
         Finisher::DiveKick => {
             if grounded {
                 n = strike(c, env, out, dir, 2.0 * rk, a.finisher_dmg * dm, a.finisher_kb * km, dir + Vec3::Y * 0.8, 2.2, 0.0, HeldFx::Uppercut, W::Heavy);
@@ -2057,8 +2340,12 @@ fn begin_finish(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Ar
         }
         _ if !grounded => fall(c), // any finisher in the air becomes a slam
         Finisher::Uppercut => {
-            n = strike(c, env, out, dir, 2.0 * rk, a.finisher_dmg * dm, a.finisher_kb * km, dir * 0.3 + Vec3::Y * 1.6, 2.4, t.launch_stun, HeldFx::Uppercut, W::Heavy);
-            c.vel.y = c.vel.y.max(6.0);
+            // V2 launch branch: a juggle launcher — they float to a height the robot follows them to
+            // (the air string takes it from there), not a send-off.
+            let juggle = c.brawl.last_branch == Branch::Launch;
+            let kb = if juggle { a.heavy_kb * t.juggle_kb * km } else { a.finisher_kb * km };
+            n = strike(c, env, out, dir, 2.0 * rk, a.finisher_dmg * dm, kb, dir * 0.3 + Vec3::Y * 1.6, 2.4, t.launch_stun, HeldFx::Uppercut, W::Heavy);
+            c.vel.y = c.vel.y.max(if juggle { t.juggle_rise } else { 6.0 });
         }
         Finisher::JTurn => {
             // Flip round, facing back through the target, and launch it.
@@ -2158,8 +2445,10 @@ pub fn run_order(c: &mut Construct, env: &Env<'_>, inp: &mut Input) -> bool {
                     inp.press1 = true;
                     c.brawl.order_n += 1;
                 }
-            } else if c.brawl.order_n == hits && c.brawl.cd <= interval {
-                // The extender: the transform attack runs on its own from here.
+            } else if c.brawl.order_n == hits && (c.brawl.flash > 0.0 || c.brawl.cd <= interval) {
+                // The extender, in the flash window (a said combo never whiffs its extender: the
+                // window is held open for it).
+                c.brawl.flash = c.brawl.flash.max(0.1);
                 transform = true;
                 done(c);
             } else if c.brawl.order_t > 0.4 + interval * (hits as f32 + 3.0) {
@@ -2168,6 +2457,7 @@ pub fn run_order(c: &mut Construct, env: &Env<'_>, inp: &mut Input) -> bool {
         }
         Order::Super => {
             c.brawl.open = c.brawl.open.max(0.1);
+            c.brawl.flash = c.brawl.flash.max(0.1);
             transform = true;
             done(c);
         }
@@ -2309,7 +2599,21 @@ pub fn ai(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let grounded = c.grounded || c.body.supported;
     if c.brawl.xatk != XPhase::None {
         c.body.claim(Driver::Charge);
-        let flying = step_xattack(c, env, out, false, grounded);
+        // V2 BRANCH: a follower picks a follow-up a beat into the window (by an id / attack hash).
+        let t = &env.ctx.tuning.transformer;
+        let mut inp = Input::default();
+        let mut again = false;
+        if c.brawl.branch > 0.0 && c.brawl.branch <= t.branch_secs - t.ai_flash_delay {
+            let h = crate::constructs::ai::hash01(c.id.0, c.brawl.ai_xattacks as u64, 91);
+            if h < 0.34 {
+                inp.press1 = true; // rush (a tap: released next tick)
+            } else if h < 0.67 {
+                inp.press2 = true; // the air launch
+            } else {
+                again = true; // drift back into the string
+            }
+        }
+        let flying = step_xattack(c, env, out, again, grounded, &inp);
         c.body.loco = if flying { Loco::Fly } else { Loco::Walk };
         return;
     }
@@ -2348,15 +2652,16 @@ pub fn ai(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         inp.dodge = true;
         inp.wish = side.normalize_or_zero();
     }
+    // V2 FLASH WINDOW: the ender / launcher connected — take it a beat in (a reaction, not a read).
+    if c.brawl.flash > 0.0 && c.brawl.flash <= t.flash_secs - t.ai_flash_delay && dist < 18.0 {
+        c.brawl.ai_xattacks = c.brawl.ai_xattacks.saturating_add(1);
+        c.brawl.ai_t = t.ai_string_gap;
+        start_xattack(c, env, out, aim);
+        return;
+    }
     if dist <= reach {
         if c.brawl.counter > 0.0 {
             inp.press1 = true;
-        } else if c.brawl.string_done && c.brawl.open > 0.0 && c.brawl.cd <= a.string_interval {
-            // The string is done: extend it with a transform attack.
-            c.brawl.ai_xattacks = c.brawl.ai_xattacks.saturating_add(1);
-            c.brawl.ai_t = t.ai_string_gap;
-            start_xattack(c, env, out, aim);
-            return;
         } else if c.brawl.cd <= 0.0 && (c.brawl.open > 0.0 || c.brawl.ai_t <= 0.0) {
             inp.press1 = true;
         }

@@ -690,6 +690,45 @@ numbers in `combat.ron` → `transformer`).
     megatron, bumblebee, soundwave, motorcycle, boat, train, grimrobot, primal, primalrobot,
     unicron). Protocol v50.
 
+## 5d-quinquies. Transformers V2 — hero scale, the flash window, vehicle-attack payoff (owner playtest: "just a bigger guy", hard to see, combos not intuitive → spam)
+Stages 1+2 of the owner-approved Devastation-for-PvP plan (`bd_sim` `constructs/brawl.rs`; numbers in
+`combat.ron` → `transformer`; tests `bd_sim/tests/transformer_v2.rs`; notes for stages 3–5:
+`docs/piloting/V2_NOTES.md`).
+- **Hero scale (stage 1):** a combat transformer you PILOT has its ROBOT capped at `hero_max_scale`
+  (4.6 m) so it fights 1.8 m players at readable range (`brawl::hero_scale`, run on the host's cast
+  after the shout bonus). A two-mode icon's authored robot can stand taller than its alt is long
+  (Optimus ≈ 1.45×): the cap is on the robot's height, the alt shrinks with it. Kept as is, by data:
+  a recipe said big (scale ≥ `giant_min_scale` 7: "giant / huge / big optimus"), a `giant` archetype
+  row (colossus: combiners, Unicron), squads, suits, followers. Mass is kept (archetype + weight).
+- **Hero camera:** a standing body ≤ 5.5 m gets a tighter shoulder boom (1.3 h + 1 m, side half-width
+  + 1 m); the fight framing also counts an enemy right at your side / feet (`camera3p::frame_fight`).
+- **Strings connect on humans:** the magnetism slide's gap is added to THIS hit's reach (the first
+  press on a target a few metres off lands). Finishers meet a knocked-up target in the air (a hop
+  ≤ 3 m in the snap-in).
+- **FLASH WINDOW (stage 2):** a string's ender, a launcher-class heavy or a counter that CONNECTS opens
+  `flash_secs` (0.3 s). Transform inside it cancels the melee recovery into the vehicle attack;
+  anywhere else Transform just transforms (intentional, never an accident). Cue, wordless
+  (`HeldFx::Flash`, strength = +window): everyone sees a gold burst on the robot; the pilot hears a
+  bright chime and a pip ring closes in around the crosshair for exactly the window
+  (`present/transformer_feel/flash.rs`). Voice combos / supers hold the window open for their
+  extender. Followers take it `ai_flash_delay` in.
+- **Vehicle attacks are GUARD-BREAKING** (`HitInfo::guard_break`): they shatter guard / counter /
+  deflect stances, ignore legendary / heavy-weapon super armor and break a transformer's guard
+  order. Real dodges still work. Hits are `HeavyMelee` (the impact frame) with a short stun. The
+  first connect POPS the victim (× `vehicle_pop_kb`, lift `vehicle_pop_lift`) so the follow-up
+  connects; later hits of the attack launch (≥ `vehicle_min_kb`, lift `vehicle_lift`: a launch or a
+  wall splat). Rotor sweeps / grinds are guard-breaking light ticks; fly-by / barrage shells are not.
+- **BRANCH window** (`branch_secs` 0.45 s from the first connect, blue cue = `HeldFx::Flash` with a
+  negative strength): **LMB tap = rush** (the vehicle J-turns for a second pass, its finisher still
+  follows), **RMB or LMB held `branch_hold` = air launch** (back to robot with a juggle uppercut —
+  `juggle_kb` — rising `juggle_rise` after them: the air string takes over), **Transform = drift**
+  (a drift-turn back into robot mode facing them, snapped in, the string open again). Nothing
+  picked = the archetype's finisher as before. One branch per vehicle attack. Followers pick one.
+- Deterministic, host-driven like every cockpit; FFA golden hash unchanged (bots don't pilot
+  transformers). Protocol v55.
+- Measured (scripted 20 s duel on a still 1.8 m dummy, `transformer_v2::v2_measure`): see
+  `docs/piloting/V2_NOTES.md`. Strip: `docs/piloting/v2_before_after.png` (side camera).
+
 ## 5d-bis. Transformers (Mechanic::Transforms) — a birthday-present feature, make it great
 - **Two modes, one body.** A Transforms construct has an alt mode (usually a vehicle/animal) and a robot
   mode built from the *same panels*: bd_shapes splits the alt model into ~10–24 rigid panels and maps them

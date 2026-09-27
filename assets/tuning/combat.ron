@@ -1250,6 +1250,19 @@
         launch_stun: 0.25,
         ai_string_gap: 0.9,         // AI followers: pause between strings (s)
         ai_dodge_rate: 0.6,         // AI followers: boost-steps per second when someone is close
+        // TRANSFORMERS V2 (COMBAT.md §5d-quinquies): the FLASH window, the BRANCH after a vehicle attack, hero scale.
+        flash_secs: 0.3,            // a connected ender / launcher / counter: Transform now = the vehicle attack (s)
+        branch_secs: 0.45,          // after the vehicle attack connects: LMB rush / RMB (held LMB) launch / Transform drift (s)
+        branch_hold: 0.15,          // an LMB held this long in the branch window = the launch (s)
+        vehicle_lift: 0.35,         // vehicle-attack hits after the first: lift (dir.y) ...
+        vehicle_min_kb: 22.0,       // ... and minimum knockback (m/s): a launch or a wall splat
+        vehicle_pop_kb: 0.35,       // the first connect POPS them (x the row knockback) so the branch connects
+        vehicle_pop_lift: 1.0,
+        juggle_kb: 0.45,            // launch branch: x the row heavy knockback ...
+        juggle_rise: 14.0,          // ... and the robot rises after them (m/s): the air string juggles
+        hero_max_scale: 4.6,        // a PILOTED combat transformer stands at most this tall (m; 0 = off)
+        giant_min_scale: 7.0,       // ... unless said big (recipe scale >= this: "giant optimus") or a `giant` row
+        ai_flash_delay: 0.08,       // followers take the flash window this far in (s)
         // Ordered: the first rule that matches picks the archetype ("any" lists need one hit; 0 = no bound).
         rules: [
             (to: "helicopter", features_any: [Rotor]),
@@ -1362,7 +1375,8 @@
                 heavy_hold: 0.4, heavy_dmg: 15.0, heavy_kb: 26.0, heavy_armor: 0.3, blaster_dmg: 14.0, blaster_cd: 1.0,
                 blaster_speed: 60.0, blaster_explode: true, xattack: Quake, xattack_secs: 0.5, xattack_speed: 0.0,
                 xattack_dmg: 18.0, xattack_kb: 32.0, xattack_width: 8.0, finisher: Axe, finisher_dmg: 24.0,
-                finisher_kb: 36.0, vehicle_speed: 0.8, drift_boost: 0.0, vehicle_turn: 0.7, fx: "tread_dust"),
+                finisher_kb: 36.0, vehicle_speed: 0.8, drift_boost: 0.0, vehicle_turn: 0.7, fx: "tread_dust",
+                giant: true), // V2: big by nature (a piloted one keeps its size)
         ],
     ),
 )

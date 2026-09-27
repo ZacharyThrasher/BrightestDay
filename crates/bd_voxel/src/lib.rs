@@ -38,7 +38,7 @@ pub mod slipstream;
 pub mod tutorial;
 pub mod world;
 
-pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, SurfLine, WaterSheet, generate_arena, generate_flat_test};
+pub use arena::{ARENA_SIZE_VOXELS, ArenaInfo, GravityProfile, SurfLine, WaterSheet, generate_arena, generate_flat_test, generate_training_field};
 pub use carve::{CarveOp, CarveOutcome, CarveShape, CollapseLimits, FallingChunk, RemovedVoxel};
 pub use mechanics::{MapMechanics, MapMover, MapPortal, MoverPart};
 pub use interact::{Interactables, RouletteWheel, SlotMachine};

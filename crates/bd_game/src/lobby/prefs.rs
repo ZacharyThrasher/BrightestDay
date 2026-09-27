@@ -609,6 +609,9 @@ pub struct UiPrefs {
     pub game: bd_sim::settings::GameSettings,
     /// "arena" | "tutorial" | other map ids.
     pub map: String,
+    /// TRAINING FIELD: the practice dummy's mode when it (re)spawns — STATIONARY (true) or LAUNCH.
+    /// The in-match F6 / Pause-menu toggle updates this so it's remembered next time.
+    pub dummy_stationary: bool,
     pub binds: BTreeMap<String, String>,
     /// One-time migration (owner 2026-09-27: COMIC TEXT defaults to FULL): saves from before it
     /// still carry the old REDUCED default, so they are lifted to FULL once.
@@ -643,6 +646,7 @@ impl Default for UiPrefs {
             camera: Default::default(),
             game: Default::default(),
             map: "arena".into(),
+            dummy_stationary: true,
             binds: KeyBinds::default().to_map(),
             comic_full_default: true,
         }

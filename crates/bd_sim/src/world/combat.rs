@@ -82,6 +82,11 @@ impl World {
         if let Some(seat) = self.players[ti].seat.filter(|s| !s.suit) {
             let secs = self.cfg.tuning.transformer.counter_secs;
             if let Some(c) = self.constructs.get_mut(seat.construct) {
+                // TRANSFORMERS V2: a vehicle attack breaks a guard ORDER (the held counter stance).
+                if hit.guard_break && c.brawl.order == crate::constructs::brawl::Order::Guard {
+                    c.brawl.order = crate::constructs::brawl::Order::None;
+                    c.brawl.iframes = 0.0;
+                }
                 if crate::constructs::brawl::perfect_dodge(c, secs, hit.point, &mut self.events) {
                     return none;
                 }
@@ -181,8 +186,8 @@ impl World {
         };
         // LEGENDARY: heavy blades carry super armor through big swings (less knockback, never immune).
         // WEAPON FEEL: heavy-class weapons are armored through their wind-up and swing too (the stronger wins).
-        let armor = if self_hit {
-            1.0
+        let armor = if self_hit || hit.guard_break {
+            1.0 // TRANSFORMERS V2: vehicle attacks break super armor
         } else {
             crate::constructs::legend::armor(&self.constructs, hit.target, &self.cfg.tuning.legendary).min(crate::constructs::weapon_class::armor(&self.constructs, hit.target, &self.cfg.tuning.weapons))
         };
@@ -202,11 +207,15 @@ impl World {
         }
         let lift = if hit.element == Element::Wind { self.cfg.tuning.hit.wind_min_lift } else { self.cfg.tuning.hit.min_lift };
         let dir = lifted_dir(dir_in, lift);
-        let tumble = kb > self.cfg.tuning.hit.tumble_impulse;
-        let launch = kb >= st.kb_min_launch;
+        // TRAINING FIELD: a STATIONARY dummy takes the damage / hitstun / flinch (below and in the
+        // `Hit` event, unchanged) but never the knockback displacement — `kb` itself stays real so
+        // the event still reports what it would have been (the dev readout / combat feel numbers).
+        let stationary_dummy = self.players[ti].dummy.is_some_and(|d| d.stationary);
+        let tumble = kb > self.cfg.tuning.hit.tumble_impulse && !stationary_dummy;
+        let launch = kb >= st.kb_min_launch && !stationary_dummy;
         let tumble_secs = crate::smash::tumble_secs(st, kb);
         let hitstun = crate::smash::hitstun_secs(st, self.cfg.rules.classic_launch, kb); // LAUNCH FEEL
-        if kb > 0.0 {
+        if kb > 0.0 && !stationary_dummy {
             let mv = &mut self.players[ti].mv;
             mv.extra.cancel_dodge(&mut mv.vel); // DODGE HOOK: knockback ends a (non-intangible) dodge
             let vd = mv.vel.dot(dir);
@@ -335,6 +344,7 @@ impl World {
                 point: to,
                 closing_speed: None,
                 crit: false,
+                guard_break: false,
             };
             self.apply_hit(chain);
         }
@@ -414,11 +424,40 @@ impl World {
         }
     }
 
+    /// TRAINING FIELD: turn a normal (already spawned) player into the practice dummy, anchored at
+    /// its current feet position — respawns/resets return it there. Idempotent (call again to
+    /// re-anchor / retoggle `stationary`).
+    pub fn set_dummy(&mut self, id: PlayerId, stationary: bool) {
+        let Some(i) = self.pidx(id) else { return };
+        let anchor = self.players[i].mv.pos;
+        self.players[i].dummy = Some(crate::world::DummyState { anchor, stationary });
+    }
+
+    /// TRAINING FIELD: LAUNCH (normal knockback) <-> STATIONARY (hits land, zero displacement).
+    /// No-op on a player that isn't a dummy.
+    pub fn set_dummy_stationary(&mut self, id: PlayerId, stationary: bool) {
+        if let Some(d) = self.player_mut(id).and_then(|p| p.dummy.as_mut()) {
+            d.stationary = stationary;
+        }
+    }
+
+    /// TRAINING FIELD: back to 0 %, alive, at its anchor — a full `respawn()`, not just a teleport
+    /// (clears launch / statuses / seat exactly like coming back from a KO). No-op on a non-dummy.
+    pub fn reset_dummy(&mut self, id: PlayerId) {
+        if let Some(i) = self.pidx(id).filter(|&i| self.players[i].dummy.is_some()) {
+            self.respawn(i);
+        }
+    }
+
     /// Launch a player with velocity `vel` exactly as a launching hit would (tumble, DI window,
     /// punch-through, `Launched` event) — powers, tools and tests.
     pub fn launch_player(&mut self, id: PlayerId, vel: Vec3, source: Option<PlayerId>) {
         let Some(i) = self.pidx(id) else { return };
         if !self.players[i].alive || !vel.is_finite() {
+            return;
+        }
+        // TRAINING FIELD: STATIONARY dummy — a direct launch call (powers / tools) never displaces it.
+        if self.players[i].dummy.is_some_and(|d| d.stationary) {
             return;
         }
         let speed = vel.length();

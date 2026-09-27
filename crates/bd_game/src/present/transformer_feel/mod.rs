@@ -16,6 +16,7 @@
 //! the tuned-click / servo / lock / hiss identity of `sounds_transform.py`).
 
 pub mod combat;
+pub mod flash;
 pub mod scenario;
 pub mod transform;
 pub mod vehicle;
@@ -40,6 +41,9 @@ impl Plugin for TransformerFeelPlugin {
             .add_message::<crate::juice::CameraShakeEvent>()
             .add_message::<crate::juice::FovPunch>()
             .init_resource::<transform::CamTwitch>()
+            .init_resource::<flash::PipState>()
+            .add_systems(Startup, flash::spawn_pip)
+            .add_systems(Update, (flash::events, flash::draw_pip).chain().in_set(TfSet))
             .add_systems(Update, track.after(PresentSet::Sync).before(TfSet))
             .configure_sets(Update, TfSet.after(PresentSet::Sync))
             .add_systems(Update, (transform::events, transform::cascade, weight::steps, vehicle::voice, vehicle::drift, combat::events, combat::layers).chain().in_set(TfSet))
@@ -319,7 +323,7 @@ mod tests {
             "tf_lock_s", "tf_lock_m", "tf_lock_l", "tf_panel_clunk", "tf_air_whoosh", "tf_eye_zing", "transform_panel_click", "robot_step_light",
             "robot_step_mid", "robot_footstep_heavy", "kaiju_step", "robot_servo_step", "robot_land", "land_heavy", "engine_car_loop",
             "engine_bike_loop", "engine_jet_loop", "engine_tank_loop", "rotor_loop", "tyre_screech_loop", "drift_boost_burst",
-            "robot_swing_heavy", "robot_swing_fast", "robot_punch_heavy", "robot_punch_fast", "robot_finisher_crunch", "tf_focus_sting",
+            "robot_swing_heavy", "robot_swing_fast", "robot_punch_heavy", "robot_punch_fast", "robot_finisher_crunch", "tf_focus_sting", "ko_streak_willpower",
             "kaiju_roar", "beast_chomp", "beast_tail_whoosh", "pounce_whoosh",
         ];
         for id in ids {
