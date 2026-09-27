@@ -450,8 +450,8 @@ impl KeyBinds {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OnoPref {
     Off,
-    #[default]
     BigHits,
+    #[default]
     Full,
 }
 
@@ -581,6 +581,9 @@ pub struct UiPrefs {
     /// "arena" | "tutorial" | other map ids.
     pub map: String,
     pub binds: BTreeMap<String, String>,
+    /// One-time migration (owner 2026-09-27: COMIC TEXT defaults to FULL): saves from before it
+    /// still carry the old REDUCED default, so they are lifted to FULL once.
+    pub comic_full_default: bool,
 }
 
 impl Default for UiPrefs {
@@ -592,7 +595,7 @@ impl Default for UiPrefs {
             costume: CostumePref::default(),
             voice: true,
             third_person: false,
-            ono: OnoPref::BigHits,
+            ono: OnoPref::Full,
             ono_manga: false,
             shout: ShoutPref::On,
             show_percent: false,
@@ -608,6 +611,7 @@ impl Default for UiPrefs {
             game: Default::default(),
             map: "arena".into(),
             binds: KeyBinds::default().to_map(),
+            comic_full_default: true,
         }
     }
 }
@@ -629,6 +633,13 @@ impl UiPrefs {
             // First impression: a random iconic character instead of the plain default, kept from then on.
             let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
             s.costume = first_costume(t);
+            let _ = s.save();
+        }
+        if !s.comic_full_default {
+            if s.ono == OnoPref::BigHits {
+                s.ono = OnoPref::Full;
+            }
+            s.comic_full_default = true;
             let _ = s.save();
         }
         s.game = s.game.validated();
