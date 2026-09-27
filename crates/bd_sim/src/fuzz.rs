@@ -114,6 +114,7 @@ pub fn random_recipe(rng: &mut SimRng, payload_depth: u32) -> Recipe {
         temperament: TEMPERAMENTS[rng.below(TEMPERAMENTS.len() as u32) as usize],
         intensity: if rng.chance(0.05) { f32::NAN } else { rng.range(-0.2, 1.3) },
         mount: None,
+        opening: None,
     }
 }
 

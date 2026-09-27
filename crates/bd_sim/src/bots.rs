@@ -46,6 +46,7 @@ pub fn recipe(name: &str, form: Form, mechanics: &[Mechanic], element: Element, 
         temperament: Temperament::Calm,
         intensity: 0.0,
         mount: None,
+        opening: None,
     }
     .normalized()
 }

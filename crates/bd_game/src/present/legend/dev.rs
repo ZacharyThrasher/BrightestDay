@@ -70,7 +70,7 @@ fn spec(s: &str) -> Spec {
             phrase: "mjolnir",
             bots: &[(3.5, -4.0)],
             pin_until: 4.45,
-            cam: ([8.0, 3.0, -3.0], [0.0, 1.0, -5.0]),
+            cam: ([10.0, 4.0, -1.0], [0.0, 1.0, -7.0]),
             at: &[3.12],
             after: &[(HeldFx::Lodge, &[0.25], 1), (HeldFx::RecallStart, &[0.03, 0.09], 1), (HeldFx::Catch, &[0.0, 0.1], 1)],
         },
@@ -78,15 +78,15 @@ fn spec(s: &str) -> Spec {
             phrase: "mjolnir",
             bots: &[(0.0, -12.0), (4.5, -13.0)],
             pin_until: 4.75,
-            cam: ([6.0, 3.5, 5.0], [0.0, 2.0, -8.0]),
+            cam: ([4.5, 2.8, 2.5], [0.0, 2.2, -8.0]),
             at: &[3.6],
             after: &[(HeldFx::StormRaise, &[0.15], 1), (HeldFx::StormMark, &[0.05, 0.35], 1), (HeldFx::StormStrike, &[0.02, 0.1], 1)],
         },
         "shield_chain" => Spec {
             phrase: "captain america's shield",
-            bots: &[(0.0, -9.0), (5.5, -12.0), (-5.0, -15.0)],
+            bots: &[(0.0, -8.0), (4.5, -10.0), (-3.5, -12.0)],
             pin_until: 7.0,
-            cam: ([11.0, 8.0, 3.0], [0.0, 0.5, -9.0]),
+            cam: ([7.0, 5.0, 1.0], [0.0, 1.0, -8.0]),
             at: &[3.5],
             after: &[(HeldFx::Throw, &[0.08], 1), (HeldFx::Ricochet, &[0.02], 2), (HeldFx::Catch, &[0.02], 1)],
         },
@@ -102,7 +102,7 @@ fn spec(s: &str) -> Spec {
             phrase: "blades of chaos",
             bots: &[(0.0, 5.0), (6.0, -0.5), (0.0, -12.0)],
             pin_until: 20.0,
-            cam: ([0.0, 13.0, 7.0], [0.0, 0.0, -2.0]),
+            cam: ([10.0, 7.0, 3.0], [0.0, 0.5, -2.0]),
             at: &[],
             after: &[(HeldFx::ChainSweep, &[0.05, 0.14, 0.24], 1), (HeldFx::ChainPull, &[0.03, 0.14], 1)],
         },
@@ -142,7 +142,7 @@ fn spec(s: &str) -> Spec {
             phrase: "bfg",
             bots: &[(5.0, -12.0), (0.0, -24.0)],
             pin_until: 20.0,
-            cam: ([12.0, 5.0, -6.0], [0.0, 1.5, -12.0]),
+            cam: ([9.0, 4.0, 4.0], [0.0, 1.5, -10.0]),
             at: &[3.2, 3.5],
             after: &[(HeldFx::BfgZap, &[0.0], 2)],
         },
@@ -263,7 +263,7 @@ fn dev_world(active: Option<ResMut<ActiveWorld>>, mut dev: ResMut<LegendDev>, mu
     let win = |a: f32, b: f32| (t0 + a..t0 + b).contains(&t);
     match s {
         "mjolnir_recall" => {
-            look.pitch = -0.32;
+            look.pitch = -0.16;
             if win(0.0, 0.06) || win(1.4, 1.46) {
                 ov.held = buttons::SECONDARY;
             }
@@ -443,8 +443,12 @@ fn dev_shots(mut events: MessageReader<GameEvents>, mut dev: ResMut<LegendDev>, 
         dev.shots.retain(|x| x.0 > t);
         return;
     };
-    let due: Vec<(f32, String)> = dev.shots.iter().filter(|x| x.0 <= t).cloned().collect();
-    dev.shots.retain(|x| x.0 > t);
+    // One capture per frame (two in the same frame lose one); the rest wait a frame.
+    dev.shots.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let due: Vec<(f32, String)> = dev.shots.first().filter(|x| x.0 <= t).cloned().into_iter().collect();
+    if !due.is_empty() {
+        dev.shots.remove(0);
+    }
     for (_, tag) in due {
         dev.taken += 1;
         let path = dir.join(format!("{s}_{:02}_{tag}.png", dev.taken));

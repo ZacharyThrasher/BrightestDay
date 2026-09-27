@@ -253,6 +253,7 @@ impl RecipeDef {
             temperament: self.temperament,
             intensity: self.intensity,
             mount: None,
+            opening: None,
         }
         .normalized()
     }

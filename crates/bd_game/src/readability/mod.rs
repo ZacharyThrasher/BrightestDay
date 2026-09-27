@@ -150,7 +150,7 @@ pub struct NumberTuning {
 
 impl Default for NumberTuning {
     fn default() -> Self {
-        Self { max_dist: 40.0, near_deg: 7.0, near_m: 6.0, font_near: 24.0, font_far: 14.0, lift: 0.45, fade_per_sec: 8.0 }
+        Self { max_dist: 40.0, near_deg: 7.0, near_m: 6.0, font_near: 30.0, font_far: 18.0, lift: 0.45, fade_per_sec: 8.0 }
     }
 }
 
@@ -168,7 +168,7 @@ pub struct SmokeTuning {
 
 impl Default for SmokeTuning {
     fn default() -> Self {
-        Self { smoke_per_sec: 9.0, sparks_per_sec: 5.0, max_mult: 1.8, max_dist: 160.0 }
+        Self { smoke_per_sec: 14.0, sparks_per_sec: 8.0, max_mult: 1.8, max_dist: 160.0 }
     }
 }
 

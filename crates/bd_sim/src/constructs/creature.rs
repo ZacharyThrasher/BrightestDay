@@ -288,6 +288,12 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         step_hold(c, env, &k, out);
     }
 
+    // ---- OPENING MOVE ("reinhardt charge", "godzilla's breath"): the named move, once, right away ----
+    if !c.ai.opened {
+        c.ai.opened = true;
+        opening_move(c, env, &k, target, out);
+    }
+
     // ---- attack in progress ----
     let mut move_scale = 1.0;
     if c.ai.attack.running {
@@ -988,6 +994,45 @@ fn try_start_attack(c: &mut Construct, env: &Env<'_>, k: &Kind, prof: &Profile, 
         start_attack(c, env, mk, to.normalize_or(front), out);
     }
 }
+
+/// OPENING MOVE hook (`Recipe::opening`, set by the lexicon's "<name> <move>" grammar): on its first
+/// active tick the creature performs that move once — at its target when one is in range, else along
+/// the cast aim (the owner's look: "reinhardt charge" charges where you pointed). Generic over the
+/// move's mechanic; a mechanic with no attack of its own (Spin, Fast…) is simply skipped.
+fn opening_move(c: &mut Construct, env: &Env<'_>, k: &Kind, target: Target, out: &mut ConstructOut) {
+    let Some(m) = c.recipe.opening else { return };
+    if c.ai.attack.running || c.ai.hold.is_some() || c.pilot.is_some() {
+        return;
+    }
+    let kind = match m {
+        Mechanic::Charge if k.flier => AttackKind::Swoop,
+        Mechanic::Charge => AttackKind::Charge,
+        Mechanic::Stomp => AttackKind::Stomp,
+        Mechanic::Breath => AttackKind::Breath,
+        Mechanic::ArticulatedTail => AttackKind::TailSweep,
+        Mechanic::Grab => AttackKind::Grab,
+        Mechanic::Constrict => AttackKind::Constrict,
+        Mechanic::Blade | Mechanic::Blunt | Mechanic::Pierce => melee_kind(c, k),
+        _ => return,
+    };
+    let front = flat(c.forward()).normalize_or(Vec3::NEG_Z);
+    let along_aim = flat(env.owner.look).normalize_or(front);
+    let here = c.center();
+    let aim = match target_center(env, target) {
+        Some(tc) if flat(tc - here).length() < OPENING_RANGE => {
+            if matches!(kind, AttackKind::Breath | AttackKind::Swoop) { (tc - here).normalize_or(along_aim) } else { flat(tc - here).normalize_or(along_aim) }
+        }
+        _ => along_aim,
+    };
+    // Face the move first (a charge runs along its facing).
+    c.rot = geom::yaw_rotation(aim);
+    c.ai.heading = flat(aim).normalize_or(c.ai.heading);
+    c.ai.cd[kind as usize] = 0.0;
+    start_attack(c, env, kind, aim, out);
+}
+
+/// A target closer than this (m, horizontal) is what the opening move aims at.
+pub const OPENING_RANGE: f32 = 24.0;
 
 fn stomp_ring(k: &Kind) -> f32 {
     (k.h * 0.35 + 2.5).clamp(3.0, 16.0)

@@ -17,6 +17,14 @@ pub fn build(app: &mut App) {
 /// Emission debt per player slot (smoke, sparks).
 struct Debt([(f32, f32); 256]);
 
+/// A little sideways drift per puff (from its seed: no extra RNG draws).
+fn r_x(seed: u32) -> f32 {
+    ((seed & 0xff) as f32 / 255.0 - 0.5) * 0.5
+}
+fn r_z(seed: u32) -> f32 {
+    (((seed >> 8) & 0xff) as f32 / 255.0 - 0.5) * 0.5
+}
+
 impl Default for Debt {
     fn default() -> Self {
         Debt([(0.0, 0.0); 256])
@@ -59,7 +67,7 @@ fn ko_smoke(
         while slot.0 >= 1.0 && n < puffs.len() {
             slot.0 -= 1.0;
             let off = Vec3::new(r.range(-0.3, 0.3), r.range(0.5, 1.7), r.range(-0.3, 0.3)) * size;
-            puffs[n] = (v.pos + off, r.next_u32(), r.range(0.14, 0.26) * size, r.range(0.9, 1.4));
+            puffs[n] = (v.pos + off, r.next_u32(), r.range(0.22, 0.4) * size, r.range(1.1, 1.7));
             n += 1;
         }
         let mut sparks = [(Vec3::ZERO, Vec3::ZERO, 0u32); 3];
@@ -78,12 +86,12 @@ fn ko_smoke(
                 kind: PKind::Rise,
                 flags: PFlags::SMOKE | PFlags::GROW,
                 pos,
-                vel: v.vel * 0.25 + Vec3::Y * 0.6,
+                vel: v.vel * 0.25 + Vec3::new(r_x(seed), 0.9, r_z(seed)),
                 size: sz,
                 color: [0.06 + heat[0] * 0.05, 0.05, 0.05],
                 emissive: 1.0,
                 life,
-                gravity: 0.9,
+                gravity: 1.3,
                 drag: 1.4,
                 spin: 0.25,
                 seed,
@@ -96,7 +104,7 @@ fn ko_smoke(
                 flags: PFlags::STRETCH | PFlags::PLAIN | PFlags::WHITE_BIRTH,
                 pos,
                 vel: vel + v.vel * 0.5,
-                size: 0.035 * size,
+                size: 0.05 * size,
                 color: [heat[0].max(0.8), heat[1] * 0.6 + 0.1, heat[2] * 0.5],
                 emissive: 5.0,
                 life: 0.35,

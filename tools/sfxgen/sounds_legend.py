@@ -248,7 +248,7 @@ def storm_mark(r, v):
     n = ns(d)
     t = tvec(n)
     trem = 0.6 + 0.4 * np.sin(TAU * np.cumsum(sweep(n, 6, 26, 0.8)) / SR)
-    env = env_pts(n, [(0, 0), (d * 0.9, 1), (d, 0.3)], 2.0)
+    env = env_pts(n, [(0, 0), (d * 0.9, 1), (d * 0.97, 0.45), (d, 0)], 2.0)
     base = [note('E2'), note('B1')][v]
     x = hl_tone(r, base * 2, n, env, bright=0.9, shimmer=0.6) + 0.8 * hl_tone(r, base * 3, n, env, bright=1.0)
     x += 0.7 * sine(sweep(n, base, base * 1.5, 1.5), n) * env  # rising under-tone (a fifth)

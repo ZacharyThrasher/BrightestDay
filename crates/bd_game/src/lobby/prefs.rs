@@ -176,10 +176,12 @@ pub enum Action {
     AltFire,
     /// MOVEMENT: dodge (a short intangible burst).
     Dodge,
+    /// UNSTICK: to the safest spawn (also in the Esc menu). Unbound by default.
+    Unstick,
 }
 
 impl Action {
-    pub const ALL: [Action; 28] = [
+    pub const ALL: [Action; 29] = [
         Action::Forward,
         Action::Back,
         Action::Left,
@@ -208,6 +210,7 @@ impl Action {
         Action::Aim,
         Action::AltFire,
         Action::Dodge,
+        Action::Unstick,
     ];
     pub const COUNT: usize = Self::ALL.len();
 
@@ -245,6 +248,7 @@ impl Action {
             Action::Aim => "aim",
             Action::AltFire => "alt_fire",
             Action::Dodge => "dodge",
+            Action::Unstick => "unstick",
         }
     }
 
@@ -278,6 +282,7 @@ impl Action {
             Action::Aim => "AIM DOWN SIGHTS",
             Action::AltFire => "ALT FIRE (GUNS)",
             Action::Dodge => "DODGE",
+            Action::Unstick => "UNSTICK",
         }
     }
 
@@ -332,6 +337,8 @@ impl Action {
             // Dodge on the thumb while holding W. Not Caps Lock: it toggles caps, and CAPS in the ring
             // console means "yelling" (shout energy).
             Action::Dodge => K::AltLeft,
+            // UNSTICK: an escape hatch, not a combat key — nothing by default.
+            Action::Unstick => return Bind::Unbound,
         })
     }
 }

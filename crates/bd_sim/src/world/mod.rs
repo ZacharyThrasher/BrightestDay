@@ -1328,7 +1328,7 @@ impl World {
             }
         }
         if !any_enemy {
-            return spawns[clear[(for_player.0 as usize) % clear.len()]];
+            return spawns[clear.nth((for_player.0 as usize) % clear.len())];
         }
         spawns.get(best.0).copied().unwrap_or(self.arena.center)
     }

@@ -511,6 +511,31 @@ mod tests {
         }
     }
 
+    /// Every sound this module plays exists in the SFX manifest and has a cue in `cues.ron` (parsed).
+    #[test]
+    fn sounds_are_in_manifest_and_cues() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets");
+        let src = include_str!("legend_sound.rs");
+        let manifest = std::fs::read_to_string(format!("{root}/sfx/manifest.ron")).expect("manifest.ron");
+        let cues = bd_audio::CueTable::load(std::path::Path::new(&format!("{root}/audio/cues.ron"))).expect("cues.ron parses");
+        let kinds = [LoopKind::Hum, LoopKind::Thor, LoopKind::Stream, LoopKind::Charge, LoopKind::Wave].map(|k| k.sound());
+        let mut names: Vec<&str> = kinds.to_vec();
+        for part in src.split("at(\"").skip(1).chain(src.split("ui(\"").skip(1)) {
+            names.push(&part[..part.find('"').unwrap()]);
+        }
+        for tup in src.split("=> (\"").skip(1).chain(src.split("Some(StormKind::Meteors) => (\"").skip(1)) {
+            names.push(&tup[..tup.find('"').unwrap()]);
+        }
+        names.sort_unstable();
+        names.dedup();
+        assert!(names.len() > 40, "{names:?}");
+        for n in names {
+            assert!(manifest.contains(&format!("\"{n}\": (")), "{n} missing from the SFX manifest");
+            let legendary = !matches!(n, "hit_heavy");
+            assert!(!legendary || cues.sounds.contains_key(n), "{n} missing from cues.ron");
+        }
+    }
+
     #[test]
     fn pentatonic_steps_rise() {
         assert_eq!(pent_pitch(0), 1.0);

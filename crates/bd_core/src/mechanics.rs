@@ -325,6 +325,11 @@ pub struct Recipe {
     /// the rider. A mount never has a mount of its own (normalisation drops it). `None` = on foot.
     #[serde(default, deserialize_with = "deserialize_payload")]
     pub mount: Option<Box<Recipe>>,
+    /// OPENING MOVE (v1.9): the move a "<name> <move>" phrase named ("reinhardt charge", "godzilla's
+    /// breath", "t rex stomp") — the construct performs it once right after it forms (bd_sim creature
+    /// AI; a Charge with no target in range dashes along the cast aim). `None` = no opening move.
+    #[serde(default)]
+    pub opening: Option<Mechanic>,
 }
 
 impl Recipe {
@@ -386,6 +391,7 @@ impl Recipe {
             temperament: Temperament::Calm,
             intensity: 0.0,
             mount: None,
+            opening: None,
         }
     }
 }

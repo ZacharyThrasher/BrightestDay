@@ -76,6 +76,29 @@ pub struct UnstickState {
     pub last_pct: f32,
 }
 
+/// Spawn indices that are clear ([`World::clear_spawns`]); spawns past the 128th are never ruled out.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SpawnSet {
+    mask: u128,
+    n: usize,
+}
+
+impl SpawnSet {
+    pub(crate) fn contains(&self, k: &usize) -> bool {
+        *k < self.n && (*k >= 128 || self.mask >> *k & 1 == 1)
+    }
+    pub(crate) fn iter(self) -> impl Iterator<Item = usize> {
+        (0..self.n).filter(move |k| self.contains(k))
+    }
+    pub(crate) fn len(&self) -> usize {
+        self.iter().count()
+    }
+    /// The `i`-th clear spawn index (`i < len()`).
+    pub(crate) fn nth(&self, i: usize) -> usize {
+        self.iter().nth(i).unwrap_or(0)
+    }
+}
+
 /// What [`embed_step`] did.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Pop {
@@ -253,12 +276,17 @@ impl World {
         v
     }
 
+    /// Colliders for spawn / embedding checks: this tick's (they include the static map ones)
+    /// or, in a fresh world that hasn't ticked, the static ones built here (no allocation on
+    /// maps without any).
+    fn check_colliders(&self) -> std::borrow::Cow<'_, [Collider]> {
+        if self.colliders.is_empty() { std::borrow::Cow::Owned(self.static_colliders()) } else { std::borrow::Cow::Borrowed(&self.colliders[..]) }
+    }
+
     /// Is the living player `id` inside solid terrain / a static map collider (host or replica)?
     pub fn player_embedded(&self, id: PlayerId) -> bool {
         let Some(p) = self.player(id).filter(|p| p.alive) else { return false };
-        let cols = if self.colliders.is_empty() { self.static_colliders() } else { Vec::new() };
-        let cols = if self.colliders.is_empty() { &cols[..] } else { &self.colliders[..] };
-        hull_embedded(&self.voxels, cols, &p.hull(&self.cfg.move_params))
+        hull_embedded(&self.voxels, &self.check_colliders(), &p.hull(&self.cfg.move_params))
     }
 
     /// Can a standing player spawn with their feet at `pos`: hull clear of terrain and static map
@@ -276,11 +304,21 @@ impl World {
         raycast_world(&cw, pos + Vec3::Y * 0.3, Vec3::NEG_Y, SPAWN_GROUND_M + 0.3, false).is_some()
     }
 
-    /// Indices of the arena spawns that pass [`Self::spawn_clear`] (all of them if none does).
-    pub(crate) fn clear_spawns(&self) -> Vec<usize> {
-        let cols = self.static_colliders();
-        let ok: Vec<usize> = (0..self.arena.spawns.len()).filter(|&k| self.spawn_clear_with(self.arena.spawns[k], &cols)).collect();
-        if ok.is_empty() { (0..self.arena.spawns.len()).collect() } else { ok }
+    /// The arena spawns that pass [`Self::spawn_clear`] (all of them if none does). Allocation-free
+    /// (respawns run inside the tick).
+    pub(crate) fn clear_spawns(&self) -> SpawnSet {
+        let n = self.arena.spawns.len();
+        let cols = self.check_colliders();
+        let mut mask = 0u128;
+        for k in 0..n.min(128) {
+            if self.spawn_clear_with(self.arena.spawns[k], &cols) {
+                mask |= 1 << k;
+            }
+        }
+        if mask == 0 {
+            mask = u128::MAX;
+        }
+        SpawnSet { mask, n }
     }
 
     /// The safest clear spawn for `id`: farthest from every living enemy (ties → lowest index).
@@ -290,7 +328,7 @@ impl World {
             return self.arena.center + Vec3::Y * 2.0;
         }
         let mut best = (usize::MAX, f32::NEG_INFINITY);
-        for k in self.clear_spawns() {
+        for k in self.clear_spawns().iter() {
             let s = spawns[k];
             let nearest = self
                 .players
@@ -416,5 +454,111 @@ impl World {
                 self.events.push(GameEvent::Unstuck { player: id, from, to, auto: true });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bd_core::{ConstructId, IVec3, PlayerId, Quat, Vec3};
+
+    use super::*;
+    use crate::movement::testkit::FnWorld;
+    use crate::movement::{MoveParams, WATER_ID_BASE};
+    use crate::space::{PortalEnd, PortalPair};
+
+    /// Ground top at y = 8 (voxels below y 16 are solid).
+    fn slab() -> FnWorld<impl Fn(IVec3) -> bool> {
+        FnWorld(|v: IVec3| v.y < 16)
+    }
+
+    fn anywhere(_: Vec3) -> bool {
+        true
+    }
+
+    /// Step `secs` of the safety net; returns every outcome.
+    fn run<V: VoxelQuery + ?Sized>(st: &mut PlayerState, v: &V, cols: &[Collider], portals: &[PortalPair], exempt: bool, secs: f32) -> Vec<Pop> {
+        let p = MoveParams::default();
+        (0..(secs / DT).round() as usize).map(|_| embed_step(st, &p, v, cols, portals, exempt, anywhere, DT)).collect()
+    }
+
+    #[test]
+    fn a_hull_buried_in_the_ground_pops_up_after_a_quarter_second() {
+        let p = MoveParams::default();
+        let w = slab();
+        let mut st = PlayerState::new(Vec3::new(0.3, 7.0, 0.3), &p);
+        let early = run(&mut st, &w, &[], &[], false, 0.2);
+        assert!(early.iter().all(|o| *o == Pop::None), "not before {POP_AFTER} s");
+        assert!(st.extra.stuck > 0.15);
+        let late = run(&mut st, &w, &[], &[], false, 0.1);
+        assert!(late.iter().any(|o| matches!(o, Pop::Moved(_))), "popped out: {late:?}");
+        assert!((st.pos.y - 8.01).abs() < 1e-3, "straight up onto the ground: {:?}", st.pos);
+        assert!((st.pos.x - 0.3).abs() < 1e-6 && (st.pos.z - 0.3).abs() < 1e-6, "up first, not sideways");
+        assert!(!hull_embedded(&w, &[], &st.hull(&p)));
+        assert_eq!(st.extra.stuck, 0.0);
+    }
+
+    #[test]
+    fn standing_on_the_ground_never_counts() {
+        let p = MoveParams::default();
+        let mut st = PlayerState::new(Vec3::new(0.3, 8.002, 0.3), &p);
+        assert!(run(&mut st, &slab(), &[], &[], false, 2.0).iter().all(|o| *o == Pop::None));
+        assert_eq!(st.extra.stuck, 0.0);
+    }
+
+    #[test]
+    fn under_a_ceiling_it_goes_sideways() {
+        // Buried in a 1 m block under a 10 m-thick roof at 2..12 m: up finds nothing within 6 m,
+        // the rings find the open floor next to the block.
+        let w = FnWorld(|v: IVec3| v.y < 0 || (v.y >= 4 && v.y < 24 && v.x.abs() < 20 && v.z.abs() < 20) || (v.y < 2 && v.x.abs() <= 1 && v.z.abs() <= 1));
+        let p = MoveParams::default();
+        let mut st = PlayerState::new(Vec3::new(0.25, 0.0, 0.25), &p);
+        let out = run(&mut st, &w, &[], &[], false, 0.3);
+        assert!(out.iter().any(|o| matches!(o, Pop::Moved(_))), "{out:?}");
+        assert!(!hull_embedded(&w, &[], &st.hull(&p)), "free at {:?}", st.pos);
+        assert!(st.pos.y < 2.0, "stayed under the roof: {:?}", st.pos);
+    }
+
+    #[test]
+    fn a_static_map_collider_counts_but_water_sheets_do_not() {
+        let p = MoveParams::default();
+        let air = FnWorld(|_: IVec3| false);
+        let block = Collider::new(Vec3::new(0.0, 1.0, 0.0), Vec3::splat(1.5), Quat::IDENTITY, ColliderId::Other(7));
+        let mut st = PlayerState::new(Vec3::ZERO, &p);
+        assert!(run(&mut st, &air, &[block], &[], false, 0.3).iter().any(|o| matches!(o, Pop::Moved(_))));
+        let water = Collider::new(Vec3::new(0.0, 1.0, 0.0), Vec3::splat(1.5), Quat::IDENTITY, ColliderId::Other(WATER_ID_BASE));
+        let mut st = PlayerState::new(Vec3::ZERO, &p);
+        assert!(run(&mut st, &air, &[water], &[], false, 1.0).iter().all(|o| *o == Pop::None), "water-walk sheets are not embedding");
+    }
+
+    #[test]
+    fn intentional_overlaps_are_left_alone() {
+        let p = MoveParams::default();
+        let w = slab();
+        let buried = || PlayerState::new(Vec3::new(0.3, 7.0, 0.3), &p);
+        // Seated / suited (the caller's `exempt`).
+        let mut st = buried();
+        assert!(run(&mut st, &w, &[], &[], true, 1.0).iter().all(|o| *o == Pop::None), "seated");
+        assert_eq!(st.extra.stuck, 0.0);
+        // Launched (punch-through plows through rock).
+        let mut st = buried();
+        st.tumble = 5.0;
+        assert!(run(&mut st, &w, &[], &[], false, 1.0).iter().all(|o| *o == Pop::None), "tumbling");
+        // Tunnelling through a portal in a wall.
+        let end = |pos: Vec3| PortalEnd { pos, normal: Vec3::X, up: Vec3::Y, radius: 1.2, hp: 100.0, style: 0 };
+        let portal = PortalPair { id: 1, owner: PlayerId(1), ends: [end(Vec3::new(0.3, 8.0, 0.3)), end(Vec3::new(30.0, 9.0, 0.0))], expires: u64::MAX, construct: None };
+        let mut st = buried();
+        assert!(run(&mut st, &w, &[], &[portal], false, 1.0).iter().all(|o| *o == Pop::None), "portal");
+        // Riding / inside a construct (a giant's body, a worn mech).
+        let body = Collider::new(Vec3::new(0.3, 8.5, 0.3), Vec3::new(2.0, 1.0, 2.0), Quat::IDENTITY, ColliderId::Construct { id: ConstructId(3), part: 0 });
+        let mut st = buried();
+        assert!(run(&mut st, &w, &[body], &[], false, 1.0).iter().all(|o| *o == Pop::None), "construct");
+    }
+
+    #[test]
+    fn nothing_free_in_range_asks_the_host_for_a_spawn() {
+        let p = MoveParams::default();
+        let mut st = PlayerState::new(Vec3::ZERO, &p);
+        let out = run(&mut st, &FnWorld(|_: IVec3| true), &[], &[], false, 0.3);
+        assert_eq!(out.last(), Some(&Pop::NoRoom));
     }
 }

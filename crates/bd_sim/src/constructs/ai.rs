@@ -102,6 +102,8 @@ pub struct AttackRun {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AiState {
     pub init: bool,
+    /// OPENING MOVE: the recipe's named move (`Recipe::opening`) was performed (or skipped).
+    pub opened: bool,
     pub mode: Mode,
     pub target: Target,
     /// Seconds until the next retarget decision.

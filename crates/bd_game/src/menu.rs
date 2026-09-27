@@ -72,6 +72,8 @@ enum Act {
     ResetKeys,
     Copy,
     Lobby,
+    /// UNSTICK: to the safest spawn (`crate::unstick`; the host queues it behind the cooldown).
+    Unstick,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -325,7 +327,7 @@ const KEY_SECTIONS: [(&str, &[Action]); 4] = [
         &[Action::Console, Action::ConsoleAlt, Action::Voice, Action::Slot1, Action::Slot2, Action::Slot3, Action::Slot4, Action::Oath, Action::Charge, Action::Power, Action::Transform, Action::Dismiss],
     ),
     ("VIEW / AIM", &[Action::ToggleView, Action::Shoulder, Action::Aim, Action::AltFire]),
-    ("OTHER", &[Action::Scoreboard]),
+    ("OTHER", &[Action::Scoreboard, Action::Unstick]),
 ];
 
 impl Row {
@@ -534,7 +536,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             v
         }
         MenuPage::Pause => {
-            let mut v = vec![Button(Act::Resume, "RESUME")];
+            let mut v = vec![Button(Act::Resume, "RESUME"), Button(Act::Unstick, "UNSTICK")];
             if c.net_role() != NetRole::Offline {
                 v.push(Button(Act::Lobby, "LOBBY"));
             }
@@ -1261,6 +1263,7 @@ struct MenuIo<'w> {
     sfx: MessageWriter<'w, PlaySfx>,
     voice: Res<'w, crate::voice_ui::VoiceUi>,
     clipboard: Option<ResMut<'w, bevy::clipboard::Clipboard>>,
+    unstick: MessageWriter<'w, crate::unstick::UnstickRequest>,
 }
 
 impl MenuIo<'_> {
@@ -1323,6 +1326,12 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
         }
         Act::Back => back(menu, state, &mut io.pause),
         Act::Resume => {
+            io.pause.0 = false;
+            menu.rebuild = true;
+        }
+        Act::Unstick => {
+            // Back to the game; a request that has to wait shows its timer under the crosshair.
+            io.unstick.write(crate::unstick::UnstickRequest);
             io.pause.0 = false;
             menu.rebuild = true;
         }
@@ -2016,13 +2025,16 @@ fn rebuild_menu(mut commands: Commands, mut menu: ResMut<MenuState>, mut io: Men
                 ))
                 .with_children(|r| {
                     r.spawn((RowBar(i), Node { width: px(3), height: px(22), ..default() }, BackgroundColor(Color::NONE)));
-                    r.spawn((
+                    let mut l = r.spawn((
                         RowLabel(i),
                         Text::new(label),
                         TextFont::from_font_size(if wide { 21.0 } else { 24.0 }),
                         TextColor(Color::srgba(1.0, 1.0, 1.0, 0.55)),
                         Node { flex_grow: if text_row { 0.0 } else { 1.0 }, min_width: px(if text_row { 90.0 } else { 0.0 }), ..default() },
                     ));
+                    if matches!(row, Row::Button(Act::Unstick, _)) {
+                        l.insert(crate::unstick::UnstickLabel); // its cooldown timer (crate::unstick)
+                    }
                     if let Some(v) = value {
                         let corps_value = matches!(row, Row::Value(Knob::Corps));
                         r.spawn((

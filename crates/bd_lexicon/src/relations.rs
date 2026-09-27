@@ -645,6 +645,8 @@ impl Lexicon {
             rc.intensity = rc.intensity.max(0.8);
             r.graft.temperament = Some(t);
         }
+        // OPENING MOVE: the named move is performed once right after it forms (bd_sim creature AI).
+        rc.opening = mv.mech.first().copied();
         let name = rc.name.clone();
         r.recipe = r.recipe.clone().normalized();
         r.kind = ResolutionKind::Construct;

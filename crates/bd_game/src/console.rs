@@ -318,7 +318,11 @@ impl Caster<'_> {
                 // COSTUME HOOK: costume words ("gojo but bald", "red goku", "gojo with pink hair") dress
                 // the summon only — the construct's mechanics come from the bare character.
                 let summon = res.signature.is_none() && !incantation && !modifier;
-                if summon && let Some(bare) = bd_shapes::costume::summon::mechanics_phrase(&plan.text, &res.recipe) {
+                // (A named move — "reinhardt charge" — keeps its reading: the move IS the mechanics.)
+                if summon
+                    && res.recipe.opening.is_none()
+                    && let Some(bare) = bd_shapes::costume::summon::mechanics_phrase(&plan.text, &res.recipe)
+                {
                     let b = lex.resolve(&bare);
                     (res.recipe, res.graft, res.shape, res.alt_shape) = (b.recipe, b.graft, b.shape, b.alt_shape);
                 }

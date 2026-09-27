@@ -79,7 +79,7 @@ fn draw(
     let heat = &tuning.0.heat;
     let on = prefs.enemy_percent != EnemyPercent::Off && *state.get() == AppState::InGame && !menu.0;
     let cam = cams.iter().find(|(c, _)| c.is_active);
-    let scale = windows.iter().next().map_or(1.0, |w| (w.height() / 1080.0).max(0.75));
+    let scale = windows.iter().next().map_or(1.0, |w| (w.height() / 1080.0).max(0.8));
     let players = views.as_ref().map_or(&[][..], |v| &v.players[..]);
     for (mut l, mut text, mut color, mut font, mut node, mut vis) in &mut labels {
         // Which player this slot shows (slot k = the k-th other player), and where.

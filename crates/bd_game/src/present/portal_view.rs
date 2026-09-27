@@ -46,6 +46,10 @@ use bevy::window::PrimaryWindow;
 pub const PORTAL_MAIN_LAYER: usize = super::outline::OUTLINE_LAYER;
 /// Layer only the portal-view cameras see: the swirl disc (a portal inside a portal).
 pub const PORTAL_VIEW_LAYER: usize = 26;
+/// Layer nothing is on: an idle portal camera keeps its targets alive rendering it.
+const PORTAL_IDLE_LAYER: usize = 27;
+/// Keep idle cameras' targets alive while a portal exists (see `update_views`).
+const KEEP_ALIVE: bool = true;
 /// Live portal views at most.
 pub const MAX_VIEWS: usize = 2;
 /// Frame-time budget: live views may add this much (ms) to the frame time measured without them
@@ -60,6 +64,8 @@ const SMALL_COVERAGE: f32 = 0.04;
 const FAR_M: f32 = 45.0;
 /// Swirl → window blend time (s).
 const FADE_IN: f32 = 0.12;
+/// Frames of in-game warm-up after entering a match (tiny viewport, the gameplay pose).
+const WARM_FRAMES: u32 = 40;
 
 /// Dev / bench: force the live views off (A/B in one run) without touching the saved settings.
 #[derive(Resource, Default)]
@@ -90,6 +96,9 @@ pub struct PortalViews {
     ema_ms: f32,
     /// Frame time while no view was live (the baseline the budget adds to).
     base_ms: f32,
+    /// In-game warm-up frames left (entering the match: what the match spawns — bodies, viewmodel,
+    /// map props — gets its portal-view pipelines before any portal opens).
+    warm: u32,
     frame: u32,
     stats: ViewStats,
 }
@@ -130,6 +139,11 @@ impl Plugin for PortalViewPlugin {
                     .before(TransformSystems::Propagate),
             )
             .add_systems(OnExit(AppState::Loading), sleep_views)
+            .add_systems(OnEnter(AppState::InGame), |v: Option<ResMut<PortalViews>>| {
+                if let Some(mut v) = v {
+                    v.warm = WARM_FRAMES;
+                }
+            })
             .add_systems(OnExit(AppState::InGame), sleep_views);
     }
 }
@@ -296,6 +310,7 @@ fn setup(
         cap: MAX_VIEWS,
         ema_ms: 6.0,
         base_ms: 6.0,
+        warm: 0,
         frame: 0,
         stats: ViewStats::default(),
     });
@@ -394,10 +409,11 @@ fn update_views(
     time: Res<Time<Real>>,
     settings: Res<Settings>,
     off: Res<PortalViewsOff>,
+    arena: Option<Res<crate::arena::ArenaWorld>>,
     active: Option<Res<ActiveWorld>>,
     main: Query<(&Transform, &Projection, Option<Ref<DistanceFog>>, &Camera), (With<PlayerCamera>, Without<PortalViewCam>)>,
     mut views: ResMut<PortalViews>,
-    mut cams: Query<(&PortalViewCam, &mut Camera, &mut Transform, &mut Projection, &mut DistanceFog), Without<PlayerCamera>>,
+    mut cams: Query<(&PortalViewCam, &mut Camera, &mut Transform, &mut Projection, &mut DistanceFog, &mut RenderLayers), Without<PlayerCamera>>,
     mut ends: Query<(&PortalEndRef, &mut PortalFx)>,
     mut pairs: Local<Vec<PairGeo>>,
     mut cand: Local<Vec<(f32, u16, u8, f32, f32)>>,
@@ -460,6 +476,43 @@ fn update_views(
         }
     }
     let want = cand.len().min(v.cap);
+    // In-game warm-up (no portal wanted yet): a tiny viewport looking around from the gameplay pose
+    // and from above the arena, so the map, bodies and props visible from anywhere get their
+    // portal-view pipelines / per-view setup now, not on the frame a portal first shows them.
+    if v.warm > 0 && want == 0 {
+        v.warm -= 1;
+        let on = v.warm > 0;
+        let k = v.warm as usize;
+        const DIRS: [Vec3; 6] = [Vec3::NEG_Z, Vec3::X, Vec3::Z, Vec3::NEG_X, Vec3::NEG_Y, Vec3::Y];
+        let centre = arena.as_ref().map_or(mtf.translation, |a| a.info.center + Vec3::Y * 30.0);
+        for (i, (_, mut c, mut tf, mut proj, _, mut layers)) in cams.iter_mut().enumerate() {
+            if *layers != RenderLayers::from_layers(&[0, PORTAL_VIEW_LAYER]) {
+                *layers = RenderLayers::from_layers(&[0, PORTAL_VIEW_LAYER]);
+            }
+            let j = k * MAX_VIEWS + i;
+            *tf = match j % 13 {
+                0 => *mtf,
+                n => {
+                    let d = DIRS[(n - 1) % 6];
+                    let from = if n <= 6 { mtf.translation } else { centre };
+                    let up = if d.y.abs() > 0.5 { Vec3::Z } else { Vec3::Y };
+                    Transform::from_translation(from).looking_to(d, up)
+                }
+            };
+            if let Projection::Perspective(p) = proj.as_mut() {
+                p.fov = 100f32.to_radians();
+                p.near_clip_plane = Vec4::new(0.0, 0.0, -1.0, -p.near);
+            }
+            if on && c.viewport.as_ref().map(|v| v.physical_size) != Some(UVec2::new(64, 36)) {
+                c.viewport = Some(Viewport { physical_position: UVec2::ZERO, physical_size: UVec2::new(64, 36), ..default() });
+            }
+            if c.is_active != on {
+                c.is_active = on;
+            }
+        }
+        return;
+    }
+    v.warm = 0;
     // Keep existing assignments that are still wanted; fill free slots with the rest.
     let wanted = |id: u16, end: u8, cand: &[(f32, u16, u8, f32, f32)]| cand[..want].iter().any(|c| c.1 == id && c.2 == end);
     for s in 0..MAX_VIEWS {
@@ -483,14 +536,29 @@ fn update_views(
     let win_aspect = win.x as f32 / win.y as f32;
     let mut uv_of: [Vec2; MAX_VIEWS] = [Vec2::ONE; MAX_VIEWS];
     v.stats.frames += 1;
-    for (vc, mut c, mut tf, mut proj, mut fog) in &mut cams {
+    for (vc, mut c, mut tf, mut proj, mut fog, mut layers) in &mut cams {
         let s = vc.0;
         let Some((id, end)) = v.slots[s].filter(|_| enabled) else {
-            if c.is_active {
-                c.is_active = false;
+            // Idle with a portal in the world: keep the camera's GPU targets alive (Bevy frees view
+            // textures unused for 3 frames; re-creating them is what made a portal's first live frame
+            // cost a few ms). Every other frame it "renders" nothing: its layer holds no entity, the
+            // sun ignores it (no shadow cascades), 16×16 viewport. No portal at all: fully inactive.
+            let keep = enabled && KEEP_ALIVE;
+            let draw = keep && (v.frame + s as u32) % 2 == 0;
+            if keep && *layers != RenderLayers::layer(PORTAL_IDLE_LAYER) {
+                *layers = RenderLayers::layer(PORTAL_IDLE_LAYER);
+            }
+            if draw && c.viewport.as_ref().map(|v| v.physical_size) != Some(UVec2::splat(16)) {
+                c.viewport = Some(Viewport { physical_position: UVec2::ZERO, physical_size: UVec2::splat(16), ..default() });
+            }
+            if c.is_active != draw {
+                c.is_active = draw;
             }
             continue;
         };
+        if *layers != RenderLayers::from_layers(&[0, PORTAL_VIEW_LAYER]) {
+            *layers = RenderLayers::from_layers(&[0, PORTAL_VIEW_LAYER]);
+        }
         let Some(pp) = pairs.iter().find(|p| p.id == id) else {
             c.is_active = false;
             continue;

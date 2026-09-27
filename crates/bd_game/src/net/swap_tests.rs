@@ -12,6 +12,7 @@ use bd_core::{DT, PlayerId, TICK_HZ, Vec3};
 use bd_net::{TickPacer, now_secs};
 use bd_sim::World;
 use bd_sim::bots::BotBrain;
+use bd_sim::world::unstick::UNSTICK_COOLDOWN;
 
 use super::client::{ClientCore, ClientPhase};
 use super::host::{HostCore, HostStart};
@@ -25,12 +26,14 @@ struct Peer {
     pacer: Option<TickPacer>,
     last: f64,
     seed: u64,
+    /// `GameEvent::Unstuck` of our own player seen on this client (arrival spots).
+    unstuck: Vec<Vec3>,
 }
 
 impl Peer {
     fn new(port: u16, name: &str, seed: u64) -> Self {
         let core = ClientCore::connect(&format!("127.0.0.1:{port}"), name, Corps::Rage, NetProfile::default()).expect("connect");
-        Self { core, world: None, brain: None, pacer: None, last: now_secs(), seed }
+        Self { core, world: None, brain: None, pacer: None, last: now_secs(), seed, unstuck: Vec::new() }
     }
 
     /// One client frame: network in, predicted ticks (a bot drives the input), inputs out.
@@ -40,7 +43,13 @@ impl Peer {
         if let Some(w) = out.new_world {
             self.world = Some(w);
         }
-        self.core.outbox.clear();
+        for e in self.core.outbox.drain(..) {
+            if let bd_sim::GameEvent::Unstuck { player, to, auto: false, .. } = e {
+                if Some(player) == self.core.me {
+                    self.unstuck.push(to);
+                }
+            }
+        }
         self.core.cast_results.clear();
         let dt = now - self.last;
         self.last = now;
@@ -98,6 +107,9 @@ impl Harness {
     fn pump(&mut self) {
         let mut cmds = Vec::new();
         self.host.poll(Some(&mut self.active), &mut cmds);
+        for (id, c) in cmds {
+            self.active.apply_command(id, c);
+        }
         while now_secs() >= self.next_tick {
             self.host.pre_tick(&mut self.active);
             self.active.step(None);
@@ -251,4 +263,27 @@ fn every_map_spawn_is_clear() {
         }
     }
     assert!(bad.is_empty(), "spawns not clear:\n{}", bad.join("\n"));
+}
+
+/// The UNSTICK button on a client: the command reaches the host, which moves the player to the
+/// safest spawn (the client sees `Unstuck` and ends up there); pressed again at once it queues on
+/// the host instead of being refused.
+#[test]
+fn a_client_unstick_request_goes_through_the_host() {
+    let mut h = Harness::start(NetMapKind::Archipelago);
+    assert!(h.pump_until(15.0, |h| h.peers.iter().all(|p| p.in_map(NetMapKind::Archipelago))), "clients joined");
+    h.pump_for(1.0);
+    let me = h.peers[0].core.me.expect("id");
+    let pct = h.active.world.player(me).expect("in the host world").damage_pct;
+    h.peers[0].core.send_cmd(&crate::sim_bridge::Cmd::Unstick);
+    assert!(h.pump_until(3.0, |h| !h.peers[0].unstuck.is_empty()), "the host's Unstuck reached the client");
+    let to = h.peers[0].unstuck[0];
+    assert!(h.active.world.arena.spawns.iter().any(|s| (*s - to).length() < 1e-3), "a spawn of this map");
+    let p = h.active.world.player(me).expect("me");
+    assert!(p.unstick.cd > UNSTICK_COOLDOWN - 3.0, "cooldown running");
+    assert_eq!(p.damage_pct, pct, "no % change");
+    // Again straight away: queued on the host (never refused), nothing fires yet.
+    h.peers[0].core.send_cmd(&crate::sim_bridge::Cmd::Unstick);
+    assert!(h.pump_until(2.0, |h| h.active.world.player(me).is_some_and(|p| p.unstick.queued)), "queued");
+    assert_eq!(h.peers[0].unstuck.len(), 1, "not before the cooldown");
 }

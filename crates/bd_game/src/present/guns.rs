@@ -241,7 +241,9 @@ fn gun_events(
                 if active.world.constructs.held_by(*owner).is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands) {
                     continue;
                 }
-                let col = corps_rgb(active.corps_of(*owner));
+                // LEGENDARY: the precision one-shot's round is GOLD.
+                let golden = active.world.constructs.held_by(*owner).is_some_and(|c| bd_sim::constructs::legend::one_shot_recipe(&c.recipe, c.flair & bd_sim::replicate::cflags::LEGENDARY != 0));
+                let col = if golden { [1.0, 0.72, 0.16] } else { corps_rgb(active.corps_of(*owner)) };
                 // Caliber: a giant (ultimate) railgun draws a thick beam (width x sqrt(scale / default)).
                 let caliber = active.world.constructs.held_by(*owner).filter(|c| c.recipe.form == bd_core::mechanics::Form::Gun).map_or(1.0, |c| {
                     let d = bd_sim::constructs::forms::form_spec(c.recipe.form).default_scale.max(0.1);

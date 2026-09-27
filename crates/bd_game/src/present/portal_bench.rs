@@ -73,6 +73,11 @@ pub fn build(app: &mut App) {
         _ => Mode::Fill,
     };
     info!("portal scenario: {mode:?}");
+    if std::env::var_os("BD_PIPELINE_LOG").is_some()
+        && let Some(r) = app.get_sub_app_mut(bevy::render::RenderApp)
+    {
+        r.add_systems(bevy::render::Render, log_new_pipelines);
+    }
     if std::env::var_os("BD_PORTAL_NOVIEW").is_some() {
         app.insert_resource(super::portal_view::PortalViewsOff(true));
     }
@@ -109,6 +114,8 @@ fn drive(
     mut off: ResMut<super::portal_view::PortalViewsOff>,
     pipes: Option<Res<crate::warmup::PipelineStatus>>,
     mut pipes_at_open: Local<u32>,
+    store: Option<Res<bevy::diagnostic::DiagnosticsStore>>,
+    mut diag_frames: Local<u32>,
 ) {
     let dt = time.delta_secs();
     sc.t += dt;
@@ -186,6 +193,25 @@ fn drive(
         println!("{line}");
         info!("{line}");
     }
+    // BD_GPU_DIAG=1: the render passes' CPU / GPU time on the first live frames vs a later one.
+    if sc.mode == Mode::Appear
+        && sc.first_live.is_some()
+        && let Some(store) = store.as_ref()
+        && *diag_frames < 40
+    {
+        *diag_frames += 1;
+        if matches!(*diag_frames, 1..=4 | 30) {
+            let mut v: Vec<(String, f64)> = store
+                .iter()
+                .filter(|d| d.path().as_str().starts_with("render/") && d.path().as_str().contains("elapsed"))
+                .filter_map(|d| d.measurement().map(|m| (d.path().as_str().trim_start_matches("render/").to_string(), m.value)))
+                .filter(|x| x.1 > 0.05)
+                .collect();
+            v.sort_by(|a, b| b.1.total_cmp(&a.1));
+            v.truncate(14);
+            info!("PORTAL DIAG frame {}: {:?}", *diag_frames, v.iter().map(|(k, x)| format!("{k}={x:.2}")).collect::<Vec<_>>());
+        }
+    }
     // ---- mode actions
     match sc.mode {
         Mode::Ab if sc.opened => {
@@ -258,5 +284,32 @@ fn drive(
             }
         }
         _ => {}
+    }
+}
+
+/// `BD_PIPELINE_LOG=1`: print every render pipeline created after the first 30 s of startup
+/// (which ones compile in game).
+fn log_new_pipelines(cache: Res<bevy::render::render_resource::PipelineCache>, mut seen: Local<usize>, mut frames: Local<u32>) {
+    use bevy::render::render_resource::PipelineDescriptor;
+    *frames += 1;
+    let all: Vec<_> = cache.pipelines().collect();
+    if all.len() > *seen {
+        for p in &all[*seen..] {
+            if let PipelineDescriptor::RenderPipelineDescriptor(d) = &p.descriptor {
+                let fmt = d.fragment.as_ref().map(|f| f.targets.iter().map(|t| t.as_ref().map(|t| format!("{:?}", t.format))).collect::<Vec<_>>());
+                info!(
+                    "PIPELINE +{} frame {}: {:?} vs={:?} defs={:?} msaa={} targets={:?} depth={:?}",
+                    all.len(),
+                    *frames,
+                    d.label,
+                    d.vertex.shader.id(),
+                    d.vertex.shader_defs,
+                    d.multisample.count,
+                    fmt,
+                    d.depth_stencil.as_ref().map(|s| s.depth_compare)
+                );
+            }
+        }
+        *seen = all.len();
     }
 }

@@ -12,12 +12,16 @@
 //! | Aim | the seated pilot's look (`PlayerView::seat`), else the nearest living enemy ≤ 60 m |
 //! | Fire | `ShotFired { construct }`, `HeldFx::PilotAttack`, creature `Spit` impact |
 //! | Move | view speed + yaw rate from the interpolated transform |
-//! | PilotApproach | the local owner is unseated, near and looking at the seat of a pilotable construct |
+//! | PilotApproach | the local owner could board it right now (`World::board_candidate`: own, boardable, within reach, looked at) |
 //! | PilotEnter / Exit | `Seated` / `Ejected` |
 //! | Hit | `ConstructHit` (direction from the hit point through the construct) |
 //! | Charge | owner's `pflags::CHARGING` |
 //! | Attack | creature telegraphs (`CreatureAttack`), held swings (`HeldFx::SwingStart`…) |
 //! | Dismiss | `ConstructEnd::Dismiss` inserted (collapse plays during bd_fx's dissolve) |
+//!
+//! Also here (PILOTING teach-by-feel): the construct the Transform key would board right now gets a
+//! soft pulsing glow on its seat / cockpit ([`BoardGlow`]; no text) — exactly the sim's
+//! `World::board_candidate`, so the glow and the key always agree.
 //!
 //! Also here (weight pass): footfalls of walking constructs → camera shake by distance + dust +
 //! a stomp cue for kaiju-sized feet. Sound hooks are `Sfx3d` cue names (missing cues are silent):
@@ -36,7 +40,7 @@ use crate::camera::PlayerCamera;
 use crate::juice::CameraShakeEvent;
 use crate::sim_bridge::{ActiveWorld, GameEvents, WorldViews};
 use bd_core::ConstructId;
-use bd_core::mechanics::{FormCategory, Mechanic};
+use bd_core::mechanics::FormCategory;
 use bd_fx::{AutoForm, BurstFx, BurstKind, ConstructAssembly, ConstructEnd, ConstructVisual, PartOverlay};
 use bd_shapes::{AnimDrive, AnimEvent, AnimState, ConstructAnimator, CueKind, Footfall};
 use bd_sim::GameEvent;
@@ -51,7 +55,10 @@ pub struct ConstructAnimPlugin;
 
 impl Plugin for ConstructAnimPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<AnimInbox>().add_systems(Update, (collect_events, animate_constructs).chain().after(super::PresentSet::Sync));
+        scenario::build(app); // `--scenario piloting` (dev frames, docs/piloting/)
+        app.init_resource::<AnimInbox>()
+            .init_resource::<BoardGlow>()
+            .add_systems(Update, (collect_events, animate_constructs, board_glow).chain().after(super::PresentSet::Sync));
     }
 }
 
@@ -159,6 +166,7 @@ fn animate_constructs(
     mut shake: MessageWriter<CameraShakeEvent>,
     mut loops: Query<&mut SfxLoopEmitter, With<RotorLoop>>,
     mut feet: Local<Vec<Footfall>>,
+    mut glow: ResMut<BoardGlow>,
 ) {
     let Some(active) = active else { return };
     let dt = time.delta_secs().min(0.1);
@@ -169,6 +177,9 @@ fn animate_constructs(
         }
     }
     let local = active.local.and_then(|id| views.player(id));
+    // PILOTING: the one construct the Transform key would board (same rule as the host).
+    let board_target = active.local.and_then(|id| active.world.board_candidate(id));
+    glow.at = None;
     for (e, sc, vis, tf, anim, overlay, forming, end, assembly) in &mut q {
         let model = &vis.model;
         let ptr = Arc::as_ptr(model) as usize;
@@ -207,7 +218,6 @@ fn animate_constructs(
         }
         // Drive.
         let cv = views.construct(sc.id);
-        let c = active.world.constructs.get(sc.id);
         let owner = views.player(sc.owner);
         let (t, speed, dist, airborne) = match vis.layers.as_slice().first() {
             Some((AnimState::Locomotion { speed, distance, airborne }, t)) => (*t, *speed, *distance, *airborne),
@@ -253,22 +263,11 @@ fn animate_constructs(
                 }
             }
         }
-        // Pilot approach: the local owner, unseated, close to and looking at the seat.
-        let pilotable = model.seat.is_some() || c.is_some_and(|c| c.recipe.has(Mechanic::Piloted));
-        let mut pilot_near = false;
-        if pilotable
-            && !piloted
-            && let Some(lp) = local
-            && lp.id == sc.owner
-            && lp.seat.is_none()
-            && lp.alive()
-        {
-            let seat = model.seat.map(|s| tf.transform_point(Vec3::from_array(s.pos.to_array()))).unwrap_or(chest);
-            let leye = lp.pos + Vec3::Y * 1.6 * lp.size;
-            let to = seat - leye;
-            let reach = (0.35 * height).max(3.5);
-            let dir = Quat::from_euler(EulerRot::YXZ, lp.yaw, lp.pitch, 0.0) * Vec3::NEG_Z;
-            pilot_near = to.length() <= reach && dir.dot(to.normalize_or(Vec3::Y)) > 0.45;
+        // Pilot approach: the local owner could board it right now (hatches open, the seat glows).
+        let pilot_near = board_target == Some(sc.id) && local.is_some_and(|lp| lp.id == sc.owner && lp.alive());
+        if pilot_near {
+            let seat = model.seat.map(|s| tf.transform_point(Vec3::from_array(s.pos.to_array()))).unwrap_or(tf.translation + Vec3::Y * height * 0.75);
+            glow.at = Some((seat, (height * 0.12).clamp(0.35, 1.6)));
         }
         let charge = owner.map_or(0.0, |o| if o.has(pflags::CHARGING) { 1.0 } else { 0.0 });
         let ring = owner.map(|o| to_model(hand_transform(o).translation));
@@ -404,6 +403,298 @@ fn animate_constructs(
                 }
             }
             a.prev_dist = Some(dist);
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------ board glow
+
+/// PILOTING teach-by-feel: where the "you can get in" glow sits this frame (seat / cockpit, world
+/// space) and how big it is; `None` = nothing to board. Written by `animate_constructs`.
+#[derive(Resource, Default)]
+pub struct BoardGlow {
+    pub at: Option<(Vec3, f32)>,
+    level: f32,
+    t: f32,
+    entity: Option<Entity>,
+    mat: Option<Handle<StandardMaterial>>,
+}
+
+#[derive(Component)]
+struct BoardGlowMark;
+
+/// A soft additive orb on the seat that breathes while you could board (fades in / out; no text).
+fn board_glow(
+    mut commands: Commands,
+    time: Res<Time<Real>>,
+    mut glow: ResMut<BoardGlow>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+    mut q: Query<(&mut Transform, &mut Visibility), With<BoardGlowMark>>,
+) {
+    let dt = time.delta_secs().min(0.1);
+    glow.t += dt;
+    let want = if glow.at.is_some() { 1.0 } else { 0.0 };
+    glow.level += (want - glow.level) * (dt * 8.0).min(1.0);
+    if glow.entity.is_none_or(|e| q.get(e).is_err()) {
+        if glow.at.is_none() {
+            return; // spawn lazily, the first time there is something to board
+        }
+        let mesh = meshes.add(Sphere::new(1.0).mesh().ico(2).unwrap_or_else(|_| Sphere::new(1.0).mesh().uv(16, 12)));
+        let mat = mats.add(StandardMaterial {
+            base_color: Color::srgba(0.55, 0.9, 1.0, 0.0),
+            emissive: LinearRgba::rgb(0.0, 0.0, 0.0),
+            unlit: true,
+            alpha_mode: AlphaMode::Add,
+            ..default()
+        });
+        let e = commands.spawn((BoardGlowMark, Mesh3d(mesh), MeshMaterial3d(mat.clone()), Transform::default(), Visibility::Hidden, bevy::light::NotShadowCaster)).id();
+        glow.entity = Some(e);
+        glow.mat = Some(mat);
+        return;
+    }
+    let (Some(e), Some(mat)) = (glow.entity, glow.mat.clone()) else { return };
+    let Ok((mut tf, mut vis)) = q.get_mut(e) else { return };
+    let level = glow.level;
+    if level < 0.02 {
+        *vis = Visibility::Hidden;
+        return;
+    }
+    if let Some((at, size)) = glow.at {
+        tf.translation = at;
+        tf.scale = Vec3::splat(size * (0.92 + 0.08 * (glow.t * 4.0).sin()));
+    }
+    *vis = Visibility::Visible;
+    if let Some(mut m) = mats.get_mut(&mat) {
+        let a = level * (0.22 + 0.1 * (glow.t * 4.0).sin().abs());
+        m.base_color = Color::srgba(0.55, 0.9, 1.0, a);
+        m.emissive = LinearRgba::rgb(0.9 * a, 2.2 * a, 3.0 * a);
+    }
+}
+
+// ------------------------------------------------------------------------------------------ scenario
+
+/// `--scenario piloting --pilot-shot truck|transform|robot|starscream|board` (practice): dev frames
+/// of piloting (docs/piloting/). You cast the real lexicon's "optimus prime" (default-piloted: you
+/// spawn seated in the truck) or "starscream" on open ground; bots stop thinking and the others are
+/// benched; the script drives your input. `transform`: a kick off the ground, then the Transform key
+/// mid-air (robot + landing slam); `robot`: transformed, walking; `board`: a follower Optimus you walk
+/// up to (the seat glows), then board with the Transform key.
+pub mod scenario {
+    use crate::console::RingLexicon;
+    use crate::input::{InputOverride, LookAngles};
+    use crate::sim_bridge::ActiveWorld;
+    use bd_core::{ConstructId, PlayerId, Vec3};
+    use bevy::ecs::schedule::common_conditions::resource_exists;
+    use bevy::prelude::{App, IntoScheduleConfigs, Res, ResMut, Resource, Time, Update, info, warn};
+    use bevy::time::Real;
+
+    #[derive(Resource, Clone, Debug, Default)]
+    pub struct PilotScenario {
+        shot: String,
+        t: f32,
+        placed: bool,
+        id: Option<ConstructId>,
+        dir: Vec3,
+        step: u32,
+    }
+
+    pub fn build(app: &mut App) {
+        let args: Vec<String> = std::env::args().collect();
+        if !args.windows(2).any(|w| w[0] == "--scenario" && w[1] == "piloting") {
+            return;
+        }
+        let shot = args.windows(2).find(|w| w[0] == "--pilot-shot").map(|w| w[1].clone()).unwrap_or_else(|| "truck".into());
+        info!("piloting scenario: {shot}");
+        app.insert_resource(PilotScenario { shot, ..Default::default() }).add_systems(Update, script.run_if(resource_exists::<ActiveWorld>));
+    }
+
+    /// The most open, flat ground near `me`: a spot with a clear lane (samples every 4 m for 40 m,
+    /// 6 m wide, within 2 m of the start height, nothing overhead) — (stand-at, lane direction).
+    fn stage(w: &bd_sim::World, me: Vec3) -> Option<(Vec3, Vec3)> {
+        let top = |x: f32, z: f32| bd_core::voxel::raycast(&w.voxels, Vec3::new(x, 150.0, z), Vec3::NEG_Y, 170.0).map(|h| h.point.y);
+        let mut cands: Vec<Vec3> = vec![me];
+        for r in [12.0f32, 24.0, 36.0] {
+            for k in 0..16 {
+                let a = k as f32 / 16.0 * std::f32::consts::TAU;
+                cands.push(me + Vec3::new(a.cos() * r, 0.0, a.sin() * r));
+            }
+        }
+        for gx in -8..=8 {
+            for gz in -8..=8 {
+                cands.push(Vec3::new(gx as f32 * 10.0, 0.0, gz as f32 * 10.0));
+            }
+        }
+        let mut best: Option<(u32, Vec3, Vec3)> = None;
+        for c in cands {
+            let Some(y0) = top(c.x, c.z) else { continue };
+            if bd_core::voxel::raycast(&w.voxels, Vec3::new(c.x, y0 + 1.0, c.z), Vec3::Y, 30.0).is_some() {
+                continue;
+            }
+            for k in 0..8 {
+                let a = k as f32 / 8.0 * std::f32::consts::TAU;
+                let d = Vec3::new(a.cos(), 0.0, a.sin());
+                let mut score = 0;
+                for s in 0..10 {
+                    let p = c + d * (s as f32 * 4.0);
+                    for o in [-3.0f32, 0.0, 3.0] {
+                        let q = p + Vec3::new(-d.z, 0.0, d.x) * o;
+                        if top(q.x, q.z).is_some_and(|y| (y - y0).abs() < 0.6) {
+                            score += 1;
+                        }
+                    }
+                }
+                if best.is_none_or(|b| score > b.0) {
+                    best = Some((score, Vec3::new(c.x, y0 + 0.05, c.z), d));
+                }
+            }
+        }
+        best.filter(|b| b.0 >= 22).map(|b| (b.1, b.2))
+    }
+
+    fn face(look: &mut LookAngles, d: Vec3, pitch: f32) {
+        look.yaw = (-d.x).atan2(-d.z);
+        look.pitch = pitch;
+    }
+
+    fn cast(active: &mut ActiveWorld, lex: &bd_lexicon::Lexicon, me: PlayerId, phrase: &str, dir: Vec3) -> Option<ConstructId> {
+        let it = lex.intent(phrase, &[], false);
+        let r = it.resolution;
+        info!("piloting scenario: \"{phrase}\" -> {} pilot {:?}", r.signature(), it.pilot);
+        let eye = active.world.player(me).map(|p| p.eye(active.world.params()))?;
+        match active.world.cast_shaped(me, r.recipe, r.shape, r.alt_shape, bd_sim::Aim::new(eye, (dir + Vec3::new(0.0, -0.35, 0.0)).normalize_or_zero())) {
+            Ok(id) => {
+                if let Some(c) = active.world.constructs.get_mut(id) {
+                    c.life = 1e6;
+                }
+                Some(id)
+            }
+            Err(e) => {
+                warn!("piloting scenario: cast failed {e:?}");
+                None
+            }
+        }
+    }
+
+    fn script(
+        time: Res<Time<Real>>,
+        lex: Option<Res<RingLexicon>>,
+        mut sc: ResMut<PilotScenario>,
+        mut active: ResMut<ActiveWorld>,
+        mut look: ResMut<LookAngles>,
+        mut ov: ResMut<InputOverride>,
+    ) {
+        let dt = time.delta_secs();
+        sc.t += dt;
+        if sc.t < 0.8 {
+            return;
+        }
+        let Some((me, my_pos)) = active.local_player().filter(|p| p.alive).map(|p| (p.id, p.mv.pos)) else { return };
+        if !sc.placed {
+            let Some(lex) = lex else { return };
+            let Some((from, dir)) = stage(&active.world, my_pos) else {
+                if sc.t > 6.0 {
+                    warn!("piloting scenario: no stage found");
+                    sc.placed = true;
+                }
+                return;
+            };
+            active.bots.clear();
+            active.world.cfg.rules.willpower = bd_sim::WillpowerMode::Infinite;
+            let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
+            for id in others {
+                if let Some(p) = active.world.player_mut(id) {
+                    p.alive = false;
+                    p.respawn_timer = 1e6;
+                }
+            }
+            if let Some(p) = active.world.player_mut(me) {
+                p.mv.pos = from;
+                p.mv.vel = Vec3::ZERO;
+                p.spawn_shield = 0.0;
+            }
+            face(&mut look, dir, -0.12);
+            let phrase = match sc.shot.as_str() {
+                "starscream" => "starscream",
+                "board" => "optimus prime that follows me",
+                _ => "optimus prime",
+            };
+            sc.id = cast(&mut active, &lex.0, me, phrase, dir);
+            sc.dir = dir;
+            sc.placed = true;
+            sc.t = 1.0;
+            return;
+        }
+        let Some(id) = sc.id.filter(|id| active.world.constructs.get(*id).is_some()) else { return };
+        let t = sc.t;
+        if (t * 1.0).floor() != ((t - dt) * 1.0).floor() {
+            if let Some(c) = active.world.constructs.get(id) {
+                let seat = active.world.player(me).and_then(|p| p.seat).map(|s| s.construct);
+                info!("piloting scenario t={t:.1}: pos {:?} vel {:?} vehicle {} seat {:?} grounded {}", c.pos, c.vel, c.held.vehicle, seat, c.grounded);
+            }
+        }
+        ov.active = true;
+        ov.held = 0;
+        ov.move_x = 0;
+        ov.move_z = 0;
+        let dir = sc.dir;
+        match sc.shot.as_str() {
+            // Cruise down the lane in the truck (third person).
+            "truck" => {
+                face(&mut look, dir, -0.1);
+                ov.move_z = if t > 1.6 { 1 } else { 0 };
+            }
+            // Drive, get kicked into the air, press Transform mid-jump: the robot lands in a slam.
+            "transform" => {
+                face(&mut look, dir, -0.1);
+                ov.move_z = 1;
+                if t > 2.4 && sc.step == 0 {
+                    sc.step = 1;
+                    if let Some(c) = active.world.constructs.get_mut(id) {
+                        c.vel.y = 11.0;
+                        c.grounded = false;
+                    }
+                }
+                if t > 2.65 && sc.step == 1 {
+                    sc.step = 2;
+                    active.world.toggle_transform(me);
+                }
+            }
+            // Transformed on the ground, then walking the robot.
+            "robot" => {
+                face(&mut look, dir, -0.08);
+                if t > 1.4 && sc.step == 0 {
+                    sc.step = 1;
+                    active.world.toggle_transform(me);
+                }
+                ov.move_z = if t > 2.8 { 1 } else { 0 };
+            }
+            // The jet: throttle up and climb along the lane.
+            "starscream" => {
+                face(&mut look, dir, if t < 2.0 { 0.0 } else { 0.28 });
+                ov.move_z = 1;
+            }
+            // Walk up to your follower Optimus (the seat glows), then board it with the Transform key.
+            "board" => {
+                let Some(c) = active.world.constructs.get(id) else { return };
+                let (center, half) = (c.center(), c.half);
+                if let Some(c) = active.world.constructs.get_mut(id) {
+                    c.vel = Vec3::ZERO;
+                }
+                let eye = active.world.player(me).map(|p| p.eye(active.world.params())).unwrap_or(my_pos);
+                let to = center - eye;
+                look.yaw = (-to.x).atan2(-to.z);
+                look.pitch = (to.y / to.length().max(0.1)).asin();
+                let side = Vec3::new(to.x, 0.0, to.z).length();
+                if side > half.x.max(half.z) + 2.0 {
+                    ov.move_z = 1;
+                }
+                if t > 4.6 && sc.step == 0 {
+                    sc.step = 1;
+                    active.world.toggle_transform(me);
+                }
+            }
+            _ => {}
         }
     }
 }

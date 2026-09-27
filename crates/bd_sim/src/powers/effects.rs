@@ -357,6 +357,7 @@ impl World {
                 temperament: Default::default(),
                 intensity: 0.0,
                 mount: None,
+                opening: None,
             },
             &self.cfg.rules,
         );

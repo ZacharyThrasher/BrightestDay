@@ -767,7 +767,7 @@ fn legend_events(
                     _ => {}
                 }
             }
-            GameEvent::ShotTrace { owner, from, to, .. } => {
+            GameEvent::ShotTrace { owner, from, to, .. } | GameEvent::Hitscan { owner, origin: from, end: to, .. } => {
                 let held = active.world.constructs.held_by(*owner);
                 if held.is_some_and(|c| legend::one_shot_recipe(&c.recipe, c.flair & bd_sim::replicate::cflags::LEGENDARY != 0)) {
                     let (a, b) = (bv(*from), bv(*to));
@@ -1146,7 +1146,7 @@ fn chain(fx: &mut FxParticles, a: Vec3, b: Vec3, col: [f32; 3], em: f32) {
     for i in 0..n {
         let f = (i as f32 + 0.5) / n as f32;
         let rot = base * Quat::from_rotation_z(if i % 2 == 0 { 0.0 } else { PI * 0.5 });
-        cube(fx, a + d * f, rot, Vec3::new(0.06, 0.02, 0.17), col, em);
+        cube(fx, a + d * f, rot, Vec3::new(0.09, 0.03, 0.2), col, em);
     }
 }
 
@@ -1166,6 +1166,7 @@ fn draw(
     items: Query<(&SimConstruct, &Transform, &ConstructVisual)>,
     hands: Res<super::players::BodyHands>,
     vm_hands: Res<crate::viewmodel::ViewmodelHands>,
+    cam: Query<&GlobalTransform, With<crate::camera::PlayerCamera>>,
 ) {
     let Some(active) = active else { return };
     let dt = time.delta_secs().min(0.05);
@@ -1174,6 +1175,10 @@ fn draw(
     let now = st.time;
     let tuning = active.world.cfg.tuning.legendary;
     let mut rng = R::new(st.next_seed());
+    // World-sized effects thin out right at the camera (a wave leaving your own feet, a punt ring at
+    // a first-person muzzle) instead of filling the view.
+    let eye = cam.single().map(|t| t.translation()).unwrap_or(Vec3::splat(1e6));
+    let nk = |p: Vec3| ((p.distance(eye) - 0.9) / 2.6).clamp(0.0, 1.0);
     let hand_of = |p: PlayerId| -> Option<Vec3> {
         if active.local == Some(p) && vm_hands.active {
             return Some(vm_hands.world[1]);
@@ -1205,7 +1210,8 @@ fn draw(
             for i in 1..=N {
                 let f = -1.0 + 2.0 * i as f32 / N as f32;
                 let p = crescent(c, w.dir, w.axis, hw * (0.9 + 0.1 * kf), f);
-                seg(fx, prev, p, th * 0.5 * kf * (1.0 - f * f * 0.6), if w.dark { edge } else { body }, (if w.dark { 3.0 } else { body_em }) * kf * fade * 0.6);
+                let n = nk((prev + p) * 0.5);
+                seg(fx, prev, p, th * 0.5 * kf * (1.0 - f * f * 0.6) * n, if w.dark { edge } else { body }, (if w.dark { 3.0 } else { body_em }) * kf * fade * 0.6 * n);
                 prev = p;
             }
         }
@@ -1215,6 +1221,8 @@ fn draw(
             let f = -1.0 + 2.0 * i as f32 / N as f32;
             let p = crescent(center, w.dir, w.axis, hw, f);
             let taper = 1.0 - f * f * 0.7;
+            let n = nk((prev + p) * 0.5);
+            let (taper, fade) = (taper * n, fade * n);
             seg(fx, prev, p, th * taper, body, body_em * fade);
             let lead = w.dir * th * 0.45 * taper;
             seg(fx, prev + lead, p + lead, th * 0.28 * taper, edge, edge_em * fade);
@@ -1236,9 +1244,15 @@ fn draw(
         m.t += dt;
         let u = (m.t / m.land).clamp(0.0, 1.0);
         let pulse = 0.6 + 0.4 * (m.t * (8.0 + 20.0 * u)).sin().abs();
-        let g = m.pos + Vec3::Y * 0.1;
-        ring(fx, g, Vec3::Y, m.radius, 0.05, m.col, 3.0 * pulse, now);
-        ring(fx, g, Vec3::Y, m.radius * u.max(0.05), 0.08, hot(m.col, 0.4), 5.0 * pulse, -now);
+        // Raised off the voxel steps so uneven ground never hides it; posts mark the rim.
+        let g = m.pos + Vec3::Y * 0.3;
+        ring(fx, g, Vec3::Y, m.radius, 0.07, m.col, 3.5 * pulse, now);
+        ring(fx, g, Vec3::Y, m.radius * u.max(0.05), 0.1, hot(m.col, 0.4), 5.5 * pulse, -now);
+        for i in 0..8 {
+            let a = i as f32 / 8.0 * TAU + now * 0.8;
+            let q = m.pos + Vec3::new(a.cos(), 0.0, a.sin()) * m.radius;
+            seg(fx, q, q + Vec3::Y * (0.4 + 0.9 * u), 0.06, hot(m.col, 0.3), 4.0 * pulse);
+        }
         let rem = m.land - m.t;
         if m.kind.rains() {
             if rem < DROP_SECS && rem > -0.02 {
@@ -1285,7 +1299,7 @@ fn draw(
         }
         let u = (r.t / r.dur).clamp(0.0, 1.0);
         let e = 1.0 - (1.0 - u) * (1.0 - u);
-        ring(fx, r.pos, r.n, r.r0 + (r.r1 - r.r0) * e, r.thick * (1.0 - 0.6 * u), r.col, r.em * (1.0 - u), 0.0);
+        ring(fx, r.pos, r.n, r.r0 + (r.r1 - r.r0) * e, r.thick * (1.0 - 0.6 * u), r.col, r.em * (1.0 - u) * nk(r.pos), 0.0);
     }
     st.rings.retain(|r| r.t < r.dur);
     for g in st.glints.iter_mut() {
@@ -1295,14 +1309,14 @@ fn draw(
         let rot = Quat::from_rotation_y(now * 3.0);
         for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
             let a = rot * axis * s * 0.5;
-            seg(fx, g.pos - a, g.pos + a, 0.03 * g.size.sqrt(), g.col, 10.0 * (1.0 - u));
+            seg(fx, g.pos - a, g.pos + a, 0.03 * g.size.sqrt(), g.col, 10.0 * (1.0 - u) * nk(g.pos).max(0.25));
         }
     }
     st.glints.retain(|g| g.t < g.dur);
     for s in st.streaks.iter_mut() {
         s.t += dt;
         let u = (s.t / s.dur).clamp(0.0, 1.0);
-        seg(fx, s.from, s.to, s.thick * (1.0 - 0.5 * u), s.col, s.em * (1.0 - u) * (1.0 - u));
+        seg(fx, s.from, s.to, s.thick * (1.0 - 0.5 * u), s.col, s.em * (1.0 - u) * (1.0 - u) * nk((s.from + s.to) * 0.5).max(0.3));
     }
     st.streaks.retain(|s| s.t < s.dur);
 
@@ -1351,7 +1365,8 @@ fn draw(
             }
             let p = hand + rot(back) * s.heading * s.radius;
             let k = 1.0 - i as f32 / steps as f32;
-            seg(fx, prev, p, 0.25 * k + 0.03, s.col, 5.0 * k * (1.0 - u * 0.5));
+            seg(fx, prev, p, 0.45 * k + 0.05, s.col, 5.0 * k * (1.0 - u * 0.5));
+            seg(fx, prev, p, 0.12 * k + 0.02, hot(s.col, 0.6), 8.0 * k * (1.0 - u * 0.5));
             prev = p;
         }
         if fx.remaining() > 300 {
@@ -1444,7 +1459,7 @@ fn draw(
                 }
                 // The sky answers: a bolt drops onto the item now and then.
                 if hf(sc.id.0 ^ 0xABC, (now * 5.0) as u32) < 0.45 && (now * 5.0).fract() < 0.35 {
-                    bolt(fx, head + Vec3::new(1.5, 30.0, -1.0), head, 0.06, hot(col, 0.7), 9.0, sc.id.0 ^ (now * 5.0) as u32, now);
+                    bolt(fx, head + Vec3::new(1.5, 30.0, -1.0), head, 0.06 * tf.scale.x.clamp(0.25, 1.0), hot(col, 0.7), 9.0, sc.id.0 ^ (now * 5.0) as u32, now);
                 }
             } else if fx.remaining() > 300 {
                 for _ in 0..3 {

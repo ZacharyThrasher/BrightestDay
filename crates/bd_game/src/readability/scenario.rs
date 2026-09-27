@@ -8,7 +8,7 @@
 //! * `trio` — three enemies at 20 %, 80 %, 160 % in front (the 80 % one at the crosshair shows its
 //!   number); `--third-person` for the 3P view;
 //! * `smoke` — one enemy deep in KO range, close;
-//! * `compass` — the three behind you: the compass pips in their heat colour;
+//! * `compass` — the three off to your sides (off screen): the compass pips in their heat colour;
 //! * `break` — a real 2-spark cast from a full gauge; frames through the break-off (slowed ×4 for
 //!   the strip: `gauge.break_secs` is raised for this shot only).
 
@@ -45,7 +45,7 @@ pub fn build(app: &mut App) {
     let out = arg("--readability-out").map(std::path::PathBuf::from).unwrap_or_else(|| "docs/readability".into());
     info!("readability scenario: {shot} → {}", out.display());
     let at = match shot.as_str() {
-        "break" => vec![2.9, 3.02, 3.2, 3.45, 3.75],
+        "break" => vec![2.9, 3.12, 3.32, 3.55, 3.85],
         _ => vec![3.0],
     };
     let cast_at = (shot == "break").then_some(3.0);
@@ -72,7 +72,7 @@ fn place(mut sc: ResMut<Sc>, time: Res<Time<Real>>, mut active: ResMut<ActiveWor
     let layout: Vec<(f32, f32, f32)> = match shot.as_str() {
         // (metres ahead, metres right, damage %)
         "smoke" => vec![(6.0, 0.6, 170.0)],
-        "compass" => vec![(-12.0, -9.0, 20.0), (-14.0, 2.0, 80.0), (-10.0, 11.0, 160.0)],
+        "compass" | "break" => vec![(6.0, -10.0, 20.0), (4.0, 10.0, 80.0), (2.0, -13.0, 160.0)],
         _ => vec![(9.0, -3.2, 20.0), (9.5, 0.0, 80.0), (9.0, 3.2, 160.0)],
     };
     let mut pick = None;
@@ -165,7 +165,11 @@ fn hold(
         r.0.gauge.break_secs = 1.1;
     }
     look.yaw = sc.yaw;
-    look.pitch = if shot == "smoke" { 0.02 } else { -0.04 };
+    look.pitch = match shot.as_str() {
+        "smoke" => 0.02,
+        "break" => -0.3,
+        _ => -0.04,
+    };
     // The cast (a real one: the sim prices it in whole sparks).
     if let Some(at) = sc.cast_at
         && t >= at
@@ -176,7 +180,7 @@ fn hold(
         if let Some(p) = active.world.player(me) {
             let eye = p.eye(active.world.params());
             // Off to the left and down: the summon's own flash stays out of the gauge's way.
-            let dir = bd_core::input::look_dir(sc.yaw + 0.9, -0.35);
+            let dir = bd_core::input::look_dir(sc.yaw, -0.3);
             let before = p.willpower;
             let res = active.world.cast(me, recipe, None, bd_sim::world::Aim::new(eye, dir));
             let after = active.world.player(me).map_or(0.0, |p| p.willpower);
