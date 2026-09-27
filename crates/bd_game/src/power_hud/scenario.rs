@@ -81,7 +81,7 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
         p.input.yaw = yaw + std::f32::consts::PI;
         p.spawn_shield = 0.0;
     }
-    grant_all(w, bot, &["the_world", "hie_hie", "gomu_gomu"]);
+    grant_all(w, bot, &["the_world", "super_saiyan", "gomu_gomu"]);
     if let Some(p) = w.player_mut(bot) {
         p.willpower = pool;
     }

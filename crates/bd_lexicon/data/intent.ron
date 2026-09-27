@@ -195,6 +195,6 @@
         "chase car", "bite size", "sting ray", "lock pick", "lock box", "plant pot", "release valve", "put put",
         "smash cake", "slam dunk", "crush depth", "toss up", "chuck norris", "pelt coat", "dump truck", "set trap"],
     // "<thing> <prep> the <place>": the place is where to cast it (see intent.rs `location_head`).
-    location_preps: ["over", "on", "on top of", "in", "at", "near", "above", "under", "behind", "into", "onto", "around",
+    location_preps: ["from", "out of", "over", "on", "on top of", "in", "at", "near", "above", "under", "behind", "into", "onto", "around",
         "across", "through", "inside", "outside", "beside", "next to", "in front of", "by"],
 )

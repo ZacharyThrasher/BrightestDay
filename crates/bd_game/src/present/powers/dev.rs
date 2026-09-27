@@ -24,13 +24,14 @@ struct PowersDev {
     pins: Vec<(PlayerId, f32, f32)>,
     look: Option<(f32, f32, f32)>,
     base: Option<(f32, bd_core::Vec3)>,
+    refill: bool,
 }
 
 pub fn build(app: &mut App) {
     if std::env::var_os("BD_POWERS_TEST").is_none() {
         return;
     }
-    app.init_resource::<PowersDev>().add_systems(Update, dev.run_if(in_state(AppState::InGame)));
+    app.init_resource::<PowersDev>().add_systems(Update, (dev_world, dev_plan).chain().run_if(in_state(AppState::InGame)));
 }
 
 fn plan() -> &'static [(f32, String, String)] {
@@ -50,16 +51,9 @@ fn plan() -> &'static [(f32, String, String)] {
     })
 }
 
-fn dev(
-    time: Res<Time<Real>>,
-    active: Option<ResMut<ActiveWorld>>,
-    mut look: ResMut<crate::input::LookAngles>,
-    mut dev: ResMut<PowersDev>,
-    mut caster: crate::console::Caster,
-    mut cmds: MessageWriter<SimCommand>,
-) {
+/// World side: start (bots stand down), the held look, pinned bots, willpower top-ups.
+fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut look: ResMut<crate::input::LookAngles>, mut dev: ResMut<PowersDev>) {
     let Some(mut active) = active else { return };
-    let plan = plan();
     dev.t += time.delta_secs();
     let Some(me) = active.local_player().map(|p| (p.id, p.mv.pos, p.alive)) else { return };
     if !me.2 {
@@ -102,14 +96,28 @@ fn dev(
             p.spawn_shield = 0.0;
         }
     }
+    if dev.refill {
+        dev.refill = false;
+        for p in active.world.players.iter_mut() {
+            p.willpower = p.willpower.max(100.0);
+        }
+    }
+}
+
+/// Plan side: the commands (the local player's phrases go through the real ring path).
+fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut caster: crate::console::Caster, mut cmds: MessageWriter<SimCommand>) {
+    let Some(active) = active else { return };
+    let plan = plan();
+    if !dev.started {
+        return;
+    }
+    let Some(me) = active.local_player().map(|p| (p.id, p.mv.pos)) else { return };
     while let Some((at, who, cmd)) = plan.get(dev.next) {
         if dev.t < *at {
             break;
         }
         dev.next += 1;
-        for p in active.world.players.iter_mut() {
-            p.willpower = p.willpower.max(100.0);
-        }
+        dev.refill = true;
         let (who, spec) = match who.split_once('@') {
             Some((w, s)) => (w.to_string(), Some(s.to_string())),
             None => (who.clone(), None),

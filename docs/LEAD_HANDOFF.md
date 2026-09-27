@@ -28,7 +28,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
 - Match swap + stats board ae79eb8b5f11e2ad8 DONE — end-screen map vote (pips, host override/rules, ~15 s
   countdown, protocol bump) + scoreboard: text awards removed (WILDEST/BIGGEST/MOST CREATIVE), competitive
   stats table (KOs, falls, SDs, dmg dealt/taken, streak, combo, acc, constructs, stocks, ping).
-- Vocab military + D&D aa338f67f0c63e7fc — content-as-data only (weapons/vehicles/fortifications/support
+- Vocab military + D&D aa338f67f0c63e7fc DONE — content-as-data only (weapons/vehicles/fortifications/support
   calls; SRD spells/monsters/items/class moves; non-SRD names private-use in notices), ~60 golden tests.
 - Wukong + CN folklore a7e87a75ac19851a6 — NEW Mechanic::Extends (contract v1.7): Ruyi staff twirl combos,
   25-40 m extend thrust, pillar slam, pole vault; plus folklore content pack (Nezha, Erlang, Iron Fan...).

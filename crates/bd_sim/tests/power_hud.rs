@@ -65,7 +65,7 @@ fn cooldown_fraction_counts_down_to_a_ready_edge() {
 #[test]
 fn slowest_move_and_every_held_power_count() {
     let mut w = duel();
-    for k in ["star_platinum", "mera_mera", "hie_hie"] {
+    for k in ["star_platinum", "mera_mera", "ultra_instinct"] {
         assert!(w.grant_power(A, k), "{k}");
     }
     full(&mut w, A);

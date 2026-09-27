@@ -9,6 +9,7 @@
 //!   everyone while any player holds `TIME_STOP`; the user glows — they are the one who's fast).
 
 pub mod ascend;
+mod dev;
 pub mod juice;
 
 use super::players::PlayerBody;
@@ -54,6 +55,7 @@ pub struct PowersPlugin;
 
 impl Plugin for PowersPlugin {
     fn build(&self, app: &mut App) {
+        dev::build(app);
         app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin))
             .init_resource::<SpaceEntities>()
             .init_resource::<TimeStopGrey>()

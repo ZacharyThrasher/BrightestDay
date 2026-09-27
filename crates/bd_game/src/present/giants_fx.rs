@@ -787,7 +787,7 @@ pub mod scenario {
                 // Hilly spawn: straight ahead of the view, on whatever ground is there.
                 (sc.t > 2.5).then(|| {
                     let d = bd_core::input::look_dir(look.yaw, 0.0);
-                    let c = my_pos + d * 20.0;
+                    let c = my_pos + d * match sc.shot.as_str() { "stomp" => 8.5, "sever" | "topple" => 15.0, _ => 20.0 };
                     let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(my_pos.y, |h| h.point.y);
                     (Vec3::new(c.x, y, c.z), d)
                 })
