@@ -183,6 +183,10 @@ fn gun_events(
                     let mut o = SpawnOnomatopoeia::key(w, at, size, col);
                     o.dir = d;
                     o.event_id = ev.tick ^ owner.0 as u64;
+                    // Your own shot words are small and off to the side, and a stream of shots
+                    // says every Nth word (bd_fx text budget).
+                    o.local_player = active.local == Some(*owner);
+                    o.source = owner.0 as u64 + 1;
                     ono.write(o);
                 }
             }

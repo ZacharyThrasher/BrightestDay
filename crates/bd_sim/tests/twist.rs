@@ -492,6 +492,42 @@ fn fusion_rules_by_what_the_moves_are() {
     assert!(f.def.ops.iter().any(|o| matches!(o, MoveOp::Drill { element: Element::Fire, .. })), "the rasengan takes the black flames' element: {:?}", f.def.ops);
     assert!(f.def.ops.iter().any(|o| matches!(o, MoveOp::Contagion { .. })), "and brands whoever it hits");
     assert!(f.def.cooldown >= ras.cooldown.max(ama.cooldown));
+    // a pull + a push (no casts): the opposites collide into an erasing orb — blue + red IS hollow purple
+    let (_, blue) = shipped_move("lapse blue");
+    let (_, red) = shipped_move("reversal red");
+    let f = fuse(t(), &plain(blue), &plain(red));
+    assert!(
+        matches!(&f.def.ops[..], [MoveOp::Cast { recipe, signature: Some(bd_sim::signature::SignatureKind::Beam), merge: Some(_), .. }] if recipe.mech.contains(&Mechanic::Pierce) && recipe.mech.contains(&Mechanic::Attract)),
+        "{:?}",
+        f.def.ops
+    );
+    assert_eq!(f.how, "opposites collide: an erasing orb");
+    // a leap with its own slam + a blast: one bigger landing slam
+    let (_, slam) = shipped_move("seismic slam");
+    let (_, push) = shipped_move("almighty push");
+    let f = fuse(t(), &plain(slam), &plain(push));
+    let slams: Vec<_> = f.def.ops.iter().filter(|o| matches!(o, MoveOp::SlamOnLand { .. })).collect();
+    assert_eq!(slams.len(), 1, "{:?}", f.def.ops);
+    assert!(matches!(slams[0], MoveOp::SlamOnLand { knockback, .. } if *knockback >= 34.0), "the push's force lands with you");
+    assert!(!f.def.ops.iter().any(|o| matches!(o, MoveOp::Explode { .. })), "no blast at take-off");
+    // two lunges: one straight into the other
+    let lunge = mv(vec![MoveOp::Ram { speed: 30.0, secs: 0.4, damage: 12.0, knockback: 20.0, up: 0.0, pin: false, through: false, wall: 0.0, pitch: 0.0, steer: 0.0, keep: 0.0, element: Element::Light }]);
+    let f = fuse(t(), &plain(&lunge), &plain(&mv(vec![MoveOp::Drill { speed: 24.0, secs: 0.4, grind: 0.4, damage: 15.0, knockback: 28.0, element: Element::Wind, up: 0.3 }])));
+    assert!(matches!(f.def.ops[..], [MoveOp::Ram { .. }]) && f.after.as_ref().is_some_and(|(_, o)| matches!(o[..], [MoveOp::Drill { .. }])), "{:?} / {:?}", f.def.ops, f.after);
+}
+
+#[test]
+fn a_delayed_exploding_cast_bursts_on_them_later() {
+    let bomb = mv(vec![MoveOp::Cast {
+        recipe: bd_sim::powers::RecipeDef { name: "pulse bomb".into(), mech: vec![Mechanic::Sticky, Mechanic::Explodes, Mechanic::Fast], element: Element::Electric, scale: 0.45, ..Default::default() },
+        modifier: false,
+        signature: None,
+        merge: None,
+    }]);
+    let tw = twist(t(), &bomb, &[byte("delayed")]);
+    let MoveOp::Cast { recipe, .. } = &tw.def.ops[0] else { panic!() };
+    assert!(recipe.mech.contains(&Mechanic::Sticky) && !recipe.mech.contains(&Mechanic::Explodes), "the bomb is the sticky marker now");
+    assert!(tw.def.ops.iter().any(|o| matches!(o, MoveOp::DelayedHit { secs, element: Element::Electric, .. } if *secs > 1.0)), "{:?}", tw.def.ops);
 }
 
 // ------------------------------------------------------------------------------ pricing

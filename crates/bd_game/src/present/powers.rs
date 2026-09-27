@@ -14,6 +14,7 @@ pub mod costume;
 mod dev;
 pub mod juice;
 pub mod movefx; // TOOLBOX PRESENTATION: the move presentation grammar (per op beats × style bodies, poses, sounds)
+pub mod op_visuals; // OP VISUALS: every generic-op event's beat (markers, telegraphs, tethers, strikes, auras)
 
 use super::players::PlayerBody;
 use super::sound::Sfx3d;
@@ -51,7 +52,7 @@ pub struct PowersPlugin;
 impl Plugin for PowersPlugin {
     fn build(&self, app: &mut App) {
         dev::build(app);
-        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin))
+        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin, op_visuals::OpVisualsPlugin))
             .init_resource::<SpaceEntities>()
             .init_resource::<TimeStopGrey>()
             .add_systems(Startup, setup)

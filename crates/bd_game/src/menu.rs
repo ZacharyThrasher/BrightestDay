@@ -628,7 +628,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::NightMode => (lbl("REDUCED DYNAMIC RANGE"), on_off(s.audio.night_mode)),
         Knob::Mono => (lbl("MONO AUDIO"), on_off(s.audio.mono)),
         Knob::Voice => (lbl("VOICE CASTING"), on_off(c.prefs.voice)),
-        Knob::Ono => (lbl("COMIC WORDS"), c.prefs.ono.label().into()),
+        Knob::Ono => (lbl("COMIC TEXT"), c.prefs.ono.label().into()),
         Knob::OnoLang => (lbl("COMIC STYLE"), if c.prefs.ono_manga { "MANGA".into() } else { "CLASSIC".into() }),
         Knob::Shout => (lbl("SHOUT WORDS"), c.prefs.shout.label().into()),
         Knob::Map => (lbl("MAP"), match map_of(c.prefs) {

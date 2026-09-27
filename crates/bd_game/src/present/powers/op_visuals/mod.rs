@@ -30,9 +30,9 @@
 pub mod prims;
 
 use self::prims::{AuraKind, MarkKind, StrikeKind, TetherBody, View};
-use super::movefx::draw::{Look, Pen, basis, circle, zig};
+use super::movefx::draw::{Look, Pen, zig};
 use super::movefx::table::{Body, MoveFx};
-use super::movefx::{intern, look_of, resolve_look, style_word};
+use super::movefx::{look_of, resolve_look, style_word};
 use super::super::sound::Sfx3d;
 use super::super::{PresentSet, bv, corps_rgb, gv};
 use crate::camera::{CameraUpdateSet, PlayerCamera};
@@ -47,7 +47,7 @@ use bd_fx::{FxParticles, SpawnOnomatopoeia};
 use bd_sim::GameEvent;
 use bd_sim::powers::ops::live::ToolboxFx;
 use bd_sim::powers::ops::{GrabPhase, HaulPhase, HookPhase, LockPhase, OpEvent, PouncePhase, RamPhase, SeekPhase, StanceKind, SurgePhase};
-use bd_sim::powers::{MoveDef, MoveOp, PowerDef, PowerEvent, PowerTable};
+use bd_sim::powers::{MoveDef, MoveOp, PowerEvent, PowerTable};
 use bd_sim::status::StatusKind;
 use bevy::prelude::*;
 use bevy::transform::TransformSystems;
@@ -307,7 +307,7 @@ struct Looks {
 
 impl Default for Looks {
     fn default() -> Self {
-        Self { e: [(PlayerId(u16::MAX as _), Look::default(), -100.0, None); LOOKS], n: 0 }
+        Self { e: [(PlayerId(u8::MAX), Look::default(), -100.0, None); LOOKS], n: 0 }
     }
 }
 
@@ -369,10 +369,12 @@ pub struct OpVisStats {
 
 /// Per player, the last time a strike word was said (a salvo says its word once, not per bolt).
 #[derive(Resource, Default)]
-struct WordGate([(Option<PlayerId>, f32); 16]);
+struct WordGate([(Option<(PlayerId, u8)>, f32); 24]);
 
 impl WordGate {
-    fn allow(&mut self, p: PlayerId, now: f32, gap: f32) -> bool {
+    /// `chan` separates a player's kinds of words / sounds (0 strike word, 1 telegraph tell, …).
+    fn allow(&mut self, p: PlayerId, chan: u8, now: f32, gap: f32) -> bool {
+        let p = (p, chan);
         if let Some(e) = self.0.iter_mut().find(|e| e.0 == Some(p)) {
             if now - e.1 < gap {
                 return false;
@@ -690,7 +692,11 @@ impl Ctx<'_> {
                 let p = bv(*pos);
                 match phase {
                     HookPhase::Fired => {
-                        let body = if look.body == Body::Flame || look.body == Body::Energy && self.mv(*player).is_some_and(|m| m.fx.is_empty()) { TetherBody::Chain } else { prims::tether_body(&look) };
+                        // A hook is a chain + kunai unless its body is a band / a spirit / a bolt.
+                        let body = match look.body {
+                            Body::Rubber | Body::Smoke | Body::Void | Body::Bolt | Body::Streak => prims::tether_body(&look),
+                            _ => TetherBody::Chain,
+                        };
                         let pl = *player;
                         self.pool.kill(|f| matches!(f.kind, Kind::Tether(_)) && f.owner == pl && f.phase < 3);
                         self.pool.add(Fx { kind: Kind::Tether(body), look, owner: *player, a: p, b: p, dir: bv(*dir).normalize_or(Vec3::NEG_Z), acc: speed.max(1.0), r: range.max(1.0), dur: 4.0, ..default() });
@@ -791,7 +797,7 @@ impl Ctx<'_> {
                     let c = chest(pv);
                     pen.flash(c, 0.9, look.core, look.glow, 0.1);
                     snd(w, match kind {
-                        StanceKind::Deflect => "saber_hum_loop",
+                        StanceKind::Deflect => "saber_swoosh",
                         StanceKind::Counter => "presence_shing",
                         StanceKind::Guard => "shield_block",
                     }, c, 1.3, 0.6);
@@ -817,7 +823,7 @@ impl Ctx<'_> {
                         prims::impact_star(pen, &look, p, d, 1.5);
                         pen.ring(&look, p, (p - v.cam).normalize_or(Vec3::Z), 0.2, 8.0, 1.4, 0.3);
                         snd(w, "clash", p, 1.2, 1.0);
-                        if self.gate.allow(*player, self.now, 0.4) {
+                        if self.gate.allow(*player, 3, self.now, 0.4) {
                             word(w, "parry", p + Vec3::Y * 0.6, 1.1, look.core, (p.x * 131.0) as i64 as u64 ^ pl.0 as u64, self.involved(*player, *attacker));
                         }
                     }
@@ -922,7 +928,6 @@ impl Ctx<'_> {
                     pen.beam(from, to, 0.12, look.main, look.glow * 1.2, 0.3);
                     zig(pen.fx, from, to, 10, 0.3, pen.fx.rng.next_u32(), 0.03, look.core, look.glow * 2.0);
                     pen.burst(&look, to, 0.8, 3.0, None, 0.0, 0.4);
-                    snd(w, "glitch_hit", to, 1.0, 0.0);
                     snd(w, "mv_glitch", to, 0.8, 0.8);
                 }
                 self.marker(*player, *target, MarkKind::Lockout, look, secs.clamp(0.2, 5.0));
@@ -942,7 +947,6 @@ impl Ctx<'_> {
                         if let Some(t) = target {
                             self.marker(*player, *t, MarkKind::Hunted, look, 1.4);
                         }
-                        snd(w, "rocket_flyby_loop", p, 1.4, 0.0);
                         snd(w, "leap_whoosh", p, 1.3, 0.8);
                     }
                     SeekPhase::Strike => {
@@ -1089,10 +1093,10 @@ impl Ctx<'_> {
                 let g = ground_below(self.active, p + Vec3::Y * 0.2, radius.max(1.0) + 6.0);
                 self.pool.add(Fx { kind: Kind::Telegraph(kind), look, owner: *player, a: p, b: g.unwrap_or(p), flag: g.is_some(), r: *radius, dur: secs.max(0.05) + 0.25, acc: secs.max(0.05), ..default() });
                 // A soft tell everyone hears (quiet; many strikes stack).
-                if self.gate.allow(PlayerId(player.0 ^ 0x4000), self.now, 0.12) {
+                if self.gate.allow(*player, 1, self.now, 0.12) {
                     snd(w, match kind {
                         StrikeKind::Bolt => "storm_mark",
-                        StrikeKind::Slash => "saber_hum_loop",
+                        StrikeKind::Slash => "presence_shing",
                         _ => "strike_telegraph",
                     }, p, 1.0 + 0.2 * (1.0 - secs.min(1.0)), 0.55);
                 }
@@ -1137,7 +1141,7 @@ impl Ctx<'_> {
                 // One word per salvo (not per strike), and only for a cut / bolt / holy / void —
                 // a blast's word comes with its explosion (`RecentMoves::delayed_word`).
                 if kind != StrikeKind::Blast
-                    && self.gate.allow(*player, self.now, 0.6)
+                    && self.gate.allow(*player, 0, self.now, 0.6)
                     && let Some(k) = strike_word(kind, None)
                 {
                     word(w, k, p + Vec3::Y * 0.8, (radius / 2.5).clamp(0.7, 1.4), look.core, seed as u64 ^ ((pl.0 as u64) << 32), self.involved(*player, None));
@@ -1184,7 +1188,7 @@ impl Ctx<'_> {
                 pen.ring(&look, p, (p - v.cam).normalize_or(Vec3::Z), 0.4, 3.5, 1.2, 0.8);
                 snd(w, "dodge", p, 0.6, 1.0);
                 snd(w, "mv_time_tick", p, 0.7, 1.0);
-                if *secs > 0.05 && self.gate.allow(PlayerId(pl.0 ^ 0x2000), self.now, 1.0) {
+                if *secs > 0.05 && self.gate.allow(pl, 2, self.now, 1.0) {
                     word(w, "slow", p + Vec3::Y * 0.9, 1.0, silver.main, (p.z * 97.0) as i64 as u64 ^ pl.0 as u64, self.involved(*player, *attacker));
                 }
             }
@@ -1202,7 +1206,6 @@ impl Ctx<'_> {
                 }
                 pen.flash(p + n * 0.1, 1.2, color, 3.0, 0.12);
                 pen.ring(&look, p + n * 0.05, n, 0.2, 4.0, 0.8, 0.25);
-                snd(w, "portal_open", p, if *orange { 0.9 } else { 1.1 }, 0.0);
                 snd(w, "mv_hardlight", p, if *orange { 0.85 } else { 1.15 }, 0.8);
             }
             OpEvent::Empowered { player, secs, on } => {
@@ -1491,7 +1494,6 @@ impl Ctx<'_> {
                 }
                 let smoke = Look { body: Body::Smoke, main: [0.03, 0.01, 0.03], dark: [0.02, 0.0, 0.02], ..look };
                 pen.burst(&smoke, to, 1.0, 2.0, Some(Vec3::Y), 0.6, 0.6);
-                snd(w, "fire_ignite", to, 0.0, 0.0);
                 snd(w, "mv_fire_whoomp", to, 0.6, 0.9);
             }
             ToolboxFx::BrandEnd => {
@@ -1727,8 +1729,9 @@ fn step(
                     let c = ov.pos + Vec3::Y * 2.7 * ov.size;
                     prims::wheel(&mut pen, &v, &look, c, f.n, f.phase, (f.t / 0.8).min(1.0), look.glow * fade.max(0.3));
                 }
-                let k = ((f.t / 0.8).min(1.0) * 1.0 - (1.0 - (f.t / 0.8).min(1.0)).powi(3)) * 3.0 * f.n.max(2) as f32;
-                if (k as u32) != (((f.t - dt) / 0.8).min(1.0) * 3.0 * f.n.max(2) as f32) as u32 && f.t < 0.8 {
+                // A tick per pip passing the pointer (slowing down with the wheel).
+                let pips = |t: f32| ((1.0 - (1.0 - (t / 0.8).clamp(0.0, 1.0)).powi(3)) * 3.0 * f.n.max(2) as f32) as u32;
+                if pips(f.t) != pips(f.t - dt) && f.t < 0.8 {
                     sfx.write(Sfx3d::at("type_key", ov.pos + Vec3::Y * 2.0).pitch(1.4).gain(0.35));
                 }
             }
@@ -1824,15 +1827,10 @@ fn dashed(pen: &mut Pen, v: &View, a: Vec3, b: Vec3, thick: f32, color: [f32; 3]
     }
 }
 
-#[allow(dead_code)]
-fn _uses(_: Option<&PowerDef>) {
-    let _ = (basis, circle, intern);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bd_sim::powers::ops::leap::LeapArc;
+    use bd_sim::powers::ops::LeapArc;
 
     fn all_events() -> Vec<OpEvent> {
         let p = PlayerId(1);

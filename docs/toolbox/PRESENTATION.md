@@ -143,3 +143,15 @@ your sim position (no explosion word / flash in your lens after a blink, `impact
 `BD_MOVEFX_TEST=<blink_smoke|dash_speed|shove|slam|rubber_pistol|rubber_rocket|rigid_pistol|hud>`
 `BD_MOVEFX_VIEW=fp|obs` `BD_MOVEFX_STYLE=<key>` `BD_MOVEFX_SHOTS=<dir>` `BD_MOVEFX_SPAM=<rounds>` —
 see `movefx/dev.rs`. Frame sheet: `docs/toolbox/presentation_sheet.png`.
+
+## Note from TEXT CLUTTER (world-text budget, 2026-09-27)
+- `present/powers/juice.rs`: the move-title `Shout` now sets `sh.title = true` (one line). Titles are
+  hidden when Settings → Audio → WORDS → COMIC TEXT is OFF, and one caster's titles stack in a short
+  column (newest on the base line, older shrunk above, ≤ 2) — `assets/fx/text_budget.ron` `titles`.
+  Set `title = true` on any other title `Shout` you add.
+- All comic words go through the placement/budget policy in `bd_fx::text_budget` (never in the camera's
+  lap or over the crosshair, screen-size clamp, own words small and to the side, a priority cap near
+  you, every-Nth word on rapid light hits). Style words keep working as-is; set
+  `SpawnOnomatopoeia::source` (caster id + 1) and `accent` (finishers) when you spawn words.
+- The `electric` word key now reads KRAK / ZZAK / KRAKOW (lightning); new hit keys `thoom`, `thrust`,
+  `thwack`, `whip_crack`, `hit_punch` are available for `word:` in move_fx.ron styles.

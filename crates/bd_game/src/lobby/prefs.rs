@@ -464,8 +464,10 @@ impl OnoPref {
     pub fn label(self) -> &'static str {
         match self {
             OnoPref::Off => "OFF",
-            OnoPref::BigHits => "BIG HITS",
-            OnoPref::Full => "FULL COMIC",
+            // COMIC TEXT (comic words + move titles; bd_fx text_budget): big hits / crits / finishers
+            // only and fewer words near you; everything (light hits thinned); none.
+            OnoPref::BigHits => "REDUCED",
+            OnoPref::Full => "FULL",
         }
     }
 }

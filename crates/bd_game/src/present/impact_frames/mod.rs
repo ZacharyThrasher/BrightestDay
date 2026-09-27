@@ -386,6 +386,8 @@ fn drive(
             o.word = OnoWord::Key(Cow::Owned(w.clone()));
             o.dir = q.dir;
             o.local_player = involved;
+            // A finisher frame's word: top priority in the world-text budget.
+            o.accent = true;
             o.event_id = (seed * 1e6) as u64;
             ono.write(o);
         }

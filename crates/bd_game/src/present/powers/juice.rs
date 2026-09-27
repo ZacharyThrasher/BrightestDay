@@ -189,6 +189,9 @@ fn juice_events(
                     sh.seed = ev.tick ^ seed_power << 20;
                     // The caster reads it small, low-right and brief (never over the aim).
                     sh.compact = mine;
+                    // A move title (TEXT CLUTTER): hidden when comic text is Off; a chain's titles
+                    // stack per caster instead of piling up (bd_fx text_budget `titles`).
+                    sh.title = true;
                     commands.spawn((Name::new("MoveTitle"), sh));
                 }
                 let _ = name;
