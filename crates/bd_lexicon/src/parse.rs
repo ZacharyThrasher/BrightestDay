@@ -65,6 +65,22 @@ fn action_of(phrase: &str) -> Option<GraftAction> {
     }
 }
 
+/// "door to X", "a door that goes / leads / opens to X", "doorway to X" → Some("X").
+fn door_to(toks: &[Tok]) -> Option<String> {
+    let w: Vec<&str> = toks.iter().map(|t| t.text.as_str()).skip_while(|t| matches!(*t, "a" | "an" | "the" | "my")).collect();
+    let (head, rest) = w.split_first()?;
+    if !matches!(*head, "door" | "doorway" | "portal door") {
+        return None;
+    }
+    let rest = match rest {
+        ["to", r @ ..] | ["into", r @ ..] => r,
+        ["that", "goes" | "leads" | "opens" | "go" | "lead", "to" | "into", r @ ..] => r,
+        ["going" | "leading", "to" | "into", r @ ..] => r,
+        _ => return None,
+    };
+    Some(if rest.is_empty() { "anywhere".into() } else { rest.join(" ") })
+}
+
 pub(crate) fn bits_to_mechs(b: u64) -> Vec<Mechanic> {
     ALL_MECHANIC.iter().copied().filter(|m| b & (1u64 << mechanic_index(*m)) != 0).collect()
 }
@@ -1249,6 +1265,14 @@ impl Lexicon {
     // ------------------------------------------------------------------------------------------ top level
     pub(crate) fn resolve_mode(&self, text: &str, spoken: bool) -> Resolution {
         let (toks, bangs) = tokenize(text);
+        // "door to …" / "a door that goes to …": the Doorman's door (a doorway portal pair; it
+        // leads where you aim, so the destination words only flavour the explanation).
+        if let Some(rest) = door_to(&toks) {
+            let (dt, _) = tokenize("doorman door");
+            let mut r = self.resolve_body(dt, bangs, spoken);
+            r.explanation.insert(0, format!("a door to {rest}: a doorway portal (it opens where you aim)"));
+            return r;
+        }
         // stand rush: "ORA ORA ORA", "MUDAMUDAMUDA" — each cry is one punch, not a construct
         let cries: Vec<Option<u16>> = toks.iter().map(|t| crate::powers::rush_count(&t.text)).collect();
         let n_cry_toks = cries.iter().filter(|c| c.is_some()).count();
@@ -1496,6 +1520,7 @@ impl Lexicon {
                 GraftAction::Transform => "transform \u{2192} toggle mode / add Transforms (graft)".to_string(),
                 GraftAction::RollOut => "roll out \u{2192} every Transforms construct switches mode".to_string(),
                 GraftAction::Combine => "combine \u{2192} merge owned transformers into a combiner".to_string(),
+                GraftAction::Board => "board \u{2192} take the wheel of your construct".to_string(),
             },
         );
         res.confidence = res.confidence.max(0.9);

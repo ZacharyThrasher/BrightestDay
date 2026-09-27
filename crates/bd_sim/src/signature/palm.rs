@@ -478,7 +478,8 @@ pub(crate) fn step(w: &mut World, dt: f32) {
         let eye = p.eye(&base);
         let aim = match b.bot.and_then(|tp| w.player(tp)) {
             Some(tp) => (tp.eye(&base) - eye).normalize_or(p.look()),
-            None => p.look(),
+            // Inside their own domain the caster's beam can't miss: it swings onto the nearest enemy.
+            None => super::domain::sure_target(w, b.owner, eye).map_or(p.look(), |at| (at - eye).normalize_or(p.look())),
         };
         let pouring = b.clash.is_some() && p.willpower > 0.0 && (if b.bot.is_some() { true } else { p.input.held(buttons::PRIMARY) });
         if b.clash.is_none() {
@@ -602,12 +603,23 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                 if c.owner == b.owner || c.gone.is_some() || Some(c.id) == b.construct || super::orb::is_orb(w, c.id) {
                     continue;
                 }
-                if !blocks(c) {
+                // (A domain's barrier is a sphere, handled below — not its box.)
+                if !blocks(c) || super::domain::is_domain(c) {
                     continue;
                 }
                 if let Some((f, _)) = crate::geom::segment_obb(b.origin, end, c.center(), c.half, c.rot, b.radius * 0.5) {
                     b.len = b.len.min(f * b.len);
                     b.boring = false;
+                }
+            }
+            // A sealed domain's barrier stops it (either way) and takes the pulses.
+            if let Some((f, id)) = super::domain::segment_block(w, b.origin, b.origin + b.dir * b.len) {
+                b.len = b.len.min(f * b.len);
+                b.boring = false;
+                b.pulse_t -= dt;
+                if b.pulse_t <= 0.0 {
+                    let at = b.origin + b.dir * b.len;
+                    super::domain::hit_barrier(w, id, b.dmg * t.construct_mult, at);
                 }
             }
         }

@@ -138,7 +138,7 @@
         // (weapon words: a phrase naming a gun — or a weapon that shoots, "sword beam" — keeps it)
         gun_words: [
             "gun", "guns", "rifle", "pistol", "revolver", "railgun", "raygun", "cannon", "blaster", "launcher",
-            "bazooka", "sniper", "shotgun", "minigun", "gatling", "carbine", "musket", "turret", "firearm",
+            "bazooka", "sniper", "shotgun", "minigun", "gatling", "carbine", "musket", "turret", "firearm", "manipulator",
             "handgun", "smg", "uzi", "ak", "glock", "magnum", "crossbow", "sword", "blade", "katana", "wand",
             "staff", "bow",
         ],

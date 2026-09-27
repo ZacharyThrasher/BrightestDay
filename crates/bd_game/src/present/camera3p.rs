@@ -534,6 +534,7 @@ pub(crate) fn place_camera(
     mut aim: ResMut<AimRay>,
     mut cam: Query<(&mut Transform, &mut Projection), With<PlayerCamera>>,
     mut hulls: Local<Vec<(Vec3, Vec3)>>,
+    mut portal_pairs: Local<Vec<super::portal_view::PairGeo>>,
 ) {
     let (mode, rig, anchor, look, shake, roll) = view;
     let Ok((mut tf, mut proj)) = cam.single_mut() else { return };
@@ -605,7 +606,20 @@ pub(crate) fn place_camera(
                 hard = hard.min(f * (hard + PAD) - PAD).max(0.0);
             }
         }
-        let soft = solve.soft.min(hard);
+        let mut soft = solve.soft.min(hard);
+        // PORTALS: a boom that passes through a portal face goes on from the partner's side
+        // (`portal_cross::fold_camera` draws the camera there): the wall behind the exit you just
+        // came out of never pulls the camera in.
+        if let Some(a) = active.as_ref().filter(|a| !a.world.portals.is_empty()) {
+            portal_pairs.clear();
+            portal_pairs.extend(a.world.portals.iter().map(super::portal_view::PairGeo::from_sim));
+            if let Some(l) = super::portal_cross::portal_boom(&portal_pairs, solve.pivot, back, boom, PAD, |o, d, m| ray_t(vox, o, d, m))
+                && l > hard
+            {
+                hard = l;
+                soft = l;
+            }
+        }
         // `st.boom` is the collision limit (∞ = unobstructed, so the dolly / ADS / speed stretch
         // follow exactly). Obstructed: ease toward the soft cone quickly, back out slowly; the hard
         // limit always clamps at once (never clips).

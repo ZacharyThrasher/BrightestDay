@@ -76,7 +76,7 @@ fn domain_erupts_traps_an_enemy_and_can_be_broken() {
     assert!((rec.scale - (t.domain_radius + 0.5 * t.domain_radius_shout)).abs() < 1e-3, "radius {}", rec.scale);
     assert!(forming >= t.windup - 1e-4, "windup {forming}");
     // Most of the bar: the existing cost × cost_mult (never more than the bar).
-    assert!(cost > 50.0 && cost <= 100.0, "cost {cost}");
+    assert!(cost >= 50.0 - 1e-3 && cost <= 100.0, "cost {cost}");
     let wp = w.player(A).unwrap().willpower;
     assert!((wp - (100.0 - cost)).abs() < 0.5, "paid {wp}");
     // Windup: not live yet, then live.
@@ -162,7 +162,8 @@ fn plain_casts_are_untouched() {
     assert!((rec.scale - 5.0).abs() < 1e-4, "form clamp still applies: {}", rec.scale);
     assert!((forming - 0.25).abs() < 1e-4);
     let wt = &w.tuning().willpower;
-    assert!((cost - wt.base_cost_as(&rec, false)).abs() < 1e-3);
+    // SPARKS: the plain price rounded to whole sparks.
+    assert!((cost - w.rules().quantize_cost(wt.base_cost_as(&rec, false))).abs() < 1e-3);
 }
 
 #[test]
@@ -501,7 +502,7 @@ fn orbital_cost_is_existing_pricing_times_one_knob() {
     let (_, rec, _, cost) = spawned(&w.events()[n0..]).unwrap();
     let wt = &w.tuning().willpower;
     let plain = wt.base_cost_as(&rec, wt.is_autonomous(&rec));
-    assert!((cost - (plain * t.cost_mult).min(100.0)).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
+    assert!((cost - w.rules().quantize_cost((plain * t.cost_mult).min(100.0))).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
 }
 
 #[test]

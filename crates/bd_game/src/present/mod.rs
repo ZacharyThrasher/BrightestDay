@@ -40,6 +40,9 @@ pub mod giants_fx; // GIANTS: weak-point glow, warnings, shockwave rings, severe
 pub mod mirror; // MIRRORFOLD: folded-city backdrop, mirrored void, rift
 pub mod outline; // OUTLINE: player outlines (inverted hull) for readability in chaos
 pub mod players;
+pub mod portal_bench; // PORTALS: `--scenario portals` (perf + screenshots)
+pub mod portal_cross; // PORTALS: seamless crossing (view turns, eye offset, camera fold, 3P boom through)
+pub mod portal_view; // PORTALS: see-through windows (2 pre-allocated portal cameras, budgeted, warmed up)
 pub mod powers;
 pub mod presence; // PRESENCE: the construct presence grammar (gather / manifest / material / presence / exit by tier)
 pub mod record;
@@ -111,7 +114,8 @@ impl Plugin for PresentPlugin {
             .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin)) // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams
             .add_plugins(presence::PresencePlugin) // PRESENCE: every construct's gravitas, by tier
             .add_plugins(pickups::PickupsPlugin) // POWER-UPS: map pickups (no-op while the mode is off)
-            .add_plugins(extend::ExtendPlugin); // WUKONG: telescoping poles
+            .add_plugins(extend::ExtendPlugin) // WUKONG: telescoping poles
+            .add_plugins((portal_view::PortalViewPlugin, portal_cross::PortalCrossPlugin)); // PORTALS: see-through + seamless crossing
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

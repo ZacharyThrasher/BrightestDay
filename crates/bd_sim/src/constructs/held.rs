@@ -106,6 +106,8 @@ pub enum Mode {
     Thrown,
     /// EXTENDS: a telescoping move — thrust, falling pillar, vault plant, jab (`extend.rs`).
     Extend,
+    /// LEGENDARY: a held special move — the heavy blade's leap and cleave (`legend.rs`).
+    Legend,
 }
 
 /// Which curve a swing plays (index into the cached table).
@@ -244,6 +246,8 @@ pub struct HeldState {
     pub xrange: f32,
     pub xdir: Vec3,
     pub xdone: bool,
+    // ---- LEGENDARY (generic legendary move rules, legend.rs) ----
+    pub leg: super::legend::LegendState,
 }
 
 // ------------------------------------------------------------------------------------ curves
@@ -453,6 +457,7 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         c.vel = Vec3::ZERO;
         return;
     }
+    super::legend::tick(c, &mut s, env, out); // LEGENDARY: counters, storms / waves in flight, leap / storm releases
     if s.mode == Mode::Thrown {
         thrown_step(c, &mut s, env, out);
         c.held = s;
@@ -467,6 +472,7 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             if super::extend::is_extending(c) {
                 super::extend::after_melee(c, &mut s, env); // EXTENDS: pole length follows the swing
             }
+            super::legend::after_melee(c, &s, env); // LEGENDARY: the raised pose
         }
         grab_step(c, &mut s, env, out);
         victim_step(c, &mut s, env, out);
@@ -526,7 +532,7 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
             if let Some(cv) = curve_of(c, Swing::Heavy) {
                 pose_on_curve(c, &o, cv, cv.hold_at);
             }
-            if !h1 || s.charge >= CHARGE_MAX {
+            if !h1 || (s.charge >= CHARGE_MAX && !super::legend::long_charge(c)) {
                 s.heavy_k = (0.5 + 0.5 * (s.charge / CHARGE_MAX)).min(1.0);
                 if super::extend::is_extending(c) {
                     super::extend::release(c, s, env, out); // EXTENDS: thrust / falling pillar
@@ -537,23 +543,32 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
                     start_throw(c, s, env, out);
                     return;
                 }
-                s.mode = Mode::Swing;
-                s.swing = Swing::Heavy;
-                s.t = curve_of(c, Swing::Heavy).map_or(0.0, |cv| cv.hold_at);
-                s.opened = false;
-                c.hits.clear();
-                s.terrain_hit = false;
-                c.set_anim(AnimState::Windup, env.tick());
-                // The release IS the heavy's swing start (strength 2 = heavy): the first-person
-                // viewmodel holds the coiled curve until this and 3P / construct animation start
-                // the heavy from it. Without it the swing only showed on the NEXT click.
-                fx(out, c, HeldFx::SwingStart, o.hand, o.look, 2.0);
+                let k = s.heavy_k;
+                begin_heavy(c, s, env, out, k);
             }
         }
         Mode::Dive => dive_step(c, s, env, out),
         Mode::Swing => swing_step(c, s, env, out, h1, p1),
         Mode::Extend => super::extend::step(c, s, env, out),
+        Mode::Legend => super::legend::step(c, s, env, out), // LEGENDARY: leap and cleave
     }
+}
+
+/// Release a charge into the Heavy swing (from its coiled `hold_at` pose) with heavy fraction `k`.
+pub(super) fn begin_heavy(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, k: f32) {
+    let o = env.owner;
+    s.heavy_k = k;
+    s.mode = Mode::Swing;
+    s.swing = Swing::Heavy;
+    s.t = curve_of(c, Swing::Heavy).map_or(0.0, |cv| cv.hold_at);
+    s.opened = false;
+    c.hits.clear();
+    s.terrain_hit = false;
+    c.set_anim(AnimState::Windup, env.tick());
+    // The release IS the heavy's swing start (strength 2 = heavy): the first-person
+    // viewmodel holds the coiled curve until this and 3P / construct animation start
+    // the heavy from it. Without it the swing only showed on the NEXT click.
+    fx(out, c, HeldFx::SwingStart, o.hand, o.look, 2.0);
 }
 
 fn raise_guard(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
@@ -581,7 +596,7 @@ fn start_primary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut 
         fx(out, c, HeldFx::DiveStart, o.hand, Vec3::NEG_Y, 1.0);
         return;
     }
-    let swing = if uses_combo(form) || c.has(Mechanic::Extends) {
+    let swing = if uses_combo(form) || c.has(Mechanic::Extends) || super::legend::combos(c) {
         if s.combo_timer > 0.0 {
             match s.combo {
                 0 => Swing::Combo1,
@@ -605,7 +620,7 @@ fn start_primary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut 
     }
 }
 
-fn begin_swing(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, swing: Swing) {
+pub(super) fn begin_swing(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, swing: Swing) {
     s.mode = Mode::Swing;
     s.swing = swing;
     s.t = 0.0;
@@ -621,6 +636,7 @@ fn begin_swing(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Co
         None => 1.0,
     };
     fx(out, c, HeldFx::SwingStart, env.owner.hand, env.owner.look, strength);
+    super::legend::on_swing_start(c, s, env); // LEGENDARY: Blade + Fast deflect window
 }
 
 fn start_secondary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
@@ -663,6 +679,9 @@ fn start_secondary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mu
             s.cd2 = 1.2;
         }
         Form::Whip => {
+            if super::legend::chain_pull(c, s, env, out) {
+                return; // LEGENDARY: pulling chain blades latch an enemy in reach
+            }
             begin_swing(c, s, env, out, Swing::Secondary);
             s.cd2 = 0.3;
             // Lash at the aim: terrain = a third tether.
@@ -733,14 +752,14 @@ fn swing_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Con
         s.parry_only = true;
         s.guard_t = (t1 - a).max(0.0);
     } else {
-        s.guarding = false;
+        s.guarding = super::legend::swing_guard(s, &env.ctx.tuning.legendary); // LEGENDARY: Blade + Fast deflect
     }
     if t1 >= b && t0 < b {
         c.set_anim(AnimState::Recover, env.tick());
     }
     let dur = cv.duration();
     // A buffered press cancels the back half of the recovery into the next combo hit.
-    let cancel = s.queued && (uses_combo(form) || c.has(Mechanic::Extends)) && t1 >= b + cv.recovery * 0.4;
+    let cancel = s.queued && (uses_combo(form) || c.has(Mechanic::Extends) || super::legend::combos(c)) && t1 >= b + cv.recovery * 0.4;
     if t1 >= dur || cancel {
         if let Some(k) = s.swing.combo_index() {
             s.combo = k;
@@ -802,6 +821,7 @@ fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
     if c.recipe.form == Form::Gauntlet && s.swing == Swing::Secondary {
         fx(out, c, HeldFx::Uppercut, o.hand, Vec3::Y, 1.2);
     }
+    super::legend::on_active(c, s, env, out); // LEGENDARY: blade waves, chain blades' 360° sweep
 }
 
 /// Numbers for the swing playing now.
@@ -856,6 +876,7 @@ fn hit_spec(c: &Construct, s: &HeldState, t: &crate::tuning::CombatTuning) -> Hi
         },
         _ => {}
     }
+    super::legend::hit_spec(c, s, &t.legendary, &mut kb, &mut kind, &mut impact); // LEGENDARY: momentum combos
     HitSpec { dmg, kb, kind, impact }
 }
 
@@ -1045,8 +1066,9 @@ pub(super) fn slam(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, at: Vec
 
 // ------------------------------------------------------------------------------------ throw
 
-fn start_throw(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
+pub(super) fn start_throw(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
     let o = env.owner;
+    super::legend::reset_flight(s); // LEGENDARY
     s.mode = Mode::Thrown;
     s.thrown = true;
     s.returning = false;
@@ -1075,6 +1097,8 @@ fn start_throw(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Co
 }
 
 fn catch(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
+    let strength = super::legend::catch_strength(c, s); // LEGENDARY: a recall snaps into the hand (2)
+    super::legend::reset_flight(s);
     s.mode = Mode::Idle;
     s.thrown = false;
     s.returning = false;
@@ -1084,7 +1108,7 @@ fn catch(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     hand_pose(c, &env.owner);
     c.vel = Vec3::ZERO;
     c.set_anim(AnimState::Idle, env.tick());
-    fx(out, c, HeldFx::Catch, c.pos, env.owner.look, 1.0);
+    fx(out, c, HeldFx::Catch, c.pos, env.owner.look, strength);
 }
 
 fn thrown_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
@@ -1099,10 +1123,13 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
     let ctx = env.ctx;
     let dt = env.dt();
     s.fly_t += dt;
+    if super::legend::thrown(c, s, env, out) {
+        return; // LEGENDARY: lodged in terrain, waiting for a recall
+    }
     let returning_item = c.has(Mechanic::Returning);
-    let h2 = !o.busy && o.input.held(buttons::SECONDARY);
-    // Thor flight: Returning + RMB still held after the throw → the item leads, you follow.
-    if returning_item && h2 && !s.returning && s.fly_t > 0.15 && o.willpower > 0.5 {
+    // Thor flight (LEGENDARY recall flight): RMB held >= `thor_delay` since the throw / the recall
+    // press → the item leads, you follow (the wielder half is `legend::pre_move`, predicted).
+    if returning_item && super::legend::thor_now(c, s, env) {
         if !s.thor {
             fx(out, c, HeldFx::ThorFlight, c.pos, o.look, 1.0);
         }
@@ -1113,7 +1140,7 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
         c.pos += v * dt;
         c.vel = v;
         c.rot = geom::look_rotation(o.look);
-        out.drain.push((c.owner, THOR_DRAIN * dt));
+        out.drain.push((c.owner, ctx.tuning.legendary.thor_drain * dt));
         c.set_anim(AnimState::Move, env.tick());
         thrown_hits(c, env, out, p0, c.pos);
         return;
@@ -1126,12 +1153,13 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
         s.returning = true;
         c.set_anim(AnimState::Returning, env.tick());
         let to = o.hand - c.pos;
-        if to.length() < CATCH_DIST.max(RETURN_SPEED * dt) {
+        let speed = super::legend::return_speed(s, env); // LEGENDARY: a recall comes back fast
+        if to.length() < CATCH_DIST.max(speed * dt) {
             catch(c, s, env, out);
             return;
         }
         let p0 = c.pos;
-        c.vel = to.normalize_or_zero() * RETURN_SPEED;
+        c.vel = to.normalize_or_zero() * speed;
         c.pos += c.vel * dt;
         spin(c, s);
         thrown_hits(c, env, out, p0, c.pos);
@@ -1161,7 +1189,10 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
     spin(c, s);
     if !s.dud && thrown_hits(c, env, out, p0, p1) {
         if returning_item {
-            s.returning = true;
+            // LEGENDARY: Returning + Ricochet chains on to the next enemy in sight first.
+            if !super::legend::chain_next(c, s, env, out, p1) {
+                s.returning = true;
+            }
             c.pos = p1;
         } else {
             // It struck someone: it glances off and drops (lands and lingers; no second hit).
@@ -1194,8 +1225,7 @@ fn thrown_inner(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut C
                 c.pos = h.point + nrm * (r + 0.05);
                 c.hits.clear();
             } else {
-                s.returning = true;
-                c.pos = h.point + nrm * (r + 0.05);
+                super::legend::lodge(c, s, env, out, h.point, nrm); // LEGENDARY: it lodges until recalled
             }
         } else {
             // It lands (stuck in / lying on what it hit) and lingers — see `LINGER_SECS`.
@@ -1343,9 +1373,10 @@ fn whip_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
 
 /// Before movement (called by `worn::movement_mods` for held items): Thor flight hangs the wielder
 /// on the item; held SlowFall/Glide (umbrella) is handled with the worn items there.
-pub fn movement_mods(c: &Construct, mods: &mut crate::movement::MoveModifiers) {
-    if c.held.thor {
-        mods.gravity_scale = 0.0;
+pub fn movement_mods(c: &Construct, st: &crate::movement::PlayerState, mods: &mut crate::movement::MoveModifiers) {
+    // LEGENDARY: recall flight is decided from input on the wielder (`legend::pre_move`, predicted).
+    if super::legend::thor_item(c) {
+        super::legend::movement_mods(st, mods);
     }
 }
 
@@ -1375,14 +1406,8 @@ pub fn post_move(c: &Construct, input: &bd_core::input::PlayerInput, st: &mut cr
             st.tumble = 0.0;
         }
     }
-    if s.thor {
-        let look = input.look_dir();
-        let want = look * THOR_SPEED;
-        st.vel += (want - st.vel) * (5.0 * dt).min(1.0);
-        st.tumble = 0.0;
-        if want.y > 0.0 {
-            st.grounded = false;
-        }
+    if super::legend::thor_item(c) {
+        super::legend::post_move(input, st, dt); // LEGENDARY: recall flight (predicted)
     }
 }
 

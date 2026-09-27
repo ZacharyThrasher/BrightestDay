@@ -487,6 +487,32 @@ impl ShoutPref {
     }
 }
 
+/// READABILITY: the over-head damage % on other players (`readability::numbers`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EnemyPercent {
+    /// Only the enemy at / right next to the crosshair (never clutters an 8-player brawl).
+    #[default]
+    NearCrosshair,
+    /// Every enemy in range.
+    All,
+    Off,
+}
+
+impl EnemyPercent {
+    pub fn next(self, d: i32) -> Self {
+        let all = [EnemyPercent::NearCrosshair, EnemyPercent::All, EnemyPercent::Off];
+        let i = all.iter().position(|x| *x == self).unwrap_or(0) as i32;
+        all[(i + d).rem_euclid(3) as usize]
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            EnemyPercent::NearCrosshair => "NEAR CROSSHAIR",
+            EnemyPercent::All => "ALL",
+            EnemyPercent::Off => "OFF",
+        }
+    }
+}
+
 /// Costume (sent once at join).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -525,6 +551,11 @@ pub struct UiPrefs {
     /// POWER HUD: the minimal strip (held powers, cooldowns, forms, willpower, pickup, statuses).
     /// On by default; the ring gems / motes are diegetic and always on.
     pub power_hud: bool,
+    /// READABILITY: the willpower gauge around the crosshair (`power_hud::gauge`). On by default;
+    /// off = the power strip's slim arc carries willpower instead (comfort / minimal HUD).
+    pub crosshair_gauge: bool,
+    /// READABILITY: other players' damage % above their heads (near the crosshair by default).
+    pub enemy_percent: EnemyPercent,
     /// Off-screen summon ping shows a tiny preview window of the construct (off = arrow only).
     pub summon_preview: bool,
     /// TRACKING: the enemy compass strip at the top of the screen (`present::tracking`).
@@ -557,6 +588,8 @@ impl Default for UiPrefs {
             shout: ShoutPref::On,
             show_percent: false,
             power_hud: true,
+            crosshair_gauge: true,
+            enemy_percent: EnemyPercent::NearCrosshair,
             summon_preview: true,
             enemy_compass: true,
             outlines: true,
@@ -860,6 +893,7 @@ mod tests {
         assert!(p.third_person && !p.voice);
         assert_eq!(p.shout, ShoutPref::On);
         assert!(p.outlines && p.summon_preview && p.enemy_compass);
+        assert!(p.crosshair_gauge && p.enemy_percent == EnemyPercent::NearCrosshair);
         assert_eq!(p.camera, crate::present::camera3p::CameraPrefs::default());
         let kb = KeyBinds::from_map(&p.binds);
         assert_eq!(kb.get(Action::AltFire), Bind::Key(KeyCode::KeyC));
@@ -872,6 +906,8 @@ mod tests {
         p.shout = ShoutPref::Mine;
         p.show_percent = true;
         p.power_hud = false;
+        p.crosshair_gauge = false;
+        p.enemy_percent = EnemyPercent::All;
         p.summon_preview = false;
         p.enemy_compass = false;
         p.outlines = false;

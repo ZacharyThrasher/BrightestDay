@@ -197,4 +197,44 @@
     // "<thing> <prep> the <place>": the place is where to cast it (see intent.rs `location_head`).
     location_preps: ["from", "out of", "over", "on", "on top of", "in", "at", "near", "above", "under", "behind", "into", "onto", "around",
         "across", "through", "inside", "outside", "beside", "next to", "in front of", "by"],
+
+    // ---- PILOTING (COMBAT.md §5d-ter): who drives what the ring builds. Vocabulary only: the sim seats
+    // the caster in anything whose recipe carries `Piloted` (host-validated) and hands it to its own AI
+    // when they hop out (E).
+    // Verbs that open a phrase and mean "I drive / ride / pilot it" ("ride optimus prime", "drive a tank",
+    // "get in a mech"). They come off before the resolver reads the rest, so the verb's dictionary sense
+    // never grafts anything ("pilot" is not an aircraft pilot that Flies, "ride" / "drive" add no Blunt);
+    // the rest gets `Piloted` (a held / worn thing never does). Longest match first.
+    pilot_verbs: ["pilot", "ride", "drive", "steer", "board", "mount", "get in", "get into", "get inside", "get on", "hop in",
+        "hop into", "hop on", "hop onto", "climb in", "climb into", "climb on", "climb onto", "climb aboard", "jump in", "jump into",
+        "jump on", "sit in", "let me drive", "let me ride", "let me pilot", "let me steer", "let me fly", "i drive", "i ride",
+        "i pilot", "ill drive", "ill ride", "ill pilot", "i will drive", "i will ride", "i will pilot", "i wanna drive", "i wanna ride",
+        "i wanna pilot", "i want to drive", "i want to ride", "i want to pilot", "take the wheel of", "take control of"],
+    // Trailing clauses that say the same thing ("optimus prime i can pilot", "a car i can sit in"). The
+    // resolver also reads these as a Piloted clause; stripping them keeps the display name clean.
+    pilot_trailing: ["i can ride", "i can drive", "i can pilot", "i can sit in", "i can steer", "i can fly", "i can get in",
+        "i can control", "that i can ride", "that i can drive", "that i can pilot", "that i can sit in", "that i can fly",
+        "that i can steer", "for me to ride", "for me to drive", "for me to pilot", "to ride", "to drive", "to pilot",
+        "with me in it", "with me inside", "with me driving", "with me at the wheel", "i drive", "i ride", "i pilot"],
+    // A pilot verb with only these after it is a COMMAND on a construct you already own ("get in", "ride
+    // it", "hop in", "take the wheel"): board it (GraftAction::Board). Also whole command phrases.
+    board_rest: ["it", "in", "on", "up", "aboard", "in it", "on it", "this", "that", "this one", "that one", "inside", "in there",
+        "back in", "it again", "the wheel", "wheel"],
+    board_commands: ["mount up", "saddle up", "take the wheel", "all aboard", "get in", "hop in", "climb in", "jump in",
+        "get back in", "hop back in", "let me drive", "let me ride", "let me pilot", "ill drive", "i will drive", "ill take the wheel",
+        "take control", "i drive", "i ride", "pilot it", "ride it", "drive it", "steer it", "board it"],
+    // Words that force FOLLOWER mode (the construct fights on its own; no seat) — they come off the phrase.
+    follower_words: ["that follows me", "that follows", "follows me", "following me", "to follow me", "as a follower",
+        "as my follower", "follower", "on autopilot", "autopilot", "on its own", "by itself", "on their own", "by themselves",
+        "self driving", "self-driving", "driverless", "unmanned", "autonomous", "ai controlled", "ai", "cpu", "npc"],
+    // DEFAULT-PILOTED (owner rule): a single summon whose fantasy is being driven or ridden spawns with
+    // the caster seated, without saying "ride / drive". Generic by form / features / mechanics in
+    // `intent.rs::naturally_piloted` (vehicles, anything that Transforms, cockpits = mechs / titans), plus
+    // these classic mounts by name. Monsters and animals whose fantasy is "sic it" (wolves, kaiju, T-rex,
+    // a plain dragon) stay followers unless the words say ride / pilot / drive; so does anything delivered
+    // ("drop a car on mia"), counts > 1, and "follower" wording.
+    ride_default: ["horse", "pony", "stallion", "mare", "steed", "warhorse", "war horse", "unicorn", "pegasus", "camel", "chocobo",
+        "surfboard", "hoverboard", "magic carpet", "flying carpet", "broomstick", "nimbus"],
+    // Vehicles too small to sit in (a thrown toy, a skateboard) are not default-piloted (metres).
+    ride_min_scale: 1.5,
 )

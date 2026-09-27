@@ -600,6 +600,7 @@ impl World {
             // Worn air moves (wing flap / cape dash) — shared with client prediction.
             let busy = p.busy();
             crate::constructs::worn::pre_move(constructs, p.id, &p.input, &mut p.mv, busy, |e| events.push(e));
+            crate::constructs::legend::pre_move(constructs, &cfg.tuning.legendary, p.id, &p.input, &mut p.mv, busy, p.willpower, |e| events.push(e)); // LEGENDARY: recall flight + heavy-blade leap (predicted too)
             let mut mods = MoveModifiers::default();
             p.status.modify_movement(&mut mods);
             mods.speed_mult *= p.size.speed_mult();

@@ -693,7 +693,7 @@
     signature: (
         domain_radius: 16.0,
         domain_radius_shout: 4.0,
-        domain_life: 6.0,
+        domain_life: 9.0,
         scale_mult: 2.0,
         scale_mult_shout: 0.6,
         scale_cap_mult: 2.5,
@@ -824,6 +824,44 @@
             bot_cost: 25.0,
             max_beams: 12,
             block_damage: 0.05,
+        ),
+        // Domain expansions (bd_sim::signature::domain; life = domain_life above). The barrier closes over
+        // expand_secs (nothing blocks yet: dash out), then seals: a sphere that blocks movement /
+        // projectiles / beams both ways, with hp. Inside, the caster's aim assist is maxed (sure_* cone deg,
+        // turn deg/s, magnet deg, range m) and their casts cost x cast_cost_mult. Every pulse_every s each
+        // enemy inside gets a marker (pulse_telegraph s, pulse_radius m) and the domain's element strikes it
+        // (pulse_damage / pulse_knockback x the look's weight; statuses status_secs; blade cuts cut_count x
+        // cut_radius; electric chains chain_range; water current_speed, wind gust_speed, earth spike_speed).
+        // After it ends: burnout s without casting. Clash: push = sparks spent / push_per_spark (+ hold_push
+        // pouring hold_cost/s); the weaker shrinks clash_rate m/s per push, shattering under clash_min_radius.
+        // A simple domain (a Guard dome) is immune to the pulses for guard_secs.
+        domain: (
+            expand_secs: 1.5,
+            hp: 900.0,
+            burnout: 3.0,
+            cast_cost_mult: 0.5,
+            pulse_every: 1.4,
+            pulse_telegraph: 0.45,
+            pulse_radius: 2.4,
+            pulse_damage: 7.0,
+            pulse_knockback: 6.0,
+            status_secs: 1.6,
+            cut_radius: 0.55,
+            cut_count: 4,
+            chain_range: 9.0,
+            current_speed: 9.0,
+            gust_speed: 14.0,
+            spike_speed: 13.0,
+            sure_cone_deg: 75.0,
+            sure_turn_deg: 1200.0,
+            sure_magnet_deg: 20.0,
+            sure_range: 60.0,
+            push_per_spark: 25.0,
+            hold_push: 1.0,
+            hold_cost: 15.0,
+            clash_rate: 3.0,
+            clash_min_radius: 5.0,
+            guard_secs: 3.0,
         ),
     ),
     // FREEDOM (bd_sim::freedom / bd_sim::legendary; hidden, never shown to players). A full shout (typed

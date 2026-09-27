@@ -116,6 +116,8 @@ enum Knob {
     Vsync,
     Fullscreen,
     Aa,
+    /// See-through portals (live views) on / off.
+    PortalViews,
     /// Startup-only render options (applied on the next launch).
     LowLatency,
     Pipelined,
@@ -504,7 +506,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                     v.push(Button(Act::ResetKeys, "RESET KEYS TO DEFAULTS"));
                 }
                 SettingsTab::Video => {
-                    v.extend([Header("DISPLAY"), Value(K::Fov), Value(K::Fullscreen), Value(K::Vsync), Value(K::Aa)]);
+                    v.extend([Header("DISPLAY"), Value(K::Fov), Value(K::Fullscreen), Value(K::Vsync), Value(K::Aa), Value(K::PortalViews)]);
                     v.extend([Header("LATENCY (NEXT LAUNCH)"), Value(K::LowLatency), Value(K::Pipelined)]);
                 }
                 SettingsTab::Audio => {
@@ -596,6 +598,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::Vsync => (lbl("VSYNC"), on_off(s.vsync)),
         Knob::Fullscreen => (lbl("FULLSCREEN"), on_off(s.fullscreen)),
         Knob::Aa => (lbl("ANTI-ALIASING"), s.antialiasing.label().into()),
+        Knob::PortalViews => (lbl("PORTAL VIEWS"), on_off(s.portal_views)),
         Knob::LowLatency => (lbl("LOW-LATENCY QUEUE"), on_off(s.low_latency)),
         Knob::Pipelined => (lbl("PIPELINED RENDERING"), on_off(s.pipelined_rendering)),
         Knob::Volume => (lbl("MASTER"), format!("{:.0}%", s.master_volume * 100.0)),
@@ -811,6 +814,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::Pipelined => {
             s.pipelined_rendering = !s.pipelined_rendering;
+            game = false;
+        }
+        Knob::PortalViews => {
+            s.portal_views = !s.portal_views;
             game = false;
         }
         Knob::Volume => {
@@ -2201,7 +2208,7 @@ mod tests {
             Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
             Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
             Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Roll, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
-            Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
+            Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::PortalViews, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
             Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,
             Knob::Voice, Knob::Ono, Knob::OnoLang, Knob::Shout,
         ];

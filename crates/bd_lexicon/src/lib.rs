@@ -42,7 +42,7 @@ use bd_core::shape::ShapeSpec;
 
 pub use data::LoadError;
 pub use icons::IconDef;
-pub use intent::{Delivery, Intent};
+pub use intent::{Delivery, Intent, Piloting};
 pub use invocation::{MAX_TITLE as SIGNATURE_MAX_TITLE, SignatureCall, SignatureKind};
 pub use norm::{MAX_INPUT_CHARS, MAX_TOKENS, normalize_key};
 pub use phonetic::phonetic_key;
@@ -74,7 +74,14 @@ pub enum GraftAction {
     /// combiner (the game requires ≥ 3). For a bare combiner name ("devastator") the resolution is a
     /// normal Construct and this is only a hint the game may honour when the caster owns ≥ 3.
     Combine,
+    /// "get in", "hop in", "ride it", "let me drive", "take the wheel", "mount up": take the wheel of an
+    /// own construct already summoned (the aimed one, else the nearest boardable one): graft `Piloted`
+    /// and seat the caster (host-validated). The recipe is named [`BOARD_COMMAND`] so the sim knows it.
+    Board,
 }
+
+/// Recipe name of a [`GraftAction::Board`] command phrase (the sim's `graft::command_of` reads it).
+pub const BOARD_COMMAND: &str = "board";
 
 /// The phrase read as a graft: what it adds to whatever it is cast onto. Always populated, even for
 /// constructs ("wings" is a Wings construct *and* a Flies graft), so aiming decides.

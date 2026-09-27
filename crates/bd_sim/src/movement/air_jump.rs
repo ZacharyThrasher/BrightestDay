@@ -65,6 +65,9 @@ pub struct ExtraMoves {
     pub vault_cd: f32,
     /// Extra air jumps (`MoveModifiers::extra_air_jumps`) spent this airtime.
     pub extra_air_jumps_used: u8,
+    /// LEGENDARY: recall flight + heavy-blade leap counters / state (`constructs::legend::pre_move`,
+    /// predicted). Default unless the player holds a legendary-kit item.
+    pub legend: crate::constructs::legend::LegendMoves,
 }
 
 impl Default for ExtraMoves {
@@ -81,6 +84,7 @@ impl Default for ExtraMoves {
             surf_n: Vec3::ZERO,
             vault_cd: 0.0,
             extra_air_jumps_used: 0,
+            legend: crate::constructs::legend::LegendMoves::default(),
         }
     }
 }

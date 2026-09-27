@@ -44,6 +44,35 @@ pub fn summon_costume_text(text: &str, recipe_name: &str) -> Option<String> {
     look::find(&n).filter(|f| f.base_variant == 0).map(|_| n)
 }
 
+/// The phrase a costume summon's MECHANICS should be read from, when the costume grammar took words
+/// the lexicon would otherwise also read as grafts: "gojo but bald" (the lexicon stems "bald" to a
+/// Thrust + Homing graft), "gojo with pink hair", "red goku", "gojo sunglasses", "goku x naruto".
+/// Those words dress the costume only; the construct keeps the base character's own mechanics.
+/// Returns the size / count words plus the base character's canonical name ("giant gojo but bald" →
+/// "giant gojo"), for the caller to re-resolve with the lexicon.
+///
+/// `None` = read the phrase as said: not a costume-grammar summon (the lexicon's head noun path,
+/// "goku riding a shark", keeps its mount), nothing beyond the name and size words ("GIANT GOKU",
+/// "satoru gojo"), or the phrase grants a power (the lexicon's reading carries the grant).
+pub fn mechanics_phrase(text: &str, recipe: &Recipe) -> Option<String> {
+    if recipe.grants.is_some() {
+        return None;
+    }
+    let t = normalise(text);
+    let p = grammar::parse(&t)?;
+    let (ci, _) = p.base?;
+    if !p.unknown.is_empty() {
+        return None;
+    }
+    let table = look::table();
+    let rest: String = look::tokens(&t).into_iter().filter(|w| !grammar::plain_word(w)).collect();
+    if table.index.get(&rest) == Some(&ci) {
+        return None; // just the name (+ size / filler words): the lexicon already reads it right
+    }
+    let name = table.chars.get(ci)?.names.first()?;
+    Some(p.scale.iter().chain(std::iter::once(name)).cloned().collect::<Vec<_>>().join(" "))
+}
+
 /// Apply the summon costume to a resolved cast: returns true when the recipe/shape were replaced.
 /// Non-humanoid resolutions of a character name ("darth vader" → a force grip) become a humanoid.
 pub fn apply(text: &str, recipe: &mut Recipe, shape: &mut Option<ShapeSpec>) -> bool {
@@ -121,6 +150,39 @@ mod tests {
         assert_eq!(id("goku riding a shark", "Goku").as_deref(), Some("goku"));
         assert_eq!(id("shark", "Shark"), None);
         assert_eq!(id("gokuu", "Gokuu"), None, "no fuzzy near-misses");
+    }
+
+    #[test]
+    fn costume_words_never_become_mechanics() {
+        let m = |text: &str| mechanics_phrase(text, &Recipe::unknown(text));
+        // the costume grammar's words: read the mechanics from the bare character
+        assert_eq!(m("gojo but bald").as_deref(), Some("gojo"));
+        assert_eq!(m("Gojo shirtless").as_deref(), Some("gojo"));
+        assert_eq!(m("gojo unmasked").as_deref(), Some("gojo"));
+        assert_eq!(m("gojo with pink hair").as_deref(), Some("gojo"));
+        assert_eq!(m("red goku").as_deref(), Some("goku"));
+        assert_eq!(m("goku with a sword").as_deref(), Some("goku"));
+        assert_eq!(m("batman no cape").as_deref(), Some("batman"));
+        assert_eq!(m("naruto without the headband").as_deref(), Some("naruto"));
+        assert_eq!(m("gojo with luffy's hat").as_deref(), Some("gojo"));
+        assert_eq!(m("goku x naruto").as_deref(), Some("goku"));
+        assert_eq!(m("gojo sunglasses").as_deref(), Some("gojo"), "variant words dress the costume only");
+        assert_eq!(m("gojo blindfold").as_deref(), Some("gojo"));
+        assert_eq!(m("satoru gojo but bald").as_deref(), Some("gojo"));
+        // size words stay (the lexicon scales the construct)
+        assert_eq!(m("giant gojo but bald").as_deref(), Some("giant gojo"));
+        assert_eq!(m("GIANT GOKU with a cape").as_deref(), Some("giant goku"));
+        // read as said: just the name (+ size / filler), not a costume phrase, or a power grant
+        assert_eq!(m("gojo"), None);
+        assert_eq!(m("satoru gojo"), None);
+        assert_eq!(m("GIANT GOKU"), None);
+        assert_eq!(m("the batman"), None);
+        assert_eq!(m("goku riding a shark"), None);
+        assert_eq!(m("kamehameha"), None);
+        assert_eq!(m("shark"), None);
+        let mut granting = Recipe::unknown("goku");
+        granting.grants = Some("ssj".into());
+        assert_eq!(mechanics_phrase("goku super saiyan", &granting), None);
     }
 
     #[test]

@@ -26,6 +26,7 @@
 //! aim point and strikes down with a telegraphed, tracking beam (the one per-tick piece; zero cost
 //! without orbitals).
 
+pub mod domain;
 pub mod orb;
 pub mod orbital;
 pub mod palm;
@@ -51,6 +52,7 @@ pub(crate) struct SignatureState {
     pub(crate) orbitals: Vec<orbital::Orbital>,
     pub(crate) orbs: Vec<orb::Orb>,
     pub(crate) palm: palm::PalmState,
+    pub(crate) domain: domain::DomainState,
 }
 
 /// What fantasy a signature expresses (mirrors `bd_lexicon::SignatureKind`; the game maps them).
@@ -125,6 +127,8 @@ pub struct SignatureTuning {
     pub orb: OrbTuning,
     /// Physical palm beams (Form::Hands shots), see [`palm`].
     pub palm: PalmTuning,
+    /// Domain expansions (expansion, barrier HP, sure-hit pulses, burnout, clash), see [`domain`].
+    pub domain: domain::DomainTuning,
 }
 
 impl Default for SignatureTuning {
@@ -132,7 +136,7 @@ impl Default for SignatureTuning {
         Self {
             domain_radius: 16.0,
             domain_radius_shout: 4.0,
-            domain_life: 6.0,
+            domain_life: 9.0,
             scale_mult: 2.0,
             scale_mult_shout: 0.6,
             scale_cap_mult: 2.5,
@@ -148,6 +152,7 @@ impl Default for SignatureTuning {
             orbital: OrbitalTuning::default(),
             orb: OrbTuning::default(),
             palm: PalmTuning::default(),
+            domain: domain::DomainTuning::default(),
         }
     }
 }
@@ -177,6 +182,7 @@ impl SignatureTuning {
         self.orbital = self.orbital.validated();
         self.orb = self.orb.validated();
         self.palm = self.palm.validated();
+        self.domain = self.domain.validated();
         self
     }
 
@@ -234,7 +240,9 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
             r.mechanics.retain(|m| !DOMAIN_DROPS.contains(m));
             // (No Homing: on a dome wrapped around its caster it only switched the shell to walking physics.)
             r.mechanics.retain(|m| *m != Mechanic::Homing);
-            r.mechanics.extend([Mechanic::Barrier, Mechanic::Trap]);
+            // The barrier; the domain's pulses (signature::domain) are its hands (no Trap yank).
+            r.mechanics.retain(|m| *m != Mechanic::Trap);
+            r.mechanics.push(Mechanic::Barrier);
             r.scale = t.domain_radius + t.domain_radius_shout * p;
             r.count = 1;
             r.mass = r.mass.max(5_000.0);
@@ -415,19 +423,33 @@ pub(crate) fn orbital_spawned(w: &mut World, cid: ConstructId, recipe: &Recipe, 
     } else if orb::is_energy_ball(recipe) {
         // Any ball of energy (rasengan, spirit bomb, fireball…): hold to grow, release to throw.
         orb::register(w, cid);
+    } else if w.signature.cast.is_some_and(|c| c.kind == SignatureKind::Domain) && recipe.form == Form::Dome {
+        // A domain: expansion, barrier HP, sure-hit pulses (the spark price = its clash push).
+        let cost = w.events.iter().rev().find_map(|e| match e {
+            crate::events::GameEvent::ConstructSpawned { id, cost, .. } if *id == cid => Some(*cost),
+            _ => None,
+        });
+        domain::register(w, cid, cost.unwrap_or(0.0));
+    } else if domain::is_simple_domain(recipe) {
+        // "simple domain" / "counter domain": immune to sure-hit pulses for a while.
+        if let Some(owner) = w.constructs.get(cid).map(|c| c.owner) {
+            domain::guard(w, owner);
+        }
     }
 }
 
-/// World::tick, after constructs: orbital strikes.
+/// World::tick, after constructs: orbital strikes, energy balls, palm beams, domains.
 pub(crate) fn step(w: &mut World, dt: f32) {
     orbital::step(w, dt);
     orb::step(w, dt);
     palm::step(w, dt);
+    domain::step(w, dt);
 }
 
-/// Forming time: at least the readable windup.
+/// Forming time: at least the readable windup; a domain's is its expansion.
 pub(crate) fn forming(w: &World, secs: f32) -> f32 {
     match w.signature.cast {
+        Some(c) if c.kind == SignatureKind::Domain && c.form == Form::Dome => secs.max(w.cfg.tuning.signature.domain.expand_secs),
         Some(_) => secs.max(w.cfg.tuning.signature.windup),
         None => secs,
     }

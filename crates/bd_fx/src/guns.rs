@@ -82,11 +82,42 @@ pub struct ProjectileFx {
     pub size: f32,
     prev: Option<Vec3>,
     credit: f32,
+    split: Option<PortalSplit>,
 }
 
 impl ProjectileFx {
     pub fn new(kind: ProjectileKind, color: [f32; 3]) -> Self {
-        ProjectileFx { kind, color, size: 1.0, prev: None, credit: 0.0 }
+        ProjectileFx { kind, color, size: 1.0, prev: None, credit: 0.0, split: None }
+    }
+
+    /// The projectile just came out of a portal: carry the motion through (no smear across the
+    /// map) and draw the tracer tail in two pieces — out of the exit disc and into the entry disc —
+    /// until it has cleared the exit.
+    pub fn teleport(&mut self, split: PortalSplit) {
+        if let Some(p) = self.prev {
+            self.prev = Some(split.to_exit(p));
+        }
+        self.split = Some(split);
+    }
+}
+
+/// A portal pass for [`ProjectileFx::teleport`]: the exit plane and the map back to the entry side.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PortalSplit {
+    pub entry_pos: Vec3,
+    pub exit_pos: Vec3,
+    /// Exit face normal (the side things come out on).
+    pub exit_normal: Vec3,
+    /// Rotation taking entry-side directions to exit-side ones.
+    pub rot: Quat,
+}
+
+impl PortalSplit {
+    pub fn to_exit(&self, p: Vec3) -> Vec3 {
+        self.exit_pos + self.rot * (p - self.entry_pos)
+    }
+    pub fn to_entry(&self, p: Vec3) -> Vec3 {
+        self.entry_pos + self.rot.inverse() * (p - self.exit_pos)
     }
 }
 
@@ -422,7 +453,24 @@ fn projectiles(mut fx: ResMut<FxParticles>, settings: Res<FxSettings>, time: Res
         }
         if tracer_len > 0.0 && speed > 1.0 {
             let tl = (speed * 0.025).min(tracer_len * k);
-            fx.immediate_segment(pos - dir * (tl + body.z * 0.5), pos - dir * body.z * 0.5, tracer_w * k, pr.color, 3.5, PFlags::PLAIN);
+            let (a, b) = (pos - dir * (tl + body.z * 0.5), pos - dir * body.z * 0.5);
+            // Just out of a portal: the part of the tail still "behind" the exit is drawn going
+            // into the entry disc instead.
+            let split = pr.split.filter(|s| (a - s.exit_pos).dot(s.exit_normal) < 0.0);
+            match split {
+                Some(s) => {
+                    let (da, db) = ((a - s.exit_pos).dot(s.exit_normal), (b - s.exit_pos).dot(s.exit_normal));
+                    let m = if db > 0.0 { a + (b - a) * (-da / (db - da).max(1e-6)) } else { b };
+                    if db > 0.0 {
+                        fx.immediate_segment(m, b, tracer_w * k, pr.color, 3.5, PFlags::PLAIN);
+                    }
+                    fx.immediate_segment(s.to_entry(a), s.to_entry(m), tracer_w * k, pr.color, 3.5, PFlags::PLAIN);
+                }
+                None => {
+                    pr.split = None;
+                    fx.immediate_segment(a, b, tracer_w * k, pr.color, 3.5, PFlags::PLAIN);
+                }
+            }
         }
         if pr.kind == ProjectileKind::Rocket {
             pr.credit += 90.0 * budget * dt;

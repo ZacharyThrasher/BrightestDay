@@ -415,31 +415,35 @@
     ),
     // 13 -----------------------------------------------------------------------------------------
     IconEntry(
-        names: ["buster sword", "cloud's sword", "cloud's buster sword", "busters sword", "buster blade", "clouds sword"],
+        names: ["buster sword", "cloud's sword", "cloud's buster sword", "busters sword", "buster blade", "clouds sword", "cloud strife sword"],
         recipe: (
             name: "Buster Sword",
             form: Sword,
             mechanics: [Blade, Heavy],
             element: Light,
-            scale: 1.8,
-            mass: 40.0,
+            scale: 2.2,
+            mass: 45.0,
             count: 1,
-            accent: Some((0.7, 0.7, 0.75)),
+            accent: Some((0.72, 0.74, 0.8)),
             model: Icon("buster_sword"),
         ),
+        // Authored on the fine voxel lattice (1 unit ~ one 0.125 m voxel at 2.2 m): a giant steel slab.
         shape: Some((
             prims: [
-                (kind: Cylinder, center: (0.0, 0.0, 0.5), size: (1.0, 4.0, 1.0), rot_deg: (90.0, 0.0, 0.0), tint: Dark),
-                (kind: Box, center: (0.0, 0.0, -2.0), size: (3.4, 1.4, 1.0), tint: Accent),
-                // huge broad blade
-                (kind: Box, center: (0.0, 0.0, -8.0), size: (5.0, 1.0, 11.0), tint: Primary),
-                // sharp edge along one side
-                (kind: Box, center: (2.0, 0.0, -8.0), size: (1.0, 1.0, 11.0), tint: Core),
-                // the two holes near the hilt
-                (kind: Cylinder, center: (0.0, 0.0, -4.0), size: (1.4, 3.0, 1.4), subtract: true),
-                (kind: Cylinder, center: (0.0, 0.0, -6.0), size: (1.4, 3.0, 1.4), subtract: true),
-                // angled tip
-                (kind: Box, center: (2.5, 0.0, -14.0), size: (4.0, 3.0, 4.0), rot_deg: (0.0, 45.0, 0.0), subtract: true),
+                // round pommel + long two-handed grip
+                (kind: Ellipsoid, center: (0.0, 0.0, 3.0), size: (3.0, 3.0, 1.6), tint: Primary),
+                (kind: Box, center: (0.0, 0.0, 0.5), size: (1.0, 1.0, 4.0), tint: Dark),
+                // small squat cross-guard + rivet collar at the blade root
+                (kind: Box, center: (0.0, 0.5, -2.0), size: (7.0, 3.0, 1.0), tint: Primary),
+                (kind: Box, center: (0.0, 0.5, -3.0), size: (5.0, 2.0, 1.0), tint: Dark),
+                // very wide, thick, flat slab blade with a dark spine
+                (kind: Box, center: (0.0, 0.5, -8.5), size: (5.0, 2.0, 10.0), tint: Accent),
+                (kind: Box, center: (-2.0, 0.5, -8.5), size: (1.0, 2.0, 10.0), tint: Dark),
+                // the two materia slots near the guard
+                (kind: Cylinder, center: (-0.5, 0.5, -5.5), size: (2.2, 4.0, 2.2), subtract: true),
+                (kind: Cylinder, center: (-0.5, 0.5, -8.5), size: (2.2, 4.0, 2.2), subtract: true),
+                // squared, angled chisel tip (edge side cut back)
+                (kind: Box, center: (4.3, 0.5, -14.8), size: (8.0, 6.0, 8.0), rot_deg: (0.0, 45.0, 0.0), subtract: true),
             ],
         )),
         source: "Square Enix (Final Fantasy VII)",
@@ -479,7 +483,7 @@
     ),
     // 15 -----------------------------------------------------------------------------------------
     IconEntry(
-        names: ["keyblade", "key blade", "kingdom key", "sora's keyblade", "key sword"],
+        names: ["keyblade", "key blade", "kingdom key", "sora's keyblade", "key sword", "oathkeeper", "oathkeeper keyblade"],
         recipe: (
             name: "Keyblade",
             form: Sword,
@@ -4003,5 +4007,66 @@
         ),
         shape: None,
         source: "generic (CS surf / skateparks)",
+    ),
+    IconEntry(
+        names: ["poseidon's trident", "trident of poseidon", "poseidons trident", "poseidon trident", "neptune's trident", "trident of neptune", "neptunes trident"],
+        recipe: (
+            name: "Trident of Poseidon",
+            form: Spear,
+            mechanics: [Pierce, Heavy],
+            element: Water,
+            scale: 2.6,
+            mass: 20.0,
+            count: 1,
+            accent: Some((0.95, 0.78, 0.35)),
+            model: Icon("poseidon_s_trident"),
+        ),
+        // Fine voxel lattice (1 unit ~ one 0.125 m voxel at 2.625 m): long gold shaft, crossbar, three
+        // prongs with glowing sea-glass tips.
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, 0.0, -4.0), size: (1.0, 1.0, 15.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, 4.0), size: (1.0, 1.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, -1.0), size: (1.0, 1.0, 3.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, -12.0), size: (5.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (-2.0, 0.0, -13.5), size: (1.0, 1.0, 2.0), tint: Accent),
+                (kind: Box, center: (2.0, 0.0, -13.5), size: (1.0, 1.0, 2.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -14.0), size: (1.0, 1.0, 3.0), tint: Accent),
+                (kind: Box, center: (-2.0, 0.0, -15.0), size: (1.0, 1.0, 1.0), tint: Core),
+                (kind: Box, center: (2.0, 0.0, -15.0), size: (1.0, 1.0, 1.0), tint: Core),
+                (kind: Box, center: (0.0, 0.0, -16.0), size: (1.0, 1.0, 1.0), tint: Core),
+            ],
+        )),
+        source: "Greek mythology",
+    ),
+    // Deadlock (Valve): the Doorman's door — name only, private use (THIRD_PARTY_NOTICES.md). A
+    // doorway portal pair (Wall + Portal = an upright door-shaped opening, bd_sim world/actions.rs):
+    // both ends are wooden door frames with warm light spilling through (bd_fx door_frame_spec), and
+    // the see-through view shows the far side through the open door. The construct itself is only
+    // the worn threshold at your feet (a low slab: nothing blocks the door).
+    IconEntry(
+        names: ["doorman door", "doorman's door", "doormans door", "the doorman's door", "the doormans door", "doorway", "a doorway", "door to", "a door to", "door that goes to", "a door that goes to", "door that leads to", "a door that leads to"],
+        recipe: (
+            name: "Doorman's Door",
+            form: Wall,
+            mechanics: [Portal],
+            element: Light,
+            scale: 1.8,
+            mass: 60.0,
+            count: 1,
+            accent: Some((1.0, 0.62, 0.28)),
+            model: Icon("doorman door"),
+        ),
+        // Worn wooden threshold + a warm brass strip (the light catching it).
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, 0.5, 0.0), size: (8.0, 1.0, 3.0), tint: Primary),
+                (kind: Box, center: (0.0, 0.5, -1.75), size: (8.0, 1.0, 0.5), tint: Dark),
+                (kind: Box, center: (0.0, 1.0, 0.0), size: (7.0, 0.25, 0.5), tint: Core),
+                (kind: Box, center: (-4.25, 0.75, 0.0), size: (0.5, 1.5, 3.0), tint: Dark),
+                (kind: Box, center: (4.25, 0.75, 0.0), size: (0.5, 1.5, 3.0), tint: Dark),
+            ],
+        )),
+        source: "Valve (Deadlock) (name only; private use)",
     ),
 ]

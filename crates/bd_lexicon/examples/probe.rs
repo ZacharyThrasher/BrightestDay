@@ -3,6 +3,7 @@
 //!     cargo run -p bd_lexicon --example probe -- "giant flaming hammer with rockets" "maul"
 //!     cargo run -p bd_lexicon --example probe -- --spoken "picked you"
 //!     cargo run -p bd_lexicon --example probe -- --complete "captain am"
+//!     cargo run -p bd_lexicon --example probe -- --intent "ride optimus prime"   (the game's staged path)
 
 use std::io::BufRead;
 use std::time::Instant;
@@ -27,11 +28,13 @@ fn main() {
     }
     let mut spoken = false;
     let mut complete = false;
+    let mut staged = false;
     let mut phrases: Vec<String> = Vec::new();
     for a in args {
         match a.as_str() {
             "--spoken" => spoken = true,
             "--complete" => complete = true,
+            "--intent" => staged = true,
             _ => phrases.push(a),
         }
     }
@@ -46,7 +49,15 @@ fn main() {
             continue;
         }
         let t = Instant::now();
-        let r = if spoken { lex.resolve_spoken(&p) } else { lex.resolve(&p) };
+        let it = staged.then(|| lex.intent(&p, &["Ethan", "Jake", "Mia"], spoken));
+        if let Some(it) = &it {
+            println!("  intent: stages={:?} pilot={:?} delivery={:?} target={:?} read={:?}", it.stages, it.pilot, it.delivery, it.target, it.text);
+        }
+        let r = match it {
+            Some(it) => it.resolution,
+            None if spoken => lex.resolve_spoken(&p),
+            None => lex.resolve(&p),
+        };
         let us = t.elapsed().as_secs_f64() * 1e6;
         let rc = &r.recipe;
         println!(

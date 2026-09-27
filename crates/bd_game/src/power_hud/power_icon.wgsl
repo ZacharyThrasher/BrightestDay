@@ -230,10 +230,17 @@ fn arc(in: UiVertexOutput) -> vec4<f32> {
     let band = abs(d) - thick;
     let u = clamp(pxy.x / half_w * 0.5 + 0.5, 0.0, 1.0);
     let ends = smoothstep(0.0, 0.06, u) * smoothstep(1.0, 0.94, u);
-    let t = globals.time + p.c.w;
+    let t = globals.time;
     let fill = clamp(p.a.y, 0.0, 1.0);
     let cost = p.b.w;
-    let a = clamp(0.5 - band, 0.0, 1.0) * ends;
+    var a = clamp(0.5 - band, 0.0, 1.0) * ends;
+    // Whole sparks (the gauge's unit): small gaps between them.
+    let sparks = p.c.x;
+    if (sparks > 0.5) {
+        let su = u * sparks;
+        let gap_px = min(fract(su), 1.0 - fract(su)) / sparks * size.x;
+        a = a * clamp(gap_px - 1.0, 0.0, 1.0);
+    }
     var out = vec4<f32>(0.02, 0.02, 0.035, 0.55 * a);
     var col = p.color.rgb;
     if (fill < 0.2) {

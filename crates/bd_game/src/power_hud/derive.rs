@@ -234,6 +234,8 @@ pub struct PowerHud {
     pub grown: bool,
     /// Strip pop 1 → 0 after appearing.
     pub pop: f32,
+    /// READABILITY: willpower in whole sparks (the crosshair gauge, the ring hand, the strip arc).
+    pub will: super::will::WillGauge,
 }
 
 impl Default for PowerHud {
@@ -250,6 +252,7 @@ impl Default for PowerHud {
             peaks: [0.0; HUD_TIMERS],
             grown: false,
             pop: 0.0,
+            will: Default::default(),
         }
     }
 }

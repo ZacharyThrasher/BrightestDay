@@ -385,16 +385,10 @@ pub fn strain_pct(p: &bd_sim::Player) -> f32 {
     if p.damage_pct.is_finite() { p.damage_pct.max(0.0) } else { 0.0 }
 }
 
-/// White → gold → orange → red as % rises (readability colour, same ramp as body glow).
-pub fn strain_color(pct: f32) -> Color {
-    let stops = [(0.0, Color::srgb(1.0, 1.0, 1.0)), (50.0, Color::srgb(1.0, 0.85, 0.3)), (100.0, Color::srgb(1.0, 0.5, 0.1)), (150.0, Color::srgb(1.0, 0.12, 0.08))];
-    for w in stops.windows(2) {
-        let ((a, ca), (b, cb)) = (w[0], w[1]);
-        if pct <= b {
-            return ca.mix(&cb, ((pct - a) / (b - a)).clamp(0.0, 1.0));
-        }
-    }
-    stops[3].1
+/// White → yellow → orange → red → crimson as % rises: THE Smash ramp (`readability::heat_color`,
+/// `assets/tuning/readability.ron`), the same one on other players' outlines, pips and numbers.
+pub fn strain_color(heat: &crate::readability::HeatTuning, pct: f32) -> Color {
+    crate::readability::heat_color(heat, pct)
 }
 
 // ------------------------------------------------------------------------------------------ keys
@@ -607,12 +601,14 @@ fn animate_viewmodel(
     mut mats: ResMut<Assets<StandardMaterial>>,
     mut st: ResMut<VmState>,
     mut held_out: ResMut<FirstPersonHeld>,
-    (pose, anchor, mut hands_out, tuning, mut bite): (
+    (pose, anchor, mut hands_out, tuning, mut bite, readable, power): (
         Res<anim::HandPose>,
         Res<crate::camera::ViewAnchor>,
         ResMut<ViewmodelHands>,
         Res<anim::VmTuningRes>,
         Option<ResMut<crate::present::impact::connect::ContactBite>>,
+        Res<crate::readability::Readability>,
+        Res<crate::power_hud::PowerHudState>,
     ),
     mut held_q: (
         Option<Res<crate::present::constructs::ConstructEntities>>,
@@ -789,13 +785,15 @@ fn animate_viewmodel(
         }
     }
 
-    // --- ring glow = willpower
+    // --- ring glow = willpower (READABILITY: the diegetic mirror of the crosshair gauge, read from
+    // the one source, `PowerHudState::will`: glow = sparks held, one pulse per spark spent).
+    let will = &power.0.will;
     let wp_max = active.as_ref().map_or(100.0, |a| a.world.rules().willpower_max()).max(1.0);
-    let wp = (me.willpower / wp_max).clamp(0.0, 1.0);
+    let wp = if will.pool > 0 { (will.have / will.pool as f32).clamp(0.0, 1.0) } else { (me.willpower / wp_max).clamp(0.0, 1.0) };
     st.flare = (st.flare - dt * 2.2).max(0.0);
     st.sputter = (st.sputter - dt).max(0.0);
-    let mut target = 0.15 + 0.85 * wp;
-    if wp < 0.2 {
+    let mut target = 0.15 + 0.85 * wp + 1.4 * will.ring_pulse();
+    if if will.pool > 0 { will.low } else { wp < 0.2 } {
         // Low: dim and flicker.
         let n = ((st.time * 23.0).sin() * (st.time * 7.3).cos()).abs();
         target *= 0.5 + 0.5 * n;
@@ -812,7 +810,7 @@ fn animate_viewmodel(
     target += st.flare * 2.0 + pose.glow;
     st.glow += (target - st.glow) * (1.0 - (-18.0 * dt).exp());
     let pct = strain_pct(me);
-    let ring_col = corps_color(corps).mix(&strain_color(pct), (pct / 60.0).clamp(0.0, 1.0));
+    let ring_col = corps_color(corps).mix(&strain_color(&readable.0.heat, pct), (pct / 60.0).clamp(0.0, 1.0));
     let c = ring_col.to_linear();
     let g = 1.0 + st.glow * 9.0;
     let key = [c.red * g, c.green * g, c.blue * g];
@@ -846,6 +844,7 @@ fn animate_viewmodel(
 // ------------------------------------------------------------------------------------------ health fractures
 
 fn draw_percent(
+    readable: Res<crate::readability::Readability>,
     prefs: Res<UiPrefs>,
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
@@ -867,7 +866,7 @@ fn draw_percent(
         t.0.clear();
         use std::fmt::Write as _;
         let _ = write!(t.0, "{pct}%");
-        col.0 = strain_color(pct as f32).with_alpha(0.85);
+        col.0 = strain_color(&readable.0.heat, pct as f32).with_alpha(0.85);
     }
 }
 
@@ -940,6 +939,7 @@ fn spawn_fractures(mut commands: Commands) {
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn draw_fractures(
+    readable: Res<crate::readability::Readability>,
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
     active: Option<Res<ActiveWorld>>,
@@ -967,7 +967,7 @@ fn draw_fractures(
     if !on || (prev - *shown).abs() < 1e-4 && !comfort.is_changed() {
         return;
     }
-    let c = strain_color(pct).mix(&Color::WHITE, 0.35);
+    let c = strain_color(&readable.0.heat, pct).mix(&Color::WHITE, 0.35);
     let strength = 0.25 + 0.35 * comfort.flashes;
     for (f, mut bg) in &mut cracks {
         let a = ((*shown - f.threshold) / 0.12).clamp(0.0, 1.0) * strength;

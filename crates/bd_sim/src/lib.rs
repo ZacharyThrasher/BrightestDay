@@ -42,6 +42,7 @@ pub mod movement;
 pub mod party;
 pub mod pickups; // POWER-UPS: gated big things + map pickups (MatchRules::powerups; off = no-op)
 pub mod powers;
+pub mod presence_tier; // PRESENCE: a construct's gravitas tier (pure; bd_game presence + the phrase tool)
 pub mod projectile;
 pub mod readiness; // POWER HUD: held powers' readiness / forms + own status timers (replicated; bd_game power_hud)
 pub mod replicate;

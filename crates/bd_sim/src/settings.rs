@@ -177,6 +177,7 @@ impl GameSettings {
         r.respawn_secs = fin(r.respawn_secs, d.respawn_secs).clamp(0.0, 30.0);
         r.spawn_shield_secs = fin(r.spawn_shield_secs, d.spawn_shield_secs).clamp(0.0, 10.0);
         r.knockback_scale = fin(r.knockback_scale, 1.0).clamp(0.0, 4.0);
+        r.willpower_segments = r.willpower_segments.clamp(crate::rules::WILLPOWER_SEGMENTS_MIN, crate::rules::WILLPOWER_SEGMENTS_MAX);
         self.gravity_scale = fin(self.gravity_scale, 1.0).clamp(0.25, 3.0);
         self.gas_regen_scale = fin(self.gas_regen_scale, 1.0).clamp(0.0, 4.0);
         self.party = self.party.validated();

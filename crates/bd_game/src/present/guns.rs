@@ -5,6 +5,10 @@
 //! round), then pops the impact FX. Bounded: at most [`MAX_TRACERS`] live, oldest retired first.
 //! In client role the local player's own shots were already played from local input, so their
 //! `ShotFired` is skipped here.
+//! PORTALS: a hitscan round's legs (one `ShotTrace` per portal pass) chain — the exit leg's slug
+//! starts when the entry leg's slug reaches the disc; projectiles are drawn where they are after a
+//! pass (never extrapolated into the wall behind the entry), and their tracer tail splits across
+//! both ends (bd_fx `ProjectileFx::teleport`) instead of smearing across the map.
 
 use super::sound::Sfx3d;
 use super::{bv, corps_rgb, PresentSet};
@@ -48,6 +52,10 @@ struct Tracer {
     color: [f32; 3],
     /// Play the impact sound (one per volley; every other minigun round).
     voice: bool,
+    /// PORTALS: wait this long before flying (the leg before the portal is still in flight); the
+    /// slug is only attached when it starts.
+    delay: f32,
+    look: Option<ProjectileFx>,
 }
 
 pub struct GunsPlugin;
@@ -122,6 +130,7 @@ fn gun_events(
     mut commands: Commands,
     mut tracers: ResMut<Tracers>,
     mut volley: Local<(u64, u8, u32)>,
+    mut chain: Local<Option<(u64, u8, Vec3, f32)>>,
     ads: Option<Res<super::ads::AdsState>>,
     cam: Query<&GlobalTransform, With<crate::camera::PlayerCamera>>,
 ) {
@@ -199,18 +208,29 @@ fn gun_events(
                 let dir = (b - a).normalize_or(Vec3::NEG_Z);
                 let mut fx = ProjectileFx::new(kind, color);
                 fx.size = size;
+                let dur = ((b - a).length() / TRACER_SPEED).max(TRACER_MIN_SECS);
+                // PORTALS: this leg starts at the exit of the portal the previous leg (same shot)
+                // ended in: fly once that slug arrives.
+                let delay = match *chain {
+                    Some((tick, o, end, at)) if tick == ev.tick && o == owner.0 && leg_continues(&active, end, a) => at,
+                    _ => 0.0,
+                };
+                *chain = (*normal == bd_core::Vec3::ZERO && hit_player.is_none()).then_some((ev.tick, owner.0, b, delay + dur));
                 let tracer = Tracer {
                     from: a,
                     to: b,
                     t: 0.0,
-                    dur: ((b - a).length() / TRACER_SPEED).max(TRACER_MIN_SECS),
+                    dur,
                     normal: bv(*normal),
                     hit_player: hit_player.is_some(),
                     impact_scale,
                     color,
                     voice,
+                    delay,
+                    look: (delay > 0.0).then_some(fx),
                 };
-                let e = commands.spawn((fx, tracer, Transform::from_translation(a).looking_to(dir, Vec3::Y), Visibility::default())).id();
+                let tf = Transform::from_translation(a).looking_to(dir, Vec3::Y);
+                let e = if delay > 0.0 { commands.spawn((tracer, tf, Visibility::default())).id() } else { commands.spawn((fx, tracer, tf, Visibility::default())).id() };
                 tracers.0.push_back(e);
             }
             GameEvent::Hitscan { owner, origin, end, .. } => {
@@ -240,6 +260,46 @@ fn gun_events(
     }
 }
 
+/// Does a hitscan leg starting at `from` continue one that ended at `end` through a portal?
+fn leg_continues(active: &ActiveWorld, end: Vec3, from: Vec3) -> bool {
+    active.world.portals.iter().any(|p| {
+        let pp = super::portal_view::PairGeo::from_sim(p);
+        (0..2).any(|i| {
+            let (e, f) = (&pp.ends[i], &pp.ends[1 - i]);
+            e.side(end).abs() < 0.2 && e.inside(end - e.pos - e.n * e.side(end), 0.3) && (pp.map_point(i, end) - from).length() < 0.3 && f.side(from) > -0.1
+        })
+    })
+}
+
+/// A drawn projectile position that ran past a portal face (extrapolated between ticks, or the
+/// sim already passed it) → the exit-side position and pass (entry end geometry + rotation).
+fn through_portal(pairs: &[super::portal_view::PairGeo], a: Vec3, b: Vec3) -> Option<(Vec3, bd_fx::PortalSplit)> {
+    for pp in pairs {
+        for i in 0..2 {
+            if pp.ends[i].crossed(a, b, 0.0) {
+                let (e, f) = (&pp.ends[i], &pp.ends[1 - i]);
+                return Some((pp.map_point(i, b), bd_fx::PortalSplit { entry_pos: e.pos, exit_pos: f.pos, exit_normal: f.n, rot: pp.rot(i) }));
+            }
+        }
+    }
+    None
+}
+
+/// Did a drawn projectile jump from `prev` (entry side) to `now` (exit side) through a pair?
+fn passed(pairs: &[super::portal_view::PairGeo], prev: Vec3, now: Vec3) -> Option<bd_fx::PortalSplit> {
+    for pp in pairs {
+        for j in 0..2 {
+            let back = pp.map_point(j, now);
+            let entry = 1 - j;
+            let (e, f) = (&pp.ends[entry], &pp.ends[j]);
+            if (back - prev).length() < 30.0 && e.crossed(prev, back, 0.3) {
+                return Some(bd_fx::PortalSplit { entry_pos: e.pos, exit_pos: f.pos, exit_normal: f.n, rot: pp.rot(entry) });
+            }
+        }
+    }
+    None
+}
+
 fn fx_kind(k: ProjectileKind) -> (FxKind, f32) {
     match k {
         ProjectileKind::RingBlast => (FxKind::Bolt, 1.0),
@@ -255,23 +315,39 @@ fn sync_projectiles(
     active: Option<Res<ActiveWorld>>,
     clock: Res<TickClock>,
     mut map: ResMut<Projectiles>,
-    mut q: Query<&mut Transform, With<ProjectileFx>>,
+    mut q: Query<(&mut Transform, &mut ProjectileFx), Without<Tracer>>,
     mut seen: Local<Vec<u16>>,
+    mut pairs: Local<Vec<super::portal_view::PairGeo>>,
 ) {
     let Some(active) = active else { return };
     seen.clear();
+    pairs.clear();
+    pairs.extend(active.world.portals.iter().map(super::portal_view::PairGeo::from_sim));
     let t = clock.alpha * DT;
     for pr in &active.world.projectiles {
         if pr.dead {
             continue;
         }
         seen.push(pr.id);
-        let pos = bv(pr.pos) + bv(pr.vel) * t;
-        let v = bv(pr.vel);
+        let mut pos = bv(pr.pos) + bv(pr.vel) * t;
+        let mut v = bv(pr.vel);
+        // Extrapolated past a portal face: draw it already out of the exit (the sim passes it on
+        // the next tick), never inside the wall behind the entry.
+        if !pairs.is_empty()
+            && let Some((p, split)) = through_portal(&pairs, bv(pr.pos), pos)
+        {
+            pos = p;
+            v = split.rot * v;
+        }
         let tf = Transform::from_translation(pos).looking_to(v.normalize_or(Vec3::NEG_Z), Vec3::Y);
         match map.0.get(&pr.id) {
             Some(e) => {
-                if let Ok(mut t) = q.get_mut(*e) {
+                if let Ok((mut t, mut fx)) = q.get_mut(*e) {
+                    if !pairs.is_empty()
+                        && let Some(split) = passed(&pairs, t.translation, pos)
+                    {
+                        fx.teleport(split);
+                    }
                     *t = tf;
                 }
             }
@@ -306,6 +382,16 @@ fn fly_tracers(
 ) {
     let dt = time.delta_secs().min(0.1);
     for (e, mut tr, mut tf) in &mut q {
+        if tr.delay > 0.0 {
+            // PORTALS: the leg before the portal is still flying.
+            tr.delay -= dt;
+            if tr.delay > 0.0 {
+                continue;
+            }
+            if let Some(fx) = tr.look.take() {
+                commands.entity(e).try_insert(fx);
+            }
+        }
         tr.t += dt;
         let k = (tr.t / tr.dur).min(1.0);
         tf.translation = tr.from.lerp(tr.to, k);

@@ -270,10 +270,20 @@ fn sync_space(
             }
             None => {
                 let es = [0, 1].map(|i| {
-                    let d = p.ends[i].radius as f32 / 20.0 * 2.0;
-                    let mut fx = PortalFx::new(d, col);
+                    let e = &p.ends[i];
+                    let r = e.radius as f32 / 20.0;
+                    let door = e.style == bd_sim::space::PORTAL_STYLE_DOOR;
+                    // Ring: outer diameter a little over the opening (the hole matches the sim's
+                    // radius). Doorway: the opening's height.
+                    let mut fx = PortalFx::new(if door { r * 2.0 } else { r * 2.0 * 1.12 }, col);
                     fx.open = 0.0;
-                    commands.spawn((fx, tf(i))).id()
+                    if door {
+                        fx.style = PortalFx::DOOR;
+                        fx.door_aspect = bd_sim::space::DOOR_ASPECT;
+                    }
+                    // PORTALS: the window disc for the gameplay camera, the swirl for portal cameras.
+                    fx.view_layers = Some([super::portal_view::PORTAL_MAIN_LAYER, super::portal_view::PORTAL_VIEW_LAYER]);
+                    commands.spawn((fx, tf(i), super::portal_view::PortalEndRef { id: p.id, end: i as u8 })).id()
                 });
                 s.portals.insert(p.id, es);
             }

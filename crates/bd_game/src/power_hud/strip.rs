@@ -77,6 +77,7 @@ fn spawn_strip(mut commands: Commands, mut mats: ResMut<Assets<IconMaterial>>) {
     let root = commands
         .spawn((
             Name::new("PowerHudStrip"),
+            super::labels::StripRoot,
             Node {
                 position_type: PositionType::Absolute,
                 left: px(0),
@@ -223,14 +224,15 @@ fn draw_strip(
         let p = IconParams { color: lin(col, 1.0), a: Vec4::new(glyph as f32, q(life), -1.0, 0.0), b: Vec4::new(3.0, 0.0, 0.0, 0.0), c: Vec4::new(1.0, 1.0, 1.0, 0.0) };
         set(&mut mats, &s.pickup.1, p);
     }
-    // Willpower arc (the ring's colour: corps).
+    // Willpower arc (the ring's colour: corps), in whole sparks. Only when the crosshair gauge is
+    // off: that gauge carries willpower where the eyes already are, so this would be a duplicate.
     let corps = active.as_ref().and_then(|a| a.local_player()).map_or([0.3, 1.0, 0.45], |p| p.corps.color());
-    let arc_on = show && (hud.count > 0 || hud.pickup.is_some());
+    let arc_on = show && (hud.count > 0 || hud.pickup.is_some()) && !prefs.crosshair_gauge;
     let p = IconParams {
         color: lin(derive::vivid(corps), if arc_on { 0.9 } else { 0.0 }),
         a: Vec4::new(0.0, q(hud.willpower), -1.0, 0.0),
         b: Vec4::new(2.0, 0.0, 0.0, hud.cost.map_or(0.0, q)),
-        c: Vec4::ZERO,
+        c: Vec4::new(hud.will.pool as f32, 0.0, 0.0, 0.0),
     };
     set(&mut mats, &s.arc.1, p);
 }

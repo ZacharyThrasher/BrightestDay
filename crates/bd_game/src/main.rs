@@ -39,6 +39,7 @@ mod oath;
 mod player;
 mod power_hud;
 mod practice;
+mod readability;
 mod present;
 mod render;
 mod settings;
@@ -137,6 +138,7 @@ fn main() {
         .add_plugins(lobby::UiPlugin)
         .add_plugins(showcase::ShowcasePlugin)
         .add_plugins(power_hud::PowerHudPlugin) // POWER HUD: ring gems, motes, minimal strip
+        .add_plugins(readability::ReadabilityPlugin) // READABILITY: damage heat ramp, KO smoke, over-head %
         .add_plugins(alloc_count::AllocCountPlugin)
         .run();
 }

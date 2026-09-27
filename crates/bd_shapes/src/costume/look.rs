@@ -656,7 +656,7 @@ fn key(toks: &[String]) -> String {
 }
 
 /// Words that may accompany a character name without changing the match.
-const FILLER: &[&str] = &[
+pub(crate) const FILLER: &[&str] = &[
     "the", "a", "an", "as", "in", "with", "his", "her", "their", "mode", "form", "style", "outfit", "costume", "look", "suit", "version",
     "cosplay", "skin",
 ];

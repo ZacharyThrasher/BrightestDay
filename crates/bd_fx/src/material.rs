@@ -101,11 +101,21 @@ impl Material for ParticleMaterial {
     }
 }
 
-/// Portal inner surface (swirl). Per-portal colour comes from the construct buffer via `MeshTag`.
+/// Portal inner surface. Per-portal colour / view slot come from the construct buffer via
+/// `MeshTag`. `view_a` / `view_b` are the game's live portal-view pictures (HDR, pre-tonemap,
+/// sampled in screen space like a window); `params.x` > 0.5 lets this material show them (the
+/// gameplay disc), 0 = always the swirl (the disc portal-view cameras see: no recursion).
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct PortalMaterial {
     #[storage(0, read_only)]
     pub constructs: Handle<ShaderBuffer>,
+    #[texture(1)]
+    #[sampler(2)]
+    pub view_a: Option<Handle<Image>>,
+    #[texture(3)]
+    pub view_b: Option<Handle<Image>>,
+    #[uniform(4)]
+    pub params: Vec4,
 }
 
 impl Material for PortalMaterial {
@@ -143,7 +153,10 @@ pub struct FxMaterials {
     /// Solid, always in front of the world (performance words).
     pub construct_overlay: Handle<ConstructMaterial>,
     pub particles: Handle<ParticleMaterial>,
+    /// The gameplay-view portal surface (live views when the game provides them).
     pub portal: Handle<PortalMaterial>,
+    /// Swirl-only portal surface (what portal-view cameras see: a portal inside a portal).
+    pub portal_vortex: Handle<PortalMaterial>,
 }
 
 impl FxMaterials {
@@ -178,7 +191,11 @@ pub fn create(world: &mut World) -> FxMaterials {
     let particles = world
         .resource_mut::<Assets<ParticleMaterial>>()
         .add(ParticleMaterial { particles: bufs.particles.clone(), anchors: bufs.anchors.clone() });
-    let portal = world.resource_mut::<Assets<PortalMaterial>>().add(PortalMaterial { constructs: bufs.constructs.clone() });
-    FxMaterials { construct_translucent, construct_solid, construct_overlay, particles, portal }
+    let (portal, portal_vortex) = {
+        let mut mats = world.resource_mut::<Assets<PortalMaterial>>();
+        let m = |views: bool| PortalMaterial { constructs: bufs.constructs.clone(), view_a: None, view_b: None, params: Vec4::new(views as u8 as f32, 0.0, 0.0, 0.0) };
+        (mats.add(m(true)), mats.add(m(false)))
+    };
+    FxMaterials { construct_translucent, construct_solid, construct_overlay, particles, portal, portal_vortex }
 }
 

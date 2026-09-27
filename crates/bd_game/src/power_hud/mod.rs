@@ -16,20 +16,29 @@
 //!   sweep, ready flare, form duration ring; the slim willpower arc (+ a cost flicker for the phrase
 //!   being typed); the carried map pickup; your statuses as small pips with duration sweeps. Hidden
 //!   when you hold nothing; a soft pop the first time you gain a power.
+//! * **Tab labels** ([`labels`]): while Tab is held, a card over the strip per held power — its
+//!   name / active form and usage chips (input from your binds + a verb from its data). The one
+//!   place powers are named.
 //!
-//! **Single source for the wordless-affordance pass:** the ring gauge that pass adds (willpower =
-//! ring glow) should read [`PowerHudState`] (`willpower`, `cost`, `gems`) and extend [`gems`] rather
-//! than derive its own copy.
+//! * **Willpower** ([`will`], READABILITY): whole SPARKS (`MatchRules::willpower_segments`; every
+//!   cast costs whole sparks) in [`PowerHud::will`] — drawn around the crosshair by [`gauge`]
+//!   (`UiPrefs::crosshair_gauge`, on by default), mirrored by the ring hand (`viewmodel`: glow =
+//!   willpower, one pulse per spark spent — the wordless-affordance pass's ring gauge, done here) and
+//!   by the strip's slim arc only when the crosshair gauge is off (redundant otherwise).
+//!
+//! **Single source:** every willpower / cost read goes through [`PowerHudState`] (`willpower`,
+//! `cost`, `will`, `gems`) — never a second derivation.
 
 pub mod derive;
+mod gauge;
 mod gems;
+mod labels;
 mod motes;
 pub mod scenario;
 mod strip;
+pub mod will;
 
 pub use derive::PowerHud;
-/// The icon material (the Tab board's power chips reuse it).
-pub use strip::{IconMaterial, IconParams};
 
 use crate::console::{RingConsole, RingLexicon};
 use crate::sim_bridge::{ActiveWorld, BridgeSet, ViewKeys};
@@ -52,8 +61,10 @@ impl Plugin for PowerHudPlugin {
         app.init_resource::<PowerHudState>()
             .init_resource::<CostPreview>()
             .add_message::<crate::audio::PlaySfx>()
-            .add_systems(Update, (derive_state, cost_preview).chain().after(BridgeSet::Views).in_set(crate::present::PresentSet::Events));
+            .add_systems(Update, (derive_state, cost_preview, update_will).chain().after(BridgeSet::Views).in_set(crate::present::PresentSet::Events));
         strip::build(app);
+        gauge::build(app);
+        labels::build(app);
         gems::build(app);
         motes::build(app);
         scenario::build(app);
@@ -108,6 +119,33 @@ fn derive_state(
             let pitch = hud.gems[k].look.pitch;
             sfx.write(crate::audio::PlaySfx::new(READY_CHIME).pitch(pitch).gain(0.45));
         }
+    }
+}
+
+/// The willpower gauge in sparks (after the cost preview: the bite needs it). A spark clicking in
+/// ticks softly.
+fn update_will(
+    time: Res<Time<Real>>,
+    active: Option<Res<ActiveWorld>>,
+    keys: Res<ViewKeys>,
+    tuning: Option<Res<crate::readability::Readability>>,
+    mut st: ResMut<PowerHudState>,
+    mut sfx: MessageWriter<crate::audio::PlaySfx>,
+) {
+    let dt = time.delta_secs();
+    let me = active.as_ref().and_then(|a| a.local).filter(|_| keys.valid);
+    let snap = &keys.curr;
+    let row = me.and_then(|id| snap.players.binary_search_by_key(&id.0, |p| p.id).ok().map(|i| &snap.players[i])).filter(|p| p.has(pflags::ALIVE));
+    let rules = active.as_ref().map(|a| a.world.rules());
+    let max = rules.map_or(100.0, |r| r.willpower_max()).max(1.0);
+    // Infinite willpower: nothing to count (spark size 0 hides the gauge).
+    let spark = rules.map_or(0.0, |r| if r.infinite_willpower() { 0.0 } else { r.segment_size() });
+    let gt = tuning.map(|t| t.0.gauge.clone()).unwrap_or_default();
+    let hud = &mut st.0;
+    let cost = hud.cost.map(|c| c * max);
+    let e = hud.will.update(row.map(|p| p.willpower as f32), max, spark, cost, row.is_some_and(|p| p.has(pflags::CHARGING)), dt, &gt);
+    if e.filled {
+        sfx.write(crate::audio::PlaySfx::new(will::SPARK_TICK).pitch(1.7).gain(gt.tick_gain));
     }
 }
 

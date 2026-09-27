@@ -67,6 +67,10 @@ pub struct CombatTuning {
     /// EXTENDS: telescoping weapons — twirl combos, thrust, falling pillar, pole vault
     /// (`constructs/extend.rs`; the vault is predicted by clients, so it rides the host sync).
     pub extend: crate::constructs::extend::ExtendTuning,
+    /// LEGENDARY: generic legendary move rules — recall, storm call, ricochet chain, deflect, blade
+    /// wave, heavy blade, chain blades (`constructs/legend.rs`; recall flight / the leap are predicted,
+    /// so it rides the host sync).
+    pub legendary: crate::constructs::legend::LegendTuning,
 }
 
 impl Default for CombatTuning {
@@ -92,6 +96,7 @@ impl Default for CombatTuning {
             giants: crate::constructs::giant::GiantTuning::default(),
             pickups: crate::pickups::PickupTuning::default(),
             extend: crate::constructs::extend::ExtendTuning::default(),
+            legendary: crate::constructs::legend::LegendTuning::default(),
         }
     }
 }
@@ -986,6 +991,7 @@ impl CombatTuning {
         self.giants = self.giants.validated(); // GIANTS
         self.pickups = self.pickups.validated(); // POWER-UPS
         self.extend = self.extend.validated(); // EXTENDS
+        self.legendary = self.legendary.validated(); // LEGENDARY
         self
     }
 

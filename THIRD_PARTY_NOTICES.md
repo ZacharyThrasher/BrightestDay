@@ -94,6 +94,12 @@ Hyperline map is inspired by Spider-Man: Across the Spider-Verse for private use
 gates. The name, layout, geometry, backdrop and sounds are Brightest Day's own; no Sony/Marvel assets, logos, names or text are
 used — `crates/bd_voxel/src/maps/hyperline.rs`, `crates/bd_game/src/present/hyperline.rs`.)
 
+The Doorman's door (vocabulary entry "doorman door" / "doorman's door" / "doorway" / "a door to …" in `assets/icons.ron`)
+names Valve's Deadlock character for private use; replace the name before any public release.
+(Name only, as words a player may type — the doorway portal, its wooden frame, warm light and threshold are Brightest Day's
+own voxel shapes and mechanics (`crates/bd_fx/src/extras.rs` `door_frame_spec`, `crates/bd_sim/src/world/actions.rs`); no Valve
+assets, logos, text or sounds are used.)
+
 ## Tabletop vocabulary (`assets/icons/tabletop.ron`, `tools/icons/tabletop/gen.py`)
 
 This work includes material taken from the System Reference Document 5.1 ("SRD 5.1") by Wizards of

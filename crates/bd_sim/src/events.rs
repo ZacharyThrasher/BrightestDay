@@ -315,6 +315,9 @@ pub enum GameEvent {
     /// SIGNATURE HOOK (`crate::signature::palm`): a physical palm beam's state — start, ~40 Hz
     /// updates (root, direction, length), clash point, end, detonation.
     PalmBeam(crate::signature::palm::BeamView),
+    /// SIGNATURE HOOK (`crate::signature::domain`): a domain sealed, a sure-hit pulse telegraphed /
+    /// struck, a domain clash, a shatter, a caster's burnout, a simple domain's guard.
+    Domain(crate::signature::domain::DomainEvent),
     /// FREEDOM HOOK (`crate::freedom`): kill-feed line (the killer construct's phrase as cast), a
     /// legendary construct appeared (golden sting), end-of-match highlights.
     Freedom(crate::freedom::FreedomEvent),
@@ -396,4 +399,33 @@ pub enum HeldFx {
     PillarSlam = 32,
     /// EXTENDS: pole vault — planted at `pos`, the wielder launched along `dir` (`strength` = m/s added).
     Vault = 33,
+    // ---- LEGENDARY (`constructs/legend.rs`) ----
+    /// A thrown Returning item lodged in terrain at `pos` (`dir` = surface normal) until recalled.
+    Lodge = 34,
+    /// RMB recalled a thrown item (it flies back fast from `pos`, hitting everything on the path).
+    RecallStart = 35,
+    /// A storm-capable item raised overhead (`strength` 1 = ready, 0 = still recharging: a sputter).
+    StormRaise = 36,
+    /// Telegraph of a called-down strike at `pos` landing in `strength` seconds (one per rain drop).
+    StormMark = 37,
+    /// A called-down strike landed at `pos` (`strength` = radius; `dir` −Y = a falling drop / crush).
+    StormStrike = 38,
+    /// Lightning arcs from `pos` along `dir` for `strength` metres.
+    StormArc = 39,
+    /// A ricochet-chain throw bounced off an enemy at `pos` toward the next (`dir`; `strength` = bounce #).
+    Ricochet = 40,
+    /// A crescent slash launched from `pos` along `dir`; `strength` = size (negative = a vertical chord).
+    /// Clients simulate it (`legend::wave_speed` / `wave_axis` / `wave_point`, tuning `legendary`).
+    Wave = 41,
+    /// Heavy blade leap (Braver) from `pos` heading `dir` (`strength` = m/s added).
+    LeapStart = 42,
+    /// The leap's cleave landed at `pos` (heading `dir`, `strength` = shockwave radius).
+    LeapSlam = 43,
+    /// Chain blades' 360° sweep around `pos` (`strength` = radius, `dir` = heading).
+    ChainSweep = 44,
+    /// Chain blades latched onto an enemy at `pos`; the wielder yanked in (`dir` = back toward the
+    /// wielder, `strength` = distance).
+    ChainPull = 45,
+    /// Super armor soaked a hit on its wielder at `pos` (`strength` = knockback kept fraction).
+    Armor = 46,
 }

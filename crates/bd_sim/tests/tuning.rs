@@ -202,18 +202,20 @@ fn autonomous_non_creatures_are_priced_like_creatures() {
     let walls = bots::recipe("wall with legs", Form::Wall, &[Mechanic::Walks], Element::Light, 6.0);
     let mut w = flat_live();
     let (id, spent) = cast_spend(&mut w, flying.clone());
-    assert!((spent - AUTONOMOUS_BASE * 1.15).abs() < 1e-3, "{spent}");
+    // SPARKS: every cast costs whole sparks (`MatchRules::quantize_cost`).
+    let q = |c: f32| w.rules().quantize_cost(c);
+    assert!((spent - q(AUTONOMOUS_BASE * 1.15)).abs() < 1e-3, "{spent}");
     let c = w.constructs.get(id).unwrap();
     assert!(c.priced_autonomous);
     // Integrity is priced from the unadjusted cost (no tougher for being pricier).
     assert!((c.max_integrity - integrity_for_cost(base_cost_as(&flying, false))).abs() < 1e-3, "{}", c.max_integrity);
     let (_, spent) = cast_spend(&mut w, walls.clone());
-    assert!((spent - base_cost(&walls)).abs() < 1e-3 && base_cost(&walls) > base_cost_as(&walls, false));
+    assert!((spent - w.rules().quantize_cost(base_cost(&walls))).abs() < 1e-3 && base_cost(&walls) > base_cost_as(&walls, false));
     // Legacy tuning: the old prices.
     let mut l = flat_live();
     l.set_tuning(CombatTuning::legacy());
     let (id, spent) = cast_spend(&mut l, flying);
-    assert!((spent - 12.0 * 1.15).abs() < 1e-3, "{spent}");
+    assert!((spent - l.rules().quantize_cost(12.0 * 1.15)).abs() < 1e-3, "{spent}");
     assert!(!l.constructs.get(id).unwrap().priced_autonomous);
     // Graft "wings" (Flies) onto a plain hammer: the hammer now hunts, so the graft pays up to a
     // creature's base and the hammer pays creature upkeep from then on.
@@ -231,7 +233,7 @@ fn autonomous_non_creatures_are_priced_like_creatures() {
     assert_eq!(g.cast(a, wings.clone(), None, aim).unwrap(), hid);
     let spent = 100.0 - g.player(a).unwrap().willpower;
     let plain = base_cost(&wings) * 0.5;
-    assert!((spent - plain - (AUTONOMOUS_BASE - 12.0)).abs() < 1e-2, "{spent} vs {plain}");
+    assert!((spent - g.rules().quantize_cost(plain + (AUTONOMOUS_BASE - 12.0))).abs() < 1e-2, "{spent} vs {plain}");
     assert!(g.constructs.get(hid).unwrap().priced_autonomous);
 }
 

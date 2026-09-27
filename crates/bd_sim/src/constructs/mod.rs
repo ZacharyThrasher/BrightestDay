@@ -127,6 +127,7 @@ pub mod giant; // GIANTS: weak points, limbs, topple, rideable colliders, shockw
 pub mod graft;
 pub mod gun;
 pub mod held;
+pub mod legend; // LEGENDARY: generic legendary move rules (recall, storm call, ricochet chain, deflect, blade wave, heavy blade, chain blades)
 pub mod object;
 pub mod pilot;
 pub mod structure;
@@ -1371,6 +1372,7 @@ impl ConstructStore {
     pub fn post_move(&self, pid: PlayerId, input: &PlayerInput, st: &mut PlayerState, pre_vel: Vec3, ev: &MoveEvents, p: &MoveParams) {
         worn::post_move(self, pid, input, st, pre_vel, ev, p);
         structure::post_move(self, pid, input, st, pre_vel, ev, p);
+        crate::signature::domain::shell(self, st, p); // SIGNATURE HOOK: a sealed domain's barrier (both ways)
     }
 
     /// Run every construct's behaviour for one tick (the pipeline in the module docs).

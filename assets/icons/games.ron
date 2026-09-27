@@ -1883,7 +1883,7 @@
         source: "Epic Games (Fortnite)",
     ),
     IconEntry(
-        names: ["energy sword", "halo sword", "plasma sword", "elite sword", "e-sword", "esword"],
+        names: ["energy sword", "halo sword", "plasma sword", "elite sword", "e-sword", "esword", "halo energy sword", "halo 2 energy sword"],
         recipe: (
             name: "Energy Sword",
             form: Sword,
@@ -3372,34 +3372,6 @@
         source: "Capcom (Monster Hunter)",
     ),
     IconEntry(
-        names: ["cloud strife sword"],
-        recipe: (
-            name: "Buster Sword",
-            form: Sword,
-            mechanics: [Blade, Heavy],
-            element: Light,
-            scale: 2.0,
-            mass: 30.0,
-            count: 1,
-            accent: Some((0.75, 0.78, 0.82)),
-            model: Icon("buster sword"),
-        ),
-        shape: Some((
-            prims: [
-                (kind: Box, center: (0.0, 0.0, 3.5), size: (1.0, 1.0, 1.0), rot_deg: (0.0, 0.0, -90.0), tint: Accent),
-                (kind: Box, center: (0.0, 0.0, 1.5), size: (1.0, 1.0, 4.0), rot_deg: (0.0, 0.0, -90.0), tint: Dark),
-                (kind: Box, center: (0.0, 0.0, -0.5), size: (5.0, 3.0, 1.0), rot_deg: (0.0, 0.0, -90.0), tint: Accent),
-                (kind: Box, center: (0.0, 0.0, -7.5), size: (5.0, 1.0, 13.0), rot_deg: (0.0, 0.0, -90.0), tint: Primary),
-                (kind: Box, center: (0.0, 0.0, -15.0), size: (6.0, 3.0, 6.0), rot_deg: (45.0, 0.0, -90.0), tint: Primary, subtract: true),
-                (kind: Box, center: (0.0, 2.0, -12.0), size: (1.0, 1.2, 3.0), rot_deg: (0.0, 0.0, -90.0), tint: Primary),
-                (kind: Box, center: (0.0, -2.0, -7.0), size: (1.0, 1.2, 13.0), rot_deg: (0.0, 0.0, -90.0), tint: Core),
-                (kind: Cylinder, center: (0.0, 0.0, -2.5), size: (1.0, 3.0, 1.0), rot_deg: (0.0, 0.0, -90.0), tint: Dark, subtract: true),
-                (kind: Cylinder, center: (0.0, 0.0, -4.5), size: (1.0, 3.0, 1.0), rot_deg: (0.0, 0.0, -90.0), tint: Dark, subtract: true),
-            ],
-        )),
-        source: "Square Enix (Final Fantasy)",
-    ),
-    IconEntry(
         names: ["revolver gunblade", "lionheart"],
         recipe: (
             name: "Gunblade",
@@ -3693,7 +3665,7 @@
         recipe: (
             name: "Keyblade",
             form: Sword,
-            mechanics: [Blunt, Returning],
+            mechanics: [Blade, Returning],
             element: Light,
             scale: 1.3,
             mass: 4.0,
@@ -4741,7 +4713,7 @@
         source: "Rockstar (Grand Theft Auto) VI",
     ),
     IconEntry(
-        names: ["ray gun", "raygun", "zombies ray gun", "ray gun mark ii"],
+        names: ["ray gun", "raygun", "zombies ray gun", "ray gun mark ii", "raygun mark ii", "ray gun mark 2", "raygun mark 2", "ray gun mk2", "ray gun mk ii"],
         recipe: (
             name: "Ray Gun",
             form: Gun,
@@ -6044,7 +6016,7 @@
             mass: 5.0,
             count: 1,
             accent: Some((0.25, 0.5, 1.0)),
-            model: Procedural(seed: 560),
+            model: Icon("mega buster"),
             payload: Some((
                 name: "charged buster shot",
                 form: Ball,
@@ -6057,7 +6029,15 @@
                 model: Procedural(seed: 304),
             )),
         ),
-        shape: None,
+        // Blue forearm cannon (authored on the fine voxel lattice: 1 unit ~ one 0.125 m voxel at 0.75 m).
+        shape: Some((
+            prims: [
+                (kind: Cylinder, center: (0.0, 0.0, 0.0), size: (3.0, 5.0, 3.0), rot_deg: (90.0, 0.0, 0.0), tint: Accent),
+                (kind: Cylinder, center: (0.0, 0.0, 1.0), size: (3.4, 1.0, 3.4), rot_deg: (90.0, 0.0, 0.0), tint: Primary),
+                (kind: Cylinder, center: (0.0, 0.0, -3.0), size: (3.0, 1.0, 3.0), rot_deg: (90.0, 0.0, 0.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, -3.0), size: (1.0, 1.0, 1.0), tint: Core),
+            ],
+        )),
         source: "Capcom (Mega Man)",
     ),
     IconEntry(
@@ -6456,9 +6436,26 @@
             mass: 10.0,
             count: 1,
             accent: Some((0.3, 0.95, 0.95)),
-            model: Procedural(seed: 245),
+            model: Icon("frostmourne"),
         ),
-        shape: None,
+        // Runeblade (fine voxel lattice: 1 unit ~ one 0.125 m voxel at 1.75 m): horned skull guard,
+        // broad ice-steel blade with glowing runes down the middle.
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, 0.0, 2.0), size: (3.0, 1.0, 1.0), tint: Primary),
+                (kind: Box, center: (0.0, 0.0, 0.0), size: (1.0, 1.0, 3.0), tint: Dark),
+                // horned skull guard
+                (kind: Box, center: (0.0, 0.0, -2.0), size: (5.0, 1.0, 1.0), tint: Primary),
+                (kind: Box, center: (-3.0, 0.0, -1.0), size: (1.0, 1.0, 1.0), tint: Primary),
+                (kind: Box, center: (3.0, 0.0, -1.0), size: (1.0, 1.0, 1.0), tint: Primary),
+                (kind: Box, center: (0.0, 0.0, -3.0), size: (3.0, 3.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, 1.0, -3.0), size: (1.0, 1.0, 1.0), tint: Core),
+                // blade, runes, tip
+                (kind: Box, center: (0.0, 0.0, -6.5), size: (3.0, 1.0, 6.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -6.5), size: (1.0, 1.2, 4.0), tint: Core),
+                (kind: Box, center: (0.0, 0.0, -10.5), size: (1.0, 1.0, 2.0), tint: Accent),
+            ],
+        )),
         source: "Blizzard (Warcraft)",
     ),
     IconEntry(
@@ -6920,5 +6917,97 @@
         ),
         shape: None,
         source: "Larian (Baldur's Gate 3)",
+    ),
+    IconEntry(
+        names: ["soul edge", "soul edge sword", "soulcalibur soul edge", "nightmare's sword", "nightmares sword"],
+        recipe: (
+            name: "Soul Edge",
+            form: Sword,
+            mechanics: [Blade, Heavy],
+            element: Shadow,
+            scale: 2.0,
+            mass: 20.0,
+            count: 1,
+            accent: Some((0.75, 0.1, 0.12)),
+            model: Icon("soul edge"),
+        ),
+        // Fine voxel lattice (1 unit ~ one 0.125 m voxel at 2.0 m): a broad, jagged living blade with
+        // a glowing eye in the guard.
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, 0.0, 2.0), size: (1.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, 0.0), size: (1.0, 1.0, 3.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, -2.0), size: (5.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (0.0, 1.0, -2.0), size: (1.0, 1.0, 1.0), tint: Core),
+                (kind: Box, center: (0.0, 0.0, -7.5), size: (5.0, 1.0, 10.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -7.0), size: (1.0, 1.2, 7.0), tint: Dark),
+                (kind: Box, center: (-1.0, 0.0, -13.0), size: (1.0, 1.0, 2.0), tint: Accent),
+                // jagged serrations along both edges
+                (kind: Box, center: (-2.0, 0.0, -5.0), size: (1.0, 3.0, 1.0), subtract: true),
+                (kind: Box, center: (2.0, 0.0, -7.0), size: (1.0, 3.0, 1.0), subtract: true),
+                (kind: Box, center: (-2.0, 0.0, -9.0), size: (1.0, 3.0, 1.0), subtract: true),
+                (kind: Box, center: (2.0, 0.0, -11.5), size: (1.0, 3.0, 2.0), subtract: true),
+                (kind: Box, center: (-2.0, 0.0, -12.0), size: (1.0, 3.0, 1.0), subtract: true),
+            ],
+        )),
+        source: "Bandai Namco (Soulcalibur)",
+    ),
+    IconEntry(
+        names: ["monado", "the monado", "shulk's sword", "shulks sword", "monado sword"],
+        recipe: (
+            name: "Monado",
+            form: Sword,
+            mechanics: [Blade, Guard],
+            element: Psychic,
+            scale: 1.6,
+            mass: 6.0,
+            count: 1,
+            accent: Some((0.85, 0.12, 0.12)),
+            model: Icon("monado"),
+        ),
+        // Fine voxel lattice (1 unit ~ one 0.125 m voxel at 1.625 m): red split frame around a glowing
+        // blade of light.
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, 0.0, 0.0), size: (1.0, 1.0, 3.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, 2.0), size: (1.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -2.0), size: (3.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (-1.0, 0.0, -6.0), size: (1.0, 1.0, 7.0), tint: Accent),
+                (kind: Box, center: (1.0, 0.0, -6.0), size: (1.0, 1.0, 7.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -6.5), size: (1.0, 1.0, 8.0), tint: Core),
+                (kind: Box, center: (-1.0, 0.0, -10.0), size: (1.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (1.0, 0.0, -10.0), size: (1.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -11.0), size: (1.0, 1.0, 1.0), tint: Core),
+            ],
+        )),
+        source: "Nintendo / Monolith Soft (Xenoblade Chronicles)",
+    ),
+    IconEntry(
+        names: ["lancer rifle", "gears of war lancer", "lancer assault rifle", "gears lancer", "lancer chainsaw", "chainsaw rifle", "chainsaw bayonet rifle", "marcus fenix's rifle"],
+        recipe: (
+            name: "Lancer Rifle",
+            form: Gun,
+            mechanics: [Shoots, Fast, Blade],
+            element: Light,
+            scale: 1.1,
+            mass: 7.0,
+            count: 1,
+            accent: Some((0.7, 0.72, 0.76)),
+            model: Icon("lancer rifle"),
+        ),
+        // Assault rifle with an under-barrel chainsaw (fine voxel lattice: 1 unit ~ one 0.125 m voxel
+        // at 1.125 m).
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, -0.5, 2.5), size: (1.0, 2.0, 2.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, 0.0), size: (1.0, 1.0, 3.0), tint: Primary),
+                (kind: Box, center: (0.0, -1.0, 1.0), size: (1.0, 1.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, -1.5, 0.0), size: (1.0, 2.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, 1.0, 0.0), size: (1.0, 1.0, 1.0), tint: Core),
+                (kind: Box, center: (0.0, 0.0, -3.0), size: (1.0, 1.0, 3.0), tint: Dark),
+                (kind: Box, center: (0.0, -1.0, -3.5), size: (1.0, 1.0, 4.0), tint: Accent),
+            ],
+        )),
+        source: "Epic Games / The Coalition (Gears of War)",
     ),
 ]

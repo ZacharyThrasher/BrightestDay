@@ -134,7 +134,17 @@ pub struct MatchRules {
     /// POWER-UPS (`crate::pickups`): the big things (giants, awakenings, ultimates) need a pickup
     /// from the map; without one the phrase comes out small. Off = no pickups at all.
     pub powerups: bool,
+    /// SPARKS (READABILITY; UI word `bd_game::menu::SPARKS`): willpower comes in this many whole
+    /// segments ([`WILLPOWER_SEGMENTS_MIN`]..=[`WILLPOWER_SEGMENTS_MAX`]) and every cast costs whole
+    /// ones (`willpower::quantize_cost`). A balance rule, so the host sets it and it replicates with
+    /// the rules.
+    pub willpower_segments: u8,
 }
+
+/// Default / range of [`MatchRules::willpower_segments`] (8: see `willpower::QUANTIZE_BIAS`).
+pub const DEFAULT_WILLPOWER_SEGMENTS: u8 = 8;
+pub const WILLPOWER_SEGMENTS_MIN: u8 = 3;
+pub const WILLPOWER_SEGMENTS_MAX: u8 = 12;
 
 impl Default for MatchRules {
     fn default() -> Self {
@@ -156,6 +166,7 @@ impl Default for MatchRules {
             allow_third_person: true,
             limits: ConstructLimits::default(),
             powerups: false,
+            willpower_segments: DEFAULT_WILLPOWER_SEGMENTS,
         }
     }
 }
@@ -175,6 +186,27 @@ impl MatchRules {
             WillpowerMode::Double => 2.0,
             _ => 1.0,
         }
+    }
+
+    /// Sparks in the Normal pool ([`Self::willpower_segments`], clamped to its range).
+    pub fn willpower_segments(&self) -> u8 {
+        self.willpower_segments.clamp(WILLPOWER_SEGMENTS_MIN, WILLPOWER_SEGMENTS_MAX)
+    }
+
+    /// Willpower in one spark (`willpower::SEGMENT_BASE_POOL / segments`: Double willpower has
+    /// twice the sparks, not bigger ones).
+    pub fn segment_size(&self) -> f32 {
+        crate::willpower::SEGMENT_BASE_POOL / self.willpower_segments() as f32
+    }
+
+    /// Sparks shown for the whole pool (Double: twice [`Self::willpower_segments`]).
+    pub fn pool_segments(&self) -> u32 {
+        (self.willpower_max() / self.segment_size()).round().max(1.0) as u32
+    }
+
+    /// A cast cost rounded to whole sparks (unchanged with infinite willpower: nothing is paid).
+    pub fn quantize_cost(&self, cost: f32) -> f32 {
+        if self.infinite_willpower() { cost } else { crate::willpower::quantize_cost(cost, self.segment_size()) }
     }
 
     pub fn infinite_willpower(&self) -> bool {

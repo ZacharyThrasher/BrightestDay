@@ -59,6 +59,9 @@ pub struct Settings {
     pub low_latency: bool,
     /// Bevy pipelined rendering (+throughput, +1 frame latency). Applied at startup.
     pub pipelined_rendering: bool,
+    /// See-through portals ("PORTAL VIEWS", Video): live views through portal discs. Off = the
+    /// swirl only (low-end machines; the portal cameras never run).
+    pub portal_views: bool,
 }
 
 impl Default for Settings {
@@ -76,6 +79,7 @@ impl Default for Settings {
             antialiasing: AntiAliasing::Msaa4,
             low_latency: true,
             pipelined_rendering: false,
+            portal_views: true,
         }
     }
 }

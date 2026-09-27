@@ -26,7 +26,7 @@
 
 use std::sync::OnceLock;
 
-use bd_core::mechanics::{Form, Mechanic};
+use bd_core::mechanics::{Feature, Form, FormCategory, Mechanic, Recipe};
 use serde::Deserialize;
 
 use crate::fuzzy::{dl_distance, max_typo};
@@ -107,6 +107,21 @@ struct IntentData {
     around_forms: Vec<(String, String)>,
     not_verbs: Vec<String>,
     location_preps: Vec<String>,
+    // ---- PILOTING (see `data/intent.ron`, [`Piloting`])
+    #[serde(default)]
+    pilot_verbs: Vec<String>,
+    #[serde(default)]
+    pilot_trailing: Vec<String>,
+    #[serde(default)]
+    board_rest: Vec<String>,
+    #[serde(default)]
+    board_commands: Vec<String>,
+    #[serde(default)]
+    follower_words: Vec<String>,
+    #[serde(default)]
+    ride_default: Vec<String>,
+    #[serde(default)]
+    ride_min_scale: f32,
 }
 
 fn data() -> Option<&'static IntentData> {
@@ -117,6 +132,9 @@ fn data() -> Option<&'static IntentData> {
         d.verbs.sort_by_key(|v| std::cmp::Reverse(v.words.split(' ').count()));
         d.preps.sort_by_key(|p| std::cmp::Reverse(p.words.split(' ').count()));
         d.target_verbs.sort_by_key(|v| std::cmp::Reverse(v.split(' ').count()));
+        d.pilot_verbs.sort_by_key(|v| std::cmp::Reverse(v.split(' ').count()));
+        d.pilot_trailing.sort_by_key(|v| std::cmp::Reverse(v.split(' ').count()));
+        d.follower_words.sort_by_key(|v| std::cmp::Reverse(v.split(' ').count()));
         Some(d)
     })
     .as_ref()
@@ -140,6 +158,26 @@ pub struct Intent {
     pub resolution: Resolution,
     /// The intent stages that fired, in order ("again", "it", "target", "verb:drop", "signature", …).
     pub stages: Vec<String>,
+    /// Who drives what this builds (None = not something you drive; see [`Piloting`]).
+    pub pilot: Option<Piloting>,
+}
+
+/// How a phrase decided who drives what it builds (`data/intent.ron` PILOTING; COMBAT.md §5d-ter).
+/// Whatever it says, the recipe carries it: `Piloted` = the host seats the caster (if they are alive and
+/// not already seated — else it runs as a follower); no `Piloted` = it fights on its own AI.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Piloting {
+    /// "ride / drive / pilot / get in / hop in / board … <thing>", "<thing> i can pilot": seated.
+    Explicit,
+    /// Nothing said, but a single summon whose fantasy is being driven or ridden (a vehicle, anything
+    /// that Transforms, a cockpit mech / titan, a classic mount): seated (owner rule: pilot by default,
+    /// hop out with E to make it a follower).
+    Default,
+    /// "<thing> that follows me", "on autopilot", "on its own", "driverless": no seat, its own AI.
+    Follower,
+    /// "get in", "hop in", "ride it", "let me drive", "take the wheel", "mount up": a command — board a
+    /// construct you already own ([`crate::GraftAction::Board`]).
+    Board,
 }
 
 impl Intent {
@@ -547,6 +585,193 @@ const DETERMINERS: &[&str] = &[
     "eight", "nine", "ten", "twelve", "twenty", "fifty", "hundred", "thousand", "million", "giant", "huge", "big", "massive", "gigantic",
 ];
 
+// ------------------------------------------------------------------------------------------ piloting
+
+/// First word after lead filler ("ok", "um", "now").
+fn lead_start(ws: &[Word]) -> usize {
+    let mut s = 0;
+    while s + 1 < ws.len() && LEAD_FILLER.contains(&ws[s].key.as_str()) {
+        s += 1;
+    }
+    s
+}
+
+/// End (exclusive) without trailing "please" / "now".
+fn trail_end(ws: &[Word]) -> usize {
+    let mut e = ws.len();
+    while e > 1 && matches!(ws[e - 1].key.as_str(), "please" | "plz" | "pls" | "now") {
+        e -= 1;
+    }
+    e
+}
+
+fn keys_join(ws: &[Word], a: usize, b: usize) -> String {
+    ws[a.min(b)..b.min(ws.len())].iter().map(|w| w.key.as_str()).collect::<Vec<_>>().join(" ")
+}
+
+/// Words that may dangle before a cut-off trailing clause ("optimus prime *that* follows me").
+fn dangling(k: &str) -> bool {
+    matches!(k, "that" | "which" | "who" | "so" | "and" | "to")
+}
+
+/// "<thing> that follows me", "autopilot <thing>", "<thing> on its own": the phrase without the
+/// follower words (None = no follower words, or nothing else left).
+fn follower_cut(d: &IntentData, text: &str) -> Option<String> {
+    let ws = words(text);
+    let (s, e) = (lead_start(&ws), trail_end(&ws));
+    for f in &d.follower_words {
+        let k = f.split(' ').count();
+        if e < s + k + 1 {
+            continue;
+        }
+        if phrase_at(&ws, e - k, f) {
+            let mut j = e - k;
+            while j > s + 1 && dangling(&ws[j - 1].key) {
+                j -= 1;
+            }
+            return Some(text[..ws[j - 1].end].trim().to_string());
+        }
+        if phrase_at(&ws, s, f) {
+            return Some(text[ws[s + k].start..].trim().to_string());
+        }
+    }
+    None
+}
+
+/// "<thing> i can pilot", "a car i can sit in", "a horse to ride": the phrase without the clause.
+fn pilot_trailing_cut(d: &IntentData, text: &str) -> Option<String> {
+    let ws = words(text);
+    let (s, e) = (lead_start(&ws), trail_end(&ws));
+    for t in &d.pilot_trailing {
+        let k = t.split(' ').count();
+        if e < s + k + 1 || !phrase_at(&ws, e - k, t) {
+            continue;
+        }
+        let mut j = e - k;
+        while j > s + 1 && dangling(&ws[j - 1].key) {
+            j -= 1;
+        }
+        return Some(text[..ws[j - 1].end].trim().to_string());
+    }
+    None
+}
+
+/// Add / remove `Piloted` on both readings (construct and graft).
+fn set_piloted(res: &mut Resolution, on: bool) {
+    let rc = &mut res.recipe;
+    if on {
+        if !rc.has(Mechanic::Piloted) {
+            rc.mechanics.push(Mechanic::Piloted);
+            rc.mechanics.sort();
+            rc.mechanics.dedup();
+        }
+        if !res.graft.mechanics.contains(&Mechanic::Piloted) {
+            res.graft.mechanics.push(Mechanic::Piloted);
+            res.graft.mechanics.sort();
+        }
+    } else {
+        rc.mechanics.retain(|m| *m != Mechanic::Piloted);
+        res.graft.mechanics.retain(|m| *m != Mechanic::Piloted);
+    }
+}
+
+/// The "board" command reading (`GraftAction::Board`): nothing to build — the sim seats the caster in
+/// the aimed (else nearest) construct they own (`bd_sim` `graft::Command::Board`).
+fn board_resolution(res: &mut Resolution) {
+    let mut r = Recipe::unknown(crate::BOARD_COMMAND);
+    r.mechanics = vec![Mechanic::Piloted];
+    res.recipe = r.normalized();
+    res.kind = crate::ResolutionKind::Graft;
+    res.graft = crate::Graft { mechanics: vec![Mechanic::Piloted], scale_mul: 1.0, action: Some(crate::GraftAction::Board), ..Default::default() };
+    res.shape = None;
+    res.alt_shape = None;
+    res.signature = None;
+    res.incantation = None;
+    res.incantation_powers.clear();
+    res.stand_rush = None;
+    res.ignored.clear();
+    res.confidence = 0.95;
+    res.explanation = vec!["board \u{2192} take the wheel of your construct (the aimed one, else the nearest)".into()];
+}
+
+/// DEFAULT-PILOTED (owner rule, `data/intent.ron` `ride_default`): a single, undelivered summon whose
+/// fantasy is being driven or ridden — a vehicle big enough to sit in, anything that Transforms, a
+/// cockpit (mechs, titans, jets), a classic mount by name, or data that already says Piloted. Monsters
+/// and animals you sic on people (wolves, kaiju, T-rex, a plain dragon), swarms, counts > 1, riders
+/// on a mount, dropped things and held / worn things never are.
+fn naturally_piloted(d: &IntentData, res: &Resolution) -> bool {
+    let r = &res.recipe;
+    if res.kind != crate::ResolutionKind::Construct
+        || res.signature.is_some()
+        || res.stand_rush.is_some()
+        || r.count > 1
+        || r.has(Mechanic::Swarm)
+        || r.mount.is_some()
+        || r.has(Mechanic::DropFromSky)
+        || r.form == Form::Blob0
+    {
+        return false;
+    }
+    let cat = r.form.category();
+    if matches!(cat, FormCategory::Held | FormCategory::Worn) {
+        return false;
+    }
+    if r.has(Mechanic::Piloted) || r.has(Mechanic::Transforms) {
+        return true;
+    }
+    let name = normalize_key(&r.name);
+    if d.ride_default.iter().any(|m| name == *m || name.strip_suffix(m.as_str()).is_some_and(|p| p.ends_with(' '))) {
+        return true;
+    }
+    let sits = r.scale >= d.ride_min_scale;
+    (r.form == Form::Vehicle && sits) || (r.features.contains(&Feature::Cockpit) && cat != FormCategory::Structure && sits)
+}
+
+impl Lexicon {
+    /// "get in", "hop in", "ride it", "let me drive", "take the wheel", "mount up", a bare "pilot" /
+    /// "ride" / "drive": a command to board a construct you already own.
+    fn board_command(&self, d: &IntentData, text: &str) -> bool {
+        let ws = words(text);
+        let (s, e) = (lead_start(&ws), trail_end(&ws));
+        if s >= e {
+            return false;
+        }
+        if d.board_commands.iter().any(|c| *c == keys_join(&ws, s, e)) {
+            return true;
+        }
+        let Some(v) = d.pilot_verbs.iter().find(|v| phrase_at(&ws, s, v)) else { return false };
+        let k = s + v.split(' ').count();
+        if k >= e {
+            // a bare "board" / "mount" / "steer" is more likely the noun
+            return k == e && !matches!(v.as_str(), "board" | "mount" | "steer" | "sit in");
+        }
+        let rest = keys_join(&ws, k, e);
+        d.board_rest.iter().any(|r| *r == rest)
+    }
+
+    /// "ride optimus prime", "drive a tank", "get in a mech": the rest after a leading pilot verb (None =
+    /// no pilot verb, or the verb is part of a name: "pilot whale", "board game", "mount everest").
+    fn pilot_verb_rest(&self, d: &IntentData, text: &str) -> Option<String> {
+        let ws = words(text);
+        let n = ws.len();
+        let s = lead_start(&ws);
+        let v = d.pilot_verbs.iter().find(|v| phrase_at(&ws, s, v))?;
+        let mut from = s + v.split(' ').count();
+        if from >= n {
+            return None;
+        }
+        for extra in 1..=2usize.min(n - from) {
+            if self.known_phrase(&keys_join(&ws, s, from + extra)) {
+                return None;
+            }
+        }
+        while from + 1 < n && matches!(ws[from].key.as_str(), "a" | "an" | "the" | "my" | "your" | "in" | "into" | "inside" | "on" | "onto" | "aboard") {
+            from += 1;
+        }
+        Some(text[ws[from].start..].trim().to_string())
+    }
+}
+
 impl Lexicon {
     /// Is this (normalised) text a known multi-word thing on its own ("fire truck", "rain boots",
     /// "drop kick")? Then a delivery verb inside it is not a verb.
@@ -693,6 +918,35 @@ impl Lexicon {
             verb_note = Some(format!("{} \u{2192} delivered {}", v.verb.words, v.verb.via.name()));
             cur = v.rest;
         }
+        // 3b. piloting: "get in" / "ride it" (board what you own), "ride / drive / pilot <thing>", "<thing> i
+        // can pilot", "<thing> that follows me". The words come off: the verb's dictionary sense never grafts
+        // ("pilot" is no aircraft pilot that Flies, "ride" / "drive" add no Blunt).
+        let mut pilot = None;
+        if let Some(d) = data()
+            && !matches!(refer, Some(Refer::Again { .. }))
+        {
+            if self.board_command(d, &cur) {
+                stages.push("board".into());
+                pilot = Some(Piloting::Board);
+            } else {
+                if let Some(rest) = follower_cut(d, &cur) {
+                    stages.push("follower".into());
+                    pilot = Some(Piloting::Follower);
+                    cur = rest;
+                }
+                if pilot.is_none() {
+                    if let Some(rest) = self.pilot_verb_rest(d, &cur) {
+                        stages.push("pilot".into());
+                        pilot = Some(Piloting::Explicit);
+                        cur = rest;
+                    } else if let Some(rest) = pilot_trailing_cut(d, &cur) {
+                        stages.push("pilot".into());
+                        pilot = Some(Piloting::Explicit);
+                        cur = rest;
+                    }
+                }
+            }
+        }
         // 4. the resolver (invocation/signature → pokémon → incantation → relations → compounds → grammar → leftovers)
         let rs = |t: &str| if spoken { self.resolve_spoken(t) } else { self.resolve(t) };
         let mut res = rs(&cur);
@@ -757,11 +1011,41 @@ impl Lexicon {
         if let Some(n) = verb_note {
             res.explanation.insert(0, n);
         }
+        // piloting: who drives it (explicit words, follower words, or the default for things you drive)
+        match pilot {
+            Some(Piloting::Board) => board_resolution(&mut res),
+            Some(Piloting::Explicit) => {
+                if !matches!(res.recipe.form.category(), FormCategory::Held | FormCategory::Worn) {
+                    set_piloted(&mut res, true);
+                    res.explanation.insert(0, "you pilot it (seated)".into());
+                } else {
+                    pilot = None;
+                }
+            }
+            Some(Piloting::Follower) => {
+                set_piloted(&mut res, false);
+                res.explanation.insert(0, "follower \u{2192} it fights on its own".into());
+            }
+            Some(Piloting::Default) => {}
+            None => {
+                let plain = target.is_none() && delivery.is_none() && refer.is_none();
+                if plain
+                    && let Some(d) = data()
+                    && naturally_piloted(d, &res)
+                {
+                    set_piloted(&mut res, true);
+                    pilot = Some(Piloting::Default);
+                    res.explanation.insert(0, "a thing you drive \u{2192} you pilot it (E hops out: it follows and fights)".into());
+                } else if res.recipe.has(Mechanic::Piloted) && res.kind == crate::ResolutionKind::Construct {
+                    pilot = Some(Piloting::Explicit);
+                }
+            }
+        }
         if let (Some(t), Some(h)) = (target, heard_name.as_ref()) {
             let who = names.get(t).copied().unwrap_or("?");
             res.explanation.insert(0, format!("\"{h}\" \u{2192} player {who}{}", if name_dist > 0 { " (sounds like)" } else { "" }));
         }
-        Intent { text: cur, refer, target, heard_name, name_dist, delivery, resolution: res, stages }
+        Intent { text: cur, refer, target, heard_name, name_dist, delivery, resolution: res, stages, pilot }
     }
 }
 

@@ -133,6 +133,12 @@ const SCALE: &[&str] = &[
     "mega", "baby", "chibi", "two", "three", "2", "3", "army", "clone", "clones",
 ];
 
+/// Words that say nothing about the look or the construct: filler and size / count words
+/// ("the giant satoru gojo" is plain Gojo, scaled).
+pub(crate) fn plain_word(w: &str) -> bool {
+    FILLER.contains(&w) || SCALE.contains(&w) || super::look::FILLER.contains(&w)
+}
+
 /// What the phrase asked for.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Parsed {
@@ -143,6 +149,8 @@ pub struct Parsed {
     pub unknown: Vec<String>,
     /// Scale / count words (summons keep them in the recipe).
     pub scale_words: usize,
+    /// Those scale / count words, in order ("giant", "army").
+    pub scale: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -172,7 +180,7 @@ enum Tok {
     Remove,
     Special(Op),
     Filler,
-    Scale,
+    Scale(String),
     Unknown(String),
 }
 
@@ -257,7 +265,7 @@ fn lex(phrase: &str) -> Vec<Tok> {
         } else if FILLER.contains(&t) {
             Tok::Filler
         } else if SCALE.contains(&t) {
-            Tok::Scale
+            Tok::Scale(t.to_string())
         } else {
             Tok::Unknown(t.to_string())
         });
@@ -346,7 +354,10 @@ pub fn parse(phrase: &str) -> Option<Parsed> {
             Tok::Remove => remove = true,
             Tok::Special(op) => p.ops.push(op.clone()),
             Tok::Poss | Tok::Filler => {}
-            Tok::Scale => p.scale_words += 1,
+            Tok::Scale(w) => {
+                p.scale_words += 1;
+                p.scale.push(w.clone());
+            }
             Tok::Unknown(w) => p.unknown.push(w.clone()),
         }
         i += 1;

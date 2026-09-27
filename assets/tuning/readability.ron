@@ -1,0 +1,64 @@
+// Readability (bd_game readability/, power_hud/gauge.rs, present/outline.rs): information where the eyes already
+// are — the crosshair and the players. Hot-reloaded. Missing fields use defaults.
+// Defaults = the Rust defaults (a bd_game unit test checks parity). Never shown to players.
+(
+    // The ONE Smash damage colour ramp (outline heat band, body tint, compass pips, over-head numbers, your
+    // crosshair dot, ring hand, screen-edge cracks). (damage %, sRGB) stops: white -> yellow -> orange -> red ->
+    // deep crimson. Never hue alone: the band widens (band_px_min -> band_px_max by ko_pct), breathes from
+    // pulse_from % (pulse_hz_min -> pulse_hz_max, always < 3 Hz; steady with screen flashes off), and from ko_pct
+    // the body smokes and throws sparks.
+    heat: (
+        stops: [
+            (0.0, (1.0, 1.0, 1.0)),
+            (35.0, (1.0, 0.92, 0.3)),
+            (70.0, (1.0, 0.58, 0.1)),
+            (110.0, (1.0, 0.16, 0.06)),
+            (150.0, (0.66, 0.0, 0.1)),
+        ],
+        band_from: 8.0,
+        band_full: 25.0,
+        band_px_min: 1.6,
+        band_px_max: 3.4,
+        pulse_from: 70.0,
+        pulse_hz_min: 0.8,
+        pulse_hz_max: 2.4,
+        ko_pct: 125.0,
+        band_luma: 0.9,
+    ),
+    // Crosshair willpower gauge: whole SPARKS (MatchRules.willpower_segments) on an arc under the crosshair,
+    // filling left -> right. Sizes are px at a 1080-line window (scaled, never below min_scale). Fades to
+    // idle_alpha when full and idle for idle_after s; anything changing brings it to active_alpha.
+    gauge: (
+        radius_px: 40.0,
+        thickness_px: 4.5,
+        min_scale: 0.8,
+        span_deg: 132.0,
+        gap_deg: 3.2,
+        idle_alpha: 0.28,
+        active_alpha: 0.92,
+        idle_after: 1.4,
+        fade_secs: 0.35,
+        low_frac: 0.2,
+        break_secs: 0.28,
+        glint_secs: 0.3,
+        ghost_max: 6,
+        tick_gain: 0.22,
+    ),
+    // Over-head damage % (UiPrefs.enemy_percent: near the crosshair by default). Hidden beyond max_dist m.
+    numbers: (
+        max_dist: 40.0,
+        near_deg: 7.0,
+        near_m: 6.0,
+        font_near: 24.0,
+        font_far: 14.0,
+        lift: 0.45,
+        fade_per_sec: 8.0,
+    ),
+    // KO-range smoke + sparks (per second at ko_pct, up to max_mult x deeper in).
+    smoke: (
+        smoke_per_sec: 9.0,
+        sparks_per_sec: 5.0,
+        max_mult: 1.8,
+        max_dist: 160.0,
+    ),
+)

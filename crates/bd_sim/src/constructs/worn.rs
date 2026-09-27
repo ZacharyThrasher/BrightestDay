@@ -198,7 +198,7 @@ pub fn movement_mods(store: &ConstructStore, owner: PlayerId, input: &PlayerInpu
                 if jump && air && c.has(Mechanic::Glide) && under_glide_cap {
                     mods.glide = mods.glide.max(0.8);
                 }
-                super::held::movement_mods(c, mods);
+                super::held::movement_mods(c, st, mods);
                 super::gun::movement_mods(c, input, st, mods);
             }
             _ => {}

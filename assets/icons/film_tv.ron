@@ -4669,4 +4669,94 @@
         shape: None,
         source: "Mad Max: Fury Road",
     ),
+    IconEntry(
+        names: ["golden gun", "the golden gun", "scaramanga's gun", "scaramangas gun", "scaramanga gun", "man with the golden gun", "the man with the golden gun", "gold gun", "bond's golden gun"],
+        recipe: (
+            name: "Golden Gun",
+            form: Gun,
+            mechanics: [Shoots],
+            element: Light,
+            scale: 0.8,
+            mass: 2.0,
+            count: 1,
+            accent: Some((1.0, 0.78, 0.25)),
+            model: Icon("golden gun"),
+        ),
+        // Scaramanga's pen/lighter/cufflink pistol: slim, all gold. Authored on the fine voxel lattice
+        // (1 unit ~ one 0.125 m voxel at 0.8 m); grip at the origin, barrel along -Z.
+        shape: Some((
+            prims: [
+                // cigarette-case grip, lighter body, hammer
+                (kind: Box, center: (0.0, -2.0, 0.5), size: (1.0, 3.0, 2.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, 0.0), size: (1.0, 1.0, 3.0), tint: Accent),
+                (kind: Box, center: (0.0, 1.0, 1.0), size: (1.0, 1.0, 1.0), tint: Dark),
+                // cufflink trigger
+                (kind: Box, center: (0.0, -1.0, -1.0), size: (1.0, 1.0, 1.0), tint: Dark),
+                // fountain-pen barrel with a glinting muzzle
+                (kind: Box, center: (0.0, 0.0, -2.5), size: (1.0, 1.0, 2.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -4.0), size: (1.0, 1.0, 1.0), tint: Core),
+            ],
+        )),
+        source: "EON Productions (James Bond)",
+    ),
+    IconEntry(
+        names: ["noisy cricket", "the noisy cricket", "men in black noisy cricket", "mib noisy cricket"],
+        recipe: (
+            name: "Noisy Cricket",
+            form: Gun,
+            mechanics: [Shoots],
+            element: Electric,
+            scale: 0.4,
+            mass: 0.5,
+            count: 1,
+            accent: Some((0.8, 0.85, 0.92)),
+            model: Icon("noisy cricket"),
+            payload: Some((
+                name: "cricket blast",
+                form: Ball,
+                mechanics: [Explodes, Repel, Fast],
+                element: Electric,
+                scale: 1.0,
+                mass: 1.0,
+                count: 1,
+                accent: None,
+                model: Procedural(seed: 7031),
+            )),
+        ),
+        // A comically tiny silver pistol (fine voxel lattice: 1 unit ~ one 0.125 m voxel at 0.375 m).
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, -1.0, 0.5), size: (1.0, 1.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, 0.0), size: (1.0, 1.0, 1.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -1.0), size: (1.0, 1.0, 1.0), tint: Core),
+            ],
+        )),
+        source: "Columbia Pictures (Men in Black)",
+    ),
+    IconEntry(
+        names: ["dl-44", "dl-44 blaster", "dl44", "dl 44", "han solo's blaster", "han solo blaster", "han's blaster", "hans blaster", "han solo's gun", "han solo gun"],
+        recipe: (
+            name: "DL-44 Blaster",
+            form: Gun,
+            mechanics: [Shoots, Heavy],
+            element: Light,
+            scale: 0.8,
+            mass: 2.5,
+            count: 1,
+            accent: Some((0.62, 0.64, 0.68)),
+            model: Icon("dl-44"),
+        ),
+        // Heavy blaster pistol (fine voxel lattice: 1 unit ~ one 0.125 m voxel at 0.75 m): dark body,
+        // scope on top, flash hider at the muzzle.
+        shape: Some((
+            prims: [
+                (kind: Box, center: (0.0, 0.0, 0.5), size: (1.0, 1.0, 4.0), tint: Dark),
+                (kind: Box, center: (0.0, -1.5, 1.0), size: (1.0, 2.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, 1.0, 0.0), size: (1.0, 1.0, 3.0), tint: Accent),
+                (kind: Box, center: (0.0, 0.0, -2.0), size: (1.0, 1.0, 1.0), tint: Dark),
+                (kind: Box, center: (0.0, 0.0, -3.0), size: (1.0, 1.0, 1.0), tint: Accent),
+            ],
+        )),
+        source: "Lucasfilm (Star Wars)",
+    ),
 ]

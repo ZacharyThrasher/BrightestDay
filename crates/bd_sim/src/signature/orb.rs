@@ -491,6 +491,8 @@ pub(crate) fn step(w: &mut World, dt: f32) {
 
 fn launch(w: &mut World, o: &mut Orb, t: &OrbTuning, look: Vec3) {
     o.phase = Phase::Travel;
+    // Inside their own domain the caster can't miss: it flies at the nearest enemy.
+    let look = super::domain::sure_target(w, o.owner, o.pos).map_or(look, |at| (at - o.pos).normalize_or(look));
     let dir = look.normalize_or(Vec3::NEG_Z);
     o.dir = dir;
     let d = o.diameter();
@@ -543,6 +545,12 @@ fn blast(w: &mut World, o: &Orb, t: &OrbTuning, at: Vec3, mult: f32, loose: bool
 /// A non-erasing ball's flight this tick: burst on contact (explosive), or plough (big).
 fn fly(w: &mut World, o: &mut Orb, t: &OrbTuning, from: Vec3, step: f32) -> Option<(Vec3, bool)> {
     let plough = !o.explodes && o.diameter() >= t.plough_diameter;
+    // A sealed domain's barrier stops it (either way) and takes the blast.
+    if let Some((f, id)) = super::domain::segment_block(w, from, o.pos + o.dir * o.radius) {
+        let at = from.lerp(o.pos + o.dir * o.radius, f);
+        super::domain::hit_barrier(w, id, t.blast_damage * o.diameter().max(0.5).sqrt() * 4.0, at);
+        return Some((at - o.dir * o.radius, false));
+    }
     // Terrain.
     if !plough && let Some(h) = bd_core::voxel::raycast(&w.voxels, from, o.dir, step + o.radius * 0.8) {
         return Some((h.point - o.dir * (o.radius * 0.3), false));
@@ -558,7 +566,8 @@ fn fly(w: &mut World, o: &mut Orb, t: &OrbTuning, from: Vec3, step: f32) -> Opti
     // Constructs: a Barrier / Guard / indestructible stops anything; others burst an explosive ball
     // or get shoved by a plough.
     for c in w.constructs.iter() {
-        if c.id == o.construct || c.owner == o.owner || c.gone.is_some() || is_orb(w, c.id) {
+        // (A domain's barrier is a sphere, handled above — not its box.)
+        if c.id == o.construct || c.owner == o.owner || c.gone.is_some() || is_orb(w, c.id) || super::domain::is_domain(c) {
             continue;
         }
         let reach = o.radius + c.half.max_element();

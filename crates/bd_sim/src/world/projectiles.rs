@@ -35,7 +35,8 @@ impl World {
         let id = self.spawn_projectile(s, view_tick)?;
         // CONNECT: a player's shot bends lightly toward the enemy nearest their crosshair.
         if let Some(shooter) = inherit {
-            let turn = self.cfg.tuning.assist.aim.proj_turn(s.kind, s.explode.is_some());
+            // SIGNATURE HOOK: inside their own domain the caster's shots can't miss (maxed assist).
+            let turn = crate::signature::domain::aim(self, shooter).proj_turn(s.kind, s.explode.is_some());
             if turn > 0.0
                 && let Some(target) = self.home_target(shooter, view_tick)
                 && let Some(p) = self.projectiles.last_mut().filter(|p| p.id == id)
@@ -50,7 +51,7 @@ impl World {
     /// CONNECT: the enemy nearest `shooter`'s crosshair inside the homing cone / range, in clear
     /// sight (terrain and enemy constructs block), seen as the shooter saw them (`view_tick`).
     fn home_target(&self, shooter: PlayerId, view_tick: Option<f64>) -> Option<PlayerId> {
-        let aim = &self.cfg.tuning.assist.aim;
+        let aim = crate::signature::domain::aim(self, shooter); // SIGNATURE HOOK: domain sure hit
         let base = &self.cfg.move_params;
         let p = self.player(shooter)?;
         let (eye, look) = (p.eye(base), p.look());
@@ -146,7 +147,7 @@ impl World {
         bent |= self.powers_slow_projectile(p.spec.owner, p.pos, &mut p.vel);
         // CONNECT: light homing, strongest at release, only with a clear line (`aim_assist`).
         if let Some(id) = p.home {
-            let aim = &self.cfg.tuning.assist.aim;
+            let aim = crate::signature::domain::aim(self, p.spec.owner); // SIGNATURE HOOK: domain sure hit
             let turn = crate::aim_assist::decayed(p.home_turn, p.age, aim.proj_decay_secs);
             let base = &self.cfg.move_params;
             let at = self.player(id).filter(|t| t.alive && !t.shielded()).map(|t| match rewind {
@@ -363,10 +364,23 @@ impl World {
                 let speed = p.vel.length().max(s.muzzle_speed).max(10.0);
                 let back = self.player(s.owner).filter(|o| o.alive).map(|o| o.hull(base).center());
                 let mut dir = back.map_or(Vec3::ZERO, |b| (b - point).normalize_or_zero());
+                // LEGENDARY: a parried round flies back along the parrier's aim, bending onto the
+                // enemy nearest their crosshair (CONNECT homing) — skill, not an auto-return.
+                let to_aim = self.cfg.tuning.legendary.reflect_to_aim;
+                if to_aim {
+                    dir = look.normalize_or_zero();
+                }
                 if dir == Vec3::ZERO {
                     dir = -p.vel.normalize_or_zero();
                 }
                 self.redirect_projectile(p, target, None, point + dir * (s.radius + 0.4), dir * speed);
+                if to_aim {
+                    let turn = self.cfg.tuning.assist.aim.proj_turn(s.kind, s.explode.is_some()).max(1.5);
+                    if let Some(t) = self.home_target(target, None) {
+                        p.home = Some(t);
+                        p.home_turn = turn;
+                    }
+                }
                 self.events.push(GameEvent::HeldFx { id: gid, owner: target, fx: HeldFx::Parry, pos: point, dir, strength: 1.5 });
             }
             Guarded::Block => {
@@ -492,7 +506,7 @@ impl World {
     /// the gun's angle (`assist.aim.hitscan`, beams `hitscan_beam_deg`) is bent onto the nearest one,
     /// if the bent ray is clear of terrain and enemy constructs. Shotgun pellets: none.
     fn magnetize(&self, mut s: crate::weapons::HitscanShot) -> crate::weapons::HitscanShot {
-        let aim = &self.cfg.tuning.assist.aim;
+        let aim = crate::signature::domain::aim(self, s.owner); // SIGNATURE HOOK: domain sure hit
         let max = aim.hitscan_rad(s.trace);
         let dir = s.dir.normalize_or_zero();
         if !(max > 0.0) || dir == Vec3::ZERO || !s.origin.is_finite() {
@@ -656,6 +670,10 @@ impl World {
                             r.dir = (b - eye).normalize_or_zero();
                             r.pierce = 0;
                             r.wall = 0.0;
+                            // LEGENDARY: a deflected hitscan round goes back at the shooter, capped.
+                            let cap = self.cfg.tuning.legendary.reflect_hitscan_cap;
+                            r.damage = r.damage.min(cap);
+                            r.knockback = r.knockback.min(cap);
                             self.hitscan_ray(r, true);
                         }
                     }

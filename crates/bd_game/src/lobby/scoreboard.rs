@@ -6,11 +6,6 @@
 //!   from the replicated world, the rest from `bd_sim::match_stats` (host-authoritative, carried to
 //!   clients in the lobby info; practice observes its own world). The local row is tinted, the
 //!   leader wears a small voxel crown.
-//! * Under each row, the powers that player HOLDS, by name (owner: "when a player presses tab, show
-//!   the names of the powers/abilities they have" — the one place powers are named). Each wears its
-//!   power-HUD chip (colour + glyph, `power_hud::derive`); an active tier / form shows its name and
-//!   burns in the form's colour. Only what is held (never what could be obtained: mystery tenet),
-//!   read from the replicated `PowerSnap` mirror, so clients see everyone's.
 //! * Once a match is over: the next-map vote — a card per registered map (`NetMapKind::ALL`),
 //!   votes as pips in each voter's corps colour, a countdown the host can click to start now, and a
 //!   host RULES button (the Match Rules page; the countdown waits while it is open). Practice: a
@@ -143,483 +138,6 @@ fn crown(r: &mut ChildSpawnerCommands) {
         });
 }
 
-/// Longest power label (chars) before it is shortened; 3 fit a 1280-wide board.
-const TAG_CHARS: usize = 28;
-/// Most tags on one line (more: "+N").
-const TAG_MAX: usize = 4;
-const CHIP: f32 = 15.0;
-/// Most usage hints on one of your power lines.
-const HINT_MAX: usize = 6;
-/// Verb chips per power on another player's line.
-const OTHER_VERBS: usize = 3;
-
-/// One held power on the Tab board.
-#[derive(Clone, Debug, PartialEq)]
-struct PowerTag {
-    id: u16,
-    /// Upper-case display name ("SUPER SAIYAN BLUE", "GOMU GOMU NO MI · GEAR FIFTH").
-    label: String,
-    /// A tier / form is on (highlighted).
-    form: bool,
-    look: crate::power_hud::derive::Look,
-    /// How it is used: one per move, then its passives (see [`power_hints`]).
-    hints: Vec<Hint>,
-}
-
-/// What a move / passive DOES, from a small closed table mapped from its op type (never authored
-/// per power).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Verb {
-    Projectile,
-    Beam,
-    Blast,
-    Strike,
-    Pull,
-    Dash,
-    Shield,
-    Dodge,
-    Summon,
-    Form,
-    Aura,
-    Grab,
-    Trap,
-}
-
-impl Verb {
-    fn word(self) -> &'static str {
-        match self {
-            Verb::Projectile => "PROJECTILE",
-            Verb::Beam => "BEAM",
-            Verb::Blast => "BLAST",
-            Verb::Strike => "STRIKE",
-            Verb::Pull => "PULL",
-            Verb::Dash => "DASH",
-            Verb::Shield => "SHIELD",
-            Verb::Dodge => "DODGE",
-            Verb::Summon => "SUMMON",
-            Verb::Form => "FORM",
-            Verb::Aura => "AURA",
-            Verb::Grab => "GRAB",
-            Verb::Trap => "TRAP",
-        }
-    }
-
-    /// Its tiny glyph (the power-icon SDF set; each verb its own shape).
-    fn glyph(self) -> u8 {
-        use crate::power_hud::derive::glyph as g;
-        match self {
-            Verb::Projectile => g::CIRCLE,
-            Verb::Beam => g::DIAMOND,
-            Verb::Blast => g::STAR4,
-            Verb::Strike => g::BOLT,
-            Verb::Pull => g::CRESCENT,
-            Verb::Dash => g::CHEVRON_UP,
-            Verb::Shield => g::HEXAGON,
-            Verb::Dodge => g::CHEVRON_DOWN,
-            Verb::Summon => g::CLAW,
-            Verb::Form => g::TRIANGLE,
-            Verb::Aura => g::RING,
-            Verb::Grab => g::CROSS,
-            Verb::Trap => g::X,
-        }
-    }
-
-    const ALL: [Verb; 13] =
-        [Verb::Projectile, Verb::Beam, Verb::Blast, Verb::Strike, Verb::Pull, Verb::Dash, Verb::Shield, Verb::Dodge, Verb::Summon, Verb::Form, Verb::Aura, Verb::Grab, Verb::Trap];
-}
-
-/// How a move is triggered (shout = say OR type the phrase: voice and typing are one path).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Input {
-    /// Tap the power key.
-    Tap,
-    /// Hold the power key.
-    Hold,
-    /// Shout it (the phrase itself is never shown: mystery).
-    Shout,
-    /// Passive: always on while held.
-    Always,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Hint {
-    input: Input,
-    verb: Verb,
-}
-
-/// The verb of a cast recipe (by what it becomes).
-fn recipe_verb(r: &bd_sim::powers::RecipeDef) -> Verb {
-    use bd_core::mechanics::{Form, FormCategory, Mechanic as M};
-    let has = |m: M| r.mech.contains(&m);
-    if has(M::Beam) || has(M::Breath) {
-        return Verb::Beam;
-    }
-    match r.form.category() {
-        FormCategory::Creature => Verb::Summon,
-        _ if has(M::Trap) || r.form == Form::Cage || (has(M::Sticky) && has(M::Explodes)) => Verb::Trap,
-        _ if has(M::Grab) || has(M::Constrict) => Verb::Grab,
-        _ if has(M::Pull) => Verb::Pull,
-        FormCategory::Structure => Verb::Shield,
-        FormCategory::Worn => Verb::Dash,
-        _ if r.form == Form::Shield || has(M::Barrier) => Verb::Shield,
-        FormCategory::Held if !has(M::Shoots) && !matches!(r.form, Form::Gun | Form::Bow | Form::Cannon) => Verb::Strike,
-        _ => Verb::Projectile,
-    }
-}
-
-/// The verb of a move: its first op's.
-fn move_verb(m: &bd_sim::powers::MoveDef) -> Option<Verb> {
-    use bd_sim::powers::MoveOp as O;
-    Some(match m.ops.first()? {
-        O::Cast { recipe, .. } => recipe_verb(recipe),
-        O::Impulse { .. } | O::Blink { .. } | O::Reel { .. } | O::Portal { .. } | O::Swap { .. } => Verb::Dash,
-        O::Shove { .. } => Verb::Strike,
-        O::Field { strength, .. } if *strength > 0.0 => Verb::Pull,
-        O::Field { .. } | O::Explode { .. } | O::SlamOnLand { .. } => Verb::Blast,
-        O::Room { .. } | O::Weigh { .. } => Verb::Trap,
-        O::Link { .. } => Verb::Grab,
-        O::Carve { pull: true, .. } | O::Yank { .. } | O::Singularity { .. } => Verb::Pull,
-        O::Carve { .. } => Verb::Beam,
-        O::TimeStop { .. } | O::SelfStatus { .. } => Verb::Aura,
-        O::Restore { .. } => Verb::Shield,
-        O::Transform | O::Tier(_) => Verb::Form,
-    })
-}
-
-/// The verb of a passive effect.
-fn effect_verb(e: &bd_sim::powers::PowerEffect) -> Verb {
-    use bd_sim::powers::PowerEffect as E;
-    match e {
-        E::AutoDodge { .. } => Verb::Dodge,
-        E::ProjectileSlowField { .. } => Verb::Shield,
-        _ => Verb::Aura,
-    }
-}
-
-/// How power `def` (at `tier`, `transformed`, in held `slot`: 0 = active) is used: per move its
-/// input and verb — the active power's first two moves are the power key (tap / hold), the rest
-/// (and another held power's moves, when they have a shout) are shouted — then a FORM shout for a
-/// tiered power, then its passives ("always"). Derived from the data alone.
-fn power_hints(def: &'static bd_sim::powers::PowerDef, id: u16, tier: u8, transformed: bool, slot: usize) -> Vec<Hint> {
-    let tier_shouts = def.tier(tier).map(|t| t.shouts.as_slice()).unwrap_or(&[]);
-    let shoutable = |k: usize| tier_shouts.iter().chain(def.shouts.iter()).any(|(_, s)| *s as usize == k);
-    let mut out = Vec::new();
-    for (k, m) in def.moves_at(tier).iter().enumerate() {
-        let Some(verb) = move_verb(m) else { continue };
-        let input = match k {
-            0 | 1 if slot == 0 || !shoutable(k) => {
-                if k == 0 {
-                    Input::Tap
-                } else {
-                    Input::Hold
-                }
-            }
-            _ => Input::Shout,
-        };
-        out.push(Hint { input, verb });
-    }
-    // Tiers are picked by saying their name.
-    if !def.tiers.is_empty() && !out.iter().any(|h| h.verb == Verb::Form) {
-        out.push(Hint { input: Input::Shout, verb: Verb::Form });
-    }
-    // Passives: a stand / clone at your side, then effects (one chip per verb).
-    let view = bd_sim::powers::HeldView { id, def, tier, transformed, slot };
-    let passives = def.companion.as_ref().map(|_| Verb::Summon).into_iter().chain(view.effects().map(effect_verb));
-    for verb in passives {
-        let h = Hint { input: Input::Always, verb };
-        if !out.contains(&h) {
-            out.push(h);
-        }
-    }
-    out
-}
-
-/// What OTHER players' powers can do to you: the distinct verbs, moves first (at most `n`).
-fn verbs_of(hints: &[Hint], n: usize) -> Vec<Verb> {
-    let mut v: Vec<Verb> = Vec::new();
-    for h in hints {
-        if !v.contains(&h.verb) && v.len() < n {
-            v.push(h.verb);
-        }
-    }
-    v
-}
-
-/// Normalised for "does the form name already say the power's name" (Super Saiyan Blue ⊃ Super
-/// Saiyan, Kaio-ken x10 ⊃ Kaio-ken).
-fn norm(s: &str) -> String {
-    s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
-}
-
-/// "Tori Tori no Mi, Model: Phoenix" → "Phoenix" (else the name).
-fn short_name(name: &str) -> &str {
-    name.split_once("Model:").map_or(name, |(_, m)| m.trim())
-}
-
-fn clip(s: &str, n: usize) -> String {
-    if s.chars().count() <= n {
-        s.to_string()
-    } else {
-        let mut t: String = s.chars().take(n.saturating_sub(1)).collect::<String>().trim_end().to_string();
-        t.push('…');
-        t
-    }
-}
-
-/// The name of the form `def` is in (`tier` / `transformed`), if any: the tier's name, else the
-/// transform's title, else the name of the move that transforms.
-fn form_name(def: &bd_sim::powers::PowerDef, tier: u8, transformed: bool) -> Option<String> {
-    if let Some(t) = def.tier(tier).filter(|t| !t.name.trim().is_empty()) {
-        return Some(t.name.trim().to_string());
-    }
-    if !transformed {
-        return None;
-    }
-    let title = def.transform.as_ref().and_then(|t| t.ascend.as_ref()).and_then(|a| a.title.clone()).filter(|s| !s.trim().is_empty());
-    let mv = || def.moves.iter().find(|m| m.ops.iter().any(|o| matches!(o, bd_sim::powers::MoveOp::Transform))).map(|m| m.name.clone());
-    title.or_else(mv).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-}
-
-/// The label for power `def` in its current form: the power's name, or the form's name (alone when
-/// it already carries the power's name, else "POWER · FORM"), shortened to [`TAG_CHARS`].
-fn power_label(def: &bd_sim::powers::PowerDef, tier: u8, transformed: bool) -> (String, bool) {
-    let name = def.name.trim();
-    let short = short_name(name);
-    let fits = |s: &str| s.chars().count() <= TAG_CHARS;
-    let label = match form_name(def, tier, transformed) {
-        Some(f) => {
-            let nf = norm(&f);
-            if nf.contains(&norm(name)) || nf.contains(&norm(short)) {
-                return (clip(&f.to_uppercase(), TAG_CHARS), true);
-            }
-            [format!("{name} · {f}"), format!("{short} · {f}")].into_iter().find(|s| fits(s)).unwrap_or(f)
-        }
-        None if fits(name) => name.to_string(),
-        None => short.to_string(),
-    };
-    let form = form_name(def, tier, transformed).is_some();
-    (clip(&label.to_uppercase(), TAG_CHARS), form)
-}
-
-/// Every power a player holds, in held order (active first), as named, looked tags. Glyphs avoid
-/// each other like the power HUD's do.
-fn power_tags(held: impl Iterator<Item = (u16, u8, bool)>) -> Vec<PowerTag> {
-    let table = bd_sim::powers::PowerTable::get();
-    let (mut tg, mut ts) = (0u32, 0u32);
-    let mut out = Vec::new();
-    for (slot, (id, tier, tf)) in held.enumerate() {
-        let Some(def) = table.def(id) else { continue };
-        let look = crate::power_hud::derive::power_look(id, tier, tf, tg, ts);
-        tg |= 1 << look.glyph;
-        if let Some(k) = crate::power_hud::derive::CHIME_STEPS.iter().position(|s| (s - look.pitch).abs() < 1e-4) {
-            ts |= 1 << k;
-        }
-        let (label, form) = power_label(def, tier, tf);
-        out.push(PowerTag { id, label, form, look, hints: power_hints(def, id, tier, tf, slot) });
-    }
-    out
-}
-
-fn lin_color(c: [f32; 3]) -> Color {
-    Color::linear_rgb(c[0], c[1], c[2])
-}
-
-type IconMats<'a> = Option<ResMut<'a, Assets<crate::power_hud::IconMaterial>>>;
-
-/// Shared verb-glyph materials (one per verb, made once).
-#[derive(Default)]
-struct VerbMats(Vec<Handle<crate::power_hud::IconMaterial>>);
-
-impl VerbMats {
-    fn get(&mut self, mats: &mut IconMats, v: Verb) -> Option<Handle<crate::power_hud::IconMaterial>> {
-        let m = mats.as_mut()?;
-        if self.0.is_empty() {
-            self.0 = Verb::ALL
-                .iter()
-                .map(|v| {
-                    let c = [0.78, 0.84, 0.95];
-                    m.add(crate::power_hud::IconMaterial {
-                        params: crate::power_hud::IconParams {
-                            color: Vec4::new(c[0], c[1], c[2], 0.9),
-                            a: Vec4::new(v.glyph() as f32, 1.0, -1.0, 0.0),
-                            b: Vec4::new(1.0, 0.0, 0.0, 0.0),
-                            c: Vec4::new(1.0, 1.0, 1.0, 0.0),
-                        },
-                    })
-                })
-                .collect();
-        }
-        Verb::ALL.iter().position(|x| *x == v).and_then(|k| self.0.get(k).cloned())
-    }
-}
-
-/// Look of the power lines (fades for an OUT player).
-#[derive(Clone, Copy)]
-struct LineStyle {
-    fade: f32,
-    drained: bool,
-}
-
-/// The power's chip (its HUD icon: colour + glyph; burning while a form is on).
-fn power_chip(r: &mut ChildSpawnerCommands, t: &PowerTag, k: usize, st: LineStyle, mats: &mut IconMats) {
-    let chip = Node { width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, ..default() };
-    match mats.as_mut() {
-        Some(m) => {
-            let (c, f) = (t.look.color, t.look.form_color);
-            let h = m.add(crate::power_hud::IconMaterial {
-                params: crate::power_hud::IconParams {
-                    color: Vec4::new(c[0], c[1], c[2], st.fade),
-                    a: Vec4::new(t.look.glyph as f32, 1.0, if t.form { 1.0 } else { -1.0 }, 0.0),
-                    b: Vec4::new(0.0, 0.0, st.drained as u8 as f32, 0.0),
-                    c: Vec4::new(f[0], f[1], f[2], k as f32 * 1.7),
-                },
-            });
-            r.spawn((chip, MaterialNode(h), Pickable::IGNORE));
-        }
-        None => {
-            r.spawn((chip, BackgroundColor(lin_color(t.look.color).with_alpha(st.fade)), Pickable::IGNORE));
-        }
-    }
-}
-
-/// The power's name: a form burns in its aura colour; a plain power is quieter.
-fn power_name(r: &mut ChildSpawnerCommands, t: &PowerTag, st: LineStyle, min_w: f32) {
-    let col = if st.drained {
-        Color::srgba(0.6, 0.6, 0.6, 0.6 * st.fade)
-    } else if t.form {
-        lin_color(t.look.form_color).mix(&Color::WHITE, 0.25).with_alpha(st.fade)
-    } else {
-        Color::WHITE.with_alpha(0.7 * st.fade)
-    };
-    r.spawn((Text::new(t.label.clone()), TextFont::from_font_size(12.0), TextColor(col), Node { min_width: px(min_w), flex_shrink: 0.0, ..default() }, Pickable::IGNORE));
-}
-
-/// A verb chip: glyph + word.
-fn verb_chip(r: &mut ChildSpawnerCommands, v: Verb, st: LineStyle, mats: &mut IconMats, vm: &mut VerbMats) {
-    r.spawn((
-        Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(2), padding: UiRect::new(px(2), px(5), px(0), px(0)), height: px(15), flex_shrink: 0.0, border_radius: BorderRadius::all(px(3)), ..default() },
-        BackgroundColor(Color::srgba(0.75, 0.85, 1.0, 0.08 * st.fade)),
-        Pickable::IGNORE,
-    ))
-    .with_children(|c| {
-        let g = Node { width: px(12), height: px(12), flex_shrink: 0.0, ..default() };
-        match vm.get(mats, v) {
-            Some(h) => {
-                c.spawn((g, MaterialNode(h), Pickable::IGNORE));
-            }
-            None => {
-                c.spawn((g, BackgroundColor(Color::srgba(0.78, 0.84, 0.95, 0.5)), Pickable::IGNORE));
-            }
-        }
-        c.spawn((Text::new(v.word()), TextFont::from_font_size(10.0), TextColor(Color::srgba(0.85, 0.9, 1.0, 0.85 * st.fade)), Pickable::IGNORE));
-    });
-}
-
-/// The input for a hint: a keycap (the player's actual power bind), "HOLD" + keycap, a speech
-/// bubble (shout: say or type it), or "ALWAYS".
-fn input_chip(r: &mut ChildSpawnerCommands, i: Input, key: &str, st: LineStyle) {
-    let ink = Color::srgba(1.0, 1.0, 1.0, 0.8 * st.fade);
-    let keycap = |r: &mut ChildSpawnerCommands| {
-        r.spawn((
-            Node { padding: UiRect::axes(px(3), px(0)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(2)), height: px(14), align_items: AlignItems::Center, flex_shrink: 0.0, ..default() },
-            BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.55 * st.fade)),
-            BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.06 * st.fade)),
-            Pickable::IGNORE,
-        ))
-        .with_children(|k| {
-            k.spawn((Text::new(key.to_string()), TextFont::from_font_size(10.0), TextColor(ink), Pickable::IGNORE));
-        });
-    };
-    let small = |r: &mut ChildSpawnerCommands, s: &str| {
-        r.spawn((Text::new(s.to_string()), TextFont::from_font_size(9.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.5 * st.fade)), Pickable::IGNORE));
-    };
-    match i {
-        Input::Tap => keycap(r),
-        Input::Hold => {
-            small(r, "HOLD");
-            keycap(r);
-        }
-        Input::Always => small(r, "ALWAYS"),
-        Input::Shout => {
-            // A speech bubble: rounded body, three dots, a tail at the bottom-left.
-            r.spawn((Node { width: px(16), height: px(15), flex_shrink: 0.0, ..default() }, Pickable::IGNORE)).with_children(|b| {
-                b.spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: px(0),
-                        top: px(1),
-                        width: px(16),
-                        height: px(10),
-                        border_radius: BorderRadius::all(px(4)),
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        column_gap: px(2),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.8 * st.fade)),
-                    Pickable::IGNORE,
-                ))
-                .with_children(|d| {
-                    for _ in 0..3 {
-                        d.spawn((Node { width: px(2), height: px(2), ..default() }, BackgroundColor(Color::srgba(0.0, 0.02, 0.06, 0.9)), Pickable::IGNORE));
-                    }
-                });
-                b.spawn((
-                    Node { position_type: PositionType::Absolute, left: px(3), top: px(10), width: px(4), height: px(4), ..default() },
-                    BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.8 * st.fade)),
-                    Pickable::IGNORE,
-                ));
-            });
-        }
-    }
-}
-
-/// Your own powers under your row: one line per power — chip, name, then each move's input +
-/// verb (and passives), so you know how to use what you hold.
-fn own_power_lines(r: &mut ChildSpawnerCommands, tags: &[PowerTag], key: &str, st: LineStyle, mats: &mut IconMats, vm: &mut VerbMats) {
-    for (k, t) in tags.iter().take(TAG_MAX).enumerate() {
-        r.spawn((
-            Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(5), margin: UiRect::left(px(34)), height: px(17), overflow: Overflow::clip(), ..default() },
-            Pickable::IGNORE,
-        ))
-        .with_children(|line| {
-            power_chip(line, t, k, st, mats);
-            power_name(line, t, st, 214.0);
-            for h in t.hints.iter().take(HINT_MAX) {
-                line.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(3), margin: UiRect::left(px(6)), flex_shrink: 0.0, ..default() }, Pickable::IGNORE))
-                    .with_children(|g| {
-                        input_chip(g, h.input, key, st);
-                        verb_chip(g, h.verb, st, mats, vm);
-                    });
-            }
-        });
-    }
-}
-
-/// Another player's powers: one compact line — chip, name and what it can do to you (verbs only,
-/// no keys).
-fn other_power_line(r: &mut ChildSpawnerCommands, tags: &[PowerTag], st: LineStyle, mats: &mut IconMats, vm: &mut VerbMats) {
-    r.spawn((
-        Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(16), margin: UiRect::left(px(34)), height: px(17), overflow: Overflow::clip(), ..default() },
-        Pickable::IGNORE,
-    ))
-    .with_children(|line| {
-        for (k, t) in tags.iter().take(TAG_MAX).enumerate() {
-            line.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(4), flex_shrink: 0.0, ..default() }, Pickable::IGNORE)).with_children(|tag| {
-                power_chip(tag, t, k, st, mats);
-                power_name(tag, t, st, 0.0);
-                for v in verbs_of(&t.hints, OTHER_VERBS) {
-                    verb_chip(tag, v, st, mats, vm);
-                }
-            });
-        }
-        if tags.len() > TAG_MAX {
-            line.spawn((Text::new(format!("+{}", tags.len() - TAG_MAX)), TextFont::from_font_size(12.0), TextColor(Color::WHITE.with_alpha(0.45 * st.fade)), Pickable::IGNORE));
-        }
-    });
-}
-
 #[allow(clippy::too_many_arguments)]
 fn draw_board(
     mut commands: Commands,
@@ -634,8 +152,6 @@ fn draw_board(
     local: Res<LocalStats>,
     roots: Query<Entity, With<BoardRoot>>,
     mut last_sig: Local<u64>,
-    mut mats: IconMats,
-    mut verb_mats: Local<VerbMats>,
 ) {
     // The board doubles as the results screen while an FFA match is over (party has its podium).
     let ended = active.as_ref().is_some_and(|a| a.world.match_state.phase == bd_sim::MatchPhase::Ended && a.world.party().is_none());
@@ -674,17 +190,7 @@ fn draw_board(
         hash(&mut sig, (l.hits as u64) << 32 | l.attacks as u64);
         hash(&mut sig, (l.self_kos as u64) << 48 | (l.best_streak as u64) << 32 | (l.best_combo as u64) << 16 | l.constructs as u64);
         hash(&mut sig, ping_of(id).flatten().map_or(0, |p| p as u64 / 5 + 1));
-        // Held powers (id, tier, form) + drained: the power lines.
-        if let Some(p) = p {
-            for h in p.power.held() {
-                hash(&mut sig, 1 << 40 | (h.id as u64) << 16 | (h.tier as u64) << 8 | h.transformed as u64);
-            }
-            hash(&mut sig, !p.power.active() as u64);
-        }
     }
-    // Your row's inputs read your power bind (a rebind shows at once).
-    let power_key = binds.get(Action::Power).label();
-    hash(&mut sig, a.local.map_or(0, |id| id.0 as u64 + 1) | (power_key.bytes().fold(0u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64)) << 8));
     if sig == *last_sig && !roots.is_empty() {
         return;
     }
@@ -717,15 +223,7 @@ fn draw_board(
     if online {
         cols.push(("PING", Box::new(move |id| ping_of(id).flatten().map_or_else(dash, |p| p.to_string()))));
     }
-    let mut width = 4.0 + 14.0 + 170.0 + cols.len() as f32 * (COL_W + 8.0) + 40.0;
-    // Held powers per player (the lines under the rows).
-    let tags_of = |id: PlayerId| w.player(id).map(|p| power_tags(p.power.held().map(|h| (h.id, h.tier, h.transformed)))).unwrap_or_default();
-    let powers: Vec<(PlayerId, Vec<PowerTag>, bool)> = order.iter().map(|&id| (id, tags_of(id), w.player(id).is_some_and(|p| !p.power.active()))).collect();
-    let any_powers = powers.iter().any(|(_, t, _)| !t.is_empty());
-    if any_powers {
-        // Room for three named powers + their verbs (still inside 1280).
-        width = width.max(1080.0);
-    }
+    let width = 4.0 + 14.0 + 170.0 + cols.len() as f32 * (COL_W + 8.0) + 40.0;
     // Leader: first place once anyone has scored (or the match is over).
     let scored = |id: PlayerId| w.player(id).is_some_and(|p| p.kos > 0) || party.and_then(|p| p.player(id)).is_some_and(|s| s.points > 0);
     let leader = order.first().copied().filter(|id| ended || scored(*id));
@@ -736,7 +234,7 @@ fn draw_board(
             Node {
                 position_type: PositionType::Absolute,
                 left: percent(50),
-                top: percent(if ended { 6.0 } else if any_powers { 9.0 } else { 16.0 }),
+                top: percent(if ended { 6.0 } else { 16.0 }),
                 width: px(width),
                 max_width: percent(98),
                 margin: UiRect::left(px(-width / 2.0)),
@@ -784,10 +282,11 @@ fn draw_board(
                 let me = a.local == Some(id);
                 let lead = leader == Some(id);
                 let out = stock.is_some() && lives_of(id) == Some(0);
-                let (tags, drained) = powers.iter().find(|(p, _, _)| *p == id).map_or((&[][..], false), |(_, t, d)| (t.as_slice(), *d));
-                let mut entry = root.spawn((
+                root.spawn((
                     Node {
-                        flex_direction: FlexDirection::Column,
+                        flex_direction: FlexDirection::Row,
+                        column_gap: px(8),
+                        align_items: AlignItems::Center,
                         padding: UiRect::vertical(px(3)),
                         border: UiRect::left(px(if lead { 2.0 } else { 0.0 })),
                         ..default()
@@ -800,10 +299,8 @@ fn draw_board(
                     } else {
                         Color::NONE
                     }),
-                ));
-                entry.with_children(|entry| {
-                let mut stats = entry.spawn(Node { flex_direction: FlexDirection::Row, column_gap: px(8), align_items: AlignItems::Center, ..default() });
-                stats.with_children(|row| {
+                ))
+                .with_children(|row| {
                     row.spawn((Node { width: px(4), height: px(22), ..default() }, BackgroundColor(c)));
                     if lead {
                         crown(row);
@@ -829,16 +326,6 @@ fn draw_board(
                             TextLayout::justify(Justify::Right),
                         ));
                     }
-                });
-                // The powers this player holds (none: nothing, the row stays compact).
-                if !tags.is_empty() {
-                    let st = LineStyle { fade: if out { 0.45 } else { 1.0 }, drained };
-                    if me {
-                        own_power_lines(entry, tags, &power_key, st, &mut mats, &mut verb_mats);
-                    } else {
-                        other_power_line(entry, tags, st, &mut mats, &mut verb_mats);
-                    }
-                }
                 });
             }
         });
@@ -1105,93 +592,6 @@ fn draw_code_tag(
         let s = code.to_uppercase();
         if t.0 != s {
             t.0 = s;
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bd_sim::powers::PowerTable;
-
-    fn pid(key: &str) -> u16 {
-        PowerTable::get().index_of(key).unwrap_or_else(|| panic!("no power {key}"))
-    }
-
-    fn tag(key: &str, tier: u8, tf: bool) -> PowerTag {
-        power_tags([(pid(key), tier, tf)].into_iter()).remove(0)
-    }
-
-    fn hints(key: &str, tier: u8, tf: bool, slot: usize) -> Vec<(Input, Verb)> {
-        let id = pid(key);
-        power_hints(PowerTable::get().def(id).unwrap(), id, tier, tf, slot).into_iter().map(|h| (h.input, h.verb)).collect()
-    }
-
-    #[test]
-    fn names_and_forms() {
-        // Base: the power's own name, caps, no form.
-        let t = tag("rinnegan", 0, false);
-        assert_eq!((t.label.as_str(), t.form), ("RINNEGAN", false));
-        let t = tag("ultra_instinct", 0, false);
-        assert_eq!((t.label.as_str(), t.form), ("ULTRA INSTINCT", false));
-        // A tier that already says the power's name stands alone, highlighted.
-        let ss = PowerTable::get().def(pid("super_saiyan")).unwrap();
-        let blue = ss.tiers.iter().position(|t| t.name == "Super Saiyan Blue").unwrap() as u8 + 1;
-        let t = tag("super_saiyan", blue, false);
-        assert_eq!((t.label.as_str(), t.form), ("SUPER SAIYAN BLUE", true));
-        assert_eq!(tag("ultra_instinct", 1, false).label, "MASTERED ULTRA INSTINCT");
-        // A tier that doesn't: "POWER · TIER".
-        let t = tag("gomu_gomu", 4, false);
-        assert_eq!((t.label.as_str(), t.form), ("GOMU GOMU NO MI · GEAR FIFTH", true));
-        // A transform: its title, with the model's short name.
-        let t = tag("nika", 0, true);
-        assert_eq!((t.label.as_str(), t.form), ("NIKA · GEAR FIFTH", true));
-        // Long names shorten cleanly; nothing is ever longer than the cap.
-        assert_eq!(tag("tori_phoenix", 0, false).label, "PHOENIX");
-        assert_eq!(tag("tori_phoenix", 0, true).label, "PHOENIX FORM");
-        for (i, _) in PowerTable::get().powers.iter().enumerate() {
-            for (tier, tf) in [(0, false), (0, true), (1, false), (4, false)] {
-                let t = power_tags([(i as u16, tier, tf)].into_iter()).remove(0);
-                assert!(!t.label.is_empty() && t.label.chars().count() <= TAG_CHARS, "{:?}", t.label);
-                assert_eq!(t.label, t.label.to_uppercase());
-            }
-        }
-        // Held order kept; the chips' glyphs avoid each other like the HUD's.
-        let ts = power_tags([(pid("star_platinum"), 0, false), (pid("the_world"), 0, false)].into_iter());
-        assert_eq!(ts.len(), 2);
-        assert_ne!(ts[0].look.glyph, ts[1].look.glyph);
-        assert!(power_tags(std::iter::empty()).is_empty(), "no powers: nothing");
-    }
-
-    #[test]
-    fn usage_hints_from_the_data() {
-        use Input::*;
-        use Verb::*;
-        // Rinnegan (active): push = G, planetary devastation = hold G (a pulling core), universal
-        // pull + truth-seeking orbs = shouts, and its passive read.
-        assert_eq!(hints("rinnegan", 0, false, 0), vec![(Tap, Blast), (Hold, Pull), (Shout, Pull), (Shout, Summon), (Always, Aura)]);
-        // Kamehameha-bearers: a beam on hold G; tiers are shouted forms; buffs are always on.
-        assert_eq!(hints("super_saiyan", 0, false, 0), vec![(Tap, Dash), (Hold, Beam), (Shout, Form), (Always, Aura)]);
-        assert_eq!(hints("ultra_instinct", 0, false, 0), vec![(Tap, Dash), (Hold, Beam), (Shout, Form), (Always, Dodge), (Always, Aura)]);
-        // Gear 5 (Nika): the transform is its hold.
-        assert_eq!(hints("nika", 0, false, 0), vec![(Tap, Projectile), (Hold, Form)]);
-        // Shadow clones: summon on G, rasengan on hold, the clone at your side always.
-        assert_eq!(hints("shadow_clone", 0, false, 0), vec![(Tap, Summon), (Hold, Projectile), (Always, Summon)]);
-        // Not the active power: its moves are shouted (the key fires the active one).
-        assert_eq!(hints("super_saiyan", 0, false, 1)[..2], [(Shout, Dash), (Shout, Beam)]);
-        // Others see the verbs only, distinct, capped.
-        let id = pid("rinnegan");
-        let h = power_hints(PowerTable::get().def(id).unwrap(), id, 0, false, 0);
-        assert_eq!(verbs_of(&h, 3), vec![Blast, Pull, Summon]);
-        // Every verb has its own glyph.
-        for (i, a) in Verb::ALL.iter().enumerate() {
-            for b in &Verb::ALL[i + 1..] {
-                assert_ne!(a.glyph(), b.glyph(), "{a:?} / {b:?}");
-            }
-        }
-        // Every power yields at least one hint.
-        for (i, d) in PowerTable::get().powers.iter().enumerate() {
-            assert!(!power_hints(d, i as u16, 0, false, 0).is_empty(), "{} has no hint", d.id);
         }
     }
 }

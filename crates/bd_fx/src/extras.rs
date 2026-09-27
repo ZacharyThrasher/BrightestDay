@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 
 use bd_shapes::{chain_link_mesh, chain_transform, portal_ring_spec, voxelize};
-use bevy::camera::visibility::VisibilitySystems;
+use bd_core::shape::{Prim, PrimKind, ShapeSpec, Tint};
+use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::light::NotShadowCaster;
 use bevy::mesh::MeshTag;
 use bevy::prelude::*;
@@ -35,21 +36,51 @@ impl ChainFx {
     }
 }
 
-/// Portal gateway: voxel ring (bd_shapes `portal_ring_spec`) + swirling inner surface. Faces −Z of
-/// the entity's transform. `open` 0 → 1 grows it in.
+/// Portal gateway: voxel ring (bd_shapes `portal_ring_spec`) or a wooden door frame + the inner
+/// surface. Faces −Z of the entity's transform. `open` 0 → 1 grows it in.
+///
+/// See-through: the game renders the partner portal's view into one of two pictures
+/// ([`crate::PortalMaterial`]'s `view_a` / `view_b`) and sets `view` (1 = a, 2 = b) + `view_uv`
+/// (used fraction of the picture) + `view_mix` (0 swirl → 1 window). With `view_layers` set the
+/// surface is drawn twice: the window-capable disc on `view_layers[0]` (the gameplay camera's
+/// layer) and a swirl-only disc on `view_layers[1]` (the portal-view cameras' layer: a portal seen
+/// through a portal is a swirl, never a recursive render).
 #[derive(Component, Clone, Copy, Debug)]
 #[require(Transform, Visibility)]
 pub struct PortalFx {
+    /// Ring: outer diameter (m). Doorway: opening height (m).
     pub diameter: f32,
     pub corps_color: [f32; 3],
     pub accent: Option<[f32; 3]>,
     pub open: f32,
     pub flash: f32,
+    /// Opening shape: [`PortalFx::RING`] or [`PortalFx::DOOR`] (width = height × `door_aspect`).
+    pub style: u8,
+    pub door_aspect: f32,
+    pub view: u8,
+    pub view_uv: Vec2,
+    pub view_mix: f32,
+    pub view_layers: Option<[usize; 2]>,
 }
 
 impl PortalFx {
+    pub const RING: u8 = 0;
+    pub const DOOR: u8 = 1;
+
     pub fn new(diameter: f32, corps_color: [f32; 3]) -> Self {
-        PortalFx { diameter, corps_color, accent: None, open: 1.0, flash: 0.0 }
+        PortalFx {
+            diameter,
+            corps_color,
+            accent: None,
+            open: 1.0,
+            flash: 0.0,
+            style: Self::RING,
+            door_aspect: 0.5,
+            view: 0,
+            view_uv: Vec2::ONE,
+            view_mix: 0.0,
+            view_layers: None,
+        }
     }
 }
 
@@ -75,6 +106,10 @@ struct PortalState {
     ring: Entity,
     disc: Entity,
     inner: f32,
+    /// The surface's own slot (the ring / frame keeps the entity's `FxSlot`).
+    disc_slot: u32,
+    /// Door frame slot (wood palette), if a doorway.
+    frame_slot: Option<u32>,
 }
 
 #[derive(Component, Default)]
@@ -86,12 +121,13 @@ struct FieldState {
 struct ChainMeshes(HashMap<u32, Handle<Mesh>>);
 
 #[derive(Resource)]
-struct DiscMesh(Handle<Mesh>);
+struct DiscMesh(Handle<Mesh>, Handle<Mesh>);
 
 pub fn build(app: &mut App) {
     app.init_resource::<ChainMeshes>()
         .add_systems(Startup, |mut c: Commands, mut m: ResMut<Assets<Mesh>>| {
-            c.insert_resource(DiscMesh(m.add(Circle::new(1.0).mesh().resolution(48))));
+            // Unit disc (rings) and ±1 quad (doorways), both in local XY.
+            c.insert_resource(DiscMesh(m.add(Circle::new(1.0).mesh().resolution(48)), m.add(Rectangle::new(2.0, 2.0))));
         })
         .add_systems(PostUpdate, ((init_chains, init_portals, init_fields), update_chains).chain().in_set(FxSet::Lifecycle))
         .add_systems(PostUpdate, (write_portals, emit_fields).in_set(EmitSystems).before(VisibilitySystems::CheckVisibility));
@@ -179,44 +215,106 @@ fn init_portals(
 ) {
     let Some(disc) = disc else { return };
     for (e, p) in &q {
+        let door = p.style == PortalFx::DOOR;
         let dq = ((fin(p.diameter, 2.5).clamp(1.0, 40.0)) * 4.0).round() as u32;
-        let key = ModelKey::Named("portal_ring", dq);
-        let model = voxelize(&portal_ring_spec(dq as f32 / 4.0));
-        // Inner hole radius from the voxels (ring plane = XY).
-        let mut inner = f32::MAX;
+        let aspect = fin(p.door_aspect, 0.5).clamp(0.2, 1.5);
+        let (model, key) = if door {
+            let aq = (aspect * 20.0).round() as u32;
+            (voxelize(&door_frame_spec(dq as f32 / 4.0, aq as f32 / 20.0)), ModelKey::Named("portal_door", dq * 64 + aq))
+        } else {
+            (voxelize(&portal_ring_spec(dq as f32 / 4.0)), ModelKey::Named("portal_ring", dq))
+        };
+        // Opening from the voxels (plane = XY): ring → hole radius; doorway → the frame's inner edges.
+        let (mut inner, mut hx, mut hy) = (f32::MAX, f32::MAX, f32::MAX);
         for part in &model.parts {
             for (v, _) in &part.voxels {
                 let c = model.voxel_center(*v);
                 inner = inner.min((c.x * c.x + c.y * c.y).sqrt());
+                if c.y.abs() < dq as f32 / 8.0 * 0.8 {
+                    hx = hx.min(c.x.abs());
+                }
+                if c.x.abs() < dq as f32 / 8.0 * aspect * 0.8 {
+                    hy = hy.min(c.y.abs());
+                }
             }
         }
-        let inner = if inner.is_finite() { (inner - model.voxel_size * 0.5).max(0.2) } else { dq as f32 / 8.0 };
+        let half = model.voxel_size * 0.5;
+        let inner = if inner.is_finite() { (inner - half).max(0.2) } else { dq as f32 / 8.0 };
+        let scale = if door {
+            let hx = if hx.is_finite() { (hx - half).max(0.2) } else { dq as f32 / 8.0 * aspect };
+            let hy = if hy.is_finite() { (hy - half).max(0.2) } else { dq as f32 / 8.0 };
+            Vec3::new(hx + 0.02, hy + 0.02, 1.0)
+        } else {
+            Vec3::splat(inner + 0.02)
+        };
         let parts = cache.insert_now(key, &model, &mut meshes);
         let slot = alloc.slot();
+        let disc_slot = alloc.slot();
+        let frame_slot = door.then(|| alloc.slot());
         let mut ring = Entity::PLACEHOLDER;
         if let Some(Some(cp)) = parts.first() {
             ring = commands
                 .spawn((
                     Mesh3d(cp.mesh.clone()),
-                    MeshMaterial3d(mats.construct(settings.translucent)),
-                    MeshTag(slot),
+                    // A wooden door frame is solid; a hard-light ring keeps the construct look.
+                    MeshMaterial3d(if door { mats.construct(false) } else { mats.construct(settings.translucent) }),
+                    MeshTag(frame_slot.unwrap_or(slot)),
                     Transform::from_translation(cp.offset),
                     NotShadowCaster,
                     ChildOf(e),
                 ))
                 .id();
         }
-        let disc_e = commands
-            .spawn((
-                Mesh3d(disc.0.clone()),
-                MeshMaterial3d(mats.portal.clone()),
-                MeshTag(slot),
-                Transform::from_scale(Vec3::splat(inner + 0.02)),
-                NotShadowCaster,
-                ChildOf(e),
-            ))
-            .id();
-        commands.entity(e).insert((FxSlot(slot), PortalState { ring, disc: disc_e, inner }));
+        let mesh = if door { disc.1.clone() } else { disc.0.clone() };
+        let surface = |mat: Handle<crate::PortalMaterial>| (Mesh3d(mesh.clone()), MeshMaterial3d(mat), MeshTag(disc_slot), Transform::from_scale(scale), NotShadowCaster, ChildOf(e));
+        let disc_e = match p.view_layers {
+            Some([main, rec]) => {
+                commands.spawn((surface(mats.portal_vortex.clone()), RenderLayers::layer(rec)));
+                commands.spawn((surface(mats.portal.clone()), RenderLayers::layer(main))).id()
+            }
+            None => commands.spawn(surface(mats.portal.clone())).id(),
+        };
+        if door {
+            // Warm light spilling out of the open door (both faces).
+            for side in [-1.0f32, 1.0] {
+                commands.spawn((
+                    PointLight { color: Color::srgb(1.0, 0.72, 0.42), intensity: 90_000.0, range: 7.0, radius: 0.4, shadow_maps_enabled: false, ..default() },
+                    Transform::from_xyz(0.0, 0.0, side * 0.8),
+                    ChildOf(e),
+                ));
+            }
+        }
+        commands.entity(e).insert((FxSlot(slot), PortalState { ring, disc: disc_e, inner, disc_slot, frame_slot }));
+    }
+}
+
+/// A plain wooden door frame (doorway portals): two jambs, a lintel under a small cornice, a
+/// threshold and a warm inner trim, standing upright facing −Z, origin at the opening's centre.
+/// `height_m` = opening height, width = height × `aspect`. Construct-voxel units (0.25 m).
+pub fn door_frame_spec(height_m: f32, aspect: f32) -> ShapeSpec {
+    let vs = bd_core::CONSTRUCT_VOXEL_SIZE;
+    let h = (if height_m.is_finite() { height_m } else { 3.0 }).clamp(1.0, 12.0) / vs;
+    let w = h * aspect.clamp(0.2, 1.5);
+    let t = (h * 0.06).clamp(1.0, 3.0).round();
+    let d = t + 1.0;
+    let bx = |c: glam::Vec3, s: glam::Vec3, tint: Tint| Prim { kind: PrimKind::Box, center: c, size: s, rot_deg: glam::Vec3::ZERO, tint, part: 0, subtract: false };
+    let (hw, hh) = (w * 0.5, h * 0.5);
+    ShapeSpec {
+        prims: vec![
+            // Jambs.
+            bx(glam::Vec3::new(-hw - t * 0.5, 0.0, 0.0), glam::Vec3::new(t, h + t * 2.0, d), Tint::Primary),
+            bx(glam::Vec3::new(hw + t * 0.5, 0.0, 0.0), glam::Vec3::new(t, h + t * 2.0, d), Tint::Primary),
+            // Lintel + cornice.
+            bx(glam::Vec3::new(0.0, hh + t * 0.5, 0.0), glam::Vec3::new(w + t * 2.0, t, d), Tint::Primary),
+            bx(glam::Vec3::new(0.0, hh + t * 1.5, 0.0), glam::Vec3::new(w + t * 3.0, t, d + 1.0), Tint::Dark),
+            // Threshold.
+            bx(glam::Vec3::new(0.0, -hh - t * 0.5, 0.0), glam::Vec3::new(w + t * 2.0, t, d + 1.0), Tint::Dark),
+            // Warm inner trim (the light catching the edge).
+            bx(glam::Vec3::new(-hw - 0.5, 0.0, -d * 0.5), glam::Vec3::new(1.0, h, 1.0), Tint::Core),
+            bx(glam::Vec3::new(hw + 0.5, 0.0, -d * 0.5), glam::Vec3::new(1.0, h, 1.0), Tint::Core),
+            bx(glam::Vec3::new(0.0, hh + 0.5, -d * 0.5), glam::Vec3::new(w + 2.0, 1.0, 1.0), Tint::Core),
+        ],
+        parts: vec![],
     }
 }
 
@@ -227,7 +325,22 @@ fn write_portals(mut up: ResMut<FxUpload>, q: Query<(&PortalFx, &PortalState, &F
         let open = fin(p.open, 1.0).clamp(0.0, 1.0);
         let r = fin(p.diameter, 2.5).max(0.5) * 0.5;
         let centre = gt.translation();
-        write_slot(&mut up, slot.0, construct_gpu(&pal, 1.0, open, p.flash, 0.0, bd_core::CONSTRUCT_VOXEL_SIZE, slot.0 * 13, 0.8, false, centre, 1.0 / (r * gt.scale().x.max(1e-3) + 0.5)));
+        let g = construct_gpu(&pal, 1.0, open, p.flash, 0.0, bd_core::CONSTRUCT_VOXEL_SIZE, slot.0 * 13, 0.8, false, centre, 1.0 / (r * gt.scale().x.max(1e-3) + 0.5));
+        write_slot(&mut up, slot.0, g);
+        if let Some(fs) = st.frame_slot {
+            // Doorway: a wooden frame (warm wood, dark trim, a glowing inner edge).
+            let wood = Palette::new([0.42, 0.24, 0.11], Some([0.3, 0.17, 0.08]));
+            let mut fg = construct_gpu(&wood, 1.0, open, p.flash, 0.0, bd_core::CONSTRUCT_VOXEL_SIZE, slot.0 * 13, 1.0, false, centre, 1.0 / (r + 0.5));
+            fg.dark = [0.16, 0.09, 0.04, 0.0];
+            fg.core = [1.0, 0.62, 0.28, 0.0];
+            write_slot(&mut up, fs, fg);
+        }
+        // The surface: the same colours + the view data (see portal.wgsl).
+        let mut d = g;
+        let uv = Vec2::new(fin(p.view_uv.x, 1.0), fin(p.view_uv.y, 1.0)).clamp(Vec2::splat(0.01), Vec2::ONE);
+        d.hair = [uv.x, uv.y, fin(p.view_mix, 0.0).clamp(0.0, 1.0), p.view.min(2) as f32];
+        d.eyes = [(p.style == PortalFx::DOOR) as u8 as f32, 0.0, 0.0, 0.0];
+        write_slot(&mut up, st.disc_slot, d);
     }
 }
 

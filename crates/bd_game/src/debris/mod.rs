@@ -153,6 +153,25 @@ struct Particle {
     phase: u8,
 }
 
+/// One portal face for [`DebrisPool::portal_pass`] (entry frame + where it leads).
+#[derive(Clone, Copy, Debug)]
+pub struct DebrisPortal {
+    pub pos: Vec3,
+    pub n: Vec3,
+    pub right: Vec3,
+    pub up: Vec3,
+    pub half: Vec2,
+    pub door: bool,
+    pub exit_pos: Vec3,
+    pub exit_n: Vec3,
+    /// Entry-side directions → exit-side ones.
+    pub rot: Quat,
+}
+
+/// Portal faces debris passes through (filled each frame by `present::portal_cross`; empty = none).
+#[derive(Resource, Default)]
+pub struct DebrisPortals(pub Vec<DebrisPortal>);
+
 #[derive(Resource)]
 pub struct DebrisPool {
     particles: Vec<Particle>,
@@ -215,6 +234,38 @@ impl DebrisPool {
             // Recycle: sweep through the pool so the replaced cubes are spread out in age.
             self.recycle_cursor = (self.recycle_cursor + 7919) % DEBRIS_CAPACITY;
             self.particles[self.recycle_cursor] = p;
+        }
+    }
+
+    /// PORTALS: cubes about to cross a portal face this step come out of the partner (position,
+    /// velocity and spin carried through), so debris flies through portals like everything else.
+    pub fn portal_pass(&mut self, dt: f32, portals: &[DebrisPortal]) {
+        if portals.is_empty() {
+            return;
+        }
+        for p in &mut self.particles {
+            if p.sleeping {
+                continue;
+            }
+            let next = p.pos + p.vel * dt;
+            for g in portals {
+                let (d0, d1) = ((p.pos - g.pos).dot(g.n), (next - g.pos).dot(g.n));
+                if !(d0 >= 0.0 && d1 < 0.0) {
+                    continue;
+                }
+                let hit = p.pos + (next - p.pos) * (d0 / (d0 - d1));
+                let lat = hit - g.pos;
+                let (x, y) = (lat.dot(g.right), lat.dot(g.up));
+                let inside = if g.door { x.abs() <= g.half.x && y.abs() <= g.half.y } else { x * x + y * y <= g.half.x * g.half.x };
+                if inside {
+                    p.pos = g.exit_pos + g.rot * (hit - g.pos) + g.exit_n * 0.05;
+                    p.vel = g.rot * p.vel;
+                    p.rot = (g.rot * p.rot).normalize();
+                    p.ang = g.rot * p.ang;
+                    p.grounded = false;
+                    break;
+                }
+            }
         }
     }
 
@@ -494,6 +545,7 @@ impl Plugin for DebrisPlugin {
         app.add_message::<SpawnDebris>()
             .add_message::<DebrisImpulse>()
             .init_resource::<DebrisPool>()
+            .init_resource::<DebrisPortals>()
             .init_resource::<DebrisSettings>()
             .init_resource::<DebrisGround>()
             .init_resource::<VfxRng>()
@@ -523,6 +575,7 @@ fn simulate_debris(
     mut impulses: MessageReader<DebrisImpulse>,
     mut pool: ResMut<DebrisPool>,
     cam: Query<&GlobalTransform, With<crate::camera::PlayerCamera>>,
+    portals: Option<Res<DebrisPortals>>,
 ) {
     for s in spawns.read() {
         pool.spawn(s);
@@ -531,6 +584,9 @@ fn simulate_debris(
         pool.impulse(i);
     }
     let dt = (time.delta_secs() * settings.time_scale).min(1.0 / 20.0);
+    if let Some(p) = portals.as_ref() {
+        pool.portal_pass(dt, &p.0);
+    }
     let collider = ground.0.as_deref();
     let cam = cam.single().ok().map(|g| g.translation());
     pool.step(dt, &settings, collider, cam);

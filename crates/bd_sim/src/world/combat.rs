@@ -161,7 +161,14 @@ impl World {
         } else {
             crate::smash::knockback(st, base_kb * (1.0 + bonus) * elem_kb, damage, pct, weight, self.cfg.rules.knockback_scale)
         };
-        let kb = kb_raw * j_kb;
+        // LEGENDARY: heavy blades carry super armor through big swings (less knockback, never immune).
+        let armor = if self_hit { 1.0 } else { crate::constructs::legend::armor(&self.constructs, hit.target, &self.cfg.tuning.legendary) };
+        let kb = kb_raw * j_kb * armor;
+        if armor < 1.0 && kb_raw > 0.0 {
+            if let Some(c) = self.constructs.held_by(hit.target) {
+                self.events.push(GameEvent::HeldFx { id: c.id, owner: hit.target, fx: crate::events::HeldFx::Armor, pos: hit.point, dir: dir_in.normalize_or_zero(), strength: armor });
+            }
+        }
         if juggles {
             self.players[ti].juggle.on_hit(&self.cfg.tuning.juggle, kb_raw, self.tick); // JUGGLE
         }

@@ -523,7 +523,13 @@ fn lerp_player(a: &PlayerSnap, b: &PlayerSnap, t: f32) -> (Vec3, Vec3, f32, f32)
     (pos, vel, ya + dy * t, pia + (pib - pia) * t)
 }
 
-fn build_views(active: Option<Res<ActiveWorld>>, clock: Res<TickClock>, mut keys: ResMut<ViewKeys>, mut views: ResMut<WorldViews>) {
+fn build_views(
+    active: Option<Res<ActiveWorld>>,
+    clock: Res<TickClock>,
+    mut keys: ResMut<ViewKeys>,
+    mut views: ResMut<WorldViews>,
+    mut portal_pairs: Local<Vec<crate::present::portal_view::PairGeo>>,
+) {
     let views = &mut *views;
     views.players.clear();
     views.constructs.clear();
@@ -537,10 +543,18 @@ fn build_views(active: Option<Res<ActiveWorld>>, clock: Res<TickClock>, mut keys
     let t = keys.alpha.clamp(0.0, 1.0);
     let (prev, curr) = (&keys.prev, &keys.curr);
     views.tick = curr.tick;
+    // PORTALS: a body that passed a portal between the two snapshots moves along its path into the
+    // entry and out of the exit (no smear across the map, no pop).
+    portal_pairs.clear();
+    portal_pairs.extend(curr.portals.iter().map(crate::present::portal_view::PairGeo::from_snap));
+    let through = |a: Vec3, b: Vec3, max: f32| if portal_pairs.is_empty() { None } else { crate::present::portal_view::portal_lerp(a, b, t, &portal_pairs, max) };
     for b in &curr.players {
         let id = PlayerId(b.id);
         let a_snap = prev.players.binary_search_by_key(&b.id, |p| p.id).ok().map_or(b, |i| &prev.players[i]);
-        let (pos, vel, yaw, pitch) = lerp_player(a_snap, b, t);
+        let (mut pos, vel, yaw, pitch) = lerp_player(a_snap, b, t);
+        if let Some((p, _, _)) = through(v3(a_snap.pos.get()), v3(b.pos.get()), 6.0) {
+            pos = p;
+        }
         let hook = |i: usize| match (a_snap.hooks[i], b.hooks[i]) {
             (Some(x), Some(y)) => Some(v3(x.get()).lerp(v3(y.get()), t)),
             (_, y) => y.map(|y| v3(y.get())),
@@ -569,8 +583,15 @@ fn build_views(active: Option<Res<ActiveWorld>>, clock: Res<TickClock>, mut keys
     for b in &curr.constructs {
         let a_snap: &ConstructSnap = prev.constructs.binary_search_by_key(&b.id, |c| c.id).ok().map_or(b, |i| &prev.constructs[i]);
         let (pa, pb) = (v3(a_snap.pos.get()), v3(b.pos.get()));
-        let pos = if pa.distance_squared(pb) > 100.0 { pb } else { pa.lerp(pb, t) };
-        let rot = Quat::from_array(a_snap.rot.get().to_array()).slerp(Quat::from_array(b.rot.get().to_array()), t);
+        let mut pos = if pa.distance_squared(pb) > 100.0 { pb } else { pa.lerp(pb, t) };
+        let (ra, rb) = (Quat::from_array(a_snap.rot.get().to_array()), Quat::from_array(b.rot.get().to_array()));
+        let mut rot = ra.slerp(rb, t);
+        if let Some((p, r, out)) = through(pa, pb, 12.0) {
+            // Turn with the portal instead of spinning between the two frames.
+            let r_in = ra.slerp((r.inverse() * rb).normalize(), t);
+            pos = p;
+            rot = if out { (r * r_in).normalize() } else { r_in };
+        }
         let dt_ticks = curr.tick.saturating_sub(prev.tick).max(1) as f32;
         let speed = pa.distance(pb) / (dt_ticks * DT);
         let since = tick16.wrapping_sub(b.anim_since) as f32;

@@ -591,6 +591,48 @@ popculture | megatron | name~megatron
 popculture | grimlock | name~grimlock
 popculture | devastator | name~devastator scale>=8
 popculture | unicron | name~unicron scale>=15
+# --- legendary weapons: famous names must land on the mechanic combos the legendary move rules key
+#     off (recall = Returning, call the storm = element + Returning/Heavy, ricochet chain, deflect,
+#     blade wave, heavy blade, chain blades, precision / needles / grab-punt / stream / charge / BFG guns)
+popculture | mjolnir | name~mjolnir form=Hammer +Blunt +Returning +Heavy el=Electric
+popculture | thors hammer | name~mjolnir form=Hammer +Returning el=Electric
+popculture | cap's shield | name~shield form=Shield +Guard +Returning +Ricochet
+popculture | captain america shield | name~shield form=Shield +Returning +Ricochet
+popculture | cloud's buster sword | name~buster form=Sword +Blade +Heavy scale>=2
+popculture | blades of chaos | name~chaos form=Whip +Blade +Pull el=Fire
+popculture | kratos' blades | name~chaos form=Whip +Blade +Pull el=Fire
+popculture | leviathan axe | name~leviathan form=Axe +Blade +Returning el=Ice
+popculture | kratos axe | name~leviathan form=Axe +Returning el=Ice
+popculture | link's sword | name~master form=Sword +Blade +Shoots
+popculture | light saber | name~lightsaber form=Sword +Blade +Fast el=Electric
+popculture | halo energy sword | name~energy form=Sword +Blade +Pierce +Fast -Ricochet el=Electric
+popculture | zero point energy field manipulator | name~gravity form=Gun +Grab +Attract
+popculture | bfg 9000 | name~bfg form=Cannon +Shoots +Heavy el=Atomic
+popculture | ray gun | form=Gun +Shoots +Beam
+popculture | ghostbusters proton pack | name~proton form=Gun +Beam +Pull
+popculture | needler | name~needler form=Gun +Shoots
+popculture | gravity hammer | name~gravity form=Hammer +Blunt +Heavy +Repel
+popculture | thor's axe | name~stormbreaker form=Axe +Blade +Returning +Heavy el=Electric
+popculture | samus's arm cannon | name~cannon form=Cannon +Shoots +Beam
+popculture | mega buster | name~buster form=Cannon +Shoots
+popculture | ichigo's sword | name~zangetsu form=Sword +Blade +Heavy
+popculture | kingdom key | name~keyblade form=Sword +Blade +Returning
+popculture | golden gun | name~golden form=Gun +Shoots -Beam -Explodes el=Light
+popculture | scaramanga's gun | name~golden form=Gun +Shoots
+popculture | the man with the golden gun | name~golden form=Gun
+popculture | frostmourne | name~frostmourne form=Sword +Blade +Heavy el=Ice
+popculture | gungnir | name~gungnir form=Spear +Returning el=Electric
+popculture | poseidon's trident | name~poseidon form=Spear +Heavy el=Water
+popculture | aquaman's trident | name~trident form=Spear +Returning el=Water
+popculture | noisy cricket | name~cricket form=Gun +Shoots
+popculture | soul edge | name~soul form=Sword +Blade +Heavy el=Shadow
+popculture | monado | name~monado form=Sword +Blade +Guard
+popculture | han solo's blaster | name~dl-44 form=Gun +Shoots
+popculture | lancer rifle | name~lancer form=Gun +Shoots
+popculture | wonder woman's lasso | name~lasso form=Whip +Pull
+popculture | wunderwaffe | name~wunderwaffe form=Gun +Beam +Ricochet el=Electric
+popculture | chakram | form=Disc +Returning
+popculture | freeze ray | form=Gun el=Ice
 
 # =====================================================================================================
 # everyday - nouns and adjective + noun

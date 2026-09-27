@@ -317,6 +317,10 @@ impl World {
                 c.integrity = c.max_integrity * cs.integrity as f32 / 255.0;
                 c.forming_t = if cs.flags & cflags::FORMING != 0 { c.forming_t.max(DT) } else { 0.0 };
                 c.suit = cs.flags & cflags::SUIT != 0;
+                if c.category == bd_core::mechanics::FormCategory::Held && !c.suit {
+                    // LEGENDARY: out of the hand (thrown / lodged) — prediction's leap needs it in hand.
+                    c.held.thrown = cs.flags & cflags::ATTACHED == 0;
+                }
                 c.colossal = cs.flags & cflags::COLOSSAL != 0;
                 c.flair = cs.flags & (cflags::LEGENDARY | cflags::SPUTTER); // FREEDOM HOOK
                 c.size_scale = (cs.size as f32 / 50.0).clamp(0.1, 5.0);
@@ -565,6 +569,7 @@ impl World {
         // Same order as the host's `step_movement`: worn air moves, modifiers, DI, move, post-move
         // (held rope / Thor flight / parachute save / trampolines & pads), portals, fields.
         crate::constructs::worn::pre_move(&self.constructs, player, input, state, p.busy(), |_| {});
+        crate::constructs::legend::pre_move(&self.constructs, &self.cfg.tuning.legendary, player, input, state, p.busy(), p.willpower, |_| {}); // LEGENDARY: recall flight + leap (same as the host)
         state.mods = self.move_mods_for(player, input, state);
         let mut params = p.params(&self.cfg.move_params);
         crate::party::hooks::tweak_params(self.party.as_ref(), player, &mut params); // PARTY HOOK (Slippery)

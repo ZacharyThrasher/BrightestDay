@@ -195,6 +195,34 @@ pub fn base_cost_as(recipe: &Recipe, autonomous: bool) -> f32 {
     base * size_factor(recipe) * (1.0 + 0.15 * n as f32) * count_factor(recipe)
 }
 
+/// SPARKS (READABILITY; working name, see `MatchRules::willpower_segments`): every cast cost is a
+/// whole number of sparks, so the crosshair gauge's preview is exact and a cost is learnable by feel
+/// ("that dragon cost me three"). One spark = [`SEGMENT_BASE_POOL`] / segments (the Normal pool:
+/// Double willpower shows twice the sparks, it does not make them bigger).
+pub const SEGMENT_BASE_POOL: f32 = 100.0;
+/// Rounding: `sparks = max(1, floor(cost / spark + QUANTIZE_BIAS))` — nearest, leaning down a little
+/// (a remainder of 0.65 spark or more rounds up). Chosen from the golden-corpus survey
+/// (bd_game `readability::cost_survey`): at 8 sparks the medians land on the presence tiers players
+/// see and hear — Tiny 1, Normal 2, Big 4, Titan 5+.
+pub const QUANTIZE_BIAS: f32 = 0.35;
+
+/// Whole sparks a raw cost rounds to (0 for a free / invalid cost; at least 1 otherwise).
+pub fn cost_segments(cost: f32, segment: f32) -> u32 {
+    if !(cost.is_finite() && cost > 0.0 && segment.is_finite() && segment > 0.0) {
+        return 0;
+    }
+    ((cost / segment + QUANTIZE_BIAS).floor().max(1.0)).min(1.0e6) as u32
+}
+
+/// A raw cast cost rounded to whole sparks of `segment` willpower ([`cost_segments`] × `segment`).
+/// A free cast stays free.
+pub fn quantize_cost(cost: f32, segment: f32) -> f32 {
+    if !(segment.is_finite() && segment > 0.0) {
+        return if cost.is_finite() { cost.max(0.0) } else { 0.0 };
+    }
+    cost_segments(cost, segment) as f32 * segment
+}
+
 /// `1 + 0.3·uses` of this exact phrase in the last 30 s.
 pub fn staleness(uses: u32) -> f32 {
     1.0 + STALE_PER_USE * uses as f32
@@ -531,6 +559,42 @@ mod tests {
         let big = validate_recipe(big, &MatchRules::default());
         assert_eq!(big.scale, form_spec(Form::Hammer).max_scale);
         assert!(size_factor(&big) <= 3.0);
+    }
+
+    #[test]
+    fn costs_quantise_to_whole_sparks() {
+        let spark = SEGMENT_BASE_POOL / 8.0;
+        // Free stays free; anything paid costs at least one spark.
+        assert_eq!(quantize_cost(0.0, spark), 0.0);
+        assert_eq!(quantize_cost(-3.0, spark), 0.0);
+        assert_eq!(quantize_cost(f32::NAN, spark), 0.0);
+        assert_eq!(quantize_cost(0.5, spark), spark);
+        assert_eq!(cost_segments(6.8, spark), 1, "a wall");
+        assert_eq!(cost_segments(13.8, spark), 1, "a sword");
+        // Rounding leans down a little: 1.64 sparks → 1, 1.65 → 2.
+        assert_eq!(cost_segments(spark * 1.64, spark), 1);
+        assert_eq!(cost_segments(spark * 1.66, spark), 2);
+        assert_eq!(cost_segments(52.2, spark), 4, "a gun");
+        assert_eq!(cost_segments(60.9, spark), 5, "a spirit bomb");
+        assert_eq!(cost_segments(108.8, spark), 9, "a fire dragon (more than a full bar: it sputters)");
+        // A whole bar is exactly the pool (no float drift past it) for every segment count.
+        for n in 3..=12u32 {
+            let s = SEGMENT_BASE_POOL / n as f32;
+            assert!((quantize_cost(SEGMENT_BASE_POOL, s) - SEGMENT_BASE_POOL).abs() < 1e-3, "{n}");
+            for k in 1..=n {
+                let c = quantize_cost(s * k as f32, s);
+                assert_eq!(cost_segments(c, s), k, "idempotent: {n} sparks, {k}");
+            }
+        }
+        // Monotone.
+        let mut last = 0.0;
+        for c in 0..400 {
+            let q = quantize_cost(c as f32 * 0.5, spark);
+            assert!(q >= last);
+            last = q;
+        }
+        // No spark size: unchanged.
+        assert_eq!(quantize_cost(7.5, 0.0), 7.5);
     }
 
     #[test]

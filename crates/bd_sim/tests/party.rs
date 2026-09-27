@@ -108,7 +108,14 @@ fn ffa_cfg() -> SimConfig {
 // tree that also carries the in-flight CONNECT projectile bend (world/projectiles.rs, another worker),
 // which moves the hash on its own. A/B on that tree (tests/juggle.rs `print_ffa_juggle_ab`):
 // juggle off = 0xee46_5d42_cd65_ae0e, on without splats = 0x9b63_3e8c_b1d0_11af, on = this.
-const FFA_NOCAST_STATE_HASH: u64 = 0x0279_2967_07d1_b7e0;
+// Re-recorded (was 0x0279_2967_07d1_b7e0) for the under-the-map fix (tests/under_terrain.rs): a
+// bot's rescue rope no longer picks an anchor on the underside of an overhang (bots.rs), plus the
+// rope cut when a rope pins its player against a ceiling it runs through (movement/tether.rs) and
+// bots letting go after 1.5 s hanging under terrain. A/B verified on the same tree: all three off =
+// 0x0279_2967_07d1_b7e0; the anchor filter alone moves it (the cut / let-go don't fire in this run
+// once bots stop hooking undersides); without the filter the rope cut fires here too (bots hooked
+// under Archipelago islands) = 0x1692_0cf5_2e05_5120.
+const FFA_NOCAST_STATE_HASH: u64 = 0x4d16_0c05_399e_513e;
 
 #[test]
 fn default_settings_leave_ffa_bit_identical() {
