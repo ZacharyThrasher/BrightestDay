@@ -32,6 +32,7 @@ import sounds_extra  # noqa: E402,F401  (assembly, hatches, rotors, hook, domain
 import sounds_hyperline  # noqa: E402,F401  (Hyperline: train rush / rail clatter beds, ring whoosh, city flyby)
 import sounds_presence  # noqa: E402,F401  (construct presence grammar: shing, gathers, manifests, element hums)
 import sounds_powerhud  # noqa: E402,F401  (power HUD ready chime)
+import sounds_legend  # noqa: E402,F401  (LEGENDARY moves: recall, storms, ricochet, saber, waves, heavy/chain blades, guns)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

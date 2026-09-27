@@ -127,7 +127,16 @@ fn projectiles_stop_at_the_barrier_and_it_has_hp() {
     assert!(hp1 < hp0, "the barrier took them: {hp0} -> {hp1}");
     // Enough damage shatters it; its caster burns out.
     let (c, _) = radius(&w, id);
-    w.apply_construct_hit(ConstructHit { target: id, source: Some(B), damage: 1.0e6, impulse: Vec3::ZERO, blade: false, pierce: false, blunt: false, point: c });
+    w.apply_construct_hit(ConstructHit {
+        target: id,
+        source: Some(B),
+        damage: 1.0e6,
+        impulse: Vec3::ZERO,
+        blade: false,
+        pierce: false,
+        blunt: false,
+        point: c,
+    });
     let evs = run(&mut w, 0.2, |_| vec![]);
     let d = domain_events(&evs);
     assert!(d.iter().any(|e| matches!(e, DomainEvent::Shatter { .. })), "{d:?}");
@@ -185,7 +194,10 @@ fn every_look_pulses_its_element_telegraphed_never_at_the_caster() {
         let evs = run(&mut w, 1.7 + 2.0, |_| vec![]);
         let d = domain_events(&evs);
         let tele = d.iter().position(|e| matches!(e, DomainEvent::Telegraph { .. })).unwrap_or_else(|| panic!("{look:?}: telegraphed"));
-        let strike = d.iter().position(|e| matches!(e, DomainEvent::Strike { victim: Some(v), .. } if *v == B)).unwrap_or_else(|| panic!("{look:?}: strikes B"));
+        let strike = d
+            .iter()
+            .position(|e| matches!(e, DomainEvent::Strike { victim: Some(v), .. } if *v == B))
+            .unwrap_or_else(|| panic!("{look:?}: strikes B"));
         assert!(tele < strike, "{look:?}: the marker comes first");
         assert!(d.iter().all(|e| !matches!(e, DomainEvent::Strike { victim: Some(v), .. } if *v == A)), "{look:?}: never the caster");
         assert!(d.iter().any(|e| matches!(e, DomainEvent::Sealed { look: l, .. } if *l == look)), "{look:?}");
@@ -204,7 +216,11 @@ fn stepping_off_the_marker_dodges_a_pulse() {
     // B sprints sideways the moment a marker appears.
     let mut dodging = false;
     for _ in 0..(3.0 / DT) as usize {
-        let inp = if dodging { vec![(B, PlayerInput { yaw: PI * 0.5, move_z: 1, buttons: buttons::BOOST, ..Default::default() })] } else { vec![] };
+        let inp = if dodging {
+            vec![(B, PlayerInput { yaw: PI * 0.5, move_z: 1, buttons: buttons::BOOST, ..Default::default() })]
+        } else {
+            vec![]
+        };
         let evs = w.tick(&inp).to_vec();
         dodging |= domain_events(&evs).iter().any(|e| matches!(e, DomainEvent::Telegraph { .. }));
     }
@@ -253,7 +269,10 @@ fn domains_clash_the_pouring_side_wins_the_loser_shatters() {
         }
     }
     assert!(clashed, "they clash, B's side gives way");
-    assert!(shattered == Some(db) || w.constructs.get(db).is_some_and(|c| bd_sim::signature::domain::sphere(c).1 < r_b0 - 3.0), "B's domain loses");
+    assert!(
+        shattered == Some(db) || w.constructs.get(db).is_some_and(|c| bd_sim::signature::domain::sphere(c).1 < r_b0 - 3.0),
+        "B's domain loses"
+    );
     assert!(w.constructs.get(da).is_some_and(|c| c.gone.is_none()), "A's stands");
 }
 
@@ -312,4 +331,32 @@ fn domains_are_deterministic_and_the_barrier_is_predicted() {
         }
     }
     assert_eq!(bad, 0, "prediction diverged on {bad} ticks");
+}
+
+/// Tick cost (`--release -- --ignored --nocapture`): the same duel idle vs. two clashing domains with
+/// pulses, the barrier and a player running into it.
+#[test]
+#[ignore = "perf probe (release build)"]
+fn domain_tick_cost() {
+    let run = |domains: bool| {
+        let mut w = duel(26.0);
+        if domains {
+            cast_domain(&mut w, A, domain_recipe(Element::Electric, &[]));
+            cast_domain(&mut w, B, domain_recipe(Element::Psychic, &[]));
+        }
+        let mut times = Vec::new();
+        for _ in 0..1080u32 {
+            let t0 = std::time::Instant::now();
+            w.tick(&[(B, walk(0.0))]);
+            times.push(t0.elapsed().as_secs_f64() * 1000.0);
+            for p in &mut w.players {
+                p.willpower = 100.0;
+            }
+        }
+        times.sort_by(|a, b| a.total_cmp(b));
+        (times[times.len() / 2], times[times.len() * 99 / 100], times[times.len() - 1])
+    };
+    let off = run(false);
+    let on = run(true);
+    eprintln!("DOMAIN tick ms (p50, p99, max): idle {off:?}, two domains clashing + pulses {on:?}");
 }

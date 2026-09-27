@@ -75,7 +75,7 @@ fn domain_erupts_around_the_caster_and_can_be_broken() {
     assert!((rec.scale - (t.domain_radius + 0.5 * t.domain_radius_shout)).abs() < 1e-3, "radius {}", rec.scale);
     assert!(forming >= t.domain.expand_secs - 1e-4, "expansion {forming}");
     // Most of the bar: the existing cost × cost_mult (never more than the bar).
-    assert!(cost >= 50.0 - 1e-3 && cost <= 100.0, "cost {cost}");
+    assert!((50.0 - 1e-3..=100.0).contains(&cost), "cost {cost}");
     let wp = w.player(A).unwrap().willpower;
     assert!((wp - (100.0 - cost)).abs() < 0.5, "paid {wp}");
     // Windup: not live yet, then live.

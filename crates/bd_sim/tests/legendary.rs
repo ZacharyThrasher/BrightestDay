@@ -352,17 +352,18 @@ fn deflected_hitscan_goes_back_capped() {
     let mut ev = Vec::new();
     for k in 0..200 {
         let a = PlayerInput { yaw: ay, pitch: ap, buttons: if k < 80 { buttons::PRIMARY } else { 0 }, ..Default::default() };
-        let b = PlayerInput { yaw: by, pitch: bp, buttons: if (78..84).contains(&k) { buttons::SECONDARY } else { 0 }, ..Default::default() };
+        let b = PlayerInput { yaw: by, pitch: bp, buttons: if (52..70).contains(&k) { buttons::SECONDARY } else { 0 }, ..Default::default() };
         ev.extend_from_slice(w.tick(&[(A, a), (B, b)]));
     }
     let cap = w.cfg.tuning.legendary.reflect_hitscan_cap;
-    if fx_count(&ev, HeldFx::Parry) > 0 {
-        let back = ev.iter().find_map(|e| match e {
-            GameEvent::Hit { target, source: Some(s), damage, .. } if *target == A && *s == B => Some(*damage),
-            _ => None,
-        });
-        assert!(back.is_some_and(|d| d <= cap * 1.6), "reflected round capped: {back:?}");
-    }
+    assert!(fx_count(&ev, HeldFx::Parry) > 0, "the fresh guard parried the rail");
+    assert_eq!(w.player(B).unwrap().damage_pct, 0.0);
+    let back = ev.iter().find_map(|e| match e {
+        GameEvent::Hit { target, source: Some(s), damage, .. } if *target == A && *s == B => Some(*damage),
+        _ => None,
+    });
+    // (The Smash damage path may add the momentum bonus / head crit on top of the capped round.)
+    assert!(back.is_some_and(|d| d > 0.0 && d <= cap * 1.6), "the rail went back at the shooter, capped: {back:?}");
 }
 
 // ------------------------------------------------------------------------------------ 5. blade wave

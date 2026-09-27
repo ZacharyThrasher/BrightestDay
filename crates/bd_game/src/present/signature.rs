@@ -126,8 +126,6 @@ struct Live {
     form: Form,
     age: f32,
     opened: bool,
-    /// Seconds until the next "you're inside" pulse.
-    pulse: f32,
 }
 
 #[derive(Resource, Default)]
@@ -589,7 +587,7 @@ fn alert_spectacles(
             sh.seed = p.id.0 as u64;
             commands.spawn((Name::new("SignatureTitle"), sh));
         }
-        s.live.push(Live { id: p.id, owner: p.owner, sp: p.sp, element: p.element, form: p.form, age: 0.0, opened: false, pulse: 0.0 });
+        s.live.push(Live { id: p.id, owner: p.owner, sp: p.sp, element: p.element, form: p.form, age: 0.0, opened: false });
     }
 }
 
@@ -620,21 +618,13 @@ fn domain_state(
             let sev = me.map_or(0.0, |v| severity(v.pos + Vec3::Y * 1.6, c.pos, l.sp.radius).0);
             if !l.opened && l.age >= l.sp.windup {
                 l.opened = true;
-                for cue in [Cue::WorldDuck, Cue::DomainOpen, Cue::DomainHum { on: true }] {
+                // The seal: a deep chime, a hard duck to near-silence, then the domain's music.
+                for cue in [Cue::WorldDuck, Cue::DomainOpen, Cue::MusicStinger, Cue::DomainHum { on: true }] {
                     cues.write(SignatureCue { cue, pos: c.pos, severity: sev, mine, element: l.element, construct: l.id });
                 }
             }
-            let inside = me.is_some_and(|v| severity(v.pos + Vec3::Y * 1.6, c.pos, l.sp.radius).1);
-            if inside && l.opened {
-                let corps = corps_rgb(active.corps_of(l.owner));
-                want = Some(element_rgb(l.element, corps));
-                // Someone else's domain around you: a slow red edge pulse (comfort: flashes gate it).
-                l.pulse -= dt;
-                if !mine && l.pulse <= 0.0 {
-                    l.pulse = 1.1;
-                    flash.write(ScreenFlash { color: Color::linear_rgb(1.0, 0.05, 0.02), intensity: 0.10, duration: 0.55, vignette: true });
-                }
-            }
+            // (The inside of a domain is a rewritten world now — present::domain — not a screen tint.)
+            let _ = (&mut want, &mut flash, dt);
         }
     }
     // The grade eases in / out; comfort "flashes off" halves it (it's steady, never flashing).
@@ -805,6 +795,31 @@ fn dev_test(
         {
             info!("signature test: hold PRIMARY {secs:.2} s");
             dev.hold = Some(dev.t + secs.clamp(0.0, 10.0));
+            dev.next += 1;
+            continue;
+        }
+        // `me|!domains <a>,<b>`: the two bots (pinned left / right ahead) each expand a domain; they
+        // overlap and clash (a bystander's view).
+        if who == "me"
+            && let Some(list) = phrase.strip_prefix("!domains")
+        {
+            let fwd = look.forward();
+            let flat = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(Vec3::NEG_Z);
+            let side = flat.cross(Vec3::Y).normalize_or(Vec3::X);
+            let mid = anchor.eye + flat * 40.0 - Vec3::Y * 1.6;
+            let (l, r) = (mid - side * 13.0, mid + side * 13.0);
+            dev.clash = Some((l, r, dev.t + 12.0, true, false));
+            let bots: Vec<PlayerId> = active.bots.iter().take(2).map(|b| b.id).collect();
+            for (bot, (spot, p)) in bots.iter().zip([l, r].into_iter().zip(list.split(','))) {
+                let p = p.trim();
+                let res = lex.0.resolve(p);
+                let eye = spot + Vec3::Y * 1.6;
+                let aim = bd_sim::Aim::new(gv(eye), gv(flat));
+                if let Some(s) = res.signature.as_ref() {
+                    let cmd = crate::console::signature_cmd(res.recipe.clone(), res.shape.clone(), aim, s, p, None, None);
+                    dev.casts.push((*bot, cmd));
+                }
+            }
             dev.next += 1;
             continue;
         }

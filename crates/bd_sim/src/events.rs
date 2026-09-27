@@ -276,6 +276,10 @@ pub enum GameEvent {
     // ---- lobby knobs + Party mode (COMBAT.md §5g; crate::party) ----
     /// "Void off" lobby knob: a player fell out and was put back on a spawn point (no KO).
     VoidRescue { player: PlayerId, pos: Vec3 },
+    /// UNSTICK (`world/unstick.rs`): a player was moved out of the map geometry — `auto` = the
+    /// embedded pop-out safety net, else their own unstick request (to the safest spawn). Presentation:
+    /// a brief shimmer at `to`.
+    Unstuck { player: PlayerId, from: Vec3, to: Vec3, auto: bool },
     /// MAP MECH HOOK: transforming panel `mover` entered `phase` at tick `since` (replicated: the
     /// client mirrors mover colliders from it; presentation plays the telegraph + panel sounds).
     MapMover { mover: u8, phase: crate::world::map_mech::MoverPhase, since: i64 },

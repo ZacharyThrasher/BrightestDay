@@ -129,15 +129,9 @@ fn draw(
             c: Vec4::new(will.low as u8 as f32, will.glint.map_or(-1.0, |(i, _)| i as f32), will.glint.map_or(0.0, |(_, a)| q(a, 64.0)), q(will.full_flash, 64.0)),
             d: will.brk.map_or(Vec4::new(0.0, 0.0, -1.0, t.ghost_max as f32), |k| Vec4::new(k.lo, k.hi, q(k.age, 64.0), t.ghost_max as f32)),
             e: Vec4::new(r, th, t.span_deg.to_radians(), t.gap_deg.to_radians()),
-            f: Vec4::new((comfort.flashes <= 0.01) as u8 as f32, std::env::var_os("BD_GAUGE_QUAD").is_some() as u8 as f32, 0.0, 0.0),
+            f: Vec4::new((comfort.flashes <= 0.01) as u8 as f32, 0.0, 0.0, 0.0),
         }
     };
-    if std::env::var_os("BD_GAUGE_DEBUG").is_some() {
-        static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-        if N.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 60 == 0 {
-            info!("gauge: show {show} pool {} have {:.2} alpha {:.2} bite {:?} params {p:?} node {:?}", will.pool, will.have, will.alpha, will.bite, nodes.get(g.node).map(|n| (n.width, n.margin.left)));
-        }
-    }
     if mats.get(&g.mat).is_some_and(|m| m.params != p)
         && let Some(mut m) = mats.get_mut(&g.mat)
     {

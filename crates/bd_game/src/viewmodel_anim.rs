@@ -1442,6 +1442,11 @@ pub(super) fn drive_hand_anim(
         palm_charge = palm_charge.max(0.3 + 0.7 * h.growth);
     }
     let overhead = ball.is_some_and(|h| h.overhead);
+    // A domain expanding: the hand sign (both hands together in front, trembling).
+    if crate::present::domain::expanding(a, local) {
+        ball_palms = true;
+        palm_charge = palm_charge.max(0.8);
+    }
     if palm_charge > 0.0 {
         st.last_palm = palm_charge;
     }

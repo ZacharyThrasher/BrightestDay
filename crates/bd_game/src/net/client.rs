@@ -170,6 +170,8 @@ pub struct ClientCore {
     pace_base: Option<f64>,
     /// Other players' shouts (drained every frame by `present::shout`).
     pub shouts: Vec<(PlayerId, crate::present::shout::ShoutLine)>,
+    /// World generation of the current init (echoed with every input, see `WorldInit::epoch`).
+    epoch: u32,
 }
 
 impl ClientCore {
@@ -217,6 +219,7 @@ impl ClientCore {
             last_hit_at: 0.0,
             pace_base: None,
             shouts: Vec::new(),
+            epoch: 0,
         })
     }
 
@@ -397,6 +400,10 @@ impl ClientCore {
             S2C::WorldInit(init) => {
                 self.stats.inits += 1;
                 self.reset_replication();
+                self.epoch = init.epoch;
+                // Snapshots received before this init belong to the old world (the transport keeps
+                // order): never let one seed the new world (old-map positions in new terrain).
+                self.session.drain_latest().for_each(drop);
                 let map = init.map;
                 self.map = map;
                 let job = std::thread::Builder::new()
@@ -633,7 +640,7 @@ impl ClientCore {
         }
         if let Some(packet) = self.inputs.packet(self.interp.render_tick()) {
             self.last_send = now;
-            self.session.send(&C2S::Input { packet, snap_ack: self.snap_ack });
+            self.session.send(&C2S::Input { packet, snap_ack: self.snap_ack, epoch: self.epoch });
         }
     }
 

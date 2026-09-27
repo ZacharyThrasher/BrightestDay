@@ -137,6 +137,8 @@ struct Remote {
     joined_at: f64,
     name: String,
     corps: Corps,
+    /// World generation sent in the last `WorldInit` (inputs of older worlds are dropped).
+    epoch: u32,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -432,7 +434,23 @@ impl HostCore {
         }
         // Flush pending events first so the client's stream position matches the snapshot.
         self.flush_events(w.tick);
-        let init = WorldInit { cfg, map: self.map, arena_seed: w.arena_seed(), tick: w.tick, manifest: w.construct_manifest(), terrain_events: self.terrain_log.len() as u32 };
+        // A new world generation for this client: inputs still in flight for the old one (the
+        // client keeps playing it until this init arrives) carry the old epoch and are dropped.
+        // Without it, their (high) sequence numbers locked the fresh queue out: after a map swap
+        // the client's new inputs (numbered from 1 again) all counted as duplicates, so its player
+        // stood repeating a stale input — "stuck", until a rejoin — for as long as the old match
+        // had run.
+        let epoch = self.remotes[i].epoch.wrapping_add(1);
+        self.remotes[i].epoch = epoch;
+        let init = WorldInit {
+            cfg,
+            map: self.map,
+            arena_seed: w.arena_seed(),
+            tick: w.tick,
+            manifest: w.construct_manifest(),
+            terrain_events: self.terrain_log.len() as u32,
+            epoch,
+        };
         self.session.send(id, &S2C::WorldInit(Box::new(init)));
         for chunk in self.terrain_log.chunks(LOG_CHUNK) {
             self.session.send(id, &S2C::TerrainLog(chunk.to_vec()));
@@ -469,6 +487,7 @@ impl HostCore {
                         joined_at: now,
                         name: info.name.clone(),
                         corps: info.corps,
+                        epoch: 0,
                     });
                     self.lobby_dirty = true;
                     // Mid-match joiners enter the world once their reconnect token arrives.
@@ -547,13 +566,13 @@ impl HostCore {
                 self.remotes[i].ready = r;
                 self.lobby_dirty = true;
             }
-            C2S::Input { packet, snap_ack } => {
+            C2S::Input { packet, snap_ack, epoch } => {
                 let r = &mut self.remotes[i];
                 if packet.inputs.len() > 256 {
                     self.session.kick(from, "input flood");
                     return;
                 }
-                if r.in_world {
+                if r.in_world && epoch == r.epoch {
                     r.queue.receive(packet);
                     r.enc.ack(snap_ack);
                 }

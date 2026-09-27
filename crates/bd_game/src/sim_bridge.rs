@@ -196,6 +196,9 @@ impl ActiveWorld {
                 let _ = w.cast_signature(player, *recipe, shape, aim, sig);
             }
             Cmd::CastMeta(meta) => w.set_cast_meta(player, meta), // FREEDOM HOOK
+            Cmd::Unstick => {
+                w.request_unstick(player); // UNSTICK (host-validated: cooldown, damage lockout, queued)
+            }
         }
     }
 }
@@ -238,6 +241,9 @@ pub enum Cmd {
     /// FREEDOM HOOK (`bd_sim::freedom`): how the next cast was said — the phrase (kill feed), shout
     /// energy (≤ +15 %), an "it" resize. Sent right before its `Cast` / `Signature`; host-sanitised.
     CastMeta(bd_sim::freedom::CastMeta),
+    /// UNSTICK: move me to the safest spawn (Esc menu / bound key; `World::request_unstick` queues it
+    /// behind the cooldown / damage lockout).
+    Unstick,
 }
 
 /// Who issues a command.

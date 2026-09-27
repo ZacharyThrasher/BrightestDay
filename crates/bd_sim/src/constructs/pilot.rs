@@ -73,12 +73,216 @@ fn starts_as_vehicle(c: &Construct) -> bool {
         && (c.recipe.form == Form::Vehicle || has_feature(c, Feature::Wheels) || has_feature(c, Feature::Treads))
 }
 
-/// Rolling locomotion (tank / car / vehicle mode) vs walking / flying.
-fn rolls(c: &Construct, s: &HeldState) -> bool {
-    if c.has(Mechanic::Transforms) {
-        return s.vehicle;
-    }
+/// A ground vehicle body (wheels / treads / the Vehicle form).
+fn wheeled(c: &Construct) -> bool {
     c.recipe.form == Form::Vehicle || has_feature(c, Feature::Wheels) || has_feature(c, Feature::Treads)
+}
+
+/// How a seated pilot moves `c` this tick: `(rolling, flying, jump_boost)`.
+/// * Anything that flies (Flies / Thrust, a Jet / Rotor / Propeller, a bird) FLIES — it never rolls,
+///   even when its form is Vehicle (fighter jet, helicopter, Starscream's jet mode).
+/// * Transformers: the alt (vehicle) mode flies if the construct flies, else rolls (or walks, for a
+///   beast mode); the robot mode walks, with a hover / boost on held Jump when it flies or thrusts.
+/// * Otherwise wheels / treads / the Vehicle form roll; everything else walks.
+pub fn locomotion(c: &Construct, s: &HeldState) -> (bool, bool, bool) {
+    let can_fly = flies(c) || c.has(Mechanic::Thrust);
+    if c.has(Mechanic::Transforms) {
+        if s.vehicle {
+            return (!can_fly && wheeled(c), can_fly, false);
+        }
+        return (false, false, can_fly);
+    }
+    (!can_fly && wheeled(c), can_fly, false)
+}
+
+/// Flies like a jet (keeps a minimum speed, banks) rather than hovering: a Jet feature or Thrust,
+/// without a rotor, and not a flying beast.
+pub fn jet_like(c: &Construct) -> bool {
+    (has_feature(c, Feature::Jet) || c.has(Mechanic::Thrust))
+        && !has_feature(c, Feature::Rotor)
+        && c.recipe.form.category() != bd_core::mechanics::FormCategory::Creature
+}
+
+/// Top flight speed (m/s): jets fast, hoverers slower; scales gently with size, Fast / Heavy.
+pub fn flight_speed(c: &Construct, jet: bool) -> f32 {
+    let scale = c.recipe.scale.max(0.5);
+    let mut s = if jet { 34.0 } else { 18.0 } * (scale / 6.0).powf(0.1);
+    if c.has(Mechanic::Fast) {
+        s *= 1.3;
+    }
+    if c.has(Mechanic::Heavy) {
+        s *= 0.8;
+    }
+    s.clamp(8.0, if jet { 46.0 } else { 30.0 })
+}
+
+/// Jet minimum airspeed as a fraction of the top speed (below it only near the ground, braking).
+pub const JET_MIN_FRAC: f32 = 0.35;
+/// Within this height of the ground a braking jet may hover-taxi / land (m).
+pub const JET_TAXI_HEIGHT: f32 = 4.0;
+
+fn signed_angle_y(from: f32, to: f32) -> f32 {
+    let mut d = to - from;
+    while d > std::f32::consts::PI {
+        d -= std::f32::consts::TAU;
+    }
+    while d < -std::f32::consts::PI {
+        d += std::f32::consts::TAU;
+    }
+    d
+}
+
+/// Jet flight: the velocity turns toward the aim (turn-rate limited; Space / Ctrl tilt it up / down),
+/// W throttles to top speed, S brakes to the minimum (to a hover near the ground), nothing = cruise.
+/// The hull faces the velocity and banks into turns.
+fn fly_jet(c: &mut Construct, inp: &PlayerInput, look: Vec3, top: f32, scale: f32, env: &Env<'_>) {
+    let dt = env.dt();
+    let speed = c.vel.length();
+    let fwd = c.forward();
+    let dir = if speed > 0.5 { c.vel / speed } else { fwd };
+    let mut want = look.normalize_or(fwd);
+    if inp.held(buttons::JUMP) {
+        want += Vec3::Y * 0.7;
+    } else if inp.held(buttons::CROUCH) {
+        want -= Vec3::Y * 0.7;
+    }
+    let want = want.normalize_or(dir);
+    let rate = 2.4 / (scale / 6.0).max(1.0).powf(0.3);
+    let ang = dir.dot(want).clamp(-1.0, 1.0).acos();
+    let new_dir = if ang <= rate * dt || ang < 1e-4 {
+        want
+    } else {
+        let axis = dir.cross(want).normalize_or(Vec3::Y);
+        (Quat::from_axis_angle(axis, rate * dt) * dir).normalize_or(want)
+    };
+    let near_ground = ground_at(env.ctx.voxels, c.pos, 0.5, JET_TAXI_HEIGHT).is_some();
+    let min = top * JET_MIN_FRAC;
+    let brake = inp.move_z < 0;
+    let floor = if brake && near_ground { 0.0 } else { min };
+    let target = match inp.move_z.signum() {
+        1 => top,
+        -1 => floor,
+        _ => speed.clamp(min, top * 0.7).max(floor),
+    };
+    let accel = top * 0.8;
+    let speed = (speed + (target - speed).clamp(-accel * dt, accel * dt)).max(floor);
+    c.vel = new_dir * speed;
+    // Face the flight path (or the aim while hovering), banked into the turn.
+    let face = if speed > 1.0 { new_dir } else { Vec3::new(look.x, 0.0, look.z).normalize_or(fwd) };
+    let old_yaw = (-fwd.x).atan2(-fwd.z);
+    let new_yaw = (-face.x).atan2(-face.z);
+    let yaw_rate = signed_angle_y(old_yaw, new_yaw) / dt.max(1e-4);
+    let bank = (yaw_rate * 0.35).clamp(-0.9, 0.9);
+    let pitch = face.y.clamp(-1.0, 1.0).asin();
+    c.rot = Quat::from_rotation_y(new_yaw) * Quat::from_rotation_x(pitch) * Quat::from_rotation_z(bank);
+}
+
+/// Hover flight (helicopter, UFO, flying beast): WASD relative to the aim (its pitch included), Space
+/// climbs, Ctrl descends; the hull yaws after the camera and tilts into the motion.
+#[allow(clippy::too_many_arguments)]
+fn fly_hover(c: &mut Construct, inp: &PlayerInput, look: Vec3, cam_right: Vec3, cur_yaw: f32, top: f32, turn: f32, env: &Env<'_>) {
+    let dt = env.dt();
+    let wish = (look * inp.move_z.clamp(-1, 1) as f32 + cam_right * inp.move_x.clamp(-1, 1) as f32).normalize_or_zero();
+    let mut want = wish * top;
+    if inp.held(buttons::JUMP) {
+        want.y = top * 0.6;
+    } else if inp.held(buttons::CROUCH) {
+        want.y = -top * 0.6;
+    }
+    // Horizontal glides; vertical settles quickly (a hover holds its altitude when you let go).
+    let (bh, bv) = ((3.0 * dt).min(1.0), (6.0 * dt).min(1.0));
+    c.vel.x += (want.x - c.vel.x) * bh;
+    c.vel.z += (want.z - c.vel.z) * bh;
+    c.vel.y += (want.y - c.vel.y) * bv;
+    let yaw = cur_yaw + signed_angle_y(cur_yaw, inp.yaw).clamp(-turn * dt, turn * dt);
+    let yq = Quat::from_rotation_y(yaw);
+    let local = yq.inverse() * c.vel;
+    let tilt_fwd = (local.z / top.max(1.0) * 0.3).clamp(-0.3, 0.3);
+    let tilt_side = (-local.x / top.max(1.0) * 0.3).clamp(-0.3, 0.3);
+    c.rot = yq * Quat::from_rotation_x(tilt_fwd) * Quat::from_rotation_z(tilt_side);
+}
+
+/// Is any sample of the body (centre, nose, tail, belly, top) inside terrain with the pivot at `pos`?
+fn body_blocked<V: VoxelQuery + ?Sized>(c: &Construct, v: &V, pos: Vec3) -> bool {
+    let center = pos + c.rot * c.local_center;
+    let f = c.rot * Vec3::NEG_Z * (c.half.z * 0.8);
+    let up = Vec3::Y * (c.half.y * 0.8);
+    [center, center + f, center - f, center - up, center + up].iter().any(|p| v.is_solid(world_to_voxel(*p)))
+}
+
+/// Flight integration: axis by axis, so a flier slides along terrain and bounces a little off it
+/// instead of stopping dead or tunnelling; a body that starts inside terrain is lifted out.
+fn fly_integrate(c: &mut Construct, env: &Env<'_>) {
+    let dt = env.dt();
+    let v = env.ctx.voxels;
+    if !c.vel.is_finite() {
+        c.vel = Vec3::ZERO;
+    }
+    let mut lift = 0;
+    while lift < 16 && body_blocked(c, v, c.pos) {
+        c.pos.y += 0.25;
+        lift += 1;
+    }
+    let step = c.vel * dt;
+    for axis in [Vec3::X, Vec3::Z, Vec3::Y] {
+        let d = axis * step.dot(axis);
+        if d == Vec3::ZERO {
+            continue;
+        }
+        let next = c.pos + d;
+        if body_blocked(c, v, next) {
+            let along = c.vel.dot(axis);
+            c.vel -= axis * along * 1.2; // stop + a small bounce
+        } else {
+            c.pos = next;
+        }
+    }
+    c.grounded = false;
+}
+
+/// Can a pilot board `c` (walk up + Transform key, "get in" / "ride it")? Anything you'd drive or
+/// ride: a vehicle, a transformer, a cockpit (mech / jet), whatever already says Piloted, and
+/// creatures big enough to sit on. Never held / worn things, structures (unless Piloted: a surfboard),
+/// swarm units, attached, forming-less terrain lumps or dissolving constructs.
+pub fn boardable(c: &Construct) -> bool {
+    use bd_core::mechanics::FormCategory as C;
+    if c.gone.is_some() || c.attached() || c.model.is_some() || c.recipe.form == Form::Blob0 {
+        return false;
+    }
+    match c.category {
+        C::Held | C::Worn => false,
+        C::Structure => c.has(Mechanic::Piloted),
+        C::Creature => c.recipe.scale >= 1.2 && !c.has(Mechanic::Swarm),
+        C::Object => c.recipe.form == Form::Vehicle || c.has(Mechanic::Piloted) || c.has(Mechanic::Transforms) || has_feature(c, Feature::Cockpit),
+    }
+}
+
+/// The pilot hopped out of `c` (E / tumble eject): it is now the owner's FOLLOWER, run by its own AI
+/// (creature AI, a vehicle hunting enemies, a transformer's mode machine). A transformer keeps the mode
+/// it was left in for a moment before its AI decides (no instant flip under the pilot's feet).
+pub fn on_leave(c: &mut Construct) {
+    c.comp.xform.since = 0.0;
+    c.held.transform_req = false;
+    c.held.dash_t = 0.0;
+}
+
+/// A pilot just took the seat of `c` (spawned seated, or boarded later): it is no longer a thrown
+/// object waiting for its launch, and a transformer keeps the mode it is in (robot or vehicle).
+pub fn on_board(c: &mut Construct) {
+    c.comp.launched = true;
+    let transforms = c.has(Mechanic::Transforms);
+    let robot = transforms && super::components::boarded_mode_is_robot(c);
+    let vehicle = if transforms { !robot } else { starts_as_vehicle(c) };
+    let s = &mut c.held;
+    s.mode_init = true;
+    s.vehicle = vehicle;
+    s.transform_req = false;
+    s.transform_t = 0.0;
+    s.slam_armed = false;
+    s.dash_t = 0.0;
+    if transforms {
+        super::components::mirror_pilot_mode(c, robot);
+    }
 }
 
 fn tick_timers(s: &mut HeldState, dt: f32) {
@@ -97,6 +301,7 @@ pub fn toggle(c: &mut Construct, s: &mut HeldState, airborne: bool, fall: f32, e
     let to_robot = s.vehicle;
     s.vehicle = !s.vehicle;
     s.transform_t = TRANSFORM_SECS;
+    super::components::mirror_pilot_mode(c, to_robot); // an ejected follower keeps this mode
     s.slam_armed = to_robot && airborne;
     s.fall_speed = fall.max(0.0);
     c.set_anim(AnimState::Telegraph, env.tick());
@@ -356,37 +561,32 @@ fn ground_at<V: VoxelQuery + ?Sized>(v: &V, p: Vec3, up: f32, down: f32) -> Opti
     None
 }
 
-/// Kinematic integration for a piloted body (ground following with step-up, or flight).
-fn integrate(c: &mut Construct, env: &Env<'_>, flier: bool) {
+/// Kinematic ground integration for a piloted body (gravity, ground following with step-up, walls).
+/// Works on the body's SOLE, not its pivot: creatures pivot at the feet, objects (vehicles) at their
+/// centre — a piloted car / truck / robot-mode transformer stands on the ground instead of sinking
+/// half into it (and a transformer's reshaped robot box can't get stuck under the surface).
+fn integrate(c: &mut Construct, env: &Env<'_>) {
     let dt = env.dt();
     let v = env.ctx.voxels;
-    if flier {
-        let next = c.pos + c.vel * dt;
-        if v.is_solid(world_to_voxel(next + c.rot * c.local_center)) || v.is_solid(world_to_voxel(next)) {
-            c.vel = Vec3::ZERO;
-        } else {
-            c.pos = next;
-        }
-        c.grounded = false;
-        return;
-    }
+    let off = Vec3::Y * (c.local_center.y - c.half.y); // pivot → sole
     c.vel.y -= 25.0 * dt;
     let step_up = (c.recipe.scale * 0.2).clamp(1.0, 4.0);
-    let next = c.pos + c.vel * dt;
+    let feet = c.pos + off;
+    let next = feet + c.vel * dt;
     match ground_at(v, next, step_up, (c.vel.y.abs() * dt + 0.05).max(0.05)) {
         Some(gy) if gy >= next.y - 0.05 && c.vel.y <= 0.5 => {
-            c.pos = Vec3::new(next.x, gy, next.z);
+            c.pos = Vec3::new(next.x, gy, next.z) - off;
             c.vel.y = 0.0;
             c.grounded = true;
         }
         _ => {
-            let wall = ground_at(v, next, 30.0, 0.0).is_some_and(|gy| gy > c.pos.y + step_up);
+            let wall = ground_at(v, next, 30.0, 0.0).is_some_and(|gy| gy > feet.y + step_up);
             if wall {
                 c.vel.x = 0.0;
                 c.vel.z = 0.0;
-                c.pos.y = next.y.max(c.pos.y);
+                c.pos.y = next.y.max(feet.y) - off.y;
             } else {
-                c.pos = next;
+                c.pos = next - off;
             }
             c.grounded = false;
         }
@@ -422,9 +622,9 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let (sy, cy) = inp.yaw.sin_cos();
     let cam_fwd = Vec3::new(-sy, 0.0, -cy);
     let cam_right = Vec3::new(cy, 0.0, -sy);
-    let rolling = rolls(c, &s);
-    let flier = flies(c) && !rolling;
-    let speed = pilot_speed(c, rolling);
+    let (rolling, flier, boost) = locomotion(c, &s);
+    let jet = flier && jet_like(c);
+    let speed = if flier { flight_speed(c, jet) } else { pilot_speed(c, rolling) };
     let scale = c.recipe.scale.max(0.5);
     // Big things turn slower.
     let turn = 3.5 / (scale / 2.0).max(1.0).powf(0.4);
@@ -458,17 +658,28 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         c.held = s;
         return;
     }
-    let mut dyaw = inp.yaw - cur_yaw;
-    while dyaw > std::f32::consts::PI {
-        dyaw -= std::f32::consts::TAU;
-    }
-    while dyaw < -std::f32::consts::PI {
-        dyaw += std::f32::consts::TAU;
-    }
-    let yaw = cur_yaw + dyaw.clamp(-turn * dt, turn * dt);
-    c.rot = Quat::from_rotation_y(yaw);
-    let fwd = c.forward();
     let blend = (6.0 * dt).min(1.0);
+    if flier && s.dash_t <= 0.0 {
+        // FLIGHT (arcade): fly where the mouse aims. Jets keep a minimum speed (W throttle, S brakes;
+        // near the ground S hover-taxis / lands), bank into turns; helicopters / UFOs / flying beasts
+        // hover (WASD camera-relative, the aim's pitch included). Space climbs, Ctrl dives.
+        if jet {
+            fly_jet(c, &inp, pv.look, speed, scale, env);
+        } else {
+            fly_hover(c, &inp, pv.look, cam_right, cur_yaw, speed, turn, env);
+        }
+    } else {
+        let mut dyaw = inp.yaw - cur_yaw;
+        while dyaw > std::f32::consts::PI {
+            dyaw -= std::f32::consts::TAU;
+        }
+        while dyaw < -std::f32::consts::PI {
+            dyaw += std::f32::consts::TAU;
+        }
+        let yaw = cur_yaw + dyaw.clamp(-turn * dt, turn * dt);
+        c.rot = Quat::from_rotation_y(yaw);
+    }
+    let fwd = c.forward();
     if s.dash_t > 0.0 {
         // Charge dash in progress.
         c.vel = Vec3::new(fwd.x * 25.0, c.vel.y, fwd.z * 25.0);
@@ -480,26 +691,24 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         let target = throttle * speed * if throttle < 0.0 { 0.5 } else { 1.0 };
         let along = along + (target - along) * (2.5 * dt).min(1.0);
         c.vel = Vec3::new(fwd.x * along, c.vel.y, fwd.z * along);
-    } else {
+    } else if !flier {
         let wish = (cam_fwd * inp.move_z.clamp(-1, 1) as f32 + cam_right * inp.move_x.clamp(-1, 1) as f32).normalize_or_zero();
-        let mut want = wish * speed;
-        if flier {
-            if inp.held(buttons::JUMP) {
-                want.y = speed * 0.6;
-            } else if inp.held(buttons::CROUCH) {
-                want.y = -speed * 0.6;
-            }
-            c.vel += (want - c.vel) * blend;
-        } else {
-            c.vel.x += (want.x - c.vel.x) * blend;
-            c.vel.z += (want.z - c.vel.z) * blend;
-        }
+        let want = wish * speed;
+        c.vel.x += (want.x - c.vel.x) * blend;
+        c.vel.z += (want.z - c.vel.z) * blend;
     }
     if !flier && inp.held(buttons::JUMP) && c.grounded && !rolling {
         c.vel.y = (7.0 + scale * 0.6).min(14.0);
         c.grounded = false;
+    } else if boost && inp.held(buttons::JUMP) && !c.grounded {
+        // Robot mode of a flying transformer: hold Jump to hover / boost (like a flying suit).
+        c.vel.y = c.vel.y.max((c.vel.y + 40.0 * dt).min(7.0));
     }
-    integrate(c, env, flier);
+    if flier {
+        fly_integrate(c, env);
+    } else {
+        integrate(c, env);
+    }
     if s.slam_armed {
         s.fall_speed = s.fall_speed.max(-c.vel.y);
         if c.grounded {

@@ -114,6 +114,7 @@ pub struct PortalViewPlugin;
 impl Plugin for PortalViewPlugin {
     fn build(&self, app: &mut App) {
         super::portal_bench::build(app);
+        crate::warmup::WarmupAppExt::add_warmup(app, warmup_portal_models);
         app.init_resource::<PortalViewsOff>()
             .add_systems(PostStartup, setup)
             .add_systems(
@@ -298,6 +299,22 @@ fn setup(
         frame: 0,
         stats: ViewStats::default(),
     });
+}
+
+/// Loading: build the default gate ring and doorway frame meshes (the model cache keeps them), so the
+/// first portal of the match never voxelizes / meshes on the frame it opens.
+fn warmup_portal_models(world: &mut World) {
+    let r = bd_sim::space::PORTAL_RADIUS;
+    let layers = Some([PORTAL_MAIN_LAYER, PORTAL_VIEW_LAYER]);
+    let mut ring = PortalFx::new(r * 2.0 + 0.8, [0.2, 1.0, 0.35]);
+    ring.view_layers = layers;
+    let mut door = PortalFx::new(3.0, [0.2, 1.0, 0.35]);
+    door.style = PortalFx::DOOR;
+    door.door_aspect = bd_sim::space::DOOR_ASPECT;
+    door.view_layers = layers;
+    for fx in [ring, door] {
+        world.spawn((Name::new("portal warmup"), crate::warmup::WarmupItem, fx, Transform::default()));
+    }
 }
 
 /// Loading: both cameras render the warm-up scene from the gameplay pose (full picture), so their

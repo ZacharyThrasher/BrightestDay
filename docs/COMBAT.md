@@ -140,6 +140,20 @@ reduces air control but you can always tether out of it (a skill save).
   - autonomous non-creatures (Held / Structure / Object that Flies or Walks: "flying hammer", "wall with legs") are priced like creatures (base 25, upkeep 1.5/s), judged on the phrase as typed — party/power grafts never raise a price; a typed graft that makes your construct hunt pays the difference. Behaviour unchanged (balance pass 2, `tuning.willpower.autonomous_*`).
   - `size_factor = clamp((scale/default_scale)^1.3, 0.5, 3)`; `staleness = 1 + 0.3·(uses of this exact
     word in the last 30 s)` — repetition gets pricier; variety is free (expression!).
+- **SPARKS** (READABILITY; match rule `MatchRules::willpower_segments`, host rules page "SPARKS", 3–12,
+  default 8; replicated with the rules, protocol v32): willpower comes in whole sparks of
+  `100 / sparks` (the Normal pool; Double willpower shows twice the sparks, not bigger ones) and **every cast
+  costs whole sparks**: `sparks = max(1, floor(cost / spark + 0.35))` (`bd_sim::willpower::quantize_cost`,
+  applied after staleness / party / signature multipliers to fresh casts, grafts and animated terrain; the
+  preview uses the same function, so it is exact). Integrity is still bought at the raw price. The size +
+  rounding were chosen from the golden intent corpus (bd_game `readability::cost_survey`): the median spark
+  count per presence tier is Tiny 1, Normal 2, Big 4, Titan 5+ — what players see and hear teaches the price.
+  Examples at 8 sparks (before → after): sword 13.8 → 1 (12.5), gun 52.2 → 4 (50), wall 6.8 → 1 (12.5),
+  fire dragon 108.8 → 9 (112.5, more than a bar: sputters), meteor 16.7 → 1 (12.5), kaiju (godzilla)
+  172.8 → 14 (sputters), spirit bomb 60.9 → 5 (62.5; × the signature multiplier when cast as one).
+  Power moves (3–10 willpower) and continuous drains (upkeep, a growing energy ball) stay fractional: the
+  gauge shows them eating the partial spark and breaks each spark off as it empties. Staleness still
+  multiplies before rounding, so a 12-willpower cast needs 3 repeats inside the window before it costs 2.
 - Upkeep: held/worn constructs drain 0.6/s, creatures 1.5/s (Kaiju 4/s), structures 0.3/s. At 0
   willpower your constructs start losing integrity quickly and shatter.
 - **Never refused for willpower** (FREEDOM bundle, `bd_sim::freedom::afford`): a cast that costs more than
@@ -648,11 +662,26 @@ ultimates (`kamehameha` Beam, `unlimited void` Domain, `spirit bomb` Summon, `te
 Transformation…, matched on the phrase or the construct it resolves to); a Beam yelled with ≥ 3 "!".
 `<rest>` resolves like any phrase (element, mechanics, icon). The sim (`bd_sim::signature`,
 `tuning.signature`) then rewrites the recipe with mechanics that already exist:
-- **Domain** → `Dome` + Barrier + Trap of the phrase's element around the caster, radius 16 m
-  (+ up to 4 m by shout power), 6 s; keeps the rest's emitters / fields / traits (a shrine that Shoots, a
-  bouncy-castle domain that Bounces); drops movers (Flies, Walks, Charge, Swarm, Piloted…). Everything
-  else is the ordinary Dome/Trap/Barrier behaviour: an enemy inside is snapped up by the Trap, projectiles
-  stop at the shell, enough damage from inside or outside breaks it (integrity from its cost).
+- **Domain** (`signature::domain`, `tuning.signature.domain`; generic — any named domain, its LOOK is
+  its technique (Blade) else its element; Malevolent Shrine / Unlimited Void are showcases, not cases):
+  a `Dome` of the phrase's element around the caster, radius 16 m (+4 by shout), 9 s (`domain_life`),
+  keeping the rest's traits, dropping movers. **Expansion** 1.5 s (its forming): an ink tide spreads from
+  the caster's feet and the barrier closes from the rim to the top like an eyelid (the caster strikes a
+  hand sign; control is never taken) — nothing blocks yet, so anyone near the edge can dash out.
+  **Sealed**: a sphere barrier that blocks movement (both ways; host + prediction, `ConstructStore::
+  post_move`), projectiles, palm beams and energy balls both ways, HP 900 (break it from either side).
+  Outside it is a pitch-black orb with element veins; inside, cameras see the domain's world (sky,
+  floor, fog, light, particles, rim silhouettes). **Sure hit**: inside, the caster's aim assist is maxed
+  (homing / magnetism: `domain::aim`), their palm beams and thrown energy swing onto the nearest enemy
+  inside, their casts cost ×0.5 before the spark rounding. **Pulses** every 1.4 s: a marker at each
+  enemy's feet, 0.45 s later the look strikes whoever still stands on it (step off it): blade cuts
+  (shallow carves), fire pillars (burn), electric chains, ice slow, shadow hands (a brief root),
+  water current, earth spikes, the void's overload (everyone inside: heavy slow + the client's white
+  noise; full control kept), light / wind / poison / atomic their own. **Burnout**: no casting for 3 s
+  after it ends. **Clash**: overlapping domains push (sparks spent / 25 + 1 while holding PRIMARY,
+  15 willpower/s); the weaker shrinks 3 m/s per unit, shattering under 5 m. **Simple domain** ("simple
+  domain", "counter domain", "domain amplification", any guard word + "domain": a small Guard dome from
+  the lexicon) makes its caster immune to the pulses for 3 s.
 - **Beam** → energy from the PALMS (owner: "final flash gave me a super powered gun, not the iconic
   beam"): `Form::Hands` + Beam at caliber ×2.5 — no weapon model; hold PRIMARY to charge (both hands draw
   back around a growing orb in the element colour), release to fire (or it fires itself at full): a thick

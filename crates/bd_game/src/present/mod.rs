@@ -33,6 +33,8 @@ pub mod director;
 pub mod extend; // WUKONG: telescoping poles (Mechanic::Extends): continuous iron/gold pole, thrust, pillar, vault, needle dismiss
 pub mod guns;
 pub mod impact;
+pub mod legend; // LEGENDARY: legendary move visuals (storms, recall, waves, chains, gun specials), poses, BD_LEGEND_TEST
+pub mod legend_sound; // LEGENDARY: sound signatures + juice of the legendary move rules (recall, storms, sabers, guns…)
 pub mod local;
 pub mod hyperline; // HYPERLINE: the endless city shaft, ring gates, streaks, sparks (visual only)
 pub mod giant; // GIANT'S ROOM: sunbeam through the window + dust motes
@@ -50,6 +52,7 @@ pub mod shout;
 pub mod signature; // SIGNATURE: cut-in DANGER alert, domain grade, strike markers, audio cues
 pub mod signature_fx; // SIGNATURE: fusion windup (Merge), erasing orbs (Hollow Purple)
 pub mod palm_beam; // SIGNATURE: palm energy (Form::Hands): the orb between the hands + the sustained beam
+pub mod domain; // SIGNATURE: domain expansions (ink tide, eyelid barrier, black orb, the inside world, sure-hit pulses)
 pub mod pickups; // POWER-UPS: map pickups (beacon, heart / orb / star), the loaded hand, their sounds
 pub mod soak;
 pub mod sound;
@@ -111,10 +114,12 @@ impl Plugin for PresentPlugin {
             .add_plugins(cybertron::CybertronPlugin) // CYBERTRON: map movers (no-op on maps without them)
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
             .add_plugins(valley::ValleyPlugin) // VALLEY: water sheets + falls + mist (no-op without water sheets)
-            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin)) // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams
+            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin, domain::DomainPlugin)) // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams, domains
             .add_plugins(presence::PresencePlugin) // PRESENCE: every construct's gravitas, by tier
             .add_plugins(pickups::PickupsPlugin) // POWER-UPS: map pickups (no-op while the mode is off)
             .add_plugins(extend::ExtendPlugin) // WUKONG: telescoping poles
+            .add_plugins(legend::LegendPlugin) // LEGENDARY: legendary move visuals + poses
+            .add_plugins(legend_sound::LegendSoundPlugin) // LEGENDARY: move sounds + juice
             .add_plugins((portal_view::PortalViewPlugin, portal_cross::PortalCrossPlugin)); // PORTALS: see-through + seamless crossing
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));

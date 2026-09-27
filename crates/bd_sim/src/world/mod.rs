@@ -39,6 +39,7 @@ mod player;
 mod projectiles;
 mod punch;
 mod spatial;
+pub mod unstick; // UNSTICK: embedded-player pop-out + the player's unstick request
 
 use std::collections::VecDeque;
 
@@ -475,6 +476,7 @@ impl World {
         self.assist_post_move(n_cols, dt); // ASSIST HOOK: hook-and-strike rope rules
         self.push_players_apart(dt);
         self.solve_links(dt);
+        self.step_unstick(dt); // UNSTICK: no-progress tracking + queued unstick requests (world/unstick.rs)
         self.check_out_of_bounds();
         self.record_history();
 
@@ -556,7 +558,8 @@ impl World {
     fn step_movement(&mut self, dt: f32) {
         let Self { players, voxels, colliders, constructs, cfg, portals, fields, events, party, arena, history, .. } = self;
         let base = &cfg.move_params;
-        for p in players.iter_mut() {
+        let mut pops = [unstick::Pop::None; MAX_PLAYERS]; // UNSTICK: embedded pop-outs (resolved after the loop)
+        for (pi, p) in players.iter_mut().enumerate() {
             p.move_events = Default::default();
             if !p.alive {
                 continue;
@@ -679,6 +682,11 @@ impl World {
             }
             spatial::player_fields(&mut p.mv, p.id, tethered, p.size.scale, fields, dt);
             crate::slipstream::apply(arena.slipstream.as_ref(), &mut p.mv, &ev, dt); // SLIPSTREAM HOOK (Hyperline; same as prediction)
+            // UNSTICK: embedded in terrain > 0.25 s → nearest free space (same as prediction).
+            let seated = p.seat.is_some();
+            if let Some(slot) = pops.get_mut(pi) {
+                *slot = unstick::embed_step(&mut p.mv, &params, &*voxels, colliders, portals, seated, unstick::in_play(arena, voxels.bounds()), dt);
+            }
             let mut flags = 0u16;
             if ev.jumped {
                 flags |= move_flags::JUMP;
@@ -719,6 +727,9 @@ impl World {
             if flags != 0 {
                 events.push(GameEvent::Move { player: p.id, flags, speed: p.mv.speed() });
             }
+        }
+        for (i, pop) in pops.into_iter().enumerate().take(self.players.len()) {
+            self.after_pop(i, pop); // UNSTICK
         }
         self.resolve_wall_splats();
         // Eject from cockpits: E (TETHER_R) pressed while seated.
@@ -1302,7 +1313,9 @@ impl World {
         }
         let mut best = (usize::MAX, f32::NEG_INFINITY);
         let mut any_enemy = false;
-        for (k, s) in spawns.iter().enumerate() {
+        // UNSTICK: only spawns a player fits on (all of them on a map where none passes).
+        let clear = self.clear_spawns();
+        for (k, s) in spawns.iter().enumerate().filter(|(k, _)| clear.contains(k)) {
             let mut nearest = f32::INFINITY;
             for p in &self.players {
                 if p.alive && p.id != for_player {
@@ -1315,7 +1328,7 @@ impl World {
             }
         }
         if !any_enemy {
-            return spawns[(for_player.0 as usize) % spawns.len()];
+            return spawns[clear[(for_player.0 as usize) % clear.len()]];
         }
         spawns.get(best.0).copied().unwrap_or(self.arena.center)
     }

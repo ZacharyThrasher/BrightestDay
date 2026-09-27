@@ -1019,7 +1019,7 @@ pub fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut 
     } else if c.has(Mechanic::Shoots) && s.swing != Swing::Secondary && s.swing != Swing::Heavy && s.leg.wave_cd <= 0.0 {
         let size = item_size(c) * t.shoot_wave_size;
         let dmg = base_dmg(c, env) * t.shoot_wave_dmg;
-        launch_wave(c, s, env, out, &t, size, t.wave_speed, dmg, t.wave_kb * 0.6, false, false);
+        launch_wave(c, s, env, out, &t, size, wave_speed(&t, c.has(Mechanic::Heavy)), dmg, t.wave_kb * 0.6, false, false);
         s.leg.wave_cd = t.shoot_wave_cd;
     }
 }
@@ -2039,7 +2039,7 @@ fn charge_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Co
     let (k, dmg_k, speed_k, recoil_k) = if hold < t.charge_min {
         spec.radius *= 0.5;
         spec.explode = None;
-        (0.0, t.charge_tap_dmg, 1.5, 0.3)
+        (0.0, t.charge_tap_dmg, if c.recipe.payload.is_some() { 1.0 } else { 1.5 }, 0.3)
     } else {
         let k = ((hold - t.charge_min) / (t.charge_full - t.charge_min)).clamp(0.0, 1.0);
         spec.radius *= 1.0 + (t.charge_size_max - 1.0) * k;

@@ -124,9 +124,25 @@ fn drive_vehicle(c: &mut Construct, env: &Env<'_>) {
     }
     let dt = env.dt();
     let spec = form_spec(c.recipe.form);
-    let speed = spec.speed * speed_mult(c);
+    let mut speed = spec.speed * speed_mult(c);
     let mut heading = Vec3::new(c.forward().x, 0.0, c.forward().z).normalize_or(Vec3::NEG_Z);
-    if eff_has(c, Mechanic::Homing) {
+    if eff_has(c, Mechanic::Piloted) {
+        // PILOTING: a vehicle you hopped out of is your FOLLOWER — it hunts the nearest enemy and
+        // rams them; with no one to fight it drives back to you and idles nearby.
+        let target = env.target_for(c);
+        c.target = target.map(|t| t.id);
+        let (goal, idle) = match target {
+            Some(t) => (t.pos, false),
+            None => (env.owner.pos, Vec3::new(env.owner.pos.x - c.pos.x, 0.0, env.owner.pos.z - c.pos.z).length() < 10.0),
+        };
+        let want = Vec3::new(goal.x - c.pos.x, 0.0, goal.z - c.pos.z).normalize_or(heading);
+        let turn = (2.2 * dt).min(1.0);
+        heading = (heading + (want - heading) * turn).normalize_or(heading);
+        c.rot = geom::yaw_rotation(heading);
+        if idle {
+            speed = 0.0;
+        }
+    } else if eff_has(c, Mechanic::Homing) {
         if let Some(t) = env.target_for(c) {
             let want = Vec3::new(t.pos.x - c.pos.x, 0.0, t.pos.z - c.pos.z).normalize_or(heading);
             heading = (heading + (want - heading) * (2.0 * dt).min(1.0)).normalize_or(heading);

@@ -32,6 +32,8 @@ pub mod vote;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod swap_tests;
 
 use std::thread::JoinHandle;
 

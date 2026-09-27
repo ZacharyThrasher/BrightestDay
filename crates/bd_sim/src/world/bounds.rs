@@ -417,7 +417,7 @@ impl World {
     pub(crate) fn place_visible(&self, i: usize, recipe: &Recipe, shape: Option<&ShapeSpec>, origin: Vec3, dir: Vec3, rot: Quat, fallback: Vec3) -> Vec3 {
         let t = self.cfg.tuning.summon;
         let category = recipe.form.category();
-        let suit = recipe.has(Mechanic::Piloted) && recipe.scale <= super::actions::SUIT_MAX_SCALE;
+        let suit = recipe.has(Mechanic::Piloted) && super::actions::suit_sized(recipe);
         let applies = match category {
             FormCategory::Creature => true,
             // Domes wrap the caster, cages close around what you aim at, platforms float where aimed.

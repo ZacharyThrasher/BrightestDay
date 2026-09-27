@@ -136,6 +136,13 @@ pub struct SimConstruct {
     see: f32,
 }
 
+impl SimConstruct {
+    /// LEGENDARY: raise the white flash (super-armor soak, armored charge glow; `present::legend`).
+    pub fn flash_at_least(&mut self, f: f32) {
+        self.flash = self.flash.max(f.clamp(0.0, 1.0));
+    }
+}
+
 /// Default construct body opacity (`ConstructVisual::new`) and the "player inside" see-through one.
 const SOLID_OPACITY: f32 = 0.72;
 const SEE_THROUGH_OPACITY: f32 = 0.34;

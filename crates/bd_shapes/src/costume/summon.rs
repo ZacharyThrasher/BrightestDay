@@ -150,6 +150,15 @@ mod tests {
         assert_eq!(id("goku riding a shark", "Goku").as_deref(), Some("goku"));
         assert_eq!(id("shark", "Shark"), None);
         assert_eq!(id("gokuu", "Gokuu"), None, "no fuzzy near-misses");
+        // fighters: by name, and by the lexicon's reading of a famous move ("falcon punch" → Captain Falcon)
+        assert_eq!(id("reinhardt", "Reinhardt").as_deref(), Some("reinhardt"));
+        assert_eq!(id("reinhardt charge", "Reinhardt").as_deref(), Some("reinhardt"));
+        assert_eq!(id("reinhardt with a rocket hammer", "Reinhardt").as_deref(), Some("reinhardt with a rocket hammer"));
+        assert_eq!(id("falcon punch", "Captain Falcon").as_deref(), Some("captain falcon"));
+        assert_eq!(id("falcon", "falcon"), None, "the bird stays a bird");
+        for name in ["captain falcon", "akuma", "m bison", "kazuya", "jin kazama", "liu kang", "raiden mk", "zarya", "doomfist"] {
+            assert_eq!(id(name, name).as_deref(), Some(name));
+        }
     }
 
     #[test]

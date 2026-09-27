@@ -601,7 +601,7 @@ fn animate_viewmodel(
     mut mats: ResMut<Assets<StandardMaterial>>,
     mut st: ResMut<VmState>,
     mut held_out: ResMut<FirstPersonHeld>,
-    (pose, anchor, mut hands_out, tuning, mut bite, readable, power): (
+    (pose, anchor, mut hands_out, tuning, mut bite, readable, power, legend): (
         Res<anim::HandPose>,
         Res<crate::camera::ViewAnchor>,
         ResMut<ViewmodelHands>,
@@ -609,6 +609,7 @@ fn animate_viewmodel(
         Option<ResMut<crate::present::impact::connect::ContactBite>>,
         Res<crate::readability::Readability>,
         Res<crate::power_hud::PowerHudState>,
+        Option<Res<crate::present::legend::LegendPose>>,
     ),
     mut held_q: (
         Option<Res<crate::present::constructs::ConstructEntities>>,
@@ -680,6 +681,10 @@ fn animate_viewmodel(
     // hand + item move as one rigid body (the arm turns with the item); two-handed guns bring the
     // left palm to the fore-grip. Empty hands: the rest pose. Both + `anim::HandPose` on top.
     let tu = &tuning.0;
+    // LEGENDARY: storm raise / leap cleave / recall reach / chain spin / gun strain (present::legend).
+    if let Some(l) = legend.as_deref() {
+        swing_tf = l.fp_swing(swing_tf, anim::grip_frame(tu, aims, st.held_w, None).item_rot);
+    }
     let tip_of = |i: usize| if st.tip[i] == Vec3::ZERO { Vec3::new(0.0, 0.0, -0.6) } else { st.tip[i] };
     // Palm = the middle of the hand block (0 right, 1 left); grip_palm along the arm if unknown.
     let palm_of = |i: usize| match st.glove[i] {

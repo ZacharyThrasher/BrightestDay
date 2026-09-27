@@ -1492,3 +1492,18 @@ piloting | a tank that follows me | form=Vehicle -Piloted
 piloting | knight on a horse | mount=any -Piloted
 piloting | pilot whale | -Piloted
 piloting | board game | -Piloted
+
+# =====================================================================================================
+# costume summons (costume helper, 2026-09-26): fighters by name and by their famous move. The name wins:
+# "falcon punch" is Captain Falcon throwing it, never a falcon bird (assets/icons.ron COSTUME SUMMONS).
+# =====================================================================================================
+name_move | falcon punch | name~captain cat=Creature +Blunt -Flies
+name_move | FALCON PUNCH!! | name~captain cat=Creature +Blunt
+name_move | ~falcon punch! | name~captain +Blunt
+name_move | falcon punch on ethan | name~captain +Blunt target=Ethan
+popculture | captain falcon | name~falcon cat=Creature
+popculture | akuma | name~akuma cat=Creature +Beam
+popculture | reinhardt | name~reinhardt cat=Creature +Guard
+popculture | kazuya | name~kazuya cat=Creature
+popculture | liu kang | name~liu cat=Creature
+popculture | m. bison | name~bison cat=Creature

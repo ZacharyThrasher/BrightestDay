@@ -60,9 +60,6 @@ fn hash1(x: f32) -> f32 {
 @fragment
 fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     let t = globals.time;
-    if (p.f.y > 0.5) {
-        return vec4<f32>(1.0, 0.0, 0.0, 0.35);
-    }
     let calm = p.f.x > 0.5;
     let n = p.a.x;
     let have = p.a.y;
@@ -87,16 +84,17 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     let f = s.y;
     let cov = s.z;
     let x = i + f; // position along the gauge, in sparks
-    if (cov > 0.0 && i >= 0.0 && i < n) {
+    // A dark keyline ~1.5 px around every spark: readable over snow, sky, grass and neon alike.
+    let key = clamp(s.w + 2.0, 0.0, 1.0);
+    if (key > 0.0 && i >= 0.0 && i < n) {
         let fill = clamp(have - i, 0.0, 1.0);
-        // Dark backing: readable over snow and sky.
-        out = over(out, vec3<f32>(0.015, 0.015, 0.03), cov * 0.42);
-        // Empty spark: a dim track of the band.
-        var c = col * 0.2 + vec3<f32>(0.03);
-        var a = cov * 0.5;
+        out = over(out, vec3<f32>(0.01, 0.01, 0.025), key * 0.6);
+        // Empty spark: a dark track with a faint corps tint.
+        var c = col * 0.14 + vec3<f32>(0.04);
+        var a = cov * 0.75;
         if (f < fill) {
             // Filled; a partly filled spark is dimmer until it clicks in whole.
-            c = col * select(0.6, 1.0, fill >= 0.999);
+            c = select(col * 0.55, col, fill >= 0.999);
             a = cov;
             if (low) {
                 // Low: dim and sputter (matches the dimming constructs).
@@ -104,10 +102,10 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
                 c = c * select(0.45 + 0.55 * n1, 0.7, calm);
             }
             if (refuse) {
-                c = mix(c, vec3<f32>(1.0, 0.16, 0.1), 0.8);
+                c = vec3<f32>(1.0, 0.12, 0.08);
             } else if (cost > 0.0 && x >= bite_lo - 1e-3 && x < bite_hi + 1e-3) {
                 // The bite: the exact sparks this phrase will spend flicker light.
-                let k = select(0.45 + 0.3 * sin(t * 21.0), 0.6, calm);
+                let k = select(0.62 + 0.33 * sin(t * 21.0), 0.8, calm);
                 c = mix(c, vec3<f32>(1.0, 0.98, 0.92), k);
             }
             // Full: a flash as it tops off.
@@ -135,7 +133,7 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
             a = ring * 0.95;
         }
         out = over(out, c, a);
-    } else if (cov > 0.0 && refuse && i >= n && i < n + min(p.d.w, ceil(have + missing - n))) {
+    } else if (key > 0.0 && refuse && i >= n && i < n + min(p.d.w, ceil(have + missing - n))) {
         // Beyond the gauge's end: the rest of what it would take, as empty ghosts.
         let ring = cov * (1.0 - clamp(s.w - 1.1, 0.0, 1.0));
         out = over(out, vec3<f32>(1.0, 0.3, 0.22), ring * 0.85);

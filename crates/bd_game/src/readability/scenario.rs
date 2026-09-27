@@ -175,7 +175,8 @@ fn hold(
         let recipe = lex.0.resolve("car").recipe;
         if let Some(p) = active.world.player(me) {
             let eye = p.eye(active.world.params());
-            let dir = (p.look() + bd_core::Vec3::new(0.0, -0.35, 0.0)).normalize_or(bd_core::Vec3::NEG_Z);
+            // Off to the left and down: the summon's own flash stays out of the gauge's way.
+            let dir = bd_core::input::look_dir(sc.yaw + 0.9, -0.35);
             let before = p.willpower;
             let res = active.world.cast(me, recipe, None, bd_sim::world::Aim::new(eye, dir));
             let after = active.world.player(me).map_or(0.0, |p| p.willpower);

@@ -54,6 +54,8 @@ struct Scenario {
     /// A/B: (frame ms, views on, frames since the last switch).
     ab: Vec<(f32, bool, u32)>,
     ab_since: u32,
+    /// The entry disc's centre (tracer target).
+    aim: Vec3,
 }
 
 pub fn build(app: &mut App) {
@@ -71,6 +73,9 @@ pub fn build(app: &mut App) {
         _ => Mode::Fill,
     };
     info!("portal scenario: {mode:?}");
+    if std::env::var_os("BD_PORTAL_NOVIEW").is_some() {
+        app.insert_resource(super::portal_view::PortalViewsOff(true));
+    }
     app.insert_resource(Scenario {
         mode,
         t: 0.0,
@@ -86,6 +91,7 @@ pub fn build(app: &mut App) {
         shot_done: false,
         ab: Vec::with_capacity(20_000),
         ab_since: 0,
+        aim: Vec3::ZERO,
     })
     .add_systems(Update, drive.run_if(in_state(AppState::InGame)).run_if(resource_exists::<ActiveWorld>));
 }
@@ -101,6 +107,8 @@ fn drive(
     views: Option<Res<PortalViews>>,
     cross: Res<PortalCross>,
     mut off: ResMut<super::portal_view::PortalViewsOff>,
+    pipes: Option<Res<crate::warmup::PipelineStatus>>,
+    mut pipes_at_open: Local<u32>,
 ) {
     let dt = time.delta_secs();
     sc.t += dt;
@@ -142,6 +150,8 @@ fn drive(
         let a = fit_portal(&w.voxels, style(PortalEnd::new(super::gv(entry), super::gv(-fwd), bd_core::Vec3::Y, r)));
         let b = fit_portal(&w.voxels, style(PortalEnd::new(super::gv(exit_pos), super::gv(exit_n), bd_core::Vec3::Y, r)));
         w.create_portal(PlayerId(me.0), a, b, 120.0, None);
+        sc.aim = super::bv(a.pos);
+        *pipes_at_open = pipes.as_ref().map_or(0, |p| p.total());
         info!("portal scenario: opened (entry {:?} r {:.2}, exit {:?} r {:.2})", a.pos, a.radius, b.pos, b.radius);
     }
     // ---- frame times around the first live view (appear)
@@ -169,7 +179,9 @@ fn drive(
         let after: Vec<f32> = sc.frames.iter().filter(|f| f.0 >= first).take(8).map(|f| f.1).collect();
         let max_after = sc.frames.iter().filter(|f| f.0 >= 0.0 && f.0 < first + 1.0).map(|f| f.1).fold(0.0f32, f32::max);
         let line = format!(
-            "PORTAL APPEAR before: median {med:.2} ms p99 {p99:.2} ms | first live view {first:.3}s after opening, next 8 frames {after:.2?} ms | max within 1 s {max_after:.2} ms"
+            "PORTAL APPEAR before: median {med:.2} ms p99 {p99:.2} ms | first live view {first:.3}s after opening, next 8 frames {after:.2?} ms | max within 1 s {max_after:.2} ms | pipelines {} -> {}",
+            *pipes_at_open,
+            pipes.as_ref().map_or(0, |p| p.total())
         );
         println!("{line}");
         info!("{line}");
@@ -177,7 +189,9 @@ fn drive(
     // ---- mode actions
     match sc.mode {
         Mode::Ab if sc.opened => {
-            let on = (sc.t as u32) % 2 == 1;
+            // `BD_PORTAL_AB_OFF=<secs>`: how long the views stay off between 1 s on (default 1).
+            let off_secs: f32 = std::env::var("BD_PORTAL_AB_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0);
+            let on = sc.t % (off_secs + 1.0) >= off_secs;
             if off.0 == on {
                 off.0 = !on;
                 sc.ab_since = 0;
@@ -189,7 +203,7 @@ fn drive(
                 let (since, prev_on) = (sc.ab_since, if sc.ab_since == 0 { !on } else { on });
                 sc.ab.push((dt * 1000.0, prev_on, since));
             }
-            if sc.t > 13.0 && !sc.reported {
+            if sc.t > std::env::var("BD_PORTAL_AB_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(13.0) && !sc.reported {
                 sc.reported = true;
                 let stat = |f: &dyn Fn(&(f32, bool, u32)) -> bool| {
                     let mut v: Vec<f32> = sc.ab.iter().filter(|x| f(x)).map(|x| x.0).collect();
@@ -215,7 +229,7 @@ fn drive(
             sc.next_shot -= dt;
             if sc.next_shot <= 0.0 {
                 sc.next_shot = 0.12;
-                let target = sc.entry + Vec3::Y * 0.4;
+                let target = sc.aim + Vec3::Y * 0.3;
                 let from = sc.eye + Vec3::new(0.0, -0.3, 0.0);
                 let dir = (target - from).normalize();
                 let mut s = bd_sim::projectile::ProjectileSpawn::ring_blast(me, super::gv(from + dir * 0.6), super::gv(dir));

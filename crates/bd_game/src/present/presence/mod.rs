@@ -344,7 +344,10 @@ fn track(
     spectacle: bool,
     corps: [f32; 3],
 ) -> Tracked {
-    let tier = tier::tier(&TierInput::of(recipe, cost, legendary, spectacle, false), &t.tier);
+    // LEGENDARY: a famous held weapon (an icon: Mjolnir, the Buster Sword, the golden gun) reads
+    // legendary like the golden roll (lifts the held cap to Titan); its colours stay its own.
+    let famous = bd_sim::constructs::legend::famous(recipe);
+    let tier = tier::tier(&TierInput::of(recipe, cost, legendary || famous, spectacle, false), &t.tier);
     let cat = recipe.form.category();
     Tracked {
         id,

@@ -1788,6 +1788,446 @@
             sequence: false,
             stereo: false,
         ), // a held power is ready again: soft E5 hard-light bell + faint octave shimmer (pitched per power in game)
+        "recall_whoosh": (
+            files: ["sfx/recall_whoosh_1.ogg", "sfx/recall_whoosh_2.ogg", "sfx/recall_whoosh_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND recall: the item tears back to the hand - rising spin whir + air, building toward the catch
+        "recall_catch": (
+            files: ["sfx/recall_catch_1.ogg", "sfx/recall_catch_2.ogg", "sfx/recall_catch_3.ogg", "sfx/recall_catch_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND the CATCH SNAP: steel smacking into a gripping palm (muted ring) + leather slap + sub thump
+        "lodge_thunk": (
+            files: ["sfx/lodge_thunk_1.ogg", "sfx/lodge_thunk_2.ogg", "sfx/lodge_thunk_3.ogg", "sfx/lodge_thunk_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND lodge: blade bites stone/earth - chunk + chips + the embedded handle quivering
+        "thor_flight_loop": (
+            files: ["sfx/thor_flight_loop_1.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND loop: recall flight - dragged behind the item: wind rush + low roar + edge whistle
+        "storm_raise": (
+            files: ["sfx/storm_raise_1.ogg", "sfx/storm_raise_2.ogg", "sfx/storm_raise_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND storm raise: the item lifted to the sky - crackling charge-up rising to a hard-light Em flash
+        "storm_fizzle": (
+            files: ["sfx/storm_fizzle_1.ogg", "sfx/storm_fizzle_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND storm raise while recharging: a sputter - weak crackles, a sagging buzz, dies
+        "storm_mark": (
+            files: ["sfx/storm_mark_1.ogg", "sfx/storm_mark_2.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND storm telegraph (0.5 s): an ominous low swell with quickening tremolo, peaking as it lands
+        "storm_bolt": (
+            files: ["sfx/storm_bolt_1.ogg", "sfx/storm_bolt_2.ogg", "sfx/storm_bolt_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND lightning: tearing crack (dense crackle, 2 strokes) + arc buzz + sub + rolling thunder
+        "storm_meteor_whistle": (
+            files: ["sfx/storm_meteor_whistle_1.ogg", "sfx/storm_meteor_whistle_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND meteor rain incoming: 3 falling whistles + a growing low roar, timed to land at 0.5 s
+        "storm_meteor_hit": (
+            files: ["sfx/storm_meteor_hit_1.ogg", "sfx/storm_meteor_hit_2.ogg", "sfx/storm_meteor_hit_3.ogg", "sfx/storm_meteor_hit_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND meteor drop (layered on the explosion): rock crunch + a fire whump, no second boom
+        "storm_icicle": (
+            files: ["sfx/storm_icicle_1.ogg", "sfx/storm_icicle_2.ogg", "sfx/storm_icicle_3.ogg", "sfx/storm_icicle_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND icicle spear: sharp crack + ice shatter (tuned crystal) + glassy shards + small thud
+        "storm_tornado": (
+            files: ["sfx/storm_tornado_1.ogg", "sfx/storm_tornado_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND tornado (lasts the ~1.6 s linger): vortex roar + wobbling whistle + rotating whum + debris
+        "storm_geyser": (
+            files: ["sfx/storm_geyser_1.ogg", "sfx/storm_geyser_2.ogg", "sfx/storm_geyser_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -12.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND geyser: pressure thump + rising water column rush + gurgle bloops + falling droplet patter
+        "storm_crush": (
+            files: ["sfx/storm_crush_1.ogg", "sfx/storm_crush_2.ogg", "sfx/storm_crush_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND psychic crush: a pressure suck-in, then a deep slam + a warped low ring pressing down
+        "storm_spikes": (
+            files: ["sfx/storm_spikes_1.ogg", "sfx/storm_spikes_2.ogg", "sfx/storm_spikes_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND earth spikes: a rising grind, then stone spikes bursting up one after another + rumble
+        "storm_maw": (
+            files: ["sfx/storm_maw_1.ogg", "sfx/storm_maw_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND shadow maw: hollow growl drone, two jaw chomps, grinding chew, a swallowing suck
+        "storm_nova": (
+            files: ["sfx/storm_nova_1.ogg", "sfx/storm_nova_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND atomic nova (layered on the explosion): suck-in rise, then a searing crackling ring-out
+        "storm_miasma": (
+            files: ["sfx/storm_miasma_1.ogg", "sfx/storm_miasma_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND poison miasma: gas vent hiss (band-limited, grained) + slow bubbling + a sickly detuned drone
+        "storm_arc": (
+            files: ["sfx/storm_arc_1.ogg", "sfx/storm_arc_2.ogg", "sfx/storm_arc_3.ogg", "sfx/storm_arc_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND lightning arcs on to the next enemy: a short zap
+        "ricochet_ding": (
+            files: ["sfx/ricochet_ding_1.ogg", "sfx/ricochet_ding_2.ogg", "sfx/ricochet_ding_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND ricochet bounce: bright steel ding tuned on E6 + a spark (game pitches it up the pentatonic per bounce)
+        "saber_hum_loop": (
+            files: ["sfx/saber_hum_loop_1.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -26.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND loop: energy blade idle hum (Blade + Fast, Electric / Light) - motor harmonics + slow beat; the game pitches / swells it with blade speed
+        "saber_swoosh": (
+            files: ["sfx/saber_swoosh_1.ogg", "sfx/saber_swoosh_2.ogg", "sfx/saber_swoosh_3.ogg", "sfx/saber_swoosh_4.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND energy blade swing: doppler swoosh - the hum pitched up and back down past you + a little air
+        "saber_deflect": (
+            files: ["sfx/saber_deflect_1.ogg", "sfx/saber_deflect_2.ogg", "sfx/saber_deflect_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND energy blade deflect: a sizzling ping - bright FM strike + crackling sizzle + hum flare
+        "blade_wave": (
+            files: ["sfx/blade_wave_1.ogg", "sfx/blade_wave_2.ogg", "sfx/blade_wave_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND crescent slash launched: a falling energy "shing" + a heavy air slice + a low push (the game pitches it down for bigger waves)
+        "blade_wave_loop": (
+            files: ["sfx/blade_wave_loop_1.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND loop carried along a flying crescent: fluttering tonal whirr (E) + cutting air
+        "leap_whoosh": (
+            files: ["sfx/leap_whoosh_1.ogg", "sfx/leap_whoosh_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND heavy-blade leap: a big body of air shoved upward + armour rattle + push thump
+        "leap_slam": (
+            files: ["sfx/leap_slam_1.ogg", "sfx/leap_slam_2.ogg", "sfx/leap_slam_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -9.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND heavy-blade cleave landing: massive blade-into-ground impact, crater debris, long rumble
+        "armor_clang": (
+            files: ["sfx/armor_clang_1.ogg", "sfx/armor_clang_2.ogg", "sfx/armor_clang_3.ogg", "sfx/armor_clang_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND super armour soaked a hit: a hard metallic clang + a low stagger thump (the wielder does not budge)
+        "chain_sweep": (
+            files: ["sfx/chain_sweep_1.ogg", "sfx/chain_sweep_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND chain blades 360 sweep: chains whirling one full circle (rattle + air sweeping round) + blade hum
+        "chain_fire_roar": (
+            files: ["sfx/chain_fire_roar_1.ogg", "sfx/chain_fire_roar_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND flaming chain sweep layer: a fire roar whooshing round + ember crackle
+        "chain_pull": (
+            files: ["sfx/chain_pull_1.ogg", "sfx/chain_pull_2.ogg", "sfx/chain_pull_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND chain blades latch + yank: links rattling taut, a steel snap, the chain twang, a heave
+        "golden_gun": (
+            files: ["sfx/golden_gun_1.ogg", "sfx/golden_gun_2.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -10.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND one-shot gun: one huge dry report + a golden ring-out (tuned steel, E minor) - no room tail
+        "needle_tick": (
+            files: ["sfx/needle_tick_1.ogg", "sfx/needle_tick_2.ogg", "sfx/needle_tick_3.ogg", "sfx/needle_tick_4.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND needle stuck in: a glassy crystal tick (game pitches it up per needle)
+        "supercombine": (
+            files: ["sfx/supercombine_1.ogg", "sfx/supercombine_2.ogg", "sfx/supercombine_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -12.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND needles supercombine: a crystalline burst (tuned crystal shatter + pink shard run + chord bloom)
+        "grav_grab": (
+            files: ["sfx/grav_grab_1.ogg", "sfx/grav_grab_2.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND gravity gun catch: latch clunk + a tractor hum swelling in (rising zwoop, wobble)
+        "grav_punt": (
+            files: ["sfx/grav_punt_1.ogg", "sfx/grav_punt_2.ogg", "sfx/grav_punt_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -12.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND gravity gun punt: a huge air-pressure thump + release whoosh + mechanism clank
+        "stream_loop": (
+            files: ["sfx/stream_loop_1.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND loop: proton stream latched - raw wobbling FM buzz + irregular crackle + thin whine
+        "stream_snap": (
+            files: ["sfx/stream_snap_1.ogg", "sfx/stream_snap_2.ogg", "sfx/stream_snap_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND proton stream let go / broke: a crackling snap + falling whine
+        "gun_charge_loop": (
+            files: ["sfx/gun_charge_loop_1.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: true,
+            pitch: (1.000, 1.000),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND loop: charge-shot capacitor whine (E) + tremolo + crackle; the game raises its pitch 1.0 -> 1.5x
+        "gun_charge_full": (
+            files: ["sfx/gun_charge_full_1.ogg", "sfx/gun_charge_full_2.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND charge shot full: a bright E-minor hard-light chime + a small latch
+        "bfg_spinup": (
+            files: ["sfx/bfg_spinup_1.ogg", "sfx/bfg_spinup_2.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND BFG spin-up (0.5 s): a rising turbine whine + plasma crackle build + a low swell into the shot
+        "charge_shot_tap": (
+            files: ["sfx/charge_shot_tap_1.ogg", "sfx/charge_shot_tap_2.ogg", "sfx/charge_shot_tap_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND charge cannon tap: a quick plasma pellet - falling FM blip + snap + small thump
+        "charge_shot_blast": (
+            files: ["sfx/charge_shot_blast_1.ogg", "sfx/charge_shot_blast_2.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND charge cannon full blast: plasma discharge - a heavy snap, a down-sweeping roar of FM, crackle, sub
+        "bfg_zap": (
+            files: ["sfx/bfg_zap_1.ogg", "sfx/bfg_zap_2.ogg", "sfx/bfg_zap_3.ogg", "sfx/bfg_zap_4.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // LEGEND BFG orb tendril: a short, darker, thick plasma zap
     },
     ko_streak: (
         key: "E minor pentatonic",

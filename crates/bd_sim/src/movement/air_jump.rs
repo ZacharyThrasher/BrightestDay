@@ -68,6 +68,9 @@ pub struct ExtraMoves {
     /// LEGENDARY: recall flight + heavy-blade leap counters / state (`constructs::legend::pre_move`,
     /// predicted). Default unless the player holds a legendary-kit item.
     pub legend: crate::constructs::legend::LegendMoves,
+    /// UNSTICK: seconds the hull has been embedded in terrain (`world/unstick.rs` pop-out; 0 in
+    /// normal play, so it costs nothing on the wire).
+    pub stuck: f32,
 }
 
 impl Default for ExtraMoves {
@@ -85,6 +88,7 @@ impl Default for ExtraMoves {
             vault_cd: 0.0,
             extra_air_jumps_used: 0,
             legend: crate::constructs::legend::LegendMoves::default(),
+            stuck: 0.0,
         }
     }
 }
@@ -155,6 +159,7 @@ impl ExtraMoves {
         if !self.surf_n.is_finite() {
             self.surf_n = Vec3::ZERO;
         }
+        self.stuck = f(self.stuck, 0.0).clamp(0.0, 10.0);
     }
 }
 

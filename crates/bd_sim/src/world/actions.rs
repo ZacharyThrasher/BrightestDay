@@ -45,6 +45,17 @@ fn willpower_autonomous_form(f: Form) -> bool {
 
 /// Suits: a piloted construct at or below this scale wraps its pilot (COMBAT.md §3d).
 pub const SUIT_MAX_SCALE: f32 = 2.6;
+/// PILOTING: walk up to your own boardable construct and press the Transform key within this reach
+/// (m, from your eye to its body) to take the seat (COMBAT.md §5d-ter).
+pub const BOARD_REACH: f32 = 4.0;
+/// PILOTING: "get in" / "ride it" / "take the wheel" boards an own construct within this range (m).
+pub const BOARD_COMMAND_RANGE: f32 = 40.0;
+
+/// Is a piloted `recipe` a suit (wraps its pilot) rather than a cockpit (the pilot sits in / on it)?
+/// Small humanoids and small transformers are suits; a horse, a car or a dragon is ridden.
+pub fn suit_sized(recipe: &Recipe) -> bool {
+    recipe.scale <= SUIT_MAX_SCALE && (recipe.form == Form::Biped || recipe.has(Mechanic::Transforms))
+}
 /// Casting reach for placement (m).
 pub const CAST_RANGE: f32 = 60.0;
 
@@ -342,6 +353,10 @@ impl World {
             self.players[i].last_target = Some(n.player);
         }
 
+        // 0. PILOTING: "get in" / "ride it" / "take the wheel" boards an own construct (never builds).
+        if crate::constructs::graft::command_of(&recipe) == Some(crate::constructs::graft::Command::Board) {
+            return self.board_command(player, hinted_own.or(own_hit.map(|h| h.0)));
+        }
         // 1. Graft onto an own construct (never when the words named a player).
         if let Some(cid) = hinted_own.or(own_hit.map(|h| h.0)).filter(|_| !crate::signature::builds_fresh(self) && named.is_none()) {
             return self.graft(i, cid, recipe, typed);
@@ -600,7 +615,7 @@ impl World {
         };
         let pos = if model.is_none() { crate::signature::orbital_spawn(self, &recipe, origin, aim_point, pos) } else { pos }; // SIGNATURE HOOK: orbital emitters hover high
         let piloted = recipe.has(Mechanic::Piloted) && !matches!(category, FormCategory::Held | FormCategory::Worn);
-        let suit = piloted && recipe.scale <= SUIT_MAX_SCALE;
+        let suit = piloted && suit_sized(&recipe);
         // BOUNDS HOOK: lifetimes from `tuning.summon` (was `lifetime_secs`, dome 3 s, piloted ≥ 30 s).
         let mut life = self.cfg.tuning.summon.lifetime(recipe.form);
         if piloted {
@@ -893,6 +908,7 @@ impl World {
         }
         c.pilot = Some(player);
         c.suit = suit;
+        crate::constructs::pilot::on_board(c); // PILOTING: no launch pending; a transformer keeps its mode
         let titan = !suit && crate::constructs::titan::walks(c);
         let p = &mut self.players[i];
         p.seat = Some(Seat { construct: cid, part, suit });
@@ -911,14 +927,128 @@ impl World {
     /// (COMBAT.md §5d-bis): toggles the seated suit / cockpit construct with `Mechanic::Transforms`
     /// between robot and alt (vehicle) mode. The switch happens on the next tick
     /// (`constructs::pilot::toggle`). Returns false if not seated in a transformer.
+    ///
+    /// PILOTING (COMBAT.md §5d-ter): on foot, the same key BOARDS your own boardable construct
+    /// ([`Self::board_nearby`]: within [`BOARD_REACH`] and looked at) — so the one key that
+    /// transforms a transformer also gets you into it.
     pub fn toggle_transform(&mut self, player: PlayerId) -> bool {
-        let Some(seat) = self.player(player).and_then(|p| p.seat) else { return false };
+        let Some(seat) = self.player(player).and_then(|p| p.seat) else { return self.board_nearby(player).is_some() };
         match self.constructs.get_mut(seat.construct) {
             Some(c) if c.gone.is_none() && c.has(Mechanic::Transforms) => {
                 c.held.transform_req = true;
                 true
             }
             _ => false,
+        }
+    }
+
+    // ---------------------------------------------------------------------------- boarding
+
+    /// Why `player` can't board `cid` right now (None = they can). Host rule: only the OWNER, alive,
+    /// on foot (not seated, not stunned / reciting / charging), a live boardable construct nobody
+    /// pilots, within `reach` (m, eye to its body). Enemies never board your constructs (a giant's
+    /// hijack is its own rule: `constructs::giant::step_hijack`).
+    pub fn board_blocker(&self, player: PlayerId, cid: ConstructId, reach: f32) -> Option<CastError> {
+        let Some(p) = self.player(player) else { return Some(CastError::UnknownPlayer) };
+        if !p.alive {
+            return Some(CastError::Dead);
+        }
+        if p.seat.is_some() || p.status.stunned() || p.oath.reciting() || p.charge.active {
+            return Some(CastError::Busy);
+        }
+        let Some(c) = self.constructs.get(cid) else { return Some(CastError::Fizzled) };
+        if c.owner != player || c.pilot.is_some() || !crate::constructs::pilot::boardable(c) {
+            return Some(CastError::Fizzled);
+        }
+        let eye = p.eye(&self.cfg.move_params);
+        let b = c.bounds();
+        if geom::dist_sq_point_aabb(&b, eye) > reach * reach {
+            return Some(CastError::Fizzled);
+        }
+        None
+    }
+
+    /// Board `cid` (see [`Self::board_blocker`]): graft `Piloted` onto it (replicated as a free
+    /// `Grafted`) and seat the owner — a cockpit, or a suit for small humanoids / transformers. A
+    /// transformer keeps the mode it is in (robot or vehicle); the Transform key still switches it.
+    pub fn board(&mut self, player: PlayerId, cid: ConstructId, reach: f32) -> Result<ConstructId, CastError> {
+        if let Some(e) = self.board_blocker(player, cid, reach) {
+            return Err(e);
+        }
+        let Some(c) = self.constructs.get(cid) else { return Err(CastError::Fizzled) };
+        if !c.has(Mechanic::Piloted) {
+            let mut add = Recipe::unknown("piloted");
+            add.mechanics = vec![Mechanic::Piloted];
+            let add = add.normalized();
+            if let Some(r) = self.constructs.graft(cid, &add).cloned() {
+                self.events.push(GameEvent::Grafted { player, id: cid, recipe: Box::new(r), cost: 0.0 });
+            }
+        }
+        let suit = self.constructs.get(cid).is_some_and(|c| suit_sized(&c.recipe));
+        if self.seat(player, cid, 0, suit) { Ok(cid) } else { Err(CastError::Busy) }
+    }
+
+    /// The Transform key on foot: board [`Self::board_candidate`]. Returns the boarded construct.
+    pub fn board_nearby(&mut self, player: PlayerId) -> Option<ConstructId> {
+        let cid = self.board_candidate(player)?;
+        self.board(player, cid, BOARD_REACH + 0.5).ok()
+    }
+
+    /// Which own construct the Transform key would board right now: a boardable one nobody pilots
+    /// within [`BOARD_REACH`] of the eye — the one the look ray passes through, else the nearest in
+    /// a 45° cone. Read-only and deterministic (ties → lower id), so the client's "you can get in"
+    /// glow (bd_game `construct_anim`) asks exactly this.
+    pub fn board_candidate(&self, player: PlayerId) -> Option<ConstructId> {
+        let p = self.player(player)?;
+        if !p.alive || p.seat.is_some() {
+            return None;
+        }
+        let eye = p.eye(&self.cfg.move_params);
+        let look = p.look();
+        let mut best: Option<(f32, ConstructId)> = None;
+        for c in self.constructs.owned_by(player) {
+            if c.pilot.is_some() || !crate::constructs::pilot::boardable(c) {
+                continue;
+            }
+            let b = c.bounds();
+            let d2 = geom::dist_sq_point_aabb(&b, eye);
+            if d2 > BOARD_REACH * BOARD_REACH {
+                continue;
+            }
+            let to = (b.center() - eye).normalize_or(look);
+            let looked = geom::segment_aabb(eye, eye + look * (BOARD_REACH + 0.5), &b).is_some();
+            if !looked && to.dot(look) < std::f32::consts::FRAC_1_SQRT_2 && d2 > 0.25 {
+                continue;
+            }
+            let score = if looked { d2 } else { d2 + 100.0 };
+            if best.is_none_or(|(s, id)| score < s || (score == s && c.id < id)) {
+                best = Some((score, c.id));
+            }
+        }
+        best.map(|(_, id)| id)
+    }
+
+    /// "get in" / "hop in" / "ride it" / "let me drive" / "take the wheel": board the aimed own
+    /// construct if boardable, else the nearest boardable one within [`BOARD_COMMAND_RANGE`].
+    /// Nothing to board fizzles (no cost: a command never builds anything).
+    pub fn board_command(&mut self, player: PlayerId, aimed: Option<ConstructId>) -> Result<ConstructId, CastError> {
+        if let Some(cid) = aimed.filter(|&cid| self.board_blocker(player, cid, BOARD_COMMAND_RANGE).is_none()) {
+            return self.board(player, cid, BOARD_COMMAND_RANGE);
+        }
+        let eye = self.player(player).map(|p| p.eye(&self.cfg.move_params)).ok_or(CastError::UnknownPlayer)?;
+        let mut best: Option<(f32, ConstructId)> = None;
+        for c in self.constructs.owned_by(player) {
+            if c.pilot.is_some() || !crate::constructs::pilot::boardable(c) {
+                continue;
+            }
+            let d2 = geom::dist_sq_point_aabb(&c.bounds(), eye);
+            if d2 <= BOARD_COMMAND_RANGE * BOARD_COMMAND_RANGE && best.is_none_or(|(s, id)| d2 < s || (d2 == s && c.id < id)) {
+                best = Some((d2, c.id));
+            }
+        }
+        match best {
+            Some((_, cid)) => self.board(player, cid, BOARD_COMMAND_RANGE),
+            None => Err(CastError::Fizzled),
         }
     }
 
@@ -941,6 +1071,7 @@ impl World {
         let top = self.constructs.get(cid).map(|c| c.bounds().max.y);
         if let Some(c) = self.constructs.get_mut(cid) {
             c.pilot = None;
+            crate::constructs::pilot::on_leave(c); // PILOTING: hop out = your follower from here
         }
         let gas_max = self.cfg.move_params.gas_max;
         let p = &mut self.players[i];

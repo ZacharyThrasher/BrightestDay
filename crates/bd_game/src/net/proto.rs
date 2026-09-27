@@ -315,6 +315,9 @@ pub enum NetCmd {
     Signature { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, aim: Aim, sig: bd_sim::signature::SignatureCast },
     /// FREEDOM HOOK: how the next cast was said (`Cmd::CastMeta`).
     CastMeta(bd_sim::freedom::CastMeta),
+    /// UNSTICK (protocol v35): move me to the safest spawn (`World::request_unstick`: host-side
+    /// cooldown, damage lockout unless stuck, queued until it can fire).
+    Unstick,
 }
 
 impl NetCmd {
@@ -347,6 +350,7 @@ impl NetCmd {
             Cmd::GrantPower(_) => return None,
             Cmd::Signature { recipe, shape, aim, sig } => NetCmd::Signature { seq: cast_seq, recipe, shape: small(shape), aim, sig },
             Cmd::CastMeta(m) => NetCmd::CastMeta(m),
+            Cmd::Unstick => NetCmd::Unstick,
         })
     }
 
@@ -384,6 +388,8 @@ impl NetCmd {
                 let phrase = bd_fx::sanitize_shout(&m.phrase, bd_fx::SHOUT_MAX_CHARS);
                 Cmd::CastMeta(bd_sim::freedom::CastMeta { phrase, ..m }.sanitized())
             }
+            // The sim enforces the cooldown / lockout itself.
+            NetCmd::Unstick => Cmd::Unstick,
         })
     }
 }
@@ -397,8 +403,11 @@ pub enum C2S {
     Token(u64),
     Profile(NetProfile),
     Ready(bool),
-    /// Inputs (with redundancy) + the newest snapshot tick decoded (delta baseline ack).
-    Input { packet: InputPacket<PlayerInput>, snap_ack: Tick },
+    /// Inputs (with redundancy) + the newest snapshot tick decoded (delta baseline ack). `epoch` =
+    /// the [`WorldInit::epoch`] they belong to (protocol v35): the host drops inputs of an older
+    /// world, so a map swap / resync never lets the old match's sequence numbers lock out the new
+    /// ones (the "stuck after a map swap" playtest bug).
+    Input { packet: InputPacket<PlayerInput>, snap_ack: Tick, epoch: u32 },
     Cmd(NetCmd),
     /// The snapshot baseline was unknown: send a keyframe.
     KeyframeReq,
@@ -423,6 +432,8 @@ pub struct WorldInit {
     pub manifest: Vec<GameEvent>,
     /// Number of terrain events that follow in `TerrainLog` chunks.
     pub terrain_events: u32,
+    /// Per-client world generation (protocol v35): bumped on every init; echoed in `C2S::Input`.
+    pub epoch: u32,
 }
 
 /// What became of a client's cast.
@@ -533,10 +544,12 @@ mod tests {
 
     #[test]
     fn roundtrip_messages() {
-        let m = C2S::Input { packet: InputPacket { view_tick: 12.5, inputs: vec![PlayerInput::default()] }, snap_ack: 9 };
+        let m = C2S::Input { packet: InputPacket { view_tick: 12.5, inputs: vec![PlayerInput::default()] }, snap_ack: 9, epoch: 3 };
         let b = bd_net::codec::encode(&m);
         let back: C2S = bd_net::codec::decode(&b).unwrap();
-        assert!(matches!(back, C2S::Input { snap_ack: 9, .. }));
+        assert!(matches!(back, C2S::Input { snap_ack: 9, epoch: 3, .. }));
+        let back: C2S = bd_net::codec::decode(&bd_net::codec::encode(&C2S::Cmd(NetCmd::Unstick))).unwrap();
+        assert!(matches!(back, C2S::Cmd(NetCmd::Unstick)));
         let s = S2C::TerrainCheck { tick: 5, hash: 77 };
         let back: S2C = bd_net::codec::decode(&bd_net::codec::encode(&s)).unwrap();
         assert!(matches!(back, S2C::TerrainCheck { tick: 5, hash: 77 }));

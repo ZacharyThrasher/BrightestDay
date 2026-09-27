@@ -588,6 +588,8 @@ impl World {
         let _ = super::spatial::player_portals(state, &mut inp, &mut cd, &params, pre_center, pre_vel, &self.portals);
         super::spatial::player_fields(state, player, state.tethered(), p.size.scale, &self.fields, DT);
         crate::slipstream::apply(self.arena.slipstream.as_ref(), state, &ev, DT); // SLIPSTREAM HOOK (same as the host)
+        // UNSTICK: the embedded pop-out, exactly as the host (a spawn fallback arrives as a correction).
+        let _ = super::unstick::embed_step(state, &params, &self.voxels, &self.colliders, &self.portals, p.seat.is_some(), super::unstick::in_play(&self.arena, self.voxels.bounds()), DT);
         crate::hook::local_rules(state, &self.cfg.tuning.assist.hook, &params); // ASSIST HOOK: over-long rope on a player lets go (as on the host)
         ev
     }

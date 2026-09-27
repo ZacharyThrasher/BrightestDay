@@ -200,6 +200,9 @@ fn gun_events(
                 let voice = first && (*archetype != GunArchetype::Minigun || volley.2 % 2 == 0);
                 let (kind, size, impact_scale) = tracer_look(*archetype);
                 let color = corps_rgb(active.corps_of(*owner));
+                // LEGENDARY: the precision one-shot (golden gun) fires one fat GOLD round.
+                let golden = active.world.constructs.held_by(*owner).is_some_and(|c| bd_sim::constructs::legend::one_shot_recipe(&c.recipe, c.flair & bd_sim::replicate::cflags::LEGENDARY != 0));
+                let (color, size) = if golden { ([1.0, 0.72, 0.16], size * 2.2) } else { (color, size) };
                 if tracers.0.len() >= MAX_TRACERS {
                     if let Some(old) = tracers.0.pop_front() {
                         commands.entity(old).try_despawn();
@@ -353,7 +356,14 @@ fn sync_projectiles(
             }
             None => {
                 let (k, size) = fx_kind(pr.spec.kind);
-                let mut fx = ProjectileFx::new(k, corps_rgb(active.corps_of(pr.spec.owner)));
+                // LEGENDARY: the BFG orb is big and green; needles are pink crystal.
+                let gun = pr.spec.construct.and_then(|id| active.world.constructs.get(id));
+                let (col, size) = match gun {
+                    Some(g) if bd_sim::constructs::legend::bfg(g) => ([0.25, 1.0, 0.3], size * 3.0),
+                    Some(g) if bd_sim::constructs::legend::needler(g) => ([1.0, 0.32, 0.78], size * 0.7),
+                    _ => (corps_rgb(active.corps_of(pr.spec.owner)), size),
+                };
+                let mut fx = ProjectileFx::new(k, col);
                 fx.size = size;
                 let e = commands.spawn((fx, tf, Visibility::default())).id();
                 map.0.insert(pr.id, e);

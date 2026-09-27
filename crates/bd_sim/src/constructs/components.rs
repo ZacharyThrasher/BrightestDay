@@ -1050,7 +1050,14 @@ pub fn react(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         }
     }
     // Objects that came to rest expire shortly (unless something keeps them busy).
-    let lingers = eff_has(c, Mechanic::Flies) || eff_has(c, Mechanic::Walks) || eff_has(c, Mechanic::Attract) || eff_has(c, Mechanic::Repel) || eff_has(c, Mechanic::Transforms);
+    // PILOTING: a vehicle you drive (or hopped out of) waits for you instead of expiring at rest.
+    let lingers = eff_has(c, Mechanic::Flies)
+        || eff_has(c, Mechanic::Walks)
+        || eff_has(c, Mechanic::Attract)
+        || eff_has(c, Mechanic::Repel)
+        || eff_has(c, Mechanic::Transforms)
+        || eff_has(c, Mechanic::Piloted)
+        || c.pilot.is_some();
     if c.category == FormCategory::Object && c.comp.launched && !lingers && c.stuck_to.is_none() && c.comp.attached_to.is_none() {
         if c.body.supported && c.vel.length_squared() < 0.25 {
             c.comp.rest_t += dt;
@@ -1693,11 +1700,46 @@ pub fn swarm_split(c: &mut Construct, out: &mut ConstructOut) {
 
 // ------------------------------------------------------------------------------------ Transforms
 
+/// PILOTING: a seated pilot switches modes through `HeldState` (pilot.rs, `HeldFx::Transform` —
+/// clients animate from that). Mirror the mode into this autonomous machine *silently* (no second
+/// `Transformed` event: `xform_seen` is updated to match) so the collision box follows the
+/// silhouette and a transformer the pilot hops out of carries on, as a follower, in the same mode.
+pub fn mirror_pilot_mode(c: &mut Construct, robot: bool) {
+    if !eff_has(c, Mechanic::Transforms) || c.comp.xform.hub.is_some() {
+        return;
+    }
+    let m = if robot { XMode::Robot } else { XMode::Alt };
+    let x = &mut c.comp.xform;
+    let changed = x.mode != m;
+    x.mode = m;
+    x.want = m;
+    x.busy = false;
+    x.progress = if robot { 1.0 } else { 0.0 };
+    x.since = 0.0;
+    x.slam = false;
+    // = `world::net::xform_key` of the new state
+    c.xform_seen = 1 | (x.combined as u8) << 6 | (robot as u8) << 7;
+    if changed {
+        reshape_for_mode(c, m);
+    }
+}
+
+/// The mode a pilot boarding `c` finds it in (a transformation in progress counts as done).
+pub fn boarded_mode_is_robot(c: &Construct) -> bool {
+    let x = &c.comp.xform;
+    if x.busy { x.want == XMode::Robot } else { x.mode == XMode::Robot }
+}
+
 /// Toggle a Transforms construct's mode (pilot / suit transform key, "transform" / "roll out").
 /// Returns false if it can't transform right now.
 pub fn request_transform(c: &mut Construct) -> bool {
     if !eff_has(c, Mechanic::Transforms) || c.comp.xform.busy || c.comp.xform.hub.is_some() {
         return false;
+    }
+    // PILOTING: a seated pilot's transformer switches through the pilot's own sequence (pilot.rs).
+    if c.pilot.is_some() {
+        c.held.transform_req = true;
+        return true;
     }
     let x = &mut c.comp.xform;
     x.want = if x.mode == XMode::Alt { XMode::Robot } else { XMode::Alt };

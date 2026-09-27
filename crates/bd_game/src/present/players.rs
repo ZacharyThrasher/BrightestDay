@@ -367,7 +367,7 @@ fn sync_bodies(
     costumes: Res<PlayerCostumes>,
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
-    (aim, ads, fx, ascend): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>, Option<Res<super::powers::ascend::AscendPose>>),
+    (aim, ads, fx, ascend, legend): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>, Option<Res<super::powers::ascend::AscendPose>>, Option<Res<super::legend::LegendPose>>),
     (lex, readable): (Option<Res<crate::console::RingLexicon>>, Option<Res<crate::readability::Readability>>),
     mut map: ResMut<BodyEntities>,
     mut hands_out: ResMut<BodyHands>,
@@ -577,11 +577,17 @@ fn sync_bodies(
         // straight at the aim for the beam.
         // An energy ball in the hands: cupped in front when small, both arms up when it's overhead.
         let ball = active.and_then(|a| a.world.constructs.iter().filter(|c| c.owner == v.id).find_map(bd_sim::signature::orb::hold_view));
-        let palms = held.is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands) || ball.is_some();
+        // A domain expanding: the hand sign (both hands together in front).
+        let sign = active.is_some_and(|a| super::domain::expanding(a, v.id));
+        let palms = held.is_some_and(|c| c.recipe.form == bd_core::mechanics::Form::Hands) || ball.is_some() || sign;
         let palm_charging = ball.is_some()
+            || sign
             || palms
                 && held.and_then(|c| views.construct(c.id)).is_some_and(|c| bd_sim::weapons::WeaponPhase::from_u8(c.weapon & 7) == bd_sim::weapons::WeaponPhase::Charging);
+        // LEGENDARY: storm raise / leap / recall reach / chain spin pose the right arm (present::legend).
+        let legend_arm = legend.as_ref().and_then(|l| l.arm(v.id));
         let (arm_t, ads_t) = match gun {
+            _ if let Some((a, _)) = legend_arm => (a, 0.0),
             _ if ball.is_some_and(|h| h.overhead) => (1.0, 1.0),
             _ if palms && b.raise.since_shot < 0.9 && ball.is_none() => (1.0, 0.0),
             _ if palms => (if palm_charging { 0.5 } else { 0.0 }, 0.0),
@@ -597,7 +603,7 @@ fn sync_bodies(
             if palms {
                 palm_pose(&b.hands, raise, v.pitch, &mut ov.locals);
             } else {
-                gun_pose(&b.hands, raise, v.pitch, &mut ov.locals);
+                gun_pose(&b.hands, raise, legend_arm.and_then(|a| a.1).unwrap_or(v.pitch), &mut ov.locals);
             }
             if show
                 && held.is_some()

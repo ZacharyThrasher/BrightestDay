@@ -316,3 +316,63 @@ fn painted_costumes_tag_hair_eyes_and_skin_regions() {
         assert!(n.iter().skip(1).sum::<usize>() < painted, "{name}: the outfit stays untagged");
     }
 }
+
+/// The console's summon path (bd_game console.rs COSTUME HOOK) over the real lexicon: fighters named
+/// on their own or by their famous move wear their costume, and costume words ("gojo but bald")
+/// dress the look without grafting mechanics onto the construct.
+#[test]
+fn fighter_summons_and_costume_words_through_the_lexicon() {
+    use bd_core::mechanics::{Form, Mechanic, Recipe};
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let Ok(lex) = bd_lexicon::Lexicon::load(root.join("assets/lexicon.bin")) else {
+        eprintln!("lexicon.bin missing (gitignored build output): skipping");
+        return;
+    };
+    let summon = |text: &str| -> (Recipe, Option<String>) {
+        let res = lex.resolve(text);
+        let (mut recipe, mut shape) = (res.recipe, res.shape);
+        if let Some(bare) = costume::summon::mechanics_phrase(text, &recipe) {
+            let b = lex.resolve(&bare);
+            (recipe, shape) = (b.recipe, b.shape);
+        }
+        let ok = costume::summon::apply(text, &mut recipe, &mut shape);
+        let id = costume::summon::costume_id(&recipe).filter(|_| ok).map(str::to_string);
+        (recipe, id)
+    };
+    use Mechanic::*;
+    let cases: &[(&str, &str, &[Mechanic], &[Mechanic])] = &[
+        ("falcon punch", "captain falcon", &[Blunt], &[Flies]),
+        ("FALCON PUNCH!!", "captain falcon", &[Blunt], &[Flies]),
+        ("captain falcon", "captain falcon", &[], &[Flies]),
+        ("reinhardt", "reinhardt", &[Guard], &[]),
+        ("reinhardt charge", "reinhardt", &[Guard, Charge], &[]),
+        ("akuma", "akuma", &[Beam], &[]),
+        ("m. bison", "m. bison", &[], &[]),
+        ("kazuya", "kazuya", &[], &[]),
+        ("jin kazama", "jin kazama", &[], &[]),
+        ("liu kang", "liu kang", &[], &[]),
+        ("raiden mk", "raiden mk", &[], &[]),
+        ("zarya", "zarya", &[], &[]),
+        ("doomfist", "doomfist", &[], &[]),
+        ("gojo", "gojo", &[Repel], &[]),
+        ("gojo but bald", "gojo but bald", &[Repel], &[Thrust, Homing]),
+        ("gojo with pink hair", "gojo with pink hair", &[Repel], &[Barrier, Heavy]),
+        ("gojo sunglasses", "gojo sunglasses", &[Repel], &[Blunt, Guard]),
+        ("red goku", "red goku", &[Beam], &[]),
+    ];
+    let mut bad = Vec::new();
+    for (text, want_id, has, not) in cases {
+        let (r, id) = summon(text);
+        let ok = id.as_deref() == Some(*want_id)
+            && r.form == Form::Biped
+            && has.iter().all(|m| r.has(*m))
+            && !not.iter().any(|m| r.has(*m));
+        if !ok {
+            bad.push(format!("{text:?}: costume {id:?} {:?} {:?} {:?}", r.form, r.mechanics, r.element));
+        }
+    }
+    assert!(bad.is_empty(), "summons:\n{}", bad.join("\n"));
+    // Size words survive the costume re-read; the element of "red goku" is Goku's, not fire.
+    assert!(summon("giant gojo but bald").0.scale > summon("gojo but bald").0.scale * 1.5);
+    assert_eq!(summon("red goku").0.element, summon("goku").0.element);
+}

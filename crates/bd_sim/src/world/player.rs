@@ -95,6 +95,8 @@ pub struct Player {
     pub assist: crate::melee_assist::AssistState,
     /// JUGGLE: this player's current juggle chain / guard as a victim (`crate::juggle`, host-side).
     pub juggle: crate::juggle::JuggleState,
+    /// UNSTICK: cooldown / queued request / no-progress tracking (`world/unstick.rs`, host-side).
+    pub unstick: super::unstick::UnstickState,
 }
 
 impl Player {
@@ -145,6 +147,7 @@ impl Player {
             charge: Default::default(),
             assist: Default::default(),
             juggle: Default::default(),
+            unstick: Default::default(),
         }
     }
 

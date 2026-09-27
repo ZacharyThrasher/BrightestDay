@@ -15,7 +15,9 @@
 //!   "transform" toggles (grafted onto a transformer) or adds the mechanic; "combine" /
 //!   "devastator" / "form devastator" merges ≥ 3 of your transformers into one giant. A fresh
 //!   cast whose name is a command acts and dissolves ([`run_commands`]); a graft whose name is a
-//!   command acts on the owner's constructs ([`graft_command`]).
+//!   command acts on the owner's constructs ([`graft_command`]). "board" / "get in" / "ride it"
+//!   ([`Command::Board`]) seats the caster in their own construct — the world handles it
+//!   (`World::board_command`) before grafting or spawning.
 
 use bd_core::mechanics::{Element, Mechanic, Recipe, Temperament};
 use bd_core::{PlayerId, Vec3};
@@ -60,6 +62,10 @@ pub enum Command {
     Transform,
     /// Merge ≥ 3 owned transformers into one giant.
     Combine,
+    /// "get in", "hop in", "ride it", "take the wheel" (bd_lexicon `GraftAction::Board`, recipe named
+    /// "board"): the caster takes the wheel of their aimed (else nearest) boardable construct. The
+    /// world handles it before any graft / spawn (`World::board_command`); never builds anything.
+    Board,
 }
 
 /// Is this recipe a command phrase?
@@ -72,6 +78,8 @@ pub fn command_of(r: &Recipe) -> Option<Command> {
         Some(Command::Combine)
     } else if eq("transform") || eq("transforms") {
         Some(Command::Transform)
+    } else if eq("board") || eq("get in") || eq("hop in") || eq("take the wheel") || eq("mount up") {
+        Some(Command::Board)
     } else {
         None
     }
@@ -114,6 +122,8 @@ pub fn run_commands(items: &mut [Construct]) {
                 roll_out(items, owner);
             }
             Command::Transform => {}
+            // The world boards before spawning; a stray copy (a party echo…) just dissolves.
+            Command::Board => items[i].gone = Some(GoneReason::Spent),
         }
     }
 }

@@ -26,7 +26,7 @@
 //!    (push = sparks spent + holding PRIMARY to pour willpower); the loser shatters.
 //!
 //! Replicated: the Dome construct (spawn recipe → look; forming; size = clash shrink; integrity = HP)
-//! + [`GameEvent::Domain`] (sealed, pulse telegraph / strike, clash, shatter, burnout, guard).
+//! and [`GameEvent::Domain`] (sealed, pulse telegraph / strike, clash, shatter, burnout, guard).
 //! Deterministic; zero cost without domains.
 
 use bd_core::input::buttons;
@@ -538,7 +538,13 @@ fn pulses(w: &mut World, d: &mut Domain, t: &DomainTuning, dt: f32) {
             d.pending[d.n_pending] = (t.pulse_telegraph, pos, Some(pid));
             d.n_pending += 1;
         }
-        w.events.push(GameEvent::Domain(DomainEvent::Telegraph { id: d.construct, look: d.look, pos, radius: t.pulse_radius, secs: t.pulse_telegraph }));
+        w.events.push(GameEvent::Domain(DomainEvent::Telegraph {
+            id: d.construct,
+            look: d.look,
+            pos,
+            radius: t.pulse_radius,
+            secs: t.pulse_telegraph,
+        }));
     }
 }
 
@@ -599,7 +605,10 @@ fn strike(w: &mut World, d: &Domain, t: &DomainTuning, at: Vec3, marked: Option<
             DomainLook::Wind => (0.5, (away + Vec3::Y * 0.4).normalize(), None),
             DomainLook::Poison => (0.5, Vec3::Y, Some((StatusKind::Poison, s * 2.0))),
         };
-        let h = HitInfo::new(pid, Some(d.owner), HitKind::Shot, dmg * mult, kb * mult.min(1.0), dir, c).with_element(d.element).with_construct(d.construct).with_impact(0.4);
+        let h = HitInfo::new(pid, Some(d.owner), HitKind::Shot, dmg * mult, kb * mult.min(1.0), dir, c)
+            .with_element(d.element)
+            .with_construct(d.construct)
+            .with_impact(0.4);
         w.apply_hit(h);
         if let Some((k, secs)) = status
             && secs > 0.0
@@ -640,7 +649,9 @@ fn strike(w: &mut World, d: &Domain, t: &DomainTuning, at: Vec3, marked: Option<
         for &pid in &chain[..m] {
             let Some(c) = w.player(pid).map(|p| p.hull(&base).center()) else { continue };
             w.events.push(GameEvent::Domain(DomainEvent::Strike { id: d.construct, look: d.look, pos: c, radius: 0.5, victim: Some(pid) }));
-            let h = HitInfo::new(pid, Some(d.owner), HitKind::Shot, dmg * 0.6, kb * 0.3, Vec3::Y, c).with_element(d.element).with_construct(d.construct);
+            let h = HitInfo::new(pid, Some(d.owner), HitKind::Shot, dmg * 0.6, kb * 0.3, Vec3::Y, c)
+                .with_element(d.element)
+                .with_construct(d.construct);
             w.apply_hit(h);
         }
     }
@@ -661,7 +672,12 @@ fn block_projectiles(w: &mut World, d: &Domain) {
             p.dead = true;
             hits += p.spec.damage.max(0.0);
             let n = (p.pos - d.center).normalize_or(Vec3::Y);
-            w.events.push(GameEvent::ProjectileEnded { id: p.id, pos: d.center + n * d.radius, normal: if a { -n } else { n }, hit_player: None });
+            w.events.push(GameEvent::ProjectileEnded {
+                id: p.id,
+                pos: d.center + n * d.radius,
+                normal: if a { -n } else { n },
+                hit_player: None,
+            });
         }
     }
     w.projectiles.retain(|p| !p.dead);
@@ -672,7 +688,16 @@ fn block_projectiles(w: &mut World, d: &Domain) {
 
 /// Damage the barrier (its HP).
 pub(crate) fn hit_barrier(w: &mut World, id: ConstructId, damage: f32, point: Vec3) {
-    w.apply_construct_hit(crate::combat::ConstructHit { target: id, source: None, damage, impulse: Vec3::ZERO, blade: false, pierce: false, blunt: false, point });
+    w.apply_construct_hit(crate::combat::ConstructHit {
+        target: id,
+        source: None,
+        damage,
+        impulse: Vec3::ZERO,
+        blade: false,
+        pierce: false,
+        blunt: false,
+        point,
+    });
 }
 
 /// Overlapping domains push: the weaker shrinks; under the minimum it shatters.
@@ -743,6 +768,9 @@ mod tests {
         let base = AimTuning::default();
         let s = DomainTuning::default().sure(&base);
         assert!(s.proj_cone_deg > base.proj_cone_deg * 4.0 && s.proj_turn_deg > base.proj_turn_deg * 3.0);
-        assert!(s.hitscan_rad(Some(crate::weapons::GunArchetype::HandCannon)) > base.hitscan_rad(Some(crate::weapons::GunArchetype::HandCannon)) * 5.0);
+        assert!(
+            s.hitscan_rad(Some(crate::weapons::GunArchetype::HandCannon))
+                > base.hitscan_rad(Some(crate::weapons::GunArchetype::HandCannon)) * 5.0
+        );
     }
 }
