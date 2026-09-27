@@ -578,7 +578,15 @@ impl UiPrefs {
     }
     pub fn load() -> Self {
         let p = Self::path();
-        let mut s: UiPrefs = std::fs::read_to_string(&p).ok().and_then(|t| ron::from_str(&t).ok()).unwrap_or_default();
+        let saved = std::fs::read_to_string(&p).ok().and_then(|t| ron::from_str::<UiPrefs>(&t).ok());
+        let first_launch = saved.is_none() && !p.exists();
+        let mut s = saved.unwrap_or_default();
+        if first_launch {
+            // First impression: a random iconic character instead of the plain default, kept from then on.
+            let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
+            s.costume = first_costume(t);
+            let _ = s.save();
+        }
         s.game = s.game.validated();
         s.costume.head_scale = if s.costume.head_scale.is_finite() { s.costume.head_scale.clamp(0.7, 1.35) } else { 1.0 };
         s.outline_width = if s.outline_width.is_finite() { s.outline_width.clamp(0.5, 2.0) } else { 1.0 };
@@ -595,6 +603,18 @@ impl UiPrefs {
         let t = ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default()).map_err(std::io::Error::other)?;
         std::fs::write(p, t)
     }
+}
+
+/// A random iconic character look (one of its variants) for a first launch.
+fn first_costume(seed: u64) -> CostumePref {
+    let mut r = crate::util::Rng::new(seed);
+    let mut c = CostumePref::default();
+    if let Some(name) = bd_shapes::costume::look::random_name(r.next_u32()) {
+        let v = crate::lobby::costume::variant_count(name).unwrap_or(1).max(1) as u32;
+        c.phrase = name.into();
+        c.seed = r.next_u32() % v;
+    }
+    c
 }
 
 pub struct PrefsPlugin;
@@ -691,6 +711,18 @@ fn autosave(prefs: Res<UiPrefs>, time: Res<Time<Real>>, mut exit: MessageReader<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn first_launch_costume_is_a_random_iconic_character() {
+        let picks: std::collections::HashSet<String> = (0..40u64).map(|s| first_costume(s * 7919 + 13).phrase).collect();
+        assert!(picks.len() > 10, "varied: {picks:?}");
+        for s in 0..40u64 {
+            let c = first_costume(s * 7919 + 13);
+            assert_ne!(c.phrase, "knight");
+            let v = crate::lobby::costume::variant_count(&c.phrase).expect("a character look");
+            assert!((c.seed as usize) < v.max(1));
+        }
+    }
 
     #[test]
     fn bind_ids_roundtrip() {
