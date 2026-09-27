@@ -64,7 +64,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
   model; 2-hand charge orb + palm beam 1P/3P; canonical title when recognised).
 - Intent aafbfbcb5ee31d5c1 DONE (committed) — name targeting bug ("drop a meteor on ethan"), whisper bias w/ player
   names, delivery verbs, ~1,000-phrase golden corpus, stage order, local logs/intent.log + intent_report.
-- Giants a01a81cbdbb91cd1e — weak points, tether+ride giants (moving platforms), limb sever/topple,
+- Giants a01a81cbdbb91cd1e DONE (open: titan footstep dip, leg re-plant, embark seq, local mech drawn at interpolated pos; hijack toggle only in combat.ron) — weak points, tether+ride giants (moving platforms), limb sever/topple,
   dodgeable attacks, summoner command; optional hijack.
 - Powers a8211d8337e51dbfe — DBZ/Naruto/JJK/Bleach/HxH powers + generic effects (AutoDodge, slow field,
   self-drain, crit, read cue, tiers) + ONE generic "Ascend" transformation sequence driven by data.

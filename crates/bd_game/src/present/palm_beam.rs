@@ -243,7 +243,10 @@ impl Plugin for PalmBeamPlugin {
                 ),
             )
             // After the camera + the viewmodel hands are placed this frame.
-            .add_systems(PostUpdate, (place_orbs, place_beams, place_clashes).chain().after(HandsPublishSet).before(TransformSystems::Propagate))
+            .add_systems(
+                PostUpdate,
+                (place_orbs, place_beams, place_clashes).chain().after(HandsPublishSet).before(TransformSystems::Propagate),
+            )
             .add_systems(OnExit(AppState::InGame), clear);
         use crate::warmup::WarmupAppExt;
         app.add_warmup(warmup);
@@ -275,11 +278,25 @@ fn warmup(world: &mut World) {
     let cyl = world.resource_mut::<Assets<Mesh>>().add(Cylinder::new(0.3, 0.6).mesh().resolution(12));
     for (mode, mesh) in [(BODY, cone.clone()), (HALO, cyl.clone()), (CORE, cyl.clone()), (CLASH, cone)] {
         let m = world.resource_mut::<Assets<EnergyMaterial>>().add(energy([0.1, 0.45, 1.0], [1.0; 3], mode, 0.8, 4.0));
-        world.spawn((Name::new("palm beam warmup"), Mesh3d(mesh), MeshMaterial3d(m), Transform::default(), NotShadowCaster, crate::warmup::WarmupItem));
+        world.spawn((
+            Name::new("palm beam warmup"),
+            Mesh3d(mesh),
+            MeshMaterial3d(m),
+            Transform::default(),
+            NotShadowCaster,
+            crate::warmup::WarmupItem,
+        ));
     }
     for add in [false, true] {
         let m = world.resource_mut::<Assets<StandardMaterial>>().add(orb_mat([0.1, 0.45, 1.0], 0.8, add, 6.0));
-        world.spawn((Name::new("palm orb warmup"), Mesh3d(cyl.clone()), MeshMaterial3d(m), Transform::default(), NotShadowCaster, crate::warmup::WarmupItem));
+        world.spawn((
+            Name::new("palm orb warmup"),
+            Mesh3d(cyl.clone()),
+            MeshMaterial3d(m),
+            Transform::default(),
+            NotShadowCaster,
+            crate::warmup::WarmupItem,
+        ));
     }
 }
 
@@ -324,7 +341,13 @@ fn track_palms(
     }
     for (sc, mut vis) in &mut q {
         let ball = if sc.form == Form::Ball && Some(sc.owner) == local && hands.active {
-            active.world.constructs.get(sc.id).and_then(bd_sim::signature::orb::hold_view).filter(|h| !h.overhead).map(|h| (h.diameter, h.growth))
+            active
+                .world
+                .constructs
+                .get(sc.id)
+                .and_then(bd_sim::signature::orb::hold_view)
+                .filter(|h| !h.overhead)
+                .map(|h| (h.diameter, h.growth))
         } else {
             None
         };
@@ -341,11 +364,19 @@ fn track_palms(
         }
         let Some(c) = active.world.constructs.get(sc.id) else { continue };
         let color = saturate(energy_rgb(c.recipe.element, corps_rgb(active.corps_of(sc.owner))), 1.25);
-        let (caliber, ..) = beam_look(c.recipe.scale);
+        // (A held ball is drawn at a palm-orb size; palm energy by its caliber.)
+        let caliber = if ball.is_some() { 1.0 } else { beam_look(c.recipe.scale).0 };
         let m_core = mats.add(orb_mat(color, 0.95, false, 14.0));
         let m_glow = mats.add(orb_mat(color, 0.55, true, 9.0));
         let part = |mesh: &Handle<Mesh>, m: &Handle<StandardMaterial>| {
-            (PalmPart, Mesh3d(mesh.clone()), MeshMaterial3d(m.clone()), Transform::from_scale(Vec3::splat(0.01)), Visibility::Hidden, NotShadowCaster)
+            (
+                PalmPart,
+                Mesh3d(mesh.clone()),
+                MeshMaterial3d(m.clone()),
+                Transform::from_scale(Vec3::splat(0.01)),
+                Visibility::Hidden,
+                NotShadowCaster,
+            )
         };
         let core = commands.spawn((Name::new("PalmOrb"), part(&assets.sphere, &m_core))).id();
         let glow = commands.spawn((Name::new("PalmOrbGlow"), part(&assets.sphere, &m_glow))).id();
@@ -353,7 +384,13 @@ fn track_palms(
             .spawn((
                 Name::new("PalmOrbLight"),
                 PalmPart,
-                PointLight { color: Color::linear_rgb(color[0], color[1], color[2]), intensity: 0.0, range: 6.0, shadow_maps_enabled: false, ..default() },
+                PointLight {
+                    color: Color::linear_rgb(color[0], color[1], color[2]),
+                    intensity: 0.0,
+                    range: 6.0,
+                    shadow_maps_enabled: false,
+                    ..default()
+                },
                 Transform::default(),
                 Visibility::Hidden,
             ))
@@ -387,11 +424,19 @@ fn track_palms(
     }
 }
 
-type PartQuery<'w, 's> = Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<PalmPart>, Without<SimConstruct>, Without<PlayerCamera>)>;
+type PartQuery<'w, 's> =
+    Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<PalmPart>, Without<SimConstruct>, Without<PlayerCamera>)>;
 type Cams<'w, 's> = Query<'w, 's, &'static Transform, (With<PlayerCamera>, Without<PalmPart>, Without<SimConstruct>)>;
 
 /// Where a caster's palms are this frame: (point, first person).
-fn palm_point(owner: PlayerId, local: Option<PlayerId>, hands: &ViewmodelHands, body: &BodyHands, views: &WorldViews, cam: &Transform) -> Option<(Vec3, bool)> {
+fn palm_point(
+    owner: PlayerId,
+    local: Option<PlayerId>,
+    hands: &ViewmodelHands,
+    body: &BodyHands,
+    views: &WorldViews,
+    cam: &Transform,
+) -> Option<(Vec3, bool)> {
     if Some(owner) == local && hands.active {
         let mid = (hands.world[0] + hands.world[1]) * 0.5;
         return Some((mid + cam.forward() * 0.07 + cam.up() * 0.015, true));
@@ -575,7 +620,17 @@ fn place_beams(
             emats.add(energy(color, [1.0; 3], BODY, 0.95, intensity * 1.6)),
         ];
         let spawn = |commands: &mut Commands, mesh: &Handle<Mesh>, mat: &Handle<EnergyMaterial>| {
-            commands.spawn((Name::new("PalmBeam"), PalmPart, Mesh3d(mesh.clone()), MeshMaterial3d(mat.clone()), Transform::from_scale(Vec3::splat(0.001)), Visibility::Hidden, NotShadowCaster)).id()
+            commands
+                .spawn((
+                    Name::new("PalmBeam"),
+                    PalmPart,
+                    Mesh3d(mesh.clone()),
+                    MeshMaterial3d(mat.clone()),
+                    Transform::from_scale(Vec3::splat(0.001)),
+                    Visibility::Hidden,
+                    NotShadowCaster,
+                ))
+                .id()
         };
         let parts_e = [
             spawn(&mut commands, &assets.cylinder, &m[0]),
@@ -591,7 +646,13 @@ fn place_beams(
                 .spawn((
                     Name::new("PalmBeamLight"),
                     PalmPart,
-                    PointLight { color: Color::linear_rgb(color[0], color[1], color[2]), intensity: 0.0, range: 12.0, shadow_maps_enabled: false, ..default() },
+                    PointLight {
+                        color: Color::linear_rgb(color[0], color[1], color[2]),
+                        intensity: 0.0,
+                        range: 12.0,
+                        shadow_maps_enabled: false,
+                        ..default()
+                    },
                     Transform::default(),
                     Visibility::Hidden,
                 ))
@@ -655,7 +716,7 @@ fn place_beams(
             continue;
         }
         let v = b.view;
-        let (root, first) = palm_point(b.owner, local, &hands, &body_hands, &views, &cam).unwrap_or((bv(v.origin), false));
+        let (root, _) = palm_point(b.owner, local, &hands, &body_hands, &views, &cam).unwrap_or((bv(v.origin), false));
         let k_s = 1.0 - (-30.0 * dt).exp();
         b.origin = b.origin.lerp(root, k_s.max(0.6));
         let want_dir = bv(v.dir).normalize_or(b.dir);
@@ -741,7 +802,11 @@ fn place_beams(
                 kind: PKind::Ballistic,
                 flags: PFlags::STRETCH | PFlags::PLAIN,
                 pos: p,
-                vel: if at_end { (out - dir * 0.6) * (7.0 + 9.0 * h(3)) } else { out * (2.0 + 5.0 * h(3)) + tang * (h(5) - 0.5) * 14.0 + dir * 6.0 },
+                vel: if at_end {
+                    (out - dir * 0.6) * (7.0 + 9.0 * h(3))
+                } else {
+                    out * (2.0 + 5.0 * h(3)) + tang * (h(5) - 0.5) * 14.0 + dir * 6.0
+                },
                 size: 0.03 + 0.06 * v.radius,
                 color: if kk % 2 == 0 { hot } else { b.color },
                 emissive: 9.0 * bright,
@@ -774,7 +839,7 @@ fn place_beams(
         }
         // Where it bores: the tunnel wall glows its colour (~1.5 s).
         b.wall += dt;
-        if !clash && v.len < 159.0 && !(v.len > b.prev_len + 0.01) && b.wall >= 0.04 && env > 0.3 {
+        if !clash && v.len < 159.0 && v.len <= b.prev_len + 0.01 && b.wall >= 0.04 && env > 0.3 {
             b.wall = 0.0;
             let wall = [b.color[0] * 0.8, b.color[1] * 0.8, b.color[2] * 0.8];
             let wr = (v.radius * 1.2).max(0.6);
@@ -802,7 +867,6 @@ fn place_beams(
             let k = if b.mine { 0.9 } else { 1.0 - near / 20.0 };
             shake.write(CameraShakeEvent { trauma: k * (0.4 + v.radius * 0.6) * dt, dir: Vec3::ZERO });
         }
-        let _ = first;
         i += 1;
     }
 }
@@ -854,7 +918,17 @@ fn place_clashes(
         let m_ball = emats.add(energy(b.color, b.color, CLASH, 0.96, 2.5 * bright));
         let m_halo = emats.add(energy(b.color, b.color, HALO, 0.6, 1.4 * bright));
         let spawn = |commands: &mut Commands, m: &Handle<EnergyMaterial>| {
-            commands.spawn((Name::new("BeamClash"), PalmPart, Mesh3d(assets.sphere.clone()), MeshMaterial3d(m.clone()), Transform::from_translation(p).with_scale(Vec3::splat(0.01)), Visibility::Hidden, NotShadowCaster)).id()
+            commands
+                .spawn((
+                    Name::new("BeamClash"),
+                    PalmPart,
+                    Mesh3d(assets.sphere.clone()),
+                    MeshMaterial3d(m.clone()),
+                    Transform::from_translation(p).with_scale(Vec3::splat(0.01)),
+                    Visibility::Hidden,
+                    NotShadowCaster,
+                ))
+                .id()
         };
         let ball = spawn(&mut commands, &m_ball);
         let halo = spawn(&mut commands, &m_halo);
@@ -862,7 +936,13 @@ fn place_clashes(
             .spawn((
                 Name::new("BeamClashLight"),
                 PalmPart,
-                PointLight { color: Color::linear_rgb(b.color[0], b.color[1], b.color[2]), intensity: 0.0, range: 30.0, shadow_maps_enabled: false, ..default() },
+                PointLight {
+                    color: Color::linear_rgb(b.color[0], b.color[1], b.color[2]),
+                    intensity: 0.0,
+                    range: 30.0,
+                    shadow_maps_enabled: false,
+                    ..default()
+                },
                 Transform::from_translation(p),
                 Visibility::Inherited,
             ))
@@ -885,12 +965,12 @@ fn place_clashes(
     }
     // Detonations: a flash (the sim's explosion does the crater / blast / sound).
     for (p, radius) in std::mem::take(&mut f.blasts) {
-        let d = eye.distance(bv_f(p));
+        let d = eye.distance(p);
         if d < radius * 4.0 + 20.0 {
             fov.write(FovPunch { degrees: 5.0 * (1.0 - d / (radius * 4.0 + 20.0)) });
             shake.write(CameraShakeEvent { trauma: 0.6 * (1.0 - d / (radius * 4.0 + 20.0)), dir: Vec3::ZERO });
         }
-        if let Some(c) = f.clashes.iter_mut().find(|c| c.point.distance(bv_f(p)) < 8.0) {
+        if let Some(c) = f.clashes.iter_mut().find(|c| c.point.distance(p) < 8.0) {
             c.gone = Some(0.0);
             c.heat = 1.0;
         }
@@ -960,10 +1040,6 @@ fn place_clashes(
         }
         i += 1;
     }
-}
-
-fn bv_f(p: Vec3) -> Vec3 {
-    p
 }
 
 #[cfg(test)]

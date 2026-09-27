@@ -676,7 +676,7 @@ struct SigDev {
     hold: Option<f32>,
     /// `me|!clash`: the two bots stand left / right ahead of the camera (pinned until `t`) and fire
     /// palm beams at each other — a beam struggle seen by a bystander.
-    clash: Option<(Vec3, Vec3, f32, bool)>,
+    clash: Option<(Vec3, Vec3, f32, bool, bool)>,
 }
 
 /// Dev: world side of the plan (pins, willpower, bot casts).
@@ -710,7 +710,7 @@ fn dev_world(
         return;
     }
     let Some(mut active) = active else { return };
-    if let Some((l, r, until, fired)) = dev.clash {
+    if let Some((l, r, until, fired, ball)) = dev.clash {
         let bots: Vec<PlayerId> = active.bots.iter().take(2).map(|b| b.id).collect();
         if let [a, b] = bots[..] {
             if dev.t < until {
@@ -721,9 +721,17 @@ fn dev_world(
                         p.willpower = 100.0;
                     }
                 }
+                // (The camera's player watches unharmed.)
+                if let Some(p) = active.local.and_then(|me| active.world.player_mut(me)) {
+                    p.spawn_shield = p.spawn_shield.max(0.5);
+                }
                 if !fired {
-                    bd_sim::signature::palm::dev_duel(&mut active.world, a, b);
-                    dev.clash = Some((l, r, until, true));
+                    if ball {
+                        bd_sim::signature::palm::dev_ball_clash(&mut active.world, a, b);
+                    } else {
+                        bd_sim::signature::palm::dev_duel(&mut active.world, a, b);
+                    }
+                    dev.clash = Some((l, r, until, true, ball));
                 }
             } else {
                 dev.clash = None;
@@ -801,12 +809,12 @@ fn dev_test(
             continue;
         }
         // `me|!clash`: two bots duel with palm beams across the view (a bystander's struggle).
-        if who == "me" && phrase == "!clash" {
+        if who == "me" && (phrase == "!clash" || phrase == "!ballclash") {
             let fwd = look.forward();
             let flat = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(Vec3::NEG_Z);
             let side = flat.cross(Vec3::Y).normalize_or(Vec3::X);
             let mid = anchor.eye + flat * 16.0 - Vec3::Y * 1.6;
-            dev.clash = Some((mid - side * 11.0, mid + side * 11.0, dev.t + 7.0, false));
+            dev.clash = Some((mid - side * 11.0, mid + side * 11.0, dev.t + 7.0, false, phrase == "!ballclash"));
             dev.next += 1;
             continue;
         }

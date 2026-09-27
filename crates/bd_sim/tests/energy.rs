@@ -54,9 +54,7 @@ fn aim(w: &World, who: PlayerId, dir: Vec3) -> Aim {
 }
 
 fn hands(ult: bool) -> Recipe {
-    recipe("Kamehameha", Form::Hands, &[Mechanic::Beam], Element::Light, 0.6)
-        .tap(|_| ())
-        .with_ult(ult)
+    recipe("Kamehameha", Form::Hands, &[Mechanic::Beam], Element::Light, 0.6).tap(|_| ()).with_ult(ult)
 }
 
 trait Tap: Sized {
@@ -97,7 +95,12 @@ fn beams(evs: &[GameEvent]) -> Vec<BeamView> {
 }
 
 /// Tick with per-player inputs until `until` is true or `secs` pass; returns every event.
-fn run(w: &mut World, secs: f32, mut f: impl FnMut(&World, f32) -> Vec<(PlayerId, PlayerInput)>, mut until: impl FnMut(&[GameEvent]) -> bool) -> Vec<GameEvent> {
+fn run(
+    w: &mut World,
+    secs: f32,
+    mut f: impl FnMut(&World, f32) -> Vec<(PlayerId, PlayerInput)>,
+    mut until: impl FnMut(&[GameEvent]) -> bool,
+) -> Vec<GameEvent> {
     let mut all = Vec::new();
     let mut t = 0.0;
     while t < secs {
@@ -195,8 +198,13 @@ fn a_barrier_blocks_the_beam() {
     let a = w.player(A).unwrap().mv.pos;
     // B's wall between them (10 m out), B behind it.
     let b_eye = a + Vec3::new(0.0, 1.6, -20.0);
-    w.cast(B, recipe("wall", Form::Wall, &[Mechanic::Barrier], Element::Light, 4.0), None, Aim::new(b_eye, (a + Vec3::new(0.0, -2.0, -10.0) - b_eye).normalize()))
-        .unwrap();
+    w.cast(
+        B,
+        recipe("wall", Form::Wall, &[Mechanic::Barrier], Element::Light, 4.0),
+        None,
+        Aim::new(b_eye, (a + Vec3::new(0.0, -2.0, -10.0) - b_eye).normalize()),
+    )
+    .unwrap();
     for _ in 0..40 {
         w.tick(&[]);
     }
@@ -327,7 +335,11 @@ fn palm_beams_are_deterministic_and_the_caster_is_predicted() {
     client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
     let mut bad = 0;
     for k in 0..300u32 {
-        let i = PlayerInput { move_x: if k % 80 < 40 { 1 } else { -1 }, buttons: if k < 100 { buttons::PRIMARY } else { 0 }, ..Default::default() };
+        let i = PlayerInput {
+            move_x: if k % 80 < 40 { 1 } else { -1 },
+            buttons: if k < 100 { buttons::PRIMARY } else { 0 },
+            ..Default::default()
+        };
         let mut s = client.player(A).unwrap().mv;
         client.predict_player(A, &mut s, &i);
         for e in host.tick(&[(A, i)]).to_vec() {
@@ -362,7 +374,12 @@ fn a_tap_throws_the_base_size_holding_grows_it_and_costs_more() {
         let id = w.cast(A, fireball(), None, aim(&w, A, Vec3::NEG_Z)).unwrap();
         let base = w.constructs.get(id).unwrap().half.max_element();
         w.player_mut(A).unwrap().willpower = 100.0;
-        let evs = run(&mut w, 3.0 + hold, |_, t| vec![(A, inp(0.0, 0.0, if t < hold { buttons::PRIMARY } else { 0 }))], |e| launch_of(e, id).is_some());
+        let evs = run(
+            &mut w,
+            3.0 + hold,
+            |_, t| vec![(A, inp(0.0, 0.0, if t < hold { buttons::PRIMARY } else { 0 }))],
+            |e| launch_of(e, id).is_some(),
+        );
         let r = launch_of(&evs, id).expect("thrown");
         (r / base, w.player(A).unwrap().willpower)
     };

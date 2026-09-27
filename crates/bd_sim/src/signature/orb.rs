@@ -493,7 +493,8 @@ fn launch(w: &mut World, o: &mut Orb, t: &OrbTuning, look: Vec3) {
     let dir = look.normalize_or(Vec3::NEG_Z);
     o.dir = dir;
     let d = o.diameter();
-    let base = if o.erase { t.speed * (o.base_radius / o.radius).sqrt() } else { t.throw_speed / (1.0 + t.speed_size * (d - 1.0).max(0.0)) };
+    let base =
+        if o.erase { t.speed * (o.base_radius / o.radius).sqrt() } else { t.throw_speed / (1.0 + t.speed_size * (d - 1.0).max(0.0)) };
     o.speed = base.max(t.min_speed);
     o.launched_at = o.pos;
     if o.erase && t.wake_radius > 0.0 && t.wake_strength > 0.0 {
@@ -542,10 +543,8 @@ fn blast(w: &mut World, o: &Orb, t: &OrbTuning, at: Vec3, mult: f32, loose: bool
 fn fly(w: &mut World, o: &mut Orb, t: &OrbTuning, from: Vec3, step: f32) -> Option<(Vec3, bool)> {
     let plough = !o.explodes && o.diameter() >= t.plough_diameter;
     // Terrain.
-    if let Some(h) = bd_core::voxel::raycast(&w.voxels, from, o.dir, step + o.radius * 0.8) {
-        if !plough {
-            return Some((h.point - o.dir * (o.radius * 0.3), false));
-        }
+    if !plough && let Some(h) = bd_core::voxel::raycast(&w.voxels, from, o.dir, step + o.radius * 0.8) {
+        return Some((h.point - o.dir * (o.radius * 0.3), false));
     }
     if plough {
         let carve_r = (o.radius * t.carve_radius_mult).max(1.0);
@@ -707,6 +706,19 @@ fn erase(w: &mut World, o: &mut Orb, t: &OrbTuning) {
 
 // ------------------------------------------------------------------ palm-beam struggle (palm.rs)
 
+/// Dev / screenshots: throw `cid` now along `dir` (skips forming / holding).
+pub fn dev_launch(w: &mut World, cid: ConstructId, dir: Vec3) {
+    let t = w.cfg.tuning.signature.orb.clone();
+    if let Some(i) = w.signature.orbs.iter().position(|o| o.construct == cid) {
+        let mut o = w.signature.orbs[i];
+        if let Some(c) = w.constructs.get_mut(cid) {
+            c.forming_t = 0.0;
+        }
+        launch(w, &mut o, &t, dir);
+        w.signature.orbs[i] = o;
+    }
+}
+
 /// Is an energy ball in `pid`'s hands (forming or held)? It owns PRIMARY then (no ring blast).
 pub(crate) fn holding(w: &World, pid: PlayerId) -> bool {
     w.signature.orbs.iter().any(|o| o.owner == pid && o.phase != Phase::Travel)
@@ -732,7 +744,8 @@ pub(crate) fn touching(w: &World, a: Vec3, b: Vec3, r: f32, owner: PlayerId) -> 
 
 /// In flight and not spent.
 pub(crate) fn live(w: &World, cid: ConstructId) -> bool {
-    w.signature.orbs.iter().any(|o| o.construct == cid && o.phase == Phase::Travel) && w.constructs.get(cid).is_some_and(|c| c.gone.is_none())
+    w.signature.orbs.iter().any(|o| o.construct == cid && o.phase == Phase::Travel)
+        && w.constructs.get(cid).is_some_and(|c| c.gone.is_none())
 }
 
 /// A beam holds the ball at `at` (`None`: released — it flies on).
@@ -752,7 +765,11 @@ pub(crate) fn hold(w: &mut World, cid: ConstructId, at: Option<Vec3>) {
 /// (push in a beam struggle, where it was thrown from, its owner).
 pub(crate) fn struggle(w: &World, cid: ConstructId) -> Option<(f32, Vec3, PlayerId, f32)> {
     let t = &w.cfg.tuning.signature.orb;
-    w.signature.orbs.iter().find(|o| o.construct == cid).map(|o| (t.push_per_m * o.diameter() * if o.erase { 1.6 } else { 1.0 }, o.launched_at, o.owner, o.radius))
+    w.signature
+        .orbs
+        .iter()
+        .find(|o| o.construct == cid)
+        .map(|o| (t.push_per_m * o.diameter() * if o.erase { 1.6 } else { 1.0 }, o.launched_at, o.owner, o.radius))
 }
 
 /// The struggle is lost: the ball bursts at `at` (the palm module blasts; this ends it).

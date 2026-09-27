@@ -176,6 +176,8 @@ fn juice_events(
                     sh.toward = at;
                     sh.boost = if j.boom { 2.0 } else { 1.3 };
                     sh.seed = ev.tick ^ (*power as u64) << 20;
+                    // The caster reads it small, low-right and brief (never over the aim).
+                    sh.compact = mine;
                     commands.spawn((Name::new("MoveTitle"), sh));
                 }
                 let _ = name;

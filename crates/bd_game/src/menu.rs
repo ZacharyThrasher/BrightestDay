@@ -177,6 +177,7 @@ enum Knob {
     Variant,
     Accent,
     HeadScale,
+    RandomLook,
     Acc(u32),
 }
 
@@ -474,7 +475,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             Button(Act::Back, "BACK"),
         ],
         MenuPage::Costume => {
-            let mut v = vec![Text(Field::Costume), Value(K::Variant), Button(Act::Randomize, "RANDOMIZE"), Value(K::Accent), Value(K::HeadScale), Header("ACCESSORIES")];
+            let mut v = vec![Text(Field::Costume), Value(K::Variant), Button(Act::Randomize, "RANDOMIZE"), Value(K::RandomLook), Value(K::Accent), Value(K::HeadScale), Header("ACCESSORIES")];
             v.extend(ACC_SLOTS.iter().map(|(b, _)| Value(K::Acc(*b))));
             v.push(Button(Act::Back, "BACK"));
             v
@@ -689,6 +690,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         }
         Knob::Accent => (lbl("ACCENT"), ACCENTS.iter().find(|(_, a)| *a == c.prefs.costume.accent).map_or("CUSTOM", |(n, _)| n).into()),
         Knob::HeadScale => (lbl("HEAD SIZE"), format!("{:.0}%", c.prefs.costume.head_scale * 100.0)),
+        Knob::RandomLook => (lbl("RANDOM EACH MATCH"), on_off(c.prefs.costume.random)),
         Knob::Acc(bit) => (ACC_SLOTS.iter().find(|(b, _)| *b == bit).map_or("?", |(_, n)| n).to_string(), on_off(c.prefs.costume.hide & bit == 0)),
     }
 }
@@ -943,6 +945,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::HeadScale => {
             c.prefs.costume.head_scale = ((c.prefs.costume.head_scale + d * 0.05) * 20.0).round().clamp(14.0, 27.0) / 20.0;
+            game = false;
+        }
+        Knob::RandomLook => {
+            c.prefs.costume.random = !c.prefs.costume.random;
             game = false;
         }
         Knob::Acc(bit) => {
@@ -1267,6 +1273,7 @@ fn activate(row: Row, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
 fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
     match a {
         Act::Practice => {
+            reroll_if_random(&mut io.prefs);
             let map = map_of(&io.prefs);
             io.starter.start(Some((map, GameMode::Practice)), &mut io.next);
         }
@@ -1299,6 +1306,7 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
         Act::Connect => {
             let code = menu.join_code.trim().to_string();
             if !code.is_empty() {
+                reroll_if_random(&mut io.prefs);
                 send_profile(io);
                 io.req.write(NetRequest::Join { address: code });
                 menu.reset(MenuPage::Lobby);
@@ -1316,6 +1324,7 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
         Act::OpenLobby => {
             let map = map_of(&io.prefs);
             io.starter.set_map(map);
+            reroll_if_random(&mut io.prefs);
             send_profile(io);
             io.req.write(NetRequest::SetSettings(io.prefs.game.clone()));
             io.req.write(NetRequest::Host { port: None, tunnel: true });
@@ -1333,23 +1342,7 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
             io.req.write(NetRequest::StartMatch);
         }
         Act::Randomize => {
-            let n = RANDOM_COSTUMES.len();
-            let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(7);
-            let mut r = crate::util::Rng::new(t as u64);
-            // Mostly an iconic character (their own colours), sometimes a wild vocabulary phrase.
-            match bd_shapes::costume::look::random_name(r.next_u32()).filter(|_| r.next_u32() % 5 != 0) {
-                Some(name) => {
-                    io.prefs.costume.phrase = name.into();
-                    let v = crate::lobby::costume::variant_count(name).unwrap_or(1).max(1) as u32;
-                    io.prefs.costume.seed = r.next_u32() % v;
-                    io.prefs.costume.accent = None;
-                }
-                None => {
-                    io.prefs.costume.phrase = RANDOM_COSTUMES[(r.next_u32() as usize) % n].into();
-                    io.prefs.costume.seed = r.next_u32() % 4;
-                    io.prefs.costume.accent = ACCENTS[(r.next_u32() as usize) % ACCENTS.len()].1;
-                }
-            }
+            roll_costume(&mut io.prefs);
             menu.rebuild = true;
         }
         Act::ResetKeys => {
@@ -1361,6 +1354,33 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
                 menu.toast(if cb.set_text(code).is_ok() { "copied" } else { "couldn't copy" });
             }
         }
+    }
+}
+
+/// RANDOMIZE: mostly an iconic character (their own colours), sometimes a wild vocabulary phrase.
+fn roll_costume(prefs: &mut UiPrefs) {
+    let n = RANDOM_COSTUMES.len();
+    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(7);
+    let mut r = crate::util::Rng::new(t as u64);
+    match bd_shapes::costume::look::random_name(r.next_u32()).filter(|_| r.next_u32() % 5 != 0) {
+        Some(name) => {
+            prefs.costume.phrase = name.into();
+            let v = crate::lobby::costume::variant_count(name).unwrap_or(1).max(1) as u32;
+            prefs.costume.seed = r.next_u32() % v;
+            prefs.costume.accent = None;
+        }
+        None => {
+            prefs.costume.phrase = RANDOM_COSTUMES[(r.next_u32() as usize) % n].into();
+            prefs.costume.seed = r.next_u32() % 4;
+            prefs.costume.accent = ACCENTS[(r.next_u32() as usize) % ACCENTS.len()].1;
+        }
+    }
+}
+
+/// Random select: a new look each time a match is entered.
+fn reroll_if_random(prefs: &mut UiPrefs) {
+    if prefs.costume.random {
+        roll_costume(prefs);
     }
 }
 
@@ -2135,6 +2155,23 @@ mod tests {
         let mut other = bevy::clipboard::Clipboard::default();
         let got = other.fetch_text().poll_result();
         assert_eq!(got.and_then(|r| r.ok()).as_deref(), Some(code));
+    }
+
+    #[test]
+    fn random_select_rerolls_only_when_on() {
+        let mut p = UiPrefs::default();
+        p.costume.phrase = "gojo".into();
+        reroll_if_random(&mut p);
+        assert_eq!(p.costume.phrase, "gojo");
+        p.costume.random = true;
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..8 {
+            reroll_if_random(&mut p);
+            seen.insert(p.costume.phrase.clone());
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert!(seen.len() > 1, "{seen:?}");
+        assert!(p.costume.random, "the toggle survives the roll");
     }
 
     fn settings_rows(tab: SettingsTab, voice: bool) -> Vec<Row> {

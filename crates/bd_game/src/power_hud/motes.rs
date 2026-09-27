@@ -12,7 +12,7 @@ use bd_sim::powers::PowerTable;
 use bevy::light::NotShadowCaster;
 use bevy::prelude::*;
 
-const MOTE_R: f32 = 0.065;
+const MOTE_R: f32 = 0.08;
 
 struct MoteRig {
     player: u8,
@@ -145,7 +145,8 @@ fn draw(
                 && let Some(mut mm) = mats.get_mut(&r.mats[k])
             {
                 r.key[k] = key;
-                mm.base_color = Color::linear_rgb(col[0] * key[3], col[1] * key[3], col[2] * key[3]);
+                // Unlit: the HDR base colour blooms.
+                mm.base_color = Color::linear_rgb(key[0] * 0.5, key[1] * 0.5, key[2] * 0.5);
                 mm.emissive = LinearRgba::rgb(key[0], key[1], key[2]);
             }
         }

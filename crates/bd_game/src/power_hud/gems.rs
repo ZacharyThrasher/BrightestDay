@@ -180,7 +180,8 @@ fn draw(
                 && let Some(mut m) = mats.get_mut(&rig.gem_mat)
             {
                 rig.key = key;
-                m.base_color = Color::linear_rgb(base[0] * key[3], base[1] * key[3], base[2] * key[3]);
+                // Unlit: the HDR base colour is what blooms (emissive is kept for a lit fallback).
+                m.base_color = Color::linear_rgb(key[0] * 0.35, key[1] * 0.35, key[2] * 0.35);
                 m.emissive = LinearRgba::rgb(key[0], key[1], key[2]);
             }
         }
@@ -209,7 +210,7 @@ fn draw(
                 && let Some(mut m) = mats.get_mut(&rig.ring_mat)
             {
                 rig.ring_key = rk;
-                m.base_color = Color::linear_rgb(fc[0], fc[1], fc[2]);
+                m.base_color = Color::linear_rgb(rk[0] * 0.4, rk[1] * 0.4, rk[2] * 0.4);
                 m.emissive = LinearRgba::rgb(rk[0], rk[1], rk[2]);
             }
         }

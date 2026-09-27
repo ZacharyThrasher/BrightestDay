@@ -5,8 +5,9 @@
 //!   facing, for 4 s), or `bot<N>@<metres>,<lateral>` — pin bot N that far in front of the camera
 //!   (lateral m to the side), facing the camera, until the plan ends (`bot<N>` alone: already pinned).
 //! * `cmd`: `!grant <key>` (e.g. `super_saiyan@4`), `!move <slot>` (a power move / selector byte;
-//!   bots aim at the local player), `!tier <n>`, `!swap` (G double-tap), or — for `me` — any phrase
-//!   through the real ring path (lexicon, power shouts, tiers).
+//!   bots aim at the local player), `!tier <n>`, `!swap` (G double-tap), `!costume <phrase>` (a bot
+//!   wears that costume, e.g. `goku`: costume-tint shots), or — for `me` — any phrase through the
+//!   real ring path (lexicon, power shouts, tiers).
 //!
 //! Bots stand down (AI off) once the plan starts. Everyone's willpower is topped up per command.
 
@@ -119,7 +120,12 @@ fn dev_world(
 }
 
 /// Plan side: the commands (the local player's phrases go through the real ring path).
-fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut caster: crate::console::Caster) {
+fn dev_plan(
+    active: Option<Res<ActiveWorld>>,
+    mut dev: ResMut<PowersDev>,
+    mut caster: crate::console::Caster,
+    mut costumes: ResMut<crate::present::players::PlayerCostumes>,
+) {
     let Some(active) = active else { return };
     let plan = plan();
     if !dev.started {
@@ -167,6 +173,8 @@ fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut ca
             dev.queue.push(send(Cmd::PowerMove(s, aim)));
         } else if let Some(t) = cmd.strip_prefix("!tier ").and_then(|s| s.trim().parse::<u8>().ok()) {
             dev.queue.push(send(Cmd::PowerMove(move_sel::select(0, t), aim)));
+        } else if let Some(phrase) = cmd.strip_prefix("!costume ").filter(|_| !is_me) {
+            costumes.0.insert(id, crate::present::players::CostumeChoice::phrase(phrase.trim(), 0));
         } else if cmd == "!swap" {
             dev.queue.push(send(Cmd::PowerMove(move_sel::CYCLE, aim)));
         } else if is_me {

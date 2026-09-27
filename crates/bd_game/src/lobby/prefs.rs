@@ -497,11 +497,13 @@ pub struct CostumePref {
     pub head_scale: f32,
     /// `bd_shapes::costume::acc` bits to hide.
     pub hide: u32,
+    /// Random select: a fresh random look every time you enter a match (practice / host / join).
+    pub random: bool,
 }
 
 impl Default for CostumePref {
     fn default() -> Self {
-        Self { phrase: "knight".into(), seed: 0, accent: None, head_scale: 1.0, hide: 0 }
+        Self { phrase: "knight".into(), seed: 0, accent: None, head_scale: 1.0, hide: 0, random: false }
     }
 }
 

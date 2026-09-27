@@ -467,8 +467,11 @@ fn almighty_push_flings_everyone_out() {
     stand_at(&mut w, PlayerId(3), -2.0, -3.0);
     assert!(w.grant_power(A, "rinnegan"));
     w.player_mut(A).unwrap().willpower = 100.0;
+    let y0 = w.player(A).unwrap().mv.pos.y;
     w.power_move(A, 0).expect("almighty push");
+    assert!(w.player(A).unwrap().mv.vel.y < 1.0, "the caster is never rocket-jumped by their own push");
     run(&mut w, 30);
+    assert!(w.player(A).unwrap().mv.pos.y < y0 + 0.5, "the caster stays put (no launch into the canopy)");
     for id in [B, PlayerId(3)] {
         let d = (w.player(id).unwrap().mv.pos - w.player(A).unwrap().mv.pos).length();
         assert!(d > 7.0, "{id:?} flung away ({d})");
@@ -606,3 +609,4 @@ fn extra_air_jumps_follow_the_air_jump_rules() {
     x.spend_air_jumps();
     assert!(!x.air_jump_left(4));
 }
+

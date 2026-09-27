@@ -393,6 +393,8 @@ const SLAM: f32 = 0.24;
 /// Local shouts: flung toward the construct for this long before they shatter (crosses the centre
 /// of the screen for well under 0.25 s).
 const THROW: f32 = 0.14;
+/// Longest hold (s) of a compact local title ([`Shout::compact`]): read it, then it's gone.
+const COMPACT_HOLD: f32 = 0.4;
 /// Summon hook: letter voxels need this long to reach the ring beam and ride it to a brick (s);
 /// stages landing sooner than this after release are skipped.
 const BRICK_LEAD: f32 = 0.16;

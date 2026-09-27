@@ -466,7 +466,7 @@ pub(crate) fn step(w: &mut World, dt: f32) {
     let mut beams = std::mem::take(&mut w.signature.palm.beams);
     let mut clashes = std::mem::take(&mut w.signature.palm.clashes);
     w.signature.palm.ticks = w.signature.palm.ticks.wrapping_add(1);
-    let sync = w.signature.palm.ticks % 3 == 0;
+    let sync = w.signature.palm.ticks.is_multiple_of(3);
     let base = w.cfg.move_params.clone();
 
     // 1. Follow the caster, steer, pour / run down.
@@ -486,11 +486,9 @@ pub(crate) fn step(w: &mut World, dt: f32) {
         }
         b.origin = palms(eye, b.dir);
         // In a clash the beams hold (the clash has its own timer); pouring willpower adds push.
-        if pouring {
-            if let Some(p) = w.player_mut(b.owner) {
-                p.willpower = (p.willpower - t.hold_cost * dt).max(0.0);
-                p.regen_pause = p.regen_pause.max(0.5);
-            }
+        if pouring && let Some(p) = w.player_mut(b.owner) {
+            p.willpower = (p.willpower - t.hold_cost * dt).max(0.0);
+            p.regen_pause = p.regen_pause.max(0.5);
         }
         if b.clash.is_none() {
             b.left -= dt;
@@ -793,6 +791,27 @@ pub fn dev_duel(w: &mut World, a: PlayerId, b: PlayerId) {
     let dmg = w.cfg.tuning.gun_spec(GunArchetype::HandBeam).damage;
     start(w, a, None, Element::Light, 1.0, 1.0, dmg * 2.5, 40.0, ea, eb - ea, Some(b));
     start(w, b, None, Element::Psychic, 1.0, 1.0, dmg * 2.5, 40.0, eb, ea - eb, Some(a));
+}
+
+/// Dev / screenshots: `a` fires an ultimate palm beam at `b` (pouring) while `b` hurls a ball of
+/// lightning straight down it — a beam pushing back a thrown ball, for a bystander to watch.
+pub fn dev_ball_clash(w: &mut World, a: PlayerId, b: PlayerId) {
+    let base = w.cfg.move_params.clone();
+    let (Some(ea), Some(eb)) = (w.player(a).map(|p| p.eye(&base)), w.player(b).map(|p| p.eye(&base))) else { return };
+    let dmg = w.cfg.tuning.gun_spec(GunArchetype::HandBeam).damage;
+    start(w, a, None, Element::Light, 1.0, 1.0, dmg * 2.5, 40.0, ea, eb - ea, Some(b));
+    let mut r = bd_core::mechanics::Recipe::unknown("ball of lightning");
+    r.form = Form::Ball;
+    r.element = Element::Electric;
+    r.scale = 2.5;
+    let r = r.normalized();
+    if let Some(p) = w.player_mut(b) {
+        p.willpower = 100.0;
+    }
+    let dir = (ea - eb).normalize_or(Vec3::Z);
+    if let Ok(cid) = w.cast(b, r, None, crate::world::Aim::new(eb, dir)) {
+        super::orb::dev_launch(w, cid, dir);
+    }
 }
 
 /// BOT HOOK (`bots::drive`): a bot with enough willpower sometimes answers a beam coming at it with

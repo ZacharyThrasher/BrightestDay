@@ -236,6 +236,8 @@ fn ascend_events(
             sh.toward = v.pos + Vec3::Y * 1.0;
             sh.boost = if *awakening { 2.4 } else { 1.5 };
             sh.seed = (player.0 as u64) << 32 ^ ev.tick;
+            // The caster reads it small, low-right and brief (never over the aim).
+            sh.compact = v.is_local;
             commands.spawn((Name::new("AscendTitle"), sh));
         }
         if *awakening {

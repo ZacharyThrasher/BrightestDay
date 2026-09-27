@@ -1010,6 +1010,9 @@ impl World {
             }
             MoveOp::Explode { radius, damage, knockback, carve, element, at, dist } => {
                 let pos = self.at_point(i, *at, *dist);
+                // A blast from your own body (Almighty Push) never rocket-jumps you: the ordinary
+                // own-blast push would launch the caster straight up (~34 m/s) into whatever is above.
+                let keep = (*at == At::Me).then(|| self.players[i].mv);
                 self.explode(Explosion {
                     pos,
                     radius: *radius,
@@ -1021,6 +1024,9 @@ impl World {
                     carve_radius: *carve,
                     self_damage: false,
                 });
+                if let Some(mv) = keep {
+                    self.players[i].mv = mv;
+                }
                 Ok(())
             }
             MoveOp::Carve { length, radius, damage, pull } => {

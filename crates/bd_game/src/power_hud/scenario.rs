@@ -88,11 +88,6 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
         }
         info!("power hud scenario: bot fired at {:.2}", sc.t);
     }
-    if sc.placed && std::env::var_os("BD_POWERHUD_TRACE").is_some() {
-        if let Some(p) = active.world.player(PlayerId(1)) {
-            info!("bot1 t {:.2} alive {} pos {:?}", sc.t, p.alive, p.mv.pos);
-        }
-    }
     if sc.placed || sc.t < 0.8 {
         return;
     }
