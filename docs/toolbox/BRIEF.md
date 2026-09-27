@@ -111,3 +111,23 @@
   Read `target\build_status.txt` before building; stay green; lock hot files; never commit (the lead
   commits green checkpoints). Don't touch files another worker owns without a lock + note.
 - Don't build zips or release builds.
+
+## OVERNIGHT POLISH WAVE (2026-09-27 05:45) — owner's latest words and decisions
+- "keep doing polishing/animation passes; we have a lot of powers, let's make sure as many of them feel
+  special as possible. If I'm playing ANY transformer, it should FEEL awesome. Let players live their
+  ultimate power fantasy by allowing them complete fluidity through their voice and knowledge of
+  fictional powers."
+- Decisions: wordless taunt YES; show other players when someone voice-casts YES; NO invisibility of
+  any kind (not even a shimmer — don't add cloak/stealth/shimmer effects; smoke-vanish repositioning is
+  fine); COMIC TEXT defaults to FULL.
+- New optional match rule requested: FIRST CALL — the first player to say a named thing owns it for the
+  match ("if I say rasengan, nobody else can use it; if I say Optimus Prime, he is mine"), and it must
+  never feel bad for the player who is denied.
+- State of the tree: everything from the toolbox wave is committed and green (see docs/LEAD_HANDOFF.md
+  RESUME HERE). Tools: `cargo run --profile fastrel -p bd_sim --example powers_check -- --all
+  [--coverage f] [--hygiene]`, the phrase preview tool, the headless phrase scene
+  (`BD_MOVEFX_TEST=phrase BD_MOVEFX_PHRASE="…"`, op_visuals dev env BD_OPVIS_*), derive_kits.py
+  (re-run + `--check` after hand-content changes). Shout rule: Title Case = famous proper move name
+  (always a move); otherwise owner-prefixed; plain everyday phrases must stay constructs.
+- Scratch: ONLY your own subfolder `<scratchpad>\<your worker name>\`. Line endings: edit surgically,
+  keep each file's existing endings (never whole-file rewrites).
