@@ -662,6 +662,13 @@ grab it; held until KO, then it drops where you fell, like a fruit (the fight ov
 of the devil-fruit rules: no Water drain, no seastone, no faster void sinking. An authored `weak`
 element still drains any power for 3 s (kryptonite = Poison). Gated only by the powers toggle.
 Transforms and companions are data on any kind (a Zoan-style origin is still `Origin`).
+**Form names** (owner: "if I say gear 5 … I don't get an animation"): saying ANY power's tier / form name
+("gear 5", "gear second", "super saiyan blue", "kaioken times ten", "mangekyo sharingan"…) makes YOU that form on the
+spot — a fresh player is granted the power straight in that form (a fruit's form brings the fruit; another held devil
+fruit is set down at your feet, never an overdose), with the full Ascend (the awakening the first time per round), at
+the power's own price (technique / fruit cost; unaffordable = the plain "power up" flare). Power-ups mode: awakening
+tiers need the Awakening orb (else the flare). Form names beat curated icons and tagged ultimates ("gear 5" is the form;
+the gauntlet is "gear 5 gauntlet" / "gear 5 fist"); a held power just switches tier.
 **Techniques** (`kind: Technique`: ultra instinct, super saiyan, kaio-ken, sage / kurama mode, sharingan,
 rinnegan, shadow clones, limitless, black flash, sukuna, ten shadows, bankai, nen, armament haki): SAY the name
 and it is yours until KO (technique cost, no pickup). **Tiers** (`tiers: [...]`, max 15) are picked by phrase
