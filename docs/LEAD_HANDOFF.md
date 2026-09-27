@@ -1,6 +1,19 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> RESUME HERE (2026-09-27 13:20) — EVERYTHING DONE, ZIP from 6f8916b <<<
+## >>> TRANSFORMERS V2 QUEUE (owner 13:50: "queue it all, get as much done now as you can") <<<
+Owner: transformers feel like "a bigger guy" → spam (hard to see, combos unintuitive). Approved Devastation-style plan for PvP:
+1 HERO SCALE (~3.5–5 m piloted by default; giant only when asked) + tighter camera + string magnetism on human targets;
+2 FLASH WINDOW (0.2–0.33 s at string ends/launchers; chime + gold/blue burst + crosshair pip) → vehicle attack that breaks
+  guard/armor, forces wall splat/launch, opens a branch (rush / launcher / drift back);   ← RUNNING af043d6719e0fb98e
+3 INPUT BUFFER (~150 ms) + explicit dodge/flash cancels + dodge offset (string survives a dodge);
+4 TIERED ASYMMETRIC HITSTOP (light 3–6f, heavy 10–18f, VA 15–25f; attacker ~25% shorter) + metal crunch/bass drop, skid decals;
+5 PvP-SAFE FOCUS DODGE: slows only projectiles/constructs/bots near you; human attackers get longer punishable recovery;
+  dodger gets speed + counter window; colour flash + music duck. Never slow/freeze human players' input.
+Measure: flash-window hit rate + presses-per-hit (spam) in bot/scripted duels; side-view strips. Notes: docs/piloting/V2_NOTES.md.
+Owner decisions 13:45: combo refill YES (c6d190a); drains stop at 0; leak keeps 5 s grace; no drained tell; summons keep ring colour.
+Zip from c6d190a.
+
+## >>> (older) RESUME HERE (2026-09-27 13:20) — EVERYTHING DONE, ZIP from 6f8916b <<<
 All workers finished + committed: franchise themes 59186c0 (+Re:Zero), menu feel + Lookout 9bb58e8, presentation polish
 6f8916b. Full suite green (1,518 core + 290 bd_game). dist/BrightestDay-win64.zip (159.7 MB) from 6f8916b; smokes OK on
 arena + lookout. NO workers running. Weekly usage ~96%: next work after Oct 2 reset.
