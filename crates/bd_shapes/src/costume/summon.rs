@@ -14,7 +14,7 @@
 use std::collections::HashMap;
 
 use bd_core::CONSTRUCT_VOXEL_SIZE;
-use bd_core::mechanics::{Form, ModelSource, Recipe};
+use bd_core::mechanics::{Form, Mechanic, ModelSource, Recipe};
 use bd_core::shape::ShapeSpec;
 use glam::IVec3;
 
@@ -76,6 +76,11 @@ pub fn mechanics_phrase(text: &str, recipe: &Recipe) -> Option<String> {
 /// Apply the summon costume to a resolved cast: returns true when the recipe/shape were replaced.
 /// Non-humanoid resolutions of a character name ("darth vader" → a force grip) become a humanoid.
 pub fn apply(text: &str, recipe: &mut Recipe, shape: &mut Option<ShapeSpec>) -> bool {
+    // TRANSFORMERS: a transformer keeps its own two-mode body (a curated icon's truck / jet / tank /
+    // T-rex + robot, or a procedural alt mode): the costume biped would erase the alt mode.
+    if transforms_own_body(recipe) {
+        return false;
+    }
     let Some(id) = summon_costume_text(text, &recipe.name) else { return false };
     let Some((geo, _, _)) = summon_spec(&id) else { return false };
     if recipe.form != Form::Biped {
@@ -85,6 +90,12 @@ pub fn apply(text: &str, recipe: &mut Recipe, shape: &mut Option<ShapeSpec>) -> 
     recipe.model = ModelSource::Icon(format!("{PREFIX}{id}"));
     *shape = Some(geo);
     true
+}
+
+/// Does `recipe` carry its own transforming body (the costume must not replace it)? A Transforms
+/// resolution that is a curated icon, or whose form is not a plain biped (its alt mode).
+pub fn transforms_own_body(recipe: &Recipe) -> bool {
+    recipe.has(Mechanic::Transforms) && (matches!(recipe.model, ModelSource::Icon(_)) || recipe.form != Form::Biped)
 }
 
 /// The costume id of a recipe (`None` = not a summoned costume).

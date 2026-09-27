@@ -100,3 +100,14 @@ summon, the move is "<kit> <move>"), everyday words ("blizzard", "roll", "chains
 die", "ryujin no ken wo kurae", "die die die", "rip and tear", "flawless victory").
 Hygiene: 0 dead shouts in the games files (removed the pre-existing dead "pharaoh's wind"); a Title-Case
 "Lion's Claw" was tried and withdrawn (it would take the myth pack's Nemean "lion's claw").
+
+## Verification (phrase scene, frames in docs/toolbox/polish/games_after.png)
+Checked in `BD_MOVEFX_TEST=phrase` (third person): Hadouken, Gou Hadouken, Yoga Fire, Samus charge shot,
+Shoryuken, Falcon Punch, Get Over Here, Earthshatter, Doomfist punch, Fus Ro Dah, Graviton Surge, Raging Demon,
+Self-Destruct, Mega Mushroom, Fatal Blow, Deadeye, Spin Attack, and the chain Reinhardt Charge -> Earthshatter.
+Found + fixed from frames: Hadouken as a Light `Explodes` ball read as a white puff that burst at the hands —
+now `Electric` (blue, hit-stun into shoryuken, energy-ball rules); D.Va's eject flung her backwards off the
+island — now straight up. Impact frames confirmed firing on kit moves (comic on Shoryuken / Falcon Punch /
+Mega Mushroom / Charge, ink on Earthshatter) after PRESENTATION POLISH landed GAMES 1+2.
+Open: Spin Attack's 3-hit Barrage has no spinning body (POLISH_REQUESTS GAMES 3); Deadeye's release not
+re-captured after the window fix (budget).
