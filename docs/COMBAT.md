@@ -656,6 +656,28 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
   a named wand / sword keeps it (`delivery: Held`); a piercing thrown thing is an erasing orb.
   **Summon** → the thing at ×2–2.6 scale. **Transformation** → ×2–2.6 scale + Heavy. Caps: form max ×
   2.5, ≤ 30 m.
+- **Physical palm beams** (`signature::palm`, `tuning.signature.palm`): every Hands shot is a sustained
+  beam, not a ray. The head races out at 150 m/s to 160 m; it lives 0.6 s plain … 1.5 s ultimate (+20 %
+  at full charge); width 0.35 … 1.5 m by caliber; the root follows the palms and the aim steers it at
+  70 … 32 °/s (firing never locks the caster). Terrain stops the head and it BORES (a carve at the tip
+  every 0.2 … 0.03 s: an ultimate tunnels a hill, a plain beam chips). Every 0.1 s it hits everyone along
+  it (22 % of the shot's damage, a push along the beam; pierces) and chews constructs (x2.5); a Barrier
+  / Guard / indestructible construct stops it (taking 5 %). No recoil (prediction parity).
+- **Beam clash** (the struggle; control is never taken): two casters' beams that meet within their
+  widths lock at a clash point. Push = (0.6 + charge) x (1 + caliber), + 1 while the caster holds PRIMARY
+  (pouring 20 willpower/s). The point drifts toward the weaker side (5 m/s per unit, <= 14); clashing
+  beams don't run down. Dodge / die and it dissolves (the other beam blasts on). At a caster (2.5 m) or
+  after 4 s it DETONATES: the ordinary explosion (6 m + widths, crater) with the loser taking 1.5 x.
+  Bots sometimes counter-beam a beam coming at them (40 %, >= 35 willpower, costs 25).
+- **Energy balls** (`signature::orb`, one rule, no names): any Ball that Explodes or carries an element
+  (not DropFromSky; a summoned energy ball drops its DropFromSky) — rasengan, spirit bomb, fireball, ball
+  of lightning, Hollow Purple. It forms where its SIZE says (between the palms; overhead past 3 m with both
+  arms up; erasing orbs ahead of the caster), the caster moves slower the bigger it is. Holding PRIMARY
+  grows it (0.7 x/s to 3 x, 4 willpower/s per metre); release throws; a tap / no press within 0.3 s throws
+  the base size. A hit of >= 4 % while holding knocks it loose (it bursts in the hands). Thrown at 55 /
+  (1 + 0.12 (d - 1)) m/s; explosive ones burst on contact (radius 1.3 d + 1.5); big non-explosive ones
+  plough terrain; Barrier / Guard stops them. Two casters' balls meet → a size-weighted burst; a palm beam
+  catching one → a push-back struggle (the ball pushes 0.55 per metre; driven back 18 m, it bursts).
 - **Delivery (data, `signatures.ron`):** a Beam name comes from the palms unless tagged `delivery: Held`
   (avada kedavra's wand, getsuga tensho's sword) or `Thrown` (rasengan, hollow purple). Plain energy
   casts come from the palms too (`energy.hands`: repulsor, unibeam, ki blast…; or an `energy_words` word

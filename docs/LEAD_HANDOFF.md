@@ -47,7 +47,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
 - Presence/gravitas a1f2fc9e831108f3e DONE (hums unheard; GatherFx needs signature worker wiring) — generic Hollow-Purple grammar for EVERY construct: presence tier
   (scale/cost/legendary/signature; contrast, not max), gather → manifest → element material → presence
   (light, hum, motion sigs) → clean exit; presence.ron; waits for signature worker's lock on signature_fx.rs.
-- Power HUD a27df484b4d496738 — what you HAVE + readiness, no words: ring gems (1P) / orbiting motes
+- Power HUD a27df484b4d496738 DONE (form timers don't exist in sim; pickup look should share derive::pickup_look) — what you HAVE + readiness, no words: ring gems (1P) / orbiting motes
   (3P + others) with drain/refill/ready chime; minimal icon strip (radial cooldowns, form duration,
   willpower arc, held pickup, status pips); prefs toggle. Single source for the affordance pass's ring gauge.
 - Feel polish ab67c9f46bddf8b57 DONE (strafe lean default = owner decision vs DESIGN "never rolls") — momentum while typing (latched WASD; sim no longer zeroes move on

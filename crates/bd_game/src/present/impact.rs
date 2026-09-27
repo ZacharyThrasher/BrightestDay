@@ -413,8 +413,11 @@ fn present_hits(
                 let p = bv(*pos);
                 let r = *radius;
                 sfx.write(Sfx3d::at(if r >= 4.0 { "explosion_big" } else { "explosion_small" }, p).gain(1.2));
-                burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir: Vec3::Y, scale: r * 0.6, color: None });
-                burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::Y, scale: r * 0.5, color: Some(corps_rgb(corps_of(*source))) });
+                // The camera inside the blast (a shockwave from your own body — Almighty Push): the
+                // shards and flash stay small so they never wall off the view.
+                let inside = if eye.distance(p) < r.min(4.0) { 0.35 } else { 1.0 };
+                burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir: Vec3::Y, scale: r * 0.6 * inside, color: None });
+                burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::Y, scale: r * 0.5 * inside, color: Some(corps_rgb(corps_of(*source))) });
                 pushes.add(p, Vec3::ZERO, r);
                 impulses.write(DebrisImpulse { center: p, radius: r * 3.0, strength: 10.0 });
                 let mut o = SpawnOnomatopoeia::key("explosion", p + Vec3::Y * r * 0.5, (r / 3.0).clamp(0.6, 2.0), corps_rgb(corps_of(*source)));

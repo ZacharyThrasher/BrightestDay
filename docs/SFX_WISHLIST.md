@@ -24,6 +24,8 @@ frequent. Missing names are silent (callers already emit them).
 | domain_open / domain_hum_loop / domain_shatter | signature | dome erupt boom, inside drone, break |
 | ult_charge / ult_fire | signature | beam ultimate windup + fire |
 | strike_telegraph / strike_beam_loop | orbital strike | ground marker hum, downward beam |
+| beam_clash_roar | palm-beam struggle (present::palm_beam) | two-tone rising roar, loopable, pitched up with the clash heat; currently layered from `gun_railgun_fire` + `ring_blast` |
+| palm_beam_loop | a physical palm beam pouring out | thick energy hum + crackle, loopable, size-scaled |
 | purple_travel_loop | erasing orb (Hollow Purple) | a huge sphere tearing the air: low roar + hiss, loopable, doppler-friendly; `SignatureCue` start/stop |
 | erase_impact | erasing orb | something deleted: a hollow "vwump" + crumble (terrain / construct / player hit) |
 | merge_flash | fusion windup | the blue + red orbs merging: a sucking inhale then a bright crack |

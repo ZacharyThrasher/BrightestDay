@@ -669,6 +669,9 @@ fn explode_at_crosshair(
     out.write(e);
 }
 
+/// Carved voxels closer than this to the camera spawn no debris (see `handle_explosions`).
+pub const CAMERA_CLEAR_M: f32 = 2.6;
+
 /// First solid hit along the view ray (or a point 40 m out when looking at the sky).
 pub fn crosshair_target(arena: &ArenaWorld, eye: Vec3, dir: Vec3) -> Vec3 {
     match raycast(&*arena.read(), core_v3(eye), core_v3(dir), 300.0) {
@@ -731,6 +734,8 @@ fn handle_explosions(
         }
 
         // Terrain debris: whole voxels if many, 2×2×2 sub-cubes if few; sampled down to the budget.
+        // Readability: voxels carved right around the camera (a blast from your own body — Almighty
+        // Push) vanish in the flash instead of becoming a wall of cubes in your face.
         let falling_voxels: usize = outcome.falling.iter().map(|f| f.len()).sum();
         let terrain_budget = e.budget.saturating_sub(falling_voxels.min(e.budget / 3)).max(1);
         let n = outcome.removed.len();
@@ -740,6 +745,9 @@ fn handle_explosions(
         let mut glowing = Vec::new();
         for r in &outcome.removed {
             if keep < 1.0 && rng.f32() > keep {
+                continue;
+            }
+            if v3(voxel_center(r.pos)).distance(eye) < CAMERA_CLEAR_M {
                 continue;
             }
             let def = material_def(r.material);
