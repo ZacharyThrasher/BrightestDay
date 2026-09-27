@@ -414,15 +414,19 @@ fn present_hits(
                 let r = *radius;
                 sfx.write(Sfx3d::at(if r >= 4.0 { "explosion_big" } else { "explosion_small" }, p).gain(1.2));
                 // The camera inside the blast (a shockwave from your own body — Almighty Push): the
-                // shards and flash stay small so they never wall off the view.
-                let inside = if eye.distance(p) < r.min(4.0) { 0.35 } else { 1.0 };
+                // shards and flash stay small and the word stays out of your face (everyone else
+                // still gets it all).
+                let inside_blast = eye.distance(p) < r.min(4.0);
+                let inside = if inside_blast { 0.2 } else { 1.0 };
                 burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir: Vec3::Y, scale: r * 0.6 * inside, color: None });
                 burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::Y, scale: r * 0.5 * inside, color: Some(corps_rgb(corps_of(*source))) });
                 pushes.add(p, Vec3::ZERO, r);
                 impulses.write(DebrisImpulse { center: p, radius: r * 3.0, strength: 10.0 });
-                let mut o = SpawnOnomatopoeia::key("explosion", p + Vec3::Y * r * 0.5, (r / 3.0).clamp(0.6, 2.0), corps_rgb(corps_of(*source)));
-                o.event_id = event_hash(ev.tick, (p.x * 13.0) as i64 as u64);
-                ono.write(o);
+                if !inside_blast {
+                    let mut o = SpawnOnomatopoeia::key("explosion", p + Vec3::Y * r * 0.5, (r / 3.0).clamp(0.6, 2.0), corps_rgb(corps_of(*source)));
+                    o.event_id = event_hash(ev.tick, (p.x * 13.0) as i64 as u64);
+                    ono.write(o);
+                }
                 let c = corps_rgb(corps_of(*source));
                 commands.spawn((
                     FlashLight { t: 0.0, life: 0.22, peak: 2.0e6 * (r / 3.0).clamp(0.3, 3.0) },

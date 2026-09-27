@@ -39,7 +39,8 @@ fn steady_state_tick_does_not_allocate() {
     let mut cfg = SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, seed: 5, check_invariants: false, ..SimConfig::default() };
     cfg.timings.warmup_secs = 0.1;
     let mut w = World::new(cfg);
-    w.cfg.tuning.assist.aim = bd_sim::aim_assist::AimTuning::neutral();
+    // Default aim assist: with `AimTuning::neutral()` these bots barely connect after warm-up
+    // (~90 events, no KOs) and the scenario stops exercising the hit / KO / respawn paths.
     { let l = &mut w.cfg.tuning.assist.lunge; l.extra = 2.6; l.range_max = 5.5; l.cone_deg = 20.0; l.dash_speed = 26.0; l.dash_max_secs = 0.22; l.cooldown = 0.7; l.hit_resets_cooldown = false; l.aim_max_deg = 12.0; }
     let mut brains = bots::add_bots(&mut w, 0, 8, 0.9, 5);
     for b in &mut brains {

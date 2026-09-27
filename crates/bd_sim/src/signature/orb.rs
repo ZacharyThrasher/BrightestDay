@@ -364,7 +364,8 @@ fn hold_point(eye: Vec3, look: Vec3, o: &Orb) -> Vec3 {
         // CAMERA: far enough out that a 3-4 m sphere doesn't fill the view.
         eye + look * (o.radius * 2.0 + GATHER_BASE) + Vec3::Y * (o.radius * 0.5)
     } else if o.diameter() >= OVERHEAD_DIAMETER {
-        eye + Vec3::Y * (0.9 + o.radius) + Vec3::new(look.x, 0.0, look.z).normalize_or_zero() * 0.4
+        // Above and a little ahead (the third-person camera behind the caster stays out of it).
+        eye + Vec3::Y * (1.2 + o.radius) + Vec3::new(look.x, 0.0, look.z).normalize_or_zero() * (0.4 + o.radius * 0.35)
     } else {
         eye + look * (0.55 + o.radius) - Vec3::Y * 0.3
     }

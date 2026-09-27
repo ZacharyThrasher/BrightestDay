@@ -103,11 +103,13 @@ fn power_events(
     mut zap: MessageWriter<ZapFx>,
     mut sfx: MessageWriter<Sfx3d>,
     mut ono: MessageWriter<SpawnOnomatopoeia>,
+    cams: Query<&GlobalTransform, With<PlayerCamera>>,
 ) {
     let Some(active) = active else {
         events.clear();
         return;
     };
+    let eye = cams.iter().next().map(|g| g.translation());
     for ev in events.read() {
         match &ev.event {
             GameEvent::PortalOpened { ends, owner, .. } => {
@@ -138,9 +140,12 @@ fn power_events(
             GameEvent::FieldCreated { field } => {
                 let col = corps_rgb(active.corps_of(field.owner));
                 let key = if field.strength > 0.0 { "attract" } else if field.strength < 0.0 { "repel" } else { "portal" };
-                let mut o = SpawnOnomatopoeia::key(key, bv(field.pos), 0.8, col);
-                o.event_id = ev.tick ^ field.id as u64;
-                ono.write(o);
+                // A field around your own body (Almighty Push): no word in your face.
+                if eye.is_none_or(|e| e.distance(bv(field.pos)) > 3.0) {
+                    let mut o = SpawnOnomatopoeia::key(key, bv(field.pos), 0.8, col);
+                    o.event_id = ev.tick ^ field.id as u64;
+                    ono.write(o);
+                }
             }
             GameEvent::Power(pe) => match pe {
                 PowerEvent::FruitSpawned { pos, .. } => {

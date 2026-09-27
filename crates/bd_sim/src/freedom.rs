@@ -702,10 +702,11 @@ pub(crate) fn graft_after(w: &mut World, cid: ConstructId, factor: f32, paid: f3
 }
 
 /// FREEDOM HOOK (end of `World::tick`): kill-feed lines, children inherit their parent's phrase,
-/// highlights at match end. A scan of this tick's events; allocates only when a KO / end happens.
+/// highlights at match end. A scan of this tick's events (the first `n`); new lines are pushed
+/// straight onto `w.events` (reused buffer: a KO tick must not allocate, tests/alloc.rs) and land
+/// after them in scan order.
 pub(crate) fn end_of_tick(w: &mut World) {
     let n = w.events.len();
-    let mut out: Vec<GameEvent> = Vec::new();
     let credit = (w.cfg.tuning.hit.ko_credit_secs.max(0.0) / bd_core::DT) as Tick;
     for k in 0..n {
         match &w.events[k] {
@@ -713,7 +714,7 @@ pub(crate) fn end_of_tick(w: &mut World) {
             GameEvent::MatchPhase { phase: crate::rules::MatchPhase::Ended, .. } => {
                 let h = w.freedom.book.highlights();
                 if !h.is_empty() {
-                    out.push(GameEvent::Freedom(FreedomEvent::Highlights(Box::new(h))));
+                    w.events.push(GameEvent::Freedom(FreedomEvent::Highlights(Box::new(h))));
                 }
             }
             GameEvent::ConstructSpawned { id, .. } => {
@@ -758,12 +759,11 @@ pub(crate) fn end_of_tick(w: &mut World) {
                     let fun = t.score + 0.4 * t.legendary as u8 as f32 + 0.08 * words + 0.05 * (t.owner != victim) as u8 as f32;
                     f.book.offer_line(fun, line.clone());
                 }
-                out.push(GameEvent::Freedom(FreedomEvent::Feed(line)));
+                w.events.push(GameEvent::Freedom(FreedomEvent::Feed(line)));
             }
             _ => {}
         }
     }
-    w.events.append(&mut out);
 }
 
 #[cfg(test)]

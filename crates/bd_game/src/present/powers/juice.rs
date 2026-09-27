@@ -152,7 +152,9 @@ fn juice_events(
                         bevy::light::NotShadowCaster,
                     ));
                     if j.ripple >= 5.0 {
-                        burst.write(BurstFx { kind: BurstKind::Shards, pos: at, dir: Vec3::ZERO, scale: (j.ripple / 5.0).min(3.0), color: Some(color) });
+                        // Shards from your own body stay small for you (never a wall in your face).
+                        let own = if at.distance(cam) < 3.0 { 0.3 } else { 1.0 };
+                        burst.write(BurstFx { kind: BurstKind::Shards, pos: at, dir: Vec3::ZERO, scale: (j.ripple / 5.0).min(3.0) * own, color: Some(color) });
                     }
                 }
                 if j.debris != 0.0 {
@@ -259,9 +261,17 @@ fn juice_events(
     }
 }
 
-/// The distortion shells race out and fade.
-fn ripples(mut commands: Commands, time: Res<Time<Real>>, mut q: Query<(Entity, &mut Ripple, &mut Transform, &MeshMaterial3d<StandardMaterial>)>, mut materials: ResMut<Assets<StandardMaterial>>) {
+/// The distortion shells race out and fade (and fade out where the shell passes the camera: a
+/// shell from your own body never smears across the near plane).
+fn ripples(
+    mut commands: Commands,
+    time: Res<Time<Real>>,
+    cams: Query<&GlobalTransform, With<PlayerCamera>>,
+    mut q: Query<(Entity, &mut Ripple, &mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     let dt = time.delta_secs().min(0.1);
+    let cam = cams.iter().next().map(|g| g.translation());
     for (e, mut r, mut tf, mat) in &mut q {
         r.t += dt;
         let u = (r.t / r.dur).clamp(0.0, 1.0);
@@ -270,14 +280,23 @@ fn ripples(mut commands: Commands, time: Res<Time<Real>>, mut q: Query<(Entity, 
             continue;
         }
         let ease = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
-        tf.scale = Vec3::splat((0.3 + (r.radius - 0.3) * ease).max(0.05));
+        let radius = (0.3 + (r.radius - 0.3) * ease).max(0.05);
+        tf.scale = Vec3::splat(radius);
         if let Some(mut m) = materials.get_mut(&mat.0) {
-            let a = 0.24 * (1.0 - u) * (1.0 - u);
+            let near = cam.map_or(1.0, |c| ripple_near_fade((c.distance(tf.translation) - radius).abs()));
+            let a = 0.24 * (1.0 - u) * (1.0 - u) * near;
             m.base_color = Color::linear_rgba(r.color[0], r.color[1], r.color[2], a);
-            let k = 1.8 * (1.0 - u);
+            let k = 1.8 * (1.0 - u) * near;
             m.emissive = LinearRgba::rgb(r.color[0] * k, r.color[1] * k, r.color[2] * k);
         }
     }
+}
+
+/// A ripple shell `gap` m from the camera: 0 (hidden) when the shell passes through the lens, 1 from
+/// ~1.8 m away.
+pub fn ripple_near_fade(gap: f32) -> f32 {
+    let t = ((gap - 0.25) / 1.55).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// Gravity cores: follow the core, spiral debris in, and drip terrain chunks up into it.
@@ -394,5 +413,15 @@ fn read_and_infinity(active: Option<Res<ActiveWorld>>, views: Res<WorldViews>, t
                 ring(&mut fx, pos, ph, [0.55, 0.8, 1.0], 3.0 * (1.0 - ph));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_ripple_shell_fades_where_it_crosses_the_camera() {
+        assert_eq!(super::ripple_near_fade(0.0), 0.0, "through the lens: hidden");
+        assert!(super::ripple_near_fade(0.9) > 0.2 && super::ripple_near_fade(0.9) < 0.8);
+        assert_eq!(super::ripple_near_fade(3.0), 1.0, "far: untouched");
     }
 }

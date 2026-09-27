@@ -107,6 +107,8 @@ fn energy(col: [f32; 3], hot: [f32; 3], mode: f32, alpha: f32, intensity: f32) -
 pub fn energy_rgb(e: Element, corps: [f32; 3]) -> [f32; 3] {
     match e {
         Element::Light => [0.1, 0.45, 1.0],
+        // Chakra / air energy (rasengan) reads as a swirling pale blue, not the wind grade's mint.
+        Element::Wind => [0.3, 0.65, 1.0],
         _ => element_rgb(e, corps),
     }
 }
@@ -207,6 +209,22 @@ struct PalmFx {
     queue: Vec<BeamView>,
     /// Detonations to flash: (point, radius).
     blasts: Vec<(Vec3, f32)>,
+    /// Energy balls (the generic orb rule; not Hollow Purple): (id, element, owner, spawn scale).
+    ball_ids: Vec<(ConstructId, Element, PlayerId, f32)>,
+    balls: Vec<BallVis>,
+}
+
+/// An energy ball drawn as energy (core, swirling body, halo, light), held or in flight.
+struct BallVis {
+    id: ConstructId,
+    parts: [Entity; 3],
+    light: Entity,
+    mats: [Handle<EnergyMaterial>; 3],
+    color: [f32; 3],
+    radius: f32,
+    pos: Vec3,
+    gone: Option<f32>,
+    spark: f32,
 }
 
 #[derive(Resource)]
@@ -245,7 +263,7 @@ impl Plugin for PalmBeamPlugin {
             // After the camera + the viewmodel hands are placed this frame.
             .add_systems(
                 PostUpdate,
-                (place_orbs, place_beams, place_clashes).chain().after(HandsPublishSet).before(TransformSystems::Propagate),
+                (place_orbs, place_beams, place_clashes, place_balls).chain().after(HandsPublishSet).before(TransformSystems::Propagate),
             )
             .add_systems(OnExit(AppState::InGame), clear);
         use crate::warmup::WarmupAppExt;
@@ -314,10 +332,20 @@ fn palm_events(mut events: MessageReader<GameEvents>, active: Option<Res<ActiveW
         return;
     }
     for ev in events.read() {
-        if let GameEvent::PalmBeam(v) = &ev.event
-            && f.queue.len() < 256
-        {
-            f.queue.push(*v);
+        match &ev.event {
+            GameEvent::PalmBeam(v) if f.queue.len() < 256 => f.queue.push(*v),
+            // Every ball of energy but Hollow Purple (signature_fx draws that one) is drawn here.
+            GameEvent::ConstructSpawned { id, owner, recipe, .. }
+                if bd_sim::signature::orb::is_energy_ball(recipe) && !bd_sim::signature::orb::is_erasing_orb(recipe) =>
+            {
+                if f.ball_ids.len() >= 64 {
+                    f.ball_ids.remove(0);
+                }
+                if !f.ball_ids.iter().any(|b| b.0 == *id) {
+                    f.ball_ids.push((*id, recipe.element, *owner, recipe.scale));
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -340,6 +368,10 @@ fn track_palms(
         o.seen = false;
     }
     for (sc, mut vis) in &mut q {
+        // An energy ball's voxel model never shows (place_balls draws it as energy).
+        if sc.form == Form::Ball && f.ball_ids.iter().any(|b| b.0 == sc.id) && *vis != Visibility::Hidden {
+            *vis = Visibility::Hidden;
+        }
         let ball = if sc.form == Form::Ball && Some(sc.owner) == local && hands.active {
             active
                 .world
@@ -612,11 +644,11 @@ fn place_beams(
         let body_a = if first { 0.7 } else { 0.92 };
         // Saturation first: the body stays near 1-2x (bloom catches it, tonemapping keeps the hue);
         // only the core is white-hot.
-        let intensity = (1.5 + 0.9 * v.size) * bright;
+        let intensity = (1.9 + 1.0 * v.size) * bright;
         let m = [
             emats.add(energy(color, color, CORE, if first { 0.75 } else { 1.0 }, intensity * 3.5)),
             emats.add(energy(color, color, BODY, body_a, intensity)),
-            emats.add(energy(color, color, HALO, if first { 0.3 } else { 0.55 }, intensity * 0.6)),
+            emats.add(energy(color, color, HALO, if first { 0.25 } else { 0.45 }, intensity * 0.7)),
             emats.add(energy(color, [1.0; 3], BODY, 0.95, intensity * 1.6)),
         ];
         let spawn = |commands: &mut Commands, mesh: &Handle<Mesh>, mat: &Handle<EnergyMaterial>| {
@@ -746,8 +778,8 @@ fn place_beams(
             (mid, rot, Vec3::new(r * 0.33, rest, r * 0.33)),
             (from + dir * flare * 0.5, cone_rot, Vec3::new(r, flare, r)),
             (mid, rot, Vec3::new(r, rest, r)),
-            (from + dir * flare * 0.5, cone_rot, Vec3::new(r * 1.9, flare, r * 1.9)),
-            (mid, rot, Vec3::new(r * 1.9, rest, r * 1.9)),
+            (from + dir * flare * 0.5, cone_rot, Vec3::new(r * 1.45, flare, r * 1.45)),
+            (mid, rot, Vec3::new(r * 1.45, rest, r * 1.45)),
             (from + dir * flare * 0.5, cone_rot, Vec3::new(r * 0.33, flare, r * 0.33)),
             (to, Quat::from_rotation_y(now * 3.0), Vec3::splat((r * if clash { 0.01 } else { 1.6 }).max(0.001))),
         ];
@@ -1037,6 +1069,176 @@ fn place_clashes(
             c.roar = 0.22;
             sfx.write(Sfx3d::at("gun_railgun_fire", c.point).pitch(0.45 + 0.5 * c.heat).gain(0.55));
             sfx.write(Sfx3d::at("ring_blast", c.point).pitch(0.7 + 0.9 * c.heat).gain(0.5));
+        }
+        i += 1;
+    }
+}
+
+/// Energy balls (rasengan, spirit bomb, fireball, ball of lightning…), held and in flight: a white-hot
+/// core, a saturated swirling body, an additive halo, a light on the world and the caster, crackling
+/// edge sparks; the size follows the growth. (A small one in our own first-person hands is the
+/// palm orb instead.)
+#[allow(clippy::too_many_arguments)]
+fn place_balls(
+    mut commands: Commands,
+    time: Res<Time>,
+    active: Option<Res<ActiveWorld>>,
+    (views, comfort): (Res<WorldViews>, Res<ComfortSettings>),
+    assets: Option<Res<PalmAssets>>,
+    mut f: ResMut<PalmFx>,
+    mut emats: ResMut<Assets<EnergyMaterial>>,
+    mut fx: ResMut<FxParticles>,
+    mut parts: PartQuery,
+    mut lights: Query<&mut PointLight, With<PalmPart>>,
+    constructs: Query<(&SimConstruct, &Transform), Without<PalmPart>>,
+) {
+    let (Some(active), Some(assets)) = (active, assets) else { return };
+    let f = &mut *f;
+    if f.ball_ids.is_empty() && f.balls.is_empty() {
+        return;
+    }
+    let dt = time.delta_secs().min(0.05);
+    let now = time.elapsed_secs();
+    let bright = 0.45 + 0.55 * comfort.flashes.clamp(0.0, 1.0);
+    // Where each tracked ball's construct is drawn this frame (gone = collapse).
+    for i in 0..f.ball_ids.len() {
+        let (id, element, owner, scale) = f.ball_ids[i];
+        let at = constructs.iter().find(|(sc, _)| sc.id == id).map(|(_, tf)| tf.translation);
+        let size = views.construct(id).map_or(1.0, |c| c.size.max(0.1));
+        let vis_idx = f.balls.iter().position(|b| b.id == id);
+        match (at, vis_idx) {
+            (Some(p), Some(k)) => {
+                let b = &mut f.balls[k];
+                b.pos = p;
+                b.radius = (scale * 0.5 * size).max(0.15);
+                b.gone = None;
+            }
+            (Some(p), None) => {
+                let color = saturate(energy_rgb(element, corps_rgb(active.corps_of(owner))), 1.3);
+                let hot = [0.55 + color[0] * 0.45, 0.55 + color[1] * 0.45, 0.55 + color[2] * 0.45];
+                let m = [
+                    emats.add(energy(color, hot, CORE, 1.0, 3.2 * bright)),
+                    emats.add(energy(color, hot, CLASH, 0.9, 1.7 * bright)),
+                    emats.add(energy(color, color, HALO, 0.5, 1.2 * bright)),
+                ];
+                let spawn = |commands: &mut Commands, mat: &Handle<EnergyMaterial>| {
+                    commands
+                        .spawn((
+                            Name::new("EnergyBall"),
+                            PalmPart,
+                            Mesh3d(assets.sphere.clone()),
+                            MeshMaterial3d(mat.clone()),
+                            Transform::from_translation(p).with_scale(Vec3::splat(0.01)),
+                            Visibility::Hidden,
+                            NotShadowCaster,
+                        ))
+                        .id()
+                };
+                let parts_e = [spawn(&mut commands, &m[0]), spawn(&mut commands, &m[1]), spawn(&mut commands, &m[2])];
+                let light = commands
+                    .spawn((
+                        Name::new("EnergyBallLight"),
+                        PalmPart,
+                        PointLight {
+                            color: Color::linear_rgb(color[0], color[1], color[2]),
+                            intensity: 0.0,
+                            range: 8.0,
+                            shadow_maps_enabled: false,
+                            ..default()
+                        },
+                        Transform::from_translation(p),
+                        Visibility::Inherited,
+                    ))
+                    .id();
+                f.balls.push(BallVis {
+                    id,
+                    parts: parts_e,
+                    light,
+                    mats: m,
+                    color,
+                    radius: (scale * 0.5 * size).max(0.15),
+                    pos: p,
+                    gone: None,
+                    spark: 0.0,
+                });
+            }
+            (None, Some(k)) => {
+                if f.balls[k].gone.is_none() {
+                    f.balls[k].gone = Some(0.0);
+                }
+            }
+            (None, None) => {}
+        }
+    }
+    let mut i = 0;
+    while i < f.balls.len() {
+        let b = &mut f.balls[i];
+        if let Some(g) = b.gone.as_mut() {
+            *g += dt;
+        }
+        let collapse = b.gone.map_or(1.0, |g| 1.0 - g / 0.12);
+        if collapse <= 0.0 {
+            let b = f.balls.swap_remove(i);
+            for e in b.parts.iter().chain(std::iter::once(&b.light)) {
+                commands.entity(*e).try_despawn();
+            }
+            for m in &b.mats {
+                emats.remove(m);
+            }
+            f.ball_ids.retain(|x| x.0 != b.id);
+            continue;
+        }
+        // Our own small ball in first person is drawn as the palm orb.
+        let palm = f.orbs.iter().any(|o| o.id == b.id && o.ball.is_some());
+        let r = b.radius * collapse * (1.0 + 0.05 * (now * 13.0 + b.id.0 as f32).sin());
+        for (e, k) in b.parts.iter().zip([0.45, 1.0, 1.5]) {
+            if let Ok((mut tf, mut vis)) = parts.get_mut(*e) {
+                tf.translation = b.pos;
+                tf.scale = Vec3::splat((r * k).max(0.01));
+                tf.rotation = Quat::from_rotation_y(now * 2.5) * Quat::from_rotation_x(now * 1.3);
+                let want = if palm { Visibility::Hidden } else { Visibility::Inherited };
+                if *vis != want {
+                    *vis = want;
+                }
+            }
+        }
+        for m in &b.mats {
+            if let Some(mut mat) = emats.get_mut(m) {
+                mat.params.misc.x = now;
+                mat.params.misc.w = (r * 3.0).max(1.0);
+            }
+        }
+        if let Ok((mut tf, _)) = parts.get_mut(b.light) {
+            tf.translation = b.pos;
+        }
+        if let Ok(mut l) = lights.get_mut(b.light) {
+            l.intensity = if palm { 0.0 } else { 90_000.0 * (0.6 + r).min(6.0) * collapse * bright };
+            l.range = 6.0 + 4.0 * r;
+        }
+        // Crackling energy at its surface.
+        b.spark += dt * (18.0 + 26.0 * r);
+        let n = (b.spark as usize).min(16);
+        b.spark -= n as f32;
+        if !palm {
+            let seed = (now * 1000.0) as u32 ^ b.id.0;
+            for k in 0..n {
+                let h = |j: u32| crate::util::hash3((seed.wrapping_add(k as u32 * 13)) as i32, j as i32, 57);
+                let d = Vec3::new(h(1) - 0.5, h(2) - 0.5, h(3) - 0.5).normalize_or(Vec3::Y);
+                let tang = d.any_orthonormal_vector();
+                fx.emit(Emit {
+                    kind: PKind::Ballistic,
+                    flags: PFlags::STRETCH | PFlags::PLAIN,
+                    pos: b.pos + d * r * 1.02,
+                    vel: tang * (4.0 + 6.0 * r) + d * 1.5,
+                    size: 0.03 + 0.03 * r,
+                    color: if k % 2 == 0 { [0.8 + b.color[0] * 0.2, 0.8 + b.color[1] * 0.2, 0.8 + b.color[2] * 0.2] } else { b.color },
+                    emissive: 8.0 * bright,
+                    life: 0.1 + 0.08 * h(4),
+                    gravity: 0.0,
+                    drag: 2.0,
+                    ..default()
+                });
+            }
         }
         i += 1;
     }

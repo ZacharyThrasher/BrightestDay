@@ -2165,9 +2165,10 @@
                  ("universal pull", 2), ("bansho tenin", 2), ("bansho ten in", 2), ("banshou tenin", 2), ("bansho ten'in", 2),
                  ("truth seeking orbs", 3), ("truth seeking balls", 3), ("gudodama", 3)],
         moves: [
-            // A massive radial repel from your body: players, constructs, debris flung; a crater.
+            // A massive radial repel from your body: players, constructs, debris flung; a shallow
+            // crater (carve 1.8 around the chest: a dish under your feet, never a pit you fall into).
             (name: "almighty push", cooldown: 7.0, cost: 10.0, ops: [
-                Explode(radius: 9.0, damage: 9.0, knockback: 34.0, carve: 3.2, element: Psychic),
+                Explode(radius: 9.0, damage: 9.0, knockback: 34.0, carve: 1.8, element: Psychic),
                 Field(strength: -70.0, radius: 13.0, secs: 0.35),
             ], juice: Some((ripple: 13.0, boom: true, punch: 6.0, shake: 0.35, title: Some("SHINRA TENSEI"), debris: 24.0,
                             color: Some((0.7, 0.62, 0.95))))),

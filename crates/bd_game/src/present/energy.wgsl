@@ -33,8 +33,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let streak = clamp(0.5 + 0.5 * s1 * s2, 0.0, 1.0);
     if (mode < 0.5) {
         // Body: saturated colour, hotter edge, flowing streaks.
-        let col = m.color.rgb * k * (0.75 + 0.9 * pow(fres, 2.0) + 0.55 * streak);
-        let a = clamp(m.color.a * (0.55 + 0.45 * pow(fres, 0.7)) , 0.0, 1.0);
+        // A dense body with a bright rim reads as energy, not a translucent tube.
+        let col = m.color.rgb * k * (0.85 + 1.8 * pow(fres, 3.0) + 0.55 * streak) + vec3(1.0) * k * 0.35 * pow(fres, 6.0);
+        let a = clamp(m.color.a * (0.7 + 0.3 * pow(fres, 0.7)), 0.0, 1.0);
         return vec4(col, a);
     }
     if (mode < 1.5) {
