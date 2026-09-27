@@ -245,6 +245,9 @@ fn gauntlet_grab_seizes_and_throws_into_a_wall_splat() {
 fn gauntlet_uppercut_launches() {
     let mut w = duel(1.2);
     give(&mut w, A, "gauntlet", Form::Gauntlet, &[]);
+    // LAUNCH FEEL: at 0 % the modern curve only pops you (early life stays grounded); a launcher
+    // launches once there is some % on you.
+    w.player_mut(B).unwrap().damage_pct = 40.0;
     let (yaw, pitch) = aim_at(&w, A, B);
     // (Weight pass: a default gauntlet weighs a little over nominal, so its uppercut winds up a
     // few ticks longer than the authored curve — give it the room.)

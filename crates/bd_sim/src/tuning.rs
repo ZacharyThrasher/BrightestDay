@@ -412,7 +412,7 @@ impl Default for SmashTuning {
             curve_base_low: 0.35,
             curve_base_full_pct: 90.0,
             curve_strong_kb: 20.0,
-            curve_strong_keep: 0.25,
+            curve_strong_keep: 0.65,
             curve_growth_mult: 1.15,
             hitstun_secs_min: 0.15,
             hitstun_secs_per_kb: 0.01,

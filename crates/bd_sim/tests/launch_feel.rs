@@ -73,12 +73,12 @@ fn early_life_is_grounded_and_high_percent_still_launches() {
     for &(b, d, p) in &[(8.0, 9.0, 0.0), (16.0, 14.0, 120.0), (30.0, 20.0, 300.0)] {
         assert_eq!(launch_knockback(&t, true, b, d, p, 1.0, 1.0), knockback(&t, b, d, p, 1.0, 1.0));
     }
-    // A sword poke (8 kb, 9 %) at 0 %: about half its old shove (base term ×0.4), no tumble (14 m/s).
+    // A sword poke (8 kb, 9 %) at 0 %: under 60 % of its old shove (base term ×0.45), no tumble (14 m/s).
     let (old, new) = (knockback(&t, 8.0, 9.0, 9.0, 1.0, 1.0), launch_knockback(&t, false, 8.0, 9.0, 9.0, 1.0, 1.0));
-    assert!(new < 0.55 * old && new < 14.0, "small early hit: {old} → {new}");
-    // A hammer (16 kb, 14 %) at 14 %: no longer a tumble at low %.
+    assert!(new < 0.6 * old && new < 14.0, "small early hit: {old} → {new}");
+    // A hammer (16 kb, 14 %) at 14 %: a strong hit keeps most of its shove, but never launches early.
     let hammer0 = launch_knockback(&t, false, 16.0, 14.0, 14.0, 1.0, 1.0);
-    assert!(hammer0 < 14.0, "early hammer tumbles: {hammer0}");
+    assert!(hammer0 < t.kb_min_launch && hammer0 < 0.9 * knockback(&t, 16.0, 14.0, 14.0, 1.0, 1.0), "early hammer: {hammer0}");
     // At KO % a strong hit launches at least as hard as before (KOs keep happening).
     for pct in [120.0, 150.0, 200.0] {
         let (old, new) = (knockback(&t, 16.0, 14.0, pct, 1.0, 1.0), launch_knockback(&t, false, 16.0, 14.0, pct, 1.0, 1.0));

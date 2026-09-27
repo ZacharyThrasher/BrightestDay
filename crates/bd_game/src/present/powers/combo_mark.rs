@@ -11,6 +11,9 @@
 //!   interpolated bodies + client voxels; a named player wins), so the outline shows on the command
 //!   frame; the replicated truth replaces it as soon as it arrives.
 //! * The focus key (`Action::Focus`, unbound by default) → `buttons::FOCUS` while held.
+//! * Dev (never set in play): `BD_COMBO_STRAFE=1` makes the LAST other player strafe side to side
+//!   (0.7 s each way, offline / host only) — the frame sheet's moving target
+//!   (docs/toolbox/combo_target_sheet.png, with the movefx `phrase` scene).
 
 use super::super::sound::Sfx3d;
 use super::super::{PresentSet, gv};
@@ -53,6 +56,7 @@ impl Plugin for ComboMarkPlugin {
             .add_message::<SimCommand>()
             .add_systems(Update, focus_key.in_set(FrameSet::Input))
             .add_systems(Update, predict.in_set(PresentSet::Sync))
+            .add_systems(Update, dev_strafe.run_if(|| std::env::var_os("BD_COMBO_STRAFE").is_some()))
             .add_systems(PostUpdate, draw.after(CameraUpdateSet).after(HandsPublishSet).before(TransformSystems::Propagate));
     }
 }
@@ -78,6 +82,18 @@ fn focus_key(
     let bits = if held { buttons::FOCUS } else { 0 };
     if input.focus_held != bits {
         input.focus_held = bits;
+    }
+}
+
+/// `BD_COMBO_STRAFE=1`: the last other player strafes (dev frame sheets only).
+fn dev_strafe(time: Res<Time<Real>>, mut t: Local<f32>, active: Option<ResMut<ActiveWorld>>) {
+    let Some(mut active) = active else { return };
+    *t += time.delta_secs();
+    let me = active.local;
+    let Some(id) = active.world.players.iter().rev().find(|p| Some(p.id) != me && p.alive).map(|p| p.id) else { return };
+    if let Some(p) = active.world.player_mut(id) {
+        p.input.move_x = if ((*t / 0.7) as u32).is_multiple_of(2) { 1 } else { -1 };
+        p.input.move_z = 0;
     }
 }
 

@@ -180,6 +180,19 @@ reduces air control but you can always tether out of it (a skill save).
   prediction matches). Any hit / DoT breaks it; still holding, it restarts cold after a 0.6 s stagger. Releasing
   ends it. Replicated as `pflags::CHARGING` + `PlayerSnap::charge` (hold time, 1/20 s) + `GameEvent::Charge`
   (start / full / broken / released). Bots charge when low and nobody is within ~16 m.
+- **WILLPOWER = LAUNCH** (host rule `MatchRules::willpower_launch`, lobby RING page, **off by default** for A/B;
+  `bd_sim::launch`, `tuning.launch` in combat.ron): willpower is how hard you launch, not whether you can cast.
+  Casts / moves / signatures are never refused and never sputter — they fire in full and drain their spark
+  price, flooring at 0 (a cast at 0 drains nothing more; constructs don't starve at 0; upkeep still drains).
+  Every hit's knockback (melee, shots, blasts, construct hits — `source` = owner — and construct impulses)
+  × `curve(attacker's bar at hit time)`: 0.55× empty → 1.0× at half → 1.35× full (`top_exp` 1.4: the last
+  sparks matter most). Damage % is untouched (spam builds %, a loaded hit cashes it in); juggle counting uses
+  the pre-willpower knockback; splats / self hits unscaled. Passive regen ×0.4, charging ×2.2, oath ×1.25.
+  Anti-camp: above 80 % with no cast / move for 5 s, leak 2.5/s down to 80 % (not while charging / reciting).
+  Readability: loaded bodies glow (`present::launch_glow`, above the ×1 point), the crosshair gauge shows
+  launch power (dim → hot white-gold, a notch at ×1, never red). Bots charge below 40 % when nobody is within
+  13 m and fill to 95 %; at ≥ 70 % they hunt the highest-% enemy. Dev: `BD_WILLPOWER_LAUNCH=1` forces it on
+  in practice.
 
 ## 3. Construct lifecycle
 cast → **validate/clamp** (scale per form min/max, mass, count ≤ 6, swarm ≤ 12) → pay → **forming**
