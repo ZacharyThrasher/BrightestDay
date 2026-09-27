@@ -1,6 +1,17 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> QUEUE (owner 11:20: "go THROUGH the weekly reset") <<< LAUNCHED 11:45: tooltips a106dd6e6fcc24630 (sonnet), willpower=launch a0bc4dd250598b558, combo target a80692b240e7df828; LAUNCH FEEL ada53a2e88b60dc8b (DI, actionable after short hitstun + stable tumble camera, Smash-like %-curve, out-of-control telemetry; CLASSIC LAUNCH host toggle; FFA hash re-record expected); anime worker a4fa97d61ab1c061d: bare black flash/jajanken → one-off move; Optimus truck fix ac8ee05cf893e0d7a (costume hook must not replace transformer icons); resumed voice a19704f3303170491 + polish anime/western/games. If the weekly cap stops them: after Oct 2 01:00Z SendMessage each id "continue".
+## >>> RESUME HERE (2026-09-27 12:55) — ZIP from c8f5cb4, all queued work DONE <<<
+dist/BrightestDay-win64.zip (159.7 MB) from c8f5cb4: full suite green (1,330 core + 290 bd_game), practice smoke OK.
+Landed since 11:10: tooltips 71e3004, polish western+games 68369e7, anime e323bc8, bare black flash/jajanken a047a2c,
+transformer costume-hook fix b2d9603 (named transformers keep truck/car/tank/jet/dino), WILLPOWER = LAUNCH rule 2caf73f,
+voice fluency e336d3b (45→58% spoken hit rate; tools/voice_bench), combo target + LAUNCH FEEL c8f5cb4 (new default;
+CLASSIC LAUNCH toggle; FFA golden 0x048d_7136_c425_d843). No workers running.
+STILL STOPPED (partial, uncommitted-or-swept): presentation polish adfd01597aacca6ec, re:zero acd4d6d26159eff21, menu feel
+a14308b17de8ac354, franchise themes a278fc098502e8992, lookout map a45935edaeceede09.
+OWNER OPEN QUESTIONS: willpower-launch (combo refill? drains at 0? leak at respawn? drained tell?); FOCUS key unbound;
+summoned characters in hard-light colour vs own colours.
+
+## >>> (older) QUEUE (owner 11:20: "go THROUGH the weekly reset") <<< LAUNCHED 11:45: tooltips a106dd6e6fcc24630 (sonnet), willpower=launch a0bc4dd250598b558, combo target a80692b240e7df828; LAUNCH FEEL ada53a2e88b60dc8b (DI, actionable after short hitstun + stable tumble camera, Smash-like %-curve, out-of-control telemetry; CLASSIC LAUNCH host toggle; FFA hash re-record expected); anime worker a4fa97d61ab1c061d: bare black flash/jajanken → one-off move; Optimus truck fix ac8ee05cf893e0d7a (costume hook must not replace transformer icons); resumed voice a19704f3303170491 + polish anime/western/games. If the weekly cap stops them: after Oct 2 01:00Z SendMessage each id "continue".
 Run now, and if the weekly cap hits, resume right after the reset (Oct 2 01:00Z):
 1. HUD TOOLTIPS (owner screenshot: Tab card + overlapping names are confusing) → Tab shows icons only; hovering ONE
    ability shows its tooltip (name, what it does, how to fire). 2. WILLPOWER = LAUNCH host rule (A/B vs current): casts
