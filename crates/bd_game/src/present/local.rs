@@ -18,7 +18,16 @@ impl Plugin for LocalPlugin {
     }
 }
 
-fn respawn_facing(mut events: MessageReader<GameEvents>, active: Option<Res<ActiveWorld>>, arena: Option<Res<ArenaWorld>>, mut look: ResMut<LookAngles>) {
+/// Faces the arena centre on respawn. The first spawn honours `--look yaw,pitch` instead (dev shots:
+/// map/feature workers frame screenshots with it).
+fn respawn_facing(
+    mut events: MessageReader<GameEvents>,
+    active: Option<Res<ActiveWorld>>,
+    arena: Option<Res<ArenaWorld>>,
+    cli: Res<crate::cli::CliArgs>,
+    mut cli_used: Local<bool>,
+    mut look: ResMut<LookAngles>,
+) {
     let (Some(active), Some(arena)) = (active, arena) else {
         events.clear();
         return;
@@ -27,6 +36,11 @@ fn respawn_facing(mut events: MessageReader<GameEvents>, active: Option<Res<Acti
         if let GameEvent::Respawn { player, pos, .. } = &ev.event
             && active.local == Some(*player)
         {
+            if let Some(l) = cli.look.filter(|_| !*cli_used) {
+                *cli_used = true;
+                look.set_degrees(l.x, l.y);
+                continue;
+            }
             let eye = bv(*pos) + Vec3::Y * 1.6;
             let d = (arena.info.center - eye).normalize_or(Vec3::NEG_Z);
             look.yaw = (-d.x).atan2(-d.z);
