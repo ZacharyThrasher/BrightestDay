@@ -23,6 +23,7 @@ fn world(powerups: bool, seed: u64) -> World {
     cfg.tuning.pickups.first_after = 1.0;
     cfg.tuning.pickups.telegraph = 1.0;
     cfg.tuning.pickups.every = 6.0;
+    cfg.tuning.pickups.spawn_clear = 6.0;
     let mut w = World::new(cfg);
     for k in 1..=2 {
         w.add_player(PlayerId(k), format!("p{k}"), Corps::from_index(k)).unwrap();
@@ -41,6 +42,10 @@ fn run(w: &mut World, ticks: u32) -> Vec<GameEvent> {
         all.extend_from_slice(w.tick(&[]));
     }
     all
+}
+
+fn ticks(s: f32) -> u32 {
+    (s / bd_core::DT).round() as u32
 }
 
 fn aim(w: &World, id: PlayerId) -> Aim {
@@ -65,8 +70,8 @@ fn kaiju() -> bd_core::mechanics::Recipe {
 fn pickups_spawn_deterministically_on_derived_spots() {
     let mut a = world(true, 7);
     let mut b = world(true, 7);
-    let ea = run(&mut a, 60 * 30);
-    let eb = run(&mut b, 60 * 30);
+    let ea = run(&mut a, ticks(30.0));
+    let eb = run(&mut b, ticks(30.0));
     assert_eq!(a.pickups.items, b.pickups.items);
     assert_eq!(a.state_hash(), b.state_hash());
     assert!(moments(&ea, PickupMoment::Telegraph) >= 2 && moments(&ea, PickupMoment::Appear) >= 2, "telegraphed, then appeared");
@@ -79,7 +84,7 @@ fn pickups_spawn_deterministically_on_derived_spots() {
     assert!(a.pickups.items.len() <= a.cfg.tuning.pickups.max_live as usize);
     // The beacon comes first: a telegraph turns into the pickup `telegraph` s later, at the same spot.
     let mut c = world(true, 7);
-    let ev = run(&mut c, 60 * 2 + 10);
+    let ev = run(&mut c, ticks(2.0) + 10);
     let t = ev.iter().find_map(|e| match e {
         GameEvent::Pickup { id, moment: PickupMoment::Telegraph, pos, .. } => Some((*id, *pos)),
         _ => None,
@@ -90,15 +95,15 @@ fn pickups_spawn_deterministically_on_derived_spots() {
     // A different seed may pick differently, but is just as deterministic.
     let mut d = world(true, 8);
     let mut e = world(true, 8);
-    run(&mut d, 60 * 20);
-    run(&mut e, 60 * 20);
+    run(&mut d, ticks(20.0));
+    run(&mut e, ticks(20.0));
     assert_eq!(d.pickups.items, e.pickups.items);
 }
 
 #[test]
 fn touch_carries_ko_drops_and_it_fades() {
     let mut w = world(true, 3);
-    run(&mut w, 60 * 2 + 10);
+    run(&mut w, ticks(2.0) + 10);
     let p = *w.pickups.items.iter().find(|p| p.phase == PickupPhase::Ground).expect("a pickup lies there");
     // Walk A onto it.
     {
@@ -197,7 +202,7 @@ fn an_awakening_without_the_pickup_is_a_plain_power_up() {
 #[test]
 fn mode_off_changes_nothing() {
     let mut w = world(false, 7);
-    let ev = run(&mut w, 60 * 30);
+    let ev = run(&mut w, ticks(30.0));
     assert!(w.pickups.items.is_empty() && moments(&ev, PickupMoment::Telegraph) == 0);
     for k in GateKind::ALL {
         assert_eq!(pickups::gate(&w, A, k), Gate::Free);
@@ -223,7 +228,7 @@ fn mode_off_changes_nothing() {
 #[test]
 fn pickups_ride_the_snapshot() {
     let mut w = world(true, 5);
-    run(&mut w, 60 * 3);
+    run(&mut w, ticks(3.0));
     assert!(!w.pickups.items.is_empty());
     let snap = w.snapshot_for(Some(A));
     assert_eq!(snap.pickups, w.pickups.items);

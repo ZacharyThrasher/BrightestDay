@@ -332,6 +332,30 @@ mod tests {
         assert_eq!(s.lines_for(&w).len(), 3);
     }
 
+    /// The FFA state hash is the same with and without the observer (it only reads the world).
+    #[test]
+    fn observing_never_changes_the_sim() {
+        let run = |observe: bool| {
+            let seed = 3;
+            let mut cfg = SimConfig { arena: ArenaSource::Archipelago { seed }, seed, ..SimConfig::default() };
+            cfg.timings.warmup_secs = 1.0;
+            let mut w = World::new(cfg);
+            let mut brains = crate::bots::add_bots(&mut w, 0, 4, 0.8, seed);
+            let mut s = MatchStats::default();
+            let mut inputs = Vec::new();
+            for _ in 0..(20 * 120) {
+                inputs.clear();
+                crate::bots::drive(&mut w, &mut brains, &mut inputs);
+                w.tick(&inputs);
+                if observe {
+                    s.observe(&w);
+                }
+            }
+            w.state_hash()
+        };
+        assert_eq!(run(true), run(false));
+    }
+
     #[test]
     fn accuracy_rounds_and_caps() {
         let l = StatLine { hits: 1, attacks: 3, ..Default::default() };

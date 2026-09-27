@@ -1,0 +1,35 @@
+# Brightest Day - Chinese folklore extra names (2026-09). name | aliases | QID | hint (Form/Mechanic/Element/Feature/Temperament + base word).
+# Public-domain sources only: Journey to the West (Wu Cheng'en, 16th c.), Fengshen Yanyi, Romance of the Three
+# Kingdoms, Shanhaijing and Chinese mythology. The hand-shaped / tuned entries live in folklore_cn.ron (icons win).
+# Journey to the West
+white dragon horse | bailong ma; white horse dragon; dragon horse |  | Quadruped Piloted Fast Water
+red boy | honghaier; hong haier; red child demon; holy infant king |  | Biped Breath Fire Aggressive
+purple gold gourd | red gourd; zijin hong hulu; magic gourd that sucks you in |  | Ball Attract Trap Psychic
+immortal binding rope | kunxian sheng; fairy binding rope |  | Whip Link Constrict
+spider demons | spider spirits; spider women; seven spider demons |  | Arachnid Swarm Sticky Shadow Sneaky
+yellow wind demon | yellow wind great king; yellow wind monster |  | Biped Repel Wind
+heavenly soldiers | heavenly army; celestial soldiers; heavenly host troops |  | Biped Swarm Light Aggressive
+demon revealing mirror | zhaoyao jing; monster revealing mirror |  | Shield Beam Light
+# Fengshen Yanyi
+heaven and earth sash | red sky sash |  | Whip Constrict Fire
+# Four Symbols + Shanhaijing beasts
+azure dragon | qinglong; blue dragon of the east; green dragon of the east |  | Serpent Flies Wind
+white tiger of the west | baihu; bai hu |  | Quadruped Fast Charge Wind Aggressive
+vermilion bird | zhuque; zhu que; red bird of the south |  | Bird Flies Fire
+black tortoise | xuanwu; xuan wu; black warrior of the north |  | Quadruped Guard Heavy Water Protective
+taotie | tao tie; gluttonous beast |  | Blob Attract Grab Aggressive
+zhulong | candle dragon; torch dragon; zhu long |  | Serpent Flies Beam Light
+yinglong | ying long; winged dragon of china |  | Serpent Flies Water
+xiezhi | xie zhi; justice unicorn |  | Quadruped Charge Pierce Protective
+gonggong | gong gong; water god gonggong |  | Serpent Charge Water Aggressive
+jingwei | jing wei; jingwei bird |  | Bird DropFromSky Earth
+hundun | chaos beast; hun dun |  | Blob Bounce Chaotic
+xingtian | xing tian; headless giant warrior |  | Biped Blunt Guard Aggressive
+chiyou | chi you; horned war god |  | Biped Charge Heavy Aggressive
+baize | bai ze |  | Quadruped Protective Light
+# Three Kingdoms
+wooden ox | wooden ox and gliding horse; muniu liuma |  | Quadruped Walks Heavy Piloted
+serpent spear | zhang fei's spear; zhangba shemao; zhang ba she mao |  | Spear Pierce
+# Festivals
+lion dance | lion dancers; chinese lion dance |  | Quadruped Playful Bounce Fast
+dragon pearl | flaming pearl; night shining pearl |  | Ball Homing Fire

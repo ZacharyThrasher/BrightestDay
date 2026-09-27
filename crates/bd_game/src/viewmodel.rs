@@ -480,6 +480,7 @@ fn vm_events(
     // `viewmodel_anim`'s palm layer; present::palm_beam draws the orb and the beam.)
     let held_c = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held && c.recipe.form != Form::Hands);
     let held = held_c.map(|c| (c.id, c.recipe.form));
+    let held_pole = held_c.is_some_and(|c| c.has(bd_core::mechanics::Mechanic::Extends) && !bd_sim::constructs::gun::is_gun(c)); // WUKONG
     // The sim's quantised weight: the first-person swing matches its hit windows.
     let swing_w = held_c.map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
     st.held_w = held_c.map_or(1.0, |c| bd_shapes::weight_of(&c.recipe));
@@ -520,7 +521,8 @@ fn vm_events(
                         }
                     }
                     let button = if *fx == HeldFx::ChargeStart { buttons::PRIMARY } else { buttons::SECONDARY };
-                    st.swing = Some(ActiveSwing { curve: bd_shapes::swing_curve_weighted(form, kind, swing_w), t: 0.0, holding: hold, button });
+                    let curve = crate::present::extend::swing_curve_for(held_pole, form, kind, *fx, *strength, swing_w); // WUKONG: poles twirl
+                    st.swing = Some(ActiveSwing { curve, t: 0.0, holding: hold, button });
                 }
             }
             GameEvent::ShotFired { owner, recoil, construct, .. } if *owner == local => {

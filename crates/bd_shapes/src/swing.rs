@@ -360,7 +360,65 @@ pub fn swing_curve(form: Form, kind: SwingKind) -> SwingCurve {
 /// stays short (slightly *snappier*), a bigger follow-through past the strike and a slower settle.
 /// Lighter: everything quicker and tighter. The sim must sweep hitboxes along this same curve.
 pub fn swing_curve_weighted(form: Form, kind: SwingKind, weight: f32) -> SwingCurve {
-    let mut c = swing_curve(form, kind);
+    reweight(swing_curve(form, kind), weight)
+}
+
+/// **Telescoping weapons** (`Mechanic::Extends`: Ruyi Jingu Bang, power pole, extending sword…),
+/// whatever their form: a pole twirled round the hand in big arcs. Combo 0 / 1 are wide horizontal
+/// sweeps (right→left, left→right) whose recovery keeps spinning the pole a full turn back to rest
+/// (the twirl); combo 2 is an overhead crash that wheels on round in a vertical windmill; Heavy is the
+/// coil (pole drawn back along the aim, `hold_at`) that a charged release turns into the extend thrust
+/// or the falling pillar (the sim plays those itself, not this curve); Secondary is the plant / jab.
+pub fn swing_curve_extends(kind: SwingKind) -> SwingCurve {
+    use Ease::*;
+    use SwingKind as S;
+    const REST: [f32; 3] = [0.0, 0.0, 0.05];
+    match kind {
+        S::Primary | S::Combo(0) | S::Throw => curve("staff_twirl_sweep_rl", kind, 0.09, 0.1, 0.24, 0.09, &[
+            (0.0, 35.0, 0.0, 0.0, REST, 1.0, Linear),
+            (0.09, 4.0, -150.0, 0.0, [0.12, 0.04, 0.12], 0.9, OutCubic),
+            (0.19, -2.0, 130.0, 0.0, [-0.12, 0.0, -0.12], 1.12, InQuad),
+            (0.25, 0.0, 205.0, 0.0, [-0.08, 0.02, -0.05], 1.0, OutQuad),
+            (0.43, 35.0, 360.0, 0.0, REST, 1.0, InOutSine),
+        ]),
+        S::Combo(1) => curve("staff_twirl_sweep_lr", kind, 0.09, 0.1, 0.24, 0.09, &[
+            (0.0, 35.0, 0.0, 0.0, REST, 1.0, Linear),
+            (0.09, 6.0, 150.0, 0.0, [-0.12, 0.06, 0.12], 0.9, OutCubic),
+            (0.19, -2.0, -130.0, 0.0, [0.14, 0.0, -0.12], 1.12, InQuad),
+            (0.25, 0.0, -205.0, 0.0, [0.1, 0.02, -0.05], 1.0, OutQuad),
+            (0.43, 35.0, -360.0, 0.0, REST, 1.0, InOutSine),
+        ]),
+        S::Combo(_) => curve("staff_overhead_windmill", kind, 0.13, 0.1, 0.34, 0.13, &[
+            (0.0, 35.0, 0.0, 0.0, REST, 1.0, Linear),
+            (0.13, 175.0, 8.0, 0.0, [0.15, 0.25, 0.2], 0.85, OutCubic),
+            (0.23, -62.0, 0.0, 0.0, [0.12, -0.22, -0.3], 1.2, InCubic),
+            (0.3, -95.0, 0.0, 0.0, [0.22, -0.2, -0.2], 1.0, OutQuad),
+            (0.47, -325.0, 0.0, 0.0, REST, 1.0, InOutSine),
+        ]),
+        S::Heavy => curve("staff_coil_thrust", kind, 0.2, 0.08, 0.3, 0.2, &[
+            (0.0, 35.0, 0.0, 0.0, REST, 1.0, Linear),
+            (0.2, 2.0, 0.0, 0.0, [0.06, 0.06, 0.55], 0.88, OutCubic),
+            (0.28, -1.0, 0.0, 0.0, [0.0, 0.0, -1.2], 1.15, OutQuad),
+            (0.34, -1.0, 0.0, 0.0, [0.0, 0.0, -1.25], 1.0, OutQuad),
+            (0.58, 35.0, 0.0, 0.0, REST, 1.0, InOutSine),
+        ]),
+        S::Secondary => curve("staff_plant", kind, 0.05, 0.12, 0.22, 0.05, &[
+            (0.0, 35.0, 0.0, 0.0, REST, 1.0, Linear),
+            (0.05, 5.0, 0.0, 0.0, [0.0, 0.02, 0.3], 0.92, OutCubic),
+            (0.11, -2.0, 0.0, 0.0, [0.0, 0.0, -0.9], 1.12, OutQuad),
+            (0.17, -2.0, 0.0, 0.0, [0.0, 0.0, -0.95], 1.0, Linear),
+            (0.39, 35.0, 0.0, 0.0, REST, 1.0, InOutSine),
+        ]),
+    }
+}
+
+/// [`swing_curve_extends`] re-timed for a weight (same rules as [`swing_curve_weighted`]).
+pub fn swing_curve_extends_weighted(kind: SwingKind, weight: f32) -> SwingCurve {
+    reweight(swing_curve_extends(kind), weight)
+}
+
+fn reweight(c: SwingCurve, weight: f32) -> SwingCurve {
+    let mut c = c;
     let w = if weight.is_finite() { weight.clamp(0.5, 2.5) } else { 1.0 };
     if (w - 1.0).abs() < 1e-4 || c.keys.len() < 2 {
         return c;

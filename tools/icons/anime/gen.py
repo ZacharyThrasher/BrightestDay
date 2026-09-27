@@ -38,8 +38,8 @@ icon(["spirit bomb", "genki dama", "genkidama", "spirit ball", "goku's spirit bo
      "Spirit Bomb", "Ball", ["DropFromSky", "Explodes", "Heavy"], 7.0, 500, accent=CYAN, shape=H.spirit_bomb(), source=DB)
 icon(["flying nimbus", "nimbus", "kinto'un", "kintoun", "kinton", "nimbus cloud", "goku's cloud", "flying cloud"],
      "Flying Nimbus", "Vehicle", ["Flies", "Piloted", "Fast"], 2.4, 20, accent=YELLOW, shape=H.nimbus(), source=DB)
-icon(["power pole", "nyoibo", "nyoi-bo", "nyoi bo", "power staff", "goku's staff", "extending staff", "magic staff goku"],
-     "Power Pole", "Spear", ["Blunt", "Fast"], 4.0, 8, accent=RED, shape=H.power_pole(), source=DB)
+icon(["power pole", "nyoibo", "nyoi-bo", "nyoi bo", "power staff", "goku's staff", "magic staff goku"],
+     "Power Pole", "Spear", ["Blunt", "Extends"], 4.0, 8, accent=RED, shape=H.power_pole(), source=DB)
 icon(["dragon balls", "dragon ball", "dragonballs", "seven dragon balls", "4 star dragon ball", "four star dragon ball"],
      "Dragon Balls", "Ball", ["Ricochet", "Bounce"], 0.6, 2, count=7, accent=ORANGE, shape=H.dragon_ball(), source=DB)
 icon(["shenron", "shenlong", "shen long", "eternal dragon", "shenron dragon", "porunga"],
@@ -111,7 +111,7 @@ icon(["fireball jutsu", "great fireball technique", "fire style fireball jutsu",
 # ======================================================================================= One Piece
 OP = "One Piece"
 icon(["gum-gum pistol", "gum gum pistol", "gomu gomu no pistol", "gomu gomu pistol", "luffy's punch", "rubber punch", "gum gum punch"],
-     "Gum-Gum Pistol", "Gauntlet", ["Blunt", "Returning"], 3.5, 6, accent=RED, shape=H.gum_gum_pistol(), source=OP)
+     "Gum-Gum Pistol", "Gauntlet", ["Blunt", "Returning", "Extends"], 3.5, 6, accent=RED, shape=H.gum_gum_pistol(), source=OP)
 icon(["gear 5", "gear fifth", "gear five", "gear5", "nika", "sun god nika", "luffy gear 5", "gear 5 luffy", "joy boy"],
      "Gear 5", "Gauntlet", ["Blunt", "Bounce", "Grow"], 2.6, 20, accent=WHITE, shape=H.gear5(), source=OP)
 icon(["gear 4", "gear fourth", "gear four", "boundman", "bounce man", "kong gun", "gomu gomu no kong gun"],

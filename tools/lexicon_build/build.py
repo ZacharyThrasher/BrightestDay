@@ -35,10 +35,14 @@ from pathlib import Path
 import sources
 import anchors as A
 import everyday
+import tabletop_military
 
 # Everyday concepts (compounds, idioms, foods, rides, toys, brands) are hand anchors too; they win over
 # the general table for the few keys both define.
 A.WORD_ANCHORS.update(everyday.EVERYDAY)
+# Military / tabletop single words the domain icon packs cannot claim (tabletop_military.py).
+A.WORD_ANCHORS.update(tabletop_military.ANCHORS)
+A.VERBS.update(tabletop_military.VERBS)
 
 HERE = sources.HERE
 CACHE = sources.CACHE

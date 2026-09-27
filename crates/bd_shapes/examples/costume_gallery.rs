@@ -335,8 +335,18 @@ fn main() {
 
     if has("--mix") {
         let phrases = [
-            "gojo but bald", "donatello with a straw hat", "goku with naruto's headband", "red goku", "goku x luffy", "gojo but flibbertigibbet",
-            "gojo with pink hair", "darth vader with a straw hat", "batman with a gold cape", "naruto x sasuke", "master chief but no helmet", "straw hat",
+            "gojo but bald",
+            "donatello with a straw hat",
+            "goku with naruto's headband",
+            "red goku",
+            "goku x luffy",
+            "gojo but flibbertigibbet",
+            "gojo with pink hair",
+            "darth vader with a straw hat",
+            "batman with a gold cape",
+            "naruto x sasuke",
+            "master chief but no helmet",
+            "straw hat",
         ];
         let items: Vec<Dressed> = phrases
             .iter()

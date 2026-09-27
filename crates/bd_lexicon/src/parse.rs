@@ -294,6 +294,11 @@ pub(crate) const GRAMMAR_WORDS: &[&str] = &[
     "animate",
 ];
 
+/// A "giant X" is at least this tall at the plain "giant" multiplier (×2.5), scaled with stronger words.
+const GIANT_FLOOR: f32 = 3.0;
+/// A "tiny X" is at most this tall at the plain "tiny" multiplier (×0.4).
+const TINY_CAP: f32 = 1.0;
+
 pub(crate) fn gram_of(s: &str) -> Option<Gram> {
     use Gram::*;
     Some(match s {
@@ -1294,12 +1299,13 @@ impl Lexicon {
 
     /// Incantation prefix ("gomu gomu no <phrase>") then the normal (typed/spoken) resolution.
     fn resolve_body(&self, toks: Vec<Tok>, bangs: usize, spoken: bool) -> Resolution {
-        // Pokémon trainer grammar: "<pokemon> use <move>", "go <pokemon>", "<pokemon> i choose you"
-        if let Some(res) = self.pokemon_command(&toks, bangs, spoken) {
-            return res;
-        }
+        // Stage order (intent.rs module docs): invocation/signature, then the Pokémon trainer grammar.
         // Signature tier: "domain expansion <rest>", "bankai <rest>", "<rest> domain" (invocation.rs)
         if let Some(res) = self.invocation(&toks, bangs, spoken) {
+            return res;
+        }
+        // Pokémon trainer grammar: "<pokemon> use <move>", "go <pokemon>", "<pokemon> i choose you"
+        if let Some(res) = self.pokemon_command(&toks, bangs, spoken) {
             return res;
         }
         let skip = toks.iter().take_while(|t| matches!(gram_of(&t.text), Some(Gram::Article | Gram::Filler | Gram::Cast))).count();
@@ -1349,6 +1355,12 @@ impl Lexicon {
         let mut best: Option<(f32, usize, usize, String, bool)> = None;
         if toks.len() > 8 {
             return res; // long utterances are sentences, not misheard names
+        }
+        // Whisper writes real words: when they already read clearly as a thing ("fire sword", "sledge
+        // hammer", "t rex", "5 sharks"), they were heard right — no sound-alike may replace them. Only
+        // readings that don't compose ("mule near", "picked you", "char is ard") go looking.
+        if res.kind == ResolutionKind::Construct && res.ignored.is_empty() && res.confidence >= 0.8 {
+            return res;
         }
         for start in 0..toks.len() {
             for len in 1..=4usize.min(toks.len() - start) {
@@ -1855,8 +1867,20 @@ impl Lexicon {
                 r.scale = a;
                 r.mass *= k.powi(3).clamp(1e-6, 1e9);
             }
+            let before = r.scale;
             r.scale = (r.scale * m.scale_mul).clamp(0.02, 60.0);
-            r.mass = (r.mass * m.mass_mul).clamp(0.001, 1e10);
+            // Size words are about how it *looks next to you*: a "giant ant" / "giant rubber duck" is
+            // big (≥ 3 m at ×2.5), a "tiny elephant" / "mini godzilla" is small (≤ 1 m at ×0.4) —
+            // not a 0.5 m ant or a 25 m "mini" kaiju. (Relations' abs sizes are applied separately.)
+            if m.abs_size.is_none() {
+                if m.scale_mul >= 2.0 {
+                    r.scale = r.scale.max(GIANT_FLOOR * m.scale_mul / 2.5).min(60.0);
+                } else if m.scale_mul <= 0.55 {
+                    r.scale = r.scale.min(TINY_CAP * m.scale_mul / 0.4).max(0.02);
+                }
+            }
+            let k = r.scale / (before * m.scale_mul).max(0.001);
+            r.mass = (r.mass * m.mass_mul * k.powi(3).clamp(1e-6, 1e6)).clamp(0.001, 1e10);
             if let Some(n) = m.count {
                 r.count = n.max(1);
             }

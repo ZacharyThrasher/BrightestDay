@@ -263,6 +263,23 @@ accessory toggles apply on top. Same rig/part ids as always (animations, hands, 
 character bounding box ≤ 2.6× hull (thin hair spikes/brims inflate a box, not the silhouette).
 Characters are never listed in UI (MYSTERY). Gallery: docs/costume_gallery.png.
 
+**Mix and match** (`bd_shapes::costume::grammar`): a look is slots (hair, headwear, face, top, bottom,
+back, accessory, palette) filled from the character table + a generic parts library
+(assets/costumes/parts.ron: straw hat, bandana, cape, sunglasses, crown, horns, headband, wings…).
+Grammar: base character, then `with/wearing/in X` (add/replace X's slot; X = a part or another
+character's part: "with luffy's hat", "with naruto's headband"), `but/without/no X` (remove: "gojo but
+bald", "vader no helmet"), colour words ("red goku", "gojo with pink hair"), mashups ("goku x luffy" =
+first character's head on the second's outfit). Never says no: unknown words are ignored when a
+character is present; a part alone dresses a default body. Deterministic in the text (no net data).
+
+**Summoned characters** (`bd_shapes::costume::summon`): a plain summon whose text names a character
+("goku", "GIANT GOKU", "goku with a sword"; exact aliases only, scale words allowed; power phrases and
+signatures still win; "goku's power pole" is the pole) is built from that character's costume: the
+console hook sets `recipe.model = Icon("costume:<text>")` and ships the costume geometry as the
+cast's curated shape (existing field → no protocol bump); every client re-derives the palette from the
+id and the construct shader blends it toward the caster's lantern colour. Shots:
+docs/costume_summons.png, docs/costume_mix.png.
+
 ## Party mode UI (client)
 Lobby: mode toggle (FFA / Party) + a settings panel exposing every `GameSettings` knob with presets
 (Classic, Party, Chaos, Movement Gods). Between rounds: standings strip (corps-coloured, minimal), then

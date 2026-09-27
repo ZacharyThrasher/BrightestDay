@@ -8,6 +8,9 @@
 //!   punches, overdose, transformations, and the **time-stop grey** (world desaturates for
 //!   everyone while any player holds `TIME_STOP`; the user glows — they are the one who's fast).
 
+pub mod ascend;
+pub mod juice;
+
 use super::players::PlayerBody;
 use super::sound::Sfx3d;
 use super::{bv, corps_rgb, PresentSet};
@@ -51,7 +54,8 @@ pub struct PowersPlugin;
 
 impl Plugin for PowersPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpaceEntities>()
+        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin))
+            .init_resource::<SpaceEntities>()
             .init_resource::<TimeStopGrey>()
             .add_systems(Startup, setup)
             .add_systems(OnExit(AppState::InGame), clear)

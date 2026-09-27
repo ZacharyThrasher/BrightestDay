@@ -43,6 +43,7 @@ impl Plugin for GiantsFxPlugin {
             .add_message::<ShatterModelFx>()
             .add_systems(Update, giant_events.in_set(PresentSet::Events))
             .add_systems(Update, (weak_markers, hide_severed, animate_fx).in_set(PresentSet::Sync));
+        scenario::build(app);
     }
 }
 
@@ -619,6 +620,267 @@ fn animate_fx(
         f.left -= dt;
         if f.left <= 0.0 {
             commands.entity(e).try_despawn();
+        }
+    }
+}
+
+/// `--scenario giants --giant-shot ride|nape|sever|topple|stomp` (practice): dev frames of the
+/// giant fight. A kaiju is summoned by bot 2 on open ground near you; bots stop thinking; the script
+/// drives your input (`InputOverride` + look) and, for the sever / topple shots, deals the damage
+/// directly (host world) so the moment lands on a known frame.
+pub mod scenario {
+    use crate::input::{InputOverride, LookAngles};
+    use crate::sim_bridge::ActiveWorld;
+    use bd_core::input::buttons;
+    use bd_core::mechanics::{Element, Form, Mechanic};
+    use bd_core::{ConstructId, PlayerId, Vec3};
+    use bd_sim::combat::ConstructHit;
+    use bd_sim::constructs::giant::{self, Limb, Spot};
+    use bevy::prelude::{info, warn, App, IntoScheduleConfigs, Res, ResMut, Resource, Time, Update};
+    use bevy::time::Real;
+    use bevy::ecs::schedule::common_conditions::resource_exists;
+
+    #[derive(Resource, Clone, Debug, Default)]
+    pub struct GiantScenario {
+        shot: String,
+        t: f32,
+        placed: bool,
+        kaiju: Option<ConstructId>,
+        /// Kaiju spot + the direction from you to it.
+        spot: Vec3,
+        dir: Vec3,
+        step: u32,
+    }
+
+    pub fn build(app: &mut App) {
+        let args: Vec<String> = std::env::args().collect();
+        if !args.windows(2).any(|w| w[0] == "--scenario" && w[1] == "giants") {
+            return;
+        }
+        let shot = args.windows(2).find(|w| w[0] == "--giant-shot").map(|w| w[1].clone()).unwrap_or_else(|| "ride".into());
+        info!("giants scenario: {shot}");
+        app.insert_resource(GiantScenario { shot, ..Default::default() }).add_systems(Update, script.run_if(resource_exists::<ActiveWorld>));
+    }
+
+    fn ground(w: &bd_sim::World, x: f32, z: f32, near_y: f32) -> Option<f32> {
+        let from = Vec3::new(x, near_y + 12.0, z);
+        let hit = bd_core::voxel::raycast(&w.voxels, from, Vec3::NEG_Y, 30.0)?;
+        ((hit.point.y - near_y).abs() < 2.5).then_some(hit.point.y)
+    }
+
+    /// Open, flat ground `dist` m out from `me` (a 28 m square within ±1.2 m of height).
+    fn find_spot(w: &bd_sim::World, me: Vec3, dist: f32) -> Option<(Vec3, Vec3)> {
+        for step in 0..32 {
+            let yaw = step as f32 * std::f32::consts::TAU / 32.0;
+            let d = bd_core::input::look_dir(yaw, 0.0);
+            let c = me + d * dist;
+            let Some(y0) = ground(w, c.x, c.z, me.y) else { continue };
+            let mut ok = true;
+            'grid: for i in -3..=3 {
+                for j in -3..=3 {
+                    let (x, z) = (c.x + i as f32 * 4.5, c.z + j as f32 * 4.5);
+                    match ground(w, x, z, y0) {
+                        Some(y) if (y - y0).abs() < 1.2 => {}
+                        _ => {
+                            ok = false;
+                            break 'grid;
+                        }
+                    }
+                }
+            }
+            // Your side of it too (the approach).
+            for k in 1..4 {
+                let p = me + d * (k as f32 * dist / 4.0);
+                if ground(w, p.x, p.z, me.y).is_none() {
+                    ok = false;
+                }
+            }
+            if ok {
+                return Some((Vec3::new(c.x, y0, c.z), d));
+            }
+        }
+        None
+    }
+
+    fn aim(look: &mut LookAngles, eye: Vec3, at: Vec3) {
+        let d = (at - eye).normalize_or_zero();
+        look.yaw = (-d.x).atan2(-d.z);
+        look.pitch = d.y.clamp(-1.0, 1.0).asin();
+    }
+
+    fn part_world(w: &bd_sim::World, id: ConstructId, l: Limb) -> Option<Vec3> {
+        let c = w.constructs.get(id)?;
+        let (lc, _) = c.ai.giant.body.limb_box(l)?;
+        Some(giant::to_world(c, lc))
+    }
+
+    fn nape_world(w: &bd_sim::World, id: ConstructId) -> Option<Vec3> {
+        let c = w.constructs.get(id)?;
+        let wp = c.ai.giant.body.weak_points().iter().find(|p| p.spot == Spot::Nape).copied()?;
+        Some(giant::weak_world(c, &wp))
+    }
+
+    fn script(time: Res<Time<Real>>, mut sc: ResMut<GiantScenario>, mut active: ResMut<ActiveWorld>, mut look: ResMut<LookAngles>, mut ov: ResMut<InputOverride>) {
+        let dt = time.delta_secs();
+        sc.t += dt;
+        if sc.t < 0.8 {
+            return;
+        }
+        let Some((me, my_pos)) = active.local_player().filter(|p| p.alive).map(|p| (p.id, p.mv.pos)) else { return };
+        let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
+        let (Some(&owner), Some(&far)) = (others.first(), others.get(1)) else { return };
+        if !sc.placed {
+            let Some((spot, dir)) = find_spot(&active.world, my_pos, 22.0) else {
+                if sc.t > 8.0 {
+                    warn!("giants scenario: no open ground near the spawn");
+                    sc.placed = true;
+                }
+                return;
+            };
+            active.bots.clear();
+            active.world.cfg.rules.willpower = bd_sim::WillpowerMode::Infinite;
+            // The kaiju's owner stands behind you; its target (another bot) far beyond it, so it
+            // walks away from you (ride) — or you are its target (stomp).
+            let behind = my_pos - dir * 30.0;
+            let beyond = spot + dir * 40.0;
+            for (id, at) in [(owner, behind), (far, beyond)] {
+                let gy = ground(&active.world, at.x, at.z, spot.y).unwrap_or(spot.y);
+                if let Some(p) = active.world.player_mut(id) {
+                    p.mv.pos = Vec3::new(at.x, gy + 0.1, at.z);
+                    p.mv.vel = Vec3::ZERO;
+                    p.spawn_shield = 0.0;
+                }
+            }
+            let mechs: &[Mechanic] = if sc.shot == "stomp" { &[Mechanic::Stomp] } else { &[Mechanic::ArticulatedTail] };
+            let r = bd_sim::bots::recipe("godzilla", Form::Kaiju, mechs, Element::Atomic, 13.0);
+            let eye = active.world.player(owner).map(|p| p.eye(active.world.params())).unwrap_or(spot);
+            match active.world.cast(owner, r, None, bd_sim::Aim::new(eye, (spot - eye).normalize_or_zero())) {
+                Ok(id) => {
+                    if let Some(c) = active.world.constructs.get_mut(id) {
+                        c.pos = spot;
+                        // Side-on to you (its back / tail toward you for the ride).
+                        let face = if sc.shot == "stomp" { -dir } else { Vec3::new(dir.z, 0.0, -dir.x) };
+                        c.rot = bd_sim::geom::yaw_rotation(face);
+                        c.life = 1e6;
+                    }
+                    sc.kaiju = Some(id);
+                }
+                Err(e) => warn!("giants scenario: cast failed {e:?}"),
+            }
+            if sc.shot == "stomp" {
+                // You are its target: the other bot goes away.
+                if let Some(p) = active.world.player_mut(far) {
+                    p.alive = false;
+                    p.respawn_timer = 1e6;
+                }
+            }
+            if sc.shot == "nape" {
+                let scale = bd_sim::constructs::form_spec(Form::Sword).default_scale;
+                let eye = active.world.player(me).map(|p| p.eye(active.world.params())).unwrap_or(my_pos);
+                let _ = active.world.cast(me, bd_sim::bots::recipe("sword", Form::Sword, &[Mechanic::Blade], Element::Light, scale), None, bd_sim::Aim::new(eye, dir));
+            }
+            sc.spot = spot;
+            sc.dir = dir;
+            sc.placed = true;
+            sc.t = 1.0;
+            info!("giants scenario: kaiju {:?} at {spot:?}", sc.kaiju);
+            return;
+        }
+        let Some(id) = sc.kaiju.filter(|id| active.world.constructs.get(*id).is_some()) else { return };
+        let eye = active.world.player(me).map(|p| p.eye(active.world.params())).unwrap_or(my_pos);
+        ov.active = true;
+        ov.held = 0;
+        ov.move_x = 0;
+        ov.move_z = 0;
+        let t = sc.t;
+        match sc.shot.as_str() {
+            // Hook the tail, reel in, land on it, run up the back.
+            "ride" => {
+                if t < 2.2 {
+                    if let Some(p) = part_world(&active.world, id, Limb::Tail) {
+                        aim(&mut look, eye, p);
+                    }
+                } else if t < 3.6 {
+                    if let Some(p) = part_world(&active.world, id, Limb::Tail) {
+                        aim(&mut look, eye, p + Vec3::Y * 1.5);
+                    }
+                    ov.held = buttons::TETHER_L | buttons::REEL;
+                } else {
+                    // On the tail: face the head and run up (hop the steps).
+                    if let Some(h) = part_world(&active.world, id, Limb::Head) {
+                        let mut to = h - eye;
+                        to.y = 0.0;
+                        aim(&mut look, eye, eye + to.normalize_or_zero() * 10.0 + Vec3::Y * -2.0);
+                    }
+                    ov.move_z = 1;
+                    if (t * 3.0) as i32 % 2 == 0 {
+                        ov.held = buttons::JUMP;
+                    }
+                }
+            }
+            // Stand on its back at the nape and slash it (a stagger), again after the cooldown.
+            "nape" => {
+                let Some(n) = nape_world(&active.world, id) else { return };
+                if let Some(c) = active.world.constructs.get_mut(id) {
+                    c.vel = Vec3::ZERO;
+                    for cd in c.ai.cd.iter_mut() {
+                        *cd = 99.0;
+                    }
+                }
+                if t < 1.6 {
+                    let back = n - sc.dir * 2.2 + Vec3::Y * 0.2;
+                    if let Some(p) = active.world.player_mut(me) {
+                        p.mv.pos = back;
+                        p.mv.vel = Vec3::ZERO;
+                    }
+                }
+                aim(&mut look, eye, n);
+                let c = ((t - 1.6) / 1.4).fract();
+                if t > 1.6 && c < 0.06 {
+                    ov.held = buttons::PRIMARY;
+                }
+            }
+            // An arm is cut off (hits on the arm), watched from the side.
+            "sever" => {
+                if let Some(a) = part_world(&active.world, id, Limb::ArmR) {
+                    aim(&mut look, eye, a);
+                    if t > 2.0 && sc.step < 12 && (t * 8.0) as u32 > sc.step + 16 {
+                        sc.step += 1;
+                        active.world.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: id, source: Some(me), damage: 9.0, impulse: Vec3::ZERO, blade: true, point: a });
+                    }
+                }
+            }
+            // A leg is broken: it topples onto its side, the nape comes down.
+            "topple" => {
+                if let Some(c) = active.world.constructs.get_mut(id) {
+                    for cd in c.ai.cd.iter_mut() {
+                        *cd = 99.0;
+                    }
+                }
+                if let Some(k) = active.world.constructs.get(id).map(|c| c.center()) {
+                    aim(&mut look, eye, k);
+                }
+                if t > 2.0 && sc.step == 0 {
+                    sc.step = 1;
+                    if let Some(l) = part_world(&active.world, id, Limb::LegBL) {
+                        let max = active.world.constructs.get(id).map_or(100.0, |c| c.ai.giant.limb_max[Limb::LegBL as usize]);
+                        active.world.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: id, source: Some(me), damage: max + 1.0, impulse: Vec3::ZERO, blade: false, point: l });
+                    }
+                }
+            }
+            // You stand in front of it; it stomps (you are its target).
+            "stomp" => {
+                if let Some(k) = active.world.constructs.get(id).map(|c| c.center()) {
+                    aim(&mut look, eye, k);
+                }
+                if let Some(c) = active.world.constructs.get_mut(id) {
+                    c.vel.x = 0.0;
+                    c.vel.z = 0.0;
+                    c.pos.x = sc.spot.x;
+                    c.pos.z = sc.spot.z;
+                }
+            }
+            _ => {}
         }
     }
 }

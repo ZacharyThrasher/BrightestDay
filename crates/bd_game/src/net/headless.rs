@@ -253,6 +253,7 @@ pub fn run_client(cli: &NetCli) -> i32 {
     let mut last_rtt_sample = t0;
     let mut interp_starved0 = 0;
     let (mut casts_ok, mut casts_failed) = (0u32, 0u32);
+    let mut voted = false;
     loop {
         let now = now_secs();
         if now - t0 > run_for {
@@ -267,6 +268,17 @@ pub fn run_client(cli: &NetCli) -> i32 {
             }
         }
         c.outbox.clear();
+        // A match is over: vote for the next map like a player would (a seeded pick).
+        match (&c.lobby.vote, voted) {
+            (Some(_), false) => {
+                let pick = NetMapKind::ALL[(cli.seed as usize).wrapping_mul(7).wrapping_add(3) % NetMapKind::ALL.len()];
+                c.vote_map(pick);
+                println!("NETVOTE {pick:?} after={:.2}s", now - t0);
+                voted = true;
+            }
+            (None, true) => voted = false,
+            _ => {}
+        }
         for (_, o) in c.cast_results.drain(..) {
             match o {
                 Some(CastOutcome::Spawned(_) | CastOutcome::Grafted(_)) => casts_ok += 1,

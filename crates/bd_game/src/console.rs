@@ -11,7 +11,7 @@
 //!   cast with the power's delivery) → `Lexicon::resolve` → `SimCommand::Cast`. Graft phrases set
 //!   `aim.modifier` (the sim grafts onto the own construct under the crosshair / animates terrain).
 //!   Stand-rush tokens (ORA / MUDA / …) are sent live as `StandRush(n)` while typing.
-//! * **Feels instant**: [`RingCue::Forming`] fires on the key press (viewmodel ring flare + sound)
+//! * **Feels instant**: [`Caster::commit_feedback`] fires on the commit frame (ring flare, cast pose, sound)
 //!   before the sim answers. The construct itself is the only feedback — nothing on screen explains
 //!   what the ring understood. Improvised phrases are silently appended to `logs/unresolved.txt` so
 //!   playtests grow the vocabulary.
@@ -242,6 +242,14 @@ impl Caster<'_> {
         self.cues.write(RingCue::Rush);
     }
 
+    /// The instant local "catch" on the commit frame (Enter, a quick-cast slot or the voice phrase
+    /// finalising — identical for all): ring flare + hand cast pose (`RingCue::Forming` →
+    /// viewmodel / viewmodel_anim) and the confirm sound, before the sim or network answers.
+    pub fn commit_feedback(&mut self, spoken: bool) {
+        self.cues.write(RingCue::Forming { voice: spoken });
+        self.sfx.write(PlaySfx::new("cast_confirm").gain(0.55));
+    }
+
     /// Cast `text`. Returns false when there is no world to cast into (nothing happens).
     /// `rush_already` = stand-rush tokens of this phrase already sent live.
     pub fn cast(&mut self, text: &str, spoken: bool, rush_already: u16) -> bool {
@@ -267,7 +275,7 @@ impl Caster<'_> {
         let voice_peak = spoken.then(|| self.sig_voice.as_ref().map_or(0.8, |v| v.peak));
         let energy = crate::lobby::feed::cast_energy(text, voice_peak, self.shout_table.as_deref());
         // Instant local feedback on the same frame as the key press.
-        self.cues.write(RingCue::Forming { voice: spoken });
+        self.commit_feedback(spoken);
         // A plain phrase was already read by the intent stages (one order for typed and spoken words).
         let resolved = match (&power, plan.intent.as_ref()) {
             (PowerPhrase::Plain, Some(it)) => resolved_from(it.resolution.clone()),
@@ -614,9 +622,8 @@ fn console_keys(
                         caster.cast(&p, false, console.rush_sent);
                     } else {
                         console.pending.push((p, false));
-                        caster.cues.write(RingCue::Forming { voice: false });
+                        caster.commit_feedback(false);
                     }
-                    caster.sfx.write(PlaySfx::new("cast_confirm").gain(0.55));
                 }
                 console.rush_sent = 0;
                 console.hist = None;
@@ -877,6 +884,46 @@ mod tests {
         assert_eq!(count_rush_tokens("WRYYYYY"), 1);
         assert_eq!(count_rush_tokens("hammer"), 0);
         assert_eq!(count_rush_tokens("orange"), 0);
+    }
+
+    /// The owner's bug end to end: "DROP A METEOR ON ETHAN" (typed or heard) names Ethan, and the host
+    /// drops it on Ethan — not in front of the caster, who is looking the other way.
+    #[test]
+    fn drop_a_meteor_on_ethan_end_to_end() {
+        use bd_core::{PlayerId, Vec3};
+        let Ok(lex) = Lexicon::load(&crate::assets_dir().join("lexicon.bin")) else { return };
+        let cfg = bd_sim::SimConfig { arena: bd_sim::ArenaSource::Flat { size_m: 128.0 }, ..Default::default() };
+        let mut w = bd_sim::World::new(cfg);
+        let (me, ethan, jake) = (PlayerId(1), PlayerId(2), PlayerId(3));
+        for (id, name) in [(me, "Caster"), (ethan, "Ethan"), (jake, "Jake")] {
+            w.add_player(id, name.into(), Corps::from_index(id.0)).unwrap();
+        }
+        w.start_live();
+        w.tick(&[]);
+        w.cfg.rules.willpower = bd_sim::rules::WillpowerMode::Infinite;
+        for (id, pos) in [(me, Vec3::new(0.0, 8.0, 0.0)), (ethan, Vec3::new(8.0, 8.0, -30.0)), (jake, Vec3::new(-20.0, 8.0, 10.0))] {
+            let p = w.player_mut(id).unwrap();
+            p.spawn_shield = 0.0;
+            p.mv.pos = pos;
+        }
+        w.tick(&[]);
+        for (text, spoken) in [("DROP A METEOR ON ETHAN", false), ("drop a meteor on eaton.", true), ("drop a meteor on e than", true)] {
+            let plan = crate::lobby::feed::plan_cast(&lex, &w, me, text, spoken, None);
+            assert_eq!(plan.target, Some(ethan), "{text:?}");
+            assert_eq!(plan.delivery, Some(bd_sim::freedom::Delivery::Onto), "{text:?}");
+            let Some(Resolved::Cast { res, .. }) = plan.intent.as_ref().map(|i| resolved_from(i.resolution.clone())) else { panic!("{text:?}") };
+            // the caster looks along +X; only the name can put it on Ethan
+            let eye = w.player(me).unwrap().eye(w.params());
+            let hint = Some(TargetHint::Named { player: ethan, via: plan.delivery.unwrap() });
+            let id = w.cast(me, res.recipe, None, Aim { origin: eye, dir: Vec3::X, target_hint: hint, modifier: false }).unwrap();
+            let c = w.constructs.get(id).unwrap();
+            let at = w.player(ethan).unwrap().mv.pos;
+            assert!(Vec3::new(c.pos.x - at.x, 0.0, c.pos.z - at.z).length() < 1.5, "{text:?}: formed at {:?}, Ethan at {at:?}", c.pos);
+        }
+        // "again!" re-runs the stages on the last phrase: still at Jake
+        let plan = crate::lobby::feed::plan_cast(&lex, &w, me, "again!", false, Some("missile at jake"));
+        assert!(plan.repeat);
+        assert_eq!((plan.target, plan.delivery), (Some(jake), Some(bd_sim::freedom::Delivery::At)));
     }
 
     #[test]

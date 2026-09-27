@@ -71,6 +71,11 @@ pub struct CursorCapture {
     secs_since_grab: f32,
 }
 
+/// A UI screen wants the mouse (the end-of-match vote): the cursor is released while set, and
+/// grabbed again when it clears.
+#[derive(Resource, Debug, Default, Clone, Copy)]
+pub struct FreeCursor(pub bool);
+
 /// UI focus flags other modules set.
 #[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct UiFocus {
@@ -224,6 +229,7 @@ impl Plugin for InputPlugin {
         app.init_resource::<LookAngles>()
             .init_resource::<CursorCapture>()
             .init_resource::<UiFocus>()
+            .init_resource::<FreeCursor>()
             .init_resource::<Bindings>()
             .init_resource::<LocalInputState>()
             .init_resource::<InputOverride>()
@@ -241,12 +247,13 @@ fn update_cursor_capture(
     mouse: Res<ButtonInput<MouseButton>>,
     time: Res<Time<Real>>,
     mut capture: ResMut<CursorCapture>,
+    free: Res<FreeCursor>,
     window: Single<(&Window, &mut CursorOptions), With<PrimaryWindow>>,
 ) {
     let (window, mut cursor) = window.into_inner();
-    let in_game = *state.get() == AppState::InGame && !menu.0;
+    let in_game = *state.get() == AppState::InGame && !menu.0 && !free.0;
     // Grab when entering gameplay; re-grab on click after alt-tab.
-    let want = in_game && window.focused && (capture.grabbed || mouse.just_pressed(MouseButton::Left) || menu.is_changed() || state.is_changed());
+    let want = in_game && window.focused && (capture.grabbed || mouse.just_pressed(MouseButton::Left) || menu.is_changed() || state.is_changed() || free.is_changed());
     if want && !capture.grabbed {
         capture.grabbed = true;
         capture.frames_since_grab = 0;

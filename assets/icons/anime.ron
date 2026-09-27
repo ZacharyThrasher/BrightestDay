@@ -30,11 +30,11 @@
         source: "Dragon Ball",
     ),
     IconEntry(
-        names: ["power pole", "nyoibo", "nyoi-bo", "nyoi bo", "power staff", "goku's staff", "extending staff", "magic staff goku"],
+        names: ["power pole", "nyoibo", "nyoi-bo", "nyoi bo", "power staff", "goku's staff", "magic staff goku"],
         recipe: (
             name: "Power Pole",
             form: Spear,
-            mechanics: [Blunt, Fast],
+            mechanics: [Blunt, Extends],
             element: Light,
             scale: 4.0,
             mass: 8.0,
@@ -882,7 +882,7 @@
         recipe: (
             name: "Gum-Gum Pistol",
             form: Gauntlet,
-            mechanics: [Blunt, Returning],
+            mechanics: [Blunt, Returning, Extends],
             element: Light,
             scale: 3.5,
             mass: 6.0,

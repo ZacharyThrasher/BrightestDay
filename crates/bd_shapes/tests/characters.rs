@@ -273,8 +273,17 @@ fn mix_and_match_phrases() {
     assert!(costume::grammar::parse("knight").is_none(), "vocabulary phrases stay vocabulary");
     // All of them build (and deterministically).
     for ph in [
-        "gojo but bald", "donatello with a straw hat", "goku with naruto's headband", "red goku", "goku x luffy", "gojo but flibbertigibbet", "straw hat",
-        "spider-man in black", "batman with a gold cape", "mario with sunglasses and a cape", "master chief but no helmet",
+        "gojo but bald",
+        "donatello with a straw hat",
+        "goku with naruto's headband",
+        "red goku",
+        "goku x luffy",
+        "gojo but flibbertigibbet",
+        "straw hat",
+        "spider-man in black",
+        "batman with a gold cape",
+        "mario with sunglasses and a cape",
+        "master chief but no helmet",
     ] {
         let r = bd_core::mechanics::Recipe::unknown(ph);
         let a = costume::dress(ph, &r, None, None, 0, tw());

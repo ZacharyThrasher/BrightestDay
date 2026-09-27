@@ -139,6 +139,8 @@ enum Knob {
     Caps,
     /// CONSTRUCTS: one per-kind cap (`MatchRules::limits`).
     Limit(Lim),
+    /// CONSTRUCTS: big things need a pickup from the map (`MatchRules::powerups`).
+    Powerups,
     Scoring,
     Lives,
     KoTarget,
@@ -430,7 +432,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
-            v.extend([Header("CONSTRUCTS"), Value(K::Caps)]);
+            v.extend([Header("CONSTRUCTS"), Value(K::Powerups), Value(K::Caps)]);
             for l in Lim::ALL {
                 // Colossal things only exist in no-limits lobbies.
                 if l != Lim::Colossal || c.prefs.game.rules.scale == ScaleLimit::NoLimits {
@@ -638,6 +640,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         } else {
             "CUSTOM".into()
         }),
+        Knob::Powerups => (lbl("POWER-UPS"), on_off(r.powerups)),
         Knob::Limit(l) => {
             let mut lim = r.limits;
             (lbl(l.label()), lim_text(*l.get(&mut lim)))
@@ -875,6 +878,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Scale => g.rules.scale = cycle(&[ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits], g.rules.scale, dir),
         Knob::Willpower => g.rules.willpower = cycle(&[WillpowerMode::Normal, WillpowerMode::Double, WillpowerMode::Infinite], g.rules.willpower, dir),
         Knob::Caps => g.rules.limits = if g.rules.limits == ConstructLimits::default() { ConstructLimits::chaos() } else { ConstructLimits::default() },
+        Knob::Powerups => g.rules.powerups = !g.rules.powerups,
         Knob::Limit(l) => {
             let v = l.get(&mut g.rules.limits);
             *v = l.step(*v, dir);
@@ -1011,6 +1015,12 @@ impl MenuState {
         self.scroll = 0;
         self.rebuild = true;
         self.capture = None;
+    }
+    /// Open the in-game menu's Match Rules page (the end screen's host button; BACK → pause).
+    /// The caller sets `InGameMenu`.
+    pub fn open_rules(&mut self) {
+        self.reset(MenuPage::Pause);
+        self.goto(MenuPage::Rules);
     }
     fn toast(&mut self, s: impl Into<String>) {
         self.toast = Some((s.into(), 2.5));
@@ -2178,9 +2188,10 @@ mod tests {
         let c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice: true, in_game: false };
         let rows = page_rows(MenuPage::Rules, SettingsTab::Gameplay, &c);
         let at = rows.iter().position(|r| *r == Row::Header("CONSTRUCTS")).expect("CONSTRUCTS section");
-        assert_eq!(rows[at + 1], Row::Value(Knob::Caps));
+        assert_eq!(rows[at + 1], Row::Value(Knob::Powerups));
+        assert_eq!(rows[at + 2], Row::Value(Knob::Caps));
         for (i, l) in Lim::ALL.into_iter().enumerate() {
-            assert_eq!(rows[at + 2 + i], Row::Value(Knob::Limit(l)), "{l:?}");
+            assert_eq!(rows[at + 3 + i], Row::Value(Knob::Limit(l)), "{l:?}");
         }
         // Steppers: 0..=max, then UNLIMITED, and back down.
         assert_eq!(Lim::Structures.step(10, 1), UNLIMITED);
@@ -2199,6 +2210,10 @@ mod tests {
         assert_eq!(knob_text(Knob::Caps, &c).1, "CUSTOM");
         assert!(step_knob(Knob::Caps, &mut c, 1, false));
         assert_eq!(c.prefs.game.rules.limits, ConstructLimits::default());
+        // POWER-UPS: off by default, one toggle, a lobby rule.
+        assert_eq!(knob_text(Knob::Powerups, &c).1, "OFF");
+        assert!(step_knob(Knob::Powerups, &mut c, 1, false));
+        assert!(c.prefs.game.rules.powerups);
         // Colossal only shows in no-limits lobbies.
         c.prefs.game.rules.scale = ScaleLimit::Normal;
         assert!(!page_rows(MenuPage::Rules, SettingsTab::Gameplay, &c).contains(&Row::Value(Knob::Limit(Lim::Colossal))));

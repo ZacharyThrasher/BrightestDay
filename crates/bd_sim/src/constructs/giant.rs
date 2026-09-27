@@ -125,6 +125,16 @@ pub struct GiantTuning {
     pub hijack: bool,
     pub hijack_secs: f32,
     pub hijack_reach: f32,
+    /// TITANS (`titan.rs`, piloted walkers): walk speed × this, seconds to full speed / to a stop,
+    /// dash speed (× walk speed) and length, dash charges and seconds per charge, torso lag (s).
+    pub titan_speed: f32,
+    pub titan_accel: f32,
+    pub titan_stop: f32,
+    pub titan_dash: f32,
+    pub titan_dash_secs: f32,
+    pub titan_charges: f32,
+    pub titan_recharge: f32,
+    pub titan_torso_lag: f32,
 }
 
 impl Default for GiantTuning {
@@ -172,6 +182,14 @@ impl Default for GiantTuning {
             hijack: true,
             hijack_secs: 2.5,
             hijack_reach: 1.5,
+            titan_speed: 1.2,
+            titan_accel: 0.2,
+            titan_stop: 0.12,
+            titan_dash: 2.6,
+            titan_dash_secs: 0.28,
+            titan_charges: 2.0,
+            titan_recharge: 5.0,
+            titan_torso_lag: 0.12,
         }
     }
 }
@@ -221,6 +239,14 @@ impl GiantTuning {
         self.focus_secs = fin(self.focus_secs, d.focus_secs, 0.0, 600.0);
         self.hijack_secs = fin(self.hijack_secs, d.hijack_secs, 0.1, 60.0);
         self.hijack_reach = fin(self.hijack_reach, d.hijack_reach, 0.1, 20.0);
+        self.titan_speed = fin(self.titan_speed, d.titan_speed, 0.1, 5.0);
+        self.titan_accel = fin(self.titan_accel, d.titan_accel, 0.02, 3.0);
+        self.titan_stop = fin(self.titan_stop, d.titan_stop, 0.02, 3.0);
+        self.titan_dash = fin(self.titan_dash, d.titan_dash, 1.0, 10.0);
+        self.titan_dash_secs = fin(self.titan_dash_secs, d.titan_dash_secs, 0.02, 2.0);
+        self.titan_charges = fin(self.titan_charges, d.titan_charges, 0.0, 10.0);
+        self.titan_recharge = fin(self.titan_recharge, d.titan_recharge, 0.1, 120.0);
+        self.titan_torso_lag = fin(self.titan_torso_lag, d.titan_torso_lag, 0.0, 2.0);
         self
     }
 }

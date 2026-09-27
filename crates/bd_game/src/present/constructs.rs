@@ -517,7 +517,11 @@ fn construct_events(
                         let form = sc.form;
                         let w = active.world.constructs.get(*id).map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
                         let bin = bd_sim::constructs::held::weight_bin(w) as u8;
-                        let curve = swings.0.entry((form, k, bin)).or_insert_with(|| Arc::new(bd_shapes::swing_curve_weighted(form, kind, w))).clone();
+                        // WUKONG: telescoping poles twirl (their own curves, keyed apart; the combo step rides the strength).
+                        let pole = super::extend::is_pole(&active, *id);
+                        let k = if pole { 10 + (((*strength - 1.0) / 0.25).round().clamp(0.0, 4.0) as u8) + k * 5 } else { k };
+                        let (fx0, st0) = (*fx, *strength);
+                        let curve = swings.0.entry((form, k, bin)).or_insert_with(|| Arc::new(super::extend::swing_curve_for(pole, form, kind, fx0, st0, w))).clone();
                         // A heavy starts on the charge's release, already coiled: from `hold_at`
                         // like the sim (so the strike isn't a wind-up late).
                         let t0 = if kind == SwingKind::Heavy { curve.hold_at } else { 0.0 };

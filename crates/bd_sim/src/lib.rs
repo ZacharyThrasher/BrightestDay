@@ -43,6 +43,7 @@ pub mod party;
 pub mod pickups; // POWER-UPS: gated big things + map pickups (MatchRules::powerups; off = no-op)
 pub mod powers;
 pub mod projectile;
+pub mod readiness; // POWER HUD: held powers' readiness / forms + own status timers (replicated; bd_game power_hud)
 pub mod replicate;
 pub mod rng;
 pub mod rules;

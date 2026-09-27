@@ -31,7 +31,7 @@ MECHANICS = [
     "Pull", "SlowFall", "Glide", "Thrust", "Bounce", "Launch", "Barrier", "Trap", "Homing",
     "ArticulatedTail", "Flies", "Charge", "Stomp", "Breath", "Swarm", "Spin", "DropFromSky", "Sticky",
     "Fast", "Heavy", "Constrict", "Walks", "Piloted", "Portal", "Attract", "Repel", "Shrink", "Grow", "Link",
-    "Transforms",
+    "Transforms", "Extends",
 ]
 ELEMENTS = ["Light", "Fire", "Electric", "Ice", "Water", "Wind", "Earth", "Poison", "Psychic", "Shadow", "Atomic"]
 
@@ -1151,8 +1151,12 @@ MECH_ADJ = {
              "nimble", "agile", "lightning fast", "racing", "sonic"],
     "Heavy": ["heavy", "weighty", "hefty", "dense", "leaden", "lead", "iron", "armored_", "ponderous",
               "tungsten", "weighted", "chonky", "fat", "obese", "beefy", "chunky"],
-    "Bounce": ["bouncy", "springy", "rubber", "rubbery", "elastic", "bouncing", "jiggly", "squishy",
-               "trampoline", "boing", "stretchy", "jelly", "gel"],
+    "Bounce": ["bouncy", "springy", "rubber", "rubbery", "bouncing", "jiggly", "squishy",
+               "trampoline", "boing", "jelly", "gel"],
+    # v1.7 telescoping held weapons (Ruyi Jingu Bang, power pole, extending sword, stretchy fist).
+    "Extends": ["extending", "extendable", "extendible", "extensible", "telescoping", "telescopic",
+                "stretchy", "stretching", "stretchable", "elastic", "retractable", "expandable",
+                "lengthening"],
     "Ricochet": ["ricocheting", "deflecting", "pinball", "rebounding"],
     "Pierce": ["spiky", "spiked", "spiny", "barbed", "pointy", "pointed", "thorny", "prickly", "piercing",
                "needle", "studded"],
@@ -1250,6 +1254,7 @@ VERBS = {
     "transform": ["Transforms"], "transform into": ["Transforms"], "turn into": ["Transforms"],
     "convert": ["Transforms"], "shapeshift": ["Transforms"], "shape shift": ["Transforms"], "morph": ["Transforms"],
     "roll out": ["Transforms"], "unfold": ["Transforms"],
+    "extend": ["Extends"], "lengthen": ["Extends"], "stretch out": ["Extends"],
     "teleport": ["Portal"], "warp": ["Portal"], "blink": ["Portal"],
     "repel": ["Repel"], "push": ["Repel"], "push away": ["Repel"], "blow away": ["Repel"], "knock back": ["Repel"],
     "shrink": ["Shrink"], "miniaturize": ["Shrink"], "miniaturise": ["Shrink"],

@@ -64,6 +64,9 @@ pub struct CombatTuning {
     pub giants: crate::constructs::giant::GiantTuning,
     /// POWER-UPS: the gated list + pickup timers (`crate::pickups`, `MatchRules::powerups`).
     pub pickups: crate::pickups::PickupTuning,
+    /// EXTENDS: telescoping weapons — twirl combos, thrust, falling pillar, pole vault
+    /// (`constructs/extend.rs`; the vault is predicted by clients, so it rides the host sync).
+    pub extend: crate::constructs::extend::ExtendTuning,
 }
 
 impl Default for CombatTuning {
@@ -88,6 +91,7 @@ impl Default for CombatTuning {
             casino: crate::world::interactables::CasinoTuning::default(),
             giants: crate::constructs::giant::GiantTuning::default(),
             pickups: crate::pickups::PickupTuning::default(),
+            extend: crate::constructs::extend::ExtendTuning::default(),
         }
     }
 }
@@ -981,6 +985,7 @@ impl CombatTuning {
         self.casino = self.casino.validated(); // INTERACT HOOK
         self.giants = self.giants.validated(); // GIANTS
         self.pickups = self.pickups.validated(); // POWER-UPS
+        self.extend = self.extend.validated(); // EXTENDS
         self
     }
 

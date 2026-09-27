@@ -642,6 +642,27 @@ Transformation…, matched on the phrase or the construct it resolves to); a Bea
   alert for everyone (side of the threat, corps colour, title, severity by distance / inside the radius),
   the shout words as the title letters, and audio/music cues. Nothing explains any of it (mystery tenet).
 
+## 5k. Power-ups (lobby mode, `MatchRules::powerups`, off by default)
+Owner: "a mode that has certain mechanics behind powerups on the map — a kaiju summon power up, an
+awakening, etc." `bd_sim::pickups`; every number and the gated list in `combat.ron` → `pickups`.
+- **Gated** (short list, `gates`): **Giant** (kaiju / colossal / creatures ≥ `giant_height`),
+  **Awakening** (a power's transform, tiers ≥ `awakening_min_tier`), **Ultimate** (signature kinds in
+  `ultimates` — domains, beams — orbital strikes, sky drops ≥ `drop_scale`). Everything else is free.
+- **Never a no**: without the pickup the phrase still makes something through the existing downgrade
+  paths — GODZILLA comes out a person-sized lizard (Biped, `giant_weak_scale`), a meteor a fist-sized
+  rock (form minimum), a signature the plain phrase (the signature's can't-afford path), Gear 5 the
+  plain power-up flare (no form). With the pickup: FULL size, and the pickup is spent.
+- **Pickups** are deterministic host entities on one shared timer (`every`, first after
+  `first_after`): a beacon pillar for `telegraph` s, then it lies there `ground_life` s. Touch = carry
+  (one at a time, `held_life` s); KO'd → it drops at your last footing; spent by the next gated cast.
+  Spots are derived on every map (the centre, midpoints between spawns, halfway spawn→centre; solid
+  ground with head room, `spawn_clear` m from spawns, `spot_spacing` apart); `spots` overrides per map id
+  (`World::set_pickup_map`). Replicated as `WorldSnapshot::pickups` + `GameEvent::Pickup`.
+- **No text**: a thumping crimson heart-egg with a sub-bass heartbeat (Giant), a golden orb in
+  swirling rings (Awakening), a spinning violet star (Ultimate). Carried, it glows in the carrier's
+  hand (the local player sees it low in the right of the view) under a faint beacon: the carrier is
+  the target. Host rules page → CONSTRUCTS → POWER-UPS.
+
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m
 at 50%; 0.12 s micro-stun), Ice (accel ×0.6 for 1.5 s, frost voxels), Water (+40% kb), Wind (+kb, more

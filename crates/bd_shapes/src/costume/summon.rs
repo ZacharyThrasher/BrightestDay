@@ -73,7 +73,10 @@ pub fn summon_spec(id: &str) -> Option<(ShapeSpec, ShapeSpec, Vec<Paint>)> {
     let c = super::phrase_costume(&p, 0, CostumeTweaks::default());
     let mut full = c.spec;
     crate::voxelize::scale_spec(&mut full, COSTUME_UNIT / CONSTRUCT_VOXEL_SIZE);
-    let geo = ShapeSpec { prims: full.prims.iter().zip(&c.paint).filter(|(_, pt)| !pt.decal).map(|(p, _)| p.clone()).collect(), parts: full.parts.clone() };
+    let geo = ShapeSpec {
+        prims: full.prims.iter().zip(&c.paint).filter(|(_, pt)| !pt.decal).map(|(p, _)| p.clone()).collect(),
+        parts: full.parts.clone(),
+    };
     Some((geo, full, c.paint))
 }
 

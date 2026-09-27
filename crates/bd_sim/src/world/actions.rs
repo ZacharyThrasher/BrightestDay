@@ -866,10 +866,15 @@ impl World {
         }
         c.pilot = Some(player);
         c.suit = suit;
+        let titan = !suit && crate::constructs::titan::walks(c);
         let p = &mut self.players[i];
         p.seat = Some(Seat { construct: cid, part, suit });
         if !suit {
             p.mv.release_tethers();
+        }
+        // TITANS: the pilot's movement state becomes the walker's feet (dash charges full).
+        if titan {
+            crate::constructs::titan::seat(&mut p.mv, c, &self.cfg.tuning.giants);
         }
         self.events.push(GameEvent::Seated { player, construct: cid, part });
         true
@@ -910,10 +915,12 @@ impl World {
         if let Some(c) = self.constructs.get_mut(cid) {
             c.pilot = None;
         }
+        let gas_max = self.cfg.move_params.gas_max;
         let p = &mut self.players[i];
         let was_suit = p.seat.is_some_and(|s| s.suit);
         p.seat = None;
         if !was_suit {
+            p.mv.gas = gas_max; // TITANS: the dash charges lived in `gas` while seated
             if let Some(top) = top {
                 p.mv.pos.y = p.mv.pos.y.max(top + 0.1);
             }

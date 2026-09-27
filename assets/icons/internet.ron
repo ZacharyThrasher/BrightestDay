@@ -2797,7 +2797,7 @@
         source: "Whoopee cushion",
     ),
     IconEntry(
-        names: ["d20", "twenty sided die", "nat 20", "natural 20", "dice"],
+        names: ["d20", "twenty sided die", "dice"],
         recipe: (
             name: "d20",
             form: Ball,
@@ -3921,7 +3921,7 @@
     ),
     // dives in and bursts into flame
     IconEntry(
-        names: ["phoenix", "fire bird", "firebird", "fenghuang"],
+        names: ["phoenix", "fire bird", "firebird"],
         recipe: (
             name: "Phoenix",
             form: Bird,
@@ -3956,7 +3956,7 @@
     ),
     // nine tails and homing foxfire
     IconEntry(
-        names: ["kitsune", "nine tailed fox", "nine-tailed fox", "kumiho", "huli jing"],
+        names: ["kitsune", "nine tailed fox", "nine-tailed fox", "kumiho"],
         recipe: (
             name: "Kitsune",
             form: Quadruped,
@@ -4101,55 +4101,6 @@
             intensity: 1.0,
         ),
         source: "Japanese folklore (tsukumogami)",
-    ),
-    // plucks hairs into clones
-    IconEntry(
-        names: ["sun wukong", "monkey king", "wukong"],
-        recipe: (
-            name: "Sun Wukong",
-            form: Biped,
-            mechanics: [Blunt, Swarm, Fast],
-            element: Wind,
-            scale: 1.6,
-            mass: 50.0,
-            count: 5,
-            accent: Some((1.0, 0.8, 0.3)),
-            model: Procedural(seed: 6746),
-            temperament: Playful,
-            intensity: 0.9,
-        ),
-        source: "Journey to the West",
-    ),
-    // spins and makes what it hits huge
-    IconEntry(
-        names: ["ruyi jingu bang", "monkey king staff", "ruyi bang", "golden cudgel"],
-        recipe: (
-            name: "Ruyi Jingu Bang",
-            form: Staff,
-            mechanics: [Blunt, Spin, Grow],
-            element: Wind,
-            scale: 2.0,
-            mass: 80.0,
-            count: 1,
-            accent: Some((1.0, 0.8, 0.3)),
-            model: Procedural(seed: 64491),
-        ),
-        source: "Journey to the West",
-    ),
-    IconEntry(
-        names: ["somersault cloud", "nimbus cloud", "jindou yun"],
-        recipe: (
-            name: "Somersault Cloud",
-            form: Platform,
-            mechanics: [Flies, Fast, Piloted],
-            element: Wind,
-            scale: 2.0,
-            mass: 5.0,
-            count: 1,
-            accent: Some((1.0, 0.8, 0.3)),
-            model: Procedural(seed: 32857),
-        ),
-        source: "Journey to the West",
     ),
     // a house on chicken legs stomping after you
     IconEntry(

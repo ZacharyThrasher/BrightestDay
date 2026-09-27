@@ -44,7 +44,7 @@ const CLIMB_DEG: f32 = 13.0;
 /// City domain (m): x span, y range; both walls at |z| in `WALL_Z`.
 const CITY_X: f32 = 1800.0;
 const CITY_Y: (f32, f32) = (-560.0, 440.0);
-const WALL_Z: (f32, f32) = (62.0, 300.0);
+const WALL_Z: (f32, f32) = (95.0, 380.0);
 const TOWERS: usize = 420;
 const RAILS: usize = 48;
 const BRIDGES: usize = 30;
@@ -264,7 +264,8 @@ fn sync_hyper(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let slip = slip_of(&arena);
-    let want = slip.is_some();
+    // `BD_PERF_OFF=hyperline`: A/B the backdrop's cost (the slipstream itself is sim-side).
+    let want = slip.is_some() && !super::perf_off("hyperline");
     if want == state.active {
         return;
     }
@@ -304,7 +305,7 @@ fn sync_hyper(
     for i in 0..TOWERS {
         let side = if i % 2 == 0 { 1.0 } else { -1.0 };
         // Denser near the track (the shaft's inner wall), thinning out behind.
-        let z = side * (WALL_Z.0 + (WALL_Z.1 - WALL_Z.0) * rng.f32().powf(1.6));
+        let z = side * (WALL_Z.0 + (WALL_Z.1 - WALL_Z.0) * rng.f32().powf(1.25));
         let x = rng.range(-CITY_X * 0.5, CITY_X * 0.5);
         let y = rng.range(CITY_Y.0, CITY_Y.1);
         let (w, d) = (rng.range(14.0, 42.0), rng.range(14.0, 42.0));
@@ -320,7 +321,7 @@ fn sync_hyper(
     let rail = meshes.add(rail_mesh());
     for i in 0..RAILS {
         let side = if i % 2 == 0 { 1.0 } else { -1.0 };
-        let (x, y, z) = (rng.range(-CITY_X * 0.5, CITY_X * 0.5), rng.range(CITY_Y.0, CITY_Y.1), side * rng.range(WALL_Z.0 - 4.0, 140.0));
+        let (x, y, z) = (rng.range(-CITY_X * 0.5, CITY_X * 0.5), rng.range(CITY_Y.0, CITY_Y.1), side * rng.range(WALL_Z.0 - 6.0, 180.0));
         commands.spawn((tag(), CityPiece, Mesh3d(rail.clone()), MeshMaterial3d(vc.clone()), Transform::from_xyz(x, y, z)));
     }
     let bridge = meshes.add(bridge_mesh());
@@ -586,8 +587,10 @@ fn sparks_and_trails(time: Res<Time<Real>>, mut state: ResMut<HyperState>, views
             while m >= 1.0 {
                 m -= 1.0;
                 let side = (v.pos.z - (s.min.y + s.max.y) * 0.5).signum();
+                // Your own trail streams from behind you (never a cloud of cubes in your face).
+                let back = if v.is_local { r.range(1.5, 3.5) } else { 0.0 };
                 debris.write(SpawnDebris {
-                    pos: v.pos + Vec3::Y * 0.9 + r.unit_vec3() * r.range(0.3, 1.0),
+                    pos: v.pos + Vec3::Y * 0.9 + Vec3::NEG_X * back + r.unit_vec3() * r.range(0.3, 1.0),
                     vel: Vec3::new(-r.range(40.0, 70.0), r.range(-1.0, 1.0), side * r.range(4.0, 12.0)) + v.vel * 0.3,
                     color: [0.85, 0.95, 1.0],
                     size: r.range(0.04, 0.09),

@@ -4,6 +4,9 @@
 //! `bd_sim::extract::apply_extract`, `Power(Restored)` via `bd_sim::powers::apply_restore` — and
 //! `ArenaReset { seed }` regenerates the map on a worker, holding every later terrain event until
 //! the swap so the mirror rebuilds identically (NET's late-join resync relies on this).
+//! An `ArenaReset` for another map than the one rendered (the next match after a vote: NET has
+//! already switched `CurrentMap`) waits for `arena` to load that map instead, holding later
+//! terrain events until then.
 //!
 //! Debris: removed voxels become physical cubes that **inherit the velocity of what caused the
 //! carve** (the nearest recent hit / explosion / wall splat / punch-through, else a radial pop);
@@ -11,7 +14,7 @@
 
 use super::sound::Sfx3d;
 use super::{bv, PresentSet};
-use crate::arena::{generate_map, ArenaWorld, MapKind};
+use crate::arena::{generate_map, ArenaWorld, CurrentMap, MapKind, ARENA_SEED};
 use crate::camera::PlayerCamera;
 use crate::debris::{DebrisImpulse, SpawnDebris, VfxRng};
 use crate::sim_bridge::GameEvents;
@@ -58,7 +61,29 @@ impl RecentPushes {
 #[derive(Resource, Default)]
 struct PendingReset {
     task: Option<Task<VoxelWorld>>,
+    /// Map the task generates (a result for another map than the one loaded is dropped).
+    task_kind: Option<MapKind>,
     held: Vec<GameEvent>,
+    /// Map switch: the reset was for this map; `arena` is (re)generating it.
+    wait_kind: Option<MapKind>,
+    /// Seed of the latest reset seen while waiting (`arena` generates [`ARENA_SEED`]).
+    wait_seed: u64,
+}
+
+fn is_terrain(e: &GameEvent) -> bool {
+    matches!(e, GameEvent::Carve { .. } | GameEvent::Extracted { .. } | GameEvent::ArenaReset { .. } | GameEvent::Power(bd_sim::powers::PowerEvent::Restored { .. }))
+}
+
+/// Waiting for a map switch: keep terrain events (a reset starts over from the fresh map).
+fn hold(pending: &mut PendingReset, e: &GameEvent) {
+    match e {
+        GameEvent::ArenaReset { seed } => {
+            pending.held.clear();
+            pending.wait_seed = *seed;
+        }
+        e if is_terrain(e) && pending.held.len() < 65_536 => pending.held.push(e.clone()),
+        _ => {}
+    }
 }
 
 /// Debris cubes spawned by terrain edits this frame (budget).
@@ -70,7 +95,9 @@ impl Plugin for TerrainPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RecentPushes>()
             .init_resource::<PendingReset>()
-            .add_systems(Update, (age_pushes, apply_terrain_events).chain().in_set(PresentSet::Events));
+            .add_systems(Update, (age_pushes, apply_terrain_events).chain().in_set(PresentSet::Events))
+            // A map switch still waiting when the game is left must not hold the next game's events.
+            .add_systems(OnExit(crate::state::AppState::InGame), |mut p: ResMut<PendingReset>| *p = PendingReset::default());
     }
 }
 
@@ -97,20 +124,46 @@ fn apply_terrain_events(
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     mut queue: ResMut<crate::render::voxel_render::RemeshQueue>,
     sinks: Option<Res<super::signature_fx::EraseSinks>>,
+    current: Option<Res<CurrentMap>>,
 ) {
-    let Some(arena) = arena else {
-        events.clear();
+    let loaded_wanted = pending.wait_kind.is_some_and(|k| arena.as_ref().is_some_and(|a| a.info.kind == k));
+    let Some(arena) = arena.filter(|_| pending.wait_kind.is_none() || loaded_wanted) else {
+        // No map (or the old one while the next generates): keep a switch's events, else drop.
+        if pending.wait_kind.is_some() {
+            for ev in events.read() {
+                hold(&mut pending, &ev.event);
+            }
+        } else {
+            events.clear();
+        }
         return;
     };
+    if loaded_wanted {
+        // The switched-to map is loaded (fresh, `ARENA_SEED`): regenerate if the match uses
+        // another seed, else replay what arrived meanwhile.
+        pending.wait_kind = None;
+        if pending.wait_seed != ARENA_SEED {
+            let (kind, seed) = (arena.info.kind, pending.wait_seed);
+            pending.task_kind = Some(kind);
+            pending.task = Some(AsyncComputeTaskPool::get().spawn(async move { generate_map(kind, seed).0 }));
+        } else {
+            let held = std::mem::take(&mut pending.held);
+            for e in &held {
+                apply_quiet(&arena, e);
+            }
+        }
+    }
     // A reset finished: swap the world, then replay what was held back.
     if let Some(task) = pending.task.as_mut()
         && let Some(world) = check_ready(task)
     {
         pending.task = None;
-        swap_world(&arena, world, &mut queue);
-        let held = std::mem::take(&mut pending.held);
-        for e in &held {
-            apply_quiet(&arena, e);
+        if pending.task_kind.take().is_none_or(|k| k == arena.info.kind) {
+            swap_world(&arena, world, &mut queue);
+            let held = std::mem::take(&mut pending.held);
+            for e in &held {
+                apply_quiet(&arena, e);
+            }
         }
     }
     let eye = cam.single().map(|t| t.translation()).unwrap_or(Vec3::ZERO);
@@ -125,6 +178,10 @@ fn apply_terrain_events(
         if !terrain {
             continue;
         }
+        if pending.wait_kind.is_some() {
+            hold(&mut pending, e);
+            continue;
+        }
         if let GameEvent::ArenaReset { seed } = e {
             let kind = arena.info.kind;
             if kind == MapKind::Tutorial {
@@ -132,6 +189,15 @@ fn apply_terrain_events(
             }
             let seed = *seed;
             pending.held.clear();
+            if let Some(want) = current.as_ref().map(|c| c.0).filter(|k| *k != kind && *k != MapKind::Tutorial) {
+                // The next match is on another map: `arena` generates it; hold everything after.
+                pending.task = None;
+                pending.task_kind = None;
+                pending.wait_kind = Some(want);
+                pending.wait_seed = seed;
+                continue;
+            }
+            pending.task_kind = Some(kind);
             pending.task = Some(AsyncComputeTaskPool::get().spawn(async move { generate_map(kind, seed).0 }));
             continue;
         }

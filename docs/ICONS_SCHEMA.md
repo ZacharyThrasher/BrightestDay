@@ -85,3 +85,7 @@ the body first (a `subtract` prim before the part's prims) so no voxel is shared
 
 Validate: `cargo run --manifest-path tools/iconcheck/Cargo.toml -- assets/icons/<file>.ron` (exit 0 = OK; also
 checks two-mode entries: `alt_shape` needs `shape`, `Transforms`, and shared part ids).
+
+**Reserved id prefix `costume:`.** `ModelSource::Icon("costume:<phrase>")` marks a summoned character
+construct (bd_shapes::costume::summon, docs/DESIGN.md "Character costumes"); its shape comes with the cast
+and its colours are re-derived from the phrase on every peer. Never use the prefix for an icon entry.

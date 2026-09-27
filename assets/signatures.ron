@@ -49,6 +49,11 @@
         (words: "ultimate", kind: None, title: "Ultimate", alone: None),
         (words: "final", kind: None, title: "Final", alone: None),
         (words: "ougi", kind: None, title: "Ougi", alone: None),
+        // tabletop: the druid becomes the beast ("wild shape into a bear" -> a giant bear)
+        (words: "wild shape into", kind: Some(Transformation), title: "Wild Shape", alone: Some("bear")),
+        (words: "wildshape into", kind: Some(Transformation), title: "Wild Shape", alone: Some("bear")),
+        (words: "wild shape", kind: Some(Transformation), title: "Wild Shape", alone: Some("bear")),
+        (words: "wildshape", kind: Some(Transformation), title: "Wild Shape", alone: Some("bear")),
     ],
     suffixes: [
         (words: "domain expansion", kind: Some(Domain), title: "Domain Expansion", alone: Some("dome")),

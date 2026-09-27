@@ -39,6 +39,8 @@ fn steady_state_tick_does_not_allocate() {
     let mut cfg = SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, seed: 5, check_invariants: false, ..SimConfig::default() };
     cfg.timings.warmup_secs = 0.1;
     let mut w = World::new(cfg);
+    w.cfg.tuning.assist.aim = bd_sim::aim_assist::AimTuning::neutral();
+    { let l = &mut w.cfg.tuning.assist.lunge; l.extra = 2.6; l.range_max = 5.5; l.cone_deg = 20.0; l.dash_speed = 26.0; l.dash_max_secs = 0.22; l.cooldown = 0.7; l.hit_resets_cooldown = false; l.aim_max_deg = 12.0; }
     let mut brains = bots::add_bots(&mut w, 0, 8, 0.9, 5);
     for b in &mut brains {
         b.casts_enabled = false;
@@ -77,5 +79,6 @@ fn steady_state_tick_does_not_allocate() {
     assert!(events > 100, "the scenario must actually do things ({events} events)");
     assert!(carve_ticks < 60, "carves are rare here ({carve_ticks})");
     // Allow a handful of one-off buffer growths (a burst of events beyond the warm-up peak).
+    eprintln!("ALLOCS {ticks_with_allocs} {total}");
     assert!(ticks_with_allocs <= 3, "{ticks_with_allocs} ticks allocated ({total} allocations)");
 }

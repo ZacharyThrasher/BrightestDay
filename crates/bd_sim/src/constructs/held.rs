@@ -104,6 +104,8 @@ pub enum Mode {
     Dive,
     /// Out of the hand (thrown / returning / Thor flight).
     Thrown,
+    /// EXTENDS: a telescoping move — thrust, falling pillar, vault plant, jab (`extend.rs`).
+    Extend,
 }
 
 /// Which curve a swing plays (index into the cached table).
@@ -232,6 +234,16 @@ pub struct HeldState {
     pub slam_armed: bool,
     pub ram_cd: f32,
     pub dash_t: f32,
+    // ---- EXTENDS (telescoping weapons, extend.rs) ----
+    /// Metres the pole reaches beyond its model; thickness factor (<= 1 = rest).
+    pub ext: f32,
+    pub ext_girth: f32,
+    /// The telescoping move playing, its time, target length, direction and one-shot flag.
+    pub xmove: super::extend::ExtMove,
+    pub xt: f32,
+    pub xrange: f32,
+    pub xdir: Vec3,
+    pub xdone: bool,
 }
 
 // ------------------------------------------------------------------------------------ curves
@@ -304,6 +316,9 @@ pub fn curve_weighted(form: Form, swing: Swing, weight: f32) -> Option<&'static 
 
 /// The curve construct `c` swings along (its recipe's weight bin).
 fn curve_of(c: &Construct, swing: Swing) -> Option<&'static SwingCurve> {
+    if c.has(Mechanic::Extends) {
+        return super::extend::curve_weighted(swing, bd_shapes::weight_of(&c.recipe)); // EXTENDS: twirl combos
+    }
     curve_weighted(c.recipe.form, swing, bd_shapes::weight_of(&c.recipe))
 }
 
@@ -321,7 +336,7 @@ const MAX_ITEM_POINTS: usize = 24;
 pub const WHIP_SAMPLE_SPACING: f32 = 0.75;
 
 /// Item sample points in the item's model space (grip at the origin, pointing −Z) + radius.
-fn item_points(c: &Construct, o: &PlayerView) -> ([Vec3; MAX_ITEM_POINTS], usize, f32) {
+fn item_points(c: &Construct, o: &PlayerView, ext: f32) -> ([Vec3; MAX_ITEM_POINTS], usize, f32) {
     // Grow: melee reach ×1.4 (never more); Shrink: shorter.
     let reach = if o.size > 1.0 { o.size.min(1.4) } else { o.size.max(0.25) };
     let len = (c.half.z * 2.0).max(0.3) * reach;
@@ -341,6 +356,7 @@ fn item_points(c: &Construct, o: &PlayerView) -> ([Vec3; MAX_ITEM_POINTS], usize
             (p, n, 0.3)
         }
         _ => {
+            let len = len + ext.max(0.0); // EXTENDS: the pole grows through the swing
             for (k, f) in [0.35f32, 0.7, 1.0].iter().enumerate() {
                 p[k] = Vec3::new(0.0, 0.0, -len * f);
             }
@@ -448,6 +464,9 @@ pub fn step(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             super::gun::step(c, &mut s, env, out);
         } else {
             melee(c, &mut s, env, out);
+            if super::extend::is_extending(c) {
+                super::extend::after_melee(c, &mut s, env); // EXTENDS: pole length follows the swing
+            }
         }
         grab_step(c, &mut s, env, out);
         victim_step(c, &mut s, env, out);
@@ -509,6 +528,10 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
             }
             if !h1 || s.charge >= CHARGE_MAX {
                 s.heavy_k = (0.5 + 0.5 * (s.charge / CHARGE_MAX)).min(1.0);
+                if super::extend::is_extending(c) {
+                    super::extend::release(c, s, env, out); // EXTENDS: thrust / falling pillar
+                    return;
+                }
                 if c.recipe.form == Form::Shield && c.has(Mechanic::Returning) {
                     // Cap's shield: a charged release throws it (ricochets toward enemies).
                     start_throw(c, s, env, out);
@@ -529,6 +552,7 @@ fn melee(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
         }
         Mode::Dive => dive_step(c, s, env, out),
         Mode::Swing => swing_step(c, s, env, out, h1, p1),
+        Mode::Extend => super::extend::step(c, s, env, out),
     }
 }
 
@@ -557,7 +581,7 @@ fn start_primary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut 
         fx(out, c, HeldFx::DiveStart, o.hand, Vec3::NEG_Y, 1.0);
         return;
     }
-    let swing = if uses_combo(form) {
+    let swing = if uses_combo(form) || c.has(Mechanic::Extends) {
         if s.combo_timer > 0.0 {
             match s.combo {
                 0 => Swing::Combo1,
@@ -601,6 +625,10 @@ fn begin_swing(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Co
 
 fn start_secondary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
     let o = env.owner;
+    if super::extend::is_extending(c) {
+        super::extend::secondary(c, s, env, out); // EXTENDS: pole vault / jab (RMB = the melee alt-fire)
+        return;
+    }
     if throws_on_rmb(c) {
         start_throw(c, s, env, out);
         return;
@@ -712,7 +740,7 @@ fn swing_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Con
     }
     let dur = cv.duration();
     // A buffered press cancels the back half of the recovery into the next combo hit.
-    let cancel = s.queued && uses_combo(form) && t1 >= b + cv.recovery * 0.4;
+    let cancel = s.queued && (uses_combo(form) || c.has(Mechanic::Extends)) && t1 >= b + cv.recovery * 0.4;
     if t1 >= dur || cancel {
         if let Some(k) = s.swing.combo_index() {
             s.combo = k;
@@ -799,6 +827,17 @@ fn hit_spec(c: &Construct, s: &HeldState, t: &crate::tuning::CombatTuning) -> Hi
             kind = HitKind::HeavyMelee;
             impact = 1.5;
         }
+        // EXTENDS: twirl combo; the overhead windmill finisher is a heavy hit.
+        Swing::Combo2 if c.has(Mechanic::Extends) => {
+            dmg *= t.extend.finisher_dmg;
+            kb *= t.extend.finisher_kb;
+            kind = HitKind::HeavyMelee;
+            impact = 1.8;
+        }
+        Swing::Primary | Swing::Combo0 | Swing::Combo1 if c.has(Mechanic::Extends) => {
+            kb *= t.extend.combo_kb;
+            impact = t.extend.combo_impact;
+        }
         Swing::Combo2 if c.recipe.form == Form::Sword => {
             dmg *= t.hit.finisher_mult;
             kb *= 1.3;
@@ -825,7 +864,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     let o = env.owner;
     let ctx = env.ctx;
     let frame = hand_frame(&o);
-    let (local, n, r) = item_points(c, &o);
+    let (local, n, r) = item_points(c, &o, s.ext);
     let mut prev = [Vec3::ZERO; MAX_ITEM_POINTS];
     let m0 = frame * cv.sample(t0);
     for k in 0..n {
@@ -837,7 +876,8 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     if (form == Form::Whip || form == Form::Sword) && s.swing == Swing::Secondary {
         return;
     }
-    let heavy_terrain = s.swing == Swing::Heavy && (form == Form::Hammer || c.has(Mechanic::Blunt) || c.has(Mechanic::Heavy) || form == Form::Axe);
+    let heavy_terrain = (s.swing == Swing::Heavy && (form == Form::Hammer || c.has(Mechanic::Blunt) || c.has(Mechanic::Heavy) || form == Form::Axe))
+        || (s.swing == Swing::Combo2 && c.has(Mechanic::Extends));
     // CONNECT: a generous hit volume vs players (the extra only through a clear line to the body).
     let aim = &ctx.tuning.assist.aim;
     let wide = crate::aim_assist::melee_radius(r, aim.melee_mult(form, swing_weight(&c.recipe)), aim.melee_extra_max);

@@ -105,13 +105,30 @@
         (words: "bite", via: Hunt, alone: Some("wolf"), strict: true),
         (words: "stomp", via: Onto, alone: Some("giant foot"), strict: true),
         (words: "squish", via: Onto, alone: Some("anvil"), strict: true),
+
+        // ---- military / tabletop content pass (assets/icons/military.ron, tabletop.ron): support calls and
+        // famous spells yelled as verbs ("carpet bomb mia", "call in an airstrike", "fireball jake").
+        (words: "carpet bomb", via: Onto, alone: Some("carpet bombing")),
+        (words: "carpet bombs", via: Onto, alone: Some("carpet bombing")),
+        (words: "airstrike", via: Onto, alone: Some("air strike")),
+        (words: "air strike", via: Onto, alone: Some("air strike")),
+        (words: "drone strike", via: Onto, alone: Some("drone strike")),
+        (words: "napalm", via: Onto, alone: Some("napalm"), strict: true),
+        (words: "call in", via: Onto, generic: true),
+        (words: "calling in", via: Onto, generic: true),
+        (words: "fireball", via: At, alone: Some("fireball"), strict: true),
+        (words: "magic missile", via: At, alone: Some("magic missile")),
+        (words: "eldritch blast", via: At, alone: Some("eldritch blast")),
     ],
 
     // "<verb> <name> [with <thing>]": verbs that take the player as their object ("cage ethan", "smite
     // jake", "hit mia with a meteor", "surround sam with wolves"). Must also be in `verbs`.
     target_verbs: ["cage", "trap", "lock", "lock up", "eat", "sting", "bite", "stomp", "squish", "smite", "nuke", "hit", "pelt", "crush", "squash", "flatten", "bury", "surround",
         "encase", "imprison", "entomb", "wall in", "box in", "zap", "strike", "freeze", "burn", "torch", "blast",
-        "attack", "bomb", "snipe", "chase", "hunt", "smash", "shower", "rain on", "drop on"],
+        "attack", "bomb", "snipe", "chase", "hunt", "smash", "shower", "rain on", "drop on",
+        // military / tabletop content pass
+        "carpet bomb", "carpet bombs", "airstrike", "air strike", "drone strike", "napalm", "fireball", "magic missile",
+        "eldritch blast"],
 
     // "<verb> <name> with|in <thing>": the thing ("hit mia with a meteor", "trap nova in a bubble").
     with_words: ["with", "using", "w", "in", "inside", "into", "under", "beneath"],

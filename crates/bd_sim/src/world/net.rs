@@ -69,6 +69,7 @@ fn player_snap(p: &Player, trail_kb: f32) -> PlayerSnap {
         seat: p.seat.map(|s| (s.construct.0, s.part)),
         power: p.power.snap(), // POWERS HOOK
         charge: p.charge.wire(), // CHARGE HOOK
+        ready: crate::readiness::ReadySnap::of(&p.power), // POWER HUD
     }
 }
 
@@ -94,6 +95,7 @@ impl World {
                 rope: c.held.rope,
                 thor: c.held.thor,
             });
+            o.hud = crate::readiness::OwnHud::of(p); // POWER HUD
             o
         });
         out.match_info.phase = self.match_state.phase as u8;
@@ -145,6 +147,7 @@ impl World {
                 size: (c.size_scale * 50.0).round().clamp(1.0, 255.0) as u8,
                 weapon: c.weapon.map_or(0, |w| w.wire(&crate::weapons::spec_for(&c.recipe, w.arch))),
                 xform: xform_wire(c),
+                ext: crate::constructs::extend::wire(c), // EXTENDS
                 // GIANTS: their colliders move with the displacement velocity.
                 vel: if attached { QVel::default() } else { QVel::new(if c.ai.giant.on { c.ai.giant.move_vel } else { c.vel }) },
                 spin: q_spin(c.ai.giant.spin),
@@ -324,6 +327,9 @@ impl World {
                     x.combined = cs.xform & 64 != 0;
                     x.want = if cs.xform & 128 != 0 { XMode::Robot } else { XMode::Alt };
                     x.mode = if x.progress >= 0.5 { XMode::Robot } else { XMode::Alt };
+                }
+                if cs.ext != 0 || c.has(bd_core::mechanics::Mechanic::Extends) {
+                    crate::constructs::extend::apply_wire(&mut c.held, cs.ext); // EXTENDS: the pole's length / move
                 }
                 if let Some(w) = c.weapon.as_mut() {
                     w.phase = crate::weapons::WeaponPhase::from_u8(cs.weapon & 7);
@@ -538,7 +544,20 @@ impl World {
     /// fields). Use it inside `bd_net::Reconciler::predict/reconcile`.
     pub fn predict_player(&self, player: PlayerId, state: &mut PlayerState, input: &PlayerInput) -> MoveEvents {
         let Some(p) = self.player(player) else { return MoveEvents::default() };
-        if p.seat.is_some_and(|s| !s.suit) {
+        if let Some(seat) = p.seat.filter(|s| !s.suit) {
+            // TITANS: the pilot's own walker is predicted exactly like the host steps it.
+            if let Some(c) = self.constructs.get(seat.construct).filter(|c| crate::constructs::titan::walks(c)) {
+                let tp = crate::constructs::titan::params(c, &self.cfg.tuning.giants);
+                let input = if p.status.stunned() { super::stunned_input(input) } else { *input };
+                let te = crate::constructs::titan::step(state, &input, &self.voxels, &tp, DT);
+                state.release_tethers();
+                return MoveEvents {
+                    jumped: te.jumped,
+                    dodged: te.dashed,
+                    landed: te.landed.map(|v| crate::movement::LandEvent { impact_speed: v }),
+                    ..MoveEvents::default()
+                };
+            }
             return MoveEvents::default();
         }
         // Same order as the host's `step_movement`: worn air moves, modifiers, DI, move, post-move
@@ -549,6 +568,7 @@ impl World {
         crate::party::hooks::tweak_params(self.party.as_ref(), player, &mut params); // PARTY HOOK (Slippery)
         crate::smash::apply_di(&self.cfg.tuning.smash, state, input, DT);
         crate::melee_assist::dash_pre_move(state, &params, DT); // ASSIST HOOK: melee lunge dash (same as the host)
+        crate::constructs::extend::pre_move(&self.constructs, &self.voxels, &self.cfg.tuning.extend, player, input, state, &params, p.busy(), |_| {}); // EXTENDS: pole vault (same as the host)
         let pre_center = state.hull(&params).center();
         let pre_vel = state.vel;
         let cw = CollisionWorld::new(&self.voxels, &self.colliders).ignoring(crate::movement::ColliderId::Player(player));

@@ -339,7 +339,12 @@ fn skeleton(sound: &str) -> String {
 fn match_name(span: &[Word], names: &[NameForm], spoken: bool, weak_prep: bool, common: &dyn Fn(&str) -> bool) -> Option<(usize, u8)> {
     let keys: Vec<&str> = span.iter().map(|w| w.key.as_str()).collect();
     if keys.first().is_some_and(|k| matches!(*k, "a" | "an" | "the" | "some" | "my" | "your" | "his" | "her" | "their" | "our")) {
-        return None; // "missile at the moon" — names don't take articles
+        // "missile at the moon" — names don't take articles, except a spoken "the dragon slayer"
+        // for DragonSlayer: then only the exact name counts
+        if keys[0] == "the" && span.len() >= 2 {
+            return match_name(&span[1..], names, spoken, weak_prep, common).filter(|(_, d)| *d == 0);
+        }
+        return None;
     }
     let spaced = keys.join(" ");
     let squashed = fold_numbers(&keys);
@@ -570,8 +575,8 @@ impl Lexicon {
         match self.entry(k) {
             Some((_, r)) => {
                 use crate::data::{F_ANCHOR, F_COMMON, F_PERSON};
-                // a first name ("ethan", "mia") is not an everyday word
-                r.flags & F_PERSON == 0 && (r.flags & (F_COMMON | F_ANCHOR) != 0 || r.rank_f() >= 3.5)
+                // everyday words only: a first name ("ethan", "zoey", "maya") or a famous entity is not one
+                r.flags & F_PERSON == 0 && r.flags & (F_COMMON | F_ANCHOR) != 0
             }
             None => false,
         }
@@ -617,7 +622,9 @@ impl Lexicon {
             let plural_word = |w: &str| w.len() > 3 && w.ends_with('s') && !w.ends_with("ss") && self.known_token(&w[..w.len() - 1]);
             // "rain arrows", "rain bowling balls": the noun phrase ends in a plural
             let plural = plural_word(next) || ws[from..].last().is_some_and(|w| plural_word(&w.key));
-            if !det && !plural {
+            // "rain fire", "rain lightning": a volley verb before an element
+            let element = verb.rewrite.is_some() && self.t.pure.contains_key(next);
+            if !det && !plural && !element {
                 return None;
             }
         }

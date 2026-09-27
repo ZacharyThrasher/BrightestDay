@@ -19,22 +19,25 @@ use bd_lexicon::{Delivery, Intent, Refer, ResolutionKind};
 const ROSTER: [&str; 9] = ["Ethan", "Jake", "Sam", "Alex_99", "Mia", "Big Tony", "xX_Nova_Xx", "DragonSlayer", "Zoe"];
 
 /// Minimum accuracy per category (fraction of lines whose every expectation holds).
+/// Measured 2026-09-26 (pre-intent client pipeline → now): target 10.5% → 96.9%, voice_target 9.7% →
+/// 99.0%, verbs 74% → 82%, voice 79% → 94%, combos 83% → 89%, TOTAL 72.2% → 95.2%. Floors sit one or two
+/// lines under the measured value.
 const FLOORS: &[(&str, f64)] = &[
-    ("owner", 0.0),
-    ("target", 0.0),
-    ("voice_target", 0.0),
-    ("popculture", 0.0),
-    ("everyday", 0.0),
-    ("verbs", 0.0),
-    ("combos", 0.0),
-    ("signature", 0.0),
-    ("pokemon", 0.0),
-    ("refer", 0.0),
-    ("voice", 0.0),
-    ("collisions", 0.0),
+    ("owner", 0.95),
+    ("target", 0.95),
+    ("voice_target", 0.97),
+    ("popculture", 0.97),
+    ("everyday", 0.93),
+    ("verbs", 0.80),
+    ("combos", 0.87),
+    ("signature", 0.98),
+    ("pokemon", 0.97),
+    ("refer", 0.88),
+    ("voice", 0.93),
+    ("collisions", 0.95),
 ];
 /// Floor for the whole corpus.
-const TOTAL_FLOOR: f64 = 0.0;
+const TOTAL_FLOOR: f64 = 0.94;
 
 struct Line {
     no: usize,

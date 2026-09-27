@@ -563,6 +563,30 @@ impl World {
             // Cockpit seats: the hull rides the seat; the construct gets the input.
             if let Some(seat) = p.seat.filter(|s| !s.suit) {
                 match constructs.get(seat.construct) {
+                    // TITANS: a cockpit walker is its pilot's movement state (predicted too).
+                    Some(c) if crate::constructs::titan::walks(c) => {
+                        let tp = crate::constructs::titan::params(c, &cfg.tuning.giants);
+                        let input = if p.status.stunned() { stunned_input(&p.input) } else { p.input };
+                        let te = crate::constructs::titan::step(&mut p.mv, &input, &*voxels, &tp, dt);
+                        p.mv.release_tethers();
+                        p.move_events.jumped = te.jumped;
+                        p.move_events.dodged = te.dashed;
+                        p.move_events.landed = te.landed.map(|v| crate::movement::LandEvent { impact_speed: v });
+                        let mut flags = 0u16;
+                        if te.jumped {
+                            flags |= move_flags::JUMP;
+                        }
+                        if te.dashed {
+                            flags |= move_flags::DODGE;
+                        }
+                        if te.landed.is_some_and(|v| v > 6.0) {
+                            flags |= move_flags::LAND_HARD;
+                        }
+                        if flags != 0 {
+                            events.push(GameEvent::Move { player: p.id, flags, speed: p.mv.speed() });
+                        }
+                        continue;
+                    }
                     Some(c) => {
                         p.mv.pos = c.seat_pos(seat.part);
                         p.mv.vel = c.vel;
@@ -607,6 +631,7 @@ impl World {
                 p.mv.di_window = 0.0;
             }
             crate::melee_assist::dash_pre_move(&mut p.mv, &params, dt); // ASSIST HOOK: melee lunge dash (predicted too)
+            crate::constructs::extend::pre_move(constructs, voxels, &cfg.tuning.extend, p.id, &p.input, &mut p.mv, &params, busy, |e| events.push(e)); // EXTENDS: pole vault (predicted too)
             let pre_vel = p.mv.vel;
             let pre_tumble = p.mv.tumble;
             // Plowing through rock is flight, not running: no ground friction in the tunnel.

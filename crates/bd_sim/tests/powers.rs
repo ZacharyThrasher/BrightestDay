@@ -92,17 +92,30 @@ fn shipped_table_parses_with_the_full_roster() {
     let fruits = t.powers.iter().filter(|p| p.kind.is_fruit()).count();
     let stands = t.powers.iter().filter(|p| p.kind.is_stand()).count();
     let origins = t.powers.iter().filter(|p| p.kind.is_origin()).count();
+    let techniques = t.powers.iter().filter(|p| p.kind.is_technique()).count();
     assert!(fruits >= 20, "{fruits} fruits");
     assert!(stands >= 12, "{stands} stands");
     assert!(origins >= 40, "{origins} origins (Marvel + DC packs merged)");
-    assert_eq!(fruits + stands + origins, t.powers.len());
+    assert!(techniques >= 14, "{techniques} techniques (DBZ, Naruto, JJK, Bleach, HxH, haki)");
+    assert_eq!(fruits + stands + origins + techniques, t.powers.len());
+    assert!(t.powers.len() < 250, "PowerSnap ids are a byte");
     assert_eq!(t.powers.len(), PowerTable::get().powers.len(), "the shared table is the shipped one");
     let rules = bd_sim::rules::MatchRules::default();
     for (k, p) in t.powers.iter().enumerate() {
         assert!(t.powers.iter().skip(k + 1).all(|q| q.id != p.id), "duplicate id {}", p.id);
         assert!(!p.names.is_empty(), "{} has names for the lexicon", p.id);
-        assert!(!p.moves.is_empty() && p.moves.len() <= 2, "{}: 1–2 moves", p.id);
+        assert!(!p.moves.is_empty() && p.moves.len() <= powers::move_sel::MAX_MOVES, "{}: 1–4 moves", p.id);
         assert!(p.shouts.iter().all(|(_, s)| (*s as usize) < p.moves.len()), "{}: shout slot", p.id);
+        // Moves 2 / 3 exist only through their shouts.
+        for k in 2..p.moves.len() {
+            assert!(p.shouts.iter().any(|(_, s)| *s as usize == k), "{}: move {k} needs a shout", p.id);
+        }
+        for (n, tier) in p.tiers.iter().enumerate() {
+            assert!(!tier.names.is_empty(), "{}: tier {n} has names", p.id);
+            let moves = p.moves_at((n + 1) as u8);
+            assert!(tier.shouts.iter().all(|(_, s)| (*s as usize) < moves.len()), "{}: tier {} shout slot", p.id, tier.name);
+            assert_eq!(p.tier_named(&tier.names[0]), Some((n + 1) as u8), "{}: tier names parse", p.id);
+        }
         if p.kind.is_stand() {
             assert!(p.companion.is_some(), "{}: stands have a companion", p.id);
         } else if p.kind.is_fruit() {
@@ -116,7 +129,7 @@ fn shipped_table_parses_with_the_full_roster() {
         for b in bodies.filter(|_| p.kind.is_origin()) {
             assert!(b.moves.thrust <= 0.0 || b.moves.thrust_max <= 17.0, "{}: flight cap {}", p.id, b.moves.thrust_max);
         }
-        for m in &p.moves {
+        for m in p.moves.iter().chain(p.tiers.iter().flat_map(|t| t.moves.iter())) {
             assert!(m.cooldown.is_finite() && m.cooldown >= 0.05 && m.cost.is_finite() && m.cost >= 0.0, "{}: move {}", p.id, m.name);
             assert!(!m.ops.is_empty(), "{}: move {} does something", p.id, m.name);
             for op in &m.ops {
@@ -125,10 +138,13 @@ fn shipped_table_parses_with_the_full_roster() {
                     assert!(r.scale.is_finite() && !r.name.is_empty());
                 }
                 if let MoveOp::TimeStop { .. } = op {
-                    assert!(p.kind.is_stand(), "{}: only stands stop time", p.id);
+                    assert!(p.kind.is_stand() || p.kind.is_technique(), "{}: only stands (and a nen specialist) stop time", p.id);
                 }
                 if matches!(op, MoveOp::Transform) {
-                    assert!(p.transform.is_some(), "{}: Transform move needs a transform", p.id);
+                    assert!(p.transform.is_some() || !p.tiers.is_empty(), "{}: Transform move needs a transform or tiers", p.id);
+                }
+                if let MoveOp::Tier(k) = op {
+                    assert!((*k as usize) <= p.tiers.len(), "{}: Tier({k})", p.id);
                 }
             }
         }
@@ -723,8 +739,9 @@ fn random_pools_never_cross() {
     assert!(stands.iter().all(|&id| t.def(id).unwrap().kind.is_stand()), "stand arrow: only stands");
     assert!(origins.iter().all(|&id| t.def(id).unwrap().kind.is_origin()));
     assert!(muts.iter().all(|&id| t.def(id).unwrap().kind.is_fruit()), "mutagens stay fruit-like");
-    // Every power belongs to exactly one pool.
-    assert_eq!(fruits.len() + stands.len() + origins.len() + muts.len(), t.powers.len());
+    // Every power belongs to exactly one pool (techniques are said, never rolled).
+    let techniques = t.powers.iter().filter(|p| p.kind.is_technique()).count();
+    assert_eq!(fruits.len() + stands.len() + origins.len() + muts.len() + techniques, t.powers.len());
     // Many rolls: each random key only ever lands in its own pool.
     let mut w = duel(1);
     stand_at(&mut w, A, 0.0, 0.0);

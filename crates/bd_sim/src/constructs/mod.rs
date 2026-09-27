@@ -121,6 +121,7 @@ pub mod chemistry;
 pub mod components;
 pub mod counters;
 pub mod creature;
+pub mod extend; // WUKONG: telescoping weapons (Mechanic::Extends, bd_core v1.7)
 pub mod forms;
 pub mod giant; // GIANTS: weak points, limbs, topple, rideable colliders, shockwaves, command
 pub mod graft;
@@ -131,6 +132,7 @@ pub mod pilot;
 pub mod structure;
 pub mod swarm;
 pub mod temperament;
+pub mod titan; // GIANTS: piloted walkers move like Titanfall titans (pilot state = body, predicted)
 pub mod worn;
 
 use bd_core::input::PlayerInput;

@@ -40,5 +40,5 @@ pub use features::{ALL_FEATURES, FeatureDrive, MachineRig, MachineSpec, Motion, 
 pub use costume::{COSTUME_UNIT, CostumeHead, CostumeTweaks, acc, costume, costume_first_person_hands, costume_model, costume_with};
 pub use mesh::{PartMesh, chain_link_mesh, chain_transform, mesh_model, mesh_part};
 pub use transform::{component_count, COMBINE_SECONDS, CombinerRig, Panel, RobotRole, TRANSFORM_SECONDS, TransformEvent, TransformEventKind, TransformRig, combine_rigs, pose_combine, pose_transform, sequence_events, transform_rig, transform_rig_authored};
-pub use swing::{SwingCurve, SwingKey, SwingKind, SwingPhase, swing_curve, swing_curve_weighted};
+pub use swing::{SwingCurve, SwingKey, SwingKind, SwingPhase, swing_curve, swing_curve_extends, swing_curve_extends_weighted, swing_curve_weighted};
 pub use voxelize::{MAX_VOXELS, MAX_VOXELS_KAIJU, PartInstance, PartModel, SEAT_PART, Seat, VoxelModel, WeakKind, WeakPoint, part_instances, scale_spec, voxel_center_m, voxelize, voxelize_at, voxelize_capped, voxelize_with_unit};

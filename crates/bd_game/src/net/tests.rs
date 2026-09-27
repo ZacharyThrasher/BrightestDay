@@ -396,3 +396,130 @@ fn charged_heavy_releases_over_the_wire() {
     assert_eq!(host_heavy, vec![release], "one heavy, started on the release tick (no second press)");
     assert_eq!(client_heavy, 1, "the client received the heavy swing start");
 }
+
+/// The next-map vote picks the top map (random among ties) or keeps the current one.
+#[test]
+fn vote_tally() {
+    use super::host::tally;
+    let (a, b, c) = (PlayerId(0), PlayerId(1), PlayerId(2));
+    assert_eq!(tally(&[], NetMapKind::Ember, 5), NetMapKind::Ember, "no votes: same map");
+    assert_eq!(tally(&[(a, NetMapKind::Lair), (b, NetMapKind::Lair), (c, NetMapKind::Miami)], NetMapKind::Ember, 5), NetMapKind::Lair);
+    // A tie: both sides get picked over many seeds, nothing else ever does.
+    let votes = [(a, NetMapKind::Casino), (b, NetMapKind::Cybertron)];
+    let picks: Vec<NetMapKind> = (0..64).map(|s| tally(&votes, NetMapKind::Ember, s)).collect();
+    assert!(picks.contains(&NetMapKind::Casino) && picks.contains(&NetMapKind::Cybertron), "{picks:?}");
+    assert!(picks.iter().all(|k| matches!(k, NetMapKind::Casino | NetMapKind::Cybertron)));
+    // "Same map" is a valid choice.
+    assert_eq!(tally(&[(a, NetMapKind::Ember)], NetMapKind::Ember, 1), NetMapKind::Ember);
+}
+
+/// Match swap over real sockets: a match ends, the lobby votes (a client picks Miami), a late
+/// joiner arrives during the vote and a third client drops mid-generation; the host builds the
+/// voted map on a worker and swaps it in; every remaining client regenerates the *new* map and
+/// ends with the host's exact terrain. Names / corps survive, scores and stats reset, stats reach
+/// the clients.
+#[test]
+fn match_swap_to_another_map() {
+    use bd_sim::MatchPhase;
+    let settings = bd_sim::settings::GameSettings::default();
+    let mut host =
+        HostCore::start(HostStart { port: 0, tunnel: false, lan: false, settings: settings.clone(), ..Default::default() }).expect("host");
+    host.terrain_check_every = TICK_HZ as u64;
+    let port = host.port;
+    let (world, map, hasher) = HostCore::build_world(&settings, NetMap { kind: NetMapKind::Archipelago, seed: 1, pristine_hash: 0 }, 7);
+    assert!(!world.cfg.timings.auto_rematch, "the host's vote drives the next match");
+    let mut active = ActiveWorld::new(world, Some(host.me), SimRole::Host);
+    host.start_match(&mut active, map, hasher);
+    active.world.start_live();
+    let mut bots = vec![Bot::new(port, "voter", 41), Bot::new(port, "quitter", 42)];
+    let mut cmds = Vec::new();
+    let t0 = now_secs();
+    let mut next_tick = t0;
+    let mut build: Option<std::thread::JoinHandle<(World, NetMap, super::terrain_hash::TerrainHasher)>> = None;
+    let (mut ended_at, mut voted, mut swapped_at, mut stats_seen) = (None, false, None, false);
+    let mut first_ids = Vec::new();
+    while now_secs() - t0 < 40.0 {
+        let t = now_secs() - t0;
+        host.poll(Some(&mut active), &mut cmds);
+        cmds.clear();
+        while now_secs() >= next_tick {
+            host.pre_tick(&mut active);
+            active.step(None);
+            host.post_tick(&mut active);
+            next_tick += DT as f64;
+        }
+        let all_in = bots.iter().all(|b| b.core.phase == ClientPhase::InGame && b.world.is_some());
+        // 1. Everyone in: score something, then end the match.
+        if ended_at.is_none() && all_in && t > 2.0 {
+            first_ids = bots.iter().filter_map(|b| b.core.me).collect();
+            if let Some(p) = active.world.player_mut(first_ids[0]) {
+                p.kos = 4;
+            }
+            active.world.match_state.phase = MatchPhase::Ended;
+            ended_at = Some(t);
+        }
+        // 2. The vote is open on the clients: vote, and a late joiner arrives.
+        if ended_at.is_some() && !voted && bots[0].core.lobby.vote.is_some() {
+            bots[0].core.vote_map(NetMapKind::Miami);
+            bots.push(Bot::new(port, "late", 43));
+            voted = true;
+        }
+        // 3. The vote is in (and the joiner in the old world): the host says go.
+        if voted && build.is_none() && swapped_at.is_none() && host.vote.as_ref().is_some_and(|v| !v.votes.is_empty()) && bots[2].world.is_some() {
+            host.vote_now();
+        }
+        if host.vote_due() && build.is_none() && swapped_at.is_none() {
+            let nm = NetMap { kind: host.next_map(9), seed: crate::arena::ARENA_SEED, pristine_hash: 0 };
+            assert_eq!(nm.kind, NetMapKind::Miami, "the voted map");
+            let s = host.settings.clone();
+            build = Some(std::thread::spawn(move || HostCore::build_world(&s, nm, 11)));
+            // A client drops while the next map generates.
+            bots[1].core.leave();
+        }
+        if build.as_ref().is_some_and(|b| b.is_finished()) {
+            let (w, m, th) = build.take().unwrap().join().expect("build");
+            super::vote::swap_world(&mut active, w);
+            host.start_match(&mut active, m, th);
+            swapped_at = Some(now_secs());
+        }
+        for (k, b) in bots.iter_mut().enumerate() {
+            if k != 1 || swapped_at.is_none() {
+                b.frame(false);
+            }
+        }
+        if swapped_at.is_some() {
+            stats_seen |= bots[0].core.lobby.stats.len() >= 2;
+        }
+        // 4. Done once the survivors run the new map and a few terrain checks passed.
+        let done = swapped_at.is_some_and(|s| now_secs() - s > 4.0)
+            && [0, 2].iter().all(|&k| bots[k].core.map.kind == NetMapKind::Miami && bots[k].core.phase == ClientPhase::InGame && bots[k].world.is_some());
+        if done {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert!(swapped_at.is_some(), "the next match started");
+    assert_eq!(host.map.kind, NetMapKind::Miami);
+    assert!(host.vote.is_none(), "vote closed");
+    let host_hash = active.world.voxels.content_hash();
+    let host_spawns = active.world.arena.spawns.clone();
+    for k in [0, 2] {
+        let b = &bots[k];
+        let w = b.world.as_ref().expect("in the new match");
+        assert_eq!(b.core.map.kind, NetMapKind::Miami, "client {k} on the voted map");
+        assert_eq!(w.voxels.content_hash(), host_hash, "client {k}: terrain identical to the host");
+        assert_eq!(w.arena.spawns, host_spawns, "client {k}: same arena");
+        assert_eq!(b.core.stats.desyncs, 0, "client {k}: no desync");
+        assert!(b.core.stats.terrain_checks_ok >= 1, "client {k}: terrain checks ok");
+    }
+    // The dropped client is gone; the others (and the host) are in, names kept, scores reset.
+    let quitter = bots[1].core.me.expect("quitter id");
+    assert!(active.world.player(quitter).is_none(), "the client that dropped mid-generation is not in the new match");
+    for id in [first_ids[0], bots[2].core.me.expect("late id")] {
+        assert!(active.world.player(id).is_some(), "{id:?} in the new match");
+    }
+    let voter = active.world.player(first_ids[0]).expect("voter");
+    assert_eq!((voter.name.as_str(), voter.corps, voter.kos), ("voter", Corps::Rage, 0));
+    assert_eq!(active.world.match_state.phase, MatchPhase::Warmup, "a fresh match");
+    assert!(stats_seen, "stats reached the client");
+}

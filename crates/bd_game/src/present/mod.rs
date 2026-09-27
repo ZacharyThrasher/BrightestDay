@@ -30,6 +30,7 @@ pub mod charge;
 pub mod construct_anim;
 pub mod constructs;
 pub mod director;
+pub mod extend; // WUKONG: telescoping poles (Mechanic::Extends): continuous iron/gold pole, thrust, pillar, vault, needle dismiss
 pub mod guns;
 pub mod impact;
 pub mod local;
@@ -40,11 +41,13 @@ pub mod mirror; // MIRRORFOLD: folded-city backdrop, mirrored void, rift
 pub mod outline; // OUTLINE: player outlines (inverted hull) for readability in chaos
 pub mod players;
 pub mod powers;
+pub mod presence; // PRESENCE: the construct presence grammar (gather / manifest / material / presence / exit by tier)
 pub mod record;
 pub mod shout;
 pub mod signature; // SIGNATURE: cut-in DANGER alert, domain grade, strike markers, audio cues
 pub mod signature_fx; // SIGNATURE: fusion windup (Merge), erasing orbs (Hollow Purple)
 pub mod palm_beam; // SIGNATURE: palm energy (Form::Hands): the orb between the hands + the sustained beam
+pub mod pickups; // POWER-UPS: map pickups (beacon, heart / orb / star), the loaded hand, their sounds
 pub mod soak;
 pub mod sound;
 pub mod space;
@@ -105,7 +108,10 @@ impl Plugin for PresentPlugin {
             .add_plugins(cybertron::CybertronPlugin) // CYBERTRON: map movers (no-op on maps without them)
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
             .add_plugins(valley::ValleyPlugin) // VALLEY: water sheets + falls + mist (no-op without water sheets)
-            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin)); // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams
+            .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin)) // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams
+            .add_plugins(presence::PresencePlugin) // PRESENCE: every construct's gravitas, by tier
+            .add_plugins(pickups::PickupsPlugin) // POWER-UPS: map pickups (no-op while the mode is off)
+            .add_plugins(extend::ExtendPlugin); // WUKONG: telescoping poles
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));
         use crate::warmup::WarmupAppExt;

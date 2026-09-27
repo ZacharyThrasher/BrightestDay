@@ -52,11 +52,14 @@ pub struct CasinoEntity;
 #[derive(Component)]
 struct Reel;
 
+/// One part of a lever (the arm or the knob), posed in world space every frame: it swings about
+/// `axis` (the machine's right) through `pivot`; `rest` is its transform relative to the pivot.
 #[derive(Component)]
 struct Lever {
     machine: usize,
-    /// Rotation axis (the machine's right) and the rest orientation.
     axis: Vec3,
+    pivot: Vec3,
+    rest: Transform,
 }
 
 #[derive(Component)]
@@ -150,6 +153,7 @@ impl Plugin for CasinoPlugin {
 /// `BD_CASINO_DEMO=<outcome>[:<machine>]` (practice / host only; dev screenshots, never set in play):
 /// ~2.5 s into the match the local player pulls machine `machine` (default 0) with the odds forced to
 /// `jackpot`, `bust`, `effect` (or `any` = the real odds), and the roulette house spin starts at ~1 s.
+/// `BD_CASINO_DEMO_REPEAT=1` pulls again every 3.2 s.
 fn demo(time: Res<Time>, fx: Res<CasinoFx>, active: Option<ResMut<ActiveWorld>>, mut t: Local<f32>, mut done: Local<u8>) {
     let Some(mut active) = active else { return };
     if !fx.active || active.role == crate::sim_bridge::SimRole::Client {
@@ -163,8 +167,10 @@ fn demo(time: Res<Time>, fx: Res<CasinoFx>, active: Option<ResMut<ActiveWorld>>,
         *done = 1;
         w.interact.house.next = 0.05;
     }
-    if *done == 1 && *t > 2.5 {
-        *done = 2;
+    // Pull at 2.5 s, then again every 3.2 s (`BD_CASINO_DEMO_REPEAT=1`: busts come in three kinds).
+    let repeat = std::env::var_os("BD_CASINO_DEMO_REPEAT").is_some();
+    if *done >= 1 && *t > 2.5 + 3.2 * (*done - 1) as f32 && (*done == 1 || repeat) {
+        *done += 1;
         let c = &mut w.cfg.tuning.casino;
         match what {
             "jackpot" => (c.p_jackpot, c.p_bust) = (1.0, 0.0),
@@ -182,6 +188,19 @@ fn demo(time: Res<Time>, fx: Res<CasinoFx>, active: Option<ResMut<ActiveWorld>>,
 
 fn unlit(color: Color, tex: Option<Handle<Image>>) -> StandardMaterial {
     StandardMaterial { base_color: color, base_color_texture: tex, unlit: true, fog_enabled: true, ..default() }
+}
+
+/// Pocket light: a translucent film (no additive bloom wash over the hall).
+fn wedge_mat(color: LinearRgba, alpha: f32) -> StandardMaterial {
+    StandardMaterial {
+        base_color: Color::LinearRgba(LinearRgba { alpha, ..color }),
+        emissive: color * 0.35,
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        double_sided: true,
+        cull_mode: None,
+        ..default()
+    }
 }
 
 fn glow_mat(color: LinearRgba, alpha: bool) -> StandardMaterial {
@@ -414,12 +433,13 @@ fn sync_scene(
         // Lever: pivot 1 m under the knob, just outside the mount plate.
         let pivot = bv(m.lever) - Vec3::Y * 1.0 - right * 0.2;
         let tip = bv(m.lever) - pivot;
-        let lever = commands
-            .spawn((CasinoEntity, Lever { machine: i, axis: right }, Transform::from_translation(pivot), Visibility::default(), NotShadowCaster))
-            .id();
         let arm_t = Transform::from_translation(tip * 0.5).with_rotation(Quat::from_rotation_arc(Vec3::Y, tip.normalize())).with_scale(Vec3::new(1.0, tip.length(), 1.0));
-        commands.spawn((CasinoEntity, Mesh3d(arm.clone()), MeshMaterial3d(gold.clone()), arm_t, ChildOf(lever), NotShadowCaster));
-        commands.spawn((CasinoEntity, Mesh3d(knob.clone()), MeshMaterial3d(red.clone()), Transform::from_translation(tip), ChildOf(lever), NotShadowCaster));
+        let knob_t = Transform::from_translation(tip);
+        for (mesh, mat, rest) in [(arm.clone(), gold.clone(), arm_t), (knob.clone(), red.clone(), knob_t)] {
+            let mut world = rest;
+            world.translation += pivot;
+            commands.spawn((CasinoEntity, Lever { machine: i, axis: right, pivot, rest }, Mesh3d(mesh), MeshMaterial3d(mat), world, NotShadowCaster));
+        }
         // Marquee light bar over the reels.
         let mm = materials.add(glow_mat(LinearRgba::rgb(0.9, 0.55, 0.12), false));
         fx.marquee_mats.push(mm.clone());
@@ -429,8 +449,8 @@ fn sync_scene(
         commands.spawn((CasinoEntity, SpinHum(i), Transform::from_translation(bv(m.reels)), Visibility::default()));
     }
     if let Some(w) = &it.roulette {
-        let sweep = materials.add(glow_mat(LinearRgba::rgb(1.0, 0.85, 0.45) * 0.6, true));
-        let lit = materials.add(glow_mat(LinearRgba::rgb(1.0, 0.7, 0.2) * 0.5, true));
+        let sweep = materials.add(wedge_mat(LinearRgba::rgb(1.0, 0.92, 0.7), 0.55));
+        let lit = materials.add(wedge_mat(LinearRgba::rgb(1.0, 0.72, 0.2), 0.5));
         fx.sweep_mat = Some(sweep);
         fx.lit_mat = Some(lit.clone());
         let n = w.pockets();
@@ -438,11 +458,12 @@ fn sync_scene(
         for k in 0..n {
             let a0 = w.zero_angle + k as f32 * step;
             let mesh = meshes.add(wedge_mesh(w.r_inner, w.r_outer, a0 + 0.004, a0 + step - 0.004));
-            let t = Transform::from_translation(bv(w.center) + Vec3::Y * 0.04);
+            // Just over the frets, so the whole pocket glows (a thin film at ankle height).
+            let t = Transform::from_translation(bv(w.center) + Vec3::Y * 0.56);
             commands.spawn((CasinoEntity, Wedge(k), Mesh3d(mesh), MeshMaterial3d(lit.clone()), t, Visibility::Hidden, NotShadowCaster, NotShadowReceiver));
         }
-        let ball = materials.add(StandardMaterial { base_color: Color::srgb(0.97, 0.96, 0.92), perceptual_roughness: 0.15, ..default() });
-        commands.spawn((CasinoEntity, Ball, Mesh3d(meshes.add(Sphere::new(0.55))), MeshMaterial3d(ball), Transform::from_translation(bv(w.center)), Visibility::Hidden));
+        let ball = materials.add(StandardMaterial { base_color: Color::srgb(0.97, 0.96, 0.92), emissive: LinearRgba::rgb(0.5, 0.5, 0.48), perceptual_roughness: 0.15, ..default() });
+        commands.spawn((CasinoEntity, Ball, Mesh3d(meshes.add(Sphere::new(0.8))), MeshMaterial3d(ball), Transform::from_translation(bv(w.center)), Visibility::Hidden));
     }
     // Glitter: sparkles around the chandeliers (the hub ring over the wheel) and above the felt.
     let sparkle_mesh = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
@@ -736,7 +757,9 @@ fn animate_slots(
             }
         };
         // Positive rotation about the right axis tips the knob toward the player (+facing).
-        t.rotation = Quat::from_axis_angle(l.axis, ang);
+        let q = Quat::from_axis_angle(l.axis, ang);
+        t.translation = l.pivot + q * l.rest.translation;
+        t.rotation = q * l.rest.rotation;
     }
 }
 
@@ -806,9 +829,10 @@ fn animate_house(time: Res<Time>, mut fx: ResMut<CasinoFx>, mut wedges: Query<(&
     if let Some(h) = lit_mat
         && let Some(mut m) = materials.get_mut(&h)
     {
-        let k = 0.5 + 0.35 * (t * 3.0).sin();
-        m.base_color = Color::LinearRgba(LinearRgba::rgb(1.0, 0.7, 0.2) * k);
-        m.emissive = LinearRgba::rgb(1.0, 0.7, 0.2) * k * 2.0;
+        // Breathe slowly (no flashing).
+        let k = 0.75 + 0.25 * (t * 2.2).sin();
+        m.base_color = Color::LinearRgba(LinearRgba { alpha: 0.35 + 0.2 * k, ..LinearRgba::rgb(1.0, 0.72, 0.2) });
+        m.emissive = LinearRgba::rgb(1.0, 0.72, 0.2) * (0.25 * k);
     }
     if t > sweep + lit + 0.5 {
         fx.house.t = None;

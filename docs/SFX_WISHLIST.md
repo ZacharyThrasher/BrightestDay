@@ -72,3 +72,4 @@ frequent. Missing names are silent (callers already emit them).
 | amb_outdoor_window | Giant's Room | the world outside the open window: birdsong, a lawnmower / kids playing far off, a breeze — slightly muffled (currently `amb_archipelago_bed` + `amb_bird` by enclosure) |
 | amb_floorboard_creak | Giant's Room | house settling: deep wooden floorboard creaks and groans, scaled up (sparkle, Surface zone; `amb_station_creak` stands in) |
 | amb_fan_whoosh_loop | Giant's Room | ceiling-fan blades (static in the map for now) — slow deep whoosh for if the fan ever turns |
+- amb_energon_crackle (Cybertron seams), amb_cybertron_core (Well of AllSparks hum)

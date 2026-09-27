@@ -432,6 +432,32 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         let f = c.forward();
         (-f.x).atan2(-f.z)
     };
+    // TITANS (`titan.rs`): a piloted walker's body is its pilot's movement state (stepped by the
+    // world and by client prediction); here it only follows: feet, torso yaw after the aim, attacks.
+    if super::titan::is_titan(c) {
+        let tp = super::titan::params(c, &env.ctx.tuning.giants);
+        c.pos = pv.pos - Vec3::Y * tp.lift;
+        c.vel = pv.vel;
+        c.grounded = pv.grounded;
+        c.rot = Quat::from_rotation_y(super::titan::torso_yaw(cur_yaw, inp.yaw, env.ctx.tuning.giants.titan_torso_lag, dt));
+        s.dash_t = 0.0;
+        let fwd = c.forward();
+        // A dash rams (once per dash).
+        let walk = tp.speed;
+        let hs = Vec3::new(c.vel.x, 0.0, c.vel.z).length();
+        if hs > walk * 1.5 {
+            dash_hits(c, env, out);
+        } else {
+            c.hits.clear();
+        }
+        pilot_attacks(c, &mut s, &pv, env, out, fwd);
+        s.dash_t = 0.0;
+        if c.anim_state != AnimState::Active {
+            c.set_anim(if hs > 1.0 { AnimState::Move } else { AnimState::Idle }, env.tick());
+        }
+        c.held = s;
+        return;
+    }
     let mut dyaw = inp.yaw - cur_yaw;
     while dyaw > std::f32::consts::PI {
         dyaw -= std::f32::consts::TAU;

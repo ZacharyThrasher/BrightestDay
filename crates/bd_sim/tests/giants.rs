@@ -725,3 +725,86 @@ fn giant_brawl_tick_cost() {
     let on = run(true);
     eprintln!("tick ms (p50, p99, max): giants off {off:?}, giants on {on:?}");
 }
+
+// ------------------------------------------------------------------------------------ titans (piloting)
+
+fn titan_pair() -> (Pair, ConstructId) {
+    let mut host = world(2);
+    place(&mut host, B, Vec3::new(40.0, GROUND, 40.0));
+    place(&mut host, A, Vec3::new(0.0, GROUND, 10.0));
+    let id = spawn(&mut host, A, recipe("mech", Form::Biped, &[Mechanic::Piloted], Element::Light, 8.0), Vec3::new(0.0, GROUND, 0.0), 0.0);
+    for _ in 0..12 {
+        host.tick(&[]);
+    }
+    assert!(host.seat(A, id, 0, false), "seated");
+    for _ in 0..30 {
+        host.tick(&[]);
+    }
+    assert!(bd_sim::constructs::titan::is_titan(con(&host, id)), "a piloted walker is a titan");
+    let mut client = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
+    for e in host.construct_manifest() {
+        client.apply_event(&e);
+    }
+    client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+    (Pair { host, client }, id)
+}
+
+#[test]
+fn a_titan_is_responsive_dashes_and_prediction_agrees() {
+    let t = GiantTuning::default();
+    let (mut p, id) = titan_pair();
+    let walk = bd_sim::constructs::titan::params(con(&p.host, id), &t).speed;
+    let fwd = PlayerInput { move_z: 1, ..Default::default() };
+    let (mut worst_dp, mut worst_dv) = (0.0f32, 0.0f32);
+    let mut track = |d: (f32, f32)| {
+        worst_dp = worst_dp.max(d.0);
+        worst_dv = worst_dv.max(d.1);
+    };
+    // Full speed fast.
+    let mut t_full = None;
+    for k in 0..60u32 {
+        track(p.step(fwd));
+        let v = p.host.player(A).unwrap().mv.vel;
+        if t_full.is_none() && Vec3::new(v.x, 0.0, v.z).length() >= walk * 0.95 {
+            t_full = Some(k as f32 * DT);
+        }
+    }
+    let t_full = t_full.expect("reaches walk speed");
+    assert!(t_full <= t.titan_accel + 0.03, "full speed in {t_full} s (walk {walk} m/s)");
+    // The body is the pilot's feet.
+    let c = con(&p.host, id);
+    let lift = bd_sim::constructs::titan::params(c, &t).lift;
+    assert!((c.pos + Vec3::Y * lift - p.host.player(A).unwrap().mv.pos).length() < 1e-3, "the body follows its pilot (who rides its top)");
+    // Crisp stop.
+    let mut t_stop = None;
+    for k in 0..60u32 {
+        track(p.step(PlayerInput::default()));
+        let v = p.host.player(A).unwrap().mv.vel;
+        if t_stop.is_none() && Vec3::new(v.x, 0.0, v.z).length() < 0.05 {
+            t_stop = Some(k as f32 * DT);
+        }
+    }
+    assert!(t_stop.expect("stops") <= t.titan_stop + 0.03, "stops in {t_stop:?}");
+    // Strafe (camera-relative).
+    for _ in 0..40 {
+        track(p.step(PlayerInput { move_x: 1, ..Default::default() }));
+    }
+    assert!(p.host.player(A).unwrap().mv.vel.x > walk * 0.9, "strafes right");
+    // Dash: a burst, two charges, then empty until one comes back.
+    let dash = PlayerInput { move_z: 1, buttons: buttons::DODGE, ..Default::default() };
+    let mut dashes = 0;
+    let mut top = 0.0f32;
+    for k in 0..240u32 {
+        let inp = if k % 20 == 0 { dash } else { fwd };
+        track(p.step(inp));
+        let v = p.host.player(A).unwrap().mv.vel;
+        top = top.max(Vec3::new(v.x, 0.0, v.z).length());
+        if p.host.events().iter().any(|e| matches!(e, GameEvent::Move { player, flags, .. } if *player == A && flags & bd_sim::events::move_flags::DODGE != 0)) {
+            dashes += 1;
+        }
+    }
+    assert!(top > walk * (t.titan_dash - 0.2), "dash burst {top} vs walk {walk}");
+    assert_eq!(dashes, 2, "two charges in two seconds, then empty");
+    eprintln!("titan: walk {walk:.2} m/s, full speed in {t_full:.3} s, stop {t_stop:?}, dash top {top:.2}, prediction worst {worst_dp:.5} m {worst_dv:.5} m/s");
+    assert!(worst_dp < 0.01 && worst_dv < 0.05, "host = prediction while piloting: {worst_dp} m {worst_dv} m/s");
+}

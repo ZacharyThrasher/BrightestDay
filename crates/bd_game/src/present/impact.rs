@@ -170,7 +170,7 @@ fn present_hits(
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     arena: Option<Res<crate::arena::ArenaWorld>>,
-    (ads, juice_t): (Option<Res<super::ads::AdsState>>, Res<connect::JuiceTuningRes>),
+    (ads, juice_t, presence): (Option<Res<super::ads::AdsState>>, Res<connect::JuiceTuningRes>, Option<Res<super::presence::PresenceIndex>>),
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
     let _ = &mut hitstop;
@@ -194,13 +194,13 @@ fn present_hits(
             GameEvent::Hit { target, source, construct, kind, element, damage, knockback, point, tumble, lethal, crit, impact: fx, .. } => {
                 let p = bv(*point);
                 let dir = bv(fx.dir).normalize_or_zero();
-                let strength = fx.strength.max(0.05);
+                // PRESENCE: a titan's hits land bigger than a sword's (sparks, words, victim shake).
+                let strength = fx.strength.max(0.05) * presence.as_ref().map_or(1.0, |p| p.impact_mult(*construct));
                 let col = corps_rgb(corps_of(*source));
                 // Time (tiered, asymmetric hit-stop), victim shake / flash, the attacker's camera
                 // punch + contact drag, sparks, sub, finisher: `connect` (juice.ron).
                 let tier = connect::tier(&juice_t.0, *kind, fx.strength, fx.heavy, *knockback, *lethal);
                 let word_k = juice_t.0.word_scale[tier as usize].max(0.1);
-                let _ = construct;
                 pushes.add(p, dir * knockback.min(40.0), 1.5 + strength);
                 let local_victim = local == Some(*target);
                 let local_attacker = source.is_some() && local == *source;

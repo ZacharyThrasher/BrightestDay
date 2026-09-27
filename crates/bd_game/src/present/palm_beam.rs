@@ -542,8 +542,9 @@ mod tests {
 
     #[test]
     fn ultimates_are_thicker_and_longer_than_plain_palm_beams() {
-        let plain = beam_look(1.2);
-        let ult = beam_look(1.2 * 2.5 * 2.5);
+        let d = bd_sim::constructs::forms::form_spec(Form::Hands).default_scale;
+        let plain = beam_look(d);
+        let ult = beam_look(d * 2.5 * 2.5);
         assert!((plain.0 - 1.0).abs() < 1e-4 && (ult.0 - 2.5).abs() < 1e-3);
         assert!(ult.1 > plain.1 * 3.0, "thick: {} vs {}", ult.1, plain.1);
         assert!(ult.2 >= 0.95 && plain.2 >= 0.5 && ult.2 <= 1.0, "0.5–1.0 s: {} / {}", plain.2, ult.2);

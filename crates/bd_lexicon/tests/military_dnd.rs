@@ -113,6 +113,22 @@ fn describe(it: &Intent) -> String {
     s
 }
 
+/// The two content packs load without warnings of their own (no malformed entries, no names another pack
+/// already owns); aliases that yield to common words are listed (informational).
+#[test]
+fn military_and_tabletop_packs_load_cleanly() {
+    let Some(lex) = common::lex() else { return };
+    for pack in ["icons/military.ron", "icons/tabletop.ron"] {
+        let own: Vec<&String> = lex.load_warnings().iter().filter(|w| w.starts_with(pack)).collect();
+        assert!(own.is_empty(), "{pack}: {own:#?}");
+        for n in lex.load_notes().iter().filter(|w| w.starts_with(pack)) {
+            eprintln!("  note: {n}");
+        }
+    }
+    assert!(lex.icons().iter().any(|d| d.file == "icons/military.ron"), "military pack not loaded");
+    assert!(lex.icons().iter().any(|d| d.file == "icons/tabletop.ron"), "tabletop pack not loaded");
+}
+
 #[test]
 fn military_and_tabletop_vocabulary() {
     let Some(lex) = common::lex() else { return };

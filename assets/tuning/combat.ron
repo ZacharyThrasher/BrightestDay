@@ -865,5 +865,88 @@
         hijack: true,
         hijack_secs: 2.5,
         hijack_reach: 1.5,
+        titan_speed: 1.2,
+        titan_accel: 0.2,
+        titan_stop: 0.12,
+        titan_dash: 2.6,
+        titan_dash_secs: 0.28,
+        titan_charges: 2.0,
+        titan_recharge: 5.0,
+        titan_torso_lag: 0.12,
+    ),
+    // POWER-UPS (MatchRules::powerups, bd_sim::pickups; off by default). With the mode on, the gated
+    // things need a pickup from the map (without one the phrase comes out small; with one, FULL size
+    // and the pickup is spent). One shared timer: a beacon `telegraph` s, then it lies there
+    // `ground_life` s; carried `held_life` s (drops on KO). Spots are derived on every map (open
+    // ground between the spawns, `spawn_clear` m from them, `spot_spacing` apart) unless `spots` lists
+    // points for the map id: spots: [("arena", [(0.0, 12.0, 0.0), ...])].
+    pickups: (
+        every: 50.0,
+        first_after: 20.0,
+        telegraph: 5.0,
+        ground_life: 40.0,
+        held_life: 45.0,
+        max_live: 2,
+        touch: 1.6,
+        weights: [(Giant, 1), (Awakening, 1), (Ultimate, 1)],
+        // Giant = kaiju / colossal / creatures `giant_height`+ m tall (a thumping heart);
+        // Awakening = a power's transformation and tiers `awakening_min_tier`+ (a swirling orb);
+        // Ultimate = signature kinds in `ultimates`, orbital strikes, sky drops `drop_scale`+ m (a star).
+        gates: [Giant, Awakening, Ultimate],
+        awakening_min_tier: 2,
+        ultimates: [Domain, Beam],
+        drop_scale: 4.0,
+        giant_height: 8.0,
+        giant_weak_scale: 1.8,
+        spawn_clear: 10.0,
+        spot_spacing: 6.0,
+        spots: [],
+    ),
+    // WUKONG (constructs/extend.rs): telescoping weapons (Mechanic::Extends: Ruyi Jingu Bang, power pole,
+    // extending sword, stretchy fist). Combos twirl; charged release = thrust (or a falling pillar when aimed
+    // down / in the air); RMB into a surface = pole vault (predicted: host-synced), into open air = a jab.
+    extend: (
+        swing_reach: 1.3,        // m the pole grows at the peak of each combo swing
+        combo_kb: 1.15,
+        combo_impact: 1.35,
+        finisher_dmg: 1.35,      // 3rd hit (overhead windmill) is a heavy hit
+        finisher_kb: 1.5,
+        thrust_min: 14.0,        // m at the shortest charge
+        thrust_max: 34.0,        // m at full charge
+        thrust_speed: 300.0,     // tip speed m/s
+        thrust_hold: 0.12,
+        thrust_retract: 0.16,
+        thrust_dmg: 1.9,         // x form damage
+        thrust_kb: 34.0,
+        thrust_radius: 0.5,
+        thrust_impact: 2.2,
+        thrust_pierce_mass: 400.0, // constructs lighter than this (kg) are punched through
+        thrust_construct_dmg: 45.0,
+        pillar_look_y: -0.3,     // aim this far down to slam (grounded)
+        pillar_air_look_y: -0.1, // ... in the air
+        pillar_len: 24.0,
+        pillar_girth: 7.0,
+        pillar_rise: 0.3,
+        pillar_fall: 0.18,
+        pillar_recover: 0.45,
+        pillar_width: 2.4,
+        pillar_dmg: 2.2,
+        pillar_knockup: 30.0,
+        pillar_impact: 2.6,
+        pillar_shock: 1.9,
+        pillar_crater: 1.7,
+        pillar_crater_step: 2.8,
+        pillar_crater_power: 1.0,
+        vault_reach: 7.5,
+        vault_speed: 21.0,       // m/s added along the aim mirrored off the surface (never removes speed)
+        vault_min_up: 0.5,
+        vault_cd: 0.8,
+        jab_range: 9.0,
+        jab_dmg: 0.8,
+        jab_kb: 16.0,
+        jab_cd: 0.55,
+        creature_radius: 0.7,
+        creature_dmg: 1.2,
+        creature_kb: 22.0,
     ),
 )

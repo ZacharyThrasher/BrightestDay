@@ -26,6 +26,7 @@ pub enum Tier {
 }
 
 impl Tier {
+    #[allow(dead_code)]
     pub const ALL: [Tier; 5] = [Tier::Tiny, Tier::Normal, Tier::Big, Tier::Titan, Tier::Signature];
 
     pub fn index(self) -> usize {
@@ -45,6 +46,8 @@ pub struct TierInput {
     pub explodes: bool,
     pub drop_from_sky: bool,
     pub stomp: bool,
+    /// A held weapon that shoots (its gravitas lives in every shot: muzzle, tracer, impact).
+    pub ranged_held: bool,
     /// Golden legendary roll (`cflags::LEGENDARY`).
     pub legendary: bool,
     /// Announced to everyone (`bd_sim::signature::spectacle`).
@@ -64,6 +67,7 @@ impl TierInput {
             explodes: recipe.has(Mechanic::Explodes),
             drop_from_sky: recipe.has(Mechanic::DropFromSky),
             stomp: recipe.has(Mechanic::Stomp),
+            ranged_held: recipe.form.category() == FormCategory::Held && (recipe.has(Mechanic::Shoots) || recipe.has(Mechanic::Beam)),
             legendary,
             spectacle,
             signature,
@@ -87,6 +91,8 @@ pub struct TierKnobs {
     /// Extra when Heavy AND DropFromSky (anvils, meteors: the sky itself is the threat).
     pub heavy_drop: f32,
     pub stomp: f32,
+    /// Held guns / beams: the summon is a flick, the shots carry the weight.
+    pub ranged_held: f32,
     /// Category bias: structures are big but static; worn items stay out of the way.
     pub structure: f32,
     pub worn: f32,
@@ -98,6 +104,9 @@ pub struct TierKnobs {
     /// Held / worn items never go above this tier unless legendary / signature (a huge hammer is
     /// Big, the world-shaking treatment is for things that stand on their own).
     pub held_cap: Tier,
+    /// A spectacle (announced to everyone) costing at least this is a Signature (domains and orbital
+    /// strikes always are).
+    pub signature_cost: f32,
 }
 
 impl Default for TierKnobs {
@@ -110,15 +119,17 @@ impl Default for TierKnobs {
             heavy: 0.6,
             explodes: 0.6,
             drop_from_sky: 1.0,
-            heavy_drop: 0.8,
+            heavy_drop: 1.2,
             stomp: 0.4,
+            ranged_held: -0.3,
             structure: -0.4,
             worn: -1.0,
             held: 0.0,
             tiny_below: -0.4,
             big_at: 1.0,
-            titan_at: 2.4,
+            titan_at: 2.8,
             held_cap: Tier::Big,
+            signature_cost: 80.0,
         }
     }
 }
@@ -148,6 +159,9 @@ pub fn score(i: &TierInput, k: &TierKnobs) -> f32 {
     }
     if i.stomp {
         s += k.stomp;
+    }
+    if i.ranged_held {
+        s += k.ranged_held;
     }
     s += match i.form.category() {
         FormCategory::Structure => k.structure,

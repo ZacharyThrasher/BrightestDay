@@ -249,7 +249,7 @@ fn chandelier_swing(w: &VoxelWorld, m: &MapInfo) -> RunResult {
                 return input(yaw_to(s.pos, after), 0.0, 0, 1, 0);
             }
             let (y, pc) = aim_at(eye, s.pos + dir * 8.0);
-            let pump = s.vel.y < 0.0 && s.pos.y < h.pos.y - pump_below && s.speed() < env("PUMP_MAX", 22.0);
+            let pump = s.vel.y < 0.0 && s.pos.y < h.pos.y - pump_below && s.speed() < env("PUMP_MAX", 20.0);
             input(y, pc, 0, 1, TETHER_L | if pump { BOOST } else { 0 })
         },
         move |s, _| s.grounded && s.pos.z < -36.8 && (s.pos.y - casino::MEZZ_Y).abs() < 1.0,

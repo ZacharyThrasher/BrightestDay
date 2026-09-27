@@ -182,6 +182,7 @@ impl Plugin for PlayersPlugin {
             .init_resource::<BodyEntities>()
             .init_resource::<BodyHands>()
             .add_message::<ShatterPlayer>()
+            .add_message::<crate::console::RingCue>()
             .add_systems(Startup, setup_ropes)
             .add_systems(OnExit(AppState::InGame), clear_bodies)
             .add_systems(Update, (gather_costumes, body_events, sync_bodies).chain().in_set(PresentSet::Sync).in_set(BodySync));
@@ -263,17 +264,28 @@ fn body_events(
     mut shatter: MessageReader<ShatterPlayer>,
     mut shatter_fx: MessageWriter<ShatterModelFx>,
     mut sfx: MessageWriter<Sfx3d>,
+    mut cues: MessageReader<crate::console::RingCue>,
 ) {
     let Some(active) = active else {
         events.clear();
         shatter.clear();
+        cues.clear();
         return;
     };
+    // Own body: the cast pose snaps on the commit frame (typed or voiced), before the sim answers.
+    if cues.read().filter(|c| matches!(c, crate::console::RingCue::Forming { .. })).count() > 0
+        && let Some(&e) = active.local.and_then(|id| map.0.get(&id))
+        && let Ok((mut b, _, _)) = bodies.get_mut(e)
+    {
+        b.cast_t = Some(0.0);
+    }
     for ev in events.read() {
         match &ev.event {
             GameEvent::ConstructSpawned { owner, .. } => {
                 if let Some(&e) = map.0.get(owner)
                     && let Ok((mut b, _, _)) = bodies.get_mut(e)
+                    // Own cast already posed on the commit frame: don't restart it on arrival.
+                    && !(Some(*owner) == active.local && b.cast_t.is_some_and(|t| t < 0.5))
                 {
                     b.cast_t = Some(0.0);
                 }

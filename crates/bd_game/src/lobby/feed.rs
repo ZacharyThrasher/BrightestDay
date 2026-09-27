@@ -12,7 +12,6 @@
 //!   slur-filtered with the lexicon on display; legendary constructs in gold.
 //! * Legendary construct: a subtle positional `legendary_sting` + a gold burst, then a slow gold sparkle
 //!   while it lives. A sputtering cast: a positional `sputter` (the flicker itself is `present/constructs.rs`).
-//! * [`MatchHighlights`]: the end-of-match highlights the scoreboard's results panel shows.
 //! * Dev: `BD_FREEDOM_TEST=1` (practice) — a legendary cast, a sputtering cast, two KOs and the match
 //!   end, for `--screenshot` runs.
 
@@ -25,7 +24,7 @@ use bd_core::{ConstructId, PlayerId};
 use bd_fx::{BurstFx, BurstKind, Emit, FxParticles, PFlags, PKind};
 use bd_lexicon::{Intent, Lexicon, Refer};
 use bd_sim::GameEvent;
-use bd_sim::freedom::{FeedLine, FreedomEvent, Highlights};
+use bd_sim::freedom::{FeedLine, FreedomEvent};
 use bd_sim::replicate::cflags;
 use bevy::picking::Pickable;
 use bevy::prelude::*;
@@ -151,10 +150,6 @@ pub fn cast_energy(text: &str, voice_peak: Option<f32>, table: Option<&bd_fx::Sh
 
 // ------------------------------------------------------------------------------------ plugin
 
-/// End-of-match highlights (shown by the scoreboard's results panel while the match is over).
-#[derive(Resource, Default)]
-pub struct MatchHighlights(pub Option<Highlights>);
-
 #[derive(Resource, Default)]
 struct KillFeed {
     /// (text, legendary, involves the local player, age s)
@@ -172,7 +167,6 @@ pub struct FeedPlugin;
 impl Plugin for FeedPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CastMemo>()
-            .init_resource::<MatchHighlights>()
             .init_resource::<KillFeed>()
             .add_systems(Startup, spawn_feed_ui)
             .init_resource::<FreedomTest>()
@@ -182,10 +176,9 @@ impl Plugin for FeedPlugin {
     }
 }
 
-fn clear_on_exit(mut feed: ResMut<KillFeed>, mut h: ResMut<MatchHighlights>, mut memo: ResMut<CastMemo>) {
+fn clear_on_exit(mut feed: ResMut<KillFeed>, mut memo: ResMut<CastMemo>) {
     feed.lines.clear();
     feed.dirty = true;
-    h.0 = None;
     memo.last = None;
 }
 
@@ -226,7 +219,6 @@ fn read_events(
     active: Option<Res<ActiveWorld>>,
     lex: Option<Res<RingLexicon>>,
     mut feed: ResMut<KillFeed>,
-    mut highlights: ResMut<MatchHighlights>,
     mut sfx: MessageWriter<Sfx3d>,
     mut burst: MessageWriter<BurstFx>,
     time: Res<Time<Real>>,
@@ -267,8 +259,7 @@ fn read_events(
                     burst.write(BurstFx { kind: BurstKind::Flash, pos, dir: Vec3::ZERO, scale: 1.5, color: Some(GOLD_LINEAR) });
                 }
             }
-            GameEvent::Freedom(FreedomEvent::Highlights(h)) => highlights.0 = Some((**h).clone()),
-            GameEvent::MatchPhase { phase: bd_sim::MatchPhase::Live | bd_sim::MatchPhase::Warmup, .. } => highlights.0 = None,
+            // End-of-match highlights (awards / phrases) are not shown: the results are the stats board.
             _ => {}
         }
     }

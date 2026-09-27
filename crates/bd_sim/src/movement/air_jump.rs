@@ -57,6 +57,8 @@ pub struct ExtraMoves {
     pub last_wall: Vec3,
     /// Normal of the surf face touched last tick (zero = not surfing; `super::surf`).
     pub surf_n: Vec3,
+    /// EXTENDS: seconds until the next pole vault (`constructs::extend::pre_move`, predicted).
+    pub vault_cd: f32,
 }
 
 impl Default for ExtraMoves {
@@ -71,6 +73,7 @@ impl Default for ExtraMoves {
             dodge_base: Vec3::ZERO,
             last_wall: Vec3::ZERO,
             surf_n: Vec3::ZERO,
+            vault_cd: 0.0,
         }
     }
 }

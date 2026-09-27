@@ -366,3 +366,38 @@ fn deterministic_and_idle_without_interactables() {
     assert!(!pull(&mut w, 0, A, PullBy::Melee));
     assert!(w.interact.timed.is_empty() && w.interact.lucky.is_empty());
 }
+
+/// Sim cost on the real map (`--ignored --nocapture`, release): 8 bots, 60 s, tick p50 / p99 on
+/// High Roller vs Archipelago (the halo's 96 surf colliders + the interactables scan).
+#[test]
+#[ignore = "timing report"]
+fn sim_tick_cost_vs_archipelago() {
+    let run = |casino: bool| {
+        let cfg = SimConfig { seed: 3, check_invariants: false, ..SimConfig::default() };
+        let mut w = if casino {
+            let (v, m) = bd_voxel::generate_casino(1);
+            World::with_arena(cfg, v, m.arena, 1)
+        } else {
+            World::new(cfg)
+        };
+        let mut brains = bd_sim::bots::add_bots(&mut w, 0, 8, 0.8, 7);
+        w.start_live();
+        let mut inputs = Vec::new();
+        let mut times = Vec::with_capacity(7200);
+        for _ in 0..7200 {
+            inputs.clear();
+            bd_sim::bots::drive(&mut w, &mut brains, &mut inputs);
+            let t0 = std::time::Instant::now();
+            w.tick(&inputs);
+            times.push(t0.elapsed().as_secs_f64() * 1e3);
+        }
+        times.sort_by(|a, b| a.total_cmp(b));
+        let alive = w.players.iter().filter(|p| p.alive).count();
+        let casts = w.constructs.len();
+        println!("  {}: alive {alive}, constructs {casts}, kos {}", if casino { "casino" } else { "archipelago" }, w.players.iter().map(|p| p.kos as u32).sum::<u32>());
+        (times[times.len() / 2], times[times.len() * 99 / 100], times[times.len() - 1])
+    };
+    let (a50, a99, amax) = run(false);
+    let (c50, c99, cmax) = run(true);
+    println!("sim tick (8 bots, 60 s): archipelago p50 {a50:.3} ms p99 {a99:.3} ms max {amax:.3} ms | high roller p50 {c50:.3} ms p99 {c99:.3} ms max {cmax:.3} ms");
+}

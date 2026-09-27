@@ -146,7 +146,8 @@ pub fn kind_of(c: &Construct) -> Kind {
         speed,
         step_up,
         safe_drop: (h * 1.5).clamp(3.0, 30.0),
-        reach: (0.6 + 0.25 * h).min(8.0),
+        // EXTENDS: a creature carrying a telescoping weapon strikes from far outside its body.
+        reach: if c.has(Mechanic::Extends) { super::extend::CREATURE_REACH } else { (0.6 + 0.25 * h).min(8.0) },
     }
 }
 
@@ -1209,6 +1210,15 @@ fn attack_window(
         AttackKind::Swipe if c.ai.giant.on => {
             let impact = impact_of(c, k, kind);
             giant::swipe(c, env, &env.ctx.tuning.giants, k.reach, k.radius, u0, u1, tm.anticipation, tm.active, bd * 1.1 * dm, bk * km, impact, out);
+        }
+        // EXTENDS: the staff shoots out along the aim (once per attack) instead of a close swipe.
+        AttackKind::Bite | AttackKind::Swipe if c.has(Mechanic::Extends) => {
+            if c.ai.attack.emitted & 64 == 0 {
+                c.ai.attack.emitted |= 64;
+                let from = here + Vec3::Y * (k.h * 0.12);
+                let dir = aim.normalize_or(fwd);
+                super::extend::line_strike(c, env, from, dir, k.radius + k.reach, bd * 1.1 * dm, bk * km, impact_of(c, k, kind), out);
+            }
         }
         AttackKind::Bite | AttackKind::Swipe | AttackKind::Lash | AttackKind::Grab | AttackKind::Constrict => {
             let reach = if kind == AttackKind::Lash { k.reach * 2.5 + 1.0 } else { k.reach };

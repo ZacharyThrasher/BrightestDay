@@ -383,4 +383,14 @@ pub enum HeldFx {
     Transform = 28,
     /// Vehicle → robot transform in mid-air landed: stomp. `strength` scales with fall speed.
     TransformSlam = 29,
+    /// EXTENDS: a telescoping pole shoots out from `pos` along `dir` (`strength` = target length, m):
+    /// the charged thrust, an alt-fire jab, or a creature's extending strike.
+    Extend = 30,
+    /// EXTENDS: the falling pillar stands up out of the hand (`dir` = where it will land,
+    /// `strength` = its length, m).
+    PillarRise = 31,
+    /// EXTENDS: the pillar crashed down from `pos` along `dir` (`strength` = length): craters, knock-up.
+    PillarSlam = 32,
+    /// EXTENDS: pole vault — planted at `pos`, the wielder launched along `dir` (`strength` = m/s added).
+    Vault = 33,
 }

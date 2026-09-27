@@ -23,7 +23,7 @@ gold_mil | drone strike on zoe | +DropFromSky +Explodes target=Zoe
 gold_mil | artillery barrage | +Explodes n>=6
 gold_mil | fire for effect | +DropFromSky +Explodes n>=4
 gold_mil | danger close | +DropFromSky +Explodes
-gold_mil | orbital strike | +DropFromSky +Explodes
+gold_mil | orbital strike | +DropFromSky +Explodes/Beam
 gold_mil | supply drop | +DropFromSky
 gold_mil | care package | +DropFromSky
 gold_mil | bombs away | form=Bomb +DropFromSky
@@ -93,7 +93,7 @@ gold_dnd | roll initiative | form=Boulder/Ball
 mil_weapon | rifle | form=Gun
 mil_weapon | assault rifle | form=Gun
 mil_weapon | sniper rifle | form=Gun
-mil_weapon | sniper | form=Gun
+mil_weapon | sniper | +Shoots
 mil_weapon | rocket launcher | +Explodes
 mil_weapon | bazooka | +Explodes
 mil_weapon | gatling gun | form=Gun
@@ -105,7 +105,7 @@ mil_weapon | sticky bomb | form=Bomb +Sticky
 mil_weapon | claymore mine | form=Bomb +Explodes
 mil_weapon | land mine | form=Bomb +Explodes
 mil_weapon | mortar | +Explodes
-mil_weapon | artillery | +Explodes
+mil_weapon | artillery | form=Cannon +Shoots
 mil_weapon | howitzer | form=Cannon
 mil_weapon | railgun | form=Gun
 mil_weapon | nuke | +Explodes el=Atomic
@@ -139,11 +139,11 @@ mil_vehicle | drone | +Flies
 mil_vehicle | predator drone | +Flies
 mil_vehicle | battleship | form=Vehicle
 mil_vehicle | submarine | form=Vehicle
-mil_vehicle | mech | +Piloted
-mil_vehicle | war mech | +Piloted
+mil_vehicle | mech | form=Kaiju/Biped/Vehicle
+mil_vehicle | war mech | form=Kaiju/Biped/Vehicle
 mil_vehicle | black hawk | +Flies
 mil_vehicle | apache helicopter | +Flies
-mil_vehicle | chinook | +Flies
+mil_vehicle | chinook helicopter | +Flies
 mil_vehicle | jeep | form=Vehicle
 mil_vehicle | destroyer | form=Vehicle
 mil_vehicle | UAV | +Flies
@@ -212,7 +212,7 @@ dnd_spell | darkness | el=Shadow
 dnd_spell | invisibility | cat=Object/Creature/Worn/Structure
 dnd_spell | mirror image | n>=3
 dnd_spell | blink | +Portal
-dnd_spell | polymorph | cat=Creature/Object
+dnd_spell | polymorph | +Shrink
 dnd_spell | enlarge | +Grow
 dnd_spell | reduce | +Shrink
 dnd_spell | spirit guardians | n>=3
@@ -262,7 +262,7 @@ dnd_spell | moonbeam | +Beam
 dnd_spell | hunter's mark | +Homing
 dnd_spell | hex | el=Shadow
 dnd_spell | bless | el=Light
-dnd_spell | fire storm | el=Fire
+dnd_spell | fire storm | +Explodes
 dnd_spell | delayed blast fireball | el=Fire +Explodes
 dnd_spell | incendiary cloud | el=Fire
 dnd_spell | sunburst | el=Light +Explodes
@@ -275,7 +275,7 @@ dnd_spell | cast magic missile | +Homing
 dnd_spell | cast counterspell | +Barrier
 dnd_spell | vicious mockery | el=Psychic
 dnd_spell | toll the dead | el=Shadow
-dnd_spell | arcane eye | +Flies
+dnd_spell | arcane eye | +Homing
 dnd_spell | phantasmal killer | el=Psychic
 dnd_spell | globe of invulnerability | form=Dome +Barrier
 dnd_spell | dispel magic | +Repel
@@ -286,7 +286,7 @@ dnd_spell | true resurrection | el=Light
 # audit: monsters
 # =====================================================================================================
 dnd_monster | beholder | name~beholder +Beam
-dnd_monster | mind flayer | cat=Creature el=Psychic
+dnd_monster | mind flayer | cat=Creature
 dnd_monster | owlbear | form=Quadruped
 dnd_monster | mimic | +Trap
 dnd_monster | blue dragon | el=Electric +Breath
@@ -323,16 +323,16 @@ dnd_monster | black pudding | form=Blob
 dnd_monster | stirge | cat=Creature
 dnd_monster | chimera | cat=Creature
 dnd_monster | wyvern | +Flies
-dnd_monster | fire giant | form=Biped el=Fire
-dnd_monster | frost giant | form=Biped el=Ice
-dnd_monster | storm giant | form=Biped el=Electric
-dnd_monster | hill giant | form=Biped
-dnd_monster | cloud giant | form=Biped
+dnd_monster | fire giant | form=Biped/Kaiju el=Fire
+dnd_monster | frost giant | form=Biped/Kaiju el=Ice
+dnd_monster | storm giant | form=Biped/Kaiju el=Electric
+dnd_monster | hill giant | form=Biped/Kaiju
+dnd_monster | cloud giant | form=Biped/Kaiju
 dnd_monster | gnoll | cat=Creature
 dnd_monster | death knight | cat=Creature
 dnd_monster | dracolich | +Flies el=Shadow
 dnd_monster | shambling mound | cat=Creature
-dnd_monster | roper | cat=Creature
+dnd_monster | roper | +Grab
 dnd_monster | intellect devourer | cat=Creature
 dnd_monster | githyanki | form=Biped
 dnd_monster | tiamat | form=Kaiju
@@ -379,7 +379,7 @@ dnd_class | flurry of blows | form=Gauntlet
 dnd_class | lay on hands | el=Light
 dnd_class | turn undead | +Repel
 dnd_class | channel divinity | el=Light
-dnd_class | second wind | +Fast
+dnd_class | second wind | el=Wind
 dnd_class | cunning action | +Fast
 dnd_class | stunning strike | +Blunt
 dnd_class | roll for initiative | form=Boulder/Ball
@@ -392,4 +392,4 @@ dnd_class | d20 | form=Ball/Boulder
 dnd_class | twenty sided die | form=Ball/Boulder
 dnd_class | i cast fireball | el=Fire +Explodes
 dnd_class | leeroy jenkins | cat=Creature
-dnd_class | dungeon master | cat=Creature
+dnd_class | dungeon master | +Barrier

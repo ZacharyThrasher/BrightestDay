@@ -183,6 +183,9 @@ pub struct PlayerSnap {
     /// `crate::charge::ChargeState::wire`).
     #[serde(default)]
     pub charge: u8,
+    /// POWER HUD: each held power's readiness + form time left (`crate::readiness`; motes / gems).
+    #[serde(default)]
+    pub ready: crate::readiness::ReadySnap,
 }
 
 impl PlayerSnap {
@@ -233,6 +236,9 @@ pub struct OwnState {
     /// Air jump + dodge state (`None` = default), so prediction replays them.
     #[serde(default)]
     pub extra: Option<crate::movement::ExtraMoves>,
+    /// POWER HUD: the recipient's status / guard / size timers (`None` = none running).
+    #[serde(default)]
+    pub hud: Option<crate::readiness::OwnHud>,
 }
 
 /// See [`OwnState::held`].
@@ -265,6 +271,7 @@ impl OwnState {
             held: None,
             lunge: s.lunge.active().then_some(s.lunge),
             extra: (s.extra != Default::default()).then_some(s.extra),
+            hud: None,
         }
     }
 
@@ -350,6 +357,10 @@ pub struct ConstructSnap {
     /// GIANTS: angular velocity (rad/s × 1000 per axis): a turning giant carries its riders round.
     #[serde(default)]
     pub spin: [i16; 3],
+    /// EXTENDS: telescoping pole state (`constructs::extend::wire`: length, thickness, move, move
+    /// time, move direction); 0 for everything else.
+    #[serde(default)]
+    pub ext: u64,
 }
 
 /// Angular velocity ↔ `ConstructSnap::spin` (0.001 rad/s resolution, ±32 rad/s).

@@ -322,11 +322,13 @@ fn main() {
         ("in_the_bowl".into(), shot(&world, &look, Vec3::new(14.0, casino::POCKET_Y + 1.7, -6.0), Vec3::new(-20.0, FLOOR_Y + 4.0, 10.0), 84.0, wpx, hpx)),
         ("roof_deck".into(), shot(&world, &look, Vec3::new(46.0, ROOF_Y + 1.7, -30.0), Vec3::new(0.0, ROOF_Y + 4.0, 20.0), 80.0, wpx, hpx)),
     ];
-    if let Some(m) = info.interactables.slots.first() {
-        let eye = m.reels + m.facing * 7.0 + Vec3::new(0.0, -0.9, 0.0) + Vec3::new(m.facing.z, 0.0, -m.facing.x) * -2.0;
+    if let Some(m) = info.interactables.slots.get(2) {
+        // A balcony machine, from the pull spot a little to its lever side.
+        let right = Vec3::new(m.facing.z, 0.0, -m.facing.x);
+        let eye = m.reels + m.facing * 6.5 + right * 1.5 - Vec3::Y * 0.3;
         shots.push(("slot_machine".into(), shot(&world, &look, eye, m.reels, 70.0, wpx, hpx)));
     }
-    shots.push(("grand_stair".into(), shot(&world, &look, Vec3::new(-20.0, FLOOR_Y + 1.7, -12.0), Vec3::new(-43.0, MEZZ_Y, 0.0), 80.0, wpx, hpx)));
+    shots.push(("grand_stair".into(), shot(&world, &look, Vec3::new(-25.0, FLOOR_Y + 2.7, 9.0), Vec3::new(-43.0, MEZZ_Y, 0.0), 80.0, wpx, hpx)));
     for (n, s) in &shots {
         s.save(parts.join(format!("shot_{n}.png"))).unwrap();
     }

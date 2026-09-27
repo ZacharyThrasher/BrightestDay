@@ -1017,7 +1017,7 @@ fn rug_tufts(c: &mut City, seed: u32) {
     let mut rng = Rng::new(seed as u64 ^ 0x70f7);
     let mut patches: Vec<(Vec2, f32)> = Vec::new();
     for _ in 0..200 {
-        if patches.len() >= 6 {
+        if patches.len() >= 5 {
             break;
         }
         let p = Vec2::new(rng.range(r.x0 + 6.0, r.x1 - 6.0), rng.range(r.z0 + 6.0, r.z1 - 6.0));
@@ -1035,7 +1035,7 @@ fn rug_tufts(c: &mut City, seed: u32) {
             }
             let h = unit(hash3(x, 3, z, seed ^ 0x7f7f));
             let inside = patches.iter().map(|(p, rad)| 1.0 - Vec2::new(mx, mz).distance(*p) / rad).fold(0.0f32, f32::max);
-            let (dense, tall) = if inside > 0.0 { (0.25 + 0.3 * inside, 0.35 + 0.4 * inside) } else { (0.025, 0.0) };
+            let (dense, tall) = if inside > 0.0 { (0.12 + 0.22 * inside, 0.2 + 0.35 * inside) } else { (0.02, 0.0) };
             if h < dense {
                 let two = unit(hash3(x, 9, z, seed)) < tall;
                 if two && get(c, v + IVec3::Y) == AIR {

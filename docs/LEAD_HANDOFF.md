@@ -29,9 +29,12 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Presence/gravitas a1f2fc9e831108f3e — generic Hollow-Purple grammar for EVERY construct: presence tier
   (scale/cost/legendary/signature; contrast, not max), gather → manifest → element material → presence
   (light, hum, motion sigs) → clean exit; presence.ron; waits for signature worker's lock on signature_fx.rs.
+- Power HUD a27df484b4d496738 — what you HAVE + readiness, no words: ring gems (1P) / orbiting motes
+  (3P + others) with drain/refill/ready chime; minimal icon strip (radial cooldowns, form duration,
+  willpower arc, held pickup, status pips); prefs toggle. Single source for the affordance pass's ring gauge.
 - Feel polish ab67c9f46bddf8b57 — momentum while typing (latched WASD; sim no longer zeroes move on
   TYPING; may shift FFA hash), speed lines + wind on all maps, strafe/tether camera roll, instant cast "catch".
-- Costumes abe83e88bc70188b0 got 2 scope adds: exact character name in a SUMMON → costume construct
+- Costumes abe83e88bc70188b0 DONE (205 looks, summon hook, grammar; open: 1P hands palette colours in viewmodel.rs, Doom Slayer≈Chief) — got 2 scope adds: exact character name in a SUMMON → costume construct
   ("goku" → Goku-looking construct, "GIANT GOKU" stacks); slot mix-and-match ("gojo but bald",
   "donatello with a straw hat", "goku x luffy"; unknown modifiers ignored). Power phrases still win.
 - Connect feel a6409611d34036099 — hit assist (melee volume+magnetism, projectile/hitscan magnetism),
@@ -49,7 +52,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
   self-drain, crit, read cue, tiers) + ONE generic "Ascend" transformation sequence driven by data.
 - Character costumes abe83e88bc70188b0 — style library + ~150 iconic looks (gojo/vader/...) + icon-derived
   fallback; gallery docs/costume_gallery.png is the bar.
-- Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (transforms
+- Maps (isolated behind bd_voxel features; register at the end): Cybertron a2b9a832591c61404 (DONE; gaps: vehicles do not drive on movers, Hall reads dark, amb_energon_crackle+amb_cybertron_core wishlist) (transforms
   ADD routes only), Turtle Lair adf4a2d95abe323d2 (DONE, registered, awaiting green commit; follow-ups: --look ignored in practice.rs, lair drips need EmitterMap underground scan), Giant's Room ae3814d9e0a766ccd (static), Valley (DONE, registered; easy falls climb KEPT per owner) of the
   End a39d259b62dd1312d (water-walk as flavour), Ember a12534acdde2f59c8 (lava = void), Hyperline
   a2bf846d827b78dcb (train, slipstream), Mirrorfold a319a5a9539efed5b (DONE, registered; surf murk fix sent to feel-polish), High Roller casino

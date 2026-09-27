@@ -110,7 +110,9 @@ fn slot_noun(w: &str) -> Option<Slot> {
         "hair" | "hairstyle" | "haircut" | "hairdo" => Slot::Hair,
         "hat" | "headwear" | "helmet" | "headgear" | "crown" => Slot::Headwear,
         "face" | "mask" | "eyes" | "eyewear" | "beard" => Slot::Face,
-        "outfit" | "clothes" | "costume" | "uniform" | "top" | "shirt" | "gi" | "suit" | "armor" | "armour" | "jacket" | "clothing" => Slot::Top,
+        "outfit" | "clothes" | "costume" | "uniform" | "top" | "shirt" | "gi" | "suit" | "armor" | "armour" | "jacket" | "clothing" => {
+            Slot::Top
+        }
         "pants" | "trousers" | "legs" | "bottoms" | "shorts" | "boots" | "shoes" | "skirt" => Slot::Bottom,
         "cape" | "cloak" | "back" | "wings" | "weapon" | "sword" => Slot::Back,
         "accessories" | "accessory" | "gear" | "stuff" => Slot::Accessory,
@@ -122,12 +124,13 @@ fn slot_noun(w: &str) -> Option<Slot> {
 const ADD: &[&str] = &["with", "wearing", "in", "and", "plus", "x", "feat", "ft", "has", "having", "wears", "dressed", "as"];
 const REMOVE: &[&str] = &["but", "without", "no", "minus", "sans", "except", "lacking", "not", "remove", "removed", "take", "off"];
 const FILLER: &[&str] = &[
-    "a", "an", "the", "his", "her", "their", "its", "some", "of", "on", "like", "style", "version", "cosplay", "look", "form", "mode", "own", "pair", "fancy", "cool",
+    "a", "an", "the", "his", "her", "their", "its", "some", "of", "on", "like", "style", "version", "cosplay", "look", "form", "mode",
+    "own", "pair", "fancy", "cool",
 ];
 /// Size / count words a summon may carry ("giant goku") — never part of the look.
 const SCALE: &[&str] = &[
-    "giant", "huge", "big", "tiny", "small", "mini", "little", "massive", "colossal", "gigantic", "enormous", "kaiju", "titan", "titanic", "mega", "baby", "chibi", "two", "three", "2",
-    "3", "army", "clone", "clones",
+    "giant", "huge", "big", "tiny", "small", "mini", "little", "massive", "colossal", "gigantic", "enormous", "kaiju", "titan", "titanic",
+    "mega", "baby", "chibi", "two", "three", "2", "3", "army", "clone", "clones",
 ];
 
 /// What the phrase asked for.
@@ -485,9 +488,27 @@ fn recolour_patch(l: &mut Look, c: Rgb3) {
     let c = Col(c);
     if let Some(h) = l.hat.as_mut() {
         match h {
-            Hat::Cap(x, _) | Hat::Pointy(x) | Hat::Straw(x, _) | Hat::Wizard(x, _) | Hat::Cowboy(x) | Hat::Fedora(x, _) | Hat::TopHat(x, _) | Hat::Crown(x) | Hat::Beanie(x) => *x = c,
-            Hat::Headband(x, _) | Hat::Bandana(x) | Hat::Horns(x) | Hat::Halo(x) | Hat::CatEars(x) | Hat::Hood(x) | Hat::Tiara(x) | Hat::Winged(x, _) | Hat::LokiHorns(x) => *x = c,
-            Hat::Beret(x) | Hat::Bowler(x) | Hat::Bucket(x) | Hat::Headphones(x) | Hat::Tied(x) | Hat::Tricorn(x, _) | Hat::Ears(x) => *x = c,
+            Hat::Cap(x, _)
+            | Hat::Pointy(x)
+            | Hat::Straw(x, _)
+            | Hat::Wizard(x, _)
+            | Hat::Cowboy(x)
+            | Hat::Fedora(x, _)
+            | Hat::TopHat(x, _)
+            | Hat::Crown(x)
+            | Hat::Beanie(x) => *x = c,
+            Hat::Headband(x, _)
+            | Hat::Bandana(x)
+            | Hat::Horns(x)
+            | Hat::Halo(x)
+            | Hat::CatEars(x)
+            | Hat::Hood(x)
+            | Hat::Tiara(x)
+            | Hat::Winged(x, _)
+            | Hat::LokiHorns(x) => *x = c,
+            Hat::Beret(x) | Hat::Bowler(x) | Hat::Bucket(x) | Hat::Headphones(x) | Hat::Tied(x) | Hat::Tricorn(x, _) | Hat::Ears(x) => {
+                *x = c
+            }
             Hat::No => {}
         }
     }
@@ -500,14 +521,36 @@ fn recolour_patch(l: &mut Look, c: Rgb3) {
         g.color = c;
     }
     match l.eyewear.as_mut() {
-        Some(Eyewear::Blindfold(x) | Eyewear::RoundShades(x) | Eyewear::Shades(x) | Eyewear::Glasses(x) | Eyewear::Visor(x) | Eyewear::Eyepatch(x, _) | Eyewear::Bandage(x)) => *x = c,
+        Some(
+            Eyewear::Blindfold(x)
+            | Eyewear::RoundShades(x)
+            | Eyewear::Shades(x)
+            | Eyewear::Glasses(x)
+            | Eyewear::Visor(x)
+            | Eyewear::Eyepatch(x, _)
+            | Eyewear::Bandage(x),
+        ) => *x = c,
         Some(Eyewear::Goggles(_, x)) => *x = c,
         _ => {}
     }
     for a in l.add.iter_mut().flatten() {
         match a {
-            Acc::Cape(x, _, _) | Acc::Cloak(x) | Acc::Scarf(x) | Acc::Wings(_, x) | Acc::Tail(_, x) | Acc::Backpack(x) | Acc::Jetpack(x, _) | Acc::Staff(x) => *x = c,
-            Acc::Pauldrons(x) | Acc::Necklace(x) | Acc::Saber(x) | Acc::Holsters(x) | Acc::Gourd(x) | Acc::Claws(x) | Acc::Spikes(x) | Acc::Bandolier(x) => *x = c,
+            Acc::Cape(x, _, _)
+            | Acc::Cloak(x)
+            | Acc::Scarf(x)
+            | Acc::Wings(_, x)
+            | Acc::Tail(_, x)
+            | Acc::Backpack(x)
+            | Acc::Jetpack(x, _)
+            | Acc::Staff(x) => *x = c,
+            Acc::Pauldrons(x)
+            | Acc::Necklace(x)
+            | Acc::Saber(x)
+            | Acc::Holsters(x)
+            | Acc::Gourd(x)
+            | Acc::Claws(x)
+            | Acc::Spikes(x)
+            | Acc::Bandolier(x) => *x = c,
             Acc::BackSword(_, x) | Acc::BigSword(_, x) | Acc::TwinSwords(_, x) => *x = c,
             _ => {}
         }
@@ -530,12 +573,24 @@ fn recolour(l: &mut Look, slot: Slot, c: Rgb3) {
             recolour_patch(&mut patch, c);
             if slot == Slot::Headwear {
                 l.hat = patch.hat;
-                if let Some(Helmet::Knight(x, _) | Helmet::Vader(x) | Helmet::Space(x, _) | Helmet::Robot(x, _) | Helmet::Smooth(x, _) | Helmet::Mando(x, _) | Helmet::Chief(x, _)) = l.helmet.as_mut() {
+                if let Some(
+                    Helmet::Knight(x, _)
+                    | Helmet::Vader(x)
+                    | Helmet::Space(x, _)
+                    | Helmet::Robot(x, _)
+                    | Helmet::Smooth(x, _)
+                    | Helmet::Mando(x, _)
+                    | Helmet::Chief(x, _),
+                ) = l.helmet.as_mut()
+                {
                     *x = col;
                 }
             } else {
                 l.eyewear = patch.eyewear;
-                if let Some(Mask::Ninja(x) | Mask::Bandana(x) | Mask::Domino(x) | Mask::Cowl(x, _) | Mask::Spider(x, _) | Mask::Full(x, _, _)) = l.mask.as_mut() {
+                if let Some(
+                    Mask::Ninja(x) | Mask::Bandana(x) | Mask::Domino(x) | Mask::Cowl(x, _) | Mask::Spider(x, _) | Mask::Full(x, _, _),
+                ) = l.mask.as_mut()
+                {
                     *x = col;
                 }
             }
@@ -609,16 +664,18 @@ fn apply_part(l: &mut Look, pi: usize, colour: Option<Rgb3>) {
                 l.hat = Some(Hat::No);
             }
         }
-        Slot::Face => {
-            if patch.mask.is_some() {
-                l.eyewear = Some(Eyewear::No);
-            }
-        }
+        Slot::Face if patch.mask.is_some() => l.eyewear = Some(Eyewear::No),
         _ => {}
     }
     let mut acc = l.acc.take().unwrap_or_default();
     for new in patch.add.iter().flatten() {
-        acc.retain(|a| std::mem::discriminant(a) != std::mem::discriminant(new) && !(is_back(a) && is_back(new) && matches!(new, Acc::Cape(..) | Acc::Cloak(..)) && matches!(a, Acc::Cape(..) | Acc::Cloak(..))));
+        acc.retain(|a| {
+            std::mem::discriminant(a) != std::mem::discriminant(new)
+                && !(is_back(a)
+                    && is_back(new)
+                    && matches!(new, Acc::Cape(..) | Acc::Cloak(..))
+                    && matches!(a, Acc::Cape(..) | Acc::Cloak(..)))
+        });
     }
     acc.extend(patch.add.take().unwrap_or_default());
     let merged = l.patched(&Look { acc: Some(acc), ..patch });
