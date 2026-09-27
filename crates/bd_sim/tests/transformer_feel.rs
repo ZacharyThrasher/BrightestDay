@@ -549,6 +549,7 @@ fn a_combined_giant_fights_as_the_colossus() {
     place(&mut w, B, Vec3::new(-30.0, GROUND, 0.0));
     w.tick(&[]);
     let eye = w.player(A).unwrap().eye(w.params());
+    w.cfg.rules.limits = bd_sim::rules::ConstructLimits::chaos();
     let dozer = feats(recipe("transforming bulldozer", Form::Vehicle, &[Mechanic::Charge, Mechanic::Heavy, Mechanic::Transforms], Element::Light, 4.0), &[Feature::Treads, Feature::Cab, Feature::Plow], 1500.0);
     let mut ids = Vec::new();
     for k in 0..3 {
@@ -560,20 +561,23 @@ fn a_combined_giant_fights_as_the_colossus() {
     }
     let mut say = Recipe::unknown("combine");
     say.name = "combine".into();
-    let n = w.constructs.iter().filter(|c| c.owner == A && c.gone.is_none()).count();
-    let r = w.cast(A, say, None, Aim::new(eye, Vec3::NEG_Z));
-    eprintln!("owned {n} ids {ids:?} combine -> {r:?}");
+    assert_eq!(w.constructs.iter().filter(|c| c.owner == A && c.gone.is_none()).count(), 3, "{ids:?}");
+    let _ = w.cast(A, say, None, Aim::new(eye, Vec3::Y));
     let mut ev = Vec::new();
-    for k in 0..(40 * 120) {
+    // The combined giant lives ~25 s: watch it while it fights.
+    let mut giant = None;
+    for k in 0..(24 * 120) {
         if k % 90 == 0 {
             place(&mut w, B, Vec3::new(-30.0, GROUND, 0.0));
             w.player_mut(B).unwrap().damage_pct = 0.0;
         }
         ev.extend_from_slice(w.tick(&[]));
+        if let Some(c) = w.constructs.iter().find(|c| c.comp.xform.combined) {
+            assert_eq!(CombatTuning::default().transformer.robot_row(c).name, "colossus");
+            giant = Some((c.id, c.brawl.ai_xattacks, c.brawl.last_xattack));
+        }
     }
-    let giant = w.constructs.iter().find(|c| c.comp.xform.combined).map(|c| (c.id, c.brawl.ai_xattacks, c.brawl.last_xattack));
-    let Some((gid, xattacks, last)) = giant else { panic!("combined") };
-    assert_eq!(CombatTuning::default().transformer.robot_row(w.constructs.get(gid).unwrap()).name, "colossus");
+    let Some((_gid, xattacks, last)) = giant else { panic!("combined") };
     eprintln!("combined giant: {xattacks} quakes, last {last:?}, hits on B {}", hits_on_b(&ev).len());
     assert!(hits_on_b(&ev).len() >= 3, "it fights");
     assert!(xattacks >= 1 && last == Some(XAttack::Quake), "and quakes");
