@@ -674,7 +674,7 @@ pub enum PowerEvent {
     /// resolves to the power + move data (`MoveRef::resolve(PowerTable::get())`: ops, juice, fx,
     /// tags); `op` = the op it leads with; `from` / `to` = the mover's feet before / after (a blink's
     /// arrival); `dir` = the aim it fired along; `step` = steps of the current chain fired before it;
-    /// `sparks` = what a borrowed / kit move cost (0 for held moves).
+    /// `sparks` = what the move cost (held, borrowed or kit: one spark model, `chain::move_cost`).
     Fired {
         player: PlayerId,
         mv: toolbox::MoveRef,

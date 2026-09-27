@@ -9,19 +9,26 @@ per-tick allocation (every Vec/Box/format! is at command time). Op names are all
 The FFA golden hash is untouched (`record_trails` writes only `OpState::trails`).
 
 ## BLOCKING — control safety (never-list: no freezes, stuns short and escapable)
-1. **Contagion** (SHONEN CLASSICS) `contagion.rs:203, 233, 250-252`: `status` isn't restricted —
+1. ~~**Contagion** (SHONEN CLASSICS) `contagion.rs:203, 233, 250-252`: `status` isn't restricted —
    a Stun brand re-applies every 0.25 s for up to 10 s (StatusKind has no post-stun immunity) = a
    10 s freeze; and the spread keeps ≥ 1.0 s, so two enemies standing together pass it back and
    forth forever. Fix: never Stun (or cap total stun ≤ 1.2 s per victim per brand), and never let a
-   brand spread back along its own chain / to someone who had it in the last few seconds.
-2. **BlinkCarry** (MOVIES & COMICS) `blink_carry.rs:115-128`: the passenger is teleported, their
+   brand spread back along its own chain / to someone who had it in the last few seconds.~~ fixed
+   (TOOLBOX QA): a Stun / Float brand holds a victim ≤ `CONTROL_CAP` 1.2 s in total per brand; each hop
+   keeps 70 % of the time left with no 1 s floor (it always decays) and a player a brand burned out
+   on can't catch one for `IMMUNE` 4 s. Tests: `tests/toolbox_qa.rs` (stun cap, no ping-pong).
+2. ~~**BlinkCarry** (MOVIES & COMICS) `blink_carry.rs:115-128`: the passenger is teleported, their
    dodge cancelled and 0.45 s tumble applied BEFORE the (dodgeable) credit hit — no way out; the doc
    advertises carrying people over the void for a KO, and drop spots only check `in_play`. Fix:
-   resolve the dodgeable hit first (a dodge = no carry), and only drop them over ground.
-3. **Transpose** (MODERN ANIME) `transpose.rs:121-131`: a player swapped to a construct's spot gets
+   resolve the dodgeable hit first (a dodge = no carry), and only drop them over ground.~~ fixed (TOOLBOX QA):
+   the dodge-able touch lands FIRST (a dodge / shield = you blink alone), the dodge is never cancelled,
+   and a drop spot needs ground under it (`World::ground_below`; a fall / spike is fine, the void is not).
+3. ~~**Transpose** (MODERN ANIME) `transpose.rs:121-131`: a player swapped to a construct's spot gets
    no clear-space / ground check — swapping an enemy with a flying construct over the void is an
    instant ring-out (`others: true` can do it to two enemies). Fix: require ground under / free
-   space at the destination for players (else refuse, cost refunded).
+   space at the destination for players (else refuse, cost refunded).~~ fixed (TOOLBOX QA): anyone but the
+   caster must land in play, with room for their body and ground under them (`SAFE_DEPTH`), else the
+   clap fails before anything moves (nothing spent). NaN range / cone through `fclamp`.
 4. ~~Surge (MYTHOLOGY & FOLKLORE) `surge.rs:252-261` (low): tumble refreshed every tick while riding
    the front, up to ~20 s; only a dodge escapes. Cap the carry per victim (≤ 1.5 s) or let a jump
    / tether break it.~~ fixed (carry ≤ `MAX_CARRY` 1.2 s per rider then thrown clear, tumble only on
@@ -31,27 +38,28 @@ The FFA golden hash is untouched (`record_trails` writes only `OpState::trails`)
 Data numbers aren't sanitised upstream; `x.clamp(a, b)` returns NaN for NaN. Use the `fin()` /
 `is_finite` pattern the clean files use (afflict, barrage, bounce_beam, delayed_hit, empower, evade,
 haul, leap, mend, salvo, place_portal, relocate, self_resize, strain).
-- finisher.rs:39-40 (lunge NaN → `apply_impulse(NaN)`) — MODERN ANIME
+- ~~finisher.rs:39-40 (lunge NaN → `apply_impulse(NaN)`) — MODERN ANIME~~ fixed (TOOLBOX QA)
 - ~~ram.rs:78-85 (NaN speed → NaN velocity; NaN secs → never times out) — ARENA GAMES~~ fixed (`ops::fclamp`)
 - ~~hook.rs:60-64, 185 (NaN range → hook never ends, `op_busy` stuck true; NaN pull) — ARENA GAMES~~ fixed
-- drill.rs:165, 183 — SHONEN CLASSICS
+- ~~drill.rs:165, 183 — SHONEN CLASSICS~~ fixed (TOOLBOX QA)
 - also bare clamps: ~~grab.rs:257-262, counter.rs:35-44, lock_on.rs:44-51, zone.rs:47-50 (ARENA
-  GAMES)~~ fixed (every data clamp in the arena ops goes through `ops::fclamp`); wave.rs:38-45, rush.rs:44-46, gaze_stun.rs:113-115 (SHONEN CLASSICS); ~~seeker.rs:192-194,
-  surge.rs:157 (MYTHOLOGY & FOLKLORE)~~ fixed (`fclamp`); pounce.rs:143 (ADVENTURE GAMES); tag.rs:90-92, erupt.rs:272
-  (MODERN ANIME).
+  GAMES)~~ fixed (every data clamp in the arena ops goes through `ops::fclamp`); ~~wave.rs:38-45, rush.rs:44-46, gaze_stun.rs:113-115 (SHONEN CLASSICS)~~ fixed; ~~seeker.rs:192-194,
+  surge.rs:157 (MYTHOLOGY & FOLKLORE)~~ fixed (`fclamp`); ~~pounce.rs:143 (ADVENTURE GAMES); tag.rs:90-92, erupt.rs:272
+  (MODERN ANIME)~~ fixed (TOOLBOX QA: every float data clamp in those files is `ops::fclamp`; also warp_to.rs
+  `behind`, transpose.rs, contagion.rs).
 TOOLBOX CORE backstop: `powers_check` now errors on any non-finite number in a move, and
 `cargo test -p bd_sim --test toolbox` checks the shipped table.
 
 ## MEDIUM — index safety (players leave → indices shift)
 - "already hit" bitmasks keyed by player index without an id check (wrong player skipped / hit
-  twice after a leave): wave.rs:101/108, ~~seeker.rs:375/414, surge.rs:243, haul.rs:190~~ fixed (`seeker::Struck` id set),
-  ~~ram.rs:210/223 (also hard-codes `k >= 8`, use `MAX_PLAYERS`)~~ fixed (id array), empower.rs:35/79/87 (per-victim
-  `cds`). Copy lock_on.rs:93-97 (an `ids` array alongside).
+  twice after a leave): ~~wave.rs:101/108~~ fixed (`WaveLive::hit` is an id set), ~~seeker.rs:375/414, surge.rs:243, haul.rs:190~~ fixed (`seeker::Struck` id set),
+  ~~ram.rs:210/223 (also hard-codes `k >= 8`, use `MAX_PLAYERS`)~~ fixed (id array), ~~empower.rs:35/79/87 (per-victim
+  `cds`)~~ fixed (`Empowered::ids` alongside, a changed id resets its cooldown). Copy lock_on.rs:93-97 (an `ids` array alongside).
 - ~~grab.rs:356 `break_grab`, lock_on.rs:65 `break_lock_on` take the slot without checking its owner.~~ fixed (ARENA GAMES)
 - ~~seeker.rs:126, surge.rs:78, haul.rs:88: a slot holding a departed owner's entry is overwritten
   without ending its driven construct (left behind in the world).~~ fixed (the old one is ended /
   released first)
-- relocate.rs:77: `Forced::Player` becomes an anchor without an alive check.
+- ~~relocate.rs:77: `Forced::Player` becomes an anchor without an alive check.~~ fixed (TOOLBOX QA)
 
 ## LOW
 - copy_last.rs:21-31 `note_seen_move` is a second always-on write (every power move marks nearby

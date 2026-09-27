@@ -19,6 +19,8 @@ use crate::willpower::{integrity_for_cost, upkeep_per_sec_as, validate_recipe};
 use crate::world::{Aim, World};
 
 const INF: f32 = f32::INFINITY;
+/// A move's cast construct forms at least this far (m) beyond its own size in front of the eye.
+const NEAR_CAMERA_CLEAR: f32 = 0.9;
 
 /// "random:devil_fruit" (also "devil_fruit").
 pub fn is_random_fruit(key: &str) -> bool {
@@ -118,6 +120,48 @@ impl World {
         res
     }
 
+    /// A move's `Cast` op just made `cid`: honour the power's delivery (`from_fist`: an object forms
+    /// IN the fist and is thrown from there, like an incanted cast) — and never let a fresh
+    /// construct form inside the caster's near-camera zone (a fist-sized ball swelling in front
+    /// of the 1P lens): it is pushed out along the look to clear the eye by its own size.
+    fn place_move_cast(&mut self, i: usize, def: &PowerDef, cid: ConstructId, eye: Vec3, look: Vec3) {
+        let tier = self.players[i].power.tier;
+        let own = self.players[i].power.id.is_some_and(|id| self.powers_def_is(id, def));
+        let deliv = if own { def.tier(tier).and_then(|t| t.delivery.as_ref()).unwrap_or(&def.delivery) } else { &def.delivery };
+        let from_fist = deliv.from_fist;
+        let base = self.cfg.move_params.clone();
+        let p = &self.players[i];
+        let params = p.params(&base);
+        let hand = hand_pos(&p.mv, &params, p.input.yaw, p.input.pitch, Hand::Right);
+        let Some(c) = self.constructs.get_mut(cid) else { return };
+        if c.age != 0.0 {
+            return;
+        }
+        let size = c.half.max_element();
+        if from_fist && c.category == FormCategory::Object {
+            c.comp.eff.0 &= !(1u64 << (Mechanic::DropFromSky as u32 & 63));
+            c.comp.dropped = true;
+            c.pos = hand + look * (size + 0.3);
+            c.prev_pos = c.pos;
+            c.vel = Vec3::ZERO;
+            return;
+        }
+        let look = look.normalize_or(Vec3::NEG_Z);
+        let rel = c.pos - eye;
+        let ahead = rel.dot(look);
+        let side = (rel - look * ahead).length();
+        let clear = size + NEAR_CAMERA_CLEAR;
+        if ahead < clear && side < size + 0.5 && ahead > -size {
+            c.pos += look * (clear - ahead);
+            c.prev_pos = c.pos;
+        }
+    }
+
+    /// Is `def` the table entry of power `id`?
+    fn powers_def_is(&self, id: u16, def: &PowerDef) -> bool {
+        PowerTable::get().def(id).is_some_and(|d| std::ptr::eq(d, def))
+    }
+
     /// G tap (slot 0) / G hold (slot 1): the power's signature move.
     pub fn power_move(&mut self, player: PlayerId, slot: u8) -> Result<(), PowerError> {
         self.power_move_aimed(player, slot, None)
@@ -193,7 +237,10 @@ impl World {
         if self.locked_at(i) && !only_transform {
             return Err(PowerError::Busy);
         }
-        let cost = if self.cfg.rules.infinite_willpower() { 0.0 } else { mv.cost };
+        // SPARKS: a held move is priced like a borrowed / kit one — its presence tier in sparks
+        // (`chain::move_cost`; `cost` is only a weight lifting the tier). Held moves have their own
+        // per-slot cooldowns, so no staleness steps on top.
+        let cost = super::chain::move_cost(&self.cfg.tuning.willpower.sparks, &self.cfg.rules, mv, 0);
         if cost > p.willpower + 1e-4 {
             return Err(PowerError::NotEnoughWillpower);
         }
@@ -962,9 +1009,9 @@ impl World {
                         if let Some((a, b)) = merge {
                             sig = sig.with_merge(*a, *b);
                         }
-                        self.cast_signature(id, r, None, aim, sig)
+                        self.cast_signature(id, r, None, aim, sig).map(|_| ())
                     }
-                    None => self.cast(id, r, shape, aim),
+                    None => self.cast(id, r, shape, aim).map(|cid| self.place_move_cast(i, def, cid, eye, look)),
                 };
                 match res {
                     Ok(_) => Ok(()),

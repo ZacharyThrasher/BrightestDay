@@ -47,6 +47,14 @@ New content goes in a new file named for its domain (e.g. `overwatch.ron`, `naru
 names, tier names and shouts must be unique across the WHOLE directory — the validator reports
 clashes.
 
+## Shout hygiene (docs/toolbox/QA_NOTES.md)
+
+Shouts are global, so a shout must be DISTINCTIVE: a shout the lexicon reads as an ordinary thing
+("flaming hammer"), an icon's exact name ("mjolnir") or one everyday word ("dash") builds / does
+THAT, never your move. Write a famous move's own dictionary-word name **Title Case**
+(`("Spirit Bomb", 2)`) to keep it a move; prefix generic shouts with the character
+(`("gaara sand shield", 2)`). `powers_check --hygiene` lists every dead / risky shout.
+
 ## Validate without recompiling the game
 
     cargo run --profile fastrel -p bd_sim --example powers_check -- assets/powers/<file>.ron [--coverage phrases.txt]

@@ -22,9 +22,9 @@ impl World {
         // `line`: measured along your own line to them (you arrive facing them); else from their facing.
         let want = if line {
             let d = q.mv.pos - self.players[i].mv.pos;
-            q.mv.pos - Vec3::new(d.x, 0.0, d.z).normalize_or(Vec3::Z) * behind.clamp(-4.0, 6.0)
+            q.mv.pos - Vec3::new(d.x, 0.0, d.z).normalize_or(Vec3::Z) * super::fclamp(behind, -4.0, 6.0)
         } else {
-            q.mv.pos - Vec3::new(q.look().x, 0.0, q.look().z).normalize_or(Vec3::Z) * behind.clamp(-4.0, 6.0)
+            q.mv.pos - Vec3::new(q.look().x, 0.0, q.look().z).normalize_or(Vec3::Z) * super::fclamp(behind, -4.0, 6.0)
         };
         let Some(to) = self.toolbox_spot(i, want) else { return Err(PowerError::NoTarget) };
         let from = self.players[i].mv.pos;

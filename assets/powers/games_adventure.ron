@@ -1945,8 +1945,8 @@
         kind: Kit,
         fx: "hardlight",
         names: ["chell", "aperture", "aperture science", "portal", "portals", "glados"],
-        shouts: [("blue portal", 0), ("orange portal", 0), ("shoot a portal", 0), ("place portal", 0), ("portal shot", 0),
-                 ("fire portal", 0), ("portal companion cube", 1), ("portal weighted companion cube", 1)],
+        shouts: [("chell blue portal", 0), ("chell orange portal", 0), ("shoot a portal", 0), ("place portal", 0), ("portal shot", 0),
+                 ("chell fire portal", 0), ("portal companion cube", 1), ("portal weighted companion cube", 1)],
         moves: [
             // Blue, then orange: two holes in the world, linked. Your momentum comes through.
             // ends: wherever the portals take you — speedy thing goes in, speedy thing comes out.

@@ -136,5 +136,5 @@ impl World {
     }
 }
 
-/// How far under a carry drop (beyond the lift) ground must be (m).
-pub const CARRY_GROUND_DEPTH: f32 = 8.0;
+/// How far under a carry drop (beyond the lift) ground must be (m): a fall / spike is fine, the void is not.
+pub const CARRY_GROUND_DEPTH: f32 = 64.0;

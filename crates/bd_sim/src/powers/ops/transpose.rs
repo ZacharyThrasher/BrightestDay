@@ -25,8 +25,9 @@ enum Body {
 
 /// Constructs bigger than this (half-extent, m) are never swapped (giants, kaiju).
 const MAX_HALF: f32 = 3.0;
-/// A player swapped anywhere but by their own move needs ground this close under their feet (m).
-pub const SAFE_DEPTH: f32 = 10.0;
+/// A player swapped anywhere but by their own move needs ground somewhere under their feet within this (m):
+/// a fall is fine, the void is not.
+pub const SAFE_DEPTH: f32 = 64.0;
 
 impl World {
     pub(crate) fn op_transpose(&mut self, i: usize, range: f32, cone: f32, others: bool) -> Result<(), PowerError> {

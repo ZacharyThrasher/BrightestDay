@@ -128,6 +128,12 @@ pub struct Toolbox {
     /// Id of the current chain (bumps per command) and steps of it fired so far.
     pub chain: u16,
     pub fired: u8,
+    /// The command's crosshair ray relative to the player's look (origin offset from the eye and
+    /// direction, both in the look's right / up / forward basis). Later steps re-aim with it at the
+    /// player's CURRENT look: in third person the camera sits off the shoulder and the crosshair
+    /// isn't re-sent, so the bare look would miss what the crosshair is on (parallax). `None` =
+    /// aim along the look.
+    pub aim_rel: Option<[f32; 6]>,
 }
 
 impl Toolbox {
@@ -374,6 +380,16 @@ pub fn move_sparks(t: &SparkTuning, mv: &MoveDef, uses: u32, bar: u32) -> u32 {
     (base + uses.min(64) * t.stale as u32).clamp(1, bar.max(1))
 }
 
+/// The WILLPOWER a power move costs — held, borrowed or kit, one price model: its presence tier in
+/// sparks ([`move_sparks`], + `uses` staleness steps) × the spark size; 0 with infinite willpower.
+/// The HUD's gauge preview calls this too, so the bite it shows is the bite you pay.
+pub fn move_cost(t: &SparkTuning, rules: &crate::rules::MatchRules, mv: &MoveDef, uses: u32) -> f32 {
+    if rules.infinite_willpower() {
+        return 0.0;
+    }
+    move_sparks(t, mv, uses, rules.pool_segments()) as f32 * rules.segment_size()
+}
+
 /// The move a held selector fires (for its active phase / event), without firing it.
 fn held_move(pw: &super::PlayerPower, sel: u8) -> Option<(MoveRef, &'static MoveDef)> {
     if sel & move_sel::SELECT != 0 || sel == move_sel::CYCLE {
@@ -392,7 +408,8 @@ impl World {
     /// Run a toolbox command for `player`: one step or a chain (see the module docs). Stops any
     /// chain already pending. The first step fires now unless a move's active phase is still
     /// running (then it waits for it: the input buffer). `aim` (the client's crosshair) aims the
-    /// FIRST step if it fires now; later steps aim along the look when they fire.
+    /// FIRST step if it fires now; later steps re-aim when they fire: the player's look then, with
+    /// the command's crosshair offset kept ([`Toolbox::aim_rel`], so third person stays on target).
     pub fn toolbox(&mut self, player: PlayerId, steps: Vec<ToolStep>, aim: Option<Aim>) -> Result<(), PowerError> {
         let Some(i) = self.pidx(player) else { return Err(PowerError::UnknownPlayer) };
         if !self.players[i].alive {
@@ -416,6 +433,9 @@ impl World {
                 t.shot = 0;
             }
         }
+        // 3P re-aim: remember the crosshair ray relative to the look for the steps that fire later
+        let rel = aim.map(|a| self.aim_relative(i, &a));
+        self.players[i].power.toolbox.aim_rel = rel;
         if self.players[i].power.toolbox.busy() || self.op_busy(player) {
             // The input buffer: wait for the active phase to end.
             self.players[i].power.toolbox.queue = steps;
@@ -450,6 +470,36 @@ impl World {
     /// Read-only: a player's toolbox view (for UI in practice / host; clients read `OwnState`).
     pub fn toolbox_view(&self, player: PlayerId) -> Option<ToolboxSnap> {
         self.player(player).and_then(|p| ToolboxSnap::of(&p.power.toolbox))
+    }
+
+    /// The look basis of player `i`: (right, up, forward).
+    fn look_basis(&self, i: usize) -> (Vec3, Vec3, Vec3) {
+        let f = self.players[i].look().normalize_or(Vec3::NEG_Z);
+        let r = f.cross(Vec3::Y).normalize_or(Vec3::X);
+        (r, r.cross(f), f)
+    }
+
+    /// A (validated) crosshair ray as offsets in the look basis ([`Toolbox::aim_rel`]).
+    fn aim_relative(&self, i: usize, a: &Aim) -> [f32; 6] {
+        let (o, d) = self.resolve_aim(i, a);
+        let eye = self.players[i].eye(&self.cfg.move_params);
+        let (r, u, f) = self.look_basis(i);
+        let off = o - eye;
+        [off.dot(r), off.dot(u), off.dot(f), d.dot(r), d.dot(u), d.dot(f)]
+    }
+
+    /// The aim a later chain step fires with: the command's crosshair ray re-applied to the
+    /// player's current look (3P parallax stays solved), or `None` (the bare look).
+    fn chain_aim(&self, i: usize) -> Option<Aim> {
+        let rel = self.players[i].power.toolbox.aim_rel?;
+        if rel.iter().any(|x| !x.is_finite()) {
+            return None;
+        }
+        let eye = self.players[i].eye(&self.cfg.move_params);
+        let (r, u, f) = self.look_basis(i);
+        let origin = eye + r * rel[0] + u * rel[1] + f * rel[2];
+        let dir = (r * rel[3] + u * rel[4] + f * rel[5]).normalize_or(f);
+        Some(Aim::new(origin, dir))
     }
 
     fn stop_chain(&mut self, i: usize, why: PowerError) {
@@ -569,12 +619,7 @@ impl World {
         if cooling {
             return Err(PowerError::Cooldown);
         }
-        let rules = &self.cfg.rules;
-        let cost = if rules.infinite_willpower() {
-            0.0
-        } else {
-            move_sparks(&self.cfg.tuning.willpower.sparks, mv, uses, rules.pool_segments()) as f32 * rules.segment_size()
-        };
+        let cost = move_cost(&self.cfg.tuning.willpower.sparks, &self.cfg.rules, mv, uses);
         if cost > p.willpower + 1e-4 {
             return Err(PowerError::NotEnoughWillpower);
         }
@@ -633,7 +678,9 @@ impl World {
         let player = self.players[i].id;
         let to = self.players[i].mv.pos;
         let step = pw.toolbox.fired;
-        self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: mr, how: FireHow::Held, op, element, from, to, dir, step, sparks: 0 }));
+        // (the price it just paid: the same spark model as a borrowed move, `move_cost`)
+        let sparks = (move_cost(&self.cfg.tuning.willpower.sparks, &self.cfg.rules, mv, 0) / self.cfg.rules.segment_size().max(1e-3)).round() as u8;
+        self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: mr, how: FireHow::Held, op, element, from, to, dir, step, sparks }));
     }
 
     /// Per tick (from `step_powers`, before its no-power early return): borrowed cooldowns, active
@@ -708,7 +755,9 @@ impl World {
                 continue;
             }
             let step = self.players[i].power.toolbox.queue.remove(0);
-            if let Err(e) = self.fire_step(i, step, None) {
+            // re-aimed at fire time: the player's current look + the command's crosshair offset
+            let aim = self.chain_aim(i);
+            if let Err(e) = self.fire_step(i, step, aim) {
                 if stops_chain(e) {
                     self.chain_step_failed(i, e);
                 }

@@ -1822,7 +1822,9 @@ def priorities(chars: list[S.Char], claims: S.Claims) -> tuple[dict[str, float],
     curation bonuses), and the ones that are not characters at all (reason per key)."""
     names = {n for c in chars for n in c.names}
     pop = S.popularity(names)
-    hand = {kitform(n) for n in claims.names if len(n) >= 5}
+    # sorted (longest first, then by text): iterating a set here made the variant check depend on
+    # PYTHONHASHSEED ("cyborg superman" kept or dropped run to run) — TOOLBOX QA
+    hand = sorted({kitform(n) for n in claims.names if len(n) >= 5}, key=lambda h: (-len(h), h))
     score: dict[str, float] = {}
     drop: dict[str, str] = {}
     for c in chars:

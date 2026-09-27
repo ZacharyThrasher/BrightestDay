@@ -182,12 +182,14 @@ fn cost_preview(
 }
 
 fn phrase_cost(a: &ActiveWorld, lex: &RingLexicon, me: bd_core::PlayerId, text: &str) -> Option<f32> {
-    use bd_sim::powers::toolbox::{MoveIndex, Reading, split_chain};
+    use bd_sim::powers::toolbox::{Reading, split_chain};
     let w = &a.world;
     let pool = w.rules().willpower_max().max(1.0);
     let p = w.player(me)?;
     let table = bd_sim::powers::PowerTable::get();
-    let read = |s: &str| MoveIndex::shipped().read(table, Some(&p.power), s);
+    // the console's own reading (SHOUT HYGIENE included), so the preview is what the line will do
+    let powers_on = w.rules().powers_enabled;
+    let read = |s: &str| crate::toolbox::read_step(&lex.0, Some(&p.power), powers_on, s, false);
     // TOOLBOX: a chain line previews what the whole line will spend.
     let steps = split_chain(text, &|s| read(s) != Reading::Plain);
     if steps.len() > 1 {
@@ -195,13 +197,13 @@ fn phrase_cost(a: &ActiveWorld, lex: &RingLexicon, me: bd_core::PlayerId, text: 
         return (sum > 0.0).then_some(sum.clamp(0.0, 2.0));
     }
     // TOOLBOX: a borrowed / kit move costs its presence tier in sparks + its staleness.
+    let sparks = &w.cfg.tuning.willpower.sparks;
     if let Some(m) = read(text).move_ref()
         && let Some((_, mv)) = m.resolve(table)
     {
-        let rules = w.rules();
         let window = w.cfg.tuning.willpower.stale_window;
         let uses = p.power.toolbox.cd_of(m).map_or(0, |c| if c.since <= window { c.uses as u32 } else { 0 });
-        let cost = if rules.infinite_willpower() { 0.0 } else { bd_sim::powers::chain::move_sparks(&w.cfg.tuning.willpower.sparks, mv, uses, rules.pool_segments()) as f32 * rules.segment_size() };
+        let cost = bd_sim::powers::chain::move_cost(sparks, w.rules(), mv, uses);
         return (cost > 0.0).then_some((cost / pool).clamp(0.0, 2.0));
     }
     let cost = match w.parse_power_phrase(me, text) {
@@ -209,9 +211,10 @@ fn phrase_cost(a: &ActiveWorld, lex: &RingLexicon, me: bd_core::PlayerId, text: 
             if slot & move_sel::SELECT != 0 || slot == move_sel::CYCLE {
                 0.0
             } else {
+                // held moves: the same spark model (bd_sim `chain::move_cost`, what exec.rs charges)
                 let (held, s) = move_sel::split_move_of(slot);
                 let h = p.power.held().find(|h| h.slot == held)?;
-                h.def.moves_at(h.tier).get(s as usize).map_or(0.0, |m| m.cost)
+                h.def.moves_at(h.tier).get(s as usize).map_or(0.0, |m| bd_sim::powers::chain::move_cost(sparks, w.rules(), m, 0))
             }
         }
         PowerPhrase::Incantation { rest } => w.preview_cost(me, lex.0.resolve(&rest).recipe).1,

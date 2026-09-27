@@ -553,8 +553,28 @@ fn move_verb(m: &bd_sim::powers::MoveDef) -> Option<Verb> {
         O::Hook { pull, .. } if *pull > 0.0 => Verb::Pull,
         O::Hook { .. } | O::LockOn { .. } => Verb::Projectile,
         O::Grab { .. } => Verb::Grab,
-        O::Deflect { .. } | O::Counter { .. } => Verb::Shield,
-        O::Lockout { .. } | O::Zone { .. } => Verb::Trap,
+        O::Deflect { .. } | O::Counter { .. } | O::Mend { .. } => Verb::Shield,
+        O::Lockout { .. } | O::Zone { .. } | O::Capture { .. } | O::Afflict { .. } | O::GazeStun { .. } | O::Banish { .. } | O::Contagion { .. } => Verb::Trap,
+        // (TOOLBOX QA: the toolbox wave's generic ops, by what they look like to the player)
+        O::Leap { .. }
+        | O::Pounce { .. }
+        | O::Evade { .. }
+        | O::BlinkCarry { .. }
+        | O::Transpose { .. }
+        | O::MarkRecall { .. }
+        | O::WarpTo { .. }
+        | O::Relocate { .. }
+        | O::PassThrough { .. }
+        | O::PlacePortal { .. } => Verb::Dash,
+        O::Phase { .. } => Verb::Dodge,
+        O::Finisher { .. } | O::Drill { .. } | O::Rush { .. } | O::Barrage { .. } | O::TagStrike { .. } | O::Tag { .. } => Verb::Strike,
+        O::Seeker { .. } | O::Salvo { .. } => Verb::Projectile,
+        O::BounceBeam { .. } | O::Wave { .. } => Verb::Beam,
+        O::DelayedHit { .. } | O::Erupt { .. } | O::Surge { .. } => Verb::Blast,
+        O::Haul { .. } => Verb::Pull,
+        O::Disarm { .. } => Verb::Grab,
+        O::RaiseFallen { .. } => Verb::Summon,
+        O::SelfResize { .. } => Verb::Form,
         #[allow(unreachable_patterns)]
         _ => Verb::Aura,
     })
@@ -713,15 +733,21 @@ mod tests {
         use Input::*;
         use Verb::*;
         // Rinnegan (active): push = tap, planetary devastation = hold (a pulling core), universal
-        // pull + truth-seeking orbs = shouts, and its passive read.
-        assert_eq!(hints("rinnegan", 0, false, 0), vec![(Tap, Blast), (Hold, Pull), (Shout, Pull), (Shout, Summon), (Always, Aura)]);
+        // pull + truth-seeking orbs = shouts, and its passive read last. (The content rework added
+        // more shouted paths after the orbs — the six paths — so only the head and the passive are
+        // pinned: new shouted moves never break this.)
+        let rin = hints("rinnegan", 0, false, 0);
+        assert_eq!(rin[..4], [(Tap, Blast), (Hold, Pull), (Shout, Pull), (Shout, Summon)], "{rin:?}");
+        assert_eq!(rin.last(), Some(&(Always, Aura)), "{rin:?}");
+        assert!(rin[4..rin.len() - 1].iter().all(|(i, _)| *i == Shout), "slots 2.. are shouted: {rin:?}");
         // Kamehameha-bearers: a beam on hold; tiers are shouted forms; buffs are always on.
         assert_eq!(hints("super_saiyan", 0, false, 0), vec![(Tap, Dash), (Hold, Beam), (Shout, Form), (Always, Aura)]);
         assert_eq!(hints("ultra_instinct", 0, false, 0), vec![(Tap, Dash), (Hold, Beam), (Shout, Form), (Always, Dodge), (Always, Aura)]);
         // Gear 5 (Nika): the transform is its hold.
         assert_eq!(hints("nika", 0, false, 0), vec![(Tap, Projectile), (Hold, Form)]);
         // Shadow clones: summon on tap, rasengan on hold, the clone at your side always.
-        assert_eq!(hints("shadow_clone", 0, false, 0), vec![(Tap, Summon), (Hold, Projectile), (Always, Summon)]);
+        // (the rasengan is a Drill now — driven INTO them, a strike; SHONEN CLASSICS reworked it)
+        assert_eq!(hints("shadow_clone", 0, false, 0), vec![(Tap, Summon), (Hold, Strike), (Always, Summon)]);
         // Not the active power: its moves are shouted (the key fires the active one).
         assert_eq!(hints("super_saiyan", 0, false, 1)[..2], [(Shout, Dash), (Shout, Beam)]);
         // Every verb has its own glyph.

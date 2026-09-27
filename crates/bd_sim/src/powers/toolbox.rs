@@ -455,7 +455,11 @@ impl MoveIndex {
     /// "fire portal" for a kit called "portal")? Only a marked shout beats a curated icon or an
     /// ordinary thing of the same name ("mjolnir" / "flaming hammer" are things).
     pub fn is_marked_shout(&self, n: &str, everyday: &dyn Fn(&str) -> bool) -> bool {
-        self.proper.contains(n) || self.owner_named.get(n).is_some_and(|names| names.iter().any(|name| name.split(' ').any(|w| !everyday(w))))
+        // (a character's name is a proper noun even when it is also a word: "storm", "kirby",
+        // "elsa" — wordfreq can't tell; a kit whose NAME is a generic noun should prefix its
+        // generic shouts with a character instead: the validator lists them)
+        let _ = everyday;
+        self.proper.contains(n) || self.owner_named.contains_key(n)
     }
 
     /// SHOUT HYGIENE: does the shout `text` yield to the lexicon's reading? A shout MARKED proper
@@ -488,8 +492,9 @@ impl MoveIndex {
             Reading::Borrow(_) if self.shout_yields(text, j) => Reading::Plain,
             Reading::Kit(m) => match self.kit_move_named(t, &norm_words(text)) {
                 Some((_, why, kit)) if why != KitMatch::Exact => {
-                    let plain_name = kit.split(' ').all(|w| (j.everyday)(w));
-                    if (j.icon)(text) || (plain_name && (j.thing)(text)) { Reading::Plain } else { Reading::Kit(m) }
+                    // (every word everyday: "frozen shield" yes, "pain asura missiles" no)
+                    let plain = kit.split(' ').all(|w| (j.everyday)(w)) && !self.is_proper_shout(&norm_words(text), j.everyday);
+                    if (j.icon)(text) || (plain && (j.thing)(text)) { Reading::Plain } else { Reading::Kit(m) }
                 }
                 _ => Reading::Kit(m),
             },
@@ -580,7 +585,8 @@ fn pick_kit_move_why(def: &PowerDef, kit: &str, rest: &[&str]) -> Option<(u8, Ki
     // A loose reading never spans the character's name said AGAIN ("nobara nail into nobara
     // resonance" is two kit phrases, not one fuzzy one).
     let kw: Vec<&str> = kit.split(' ').collect();
-    if rest.windows(kw.len()).any(|w| w == kw.as_slice()) {
+    let joiner = rest.iter().position(|w| matches!(*w, "into" | "and"));
+    if joiner.is_some_and(|j| rest[j + 1..].windows(kw.len()).any(|w| w == kw.as_slice())) {
         return None;
     }
     // 2. a whole word of a move's name / shouts ("doomfist punch" → "rocket punch", even if
