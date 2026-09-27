@@ -29,6 +29,8 @@ pub enum Core {
     Move(Reading),
     /// A famous cast: resolve this phrase with the lexicon (the caller's predicate said yes).
     Cast(String),
+    /// A DESCRIBED move (VERB GRAMMAR: "fire punch", "teleport behind him") — the caller's reader.
+    Composed(crate::powers::compose::ComposedMove),
 }
 
 /// One side: its core, the words of the core, its modifiers.
@@ -188,6 +190,10 @@ pub struct Reader<'a> {
     /// The lexicon's view of a core phrase. Called only for borrowed-shout cores and as the last
     /// resort (famous casts), so the cheap toolbox reading does most of the work.
     pub judge: &'a dyn Fn(&str) -> Lex,
+    /// The DESCRIBED-move reader (bd_game `toolbox::composed`: the verb grammar + the lexicon's
+    /// curated filter), for cores like "punch" / "fire uppercut" / "teleport behind him". `None` =
+    /// named moves only.
+    pub compose: Option<&'a dyn Fn(&str) -> Option<crate::powers::compose::ComposedMove>>,
 }
 
 impl<'a> Reader<'a> {

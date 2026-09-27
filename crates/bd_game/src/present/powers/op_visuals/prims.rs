@@ -432,7 +432,9 @@ pub fn telegraph(pen: &mut Pen, v: &View, look: &Look, kind: StrikeKind, pos: Ve
             }
             if pen.fx.rng.f() < 0.4 + 0.5 * u {
                 let q = g.lerp(top, pen.fx.rng.f()) + pen.fx.rng.dir() * 0.2;
-                zig(pen.fx, q, q + Vec3::Y * 0.8 + pen.fx.rng.dir() * 0.3, 3, 0.15, pen.fx.rng.next_u32(), 0.02, look.core, glow * 1.5);
+                let rs = pen.fx.rng.next_u32();
+                let rd = pen.fx.rng.dir();
+                zig(pen.fx, q, q + Vec3::Y * 0.8 + rd * 0.3, 3, 0.15, rs, 0.02, look.core, glow * 1.5);
             }
         }
         StrikeKind::Holy => {
@@ -916,7 +918,8 @@ pub fn crescent(pen: &mut Pen, v: &View, look: &Look, pos: Vec3, dir: Vec3, widt
     if pen.fx.rng.f() < 0.7 {
         let f = pen.fx.rng.f() * 2.0 - 1.0;
         let q = pos + span * f * half;
-        pen.mote(look, q, -dir * 3.0 + pen.fx.rng.dir(), 0.35, 0.0);
+        let rd = pen.fx.rng.dir();
+        pen.mote(look, q, -dir * 3.0 + rd, 0.35, 0.0);
     }
 }
 

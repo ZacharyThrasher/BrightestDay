@@ -513,7 +513,29 @@ pub enum TwistBase {
     /// A famous cast the lexicon resolved ("spirit bomb", "hadouken"): the recipe as resolved
     /// (costume / signature applied), twisted on the host.
     Cast { recipe: Box<Recipe>, shape: Option<ShapeSpec>, signature: Option<SignatureCast> },
-    // VERB GRAMMAR's composed moves join here (`Composed(spec)`, docs/toolbox/COMPOSED_MOVE.md).
+    /// A DESCRIBED move (VERB GRAMMAR, docs/toolbox/COMPOSED_MOVE.md): "homing fire punch",
+    /// "rapid fire uppercut". Its `spec.mods` are always moved into the side's modifiers (host and
+    /// client alike): a modifier is applied ONCE, by the twist.
+    Composed(crate::powers::compose::ComposedMove),
+}
+
+/// A twisted move's base as the presentation event names it (see `OpEvent::Twisted`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BaseRef {
+    /// A famous cast (the client has no table entry for it: the event's title / element say it).
+    #[default]
+    None,
+    Move(MoveRef),
+    /// A described move's spec (its `mods` empty).
+    Composed(crate::powers::compose::ComposedMove),
+}
+
+/// A composed spec with its modifier bytes taken out (they belong to the twist side), and those bytes.
+pub fn split_composed(spec: crate::powers::compose::ComposedMove) -> (crate::powers::compose::ComposedMove, Vec<u8>) {
+    let mut s = spec;
+    let mods: Vec<u8> = s.mods.iter().copied().filter(|m| *m != 0).collect();
+    s.mods = [0; crate::powers::compose::MAX_MODS];
+    (s, mods)
 }
 
 /// One side of a twisted move: a base and its own modifiers.
@@ -543,9 +565,16 @@ impl TwistStep {
             m.retain(|id| t.get(*id).is_some());
             m.truncate(MAX_MODS);
         };
-        fix(&mut self.a.mods);
-        if let Some(b) = &mut self.b {
-            fix(&mut b.mods);
+        for s in std::iter::once(&mut self.a).chain(self.b.iter_mut()) {
+            // a composed base's own modifier bytes move to the side: applied once, by the twist
+            if let TwistBase::Composed(spec) = &mut s.base {
+                let (clean, mods) = split_composed(*spec);
+                *spec = clean;
+                let mut all = mods;
+                all.extend(s.mods.iter().copied());
+                s.mods = all;
+            }
+            fix(&mut s.mods);
         }
         fix(&mut self.mods);
         self.shot = 0;

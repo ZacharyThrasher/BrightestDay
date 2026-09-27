@@ -158,6 +158,8 @@ enum Kind {
     Zone,
     /// A dashed sightline owner eye → target.
     Sight,
+    /// A homing thrown thing's trail (follows `construct`; binds to the owner's newest one near `a`).
+    Trail,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -464,9 +466,7 @@ fn intake(
     comfort: Res<ComfortSettings>,
     mut pool: ResMut<Pool>,
     mut locks: ResMut<Locks>,
-    mut looks: ResMut<Looks>,
-    mut recent: ResMut<RecentMoves>,
-    mut gate: ResMut<WordGate>,
+    (mut looks, mut recent, mut gate): (ResMut<Looks>, ResMut<RecentMoves>, ResMut<WordGate>),
     mut fx: ResMut<FxParticles>,
     settings: Option<Res<bd_fx::FxSettings>>,
     cams: Query<&GlobalTransform, With<PlayerCamera>>,
@@ -926,7 +926,8 @@ impl Ctx<'_> {
                 if let (Some(a), Some(b)) = (self.views.player(*player), self.views.player(*target)) {
                     let (from, to) = (hand_of(a, self.hands, self.local), chest(b));
                     pen.beam(from, to, 0.12, look.main, look.glow * 1.2, 0.3);
-                    zig(pen.fx, from, to, 10, 0.3, pen.fx.rng.next_u32(), 0.03, look.core, look.glow * 2.0);
+                    let rs = pen.fx.rng.next_u32();
+                    zig(pen.fx, from, to, 10, 0.3, rs, 0.03, look.core, look.glow * 2.0);
                     pen.burst(&look, to, 0.8, 3.0, None, 0.0, 0.4);
                     snd(w, "mv_glitch", to, 0.8, 0.8);
                 }
@@ -947,6 +948,9 @@ impl Ctx<'_> {
                         if let Some(t) = target {
                             self.marker(*player, *t, MarkKind::Hunted, look, 1.4);
                         }
+                        let pl = *player;
+                        self.pool.kill(|f| f.kind == Kind::Trail && f.owner == pl);
+                        self.pool.add(Fx { kind: Kind::Trail, look, owner: *player, a: p, b: p, dur: 8.0, ..default() });
                         snd(w, "leap_whoosh", p, 1.3, 0.8);
                     }
                     SeekPhase::Strike => {
@@ -963,7 +967,8 @@ impl Ctx<'_> {
                     }
                     SeekPhase::Chain => {
                         if let Some(tv) = target.and_then(|t| self.views.player(t)) {
-                            zig(pen.fx, p, chest(tv), 8, 0.4, pen.fx.rng.next_u32(), 0.04, look.core, look.glow * 2.0);
+                            let rs = pen.fx.rng.next_u32();
+                            zig(pen.fx, p, chest(tv), 8, 0.4, rs, 0.04, look.core, look.glow * 2.0);
                             pen.beam(p, chest(tv), 0.08, look.main, look.glow, 0.25);
                             self.marker(*player, tv.id, MarkKind::Hunted, look, 1.0);
                         }
@@ -974,8 +979,14 @@ impl Ctx<'_> {
                         pen.burst(&sparks, p, 0.8, 7.0, Some(-bv(*dir)), 0.8, 0.3);
                         snd(w, "clash", p, 1.0, 0.8);
                     }
-                    SeekPhase::Return => {}
+                    SeekPhase::Return => {
+                        // It turns for home: a flare at the turn and a rising whistle.
+                        pen.ring(&look, p, bv(*dir).normalize_or(Vec3::Y), 0.2, 4.0, 0.7, 0.25);
+                        snd(w, "recall_whoosh", p, 1.4, 0.6);
+                    }
                     SeekPhase::Catch => {
+                        let pl = *player;
+                        self.pool.kill(|f| f.kind == Kind::Trail && f.owner == pl);
                         pen.flash(p, 0.6, look.core, look.glow, 0.08);
                         snd(w, "recall_catch", p, 1.0, 0.8);
                     }
@@ -993,7 +1004,8 @@ impl Ctx<'_> {
                         let grit = Look { body: Body::Grain, ..look };
                         pen.burst(&grit, a, 1.6, 6.0, Some(Vec3::Y), 0.8, 0.8);
                         pen.ring(&look, a, Vec3::Y, 0.4, 6.0, 1.2, 0.35);
-                        pen.crack(&look, a, (b - a).normalize_or(Vec3::X), 2.5, pen.fx.rng.next_u32());
+                        let rs = pen.fx.rng.next_u32();
+                        pen.crack(&look, a, (b - a).normalize_or(Vec3::X), 2.5, rs);
                         self.pool.add(Fx { kind: Kind::Tether(TetherBody::Chain), look, owner: *player, a, b, phase: 5, acc: secs.max(0.1), dur: secs.max(0.1) + 0.1, ..default() });
                         snd(w, "break_stone", a, 0.8, 1.0);
                         snd(w, "collapse_rumble", a, 1.1, 0.8);
@@ -1255,7 +1267,8 @@ impl Ctx<'_> {
                 pen.beam(a, b, 0.24 * look.size, look.main, look.glow * 1.4, 0.45);
                 pen.beam(a, b, 0.08 * look.size, look.core, look.glow * 2.4, 0.3);
                 if look.body == Body::Bolt {
-                    zig(pen.fx, a, b, 10, 0.3, pen.fx.rng.next_u32(), 0.04, look.core, look.glow * 2.0);
+                    let rs = pen.fx.rng.next_u32();
+                    zig(pen.fx, a, b, 10, 0.3, rs, 0.04, look.core, look.glow * 2.0);
                 }
                 pen.flash(b, 1.0, look.core, look.glow * 1.5, 0.12);
                 pen.ring(&look, b, d, 0.15, 4.0, 0.6, 0.25);
@@ -1287,10 +1300,15 @@ impl Ctx<'_> {
                     Body::Halo => StrikeKind::Holy,
                     _ => StrikeKind::Blast,
                 };
-                prims::strike(pen, &look, kind, p, None, 1.4, pen.fx.rng.next_u32());
+                let rs = pen.fx.rng.next_u32();
+                prims::strike(pen, &look, kind, p, None, 1.4, rs);
                 // A dusting: the victim's shape crumbles upward in grit.
                 let dust = Look { body: Body::Grain, main: look.main, ..look };
                 pen.burst(&dust, p, 1.2, 3.0, Some(Vec3::Y), 1.2, 1.2);
+                snd(w, "final_blow_suck", p, 0.9, 1.0);
+                if self.involved(*player, Some(*target)) || self.near(p, 20.0) {
+                    self.shake(w, 0.2, 0.1);
+                }
             }
             // ───────────── MODERN ANIME
             OpEvent::Tagged { player, target, secs, strike } => {
@@ -1569,6 +1587,7 @@ fn step(
         f.t += dt;
         if f.t >= f.dur {
             f.live = false;
+            end_fx(f, &mut pen, &mut sfx, &views, &active);
             continue;
         }
         let left = f.dur - f.t;
@@ -1696,7 +1715,8 @@ fn step(
                 } else {
                     prims::orb(&mut pen, &v, &look, hand, r, f.t, f.flag, look.glow);
                     if pen.fx.rng.f() < 0.5 {
-                        pen.mote(&look, hand, -fwd * 2.0 + pen.fx.rng.dir(), 0.25, 0.0);
+                        let rd = pen.fx.rng.dir();
+                        pen.mote(&look, hand, -fwd * 2.0 + rd, 0.25, 0.0);
                     }
                 }
             }
@@ -1711,10 +1731,14 @@ fn step(
                 let g = p + Vec3::Y * 0.1;
                 prims::seg(&mut pen, &v, g - side * half, g + side * half, 0.12, look.main, look.glow * fade);
                 prims::seg(&mut pen, &v, g - side * half + f.dir * 0.3, g + side * half + f.dir * 0.3, 0.05, look.core, look.glow * 1.4 * fade);
-                for _ in 0..2 {
-                    let q = p + side * (pen.fx.rng.f() * 2.0 - 1.0) * half + Vec3::Y * (0.5 + pen.fx.rng.f() * 1.5);
-                    pen.mote(&look, q, f.dir * f.acc * 0.6 + Vec3::Y * 2.0, 0.4, 0.0);
+                // The wall's face: body motes climbing it (water foam, sand, lava), a crest line on top.
+                let crest = (1.6 + f.r * 0.12).min(4.0);
+                for _ in 0..3 {
+                    let q = p + side * (pen.fx.rng.f() * 2.0 - 1.0) * half + Vec3::Y * (0.3 + pen.fx.rng.f() * crest);
+                    pen.mote(&look, q, f.dir * f.acc * 0.7 + Vec3::Y * 1.5, 0.45, 0.0);
                 }
+                let top = p + Vec3::Y * crest - f.dir * 0.4;
+                prims::seg(&mut pen, &v, top - side * half * 0.9, top + side * half * 0.9, 0.08, look.core, look.glow * 0.8 * fade);
             }
             Kind::Wheel => {
                 let Some(ov) = owner else {
@@ -1728,6 +1752,14 @@ fn step(
                 } else {
                     let c = ov.pos + Vec3::Y * 2.7 * ov.size;
                     prims::wheel(&mut pen, &v, &look, c, f.n, f.phase, (f.t / 0.8).min(1.0), look.glow * fade.max(0.3));
+                }
+                if f.t >= 0.8 && f.t - dt < 0.8 {
+                    // The reveal: the chosen pip bursts.
+                    let c = if Some(ov.id) == local && fp { v.cam + v.fwd * 2.5 + v.up * 0.85 } else { ov.pos + Vec3::Y * 2.7 * ov.size };
+                    let top = c + v.up * 0.45;
+                    pen.flash(top, 0.6, look.core, look.glow * 1.6, 0.15);
+                    pen.burst(&look, top, 0.8, 3.0, None, 0.0, 0.4);
+                    sfx.write(Sfx3d::at("summon_ping", c).pitch(1.6).gain(0.8));
                 }
                 // A tick per pip passing the pointer (slowing down with the wheel).
                 let pips = |t: f32| ((1.0 - (1.0 - (t / 0.8).clamp(0.0, 1.0)).powi(3)) * 3.0 * f.n.max(2) as f32) as u32;
@@ -1761,6 +1793,47 @@ fn step(
                     pen.mote(&zl, q, vel, 0.6, 0.0);
                 }
             }
+            Kind::Trail => {
+                // Bind to the thrown construct (it may appear a frame after the launch).
+                if f.construct.is_none() {
+                    let near = views.constructs.iter().filter(|c| c.owner == f.owner && !c.attached() && c.pos.distance(f.a) < 6.0).max_by_key(|c| c.id.0).map(|c| c.id);
+                    f.construct = near;
+                    if near.is_none() {
+                        if f.t > 0.6 {
+                            f.live = false;
+                        }
+                        continue;
+                    }
+                }
+                let Some(cv) = f.construct.and_then(|c| views.construct(c)) else {
+                    f.live = false;
+                    continue;
+                };
+                let p = cv.pos;
+                if f.flag {
+                    // A fading ribbon laid behind it: every bend of the homing path stays readable.
+                    let sv = p - f.b;
+                    if sv.length_squared() > 0.01 {
+                        pen.beam(f.b, p, 0.16 * look.size, look.main, look.glow * 1.1, 0.5);
+                        pen.beam(f.b, p, 0.05 * look.size, look.core, look.glow * 2.0, 0.3);
+                        let rd = pen.fx.rng.dir();
+                        pen.mote(&look, p, rd * 0.6 - sv.normalize_or(Vec3::Z) * 2.0, 0.35, 0.0);
+                        // Sharp turns flare (the homing reads as a decision, not a drift).
+                        let turn = f.dir.dot(sv.normalize_or(f.dir));
+                        if turn < 0.9 && f.n > 2 {
+                            pen.flash(p, 0.5, look.core, look.glow, 0.08);
+                        }
+                        f.dir = sv.normalize_or(f.dir);
+                        f.n = f.n.saturating_add(1);
+                    }
+                }
+                f.flag = true;
+                f.b = p;
+                // The whistle: a rising sweep every third of a second while it flies.
+                if (f.t * 3.0) as u32 != ((f.t - dt) * 3.0) as u32 {
+                    sfx.write(Sfx3d::at("leap_whoosh", p).pitch(1.6 + 0.1 * ((f.t * 3.0) as u32 % 3) as f32).gain(0.45));
+                }
+            }
             Kind::Sight => {
                 let (Some(ov), Some(tv)) = (owner, f.target.and_then(|t| views.player(t))) else {
                     f.live = false;
@@ -1781,7 +1854,8 @@ fn step(
         };
         let (eye, look_dir) = eye_look(ov);
         let full = (ch.secs * 0.8).max(0.1);
-        for tv in views.players.iter().filter(|p| p.alive() && p.id != ch.owner) {
+        let owner = ch.owner;
+        for tv in views.players.iter().filter(|p| p.alive() && p.id != owner) {
             let c = chest(tv);
             let d = c - eye;
             let len = d.length();
@@ -1810,6 +1884,33 @@ fn step(
     }
     let live = pool.fx.iter().filter(|f| f.live).count();
     *stats = OpVisStats { live, peak: pool.peak, started: pool.started, step_us: t0.elapsed().as_secs_f32() * 1e6 };
+}
+
+/// What an entry does as it ends: a leap lands in a crater, a crescent dissipates.
+fn end_fx(f: &Fx, pen: &mut Pen, sfx: &mut MessageWriter<Sfx3d>, views: &WorldViews, active: &ActiveWorld) {
+    let look = f.look;
+    match f.kind {
+        Kind::Arc => {
+            // Landed (if they did land here): a crater ring, a dust wall, radial cracks.
+            let Some(ov) = views.player(f.owner).filter(|p| p.alive()) else { return };
+            if ov.pos.distance(f.b) > 4.0 {
+                return;
+            }
+            let g = ground_below(active, ov.pos + Vec3::Y * 0.5, 3.0).unwrap_or(f.b);
+            pen.ring(&look, g + Vec3::Y * 0.12, Vec3::Y, 0.4, 9.0, 1.6, 0.35);
+            pen.dust_wall(&look, g, 1.3, 2.2, 1.2);
+            for k in 0..5u32 {
+                let a = k as f32 / 5.0 * std::f32::consts::TAU + f.seed as f32 * 1e-3;
+                pen.crack(&look, g, Vec3::new(a.cos(), 0.0, a.sin()), 2.2 + (k % 2) as f32, f.seed.wrapping_add(k));
+            }
+            sfx.write(Sfx3d::at("leap_slam", g).gain(0.9));
+        }
+        Kind::Crescent => {
+            let d = (f.b - f.a).normalize_or(Vec3::NEG_Z);
+            pen.burst(&look, f.b, 0.8, 4.0, Some(d), 0.9, 0.35);
+        }
+        _ => {}
+    }
 }
 
 /// A dashed line a → b, dashes crawling toward b.
