@@ -1,5 +1,21 @@
 # Lead orchestrator handoff (keep updated)
 
+## >>> TOOLBOX WAVE (2026-09-27 01:25) <<<
+Owner: every fictional power callable any time, chains as the skill ceiling ("nightcrawler teleport ->
+reinhardt ultimate -> doomfist punch -> optimus prime combo"), no "sharingan = projectile"; bar = Hollow
+Purple + Ruyi staff ("unique flavor/control/playstyle + dramatic presentation = fun"); stretchy punch must
+look/feel different from the stretchy pole. Spec: docs/toolbox/BRIEF.md; op claims docs/toolbox/OPS.md;
+milestone markers SPLIT_DONE / KIT_DONE / BORROW_DONE / CHAIN_DONE / FX_KEYS_READY in docs/toolbox/.
+Workers: core a079a5f8c47724579 (split powers.ron → assets/powers/*.ron, u16 ids, Kit kind + tags,
+borrowed moves, chains, powers_check validator/coverage, ops/ scaffold) · presentation a329aabee7da60639
+(per-op move grammar, body/style keys in move_fx.ron, rubber arm vs rigid pole, sounds, borrowed-move
+HUD chips + chain pips) · content: shonen classics aa3664cd68113b60e (anime_classics.ron + base_one_piece/
+base_jojo) · modern anime a7c87c6a8d93e5abf · movies/comics a7e021ff62eaf3866 (base_marvel/base_dc) ·
+TV/cartoons + ALL Transformers aa58a0da29fa2f7b7 (base_cartoons) · arena games a4cef47f9e52d5f61 ·
+adventure games af88c644fbe7dce57 · myth/folklore a3510ed93ce15b30b. Piloting phase 2 a4e937ca660c1d352
+still running (transformer.rs tests red = in progress). Readability SPARKS DONE (f245633; cost model was
+already in aa4f879). Core worker's first diff showed whole-file line-ending churn — told to fix.
+
 ## >>> RESUME HERE (2026-09-27 01:10, pre-compact) <<<
 HEAD aa4f879 (green). Owner OFFLINE for the night: no zips/builds until asked. Last zip shipped to friends:
 7d8b9d3 (22:17). Next zip must include: map-swap input-epoch fix + UNSTICK (e42ad45), gear-5/form-name
