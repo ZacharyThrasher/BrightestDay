@@ -5,7 +5,7 @@ Owner decisions: taunt YES, voice-cast tell YES, NO invisibility (not even shimm
 Owner asks: keep polishing/animation passes so as many powers as possible feel special; ANY transformer must
 feel awesome; complete voice fluidity; + FIRST CALL match rule (first to say a named thing owns it; denied
 player gets a rival version, never a no); + CLICK TO CONFIRM option (translucent ghost preview + cost, click
-or say "go" to make it real). Workers: transformers ac8ee05cf893e0d7a · first call af777fcacba53177b ·
+or say "go" to make it real). Workers: transformers ac8ee05cf893e0d7a · first call af777fcacba53177b (+ BURN ON DEATH rule: things used in a life are burned after KO → ashen weaker ECHO, host scope named/everything) ·
 taunt+voice tell acfc48138ceb773a3 · voice fluidity a19704f3303170491 · click-to-confirm ad187c347f9f2ba18 ·
 polish anime a4fa97d61ab1c061d · polish western a40b1865d6f802416 · polish games aeae5288ad2ea246a ·
 polish myth+derived a2dbaaf286b58876d · presentation polish adfd01597aacca6ec (serves docs/toolbox/POLISH_REQUESTS.md) · POWER HOTBAR a8d6f2446ee742e1e (owner: said powers auto-bind to keys 1-4 = the existing loadout made dynamic; HUD icons w/ cooldowns; Tab drag-and-drop, pins).
