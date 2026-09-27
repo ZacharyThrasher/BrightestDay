@@ -5239,4 +5239,915 @@
             ]),
         ],
     ),
+
+    // ================================================================ MORE SLAVIC
+    // ---------------------------------------------------------------- ZMEY GORYNYCH — the three-headed dragon
+    (
+        id: "myth_zmey",
+        name: "Zmey Gorynych",
+        kind: Kit,
+        fx: "fire",
+        names: ["zmey gorynych", "zmei gorynich", "zmey", "zmei", "zmey gorynich", "the three headed dragon", "gorynych"],
+        shouts: [("three heads of fire", 0), ("zmey fire", 0), ("triple fire breath", 0),
+                 ("zmey takes flight", 1), ("dragon of the mountains", 1),
+                 ("zmey's tail", 2)],
+        moves: [
+            // Three heads, three cones of fire at once. -> ends in place.
+            (name: "three heads of fire", tags: [Primary, Ultimate], cooldown: 3.0, cost: 5.0, ops: [
+                Shove(range: 10.0, angle: 30.0, damage: 8.0, knockback: 8.0, element: Fire),
+                Shove(range: 9.0, angle: 70.0, damage: 5.0, knockback: 6.0, element: Fire),
+                Zone(radius: 5.0, secs: 3.0, status: Some(Burn), at: Front, dist: 6.0),
+            ], juice: Some((title: Some("ZMEY GORYNYCH"), color: Some((1.0, 0.4, 0.1))))),
+            // Up and diving in fire. -> ends grounded.
+            (name: "zmey takes flight", tags: [Movement], cooldown: 5.0, cost: 5.0, ops: [
+                Impulse(fwd: 10.0, up: 16.0),
+                SlamOnLand(radius: 5.0, damage: 12.0, knockback: 16.0, carve: 1.2),
+            ]),
+            // The tail sweeps. -> ends in place.
+            (name: "zmey's tail", tags: [Combo], cooldown: 4.0, cost: 4.0, ops: [
+                Shove(range: 6.0, angle: 179.0, damage: 10.0, knockback: 18.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- RUSALKA — the drowning water spirit
+    (
+        id: "myth_rusalka",
+        name: "Rusalka",
+        kind: Kit,
+        fx: "water",
+        names: ["rusalka", "rusalki", "the rusalka", "rusalka water spirit", "roosalka"],
+        shouts: [("rusalka's song", 0), ("song of the rusalka", 0),
+                 ("drag beneath the water", 1), ("rusalka drowns", 1),
+                 ("rusalka's hair", 2)],
+        moves: [
+            // Her song lures everyone close.
+            (name: "rusalka's song", tags: [Primary], cooldown: 9.0, cost: 5.0, ops: [
+                Field(strength: 30.0, radius: 13.0, secs: 1.8, at: Me),
+            ], juice: Some((ripple: 13.0))),
+            // Seized and dragged beneath the water.
+            (name: "drag beneath the water", tags: [Ultimate], cooldown: 8.0, cost: 6.0, ops: [
+                Hook(range: 22.0, speed: 36.0, pull: 18.0, damage: 6.0, status: Some(Wet), secs: 3.0),
+                Weigh(range: 22.0, secs: 1.6, down: 16.0),
+            ]),
+            // Her long wet hair lashes.
+            (name: "rusalka's hair", tags: [Combo], cooldown: 1.2, cost: 3.0, ops: [
+                Shove(range: 6.0, angle: 30.0, damage: 9.0, knockback: 10.0, element: Water),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- SVAROG — the heavenly forge
+    (
+        id: "myth_svarog",
+        name: "Svarog",
+        kind: Kit,
+        fx: "fire",
+        names: ["svarog", "svarozhich", "svarog the smith", "svaroh"],
+        shouts: [("svarog's hammer", 0), ("heavenly forge", 0),
+                 ("tongs of svarog", 1), ("svarog's tongs", 1),
+                 ("sparks of the forge", 2)],
+        moves: [
+            // The hammer that forged the sun. -> ends in place.
+            (name: "svarog's hammer", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
+                Shove(range: 3.6, angle: 55.0, damage: 15.0, knockback: 18.0, element: Fire),
+            ]),
+            // The tongs catch the aimed foe and pull them in.
+            (name: "tongs of svarog", tags: [Combo], cooldown: 5.0, cost: 4.0, ops: [
+                Hook(range: 18.0, speed: 36.0, pull: 18.0, damage: 7.0, status: Some(Burn), secs: 1.5),
+            ]),
+            // Sparks rain from the forge of heaven.
+            (name: "sparks of the forge", tags: [Ultimate], cooldown: 12.0, cost: 8.0, ops: [
+                Salvo(count: 7, delay: 0.7, interval: 0.08, radius: 2.2, damage: 9.0, knockback: 8.0, element: Fire, at: Aim, spread: 7.0),
+            ], juice: Some((at: Aim))),
+        ],
+    ),
+
+    // ================================================================ MORE MESOAMERICAN
+    // ---------------------------------------------------------------- MICTLANTECUHTLI — lord of Mictlan
+    (
+        id: "myth_mictlantecuhtli",
+        name: "Mictlantecuhtli",
+        kind: Kit,
+        fx: "shadow",
+        names: ["mictlantecuhtli", "mictlan tecuhtli", "lord of mictlan", "lord of the land of the dead", "mictlantecutli"],
+        shouts: [("mictlan", 0), ("the road to mictlan", 0), ("nine levels of mictlan", 0),
+                 ("xolotl", 1), ("the dog xolotl", 1), ("xoloitzcuintli", 1),
+                 ("bone crown", 2)],
+        moves: [
+            // The road to Mictlan: the ground opens and the dead pull at everyone near the crosshair.
+            (name: "mictlan", tags: [Ultimate], cooldown: 14.0, cost: 8.0, ops: [
+                Explode(radius: 4.0, damage: 6.0, knockback: 2.0, carve: 3.0, element: Shadow, at: Aim),
+                Field(strength: 36.0, radius: 7.0, secs: 1.6, at: Aim),
+                Zone(radius: 6.0, secs: 3.0, slow: 0.5, at: Aim),
+            ], juice: Some((title: Some("MICTLAN"), at: Aim, boom: true, debris: -12.0))),
+            // Xolotl, the dog who guides the dead.
+            (name: "xolotl", tags: [Combo], cooldown: 14.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "xolotl", form: Quadruped, mech: [Walks, Fast, Blade], element: Shadow, scale: 1.1,
+                              temperament: Aggressive, intensity: 1.0)),
+            ]),
+            // The bone crown's blow. -> ends in place.
+            (name: "bone crown", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
+                Shove(range: 3.6, angle: 60.0, damage: 12.0, knockback: 12.0, element: Shadow),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- THE HERO TWINS — Hunahpu and Xbalanque
+    (
+        id: "myth_hero_twins",
+        name: "Hero Twins",
+        kind: Kit,
+        fx: "earth",
+        names: ["hero twins", "the hero twins", "hunahpu and xbalanque", "hunahpu", "xbalanque", "the maya hero twins"],
+        shouts: [("the ballgame", 0), ("pitz", 0), ("rubber ball of the ballgame", 0), ("ballcourt", 0),
+                 ("blowgun", 1), ("hunahpu's blowgun", 1),
+                 ("xibalba", 2), ("trick the lords of xibalba", 2)],
+        moves: [
+            // The ballgame: a heavy rubber ball, hip-struck, bouncing wall to wall.
+            (name: "the ballgame", tags: [Primary], cooldown: 2.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "rubber ball of the ballgame", form: Ball, mech: [Fast, Bounce, Ricochet, Heavy], element: Earth, scale: 0.7)),
+            ]),
+            // The blowgun: darts in a line.
+            (name: "blowgun", tags: [Combo], cooldown: 1.0, cost: 3.0, ops: [
+                Cast(recipe: (name: "blowgun darts", form: Ball, mech: [Fast, Pierce], element: Poison, scale: 0.2, count: 3)),
+            ]),
+            // They tricked the lords of Xibalba: one swaps places with the other — you and the aimed foe.
+            (name: "xibalba", tags: [Movement, Ultimate], cooldown: 8.0, cost: 5.0, ops: [
+                Transpose(range: 32.0, cone: 12.0),
+            ], juice: Some((title: Some("XIBALBA")))),
+        ],
+    ),
+
+    // ================================================================ INCA
+    // ---------------------------------------------------------------- INTI — the sun
+    (
+        id: "myth_inti",
+        name: "Inti",
+        kind: Kit,
+        fx: "holy",
+        names: ["inti", "apu inti", "inti the sun god", "tayta inti", "inty"],
+        shouts: [("inti raymi", 0), ("festival of the sun", 0),
+                 ("golden disc of inti", 1), ("inti's disc", 1),
+                 ("children of the sun", 2)],
+        moves: [
+            // The festival of the sun: a flare that dazzles and throws.
+            (name: "inti raymi", tags: [Ultimate], cooldown: 14.0, cost: 8.0, ops: [
+                Explode(radius: 8.0, damage: 8.0, knockback: 20.0, element: Light),
+                Zone(radius: 10.0, secs: 1.8, status: Some(Shadow), at: Me),
+            ], juice: Some((title: Some("INTI RAYMI"), boom: true, color: Some((1.0, 0.8, 0.25))))),
+            // The golden disc thrown: it strikes three and returns.
+            (name: "golden disc", tags: [Primary], cooldown: 5.0, cost: 5.0, ops: [
+                Seeker(recipe: (name: "golden disc of inti", form: Disc, mech: [Blade, Spin], element: Light, scale: 1.1),
+                       range: 45.0, cone: 25.0, speed: 36.0, damage: 11.0, knockback: 12.0, element: Light, hits: 3, chain: 16.0),
+            ]),
+            // His children.
+            (name: "children of the sun", tags: [Combo], cooldown: 18.0, cost: 7.0, ops: [
+                Cast(recipe: (name: "children of the sun", form: Biped, mech: [Walks, Pierce], element: Light, scale: 1.0, count: 3,
+                              temperament: Protective, intensity: 0.8)),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- VIRACOCHA — the maker
+    (
+        id: "myth_viracocha",
+        name: "Viracocha",
+        kind: Kit,
+        fx: "water",
+        names: ["viracocha", "wiracocha", "wiraqucha", "con tici viracocha", "viracocha the creator"],
+        shouts: [("unu pachakuti", 0), ("the great flood of viracocha", 0),
+                 ("viracocha walks on water", 1), ("walk the waves", 1),
+                 ("stones of tiwanaku", 2), ("tiwanaku", 2)],
+        moves: [
+            // Unu Pachakuti: the flood that remade the world.
+            (name: "unu pachakuti", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
+                Surge(width: 12.0, dist: 46.0, speed: 14.0, push: 18.0, damage: 9.0, element: Water),
+            ], juice: Some((title: Some("UNU PACHAKUTI"), boom: true))),
+            // He walked away across the sea. -> ends far along your aim.
+            (name: "walk the waves", tags: [Movement], cooldown: 4.0, cost: 4.0, ops: [
+                Blink(dist: 22.0, afterimage: true),
+            ]),
+            // He raised the stones of Tiwanaku: a wall rises in front of you.
+            (name: "stones of tiwanaku", tags: [Defense, Primary], cooldown: 10.0, cost: 5.0, ops: [
+                Erupt(length: 8.0, height: 4.0, element: Earth, launch: 8.0, shape: Wall, dist: 4.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE POLYNESIAN
+    // ---------------------------------------------------------------- TĀWHIRIMĀTEA — the storms
+    (
+        id: "myth_tawhirimatea",
+        name: "Tawhirimatea",
+        kind: Kit,
+        fx: "wind",
+        names: ["tawhirimatea", "tāwhirimātea", "tawhiri", "tawhiri matea", "god of storms tawhiri"],
+        shouts: [("children of tawhiri", 0), ("the winds of tawhiri", 0), ("tawhiri's winds", 0),
+                 ("tawhiri's storm", 1), ("storm of tawhirimatea", 1),
+                 ("tawhiri's eyes", 2)],
+        moves: [
+            // His children, the winds, in a gale that throws them far.
+            (name: "winds of tawhiri", tags: [Primary], cooldown: 5.0, cost: 5.0, ops: [
+                Shove(range: 22.0, angle: 50.0, damage: 5.0, knockback: 34.0, element: Wind, up: 0.3),
+            ], juice: Some((debris: 22.0))),
+            // His storm: bolts and rain around the crosshair.
+            (name: "tawhiri's storm", tags: [Ultimate], cooldown: 16.0, cost: 10.0, ops: [
+                Zone(radius: 9.0, secs: 4.0, status: Some(Wet), slow: 0.15, at: Aim),
+                Salvo(count: 6, delay: 1.0, interval: 0.15, radius: 3.0, damage: 10.0, knockback: 12.0, element: Electric, at: Aim, spread: 8.0,
+                      seek: true),
+            ], juice: Some((title: Some("TAWHIRIMATEA"), boom: true, at: Aim))),
+            // He tore out his eyes and flung them into the sky (the stars): every foe in view, seen and struck.
+            (name: "tawhiri's eyes", tags: [Counter], cooldown: 12.0, cost: 6.0, ops: [
+                LockOn(secs: 1.0, range: 50.0, damage: 10.0, knockback: 10.0, angle: 45.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- TANGAROA — the sea
+    (
+        id: "myth_tangaroa",
+        name: "Tangaroa",
+        kind: Kit,
+        fx: "water",
+        names: ["tangaroa", "tangaloa", "kanaloa", "tagaloa", "tangaroa god of the sea"],
+        shouts: [("tangaroa's tide", 0), ("the tide of tangaroa", 0),
+                 ("children of the sea", 1), ("tangaroa's fish", 1),
+                 ("breath of tangaroa", 2), ("the ocean breathes", 2)],
+        moves: [
+            // The tide comes in.
+            (name: "tangaroa's tide", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
+                Surge(width: 12.0, dist: 42.0, speed: 14.0, push: 18.0, damage: 8.0, element: Water),
+            ]),
+            // His children of the sea.
+            (name: "children of the sea", tags: [Combo], cooldown: 12.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "children of tangaroa", form: Fish, mech: [Flies, Swarm, Blade], element: Water, scale: 0.6, count: 6,
+                              temperament: Aggressive, intensity: 0.9)),
+            ]),
+            // The ocean breathes in (pull) and out (push).
+            (name: "breath of tangaroa", tags: [Primary], cooldown: 8.0, cost: 5.0, ops: [
+                Field(strength: 36.0, radius: 10.0, secs: 0.9, at: Aim),
+                Explode(radius: 4.0, damage: 6.0, knockback: 20.0, element: Water, at: Aim),
+            ], juice: Some((at: Aim))),
+        ],
+    ),
+
+    // ================================================================ MORE AFRICAN
+    // ---------------------------------------------------------------- OYA — winds, storms and the market
+    (
+        id: "myth_oya",
+        name: "Oya",
+        kind: Kit,
+        fx: "wind",
+        names: ["oya", "ọya", "iansa", "yansa", "oya iansan", "oya of the winds", "oiya"],
+        shouts: [("oya's whirlwind", 0), ("whirlwind of oya", 0),
+                 ("oya's lightning", 1), ("lightning of oya", 1),
+                 ("oya's machete", 2),
+                 ("iruke", 3), ("oya's horsetail", 3)],
+        moves: [
+            // A whirlwind wanders into your enemies.
+            (name: "oya's whirlwind", tags: [Ultimate], cooldown: 12.0, cost: 7.0, ops: [
+                Cast(recipe: (name: "oya's whirlwind", form: Blob, mech: [Spin, Repel, Walks], element: Wind, scale: 2.2,
+                              temperament: Chaotic, intensity: 1.0)),
+            ], juice: Some((title: Some("OYA")))),
+            // Lightning at the crosshair.
+            (name: "oya's lightning", tags: [Primary], cooldown: 2.5, cost: 4.0, ops: [
+                Explode(radius: 3.5, damage: 12.0, knockback: 14.0, element: Electric, at: Aim),
+            ], juice: Some((at: Aim))),
+            // The machete: a sweeping cut. -> ends in place.
+            (name: "oya's machete", tags: [Combo], cooldown: 0.9, cost: 3.0, ops: [
+                Carve(length: 6.0, radius: 0.8, damage: 12.0),
+            ]),
+            // The horsetail whisk turns away what comes at you.
+            (name: "iruke", tags: [Defense], cooldown: 7.0, cost: 4.0, ops: [
+                Deflect(secs: 1.0, angle: 80.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- ESHU — the crossroads trickster
+    (
+        id: "myth_eshu",
+        name: "Eshu",
+        kind: Kit,
+        fx: "psychic",
+        names: ["eshu", "èṣù", "elegua", "eleggua", "legba", "papa legba", "exu", "elegba"],
+        shouts: [("open the crossroads", 0), ("eshu opens the way", 0), ("the crossroads open", 0),
+                 ("eshu's trick", 1), ("the two-coloured hat", 1), ("the hat of two colours", 1),
+                 ("eshu's switch", 2)],
+        moves: [
+            // He opens the way: a door on the wall ahead and another out the far side.
+            (name: "open the crossroads", tags: [Movement], cooldown: 8.0, cost: 5.0, ops: [
+                PlacePortal(range: 30.0, secs: 8.0),
+            ], juice: Some((title: Some("THE CROSSROADS OPEN")))),
+            // The hat of two colours: they can't agree what they saw — dazed and blind.
+            (name: "eshu's trick", tags: [Primary, Ultimate], cooldown: 8.0, cost: 5.0, ops: [
+                Roulette(picks: [
+                    [Afflict(range: 26.0, cone: 12.0, status: Some(Shadow), secs: 2.2, damage: 5.0)],
+                    [Transpose(range: 26.0, cone: 12.0)],
+                    [Disarm(range: 18.0, cone: 12.0, pull: true)],
+                    [Afflict(range: 26.0, cone: 12.0, status: Some(Chill), secs: 2.2, damage: 5.0)],
+                ]),
+            ], juice: Some((title: Some("ESHU")))),
+            // Swap places with the aimed foe.
+            (name: "eshu's switch", tags: [Counter], cooldown: 6.0, cost: 4.0, ops: [
+                Transpose(range: 28.0, cone: 12.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE MESOPOTAMIAN
+    // ---------------------------------------------------------------- ENKIDU — the wild man
+    (
+        id: "myth_enkidu",
+        name: "Enkidu",
+        kind: Kit,
+        fx: "earth",
+        names: ["enkidu", "enkiddu", "enkidu the wild man", "the wild man of uruk"],
+        shouts: [("enkidu wrestles", 0), ("wrestle gilgamesh", 0),
+                 ("run with the beasts", 1), ("enkidu runs", 1),
+                 ("enkidu roar", 2)],
+        moves: [
+            // He wrestled Gilgamesh to a standstill: seize and throw.
+            (name: "enkidu wrestles", tags: [Primary, Counter], cooldown: 5.0, cost: 5.0, ops: [
+                Grab(range: 3.2, hold: 0.45, damage: 13.0, knockback: 26.0, up: 0.5),
+            ]),
+            // He ran with the beasts of the steppe. -> ends running.
+            (name: "run with the beasts", tags: [Movement], cooldown: 2.0, cost: 3.0, ops: [
+                Impulse(fwd: 28.0, up: 2.0),
+            ]),
+            // A wild roar.
+            (name: "enkidu roar", tags: [Defense, Ultimate], cooldown: 8.0, cost: 4.0, ops: [
+                Explode(radius: 6.0, damage: 3.0, knockback: 18.0, element: Psychic),
+            ], juice: Some((boom: true))),
+        ],
+    ),
+    // ---------------------------------------------------------------- ISHTAR / INANNA — the bull of heaven
+    (
+        id: "myth_ishtar",
+        name: "Ishtar",
+        kind: Kit,
+        fx: "holy",
+        names: ["ishtar", "inanna", "ishtar of babylon", "queen of heaven", "inana", "eshtar"],
+        shouts: [("unleash the bull of heaven", 0), ("gugalanna", 0), ("ishtar's bull", 0),
+                 ("descent of inanna", 1), ("descent to the underworld", 1),
+                 ("star of ishtar", 2), ("ishtar's star", 2)],
+        moves: [
+            // The Bull of Heaven, sent down in her anger.
+            (name: "bull of heaven", tags: [Ultimate], cooldown: 28.0, cost: 10.0, ops: [
+                Cast(recipe: (name: "gugalanna", form: Quadruped, mech: [Charge, Stomp, Heavy], element: Light, scale: 3.4,
+                              temperament: Aggressive, intensity: 1.0), signature: Some(Summon)),
+            ], juice: Some((title: Some("GUGALANNA"), boom: true, shake: 0.3))),
+            // She went down through seven gates and came back: back to how you were.
+            (name: "descent of inanna", tags: [Defense], cooldown: 18.0, cost: 7.0, ops: [
+                Rewind(secs: 2.5),
+            ]),
+            // Her eight-pointed star: bolts of light at the crosshair.
+            (name: "star of ishtar", tags: [Primary], cooldown: 6.0, cost: 5.0, ops: [
+                Salvo(count: 8, delay: 0.6, interval: 0.05, radius: 1.8, damage: 6.0, knockback: 6.0, element: Light, at: Aim, spread: 5.0),
+            ], juice: Some((at: Aim))),
+        ],
+    ),
+    // ---------------------------------------------------------------- HUMBABA — guardian of the cedar forest
+    (
+        id: "myth_humbaba",
+        name: "Humbaba",
+        kind: Kit,
+        fx: "earth",
+        names: ["humbaba", "huwawa", "humbaba the terrible", "guardian of the cedar forest"],
+        shouts: [("seven radiances", 0), ("the seven auras", 0), ("humbaba's roar", 1), ("cedar forest guardian", 2)],
+        moves: [
+            // The seven radiances (auras of terror): everyone near slows and falters.
+            (name: "seven radiances", tags: [Ultimate], cooldown: 14.0, cost: 7.0, ops: [
+                Zone(radius: 11.0, secs: 3.5, slow: 0.45, status: Some(Shadow), at: Me),
+            ], juice: Some((title: Some("SEVEN RADIANCES"), ripple: 11.0))),
+            // His roar is the flood; his breath is fire.
+            (name: "humbaba's roar", tags: [Primary], cooldown: 4.0, cost: 4.0, ops: [
+                Shove(range: 10.0, angle: 40.0, damage: 8.0, knockback: 16.0, element: Fire),
+            ]),
+            // The cedars rise at his call: a wall of trunks in front of you.
+            (name: "cedar forest guardian", tags: [Defense], cooldown: 10.0, cost: 5.0, ops: [
+                Erupt(length: 8.0, height: 5.0, count: 5, element: Earth, launch: 8.0, shape: Wall, dist: 4.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE FINNISH
+    // ---------------------------------------------------------------- UKKO — the thunder hammer
+    (
+        id: "myth_ukko",
+        name: "Ukko",
+        kind: Kit,
+        fx: "lightning",
+        names: ["ukko", "ukko ylijumala", "ukkonen", "ukko the thunder god", "perkele"],
+        shouts: [("ukko's hammer", 0), ("ukonvasara", 0), ("hammer of ukko", 0),
+                 ("ukkonen strikes", 1), ("thunder of ukko", 1),
+                 ("ukko's rain", 2), ("the rain of ukko", 2)],
+        moves: [
+            // The hammer thrown: it strikes and returns.
+            (name: "ukonvasara", tags: [Primary], cooldown: 5.0, cost: 5.0, ops: [
+                Seeker(recipe: (name: "ukonvasara", form: Hammer, mech: [Blunt], element: Electric, scale: 1.0),
+                       range: 45.0, cone: 18.0, speed: 38.0, damage: 14.0, knockback: 18.0, element: Electric, hits: 1),
+            ]),
+            // Thunder crashes down on the crosshair.
+            (name: "ukkonen", tags: [Ultimate], cooldown: 12.0, cost: 8.0, ops: [
+                Salvo(count: 4, delay: 0.8, interval: 0.15, radius: 3.2, damage: 13.0, knockback: 16.0, element: Electric, carve: 1.0,
+                      at: Aim, spread: 6.0, seek: true),
+            ], juice: Some((title: Some("UKKONEN"), at: Aim, boom: true))),
+            // The rain: everyone under it soaked (the thunder arcs further).
+            (name: "ukko's rain", tags: [Combo], cooldown: 8.0, cost: 4.0, ops: [
+                Zone(radius: 8.0, secs: 5.0, status: Some(Wet), at: Aim),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- LOUHI — the mistress of the north
+    (
+        id: "myth_louhi",
+        name: "Louhi",
+        kind: Kit,
+        fx: "ice",
+        names: ["louhi", "louhi mistress of pohjola", "mistress of the north", "the witch of pohjola", "pohjolan emanta"],
+        shouts: [("steal the sun and moon", 0), ("louhi hides the sun", 0), ("the sun is hidden", 0),
+                 ("frost of pohjola", 1), ("pohjola frost", 1),
+                 ("louhi's eagle", 2), ("louhi becomes an eagle", 2)],
+        moves: [
+            // She stole the sun and the moon: darkness and cold on everyone near.
+            (name: "steal the sun and moon", tags: [Ultimate], cooldown: 16.0, cost: 8.0, ops: [
+                Zone(radius: 13.0, secs: 3.5, status: Some(Shadow), slow: 0.2, at: Me),
+            ], juice: Some((title: Some("THE SUN IS HIDDEN"), ripple: 13.0))),
+            // The frost of the north.
+            (name: "frost of pohjola", tags: [Primary], cooldown: 7.0, cost: 4.0, ops: [
+                Zone(radius: 7.0, secs: 3.5, status: Some(Chill), slow: 0.3, at: Aim),
+            ]),
+            // She became a great eagle: grabbed, carried up and dropped.
+            (name: "louhi's eagle", tags: [Movement], cooldown: 9.0, cost: 6.0, ops: [
+                BlinkCarry(dist: 6.0, up: 14.0, grab: 3.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- ILMARINEN — the eternal smith
+    (
+        id: "myth_ilmarinen",
+        name: "Ilmarinen",
+        kind: Kit,
+        fx: "rigid",
+        names: ["ilmarinen", "seppo ilmarinen", "the eternal hammerer", "ilmarinen the smith"],
+        shouts: [("forge the sampo", 0), ("ilmarinen forges", 0),
+                 ("ilmarinen's hammer", 1),
+                 ("forged the sky", 2), ("the dome of the sky", 2)],
+        moves: [
+            // Forge the Sampo: out comes one of its gifts.
+            (name: "forge the sampo", tags: [Ultimate], cooldown: 8.0, cost: 5.0, ops: [
+                Roulette(picks: [
+                    [Mend(pct: 8.0)],
+                    [Salvo(count: 5, delay: 0.5, interval: 0.08, radius: 2.0, damage: 8.0, knockback: 6.0, element: Light, at: Aim, spread: 4.0)],
+                    [Cast(recipe: (name: "sampo salt", form: Ball, mech: [Fast, Swarm], element: Light, scale: 0.2, count: 10))],
+                ]),
+            ]),
+            // The hammer. -> ends in place.
+            (name: "ilmarinen's hammer", tags: [Primary], cooldown: 1.1, cost: 3.0, ops: [
+                Shove(range: 3.4, angle: 55.0, damage: 15.0, knockback: 18.0),
+            ]),
+            // He forged the dome of the sky: a dome over you.
+            (name: "forged the sky", tags: [Defense], cooldown: 14.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "the forged sky", form: Dome, mech: [Barrier], element: Light, scale: 3.0)),
+            ]),
+        ],
+    ),
+
+    // ================================================================ PERSIAN
+    // ---------------------------------------------------------------- ROSTAM — and Rakhsh
+    (
+        id: "myth_rostam",
+        name: "Rostam",
+        kind: Kit,
+        fx: "earth",
+        names: ["rostam", "rustam", "rostam dastan", "rustam the hero", "rostam of the shahnameh"],
+        shouts: [("rakhsh", 0), ("ride rakhsh", 0), ("rakhsh charges", 0),
+                 ("seven labours of rostam", 1), ("haft khan", 1),
+                 ("rostam's mace", 2), ("ox-headed mace", 2), ("gorz", 2),
+                 ("rostam's lasso", 3), ("kamand", 3)],
+        moves: [
+            // Rakhsh, the horse who fought beside him: through them.
+            (name: "rakhsh", tags: [Movement], cooldown: 4.0, cost: 5.0, ops: [
+                Ram(speed: 28.0, secs: 1.0, damage: 12.0, knockback: 18.0, through: true, keep: 0.5),
+            ]),
+            // The seven labours in one: charge, strike, leap, slam.
+            (name: "haft khan", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
+                Impulse(fwd: 16.0, up: 2.0),
+                Shove(range: 3.6, angle: 70.0, damage: 13.0, knockback: 14.0, up: 1.2),
+                Impulse(fwd: 4.0, up: 12.0),
+                SlamOnLand(radius: 6.0, damage: 15.0, knockback: 22.0, carve: 1.8),
+            ], juice: Some((title: Some("HAFT KHAN"), boom: true))),
+            // The ox-headed mace. -> ends in place.
+            (name: "gorz", tags: [Primary], cooldown: 1.1, cost: 3.0, ops: [
+                Shove(range: 3.6, angle: 60.0, damage: 16.0, knockback: 20.0),
+            ]),
+            // The lasso: caught and hauled in.
+            (name: "kamand", tags: [Combo], cooldown: 5.0, cost: 4.0, ops: [
+                Hook(range: 28.0, speed: 38.0, pull: 20.0, damage: 5.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- SIMURGH — the great healing bird
+    (
+        id: "myth_simurgh",
+        name: "Simurgh",
+        kind: Kit,
+        fx: "holy",
+        names: ["simurgh", "simorgh", "simurg", "senmurv", "the simurgh"],
+        shouts: [("feather of the simurgh", 0), ("burn the feather", 0), ("simurgh's feather", 0),
+                 ("simurgh's wings", 1), ("wings of the simurgh", 1),
+                 ("summon the simurgh", 2)],
+        moves: [
+            // Burn a feather and the Simurgh comes to heal.
+            (name: "feather of the simurgh", tags: [Defense], cooldown: 18.0, cost: 6.0, ops: [
+                Mend(pct: 10.0, per_s: 2.0, secs: 3.0),
+            ], juice: Some((title: Some("SIMURGH"), color: Some((0.9, 0.7, 0.3))))),
+            // Her wings: a gale.
+            (name: "simurgh's wings", tags: [Primary], cooldown: 6.0, cost: 5.0, ops: [
+                Shove(range: 20.0, angle: 55.0, damage: 5.0, knockback: 30.0, element: Wind, up: 0.3),
+            ]),
+            // She comes down on your enemies.
+            (name: "summon the simurgh", tags: [Ultimate], cooldown: 26.0, cost: 9.0, ops: [
+                Cast(recipe: (name: "the simurgh", form: Bird, mech: [Flies, Grab, Heavy], element: Light, scale: 3.0,
+                              temperament: Protective, intensity: 1.0), signature: Some(Summon)),
+            ]),
+        ],
+    ),
+
+    // ================================================================ HEROIC EPICS & LEGENDS
+    // ---------------------------------------------------------------- BEOWULF
+    (
+        id: "myth_beowulf",
+        name: "Beowulf",
+        kind: Kit,
+        fx: "rigid",
+        names: ["beowulf", "beowulf of the geats", "bee o wolf", "beowolf"],
+        shouts: [("tear off grendel's arm", 0), ("grendel's arm", 0), ("wrestle grendel", 0),
+                 ("hrunting", 1), ("naegling", 1),
+                 ("into the mere", 2), ("dive into the mere", 2),
+                 ("the dragon's bane", 3)],
+        moves: [
+            // He tore Grendel's arm off with his bare hands: seize, wrench, throw.
+            (name: "tear off grendel's arm", tags: [Primary, Counter], cooldown: 5.0, cost: 5.0, ops: [
+                Grab(range: 3.2, hold: 0.45, damage: 16.0, knockback: 22.0, up: 0.3),
+            ], juice: Some((title: Some("GRENDEL'S ARM"), punch: 3.0))),
+            // The sword. -> ends in place.
+            (name: "naegling", tags: [Combo], cooldown: 1.0, cost: 3.0, ops: [
+                Shove(range: 3.6, angle: 70.0, damage: 14.0, knockback: 14.0),
+            ]),
+            // Down into the mere after Grendel's mother. -> ends grounded, far off.
+            (name: "into the mere", tags: [Movement], cooldown: 5.0, cost: 4.0, ops: [
+                Leap(range: 26.0, apex: 4.0),
+                SlamOnLand(radius: 4.0, damage: 10.0, knockback: 14.0, carve: 1.0),
+            ]),
+            // The last fight: a burst that throws everyone off him.
+            (name: "the dragon's bane", tags: [Ultimate], cooldown: 14.0, cost: 7.0, ops: [
+                Empower(secs: 5.0, damage: 1.3, armor: 0.5),
+                Explode(radius: 5.0, damage: 6.0, knockback: 18.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- SIGURD — Gram and the dragon's blood
+    (
+        id: "myth_sigurd",
+        name: "Sigurd",
+        kind: Kit,
+        fx: "blood",
+        names: ["sigurd", "siegfried", "sigurðr", "sigurd the dragon slayer", "siegfried the dragon slayer", "sigurth"],
+        shouts: [("gram", 0), ("balmung", 0), ("sword of sigurd", 0), ("the sword gram", 0),
+                 ("slay fafnir", 1), ("fafnir's bane", 1), ("the pit strike", 1),
+                 ("dragon's blood", 2), ("bathe in dragon's blood", 2),
+                 ("tarnkappe", 3)],
+        moves: [
+            // Gram cuts an anvil in two: a cut that travels.
+            (name: "gram", tags: [Primary], cooldown: 1.3, cost: 4.0, ops: [
+                Wave(length: 18.0, speed: 34.0, width: 3.5, damage: 12.0, knockback: 12.0, carve: 0.5),
+            ]),
+            // From the pit, the strike upward into Fafnir: a rising blow that launches them.
+            (name: "slay fafnir", tags: [Ultimate], cooldown: 10.0, cost: 7.0, ops: [
+                Drill(speed: 26.0, secs: 0.35, damage: 18.0, knockback: 22.0, up: 1.2),
+            ], juice: Some((title: Some("FAFNIR'S BANE"), boom: true, impact_frame: Some("comic")))),
+            // Bathed in the dragon's blood: blows barely move you for a while.
+            (name: "dragon's blood", tags: [Defense], cooldown: 20.0, cost: 7.0, ops: [
+                Empower(secs: 6.0, armor: 0.3),
+            ], juice: Some((title: Some("DRAGON'S BLOOD")))),
+            // The cloak of mist: gone from sight.
+            (name: "tarnkappe", tags: [Movement], cooldown: 8.0, cost: 4.0, ops: [
+                Zone(radius: 6.0, secs: 2.0, status: Some(Shadow), at: Me),
+                Blink(dist: 12.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- ROLAND — Durendal and the Olifant
+    (
+        id: "myth_roland",
+        name: "Roland",
+        kind: Kit,
+        fx: "holy",
+        names: ["roland", "roland of roncevaux", "count roland", "paladin roland"],
+        shouts: [("durendal", 0), ("durandal", 0), ("roland's sword", 0),
+                 ("olifant", 1), ("sound the olifant", 1), ("roland's horn", 1), ("blow the olifant", 1),
+                 ("roncevaux", 2), ("the last stand", 2)],
+        moves: [
+            // Durendal: it cleaves stone (he tried to break it on a rock and split the mountain).
+            (name: "durendal", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
+                Shove(range: 3.8, angle: 70.0, damage: 14.0, knockback: 14.0),
+                Carve(length: 6.0, radius: 0.9, damage: 0.0),
+            ]),
+            // The Olifant: a horn blast heard thirty leagues away that throws everyone in front.
+            (name: "olifant", tags: [Ultimate], cooldown: 10.0, cost: 6.0, ops: [
+                Shove(range: 22.0, angle: 55.0, damage: 6.0, knockback: 34.0, element: Wind, up: 0.3),
+            ], juice: Some((title: Some("OLIFANT"), boom: true, debris: 20.0))),
+            // The last stand at Roncevaux: the first blow is answered, hard.
+            (name: "roncevaux", tags: [Counter, Defense], cooldown: 7.0, cost: 4.0, ops: [
+                Counter(secs: 1.2, damage: 15.0, knockback: 20.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- ROBIN HOOD — split the arrow
+    (
+        id: "myth_robin_hood",
+        name: "Robin Hood",
+        kind: Kit,
+        fx: "earth",
+        names: ["robin hood", "robin of loxley", "robin hood of sherwood", "robyn hode", "the outlaw robin hood"],
+        shouts: [("split the arrow", 0), ("robin hood's arrow", 0), ("merry men", 1), ("the merry men", 1), ("sherwood forest", 1),
+                 ("rob from the rich", 2), ("steal from the rich", 2)],
+        moves: [
+            // He split his rival's arrow in the bullseye: a patient lock, then a perfect shot.
+            (name: "split the arrow", tags: [Primary, Ultimate], cooldown: 6.0, cost: 5.0, ops: [
+                LockOn(secs: 0.8, range: 60.0, damage: 16.0, knockback: 12.0, angle: 6.0),
+            ], juice: Some((title: Some("BULLSEYE")))),
+            // The Merry Men from Sherwood.
+            (name: "merry men", tags: [Combo], cooldown: 20.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "the merry men", form: Biped, mech: [Walks, Blunt, Shoots], element: Earth, scale: 1.0, count: 3,
+                              temperament: Playful, intensity: 0.8)),
+            ]),
+            // Rob from the rich: their weapon, into your hands.
+            (name: "rob from the rich", tags: [Counter], cooldown: 8.0, cost: 4.0, ops: [
+                Disarm(range: 18.0, cone: 12.0, pull: true),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- WILLIAM TELL — the apple
+    (
+        id: "myth_william_tell",
+        name: "William Tell",
+        kind: Kit,
+        fx: "rigid",
+        names: ["william tell", "wilhelm tell", "guillaume tell", "tell the crossbowman"],
+        shouts: [("the apple shot", 0), ("shoot the apple", 0), ("apple on his head", 0),
+                 ("the second bolt", 1), ("tell's second bolt", 1)],
+        moves: [
+            // The apple shot: one bolt, perfectly placed.
+            (name: "the apple shot", tags: [Primary], cooldown: 5.0, cost: 4.0, ops: [
+                LockOn(secs: 0.6, range: 60.0, damage: 14.0, knockback: 10.0, angle: 5.0),
+            ], juice: Some((title: Some("THE APPLE SHOT")))),
+            // The second bolt he kept for the tyrant: it finds its man.
+            (name: "the second bolt", tags: [Ultimate], cooldown: 10.0, cost: 6.0, ops: [
+                Seeker(recipe: (name: "tell's second bolt", form: Spear, mech: [Pierce, Fast], element: Light, scale: 0.9),
+                       range: 60.0, cone: 20.0, speed: 55.0, damage: 18.0, knockback: 16.0, element: Light, hits: 1),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- SINBAD — the roc
+    (
+        id: "myth_sinbad",
+        name: "Sinbad",
+        kind: Kit,
+        fx: "wind",
+        names: ["sinbad", "sindbad", "sinbad the sailor", "sindbad the sailor"],
+        shouts: [("ride the roc", 0), ("the roc", 0), ("roc's egg", 1), ("the old man of the sea", 2), ("valley of diamonds", 3)],
+        moves: [
+            // Tied to the roc's leg, carried off: grab and fly them up.
+            (name: "ride the roc", tags: [Movement, Ultimate], cooldown: 9.0, cost: 6.0, ops: [
+                BlinkCarry(dist: 8.0, up: 16.0, grab: 3.0),
+            ], juice: Some((title: Some("THE ROC")))),
+            // A roc's egg dropped on them.
+            (name: "roc's egg", tags: [Primary], cooldown: 6.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "roc's egg", form: Boulder, mech: [DropFromSky, Heavy, Blunt], element: Light, scale: 2.2)),
+            ]),
+            // The old man of the sea climbs on their back: slowed, weighed down.
+            (name: "the old man of the sea", tags: [Combo], cooldown: 8.0, cost: 5.0, ops: [
+                Weigh(range: 20.0, secs: 3.0, down: 8.0),
+            ]),
+            // The valley of diamonds: glittering shards fly.
+            (name: "valley of diamonds", tags: [Defense], cooldown: 8.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "diamonds", form: Ball, mech: [Fast, Pierce, Swarm], element: Light, scale: 0.25, count: 8)),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- ALI BABA — open sesame
+    (
+        id: "myth_ali_baba",
+        name: "Ali Baba",
+        kind: Kit,
+        fx: "earth",
+        names: ["ali baba", "alibaba", "ali baba and the forty thieves", "the forty thieves", "forty thieves"],
+        shouts: [("open sesame", 0), ("open says me", 0), ("iftah ya simsim", 0), ("open simsim", 0),
+                 ("close sesame", 1),
+                 ("the forty thieves", 2), ("forty thieves", 2)],
+        moves: [
+            // Open sesame: the rock opens — you pass straight through the wall in front of you.
+            (name: "open sesame", tags: [Movement, Primary], cooldown: 4.0, cost: 3.0, ops: [
+                PassThrough(depth: 12.0),
+            ], juice: Some((title: Some("OPEN SESAME")))),
+            // Close sesame: a wall of rock shuts in front of you.
+            (name: "close sesame", tags: [Defense], cooldown: 9.0, cost: 4.0, ops: [
+                Erupt(length: 7.0, height: 4.0, element: Earth, launch: 6.0, shape: Wall, dist: 3.0),
+            ]),
+            // The forty thieves.
+            (name: "forty thieves", tags: [Ultimate], cooldown: 22.0, cost: 9.0, ops: [
+                Cast(recipe: (name: "forty thieves", form: Biped, mech: [Walks, Blade, Fast], element: Shadow, scale: 1.0, count: 5,
+                              temperament: Sneaky, intensity: 0.9)),
+            ]),
+        ],
+    ),
+
+    // ================================================================ URBAN LEGENDS & MORE FAIRY TALES
+    // ---------------------------------------------------------------- BLOODY MARY — say it three times
+    (
+        id: "myth_bloody_mary",
+        name: "Bloody Mary",
+        kind: Kit,
+        fx: "blood",
+        names: ["bloody mary", "the bloody mary legend", "mary worth", "mary whales"],
+        shouts: [("bloody mary bloody mary bloody mary", 0), ("bloody mary three times", 0), ("say it three times", 0),
+                 ("in the mirror", 1), ("she's in the mirror", 1)],
+        moves: [
+            // Say it three times and she is behind them.
+            (name: "bloody mary", tags: [Ultimate, Movement], cooldown: 10.0, cost: 6.0, ops: [
+                WarpTo(range: 40.0, cone: 20.0, behind: 1.5),
+                Shove(range: 3.0, angle: 179.0, damage: 14.0, knockback: 12.0, element: Shadow),
+            ], juice: Some((title: Some("BLOODY MARY"), impact_frame: Some("ink")))),
+            // In the mirror: whatever you throw at me goes back.
+            (name: "in the mirror", tags: [Counter], cooldown: 7.0, cost: 4.0, ops: [
+                Deflect(secs: 1.1, angle: 90.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- LA LLORONA — the weeping woman
+    (
+        id: "myth_la_llorona",
+        name: "La Llorona",
+        kind: Kit,
+        fx: "water",
+        names: ["la llorona", "llorona", "the weeping woman", "la yorona"],
+        shouts: [("ay mis hijos", 0), ("the weeping", 0), ("la llorona's wail", 0),
+                 ("into the river", 1), ("llorona drowns", 1)],
+        moves: [
+            // Her wail: everyone near freezes in dread.
+            (name: "the weeping", tags: [Ultimate], cooldown: 12.0, cost: 6.0, ops: [
+                Explode(radius: 9.0, damage: 4.0, knockback: 12.0, element: Psychic),
+                Zone(radius: 11.0, secs: 2.5, slow: 0.5, at: Me),
+            ], juice: Some((title: Some("LA LLORONA"), ripple: 11.0))),
+            // Dragged into the river.
+            (name: "into the river", tags: [Primary], cooldown: 7.0, cost: 5.0, ops: [
+                Hook(range: 22.0, speed: 34.0, pull: 18.0, damage: 6.0, status: Some(Wet), secs: 3.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- THE JERSEY DEVIL
+    (
+        id: "myth_jersey_devil",
+        name: "Jersey Devil",
+        kind: Kit,
+        fx: "shadow",
+        names: ["jersey devil", "the jersey devil", "leeds devil", "the leeds devil"],
+        shouts: [("jersey devil screech", 0), ("pine barrens screech", 0),
+                 ("jersey devil swoop", 1), ("the devil swoops", 1)],
+        moves: [
+            // The screech from the pines.
+            (name: "screech", tags: [Primary], cooldown: 7.0, cost: 4.0, ops: [
+                Explode(radius: 6.5, damage: 4.0, knockback: 16.0, element: Psychic),
+            ], juice: Some((boom: true))),
+            // It swoops out of the dark and carries you off.
+            (name: "swoop", tags: [Movement, Ultimate], cooldown: 9.0, cost: 6.0, ops: [
+                BlinkCarry(dist: 6.0, up: 12.0, grab: 3.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- CHUPACABRA
+    (
+        id: "myth_chupacabra",
+        name: "Chupacabra",
+        kind: Kit,
+        fx: "blood",
+        names: ["chupacabra", "chupacabras", "the chupacabra", "goat sucker", "goatsucker"],
+        shouts: [("chupacabra bite", 0), ("the goat sucker bites", 0), ("chupacabra pounce", 1)],
+        moves: [
+            // It drains them: you mend as they weaken.
+            (name: "chupacabra bite", tags: [Primary, Ultimate], cooldown: 5.0, cost: 4.0, ops: [
+                Shove(range: 3.0, angle: 50.0, damage: 12.0, knockback: 6.0),
+                Mend(pct: 4.0),
+            ]),
+            // The pounce. -> ends on them.
+            (name: "chupacabra pounce", tags: [Movement], cooldown: 3.5, cost: 3.0, ops: [
+                Pounce(range: 20.0, speed: 30.0, cone: 18.0, damage: 10.0, knockback: 10.0, bounce: 6.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- KRAMPUS
+    (
+        id: "myth_krampus",
+        name: "Krampus",
+        kind: Kit,
+        fx: "shadow",
+        names: ["krampus", "the krampus", "krampusz", "krampus the yule demon"],
+        shouts: [("krampus chains", 0), ("rattle the chains", 0),
+                 ("into the sack", 1), ("krampus sack", 1), ("naughty list", 1),
+                 ("birch switch", 2), ("ruten", 2)],
+        moves: [
+            // Rattling chains fly out and bind the aimed one.
+            (name: "krampus chains", tags: [Primary], cooldown: 5.0, cost: 4.0, ops: [
+                Hook(range: 22.0, speed: 36.0, pull: 16.0, damage: 6.0, status: Some(Chill), secs: 1.5),
+            ]),
+            // Into the sack: grabbed, carried up, dumped.
+            (name: "into the sack", tags: [Ultimate], cooldown: 10.0, cost: 6.0, ops: [
+                BlinkCarry(dist: 6.0, up: 12.0, grab: 3.0),
+            ], juice: Some((title: Some("NAUGHTY")))),
+            // The birch switch: a flurry of lashes.
+            (name: "birch switch", tags: [Combo], cooldown: 6.0, cost: 4.0, ops: [
+                Barrage(hits: 5, interval: 0.1, range: 3.5, angle: 70.0, damage: 4.0, knockback: 3.0, finish: 16.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- NESSIE — the Loch Ness monster
+    (
+        id: "myth_nessie",
+        name: "Nessie",
+        kind: Kit,
+        fx: "water",
+        names: ["nessie", "loch ness monster", "the loch ness monster", "nessy", "nessiteras"],
+        shouts: [("nessie surfaces", 0), ("out of the loch", 0),
+                 ("nessie dives", 1), ("back into the loch", 1),
+                 ("the surgeon's photo", 2)],
+        moves: [
+            // She surfaces under them: a column of water throws them up.
+            (name: "nessie surfaces", tags: [Primary, Ultimate], cooldown: 7.0, cost: 5.0, ops: [
+                Erupt(length: 3.0, width: 3.0, height: 5.0, element: Water, damage: 10.0, launch: 22.0, shape: Pillar, at: Aim),
+            ]),
+            // Back under. -> ends out of sight.
+            (name: "nessie dives", tags: [Movement], cooldown: 7.0, cost: 4.0, ops: [
+                Zone(radius: 5.0, secs: 1.5, status: Some(Wet), at: Me),
+                Blink(dist: 14.0),
+            ]),
+            // Nobody believes the photo: a blur, and you're somewhere else.
+            (name: "the surgeon's photo", tags: [Defense], cooldown: 8.0, cost: 4.0, ops: [
+                Zone(radius: 6.0, secs: 1.6, status: Some(Shadow), at: Me),
+                Blink(dist: 10.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- PINOCCHIO — the nose that grows
+    (
+        id: "myth_pinocchio",
+        name: "Pinocchio",
+        kind: Kit,
+        fx: "rigid",
+        names: ["pinocchio", "pinochio", "the wooden boy", "pinocchio the puppet"],
+        shouts: [("tell a lie", 0), ("i'm not lying", 0), ("the nose grows", 0), ("pinocchio's nose", 0),
+                 ("strings attached", 1), ("no strings", 1),
+                 ("inside the whale", 2)],
+        moves: [
+            // A lie: the nose shoots out tens of metres as a wooden lance and snaps back.
+            (name: "tell a lie", tags: [Primary], cooldown: 1.2, cost: 3.0, ops: [
+                Shove(range: 16.0, angle: 5.0, damage: 12.0, knockback: 18.0),
+            ], juice: Some((title: Some("LIAR!"), color: Some((0.75, 0.55, 0.35))))),
+            // Strings attached: the aimed one is tied to you on a puppet string.
+            (name: "strings attached", tags: [Combo], cooldown: 6.0, cost: 4.0, ops: [
+                Link(range: 26.0),
+            ]),
+            // Swallowed by the great fish (and spat out far away). -> ends far along your aim.
+            (name: "inside the whale", tags: [Movement, Ultimate], cooldown: 8.0, cost: 5.0, ops: [
+                Blink(dist: 24.0, afterimage: true),
+                Explode(radius: 3.5, damage: 4.0, knockback: 14.0, element: Water),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- THE THREE LITTLE PIGS — the brick house
+    (
+        id: "myth_three_little_pigs",
+        name: "Three Little Pigs",
+        kind: Kit,
+        fx: "earth",
+        names: ["three little pigs", "the three little pigs", "3 little pigs"],
+        shouts: [("house of bricks", 0), ("brick house", 0), ("the brick house", 0),
+                 ("house of sticks", 1), ("house of straw", 2),
+                 ("not by the hair of my chinny chin chin", 3), ("chinny chin chin", 3)],
+        moves: [
+            // The brick house: walls no wolf can blow down, around you.
+            (name: "house of bricks", tags: [Defense, Ultimate], cooldown: 14.0, cost: 6.0, ops: [
+                Erupt(length: 7.0, height: 3.5, element: Earth, launch: 6.0, shape: Ring, at: Me),
+            ], juice: Some((title: Some("HOUSE OF BRICKS")))),
+            // The house of sticks: a flimsy wall in front of you.
+            (name: "house of sticks", tags: [Primary], cooldown: 6.0, cost: 3.0, ops: [
+                Cast(recipe: (name: "house of sticks", form: Wall, mech: [Barrier], element: Earth, scale: 4.0)),
+            ]),
+            // The house of straw: it blows away at a touch — a burst of straw.
+            (name: "house of straw", tags: [Combo], cooldown: 5.0, cost: 3.0, ops: [
+                Explode(radius: 4.0, damage: 2.0, knockback: 12.0, element: Wind),
+            ]),
+            // Not by the hair of my chinny chin chin: the next blow gets nowhere.
+            (name: "chinny chin chin", tags: [Counter], cooldown: 7.0, cost: 3.0, ops: [
+                Counter(secs: 1.0),
+            ]),
+        ],
+    ),
 ]

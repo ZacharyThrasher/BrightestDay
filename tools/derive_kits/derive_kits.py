@@ -536,7 +536,7 @@ def recipe(name: str, form: str, mech: list[str], elem: str, scale: float, mass:
 def t_slash(ctx: Ctx) -> Move:
     w = ctx.p.weapon
     a = ctx.adj(ctx.E == "Light")
-    noun = {"axe": ["cleave", "hew"], "knives": ["knife flurry", "quick cut"], "spear": ["sweep", "arc"]}.get(w or "", ["slash", "cut", "edge"])
+    noun = {"axe": ["cleave", "hew"], "knives": ["knife fan", "quick cut"], "spear": ["sweep", "arc"]}.get(w or "", ["slash", "cut", "edge"])
     names = [f"{a[0]} {noun[0]}", f"{a[1]} {noun[-1]}", f"{a[2]} {noun[0]}"]
     heavy = w == "axe" or ctx.p.heavy
     ops = [f"Impulse(fwd: {fmt(5 if not heavy else 3)}, up: 0.0)",
@@ -566,14 +566,14 @@ def t_smash(ctx: Ctx) -> Move:
 BRAWL = {
     # style: (names, lunge fwd, lunge up, range, angle, damage, knockback, up, cooldown)
     "jab": (["{a} jab", "one two", "quick jab"], 5.0, 0.0, 3.0, 50.0, 7.0, 9.0, 0.0, 0.5),
-    "haymaker": (["{a} haymaker", "haymaker", "wind up punch"], 6.0, 0.0, 3.4, 70.0, 12.0, 18.0, 0.15, 1.1),
+    "haymaker": (["{a} haymaker", "haymaker", "wind up swing"], 6.0, 0.0, 3.4, 70.0, 12.0, 18.0, 0.15, 1.1),
     "kick": (["{a} kick", "roundhouse", "spin kick"], 4.0, 0.0, 3.8, 40.0, 10.0, 13.0, 0.25, 0.8),
-    "flying kick": (["flying kick", "{a} flying kick", "jump kick"], 9.0, 3.0, 3.4, 40.0, 10.0, 14.0, 0.1, 0.9),
-    "palm": (["palm strike", "{a} palm", "open palm"], 3.0, 0.0, 3.4, 40.0, 9.0, 20.0, 0.1, 0.9),
+    "flying kick": (["flying kick", "{a} flying kick", "leaping kick"], 9.0, 3.0, 3.4, 40.0, 10.0, 14.0, 0.1, 0.9),
+    "palm": (["palm thrust", "{a} palm", "open palm"], 3.0, 0.0, 3.4, 40.0, 9.0, 20.0, 0.1, 0.9),
     "headbutt": (["headbutt", "{a} headbutt", "skull bash"], 6.0, 0.0, 2.8, 40.0, 11.0, 14.0, 0.2, 1.0),
     "slap": (["{a} slap", "wild swing", "flailing swing"], 4.0, 0.0, 3.0, 80.0, 6.0, 14.0, 0.1, 0.6),
     "elbow": (["{a} elbow", "elbow smash", "spinning elbow"], 5.0, 0.0, 2.8, 60.0, 11.0, 12.0, 0.0, 0.8),
-    "punch": (["{a} punch", "power punch", "straight right"], 5.0, 0.0, 3.2, 60.0, 9.0, 11.0, 0.0, 0.7),
+    "punch": (["{a} cross", "straight right", "one two cross"], 5.0, 0.0, 3.2, 60.0, 9.0, 11.0, 0.0, 0.7),
 }
 
 
@@ -593,7 +593,7 @@ def t_punch(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
     style = brawl_style(ctx)
     names0, fwd, up, rng, ang, dmg, kb, lift, cd = BRAWL[style]
-    names = [n.format(a=a[k % len(a)]) for k, n in enumerate(names0)] + [f"{a[1]} punch", f"{a[2]} swing"]
+    names = [n.format(a=a[k % len(a)]) for k, n in enumerate(names0)] + [f"{a[1]} cross", f"{a[2]} swing"]
     upo = f", up: {fmt(lift)}" if lift else ""
     ops = [f"Impulse(fwd: {fmt(fwd)}, up: {fmt(up)})",
            f"Shove(range: {ctx.rad(rng)}, angle: {fmt(ang)}, damage: {ctx.d(dmg)}, knockback: {ctx.kb(kb)}{upo}{ctx.el()})"]
@@ -602,7 +602,7 @@ def t_punch(ctx: Ctx) -> Move:
 
 def t_stretch(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["stretch punch", f"{a[0]} stretch punch", "elastic jab"]
+    names = ["rubber fist", f"{a[0]} stretch", "elastic jab"]
     ops = [f"Shove(range: 7.5, angle: 16.0, damage: {ctx.d(10)}, knockback: {ctx.kb(14)}{ctx.el()})"]
     return Move(names, ops, cd=0.8, cost=3.0, fx="rubber", family="stretch")
 
@@ -686,7 +686,7 @@ def t_whip(ctx: Ctx) -> Move:
 
 def t_spin(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
-    names = [f"{a[0]} spin", "whirling strike", f"{a[1]} cyclone"]
+    names = [f"{a[0]} spin", "whirlwind", f"{a[1]} cyclone"]
     ops = [f"Shove(range: {ctx.rad(3.6)}, angle: 179.0, damage: {ctx.d(9)}, knockback: {ctx.kb(12)}{ctx.el()})"]
     return Move(names, ops, cd=0.9, cost=3.0, family="spin")
 
@@ -721,8 +721,8 @@ PRIMARY = [
 # ---------------------------------------------------------------------------- MOVEMENT templates
 
 def m_blur(ctx: Ctx) -> Move:
-    v = V.FLAVOUR["speed"]["step"] if ctx.E == "Light" else [f"{ctx.adj(False)[0]} dash"]
-    names = list(v) + ["blur dash", "afterimage dash"]
+    v = V.FLAVOUR["speed"]["step"] if ctx.E == "Light" else [f"{ctx.adj(False)[0]} surge"]
+    names = list(v) + ["blur", "afterimage"]
     ops = ["Blink(dist: 12.0, afterimage: true)"]
     return Move(names, ops, cd=2.5, cost=3.0, fx="speedforce" if ctx.E in ("Light", "Electric") else "", family="blink")
 
@@ -755,7 +755,7 @@ def m_fly(ctx: Ctx) -> Move:
         names = ["swoop", "take wing", "sky dive"]
         ops = ["Impulse(fwd: 18.0, up: 6.0)", "SelfStatus(status: Float, secs: 0.8)"]
     else:
-        names = ["take flight", "sky dash", "soar"]
+        names = ["take flight", "sky surge", "soar"]
         ops = ["Impulse(fwd: 14.0, up: 12.0)", "SelfStatus(status: Float, secs: 1.2)"]
     if ctx.c.pack == "pokemon":
         names = ["fly"] + names
@@ -769,7 +769,7 @@ def m_boost(ctx: Ctx) -> Move:
 
 def m_leap(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["leap slam", f"{a[0]} leap", "crushing leap"]
+    names = ["ground slam", "crater drop", f"{a[0]} bound"]
     ops = ["Leap(range: 24.0, apex: 8.0)", f"SlamOnLand(radius: {ctx.rad(4.2)}, damage: {ctx.d(10)}, knockback: {ctx.kb(14)}, carve: 1.0)"]
     return Move(names, ops, cd=4.0, cost=4.0, fx="earth" if ctx.E == "Light" else "", family="leap")
 
@@ -794,7 +794,7 @@ def m_swing(ctx: Ctx) -> Move:
 
 EVASIVE = {
     # style: (names, impulse fwd, impulse up, evade secs (0 = none), blink dist (0 = none))
-    "roll": (["dodge roll", "combat roll", "tumble"], 11.0, 3.0, 0.3, 0.0),
+    "roll": (["combat roll", "tumble", "roll away"], 11.0, 3.0, 0.3, 0.0),
     "slide": (["power slide", "slide", "baseball slide"], 15.0, 0.0, 0.2, 0.0),
     "vault": (["vault", "parkour", "wall run"], 7.0, 11.0, 0.0, 0.0),
     "backflip": (["springback", "reverse somersault", "withdraw"], -9.0, 10.0, 0.35, 0.0),
@@ -842,7 +842,7 @@ def m_surf(ctx: Ctx) -> Move:
 
 
 def m_rollout(ctx: Ctx) -> Move:
-    names = ["roll out", "hit the gas", "floor it"]
+    names = ["roll out", "floor it", "burn rubber"]
     ops = [f"Ram(speed: 30.0, secs: 0.9, damage: {ctx.d(10)}, knockback: {ctx.kb(18)}, through: true, steer: 40.0, keep: 0.6)"]
     return Move(names, ops, cd=3.5, cost=4.0, fx="hardlight", family="rollout")
 
@@ -887,17 +887,17 @@ MOVEMENT = [
 # ---------------------------------------------------------------------------- DEFENSE (+ Counter) templates
 
 def d_parry(ctx: Ctx) -> Move:
-    names = ["parry", "riposte", "counter stance"]
+    names = ["en garde", "turn the blade", "deflecting stance"]
     ops = [f"Counter(secs: 0.6, damage: {ctx.d(11)}, knockback: {ctx.kb(15)}, up: 0.2{ctx.el()})"]
     return Move(names, ops, cd=6.0, cost=4.0, family="counter")
 
 
 def d_guard(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["shield block"] if ctx.p.weapon == "shield" else []
+    names = ["bulwark stance"] if ctx.p.weapon == "shield" else []
     if ctx.p.beast:
-        names += ["hackles up", "defensive crouch", "bristling guard"]
-    names += [f"{a[0]} guard", "iron guard", f"{a[1]} block"]
+        names += ["hackles up", "defensive crouch", "bristling stance"]
+    names += [f"{a[0]} stance", "iron wall", f"{a[1]} stance"]
     ops = ["Counter(secs: 1.0)"]
     if ctx.has("Deflect"):
         ops.append("Deflect(secs: 1.0, angle: 80.0)")
@@ -928,7 +928,7 @@ def d_brace(ctx: Ctx) -> Move:
 
 def d_evade(ctx: Ctx) -> Move:
     names = {"Fearful": ["duck and cover", "flinch", "cower"], "Sneaky": ["sixth sense", "slip", "misdirection"]}.get(
-        ctx.c.temperament, ["perfect dodge", "sixth sense", "slip"])
+        ctx.c.temperament, ["perfect evasion", "sixth sense", "slip"])
     return Move(names, ["Evade(secs: 0.5, slow: 0.6, speed: 1.4, blink: 3.0)"], cd=6.0, cost=4.0, family="evade")
 
 
@@ -941,7 +941,7 @@ def d_smoke(ctx: Ctx) -> Move:
 def d_heal(ctx: Ctx) -> Move:
     names = ["regenerate", "healing factor", "second wind"] if ctx.kwr("healing_factor") else ["second wind", "mend", "restoration"]
     if ctx.p.flav == "holy":
-        names = ["healing light", "blessing"] + names
+        names = ["healing glow", "blessing"] + names
     ops = ["Mend(pct: 18.0, per_s: 3.0, secs: 3.0)", "Counter(secs: 0.3)"]
     return Move(names, ops, cd=9.0, cost=5.0, fx="holy" if ctx.E == "Light" else "", family="heal")
 
@@ -974,30 +974,30 @@ DEFENSE = [
 
 def c_flurry(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
-    names = [f"{a[0]} flurry", "thousand cuts", f"{a[1]} flurry"]
+    names = [f"{a[0]} onslaught", "thousand cuts", f"{a[1]} onslaught"]
     ops = [f"Barrage(hits: 6, interval: 0.08, range: {ctx.rad(3.4)}, angle: 55.0, damage: {ctx.d(4)}, knockback: 2.0, finish: {ctx.kb(16)}, advance: 3.0{ctx.el()})"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=2.5), family="barrage")
 
 
 def c_barrage(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
-    names = [f"{a[0]} barrage", "hundred fists", f"{a[1]} barrage"]
+    names = [f"{a[0]} pummeling", "hundred fists", f"{a[1]} pummeling"]
     if ctx.p.beast:
-        names = [f"{a[0]} mauling", "frenzy", f"{a[1]} flurry"]
+        names = [f"{a[0]} mauling", "frenzy", f"{a[1]} frenzy"]
     ops = [f"Barrage(hits: 8, interval: 0.07, range: {ctx.rad(3.0)}, angle: 50.0, damage: {ctx.d(3)}, knockback: 2.0, finish: {ctx.kb(18)}, advance: 2.0{ctx.el()})"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=2.5), family="barrage")
 
 
 def c_rush(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = [f"{a[0]} rush", "fist rush", f"{a[1]} rush"]
+    names = [f"{a[0]} fists", "fist storm", "rapid fists"]
     ops = [f"Rush(hits: 10, rate: 16.0, damage: {ctx.d(2.5)}, knockback: {ctx.kb(14)}, range: 2.8)"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=2.5), family="rush")
 
 
 def c_blitz(ctx: Ctx) -> Move:
     a = ctx.adj(ctx.E == "Light")
-    names = [f"{a[0]} blitz", "phantom flurry", "blink flurry"]
+    names = [f"{a[0]} blitz", "phantom blitz", "afterimage blitz"]
     ops = [f"Barrage(hits: 5, interval: 0.12, range: 3.2, angle: 60.0, damage: {ctx.d(5)}, knockback: 3.0, finish: {ctx.kb(18)}, blink: true{ctx.el()})"]
     fx = "speedforce" if "Fast" in ctx.m and ctx.E in ("Light", "Electric") else "smoke" if ctx.E == "Light" else ""
     return Move(names, ops, cd=7.0, cost=8.0, fx=fx, juice=juice(ctx, punch=3.0), family="blitz")
@@ -1005,7 +1005,7 @@ def c_blitz(ctx: Ctx) -> Move:
 
 def c_launcher(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["launcher combo", f"{a[0]} uppercut combo", "skyfall combo"]
+    names = ["launcher", f"{a[0]} uppercut", "skyfall"]
     ops = [f"Shove(range: 3.4, angle: 60.0, damage: {ctx.d(8)}, knockback: 4.0, up: 1.4{ctx.el()})", "Impulse(fwd: 2.0, up: 13.0)",
            f"SlamOnLand(radius: {ctx.rad(3.6)}, damage: {ctx.d(11)}, knockback: {ctx.kb(16)}, carve: 0.8)"]
     return Move(names, ops, cd=7.0, cost=8.0, juice=juice(ctx, shake=0.2), family="launcher")
@@ -1198,7 +1198,7 @@ def u_meteor(ctx: Ctx) -> Move:
 
 def u_blades(ctx: Ctx) -> Move:
     a = ctx.adj(False)
-    names = ["thousand cuts", f"{a[0]} tempest", "final cut"]
+    names = ["thousand cuts", f"{a[0]} tempest", "last cut"]
     if ctx.has("Wave"):
         ops = [f"Barrage(hits: 8, interval: 0.09, range: 3.6, angle: 70.0, damage: {ctx.d(5)}, knockback: 2.0, finish: {ctx.kb(26)}, blink: true{ctx.el()})",
                f"Wave(length: 30.0, speed: 36.0, width: 7.0, carve: 1.0, damage: {ctx.d(14)}, knockback: {ctx.kb(18)}{ctx.el()})"]
@@ -1311,7 +1311,7 @@ def u_courage(ctx: Ctx) -> Move:
 
 def u_knockout(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = [f"{a[0]} knockout", "final blow", "one punch"]
+    names = [f"{a[0]} knockout", "knockout blow", "lights out"]
     ops = [f"Drill(speed: 34.0, secs: 0.5, grind: 0.0, damage: {ctx.d(24)}, knockback: {ctx.kb(34)}, up: 0.3{ctx.el()})"] if ctx.has("Drill") else \
         [f"Ram(speed: 34.0, secs: 0.5, damage: {ctx.d(24)}, knockback: {ctx.kb(34)}, up: 0.3{ctx.el()})"]
     return Move(names, ops, cd=18.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=6.0), family="knockout")
@@ -1533,7 +1533,10 @@ class Rules:
         if not name or len(ws) > 4:
             return False
         for w in ws:
-            if w in SLOT_WORDS and SLOT_WORDS[w] != tag and not (tag == "Defense" and SLOT_WORDS[w] == "Counter"):
+            # no slot word at all in a derived move name: "<name> combo" must reach the Combo move by its
+            # TAG, so a hand kit sharing the name (a stale file) always wins the tie (toolbox.rs ranks a
+            # whole-word name hit above a tag)
+            if w in SLOT_WORDS:
                 return False
             for f in self.clashes(w):
                 if not (f in SLOT_WORDS and (SLOT_WORDS[f] == tag or (tag == "Defense" and SLOT_WORDS[f] == "Counter"))):

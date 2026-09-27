@@ -204,8 +204,8 @@
         // bigger = you ride it). No random pick exists in the data; typing a wrong alien is the canon joke.
         incantations: ["omnitrix", "hero time", "it's hero time", "its hero time"],
         delivery: (add: [Piloted]),
-        shouts: [("it's hero time", 0), ("its hero time", 0), ("hero time", 0), ("four arms", 0), ("heatblast", 1),
-                 ("going hero", 1), ("random alien", 2), ("wrong alien", 2), ("alien roulette", 2),
+        shouts: [("it's hero time", 0), ("its hero time", 0), ("hero time", 0), ("hero time four arms", 0),
+                 ("hero time heatblast", 1), ("going hero", 1), ("random alien", 2), ("wrong alien", 2), ("alien roulette", 2),
                  ("slap the watch", 2)],
         moves: [
             (name: "four arms", cooldown: 3.0, ops: [

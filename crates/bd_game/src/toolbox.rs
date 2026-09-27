@@ -15,6 +15,7 @@ use bd_core::PlayerId;
 use bd_sim::powers::chain::ToolStep;
 use bd_sim::powers::compose::{self, ComposedMove};
 use bd_sim::powers::toolbox::{split_chain_with, MoveIndex, Reading};
+use bd_sim::powers::twist;
 use bd_sim::powers::{PlayerPower, PowerPhrase, PowerTable};
 use bd_sim::Aim;
 
@@ -90,11 +91,20 @@ pub fn command(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text:
 pub fn command_for(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool, roster: &[(PlayerId, &str)]) -> Option<Vec<ToolStep>> {
     let fuzzy = |ws: &[&str]| sound_alike(lex, roster, ws, spoken);
     let names = compose::Names { players: roster, fuzzy: Some(&fuzzy) };
-    let is_move = |s: &str| read_step(lex, held, powers_on, s, spoken).is_move() || composed(lex, powers_on, s, spoken, &names).is_some();
+    let is_move = |s: &str| {
+        read_step(lex, held, powers_on, s, spoken).is_move() || twist_step(lex, held, powers_on, s, spoken).is_some() || composed(lex, powers_on, s, spoken, &names).is_some()
+    };
     let understood = |s: &str| understood(lex, s, spoken);
     let parts = split_chain_with(text, &is_move, Some(&understood));
     if parts.is_empty() {
         return None;
+    }
+    // MODIFIERS & FUSION: a twisted / fused move ("giant rasengan", "rasengan + amaterasu") comes
+    // first — it is only ever read when a named move sits under the modifiers.
+    if parts.len() == 1
+        && let Some(s) = twist_step(lex, held, powers_on, &parts[0], spoken)
+    {
+        return Some(vec![s]);
     }
     if parts.len() == 1 {
         // A single phrase: only a move reading becomes a toolbox command (a held move said by
@@ -110,6 +120,11 @@ pub fn command_for(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, t
     let mut steps = Vec::with_capacity(parts.len());
     let mut specs: Vec<Option<ComposedMove>> = Vec::with_capacity(parts.len());
     for p in &parts {
+        if let Some(s) = twist_step(lex, held, powers_on, p, spoken) {
+            specs.push(None);
+            steps.push(s);
+            continue;
+        }
         let step = match read_step(lex, held, powers_on, p, spoken) {
             Reading::Kit(mv) => ToolStep::Move { mv, kit: true },
             Reading::Borrow(mv) => ToolStep::Move { mv, kit: false },
@@ -145,6 +160,49 @@ pub fn composed(lex: &Lexicon, powers_on: bool, text: &str, spoken: bool, names:
     let r = compose::read(text, names)?;
     let res = if spoken { lex.resolve_spoken(text) } else { lex.resolve(text) };
     (!compose::curated_by_lexicon(text, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)).then_some(r.spec)
+}
+
+/// The lexicon's view of a twist core (bd_sim `twist::read::judge_of`: one rule for the game, the
+/// preview tool and the tests).
+pub fn twist_judge(lex: &Lexicon, s: &str, spoken: bool) -> twist::read::Lex {
+    let r = if spoken { lex.resolve_spoken(s) } else { lex.resolve(s) };
+    twist::read::judge_of(r.signature.is_some(), r.kind == ResolutionKind::Construct, r.shape.is_some(), r.confidence, &r.recipe.name, s)
+}
+
+/// MODIFIERS & FUSION (bd_sim `powers::twist`): the reading of a twisted / fused move, if the line
+/// is one — modifiers around a named move ("giant homing rasengan", "black flash but fire",
+/// "rapid fire hadouken") or two moves fused ("rasengan + amaterasu", "fuse red and blue").
+pub fn twist_reading(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool) -> Option<twist::read::TwistReading> {
+    if !powers_on {
+        return None;
+    }
+    let judge = |s: &str| twist_judge(lex, s, spoken);
+    let reader = twist::read::Reader { t: twist::ModTable::shipped(), powers: PowerTable::get(), ix: MoveIndex::shipped(), held: held.filter(|p| p.id.is_some()), judge: &judge };
+    reader.read(text)
+}
+
+/// The toolbox step of a twisted / fused move ([`twist_reading`]), or `None`.
+pub fn twist_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool) -> Option<ToolStep> {
+    let r = twist_reading(lex, held, powers_on, text, spoken)?;
+    let side = |s: &twist::read::SideReading| -> Option<twist::TwistSide> {
+        let base = match &s.core {
+            twist::read::Core::Move(Reading::Kit(mv)) => twist::TwistBase::Move { mv: *mv, kit: true },
+            twist::read::Core::Move(Reading::Borrow(mv)) => twist::TwistBase::Move { mv: *mv, kit: false },
+            twist::read::Core::Move(Reading::Held(PowerPhrase::Move(sel))) => twist::TwistBase::Held(*sel),
+            twist::read::Core::Cast(text) => match cast_step(lex, text, text, spoken, false) {
+                ToolStep::Cast { recipe, shape, signature, .. } => twist::TwistBase::Cast { recipe, shape, signature },
+                _ => return None,
+            },
+            _ => return None,
+        };
+        Some(twist::TwistSide { base, mods: s.mods.clone() })
+    };
+    let a = side(&r.a)?;
+    let b = match &r.b {
+        Some(b) => Some(side(b)?),
+        None => None,
+    };
+    Some(ToolStep::Twist(Box::new(twist::TwistStep { a, b, mods: r.mods.clone(), shot: 0 })))
 }
 
 /// Voice: a sound-alike player name at the start of `ws` ("eaton" → Ethan), via the lexicon's own
@@ -200,6 +258,17 @@ pub fn sanitize_steps(steps: Vec<ToolStep>, small: impl Fn(Option<bd_core::shape
         .map(|s| match s {
             ToolStep::Cast { recipe, shape, alt_shape, incantation, signature } => {
                 ToolStep::Cast { recipe, shape: small(shape), alt_shape: small(alt_shape), incantation, signature: signature.map(|g| g.sanitized()) }
+            }
+            // MODIFIERS & FUSION: known modifier bytes only, no client follow-up shots, casts capped
+            ToolStep::Twist(t) => {
+                let mut t = t.sanitized(twist::ModTable::shipped());
+                for s in std::iter::once(&mut t.a).chain(t.b.iter_mut()) {
+                    if let twist::TwistBase::Cast { shape, signature, .. } = &mut s.base {
+                        *shape = small(shape.take());
+                        *signature = signature.map(|g| g.sanitized());
+                    }
+                }
+                ToolStep::Twist(Box::new(t))
             }
             other => other,
         })

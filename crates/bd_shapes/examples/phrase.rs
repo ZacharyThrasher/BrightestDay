@@ -36,6 +36,7 @@ use bd_core::shape::ShapeSpec;
 use bd_lexicon::{Delivery, Intent, Lexicon, Refer, ResolutionKind, SignatureKind};
 use bd_shapes::costume;
 use bd_sim::MatchRules;
+use bd_sim::powers::compose;
 use bd_sim::freedom::deliver;
 use bd_sim::pickups::{self, GateKind};
 use bd_sim::presence_tier::{self, Tier, TierKnobs};
@@ -316,8 +317,21 @@ impl Tool {
             r => r,
         };
         let understood = |s: &str| Lexicon::is_clean_thing(&self.lex.resolve(s));
-        let parts = split_chain_with(text, &|s| read(s).is_move(), Some(&understood));
-        if parts.len() == 1 && !read(&parts[0]).is_move() {
+        // VERB GRAMMAR (docs/toolbox/COMPOSED_MOVE.md): a described move — the console's rule
+        // (bd_game toolbox::composed): every word understood, one verb, not a curated phrase.
+        let roster: Vec<(bd_core::PlayerId, &str)> = ROSTER.iter().enumerate().map(|(k, n)| (bd_core::PlayerId(k as u8 + 2), *n)).collect();
+        let fuzzy = |ws: &[&str]| {
+            let probe = format!("zap at {}", ws.first().copied().unwrap_or(""));
+            self.lex.target_player(&probe, &ROSTER, self.spoken).filter(|t| t.rest.trim().eq_ignore_ascii_case("zap")).map(|t| (roster[t.player].0, 1))
+        };
+        let names = compose::Names { players: &roster, fuzzy: Some(&fuzzy) };
+        let composed = |s: &str| {
+            let r = compose::read(s, &names)?;
+            let res = self.lex.resolve(s);
+            (!compose::curated_by_lexicon(s, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)).then_some(r)
+        };
+        let parts = split_chain_with(text, &|s| read(s).is_move() || composed(s).is_some(), Some(&understood));
+        if parts.len() == 1 && !read(&parts[0]).is_move() && composed(&parts[0]).is_none() {
             return None;
         }
         let sparks = &self.tuning.willpower.sparks;
@@ -346,7 +360,29 @@ impl Tool {
                             )
                         }),
                         R::Held(_) => Some("a move of a power you hold (held priority)".into()),
-                        R::Plain => None,
+                        R::Plain => composed(&p).and_then(|r| {
+                            let mv = r.spec.expand()?;
+                            let price = match bd_sim::powers::chain::move_tier(&mv) {
+                                Some(tr) => format!("{tr:?} tier, {} spark(s) (+1 per repeat)", bd_sim::powers::chain::move_sparks(sparks, &mv, 0, bar)),
+                                None => "priced by its cast(s)".into(),
+                            };
+                            let (secs, land) = bd_sim::powers::chain::active_phase(&mv);
+                            let who = match r.spec.target {
+                                compose::Target::Player(id) => roster.iter().find(|x| x.0 == id).map_or("?".to_string(), |x| x.1.to_string()),
+                                t => format!("{t:?}"),
+                            };
+                            Some(format!(
+                                "DESCRIBED move \"{}\" ({}; target {who}) - style \"{}\" - {} - cooldown {:.2} s - active {:.2} s{} - ops {}",
+                                mv.name,
+                                r.describe(),
+                                mv.fx,
+                                price,
+                                mv.cooldown,
+                                secs,
+                                if land { " (until you land)" } else { "" },
+                                mv.ops.iter().map(|o| format!("{o:?}")).collect::<Vec<_>>().join(" + ")
+                            ))
+                        }),
                     };
                     (p, d)
                 })

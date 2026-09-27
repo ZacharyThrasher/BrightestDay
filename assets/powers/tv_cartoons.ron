@@ -1887,7 +1887,7 @@
         id: "kit_demogorgon",
         name: "The Demogorgon",
         kind: Kit,
-        names: ["demogorgon", "the demogorgon", "demo gorgon", "demogorgons", "demodog", "demodogs"],
+        names: ["demogorgon", "the demogorgon", "demo gorgon", "demogorgons"],
         fx: "shadow",
         shouts: [("demodogs", 2)],
         moves: [
@@ -2146,7 +2146,7 @@
     ),
     (
         id: "kit_robin_titans",
-        name: "Robin",
+        name: "Robin (Teen Titans)",
         kind: Kit,
         names: ["robin teen titans", "teen titans robin", "titans robin", "dick grayson", "boy wonder", "the boy wonder"],
         fx: "tech",
@@ -2674,7 +2674,7 @@
         id: "kit_ladybug",
         name: "Ladybug",
         kind: Kit,
-        names: ["ladybug", "lady bug", "miraculous ladybug", "marinette", "marinette dupain cheng", "ladybug's"],
+        names: ["ladybug", "lady bug", "marinette", "marinette dupain cheng", "ladybug's"],
         fx: "energy",
         shouts: [("lucky charm", 0), ("miraculous ladybug", 1)],
         moves: [
@@ -3312,7 +3312,7 @@
         name: "Buffy Summers",
         kind: Kit,
         names: ["buffy", "buffy summers", "the slayer", "buffy the vampire slayer", "buffy's"],
-        shouts: [("slayer stake", 0), ("the scythe", 2)],
+        shouts: [("the scythe", 2)],
         moves: [
             // The stake: straight through the heart.
             (name: "stake", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
@@ -3546,8 +3546,7 @@
         name: "Perry the Platypus",
         kind: Kit,
         names: ["perry the platypus", "agent p", "perry", "perry the platypus's"],
-        shouts: [("agent p", 0)],
-        moves: [
+                moves: [
             // A flurry of spy kicks.
             (name: "kicks", tags: [Combo, Primary], cooldown: 1.6, cost: 3.0, ops: [
                 Barrage(hits: 5, interval: 0.11, range: 2.8, angle: 50.0, damage: 4.0, knockback: 5.0, finish: 20.0, advance: 3.0,
@@ -3903,7 +3902,7 @@
         id: "kit_mumm_ra",
         name: "Mumm-Ra",
         kind: Kit,
-        names: ["mumm ra", "mumm-ra", "mummra", "mumm ra the ever living", "mumm ra's"],
+        names: ["mumm ra", "mumm-ra", "mummra", "mumm ra's"],
         fx: "dark",
         shouts: [("ever living", 0), ("mumm ra the ever living", 0)],
         moves: [
