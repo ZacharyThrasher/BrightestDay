@@ -601,7 +601,11 @@ impl World {
                         p.mv.pos = c.seat_pos(seat.part);
                         p.mv.vel = c.vel;
                         p.mv.grounded = false;
-                        p.mv.release_tethers();
+                        // TRANSFORMERS V3: a robot on the pilot's kit shows its ropes on the pilot (render).
+                        match c.kit {
+                            Some(k) => p.mv.hooks = k.hooks,
+                            None => p.mv.release_tethers(),
+                        }
                         continue;
                     }
                     None => p.seat = None,

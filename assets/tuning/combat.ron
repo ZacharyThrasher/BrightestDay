@@ -1263,6 +1263,10 @@
         hero_max_scale: 4.6,        // a PILOTED combat transformer stands at most this tall (m; 0 = off)
         giant_min_scale: 7.0,       // ... unless said big (recipe scale >= this: "giant optimus") or a `giant` row
         ai_flash_delay: 0.08,       // followers take the flash window this far in (s)
+        // TRANSFORMERS V2 STAGE 3 (COMBAT.md §5d-quinquies): input buffer, early-transform buffer, dodge offset.
+        buffer_secs: 0.12,         // an LMB / RMB press during recovery fires the instant it's legal
+        early_xform_secs: 0.1,     // a Transform press this early before an ender / launcher still counts
+        dodge_grace_secs: 0.5,     // a mid-string boost-step tops the combo window up to at least this (s)
         // Ordered: the first rule that matches picks the archetype ("any" lists need one hit; 0 = no bound).
         rules: [
             (to: "helicopter", features_any: [Rotor]),

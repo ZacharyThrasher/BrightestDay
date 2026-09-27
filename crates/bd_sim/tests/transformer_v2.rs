@@ -452,6 +452,163 @@ fn a_landed_vehicle_attack_branches_into_rush_launch_or_drift() {
     }
 }
 
+// ------------------------------------------------------------------------------------ STAGE 3
+
+#[test]
+fn a_buffered_lmb_tap_fires_at_the_first_legal_frame() {
+    let t = CombatTuning::default().transformer;
+    let (mut w, id) = duel(optimus(), 1.0);
+    let ev = tick_n(&mut w, id, buttons::PRIMARY, 1);
+    assert_eq!(hits_on_b(&ev), 1);
+    assert_eq!(w.constructs.get(id).unwrap().brawl.step, 1);
+    // Wait until the recovery has only a sliver left — inside the buffer window before it clears.
+    for _ in 0..80 {
+        if w.constructs.get(id).unwrap().brawl.cd <= t.buffer_secs * 0.6 {
+            break;
+        }
+        tick_n(&mut w, id, 0, 1);
+    }
+    assert!(w.constructs.get(id).unwrap().brawl.cd > 0.0, "still recovering");
+    front(&mut w, id, 1.0);
+    // The tap: it must not land this instant (still recovering)...
+    let ev = tick_n(&mut w, id, buttons::PRIMARY, 1);
+    assert_eq!(hits_on_b(&ev), 0, "the recovery hasn't ended yet");
+    // ...but fires on its own the moment the recovery ends, with no further press.
+    let mut landed = false;
+    for _ in 0..20 {
+        let ev = tick_n(&mut w, id, 0, 1);
+        if hits_on_b(&ev) > 0 {
+            landed = true;
+            break;
+        }
+    }
+    assert!(landed, "the buffered tap fires the instant the recovery ends");
+    assert_eq!(w.constructs.get(id).unwrap().brawl.step, 2, "the string continues (not dropped)");
+}
+
+#[test]
+fn an_early_transform_press_counts_once_the_flash_window_opens() {
+    let t = CombatTuning::default().transformer;
+    let (mut w, id) = duel(optimus(), 1.5);
+    let hits = t.robot_row(w.constructs.get(id).unwrap()).string_hits;
+    // Land every non-ender hit, waiting out the recovery between each — but NOT after the last one:
+    // that leaves the robot recovering into the ender (the state `ender_pending` looks for).
+    for i in 0..(hits - 1) {
+        front(&mut w, id, 1.0);
+        tick_n(&mut w, id, buttons::PRIMARY, 1);
+        if i + 1 < hits - 1 {
+            for _ in 0..80 {
+                if w.constructs.get(id).unwrap().brawl.cd <= 0.0 {
+                    break;
+                }
+                tick_n(&mut w, id, 0, 1);
+            }
+        }
+    }
+    let c = w.constructs.get(id).unwrap();
+    assert_eq!(c.brawl.step, hits - 1, "one hit left: the ender");
+    assert!(c.brawl.cd > 0.0, "recovering into the ender");
+    // Wait until just inside the early-transform window, then press Transform — BEFORE the ender
+    // has connected (no flash window open yet).
+    for _ in 0..80 {
+        if w.constructs.get(id).unwrap().brawl.cd <= t.early_xform_secs * 0.6 {
+            break;
+        }
+        tick_n(&mut w, id, 0, 1);
+    }
+    assert_eq!(w.constructs.get(id).unwrap().brawl.flash, 0.0, "no connect yet");
+    assert!(w.toggle_transform(A));
+    tick_n(&mut w, id, 0, 1);
+    assert!(!w.constructs.get(id).unwrap().held.vehicle, "not an immediate plain transform");
+    assert_eq!(w.constructs.get(id).unwrap().brawl.xatk, XPhase::None);
+    // Land the ender (a buffered LMB tap of its own — the recovery from the last non-ender hit may
+    // still have a sliver left): it must land exactly once.
+    front(&mut w, id, 1.0);
+    let mut landed = false;
+    for k in 0..15 {
+        let b = if k == 0 { buttons::PRIMARY } else { 0 };
+        let ev = tick_n(&mut w, id, b, 1);
+        if hits_on_b(&ev) > 0 {
+            assert_eq!(hits_on_b(&ev), 1, "the ender connects (once)");
+            landed = true;
+            break;
+        }
+    }
+    assert!(landed, "the ender lands");
+    // The flash opened this tick; the buffered Transform fires the vehicle attack on the next legal
+    // frame instead of the ender's recovery running its course.
+    let mut became_burst = false;
+    for _ in 0..10 {
+        tick_n(&mut w, id, 0, 1);
+        if w.constructs.get(id).unwrap().brawl.xatk == XPhase::Burst {
+            became_burst = true;
+            break;
+        }
+    }
+    assert!(became_burst, "the buffered Transform fired the vehicle attack");
+}
+
+#[test]
+fn the_branch_window_stays_open_its_full_length_on_a_late_connect() {
+    let t = CombatTuning::default().transformer;
+    let (mut w, id) = duel(optimus(), 1.0);
+    string_to_flash(&mut w, id);
+    let a = t.robot_row(w.constructs.get(id).unwrap()).clone();
+    // B far along the ram's straight path: the connect lands well into the burst, close to its end.
+    front(&mut w, id, a.xattack_speed * a.xattack_secs * 0.85);
+    assert!(w.toggle_transform(A));
+    let mut opened_at = None;
+    for k in 0..200 {
+        tick_n(&mut w, id, 0, 1);
+        if w.constructs.get(id).unwrap().brawl.branch > 0.0 {
+            opened_at = Some(k as f32 / 120.0);
+            break;
+        }
+    }
+    let opened_at = opened_at.expect("the ram connects and opens the branch window");
+    assert!(opened_at > a.xattack_secs * 0.5, "connected late in the burst ({opened_at:.2}s of {:.2}s)", a.xattack_secs);
+    // Do nothing for most of `branch_secs`: without the fix, the burst ending (`xattack_secs`) would
+    // force the default finisher long before the branch window's own length runs out.
+    tick_n(&mut w, id, 0, (t.branch_secs * 120.0 * 0.8) as u32);
+    assert!(w.constructs.get(id).unwrap().brawl.branch > 0.0, "the branch window is still open near its full length");
+}
+
+#[test]
+fn a_mid_string_dodge_keeps_the_strings_position() {
+    let t = CombatTuning::default().transformer;
+    let (mut w, id) = duel(optimus(), 1.0);
+    let ev = tick_n(&mut w, id, buttons::PRIMARY, 1);
+    assert_eq!(hits_on_b(&ev), 1);
+    assert_eq!(w.constructs.get(id).unwrap().brawl.step, 1);
+    // Wait until the combo window is almost gone.
+    for _ in 0..200 {
+        if w.constructs.get(id).unwrap().brawl.open <= 0.05 {
+            break;
+        }
+        tick_n(&mut w, id, 0, 1);
+    }
+    let open_before = w.constructs.get(id).unwrap().brawl.open;
+    assert!(open_before > 0.0 && open_before <= 0.05, "the window is nearly gone ({open_before})");
+    // A boost-step: it tops the window up to `dodge_grace_secs` instead of letting it lapse.
+    tick_n(&mut w, id, buttons::DODGE, 1);
+    let open_after = w.constructs.get(id).unwrap().brawl.open;
+    assert!(open_after >= t.dodge_grace_secs - 0.02, "the dodge grants the grace ({open_after})");
+    // Wait out more than the ORIGINAL combo window's remainder, but inside the grace.
+    tick_n(&mut w, id, 0, ((t.dodge_grace_secs - 0.15) * 120.0) as u32);
+    front(&mut w, id, 1.0);
+    let ev = tick_n(&mut w, id, buttons::PRIMARY, 1);
+    assert_eq!(hits_on_b(&ev), 1);
+    assert_eq!(w.constructs.get(id).unwrap().brawl.step, 2, "the string continued instead of restarting");
+}
+
+#[test]
+fn masher_input_still_cant_farm_free_vehicle_attacks() {
+    // Stage 3's buffers must not reopen the door the stage-2 flash window closed on mashers.
+    let m = run_duel(optimus(), false);
+    let rate = m.xattacks_landed as f32 / m.transform_presses.max(1) as f32;
+    assert!(rate < 0.15, "masher vehicle-attack rate should stay low: {rate:.3} ({}/{})", m.xattacks_landed, m.transform_presses);
+}
+
 #[test]
 fn followers_take_the_flash_window() {
     let mut w = world();

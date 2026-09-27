@@ -60,7 +60,7 @@ fn has_feature(c: &Construct, f: Feature) -> bool {
     c.recipe.features.contains(&f)
 }
 
-fn flies(c: &Construct) -> bool {
+pub(super) fn flies(c: &Construct) -> bool {
     c.has(Mechanic::Flies)
         || matches!(c.recipe.form, Form::Bird | Form::Insect)
         || has_feature(c, Feature::Rotor)
@@ -82,7 +82,7 @@ fn starts_as_vehicle(c: &Construct) -> bool {
 }
 
 /// A ground vehicle body (wheels / treads / the Vehicle form).
-fn wheeled(c: &Construct) -> bool {
+pub(super) fn wheeled(c: &Construct) -> bool {
     c.recipe.form == Form::Vehicle || has_feature(c, Feature::Wheels) || has_feature(c, Feature::Treads)
 }
 
@@ -269,6 +269,7 @@ pub fn boardable(c: &Construct) -> bool {
 /// (creature AI, a vehicle hunting enemies, a transformer's mode machine). A transformer keeps the mode
 /// it was left in for a moment before its AI decides (no instant flip under the pilot's feet).
 pub fn on_leave(c: &mut Construct) {
+    super::kit::drop_kit(c); // TRANSFORMERS V3: ropes let go
     c.comp.xform.since = 0.0;
     c.held.transform_req = false;
     c.held.dash_t = 0.0;
@@ -754,7 +755,34 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     // the body, and a second Transform press brings the finisher early. In a beast mode it is the
     // robot bursting out of the beast into its finisher.
     if c.has(Mechanic::Transforms) {
-        if s.transform_req && !s.vehicle && s.transform_t <= 0.0 && super::brawl::wants_xattack(c) {
+        // V2 STAGE 3 EARLY-TRANSFORM BUFFER: a Transform press up to `early_xform_secs` before a
+        // pending string ender / Launcher heavy connects is held here instead of firing an immediate
+        // plain transform — it fires the vehicle attack the moment the flash window opens; if the
+        // swing whiffs and the buffer runs out, it resolves as the plain transform it would have been.
+        // `fresh_press` (not `s.transform_req`, which the expiry below may set synthetically) is what
+        // may ARM a fresh buffer — a masher's stray press must not be able to keep re-arming itself
+        // for as long as `ender_pending` stays true (the whole recovery, far past `early_xform_secs`).
+        let fresh_press = s.transform_req;
+        let mut xattack_now = false;
+        if c.brawl.xform_buf > 0.0 {
+            c.brawl.xform_buf = (c.brawl.xform_buf - dt).max(0.0);
+            if !s.vehicle && super::brawl::wants_xattack(c) {
+                c.brawl.xform_buf = 0.0;
+                xattack_now = true;
+            } else if c.brawl.xform_buf <= 0.0 {
+                s.transform_req = true; // expired unconverted: falls through to the plain transform
+            }
+        }
+        if fresh_press
+            && !s.vehicle
+            && s.transform_t <= 0.0
+            && c.brawl.xatk == super::brawl::XPhase::None
+            && !super::brawl::wants_xattack(c)
+            && super::brawl::ender_pending(c, tt.robot_row(c))
+        {
+            s.transform_req = false;
+            c.brawl.xform_buf = tt.early_xform_secs;
+        } else if xattack_now || (s.transform_req && !s.vehicle && s.transform_t <= 0.0 && super::brawl::wants_xattack(c)) {
             s.transform_req = false;
             c.held = s;
             super::brawl::start_xattack(c, env, out, pv.look);
@@ -766,6 +794,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             s = c.held;
         }
         if c.brawl.xatk != super::brawl::XPhase::None {
+            super::kit::drop_kit(c); // TRANSFORMERS V3: the transform attack drives the body
             let again = s.transform_req;
             s.transform_req = false;
             c.held = s;
@@ -787,7 +816,19 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         let sole = c.pos + Vec3::Y * (c.local_center.y - c.half.y);
         let airborne = !c.grounded && (c.vel.y.abs() > 0.5 || ground_at(env.ctx.voxels, sole, 0.3, 0.15).is_none());
         let fall = -c.vel.y;
+        let was_vehicle = s.vehicle;
         toggle(c, &mut s, airborne, fall, env, out);
+        // TRANSFORMERS V3 CHASE: robot -> vehicle launches the vehicle (keeping a dash's / hop's
+        // speed); vehicle -> robot with an enemy ahead is the flash-transform pop-out into melee.
+        if c.has(Mechanic::Transforms) && s.transform_t > 0.0 && was_vehicle != s.vehicle {
+            let v3 = &env.ctx.tuning.transformer.v3;
+            if s.vehicle && !flies(c) && !c.has(Mechanic::Thrust) && wheeled(c) {
+                let top = pilot_speed(c, true) * env.ctx.tuning.transformer.robot_row(c).vehicle_speed;
+                super::kit::launch_vehicle(c, v3, top);
+            } else if !s.vehicle {
+                super::kit::pop_out(c, &mut s, &pv, env, out);
+            }
+        }
     }
     let inp = pv.input;
     let (sy, cy) = inp.yaw.sin_cos();
@@ -801,6 +842,11 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let brawler = transformer && !s.vehicle && !rolling && !flier;
     let beast = beast_mode && !rolling && !flier;
     let fighter = brawler || beast;
+    // TRANSFORMERS V3 MOBILITY PARITY: a hero-scale fighting body moves on the pilot's own kit.
+    let kit = fighter && super::kit::applies(c, &env.ctx.tuning.transformer.v3);
+    if !kit && c.kit.is_some() {
+        super::kit::drop_kit(c);
+    }
     let (robot_speed, air_control, veh_speed, veh_grip, drift_boost, veh_turn) = if transformer {
         let t = &env.ctx.tuning.transformer;
         let a = t.robot_row(c);
@@ -877,21 +923,23 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let speed_h = Vec3::new(c.vel.x, 0.0, c.vel.z).length();
     let drifting = rolling && transformer && drift_boost > 0.0 && inp.held(buttons::DODGE) && dyaw.abs() > 0.2 && speed_h > 6.0;
     if !(flier && s.dash_t <= 0.0) {
-        let turn = if drifting { turn * 1.6 } else { turn };
+        let turn = if drifting { turn * 1.6 } else if kit { turn * 4.0 } else { turn };
         let yaw = cur_yaw + dyaw.clamp(-turn * dt, turn * dt);
         c.rot = Quat::from_rotation_y(yaw);
     }
     let fwd = c.forward();
     if s.dash_t > 0.0 {
         // Charge dash in progress.
-        c.vel = Vec3::new(fwd.x * 25.0, c.vel.y, fwd.z * 25.0);
+        let ds = if transformer && s.vehicle { (speed * env.ctx.tuning.transformer.v3.ram_boost).max(25.0) } else { 25.0 };
+        c.vel = Vec3::new(fwd.x * ds, c.vel.y, fwd.z * ds);
         dash_hits(c, env, out);
     } else if rolling {
         // Throttle along the facing; the hull steers toward the camera; lateral grip.
         let throttle = inp.move_z.clamp(-1, 1) as f32;
         let along = c.vel.dot(fwd);
         let target = throttle * speed * if throttle < 0.0 { 0.5 } else { 1.0 };
-        let mut along = along + (target - along) * (2.5 * dt).min(1.0);
+        let acc = if transformer { env.ctx.tuning.transformer.v3.vehicle_accel } else { 2.5 }; // V3: vehicle = the sprint
+        let mut along = along + (target - along) * (acc * dt).min(1.0);
         // Lateral grip: plain vehicles have full grip; transformers slide by their archetype, a drift
         // lets the tail go.
         let lateral = if transformer {
@@ -912,14 +960,16 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             c.brawl.drift_t = 0.0;
         }
         c.vel = Vec3::new(fwd.x * along + lateral.x, c.vel.y, fwd.z * along + lateral.z);
-    } else if !flier && c.brawl.pounce_t <= 0.0 {
+    } else if !flier && !kit && c.brawl.pounce_t <= 0.0 {
         let wish = (cam_fwd * inp.move_z.clamp(-1, 1) as f32 + cam_right * inp.move_x.clamp(-1, 1) as f32).normalize_or_zero();
         let want = wish * speed;
         let blend = if fighter && !c.grounded { blend * air_control } else { blend };
         c.vel.x += (want.x - c.vel.x) * blend;
         c.vel.z += (want.z - c.vel.z) * blend;
     }
-    if !flier && inp.held(buttons::JUMP) && c.grounded && !rolling {
+    if kit {
+        // The kit jumps / air-jumps / hovers (flying robots thrust on held Jump).
+    } else if !flier && inp.held(buttons::JUMP) && c.grounded && !rolling {
         c.vel.y = (7.0 + scale * 0.6).min(14.0);
         c.grounded = false;
     } else if boost && inp.held(buttons::JUMP) && !c.grounded {
@@ -931,6 +981,12 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     if fighter && s.transform_t <= dt {
         c.held = s;
         let grounded = c.grounded;
+        // V3 CHASE: a forward boost-step steers at the chase target (combo-target pick rule).
+        if kit && bi.dodge {
+            if let Some(d) = super::kit::dash_seek(c, &pv, env, bi.wish) {
+                bi.wish = d;
+            }
+        }
         if beast {
             super::brawl::beast(c, env, out, &bi, grounded);
         } else {
@@ -938,7 +994,9 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         }
         s = c.held;
     }
-    if flier {
+    if kit {
+        super::kit::step_body(c, &pv, env, robot_speed, boost);
+    } else if flier {
         fly_integrate(c, env);
     } else {
         integrate(c, env);
@@ -952,6 +1010,12 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             s.slam_armed = false;
             slam(c, env, out, c.pos, s.fall_speed, HeldFx::TransformSlam);
         }
+    }
+    // TRANSFORMERS V3: vehicle weapons (tank turret on the crosshair, jet / heli guns, car boost-ram).
+    let armed = transformer && s.vehicle && !beast_mode && s.transform_t <= 0.0 && super::kit::armament(c) != super::kit::Armament::None;
+    if armed {
+        let trig = super::kit::Trigger { hold1: bi.hold1, press2: bi.press2 };
+        let _ = super::kit::vehicle_fire(c, &mut s, env, out, pv.look, trig, speed);
     }
     let moving = Vec3::new(c.vel.x, 0.0, c.vel.z).length_squared() > 1.0;
     if s.transform_t > 0.0 {
@@ -971,7 +1035,7 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             s = ps;
         }
     } else {
-        if !fighter {
+        if !fighter && !armed {
             pilot_attacks(c, &mut s, &pv, env, out, fwd);
         }
         if c.anim_state != AnimState::Active {

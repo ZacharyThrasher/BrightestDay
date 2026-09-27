@@ -10,6 +10,7 @@
 //! | [`weight`] | robot-mode footfalls from the biped robot rig (metal step + knee servo per step, ground shake by size and distance, dust), beast-alt footfalls, landing thuds |
 //! | [`vehicle`] | engine voice per archetype (diesel, V8, bike, jet turbine, tank treads, rotor), pitched by speed; drift smoke + screech from the replicated velocity vs facing; drift-boost burst; boost trails |
 //! | [`combat`] | per-archetype swing + metal hit layers, robot arm clips on string hits, the finisher crunch, transform-attack speed lines, perfect-dodge sting; BEAST / DINO: roars, chomps, tail whoosh, pounce, breath |
+//! | [`sauce`] | V3 SAUCE: the move grammar on every robot strike / shot / transform attack / finisher — per-archetype weapon identity (look + voice), gather (servo coil, muzzle charge), release (smears, muzzle flash, tracers, casings, air tear), world reaction (sparks, shards, shockwaves, cracks, skid scars), tiered asymmetric hit-stop, impact frames + camera kick, the finisher's crunch + bass drop |
 //! | [`scenario`] | `--scenario tffeel --tf-shot …` dev frames (followers transforming, walking robots, beasts) |
 //!
 //! Sounds: `tools/sfxgen/sounds_transformer_feel.py` (original synthesis; the transform family keeps
@@ -17,6 +18,7 @@
 
 pub mod combat;
 pub mod flash;
+pub mod sauce;
 pub mod scenario;
 pub mod transform;
 pub mod vehicle;
@@ -55,6 +57,7 @@ impl Plugin for TransformerFeelPlugin {
                     .before(bevy::transform::TransformSystems::Propagate),
             );
         scenario::build(app);
+        sauce::build(app);
         if std::env::var_os("BD_TF_LOG").is_some() {
             app.add_systems(PostUpdate, log_sounds);
         }
@@ -63,7 +66,7 @@ impl Plugin for TransformerFeelPlugin {
 
 /// `BD_TF_LOG=1`: log every world sound this pass plays (and the transform family) — headless checks.
 fn log_sounds(time: Res<Time<Real>>, mut sfx: MessageReader<super::sound::Sfx3d>) {
-    const OURS: [&str; 12] = ["tf_", "robot_", "engine_", "tyre_", "drift_boost", "beast_", "pounce_", "transform_", "kaiju_roar", "kaiju_step", "rotor_loop", "land_heavy"];
+    const OURS: [&str; 13] = ["tf_", "tfs_", "robot_", "engine_", "tyre_", "drift_boost", "beast_", "pounce_", "transform_", "kaiju_roar", "kaiju_step", "rotor_loop", "land_heavy"];
     for s in sfx.read() {
         if OURS.iter().any(|p| s.name.starts_with(p)) {
             info!("tf sound t={:.2} {} gain {:.2} pitch {:.2}", time.elapsed_secs(), s.name, s.gain, s.pitch);

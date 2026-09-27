@@ -128,6 +128,7 @@ pub mod giant; // GIANTS: weak points, limbs, topple, rideable colliders, shockw
 pub mod graft;
 pub mod gun;
 pub mod held;
+pub mod kit; // TRANSFORMERS V3: the pilot's movement kit in robot mode, chase tools, vehicle weapons
 pub mod legend; // LEGENDARY: generic legendary move rules (recall, storm call, ricochet chain, deflect, blade wave, heavy blade, chain blades)
 pub mod object;
 pub mod pilot;
@@ -787,6 +788,9 @@ pub struct Construct {
     /// POWERS (powers/ops: `Seeker`, `Haul`, `Surge`): a power op moves this construct itself — no
     /// controller, component, physics or collider runs on it (lifetime and reaping still do). Host-only.
     pub driven: bool,
+    /// TRANSFORMERS V3 (`kit.rs`): a piloted robot's movement state on the pilot's own kit (bhop, air
+    /// strafe, air jump, walls, tethers). `None` outside robot mode. Host-only.
+    pub kit: Option<crate::movement::PlayerState>,
 }
 
 /// Where a slice half was cut from its parent (all in the parent's local frame, metres).
@@ -1218,6 +1222,7 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         alt_shape: None,
         authored_boxes: None,
         driven: false,
+        kit: None,
         weapon: if category == FormCategory::Held {
             crate::weapons::archetype_for(&p.recipe).map(|a| crate::weapons::WeaponState::new(a, &crate::weapons::spec_for(&p.recipe, a)))
         } else {

@@ -486,4 +486,8 @@ pub enum HeldFx {
     /// A cue window opened on the transformer at `pos`: `strength` > 0 = the FLASH window (s; Transform
     /// now = the vehicle attack), < 0 = the BRANCH window after a vehicle attack connected (−s).
     Flash = 60,
+    // ---- TRANSFORMERS V3 (`constructs/kit.rs`) ----
+    /// A vehicle-mode weapon fired from `pos` along `dir` (`strength` = `kit::VehicleGun` code: 1 tank
+    /// shell, 2 coax MG, 3 jet nose cannon, 4 missile, 5 chin gun, 6 rocket pod, 7 car gun, 8 boost-ram).
+    VehicleFire = 61,
 }

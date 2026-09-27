@@ -375,6 +375,18 @@ pub struct TransformerTuning {
     pub giant_min_scale: f32,
     /// AI followers: seconds into the flash window before they take it (a reaction, not a frame-1 read).
     pub ai_flash_delay: f32,
+    /// V2 STAGE 3 INPUT BUFFER: an LMB / RMB press during recovery (string `cd` / blaster `cd`) is
+    /// remembered this long (s) and fires the instant it's legal instead of being dropped.
+    pub buffer_secs: f32,
+    /// V2 STAGE 3 EARLY-TRANSFORM BUFFER: a Transform press up to this long (s) before a pending
+    /// string ender / Launcher heavy connects still counts once the flash window opens (see
+    /// `brawl::ender_pending`), instead of firing an immediate plain transform.
+    pub early_xform_secs: f32,
+    /// V2 STAGE 3 DODGE OFFSET: a boost-step dodge started mid-string tops the combo window up to at
+    /// least this long (s), so the dash's own time doesn't drop the string (the next hit continues it).
+    pub dodge_grace_secs: f32,
+    /// TRANSFORMERS V3: mobility parity (the pilot's kit in robot mode), chase tools, vehicle weapons.
+    pub v3: super::kit::V3Tuning,
     /// Ordered: the first rule that matches picks the archetype (unmatched → the first archetype).
     pub rules: Vec<ArchRule>,
     pub archetypes: Vec<Archetype>,
@@ -410,6 +422,10 @@ impl Default for TransformerTuning {
             hero_max_scale: 4.6,
             giant_min_scale: 7.0,
             ai_flash_delay: 0.08,
+            buffer_secs: 0.12,
+            early_xform_secs: 0.1,
+            dodge_grace_secs: 0.5,
+            v3: super::kit::V3Tuning::default(),
             rules: vec![
                 rule("helicopter", |r| r.features_any = vec![F::Rotor]),
                 rule("jet", |r| r.features_any = vec![F::Jet]),
@@ -925,6 +941,9 @@ impl TransformerTuning {
         self.hero_max_scale = fin(self.hero_max_scale, d.hero_max_scale, 0.0, 30.0);
         self.giant_min_scale = fin(self.giant_min_scale, d.giant_min_scale, 0.0, 100.0);
         self.ai_flash_delay = fin(self.ai_flash_delay, d.ai_flash_delay, 0.0, 1.0);
+        self.buffer_secs = fin(self.buffer_secs, d.buffer_secs, 0.0, 0.5);
+        self.early_xform_secs = fin(self.early_xform_secs, d.early_xform_secs, 0.0, 0.5);
+        self.dodge_grace_secs = fin(self.dodge_grace_secs, d.dodge_grace_secs, 0.0, 2.0);
         self.rules.truncate(64);
         self.archetypes.truncate(32);
         if self.archetypes.is_empty() {
@@ -1103,6 +1122,14 @@ pub struct BrawlState {
     pub flashes: u16,
     pub flashes_taken: u16,
     pub branches: u16,
+    /// V2 STAGE 3 INPUT BUFFER: the latest LMB / RMB press remembered this long (s) so a recovery
+    /// frame doesn't drop it (`TransformerTuning::buffer_secs`; fires the moment it's legal).
+    pub press1_buf: f32,
+    pub press2_buf: f32,
+    /// V2 STAGE 3 EARLY-TRANSFORM BUFFER (`pilot.rs`): a Transform press held this long (s) while a
+    /// string ender / Launcher heavy is about to connect (`TransformerTuning::early_xform_secs`),
+    /// instead of firing an immediate plain transform.
+    pub xform_buf: f32,
 }
 
 /// V2: the follow-up picked inside the branch window after a vehicle attack connects.
@@ -1135,6 +1162,8 @@ fn tick_timers(b: &mut BrawlState, dt: f32) {
     b.ai_t = (b.ai_t - dt).max(0.0);
     b.flash = (b.flash - dt).max(0.0);
     b.branch = (b.branch - dt).max(0.0);
+    b.press1_buf = (b.press1_buf - dt).max(0.0);
+    b.press2_buf = (b.press2_buf - dt).max(0.0);
 }
 
 /// V2 FLASH WINDOW: open it (a string's ender / a launcher / a counter just CONNECTED). Everyone sees
@@ -1472,6 +1501,11 @@ pub fn fight(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, inp: &Inp
         c.brawl.dodge_cd = t.dodge_cd;
         c.brawl.iframes = t.perfect_window;
         c.brawl.perfect_fx = false;
+        // V2 STAGE 3 DODGE OFFSET: mid-string, a boost-step keeps the string's position — top the
+        // combo window up to `dodge_grace_secs` instead of letting the dash's own time eat into it.
+        if c.brawl.step > 0 && c.brawl.open > 0.0 {
+            c.brawl.open = c.brawl.open.max(t.dodge_grace_secs);
+        }
         fx(out, c, HeldFx::Lunge, c.center(), c.brawl.dodge_dir, 1.0);
     }
     if c.brawl.dodge_t > 0.0 {
@@ -1498,10 +1532,17 @@ pub fn fight(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, inp: &Inp
         return;
     }
     // LMB: press = the next string hit; held past `heavy_hold` = the heavy.
+    // V2 STAGE 3 INPUT BUFFER: a press remembered for `buffer_secs` fires the instant the recovery
+    // (`cd`) ends instead of being dropped — a tap at the string's own rhythm never loses a hit.
     if inp.press1 {
+        c.brawl.press1_buf = t.buffer_secs;
+    }
+    let buffered1 = c.brawl.press1_buf > 0.0 && c.brawl.cd <= 0.0;
+    if inp.press1 || buffered1 {
         c.brawl.hold = 0.0;
         c.brawl.heavy_done = false;
         if c.brawl.cd <= 0.0 {
+            c.brawl.press1_buf = 0.0;
             if grounded {
                 string_hit(c, env, out, a, t, inp.aim, dm, km);
             } else {
@@ -1523,14 +1564,20 @@ pub fn fight(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, inp: &Inp
         c.brawl.hold = 0.0;
         c.brawl.heavy_done = false;
     }
-    ranged(c, env, out, a, inp, dm, km);
+    ranged(c, env, out, a, t, inp, dm, km);
 }
 
 /// RMB: the blaster, a held breath, or a roar.
-fn ranged(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, inp: &Input, dm: f32, km: f32) {
+fn ranged(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, a: &Archetype, t: &TransformerTuning, inp: &Input, dm: f32, km: f32) {
     match a.ranged {
         RangedKind::Bolt => {
-            if inp.press2 && c.brawl.blaster_cd <= 0.0 && a.blaster_shots > 0 {
+            // V2 STAGE 3 INPUT BUFFER: same as LMB — a tap during the blaster's own cooldown fires
+            // the instant it clears instead of being dropped.
+            if inp.press2 {
+                c.brawl.press2_buf = t.buffer_secs;
+            }
+            if (inp.press2 || c.brawl.press2_buf > 0.0) && c.brawl.blaster_cd <= 0.0 && a.blaster_shots > 0 {
+                c.brawl.press2_buf = 0.0;
                 let explode = a.blaster_explode || c.has(Mechanic::Explodes) || c.recipe.payload.as_ref().is_some_and(|p| p.has(Mechanic::Explodes) || p.form == Form::Bomb);
                 let right = inp.aim.cross(Vec3::Y).normalize_or_zero();
                 for k in 0..a.blaster_shots {
@@ -1838,6 +1885,14 @@ pub fn wants_xattack(c: &Construct) -> bool {
     c.brawl.xatk == XPhase::None && c.brawl.flash > 0.0 && !c.held.vehicle && c.has(Mechanic::Transforms) && c.brawl.pounce_t <= 0.0
 }
 
+/// V2 STAGE 3 EARLY-TRANSFORM BUFFER: is a string's ender, or a Launcher heavy's wind-up, about to
+/// connect and open the flash window (`open_flash`)? A Transform press now (`pilot.rs`) is held for
+/// `TransformerTuning::early_xform_secs` instead of firing an immediate plain transform.
+pub fn ender_pending(c: &Construct, a: &Archetype) -> bool {
+    (c.brawl.cd > 0.0 && !c.brawl.string_done && c.brawl.step == a.string_hits.saturating_sub(1))
+        || (c.brawl.hold > 0.0 && !c.brawl.heavy_done && a.heavy == HeavyKind::Launcher)
+}
+
 /// BEAST MODES: Transform during a beast-mode string = the robot bursts out of the beast straight
 /// into its finisher (the reverse of a transform attack).
 pub fn wants_burst_out(c: &Construct, t: &TransformerTuning) -> bool {
@@ -2137,7 +2192,10 @@ pub fn step_xattack(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut, ag
                     return flying && c.brawl.xatk == XPhase::Burst;
                 }
             }
-            if c.brawl.xatk_t >= a.xattack_secs || (again && c.brawl.xatk_t > 0.1) {
+            // V2 STAGE 3 BRANCH WINDOW FIX: a still-open branch window (the vehicle attack connected)
+            // runs its own full `branch_secs`, never cut short by the burst's `xattack_secs` ending —
+            // a late connect (near the end of the burst) still gets the whole window to pick from.
+            if c.brawl.branch <= 0.0 && (c.brawl.xatk_t >= a.xattack_secs || (again && c.brawl.xatk_t > 0.1)) {
                 step_carry(c, env, out, &a, km, true);
                 if matches!(a.xattack, XAttack::Pounce | XAttack::Stampede) {
                     clip(out, c, AttackKind::Charge, ai_phase::END, dir, 0.0);

@@ -1,49 +1,78 @@
-# Transformers V2: notes (stages 1+2 done; 3–5 queued)
+# Transformers V2: notes (stages 1–3 done; 4–5 queued)
 
 Rules: COMBAT.md §5d-quinquies. Code: `bd_sim/src/constructs/brawl.rs` (search for `V2`), the hero cap in
 `world/actions.rs::spawn_cast`, guard break in `world/combat.rs::apply_hit` and `powers/ops/counter.rs`,
 the cue in `bd_game/src/present/transformer_feel/flash.rs`, the camera in `present/camera3p.rs`.
 Tests: `bd_sim/tests/transformer_v2.rs`.
 
-## Measured (before → after)
+## Measured (before stage 1 → after stage 2 → after stage 3)
 
 `cargo test -p bd_sim --test transformer_v2 v2_measure -- --ignored --nocapture`: a scripted 20 s duel
 against a still 1.8 m dummy (put back in front when knocked > 14 m). The *timed* player presses LMB when
 the robot is ready and Transform 0.1 s after the string's ender. The *masher* presses LMB at 7.5 Hz and
 Transform every 1.2 s.
 
-| pilot | before: presses / hit | after: presses / hit | before: vehicle attacks landed | after: vehicle attacks landed | after: flash windows taken |
-|---|---|---|---|---|---|
-| Optimus, timed | 1.13 (43 / 38) | **0.86** (43 / 50) | 8 / 8 | 8 / 8 | 8 / 8 (100 %) |
-| Optimus, masher | 5.57 (167 / 30) | 20.9 (167 / 8) | 6 / 6 | 1 / 1 | 1 / 1 |
-| car, timed | 1.50 (60 / 40) | **0.86** (60 / 70) | 8 / 10 | 8 / 10 | 10 / 10 (100 %) |
-| car, masher | 3.34 (167 / 50) | 10.4 (167 / 16) | 15 / 17 | 1 / 1 | 1 / 1 |
+| pilot | before: presses / hit | stage 2: presses / hit | stage 3: presses / hit | stage 2: vehicle attacks landed | stage 3: vehicle attacks landed | stage 3: flash windows taken |
+|---|---|---|---|---|---|---|
+| Optimus, timed | 1.13 (43 / 38) | 0.86 (43 / 50) | **0.86** (43 / 50) | 8 / 8 | 8 / 8 | 8 / 8 (100 %) |
+| Optimus, masher | 5.57 (167 / 30) | 20.9 (167 / 8) | **13.9** (167 / 12) | 1 / 1 | 1 / 1 | 1 / 1 |
+| car, timed | 1.50 (60 / 40) | 0.86 (60 / 70) | **0.83** (60 / 72) | 8 / 10 | 9 / 10 | 10 / 10 (100 %) |
+| car, masher | 3.34 (167 / 50) | 10.4 (167 / 16) | **7.26** (167 / 23) | 15 / 17 | 2 / 3 | 3 / 3 |
 
-In the before build, any string hit opened a 0.7 s window, so a masher's random Transform presses became
-vehicle attacks 35 % of the time. Now a random Transform press is a full plain transform (8 of them in
-20 s), which takes the masher out of the fight. Intentional play lands more per press: 24 % more for
-Optimus, 43 % more for the car. The gap between the timed player and the masher grew from ~5× to ~24×.
-The robot also stands at 4.6 m instead of 6 m generic / 8.7 m for the real Optimus icon.
+Stage 3's input buffer rescues mistimed taps for everyone, timed or not: the masher's own hit count rose
+(8 → 12 for Optimus) simply because more of its 7.5 Hz taps now land instead of being dropped by the
+0.3 s string interval. The timed player's numbers are unchanged (its script was already frame-perfect,
+so there was nothing to buffer). Vehicle-attack conversion (`xattacks_landed / transform_presses`, not
+in the table) stayed pinned near where stage 2 left it — 6 % for Optimus's masher, 12 % for the car's,
+both ~17 transform presses over 20 s — because the early-transform buffer only ever holds a press for
+`early_xform_secs` (0.1 s) *from the press itself*, not from whenever the string entered recovery; see
+the re-arming bug below. The timed/masher gap stays wide (0.86 vs 13.9 presses/hit for Optimus).
 
-## For stage 3 (input buffer / cancels / dodge offset)
+## Stage 3 (input buffer, early-transform buffer, branch window fix, dodge offset) — done
 
-- **Stage 3's biggest win is a buffer on the flash.** A Transform press that comes early, just before
-  the ender connects, is a plain transform right now. `transform_req` is used up on the tick it's
-  pressed (`pilot.rs`: xattack start, or else `toggle`). Hold it for ~0.1 s while a string ender's
-  swing is live (`brawl.cd > 0 && step == string_hits - 1`), then let `wants_xattack` take it.
-- **Presses during the recovery are DROPPED** (`brawl::fight`: `press1` with `cd > 0` does nothing).
-  LMB taps at exactly the string interval (0.3 s) lose every other hit to float timing. The piloting
-  strip's script had to move to 0.33 s spacing. A ~0.12 s LMB buffer is the cheapest feel win left.
-- The window opens on the *connect*. A whiffed ender never opens it (`open_flash` needs `n > 0`).
-- Branch input is read during the burst by `brawl::pick_branch`: an LMB tap = rush, and an LMB held
-  for `branch_hold` = the launch. A tap resolves on release, so the rush is 1–3 ticks late. Before V2,
-  LMB during the burst was ignored.
-- The branch window runs from the first connect until `branch_secs` runs out **or the burst ends**,
-  whichever is first. If the ram connects late, the window is shorter. Past the burst, the default
-  finisher runs (the Finish phase doesn't read branch input). An earlier attempt kept the burst going
-  while the window was open. The victim drifted out of the finisher's reach, so that was reverted.
-- The drift branch leaves `open = combo_window`, `cd = 0`, `step = 0`: the next LMB starts a new string
-  right away. A cancel system can use the same state.
+New tunables in `combat.ron` → `transformer`: `buffer_secs` (0.12 s), `early_xform_secs` (0.1 s),
+`dodge_grace_secs` (0.5 s). New state in `BrawlState`: `press1_buf`, `press2_buf`, `xform_buf`. Tests:
+`transformer_v2.rs` STAGE 3 section (buffered tap, early transform, late-connect branch, dodge offset,
+masher regression guard).
+
+- **Input buffer** (`brawl::fight`): an LMB/RMB press while its own cooldown (`cd` / `blaster_cd`) is
+  still running is remembered in `press1_buf` / `press2_buf` for `buffer_secs` and fires the instant
+  the cooldown clears, instead of being silently dropped. The buffer is only *set* when the raw press
+  arrives (never re-armed on later ticks) and only *cleared* once it actually fires — an earlier draft
+  cleared it unconditionally on the press tick, which meant a press arriving before the cooldown ended
+  never actually got remembered. Caught by `a_buffered_lmb_tap_fires_at_the_first_legal_frame`.
+- **Early-transform buffer** (`brawl::ender_pending` + `pilot.rs`): a Transform press while a string's
+  about to land its ender (`cd > 0 && !string_done && step == string_hits - 1`) or a Launcher heavy is
+  winding up (`hold > 0 && !heavy_done`) is held in `c.brawl.xform_buf` for `early_xform_secs` instead
+  of firing an immediate plain transform; `wants_xattack` becoming true while the buffer is still alive
+  consumes it into `start_xattack`. If the swing whiffs and the buffer runs out first, it falls back to
+  the plain transform it would have been (no press is silently eaten).
+  - **The re-arming bug (the one that mattered):** the first version used `s.transform_req` — a sticky
+    flag also set synthetically when the buffer expires unconverted, so the code could fall through to
+    the SAME "arm a fresh buffer" branch it had just come from, as long as `ender_pending` was still
+    true. Since `ender_pending`'s window is the *whole* recovery (up to ~0.4 s for some rows), far
+    longer than `early_xform_secs`, this let the buffer keep re-arming itself for the entire recovery —
+    any masher Transform press landing anywhere in that window (not just the last 0.1 s) eventually
+    converted once the ender connected. Measured effect: the masher's vehicle-attack conversion jumped
+    from ~6 % to ~24 % (Optimus) before the fix. The fix separates "a fresh press this tick"
+    (`fresh_press`, captured before the buffer-expiry logic touches `s.transform_req`) from "the buffer
+    just expired, fall through to the plain toggle" — only `fresh_press` may arm a new buffer.
+  - Applies to the main piloted path (`step_piloted`) only, not the small-suit path (`suit_transformer`,
+    ≤ 2.6 m — "you are the robot"); its Transform handling is a separate, simpler flow.
+- **Branch window fix** (`step_xattack`): the fallback finish (`begin_finish`) used to trigger on
+  `xatk_t >= xattack_secs` unconditionally, which cut the branch window short whenever the vehicle
+  attack connected late in the burst (little of `xattack_secs` left to run out the window's own
+  length). Now that fallback is gated on `branch <= 0.0` too, so a still-open branch window always gets
+  its full `branch_secs`, connect early or late. Whiffed attacks (branch never opens) are unaffected.
+- **Dodge offset** (`brawl::fight`, the boost-step trigger): starting a boost-step mid-string
+  (`step > 0 && open > 0.0`) tops `open` up to at least `dodge_grace_secs` (0.5 s) instead of letting
+  the dash's own time (and any repositioning after it) eat into the ordinary 0.7 s `combo_window`. The
+  next LMB continues the string (`step` increments) instead of restarting it, as long as it lands
+  within the grace.
+- The masher regression guard (`masher_input_still_cant_farm_free_vehicle_attacks`) asserts
+  `xattacks_landed / transform_presses < 0.15`; measured ~0.06–0.12. Worth re-checking after any future
+  change to `buffer_secs` or `early_xform_secs` — the two combine multiplicatively (more landed enders
+  × a wider conversion window), so small increases to either can swing the masher rate a lot.
 
 ## For stage 4 (tiered asymmetric hitstop + crunch audio)
 

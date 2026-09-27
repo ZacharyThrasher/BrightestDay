@@ -37,6 +37,7 @@ import sounds_moves  # noqa: E402,F401  (TOOLBOX PRESENTATION: move grammar verb
 import sounds_weapon_class  # noqa: E402,F401  (WEAPON FEEL: per-class swings, heavy crunch / ground crack, whip crack, shield bash)
 import sounds_transformer_feel  # noqa: E402,F401  (TRANSFORMER FEEL: transform beds / snaps / locks, robot steps, engines, robot combat, beasts)
 import sounds_taunt  # noqa: E402,F401  (TAUNT & VOICE TELL: tiny wordless taunt stings)
+import sounds_tf_sauce  # noqa: E402,F401  (TRANSFORMERS V3 SAUCE: per-archetype weapon identity, gather hum, air tear, finisher bass drop)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

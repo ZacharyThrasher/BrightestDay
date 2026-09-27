@@ -3058,6 +3058,146 @@
             sequence: false,
             stereo: false,
         ), // TAUNT dance: a bouncy four-tick groove (132 bpm) over a tiny kick
+        "tfs_blade_hum": (
+            files: ["sfx/tfs_blade_hum_1.ogg", "sfx/tfs_blade_hum_2.ogg", "sfx/tfs_blade_hum_3.ogg", "sfx/tfs_blade_hum_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // energon blade swing: E-minor hum doppler + heavy whoosh + servo
+        "tfs_blaster_zip": (
+            files: ["sfx/tfs_blaster_zip_1.ogg", "sfx/tfs_blaster_zip_2.ogg", "sfx/tfs_blaster_zip_3.ogg", "sfx/tfs_blaster_zip_4.ogg", "sfx/tfs_blaster_zip_5.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // robot blaster: bright FM zap + snap + punch + capacitor whine tail
+        "tfs_cannon_chatter": (
+            files: ["sfx/tfs_cannon_chatter_1.ogg", "sfx/tfs_cannon_chatter_2.ogg", "sfx/tfs_cannon_chatter_3.ogg", "sfx/tfs_cannon_chatter_4.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // jet cannon burst: 4 rapid snaps + mechanism clanks + punch
+        "tfs_chin_gun": (
+            files: ["sfx/tfs_chin_gun_1.ogg", "sfx/tfs_chin_gun_2.ogg", "sfx/tfs_chin_gun_3.ogg", "sfx/tfs_chin_gun_4.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // helicopter chin gun: rotary whir under 3 thudding rounds
+        "tfs_shell_thump": (
+            files: ["sfx/tfs_shell_thump_1.ogg", "sfx/tfs_shell_thump_2.ogg", "sfx/tfs_shell_thump_3.ogg", "sfx/tfs_shell_thump_4.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -11.0,
+            sequence: false,
+            stereo: false,
+        ), // tank shell: deep chest boom + breech clank + casing ring + short blast air
+        "tfs_grind_screech": (
+            files: ["sfx/tfs_grind_screech_1.ogg", "sfx/tfs_grind_screech_2.ogg", "sfx/tfs_grind_screech_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // construction grinder: toothed metal grind + spark hiss
+        "tfs_spin_whirr": (
+            files: ["sfx/tfs_spin_whirr_1.ogg", "sfx/tfs_spin_whirr_2.ogg", "sfx/tfs_spin_whirr_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // bike spin-out: rising rotor whirr + tyre chirp + whoosh
+        "tfs_bite_crunch": (
+            files: ["sfx/tfs_bite_crunch_1.ogg", "sfx/tfs_bite_crunch_2.ogg", "sfx/tfs_bite_crunch_3.ogg", "sfx/tfs_bite_crunch_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // dino jaws: growl onset + double jaw clank + crunch cluster + sub thump
+        "tfs_claw_rake": (
+            files: ["sfx/tfs_claw_rake_1.ogg", "sfx/tfs_claw_rake_2.ogg", "sfx/tfs_claw_rake_3.ogg", "sfx/tfs_claw_rake_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // beast claws: three quick metallic rakes over a short whoosh
+        "tfs_missile_whoosh": (
+            files: ["sfx/tfs_missile_whoosh_1.ogg", "sfx/tfs_missile_whoosh_2.ogg", "sfx/tfs_missile_whoosh_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // missile launch: ignition pop + rocket hiss whoosh
+        "tfs_turret_swivel": (
+            files: ["sfx/tfs_turret_swivel_1.ogg", "sfx/tfs_turret_swivel_2.ogg", "sfx/tfs_turret_swivel_3.ogg"],
+            category: "weapon",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // turret swivel: short heavy servo whine + gear tick
+        "tfs_charge_hum": (
+            files: ["sfx/tfs_charge_hum_1.ogg", "sfx/tfs_charge_hum_2.ogg", "sfx/tfs_charge_hum_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // gather: rising energon hum + servo tighten (a muzzle charging / a heavy winding up)
+        "tfs_air_tear": (
+            files: ["sfx/tfs_air_tear_1.ogg", "sfx/tfs_air_tear_2.ogg", "sfx/tfs_air_tear_3.ogg", "sfx/tfs_air_tear_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // heavy release: a ripping air tear (sharp band sweep) + pressure thump
+        "tfs_finisher_drop": (
+            files: ["sfx/tfs_finisher_drop_1.ogg", "sfx/tfs_finisher_drop_2.ogg", "sfx/tfs_finisher_drop_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -10.0,
+            sequence: false,
+            stereo: false,
+        ), // finisher: metallic crunch + bending groan into a long saturated BASS DROP (80 -> 26 Hz)
     },
     ko_streak: (
         key: "E minor pentatonic",
