@@ -99,3 +99,10 @@ bd_game `power_hud/labels.rs::move_verb` has a wildcard arm now (add a verb arm 
   oval on the wall until its partner opens), `Empowered { on }` (Super Star rainbow / Spartan Rage
   aura for `secs`), `Mended` (Estus glow). Frames: `BD_MOVEFX_TEST=phrase BD_MOVEFX_PHRASE="…"`
   (the generic phrase scene added to movefx/dev.rs) fires any kit / borrowed move or chain.
+- OP VISUALS → op owners: every `OpEvent` now has a drawn beat in `crates/bd_game/src/present/powers/op_visuals/`
+  (`visual_of` is an exhaustive match: a NEW `OpEvent` variant won't compile until you map it there — pick a
+  primitive: marker / telegraph / tether / strike / aura / pulse / ray). Beats draw in the MOVE's look (the
+  last `Fired` of that player → `move_fx.ron` style), so give headline moves an `fx` / `juice.color`. A move
+  whose power comes out of the eyes can use `fx: "gaze"` (twin eye beams along the live look). Dev:
+  `BD_OPVIS_LOG=1` logs op events in the phrase scene, `BD_OPVIS_PRE` / `BD_OPVIS_THEN` stage a target's
+  move / your follow-up, `BD_OPVIS_OFF=1` for A/B. Sheet: docs/toolbox/op_visuals_sheet.png.

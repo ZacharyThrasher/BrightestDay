@@ -270,7 +270,7 @@ fn main() {
             if ix.shout_yields(s, &judge) {
                 let why = if l.is_icon_name(s) { format!("icon {}", res.recipe.name) } else { res.recipe.name.clone() };
                 dead.push((s.to_string(), m, why));
-            } else if !s.contains(' ') && !ix.is_marked_shout(s) && plain_thing(l, s) {
+            } else if !s.contains(' ') && !ix.is_marked_shout(s, &everyday) && plain_thing(l, s) {
                 // one rare / coined word the lexicon reads as a THING ("surfboard", "minigun"):
                 // it still borrows (coined words count as proper) — review it
                 coined.push((s.to_string(), m, res.recipe.name.clone()));

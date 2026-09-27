@@ -112,6 +112,8 @@ pub struct MoveIndex {
     kit_first: HashMap<String, Vec<u32>>,
     /// Shouts the data marks PROPER (written with a capital letter: `("Spirit Bomb", 2)`).
     proper: HashSet<String>,
+    /// Shouts that carry their owner's name ("gaara sand shield") → the names found in them.
+    owner_named: HashMap<String, Vec<String>>,
 }
 
 /// SHOUT HYGIENE — the lexicon's opinion of a phrase ([`MoveIndex::read_judged`]). Shouts are
@@ -264,17 +266,21 @@ impl MoveIndex {
         }
         ix.names.remove("");
         ix.proper = t.proper_shouts.iter().cloned().collect();
-        // A shout that carries its own character's / power's name ("kirby hammer", "mustang
-        // inferno", "haze smoke bomb") is distinctive by construction: proper.
+        // A shout that carries its own character's / power's name ("kirby hammer", "gaara sand
+        // shield") is distinctive by construction — when that name is itself distinctive (judged
+        // with the lexicon's everyday words: "portal" / "storm" alone don't count).
         for (s, r) in &ix.shouts {
             let Some(def) = t.def(r.power) else { continue };
             let sw: Vec<&str> = s.split(' ').map(strip_possessive).collect();
-            let named = owner_names(def).iter().any(|n| {
-                let nw: Vec<&str> = n.split(' ').collect();
-                n.len() >= 2 && nw.len() < sw.len() && sw.windows(nw.len()).any(|w| w == nw.as_slice())
-            });
-            if named {
-                ix.proper.insert(s.clone());
+            let named: Vec<String> = owner_names(def)
+                .into_iter()
+                .filter(|n| {
+                    let nw: Vec<&str> = n.split(' ').collect();
+                    n.len() >= 2 && nw.len() < sw.len() && sw.windows(nw.len()).any(|w| w == nw.as_slice())
+                })
+                .collect();
+            if !named.is_empty() {
+                ix.owner_named.insert(s.clone(), named);
             }
         }
         ix.kits.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then(a.0.cmp(&b.0)).then(a.1.cmp(&b.1)));
@@ -445,22 +451,24 @@ impl MoveIndex {
     }
 
     /// Is normalised shout `n` MARKED proper — Title Case in the data, or carrying its own
-    /// character's / power's name? (Only a marked shout beats a curated icon of the same name: a
-    /// coined word alone doesn't — "mjolnir" / "lightsaber" / "batarang" are things.)
-    pub fn is_marked_shout(&self, n: &str) -> bool {
-        self.proper.contains(n)
+    /// character's / power's DISTINCTIVE name ("kirby flaming hammer", "gaara sand shield"; not
+    /// "fire portal" for a kit called "portal")? Only a marked shout beats a curated icon or an
+    /// ordinary thing of the same name ("mjolnir" / "flaming hammer" are things).
+    pub fn is_marked_shout(&self, n: &str, everyday: &dyn Fn(&str) -> bool) -> bool {
+        self.proper.contains(n) || self.owner_named.get(n).is_some_and(|names| names.iter().any(|name| name.split(' ').any(|w| !everyday(w))))
     }
 
     /// SHOUT HYGIENE: does the shout `text` yield to the lexicon's reading? A shout MARKED proper
-    /// (Title Case in the data, or carrying its owner's name) never does. Otherwise it yields when
-    /// it is exactly a curated icon's name ("mjolnir" summons Mjolnir), and — unless it has a
-    /// coined / proper word ("kamehameha", "expelliarmus", "fus ro dah": [`Self::is_proper_shout`])
-    /// — when the lexicon composes a clean ordinary thing from it ("flaming hammer") or when it is
-    /// ONE everyday word ("dash", "smoke", "float": never distinctive enough to be global; the
-    /// lexicon / the described-move grammar reads it). A holder always fires their own shouts.
+    /// (Title Case in the data, or carrying its owner's distinctive name) never does. Otherwise it
+    /// yields when it is exactly a curated icon's name ("mjolnir" summons Mjolnir), and — unless it
+    /// has a coined / proper word ("kamehameha", "expelliarmus", "fus ro dah":
+    /// [`Self::is_proper_shout`]) — when the lexicon composes a clean ordinary thing from it
+    /// ("flaming hammer") or when it is ONE everyday word ("dash", "smoke", "float": never
+    /// distinctive enough to be global; the lexicon / the described-move grammar reads it). A
+    /// holder always fires their own shouts.
     pub fn shout_yields(&self, text: &str, j: &LexJudge) -> bool {
         let n = norm_words(text);
-        if self.is_marked_shout(&n) {
+        if self.is_marked_shout(&n, j.everyday) {
             return false;
         }
         (j.icon)(text) || (!self.is_proper_shout(&n, j.everyday) && (!n.contains(' ') || (j.thing)(text)))

@@ -466,4 +466,34 @@ mod tests {
         let clean = sanitize_steps(vec![ToolStep::Twist(Box::new(t))], |s| s);
         assert!(matches!(&clean[0], ToolStep::Twist(t) if t.shot == 0 && !t.a.mods.contains(&0)));
     }
+
+    /// SHOUT HYGIENE (TOOLBOX QA): shouts are global, so an ordinary thing the lexicon reads wins
+    /// over a shout that isn't a famous PROPER move name; famous names, coined words and the
+    /// character's own "<name> <move>" stay moves; voice == typing.
+    #[test]
+    fn shout_hygiene_things_stay_things_famous_moves_stay_moves() {
+        let Some(lex) = lex() else { return };
+        let cmd = |s: &str, spoken: bool| command(&lex, None, true, s, spoken);
+        let is_move = |s: &str, spoken: bool| matches!(cmd(s, spoken).as_deref(), Some([ToolStep::Move { .. }]));
+        // ordinary things: the construct (the console casts them)
+        for s in ["flaming hammer", "zelda shield", "a flaming hammer", "ice sword", "mjolnir", "sand shield", "fire portal", "rock wall"] {
+            for spoken in [false, true] {
+                assert!(cmd(s, spoken).is_none(), "{s:?} (spoken {spoken}) must build the thing: {:?}", cmd(s, spoken));
+            }
+        }
+        // a bare everyday word is never a global shout: the described-move grammar / lexicon reads it
+        assert!(!is_move("dash", false), "dash → {:?}", cmd("dash", false));
+        // famous proper names, coined words, the character's own move: moves, typed or spoken
+        for s in ["kamehameha", "rasengan", "hadouken", "fus ro dah", "almighty push", "spirit bomb", "chidori", "gum gum pistol", "bamf", "expelliarmus", "earthshatter"] {
+            for spoken in [false, true] {
+                assert!(is_move(s, spoken), "{s:?} (spoken {spoken}) must stay a move: {:?}", cmd(s, spoken));
+            }
+        }
+        for s in ["kirby flaming hammer", "gaara sand shield", "thor mjolnir", "zelda parry", "doomfist punch"] {
+            assert!(is_move(s, false), "{s:?} must fire the character's move: {:?}", cmd(s, false));
+        }
+        // a known shout containing "and" is not cut apart by a weak separator (the lead's case)
+        assert_eq!(cmd("fish up the islands, huff and puff", false).map(|c| c.len()), Some(2));
+        assert_eq!(cmd("rasengan and chidori", false).map(|c| c.len()), Some(2));
+    }
 }
