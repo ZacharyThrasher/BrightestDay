@@ -1068,7 +1068,13 @@ impl Ctx<'_> {
                 snd(w, "leap_whoosh", a, 0.9, 1.0);
             }
             OpEvent::Surge { player, phase, target, pos, dir, width, speed, dist } => {
-                let look = self.look(*player, None);
+                // The wall is its ELEMENT (a tidal wave is water, whatever the move's colour key /
+                // the caster's corps colour says); no element = the move's look.
+                let el = op_of(self.mv(*player), |o| if let MoveOp::Surge { element, .. } = o { Some(*element) } else { None }).filter(|e| *e != Element::Light);
+                let look = match el {
+                    Some(e) => self.fallback(*player, Some(e)),
+                    None => self.look(*player, None),
+                };
                 let p = bv(*pos);
                 let d = bv(*dir);
                 match phase {

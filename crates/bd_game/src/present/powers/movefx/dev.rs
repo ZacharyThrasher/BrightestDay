@@ -23,6 +23,10 @@
 //!   "judgment cut end", "sonic homing attack -> chaos control"); `BD_MOVEFX_AT=0.1,0.4,0.9` sets the
 //!   shot offsets (s after it fires), `BD_MOVEFX_PITCH=<deg>` the look pitch, `BD_MOVEFX_DUMMY=<m>`
 //!   how far down the stage the first target stands (any scene; default 14).
+//! * `BD_MOVEFX_RELEASE=<ms>` (`obs` view: a bot actor): a held palm beam / charge gun is charged by
+//!   holding PRIMARY from the fire and RELEASED that many ms after it (SolarBeam, Eye of Ra, any
+//!   Hands beam: the sheet shows the beam, not only its gather). The local player's input is live
+//!   input, so use `obs` for beams.
 //! * `BD_MOVEFX_OBSDIST=<m>` (`obs` view): how far ahead of the camera the actor stands (default 9;
 //!   20 / 40 = the thumbnail-scale readability checks).
 //! * `BD_MOVEFX_SPAM=<n>`: perf — every bot (and you) fires the scene's move every 0.4 s from t = 3 s,
@@ -91,6 +95,11 @@ fn phrase_offsets() -> &'static [f32] {
 /// How far along the stage the first target stands (`BD_MOVEFX_DUMMY`, m; default 14).
 fn dummy_dist() -> f32 {
     env("BD_MOVEFX_DUMMY").and_then(|v| v.parse().ok()).unwrap_or(14.0)
+}
+
+/// `BD_MOVEFX_RELEASE` (ms after the fire a bot actor lets go of PRIMARY).
+fn release_ms() -> Option<f32> {
+    env("BD_MOVEFX_RELEASE").and_then(|v| v.parse().ok())
 }
 
 /// `obs` view: how far ahead the actor stands (`BD_MOVEFX_OBSDIST`, m; default 9).
@@ -239,6 +248,18 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
         }
     }
     dev.actor = Some(if observer() { others.first().copied().unwrap_or(me.0) } else { me.0 });
+    // Beam auto-release: hold PRIMARY on the bot actor from the fire until the release time.
+    if let (Some(ms), Some(f), Some(a)) = (release_ms(), dev.fired_at, dev.actor)
+        && a != me.0
+        && let Some(p) = active.world.player_mut(a)
+    {
+        let held = dev.t - f < ms / 1000.0;
+        if held {
+            p.input.buttons |= bd_core::input::buttons::PRIMARY;
+        } else {
+            p.input.buttons &= !bd_core::input::buttons::PRIMARY;
+        }
+    }
     if let (Some(f), Some(a)) = (dev.fired_at, dev.actor)
         && dev.t - f < 1.0
         && ((dev.t - f) * 4.0).floor() != ((dev.t - f - time.delta_secs()) * 4.0).floor()
