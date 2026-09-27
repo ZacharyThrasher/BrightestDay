@@ -22,6 +22,12 @@ worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
+- Powers integration a11d2e8eb52e53787 — AscendTints → costume (SSJ gold hair, sharingan eyes, Gear 5
+  toon), PowerCue → audio (stingers, generic music overlay layer = Gear 5 drums), technique orb on clients,
+  Gear 4 extra air jumps (generic modifier), Rinnegan near-camera shell + caster title letters too big.
+- Powers a8211d8337e51dbfe DONE (committed 1e4398a).
+- Lead: COPY CODE fix — bevy `system_clipboard` feature on bd_game (was in-process fallback buffer only;
+  copy/paste never reached the OS). Toast says "couldn't copy" on error. Verify + commit when green.
 - Signature PHASE 4 a67f94557763852e1 (resumed) — saturated/glowy palm beams (HDR core+body+halo, bloom,
   world light) + PHYSICAL beams (travelling head, steerable, carve tunnels, blocked by barriers) + BEAM
   CLASH (junction ball drifts toward weaker push; hold to pour willpower; bail anytime; detonates). + GENERIC hold-to-grow thrown energy (palms→overhead by size, tap = base, hit knocks it loose, physical/carving) + generic energy collisions (beam/beam, beam/orb push-back, orb/orb). Presence worker: gather radius scales with tier, motes sampled from surroundings, driven by held size.

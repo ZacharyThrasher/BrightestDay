@@ -154,14 +154,25 @@ pub fn emit(
     size: f32,
     life: f32,
     face: Option<Vec3>,
+    eye: Vec3,
 ) {
     let far = (radius / 15.0).clamp(0.0, 3.0);
+    // A wide shell can contain the viewer: never stream a mote through the camera (it would be a
+    // screen-sized cube). Far from the viewer this is a no-op.
+    let clear = |p: Vec3| -> bool {
+        let d = target - p;
+        let k = ((eye - p).dot(d) / d.length_squared().max(1e-4)).clamp(0.0, 1.0);
+        (p + d * k).distance_squared(eye) > 2.5 * 2.5
+    };
     for i in 0..n {
         // Every other mote from the surroundings (when sampled): the world gives its energy.
         let sampled = s.filter(|s| !s.samples.is_empty() && face.is_none() && i % 2 == 0).map(|s| s.samples[fx.rng.below(s.samples.len())]);
         match sampled {
             Some((p, c, st)) => {
                 let p = p + fx.rng.vec() * 0.6;
+                if face.is_none() && !clear(p) {
+                    continue;
+                }
                 let d = p.distance(target);
                 let l = (life * (0.4 + 0.6 * d / radius.max(0.1))).clamp(0.08, 2.0) * fx.rng.range(0.85, 1.15);
                 let (flags, emissive, sz, col) = match st {
@@ -215,6 +226,9 @@ pub fn emit(
                     });
                 } else {
                     let p = target + dir * r;
+                    if face.is_none() && !clear(p) {
+                        continue;
+                    }
                     mote(fx, element, p, (target - p) / l, color, size * (1.0 + far * 0.6), l);
                 }
             }

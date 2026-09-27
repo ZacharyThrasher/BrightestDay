@@ -166,8 +166,8 @@ fn assets(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mats: Re
 
 fn glow_mat(col: [f32; 3]) -> StandardMaterial {
     StandardMaterial {
-        base_color: Color::linear_rgba(col[0], col[1], col[2], 0.22),
-        emissive: LinearRgba::rgb(col[0] * 2.0, col[1] * 2.0, col[2] * 2.0),
+        base_color: Color::linear_rgba(col[0], col[1], col[2], 0.1),
+        emissive: LinearRgba::rgb(col[0] * 0.7, col[1] * 0.7, col[2] * 0.7),
         unlit: true,
         alpha_mode: AlphaMode::Add,
         ..default()
@@ -378,7 +378,7 @@ fn draw(parts: &[Entity; 4], q: &mut PartQ, a: Vec3, d: Vec3, len: f32, r: f32, 
         (a, len, r),
         (a, band, r * 1.3),
         (a + d * (len - band), band, r * 1.3),
-        (a, len, r * 1.9),
+        (a, len, r * 1.45),
     ];
     for (e, (from, l, rad)) in parts.iter().zip(pieces) {
         if let Ok((mut tf, mut vis)) = q.get_mut(*e) {
@@ -581,6 +581,7 @@ struct WukongDev {
     t: f32,
     cast: bool,
     base_yaw: Option<f32>,
+    idle: Vec<PlayerId>,
 }
 
 fn dev_move() -> Option<&'static str> {
@@ -605,7 +606,6 @@ fn dev_world(
     mut dev: ResMut<WukongDev>,
     mut look: ResMut<crate::input::LookAngles>,
     mut ov: ResMut<crate::input::InputOverride>,
-    mut mode: ResMut<super::camera3p::ViewMode>,
 ) {
     let Some(mv) = dev_move() else { return };
     let Some(mut active) = active else { return };
@@ -613,8 +613,12 @@ fn dev_world(
         return;
     }
     let t = dev.t;
-    mode.pref_third = true;
-    let base = *dev.base_yaw.get_or_insert(look.yaw);
+    // Fixed heading (−Z) so `BD_SHOT_CAM` can frame the move from the side; bots stand idle.
+    let base = *dev.base_yaw.get_or_insert(0.0);
+    let idle_bots: Vec<PlayerId> = active.bots.drain(..).map(|b| b.id).collect();
+    if !idle_bots.is_empty() {
+        dev.idle = idle_bots;
+    }
     look.yaw = base;
     look.pitch = match mv {
         "thrust" => 0.0,
@@ -625,7 +629,7 @@ fn dev_world(
     ov.move_x = 0;
     ov.move_z = if mv == "vault" && (2.2..3.6).contains(&t) { 1 } else { 0 };
     ov.held = match mv {
-        "vault" if (3.0..3.05).contains(&t) => buttons::SECONDARY,
+        "vault" if (3.0..3.12).contains(&t) => buttons::SECONDARY,
         "thrust" | "slam" if (3.0..3.7).contains(&t) => buttons::PRIMARY,
         _ => 0,
     };
@@ -640,10 +644,15 @@ fn dev_world(
     if let Some(p) = active.world.player_mut(me) {
         p.willpower = p.willpower.max(100.0);
     }
+    if (t * 2.0).floor() != ((t - 0.02) * 2.0).floor() {
+        let held = active.world.constructs.held_by(me).map(|c| (c.recipe.name.clone(), c.recipe.form, c.recipe.mechanics.clone(), c.active(), c.held.ext, c.held.xmove));
+        let p = active.world.player(me).map(|p| (p.mv.pos, p.mv.grounded));
+        info!("wukong test t={t:.2}: held {held:?} me {p:?}");
+    }
     let dist = if mv == "thrust" { 20.0 } else { 11.0 };
     if mv != "vault"
         && t < 4.2
-        && let Some(bot) = active.bots.first().map(|b| b.id)
+        && let Some(bot) = dev.idle.first().copied()
         && let Some(p) = active.world.player_mut(bot)
     {
         let mut spot = eye + fwd * dist;

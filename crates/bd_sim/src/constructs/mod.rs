@@ -1363,6 +1363,7 @@ impl ConstructStore {
     /// umbrella…). Called before `step_player`; `mods` already holds status effects.
     pub fn movement_mods(&self, owner: PlayerId, input: &PlayerInput, st: &PlayerState, mods: &mut MoveModifiers) {
         worn::movement_mods(self, owner, input, st, mods);
+        crate::signature::orb::hold_slow(self, owner, mods); // SIGNATURE HOOK: holding a big energy ball
     }
 
     /// After a player moved: trampolines, launch pads, bouncy surfaces (structure.rs), parachute

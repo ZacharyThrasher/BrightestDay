@@ -16,8 +16,8 @@
 //! * **Clash** (the beam struggle; control is never taken): two beams of different casters whose
 //!   heads / segments meet within their widths lock at a clash point (both end there). The point
 //!   drifts toward the side with less PUSH (charge at fire × size, + holding PRIMARY pours willpower
-//!   in at `hold_cost`/s; a clashing beam's time only runs down while its caster is NOT pouring).
-//!   Either caster may let go / dodge / die at any time: the clash dissolves and the other beam
+//!   in at `hold_cost`/s). While clashing the beams hold (the clash has its own timer): stop pouring and
+//!   you are overwhelmed; dodge / die / get knocked out and the clash dissolves and the other beam
 //!   blasts on. When the point reaches a caster, or after `clash_max` s, it DETONATES: a crater and
 //!   a radial blast weighted toward the loser. An erasing orb (Hollow Purple) caught by a beam clashes
 //!   the same way (the orb holds still and pushes with `orb_push`).
@@ -32,8 +32,8 @@ use bd_core::mechanics::{Element, Form, Mechanic};
 use bd_core::{ConstructId, PlayerId, Vec3};
 use serde::{Deserialize, Serialize};
 
-use crate::combat::{CarveRequest, ConstructHit, HitInfo, HitKind};
-use crate::events::{GameEvent, GoneReason};
+use crate::combat::{CarveRequest, ConstructHit, Explosion, HitInfo, HitKind};
+use crate::events::GameEvent;
 use crate::weapons::{GunArchetype, HitscanShot};
 use crate::world::World;
 
@@ -91,6 +91,8 @@ pub struct PalmTuning {
     pub bot_cost: f32,
     /// Most live beams (older ones end early past this).
     pub max_beams: usize,
+    /// A blocker (Barrier / Guard) takes this fraction of the beam's construct damage.
+    pub block_damage: f32,
 }
 
 impl Default for PalmTuning {
@@ -131,6 +133,7 @@ impl Default for PalmTuning {
             bot_willpower: 35.0,
             bot_cost: 25.0,
             max_beams: 12,
+            block_damage: 0.05,
         }
     }
 }
@@ -177,6 +180,7 @@ impl PalmTuning {
         self.bot_willpower = fin(self.bot_willpower, d.bot_willpower, 0.0, 200.0);
         self.bot_cost = fin(self.bot_cost, d.bot_cost, 0.0, 200.0);
         self.max_beams = self.max_beams.clamp(1, 64);
+        self.block_damage = fin(self.block_damage, d.block_damage, 0.0, 10.0);
         self
     }
 
@@ -269,6 +273,8 @@ pub(crate) struct Clash {
     pub a: u32,
     pub b: Partner,
     pub point: Vec3,
+    /// Where it formed.
+    pub start: Vec3,
     pub t: f32,
 }
 
@@ -280,6 +286,11 @@ pub(crate) struct PalmState {
     ticks: u32,
     /// (beam id, bot) counter-beam decisions already rolled (bounded).
     rolled: Vec<(u32, PlayerId)>,
+}
+
+/// A Barrier / Guard / indestructible construct stops a beam (and a thrown ball).
+pub(crate) fn blocks(c: &crate::constructs::Construct) -> bool {
+    c.recipe.has(Mechanic::Barrier) || c.recipe.has(Mechanic::Guard) || !c.integrity.is_finite()
 }
 
 /// Caliber 0 (plain) … 1 (ultimate) from a Hands construct's scale.
@@ -474,15 +485,17 @@ pub(crate) fn step(w: &mut World, dt: f32) {
             b.dir = turn_toward(b.dir, aim, b.turn * dt);
         }
         b.origin = palms(eye, b.dir);
+        // In a clash the beams hold (the clash has its own timer); pouring willpower adds push.
         if pouring {
             if let Some(p) = w.player_mut(b.owner) {
                 p.willpower = (p.willpower - t.hold_cost * dt).max(0.0);
                 p.regen_pause = p.regen_pause.max(0.5);
             }
-        } else {
+        }
+        if b.clash.is_none() {
             b.left -= dt;
         }
-        if b.left <= 0.0 || b.construct.is_some_and(|c| w.constructs.get(c).is_none_or(|c| c.gone.is_some())) && b.left <= 0.0 {
+        if b.left <= 0.0 {
             b.done = true;
         }
     }
@@ -546,9 +559,11 @@ pub(crate) fn step(w: &mut World, dt: f32) {
             }
             None => super::orb::hold(w, c.b_orb(), Some(c.point)),
         }
+        // A ball pushed back far enough (or all the way home) bursts.
+        let ball_beaten = bi.is_none() && (db <= t.clash_reach || c.point.distance(c.start) >= w.cfg.tuning.signature.orb.push_back);
         let loser = if da <= t.clash_reach {
             Some(0)
-        } else if db <= t.clash_reach && bi.is_some() {
+        } else if (db <= t.clash_reach && bi.is_some()) || ball_beaten {
             Some(1)
         } else if c.t >= t.clash_max {
             Some(if da / (da + db).max(1e-3) < 0.5 { 0 } else { 1 })
@@ -556,15 +571,15 @@ pub(crate) fn step(w: &mut World, dt: f32) {
             None
         };
         if let Some(l) = loser {
-            let owners = [beams[ai].owner, bi.map_or(super::orb::owner_of(w, c.b_orb()).unwrap_or(beams[ai].owner), |i| beams[i].owner)];
+            let owners = [beams[ai].owner, b_owner];
             let radius = t.blast_radius + (beams[ai].radius + rb) * 2.0;
-            detonate(w, &t, c.point, radius, owners[l], owners[1 - l]);
+            detonate(w, &t, c.point, radius, owners[l], owners[1 - l], beams[ai].element);
             let va = view(&beams[ai], t.speed, BeamPhase::Detonate { point: c.point, radius });
             w.events.push(GameEvent::PalmBeam(va));
             beams[ai].done = true;
             match bi {
                 Some(bi) => beams[bi].done = true,
-                None => super::orb::spend(w, c.b_orb()),
+                None => super::orb::spend(w, c.b_orb(), c.point),
             }
             clashes.remove(ci);
             continue;
@@ -589,8 +604,7 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                 if c.owner == b.owner || c.gone.is_some() || Some(c.id) == b.construct || super::orb::is_orb(w, c.id) {
                     continue;
                 }
-                let blocks = c.recipe.has(Mechanic::Barrier) || c.recipe.has(Mechanic::Guard) || !c.integrity.is_finite();
-                if !blocks {
+                if !blocks(c) {
                     continue;
                 }
                 if let Some((f, _)) = crate::geom::segment_obb(b.origin, end, c.center(), c.half, c.rot, b.radius * 0.5) {
@@ -632,7 +646,7 @@ pub(crate) fn step(w: &mut World, dt: f32) {
                 let st = &mut w.signature.palm;
                 st.next_id = st.next_id.wrapping_add(1).max(1);
                 let id = st.next_id;
-                clashes.push(Clash { id, a: a.id, b: Partner::Beam(b.id), point, t: 0.0 });
+                clashes.push(Clash { id, a: a.id, b: Partner::Beam(b.id), point, start: point, t: 0.0 });
                 beams[i].clash = Some(id);
                 beams[j].clash = Some(id);
                 break;
@@ -646,7 +660,7 @@ pub(crate) fn step(w: &mut World, dt: f32) {
             let st = &mut w.signature.palm;
             st.next_id = st.next_id.wrapping_add(1).max(1);
             let id = st.next_id;
-            clashes.push(Clash { id, a: beams[i].id, b: Partner::Orb(cid), point: pos, t: 0.0 });
+            clashes.push(Clash { id, a: beams[i].id, b: Partner::Orb(cid), point: pos, start: pos, t: 0.0 });
             beams[i].clash = Some(id);
             super::orb::hold(w, cid, Some(pos));
         }
@@ -713,22 +727,24 @@ fn pulse(w: &mut World, b: &Beam, t: &PalmTuning) {
         }
         w.apply_hit(hit);
     }
-    let mut victims = [(ConstructId(0), Vec3::ZERO); 8];
+    let mut victims = [(ConstructId(0), Vec3::ZERO, 1.0f32); 8];
     let mut m = 0;
     for c in w.constructs.iter() {
         if c.owner == b.owner || c.gone.is_some() || Some(c.id) == b.construct || m >= victims.len() || super::orb::is_orb(w, c.id) {
             continue;
         }
-        if let Some((_, p)) = crate::geom::segment_obb(a, e, c.center(), c.half, c.rot, b.radius) {
-            victims[m] = (c.id, p);
+        if let Some((f, _)) = crate::geom::segment_obb(a, e, c.center(), c.half, c.rot, b.radius) {
+            // A blocker holds (it takes a fraction); anything else is chewed through.
+            let k = if blocks(c) { t.block_damage } else { 1.0 };
+            victims[m] = (c.id, a + (e - a) * f, k);
             m += 1;
         }
     }
-    for &(id, point) in &victims[..m] {
+    for &(id, point, k) in &victims[..m] {
         w.apply_construct_hit(ConstructHit {
             target: id,
             source: Some(b.owner),
-            damage: b.dmg * t.construct_mult,
+            damage: b.dmg * t.construct_mult * k,
             impulse: b.dir * b.kb,
             blade: false,
             pierce: true,
@@ -739,36 +755,34 @@ fn pulse(w: &mut World, b: &Beam, t: &PalmTuning) {
 }
 
 /// The clash blows up: a crater and a radial blast, heavier on the loser.
-fn detonate(w: &mut World, t: &PalmTuning, at: Vec3, radius: f32, loser: PlayerId, winner: PlayerId) {
-    w.request_carve(CarveRequest { center: at, radius: radius * 0.6, power: 3.0 });
+fn detonate(w: &mut World, t: &PalmTuning, at: Vec3, radius: f32, loser: PlayerId, winner: PlayerId, element: Element) {
+    // The ordinary explosion (crater, blast, visuals), credited to the winner (who only feels the
+    // push), then the loser's extra share.
+    w.explode(Explosion {
+        pos: at,
+        radius,
+        damage: t.blast_damage,
+        knockback: t.blast_knockback * t.blast_winner.max(0.1),
+        source: Some(winner),
+        construct: None,
+        element,
+        carve_radius: radius * 0.6,
+        self_damage: false,
+    });
+    if loser == winner {
+        return;
+    }
     let base = w.cfg.move_params.clone();
-    let mut hits = [(PlayerId(0), Vec3::ZERO, 0.0f32); bd_core::MAX_PLAYERS];
-    let mut n = 0;
-    for p in &w.players {
-        if !p.alive || n >= hits.len() {
-            continue;
-        }
-        let c = p.hull(&base).center();
-        let d = c.distance(at);
-        if d > radius {
-            continue;
-        }
-        let weight = if p.id == loser {
-            t.blast_loser
-        } else if p.id == winner {
-            t.blast_winner
-        } else {
-            1.0
-        };
-        hits[n] = (p.id, c, (1.0 - d / radius).max(0.2) * weight);
-        n += 1;
+    let Some(p) = w.player(loser).filter(|p| p.alive) else { return };
+    let c = p.hull(&base).center();
+    let d = c.distance(at);
+    if d > radius {
+        return;
     }
-    for &(pid, c, k) in &hits[..n] {
-        let dir = ((c - at).normalize_or(Vec3::Y) + Vec3::Y * 0.5).normalize_or(Vec3::Y);
-        let hit = HitInfo::new(pid, Some(if pid == loser { winner } else { loser }), HitKind::Explosion, t.blast_damage * k, t.blast_knockback * k, dir, c)
-            .with_impact(1.4);
-        w.apply_hit(hit);
-    }
+    let k = (1.0 - d / radius).max(0.3) * (t.blast_loser - 1.0).max(0.0);
+    let dir = ((c - at).normalize_or(Vec3::Y) + Vec3::Y * 0.5).normalize_or(Vec3::Y);
+    let hit = HitInfo::new(loser, Some(winner), HitKind::Explosion, t.blast_damage * k, t.blast_knockback * k, dir, c).with_impact(1.4);
+    w.apply_hit(hit);
 }
 
 /// BOT HOOK (`bots::drive`): a bot with enough willpower sometimes answers a beam coming at it with
@@ -784,7 +798,7 @@ pub fn bot_counter(w: &mut World, bot: PlayerId) {
         return;
     }
     let eye = p.eye(&base);
-    let element = p.corps_element();
+    let element = Element::Light;
     let incoming = w.signature.palm.beams.iter().find(|b| {
         !b.done && b.owner != bot && b.clash.is_none() && {
             let to = eye - b.origin;
@@ -837,7 +851,7 @@ mod tests {
         let (rp, sp, tp, cp, _) = t.at(0.0);
         let (ru, su, tu, cu, _) = t.at(1.0);
         assert!(ru > rp * 3.0 && su > sp * 2.0 && tu < tp && cu < cp);
-        assert!((0.5..=0.7).contains(&sp) && (1.2..=1.8).contains(&(su * (1.0 + t.secs_charge_bonus))));
+        assert!((0.5..=0.7).contains(&sp) && (1.2..=1.81).contains(&(su * (1.0 + t.secs_charge_bonus))));
         assert_eq!(caliber_t(f32::NAN), 0.0);
     }
 

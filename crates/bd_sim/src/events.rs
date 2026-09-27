@@ -312,6 +312,9 @@ pub enum GameEvent {
     /// SIGNATURE HOOK (`crate::signature`): a signature's moments for presentation / audio — a fusion
     /// windup (`Merge`), an erasing orb's launch / erase / end (`crate::signature::orb`).
     SignatureFx { id: ConstructId, owner: PlayerId, fx: crate::signature::SigFx, pos: Vec3, dir: Vec3 },
+    /// SIGNATURE HOOK (`crate::signature::palm`): a physical palm beam's state — start, ~40 Hz
+    /// updates (root, direction, length), clash point, end, detonation.
+    PalmBeam(crate::signature::palm::BeamView),
     /// FREEDOM HOOK (`crate::freedom`): kill-feed line (the killer construct's phrase as cast), a
     /// legendary construct appeared (golden sting), end-of-match highlights.
     Freedom(crate::freedom::FreedomEvent),

@@ -131,6 +131,10 @@ impl World {
             if self.constructs.held_by(p.id).is_some_and(|c| !(c.held.thrown && c.held.landed)) {
                 continue;
             }
+            // SIGNATURE HOOK: an energy ball in the hands owns PRIMARY (hold to grow, release to throw).
+            if crate::signature::orb::holding(self, p.id) {
+                continue;
+            }
             let id = p.id;
             let eye = p.eye(&base);
             let look = p.look();

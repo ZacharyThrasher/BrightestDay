@@ -174,7 +174,8 @@ pub fn gun_spec(a: GunArchetype) -> GunSpec {
         },
         Staff => GunSpec { cadence: 0.45, damage: 8.0, knockback: 8.0, speed: 70.0, recoil: 0.5, ..BASE },
         Disc => GunSpec { cadence: 0.8, damage: 8.0, knockback: 8.0, speed: 40.0, recoil: 0.5, kind: ProjectileKind::Disc, ..BASE },
-        HandBeam => GunSpec { cadence: 1.1, damage: 40.0, knockback: 20.0, speed: 0.0, hitscan: true, recoil: 2.0, charge: 0.6, pierce: 2, chip: 0.8, ..BASE },
+        // (No recoil: the palm beam's kick is presentation; firing never shoves / locks the caster.)
+        HandBeam => GunSpec { cadence: 1.1, damage: 40.0, knockback: 20.0, speed: 0.0, hitscan: true, recoil: 0.0, charge: 0.6, pierce: 2, chip: 0.8, ..BASE },
     }
 }
 

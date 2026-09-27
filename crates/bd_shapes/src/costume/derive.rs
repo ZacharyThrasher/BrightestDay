@@ -120,7 +120,7 @@ pub(super) fn icon_head_painted(cx: &mut Cx, recipe: &Recipe, icon: &ShapeSpec) 
             Tint::Dark => Some(dark),
             _ => None,
         };
-        cx.paint.push(Paint { rgb, decal: false });
+        cx.paint.push(Paint { rgb, decal: false, region: 0 });
     }
     let _ = HEAD;
     let _ = Vec3::ZERO;

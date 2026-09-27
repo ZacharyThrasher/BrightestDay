@@ -8,6 +8,9 @@
 //!   they are ordinary prims until the bake.
 //! * The client renders painted voxels through the construct shader's per-voxel colour channel
 //!   (`bd_fx::VoxelColors`), tinted with a little hard light; galleries/previews use the colour as is.
+//! * **Regions** ([`region`]): a prim may be tagged hair / eyes / skin ([`Pn::region`]); the bake
+//!   keeps the last writer's tag per voxel ([`PaintedModel::regions`]) so the renderer can recolour
+//!   exactly those voxels at runtime (power forms: golden hair, glowing eyes) without re-meshing.
 
 use std::collections::HashMap;
 
@@ -21,6 +24,14 @@ use crate::voxelize::{PrimEval, VoxelModel};
 /// sRGB colour, 0..255.
 pub type Rgb = [u8; 3];
 
+/// Body regions a painted voxel can belong to (runtime recolour hooks; 0 = none). Two bits.
+pub mod region {
+    pub const NONE: u8 = 0;
+    pub const HAIR: u8 = 1;
+    pub const EYES: u8 = 2;
+    pub const SKIN: u8 = 3;
+}
+
 /// Paint of one prim.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Paint {
@@ -28,6 +39,8 @@ pub struct Paint {
     pub rgb: Option<Rgb>,
     /// Recolour existing voxels only (no geometry).
     pub decal: bool,
+    /// Body region ([`region`]) of the voxels this prim paints.
+    pub region: u8,
 }
 
 /// A dressed costume: the spec (1/16 m units, humanoid rig) plus its paint.
@@ -70,6 +83,8 @@ impl Costume {
 pub struct PaintedModel {
     pub model: VoxelModel,
     pub colors: Vec<HashMap<IVec3, Rgb>>,
+    /// Per-part body regions of painted voxels ([`region`]; voxels without an entry: none).
+    pub regions: Vec<HashMap<IVec3, u8>>,
 }
 
 /// Spec without decal prims (what gets voxelised).
@@ -88,18 +103,24 @@ pub fn costume_model_painted(c: &Costume) -> PaintedModel {
         m = crate::voxelize::voxelize_with_unit(&geometry(&spec, &c.paint), COSTUME_UNIT);
         m.unit_m = COSTUME_UNIT * f;
     }
-    let colors = if c.is_painted() { bake(&spec, &c.paint, &m) } else { vec![HashMap::new(); m.parts.len()] };
-    PaintedModel { model: m, colors }
+    let (colors, regions) = if c.is_painted() { bake_regions(&spec, &c.paint, &m) } else { (vec![HashMap::new(); m.parts.len()], vec![HashMap::new(); m.parts.len()]) };
+    PaintedModel { model: m, colors, regions }
 }
 
 /// Per-voxel colours of a voxelised spec (same prim order rule as the voxeliser).
 pub fn bake(spec: &ShapeSpec, paint: &[Paint], m: &VoxelModel) -> Vec<HashMap<IVec3, Rgb>> {
+    bake_regions(spec, paint, m).0
+}
+
+/// [`bake`] + the body region of every painted voxel (the last writer's, like its colour).
+#[allow(clippy::type_complexity)]
+pub fn bake_regions(spec: &ShapeSpec, paint: &[Paint], m: &VoxelModel) -> (Vec<HashMap<IVec3, Rgb>>, Vec<HashMap<IVec3, u8>>) {
     const MAX_COORD: f32 = 4096.0;
     struct Dense {
         min: IVec3,
         dim: IVec3,
         idx: Vec<i32>,
-        col: Vec<Option<Rgb>>,
+        col: Vec<Option<(Rgb, u8)>>,
     }
     let mut dense: Vec<Dense> = m
         .parts
@@ -144,12 +165,28 @@ pub fn bake(spec: &ShapeSpec, paint: &[Paint], m: &VoxelModel) -> Vec<HashMap<IV
                     if k < 0 || !e.inside(q.as_vec3()) {
                         continue;
                     }
-                    d.col[k as usize] = paint.rgb;
+                    d.col[k as usize] = paint.rgb.map(|c| (c, paint.region & 3));
                 }
             }
         }
     }
-    m.parts.iter().zip(dense).map(|(p, d)| p.voxels.iter().zip(d.col).filter_map(|((v, _), c)| c.map(|c| (*v, c))).collect()).collect()
+    let mut colors = Vec::with_capacity(m.parts.len());
+    let mut regions = Vec::with_capacity(m.parts.len());
+    for (p, d) in m.parts.iter().zip(dense) {
+        let mut cols = HashMap::new();
+        let mut regs = HashMap::new();
+        for ((v, _), c) in p.voxels.iter().zip(d.col) {
+            if let Some((c, r)) = c {
+                cols.insert(*v, c);
+                if r != region::NONE {
+                    regs.insert(*v, r);
+                }
+            }
+        }
+        colors.push(cols);
+        regions.push(regs);
+    }
+    (colors, regions)
 }
 
 /// Give unpainted voxels a painted neighbour's colour (`passes` rings). Used when a costume is
@@ -231,12 +268,18 @@ pub(crate) struct Pn<'a> {
     cur: Option<Rgb>,
     decal: bool,
     tint: Option<Tint>,
+    region: u8,
 }
 
 #[allow(dead_code)]
 impl<'a> Pn<'a> {
     pub fn new(b: &'a mut B, paint: &'a mut Vec<Paint>, slots: &'a mut Vec<Rgb>) -> Self {
-        Pn { b, paint, slots, cur: None, decal: false, tint: None }
+        Pn { b, paint, slots, cur: None, decal: false, tint: None, region: region::NONE }
+    }
+    /// Body region ([`region`]) of the next prims (sticky until changed; colours don't reset it).
+    pub fn region(&mut self, r: u8) -> &mut Self {
+        self.region = r & 3;
+        self
     }
     /// Current colour for the next prims.
     pub fn c(&mut self, rgb: Rgb) -> &mut Self {
@@ -291,7 +334,7 @@ impl<'a> Pn<'a> {
             self.paint.resize(n - 1, Paint::default());
         }
         self.paint.truncate(n - 1);
-        self.paint.push(Paint { rgb: self.cur, decal: self.decal });
+        self.paint.push(Paint { rgb: self.cur, decal: self.decal, region: self.region });
         self
     }
     /// Box over voxel indices `x0..=x1, y0..=y1, z0..=z1` (exact voxel coverage).

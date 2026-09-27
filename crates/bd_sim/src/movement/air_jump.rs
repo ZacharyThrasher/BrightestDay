@@ -19,6 +19,10 @@
 //!   work, single-wall climbing doesn't. The air dodge comes back with it. A worn Jump construct
 //!   (wing flap, cape dash, parachute, jetpack: `constructs::worn::pre_move`) takes the press instead.
 //!
+//! * **Extra air jumps** (`MoveModifiers::extra_air_jumps`, powers: Gear Fourth): after the air
+//!   jump is spent, that many more presses jump again the same way (same rules, same speed); they
+//!   come back with it.
+//!
 //! Host and client prediction run it inside `step_player` with identical inputs.
 
 use bd_core::Vec3;
@@ -59,6 +63,8 @@ pub struct ExtraMoves {
     pub surf_n: Vec3,
     /// EXTENDS: seconds until the next pole vault (`constructs::extend::pre_move`, predicted).
     pub vault_cd: f32,
+    /// Extra air jumps (`MoveModifiers::extra_air_jumps`) spent this airtime.
+    pub extra_air_jumps_used: u8,
 }
 
 impl Default for ExtraMoves {
@@ -74,6 +80,7 @@ impl Default for ExtraMoves {
             last_wall: Vec3::ZERO,
             surf_n: Vec3::ZERO,
             vault_cd: 0.0,
+            extra_air_jumps_used: 0,
         }
     }
 }
@@ -84,6 +91,21 @@ impl ExtraMoves {
     pub fn restore(&mut self) {
         self.air_jump_used = false;
         self.air_dodge_used = false;
+        self.extra_air_jumps_used = 0;
+    }
+
+    /// Spend every air jump of this airtime (a worn construct owns Jump in the air: wing flap, cape
+    /// dash, parachute, jetpack).
+    #[inline]
+    pub fn spend_air_jumps(&mut self) {
+        self.air_jump_used = true;
+        self.extra_air_jumps_used = u8::MAX;
+    }
+
+    /// An air jump (the base one or an extra one) is left for this airtime.
+    #[inline]
+    pub fn air_jump_left(&self, extra: u8) -> bool {
+        !self.air_jump_used || self.extra_air_jumps_used < extra
     }
 
     /// In the dodge burst this tick.
@@ -147,7 +169,7 @@ pub(crate) fn air_jump<V: VoxelQuery + ?Sized>(
     if jumped
         || !inp.pressed(buttons::JUMP)
         || s.grounded
-        || s.extra.air_jump_used
+        || !s.extra.air_jump_left(s.mods.extra_air_jumps)
         || s.tethered()
         || s.tumble > 0.0
         || s.air_time < p.air_jump_delay
@@ -160,6 +182,9 @@ pub(crate) fn air_jump<V: VoxelQuery + ?Sized>(
     }
     if s.extra.dodging() {
         super::dodge::end(s, p);
+    }
+    if s.extra.air_jump_used {
+        s.extra.extra_air_jumps_used = s.extra.extra_air_jumps_used.saturating_add(1);
     }
     s.extra.air_jump_used = true;
     s.jump_buffer = 0.0;
@@ -217,7 +242,7 @@ pub(crate) fn refresh(s: &mut PlayerState, wall: Option<super::state::WallHit>, 
     }
     let Some(w) = wall.filter(|_| p.wall_refresh) else { return };
     // Nothing to give back: no refresh (and no lockout), so touching a wall early costs nothing.
-    if !(x.air_jump_used || x.air_dodge_used) || !w.normal.is_finite() {
+    if !(x.air_jump_used || x.air_dodge_used || x.extra_air_jumps_used > 0) || !w.normal.is_finite() {
         return;
     }
     let lock = p.wall_refresh_same_wall_lockout;

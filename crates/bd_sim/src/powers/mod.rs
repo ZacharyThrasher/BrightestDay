@@ -339,6 +339,7 @@ impl PlayerPower {
                 m.speed_mult *= k;
                 m.accel_mult *= k.max(1.0);
             }
+            m.extra_air_jumps = m.extra_air_jumps.saturating_add(effects::extra_air_jumps(self));
         }
         if self.time_stop > 0.0 {
             let k = if self.time_speed.is_finite() { self.time_speed.clamp(1.0, 3.0) } else { 2.0 };

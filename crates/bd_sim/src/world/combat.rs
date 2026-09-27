@@ -490,6 +490,10 @@ impl World {
         }
         // Hitscan before recoil: the momentum bonus reads the shooter's velocity at the trigger pull.
         for h in out.hitscans.drain(..) {
+            // SIGNATURE HOOK: a palm shot (Form::Hands) is a sustained, physical beam (signature::palm).
+            if crate::signature::palm::fire(self, &h) {
+                continue;
+            }
             self.hitscan(h);
         }
         for (pid, aim, strength) in out.recoils.drain(..) {

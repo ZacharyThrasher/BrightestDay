@@ -14,6 +14,8 @@
 //! * [`PowerEffect::CritChance`] — melee connects may crit (Black Flash): × damage and knockback,
 //!   `HitInfo::crit`, a [`PowerEvent::Crit`] for the black-red spark.
 //! * [`PowerEffect::ReadSlow`] — presentation only (bd_game reads it from the table).
+//! * [`PowerEffect::AirJumps`] — more air jumps per airtime (`MoveModifiers::extra_air_jumps`, read
+//!   by [`super::PlayerPower::modify_movement`]: host and prediction alike). Stacks, ≤ [`MAX_EXTRA_AIR_JUMPS`].
 //! * Gravity cores ([`Core`], `MoveOp::Singularity`): Planetary Devastation. One construct (the
 //!   core) + a per-tick pull on enemies, loose constructs and a capped number of carved terrain
 //!   chunks; captured enemies are held in the mass until it breaks or they dodge / tether out.
@@ -40,6 +42,8 @@ const CORE_MAX_CONSTRUCTS: usize = 24;
 const CORE_ESCAPE_SECS: f32 = 1.4;
 /// Seconds a core takes to rise.
 const CORE_RISE_SECS: f32 = 0.8;
+/// Most extra air jumps all held powers give together.
+pub const MAX_EXTRA_AIR_JUMPS: u8 = 4;
 
 /// Clamp authored numbers (hostile / typo'd data never explodes the sim).
 pub(crate) fn sanitize_effects(v: &mut Vec<PowerEffect>) {
@@ -70,6 +74,7 @@ pub(crate) fn sanitize_effects(v: &mut Vec<PowerEffect>) {
                 f(mult, 1.0, 5.0, 1.0);
             }
             PowerEffect::ReadSlow { radius } => f(radius, 0.5, 30.0, 8.0),
+            PowerEffect::AirJumps { extra } => *extra = (*extra).min(MAX_EXTRA_AIR_JUMPS),
         }
     }
 }
@@ -91,6 +96,22 @@ fn seed(tick: u64, a: PlayerId, b: PlayerId, salt: u64) -> u64 {
 /// Product of every held `PowerMult::speed`.
 pub fn speed_mult(p: &PlayerPower) -> f32 {
     p.effects().fold(1.0, |k, e| if let PowerEffect::PowerMult { speed, .. } = e { k * speed } else { k }).clamp(0.5, 2.5)
+}
+
+/// Extra air jumps of every held `AirJumps` (none while drained).
+pub fn extra_air_jumps(p: &PlayerPower) -> u8 {
+    p.effects().fold(0u8, |n, e| if let PowerEffect::AirJumps { extra } = e { n.saturating_add(*extra) } else { n }).min(MAX_EXTRA_AIR_JUMPS)
+}
+
+/// [`extra_air_jumps`] from a replicated [`PowerSnap`] (presentation: the springy boing of a
+/// remote player's air jump).
+pub fn extra_air_jumps_snap(s: &PowerSnap) -> u8 {
+    if s.has(power_flags::DRAINED) || s.has(power_flags::SEASTONE) {
+        return 0;
+    }
+    let mut p = PlayerPower::default();
+    p.apply_snap(*s);
+    extra_air_jumps(&p)
 }
 
 /// (damage, knockback) multipliers of every held `PowerMult`.

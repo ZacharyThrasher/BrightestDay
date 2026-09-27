@@ -29,7 +29,7 @@ mod style;
 pub mod summon;
 
 pub use derive::is_character_icon;
-pub use paint::{Costume, Paint, PaintedModel, Rgb, Tier, costume_model_painted, mesh_colors};
+pub use paint::{Costume, Paint, PaintedModel, Rgb, Tier, bake_regions, costume_model_painted, mesh_colors, region};
 
 use bd_core::mechanics::{Element, Form, FormCategory, Mechanic, Recipe};
 use bd_core::shape::{PartId, PartRole, ShapeSpec};

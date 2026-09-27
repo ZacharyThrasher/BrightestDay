@@ -693,7 +693,7 @@ fn presence_beats(
                     gather::refresh(&mut l.surround, &mut fx, gather_at, radius, &mut rays, vox, b.surround_samples);
                 }
                 let face = near.then_some(cam_fwd);
-                gather::emit(&mut fx, Some(&l.surround), gather_at, radius, n, l.element, l.color, msize, life, face);
+                gather::emit(&mut fx, Some(&l.surround), gather_at, radius, n, l.element, l.color, msize, life, face, eye);
                 motes_left -= n;
             }
             if !l.gather_sfx_done && !feel.gather_sfx.is_empty() {
@@ -980,7 +980,7 @@ fn hold_streams(
         let msize = (0.05 + 0.03 * size.sqrt()).min(0.3) * if near { 0.45 } else { 1.0 };
         // Far motes take longer to arrive (a readable stream, not a flash).
         let life = (0.25 + radius / 45.0).min(1.6);
-        gather::emit(&mut fx, Some(&s.surround), r.at, radius, n, r.element, color, msize, life, face);
+        gather::emit(&mut fx, Some(&s.surround), r.at, radius, n, r.element, color, msize, life, face, eye);
     }
 }
 

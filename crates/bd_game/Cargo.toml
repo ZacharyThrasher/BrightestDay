@@ -36,4 +36,4 @@ bd_music = { path = "../bd_music", optional = true }
 serde.workspace = true
 ron.workspace = true
 bytemuck = { version = "1", features = ["derive"] }
-bevy = { version = "0.19.1" }
+bevy = { version = "0.19.1", features = ["system_clipboard"] } # OS clipboard (copy code / paste), not the in-process fallback

@@ -455,8 +455,8 @@ pub enum CritFx {
 }
 
 /// Generic power effects (`powers/effects.rs`). Any power, tier or transform may list them, and
-/// they stack across every power a player holds. Deterministic and host-authoritative; the only
-/// movement one (`PowerMult::speed`) is read by client prediction identically.
+/// they stack across every power a player holds. Deterministic and host-authoritative; the
+/// movement ones (`PowerMult::speed`, `AirJumps`) are read by client prediction identically.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PowerEffect {
     /// An incoming dodgeable hit may trigger an automatic dodge (the dodge's i-frames + a short
@@ -495,6 +495,9 @@ pub enum PowerEffect {
     /// Presentation only: attacks coming at you inside `radius` get a brief telegraph glow on
     /// your screen — Sharingan. No time dilation, nothing in the sim.
     ReadSlow { radius: f32 },
+    /// `extra` more air jumps per airtime on top of the one everybody has (Gear Fourth's bounce).
+    /// Movement: `MoveModifiers::extra_air_jumps`, host and prediction alike.
+    AirJumps { extra: u8 },
 }
 
 /// Aura look of an Ascend (bd_game `present::ascend`).

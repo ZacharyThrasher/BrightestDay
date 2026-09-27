@@ -81,6 +81,9 @@ pub struct MoveModifiers {
     pub jump_mult: f32,
     /// Multiplies ground and air acceleration (chill status ≈ 0.6). Top speeds are unchanged.
     pub accel_mult: f32,
+    /// Air jumps on top of the one every airtime has (powers: `PowerEffect::AirJumps`, Gear
+    /// Fourth). Refreshed with the air jump (`movement/air_jump.rs`).
+    pub extra_air_jumps: u8,
 }
 
 impl Default for MoveModifiers {
@@ -95,6 +98,7 @@ impl Default for MoveModifiers {
             air_control: 1.0,
             jump_mult: 1.0,
             accel_mult: 1.0,
+            extra_air_jumps: 0,
         }
     }
 }

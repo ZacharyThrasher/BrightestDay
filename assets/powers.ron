@@ -70,9 +70,9 @@
             (name: "Gear Fourth",
              names: ["gear fourth", "gear 4", "gear four", "fourth gear", "boundman", "bound man", "bounce man", "gia fosu",
                      "gear fourth boundman"],
-             // Bounce-man: springy everything, heavy haki-coated rubber.
-             body: Some((bounce: true, immune: [Electric], moves: (jump: 1.7, gravity: 0.75, air_control: 1.5, slow_fall: 0.6))),
-             effects: [PowerMult(damage: 1.4, speed: 1.15, knockback: 1.4), SelfDrain(willpower_per_s: 1.5)],
+             // Bounce-man: springy everything, heavy haki-coated rubber. Two extra (boing) air jumps.
+             body: Some((bounce: true, immune: [Electric], moves: (jump: 1.35, gravity: 0.8, air_control: 1.5))),
+             effects: [PowerMult(damage: 1.4, speed: 1.15, knockback: 1.4), SelfDrain(willpower_per_s: 1.5), AirJumps(extra: 2)],
              graft: Some((mechanics: [Bounce, Heavy])),
              ascend: Some((color: Some((0.95, 0.3, 0.25)), intensity: 1.7, title: Some("GEAR FOURTH"), style: Steam, stable: false,
                            skin_tint: Some((0.3, 0.08, 0.08)))),

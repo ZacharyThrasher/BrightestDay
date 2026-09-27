@@ -455,7 +455,7 @@ fn weak_markers(
         let m = fx.markers.entry(v.id).or_insert_with(|| {
             let col = corps_rgb(active.corps_of(c.owner));
             let mat = materials.add(glow(col, 4.0, false));
-            let halo = materials.add(glow(col, 0.35, true));
+            let halo = materials.add(glow(col, 0.6, true));
             let ents = wps
                 .iter()
                 .map(|_| {
@@ -472,7 +472,7 @@ fn weak_markers(
         for (k, w) in wps.iter().enumerate() {
             let Some(&(core, halo)) = m.ents.get(k) else { continue };
             let at = p + r * (bv(w.pos) * s);
-            let base = w.radius * s * if w.spot == Spot::Nape { 0.32 } else { 0.24 };
+            let base = w.radius * s * if w.spot == Spot::Nape { 0.42 } else { 0.3 };
             let pulse = 1.0 + 0.12 * (t * 3.2 + k as f32 * 1.7).sin();
             let boost = 1.0 + if m.exposed { 0.6 } else { 0.0 } + m.flash * 1.2 + if w.spot == Spot::Nape { m.hijack } else { 0.0 };
             if let Ok(mut tf) = tfs.get_mut(core) {
@@ -748,6 +748,46 @@ pub mod scenario {
         None
     }
 
+/// A kaiju spot on flat, open ground (a 16 m square within 1.5 m, nothing overhead) and a spot for
+    /// you on the ground `dist` m away that sees it. Near you first, then anywhere on the map.
+    fn stage(w: &bd_sim::World, me: Vec3, dist: f32) -> Option<(Vec3, Vec3, Vec3)> {
+        let top = |x: f32, z: f32| bd_core::voxel::raycast(&w.voxels, Vec3::new(x, 150.0, z), Vec3::NEG_Y, 170.0).map(|h| h.point.y);
+        let clear_up = |p: Vec3, h: f32| bd_core::voxel::raycast(&w.voxels, p + Vec3::Y * 0.6, Vec3::Y, h).is_none();
+        let mut cands: Vec<Vec3> = Vec::new();
+        for r in [16.0f32, 24.0, 32.0] {
+            for k in 0..16 {
+                let a = k as f32 / 16.0 * std::f32::consts::TAU;
+                cands.push(me + Vec3::new(a.cos() * r, 0.0, a.sin() * r));
+            }
+        }
+        for gx in -7..=7 {
+            for gz in -7..=7 {
+                cands.push(Vec3::new(gx as f32 * 12.0, 0.0, gz as f32 * 12.0));
+            }
+        }
+        for c in cands {
+            let Some(y0) = top(c.x, c.z) else { continue };
+            let spot = Vec3::new(c.x, y0, c.z);
+            let flat = (-2..=2).all(|i| (-2..=2).all(|j| top(c.x + i as f32 * 4.0, c.z + j as f32 * 4.0).is_some_and(|y| (y - y0).abs() < 1.5)));
+            if !flat || !clear_up(spot, 16.0) {
+                continue;
+            }
+            for k in 0..12 {
+                let a = k as f32 / 12.0 * std::f32::consts::TAU;
+                let d = Vec3::new(a.cos(), 0.0, a.sin());
+                let at = spot - d * dist;
+                let Some(y) = top(at.x, at.z).filter(|y| (y - y0).abs() < 1.5) else { continue };
+                let from = Vec3::new(at.x, y + 0.05, at.z);
+                let eye = from + Vec3::Y * 1.6;
+                let to = spot + Vec3::Y * 5.0;
+                if clear_up(from, 5.0) && bd_core::voxel::raycast(&w.voxels, eye, (to - eye).normalize_or_zero(), (to - eye).length()).is_none() {
+                    return Some((from, spot, d));
+                }
+            }
+        }
+        None
+    }
+
     fn aim(look: &mut LookAngles, eye: Vec3, at: Vec3) {
         let d = (at - eye).normalize_or_zero();
         look.yaw = (-d.x).atan2(-d.z);
@@ -776,48 +816,20 @@ pub mod scenario {
         let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
         let (Some(&owner), Some(&far)) = (others.first(), others.get(1)) else { return };
         if !sc.placed {
-            // Open ground: near you, else anywhere on the map (you are moved there).
-            let mut from = my_pos;
-            let mut found = [22.0, 18.0, 26.0].iter().find_map(|d| find_spot(&active.world, my_pos, *d));
-            if found.is_none() {
-                'scan: for gx in -6..=6 {
-                    for gz in -6..=6 {
-                        let (x, z) = (gx as f32 * 14.0, gz as f32 * 14.0);
-                        let Some(h) = bd_core::voxel::raycast(&active.world.voxels, Vec3::new(x, 140.0, z), Vec3::NEG_Y, 160.0) else { continue };
-                        let cand = Vec3::new(x, h.point.y + 0.05, z);
-                        if let Some(f) = find_spot(&active.world, cand, 20.0) {
-                            from = cand;
-                            found = Some(f);
-                            break 'scan;
-                        }
-                    }
+            // Stage: flat open ground for the kaiju, you on the ground `dist` m away with a clear view.
+            let dist = match sc.shot.as_str() { "stomp" => 10.0, "sever" | "topple" => 16.0, _ => 20.0 };
+            let Some((from, spot, dir)) = stage(&active.world, my_pos, dist) else {
+                if sc.t > 6.0 {
+                    warn!("giants scenario: no stage found");
+                    sc.placed = true;
                 }
-            }
-            if found.is_some() && from != my_pos {
-                if let Some(p) = active.world.player_mut(me) {
-                    p.mv.pos = from;
-                    p.mv.vel = Vec3::ZERO;
-                }
-            }
-            let my_pos = from;
-            let Some((spot, dir)) = found.map(|(s, d)| {
-                // Closer for the up-close shots (the kaiju is pinned there).
-                let dist = match sc.shot.as_str() { "stomp" => 10.0, "sever" | "topple" => 15.0, _ => (s - my_pos).length() };
-                let c = my_pos + d * dist;
-                let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(s.y, |h| h.point.y);
-                (Vec3::new(c.x, y, c.z), d)
-            }).or_else(|| {
-                // Hilly spawn: straight ahead of the view, on whatever ground is there.
-                (sc.t > 2.5).then(|| {
-                    let d = bd_core::input::look_dir(look.yaw, 0.0);
-                    let c = my_pos + d * match sc.shot.as_str() { "stomp" => 10.0, "sever" | "topple" => 15.0, _ => 20.0 };
-                    let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(my_pos.y, |h| h.point.y);
-                    (Vec3::new(c.x, y, c.z), d)
-                })
-            }) else {
                 return;
             };
-            active.bots.clear();
+            if let Some(p) = active.world.player_mut(me) {
+                p.mv.pos = from;
+                p.mv.vel = Vec3::ZERO;
+            }
+            let my_pos = from;            active.bots.clear();
             active.world.cfg.rules.willpower = bd_sim::WillpowerMode::Infinite;
             // The kaiju's owner stands behind you; its target (another bot) far beyond it, so it
             // walks away from you (ride) — or you are its target (stomp).

@@ -293,3 +293,26 @@ fn mix_and_match_phrases() {
         assert!(costume::costume_model_painted(&a).model.voxel_count > 800, "{ph}");
     }
 }
+
+/// Runtime recolour hooks: a character's hair, irises and skin are tagged per voxel (power forms
+/// tint exactly those: golden hair, glowing eyes, a red skin) — and nothing else is.
+#[test]
+fn painted_costumes_tag_hair_eyes_and_skin_regions() {
+    use bd_shapes::costume::region;
+    for name in ["goku", "naruto", "luffy"] {
+        let c = costume::dress(name, &bd_core::mechanics::Recipe::unknown(name), None, None, 0, tw());
+        let pm = costume::costume_model_painted(&c);
+        let mut n = [0usize; 4];
+        for (regs, cols) in pm.regions.iter().zip(&pm.colors) {
+            for (v, r) in regs {
+                assert!(cols.contains_key(v), "{name}: a tagged voxel is painted");
+                n[*r as usize] += 1;
+            }
+        }
+        assert!(n[region::HAIR as usize] > 20, "{name}: hair voxels {n:?}");
+        assert!((2..=16).contains(&n[region::EYES as usize]), "{name}: eye voxels {n:?}");
+        assert!(n[region::SKIN as usize] > 20, "{name}: skin voxels {n:?}");
+        let painted: usize = pm.colors.iter().map(|c| c.len()).sum();
+        assert!(n.iter().skip(1).sum::<usize>() < painted, "{name}: the outfit stays untagged");
+    }
+}

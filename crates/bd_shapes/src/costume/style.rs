@@ -20,7 +20,7 @@ use bd_core::shape::{PartRole, Tint};
 use glam::{IVec3, Quat, Vec3};
 
 use super::look::*;
-use super::paint::{Pn, Rgb};
+use super::paint::{Paint, Pn, Rgb, region};
 use super::{ARM_L, ARM_R, Cx, HEAD, LEG_L, LEG_R, acc, rig};
 use crate::build::v3;
 
@@ -154,6 +154,7 @@ fn resolve(l: &Look, accent: Option<Rgb>) -> Kit {
 /// `own_head = false` leaves the head to the caller (derived looks wear the icon's head).
 pub(super) fn dress(cx: &mut Cx, look: &Look, accent: Option<Rgb>, own_head: bool) {
     let k = resolve(look, accent);
+    let paint0 = cx.paint.len();
     // Parts first so the ids match HEAD / ARM_* / LEG_*.
     {
         let b = &mut cx.b;
@@ -215,8 +216,9 @@ pub(super) fn dress(cx: &mut Cx, look: &Look, accent: Option<Rgb>, own_head: boo
                     | Hat::Ears(..)
             );
         cx.pgroup(acc::HEAD, v3(0.0, 27.0, 0.0), |p| {
-            p.on(HEAD);
+            p.on(HEAD).region(region::HAIR);
             hair(p, &h, hat_on);
+            p.region(region::NONE);
         });
     }
     if mask_on {
@@ -254,6 +256,26 @@ pub(super) fn dress(cx: &mut Cx, look: &Look, accent: Option<Rgb>, own_head: boo
     for a in k.acc.clone() {
         accessory(cx, &a, &k);
     }
+    let from = paint0.min(cx.paint.len());
+    tag_skin(&mut cx.paint[from..], k.skin);
+}
+
+/// Region hook: untagged prims painted in a shade of the kit's skin (face, ears, bare arms, hands,
+/// nose shading) are skin — a form's skin tint recolours exactly those voxels.
+fn tag_skin(paint: &mut [Paint], skin: Rgb) {
+    let s = skin.map(f32::from);
+    let ss = s[0] * s[0] + s[1] * s[1] + s[2] * s[2];
+    if ss < 1.0 {
+        return;
+    }
+    for pt in paint.iter_mut().filter(|p| p.region == region::NONE) {
+        let Some(c) = pt.rgb else { continue };
+        let c = c.map(f32::from);
+        let f = (c[0] * s[0] + c[1] * s[1] + c[2] * s[2]) / ss;
+        if (0.8..=1.1).contains(&f) && (0..3).all(|i| (c[i] - f * s[i]).abs() <= 6.0) {
+            pt.region = region::SKIN;
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------ head
@@ -281,7 +303,9 @@ fn face(p: &mut Pn, k: &Kit, hide: u32) {
     let white = WHITE;
     let brow = k.brows.or(k.hair.map(|h| h.color.rgb())).unwrap_or(mul(skin, 0.5));
     let covered = hide & acc::FACE == 0 && matches!(k.eyewear, Eyewear::Blindfold(_) | Eyewear::Bandage(_));
-    match if covered { EyeStyle::Closed } else { k.eyes.style } {
+    let style = if covered { EyeStyle::Closed } else { k.eyes.style };
+    let eyes0 = p.paint.len();
+    match style {
         EyeStyle::Normal => {
             for s in [-1, 1] {
                 p.decal(white).vb(s * 3, s * 3, 23, 24, FACE, FACE);
@@ -321,7 +345,15 @@ fn face(p: &mut Pn, k: &Kit, hide: u32) {
             }
         }
     }
-    // Brows.
+    // Region hook: the irises / pupils (never the whites, never closed lids) are the eyes.
+    if style != EyeStyle::Closed {
+        let from = eyes0.min(p.paint.len());
+        for pt in p.paint[from..].iter_mut().filter(|pt| pt.rgb != Some(white)) {
+            pt.region = region::EYES;
+        }
+    }
+    // Brows (hair-coloured: a form's hair tint takes them too).
+    p.region(region::HAIR);
     for s in [-1, 1] {
         if k.eyes.style == EyeStyle::Angry {
             p.decal(brow).px(s * 2, 24, FACE).px(s * 3, 25, FACE);
@@ -329,6 +361,7 @@ fn face(p: &mut Pn, k: &Kit, hide: u32) {
             p.decal(brow).vb(s * 2, s * 3, 25, 25, FACE, FACE);
         }
     }
+    p.region(region::NONE);
     if k.mouth {
         p.decal(mix(skin, [120, 40, 40], 0.45)).vb(-1, 1, 21, 21, FACE, FACE);
     }

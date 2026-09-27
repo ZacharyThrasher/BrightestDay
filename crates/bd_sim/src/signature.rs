@@ -28,6 +28,7 @@
 
 pub mod orb;
 pub mod orbital;
+pub mod palm;
 
 use bd_core::mechanics::{Form, FormCategory, Mechanic, ModelSource, Recipe};
 use bd_core::shape::ShapeSpec;
@@ -41,6 +42,7 @@ use crate::world::{Aim, World};
 
 pub use orb::{OrbTuning, SigFx, is_piercing_orb};
 pub use orbital::{OrbitalTuning, StrikePhase, is_orbital};
+pub use palm::{BeamPhase, BeamView, PalmTuning};
 
 /// Per-world signature state (`World::signature`): the cast in progress + live orbital emitters.
 #[derive(Debug, Default)]
@@ -48,6 +50,7 @@ pub(crate) struct SignatureState {
     pub(crate) cast: Option<SignatureCtx>,
     pub(crate) orbitals: Vec<orbital::Orbital>,
     pub(crate) orbs: Vec<orb::Orb>,
+    pub(crate) palm: palm::PalmState,
 }
 
 /// What fantasy a signature expresses (mirrors `bd_lexicon::SignatureKind`; the game maps them).
@@ -120,6 +123,8 @@ pub struct SignatureTuning {
     pub orbital: OrbitalTuning,
     /// Erasing orbs (a piercing Beam signature: Hollow Purple), see [`orb`].
     pub orb: OrbTuning,
+    /// Physical palm beams (Form::Hands shots), see [`palm`].
+    pub palm: PalmTuning,
 }
 
 impl Default for SignatureTuning {
@@ -142,6 +147,7 @@ impl Default for SignatureTuning {
             bot_chance: 0.2,
             orbital: OrbitalTuning::default(),
             orb: OrbTuning::default(),
+            palm: PalmTuning::default(),
         }
     }
 }
@@ -170,6 +176,7 @@ impl SignatureTuning {
         self.bot_chance = fin(self.bot_chance, d.bot_chance, 0.0, 1.0);
         self.orbital = self.orbital.validated();
         self.orb = self.orb.validated();
+        self.palm = self.palm.validated();
         self
     }
 
@@ -264,6 +271,10 @@ pub fn amplify(mut r: Recipe, sig: SignatureCast, t: &SignatureTuning, rules: &M
         }
         SignatureKind::Summon => {
             r.scale *= grow;
+            // A summoned ball of energy is thrown from the hands (hold to grow), not dropped.
+            if r.form == Form::Ball && (r.has(Mechanic::Explodes) || r.element != bd_core::mechanics::Element::Light) {
+                r.mechanics.retain(|m| *m != Mechanic::DropFromSky);
+            }
         }
         SignatureKind::Transformation => {
             r.scale *= grow;
@@ -401,6 +412,9 @@ pub(crate) fn orbital_spawned(w: &mut World, cid: ConstructId, recipe: &Recipe, 
     } else if is_orbital(recipe) {
         let (anchor, ground) = orbital::spawn_point(w, caster_eye, aim_point);
         orbital::register(w, cid, anchor, ground);
+    } else if orb::is_energy_ball(recipe) {
+        // Any ball of energy (rasengan, spirit bomb, fireball…): hold to grow, release to throw.
+        orb::register(w, cid);
     }
 }
 
@@ -408,6 +422,7 @@ pub(crate) fn orbital_spawned(w: &mut World, cid: ConstructId, recipe: &Recipe, 
 pub(crate) fn step(w: &mut World, dt: f32) {
     orbital::step(w, dt);
     orb::step(w, dt);
+    palm::step(w, dt);
 }
 
 /// Forming time: at least the readable windup.

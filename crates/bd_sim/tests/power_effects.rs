@@ -534,3 +534,75 @@ fn planetary_devastation_captures_and_dodging_breaks_free() {
     run(&mut w, 800);
     assert!(!w.constructs.iter().any(|c| c.recipe.name == "planetary devastation"));
 }
+
+// ------------------------------------------------------------------------------------ AirJumps
+
+/// Gear Fourth: two extra air jumps (the generic `AirJumps` effect), read the same way by the
+/// host and by client prediction; they come back on landing and are gone with the form.
+#[test]
+fn gear_fourth_air_jumps_match_on_host_and_prediction() {
+    use bd_core::input::{PlayerInput, buttons};
+    let mut host = duel(1);
+    stand_at(&mut host, A, 0.0, 0.0);
+    assert!(host.grant_power(A, "gomu_gomu"));
+    host.power_move(A, move_sel::select(0, 3)).unwrap(); // gear fourth
+    let mut m = MoveModifiers::default();
+    host.player(A).unwrap().power.modify_movement(false, &mut m);
+    assert_eq!(m.extra_air_jumps, 2, "gear fourth: +2 air jumps");
+    let mut mirror = PlayerPower::default();
+    mirror.apply_snap(host.player(A).unwrap().power.snap());
+    let mut mm = MoveModifiers::default();
+    mirror.modify_movement(false, &mut mm);
+    assert_eq!(mm, m, "prediction mirror reads the same modifiers");
+    assert_eq!(powers::effects::extra_air_jumps_snap(&host.player(A).unwrap().power.snap()), 2);
+    // Settle on the ground, then a client mirror predicts the local player.
+    run(&mut host, 60);
+    let mut client = World::new(SimConfig { arena: ArenaSource::Flat { size_m: 96.0 }, check_invariants: true, ..SimConfig::default() });
+    client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+    // Hop, then mash Jump in the air: 1 + 2 air jumps, the fourth press does nothing.
+    let presses = [10u32, 40, 70, 100, 130];
+    let (mut air, mut bad) = (0, 0);
+    for k in 0..480u32 {
+        let i = PlayerInput { buttons: if presses.contains(&k) { buttons::JUMP } else { 0 }, ..Default::default() };
+        let mut s = client.player(A).unwrap().mv;
+        let ev = client.predict_player(A, &mut s, &i);
+        let evs = host.tick(&[(A, i)]).to_vec();
+        for e in &evs {
+            client.apply_event(e);
+        }
+        client.apply_snapshot(&host.snapshot_for(Some(A)), Some(A));
+        let h = host.player(A).unwrap();
+        assert_eq!(h.move_events.air_jumped, ev.air_jumped, "tick {k}: air jump event");
+        air += h.move_events.air_jumped as u32;
+        if (h.mv.pos - s.pos).length() > 1e-4 || (h.mv.vel - s.vel).length() > 1e-3 || h.mv.extra != s.extra {
+            bad += 1;
+        }
+    }
+    assert_eq!(bad, 0, "mispredicted ticks");
+    assert_eq!(air, 3, "one air jump + two extra");
+    // Landed: restored.
+    let x = host.player(A).unwrap().mv.extra;
+    assert!(host.player(A).unwrap().mv.grounded && !x.air_jump_used && x.extra_air_jumps_used == 0);
+    // Back to base: no extras.
+    host.power_move(A, move_sel::select(0, 0)).unwrap();
+    let mut m = MoveModifiers::default();
+    host.player(A).unwrap().power.modify_movement(false, &mut m);
+    assert_eq!(m.extra_air_jumps, 0);
+}
+
+/// Worn air moves own Jump in the air: a spent air jump never leaves the extras live on the same press.
+#[test]
+fn extra_air_jumps_follow_the_air_jump_rules() {
+    use bd_sim::movement::ExtraMoves;
+    let mut x = ExtraMoves::default();
+    assert!(x.air_jump_left(0));
+    x.air_jump_used = true;
+    assert!(!x.air_jump_left(0));
+    assert!(x.air_jump_left(2));
+    x.extra_air_jumps_used = 2;
+    assert!(!x.air_jump_left(2));
+    x.restore();
+    assert!(x.air_jump_left(0) && x.extra_air_jumps_used == 0);
+    x.spend_air_jumps();
+    assert!(!x.air_jump_left(4));
+}

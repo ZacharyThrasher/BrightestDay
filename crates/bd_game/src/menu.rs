@@ -1358,8 +1358,7 @@ fn act(a: Act, menu: &mut MenuState, io: &mut MenuIo, state: &AppState) {
         }
         Act::Copy => {
             if let (Some(code), Some(cb)) = (io.net.as_ref().and_then(|n| n.lobby_code.clone().or_else(|| n.lan.first().cloned())), io.clipboard.as_mut()) {
-                let _ = cb.set_text(code);
-                menu.toast("copied");
+                menu.toast(if cb.set_text(code).is_ok() { "copied" } else { "couldn't copy" });
             }
         }
     }
@@ -2124,6 +2123,19 @@ pub fn costume_page_open(menu: &MenuState, state: &AppState, pause: &InGameMenu)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// COPY CODE / paste must reach the OS clipboard (`system_clipboard`), not bevy's in-process
+    /// fallback buffer. Ignored: it overwrites the machine's clipboard.
+    #[test]
+    #[ignore]
+    fn copy_code_reaches_the_os_clipboard() {
+        let code = "bd-clipboard-probe-7f3a";
+        assert!(bevy::clipboard::Clipboard::default().set_text(code).is_ok());
+        // A fresh instance can only see it through the OS.
+        let mut other = bevy::clipboard::Clipboard::default();
+        let got = other.fetch_text().poll_result();
+        assert_eq!(got.and_then(|r| r.ok()).as_deref(), Some(code));
+    }
 
     fn settings_rows(tab: SettingsTab, voice: bool) -> Vec<Row> {
         let mut s = Settings::default();

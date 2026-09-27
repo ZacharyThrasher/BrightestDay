@@ -164,6 +164,7 @@ fn mods() -> impl Strategy<Value = MoveModifiers> {
                 air_control,
                 jump_mult,
                 accel_mult,
+                extra_air_jumps: 0,
             }
         })
 }
@@ -418,6 +419,7 @@ proptest! {
             air_control: vals[6],
             jump_mult: vals[7],
             accel_mult: vals[8],
+            extra_air_jumps: (buttons % 4) as u8,
         };
         let input = PlayerInput { buttons, move_z: 1, pitch: 0.3, ..Default::default() };
         for t in 0..ticks {

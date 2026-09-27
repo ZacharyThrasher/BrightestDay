@@ -669,6 +669,8 @@ pub fn drive(world: &mut World, bots: &mut [BotBrain], inputs: &mut Vec<(PlayerI
             // SIGNATURE HOOK: with a full-ish bar, sometimes shout it as a signature (crate::signature).
             let _ = crate::signature::bot_cast(world, bot.id, r, aim);
         }
+        // SIGNATURE HOOK: sometimes answer a palm beam coming at it with one (a beam struggle).
+        crate::signature::palm::bot_counter(world, bot.id);
         // Party mode: pick a card on the pick screen.
         if let Some(ix) = party_pick(world, bot) {
             let _ = world.party_choose(bot.id, ix);

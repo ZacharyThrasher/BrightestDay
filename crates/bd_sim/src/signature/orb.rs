@@ -306,9 +306,17 @@ pub(crate) fn register(w: &mut World, cid: ConstructId) {
     let explodes = c.recipe.has(Mechanic::Explodes);
     let owner = c.owner;
     // The flight is ours: its own verbs go quiet (an erasing orb's field waits for the release —
-    // riding in the hand it would swallow its own caster).
-    c.recipe.mechanics.retain(|m| *m == Mechanic::Attract);
-    crate::constructs::components::on_graft(c);
+    // riding in the hand it would swallow its own caster). An erasing orb drops them for good (the
+    // kill feed's "erased"); any other ball keeps its words (party grafts, the feed) but not their
+    // behaviour.
+    if erase {
+        c.recipe.mechanics.retain(|m| *m == Mechanic::Attract);
+        crate::constructs::components::on_graft(c);
+    } else {
+        let said = std::mem::take(&mut c.recipe.mechanics);
+        crate::constructs::components::on_graft(c);
+        c.recipe.mechanics = said;
+    }
     c.set_anim(AnimState::Charging, tick);
     c.vel = Vec3::ZERO;
     w.fields.retain(|f| f.construct != Some(cid));
@@ -698,6 +706,11 @@ fn erase(w: &mut World, o: &mut Orb, t: &OrbTuning) {
 }
 
 // ------------------------------------------------------------------ palm-beam struggle (palm.rs)
+
+/// Is an energy ball in `pid`'s hands (forming or held)? It owns PRIMARY then (no ring blast).
+pub(crate) fn holding(w: &World, pid: PlayerId) -> bool {
+    w.signature.orbs.iter().any(|o| o.owner == pid && o.phase != Phase::Travel)
+}
 
 /// Is `cid` a live energy ball (any phase)?
 pub(crate) fn is_orb(w: &World, cid: ConstructId) -> bool {
