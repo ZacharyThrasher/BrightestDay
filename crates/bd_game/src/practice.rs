@@ -153,6 +153,10 @@ fn start_practice(
         cfg.timings = timings;
         cfg.check_invariants = false;
     }
+    // WILLPOWER = LAUNCH dev / smoke override (A/B without touching lobby prefs).
+    if std::env::var_os("BD_WILLPOWER_LAUNCH").is_some() {
+        cfg.rules.willpower_launch = true;
+    }
     // Practice keeps its terrain on rematch (the render mirror regenerates only via ArenaReset,
     // and city maps can't be rebuilt from an Archipelago seed).
     cfg.rules.regen_islands_between_rounds = false;

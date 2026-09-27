@@ -10,6 +10,10 @@
 //! * On a spend the sparks break off and streak down-right (toward the ring hand) in < 0.3 s; a
 //!   spark filling clicks in with a glint + a soft tick; a full gauge flashes once, then settles to a
 //!   faint baseline while idle. Low: dims and sputters. Charging (Z): a shimmer rises along it.
+//! * WILLPOWER = LAUNCH (`bd_sim::launch`, host rule): the gauge reads as LAUNCH POWER — never red /
+//!   shaking (nothing is refused; the bite still shows what a cast will drain), the filled sparks run
+//!   from a dim, cool corps tint (weak launches) to hot white-gold (loaded), a notch marks the ×1
+//!   point, and a loaded bar breathes.
 //! * `UiPrefs::crosshair_gauge` (HUD settings "CROSSHAIR GAUGE", on by default). Screen flashes off
 //!   (comfort) → no flicker / shake.
 
@@ -120,17 +124,24 @@ fn draw(
     let col = super::derive::vivid(corps);
     let alpha = if show { q(will.alpha, 64.0) } else { 0.0 };
     let b = will.bite;
+    // WILLPOWER = LAUNCH: launch power 0..1 + the ×1 notch (in sparks); never "can't afford".
+    let launch = active.as_ref().filter(|a| bd_sim::launch::active(a.world.rules())).map(|a| {
+        let t = &a.world.cfg.tuning.launch;
+        let frac = if will.pool > 0 { will.have / will.pool as f32 } else { 0.0 };
+        (q(bd_sim::launch::power01(t, frac), 64.0), t.mid_frac * will.pool as f32)
+    });
+    let afford = b.afford || launch.is_some();
     let p = if alpha <= 0.0 {
         GaugeParams::default()
     } else {
         GaugeParams {
             color: Vec4::new(col[0], col[1], col[2], alpha),
             a: Vec4::new(will.pool as f32, q(will.have, 256.0), q(b.lo, 256.0), q(b.hi, 256.0)),
-            b: Vec4::new(b.cost, b.afford as u8 as f32, q(b.missing, 256.0), will.charging as u8 as f32),
+            b: Vec4::new(b.cost, afford as u8 as f32, q(b.missing, 256.0), will.charging as u8 as f32),
             c: Vec4::new(will.low as u8 as f32, will.glint.map_or(-1.0, |(i, _)| i as f32), will.glint.map_or(0.0, |(_, a)| q(a, 64.0)), q(will.full_flash, 64.0)),
             d: will.brk.map_or(Vec4::new(0.0, 0.0, -1.0, t.ghost_max as f32), |k| Vec4::new(k.lo, k.hi, q(k.age, 64.0), t.ghost_max as f32)),
             e: Vec4::new(r, th, t.span_deg.to_radians(), t.gap_deg.to_radians()),
-            f: Vec4::new((comfort.flashes <= 0.01) as u8 as f32, 0.0, 0.0, 0.0),
+            f: Vec4::new((comfort.flashes <= 0.01) as u8 as f32, launch.is_some() as u8 as f32, launch.map_or(0.0, |l| l.0), launch.map_or(0.0, |l| l.1)),
         }
     };
     if mats.get(&g.mat).is_some_and(|m| m.params != p)

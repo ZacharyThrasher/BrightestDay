@@ -29,6 +29,7 @@ pub mod valley; // VALLEY OF THE END: water sheets, falls veil, mist, rainbow, w
 pub mod cybertron; // CYBERTRON: transforming panels (map movers), telegraph light + panel sounds
 pub mod casino; // HIGH ROLLER: slot reels / levers, roulette house spin, glitter, pie splat (map interactables)
 pub mod charge;
+pub mod launch_glow; // WILLPOWER = LAUNCH: loaded players glow (no-op while the rule is off)
 pub mod construct_anim;
 pub mod constructs;
 pub mod director;
@@ -108,6 +109,7 @@ impl Plugin for PresentPlugin {
             ))
             .add_plugins((water::WaterPlugin, space::SpacePlugin, shout::ShoutPlugin))
             .add_plugins(charge::ChargePlugin) // CHARGE: aura, world dim, audio cues
+            .add_plugins(launch_glow::LaunchGlowPlugin) // WILLPOWER = LAUNCH: launch-power body glow
             .add_plugins(summon_ping::SummonPingPlugin) // off-screen summon ping + preview window
             .add_plugins(construct_anim::ConstructAnimPlugin) // role x event construct animation
             .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation

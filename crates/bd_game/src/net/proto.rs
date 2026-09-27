@@ -598,8 +598,10 @@ mod tests {
         assert!(matches!(back, C2S::Cmd(NetCmd::DropPower(417))));
         let mut g = GameSettings::default();
         g.rules.active_limit = 4;
+        g.rules.classic_launch = true; // LAUNCH FEEL (v53): the A/B host rule rides the settings
         let back: GameSettings = bd_net::codec::decode(&bd_net::codec::encode(&g)).unwrap();
         assert_eq!(back.rules.active_limit, 4);
+        assert!(back.rules.classic_launch);
         let e = bd_sim::GameEvent::CastFailed { player: bd_core::PlayerId(3), reason: bd_sim::events::CastError::AtLimit };
         let back: bd_sim::GameEvent = bd_net::codec::decode(&bd_net::codec::encode(&e)).unwrap();
         assert_eq!(back, e);

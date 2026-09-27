@@ -600,7 +600,8 @@ fn draw(
         cache.fill_prev[k] = fill;
         let s = &bar.slots[k];
         let sparks = cache.sparks[k];
-        let afford = sparks == 0 || willpower + 1e-3 >= sparks as f32 * seg;
+        // WILLPOWER = LAUNCH: nothing is ever unaffordable (moves fire and drain to 0).
+        let afford = sparks == 0 || willpower + 1e-3 >= sparks as f32 * seg || bd_sim::launch::active(a.world.rules());
         let (mut color, gl) = look_of(s.def, s.power, &s.bind, table.as_deref(), corps);
         let state_dim = s.state == SlotState::Burned;
         if s.state == SlotState::Claimed {

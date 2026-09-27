@@ -229,8 +229,9 @@ fn update(
     let (ww, wh) = window.as_ref().map_or((1280.0, 720.0), |w| (w.width(), w.height()));
     let est_h = HEADER_H + if content.desc.is_empty() { 0.0 } else { DESC_H } + if content.meta.is_empty() { 0.0 } else { META_H } + content.lines.len() as f32 * LINE_H + PAD;
     let c = edit.cursor.unwrap_or_default();
-    let x = (c.x + 22.0).min((ww - CARD_W - 8.0).max(8.0)).max(8.0);
-    let y = (c.y - 8.0).min((wh - est_h - 8.0).max(8.0)).max(8.0);
+    // Above the hovered icon (never covering the hotbar / power strip it points at).
+    let x = (c.x - CARD_W * 0.5).min((ww - CARD_W - 8.0).max(8.0)).max(8.0);
+    let y = (c.y - est_h - 36.0).min((wh - est_h - 8.0).max(8.0)).max(8.0);
     if let Ok(mut n) = nodes.get_mut(tip.root) {
         let (l, t) = (px(x), px(y));
         if n.left != l || n.top != t {
@@ -316,7 +317,7 @@ fn bind_content(
         Some(f) => format!("{:.1}s", (cooldown_secs * (1.0 - f)).max(0.0)),
         None => String::new(),
     };
-    let meta = [fire.to_string(), cost, cd].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("   ·   ");
+    let meta = [fire.to_string(), cost, cd].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("   |   ");
     TooltipContent { title, desc, meta, lines: Vec::new() }
 }
 
@@ -622,7 +623,7 @@ fn power_label(def: &bd_sim::powers::PowerDef, tier: u8, transformed: bool) -> (
             if nf.contains(&norm(name)) || nf.contains(&norm(short)) {
                 return (clip(&f.to_uppercase(), TAG_CHARS), true);
             }
-            [format!("{name} · {f}"), format!("{short} · {f}")].into_iter().find(|s| fits(s)).unwrap_or(f)
+            [format!("{name} - {f}"), format!("{short} - {f}")].into_iter().find(|s| fits(s)).unwrap_or(f)
         }
         None if fits(name) => name.to_string(),
         None => short.to_string(),
@@ -660,9 +661,9 @@ mod tests {
         assert_eq!(label("super_saiyan", blue, false), ("SUPER SAIYAN BLUE".to_string(), true));
         assert_eq!(label("ultra_instinct", 1, false).0, "MASTERED ULTRA INSTINCT");
         // A tier that doesn't: "POWER · TIER".
-        assert_eq!(label("gomu_gomu", 4, false), ("GOMU GOMU NO MI · GEAR FIFTH".to_string(), true));
+        assert_eq!(label("gomu_gomu", 4, false), ("GOMU GOMU NO MI - GEAR FIFTH".to_string(), true));
         // A transform: its title, with the model's short name (Gear 5).
-        assert_eq!(label("nika", 0, true), ("NIKA · GEAR FIFTH".to_string(), true));
+        assert_eq!(label("nika", 0, true), ("NIKA - GEAR FIFTH".to_string(), true));
         // Long names shorten cleanly; nothing is ever longer than the cap.
         assert_eq!(label("tori_phoenix", 0, false).0, "PHOENIX");
         assert_eq!(label("tori_phoenix", 0, true).0, "PHOENIX FORM");
@@ -734,10 +735,10 @@ mod tests {
     fn bind_meta_joins_only_the_parts_that_are_there() {
         // A fresh, free, ready hotbar slot: every part shows, joined once each.
         let full = bind_content("HAMMER".into(), &SlotBind::Empty, None, None, "Press 1", 0, Some(1.0), 2.0);
-        assert_eq!(full.meta, "Press 1   ·   Free   ·   Ready");
+        assert_eq!(full.meta, "Press 1   |   Free   |   Ready");
         // A tray chip (no live cooldown known): no trailing separator, no "None".
         let tray = bind_content("HAMMER".into(), &SlotBind::Empty, None, None, "Drag to a slot", 3, None, 2.0);
-        assert_eq!(tray.meta, "Drag to a slot   ·   3 sparks");
+        assert_eq!(tray.meta, "Drag to a slot   |   3 sparks");
         // Singular / plural spark wording.
         let one = bind_content("X".into(), &SlotBind::Empty, None, None, "Press 2", 1, Some(0.5), 4.0);
         assert!(one.meta.contains("1 spark   ") || one.meta.ends_with("1 spark"), "{:?}", one.meta);

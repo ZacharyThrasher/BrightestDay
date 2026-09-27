@@ -7,7 +7,7 @@
 //! Timeline (s): 1.0 fresh bar · 2.0 say "reinhardt ultimate" (→ slot 4) · 3.2 say "bamf" (→ 3)
 //! (+ Ultra Instinct held) · 4.6 press 4 · 6.0 Tab: drag 4 onto 1 · 7.1 drop + pin · 8.0 TOTAL
 //! LIMIT 4: slot 2 = "star platinum", press 2, "a stone wall", "a wolf" · 9.6 "giant sword"
-//! refused · 10.3 X (window) · 11.0 → 2 dismisses Star Platinum.
+//! refused · 10.3 X (window) · 11.0 → 2 dismisses Star Platinum · 11.8 hover slot 1 (its tooltip).
 
 use super::hud::{DevTab, Over, Src, TabEdit};
 use super::{Entry, Hotbar, SlotBind};
@@ -62,7 +62,7 @@ fn run(
             commands.spawn(bevy::render::view::screenshot::Screenshot::primary_window()).observe(bevy::render::view::screenshot::save_to_disk(path));
             sc.taken = sc.taken.max(n);
         }
-        if sc.step >= 13 && sc.queue.is_empty() && t > 13.5 {
+        if sc.step >= 14 && sc.queue.is_empty() && t > 14.5 {
             exit.write(AppExit::Success);
         }
     }
@@ -168,6 +168,11 @@ fn run(
             w.write(SimCommand::local(c));
         }
         sc.step = 13;
+    } else if at(&sc, 13, 11.8) {
+        // READABILITY: hover slot 1 ("reinhardt ultimate", pinned since step 6) for its tooltip —
+        // the owner's fix ("only have a tooltip come up when they hover over the actual ability").
+        edit.dev = Some(DevTab { cursor: None, target: Some(Over::Slot(0)), drag: None });
+        sc.step = 14;
     }
     // a shot a beat after each scripted moment
     if sc.step != step_before && sc.shots.is_some() {
@@ -180,6 +185,7 @@ fn run(
             6 => (6, 0.5),
             11 => (7, 0.45),
             13 => (8, 0.7),
+            14 => (9, 0.6),
             _ => (0, 0.0),
         };
         if n > 0 {

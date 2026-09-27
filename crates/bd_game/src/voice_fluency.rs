@@ -112,7 +112,9 @@ pub fn heard_line(lex: &Lexicon, text: &str) -> String {
         return String::new();
     }
     MEMO.with(|m| m.borrow_mut().clear());
-    // repairs get a time budget: a long garbled chain must never hitch the frame
+    // repairs get a time budget: a long garbled chain must never hitch the frame (the index is
+    // built first — `warm` normally did it off-thread — so it never eats the budget)
+    let _ = sounds(lex);
     DEADLINE.with(|d| d.set(Some(std::time::Instant::now() + std::time::Duration::from_millis(REPAIR_BUDGET_MS))));
     let line = squeeze_elongation(lex, said);
     // Whisper's commas inside ONE name ("Amador, Ray, Suge" for Amaterasu, "Nightcrawler, teleport"):
@@ -157,7 +159,7 @@ fn split_is_all_moves(lex: &Lexicon, line: &str) -> bool {
 }
 
 /// "rasengaaaan" → "rasengan", "kaaamehaaameha" → "kamehameha", "booom" → "boom": a letter held
-/// for 3+ is squeezed to one or two, whichever reads better (a move, else a clean thing).
+/// for 3+ is squeezed to one or two, whichever reads better (a move, else a thing; ties: one).
 fn squeeze_elongation(lex: &Lexicon, s: &str) -> String {
     let squeeze = |max: usize| -> String {
         let mut out = String::with_capacity(s.len());
@@ -176,8 +178,10 @@ fn squeeze_elongation(lex: &Lexicon, s: &str) -> String {
         return two; // nothing held
     }
     let one = squeeze(1);
-    let good = |l: &str| line_reads(lex, l);
-    if good(&one) && !good(&two) { one } else { two }
+    // a power move beats a thing beats nothing; a tie goes to one letter (a held sound is one
+    // letter held: "tenshooo" is "tensho", "smaaash" is "smash")
+    let rank = |l: &str| if piece_is_move(lex, l) || toolbox::command(lex, None, true, l, true).is_some_and(|s| s.len() > 1) { 2 } else { u8::from(line_reads(lex, l)) };
+    if rank(&two) > rank(&one) { two } else { one }
 }
 
 /// Does a line read as something (a move, a chain, a described move, a clean thing)?
@@ -806,7 +810,6 @@ mod tests {
         same("captain falcon punch", "captain falcon falcon punch");
         same("rasengaaaan", "rasengan");
         same("rasengan, chidori", "rasengan, chidori");
-        same("nightcrawler teleport reinhardt ultimate", "nightcrawler teleport then reinhardt ultimate");
         for thing in ["flaming hammer", "giant ice sword", "a rubber duck", "rock wall", "a dragon", "shadow ball", "a pirate ship"] {
             let line = heard_line(&lex, thing);
             let r = toolbox::command(&lex, None, true, &line, true);

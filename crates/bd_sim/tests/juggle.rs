@@ -178,7 +178,9 @@ fn own_tether_resets_the_chain() {
 
 #[test]
 fn single_big_hit_still_kos_after_small_pokes() {
-    let mut w = world(true);
+    // CLASSIC LAUNCH: "poke" is sized for the classic curve (the modern one grows 15 % faster at 300 %,
+    // where every touch tumbles); the juggle rules themselves are the same under both.
+    let mut w = world_with(2, |c| c.rules.classic_launch = true);
     place(&mut w, B, Vec3::new(12.0, G, 0.0));
     w.player_mut(B).unwrap().damage_pct = 300.0;
     // Two pokes (not chain hits) right before the blow change nothing.

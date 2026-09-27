@@ -7,7 +7,8 @@
 // p.c     = (low 0/1, glint spark (-1 none), glint age 0..1, full flash 1..0)
 // p.d     = (break lo, break hi, break age 0..1 (-1 none), ghost max)
 // p.e     = (radius px, thickness px, span rad, gap rad)
-// p.f     = (calm 0/1 (screen flashes off: no flicker / shake), 0, 0, 0)
+// p.f     = (calm 0/1 (screen flashes off: no flicker / shake), WILLPOWER = LAUNCH 0/1, launch power 0..1,
+//            the x1 notch position in sparks)
 
 #import bevy_ui::ui_vertex_output::UiVertexOutput
 #import bevy_render::globals::Globals
@@ -109,8 +110,27 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
                 let k = select(0.62 + 0.33 * sin(t * 21.0), 0.8, calm);
                 c = mix(c, vec3<f32>(1.0, 0.98, 0.92), k);
             }
+            // WILLPOWER = LAUNCH: the fill reads as launch power — dim / cool when weak, hot white-gold
+            // when loaded, breathing near the top.
+            if (p.f.y > 0.5 && !refuse) {
+                let lp = p.f.z;
+                let weak = mix(col * 0.4, vec3<f32>(0.35, 0.45, 0.6), 0.35);
+                let hot = mix(col, vec3<f32>(1.0, 0.86, 0.45), 0.55) * 1.35;
+                var lc = mix(weak, hot, lp);
+                if (lp > 0.8 && !calm) {
+                    lc = lc * (1.0 + 0.18 * (lp - 0.8) * 5.0 * (0.5 + 0.5 * sin(t * 6.0)));
+                }
+                let in_bite = cost > 0.0 && x >= bite_lo - 1e-3 && x < bite_hi + 1e-3;
+                c = select(lc, c, in_bite);
+            }
             // Full: a flash as it tops off.
             c = mix(c, vec3<f32>(1.0), p.c.w * 0.65);
+        }
+        // WILLPOWER = LAUNCH: a thin notch at the x1 point (normal launch).
+        if (p.f.y > 0.5 && abs(x - p.f.w) * (p.e.z / max(n, 1.0)) * length(q) < 0.9) {
+            out = over(out, c, a);
+            c = vec3<f32>(1.0);
+            a = key * 0.9; // visible in the gap between sparks too
         }
         // Charging: a shimmer rises along the band (left -> right) and the filling edge glows.
         if (charging) {

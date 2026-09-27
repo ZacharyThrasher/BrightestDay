@@ -179,6 +179,7 @@ fn join_and_leave_mid_match_leave_no_dangling_refs() {
 fn knockback_scales_with_missing_health_and_tumbles() {
     // Smash model: knockback grows with damage % (after the hit) and the hit's damage.
     let mut w = duel(2);
+    w.cfg.rules.classic_launch = true; // pins the classic formula's numbers (modern curve: tests/launch_feel.rs)
     let v0 = {
         let r = w.apply_hit(hit(B, Some(A), 0.0, 10.0, Vec3::X));
         r.knockback
@@ -269,6 +270,7 @@ fn respawn_picks_spawn_far_from_living_enemies() {
 #[test]
 fn wall_splat_damages_carves_and_bounces() {
     let mut w = duel(2);
+    w.cfg.rules.classic_launch = true; // pins the classic formula's numbers (modern curve: tests/launch_feel.rs)
     // The lab's east wall: x ∈ [24, 25], z ∈ [-6, 6], y ∈ [8, 12].
     place(&mut w, B, Vec3::new(21.0, 8.0, 0.0));
     // Tumbling but below the punch-through speed (a 32 m/s launch would plow through the wall).
@@ -789,6 +791,7 @@ fn link_keeps_players_within_length_and_blade_cuts_it() {
 #[test]
 fn shrink_and_grow_change_hull_knockback_and_replicate() {
     let mut w = duel(2);
+    w.cfg.rules.classic_launch = true; // pins the classic formula's numbers (modern curve: tests/launch_feel.rs)
     w.resize_player(B, bd_sim::space::GROW_SCALE, 6.0);
     run(&mut w, 60);
     let hull = w.hull_of(B).unwrap();
