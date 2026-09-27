@@ -150,6 +150,8 @@ enum Knob {
     /// READABILITY: willpower comes in this many SPARKS (`MatchRules::willpower_segments`; every
     /// cast costs whole sparks).
     Sparks,
+    /// Repeats of the same cast / move cost an extra spark each (`MatchRules::repeat_cost`).
+    RepeatCost,
     /// CONSTRUCTS: Normal / Chaos / Custom quick switch over every [`Lim`].
     Caps,
     /// CONSTRUCTS: one per-kind cap (`MatchRules::limits`).
@@ -444,7 +446,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             }
             v.push(Value(K::TimeLimit));
             v.extend([Header("ARENA"), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
-            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::Powers)]);
+            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::RepeatCost), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
@@ -667,6 +669,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             "CUSTOM".into()
         }),
         Knob::Powerups => (lbl("POWER-UPS"), on_off(r.powerups)),
+        Knob::RepeatCost => (lbl("REPEATS COST MORE"), on_off(r.repeat_cost)),
         Knob::Limit(l) => {
             let mut lim = r.limits;
             (lbl(l.label()), lim_text(*l.get(&mut lim)))
@@ -931,6 +934,7 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::Caps => g.rules.limits = if g.rules.limits == ConstructLimits::default() { ConstructLimits::chaos() } else { ConstructLimits::default() },
         Knob::Powerups => g.rules.powerups = !g.rules.powerups,
+        Knob::RepeatCost => g.rules.repeat_cost = !g.rules.repeat_cost,
         Knob::Limit(l) => {
             let v = l.get(&mut g.rules.limits);
             *v = l.step(*v, dir);

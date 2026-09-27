@@ -287,7 +287,7 @@ impl World {
             }
             let rules = &self.cfg.rules;
             if !rules.infinite_willpower() {
-                let (n, extra) = price(&self.cfg.tuning.willpower.sparks, &plan.tw, uses, rules.pool_segments());
+                let (n, extra) = price(&rules.sparks(&self.cfg.tuning.willpower.sparks), &plan.tw, uses, rules.pool_segments());
                 cost = n as f32 * rules.segment_size();
                 surcharge = extra as f32 * rules.segment_size();
             }

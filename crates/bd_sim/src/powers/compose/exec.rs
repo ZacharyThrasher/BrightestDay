@@ -205,7 +205,7 @@ impl World {
             return Err(PowerError::Cooldown);
         }
         let rules = &self.cfg.rules;
-        let cost = if rules.infinite_willpower() { 0.0 } else { move_sparks(&self.cfg.tuning.willpower.sparks, &mv, uses, rules.pool_segments()) as f32 * rules.segment_size() };
+        let cost = if rules.infinite_willpower() { 0.0 } else { move_sparks(&rules.sparks(&self.cfg.tuning.willpower.sparks), &mv, uses, rules.pool_segments()) as f32 * rules.segment_size() };
         if cost > p.willpower + 1e-4 {
             return Err(PowerError::NotEnoughWillpower);
         }

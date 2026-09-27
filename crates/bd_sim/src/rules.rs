@@ -139,6 +139,9 @@ pub struct MatchRules {
     /// ones, by its presence tier (`willpower::cast_sparks`; more sparks = more casts per bar). A
     /// balance rule, so the host sets it and it replicates with the rules.
     pub willpower_segments: u8,
+    /// REPEATS COST MORE (owner: host toggle): each repeat of the same cast / move inside the
+    /// staleness window adds `SparkTuning::stale` sparks. Off = repeats cost the same as the first.
+    pub repeat_cost: bool,
 }
 
 /// Default / range of [`MatchRules::willpower_segments`] (8: see `willpower::QUANTIZE_BIAS`).
@@ -167,6 +170,7 @@ impl Default for MatchRules {
             limits: ConstructLimits::default(),
             powerups: false,
             willpower_segments: DEFAULT_WILLPOWER_SEGMENTS,
+            repeat_cost: true,
         }
     }
 }
@@ -186,6 +190,16 @@ impl MatchRules {
             WillpowerMode::Double => 2.0,
             _ => 1.0,
         }
+    }
+
+    /// The spark prices this match uses: the tuning with the repeat surcharge removed when the host
+    /// turned [`Self::repeat_cost`] off. Every spark price goes through this.
+    pub fn sparks(&self, t: &crate::willpower::SparkTuning) -> crate::willpower::SparkTuning {
+        let mut s = t.clone();
+        if !self.repeat_cost {
+            s.stale = 0;
+        }
+        s
     }
 
     /// Sparks in the Normal pool ([`Self::willpower_segments`], clamped to its range).
@@ -321,4 +335,25 @@ pub struct ScoreRow {
 /// Sort a scoreboard best-first: KOs desc, deaths asc, id asc.
 pub fn sort_scoreboard(rows: &mut [ScoreRow]) {
     rows.sort_by(|a, b| b.kos.cmp(&a.kos).then(a.deaths.cmp(&b.deaths)).then(a.player.cmp(&b.player)));
+}
+
+#[cfg(test)]
+mod repeat_cost_tests {
+    use super::*;
+    use crate::willpower::{cast_sparks, SparkTuning};
+    use bd_core::mechanics::Recipe;
+
+    #[test]
+    fn repeats_cost_more_is_a_host_toggle() {
+        let t = SparkTuning::default();
+        let on = MatchRules::default();
+        assert!(on.repeat_cost, "shipped rule: repeats cost more");
+        assert_eq!(on.sparks(&t).stale, t.stale);
+        let off = MatchRules { repeat_cost: false, ..MatchRules::default() };
+        assert_eq!(off.sparks(&t).stale, 0);
+        let r = Recipe::unknown("x");
+        let price = |rules: &MatchRules, uses| cast_sparks(&rules.sparks(&t), 1, &r, false, false, uses, 8, 1.0);
+        assert!(price(&on, 3) > price(&on, 0));
+        assert_eq!(price(&off, 3), price(&off, 0));
+    }
 }

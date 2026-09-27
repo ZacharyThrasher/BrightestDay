@@ -274,7 +274,7 @@ impl World {
     /// Willpower for `n` sparks plus the repeat surcharge (+`sparks.stale` per use), capped by the bar.
     fn stale_price(&self, n: u32, uses: u32) -> f32 {
         let rules = &self.cfg.rules;
-        let n = (n + uses.min(64) * self.cfg.tuning.willpower.sparks.stale as u32).clamp(1, rules.pool_segments());
+        let n = (n + uses.min(64) * rules.sparks(&self.cfg.tuning.willpower.sparks).stale as u32).clamp(1, rules.pool_segments());
         n as f32 * rules.segment_size()
     }
 
@@ -474,7 +474,7 @@ impl World {
             cost + resize_cost
         } else {
             let spark = self.cfg.rules.segment_size();
-            let n = graft_sparks + crate::willpower::cost_segments(resize_cost, spark) + uses.min(64) * self.cfg.tuning.willpower.sparks.stale as u32;
+            let n = graft_sparks + crate::willpower::cost_segments(resize_cost, spark) + uses.min(64) * self.cfg.rules.sparks(&self.cfg.tuning.willpower.sparks).stale as u32;
             (n.min(self.cfg.rules.pool_segments()) as f32 * spark).max(0.0)
         };
         let (cost, paid) = crate::freedom::drain_afford(self, i, cost);

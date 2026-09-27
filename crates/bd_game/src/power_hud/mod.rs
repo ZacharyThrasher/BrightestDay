@@ -197,7 +197,7 @@ fn phrase_cost(a: &ActiveWorld, lex: &RingLexicon, me: bd_core::PlayerId, text: 
         return (sum > 0.0).then_some(sum.clamp(0.0, 2.0));
     }
     // TOOLBOX: a borrowed / kit move costs its presence tier in sparks + its staleness.
-    let sparks = &w.cfg.tuning.willpower.sparks;
+    let sparks = &w.cfg.rules.sparks(&w.cfg.tuning.willpower.sparks);
     if let Some(m) = read(text).move_ref()
         && let Some((_, mv)) = m.resolve(table)
     {

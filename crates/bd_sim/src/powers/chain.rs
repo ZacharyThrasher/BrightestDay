@@ -387,7 +387,7 @@ pub fn move_cost(t: &SparkTuning, rules: &crate::rules::MatchRules, mv: &MoveDef
     if rules.infinite_willpower() {
         return 0.0;
     }
-    move_sparks(t, mv, uses, rules.pool_segments()) as f32 * rules.segment_size()
+    move_sparks(&rules.sparks(t), mv, uses, rules.pool_segments()) as f32 * rules.segment_size()
 }
 
 /// The move a held selector fires (for its active phase / event), without firing it.
