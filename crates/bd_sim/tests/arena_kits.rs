@@ -297,8 +297,9 @@ fn reinhardt_charge_pins_and_carries_into_the_wall() {
 fn doomfist_punch_launches_them_into_a_wall_splat() {
     let mut w = duel();
     stand(&mut w, B, 0.0, -4.0);
-    // A thick wall (a hurt body at speed plows through thin stone: the smash punch-through).
-    wall(&mut w, Vec3::new(-4.0, GROUND, -9.5), Vec3::new(4.0, GROUND + 6.0, -16.0));
+    // A thick wall (a hurt body at speed plows through thin stone: the smash punch-through). LAUNCH
+    // FEEL: 2 m thicker — the modern growth term (×1.15) carried the punch just past the old 6.5 m.
+    wall(&mut w, Vec3::new(-4.0, GROUND, -9.5), Vec3::new(4.0, GROUND + 6.0, -18.0));
     let mut evs = say(&mut w, A, "doomfist punch");
     evs.extend(run(&mut w, 120));
     assert!(evs.iter().any(|e| matches!(e, GameEvent::WallSplat { player, .. } if *player == B)), "punched into the wall");
