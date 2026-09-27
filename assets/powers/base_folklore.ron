@@ -1,0 +1,37 @@
+// Folklore (public domain): Journey to the West.
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+[
+    // ---------------------------------------------------------------- JOURNEY TO THE WEST (public domain)
+    // Sun Wukong's origin: eat a peach of immortality from the Queen Mother's orchard. Holders pluck hairs
+    // into a scampering pack of monkey clones, and awaken as the Great Sage Equal to Heaven: a gold flame
+    // aura, huge leaps, and every held weapon they make telescopes like the Ruyi Jingu Bang (Extends graft).
+    (
+        id: "great_sage",
+        name: "Great Sage Equal to Heaven",
+        kind: Origin,
+        pickup: Some((name: "peach of immortality", form: Ball, element: Light, scale: 0.4)),
+        names: ["great sage equal to heaven", "great sage", "qitian dasheng", "qi tian da sheng", "monkey king power",
+                "monkey king's power", "power of the monkey king", "peach of immortality", "peaches of immortality",
+                "immortal peach", "immortal peaches", "flat peach", "flat peaches", "peach of heaven", "heavenly peach",
+                "pantao", "peaches of heaven"],
+        body: (moves: (jump: 1.2, air_control: 1.25, accel: 1.1)),
+        shouts: [("pluck a hair", 0), ("clone hairs", 0), ("bian", 0), ("qitian", 1), ("equal to heaven", 1),
+                 ("i am the great sage", 1)],
+        moves: [
+            // A pinch of hairs blown from the palm: seven little monkeys that scamper at your enemies.
+            (name: "hair clones", cooldown: 6.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "hair clones", form: Biped, mech: [Blunt, Swarm, Fast], scale: 0.9, mass: 12.0,
+                              count: 7, temperament: Playful, intensity: 1.0)),
+            ], juice: Some((title: Some("BIAN!"), punch: 1.5))),
+            (name: "great sage", cooldown: 1.5, ops: [Transform]),
+        ],
+        // The awakening: the Great Sage Equal to Heaven. Every held weapon you make telescopes.
+        transform: Some((
+            ascend: Some((color: Some((1.0, 0.78, 0.2)), intensity: 1.5, title: Some("GREAT SAGE EQUAL TO HEAVEN"),
+                          eye_glow: Some((1.0, 0.72, 0.15)))),
+            body: (moves: (jump: 1.45, speed: 1.1, air_control: 1.4, accel: 1.15)),
+            graft: Some((mechanics: [Extends])),
+            effects: [PowerMult(damage: 1.15, knockback: 1.2)],
+        )),
+    ),
+]

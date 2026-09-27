@@ -30,6 +30,8 @@ pub struct TransformFx {
     pub to_robot: bool,
     /// When true bd_fx advances `t` over `TRANSFORM_SECONDS` itself.
     pub auto: bool,
+    /// Playback speed (1 = the full sequence; combat transforms mid-combo play faster).
+    pub speed: f32,
     events: Arc<Vec<TransformEvent>>,
     last_t: f32,
     head_flare: f32,
@@ -38,10 +40,15 @@ pub struct TransformFx {
 impl TransformFx {
     pub fn new(rig: Arc<TransformRig>, to_robot: bool) -> Self {
         let events = Arc::new(sequence_events(&rig));
-        TransformFx { rig, t: 0.0, to_robot, auto: true, events, last_t: 0.0, head_flare: 0.0 }
+        TransformFx { rig, t: 0.0, to_robot, auto: true, speed: 1.0, events, last_t: 0.0, head_flare: 0.0 }
     }
     /// Start a new transformation in `to_robot` direction from t = 0.
     pub fn restart(&mut self, to_robot: bool) {
+        self.restart_at(to_robot, 1.0);
+    }
+    /// [`Self::restart`] at `speed` × (a combat transform: `HeldFx::Transform` strength = ± speed).
+    pub fn restart_at(&mut self, to_robot: bool, speed: f32) {
+        self.speed = if speed.is_finite() { speed.clamp(0.25, 8.0) } else { 1.0 };
         self.to_robot = to_robot;
         self.t = 0.0;
         self.last_t = 0.0;
@@ -74,7 +81,8 @@ fn advance(time: Res<Time>, mut q: Query<&mut TransformFx>) {
     let dt = time.delta_secs();
     for mut tf in &mut q {
         if tf.auto && tf.t < 1.0 {
-            tf.t = (tf.t + dt / TRANSFORM_SECONDS).min(1.0);
+            let speed = tf.speed.max(0.25);
+            tf.t = (tf.t + dt * speed / TRANSFORM_SECONDS).min(1.0);
         }
     }
 }

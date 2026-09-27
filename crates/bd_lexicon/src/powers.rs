@@ -25,6 +25,9 @@ pub enum PowerKind {
     Stand,
     /// Said, not eaten: ultra instinct, sharingan, bankai… (its tier names grant it too).
     Technique,
+    /// A character move-set (`kind: Kit`): its names never grant anything — the bare name stays the
+    /// costume summon, "<kit> <move>" fires a move (bd_sim `powers::kit`).
+    Kit,
     Other,
 }
 
@@ -43,6 +46,8 @@ pub struct PowerDef {
     /// `claim: ["infinity"]`: names kept even when they are very common words (power names
     /// otherwise yield single common words to the everyday lexicon).
     pub claim: Vec<String>,
+    /// Source file (`"powers/base_dc.ron"`; `"powers.ron"` for a bare [`parse_powers`]).
+    pub file: String,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -243,8 +248,47 @@ pub(crate) fn strings(v: &str) -> Vec<String> {
     out
 }
 
-/// Parse powers.ron text. Never fails: returns (powers, warnings).
+/// Parse one powers list. Never fails: returns (powers, warnings).
 pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
+    parse_powers_named("powers.ron", src)
+}
+
+/// Names (and tier names) claimed by more than one power: the later one takes it over. One warning
+/// per clash, naming both files (content authors: rename or drop one).
+pub fn cross_file_collisions(powers: &[PowerDef]) -> Vec<String> {
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut out = Vec::new();
+    for (i, p) in powers.iter().enumerate() {
+        if p.kind == PowerKind::Kit {
+            continue;
+        }
+        let mut mine: Vec<String> = p.names.iter().chain(p.tiers.iter().flat_map(|(_, n)| n.iter())).map(|n| normalize_key(n)).collect();
+        mine.sort();
+        mine.dedup();
+        for n in mine {
+            if n.is_empty() {
+                continue;
+            }
+            if let Some(&j) = seen.get(&n) {
+                let q = &powers[j];
+                if q.id != p.id {
+                    out.push(format!("{}: power \"{}\" name \"{n}\" taken over from \"{}\" ({})", p.file, p.id, q.id, q.file));
+                }
+            }
+            seen.insert(n, i);
+        }
+    }
+    let mut ids: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+    for p in powers {
+        if let Some(f) = ids.insert(p.id.as_str(), p.file.as_str()) {
+            out.push(format!("{}: duplicate power id \"{}\" (also in {f}): the first one wins in bd_sim", p.file, p.id));
+        }
+    }
+    out
+}
+
+/// Parse one powers list from `file` (named in warnings and in each power's `file`).
+pub fn parse_powers_named(file: &str, src: &str) -> (Vec<PowerDef>, Vec<String>) {
     let mut out = Vec::new();
     let mut warnings = Vec::new();
     for (line, entry) in crate::icons::split_entries(src) {
@@ -257,7 +301,7 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         let f = fields(body);
         let get = |k: &str| f.iter().find(|(n, _)| n == k).map(|(_, v)| v.as_str());
         let Some(id) = get("id").and_then(|v| strings(v).into_iter().next()).filter(|s| !s.is_empty()) else {
-            warnings.push(format!("powers.ron:{line}: entry without id: skipped"));
+            warnings.push(format!("{file}:{line}: entry without id: skipped"));
             continue;
         };
         let mut names: Vec<String> = get("names").map(strings).unwrap_or_default();
@@ -275,7 +319,9 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
         let has_companion = get("companion").map(|v| !v.trim().starts_with("None")).unwrap_or(false);
         let lower_names: Vec<String> = names.iter().map(|n| normalize_key(n)).collect();
         let fruity = lower_names.iter().any(|n| n.ends_with(" fruit") || n.ends_with(" no mi"));
-        let kind = if kind_text.contains("technique") {
+        let kind = if kind_text.contains("kit") {
+            PowerKind::Kit
+        } else if kind_text.contains("technique") {
             PowerKind::Technique
         } else if kind_text.contains("stand") || has_companion {
             PowerKind::Stand
@@ -333,7 +379,7 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
                 names.push(c.clone());
             }
         }
-        out.push(PowerDef { id, names, incantations, kind, pickup, tiers, claim });
+        out.push(PowerDef { id, names, incantations, kind, pickup, tiers, claim, file: file.to_string() });
     }
     (out, warnings)
 }
@@ -350,7 +396,7 @@ pub fn tier_entries(p: &PowerDef) -> Vec<IconEntry> {
                 recipe: grant_recipe(&display, &format!("{}@{}", p.id, t), PowerKind::Technique),
                 shape: None,
                 alt_shape: None,
-                source: "powers.ron".to_string(),
+                source: p.file.clone(),
             }
         })
         .collect()
@@ -382,7 +428,7 @@ pub fn power_entry(p: &PowerDef) -> IconEntry {
         recipe: recipe.normalized(),
         shape: None,
         alt_shape: None,
-        source: "powers.ron".to_string(),
+        source: p.file.clone(),
     }
 }
 
@@ -405,7 +451,7 @@ pub fn grant_recipe(name: &str, id: &str, kind: PowerKind) -> Recipe {
             r.intensity = 0.6;
             r.element = Element::Psychic;
         }
-        PowerKind::Other | PowerKind::Technique => {
+        PowerKind::Other | PowerKind::Technique | PowerKind::Kit => {
             r.form = Form::Ball;
             r.scale = 0.4;
             r.mass = 0.5;

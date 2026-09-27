@@ -300,6 +300,8 @@ pub enum NetCmd {
     Cast { seq: u32, recipe: Box<Recipe>, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, aim: Aim, incantation: bool },
     /// Protocol v9: carries the crosshair aim (third-person convergence; host-validated).
     PowerMove { slot: u8, aim: Option<Aim> },
+    /// Protocol v40 (TOOLBOX): a kit / borrowed / held move or a chain (`Cmd::Toolbox`).
+    Toolbox { steps: Vec<bd_sim::powers::chain::ToolStep>, aim: Option<Aim> },
     StandRush(u16),
     /// Oath section index (the host looks the length up in its own table; never sent by the client).
     OathBegin { section: u8 },
@@ -337,6 +339,7 @@ impl NetCmd {
                 NetCmd::Cast { seq: cast_seq, recipe, shape, alt_shape: small(alt_shape), aim, incantation }
             }
             Cmd::PowerMove(slot, aim) => NetCmd::PowerMove { slot, aim },
+            Cmd::Toolbox { steps, aim } => NetCmd::Toolbox { steps: crate::toolbox::sanitize_steps(steps, small), aim },
             Cmd::StandRush(n) => NetCmd::StandRush(n),
             Cmd::OathBegin { section } => NetCmd::OathBegin { section },
             Cmd::OathProgress { correct_chars, accuracy } => NetCmd::OathProgress { correct_chars, accuracy },
@@ -365,6 +368,8 @@ impl NetCmd {
             }
             // The sim re-checks the aim against the caster's eye / look (`World::resolve_aim`).
             NetCmd::PowerMove { slot, aim } => Cmd::PowerMove(slot, aim.map(|a| Aim { target_hint: None, modifier: false, ..a })),
+            // Capped + shapes size-limited here; the sim validates every step as it fires.
+            NetCmd::Toolbox { steps, aim } => Cmd::Toolbox { steps: crate::toolbox::sanitize_steps(steps, small), aim: aim.map(|a| Aim { target_hint: None, modifier: false, ..a }) },
             NetCmd::StandRush(n) => Cmd::StandRush(n.min(64)),
             // Out of any oath's range → section 0 (the sim also falls back per corps).
             NetCmd::OathBegin { section } => Cmd::OathBegin { section: if (section as usize) < bd_sim::willpower::MAX_OATH_SECTIONS { section } else { 0 } },

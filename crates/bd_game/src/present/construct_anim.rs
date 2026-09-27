@@ -58,7 +58,9 @@ impl Plugin for ConstructAnimPlugin {
         scenario::build(app); // `--scenario piloting` (dev frames, docs/piloting/)
         app.init_resource::<AnimInbox>()
             .init_resource::<BoardGlow>()
-            .add_systems(Update, (collect_events, animate_constructs, board_glow).chain().after(super::PresentSet::Sync));
+            .init_resource::<FocusDesat>()
+            .add_systems(Update, (collect_events, animate_constructs, board_glow).chain().after(super::PresentSet::Sync))
+            .add_systems(Update, (focus_desat, archetype_fx).after(super::PresentSet::Sync));
     }
 }
 
@@ -472,6 +474,97 @@ fn board_glow(
     }
 }
 
+// ------------------------------------------------------------------------------------------ transformer combat
+
+/// TRANSFORMER COMBAT "focus" (Devastation's perfect-dodge feel WITHOUT slowing anyone): a perfect
+/// dodge (`HeldFx::Parry`, strength ≥ 2, the local pilot's transformer) desaturates the dodger's
+/// view for ~0.5 s (the construct's own chrome flash is `constructs.rs`'s Parry flash). Presentation
+/// only; comfort: off when flashes are off, scaled by the flashes setting. Restores the base grade.
+#[derive(Resource, Default)]
+pub struct FocusDesat {
+    t: f32,
+    written: bool,
+}
+
+const FOCUS_SECS: f32 = 0.5;
+
+fn focus_desat(
+    time: Res<Time<Real>>,
+    comfort: Res<crate::settings::ComfortSettings>,
+    active: Option<Res<ActiveWorld>>,
+    mut events: MessageReader<GameEvents>,
+    mut st: ResMut<FocusDesat>,
+    mut cams: Query<&mut bevy::render::view::ColorGrading, With<PlayerCamera>>,
+) {
+    let local = active.as_ref().and_then(|a| a.local);
+    for ev in events.read() {
+        if let GameEvent::HeldFx { fx: HeldFx::Parry, owner, strength, .. } = &ev.event
+            && *strength >= 2.0
+            && local == Some(*owner)
+        {
+            st.t = FOCUS_SECS;
+        }
+    }
+    if st.t <= 0.0 {
+        if st.written {
+            st.written = false;
+            for mut cg in &mut cams {
+                cg.global.post_saturation = 1.04;
+            }
+        }
+        return;
+    }
+    st.t = (st.t - time.delta_secs()).max(0.0);
+    let k = comfort.flashes.clamp(0.0, 1.0);
+    if k <= 0.01 {
+        return;
+    }
+    let u = st.t / FOCUS_SECS;
+    // Snap grey, ease back.
+    let dip = if u > 0.85 { (1.0 - u) / 0.15 } else { u / 0.85 };
+    for mut cg in &mut cams {
+        cg.global.post_saturation = 1.04 * (1.0 - 0.7 * k * dip);
+    }
+    st.written = true;
+}
+
+/// Archetype flavour for transformer combat moments (combat transforms, drift boosts): tyre smoke /
+/// exhaust / tread dust, jet afterburner flash, rotor wash (combat.ron `transformer.archetypes[].fx`,
+/// the same archetype the host fights with).
+fn archetype_fx(active: Option<Res<ActiveWorld>>, mut events: MessageReader<GameEvents>, mut bursts: MessageWriter<BurstFx>) {
+    let Some(active) = active else {
+        events.clear();
+        return;
+    };
+    for ev in events.read() {
+        let GameEvent::HeldFx { id, fx, pos, dir, strength, .. } = &ev.event else { continue };
+        let combat = match fx {
+            HeldFx::Transform => strength.abs() > 1.2,
+            HeldFx::Thrust => true,
+            _ => false,
+        };
+        if !combat {
+            continue;
+        }
+        let Some(c) = active.world.constructs.get(*id).filter(|c| c.recipe.has(bd_core::mechanics::Mechanic::Transforms)) else { continue };
+        let a = active.world.cfg.tuning.transformer.archetype_of(&c.recipe);
+        let size = (c.half.max_element() * 0.6).clamp(0.6, 4.0);
+        let at = bv(*pos) - Vec3::Y * bv(c.half).y * 0.6;
+        let d = bv(*dir);
+        let (kind, color) = match a.fx.as_str() {
+            "afterburner" => (BurstKind::Flash, Some([1.0, 0.55, 0.15])),
+            "rotor_wash" => (BurstKind::Dust, Some([0.8, 0.85, 0.9])),
+            "tread_dust" => (BurstKind::Dust, None),
+            "exhaust" => (BurstKind::Smoke, Some([0.25, 0.25, 0.28])),
+            _ => (BurstKind::Smoke, None),
+        };
+        bursts.write(BurstFx { kind, pos: at, dir: -d, scale: size, color });
+        if a.fx == "afterburner" {
+            bursts.write(BurstFx { kind: BurstKind::Element(bd_core::mechanics::Element::Fire), pos: bv(*pos), dir: -d, scale: size * 0.7, color: None });
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------ scenario
 
 /// `--scenario piloting --pilot-shot truck|transform|robot|starscream|board` (practice): dev frames
@@ -484,6 +577,7 @@ pub mod scenario {
     use crate::console::RingLexicon;
     use crate::input::{InputOverride, LookAngles};
     use crate::sim_bridge::ActiveWorld;
+    use bd_core::input::buttons;
     use bd_core::{ConstructId, PlayerId, Vec3};
     use bevy::ecs::schedule::common_conditions::resource_exists;
     use bevy::prelude::{App, IntoScheduleConfigs, Res, ResMut, Resource, Time, Update, info, warn};
@@ -497,6 +591,20 @@ pub mod scenario {
         id: Option<ConstructId>,
         dir: Vec3,
         step: u32,
+        /// Combat shots: the enemy dummy standing in front.
+        dummy: Option<PlayerId>,
+    }
+
+    /// Combat frame-strip shots (TRANSFORMER COMBAT): the phrase each one casts.
+    fn combat_phrase(shot: &str) -> Option<&'static str> {
+        Some(match shot {
+            "combo" => "optimus prime",
+            "flyby" => "starscream",
+            "tankcombo" => "a transforming tank",
+            "helicombo" => "a transforming helicopter",
+            "bikecombo" => "arcee",
+            _ => return None,
+        })
     }
 
     pub fn build(app: &mut App) {
@@ -603,7 +711,12 @@ pub mod scenario {
             active.bots.clear();
             active.world.cfg.rules.willpower = bd_sim::WillpowerMode::Infinite;
             let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
-            for id in others {
+            let combat = combat_phrase(&sc.shot).is_some();
+            for (k, id) in others.into_iter().enumerate() {
+                if combat && k == 0 {
+                    sc.dummy = Some(id); // the combat shots keep one enemy standing still as the target
+                    continue;
+                }
                 if let Some(p) = active.world.player_mut(id) {
                     p.alive = false;
                     p.respawn_timer = 1e6;
@@ -616,6 +729,7 @@ pub mod scenario {
             }
             face(&mut look, dir, -0.12);
             let phrase = match sc.shot.as_str() {
+                s if combat_phrase(s).is_some() => combat_phrase(s).unwrap_or("optimus prime"),
                 "starscream" => "starscream",
                 "board" => "optimus prime that follows me",
                 _ => "optimus prime",
@@ -628,11 +742,11 @@ pub mod scenario {
         }
         let Some(id) = sc.id.filter(|id| active.world.constructs.get(*id).is_some()) else { return };
         let t = sc.t;
-        if (t * 1.0).floor() != ((t - dt) * 1.0).floor() {
+        if (t * 4.0).floor() != ((t - dt) * 4.0).floor() {
             if let Some(c) = active.world.constructs.get(id) {
                 let seat = active.world.player(me).and_then(|p| p.seat).map(|s| s.construct);
                 let cam_d = cam.single().map(|g| (crate::util::core_v3(g.translation()) - c.center()).length()).unwrap_or(-1.0);
-                info!("piloting scenario t={t:.1}: pos {:?} vel {:?} vehicle {} xform {:?} seat {:?} grounded {} half {:?} cam {cam_d:.1} m", c.pos, c.vel, c.held.vehicle, c.comp.xform.mode, seat, c.grounded, c.half);
+                info!("piloting scenario t={t:.1}: pos {:?} vel {:?} vehicle {} xform {:?} seat {:?} grounded {} half {:?} cam {cam_d:.1} m xatk {:?} step {} hits {}", c.pos, c.vel, c.held.vehicle, c.comp.xform.mode, seat, c.grounded, c.half, c.brawl.xatk, c.brawl.step, c.brawl.last_xattack_hits);
             }
         }
         ov.active = true;
@@ -703,6 +817,43 @@ pub mod scenario {
                     sc.step = 2;
                     let ok = active.world.toggle_transform(me);
                     info!("piloting scenario: board key -> {ok}");
+                }
+            }
+            // TRANSFORMER COMBAT strips: robot mode, a dummy in front, a light string, then Transform
+            // (the archetype's transform attack) — the finisher follows by itself.
+            s if combat_phrase(s).is_some() => {
+                face(&mut look, dir, -0.18);
+                let Some(dummy) = sc.dummy else { return };
+                let (center, half, robot) = {
+                    let Some(c) = active.world.constructs.get(id) else { return };
+                    (c.center(), c.half, !c.held.vehicle)
+                };
+                if t > 1.2 && sc.step == 0 {
+                    sc.step = 1;
+                    if !robot {
+                        active.world.toggle_transform(me);
+                    }
+                }
+                // The dummy stands in front of the robot until the transform attack starts.
+                let attacking = active.world.constructs.get(id).is_some_and(|c| c.brawl.xatk != bd_sim::constructs::brawl::XPhase::None);
+                if t > 2.4 && !attacking && sc.step < 3 {
+                    let at = center + dir * (half.x.max(half.z) + 1.6);
+                    let gy = bd_core::voxel::raycast(&active.world.voxels, Vec3::new(at.x, center.y + 6.0, at.z), Vec3::NEG_Y, 30.0).map_or(my_pos.y, |h| h.point.y);
+                    if let Some(p) = active.world.player_mut(dummy) {
+                        p.alive = true;
+                        p.mv.pos = Vec3::new(at.x, gy + 0.05, at.z);
+                        p.mv.vel = Vec3::ZERO;
+                        p.damage_pct = 0.0;
+                        p.spawn_shield = 0.0;
+                    }
+                }
+                // Four taps of LMB (0.3 s apart), then Transform.
+                let taps = [2.6f32, 2.9, 3.2, 3.5];
+                ov.held = if taps.iter().any(|&k| t > k && t < k + 0.05) { buttons::PRIMARY } else { 0 };
+                if t > 3.65 && sc.step == 1 {
+                    sc.step = 3;
+                    let ok = active.world.toggle_transform(me);
+                    info!("piloting scenario: transform attack -> {ok}");
                 }
             }
             _ => {}

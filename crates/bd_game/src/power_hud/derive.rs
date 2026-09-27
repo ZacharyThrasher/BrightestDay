@@ -125,6 +125,8 @@ pub fn kind_glyph(def: &PowerDef) -> u8 {
         PowerKind::Stand => glyph::STAR4,
         PowerKind::Origin => glyph::DIAMOND,
         PowerKind::Technique => glyph::TRIANGLE,
+        // never held (a kit's moves are one-shots), but keep the match total
+        PowerKind::Kit => glyph::TRIANGLE,
     }
 }
 
@@ -390,10 +392,10 @@ mod tests {
     fn snap(ids: &[u16]) -> PowerSnap {
         let mut s = PowerSnap::default();
         if let Some(a) = ids.first() {
-            s.id = (*a + 1) as u8;
+            s.id = *a + 1;
         }
         for (k, o) in ids.iter().skip(1).enumerate() {
-            s.others[k] = (*o + 1) as u8;
+            s.others[k] = *o + 1;
         }
         s
     }

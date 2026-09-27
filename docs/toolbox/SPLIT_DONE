@@ -1,0 +1,52 @@
+SPLIT DONE (TOOLBOX CORE, 2026-09-27)
+
+assets/powers.ron is gone. The power table is now every assets/powers/*.ron — each a plain RON list,
+same schema — loaded in FILENAME order (byte order), entries in file order. bd_sim compiles them in
+(crates/bd_sim/build.rs → powers::SHIPPED_FILES / merged SHIPPED_RON; rerun on any change in the
+directory); the lexicon reads the same directory next to lexicon.bin (Lexicon::power_files).
+Authoring notes + the old header comment: assets/powers/README.md.
+
+Files (existing entries moved byte-for-byte):
+  base_cartoons.ron    TMNT mutagen, Invincible, Ben 10, Power Rangers, Powerpuff Girls, Incredibles, Beast Boy
+  base_dc.ron          Superman, Flash, Wonder Woman, Aquaman, Martian Manhunter, Shazam, Batman, the lantern rings
+  base_folklore.ron    Journey to the West (great_sage — the peach; an Origin, so not in techniques)
+  base_jojo.ron        stands
+  base_marvel.ron      Marvel + X-Men origins
+  base_one_piece.ron   devil fruits
+  base_techniques.ron  every kind: Technique (DBZ, Naruto, JJK, Bleach, HxH, haki)
+
+YOUR content: a NEW file named for your domain (e.g. assets/powers/overwatch_kits.ron). You may
+deepen/rework the existing entries of your domain in the base_*.ron file above that holds them (check
+nobody else is editing that file: lock target\locks\assets_powers_<file>.lock while you edit it).
+A file that fails to parse is SKIPPED at runtime (stderr note), never crashes the game, and never
+breaks anyone's compile — but `cargo test -p bd_sim --test powers` goes red, so validate first.
+
+Other changes that landed with the split:
+- No more 250-power cap (MAX_POWERS = 4000). PowerSnap.id / .others are u16. PROTOCOL_VERSION 38.
+- Moves per power / tier / kit: up to 8 (move_sel::MAX_MOVES = 8). Slots 0/1 = G tap / G hold;
+  2..7 are reached by shouts (and, for kits, by "<kit> <move word>").
+- New optional MoveDef field `tags: [Primary | Movement | Defense | Ultimate | Combo | Counter]` and
+  new `kind: Kit` are ALREADY in the schema (parse + lexicon); their runtime lands with KIT_DONE.
+- Lexicon warnings now name the actual file ("powers/base_dc.ron:…"), and a name / tier name claimed
+  by two powers is a load warning naming both files.
+
+VALIDATOR (reads files at RUNTIME — content edits never need a bd_sim rebuild to check):
+
+  cargo run --profile fastrel -p bd_sim --example powers_check -- assets/powers/<file>.ron [more.ron...]
+      [--coverage phrases.txt] [--hold power_id,power_id] [--all]
+
+  - parses each given file with bd_sim's real PowerTable schema (errors with line:column);
+  - runs bd_lexicon's own scan (the exact warnings the game's load prints);
+  - reports collisions against the WHOLE directory: duplicate ids, power/tier names, shouts (first
+    claim in filename order wins; the loser is dead), shouts that are another power's NAME (a name
+    always grants, never borrows), kit names that are grant names;
+  - lints: shout slots naming no move, > 8 moves, moves without ops, kits without moves / shouts;
+  - --coverage phrases.txt (one phrase per line, # comments) prints what each phrase does:
+      HELD move (with --hold), KIT move, BORROW (a shout of a power you don't hold), CHAIN of steps,
+      GRANT (a power / tier name), or FALLTHROUGH to a generic construct.
+    The FALLTHROUGH list at the end is your gap list. A file given on the command line replaces the
+    directory's file of the same name (or joins the table in filename order if it's new/elsewhere).
+  Exit code 1 on errors (warnings don't fail). First build ~2 min, then instant.
+
+Example:
+  cargo run --profile fastrel -p bd_sim --example powers_check -- assets/powers/base_techniques.ron --coverage my_phrases.txt

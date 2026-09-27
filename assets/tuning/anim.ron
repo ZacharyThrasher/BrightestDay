@@ -1,0 +1,35 @@
+// ANIMATION PASS — player body motion / actions / channels + body effects
+// (bd_game present/body_motion.rs; hot-reloaded). Pose amplitudes live in bd_shapes anim_body.rs.
+(
+    enabled: true,
+    // Ease rates (1/s): ground <-> air, crouch, boost, channel in / out.
+    air_rate: 14.0,
+    crouch_rate: 16.0,
+    boost_rate: 10.0,
+    channel_in: 12.0,
+    channel_out: 8.0,
+    // Yaw-rate smoothing (1/s) for the bank into turns / air-strafe.
+    turn_rate_smooth: 12.0,
+    // Landing squash: downward impact speed (m/s) for strength 0 -> 1 (keeps rising to 1.5).
+    land_min_speed: 4.0,
+    land_full_speed: 20.0,
+    // Air jump flips in the travel direction (false = tuck only).
+    air_jump_flip: true,
+    // Tether let-go flips forward above this speed (m/s).
+    release_flip_speed: 20.0,
+    // Respawn re-form time (s).
+    respawn_form: 0.45,
+
+    // ---- effects ----
+    land_dust_speed: 9.0,
+    land_ring_speed: 16.0,
+    land_ring_chips: 16,
+    boost_puffs: 38.0,
+    slide_sparks: 34.0,
+    streak_speed: 17.0,
+    streak_full: 30.0,
+    streak_rate: 22.0,
+    channel_motes: 10.0,
+    respawn_chips: 36,
+    fx_range: 90.0,
+)

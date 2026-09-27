@@ -117,6 +117,7 @@
 
 pub mod ai;
 pub mod body;
+pub mod brawl; // TRANSFORMER COMBAT: Devastation-style strings, transform attacks, archetypes, counters
 pub mod chemistry;
 pub mod components;
 pub mod counters;
@@ -133,6 +134,7 @@ pub mod pilot;
 pub mod structure;
 pub mod swarm;
 pub mod temperament;
+pub mod weapon_class; // WEAPON FEEL: weapon classes (light / medium / heavy / reach / flexible / shield / guns) — movesets + feel from data
 pub mod titan; // GIANTS: piloted walkers move like Titanfall titans (pilot state = body, predicted)
 pub mod worn;
 
@@ -774,12 +776,17 @@ pub struct Construct {
     pub slice: Option<SliceCut>,
     /// World bookkeeping: last transformer state announced (`Transformed` events).
     pub xform_seen: u8,
+    /// TRANSFORMER COMBAT (`brawl.rs`): string / transform-attack / dodge-counter state (host-only).
+    pub brawl: brawl::BrawlState,
     /// Two-mode icons: the hand-authored robot shape (`shape` is the alt / vehicle). Clients rig
     /// the transformation with `bd_shapes::transform_rig_authored(shape, alt_shape, cap)`.
     pub alt_shape: Option<Box<ShapeSpec>>,
     /// With `alt_shape`: the collision boxes (half, local centre) of [alt, robot] — the Transforms
     /// component swaps between them instead of guessing the robot silhouette.
     pub authored_boxes: Option<[(Vec3, Vec3); 2]>,
+    /// POWERS (powers/ops: `Seeker`, `Haul`, `Surge`): a power op moves this construct itself — no
+    /// controller, component, physics or collider runs on it (lifetime and reaping still do). Host-only.
+    pub driven: bool,
 }
 
 /// Where a slice half was cut from its parent (all in the parent's local frame, metres).
@@ -886,7 +893,7 @@ impl Construct {
     }
 
     fn collider(&self) -> Option<Collider> {
-        if self.gone.is_some() {
+        if self.gone.is_some() || self.driven {
             return None;
         }
         if self.suit {
@@ -1074,6 +1081,8 @@ pub struct ConstructStore {
     chem: chemistry::Chemistry,
     /// GIANTS: this update's giant tuning (damage is applied outside `update`).
     pub(crate) giants: giant::GiantTuning,
+    /// TRANSFORMER COMBAT: this update's counter window (a perfect dodge in `counters::on_damage`).
+    pub(crate) counter_secs: f32,
 }
 
 /// Uniform scale applied to a construct's shape so its characteristic size matches
@@ -1205,8 +1214,10 @@ pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
         portal_cd: 0.0,
         slice: None,
         xform_seen: 0,
+        brawl: brawl::BrawlState::default(),
         alt_shape: None,
         authored_boxes: None,
+        driven: false,
         weapon: if category == FormCategory::Held {
             crate::weapons::archetype_for(&p.recipe).map(|a| crate::weapons::WeaponState::new(a, &crate::weapons::spec_for(&p.recipe, a)))
         } else {
@@ -1387,12 +1398,16 @@ impl ConstructStore {
     pub fn update(&mut self, ctx: &ConstructCtx, out: &mut ConstructOut) {
         graft::run_commands(&mut self.items);
         self.giants = ctx.tuning.giants;
+        self.counter_secs = ctx.tuning.transformer.counter_secs;
         self.proxies.clear();
         self.proxies.extend(self.items.iter().map(Proxy::of));
         {
             let Self { items, proxies, .. } = self;
             for c in items.iter_mut() {
                 let Some(owner) = housekeeping(c, ctx, out) else { continue };
+                if c.driven {
+                    continue; // POWERS: a power op steps it (powers/ops)
+                }
                 let env = Env { ctx, owner, others: proxies };
                 c.body.begin_tick();
                 components::drive(c, &env, out);

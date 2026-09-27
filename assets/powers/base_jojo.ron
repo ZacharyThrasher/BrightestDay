@@ -1,0 +1,184 @@
+// JoJo: stands.
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+[
+    // ================================================================ JOJO — stands
+    (
+        id: "star_platinum",
+        name: "Star Platinum",
+        kind: Stand,
+        names: ["star platinum", "jotaro's stand"],
+        companion: Some((recipe: (name: "Star Platinum", form: Biped, mech: [Flies, Blunt, Fast], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("star finger", 0), ("star platinum the world", 1), ("star platinum za warudo", 1)],
+        moves: [
+            (name: "star finger", cooldown: 1.5, cost: 5.0, ops: [Shove(range: 5.0, angle: 12.0, damage: 12.0, knockback: 14.0)]),
+            (name: "star platinum: the world", cooldown: 20.0, cost: 20.0, ops: [TimeStop(secs: 1.0, speed: 2.0)]),
+        ],
+    ),
+    (
+        id: "the_world",
+        name: "The World",
+        kind: Stand,
+        names: ["the world stand", "za warudo", "dio's stand"],
+        companion: Some((recipe: (name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("road roller", 0), ("road roller da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1)],
+        moves: [
+            (name: "road roller", cooldown: 8.0, ops: [
+                Cast(recipe: (name: "road roller", form: Vehicle, mech: [DropFromSky, Heavy, Blunt], scale: 4.0, mass: 3000.0)),
+            ]),
+            // Never freezes anyone: the world greys and DIO alone moves at ×2.
+            (name: "za warudo", cooldown: 20.0, cost: 25.0, ops: [TimeStop(secs: 1.5, speed: 2.0)]),
+        ],
+    ),
+    (
+        id: "crazy_diamond",
+        name: "Crazy Diamond",
+        kind: Stand,
+        names: ["crazy diamond", "josuke's stand"],
+        companion: Some((recipe: (name: "Crazy Diamond", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("restore", 0), ("fix", 0), ("dora", 1)],
+        moves: [
+            // Rebuilds broken terrain and your own shattered constructs nearby (never heals players).
+            (name: "restore", cooldown: 3.0, cost: 10.0, ops: [Restore(radius: 9.0)]),
+            (name: "dora punch", cooldown: 0.8, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 12.0)]),
+        ],
+    ),
+    (
+        id: "killer_queen",
+        name: "Killer Queen",
+        kind: Stand,
+        names: ["killer queen", "kira's stand"],
+        companion: Some((recipe: (name: "Killer Queen", form: Biped, mech: [Flies, Explodes], scale: 2.0, mass: 80.0), rush_damage: 2.5, rush_knockback: 3.0)),
+        shouts: [("first bomb", 0), ("sheer heart attack", 1)],
+        moves: [
+            // Touch → it becomes a bomb: aimed at terrain it lifts the piece as a bomb (§3c), at
+            // your own construct it grafts Explodes onto it, at nothing it makes a small bomb.
+            (name: "first bomb", cooldown: 2.0, ops: [Cast(recipe: (name: "first bomb", form: Bomb, mech: [Explodes, Sticky], scale: 0.5), modifier: true)]),
+            (name: "sheer heart attack", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "sheer heart attack", form: Vehicle, mech: [Homing, Explodes, Fast], scale: 0.7, mass: 30.0, temperament: Aggressive, intensity: 1.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "gold_experience",
+        name: "Gold Experience",
+        kind: Stand,
+        names: ["gold experience", "giorno's stand"],
+        companion: Some((recipe: (name: "Gold Experience", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("give life", 0), ("life", 0), ("frog", 1)],
+        moves: [
+            // Bring terrain / your constructs to life: the §3c terrain graft with Walks.
+            (name: "give life", cooldown: 4.0, ops: [Cast(recipe: (name: "life", form: Blob, mech: [Walks], temperament: Aggressive, intensity: 0.8), modifier: true)]),
+            (name: "frog", cooldown: 3.0, ops: [Cast(recipe: (name: "frog", form: Quadruped, mech: [Bounce], scale: 0.8, temperament: Protective, intensity: 0.8))]),
+        ],
+    ),
+    (
+        id: "king_crimson",
+        name: "King Crimson",
+        kind: Stand,
+        names: ["king crimson", "diavolo's stand"],
+        companion: Some((recipe: (name: "King Crimson", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("time erase", 0), ("erase time", 0), ("king crimson chop", 1)],
+        moves: [
+            // A short skip with an afterimage left behind.
+            (name: "erase time", cooldown: 3.0, cost: 8.0, ops: [Blink(dist: 8.0, afterimage: true)]),
+            (name: "chop", cooldown: 1.0, ops: [Shove(range: 3.0, angle: 40.0, damage: 14.0, knockback: 12.0)]),
+        ],
+    ),
+    (
+        id: "stone_free",
+        name: "Stone Free",
+        kind: Stand,
+        names: ["stone free", "jolyne's stand"],
+        companion: Some((recipe: (name: "Stone Free", form: Biped, mech: [Flies, Blunt], scale: 1.9, mass: 70.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("string", 0), ("string web", 1)],
+        moves: [
+            // The string: chain whoever you aim at to you (or tether to a wall).
+            (name: "string", cooldown: 3.0, cost: 6.0, ops: [Link(range: 20.0)]),
+            (name: "string swing", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 28.0, speed: 26.0)]),
+        ],
+    ),
+    (
+        id: "hierophant_green",
+        name: "Hierophant Green",
+        kind: Stand,
+        names: ["hierophant green", "kakyoin's stand"],
+        companion: Some((recipe: (name: "Hierophant Green", form: Biped, mech: [Flies, Constrict], scale: 1.9, mass: 60.0), rush_damage: 2.0, rush_knockback: 3.0)),
+        shouts: [("emerald splash", 0), ("twenty meter emerald splash", 0), ("tentacle", 1)],
+        moves: [
+            (name: "emerald splash", cooldown: 2.5, ops: [
+                Cast(recipe: (name: "emerald splash", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.25, count: 10)),
+            ]),
+            (name: "tentacle", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "hierophant tentacle", form: Serpent, mech: [Grab, Constrict], scale: 2.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "silver_chariot",
+        name: "Silver Chariot",
+        kind: Stand,
+        names: ["silver chariot", "polnareff's stand"],
+        companion: Some((recipe: (name: "Silver Chariot", form: Biped, mech: [Flies, Blade, Fast], scale: 1.9, mass: 60.0), rush_damage: 2.5, rush_knockback: 2.0, rush_range: 3.0)),
+        shouts: [("rapier", 0), ("armor off", 1), ("armour off", 1)],
+        moves: [
+            (name: "rapier", cooldown: 0.3, ops: [Shove(range: 3.4, angle: 25.0, damage: 6.0, knockback: 3.0)]),
+            // Armor off: much faster (toggle).
+            (name: "armor off", cooldown: 1.0, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.85, 0.88, 0.95)), intensity: 0.8, style: Calm)), costume: "armor_off", body: (moves: (speed: 1.35, accel: 1.3, air_control: 1.2)))),
+    ),
+    (
+        id: "magicians_red",
+        name: "Magician's Red",
+        kind: Stand,
+        names: ["magician's red", "magicians red", "avdol's stand"],
+        companion: Some((recipe: (name: "Magician's Red", form: Biped, mech: [Flies, Breath], element: Fire, scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 3.0)),
+        shouts: [("crossfire hurricane", 0), ("red bind", 1), ("fire ankh", 1)],
+        moves: [
+            (name: "crossfire hurricane", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "crossfire hurricane", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 1.2)),
+            ]),
+            // A fire ankh that breathes flame.
+            (name: "fire ankh", cooldown: 5.0, ops: [Cast(recipe: (name: "fire ankh", form: Pillar, mech: [Breath], element: Fire, scale: 2.0))]),
+        ],
+    ),
+    (
+        id: "sticky_fingers",
+        name: "Sticky Fingers",
+        kind: Stand,
+        names: ["sticky fingers", "bucciarati's stand"],
+        companion: Some((recipe: (name: "Sticky Fingers", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("zipper", 0), ("zip", 0), ("arrivederci", 1)],
+        moves: [
+            // Zip the wall you aim at open: a portal through it.
+            (name: "zipper", cooldown: 3.0, cost: 8.0, ops: [Portal(depth: 8.0)]),
+            (name: "arrivederci", cooldown: 1.5, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 16.0)]),
+        ],
+    ),
+    (
+        id: "the_hand",
+        name: "The Hand",
+        kind: Stand,
+        names: ["the hand stand", "okuyasu's stand"],
+        companion: Some((recipe: (name: "The Hand", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("erase", 0), ("the hand", 0), ("erase space", 1)],
+        moves: [
+            // Erase a line of space: a trench through terrain, and whoever is in it is pulled to you.
+            (name: "erase", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 12.0, radius: 1.2, pull: true)]),
+            (name: "erase space", cooldown: 2.0, cost: 6.0, ops: [Blink(dist: 7.0)]),
+        ],
+    ),
+    (
+        id: "echoes_act3",
+        name: "Echoes Act 3",
+        kind: Stand,
+        names: ["echoes act 3", "echoes act three", "koichi's stand"],
+        companion: Some((recipe: (name: "Echoes Act 3", form: Biped, mech: [Flies, Heavy], scale: 1.2, mass: 40.0), rush_damage: 2.0, rush_knockback: 2.0)),
+        shouts: [("3 freeze", 0), ("three freeze", 0), ("act 3 freeze", 0)],
+        moves: [
+            // 3 FREEZE: the target becomes heavy and sinks.
+            (name: "3 freeze", cooldown: 5.0, cost: 10.0, ops: [Weigh(range: 12.0, secs: 3.0, down: 18.0)]),
+            (name: "act 3 punch", cooldown: 0.8, ops: [Shove(range: 2.5, angle: 40.0, damage: 8.0, knockback: 8.0)]),
+        ],
+    ),
+]

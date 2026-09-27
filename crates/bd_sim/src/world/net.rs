@@ -96,6 +96,7 @@ impl World {
                 thor: c.held.thor,
             });
             o.hud = crate::readiness::OwnHud::of(p); // POWER HUD
+            o.toolbox = crate::powers::chain::ToolboxSnap::of(&p.power.toolbox); // TOOLBOX
             o
         });
         out.match_info.phase = self.match_state.phase as u8;
@@ -535,6 +536,7 @@ impl World {
             }
         }
         self.constructs.movement_mods(player, input, st, &mut mods);
+        crate::constructs::weapon_class::carry_mods(&self.constructs, &self.cfg.tuning.weapons, player, &mut mods); // WEAPON FEEL: carry (same as the host)
         if let Some(p) = self.player(player) {
             p.power.modify_movement(st.grounded, &mut mods); // POWERS HOOK (same order as the host)
         }

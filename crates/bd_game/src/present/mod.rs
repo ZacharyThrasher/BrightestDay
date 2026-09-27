@@ -21,6 +21,7 @@
 pub mod ads;
 pub mod air_moves; // AIR JUMP / DODGE: hard-light step burst, dodge streak, SFX / camera hooks
 pub mod animated_terrain;
+pub mod body_motion; // ANIMATION PASS: player body motion / actions / channels + body effects (anim.ron)
 pub mod camera3p;
 pub mod camera_shots; // CAMERA: BD_CAM_SHOT dev screenshots
 pub mod valley; // VALLEY OF THE END: water sheets, falls veil, mist, rainbow, water-walk ripples
@@ -33,6 +34,7 @@ pub mod director;
 pub mod extend; // WUKONG: telescoping poles (Mechanic::Extends): continuous iron/gold pole, thrust, pillar, vault, needle dismiss
 pub mod guns;
 pub mod impact;
+pub mod impact_frames; // IMPACT FRAMES: anime freeze frames (post pass), hit reactions by weight (docs/impact/API.md)
 pub mod legend; // LEGENDARY: legendary move visuals (storms, recall, waves, chains, gun specials), poses, BD_LEGEND_TEST
 pub mod legend_sound; // LEGENDARY: sound signatures + juice of the legendary move rules (recall, storms, sabers, guns…)
 pub mod local;
@@ -106,6 +108,7 @@ impl Plugin for PresentPlugin {
             .add_plugins(tracking::TrackingPlugin) // TRACKING: diegetic tracker + lunge / hook presentation
             .add_plugins(outline::OutlinePlugin) // OUTLINE: player outlines
             .add_plugins(air_moves::AirMovesPlugin) // AIR JUMP / DODGE: hard-light step + streak
+            .add_plugins(body_motion::BodyMotionPlugin) // ANIMATION PASS: body motion layers + body fx
             .add_plugins(mirror::MirrorPlugin) // MIRRORFOLD: folded-city backdrop
             .add_plugins(hyperline::HyperlinePlugin) // HYPERLINE: the world streams past the train
             .add_plugins(giant::GiantPlugin) // GIANT'S ROOM: sunbeam + dust motes
@@ -115,6 +118,7 @@ impl Plugin for PresentPlugin {
             .add_plugins(casino::CasinoPlugin) // HIGH ROLLER: map interactables (no-op on maps without them)
             .add_plugins(valley::ValleyPlugin) // VALLEY: water sheets + falls + mist (no-op without water sheets)
             .add_plugins((signature::SignaturePlugin, signature_fx::SignatureFxPlugin, palm_beam::PalmBeamPlugin, domain::DomainPlugin)) // SIGNATURE: alerts, grades, markers, fusion / orb fx, palm beams, domains
+            .add_plugins(impact_frames::ImpactFramesPlugin) // IMPACT FRAMES: freeze frames + hit reactions
             .add_plugins(presence::PresencePlugin) // PRESENCE: every construct's gravitas, by tier
             .add_plugins(pickups::PickupsPlugin) // POWER-UPS: map pickups (no-op while the mode is off)
             .add_plugins(extend::ExtendPlugin) // WUKONG: telescoping poles

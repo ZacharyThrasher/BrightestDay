@@ -7,6 +7,8 @@
 //!   mystery is the fun"), Enter casts and closes, Shift+Enter casts and keeps typing, empty Enter
 //!   recasts the last phrase, Esc closes.
 //! * **Quick-cast** slots 1–4 cast the loadout phrases (lobby) when the console is closed.
+//! * **TOOLBOX** first (`crate::toolbox::command`): kit moves ("reinhardt charge"), borrowed shouts of
+//!   powers you don't hold, held moves said by name and chains → `Cmd::Toolbox`.
 //! * **Resolution**: `World::parse_power_phrase` (power shouts → `PowerMove`, incantation prefix →
 //!   cast with the power's delivery) → `Lexicon::resolve` → `SimCommand::Cast`. Graft phrases set
 //!   `aim.modifier` (the sim grafts onto the own construct under the crosshair / animates terrain).
@@ -271,6 +273,16 @@ impl Caster<'_> {
         let Some(active) = self.active.as_ref() else { return false };
         let Some(local) = active.local else { return false };
         let Some(lex) = self.lex.as_ref().map(|l| l.0.clone()) else { return false };
+        // TOOLBOX: a kit / borrowed move, a held move said by name, or a CHAIN ("a -> b", "x then y",
+        // "summon a dragon, rasengan") → one `Cmd::Toolbox`; the host fires the steps in order.
+        let held = active.world.player(local).map(|p| &p.power);
+        if let Some(steps) = crate::toolbox::command(&lex, held, active.world.cfg.rules.powers_enabled, text, spoken) {
+            self.commit_feedback(spoken);
+            self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
+            let (eye, dir) = self.crosshair();
+            self.cmds.write(SimCommand::local(Cmd::Toolbox { steps, aim: Some(Aim::new(core_v3(eye), core_v3(dir))) }));
+            return true;
+        }
         let power = active.world.parse_power_phrase(local, text);
         // FREEDOM HOOK: "it" = your newest construct, "again!" / "two more" re-cast, "missile at Jake"
         // aims at Jake — text steps before the resolver (lobby/feed.rs); what doesn't apply casts as said.

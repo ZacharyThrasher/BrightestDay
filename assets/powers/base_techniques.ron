@@ -1,0 +1,558 @@
+// Techniques (kind: Technique): Dragon Ball, Naruto, Jujutsu Kaisen, Bleach, Hunter x Hunter, haki.
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+[
+    // ================================================================ TECHNIQUES (kind: Technique)
+    // Trained techniques / forms: SAY the name and it is yours until KO (no pickup). Tiers are
+    // picked by phrase ("super saiyan blue", "kaioken times ten"); a held technique said again
+    // becomes the active power. `effects` are the generic power effects (src/powers/effects.rs);
+    // `ascend` is the one transformation moment (presentation only). Moves: G tap, G hold, and
+    // slots 2 / 3 by their shouts.
+
+    // ---------------------------------------------------------------- DRAGON BALL
+    (
+        id: "ultra_instinct",
+        name: "Ultra Instinct",
+        kind: Technique,
+        names: ["ultra instinct", "ultra instinct sign", "migatte no gokui", "migatte no kizashi", "autonomous ultra instinct",
+                "ultra instincts", "ultra instinkt", "ultra-instinct", "ultra instinct omen", "the ultra instinct"],
+        // The body moves on its own: incoming attacks may be dodged automatically (dodge i-frames).
+        effects: [AutoDodge(chance: 0.45, cooldown: 1.6), PowerMult(speed: 1.12)],
+        body: (moves: (accel: 1.35, air_control: 1.3)),
+        ascend: Some((color: Some((0.86, 0.9, 1.0)), intensity: 1.3, title: Some("ULTRA INSTINCT"), style: Calm,
+                      hair_tint: Some((0.82, 0.84, 0.92)), eye_glow: Some((0.85, 0.9, 1.0)), quiet: true)),
+        shouts: [("silver dash", 0), ("kamehameha", 1), ("ultra instinct kamehameha", 1)],
+        moves: [
+            (name: "silver dash", cooldown: 1.2, cost: 5.0, ops: [
+                Blink(dist: 10.0, afterimage: true),
+                Shove(range: 3.0, angle: 55.0, damage: 9.0, knockback: 12.0),
+            ], juice: Some((ripple: 2.5, punch: 2.0, color: Some((0.86, 0.9, 1.0))))),
+            (name: "kamehameha", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "kamehameha", form: Hands, mech: [Beam], element: Light, scale: 1.2), signature: Some(Beam)),
+            ], juice: Some((title: Some("KAMEHAMEHA"), punch: 4.0, boom: true))),
+        ],
+        tiers: [
+            (name: "Mastered Ultra Instinct",
+             names: ["mastered ultra instinct", "ultra instinct mastered", "perfected ultra instinct", "true ultra instinct",
+                     "complete ultra instinct", "mastered ui", "mui"],
+             effects: [AutoDodge(chance: 0.7, cooldown: 1.0), PowerMult(damage: 1.2, speed: 1.25, knockback: 1.15, cooldown: 0.85)],
+             ascend: Some((color: Some((0.95, 0.96, 1.0)), intensity: 2.0, title: Some("MASTERED ULTRA INSTINCT"), style: Calm,
+                           hair_tint: Some((0.95, 0.95, 1.0)), eye_glow: Some((0.9, 0.95, 1.0)), quiet: true))),
+        ],
+    ),
+    (
+        id: "super_saiyan",
+        name: "Super Saiyan",
+        kind: Technique,
+        names: ["super saiyan", "ssj", "ssj1", "ss1", "super saiyan 1", "super saiyan one", "go super saiyan", "super sayan",
+                "super saiyen", "super sayian", "super saian", "super sayen", "super saiyans", "super siyan"],
+        // A trade: harder hits, a little faster, a slow willpower drain (tiers escalate both).
+        effects: [PowerMult(damage: 1.15, speed: 1.08, knockback: 1.1), SelfDrain(willpower_per_s: 0.6)],
+        ascend: Some((color: Some((1.0, 0.84, 0.22)), intensity: 1.0, title: Some("SUPER SAIYAN"),
+                      hair_tint: Some((1.0, 0.86, 0.3)), eye_glow: Some((0.3, 0.9, 0.8)))),
+        shouts: [("instant transmission", 0), ("kamehameha", 1), ("super kamehameha", 1)],
+        moves: [
+            // Short teleport along the crosshair (stops before walls): bamf.
+            (name: "instant transmission", cooldown: 2.2, cost: 6.0, ops: [Blink(dist: 18.0, afterimage: true)],
+             juice: Some((ripple: 1.5, color: Some((1.0, 0.9, 0.5))))),
+            (name: "kamehameha", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "kamehameha", form: Hands, mech: [Beam], element: Light, scale: 1.3), signature: Some(Beam)),
+            ], juice: Some((title: Some("KAMEHAMEHA"), punch: 4.0, boom: true))),
+        ],
+        tiers: [
+            (name: "Super Saiyan 2", names: ["super saiyan 2", "super saiyan two", "ssj2", "ss2", "super saiyan ii", "super sayan 2"],
+             effects: [PowerMult(damage: 1.3, speed: 1.12, knockback: 1.2), SelfDrain(willpower_per_s: 1.2)],
+             ascend: Some((color: Some((1.0, 0.86, 0.26)), intensity: 1.4, title: Some("SUPER SAIYAN 2"), stable: false,
+                           hair_tint: Some((1.0, 0.88, 0.32)), eye_glow: Some((0.3, 0.9, 0.8))))),
+            (name: "Super Saiyan 3", names: ["super saiyan 3", "super saiyan three", "ssj3", "ss3", "super saiyan iii", "super sayan 3"],
+             effects: [PowerMult(damage: 1.45, speed: 1.15, knockback: 1.3), SelfDrain(willpower_per_s: 2.2)],
+             ascend: Some((color: Some((1.0, 0.8, 0.18)), intensity: 1.8, title: Some("SUPER SAIYAN 3"), stable: false,
+                           hair_tint: Some((1.0, 0.82, 0.26)), eye_glow: Some((0.3, 0.9, 0.8))))),
+            (name: "Super Saiyan God", names: ["super saiyan god", "ssg", "ssj god", "ssjg", "saiyan god", "super saiyan god mode"],
+             effects: [PowerMult(damage: 1.35, speed: 1.2, knockback: 1.25, cooldown: 0.85), SelfDrain(willpower_per_s: 0.8)],
+             ascend: Some((color: Some((1.0, 0.26, 0.22)), intensity: 1.6, title: Some("SUPER SAIYAN GOD"), style: Calm,
+                           hair_tint: Some((0.85, 0.12, 0.2)), eye_glow: Some((0.9, 0.2, 0.3))))),
+            (name: "Super Saiyan Blue",
+             names: ["super saiyan blue", "ssb", "ssj blue", "ssjb", "super saiyan god super saiyan", "ssgss", "super saiyan blu",
+                     "super sayan blue", "super saiyen blue", "blue super saiyan"],
+             effects: [PowerMult(damage: 1.55, speed: 1.25, knockback: 1.35, cooldown: 0.8), SelfDrain(willpower_per_s: 2.6)],
+             ascend: Some((color: Some((0.22, 0.62, 1.0)), intensity: 2.2, title: Some("SUPER SAIYAN BLUE"),
+                           hair_tint: Some((0.25, 0.65, 1.0)), eye_glow: Some((0.35, 0.75, 1.0))))),
+        ],
+    ),
+    (
+        id: "kaioken",
+        name: "Kaio-ken",
+        kind: Technique,
+        names: ["kaioken", "kaio ken", "kaio-ken", "kaioken x1", "kaio ken x1", "kayo ken", "kyoken", "kai o ken", "chaio ken",
+                "kaioken attack", "kaio kin", "kaiyo ken", "kaioken technique"],
+        // The trade: more of everything, and your own damage % climbs while it lasts (×N scales both).
+        effects: [PowerMult(damage: 1.15, speed: 1.1, knockback: 1.15), SelfDrain(damage_pct_per_s: 1.0)],
+        ascend: Some((color: Some((1.0, 0.16, 0.1)), intensity: 1.0, title: Some("KAIO-KEN"), stable: false,
+                      skin_tint: Some((1.0, 0.55, 0.5)))),
+        shouts: [("kaioken rush", 0), ("kaioken kamehameha", 1), ("kamehameha", 1)],
+        moves: [
+            (name: "kaioken rush", cooldown: 1.0, cost: 4.0, ops: [
+                Impulse(fwd: 22.0, up: 2.0),
+                Shove(range: 3.2, angle: 60.0, damage: 10.0, knockback: 14.0),
+            ], juice: Some((punch: 2.5, shake: 0.15, color: Some((1.0, 0.2, 0.12))))),
+            (name: "kaioken kamehameha", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "kaioken kamehameha", form: Hands, mech: [Beam], element: Fire, scale: 1.3), signature: Some(Beam)),
+            ], juice: Some((title: Some("KAIO-KEN KAMEHAMEHA"), punch: 4.0, boom: true))),
+        ],
+        tiers: [
+            (name: "Kaio-ken x2", names: ["kaioken x2", "kaioken times two", "kaioken times 2", "kaio ken x2", "kaio ken times two",
+                                          "kaioken two", "kaioken 2", "kaioken x 2", "double kaioken"],
+             effects: [PowerMult(damage: 1.25, speed: 1.15, knockback: 1.25), SelfDrain(damage_pct_per_s: 2.0)],
+             ascend: Some((color: Some((1.0, 0.16, 0.1)), intensity: 1.2, title: Some("KAIO-KEN TIMES TWO"), stable: false,
+                           skin_tint: Some((1.0, 0.5, 0.45))))),
+            (name: "Kaio-ken x3", names: ["kaioken x3", "kaioken times three", "kaioken times 3", "kaio ken x3", "kaio ken times three",
+                                          "kaioken three", "kaioken 3", "kaioken x 3", "triple kaioken"],
+             effects: [PowerMult(damage: 1.35, speed: 1.2, knockback: 1.35), SelfDrain(damage_pct_per_s: 3.0)],
+             ascend: Some((color: Some((1.0, 0.14, 0.08)), intensity: 1.4, title: Some("KAIO-KEN TIMES THREE"), stable: false,
+                           skin_tint: Some((1.0, 0.45, 0.4))))),
+            (name: "Kaio-ken x4", names: ["kaioken x4", "kaioken times four", "kaioken times 4", "kaio ken x4", "kaio ken times four",
+                                          "kaioken four", "kaioken 4", "kaioken x 4", "quadruple kaioken"],
+             effects: [PowerMult(damage: 1.5, speed: 1.25, knockback: 1.45), SelfDrain(damage_pct_per_s: 4.5)],
+             ascend: Some((color: Some((1.0, 0.12, 0.07)), intensity: 1.6, title: Some("KAIO-KEN TIMES FOUR"), stable: false,
+                           skin_tint: Some((1.0, 0.42, 0.36))))),
+            (name: "Kaio-ken x10", names: ["kaioken x10", "kaioken times ten", "kaioken times 10", "kaio ken x10", "kaio ken times ten",
+                                           "kaio ken times 10", "kaioken ten", "kaioken 10", "kaioken x 10", "kaio-ken times ten",
+                                           "kaio ken x 10", "kaioken times tan", "kaioken x ten"],
+             effects: [PowerMult(damage: 1.9, speed: 1.35, knockback: 1.8, cooldown: 0.8), SelfDrain(damage_pct_per_s: 8.0)],
+             ascend: Some((color: Some((1.0, 0.1, 0.06)), intensity: 2.1, title: Some("KAIO-KEN TIMES TEN"), stable: false,
+                           skin_tint: Some((1.0, 0.36, 0.3))))),
+            (name: "Kaio-ken x20", names: ["kaioken x20", "kaioken times twenty", "kaioken times 20", "kaio ken x20", "kaio ken times twenty",
+                                           "kaioken twenty", "kaioken 20", "kaioken x 20", "kaio-ken times twenty"],
+             effects: [PowerMult(damage: 2.4, speed: 1.45, knockback: 2.2, cooldown: 0.7), SelfDrain(damage_pct_per_s: 13.0)],
+             ascend: Some((color: Some((1.0, 0.08, 0.05)), intensity: 2.5, title: Some("KAIO-KEN TIMES TWENTY"), stable: false,
+                           skin_tint: Some((1.0, 0.3, 0.26))))),
+        ],
+    ),
+
+    // ---------------------------------------------------------------- NARUTO
+    (
+        id: "sage_mode",
+        name: "Sage Mode",
+        kind: Technique,
+        names: ["sage mode", "sennin mode", "sennin modo", "toad sage mode", "senjutsu", "sage art", "sage mood", "sage mode activate",
+                "six paths sage mode"],
+        // Nature energy: you sense what is coming (telegraph glow) and hit harder.
+        effects: [PowerMult(damage: 1.2, knockback: 1.2), ReadSlow(radius: 14.0)],
+        ascend: Some((color: Some((1.0, 0.55, 0.15)), intensity: 1.1, title: Some("SAGE MODE"), style: Calm,
+                      eye_glow: Some((1.0, 0.72, 0.1)), skin_tint: Some((0.95, 0.6, 0.3)))),
+        shouts: [("frog kumite", 0), ("rasengan", 1), ("sage art rasengan", 1), ("giant rasengan", 1), ("oodama rasengan", 1)],
+        moves: [
+            // Nature energy extends your reach: an invisible frog-kata hit.
+            (name: "frog kumite", cooldown: 0.9, cost: 3.0, ops: [Shove(range: 4.2, angle: 70.0, damage: 11.0, knockback: 15.0)],
+             juice: Some((ripple: 3.0, color: Some((1.0, 0.6, 0.2))))),
+            (name: "rasengan", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "rasengan", form: Ball, mech: [Blunt, Spin, Explodes], element: Wind, scale: 0.9), signature: Some(Summon)),
+            ], juice: Some((title: Some("RASENGAN"), punch: 3.0))),
+        ],
+    ),
+    (
+        id: "kurama_mode",
+        name: "Nine-Tails Chakra Mode",
+        kind: Technique,
+        names: ["kurama mode", "nine tails chakra mode", "nine tails mode", "kyuubi mode", "kyubi mode", "kurama link mode",
+                "nine tailed fox mode", "tailed beast mode", "kurama chakra mode", "nine tails cloak", "kyuubi chakra mode",
+                "nine-tails chakra mode", "bijuu mode"],
+        // A golden chakra cloak: fast, springy, and every construct you make is quick too.
+        effects: [PowerMult(damage: 1.15, speed: 1.25, knockback: 1.1)],
+        body: (moves: (jump: 1.25, accel: 1.4, air_control: 1.2)),
+        graft: Some((mechanics: [Fast])),
+        ascend: Some((color: Some((1.0, 0.72, 0.12)), intensity: 1.5, title: Some("KURAMA MODE"),
+                      eye_glow: Some((1.0, 0.5, 0.1)), skin_tint: Some((1.0, 0.8, 0.3)))),
+        shouts: [("chakra arm", 0), ("tailed beast bomb", 1), ("bijuudama", 1), ("tailed beast ball", 1)],
+        moves: [
+            (name: "chakra arm", cooldown: 1.0, cost: 3.0, ops: [Reel(range: 32.0, speed: 36.0)]),
+            (name: "tailed beast bomb", cooldown: 8.0, ops: [
+                Cast(recipe: (name: "tailed beast bomb", form: Ball, mech: [Explodes, Heavy, Fast], element: Shadow, scale: 1.4), signature: Some(Summon)),
+            ], juice: Some((title: Some("TAILED BEAST BOMB"), punch: 5.0, boom: true, shake: 0.2))),
+        ],
+    ),
+    (
+        id: "sharingan",
+        name: "Sharingan",
+        kind: Technique,
+        names: ["sharingan", "sharin gan", "sharingon", "sharingun", "the sharingan", "sharingan eyes", "sharingan activate",
+                "sharigan", "sharinggan"],
+        // Read everything: incoming attacks glow a beat early, and sometimes you are already gone.
+        effects: [ReadSlow(radius: 16.0), AutoDodge(chance: 0.2, cooldown: 3.0)],
+        ascend: Some((color: Some((0.92, 0.08, 0.1)), intensity: 0.6, title: Some("SHARINGAN"), style: Calm,
+                      eye_glow: Some((1.0, 0.1, 0.1)), linger: false)),
+        shouts: [("fireball jutsu", 0), ("great fireball technique", 0), ("katon goukakyuu no jutsu", 0), ("fire style fireball jutsu", 0),
+                 ("chidori", 1)],
+        moves: [
+            (name: "fireball jutsu", cooldown: 1.6, ops: [
+                Cast(recipe: (name: "great fireball", form: Ball, mech: [Explodes, Fast], element: Fire, scale: 1.3)),
+            ]),
+            (name: "chidori", cooldown: 3.0, cost: 6.0, ops: [
+                Impulse(fwd: 26.0, up: 1.0),
+                Shove(range: 3.0, angle: 40.0, damage: 14.0, knockback: 16.0, element: Electric),
+            ], juice: Some((title: Some("CHIDORI"), punch: 3.0, color: Some((0.55, 0.75, 1.0))))),
+        ],
+        tiers: [
+            (name: "Mangekyo Sharingan", names: ["mangekyo sharingan", "mangekyou sharingan", "mangekyo", "mangekyou",
+                                                 "eternal mangekyo sharingan"],
+             effects: [ReadSlow(radius: 22.0), AutoDodge(chance: 0.3, cooldown: 2.4)],
+             ascend: Some((color: Some((0.8, 0.05, 0.12)), intensity: 1.2, title: Some("MANGEKYO SHARINGAN"), style: Calm,
+                           eye_glow: Some((1.0, 0.05, 0.1)), quiet: true)),
+             shouts: [("amaterasu", 0), ("susanoo", 1), ("susano o", 1)],
+             moves: [
+                 // Black flames that stick where they land.
+                 (name: "amaterasu", cooldown: 4.0, cost: 8.0, ops: [
+                     Cast(recipe: (name: "amaterasu", form: Ball, mech: [Sticky, Fast], element: Fire, scale: 0.6)),
+                 ], juice: Some((title: Some("AMATERASU"), color: Some((0.15, 0.05, 0.1))))),
+                 (name: "susanoo", cooldown: 16.0, ops: [
+                     Cast(recipe: (name: "susanoo", form: Biped, mech: [Guard, Blade, Heavy], element: Psychic, scale: 3.0,
+                                   temperament: Protective, intensity: 0.8), signature: Some(Summon)),
+                 ], juice: Some((title: Some("SUSANOO"), boom: true, punch: 5.0))),
+             ]),
+        ],
+    ),
+    // THE FLAGSHIP: the Rinnegan should feel sick to use. Almighty Push (tap), Planetary Devastation
+    // (hold, the ultimate), Universal Pull (shout: "universal pull" / "bansho ten'in"), truth-seeking
+    // orbs (shout). Every construct you make gains gravity pull (lend-graft Attract).
+    (
+        id: "rinnegan",
+        name: "Rinnegan",
+        kind: Technique,
+        names: ["rinnegan", "rinne gan", "rinegan", "rinnegun", "rennegan", "rinnigan", "rinnegan eyes", "the rinnegan",
+                "rinnegan activate", "rinnegahn", "reno gun", "rin again", "rinnegan eye", "six paths rinnegan"],
+        graft: Some((mechanics: [Attract])),
+        effects: [ReadSlow(radius: 12.0)],
+        ascend: Some((color: Some((0.62, 0.55, 0.8)), intensity: 1.4, title: Some("RINNEGAN"), style: Calm,
+                      eye_glow: Some((0.75, 0.62, 1.0)), quiet: true)),
+        shouts: [("almighty push", 0), ("shinra tensei", 0), ("shinra tense", 0), ("shinra tensai", 0),
+                 ("planetary devastation", 1), ("chibaku tensei", 1), ("chibaku tense", 1), ("chibaku tensai", 1),
+                 ("universal pull", 2), ("bansho tenin", 2), ("bansho ten in", 2), ("banshou tenin", 2), ("bansho ten'in", 2),
+                 ("truth seeking orbs", 3), ("truth seeking balls", 3), ("gudodama", 3)],
+        moves: [
+            // A massive radial repel from your body: players, constructs, debris flung; a shallow
+            // crater (carve 1.8 around the chest: a dish under your feet, never a pit you fall into).
+            (name: "almighty push", cooldown: 7.0, cost: 10.0, ops: [
+                Explode(radius: 9.0, damage: 9.0, knockback: 34.0, carve: 1.8, element: Psychic),
+                Field(strength: -70.0, radius: 13.0, secs: 0.35),
+            ], juice: Some((ripple: 13.0, boom: true, punch: 6.0, shake: 0.35, title: Some("SHINRA TENSEI"), debris: 24.0,
+                            color: Some((0.7, 0.62, 0.95))))),
+            // The ultimate: a black core rises and drags the world (and anyone caught) into a moon.
+            (name: "planetary devastation", cooldown: 22.0, cost: 45.0, ops: [
+                Singularity(dist: 22.0, rise: 9.0, secs: 6.0, radius: 16.0, strength: 38.0, capture: 3.2, chunks: 14,
+                            damage: 16.0, knockback: 30.0),
+            ], juice: Some((title: Some("CHIBAKU TENSEI"), boom: true, punch: 8.0, shake: 0.3, at: Aim, debris: -18.0,
+                            color: Some((0.4, 0.3, 0.55))))),
+            // Yank the aimed enemy (or construct) to you: set up the connect.
+            (name: "universal pull", cooldown: 3.0, cost: 6.0, ops: [Yank(range: 30.0, speed: 30.0, cone: 10.0)],
+             juice: Some((ripple: 3.0, at: Aim, title: Some("BANSHO TEN'IN"), punch: 2.0, color: Some((0.7, 0.62, 0.95))))),
+            // Six Paths flourish: black orbs that orbit you and intercept shots.
+            (name: "truth seeking orbs", cooldown: 12.0, ops: [
+                Cast(recipe: (name: "truth seeking orbs", form: Blob, mech: [Flies, Guard, Swarm], element: Shadow, scale: 0.35, count: 6,
+                              temperament: Protective, intensity: 0.8)),
+            ]),
+        ],
+    ),
+    (
+        id: "shadow_clone",
+        name: "Shadow Clone Jutsu",
+        kind: Technique,
+        names: ["shadow clone jutsu", "shadow clone", "shadow clones", "kage bunshin no jutsu", "kage bunshin", "shadow clone technique",
+                "shadow clone jitsu", "shadow clone justu"],
+        // A clone at your side (it fights with you; its hits hurt YOU like a stand's).
+        companion: Some((recipe: (name: "shadow clone", form: Biped, mech: [Flies, Blunt, Fast], scale: 1.0, mass: 70.0),
+                         rush_damage: 3.0, rush_knockback: 3.0)),
+        shouts: [("multi shadow clone jutsu", 0), ("tajuu kage bunshin no jutsu", 0), ("mass shadow clone", 0), ("rasengan", 1)],
+        moves: [
+            (name: "multi shadow clone jutsu", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "shadow clone", form: Biped, mech: [Walks, Blunt, Charge], scale: 1.0, count: 3,
+                              temperament: Aggressive, intensity: 0.7)),
+            ], juice: Some((title: Some("MULTI SHADOW CLONE JUTSU"), ripple: 2.0))),
+            (name: "rasengan", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "rasengan", form: Ball, mech: [Blunt, Spin, Explodes], element: Wind, scale: 0.9), signature: Some(Summon)),
+            ], juice: Some((title: Some("RASENGAN"), punch: 3.0))),
+        ],
+    ),
+
+    // ---------------------------------------------------------------- JUJUTSU KAISEN
+    (
+        id: "limitless",
+        name: "Limitless",
+        kind: Technique,
+        claim: ["infinity"],
+        names: ["limitless", "the limitless", "infinity", "mugen", "gojo's infinity", "limitless technique", "limitless infinity",
+                "six eyes", "limit less", "gojo limitless"],
+        // Infinity: shots and thrown things crawl as they near you (they still arrive, late).
+        effects: [ProjectileSlowField(radius: 3.6, factor: 0.18), ReadSlow(radius: 10.0)],
+        ascend: Some((color: Some((0.55, 0.8, 1.0)), intensity: 0.9, title: Some("LIMITLESS"), style: Calm,
+                      eye_glow: Some((0.4, 0.8, 1.0)), quiet: true)),
+        // (MODERN ANIME) Blue PULLS: a point of attraction that drags bodies, loose things and torn-up
+        // ground into itself and crushes them together. Red REPELS: a burst at arm's length that hurls
+        // everything away. Purple ERASES. "gojo <move>" (anime_modern.ron) is the kit version.
+        fx: "cursed",
+        shouts: [("lapse blue", 0), ("cursed technique lapse blue", 0), ("blue lapse", 0), ("hollow purple", 1),
+                 ("imaginary technique purple", 1), ("reversal red", 2), ("cursed technique reversal red", 2), ("red reversal", 2),
+                 ("infinity barrier", 3), ("unlimited void", 4), ("infinite void", 4)],
+        moves: [
+            // Blue: a gravity point at the crosshair - it tears up the ground and drags everything in. -> they end clumped there.
+            (name: "lapse blue", cooldown: 3.0, cost: 12.0, tags: [Primary], ops: [
+                Singularity(dist: 14.0, rise: 1.5, secs: 1.4, radius: 8.0, strength: 42.0, capture: 1.8, chunks: 5, damage: 8.0, knockback: 12.0),
+            ], juice: Some((ripple: 8.0, at: Aim, title: Some("BLUE"), debris: -14.0, color: Some((0.3, 0.55, 1.0))))),
+            // Purple: the erasing orb (the signature amplifier's hollow purple).
+            (name: "hollow purple", cooldown: 18.0, ops: [
+                Cast(recipe: (name: "hollow purple", form: Cannon, mech: [Pierce, Explodes, Heavy], element: Psychic, scale: 2.0),
+                     signature: Some(Beam), merge: Some((Water, Fire))),
+            ], juice: Some((title: Some("HOLLOW PURPLE"), boom: true, punch: 6.0))),
+            // Red: a burst of repulsion at arm's length - everything in front is hurled away. -> you stay planted.
+            (name: "reversal red", cooldown: 4.0, cost: 12.0, ops: [
+                Explode(radius: 4.5, damage: 11.0, knockback: 34.0, element: Psychic, at: Front, dist: 4.5),
+                Field(strength: -70.0, radius: 7.0, secs: 0.35, at: Front, dist: 4.5),
+            ], juice: Some((ripple: 7.0, at: Front, dist: 4.5, title: Some("RED"), boom: true, punch: 4.0, debris: 20.0, color: Some((1.0, 0.15, 0.15))))),
+            // Infinity, pressed close: for a beat nothing that comes at you arrives.
+            (name: "infinity barrier", cooldown: 8.0, cost: 8.0, tags: [Defense], ops: [Counter(secs: 1.4)],
+             juice: Some((title: Some("INFINITY"), ripple: 3.0, color: Some((0.55, 0.8, 1.0))))),
+            // Domain Expansion: Unlimited Void - everyone inside is slowed and can't use a power.
+            (name: "unlimited void", cooldown: 30.0, cost: 40.0, ops: [
+                Cast(recipe: (name: "unlimited void", form: Dome, mech: [Barrier, Trap], element: Psychic, scale: 2.0), signature: Some(Domain)),
+                Zone(radius: 14.0, secs: 3.0, slow: 0.55, lockout: true),
+            ], juice: Some((title: Some("DOMAIN EXPANSION: UNLIMITED VOID"), boom: true, ripple: 14.0, punch: 5.0, color: Some((0.3, 0.45, 1.0))))),
+        ],
+    ),
+    (
+        id: "black_flash",
+        name: "Black Flash",
+        kind: Technique,
+        names: ["black flash", "kokusen", "black flash technique", "black flashes", "the black flash", "blackflash"],
+        // Melee connects may spark black: ×2.5 (distorted space around the impact).
+        effects: [CritChance(chance: 0.22, mult: 2.5, fx: BlackFlash)],
+        ascend: Some((color: Some((0.85, 0.08, 0.1)), intensity: 0.7, title: Some("BLACK FLASH"), stable: false, linger: false)),
+        shouts: [("divergent fist", 0), ("black flash", 1)],
+        moves: [
+            (name: "divergent fist", cooldown: 0.7, cost: 2.0, ops: [Shove(range: 3.2, angle: 45.0, damage: 8.0, knockback: 10.0)]),
+            // The shout always sparks black (IMPACT FRAMES: `crit` = a guaranteed crit on whatever
+            // it lands, `impact_frame` = the inverted black-red freeze frame on the connect). Base
+            // numbers are the old average (14 dmg × a 22 % roll) spread over a sure ×2.5.
+            (name: "black flash", cooldown: 2.5, cost: 5.0, crit: Some((2.5, BlackFlash)), ops: [
+                Impulse(fwd: 18.0, up: 1.0),
+                Shove(range: 3.4, angle: 40.0, damage: 7.5, knockback: 13.0, element: Shadow),
+            ], juice: Some((punch: 3.0, shake: 0.12, color: Some((0.85, 0.08, 0.1)), impact_frame: Some("black_flash")))),
+        ],
+    ),
+    (
+        id: "shrine",
+        name: "Shrine",
+        kind: Technique,
+        // (MODERN ANIME) the bare "sukuna" / "king of curses" stay the costume summon; "sukuna <move>" is the kit.
+        names: ["sukuna's shrine", "sukuna shrine", "cursed technique shrine", "sukunas shrine", "sukuna technique", "shrine technique",
+                "sukuna's cursed technique", "the shrine"],
+        fx: "cursed",
+        // Every construct you make cuts.
+        graft: Some((mechanics: [Blade])),
+        ascend: Some((color: Some((0.8, 0.1, 0.15)), intensity: 0.9, title: Some("KING OF CURSES"), eye_glow: Some((1.0, 0.1, 0.1)),
+                      skin_tint: Some((0.55, 0.2, 0.25)), linger: false)),
+        shouts: [("dismantle", 0), ("cleave", 1), ("fuga", 2), ("furnace", 2), ("malevolent shrine", 3)],
+        moves: [
+            // Dismantle: an invisible hairline slash along your aim - it cuts the ground and whoever stood in it.
+            (name: "dismantle", cooldown: 0.8, cost: 6.0, tags: [Primary], ops: [Carve(length: 26.0, radius: 0.35, damage: 11.0)],
+             juice: Some((title: Some("DISMANTLE"), punch: 2.0, color: Some((1.0, 0.2, 0.25))))),
+            // Cleave: it adjusts to its target - a cut that bites far deeper into someone you've just cut.
+            (name: "cleave", cooldown: 1.6, cost: 8.0, tags: [Combo], ops: [
+                Finisher(lunge: 6.0, range: 3.8, angle: 60.0, damage: 12.0, knockback: 10.0, window: 1.5, mult: 1.9),
+            ], juice: Some((title: Some("CLEAVE"), shake: 0.12, color: Some((1.0, 0.2, 0.25))))),
+            // Fuga: the fire arrow - where it lands keeps burning.
+            (name: "fuga", cooldown: 12.0, cost: 20.0, fx: "fire", ops: [
+                Cast(recipe: (name: "fuga", form: Spear, mech: [Fast, Pierce, Explodes], element: Fire, scale: 1.4)),
+                Zone(radius: 6.0, secs: 4.0, status: Some(Burn), dps: 4.0, at: Aim),
+            ], juice: Some((title: Some("FUGA"), boom: true, punch: 4.0, color: Some((1.0, 0.45, 0.1))))),
+            // Malevolent Shrine: slashes fall on everyone near you.
+            (name: "malevolent shrine", cooldown: 30.0, cost: 40.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "malevolent shrine", form: Dome, mech: [Barrier, Trap, Blade], element: Shadow, scale: 2.0), signature: Some(Domain)),
+                Salvo(count: 14, delay: 0.35, interval: 0.1, radius: 2.2, damage: 6.0, knockback: 6.0, spread: 11.0, seek: true),
+            ], juice: Some((title: Some("DOMAIN EXPANSION: MALEVOLENT SHRINE"), boom: true, ripple: 14.0, punch: 5.0, color: Some((0.8, 0.05, 0.1))))),
+        ],
+    ),
+    (
+        id: "ten_shadows",
+        name: "Ten Shadows",
+        kind: Technique,
+        names: ["ten shadows", "ten shadows technique", "ten shadow technique", "megumi's technique", "shikigami", "shadow shikigami",
+                "ten shadows jutsu"],
+        // A divine dog pads at your side.
+        companion: Some((recipe: (name: "divine dog", form: Quadruped, mech: [Flies, Blade, Fast], element: Shadow, scale: 1.2, mass: 60.0),
+                         rush_damage: 3.0, rush_knockback: 3.0)),
+        fx: "shadow",
+        shouts: [("divine dogs", 0), ("divine dog", 0), ("demon dogs", 0), ("mahoraga", 1), ("divine general mahoraga", 1),
+                 ("eight handled sword divergent sila divine general mahoraga", 1), ("ten shadows nue", 2), ("ten shadows toad", 3),
+                 ("ten shadows max elephant", 4), ("ten shadows rabbit escape", 5)],
+        moves: [
+            (name: "divine dogs", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "divine dog", form: Quadruped, mech: [Walks, Blade, Fast], element: Shadow, scale: 1.1, count: 2,
+                              temperament: Aggressive, intensity: 0.7)),
+            ]),
+            (name: "mahoraga", cooldown: 30.0, ops: [
+                Cast(recipe: (name: "mahoraga", form: Biped, mech: [Blade, Heavy, Walks], element: Shadow, scale: 3.2,
+                              temperament: Aggressive, intensity: 0.9), signature: Some(Summon)),
+            ], juice: Some((title: Some("MAHORAGA"), boom: true, punch: 6.0, shake: 0.25))),
+            // (MODERN ANIME) each shikigami does ONE thing: Nue shocks from above, the Toad's tongue
+            // drags, Max Elephant floods, the rabbits hide you.
+            (name: "nue", cooldown: 5.0, cost: 10.0, fx: "lightning", ops: [
+                Cast(recipe: (name: "nue", form: Bird, mech: [Flies, Charge, Fast], element: Electric, scale: 1.4, temperament: Aggressive, intensity: 0.9)),
+            ], juice: Some((title: Some("NUE")))),
+            (name: "toad", cooldown: 4.0, cost: 8.0, ops: [Hook(range: 22.0, speed: 55.0, pull: 20.0, damage: 3.0)],
+             juice: Some((title: Some("TOAD")))),
+            (name: "max elephant", cooldown: 10.0, cost: 20.0, fx: "water", ops: [
+                Surge(width: 7.0, dist: 22.0, speed: 16.0, push: 22.0, damage: 6.0, element: Water),
+            ], juice: Some((title: Some("MAX ELEPHANT"), boom: true, shake: 0.2))),
+            (name: "rabbit escape", cooldown: 8.0, cost: 8.0, tags: [Defense], ops: [
+                Cast(recipe: (name: "shadow rabbits", form: Quadruped, mech: [Swarm, Fast, Walks], element: Shadow, scale: 0.4, count: 12,
+                              temperament: Playful, intensity: 1.0)),
+                Impulse(fwd: -14.0, up: 5.0),
+            ], juice: Some((title: Some("RABBIT ESCAPE")))),
+        ],
+    ),
+
+    // ---------------------------------------------------------------- BLEACH
+    (
+        id: "bankai",
+        name: "Bankai",
+        kind: Technique,
+        names: ["bankai", "ban kai", "bon kai", "bang kai", "bankai release", "ban-kai", "bonkai"],
+        // The released blade: faster, harder, and every construct you make gets an edge.
+        effects: [PowerMult(damage: 1.2, speed: 1.25, knockback: 1.1)],
+        graft: Some((mechanics: [Blade, Fast])),
+        ascend: Some((color: Some((0.75, 0.05, 0.12)), intensity: 1.6, title: Some("BANKAI"), eye_glow: Some((1.0, 0.2, 0.2)))),
+        shouts: [("getsuga tensho", 0), ("getsuga", 0), ("getsuga tenshou", 0), ("flash step", 1), ("shunpo", 1)],
+        moves: [
+            // The crescent wave: a black-red slash that carves along your aim.
+            (name: "getsuga tensho", cooldown: 2.2, cost: 7.0, ops: [Carve(length: 24.0, radius: 0.9, damage: 14.0)],
+             juice: Some((title: Some("GETSUGA TENSHO"), punch: 4.0, shake: 0.15, ripple: 3.0, at: Front, dist: 4.0,
+                          color: Some((0.75, 0.05, 0.12))))),
+            (name: "flash step", cooldown: 1.4, cost: 4.0, ops: [
+                Blink(dist: 14.0, afterimage: true),
+                Shove(range: 3.5, angle: 60.0, damage: 12.0, knockback: 16.0),
+            ]),
+        ],
+    ),
+
+    // ---------------------------------------------------------------- HUNTER x HUNTER
+    // Nen: say your type ("enhancer", "transmuter", "nen specialist"…) — each a small distinct kit.
+    (
+        id: "nen",
+        name: "Nen",
+        kind: Technique,
+        names: ["nen", "nen ability", "hatsu", "nen aura", "the nen", "ten and ren", "nen user"],
+        effects: [PowerMult(damage: 1.1, knockback: 1.05)],
+        ascend: Some((color: Some((0.92, 0.9, 0.7)), intensity: 0.8, title: Some("NEN"), style: Calm)),
+        shouts: [("ko", 0), ("ren burst", 1)],
+        moves: [
+            (name: "ko", cooldown: 1.2, cost: 3.0, ops: [Shove(range: 3.0, angle: 35.0, damage: 14.0, knockback: 16.0)],
+             juice: Some((punch: 2.0))),
+            (name: "ren burst", cooldown: 5.0, cost: 8.0, ops: [Explode(radius: 4.0, damage: 4.0, knockback: 16.0)],
+             juice: Some((ripple: 5.0, boom: true))),
+        ],
+        tiers: [
+            (name: "Enhancer",
+             names: ["enhancer", "enhancer type", "nen enhancer", "enhancement nen", "enhancement type", "enhancer nen",
+                     "jajanken", "ja jan ken", "jajan ken", "jan ken", "rock paper scissors", "jan ken pon"],
+             effects: [PowerMult(damage: 1.3, knockback: 1.25)],
+             body: Some((moves: (jump: 1.1))),
+             ascend: Some((color: Some((1.0, 0.62, 0.2)), intensity: 1.1, title: Some("ENHANCER"))),
+             // (MODERN ANIME) held, these fire the enhancer's own versions; everyone else borrows Gon's kit.
+             shouts: [("jajanken rock", 0), ("first comes rock", 0), ("jajanken paper", 1), ("jajanken scissors", 2)],
+             moves: [
+                 // Gon's jajanken: rock = a huge blunt punch, paper = a thrown aura blast, scissors = a cut.
+                 (name: "jajanken rock", cooldown: 2.0, cost: 6.0, ops: [
+                     Impulse(fwd: 10.0, up: 1.0),
+                     Shove(range: 3.0, angle: 40.0, damage: 18.0, knockback: 24.0),
+                 ], juice: Some((title: Some("JAJANKEN: ROCK"), punch: 4.0, shake: 0.2, boom: true))),
+                 (name: "jajanken paper", cooldown: 2.0, cost: 6.0, ops: [
+                     Cast(recipe: (name: "jajanken paper", form: Ball, mech: [Fast, Explodes], element: Light, scale: 0.8)),
+                 ], juice: Some((title: Some("JAJANKEN: PAPER")))),
+                 (name: "jajanken scissors", cooldown: 2.0, cost: 6.0, ops: [Carve(length: 5.0, radius: 0.6, damage: 12.0)],
+                  juice: Some((title: Some("JAJANKEN: SCISSORS")))),
+             ]),
+            (name: "Emitter", names: ["emitter type", "nen emitter", "emission nen", "emission type", "emitter nen"],
+             effects: [PowerMult(knockback: 1.15)],
+             ascend: Some((color: Some((0.3, 0.9, 0.5)), intensity: 1.0, title: Some("EMITTER"))),
+             shouts: [("nen bullet", 0), ("nen cannon", 1)],
+             moves: [
+                 (name: "nen bullet", cooldown: 1.2, cost: 4.0, ops: [
+                     Cast(recipe: (name: "nen bullet", form: Ball, mech: [Fast, Homing], element: Light, scale: 0.45, count: 3)),
+                 ]),
+                 (name: "nen cannon", cooldown: 7.0, ops: [
+                     Cast(recipe: (name: "nen cannon", form: Hands, mech: [Beam], element: Light, scale: 1.2), signature: Some(Beam)),
+                 ], juice: Some((title: Some("NEN CANNON"), boom: true, punch: 4.0))),
+             ]),
+            (name: "Transmuter", names: ["transmuter", "transmuter type", "nen transmuter", "transmutation nen", "transmutation type",
+                                         "godspeed", "kanmuru"],
+             effects: [PowerMult(speed: 1.2)],
+             graft: Some((element: Some(Electric))),
+             ascend: Some((color: Some((0.55, 0.8, 1.0)), intensity: 1.2, title: Some("TRANSMUTER"), stable: false,
+                           hair_tint: Some((0.9, 0.92, 1.0)))),
+             shouts: [("godspeed strike", 0), ("bungee gum", 1), ("bungee snap", 2)],
+             moves: [
+                 (name: "godspeed", cooldown: 1.4, cost: 5.0, ops: [
+                     Blink(dist: 12.0, afterimage: true),
+                     Shove(range: 3.0, angle: 60.0, damage: 8.0, knockback: 10.0, element: Electric),
+                 ], juice: Some((title: Some("GODSPEED"), color: Some((0.55, 0.8, 1.0))))),
+                 // (MODERN ANIME) aura with the properties of both rubber and gum: it sticks to them (a tag)...
+                 (name: "bungee gum", cooldown: 1.2, cost: 4.0, fx: "rubber", ops: [Tag(range: 30.0, cone: 12.0, secs: 12.0)],
+                  juice: Some((title: Some("BUNGEE GUM"), color: Some((1.0, 0.45, 0.75))))),
+                 // ...and then it snaps back, dragging every stuck body into your fist.
+                 (name: "bungee snap", cooldown: 3.0, cost: 10.0, fx: "rubber", ops: [
+                     TagStrike(damage: 6.0, pull: 30.0),
+                     Shove(range: 3.4, angle: 60.0, damage: 10.0, knockback: 14.0),
+                 ], juice: Some((title: Some("BUNGEE GUM"), punch: 3.0, color: Some((1.0, 0.45, 0.75))))),
+             ]),
+            (name: "Conjurer", names: ["conjurer", "conjurer type", "nen conjurer", "conjuration nen", "conjuration type"],
+             ascend: Some((color: Some((0.6, 0.5, 1.0)), intensity: 1.0, title: Some("CONJURER"))),
+             shouts: [("conjured chain", 0), ("chain jail", 1), ("dowsing chain", 0)],
+             moves: [
+                 (name: "chain", cooldown: 2.5, cost: 4.0, ops: [Link(range: 28.0)]),
+                 // (MODERN ANIME) the chain wraps them: a short total bind (a micro-stun) as it hauls them in.
+                 (name: "chain jail", cooldown: 10.0, cost: 20.0, ops: [
+                     Hook(range: 22.0, speed: 60.0, pull: 16.0, damage: 4.0, status: Some(Stun), secs: 1.0),
+                 ], juice: Some((title: Some("CHAIN JAIL")))),
+             ]),
+            (name: "Manipulator", names: ["manipulator type", "nen manipulator", "manipulation nen", "manipulation type", "manipulator nen"],
+             ascend: Some((color: Some((0.4, 0.4, 0.9)), intensity: 1.0, title: Some("MANIPULATOR"), style: Calm)),
+             shouts: [("nen needle", 0), ("puppet", 1)],
+             moves: [
+                 (name: "nen needle", cooldown: 2.5, cost: 5.0, ops: [Yank(range: 20.0, speed: 18.0, cone: 6.0)]),
+                 (name: "puppet", cooldown: 8.0, ops: [
+                     Cast(recipe: (name: "nen puppet", form: Biped, mech: [Walks, Blunt], scale: 1.2, temperament: Aggressive, intensity: 0.7)),
+                 ]),
+             ]),
+            (name: "Specialist", names: ["specialist", "specialist type", "nen specialist", "specialization nen", "specialization type",
+                                         "emperor time"],
+             effects: [CritChance(chance: 0.15, mult: 2.0), ReadSlow(radius: 10.0), AutoDodge(chance: 0.12, cooldown: 3.0),
+                       SelfDrain(damage_pct_per_s: 0.8)],
+             ascend: Some((color: Some((1.0, 0.95, 0.95)), intensity: 1.3, title: Some("SPECIALIST"), eye_glow: Some((1.0, 0.2, 0.2)))),
+             shouts: [("skill hunter", 0), ("emperor time", 1)],
+             moves: [
+                 (name: "skill hunter", cooldown: 1.5, cost: 5.0, ops: [Blink(dist: 16.0, afterimage: true)]),
+                 (name: "emperor time", cooldown: 20.0, cost: 20.0, ops: [TimeStop(secs: 1.2, speed: 1.8)],
+                  juice: Some((title: Some("EMPEROR TIME")))),
+             ]),
+        ],
+    ),
+
+    // ---------------------------------------------------------------- ONE PIECE — haki
+    (
+        id: "armament_haki",
+        name: "Armament Haki",
+        kind: Technique,
+        names: ["armament haki", "busoshoku haki", "busoshoku", "haki", "armament", "busoshoku koka", "haki coating",
+                "armament haki hardening", "armament hardening", "busou shoku haki"],
+        // Hardened black: every construct you make hits heavier; so do you.
+        graft: Some((mechanics: [Heavy], element: Some(Shadow))),
+        effects: [PowerMult(damage: 1.15, knockback: 1.15)],
+        ascend: Some((color: Some((0.35, 0.2, 0.45)), intensity: 0.6, title: Some("BUSOSHOKU HAKI"), style: Calm,
+                      skin_tint: Some((0.08, 0.08, 0.1)), linger: false)),
+        shouts: [("hardened fist", 0), ("koka", 0), ("ryuo", 1), ("internal destruction", 1)],
+        moves: [
+            (name: "hardened fist", cooldown: 1.0, cost: 3.0, ops: [Shove(range: 3.0, angle: 40.0, damage: 13.0, knockback: 16.0, element: Shadow)]),
+            (name: "ryuo", cooldown: 4.0, cost: 8.0, ops: [Explode(radius: 3.5, damage: 10.0, knockback: 22.0, element: Shadow, at: Front, dist: 2.5)],
+             juice: Some((ripple: 4.0, at: Front, dist: 2.5, boom: true, title: Some("RYUO")))),
+        ],
+    ),
+]

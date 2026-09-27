@@ -1,13 +1,14 @@
 //! Validates power files against bd_sim's real PowerDef schema + the never-list / flight rules:
-//! `cargo run --manifest-path tools/icons/dc/powercheck/Cargo.toml [-- assets/powers.ron [other.ron...]]`
-//! (the pending files were merged into assets/powers.ron, which is the default). The first file is
+//! `cargo run --manifest-path tools/icons/dc/powercheck/Cargo.toml [-- assets/powers/base_dc.ron [other.ron...]]`
+//! (default: assets/powers/base_dc.ron; the general validator is `cargo run --profile fastrel -p bd_sim
+//! --example powers_check -- <file.ron>`). The first file is
 //! linted; any further files only contribute ids/names for uniqueness checks.
 use bd_sim::powers::{MoveOp, PowerDef, PowerTable, norm_words};
 use std::collections::HashMap;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let default = "assets/powers.ron".to_string();
+    let default = "assets/powers/base_dc.ron".to_string();
     let path = args.first().unwrap_or(&default);
     let src = std::fs::read_to_string(path).expect("read");
     let raw: Vec<PowerDef> = match ron::from_str(&src) {

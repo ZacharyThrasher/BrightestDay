@@ -1,0 +1,519 @@
+// One Piece: devil fruits.
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+[
+    // ================================================================ ONE PIECE — devil fruits
+    (
+        id: "gomu_gomu",
+        name: "Gomu Gomu no Mi",
+        kind: Paramecia,
+        names: ["gomu gomu no mi", "gum gum fruit", "gum-gum fruit", "rubber fruit", "luffy's fruit"],
+        body: (bounce: true, immune: [Electric], moves: (jump: 1.1)),
+        incantations: ["gomu gomu no", "gum gum", "gum-gum"],
+        delivery: (add: [Returning, Bounce], remove: [DropFromSky], from_fist: true, arm: true),
+        shouts: [("gomu gomu no pistol", 0), ("gum gum pistol", 0), ("gomu gomu no rocket", 1), ("gum gum rocket", 1)],
+        moves: [
+            (name: "pistol", cooldown: 0.5, ops: [
+                Cast(recipe: (name: "gum-gum pistol", form: Ball, mech: [Returning, Blunt, Fast], scale: 0.6, mass: 25.0)),
+            ]),
+            // Stretch to an anchor and yank yourself there: a movement move.
+            (name: "rocket", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 40.0, speed: 34.0)]),
+        ],
+        // Luffy's gears: tiers of the rubber fruit, picked by saying them ("gear second"…"gear fifth");
+        // "gum gum fruit" said again (or the G-hold Transform) drops back to base.
+        tiers: [
+            (name: "Gear Second",
+             names: ["gear second", "gear 2", "gear two", "second gear", "gia sekando", "gear seconds", "gear secondo"],
+             body: Some((bounce: true, immune: [Electric], moves: (jump: 1.1, accel: 1.5))),
+             // Steam and speed: much faster, much quicker moves, JET prefixes.
+             effects: [PowerMult(damage: 1.2, speed: 1.3, knockback: 1.1, cooldown: 0.6), SelfDrain(willpower_per_s: 0.4)],
+             incantations: ["gomu gomu no jet", "gum gum jet", "jet"],
+             delivery: Some((add: [Returning, Bounce, Fast, Pierce], remove: [DropFromSky], from_fist: true, arm: true)),
+             ascend: Some((color: Some((1.0, 0.82, 0.86)), intensity: 1.2, title: Some("GEAR SECOND"), style: Steam,
+                           skin_tint: Some((1.0, 0.55, 0.6)))),
+             shouts: [("jet pistol", 0), ("gomu gomu no jet pistol", 0), ("gum gum jet pistol", 0),
+                      ("jet gatling", 1), ("gomu gomu no jet gatling", 1), ("gum gum jet gatling", 1)],
+             moves: [
+                 (name: "jet pistol", cooldown: 0.35, ops: [
+                     Cast(recipe: (name: "jet pistol", form: Ball, mech: [Returning, Blunt, Fast, Pierce], scale: 0.6, mass: 25.0)),
+                 ], juice: Some((punch: 1.5))),
+                 (name: "jet gatling", cooldown: 2.0, cost: 4.0, ops: [
+                     Cast(recipe: (name: "jet gatling", form: Ball, mech: [Returning, Blunt, Fast, Swarm], scale: 0.5, count: 6)),
+                 ], juice: Some((title: Some("JET GATLING"), shake: 0.1))),
+             ]),
+            (name: "Gear Third",
+             names: ["gear third", "gear 3", "gear three", "third gear", "gia sado", "gear thirds"],
+             body: Some((bounce: true, immune: [Electric], moves: (jump: 1.05))),
+             // Bone balloon: giant inflated limbs for the big hits.
+             effects: [PowerMult(damage: 1.35, speed: 0.95, knockback: 1.45)],
+             incantations: ["gomu gomu no giant", "gum gum giant", "gomu gomu no gigant", "gigant"],
+             delivery: Some((add: [Returning, Bounce, Grow, Heavy], remove: [DropFromSky], scale_mult: 2.2, from_fist: true, arm: true)),
+             ascend: Some((color: Some((1.0, 0.92, 0.88)), intensity: 1.1, title: Some("GEAR THIRD"), style: Steam)),
+             shouts: [("elephant gun", 0), ("gomu gomu no elephant gun", 0), ("gum gum elephant gun", 0), ("giant pistol", 0),
+                      ("giant stamp", 1), ("gomu gomu no giant stamp", 1), ("gum gum giant stamp", 1)],
+             moves: [
+                 (name: "elephant gun", cooldown: 3.0, cost: 6.0, ops: [
+                     Cast(recipe: (name: "elephant gun", form: Ball, mech: [Returning, Blunt, Heavy, Grow], scale: 3.0, mass: 400.0)),
+                 ], juice: Some((title: Some("ELEPHANT GUN"), punch: 4.0, shake: 0.2))),
+                 (name: "giant stamp", cooldown: 4.0, cost: 6.0, ops: [
+                     Impulse(fwd: 4.0, up: 12.0),
+                     SlamOnLand(radius: 6.0, damage: 16.0, knockback: 26.0, carve: 3.0),
+                 ], juice: Some((title: Some("GIANT STAMP")))),
+             ]),
+            (name: "Gear Fourth",
+             names: ["gear fourth", "gear 4", "gear four", "fourth gear", "boundman", "bound man", "bounce man", "gia fosu",
+                     "gear fourth boundman"],
+             // Bounce-man: springy everything, heavy haki-coated rubber. Two extra (boing) air jumps.
+             body: Some((bounce: true, immune: [Electric], moves: (jump: 1.35, gravity: 0.8, air_control: 1.5))),
+             effects: [PowerMult(damage: 1.4, speed: 1.15, knockback: 1.4), SelfDrain(willpower_per_s: 1.5), AirJumps(extra: 2)],
+             graft: Some((mechanics: [Bounce, Heavy])),
+             ascend: Some((color: Some((0.95, 0.3, 0.25)), intensity: 1.7, title: Some("GEAR FOURTH"), style: Steam, stable: false,
+                           skin_tint: Some((0.3, 0.08, 0.08)))),
+             shouts: [("kong gun", 0), ("gomu gomu no kong gun", 0), ("gum gum kong gun", 0),
+                      ("king kong gun", 1), ("gomu gomu no king kong gun", 1), ("gum gum king kong gun", 1)],
+             moves: [
+                 (name: "kong gun", cooldown: 2.5, cost: 6.0, ops: [
+                     Cast(recipe: (name: "kong gun", form: Ball, mech: [Returning, Blunt, Heavy, Fast], scale: 2.0, mass: 500.0)),
+                 ], juice: Some((title: Some("KONG GUN"), punch: 4.0, shake: 0.2, boom: true))),
+                 (name: "king kong gun", cooldown: 14.0, cost: 10.0, ops: [
+                     Cast(recipe: (name: "king kong gun", form: Ball, mech: [Returning, Blunt, Heavy], scale: 3.0, mass: 1200.0),
+                          signature: Some(Summon)),
+                 ], juice: Some((title: Some("KING KONG GUN"), punch: 6.0, shake: 0.3, boom: true))),
+             ]),
+            (name: "Gear Fifth",
+             names: ["gear fifth", "gear 5", "gear five", "fifth gear", "sun god nika", "nika", "joy boy", "joyboy", "sun god",
+                     "gear fifth nika", "gia fifusu"],
+             // Toon physics: absurd, joyful. White hair, white steam, the world is rubber.
+             body: Some((bounce: true, immune: [Electric], moves: (jump: 1.6, gravity: 0.6, air_control: 1.6, speed: 1.1))),
+             graft: Some((mechanics: [Bounce, Grow])),
+             effects: [PowerMult(damage: 1.3, knockback: 1.6), SelfDrain(willpower_per_s: 1.2)],
+             incantations: ["gomu gomu no"],
+             delivery: Some((add: [Grow, Bounce, Returning], remove: [DropFromSky], scale_mult: 1.8, from_fist: true, arm: true)),
+             ascend: Some((color: Some((1.0, 1.0, 1.0)), intensity: 2.2, title: Some("GEAR FIFTH"), style: Steam,
+                           hair_tint: Some((1.0, 1.0, 1.0)), eye_glow: Some((1.0, 0.85, 0.3)), music: Some("drums"), toon: true)),
+             shouts: [("rubber terrain", 0), ("grab the ground", 0), ("rubber ground", 0), ("bajrang gun", 1),
+                      ("gomu gomu no bajrang gun", 1), ("dawn whip", 0)],
+             moves: [
+                 // Grab the ground like rubber: the aimed terrain comes alive, grabs, bounces and snaps back.
+                 (name: "rubber terrain", cooldown: 3.0, cost: 6.0, ops: [
+                     Cast(recipe: (name: "rubber ground", form: Blob0, mech: [Grab, Bounce, Returning]), modifier: true),
+                 ], juice: Some((title: Some("RUBBER!"), shake: 0.15))),
+                 (name: "bajrang gun", cooldown: 8.0, ops: [
+                     Cast(recipe: (name: "bajrang gun", form: Boulder, mech: [DropFromSky, Heavy, Blunt, Bounce], scale: 5.0, mass: 900.0)),
+                 ], juice: Some((title: Some("BAJRANG GUN"), boom: true, punch: 6.0, shake: 0.3))),
+             ]),
+        ],
+    ),
+    (
+        id: "nika",
+        name: "Hito Hito no Mi, Model: Nika",
+        kind: MythicalZoan,
+        names: ["hito hito no mi model nika", "nika fruit", "sun god fruit", "gear 5 fruit", "gear fifth fruit"],
+        body: (bounce: true, immune: [Electric], moves: (jump: 1.2, gravity: 0.9)),
+        // Cartoon physics: whatever you say comes out giant, bouncy and snaps back.
+        incantations: ["gomu gomu no", "gum gum", "gear 5", "gear five"],
+        delivery: (add: [Grow, Bounce, Returning], remove: [DropFromSky], scale_mult: 1.8, from_fist: true, arm: true),
+        shouts: [("bajrang gun", 0), ("gomu gomu no bajrang gun", 0), ("gear 5", 1), ("gear fifth", 1), ("gear five", 1)],
+        moves: [
+            (name: "bajrang gun", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "bajrang gun", form: Boulder, mech: [DropFromSky, Heavy, Blunt, Bounce], scale: 5.0, mass: 900.0)),
+            ]),
+            (name: "gear 5", cooldown: 2.0, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((1.00, 1.00, 1.00)), intensity: 2.2, title: Some("GEAR FIFTH"), style: Steam, hair_tint: Some((1.0, 1.0, 1.0)), music: Some("drums"), toon: true)), 
+            costume: "gear5",
+            body: (bounce: true, immune: [Electric], moves: (jump: 1.6, gravity: 0.6, air_control: 1.6, speed: 1.1)),
+            graft: Some((mechanics: [Bounce])),
+        )),
+    ),
+    (
+        id: "mera_mera",
+        name: "Mera Mera no Mi",
+        kind: Logia,
+        names: ["mera mera no mi", "flame flame fruit", "flame-flame fruit", "fire fruit", "ace's fruit"],
+        body: (scatter: true, immune: [Fire]),
+        graft: Some((element: Some(Fire))),
+        incantations: ["mera mera no"],
+        delivery: (element: Some(Fire), add: [Fast]),
+        shouts: [("hiken", 0), ("fire fist", 0), ("entei", 1), ("flame emperor", 1)],
+        moves: [
+            (name: "fire fist", cooldown: 1.2, ops: [
+                Cast(recipe: (name: "fire fist", form: Ball, mech: [Fast, Explodes, Blunt], element: Fire, scale: 1.6, mass: 40.0)),
+            ]),
+            (name: "flame emperor", cooldown: 7.0, ops: [
+                Cast(recipe: (name: "flame emperor", form: Ball, mech: [DropFromSky, Explodes, Heavy], element: Fire, scale: 2.5, mass: 300.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "hie_hie",
+        name: "Hie Hie no Mi",
+        kind: Logia,
+        names: ["hie hie no mi", "chilly chilly fruit", "ice ice fruit", "ice fruit", "aokiji's fruit"],
+        body: (scatter: true, immune: [Ice], weak: [Fire]),
+        graft: Some((element: Some(Ice))),
+        incantations: ["hie hie no"],
+        delivery: (element: Some(Ice), add: [Pierce]),
+        shouts: [("ice age", 0), ("partisan", 1), ("ice partisan", 1)],
+        moves: [
+            (name: "ice age", cooldown: 4.0, cost: 12.0, ops: [
+                Explode(radius: 7.0, damage: 6.0, knockback: 4.0, element: Ice),
+            ]),
+            (name: "partisan", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "partisan", form: Ball, mech: [Pierce, Fast, Swarm], element: Ice, scale: 0.35, count: 5)),
+            ]),
+        ],
+    ),
+    (
+        id: "goro_goro",
+        name: "Goro Goro no Mi",
+        kind: Logia,
+        names: ["goro goro no mi", "rumble rumble fruit", "rumble-rumble fruit", "lightning fruit", "enel's fruit"],
+        body: (scatter: true, immune: [Electric]),
+        graft: Some((element: Some(Electric))),
+        incantations: ["goro goro no"],
+        delivery: (element: Some(Electric), add: [Fast]),
+        shouts: [("lightning blink", 0), ("el thor", 1), ("mamaragan", 1)],
+        moves: [
+            (name: "lightning blink", cooldown: 1.2, cost: 6.0, ops: [Blink(dist: 14.0)]),
+            (name: "el thor", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "el thor", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "pika_pika",
+        name: "Pika Pika no Mi",
+        kind: Logia,
+        names: ["pika pika no mi", "glint glint fruit", "glint-glint fruit", "light fruit", "kizaru's fruit"],
+        body: (scatter: true, moves: (speed: 1.1)),
+        incantations: ["pika pika no"],
+        delivery: (add: [Fast, Beam]),
+        shouts: [("light speed", 0), ("yata no kagami", 0), ("yasakani no magatama", 1)],
+        moves: [
+            (name: "yata no kagami", cooldown: 1.5, cost: 7.0, ops: [Blink(dist: 20.0)]),
+            (name: "yasakani no magatama", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "yasakani no magatama", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.3, count: 8)),
+            ]),
+        ],
+    ),
+    (
+        id: "yami_yami",
+        name: "Yami Yami no Mi",
+        kind: Logia,
+        // Canon: darkness can't scatter — it takes every hit.
+        names: ["yami yami no mi", "dark dark fruit", "dark-dark fruit", "darkness fruit", "blackbeard's fruit"],
+        body: (scatter: false),
+        graft: Some((element: Some(Shadow))),
+        incantations: ["yami yami no"],
+        delivery: (element: Some(Shadow), add: [Attract]),
+        shouts: [("black hole", 0), ("liberation", 1)],
+        moves: [
+            (name: "black hole", cooldown: 5.0, cost: 14.0, ops: [Field(strength: 28.0, radius: 10.0, secs: 3.0, at: Aim)]),
+            (name: "liberation", cooldown: 5.0, cost: 14.0, ops: [
+                Explode(radius: 5.0, damage: 18.0, knockback: 20.0, carve: 2.5, element: Shadow, at: Aim),
+            ]),
+        ],
+    ),
+    (
+        id: "suna_suna",
+        name: "Suna Suna no Mi",
+        kind: Logia,
+        names: ["suna suna no mi", "sand sand fruit", "sand-sand fruit", "sand fruit", "crocodile's fruit"],
+        body: (scatter: true, weak: [Water]),
+        graft: Some((element: Some(Earth))),
+        incantations: ["suna suna no"],
+        delivery: (element: Some(Earth), add: [Spin]),
+        shouts: [("sables", 0), ("desert spada", 1)],
+        moves: [
+            (name: "sables", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "sables", form: Pillar, mech: [Spin, Flies, Homing, Attract], element: Wind, scale: 4.0)),
+            ]),
+            (name: "desert spada", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 18.0, radius: 1.0, damage: 12.0)]),
+        ],
+    ),
+    (
+        id: "magu_magu",
+        name: "Magu Magu no Mi",
+        kind: Logia,
+        names: ["magu magu no mi", "mag mag fruit", "mag-mag fruit", "magma fruit", "akainu's fruit"],
+        body: (scatter: true, immune: [Fire]),
+        graft: Some((element: Some(Fire))),
+        incantations: ["magu magu no"],
+        delivery: (element: Some(Fire), add: [Heavy, Blunt]),
+        shouts: [("great eruption", 0), ("dai funka", 0), ("meteor volcano", 1), ("ryusei kazan", 1)],
+        moves: [
+            (name: "great eruption", cooldown: 1.5, ops: [
+                Cast(recipe: (name: "magma fist", form: Ball, mech: [Heavy, Blunt, Fast], element: Fire, scale: 1.8, mass: 200.0)),
+            ]),
+            (name: "meteor volcano", cooldown: 7.0, ops: [
+                Cast(recipe: (name: "meteor volcano", form: Boulder, mech: [DropFromSky, Swarm, Heavy], element: Fire, scale: 1.2, count: 5)),
+            ]),
+        ],
+    ),
+    (
+        id: "gura_gura",
+        name: "Gura Gura no Mi",
+        kind: Paramecia,
+        names: ["gura gura no mi", "tremor tremor fruit", "tremor-tremor fruit", "quake fruit", "whitebeard's fruit"],
+        incantations: ["gura gura no"],
+        delivery: (element: Some(Earth), add: [Stomp, Blunt]),
+        shouts: [("quake punch", 0), ("seaquake", 1), ("kaishin", 1)],
+        moves: [
+            // The air cracks: a shockwave that carves terrain.
+            (name: "quake punch", cooldown: 2.5, cost: 12.0, ops: [
+                Explode(radius: 4.5, damage: 16.0, knockback: 26.0, carve: 3.0, element: Earth, at: Front, dist: 3.0),
+            ]),
+            (name: "seaquake", cooldown: 6.0, cost: 18.0, ops: [Carve(length: 22.0, radius: 2.2, damage: 14.0)]),
+        ],
+    ),
+    (
+        id: "ope_ope",
+        name: "Ope Ope no Mi",
+        kind: Paramecia,
+        names: ["ope ope no mi", "op op fruit", "op-op fruit", "operation fruit", "law's fruit"],
+        graft: Some((mechanics: [Blade])),
+        incantations: ["ope ope no"],
+        delivery: (add: [Blade]),
+        shouts: [("room", 0), ("shambles", 1)],
+        moves: [
+            (name: "room", cooldown: 3.0, cost: 10.0, ops: [Room(radius: 14.0, secs: 12.0)]),
+            // Swap places with whoever you aim at — both inside your ROOM.
+            (name: "shambles", cooldown: 1.5, cost: 6.0, ops: [Swap(range: 30.0)]),
+        ],
+    ),
+    (
+        id: "bara_bara",
+        name: "Bara Bara no Mi",
+        kind: Paramecia,
+        names: ["bara bara no mi", "chop chop fruit", "chop-chop fruit", "buggy's fruit"],
+        body: (blade_immune: true),
+        incantations: ["bara bara no"],
+        delivery: (add: [Returning, Homing], from_fist: true),
+        shouts: [("bara bara cannon", 0), ("bara bara festival", 1)],
+        moves: [
+            (name: "flying hands", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "flying hands", form: Ball, mech: [Flies, Homing, Swarm, Blunt], scale: 0.5, count: 2)),
+            ]),
+            (name: "bara bara festival", cooldown: 4.0, cost: 6.0, ops: [
+                Impulse(fwd: 0.0, up: 12.0),
+                SelfStatus(status: Float, secs: 1.5),
+            ]),
+        ],
+    ),
+    (
+        id: "hana_hana",
+        name: "Hana Hana no Mi",
+        kind: Paramecia,
+        names: ["hana hana no mi", "flower flower fruit", "flower-flower fruit", "robin's fruit"],
+        incantations: ["hana hana no"],
+        delivery: (add: [Grab]),
+        shouts: [("clutch", 0), ("mil fleur", 1), ("gigantesco mano", 1)],
+        moves: [
+            // Arms sprout on the surface you aim at and grab whoever is there.
+            (name: "clutch", cooldown: 2.5, ops: [
+                Cast(recipe: (name: "sprouted arms", form: Pillar, mech: [Grab, Constrict], scale: 1.2)),
+            ]),
+            (name: "gigantesco mano", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "giant arms", form: Pillar, mech: [Grab, Blunt, Heavy], scale: 5.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "nikyu_nikyu",
+        name: "Nikyu Nikyu no Mi",
+        kind: Paramecia,
+        names: ["nikyu nikyu no mi", "paw paw fruit", "paw-paw fruit", "kuma's fruit"],
+        incantations: ["nikyu nikyu no"],
+        delivery: (add: [Repel, Launch]),
+        shouts: [("pad cannon", 0), ("tsuppari pad ho", 0), ("where would you like to go", 1), ("ursus shock", 1)],
+        moves: [
+            // The paw repels anything in front.
+            (name: "pad cannon", cooldown: 2.0, cost: 8.0, ops: [Field(strength: -60.0, radius: 6.0, secs: 0.5, at: Front, dist: 3.0)]),
+            // "Where would you like to go?" — launch one player very far.
+            (name: "paw launch", cooldown: 6.0, cost: 14.0, ops: [
+                Shove(range: 4.0, angle: 25.0, damage: 0.0, knockback: 48.0, up: 0.8),
+            ]),
+        ],
+    ),
+    (
+        id: "bomu_bomu",
+        name: "Bomu Bomu no Mi",
+        kind: Paramecia,
+        names: ["bomu bomu no mi", "bomb bomb fruit", "bomb-bomb fruit", "bomb fruit", "mr 5's fruit"],
+        body: (explosion_immune: true),
+        incantations: ["bomu bomu no"],
+        delivery: (add: [Explodes, Sticky]),
+        shouts: [("explosive touch", 0), ("nose fancy cannon", 1)],
+        moves: [
+            (name: "explosive touch", cooldown: 1.5, cost: 8.0, ops: [
+                Explode(radius: 2.5, damage: 18.0, knockback: 16.0, carve: 1.2, element: Fire, at: Front, dist: 1.6),
+            ]),
+            (name: "nose fancy cannon", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "booger bomb", form: Bomb, mech: [Fast], scale: 0.4)),
+            ]),
+        ],
+    ),
+    (
+        id: "mochi_mochi",
+        name: "Mochi Mochi no Mi",
+        kind: Paramecia,
+        names: ["mochi mochi no mi", "mochi mochi fruit", "mochi fruit", "katakuri's fruit"],
+        graft: Some((mechanics: [Sticky])),
+        incantations: ["mochi mochi no"],
+        delivery: (add: [Sticky, Blunt, Returning], from_fist: true, arm: true),
+        shouts: [("mochi trident", 0), ("power mochi", 1)],
+        moves: [
+            (name: "mochi trident", cooldown: 1.5, ops: [
+                Cast(recipe: (name: "mochi trident", form: Ball, mech: [Pierce, Sticky, Fast], scale: 0.9)),
+            ]),
+            (name: "power mochi", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "power mochi", form: Ball, mech: [Blunt, Heavy, Sticky, Returning], scale: 2.0, mass: 150.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "bari_bari",
+        name: "Bari Bari no Mi",
+        kind: Paramecia,
+        names: ["bari bari no mi", "barrier barrier fruit", "barrier-barrier fruit", "barrier fruit", "bartolomeo's fruit"],
+        incantations: ["bari bari no"],
+        delivery: (add: [Barrier, Guard]),
+        shouts: [("barrier", 0), ("barrier ball", 1)],
+        moves: [
+            (name: "barrier", cooldown: 2.0, ops: [Cast(recipe: (name: "barrier", form: Wall, mech: [Barrier, Guard], scale: 1.0))]),
+            (name: "barrier ball", cooldown: 4.0, ops: [Cast(recipe: (name: "barrier ball", form: Dome, mech: [Barrier]))]),
+        ],
+    ),
+    (
+        id: "doku_doku",
+        name: "Doku Doku no Mi",
+        kind: Paramecia,
+        names: ["doku doku no mi", "venom venom fruit", "venom-venom fruit", "poison fruit", "magellan's fruit"],
+        body: (immune: [Poison]),
+        graft: Some((element: Some(Poison))),
+        incantations: ["doku doku no"],
+        delivery: (element: Some(Poison), add: [Sticky]),
+        shouts: [("hydra", 0), ("venom demon", 1), ("poison cloud", 1)],
+        moves: [
+            (name: "hydra", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "venom hydra", form: Serpent, mech: [Breath], element: Poison, scale: 4.0)),
+            ]),
+            (name: "poison cloud", cooldown: 5.0, cost: 12.0, ops: [
+                Explode(radius: 5.5, damage: 4.0, knockback: 2.0, element: Poison),
+            ]),
+        ],
+    ),
+    (
+        id: "kilo_kilo",
+        name: "Kilo Kilo no Mi",
+        kind: Paramecia,
+        names: ["kilo kilo no mi", "kilo kilo fruit", "weight fruit", "miss valentine's fruit"],
+        incantations: ["kilo kilo no"],
+        delivery: (add: [Heavy]),
+        shouts: [("10000 kilo press", 0), ("ten thousand kilo press", 0), ("kilo press", 0), ("one kilo", 1), ("float", 1)],
+        moves: [
+            // Heavy: plummet and slam where you land.
+            (name: "10,000 kilo press", cooldown: 3.0, cost: 8.0, ops: [
+                Impulse(fwd: 0.0, up: -38.0),
+                SlamOnLand(radius: 4.0, damage: 22.0, knockback: 20.0, carve: 2.5),
+            ]),
+            // Light: float on the wind.
+            (name: "1 kilo float", cooldown: 3.0, cost: 4.0, ops: [
+                Impulse(fwd: 0.0, up: 7.0),
+                SelfStatus(status: Float, secs: 3.0),
+            ]),
+        ],
+    ),
+    (
+        id: "tori_phoenix",
+        name: "Tori Tori no Mi, Model: Phoenix",
+        kind: MythicalZoan,
+        names: ["tori tori no mi model phoenix", "phoenix fruit", "bird bird fruit phoenix", "marco's fruit"],
+        body: (immune: [Fire]),
+        incantations: ["tori tori no"],
+        delivery: (element: Some(Fire), add: [Flies]),
+        shouts: [("phoenix brand", 0), ("phoenix", 1)],
+        moves: [
+            (name: "phoenix brand", cooldown: 2.0, cost: 6.0, ops: [
+                Impulse(fwd: 26.0, up: 4.0),
+                Shove(range: 3.5, angle: 45.0, damage: 12.0, knockback: 18.0, element: Fire),
+            ]),
+            (name: "phoenix form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Blue-fire wings: flight (thrust stays below skilled movement), fire immunity.
+        transform: Some((ascend: Some((color: Some((0.35, 0.75, 1.00)), intensity: 1.3, eye_glow: Some((0.4, 0.8, 1.0)))), 
+            costume: "phoenix",
+            body: (immune: [Fire], moves: (thrust: 26.0, thrust_max: 17.0, gravity: 0.45, glide: 0.5)),
+            graft: Some((element: Some(Fire))),
+        )),
+    ),
+    (
+        id: "uo_seiryu",
+        name: "Uo Uo no Mi, Model: Seiryu",
+        kind: MythicalZoan,
+        names: ["uo uo no mi model seiryu", "fish fish fruit azure dragon", "azure dragon fruit", "kaido's fruit"],
+        incantations: ["uo uo no"],
+        delivery: (element: Some(Fire), add: [Breath]),
+        shouts: [("bolo breath", 0), ("boro breath", 0), ("azure dragon", 1), ("dragon form", 1)],
+        moves: [
+            (name: "bolo breath", cooldown: 2.5, ops: [
+                Cast(recipe: (name: "bolo breath", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 1.6)),
+            ]),
+            (name: "azure dragon", cooldown: 3.0, ops: [Transform]),
+        ],
+        // Become an eastern dragon: a piloted serpent that flies and breathes fire (eject = back).
+        transform: Some((ascend: Some((color: Some((0.60, 0.85, 1.00)), intensity: 1.4)), 
+            costume: "azure_dragon",
+            pilot: Some((name: "azure dragon", form: Serpent, mech: [Flies, Breath, ArticulatedTail, Piloted], element: Fire, scale: 14.0, mass: 4000.0)),
+        )),
+    ),
+    (
+        id: "ushi_giraffe",
+        name: "Ushi Ushi no Mi, Model: Giraffe",
+        kind: Zoan,
+        names: ["ushi ushi no mi model giraffe", "giraffe fruit", "ox ox fruit giraffe", "kaku's fruit"],
+        incantations: ["ushi ushi no"],
+        delivery: (add: [Pierce, Charge]),
+        shouts: [("kirin houdai", 0), ("giraffe cannon", 0), ("giraffe", 1)],
+        moves: [
+            // The neck: a long, narrow strike.
+            (name: "giraffe cannon", cooldown: 1.2, cost: 5.0, ops: [Shove(range: 5.0, angle: 18.0, damage: 14.0, knockback: 16.0)]),
+            (name: "giraffe form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.95, 0.80, 0.45)), intensity: 0.8)), costume: "giraffe", body: (moves: (speed: 1.1, jump: 1.25)), graft: Some((mechanics: [Pierce])))),
+    ),
+    (
+        id: "neko_leopard",
+        name: "Neko Neko no Mi, Model: Leopard",
+        kind: Zoan,
+        names: ["neko neko no mi model leopard", "leopard fruit", "cat cat fruit leopard", "lucci's fruit"],
+        incantations: ["neko neko no"],
+        delivery: (add: [Fast, Blade]),
+        shouts: [("pounce", 0), ("rokuogan", 0), ("leopard", 1)],
+        moves: [
+            (name: "pounce", cooldown: 1.5, cost: 5.0, ops: [
+                Impulse(fwd: 20.0, up: 6.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 10.0),
+            ]),
+            (name: "leopard form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((1.00, 0.75, 0.30)), intensity: 0.9)), costume: "leopard", body: (moves: (speed: 1.2, accel: 1.3, air_control: 1.2)), graft: Some((mechanics: [Fast, Blade])))),
+    ),
+    (
+        id: "inu_okuchi",
+        name: "Inu Inu no Mi, Model: Okuchi no Makami",
+        kind: MythicalZoan,
+        names: ["inu inu no mi model okuchi no makami", "okuchi no makami fruit", "wolf god fruit", "yamato's fruit"],
+        body: (immune: [Ice]),
+        incantations: ["inu inu no"],
+        delivery: (element: Some(Ice), add: [Charge]),
+        shouts: [("howl", 0), ("narikabura", 0), ("makami", 1), ("wolf form", 1)],
+        moves: [
+            (name: "howl", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "ice wolf", form: Quadruped, mech: [Charge, Fast], element: Ice, scale: 1.6, temperament: Aggressive, intensity: 0.8)),
+            ]),
+            (name: "wolf form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.70, 0.90, 1.00)), intensity: 1.0, style: Calm)), costume: "okuchi_no_makami", body: (immune: [Ice], moves: (speed: 1.2, jump: 1.15)), graft: Some((element: Some(Ice))))),
+    ),
+]

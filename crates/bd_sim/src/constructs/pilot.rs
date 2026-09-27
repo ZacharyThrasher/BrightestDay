@@ -417,7 +417,7 @@ fn melee_front(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, eye: Vec3, 
 }
 
 #[allow(clippy::too_many_arguments)]
-fn shoot(c: &Construct, out: &mut ConstructOut, from: Vec3, dir: Vec3, speed: f32, dmg: f32, kb: f32, explode: bool, arch: GunArchetype, recoil: f32) {
+pub(super) fn shoot(c: &Construct, out: &mut ConstructOut, from: Vec3, dir: Vec3, speed: f32, dmg: f32, kb: f32, explode: bool, arch: GunArchetype, recoil: f32) {
     let dir = dir.normalize_or_zero();
     if dir == Vec3::ZERO {
         return;
@@ -627,9 +627,37 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     }
     tick_timers(&mut s, dt);
     s.third_person = true;
+    // TRANSFORMER COMBAT (`brawl.rs`): Transform during / right after a string = a transform attack
+    // (the vehicle bursts through the target, then the robot's finisher); while it runs it drives
+    // the body, and a second Transform press brings the finisher early.
+    if c.has(Mechanic::Transforms) {
+        if s.transform_req && !s.vehicle && s.transform_t <= 0.0 && super::brawl::wants_xattack(c) {
+            s.transform_req = false;
+            c.held = s;
+            super::brawl::start_xattack(c, env, out, pv.look);
+            s = c.held;
+        }
+        if c.brawl.xatk != super::brawl::XPhase::None {
+            let again = s.transform_req;
+            s.transform_req = false;
+            c.held = s;
+            let grounded = c.grounded;
+            let flying = super::brawl::step_xattack(c, env, out, again, grounded);
+            if flying {
+                fly_integrate(c, env);
+            } else {
+                integrate(c, env);
+            }
+            c.held.third_person = true;
+            return;
+        }
+    }
     if s.transform_req {
         s.transform_req = false;
-        let airborne = !c.grounded;
+        // Airborne = really off the ground (not merely "not yet integrated": a transform requested
+        // while it formed must not slam a crater under it).
+        let sole = c.pos + Vec3::Y * (c.local_center.y - c.half.y);
+        let airborne = !c.grounded && (c.vel.y.abs() > 0.5 || ground_at(env.ctx.voxels, sole, 0.3, 0.15).is_none());
         let fall = -c.vel.y;
         toggle(c, &mut s, airborne, fall, env, out);
     }
@@ -639,10 +667,28 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
     let cam_right = Vec3::new(cy, 0.0, -sy);
     let (rolling, flier, boost) = locomotion(c, &s);
     let jet = flier && jet_like(c);
-    let speed = if flier { flight_speed(c, jet) } else { pilot_speed(c, rolling) };
+    // TRANSFORMER COMBAT: the archetype tailors the robot's speed / air control and the vehicle's
+    // top speed / grip / drift / turn rate (combat.ron `transformer.archetypes`).
+    let transformer = c.has(Mechanic::Transforms);
+    let brawler = transformer && !s.vehicle && !rolling && !flier;
+    let (robot_speed, air_control, veh_speed, veh_grip, drift_boost, veh_turn) = if transformer {
+        let a = env.ctx.tuning.transformer.archetype_of(&c.recipe);
+        (a.robot_speed, a.air_control, a.vehicle_speed, a.vehicle_grip, a.drift_boost, a.vehicle_turn)
+    } else {
+        (1.0, 1.0, 1.0, 1.0, 0.0, 1.0)
+    };
+    let speed = if flier {
+        flight_speed(c, jet)
+    } else if rolling {
+        pilot_speed(c, rolling) * veh_speed
+    } else if brawler {
+        pilot_speed(c, rolling) * robot_speed
+    } else {
+        pilot_speed(c, rolling)
+    };
     let scale = c.recipe.scale.max(0.5);
     // Big things turn slower.
-    let turn = 3.5 / (scale / 2.0).max(1.0).powf(0.4);
+    let turn = 3.5 / (scale / 2.0).max(1.0).powf(0.4) * if rolling { veh_turn } else { 1.0 };
     let cur_yaw = {
         let f = c.forward();
         (-f.x).atan2(-f.z)
@@ -683,14 +729,20 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         } else {
             fly_hover(c, &inp, pv.look, cam_right, cur_yaw, speed, turn, env);
         }
-    } else {
-        let mut dyaw = inp.yaw - cur_yaw;
-        while dyaw > std::f32::consts::PI {
-            dyaw -= std::f32::consts::TAU;
-        }
-        while dyaw < -std::f32::consts::PI {
-            dyaw += std::f32::consts::TAU;
-        }
+    }
+    let mut dyaw = inp.yaw - cur_yaw;
+    while dyaw > std::f32::consts::PI {
+        dyaw -= std::f32::consts::TAU;
+    }
+    while dyaw < -std::f32::consts::PI {
+        dyaw += std::f32::consts::TAU;
+    }
+    // DRIFT (transformer vehicle modes): hold Dodge while turning — the tail slides, it turns
+    // sharper, and letting go fires a boost.
+    let speed_h = Vec3::new(c.vel.x, 0.0, c.vel.z).length();
+    let drifting = rolling && transformer && drift_boost > 0.0 && inp.held(buttons::DODGE) && dyaw.abs() > 0.2 && speed_h > 6.0;
+    if !(flier && s.dash_t <= 0.0) {
+        let turn = if drifting { turn * 1.6 } else { turn };
         let yaw = cur_yaw + dyaw.clamp(-turn * dt, turn * dt);
         c.rot = Quat::from_rotation_y(yaw);
     }
@@ -704,11 +756,31 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         let throttle = inp.move_z.clamp(-1, 1) as f32;
         let along = c.vel.dot(fwd);
         let target = throttle * speed * if throttle < 0.0 { 0.5 } else { 1.0 };
-        let along = along + (target - along) * (2.5 * dt).min(1.0);
-        c.vel = Vec3::new(fwd.x * along, c.vel.y, fwd.z * along);
+        let mut along = along + (target - along) * (2.5 * dt).min(1.0);
+        // Lateral grip: plain vehicles have full grip; transformers slide by their archetype, a drift
+        // lets the tail go.
+        let lateral = if transformer {
+            let h = Vec3::new(c.vel.x, 0.0, c.vel.z);
+            let lat = h - fwd * h.dot(fwd);
+            let k = if drifting { 1.2 } else { 30.0 * veh_grip.max(0.05) };
+            lat * (-k * dt).exp()
+        } else {
+            Vec3::ZERO
+        };
+        if drifting {
+            c.brawl.drift_t += dt;
+        } else {
+            if c.brawl.drift_t > 0.35 && drift_boost > 0.0 {
+                along += drift_boost;
+                fx(out, c, HeldFx::Thrust, c.center() - fwd * c.half.z, -fwd, 1.5);
+            }
+            c.brawl.drift_t = 0.0;
+        }
+        c.vel = Vec3::new(fwd.x * along + lateral.x, c.vel.y, fwd.z * along + lateral.z);
     } else if !flier {
         let wish = (cam_fwd * inp.move_z.clamp(-1, 1) as f32 + cam_right * inp.move_x.clamp(-1, 1) as f32).normalize_or_zero();
         let want = wish * speed;
+        let blend = if brawler && !c.grounded { blend * air_control } else { blend };
         c.vel.x += (want.x - c.vel.x) * blend;
         c.vel.z += (want.z - c.vel.z) * blend;
     }
@@ -719,10 +791,22 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         // Robot mode of a flying transformer: hold Jump to hover / boost (like a flying suit).
         c.vel.y = c.vel.y.max((c.vel.y + 40.0 * dt).min(7.0));
     }
+    // TRANSFORMER COMBAT: robot-mode strings / heavies / air combos / blaster / boost-step (these
+    // may override the velocity: the boost-step, a lunge, the air float).
+    if brawler && s.transform_t <= dt {
+        c.held = s;
+        let bi = super::brawl::Input::of_pilot(&inp, pv.pressed, pv.look, false);
+        let grounded = c.grounded;
+        super::brawl::robot(c, env, out, &bi, grounded);
+        s = c.held;
+    }
     if flier {
         fly_integrate(c, env);
     } else {
         integrate(c, env);
+    }
+    if brawler {
+        super::brawl::land(c, env, out, c.grounded);
     }
     if s.slam_armed {
         s.fall_speed = s.fall_speed.max(-c.vel.y);
@@ -749,7 +833,9 @@ pub fn step_piloted(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
             s = ps;
         }
     } else {
-        pilot_attacks(c, &mut s, &pv, env, out, fwd);
+        if !brawler {
+            pilot_attacks(c, &mut s, &pv, env, out, fwd);
+        }
         if c.anim_state != AnimState::Active {
             c.set_anim(if moving { AnimState::Move } else { AnimState::Idle }, env.tick());
         }

@@ -118,6 +118,8 @@ enum Knob {
     FovKick,
     LandingDip,
     Flashes,
+    /// IMPACT FRAMES: Reduce flashes (Off / Reduced / None; photosensitivity).
+    ReduceFlashes,
     Vignette,
     Vsync,
     Fullscreen,
@@ -523,7 +525,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                     v.extend([Header("MIX"), Value(K::MusicStyle), Value(K::NightMode), Value(K::Mono)]);
                 }
                 SettingsTab::Comfort => {
-                    v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Roll), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
+                    v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Roll), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::ReduceFlashes), Value(K::Vignette)]);
                 }
                 SettingsTab::Hud => {
                     v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::EnemyPercent), Value(K::ShowPercent)]);
@@ -609,6 +611,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::FovKick => (lbl("  FOV KICKS"), pct(s.comfort.fov_kick)),
         Knob::LandingDip => (lbl("  LANDING DIP"), pct(s.comfort.landing_dip)),
         Knob::Flashes => (lbl("  SCREEN FLASHES"), pct(s.comfort.flashes)),
+        Knob::ReduceFlashes => (lbl("  REDUCE FLASHES"), s.comfort.reduce_flashes.label().into()),
         Knob::Vignette => (lbl("  COMFORT VIGNETTE"), pct(s.comfort.vignette)),
         Knob::Vsync => (lbl("VSYNC"), on_off(s.vsync)),
         Knob::Fullscreen => (lbl("FULLSCREEN"), on_off(s.fullscreen)),
@@ -807,6 +810,11 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::Roll => {
             s.comfort.strafe_roll = Some(!s.comfort.roll_on());
+            game = false;
+        }
+        Knob::ReduceFlashes => {
+            let r = s.comfort.reduce_flashes;
+            s.comfort.reduce_flashes = if d < 0.0 { r.prev() } else { r.next() };
             game = false;
         }
         Knob::Shake | Knob::FovKick | Knob::LandingDip | Knob::Flashes | Knob::Vignette => {
@@ -2246,7 +2254,7 @@ mod tests {
             Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
             Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::CrosshairGauge, Knob::EnemyPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
             Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Roll, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
-            Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::PortalViews, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
+            Knob::ReduceFlashes, Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::PortalViews, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
             Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,
             Knob::Voice, Knob::Ono, Knob::OnoLang, Knob::Shout,
         ];

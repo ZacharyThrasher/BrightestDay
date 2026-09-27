@@ -22,10 +22,11 @@ use crate::{FxSet, FxSettings, FxStats};
 
 // ------------------------------------------------------------------------------------ public API
 
-/// Up to 4 layered animations (see `bd_shapes::pose_layered`). Copy, allocation-free.
+/// Up to [`bd_shapes::MAX_LAYERS`] layered animations (see `bd_shapes::pose_layered`). Copy,
+/// allocation-free.
 #[derive(Clone, Copy, Debug)]
 pub struct AnimLayers {
-    layers: [(AnimState, f32); 4],
+    layers: [(AnimState, f32); bd_shapes::MAX_LAYERS],
     len: u8,
 }
 
@@ -38,11 +39,11 @@ impl Default for AnimLayers {
 
 impl AnimLayers {
     pub fn single(state: AnimState, t: f32) -> Self {
-        AnimLayers { layers: [(state, t); 4], len: 1 }
+        AnimLayers { layers: [(state, t); bd_shapes::MAX_LAYERS], len: 1 }
     }
-    /// Replace the layers (extra layers beyond 4 are ignored).
+    /// Replace the layers (extra layers beyond [`bd_shapes::MAX_LAYERS`] are ignored).
     pub fn set(&mut self, layers: &[(AnimState, f32)]) {
-        let n = layers.len().min(4);
+        let n = layers.len().min(bd_shapes::MAX_LAYERS);
         self.layers[..n].copy_from_slice(&layers[..n]);
         self.len = n as u8;
     }

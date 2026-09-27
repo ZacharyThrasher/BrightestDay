@@ -1,0 +1,279 @@
+// Cartoons / comics: TMNT mutagen, Invincible, Ben 10, Power Rangers, Powerpuff Girls, The Incredibles, Beast Boy.
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+[
+    // ================================================================ TMNT — mutagen (Zoan-style mutation)
+    // Eating the ooze (a Zoan-kind "fruit": expensive, grabbable, a second dose explodes you) mutates you
+    // into an animal hybrid. "mutagen" / "the ooze" gives the classic outcome (turtle); the animal-named
+    // doses give the others. Retro-mutagen (assets/icons/tmnt.ron) is a Water splash: it drains the
+    // mutation for a few seconds like any Water hit.
+    (
+        id: "mutagen_turtle",
+        name: "Mutagen",
+        kind: Zoan,
+        names: ["turtle mutagen", "secret of the ooze", "tcri ooze"],
+        incantations: ["turtle power", "cowabunga"],
+        // "cowabunga <anything>": it comes out shell-guarded and bouncy.
+        delivery: (add: [Guard, Bounce]),
+        shouts: [("cowabunga", 0), ("shell slide", 0), ("turtle power", 1), ("heroes in a half shell", 1)],
+        moves: [
+            (name: "shell slide", cooldown: 1.6, cost: 5.0, ops: [
+                Impulse(fwd: 20.0, up: 2.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 14.0),
+            ]),
+            (name: "turtle form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Ninja turtle hybrid: nimble, and every cast carries the shell (Guard).
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), 
+            costume: "ninja turtle",
+            body: (moves: (accel: 1.15, air_control: 1.2, jump: 1.1)),
+            graft: Some((mechanics: [Guard])),
+        )),
+    ),
+    (
+        id: "mutagen_rat",
+        name: "Rat Mutagen",
+        kind: Zoan,
+        names: ["rat mutagen", "splinter's mutagen", "mutagen rat"],
+        incantations: ["rat power"],
+        delivery: (add: [Fast, Grab]),
+        shouts: [("rat swarm", 0), ("rat form", 1)],
+        moves: [
+            (name: "rat swarm", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "rat swarm", form: Quadruped, mech: [Swarm, Fast, Grab], scale: 0.4, mass: 1.0, count: 6, temperament: Aggressive, intensity: 0.8)),
+            ]),
+            (name: "rat form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), costume: "rat", body: (moves: (speed: 1.12, accel: 1.2)), graft: Some((mechanics: [Fast])))),
+    ),
+    (
+        id: "mutagen_warthog",
+        name: "Warthog Mutagen",
+        kind: Zoan,
+        names: ["warthog mutagen", "bebop's mutagen", "mutagen warthog"],
+        incantations: ["warthog power"],
+        delivery: (add: [Charge, Blunt]),
+        shouts: [("warthog charge", 0), ("warthog form", 1)],
+        moves: [
+            (name: "warthog charge", cooldown: 1.8, cost: 5.0, ops: [
+                Impulse(fwd: 24.0, up: 1.0),
+                Shove(range: 3.0, angle: 45.0, damage: 14.0, knockback: 18.0),
+            ]),
+            (name: "warthog form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), costume: "warthog", body: (moves: (speed: 1.05, accel: 1.1)), graft: Some((mechanics: [Charge])))),
+    ),
+    (
+        id: "mutagen_rhino",
+        name: "Rhino Mutagen",
+        kind: Zoan,
+        names: ["rhino mutagen", "rocksteady's mutagen", "mutagen rhino"],
+        incantations: ["rhino power"],
+        delivery: (add: [Charge, Heavy]),
+        shouts: [("rhino charge", 0), ("rhino form", 1)],
+        moves: [
+            (name: "rhino charge", cooldown: 2.2, cost: 6.0, ops: [
+                Impulse(fwd: 22.0, up: 0.5),
+                Shove(range: 3.2, angle: 40.0, damage: 16.0, knockback: 24.0),
+            ]),
+            (name: "rhino form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Horned and heavy: every cast charges and hits heavy, but the rhino is slower.
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), costume: "rhino", body: (moves: (speed: 0.92, jump: 0.9)), graft: Some((mechanics: [Charge, Heavy])))),
+    ),
+    (
+        id: "mutagen_fly",
+        name: "Fly Mutagen",
+        kind: Zoan,
+        names: ["fly mutagen", "baxter's mutagen", "mutagen fly", "housefly mutagen"],
+        incantations: ["fly power"],
+        delivery: (add: [Flies, Sticky]),
+        shouts: [("fly spit", 0), ("fly form", 1)],
+        moves: [
+            (name: "fly spit", cooldown: 1.0, ops: [
+                Cast(recipe: (name: "fly spit", form: Ball, mech: [Sticky, Fast], element: Poison, scale: 0.4, mass: 0.5)),
+            ]),
+            (name: "fly form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // Buzzing flight (below skilled movement) and sticky everything.
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), 
+            costume: "fly",
+            body: (moves: (thrust: 18.0, thrust_max: 12.0, gravity: 0.6, glide: 0.4)),
+            graft: Some((mechanics: [Sticky])),
+        )),
+    ),
+    (
+        id: "mutagen_gator",
+        name: "Gator Mutagen",
+        kind: Zoan,
+        names: ["gator mutagen", "alligator mutagen", "leatherhead's mutagen", "mutagen gator"],
+        incantations: ["gator power"],
+        delivery: (add: [Grab, Heavy]),
+        shouts: [("death roll", 0), ("gator form", 1)],
+        moves: [
+            (name: "death roll", cooldown: 1.6, cost: 4.0, ops: [Shove(range: 2.8, angle: 50.0, damage: 14.0, knockback: 12.0, element: Water)]),
+            (name: "gator form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // At home in water: Water hits don't hurt the gator.
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), costume: "alligator", body: (immune: [Water], moves: (speed: 0.95)), graft: Some((mechanics: [Grab])))),
+    ),
+    (
+        id: "mutagen_gecko",
+        name: "Gecko Mutagen",
+        kind: Zoan,
+        names: ["gecko mutagen", "mondo's mutagen", "mutagen gecko"],
+        incantations: ["gecko power"],
+        delivery: (add: [Sticky, Bounce]),
+        shouts: [("gecko hop", 0), ("gecko form", 1)],
+        moves: [
+            (name: "gecko hop", cooldown: 1.2, cost: 4.0, ops: [Impulse(fwd: 16.0, up: 9.0)]),
+            (name: "gecko form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), costume: "gecko", body: (moves: (air_control: 1.4, jump: 1.2, speed: 1.08)), graft: Some((mechanics: [Sticky])))),
+    ),
+    (
+        id: "mutagen_wolf",
+        name: "Wolf Mutagen",
+        kind: Zoan,
+        names: ["wolf mutagen", "rahzar's mutagen", "mutagen wolf"],
+        incantations: ["wolf power"],
+        delivery: (add: [Blade, Fast]),
+        shouts: [("howl", 0), ("wolf form", 1)],
+        moves: [
+            // The howl: a short repel blast around you.
+            (name: "howl", cooldown: 3.0, cost: 6.0, ops: [Field(strength: -22.0, radius: 8.0, secs: 0.6)]),
+            (name: "wolf form", cooldown: 1.5, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), costume: "wolf", body: (moves: (speed: 1.12, accel: 1.15)), graft: Some((mechanics: [Blade])))),
+    ),
+    // ================================================================ INVINCIBLE — Viltrumite
+    (
+        id: "viltrumite",
+        name: "Viltrumite Physiology",
+        kind: Origin,
+        pickup: Some((name: "viltrumite blood", form: Blob0, element: Light, scale: 0.4)),
+        names: ["viltrumite", "viltrumite powers", "viltrumite blood", "half-viltrumite", "viltrumite physiology"],
+        body: (moves: (thrust: 30.0, thrust_max: 17.0, gravity: 0.8, jump: 1.2)),
+        graft: Some((mechanics: [Blunt, Heavy])),
+        shouts: [("haymaker", 0), ("think mark", 0), ("viltrumite punch", 0), ("plow through", 1), ("plough through", 1),
+                 ("fly through", 1)],
+        moves: [
+            // A haymaker that sends people through buildings (§1a punch-through).
+            (name: "haymaker", cooldown: 1.8, cost: 6.0, ops: [
+                Impulse(fwd: 18.0, up: 2.0),
+                Shove(range: 3.4, angle: 50.0, damage: 16.0, knockback: 30.0, up: 0.3),
+            ]),
+            // Plough through: a flying charge that carves a tunnel through whatever's in the way.
+            (name: "plow through", cooldown: 4.0, cost: 12.0, ops: [
+                Impulse(fwd: 28.0, up: 0.0),
+                Carve(length: 14.0, radius: 1.3, damage: 10.0),
+            ]),
+        ],
+    ),
+    // ================================================================ BEN 10 — the Omnitrix
+    (
+        id: "omnitrix",
+        name: "The Omnitrix",
+        kind: Origin,
+        pickup: Some((name: "omnitrix", form: Ball, element: Poison, scale: 0.35)),
+        names: ["omnitrix", "the omnitrix", "ultimatrix", "omniverse omnitrix", "ben 10 watch", "omnitrix watch"],
+        // "omnitrix <alien>" / "hero time <alien>": whatever you name, you BECOME (Piloted - human-size = a suit,
+        // bigger = you ride it). No random pick exists in the data; typing a wrong alien is the canon joke.
+        incantations: ["omnitrix", "hero time", "it's hero time", "its hero time"],
+        delivery: (add: [Piloted]),
+        shouts: [("it's hero time", 0), ("its hero time", 0), ("hero time", 0), ("four arms", 0), ("heatblast", 1),
+                 ("going hero", 1)],
+        moves: [
+            (name: "four arms", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "four arms", form: Biped, mech: [Piloted, Grab, Blunt, Heavy], scale: 2.5, mass: 400.0)),
+            ]),
+            (name: "heatblast", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "heatblast", form: Biped, mech: [Piloted, Shoots, Breath], element: Fire, scale: 2.0, mass: 90.0)),
+            ]),
+        ],
+    ),
+    // ================================================================ POWER RANGERS — it's morphin time
+    (
+        id: "power_morpher",
+        name: "Power Morpher",
+        kind: Origin,
+        pickup: Some((name: "power coin", form: Ball, element: Electric, scale: 0.3)),
+        names: ["power morpher", "the power morpher", "morpher", "power coin", "it's morphin time", "its morphin time",
+                "morphin time", "morphing grid"],
+        // The Ranger suit: acrobatic, and every construct is a Power Weapon (Blade).
+        body: (moves: (speed: 1.1, jump: 1.2, air_control: 1.15)),
+        graft: Some((mechanics: [Blade])),
+        // Holders shout it again to call the Dinozords (5 Transforms zords: then "combine" = a Megazord, §5d-bis).
+        shouts: [("it's morphin time", 0), ("its morphin time", 0), ("dinozords", 0), ("dinozords power up", 0),
+                 ("megazord", 1), ("megazord power up", 1), ("megazord sequence has been initiated", 1)],
+        moves: [
+            (name: "dinozords power up", cooldown: 12.0, ops: [
+                Cast(recipe: (name: "dinozords", form: Quadruped, mech: [Transforms, Swarm, Charge, Stomp], scale: 4.0, mass: 2000.0, count: 5, features: [Armor, Cockpit])),
+            ]),
+            // Megazord: climb into the cockpit (eject = back out).
+            (name: "megazord", cooldown: 3.0, ops: [Transform]),
+        ],
+        transform: Some((ascend: Some((color: Some((1.00, 0.30, 0.30)), intensity: 1.2)), 
+            costume: "megazord",
+            pilot: Some((name: "megazord", form: Kaiju, mech: [Blade, Stomp, Piloted, Heavy], scale: 14.0, mass: 80000.0, features: [Cockpit, Armor])),
+        )),
+    ),
+    // ================================================================ POWERPUFF GIRLS — Chemical X
+    (
+        id: "chemical_x",
+        name: "Chemical X",
+        kind: Origin,
+        pickup: Some((name: "chemical x vial", form: Ball, element: Shadow, scale: 0.35)),
+        names: ["chemical x", "sugar spice and everything nice", "powerpuff powers", "powerpuff power"],
+        // Tiny, fast fliers: thrust flight capped, very agile.
+        body: (moves: (thrust: 28.0, thrust_max: 17.0, gravity: 0.75, speed: 1.15, air_control: 1.35)),
+        graft: Some((mechanics: [Fast])),
+        shouts: [("flurry", 0), ("powerpuff punch", 0), ("eye beams", 1), ("laser eyes", 1)],
+        moves: [
+            (name: "flurry", cooldown: 0.5, ops: [Shove(range: 3.0, angle: 50.0, damage: 6.0, knockback: 12.0)]),
+            (name: "eye beams", cooldown: 2.0, cost: 6.0, ops: [Carve(length: 18.0, radius: 0.4, damage: 8.0)]),
+        ],
+    ),
+    // ================================================================ THE INCREDIBLES — the super suit
+    (
+        id: "super_suit",
+        name: "Incredibles Super Suit",
+        kind: Origin,
+        pickup: Some((name: "incredibles super suit", form: Boulder, element: Light, scale: 0.45)),
+        names: ["super suit", "incredibles super suit", "incredi-suit", "incredible super suit", "the incredibles suit",
+                "edna's super suit", "incredibles powers"],
+        // Fire-proof fabric (no capes!).
+        body: (immune: [Fire], moves: (speed: 1.1, jump: 1.15)),
+        graft: Some((mechanics: [Blunt])),
+        shouts: [("incredible punch", 0), ("super strength", 0), ("stretch", 1), ("elastic", 1), ("elastigirl", 1)],
+        moves: [
+            // Mr. Incredible's punch.
+            (name: "incredible punch", cooldown: 1.8, cost: 6.0, ops: [
+                Shove(range: 3.5, angle: 50.0, damage: 14.0, knockback: 24.0, up: 0.3),
+            ]),
+            // Elastigirl's stretch: reach out and yank yourself there.
+            (name: "stretch", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 30.0, speed: 30.0)]),
+        ],
+    ),
+    // ================================================================ BEAST BOY — animal morph
+    (
+        id: "animal_morph",
+        name: "Animal Morph",
+        kind: Origin,
+        pickup: Some((name: "animal morph serum", form: Blob0, element: Poison, scale: 0.4)),
+        names: ["animal morph", "beast boy powers", "changeling powers", "animal shapeshifting", "animal shapeshifter"],
+        body: (moves: (jump: 1.1)),
+        // "morph into <animal>": the animal you name, ridden (Piloted) - your own shapeshift.
+        incantations: ["morph into", "change into", "turn into"],
+        delivery: (add: [Piloted]),
+        shouts: [("pounce", 0), ("beast pounce", 0), ("beast form", 1), ("animal form", 1)],
+        moves: [
+            (name: "pounce", cooldown: 1.5, cost: 5.0, ops: [
+                Impulse(fwd: 20.0, up: 6.0),
+                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 12.0),
+            ]),
+            (name: "beast form", cooldown: 1.5, ops: [Transform]),
+        ],
+        // A green gorilla-beast: stronger, jumpier; every construct charges.
+        transform: Some((ascend: Some((color: Some((0.40, 0.90, 0.40)), intensity: 0.8)), costume: "green_gorilla", body: (moves: (speed: 1.15, jump: 1.3, accel: 1.2)), graft: Some((mechanics: [Blunt, Charge])))),
+    ),
+]

@@ -1,0 +1,363 @@
+// DC: Superman, the Flash, Wonder Woman, Aquaman, Martian Manhunter, Shazam, Batman, the emotional spectrum.
+// Schema + authoring rules: assets/powers/README.md. A plain RON list; files load in filename order.
+[
+    // ---------------------------------------------------------------- DC / Invincible / superhero IP
+    // ================================================================ SUPERMAN — Kryptonian under a yellow sun
+    (
+        id: "kryptonian",
+        name: "Kryptonian Powers",
+        kind: Origin,
+        pickup: Some((name: "kryptonian crystal", form: Boulder, element: Light, scale: 0.45)),
+        names: ["kryptonian", "yellow sun", "kryptonian powers", "yellow sun powers", "power of the yellow sun",
+                "son of krypton", "daughter of krypton", "house of el", "powers of krypton"],
+        // Flight (capped 17), fire/ice shrug, kryptonite (Poison) drains the power.
+        body: (moves: (thrust: 28.0, thrust_max: 17.0, gravity: 0.85, jump: 1.2), immune: [Fire, Ice], weak: [Poison]),
+        // Super-strength: everything you make hits like a truck (launches through buildings, §1a).
+        graft: Some((mechanics: [Heavy])),
+        incantations: ["up up and away"],
+        delivery: (add: [Fast, Heavy], remove: [DropFromSky], from_fist: true),
+        shouts: [],
+        moves: [
+            // A scorching line along your gaze: carves terrain, hits whoever stands in it.
+            (name: "heat vision", cooldown: 2.0, cost: 8.0, ops: [Carve(length: 26.0, radius: 0.7, damage: 12.0)]),
+            // Freeze breath: an Ice cone that shoves hard.
+            (name: "super breath", cooldown: 4.0, cost: 10.0, ops: [
+                Shove(range: 8.0, angle: 40.0, damage: 4.0, knockback: 22.0, element: Ice, up: 0.3),
+            ]),
+        ],
+    ),
+    // ================================================================ THE FLASH — the Speed Force
+    (
+        id: "speed_force",
+        name: "The Speed Force",
+        kind: Origin,
+        pickup: Some((name: "speed force spark", form: Ball, element: Electric, scale: 0.4)),
+        names: ["speed force", "the speed force", "speed force powers", "speedster powers", "fastest man alive",
+                "scarlet speedster"],
+        // A Fast body (run/accel), not flight; lightning doesn't hurt a speedster.
+        body: (moves: (speed: 1.3, accel: 1.6, air_control: 1.25), immune: [Electric]),
+        graft: Some((mechanics: [Fast], element: Some(Electric))),
+        shouts: [("blitz", 0), ("speed blitz", 0)],
+        moves: [
+            // Blink dash with an afterimage, then a crackling hit where you land.
+            (name: "speed blitz", cooldown: 1.4, cost: 6.0, ops: [
+                Blink(dist: 15.0, afterimage: true),
+                Shove(range: 3.2, angle: 60.0, damage: 8.0, knockback: 12.0, element: Electric),
+            ]),
+            (name: "lightning throw", cooldown: 1.5, ops: [
+                Cast(recipe: (name: "thrown lightning", form: Ball, mech: [Fast, Pierce], element: Electric, scale: 0.6, mass: 5.0)),
+            ]),
+        ],
+    ),
+    // ================================================================ WONDER WOMAN — Amazon of Themyscira
+    (
+        id: "amazon",
+        name: "Gifts of the Amazons",
+        kind: Origin,
+        pickup: Some((name: "amazon bracelet", form: Ball, element: Light, scale: 0.35)),
+        names: ["amazon", "amazonian", "amazon warrior", "themysciran", "daughter of themyscira", "gifts of the gods",
+                "amazonian strength", "amazon powers"],
+        body: (moves: (jump: 1.15, speed: 1.05)),
+        // Bracelets: everything you make also blocks / reflects (Guard).
+        graft: Some((mechanics: [Guard])),
+        incantations: ["great hera", "by hera"],
+        delivery: (add: [Guard, Returning]),
+        shouts: [("lasso", 0), ("bracelets", 1), ("bracelets up", 1), ("submission", 1)],
+        moves: [
+            // The lasso: chain the aimed player to you.
+            // The lasso: a travelling golden line that ropes them in (a stun beat when it catches).
+            (name: "lasso of truth", cooldown: 2.5, cost: 5.0, ops: [
+                Hook(range: 26.0, speed: 45.0, pull: 1.0, damage: 3.0, status: Some(Stun), secs: 0.4),
+            ], juice: Some((title: Some("LASSO OF TRUTH"), color: Some((1.0, 0.8, 0.2))))),
+            // Bracelets of Submission: a held Guard (perfect-parry reflects bullets and beams).
+            (name: "bracelets of submission", cooldown: 2.0, ops: [
+                Cast(recipe: (name: "bracelets of submission", form: Shield, mech: [Guard, Bounce], scale: 0.8, mass: 10.0)),
+            ]),
+        ],
+    ),
+    // ================================================================ AQUAMAN — Atlantean
+    (
+        id: "atlantean",
+        name: "Atlantean Blood",
+        kind: Origin,
+        pickup: Some((name: "atlantean pearl", form: Ball, element: Light, scale: 0.4)),
+        names: ["atlantean", "atlantean blood", "atlantean powers", "king of the seven seas", "king of atlantis",
+                "lord of the seas"],
+        body: (immune: [Water], moves: (speed: 1.05)),
+        graft: Some((element: Some(Water))),
+        // A loyal shark circles you (a stand-style companion: Protective; hits on it are hits on you).
+        companion: Some((recipe: (name: "loyal shark", form: Fish, mech: [Flies, Charge, Grab], element: Water, scale: 2.0, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
+        shouts: [("sharks", 0), ("summon sharks", 0), ("shark attack", 0), ("tidal wave", 1), ("the sea obeys", 1)],
+        moves: [
+            (name: "summon sharks", cooldown: 6.0, ops: [
+                Cast(recipe: (name: "shark swarm", form: Fish, mech: [Swarm, Charge, Grab], element: Water, scale: 1.6, mass: 60.0, count: 4, temperament: Aggressive, intensity: 0.9)),
+            ]),
+            (name: "tidal wave", cooldown: 4.0, cost: 10.0, ops: [
+                Shove(range: 9.0, angle: 70.0, damage: 6.0, knockback: 20.0, element: Water, up: 0.4),
+            ]),
+        ],
+    ),
+    // ================================================================ MARTIAN MANHUNTER — Martian
+    (
+        id: "martian",
+        name: "Martian Physiology",
+        kind: Origin,
+        pickup: Some((name: "martian orb", form: Ball, element: Psychic, scale: 0.4)),
+        names: ["martian", "green martian", "martian powers", "martian physiology", "son of mars", "martian shapeshifting"],
+        // Flies (capped) - and the classic weakness: fire drains the power. No phasing, no invisibility.
+        body: (moves: (thrust: 22.0, thrust_max: 15.0, gravity: 0.8), weak: [Fire]),
+        graft: Some((element: Some(Psychic))),
+        shouts: [("martian vision", 0), ("density shift", 1), ("martian form", 1), ("shapeshift", 1)],
+        moves: [
+            // A narrow Psychic blast: whoever it hits floats (juggle window) - never mind control.
+            (name: "martian vision", cooldown: 1.6, cost: 6.0, ops: [
+                Shove(range: 11.0, angle: 10.0, damage: 10.0, knockback: 10.0, element: Psychic, up: 0.5),
+            ]),
+            (name: "density shift", cooldown: 2.0, ops: [Transform]),
+        ],
+        // Grown, dense war-form: heavier, slower, everything you make grows what it hits.
+        transform: Some((ascend: Some((color: Some((0.30, 0.90, 0.40)), intensity: 1.0)), 
+            costume: "martian_war_form",
+            body: (moves: (speed: 0.9, jump: 1.1, thrust: 20.0, thrust_max: 13.0, gravity: 0.9), weak: [Fire]),
+            graft: Some((mechanics: [Heavy, Grow])),
+        )),
+    ),
+    // ================================================================ SHAZAM — say the word
+    (
+        id: "shazam",
+        name: "The Power of Shazam",
+        kind: Origin,
+        pickup: Some((name: "magic lightning bolt", form: Ball, element: Electric, scale: 0.4)),
+        names: ["shazam", "power of shazam", "the power of shazam", "shazam powers", "champion of shazam",
+                "rock of eternity", "wisdom of solomon"],
+        // "shazam <phrase>": whatever you say arrives on a bolt of magic lightning.
+        incantations: ["shazam"],
+        delivery: (element: Some(Electric), add: [Explodes]),
+        // Saying SHAZAM! (alone) toggles the transformation - with a lightning strike on yourself, both ways.
+        shouts: [("magic lightning", 0), ("lightning strike", 0), ("shazam", 1)],
+        moves: [
+            (name: "magic lightning", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "magic lightning", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
+            ]),
+            (name: "shazam", cooldown: 2.0, ops: [
+                Explode(radius: 3.5, damage: 10.0, knockback: 14.0, element: Electric),
+                Transform,
+            ]),
+        ],
+        transform: Some((ascend: Some((color: Some((1.00, 0.88, 0.30)), intensity: 1.6, stable: false)), 
+            costume: "captain_marvel",
+            body: (moves: (thrust: 26.0, thrust_max: 17.0, gravity: 0.8, jump: 1.25, speed: 1.1), immune: [Electric]),
+            graft: Some((mechanics: [Blunt], element: Some(Electric))),
+        )),
+    ),
+    // ================================================================ BATMAN — bat-tech / the utility belt
+    (
+        id: "bat_tech",
+        name: "Bat-Tech",
+        kind: Origin,
+        pickup: Some((name: "utility belt", form: Boulder, element: Shadow, scale: 0.4)),
+        names: ["bat-tech", "utility belt", "the utility belt", "wayne tech", "wayne enterprises tech",
+                "batman's gadgets", "bat gadgets"],
+        // Cape glide + tight air control. No powers - just prep time.
+        body: (moves: (glide: 0.55, air_control: 1.2)),
+        // Every gadget banks off walls (Ricochet): the detective's angles.
+        graft: Some((mechanics: [Ricochet])),
+        shouts: [("grapple", 0), ("grappling hook", 0), ("grapple gun", 0), ("smoke", 1), ("smoke bomb", 1)],
+        moves: [
+            // The grapple gun: a tether-reel to whatever you aim at.
+            (name: "grapple gun", cooldown: 1.2, cost: 3.0, ops: [Reel(range: 45.0, speed: 32.0)]),
+            // Smoke pellet + backflip: a Shadow burst (vision only) and you're gone.
+            (name: "smoke pellet", cooldown: 5.0, cost: 6.0, ops: [
+                Explode(radius: 5.5, damage: 1.0, knockback: 3.0, element: Shadow),
+                Impulse(fwd: -10.0, up: 7.0),
+            ]),
+        ],
+    ),
+    // ================================================================ THE EMOTIONAL SPECTRUM — power rings
+    (
+        id: "green_lantern_ring",
+        name: "Green Lantern Ring",
+        kind: Origin,
+        ascend: Some((color: Some((0.20, 1.00, 0.35)), intensity: 1.0, style: Calm, eye_glow: Some((0.20, 1.00, 0.35)))),
+        pickup: Some((name: "green power ring", form: Ball, element: Poison, scale: 0.3)),
+        names: ["green lantern ring", "power ring", "green power ring", "lantern ring", "ring of will",
+                "green ring", "willpower ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // "In brightest day <phrase>": the oath makes the construct bigger and heavier.
+        incantations: ["in brightest day", "in brightest day in blackest night"],
+        delivery: (add: [Heavy], scale_mult: 1.4),
+        shouts: [("giant fist", 0), ("ring fist", 0), ("ring shield", 1)],
+        moves: [
+            (name: "construct fist", cooldown: 1.2, ops: [
+                Cast(recipe: (name: "construct fist", form: Ball, mech: [Blunt, Heavy, Fast], scale: 2.2, mass: 120.0)),
+            ]),
+            (name: "ring shield", cooldown: 3.0, ops: [
+                Cast(recipe: (name: "ring shield", form: Dome, mech: [Barrier, Guard])),
+            ]),
+        ],
+    ),
+    (
+        id: "yellow_lantern_ring",
+        name: "Yellow Lantern Ring (Fear)",
+        kind: Origin,
+        ascend: Some((color: Some((1.00, 0.90, 0.20)), intensity: 1.0, style: Calm, eye_glow: Some((1.00, 0.90, 0.20)))),
+        pickup: Some((name: "yellow power ring", form: Ball, element: Electric, scale: 0.3)),
+        names: ["yellow lantern ring", "yellow power ring", "ring of fear", "sinestro's ring", "sinestro corps ring",
+                "fear ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Fear: every construct casts a Shadow (vision vignette on hit).
+        graft: Some((element: Some(Shadow))),
+        // Sinestro's oath opener: the construct becomes a Homing nightmare.
+        incantations: ["in blackest day"],
+        delivery: (element: Some(Shadow), add: [Homing]),
+        shouts: [("nightmare", 0), ("fear construct", 0), ("yellow cage", 1), ("fear cage", 1)],
+        moves: [
+            // A nightmare construct that flanks from out of view (Sneaky).
+            (name: "fear construct", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "fear construct", form: Blob, mech: [Flies, Grab], element: Shadow, scale: 2.2, mass: 60.0, temperament: Sneaky, intensity: 0.9)),
+            ]),
+            (name: "yellow cage", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "yellow cage", form: Cage, mech: [Trap, Barrier], element: Shadow, scale: 2.0)),
+            ]),
+        ],
+    ),
+    (
+        id: "red_lantern_ring",
+        name: "Red Lantern Ring (Rage)",
+        kind: Origin,
+        ascend: Some((color: Some((1.00, 0.15, 0.10)), intensity: 1.0, style: Calm, eye_glow: Some((1.00, 0.15, 0.10)))),
+        pickup: Some((name: "red power ring", form: Ball, element: Light, scale: 0.3)),
+        names: ["red lantern ring", "red power ring", "ring of rage", "atrocitus's ring", "rage ring", "red ring of rage"],
+        // Rage burns: fire can't hurt you, and you move like you mean it.
+        body: (immune: [Fire], moves: (speed: 1.1, accel: 1.2, thrust: 22.0, thrust_max: 15.0, gravity: 0.85)),
+        graft: Some((element: Some(Fire))),
+        shouts: [("napalm", 0), ("napalm vomit", 0), ("rage plasma", 0), ("blood rage", 1), ("red rage", 1)],
+        moves: [
+            // Napalm vomit: a Fire Breath cone.
+            (name: "napalm vomit", cooldown: 2.5, cost: 8.0, ops: [
+                Shove(range: 7.0, angle: 35.0, damage: 8.0, knockback: 8.0, element: Fire),
+            ]),
+            // Blood rage: lunge and maul.
+            (name: "blood rage", cooldown: 3.0, cost: 8.0, ops: [
+                Impulse(fwd: 22.0, up: 3.0),
+                Shove(range: 3.2, angle: 60.0, damage: 12.0, knockback: 18.0, element: Fire),
+            ]),
+        ],
+    ),
+    (
+        id: "orange_lantern_ring",
+        name: "Orange Lantern Ring (Avarice)",
+        kind: Origin,
+        ascend: Some((color: Some((1.00, 0.55, 0.10)), intensity: 1.0, style: Calm, eye_glow: Some((1.00, 0.55, 0.10)))),
+        pickup: Some((name: "orange power ring", form: Ball, element: Earth, scale: 0.3)),
+        names: ["orange lantern ring", "orange power ring", "ring of avarice", "larfleeze's ring", "avarice ring",
+                "greed ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Avarice: everything you make grabs whatever it touches.
+        graft: Some((mechanics: [Grab])),
+        shouts: [("mine", 0), ("it's mine", 0), ("all mine", 0), ("orange lanterns", 1), ("my lanterns", 1)],
+        moves: [
+            // MINE! Rip a trench toward what you want and yank the first player in it to you.
+            (name: "mine", cooldown: 3.0, cost: 8.0, ops: [Carve(length: 18.0, radius: 0.8, damage: 4.0, pull: true)]),
+            // The stolen: a swarm of orange constructs that grab (Larfleeze's hoard).
+            (name: "orange lanterns", cooldown: 7.0, ops: [
+                Cast(recipe: (name: "orange lantern constructs", form: Biped, mech: [Swarm, Grab, Flies], scale: 1.2, mass: 30.0, count: 5, temperament: Aggressive, intensity: 0.8)),
+            ]),
+        ],
+    ),
+    (
+        id: "blue_lantern_ring",
+        name: "Blue Lantern Ring (Hope)",
+        kind: Origin,
+        ascend: Some((color: Some((0.30, 0.55, 1.00)), intensity: 1.0, style: Calm, eye_glow: Some((0.30, 0.55, 1.00)))),
+        pickup: Some((name: "blue power ring", form: Ball, element: Light, scale: 0.3)),
+        names: ["blue lantern ring", "blue power ring", "ring of hope", "saint walker's ring", "hope ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Hope shields: every construct blocks and reflects. (Blue light never heals players here.)
+        graft: Some((mechanics: [Guard, Barrier])),
+        shouts: [("all will be well", 0), ("hope shield", 0), ("hope burst", 1), ("hope blast", 1)],
+        moves: [
+            (name: "all will be well", cooldown: 4.0, ops: [
+                Cast(recipe: (name: "hope dome", form: Dome, mech: [Barrier, Guard, Bounce], scale: 1.2)),
+            ]),
+            (name: "hope burst", cooldown: 4.0, cost: 8.0, ops: [Field(strength: -45.0, radius: 6.0, secs: 0.8)]),
+        ],
+    ),
+    (
+        id: "indigo_lantern_ring",
+        name: "Indigo Tribe Ring (Compassion)",
+        kind: Origin,
+        ascend: Some((color: Some((0.35, 0.25, 0.80)), intensity: 1.0, style: Calm, eye_glow: Some((0.35, 0.25, 0.80)))),
+        pickup: Some((name: "indigo power ring", form: Ball, element: Psychic, scale: 0.3)),
+        names: ["indigo lantern ring", "indigo tribe ring", "indigo power ring", "ring of compassion", "compassion ring"],
+        body: (moves: (thrust: 22.0, thrust_max: 15.0, gravity: 0.8)),
+        graft: Some((element: Some(Psychic))),
+        // "Nok <phrase>": the construct comes with a portal pair (the tribe's teleport).
+        incantations: ["nok"],
+        delivery: (add: [Portal]),
+        shouts: [("nok", 0), ("indigo teleport", 0), ("indigo passage", 1), ("compassion", 1)],
+        moves: [
+            // Indigo teleport: a long blink.
+            (name: "nok", cooldown: 2.0, cost: 7.0, ops: [Blink(dist: 20.0, afterimage: true)]),
+            // Open a way through the wall you aim at.
+            (name: "indigo passage", cooldown: 4.0, cost: 8.0, ops: [Portal(depth: 8.0)]),
+        ],
+    ),
+    (
+        id: "violet_lantern_ring",
+        name: "Violet Lantern Ring (Love)",
+        kind: Origin,
+        ascend: Some((color: Some((0.85, 0.35, 1.00)), intensity: 1.0, style: Calm, eye_glow: Some((0.85, 0.35, 1.00)))),
+        pickup: Some((name: "violet power ring", form: Ball, element: Psychic, scale: 0.3)),
+        names: ["violet lantern ring", "violet power ring", "star sapphire ring", "ring of love", "zamaron ring",
+                "love ring"],
+        body: (moves: (thrust: 24.0, thrust_max: 16.0, gravity: 0.8)),
+        // Love binds: everything you make clings (Sticky).
+        graft: Some((mechanics: [Sticky])),
+        shouts: [("love crystal", 0), ("sapphire crystal", 0), ("embrace", 1), ("love's embrace", 1)],
+        moves: [
+            // The Star Sapphire crystal: snaps shut around the aimed player (Trap - brief, breakable).
+            (name: "love crystal", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "love crystal", form: Cage, mech: [Trap], element: Psychic, scale: 2.0)),
+            ]),
+            (name: "love's embrace", cooldown: 3.0, cost: 6.0, ops: [Link(range: 24.0)]),
+        ],
+    ),
+    (
+        id: "white_lantern_ring",
+        name: "White Lantern Ring (Life)",
+        kind: Origin,
+        ascend: Some((color: Some((1.00, 1.00, 1.00)), intensity: 1.0, style: Calm, eye_glow: Some((1.00, 1.00, 1.00)))),
+        pickup: Some((name: "white power ring", form: Ball, element: Light, scale: 0.3)),
+        names: ["white lantern ring", "white power ring", "ring of life", "entity's ring"],
+        body: (moves: (thrust: 26.0, thrust_max: 17.0, gravity: 0.8)),
+        // White light is every colour at once: constructs block AND grab.
+        graft: Some((mechanics: [Guard, Grab])),
+        shouts: [("life restore", 0), ("white light", 1), ("the white light", 1)],
+        moves: [
+            // Life: rebuild shattered terrain and your own constructs nearby (never heals players).
+            (name: "life", cooldown: 4.0, cost: 10.0, ops: [Restore(radius: 10.0)]),
+            (name: "white light", cooldown: 5.0, cost: 12.0, ops: [Explode(radius: 6.0, damage: 10.0, knockback: 18.0)]),
+        ],
+    ),
+    (
+        id: "black_lantern_ring",
+        name: "Black Lantern Ring (Death)",
+        kind: Origin,
+        ascend: Some((color: Some((0.30, 0.25, 0.35)), intensity: 1.0, style: Calm, eye_glow: Some((0.30, 0.25, 0.35)))),
+        pickup: Some((name: "black power ring", form: Ball, element: Shadow, scale: 0.3)),
+        names: ["black lantern ring", "black power ring", "ring of death", "nekron's ring", "death ring"],
+        body: (immune: [Shadow], moves: (thrust: 22.0, thrust_max: 15.0, gravity: 0.85)),
+        graft: Some((element: Some(Shadow))),
+        shouts: [("rise", 0), ("black lanterns rise", 0), ("black rings", 1)],
+        moves: [
+            // Rise: the terrain you aim at tears loose and lurches after your enemies (§3c) - no reviving players.
+            (name: "rise", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "black lantern", form: Biped, mech: [Grab, Walks], element: Shadow, scale: 1.9, temperament: Aggressive, intensity: 0.9), modifier: true),
+            ]),
+            (name: "black rings", cooldown: 5.0, ops: [
+                Cast(recipe: (name: "black rings", form: Ball, mech: [Swarm, Homing, Sticky], element: Shadow, scale: 0.3, count: 6)),
+            ]),
+        ],
+    ),
+]

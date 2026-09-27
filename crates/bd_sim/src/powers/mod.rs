@@ -25,8 +25,12 @@ mod data;
 pub mod effects;
 mod exec;
 mod hooks;
+/// Generic move ops (docs/toolbox/OPS.md), one file each.
+pub mod ops;
 #[cfg(test)]
 mod tests;
+pub mod chain;
+pub mod toolbox;
 
 use std::collections::VecDeque;
 
@@ -72,28 +76,32 @@ pub fn split_tier(key: &str) -> (&str, Option<u8>) {
 pub const MAX_EXTRA_POWERS: usize = 2;
 
 /// `World::power_move` slot selectors (one byte on the wire; the ring's power phrases and the G key
-/// produce them). Plain `0..=3` = the active power's moves (G tap = 0, G hold = 1; 2 and 3 are
+/// produce them). Plain `0..=7` = the active power's moves (G tap = 0, G hold = 1; 2.. are
 /// reached by their shouts only).
 pub mod move_sel {
     pub const TAP: u8 = 0;
     pub const HOLD: u8 = 1;
-    /// Most moves one power (or tier) has.
-    pub const MAX_MOVES: usize = 4;
+    /// Most moves one power (or tier, or kit) has (TOOLBOX: 8).
+    pub const MAX_MOVES: usize = 8;
     /// Make the next held power the active one (G double-tap).
     pub const CYCLE: u8 = 0x20;
     /// `SELECT | held << 4 | tier`: make held power `held` (0 = active, 1.. = the others in order)
     /// active and switch it to `tier` ([`KEEP_TIER`] = leave the tier alone).
     pub const SELECT: u8 = 0x80;
     pub const KEEP_TIER: u8 = 0x0F;
-    /// `MOVE_OF | held << 2 | slot`: run move `slot` of held power `held` without swapping (shouts
-    /// of a power that isn't active: moves from different powers chain).
+    /// `MOVE_OF | held << 3 | slot`: run move `slot` (0..=7) of held power `held` (1..=2) without
+    /// swapping (shouts of a power that isn't active: moves from different powers chain).
     pub const MOVE_OF: u8 = 0x40;
 
     pub fn select(held: usize, tier: u8) -> u8 {
         SELECT | ((held.min(3) as u8) << 4) | tier.min(KEEP_TIER)
     }
     pub fn move_of(held: usize, slot: u8) -> u8 {
-        MOVE_OF | ((held.min(3) as u8) << 2) | (slot & 3)
+        MOVE_OF | ((held.min(3) as u8) << 3) | (slot & 7)
+    }
+    /// `(held, slot)` of a [`MOVE_OF`] selector (`(0, sel)` for a plain slot).
+    pub fn split_move_of(sel: u8) -> (usize, u8) {
+        if sel & MOVE_OF != 0 { (((sel >> 3) & 3) as usize, sel & 7) } else { (0, sel) }
     }
 }
 
@@ -119,12 +127,12 @@ pub mod power_flags {
 /// Replicated per-player power state (in `PlayerSnap`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PowerSnap {
-    /// Active power: table index + 1 (0 = none).
-    pub id: u8,
+    /// Active power: table index + 1 (0 = none). `u16`: the table holds thousands (TOOLBOX).
+    pub id: u16,
     pub flags: u8,
     /// The other held powers (index + 1; 0 = empty), in held order.
     #[serde(default)]
-    pub others: [u8; MAX_EXTRA_POWERS],
+    pub others: [u16; MAX_EXTRA_POWERS],
     /// Tier of the active power, then of each other (low 4 bits) | 0x80 = that other is transformed.
     #[serde(default)]
     pub tiers: [u8; 1 + MAX_EXTRA_POWERS],
@@ -133,12 +141,12 @@ pub struct PowerSnap {
 impl PowerSnap {
     /// The active power.
     pub fn power(&self) -> Option<u16> {
-        self.id.checked_sub(1).map(u16::from)
+        self.id.checked_sub(1)
     }
     /// Every held power: (id, tier, transformed), active first.
     pub fn held(&self) -> impl Iterator<Item = (u16, u8, bool)> + '_ {
         let active = self.power().map(|id| (id, self.tiers[0] & 0x0F, self.has(power_flags::TRANSFORMED)));
-        active.into_iter().chain(self.others.iter().enumerate().filter_map(|(k, o)| o.checked_sub(1).map(|id| (u16::from(id), self.tiers[k + 1] & 0x0F, self.tiers[k + 1] & 0x80 != 0))))
+        active.into_iter().chain(self.others.iter().enumerate().filter_map(|(k, o)| o.checked_sub(1).map(|id| (id, self.tiers[k + 1] & 0x0F, self.tiers[k + 1] & 0x80 != 0))))
     }
     pub fn key(&self) -> Option<&'static str> {
         self.power().and_then(|i| PowerTable::get().def(i)).map(|d| d.id.as_str())
@@ -254,6 +262,11 @@ pub struct PlayerPower {
     pub auto_dodge_cd: f32,
     /// A cosmetic "power up" can't be spammed faster than this.
     pub ascend_cd: f32,
+    /// Live timed toolbox ops (Drill, MarkRecall, CopyLast memory, Phase, Rush, Contagion, Wave:
+    /// `ops/live.rs`). Reset with the rest of this struct at KO / round start.
+    pub live: ops::live::LiveOps,
+    /// TOOLBOX: borrowed / kit move cooldowns, the pending chain, the active phase ([`chain`]).
+    pub toolbox: chain::Toolbox,
 }
 
 impl PlayerPower {
@@ -368,8 +381,8 @@ impl PlayerPower {
         set(RUSH, self.rush_t > 0.0);
         set(SCATTER_READY, self.scatter_cd <= 0.0 && self.held().any(|h| h.body().scatter));
         set(AUTO_DODGE_READY, self.auto_dodge_cd <= 0.0 && self.effects().any(|e| matches!(e, PowerEffect::AutoDodge { .. })));
-        let enc = |id: u16| (id + 1).min(255) as u8;
-        let mut others = [0u8; MAX_EXTRA_POWERS];
+        let enc = |id: u16| id.saturating_add(1);
+        let mut others = [0u16; MAX_EXTRA_POWERS];
         let mut tiers = [0u8; 1 + MAX_EXTRA_POWERS];
         tiers[0] = self.tier.min(15);
         for (k, o) in self.others.iter().enumerate() {
@@ -397,8 +410,8 @@ impl PlayerPower {
         for (k, o) in self.others.iter_mut().enumerate() {
             let keep = *o;
             *o = s.others[k].checked_sub(1).map(|id| HeldPower {
-                id: u16::from(id),
-                move_cd: keep.filter(|o| o.id == u16::from(id)).map_or([0.0; move_sel::MAX_MOVES], |o| o.move_cd),
+                id,
+                move_cd: keep.filter(|o| o.id == id).map_or([0.0; move_sel::MAX_MOVES], |o| o.move_cd),
                 transformed: s.tiers[k + 1] & 0x80 != 0,
                 tier: s.tiers[k + 1] & 0x0F,
                 since: 0,
@@ -422,7 +435,7 @@ impl PlayerPower {
         for h in held.iter().flatten() {
             let tier_shouts = h.def.tier(h.tier).map(|t| t.shouts.as_slice()).unwrap_or(&[]);
             if let Some((_, slot)) = tier_shouts.iter().chain(h.def.shouts.iter()).find(|(s, _)| *s == n) {
-                return PowerPhrase::Move(if h.slot == 0 { *slot & 3 } else { move_sel::move_of(h.slot, *slot) });
+                return PowerPhrase::Move(if h.slot == 0 { *slot & 7 } else { move_sel::move_of(h.slot, *slot) });
             }
         }
         // A tier of a held power, or the power's own name again (→ active; a tiered power → base).
@@ -496,6 +509,9 @@ pub struct PowerWorld {
     /// CAMERA: the host-validated aim `(player index, eye, dir)` of the power move being run
     /// (`World::power_move_aimed`); `None` outside it (ops then use the look).
     pub(crate) move_aim: Option<(usize, Vec3, Vec3)>,
+    /// IMPACT FRAMES: the running move's guaranteed crit `(player index, mult, fx)`
+    /// (`MoveDef::crit`); `None` outside it.
+    pub(crate) move_crit: Option<(usize, f32, CritFx)>,
     pub fruits: Vec<Fruit>,
     restore_log: VecDeque<(IVec3, u8)>,
     shattered: Vec<Shattered>,
@@ -506,6 +522,8 @@ pub struct PowerWorld {
     /// (player, power, tier) forms already awakened this round: the first Ascend of each is the
     /// big one.
     pub(crate) awakened: Vec<(PlayerId, u16, u8)>,
+    /// State of the generic ops (`ops::OpState`: rams, hooks, stances, zones, rewind trails…).
+    pub(crate) ops: ops::OpState,
 }
 
 impl Default for PowerWorld {
@@ -514,12 +532,14 @@ impl Default for PowerWorld {
             incanting: false,
             delivered: None,
             move_aim: None,
+            move_crit: None,
             fruits: Vec::with_capacity(MAX_FRUITS),
             restore_log: VecDeque::with_capacity(RESTORE_LOG),
             shattered: Vec::with_capacity(SHATTER_LOG),
             cores: Vec::new(),
             slow_fields: Vec::with_capacity(MAX_PLAYERS_HINT),
             awakened: Vec::new(),
+            ops: ops::OpState::default(),
         }
     }
 }
@@ -545,6 +565,7 @@ impl PowerWorld {
         self.cores.clear();
         self.slow_fields.clear();
         self.awakened.clear();
+        self.ops.clear();
     }
 }
 
@@ -634,6 +655,28 @@ pub enum PowerEvent {
     Yanked { player: PlayerId, target: Option<PlayerId>, construct: Option<ConstructId>, from: Vec3 },
     /// A gravity core (`construct`) started (`end == false`) or collapsed.
     Singularity { player: PlayerId, construct: ConstructId, pos: Vec3, radius: f32, secs: f32, end: bool },
+    /// A generic op's moment (`ops::OpEvent`: ram slam, hook caught, parry, lock-on…).
+    Op(ops::OpEvent),
+    /// TOOLBOX: ANY move fired — held, borrowed or kit (docs/toolbox/PRESENTATION_API.md). `mv`
+    /// resolves to the power + move data (`MoveRef::resolve(PowerTable::get())`: ops, juice, fx,
+    /// tags); `op` = the op it leads with; `from` / `to` = the mover's feet before / after (a blink's
+    /// arrival); `dir` = the aim it fired along; `step` = steps of the current chain fired before it;
+    /// `sparks` = what a borrowed / kit move cost (0 for held moves).
+    Fired {
+        player: PlayerId,
+        mv: toolbox::MoveRef,
+        how: chain::FireHow,
+        op: chain::OpKind,
+        element: Element,
+        from: Vec3,
+        to: Vec3,
+        dir: Vec3,
+        step: u8,
+        sparks: u8,
+    },
+    /// TOOLBOX: a pending chain was cut short (`why`: NotEnoughWillpower = out of sparks, Dead = KO,
+    /// Busy = stunned or a new command).
+    ChainStopped { player: PlayerId, why: PowerError },
 }
 
 /// Client: apply a [`PowerEvent::Restored`] voxel list exactly as the host did.

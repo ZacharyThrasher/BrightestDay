@@ -285,6 +285,8 @@ pub(super) fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: G
         out.events.push(GameEvent::HeldFx { id: c.id, owner: c.owner, fx: crate::events::HeldFx::OneShot, pos: muzzle, dir, strength: dmg }); // LEGENDARY
     }
     if recoil > 0.0 {
+        // WEAPON FEEL: heavy guns shove you back on the ground too.
+        let recoil = recoil * super::weapon_class::ground_recoil(c, o.grounded, &env.ctx.tuning.weapons);
         out.recoils.push((c.owner, dir, recoil));
     }
     let ricochet = if c.has(Mechanic::Ricochet) || arch == GunArchetype::Disc { 2 } else { 0 };

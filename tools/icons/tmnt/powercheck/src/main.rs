@@ -1,4 +1,4 @@
-//! Standalone check of assets/powers.ron against bd_sim's PowerDef (data.rs included verbatim).
+//! Standalone check of assets/powers/base_cartoons.ron against bd_sim's PowerDef (data.rs included verbatim).
 #![allow(dead_code)]
 
 mod movement {
@@ -34,7 +34,7 @@ mod rng {
 mod data;
 
 fn main() {
-    let src = std::fs::read_to_string("assets/powers.ron").expect("run from the game root");
+    let src = std::fs::read_to_string("assets/powers/base_cartoons.ron").expect("run from the game root");
     let powers: Vec<data::PowerDef> = match ron::from_str(&src) {
         Ok(p) => p,
         Err(e) => {

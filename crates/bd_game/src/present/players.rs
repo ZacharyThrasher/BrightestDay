@@ -368,7 +368,13 @@ fn sync_bodies(
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
     (aim, ads, fx, ascend, legend): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>, Option<Res<super::powers::ascend::AscendPose>>, Option<Res<super::legend::LegendPose>>),
-    (lex, readable): (Option<Res<crate::console::RingLexicon>>, Option<Res<crate::readability::Readability>>),
+    (lex, readable, move_poses, reactions, body_layers): (
+        Option<Res<crate::console::RingLexicon>>,
+        Option<Res<crate::readability::Readability>>,
+        Option<Res<super::powers::movefx::MovePoses>>,
+        Option<Res<super::impact_frames::reactions::HitReactions>>,
+        Res<super::body_motion::BodyLayers>,
+    ),
     mut map: ResMut<BodyEntities>,
     mut hands_out: ResMut<BodyHands>,
     (mut ropes, mut materials): (ResMut<RopeAssets>, ResMut<Assets<StandardMaterial>>),
@@ -491,6 +497,16 @@ fn sync_bodies(
             let base = *b.hold.get_or_insert(tf.translation);
             tf.translation = base + freeze.shake_offset(v.id);
         }
+        // IMPACT FRAMES: hit reactions by weight — stagger / wall splat / ground bounce / get-up
+        // (feet-pivoted tilt, offset, squash; `impact_frames::reactions`). Held during a hit-stop.
+        let react_pose = reactions.as_ref().and_then(|r| r.pose(v.id, v.size, Quat::from_rotation_y(v.yaw)));
+        if let Some(rp) = react_pose
+            && !freeze.player(v.id)
+        {
+            tf.translation += rp.offset;
+            tf.rotation = rp.tilt * tf.rotation;
+            tf.scale *= rp.scale;
+        }
         let moved = Vec2::new(v.pos.x - b.last_pos.x, v.pos.z - b.last_pos.z).length();
         if moved < 5.0 {
             b.distance += moved;
@@ -500,6 +516,7 @@ fn sync_bodies(
         let hspeed = Vec2::new(v.vel.x, v.vel.z).length();
         let grounded = v.has(pflags::GROUNDED);
         let attached = [v.has(pflags::HOOK_L_ATTACHED), v.has(pflags::HOOK_R_ATTACHED)];
+        let extra = body_layers.0.get(&v.id).copied();
         let base = if v.has(pflags::TUMBLING) && v.has(pflags::LAUNCHED) && v.vel.length() > 4.0 {
             // Weight pass: a big launch spins end over end along the flight, limbs trailing.
             let body = Quat::from_rotation_y(v.yaw);
@@ -520,14 +537,22 @@ fn sync_bodies(
             let lean = (v.vel.dot(fwd) / 25.0).clamp(-1.0, 1.0);
             AnimState::Swing { side, lean }
         } else {
-            AnimState::Locomotion { speed: hspeed, distance: b.distance, airborne: !grounded }
+            // ANIMATION PASS: the gait fades out in the air (the `Motion` layer owns the air pose).
+            let (gait, ground_base) = extra.map_or((1.0, false), |x| (x.gait, x.grounded_base));
+            AnimState::Locomotion { speed: hspeed * gait, distance: b.distance, airborne: !grounded && !ground_base }
         };
         let t = b.time;
-        let mut layers: [(AnimState, f32); 4] = [(base, t); 4];
+        const MAXL: usize = bd_shapes::MAX_LAYERS;
+        let mut layers: [(AnimState, f32); MAXL] = [(base, t); MAXL];
         let mut n = 1;
+        // ANIMATION PASS (`body_motion`): motion / one-shot action / channel or respawn re-form.
+        for &l in extra.as_ref().map_or(&[][..], |x| x.layers()) {
+            layers[n] = l;
+            n += 1;
+        }
         if let Some(ct) = b.cast_t.as_mut() {
             *ct += dt;
-            if *ct < 0.5 {
+            if *ct < 0.5 && n < MAXL {
                 layers[n] = (AnimState::Cast, *ct);
                 n += 1;
             } else {
@@ -536,7 +561,7 @@ fn sync_bodies(
         }
         if let Some((side, tt)) = b.tether_t.as_mut() {
             *tt += dt;
-            if *tt < 0.35 && n < 4 {
+            if *tt < 0.35 && n < MAXL {
                 layers[n] = (AnimState::TetherFire { side: *side }, *tt);
                 n += 1;
             } else if *tt >= 0.35 {
@@ -545,21 +570,47 @@ fn sync_bodies(
         }
         if let Some((dir, s, rt)) = b.react.as_mut() {
             *rt += dt;
-            if *rt < 0.4 && n < 4 {
+            if *rt < 0.4 && n < MAXL {
                 layers[n] = (AnimState::HitReact { dir: super::gv(*dir), strength: *s }, *rt);
                 n += 1;
             } else if *rt >= 0.4 {
                 b.react = None;
             }
         }
+        // IMPACT FRAMES: the reaction's own flail layer (bigger / longer than the flinch).
+        if let Some((dir, s, rt)) = react_pose.and_then(|p| p.layer)
+            && n < MAXL
+        {
+            let local_dir = Quat::from_rotation_y(v.yaw).inverse() * dir;
+            layers[n] = (AnimState::HitReact { dir: super::gv(local_dir), strength: s }, rt);
+            n += 1;
+        }
         // POWERS HOOK: the Ascend windup pose (any transformation / power-up).
         if let Some(pt) = ascend.as_ref().and_then(|a| a.by_player.get(&v.id).copied())
-            && n < 4
+            && n < MAXL
         {
             layers[n] = (AnimState::PowerUp, pt);
             n += 1;
         }
-        if n < 4 {
+        // MOVE GRAMMAR HOOK (`powers::movefx::MovePoses`): a power move's body language — a fist
+        // thrust for shoves / fist casts / stretch punches, a reach for reels, palms-out power-up
+        // for fields / blasts / time, arms up for a slam. (Lunges read from the body's motion.)
+        if let Some((pose, pt)) = move_poses.as_ref().and_then(|m| m.body(v.id))
+            && n < MAXL
+        {
+            use super::powers::movefx::MovePose;
+            let st = match pose {
+                MovePose::Punch => Some(AnimState::Cast),
+                MovePose::Grab => Some(AnimState::TetherFire { side: 1 }),
+                MovePose::Palms | MovePose::Slam | MovePose::Clench => Some(AnimState::PowerUp),
+                MovePose::Lunge => None,
+            };
+            if let Some(st) = st {
+                layers[n] = (st, pt);
+                n += 1;
+            }
+        }
+        if n < MAXL {
             layers[n] = (AnimState::Aim { yaw: 0.0, pitch: v.pitch * 0.6 }, t);
             n += 1;
         }

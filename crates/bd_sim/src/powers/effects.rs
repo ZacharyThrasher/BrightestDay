@@ -176,6 +176,26 @@ impl World {
         if hit.source == Some(hit.target) || hit.kind == HitKind::WallSplat {
             return hit;
         }
+        // IMPACT FRAMES: the running move's guaranteed crit (`MoveDef::crit`), any hit kind.
+        if let Some((pi, mult, fx)) = self.powers.move_crit
+            && pi == si
+            && hit.damage > 0.0
+        {
+            let mult = mult.clamp(1.0, 4.0);
+            hit.damage *= mult;
+            hit.knockback *= 1.0 + (mult - 1.0) * 0.5;
+            hit.impact *= 1.0 + mult * 0.5;
+            hit.crit = true;
+            let (attacker, target, point) = (self.players[si].id, hit.target, hit.point);
+            self.inject_event(GameEvent::Power(PowerEvent::Crit { attacker, target, point, fx, mult }));
+            let pw = &self.players[si].power;
+            if pw.id.is_some() && pw.active() && self.players[si].power.def().is_some_and(|d| self.power_allowed(d)) {
+                let (dm, km) = hit_mults(pw);
+                hit.damage *= dm;
+                hit.knockback *= km;
+            }
+            return hit;
+        }
         let pw = &self.players[si].power;
         if pw.id.is_none() || !pw.active() || !self.players[si].power.def().is_some_and(|d| self.power_allowed(d)) {
             return hit;

@@ -114,3 +114,21 @@ hook horror, and the Bigby's / Tasha's / Otto's / Otiluke's / Evard's / Melf's /
 Tenser's spell prefixes) are Wizards of the Coast product identity, used only as trigger words for private
 use; replace them before any public release. (Entries tagged "Dungeons & Dragons (name only; private use)"
 in `assets/icons/tabletop.ron`; the older D&D entries in `assets/icons/internet.ron` fall under the same note.)
+
+## Video-game power vocabulary (`assets/powers/games_adventure.ron`)
+
+Character, move, spell and item NAMES from these single-player game franchises are used only as trigger
+words a player may type or say, for private use; replace them before any public release: The Legend of
+Zelda, Super Mario, Donkey Kong, Kirby, Metroid, Star Fox, EarthBound / Mother, Xenoblade Chronicles
+(Nintendo); Sonic the Hedgehog (SEGA); Mega Man, Devil May Cry, Resident Evil, Ōkami (Capcom); Final
+Fantasy, Kingdom Hearts (Square Enix); Halo, Gears of War (Microsoft / Xbox Game Studios); DOOM, The Elder
+Scrolls V: Skyrim, Dishonored (Bethesda / id Software / Arkane / ZeniMax); God of War, Ratchet & Clank,
+inFAMOUS, Ghost of Tsushima, Katamari (Sony Interactive / Bandai Namco); Dark Souls, Elden Ring, Sekiro
+(FromSoftware / Bandai Namco); Bloodborne (FromSoftware / Sony); Bayonetta (PlatinumGames / SEGA / Nintendo);
+Genshin Impact (HoYoverse); Destiny (Bungie); Mass Effect (BioWare / EA); Half-Life, Portal (Valve);
+BioShock (2K); Prototype (Radical / Activision); Minecraft (Mojang / Microsoft); Hollow Knight (Team Cherry);
+Hades (Supergiant Games); Celeste (Maddy Makes Games / Extremely OK Games); Cuphead (Studio MDHR); Undertale
+(Toby Fox); Assassin's Creed, Prince of Persia (Ubisoft); Metal Gear (Konami); Castlevania (Konami); Pac-Man
+(Bandai Namco); Crash Bandicoot, Spyro (Activision); Max Payne (Remedy / Rockstar); Titanfall (Respawn / EA);
+Control (Remedy). Every in-game effect is Brightest Day's own mapping onto its generic move operations; no
+game assets, text, dialogue, lyrics or sounds are used.

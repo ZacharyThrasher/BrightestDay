@@ -13,6 +13,7 @@ use bd_core::shape::{PartRole, Tint};
 use bd_core::voxel::Aabb;
 use glam::{Affine3A, Quat, Vec3};
 
+use crate::anim_body::{BodyAction, BodyMotion, Channel};
 use crate::ease::{Ease, K, smoothstep, spring_impulse, track};
 use crate::voxelize::{PartModel, VoxelModel};
 
@@ -59,6 +60,16 @@ pub enum AnimState {
     /// Humanoid layer: the power-up pose (Ascend windup — any transformation / power-up): fists
     /// clenched out at the sides, head back, body tense and trembling. `t` = seconds into it.
     PowerUp,
+    /// Humanoid layer (players): continuous body motion — air pose by vertical speed, bank into
+    /// turns, strafe / backpedal lean, crouch, gas boost. `t` = any monotonic time. See
+    /// [`crate::anim_body`].
+    Motion(BodyMotion),
+    /// Humanoid layer (players): a one-shot body action (`dir` model space, `strength` per kind).
+    /// `t` = seconds since it started; done after [`BodyAction::duration`].
+    Action { kind: BodyAction, dir: Vec3, strength: f32 },
+    /// Humanoid layer (players): busy with the ring (typing / oath / charge), `w` 0..1 fade.
+    /// `t` = seconds since it began.
+    Channel { kind: Channel, w: f32 },
 }
 
 /// Ring-arm cast: pull back (anticipation), thrust (active: spawn the construct at its end), hold +
@@ -162,12 +173,16 @@ impl Local {
     }
 }
 
+/// Most layers [`pose_layered`] evaluates (players stack base + motion + action + channel + cast +
+/// tether + hit + aim).
+pub const MAX_LAYERS: usize = 8;
+
 /// Evaluate a pose. `out` must hold at least `model.parts.len()` entries.
 pub fn pose(model: &VoxelModel, anim: AnimState, t: f32, out: &mut [Affine3A]) {
     pose_layered(model, &[(anim, t)], out);
 }
 
-/// Evaluate up to 4 layered animations (extra layers are ignored).
+/// Evaluate up to [`MAX_LAYERS`] layered animations (extra layers are ignored).
 pub fn pose_layered(model: &VoxelModel, layers: &[(AnimState, f32)], out: &mut [Affine3A]) {
     pose_layered_with(model, layers, None, out);
 }
@@ -177,7 +192,7 @@ pub fn pose_layered(model: &VoxelModel, layers: &[(AnimState, f32)], out: &mut [
 /// wraps any clip motion). Client-only role behaviours come in here (see
 /// `behaviours::ConstructAnimator::locals`); the sim never passes one.
 pub fn pose_layered_with(model: &VoxelModel, layers: &[(AnimState, f32)], extra: Option<&[Local]>, out: &mut [Affine3A]) {
-    let mut frames: [Option<Frame>; 4] = [None, None, None, None];
+    let mut frames: [Option<Frame>; MAX_LAYERS] = [None; MAX_LAYERS];
     for (slot, (a, t)) in frames.iter_mut().zip(layers.iter()) {
         *slot = Some(Frame::new(model, sanitize(*a), fin(*t, 0.0).clamp(-1e6, 1e6)));
     }
@@ -223,6 +238,9 @@ fn sanitize(a: AnimState) -> AnimState {
         AnimState::Swing { side, lean } => AnimState::Swing { side, lean: fin(lean, 0.0).clamp(-1.0, 1.0) },
         AnimState::Tumble { spin } => AnimState::Tumble { spin: fin(spin, 6.0).clamp(-60.0, 60.0) },
         AnimState::Launched { dir, spin } => AnimState::Launched { dir: fin3(dir), spin: fin(spin, 8.0).clamp(-60.0, 60.0) },
+        AnimState::Motion(m) => AnimState::Motion(crate::anim_body::sanitize_motion(m)),
+        AnimState::Action { kind, dir, strength } => AnimState::Action { kind, dir: fin3(dir), strength: fin(strength, 0.0).clamp(0.0, 4.0) },
+        AnimState::Channel { kind, w } => AnimState::Channel { kind, w: fin(w, 0.0).clamp(0.0, 1.0) },
         other => other,
     }
 }
@@ -621,6 +639,7 @@ impl Frame {
             AnimState::Dismiss { duration } => forming_local(m, i, t, duration, true),
             AnimState::Aim { yaw, pitch } => aim_layer(m, i, yaw, pitch),
             a @ (AnimState::Slide { .. } | AnimState::TetherFire { .. } | AnimState::Swing { .. } | AnimState::Cast | AnimState::Tumble { .. } | AnimState::Launched { .. } | AnimState::PowerUp) => humanoid_local(m, i, a, t),
+            a @ (AnimState::Motion(_) | AnimState::Action { .. } | AnimState::Channel { .. }) => crate::anim_body::body_local(m, i, a, t),
         }
     }
 }

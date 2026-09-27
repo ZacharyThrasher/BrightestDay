@@ -1,15 +1,15 @@
 {
  "note": "Sample of assets/lexicon.bin for review. Full data: tools/lexicon_build/cache/lexicon.json",
  "counts": {
-  "entries": 552300,
+  "entries": 552303,
   "adjectives": 1949,
   "verbs": 2656,
   "by_form": {
-   "Anvil": 8538,
+   "Anvil": 8534,
    "Arachnid": 1619,
    "Axe": 626,
    "Ball": 29435,
-   "Biped": 96617,
+   "Biped": 96615,
    "Bird": 33970,
    "Blob": 11336,
    "Blob0": 51,
@@ -17,14 +17,14 @@
    "Boulder": 7017,
    "Bow": 298,
    "Cage": 2631,
-   "Cannon": 2573,
+   "Cannon": 2562,
    "Cape": 3147,
    "Disc": 10173,
    "Dome": 631,
    "Fish": 5153,
    "Gauntlet": 3614,
-   "Gun": 5401,
-   "Hammer": 7007,
+   "Gun": 5412,
+   "Hammer": 7015,
    "Insect": 28463,
    "Jetpack": 2864,
    "Kaiju": 5585,
@@ -36,12 +36,12 @@
    "Rocket": 4274,
    "Serpent": 1625,
    "Shield": 5076,
-   "Spear": 871,
-   "Staff": 2069,
-   "Sword": 3207,
+   "Spear": 877,
+   "Staff": 2059,
+   "Sword": 3213,
    "Trampoline": 662,
    "Vehicle": 76355,
-   "Wall": 3775,
+   "Wall": 3774,
    "Whip": 1822,
    "Wings": 723
   }
@@ -1546,6 +1546,60 @@
    "t": null
   },
   {
+   "k": "great axe",
+   "d": null,
+   "f": "Axe",
+   "m": [
+    "Blade",
+    "Heavy"
+   ],
+   "e": "Light",
+   "s": 1.5,
+   "w": 12.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.29,
+   "g": [
+    "Blade",
+    "Heavy"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 1040,
+   "x": [
+    "great axe (hand anchor → Axe)"
+   ],
+   "t": null
+  },
+  {
+   "k": "war axe",
+   "d": null,
+   "f": "Axe",
+   "m": [
+    "Blade",
+    "Heavy"
+   ],
+   "e": "Light",
+   "s": 1.3,
+   "w": 8.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.28,
+   "g": [
+    "Blade",
+    "Heavy"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 1040,
+   "x": [
+    "war axe (hand anchor → Axe)"
+   ],
+   "t": null
+  },
+  {
    "k": "flying v",
    "d": "Flying V",
    "f": "Axe",
@@ -1681,63 +1735,6 @@
    "fl": 1036,
    "x": [
     "english guitar ≈ guitar (Wikidata)",
-    "guitar (hand anchor → Axe)"
-   ],
-   "t": null
-  },
-  {
-   "k": "jackson king v",
-   "d": "Jackson King V",
-   "f": "Axe",
-   "m": [
-    "Blade",
-    "Blunt"
-   ],
-   "e": "Electric",
-   "s": 1.0,
-   "w": 4.0,
-   "n": 1,
-   "a": null,
-   "c": 0.95,
-   "r": 4.88,
-   "g": [
-    "Blade",
-    "Blunt"
-   ],
-   "ge": "Electric",
-   "ft": [],
-   "fl": 1036,
-   "x": [
-    "jackson king v ≈ electric guitar (Wikidata)",
-    "electric guitar (hand anchor → Axe)"
-   ],
-   "t": null
-  },
-  {
-   "k": "8 string",
-   "d": "8-string",
-   "f": "Axe",
-   "m": [
-    "Blade",
-    "Blunt"
-   ],
-   "e": "Light",
-   "s": 1.0,
-   "w": 4.0,
-   "n": 1,
-   "a": null,
-   "c": 0.902,
-   "r": 4.87,
-   "g": [
-    "Blade",
-    "Blunt"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 1036,
-   "x": [
-    "8 string = eight-string guitar (Wikidata alias)",
-    "eight string guitar ≈ guitar (Wikidata)",
     "guitar (hand anchor → Axe)"
    ],
    "t": null
@@ -6753,6 +6750,38 @@
    "t": null
   },
   {
+   "k": "light machine gun",
+   "d": null,
+   "f": "Gun",
+   "m": [
+    "Heavy",
+    "Shoots",
+    "Spin"
+   ],
+   "e": "Light",
+   "s": 1.0,
+   "w": 9.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 6.05,
+   "g": [
+    "Heavy",
+    "Shoots",
+    "Spin"
+   ],
+   "ge": null,
+   "ft": [
+    "Barrels"
+   ],
+   "fl": 1040,
+   "x": [
+    "light machine gun (hand anchor → Gun)",
+    "light machine gun → submachine gun → … → firearm (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
    "k": "growth ray",
    "d": null,
    "f": "Gun",
@@ -6832,33 +6861,6 @@
     "2 3 2 = 2A3 Kondensator 2P (Wikidata alias)",
     "2a3 kondensator 2p ≈ self propelled gun (Wikidata)",
     "gun (hand anchor → Gun)"
-   ],
-   "t": null
-  },
-  {
-   "k": "grow ray",
-   "d": null,
-   "f": "Gun",
-   "m": [
-    "Beam",
-    "Grow",
-    "Shoots"
-   ],
-   "e": "Light",
-   "s": 0.8,
-   "w": 4.0,
-   "n": 1,
-   "a": null,
-   "c": 1.0,
-   "r": 5.98,
-   "g": [
-    "Grow"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 1040,
-   "x": [
-    "grow ray (hand anchor → Gun)"
    ],
    "t": null
   },
@@ -11383,11 +11385,10 @@
    "t": null
   },
   {
-   "k": "staff of power",
+   "k": "bo staff",
    "d": null,
    "f": "Staff",
    "m": [
-    "Beam",
     "Blunt"
    ],
    "e": "Light",
@@ -11395,17 +11396,16 @@
    "w": 2.0,
    "n": 1,
    "a": null,
-   "c": 0.95,
-   "r": 5.44,
+   "c": 1.0,
+   "r": 5.47,
    "g": [
-    "Beam",
     "Blunt"
    ],
    "ge": null,
    "ft": [],
-   "fl": 8,
+   "fl": 1040,
    "x": [
-    "staff of power (curated name, internet_names.txt)"
+    "bo staff (hand anchor → Staff)"
    ],
    "t": null
   },
@@ -11437,6 +11437,33 @@
    "t": null
   },
   {
+   "k": "knife",
+   "d": null,
+   "f": "Sword",
+   "m": [
+    "Blade",
+    "Pierce"
+   ],
+   "e": "Light",
+   "s": 0.5,
+   "w": 0.5,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.91,
+   "g": [
+    "Blade",
+    "Pierce"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 2064,
+   "x": [
+    "knife (hand anchor → Sword)"
+   ],
+   "t": null
+  },
+  {
    "k": "sword",
    "d": null,
    "f": "Sword",
@@ -11458,6 +11485,33 @@
    "fl": 2064,
    "x": [
     "sword (hand anchor → Sword)"
+   ],
+   "t": null
+  },
+  {
+   "k": "great sword",
+   "d": null,
+   "f": "Sword",
+   "m": [
+    "Blade",
+    "Heavy"
+   ],
+   "e": "Light",
+   "s": 1.8,
+   "w": 12.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.86,
+   "g": [
+    "Blade",
+    "Heavy"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 1040,
+   "x": [
+    "great sword (hand anchor → Sword)"
    ],
    "t": null
   },
@@ -11514,6 +11568,33 @@
    "t": null
   },
   {
+   "k": "combat knife",
+   "d": null,
+   "f": "Sword",
+   "m": [
+    "Blade",
+    "Pierce"
+   ],
+   "e": "Light",
+   "s": 0.55,
+   "w": 0.6,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.68,
+   "g": [
+    "Blade",
+    "Pierce"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 1040,
+   "x": [
+    "combat knife (hand anchor → Sword)"
+   ],
+   "t": null
+  },
+  {
    "k": "pocket knife",
    "d": null,
    "f": "Sword",
@@ -11536,6 +11617,33 @@
    "x": [
     "pocket knife (hand anchor → Sword)",
     "pocket knife → pocketknife → knife (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "two handed sword",
+   "d": null,
+   "f": "Sword",
+   "m": [
+    "Blade",
+    "Heavy"
+   ],
+   "e": "Light",
+   "s": 1.8,
+   "w": 12.0,
+   "n": 1,
+   "a": null,
+   "c": 1.0,
+   "r": 5.59,
+   "g": [
+    "Blade",
+    "Heavy"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 1040,
+   "x": [
+    "two handed sword (hand anchor → Sword)"
    ],
    "t": null
   },
@@ -11615,113 +11723,6 @@
    "fl": 1036,
    "x": [
     "after eight ≈ chocolate brand of nestle (Wikidata)",
-    "brand ≈ sword (WordNet synonym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "swiss army knife",
-   "d": null,
-   "f": "Sword",
-   "m": [
-    "Blade",
-    "Pierce",
-    "Spin"
-   ],
-   "e": "Light",
-   "s": 0.2,
-   "w": 0.018,
-   "n": 1,
-   "a": null,
-   "c": 1.0,
-   "r": 5.46,
-   "g": [
-    "Blade",
-    "Pierce",
-    "Spin"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 1104,
-   "x": [
-    "swiss army knife (hand anchor → Sword)"
-   ],
-   "t": null
-  },
-  {
-   "k": "t model",
-   "d": "T-model",
-   "f": "Sword",
-   "m": [
-    "Blade"
-   ],
-   "e": "Light",
-   "s": 1.1,
-   "w": 3.0,
-   "n": 1,
-   "a": null,
-   "c": 0.921,
-   "r": 5.45,
-   "g": [
-    "Blade"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "t model ≈ brand (Wikidata)",
-    "brand ≈ sword (WordNet synonym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "fucking hell",
-   "d": "Fucking Hell",
-   "f": "Sword",
-   "m": [
-    "Blade"
-   ],
-   "e": "Light",
-   "s": 1.1,
-   "w": 3.0,
-   "n": 1,
-   "a": null,
-   "c": 0.855,
-   "r": 5.4,
-   "g": [
-    "Blade"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "fucking hell ≈ beer brand (Wikidata)",
-    "brand ≈ sword (WordNet synonym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "mr clean",
-   "d": "Mr. Clean",
-   "f": "Sword",
-   "m": [
-    "Blade"
-   ],
-   "e": "Light",
-   "s": 1.1,
-   "w": 3.0,
-   "n": 1,
-   "a": null,
-   "c": 0.95,
-   "r": 5.39,
-   "g": [
-    "Blade"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "mr clean ≈ brand (Wikidata)",
     "brand ≈ sword (WordNet synonym)"
    ],
    "t": null
@@ -14366,59 +14367,62 @@
    "t": null
   },
   {
-   "k": "daniel pennington",
-   "d": "Daniel Pennington",
-   "f": "Quadruped",
+   "k": "daniel oz osbourne",
+   "d": "Daniel \"Oz\" Osbourne",
+   "f": "Biped",
    "m": [
-    "Guard",
-    "Ricochet"
+    "Blade",
+    "Fast"
    ],
-   "e": "Water",
-   "s": 0.8,
-   "w": 17.778,
+   "e": "Shadow",
+   "s": 2.2,
+   "w": 146.063,
    "n": 1,
    "a": null,
-   "c": 0.737,
-   "r": 3.39,
+   "c": 0.902,
+   "r": 3.48,
    "g": [
-    "Guard",
-    "Ricochet"
+    "Blade",
+    "Fast"
    ],
-   "ge": "Water",
-   "ft": [
-    "Armor"
-   ],
+   "ge": "Shadow",
+   "ft": [],
    "fl": 12,
    "x": [
-    "daniel pennington ≈ teenage mutant ninja turtles character (Wikidata)",
-    "turtle (hand anchor → Quadruped)"
+    "daniel oz osbourne = Oz (Wikidata alias)",
+    "oz ≈ werewolf (Wikidata)",
+    "werewolf (hand anchor → Biped)"
    ],
    "t": null
   },
   {
-   "k": "decadent",
+   "k": "decade",
    "d": null,
-   "f": "Biped",
-   "m": [],
+   "f": "Blob",
+   "m": [
+    "Flies"
+   ],
    "e": "Light",
-   "s": 1.8,
-   "w": 80.0,
+   "s": 1.0,
+   "w": 30.0,
    "n": 1,
    "a": null,
-   "c": 0.767,
-   "r": 3.04,
-   "g": [],
+   "c": 0.32,
+   "r": 4.52,
+   "g": [
+    "Flies"
+   ],
    "ge": null,
    "ft": [],
-   "fl": 128,
+   "fl": 2304,
    "x": [
-    "decadent → bad person → person (WordNet hypernym)"
+    "decade: abstract (time) → spirit"
    ],
    "t": null
   },
   {
-   "k": "devilled sauce",
-   "d": "Devilled sauce",
+   "k": "devilled kidneys",
+   "d": "Devilled kidneys",
    "f": "Ball",
    "m": [],
    "e": "Light",
@@ -14435,14 +14439,14 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "devilled sauce ≈ sauce (Wikidata)",
-    "sauce: food (sauce) -> Ball (WordNet class default)"
+    "devilled kidneys ≈ food (Wikidata)",
+    "food (anchor -> Ball)"
    ],
    "t": null
   },
   {
-   "k": "distichodus decemmaculatus",
-   "d": "Distichodus decemmaculatus",
+   "k": "distichodus affinis",
+   "d": "Distichodus affinis",
    "f": "Quadruped",
    "m": [
     "Fast",
@@ -14453,8 +14457,8 @@
    "w": 60.0,
    "n": 1,
    "a": null,
-   "c": 0.41,
-   "r": 1.145,
+   "c": 0.389,
+   "r": 0.995,
    "g": [
     "Fast",
     "Grab"
@@ -14463,17 +14467,19 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "distichodus decemmaculatus ≈ animal (Wikidata)",
+    "distichodus affinis = Silver distichodus (Wikidata alias)",
+    "silver distichodus ≈ animal (Wikidata)",
     "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "douglas a 33",
-   "d": "Douglas A-33",
+   "k": "douglas a 3 skywarrior",
+   "d": "Douglas A-3 Skywarrior",
    "f": "Vehicle",
    "m": [
     "Charge",
+    "Explodes",
     "Fast",
     "Flies"
    ],
@@ -14482,8 +14488,8 @@
    "w": 20000.0,
    "n": 1,
    "a": null,
-   "c": 0.812,
-   "r": 4.63,
+   "c": 0.902,
+   "r": 1.755,
    "g": [
     "Charge",
     "Fast",
@@ -14497,48 +14503,40 @@
    ],
    "fl": 1036,
    "x": [
-    "douglas a 33 ≈ land based attack monoplane (Wikidata)",
-    "monoplane → airplane (WordNet hypernym)"
+    "douglas a 3 skywarrior ≈ bomber (Wikidata)",
+    "bomber → airplane (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "dubna",
-   "d": "Dubna",
-   "f": "Rocket",
+   "k": "dubliner cheese",
+   "d": "Dubliner Cheese",
+   "f": "Sword",
    "m": [
-    "Explodes",
-    "Homing",
-    "Thrust"
+    "Blade"
    ],
    "e": "Light",
-   "s": 2.0,
-   "w": 7100.0,
+   "s": 1.1,
+   "w": 3.0,
    "n": 1,
    "a": null,
-   "c": 0.824,
-   "r": 2.523,
+   "c": 0.807,
+   "r": 2.22,
    "g": [
-    "Homing",
-    "Thrust"
+    "Blade"
    ],
    "ge": null,
-   "ft": [
-    "Exhaust",
-    "Fins",
-    "Jet"
-   ],
+   "ft": [],
    "fl": 1036,
    "x": [
-    "dubna = S-200 (Wikidata alias)",
-    "s 200 ≈ missile (Wikidata)",
-    "missile (hand anchor → Rocket)"
+    "dubliner cheese ≈ brand of irish cheese (Wikidata)",
+    "brand ≈ sword (WordNet synonym)"
    ],
    "t": null
   },
   {
-   "k": "eastern baton blue",
-   "d": "Eastern Baton Blue",
+   "k": "eastern bath white",
+   "d": "Eastern Bath White",
    "f": "Insect",
    "m": [
     "Flies"
@@ -14549,7 +14547,7 @@
    "n": 1,
    "a": null,
    "c": 0.799,
-   "r": 4.1,
+   "r": 4.75,
    "g": [
     "Flies"
    ],
@@ -14557,44 +14555,40 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "eastern baton blue = Pseudophilotes vicrama (Wikidata alias)",
-    "pseudophilotes vicrama ≈ insect (Wikidata)",
+    "eastern bath white = Pontia edusa (Wikidata alias)",
+    "pontia edusa ≈ insect (Wikidata)",
     "insect (anchor -> Insect)"
    ],
    "t": null
   },
   {
-   "k": "electric lantern fish",
-   "d": "Electric Lantern Fish",
-   "f": "Quadruped",
+   "k": "electric lamp",
+   "d": null,
+   "f": "Staff",
    "m": [
-    "Fast",
-    "Grab"
+    "Blunt"
    ],
-   "e": "Light",
-   "s": 1.2,
-   "w": 60.0,
+   "e": "Electric",
+   "s": 1.8,
+   "w": 2.0,
    "n": 1,
    "a": null,
-   "c": 0.366,
-   "r": 4.06,
+   "c": 0.406,
+   "r": 3.97,
    "g": [
-    "Fast",
-    "Grab"
+    "Blunt"
    ],
-   "ge": null,
+   "ge": "Electric",
    "ft": [],
-   "fl": 12,
+   "fl": 1024,
    "x": [
-    "electric lantern fish = Electrona risso (Wikidata alias)",
-    "electrona risso ≈ animal (Wikidata)",
-    "animal (anchor -> Quadruped)"
+    "electric lamp → lamp → source of illumination (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "endeostigs",
-   "d": "Endeostigs",
+   "k": "endeostigmata",
+   "d": "Endeostigmata",
    "f": "Insect",
    "m": [
     "Guard"
@@ -14604,8 +14598,8 @@
    "w": 0.5,
    "n": 1,
    "a": null,
-   "c": 0.479,
-   "r": 0.714,
+   "c": 0.505,
+   "r": 1.014,
    "g": [
     "Guard"
    ],
@@ -14615,45 +14609,40 @@
    ],
    "fl": 12,
    "x": [
-    "endeostigs = Endeostigmata (Wikidata alias)",
     "endeostigmata ≈ arthropod (Wikidata)",
     "arthropod (anchor -> Insect)"
    ],
    "t": null
   },
   {
-   "k": "eros of titan",
-   "d": " eros of titan",
-   "f": "Biped",
+   "k": "eros b",
+   "d": "EROS B",
+   "f": "Boulder",
    "m": [
-    "Shoots"
+    "Heavy"
    ],
-   "e": "Light",
-   "s": 1.8,
-   "w": 80.0,
+   "e": "Earth",
+   "s": 1.5,
+   "w": 2000.0,
    "n": 1,
    "a": null,
-   "c": 0.95,
-   "r": 3.42,
+   "c": 0.829,
+   "r": 3.5,
    "g": [
-    "Shoots"
+    "Heavy"
    ],
-   "ge": null,
-   "ft": [
-    "Gears",
-    "Pistons"
-   ],
-   "fl": 8,
+   "ge": "Earth",
+   "ft": [],
+   "fl": 12,
    "x": [
-    "eros of titan = starfox marvel (curated alias)",
-    "starfox marvel = starfox (Q2295563, marvel_names.txt)",
-    "starfox ≈ fictional humanoid (Wikidata)"
+    "eros b ≈ artificial satellite of the earth (Wikidata)",
+    "earth (hand anchor → Boulder)"
    ],
    "t": null
   },
   {
-   "k": "european route e65",
-   "d": "European route E65",
+   "k": "european route e60",
+   "d": "European route E60",
    "f": "Boulder",
    "m": [
     "Heavy"
@@ -14664,7 +14653,7 @@
    "n": 1,
    "a": null,
    "c": 0.741,
-   "r": 2.255,
+   "r": 2.19,
    "g": [
     "Heavy"
    ],
@@ -14672,14 +14661,14 @@
    "ft": [],
    "fl": 1036,
    "x": [
-    "european route e65 ≈ linear infrastructure intrusion (Wikidata)",
+    "european route e60 ≈ linear infrastructure intrusion (Wikidata)",
     "intrusion → rock (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "fallicambarus oryktes",
-   "d": "Fallicambarus oryktes",
+   "k": "fallicambarus macneesei",
+   "d": "Fallicambarus macneesei",
    "f": "Insect",
    "m": [
     "Guard"
@@ -14700,13 +14689,91 @@
    ],
    "fl": 12,
    "x": [
-    "fallicambarus oryktes ≈ arthropod (Wikidata)",
+    "fallicambarus macneesei ≈ arthropod (Wikidata)",
     "arthropod (anchor -> Insect)"
    ],
    "t": null
   },
   {
-   "k": "fiancee",
+   "k": "fiance of xiluan",
+   "d": "fiance of Xiluan",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.2,
+   "w": 40.0,
+   "n": 1,
+   "a": null,
+   "c": 0.757,
+   "r": 0.5,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "fiance of xiluan ≈ fictional primate (Wikidata)",
+    "primate (anchor -> Biped)"
+   ],
+   "t": null
+  },
+  {
+   "k": "flatrod system",
+   "d": null,
+   "f": "Staff",
+   "m": [
+    "Blade",
+    "Blunt",
+    "Spin"
+   ],
+   "e": "Light",
+   "s": 1.8,
+   "w": 2.0,
+   "n": 1,
+   "a": null,
+   "c": 0.329,
+   "r": 1.014,
+   "g": [
+    "Blade",
+    "Blunt",
+    "Spin"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "flatrod system ≈ tool (Wikidata)",
+    "tool → implement (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "formal wear",
+   "d": null,
+   "f": "Cape",
+   "m": [
+    "Glide"
+   ],
+   "e": "Light",
+   "s": 1.4,
+   "w": 2.0,
+   "n": 1,
+   "a": null,
+   "c": 0.38,
+   "r": 4.82,
+   "g": [
+    "Glide"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "formal wear ≈ clothing (Wikidata)",
+    "clothing (anchor -> Cape)"
+   ],
+   "t": null
+  },
+  {
+   "k": "fruit squeezer",
    "d": null,
    "f": "Biped",
    "m": [],
@@ -14715,223 +14782,49 @@
    "w": 80.0,
    "n": 1,
    "a": null,
-   "c": 0.729,
-   "r": 3.25,
+   "c": 0.658,
+   "r": 2.38,
    "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 128,
-   "x": [
-    "fiancee → betrothed → lover → person (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "flats",
-   "d": null,
-   "f": "Anvil",
-   "m": [
-    "DropFromSky",
-    "Heavy"
-   ],
-   "e": "Light",
-   "s": 0.8,
-   "w": 150.0,
-   "n": 1,
-   "a": null,
-   "c": 0.38,
-   "r": 3.77,
-   "g": [
-    "Heavy"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 2048,
-   "x": [
-    "flats → footwear (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "formaldehyde",
-   "d": null,
-   "f": "Blob",
-   "m": [],
-   "e": "Poison",
-   "s": 1.0,
-   "w": 30.0,
-   "n": 1,
-   "a": null,
-   "c": 0.3,
-   "r": 2.97,
-   "g": [],
-   "ge": "Poison",
-   "ft": [],
-   "fl": 0,
-   "x": [
-    "formaldehyde: substance (formaldehyde) -> Blob (WordNet class default)"
-   ],
-   "t": null
-  },
-  {
-   "k": "fruit stripe",
-   "d": "Fruit Stripe",
-   "f": "Blob",
-   "m": [
-    "Sticky"
-   ],
-   "e": "Light",
-   "s": 0.2,
-   "w": 0.24,
-   "n": 1,
-   "a": null,
-   "c": 0.95,
-   "r": 3.97,
-   "g": [
-    "Sticky"
-   ],
    "ge": null,
    "ft": [],
    "fl": 1036,
    "x": [
-    "fruit stripe ≈ chewing gum (Wikidata)",
-    "chewing gum (hand anchor → Blob)"
+    "fruit squeezer = lemon squeezer (Wikidata alias)",
+    "lemon squeezer ≈ juicer (Wikidata)",
+    "juicer → drinker → … → person (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "gambelia juncea",
-   "d": "Gambelia juncea",
-   "f": "Pillar",
-   "m": [
-    "Barrier"
-   ],
-   "e": "Light",
-   "s": 5.0,
-   "w": 800.0,
-   "n": 1,
-   "a": null,
-   "c": 0.338,
-   "r": 1.014,
-   "g": [
-    "Barrier"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "gambelia juncea ≈ tracheophyte (Wikidata)",
-    "tracheophyte → vascular plant → plant (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "genitalia",
-   "d": null,
-   "f": "Gauntlet",
-   "m": [
-    "Blunt"
-   ],
-   "e": "Light",
-   "s": 0.4,
-   "w": 3.0,
-   "n": 1,
-   "a": null,
-   "c": 0.3,
-   "r": 3.09,
-   "g": [
-    "Grab"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 0,
-   "x": [
-    "genitalia: body (genitalia) -> Gauntlet (WordNet class default)"
-   ],
-   "t": null
-  },
-  {
-   "k": "gib airport",
-   "d": "Gib Airport",
-   "f": "Ball",
-   "m": [],
-   "e": "Wind",
-   "s": 0.4,
-   "w": 1.0,
-   "n": 1,
-   "a": null,
-   "c": 0.451,
-   "r": 3.08,
-   "g": [
-    "Ricochet"
-   ],
-   "ge": "Wind",
-   "ft": [],
-   "fl": 44,
-   "x": [
-    "gib airport = Gibraltar International Airport (Wikidata alias)",
-    "gibraltar international airport ≈ air transport infrastructure (Wikidata)",
-    "air (hand anchor → Ball)"
-   ],
-   "t": null
-  },
-  {
-   "k": "golden buprestid",
-   "d": "Golden Buprestid",
-   "f": "Insect",
-   "m": [
-    "Charge",
-    "Guard"
-   ],
-   "e": "Light",
-   "s": 0.25,
-   "w": 0.1,
-   "n": 1,
-   "a": null,
-   "c": 0.824,
-   "r": 0.9,
-   "g": [
-    "Charge",
-    "Guard"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "golden buprestid = Buprestis aurulenta (Wikidata alias)",
-    "buprestis aurulenta ≈ beetle (Wikidata)",
-    "beetle (hand anchor → Insect)"
-   ],
-   "t": null
-  },
-  {
-   "k": "graue wiener",
-   "d": "Graue Wiener",
+   "k": "gambelia copeii",
+   "d": "Gambelia copeii",
    "f": "Quadruped",
    "m": [
-    "Fast"
+    "Fast",
+    "Grab"
    ],
    "e": "Light",
    "s": 1.2,
    "w": 60.0,
    "n": 1,
    "a": null,
-   "c": 0.658,
-   "r": 1.74,
+   "c": 0.397,
+   "r": 1.295,
    "g": [
-    "Fast"
+    "Fast",
+    "Grab"
    ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "graue wiener ≈ rabbit breed (Wikidata)",
-    "rabbit → leporid → … → mammal (WordNet hypernym)"
+    "gambelia copeii ≈ animal (Wikidata)",
+    "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "grist",
+   "k": "genital tattooing",
    "d": null,
    "f": "Ball",
    "m": [],
@@ -14940,73 +14833,173 @@
    "w": 1.0,
    "n": 1,
    "a": null,
-   "c": 0.4,
-   "r": 2.68,
+   "c": 0.3,
+   "r": 3.17,
    "g": [
     "Ricochet"
    ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "genital tattooing ≈ body art (Wikidata)",
+    "art: artifact (art) -> Ball (WordNet class default)"
+   ],
+   "t": null
+  },
+  {
+   "k": "gib",
+   "d": null,
+   "f": "Quadruped",
+   "m": [],
+   "e": "Light",
+   "s": 0.8,
+   "w": 10.0,
+   "n": 1,
+   "a": null,
+   "c": 0.594,
+   "r": 2.58,
+   "g": [],
    "ge": null,
    "ft": [],
    "fl": 0,
    "x": [
-    "grist: food (grist) -> Ball (WordNet class default)"
+    "gib → tom → … → mammal (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "h n s",
-   "d": "Hınıs",
-   "f": "Quadruped",
+   "k": "golden bulbul",
+   "d": "Golden Bulbul",
+   "f": "Bird",
    "m": [
-    "Charge",
-    "Fast"
+    "Flies",
+    "Grab"
    ],
    "e": "Light",
-   "s": 1.35,
-   "w": 500.0,
+   "s": 0.6,
+   "w": 0.046,
    "n": 1,
    "a": null,
-   "c": 0.95,
-   "r": 5.26,
+   "c": 0.841,
+   "r": 2.41,
    "g": [
-    "Charge",
-    "Fast"
+    "Flies",
+    "Grab"
    ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "h n s ≈ horse breed (Wikidata)",
-    "horse (hand anchor → Quadruped)"
+    "golden bulbul ≈ bird (Wikidata)",
+    "bird (anchor -> Bird)"
    ],
    "t": null
   },
   {
-   "k": "hard roll",
-   "d": null,
-   "f": "Ball",
+   "k": "graue gehornte heidschnucke",
+   "d": "Graue Gehörnte Heidschnucke",
+   "f": "Quadruped",
    "m": [],
    "e": "Light",
-   "s": 0.4,
-   "w": 1.0,
+   "s": 0.65,
+   "w": 62.5,
    "n": 1,
    "a": null,
-   "c": 0.429,
-   "r": 4.68,
+   "c": 0.564,
+   "r": 0.845,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "graue gehornte heidschnucke = Heidschnucke (Wikidata alias)",
+    "heidschnucke ≈ sheep breed (Wikidata)",
+    "sheep → bovid → … → mammal (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "grisons fritillary",
+   "d": "Grisons Fritillary",
+   "f": "Insect",
+   "m": [
+    "Flies"
+   ],
+   "e": "Light",
+   "s": 0.25,
+   "w": 0.1,
+   "n": 1,
+   "a": null,
+   "c": 0.799,
+   "r": 1.85,
    "g": [
-    "Ricochet"
+    "Flies"
    ],
    "ge": null,
    "ft": [],
-   "fl": 1024,
+   "fl": 12,
    "x": [
-    "hard roll → bun → bread → baked goods (WordNet hypernym)"
+    "grisons fritillary = Melitaea varia (Wikidata alias)",
+    "melitaea varia ≈ insect (Wikidata)",
+    "insect (anchor -> Insect)"
    ],
    "t": null
   },
   {
-   "k": "helianthus gracilentus",
-   "d": "Helianthus gracilentus",
+   "k": "h moloch",
+   "d": "H. moloch",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.2,
+   "w": 40.0,
+   "n": 1,
+   "a": null,
+   "c": 0.728,
+   "r": 2.92,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "h moloch = silvery gibbon (Wikidata alias)",
+    "silvery gibbon ≈ gibbon (Wikidata)",
+    "gibbon → lesser ape → anthropoid ape (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "hard rock stadium",
+   "d": "Hard Rock Stadium",
+   "f": "Pillar",
+   "m": [
+    "Barrier"
+   ],
+   "e": "Light",
+   "s": 10.0,
+   "w": 100000.0,
+   "n": 1,
+   "a": null,
+   "c": 0.468,
+   "r": 4.95,
+   "g": [
+    "Barrier"
+   ],
+   "ge": null,
+   "ft": [
+    "Windows"
+   ],
+   "fl": 12,
+   "x": [
+    "hard rock stadium ≈ sports building (Wikidata)",
+    "building (anchor -> Pillar)"
+   ],
+   "t": null
+  },
+  {
+   "k": "helianthus giganteus",
+   "d": "Helianthus giganteus",
    "f": "Pillar",
    "m": [
     "Barrier"
@@ -15017,22 +15010,22 @@
    "n": 1,
    "a": null,
    "c": 0.369,
-   "r": 1.084,
+   "r": 1.89,
    "g": [
     "Barrier"
    ],
    "ge": null,
    "ft": [],
-   "fl": 12,
+   "fl": 1036,
    "x": [
-    "helianthus gracilentus ≈ helianthus (Wikidata)",
+    "helianthus giganteus ≈ helianthus (Wikidata)",
     "helianthus: plant (sunflower) -> Pillar (WordNet class default)"
    ],
    "t": null
   },
   {
-   "k": "highways in croatia",
-   "d": "Highways in Croatia",
+   "k": "highways in australia",
+   "d": "Highways in Australia",
    "f": "Boulder",
    "m": [
     "Heavy"
@@ -15042,8 +15035,8 @@
    "w": 2000.0,
    "n": 1,
    "a": null,
-   "c": 0.698,
-   "r": 4.0,
+   "c": 0.677,
+   "r": 4.35,
    "g": [
     "Heavy"
    ],
@@ -15051,14 +15044,14 @@
    "ft": [],
    "fl": 1036,
    "x": [
-    "highways in croatia ≈ linear infrastructure intrusion (Wikidata)",
+    "highways in australia ≈ linear infrastructure intrusion (Wikidata)",
     "intrusion → rock (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "hnlms willem van ewijck",
-   "d": "HNLMS Willem van Ewijck",
+   "k": "hnlms walrus",
+   "d": "HNLMS Walrus",
    "f": "Vehicle",
    "m": [
     "Charge"
@@ -15068,26 +15061,28 @@
    "w": 500000.0,
    "n": 1,
    "a": null,
-   "c": 0.812,
-   "r": 0.934,
+   "c": 0.757,
+   "r": 1.014,
    "g": [
     "Charge"
    ],
    "ge": null,
    "ft": [
     "Mast",
+    "Propeller",
+    "Smokestack",
     "Windows"
    ],
    "fl": 12,
    "x": [
-    "hnlms willem van ewijck ≈ minesweeper (Wikidata)",
-    "minesweeper → ship (WordNet hypernym)"
+    "hnlms walrus ≈ ship (Wikidata)",
+    "ship (anchor -> Vehicle)"
    ],
    "t": null
   },
   {
-   "k": "hot bird 13e",
-   "d": "Hot Bird 13E",
+   "k": "hot bird 13c",
+   "d": "Hot Bird 13C",
    "f": "Disc",
    "m": [
     "Beam",
@@ -15096,11 +15091,11 @@
    ],
    "e": "Light",
    "s": 4.0,
-   "w": 2920.0,
+   "w": 1000.0,
    "n": 1,
    "a": null,
-   "c": 0.855,
-   "r": 2.24,
+   "c": 0.812,
+   "r": 2.95,
    "g": [
     "Beam",
     "Flies",
@@ -15113,14 +15108,15 @@
    ],
    "fl": 12,
    "x": [
-    "hot bird 13e ≈ direct broadcast satellite (Wikidata)",
+    "hot bird 13c = Eutelsat 12 West G (Wikidata alias)",
+    "eutelsat 12 west g ≈ communications satellite (Wikidata)",
     "satellite (hand anchor → Disc)"
    ],
    "t": null
   },
   {
-   "k": "hydrolagus melanophasma",
-   "d": "Hydrolagus melanophasma",
+   "k": "hydrolagus marmoratus",
+   "d": "Hydrolagus marmoratus",
    "f": "Quadruped",
    "m": [
     "Fast",
@@ -15132,7 +15128,7 @@
    "n": 1,
    "a": null,
    "c": 0.41,
-   "r": 1.25,
+   "r": 1.014,
    "g": [
     "Fast",
     "Grab"
@@ -15141,14 +15137,14 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "hydrolagus melanophasma ≈ animal (Wikidata)",
+    "hydrolagus marmoratus ≈ animal (Wikidata)",
     "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "ignatius j reilly",
-   "d": "Ignatius J. Reilly",
+   "k": "ignat timofeevich lebyadkin",
+   "d": "Ignat Timofeevich Lebyadkin",
    "f": "Biped",
    "m": [],
    "e": "Light",
@@ -15156,21 +15152,22 @@
    "w": 40.0,
    "n": 1,
    "a": null,
-   "c": 0.757,
-   "r": 3.29,
+   "c": 0.677,
+   "r": 0.5,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "ignatius j reilly ≈ fictional primate (Wikidata)",
+    "ignat timofeevich lebyadkin = Captain Lebyadkin (Wikidata alias)",
+    "captain lebyadkin ≈ fictional primate (Wikidata)",
     "primate (anchor -> Biped)"
    ],
    "t": null
   },
   {
-   "k": "indochinese bush lark",
-   "d": "Indochinese Bush Lark",
+   "k": "indochinese blue flycatcher",
+   "d": "Indochinese Blue Flycatcher",
    "f": "Bird",
    "m": [
     "Flies",
@@ -15182,7 +15179,7 @@
    "n": 1,
    "a": null,
    "c": 0.841,
-   "r": 2.54,
+   "r": 2.39,
    "g": [
     "Flies",
     "Grab"
@@ -15191,42 +15188,198 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "indochinese bush lark ≈ bird (Wikidata)",
+    "indochinese blue flycatcher ≈ bird (Wikidata)",
     "bird (anchor -> Bird)"
    ],
    "t": null
   },
   {
-   "k": "isaiah bradley",
-   "d": null,
-   "f": "Biped",
+   "k": "isai vl lgv31",
+   "d": "Isai VL LGV31",
+   "f": "Shield",
    "m": [
-    "Blunt",
+    "Beam",
     "Guard"
    ],
-   "e": "Light",
-   "s": 1.2,
-   "w": 40.0,
+   "e": "Electric",
+   "s": 0.15,
+   "w": 0.028,
    "n": 1,
    "a": null,
    "c": 0.95,
-   "r": 3.96,
+   "r": 0.573,
    "g": [
-    "Blunt",
+    "Beam",
     "Guard"
+   ],
+   "ge": "Electric",
+   "ft": [],
+   "fl": 1036,
+   "x": [
+    "isai vl lgv31 ≈ smartphone (Wikidata)",
+    "smartphone (hand anchor → Shield)"
+   ],
+   "t": null
+  },
+  {
+   "k": "jan hus memorial",
+   "d": "Jan Hus Memorial",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.8,
+   "w": 80.0,
+   "n": 1,
+   "a": null,
+   "c": 0.665,
+   "r": 3.17,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "jan hus memorial ≈ statue (Wikidata)",
+    "statue (anchor -> Biped)"
+   ],
+   "t": null
+  },
+  {
+   "k": "jim lockhart",
+   "d": "Jim Lockhart",
+   "f": "Anvil",
+   "m": [
+    "DropFromSky",
+    "Heavy"
+   ],
+   "e": "Light",
+   "s": 0.8,
+   "w": 150.0,
+   "n": 1,
+   "a": null,
+   "c": 0.345,
+   "r": 3.67,
+   "g": [
+    "Heavy"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "jim lockhart = Red Torpedo (Wikidata alias)",
+    "red torpedo ≈ comic book character (Wikidata)",
+    "book (anchor -> Anvil)"
+   ],
+   "t": null
+  },
+  {
+   "k": "jupiter ganymede orbiter",
+   "d": "Jupiter Ganymede Orbiter",
+   "f": "Disc",
+   "m": [
+    "Beam",
+    "Flies",
+    "Returning"
+   ],
+   "e": "Light",
+   "s": 4.0,
+   "w": 1000.0,
+   "n": 1,
+   "a": null,
+   "c": 0.78,
+   "r": 2.84,
+   "g": [
+    "Beam",
+    "Flies",
+    "Returning"
+   ],
+   "ge": null,
+   "ft": [
+    "Antenna",
+    "Dish"
+   ],
+   "fl": 12,
+   "x": [
+    "jupiter ganymede orbiter ≈ artificial satellite (Wikidata)",
+    "satellite (hand anchor → Disc)"
+   ],
+   "t": null
+  },
+  {
+   "k": "kataphrakt",
+   "d": null,
+   "f": "Kaiju",
+   "m": [
+    "Heavy",
+    "Piloted",
+    "Stomp"
+   ],
+   "e": "Light",
+   "s": 14.0,
+   "w": 30000.0,
+   "n": 1,
+   "a": null,
+   "c": 0.95,
+   "r": 3.3,
+   "g": [
+    "Piloted",
+    "Stomp"
    ],
    "ge": null,
    "ft": [],
    "fl": 8,
    "x": [
-    "isaiah bradley = isaiah bradley (Q3155104, marvel_names.txt)",
-    "isaiah bradley ≈ fictional primate (Wikidata)"
+    "kataphrakt = aldnoah zero (curated alias)",
+    "aldnoah zero (curated name, anime_names.txt)"
    ],
    "t": null
   },
   {
-   "k": "jan kirushutain",
-   "d": "Jan Kirushutain",
+   "k": "killowat",
+   "d": "Killowat",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.8,
+   "w": 80.0,
+   "n": 1,
+   "a": null,
+   "c": 0.3,
+   "r": 0.5,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "killowat ≈ fiction character (Wikidata)"
+   ],
+   "t": null
+  },
+  {
+   "k": "kooka sheep",
+   "d": "Kooka sheep",
+   "f": "Quadruped",
+   "m": [],
+   "e": "Light",
+   "s": 0.66,
+   "w": 40.75,
+   "n": 1,
+   "a": null,
+   "c": 0.564,
+   "r": 0.5,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "kooka sheep = Kooka (Wikidata alias)",
+    "kooka ≈ sheep breed (Wikidata)",
+    "sheep → bovid → … → mammal (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "kyoshiro",
+   "d": "Kyoshiro",
    "f": "Biped",
    "m": [],
    "e": "Light",
@@ -15234,241 +15387,94 @@
    "w": 40.0,
    "n": 1,
    "a": null,
-   "c": 0.698,
-   "r": 0.944,
+   "c": 0.719,
+   "r": 1.93,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "jan kirushutain = Jean Kirstein (Wikidata alias)",
-    "jean kirstein ≈ fictional primate (Wikidata)",
+    "kyoshiro = Denjiro (Wikidata alias)",
+    "denjiro ≈ fictional primate (Wikidata)",
     "primate (anchor -> Biped)"
    ],
    "t": null
   },
   {
-   "k": "jim mcdonald",
-   "d": "Jim McDonald",
+   "k": "lanxi county",
+   "d": "Lanxi County",
    "f": "Biped",
    "m": [],
    "e": "Light",
-   "s": 1.2,
-   "w": 40.0,
+   "s": 1.8,
+   "w": 80.0,
    "n": 1,
    "a": null,
-   "c": 0.78,
-   "r": 4.21,
+   "c": 0.345,
+   "r": 0.5,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "jim mcdonald ≈ fictional primate (Wikidata)",
-    "primate (anchor -> Biped)"
+    "lanxi county ≈ fictional administrative territorial entity (Wikidata)",
+    "territorial → soldier → … → person (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "jupiter heliopolitan",
-   "d": "Jupiter Heliopolitan",
-   "f": "Pillar",
+   "k": "ledge",
+   "d": null,
+   "f": "Boulder",
    "m": [
-    "Barrier"
+    "Heavy"
    ],
-   "e": "Light",
+   "e": "Earth",
    "s": 1.5,
-   "w": 30.0,
+   "w": 2000.0,
+   "n": 1,
+   "a": null,
+   "c": 0.386,
+   "r": 3.41,
+   "g": [
+    "Heavy"
+   ],
+   "ge": "Earth",
+   "ft": [],
+   "fl": 2048,
+   "x": [
+    "ledge → ridge → natural elevation → geological formation (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "level 9",
+   "d": "Level 9",
+   "f": "Ball",
+   "m": [],
+   "e": "Light",
+   "s": 0.4,
+   "w": 1.0,
    "n": 1,
    "a": null,
    "c": 0.285,
-   "r": 0.5,
+   "r": 5.61,
    "g": [
-    "Barrier"
+    "Ricochet"
    ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "jupiter heliopolitan = Jupiter Heliopolitanus (Wikidata alias)",
-    "jupiter heliopolitanus ≈ figure that may or may not be fictional (Wikidata)",
-    "may: plant (whitethorn) -> Pillar (WordNet class default)"
+    "level 9 = Darkened Suburbs (Wikidata alias)",
+    "darkened suburbs ≈ level of the backrooms (Wikidata)",
+    "backroom: artifact (backroom) -> Ball (WordNet class default)"
    ],
    "t": null
   },
   {
-   "k": "katar",
-   "d": null,
-   "f": "Sword",
-   "m": [
-    "Blade"
-   ],
-   "e": "Light",
-   "s": 1.1,
-   "w": 3.0,
-   "n": 1,
-   "a": null,
-   "c": 0.902,
-   "r": 2.171,
-   "g": [
-    "Blade"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "katar ≈ dagger (Wikidata)",
-    "dagger (anchor -> Sword)"
-   ],
-   "t": null
-  },
-  {
-   "k": "killpower julius mullarkey",
-   "d": "Killpower (Julius Mullarkey)",
-   "f": "Biped",
-   "m": [],
-   "e": "Light",
-   "s": 1.8,
-   "w": 80.0,
-   "n": 1,
-   "a": null,
-   "c": 0.475,
-   "r": 0.5,
-   "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "killpower julius mullarkey = Killpower (Wikidata alias)",
-    "killpower ≈ fictional marvel comics character (Wikidata)",
-    "comic → comedian → … → person (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "kookoolau",
-   "d": "Kookoolau",
-   "f": "Pillar",
-   "m": [
-    "Barrier"
-   ],
-   "e": "Light",
-   "s": 5.0,
-   "w": 800.0,
-   "n": 1,
-   "a": null,
-   "c": 0.321,
-   "r": 0.714,
-   "g": [
-    "Barrier"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "kookoolau = Bidens wiebkei (Wikidata alias)",
-    "bidens wiebkei ≈ tracheophyte (Wikidata)",
-    "tracheophyte → vascular plant → plant (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "kyosuke kamizu",
-   "d": "Kyōsuke Kamizu",
-   "f": "Biped",
-   "m": [],
-   "e": "Light",
-   "s": 1.8,
-   "w": 80.0,
-   "n": 1,
-   "a": null,
-   "c": 0.625,
-   "r": 0.573,
-   "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "kyosuke kamizu ≈ fictional detective (Wikidata)",
-    "detective → policeman → … → person (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "lanxiang",
-   "d": "Lanxiang",
-   "f": "Biped",
-   "m": [],
-   "e": "Light",
-   "s": 1.2,
-   "w": 40.0,
-   "n": 1,
-   "a": null,
-   "c": 0.757,
-   "r": 0.5,
-   "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "lanxiang ≈ fictional primate (Wikidata)",
-    "primate (anchor -> Biped)"
-   ],
-   "t": null
-  },
-  {
-   "k": "ledge grass",
-   "d": "Ledge Grass",
-   "f": "Pillar",
-   "m": [
-    "Barrier"
-   ],
-   "e": "Light",
-   "s": 5.0,
-   "w": 800.0,
-   "n": 1,
-   "a": null,
-   "c": 0.312,
-   "r": 3.87,
-   "g": [
-    "Barrier"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "ledge grass = Poa hothamensis (Wikidata alias)",
-    "poa hothamensis ≈ tracheophyte (Wikidata)",
-    "tracheophyte → vascular plant → plant (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "level 9 1",
-   "d": "Level 9-1",
-   "f": "Platform",
-   "m": [],
-   "e": "Light",
-   "s": 3.0,
-   "w": 400.0,
-   "n": 1,
-   "a": null,
-   "c": 0.741,
-   "r": 5.56,
-   "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "level 9 1 = World 9-1 (Wikidata alias)",
-    "world 9 1 ≈ stage (Wikidata)",
-    "stage (anchor -> Platform)"
-   ],
-   "t": null
-  },
-  {
-   "k": "liophidium mayottensis",
-   "d": "Liophidium mayottensis",
+   "k": "liopeltis tricolor",
+   "d": "Liopeltis tricolor",
    "f": "Quadruped",
    "m": [
     "Fast",
@@ -15480,7 +15486,7 @@
    "n": 1,
    "a": null,
    "c": 0.397,
-   "r": 1.145,
+   "r": 1.25,
    "g": [
     "Fast",
     "Grab"
@@ -15489,112 +15495,75 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "liophidium mayottensis ≈ animal (Wikidata)",
+    "liopeltis tricolor ≈ animal (Wikidata)",
     "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "long chain molecule",
-   "d": null,
-   "f": "Boulder",
+   "k": "long cecil",
+   "d": "Long Cecil",
+   "f": "Cannon",
    "m": [
-    "Heavy"
+    "Heavy",
+    "Shoots"
    ],
-   "e": "Earth",
-   "s": 1.5,
-   "w": 2000.0,
-   "n": 1,
-   "a": null,
-   "c": 0.35,
-   "r": 3.62,
-   "g": [
-    "Heavy"
-   ],
-   "ge": "Earth",
-   "ft": [],
-   "fl": 1024,
-   "x": [
-    "long chain molecule: object (long chain) -> Boulder (WordNet class default)"
-   ],
-   "t": null
-  },
-  {
-   "k": "lug",
-   "d": null,
-   "f": "Cape",
-   "m": [
-    "Glide"
-   ],
-   "e": "Light",
-   "s": 1.4,
-   "w": 2.0,
-   "n": 1,
-   "a": null,
-   "c": 0.677,
-   "r": 3.09,
-   "g": [
-    "Glide"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 0,
-   "x": [
-    "lug → lugsail → fore-and-aft sail → sail (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "macdunnoughia macdunnoughia confusa",
-   "d": "Macdunnoughia (Macdunnoughia) confusa",
-   "f": "Insect",
-   "m": [
-    "Flies"
-   ],
-   "e": "Light",
-   "s": 0.25,
-   "w": 0.1,
-   "n": 1,
-   "a": null,
-   "c": 0.799,
-   "r": 1.177,
-   "g": [
-    "Flies"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "macdunnoughia macdunnoughia confusa = Macdunnoughia confusa (Wikidata alias)",
-    "macdunnoughia confusa ≈ insect (Wikidata)",
-    "insect (anchor -> Insect)"
-   ],
-   "t": null
-  },
-  {
-   "k": "mall rat",
-   "d": null,
-   "f": "Biped",
-   "m": [],
    "e": "Light",
    "s": 1.8,
    "w": 80.0,
    "n": 1,
    "a": null,
-   "c": 0.437,
-   "r": 3.92,
-   "g": [],
+   "c": 0.855,
+   "r": 4.01,
+   "g": [
+    "Shoots"
+   ],
    "ge": null,
-   "ft": [],
-   "fl": 64,
+   "ft": [
+    "Barrels",
+    "Wheels"
+   ],
+   "fl": 12,
    "x": [
-    "mall rat ≈ boulevardier (ConceptNet SimilarTo)"
+    "long cecil ≈ howitzer (Wikidata)",
+    "howitzer ≈ mortar (WordNet synonym)"
    ],
    "t": null
   },
   {
-   "k": "mark brennan",
-   "d": "Mark Brennan",
+   "k": "luftwaffe lighter",
+   "d": "Luftwaffe's Lighter",
+   "f": "Wall",
+   "m": [
+    "Barrier",
+    "Guard",
+    "Heavy"
+   ],
+   "e": "Light",
+   "s": 6.67,
+   "w": 15625.0,
+   "n": 1,
+   "a": null,
+   "c": 0.812,
+   "r": 3.3,
+   "g": [
+    "Barrier",
+    "Guard",
+    "Heavy"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 1036,
+   "x": [
+    "luftwaffe lighter = Heinkel He 177 Greif (Wikidata alias)",
+    "heinkel he 177 greif ≈ flying fortress (Wikidata)",
+    "fortress (hand anchor → Wall)"
+   ],
+   "t": null
+  },
+  {
+   "k": "macduff son",
+   "d": "Macduff's son",
    "f": "Biped",
    "m": [],
    "e": "Light",
@@ -15602,47 +15571,21 @@
    "w": 40.0,
    "n": 1,
    "a": null,
-   "c": 0.78,
-   "r": 4.13,
+   "c": 0.734,
+   "r": 2.85,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "mark brennan ≈ fictional primate (Wikidata)",
+    "macduff son ≈ fictional primate (Wikidata)",
     "primate (anchor -> Biped)"
    ],
    "t": null
   },
   {
-   "k": "maya death gods",
-   "d": "Maya death gods",
-   "f": "Pillar",
-   "m": [
-    "Barrier"
-   ],
-   "e": "Light",
-   "s": 1.5,
-   "w": 30.0,
-   "n": 1,
-   "a": null,
-   "c": 0.3,
-   "r": 4.25,
-   "g": [
-    "Barrier"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "maya death gods ≈ figure that may or may not be fictional (Wikidata)",
-    "may: plant (whitethorn) -> Pillar (WordNet class default)"
-   ],
-   "t": null
-  },
-  {
-   "k": "melidora macrorrhina",
-   "d": "Melidora macrorrhina",
+   "k": "malkoha",
+   "d": null,
    "f": "Bird",
    "m": [
     "Flies",
@@ -15650,11 +15593,11 @@
    ],
    "e": "Light",
    "s": 0.6,
-   "w": 0.097,
+   "w": 2.0,
    "n": 1,
    "a": null,
-   "c": 0.799,
-   "r": 2.252,
+   "c": 0.824,
+   "r": 1.378,
    "g": [
     "Flies",
     "Grab"
@@ -15663,15 +15606,103 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "melidora macrorrhina = Hook-billed Kingfisher (Wikidata alias)",
-    "hook billed kingfisher ≈ bird (Wikidata)",
+    "malkoha = Phaenicophaeus (Wikidata alias)",
+    "phaenicophaeus ≈ bird (Wikidata)",
     "bird (anchor -> Bird)"
    ],
    "t": null
   },
   {
-   "k": "mgf",
-   "d": "MGF",
+   "k": "mark blaze and andrea steele spacecraft",
+   "d": "Mark Blaze and Andrea Steele's spacecraft",
+   "f": "Vehicle",
+   "m": [
+    "Charge",
+    "Walks"
+   ],
+   "e": "Light",
+   "s": 4.0,
+   "w": 1500.0,
+   "n": 1,
+   "a": null,
+   "c": 0.78,
+   "r": 3.61,
+   "g": [
+    "Charge",
+    "Walks"
+   ],
+   "ge": null,
+   "ft": [
+    "Wheels"
+   ],
+   "fl": 12,
+   "x": [
+    "mark blaze and andrea steele spacecraft ≈ fictional vehicle (Wikidata)",
+    "vehicle (anchor -> Vehicle)"
+   ],
+   "t": null
+  },
+  {
+   "k": "maya cream nose",
+   "d": "Maya Cream-nose",
+   "f": "Quadruped",
+   "m": [
+    "Blade",
+    "Fast"
+   ],
+   "e": "Light",
+   "s": 0.5,
+   "w": 4.34,
+   "n": 1,
+   "a": null,
+   "c": 0.902,
+   "r": 4.22,
+   "g": [
+    "Blade",
+    "Fast"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "maya cream nose = Molly-Cream-Nose (Wikidata alias)",
+    "molly cream nose ≈ fictional cat (Wikidata)",
+    "cat (hand anchor → Quadruped)"
+   ],
+   "t": null
+  },
+  {
+   "k": "melidectes whitemanensis",
+   "d": "Melidectes whitemanensis",
+   "f": "Bird",
+   "m": [
+    "Flies",
+    "Grab"
+   ],
+   "e": "Light",
+   "s": 0.6,
+   "w": 2.0,
+   "n": 1,
+   "a": null,
+   "c": 0.799,
+   "r": 1.177,
+   "g": [
+    "Flies",
+    "Grab"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "melidectes whitemanensis = Gilliard's Melidectes (Wikidata alias)",
+    "gilliard melidectes ≈ bird (Wikidata)",
+    "bird (anchor -> Bird)"
+   ],
+   "t": null
+  },
+  {
+   "k": "mgb roadster",
+   "d": "MGB Roadster",
    "f": "Vehicle",
    "m": [
     "Charge",
@@ -15683,7 +15714,7 @@
    "n": 1,
    "a": null,
    "c": 0.875,
-   "r": 2.485,
+   "r": 2.51,
    "g": [
     "Charge",
     "Fast"
@@ -15697,15 +15728,15 @@
    ],
    "fl": 1036,
    "x": [
-    "mgf = MG F (Wikidata alias)",
-    "mg f ≈ car (Wikidata)",
+    "mgb roadster = MG MGB (Wikidata alias)",
+    "mg mgb ≈ car (Wikidata)",
     "car (hand anchor → Vehicle)"
    ],
    "t": null
   },
   {
-   "k": "minerva ii",
-   "d": "Minerva II",
+   "k": "minerva class corvette",
+   "d": "Minerva-class corvette",
    "f": "Vehicle",
    "m": [
     "Charge"
@@ -15715,8 +15746,8 @@
    "w": 500000.0,
    "n": 1,
    "a": null,
-   "c": 0.788,
-   "r": 3.49,
+   "c": 0.829,
+   "r": 3.33,
    "g": [
     "Charge"
    ],
@@ -15727,17 +15758,16 @@
     "Smokestack",
     "Windows"
    ],
-   "fl": 12,
+   "fl": 1036,
    "x": [
-    "minerva ii = Azamara Pursuit (Wikidata alias)",
-    "azamara pursuit ≈ ship (Wikidata)",
+    "minerva class corvette ≈ ship (Wikidata)",
     "ship (anchor -> Vehicle)"
    ],
    "t": null
   },
   {
-   "k": "mollugo pentaphylla",
-   "d": "Mollugo pentaphylla",
+   "k": "mollugo cerviana",
+   "d": "Mollugo cerviana",
    "f": "Pillar",
    "m": [
     "Barrier"
@@ -15748,7 +15778,7 @@
    "n": 1,
    "a": null,
    "c": 0.338,
-   "r": 1.014,
+   "r": 1.145,
    "g": [
     "Barrier"
    ],
@@ -15756,14 +15786,14 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "mollugo pentaphylla ≈ tracheophyte (Wikidata)",
+    "mollugo cerviana ≈ tracheophyte (Wikidata)",
     "tracheophyte → vascular plant → plant (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "motorola 68040",
-   "d": "Motorola 68040",
+   "k": "motorola 68020",
+   "d": "Motorola 68020",
    "f": "Platform",
    "m": [],
    "e": "Light",
@@ -15772,20 +15802,20 @@
    "n": 1,
    "a": null,
    "c": 0.757,
-   "r": 1.506,
+   "r": 1.587,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 1036,
    "x": [
-    "motorola 68040 ≈ computing platform (Wikidata)",
+    "motorola 68020 ≈ computing platform (Wikidata)",
     "platform (hand anchor → Platform)"
    ],
    "t": null
   },
   {
-   "k": "muller tegu",
-   "d": "Muller's Tegu",
+   "k": "muller spinythumb frog",
+   "d": "Muller's spinythumb frog,",
    "f": "Quadruped",
    "m": [
     "Fast",
@@ -15797,7 +15827,7 @@
    "n": 1,
    "a": null,
    "c": 0.377,
-   "r": 1.99,
+   "r": 1.111,
    "g": [
     "Fast",
     "Grab"
@@ -15806,116 +15836,15 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "muller tegu = Leposoma percarinatum (Wikidata alias)",
-    "leposoma percarinatum ≈ animal (Wikidata)",
+    "muller spinythumb frog = Crossodactylus gaudichaudii (Wikidata alias)",
+    "crossodactylus gaudichaudii ≈ animal (Wikidata)",
     "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "nagisa endo",
-   "d": "Nagisa Endō",
-   "f": "Biped",
-   "m": [],
-   "e": "Light",
-   "s": 1.52,
-   "w": 80.0,
-   "n": 1,
-   "a": null,
-   "c": 0.313,
-   "r": 2.75,
-   "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "nagisa endo ≈ independent entity (Wikidata)",
-    "independent → mugwump → individualist → person (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "neglected worm lizard",
-   "d": "Neglected Worm Lizard",
-   "f": "Kaiju",
-   "m": [
-    "Heavy",
-    "Stomp"
-   ],
-   "e": "Light",
-   "s": 14.0,
-   "w": 30000.0,
-   "n": 1,
-   "a": null,
-   "c": 0.665,
-   "r": 3.74,
-   "g": [
-    "Stomp"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "neglected worm lizard = Amphisbaena neglecta (Wikidata alias)",
-    "amphisbaena neglecta ≈ amphisbaena (Wikidata)",
-    "amphisbaena → mythical monster (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "nidung",
-   "d": "Nidung",
-   "f": "Biped",
-   "m": [],
-   "e": "Light",
-   "s": 1.8,
-   "w": 80.0,
-   "n": 1,
-   "a": null,
-   "c": 0.658,
-   "r": 1.718,
-   "g": [],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "nidung = Niðhad (Wikidata alias)",
-    "ni had ≈ mythological king (Wikidata)",
-    "king → sovereign → ruler → person (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "nordmann greenshank",
-   "d": "Nordmann’s Greenshank",
-   "f": "Bird",
-   "m": [
-    "Flies",
-    "Grab"
-   ],
-   "e": "Light",
-   "s": 0.6,
-   "w": 2.0,
-   "n": 1,
-   "a": null,
-   "c": 0.841,
-   "r": 2.269,
-   "g": [
-    "Flies",
-    "Grab"
-   ],
-   "ge": null,
-   "ft": [],
-   "fl": 12,
-   "x": [
-    "nordmann greenshank ≈ bird (Wikidata)",
-    "bird (anchor -> Bird)"
-   ],
-   "t": null
-  },
-  {
-   "k": "nyosannomiya",
-   "d": "Nyosannomiya",
+   "k": "nagisa",
+   "d": "Nagisa",
    "f": "Biped",
    "m": [],
    "e": "Light",
@@ -15923,128 +15852,105 @@
    "w": 40.0,
    "n": 1,
    "a": null,
-   "c": 0.719,
-   "r": 1.043,
+   "c": 0.757,
+   "r": 2.86,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "nyosannomiya = Onna San no miya (Wikidata alias)",
-    "onna san no miya ≈ fictional primate (Wikidata)",
+    "nagisa ≈ fictional primate (Wikidata)",
     "primate (anchor -> Biped)"
    ],
    "t": null
   },
   {
-   "k": "oligocentria lignicolor",
-   "d": "Oligocentria lignicolor",
-   "f": "Insect",
+   "k": "neglected sunflower",
+   "d": null,
+   "f": "Pillar",
    "m": [
-    "Flies"
+    "Barrier"
    ],
    "e": "Light",
-   "s": 0.25,
+   "s": 0.5,
    "w": 0.1,
    "n": 1,
    "a": null,
-   "c": 0.841,
-   "r": 0.934,
+   "c": 0.35,
+   "r": 3.72,
    "g": [
-    "Flies"
+    "Barrier"
    ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "oligocentria lignicolor ≈ insect (Wikidata)",
-    "insect (anchor -> Insect)"
+    "neglected sunflower = Helianthus neglectus (Wikidata alias)",
+    "helianthus neglectus ≈ helianthus (Wikidata)",
+    "helianthus: plant (sunflower) -> Pillar (WordNet class default)"
    ],
    "t": null
   },
   {
-   "k": "orconectes quadruncus",
-   "d": "Orconectes quadruncus",
-   "f": "Insect",
+   "k": "nidua fringe fingered lizard",
+   "d": "Nidua fringe-fingered lizard",
+   "f": "Quadruped",
    "m": [
-    "Guard"
+    "Fast",
+    "Grab"
    ],
-   "e": "Light",
-   "s": 0.3,
-   "w": 0.5,
-   "n": 1,
-   "a": null,
-   "c": 0.475,
-   "r": 1.084,
-   "g": [
-    "Guard"
-   ],
-   "ge": null,
-   "ft": [
-    "Armor"
-   ],
-   "fl": 12,
-   "x": [
-    "orconectes quadruncus ≈ arthropod (Wikidata)",
-    "arthropod (anchor -> Insect)"
-   ],
-   "t": null
-  },
-  {
-   "k": "oxymonacanthus longirostris",
-   "d": "Oxymonacanthus longirostris",
-   "f": "Fish",
-   "m": [
-    "Pierce"
-   ],
-   "e": "Water",
-   "s": 0.8,
-   "w": 5.0,
-   "n": 1,
-   "a": null,
-   "c": 0.657,
-   "r": 1.334,
-   "g": [
-    "Pierce"
-   ],
-   "ge": "Water",
-   "ft": [
-    "Fins"
-   ],
-   "fl": 12,
-   "x": [
-    "oxymonacanthus longirostris = orange spotted filefish (Wikidata alias)",
-    "orange spotted filefish ≈ filefish (Wikidata)",
-    "filefish → plectognath → … → fish (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "pan zhuogui",
-   "d": "Pan Zhuogui",
-   "f": "Biped",
-   "m": [],
    "e": "Light",
    "s": 1.2,
-   "w": 40.0,
+   "w": 60.0,
    "n": 1,
    "a": null,
-   "c": 0.719,
-   "r": 0.5,
-   "g": [],
+   "c": 0.377,
+   "r": 1.111,
+   "g": [
+    "Fast",
+    "Grab"
+   ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "pan zhuogui = Pan Daoshi (Wikidata alias)",
-    "pan daoshi ≈ fictional primate (Wikidata)",
-    "primate (anchor -> Biped)"
+    "nidua fringe fingered lizard = Acanthodactylus scutellatus (Wikidata alias)",
+    "acanthodactylus scutellatus ≈ animal (Wikidata)",
+    "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "parvicursor",
-   "d": "Parvicursor",
+   "k": "nordlys",
+   "d": "Nordlys",
+   "f": "Vehicle",
+   "m": [
+    "Charge"
+   ],
+   "e": "Light",
+   "s": 6.0,
+   "w": 1500.0,
+   "n": 1,
+   "a": null,
+   "c": 0.812,
+   "r": 1.25,
+   "g": [
+    "Charge"
+   ],
+   "ge": null,
+   "ft": [
+    "Propeller"
+   ],
+   "fl": 12,
+   "x": [
+    "nordlys ≈ ferry (Wikidata)",
+    "ferry → boat (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "nyororosaurus",
+   "d": "Nyororosaurus",
    "f": "Kaiju",
    "m": [
     "ArticulatedTail",
@@ -16066,13 +15972,133 @@
    "ft": [],
    "fl": 8,
    "x": [
-    "parvicursor: dinosaur (dariusk/corpora)"
+    "nyororosaurus: dinosaur (dariusk/corpora)"
    ],
    "t": null
   },
   {
-   "k": "penstemon glandulosus",
-   "d": "Penstemon glandulosus",
+   "k": "oligia modica",
+   "d": "Oligia modica",
+   "f": "Insect",
+   "m": [
+    "Flies"
+   ],
+   "e": "Light",
+   "s": 0.25,
+   "w": 0.1,
+   "n": 1,
+   "a": null,
+   "c": 0.841,
+   "r": 1.014,
+   "g": [
+    "Flies"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "oligia modica ≈ insect (Wikidata)",
+    "insect (anchor -> Insect)"
+   ],
+   "t": null
+  },
+  {
+   "k": "orconectes punctimanus",
+   "d": "Orconectes punctimanus",
+   "f": "Insect",
+   "m": [
+    "Guard"
+   ],
+   "e": "Light",
+   "s": 0.3,
+   "w": 0.5,
+   "n": 1,
+   "a": null,
+   "c": 0.475,
+   "r": 0.839,
+   "g": [
+    "Guard"
+   ],
+   "ge": null,
+   "ft": [
+    "Armor"
+   ],
+   "fl": 12,
+   "x": [
+    "orconectes punctimanus ≈ arthropod (Wikidata)",
+    "arthropod (anchor -> Insect)"
+   ],
+   "t": null
+  },
+  {
+   "k": "oxylus",
+   "d": "Oxylus",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.8,
+   "w": 80.0,
+   "n": 1,
+   "a": null,
+   "c": 0.588,
+   "r": 1.337,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "oxylus ≈ son of haemon mythical king of elis (Wikidata)",
+    "son → male offspring → male → person (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "pan zhang",
+   "d": "Pan Zhang",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.2,
+   "w": 40.0,
+   "n": 1,
+   "a": null,
+   "c": 0.757,
+   "r": 4.1,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "pan zhang ≈ fictional primate (Wikidata)",
+    "primate (anchor -> Biped)"
+   ],
+   "t": null
+  },
+  {
+   "k": "parvati patil",
+   "d": "Parvati Patil",
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.8,
+   "w": 80.0,
+   "n": 1,
+   "a": null,
+   "c": 0.599,
+   "r": 2.86,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "parvati patil ≈ gryffindor student (Wikidata)",
+    "student → enrollee → person (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "penstemon gibbensii",
+   "d": "Penstemon gibbensii",
    "f": "Pillar",
    "m": [
     "Barrier"
@@ -16083,7 +16109,7 @@
    "n": 1,
    "a": null,
    "c": 0.338,
-   "r": 0.934,
+   "r": 1.145,
    "g": [
     "Barrier"
    ],
@@ -16091,148 +16117,69 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "penstemon glandulosus ≈ tracheophyte (Wikidata)",
+    "penstemon gibbensii ≈ tracheophyte (Wikidata)",
     "tracheophyte → vascular plant → plant (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "phanaeng curry",
-   "d": "Phanaeng curry",
-   "f": "Ball",
-   "m": [],
+   "k": "phan thai norasing",
+   "d": "Phan Thai Norasing",
+   "f": "Biped",
+   "m": [
+    "Blade",
+    "Fast",
+    "Grab"
+   ],
    "e": "Light",
-   "s": 0.4,
-   "w": 1.0,
+   "s": 1.8,
+   "w": 80.0,
    "n": 1,
    "a": null,
-   "c": 0.369,
-   "r": 1.337,
+   "c": 0.285,
+   "r": 0.5,
    "g": [
-    "Ricochet"
+    "Blade",
+    "Fast"
    ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "phanaeng curry ≈ curry (Wikidata)",
-    "curry: food (curry) -> Ball (WordNet class default)"
+    "phan thai norasing = Phanthai Norasing (Wikidata alias)",
+    "phanthai norasing ≈ person (Wikidata)",
+    "person (anchor -> Biped)"
    ],
    "t": null
   },
   {
-   "k": "pig sty latrine",
+   "k": "pig saddle",
    "d": null,
-   "f": "Anvil",
+   "f": "Quadruped",
    "m": [
-    "DropFromSky",
-    "Heavy"
-   ],
-   "e": "Water",
-   "s": 0.8,
-   "w": 150.0,
-   "n": 1,
-   "a": null,
-   "c": 0.824,
-   "r": 2.68,
-   "g": [
-    "Heavy"
-   ],
-   "ge": "Water",
-   "ft": [],
-   "fl": 1036,
-   "x": [
-    "pig sty latrine = pig toilet (Wikidata alias)",
-    "pig toilet ≈ toilet (Wikidata)",
-    "toilet (hand anchor → Anvil)"
-   ],
-   "t": null
-  },
-  {
-   "k": "plait",
-   "d": null,
-   "f": "Boulder",
-   "m": [
-    "Heavy"
-   ],
-   "e": "Earth",
-   "s": 1.5,
-   "w": 2000.0,
-   "n": 1,
-   "a": null,
-   "c": 0.31,
-   "r": 2.42,
-   "g": [
-    "Heavy"
-   ],
-   "ge": "Earth",
-   "ft": [],
-   "fl": 0,
-   "x": [
-    "plait → braid → … → natural object (WordNet hypernym)"
-   ],
-   "t": null
-  },
-  {
-   "k": "political nihilist",
-   "d": "Political Nihilist",
-   "f": "Cage",
-   "m": [
-    "Sticky",
-    "Trap"
+    "Piloted"
    ],
    "e": "Light",
-   "s": 2.5,
-   "w": 300.0,
+   "s": 1.2,
+   "w": 60.0,
    "n": 1,
    "a": null,
-   "c": 0.921,
-   "r": 2.86,
+   "c": 0.95,
+   "r": 4.09,
    "g": [
-    "Sticky"
+    "Piloted"
    ],
    "ge": null,
    "ft": [],
-   "fl": 44,
+   "fl": 8,
    "x": [
-    "political nihilist ≈ web series character (Wikidata)",
-    "web (hand anchor → Cage)"
+    "pig saddle (curated name, games_names.txt)"
    ],
    "t": null
   },
   {
-   "k": "pps 1350",
-   "d": "PPS-1350",
-   "f": "Jetpack",
-   "m": [
-    "Thrust"
-   ],
-   "e": "Light",
-   "s": 0.8,
-   "w": 15.0,
-   "n": 1,
-   "a": null,
-   "c": 0.855,
-   "r": 2.54,
-   "g": [
-    "Thrust"
-   ],
-   "ge": null,
-   "ft": [
-    "Exhaust",
-    "Jet",
-    "Turbine"
-   ],
-   "fl": 1036,
-   "x": [
-    "pps 1350 ≈ stationary plasma thruster (Wikidata)",
-    "thruster (hand anchor → Jetpack)"
-   ],
-   "t": null
-  },
-  {
-   "k": "promenetus umbilicatellus",
-   "d": "Promenetus umbilicatellus",
+   "k": "plaintive rain frog",
+   "d": "Plaintive rain frog",
    "f": "Quadruped",
    "m": [
     "Fast",
@@ -16243,8 +16190,8 @@
    "w": 60.0,
    "n": 1,
    "a": null,
-   "c": 0.449,
-   "r": 0.722,
+   "c": 0.397,
+   "r": 2.94,
    "g": [
     "Fast",
     "Grab"
@@ -16253,41 +16200,81 @@
    "ft": [],
    "fl": 12,
    "x": [
-    "promenetus umbilicatellus ≈ animal (Wikidata)",
+    "plaintive rain frog ≈ animal (Wikidata)",
     "animal (anchor -> Quadruped)"
    ],
    "t": null
   },
   {
-   "k": "public restroom",
+   "k": "political hack",
    "d": null,
-   "f": "Anvil",
-   "m": [
-    "DropFromSky",
-    "Heavy"
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.8,
+   "w": 80.0,
+   "n": 1,
+   "a": null,
+   "c": 0.729,
+   "r": 4.03,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 1152,
+   "x": [
+    "political hack → machine politician → … → person (WordNet hypernym)"
    ],
-   "e": "Water",
-   "s": 0.8,
-   "w": 150.0,
+   "t": null
+  },
+  {
+   "k": "ppru 1",
+   "d": "PPRU-1",
+   "f": "Vehicle",
+   "m": [
+    "Charge"
+   ],
+   "e": "Light",
+   "s": 4.0,
+   "w": 1500.0,
+   "n": 1,
+   "a": null,
+   "c": 0.788,
+   "r": 0.934,
+   "g": [
+    "Charge"
+   ],
+   "ge": null,
+   "ft": [],
+   "fl": 12,
+   "x": [
+    "ppru 1 ≈ military vehicle model (Wikidata)",
+    "military vehicle → vehicle (WordNet hypernym)"
+   ],
+   "t": null
+  },
+  {
+   "k": "promenade deck",
+   "d": null,
+   "f": "Platform",
+   "m": [],
+   "e": "Light",
+   "s": 3.0,
+   "w": 400.0,
    "n": 1,
    "a": null,
    "c": 0.902,
-   "r": 3.89,
-   "g": [
-    "Heavy"
-   ],
-   "ge": "Water",
+   "r": 3.15,
+   "g": [],
+   "ge": null,
    "ft": [],
-   "fl": 1036,
+   "fl": 1024,
    "x": [
-    "public restroom = public toilet (Wikidata alias)",
-    "public toilet ≈ toilet (Wikidata)",
-    "toilet (hand anchor → Anvil)"
+    "promenade deck → hurricane deck → deck → platform (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "qualifier",
+   "k": "public relations man",
    "d": null,
    "f": "Biped",
    "m": [],
@@ -16296,20 +16283,20 @@
    "w": 80.0,
    "n": 1,
    "a": null,
-   "c": 0.767,
-   "r": 3.41,
+   "c": 0.729,
+   "r": 4.59,
    "g": [],
    "ge": null,
    "ft": [],
-   "fl": 2176,
+   "fl": 1152,
    "x": [
-    "qualifier → contestant → person (WordNet hypernym)"
+    "public relations man → press agent → … → person (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "rangi",
-   "d": "Rangi",
+   "k": "qualicity",
+   "d": "Qualicity",
    "f": "Biped",
    "m": [],
    "e": "Light",
@@ -16317,44 +16304,65 @@
    "w": 80.0,
    "n": 1,
    "a": null,
-   "c": 0.454,
-   "r": 2.53,
+   "c": 0.306,
+   "r": 0.5,
    "g": [],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "rangi ≈ sky father in maori mythology (Wikidata)",
-    "father → parent → … → person (WordNet hypernym)"
+    "qualicity ≈ fictional administrative territorial entity (Wikidata)",
+    "territorial → soldier → … → person (WordNet hypernym)"
    ],
    "t": null
   },
   {
-   "k": "red topped amazon",
-   "d": "Red-topped Amazon",
-   "f": "Bird",
+   "k": "ranges stone gecko",
+   "d": "Ranges stone gecko",
+   "f": "Quadruped",
    "m": [
-    "Flies",
+    "Fast",
     "Grab"
    ],
    "e": "Light",
-   "s": 0.6,
-   "w": 2.0,
+   "s": 1.2,
+   "w": 60.0,
    "n": 1,
    "a": null,
-   "c": 0.799,
-   "r": 4.31,
+   "c": 0.377,
+   "r": 3.37,
    "g": [
-    "Flies",
+    "Fast",
     "Grab"
    ],
    "ge": null,
    "ft": [],
    "fl": 12,
    "x": [
-    "red topped amazon = Red-browed Amazon (Wikidata alias)",
-    "red browed amazon ≈ bird (Wikidata)",
-    "bird (anchor -> Bird)"
+    "ranges stone gecko = Diplodactylus furcosus (Wikidata alias)",
+    "diplodactylus furcosus ≈ animal (Wikidata)",
+    "animal (anchor -> Quadruped)"
+   ],
+   "t": null
+  },
+  {
+   "k": "red top",
+   "d": null,
+   "f": "Biped",
+   "m": [],
+   "e": "Light",
+   "s": 1.8,
+   "w": 80.0,
+   "n": 1,
+   "a": null,
+   "c": 0.368,
+   "r": 5.13,
+   "g": [],
+   "ge": null,
+   "ft": [],
+   "fl": 1088,
+   "x": [
+    "red top ≈ red (ConceptNet DerivedFrom)"
    ],
    "t": null
   }

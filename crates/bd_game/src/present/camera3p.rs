@@ -128,8 +128,12 @@ pub struct ViewMode {
     pub pref_third: bool,
     /// Seated in a cockpit / vehicle.
     pub piloting: bool,
-    /// Boom length for piloting (m).
+    /// Boom length for piloting (m; eased toward the construct's size — a transform changes it).
     pub pilot_dist: f32,
+    /// PILOTING: over-the-shoulder offset from the seat (m; right of the body) and the height offset
+    /// from the seat (m; negative = below it, framing the body rather than the sky).
+    pub pilot_side: f32,
+    pub pilot_up: f32,
     /// GIANTS: seated in a titan (cockpit walker): a head-height cockpit view, no boom.
     pub cockpit: bool,
     /// A director camera owns the view (soak viewer, brawl bench).
@@ -486,11 +490,30 @@ fn update_mode(
     let seat = active.as_ref().and_then(|a| a.local).and_then(|id| views.player(id)).and_then(|v| v.seat.filter(|_| !v.has(pflags::SUIT)));
     mode.piloting = seat.is_some();
     if let (Some((cid, _)), Some(a)) = (seat, active.as_ref()) {
-        let size = a.world.constructs.get(cid).map_or(3.0, |c| c.half.max_element() * 2.0);
-        mode.pilot_dist = (size * 1.6 + 3.0).clamp(5.0, 30.0);
+        // PILOTING camera: a standing body (robot mode, mech, beast) gets an over-the-shoulder boom at
+        // ~1.6× its height, framing it at the side of the screen; a lying body (vehicle mode, car,
+        // jet) a chase boom at ~1.2× its length. Terrain pulls the boom in (`solve_boom`).
+        let (dist, side, up) = match a.world.constructs.get(cid) {
+            Some(c) => {
+                let h = c.half.y * 2.0;
+                let len = c.half.x.max(c.half.z) * 2.0;
+                if h >= len * 0.9 {
+                    ((1.6 * h).clamp(6.0, 22.0), c.half.x + 1.2, -0.3 * h)
+                } else {
+                    ((1.2 * len + 3.0).clamp(6.0, 24.0), 0.0, 0.6)
+                }
+            }
+            None => (8.0, 0.0, 1.0),
+        };
+        let dt = time.delta_secs().min(0.1);
+        let k = if mode.pilot_dist <= 0.0 { 1.0 } else { 1.0 - (-4.0 * dt).exp() };
+        mode.pilot_dist += (dist - mode.pilot_dist) * k;
+        mode.pilot_side += (side - mode.pilot_side) * k;
+        mode.pilot_up += (up - mode.pilot_up) * k;
         mode.cockpit = a.world.constructs.get(cid).is_some_and(bd_sim::constructs::titan::walks);
     } else {
         mode.cockpit = false;
+        mode.pilot_dist = 0.0;
     }
 
     // The dolly.
@@ -558,7 +581,9 @@ pub(crate) fn place_camera(
             let f = Vec3::new(fwd.x, 0.0, fwd.z).normalize_or_zero();
             (f * 0.9 - Vec3::Y * 0.4, 0.05)
         } else if mode.piloting {
-            (Vec3::Y * mode.pilot_dist * 0.25, mode.pilot_dist)
+            let r = rot * Vec3::X;
+            let flat_right = Vec3::new(r.x, 0.0, r.z).normalize_or_zero();
+            (flat_right * mode.pilot_side + Vec3::Y * (mode.pilot_up + mode.pilot_dist * 0.12), mode.pilot_dist)
         } else {
             // Shoulder side: preferred, or auto-swapped away from a wall.
             let preferred = if prefs.as_ref().is_some_and(|p| p.camera.shoulder_left) { -1.0 } else { 1.0 };

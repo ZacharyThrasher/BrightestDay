@@ -515,6 +515,16 @@ fn move_verb(m: &bd_sim::powers::MoveDef) -> Option<Verb> {
         O::TimeStop { .. } | O::SelfStatus { .. } => Verb::Aura,
         O::Restore { .. } => Verb::Shield,
         O::Transform | O::Tier(_) => Verb::Form,
+        // Generic ops (bd_sim powers/ops, docs/toolbox/OPS.md).
+        O::Rewind { .. } => Verb::Dash,
+        O::Ram { .. } => Verb::Strike,
+        O::Hook { pull, .. } if *pull > 0.0 => Verb::Pull,
+        O::Hook { .. } | O::LockOn { .. } => Verb::Projectile,
+        O::Grab { .. } => Verb::Grab,
+        O::Deflect { .. } | O::Counter { .. } => Verb::Shield,
+        O::Lockout { .. } | O::Zone { .. } => Verb::Trap,
+        #[allow(unreachable_patterns)]
+        _ => Verb::Aura,
     })
 }
 

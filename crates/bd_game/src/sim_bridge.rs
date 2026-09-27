@@ -156,7 +156,14 @@ impl ActiveWorld {
     /// Apply one command for `player` to the authoritative world.
     pub fn apply_command(&mut self, player: PlayerId, cmd: Cmd) {
         let w = &mut self.world;
+        // TOOLBOX: a new cast / move stops a pending chain (the toolbox's own command replaces it).
+        if matches!(cmd, Cmd::Cast { .. } | Cmd::PowerMove(..) | Cmd::Signature { .. }) {
+            w.toolbox_interrupt(player);
+        }
         match cmd {
+            Cmd::Toolbox { steps, aim } => {
+                let _ = w.toolbox(player, steps, aim);
+            }
             Cmd::Cast { recipe, shape, alt_shape, aim, incantation } => {
                 let _ = if incantation { w.cast_incantation(player, *recipe, shape, aim) } else { w.cast_shaped(player, *recipe, shape, alt_shape, aim) };
             }
@@ -215,6 +222,10 @@ pub enum Cmd {
     /// G tap (0) / G hold (1), along the crosshair ray (CAMERA: third person sends the converged
     /// ray like casts; the host validates it, `World::resolve_aim`). `None` = the look.
     PowerMove(u8, Option<Aim>),
+    /// TOOLBOX: a kit / borrowed / held move said by name, or a CHAIN of steps (moves and casts),
+    /// fired by the host one after another (`World::toolbox`, bd_sim `powers::chain`). `aim` = the
+    /// crosshair at commit time (the first step); later steps aim along the look as they fire.
+    Toolbox { steps: Vec<bd_sim::powers::chain::ToolStep>, aim: Option<Aim> },
     /// Rush tokens typed while the console is open (ORA ×n).
     StandRush(u16),
     /// Start reciting one section of the corps oath (the host looks the length up itself).

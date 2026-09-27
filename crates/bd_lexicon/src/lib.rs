@@ -48,6 +48,12 @@ pub use norm::{MAX_INPUT_CHARS, MAX_TOKENS, normalize_key};
 pub use phonetic::phonetic_key;
 pub use refer::{Refer, Targeted};
 
+/// The lexicon's tolerant scan of `assets/powers/*.ron` (names / tiers / kind only) — for tools
+/// (bd_sim's `powers_check` validator) that want the exact warnings the game's load would give.
+pub mod power_scan {
+    pub use crate::powers::{PowerDef as ScannedPower, PowerKind as ScannedKind, cross_file_collisions, parse_powers, parse_powers_named};
+}
+
 /// Is the phrase a whole construct, or only modifiers to graft onto something you aim at?
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ResolutionKind {
@@ -219,8 +225,8 @@ impl Lexicon {
         let path = path.as_ref();
         let data = data::LexData::map_file(path)?;
         let files = path.parent().map(Self::icon_files).unwrap_or_default();
-        let powers = path.parent().and_then(|d| std::fs::read_to_string(d.join("powers.ron")).ok());
-        let mut lex = Self::assemble(Some(data), icons::Icons::parse_files(&files), powers.as_deref());
+        let powers = path.parent().map(Self::power_files).unwrap_or_default();
+        let mut lex = Self::assemble(Some(data), icons::Icons::parse_files(&files), Some(&powers));
         // A signatures.ron next to lexicon.bin overrides the compiled-in table (data authoring).
         if let Some(src) = path.parent().and_then(|d| std::fs::read_to_string(d.join("signatures.ron")).ok()) {
             let (t, warn) = invocation::SignatureTable::parse(&src);
@@ -232,13 +238,32 @@ impl Lexicon {
         Ok(lex)
     }
 
-    /// Build from raw parts: lexicon.bin bytes, icon files `(name, ron)` in priority order, powers.ron.
-    pub fn from_parts(bytes: Vec<u8>, icon_files: &[(String, String)], powers_ron: Option<&str>) -> Result<Lexicon, LoadError> {
+    /// Build from raw parts: lexicon.bin bytes, icon files `(name, ron)` in priority order, power
+    /// files `(name, ron)` in load order ([`Lexicon::power_files`]; names appear in warnings).
+    pub fn from_parts(bytes: Vec<u8>, icon_files: &[(String, String)], power_files: &[(String, String)]) -> Result<Lexicon, LoadError> {
         let data = data::LexData::parse(bytes)?;
-        Ok(Self::assemble(Some(data), icons::Icons::parse_files(icon_files), powers_ron))
+        Ok(Self::assemble(Some(data), icons::Icons::parse_files(icon_files), Some(power_files)))
     }
 
-    /// Ids of the powers loaded from powers.ron (plus nothing else).
+    /// Read `<dir>/powers/*.ron` sorted by file name (the same order bd_sim compiles them in) as
+    /// (`"powers/<file>"`, contents).
+    pub fn power_files(dir: &Path) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        if let Ok(rd) = std::fs::read_dir(dir.join("powers")) {
+            let mut paths: Vec<_> =
+                rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().map(|x| x == "ron").unwrap_or(false)).collect();
+            paths.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+            for p in paths {
+                if let Ok(s) = std::fs::read_to_string(&p) {
+                    let name = p.file_name().map(|n| format!("powers/{}", n.to_string_lossy())).unwrap_or_default();
+                    out.push((name, s));
+                }
+            }
+        }
+        out
+    }
+
+    /// Ids of the powers loaded from assets/powers/ (plus nothing else).
     pub fn power_ids(&self) -> Vec<&str> {
         self.powers.iter().map(|p| p.id.as_str()).collect()
     }
@@ -315,7 +340,7 @@ impl Lexicon {
         &self.icons.warnings
     }
 
-    fn assemble(data: Option<data::LexData>, icons: icons::Icons, powers_ron: Option<&str>) -> Lexicon {
+    fn assemble(data: Option<data::LexData>, icons: icons::Icons, power_files: Option<&[(String, String)]>) -> Lexicon {
         let mut t = Tables {
             adj: HashMap::new(),
             verb: HashMap::new(),
@@ -353,10 +378,20 @@ impl Lexicon {
             }
         }
         let mut icons = icons;
-        let (powers, warn) = powers_ron.map(powers::parse_powers).unwrap_or_default();
-        icons.warnings.extend(warn);
-        if powers_ron.is_some() {
+        let mut powers = Vec::new();
+        for (name, src) in power_files.unwrap_or_default() {
+            let (p, warn) = powers::parse_powers_named(name, src);
+            powers.extend(p);
+            icons.warnings.extend(warn);
+        }
+        if power_files.is_some() {
+            icons.warnings.extend(powers::cross_file_collisions(&powers));
             for p in &powers {
+                // A kit's names never grant: they stay the costume summon's ("doomfist"), and
+                // "<kit> <move>" is resolved by the game against bd_sim's table (TOOLBOX).
+                if p.kind == powers::PowerKind::Kit {
+                    continue;
+                }
                 icons.add_power(powers::power_entry(p));
                 for e in powers::tier_entries(p) {
                     icons.add_power(e);

@@ -13,7 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::powers::{effects, HeldView, MoveOp, PlayerPower, PowerDef, MAX_EXTRA_POWERS};
+use crate::powers::{effects, move_sel::MAX_MOVES, HeldView, MoveOp, PlayerPower, PowerDef, MAX_EXTRA_POWERS};
 use crate::status::STATUS_COUNT;
 
 /// Most powers held at once.
@@ -45,7 +45,7 @@ impl ReadySnap {
         }
         let mult = effects::cooldown_mult(pw);
         for (k, h) in pw.held().enumerate().take(HELD_MAX) {
-            let cds = if h.slot == 0 { pw.move_cd } else { pw.others.get(h.slot - 1).copied().flatten().map_or([0.0; 4], |o| o.move_cd) };
+            let cds = if h.slot == 0 { pw.move_cd } else { pw.others.get(h.slot - 1).copied().flatten().map_or([0.0; MAX_MOVES], |o| o.move_cd) };
             out.cd[k] = quantize_up(cooldown_left(h.def, h.tier, &cds, mult));
             out.form[k] = form_left(pw, &h);
         }
@@ -69,7 +69,7 @@ impl ReadySnap {
 }
 
 /// Fraction (0..1) of the cooldown still to run of the slowest move of a power at `tier`.
-pub fn cooldown_left(def: &PowerDef, tier: u8, move_cd: &[f32; 4], mult: f32) -> f32 {
+pub fn cooldown_left(def: &PowerDef, tier: u8, move_cd: &[f32; MAX_MOVES], mult: f32) -> f32 {
     let moves = def.moves_at(tier);
     let mut left = 0.0f32;
     for (m, cd) in moves.iter().zip(move_cd.iter()) {

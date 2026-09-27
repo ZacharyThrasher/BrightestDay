@@ -197,6 +197,7 @@ pub fn archetype_for(r: &Recipe) -> Option<GunArchetype> {
         Form::Cannon => Some(if r.has(Mechanic::Explodes) { Rocket } else { Cannon }),
         Form::Bow => Some(Bow),
         Form::Staff if r.has(Mechanic::Extends) => None, // EXTENDS: an extending staff is a melee pole
+        Form::Staff if crate::constructs::weapon_class::staff_is_pole(r) => None, // WEAPON FEEL: a blunt plain staff is a quarterstaff (Reach)
         Form::Staff => Some(Staff),
         Form::Disc => Some(Disc),
         Form::Hands => Some(HandBeam),

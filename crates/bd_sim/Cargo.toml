@@ -17,6 +17,8 @@ ron.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 bincode.workspace = true
+# examples/powers_check.rs: the lexicon's own scan of power files (name clashes, coverage).
+bd_lexicon.workspace = true
 
 [features]
 default = ["backrooms", "ember", "mirror", "casino", "valley", "lair", "hyperline"]

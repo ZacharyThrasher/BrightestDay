@@ -165,8 +165,13 @@ pub fn weak_point(c: &Construct, p: Vec3) -> bool {
 
 /// Integrity damage + counters. Returns true if the target shattered (or was sliced away).
 pub fn on_damage(store: &mut ConstructStore, hit: &ConstructHit, events: &mut Vec<GameEvent>) -> bool {
+    let counter_secs = store.counter_secs;
     let Some(c) = store.get_mut(hit.target) else { return false };
     if c.gone.is_some() || !hit.damage.is_finite() {
+        return false;
+    }
+    // TRANSFORMER COMBAT: a hit inside a boost-step's perfect window is dodged (a counter opens).
+    if super::brawl::perfect_dodge(c, counter_secs, hit.point, events) {
         return false;
     }
     // Blade and Pierce find weak points (joints, cockpit, nape). GIANTS: their own anatomy decides

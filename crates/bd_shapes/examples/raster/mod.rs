@@ -141,6 +141,15 @@ pub fn draw_view(c: &mut Canvas, d: &Dressed, eye: Vec3, x0: i32, y0: i32, w: i3
     draw_with(c, d, &Cam::from_eye(eye), &posed(d), scale, ox, oy, (x0, y0, x0 + w, y0 + h));
 }
 
+/// Draw `d` in a given pose (`pose_v`, one per part) from `eye` at a fixed `scale` (px per model
+/// unit), the model origin (feet) `ground` px above the tile's bottom (ANIMATION PASS frame sheets).
+#[allow(clippy::too_many_arguments)]
+pub fn draw_posed(c: &mut Canvas, d: &Dressed, pose_v: &[Affine3A], eye: Vec3, x0: i32, y0: i32, w: i32, h: i32, scale: f32, ground: f32) {
+    let ox = x0 as f32 + w as f32 * 0.5;
+    let oy = (y0 + h) as f32 - ground;
+    draw_with(c, d, &Cam::from_eye(eye), pose_v, scale, ox, oy, (x0, y0, x0 + w, y0 + h));
+}
+
 /// Draw `d` from `eye` fitted (and centred) into the tile with `margin` px around it.
 #[allow(clippy::too_many_arguments)]
 pub fn draw_fit(c: &mut Canvas, d: &Dressed, eye: Vec3, x0: i32, y0: i32, w: i32, h: i32, margin: f32) {

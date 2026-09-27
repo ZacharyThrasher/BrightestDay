@@ -1,4 +1,5 @@
-//! mvcheck — validate assets/powers.ron (the Marvel pending file was merged into it) + probe the lexicon.
+//! mvcheck — validate assets/powers/base_marvel.ron + probe the lexicon (superseded by
+//! `cargo run --profile fastrel -p bd_sim --example powers_check -- assets/powers/base_marvel.ron`).
 //!
 //!     cargo run --release --manifest-path tools/icons/marvel/mvcheck/Cargo.toml -- [phrase ...]
 //!
@@ -12,7 +13,7 @@ const FLIGHT_CAP: f32 = 17.0;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let pending = std::fs::read_to_string("assets/powers.ron").expect("powers.ron");
+    let pending = std::fs::read_to_string("assets/powers/base_marvel.ron").expect("assets/powers/base_marvel.ron");
     let mut bad = 0;
 
     let t = match PowerTable::parse(&pending) {
@@ -104,7 +105,7 @@ fn main() {
     // Lexicon probe with the merged table.
     let bytes = std::fs::read("assets/lexicon.bin").expect("lexicon.bin");
     let files = bd_lexicon::Lexicon::icon_files(std::path::Path::new("assets"));
-    let lex = bd_lexicon::Lexicon::from_parts(bytes, &files, Some(&merged)).expect("lexicon");
+    let lex = bd_lexicon::Lexicon::from_parts(bytes, &files, &bd_lexicon::Lexicon::power_files(std::path::Path::new("assets"))).expect("lexicon");
     for w in lex.load_warnings() {
         if w.contains("marvel") {
             eprintln!("warning: {w}");

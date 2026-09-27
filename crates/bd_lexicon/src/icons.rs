@@ -368,12 +368,13 @@ impl Icons {
     /// Power names (powers.ron) take their names over from earlier icons (a stand beats a character pack
     /// entry of the same name): existing aliases are released first, with a warning.
     pub fn add_power(&mut self, e: IconEntry) {
+        let src = if e.source.is_empty() { "powers.ron".to_string() } else { e.source.clone() };
         let e = Lite::from(e);
         for n in &e.names {
             let k = normalize_key(n);
             if let Some(old) = self.alias.remove(&k) {
                 let owner = self.defs.get(old).map(|d| format!("{} ({})", d.id, d.file)).unwrap_or_default();
-                self.notes.push(format!("powers.ron: name \"{n}\" taken over from {owner}"));
+                self.notes.push(format!("{src}: name \"{n}\" taken over from {owner}"));
             }
         }
         self.add(e, "powers.ron");

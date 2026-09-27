@@ -42,6 +42,11 @@ pub enum PowerKind {
     /// A trained technique / form (ultra instinct, super saiyan, sharingan, bankai, nen…): saying
     /// its name makes it yours on the spot until KO — no pickup, no companion needed.
     Technique,
+    /// A character move-set (Nightcrawler, Doomfist, Reinhardt…, TOOLBOX): NEVER granted or held.
+    /// Its names are prefixes — "<kit name> <move word>" fires that move as a one-shot
+    /// ([`super::toolbox`]); the bare name stays the costume summon. Up to 8 moves, `tags` help
+    /// "<name> ultimate / dodge / combo" find the right one.
+    Kit,
 }
 
 impl PowerKind {
@@ -60,6 +65,10 @@ impl PowerKind {
 
     pub fn is_technique(self) -> bool {
         self == PowerKind::Technique
+    }
+
+    pub fn is_kit(self) -> bool {
+        self == PowerKind::Kit
     }
 
     /// Acquired as a pickup anyone can grab (and dropped where the holder is KO'd): fruits and
@@ -391,6 +400,531 @@ pub enum MoveOp {
     },
     /// Switch the power's tier (0 = base; Gear Second, Super Saiyan Blue…).
     Tier(u8),
+    // ---- GENERIC OPS (powers/ops/*.rs, docs/toolbox/OPS.md): run by `World::run_generic_op`. ----
+    /// Snap back to where you were `secs` ago (≤ 3), damage % too if it was lower (ops/rewind.rs).
+    Rewind { secs: f32 },
+    /// A committed charge along the look: `pin` carries the first enemy into a wall, `through` hits
+    /// all along the path, else the first hit ends it (ops/ram.rs).
+    Ram {
+        speed: f32,
+        secs: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        pin: bool,
+        #[serde(default)]
+        through: bool,
+        #[serde(default)]
+        wall: f32,
+        #[serde(default)]
+        pitch: f32,
+        #[serde(default)]
+        steer: f32,
+        #[serde(default)]
+        keep: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    /// A travelling hook / dart: hits (+ status), `pull` > 0 tows them to you, `anchor` reels you
+    /// to terrain (ops/hook.rs).
+    Hook {
+        range: f32,
+        speed: f32,
+        #[serde(default)]
+        pull: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        status: Option<StatusKind>,
+        #[serde(default)]
+        secs: f32,
+        #[serde(default)]
+        anchor: bool,
+    },
+    /// Command grab: seize, hold ≤ 0.45 s (swings with your aim), throw (ops/grab.rs).
+    Grab {
+        range: f32,
+        #[serde(default)]
+        hold: f32,
+        damage: f32,
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        lift: f32,
+        #[serde(default)]
+        back: bool,
+    },
+    /// Send incoming rounds / thrown things back along your aim for `secs` (ops/deflect.rs).
+    Deflect {
+        secs: f32,
+        #[serde(default)]
+        angle: f32,
+    },
+    /// Counter stance (answer the first hit) — or, with no damage, a guard window (ops/counter.rs).
+    Counter {
+        secs: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    /// Telegraphed marking channel; trigger (or the end) shoots every marked target (ops/lock_on.rs).
+    LockOn {
+        secs: f32,
+        range: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        angle: f32,
+    },
+    /// The aimed enemy can't use power moves for `secs` (ops/lockout.rs).
+    Lockout { range: f32, secs: f32 },
+    /// A lingering area: status / slow / dps / lockout on enemies inside (ops/zone.rs).
+    Zone {
+        radius: f32,
+        secs: f32,
+        #[serde(default)]
+        status: Option<StatusKind>,
+        #[serde(default)]
+        slow: f32,
+        #[serde(default)]
+        dps: f32,
+        #[serde(default)]
+        lockout: bool,
+        #[serde(default)]
+        at: At,
+        #[serde(default)]
+        dist: f32,
+        #[serde(default)]
+        follow: bool,
+    },
+    // ---- MYTHOLOGY & FOLKLORE ops (ops/seeker.rs, haul.rs, leap.rs, self_resize.rs, surge.rs, roulette.rs) ----
+    /// Throw `recipe` (a visible spear / disc / arrow) at the enemy nearest the crosshair (no line of
+    /// sight needed): it bends around cover to strike, chains to `hits` targets within `chain` m,
+    /// then flies back to your hand (ops/seeker.rs). 0 = defaults (range 45, cone 25, speed 34).
+    Seeker {
+        recipe: RecipeDef,
+        #[serde(default)]
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        speed: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        hits: u8,
+        #[serde(default)]
+        chain: f32,
+    },
+    /// A hook along the aim: drags an enemy to you, else tears a chunk (`radius`) out of the terrain
+    /// it bites and drags it to you as a flying boulder that lands as cover (ops/haul.rs).
+    Haul {
+        range: f32,
+        #[serde(default)]
+        radius: f32,
+        #[serde(default)]
+        speed: f32,
+        #[serde(default)]
+        damage: f32,
+    },
+    /// A ballistic jump that lands ON the point under the crosshair (≤ `range`, `apex` m above the
+    /// higher end); compose `SlamOnLand` for the landing (ops/leap.rs).
+    Leap {
+        range: f32,
+        #[serde(default)]
+        apex: f32,
+    },
+    /// Grow (> 1, ≤ 1.6) or shrink (< 1, ≥ 0.5) yourself for `secs` (ops/self_resize.rs).
+    SelfResize { scale: f32, secs: f32 },
+    /// A travelling wall front of `element` rolling out along the aim that carries enemies with it
+    /// (ops/surge.rs).
+    Surge {
+        width: f32,
+        dist: f32,
+        #[serde(default)]
+        speed: f32,
+        #[serde(default)]
+        push: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    /// One of `picks` (each a list of ops), chosen by a deterministic roll (ops/roulette.rs).
+    Roulette { picks: Vec<Vec<MoveOp>> },
+    // ---- ADVENTURE GAMES ops (ops/pounce.rs, salvo.rs, mend.rs, evade.rs, place_portal.rs, empower.rs) ----
+    /// A homing lunge at the enemy nearest the crosshair: strike on contact, bounce `bounce` m/s up
+    /// off them (ops/pounce.rs). No target = a straight dash along the look.
+    Pounce {
+        range: f32,
+        speed: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        bounce: f32,
+        #[serde(default)]
+        secs: f32,
+    },
+    /// `count` telegraphed strikes placed in space (at the aim / around you / in front), each marked
+    /// for `delay` s, one every `interval`; `seek` snaps onto enemies, `track` follows the live
+    /// crosshair (ops/salvo.rs).
+    Salvo {
+        count: u8,
+        delay: f32,
+        #[serde(default)]
+        interval: f32,
+        radius: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        carve: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        at: At,
+        #[serde(default)]
+        dist: f32,
+        #[serde(default)]
+        spread: f32,
+        #[serde(default)]
+        seek: bool,
+        #[serde(default)]
+        track: bool,
+    },
+    /// Heal: `pct` off your damage % now, `per_s` for `secs` after (a damaging hit ends it) (ops/mend.rs).
+    Mend {
+        pct: f32,
+        #[serde(default)]
+        per_s: f32,
+        #[serde(default)]
+        secs: f32,
+    },
+    /// A perfect-dodge window: the first dodgeable hit is slipped (dodge i-frames) and grants `slow` s
+    /// of time slow at `speed` + an optional `blink` behind the attacker (ops/evade.rs).
+    Evade {
+        secs: f32,
+        #[serde(default)]
+        slow: f32,
+        #[serde(default)]
+        speed: f32,
+        #[serde(default)]
+        blink: f32,
+    },
+    /// The portal gun: shoot a portal end onto the aimed surface; the newest blue + orange are one
+    /// linked pair for `secs` (ops/place_portal.rs).
+    PlacePortal {
+        #[serde(default)]
+        range: f32,
+        #[serde(default)]
+        secs: f32,
+    },
+    /// A timed super state: ×`damage` dealt, knockback taken ×`armor`, contact hits (ops/empower.rs).
+    Empower {
+        secs: f32,
+        #[serde(default = "one")]
+        damage: f32,
+        #[serde(default = "one")]
+        armor: f32,
+        #[serde(default)]
+        contact: f32,
+        #[serde(default)]
+        contact_kb: f32,
+        #[serde(default)]
+        contact_cd: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    // ---- MOVIES & COMICS ops (ops/blink_carry.rs, afflict.rs, delayed_hit.rs, bounce_beam.rs, barrage.rs, disarm.rs) ----
+    /// Teleport along the aim TAKING the enemy you touch (within `grab` m): both reappear `up` m
+    /// higher and they are dropped; nobody in reach = a plain blink (ops/blink_carry.rs).
+    BlinkCarry {
+        dist: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        grab: f32,
+    },
+    /// The aimed enemy gets a short capped `status` + optional damage / knockback / `up` lift — a
+    /// spell or a force hits THAT person (ops/afflict.rs).
+    Afflict {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        status: Option<StatusKind>,
+        #[serde(default)]
+        secs: f32,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    /// A visible mark on the aimed enemy (`radius` > 0: everyone within it) that bursts on them
+    /// after `secs` wherever they are (ops/delayed_hit.rs).
+    DelayedHit {
+        #[serde(default)]
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        radius: f32,
+        secs: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    /// An instant beam that reflects off terrain up to `bounces` times, each leg ≤ `length`; bank
+    /// shots hit harder (ops/bounce_beam.rs).
+    BounceBeam {
+        length: f32,
+        #[serde(default)]
+        bounces: u8,
+        #[serde(default)]
+        radius: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        element: Element,
+    },
+    /// A timed flurry: `hits` front-cone strikes every `interval` s (the last with `finish`
+    /// knockback), surging `advance` m/s — or, `blink`, teleporting around the target between
+    /// strikes (ops/barrage.rs).
+    Barrage {
+        hits: u8,
+        interval: f32,
+        range: f32,
+        #[serde(default)]
+        angle: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        finish: f32,
+        #[serde(default)]
+        advance: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        blink: bool,
+        #[serde(default)]
+        element: Element,
+    },
+    /// Knock the aimed enemy's held / worn constructs loose (toward you with `pull`) + a jolt
+    /// (ops/disarm.rs).
+    Disarm {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        pull: bool,
+        #[serde(default)]
+        knockback: f32,
+    },
+    // ---- MODERN ANIME ops (ops/transpose.rs, finisher.rs, erupt.rs, tag.rs) ----
+    /// Swap places with the aimed player / anyone's loose construct (no ROOM; nothing aimed = your
+    /// tagged enemy); `others` swaps the aimed thing with the enemy you last hit (ops/transpose.rs).
+    Transpose {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        others: bool,
+    },
+    /// A lunge + front-cone strike that crits (× `mult`, `fx`) on targets YOU hit in the last
+    /// `window` s — the combo-timing crit (ops/finisher.rs).
+    Finisher {
+        #[serde(default)]
+        lunge: f32,
+        range: f32,
+        #[serde(default)]
+        angle: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        up: f32,
+        window: f32,
+        mult: f32,
+        #[serde(default)]
+        fx: CritFx,
+    },
+    /// Terrain rises along the aim (`count` spikes, 0 = a ridge; `across` = a wall `dist` ahead) of
+    /// the element's material, launching enemies on the line (ops/erupt.rs).
+    Erupt {
+        length: f32,
+        #[serde(default)]
+        width: f32,
+        height: f32,
+        #[serde(default)]
+        count: u8,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        launch: f32,
+        #[serde(default)]
+        across: bool,
+        #[serde(default)]
+        dist: f32,
+    },
+    /// Stick a tag on the aimed enemy for `secs` (ops/tag.rs).
+    Tag {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        secs: f32,
+    },
+    /// Hit every enemy you tagged, wherever they are; `pull` reels them in (ops/tag.rs).
+    TagStrike {
+        #[serde(default)]
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        pull: f32,
+    },
+    // ---- TV & CARTOONS ops (ops/strain.rs) ----
+    /// The power's toll: you take `pct` damage % yourself (no hit, no knockback); put it after the
+    /// move's main op so it is only paid when the move fires (ops/strain.rs).
+    Strain { pct: f32 },
+    // ---- SHONEN CLASSICS ops (ops/drill.rs, mark_recall.rs, warp_to.rs, copy_last.rs, gaze_stun.rs, phase.rs,
+    // banish.rs, rush.rs, contagion.rs, wave.rs; per-player state in ops/live.rs) ----
+    /// A hand-held orb / lightning lunge: dash `secs` at `speed`; the first enemy the palm meets is
+    /// latched and ground for `grind` s, then blasted away (`grind` 0 = one piercing strike).
+    Drill {
+        speed: f32,
+        secs: f32,
+        #[serde(default)]
+        grind: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        up: f32,
+    },
+    /// First use throws a marker (<= `range` m, sticks to the enemy or terrain it meets, lasts
+    /// `secs`); using it again teleports you to it, arriving with a round `strike` (0 = none).
+    MarkRecall {
+        range: f32,
+        secs: f32,
+        #[serde(default)]
+        strike: f32,
+    },
+    /// Teleport `behind` m behind (< 0 = in front of) the enemy you look at (`range`, aim cone
+    /// `cone` degrees, no line of sight needed). No target = fails.
+    WarpTo {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        behind: f32,
+    },
+    /// Replay the last power move an enemy fired within `range` m of you in the last `secs` s.
+    CopyLast { range: f32, secs: f32 },
+    /// Enemies within `range` m whose view faces you (within `cone` degrees) get `status` for `secs`
+    /// (Stun <= 1.2 s); `aimed` = only the crosshair target (fails without one).
+    GazeStun {
+        range: f32,
+        cone: f32,
+        secs: f32,
+        status: StatusKind,
+        #[serde(default)]
+        aimed: bool,
+    },
+    /// Intangible for `secs` (<= 2.5): every hit passes through; firing a power move ends it.
+    Phase { secs: f32 },
+    /// The aimed enemy construct is swallowed; else the aimed enemy is displaced `dist` m up.
+    Banish { range: f32, dist: f32 },
+    /// Your companion (else `stand`, summoned for the rush, else your fists) throws `hits` front
+    /// punches at `rate`/s (0 = 16) along your current look; the last one sends them flying.
+    Rush {
+        hits: u8,
+        #[serde(default)]
+        rate: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        range: f32,
+        #[serde(default)]
+        stand: Option<RecipeDef>,
+    },
+    /// Brand the aimed enemy with `status` for `secs` (re-applied, can't be put out); it jumps to
+    /// other enemies within `spread` m of a branded one.
+    Contagion {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        status: StatusKind,
+        secs: f32,
+        #[serde(default)]
+        spread: f32,
+    },
+    /// A travelling crescent `width` m wide: `length` m at `speed` m/s, hitting every enemy it passes
+    /// once, carving terrain (`carve` radius; 0 = it breaks on walls); `thin` cuts constructs.
+    Wave {
+        length: f32,
+        speed: f32,
+        width: f32,
+        #[serde(default)]
+        carve: f32,
+        damage: f32,
+        #[serde(default)]
+        knockback: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        element: Element,
+        #[serde(default)]
+        thin: bool,
+    },
 }
 
 /// Presentation of a move (bd_game `present::ascend`): the juice every big power move shares.
@@ -415,12 +949,34 @@ pub struct MoveJuice {
     pub color: Option<[f32; 3]>,
     /// Loose debris near it is flung (> 0 out, < 0 in) with this speed (m/s).
     pub debris: f32,
+    /// IMPACT FRAMES: this move's connect plays an anime impact frame in this style (bd_game
+    /// `assets/tuning/impact_frames.ron` `styles`: "black_flash", "holy", "void", "ink", "comic",
+    /// "glitch"; docs/impact/API.md). Never read by the sim.
+    pub impact_frame: Option<String>,
 }
 
 impl Default for MoveJuice {
     fn default() -> Self {
-        Self { ripple: 0.0, at: At::Me, dist: 0.0, boom: false, punch: 0.0, shake: 0.0, title: None, color: None, debris: 0.0 }
+        Self { ripple: 0.0, at: At::Me, dist: 0.0, boom: false, punch: 0.0, shake: 0.0, title: None, color: None, debris: 0.0, impact_frame: None }
     }
+}
+
+/// What a move is FOR (TOOLBOX): "<kit> ultimate / dodge / combo / attack / block / counter" finds
+/// the move carrying the matching tag (`MoveDef::tags`; slot words in [`super::toolbox`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MoveTag {
+    /// attack / punch / hit / strike / basic
+    Primary,
+    /// dash / teleport / jump / leap / blink / dodge
+    Movement,
+    /// block / shield / guard / parry
+    Defense,
+    /// ultimate / ult / super / special / final / finisher
+    Ultimate,
+    /// combo / string / flurry / rush
+    Combo,
+    /// counter / reversal
+    Counter,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -433,11 +989,21 @@ pub struct MoveDef {
     pub ops: Vec<MoveOp>,
     /// How it lands (presentation only).
     pub juice: Option<MoveJuice>,
+    /// Presentation style key (bd_game `assets/tuning/move_fx.ron` `styles`: "rubber", "rigid",
+    /// "smoke", "speedforce"… — docs/toolbox/PRESENTATION.md). "" = the power's `fx`, else derived
+    /// from the move's element. Never read by the sim.
+    pub fx: String,
+    /// What the move is for (TOOLBOX kit slot words: "<kit> ultimate", "<kit> dodge"…).
+    pub tags: Vec<MoveTag>,
+    /// IMPACT FRAMES: every hit this move's ops land while it runs is a guaranteed crit
+    /// (× `mult` damage, the `fx` look; announced as `PowerEvent::Crit` like a `CritChance` roll).
+    /// Generic: `crit: Some((2.5, BlackFlash))`. `None` = normal rolls only.
+    pub crit: Option<(f32, CritFx)>,
 }
 
 impl Default for MoveDef {
     fn default() -> Self {
-        Self { name: String::new(), cooldown: 1.0, cost: 0.0, ops: vec![], juice: None }
+        Self { name: String::new(), cooldown: 1.0, cost: 0.0, ops: vec![], juice: None, fx: String::new(), tags: vec![], crit: None }
     }
 }
 
@@ -667,6 +1233,10 @@ pub struct PowerDef {
     /// Tiers picked by phrase (index + 1 = tier; 0 = base).
     #[serde(default)]
     pub tiers: Vec<TierDef>,
+    /// Default presentation style key for every move of this power / kit (a move's own `fx` wins);
+    /// see [`MoveDef::fx`]. Never read by the sim.
+    #[serde(default)]
+    pub fx: String,
 }
 
 impl PowerDef {
@@ -759,20 +1329,59 @@ pub struct PowerTable {
     pub powers: Vec<PowerDef>,
 }
 
-/// The shipped table (compiled in; deterministic on every peer).
-pub const SHIPPED_RON: &str = include_str!("../../../../assets/powers.ron");
+// The shipped table (compiled in; deterministic on every peer): `SHIPPED_FILES` = every
+// `assets/powers/*.ron` as `(file name, contents)` in filename order, `SHIPPED_RON` = all of them
+// merged into one list. Generated by `crates/bd_sim/build.rs`.
+include!(concat!(env!("OUT_DIR"), "/powers_files.rs"));
+
+/// Most powers in one table (ids are `u16` on the wire; `PowerSnap` stores id + 1).
+pub const MAX_POWERS: usize = 4000;
 
 impl PowerTable {
+    /// One plain list of entries (the lexicon's scanner reads the same list).
     pub fn parse(src: &str) -> Result<PowerTable, String> {
-        // The file is a plain list of entries (the lexicon's scanner reads the same list).
         let powers: Vec<PowerDef> = ron::from_str(src).map_err(|e| e.to_string())?;
         let mut t = PowerTable { rules: PowerRules::default(), powers };
         t.sanitize();
         Ok(t)
     }
 
+    /// Several files `(name, contents)`, in the given order (callers sort by name). The first
+    /// file that fails is reported by name.
+    pub fn parse_files<N: AsRef<str>, S: AsRef<str>>(files: &[(N, S)]) -> Result<PowerTable, String> {
+        let mut powers = Vec::new();
+        for (name, src) in files {
+            let list: Vec<PowerDef> = ron::from_str(src.as_ref()).map_err(|e| format!("{}: {e}", name.as_ref()))?;
+            powers.extend(list);
+        }
+        let mut t = PowerTable { rules: PowerRules::default(), powers };
+        t.sanitize();
+        Ok(t)
+    }
+
+    /// Like [`Self::parse_files`], but a file that fails to parse is skipped (reported in the
+    /// returned warnings) — a bad data edit disables that file's powers instead of all of them.
+    pub fn parse_files_lenient<N: AsRef<str>, S: AsRef<str>>(files: &[(N, S)]) -> (PowerTable, Vec<String>) {
+        let mut powers = Vec::new();
+        let mut warn = Vec::new();
+        for (name, src) in files {
+            match ron::from_str::<Vec<PowerDef>>(src.as_ref()) {
+                Ok(list) => powers.extend(list),
+                Err(e) => warn.push(format!("assets/powers/{}: {e} (file skipped)", name.as_ref())),
+            }
+        }
+        let mut t = PowerTable { rules: PowerRules::default(), powers };
+        t.sanitize();
+        (t, warn)
+    }
+
+    /// The shipped files, strict (tests / tools).
+    pub fn shipped() -> Result<PowerTable, String> {
+        Self::parse_files(SHIPPED_FILES)
+    }
+
     fn sanitize(&mut self) {
-        self.powers.truncate(250);
+        self.powers.truncate(MAX_POWERS);
         for p in &mut self.powers {
             p.moves.truncate(super::move_sel::MAX_MOVES);
             p.id = p.id.to_ascii_lowercase();
@@ -831,11 +1440,17 @@ impl PowerTable {
         }
     }
 
-    /// The table every world uses (parsed once from [`SHIPPED_RON`]; an empty table if it fails
-    /// to parse, so a bad data edit disables powers instead of crashing).
+    /// The table every world uses (parsed once from [`SHIPPED_FILES`]; a file that fails to parse
+    /// is skipped with a stderr note, so a bad data edit disables that file instead of crashing).
     pub fn get() -> &'static PowerTable {
         static T: OnceLock<PowerTable> = OnceLock::new();
-        T.get_or_init(|| PowerTable::parse(SHIPPED_RON).unwrap_or(PowerTable { rules: PowerRules::default(), powers: vec![] }))
+        T.get_or_init(|| {
+            let (t, warn) = PowerTable::parse_files_lenient(SHIPPED_FILES);
+            for w in warn {
+                eprintln!("powers: {w}");
+            }
+            t
+        })
     }
 
     pub fn index_of(&self, key: &str) -> Option<u16> {

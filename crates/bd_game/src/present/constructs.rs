@@ -563,10 +563,15 @@ fn construct_events(
                     HeldFx::ChuteOpen => sfx.write_default_chute(p),
                     HeldFx::Transform => {
                         let to_robot = *strength > 0.0;
+                        // TRANSFORMER COMBAT: |strength| > 1 = a fast combat transform (that × speed).
+                        let speed = strength.abs().max(1.0);
                         sc.robot = to_robot;
-                        sfx.write(Sfx3d::at(if to_robot { "transform_to_robot" } else { "transform_to_vehicle" }, p));
+                        sfx.write(Sfx3d::at(if to_robot { "transform_to_robot" } else { "transform_to_vehicle" }, p).pitch(speed.sqrt().min(1.6)));
+                        if speed > 1.2 {
+                            sc.flash = sc.flash.max(0.7); // the combat-transform flash
+                        }
                         match tfx {
-                            Some(mut t) => t.restart(to_robot),
+                            Some(mut t) => t.restart_at(to_robot, speed),
                             None => {
                                 commands.entity(e).try_insert(PendingTransform(to_robot));
                             }

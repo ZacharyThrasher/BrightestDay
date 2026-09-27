@@ -3,15 +3,17 @@
 //! * Portals, force fields and links are synced from the replicated snapshot (`ViewKeys::curr`),
 //!   so they are right in every mode and after a resync: bd_fx `PortalFx` (both ends), `ForceFieldFx`
 //!   (strength 0 = Ope Ope **ROOM**: a translucent corps dome), `ChainFx` between the link ends.
-//! * Power moments (`GameEvent::Power`): fruit sparkle, the stretching rubber arm of an incanted
-//!   delivery, blink afterimages (a fading copy of the body), logia scatter, swaps, stand rush
-//!   punches, overdose, transformations, and the **time-stop grey** (world desaturates for
+//! * Power moments (`GameEvent::Power`): fruit sparkle, blink afterimages (a fading copy of the
+//!   body), logia scatter, stand rush punches, overdose, transformations, and the **time-stop grey** (world desaturates for
 //!   everyone while any player holds `TIME_STOP`; the user glows — they are the one who's fast).
+//! * Every MOVE's beat (blink traces, dash streaks, shove cones, slams, reels, swaps, limbs — the
+//!   rubber arm of a delivery included) is the move presentation grammar: [`movefx`].
 
 pub mod ascend;
 pub mod costume;
 mod dev;
 pub mod juice;
+pub mod movefx; // TOOLBOX PRESENTATION: the move presentation grammar (per op beats × style bodies, poses, sounds)
 
 use super::players::PlayerBody;
 use super::sound::Sfx3d;
@@ -20,7 +22,7 @@ use crate::camera::PlayerCamera;
 use crate::sim_bridge::{ActiveWorld, GameEvents, ViewKeys, WorldViews};
 use crate::state::AppState;
 use bd_core::{ConstructId, PlayerId};
-use bd_fx::{BurstFx, BurstKind, ChainFx, ConstructEnd, ConstructVisual, ForceFieldFx, PortalFx, SpawnOnomatopoeia, ZapFx};
+use bd_fx::{BurstFx, BurstKind, ChainFx, ConstructEnd, ConstructVisual, ForceFieldFx, PortalFx, SpawnOnomatopoeia};
 use bd_sim::powers::{power_flags, PowerEvent};
 use bd_sim::replicate::LinkEndSnap;
 use bd_sim::GameEvent;
@@ -35,16 +37,8 @@ struct SpaceEntities {
     links: HashMap<u16, Entity>,
 }
 
-#[derive(Component)]
-struct RubberArm {
-    player: PlayerId,
-    construct: ConstructId,
-    t: f32,
-}
-
 #[derive(Resource)]
 struct PowerAssets {
-    cube: Handle<Mesh>,
     sphere: Handle<Mesh>,
 }
 
@@ -57,20 +51,20 @@ pub struct PowersPlugin;
 impl Plugin for PowersPlugin {
     fn build(&self, app: &mut App) {
         dev::build(app);
-        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin))
+        app.add_plugins((ascend::AscendPlugin, juice::PowerJuicePlugin, costume::CostumeTintPlugin, movefx::MoveFxPlugin))
             .init_resource::<SpaceEntities>()
             .init_resource::<TimeStopGrey>()
             .add_systems(Startup, setup)
             .add_systems(OnExit(AppState::InGame), clear)
-            .add_systems(Update, (power_events, sync_space, rubber_arms, time_stop_grey).chain().in_set(PresentSet::Sync));
+            .add_systems(Update, (power_events, sync_space, time_stop_grey).chain().in_set(PresentSet::Sync));
     }
 }
 
 fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    commands.insert_resource(PowerAssets { cube: meshes.add(Cuboid::new(1.0, 1.0, 1.0)), sphere: meshes.add(Sphere::new(1.0).mesh().ico(4).unwrap_or_else(|_| Sphere::new(1.0).mesh().uv(32, 16))) });
+    commands.insert_resource(PowerAssets { sphere: meshes.add(Sphere::new(1.0).mesh().ico(4).unwrap_or_else(|_| Sphere::new(1.0).mesh().uv(32, 16))) });
 }
 
-fn clear(mut commands: Commands, mut s: ResMut<SpaceEntities>, arms: Query<Entity, With<RubberArm>>) {
+fn clear(mut commands: Commands, mut s: ResMut<SpaceEntities>) {
     for (_, es) in s.portals.drain() {
         for e in es {
             commands.entity(e).try_despawn();
@@ -85,9 +79,6 @@ fn clear(mut commands: Commands, mut s: ResMut<SpaceEntities>, arms: Query<Entit
     for (_, e) in s.links.drain() {
         commands.entity(e).try_despawn();
     }
-    for e in &arms {
-        commands.entity(e).try_despawn();
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -96,11 +87,8 @@ fn power_events(
     mut events: MessageReader<GameEvents>,
     active: Option<Res<ActiveWorld>>,
     views: Res<WorldViews>,
-    assets: Res<PowerAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     bodies: Query<(&PlayerBody, &ConstructVisual, &GlobalTransform)>,
     mut burst: MessageWriter<BurstFx>,
-    mut zap: MessageWriter<ZapFx>,
     mut sfx: MessageWriter<Sfx3d>,
     mut ono: MessageWriter<SpawnOnomatopoeia>,
     cams: Query<&GlobalTransform, With<PlayerCamera>>,
@@ -168,23 +156,11 @@ fn power_events(
                 PowerEvent::Shrugged { point, .. } => {
                     burst.write(BurstFx { kind: BurstKind::Flash, pos: bv(*point), dir: Vec3::Y, scale: 0.4, color: Some([1.0; 3]) });
                 }
-                PowerEvent::Delivered { player, construct, arm, .. } => {
-                    if *arm {
-                        let col = corps_rgb(active.corps_of(*player));
-                        let mat = materials.add(StandardMaterial {
-                            base_color: Color::linear_rgb(col[0], col[1], col[2]),
-                            emissive: LinearRgba::rgb(col[0] * 2.5, col[1] * 2.5, col[2] * 2.5),
-                            ..default()
-                        });
-                        commands.spawn((RubberArm { player: *player, construct: *construct, t: 0.0 }, Mesh3d(assets.cube.clone()), MeshMaterial3d(mat), Transform::default()));
-                        if let Some(v) = views.player(*player) {
-                            sfx.write(Sfx3d::at("tether_fire", v.pos).pitch(0.6));
-                        }
-                    }
-                }
-                PowerEvent::Blinked { player, from, to, afterimage } => {
+                // Delivered { arm }: the stretching limb is the move grammar's (`movefx`, style body).
+                // Blink trace / implosion / arrival + sounds: the move grammar (`movefx`). The body
+                // afterimage (a real copy of the model) stays here.
+                PowerEvent::Blinked { player, from, afterimage, .. } => {
                     let col = corps_rgb(active.corps_of(*player));
-                    zap.write(ZapFx { from: bv(*from) + Vec3::Y, to: bv(*to) + Vec3::Y, color: col, duration: 0.15 });
                     if *afterimage && let Some((_, vis, gt)) = bodies.iter().find(|(b, _, _)| b.id == *player) {
                         let mut ghost = ConstructVisual::new(vis.model.clone(), col);
                         ghost.opacity = 0.35;
@@ -193,11 +169,8 @@ fn power_events(
                         t.translation = bv(*from);
                         commands.spawn((ghost, t, ConstructEnd::Dismiss { duration: 0.6 }));
                     }
-                    sfx.write(Sfx3d::at("boost_burst", bv(*to)).pitch(1.4).gain(0.6));
                 }
-                PowerEvent::Swapped { a_pos, b_pos, a, .. } => {
-                    zap.write(ZapFx { from: bv(*a_pos) + Vec3::Y, to: bv(*b_pos) + Vec3::Y, color: corps_rgb(active.corps_of(*a)), duration: 0.2 });
-                }
+                // Swapped: both ends flash + the linked arc (`movefx`).
                 PowerEvent::TimeStop { player, .. } => {
                     if let Some(v) = views.player(*player) {
                         burst.write(BurstFx { kind: BurstKind::Flash, pos: v.pos + Vec3::Y, dir: Vec3::Y, scale: 3.0, color: Some(corps_rgb(v.corps)) });
@@ -377,30 +350,6 @@ fn sync_space(
         }
         keep
     });
-}
-
-fn rubber_arms(
-    mut commands: Commands,
-    time: Res<Time<Real>>,
-    views: Res<WorldViews>,
-    mut arms: Query<(Entity, &mut RubberArm, &mut Transform)>,
-) {
-    for (e, mut arm, mut tf) in &mut arms {
-        arm.t += time.delta_secs();
-        let (Some(p), Some(c)) = (views.player(arm.player), views.construct(arm.construct)) else {
-            commands.entity(e).despawn();
-            continue;
-        };
-        if arm.t > 0.9 {
-            commands.entity(e).despawn();
-            continue;
-        }
-        let hand = super::constructs::hand_transform(p).translation;
-        let d = c.pos - hand;
-        let len = d.length().max(0.05);
-        let thick = 0.16 * p.size;
-        *tf = Transform::from_translation(hand + d * 0.5).looking_to(d / len, Vec3::Y).with_scale(Vec3::new(thick, thick, len));
-    }
 }
 
 fn time_stop_grey(

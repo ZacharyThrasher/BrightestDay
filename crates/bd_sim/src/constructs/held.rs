@@ -140,7 +140,7 @@ impl Swing {
     fn tap(self) -> bool {
         matches!(self, Swing::Primary | Swing::Combo0 | Swing::Combo1 | Swing::Combo2)
     }
-    fn combo_index(self) -> Option<u8> {
+    pub(super) fn combo_index(self) -> Option<u8> {
         match self {
             Swing::Combo0 => Some(0),
             Swing::Combo1 => Some(1),
@@ -318,12 +318,30 @@ pub fn curve_weighted(form: Form, swing: Swing, weight: f32) -> Option<&'static 
     table.get(fi * Swing::ALL.len() + swing as usize)
 }
 
-/// The curve construct `c` swings along (its recipe's weight bin).
-fn curve_of(c: &Construct, swing: Swing) -> Option<&'static SwingCurve> {
+/// The curve construct `c` swings along (its recipe's weight bin). Clients animate exactly this
+/// (see [`event_curve`]).
+pub fn curve_of(c: &Construct, swing: Swing) -> Option<&'static SwingCurve> {
     if c.has(Mechanic::Extends) {
         return super::extend::curve_weighted(swing, bd_shapes::weight_of(&c.recipe)); // EXTENDS: twirl combos
     }
+    if let Some(cv) = super::weapon_class::curve(c, swing) {
+        return Some(cv); // WEAPON FEEL: the class moveset (light flicks, heavy overheads, reach thrusts)
+    }
     curve_weighted(c.recipe.form, swing, bd_shapes::weight_of(&c.recipe))
+}
+
+/// WEAPON FEEL: the curve a `HeldFx` swing event of `c` plays — exactly the one the sim sweeps —
+/// the swing, and whether it holds (charge / guard). Clients (viewmodel, third person) animate
+/// from this.
+pub fn event_curve(c: &Construct, fx: HeldFx, strength: f32, t: &crate::tuning::CombatTuning) -> Option<(&'static SwingCurve, Swing, bool)> {
+    let (swing, hold) = super::weapon_class::event_swing(c, fx, strength, &t.weapons)?;
+    curve_of(c, swing).map(|cv| (cv, swing, hold))
+}
+
+/// WEAPON FEEL: how fast `c`'s swing curves play (sim seconds of curve per second; the class speed
+/// over the Fast / Heavy pace). Clients animate at this rate so the drawn swing matches the hitbox.
+pub fn swing_rate(c: &Construct, t: &crate::tuning::CombatTuning) -> f32 {
+    super::weapon_class::speed(c, &t.weapons) / pace(c)
 }
 
 /// Hand frame: origin at the hand, −Z along the look (bd_shapes swing convention).
@@ -423,10 +441,6 @@ fn flat(v: Vec3) -> Vec3 {
 /// Does RMB block on this construct (shield or anything with Guard)?
 fn guards(c: &Construct) -> bool {
     c.recipe.form == Form::Shield || c.has(Mechanic::Guard)
-}
-
-fn uses_combo(form: Form) -> bool {
-    matches!(form, Form::Sword | Form::Gauntlet)
 }
 
 /// Returning items are thrown with RMB (shields throw with a charged LMB instead: RMB blocks).
@@ -565,6 +579,7 @@ pub(super) fn begin_heavy(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, o
     c.hits.clear();
     s.terrain_hit = false;
     c.set_anim(AnimState::Windup, env.tick());
+    super::weapon_class::on_swing_start(c, Swing::Heavy, env, out); // WEAPON FEEL: heavy commitment
     // The release IS the heavy's swing start (strength 2 = heavy): the first-person
     // viewmodel holds the coiled curve until this and 3P / construct animation start
     // the heavy from it. Without it the swing only showed on the NEXT click.
@@ -596,16 +611,9 @@ fn start_primary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut 
         fx(out, c, HeldFx::DiveStart, o.hand, Vec3::NEG_Y, 1.0);
         return;
     }
-    let swing = if uses_combo(form) || c.has(Mechanic::Extends) || super::legend::combos(c) {
-        if s.combo_timer > 0.0 {
-            match s.combo {
-                0 => Swing::Combo1,
-                1 => Swing::Combo2,
-                _ => Swing::Combo0,
-            }
-        } else {
-            Swing::Combo0
-        }
+    let len = super::weapon_class::combo_len(c, &env.ctx.tuning.weapons); // WEAPON FEEL: class strings
+    let swing = if len >= 2 {
+        if s.combo_timer > 0.0 { super::weapon_class::next_combo(s.combo, len) } else { Swing::Combo0 }
     } else {
         Swing::Primary
     };
@@ -636,6 +644,7 @@ pub(super) fn begin_swing(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, o
         None => 1.0,
     };
     fx(out, c, HeldFx::SwingStart, env.owner.hand, env.owner.look, strength);
+    super::weapon_class::on_swing_start(c, swing, env, out); // WEAPON FEEL: heavy commitment (ground speed braked)
     super::legend::on_swing_start(c, s, env); // LEGENDARY: Blade + Fast deflect window
 }
 
@@ -662,7 +671,8 @@ fn start_secondary(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mu
             begin_swing(c, s, env, out, Swing::Secondary);
             s.cd2 = 0.45;
         }
-        Form::Spear => {
+        Form::Spear | Form::Staff => {
+            // (a Staff here is a quarterstaff — WEAPON FEEL: Reach poles lunge like spears)
             begin_swing(c, s, env, out, Swing::Secondary);
             let along = o.vel.dot(o.look);
             let dv = o.look * (LUNGE_SPEED - along.max(0.0)).max(0.0);
@@ -709,7 +719,7 @@ fn swing_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Con
         s.mode = Mode::Idle;
         return;
     };
-    let dt = env.dt() / pace(c);
+    let dt = env.dt() * swing_rate(c, env.ctx.tuning); // WEAPON FEEL: class speed
     let (a, b) = cv.active_window();
     let t0 = s.t;
     let mut t1 = t0 + dt;
@@ -756,11 +766,14 @@ fn swing_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Con
     }
     if t1 >= b && t0 < b {
         c.set_anim(AnimState::Recover, env.tick());
+        super::weapon_class::on_window_end(c, s, env, out); // WEAPON FEEL: a full-charge heavy breaks the ground
     }
     let dur = cv.duration();
     // A buffered press cancels the back half of the recovery into the next combo hit.
-    let cancel = s.queued && (uses_combo(form) || c.has(Mechanic::Extends) || super::legend::combos(c)) && t1 >= b + cv.recovery * 0.4;
-    if t1 >= dur || cancel {
+    let cancel = s.queued && super::weapon_class::combo_len(c, &env.ctx.tuning.weapons) >= 2 && t1 >= b + cv.recovery * 0.4;
+    // WEAPON FEEL: light weapons cancel their recovery into movement (jump / dodge / boost).
+    let move_cancel = super::weapon_class::move_cancel(c, s, env, t1, b, cv.recovery);
+    if t1 >= dur || cancel || move_cancel {
         if let Some(k) = s.swing.combo_index() {
             s.combo = k;
             s.combo_timer = COMBO_WINDOW;
@@ -822,6 +835,7 @@ fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
         fx(out, c, HeldFx::Uppercut, o.hand, Vec3::Y, 1.2);
     }
     super::legend::on_active(c, s, env, out); // LEGENDARY: blade waves, chain blades' 360° sweep
+    super::weapon_class::on_active(c, s, env, out); // WEAPON FEEL: the strike carries you forward (heavy, shield bash)
 }
 
 /// Numbers for the swing playing now.
@@ -864,7 +878,7 @@ fn hit_spec(c: &Construct, s: &HeldState, t: &crate::tuning::CombatTuning) -> Hi
             impact = 1.3;
         }
         Swing::Secondary => match c.recipe.form {
-            Form::Spear => {
+            Form::Spear | Form::Staff => {
                 dmg *= 1.2;
                 impact = 1.2;
             }
@@ -876,6 +890,7 @@ fn hit_spec(c: &Construct, s: &HeldState, t: &crate::tuning::CombatTuning) -> Hi
         },
         _ => {}
     }
+    super::weapon_class::hit_spec(c, s, &t.weapons, &mut dmg, &mut kb, &mut impact); // WEAPON FEEL: class numbers, finisher crit
     super::legend::hit_spec(c, s, &t.legendary, &mut kb, &mut kind, &mut impact); // LEGENDARY: momentum combos
     HitSpec { dmg, kb, kind, impact }
 }
@@ -897,8 +912,10 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
     if (form == Form::Whip || form == Form::Sword) && s.swing == Swing::Secondary {
         return;
     }
+    let class_crater = super::weapon_class::crater(c, s, &ctx.tuning.weapons); // WEAPON FEEL: heavy whiffs crack the ground
     let heavy_terrain = (s.swing == Swing::Heavy && (form == Form::Hammer || c.has(Mechanic::Blunt) || c.has(Mechanic::Heavy) || form == Form::Axe))
-        || (s.swing == Swing::Combo2 && c.has(Mechanic::Extends));
+        || (s.swing == Swing::Combo2 && c.has(Mechanic::Extends))
+        || class_crater > 0.0;
     // CONNECT: a generous hit volume vs players (the extra only through a clear line to the body).
     let aim = &ctx.tuning.assist.aim;
     let wide = crate::aim_assist::melee_radius(r, aim.melee_mult(form, swing_weight(&c.recipe)), aim.melee_extra_max);
@@ -934,7 +951,7 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
                 }
                 c.hits.insert(player_key(t.id));
                 let point = p0 + (p1 - p0) * f;
-                hit_player(c, s, env, out, &hs, t, point, tangent);
+                hit_player(c, s, env, out, &hs, t, point, tangent, (k + 1) as f32 / n as f32);
             }
             // Enemy constructs (free bodies; attached weapons clash instead).
             for px in env.others {
@@ -961,9 +978,10 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
             // Heavy blunt swings bite into terrain.
             if heavy_terrain && !s.terrain_hit && k == n - 1 && ctx.voxels.is_solid(world_to_voxel(p1)) {
                 s.terrain_hit = true;
-                let rad = if c.recipe.element == Element::Earth { 1.5 } else { 1.1 };
+                let rad: f32 = if c.recipe.element == Element::Earth { 1.5 } else { 1.1 };
+                let rad = rad.max(class_crater * if c.recipe.element == Element::Earth { 1.26 } else { 1.0 });
                 out.carves.push(CarveRequest { center: p1, radius: rad, power: 0.8 });
-                fx(out, c, HeldFx::SwingImpact, p1, tangent, 1.5);
+                fx(out, c, HeldFx::SwingImpact, p1, tangent, if class_crater > 0.0 { 2.0 } else { 1.5 });
             }
         }
         prev = cur;
@@ -971,12 +989,15 @@ fn sweep(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Construc
 }
 
 #[allow(clippy::too_many_arguments)]
-fn hit_player(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, hs: &HitSpec, t: &PlayerView, point: Vec3, tangent: Vec3) {
+fn hit_player(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, hs: &HitSpec, t: &PlayerView, point: Vec3, tangent: Vec3, frac: f32) {
     let o = env.owner;
     let form = c.recipe.form;
     let mut dir = o.look + tangent * 0.4;
     let mut kb = hs.kb;
     let mut dmg = hs.dmg;
+    let mut impact = hs.impact;
+    // WEAPON FEEL: launch lift (heavy), the sweet spot (reach tip, whip crack), the light finisher crit.
+    let crit = super::weapon_class::hit_player(c, s, &env.ctx.tuning.weapons, frac, &mut dmg, &mut kb, &mut dir, &mut impact);
     if form == Form::Gauntlet && s.swing == Swing::Secondary {
         // Uppercut launcher.
         dir = flat(o.look) * 0.25 + Vec3::Y;
@@ -998,12 +1019,9 @@ fn hit_player(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Con
         s.grab_t = 0.0;
         fx(out, c, HeldFx::Grab, point, o.look, 1.0);
     }
-    out.player_hits.push(
-        HitInfo::new(t.id, Some(c.owner), hs.kind, dmg, kb, dir, point)
-            .with_element(c.recipe.element)
-            .with_construct(c.id)
-            .with_impact(hs.impact),
-    );
+    let mut hit = HitInfo::new(t.id, Some(c.owner), hs.kind, dmg, kb, dir, point).with_element(c.recipe.element).with_construct(c.id).with_impact(impact);
+    hit.crit |= crit;
+    out.player_hits.push(hit);
     if c.has(Mechanic::Explodes) && s.explode_cd <= 0.0 {
         s.explode_cd = 0.5;
         out.explosions.push(Explosion {

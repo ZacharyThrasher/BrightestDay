@@ -56,6 +56,10 @@
     heavy_crunch: 0.35,
     heavy_squeeze: 0.5,
     boost_kick: 0.35,
+    air_jump_push: 0.55,
+    dodge_sweep: 0.6,
+    dodge_roll: 2.2,
+    wall_slap: 0.7,
     imp_omega: 13.0,
     imp_zeta: 0.5,
 

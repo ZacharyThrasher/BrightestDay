@@ -2228,6 +2228,426 @@
             sequence: false,
             stereo: false,
         ), // LEGEND BFG orb tendril: a short, darker, thick plasma zap
+        "mv_blink_implode": (
+            files: ["sfx/mv_blink_implode_1.ogg", "sfx/mv_blink_implode_2.ogg", "sfx/mv_blink_implode_3.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // blink departure: air sucked into a point (reverse swell of band noise + a rising pinch)
+        "mv_blink_pop": (
+            files: ["sfx/mv_blink_pop_1.ogg", "sfx/mv_blink_pop_2.ogg", "sfx/mv_blink_pop_3.ogg", "sfx/mv_blink_pop_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // blink arrival: air displaced outward — a hollow pop + short burst
+        "mv_air_tear": (
+            files: ["sfx/mv_air_tear_1.ogg", "sfx/mv_air_tear_2.ogg", "sfx/mv_air_tear_3.ogg", "sfx/mv_air_tear_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // dash: the air tears open — a ripping band sweep + low push
+        "mv_skid": (
+            files: ["sfx/mv_skid_1.ogg", "sfx/mv_skid_2.ogg", "sfx/mv_skid_3.ogg", "sfx/mv_skid_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -23.0,
+            sequence: false,
+            stereo: false,
+        ), // landing skid: gravel scrape decelerating + a scuff
+        "mv_shove_wave": (
+            files: ["sfx/mv_shove_wave_1.ogg", "sfx/mv_shove_wave_2.ogg", "sfx/mv_shove_wave_3.ogg", "sfx/mv_shove_wave_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // shove: a pressure wave off the fist — sub punch + air slap + dragging wind tail
+        "mv_ground_crack": (
+            files: ["sfx/mv_ground_crack_1.ogg", "sfx/mv_ground_crack_2.ogg", "sfx/mv_ground_crack_3.ogg", "sfx/mv_ground_crack_4.ogg"],
+            category: "destruction",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // the ground splits: a rolling stone crackle run + a low rip
+        "mv_slam_dread": (
+            files: ["sfx/mv_slam_dread_1.ogg", "sfx/mv_slam_dread_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // slam windup: a falling whistle that rises in tension (downward glide + growing sub)
+        "mv_field_bloom": (
+            files: ["sfx/mv_field_bloom_1.ogg", "sfx/mv_field_bloom_2.ogg", "sfx/mv_field_bloom_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // a field / room opens: a bowed hard-light chord blooming outward with a soft whoosh
+        "mv_field_cross": (
+            files: ["sfx/mv_field_cross_1.ogg", "sfx/mv_field_cross_2.ogg", "sfx/mv_field_cross_3.ogg", "sfx/mv_field_cross_4.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -26.0,
+            sequence: false,
+            stereo: false,
+        ), // someone crosses a field boundary: a glassy bloop through a membrane
+        "mv_swap_clap": (
+            files: ["sfx/mv_swap_clap_1.ogg", "sfx/mv_swap_clap_2.ogg", "sfx/mv_swap_clap_3.ogg", "sfx/mv_swap_clap_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // swap: two linked claps (both ends at once) with a shared ringing tail
+        "mv_time_tick": (
+            files: ["sfx/mv_time_tick_1.ogg", "sfx/mv_time_tick_2.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // time stops: a huge clock tick, then the world pulled out of phase (reverse swell + low drone dip)
+        "mv_hardlight": (
+            files: ["sfx/mv_hardlight_1.ogg", "sfx/mv_hardlight_2.ogg", "sfx/mv_hardlight_3.ogg", "sfx/mv_hardlight_4.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // hard-light body: a crisp glassy strike + quick shard run
+        "mv_rubber_stretch": (
+            files: ["sfx/mv_rubber_stretch_1.ogg", "sfx/mv_rubber_stretch_2.ogg", "sfx/mv_rubber_stretch_3.ogg", "sfx/mv_rubber_stretch_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // rubber stretching: a creaky rising elastic groan (rubbed band + rising pitch)
+        "mv_rubber_snap": (
+            files: ["sfx/mv_rubber_snap_1.ogg", "sfx/mv_rubber_snap_2.ogg", "sfx/mv_rubber_snap_3.ogg", "sfx/mv_rubber_snap_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // rubber snap-back: band SNAP + a wobbling boing (pitch-bent twang with vibrato decay)
+        "mv_rigid_extend": (
+            files: ["sfx/mv_rigid_extend_1.ogg", "sfx/mv_rigid_extend_2.ogg", "sfx/mv_rigid_extend_3.ogg", "sfx/mv_rigid_extend_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // telescoping pole: a fast run of metal clacks (segments locking) + a whoosh
+        "mv_rigid_ring": (
+            files: ["sfx/mv_rigid_ring_1.ogg", "sfx/mv_rigid_ring_2.ogg", "sfx/mv_rigid_ring_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // rigid strike: a struck iron bar ringing like a temple bell (inharmonic modes, long ring)
+        "mv_rigid_collapse": (
+            files: ["sfx/mv_rigid_collapse_1.ogg", "sfx/mv_rigid_collapse_2.ogg", "sfx/mv_rigid_collapse_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // pole collapsing back: reverse clacks, a tink
+        "mv_bamf": (
+            files: ["sfx/mv_bamf_1.ogg", "sfx/mv_bamf_2.ogg", "sfx/mv_bamf_3.ogg", "sfx/mv_bamf_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // BAMF: a sharp air crack + a sulphurous puff (low whump, hissing smoke tail)
+        "mv_speed_zip": (
+            files: ["sfx/mv_speed_zip_1.ogg", "sfx/mv_speed_zip_2.ogg", "sfx/mv_speed_zip_3.ogg", "sfx/mv_speed_zip_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -18.0,
+            sequence: false,
+            stereo: false,
+        ), // speedforce: a doppler zip with electric crackle riding it
+        "mv_bolt_crack": (
+            files: ["sfx/mv_bolt_crack_1.ogg", "sfx/mv_bolt_crack_2.ogg", "sfx/mv_bolt_crack_3.ogg", "sfx/mv_bolt_crack_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // lightning body: a close thunder crack (sharp tear + rumble tail)
+        "mv_gust": (
+            files: ["sfx/mv_gust_1.ogg", "sfx/mv_gust_2.ogg", "sfx/mv_gust_3.ogg", "sfx/mv_gust_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // wind body: a swirling gust (two crossing band sweeps + flutter)
+        "mv_shadow": (
+            files: ["sfx/mv_shadow_1.ogg", "sfx/mv_shadow_2.ogg", "sfx/mv_shadow_3.ogg", "sfx/mv_shadow_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // shadow body: a dark breathy swoosh with a low whisper-like formant
+        "mv_splash": (
+            files: ["sfx/mv_splash_1.ogg", "sfx/mv_splash_2.ogg", "sfx/mv_splash_3.ogg", "sfx/mv_splash_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // liquid body: a splash (burst + many droplet plinks)
+        "mv_void_thump": (
+            files: ["sfx/mv_void_thump_1.ogg", "sfx/mv_void_thump_2.ogg", "sfx/mv_void_thump_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -16.0,
+            sequence: false,
+            stereo: false,
+        ), // void body: an inverted boom — a suck-in then a deep hollow thump
+        "mv_cursed": (
+            files: ["sfx/mv_cursed_1.ogg", "sfx/mv_cursed_2.ogg", "sfx/mv_cursed_3.ogg", "sfx/mv_cursed_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // cursed energy: a distorted dark flare (saturated low growl + crackle)
+        "mv_holy": (
+            files: ["sfx/mv_holy_1.ogg", "sfx/mv_holy_2.ogg", "sfx/mv_holy_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // holy body: a bright choir-like chord bloom with bell glints
+        "mv_chi": (
+            files: ["sfx/mv_chi_1.ogg", "sfx/mv_chi_2.ogg", "sfx/mv_chi_3.ogg", "sfx/mv_chi_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // chi / ki body: a resonant thrum pulse (pulsed low tone + air)
+        "mv_fire_whoomp": (
+            files: ["sfx/mv_fire_whoomp_1.ogg", "sfx/mv_fire_whoomp_2.ogg", "sfx/mv_fire_whoomp_3.ogg", "sfx/mv_fire_whoomp_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // fire body: a WHOOMP ignition (low roar swell + crackle)
+        "mv_ice": (
+            files: ["sfx/mv_ice_1.ogg", "sfx/mv_ice_2.ogg", "sfx/mv_ice_3.ogg", "sfx/mv_ice_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -19.0,
+            sequence: false,
+            stereo: false,
+        ), // ice body: a crystalline crack-freeze (glassy creak + bright shard tinkle)
+        "mv_crystal": (
+            files: ["sfx/mv_crystal_1.ogg", "sfx/mv_crystal_2.ogg", "sfx/mv_crystal_3.ogg"],
+            category: "construct",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.994, 1.006),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // crystal body: a ringing gem chord (pure pings) + a glassy chime run
+        "mv_steam": (
+            files: ["sfx/mv_steam_1.ogg", "sfx/mv_steam_2.ogg", "sfx/mv_steam_3.ogg", "sfx/mv_steam_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // steam body: a pressurised hiss burst
+        "mv_sand": (
+            files: ["sfx/mv_sand_1.ogg", "sfx/mv_sand_2.ogg", "sfx/mv_sand_3.ogg", "sfx/mv_sand_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // sand body: a hissing grain pour (dense grit + low rush)
+        "mv_glitch": (
+            files: ["sfx/mv_glitch_1.ogg", "sfx/mv_glitch_2.ogg", "sfx/mv_glitch_3.ogg", "sfx/mv_glitch_4.ogg"],
+            category: "feedback",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // glitch body: bit-crushed stutter chirps
+        "mv_paper": (
+            files: ["sfx/mv_paper_1.ogg", "sfx/mv_paper_2.ogg", "sfx/mv_paper_3.ogg", "sfx/mv_paper_4.ogg"],
+            category: "movement",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -23.0,
+            sequence: false,
+            stereo: false,
+        ), // paper body: a flurry of flutters and a crisp snap
+        "swing_swish_light": (
+            files: ["sfx/swing_swish_light_1.ogg", "sfx/swing_swish_light_2.ogg", "sfx/swing_swish_light_3.ogg", "sfx/swing_swish_light_4.ogg", "sfx/swing_swish_light_5.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -22.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL light swing: a thin high fast air cut + a faint steel sing (knife, dagger, rapier)
+        "swing_whoosh_medium": (
+            files: ["sfx/swing_whoosh_medium_1.ogg", "sfx/swing_whoosh_medium_2.ogg", "sfx/swing_whoosh_medium_3.ogg", "sfx/swing_whoosh_medium_4.ogg", "sfx/swing_whoosh_medium_5.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -20.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL medium swing: a mid whoosh with a short doppler body (sword / hammer default)
+        "swing_whoosh_heavy": (
+            files: ["sfx/swing_whoosh_heavy_1.ogg", "sfx/swing_whoosh_heavy_2.ogg", "sfx/swing_whoosh_heavy_3.ogg", "sfx/swing_whoosh_heavy_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.985, 1.015),
+            lufs: -17.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL heavy swing: a big body of air shoved past, low and slow, with a heave in front
+        "heavy_crunch": (
+            files: ["sfx/heavy_crunch_1.ogg", "sfx/heavy_crunch_2.ogg", "sfx/heavy_crunch_3.ogg", "sfx/heavy_crunch_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL heavy connect layer: a dull bone-deep crunch + a sub punch under the regular hit
+        "ground_crack": (
+            files: ["sfx/ground_crack_1.ogg", "sfx/ground_crack_2.ogg", "sfx/ground_crack_3.ogg", "sfx/ground_crack_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -13.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL heavy whiff into terrain: stone splitting under the head, grit spray, a rolling thump
+        "swing_thrust": (
+            files: ["sfx/swing_thrust_1.ogg", "sfx/swing_thrust_2.ogg", "sfx/swing_thrust_3.ogg", "sfx/swing_thrust_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -21.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL reach thrust: a short rising air-dart (a spear jab) + a wooden shaft creak
+        "whip_crack": (
+            files: ["sfx/whip_crack_1.ogg", "sfx/whip_crack_2.ogg", "sfx/whip_crack_3.ogg", "sfx/whip_crack_4.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.975, 1.025),
+            lufs: -14.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL whip tip sweet spot: a whistling lead-in, then the supersonic snap (sharp, dry)
+        "shield_bash": (
+            files: ["sfx/shield_bash_1.ogg", "sfx/shield_bash_2.ogg", "sfx/shield_bash_3.ogg"],
+            category: "combat",
+            volume: 1.00,
+            looping: false,
+            pitch: (0.970, 1.030),
+            lufs: -15.0,
+            sequence: false,
+            stereo: false,
+        ), // WEAPON FEEL shield bash: a flat wood + metal-rim slam and a shove thump
     },
     ko_streak: (
         key: "E minor pentatonic",

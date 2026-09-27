@@ -29,6 +29,7 @@
 //! **Single source:** every willpower / cost read goes through [`PowerHudState`] (`willpower`,
 //! `cost`, `will`, `gems`) — never a second derivation.
 
+pub mod borrowed; // TOOLBOX PRESENTATION: borrowed-move chips + chain pips
 pub mod derive;
 mod gauge;
 mod gems;
@@ -63,6 +64,7 @@ impl Plugin for PowerHudPlugin {
             .add_message::<crate::audio::PlaySfx>()
             .add_systems(Update, (derive_state, cost_preview, update_will).chain().after(BridgeSet::Views).in_set(crate::present::PresentSet::Events));
         strip::build(app);
+        borrowed::build(app);
         gauge::build(app);
         labels::build(app);
         gems::build(app);
@@ -180,15 +182,34 @@ fn cost_preview(
 }
 
 fn phrase_cost(a: &ActiveWorld, lex: &RingLexicon, me: bd_core::PlayerId, text: &str) -> Option<f32> {
+    use bd_sim::powers::toolbox::{MoveIndex, Reading, split_chain};
     let w = &a.world;
     let pool = w.rules().willpower_max().max(1.0);
     let p = w.player(me)?;
+    let table = bd_sim::powers::PowerTable::get();
+    let read = |s: &str| MoveIndex::shipped().read(table, Some(&p.power), s);
+    // TOOLBOX: a chain line previews what the whole line will spend.
+    let steps = split_chain(text, &|s| read(s) != Reading::Plain);
+    if steps.len() > 1 {
+        let sum: f32 = steps.iter().filter_map(|s| phrase_cost(a, lex, me, s)).sum();
+        return (sum > 0.0).then_some(sum.clamp(0.0, 2.0));
+    }
+    // TOOLBOX: a borrowed / kit move costs its presence tier in sparks + its staleness.
+    if let Some(m) = read(text).move_ref()
+        && let Some((_, mv)) = m.resolve(table)
+    {
+        let rules = w.rules();
+        let window = w.cfg.tuning.willpower.stale_window;
+        let uses = p.power.toolbox.cd_of(m).map_or(0, |c| if c.since <= window { c.uses as u32 } else { 0 });
+        let cost = if rules.infinite_willpower() { 0.0 } else { bd_sim::powers::chain::move_sparks(&w.cfg.tuning.willpower.sparks, mv, uses, rules.pool_segments()) as f32 * rules.segment_size() };
+        return (cost > 0.0).then_some((cost / pool).clamp(0.0, 2.0));
+    }
     let cost = match w.parse_power_phrase(me, text) {
         PowerPhrase::Move(slot) => {
             if slot & move_sel::SELECT != 0 || slot == move_sel::CYCLE {
                 0.0
             } else {
-                let (held, s) = if slot & move_sel::MOVE_OF != 0 { (((slot >> 2) & 3) as usize, slot & 3) } else { (0, slot) };
+                let (held, s) = move_sel::split_move_of(slot);
                 let h = p.power.held().find(|h| h.slot == held)?;
                 h.def.moves_at(h.tier).get(s as usize).map_or(0.0, |m| m.cost)
             }

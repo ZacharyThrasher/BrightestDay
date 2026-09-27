@@ -5,7 +5,7 @@
 //! land, slide brace, per-hand tethers (throw, grip toward the anchor, reel tremble, whip back), the
 //! ring (raise + glow while typing / talking, thrust on cast, steady during the oath), held weight
 //! (heavier things lag and settle slower, swing anticipation), gun kick, hit flinch, launch flail,
-//! KO drop and the charge clench.
+//! KO drop and the charge clench; air jump push, dodge sweep and the wall-refresh slap (ANIMATION PASS).
 //!
 //! * **Pure core**: [`HandAnimator::step`] turns one frame of [`AnimInput`] (+ one-shot impulses) into
 //!   a [`HandPose`]. Springs are integrated with the exact damped-oscillator solution
@@ -109,6 +109,13 @@ pub struct VmTuning {
     pub heavy_crunch: f32,
     pub heavy_squeeze: f32,
     pub boost_kick: f32,
+    /// ANIMATION PASS: air jump — both hands shove down off the hard-light step (m/s).
+    pub air_jump_push: f32,
+    /// ANIMATION PASS: dodge — the hands sweep against the dodge (m/s) and the view-model rolls into it (rad/s).
+    pub dodge_sweep: f32,
+    pub dodge_roll: f32,
+    /// ANIMATION PASS: wall refresh — the hand on the wall's side slaps toward it (m/s).
+    pub wall_slap: f32,
     pub imp_omega: f32,
     pub imp_zeta: f32,
 
@@ -296,6 +303,10 @@ impl Default for VmTuning {
             heavy_crunch: 0.35,
             heavy_squeeze: 0.5,
             boost_kick: 0.35,
+            air_jump_push: 0.55,
+            dodge_sweep: 0.6,
+            dodge_roll: 2.2,
+            wall_slap: 0.7,
             imp_omega: 13.0,
             imp_zeta: 0.5,
             slide_pos: [0.0, -0.025, -0.015],
@@ -940,6 +951,31 @@ impl HandAnimator {
         self.imp_pos.kick(Vec3::Z * tu.boost_kick * m);
     }
 
+    /// ANIMATION PASS: the air jump — both hands shove down off the hard-light step, the view lifts.
+    pub fn air_jump(&mut self, tu: &VmTuning, m: f32) {
+        let k = tu.air_jump_push * m;
+        self.hand_pos[LEFT].kick(Vec3::new(-0.25, -1.0, 0.1) * k);
+        self.hand_pos[RIGHT].kick(Vec3::new(0.25, -1.0, 0.1) * k);
+        self.hand_rot[LEFT].kick(Vec3::new(1.5, 0.0, -0.8) * k);
+        self.hand_rot[RIGHT].kick(Vec3::new(1.5, 0.0, 0.8) * k);
+        self.imp_rot.kick(Vec3::X * tu.jump_pitch * 0.6 * m);
+    }
+
+    /// ANIMATION PASS: a dodge along `dir` (camera space): the hands sweep the other way and roll into it.
+    pub fn dodge(&mut self, tu: &VmTuning, dir: Vec3, m: f32) {
+        let d = Vec3::new(dir.x, 0.0, dir.z).normalize_or(Vec3::NEG_Z);
+        self.imp_pos.kick(-d * tu.dodge_sweep * m);
+        self.imp_rot.kick(Vec3::Z * -d.x * tu.dodge_roll * m);
+    }
+
+    /// ANIMATION PASS: a wall touch gave the air jump back; `normal` (camera space) points off the wall.
+    pub fn wall_refresh(&mut self, tu: &VmTuning, normal: Vec3, m: f32) {
+        let h = if normal.x > 0.0 { LEFT } else { RIGHT };
+        let n = normal.normalize_or(Vec3::Z);
+        self.hand_pos[h].kick(-n * tu.wall_slap * m);
+        self.hand_rot[h].kick(Vec3::new(0.0, 0.0, -n.x * 2.0) * tu.wall_slap * m);
+    }
+
     pub fn tether_fire(&mut self, tu: &VmTuning, hand: usize, dir: Vec3) {
         let h = hand.min(1);
         let mut d = dir.try_normalize().unwrap_or(Vec3::NEG_Z);
@@ -1386,6 +1422,7 @@ pub(super) fn drive_hand_anim(
     mut st: ResMut<AnimState>,
     mut pose_out: ResMut<HandPose>,
     ascend: Option<Res<crate::present::powers::ascend::AscendPose>>,
+    move_poses: Option<ResMut<crate::present::powers::movefx::MovePoses>>,
 ) {
     let t0 = std::time::Instant::now();
     let tu = &tuning.0;
@@ -1465,6 +1502,16 @@ pub(super) fn drive_hand_anim(
         if ev.boost_burst {
             anim.boost(tu, motion);
         }
+        // ANIMATION PASS: air jump / dodge / wall refresh in the hands.
+        if ev.air_jumped {
+            anim.air_jump(tu, motion);
+        }
+        if ev.dodged {
+            anim.dodge(tu, to_cam * v3(sim.state.extra.dodge_dir), motion);
+        }
+        if let Some(n) = ev.wall_refresh {
+            anim.wall_refresh(tu, to_cam * v3(n), motion);
+        }
         for h in 0..2 {
             if ev.tether_fired[h] {
                 let hp = v3(sim.state.hooks[h].pos);
@@ -1484,6 +1531,20 @@ pub(super) fn drive_hand_anim(
             RingCue::Forming { .. } => anim.cast(tu),
             RingCue::Rush => anim.rush(tu),
             RingCue::Wake | RingCue::Sleep => {}
+        }
+    }
+    // MOVE GRAMMAR HOOK (`present::powers::movefx`): a power move's first-person pose.
+    if let Some(mut mp) = move_poses
+        && let Some((pose, k)) = mp.local.take()
+    {
+        use crate::present::powers::movefx::MovePose;
+        match pose {
+            MovePose::Punch => anim.cast(tu),
+            MovePose::Palms => anim.palm_release(tu, 0.6 * k, motion),
+            MovePose::Grab => anim.tether_fire(tu, RIGHT, Vec3::new(0.15, 0.05, -1.0).normalize()),
+            MovePose::Lunge => anim.boost(tu, motion),
+            MovePose::Slam => anim.palm_release(tu, 0.9 * k, motion),
+            MovePose::Clench => {}
         }
     }
     // Typing: every letter twitches the ring hand (console buffer / oath progress).

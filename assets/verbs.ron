@@ -1,0 +1,184 @@
+// VERB GRAMMAR (docs/toolbox/COMPOSED_MOVE.md) — "describe a power": what the PLAYER does.
+//
+//   verb × style/element × modifier × place × target × count × duration
+//   "shadow teleport behind ethan", "lightning dash through him", "gravity punch", "rewind 3 seconds",
+//   "pull everyone to me", "leap onto the tower", "fire uppercut", "swap with the dragon".
+//
+// VOCABULARY ONLY. What each verb KIND does is a closed set in code (bd_sim powers/compose/build.rs:
+// kind → MoveOp list, with sensible distance / speed / damage defaults and a chain-friendly ending);
+// this file says which words mean which kind, and per-word flavour (`power` × damage & knockback,
+// `reach` × range & distance, `cd` cooldown override, `fx` style key). Compiled into bd_sim (every
+// peer runs the same table); a phrase is only read here when it is NOT a named move / kit / power
+// (TOOLBOX CORE) and every word of it is understood (else it stays a construct).
+//
+// Rules for editing (docs/toolbox/COMPOSED_MOVE.md §Data):
+// * `id`s are the wire identity (16-bit hash): never rename one; add new entries freely.
+// * Words are lower-case, no punctuation. Multi-word entries match whole word runs, longest first.
+// * Inflections (-s / -es / -ed / -ing, doubled consonants) are handled in code: list the base form.
+// * `noun: true` = the word is also a common THING ("hook", "clone"…): bare, it stays a construct;
+//   with a target / place / style it is the verb ("hook him").
+// * Whisper mishearings go in `respell` (whole word runs → canonical words), like the lexicon's.
+// * `fx` keys are PRESENTATION style keys (assets/tuning/move_fx.ron, docs/toolbox/PRESENTATION.md).
+(
+    verbs: [
+        // ------------------------------------------------------------------ MOVEMENT
+        (id: "teleport", kind: Teleport, words: ["teleport", "tp", "tele", "warp", "port", "appear", "reappear", "materialize", "materialise", "beam", "phase shift", "shift", "transmit", "instant transmission"], noun_words: ["beam", "shift", "port", "tele"]),
+        (id: "blink", kind: Teleport, words: ["blink", "flicker", "flit", "pop"], noun_words: ["pop"], reach: 0.8, cd: 0.7),
+        (id: "bamf", kind: Teleport, words: ["bamf", "bampf", "poof", "puff"], noun_words: ["puff"], fx: "smoke"),
+        (id: "flash_step", kind: Teleport, words: ["flash step", "flashstep", "shunpo", "sonido", "flicker step", "body flicker", "quickstep", "quick step", "step"], noun_words: ["step"], fx: "speed", reach: 0.9, cd: 0.7),
+        (id: "dash", kind: Dash, words: ["dash", "zip", "zoom", "dart", "sprint", "burst", "boost", "jet", "rocket", "streak", "whoosh", "rush"], noun_words: ["zip", "zoom", "dart", "burst", "boost", "jet", "rocket", "streak", "whoosh"]),
+        (id: "lunge", kind: Dash, words: ["lunge", "spring", "launch myself", "fling myself", "throw myself", "hurl myself"], noun_words: ["spring"], power: 1.1, reach: 0.8),
+        (id: "slide", kind: Dash, words: ["slide", "skid", "glide", "skate"], noun_words: ["slide", "skid", "glide", "skate"], reach: 0.8, fx: "air"),
+        (id: "charge", kind: Charge, words: ["charge", "ram", "tackle", "bull rush", "bullrush", "barrel", "plow", "plough", "steamroll", "shoulder charge", "stampede", "spear"], noun_words: ["ram", "barrel", "plow", "plough", "spear"]),
+        (id: "leap", kind: Leap, words: ["leap", "jump", "hop", "bound", "vault", "spring up", "super jump", "high jump", "long jump", "pounce"], noun_words: ["spring up", "bound"]),
+        (id: "fly", kind: Fly, words: ["fly", "hover", "levitate", "float", "soar", "take off", "lift off", "take flight", "go airborne", "ascend", "rise", "flight"]),
+        (id: "dodge", kind: Dodge, words: ["dodge", "evade", "sidestep", "side step", "roll", "duck", "weave", "juke", "dive roll", "backflip", "back flip", "flip"], noun_words: ["duck", "roll", "flip", "weave", "juke"]),
+        (id: "phase", kind: Phase, words: ["phase", "intangible", "go intangible", "turn intangible", "become intangible", "ghost", "go ghost", "noclip", "no clip", "pass", "walk", "slip", "ghost walk", "go through", "walk through", "pass through", "phase out"], noun_words: ["ghost", "pass", "walk", "slip", "go through", "walk through", "pass through"]),
+        (id: "swap", kind: Swap, words: ["swap", "switch", "switch places", "swap places", "trade places", "change places", "trade", "substitute", "substitution", "transpose", "exchange places", "boogie woogie"], noun_words: ["switch", "trade"]),
+        (id: "rewind", kind: Rewind, words: ["rewind", "recall", "reverse", "undo", "rollback", "roll back", "go back in time", "turn back time", "time travel", "chronobreak", "go back", "backtrack", "reset myself"]),
+        (id: "vanish", kind: Vanish, words: ["vanish", "disappear", "invisible", "turn invisible", "go invisible", "become invisible", "cloak", "stealth", "go stealth", "camouflage", "camo", "go dark", "smoke bomb", "hide", "fade", "fade away", "blend in", "invisibility", "turn invisibile"], noun_words: ["cloak", "hide", "fade", "camo", "camouflage"]),
+        (id: "grow", kind: Grow, words: ["grow", "get big", "get bigger", "get huge", "enlarge", "embiggen", "super size", "supersize", "go giant", "become giant", "giant size", "go big", "size up", "grow big", "grow huge", "expand"]),
+        (id: "shrink", kind: Shrink, words: ["shrink", "get small", "get smaller", "get tiny", "go tiny", "become tiny", "miniaturize", "minimize", "size down", "go small", "tiny"]),
+        // ------------------------------------------------------------------ STRIKES
+        (id: "punch", kind: Punch, words: ["punch", "hit", "strike", "sock", "smack", "slug", "clobber", "wallop", "bash", "whack", "thump", "deck", "clock", "belt", "bop", "fist", "knock", "slap", "headbutt", "head butt", "elbow", "palm strike", "palm", "hammer fist", "chop", "karate chop"], noun_words: ["fist", "palm", "belt", "clock", "deck", "slug", "sock", "knock", "chop", "elbow", "hammer fist"]),
+        (id: "jab", kind: Punch, words: ["jab", "poke", "tap", "flick"], noun_words: ["tap", "flick"], power: 0.7, cd: 0.35),
+        (id: "haymaker", kind: Punch, words: ["haymaker", "hay maker", "power punch", "big punch", "mega punch", "super punch", "knockout punch", "knock out punch", "one punch", "serious punch", "falcon punch"], power: 1.45, cd: 1.2),
+        (id: "kick", kind: Kick, words: ["kick", "boot", "roundhouse", "round house", "roundhouse kick", "spin kick", "side kick", "knee", "stomp kick", "drop kick", "dropkick", "flying kick", "punt", "axe kick"], noun_words: ["boot", "knee", "punt"]),
+        (id: "uppercut", kind: Uppercut, words: ["uppercut", "upper cut", "launcher", "launch", "rising punch", "rising uppercut", "rising strike", "rising kick", "knock up", "juggle", "pop up", "send flying", "sky punch", "anti air"]),
+        (id: "slam", kind: Slam, words: ["slam", "ground pound", "groundpound", "body slam", "bodyslam", "dive", "dive bomb", "divebomb", "nosedive", "nose dive", "meteor", "spike", "drop", "crash", "crash down", "plunge", "belly flop", "come down", "dunk"], noun_words: ["meteor", "spike", "drop", "crash", "dunk", "dive", "plunge", "come down"]),
+        (id: "stomp", kind: Stomp, words: ["stomp", "war stomp", "quake", "earthquake", "tremor", "shockwave", "shock wave", "shake the ground", "pound the ground", "stamp", "thunderclap", "clap"], noun_words: ["clap", "thunderclap", "stamp"]),
+        (id: "smash", kind: Smash, words: ["smash", "crush", "demolish", "wreck", "pulverize", "pulverise", "flatten", "shatter", "break", "destroy", "obliterate"], noun_words: ["break"]),
+        (id: "slash", kind: Slash, words: ["slash", "cut", "slice", "cleave", "swipe", "rend", "carve", "claw", "scratch", "sever", "hack", "strike down", "cross slash"], noun_words: ["claw", "scratch", "hack", "carve", "cut"]),
+        (id: "flurry", kind: Flurry, words: ["flurry", "barrage", "rapid punch", "rapid punches", "rapid fire punches", "combo", "beat down", "beatdown", "beat up", "pummel", "rush down", "machine gun punch", "hundred fists", "thousand fists", "onslaught", "wail on", "go ham"]),
+        (id: "spin", kind: Spin, words: ["spin", "spin attack", "whirl", "twirl", "spin around", "cyclone spin", "helicopter", "sweep", "leg sweep", "tail whip"], noun_words: ["helicopter", "sweep", "tail whip", "whirl", "twirl"]),
+        (id: "grab", kind: Grab, words: ["grab", "seize", "catch", "grapple", "clutch", "snatch", "take hold of", "get hold of", "choke", "chokeslam", "choke slam"], noun_words: ["catch", "clutch", "choke"]),
+        (id: "throw", kind: Grab, words: ["throw", "toss", "hurl", "fling", "chuck", "yeet", "suplex", "pile drive", "piledriver", "pile driver", "german suplex", "body throw", "lob"], noun_words: ["lob", "chuck"], power: 1.15),
+        // ------------------------------------------------------------------ FORCE
+        (id: "pull", kind: Pull, words: ["pull", "yank", "drag", "reel", "reel in", "draw", "draw in", "bring", "summon over", "tug", "attract", "get over here", "come here", "come to me", "magnetize", "magnetise", "suck in", "vacuum", "hook"], noun_words: ["hook"]),
+        (id: "push", kind: Push, words: ["push", "shove", "repel", "blow away", "blow back", "knock back", "knockback", "force push", "blast away", "send away", "throw back", "fling away", "palm push", "deflect away", "bat", "swat", "blow"], noun_words: ["bat", "swat", "blow", "shove"]),
+        (id: "lift", kind: Lift, words: ["lift", "levitate him", "raise", "float him", "suspend", "hoist", "pick up", "juggle up", "telekinesis", "telekinetic lift", "force lift", "mind lift"], noun_words: ["raise", "hoist", "pick up"]),
+        (id: "crush", kind: Crush, words: ["crush down", "press", "press down", "pin", "pin down", "weigh down", "flatten down", "ground", "force down", "push down", "slam down", "gravity crush", "stomp down", "keep down"], noun_words: ["press", "pin", "ground", "keep down"]),
+        (id: "explode", kind: Explode, words: ["explode", "self destruct", "self-destruct", "detonate", "blow up", "go nova", "go boom", "burst out", "erupt", "kaboom", "nova", "go supernova", "radiate"], noun_words: ["nova", "radiate", "erupt"]),
+        // ------------------------------------------------------------------ AFFLICT (the verb carries the element)
+        (id: "freeze", kind: Freeze, words: ["freeze", "chill", "frost", "ice over", "encase", "flash freeze", "frostbite", "frost bite", "cryo", "snap freeze", "deep freeze", "ice"], noun_words: ["ice", "frost", "chill", "cryo"]),
+        (id: "burn", kind: Burn, words: ["burn", "ignite", "torch", "scorch", "incinerate", "roast", "sear", "set on fire", "set fire to", "light up", "light on fire", "immolate", "cook", "flame", "combust"], noun_words: ["flame", "cook", "torch", "light up", "sear"]),
+        (id: "shock", kind: Shock, words: ["shock", "electrocute", "zap", "jolt", "fry", "taze", "tase", "taser", "electrify", "thunderstrike", "smite", "strike with lightning", "lightning strike", "static", "discharge"], noun_words: ["static", "discharge", "fry", "taser"]),
+        (id: "poison", kind: Poison, words: ["poison", "envenom", "infect", "sicken", "toxify", "intoxicate", "gas", "corrode", "melt"], noun_words: ["gas", "melt", "corrode"]),
+        (id: "blind", kind: Blind, words: ["blind", "dazzle", "flashbang", "flash bang", "darken", "blackout", "black out", "shroud", "eclipse", "solar flare", "flash"], noun_words: ["flash", "shroud", "eclipse", "blackout", "black out"]),
+        (id: "stun", kind: Stun, words: ["stun", "paralyze", "paralyse", "daze", "stagger", "petrify", "hold in place", "stop", "halt", "bind", "root", "immobilize", "immobilise", "trap"], noun_words: ["stop", "halt", "bind", "root", "trap", "hold in place"]),
+        // ------------------------------------------------------------------ DEFENSE / SELF
+        (id: "guard", kind: Guard, words: ["block", "guard", "brace", "protect", "protect myself", "defend", "cover", "turtle", "shield up", "shields up", "raise shield", "raise my guard", "put up my guard", "hunker down", "tank"], noun_words: ["cover", "turtle", "tank", "block"]),
+        (id: "parry", kind: Counter, words: ["parry", "riposte", "counter", "counterattack", "counter attack", "reversal", "reverse it", "retaliate", "revenge", "return fire", "answer"], noun_words: ["answer", "revenge"]),
+        (id: "reflect", kind: Reflect, words: ["reflect", "deflect", "bounce back", "send back", "send it back", "redirect", "mirror", "rebound", "return", "bat back", "hit back", "volley"], noun_words: ["mirror", "return", "volley", "hit back"]),
+        (id: "absorb", kind: Absorb, words: ["absorb", "soak up", "soak", "eat", "drain", "swallow", "take in", "consume", "siphon", "devour", "tank it"], noun_words: ["eat", "drain", "consume", "soak"]),
+        (id: "copy", kind: Copy, words: ["copy", "mimic", "imitate", "steal", "replicate", "clone his", "copy his", "copycat", "borrow"], noun_words: ["borrow", "steal"]),
+        (id: "clone", kind: Clone, words: ["clone", "clones", "decoy", "decoys", "duplicate", "multiply", "double", "doppelganger", "afterimage", "after image", "split", "make a clone", "make clones", "shadow clone", "illusion", "mirror image", "copies of myself", "copy myself"], noun_words: ["clone", "clones", "decoy", "decoys", "double", "illusion", "afterimage", "after image", "split"]),
+        (id: "heal", kind: Heal, words: ["heal", "regenerate", "regen", "recover", "patch up", "restore", "cure", "mend", "rejuvenate", "fix me", "heal up", "heal myself", "first aid", "recuperate", "rest"], noun_words: ["rest", "restore"]),
+        (id: "harden", kind: Harden, words: ["harden", "armor up", "armour up", "toughen", "toughen up", "steel skin", "iron skin", "stone skin", "go berserk", "berserk", "rage", "enrage", "get angry", "bulk up", "hulk out", "power through", "invincible", "go invincible"], noun_words: ["tank", "rage"]),
+        (id: "timestop", kind: TimeStop, words: ["stop time", "time stop", "freeze time", "pause time", "time freeze", "slow time", "slow down time", "slow down", "time slow", "slow motion", "slowmo", "slow mo", "bullet time", "stop the clock", "halt time"]),
+    ],
+    styles: [
+        // element styles: the element rides the move's hits (their status), the style key its look.
+        (id: "fire", element: Fire, fx: "fire", words: ["fire", "flame", "flaming", "fiery", "blazing", "burning", "inferno", "pyro", "hellfire", "hell fire", "magma", "lava", "molten", "ember", "flame fist", "fire fist", "heat", "hot", "solar"]),
+        (id: "ice", element: Ice, fx: "ice", words: ["ice", "icy", "frost", "frosty", "frozen", "freezing", "cryo", "glacial", "glacier", "snow", "snowy", "arctic", "blizzard", "cold", "winter", "crystal"]),
+        (id: "lightning", element: Electric, fx: "lightning", words: ["lightning", "lighting", "lightening", "thunder", "thunderous", "electric", "electro", "electrical", "shock", "shocking", "volt", "voltage", "plasma", "storm", "static", "spark", "sparky", "tesla", "chidori", "raijin"]),
+        (id: "water", element: Water, fx: "water", words: ["water", "aqua", "hydro", "tidal", "wave", "ocean", "sea", "splash", "watery", "tsunami", "rain"]),
+        (id: "wind", element: Wind, fx: "wind", words: ["wind", "air", "gust", "gale", "tornado", "cyclone", "hurricane", "breeze", "windy", "aero", "sky", "vacuum", "typhoon", "whirlwind"]),
+        (id: "earth", element: Earth, fx: "earth", words: ["earth", "rock", "stone", "boulder", "rocky", "granite", "mountain", "terra", "ground", "iron", "metal", "steel", "diamond", "titanium"], rider: Heavy),
+        (id: "sand", element: Earth, fx: "sand", words: ["sand", "sandy", "dust", "desert", "dune"]),
+        (id: "poison", element: Poison, fx: "poison", words: ["poison", "poisonous", "toxic", "venom", "venomous", "acid", "acidic", "plague", "miasma", "sludge", "slime"]),
+        (id: "psychic", element: Psychic, fx: "psychic", words: ["psychic", "psionic", "telekinetic", "mind", "mental", "psi", "psycho", "force"]),
+        (id: "gravity", element: Psychic, fx: "gravity", words: ["gravity", "gravitational", "graviton", "black hole", "blackhole", "heavy", "gravity well", "singularity", "mass"], rider: Gravity),
+        (id: "shadow", element: Shadow, fx: "shadow", words: ["shadow", "shadowy", "dark", "darkness", "shade", "umbral", "night", "nightmare", "abyss", "abyssal", "eclipse", "demon", "demonic", "evil", "hell"]),
+        (id: "smoke", element: Shadow, fx: "smoke", words: ["smoke", "smoky", "smokey", "sulfur", "sulphur", "brimstone", "mist", "misty", "fog", "foggy", "vapor", "vapour", "cloud"], rider: Blind),
+        (id: "void", element: Shadow, fx: "void", words: ["void", "null", "entropy", "oblivion", "hollow", "vacuum of space", "dimensional", "space", "cosmic", "galaxy", "star", "starlight", "astral"]),
+        (id: "cursed", element: Shadow, fx: "cursed", words: ["cursed", "curse", "cursed energy", "hex", "hexed", "jinx"]),
+        (id: "blood", element: Shadow, fx: "blood", words: ["blood", "bloody", "crimson", "vampire", "vampiric", "sanguine"]),
+        (id: "holy", element: Light, fx: "holy", words: ["holy", "divine", "angel", "angelic", "sacred", "heavenly", "light", "radiant", "sun", "sunlight", "blessed", "celestial", "golden", "gold"]),
+        (id: "chi", element: Light, fx: "chi", words: ["chi", "ki", "qi", "aura", "spirit", "spiritual", "energy", "chakra", "mana", "haki", "nen", "soul"]),
+        (id: "atomic", element: Atomic, fx: "atomic", words: ["atomic", "nuclear", "nuke", "radioactive", "radiation", "gamma", "uranium", "fission", "fusion"]),
+        (id: "speed", element: Light, fx: "speedforce", words: ["speed", "speedy", "super speed", "sonic", "supersonic", "hypersonic", "lightspeed", "light speed", "quick", "rapid", "swift", "turbo", "nitro", "speed force", "speedforce", "blur", "flash"], rider: Speed),
+        (id: "ghost", element: Shadow, fx: "ghost", words: ["ghost", "ghostly", "spectral", "phantom", "spirit form", "ethereal", "astral projection", "wraith"]),
+        (id: "glitch", element: Electric, fx: "glitch", words: ["glitch", "glitchy", "digital", "pixel", "pixelated", "cyber", "matrix", "hack", "virus", "lag"]),
+        (id: "tech", element: Electric, fx: "tech", words: ["tech", "robot", "robotic", "cyborg", "mech", "laser", "rocket powered", "jet powered", "bionic", "mechanical", "hydraulic"]),
+        (id: "rubber", element: Light, fx: "rubber", words: ["rubber", "stretchy", "stretch", "elastic", "bouncy", "rubbery", "gum gum", "gomu gomu"]),
+        (id: "ink", element: Shadow, fx: "ink", words: ["ink", "inky", "paint", "calligraphy"]),
+        (id: "steam", element: Water, fx: "steam", words: ["steam", "steamy", "boiling", "scalding"]),
+        (id: "paper", element: Wind, fx: "paper", words: ["paper", "origami", "confetti"]),
+        (id: "cards", element: Light, fx: "cards", words: ["card", "cards", "playing card"]),
+        (id: "hardlight", element: Light, fx: "hardlight", words: ["hard light", "hardlight", "lantern", "construct", "ring", "green lantern", "willpower"]),
+    ],
+    places: [
+        (place: Behind, words: ["behind", "in back of", "at the back of", "to the back of", "round behind", "around behind", "behind of", "at his back", "at her back", "at their back", "on his back", "to his back"]),
+        (place: Front, words: ["in front of", "in front", "in his face", "in her face", "in their face", "face to face with", "before", "ahead of"]),
+        (place: Above, words: ["above", "over", "on top of", "on top", "atop", "overhead", "over top of", "up above", "right above", "high above", "in the air above", "into the sky above"]),
+        (place: Below, words: ["below", "under", "underneath", "beneath", "under neath", "down below"]),
+        (place: Beside, words: ["beside", "next to", "by", "alongside", "to the side of", "to the left of", "to the right of", "left of", "right of", "near", "close to", "nearby", "at his side"]),
+        (place: Around, words: ["around", "round", "circle", "all around", "circles around"]),
+        (place: Through, words: ["through", "thru", "threw", "right through", "straight through", "past", "via", "clean through"]),
+        (place: Toward, words: ["to", "toward", "towards", "at", "for", "after", "on", "straight at", "right at", "up to", "over to", "across to", "until"]),
+        (place: Away, words: ["away", "away from", "off", "off of", "far away", "far from", "out of", "clear of", "backwards", "backward", "back"]),
+        (place: Onto, words: ["onto", "on to", "up onto", "up on", "upon", "land on", "on top of the"]),
+        (place: Into, words: ["into", "in to", "inside", "in", "deep into", "down into", "straight into", "right into"]),
+        (place: Up, words: ["up", "upward", "upwards", "skyward", "skywards", "straight up", "into the air", "into the sky", "in the air", "to the sky", "high", "higher", "up high", "sky high", "to the moon"]),
+        (place: Down, words: ["down", "downward", "downwards", "straight down", "to the ground", "into the ground", "into the floor", "into the dirt", "to the floor", "to earth"]),
+        (place: Forward, words: ["forward", "forwards", "ahead", "onward", "straight", "straight ahead", "out", "across"]),
+    ],
+    // WHO / WHAT (player names are matched separately; see grammar.rs)
+    me: ["me", "myself", "my self", "self", "yourself", "us", "mine"],
+    pronouns: ["him", "her", "them", "that guy", "this guy", "that girl", "this girl", "that dude", "this dude", "the guy", "the girl", "the enemy", "that enemy", "this enemy", "the target", "my target", "that one", "this one", "em", "'em", "that person", "that player", "you", "ya", "him again", "her again", "them again", "the other guy", "that fool", "this fool", "the bad guy", "that jerk", "that loser", "his ass", "her ass", "that noob"],
+    it_words: ["it", "that", "this", "that thing", "this thing", "the thing", "it again", "my construct", "my summon", "the summon"],
+    everyone: ["everyone", "everybody", "all of them", "them all", "all", "every one", "every body", "all enemies", "all of you", "the enemies", "enemies", "everything", "the whole lobby", "the lobby", "the team", "the room", "all around me", "anyone", "anybody", "every enemy", "every player", "the crowd", "yall", "y'all", "you all", "all of em", "all of 'em"],
+    nearest: ["the nearest", "nearest", "the closest", "closest", "the nearest one", "the closest one", "nearest enemy", "closest enemy", "the nearest enemy", "the closest enemy", "the nearest guy", "the closest guy", "the nearest player", "the closest player", "whoever is closest", "whoevers closest", "whoever's closest"],
+    // Terrain / places in the world: the crosshair point ("leap onto the tower", "phase through the wall").
+    terrain: ["wall", "the wall", "that wall", "this wall", "walls", "ground", "the ground", "floor", "the floor", "the tower", "tower", "that tower", "the roof", "roof", "rooftop", "the rooftop", "the ceiling", "ceiling", "the ledge", "ledge", "the cliff", "cliff", "the building", "building", "that building", "the rock", "that rock", "the mountain", "mountain", "the hill", "that hill", "the platform", "platform", "that platform", "the island", "that island", "the sky", "sky", "the air", "there", "over there", "here", "the edge", "edge", "the pillar", "that pillar", "the tree", "that tree", "the bridge", "the door", "the gap", "the pit", "the top", "the high ground", "high ground", "the crosshair", "my crosshair", "where im looking", "where i'm looking", "where i am looking", "the spot", "that spot", "the map", "the arena", "the other side", "the far side"],
+    // Words that carry nothing (anywhere in a phrase).
+    filler: ["a", "an", "the", "please", "now", "right now", "just", "really", "real", "very", "so", "gonna", "going to", "i", "i'll", "ill", "i will", "im", "i'm", "i am", "let me", "lemme", "let's", "lets", "let", "go", "do", "use", "try", "quickly", "instantly", "immediately", "suddenly", "then", "yo", "ok", "okay", "hey", "alright", "and", "like", "totally", "fucking", "freaking", "frickin", "friggin", "damn", "straight up", "all the way", "some", "my", "his", "her", "their", "your", "our", "own", "move", "attack", "technique", "jutsu", "style", "power", "ability", "skill", "spell", "with", "using", "of", "from", "yeah", "hard", "harder", "super hard", "as hard as i can", "full power", "at full power", "with all my might", "mode", "form", "time", "in the face", "in the head", "in the gut", "in the stomach", "in the chest", "in the jaw", "in the back", "on the head", "in the nuts", "in the ribs", "in the teeth", "to the face", "to the head", "across the face", "real quick", "for real", "for me", "on command", "right away"],
+    counts: [("once", 1), ("twice", 2), ("thrice", 3), ("double", 2), ("triple", 3), ("quadruple", 4), ("quad", 4), ("two times", 2), ("three times", 3), ("four times", 4), ("five times", 5), ("2x", 2), ("3x", 3), ("4x", 4), ("5x", 5), ("x2", 2), ("x3", 3), ("x4", 4), ("x5", 5), ("a couple times", 2), ("a few times", 3), ("multiple times", 3), ("a bunch", 4), ("over and over", 4), ("repeatedly", 3)],
+    numbers: [("one", 1), ("a", 1), ("an", 1), ("two", 2), ("to", 2), ("too", 2), ("three", 3), ("four", 4), ("for", 4), ("five", 5), ("six", 6), ("seven", 7), ("eight", 8), ("nine", 9), ("ten", 10), ("half a", 0.5), ("a half", 0.5), ("couple", 2), ("a couple", 2), ("a couple of", 2), ("few", 3), ("a few", 3)],
+    seconds: ["second", "seconds", "sec", "secs", "s", "moment", "moments", "beat", "beats"],
+    times: ["times", "time", "x"],
+    // "for" before a duration ("for 3 seconds"); also "during".
+    duration_lead: ["for", "during", "about", "like", "around"],
+    // Whisper / typing repairs (whole word runs → canonical). Applied before anything else.
+    respell: [
+        ("tele port", "teleport"), ("tell a port", "teleport"), ("tella port", "teleport"), ("teleporter", "teleport"), ("teleportation", "teleport"),
+        ("tele ported", "teleport"), ("teli port", "teleport"), ("teleprot", "teleport"), ("telport", "teleport"), ("teleprt", "teleport"),
+        ("up her cut", "uppercut"), ("upper cut", "uppercut"), ("upper-cut", "uppercut"), ("upercut", "uppercut"), ("uppercutt", "uppercut"), ("upper cup", "uppercut"),
+        ("faze", "phase"), ("phaze", "phase"), ("fase", "phase"), ("face through", "phase through"),
+        ("bam f", "bamf"), ("bamph", "bamf"), ("bampf", "bamf"), ("bamff", "bamf"), ("bamp", "bamf"),
+        ("in visible", "invisible"), ("invisable", "invisible"), ("invisibel", "invisible"), ("invis", "invisible"), ("invisibility", "invisible"),
+        ("re wind", "rewind"), ("rewined", "rewind"), ("rewinds", "rewind"), ("rewinding", "rewind"),
+        ("swop", "swap"), ("swapp", "swap"), ("swaps", "swap"), ("swapping", "swap"),
+        ("shun po", "shunpo"), ("shunpou", "shunpo"), ("so need oh", "sonido"), ("flashstep", "flash step"), ("flash-step", "flash step"),
+        ("dash's", "dash"), ("dashes", "dash"),
+        ("kick's", "kick"), ("punch's", "punch"), ("punches", "punch"),
+        ("grav", "gravity"), ("gravity's", "gravity"), ("gravitie", "gravity"), ("gravitey", "gravity"),
+        ("lightning's", "lightning"), ("litening", "lightning"), ("lightnin", "lightning"),
+        ("shadow's", "shadow"), ("shadows", "shadow"),
+        ("teleports", "teleport"), ("teleported", "teleport"), ("teleporting", "teleport"),
+        ("every one", "everyone"), ("every body", "everybody"), ("every 1", "everyone"),
+        ("him self", "himself"), ("my self", "myself"), ("them selves", "themselves"),
+        ("black flash", "black flash"),
+        ("intangable", "intangible"), ("intangibel", "intangible"),
+        ("elec trocute", "electrocute"), ("electricute", "electrocute"),
+        ("absorbe", "absorb"), ("absorbs", "absorb"),
+        ("defelct", "deflect"), ("reflects", "reflect"),
+        ("doge", "dodge"), ("dodges", "dodge"),
+        ("sec's", "secs"), ("seconds's", "seconds"),
+        ("slomo", "slowmo"), ("slow-mo", "slow mo"),
+        ("x 2", "x2"), ("x 3", "x3"), ("times 2", "x2"), ("times 3", "x3"),
+        ("ground-pound", "ground pound"), ("body-slam", "body slam"), ("drop-kick", "drop kick"), ("round-house", "roundhouse"),
+    ],
+    // Pronoun-ish words that mean "the thing I just made" when they follow a construct step in a chain.
+    // (Handled by `it_words`; listed here for docs.)
+    //
+    // MODIFIERS — STARTER LIST, owned by the MODIFIERS & FUSION worker (docs/toolbox/COMPOSED_MOVE.md
+    // §Modifiers). `id` is the byte that rides the spec (`ComposedMove::mods`); what it does lives in
+    // code (compose/build.rs `apply_mod`, until their table replaces it). Never reuse an id.
+    modifiers: [
+        (id: 1, name: "big", words: ["big", "giant", "huge", "massive", "mega", "super", "ultra", "hyper", "colossal", "enormous", "gigantic", "titanic", "monster", "god", "godly", "legendary", "ultimate", "mighty", "heavy duty", "extreme", "max", "maximum", "full"]),
+        (id: 2, name: "quick", words: ["fast", "swift", "lightning fast", "blitz", "snap", "instant", "short", "little", "small", "mini", "tiny", "baby"]),
+        (id: 3, name: "long", words: ["long", "far", "long range", "long distance", "extended", "far away", "long-range"]),
+    ],
+)

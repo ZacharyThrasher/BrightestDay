@@ -1205,4 +1205,85 @@
         bfg_carve: 2.6,
         bfg_cd: 2.2,
     ),
+    // TRANSFORMER COMBAT (bd_sim constructs/brawl.rs, docs/COMBAT.md §5d-quater): Devastation-style robot
+    // strings, transform attacks, perfect-dodge counters; ARCHETYPES derived from the alt mode's data.
+    // Host-synced. Archetype rows omit fields that keep the built-in default (the "car" numbers).
+    transformer: (
+        combat_transform_secs: 0.3, // a mid-combo transform (s; the full sequence is 0.9)
+        combo_window: 0.7,          // after a string hit, Transform = a transform attack (s)
+        finisher_secs: 0.4,
+        perfect_window: 0.15,       // a hit this early into a boost-step is a perfect dodge (s)
+        counter_secs: 1.0,          // the counter window it opens (s): next attack = staggering heavy
+        counter_mult: 1.6,
+        counter_stun: 0.4,
+        dodge_cd: 0.45,
+        air_float: 4.0,             // m/s up per air-string hit
+        air_hits: 3,                // air hits before the air slam
+        launch_stun: 0.25,
+        ai_string_gap: 0.9,         // AI followers: pause between strings (s)
+        ai_dodge_rate: 0.6,         // AI followers: boost-steps per second when someone is close
+        // Ordered: the first rule that matches picks the archetype ("any" lists need one hit; 0 = no bound).
+        rules: [
+            (to: "helicopter", features_any: [Rotor]),
+            (to: "jet", features_any: [Jet]),
+            (to: "jet", mechanics_all: [Flies, Thrust]),
+            (to: "construction", features_any: [Plow, Drill, Saw, CraneArm]),
+            (to: "tank", features_all: [Treads], features_any: [Turret, Barrels]),
+            (to: "bike", features_all: [Wheels, Exhaust], features_none: [Windows, Cab, Cockpit], max_scale: 5.0),
+            (to: "truck", features_any: [Cab, Smokestack]),
+            (to: "truck", mechanics_any: [Heavy, Stomp]),
+            (to: "truck", min_mass: 5000.0),
+            (to: "tank", features_any: [Treads]),
+            (to: "jet", mechanics_any: [Flies]),
+            (to: "car"),
+        ],
+        archetypes: [
+            // CAR / SPORTS: agile, fast light strings, drift-ram + J-turn, short burst dashes.
+            (name: "car", robot_speed: 1.15, air_control: 0.6, dash_speed: 22.0, string_hits: 5,
+                string_interval: 0.2, blaster_shots: 2, blaster_cd: 0.45, xattack: DriftRam, xattack_speed: 26.0,
+                xattack_width: 1.3, finisher: JTurn, vehicle_speed: 1.1, vehicle_grip: 0.85, drift_boost: 10.0,
+                vehicle_turn: 1.2),
+            // TRUCK / HEAVY HAULER: slower, heavy hits, armored heavies, freight-train ram, axe.
+            (name: "truck", robot_speed: 0.85, air_control: 0.35, dash: Heavy, dash_speed: 16.0, dash_secs: 0.22,
+                string_hits: 4, string_interval: 0.3, string_dmg: 8.0, string_kb: 13.0, string_reach: 2.0,
+                heavy: Armor, heavy_hold: 0.45, heavy_dmg: 16.0, heavy_kb: 26.0, heavy_armor: 0.4, blaster_dmg: 10.0,
+                blaster_cd: 0.6, blaster_speed: 80.0, xattack: Ram, xattack_secs: 0.6, xattack_speed: 22.0,
+                xattack_dmg: 15.0, xattack_kb: 30.0, xattack_width: 2.2, finisher: Axe, finisher_dmg: 18.0,
+                finisher_kb: 30.0, vehicle_speed: 0.95, drift_boost: 6.0, vehicle_turn: 0.8, fx: "exhaust"),
+            // JET: aerial fighter — launchers into air combos, strafing fly-by + dive-kick; fragile
+            // on the ground (weaker ground string), stays airborne with boosts.
+            (name: "jet", air_control: 1.0, dash: Hover, dash_speed: 20.0, dash_secs: 0.18, string_dmg: 4.5,
+                string_kb: 8.0, string_reach: 1.5, heavy_hold: 0.3, heavy_dmg: 10.0, heavy_kb: 24.0,
+                blaster_shots: 3, blaster_dmg: 5.0, blaster_speed: 110.0, xattack: FlyBy, xattack_secs: 0.55,
+                xattack_speed: 34.0, xattack_dmg: 6.0, xattack_kb: 10.0, xattack_width: 3.0, finisher: DiveKick,
+                drift_boost: 0.0, fx: "afterburner"),
+            // HELICOPTER: hover control, rotor spin attacks, rotor sweep + drop slam.
+            (name: "helicopter", robot_speed: 0.95, air_control: 0.9, dash: Hover, dash_speed: 16.0, dash_secs: 0.2,
+                string_interval: 0.24, string_reach: 1.8, heavy: Grind, heavy_dmg: 3.0, heavy_kb: 6.0,
+                blaster_shots: 2, xattack: RotorSweep, xattack_secs: 0.6, xattack_speed: 0.0, xattack_dmg: 4.0,
+                xattack_kb: 12.0, xattack_width: 5.0, finisher: DropSlam, drift_boost: 0.0, fx: "rotor_wash"),
+            // TANK: slow, ranged-heavy, heaviest armor, short planted dash; shell barrage + cannon arm.
+            (name: "tank", robot_speed: 0.75, air_control: 0.2, dash: Planted, dash_speed: 12.0, dash_secs: 0.14,
+                string_hits: 3, string_interval: 0.35, string_dmg: 8.0, string_kb: 12.0, string_reach: 1.8,
+                heavy: Armor, heavy_hold: 0.45, heavy_dmg: 14.0, heavy_kb: 22.0, heavy_armor: 0.35, blaster_cd: 0.8,
+                blaster_dmg: 14.0, blaster_speed: 60.0, blaster_explode: true, xattack: Barrage, xattack_secs: 0.6,
+                xattack_speed: 0.0, xattack_dmg: 12.0, xattack_kb: 18.0, xattack_width: 3.0, finisher: CannonBlast,
+                finisher_dmg: 18.0, finisher_kb: 28.0, vehicle_speed: 0.8, drift_boost: 0.0, vehicle_turn: 0.7,
+                fx: "tread_dust"),
+            // CONSTRUCTION: drill / saw grinds, plow shove, crane axe (they combine: §5d-bis).
+            (name: "construction", robot_speed: 0.8, air_control: 0.3, dash: Heavy, dash_speed: 14.0, dash_secs: 0.2,
+                string_hits: 3, string_interval: 0.3, string_dmg: 7.0, string_kb: 12.0, string_reach: 2.2,
+                heavy: Grind, heavy_hold: 0.3, heavy_dmg: 3.0, heavy_kb: 5.0, blaster_dmg: 8.0, blaster_cd: 0.8,
+                blaster_speed: 70.0, xattack: Grind, xattack_secs: 0.7, xattack_speed: 10.0, xattack_dmg: 3.0,
+                xattack_kb: 8.0, xattack_width: 2.5, finisher: Axe, finisher_dmg: 16.0, finisher_kb: 26.0,
+                vehicle_speed: 0.8, drift_boost: 0.0, vehicle_turn: 0.8, fx: "tread_dust"),
+            // BIKE: fastest, hit-and-run chip damage, spin-out slash.
+            (name: "bike", robot_speed: 1.3, air_control: 0.7, dash_speed: 26.0, dash_secs: 0.14, string_hits: 5,
+                string_interval: 0.17, string_dmg: 4.0, string_kb: 8.0, string_reach: 1.4, heavy_hold: 0.3,
+                heavy_dmg: 9.0, heavy_kb: 20.0, blaster_shots: 2, blaster_cd: 0.4, blaster_dmg: 5.0,
+                xattack: SpinOut, xattack_secs: 0.4, xattack_speed: 30.0, xattack_dmg: 10.0, xattack_kb: 22.0,
+                xattack_width: 3.0, finisher: SpinSlash, finisher_dmg: 12.0, finisher_kb: 24.0, vehicle_speed: 1.2,
+                vehicle_grip: 0.75, drift_boost: 12.0, vehicle_turn: 1.4),
+        ],
+    ),
 )

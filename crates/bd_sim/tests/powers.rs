@@ -88,7 +88,9 @@ fn power_events(evs: &[GameEvent]) -> Vec<PowerEvent> {
 
 #[test]
 fn shipped_table_parses_with_the_full_roster() {
-    let t = PowerTable::parse(powers::SHIPPED_RON).expect("assets/powers.ron parses");
+    let t = PowerTable::shipped().expect("assets/powers/*.ron parse");
+    // the merged single-text view is the same table
+    assert_eq!(PowerTable::parse(powers::SHIPPED_RON).expect("merged SHIPPED_RON parses").powers.len(), t.powers.len());
     let fruits = t.powers.iter().filter(|p| p.kind.is_fruit()).count();
     let stands = t.powers.iter().filter(|p| p.kind.is_stand()).count();
     let origins = t.powers.iter().filter(|p| p.kind.is_origin()).count();
@@ -98,7 +100,7 @@ fn shipped_table_parses_with_the_full_roster() {
     assert!(origins >= 40, "{origins} origins (Marvel + DC packs merged)");
     assert!(techniques >= 14, "{techniques} techniques (DBZ, Naruto, JJK, Bleach, HxH, haki)");
     assert_eq!(fruits + stands + origins + techniques, t.powers.len());
-    assert!(t.powers.len() < 250, "PowerSnap ids are a byte");
+    assert!(t.powers.len() < powers::MAX_POWERS, "PowerSnap ids are u16 (MAX_POWERS)");
     assert_eq!(t.powers.len(), PowerTable::get().powers.len(), "the shared table is the shipped one");
     let rules = bd_sim::rules::MatchRules::default();
     for (k, p) in t.powers.iter().enumerate() {

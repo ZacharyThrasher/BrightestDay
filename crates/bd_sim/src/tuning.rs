@@ -71,6 +71,12 @@ pub struct CombatTuning {
     /// wave, heavy blade, chain blades (`constructs/legend.rs`; recall flight / the leap are predicted,
     /// so it rides the host sync).
     pub legendary: crate::constructs::legend::LegendTuning,
+    /// TRANSFORMER COMBAT: archetypes from the alt mode, strings, transform attacks, counters
+    /// (`constructs/brawl.rs`, COMBAT.md §5d-quater). Host-synced.
+    pub transformer: crate::constructs::brawl::TransformerTuning,
+    /// WEAPON FEEL: per-class weapon numbers (`assets/tuning/weapons.ron` → `classes`, merged in by
+    /// the loader; `constructs/weapon_class.rs`). Host-synced with the rest.
+    pub weapons: crate::constructs::weapon_class::WeaponTuning,
 }
 
 impl Default for CombatTuning {
@@ -97,6 +103,8 @@ impl Default for CombatTuning {
             pickups: crate::pickups::PickupTuning::default(),
             extend: crate::constructs::extend::ExtendTuning::default(),
             legendary: crate::constructs::legend::LegendTuning::default(),
+            transformer: crate::constructs::brawl::TransformerTuning::default(),
+            weapons: crate::constructs::weapon_class::WeaponTuning::default(),
         }
     }
 }
@@ -999,6 +1007,8 @@ impl CombatTuning {
         self.pickups = self.pickups.validated(); // POWER-UPS
         self.extend = self.extend.validated(); // EXTENDS
         self.legendary = self.legendary.validated(); // LEGENDARY
+        self.transformer = self.transformer.validated(); // TRANSFORMER COMBAT
+        self.weapons = self.weapons.validated(); // WEAPON FEEL
         self
     }
 

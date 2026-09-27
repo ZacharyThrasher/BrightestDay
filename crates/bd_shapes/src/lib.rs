@@ -10,6 +10,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod anim;
+pub mod anim_body;
 pub mod attach;
 pub mod behaviours;
 mod build;
@@ -24,10 +25,12 @@ mod rng;
 pub mod roles;
 pub mod secondary;
 pub mod swing;
+pub mod swing_class; // WEAPON FEEL: per-class movesets (light flicks, heavy overheads, reach thrusts)
 pub mod transform;
 pub mod voxelize;
 
-pub use anim::{AnimState, Attack, AttackTiming, CAST_TIMING, Footfall, Gait, Local, PartKind, Rig, attack_timing, attack_timing_hw, blend_poses, footfalls, pose, pose_layered, pose_layered_with, rest_pose};
+pub use anim::{AnimState, Attack, AttackTiming, CAST_TIMING, Footfall, Gait, Local, MAX_LAYERS, PartKind, Rig, attack_timing, attack_timing_hw, blend_poses, footfalls, pose, pose_layered, pose_layered_with, rest_pose};
+pub use anim_body::{BodyAction, BodyMotion, Channel};
 pub use behaviours::{AnimDrive, AnimEvent, Assembly, ConstructAnimator, Cue, CueKind};
 pub use roles::{Role, Roles, grip_part, grip_point, support_point};
 pub use secondary::SecondaryMotion;
@@ -41,4 +44,5 @@ pub use costume::{COSTUME_UNIT, CostumeHead, CostumeTweaks, acc, costume, costum
 pub use mesh::{PartMesh, chain_link_mesh, chain_transform, mesh_model, mesh_part};
 pub use transform::{component_count, COMBINE_SECONDS, CombinerRig, Panel, RobotRole, TRANSFORM_SECONDS, TransformEvent, TransformEventKind, TransformRig, combine_rigs, pose_combine, pose_transform, sequence_events, transform_rig, transform_rig_authored};
 pub use swing::{SwingCurve, SwingKey, SwingKind, SwingPhase, swing_curve, swing_curve_extends, swing_curve_extends_weighted, swing_curve_weighted};
+pub use swing_class::{MoveSet, swing_curve_set, swing_curve_set_weighted};
 pub use voxelize::{MAX_VOXELS, MAX_VOXELS_KAIJU, PartInstance, PartModel, SEAT_PART, Seat, VoxelModel, WeakKind, WeakPoint, part_instances, scale_spec, voxel_center_m, voxelize, voxelize_at, voxelize_capped, voxelize_with_unit};

@@ -70,6 +70,16 @@ impl World {
         if crate::dodge::intangible(self, ti, &hit) {
             return none;
         }
+        // TRANSFORMER COMBAT: a seated pilot's transformer boost-stepping inside its perfect window
+        // dodges the hit on the pilot too (a counter opens; `constructs::brawl`).
+        if let Some(seat) = self.players[ti].seat.filter(|s| !s.suit) {
+            let secs = self.cfg.tuning.transformer.counter_secs;
+            if let Some(c) = self.constructs.get_mut(seat.construct) {
+                if crate::constructs::brawl::perfect_dodge(c, secs, hit.point, &mut self.events) {
+                    return none;
+                }
+            }
+        }
         // POWERS HOOK: water drain / seastone marks, Logia scatter, immunities, rubber, Bara Bara.
         let Some(hit) = self.powers_on_hit(ti, hit) else { return none };
         let finite = |v: f32| if v.is_finite() { v.max(0.0) } else { 0.0 };
@@ -162,7 +172,12 @@ impl World {
             crate::smash::knockback(st, base_kb * (1.0 + bonus) * elem_kb, damage, pct, weight, self.cfg.rules.knockback_scale)
         };
         // LEGENDARY: heavy blades carry super armor through big swings (less knockback, never immune).
-        let armor = if self_hit { 1.0 } else { crate::constructs::legend::armor(&self.constructs, hit.target, &self.cfg.tuning.legendary) };
+        // WEAPON FEEL: heavy-class weapons are armored through their wind-up and swing too (the stronger wins).
+        let armor = if self_hit {
+            1.0
+        } else {
+            crate::constructs::legend::armor(&self.constructs, hit.target, &self.cfg.tuning.legendary).min(crate::constructs::weapon_class::armor(&self.constructs, hit.target, &self.cfg.tuning.weapons))
+        };
         let kb = kb_raw * j_kb * armor;
         if armor < 1.0 && kb_raw > 0.0 {
             if let Some(c) = self.constructs.held_by(hit.target) {

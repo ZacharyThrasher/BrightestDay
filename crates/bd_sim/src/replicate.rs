@@ -239,6 +239,9 @@ pub struct OwnState {
     /// POWER HUD: the recipient's status / guard / size timers (`None` = none running).
     #[serde(default)]
     pub hud: Option<crate::readiness::OwnHud>,
+    /// TOOLBOX: the recipient's borrowed-move cooldowns + pending chain (`None` = idle).
+    #[serde(default)]
+    pub toolbox: Option<crate::powers::chain::ToolboxSnap>,
 }
 
 /// See [`OwnState::held`].
@@ -272,6 +275,7 @@ impl OwnState {
             lunge: s.lunge.active().then_some(s.lunge),
             extra: (s.extra != Default::default()).then_some(s.extra),
             hud: None,
+            toolbox: None,
         }
     }
 

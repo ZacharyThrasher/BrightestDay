@@ -539,6 +539,45 @@ swingers can tether onto the giant and ride its limbs. Shattered → pilot eject
 - **Ground (piloted):** vehicles stand on their body's sole (the pivot of an object is its centre),
   step up ledges ≤ 20 % of their size, stop at walls.
 
+## 5d-quater. Transformer combat — Devastation-style, tailored by archetype (owner: "could transformers have combat kind of like Transformers: Devastation?" + "a jet transformer should feel different than a car transformer")
+Generic for any `Transforms` construct, piloted or an AI follower (`bd_sim` `constructs/brawl.rs`;
+numbers in `combat.ron` → `transformer`).
+- **Archetypes from the alt mode's data** (`transformer.rules` → `transformer.archetypes`, first match
+  wins; new archetypes are just data): helicopter (Rotor), jet (Jet, or Flies+Thrust), construction
+  (Plow / Drill / Saw / CraneArm), tank (Treads + Turret/Barrels), bike (Wheels + Exhaust, no cab /
+  windows, ≤ 5 m), truck (Cab / Smokestack, Heavy, or ≥ 5 t), then tank (any Treads), jet (any Flies),
+  car. Starscream → jet, Optimus → truck, Bumblebee → car, "a transforming tank" → tank, "a helicopter
+  robot" → helicopter, "a motorcycle transformer" → bike, "a transforming bulldozer" → construction.
+  Each row tunes robot speed / air control / boost-step, the light string (hits, speed, weight,
+  reach), the heavy (launcher / super-armor slam / grind), the blaster, the transform attack's
+  shape + finisher, vehicle handling (top speed, grip, drift boost, turn rate) and fx flavour.
+- **Robot mode:** LMB press = the next hit of the light string (3–5 hits; the last is a stronger
+  ender); hold LMB = the heavy (car / jet / bike: launcher — jets follow it up; truck / tank: an
+  armored slam; helicopter / construction: a continuous grind); airborne, LMB = an air string that
+  keeps you up, then an air slam; RMB = the blaster (its payload; tanks fire shells); Dodge = a
+  boost-step. Hits go through the normal hit pipeline (juggle protection; hit-stop / sparks / camera
+  punch by impact tier); stuns are short (0.25–0.4 s), never a lock.
+- **Transform attacks (the signature):** Transform during / within 0.7 s after a string hit bursts out
+  as the vehicle through the target, then (second press, or after the burst) snaps back to robot with
+  a finisher — a combo extender: string → transform ram → finisher. Shapes: truck = freight-train ram
+  through everything (then an axe chop), car = drift-ram arc (then a J-turn launcher), jet = strafing
+  fly-by gun run (then a dive-kick), helicopter = hovering rotor sweep (then a drop slam), tank = planted
+  shell barrage (then a cannon-arm blast), construction = a grinding push (then a crane-arm axe), bike
+  = a spin-out dash (then a spin slash). Airborne finishers become a slam. Combat transforms take 0.3 s
+  (clients play the panel sequence 3× faster, with a flash). The robot snaps in on the target (≤ 9 m,
+  never into terrain) so the finisher connects.
+- **Vehicle mode:** rams at speed (existing), a drift boost (hold Dodge while turning, release for a
+  burst; grip per archetype), off a jump the transform-slam (§5d-bis).
+- **Perfect dodge → counter (Devastation "Focus" without slow-mo):** a hit landing in the first 0.15 s of
+  a boost-step is dodged (on the robot or on its seated pilot); the next attack within 1 s is a
+  guaranteed heavy (×1.6) that staggers. The dodger gets a chrome flash and a ~0.5 s desaturation
+  (presentation only, comfort-gated by the flashes setting); nobody's sim slows down.
+- **AI followers** use their archetype too: close in, strings, a transform attack as the string's
+  extender, the blaster at range, boost-steps when someone is close (a hit in the window = a counter).
+- Deterministic; a piloted transformer is host-driven like every cockpit (prediction never moves the
+  seated pilot). Frame strips: `docs/piloting/strip_*.png` (`--scenario piloting --pilot-shot
+  combo|flyby|tankcombo|helicombo|bikecombo`).
+
 ## 5d-bis. Transformers (Mechanic::Transforms) — a birthday-present feature, make it great
 - **Two modes, one body.** A Transforms construct has an alt mode (usually a vehicle/animal) and a robot
   mode built from the *same panels*: bd_shapes splits the alt model into ~10–24 rigid panels and maps them

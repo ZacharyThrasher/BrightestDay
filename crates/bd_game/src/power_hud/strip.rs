@@ -41,6 +41,10 @@ impl UiMaterial for IconMaterial {
     }
 }
 
+/// The row holding the power icons (borrowed-move chips / chain pips append to it: `borrowed.rs`).
+#[derive(Component)]
+pub struct StripRow;
+
 const ICON: f32 = 34.0;
 const ICON_ACTIVE: f32 = 42.0;
 const PIP: f32 = 20.0;
@@ -93,7 +97,7 @@ fn spawn_strip(mut commands: Commands, mut mats: ResMut<Assets<IconMaterial>>) {
             GlobalZIndex(35),
         ))
         .id();
-    let row = commands.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(6), ..default() }, Pickable::IGNORE)).id();
+    let row = commands.spawn((StripRow, Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(6), ..default() }, Pickable::IGNORE)).id();
     let pips_row = commands.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(2), ..default() }, Pickable::IGNORE)).id();
     let pips = std::array::from_fn(|k| {
         let e = commands.spawn((Node { display: Display::None, ..node(PIP) }, MaterialNode(pip_m[k].clone()), Pickable::IGNORE)).id();

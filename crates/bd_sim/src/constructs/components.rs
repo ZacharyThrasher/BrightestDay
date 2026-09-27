@@ -1717,8 +1717,10 @@ pub fn mirror_pilot_mode(c: &mut Construct, robot: bool) {
     x.progress = if robot { 1.0 } else { 0.0 };
     x.since = 0.0;
     x.slam = false;
-    // = `world::net::xform_key` of the new state
-    c.xform_seen = 1 | (x.combined as u8) << 6 | (robot as u8) << 7;
+    // = `world::net::xform_key` of the new state (an all-zero wire byte — alt, idle, not combined —
+    // keys as 0)
+    let wire = (x.combined as u8) << 6 | (robot as u8) << 7 | if robot { 31 } else { 0 };
+    c.xform_seen = if wire == 0 { 0 } else { 1 | (wire & (64 | 128)) };
     if changed {
         reshape_for_mode(c, m);
     }
@@ -1759,7 +1761,7 @@ fn step_transform(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
         return;
     }
     // Autonomous: drive in, transform ~12 m out, fight, transform back to reposition.
-    if c.pilot.is_none() && !c.attached() {
+    if c.pilot.is_none() && !c.attached() && c.brawl.xatk == super::brawl::XPhase::None {
         let d = env.target_for(c).map(|t| (t.pos - c.pos).length());
         let x = c.comp.xform;
         match x.mode {
@@ -1844,8 +1846,8 @@ fn reshape_for_mode(c: &mut Construct, mode: XMode) {
 
 /// Mode-dependent locomotion + attacks for generic (non-creature) transformers.
 fn xform_locomotion(c: &mut Construct, env: &Env<'_>) {
-    if c.comp.xform.busy || !c.body.free(Driver::Steer) {
-        return;
+    if c.comp.xform.busy || !c.body.free(Driver::Steer) || super::brawl::moving(c) {
+        return; // TRANSFORMER COMBAT: a transform attack / boost-step drives the body
     }
     let dt = env.dt();
     let air_alt = eff_has(c, Mechanic::Flies);
@@ -1887,6 +1889,14 @@ fn xform_locomotion(c: &mut Construct, env: &Env<'_>) {
 
 /// Robot-mode melee: called from `react` via `transform_attacks`.
 fn transform_attacks(c: &mut Construct, env: &Env<'_>, out: &mut ConstructOut) {
+    // TRANSFORMER COMBAT (`brawl.rs`): followers fight like their archetype — strings, transform
+    // attacks as the string's extender, the blaster at range, boost-steps and counters.
+    if eff_has(c, Mechanic::Transforms) && !c.comp.xform.busy && !is_creature_ctrl(c) && c.pilot.is_none() && c.comp.xform.hub.is_none() && !c.comp.xform.combined && c.active() && !c.attached() {
+        if c.comp.xform.mode == XMode::Robot || super::brawl::moving(c) {
+            super::brawl::ai(c, env, out);
+        }
+        return;
+    }
     if !eff_has(c, Mechanic::Transforms) || c.comp.xform.mode != XMode::Robot || c.comp.xform.busy || c.comp.xform.punch_cd > 0.0 || is_creature_ctrl(c) || c.pilot.is_some() {
         return;
     }

@@ -275,7 +275,7 @@ def norm_name(n):
 
 
 def taken_names(exclude=("shows.ron",)):
-    """name -> file for every icon name in other packs (+ powers.ron names), raw and normalised."""
+    """name -> file for every icon name in other packs (+ assets/powers/*.ron names), raw and normalised."""
     out = {}
     files = [os.path.join(ROOT, "assets", "icons.ron")]
     d = os.path.join(ROOT, "assets", "icons")
@@ -286,11 +286,13 @@ def taken_names(exclude=("shows.ron",)):
             for n in re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1)):
                 out.setdefault(n.lower(), os.path.basename(f))
                 out.setdefault(norm_name(n), os.path.basename(f))
-    ptxt = open(os.path.join(ROOT, "assets", "powers.ron"), encoding="utf-8").read()
-    for m in re.finditer(r"names:\s*\[(.*?)\]", ptxt, re.S):
-        for n in re.findall(r'"([^"]*)"', m.group(1)):
-            out.setdefault(n.lower(), "powers.ron")
-            out.setdefault(norm_name(n), "powers.ron")
+    pdir = os.path.join(ROOT, "assets", "powers")
+    for pf in sorted(f for f in os.listdir(pdir) if f.endswith(".ron")):
+        ptxt = open(os.path.join(pdir, pf), encoding="utf-8").read()
+        for m in re.finditer(r"names:\s*\[(.*?)\]", ptxt, re.S):
+            for n in re.findall(r'"([^"]*)"', m.group(1)):
+                out.setdefault(n.lower(), "powers/" + pf)
+                out.setdefault(norm_name(n), "powers/" + pf)
     for f in sorted(os.listdir(d)):
         if not f.endswith("_names.txt") or f.startswith("shows"):
             continue

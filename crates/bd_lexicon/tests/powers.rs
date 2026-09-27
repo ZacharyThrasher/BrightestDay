@@ -1,4 +1,4 @@
-//! Powers vocabulary (COMBAT.md §5h) against a fixture powers.ron (the real file is loaded the same way).
+//! Powers vocabulary (COMBAT.md §5h) against a fixture power list (the real assets/powers/*.ron are loaded the same way).
 
 use bd_core::mechanics::{Form, Mechanic};
 use bd_lexicon::{Lexicon, ResolutionKind};
@@ -19,7 +19,7 @@ fn lex() -> Option<&'static Lexicon> {
     L.get_or_init(|| {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
         let bytes = std::fs::read(dir.join("lexicon.bin")).ok()?;
-        Lexicon::from_parts(bytes, &Lexicon::icon_files(&dir), Some(POWERS)).ok()
+        Lexicon::from_parts(bytes, &Lexicon::icon_files(&dir), &[("powers/fixture.ron".to_string(), POWERS.to_string())]).ok()
     })
     .as_ref()
 }
@@ -97,11 +97,11 @@ fn never_says_no_and_fallback_logging() {
 fn real_powers_file_loads_cleanly() {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
     let Ok(l) = Lexicon::load(dir.join("lexicon.bin")) else { return };
-    if !dir.join("powers.ron").exists() {
+    if Lexicon::power_files(&dir).is_empty() {
         return;
     }
     assert!(!l.power_ids().is_empty());
-    let w: Vec<&String> = l.load_warnings().iter().filter(|w| w.starts_with("powers.ron")).collect();
+    let w: Vec<&String> = l.load_warnings().iter().filter(|w| w.starts_with("powers/") || w.starts_with("powers.ron")).collect();
     assert!(w.is_empty(), "{w:#?}");
     // shared incantations report every candidate power; own fruit names are never stolen
     let r = l.resolve("gomu gomu no mi");

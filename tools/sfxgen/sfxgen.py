@@ -33,6 +33,8 @@ import sounds_hyperline  # noqa: E402,F401  (Hyperline: train rush / rail clatte
 import sounds_presence  # noqa: E402,F401  (construct presence grammar: shing, gathers, manifests, element hums)
 import sounds_powerhud  # noqa: E402,F401  (power HUD ready chime)
 import sounds_legend  # noqa: E402,F401  (LEGENDARY moves: recall, storms, ricochet, saber, waves, heavy/chain blades, guns)
+import sounds_moves  # noqa: E402,F401  (TOOLBOX PRESENTATION: move grammar verbs + style bodies)
+import sounds_weapon_class  # noqa: E402,F401  (WEAPON FEEL: per-class swings, heavy crunch / ground crack, whip crack, shield bash)
 
 ROOT = HERE.parent.parent
 OUT_DIR = ROOT / 'assets' / 'sfx'

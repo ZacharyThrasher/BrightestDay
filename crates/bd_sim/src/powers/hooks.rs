@@ -137,6 +137,8 @@ impl World {
     pub(crate) fn powers_on_hit(&mut self, ti: usize, hit: HitInfo) -> Option<HitInfo> {
         // Attacker side first: PowerMult damage / knockback, Black Flash crits.
         let hit = if hit.source.is_some_and(|s| s != hit.target) { self.powers_attacker_mods(hit) } else { hit };
+        // GENERIC OPS: guard / counter / deflect stances answer first; hard hits break rams / channels.
+        let hit = self.ops_on_hit(ti, hit)?;
         let Some(def) = self.players[ti].power.def() else { return Some(hit) };
         if !self.power_allowed(def) || self.players[ti].shielded() || self.match_state.phase == crate::rules::MatchPhase::Ended {
             return Some(hit);

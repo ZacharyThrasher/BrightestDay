@@ -612,6 +612,7 @@ impl World {
                 mods.speed_mult *= 0.85;
             }
             constructs.movement_mods(p.id, &p.input, &p.mv, &mut mods);
+            crate::constructs::weapon_class::carry_mods(constructs, &cfg.tuning.weapons, p.id, &mut mods); // WEAPON FEEL: heavy weapons are heavy to carry (predicted too)
             p.power.modify_movement(p.mv.grounded, &mut mods); // POWERS HOOK (body, time stop, void sink)
             crate::charge::modify_movement(&cfg.tuning.charge, &p.input, p.mv.grounded, &mut mods); // CHARGE HOOK (feet planted)
             if let Some(g) = arena.gravity {

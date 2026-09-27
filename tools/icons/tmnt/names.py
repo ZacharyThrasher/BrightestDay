@@ -269,10 +269,12 @@ def load_taken():
             for n in [parts[0]] + [a.strip() for a in (parts[1] if len(parts) > 1 else "").split(";")]:
                 if n:
                     taken.setdefault(n.lower(), os.path.basename(f))
-    txt = open(os.path.join(ROOT, "assets", "powers.ron"), encoding="utf-8").read()
-    for m in re.finditer(r"names:\s*\[(.*?)\]", txt, re.S):
-        for n in re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1)):
-            taken.setdefault(n.lower(), "powers.ron")
+    pdir = os.path.join(ROOT, "assets", "powers")
+    for pf in sorted(f for f in os.listdir(pdir) if f.endswith(".ron")):
+        txt = open(os.path.join(pdir, pf), encoding="utf-8").read()
+        for m in re.finditer(r"names:\s*\[(.*?)\]", txt, re.S):
+            for n in re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1)):
+                taken.setdefault(n.lower(), "powers/" + pf)
     return taken
 
 

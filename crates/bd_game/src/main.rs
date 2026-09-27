@@ -47,6 +47,7 @@ mod showcase;
 mod sim_bridge;
 mod state;
 mod tick;
+mod toolbox; // TOOLBOX: kit / borrowed moves + chains (console + voice)
 mod tutorial;
 mod unstick;
 mod util;

@@ -154,8 +154,7 @@ impl World {
             return self.select_power(i, held, if tier == move_sel::KEEP_TIER { None } else { Some(tier) });
         }
         if slot & move_sel::MOVE_OF != 0 {
-            let held = ((slot >> 2) & 3) as usize;
-            let s = slot & 3;
+            let (held, s) = move_sel::split_move_of(slot);
             if held == 0 {
                 return self.power_move_inner(i, player, s);
             }
@@ -190,12 +189,21 @@ impl World {
         if p.status.stunned() || p.oath.reciting() || p.charge.active || (p.seat.is_some_and(|s| !s.suit) && !only_transform) {
             return Err(PowerError::Busy);
         }
+        // GENERIC OPS: a Lockout (hack / silence / EMP zone) takes power moves away for a moment.
+        if self.locked_at(i) && !only_transform {
+            return Err(PowerError::Busy);
+        }
         let cost = if self.cfg.rules.infinite_willpower() { 0.0 } else { mv.cost };
         if cost > p.willpower + 1e-4 {
             return Err(PowerError::NotEnoughWillpower);
         }
         // Run the ops; the move only counts (cost + cooldown) if the first op did something.
+        let (from, fire_dir) = (p.mv.pos, self.eye_look(i).1); // TOOLBOX: for the `Fired` event
+        self.phase_break(i); // SHONEN CLASSICS (ops/phase.rs): striking makes you solid
         let mut first: Option<Result<(), PowerError>> = None;
+        // IMPACT FRAMES: `MoveDef::crit` — every hit these ops land crits (`effects`).
+        let outer_crit = self.powers.move_crit.take();
+        self.powers.move_crit = mv.crit.map(|(m, fx)| (i, m, fx)).or(outer_crit);
         for op in &mv.ops {
             let r = self.run_op(i, def, mv, op);
             if first.is_none() {
@@ -208,6 +216,7 @@ impl World {
                 break;
             }
         }
+        self.powers.move_crit = outer_crit;
         if let Some(Err(e)) = first {
             return Err(e);
         }
@@ -217,7 +226,9 @@ impl World {
         // A Tier / Transform op may have swapped nothing, but the slot is still this power's.
         p.power.move_cd[s] = cd;
         let power = p.power.id.unwrap_or(0);
+        self.note_seen_move(i, power, tier, slot); // SHONEN CLASSICS (ops/copy_last.rs): enemies nearby saw it
         self.inject_event(GameEvent::Power(PowerEvent::Move { player, power, slot }));
+        self.emit_held_fired(i, slot, from, fire_dir); // TOOLBOX: one `Fired` event for every move
         Ok(())
     }
 
@@ -830,7 +841,7 @@ impl World {
 
     // ------------------------------------------------------------------------------ move ops
 
-    fn eye_look(&self, i: usize) -> (Vec3, Vec3) {
+    pub(super) fn eye_look(&self, i: usize) -> (Vec3, Vec3) {
         // CAMERA: a power move's validated aim (third person: the converged crosshair ray).
         if let Some((k, eye, dir)) = self.powers.move_aim
             && k == i
@@ -878,7 +889,7 @@ impl World {
     /// Cone hit (players + enemy constructs) from `origin` along `dir`. Returns how many things
     /// were struck. No allocation.
     #[allow(clippy::too_many_arguments)]
-    fn cone_hit(&mut self, i: usize, origin: Vec3, dir: Vec3, range: f32, angle_deg: f32, damage: f32, knockback: f32, element: Element, up: f32, construct: Option<ConstructId>, kind: HitKind) -> u8 {
+    pub(crate) fn cone_hit(&mut self, i: usize, origin: Vec3, dir: Vec3, range: f32, angle_deg: f32, damage: f32, knockback: f32, element: Element, up: f32, construct: Option<ConstructId>, kind: HitKind) -> u8 {
         let id = self.players[i].id;
         let base = self.cfg.move_params.clone();
         let cos = angle_deg.clamp(1.0, 179.0).to_radians().cos();
@@ -933,7 +944,7 @@ impl World {
         hits
     }
 
-    fn run_op(&mut self, i: usize, def: &'static PowerDef, mv: &'static MoveDef, op: &MoveOp) -> Result<(), PowerError> {
+    pub(super) fn run_op(&mut self, i: usize, def: &'static PowerDef, mv: &'static MoveDef, op: &MoveOp) -> Result<(), PowerError> {
         let id = self.players[i].id;
         let (eye, look) = self.eye_look(i);
         match op {
@@ -1126,6 +1137,22 @@ impl World {
                 let t = if *t == self.players[i].power.tier { 0 } else { *t };
                 self.set_tier(i, t)
             }
+            // MYTHOLOGY & FOLKLORE: run one rolled pick (ops/roulette.rs); nested roulettes are skipped.
+            MoveOp::Roulette { picks } => {
+                let k = if picks.is_empty() { return Err(PowerError::NoSuchMove) } else { self.op_roulette_pick(i, picks.len()) };
+                let mut res = Ok(());
+                for (n, op) in picks[k].iter().filter(|o| !matches!(o, MoveOp::Roulette { .. })).enumerate() {
+                    let r = self.run_op(i, def, mv, op);
+                    if n == 0 && r.is_err() {
+                        return r;
+                    }
+                    res = res.and(Ok(()));
+                }
+                res
+            }
+            // GENERIC OPS (powers/ops/*.rs): everything else is one of them.
+            #[allow(unreachable_patterns)]
+            op => self.run_generic_op(i, op).unwrap_or(Err(PowerError::NoSuchMove)),
         }
     }
 
@@ -1417,6 +1444,8 @@ impl World {
     /// conserve, eat), shattered-construct memory. Does nothing (and allocates nothing) when
     /// nobody holds a power and no fruit exists.
     pub(crate) fn step_powers(&mut self, dt: f32) {
+        self.step_generic_ops(dt); // GENERIC OPS: rams, hooks, stances, zones… (no-op when unused)
+        self.step_toolbox(dt); // TOOLBOX: borrowed cooldowns, active phases, chains (no-op when unused)
         let any = !self.powers.fruits.is_empty() || !self.powers.cores.is_empty() || self.players.iter().any(|p| p.power.id.is_some() || p.power.ascend_cd > 0.0);
         if !any {
             return;

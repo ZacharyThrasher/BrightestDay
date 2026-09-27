@@ -417,7 +417,7 @@ pub fn swing_curve_extends_weighted(kind: SwingKind, weight: f32) -> SwingCurve 
     reweight(swing_curve_extends(kind), weight)
 }
 
-fn reweight(c: SwingCurve, weight: f32) -> SwingCurve {
+pub(crate) fn reweight(c: SwingCurve, weight: f32) -> SwingCurve {
     let mut c = c;
     let w = if weight.is_finite() { weight.clamp(0.5, 2.5) } else { 1.0 };
     if (w - 1.0).abs() < 1e-4 || c.keys.len() < 2 {

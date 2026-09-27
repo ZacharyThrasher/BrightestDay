@@ -12,8 +12,7 @@ pub fn lex() -> Option<&'static Lexicon> {
         let p = std::env::var_os("BD_LEXICON_BIN").map(std::path::PathBuf::from).unwrap_or_else(|| assets.join("lexicon.bin"));
         if std::env::var_os("BD_LEXICON_BIN").is_some() {
             let bytes = std::fs::read(&p).ok()?;
-            let powers = std::fs::read_to_string(assets.join("powers.ron")).ok();
-            return Lexicon::from_parts(bytes, &Lexicon::icon_files(&assets), powers.as_deref()).ok();
+            return Lexicon::from_parts(bytes, &Lexicon::icon_files(&assets), &Lexicon::power_files(&assets)).ok();
         }
         match Lexicon::load(&p) {
             Ok(l) => Some(l),

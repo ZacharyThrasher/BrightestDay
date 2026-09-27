@@ -104,26 +104,62 @@ pub struct ComfortSettings {
     /// Strafe / tether-swing camera lean (~1-2.5 deg). `None` = automatic: on, except for
     /// comfort-style settings (saved before this option existed, or the preset).
     pub strafe_roll: Option<bool>,
+    /// IMPACT FRAMES: "Reduce flashes" (photosensitivity). `flashes` = 0 also counts as `NoFlashes`.
+    pub reduce_flashes: FlashReduction,
+}
+
+/// Settings → Comfort → REDUCE FLASHES (docs/impact/API.md). Impact frames are capped at ≤ 3 per
+/// second whatever this says (WCAG 2.3.1).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlashReduction {
+    /// Full impact frames (inverted / duotone freeze frames).
+    #[default]
+    Off,
+    /// No luminance inversion, lower contrast, slow fades, at most one per second.
+    Reduced,
+    /// No full-screen / bubble treatment at all (hit-stop and sounds stay).
+    NoFlashes,
+}
+
+impl FlashReduction {
+    pub fn next(self) -> Self {
+        match self {
+            FlashReduction::Off => FlashReduction::Reduced,
+            FlashReduction::Reduced => FlashReduction::NoFlashes,
+            FlashReduction::NoFlashes => FlashReduction::Off,
+        }
+    }
+    pub fn prev(self) -> Self {
+        self.next().next()
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            FlashReduction::Off => "OFF",
+            FlashReduction::Reduced => "REDUCED",
+            FlashReduction::NoFlashes => "NONE",
+        }
+    }
 }
 
 impl Default for ComfortSettings {
     fn default() -> Self {
-        Self { shake: 1.0, speed_fov: true, fov_kick: 1.0, landing_dip: 1.0, flashes: 1.0, vignette: 0.0, strafe_roll: None }
+        Self { shake: 1.0, speed_fov: true, fov_kick: 1.0, landing_dip: 1.0, flashes: 1.0, vignette: 0.0, strafe_roll: None, reduce_flashes: FlashReduction::Off }
     }
 }
 
 impl ComfortSettings {
     /// The one-click Comfort preset.
     pub const COMFORT: Self =
-        Self { shake: 0.0, speed_fov: false, fov_kick: 0.0, landing_dip: 0.0, flashes: 0.0, vignette: 0.7, strafe_roll: None };
+        Self { shake: 0.0, speed_fov: false, fov_kick: 0.0, landing_dip: 0.0, flashes: 0.0, vignette: 0.7, strafe_roll: None, reduce_flashes: FlashReduction::Off };
 
     /// Whether the strafe / swing camera lean is on (see [`Self::strafe_roll`]).
     pub fn roll_on(&self) -> bool {
         self.strafe_roll.unwrap_or(self.speed_fov || self.fov_kick > 0.0 || self.shake > 0.0)
     }
 
+    /// (Reduce flashes doesn't count: `flashes` = 0 already means no impact frames.)
     pub fn is_comfort_preset(&self) -> bool {
-        *self == Self::COMFORT
+        Self { reduce_flashes: FlashReduction::Off, ..*self } == Self::COMFORT
     }
 
     pub fn sanitized(mut self) -> Self {
@@ -250,5 +286,21 @@ mod tests {
         let partial: Settings = ron::from_str("(sensitivity: 3.0)").unwrap();
         assert_eq!(partial.sensitivity, 3.0);
         assert_eq!(partial.fov, Settings::default().fov);
+    }
+
+    #[test]
+    fn reduce_flashes_pref_roundtrips_and_old_files_default_off() {
+        let mut s = Settings::default();
+        assert_eq!(s.comfort.reduce_flashes, FlashReduction::Off);
+        s.comfort.reduce_flashes = FlashReduction::Reduced;
+        let text = ron::ser::to_string_pretty(&s, Default::default()).unwrap();
+        let back: Settings = ron::from_str(&text).unwrap();
+        assert_eq!(back.comfort.reduce_flashes, FlashReduction::Reduced);
+        let old: Settings = ron::from_str("(comfort: (shake: 0.5))").unwrap();
+        assert_eq!(old.comfort.reduce_flashes, FlashReduction::Off);
+        // The preset still reads as the preset whatever this pref says.
+        let c = ComfortSettings { reduce_flashes: FlashReduction::NoFlashes, ..ComfortSettings::COMFORT };
+        assert!(c.is_comfort_preset());
+        assert_eq!(FlashReduction::Off.next().next().next(), FlashReduction::Off);
     }
 }
