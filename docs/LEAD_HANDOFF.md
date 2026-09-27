@@ -1,6 +1,15 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> RESUME HERE (2026-09-27 09:20) — WAVE STOPPED BY USAGE GUARD <<<
+## >>> RESUME HERE (2026-09-27 11:10) — FINAL ZIP from 088d2b0 <<<
+Owner said "do it now": resumed + FINISHED & committed: click-to-confirm 45f35cd, taunt+voice tell dc1d39f,
+FIRST CALL + BURN ON DEATH 845d200, hotbar + TOTAL LIMIT + dismiss-by-slot ee9b6cd, map vote (in checkpoints),
+transformers feel 088d2b0. dist/BrightestDay-win64.zip (159.7 MB) from 088d2b0: startup + 4-bot practice smoke OK.
+STILL STOPPED (uncommitted partial edits on disk, tree green at 11:04; partial code rode into checkpoints): voice
+fluidity a19704f3303170491, polish anime a4fa97d61ab1c061d / western a40b1865d6f802416 / games aeae5288ad2ea246a,
+presentation polish adfd01597aacca6ec, re:zero acd4d6d26159eff21, menu feel a14308b17de8ac354, franchise themes
+a278fc098502e8992, lookout map a45935edaeceede09. Weekly usage ~92%+: resume after the weekly reset (Oct 2).
+
+## >>> (older) WAVE STOPPED BY USAGE GUARD (09:20) <<<
 Weekly usage hit 91% / 5-hour 90% at 09:12 → lead STOPPED all 15 workers (TaskStop) mid-task. Their UNFINISHED
 edits are still in the working tree (uncommitted; tree likely RED). FINAL ZIP: dist/BrightestDay-win64.zip (159.6 MB)
 built from 6586019 (last green checkpoint, 09:08), startup smoke + 4-bot practice smoke OK. Safety zip (66c98c6)
