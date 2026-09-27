@@ -509,7 +509,7 @@ pub mod scenario {
         app.insert_resource(PilotScenario { shot, ..Default::default() }).add_systems(Update, script.run_if(resource_exists::<ActiveWorld>));
     }
 
-    /// The most open, flat ground near `me`: a spot with a clear lane (samples every 4 m for 40 m,
+    /// The most open, flat ground near `me`: a spot with a clear lane (samples every 4 m for 60 m,
     /// 6 m wide, within 2 m of the start height, nothing overhead) — (stand-at, lane direction).
     fn stage(w: &bd_sim::World, me: Vec3) -> Option<(Vec3, Vec3)> {
         let top = |x: f32, z: f32| bd_core::voxel::raycast(&w.voxels, Vec3::new(x, 150.0, z), Vec3::NEG_Y, 170.0).map(|h| h.point.y);
@@ -535,11 +535,11 @@ pub mod scenario {
                 let a = k as f32 / 8.0 * std::f32::consts::TAU;
                 let d = Vec3::new(a.cos(), 0.0, a.sin());
                 let mut score = 0;
-                for s in 0..10 {
+                for s in 0..15 {
                     let p = c + d * (s as f32 * 4.0);
                     for o in [-3.0f32, 0.0, 3.0] {
                         let q = p + Vec3::new(-d.z, 0.0, d.x) * o;
-                        if top(q.x, q.z).is_some_and(|y| (y - y0).abs() < 0.6) {
+                        if top(q.x, q.z).is_some_and(|y| (y - y0).abs() < 1.0) {
                             score += 1;
                         }
                     }
@@ -549,7 +549,7 @@ pub mod scenario {
                 }
             }
         }
-        best.filter(|b| b.0 >= 22).map(|b| (b.1, b.2))
+        best.map(|b| (b.1, b.2))
     }
 
     fn face(look: &mut LookAngles, d: Vec3, pitch: f32) {
@@ -641,12 +641,12 @@ pub mod scenario {
         match sc.shot.as_str() {
             // Cruise down the lane in the truck (third person).
             "truck" => {
-                face(&mut look, dir, -0.1);
+                face(&mut look, dir, -0.3);
                 ov.move_z = if t > 1.6 { 1 } else { 0 };
             }
             // Drive, get kicked into the air, press Transform mid-jump: the robot lands in a slam.
             "transform" => {
-                face(&mut look, dir, -0.1);
+                face(&mut look, dir, -0.25);
                 ov.move_z = 1;
                 if t > 2.4 && sc.step == 0 {
                     sc.step = 1;
@@ -662,7 +662,7 @@ pub mod scenario {
             }
             // Transformed on the ground, then walking the robot.
             "robot" => {
-                face(&mut look, dir, -0.08);
+                face(&mut look, dir, -0.2);
                 if t > 1.4 && sc.step == 0 {
                     sc.step = 1;
                     active.world.toggle_transform(me);

@@ -64,6 +64,11 @@ const SMALL_COVERAGE: f32 = 0.04;
 const FAR_M: f32 = 45.0;
 /// Swirl → window blend time (s).
 const FADE_IN: f32 = 0.12;
+/// A new view's first frames widen its field of view step by step (the window shows the swirl
+/// meanwhile): Bevy sets a view up for everything it sees on first sight (visibility, pipeline
+/// specialisation, binning, shadow cascades) — ~4 ms of CPU in one frame when a portal opened in
+/// full view; growing the frustum spreads it over a few frames.
+const RAMP: [f32; 6] = [0.1, 0.22, 0.36, 0.52, 0.7, 0.86];
 /// Frames of in-game warm-up after entering a match (tiny viewport, the gameplay pose).
 const WARM_FRAMES: u32 = 40;
 
@@ -90,6 +95,8 @@ pub struct PortalViews {
     slots: [Option<(u16, u8)>; MAX_VIEWS],
     /// Seconds since the slot got its portal (fade in).
     age: [f32; MAX_VIEWS],
+    /// Frames rendered since the slot got its portal (the view "grows in", see [`RAMP`]).
+    ramp: [u32; MAX_VIEWS],
     /// Budget factor 0.5..1 (resolution) and the live-view cap it allows.
     budget: f32,
     cap: usize,
@@ -306,6 +313,7 @@ fn setup(
         size,
         slots: [None; MAX_VIEWS],
         age: [0.0; MAX_VIEWS],
+        ramp: [0; MAX_VIEWS],
         budget: 1.0,
         cap: MAX_VIEWS,
         ema_ms: 6.0,
@@ -529,6 +537,7 @@ fn update_views(
         if let Some(s) = (0..MAX_VIEWS).find(|&s| v.slots[s].is_none()) {
             v.slots[s] = Some((c.1, c.2));
             v.age[s] = 0.0;
+            v.ramp[s] = 0;
         }
     }
     // ---- drive the cameras
@@ -582,8 +591,9 @@ fn update_views(
             c.viewport = Some(Viewport { physical_position: UVec2::ZERO, physical_size: vsize, ..default() });
         }
         uv_of[s] = Vec2::new(vw / v.size.x as f32, vh / v.size.y as f32);
+        let grow = RAMP.get(v.ramp[s] as usize).copied().unwrap_or(1.0);
         if let (Projection::Perspective(p), Projection::Perspective(m)) = (proj.as_mut(), mproj) {
-            p.fov = m.fov;
+            p.fov = m.fov * grow;
             p.near = m.near.max(0.02);
             // Oblique near plane on the exit: keep only what is in front of it (just past the exit's
             // own disc, which would otherwise cover the view).
@@ -598,13 +608,14 @@ fn update_views(
             *fog = (**mf).clone();
         }
         // Small / far portals redraw every other frame (the picture holds in between).
-        let fresh = v.age[s] == 0.0;
+        let fresh = (v.ramp[s] as usize) <= RAMP.len();
         let half_rate = cov < SMALL_COVERAGE || dist > FAR_M;
         let draw = fresh || !half_rate || (v.frame + s as u32) % 2 == 0;
         if c.is_active != draw {
             c.is_active = draw;
         }
         if draw {
+            v.ramp[s] = v.ramp[s].saturating_add(1);
             v.stats.redraws += 1;
             v.stats.px += (vw * vh) as u64;
         }
@@ -617,7 +628,11 @@ fn update_views(
     for (r, mut fx) in &mut ends {
         let slot = if enabled { v.slots.iter().position(|s| *s == Some((r.id, r.end))) } else { None };
         let (view, uv, mix) = match slot {
-            Some(s) => (s as u8 + 1, uv_of[s], (v.age[s] / FADE_IN).clamp(0.0, 1.0).max(if v.age[s] > 0.0 { 0.35 } else { 0.0 })),
+            // Swirl while the view grows in, then a quick blend to the window.
+            Some(s) if (v.ramp[s] as usize) > RAMP.len() => {
+                (s as u8 + 1, uv_of[s], (v.age[s] / FADE_IN).clamp(0.35, 1.0))
+            }
+            Some(_) => (0, Vec2::ONE, 0.0),
             None => (0, Vec2::ONE, 0.0),
         };
         if fx.view != view || fx.view_uv != uv || (fx.view_mix - mix).abs() > 1e-4 {

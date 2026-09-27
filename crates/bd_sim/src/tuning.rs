@@ -667,6 +667,8 @@ pub struct WillpowerTuning {
     /// Spoken oath recital: seconds of transcription latency the host forgives before its own
     /// measured time floors the claimed speaking time (`willpower::OATH_VOICE_SLACK`).
     pub oath_voice_slack: f32,
+    /// SPARKS: cast prices in whole sparks by presence tier (`willpower::cast_sparks`).
+    pub sparks: willpower::SparkTuning,
 }
 
 impl Default for WillpowerTuning {
@@ -707,6 +709,7 @@ impl Default for WillpowerTuning {
             dismiss_refund: willpower::DISMISS_REFUND,
             starved_decay: willpower::STARVED_DECAY_PER_SEC,
             oath_voice_slack: willpower::OATH_VOICE_SLACK,
+            sparks: willpower::SparkTuning::default(),
         }
     }
 }
@@ -751,6 +754,10 @@ impl WillpowerTuning {
         self.dismiss_refund = fin(self.dismiss_refund, d.dismiss_refund, 0.0, 1.0);
         self.starved_decay = fin(self.starved_decay, d.starved_decay, 0.0, 10.0);
         self.oath_voice_slack = fin(self.oath_voice_slack, d.oath_voice_slack, willpower::OATH_LATENCY_SLACK, 10.0);
+        self.sparks.tier = self.sparks.tier.map(|x| x.clamp(1, 24));
+        self.sparks.legendary = self.sparks.legendary.clamp(1, 24);
+        self.sparks.cap = self.sparks.cap.clamp(1, 24);
+        self.sparks.crowd_count = self.sparks.crowd_count.max(2);
         self
     }
 

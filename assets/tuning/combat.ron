@@ -504,6 +504,21 @@
         dismiss_refund: 0.25,
         starved_decay: 0.35,
         oath_voice_slack: 2.0,
+        // SPARKS: a cast costs whole sparks by the presence tier players see and hear
+        // [Tiny, Normal, Big, Titan, Signature]; a famous held icon = legendary; +1 each for a crowd / swarm
+        // (count >= crowd_count), piloted, an autonomous non-creature, a portal; nothing below Signature
+        // above `cap`, nothing above the whole bar; +stale per repeat of the phrase in the window.
+        sparks: (
+            tier: (1, 2, 3, 5, 6),
+            legendary: 6,
+            crowd: 1,
+            crowd_count: 3,
+            piloted: 1,
+            autonomous: 1,
+            utility: 1,
+            cap: 6,
+            stale: 1,
+        ),
     ),
     construct: (
         integrity_base: 20.0,

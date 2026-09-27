@@ -202,6 +202,22 @@ pub fn tier(i: &TierInput, k: &TierKnobs) -> Tier {
     t
 }
 
+/// The tier a CAST reads as — ONE function for the client's presence (what players see and hear)
+/// and the sim's SPARKS price (`willpower::cast_sparks`), so the price is learnable by feel.
+/// `cost` = the cast's weight (`GameEvent::ConstructSpawned::cost`: its plain willpower cost ×
+/// signature / orbital multipliers, no staleness). `legendary` = the hidden golden roll (client only:
+/// it is never priced); a famous held icon counts as legendary here. A signature (a domain, an orbital
+/// strike, a spectacle over `signature_cost`) is the Signature tier.
+pub fn cast_tier(recipe: &Recipe, cost: f32, legendary: bool, sig: &crate::signature::SignatureTuning, k: &TierKnobs) -> Tier {
+    let spec = crate::signature::spectacle(recipe, cost, 0.0, sig);
+    let signature = spec.is_some_and(|s| s.kind == crate::signature::SignatureKind::Domain || crate::signature::is_orbital(recipe) || cost >= k.signature_cost);
+    if signature {
+        return Tier::Signature;
+    }
+    let famous = crate::constructs::legend::famous(recipe);
+    tier(&TierInput::of(recipe, cost, legendary || famous, spec.is_some(), false), k)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

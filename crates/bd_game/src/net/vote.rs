@@ -59,3 +59,44 @@ pub(super) fn host_vote_flow(mut net: ResMut<NetState>, menu: Res<InGameMenu>, a
     info!("net: next match on {kind:?}");
     net.build = std::thread::Builder::new().name("bd-net-world".into()).spawn(move || HostCore::build_world(&settings, nm, seed)).ok();
 }
+
+/// Dev / screenshot runs only (no effect unless set): `BD_DEV_SWAP_EVERY=<secs>` makes the host end
+/// each match after that long and vote the next map of `BD_DEV_SWAP_MAPS=casino,lair,…`
+/// (default: every map in menu order) — map swaps with real windowed clients, hands-free.
+pub(super) fn dev_auto_swap(mut net: ResMut<NetState>, active: Option<ResMut<ActiveWorld>>, mut st: Local<(Option<super::proto::NetMapKind>, f64, usize, bool)>) {
+    use super::proto::NetMapKind;
+    static CFG: std::sync::OnceLock<Option<(f64, Vec<NetMapKind>)>> = std::sync::OnceLock::new();
+    let Some((every, maps)) = CFG.get_or_init(|| {
+        let every: f64 = std::env::var("BD_DEV_SWAP_EVERY").ok()?.parse().ok().filter(|s: &f64| *s > 1.0)?;
+        let maps: Vec<NetMapKind> = std::env::var("BD_DEV_SWAP_MAPS")
+            .map(|s| s.split(',').filter_map(|m| crate::arena::MapKind::from_cli(m.trim()).map(NetMapKind::from_map_kind)).collect())
+            .unwrap_or_else(|_| NetMapKind::ALL.to_vec());
+        (!maps.is_empty()).then_some((every, maps))
+    }) else {
+        return;
+    };
+    let (Some(h), Some(mut a)) = (net.host.as_mut(), active) else { return };
+    if a.role != SimRole::Host || !h.in_match {
+        return;
+    }
+    let now = now_secs();
+    let (last, since, idx, voted) = &mut *st;
+    if *last != Some(h.map.kind) {
+        *last = Some(h.map.kind);
+        *since = now;
+        *voted = false;
+    }
+    if super::host::match_over(&a.world) {
+        if h.vote.is_some() && !*voted {
+            let k = maps[*idx % maps.len()];
+            *idx += 1;
+            *voted = true;
+            let me = h.me;
+            h.cast_vote(me, k);
+            h.vote_now();
+            info!("dev swap: next map {k:?}");
+        }
+    } else if now - *since >= *every {
+        a.world.match_state.phase = bd_sim::MatchPhase::Ended;
+    }
+}

@@ -38,7 +38,7 @@ use bd_sim::GameEvent;
 use bd_sim::replicate::cflags;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use tier::{Tier, TierInput};
+use tier::Tier;
 use tuning::{PresenceTuning, PresenceTuningRes, TierFeel};
 
 // ------------------------------------------------------------------------------------ API
@@ -261,7 +261,8 @@ fn presence_events(
                 let cost = bd_sim::willpower::base_cost(recipe);
                 if st.live.len() < 256 && !bd_sim::signature::orb::is_erasing_orb(recipe) {
                     let corps = corps_rgb(active.corps_of(me));
-                    st.live.push(track(t, pid, me, recipe, cost, bd_sim::constructs::forming_secs(recipe.form), false, false, corps));
+                    let tier = bd_sim::presence_tier::cast_tier(recipe, cost, false, sig, &t.tier);
+                    st.live.push(track(t, pid, me, recipe, tier, bd_sim::constructs::forming_secs(recipe.form), false, corps));
                     st.predicted.push((*seq, pid));
                 }
             }
@@ -304,15 +305,10 @@ fn presence_events(
                 }
                 let c = active.world.constructs.get(*id);
                 let legendary = c.is_some_and(|c| c.flair & cflags::LEGENDARY != 0);
-                let spec = bd_sim::signature::spectacle(recipe, *cost, *forming, sig);
-                let signature = spec.is_some_and(|s| {
-                    s.kind == bd_sim::signature::SignatureKind::Domain || bd_sim::signature::is_orbital(recipe) || *cost >= t.tier.signature_cost
-                });
+                // THE cast tier (shared with the sim's SPARKS price: what you see is what it cost).
+                let cast = bd_sim::presence_tier::cast_tier(recipe, *cost, legendary, sig, &t.tier);
                 let corps = corps_rgb(active.corps_of(*owner));
-                let mut tr = track(t, *id, *owner, recipe, *cost, *forming, legendary, spec.is_some() && !signature, corps);
-                if signature {
-                    tr.tier = Tier::Signature;
-                }
+                let tr = track(t, *id, *owner, recipe, cast, *forming, legendary, corps);
                 idx.0.insert(*id, (tr.tier, t.feel(tr.tier).impact_mult));
                 st.live.push(tr);
             }
@@ -338,16 +334,14 @@ fn track(
     id: ConstructId,
     owner: PlayerId,
     recipe: &bd_core::mechanics::Recipe,
-    cost: f32,
+    tier: Tier,
     forming: f32,
     legendary: bool,
-    spectacle: bool,
     corps: [f32; 3],
 ) -> Tracked {
     // LEGENDARY: a famous held weapon (an icon: Mjolnir, the Buster Sword, the golden gun) reads
-    // legendary like the golden roll (lifts the held cap to Titan); its colours stay its own.
-    let famous = bd_sim::constructs::legend::famous(recipe);
-    let tier = tier::tier(&TierInput::of(recipe, cost, legendary || famous, spectacle, false), &t.tier);
+    // legendary like the golden roll (lifts the held cap to Titan: `cast_tier`); its colours stay
+    // its own.
     let cat = recipe.form.category();
     Tracked {
         id,

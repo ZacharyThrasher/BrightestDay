@@ -1,16 +1,19 @@
 //! Cast-cost survey over the golden intent corpus (`crates/bd_lexicon/tests/data/intent_golden.txt`):
-//! every construct phrase through the real lexicon + `bd_sim` validation + the shipped willpower
-//! tuning, bucketed by the presence tier players SEE and HEAR. The spark size / rounding in
-//! `bd_sim::willpower::quantize_cost` was chosen from this. Run:
-//! `cargo test -p bd_game --profile fastrel cost_survey -- --ignored --nocapture`.
+//! every construct phrase is CAST through the real sim (lexicon → `World::cast` /
+//! `World::cast_signature`, like the console) from a full bar, and the sparks it took are bucketed
+//! by the presence tier players see and hear (`presence_tier::cast_tier` of the spawn event, like
+//! the client). SPARKS prices are driven by that tier (`willpower::cast_sparks`), so the table shows
+//! whether price follows presence. Run:
+//! `cargo test -p bd_game cost_survey -- --ignored --nocapture`.
 
-use bd_core::mechanics::FormCategory;
+use bd_core::corps::Corps;
+use bd_core::{PlayerId, Vec3};
 use bd_lexicon::{Lexicon, ResolutionKind};
-use bd_sim::rules::MatchRules;
-use bd_sim::tuning::WillpowerTuning;
-use bd_sim::willpower::validate_recipe;
+use bd_sim::GameEvent;
+use bd_sim::presence_tier::{Tier, TierKnobs, cast_tier};
+use bd_sim::world::{Aim, ArenaSource, SimConfig, World};
 
-use crate::present::presence::tier::{Tier, TierInput, TierKnobs, tier};
+const A: PlayerId = PlayerId(1);
 
 fn lex() -> Option<Lexicon> {
     let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
@@ -31,85 +34,125 @@ fn phrases() -> Vec<(String, bool)> {
         .collect()
 }
 
-/// (plain cost, tier) of one phrase, or None for grafts / power incantations.
-fn price(lex: &Lexicon, phrase: &str, spoken: bool) -> Option<(f32, Tier, String)> {
+fn world() -> World {
+    let cfg = SimConfig { arena: ArenaSource::Flat { size_m: 160.0 }, ..SimConfig::default() };
+    let mut w = World::new(cfg);
+    w.add_player(A, "a".into(), Corps::Willpower).unwrap();
+    w.add_player(PlayerId(2), "b".into(), Corps::Rage).unwrap();
+    w.start_live();
+    for _ in 0..60 {
+        w.tick(&[]);
+    }
+    w
+}
+
+/// One cast from a full bar: (sparks paid, tier seen, recipe summary).
+fn cast(w: &mut World, lex: &Lexicon, phrase: &str, spoken: bool) -> Option<(f32, Tier, String)> {
     let it = lex.intent(phrase, &[], spoken);
     let r = &it.resolution;
     if r.kind != ResolutionKind::Construct || r.incantation.is_some() || r.stand_rush.is_some() {
         return None;
     }
-    let rules = MatchRules::default();
-    let recipe = validate_recipe(r.recipe.clone(), &rules);
-    let wt = WillpowerTuning::default();
-    let cost = wt.base_cost(&recipe);
-    let t = tier(&TierInput::of(&recipe, cost, false, false, false), &TierKnobs::default());
-    Some((cost, t, format!("{:?}/{:?} {:.1}m", recipe.form, recipe.form.category(), recipe.scale)))
-}
-
-fn pct(v: &[f32], p: f32) -> f32 {
-    if v.is_empty() {
-        return 0.0;
+    w.dismiss(A);
+    let pool = w.rules().willpower_max();
+    let spark = w.rules().segment_size();
+    if let Some(p) = w.player_mut(A) {
+        p.willpower = pool;
+        p.casts.clear();
+        p.alive = true;
     }
-    v[((v.len() - 1) as f32 * p).round() as usize]
+    let p = w.player(A)?;
+    let aim = Aim::new(p.eye(w.params()), Vec3::new(0.0, -0.3, -1.0).normalize());
+    let n0 = w.events().len();
+    let mut recipe = r.recipe.clone();
+    let res = match &r.signature {
+        Some(s) => {
+            use bd_lexicon::SignatureKind as L;
+            use bd_sim::signature::{SignatureCast, SignatureKind as S};
+            let kind = match s.kind {
+                L::Domain => S::Domain,
+                L::Beam => S::Beam,
+                L::Transformation => S::Transformation,
+                L::Summon => S::Summon,
+            };
+            if !s.title.is_empty() {
+                recipe.name = s.title.clone();
+            }
+            w.cast_signature(A, recipe, r.shape.clone(), aim, SignatureCast::new(kind, 0.3))
+        }
+        None => w.cast(A, recipe, r.shape.clone(), aim),
+    };
+    res.ok()?;
+    let paid = pool - w.player(A)?.willpower;
+    let (rec, weight) = w.events()[n0..].iter().find_map(|e| match e {
+        GameEvent::ConstructSpawned { owner, recipe, cost, .. } if *owner == A => Some(((**recipe).clone(), *cost)),
+        _ => None,
+    })?;
+    let tier = cast_tier(&rec, weight, false, &w.tuning().signature, &TierKnobs::default());
+    Some((paid / spark, tier, format!("{:?}/{:?} {:.1}m x{} weight {weight:.1}", rec.form, rec.form.category(), rec.scale, rec.count)))
 }
 
 #[test]
-#[ignore = "prints the cast-cost distribution (chooses the spark size)"]
+#[ignore = "prints the cast-cost distribution (SPARKS by presence tier)"]
 fn cost_survey() {
     let Some(lex) = lex() else {
         eprintln!("SKIP: no lexicon.bin");
         return;
     };
-    let mut by_tier: [Vec<f32>; 5] = Default::default();
-    let mut cats: std::collections::BTreeMap<String, Vec<f32>> = Default::default();
+    let mut w = world();
+    let bar = w.rules().pool_segments();
+    let mut hist = [[0usize; 13]; 5];
+    let mut over = 0;
+    let mut n = 0;
     for (p, spoken) in phrases() {
-        if let Some((c, t, desc)) = price(&lex, &p, spoken) {
-            by_tier[t.index()].push(c);
-            let cat = desc.split('/').nth(1).unwrap_or("").split(' ').next().unwrap_or("").to_string();
-            cats.entry(cat).or_default().push(c);
+        if let Some((sparks, t, _)) = cast(&mut w, &lex, &p, spoken) {
+            let k = sparks.round() as usize;
+            hist[t.index()][k.min(12)] += 1;
+            over += (sparks > bar as f32 + 1e-3) as usize;
+            n += 1;
         }
     }
-    let sizes: [f32; 5] = [100.0 / 6.0, 100.0 / 7.0, 12.5, 100.0 / 9.0, 10.0];
-    for v in by_tier.iter_mut() {
-        v.sort_by(|a, b| a.total_cmp(b));
-    }
-    println!("tier      n    p10    p25    p50    p75    p90");
+    println!("{n} casts, bar {bar} sparks, {over} over a full bar");
+    println!("tier       n   sparks histogram");
     for t in Tier::ALL {
-        let v = &by_tier[t.index()];
-        println!("{:<8} {:>4} {:>6.1} {:>6.1} {:>6.1} {:>6.1} {:>6.1}", format!("{t:?}"), v.len(), pct(v, 0.1), pct(v, 0.25), pct(v, 0.5), pct(v, 0.75), pct(v, 0.9));
-    }
-    for (c, mut v) in cats {
-        v.sort_by(|a, b| a.total_cmp(b));
-        println!("cat {c:<10} n={:>4} p50={:.1} p90={:.1}", v.len(), pct(&v, 0.5), pct(&v, 0.9));
-    }
-    for size in sizes {
-        for bias in [0.5f32, 0.35, 0.25] {
-            print!("size {size:>5.2} (segments {:>2}) bias {bias:.2}:", (100.0 / size).round());
-            for t in Tier::ALL {
-                let v = &by_tier[t.index()];
-                let mut hist = [0usize; 13];
-                for c in v {
-                    let n = ((c / size + bias).floor().max(1.0) as usize).min(12);
-                    hist[n] += 1;
-                }
-                let med = pct(v, 0.5);
-                print!(" {t:?} med={} [", ((med / size + bias).floor().max(1.0)) as usize);
-                for (k, h) in hist.iter().enumerate().skip(1) {
-                    if *h > 0 {
-                        print!("{k}:{h} ");
-                    }
-                }
-                print!("]");
+        let h = &hist[t.index()];
+        let tot: usize = h.iter().sum();
+        let med = {
+            let mut acc = 0;
+            (0..13).find(|k| {
+                acc += h[*k];
+                acc * 2 >= tot
+            })
+        };
+        print!("{:<9} {tot:>4}  median {:?}  [", format!("{t:?}"), med.unwrap_or(0));
+        for (k, c) in h.iter().enumerate() {
+            if *c > 0 {
+                print!("{k}:{c} ");
             }
-            println!();
         }
+        println!("]");
     }
     println!("--- examples");
-    for p in ["sword", "gun", "wall", "fire dragon", "meteor", "kaiju", "spirit bomb", "hammer", "shield", "wings", "dragon", "godzilla", "giant robot", "car", "anvil", "flying hammer", "bee swarm"] {
-        match price(&lex, p, false) {
-            Some((c, t, d)) => println!("{p:<14} cost {c:>6.1}  {t:?}  {d}"),
-            None => println!("{p:<14} (not a construct)"),
+    for p in [
+        "sword",
+        "gun",
+        "wall",
+        "fire dragon",
+        "meteor",
+        "anvil from the sky",
+        "godzilla",
+        "spirit bomb",
+        "domain expansion infinite void",
+        "portal",
+        "a swarm of bees",
+        "hammer",
+        "flying hammer",
+        "giant robot",
+        "mjolnir",
+    ] {
+        match cast(&mut w, &lex, p, false) {
+            Some((s, t, d)) => println!("{p:<32} {s:>4.1} sparks  {t:?}  {d}"),
+            None => println!("{p:<32} (not a construct cast)"),
         }
     }
-    let _ = FormCategory::Held;
 }

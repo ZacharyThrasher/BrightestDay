@@ -260,7 +260,7 @@ impl Plugin for NetPlugin {
             .add_systems(Startup, (cli_start, spawn_net_ui))
             .add_systems(
                 Update,
-                (handle_requests, vote::host_vote_flow, net_poll, emit_remote_cmds, match_flow).chain().after(FrameSet::Input).before(BridgeSet::Commands).before(FrameSet::Sim),
+                (handle_requests, vote::dev_auto_swap, vote::host_vote_flow, net_poll, emit_remote_cmds, match_flow).chain().after(FrameSet::Input).before(BridgeSet::Commands).before(FrameSet::Sim),
             )
             .add_systems(SimTick, host_pre_tick.in_set(SimSet::Input))
             .add_systems(SimTick, client_predict.in_set(SimSet::Simulate))

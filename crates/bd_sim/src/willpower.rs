@@ -223,6 +223,69 @@ pub fn quantize_cost(cost: f32, segment: f32) -> f32 {
     cost_segments(cost, segment) as f32 * segment
 }
 
+/// SPARKS price of a CAST, driven by the presence tier players SEE and HEAR
+/// (`presence_tier::cast_tier`): size and gravitas teach the cost by feel. The raw willpower cost
+/// stays the cast's *weight* (the tier's input, integrity, the spawn event, grafts, upkeep).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SparkTuning {
+    /// Base sparks per presence tier: [Tiny, Normal, Big, Titan, Signature].
+    pub tier: [u8; 5],
+    /// A famous held weapon (an icon: Mjolnir, the Buster Sword — presence treats it as legendary).
+    pub legendary: u8,
+    /// +sparks for many copies (`count ≥ crowd_count`) or a swarm.
+    pub crowd: u8,
+    pub crowd_count: u8,
+    /// +sparks for a piloted construct, an autonomous non-creature (a flying hammer hunts on its own)
+    /// and strong utility (portals).
+    pub piloted: u8,
+    pub autonomous: u8,
+    pub utility: u8,
+    /// Nothing below the Signature tier costs more than this (and nothing more than the whole bar:
+    /// every cast is castable from a full bar).
+    pub cap: u8,
+    /// Anti-spam: +sparks per repeat of the exact phrase inside the staleness window.
+    pub stale: u8,
+}
+
+impl Default for SparkTuning {
+    fn default() -> Self {
+        Self { tier: [1, 2, 3, 5, 6], legendary: 6, crowd: 1, crowd_count: 3, piloted: 1, autonomous: 1, utility: 1, cap: 6, stale: 1 }
+    }
+}
+
+/// Sparks a cast of `recipe` at presence tier `tier` (index 0 = Tiny … 4 = Signature) costs.
+/// `famous` = a legendary held icon, `autonomous` = priced as an autonomous non-creature (decided on
+/// the typed phrase), `uses` = repeats of the phrase inside the staleness window, `bar` = sparks in a
+/// full pool. `mult` scales the result (party-free mechanics, your own domain), never below 1.
+#[allow(clippy::too_many_arguments)]
+pub fn cast_sparks(t: &SparkTuning, tier: usize, recipe: &Recipe, famous: bool, autonomous: bool, uses: u32, bar: u32, mult: f32) -> u32 {
+    let bar = bar.max(1);
+    let ultimate = tier >= 4;
+    let mut n = t.tier.get(tier.min(4)).copied().unwrap_or(2) as u32;
+    if famous {
+        n = n.max(t.legendary as u32);
+    }
+    if recipe.count.max(1) >= t.crowd_count.max(2) || recipe.has(Mechanic::Swarm) {
+        n += t.crowd as u32;
+    }
+    if recipe.has(Mechanic::Piloted) {
+        n += t.piloted as u32;
+    }
+    if autonomous {
+        n += t.autonomous as u32;
+    }
+    if recipe.has(Mechanic::Portal) {
+        n += t.utility as u32;
+    }
+    let cap = if ultimate || famous { bar } else { (t.cap as u32).max(1).min(bar) };
+    n = n.clamp(1, cap);
+    if mult.is_finite() && (mult - 1.0).abs() > 1e-4 {
+        n = ((n as f32 * mult.max(0.0)).round() as u32).max(1);
+    }
+    (n + uses.min(64) * t.stale as u32).clamp(1, bar)
+}
+
 /// `1 + 0.3·uses` of this exact phrase in the last 30 s.
 pub fn staleness(uses: u32) -> f32 {
     1.0 + STALE_PER_USE * uses as f32
@@ -595,6 +658,41 @@ mod tests {
         }
         // No spark size: unchanged.
         assert_eq!(quantize_cost(7.5, 0.0), 7.5);
+    }
+
+    #[test]
+    fn cast_sparks_follow_the_tier_and_stay_castable() {
+        let t = SparkTuning::default();
+        let mut r = Recipe::unknown("x");
+        r.form = Form::Sword;
+        // Tier bases: Tiny 1, Normal 2, Big 3, Titan 5, Signature 6.
+        for (tier, want) in [(0, 1), (1, 2), (2, 3), (3, 5), (4, 6)] {
+            assert_eq!(cast_sparks(&t, tier, &r, false, false, 0, 8, 1.0), want, "tier {tier}");
+        }
+        // A famous held icon is legendary: 6.
+        assert_eq!(cast_sparks(&t, 1, &r, true, false, 0, 8, 1.0), 6);
+        // Adjustments: a swarm / crowd, a piloted mech, a flying hammer, a portal: +1 each.
+        let mut swarm = r.clone();
+        swarm.mechanics = vec![Mechanic::Swarm];
+        assert_eq!(cast_sparks(&t, 1, &swarm, false, false, 0, 8, 1.0), 3);
+        let mut crowd = r.clone();
+        crowd.count = 3;
+        assert_eq!(cast_sparks(&t, 0, &crowd, false, false, 0, 8, 1.0), 2);
+        assert_eq!(cast_sparks(&t, 0, &r, false, true, 0, 8, 1.0), 2, "autonomous");
+        let mut mech = r.clone();
+        mech.mechanics = vec![Mechanic::Piloted, Mechanic::Swarm, Mechanic::Portal];
+        // Everything below Signature caps at 6; a Signature may take the whole bar.
+        assert_eq!(cast_sparks(&t, 3, &mech, false, true, 0, 8, 1.0), 6);
+        assert_eq!(cast_sparks(&t, 4, &mech, false, true, 0, 8, 1.0), 8);
+        // Never more than the bar: a 3-spark bar fits a Titan.
+        assert_eq!(cast_sparks(&t, 3, &r, false, false, 0, 3, 1.0), 3);
+        // Staleness: +1 per repeat, felt even on a 1-spark cast; still capped by the bar.
+        assert_eq!(cast_sparks(&t, 0, &r, false, false, 1, 8, 1.0), 2);
+        assert_eq!(cast_sparks(&t, 0, &r, false, false, 2, 8, 1.0), 3);
+        assert_eq!(cast_sparks(&t, 3, &r, false, false, 9, 8, 1.0), 8);
+        // A cost multiplier (your own domain: ×0.5) rounds, never below 1.
+        assert_eq!(cast_sparks(&t, 3, &r, false, false, 0, 8, 0.5), 3);
+        assert_eq!(cast_sparks(&t, 0, &r, false, false, 0, 8, 0.5), 1);
     }
 
     #[test]
