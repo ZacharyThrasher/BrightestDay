@@ -19,7 +19,7 @@ use crate::geom;
 use crate::movement::{CollisionWorld, raycast_world};
 use crate::projectile::ProjectileSpawn;
 use crate::rules::ScaleLimit;
-use crate::space::{FIELD_RESIST, ForceField, PORTAL_LIFETIME, PORTAL_RADIUS, PortalEnd};
+use crate::space::{FIELD_RESIST, ForceField, PORTAL_LIFETIME, PortalEnd};
 use crate::willpower::*;
 
 /// TUNING HOOK: pricing facts taken from the recipe the player typed (before power / party
@@ -635,12 +635,23 @@ impl World {
         self.attach_space_effects(cid, &recipe);
         crate::signature::orbital_spawned(self, cid, &recipe, origin, aim_point); // SIGNATURE HOOK: orbital strike cycle
         // Portals: first ring at the aim point, second in front of the caster.
+        // Bigger casts open bigger gates (floor PORTAL_RADIUS); a Wall-form portal is a doorway
+        // (upright rectangle, e.g. the doorman's door). Both ends are fitted to where they land.
         if recipe.has(Mechanic::Portal) && !(category == FormCategory::Held && crate::weapons::archetype_for(&recipe).is_some()) {
-            let a = PortalEnd::new(aim_point + aim_normal * 0.05, aim_normal, Vec3::Y, PORTAL_RADIUS);
             let fwd = Vec3::new(look.x, 0.0, look.z).normalize_or_zero();
             let fwd = if fwd == Vec3::ZERO { Vec3::NEG_Z } else { fwd };
-            let b_pos = self.players[i].mv.pos + fwd * 3.0 + Vec3::Y * 1.2;
-            let b = PortalEnd::new(b_pos, -fwd, Vec3::Y, PORTAL_RADIUS);
+            let door = recipe.form == bd_core::mechanics::Form::Wall;
+            let r = if door { (recipe.scale * 0.5).clamp(1.5, 3.0) } else { crate::space::portal_radius_for(recipe.scale) };
+            let style = |e: PortalEnd| if door { e.door() } else { e };
+            // A doorway aimed at the floor stands up on it, facing the caster.
+            let a = if door && aim_normal.y.abs() > 0.7 {
+                PortalEnd::new(aim_point + Vec3::Y * r, -fwd, Vec3::Y, r)
+            } else {
+                PortalEnd::new(aim_point + aim_normal * 0.05, aim_normal, Vec3::Y, r)
+            };
+            let a = crate::space::fit_portal(&self.voxels, style(a));
+            let b_pos = self.players[i].mv.pos + fwd * 3.0 + Vec3::Y * if door { r } else { 1.2 };
+            let b = crate::space::fit_portal(&self.voxels, style(PortalEnd::new(b_pos, -fwd, Vec3::Y, r)));
             self.create_portal(id, a, b, PORTAL_LIFETIME, Some(cid));
         }
         Ok(cid)

@@ -15,13 +15,23 @@ need `--features voice` in their own dir (target\voice).
 target\build_status.txt every 90 s) and `pwsh -File target\promote.ps1` (every 30 min: GREEN → fastrel
 +voice build in target\voice → startup smoke → target\playable\<stamp>\). Lead checks: CARGO_TARGET_DIR
 target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Protocol: docs/COORDINATION.md.
-**Distribution:** owner is HOLDING the next zip until the current wave lands. Then: update the clean
+**Tools (owner-run, dev only, never in the zip):** `phrase_preview.cmd` (repo root, double-click) — type a
+phrase, get the game's reading in plain English (intent stages → costume summon hook → sim rules: named
+delivery, clamps, signature amplifier, cost, DANGER alert, power-ups gates) + a 3/4 PNG
+(target\phrase_preview\last.png, auto-opened). bd_shapes example `phrase`, own target dir target\tools;
+`:voice` / `:typed`, `--spoken`, `--no-open`. Samples in docs/phrase_preview/. See tools/README.md.
+**Distribution:** candidate zip built 22:25 from 7d8b9d3 (voice fastrel, smoke OK, 150 MB) at dist/BrightestDay-win64.zip — ship once the stuck-under-floor check reports (rebuild if it finds a real bug). Then: update the clean
 worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../bd_dist checkout --detach
 <sha>`), copy ignored assets (assets/lexicon.bin, assets/models/ggml-base.en-q5_1.bin), build
 `cargo build --profile fastrel -p bd_game --features voice` with CARGO_TARGET_DIR=target/dist, smoke, then
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
+- Readability a4e1ec2fe1b94906c — CHUNKED lantern-arc willpower gauge (costs quantised to whole chunks aligned with presence tiers; spent chunks break off into the construct) hugging the crosshair (cost-bite preview, sputter when low, ring-hand glow = willpower: the affordance pass's gauge item is DONE here); enemy damage shown ON players (Smash colour ramp rim + pulse, KO-range smoke, near-crosshair %), compass pips tinted; readability.ron.
+- Tab worker also got: per-power usage chips (PROJECTILE/BEAM/BLAST… + your bound key / shout glyph, no phrases).
+- Legendary weapons a760c31dbb5a47116 — GENERIC move rules by mechanic combos: recall (path hits + hammer flight), call-the-storm per element, ricochet chain, deflect/parry, blade wave (fixes getsuga), heavy blade leap-slam, chain blades pull, guns (one-shot, needles, grab-punt, stream wrangle, charge shot, BFG); legendary Titan presence + sounds. combat.ron `legendary:`.
+- Tab power names a315ee4fa5c672ee6 — under each Tab row: held powers by name (+tier/form), HUD colour chip; only what's HELD (owner override of no-text).
+- Portals a0415a7804786ea73 — see-through (screen-space RTT, oblique clip, pre-allocated + warmed targets, cap 2 live views, dynamic res, PORTAL VIEWS pref), seamless camera crossing, hitscan/beam/tracer continuity through portals, 1.5-2x bigger, doorman door data. NOT in the pending zip.
 - Phrase preview tool + "<name> <move>" fix a5e67cb3ad65f8146 — owner-run REPL (phrase_preview.cmd) with plain-English readout + PNG; "reinhardt charge" was a 0.4 m electric ball.
 - Stuck-under-floor investigation (spawned 22:05) — bots alive at y≈-1.8 under the flat arena slab.
 - Alloc regression ab43ff90cb8b781a2 DONE in 1647958 (freedom.rs per-KO Vec; test had neutral aim) — bd_sim tests/alloc.rs steady_state_tick_does_not_allocate (5>3),

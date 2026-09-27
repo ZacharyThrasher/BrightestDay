@@ -132,6 +132,33 @@
     // count for a "missile strike" style volley of projectiles
     strike_count: 4,
 
+    // ---------------------------------------------------------------- named moves
+    // "<creature / character / icon> [’s] <move>" ("reinhardt charge", "godzilla's breath", "hulk smash",
+    // "t rex stomp"): the named thing is the construct and the move word only emphasises one of its
+    // mechanics — the name wins over the word's own dictionary sense ("charge" is not an electric
+    // charge here). A creature gains the move's mechanics; any other curated icon only when it already
+    // has them ("mjolnir smash"). A whole phrase that is itself a known name/idiom is never split.
+    // `move_links` may sit between the name and the move ("pikachu uses bite" is the Pokémon grammar;
+    // this is for everything else).
+    moves: [
+        (words: ["charge", "charges", "charging", "tackle", "tackles", "headbutt", "headbutts", "pounce", "pounces",
+            "bull rush", "stampede", "shoulder charge"], mech: [Charge]),
+        (words: ["dash", "dashes", "dashing", "spin dash", "rush attack"], mech: [Charge, Fast]),
+        (words: ["stomp", "stomps", "stomping", "ground pound", "ground slam", "foot stomp"], mech: [Stomp]),
+        (words: ["smash", "smashes", "smashing", "slam", "slams", "slamming", "punch", "punches", "punching",
+            "kick", "kicks", "uppercut", "haymaker", "hammer fist", "body slam"], mech: [Blunt]),
+        (words: ["spin", "spins", "spinning", "spin attack", "spin kick", "whirlwind"], mech: [Spin]),
+        (words: ["breath", "breathe", "breathes", "breathing", "breath attack", "breath weapon", "atomic breath"], mech: [Breath]),
+        (words: ["bite", "bites", "biting", "chomp", "chomps", "claw", "claws", "swipe", "swipes", "slash", "slashes",
+            "scratch", "scratches"], mech: [Blade]),
+        (words: ["tail whip", "tail swipe", "tail slap", "tail sweep", "tail attack", "tail strike"], mech: [ArticulatedTail]),
+        (words: ["grab", "grabs", "grapple", "bear hug", "throw", "throws"], mech: [Grab]),
+        (words: ["squeeze", "squeezes", "coil", "coils", "constrict", "constricts"], mech: [Constrict]),
+        (words: ["sting", "stings", "stinger", "gore", "gores", "impale"], mech: [Pierce]),
+        (words: ["roar", "roars", "roaring", "howl", "howls", "war cry", "battle cry", "rage"], temperament: Some(Aggressive)),
+    ],
+    move_links: ["use", "uses", "using", "does", "doing", "do"],
+
     // ---------------------------------------------------------------- volleys
     // "shower of X" / "X shower": many X; `drop` = they fall from the sky.
     volleys: [

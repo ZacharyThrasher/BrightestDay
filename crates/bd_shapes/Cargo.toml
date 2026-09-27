@@ -15,3 +15,7 @@ ron.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 proptest.workspace = true
 bd_lexicon.workspace = true
+# examples/phrase.rs (the owner's phrase preview tool) reads the sim's pure rules: recipe validation,
+# cost, DANGER alert, power-ups gates. A dev-dependency cycle (bd_sim depends on bd_shapes) is fine
+# for cargo; nothing in bd_shapes' own lib or unit tests uses it.
+bd_sim.workspace = true

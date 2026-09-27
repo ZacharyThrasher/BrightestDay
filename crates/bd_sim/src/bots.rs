@@ -207,6 +207,8 @@ pub struct BotBrain {
     overshoot_cd: f32,
     tether_t: f32,
     tether_dir: Option<Vec3>,
+    /// Seconds spent hanging on the rope with terrain right over our head (under a ledge).
+    roofed_t: f32,
     cast_cd: f32,
     oath_plan: Option<(Tick, f32, f32)>,
     /// Next oath section to recite (rotates, never the same one twice in a row).
@@ -251,6 +253,7 @@ impl BotBrain {
             overshoot_cd: 0.0,
             tether_t: 0.0,
             tether_dir: None,
+            roofed_t: 0.0,
             cast_cd,
             oath_plan: None,
             oath_section: 0,
@@ -461,6 +464,17 @@ impl BotBrain {
                 let hanging = !w.blast_zones().contains(pos) || pos.y < w.arena.void_y + 4.0;
                 if hanging {
                     self.tether_t = self.tether_t.max(0.5);
+                }
+                // …but not *under* the terrain (a ceiling over our head) for long: reeling in from just
+                // under a lip gets round the edge, a rope that keeps us under the ledge never gets us
+                // back up. Let go (no re-fire for a moment).
+                let roofed = hanging && raycast(&w.voxels, eye, Vec3::Y, 1.5).is_some();
+                self.roofed_t = if roofed { self.roofed_t + dt } else { 0.0 };
+                if self.roofed_t > 1.5 {
+                    self.roofed_t = 0.0;
+                    self.tether_dir = None;
+                    self.tether_t = 1.5;
+                    tether_hold = false;
                 }
                 // Let go once solid ground is under us (or we reached the anchor).
                 if !hanging && ((ground_near && !falling && self.tether_t < 2.6) || close || me.mv.grounded && self.tether_t < 2.5) {

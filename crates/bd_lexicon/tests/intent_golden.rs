@@ -35,6 +35,8 @@ const FLOORS: &[(&str, f64)] = &[
     ("refer", 0.88),
     ("voice", 0.93),
     ("collisions", 0.95),
+    // "<name> <move>" ("reinhardt charge", "godzilla's breath"): 41/41 when added (2026-09-26).
+    ("name_move", 0.97),
 ];
 /// Floor for the whole corpus.
 const TOTAL_FLOOR: f64 = 0.94;

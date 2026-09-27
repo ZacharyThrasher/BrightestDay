@@ -495,8 +495,8 @@ fn run_scheduled(w: &mut World, party: &mut PartyState) {
                 let fwd = if fwd == Vec3::ZERO { Vec3::NEG_Z } else { fwd };
                 let to_owner = Vec3::new(feet.x - pos.x, 0.0, feet.z - pos.z).normalize_or_zero();
                 let to_owner = if to_owner == Vec3::ZERO { Vec3::X } else { to_owner };
-                let a = PortalEnd::new(pos + Vec3::Y * 0.6, to_owner, Vec3::Y, crate::space::PORTAL_RADIUS);
-                let b = PortalEnd::new(feet + fwd * 3.0 + Vec3::Y * 1.2, -fwd, Vec3::Y, crate::space::PORTAL_RADIUS);
+                let a = crate::space::fit_portal(&w.voxels, PortalEnd::new(pos + Vec3::Y * 0.6, to_owner, Vec3::Y, crate::space::PORTAL_RADIUS));
+                let b = crate::space::fit_portal(&w.voxels, PortalEnd::new(feet + fwd * 3.0 + Vec3::Y * 1.2, -fwd, Vec3::Y, crate::space::PORTAL_RADIUS));
                 if w.create_portal(owner, a, b, 8.0, None).is_some() {
                     fx(w, owner, PartyFx::PortalPals, pos, None);
                 }

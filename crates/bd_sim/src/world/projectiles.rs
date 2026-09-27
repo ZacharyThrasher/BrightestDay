@@ -529,6 +529,14 @@ impl World {
     }
 
     fn hitscan_ray(&mut self, s: crate::weapons::HitscanShot, reflected: bool) -> u8 {
+        self.hitscan_ray_hop(s, reflected, RayHop::default())
+    }
+
+    /// One straight leg of a hitscan ray. A leg that reaches a portal disc (front side, before any
+    /// terrain / construct / stopping player) continues from the exit with the rest of the range
+    /// (`PORTAL_HOPS` legs at most; players stay rewound to the shooter's view, the portals are where
+    /// they are now). Falloff and the momentum bonus carry over from the first leg.
+    fn hitscan_ray_hop(&mut self, s: crate::weapons::HitscanShot, reflected: bool, hop: RayHop) -> u8 {
         use crate::constructs::held::{Guarded, guard_check};
         use crate::events::HeldFx;
         let dir = s.dir.normalize_or_zero();
@@ -566,6 +574,24 @@ impl World {
             wall_left -= thick;
             from = t;
         }
+        // PORTALS: a disc on the ray before the terrain stop ends this leg there (continued below).
+        let mut through: Option<(usize, usize)> = None;
+        if hop.legs < crate::space::PORTAL_HOPS && !self.portals.is_empty() {
+            let mut best = f32::INFINITY;
+            for (k, pp) in self.portals.iter().enumerate() {
+                if let Some((t, entry)) = pp.ray_hit(s.origin, dir, end) {
+                    if t < best {
+                        best = t;
+                        through = Some((k, entry));
+                    }
+                }
+            }
+            if through.is_some() {
+                end = best;
+                normal = Vec3::ZERO;
+                on_terrain = false;
+            }
+        }
         // First enemy construct on the ray takes the hit; only a piercing ray goes on through a thin one.
         if let Some((cid, t, n)) = self.constructs.segment_query(s.origin, s.origin + dir * end, 0.05, Some(s.owner)) {
             let at = s.origin + dir * (t * end);
@@ -575,6 +601,7 @@ impl World {
                 end *= t;
                 normal = if n.is_finite() && n != Vec3::ZERO { n } else { -dir };
                 on_terrain = false;
+                through = None;
             }
         }
         // Players, rewound to what the shooter saw (a parried round flies in the host's present).
@@ -602,7 +629,7 @@ impl World {
         hits[..n].sort_by(|a, b| a.0.total_cmp(&b.0));
         let limit = s.pierce as usize + 1;
         // Bounded momentum bonus: the shooter's own velocity along the aim (what their movement added).
-        let closing = self.player(s.owner).map_or(0.0, |p| p.mv.vel.dot(dir)).max(0.0);
+        let closing = hop.closing.unwrap_or_else(|| self.player(s.owner).map_or(0.0, |p| p.mv.vel.dot(dir)).max(0.0));
         let impact = if s.trace.is_some() { 1.0 + s.damage / 40.0 } else { 1.6 };
         let mut taken = 0usize;
         let mut last: Option<(f32, PlayerId)> = None;
@@ -641,7 +668,7 @@ impl World {
                 stopped = true;
                 break;
             }
-            let fall = crate::weapons::falloff(s.falloff_start, (point - s.origin).length());
+            let fall = crate::weapons::falloff(s.falloff_start, hop.dist + (point - s.origin).length());
             let at = point + shift;
             let mut hit = HitInfo::new(pid, Some(s.owner), HitKind::Shot, s.damage * fall, s.knockback * fall, dir, at)
                 .with_element(s.element)
@@ -660,6 +687,7 @@ impl World {
             end *= t.max(0.0);
             normal = -dir;
             on_terrain = false;
+            through = None;
         }
         let stop = s.origin + dir * end;
         if on_terrain && s.chip > 0.0 {
@@ -673,6 +701,35 @@ impl World {
             }
             None => self.events.push(GameEvent::Hitscan { owner: s.owner, origin: s.origin, end: stop, hits: taken as u8 }),
         }
+        // Through the portal: the next leg leaves the exit disc with the rest of the range.
+        if let Some((k, entry)) = through {
+            let pp = self.portals[k];
+            let exit = pp.ends[1 - entry];
+            let out = pp.map_point(entry, stop) + exit.normal * 0.02;
+            let left = range - end;
+            let pierce_left = (s.pierce as usize + 1).saturating_sub(taken);
+            if left > 0.5 && pierce_left > 0 && out.is_finite() {
+                let mut n = s;
+                n.origin = out;
+                n.muzzle = out;
+                n.dir = pp.rotation(entry) * dir;
+                n.range = left;
+                n.pierce = (pierce_left - 1).min(255) as u8;
+                let next = RayHop { legs: hop.legs + 1, dist: hop.dist + end, closing: Some(closing) };
+                return taken as u8 + self.hitscan_ray_hop(n, reflected, next);
+            }
+        }
         taken as u8
     }
+}
+
+/// State carried from one hitscan leg to the next (through a portal).
+#[derive(Clone, Copy, Debug, Default)]
+struct RayHop {
+    /// Portal passes so far.
+    legs: u8,
+    /// Distance travelled before this leg (falloff reads the whole path).
+    dist: f32,
+    /// The first leg's momentum bonus.
+    closing: Option<f32>,
 }

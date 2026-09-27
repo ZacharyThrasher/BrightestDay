@@ -479,7 +479,7 @@ impl World {
         }
         // Floor / ceiling rings are "up"-oriented along the shot; wall rings stand upright.
         let up = if n.y.abs() > 0.7 { Vec3::new(shot_dir.x, 0.0, shot_dir.z).normalize_or(Vec3::NEG_Z) } else { Vec3::Y };
-        let end = PortalEnd::new(point + n * 0.05, n, up, PORTAL_RADIUS);
+        let end = fit_portal(&self.voxels, PortalEnd::new(point + n * 0.05, n, up, PORTAL_RADIUS));
         let slot = self.players[i].portal_slot.min(1);
         self.players[i].portal_slot = 1 - slot;
         self.events.push(GameEvent::PortalPlaced { owner, slot, end });

@@ -1325,10 +1325,17 @@ impl Lexicon {
                 let mut res = if whole_is_icon {
                     self.resolve_mode_inner(toks.clone(), bangs, spoken)
                 } else if rest.is_empty() {
-                    let mut r = self.resolve_mode_inner(Vec::new(), bangs, spoken);
-                    r.kind = ResolutionKind::Graft;
-                    r.confidence = 0.8;
-                    r
+                    // "hulk smash" said alone: the named thing doing its move (relations.rs `moves`);
+                    // a holder of the power never gets here (the sim reads its shout first)
+                    match self.name_move(&toks[skip..], bangs, spoken) {
+                        Some(r) => r,
+                        None => {
+                            let mut r = self.resolve_mode_inner(Vec::new(), bangs, spoken);
+                            r.kind = ResolutionKind::Graft;
+                            r.confidence = 0.8;
+                            r
+                        }
+                    }
                 } else {
                     self.resolve_mode_inner(rest, bangs, spoken)
                 };

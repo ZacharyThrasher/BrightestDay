@@ -30,7 +30,7 @@
 # A name only targets after a verb/preposition aimed at someone ("dragon on sam" -> Sam, not DragonSlayer).
 #
 # Categories: owner, target, voice_target, popculture, everyday, verbs, combos, signature, pokemon,
-#             refer, voice, collisions.
+#             refer, voice, collisions, name_move.
 
 # =====================================================================================================
 # owner - the owner's own phrases and close variants
@@ -1315,3 +1315,51 @@ collisions | meteor shower over the lake | n>=6 +DropFromSky target=none
 collisions | king kong riding godzilla | name~kong mount=any
 collisions | drop the bass | target=none
 
+
+# =====================================================================================================
+# name_move - "<known creature / character / icon> [’s] <move>": the named thing doing its move (the
+# name wins over the move word's dictionary sense: "reinhardt charge" is Reinhardt charging, never an
+# electric charge). relations.ron `moves`. Controls at the end: bare verbs, targeting, signatures and
+# compounds keep their old readings.
+# =====================================================================================================
+name_move | reinhardt charge | name~reinhardt cat=Creature +Charge el=Light
+name_move | reinhardt's charge | name~reinhardt cat=Creature +Charge
+name_move | Reinhardt charges | name~reinhardt cat=Creature +Charge
+name_move | reinhardt uses charge | name~reinhardt +Charge
+name_move | REINHARDT CHARGE!! | name~reinhardt cat=Creature +Charge
+name_move | godzilla's breath | name~godzilla form=Kaiju +Breath
+name_move | godzilla breath | name~godzilla form=Kaiju +Breath
+name_move | godzilla stomp | name~godzilla +Stomp
+name_move | godzilla tail whip | name~godzilla +ArticulatedTail
+name_move | hulk smash | name~hulk cat=Creature +Blunt incant=gamma
+name_move | hulk's smash | name~hulk cat=Creature +Blunt
+name_move | hulk punch | name~hulk cat=Creature +Blunt
+name_move | king kong smash | name~kong cat=Creature +Blunt
+name_move | bull charge | form=Quadruped +Charge
+name_move | angry bull charge | form=Quadruped +Charge
+name_move | rhino charge | cat=Creature +Charge
+name_move | t rex stomp | name~rex cat=Creature +Stomp
+name_move | elephant stomp | cat=Creature +Stomp
+name_move | shark bite | form=Fish +Blade
+name_move | the shark's bite | form=Fish +Blade
+name_move | dragon breath | name~dragon cat=Creature +Breath
+name_move | dragon's breath | name~dragon cat=Creature +Breath
+name_move | lion roar | name~lion cat=Creature
+name_move | python squeeze | cat=Creature +Constrict
+name_move | scorpion sting | cat=Creature +Pierce
+name_move | wolf bite | cat=Creature +Blade
+name_move | gorilla punch | cat=Creature +Blunt
+name_move | kangaroo kick | cat=Creature +Blunt
+name_move | mjolnir smash | name~mjolnir form=Hammer +Blunt
+name_move | reinhardt charge at ethan | name~reinhardt +Charge target=Ethan
+name_move | godzilla breath on sam | name~godzilla +Breath target=Sam
+name_move | ~reinhardt charge | name~reinhardt cat=Creature +Charge
+name_move | ~godzilla's breath | name~godzilla +Breath
+name_move | ~hulk smash | name~hulk cat=Creature +Blunt
+name_move | charge | kind=graft +Charge
+name_move | charge at ethan | target=Ethan
+name_move | depth charge | form=Bomb
+name_move | sucker punch | form=Gauntlet
+name_move | wolverine claws | form=Gauntlet
+name_move | kamehameha | sig=Beam
+name_move | fire sword | form=Sword el=Fire

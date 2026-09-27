@@ -61,6 +61,16 @@ struct Attack {
     strike: bool,
 }
 
+/// A named move ("charge", "breath", "smash"): see `moves` in `data/relations.ron`.
+#[derive(Deserialize)]
+struct MoveWords {
+    words: Vec<String>,
+    #[serde(default)]
+    mech: Vec<Mechanic>,
+    #[serde(default)]
+    temperament: Option<Temperament>,
+}
+
 #[derive(Deserialize)]
 struct Volley {
     word: String,
@@ -96,6 +106,10 @@ struct RelData {
     sky_emitters: Vec<String>,
     default_sky_emitter: String,
     strike_count: u8,
+    #[serde(default)]
+    moves: Vec<MoveWords>,
+    #[serde(default)]
+    move_links: Vec<String>,
     volleys: Vec<Volley>,
     leftover_min_conf: f32,
     leftover_max_mechs: usize,
@@ -194,6 +208,14 @@ impl Lexicon {
                 .unwrap_or(false)
     }
 
+    /// Guarded only as a Wikidata-style entity title (no idiom, curated alias, hand anchor or Pokémon).
+    fn entity_only(&self, d: &RelData, whole: &str) -> bool {
+        use crate::data::{F_ANCHOR, F_ENTITY, F_POKEMON};
+        !d.guard_phrases.iter().any(|g| g == whole)
+            && !self.icons.alias.contains_key(whole)
+            && self.entry(whole).is_some_and(|(_, r)| r.flags & F_ENTITY != 0 && r.flags & (F_ANCHOR | F_POKEMON) == 0)
+    }
+
     /// Strip magnitude / modifier phrases (unless they start a name: "mega man", "atomic bomb").
     fn strip_effects(&self, d: &RelData, toks: &[Tok]) -> (Vec<Tok>, Effects) {
         let mut fx = Effects { scale_mul: 1.0, ..Default::default() };
@@ -252,7 +274,9 @@ impl Lexicon {
         }
         let whole = join(toks);
         if self.relation_guarded(d, &whole) {
-            return None;
+            // "dragon breath", "lion roar": a loose encyclopedia title (a shotgun round, an instrument)
+            // doesn't beat a creature doing its move; a curated / hand-anchored name always does
+            return self.entity_only(d, &whole).then(|| self.move_rel(d, toks, bangs, spoken)).flatten().filter(|r| r.recipe.form.category() == FormCategory::Creature);
         }
         let (rest, fx) = self.strip_effects(d, toks);
         let has_fx = !fx.notes.is_empty();
@@ -263,6 +287,7 @@ impl Lexicon {
             self.mount_rel(d, &rest, bangs, spoken)
                 .or_else(|| self.size_rel(d, &rest, bangs, spoken))
                 .or_else(|| self.volley_rel(d, &rest, bangs, spoken))
+                .or_else(|| self.move_rel(d, &rest, bangs, spoken))
                 .or_else(|| self.emitter_rel(d, &rest, bangs, spoken))
         } else {
             None
@@ -551,6 +576,85 @@ impl Lexicon {
             0,
             format!("{} of {x_text} \u{2192} {} {}", v.word, v.count, if v.drop { "falling from the sky" } else { "fired at once" }),
         );
+        Some(r)
+    }
+
+    // ------------------------------------------------------------------------------ named moves
+    /// "<name> <move>" said on its own (an incantation like "hulk smash" with nothing after it): the
+    /// named thing doing its move, or `None`. Used by the incantation stage (parse.rs).
+    pub(crate) fn name_move(&self, toks: &[Tok], bangs: usize, spoken: bool) -> Option<Resolution> {
+        let d = data()?;
+        if toks.len() < 2 || self.relation_guarded(d, &join(toks)) {
+            return None;
+        }
+        self.move_rel(d, toks, bangs, spoken)
+    }
+
+    /// "<creature / character / icon> [’s] <move>" → the named thing with the move's mechanics
+    /// emphasised ("reinhardt charge", "godzilla's breath", "t rex stomp"). The name wins over the move
+    /// word's own dictionary sense; a non-creature icon only takes a move it already has.
+    fn move_rel(&self, d: &RelData, toks: &[Tok], bangs: usize, spoken: bool) -> Option<Resolution> {
+        let w = words(toks);
+        // the longest move phrase at the end of the phrase
+        let mut best: Option<(&MoveWords, &str, usize)> = None;
+        for m in &d.moves {
+            for p in &m.words {
+                let n = p.split(' ').count();
+                if n < w.len() && w[w.len() - n..].join(" ") == *p && best.is_none_or(|b| b.2 < n) {
+                    best = Some((m, p.as_str(), n));
+                }
+            }
+        }
+        let (mv, said, n) = best?;
+        let mut end = toks.len() - n;
+        while end > 1 && d.move_links.iter().any(|l| *l == toks[end - 1].text) {
+            end -= 1;
+        }
+        let x = trim_trail(trim_lead(&toks[..end]));
+        if x.is_empty() {
+            return None;
+        }
+        let x_text = join(x);
+        // "fire breath", "ice punch": an element + move is the element grammar's
+        if self.elemental(&x_text) || gram_of(&x_text).is_some() {
+            return None;
+        }
+        let mut r = self.sub(x, bangs, spoken);
+        if !self.physical(&x_text, &r) || !r.ignored.is_empty() || r.recipe.mount.is_some() {
+            return None;
+        }
+        let creature = r.recipe.form.category() == FormCategory::Creature;
+        let owns = !mv.mech.is_empty() && mv.mech.iter().all(|m| r.recipe.has(*m));
+        if !(creature || (r.shape.is_some() && owns)) {
+            return None; // "phone charge", "grand slam": not a named thing doing a move
+        }
+        let rc = &mut r.recipe;
+        let mut added: Vec<Mechanic> = Vec::new();
+        for m in &mv.mech {
+            if !rc.mechanics.contains(m) {
+                rc.mechanics.push(*m);
+                added.push(*m);
+            }
+            if !r.graft.mechanics.contains(m) {
+                r.graft.mechanics.push(*m);
+            }
+        }
+        r.graft.mechanics.sort();
+        if let Some(t) = mv.temperament {
+            rc.temperament = t;
+            rc.intensity = rc.intensity.max(0.8);
+            r.graft.temperament = Some(t);
+        }
+        let name = rc.name.clone();
+        r.recipe = r.recipe.clone().normalized();
+        r.kind = ResolutionKind::Construct;
+        r.confidence = r.confidence.max(0.6);
+        let what = match (mv.mech.is_empty(), added.is_empty()) {
+            (true, _) => format!("{:?}", mv.temperament.unwrap_or_default()),
+            (false, true) => format!("its own {:?}", mv.mech),
+            (false, false) => format!("{:?}", mv.mech),
+        };
+        r.explanation.insert(0, format!("{x_text} {said} \u{2192} {name} doing its move: {what} emphasised (the name wins over \"{said}\")"));
         Some(r)
     }
 

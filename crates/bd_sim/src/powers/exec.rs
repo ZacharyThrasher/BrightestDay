@@ -991,8 +991,8 @@ impl World {
                     d += 0.5;
                 }
                 let Some(exit) = exit else { return Err(PowerError::NoTarget) };
-                let a = PortalEnd::new(hit.point + n * 0.05, n, Vec3::Y, PORTAL_RADIUS);
-                let b = PortalEnd::new(exit, -n, Vec3::Y, PORTAL_RADIUS);
+                let a = crate::space::fit_portal(&self.voxels, PortalEnd::new(hit.point + n * 0.05, n, Vec3::Y, PORTAL_RADIUS));
+                let b = crate::space::fit_portal(&self.voxels, PortalEnd::new(exit, -n, Vec3::Y, PORTAL_RADIUS));
                 self.create_portal(id, a, b, PORTAL_LIFETIME, None).map(|_| ()).ok_or(PowerError::Busy)
             }
             MoveOp::Link { range } => {

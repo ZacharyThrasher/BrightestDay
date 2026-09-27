@@ -173,6 +173,7 @@ impl World {
                 up: QDir::new(e.up),
                 radius: (e.radius * 20.0).round().clamp(1.0, 255.0) as u8,
                 hp: e.hp.clamp(0.0, 255.0) as u8,
+                style: e.style,
             }),
         }));
         out.fields.clear();
@@ -396,6 +397,7 @@ impl World {
             let end = |e: &PortalEndSnap| {
                 let mut pe = PortalEnd::new(e.pos.get(), e.normal.get(), e.up.get(), e.radius as f32 / 20.0);
                 pe.hp = e.hp as f32;
+                pe.style = e.style;
                 pe
             };
             self.portals.push(PortalPair { id: p.id, owner: PlayerId(p.owner), ends: [end(&p.ends[0]), end(&p.ends[1])], expires: Tick::MAX, construct: None });

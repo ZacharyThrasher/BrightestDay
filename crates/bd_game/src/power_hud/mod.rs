@@ -28,6 +28,8 @@ pub mod scenario;
 mod strip;
 
 pub use derive::PowerHud;
+/// The icon material (the Tab board's power chips reuse it).
+pub use strip::{IconMaterial, IconParams};
 
 use crate::console::{RingConsole, RingLexicon};
 use crate::sim_bridge::{ActiveWorld, BridgeSet, ViewKeys};

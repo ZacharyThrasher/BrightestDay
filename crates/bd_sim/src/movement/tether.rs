@@ -3,7 +3,7 @@
 
 use bd_core::Vec3;
 use bd_core::input::{buttons, look_dir};
-use bd_core::voxel::{VoxelQuery, raycast};
+use bd_core::voxel::{VoxelQuery, raycast, world_to_voxel};
 
 use super::controller::Inp;
 use super::params::MoveParams;
@@ -110,7 +110,7 @@ pub(crate) fn update_hooks<V: VoxelQuery + ?Sized>(
                 if !held {
                     s.hooks[i] = Hook::default();
                     ev.tether_released[i] = true;
-                } else if !refresh_anchor(&mut s.hooks[i], w) || rope_under_terrain(&s.hooks[i], s.chest(p), w) {
+                } else if !refresh_anchor(&mut s.hooks[i], w) || rope_under_terrain(&s.hooks[i], s.chest(p), s.height(p) * 0.4 + 0.5, p.hull_half_width, w) {
                     s.hooks[i] = Hook::default();
                     ev.tether_released[i] = true;
                     ev.tether_broken[i] = true;
@@ -202,23 +202,34 @@ fn refresh_anchor<V: VoxelQuery + ?Sized>(h: &mut Hook, w: &CollisionWorld<V>) -
     }
 }
 
-/// Ropes ignore terrain once attached, so a swing past a ledge could carry the player in *under* it
-/// and the pull would then pin them against the underside forever (alive under the floor, over the
-/// void). A rope that runs up through the underside of solid terrain on its way from the chest to
-/// the anchor is cut against it instead (`tether_broken`). Side / top faces (swinging round a
-/// pillar, a rope over a cliff edge) and an anchor on the underside itself (hanging from a bridge)
-/// are unaffected. Voxels only; player ropes (hook-and-strike) are exempt.
-fn rope_under_terrain<V: VoxelQuery + ?Sized>(h: &Hook, chest: Vec3, w: &CollisionWorld<V>) -> bool {
+/// Ropes ignore terrain once attached, so a swing past a ledge can carry the player in *under* it,
+/// and the pull then pins them against the underside for good (alive under the floor, above the
+/// void). The rope is cut (`tether_broken`; they drop) when it runs up through the underside of
+/// solid terrain right over the player's head (within `head_room` m above the chest) **and** that
+/// ceiling also roofs the whole hull footprint (`half_width`) under the anchor, i.e. sliding along
+/// the underside toward the anchor can't get them round an edge. Unaffected: reeling back up from
+/// just under a cliff lip (slides out round the corner), dangling clear below an overhang, side /
+/// top faces (a rope over a cliff edge, round a pillar), an anchor on the underside itself (hanging
+/// from a bridge). Voxels only; ropes on players (hook-and-strike) are exempt. One short ray (about
+/// `head_room` along the rope) + 4 voxel reads when it hits: cheap every tick.
+fn rope_under_terrain<V: VoxelQuery + ?Sized>(h: &Hook, chest: Vec3, head_room: f32, half_width: f32, w: &CollisionWorld<V>) -> bool {
     if matches!(h.target, Some(AnchorTarget::Collider(super::world::ColliderId::Player(_)))) {
         return false;
     }
     let d = h.pos - chest;
     let dist = d.length();
     // Only an anchor above can pull you up into a ceiling; the last 0.5 m is the anchor's own face.
-    if !(d.y > 0.5 && dist > 1.0) {
+    if !(d.y > 0.25 && dist > 1.0) {
         return false;
     }
-    raycast(w.voxels, chest, d / dist, dist - 0.5).is_some_and(|hit| hit.t > 0.0 && hit.normal.y < 0)
+    let reach = (dist - 0.5).min(head_room * dist / d.y);
+    let Some(hit) = raycast(w.voxels, chest, d / dist, reach).filter(|hit| hit.t > 0.0 && hit.normal.y < 0) else {
+        return false;
+    };
+    let y = hit.point.y + 0.25;
+    [(-1.0f32, -1.0f32), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)]
+        .iter()
+        .all(|&(sx, sz)| w.voxels.is_solid(world_to_voxel(Vec3::new(h.pos.x + sx * half_width, y, h.pos.z + sz * half_width))))
 }
 
 /// Rope pull, reel, notches and the ratchet. Returns the continuous acceleration applied (for the

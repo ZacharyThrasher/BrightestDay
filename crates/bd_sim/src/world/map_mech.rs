@@ -149,8 +149,10 @@ impl World {
         self.portals.retain(|p| p.owner != MAP_OWNER);
         let specs = self.arena.mechanics.portals.clone();
         for sp in specs {
-            let mut a = PortalEnd::new(sp.a, sp.a_normal, Vec3::Y, sp.radius);
-            let mut b = PortalEnd::new(sp.b, sp.b_normal, Vec3::Y, sp.radius);
+            // The map sets the size (only raised to the placement floor if it is too small).
+            let r = sp.radius.max(crate::space::PORTAL_MIN_RADIUS);
+            let mut a = PortalEnd::new(sp.a, sp.a_normal, Vec3::Y, r);
+            let mut b = PortalEnd::new(sp.b, sp.b_normal, Vec3::Y, r);
             a.hp = f32::INFINITY;
             b.hp = f32::INFINITY;
             let id = self.next_space_id();

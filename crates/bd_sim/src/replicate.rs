@@ -393,6 +393,8 @@ pub struct PortalEndSnap {
     /// Radius × 20.
     pub radius: u8,
     pub hp: u8,
+    /// `space::PORTAL_STYLE_*` (ring / doorway).
+    pub style: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

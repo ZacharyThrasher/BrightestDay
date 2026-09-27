@@ -475,6 +475,7 @@ version = "0.1.0"
 dependencies = [
  "bd_core",
  "bd_lexicon",
+ "bd_sim",
  "glam 0.30.10",
  "image",
  "proptest",
