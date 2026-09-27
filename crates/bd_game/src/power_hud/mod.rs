@@ -194,7 +194,11 @@ fn phrase_cost(a: &ActiveWorld, lex: &RingLexicon, me: bd_core::PlayerId, text: 
             }
         }
         PowerPhrase::Incantation { rest } => w.preview_cost(me, lex.0.resolve(&rest).recipe).1,
-        PowerPhrase::Plain => w.preview_cost(me, lex.0.resolve(text).recipe).1,
+        PowerPhrase::Plain => {
+            // SPARKS: a signature phrase ("domain expansion …", "kamehameha") costs the Signature tier.
+            let res = lex.0.resolve(text);
+            if res.signature.is_some() { w.preview_signature_cost(me, res.recipe).1 } else { w.preview_cost(me, res.recipe).1 }
+        }
     };
     (cost > 0.0).then_some((cost / pool).clamp(0.0, 2.0))
 }

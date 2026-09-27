@@ -84,11 +84,12 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     let f = s.y;
     let cov = s.z;
     let x = i + f; // position along the gauge, in sparks
-    // A dark keyline ~1.5 px around every spark: readable over snow, sky, grass and neon alike.
-    let key = clamp(s.w + 2.0, 0.0, 1.0);
+    // A dark keyline ~2 px around every spark: readable over snow, sky, grass, neon and an orange /
+    // red body right behind the crosshair.
+    let key = clamp(s.w + 2.6, 0.0, 1.0);
     if (key > 0.0 && i >= 0.0 && i < n) {
         let fill = clamp(have - i, 0.0, 1.0);
-        out = over(out, vec3<f32>(0.01, 0.01, 0.025), key * 0.6);
+        out = over(out, vec3<f32>(0.005, 0.005, 0.02), key * 0.78);
         // Empty spark: a dark track with a faint corps tint.
         var c = col * 0.14 + vec3<f32>(0.04);
         var a = cov * 0.75;

@@ -29,8 +29,8 @@
     // filling left -> right. Sizes are px at a 1080-line window (scaled, never below min_scale). Fades to
     // idle_alpha when full and idle for idle_after s; anything changing brings it to active_alpha.
     gauge: (
-        radius_px: 42.0,
-        thickness_px: 6.5,
+        radius_px: 52.0,
+        thickness_px: 8.0,
         min_scale: 0.8,
         span_deg: 132.0,
         gap_deg: 3.2,

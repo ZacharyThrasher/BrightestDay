@@ -200,10 +200,9 @@ pub fn base_cost_as(recipe: &Recipe, autonomous: bool) -> f32 {
 /// ("that dragon cost me three"). One spark = [`SEGMENT_BASE_POOL`] / segments (the Normal pool:
 /// Double willpower shows twice the sparks, it does not make them bigger).
 pub const SEGMENT_BASE_POOL: f32 = 100.0;
-/// Rounding: `sparks = max(1, floor(cost / spark + QUANTIZE_BIAS))` — nearest, leaning down a little
-/// (a remainder of 0.65 spark or more rounds up). Chosen from the golden-corpus survey
-/// (bd_game `readability::cost_survey`): at 8 sparks the medians land on the presence tiers players
-/// see and hear — Tiny 1, Normal 2, Big 4, Titan 5+.
+/// Rounding of a raw willpower cost to sparks (grafts' "it" resize; casts are priced by presence
+/// tier instead: [`cast_sparks`]): `sparks = max(1, floor(cost / spark + QUANTIZE_BIAS))` — nearest,
+/// leaning down a little (a remainder of 0.65 spark or more rounds up).
 pub const QUANTIZE_BIAS: f32 = 0.35;
 
 /// Whole sparks a raw cost rounds to (0 for a free / invalid cost; at least 1 otherwise).

@@ -136,8 +136,8 @@ pub struct MatchRules {
     pub powerups: bool,
     /// SPARKS (READABILITY; UI word `bd_game::menu::SPARKS`): willpower comes in this many whole
     /// segments ([`WILLPOWER_SEGMENTS_MIN`]..=[`WILLPOWER_SEGMENTS_MAX`]) and every cast costs whole
-    /// ones (`willpower::quantize_cost`). A balance rule, so the host sets it and it replicates with
-    /// the rules.
+    /// ones, by its presence tier (`willpower::cast_sparks`; more sparks = more casts per bar). A
+    /// balance rule, so the host sets it and it replicates with the rules.
     pub willpower_segments: u8,
 }
 

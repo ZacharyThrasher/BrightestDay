@@ -112,8 +112,8 @@ pub struct GaugeTuning {
 impl Default for GaugeTuning {
     fn default() -> Self {
         Self {
-            radius_px: 42.0,
-            thickness_px: 6.5,
+            radius_px: 52.0,
+            thickness_px: 8.0,
             min_scale: 0.8,
             span_deg: 132.0,
             gap_deg: 3.2,

@@ -141,19 +141,26 @@ reduces air control but you can always tether out of it (a skill save).
   - `size_factor = clamp((scale/default_scale)^1.3, 0.5, 3)`; `staleness = 1 + 0.3·(uses of this exact
     word in the last 30 s)` — repetition gets pricier; variety is free (expression!).
 - **SPARKS** (READABILITY; match rule `MatchRules::willpower_segments`, host rules page "SPARKS", 3–12,
-  default 8; replicated with the rules, protocol v32): willpower comes in whole sparks of
-  `100 / sparks` (the Normal pool; Double willpower shows twice the sparks, not bigger ones) and **every cast
-  costs whole sparks**: `sparks = max(1, floor(cost / spark + 0.35))` (`bd_sim::willpower::quantize_cost`,
-  applied after staleness / party / signature multipliers to fresh casts, grafts and animated terrain; the
-  preview uses the same function, so it is exact). Integrity is still bought at the raw price. The size +
-  rounding were chosen from the golden intent corpus (bd_game `readability::cost_survey`): the median spark
-  count per presence tier is Tiny 1, Normal 2, Big 4, Titan 5+ — what players see and hear teaches the price.
-  Examples at 8 sparks (before → after): sword 13.8 → 1 (12.5), gun 52.2 → 4 (50), wall 6.8 → 1 (12.5),
-  fire dragon 108.8 → 9 (112.5, more than a bar: sputters), meteor 16.7 → 1 (12.5), kaiju (godzilla)
-  172.8 → 14 (sputters), spirit bomb 60.9 → 5 (62.5; × the signature multiplier when cast as one).
-  Power moves (3–10 willpower) and continuous drains (upkeep, a growing energy ball) stay fractional: the
-  gauge shows them eating the partial spark and breaks each spark off as it empties. Staleness still
-  multiplies before rounding, so a 12-willpower cast needs 3 repeats inside the window before it costs 2.
+  default 8; replicated with the rules): willpower comes in whole sparks of `100 / sparks` (the Normal pool;
+  Double willpower shows twice the sparks, not bigger ones). **A cast's price is set by the presence tier
+  players see and hear** (`presence_tier::cast_tier`, the same function the client's presence uses), not by
+  its raw willpower cost: `tuning.willpower.sparks` (combat.ron) — Tiny 1, Normal 2, Big 3, Titan 5,
+  Signature 6; a famous held icon (legendary) 6; +1 each for a crowd / swarm (count ≥ 3), piloted, an
+  autonomous non-creature (flying hammer), a portal; nothing below Signature above 6, nothing above the whole
+  bar (so everything is castable from a full bar; kaiju / colossal stay Titan, gated by POWER-UPS and the
+  construct caps). Repeats: **+1 spark per repeat** of the phrase inside the staleness window (felt on cheap
+  casts too). Inside your own sealed domain the sparks × `domain.cast_cost_mult` (rounded, ≥ 1). Party
+  grafts are free: a cast costs what was typed (priced before them). A signature cast is the Signature tier
+  (`cflags::SIGNATURE` tells every client). The raw willpower cost stays the cast's **weight**: without
+  balance knobs (the gun ×2.6 is a balance price, not gravitas) it is the tier's input and
+  `ConstructSpawned::cost`; with staleness it still buys integrity. Grafts: half the grafted phrase's sparks
+  (≥ 1) + the autonomous spark if it makes your construct hunt + the "it" resize rounded + repeats. Upkeep,
+  power moves (3–10 willpower) and continuous drains (a growing energy ball) stay fractional: the gauge
+  shows them eating the partial spark and breaks each spark off as it empties.
+  At 8 sparks (survey, `readability::cost_survey`, cast through the real sim from a full bar): sword 2,
+  gun 1, wall 2, fire dragon 3, meteor 5, anvil from the sky 5, godzilla 5, spirit bomb 6 (signature),
+  domain expansion 6, portal 3, a swarm of bees 3. Median per tier: Tiny 1, Normal 2, Big 3, Titan 5,
+  Signature 6; 0 of ~1280 corpus casts cost more than a full bar.
 - Upkeep: held/worn constructs drain 0.6/s, creatures 1.5/s (Kaiju 4/s), structures 0.3/s. At 0
   willpower your constructs start losing integrity quickly and shatter.
 - **Never refused for willpower** (FREEDOM bundle, `bd_sim::freedom::afford`): a cast that costs more than

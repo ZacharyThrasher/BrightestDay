@@ -2,8 +2,8 @@
 //! stages one readability read for screenshots (the bots stand down; the scenario holds them). The
 //! scenario saves its own PNGs at the right moments (`<dir>/<shot>_<k>.png`, default
 //! `docs/readability`), so timing never depends on load time. Shots:
-//! * `afford` — the crosshair gauge while typing an affordable 2-spark cast ("car", 5.4 sparks held);
-//! * `refuse` — typing a 5-spark cast ("spirit bomb") with 2.5 sparks: red, shaking, ghost sparks;
+//! * `afford` — the crosshair gauge while typing an affordable 2-spark cast ("sword", 5.4 sparks held);
+//! * `refuse` — typing a 5-spark cast ("meteor", Titan) with 2.5 sparks: red, shaking, ghost sparks;
 //! * `low` — under one spark: dim and sputtering;
 //! * `trio` — three enemies at 20 %, 80 %, 160 % in front (the 80 % one at the crosshair shows its
 //!   number); `--third-person` for the 3P view;
@@ -148,8 +148,8 @@ fn hold(
     }
     if let Some(mut c) = console {
         let text = match shot.as_str() {
-            "afford" => Some("car"),
-            "refuse" => Some("spirit bomb"),
+            "afford" => Some("sword"),
+            "refuse" => Some("meteor"),
             _ => None,
         };
         if let Some(text) = text
