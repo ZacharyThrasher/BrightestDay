@@ -480,6 +480,29 @@ fn camera(q: &Query<(&Camera, &GlobalTransform, &Projection), With<Camera3d>>) -
     })
 }
 
+/// Local shout frame: (unit, screen x, screen y, screen height m, screen width m) at LOCAL_DEPTH.
+fn local_frame(s: &Shout, st: &ShoutState, intensity: f32, fov: f32, aspect: f32) -> (f32, f32, f32, f32, f32) {
+    let hs = 2.0 * LOCAL_DEPTH * (fov * 0.5).tan();
+    let ws = hs * aspect;
+    // Letter height as a fraction of the screen: calm 5 %, a real yell ~15 %, a yelled MOON ~18 %.
+    let frac = 0.045 + 0.1 * (intensity / 2.2).min(1.0) + 0.03 * ((intensity - 2.2) / 1.8).clamp(0.0, 1.0);
+    // Compact (a caster's power title): ≤ 6 %, the block ≤ 30 % wide / 18 % tall, right and low.
+    let (frac, w_cap, h_cap, cx, cy) = if s.compact { (frac.min(0.06), 0.3, 0.18, 0.3, -0.3) } else { (frac, 0.46, 0.36, 0.26, -0.2) };
+    let unit = (frac * hs / GLYPH_H).min(w_cap * ws / st.block.x.max(0.1)).min(h_cap * hs / st.block.y.max(0.1));
+    (unit, cx, cy, hs, ws)
+}
+
+/// World shout size: (unit, visible block height in shout units, far LOD).
+fn world_unit(st: &ShoutState, head: Vec3, intensity: f32, cam_pos: Vec3) -> (f32, f32, bool) {
+    let dist = head.distance(cam_pos).max(0.5);
+    let far = dist > 28.0 && st.lines > 1 && st.line_scale[0] != st.line_scale[1];
+    let lines_h = if far { GLYPH_H } else { st.block.y };
+    // Readable at range (≥ ~1.8° per letter), never screen-filling up close.
+    let h = (0.35 + 0.4 * intensity).clamp(dist * 0.032, (dist * 0.075).max(0.3));
+    let unit = (h / GLYPH_H).min((dist * 0.9).max(3.0) / st.block.x.max(0.1));
+    (unit, lines_h, far)
+}
+
 fn init_shouts(
     mut commands: Commands,
     new: Query<(Entity, &Shout), Without<ShoutState>>,
@@ -642,12 +665,59 @@ fn animate_shouts(
     mut sfx: MessageWriter<ShoutSfx>,
     mut shouts: Query<(Entity, &Shout, &mut ShoutState, &mut Transform)>,
     mut letters: Query<&mut Transform, Without<ShoutState>>,
+    budget: Res<TextBudget>,
+    mut stack: Local<Vec<(Entity, f32, f32)>>,
+    mut scratch: Local<(Vec<(Entity, u64, bool, Vec3, f32)>, Vec<(u64, f32)>, Vec<f32>)>,
 ) {
     let dt = time.delta_secs().min(0.1);
     let Some((cam, fov, aspect)) = camera(&cams) else { return };
     let (_, cam_rot, cam_pos) = cam.to_scale_rotation_translation();
     let (right, upv, fwd) = (cam.right().as_vec3(), cam.up().as_vec3(), cam.forward().as_vec3());
+    let view = View::new(&cam, fov, aspect);
     let gentle = settings.gentle;
+    // Chain stacking targets: per caster (local: all of yours; others: heads within
+    // `same_caster_m`), newest on the base line, older ones shrunk and stacked above the newer ones.
+    {
+        let tb = &budget.titles;
+        let shrink = tb.stack_shrink.clamp(0.2, 1.0);
+        let (items, group, offs) = &mut *scratch;
+        items.clear();
+        stack.clear();
+        for (e, s, st, _) in &shouts {
+            if st.released {
+                continue;
+            }
+            let intensity = shout_intensity(s.energy, st.boost);
+            // Heights in world metres along camera-up (local, at LOCAL_DEPTH) / world-up (others).
+            let h = if s.local {
+                let (unit, ..) = local_frame(s, st, intensity, fov, aspect);
+                unit * st.block.y
+            } else {
+                let (unit, lines_h, _) = world_unit(st, fin3(s.head), intensity, cam_pos);
+                unit * lines_h
+            };
+            items.push((e, st.serial, s.local, fin3(s.head), h));
+        }
+        for i in 0..items.len() {
+            let (e, serial, local, head, _) = items[i];
+            group.clear();
+            for &(_, s2, l2, h2, height) in items.iter() {
+                if l2 == local && (local || h2.distance(head) < tb.same_caster_m) {
+                    group.push((s2, height));
+                }
+            }
+            // Older ones are drawn shrunk: stack with their shrunk heights.
+            for j in 0..group.len() {
+                if stack_rank(group, group[j].0) > 0 {
+                    group[j].1 *= shrink;
+                }
+            }
+            stack_offsets(group, tb.stack_gap, offs);
+            let off = group.iter().position(|g| g.0 == serial).map_or(0.0, |j| offs[j]);
+            let k = if stack_rank(group, serial) > 0 { shrink } else { 1.0 };
+            stack.push((e, off, k));
+        }
+    }
     for (e, s, mut st, mut tf) in &mut shouts {
         if st.released {
             continue;
@@ -681,16 +751,16 @@ fn animate_shouts(
             }
         }
         let toward = s.target.and_then(|t| targets.get(t).ok()).map_or(fin3(s.toward), |g| g.translation());
+        // ---- chain stacking (text_budget `titles`): newest on the base line, older shrunk above.
+        let (want_off, want_k) = stack.iter().find(|x| x.0 == e).map_or((0.0, 1.0), |x| (x.1, x.2));
+        let sk = 1.0 - (-dt * 16.0).exp();
+        st.stack_off += (want_off - st.stack_off) * sk;
+        st.stack_k += (want_k - st.stack_k) * sk;
         // ---- root placement
         let (pos, rot, unit) = if s.local {
-            let hs = 2.0 * LOCAL_DEPTH * (fov * 0.5).tan();
-            let ws = hs * aspect;
-            // Letter height as a fraction of the screen: calm 5 %, a real yell ~15 %, a yelled MOON ~18 %.
-            let frac = 0.045 + 0.1 * (intensity / 2.2).min(1.0) + 0.03 * ((intensity - 2.2) / 1.8).clamp(0.0, 1.0);
-            // Compact (a caster's power title): ≤ 6 %, the block ≤ 30 % wide / 18 % tall, right and low.
-            let (frac, w_cap, h_cap, cx, cy) = if s.compact { (frac.min(0.06), 0.3, 0.18, 0.3, -0.3) } else { (frac, 0.46, 0.36, 0.26, -0.2) };
-            let unit = (frac * hs / GLYPH_H).min(w_cap * ws / st.block.x.max(0.1)).min(h_cap * hs / st.block.y.max(0.1));
-            let mut p = cam_pos + fwd * LOCAL_DEPTH + right * (cx * ws) + upv * (cy * hs);
+            let (unit, cx, cy, hs, ws) = local_frame(s, &st, intensity, fov, aspect);
+            let unit = unit * st.stack_k;
+            let mut p = cam_pos + fwd * LOCAL_DEPTH + right * (cx * ws) + upv * (cy * hs + st.stack_off);
             if let Some(t0) = st.throw_at {
                 // Flung out toward the construct: accelerates away (shrinks with perspective).
                 let u = ((age - t0) / THROW).clamp(0.0, 1.0);
@@ -700,15 +770,23 @@ fn animate_shouts(
             (p, cam_rot, unit)
         } else {
             let head = fin3(s.head);
-            let dist = head.distance(cam_pos).max(0.5);
-            st.far = dist > 28.0 && st.lines > 1 && st.line_scale[0] != st.line_scale[1];
-            let lines_h = if st.far { GLYPH_H } else { st.block.y };
-            // Readable at range (≥ ~1.8° per letter), never screen-filling up close.
-            let h = (0.35 + 0.4 * intensity).clamp(dist * 0.032, (dist * 0.075).max(0.3));
-            let unit = (h / GLYPH_H).min((dist * 0.9).max(3.0) / st.block.x.max(0.1));
-            let centre = head + Vec3::Y * (0.55 + lines_h * unit * 0.5);
+            let (unit, lines_h, far) = world_unit(&st, head, intensity, cam_pos);
+            st.far = far;
+            let unit = unit * st.stack_k;
+            let centre = head + Vec3::Y * (0.55 + lines_h * unit * 0.5 + st.stack_off);
             let to_cam = (cam_pos - centre).normalize_or(Vec3::Z);
-            let p = centre + to_cam * 0.3;
+            let mut p = centre + to_cam * 0.3;
+            // Never over the crosshair: pushed up out of the protected cone (sideways at the top).
+            if budget.titles.clear_crosshair {
+                let (d, x, y) = view.project(p);
+                if d > 0.3 {
+                    let pl = &budget.placement;
+                    let r = (pl.crosshair_deg + pl.margin_deg).to_radians().tan();
+                    let (hx, hy) = (st.block.x * unit * 0.5 / d, lines_h * unit * 0.5 / d);
+                    let (x2, y2) = clear_disc(x, y, hx, hy, r, 0, view.tan_half * 0.95);
+                    p = view.unproject(d, x2, y2);
+                }
+            }
             let r = Transform::from_translation(p).looking_to(-to_cam, Vec3::Y).rotation;
             (p, r, unit)
         };
