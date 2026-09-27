@@ -1,6 +1,7 @@
 # Lead orchestrator handoff (keep updated)
 
 ## >>> TOOLBOX WAVE (2026-09-27 01:25) <<<
+CHECKPOINT COMMITS: stage with `python target/stage_eol.py` (git add -A, but index keeps each file's HEAD line endings — workers' edits churn CRLF/LF), then commit. ee3f80b = piloting phase 2 DONE + wave in flight. +02:05 owner picked VERB GRAMMAR a5c4f6c13e3bf4ae0 (describe-a-power, composed-move spec docs/toolbox/COMPOSED_MOVE.md), MODIFIERS & FUSION a8cbb0e963f6f6ccc, AUTO-KITS a644e7ca3d66b7538 (generated assets/powers/derived_kits.ron).
 Owner: every fictional power callable any time, chains as the skill ceiling ("nightcrawler teleport ->
 reinhardt ultimate -> doomfist punch -> optimus prime combo"), no "sharingan = projectile"; bar = Hollow
 Purple + Ruyi staff ("unique flavor/control/playstyle + dramatic presentation = fun"); stretchy punch must
