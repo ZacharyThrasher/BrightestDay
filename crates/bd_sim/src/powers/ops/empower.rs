@@ -79,8 +79,7 @@ impl World {
                     if k == i || !q.alive || e.cds[k] > 0.0 {
                         continue;
                     }
-                    let h = q.hull(&base);
-                    if crate::geom::closest_point(&h, me).distance(crate::geom::closest_point(&my, h.center())) <= 0.05 {
+                    if super::pounce::aabb_gap(&my, &q.hull(&base)) <= 0.0 {
                         struck[k] = Some(k);
                     }
                 }

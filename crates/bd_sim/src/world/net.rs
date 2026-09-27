@@ -536,7 +536,7 @@ impl World {
             }
         }
         self.constructs.movement_mods(player, input, st, &mut mods);
-        crate::constructs::weapon_class::carry_mods(&self.constructs, &self.cfg.tuning.weapons, player, &mut mods); // WEAPON FEEL: carry (same as the host)
+        crate::constructs::weapon_class::carry_mods(&self.constructs, &self.cfg.tuning.weapons, player, input, &mut mods); // WEAPON FEEL: carry (same as the host)
         if let Some(p) = self.player(player) {
             p.power.modify_movement(st.grounded, &mut mods); // POWERS HOOK (same order as the host)
         }
@@ -572,6 +572,7 @@ impl World {
         // (held rope / Thor flight / parachute save / trampolines & pads), portals, fields.
         crate::constructs::worn::pre_move(&self.constructs, player, input, state, p.busy(), |_| {});
         crate::constructs::legend::pre_move(&self.constructs, &self.cfg.tuning.legendary, player, input, state, p.busy(), p.willpower, |_| {}); // LEGENDARY: recall flight + leap (same as the host)
+        crate::constructs::weapon_class::pre_move(&self.constructs, &self.cfg.tuning.weapons, player, input, state, p.busy()); // WEAPON FEEL: heavy commitment (same as the host)
         state.mods = self.move_mods_for(player, input, state);
         let mut params = p.params(&self.cfg.move_params);
         crate::party::hooks::tweak_params(self.party.as_ref(), player, &mut params); // PARTY HOOK (Slippery)

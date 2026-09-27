@@ -12,7 +12,7 @@
 
 use bd_lexicon::{Lexicon, ResolutionKind};
 use bd_sim::powers::chain::ToolStep;
-use bd_sim::powers::toolbox::{split_chain, MoveIndex, Reading};
+use bd_sim::powers::toolbox::{split_chain_with, MoveIndex, Reading};
 use bd_sim::powers::{PlayerPower, PowerPhrase, PowerTable};
 use bd_sim::Aim;
 
@@ -36,11 +36,18 @@ pub fn read_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, tex
     }
 }
 
+/// The lexicon reads `s` as one clean thing (a construct / grant it fully understood).
+pub fn understood(lex: &Lexicon, s: &str, spoken: bool) -> bool {
+    let r = if spoken { lex.resolve_spoken(s) } else { lex.resolve(s) };
+    !Lexicon::is_fallback(&r)
+}
+
 /// The toolbox command for a line, or `None` (not a toolbox line: the console casts it as ever).
 /// `aim` = the crosshair ray at commit time (aims the first step if it fires at once).
 pub fn command(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool) -> Option<Vec<ToolStep>> {
     let is_move = |s: &str| read_step(lex, held, powers_on, s, spoken).is_move();
-    let parts = split_chain(text, &is_move);
+    let understood = |s: &str| understood(lex, s, spoken);
+    let parts = split_chain_with(text, &is_move, Some(&understood));
     if parts.is_empty() {
         return None;
     }

@@ -65,6 +65,12 @@ pub fn active_secs(range: f32, speed: f32, secs: f32) -> f32 {
     cap.clamp(0.1, MAX_SECS)
 }
 
+/// Distance between two boxes (0 when they touch or overlap).
+pub(crate) fn aabb_gap(a: &bd_core::voxel::Aabb, b: &bd_core::voxel::Aabb) -> f32 {
+    let d = (a.center() - b.center()).abs() - (a.half() + b.half());
+    d.max(Vec3::ZERO).length()
+}
+
 impl World {
     pub(crate) fn op_pounce(&mut self, i: usize, s: PounceSpec) -> Result<(), PowerError> {
         let id = self.players[i].id;
@@ -119,9 +125,7 @@ impl World {
                 if k == i || !q.alive {
                     continue;
                 }
-                let h = q.hull(&base);
-                let gap = crate::geom::closest_point(&h, me).distance(crate::geom::closest_point(&my, h.center()));
-                if gap <= REACH {
+                if aabb_gap(&my, &q.hull(&base)) <= REACH {
                     let preferred = pc.target == Some(q.id);
                     if hit.is_none() || preferred {
                         hit = Some(k);

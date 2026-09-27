@@ -99,7 +99,9 @@ fn shipped_table_parses_with_the_full_roster() {
     assert!(stands >= 12, "{stands} stands");
     assert!(origins >= 40, "{origins} origins (Marvel + DC packs merged)");
     assert!(techniques >= 14, "{techniques} techniques (DBZ, Naruto, JJK, Bleach, HxH, haki)");
-    assert_eq!(fruits + stands + origins + techniques, t.powers.len());
+    // Character move-sets (`kind: Kit`, the TOOLBOX content files) are the rest.
+    let kits = t.powers.iter().filter(|p| p.kind.is_kit()).count();
+    assert_eq!(fruits + stands + origins + techniques + kits, t.powers.len());
     assert!(t.powers.len() < powers::MAX_POWERS, "PowerSnap ids are u16 (MAX_POWERS)");
     assert_eq!(t.powers.len(), PowerTable::get().powers.len(), "the shared table is the shipped one");
     let rules = bd_sim::rules::MatchRules::default();
@@ -108,8 +110,8 @@ fn shipped_table_parses_with_the_full_roster() {
         assert!(!p.names.is_empty(), "{} has names for the lexicon", p.id);
         assert!(!p.moves.is_empty() && p.moves.len() <= powers::move_sel::MAX_MOVES, "{}: 1–4 moves", p.id);
         assert!(p.shouts.iter().all(|(_, s)| (*s as usize) < p.moves.len()), "{}: shout slot", p.id);
-        // Moves 2 / 3 exist only through their shouts.
-        for k in 2..p.moves.len() {
+        // Moves 2.. exist only through their shouts (a kit's are also "<kit> <move word>").
+        for k in (2..p.moves.len()).filter(|_| !p.kind.is_kit()) {
             assert!(p.shouts.iter().any(|(_, s)| *s as usize == k), "{}: move {k} needs a shout", p.id);
         }
         for (n, tier) in p.tiers.iter().enumerate() {
@@ -140,7 +142,9 @@ fn shipped_table_parses_with_the_full_roster() {
                     assert!(r.scale.is_finite() && !r.name.is_empty());
                 }
                 if let MoveOp::TimeStop { .. } = op {
-                    assert!(p.kind.is_stand() || p.kind.is_technique(), "{}: only stands (and a nen specialist) stop time", p.id);
+                    // TOOLBOX: a kit move is a one-shot anyone can borrow (Jotaro's / DIO's kit carry
+                    // the stand's time stop); a time stop only ever speeds its user, never freezes others.
+                    assert!(p.kind.is_stand() || p.kind.is_technique() || p.kind.is_kit(), "{}: only stands, kits (and a nen specialist) stop time", p.id);
                 }
                 if matches!(op, MoveOp::Transform) {
                     assert!(p.transform.is_some() || !p.tiers.is_empty(), "{}: Transform move needs a transform or tiers", p.id);
@@ -741,8 +745,8 @@ fn random_pools_never_cross() {
     assert!(stands.iter().all(|&id| t.def(id).unwrap().kind.is_stand()), "stand arrow: only stands");
     assert!(origins.iter().all(|&id| t.def(id).unwrap().kind.is_origin()));
     assert!(muts.iter().all(|&id| t.def(id).unwrap().kind.is_fruit()), "mutagens stay fruit-like");
-    // Every power belongs to exactly one pool (techniques are said, never rolled).
-    let techniques = t.powers.iter().filter(|p| p.kind.is_technique()).count();
+    // Every power belongs to exactly one pool (techniques are said and kits are move-sets: never rolled).
+    let techniques = t.powers.iter().filter(|p| p.kind.is_technique() || p.kind.is_kit()).count();
     assert_eq!(fruits.len() + stands.len() + origins.len() + muts.len() + techniques, t.powers.len());
     // Many rolls: each random key only ever lands in its own pool.
     let mut w = duel(1);

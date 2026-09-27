@@ -352,3 +352,83 @@ fn channel_local(m: &VoxelModel, i: usize, kind: Channel, w: f32, t: f32) -> Loc
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{CostumeTweaks, costume_model, costume_with, pose_layered};
+    use bd_core::mechanics::{Form, Recipe};
+    use glam::Affine3A;
+
+    fn body() -> VoxelModel {
+        let mut r = Recipe::unknown("knight");
+        r.form = Form::Biped;
+        costume_model(&costume_with(&r, None, None, 3, CostumeTweaks::default()))
+    }
+
+    fn lowest(m: &VoxelModel, layers: &[(AnimState, f32)]) -> (f32, Vec<Affine3A>) {
+        let mut p = vec![Affine3A::IDENTITY; m.parts.len()];
+        pose_layered(m, layers, &mut p);
+        let mut lo = f32::MAX;
+        for (i, part) in m.parts.iter().enumerate() {
+            for (v, _) in &part.voxels {
+                lo = lo.min(p[i].transform_point3(part.voxel_center(*v)).y);
+            }
+        }
+        (lo, p)
+    }
+
+    /// Every body layer poses finitely for garbage inputs too, and the grounded ones keep the feet
+    /// near the floor (no sinking through it, no floating).
+    #[test]
+    fn body_layers_are_finite_and_grounded_poses_keep_the_feet_down() {
+        let m = body();
+        let base = (AnimState::Locomotion { speed: 0.0, distance: 0.0, airborne: false }, 0.3);
+        let grounded = [
+            AnimState::Motion(BodyMotion { crouch: 1.0, ..Default::default() }),
+            AnimState::Motion(BodyMotion { side: 8.0, fwd: -3.0, turn: 3.0, ..Default::default() }),
+            AnimState::Action { kind: BodyAction::Land, dir: Vec3::NEG_Z, strength: 1.5 },
+            AnimState::Action { kind: BodyAction::Land, dir: Vec3::NEG_Z, strength: 0.3 },
+            AnimState::Channel { kind: Channel::Charge, w: 1.0 },
+            AnimState::Channel { kind: Channel::Typing, w: 1.0 },
+        ];
+        for a in grounded {
+            for t in [0.0, 0.05, 0.12, 0.3, 0.6] {
+                let (lo, p) = lowest(&m, &[base, (a, t)]);
+                assert!(p.iter().all(|x| x.is_finite()), "{a:?} @ {t}");
+                assert!((-0.2..0.25).contains(&lo), "{a:?} @ {t}: lowest voxel {lo}");
+            }
+        }
+        let junk = BodyMotion { fwd: f32::NAN, side: f32::INFINITY, vy: -1e9, turn: f32::NAN, air: 7.0, crouch: -3.0, boost: f32::NAN };
+        let (_, p) = lowest(&m, &[base, (AnimState::Motion(junk), f32::NAN)]);
+        assert!(p.iter().all(|x| x.is_finite()));
+        for kind in [BodyAction::AirJump, BodyAction::Dodge, BodyAction::Release] {
+            let (_, p) = lowest(&m, &[base, (AnimState::Action { kind, dir: Vec3::new(f32::NAN, 0.0, 0.0), strength: 9.0 }, 0.1)]);
+            assert!(p.iter().all(|x| x.is_finite()), "{kind:?}");
+        }
+    }
+
+    /// The layers actually read: crouching lowers the head, typing raises the ring hand, the air-jump
+    /// flip turns the body over at its midpoint, and every action is back to rest at its end.
+    #[test]
+    fn body_layers_read_and_settle() {
+        let m = body();
+        let base = (AnimState::Locomotion { speed: 0.0, distance: 0.0, airborne: false }, 0.3);
+        let top = |layers: &[(AnimState, f32)]| {
+            let (_, p) = lowest(&m, layers);
+            p[0].transform_point3(Vec3::new(0.0, m.bounds.max.y, 0.0)).y
+        };
+        let stand = top(&[base]);
+        assert!(top(&[base, (AnimState::Motion(BodyMotion { crouch: 1.0, ..Default::default() }), 0.0)]) < stand - 0.1, "crouch is lower");
+        let flipped = top(&[base, (AnimState::Action { kind: BodyAction::AirJump, dir: Vec3::NEG_Z, strength: 1.0 }, 0.2)]);
+        assert!(flipped < stand * 0.5, "mid-flip the head is down ({flipped} vs {stand})");
+        for kind in [BodyAction::Land, BodyAction::AirJump, BodyAction::Dodge, BodyAction::Release] {
+            let d = kind.duration(1.0);
+            let (_, rest) = lowest(&m, &[base]);
+            let (_, end) = lowest(&m, &[base, (AnimState::Action { kind, dir: Vec3::X, strength: 1.0 }, d)]);
+            for (a, b) in rest.iter().zip(&end) {
+                assert!(a.translation.distance(b.translation) < 0.02, "{kind:?} settles by {d}s");
+            }
+        }
+    }
+}

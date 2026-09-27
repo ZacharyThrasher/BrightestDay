@@ -4,8 +4,9 @@
 //! A wall of `element` (`width` m wide, two thirds as tall) rises in front of the caster and ROLLS
 //! OUT along the flat aim for `dist` m at `speed` m/s, hugging the ground (it rides up and down
 //! slopes; a cliff taller than itself breaks it early). Every enemy it overtakes is struck once
-//! (`damage`, element status) and CARRIED: while inside the front they move with it at least at its
-//! speed, lifted a little — surfing a tidal wave, not a tap. Jumping over the crest (feet above it)
+//! (`damage`, element status) and CARRIED: while inside the front they ride it at its speed, lifted
+//! a little — surfing a tidal wave, not a tap. `push` is how hard it batters constructs and bursts at
+//! the break. Jumping over the crest (feet above it)
 //! or dodging through it escapes. Loose enemy constructs it meets are battered along. At the end it
 //! breaks with a splash (a knockback-only burst of its element).
 //!
@@ -84,7 +85,8 @@ impl World {
         let width = fin(spec.width, 8.0, 2.0, MAX_WIDTH);
         let speed = fin(spec.speed, 14.0, 3.0, 40.0);
         let dist = fin(spec.dist, 30.0, 4.0, MAX_DIST);
-        let push = fin(spec.push, speed * 1.15, 0.0, 50.0);
+        // Carried at the front's own speed (a little more at most): faster would fling them out of it.
+        let push = fin(spec.push, speed, 0.0, 50.0).max(speed);
         let (_, look) = self.op_eye_look(i);
         let dir = flat(look, Vec3::NEG_Z);
         let feet = self.players[i].mv.pos;
@@ -251,10 +253,9 @@ impl World {
             if !q.alive {
                 continue;
             }
+            // Riding the front: exactly its speed along it (never flung out ahead of it).
             let along = q.mv.vel.dot(s.dir);
-            if along < s.push {
-                q.mv.vel += s.dir * (s.push - along);
-            }
+            q.mv.vel += s.dir * (s.speed - along);
             q.mv.vel.y = q.mv.vel.y.max(2.5);
             q.mv.grounded = false;
             q.mv.tumble = q.mv.tumble.max(0.15);

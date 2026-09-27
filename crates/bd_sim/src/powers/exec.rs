@@ -944,7 +944,7 @@ impl World {
         hits
     }
 
-    pub(super) fn run_op(&mut self, i: usize, def: &'static PowerDef, mv: &'static MoveDef, op: &MoveOp) -> Result<(), PowerError> {
+    pub(super) fn run_op(&mut self, i: usize, def: &'static PowerDef, mv: &MoveDef, op: &MoveOp) -> Result<(), PowerError> {
         let id = self.players[i].id;
         let (eye, look) = self.eye_look(i);
         match op {

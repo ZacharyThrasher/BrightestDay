@@ -280,6 +280,20 @@ pub enum At {
     Front,
 }
 
+/// The shape terrain rises in (`MoveOp::Erupt`, ops/erupt.rs).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EruptShape {
+    /// Along your aim from your feet (spikes, or a ridge with `count: 0`).
+    #[default]
+    Line,
+    /// Across your aim, `dist` m ahead.
+    Wall,
+    /// One column at `at` (Aim = under the crosshair, Me = under you: the elevator).
+    Pillar,
+    /// A prison ring round `at` (`length` = its diameter).
+    Ring,
+}
+
 /// The closed set of things a move may do. Each maps onto an existing world operation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum MoveOp {
@@ -803,10 +817,16 @@ pub enum MoveOp {
         damage: f32,
         #[serde(default)]
         launch: f32,
+        /// Shorthand for `shape: Wall`.
         #[serde(default)]
         across: bool,
         #[serde(default)]
         dist: f32,
+        #[serde(default)]
+        shape: EruptShape,
+        /// Pillar / Ring centre (default: under you).
+        #[serde(default)]
+        at: At,
     },
     /// Stick a tag on the aimed enemy for `secs` (ops/tag.rs).
     Tag {
@@ -925,6 +945,27 @@ pub enum MoveOp {
         #[serde(default)]
         thin: bool,
     },
+    // ---- VERB GRAMMAR ops (ops/relocate.rs, pass_through.rs; docs/toolbox/COMPOSED_MOVE.md) ----
+    /// Teleport `back` m behind (< 0 = in front of) / `side` m beside / `up` m above a target: the
+    /// composed move's target, else the enemy / construct nearest the crosshair (`range`, `cone`),
+    /// else the crosshair's terrain point; `me` = relative to yourself. Nothing = a `dist` m blink.
+    Relocate {
+        range: f32,
+        #[serde(default)]
+        cone: f32,
+        #[serde(default)]
+        back: f32,
+        #[serde(default)]
+        side: f32,
+        #[serde(default)]
+        up: f32,
+        #[serde(default)]
+        dist: f32,
+        #[serde(default)]
+        me: bool,
+    },
+    /// Step through the wall ahead (≤ 3.5 m) to open air on its far side (≤ `depth` m of rock).
+    PassThrough { depth: f32 },
 }
 
 /// Presentation of a move (bd_game `present::ascend`): the juice every big power move shares.

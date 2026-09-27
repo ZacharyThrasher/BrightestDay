@@ -6,20 +6,58 @@
         id: "gomu_gomu",
         name: "Gomu Gomu no Mi",
         kind: Paramecia,
+        // PRESENTATION: the rubber body (arm stretches from the shoulder, band-snaps back).
+        fx: "rubber",
         names: ["gomu gomu no mi", "gum gum fruit", "gum-gum fruit", "rubber fruit", "luffy's fruit"],
         body: (bounce: true, immune: [Electric], moves: (jump: 1.1)),
         incantations: ["gomu gomu no", "gum gum", "gum-gum"],
         delivery: (add: [Returning, Bounce], remove: [DropFromSky], from_fist: true, arm: true),
-        shouts: [("gomu gomu no pistol", 0), ("gum gum pistol", 0), ("gomu gomu no rocket", 1), ("gum gum rocket", 1)],
+        // SHONEN CLASSICS: eight rubber moves on fixed slots (every gear keeps the slots, so "gum gum
+        // gatling" is always slot 2 — the gear decides how big / fast it comes out):
+        //   0 pistol · 1 rocket · 2 gatling · 3 bazooka · 4 whip · 5 balloon · 6 red hawk · 7 axe / stamp / the big one.
+        // A rubber punch is a LIMB that stretches out along the aim and snaps back (Shove at range,
+        // fx "rubber") — never the rigid telescoping pole of the Ruyi staff (Extends).
+        shouts: [("gomu gomu no pistol", 0), ("gum gum pistol", 0), ("gum-gum pistol", 0), ("gomu gomu pistol", 0), ("gomu gomu no pisutoru", 0),
+                 ("gum gum no pistol", 0), ("gumgum pistol", 0), ("gomu gomu no pistoru", 0),
+                 ("gomu gomu no rocket", 1), ("gum gum rocket", 1), ("gum-gum rocket", 1), ("gomu gomu no roketto", 1), ("gumgum rocket", 1),
+                 ("gomu gomu no gatling", 2), ("gum gum gatling", 2), ("gum-gum gatling", 2), ("gomu gomu no gatling gun", 2), ("gum gum gatling gun", 2),
+                 ("gomu gomu no gatoringu", 2), ("gumgum gatling", 2),
+                 ("gomu gomu no bazooka", 3), ("gum gum bazooka", 3), ("gum-gum bazooka", 3), ("gomu gomu no bazuka", 3), ("gumgum bazooka", 3),
+                 ("gomu gomu no whip", 4), ("gum gum whip", 4), ("gomu gomu no muchi", 4), ("gum-gum whip", 4),
+                 ("gomu gomu no balloon", 5), ("gum gum balloon", 5), ("gomu gomu no fusen", 5), ("gum-gum balloon", 5), ("gomu gomu no fuusen", 5),
+                 ("gomu gomu no red hawk", 6), ("gum gum red hawk", 6), ("red hawk", 6), ("gomu gomu no redo hoku", 6), ("gum-gum red hawk", 6),
+                 ("gomu gomu no axe", 7), ("gum gum axe", 7), ("gomu gomu no ono", 7), ("gum-gum axe", 7)],
         moves: [
-            (name: "pistol", cooldown: 0.5, ops: [
-                Cast(recipe: (name: "gum-gum pistol", form: Ball, mech: [Returning, Blunt, Fast], scale: 0.6, mass: 25.0)),
-            ]),
+            // The arm flies out from the shoulder along your aim and snaps back like a band.
+            (name: "pistol", tags: [Primary], cooldown: 0.5, cost: 2.0, ops: [Shove(range: 8.0, angle: 10.0, damage: 11.0, knockback: 20.0)],
+             juice: Some((punch: 1.5))),
             // Stretch to an anchor and yank yourself there: a movement move.
-            (name: "rocket", cooldown: 1.2, cost: 4.0, ops: [Reel(range: 40.0, speed: 34.0)]),
+            (name: "rocket", tags: [Movement], cooldown: 1.2, cost: 3.0, ops: [Reel(range: 42.0, speed: 36.0)]),
+            // A blur of stretched fists.
+            (name: "gatling", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [
+                Barrage(hits: 10, interval: 0.05, range: 6.5, angle: 18.0, damage: 2.5, knockback: 4.0, advance: 1.0),
+            ], juice: Some((title: Some("GOMU GOMU NO GATLING"), shake: 0.15))),
+            // Both palms: a double shove that throws them across the arena.
+            (name: "bazooka", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [Shove(range: 5.5, angle: 25.0, damage: 13.0, knockback: 36.0, up: 0.3)],
+             juice: Some((title: Some("GOMU GOMU NO BAZOOKA"), punch: 3.0, boom: true))),
+            // A stretched leg sweeps a huge arc.
+            (name: "whip", tags: [Combo], cooldown: 2.5, cost: 3.0, ops: [Shove(range: 6.0, angle: 120.0, damage: 10.0, knockback: 20.0, up: 0.4)],
+             juice: Some((title: Some("GOMU GOMU NO MUCHI")))),
+            // Inflate: bullets and thrown things bounce straight back off your belly.
+            (name: "balloon", tags: [Defense], cooldown: 6.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)],
+             juice: Some((title: Some("GOMU GOMU NO FUSEN")))),
+            // A stretched punch so fast it catches fire.
+            (name: "red hawk", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
+                Shove(range: 7.0, angle: 14.0, damage: 16.0, knockback: 26.0, element: Fire),
+                Explode(radius: 2.4, damage: 6.0, knockback: 12.0, element: Fire, at: Front, dist: 6.0),
+            ], fx: "fire", juice: Some((title: Some("GOMU GOMU NO RED HAWK"), punch: 3.5, boom: true))),
+            // The leg stretches sky-high and the heel comes down five metres ahead.
+            (name: "axe", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [
+                Explode(radius: 2.6, damage: 14.0, knockback: 20.0, carve: 1.2, element: Earth, at: Front, dist: 5.0),
+            ], juice: Some((title: Some("GOMU GOMU NO ONO"), shake: 0.2, at: Front, dist: 5.0))),
         ],
         // Luffy's gears: tiers of the rubber fruit, picked by saying them ("gear second"…"gear fifth");
-        // "gum gum fruit" said again (or the G-hold Transform) drops back to base.
+        // "gum gum fruit" said again drops back to base.
         tiers: [
             (name: "Gear Second",
              names: ["gear second", "gear 2", "gear two", "second gear", "gia sekando", "gear seconds", "gear secondo"],
@@ -31,14 +69,29 @@
              ascend: Some((color: Some((1.0, 0.82, 0.86)), intensity: 1.2, title: Some("GEAR SECOND"), style: Steam,
                            skin_tint: Some((1.0, 0.55, 0.6)))),
              shouts: [("jet pistol", 0), ("gomu gomu no jet pistol", 0), ("gum gum jet pistol", 0),
-                      ("jet gatling", 1), ("gomu gomu no jet gatling", 1), ("gum gum jet gatling", 1)],
+                      ("jet gatling", 2), ("gomu gomu no jet gatling", 2), ("gum gum jet gatling", 2),
+                      ("jet bazooka", 3), ("gomu gomu no jet bazooka", 3), ("gum gum jet bazooka", 3),
+                      ("jet whip", 4), ("gomu gomu no jet whip", 4), ("jet axe", 7), ("gomu gomu no jet ono", 7)],
              moves: [
-                 (name: "jet pistol", cooldown: 0.35, ops: [
-                     Cast(recipe: (name: "jet pistol", form: Ball, mech: [Returning, Blunt, Fast, Pierce], scale: 0.6, mass: 25.0)),
+                 (name: "jet pistol", tags: [Primary], cooldown: 0.35, cost: 2.0, ops: [
+                     Shove(range: 9.0, angle: 9.0, damage: 13.0, knockback: 24.0),
                  ], juice: Some((punch: 1.5))),
-                 (name: "jet gatling", cooldown: 2.0, cost: 4.0, ops: [
-                     Cast(recipe: (name: "jet gatling", form: Ball, mech: [Returning, Blunt, Fast, Swarm], scale: 0.5, count: 6)),
-                 ], juice: Some((title: Some("JET GATLING"), shake: 0.1))),
+                 (name: "rocket", tags: [Movement], cooldown: 0.9, cost: 3.0, ops: [Reel(range: 46.0, speed: 44.0)]),
+                 (name: "jet gatling", tags: [Combo], cooldown: 2.5, cost: 4.0, ops: [
+                     Barrage(hits: 14, interval: 0.035, range: 7.0, angle: 18.0, damage: 2.5, knockback: 4.0, advance: 1.5),
+                 ], juice: Some((title: Some("JET GATLING"), shake: 0.15))),
+                 (name: "jet bazooka", tags: [Primary], cooldown: 2.4, cost: 4.0, ops: [
+                     Shove(range: 6.0, angle: 25.0, damage: 15.0, knockback: 40.0, up: 0.3),
+                 ], juice: Some((title: Some("JET BAZOOKA"), punch: 3.0, boom: true))),
+                 (name: "jet whip", tags: [Combo], cooldown: 2.0, cost: 3.0, ops: [Shove(range: 6.5, angle: 130.0, damage: 12.0, knockback: 22.0, up: 0.4)]),
+                 (name: "balloon", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)]),
+                 (name: "red hawk", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
+                     Shove(range: 7.5, angle: 14.0, damage: 18.0, knockback: 28.0, element: Fire),
+                     Explode(radius: 2.6, damage: 7.0, knockback: 14.0, element: Fire, at: Front, dist: 6.5),
+                 ], fx: "fire", juice: Some((title: Some("RED HAWK"), punch: 3.5, boom: true))),
+                 (name: "jet axe", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
+                     Explode(radius: 2.8, damage: 16.0, knockback: 22.0, carve: 1.2, element: Earth, at: Front, dist: 5.5),
+                 ], juice: Some((title: Some("JET ONO"), shake: 0.2))),
              ]),
             (name: "Gear Third",
              names: ["gear third", "gear 3", "gear three", "third gear", "gia sado", "gear thirds"],
@@ -49,19 +102,35 @@
              delivery: Some((add: [Returning, Bounce, Grow, Heavy], remove: [DropFromSky], scale_mult: 2.2, from_fist: true, arm: true)),
              ascend: Some((color: Some((1.0, 0.92, 0.88)), intensity: 1.1, title: Some("GEAR THIRD"), style: Steam)),
              shouts: [("elephant gun", 0), ("gomu gomu no elephant gun", 0), ("gum gum elephant gun", 0), ("giant pistol", 0),
-                      ("giant stamp", 1), ("gomu gomu no giant stamp", 1), ("gum gum giant stamp", 1)],
+                      ("elephant gatling", 2), ("gomu gomu no elephant gatling", 2), ("gum gum elephant gatling", 2),
+                      ("grizzly magnum", 3), ("gomu gomu no grizzly magnum", 3),
+                      ("giant stamp", 7), ("gomu gomu no giant stamp", 7), ("gum gum giant stamp", 7)],
              moves: [
-                 (name: "elephant gun", cooldown: 3.0, cost: 6.0, ops: [
+                 // A fist the size of a house, stretched out and snapped back.
+                 (name: "elephant gun", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
                      Cast(recipe: (name: "elephant gun", form: Ball, mech: [Returning, Blunt, Heavy, Grow], scale: 3.0, mass: 400.0)),
                  ], juice: Some((title: Some("ELEPHANT GUN"), punch: 4.0, shake: 0.2))),
-                 (name: "giant stamp", cooldown: 4.0, cost: 6.0, ops: [
+                 (name: "rocket", tags: [Movement], cooldown: 1.4, cost: 3.0, ops: [Reel(range: 40.0, speed: 30.0)]),
+                 (name: "elephant gatling", tags: [Combo], cooldown: 7.0, cost: 8.0, ops: [
+                     Barrage(hits: 8, interval: 0.1, range: 9.0, angle: 30.0, damage: 6.0, knockback: 14.0, advance: 0.5),
+                 ], juice: Some((title: Some("ELEPHANT GATLING"), shake: 0.3, boom: true))),
+                 (name: "grizzly magnum", tags: [Primary], cooldown: 5.0, cost: 7.0, ops: [
+                     Shove(range: 9.0, angle: 30.0, damage: 20.0, knockback: 46.0, up: 0.3),
+                 ], juice: Some((title: Some("GRIZZLY MAGNUM"), punch: 5.0, boom: true))),
+                 (name: "giant whip", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [Shove(range: 9.0, angle: 120.0, damage: 14.0, knockback: 28.0, up: 0.4)]),
+                 (name: "giant balloon", tags: [Defense], cooldown: 7.0, cost: 5.0, ops: [Deflect(secs: 1.6, angle: 180.0)]),
+                 (name: "red hawk", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
+                     Shove(range: 7.0, angle: 14.0, damage: 16.0, knockback: 26.0, element: Fire),
+                 ], fx: "fire"),
+                 // Blow the leg up huge and stamp them into the ground.
+                 (name: "giant stamp", tags: [Ultimate], cooldown: 4.0, cost: 6.0, ops: [
                      Impulse(fwd: 4.0, up: 12.0),
                      SlamOnLand(radius: 6.0, damage: 16.0, knockback: 26.0, carve: 3.0),
                  ], juice: Some((title: Some("GIANT STAMP")))),
              ]),
             (name: "Gear Fourth",
              names: ["gear fourth", "gear 4", "gear four", "fourth gear", "boundman", "bound man", "bounce man", "gia fosu",
-                     "gear fourth boundman"],
+                     "gear fourth boundman", "snakeman", "snake man", "tankman"],
              // Bounce-man: springy everything, heavy haki-coated rubber. Two extra (boing) air jumps.
              body: Some((bounce: true, immune: [Electric], moves: (jump: 1.35, gravity: 0.8, air_control: 1.5))),
              effects: [PowerMult(damage: 1.4, speed: 1.15, knockback: 1.4), SelfDrain(willpower_per_s: 1.5), AirJumps(extra: 2)],
@@ -69,12 +138,29 @@
              ascend: Some((color: Some((0.95, 0.3, 0.25)), intensity: 1.7, title: Some("GEAR FOURTH"), style: Steam, stable: false,
                            skin_tint: Some((0.3, 0.08, 0.08)))),
              shouts: [("kong gun", 0), ("gomu gomu no kong gun", 0), ("gum gum kong gun", 0),
-                      ("king kong gun", 1), ("gomu gomu no king kong gun", 1), ("gum gum king kong gun", 1)],
+                      ("kong organ", 2), ("gomu gomu no kong organ", 2), ("gum gum kong organ", 2),
+                      ("leo bazooka", 3), ("gomu gomu no leo bazooka", 3),
+                      ("culverin", 6), ("gomu gomu no culverin", 6), ("jet culverin", 6),
+                      ("king kong gun", 7), ("gomu gomu no king kong gun", 7), ("gum gum king kong gun", 7)],
              moves: [
-                 (name: "kong gun", cooldown: 2.5, cost: 6.0, ops: [
+                 (name: "kong gun", tags: [Primary], cooldown: 2.5, cost: 6.0, ops: [
                      Cast(recipe: (name: "kong gun", form: Ball, mech: [Returning, Blunt, Heavy, Fast], scale: 2.0, mass: 500.0)),
                  ], juice: Some((title: Some("KONG GUN"), punch: 4.0, shake: 0.2, boom: true))),
-                 (name: "king kong gun", cooldown: 14.0, cost: 10.0, ops: [
+                 // Boing: coil and spring.
+                 (name: "rocket", tags: [Movement], cooldown: 0.9, cost: 3.0, ops: [Reel(range: 46.0, speed: 42.0), Impulse(fwd: 0.0, up: 4.0)]),
+                 (name: "kong organ", tags: [Combo], cooldown: 6.0, cost: 8.0, ops: [
+                     Barrage(hits: 10, interval: 0.07, range: 8.0, angle: 28.0, damage: 5.0, knockback: 12.0, advance: 1.0),
+                 ], juice: Some((title: Some("KONG ORGAN"), shake: 0.3, boom: true))),
+                 (name: "leo bazooka", tags: [Primary], cooldown: 4.0, cost: 7.0, ops: [
+                     Shove(range: 6.0, angle: 30.0, damage: 22.0, knockback: 50.0, up: 0.3),
+                 ], juice: Some((title: Some("LEO BAZOOKA"), punch: 5.0, boom: true))),
+                 (name: "whip", tags: [Combo], cooldown: 2.5, cost: 3.0, ops: [Shove(range: 7.0, angle: 130.0, damage: 14.0, knockback: 26.0, up: 0.4)]),
+                 (name: "balloon", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.2, angle: 180.0)]),
+                 // Snakeman: a punch that bends around cover and keeps chasing.
+                 (name: "culverin", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
+                     Seeker(recipe: (name: "culverin", form: Ball, mech: [Blunt, Fast, Returning], scale: 1.0), damage: 16.0, knockback: 26.0, hits: 2, chain: 10.0),
+                 ], juice: Some((title: Some("CULVERIN")))),
+                 (name: "king kong gun", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
                      Cast(recipe: (name: "king kong gun", form: Ball, mech: [Returning, Blunt, Heavy], scale: 3.0, mass: 1200.0),
                           signature: Some(Summon)),
                  ], juice: Some((title: Some("KING KONG GUN"), punch: 6.0, shake: 0.3, boom: true))),
@@ -90,14 +176,28 @@
              delivery: Some((add: [Grow, Bounce, Returning], remove: [DropFromSky], scale_mult: 1.8, from_fist: true, arm: true)),
              ascend: Some((color: Some((1.0, 1.0, 1.0)), intensity: 2.2, title: Some("GEAR FIFTH"), style: Steam,
                            hair_tint: Some((1.0, 1.0, 1.0)), eye_glow: Some((1.0, 0.85, 0.3)), music: Some("drums"), toon: true)),
-             shouts: [("rubber terrain", 0), ("grab the ground", 0), ("rubber ground", 0), ("bajrang gun", 1),
-                      ("gomu gomu no bajrang gun", 1), ("dawn whip", 0)],
+             shouts: [("rubber terrain", 0), ("grab the ground", 0), ("rubber ground", 0), ("dawn whip", 4), ("gomu gomu no dawn whip", 4),
+                      ("grab the lightning", 6), ("lightning grab", 6), ("catch the lightning", 6),
+                      ("bajrang gun", 7), ("gomu gomu no bajrang gun", 7), ("gum gum bajrang gun", 7), ("bajrang", 7)],
              moves: [
                  // Grab the ground like rubber: the aimed terrain comes alive, grabs, bounces and snaps back.
-                 (name: "rubber terrain", cooldown: 3.0, cost: 6.0, ops: [
+                 (name: "rubber terrain", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
                      Cast(recipe: (name: "rubber ground", form: Blob0, mech: [Grab, Bounce, Returning]), modifier: true),
                  ], juice: Some((title: Some("RUBBER!"), shake: 0.15))),
-                 (name: "bajrang gun", cooldown: 8.0, ops: [
+                 (name: "rocket", tags: [Movement], cooldown: 0.8, cost: 3.0, ops: [Reel(range: 50.0, speed: 44.0)]),
+                 (name: "gatling", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
+                     Barrage(hits: 12, interval: 0.05, range: 9.0, angle: 25.0, damage: 3.5, knockback: 8.0, advance: 1.0),
+                 ]),
+                 (name: "bazooka", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [Shove(range: 8.0, angle: 30.0, damage: 16.0, knockback: 48.0, up: 0.5)]),
+                 // A toon leg whips the horizon.
+                 (name: "dawn whip", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [Shove(range: 10.0, angle: 150.0, damage: 14.0, knockback: 30.0, up: 0.6)],
+                  juice: Some((title: Some("DAWN WHIP")))),
+                 (name: "balloon", tags: [Defense], cooldown: 5.0, cost: 4.0, ops: [Deflect(secs: 1.6, angle: 180.0)]),
+                 // Snatch a lightning bolt out of the sky like a rope and throw it.
+                 (name: "lightning grab", tags: [Primary], cooldown: 6.0, cost: 7.0, ops: [
+                     Cast(recipe: (name: "grabbed lightning", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 5.0)),
+                 ], fx: "lightning", juice: Some((title: Some("GRAB THE LIGHTNING!"), at: Aim, boom: true))),
+                 (name: "bajrang gun", tags: [Ultimate], cooldown: 8.0, ops: [
                      Cast(recipe: (name: "bajrang gun", form: Boulder, mech: [DropFromSky, Heavy, Blunt, Bounce], scale: 5.0, mass: 900.0)),
                  ], juice: Some((title: Some("BAJRANG GUN"), boom: true, punch: 6.0, shake: 0.3))),
              ]),
@@ -112,7 +212,8 @@
         // Cartoon physics: whatever you say comes out giant, bouncy and snaps back.
         incantations: ["gomu gomu no", "gum gum", "gear 5", "gear five"],
         delivery: (add: [Grow, Bounce, Returning], remove: [DropFromSky], scale_mult: 1.8, from_fist: true, arm: true),
-        shouts: [("bajrang gun", 0), ("gomu gomu no bajrang gun", 0), ("gear 5", 1), ("gear fifth", 1), ("gear five", 1)],
+        fx: "rubber",
+        shouts: [("nika bajrang gun", 0), ("sun god bajrang gun", 0), ("awaken nika", 1), ("nika awakening", 1), ("drums of liberation", 1)],
         moves: [
             (name: "bajrang gun", cooldown: 5.0, ops: [
                 Cast(recipe: (name: "bajrang gun", form: Boulder, mech: [DropFromSky, Heavy, Blunt, Bounce], scale: 5.0, mass: 900.0)),
@@ -134,14 +235,32 @@
         graft: Some((element: Some(Fire))),
         incantations: ["mera mera no"],
         delivery: (element: Some(Fire), add: [Fast]),
-        shouts: [("hiken", 0), ("fire fist", 0), ("entei", 1), ("flame emperor", 1)],
+        fx: "fire",
+        shouts: [("hiken", 0), ("fire fist", 0), ("hi ken", 0), ("fire fist ace", 0), ("entei", 1), ("flame emperor", 1), ("dai enkai entei", 1),
+                 ("fire gun", 2), ("hidan", 2), ("fire guns", 2),
+                 ("hotarubi hidaruma", 3), ("fire fly phosphorescence", 3), ("firefly phosphorescence", 3), ("hotarubi", 3),
+                 ("flame commandment", 4), ("enjomo", 4), ("enjo mo", 4)],
         moves: [
-            (name: "fire fist", cooldown: 1.2, ops: [
-                Cast(recipe: (name: "fire fist", form: Ball, mech: [Fast, Explodes, Blunt], element: Fire, scale: 1.6, mass: 40.0)),
-            ]),
-            (name: "flame emperor", cooldown: 7.0, ops: [
-                Cast(recipe: (name: "flame emperor", form: Ball, mech: [DropFromSky, Explodes, Heavy], element: Fire, scale: 2.5, mass: 300.0)),
-            ]),
+            // A wall of fire the shape of a fist roars out and carries them with it.
+            (name: "fire fist", tags: [Primary], cooldown: 2.5, cost: 6.0, ops: [
+                Surge(width: 3.5, dist: 30.0, speed: 30.0, push: 20.0, damage: 12.0, element: Fire),
+            ], juice: Some((title: Some("HIKEN"), punch: 4.0, boom: true, color: Some((1.0, 0.5, 0.15))))),
+            (name: "flame emperor", tags: [Ultimate], cooldown: 12.0, cost: 10.0, ops: [
+                Cast(recipe: (name: "flame emperor", form: Ball, mech: [DropFromSky, Explodes, Heavy], element: Fire, scale: 3.0, mass: 300.0), signature: Some(Summon)),
+            ], juice: Some((title: Some("DAI ENKAI: ENTEI"), boom: true, punch: 6.0, at: Aim))),
+            // Finger-guns: little bullets of fire.
+            (name: "fire gun", tags: [Primary], cooldown: 1.8, cost: 3.0, ops: [
+                Cast(recipe: (name: "fire gun", form: Ball, mech: [Fast, Explodes, Swarm], element: Fire, scale: 0.3, count: 8)),
+            ], juice: Some((title: Some("HIDAN")))),
+            // Green fireflies drift out, settle on everyone near the crosshair, then ignite.
+            (name: "fireflies", tags: [Combo], cooldown: 10.0, cost: 7.0, ops: [
+                Salvo(count: 12, delay: 0.9, interval: 0.03, radius: 1.4, damage: 3.0, knockback: 6.0, element: Fire, at: Aim, spread: 5.0, seek: true),
+            ], juice: Some((title: Some("HOTARUBI: HIDARUMA"), at: Aim, color: Some((0.6, 1.0, 0.3))))),
+            // A ring of fire around you that burns anyone who stays.
+            (name: "flame commandment", tags: [Defense], cooldown: 12.0, cost: 7.0, ops: [
+                Zone(radius: 6.0, secs: 3.5, status: Some(Burn), dps: 3.0, follow: true),
+                Explode(radius: 6.0, damage: 4.0, knockback: 14.0, element: Fire),
+            ], juice: Some((title: Some("ENJOMO"), ripple: 6.0))),
         ],
     ),
     (
@@ -153,13 +272,34 @@
         graft: Some((element: Some(Ice))),
         incantations: ["hie hie no"],
         delivery: (element: Some(Ice), add: [Pierce]),
-        shouts: [("ice age", 0), ("partisan", 1), ("ice partisan", 1)],
+        fx: "ice",
+        shouts: [("ice age", 0), ("aisu eiji", 0), ("partisan", 1), ("ice partisan", 1),
+                 ("ice time", 2), ("aisu taimu", 2), ("ice time capsule", 2),
+                 ("ice saber", 3), ("ice sabre", 3), ("aisu saberu", 3),
+                 ("pheasant beak", 4), ("kiji bakku", 4), ("ice pheasant", 4),
+                 ("ice ball", 5), ("ice bind", 5)],
         moves: [
-            (name: "ice age", cooldown: 4.0, cost: 12.0, ops: [
-                Explode(radius: 7.0, damage: 6.0, knockback: 4.0, element: Ice),
-            ]),
-            (name: "partisan", cooldown: 2.0, ops: [
+            // The ground ahead freezes solid in an instant: spikes up, everyone on it slowed.
+            (name: "ice age", tags: [Ultimate], cooldown: 10.0, cost: 10.0, ops: [
+                Erupt(count: 8, length: 18.0, width: 8.0, height: 2.0, launch: 6.0, damage: 6.0, element: Ice),
+                Zone(radius: 9.0, secs: 3.0, status: Some(Chill), slow: 0.55, at: Front, dist: 9.0),
+            ], juice: Some((title: Some("ICE AGE"), boom: true, shake: 0.3))),
+            (name: "partisan", tags: [Primary], cooldown: 2.0, ops: [
                 Cast(recipe: (name: "partisan", form: Ball, mech: [Pierce, Fast, Swarm], element: Ice, scale: 0.35, count: 5)),
+            ]),
+            // A palm on them: frozen stiff for a moment.
+            (name: "ice time", tags: [Combo], cooldown: 7.0, cost: 6.0, ops: [
+                Afflict(range: 3.5, cone: 25.0, status: Some(Chill), secs: 3.0, damage: 8.0),
+            ], juice: Some((title: Some("ICE TIME")))),
+            (name: "ice saber", tags: [Primary], cooldown: 4.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "ice saber", form: Sword, mech: [Blade], element: Ice, scale: 1.2)),
+            ]),
+            // An ice bird that flies straight through them.
+            (name: "pheasant beak", tags: [Primary], cooldown: 5.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "pheasant beak", form: Bird, mech: [Flies, Fast, Pierce, Charge], element: Ice, scale: 2.4, temperament: Aggressive, intensity: 1.0)),
+            ], juice: Some((title: Some("PHEASANT BEAK")))),
+            (name: "ice ball", tags: [Combo], cooldown: 9.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "ice ball", form: Cage, mech: [Trap], element: Ice, scale: 1.6)),
             ]),
         ],
     ),
@@ -172,12 +312,28 @@
         graft: Some((element: Some(Electric))),
         incantations: ["goro goro no"],
         delivery: (element: Some(Electric), add: [Fast]),
-        shouts: [("lightning blink", 0), ("el thor", 1), ("mamaragan", 1)],
+        fx: "lightning",
+        shouts: [("lightning blink", 0), ("el thor", 1), ("mamaragan", 1), ("el toar", 1),
+                 ("raigo", 2), ("thunder cloud raigo", 2), ("sango", 3), ("200 million volt amaru", 4), ("amaru", 4), ("vari", 5), ("vari enel", 5)],
         moves: [
-            (name: "lightning blink", cooldown: 1.2, cost: 6.0, ops: [Blink(dist: 14.0)]),
-            (name: "el thor", cooldown: 5.0, ops: [
+            (name: "lightning blink", tags: [Movement], cooldown: 1.2, cost: 6.0, ops: [Blink(dist: 14.0)]),
+            (name: "el thor", tags: [Primary], cooldown: 5.0, ops: [
                 Cast(recipe: (name: "el thor", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
             ]),
+            // A black thundercloud grows over the crosshair, then falls on everyone under it.
+            (name: "raigo", tags: [Ultimate], cooldown: 40.0, cost: 18.0, ops: [
+                Salvo(count: 10, delay: 1.2, interval: 0.1, radius: 3.0, damage: 10.0, knockback: 14.0, element: Electric, at: Aim, spread: 12.0),
+            ], juice: Some((title: Some("RAIGO"), boom: true, at: Aim))),
+            // A lightning dragon that hunts.
+            (name: "sango", tags: [Combo], cooldown: 8.0, cost: 7.0, ops: [
+                Cast(recipe: (name: "sango", form: Serpent, mech: [Flies, Fast, Charge], element: Electric, scale: 4.0, temperament: Aggressive, intensity: 1.0)),
+            ], juice: Some((title: Some("SANGO")))),
+            // Two hundred million volts: you BECOME a giant and every touch stuns.
+            (name: "amaru", tags: [Ultimate], cooldown: 30.0, cost: 12.0, ops: [
+                SelfResize(scale: 1.5, secs: 8.0),
+                Empower(secs: 8.0, damage: 1.4, armor: 0.7, contact: 6.0, contact_kb: 12.0, contact_cd: 0.5, element: Electric),
+            ], juice: Some((title: Some("200,000,000 VOLT AMARU"), boom: true))),
+            (name: "vari", tags: [Primary], cooldown: 1.5, cost: 2.0, ops: [BounceBeam(length: 30.0, bounces: 2, damage: 9.0, knockback: 8.0, element: Electric)]),
         ],
     ),
     (
@@ -188,12 +344,24 @@
         body: (scatter: true, moves: (speed: 1.1)),
         incantations: ["pika pika no"],
         delivery: (add: [Fast, Beam]),
-        shouts: [("light speed", 0), ("yata no kagami", 0), ("yasakani no magatama", 1)],
+        fx: "holy",
+        shouts: [("light speed", 0), ("yata no kagami", 0), ("yasakani no magatama", 1), ("yasakani", 1),
+                 ("light speed kick", 2), ("speed of light kick", 2), ("kick at the speed of light", 2), ("pika pika kick", 2), ("light kick", 2),
+                 ("ama no murakumo", 3), ("amano murakumo", 3), ("light sword", 3), ("sword of light", 3),
+                 ("kizaru laser", 4), ("light laser", 4)],
         moves: [
-            (name: "yata no kagami", cooldown: 1.5, cost: 7.0, ops: [Blink(dist: 20.0)]),
-            (name: "yasakani no magatama", cooldown: 3.0, ops: [
-                Cast(recipe: (name: "yasakani no magatama", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.3, count: 8)),
+            (name: "yata no kagami", tags: [Movement], cooldown: 1.5, cost: 7.0, ops: [Blink(dist: 20.0, afterimage: true)]),
+            (name: "yasakani no magatama", tags: [Combo], cooldown: 3.0, ops: [
+                Cast(recipe: (name: "yasakani no magatama", form: Ball, mech: [Swarm, Fast, Homing, Explodes], element: Light, scale: 0.3, count: 10)),
             ]),
+            // A kick that arrives before you see it: homes on the enemy you look at.
+            (name: "light speed kick", tags: [Primary, Movement], cooldown: 4.0, cost: 6.0, ops: [
+                Pounce(range: 32.0, speed: 50.0, cone: 12.0, damage: 16.0, knockback: 34.0, element: Light, up: 0.2, bounce: 3.0),
+            ], juice: Some((punch: 3.0, color: Some((1.0, 0.92, 0.45))))),
+            (name: "ama no murakumo", tags: [Primary], cooldown: 4.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "ama no murakumo", form: Sword, mech: [Blade, Fast], element: Light, scale: 1.4)),
+            ]),
+            (name: "laser", tags: [Primary], cooldown: 2.5, cost: 4.0, ops: [BounceBeam(length: 35.0, bounces: 1, damage: 12.0, knockback: 10.0, element: Light)]),
         ],
     ),
     (
@@ -206,12 +374,18 @@
         graft: Some((element: Some(Shadow))),
         incantations: ["yami yami no"],
         delivery: (element: Some(Shadow), add: [Attract]),
-        shouts: [("black hole", 0), ("liberation", 1)],
+        fx: "shadow",
+        shouts: [("black hole", 0), ("liberation", 1), ("black vortex", 2), ("kurouzu", 2), ("dark vortex", 2), ("black whirlpool", 2)],
         moves: [
             (name: "black hole", cooldown: 5.0, cost: 14.0, ops: [Field(strength: 28.0, radius: 10.0, secs: 3.0, at: Aim)]),
             (name: "liberation", cooldown: 5.0, cost: 14.0, ops: [
                 Explode(radius: 5.0, damage: 18.0, knockback: 20.0, carve: 2.5, element: Shadow, at: Aim),
             ]),
+            // Darkness drags the aimed enemy to your hand, and while it holds them their powers don't work.
+            (name: "black vortex", tags: [Combo, Counter], cooldown: 10.0, cost: 8.0, ops: [
+                Yank(range: 22.0, speed: 26.0, cone: 10.0),
+                Lockout(range: 24.0, secs: 1.6),
+            ], juice: Some((title: Some("KUROUZU"), color: Some((0.08, 0.04, 0.12))))),
         ],
     ),
     (
@@ -223,12 +397,22 @@
         graft: Some((element: Some(Earth))),
         incantations: ["suna suna no"],
         delivery: (element: Some(Earth), add: [Spin]),
-        shouts: [("sables", 0), ("desert spada", 1)],
+        fx: "sand",
+        shouts: [("sables", 0), ("desert spada", 1), ("ground death", 2), ("ground seco", 2), ("desert girasole", 3)],
         moves: [
             (name: "sables", cooldown: 4.0, ops: [
                 Cast(recipe: (name: "sables", form: Pillar, mech: [Spin, Flies, Homing, Attract], element: Wind, scale: 4.0)),
             ]),
             (name: "desert spada", cooldown: 3.0, cost: 10.0, ops: [Carve(length: 18.0, radius: 1.0, damage: 12.0)]),
+            // Hand on the ground: everything under the crosshair dries to dust and saps them.
+            (name: "ground seco", tags: [Combo], cooldown: 10.0, cost: 7.0, ops: [
+                Zone(radius: 7.0, secs: 4.0, status: Some(Chill), slow: 0.4, dps: 2.0, at: Aim),
+            ], juice: Some((title: Some("GROUND SECO"), at: Aim, ripple: 7.0))),
+            // A quicksand pit that sucks everyone into the middle.
+            (name: "desert girasole", tags: [Ultimate], cooldown: 18.0, cost: 12.0, ops: [
+                Field(strength: 34.0, radius: 12.0, secs: 3.0, at: Aim),
+                Zone(radius: 6.0, secs: 3.0, slow: 0.5, at: Aim),
+            ], juice: Some((title: Some("DESERT GIRASOLE"), at: Aim, ripple: 12.0))),
         ],
     ),
     (
@@ -240,7 +424,10 @@
         graft: Some((element: Some(Fire))),
         incantations: ["magu magu no"],
         delivery: (element: Some(Fire), add: [Heavy, Blunt]),
-        shouts: [("great eruption", 0), ("dai funka", 0), ("meteor volcano", 1), ("ryusei kazan", 1)],
+        fx: "fire",
+        shouts: [("great eruption", 0), ("dai funka", 0), ("meteor volcano", 1), ("ryusei kazan", 1),
+                 ("hound blaze", 2), ("inugami guren", 2), ("magma hound", 2), ("magma dog", 2),
+                 ("magma pool", 3), ("lava pool", 3), ("magma fist", 4), ("absolute justice", 4)],
         moves: [
             (name: "great eruption", cooldown: 1.5, ops: [
                 Cast(recipe: (name: "magma fist", form: Ball, mech: [Heavy, Blunt, Fast], element: Fire, scale: 1.8, mass: 200.0)),
@@ -248,6 +435,17 @@
             (name: "meteor volcano", cooldown: 7.0, ops: [
                 Cast(recipe: (name: "meteor volcano", form: Boulder, mech: [DropFromSky, Swarm, Heavy], element: Fire, scale: 1.2, count: 5)),
             ]),
+            // A dog's head of magma that hunts the enemy you look at, around cover.
+            (name: "hound blaze", tags: [Combo], cooldown: 8.0, cost: 6.0, ops: [
+                Seeker(recipe: (name: "magma hound", form: Quadruped, mech: [Fast, Blunt], element: Fire, scale: 1.4), damage: 16.0, knockback: 20.0, element: Fire),
+            ], juice: Some((title: Some("INUGAMI GUREN")))),
+            (name: "magma pool", tags: [Defense], cooldown: 12.0, cost: 7.0, ops: [
+                Zone(radius: 5.0, secs: 5.0, status: Some(Burn), dps: 3.0, slow: 0.3, at: Aim),
+            ], juice: Some((at: Aim, ripple: 5.0))),
+            // The fist that goes through: a burning piercing lunge.
+            (name: "magma fist", tags: [Ultimate], cooldown: 10.0, cost: 9.0, ops: [
+                Drill(speed: 26.0, secs: 0.35, damage: 24.0, knockback: 26.0, element: Fire, up: 0.1),
+            ], juice: Some((title: Some("MAGMA FIST"), punch: 5.0, boom: true))),
         ],
     ),
     (
@@ -257,13 +455,31 @@
         names: ["gura gura no mi", "tremor tremor fruit", "tremor-tremor fruit", "quake fruit", "whitebeard's fruit"],
         incantations: ["gura gura no"],
         delivery: (element: Some(Earth), add: [Stomp, Blunt]),
-        shouts: [("quake punch", 0), ("seaquake", 1), ("kaishin", 1)],
+        fx: "earth",
+        shouts: [("quake punch", 0), ("gura gura punch", 0), ("tremor punch", 0), ("seaquake", 1), ("kaishin", 1), ("sea quake", 1),
+                 ("island tilt", 2), ("shima yurashi", 2), ("tilt the island", 2),
+                 ("quake bubble", 3), ("gura gura bubble", 3), ("quake armor", 3)],
         moves: [
-            // The air cracks: a shockwave that carves terrain.
-            (name: "quake punch", cooldown: 2.5, cost: 12.0, ops: [
-                Explode(radius: 4.5, damage: 16.0, knockback: 26.0, carve: 3.0, element: Earth, at: Front, dist: 3.0),
-            ]),
-            (name: "seaquake", cooldown: 6.0, cost: 18.0, ops: [Carve(length: 22.0, radius: 2.2, damage: 14.0)]),
+            // Punch the AIR: it cracks like glass around your fist, and the crack races out ahead,
+            // splitting the ground and everyone on the line.
+            (name: "quake punch", tags: [Primary], cooldown: 3.0, cost: 10.0, ops: [
+                Explode(radius: 3.0, damage: 12.0, knockback: 24.0, carve: 1.5, element: Earth, at: Front, dist: 2.5),
+                Wave(length: 30.0, speed: 40.0, width: 5.0, carve: 1.2, damage: 14.0, knockback: 28.0, element: Earth),
+            ], juice: Some((title: Some("GURA GURA NO MI"), boom: true, punch: 5.0, shake: 0.35, ripple: 5.0, at: Front, dist: 2.5))),
+            // The sea stands up: a tsunami rolls out and carries everyone with it.
+            (name: "seaquake", tags: [Ultimate], cooldown: 12.0, cost: 14.0, ops: [
+                Surge(width: 16.0, dist: 36.0, speed: 16.0, push: 16.0, damage: 10.0, element: Water),
+            ], fx: "water", juice: Some((title: Some("KAISHIN"), boom: true, punch: 6.0, shake: 0.4))),
+            // Grab the air and heave: the ground around you tilts and throws everyone.
+            (name: "island tilt", tags: [Ultimate], cooldown: 20.0, cost: 14.0, ops: [
+                Explode(radius: 13.0, damage: 8.0, knockback: 18.0, carve: 2.5, element: Earth),
+                Field(strength: -40.0, radius: 16.0, secs: 0.4),
+            ], juice: Some((title: Some("SHIMA YURASHI"), boom: true, punch: 6.0, shake: 0.45, ripple: 16.0, debris: 26.0))),
+            // A quake wrapped around your body: what comes at you is shaken apart.
+            (name: "quake bubble", tags: [Defense], cooldown: 8.0, cost: 6.0, ops: [
+                Deflect(secs: 0.8, angle: 180.0),
+                Explode(radius: 3.5, damage: 6.0, knockback: 22.0, element: Earth),
+            ], juice: Some((ripple: 4.0))),
         ],
     ),
     (
@@ -274,11 +490,35 @@
         graft: Some((mechanics: [Blade])),
         incantations: ["ope ope no"],
         delivery: (add: [Blade]),
-        shouts: [("room", 0), ("shambles", 1)],
+        fx: "hardlight",
+        shouts: [("room", 0), ("ope ope room", 0), ("room shambles", 1), ("shambles", 1), ("shamburu", 1),
+                 ("gamma knife", 2), ("gamma knife injection", 2), ("gama knife", 2),
+                 ("counter shock", 3), ("counter-shock", 3), ("injection shot", 4),
+                 ("amputate", 5), ("amputation", 5), ("takt", 6), ("takuto", 6), ("radio knife", 7), ("radio knives", 7)],
         moves: [
-            (name: "room", cooldown: 3.0, cost: 10.0, ops: [Room(radius: 14.0, secs: 12.0)]),
-            // Swap places with whoever you aim at — both inside your ROOM.
-            (name: "shambles", cooldown: 1.5, cost: 6.0, ops: [Swap(range: 30.0)]),
+            (name: "room", tags: [Defense], cooldown: 3.0, cost: 10.0, ops: [Room(radius: 14.0, secs: 12.0)],
+             juice: Some((title: Some("ROOM"), ripple: 14.0, color: Some((0.45, 0.7, 1.0))))),
+            // Swap places with whoever you aim at: both inside your ROOM.
+            (name: "shambles", tags: [Movement], cooldown: 1.5, cost: 6.0, ops: [Swap(range: 30.0)], juice: Some((title: Some("SHAMBLES")))),
+            // The blade goes in and the damage happens INSIDE: huge hurt, almost no push.
+            (name: "gamma knife", tags: [Ultimate], cooldown: 12.0, cost: 10.0, ops: [
+                Shove(range: 3.6, angle: 25.0, damage: 26.0, knockback: 6.0, element: Psychic),
+            ], juice: Some((title: Some("GAMMA KNIFE"), punch: 4.0, color: Some((0.5, 1.0, 0.7))))),
+            (name: "counter shock", tags: [Combo], cooldown: 4.0, cost: 4.0, ops: [
+                Shove(range: 3.0, angle: 30.0, damage: 10.0, knockback: 12.0, element: Electric),
+            ], fx: "lightning", juice: Some((title: Some("COUNTER SHOCK")))),
+            (name: "injection shot", tags: [Movement, Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Ram(speed: 34.0, secs: 0.35, damage: 14.0, knockback: 16.0, through: true),
+            ], juice: Some((title: Some("INJECTION SHOT")))),
+            (name: "amputate", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [Carve(length: 14.0, radius: 0.6, damage: 12.0)],
+             juice: Some((title: Some("AMPUTATE")))),
+            // One finger up: they float into the air.
+            (name: "takt", tags: [Combo], cooldown: 5.0, cost: 4.0, ops: [Afflict(range: 22.0, cone: 8.0, status: Some(Float), secs: 1.2, up: 1.6)],
+             juice: Some((title: Some("TAKT")))),
+            (name: "radio knife", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Carve(length: 6.0, radius: 1.0, damage: 14.0),
+                Afflict(range: 6.0, cone: 20.0, status: Some(Stun), secs: 0.5),
+            ], fx: "lightning", juice: Some((title: Some("RADIO KNIFE")))),
         ],
     ),
     (
@@ -361,7 +601,8 @@
         graft: Some((mechanics: [Sticky])),
         incantations: ["mochi mochi no"],
         delivery: (add: [Sticky, Blunt, Returning], from_fist: true, arm: true),
-        shouts: [("mochi trident", 0), ("power mochi", 1)],
+        fx: "rubber",
+        shouts: [("mochi trident", 0), ("power mochi", 1), ("mogura", 2), ("mochi mole", 2), ("zan giri mochi", 3), ("buzz cut mochi", 3)],
         moves: [
             (name: "mochi trident", cooldown: 1.5, ops: [
                 Cast(recipe: (name: "mochi trident", form: Ball, mech: [Pierce, Sticky, Fast], scale: 0.9)),
@@ -369,6 +610,14 @@
             (name: "power mochi", cooldown: 3.0, ops: [
                 Cast(recipe: (name: "power mochi", form: Ball, mech: [Blunt, Heavy, Sticky, Returning], scale: 2.0, mass: 150.0)),
             ]),
+            // The mochi trident burrows under the ground and bursts up under them.
+            (name: "mogura", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Erupt(count: 1, length: 14.0, width: 2.0, height: 3.0, launch: 16.0, damage: 14.0, element: Earth),
+            ], juice: Some((title: Some("MOGURA")))),
+            // Arms become spinning donuts of mochi and drill forward.
+            (name: "buzz cut mochi", tags: [Combo], cooldown: 7.0, cost: 6.0, ops: [
+                Drill(speed: 20.0, secs: 0.45, grind: 0.45, damage: 18.0, knockback: 26.0, element: Earth),
+            ], juice: Some((title: Some("ZAN GIRI MOCHI")))),
         ],
     ),
     (
@@ -489,7 +738,7 @@
         names: ["neko neko no mi model leopard", "leopard fruit", "cat cat fruit leopard", "lucci's fruit"],
         incantations: ["neko neko no"],
         delivery: (add: [Fast, Blade]),
-        shouts: [("pounce", 0), ("rokuogan", 0), ("leopard", 1)],
+        shouts: [("leopard pounce", 0), ("rokuogan", 0), ("six king gun", 0), ("leopard", 1), ("leopard form", 1)],
         moves: [
             (name: "pounce", cooldown: 1.5, cost: 5.0, ops: [
                 Impulse(fwd: 20.0, up: 6.0),
@@ -507,7 +756,7 @@
         body: (immune: [Ice]),
         incantations: ["inu inu no"],
         delivery: (element: Some(Ice), add: [Charge]),
-        shouts: [("howl", 0), ("narikabura", 0), ("makami", 1), ("wolf form", 1)],
+        shouts: [("wolf god howl", 0), ("narikabura", 0), ("thunder bagua yamato", 0), ("makami", 1), ("okuchi no makami form", 1)],
         moves: [
             (name: "howl", cooldown: 4.0, ops: [
                 Cast(recipe: (name: "ice wolf", form: Quadruped, mech: [Charge, Fast], element: Ice, scale: 1.6, temperament: Aggressive, intensity: 0.8)),

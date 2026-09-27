@@ -121,6 +121,9 @@ fn finisher_crits_only_inside_the_combo_window() {
     assert!(hot > cold * 2.0, "the crit hits much harder ({hot} vs {cold})");
     // Stale connect (outside the window): plain again.
     let mut w = duel(2);
+    for _ in 0..(bd_core::TICK_HZ * 3) {
+        w.tick(&[]);
+    }
     stand_at(&mut w, A, 0.0, 2.5);
     stand_at(&mut w, B, 0.0, 0.0);
     let t = w.tick;
@@ -137,7 +140,7 @@ fn erupt_raises_terrain_along_the_aim_and_launches_whoever_stands_on_it() {
     stand_at(&mut w, A, 0.0, 10.0);
     stand_at(&mut w, B, 0.0, 3.0);
     let h0 = w.voxels.content_hash();
-    let glacier = MoveOp::Erupt { length: 14.0, width: 2.0, height: 3.0, count: 0, element: bd_core::mechanics::Element::Ice, damage: 6.0, launch: 14.0, across: false, dist: 0.0 };
+    let glacier = MoveOp::Erupt { length: 14.0, width: 2.0, height: 3.0, count: 0, element: bd_core::mechanics::Element::Ice, damage: 6.0, launch: 14.0, across: false, dist: 0.0, shape: Default::default(), at: Default::default() };
     w.fire_op(A, &glacier).expect("erupts");
     let voxels = power_events(&w).iter().find_map(|e| if let PowerEvent::Restored { voxels, .. } = e { Some(voxels.clone()) } else { None }).expect("replicated");
     assert!(voxels.len() > 40, "a ridge of ice rose ({} voxels)", voxels.len());
@@ -155,6 +158,36 @@ fn erupt_raises_terrain_along_the_aim_and_launches_whoever_stands_on_it() {
     let mut r = duel(2);
     bd_sim::powers::apply_restore(&mut r.voxels, &voxels);
     assert_eq!(r.voxels.content_hash(), w.voxels.content_hash(), "replicas match");
+}
+
+#[test]
+fn erupt_pillar_under_you_is_an_elevator_and_a_ring_is_a_prison() {
+    use bd_sim::powers::{At, EruptShape};
+    let mut w = duel(2);
+    stand_at(&mut w, A, 0.0, 10.0);
+    stand_at(&mut w, B, 0.0, -20.0);
+    let y0 = pos(&w, A).y;
+    let elevator = MoveOp::Erupt { length: 1.0, width: 1.5, height: 4.0, count: 0, element: bd_core::mechanics::Element::Earth, damage: 0.0, launch: 12.0,
+        across: false, dist: 0.0, shape: EruptShape::Pillar, at: At::Me };
+    w.fire_op(A, &elevator).expect("the ground lifts you");
+    let a = w.player(A).unwrap();
+    assert!(a.mv.pos.y > y0 + 3.0, "you ride the pillar up ({} -> {})", y0, a.mv.pos.y);
+    assert!(a.mv.vel.y >= 12.0 - 1e-3, "and are thrown off the top");
+    assert!(pct(&w, A) == 0.0, "your own elevator never hurts you");
+    // Earth takes the ground's own material (the flat lab's surface), never thin air.
+    let vox = power_events(&w).iter().find_map(|e| if let PowerEvent::Restored { voxels, .. } = e { Some(voxels.clone()) } else { None }).unwrap();
+    let ground = w.voxels.get(bd_core::voxel::world_to_voxel(Vec3::new(20.0, 7.75, 20.0)));
+    assert!(ground != 0 && vox.iter().all(|(_, m)| *m == ground), "pillar is made of the ground ({ground})");
+    // A ring round the aimed point: B inside is walled in, not hit.
+    let mut w = duel(2);
+    stand_at(&mut w, A, 0.0, 10.0);
+    stand_at(&mut w, B, 0.0, 0.0);
+    w.player_mut(A).unwrap().input.pitch = -0.35;
+    let prison = MoveOp::Erupt { length: 8.0, width: 1.0, height: 3.0, count: 0, element: bd_core::mechanics::Element::Ice, damage: 8.0, launch: 10.0,
+        across: false, dist: 0.0, shape: EruptShape::Ring, at: At::Aim };
+    w.fire_op(A, &prison).expect("a ring rises");
+    let vox = power_events(&w).iter().find_map(|e| if let PowerEvent::Restored { voxels, .. } = e { Some(voxels.clone()) } else { None }).unwrap();
+    assert!(vox.len() > 60, "a ring of ice ({} voxels)", vox.len());
 }
 
 // ------------------------------------------------------------------------------------ Tag / TagStrike

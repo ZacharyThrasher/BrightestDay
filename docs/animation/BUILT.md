@@ -16,6 +16,9 @@ network traffic, no hitbox changes (the FFA golden hash can't move).
 - In-game: `brightest_day --practice --bots 4 --scenario bodyanim [--record DIR --record-secs 12]` —
   four players in front of the camera: strafing bunny-hopper with air jumps, typist → crouch walk,
   jump + gas boost → dodge, charger → hops.
+- `ingame_bodyanim.png` — 12 frames (3.2–8 s) of that scenario from the fastrel build: the typist's ring
+  pose (orange), the booster's lean + gas puffs and landing (yellow), the charger's planted stance under
+  its aura then hops with the landing chip ring (blue).
 
 ## Body layers (`bd_shapes::anim_body`, new `AnimState` variants)
 | layer | drives | reads as |

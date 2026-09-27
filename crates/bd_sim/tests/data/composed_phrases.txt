@@ -1,0 +1,455 @@
+# VERB GRAMMAR golden phrases (docs/toolbox/COMPOSED_MOVE.md). One phrase per line; `# ...` comments.
+# Roster in the test: Ethan=1 Mia=2 Sam=3 Nova=4 "Big Tony"=5 "Alex_99"=6.
+# The expected reading of each line lives in composed_phrases.golden (regenerate with
+# BD_GOLDEN_WRITE=1 cargo test -p bd_sim --test compose golden -- --nocapture, then REVIEW the diff).
+# Lines starting with "~" are spoken forms (Whisper output: capitals, punctuation, mishearings).
+
+# ---------------------------------------------------------------- the brief's examples
+shadow teleport behind ethan
+lightning dash through him
+gravity punch
+ice clone
+swap with the dragon
+rewind 3 seconds
+fire uppercut
+phase through the wall
+pull everyone to me
+leap onto the tower
+blink above him
+turn invisible
+absorb his attack
+~Shadow teleport behind Ethan.
+~Lightning dash through him!
+~Gravity punch!
+~Ice clone.
+~Swap with the dragon.
+~Rewind three seconds.
+~Fire uppercut!
+~Phase through the wall.
+~Pull everyone to me!
+~Leap onto the tower.
+~Blink above him.
+~Turn invisible.
+~Absorb his attack.
+
+# ---------------------------------------------------------------- teleports
+teleport
+teleport behind him
+teleport behind mia
+teleport in front of sam
+teleport above nova
+teleport beside ethan
+teleport next to mia
+teleport to ethan
+teleport onto the roof
+teleport through the wall
+teleport up
+teleport back
+teleport away
+teleport forward
+teleport behind the dragon
+teleport behind it
+teleport behind the nearest enemy
+teleport behind big tony
+teleport behind tony
+teleport behind alex99
+teleport behind ethan's back
+teleport twice
+smoke teleport behind him
+fire teleport to mia
+void teleport above sam
+holy teleport behind nova
+bamf
+bamf behind him
+bamf behind ethan
+blink
+blink behind her
+blink forward
+warp behind them
+warp to the tower
+flash step behind him
+shunpo behind ethan
+sonido
+step behind him
+instant transmission behind mia
+teleporting behind him
+teleported behind ethan
+i'll teleport behind you
+let me teleport behind him
+go teleport behind ethan
+~Tele port behind him.
+~Teleport behind Mia!
+~I'm teleporting behind you.
+~Bamf behind Ethan!
+~Flash step behind him.
+~Shun po behind Ethan.
+~Teleport to the tower.
+~Teleport back!
+
+# ---------------------------------------------------------------- dashes / charges / leaps / flight
+dash
+dash forward
+dash back
+dash through him
+dash at ethan
+dash toward the dragon
+dash up
+lightning dash
+fire dash
+speed dash through them
+dash twice
+dash 3 times
+lunge at him
+charge
+charge him
+charge into the wall
+charge through them
+charge ethan
+ram him
+tackle mia
+shoulder charge
+bull rush
+leap
+leap up
+leap onto the building
+leap at him
+jump onto the ledge
+jump up
+super jump
+earth leap
+gravity leap onto him
+hop back
+fly
+fly up
+hover
+hover for 3 seconds
+levitate
+take off
+fly for 2 seconds
+~Dash through him.
+~Charge into the wall!
+~Jump onto the ledge.
+~Fly for three seconds.
+~Lightning dash!
+
+# ---------------------------------------------------------------- dodge / phase / swap / rewind / vanish
+dodge
+dodge back
+sidestep
+roll forward
+evade
+phase
+go intangible
+become intangible
+phase for 2 seconds
+walk through the wall
+walk through walls
+pass through the wall
+phase through him
+ghost through the wall
+noclip through the floor
+swap
+swap with him
+swap with ethan
+swap places with mia
+switch places with the nearest enemy
+trade places with it
+swap with my clone
+rewind
+rewind 2 seconds
+rewind for 1 second
+recall
+go back in time
+rewind time
+turn back time
+vanish
+disappear
+go invisible
+become invisible
+cloak
+smoke bomb
+turn invisible for 3 seconds
+~Go intangible.
+~Faze through the wall.
+~Swap places with Mia.
+~Rewind two seconds!
+~Turn in visible.
+~Vanish!
+~Recall.
+
+# ---------------------------------------------------------------- strikes
+punch
+punch him
+punch ethan
+punch mia in the face
+punch the dragon
+punch everyone
+punch him twice
+punch him 3 times
+double punch
+triple punch
+fire punch
+ice punch
+lightning punch
+shadow punch
+earth punch
+iron punch
+atomic punch
+psychic punch
+gravity punch him
+fire punch ethan
+giant punch
+mega punch
+super punch
+quick punch
+jab
+jab him
+haymaker
+falcon punch
+one punch
+kick
+kick him
+roundhouse kick
+fire kick
+drop kick him
+flying kick
+uppercut
+uppercut him
+uppercut ethan into the sky
+fire uppercut him
+lightning uppercut
+slam
+slam him
+slam down
+slam onto him
+body slam
+ground pound
+dive bomb
+earth slam
+gravity slam
+stomp
+war stomp
+earthquake
+fire stomp
+smash
+smash the ground
+hulk smash
+slash
+slash him
+fire slash
+wind slash
+triple slash
+slash everyone
+flurry
+barrage
+rapid punches
+flurry of punches
+combo him
+beat him up
+spin attack
+spin
+fire spin
+grab
+grab him
+grab ethan
+throw him
+throw him up
+throw ethan
+suplex him
+choke him
+headbutt him
+elbow him
+knee him
+palm strike
+karate chop
+~Punch him!
+~Fire punch!
+~Uppercut Ethan.
+~Up her cut!
+~Slam him!
+~Ground pound!
+~Kick him in the face!
+~Grab Ethan.
+~Throw him.
+~Punch him twice!
+~Lightning punch.
+
+# ---------------------------------------------------------------- force
+pull
+pull him
+pull ethan
+pull everyone
+pull them all to me
+pull everyone toward me
+yank him
+yank ethan
+drag him to me
+reel him in
+get over here
+pull myself to the wall
+pull the wall
+push
+push him
+push ethan
+push everyone
+push everyone away
+force push
+force push him
+blow everyone away
+knock him back
+repel
+lift him
+levitate him
+lift ethan
+raise everyone
+crush him
+pin him down
+gravity crush
+explode
+self destruct
+detonate
+blow up
+go nova
+~Pull everyone to me.
+~Get over here!
+~Force push!
+~Push everyone away!
+~Self-destruct!
+
+# ---------------------------------------------------------------- afflict
+freeze him
+freeze ethan
+freeze everyone
+freeze time
+stop time
+time stop
+slow down time
+burn him
+burn everyone
+set him on fire
+ignite ethan
+shock him
+electrocute ethan
+zap him
+shock everyone
+poison him
+poison everyone
+blind him
+blind everyone
+stun him
+paralyze mia
+freeze him for 2 seconds
+~Freeze him!
+~Stop time!
+~Electrocute Ethan.
+~Set him on fire!
+~Blind everyone.
+
+# ---------------------------------------------------------------- defense / self
+block
+guard
+brace
+parry
+counter
+counter attack
+reflect
+deflect
+bounce it back
+absorb
+absorb it
+copy his move
+copy him
+mimic him
+clone
+clone myself
+make a clone
+make clones
+shadow clone
+fire clone
+three clones
+decoy
+heal
+heal me
+heal myself
+regenerate
+harden
+armor up
+go berserk
+grow
+grow huge
+get big
+shrink
+get tiny
+go small
+~Parry!
+~Heal myself.
+~Make a clone!
+~Shadow clone!
+~Grow!
+~Shrink.
+
+# ---------------------------------------------------------------- word order / fillers / mishearings
+behind ethan shadow teleport
+please teleport behind him
+just dash
+quickly dash forward
+ok teleport behind him now
+teleport behind him please
+yo punch him
+teleport behind that guy
+punch that guy
+punch the nearest enemy
+punch whoever's closest
+teleport behind the closest one
+dash at everyone
+teleport behind jake
+teleport behind ethen
+punch ehtan
+swop with him
+rewined 3 seconds
+teleprot behind him
+invisable
+uppercutt
+electricute him
+
+# ---------------------------------------------------------------- NOT composed (constructs / named moves / delivery verbs)
+a dragon
+giant sword
+hammer
+a flaming hammer
+summon a dragon
+drop a meteor on ethan
+throw a fireball
+missile at jake
+cage ethan
+hit mia with a meteor
+meteor
+hook
+a hook
+slide
+rocket
+spear
+ice
+flame
+shield
+barrier
+king kong on a skateboard
+gomu gomu no pistol
+kamehameha
+star platinum
+fire
+shadow
+lightning bolt
+fire ball
+a big flaming hammer that returns
+teleport gun
+punching bag
+dash board
+eeyore shooting laser beams
+clone trooper
+ghost
+duck
+turtle
+tank
+trap
+belt

@@ -579,7 +579,6 @@ pub(super) fn begin_heavy(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, o
     c.hits.clear();
     s.terrain_hit = false;
     c.set_anim(AnimState::Windup, env.tick());
-    super::weapon_class::on_swing_start(c, Swing::Heavy, env, out); // WEAPON FEEL: heavy commitment
     // The release IS the heavy's swing start (strength 2 = heavy): the first-person
     // viewmodel holds the coiled curve until this and 3P / construct animation start
     // the heavy from it. Without it the swing only showed on the NEXT click.
@@ -644,7 +643,6 @@ pub(super) fn begin_swing(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, o
         None => 1.0,
     };
     fx(out, c, HeldFx::SwingStart, env.owner.hand, env.owner.look, strength);
-    super::weapon_class::on_swing_start(c, swing, env, out); // WEAPON FEEL: heavy commitment (ground speed braked)
     super::legend::on_swing_start(c, s, env); // LEGENDARY: Blade + Fast deflect window
 }
 
@@ -790,6 +788,15 @@ fn swing_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Con
     }
 }
 
+/// Reach (m) and push factor of an Attract / Repel swing's wave: 7 m for an ordinary item; a bigger
+/// item throws a longer wave, and a Wind one a gale (the Iron Fan: one wave blows you away).
+fn gust_reach(c: &Construct) -> (f32, f32) {
+    let spec = form_spec(c.recipe.form);
+    let size = (c.recipe.scale * c.size_scale / spec.default_scale.max(0.1)).clamp(1.0, 3.0);
+    let k = 1.0 + 0.6 * (size - 1.0);
+    if c.recipe.element == Element::Wind { ((7.0 * k * 1.5).min(26.0), k.min(1.8) * 1.3) } else { ((7.0 * k).min(16.0), 1.0) }
+}
+
 /// One-shot effects when a swing's hitbox opens (Attract / Repel waves, ground pound).
 fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
     let o = env.owner;
@@ -797,14 +804,15 @@ fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
     let (dm, km) = mech_mult(c);
     if c.has(Mechanic::Attract) || c.has(Mechanic::Repel) {
         let attract = c.has(Mechanic::Attract);
+        let (reach, gust) = gust_reach(c);
         for t in ctx.enemies_of(c.owner) {
             let d = t.hull.center() - o.eye;
             let len = d.length();
-            if len > 7.0 || len < 1e-3 || d.dot(o.look) / len < 0.3 {
+            if len > reach || len < 1e-3 || d.dot(o.look) / len < 0.3 {
                 continue;
             }
             let n = d / len;
-            let dv = if attract { -n * 9.0 + Vec3::Y * 2.0 } else { n * 14.0 + Vec3::Y * 3.0 };
+            let dv = if attract { -n * 9.0 * gust + Vec3::Y * 2.0 } else { n * 14.0 * gust + Vec3::Y * 3.0 };
             out.impulses.push((t.id, dv, 0.0));
         }
         fx(out, c, HeldFx::Launch, o.hand, o.look, if attract { -1.0 } else { 1.0 });
@@ -835,7 +843,6 @@ fn on_active(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Cons
         fx(out, c, HeldFx::Uppercut, o.hand, Vec3::Y, 1.2);
     }
     super::legend::on_active(c, s, env, out); // LEGENDARY: blade waves, chain blades' 360° sweep
-    super::weapon_class::on_active(c, s, env, out); // WEAPON FEEL: the strike carries you forward (heavy, shield bash)
 }
 
 /// Numbers for the swing playing now.

@@ -24,8 +24,7 @@ pub(crate) struct EvadeWindow {
     pub slow: f32,
     pub speed: f32,
     pub blink: f32,
-    /// Seconds of granted slow left (the power step times it for power holders; this does it for
-    /// a borrowed evade by a player who holds no power).
+    /// Seconds of granted slow left.
     pub slowing: f32,
 }
 
@@ -45,18 +44,15 @@ impl World {
     pub(crate) fn step_evades(&mut self, dt: f32) {
         for i in 0..MAX_PLAYERS.min(self.players.len()) {
             let Some(mut w) = self.powers.ops.evades[i] else { continue };
-            let p = &mut self.players[i];
+            let p = &self.players[i];
             if p.id != w.owner || !p.alive {
                 self.powers.ops.evades[i] = None;
                 continue;
             }
             w.left = (w.left - dt).max(0.0);
-            if w.slowing > 0.0 {
-                w.slowing = (w.slowing - dt).max(0.0);
-                if p.power.id.is_none() {
-                    p.power.time_stop = w.slowing;
-                }
-            }
+            // (the granted slow itself is timed by the power step / the toolbox step for a
+            // powerless borrower; this only keeps the window's memory alive as long)
+            w.slowing = (w.slowing - dt).max(0.0);
             self.powers.ops.evades[i] = (w.left > 0.0 || w.slowing > 0.0).then_some(w);
         }
     }

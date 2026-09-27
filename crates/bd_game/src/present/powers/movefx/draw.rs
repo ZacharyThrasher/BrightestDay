@@ -60,6 +60,9 @@ pub struct Pen<'a> {
     /// The camera: nothing blooms in your face (motes shrink away inside ~2 m, flashes and beams
     /// through the lens are dropped / pulled back) — your own blink never whites out your view.
     pub cam: Vec3,
+    /// Your own body in first person (where your own move lands: the camera is about to be there
+    /// even if it is not yet — prediction / interpolation): nothing spawns inside it.
+    pub avoid: Option<Vec3>,
 }
 
 pub fn mix3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
@@ -89,9 +92,14 @@ fn hash(k: u32) -> f32 {
 impl Pen<'_> {
     /// 0 (hidden) … 1: how much of a particle at `p` (radius `r`) may show this close to the camera.
     pub fn near(&self, p: Vec3, r: f32) -> f32 {
-        let d = p.distance(self.cam) - r;
-        let t = ((d - 0.6) / 1.6).clamp(0.0, 1.0);
-        t * t * (3.0 - 2.0 * t)
+        let s = |t: f32| {
+            let t = t.clamp(0.0, 1.0);
+            t * t * (3.0 - 2.0 * t)
+        };
+        let cam = s((p.distance(self.cam) - r - 0.6) / 1.6);
+        // Your own arrival point keeps a wider berth (puffs drift and grow toward the lens).
+        let own = self.avoid.map_or(1.0, |a| s((p.distance(a) - r - 2.4) / 1.6));
+        cam.min(own)
     }
 
     /// Every emission goes through here (the near-camera guard).
@@ -175,7 +183,7 @@ impl Pen<'_> {
                 vel: vel * 0.55,
                 size: (0.35 + 0.35 * r) * s,
                 color: mix3(look.dark, look.main, 0.25 * r),
-                emissive: 0.0,
+                emissive: 0.9,
                 life: life * 2.2 * look.linger,
                 gravity: 0.35 + look.rise,
                 drag: 3.2,
@@ -214,7 +222,7 @@ impl Pen<'_> {
                 vel: vel * 0.8,
                 size: (0.035 + 0.03 * r) * s,
                 color: mix3(look.main, look.dark, r * 0.6),
-                emissive: 0.0,
+                emissive: 0.7,
                 life: life * 1.6,
                 gravity: 1.1,
                 drag: 1.6,
@@ -279,7 +287,7 @@ impl Pen<'_> {
                 vel: vel * 0.6 + Vec3::Y * 1.5,
                 size: (0.1 + 0.06 * r) * s,
                 color: mix3(look.main, look.core, 0.3 * r),
-                emissive: 0.0,
+                emissive: 0.8,
                 life: life * 2.2 * look.linger,
                 gravity: 0.12,
                 drag: 2.6,
@@ -331,7 +339,7 @@ impl Pen<'_> {
             let p = c + d * r;
             let col = mix3(look.core, look.main, 0.3 + 0.7 * self.fx.rng.f());
             let (color, emissive, flags) = match look.body {
-                Body::Smoke | Body::Grain | Body::Paper => (mix3(look.dark, look.main, 0.3), 0.3, PFlags::SMOKE | PFlags::STRETCH),
+                Body::Smoke | Body::Grain | Body::Paper => (mix3(look.dark, look.main, 0.3), 0.8, PFlags::SMOKE | PFlags::STRETCH),
                 Body::Void => (look.dark, 0.3, PFlags::STRETCH | PFlags::PLAIN),
                 _ => (col, look.glow, PFlags::STRETCH),
             };
@@ -362,7 +370,7 @@ impl Pen<'_> {
             let d = u * a.cos() + v * a.sin();
             let seed = self.fx.rng.next_u32();
             let (color, emissive, flags) = match look.body {
-                Body::Smoke | Body::Grain | Body::Paper => (mix3(look.dark, look.main, 0.35), 0.0, PFlags::SMOKE | PFlags::GROW),
+                Body::Smoke | Body::Grain | Body::Paper => (mix3(look.dark, look.main, 0.35), 0.8, PFlags::SMOKE | PFlags::GROW),
                 Body::Void => (look.main, look.glow, PFlags::STRETCH | PFlags::PLAIN),
                 _ => (mix3(look.core, look.main, 0.55), look.glow, PFlags::STRETCH | PFlags::PLAIN),
             };
@@ -398,9 +406,9 @@ impl Pen<'_> {
                 flags: PFlags::SMOKE | PFlags::GROW,
                 pos: c + d * r * (0.8 + 0.3 * r1),
                 vel: d * (4.0 + 3.0 * r2),
-                size: (0.45 + 0.4 * r3) * self.scale,
+                size: (0.28 + 0.25 * r3) * self.scale,
                 color: dust,
-                emissive: 0.0,
+                emissive: 0.75,
                 life: 0.9 + 0.6 * r4,
                 gravity: height,
                 drag: 2.4,
@@ -482,7 +490,7 @@ impl Pen<'_> {
             let p = cam + fwd * ahead + (u * a.cos() + v * a.sin()) * rad;
             let seed = self.fx.rng.next_u32();
             let (flags, color, emissive, size, life, spin) = match look.body {
-                Body::Smoke | Body::Paper | Body::Grain => (PFlags::SMOKE | PFlags::GROW, mix3(look.dark, look.main, 0.4), 0.0, 0.35, 0.3 * look.linger, 0.3),
+                Body::Smoke | Body::Paper | Body::Grain => (PFlags::SMOKE | PFlags::GROW, mix3(look.dark, look.main, 0.4), 0.9, 0.35, 0.3 * look.linger, 0.3),
                 _ => (PFlags::STRETCH | PFlags::PLAIN, mix3(look.core, look.main, 0.4), look.glow, 0.03, 0.2, 9.0),
             };
             self.put(Emit { flags, pos: p, vel: -fwd * (18.0 + 14.0 * strength), size: size * look.size, color, emissive, life, gravity: 0.0, drag: 1.0, spin, seed, ..default() });
@@ -542,8 +550,8 @@ impl Pen<'_> {
                 pos: p + Vec3::Y * 0.1,
                 vel: Vec3::Y * (2.0 + 3.0 * hash(s2)) + side * (hash(s2 ^ 7) - 0.5) * 2.0,
                 size: 0.08 + 0.06 * hash(s2 ^ 3),
-                color: [0.25, 0.22, 0.2],
-                emissive: 0.0,
+                color: [0.32, 0.28, 0.24],
+                emissive: 0.6,
                 life: 0.7,
                 gravity: 1.0,
                 drag: 0.8,
@@ -608,7 +616,9 @@ pub fn rubber_limb(fx: &mut FxParticles, root: Vec3, tip: Vec3, thick: f32, wob:
     }
     let (u, v) = basis(d);
     // Thinner the further it stretches (rest length ≈ 0.7 m), never a thread.
-    let t = thick * (0.7 / len.max(0.7)).sqrt().clamp(0.38, 1.0);
+    let t = thick * (0.7 / len.max(0.7)).sqrt().clamp(0.5, 1.0);
+    // Longer = floppier (a 20 m arm swings metres, a 2 m one centimetres).
+    let wob = wob * (0.6 + len * 0.12).min(4.0);
     let segs = 14;
     let mut prev = root;
     for i in 1..=segs {
@@ -648,13 +658,14 @@ pub fn rigid_pole(fx: &mut FxParticles, root: Vec3, tip: Vec3, thick: f32, ext: 
         // Segment k slides out once the ones before it are out (staggered).
         let e = ((ext * n as f32) - k as f32).clamp(0.0, 1.0);
         let l = seg * (0.25 + 0.75 * e);
-        let r = thick * 0.88f32.powi(k as i32);
+        let r = thick * 0.92f32.powi(k as i32);
         let end = at + dir * l;
         fx.immediate_segment(at, end, r, color, glow * 0.35, PFlags::PLAIN);
-        fx.immediate_box(end, rot, Vec3::new(r * 1.35, r * 1.35, r * 0.9), band, glow * 1.2, PFlags::PLAIN);
+        fx.immediate_box(end, rot, Vec3::new(r * 1.6, r * 1.6, r * 1.1), band, glow * 1.2, PFlags::PLAIN);
         at = end;
     }
-    fx.immediate_box(root + dir * 0.02, rot, Vec3::new(thick * 1.4, thick * 1.4, thick * 0.8), band, glow * 1.2, PFlags::PLAIN);
+    // A thin gold glint down the shaft: readable against sky and shadow alike.
+    fx.immediate_segment(root + dir * (len * 0.05), at, thick * 0.3, band, glow * 0.5, PFlags::PLAIN);
 }
 
 /// A spectral limb (every other body): a glowing beam with a hot core and a fist of light.

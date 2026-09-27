@@ -21,7 +21,7 @@
 
 use std::path::{Path, PathBuf};
 
-use bd_sim::powers::toolbox::{split_chain, KitMatch, MoveIndex, MoveRef, Reading};
+use bd_sim::powers::toolbox::{split_chain_with, KitMatch, MoveIndex, MoveRef, Reading};
 use bd_sim::powers::{move_sel, norm_words, PlayerPower, PowerDef, PowerPhrase, PowerTable};
 
 struct Args {
@@ -291,11 +291,18 @@ fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path
             continue;
         }
         n += 1;
-        let steps = split_chain(line, &|s| ix.read(table, held, s).is_move());
+        // the console's reading: a phrase the lexicon resolves to a GRANT never borrows; weak
+        // separators split only what the lexicon doesn't read as one thing
+        let read = |s: &str| match ix.read(table, held, s) {
+            Reading::Borrow(_) if lex.as_ref().is_some_and(|l| l.resolve(s).recipe.grants.is_some()) => Reading::Plain,
+            r => r,
+        };
+        let understood = |s: &str| lex.as_ref().is_some_and(|l| !bd_lexicon::Lexicon::is_fallback(&l.resolve(s)));
+        let steps = split_chain_with(line, &|s| read(s).is_move(), lex.as_ref().map(|_| &understood as &dyn Fn(&str) -> bool));
         let mut out = Vec::new();
         for s in &steps {
             let mut fell = false;
-            let r = ix.read(table, held, s);
+            let r = read(s);
             out.push(match r {
                 Reading::Held(PowerPhrase::Move(sel)) => format!("HELD move sel {sel:#x}"),
                 Reading::Held(PowerPhrase::Incantation { rest }) => format!("HELD incantation + \"{rest}\""),

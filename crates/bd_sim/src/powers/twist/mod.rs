@@ -90,6 +90,9 @@ pub enum ModKind {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ModDef {
+    /// The byte that travels on the wire (twists AND VERB GRAMMAR's composed specs): 1..=255,
+    /// stable, never reused (1 = giant / "big", 2 = quick, 3 = long are the composed starter ids).
+    pub n: u8,
     pub id: String,
     pub kind: ModKind,
     /// Whole-word phrases (lower case; multi-word allowed; mishearings included).
@@ -145,6 +148,7 @@ pub struct ModDef {
 impl Default for ModDef {
     fn default() -> Self {
         Self {
+            n: 0,
             id: String::new(),
             kind: ModKind::Behaviour,
             words: vec![],
@@ -346,11 +350,19 @@ pub struct ModTable {
     pub fusion: FusionDef,
     /// The modifier a "!!!" yell adds ("" = none).
     pub bang_mod: String,
+    /// Op variants that may be copied several times in ONE tick (instant, no per-player state):
+    /// a "triple" of these fans out at once; anything else fires as quick sequential shots.
+    pub fan: Vec<String>,
+    /// The word index ([`ModTable::words`], built on first use).
+    #[serde(skip)]
+    pub(crate) index: OnceLock<read::WordIndex>,
 }
 
 impl Default for ModTable {
     fn default() -> Self {
         Self {
+            index: OnceLock::new(),
+            fan: vec![],
             caps: Caps::default(),
             roles: vec![],
             fillers: vec![],
@@ -391,6 +403,13 @@ impl ModTable {
 
     fn sanitize(&mut self) {
         self.modifiers.truncate(250);
+        // a wire byte of 0 or one already taken: that modifier is dropped (the tests name it)
+        let mut seen = [false; 256];
+        self.modifiers.retain(|m| {
+            let ok = m.n != 0 && !seen[m.n as usize];
+            seen[m.n as usize] = true;
+            ok
+        });
         let norm = |s: &mut String| *s = super::norm_words(s);
         for m in &mut self.modifiers {
             m.id = m.id.trim().to_ascii_lowercase();
@@ -425,13 +444,17 @@ impl ModTable {
         }
     }
 
-    /// Modifier id (index) of `id`.
+    /// The wire byte of modifier `id` ("giant" → 1).
     pub fn id_of(&self, id: &str) -> Option<u8> {
-        self.modifiers.iter().position(|m| m.id == id).map(|k| k as u8)
+        self.modifiers.iter().find(|m| m.id == id).map(|m| m.n)
     }
 
-    pub fn get(&self, id: u8) -> Option<&ModDef> {
-        self.modifiers.get(id as usize)
+    /// The modifier a wire byte names (0 / unknown = `None`).
+    pub fn get(&self, n: u8) -> Option<&ModDef> {
+        if n == 0 {
+            return None;
+        }
+        self.modifiers.iter().find(|m| m.n == n)
     }
 
     /// The modifier standing for a count of `n` (largest `counts` key ≤ n).
@@ -490,7 +513,7 @@ pub enum TwistBase {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TwistSide {
     pub base: TwistBase,
-    /// Modifier ids ([`ModTable::shipped`] indices), phrase order.
+    /// Modifier wire bytes ([`ModDef::n`]), phrase order.
     pub mods: Vec<u8>,
 }
 
@@ -509,9 +532,8 @@ pub struct TwistStep {
 impl TwistStep {
     /// Untrusted → safe (modifier lists capped, unknown ids dropped, follow-ups reset).
     pub fn sanitized(mut self, t: &ModTable) -> Self {
-        let n = t.modifiers.len();
         let fix = |m: &mut Vec<u8>| {
-            m.retain(|id| (*id as usize) < n);
+            m.retain(|id| t.get(*id).is_some());
             m.truncate(MAX_MODS);
         };
         fix(&mut self.a.mods);

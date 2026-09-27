@@ -256,6 +256,33 @@ fn juice_events(
                     }
                 }
             }
+            // MOVIES & COMICS ops: a bolt hand → target (Afflict, Disarm) or one leg of a bouncing
+            // beam (BounceBeam: every leg its own zap, so a bank shot draws its whole path).
+            PowerEvent::Op(bd_sim::powers::ops::OpEvent::Zap { player, from, to, element, .. }) => {
+                let corps = views.player(*player).map_or([1.0, 1.0, 1.0], |v| corps_rgb(v.corps));
+                let col = crate::present::signature::element_rgb(*element, corps);
+                zap.write(ZapFx { from: bv(*from), to: bv(*to), color: col, duration: 0.22 });
+                if !calm {
+                    burst.write(BurstFx { kind: BurstKind::Flash, pos: bv(*to), dir: Vec3::ZERO, scale: 0.7, color: Some(col) });
+                }
+            }
+            // DelayedHit: the mark lands (a dark tick on them), then — seconds later — the burst.
+            PowerEvent::Op(bd_sim::powers::ops::OpEvent::Marked { player, target, burst: bursting, point, .. }) => {
+                let p = bv(*point);
+                let near = local.is_some_and(|l| l == *player || l == *target) || p.distance(cam) < 20.0;
+                if *bursting {
+                    burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 1.8, color: Some([1.0, 0.9, 0.6]) });
+                    burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::ZERO, scale: 1.3, color: Some([0.9, 0.2, 0.25]) });
+                    sfx.write(Sfx3d::at("final_blow_suck", p).pitch(0.9));
+                    if near && !calm {
+                        hitstop.write(HitStop { secs: 0.1 });
+                        shake.write(CameraShakeEvent { trauma: 0.2, dir: Vec3::ZERO });
+                    }
+                } else {
+                    burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 0.6, color: Some([0.6, 0.05, 0.1]) });
+                    sfx.write(Sfx3d::at("hit_crit", p).pitch(1.5).gain(0.5));
+                }
+            }
             _ => {}
         }
     }

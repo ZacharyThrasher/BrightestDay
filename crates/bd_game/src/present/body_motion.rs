@@ -715,10 +715,10 @@ pub mod scenario {
     fn ground_at(w: &bd_sim::World, x: f32, z: f32, near_y: f32) -> Option<bd_core::Vec3> {
         let from = bd_core::Vec3::new(x, near_y + 20.0, z);
         let hit = bd_core::voxel::raycast(&w.voxels, from, bd_core::Vec3::NEG_Y, 60.0)?;
-        ((hit.point.y - near_y).abs() < 4.0).then_some(bd_core::Vec3::new(x, hit.point.y + 0.05, z))
+        ((hit.point.y - near_y).abs() < 1.5).then_some(bd_core::Vec3::new(x, hit.point.y + 0.05, z))
     }
 
-    const SPOTS: [(u8, f32, f32); 4] = [(1, 9.0, -5.0), (2, 7.0, -1.7), (3, 7.0, 1.7), (4, 9.0, 5.0)];
+    const SPOTS: [(u8, f32, f32); 4] = [(1, 7.0, -3.4), (2, 5.5, -1.2), (3, 5.5, 1.2), (4, 7.0, 3.4)];
 
     fn place(mut sc: ResMut<BodyAnimScenario>, time: Res<Time<Real>>, mut active: ResMut<ActiveWorld>, mut look: ResMut<LookAngles>) {
         sc.t += time.delta_secs();
@@ -785,11 +785,12 @@ pub mod scenario {
         // 3: jump + gas boost, then a dodge.
         let b3 = match k {
             0 => buttons::JUMP,
-            12..=70 => buttons::BOOST,
+            14..=40 => buttons::BOOST,
             200 => buttons::DODGE,
             _ => 0,
         };
-        push(3, face + 0.3, if k == 200 { -1 } else { 0 }, if (12..=70).contains(&k) { 1 } else { 0 }, b3);
+        // Boost across the view (sideways to the camera), dodge back.
+        push(3, if k < 120 { sc.yaw + std::f32::consts::FRAC_PI_2 } else { face + 0.3 }, if k == 200 { -1 } else { 0 }, 0, b3);
         // 4: charge, then hops.
         let b4 = if k < 200 { buttons::CHARGE } else if matches!(k, 220 | 290) { buttons::JUMP } else { 0 };
         push(4, face - 0.5, 0, 0, b4);

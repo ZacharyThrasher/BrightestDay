@@ -18,21 +18,11 @@ use bd_core::mechanics::Element;
 use bd_core::voxel::{Aabb, Material, voxel_center, world_to_voxel};
 use bd_core::{IVec3, MAX_PLAYERS, VOXEL_SIZE, Vec3};
 
-use super::super::{At, MAX_RESTORE_VOXELS, PowerError, PowerEvent};
+use super::super::{At, EruptShape, MAX_RESTORE_VOXELS, PowerError, PowerEvent};
 use crate::combat::{HitInfo, HitKind};
 use crate::events::GameEvent;
 use crate::geom;
 use crate::world::World;
-
-/// The shape of an eruption (see the module docs).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum EruptShape {
-    #[default]
-    Line,
-    Wall,
-    Pillar,
-    Ring,
-}
 
 /// An eruption's numbers (`MoveOp::Erupt`).
 #[derive(Clone, Copy, Debug)]
@@ -44,8 +34,9 @@ pub(crate) struct EruptOp {
     pub element: Element,
     pub damage: f32,
     pub launch: f32,
-    pub across: bool,
+    pub shape: EruptShape,
     pub dist: f32,
+    pub at: At,
 }
 
 /// The voxel material an element's eruption is made of (`None` = the ground's own material).
@@ -80,11 +71,7 @@ const MAX_SAMPLES: usize = 160;
 
 impl World {
     pub(crate) fn op_erupt(&mut self, i: usize, op: EruptOp) -> Result<(), PowerError> {
-        let shape = if op.across { EruptShape::Wall } else { EruptShape::Line };
-        self.op_erupt_shaped(i, op, shape, At::Me)
-    }
-
-    pub(crate) fn op_erupt_shaped(&mut self, i: usize, op: EruptOp, shape: EruptShape, at: At) -> Result<(), PowerError> {
+        let (shape, at) = (op.shape, op.at);
         let id = self.players[i].id;
         let (_, look) = self.op_eye_look(i);
         let base = self.cfg.move_params.clone();

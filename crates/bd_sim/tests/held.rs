@@ -139,8 +139,10 @@ fn every_melee_form_hits_with_a_swept_swing() {
         });
         let (by, dmg) = hit.unwrap_or_else(|| panic!("{form:?} swing missed B at {dist} m"));
         assert_eq!(by, Some(cid));
-        // WEAPON FEEL: a spear that connects with its tip (the reach class sweet spot) hits harder.
-        let base = bd_sim::constructs::form_spec(form).damage;
+        // WEAPON FEEL: the class scales the swing (fists are light); a spear that connects with its
+        // tip (the reach class sweet spot) hits harder.
+        let class = bd_sim::constructs::weapon_class::class_of(&w.constructs.get(cid).unwrap().recipe).unwrap();
+        let base = bd_sim::constructs::form_spec(form).damage * w.tuning().weapons.of(class).damage;
         let tip = base * w.tuning().weapons.reach.tip_damage;
         assert!((dmg - base).abs() < 1e-3 || (form == Form::Spear && (dmg - tip).abs() < 1e-3), "{form:?} base damage {dmg}");
         assert_eq!(hits_on(&ev, B).len(), 1, "{form:?}: one hit per swing");

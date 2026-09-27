@@ -64,6 +64,7 @@ pub mod surf; // SURF: map surf lines drawn as hard light, surf wind rush
 pub mod terrain;
 pub mod tracking; // TRACKING: ring compass, beacons, reveal pulses, speed trails, lunge glow, hook ropes
 pub mod water;
+pub mod weapon_feel; // WEAPON FEEL: per-class swing sounds, trails, camera, 3P body (assets/tuning/weapons.ron `feel`)
 
 use crate::sim_bridge::{ActiveWorld, BridgeSet, SimRole};
 use crate::tick::FrameSet;
@@ -124,6 +125,7 @@ impl Plugin for PresentPlugin {
             .add_plugins(extend::ExtendPlugin) // WUKONG: telescoping poles
             .add_plugins(legend::LegendPlugin) // LEGENDARY: legendary move visuals + poses
             .add_plugins(legend_sound::LegendSoundPlugin) // LEGENDARY: move sounds + juice
+            .add_plugins(weapon_feel::WeaponFeelPlugin) // WEAPON FEEL: weapon classes sound / look / feel different
             .add_plugins((portal_view::PortalViewPlugin, portal_cross::PortalCrossPlugin)); // PORTALS: see-through + seamless crossing
         app.add_systems(Update, (perf_experiments, animated_terrain::dev_graft));
         app.add_systems(PostUpdate, shot_camera.after(crate::camera::CameraUpdateSet).after(camera3p::place_camera).before(bevy::transform::TransformSystems::Propagate));

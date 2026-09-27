@@ -31,6 +31,10 @@ pub mod ops;
 mod tests;
 pub mod chain;
 pub mod toolbox;
+/// VERB GRAMMAR: describe-a-power composed moves (docs/toolbox/COMPOSED_MOVE.md).
+pub mod compose;
+/// MODIFIERS & FUSION: twisted / fused moves ("giant rasengan", "rasengan + amaterasu").
+pub mod twist;
 
 use std::collections::VecDeque;
 
@@ -677,6 +681,10 @@ pub enum PowerEvent {
     /// TOOLBOX: a pending chain was cut short (`why`: NotEnoughWillpower = out of sparks, Dead = KO,
     /// Busy = stunned or a new command).
     ChainStopped { player: PlayerId, why: PowerError },
+    /// VERB GRAMMAR: a composed move fired ("shadow teleport behind ethan"; docs/toolbox/
+    /// COMPOSED_MOVE.md). Sent right before its `Fired { how: Composed }`; `spec.expand()` (or
+    /// `compose::interned(&spec)`) gives the `MoveDef` (ops, fx, name) to present.
+    Composed { player: PlayerId, spec: compose::ComposedMove, from: Vec3, to: Vec3, dir: Vec3, step: u8, sparks: u8 },
 }
 
 /// Client: apply a [`PowerEvent::Restored`] voxel list exactly as the host did.

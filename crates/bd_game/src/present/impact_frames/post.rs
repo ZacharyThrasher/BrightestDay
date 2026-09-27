@@ -78,4 +78,31 @@ impl FullscreenMaterial for ImpactFramePost {
 pub fn build(app: &mut App) {
     load_internal_asset!(app, IMPACT_FRAME_SHADER, "impact_frame.wgsl", Shader::from_wgsl);
     app.add_plugins(FullscreenMaterialPlugin::<ImpactFramePost>::default());
+    debug_build(app);
+}
+
+/// `BD_IF_DEBUG=1`: log what the render world has for the pass (diagnostics).
+pub fn debug_build(app: &mut App) {
+    if std::env::var_os("BD_IF_DEBUG").is_none() {
+        return;
+    }
+    use bevy::core_pipeline::fullscreen_material::FullscreenMaterialPipelineId;
+    use bevy::render::extract_component::DynamicUniformIndex;
+    use bevy::render::{Render, RenderApp, RenderSystems};
+    fn probe(
+        q: Query<(Entity, Option<&ImpactFramePost>, Option<&DynamicUniformIndex<ImpactFramePost>>, Option<&FullscreenMaterialPipelineId>, Option<&bevy::render::view::ViewTarget>)>,
+        cache: Res<bevy::render::render_resource::PipelineCache>,
+        mut n: Local<u32>,
+    ) {
+        *n += 1;
+        for (e, p, idx, pid, vt) in &q {
+            if p.is_some() && *n % 5 == 0 {
+                let state = pid.map(|id| format!("{:?}", cache.get_render_pipeline_state(id.0)));
+                info!("IF probe {e:?}: post={} idx={} pipeline={:?} target={}", p.is_some(), idx.is_some(), state, vt.is_some());
+            }
+        }
+    }
+    if let Some(r) = app.get_sub_app_mut(RenderApp) {
+        r.add_systems(Render, probe.in_set(RenderSystems::Render));
+    }
 }

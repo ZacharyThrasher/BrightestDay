@@ -399,11 +399,3 @@ fn toolbox_state_round_trips_on_the_wire() {
     }
 }
 
-#[test]
-#[ignore]
-fn debug_prices() {
-    let w = duel();
-    let m = shout("bamf");
-    let (_, mv) = m.resolve(PowerTable::get()).unwrap();
-    eprintln!("seg {} pool {} tier {:?} sparks {} will {}", w.cfg.rules.segment_size(), w.cfg.rules.pool_segments(), chain::move_tier(mv), chain::move_sparks(&w.cfg.tuning.willpower.sparks, mv, 0, w.cfg.rules.pool_segments()), willpower(&w, A));
-}

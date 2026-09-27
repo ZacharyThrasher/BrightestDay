@@ -44,6 +44,12 @@ pub fn forced_style() -> Option<&'static str> {
         .as_deref()
 }
 
+/// `BD_MOVEFX_OFF=1`: no move grammar at all (A/B frames: what the moves looked like before).
+pub fn off() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| env("BD_MOVEFX_OFF").is_some())
+}
+
 fn observer() -> bool {
     env("BD_MOVEFX_VIEW").is_some_and(|v| v == "obs")
 }
@@ -60,7 +66,7 @@ fn spec(s: &str) -> (&'static str, u8, f32, &'static [f32]) {
         "shove" => ("kryptonian", 1, -6.0, &[0.03, 0.08, 0.15, 0.28, 0.5]),
         "slam" => ("gamma", 0, -8.0, &[0.2, 0.45, 0.8, 1.05, 1.3, 1.6]),
         "rubber_pistol" | "rigid_pistol" => ("gomu_gomu", 0, -2.0, &[0.04, 0.1, 0.18, 0.3, 0.5, 0.75]),
-        "rubber_rocket" => ("gomu_gomu", 1, 12.0, &[0.04, 0.1, 0.2, 0.35, 0.55]),
+        "rubber_rocket" => ("gomu_gomu", 1, -5.0, &[0.04, 0.1, 0.2, 0.35, 0.55]),
         _ => ("teleport_bamf", 0, 0.0, &[0.05, 0.15, 0.3]),
     }
 }
@@ -143,7 +149,7 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
     let others: Vec<PlayerId> = active.world.players.iter().filter(|p| p.id != me.0 && p.alive).map(|p| p.id).collect();
     let pin_until = if spam() > 0 { 0.0 } else { dev.fired_at.map_or(f32::MAX, |f| f + 0.02) };
     for (k, id) in others.iter().enumerate() {
-        let (want, face) = if observer() && k == 0 { (origin + fwd * 9.0 - side * 5.0, side) } else { (origin + fwd * (8.0 + 3.0 * k as f32) + side * (2.0 * k as f32), -fwd) };
+        let (want, face) = if observer() && k == 0 { (origin + fwd * 9.0 - side * 5.0, side) } else { (origin + fwd * (17.0 + 3.0 * k as f32) + side * (3.0 + 2.0 * k as f32), -fwd) };
         let ground = bd_core::voxel::raycast(&active.world.voxels, want + bd_core::Vec3::Y * 12.0, bd_core::Vec3::NEG_Y, 40.0).map(|h| h.point.y);
         if let Some(p) = active.world.player_mut(*id) {
             if dev.t < pin_until {
@@ -160,6 +166,13 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
         p.willpower = p.willpower.max(100.0);
     }
     dev.actor = Some(if observer() { others.first().copied().unwrap_or(me.0) } else { me.0 });
+    if let (Some(f), Some(a)) = (dev.fired_at, dev.actor)
+        && dev.t - f < 1.0
+        && ((dev.t - f) * 4.0).floor() != ((dev.t - f - time.delta_secs()) * 4.0).floor()
+        && let Some(p) = active.world.player(a)
+    {
+        info!("movefx test: actor at {:?} (t+{:.2})", p.mv.pos, dev.t - f);
+    }
 }
 
 fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<Dev>, stats: Res<MoveFxStats>) {
@@ -175,7 +188,7 @@ fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<Dev>, stats: Res<M
         }
         active.world.player(id).map(|p| {
             let eye = p.eye(active.world.params());
-            let dir = bd_core::input::look_dir(p.input.yaw, if s == "rubber_rocket" { 0.25 } else { -0.05 });
+            let dir = bd_core::input::look_dir(p.input.yaw, if s == "rubber_rocket" { -0.12 } else { -0.05 });
             bd_sim::Aim::new(eye, dir)
         })
     };

@@ -14,13 +14,25 @@
         incantations: ["turtle power", "cowabunga"],
         // "cowabunga <anything>": it comes out shell-guarded and bouncy.
         delivery: (add: [Guard, Bounce]),
-        shouts: [("cowabunga", 0), ("shell slide", 0), ("turtle power", 1), ("heroes in a half shell", 1)],
+        shouts: [("cowabunga", 0), ("shell slide", 0), ("turtle power", 1), ("heroes in a half shell", 1),
+                 ("turtle shell spin", 2), ("shell spin turtle", 2), ("ninja vanish", 3), ("turtle vanish", 3)],
         moves: [
+            // Belly-down on the shell: slide into their shins and bowl them over (steer it).
             (name: "shell slide", cooldown: 1.6, cost: 5.0, ops: [
-                Impulse(fwd: 20.0, up: 2.0),
-                Shove(range: 3.0, angle: 50.0, damage: 10.0, knockback: 14.0),
+                Ram(speed: 20.0, secs: 0.9, damage: 10.0, knockback: 14.0, up: 0.5, pin: false, through: true, wall: 0.0,
+                    pitch: 0.0, steer: 120.0, keep: 0.6, element: Light),
             ]),
             (name: "turtle form", cooldown: 1.5, ops: [Transform]),
+            // Spin on the shell like a breakdancer: everything round you gets kicked.
+            (name: "turtle shell spin", tags: [Combo], cooldown: 3.0, cost: 4.0, ops: [
+                Barrage(hits: 6, interval: 0.1, range: 3.2, angle: 178.0, damage: 3.0, knockback: 5.0, finish: 18.0, advance: 0.0,
+                        up: 0.4, blink: false, element: Light),
+            ]),
+            // A smoke pellet: gone.
+            (name: "ninja vanish", tags: [Movement], cooldown: 3.0, cost: 3.0, ops: [
+                Explode(radius: 2.5, damage: 0.0, knockback: 3.0, element: Shadow),
+                Blink(dist: 10.0, afterimage: true),
+            ], fx: "smoke"),
         ],
         // Ninja turtle hybrid: nimble, and every cast carries the shell (Guard).
         transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), 
@@ -154,18 +166,24 @@
         names: ["viltrumite", "viltrumite powers", "viltrumite blood", "half-viltrumite", "viltrumite physiology"],
         body: (moves: (thrust: 30.0, thrust_max: 17.0, gravity: 0.8, jump: 1.2)),
         graft: Some((mechanics: [Blunt, Heavy])),
-        shouts: [("haymaker", 0), ("think mark", 0), ("viltrumite punch", 0), ("plow through", 1), ("plough through", 1),
-                 ("fly through", 1)],
+        shouts: [("haymaker", 0), ("viltrumite punch", 0), ("plow through", 1), ("plough through", 1),
+                 ("fly through", 1), ("viltrumite barrage", 2), ("viltrumite rush", 2)],
         moves: [
-            // A haymaker that sends people through buildings (§1a punch-through).
+            // A haymaker that sends people through buildings (§1a punch-through): fly along the
+            // crosshair and the fist lands where the flight ARRIVES.
             (name: "haymaker", cooldown: 1.8, cost: 6.0, ops: [
-                Impulse(fwd: 18.0, up: 2.0),
-                Shove(range: 3.4, angle: 50.0, damage: 16.0, knockback: 30.0, up: 0.3),
-            ]),
+                Ram(speed: 28.0, secs: 0.6, damage: 16.0, knockback: 30.0, up: 0.3, pin: false, through: false, wall: 0.0,
+                    pitch: 1.0, steer: 40.0, keep: 0.3, element: Light),
+            ], juice: Some((punch: 3.0, shake: 0.15, impact_frame: Some("comic")))),
             // Plough through: a flying charge that carves a tunnel through whatever's in the way.
             (name: "plow through", cooldown: 4.0, cost: 12.0, ops: [
                 Impulse(fwd: 28.0, up: 0.0),
                 Carve(length: 14.0, radius: 1.3, damage: 10.0),
+            ]),
+            // Viltrumite rush: hold them and don't stop hitting.
+            (name: "viltrumite barrage", tags: [Combo], cooldown: 2.6, cost: 6.0, ops: [
+                Barrage(hits: 8, interval: 0.08, range: 2.8, angle: 50.0, damage: 4.0, knockback: 3.0, finish: 32.0, advance: 1.5,
+                        up: 0.2, blink: false, element: Light),
             ]),
         ],
     ),
@@ -181,7 +199,8 @@
         incantations: ["omnitrix", "hero time", "it's hero time", "its hero time"],
         delivery: (add: [Piloted]),
         shouts: [("it's hero time", 0), ("its hero time", 0), ("hero time", 0), ("four arms", 0), ("heatblast", 1),
-                 ("going hero", 1)],
+                 ("going hero", 1), ("slap the omnitrix", 2), ("omnitrix malfunction", 2), ("random alien", 2),
+                 ("wrong alien", 2), ("omnitrix roulette", 2)],
         moves: [
             (name: "four arms", cooldown: 3.0, ops: [
                 Cast(recipe: (name: "four arms", form: Biped, mech: [Piloted, Grab, Blunt, Heavy], scale: 2.5, mass: 400.0)),
@@ -189,6 +208,17 @@
             (name: "heatblast", cooldown: 3.0, ops: [
                 Cast(recipe: (name: "heatblast", form: Biped, mech: [Piloted, Shoots, Breath], element: Fire, scale: 2.0, mass: 90.0)),
             ]),
+            // Slap the dial without looking: you ARE whichever alien comes up (never the one you wanted).
+            (name: "omnitrix roulette", cooldown: 4.0, ops: [
+                Roulette(picks: [
+                    [Cast(recipe: (name: "four arms", form: Biped, mech: [Piloted, Grab, Blunt, Heavy], scale: 2.5, mass: 400.0))],
+                    [Cast(recipe: (name: "heatblast", form: Biped, mech: [Piloted, Shoots, Breath], element: Fire, scale: 2.0, mass: 90.0))],
+                    [Cast(recipe: (name: "xlr8", form: Biped, mech: [Piloted, Fast, Blade], element: Wind, scale: 1.8, mass: 70.0))],
+                    [Cast(recipe: (name: "diamondhead", form: Biped, mech: [Piloted, Shoots, Pierce, Guard], element: Poison, scale: 2.2, mass: 300.0))],
+                    [Cast(recipe: (name: "cannonbolt", form: Blob, mech: [Piloted, Bounce, Charge, Heavy], scale: 2.4, mass: 500.0))],
+                    [Cast(recipe: (name: "way big", form: Kaiju, mech: [Piloted, Stomp, Beam, Heavy], element: Atomic, scale: 12.0, mass: 60000.0))],
+                ]),
+            ], juice: Some((title: Some("IT'S HERO TIME"), color: Some((0.3, 1.0, 0.3))))),
         ],
     ),
     // ================================================================ POWER RANGERS — it's morphin time
@@ -227,9 +257,13 @@
         // Tiny, fast fliers: thrust flight capped, very agile.
         body: (moves: (thrust: 28.0, thrust_max: 17.0, gravity: 0.75, speed: 1.15, air_control: 1.35)),
         graft: Some((mechanics: [Fast])),
-        shouts: [("flurry", 0), ("powerpuff punch", 0), ("eye beams", 1), ("laser eyes", 1)],
+        shouts: [("flurry", 0), ("powerpuff punch", 0), ("eye beams", 1), ("powerpuff eye beams", 1)],
         moves: [
-            (name: "flurry", cooldown: 0.5, ops: [Shove(range: 3.0, angle: 50.0, damage: 6.0, knockback: 12.0)]),
+            // A blur of tiny fists, the last one a launcher.
+            (name: "flurry", cooldown: 1.2, cost: 3.0, ops: [
+                Barrage(hits: 8, interval: 0.06, range: 2.8, angle: 50.0, damage: 2.5, knockback: 3.0, finish: 18.0, advance: 3.0,
+                        up: 0.25, blink: false, element: Light),
+            ]),
             (name: "eye beams", cooldown: 2.0, cost: 6.0, ops: [Carve(length: 18.0, radius: 0.4, damage: 8.0)]),
         ],
     ),
@@ -244,7 +278,7 @@
         // Fire-proof fabric (no capes!).
         body: (immune: [Fire], moves: (speed: 1.1, jump: 1.15)),
         graft: Some((mechanics: [Blunt])),
-        shouts: [("incredible punch", 0), ("super strength", 0), ("stretch", 1), ("elastic", 1), ("elastigirl", 1)],
+        shouts: [("incredible punch", 0), ("super strength", 0), ("elastic", 1), ("elastigirl", 1)],
         moves: [
             // Mr. Incredible's punch.
             (name: "incredible punch", cooldown: 1.8, cost: 6.0, ops: [

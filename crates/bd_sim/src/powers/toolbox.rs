@@ -463,6 +463,15 @@ const WEAK_SEPS: &[&str] = &[",", ";", "into", "and"];
 /// ("a big, flaming hammer" stays one phrase, "summon a dragon, rasengan" is two). The whole line
 /// reading as a move is never split. Returns 1 step for a plain phrase.
 pub fn split_chain(text: &str, is_move: &dyn Fn(&str) -> bool) -> Vec<String> {
+    split_chain_with(text, is_move, None)
+}
+
+/// [`split_chain`] with the lexicon's opinion (the console, the preview tool, the validator):
+/// `understood(s)` = the lexicon reads `s` as one clean thing (not improvised). Weak separators
+/// then split only when every piece is a move or understood on its own:
+/// "a big, flaming hammer" stays one hammer even though "flaming hammer" is somebody's shout;
+/// "summon a dragon, rasengan" is a dragon then a Rasengan.
+pub fn split_chain_with(text: &str, is_move: &dyn Fn(&str) -> bool, understood: Option<&dyn Fn(&str) -> bool>) -> Vec<String> {
     let text = text.trim();
     if text.is_empty() {
         return vec![];
@@ -480,7 +489,11 @@ pub fn split_chain(text: &str, is_move: &dyn Fn(&str) -> bool) -> Vec<String> {
         // one part = the line as typed (keeps its own spacing / punctuation for the lexicon)
         let part = if single { clean_step(text) } else { clean_step(&part) };
         let weak: Vec<String> = split_on(&part, WEAK_SEPS).iter().map(|w| clean_step(w)).filter(|w| !norm_words(w).is_empty()).collect();
-        if weak.len() > 1 && weak.iter().any(|w| is_move(w)) {
+        let lexicon_ok = match understood {
+            None => true,
+            Some(u) => weak.iter().all(|w| is_move(w) || u(w)),
+        };
+        if weak.len() > 1 && weak.iter().any(|w| is_move(w)) && lexicon_ok {
             out.extend(weak);
         } else {
             out.push(part);

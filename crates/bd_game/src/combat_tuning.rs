@@ -28,10 +28,31 @@ pub fn path() -> PathBuf {
     assets_dir().join("tuning").join("combat.ron")
 }
 
-/// Read, parse and validate a tuning file.
+/// WEAPON FEEL: `weapons.ron` next to a combat tuning file (its `classes` section becomes
+/// `CombatTuning::weapons`, so it rides the same host sync and hot reload).
+pub fn weapons_path_for(combat: &Path) -> PathBuf {
+    combat.with_file_name("weapons.ron")
+}
+
+/// Read, parse and validate a tuning file (+ the `weapons.ron` beside it, if any).
 pub fn load_file(path: &Path) -> Result<CombatTuning, String> {
     let src = std::fs::read_to_string(path).map_err(|e| format!("can't read {}: {e}", path.display()))?;
-    CombatTuning::from_ron(&src).map_err(|e| format!("can't parse {}: {e}", path.display()))
+    let mut t = CombatTuning::from_ron(&src).map_err(|e| format!("can't parse {}: {e}", path.display()))?;
+    merge_weapons(&mut t, &weapons_path_for(path));
+    Ok(t)
+}
+
+/// WEAPON FEEL: overlay `weapons.ron` → `classes` (missing file = built-in defaults; a parse error
+/// keeps the defaults and warns — a bad weapons file never breaks the rest of the tuning).
+fn merge_weapons(t: &mut CombatTuning, path: &Path) {
+    let Ok(src) = std::fs::read_to_string(path) else { return };
+    match bd_sim::constructs::weapon_class::WeaponTuning::from_weapons_ron(&src) {
+        Ok(w) => t.weapons = w,
+        Err(e) => {
+            warn!("weapon tuning: can't parse {}: {e}; using the built-in class numbers", path.display());
+            eprintln!("weapon tuning: can't parse {}: {e}; using the built-in class numbers", path.display());
+        }
+    }
 }
 
 /// Load `path`, or the built-in defaults (with a warning) if it is missing or invalid.
@@ -100,7 +121,11 @@ fn hot_reload(
     }
     last.0 = 0.0;
     let p = path();
-    let Ok(modified) = std::fs::metadata(&p).and_then(|m| m.modified()) else { return };
+    let Ok(mut modified) = std::fs::metadata(&p).and_then(|m| m.modified()) else { return };
+    // WEAPON FEEL: editing weapons.ron reloads too.
+    if let Ok(w) = std::fs::metadata(weapons_path_for(&p)).and_then(|m| m.modified()) {
+        modified = modified.max(w);
+    }
     match last.1 {
         None => last.1 = Some(modified),
         Some(prev) if prev != modified => {
@@ -147,7 +172,8 @@ mod tests {
         let t = load_file(&path()).expect("assets/tuning/combat.ron parses");
         assert_eq!(t.willpower.form_mult(Form::Gun), 2.6, "Gun form cost from the shipped file");
         assert_eq!(t.willpower.form_mult(Form::Staff), 2.0);
-        assert_eq!(t, CombatTuning::default(), "shipped file == Rust defaults");
+        assert_eq!(t, CombatTuning::default(), "shipped file (+ weapons.ron) == Rust defaults");
+        assert_eq!(t.weapons, bd_sim::constructs::weapon_class::WeaponTuning::default());
         // What practice / host worlds start with.
         assert_eq!(current().willpower.form_mult(Form::Gun), 2.6);
         let cfg = crate::practice::practice_config(1, 1);

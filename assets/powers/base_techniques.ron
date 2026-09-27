@@ -20,7 +20,7 @@
         body: (moves: (accel: 1.35, air_control: 1.3)),
         ascend: Some((color: Some((0.86, 0.9, 1.0)), intensity: 1.3, title: Some("ULTRA INSTINCT"), style: Calm,
                       hair_tint: Some((0.82, 0.84, 0.92)), eye_glow: Some((0.85, 0.9, 1.0)), quiet: true)),
-        shouts: [("silver dash", 0), ("kamehameha", 1), ("ultra instinct kamehameha", 1)],
+        shouts: [("silver dash", 0), ("ultra instinct kamehameha", 1), ("ui kamehameha", 1)],
         moves: [
             (name: "silver dash", cooldown: 1.2, cost: 5.0, ops: [
                 Blink(dist: 10.0, afterimage: true),
@@ -49,11 +49,13 @@
         effects: [PowerMult(damage: 1.15, speed: 1.08, knockback: 1.1), SelfDrain(willpower_per_s: 0.6)],
         ascend: Some((color: Some((1.0, 0.84, 0.22)), intensity: 1.0, title: Some("SUPER SAIYAN"),
                       hair_tint: Some((1.0, 0.86, 0.3)), eye_glow: Some((0.3, 0.9, 0.8)))),
-        shouts: [("instant transmission", 0), ("kamehameha", 1), ("super kamehameha", 1)],
+        shouts: [("instant transmission", 0), ("instant transmision", 0), ("shunkan ido", 0), ("instant teleport", 0), ("i t", 0),
+                 ("instant transmission technique", 0), ("super kamehameha", 1), ("super saiyan kamehameha", 1)],
         moves: [
-            // Short teleport along the crosshair (stops before walls): bamf.
-            (name: "instant transmission", cooldown: 2.2, cost: 6.0, ops: [Blink(dist: 18.0, afterimage: true)],
-             juice: Some((ripple: 1.5, color: Some((1.0, 0.9, 0.5))))),
+            // Two fingers to the forehead: lock onto the ki of the enemy you look at (any distance, no
+            // line of sight) and appear right behind them. Not a blink: it always ends ON them.
+            (name: "instant transmission", tags: [Movement], cooldown: 2.6, cost: 5.0, ops: [WarpTo(range: 60.0, cone: 15.0, behind: 1.6)],
+             fx: "chi", juice: Some((ripple: 1.5, color: Some((1.0, 0.9, 0.5))))),
             (name: "kamehameha", cooldown: 6.0, ops: [
                 Cast(recipe: (name: "kamehameha", form: Hands, mech: [Beam], element: Light, scale: 1.3), signature: Some(Beam)),
             ], juice: Some((title: Some("KAMEHAMEHA"), punch: 4.0, boom: true))),
@@ -89,7 +91,7 @@
         effects: [PowerMult(damage: 1.15, speed: 1.1, knockback: 1.15), SelfDrain(damage_pct_per_s: 1.0)],
         ascend: Some((color: Some((1.0, 0.16, 0.1)), intensity: 1.0, title: Some("KAIO-KEN"), stable: false,
                       skin_tint: Some((1.0, 0.55, 0.5)))),
-        shouts: [("kaioken rush", 0), ("kaioken kamehameha", 1), ("kamehameha", 1)],
+        shouts: [("kaioken rush", 0), ("kaioken attack", 0), ("kaioken kamehameha", 1), ("kaio ken kamehameha", 1)],
         moves: [
             (name: "kaioken rush", cooldown: 1.0, cost: 4.0, ops: [
                 Impulse(fwd: 22.0, up: 2.0),
@@ -140,14 +142,19 @@
         effects: [PowerMult(damage: 1.2, knockback: 1.2), ReadSlow(radius: 14.0)],
         ascend: Some((color: Some((1.0, 0.55, 0.15)), intensity: 1.1, title: Some("SAGE MODE"), style: Calm,
                       eye_glow: Some((1.0, 0.72, 0.1)), skin_tint: Some((0.95, 0.6, 0.3)))),
-        shouts: [("frog kumite", 0), ("rasengan", 1), ("sage art rasengan", 1), ("giant rasengan", 1), ("oodama rasengan", 1)],
+        shouts: [("frog kumite", 0), ("frog kata", 0), ("sage art rasengan", 1), ("senpo rasengan", 1), ("sage rasengan", 1),
+                 ("sage art giant rasengan", 1), ("sage art rasenshuriken", 2), ("senpo rasenshuriken", 2), ("sage rasenshuriken", 2)],
         moves: [
             // Nature energy extends your reach: an invisible frog-kata hit.
             (name: "frog kumite", cooldown: 0.9, cost: 3.0, ops: [Shove(range: 4.2, angle: 70.0, damage: 11.0, knockback: 15.0)],
              juice: Some((ripple: 3.0, color: Some((1.0, 0.6, 0.2))))),
-            (name: "rasengan", cooldown: 5.0, ops: [
-                Cast(recipe: (name: "rasengan", form: Ball, mech: [Blunt, Spin, Explodes], element: Wind, scale: 0.9), signature: Some(Summon)),
-            ], juice: Some((title: Some("RASENGAN"), punch: 3.0))),
+            // Sage art: the palm-held grinding sphere, bigger and heavier, driven INTO them.
+            (name: "sage art rasengan", tags: [Primary], cooldown: 4.0, cost: 7.0, ops: [
+                Drill(speed: 16.0, secs: 0.5, grind: 0.6, damage: 20.0, knockback: 36.0, element: Wind, up: 0.4),
+            ], fx: "wind", juice: Some((title: Some("SENPO: RASENGAN"), punch: 4.0, shake: 0.2, color: Some((1.0, 0.7, 0.3))))),
+            (name: "sage art rasenshuriken", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
+                Cast(recipe: (name: "rasenshuriken", form: Ball, mech: [Explodes, Spin, Blade, Fast], element: Wind, scale: 1.5), signature: Some(Summon)),
+            ], fx: "wind", juice: Some((title: Some("SENPO: RASENSHURIKEN"), boom: true, punch: 5.0, shake: 0.3))),
         ],
     ),
     (
@@ -181,16 +188,29 @@
         effects: [ReadSlow(radius: 16.0), AutoDodge(chance: 0.2, cooldown: 3.0)],
         ascend: Some((color: Some((0.92, 0.08, 0.1)), intensity: 0.6, title: Some("SHARINGAN"), style: Calm,
                       eye_glow: Some((1.0, 0.1, 0.1)), linger: false)),
-        shouts: [("fireball jutsu", 0), ("great fireball technique", 0), ("katon goukakyuu no jutsu", 0), ("fire style fireball jutsu", 0),
-                 ("chidori", 1)],
+        // G tap = copy the last move used near you; G hold = genjutsu on whoever meets your eyes; the
+        // fireball and chidori stay as shouts. The Mangekyo tier keeps the same slots (every base
+        // shout still works) and adds Tsukuyomi, Amaterasu and Susanoo.
+        fx: "blood",
+        shouts: [("copy jutsu", 0), ("sharingan copy", 0), ("copy that jutsu", 0), ("copycat jutsu", 0), ("copy your jutsu", 0), ("copy that", 0),
+                 ("genjutsu", 1), ("sharingan genjutsu", 1), ("genjutsu sharingan", 1), ("gen jutsu", 1), ("genjitsu", 1), ("illusion jutsu", 1),
+                 ("fireball jutsu", 2), ("great fireball technique", 2), ("katon goukakyuu no jutsu", 2), ("fire style fireball jutsu", 2),
+                 ("chidori", 3), ("chidory", 3), ("chidorie", 3), ("chidori jutsu", 3), ("one thousand birds", 3), ("thousand birds", 3), ("chi dori", 3)],
         moves: [
-            (name: "fireball jutsu", cooldown: 1.6, ops: [
+            // READ IT, THEN THROW IT BACK: the last move an enemy used near you, as yours.
+            (name: "copy", tags: [Counter], cooldown: 5.0, cost: 4.0, ops: [CopyLast(range: 40.0, secs: 8.0)],
+             juice: Some((title: Some("COPIED"), color: Some((0.92, 0.08, 0.1))))),
+            // Whoever meets your eyes freezes for a moment (look away and it misses).
+            (name: "genjutsu", tags: [Primary, Counter], cooldown: 7.0, cost: 5.0, ops: [
+                GazeStun(range: 22.0, cone: 40.0, secs: 0.9, status: Stun, aimed: true),
+            ], juice: Some((title: Some("GENJUTSU"), color: Some((0.92, 0.08, 0.1))))),
+            (name: "fireball jutsu", tags: [Primary], cooldown: 1.6, ops: [
                 Cast(recipe: (name: "great fireball", form: Ball, mech: [Explodes, Fast], element: Fire, scale: 1.3)),
-            ]),
-            (name: "chidori", cooldown: 3.0, cost: 6.0, ops: [
-                Impulse(fwd: 26.0, up: 1.0),
-                Shove(range: 3.0, angle: 40.0, damage: 14.0, knockback: 16.0, element: Electric),
-            ], juice: Some((title: Some("CHIDORI"), punch: 3.0, color: Some((0.55, 0.75, 1.0))))),
+            ], fx: "fire"),
+            // The lightning blade: a piercing lunge.
+            (name: "chidori", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
+                Drill(speed: 30.0, secs: 0.35, damage: 16.0, knockback: 18.0, element: Electric, up: 0.15),
+            ], fx: "lightning", juice: Some((title: Some("CHIDORI"), punch: 3.0, color: Some((0.55, 0.75, 1.0))))),
         ],
         tiers: [
             (name: "Mangekyo Sharingan", names: ["mangekyo sharingan", "mangekyou sharingan", "mangekyo", "mangekyou",
@@ -198,16 +218,31 @@
              effects: [ReadSlow(radius: 22.0), AutoDodge(chance: 0.3, cooldown: 2.4)],
              ascend: Some((color: Some((0.8, 0.05, 0.12)), intensity: 1.2, title: Some("MANGEKYO SHARINGAN"), style: Calm,
                            eye_glow: Some((1.0, 0.05, 0.1)), quiet: true)),
-             shouts: [("amaterasu", 0), ("susanoo", 1), ("susano o", 1)],
+             shouts: [("tsukuyomi", 1), ("tsukiyomi", 1), ("tsuki yomi", 1), ("tsukoyomi", 1), ("mangekyo tsukuyomi", 1),
+                      ("amaterasu", 4), ("amatarasu", 4), ("ama terasu", 4), ("amaterasu flames", 4), ("black flames", 4),
+                      ("susanoo", 5), ("susano o", 5), ("susano'o", 5), ("susanno", 5)],
              moves: [
-                 // Black flames that stick where they land.
-                 (name: "amaterasu", cooldown: 4.0, cost: 8.0, ops: [
-                     Cast(recipe: (name: "amaterasu", form: Ball, mech: [Sticky, Fast], element: Fire, scale: 0.6)),
-                 ], juice: Some((title: Some("AMATERASU"), color: Some((0.15, 0.05, 0.1))))),
-                 (name: "susanoo", cooldown: 16.0, ops: [
+                 (name: "copy", tags: [Counter], cooldown: 4.0, cost: 4.0, ops: [CopyLast(range: 45.0, secs: 10.0)],
+                  juice: Some((title: Some("COPIED"), color: Some((0.8, 0.05, 0.12))))),
+                 // Tsukuyomi: the genjutsu, deeper: only on someone who meets your eyes.
+                 (name: "tsukuyomi", tags: [Primary, Counter], cooldown: 9.0, cost: 8.0, ops: [
+                     GazeStun(range: 25.0, cone: 35.0, secs: 1.2, status: Stun, aimed: true),
+                 ], juice: Some((title: Some("TSUKUYOMI"), color: Some((0.85, 0.05, 0.1))))),
+                 (name: "fireball jutsu", tags: [Primary], cooldown: 1.4, ops: [
+                     Cast(recipe: (name: "great fireball", form: Ball, mech: [Explodes, Fast], element: Fire, scale: 1.5)),
+                 ], fx: "fire"),
+                 (name: "chidori", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
+                     Drill(speed: 32.0, secs: 0.35, damage: 18.0, knockback: 20.0, element: Electric, up: 0.15),
+                 ], fx: "lightning", juice: Some((title: Some("CHIDORI"), punch: 3.0, color: Some((0.55, 0.75, 1.0))))),
+                 // Look at them and they burn black: it sticks, it can't be put out, and it jumps to
+                 // anyone who stands close to them.
+                 (name: "amaterasu", tags: [Combo], cooldown: 8.0, cost: 8.0, ops: [
+                     Contagion(range: 34.0, cone: 6.0, status: Burn, secs: 8.0, spread: 3.0),
+                 ], fx: "shadow", juice: Some((title: Some("AMATERASU"), color: Some((0.12, 0.04, 0.08))))),
+                 (name: "susanoo", tags: [Ultimate, Defense], cooldown: 16.0, ops: [
                      Cast(recipe: (name: "susanoo", form: Biped, mech: [Guard, Blade, Heavy], element: Psychic, scale: 3.0,
                                    temperament: Protective, intensity: 0.8), signature: Some(Summon)),
-                 ], juice: Some((title: Some("SUSANOO"), boom: true, punch: 5.0))),
+                 ], fx: "psychic", juice: Some((title: Some("SUSANOO"), boom: true, punch: 5.0))),
              ]),
         ],
     ),
@@ -227,7 +262,11 @@
         shouts: [("almighty push", 0), ("shinra tensei", 0), ("shinra tense", 0), ("shinra tensai", 0),
                  ("planetary devastation", 1), ("chibaku tensei", 1), ("chibaku tense", 1), ("chibaku tensai", 1),
                  ("universal pull", 2), ("bansho tenin", 2), ("bansho ten in", 2), ("banshou tenin", 2), ("bansho ten'in", 2),
-                 ("truth seeking orbs", 3), ("truth seeking balls", 3), ("gudodama", 3)],
+                 ("truth seeking orbs", 3), ("truth seeking balls", 3), ("gudodama", 3),
+                 ("amenotejikara", 4), ("ameno tejikara", 4), ("amenotejicara", 4), ("amen no tejikara", 4), ("amenotejikara swap", 4),
+                 ("preta path", 5), ("preta path absorb", 5), ("gakido", 5),
+                 ("naraka path", 6), ("jigokudo", 6),
+                 ("asura path", 7), ("asura missiles", 7), ("asura path missiles", 7), ("asura attack", 7)],
         moves: [
             // A massive radial repel from your body: players, constructs, debris flung; a shallow
             // crater (carve 1.8 around the chest: a dish under your feet, never a pit you fall into).
@@ -250,6 +289,18 @@
                 Cast(recipe: (name: "truth seeking orbs", form: Blob, mech: [Flies, Guard, Swarm], element: Shadow, scale: 0.35, count: 6,
                               temperament: Protective, intensity: 0.8)),
             ]),
+            // Trade places with whatever you look at (no ROOM needed).
+            (name: "amenotejikara", tags: [Movement], cooldown: 2.0, cost: 4.0, ops: [Transpose(range: 30.0, cone: 8.0)],
+             fx: "void", juice: Some((title: Some("AMENOTEJIKARA"), color: Some((0.62, 0.55, 0.8))))),
+            // Preta Path: whatever is thrown at you is drunk and sent back.
+            (name: "preta path", tags: [Defense], cooldown: 8.0, cost: 5.0, ops: [Deflect(secs: 1.4, angle: 120.0)],
+             juice: Some((title: Some("PRETA PATH"), color: Some((0.7, 0.62, 0.95))))),
+            // Naraka Path: the King of Hell restores you.
+            (name: "naraka path", tags: [Defense], cooldown: 22.0, cost: 8.0, ops: [Mend(pct: 18.0)], fx: "spirit",
+             juice: Some((title: Some("NARAKA PATH")))),
+            (name: "asura path", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "asura missiles", form: Rocket, mech: [Explodes, Homing, Swarm], scale: 0.5, count: 4)),
+            ], fx: "hardlight", juice: Some((title: Some("ASURA PATH")))),
         ],
     ),
     (
@@ -261,15 +312,18 @@
         // A clone at your side (it fights with you; its hits hurt YOU like a stand's).
         companion: Some((recipe: (name: "shadow clone", form: Biped, mech: [Flies, Blunt, Fast], scale: 1.0, mass: 70.0),
                          rush_damage: 3.0, rush_knockback: 3.0)),
-        shouts: [("multi shadow clone jutsu", 0), ("tajuu kage bunshin no jutsu", 0), ("mass shadow clone", 0), ("rasengan", 1)],
+        shouts: [("multi shadow clone jutsu", 0), ("tajuu kage bunshin no jutsu", 0), ("mass shadow clone", 0), ("tajuu kage bunshin", 0),
+                 ("mass shadow clone jutsu", 0), ("multi shadow clones", 0), ("shadow clones attack", 0),
+                 ("clone rasengan", 1), ("shadow clone rasengan", 1), ("rasengan with clones", 1)],
         moves: [
             (name: "multi shadow clone jutsu", cooldown: 6.0, ops: [
                 Cast(recipe: (name: "shadow clone", form: Biped, mech: [Walks, Blunt, Charge], scale: 1.0, count: 3,
                               temperament: Aggressive, intensity: 0.7)),
             ], juice: Some((title: Some("MULTI SHADOW CLONE JUTSU"), ripple: 2.0))),
-            (name: "rasengan", cooldown: 5.0, ops: [
-                Cast(recipe: (name: "rasengan", form: Ball, mech: [Blunt, Spin, Explodes], element: Wind, scale: 0.9), signature: Some(Summon)),
-            ], juice: Some((title: Some("RASENGAN"), punch: 3.0))),
+            // A clone at your shoulder shapes it: the palm-held grinding sphere, driven in.
+            (name: "rasengan", tags: [Primary], cooldown: 3.5, cost: 6.0, ops: [
+                Drill(speed: 17.0, secs: 0.45, grind: 0.5, damage: 16.0, knockback: 30.0, element: Wind, up: 0.35),
+            ], fx: "wind", juice: Some((title: Some("RASENGAN"), punch: 3.0, color: Some((0.45, 0.72, 1.0))))),
         ],
     ),
 
@@ -420,10 +474,15 @@
         effects: [PowerMult(damage: 1.2, speed: 1.25, knockback: 1.1)],
         graft: Some((mechanics: [Blade, Fast])),
         ascend: Some((color: Some((0.75, 0.05, 0.12)), intensity: 1.6, title: Some("BANKAI"), eye_glow: Some((1.0, 0.2, 0.2)))),
-        shouts: [("getsuga tensho", 0), ("getsuga", 0), ("getsuga tenshou", 0), ("flash step", 1), ("shunpo", 1)],
+        fx: "shadow",
+        shouts: [("getsuga tensho", 0), ("getsuga", 0), ("getsuga tenshou", 0), ("getsuga tensyo", 0), ("get suga tensho", 0),
+                 ("moon fang heaven piercer", 0), ("getsuga tensho bankai", 0), ("flash step", 1), ("shunpo", 1), ("shun po", 1), ("flash steps", 1)],
         moves: [
-            // The crescent wave: a black-red slash that carves along your aim.
-            (name: "getsuga tensho", cooldown: 2.2, cost: 7.0, ops: [Carve(length: 24.0, radius: 0.9, damage: 14.0)],
+            // The crescent: a black-red wave flung off the blade. It flies, passes through everyone on
+            // its line and splits the ground behind them. Dodge it sideways.
+            (name: "getsuga tensho", tags: [Primary], cooldown: 2.2, cost: 7.0, ops: [
+                Wave(length: 36.0, speed: 34.0, width: 4.5, carve: 0.9, damage: 16.0, knockback: 24.0, element: Shadow, thin: true),
+            ],
              juice: Some((title: Some("GETSUGA TENSHO"), punch: 4.0, shake: 0.15, ripple: 3.0, at: Front, dist: 4.0,
                           color: Some((0.75, 0.05, 0.12))))),
             (name: "flash step", cooldown: 1.4, cost: 4.0, ops: [

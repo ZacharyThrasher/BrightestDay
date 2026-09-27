@@ -416,7 +416,11 @@ fn present_hits(
                 // The camera inside the blast (a shockwave from your own body — Almighty Push): the
                 // shards and flash stay small and the word stays out of your face (everyone else
                 // still gets it all).
-                let inside_blast = eye.distance(p) < r.min(4.0);
+                // (Your OWN blast is judged at your sim position too: a blink + blast lands where the
+                // camera is about to be, a frame or two before it gets there — BAMF.)
+                let own = source.is_some() && *source == local;
+                let me_now = local.and_then(|id| active.world.player(id)).map(|pl| bv(pl.mv.pos) + Vec3::Y);
+                let inside_blast = eye.distance(p) < r.min(4.0) || (own && me_now.is_some_and(|m| m.distance(p) < r.min(4.0) + 1.5));
                 let inside = if inside_blast { 0.2 } else { 1.0 };
                 burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir: Vec3::Y, scale: r * 0.6 * inside, color: None });
                 burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::Y, scale: r * 0.5 * inside, color: Some(corps_rgb(corps_of(*source))) });

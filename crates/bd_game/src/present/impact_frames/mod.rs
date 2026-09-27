@@ -140,7 +140,7 @@ impl Plugin for ImpactFramesPlugin {
             .add_message::<ZapFx>()
             .add_message::<SpawnOnomatopoeia>()
             .add_systems(Update, tuning::hot_reload)
-            .add_systems(Update, (triggers, drive).chain().in_set(PresentSet::Events))
+            .add_systems(Update, (triggers, drive).chain().in_set(PresentSet::Events).run_if(not(in_state(AppState::Loading))))
             .add_systems(Update, warm_up.run_if(in_state(AppState::Loading)))
             .add_systems(OnExit(AppState::InGame), clear);
         reactions::build(app);
@@ -451,6 +451,9 @@ fn drive(
     }
     if finished {
         st.active = None;
+    }
+    if post_value.active() && std::env::var_os("BD_IF_DEBUG").is_some() {
+        info!("IF drive {cam_e:?}: strength {:.3} zoom {:.3} center {:?} r {:.3}", post_value.b.x, post_value.b.z, post_value.a.truncate(), post_value.a.z);
     }
     match post {
         Some(mut p) => {

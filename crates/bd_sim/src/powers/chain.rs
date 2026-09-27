@@ -63,6 +63,13 @@ pub enum ToolStep {
     /// A construct (the lexicon's resolution of the step's phrase, costume summon applied).
     /// `incantation` = a held power's prefix was said; `signature` = a signature cast.
     Cast { recipe: Box<Recipe>, shape: Option<ShapeSpec>, alt_shape: Option<ShapeSpec>, incantation: bool, signature: Option<SignatureCast> },
+    /// VERB GRAMMAR: a composed move ("shadow teleport behind ethan"; docs/toolbox/COMPOSED_MOVE.md),
+    /// re-sanitized and expanded by the host as it fires.
+    Composed(super::compose::ComposedMove),
+    /// MODIFIERS & FUSION: a twisted / fused move ("giant rasengan", "rasengan + amaterasu";
+    /// powers/twist): base refs + modifier bytes, rebuilt by the host (`World::fire_twist`).
+    /// `shot > 0` = the host's own follow-up (reset to 0 on anything a client sends).
+    Twist(Box<super::twist::TwistStep>),
 }
 
 /// How a move came to fire ([`PowerEvent::Fired`]).
@@ -75,6 +82,8 @@ pub enum FireHow {
     Borrowed,
     /// "<kit> <move>".
     Kit,
+    /// VERB GRAMMAR: a described move (`PowerEvent::Composed` carries its spec).
+    Composed,
 }
 
 /// The op a move leads with (presentation picks its grammar by it).
@@ -133,12 +142,19 @@ impl Toolbox {
     }
 
     pub fn cd_of(&self, mv: MoveRef) -> Option<&BorrowCd> {
-        let k = mv.pack() + 1;
+        self.cd_of_key(mv.pack() + 1)
+    }
+
+    /// A cooldown slot by raw key (`MoveRef::pack() + 1`, or a composed move's `cd_key()`).
+    pub fn cd_of_key(&self, k: u32) -> Option<&BorrowCd> {
         self.cds.iter().find(|c| c.mv == k)
     }
 
     fn slot_for(&mut self, mv: MoveRef) -> &mut BorrowCd {
-        let k = mv.pack() + 1;
+        self.slot_for_key(mv.pack() + 1)
+    }
+
+    pub(crate) fn slot_for_key(&mut self, k: u32) -> &mut BorrowCd {
         if let Some(i) = self.cds.iter().position(|c| c.mv == k) {
             return &mut self.cds[i];
         }
@@ -186,6 +202,9 @@ pub struct ToolboxSnap {
 pub const MAX_QUEUE_VIEW: usize = 8;
 pub const QUEUE_HELD: u32 = 0x8000_0000;
 pub const QUEUE_CAST: u32 = 0xC000_0000;
+/// A composed move pending in [`ToolboxSnap::queue`] (VERB GRAMMAR). Its cooldown entry in
+/// [`ToolboxSnap::cds`] is `ComposedMove::cd_key()` (bit 31 + power bits 0xFFFF: never resolves).
+pub const QUEUE_COMPOSED: u32 = 0xA000_0000;
 
 impl ToolboxSnap {
     /// `None` when idle (nothing on the wire changes for players who never borrow).
@@ -205,6 +224,12 @@ impl ToolboxSnap {
                 ToolStep::Held(sel) => QUEUE_HELD | *sel as u32,
                 ToolStep::Move { mv, .. } => mv.pack() + 1,
                 ToolStep::Cast { .. } => QUEUE_CAST,
+                ToolStep::Composed(_) => QUEUE_COMPOSED,
+                ToolStep::Twist(t) => match &t.a.base {
+                    super::twist::TwistBase::Move { mv, .. } => mv.pack() + 1,
+                    super::twist::TwistBase::Held(sel) => QUEUE_HELD | *sel as u32,
+                    super::twist::TwistBase::Cast { .. } => QUEUE_CAST,
+                },
             };
         }
         s.pending = t.queue.len().min(255) as u8;
@@ -384,6 +409,12 @@ impl World {
         }
         let mut steps = steps;
         steps.truncate(super::toolbox::MAX_CHAIN);
+        // MODIFIERS & FUSION: follow-up shots are the host's own, never a command's
+        for s in steps.iter_mut() {
+            if let ToolStep::Twist(t) = s {
+                t.shot = 0;
+            }
+        }
         if self.players[i].power.toolbox.busy() || self.op_busy(player) {
             // The input buffer: wait for the active phase to end.
             self.players[i].power.toolbox.queue = steps;
@@ -456,6 +487,18 @@ impl World {
                 self.powers.move_aim = None;
                 r
             }
+            // VERB GRAMMAR (powers/compose/exec.rs): same aim rule; the target may re-aim it.
+            ToolStep::Composed(spec) => {
+                self.powers.move_aim = aim.map(|a| {
+                    let (o, d) = self.resolve_aim(i, &a);
+                    (i, o, d)
+                });
+                let r = self.fire_composed(i, spec);
+                self.powers.move_aim = None;
+                r
+            }
+            // MODIFIERS & FUSION (powers/twist/exec.rs): prices, cools and aims itself.
+            ToolStep::Twist(t) => self.fire_twist(i, *t, aim),
             ToolStep::Cast { recipe, shape, alt_shape, incantation, signature } => {
                 let a = aim.unwrap_or_else(|| {
                     let p = &self.players[i];
@@ -483,7 +526,7 @@ impl World {
         r
     }
 
-    fn set_active(&mut self, i: usize, secs: f32, land: bool) {
+    pub(crate) fn set_active(&mut self, i: usize, secs: f32, land: bool) {
         let grounded = self.players[i].mv.grounded;
         let tb = &mut self.players[i].power.toolbox;
         tb.active = tb.active.max(secs);

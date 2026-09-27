@@ -78,6 +78,9 @@ mod phase;
 mod rush;
 mod warp_to;
 mod wave;
+// VERB GRAMMAR (docs/toolbox/COMPOSED_MOVE.md)
+mod pass_through;
+pub mod relocate;
 pub use strain::STRAIN_MAX_PCT;
 pub use pounce::PouncePhase;
 
@@ -148,6 +151,24 @@ pub enum OpEvent {
     /// SHONEN CLASSICS ops (ops/live.rs): one beat of a Drill / MarkRecall / WarpTo / CopyLast / GazeStun /
     /// Phase / Banish / Rush / Contagion / Wave: `fx` names the beat, `from` / `to` / `secs` / `size` draw it.
     Toolbox { player: PlayerId, fx: live::ToolboxFx, from: Vec3, to: Vec3, secs: f32, size: f32 },
+    /// MODIFIERS & FUSION (powers/twist): a TWISTED / FUSED move fired (sent with its `Fired`, before
+    /// its ops' own events). `a` / `b` = the base moves (`b` = fused with; `None` for a famous cast),
+    /// `mods` = modifier wire bytes in three groups of `twist::MAX_MODS` (A's, B's, the whole's; 0 =
+    /// empty) — `twist::exec::interned(a, b, &mods)` rebuilds the twisted `MoveDef` for presentation.
+    /// `title` ("GIANT HOMING RASENGAN", "RASENGAN + AMATERASU"), `element` after swaps, `size` ×,
+    /// `copies` fanned at once × `shots` in a row, `merge` = a two-element windup (fusion).
+    Twisted {
+        player: PlayerId,
+        a: Option<super::toolbox::MoveRef>,
+        b: Option<super::toolbox::MoveRef>,
+        mods: [u8; 3 * super::twist::MAX_MODS],
+        title: String,
+        element: Element,
+        size: f32,
+        copies: u8,
+        shots: u8,
+        merge: Option<[Element; 2]>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -248,6 +269,9 @@ pub struct OpState {
     pub(crate) flurries: [Option<barrage::Flurry>; MAX_PLAYERS],
     // MODERN ANIME: tags (Resonance / Bungee Gum); expiry is a tick stamp, nothing steps them.
     pub(crate) tags: [Option<tag::Tag>; tag::MAX_TAGS],
+    /// VERB GRAMMAR: per-player composed-move memory ("him", chain `Same`, the target being fired
+    /// at right now). Nothing steps it; ticks are stamps.
+    pub(crate) compose: [crate::powers::compose::ComposeMemo; MAX_PLAYERS],
     /// Re-entrancy guard: a counter's answer can't be countered back in the same call.
     pub(crate) answering: bool,
     /// A grab's throw is being applied: stances don't stop it (a grab beats a block).
@@ -318,6 +342,8 @@ pub fn active_secs(op: &MoveOp) -> f32 {
         // SHONEN CLASSICS: the lunge (+ grind), the flurry; a wave / warp / gaze is instant.
         MoveOp::Drill { secs, grind, .. } => secs.clamp(0.05, 1.2) + grind.clamp(0.0, 0.9),
         MoveOp::Rush { hits, rate, .. } => hits.clamp(1, 40) as f32 / if rate > 0.0 { rate.clamp(2.0, 30.0) } else { 16.0 },
+        // VERB GRAMMAR: a relocation / a step through the wall is an arrival beat.
+        MoveOp::Relocate { .. } | MoveOp::PassThrough { .. } => 0.12,
         _ => 0.0,
     }
 }
@@ -383,8 +409,9 @@ impl World {
             MoveOp::Finisher { lunge, range, angle, damage, knockback, element, up, window, mult, fx } => {
                 self.op_finisher(i, finisher::FinisherOp { lunge, range, angle, damage, knockback, element, up, window, mult, fx })
             }
-            MoveOp::Erupt { length, width, height, count, element, damage, launch, across, dist } => {
-                self.op_erupt(i, erupt::EruptOp { length, width, height, count, element, damage, launch, across, dist })
+            MoveOp::Erupt { length, width, height, count, element, damage, launch, across, dist, shape, at } => {
+                let shape = if across { super::EruptShape::Wall } else { shape };
+                self.op_erupt(i, erupt::EruptOp { length, width, height, count, element, damage, launch, shape, dist, at })
             }
             MoveOp::Tag { range, cone, secs } => self.op_tag(i, range, cone, secs),
             MoveOp::TagStrike { damage, knockback, up, element, pull } => self.op_tag_strike(i, tag::TagStrikeOp { damage, knockback, up, element, pull }),
@@ -402,6 +429,9 @@ impl World {
             MoveOp::Wave { length, speed, width, carve, damage, knockback, up, element, thin } => {
                 self.op_wave(i, length, speed, width, carve, damage, knockback, up, element, thin)
             }
+            // VERB GRAMMAR
+            MoveOp::Relocate { range, cone, back, side, up, dist, me } => self.op_relocate(i, relocate::RelocateSpec { range, cone, back, side, up, dist, me }),
+            MoveOp::PassThrough { depth } => self.op_pass_through(i, depth),
             _ => return None,
         })
     }

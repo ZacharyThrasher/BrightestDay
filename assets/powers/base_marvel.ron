@@ -197,6 +197,8 @@
         id: "teleport_bamf",
         name: "Teleportation (BAMF)",
         kind: Origin,
+        // PRESENTATION: BAMF — sulphur puffs at both ends.
+        fx: "smoke",
         pickup: Some((name: "brimstone puff", form: Blob0, element: Shadow, scale: 0.45)),
         names: ["teleport bamf", "teleportation mutation", "nightcrawler's powers", "teleporting mutant",
                 "bamf powers"],

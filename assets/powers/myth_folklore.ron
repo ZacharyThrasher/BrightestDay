@@ -321,7 +321,7 @@
         name: "Artemis",
         kind: Kit,
         fx: "holy",
-        names: ["artemis", "diana", "goddess of the hunt", "artemis the huntress", "the huntress", "artimis", "artemus",
+        names: ["artemis", "goddess of the hunt", "artemis the huntress", "the huntress", "artimis", "artemus",
                 "artemis goddess of the moon", "diana the huntress"],
         shouts: [("silver arrows", 0), ("arrows of artemis", 0), ("artemis arrows", 0),
                  ("moonlight volley", 1), ("moon bow", 1), ("bow of artemis", 1), ("volley of the moon", 1),
@@ -999,10 +999,10 @@
     // mistletoe dart kills the unkillable, and his tricks are never the same twice.
     (
         id: "myth_loki",
-        name: "Loki",
+        name: "Loki the Trickster",
         kind: Kit,
         fx: "psychic",
-        names: ["loki", "the trickster god", "trickster god", "loki the trickster", "loptr", "lopt", "loki laufeyjarson", "lokee",
+        names: ["the trickster god", "trickster god", "loki the trickster", "loptr", "lopt", "loki laufeyjarson", "lokee",
                 "loki trickster", "the norse loki"],
         shouts: [("illusion doubles", 0), ("loki's illusions", 0), ("illusions of loki", 0), ("trickster doubles", 0),
                  ("shapeshift into a fly", 1), ("become a fly", 1), ("loki shapeshift", 1),
@@ -4397,7 +4397,8 @@
         fx: "paper",
         names: ["grimm's fairy tales", "grimm fairy tales", "brothers grimm", "the brothers grimm", "fairy tale", "fairy tales",
                 "once upon a time"],
-        shouts: [("breadcrumb trail", 1), ("follow the breadcrumbs", 1), ("hansel and gretel", 1),
+        shouts: [("spin straw into gold", 0), ("rumpelstiltskin", 0), ("straw into gold", 0), ("guess my name", 0),
+                 ("breadcrumb trail", 1), ("follow the breadcrumbs", 1), ("hansel and gretel", 1),
                  ("poisoned apple", 2), ("poison apple", 2), ("snow white's apple", 2), ("the poisoned apple", 2),
                  ("prick of the spindle", 3), ("sleeping beauty", 3), ("hundred year sleep", 3), ("the spindle", 3),
                  ("glass slipper", 4), ("cinderella's slipper", 4), ("midnight strikes", 4),
@@ -4405,10 +4406,10 @@
                  ("mirror mirror on the wall", 6), ("magic mirror", 6),
                  ("seven league boots", 7), ("seven-league boots", 7)],
         moves: [
-            // Rapunzel's hair: a golden rope to swing up on. -> ends where it catches, moving.
-            (name: "rapunzel", tags: [Movement], cooldown: 2.0, cost: 3.0, ops: [
-                Reel(range: 44.0, speed: 32.0),
-            ], juice: Some((color: Some((1.0, 0.85, 0.4))))),
+            // Rumpelstiltskin spins straw into gold: the aimed foe is gilded, heavy and sinking.
+            (name: "spin straw into gold", tags: [Movement], cooldown: 6.0, cost: 4.0, ops: [
+                Weigh(range: 26.0, secs: 2.2, down: 16.0),
+            ], juice: Some((title: Some("STRAW INTO GOLD"), color: Some((1.0, 0.85, 0.3))))),
             // Breadcrumbs: the way home — back to where you stood a few seconds ago.
             (name: "breadcrumb trail", tags: [Defense], cooldown: 12.0, cost: 5.0, ops: [
                 Rewind(secs: 2.5),

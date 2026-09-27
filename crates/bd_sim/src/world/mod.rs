@@ -605,6 +605,7 @@ impl World {
             let busy = p.busy();
             crate::constructs::worn::pre_move(constructs, p.id, &p.input, &mut p.mv, busy, |e| events.push(e));
             crate::constructs::legend::pre_move(constructs, &cfg.tuning.legendary, p.id, &p.input, &mut p.mv, busy, p.willpower, |e| events.push(e)); // LEGENDARY: recall flight + heavy-blade leap (predicted too)
+            crate::constructs::weapon_class::pre_move(constructs, &cfg.tuning.weapons, p.id, &p.input, &mut p.mv, busy); // WEAPON FEEL: heavy commitment (predicted too)
             let mut mods = MoveModifiers::default();
             p.status.modify_movement(&mut mods);
             mods.speed_mult *= p.size.speed_mult();
@@ -612,7 +613,7 @@ impl World {
                 mods.speed_mult *= 0.85;
             }
             constructs.movement_mods(p.id, &p.input, &p.mv, &mut mods);
-            crate::constructs::weapon_class::carry_mods(constructs, &cfg.tuning.weapons, p.id, &mut mods); // WEAPON FEEL: heavy weapons are heavy to carry (predicted too)
+            crate::constructs::weapon_class::carry_mods(constructs, &cfg.tuning.weapons, p.id, &p.input, &mut mods); // WEAPON FEEL: heavy weapons are heavy to carry (predicted too)
             p.power.modify_movement(p.mv.grounded, &mut mods); // POWERS HOOK (body, time stop, void sink)
             crate::charge::modify_movement(&cfg.tuning.charge, &p.input, p.mv.grounded, &mut mods); // CHARGE HOOK (feet planted)
             if let Some(g) = arena.gravity {

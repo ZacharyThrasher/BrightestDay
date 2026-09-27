@@ -1377,9 +1377,7 @@
         kind: Kit,
         names: ["ace", "portgas d ace", "portgas d. ace", "fire fist ace", "hiken no ace", "gol d ace", "portgas ace", "ace fire fist", "ace of the whitebeard pirates"],
         fx: "fire",
-        shouts: [("fire gun", 1), ("hidan", 1), ("fire guns", 1),
-                 ("hotarubi hidaruma", 3), ("fire fly phosphorescence", 3), ("firefly phosphorescence", 3), ("hotarubi", 3),
-                 ("flame commandment", 5), ("enjomo", 5), ("enjo mo", 5)],
+        shouts: [],
         moves: [
             // A wall of fire the shape of a fist that roars out and carries them away.
             (name: "fire fist", tags: [Primary], cooldown: 3.0, cost: 6.0, ops: [
@@ -1412,12 +1410,7 @@
         names: ["law", "trafalgar law", "trafalgar d water law", "trafalgar d. water law", "surgeon of death", "the surgeon of death", "law sama", "traffy",
                 "torao", "trafalgar"],
         fx: "hardlight",
-        shouts: [("gamma knife", 2), ("gamma knife injection", 2), ("gama knife", 2),
-                 ("counter shock", 3), ("counter-shock", 3),
-                 ("injection shot", 4),
-                 ("amputate", 5), ("amputation", 5),
-                 ("takt", 6), ("takuto", 6),
-                 ("radio knife", 7), ("radio knives", 7)],
+        shouts: [],
         moves: [
             // The blue dome: inside it you're the surgeon.
             (name: "room", tags: [Defense], cooldown: 3.0, cost: 6.0, ops: [Room(radius: 16.0, secs: 12.0)], fx: "hardlight",
@@ -1454,9 +1447,7 @@
         kind: Kit,
         names: ["whitebeard", "edward newgate", "shirohige", "white beard", "old man whitebeard", "whitebeard pirates captain", "newgate"],
         fx: "earth",
-        shouts: [("island tilt", 2), ("shima yurashi", 2), ("tilt the island", 2),
-                 ("bisento sweep", 3), ("bisento", 3), ("whitebeard bisento", 3),
-                 ("quake bubble", 4), ("gura gura bubble", 4)],
+        shouts: [("bisento sweep", 3), ("bisento", 3), ("whitebeard bisento", 3)],
         moves: [
             // Punch the AIR: it cracks like glass, and the crack races out ahead of you.
             (name: "quake punch", tags: [Primary], cooldown: 3.0, cost: 7.0, ops: [
@@ -1519,10 +1510,7 @@
         kind: Kit,
         names: ["aokiji", "kuzan", "admiral aokiji", "ao kiji", "blue pheasant"],
         fx: "ice",
-        shouts: [("ice time", 1), ("aisu taimu", 1), ("ice time capsule", 1),
-                 ("ice saber", 2), ("ice sabre", 2), ("aisu saberu", 2),
-                 ("pheasant beak", 3), ("kiji bakku", 3), ("ice pheasant", 3),
-                 ("ice block partisan", 4), ("ice ball", 5), ("ice bind", 5)],
+        shouts: [],
         moves: [
             // The ground ahead freezes solid in an instant: spikes up, everyone on it slowed.
             (name: "ice age", tags: [Ultimate], cooldown: 14.0, cost: 12.0, ops: [
@@ -1554,9 +1542,7 @@
         kind: Kit,
         names: ["akainu", "sakazuki", "admiral akainu", "fleet admiral akainu", "red dog", "aka inu"],
         fx: "fire",
-        shouts: [("hound blaze", 2), ("inugami guren", 2), ("magma hound", 2), ("magma dog", 2),
-                 ("magma pool", 3), ("lava pool", 3),
-                 ("magma fist", 4), ("absolute justice", 4)],
+        shouts: [],
         moves: [
             (name: "great eruption", tags: [Primary], cooldown: 2.0, cost: 5.0, ops: [
                 Cast(recipe: (name: "magma fist", form: Ball, mech: [Heavy, Blunt, Fast], element: Fire, scale: 1.8, mass: 200.0)),
@@ -1583,9 +1569,7 @@
         kind: Kit,
         names: ["kizaru", "borsalino", "admiral kizaru", "ki zaru", "yellow monkey"],
         fx: "holy",
-        shouts: [("light speed kick", 0), ("speed of light kick", 0), ("kick at the speed of light", 0), ("pika pika kick", 0), ("light kick", 0),
-                 ("ama no murakumo", 3), ("amano murakumo", 3), ("light sword", 3), ("sword of light", 3),
-                 ("kizaru laser", 4), ("light laser", 4)],
+        shouts: [],
         moves: [
             // A kick that arrives before you see it: homes on the enemy you look at at absurd speed.
             (name: "light speed kick", tags: [Primary, Movement], cooldown: 4.0, cost: 6.0, ops: [
@@ -1637,7 +1621,7 @@
         kind: Kit,
         names: ["blackbeard", "black beard", "marshall d teach", "marshall d. teach", "kurohige", "blackbeard pirates captain"],
         fx: "shadow",
-        shouts: [("black vortex", 2), ("kurouzu", 2), ("dark vortex", 2), ("kurouzu blackbeard", 2), ("black whirlpool", 2)],
+        shouts: [],
         moves: [
             (name: "black hole", tags: [Combo], cooldown: 8.0, cost: 10.0, ops: [Field(strength: 30.0, radius: 10.0, secs: 3.0, at: Aim)],
              fx: "void", juice: Some((title: Some("BLACK HOLE"), at: Aim, ripple: 10.0))),
@@ -1876,7 +1860,7 @@
         kind: Kit,
         names: ["katakuri", "charlotte katakuri", "katakuri mochi"],
         fx: "psychic",
-        shouts: [("mogura", 0), ("mochi mole", 0), ("zan giri mochi", 1), ("buzz cut mochi", 1), ("katakuri future sight", 2)],
+        shouts: [("katakuri future sight", 2)],
         moves: [
             // The mochi trident burrows under the ground and bursts up under them.
             (name: "mogura", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
@@ -1895,8 +1879,7 @@
         kind: Kit,
         names: ["enel", "eneru", "god enel", "god eneru", "kami enel"],
         fx: "lightning",
-        shouts: [("el thor enel", 0), ("raigo", 1), ("thunder cloud raigo", 1), ("sango", 2), ("200 million volt amaru", 3), ("amaru", 3),
-                 ("vari", 4), ("vari enel", 4)],
+        shouts: [("el thor enel", 0)],
         moves: [
             (name: "el thor", tags: [Primary], cooldown: 5.0, cost: 6.0, ops: [
                 Cast(recipe: (name: "el thor", form: Pillar, mech: [DropFromSky, Explodes, Beam], element: Electric, scale: 6.0)),
@@ -1924,7 +1907,7 @@
         kind: Kit,
         names: ["crocodile", "sir crocodile", "mr 0", "mr zero"],
         fx: "sand",
-        shouts: [("desert spada croc", 0), ("ground death", 1), ("ground seco", 1), ("desert girasole", 2), ("sables croc", 3)],
+        shouts: [("desert spada croc", 0), ("sables croc", 3)],
         moves: [
             (name: "desert spada", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [Carve(length: 20.0, radius: 1.0, damage: 12.0)], fx: "sand",
              juice: Some((title: Some("DESERT SPADA")))),

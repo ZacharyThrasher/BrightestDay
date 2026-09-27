@@ -214,11 +214,15 @@ pub struct ClassNumbers {
     pub cancel: f32,
     /// Knockback kept while winding up, charging and swinging (super armor; 1 = none).
     pub armor: f32,
-    /// Grounded horizontal speed kept when a swing starts (commitment; 1 = none).
+    /// Commitment (movement, predicted: decided from your input like every movement tech): grounded
+    /// horizontal speed kept when you press attack (1 = none) …
     pub brake: f32,
-    /// Forward push at the strike (m/s along the flat aim), only up to `step_cap` forward speed.
+    /// … a forward push when you let go (the strike carries you: m/s along the flat aim, only up to
+    /// `step_cap` forward speed) …
     pub step: f32,
     pub step_cap: f32,
+    /// … and your run speed × this while you hold attack (winding up / charging).
+    pub charge_speed: f32,
     /// While held: run speed and air-strafe acceleration multipliers.
     pub carry_speed: f32,
     pub carry_air: f32,
@@ -253,6 +257,7 @@ impl ClassNumbers {
         brake: 1.0,
         step: 0.0,
         step_cap: 0.0,
+        charge_speed: 1.0,
         carry_speed: 1.0,
         carry_air: 1.0,
         tip: 0.0,
@@ -281,6 +286,7 @@ impl ClassNumbers {
         self.brake = fin(self.brake, d.brake, 0.0, 1.0);
         self.step = fin(self.step, d.step, 0.0, 30.0);
         self.step_cap = fin(self.step_cap, d.step_cap, 0.0, 60.0);
+        self.charge_speed = fin(self.charge_speed, d.charge_speed, 0.3, 1.0);
         self.carry_speed = fin(self.carry_speed, d.carry_speed, 0.5, 1.3);
         self.carry_air = fin(self.carry_air, d.carry_air, 0.3, 1.5);
         self.tip = fin(self.tip, d.tip, 0.0, 1.0);
@@ -342,6 +348,7 @@ impl Default for WeaponTuning {
                 brake: 0.45,
                 step: 5.0,
                 step_cap: 11.0,
+                charge_speed: 0.65,
                 carry_speed: 0.88,
                 carry_air: 0.7,
                 crater: 1.3,
@@ -520,36 +527,35 @@ fn flat(v: Vec3) -> Vec3 {
     Vec3::new(v.x, 0.0, v.z).normalize_or_zero()
 }
 
-/// A swing (or a charge's coil) starts: heavy weapons brake the wielder's ground speed.
-pub(super) fn on_swing_start(c: &Construct, swing: Swing, env: &Env<'_>, out: &mut ConstructOut) {
-    if matches!(swing, Swing::Secondary | Swing::Throw) {
-        return;
-    }
-    let n = numbers(c, &env.ctx.tuning.weapons);
-    let o = &env.owner;
-    if n.brake < 1.0 && o.grounded {
-        let h = Vec3::new(o.vel.x, 0.0, o.vel.z);
-        if h.length_squared() > 1e-4 {
-            out.impulses.push((c.owner, -h * (1.0 - n.brake), 0.0));
-        }
-    }
+/// The attack-holding weapon whose class moves its wielder (held melee in the hand, not a pole).
+fn committing<'a>(store: &'a ConstructStore, owner: PlayerId) -> Option<&'a Construct> {
+    store.held_by(owner).filter(|c| c.active() && c.attached() && !super::gun::is_gun(c) && sim_class(c).is_some())
 }
 
-/// The hitbox opens: the strike carries the wielder forward (heavy momentum, shield bash).
-pub(super) fn on_active(c: &Construct, s: &HeldState, env: &Env<'_>, out: &mut ConstructOut) {
-    if matches!(s.swing, Swing::Throw) || (s.swing == Swing::Secondary && c.recipe.form != Form::Shield) {
+/// Commitment, before movement (host `step_movement` and client `predict_player` alike — decided
+/// from input edges on the predicted [`crate::movement::PlayerState`], so prediction replays it
+/// exactly): pressing attack with a heavy weapon plants your feet (ground speed × `brake`), letting
+/// go throws you into the strike (`step` forward, up to `step_cap`). Airborne: untouched (tech stays).
+pub fn pre_move(store: &ConstructStore, t: &WeaponTuning, owner: PlayerId, input: &bd_core::input::PlayerInput, st: &mut crate::movement::PlayerState, busy: bool) {
+    use bd_core::input::buttons;
+    if busy || !st.grounded || input.held(buttons::TYPING) {
         return;
     }
-    let n = numbers(c, &env.ctx.tuning.weapons);
-    if n.step <= 0.0 {
-        return;
+    let Some(c) = committing(store, owner) else { return };
+    let n = numbers(c, t);
+    let pressed = input.buttons & !st.prev_buttons & buttons::PRIMARY != 0;
+    let released = st.prev_buttons & !input.buttons & buttons::PRIMARY != 0;
+    if pressed && n.brake < 1.0 {
+        let h = Vec3::new(st.vel.x, 0.0, st.vel.z);
+        st.vel -= h * (1.0 - n.brake);
     }
-    let o = &env.owner;
-    let fwd = flat(o.look);
-    let along = o.vel.dot(fwd);
-    let dv = n.step.min((n.step_cap - along).max(0.0));
-    if dv > 0.05 {
-        out.impulses.push((c.owner, fwd * dv, 0.0));
+    if released && n.step > 0.0 {
+        let fwd = flat(input.look_dir());
+        let along = st.vel.dot(fwd);
+        let dv = n.step.min((n.step_cap - along).max(0.0));
+        if dv > 0.0 {
+            st.vel += fwd * dv;
+        }
     }
 }
 
@@ -684,9 +690,10 @@ pub fn armor(store: &ConstructStore, target: PlayerId, t: &WeaponTuning) -> f32 
     1.0
 }
 
-/// Carrying: heavy weapons slow your run and your air-strafing. Called by the host's movement step
-/// and client prediction (`World::move_mods_for`) right after the construct modifiers, so both agree.
-pub fn carry_mods(store: &ConstructStore, t: &WeaponTuning, owner: PlayerId, mods: &mut crate::movement::MoveModifiers) {
+/// Carrying: heavy weapons slow your run and your air-strafing, and holding attack (winding up /
+/// charging) slows you more. Called by the host's movement step and client prediction
+/// (`World::move_mods_for`) right after the construct modifiers, so both agree.
+pub fn carry_mods(store: &ConstructStore, t: &WeaponTuning, owner: PlayerId, input: &bd_core::input::PlayerInput, mods: &mut crate::movement::MoveModifiers) {
     let Some(c) = store.held_by(owner) else { return };
     if !c.active() || !c.attached() || c.suit {
         return;
@@ -695,6 +702,9 @@ pub fn carry_mods(store: &ConstructStore, t: &WeaponTuning, owner: PlayerId, mod
     let n = t.of(k);
     mods.speed_mult *= n.carry_speed;
     mods.air_control *= n.carry_air;
+    if input.held(bd_core::input::buttons::PRIMARY) && committing(store, owner).is_some() {
+        mods.speed_mult *= numbers(c, t).charge_speed;
+    }
 }
 
 /// Gun recoil multiplier (`gun.rs`): heavy guns shove you on the ground too.

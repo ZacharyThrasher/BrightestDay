@@ -389,6 +389,8 @@ pub fn resolve_look(fx: &MoveFx, mv: &MoveDef, power: Option<&PowerDef>, corps: 
         .and_then(|k| fx.find(k))
         .or_else(|| fx.find(&mv.fx))
         .or_else(|| power.and_then(|p| fx.find(&p.fx)))
+        // A power that delivers on a stretching arm (gomu gomu): its body is rubber.
+        .or_else(|| power.filter(|p| p.delivery.arm).and_then(|_| fx.find("rubber")))
         .or_else(|| el.and_then(|e| fx.for_element(e)))
         .unwrap_or(fx.energy);
     look_of(fx, style, mv.juice.as_ref().and_then(|j| j.color).map(lin), el, power, corps)
@@ -541,7 +543,7 @@ fn start(
     for (_, (_, t)) in poses.by_player.iter_mut() {
         *t += dt;
     }
-    let Some(active) = active else {
+    let Some(active) = active.filter(|_| !dev::off()) else {
         fired.clear();
         side.clear();
         return;
@@ -560,7 +562,12 @@ fn start(
         let hand = super::super::constructs::hand_transform(v).translation;
         let mine = Some(f.player) == local;
         let scale = if mine { tb.beats.own_scale } else { 1.0 };
-        let mut pen = Pen { fx: &mut fx, motes: tb.beats.motes * budget, scale, cam };
+        let own_fp = mine && hands.active;
+        let up = Vec3::Y * 1.0 * v.size;
+        // Where "me" is for this move's ops: the sim's before-position until a blink moves it.
+        let mut me = f.from.map_or(chest(v), |p| p + up);
+        let avoid = own_fp.then(|| f.to.map_or(chest(v), |p| p + up));
+        let mut pen = Pen { fx: &mut fx, motes: tb.beats.motes * budget, scale, cam, avoid };
         let mut first_pose = None;
         for op in &f.mv.ops {
             // TOOLBOX content ops present through the classic beat they read as (no allocation:
@@ -569,7 +576,7 @@ fn start(
             let op = alias.as_ref().unwrap_or(op);
             let kind = OpKind::of(op);
             first_pose.get_or_insert(MovePose::of(kind));
-            let mut b = Beat { op: kind, look, player: f.player, local: mine, a: chest(v), b: chest(v), dir, last: chest(v), ..default() };
+            let mut b = Beat { op: kind, look, player: f.player, local: mine, a: me, b: me, dir, last: me, ..default() };
             let s = look.speed;
             let ops = &tb.sounds;
             let st = &table.def(look.style).sound;
@@ -598,6 +605,7 @@ fn start(
                     if *afterimage || look.afterimages > 0 {
                         pen.ghost(from, v.yaw, v.size, look.main, look.glow * 0.6, tb.beats.ghost_life * 1.8 * look.linger);
                     }
+                    me = b.b;
                     if mine && hands.active {
                         pen.rush(&look, cam, cam_fwd, 1.0, 18.0);
                         fov.write(FovPunch { degrees: 4.0 });
@@ -648,6 +656,8 @@ fn start(
                     b.dur *= s;
                     shove_release(&mut pen, &look, &active, &mut debris, v.pos, hand, dir, r, half, tb.beats.shove_secs * s, b.seed ^ f.player.0 as u32, &mut sfx, ops, st);
                     b.flag = matches!(look.body, Body::Rubber | Body::Rigid) || r >= 4.0;
+                    b.acc = half;
+                    b.dur = b.dur.max(bt_shove(tb) * look.speed * 1.4);
                 }
                 MoveOp::SlamOnLand { radius, .. } => {
                     b.r = radius.clamp(1.0, 20.0);
@@ -657,7 +667,7 @@ fn start(
                     play(&mut sfx, &ops.slam_dread, chest(v), 1.0, 1.0);
                 }
                 MoveOp::Field { strength, radius, secs, at, dist } => {
-                    let p = at_point(&active, v, *at, *dist);
+                    let p = if *at == At::Me { me } else { at_point(&active, v, *at, *dist) };
                     b.a = p;
                     b.r = radius.clamp(0.5, 40.0);
                     b.dur = secs.clamp(0.3, 12.0);
@@ -692,7 +702,7 @@ fn start(
                     play(&mut sfx, &st.release, b.a, 1.0, 0.8);
                 }
                 MoveOp::Explode { radius, at, dist, .. } => {
-                    let p = at_point(&active, v, *at, *dist);
+                    let p = if *at == At::Me { me } else { at_point(&active, v, *at, *dist) };
                     b.a = p;
                     b.r = radius.clamp(0.5, 30.0);
                     b.dur = 0.3 * look.linger;
@@ -717,7 +727,7 @@ fn start(
                     play(&mut sfx, &st.release, hand, 1.0, 0.8);
                 }
                 MoveOp::TimeStop { secs, .. } => {
-                    b.a = chest(v);
+                    b.a = me;
                     b.dur = secs.clamp(0.3, 10.0);
                     pen.implode(&look, b.a, 3.0, 0.2, 1.4);
                     pen.ring(&look, b.a, Vec3::Y, 0.5, 18.0, 2.0, 0.6);
@@ -734,7 +744,8 @@ fn start(
                     play(&mut sfx, &st.release, hand, 1.0, 1.0);
                     // A limb body carries the cast: the arm stretches to the new construct.
                     let spawned = side.spawned[..side.n_spawned].iter().find(|x| x.0 == f.player).map(|x| x.1);
-                    if matches!(look.body, Body::Rubber | Body::Rigid) && spawned.is_some() {
+                    let limb_power = f.power.is_some_and(|p| p.delivery.arm);
+                    if (matches!(look.body, Body::Rubber | Body::Rigid) || limb_power) && spawned.is_some() {
                         b.op = OpKind::Arm;
                         b.construct = spawned;
                         b.dur = 1.3;
@@ -758,9 +769,9 @@ fn start(
                     b.a = v.pos;
                     b.dur = 0.35 * look.linger;
                     pen.ring(&look, v.pos + Vec3::Y * 0.1, Vec3::Y, 0.4, 5.0, 0.8, 0.35);
-                    pen.burst(&look, chest(v), 0.6, 3.0, None, 0.0, 0.45);
-                    play(&mut sfx, &ops.pulse, chest(v), 1.0, 0.8);
-                    play(&mut sfx, &st.release, chest(v), 1.0, 0.7);
+                    pen.burst(&look, me, 0.6, 3.0, None, 0.0, 0.45);
+                    play(&mut sfx, &ops.pulse, me, 1.0, 0.8);
+                    play(&mut sfx, &st.release, me, 1.0, 0.7);
                 }
             }
             if b.dur > 0.0 {
@@ -795,6 +806,10 @@ fn start(
         }
     }
     side.clear();
+}
+
+fn bt_shove(t: &table::MoveFxTable) -> f32 {
+    t.beats.shove_secs
 }
 
 fn at_point(active: &ActiveWorld, v: &crate::sim_bridge::PlayerView, at: At, dist: f32) -> Vec3 {
@@ -933,7 +948,8 @@ fn step(
         let v = views.player(b.player).filter(|v| v.alive());
         let st = &table.def(look.style).sound;
         let scale = if b.local { bt.own_scale } else { 1.0 };
-        let mut pen = Pen { fx: &mut fx, motes: bt.motes * budget, scale, cam };
+        let avoid = (b.local && hands.active).then(|| v.map_or(cam, chest));
+        let mut pen = Pen { fx: &mut fx, motes: bt.motes * budget, scale, cam, avoid };
         let u = if b.dur > 0.0 { (b.t / b.dur).clamp(0.0, 1.0) } else { 1.0 };
         // Root of a limb: your first-person fist, else the body's shoulder.
         let root = |v: &crate::sim_bridge::PlayerView| if b.local && hands.active { hands.world[1] } else { shoulder(v) };
@@ -960,7 +976,8 @@ fn step(
                         for o in [side * 0.3, -side * 0.3, Vec3::Y * -0.75] {
                             let o = o * v.size;
                             let col = if look.body == Body::Streak { look.core } else { look.main };
-                            pen.beam(b.last + o, c + o, 0.07 * look.size * (0.4 + 0.6 * fade), col, look.glow * (0.6 + fade), 0.22 * look.linger);
+                            let thick = if b.local { 0.07 } else { 0.12 };
+                            pen.beam(b.last + o, c + o, thick * look.size * (0.4 + 0.6 * fade), col, look.glow * (0.6 + fade), 0.22 * look.linger);
                         }
                         if look.body == Body::Streak || look.body == Body::Bolt {
                             zig(pen.fx, b.last, c, 4, 0.25 + look.jitter, b.seed.wrapping_add((b.t * 60.0) as u32), 0.025, look.main, look.glow * 1.5 * fade);
@@ -1036,8 +1053,26 @@ fn step(
                 continue;
             }
             OpKind::Shove => {
+                // The cone itself, for a beat: its edges and the wave front racing out.
+                let cone_t = bt.shove_secs * look.speed * 1.4;
+                if b.t < cone_t {
+                    let k = ease_out(b.t / cone_t);
+                    let fade = 1.0 - b.t / cone_t;
+                    let reach = b.r.min(14.0) * k;
+                    let front = b.a + b.dir * reach;
+                    let rr = (reach * b.acc.tan()).clamp(0.1, 12.0);
+                    let (u1, v1) = basis(b.dir);
+                    circle(pen.fx, front, b.dir, rr, 20, 0.05, draw::mix3(look.core, look.main, 0.4), look.glow * 1.3 * fade, b.t * 3.0);
+                    for e in 0..6 {
+                        let a = e as f32 / 6.0 * std::f32::consts::TAU + 0.3;
+                        let edge = front + (u1 * a.cos() + v1 * a.sin()) * rr;
+                        pen.fx.immediate_segment(b.a.lerp(edge, 0.25), edge, 0.025, look.main, look.glow * fade, bd_fx::PFlags::PLAIN);
+                    }
+                }
                 if !b.flag {
-                    b.live = false;
+                    if b.t >= cone_t {
+                        b.live = false;
+                    }
                     continue;
                 }
                 let Some(v) = v else {
@@ -1273,7 +1308,7 @@ fn limb(pen: &mut Pen, look: &Look, from: Vec3, tip: Vec3, t: f32, phase: u8, si
                 0 => (t * 9.0).min(1.0),
                 _ => 1.0,
             };
-            rigid_pole(pen.fx, from, tip, thick * 0.8, ext, look.dark, look.main, look.glow);
+            rigid_pole(pen.fx, from, tip, thick * 1.05, ext, look.dark, look.main, look.glow);
         }
         Body::Bolt | Body::Streak => {
             zig(pen.fx, from, tip, 10, 0.12 + look.jitter * 0.5, seed.wrapping_add((t * 40.0) as u32), 0.05, look.core, look.glow * 2.0);

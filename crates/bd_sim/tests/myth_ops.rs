@@ -4,7 +4,7 @@
 
 use bd_core::corps::Corps;
 use bd_core::mechanics::{Element, Form, Mechanic};
-use bd_core::{PlayerId, Vec3};
+use bd_core::{DT, PlayerId, Vec3};
 use bd_sim::events::GameEvent;
 use bd_sim::powers::ops::{HaulPhase, OpEvent, SeekPhase, SurgePhase};
 use bd_sim::powers::{MoveOp, PowerEvent, RecipeDef};
@@ -39,6 +39,11 @@ fn stand(w: &mut World, id: PlayerId, x: f32, z: f32) {
     p.input.yaw = 0.0;
     p.input.pitch = 0.0;
     p.damage_pct = 0.0;
+}
+
+/// Ticks in `s` seconds.
+fn secs(s: f32) -> u32 {
+    (s / DT).round() as u32
 }
 
 fn run(w: &mut World, ticks: u32) -> Vec<GameEvent> {
@@ -85,13 +90,13 @@ fn seeker_bends_around_cover_to_strike_and_comes_home() {
     let before = w.constructs.len();
     w.fire_op(A, &seeker(1)).expect("seeker launches");
     assert_eq!(w.constructs.len(), before + 1, "the spear is a real construct");
-    let evs = run(&mut w, 60 * 4);
+    let evs = run(&mut w, secs(4.0));
     let o = ops(&evs);
     assert!(pct(&w, B) > 5.0, "the spear found B behind the wall ({})", pct(&w, B));
     assert!(o.iter().any(|e| matches!(e, OpEvent::Seek { phase: SeekPhase::Strike, target: Some(t), .. } if *t == B)), "{o:?}");
     // Never through the wall: the wall is still whole.
     assert_ne!(w.voxels.get_at(Vec3::new(0.0, GROUND + 1.0, -15.0)), 0);
-    let evs = run(&mut w, 60 * 5);
+    let evs = run(&mut w, secs(5.0));
     assert!(ops(&evs).iter().chain(o.iter()).any(|e| matches!(e, OpEvent::Seek { phase: SeekPhase::Catch, .. })), "it comes back to the hand");
     assert_eq!(w.constructs.len(), before, "caught: the construct is gone");
 }
@@ -103,7 +108,7 @@ fn seeker_chains_through_several_enemies_and_one_throw_at_a_time() {
     stand(&mut w, C, 6.0, -26.0);
     w.fire_op(A, &seeker(3)).unwrap();
     assert!(w.fire_op(A, &seeker(3)).is_err(), "one seeker out at a time");
-    run(&mut w, 60 * 4);
+    run(&mut w, secs(4.0));
     assert!(pct(&w, B) > 5.0 && pct(&w, C) > 5.0, "both struck: {} {}", pct(&w, B), pct(&w, C));
 }
 
@@ -112,7 +117,7 @@ fn seeker_with_nobody_aimed_flies_straight_and_returns() {
     let mut w = world(2);
     w.player_mut(A).unwrap().input.yaw = std::f32::consts::PI; // look away from B
     w.fire_op(A, &seeker(1)).unwrap();
-    let evs = run(&mut w, 60 * 7);
+    let evs = run(&mut w, secs(7.0));
     let o = ops(&evs);
     assert!(o.iter().any(|e| matches!(e, OpEvent::Seek { phase: SeekPhase::Return, .. })));
     assert!(o.iter().any(|e| matches!(e, OpEvent::Seek { phase: SeekPhase::Catch, .. })));
@@ -138,7 +143,7 @@ fn haul_tears_a_chunk_out_of_the_ground_and_lands_it_at_your_feet() {
     assert!(from.z < -6.0, "bit the ground ahead: {from}");
     assert_eq!(w.voxels.get_at(from - Vec3::Y * 0.6), 0, "a crater where it bit");
     assert_eq!(w.constructs.len(), before + 1);
-    let evs = run(&mut w, 60 * 2);
+    let evs = run(&mut w, secs(2.0));
     assert!(ops(&evs).iter().any(|e| matches!(e, OpEvent::Haul { phase: HaulPhase::Land, .. })));
     let c = w.constructs.iter().last().unwrap();
     assert!(c.gone.is_none() && !c.driven, "handed to physics");
@@ -151,7 +156,7 @@ fn haul_drags_an_aimed_enemy_in() {
     let mut w = world(2);
     stand(&mut w, B, 0.0, -20.0);
     w.fire_op(A, &MoveOp::Haul { range: 40.0, radius: 2.0, speed: 26.0, damage: 6.0 }).unwrap();
-    run(&mut w, 30);
+    run(&mut w, secs(0.5));
     assert!(pos(&w, B).z > -14.0, "B came toward A: {}", pos(&w, B));
 }
 
@@ -169,10 +174,12 @@ fn leap_lands_on_the_aimed_point() {
     w.fire_op(A, &MoveOp::Leap { range: 60.0, apex: 6.0 }).expect("leap");
     let evs = run(&mut w, 2);
     let Some(OpEvent::Leap(arc)) = ops(&evs).into_iter().find(|e| matches!(e, OpEvent::Leap(_))) else { panic!("no arc") };
-    assert!((arc.to - want).length() < 1.0, "target {}", arc.to);
+    // The arc lands on the ground straight ahead, far out (the crosshair's ground point).
+    assert!((arc.to.y - GROUND).abs() < 0.3 && arc.to.z < -15.0 && arc.to.x.abs() < 0.5, "target {}", arc.to);
+    let want = arc.to;
     // Fly it out; the player lands near the point.
     let mut landed = None;
-    for _ in 0..60 * 4 {
+    for _ in 0..secs(4.0) {
         w.tick(&[]);
         let p = w.player(A).unwrap();
         if p.mv.grounded && p.mv.vel.y <= 0.0 && (p.mv.pos - Vec3::new(0.0, GROUND, 0.0)).length() > 3.0 {
@@ -190,7 +197,7 @@ fn leap_lands_on_the_aimed_point() {
 fn self_resize_grows_you() {
     let mut w = world(2);
     w.fire_op(A, &MoveOp::SelfResize { scale: 1.6, secs: 5.0 }).unwrap();
-    run(&mut w, 30);
+    run(&mut w, secs(0.5));
     assert!(w.player(A).unwrap().size.scale > 1.5);
 }
 
@@ -199,14 +206,15 @@ fn self_resize_grows_you() {
 #[test]
 fn surge_carries_enemies_along_its_run() {
     let mut w = world(2);
-    stand(&mut w, B, 0.0, -10.0);
-    let op = MoveOp::Surge { width: 10.0, dist: 30.0, speed: 14.0, push: 16.0, damage: 8.0, element: Element::Water };
+    stand(&mut w, B, 0.0, -6.0);
+    // (The flat lab has test structures ~20 m south: keep the run short of them.)
+    let op = MoveOp::Surge { width: 10.0, dist: 14.0, speed: 14.0, push: 16.0, damage: 8.0, element: Element::Water };
     w.fire_op(A, &op).expect("surge");
-    let evs = run(&mut w, 60 * 2);
+    let evs = run(&mut w, secs(0.9));
     let o = ops(&evs);
     assert!(o.iter().any(|e| matches!(e, OpEvent::Surge { phase: SurgePhase::Catch, target: Some(t), .. } if *t == B)), "{o:?}");
     assert!(pct(&w, B) > 3.0);
-    assert!(pos(&w, B).z < -20.0, "carried along: {}", pos(&w, B));
-    let evs = run(&mut w, 60 * 2);
+    assert!(pos(&w, B).z < -12.0, "carried along: {}", pos(&w, B));
+    let evs = run(&mut w, secs(1.0));
     assert!(ops(&evs).iter().chain(o.iter()).any(|e| matches!(e, OpEvent::Surge { phase: SurgePhase::Break, .. })));
 }

@@ -17,7 +17,12 @@
 //! match rules), the signature amplifier (`signature::amplify`, mid shout power), cast cost
 //! (`assets/tuning/combat.ron`), the DANGER alert (`signature::spectacle`) and the power-ups gates
 //! (`pickups`) and the presence tier (`bd_sim::presence_tier`, knobs from `assets/tuning/presence.ron`).
-//! Power moves / incantations are shown for "if you held that power".
+//! Power moves / incantations are shown for "if you held that power". TOOLBOX lines (a kit move —
+//! "reinhardt charge" —, a borrowed shout of any power, or a CHAIN "a -> b", "x then y", "a, b")
+//! print each step's reading (`bd_sim::powers::toolbox`, the same function the console uses), the
+//! move's presence tier + sparks (`powers::chain::move_sparks`) and its active phase; construct
+//! steps of a chain are previewed like single phrases. Costs are SPARKS by presence tier
+//! (`presence_tier::cast_tier` + `willpower::cast_sparks`, the sim's own price).
 //!
 //! The picture: the construct built like the client builds it (curated icon shape, costume summon or
 //! procedural model), 3/4 view, painted costume colours for character summons and corps green
@@ -33,7 +38,7 @@ use bd_shapes::costume;
 use bd_sim::MatchRules;
 use bd_sim::freedom::deliver;
 use bd_sim::pickups::{self, GateKind};
-use bd_sim::presence_tier::{self, Tier, TierInput, TierKnobs};
+use bd_sim::presence_tier::{self, Tier, TierKnobs};
 use bd_sim::signature::{self as sig, SignatureCast};
 use bd_sim::tuning::CombatTuning;
 
@@ -216,6 +221,8 @@ struct Reading {
     recipe: Recipe,
     shape: Option<ShapeSpec>,
     cost: f32,
+    /// SPARKS price (`willpower::cast_sparks` at `presence_tier::cast_tier`, no repeats).
+    sparks: u32,
     danger: bool,
     /// Presence tier (how much gravitas the client gives it).
     tier: Tier,
@@ -279,12 +286,72 @@ impl Tool {
         }
         let spec = sig::spectacle(&r, cost, 0.0, &t.signature);
         let danger = res.stand_rush.is_none() && !modifier && spec.is_some();
-        // PRESENCE TIER (bd_game present/presence, same inputs; no legendary roll in a preview)
-        let top = spec.is_some_and(|s| s.kind == sig::SignatureKind::Domain || sig::is_orbital(&r) || cost >= self.tier_knobs.signature_cost);
-        let tier = presence_tier::tier(&TierInput::of(&r, cost, false, spec.is_some() && !top, top), &self.tier_knobs);
+        // PRESENCE TIER + SPARKS: the sim's own model (`World::cast_price`): the tier of the cast's
+        // presence weight (its plain cost × the orbital / signature multipliers) prices it.
+        let mut weight = t.willpower.base_cost_unadjusted(&r);
+        if sig::is_orbital(&r) {
+            weight = (weight * t.signature.orbital.cost_mult).min(pool);
+        }
+        if signature.is_some() {
+            weight = sig::signature_cost(weight, &t.signature, pool);
+        }
+        let tier = presence_tier::cast_tier(&r, weight, false, signature.is_some(), &self.tier_knobs);
+        let famous = bd_sim::constructs::legend::famous(&r);
+        let sparks = bd_sim::willpower::cast_sparks(&t.willpower.sparks, tier.index(), &r, famous, t.willpower.is_autonomous(&r), 0, self.rules.pool_segments(), 1.0);
+        let cost = sparks as f32 * self.rules.segment_size();
         let gates = self.gates(&r, signature, res.recipe.grants.as_deref());
         let powers = self.powers(&phrase, res);
-        Reading { phrase, repeated, costume, bare, recipe: r, shape, cost, danger, tier, gates, powers, it }
+        Reading { phrase, repeated, costume, bare, recipe: r, shape, cost, sparks, danger, tier, gates, powers, it }
+    }
+
+    /// TOOLBOX: a kit move, a borrowed shout or a chain → (per step: its phrase and, for a move, a
+    /// description). `None` = not a toolbox line (a plain phrase / a grant / an incantation).
+    fn toolbox(&self, text: &str) -> Option<Vec<(String, Option<String>)>> {
+        use bd_sim::powers::toolbox::{split_chain_with, MoveIndex, Reading as R};
+        let t = bd_sim::powers::PowerTable::get();
+        let ix = MoveIndex::shipped();
+        // the console's grant filter: a phrase the lexicon resolves to a grant never borrows
+        let read = |s: &str| match ix.read(t, None, s) {
+            R::Borrow(_) if self.lex.resolve(s).recipe.grants.is_some() => R::Plain,
+            r => r,
+        };
+        let understood = |s: &str| !Lexicon::is_fallback(&self.lex.resolve(s));
+        let parts = split_chain_with(text, &|s| read(s).is_move(), Some(&understood));
+        if parts.len() == 1 && !read(&parts[0]).is_move() {
+            return None;
+        }
+        let sparks = &self.tuning.willpower.sparks;
+        let bar = self.rules.pool_segments();
+        Some(
+            parts
+                .into_iter()
+                .map(|p| {
+                    let d = match read(&p) {
+                        R::Kit(m) | R::Borrow(m) => m.resolve(t).map(|(def, mv)| {
+                            let how = if def.kind.is_kit() { format!("KIT move of {}", def.name) } else { format!("BORROWED from {} (you don't hold it: a one-shot, never the power)", def.name) };
+                            let tier = if m.tier > 0 { def.tier(m.tier).map(|td| format!(" [{}]", td.name)).unwrap_or_default() } else { String::new() };
+                            let price = match bd_sim::powers::chain::move_tier(mv) {
+                                Some(tr) => format!("{tr:?} tier, {} spark(s) (+1 per repeat inside the staleness window)", bd_sim::powers::chain::move_sparks(sparks, mv, 0, bar)),
+                                None => "priced by its cast(s)".into(),
+                            };
+                            let (secs, land) = bd_sim::powers::chain::active_phase(mv);
+                            let tags = if mv.tags.is_empty() { String::new() } else { format!(" tags {:?}", mv.tags) };
+                            format!(
+                                "{how}{tier}: \"{}\"{tags} - {} - active {:.2} s{} - ops {}",
+                                mv.name,
+                                price,
+                                secs,
+                                if land { " (until you land)" } else { "" },
+                                mv.ops.iter().map(|o| format!("{:?}", bd_sim::powers::chain::op_kind(o))).collect::<Vec<_>>().join(" + ")
+                            )
+                        }),
+                        R::Held(_) => Some("a move of a power you hold (held priority)".into()),
+                        R::Plain => None,
+                    };
+                    (p, d)
+                })
+                .collect(),
+        )
     }
 
     /// POWER-UPS mode (`MatchRules::powerups`): which pickup this needs, and what happens without it.
@@ -357,6 +424,26 @@ impl Tool {
     }
 
     fn preview(&mut self, text: &str) {
+        // TOOLBOX: kit / borrowed moves and chains print their steps; construct steps preview below.
+        if let Some(steps) = self.toolbox(text) {
+            let chain = steps.len() > 1;
+            println!("  {:<11} {}", if chain { "CHAIN" } else { "TOOLBOX" }, if chain { format!("{} steps, each fires when the previous move's active phase ends, re-aimed at the crosshair, paid as it fires", steps.len()) } else { text.to_string() });
+            let mut casts = Vec::new();
+            for (k, (p, d)) in steps.iter().enumerate() {
+                match d {
+                    Some(d) => println!("  {:<11} {}. \"{p}\" → {d}", "", k + 1),
+                    None => {
+                        println!("  {:<11} {}. \"{p}\" → a construct (previewed below)", "", k + 1);
+                        casts.push(p.clone());
+                    }
+                }
+            }
+            println!();
+            for c in casts {
+                self.preview(&c);
+            }
+            return;
+        }
         let rd = self.read(text);
         report(&rd, self.spoken);
         match self.picture(&rd) {
@@ -437,7 +524,7 @@ impl Tool {
         if !rd.gates.is_empty() {
             line(&mut c, &format!("POWER-UPS MODE: NEEDS {}", rd.gates.iter().map(|g| g.split(" pickup").next().unwrap_or("")).collect::<Vec<_>>().join(" + ")), [200, 160, 255]);
         }
-        line(&mut c, &format!("CONFIDENCE {:.0}%  COST {:.0}  TIER {:?}", res.confidence * 100.0, rd.cost, rd.tier).to_uppercase(), [130, 140, 155]);
+        line(&mut c, &format!("CONFIDENCE {:.0}%  COST {} SPARKS  TIER {:?}", res.confidence * 100.0, rd.sparks, rd.tier).to_uppercase(), [130, 140, 155]);
         let mut paths = vec![self.root.join("target").join("phrase_preview").join("last.png")];
         if let Some(dir) = &self.out_dir {
             paths.push(dir.join(format!("{}.png", slug(&rd.phrase))));
@@ -766,7 +853,7 @@ fn report(rd: &Reading, spoken: bool) {
     for (i, p) in rd.powers.iter().enumerate() {
         println!("  {:<11} {p}", if i == 0 { "POWERS" } else { "" });
     }
-    println!("  {:<11} {:.0} willpower", "COST", rd.cost);
+    println!("  {:<11} {} spark{} ({:?} tier; {:.0} willpower)", "COST", rd.sparks, if rd.sparks == 1 { "" } else { "s" }, rd.tier, rd.cost);
     let fallback = Lexicon::is_fallback(res);
     println!(
         "  {:<11} {:.2} ({}){}",
