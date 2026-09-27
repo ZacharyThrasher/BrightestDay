@@ -629,10 +629,12 @@ fn spawn_compass(mut commands: Commands, tuning: Res<TrackingTuningRes>, old: Qu
                         top: px(mid),
                         width: px(0.0),
                         height: px(0.0),
+                        border: UiRect::all(px(1.0)),
                         border_radius: BorderRadius::all(percent(50)),
                         ..default()
                     },
                     BackgroundColor(Color::NONE),
+                    BorderColor::all(Color::NONE),
                 ));
             }
         });
@@ -660,7 +662,8 @@ fn compass_strip(
     mut state: ResMut<TrackingState>,
     mut root: Query<&mut Visibility, With<CompassRoot>>,
     mut lines: Query<&mut BackgroundColor, (With<CompassLine>, Without<CompassPip>)>,
-    mut pips: Query<(&mut Node, &mut BackgroundColor), (With<CompassPip>, Without<CompassLine>)>,
+    mut pips: Query<(&mut Node, &mut BackgroundColor, &mut BorderColor), (With<CompassPip>, Without<CompassLine>)>,
+    readable: Option<Res<crate::readability::Readability>>,
 ) {
     let _prof = Prof::start(); // BD_TRACKING_PROF=1: CPU time of the tracking systems
     let t = &tuning.0;
@@ -688,9 +691,10 @@ fn compass_strip(
     let focus =
         |id: PlayerId| [state.attacker, state.target].iter().flatten().any(|(p, at)| *p == id && now - at <= t.compass_attacker_secs);
     let mut enemies = views.players.iter().filter(|v| !v.is_local && v.alive());
-    for (mut node, mut color) in &mut pips {
+    for (mut node, mut color, mut border) in &mut pips {
         let Some(v) = enemies.next() else {
             color.0 = Color::NONE;
+            *border = BorderColor::all(Color::NONE);
             continue;
         };
         let to = v.pos - me.pos;
@@ -709,8 +713,15 @@ fn compass_strip(
             (t.pip_min_px + (t.pip_max_px - t.pip_min_px) * k + if f { t.pip_focus_px } else { 0.0 }) * (1.0 + t.pip_pulse_scale * pulse);
         let alpha =
             (t.pip_alpha_min + (t.pip_alpha_max - t.pip_alpha_min) * k + if f { t.pip_focus_alpha } else { 0.0 } + 0.2 * pulse).min(1.0);
+        // READABILITY: the pip is filled with their damage heat (the Smash ramp, same as their
+        // outline band) and ringed in their corps colour: pick a target without turning.
         let c = super::corps_rgb(v.corps);
-        color.0 = Color::linear_rgba(c[0], c[1], c[2], alpha * fade);
+        let fill = readable.as_ref().map_or(c, |r| crate::readability::heat_rgb(&r.0.heat, v.damage_pct));
+        color.0 = Color::linear_rgba(fill[0], fill[1], fill[2], alpha * fade);
+        let ring = Color::linear_rgba(c[0], c[1], c[2], (alpha * 1.1).min(1.0) * fade);
+        if *border != BorderColor::all(ring) {
+            *border = BorderColor::all(ring);
+        }
         let want = (percent(x), px(size), px(-size * 0.5));
         if node.left != want.0 || node.width != want.1 {
             node.left = want.0;

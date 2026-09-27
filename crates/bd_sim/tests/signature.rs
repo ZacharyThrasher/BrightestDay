@@ -61,20 +61,19 @@ fn cast_sig(w: &mut World, who: PlayerId, r: Recipe, kind: SignatureKind, power:
 }
 
 #[test]
-fn domain_erupts_traps_an_enemy_and_can_be_broken() {
+fn domain_erupts_around_the_caster_and_can_be_broken() {
     let mut w = duel();
     let t = SignatureTuning::default();
     w.player_mut(A).unwrap().willpower = 100.0;
     let fire = recipe("coffin of the iron mountain", Form::Dome, &[Mechanic::Barrier], Element::Fire, 4.0);
     let (id, rec, forming, cost) = cast_sig(&mut w, A, fire, SignatureKind::Domain, 0.5);
-    // Existing mechanics only, at domain scale, with a readable windup.
+    // Existing mechanics only, at domain scale, with the expansion as its windup (tests/domain.rs has
+    // the barrier, pulses, clash, burnout).
     assert_eq!(rec.form, Form::Dome);
     assert_eq!(rec.element, Element::Fire);
-    for m in [Mechanic::Barrier, Mechanic::Trap] {
-        assert!(rec.has(m), "{m:?}");
-    }
+    assert!(rec.has(Mechanic::Barrier) && !rec.has(Mechanic::Trap), "{:?}", rec.mechanics);
     assert!((rec.scale - (t.domain_radius + 0.5 * t.domain_radius_shout)).abs() < 1e-3, "radius {}", rec.scale);
-    assert!(forming >= t.windup - 1e-4, "windup {forming}");
+    assert!(forming >= t.domain.expand_secs - 1e-4, "expansion {forming}");
     // Most of the bar: the existing cost × cost_mult (never more than the bar).
     assert!(cost >= 50.0 - 1e-3 && cost <= 100.0, "cost {cost}");
     let wp = w.player(A).unwrap().willpower;
@@ -84,21 +83,11 @@ fn domain_erupts_traps_an_enemy_and_can_be_broken() {
         w.tick(&[]);
     }
     assert!(!w.constructs.get(id).unwrap().active(), "still forming");
-    let b0 = w.player(B).unwrap().mv.pos;
-    let mut lifted = false;
     for _ in 0..((forming * 0.5 + 1.2) / DT) as usize {
         w.tick(&[]);
-        let b = w.player(B).unwrap().mv.pos;
-        lifted |= b.y > b0.y + 1.0;
     }
     assert!(w.constructs.get(id).unwrap().active());
-    // Trap snapped shut on B (inside the radius): yanked off their feet toward the caster.
     let a = w.player(A).unwrap().mv.pos;
-    let b = w.player(B).unwrap().mv.pos;
-    assert!(lifted, "B was trapped and lifted (b0={b0:?} b={b:?})");
-    let d0 = Vec3::new(b0.x - a.x, 0.0, b0.z - a.z).length();
-    let d1 = Vec3::new(b.x - a.x, 0.0, b.z - a.z).length();
-    assert!(d1 < d0 - 2.0, "pulled in: {d0:.1} -> {d1:.1}");
     // The dome stays wrapped around its caster.
     let c = w.constructs.get(id).unwrap();
     assert!(Vec3::new(c.pos.x - a.x, 0.0, c.pos.z - a.z).length() < 1.0, "dome at {:?}, caster at {a:?}", c.pos);

@@ -428,4 +428,28 @@ pub enum HeldFx {
     ChainPull = 45,
     /// Super armor soaked a hit on its wielder at `pos` (`strength` = knockback kept fraction).
     Armor = 46,
+    // ---- LEGENDARY guns (`constructs/legend.rs` gun specials, `world/legend.rs`) ----
+    /// Precision one-shot (a curated gun with nothing but Shoots: the golden gun) fired from `pos` along
+    /// `dir`: one huge round, then a long reload (the round's tracer is the usual `ShotTrace`).
+    OneShot = 47,
+    /// A homing needle stuck into a victim at `pos` (`dir` = its flight, `strength` = needles in them now).
+    NeedleStick = 48,
+    /// Enough needles: supercombine burst at `pos` (`strength` = radius).
+    Supercombine = 49,
+    /// Gravity gun caught something at `pos` (`strength` 1 = a player, 2 = a construct): held at the
+    /// muzzle until punted.
+    GravGrab = 50,
+    /// Gravity gun punt from `pos` along `dir` (`strength` = launch speed; negative = an empty-handed
+    /// punt blast).
+    GravPunt = 51,
+    /// Stream (Beam + Pull gun) latched a player at `pos` (`dir` = from the muzzle, `strength` = distance).
+    StreamLatch = 52,
+    /// Stream let go of its victim at `pos`, flinging along `dir` (`strength` = fling speed; 0 = it broke).
+    StreamRelease = 53,
+    /// Charge-shot / BFG gun charging (`strength` 0 = charging began, 1 = full / BFG spin-up).
+    GunCharge = 54,
+    /// Charge shot fired from `pos` along `dir` (`strength` = charge 0 tap … 1 full).
+    ChargeShot = 55,
+    /// BFG orb tendril from the orb at `pos` along `dir` for `strength` metres (it zapped someone).
+    BfgZap = 56,
 }

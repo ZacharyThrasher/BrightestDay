@@ -30,7 +30,7 @@
 # A name only targets after a verb/preposition aimed at someone ("dragon on sam" -> Sam, not DragonSlayer).
 #
 # Categories: owner, target, voice_target, popculture, everyday, verbs, combos, signature, pokemon,
-#             refer, voice, collisions, name_move.
+#             refer, voice, collisions, name_move, piloting.
 
 # =====================================================================================================
 # owner - the owner's own phrases and close variants
@@ -1405,3 +1405,90 @@ name_move | sucker punch | form=Gauntlet
 name_move | wolverine claws | form=Gauntlet
 name_move | kamehameha | sig=Beam
 name_move | fire sword | form=Sword el=Fire
+
+# =====================================================================================================
+# piloting - who drives what the ring builds (COMBAT.md §5d-ter; data/intent.ron PILOTING). Leading pilot
+# verbs / trailing "i can pilot" mean Piloted and never graft the verb's dictionary sense ("pilot" is not
+# an aircraft pilot that Flies, "ride" / "drive" add no Blunt); "get in" / "ride it" / "take the wheel"
+# are BOARD commands on a construct you already own (graft, named "board"); follower wording forces
+# follower mode; and (owner rule) a single undelivered thing you drive spawns piloted by default.
+# =====================================================================================================
+piloting | pilot optimus prime | name~optimus +Piloted +Transforms -Flies
+piloting | ride optimus prime | name~optimus +Piloted +Transforms -Blunt
+piloting | drive optimus prime | name~optimus +Piloted +Transforms -Blunt
+piloting | get in optimus prime | name~optimus +Piloted +Transforms
+piloting | hop in optimus prime | name~optimus +Piloted +Transforms
+piloting | climb in optimus prime | name~optimus +Piloted +Transforms
+piloting | board optimus prime | name~optimus +Piloted +Transforms
+piloting | steer optimus prime | name~optimus +Piloted +Transforms
+piloting | let me drive optimus prime | name~optimus +Piloted -Blunt
+piloting | i drive optimus prime | name~optimus +Piloted -Blunt
+piloting | optimus prime i can pilot | name~optimus +Piloted -Flies
+piloting | optimus prime i can ride | name~optimus +Piloted -Blunt
+piloting | optimus prime i can drive | name~optimus +Piloted -Blunt
+piloting | a car i can sit in | form=Vehicle +Piloted
+piloting | ride a dragon | form=Quadruped +Piloted +Flies -Blunt
+piloting | ride on a dragon | form=Quadruped +Piloted -Blunt
+piloting | drive a tank | form=Vehicle +Piloted -Blunt
+piloting | a giant mech i can pilot | form=Kaiju +Piloted scale>=15
+piloting | pilot a mech | form=Kaiju +Piloted -Flies
+piloting | climb into a mech | form=Kaiju +Piloted
+piloting | ride a horse | form=Quadruped +Piloted -Blunt
+piloting | mount a horse | form=Quadruped +Piloted
+piloting | drive a bulldozer | form=Vehicle +Piloted -Blunt
+piloting | pilot a helicopter | form=Vehicle +Piloted
+piloting | ride godzilla | form=Kaiju +Piloted -Blunt
+piloting | ride a t rex | form=Kaiju +Piloted
+piloting | hop on a motorcycle | form=Vehicle +Piloted
+piloting | pilot a gundam | form=Kaiju +Piloted
+piloting | steer a boat | form=Vehicle +Piloted
+piloting | ~ride optimus prime | name~optimus +Piloted -Blunt
+piloting | ~get in optimus prime | name~optimus +Piloted
+piloting | ~pilot optimus prime | name~optimus +Piloted -Flies
+# board commands (on a construct you already own)
+piloting | get in | kind=graft +Piloted name~board
+piloting | hop in | kind=graft +Piloted name~board
+piloting | climb in | kind=graft +Piloted name~board
+piloting | get back in | kind=graft +Piloted name~board
+piloting | hop in please | kind=graft +Piloted name~board
+piloting | let me drive | kind=graft +Piloted name~board
+piloting | i'll drive | kind=graft +Piloted name~board
+piloting | pilot it | kind=graft +Piloted name~board refer=it
+piloting | ride it | kind=graft +Piloted name~board refer=it
+piloting | drive it | kind=graft +Piloted name~board refer=it
+piloting | mount up | kind=graft +Piloted name~board
+piloting | take the wheel | kind=graft +Piloted name~board
+piloting | ~get in | kind=graft +Piloted name~board
+piloting | ~let me drive | kind=graft +Piloted name~board
+# default: things you drive spawn piloted (hop out with E: it follows and fights)
+piloting | optimus prime | name~optimus +Piloted +Transforms
+piloting | car | form=Vehicle +Piloted
+piloting | truck | form=Vehicle +Piloted
+piloting | tank | form=Vehicle +Piloted
+piloting | fighter jet | form=Vehicle +Piloted +Flies
+piloting | helicopter | form=Vehicle +Piloted
+piloting | motorcycle | form=Vehicle +Piloted
+piloting | starscream | name~starscream +Piloted +Transforms
+piloting | bumblebee | name~bumblebee +Piloted +Transforms
+piloting | megatron | name~megatron +Piloted +Transforms
+piloting | mech | form=Kaiju +Piloted
+piloting | horse | form=Quadruped +Piloted
+piloting | gundam | +Piloted
+# followers: sic-it monsters, swarms, counts, delivered things, follower words, names that only contain a verb
+piloting | wolves | -Piloted
+piloting | godzilla | form=Kaiju -Piloted
+piloting | t rex | -Piloted
+piloting | dragon | -Piloted
+piloting | three tanks | form=Vehicle n>=2 -Piloted
+piloting | drop a car on mia | form=Vehicle -Piloted target=Mia via=onto
+piloting | throw a tank at ethan | form=Vehicle -Piloted target=Ethan via=at
+piloting | sic wolves on jake | -Piloted target=Jake
+piloting | chase ethan with a car | form=Vehicle -Piloted target=Ethan
+piloting | optimus prime that follows me | name~optimus +Transforms -Piloted
+piloting | optimus prime on autopilot | name~optimus +Transforms -Piloted
+piloting | a driverless car | form=Vehicle -Piloted
+piloting | gundam on its own | -Piloted
+piloting | a tank that follows me | form=Vehicle -Piloted
+piloting | knight on a horse | mount=any -Piloted
+piloting | pilot whale | -Piloted
+piloting | board game | -Piloted

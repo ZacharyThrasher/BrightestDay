@@ -631,8 +631,10 @@ fn follower_cut(d: &IntentData, text: &str) -> Option<String> {
             }
             return Some(text[..ws[j - 1].end].trim().to_string());
         }
-        if phrase_at(&ws, s, f) {
-            return Some(text[ws[s + k].start..].trim().to_string());
+        // "autopilot tank", "a driverless car" (after an article the article stays)
+        let p = if matches!(ws[s].key.as_str(), "a" | "an" | "the" | "my") { s + 1 } else { s };
+        if p + k < e && phrase_at(&ws, p, f) {
+            return Some(format!("{}{}", &text[..ws[p].start], &text[ws[p + k].start..]).trim().to_string());
         }
     }
     None

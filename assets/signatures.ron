@@ -64,7 +64,7 @@
         // ---- domains (JJK and friends) ----
         (name: "unlimited void", kind: Domain),
         (name: "infinite void", kind: Domain),
-        (name: "malevolent shrine", kind: Domain),
+        (name: "malevolent shrine", kind: Domain, grants: [Blade]),
         (name: "coffin of the iron mountain", kind: Domain),
         (name: "chimera shadow garden", kind: Domain),
         (name: "self embodiment of perfection", kind: Domain),
@@ -142,5 +142,12 @@
             "handgun", "smg", "uzi", "ak", "glock", "magnum", "crossbow", "sword", "blade", "katana", "wand",
             "staff", "bow",
         ],
+    ),
+    // Guard techniques against a domain: a small Guard dome (immune to the domain's sure-hit pulses for
+    // a while), never a domain. `phrases` whole; `words` with "domain" ("counter domain", "domain
+    // amplification", "shield domain").
+    guards: (
+        phrases: ["simple domain", "domain amplification", "counter domain", "hollow wicker basket", "falling blossom emotion", "new shadow style"],
+        words: ["simple", "counter", "amplification", "amplify", "guard", "shield", "barrier", "protect", "protection", "defense", "defence", "block"],
     ),
 )

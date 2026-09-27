@@ -145,10 +145,14 @@ impl World {
         }
         // POWERS HOOK: an enemy's slow field (Infinity) — the round crawls near them (powers::effects).
         bent |= self.powers_slow_projectile(p.spec.owner, p.pos, &mut p.vel);
+        if p.spec.effects & (effects::NEEDLE | effects::TENDRILS) != 0 {
+            self.legend_projectile(p); // LEGENDARY: needles seek; BFG tendrils zap (world/legend.rs)
+        }
         // CONNECT: light homing, strongest at release, only with a clear line (`aim_assist`).
         if let Some(id) = p.home {
             let aim = crate::signature::domain::aim(self, p.spec.owner); // SIGNATURE HOOK: domain sure hit
-            let turn = crate::aim_assist::decayed(p.home_turn, p.age, aim.proj_decay_secs);
+            // LEGENDARY: needles never stop homing.
+            let turn = if p.spec.effects & effects::NEEDLE != 0 { p.home_turn } else { crate::aim_assist::decayed(p.home_turn, p.age, aim.proj_decay_secs) };
             let base = &self.cfg.move_params;
             let at = self.player(id).filter(|t| t.alive && !t.shielded()).map(|t| match rewind {
                 Some(v) => self.history.hull_at(id, v).unwrap_or_else(|| t.hull(base)).center(),
@@ -300,6 +304,9 @@ impl World {
                     self.apply_hit(hit);
                 }
                 self.projectile_effects(&s, pid, point);
+                if s.effects & effects::NEEDLE != 0 {
+                    self.needle_stick(&s, pid, point, p.vel.normalize_or_zero()); // LEGENDARY: stick + stack
+                }
                 self.end_projectile(p, point, -p.vel.normalize_or_zero(), Some(pid));
             }
             Some(Contact::Construct(cid, point, n)) => {

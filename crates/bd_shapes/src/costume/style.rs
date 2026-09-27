@@ -1709,7 +1709,7 @@ fn slot_of(a: &Acc) -> u32 {
         Acc::Gauntlet(..) => acc::ARMS,
         Acc::Scarf(..) | Acc::Collar(..) | Acc::Earpiece(..) => acc::FACE,
         Acc::ChestLight(..) => acc::AURA,
-        Acc::Axe(..) | Acc::Shell(..) => acc::BACK,
+        Acc::Axe(..) | Acc::Shell(..) | Acc::BigHammer(..) => acc::BACK,
         Acc::ArmCannon(_, _, Side::Left) => acc::LEFT_ARM,
         Acc::ArmCannon(..) => acc::ARMS,
     }
@@ -2013,6 +2013,19 @@ fn accessory(cx: &mut Cx, a: &Acc, k: &Kit) {
                 let hd = head.rgb();
                 p.c(hd).seg(v3(2.0, 20.5, bz), v3(6.5, 18.0, bz), 3.0, 1.0).seg(v3(3.0, 23.0, bz), v3(7.0, 22.5, bz), 3.4, 1.0);
                 p.decal(mix(hd, WHITE, 0.4)).vb(6, 7, 18, 23, back + 1, back + 1);
+            }
+            Acc::BigHammer(head, handle) => {
+                // Long haft diagonally across the back; the big block head rides above the right
+                // shoulder, across the haft, with a glowing rocket nozzle on its outer face.
+                let bz = back as f32 + 1.5;
+                p.c(handle.rgb()).rod(v3(-5.0, 3.0, bz), v3(5.0, 27.0, bz), 1.4);
+                p.c([200, 170, 60]).rod(v3(-5.3, 2.4, bz), v3(-4.6, 3.9, bz), 1.9);
+                let hd = head.rgb();
+                let (a, b) = (v3(1.0, 28.8, bz), v3(9.0, 25.2, bz));
+                p.c(hd).seg(a, b, 6.0, 5.0);
+                p.c(shade(hd)).seg(a, a + (b - a) * 0.12, 6.6, 5.6).seg(b - (b - a) * 0.12, b, 6.6, 5.6);
+                p.c([200, 170, 60]).seg(a + (b - a) * 0.44, a + (b - a) * 0.56, 6.4, 5.4);
+                p.palette(Tint::Core).seg(b, b + (b - a) * 0.08, 3.0, 2.6);
             }
             Acc::Shell(c, rim) => {
                 let (c, r) = (c.rgb(), rim.rgb());

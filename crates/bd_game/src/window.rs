@@ -32,11 +32,17 @@ pub fn initial_window(settings: &Settings, cli: &CliArgs) -> Window {
             None if settings.low_latency => NonZero::new(1),
             None => None,
         },
-        position: WindowPosition::Centered(MonitorSelection::Primary),
+        // `BD_OFFSCREEN_WINDOW=1`: benchmarks — a real (uncapped) window parked off the desktop,
+        // never focused (a hidden window is presented at the compositor's pace).
+        position: if std::env::var_os("BD_OFFSCREEN_WINDOW").is_some() {
+            WindowPosition::At(IVec2::new(-6000, -6000))
+        } else {
+            WindowPosition::Centered(MonitorSelection::Primary)
+        },
         // `BD_HIDDEN_WINDOW=1`: automated recordings / screenshots without a window popping up
         // (or stealing focus) on the desktop. Frames still render and capture.
         visible: std::env::var_os("BD_HIDDEN_WINDOW").is_none(),
-        focused: std::env::var_os("BD_HIDDEN_WINDOW").is_none(),
+        focused: std::env::var_os("BD_HIDDEN_WINDOW").is_none() && std::env::var_os("BD_OFFSCREEN_WINDOW").is_none(),
         ..default()
     }
 }
@@ -45,6 +51,10 @@ pub struct WindowSetupPlugin;
 
 impl Plugin for WindowSetupPlugin {
     fn build(&self, app: &mut App) {
+        if std::env::var_os("BD_OFFSCREEN_WINDOW").is_some() || std::env::var_os("BD_UNCAPPED_UNFOCUSED").is_some() {
+            // Benchmarks: an unfocused window would otherwise update at 60 Hz (Bevy's game default).
+            app.insert_resource(bevy::winit::WinitSettings { focused_mode: bevy::winit::UpdateMode::Continuous, unfocused_mode: bevy::winit::UpdateMode::Continuous });
+        }
         app.add_systems(Update, (toggle_fullscreen, apply_window_settings).chain());
     }
 }

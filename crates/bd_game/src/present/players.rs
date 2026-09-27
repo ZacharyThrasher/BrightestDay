@@ -368,7 +368,7 @@ fn sync_bodies(
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
     (aim, ads, fx, ascend): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>, Option<Res<super::powers::ascend::AscendPose>>),
-    lex: Option<Res<crate::console::RingLexicon>>,
+    (lex, readable): (Option<Res<crate::console::RingLexicon>>, Option<Res<crate::readability::Readability>>),
     mut map: ResMut<BodyEntities>,
     mut hands_out: ResMut<BodyHands>,
     (mut ropes, mut materials): (ResMut<RopeAssets>, ResMut<Assets<StandardMaterial>>),
@@ -386,6 +386,14 @@ fn sync_bodies(
     let dt = time.delta_secs().min(0.1);
     let third = mode.third_person();
     let translucent = fx.as_ref().is_none_or(|f| f.translucent);
+    let heat_default;
+    let heat = match readable.as_deref() {
+        Some(r) => &r.0.heat,
+        None => {
+            heat_default = crate::readability::HeatTuning::default();
+            &heat_default
+        }
+    };
     for v in &views.players {
         let Some(choice) = costumes.0.get(&v.id) else { continue };
         let corps = corps_rgb(v.corps);
@@ -607,7 +615,7 @@ fn sync_bodies(
         }
         // Diegetic damage (Smash %): the hard-light body shifts white -> gold -> orange -> red
         // and cracks creep in as % rises (readable at 40 m); never fully "broken".
-        let (dmg_col, k) = damage_glow(v.damage_pct);
+        let (dmg_col, k) = damage_glow(heat, v.damage_pct);
         cv.corps_color = [corps[0] + (dmg_col[0] - corps[0]) * k, corps[1] + (dmg_col[1] - corps[1]) * k, corps[2] + (dmg_col[2] - corps[2]) * k];
         cv.accent = Some(dmg_col);
         cv.integrity = 1.0 - (v.damage_pct / 180.0).clamp(0.0, 0.72);
@@ -730,19 +738,11 @@ fn hand_world(model: &VoxelModel, layers: &[(AnimState, f32)], locals: &[bd_shap
 }
 
 /// Damage % → glow colour (linear) and how far the body leans into it (0..1).
-pub fn damage_glow(pct: f32) -> ([f32; 3], f32) {
-    const STOPS: [(f32, [f32; 3]); 4] = [(0.0, [1.0, 1.0, 1.0]), (50.0, [1.0, 0.78, 0.25]), (100.0, [1.0, 0.42, 0.08]), (150.0, [1.0, 0.08, 0.04])];
-    let p = pct.max(0.0);
-    let mut c = STOPS[3].1;
-    for w in STOPS.windows(2) {
-        let ((a, ca), (b, cb)) = (w[0], w[1]);
-        if p <= b {
-            let t = ((p - a) / (b - a)).clamp(0.0, 1.0);
-            c = [ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t, ca[2] + (cb[2] - ca[2]) * t];
-            break;
-        }
-    }
-    (c, (p / 120.0).clamp(0.0, 0.7))
+/// The body's damage tint: THE Smash heat ramp (`readability::heat_rgb`, linear) and how far the
+/// body leans into it (corps identity kept: at most 70 %).
+pub fn damage_glow(heat: &crate::readability::HeatTuning, pct: f32) -> ([f32; 3], f32) {
+    let p = if pct.is_finite() { pct.max(0.0) } else { 0.0 };
+    (crate::readability::heat_rgb(heat, p), (p / 120.0).clamp(0.0, 0.7))
 }
 
 #[cfg(test)]

@@ -29,6 +29,9 @@ fn cfg() -> SimConfig {
 fn world(n: u8) -> World {
     let mut w = World::new(cfg());
     w.cfg.rules.willpower = WillpowerMode::Infinite;
+    // No hidden golden rolls in these scenarios (a rolled gun would turn into a one-shot).
+    w.cfg.tuning.freedom.legendary.base = 0.0;
+    w.cfg.tuning.freedom.legendary.cap = 0.0;
     for k in 1..=n {
         w.add_player(PlayerId(k), format!("p{k}"), Corps::from_index(k)).unwrap();
     }
@@ -631,4 +634,162 @@ fn famous_is_an_icon_model() {
     assert!(bd_sim::constructs::legend::famous(&r));
     r.model = ModelSource::Icon("costume:thor".into());
     assert!(!bd_sim::constructs::legend::famous(&r));
+}
+
+// ------------------------------------------------------------------------------------ 8. guns
+
+fn gun_duel(dist: f32, r: Recipe) -> (World, ConstructId) {
+    let mut w = world(2);
+    place(&mut w, A, Vec3::new(0.0, GROUND, 40.0));
+    place(&mut w, B, Vec3::new(0.0, GROUND, 40.0 - dist));
+    run(&mut w, 20);
+    let cid = give(&mut w, A, r);
+    (w, cid)
+}
+
+fn dmg_on(ev: &[GameEvent], target: PlayerId, source: PlayerId) -> f32 {
+    ev.iter()
+        .filter_map(|e| match e {
+            GameEvent::Hit { target: t, source: Some(s), damage, .. } if *t == target && *s == source => Some(*damage),
+            _ => None,
+        })
+        .sum()
+}
+
+#[test]
+fn golden_gun_is_one_huge_shot_then_a_long_reload() {
+    use bd_core::mechanics::ModelSource;
+    let mut golden = item("golden gun", Form::Gun, &[Mechanic::Shoots], Element::Light);
+    golden.model = ModelSource::Icon("golden gun".into());
+    let (mut w, _) = gun_duel(20.0, golden);
+    let (y, p) = aim_at(&w, A, B);
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 1, 30);
+    assert_eq!(fx_count(&ev, HeldFx::OneShot), 1);
+    let one = dmg_on(&ev, B, A);
+    assert!(one >= 50.0, "one huge shot ({one})");
+    // Holding the trigger right after: nothing until the reload is done.
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 200, 0);
+    assert_eq!(fx_count(&ev, HeldFx::OneShot), 0, "reloading");
+    // A plain procedural gun with the same mechanics is an ordinary hand cannon.
+    let (mut w, _) = gun_duel(20.0, item("gun", Form::Gun, &[Mechanic::Shoots], Element::Light));
+    let (y, p) = aim_at(&w, A, B);
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 1, 30);
+    assert_eq!(fx_count(&ev, HeldFx::OneShot), 0);
+    assert!(dmg_on(&ev, B, A) < 30.0);
+    // ... unless it rolled golden (the hidden legendary roll).
+    let (mut w, gun) = gun_duel(20.0, item("gun", Form::Gun, &[Mechanic::Shoots], Element::Light));
+    w.constructs.get_mut(gun).unwrap().flair |= bd_sim::replicate::cflags::LEGENDARY;
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 1, 30);
+    assert_eq!(fx_count(&ev, HeldFx::OneShot), 1);
+}
+
+#[test]
+fn needles_home_stick_and_supercombine() {
+    let mut needler = item("Needler", Form::Gun, &[Mechanic::Shoots], Element::Psychic);
+    needler.payload = Some(Box::new(item("needle", Form::Ball, &[Mechanic::Explodes, Mechanic::Homing, Mechanic::Sticky], Element::Psychic)));
+    let (mut w, gun) = gun_duel(14.0, needler);
+    let (y, p) = aim_at(&w, A, B);
+    // Aim a little off: the needles curve in.
+    let ev = act(&mut w, A, y + 0.12, p, buttons::PRIMARY, 110, 60);
+    let sticks = fx_count(&ev, HeldFx::NeedleStick);
+    assert!(sticks >= w.cfg.tuning.legendary.needle_count as usize, "needles stuck ({sticks})");
+    assert!(fx_count(&ev, HeldFx::Supercombine) >= 1, "supercombined");
+    assert!(hits_by(&ev, B, gun).contains(&HitKind::Explosion), "the burst hit B");
+}
+
+#[test]
+fn gravity_gun_catches_and_punts() {
+    let grav = item("Gravity Gun", Form::Gun, &[Mechanic::Grab, Mechanic::Launch, Mechanic::Attract], Element::Psychic);
+    // A player: caught, then punted within a beat (never held longer than `grav_player_secs`).
+    let (mut w, _) = gun_duel(9.0, grav.clone());
+    let (y, p) = aim_at(&w, A, B);
+    let ev = act(&mut w, A, y, p, buttons::ADS, 1, 1);
+    assert_eq!(fx_count(&ev, HeldFx::GravGrab), 1, "caught B");
+    let ev = act(&mut w, A, y, p, 0, 0, 60);
+    assert_eq!(fx_count(&ev, HeldFx::GravPunt), 1, "punted by itself after a beat");
+    let b = w.player(B).unwrap();
+    assert!(b.mv.pos.z < 40.0 - 9.0 - 4.0 || b.mv.vel.z < -10.0, "flew along the aim ({} {})", b.mv.pos, b.mv.vel);
+    // A construct: caught, held at the muzzle, punted with LMB.
+    let mut w = world(2);
+    place(&mut w, A, Vec3::new(0.0, GROUND, 40.0));
+    place(&mut w, B, Vec3::new(30.0, GROUND, 10.0));
+    run(&mut w, 20);
+    let eye = w.player(B).unwrap().eye(w.params());
+    let rock = w.cast(B, item("boulder", Form::Boulder, &[], Element::Earth), None, Aim::new(eye, (Vec3::new(0.0, GROUND, 32.0) - eye).normalize())).unwrap();
+    run(&mut w, 30);
+    give(&mut w, A, grav);
+    // Set it down in front of A.
+    {
+        let c = w.constructs.get_mut(rock).unwrap();
+        c.pos = Vec3::new(0.0, GROUND + 0.6, 31.0);
+        c.vel = Vec3::ZERO;
+    }
+    run(&mut w, 20);
+    let at = w.constructs.get(rock).unwrap().center();
+    let eye = w.player(A).unwrap().eye(w.params());
+    let d = (at - eye).normalize();
+    let (y, p) = ((-d.x).atan2(-d.z), d.y.asin());
+    let ev = act(&mut w, A, y, p, buttons::ADS, 1, 40);
+    assert_eq!(fx_count(&ev, HeldFx::GravGrab), 1, "caught the boulder");
+    let held = w.constructs.get(rock).unwrap().center();
+    let muzzle = w.player(A).unwrap().eye(w.params());
+    assert!((held - muzzle).length() < 7.0, "held at the muzzle ({held} vs {muzzle})");
+    let ev = act(&mut w, A, 0.0, 0.1, buttons::PRIMARY, 1, 3);
+    assert_eq!(fx_count(&ev, HeldFx::GravPunt), 1);
+    let v = w.constructs.get(rock).unwrap().vel;
+    assert!(-v.z > 20.0, "punted along the aim ({v})");
+}
+
+#[test]
+fn stream_latches_drags_and_flings() {
+    let pack = item("Proton Pack", Form::Gun, &[Mechanic::Beam, Mechanic::Pull], Element::Atomic);
+    let (mut w, _) = gun_duel(12.0, pack);
+    let (y, p) = aim_at(&w, A, B);
+    let mut ev = act(&mut w, A, y, p, buttons::PRIMARY, 10, 0);
+    assert_eq!(fx_count(&ev, HeldFx::StreamLatch), 1);
+    let before = w.player(B).unwrap().mv.pos;
+    // Sweep the aim to the right while holding: B is dragged along.
+    for k in 0..60 {
+        let inp = PlayerInput { yaw: y - 0.012 * k as f32, pitch: p, buttons: buttons::PRIMARY, ..Default::default() };
+        ev.extend_from_slice(w.tick(&[(A, inp)]));
+    }
+    let after = w.player(B).unwrap().mv.pos;
+    assert!(after.x - before.x > 2.0, "dragged with the stream ({before} → {after})");
+    ev.extend(act(&mut w, A, y - 0.72, p, 0, 0, 5));
+    assert_eq!(fx_count(&ev, HeldFx::StreamRelease), 1);
+    assert!(dmg_on(&ev, B, A) > 0.0);
+}
+
+#[test]
+fn cannon_charge_shot_grows_with_the_hold() {
+    let cannon = item("Arm Cannon", Form::Cannon, &[Mechanic::Shoots, Mechanic::Beam], Element::Light);
+    let (mut w, _) = gun_duel(16.0, cannon.clone());
+    let (y, p) = aim_at(&w, A, B);
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 2, 80);
+    assert_eq!(fx_strength(&ev, HeldFx::ChargeShot), Some(0.0), "a tap is a pellet");
+    let tap = dmg_on(&ev, B, A);
+    let (mut w, _) = gun_duel(16.0, cannon);
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 160, 80);
+    assert!(ev.iter().any(|e| matches!(e, GameEvent::HeldFx { fx: HeldFx::GunCharge, strength, .. } if *strength >= 1.0)), "full charge");
+    assert_eq!(fx_strength(&ev, HeldFx::ChargeShot), Some(1.0));
+    let full = dmg_on(&ev, B, A);
+    assert!(full > tap * 2.0, "the charged blast hits far harder ({tap} → {full})");
+}
+
+#[test]
+fn bfg_orb_zaps_along_its_path_then_detonates() {
+    let mut bfg = item("BFG 9000", Form::Cannon, &[Mechanic::Shoots, Mechanic::Heavy], Element::Atomic);
+    bfg.payload = Some(Box::new(item("BFG ball", Form::Ball, &[Mechanic::Beam, Mechanic::Explodes], Element::Atomic)));
+    let mut w = world(3);
+    place(&mut w, A, Vec3::new(0.0, GROUND, 50.0));
+    place(&mut w, B, Vec3::new(6.0, GROUND, 35.0)); // beside the path
+    place(&mut w, C, Vec3::new(0.0, GROUND, 20.0)); // at its end
+    run(&mut w, 20);
+    let gun = give(&mut w, A, bfg);
+    let (y, p) = aim_at(&w, A, C);
+    let ev = act(&mut w, A, y, p, buttons::PRIMARY, 1, 360);
+    assert_eq!(fx_count(&ev, HeldFx::GunCharge), 1, "spin-up telegraph");
+    assert!(fx_count(&ev, HeldFx::BfgZap) >= 1, "tendrils");
+    assert!(hits_by(&ev, B, gun).contains(&HitKind::Chain), "B zapped from the path");
+    assert!(hits_by(&ev, C, gun).contains(&HitKind::Explosion), "C caught in the blast");
 }

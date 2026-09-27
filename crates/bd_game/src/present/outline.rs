@@ -10,6 +10,12 @@
 //! * Damage %: from [`DANGER_FROM`] % the line widens and brightens and breathes slowly
 //!   (≤ [`PULSE_HZ_MAX`] Hz, far from the 3–30 Hz photosensitive band; static with flashes off) —
 //!   "who's about to go" at a glance.
+//! * READABILITY heat band ([`heat_band`]): from `readability.ron` `heat.band_from` % the thin dark
+//!   inner line becomes a band in the Smash damage colour (white → yellow → orange → red → deep
+//!   crimson, `readability::heat_rgb`) that widens with % and breathes faster from `pulse_from`
+//!   (< 3 Hz; steady with flashes off) — corps colour stays on the outer line, so identity and
+//!   damage read together, and never by hue alone (width + breath rate; KO-range smoke in
+//!   `readability::smoke`). Same draws: it's the inner hull's own colour / width.
 //! * Juggle guard (`bd_sim::juggle`, status bit from the host): the line turns hard-light white and
 //!   shimmers (< 3 Hz; static with flashes off) while a victim is knockback-immune — why that hit
 //!   didn't launch, without any text.
@@ -151,8 +157,31 @@ pub fn guard_tint(mut o: OutlineGpu, g: f32, shimmer01: f32, pulse: bool) -> Out
     let white = LINE_LUMA * (1.0 + 0.2 * s);
     for c in 0..3 {
         o.outer[c] += (white - o.outer[c]) * k;
+        // The guard wins: a heat band fades back to the dark line under it.
+        o.inner[c] *= 1.0 - 0.92 * g;
     }
     o.outer[3] += 1.5 * g;
+    o
+}
+
+/// READABILITY: the damage heat band on the inner hull (see the module docs). `breath01` = the
+/// breathing phase value (ignored with `style.pulse` off: steady). Below `band_from` %: untouched.
+pub fn heat_band(mut o: OutlineGpu, heat: &crate::readability::HeatTuning, pct: f32, breath01: f32, own: bool, style: OutlineStyle) -> OutlineGpu {
+    use crate::readability::{band_amount, band_px, band_rgb};
+    let k = band_amount(heat, pct);
+    if k <= 0.0 {
+        return o;
+    }
+    let w = if style.width.is_finite() { style.width.clamp(0.5, 2.0) } else { 1.0 };
+    let b = if style.pulse { breath01.clamp(0.0, 1.0) } else { 1.0 };
+    let c = band_rgb(heat, pct, b);
+    for i in 0..3 {
+        o.inner[i] += (c[i] - o.inner[i]) * k;
+    }
+    let px = band_px(heat, pct) * w * if own { 0.7 } else { 1.0 };
+    o.inner[3] += (px - o.inner[3]) * k;
+    // The corps line stays readable outside the band.
+    o.outer[3] = o.outer[3].max(o.inner[3] + 1.7 * w * if own { 0.6 } else { 1.0 });
     o
 }
 
@@ -303,6 +332,7 @@ fn attach_hulls(
 fn update_outlines(
     time: Res<Time>,
     settings: Res<OutlineSettings>,
+    readable: Option<Res<crate::readability::Readability>>,
     active: Option<Res<ActiveWorld>>,
     views: Option<Res<WorldViews>>,
     mode: Res<ViewMode>,
@@ -329,7 +359,10 @@ fn update_outlines(
         let i = v.id.0 as usize;
         let d = danger(v.damage_pct);
         let ph = &mut phase[i];
-        *ph = (*ph + dt * pulse_hz(d)).fract();
+        // READABILITY: the heat band breathes faster with % (a non-hue cue); the corps line's danger
+        // breath rides the same phase.
+        let hz = readable.as_ref().map_or(0.0, |r| crate::readability::pulse_hz(&r.0.heat, v.damage_pct)).max(pulse_hz(d));
+        *ph = (*ph + dt * hz).fract();
         let pulse01 = 0.5 - 0.5 * (*ph * std::f32::consts::TAU).cos();
         let own = v.is_local && !dev_test().is_some_and(|t| t.full_self);
         // JUGGLE: guard shimmer (status bit from the host; `bd_sim::juggle`).
@@ -338,7 +371,10 @@ fn update_outlines(
         *g = if on { (*g + dt * GUARD_IN_PER_SEC).min(1.0) } else { (*g - dt * GUARD_OUT_PER_SEC).max(0.0) };
         *gph = if *g > 0.0 { (*gph + dt * GUARD_SHIMMER_HZ).fract() } else { 0.0 };
         let shimmer01 = 0.5 - 0.5 * (*gph * std::f32::consts::TAU).cos();
-        let params = outline_params(v.corps, v.damage_pct, pulse01, own, settings.style);
+        let mut params = outline_params(v.corps, v.damage_pct, pulse01, own, settings.style);
+        if let Some(r) = readable.as_ref() {
+            params = heat_band(params, &r.0.heat, v.damage_pct, pulse01, own, settings.style);
+        }
         up.set(v.id.0 as u32, guard_tint(params, *g, shimmer01, settings.style.pulse));
     }
     for (mut h, sc, cv, ending) in &mut roots {
@@ -600,6 +636,38 @@ mod tests {
         assert!(GUARD_SHIMMER_HZ < 3.0);
         // Flashes off: static.
         assert_eq!(guard_tint(base, 1.0, 0.0, false), guard_tint(base, 1.0, 1.0, false));
+    }
+
+    #[test]
+    fn heat_band_carries_damage_and_the_guard_still_wins() {
+        let heat = crate::readability::HeatTuning::default();
+        let s = OutlineStyle::default();
+        let at = |pct: f32| heat_band(outline_params(Corps::Hope, pct, 1.0, false, s), &heat, pct, 1.0, false, s);
+        // Below the band: the dark inner line, untouched.
+        assert_eq!(at(0.0), outline_params(Corps::Hope, 0.0, 1.0, false, s));
+        // 20 / 80 / 160: the band widens and shifts toward red; the corps line stays outside it.
+        let (a, b, c) = (at(20.0), at(80.0), at(160.0));
+        assert!(a.inner[3] < b.inner[3] && b.inner[3] < c.inner[3], "{} {} {}", a.inner[3], b.inner[3], c.inner[3]);
+        assert!(a.inner[1] > b.inner[1] && b.inner[1] > c.inner[1], "less green as % rises");
+        for o in [a, b, c] {
+            assert!(o.outer[3] >= o.inner[3] + 1.6, "corps line visible: {o:?}");
+            assert!(o.inner.iter().take(3).all(|x| *x <= heat.band_luma + 1e-4), "under the bloom knee");
+            // Corps identity: the outer line is still Hope's.
+            let norm = |c: [f32; 4]| {
+                let m = c[0].max(c[1]).max(c[2]).max(1e-4);
+                [c[0] / m, c[1] / m, c[2] / m]
+            };
+            let (h, h0) = (norm(o.outer), norm(outline_params(Corps::Hope, 0.0, 1.0, false, s).outer));
+            assert!((0..3).all(|k| (h[k] - h0[k]).abs() < 1e-4), "{h:?} vs {h0:?}");
+        }
+        // The juggle guard's white shimmer wins: the band falls back to (near) dark under it.
+        let g = guard_tint(c, 1.0, 1.0, true);
+        assert!(g.inner[0].max(g.inner[1]).max(g.inner[2]) < 0.1, "{:?}", g.inner);
+        assert!(g.outer[0].min(g.outer[1]).min(g.outer[2]) > 0.6, "white: {:?}", g.outer);
+        // Flashes off: steady.
+        let still = OutlineStyle { pulse: false, ..s };
+        let base = outline_params(Corps::Hope, 160.0, 0.0, false, still);
+        assert_eq!(heat_band(base, &heat, 160.0, 0.0, false, still), heat_band(base, &heat, 160.0, 1.0, false, still));
     }
 
     #[test]

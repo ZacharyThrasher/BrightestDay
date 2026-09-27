@@ -395,8 +395,8 @@ limited, explodes), Vehicle (Charge along the ground in your look direction, ram
 thrown lump, 6 dmg — "never nothing").
 
 ## 5. Mechanic modifiers (compose onto any form)
-Returning (comes back after hit/1.2 s; catch it; Mjolnir: RMB-hold after throw = it drags you along —
-Thor flight, drains willpower fast), Ricochet (+2 bounces, seeks enemies within 25°), Homing, Explodes
+Returning (comes back after hit/1.2 s; catch it; lodges in terrain until recalled, tap RMB = recall,
+hold RMB = recall flight: §5l), Ricochet (+2 bounces, seeks enemies within 25°), Homing, Explodes
 (on impact), Sticky (sticks; bomb-like attach), Spin (continuous contact dmg), Heavy (×1.5 dmg & kb,
 ×0.8 speed), Fast (×1.4 speed, ×0.8 dmg), Pierce (ignores shields' block, lunge), Blade (×2 vs
 constructs), Blunt (×1.3 kb, craters), Guard (adds block), Pull, Grab, SlowFall/Glide/Thrust (adds the
@@ -736,6 +736,35 @@ awakening, etc." `bd_sim::pickups`; every number and the gated list in `combat.r
   swirling rings (Awakening), a spinning violet star (Ultimate). Carried, it glows in the carrier's
   hand (the local player sees it low in the right of the view) under a faint beacon: the carrier is
   the target. Host rules page → CONSTRUCTS → POWER-UPS.
+
+## 5l. Legendary move rules (owner: "legendary weapons should feel legendary")
+Generic rules keyed off mechanic / element / form COMBINATIONS (`bd_sim::constructs::legend`, world half
+`world/legend.rs`; tunables `combat.ron` → `legendary`, hot reload, host-synced). Nothing knows a weapon's
+name: famous weapons get their iconic feel by resolving to the right combination, and anything a player
+invents with the same combination gets the same verbs ("an electric returning axe" is Stormbreaker without
+the icon, "a flaming hammer that returns" calls meteors). Controls stay the held grammar: LMB combo, hold +
+release special, RMB / alt-fire, dodge.
+
+| rule | combination | what it does | famous |
+|---|---|---|---|
+| **Recall** | held melee + `Returning` | RMB throws (shields: a charged LMB). Hitting terrain it **lodges** (stays up to `lodge_secs`); **tap RMB = recall**: it flies back at `recall_speed` hitting everything on the path (again), and the catch snaps (`HeldFx::Catch` strength 2). **Hold RMB** (≥ `thor_delay`, from the throw or a recall press) = **recall flight**: it leads along your aim and you follow (Thor), no gravity, drains willpower; composes with momentum. The wielder half is decided from input on `PlayerState::extra.legend` in `legend::pre_move` — host and client prediction identical. | Mjolnir, Leviathan Axe, Stormbreaker, Keyblade |
+| **Call the storm** | held melee, element ≠ Light, and `Returning` or `Heavy` | hold LMB past `storm_hold`: the item is raised (the charge never auto-releases); release = a telegraphed call-down at the aim (the first terrain / enemy on the aim, dropped to the ground; `storm_delay` telegraph, `storm_cd`): Electric lightning bolt (+ `bolt_arcs` arcs), Fire meteor rain, Ice icicle spears, Wind tornado (pulls in, flings up), Water geyser (launch), Psychic crushing field (driven down + a 0.25 s stagger), Earth rock spikes, Shadow maw (drags + chews), Atomic nova, Poison miasma. The item comes down in a full heavy at the same time. | Mjolnir (lightning), Stormbreaker, Leviathan (icicles), gravity hammer (crush) |
+| **Ricochet chain** | `Returning` + `Ricochet`, thrown | a hit re-aims at the next enemy in clear sight (nearest, not hit yet, `chain_range`) up to `chain_max`, then comes back | Cap's shield |
+| **Deflect** | `Guard`, the Sword's parry, or `Blade` + `Fast` | Blade + Fast swings open a `deflect_window` parry at swing start (`deflect_cd`). Parried projectiles fly back **along the parrier's aim**, bending onto the enemy nearest the crosshair (`reflect_to_aim`); hitscan rounds go back at the shooter capped at `reflect_hitscan_cap`; melee attackers are staggered (0.3 s). | lightsaber, Cap's shield, Excalibur |
+| **Blade wave** | bladed melee (Blade, Sword, Axe; not whips) | a heavy released at ≥ `wave_min_k` fires a crescent (vertical chord) that pierces players and constructs and carves a light groove (a tip skimming the ground scars it; ploughing through spends `wave_carves`); `Blade` + `Shoots` fires a small flat crescent on every swing; `Heavy` blades fire bigger, slower ones. Targets inside the blade's own reach are the swing's (no double hit). Clients simulate it from `HeldFx::Wave`. | Master Sword beam, getsuga tensho, Zangetsu |
+| **Heavy blade** | `Blade` + `Heavy` | combos on any form with momentum (knockback + `combo_kb_step` per step, heavy finisher); **super armor** (knockback × `armor_kb`, never immunity; `HeldFx::Armor`) while charging, heavy / finisher swings and leaping; hold LMB ≥ `leap_hold` and release = **leap and cleave** (up + forward, dive at the apex, crater line + shockwave, then a standing ground wave). The leap is predicted like the recall flight. | Buster Sword, Zangetsu, Frostmourne |
+| **Chain blades** | `Whip` + `Blade` (+ `Pull`) | 3-hit combo whose finisher is a 360° sweep at whip range; with `Pull`, RMB at an enemy in reach latches and yanks you in (and them a little toward you), otherwise the whip's terrain lash | Blades of Chaos |
+| **Precision one-shot** | a single `Gun` with nothing but `Shoots`, curated (icon) or golden-rolled | one huge round (`one_shot_dmg`, pierces 1), then a long reload; gold tracer | golden gun |
+| **Stacking needles** | gun whose payload is `Homing` + `Sticky` | fast needles that never stop homing, stick and stack per victim; `needle_count` supercombine into a burst | needler |
+| **Grab and punt** | `Gun` + `Grab` | alt-fire / ADS catches the enemy near the crosshair or the loose construct on the aim and holds it at the muzzle; LMB punts it (a held player is punted after `grav_player_secs` ≤ 0.35 s regardless: never more than a beat of lost control); empty-handed LMB = a punt blast | gravity gun |
+| **Stream wrangle** | `Gun` + `Beam` + `Pull` | hold LMB: a stream (beam pulses) that latches the first enemy it touches and drags them along your aim (a capped velocity correction fighting their movement, reeled in; breaks on lost sight / range / `stream_secs`); release flings them along the aim's sweep | proton pack |
+| **Charge shot** | every non-rocket `Cannon` | tap = quick pellet; hold = the round grows to `charge_full`; release fires it scaled (damage, size, recoil); full charge bursts | arm cannon, mega buster |
+| **BFG** | `Cannon` whose payload is `Beam` + `Explodes` | spin-up telegraph, then a slow orb that zaps every enemy near its path with tendrils and detonates | BFG 9000 |
+
+Famous held weapons (`legend::famous`: an icon model) read legendary on clients (presence Titan tier, like
+the golden roll). Everything is deterministic; per-item state is fixed-size (`HeldState::leg`); the FFA
+(no casts) hash is unchanged; no new `Mechanic` (the chaos soak exercises the rules through ordinary
+combinations). Tests: `crates/bd_sim/tests/legendary.rs`.
 
 ## 6. Elements (status on hit; always short, always visible)
 Light (none), Fire (burn 3 dmg/s 2.5 s, orange embers), Electric (chains to 1 extra target within 6 m

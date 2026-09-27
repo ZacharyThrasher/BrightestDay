@@ -146,6 +146,71 @@ pub struct LegendTuning {
     pub pull_speed: f32,
     pub pull_victim: f32,
     pub pull_cd: f32,
+    // ---- guns ----
+    /// Precision one-shot: damage, knockback (m/s), reload (s), players pierced, terrain chip (m).
+    pub one_shot_dmg: f32,
+    pub one_shot_kb: f32,
+    pub one_shot_reload: f32,
+    pub one_shot_pierce: u8,
+    pub one_shot_chip: f32,
+    /// Needles: cadence (s), speed (m/s), damage, homing turn (deg/s), seek cone (deg) / range (m) when
+    /// nothing was under the crosshair, stacks to supercombine, seconds they last since the last stick.
+    pub needle_cadence: f32,
+    pub needle_speed: f32,
+    pub needle_dmg: f32,
+    pub needle_turn_deg: f32,
+    pub needle_cone_deg: f32,
+    pub needle_range: f32,
+    pub needle_count: u8,
+    pub needle_secs: f32,
+    /// Supercombine burst: radius (m), damage, knockback (m/s).
+    pub super_radius: f32,
+    pub super_dmg: f32,
+    pub super_kb: f32,
+    /// Gravity gun: catch range (m) and cone (deg), hold distance past the muzzle (m), heaviest
+    /// construct it catches (kg), longest hold of a player (s, then it punts) / a construct (s),
+    /// punt speed (m/s), empty-handed punt blast range (m) / cone (deg) / knockback, cooldown (s).
+    pub grav_range: f32,
+    pub grav_cone_deg: f32,
+    pub grav_hold: f32,
+    pub grav_mass_max: f32,
+    pub grav_player_secs: f32,
+    pub grav_construct_secs: f32,
+    pub punt_speed: f32,
+    pub punt_blast_range: f32,
+    pub punt_blast_cone_deg: f32,
+    pub punt_blast_kb: f32,
+    pub grav_cd: f32,
+    /// Stream (Beam + Pull): range (m), damage pulse period (s) and damage, reel-in (m/s), drag
+    /// strength (m/s^2 of velocity correction), longest latch (s), fling on release (x the aim sweep).
+    pub stream_range: f32,
+    pub stream_tick: f32,
+    pub stream_dmg: f32,
+    pub stream_reel: f32,
+    pub stream_pull: f32,
+    pub stream_secs: f32,
+    pub stream_fling: f32,
+    /// Charge shot (cannons): below this hold (s) a quick pellet; full charge at; damage / size x
+    /// at full; the pellet's damage x.
+    pub charge_min: f32,
+    pub charge_full: f32,
+    pub charge_dmg_max: f32,
+    pub charge_size_max: f32,
+    pub charge_tap_dmg: f32,
+    /// BFG orb: spin-up (s), speed (m/s), orb radius (m), life (s), tendril range (m) / period (s) /
+    /// damage, blast radius (m) / damage / knockback / crater (m), cooldown (s).
+    pub bfg_spinup: f32,
+    pub bfg_speed: f32,
+    pub bfg_radius: f32,
+    pub bfg_life: f32,
+    pub bfg_zap_range: f32,
+    pub bfg_zap_period: f32,
+    pub bfg_zap_dmg: f32,
+    pub bfg_blast_radius: f32,
+    pub bfg_dmg: f32,
+    pub bfg_kb: f32,
+    pub bfg_carve: f32,
+    pub bfg_cd: f32,
 }
 
 impl Default for LegendTuning {
@@ -223,6 +288,57 @@ impl Default for LegendTuning {
             pull_speed: 26.0,
             pull_victim: 9.0,
             pull_cd: 0.9,
+            one_shot_dmg: 70.0,
+            one_shot_kb: 38.0,
+            one_shot_reload: 2.4,
+            one_shot_pierce: 1,
+            one_shot_chip: 0.9,
+            needle_cadence: 0.11,
+            needle_speed: 62.0,
+            needle_dmg: 2.5,
+            needle_turn_deg: 260.0,
+            needle_cone_deg: 30.0,
+            needle_range: 60.0,
+            needle_count: 6,
+            needle_secs: 2.5,
+            super_radius: 3.5,
+            super_dmg: 30.0,
+            super_kb: 30.0,
+            grav_range: 24.0,
+            grav_cone_deg: 8.0,
+            grav_hold: 2.2,
+            grav_mass_max: 3000.0,
+            grav_player_secs: 0.35,
+            grav_construct_secs: 5.0,
+            punt_speed: 40.0,
+            punt_blast_range: 7.0,
+            punt_blast_cone_deg: 30.0,
+            punt_blast_kb: 22.0,
+            grav_cd: 0.45,
+            stream_range: 28.0,
+            stream_tick: 0.1,
+            stream_dmg: 1.4,
+            stream_reel: 3.0,
+            stream_pull: 70.0,
+            stream_secs: 1.3,
+            stream_fling: 0.9,
+            charge_min: 0.2,
+            charge_full: 1.2,
+            charge_dmg_max: 1.7,
+            charge_size_max: 2.4,
+            charge_tap_dmg: 0.3,
+            bfg_spinup: 0.5,
+            bfg_speed: 18.0,
+            bfg_radius: 0.9,
+            bfg_life: 4.0,
+            bfg_zap_range: 9.0,
+            bfg_zap_period: 0.2,
+            bfg_zap_dmg: 3.0,
+            bfg_blast_radius: 6.0,
+            bfg_dmg: 45.0,
+            bfg_kb: 30.0,
+            bfg_carve: 2.6,
+            bfg_cd: 2.2,
         }
     }
 }
@@ -302,6 +418,57 @@ impl LegendTuning {
         self.pull_speed = fin(self.pull_speed, d.pull_speed, 0.0, 80.0);
         self.pull_victim = fin(self.pull_victim, d.pull_victim, 0.0, 60.0);
         self.pull_cd = fin(self.pull_cd, d.pull_cd, 0.05, 10.0);
+        self.one_shot_dmg = fin(self.one_shot_dmg, d.one_shot_dmg, 0.0, 300.0);
+        self.one_shot_kb = fin(self.one_shot_kb, d.one_shot_kb, 0.0, 120.0);
+        self.one_shot_reload = fin(self.one_shot_reload, d.one_shot_reload, 0.1, 10.0);
+        self.one_shot_pierce = self.one_shot_pierce.min(8);
+        self.one_shot_chip = fin(self.one_shot_chip, d.one_shot_chip, 0.0, 3.0);
+        self.needle_cadence = fin(self.needle_cadence, d.needle_cadence, 0.03, 2.0);
+        self.needle_speed = fin(self.needle_speed, d.needle_speed, 5.0, 300.0);
+        self.needle_dmg = fin(self.needle_dmg, d.needle_dmg, 0.0, 50.0);
+        self.needle_turn_deg = fin(self.needle_turn_deg, d.needle_turn_deg, 0.0, 1440.0);
+        self.needle_cone_deg = fin(self.needle_cone_deg, d.needle_cone_deg, 0.0, 90.0);
+        self.needle_range = fin(self.needle_range, d.needle_range, 1.0, 300.0);
+        self.needle_count = self.needle_count.clamp(1, 32);
+        self.needle_secs = fin(self.needle_secs, d.needle_secs, 0.1, 30.0);
+        self.super_radius = fin(self.super_radius, d.super_radius, 0.5, 20.0);
+        self.super_dmg = fin(self.super_dmg, d.super_dmg, 0.0, 300.0);
+        self.super_kb = fin(self.super_kb, d.super_kb, 0.0, 120.0);
+        self.grav_range = fin(self.grav_range, d.grav_range, 1.0, 100.0);
+        self.grav_cone_deg = fin(self.grav_cone_deg, d.grav_cone_deg, 0.5, 45.0);
+        self.grav_hold = fin(self.grav_hold, d.grav_hold, 0.5, 10.0);
+        self.grav_mass_max = fin(self.grav_mass_max, d.grav_mass_max, 0.0, 1.0e7);
+        self.grav_player_secs = fin(self.grav_player_secs, d.grav_player_secs, 0.05, 0.35);
+        self.grav_construct_secs = fin(self.grav_construct_secs, d.grav_construct_secs, 0.1, 60.0);
+        self.punt_speed = fin(self.punt_speed, d.punt_speed, 0.0, 120.0);
+        self.punt_blast_range = fin(self.punt_blast_range, d.punt_blast_range, 0.5, 30.0);
+        self.punt_blast_cone_deg = fin(self.punt_blast_cone_deg, d.punt_blast_cone_deg, 1.0, 90.0);
+        self.punt_blast_kb = fin(self.punt_blast_kb, d.punt_blast_kb, 0.0, 120.0);
+        self.grav_cd = fin(self.grav_cd, d.grav_cd, 0.0, 10.0);
+        self.stream_range = fin(self.stream_range, d.stream_range, 1.0, 100.0);
+        self.stream_tick = fin(self.stream_tick, d.stream_tick, 0.02, 2.0);
+        self.stream_dmg = fin(self.stream_dmg, d.stream_dmg, 0.0, 50.0);
+        self.stream_reel = fin(self.stream_reel, d.stream_reel, 0.0, 30.0);
+        self.stream_pull = fin(self.stream_pull, d.stream_pull, 0.0, 400.0);
+        self.stream_secs = fin(self.stream_secs, d.stream_secs, 0.1, 3.0);
+        self.stream_fling = fin(self.stream_fling, d.stream_fling, 0.0, 5.0);
+        self.charge_min = fin(self.charge_min, d.charge_min, 0.0, 2.0);
+        self.charge_full = fin(self.charge_full, d.charge_full, self.charge_min + 0.05, 6.0);
+        self.charge_dmg_max = fin(self.charge_dmg_max, d.charge_dmg_max, 0.1, 5.0);
+        self.charge_size_max = fin(self.charge_size_max, d.charge_size_max, 0.5, 5.0);
+        self.charge_tap_dmg = fin(self.charge_tap_dmg, d.charge_tap_dmg, 0.0, 2.0);
+        self.bfg_spinup = fin(self.bfg_spinup, d.bfg_spinup, 0.0, 3.0);
+        self.bfg_speed = fin(self.bfg_speed, d.bfg_speed, 2.0, 200.0);
+        self.bfg_radius = fin(self.bfg_radius, d.bfg_radius, 0.1, 2.0);
+        self.bfg_life = fin(self.bfg_life, d.bfg_life, 0.2, 10.0);
+        self.bfg_zap_range = fin(self.bfg_zap_range, d.bfg_zap_range, 0.0, 40.0);
+        self.bfg_zap_period = fin(self.bfg_zap_period, d.bfg_zap_period, 0.02, 3.0);
+        self.bfg_zap_dmg = fin(self.bfg_zap_dmg, d.bfg_zap_dmg, 0.0, 50.0);
+        self.bfg_blast_radius = fin(self.bfg_blast_radius, d.bfg_blast_radius, 0.5, 20.0);
+        self.bfg_dmg = fin(self.bfg_dmg, d.bfg_dmg, 0.0, 300.0);
+        self.bfg_kb = fin(self.bfg_kb, d.bfg_kb, 0.0, 120.0);
+        self.bfg_carve = fin(self.bfg_carve, d.bfg_carve, 0.0, 6.0);
+        self.bfg_cd = fin(self.bfg_cd, d.bfg_cd, 0.1, 30.0);
         self
     }
 }
@@ -534,6 +701,26 @@ pub struct LegendState {
     pub leap_fall: f32,
     pub leap_cd: f32,
     pub pull_cd: f32,
+    // ---- guns ----
+    /// Shared gun special cooldown / charge clock / charging flag / pending BFG shot time.
+    pub gun_cd: f32,
+    pub charge_t: f32,
+    pub charging: bool,
+    pub bfg_t: f32,
+    /// Needles stuck per victim: (player id, needles, seconds since the last one); count 0 = free.
+    pub needles: [(u8, u8, f32); 4],
+    /// Gravity gun: what it holds (0 none, 1 a player, 2 a construct), whom, for how long.
+    pub grav: u8,
+    pub grav_player: Option<PlayerId>,
+    pub grav_construct: Option<bd_core::ConstructId>,
+    pub grav_t: f32,
+    /// Stream: the latched player, their distance along the aim, latch time, pulse clock, last
+    /// drag target (for the fling).
+    pub stream: Option<PlayerId>,
+    pub stream_d: f32,
+    pub stream_t: f32,
+    pub stream_tick: f32,
+    pub stream_at: Vec3,
 }
 
 /// Wielder-side counters + moves (`PlayerState::extra.legend`, replicated to the owner): the
@@ -591,6 +778,10 @@ fn count(held: bool, v: f32) -> f32 {
 /// storms and waves in flight, the release decisions (storm call / leap) and recall flight from the
 /// hand.
 pub fn tick(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) {
+    if c.category == FormCategory::Held && !c.suit && super::gun::is_gun(c) {
+        gun_tick(s, env);
+        return;
+    }
     if !melee_item(c) {
         return;
     }
@@ -1460,6 +1651,476 @@ pub fn chain_pull(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut
     s.cd2 = s.cd2.max(0.3);
     fx(out, c, HeldFx::ChainPull, at, -dir, dist);
     true
+}
+
+// ------------------------------------------------------------------------------------ guns
+
+/// PRECISION ONE-SHOT: a single gun with nothing but `Shoots`, curated (an icon: the golden gun) or
+/// golden-rolled (`cflags::LEGENDARY`). One huge round, then a long reload.
+pub fn one_shot(c: &Construct) -> bool {
+    one_shot_recipe(&c.recipe, c.flair & crate::replicate::cflags::LEGENDARY != 0)
+}
+
+/// [`one_shot`] from a recipe + the legendary flair bit (clients use it for the gold tracer).
+pub fn one_shot_recipe(r: &Recipe, legendary: bool) -> bool {
+    r.form == Form::Gun && r.payload.is_none() && r.count <= 1 && r.mechanics.iter().all(|m| *m == Mechanic::Shoots) && (famous(r) || legendary)
+}
+
+/// STACKING NEEDLES: rounds whose payload homes and sticks (the needler).
+pub fn needler(c: &Construct) -> bool {
+    needler_recipe(&c.recipe)
+}
+
+pub fn needler_recipe(r: &Recipe) -> bool {
+    matches!(r.form, Form::Gun | Form::Cannon | Form::Bow | Form::Staff) && r.payload.as_ref().is_some_and(|p| p.has(Mechanic::Homing) && p.has(Mechanic::Sticky))
+}
+
+/// GRAB-AND-PUNT: a gun that grabs (the gravity gun).
+pub fn grav_gun(c: &Construct) -> bool {
+    c.recipe.form == Form::Gun && c.has(Mechanic::Grab)
+}
+
+/// STREAM WRANGLE: a beam gun that pulls (the proton pack).
+pub fn stream_gun(c: &Construct) -> bool {
+    c.recipe.form == Form::Gun && c.has(Mechanic::Beam) && c.has(Mechanic::Pull) && !c.has(Mechanic::Grab)
+}
+
+/// BFG: a cannon whose round is an exploding beam orb.
+pub fn bfg(c: &Construct) -> bool {
+    bfg_recipe(&c.recipe)
+}
+
+pub fn bfg_recipe(r: &Recipe) -> bool {
+    r.form == Form::Cannon && r.payload.as_ref().is_some_and(|p| p.has(Mechanic::Beam) && p.has(Mechanic::Explodes))
+}
+
+/// CHARGE SHOT: every other (non-rocket) cannon — the arm cannon, the mega buster.
+pub fn charge_cannon(c: &Construct) -> bool {
+    c.recipe.form == Form::Cannon && crate::weapons::archetype_for(&c.recipe) == Some(crate::weapons::GunArchetype::Cannon) && !bfg(c) && !needler(c)
+}
+
+/// The gun's numbers with its legendary rule applied (`gun::step`).
+pub fn gun_spec(c: &Construct, mut spec: crate::weapons::GunSpec, t: &LegendTuning) -> crate::weapons::GunSpec {
+    if one_shot(c) {
+        spec.damage = t.one_shot_dmg;
+        spec.knockback = t.one_shot_kb;
+        spec.cadence = t.one_shot_reload;
+        spec.pierce = t.one_shot_pierce;
+        spec.chip = t.one_shot_chip;
+        spec.falloff_start = 0.0;
+        spec.recoil = spec.recoil.max(6.0);
+    } else if needler(c) {
+        spec.cadence = t.needle_cadence;
+        spec.recoil *= 0.3;
+    }
+    spec
+}
+
+/// Per tick for a held gun: cooldowns, needles wearing off.
+fn gun_tick(s: &mut HeldState, env: &Env<'_>) {
+    let t = &env.ctx.tuning.legendary;
+    let dt = env.dt();
+    let l = &mut s.leg;
+    l.gun_cd = (l.gun_cd - dt).max(0.0);
+    for n in l.needles.iter_mut().filter(|n| n.1 > 0) {
+        n.2 += dt;
+        if n.2 >= t.needle_secs {
+            *n = (0, 0, 0.0);
+        }
+    }
+}
+
+/// The gun's special, if it has one (from `gun::step` before the ordinary trigger): true = handled.
+pub fn gun_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut) -> bool {
+    let t = env.ctx.tuning.legendary;
+    if grav_gun(c) {
+        grav_step(c, s, env, out, &t);
+        true
+    } else if stream_gun(c) {
+        stream_step(c, s, env, out, &t);
+        true
+    } else if bfg(c) {
+        bfg_step(c, s, env, out, &t);
+        true
+    } else if charge_cannon(c) {
+        charge_step(c, s, env, out, &t);
+        true
+    } else {
+        false
+    }
+}
+
+fn muzzle(c: &Construct, env: &Env<'_>) -> Vec3 {
+    let o = env.owner;
+    o.hand + o.look * (c.half.z * 2.0)
+}
+
+/// Gravity gun: alt-fire / ADS catches the enemy or loose construct under the crosshair and holds it
+/// at the muzzle; LMB punts it (a held player is punted after `grav_player_secs` regardless — never
+/// more than a beat of lost control); LMB with nothing held is a short punt blast.
+fn grav_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, t: &LegendTuning) {
+    let o = env.owner;
+    let ctx = env.ctx;
+    let dt = env.dt();
+    c.rot = geom::look_rotation(o.look);
+    let ok = !o.busy;
+    let fire = ok && o.pressed & buttons::PRIMARY != 0;
+    let catch = ok && o.pressed & (buttons::SECONDARY | buttons::ADS) != 0;
+    let m = muzzle(c, env);
+    let hold = m + o.look * t.grav_hold;
+    match s.leg.grav {
+        1 => {
+            let Some(v) = s.leg.grav_player.and_then(|id| ctx.player(id)).filter(|v| v.alive && v.seat.is_none()).copied() else {
+                grav_drop(s);
+                return;
+            };
+            s.leg.grav_t += dt;
+            if fire || s.leg.grav_t >= t.grav_player_secs {
+                let dir = o.look.normalize_or(Vec3::NEG_Z);
+                out.player_hits.push(HitInfo::new(v.id, Some(c.owner), HitKind::Thrown, 6.0, 0.0, dir, v.hull.center()).with_element(c.recipe.element).with_construct(c.id).with_closing(0.0).with_impact(1.6));
+                out.impulses.push((v.id, dir * t.punt_speed + o.vel * 0.5 - v.vel, crate::combat::TUMBLE_SECS));
+                s.victim = Some(v.id);
+                s.victim_t = 1.2;
+                fx(out, c, HeldFx::GravPunt, m, dir, t.punt_speed);
+                out.recoils.push((c.owner, dir, 6.0));
+                grav_drop(s);
+                s.leg.gun_cd = t.grav_cd;
+                c.set_anim(AnimState::Active, env.tick());
+                return;
+            }
+            let dv = ((hold - v.hull.center()) * 14.0 + o.vel - v.vel).clamp_length_max(40.0);
+            out.impulses.push((v.id, dv, 0.0));
+        }
+        2 => {
+            let Some(px) = s.leg.grav_construct.and_then(|id| env.proxy(id)).filter(|p| p.active && !p.attached && p.free).copied() else {
+                grav_drop(s);
+                return;
+            };
+            s.leg.grav_t += dt;
+            if catch || s.leg.grav_t >= t.grav_construct_secs {
+                // Let go gently.
+                grav_drop(s);
+                return;
+            }
+            if fire {
+                let dir = o.look.normalize_or(Vec3::NEG_Z);
+                out.queue.push(super::Interaction::Push { id: px.id, dv: dir * t.punt_speed + o.vel - px.vel });
+                fx(out, c, HeldFx::GravPunt, m, dir, t.punt_speed);
+                out.recoils.push((c.owner, dir, 5.0));
+                grav_drop(s);
+                s.leg.gun_cd = t.grav_cd;
+                c.set_anim(AnimState::Active, env.tick());
+                return;
+            }
+            let at = hold + o.look * px.half.max_element();
+            let dv = ((at - px.center) * 12.0 + o.vel - px.vel).clamp_length_max(40.0);
+            out.queue.push(super::Interaction::Push { id: px.id, dv });
+        }
+        _ => {
+            c.set_anim(AnimState::Idle, env.tick());
+            if s.leg.gun_cd > 0.0 {
+                return;
+            }
+            if catch {
+                grav_catch(c, s, env, out, t, m);
+            } else if fire {
+                // Empty-handed: a punt blast.
+                let dir = o.look.normalize_or(Vec3::NEG_Z);
+                let cos = t.punt_blast_cone_deg.to_radians().cos();
+                for e in ctx.enemies_of(c.owner) {
+                    let hull = ctx.hull_for(c.owner, e);
+                    let to = hull.center() - o.eye;
+                    let d = to.length();
+                    if d > t.punt_blast_range || d < 1e-3 || to.dot(dir) / d < cos || !clear(ctx.voxels, o.eye, hull.center()) {
+                        continue;
+                    }
+                    out.player_hits.push(HitInfo::new(e.id, Some(c.owner), HitKind::Shot, 4.0, t.punt_blast_kb, dir + Vec3::Y * 0.2, geom::closest_point(&hull, o.eye)).with_element(c.recipe.element).with_construct(c.id).with_closing(0.0).with_impact(1.4));
+                }
+                for px in env.others {
+                    if !px.active || px.attached || !px.free || px.id == c.id {
+                        continue;
+                    }
+                    let to = px.center - o.eye;
+                    let d = to.length();
+                    if d > t.punt_blast_range + px.half.max_element() || d < 1e-3 || to.dot(dir) / d < cos {
+                        continue;
+                    }
+                    out.queue.push(super::Interaction::Push { id: px.id, dv: dir * t.punt_blast_kb });
+                }
+                fx(out, c, HeldFx::GravPunt, m, dir, -t.punt_blast_kb);
+                out.recoils.push((c.owner, dir, 3.0));
+                s.leg.gun_cd = t.grav_cd;
+                c.set_anim(AnimState::Active, env.tick());
+            }
+        }
+    }
+}
+
+fn grav_drop(s: &mut HeldState) {
+    s.leg.grav = 0;
+    s.leg.grav_player = None;
+    s.leg.grav_construct = None;
+    s.leg.grav_t = 0.0;
+}
+
+fn grav_catch(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, t: &LegendTuning, m: Vec3) {
+    let o = env.owner;
+    let ctx = env.ctx;
+    let reach = raycast(ctx.voxels, o.eye, o.look, t.grav_range).map_or(t.grav_range, |h| h.t);
+    // The nearest enemy near the crosshair, or the nearest loose construct on the aim line.
+    let cands = ctx.enemies_of(c.owner).map(|e| (e.id, ctx.hull_for(c.owner, e)));
+    let player = crate::aim_assist::pick_target(o.eye, o.look, t.grav_cone_deg.to_radians().cos(), reach, cands, |a, b| clear(ctx.voxels, a, b))
+        .filter(|(id, _)| ctx.player(*id).is_some_and(|v| v.seat.is_none()));
+    let mut thing: Option<(bd_core::ConstructId, f32)> = None;
+    for px in env.others {
+        if !px.active || px.attached || !px.free || px.giant || px.mass > t.grav_mass_max || px.id == c.id || px.attached_to.is_some() {
+            continue;
+        }
+        if let Some((f, _)) = geom::segment_obb(o.eye, o.eye + o.look * reach, px.center, px.half, px.rot, 0.6) {
+            let d = f * reach;
+            if thing.is_none_or(|(_, b)| d < b) {
+                thing = Some((px.id, d));
+            }
+        }
+    }
+    let pd = player.map(|(_, p)| (p - o.eye).length());
+    match (player, thing) {
+        (Some((id, p)), th) if th.is_none_or(|(_, d)| pd.is_some_and(|pd| pd <= d)) => {
+            s.leg.grav = 1;
+            s.leg.grav_player = Some(id);
+            s.leg.grav_t = 0.0;
+            out.player_hits.push(HitInfo::new(id, Some(c.owner), HitKind::Shot, 2.0, 0.0, -o.look, p).with_element(c.recipe.element).with_construct(c.id).with_closing(0.0).with_impact(1.1));
+            fx(out, c, HeldFx::GravGrab, p, (m - p).normalize_or_zero(), 1.0);
+        }
+        (_, Some((id, _))) => {
+            s.leg.grav = 2;
+            s.leg.grav_construct = Some(id);
+            s.leg.grav_t = 0.0;
+            let at = env.proxy(id).map_or(m, |p| p.center);
+            fx(out, c, HeldFx::GravGrab, at, (m - at).normalize_or_zero(), 2.0);
+        }
+        _ => {}
+    }
+    if s.leg.grav != 0 {
+        c.set_anim(AnimState::Charging, env.tick());
+    }
+}
+
+/// Stream: hold LMB — a continuous stream (damage pulses as beam rays); the first enemy it touches
+/// is latched and dragged along your aim (reeled in a little), fighting their movement rather than
+/// replacing it; let go to fling them along your aim's sweep. Breaks on lost sight / range / time.
+fn stream_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, t: &LegendTuning) {
+    let o = env.owner;
+    let ctx = env.ctx;
+    let dt = env.dt();
+    c.rot = geom::look_rotation(o.look);
+    let h1 = !o.busy && o.input.held(buttons::PRIMARY);
+    let m = muzzle(c, env);
+    if !h1 || s.leg.gun_cd > 0.0 {
+        if let Some(id) = s.leg.stream.take() {
+            // Fling along the sweep of the aim.
+            let target = o.eye + o.look * s.leg.stream_d;
+            let sweep = ((target - s.leg.stream_at) / dt.max(1e-4)).clamp_length_max(40.0);
+            let v = ctx.player(id).copied();
+            if let Some(v) = v.filter(|v| v.alive) {
+                let fling = sweep * t.stream_fling;
+                out.impulses.push((id, fling - v.vel * 0.5, if fling.length() > 14.0 { crate::combat::TUMBLE_SECS } else { 0.0 }));
+                fx(out, c, HeldFx::StreamRelease, v.hull.center(), fling.normalize_or(o.look), fling.length());
+            }
+            s.leg.gun_cd = 0.4;
+        }
+        s.leg.stream_t = 0.0;
+        c.set_anim(AnimState::Idle, env.tick());
+        return;
+    }
+    c.set_anim(AnimState::Active, env.tick());
+    s.leg.stream_tick -= dt;
+    let pulse = s.leg.stream_tick <= 0.0;
+    if pulse {
+        s.leg.stream_tick += t.stream_tick;
+        if s.leg.stream_tick <= 0.0 {
+            s.leg.stream_tick = t.stream_tick;
+        }
+    }
+    let (dm, _) = held::mech_mult(c);
+    match s.leg.stream.and_then(|id| ctx.player(id)).copied() {
+        None => {
+            s.leg.stream = None;
+            // Looking for someone to latch: the first enemy on the stream (as the wielder saw them).
+            let reach = raycast(ctx.voxels, o.eye, o.look, t.stream_range).map_or(t.stream_range, |h| h.t);
+            let mut best: Option<(PlayerId, f32, Vec3)> = None;
+            for e in ctx.enemies_of(c.owner) {
+                let hull = geom::inflate(&ctx.hull_for(c.owner, e), 0.35);
+                if let Some((f, _)) = geom::segment_aabb(o.eye, o.eye + o.look * reach, &hull) {
+                    let d = f * reach;
+                    if best.is_none_or(|b| d < b.1) && ctx.player(e.id).is_some_and(|v| v.seat.is_none()) {
+                        best = Some((e.id, d, hull.center()));
+                    }
+                }
+            }
+            if let Some((id, d, at)) = best {
+                s.leg.stream = Some(id);
+                s.leg.stream_d = d.max(3.0);
+                s.leg.stream_t = 0.0;
+                s.leg.stream_at = o.eye + o.look * s.leg.stream_d;
+                fx(out, c, HeldFx::StreamLatch, at, (at - m).normalize_or(o.look), d);
+            }
+            if pulse {
+                out.hitscans.push(crate::weapons::HitscanShot {
+                    construct: Some(c.id),
+                    range: t.stream_range,
+                    element: c.recipe.element,
+                    muzzle: m,
+                    ..crate::weapons::HitscanShot::new(c.owner, o.eye, o.look, t.stream_dmg * dm, 0.0)
+                });
+            }
+        }
+        Some(v) => {
+            s.leg.stream_t += dt;
+            let center = v.hull.center();
+            let lost = !v.alive || (center - o.eye).length() > t.stream_range * 1.25 || !clear(ctx.voxels, o.eye, center) || s.leg.stream_t >= t.stream_secs;
+            if lost {
+                s.leg.stream = None;
+                fx(out, c, HeldFx::StreamRelease, center, o.look, 0.0);
+                s.leg.gun_cd = 0.6;
+                return;
+            }
+            s.leg.stream_d = (s.leg.stream_d - t.stream_reel * dt).max(3.0);
+            let target = o.eye + o.look * s.leg.stream_d;
+            let want = (target - center) * 6.0 + o.vel;
+            let dv = (want - v.vel).clamp_length_max(t.stream_pull * dt);
+            out.impulses.push((v.id, dv, 0.0));
+            s.leg.stream_at = target;
+            if pulse {
+                out.hitscans.push(crate::weapons::HitscanShot {
+                    construct: Some(c.id),
+                    range: t.stream_range * 1.25,
+                    element: c.recipe.element,
+                    muzzle: m,
+                    ..crate::weapons::HitscanShot::new(c.owner, o.eye, (center - o.eye).normalize_or(o.look), t.stream_dmg * dm, 0.0)
+                });
+            }
+        }
+    }
+}
+
+/// Charge shot (cannons): tap = a quick pellet; hold = the round grows (glow, hum) up to
+/// `charge_full`; release fires it scaled — bigger, harder, heavier recoil; a full charge bursts.
+fn charge_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, t: &LegendTuning) {
+    let o = env.owner;
+    let dt = env.dt();
+    c.rot = geom::look_rotation(o.look);
+    let h1 = !o.busy && o.input.held(buttons::PRIMARY);
+    if h1 && s.leg.gun_cd <= 0.0 {
+        if !s.leg.charging {
+            s.leg.charging = true;
+            s.leg.charge_t = 0.0;
+        }
+        let before = s.leg.charge_t;
+        s.leg.charge_t += dt;
+        if before < t.charge_min && s.leg.charge_t >= t.charge_min {
+            fx(out, c, HeldFx::GunCharge, muzzle(c, env), o.look, 0.0);
+        }
+        if before < t.charge_full && s.leg.charge_t >= t.charge_full {
+            fx(out, c, HeldFx::GunCharge, muzzle(c, env), o.look, 1.0);
+        }
+        c.set_anim(if s.leg.charge_t >= t.charge_min { AnimState::Charging } else { AnimState::Idle }, env.tick());
+        return;
+    }
+    if !s.leg.charging {
+        c.set_anim(AnimState::Idle, env.tick());
+        return;
+    }
+    s.leg.charging = false;
+    let Some(arch) = crate::weapons::archetype_for(&c.recipe) else { return };
+    let mut spec = env.ctx.tuning.spec_for(&c.recipe, arch); // TUNING HOOK
+    let hold = s.leg.charge_t;
+    s.leg.charge_t = 0.0;
+    let (k, dmg_k, speed_k, recoil_k) = if hold < t.charge_min {
+        spec.radius *= 0.5;
+        spec.explode = None;
+        (0.0, t.charge_tap_dmg, 1.5, 0.3)
+    } else {
+        let k = ((hold - t.charge_min) / (t.charge_full - t.charge_min)).clamp(0.0, 1.0);
+        spec.radius *= 1.0 + (t.charge_size_max - 1.0) * k;
+        if k >= 1.0 {
+            spec.explode = spec.explode.or(Some((2.8, 1.4)));
+        }
+        (k, 0.6 + (t.charge_dmg_max - 0.6) * k, 1.0 - 0.2 * k, 0.6 + 1.0 * k)
+    };
+    super::gun::fire(c, env, out, arch, &spec, o.look, false, dmg_k, speed_k, recoil_k);
+    fx(out, c, HeldFx::ChargeShot, muzzle(c, env), o.look, k);
+    s.leg.gun_cd = if k <= 0.0 { 0.16 } else { spec.cadence * (0.5 + 0.5 * k) };
+    c.set_anim(AnimState::Active, env.tick());
+}
+
+/// BFG: press = spin-up (a telegraph), then a slow orb that zaps everyone near its path with
+/// tendrils (`world/legend.rs`) and detonates where it lands.
+fn bfg_step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut ConstructOut, t: &LegendTuning) {
+    let o = env.owner;
+    let dt = env.dt();
+    c.rot = geom::look_rotation(o.look);
+    if s.leg.bfg_t > 0.0 {
+        s.leg.bfg_t -= dt;
+        c.set_anim(AnimState::Charging, env.tick());
+        if s.leg.bfg_t <= 0.0 {
+            s.leg.bfg_t = 0.0;
+            let m = muzzle(c, env);
+            let dir = super::gun::converge_muzzle(env, c.owner, o.eye, o.look, m);
+            let (dm, km) = held::mech_mult(c);
+            out.projectiles.push(crate::projectile::ProjectileSpawn {
+                owner: c.owner,
+                construct: Some(c.id),
+                kind: crate::projectile::ProjectileKind::Bolt,
+                pos: m,
+                vel: dir * t.bfg_speed,
+                damage: t.bfg_dmg * dm,
+                knockback: t.bfg_kb * km,
+                element: c.recipe.element,
+                radius: t.bfg_radius,
+                life: t.bfg_life,
+                explode: Some((t.bfg_blast_radius, t.bfg_carve)),
+                hit_kind: HitKind::Explosion,
+                ricochet: 0,
+                effects: crate::projectile::effects::TENDRILS,
+                falloff_start: 0.0,
+                chip: 0.0,
+                muzzle_speed: t.bfg_speed,
+            });
+            out.events.push(GameEvent::ShotFired { owner: c.owner, construct: Some(c.id), archetype: crate::weapons::GunArchetype::Cannon, muzzle: m, dir, recoil: 8.0, pellets: 1 });
+            out.recoils.push((c.owner, dir, 8.0));
+            s.leg.gun_cd = t.bfg_cd;
+            c.set_anim(AnimState::Active, env.tick());
+        }
+        return;
+    }
+    if !o.busy && o.pressed & buttons::PRIMARY != 0 && s.leg.gun_cd <= 0.0 {
+        s.leg.bfg_t = t.bfg_spinup.max(env.dt());
+        fx(out, c, HeldFx::GunCharge, muzzle(c, env), o.look, 1.0);
+    } else {
+        c.set_anim(AnimState::Idle, env.tick());
+    }
+}
+
+/// A needle stuck into `target` (from the world's projectile step): count it; at `needle_count`
+/// they supercombine. Returns Some(burst point) when they do.
+pub fn needle_stick(s: &mut HeldState, target: PlayerId, t: &LegendTuning) -> Option<u8> {
+    let id = target.0;
+    let slot = s.leg.needles.iter().position(|n| n.1 > 0 && n.0 == id).or_else(|| s.leg.needles.iter().position(|n| n.1 == 0)).or_else(|| {
+        // Full: take over the stalest.
+        (0..s.leg.needles.len()).max_by(|a, b| s.leg.needles[*a].2.total_cmp(&s.leg.needles[*b].2))
+    })?;
+    let n = &mut s.leg.needles[slot];
+    if n.0 != id || n.1 == 0 {
+        *n = (id, 0, 0.0);
+    }
+    n.1 += 1;
+    n.2 = 0.0;
+    let count = n.1;
+    if count >= t.needle_count {
+        *n = (0, 0, 0.0);
+    }
+    Some(count)
 }
 
 // ------------------------------------------------------------------------------------ wielder

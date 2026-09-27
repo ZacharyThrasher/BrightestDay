@@ -8,7 +8,8 @@
 // testing ⇒ visible in line of sight only.
 //
 // `t` is computed per vertex from the view depth so the line stays a constant pixel width at any
-// distance. Two hulls per part (MeshTag bit 0): layer 0 = thin dark inner line, layer 1 = corps
+// distance. Two hulls per part (MeshTag bit 0): layer 0 = thin inner line (dark, or the game's damage
+// heat band), layer 1 = corps
 // outer line (the inner hull is nearer, so it wins where both overlap). The colours are kept below
 // the bloom threshold so the line itself never blooms (crisp even in heavy glow).
 //
@@ -102,7 +103,8 @@ fn fragment(in: VOut) -> @location(0) vec4<f32> {
             let a = o.pattern.z;
             let d = in.clip.x * cos(a) + in.clip.y * sin(a);
             if fract(d / period) > o.pattern.y {
-                col = o.inner.rgb;
+                // Dark gaps (the inner hull may carry the game's damage heat band, not a dark line).
+                col = o.outer.rgb * 0.05;
             }
         }
     }

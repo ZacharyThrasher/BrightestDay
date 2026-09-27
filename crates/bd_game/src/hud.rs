@@ -174,23 +174,37 @@ fn update_overlay(
 }
 
 /// Centre dot always visible in game; the corps-coloured ring appears around it when a tether would
-/// anchor (dimmer when found by aim assist rather than the exact ray).
+/// anchor (dimmer when found by aim assist rather than the exact ray). READABILITY: the dot carries
+/// YOUR damage % in the Smash heat colour (white at 0 → yellow → orange → red → crimson), so both
+/// of your numbers — willpower (the gauge around it) and damage — live at the crosshair.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn update_crosshair(
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
     preview: Res<AnchorPreview>,
     rig: Res<crate::camera::CameraRig>,
-    mut dot: Query<&mut Visibility, (With<Crosshair>, Without<AnchorRing>)>,
+    readable: Option<Res<crate::readability::Readability>>,
+    active: Option<Res<crate::sim_bridge::ActiveWorld>>,
+    mut last_pct: Local<i32>,
+    mut dot: Query<(&mut Visibility, &mut BackgroundColor), (With<Crosshair>, Without<AnchorRing>)>,
     mut ring: Query<(&mut Visibility, &mut BorderColor), (With<AnchorRing>, Without<Crosshair>)>,
 ) {
     // A director camera (spectator views) has no crosshair.
     let show = *state.get() == AppState::InGame && !menu.0 && *rig != crate::camera::CameraRig::Director;
     let vis = |on: bool| if on { Visibility::Visible } else { Visibility::Hidden };
-    for mut v in &mut dot {
+    let pct = active.as_ref().and_then(|a| a.local_player()).filter(|p| p.alive).map_or(0.0, crate::viewmodel::strain_pct);
+    let whole = pct.round() as i32;
+    for (mut v, mut bg) in &mut dot {
         if *v != vis(show) {
             *v = vis(show);
         }
+        if let Some(r) = readable.as_ref()
+            && (*last_pct != whole || r.is_changed() || bg.is_added())
+        {
+            bg.0 = crate::readability::heat_color(&r.0.heat, pct).with_alpha(0.95);
+        }
     }
+    *last_pct = whole;
     for (mut v, mut border) in &mut ring {
         let on = show && preview.valid;
         if *v != vis(on) {

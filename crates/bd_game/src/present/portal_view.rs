@@ -48,8 +48,11 @@ pub const PORTAL_MAIN_LAYER: usize = super::outline::OUTLINE_LAYER;
 pub const PORTAL_VIEW_LAYER: usize = 26;
 /// Live portal views at most.
 pub const MAX_VIEWS: usize = 2;
-/// Frame-time budget (ms): above it the views lose resolution, then one view.
+/// Frame-time budget: live views may add this much (ms) to the frame time measured without them
+/// (and never push it past `BUDGET_MS` when it was below); above it they lose resolution, then one
+/// view. A vsync-capped frame never trips it (the cap hides the cost as long as it fits).
 pub const BUDGET_MS: f32 = 7.5;
+pub const BUDGET_EXTRA_MS: f32 = 2.0;
 /// Below this screen coverage a portal is not worth a live view.
 const MIN_COVERAGE: f32 = 0.002;
 /// Below this coverage (or beyond `FAR_M`) a live view redraws every other frame.
@@ -57,6 +60,10 @@ const SMALL_COVERAGE: f32 = 0.04;
 const FAR_M: f32 = 45.0;
 /// Swirl → window blend time (s).
 const FADE_IN: f32 = 0.12;
+
+/// Dev / bench: force the live views off (A/B in one run) without touching the saved settings.
+#[derive(Resource, Default)]
+pub struct PortalViewsOff(pub bool);
 
 /// Which end of which pair a `PortalFx` entity draws (inserted by `powers::sync_space`).
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,6 +88,8 @@ pub struct PortalViews {
     budget: f32,
     cap: usize,
     ema_ms: f32,
+    /// Frame time while no view was live (the baseline the budget adds to).
+    base_ms: f32,
     frame: u32,
     stats: ViewStats,
 }
@@ -105,7 +114,8 @@ pub struct PortalViewPlugin;
 impl Plugin for PortalViewPlugin {
     fn build(&self, app: &mut App) {
         super::portal_bench::build(app);
-        app.add_systems(PostStartup, setup)
+        app.init_resource::<PortalViewsOff>()
+            .add_systems(PostStartup, setup)
             .add_systems(
                 PostUpdate,
                 (
@@ -284,6 +294,7 @@ fn setup(
         budget: 1.0,
         cap: MAX_VIEWS,
         ema_ms: 6.0,
+        base_ms: 6.0,
         frame: 0,
         stats: ViewStats::default(),
     });
@@ -365,6 +376,7 @@ fn coverage(cam: Vec3, fwd: Vec3, vp: &Mat4, c: Vec3, r: f32, focal_y: f32, aspe
 fn update_views(
     time: Res<Time<Real>>,
     settings: Res<Settings>,
+    off: Res<PortalViewsOff>,
     active: Option<Res<ActiveWorld>>,
     main: Query<(&Transform, &Projection, Option<Ref<DistanceFog>>, &Camera), (With<PlayerCamera>, Without<PortalViewCam>)>,
     mut views: ResMut<PortalViews>,
@@ -383,7 +395,7 @@ fn update_views(
         pairs.extend(a.world.portals.iter().map(PairGeo::from_sim));
     }
     let Ok((mtf, mproj, mfog, mcam)) = main.single() else { return };
-    let enabled = settings.portal_views && !pairs.is_empty();
+    let enabled = settings.portal_views && !off.0 && !pairs.is_empty();
     // ---- pick the live views
     cand.clear();
     if enabled && let Projection::Perspective(mp) = mproj {
@@ -415,12 +427,16 @@ fn update_views(
     }
     // Budget: over → lower resolution, then one view; well under → recover.
     let live_now = v.slots.iter().filter(|s| s.is_some()).count();
-    if live_now > 0 && v.ema_ms > BUDGET_MS {
+    if live_now == 0 {
+        v.base_ms += (ms - v.base_ms) * 0.05;
+    }
+    let limit = BUDGET_MS.max(v.base_ms + BUDGET_EXTRA_MS);
+    if live_now > 0 && v.ema_ms > limit {
         v.budget = (v.budget - dt * 0.8).max(0.5);
-        if v.budget <= 0.5 && v.ema_ms > BUDGET_MS * 1.15 {
+        if v.budget <= 0.5 && v.ema_ms > limit * 1.15 {
             v.cap = 1;
         }
-    } else if v.ema_ms < BUDGET_MS * 0.8 {
+    } else if v.ema_ms < limit * 0.85 {
         v.budget = (v.budget + dt * 0.4).min(1.0);
         if v.budget >= 0.9 {
             v.cap = MAX_VIEWS;
@@ -484,9 +500,10 @@ fn update_views(
         if let (Projection::Perspective(p), Projection::Perspective(m)) = (proj.as_mut(), mproj) {
             p.fov = m.fov;
             p.near = m.near.max(0.02);
-            // Oblique near plane on the exit: keep only what is in front of it.
+            // Oblique near plane on the exit: keep only what is in front of it (just past the exit's
+            // own disc, which would otherwise cover the view).
             let n_v = (vrot.inverse() * f.n).normalize();
-            let q_v = vrot.inverse() * ((f.pos - f.n * 0.02) - vpos);
+            let q_v = vrot.inverse() * ((f.pos + f.n * 0.03) - vpos);
             let d = n_v.dot(q_v);
             p.near_clip_plane = if d > 0.06 { n_v.extend(-d) } else { Vec4::new(0.0, 0.0, -1.0, -p.near) };
         }

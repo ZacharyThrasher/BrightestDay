@@ -78,8 +78,12 @@ impl WillGauge {
         self.pool = (max / spark).round().max(1.0) as u32;
         let pool = self.pool as f32;
         let now = (wp / spark).clamp(0.0, pool);
+        let first = self.raw.is_none();
         let before = self.raw.unwrap_or(now);
         self.raw = Some(now);
+        if first {
+            self.have = now;
+        }
         // Spent: a cast drops together; a continuous drain (upkeep, a growing energy ball) breaks
         // each spark off as it empties — chunk by chunk.
         let (wb, wn) = (whole(before), whole(now));

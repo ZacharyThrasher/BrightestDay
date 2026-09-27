@@ -16,8 +16,8 @@
 //! (`bd_sim::freedom::deliver`), recipe validation / clamps (`willpower::validate_recipe`, default
 //! match rules), the signature amplifier (`signature::amplify`, mid shout power), cast cost
 //! (`assets/tuning/combat.ron`), the DANGER alert (`signature::spectacle`) and the power-ups gates
-//! (`pickups`). Power moves / incantations are shown for "if you held that power". The presence tier
-//! lives in bd_game (Bevy) and is not shown.
+//! (`pickups`) and the presence tier (`bd_sim::presence_tier`, knobs from `assets/tuning/presence.ron`).
+//! Power moves / incantations are shown for "if you held that power".
 //!
 //! The picture: the construct built like the client builds it (curated icon shape, costume summon or
 //! procedural model), 3/4 view, painted costume colours for character summons and corps green
@@ -33,6 +33,7 @@ use bd_shapes::costume;
 use bd_sim::MatchRules;
 use bd_sim::freedom::deliver;
 use bd_sim::pickups::{self, GateKind};
+use bd_sim::presence_tier::{self, Tier, TierInput, TierKnobs};
 use bd_sim::signature::{self as sig, SignatureCast};
 use bd_sim::tuning::CombatTuning;
 
@@ -50,6 +51,8 @@ const SHOUT_MAX_CHARS: usize = 48;
 struct Tool {
     lex: Lexicon,
     tuning: CombatTuning,
+    /// `assets/tuning/presence.ron` → `tier` (defaults if missing).
+    tier_knobs: TierKnobs,
     rules: MatchRules,
     root: PathBuf,
     spoken: bool,
@@ -69,6 +72,26 @@ fn find_root() -> PathBuf {
         return cwd;
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// The presence tier knobs from `presence.ron` (`tier: (...)`; the rest of the file is bd_game's).
+fn load_tier_knobs(path: &std::path::Path) -> TierKnobs {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default)]
+    struct File {
+        tier: TierKnobs,
+    }
+    std::fs::read_to_string(path).ok().and_then(|s| ron::from_str::<File>(&s).ok()).map(|f| f.tier).unwrap_or_default()
+}
+
+fn tier_words(t: Tier) -> &'static str {
+    match t {
+        Tier::Tiny => "a crisp flick (guns, gauntlets, discs, bugs)",
+        Tier::Normal => "a clean gather + \"shing\" (swords, shields, walls, balls)",
+        Tier::Big => "the world notices (dragons, anvils from the sky, big hammers, vehicles)",
+        Tier::Titan => "near-Hollow-Purple treatment (kaiju, giant mechs, meteors, legendaries)",
+        Tier::Signature => "the top of the scale (domains, erasing orbs, the priciest spectacles)",
+    }
 }
 
 fn main() {
@@ -100,7 +123,8 @@ fn main() {
         }
     };
     let tuning = CombatTuning::load(&root.join("assets/tuning/combat.ron")).unwrap_or_default();
-    let mut tool = Tool { lex, tuning, rules: MatchRules::default(), root, spoken, open, out_dir, last: None };
+    let tier_knobs = load_tier_knobs(&root.join("assets/tuning/presence.ron"));
+    let mut tool = Tool { lex, tuning, tier_knobs, rules: MatchRules::default(), root, spoken, open, out_dir, last: None };
     if !phrases.is_empty() {
         for p in phrases {
             tool.preview(&p);
@@ -186,11 +210,15 @@ struct Reading {
     phrase: String,
     repeated: bool,
     costume: bool,
+    /// The bare character the costume summon's mechanics were read from ("gojo but bald" → "gojo").
+    bare: Option<String>,
     /// What the sim would spawn (after the costume hook, delivery, validation and the amplifier).
     recipe: Recipe,
     shape: Option<ShapeSpec>,
     cost: f32,
     danger: bool,
+    /// Presence tier (how much gravitas the client gives it).
+    tier: Tier,
     gates: Vec<String>,
     powers: Vec<String>,
 }
@@ -211,14 +239,23 @@ impl Tool {
             count = c;
         }
         let res = &it.resolution;
-        let mut recipe = res.recipe.clone();
+        let modifier = res.kind == ResolutionKind::Graft;
+        let summon = res.signature.is_none() && !modifier && res.stand_rush.is_none();
+        // COSTUME HOOK (console.rs): costume words ("gojo but bald") dress the summon only; its
+        // mechanics are read from the bare character ("gojo")
+        let bare = if summon { costume::summon::mechanics_phrase(&it.text, &res.recipe) } else { None };
+        let (mut recipe, mut shape) = match &bare {
+            Some(b) => {
+                let b = self.lex.resolve(b);
+                (b.recipe, b.shape)
+            }
+            None => (res.recipe.clone(), res.shape.clone()),
+        };
         if let Some(n) = count {
             recipe.count = n.max(1);
         }
-        let mut shape = res.shape.clone();
         // COSTUME HOOK (console.rs): a plain summon naming a character wears that character's costume
-        let modifier = res.kind == ResolutionKind::Graft;
-        let costume = res.signature.is_none() && !modifier && res.stand_rush.is_none() && costume::summon::apply(&it.text, &mut recipe, &mut shape);
+        let costume = summon && costume::summon::apply(&it.text, &mut recipe, &mut shape);
         // FREEDOM HOOK: a named player is delivered to (an object "onto" someone falls from the sky)
         if it.target.is_some() {
             deliver::prepare(&mut recipe, sim_delivery(it.delivery.unwrap_or(Delivery::Hunt)));
@@ -240,10 +277,14 @@ impl Tool {
         if signature.is_some() {
             cost = sig::signature_cost(cost, &t.signature, pool);
         }
-        let danger = res.stand_rush.is_none() && !modifier && sig::spectacle(&r, cost, 0.0, &t.signature).is_some();
+        let spec = sig::spectacle(&r, cost, 0.0, &t.signature);
+        let danger = res.stand_rush.is_none() && !modifier && spec.is_some();
+        // PRESENCE TIER (bd_game present/presence, same inputs; no legendary roll in a preview)
+        let top = spec.is_some_and(|s| s.kind == sig::SignatureKind::Domain || sig::is_orbital(&r) || cost >= self.tier_knobs.signature_cost);
+        let tier = presence_tier::tier(&TierInput::of(&r, cost, false, spec.is_some() && !top, top), &self.tier_knobs);
         let gates = self.gates(&r, signature, res.recipe.grants.as_deref());
         let powers = self.powers(&phrase, res);
-        Reading { phrase, repeated, costume, recipe: r, shape, cost, danger, gates, powers, it }
+        Reading { phrase, repeated, costume, bare, recipe: r, shape, cost, danger, tier, gates, powers, it }
     }
 
     /// POWER-UPS mode (`MatchRules::powerups`): which pickup this needs, and what happens without it.
@@ -394,7 +435,7 @@ impl Tool {
         if !rd.gates.is_empty() {
             line(&mut c, &format!("POWER-UPS MODE: NEEDS {}", rd.gates.iter().map(|g| g.split(" pickup").next().unwrap_or("")).collect::<Vec<_>>().join(" + ")), [200, 160, 255]);
         }
-        line(&mut c, &format!("CONFIDENCE {:.0}%  COST {:.0}", res.confidence * 100.0, rd.cost), [130, 140, 155]);
+        line(&mut c, &format!("CONFIDENCE {:.0}%  COST {:.0}  TIER {:?}", res.confidence * 100.0, rd.cost, rd.tier).to_uppercase(), [130, 140, 155]);
         let mut paths = vec![self.root.join("target").join("phrase_preview").join("last.png")];
         if let Some(dir) = &self.out_dir {
             paths.push(dir.join(format!("{}.png", slug(&rd.phrase))));
@@ -712,6 +753,7 @@ fn report(rd: &Reading, spoken: bool) {
         }
         None => println!("  {:<11} none - title letters show what was {}: \"{}\"", "SIGNATURE", if spoken { "heard" } else { "typed" }, rd.phrase),
     }
+    println!("  {:<11} {:?} - {}", "TIER", rd.tier, tier_words(rd.tier));
     println!("  {:<11} {}", "DANGER", if rd.danger { "YES - the cut-in DANGER alert warns everyone nearby" } else { "no" });
     if rd.gates.is_empty() {
         println!("  {:<11} free (nothing here is gated in the power-ups mode)", "POWER-UPS");
@@ -739,6 +781,9 @@ fn report(rd: &Reading, spoken: bool) {
     }
     if rd.costume {
         println!("  {:<11} - wears the costume look (costume summon hook)", if res.explanation.is_empty() { "WHY" } else { "" });
+        if let Some(b) = &rd.bare {
+            println!("  {:<11} - the costume words only dress it: its behaviours are read from \"{b}\"", "");
+        }
     }
     if !res.ignored.is_empty() {
         println!("  {:<11} {}", "IGNORED", res.ignored.join(", "));

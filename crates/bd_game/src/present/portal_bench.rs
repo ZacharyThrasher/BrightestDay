@@ -6,6 +6,9 @@
 //!   portal-view frame (`PORTAL APPEAR ...`) — it must not spike;
 //! * `door` — the same, as a doorman's doorway;
 //! * `tracer` — slow bolts fired through the gate (tail split across both ends);
+//! * `ab` — `fill`, with the live views switched off / on every second in the same run (so load
+//!   from anything else hits both halves alike); prints `PORTAL AB` (frame p50 / p99 with and
+//!   without, and the frames right after each switch-on: first appearance, textures re-created);
 //! * `step3p` — (with `--third-person`) walk through the gate; `BD_PORTAL_SHOT=<png>` saves a
 //!   screenshot just after the pass (camera still behind you, looking through the entry).
 //!
@@ -30,6 +33,7 @@ enum Mode {
     Door,
     Tracer,
     Step3p,
+    Ab,
 }
 
 #[derive(Resource)]
@@ -47,6 +51,9 @@ struct Scenario {
     next_shot: f32,
     shot_at: Option<f32>,
     shot_done: bool,
+    /// A/B: (frame ms, views on, frames since the last switch).
+    ab: Vec<(f32, bool, u32)>,
+    ab_since: u32,
 }
 
 pub fn build(app: &mut App) {
@@ -60,6 +67,7 @@ pub fn build(app: &mut App) {
         "door" => Mode::Door,
         "tracer" => Mode::Tracer,
         "step3p" => Mode::Step3p,
+        "ab" => Mode::Ab,
         _ => Mode::Fill,
     };
     info!("portal scenario: {mode:?}");
@@ -76,6 +84,8 @@ pub fn build(app: &mut App) {
         next_shot: 0.0,
         shot_at: None,
         shot_done: false,
+        ab: Vec::with_capacity(20_000),
+        ab_since: 0,
     })
     .add_systems(Update, drive.run_if(in_state(AppState::InGame)).run_if(resource_exists::<ActiveWorld>));
 }
@@ -90,6 +100,7 @@ fn drive(
     mut ov: ResMut<InputOverride>,
     views: Option<Res<PortalViews>>,
     cross: Res<PortalCross>,
+    mut off: ResMut<super::portal_view::PortalViewsOff>,
 ) {
     let dt = time.delta_secs();
     sc.t += dt;
@@ -165,6 +176,41 @@ fn drive(
     }
     // ---- mode actions
     match sc.mode {
+        Mode::Ab if sc.opened => {
+            let on = (sc.t as u32) % 2 == 1;
+            if off.0 == on {
+                off.0 = !on;
+                sc.ab_since = 0;
+            } else {
+                sc.ab_since += 1;
+            }
+            // The measured frame is the one that just ended (it rendered the previous state).
+            if sc.t > 1.0 && sc.ab.len() < sc.ab.capacity() {
+                let (since, prev_on) = (sc.ab_since, if sc.ab_since == 0 { !on } else { on });
+                sc.ab.push((dt * 1000.0, prev_on, since));
+            }
+            if sc.t > 13.0 && !sc.reported {
+                sc.reported = true;
+                let stat = |f: &dyn Fn(&(f32, bool, u32)) -> bool| {
+                    let mut v: Vec<f32> = sc.ab.iter().filter(|x| f(x)).map(|x| x.0).collect();
+                    v.sort_by(|a, b| a.total_cmp(b));
+                    let n = v.len().max(1);
+                    (v.len(), v.get(n / 2).copied().unwrap_or(0.0), v.get(n * 99 / 100).copied().unwrap_or(0.0), v.last().copied().unwrap_or(0.0))
+                };
+                let (n_on, p50_on, p99_on, max_on) = stat(&|x| x.1 && x.2 >= 4);
+                let (n_off, p50_off, p99_off, max_off) = stat(&|x| !x.1 && x.2 >= 4);
+                // First frames after the views come back (appearance: pipelines warm, textures new).
+                let firsts: Vec<f32> = sc.ab.iter().filter(|x| x.1 && (1..=3).contains(&x.2)).map(|x| x.0).collect();
+                let first_max = firsts.iter().copied().fold(0.0f32, f32::max);
+                let first_mean = firsts.iter().sum::<f32>() / firsts.len().max(1) as f32;
+                let line = format!(
+                    "PORTAL AB views on: {n_on} frames p50 {p50_on:.2} p99 {p99_on:.2} max {max_on:.2} ms | off: {n_off} frames p50 {p50_off:.2} p99 {p99_off:.2} max {max_off:.2} ms | first 3 frames after each switch-on ({} frames): mean {first_mean:.2} max {first_max:.2} ms",
+                    firsts.len()
+                );
+                println!("{line}");
+                info!("{line}");
+            }
+        }
         Mode::Tracer if sc.opened => {
             sc.next_shot -= dt;
             if sc.next_shot <= 0.0 {

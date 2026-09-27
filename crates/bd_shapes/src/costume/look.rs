@@ -459,6 +459,8 @@ pub enum Acc {
     Quiver(Col, Col),
     /// Hammer at the hip (head, handle).
     Hammer(Col, Col),
+    /// Huge two-handed hammer on the back (head, handle): Reinhardt's rocket hammer.
+    BigHammer(Col, Col),
     Necklace(Col),
     /// Glowing chest light (arc reactor) in colour.
     ChestLight(Col),

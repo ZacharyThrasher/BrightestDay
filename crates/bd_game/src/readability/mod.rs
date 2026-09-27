@@ -20,6 +20,7 @@
 #[cfg(test)]
 mod cost_survey;
 pub mod numbers;
+pub mod scenario;
 pub mod smoke;
 
 use std::path::PathBuf;
@@ -231,6 +232,7 @@ impl Plugin for ReadabilityPlugin {
         app.insert_resource(Readability(load_tuning())).add_systems(Update, hot_reload);
         smoke::build(app);
         numbers::build(app);
+        scenario::build(app);
     }
 }
 

@@ -133,6 +133,7 @@
     (names: ["lightsaber", "light saber"], slot: Accessory, look: (add: [Saber("b8bec8")])),
     (names: ["guns", "pistols", "holsters", "gun"], slot: Accessory, look: (add: [Holsters("2a2a30")])),
     (names: ["hammer"], slot: Accessory, look: (add: [Hammer("a8b0bc", "6a4a2a")])),
+    (names: ["rocket hammer", "big hammer", "giant hammer", "warhammer", "war hammer"], slot: Back, look: (add: [BigHammer("8a909a", "4a3a2e")])),
     (names: ["necklace", "chain", "bling"], slot: Accessory, look: (add: [Necklace("e8c040")])),
     (names: ["arc reactor", "chest light"], slot: Accessory, look: (add: [ChestLight("8ae0ff")])),
     (names: ["arm cannon", "blaster arm"], slot: Accessory, look: (add: [ArmCannon("8a8f99", "8ae0ff", Right)])),

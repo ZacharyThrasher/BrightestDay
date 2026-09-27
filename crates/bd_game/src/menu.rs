@@ -98,6 +98,10 @@ enum Knob {
     ShowPercent,
     /// POWER HUD: the minimal strip (held powers' icons, cooldown sweeps, willpower arc, statuses).
     PowerHud,
+    /// READABILITY: the willpower gauge around the crosshair (`UiPrefs::crosshair_gauge`).
+    CrosshairGauge,
+    /// READABILITY: other players' damage % over their heads (`UiPrefs::enemy_percent`).
+    EnemyPercent,
     SummonPreview,
     /// TRACKING: enemy compass strip on / off.
     EnemyCompass,
@@ -139,6 +143,9 @@ enum Knob {
     Mode,
     Scale,
     Willpower,
+    /// READABILITY: willpower comes in this many SPARKS (`MatchRules::willpower_segments`; every
+    /// cast costs whole sparks).
+    Sparks,
     /// CONSTRUCTS: Normal / Chaos / Custom quick switch over every [`Lim`].
     Caps,
     /// CONSTRUCTS: one per-kind cap (`MatchRules::limits`).
@@ -433,7 +440,7 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
             }
             v.push(Value(K::TimeLimit));
             v.extend([Header("ARENA"), Value(K::Respawn), Value(K::Shield), Value(K::VoidKo), Value(K::Islands)]);
-            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Powers)]);
+            v.extend([Header("RING"), Value(K::Scale), Value(K::Willpower), Value(K::Sparks), Value(K::Powers)]);
             if c.prefs.game.rules.powers_enabled {
                 v.extend([Value(K::Fruits), Value(K::Stands)]);
             }
@@ -517,7 +524,8 @@ fn page_rows(page: MenuPage, tab: SettingsTab, c: &Ctx) -> Vec<Row> {
                     v.extend([Value(K::Comfort), Value(K::SpeedFov), Value(K::Roll), Value(K::Shake), Value(K::FovKick), Value(K::LandingDip), Value(K::Flashes), Value(K::Vignette)]);
                 }
                 SettingsTab::Hud => {
-                    v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::ShowPercent), Value(K::PowerHud)]);
+                    v.extend([Header("PLAYERS"), Value(K::Outlines), Value(K::OutlineWidth), Value(K::OutlinePatterns), Value(K::EnemyCompass), Value(K::EnemyPercent), Value(K::ShowPercent)]);
+                    v.extend([Header("CROSSHAIR"), Value(K::CrosshairGauge), Value(K::PowerHud)]);
                     v.extend([Header("WORDS"), Value(K::Shout), Value(K::Ono), Value(K::OnoLang)]);
                     v.extend([Header("SUMMONS"), Value(K::SummonPreview)]);
                 }
@@ -565,6 +573,9 @@ fn preset_of(g: &GameSettings) -> Option<Preset> {
     Preset::ALL.into_iter().find(|p| GameSettings::preset(*p) == *g)
 }
 
+/// READABILITY: the UI word for a willpower segment (the owner's pick). Code says "segments".
+pub const SPARKS: &str = "SPARKS";
+
 fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
     let s = &*c.settings;
     let g = &c.prefs.game;
@@ -582,6 +593,8 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
         Knob::AdsSpeed => (lbl("ADS ZOOM SPEED"), format!("{:.2}X", c.prefs.camera.ads_speed())),
         Knob::ShowPercent => (lbl("DAMAGE % NUMBER"), on_off(c.prefs.show_percent)),
         Knob::PowerHud => (lbl("POWER HUD"), on_off(c.prefs.power_hud)),
+        Knob::CrosshairGauge => (lbl("CROSSHAIR GAUGE"), on_off(c.prefs.crosshair_gauge)),
+        Knob::EnemyPercent => (lbl("ENEMY DAMAGE %"), c.prefs.enemy_percent.label().into()),
         Knob::SummonPreview => (lbl("SUMMON PREVIEW"), on_off(c.prefs.summon_preview)),
         Knob::EnemyCompass => (lbl("ENEMY COMPASS"), on_off(c.prefs.enemy_compass)),
         Knob::Outlines => (lbl("PLAYER OUTLINES"), on_off(c.prefs.outlines)),
@@ -640,6 +653,7 @@ fn knob_text(k: Knob, c: &Ctx) -> (String, String) {
             WillpowerMode::Double => "DOUBLE".into(),
             WillpowerMode::Infinite => "INFINITE".into(),
         }),
+        Knob::Sparks => (lbl(SPARKS), r.willpower_segments().to_string()),
         Knob::Caps => (lbl("CAPS"), if r.limits == ConstructLimits::default() {
             "NORMAL".into()
         } else if r.limits == ConstructLimits::chaos() {
@@ -751,6 +765,14 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         }
         Knob::PowerHud => {
             c.prefs.power_hud = !c.prefs.power_hud;
+            game = false;
+        }
+        Knob::CrosshairGauge => {
+            c.prefs.crosshair_gauge = !c.prefs.crosshair_gauge;
+            game = false;
+        }
+        Knob::EnemyPercent => {
+            c.prefs.enemy_percent = c.prefs.enemy_percent.next(dir);
             game = false;
         }
         Knob::SummonPreview => {
@@ -893,6 +915,10 @@ fn step_knob(k: Knob, c: &mut Ctx, dir: i32, fine: bool) -> bool {
         Knob::Mode => g.mode = if g.mode == SimMode::Party { SimMode::Ffa } else { SimMode::Party },
         Knob::Scale => g.rules.scale = cycle(&[ScaleLimit::Normal, ScaleLimit::Huge, ScaleLimit::NoLimits], g.rules.scale, dir),
         Knob::Willpower => g.rules.willpower = cycle(&[WillpowerMode::Normal, WillpowerMode::Double, WillpowerMode::Infinite], g.rules.willpower, dir),
+        Knob::Sparks => {
+            let (lo, hi) = (bd_sim::rules::WILLPOWER_SEGMENTS_MIN as i32, bd_sim::rules::WILLPOWER_SEGMENTS_MAX as i32);
+            g.rules.willpower_segments = (g.rules.willpower_segments() as i32 + dir).clamp(lo, hi) as u8;
+        }
         Knob::Caps => g.rules.limits = if g.rules.limits == ConstructLimits::default() { ConstructLimits::chaos() } else { ConstructLimits::default() },
         Knob::Powerups => g.rules.powerups = !g.rules.powerups,
         Knob::Limit(l) => {
@@ -2206,7 +2232,7 @@ mod tests {
         let all: Vec<Row> = SettingsTab::ALL.into_iter().flat_map(|t| settings_rows(t, true)).collect();
         let knobs = [
             Knob::Sensitivity, Knob::Fov, Knob::InvertY, Knob::ThirdPerson, Knob::Shoulder, Knob::AdsMode, Knob::AdsSens,
-            Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
+            Knob::AdsSpeed, Knob::ShowPercent, Knob::PowerHud, Knob::CrosshairGauge, Knob::EnemyPercent, Knob::SummonPreview, Knob::EnemyCompass, Knob::Outlines, Knob::OutlineWidth,
             Knob::OutlinePatterns, Knob::Comfort, Knob::SpeedFov, Knob::Roll, Knob::Shake, Knob::FovKick, Knob::LandingDip, Knob::Flashes,
             Knob::Vignette, Knob::Vsync, Knob::Fullscreen, Knob::Aa, Knob::PortalViews, Knob::LowLatency, Knob::Pipelined, Knob::Volume,
             Knob::MusicVol, Knob::WorldVol, Knob::AmbienceVol, Knob::FeedbackVol, Knob::MusicStyle, Knob::NightMode, Knob::Mono,

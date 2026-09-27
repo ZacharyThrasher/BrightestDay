@@ -527,7 +527,8 @@ const HOSTILE: [Mechanic; 15] = [
 /// strikes and anything with a hostile mechanic, a kaiju, an aggressive / chaotic creature, a swarm.
 /// A parachute, wall, ramp or weaponless vehicle is not, however big or pricey ("ULTIMATE PARACHUTE").
 pub fn is_threat(r: &Recipe) -> bool {
-    if HOSTILE.iter().any(|m| r.has(*m)) || orb::is_erasing_orb(r) || is_orbital(r) || r.form == Form::Hands {
+    let domain = r.form == Form::Dome && r.scale >= domain::DOMAIN_MIN_RADIUS;
+    if HOSTILE.iter().any(|m| r.has(*m)) || orb::is_erasing_orb(r) || is_orbital(r) || r.form == Form::Hands || domain {
         return true;
     }
     r.form.category() == FormCategory::Creature
@@ -572,7 +573,8 @@ mod tests {
         let bouncy = rec(Form::Trampoline, &[Mechanic::Bounce, Mechanic::Flies], 4.0);
         let d = amplify(bouncy, SignatureCast::new(SignatureKind::Domain, 0.0), &t, &rules, false);
         assert_eq!(d.form, Form::Dome);
-        for m in [Mechanic::Barrier, Mechanic::Trap, Mechanic::Bounce] {
+        assert!(!d.has(Mechanic::Trap), "the domain's pulses are its hands");
+        for m in [Mechanic::Barrier, Mechanic::Bounce] {
             assert!(d.has(m), "{m:?}");
         }
         assert!(!d.has(Mechanic::Flies));

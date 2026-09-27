@@ -56,6 +56,11 @@ pub mod effects {
     pub const PULL: u8 = 1 << 3;
     /// Portal gun round: on a surface it places the owner's next portal end (A, then B).
     pub const PORTAL: u8 = 1 << 4;
+    /// LEGENDARY needle: homes without letting go, sticks and stacks toward a supercombine
+    /// (`world/legend.rs`).
+    pub const NEEDLE: u8 = 1 << 5;
+    /// LEGENDARY BFG orb: zaps every enemy near its path with tendrils (`world/legend.rs`).
+    pub const TENDRILS: u8 = 1 << 6;
 }
 
 /// Request to fire a projectile (from the ring or a construct).

@@ -1669,6 +1669,45 @@
     ),
 
     // ===================================================================== creatures & characters
+    // COSTUME SUMMONS: phrases that must read as the fighter (the client dresses them in the costume
+    // from assets/costumes/characters.ron — bd_shapes costume::summon). "falcon punch" is Captain
+    // Falcon throwing it (Blunt), never a falcon bird punching; "akuma" is the Street Fighter demon.
+    IconEntry(
+        names: ["falcon punch", "falcon pawnch", "captain falcon punch", "falcon kick"],
+        recipe: (
+            name: "Captain Falcon",
+            form: Biped,
+            mechanics: [Blunt, Charge, Fast],
+            element: Fire,
+            scale: 1.8,
+            mass: 80.0,
+            count: 1,
+            accent: Some((1.0, 0.55, 0.15)),
+            model: Procedural(seed: 1990),
+            temperament: Aggressive,
+            intensity: 0.9,
+        ),
+        shape: None,
+        source: "Nintendo (F-Zero / Smash) (name only; private use)",
+    ),
+    IconEntry(
+        names: ["akuma", "gouki", "akuma sf", "shin akuma"],
+        recipe: (
+            name: "Akuma",
+            form: Biped,
+            mechanics: [Beam, Fast],
+            element: Fire,
+            scale: 1.8,
+            mass: 80.0,
+            count: 1,
+            accent: Some((0.9, 0.15, 0.1)),
+            model: Procedural(seed: 1994),
+            temperament: Aggressive,
+            intensity: 0.8,
+        ),
+        shape: None,
+        source: "Capcom (Street Fighter) (name only; private use)",
+    ),
     IconEntry(
         names: ["godzilla", "gojira", "godzila", "godzill", "king of the monsters"],
         recipe: (

@@ -109,7 +109,11 @@ pub fn step(c: &mut Construct, s: &mut HeldState, env: &Env<'_>, out: &mut Const
     let Some(arch) = archetype_for(&c.recipe) else { return };
     let o = env.owner;
     let dt = env.dt();
-    let spec = env.ctx.tuning.spec_for(&c.recipe, arch); // TUNING HOOK
+    if super::legend::gun_step(c, s, env, out) {
+        return; // LEGENDARY: gravity gun, stream, BFG, charge shot
+    }
+    // TUNING HOOK + LEGENDARY (precision one-shot, needle cadence)
+    let spec = super::legend::gun_spec(c, env.ctx.tuning.spec_for(&c.recipe, arch), &env.ctx.tuning.legendary);
     let mut ws = match c.weapon {
         Some(w) if w.arch == arch => w,
         _ => WeaponState::new(arch, &spec),
@@ -232,7 +236,7 @@ pub fn fires_hitscan(c: &Construct, arch: GunArchetype, spec: &GunSpec) -> bool 
 /// Fire one shot (all its pellets) along `dir`. `dmg_k` / `speed_k` scale the round; `recoil_k`
 /// scales the kick (volleys kick once).
 #[allow(clippy::too_many_arguments)]
-fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype, spec: &GunSpec, dir: Vec3, alt: bool, dmg_k: f32, speed_k: f32, recoil_k: f32) {
+pub(super) fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype, spec: &GunSpec, dir: Vec3, alt: bool, dmg_k: f32, speed_k: f32, recoil_k: f32) {
     let o = env.owner;
     let dir = dir.normalize_or_zero();
     if dir == Vec3::ZERO {
@@ -264,13 +268,27 @@ fn fire(c: &Construct, env: &Env<'_>, out: &mut ConstructOut, arch: GunArchetype
             }
         }
     }
+    let needles = super::legend::needler(c) && speed > 0.0;
+    if needles {
+        // LEGENDARY: needles — fast, light, homing; they stick and stack (world/legend.rs).
+        let t = &env.ctx.tuning.legendary;
+        kind = ProjectileKind::Bolt;
+        speed = t.needle_speed;
+        dmg = t.needle_dmg;
+        kb = 2.0;
+        radius = 0.14;
+        explode = None;
+    }
     let recoil = spec.recoil * recoil_k;
     out.events.push(GameEvent::ShotFired { owner: c.owner, construct: Some(c.id), archetype: arch, muzzle, dir, recoil, pellets: spec.pellets });
+    if super::legend::one_shot(c) {
+        out.events.push(GameEvent::HeldFx { id: c.id, owner: c.owner, fx: crate::events::HeldFx::OneShot, pos: muzzle, dir, strength: dmg }); // LEGENDARY
+    }
     if recoil > 0.0 {
         out.recoils.push((c.owner, dir, recoil));
     }
     let ricochet = if c.has(Mechanic::Ricochet) || arch == GunArchetype::Disc { 2 } else { 0 };
-    let fx = ray_effects(c);
+    let fx = ray_effects(c) | if needles { effects::NEEDLE } else { 0 }; // LEGENDARY
     // Hitscan (COMBAT.md §4b): players move 20–50 m/s, so the hand cannon, every super-shotgun
     // pellet, the minigun and the railgun are instant, lag-compensated rays. Rounds whose point is
     // the flight stay projectiles: payloads, explosive rounds, ricochets and portal shots.

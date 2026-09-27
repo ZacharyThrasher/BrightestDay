@@ -32,6 +32,7 @@ pub mod bounds; // BOUNDS HOOK: blast zones, tether save, construct recall, visi
 pub mod interactables; // INTERACT HOOK: map toys (High Roller slot machines + roulette house spin)
 mod combat;
 mod invariants;
+mod legend; // LEGENDARY: needles (stick + supercombine) and BFG tendrils (constructs/legend.rs guns)
 pub mod map_mech; // MAP MECH HOOK: transforming panels + space bridge (Cybertron)
 mod net;
 mod player;

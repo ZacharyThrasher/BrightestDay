@@ -1055,4 +1055,139 @@
         creature_dmg: 1.2,
         creature_kb: 22.0,
     ),
+    // LEGENDARY: generic legendary move rules keyed off mechanic / element / form combinations
+    // (bd_sim constructs/legend.rs, docs/COMBAT.md §5l). Host-synced: recall flight + the leap are predicted.
+    legendary: (
+        // ---- recall (Returning melee) ----
+        recall_speed: 52.0,      // m/s back to the hand after a tap of RMB
+        lodge_secs: 3.0,         // a lodged item comes back by itself after this (s)
+        thor_delay: 0.15,        // RMB held this long = recall flight (s)
+        thor_drain: 14.0,        // willpower /s while flying
+        // ---- call the storm (element != Light, Returning or Heavy) ----
+        storm_hold: 1.0,         // LMB held (s) to raise it
+        storm_range: 70.0,
+        storm_delay: 0.5,        // telegraph before the strike (s)
+        storm_cd: 3.5,
+        storm_radius: 3.5,
+        storm_dmg: 1.6,          // x the form's damage
+        storm_kb: 26.0,
+        storm_impact: 2.4,
+        storm_construct_dmg: 40.0,
+        bolt_arcs: 2,            // lightning arcs on to this many more enemies
+        bolt_arc_range: 7.0,
+        rain_count: 5,           // meteors / icicles
+        rain_spread: 4.0,
+        rain_interval: 0.11,
+        rain_dmg: 0.7,
+        linger_secs: 1.6,        // tornado / maw / miasma
+        linger_pull: 16.0,
+        linger_tick: 0.35,
+        linger_dmg: 0.25,
+        // ---- ricochet chain (Returning + Ricochet) ----
+        chain_max: 3,
+        chain_range: 24.0,
+        chain_speed: 42.0,
+        // ---- deflect (Guard, the sword parry, Blade + Fast swings) ----
+        deflect_window: 0.15,
+        deflect_cd: 0.6,
+        reflect_to_aim: true,    // parried rounds fly along the parrier's aim (else back at the shooter)
+        reflect_hitscan_cap: 25.0,
+        // ---- blade wave (Blade melee) ----
+        wave_min_k: 0.85,        // heavy fraction a released blade heavy needs to fire a crescent
+        wave_speed: 48.0,
+        wave_range: 36.0,
+        wave_half_width: 1.3,
+        wave_thick: 0.45,
+        wave_dmg: 1.0,
+        wave_kb: 16.0,
+        wave_impact: 1.6,
+        wave_cd: 0.6,
+        wave_carve: 0.6,
+        wave_carve_step: 2.0,
+        wave_carves: 8,
+        wave_construct_dmg: 25.0,
+        heavy_wave_size: 1.7,
+        heavy_wave_speed: 0.7,
+        shoot_wave_size: 0.6,    // Blade + Shoots: a small crescent on every swing
+        shoot_wave_dmg: 0.45,
+        shoot_wave_cd: 0.45,
+        // ---- heavy blade (Blade + Heavy) ----
+        armor_kb: 0.45,          // knockback kept while armored (never immune)
+        leap_hold: 0.45,         // LMB held (s) for the leap and cleave
+        leap_up: 13.0,
+        leap_fwd: 10.0,
+        leap_rise: 0.38,
+        leap_dive: 32.0,
+        leap_max: 2.5,
+        leap_cd: 1.4,
+        leap_radius: 5.5,
+        leap_dmg: 1.8,
+        leap_kb: 26.0,
+        leap_impact: 2.6,
+        leap_crater: 1.9,
+        combo_kb_step: 0.2,
+        // ---- chain blades (Whip + Blade, + Pull) ----
+        sweep_radius: 9.0,
+        sweep_height: 2.5,
+        sweep_dmg: 1.2,
+        sweep_kb: 15.0,
+        sweep_impact: 1.7,
+        pull_range: 15.0,
+        pull_cone_deg: 14.0,
+        pull_speed: 26.0,
+        pull_victim: 9.0,
+        pull_cd: 0.9,
+        // ---- guns ----
+        one_shot_dmg: 70.0,      // curated / golden gun with nothing but Shoots
+        one_shot_kb: 38.0,
+        one_shot_reload: 2.4,
+        one_shot_pierce: 1,
+        one_shot_chip: 0.9,
+        needle_cadence: 0.11,    // rounds whose payload is Homing + Sticky
+        needle_speed: 62.0,
+        needle_dmg: 2.5,
+        needle_turn_deg: 260.0,
+        needle_cone_deg: 30.0,
+        needle_range: 60.0,
+        needle_count: 6,         // needles in one victim = supercombine
+        needle_secs: 2.5,
+        super_radius: 3.5,
+        super_dmg: 30.0,
+        super_kb: 30.0,
+        grav_range: 24.0,        // Gun + Grab
+        grav_cone_deg: 8.0,
+        grav_hold: 2.2,
+        grav_mass_max: 3000.0,
+        grav_player_secs: 0.35,  // a caught player is punted within a beat (never longer than 0.35 s)
+        grav_construct_secs: 5.0,
+        punt_speed: 40.0,
+        punt_blast_range: 7.0,
+        punt_blast_cone_deg: 30.0,
+        punt_blast_kb: 22.0,
+        grav_cd: 0.45,
+        stream_range: 28.0,      // Gun + Beam + Pull
+        stream_tick: 0.1,
+        stream_dmg: 1.4,
+        stream_reel: 3.0,
+        stream_pull: 70.0,
+        stream_secs: 1.3,
+        stream_fling: 0.9,
+        charge_min: 0.2,         // cannons: tap = pellet, hold = charged blast
+        charge_full: 1.2,
+        charge_dmg_max: 1.7,
+        charge_size_max: 2.4,
+        charge_tap_dmg: 0.3,
+        bfg_spinup: 0.5,         // Cannon whose payload is Beam + Explodes
+        bfg_speed: 18.0,
+        bfg_radius: 0.9,
+        bfg_life: 4.0,
+        bfg_zap_range: 9.0,
+        bfg_zap_period: 0.2,
+        bfg_zap_dmg: 3.0,
+        bfg_blast_radius: 6.0,
+        bfg_dmg: 45.0,
+        bfg_kb: 30.0,
+        bfg_carve: 2.6,
+        bfg_cd: 2.2,
+    ),
 )

@@ -109,7 +109,10 @@ pub fn is_domain(c: &Construct) -> bool {
 
 /// (centre, radius) of a domain barrier (radius follows a clash's shrink).
 pub fn sphere(c: &Construct) -> (Vec3, f32) {
-    (c.pos, c.recipe.scale * c.size_scale.clamp(0.1, 5.0))
+    // Snapped to a 1/16 m grid: the host's exact position and a client's network-quantised copy give
+    // the same barrier (prediction parity at the wall).
+    let q = |x: f32| (x * 16.0).round() / 16.0;
+    (Vec3::new(q(c.pos.x), q(c.pos.y), q(c.pos.z)), q(c.recipe.scale * c.size_scale.clamp(0.1, 5.0)))
 }
 
 /// A Guard dome that isn't a domain: "simple domain", "counter domain", "domain amplification".
@@ -654,12 +657,14 @@ fn block_projectiles(w: &mut World, d: &Domain) {
         let prev = p.pos - p.vel * dt;
         let (a, b) = (prev.distance(d.center) < d.radius, p.pos.distance(d.center) < d.radius);
         if a != b {
+            // (Marked here, removed below: the world's reap for this tick already ran.)
             p.dead = true;
             hits += p.spec.damage.max(0.0);
             let n = (p.pos - d.center).normalize_or(Vec3::Y);
             w.events.push(GameEvent::ProjectileEnded { id: p.id, pos: d.center + n * d.radius, normal: if a { -n } else { n }, hit_player: None });
         }
     }
+    w.projectiles.retain(|p| !p.dead);
     if hits > 0.0 {
         hit_barrier(w, d.construct, hits, d.center);
     }

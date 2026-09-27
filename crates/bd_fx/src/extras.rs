@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use bd_shapes::{chain_link_mesh, chain_transform, portal_ring_spec, voxelize};
+use bd_shapes::{chain_link_mesh, chain_transform, voxelize};
 use bd_core::shape::{Prim, PrimKind, ShapeSpec, Tint};
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::light::NotShadowCaster;
@@ -222,7 +222,7 @@ fn init_portals(
             let aq = (aspect * 20.0).round() as u32;
             (voxelize(&door_frame_spec(dq as f32 / 4.0, aq as f32 / 20.0)), ModelKey::Named("portal_door", dq * 64 + aq))
         } else {
-            (voxelize(&portal_ring_spec(dq as f32 / 4.0)), ModelKey::Named("portal_ring", dq))
+            (voxelize(&gate_ring_spec(dq as f32 / 4.0)), ModelKey::Named("portal_gate", dq))
         };
         // Opening from the voxels (plane = XY): ring → hole radius; doorway → the frame's inner edges.
         let (mut inner, mut hx, mut hy) = (f32::MAX, f32::MAX, f32::MAX);
@@ -285,6 +285,33 @@ fn init_portals(
             }
         }
         commands.entity(e).insert((FxSlot(slot), PortalState { ring, disc: disc_e, inner, disc_slot, frame_slot }));
+    }
+}
+
+/// Portal gate ring: a slim hard-light band around the opening (the see-through window is the
+/// point; the band stays ~0.4 m however big the gate), standing upright facing −Z. `diameter_m` =
+/// outer diameter. Construct-voxel units (0.25 m).
+pub fn gate_ring_spec(diameter_m: f32) -> ShapeSpec {
+    let vs = bd_core::CONSTRUCT_VOXEL_SIZE;
+    let d = (if diameter_m.is_finite() { diameter_m } else { 2.5 }).clamp(1.0, 40.0) / vs;
+    let band = (d * 0.06).clamp(1.0, 2.0).round();
+    let cyl = |dia: f32, depth: f32, z: f32, tint: Tint, subtract: bool| Prim {
+        kind: PrimKind::Cylinder,
+        center: glam::Vec3::new(0.0, 0.0, z),
+        size: glam::Vec3::new(dia, depth, dia),
+        rot_deg: glam::Vec3::new(90.0, 0.0, 0.0),
+        tint,
+        part: 0,
+        subtract,
+    };
+    ShapeSpec {
+        prims: vec![
+            cyl(d, 1.0, 0.5, Tint::Dark, false),
+            cyl(d, 1.0, -0.5, Tint::Accent, false),
+            cyl(d - band * 2.0 + 1.0, 1.5, -0.25, Tint::Core, false),
+            cyl(d - band * 2.0 - 1.0, 4.0, 0.0, Tint::Primary, true),
+        ],
+        parts: vec![],
     }
 }
 

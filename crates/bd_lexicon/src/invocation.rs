@@ -94,6 +94,9 @@ struct NameRow {
     windup: Option<Windup>,
     #[serde(default)]
     delivery: Option<Delivery>,
+    /// Technique mechanics the name brings (Malevolent Shrine slashes: `[Blade]`).
+    #[serde(default)]
+    grants: Vec<Mechanic>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -104,6 +107,15 @@ struct EnergyRows {
     gun_words: Vec<String>,
 }
 
+/// Guard techniques against a domain ("simple domain"): whole phrases, and words that turn "<word>
+/// domain" / "domain <word>" into one.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+struct GuardRows {
+    phrases: Vec<String>,
+    words: Vec<String>,
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 struct SignatureFile {
@@ -112,6 +124,7 @@ struct SignatureFile {
     suffixes: Vec<InvocationRow>,
     names: Vec<NameRow>,
     energy: EnergyRows,
+    guards: GuardRows,
 }
 
 /// One invocation, normalised.
@@ -132,6 +145,8 @@ pub(crate) struct Tag {
     pub windup: Option<Windup>,
     /// Where it comes from; `None` = [`Delivery::Hands`] for a Beam, untouched otherwise.
     pub delivery: Option<Delivery>,
+    /// Technique mechanics the name brings.
+    pub grants: Vec<Mechanic>,
 }
 
 impl Tag {
@@ -156,6 +171,9 @@ pub(crate) struct SignatureTable {
     pub energy_words: std::collections::HashSet<String>,
     /// …unless it names a gun ("laser gun", "railgun").
     pub gun_words: std::collections::HashSet<String>,
+    /// Guard techniques against a domain: whole phrases, and words that make "<word> domain" one.
+    pub guard_phrases: std::collections::HashSet<String>,
+    pub guard_words: std::collections::HashSet<String>,
 }
 
 /// The shipped table (compiled in; `Lexicon::load` prefers a copy next to lexicon.bin).
@@ -195,7 +213,7 @@ impl SignatureTable {
         for n in f.names {
             let k = normalize_key(&n.name);
             if !k.is_empty() {
-                names.entry(k).or_insert(Tag { kind: n.kind, title: n.title, windup: n.windup, delivery: n.delivery });
+                names.entry(k).or_insert(Tag { kind: n.kind, title: n.title, windup: n.windup, delivery: n.delivery, grants: n.grants });
             }
         }
         let set = |v: Vec<String>| v.iter().map(|s| normalize_key(s)).filter(|k| !k.is_empty()).collect();
@@ -207,6 +225,8 @@ impl SignatureTable {
             hands: set(f.energy.hands),
             energy_words: set(f.energy.energy_words),
             gun_words: set(f.energy.gun_words),
+            guard_phrases: set(f.guards.phrases),
+            guard_words: set(f.guards.words),
         }
     }
 
@@ -311,6 +331,34 @@ impl Lexicon {
         self.sig.names.get(key).cloned()
     }
 
+    /// A guard technique against a domain: a listed phrase ("simple domain", "hollow wicker basket"),
+    /// or "domain" with a guard word ("counter domain", "domain amplification", "shield domain") —
+    /// a small Guard dome around the caster (the sim makes them immune to a domain's pulses), never a
+    /// domain of its own.
+    fn guard_technique(&self, whole: &str) -> Option<Resolution> {
+        let words: Vec<&str> = whole.split_whitespace().collect();
+        let listed = self.sig.guard_phrases.contains(whole);
+        let worded = words.contains(&"domain") && words.iter().any(|w| self.sig.guard_words.contains(*w));
+        if !(listed || worded) {
+            return None;
+        }
+        let (t, _) = crate::norm::tokenize("dome");
+        let mut res = self.resolve_mode_inner(t, 0, false);
+        Self::as_construct(&mut res);
+        res.kind = ResolutionKind::Construct;
+        res.recipe.form = Form::Dome;
+        res.recipe.mechanics = vec![Mechanic::Guard, Mechanic::Barrier];
+        res.recipe.scale = 2.0;
+        res.recipe.count = 1;
+        res.recipe.name = title_case(whole);
+        res.shape = None;
+        res.alt_shape = None;
+        res.signature = None;
+        res.explanation.insert(0, format!("{whole} \u{2192} guard technique (simple domain)"));
+        res.confidence = res.confidence.max(0.9);
+        Some(res)
+    }
+
     /// Does the phrase name a gun ("laser gun", "railgun")?
     fn names_a_gun(&self, whole: &str) -> bool {
         whole.split_whitespace().any(|w| self.sig.gun_words.contains(w))
@@ -326,6 +374,14 @@ impl Lexicon {
 
     /// Apply a tag's delivery (Beam names default to the palms).
     fn deliver(res: &mut Resolution, tag: Option<&Tag>, kind: SignatureKind) {
+        // A name's technique (Malevolent Shrine slashes).
+        if let Some(t) = tag {
+            for m in &t.grants {
+                if !res.recipe.has(*m) {
+                    res.recipe.mechanics.push(*m);
+                }
+            }
+        }
         let d = match tag {
             Some(t) => t.delivery(),
             None => (kind == SignatureKind::Beam).then_some(Delivery::Hands),
@@ -358,8 +414,12 @@ impl Lexicon {
         if body.is_empty() {
             return None;
         }
-        // A whole phrase that is itself a tagged name ("final flash") is not "final" + "flash".
         let whole = body.iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ");
+        // A guard technique against a domain ("simple domain", "counter domain"): a small Guard dome.
+        if let Some(res) = self.guard_technique(&whole) {
+            return Some(res);
+        }
+        // A whole phrase that is itself a tagged name ("final flash") is not "final" + "flash".
         if self.tagged(&whole).is_some() {
             return None;
         }

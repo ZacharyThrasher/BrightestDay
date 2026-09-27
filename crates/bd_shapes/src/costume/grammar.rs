@@ -399,6 +399,7 @@ fn is_back(a: &Acc) -> bool {
             | Acc::Bow(..)
             | Acc::Polearm(..)
             | Acc::Axe(..)
+            | Acc::BigHammer(..)
             | Acc::Shell(..)
     )
 }
@@ -562,7 +563,7 @@ fn recolour_patch(l: &mut Look, c: Rgb3) {
             | Acc::Claws(x)
             | Acc::Spikes(x)
             | Acc::Bandolier(x) => *x = c,
-            Acc::BackSword(_, x) | Acc::BigSword(_, x) | Acc::TwinSwords(_, x) => *x = c,
+            Acc::BackSword(_, x) | Acc::BigSword(_, x) | Acc::TwinSwords(_, x) | Acc::BigHammer(x, _) => *x = c,
             _ => {}
         }
     }

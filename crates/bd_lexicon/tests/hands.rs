@@ -72,6 +72,24 @@ fn guns_stay_guns_and_other_deliveries_keep_their_body() {
     }
 }
 
+/// Guard techniques against a domain resolve to a small Guard dome — never a domain themselves; and
+/// a named domain brings its technique (Malevolent Shrine slashes).
+#[test]
+fn simple_domain_is_a_guard_technique() {
+    let Some(l) = common::lex() else { return };
+    for p in ["simple domain", "counter domain", "domain amplification", "shield domain", "SIMPLE DOMAIN!!"] {
+        let r = l.resolve(p);
+        assert!(r.signature.is_none(), "{p:?} is not a domain: {:?}", r.signature);
+        assert_eq!(r.recipe.form, Form::Dome, "{p:?}");
+        assert!(r.recipe.has(Mechanic::Guard) && r.recipe.scale < 8.0, "{p:?}: {:?}", r.recipe);
+    }
+    for p in ["fire domain", "domain expansion unlimited void"] {
+        assert_eq!(l.resolve(p).signature.map(|s| s.kind), Some(SignatureKind::Domain), "{p:?} is still a domain");
+    }
+    let shrine = l.resolve("malevolent shrine");
+    assert!(shrine.recipe.has(Mechanic::Blade), "the shrine slashes: {:?}", shrine.recipe.mechanics);
+}
+
 /// Canonical titles for the title letters ("did it hear me right?").
 #[test]
 fn signature_titles_are_canonical() {

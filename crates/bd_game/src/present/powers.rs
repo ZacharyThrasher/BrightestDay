@@ -275,7 +275,7 @@ fn sync_space(
                     let door = e.style == bd_sim::space::PORTAL_STYLE_DOOR;
                     // Ring: outer diameter a little over the opening (the hole matches the sim's
                     // radius). Doorway: the opening's height.
-                    let mut fx = PortalFx::new(if door { r * 2.0 } else { r * 2.0 * 1.12 }, col);
+                    let mut fx = PortalFx::new(if door { r * 2.0 } else { r * 2.0 + 0.8 }, col);
                     fx.open = 0.0;
                     if door {
                         fx.style = PortalFx::DOOR;

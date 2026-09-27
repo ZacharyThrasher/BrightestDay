@@ -127,6 +127,12 @@ impl RingConsole {
         self.buf.push_str(s);
         self.dirty = true;
     }
+
+    /// Dev scenarios (screenshots): open the console with `s` typed (not cast).
+    pub fn dev_type(&mut self, s: &str) {
+        self.open = true;
+        self.set_buf(s);
+    }
 }
 
 #[derive(Component)]
@@ -309,13 +315,20 @@ impl Caster<'_> {
                 }
                 log_intent(text, spoken, heard_conf, &plan, &res); // local-only playtest log (logs/intent.log)
                 let mut res = *res;
+                // COSTUME HOOK: costume words ("gojo but bald", "red goku", "gojo with pink hair") dress
+                // the summon only — the construct's mechanics come from the bare character.
+                let summon = res.signature.is_none() && !incantation && !modifier;
+                if summon && let Some(bare) = bd_shapes::costume::summon::mechanics_phrase(&plan.text, &res.recipe) {
+                    let b = lex.resolve(&bare);
+                    (res.recipe, res.graft, res.shape, res.alt_shape) = (b.recipe, b.graft, b.shape, b.alt_shape);
+                }
                 if let Some(n) = plan.count {
                     res.recipe.count = n.max(1);
                 }
                 // COSTUME HOOK: a plain summon naming a character ("goku", "GIANT GOKU") is built as
                 // that character's costume (bd_shapes::costume::summon; derived from the text on every
                 // peer — no new net data). Powers / signatures / incantations / grafts never get here.
-                if res.signature.is_none() && !incantation && !modifier && bd_shapes::costume::summon::apply(&plan.text, &mut res.recipe, &mut res.shape) {
+                if summon && bd_shapes::costume::summon::apply(&plan.text, &mut res.recipe, &mut res.shape) {
                     res.alt_shape = None;
                 }
                 // FREEDOM HOOK: the words (kill feed), shout energy and an "it" resize go just before the cast.
