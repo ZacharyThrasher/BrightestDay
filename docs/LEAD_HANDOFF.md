@@ -14,7 +14,7 @@ base_jojo) · modern anime a7c87c6a8d93e5abf · movies/comics a7e021ff62eaf3866 
 TV/cartoons + ALL Transformers aa58a0da29fa2f7b7 (base_cartoons) · arena games a4cef47f9e52d5f61 ·
 adventure games af88c644fbe7dce57 · myth/folklore a3510ed93ce15b30b. Piloting phase 2 a4e937ca660c1d352
 still running (transformer.rs tests red = in progress). Readability SPARKS DONE (f245633; cost model was
-already in aa4f879). Core worker's first diff showed whole-file line-ending churn — told to fix.
+already in aa4f879). +01:35 owner ask → WEAPON FEEL addb1c761a7330147 (light vs heavy classes, weapons.ron), IMPACT FRAMES a91646db72b033b3d (anime impact frames, black flash guaranteed crit, reduce-flashes pref, hit reactions; docs/impact/API.md), ANIMATION PASS a6ed0644c17226d50 (audit docs/animation/AUDIT.md then build). Core worker's first diff showed whole-file line-ending churn — told to fix.
 
 ## >>> RESUME HERE (2026-09-27 01:10, pre-compact) <<<
 HEAD aa4f879 (green). Owner OFFLINE for the night: no zips/builds until asked. Last zip shipped to friends:
