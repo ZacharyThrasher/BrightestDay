@@ -33,6 +33,8 @@ pub(crate) struct Empowered {
     pub spec: EmpowerSpec,
     /// Per victim (player index): seconds until they can be contact-struck again.
     pub cds: [f32; MAX_PLAYERS],
+    /// Who each cds slot belongs to (indices shift when someone leaves).
+    pub ids: [Option<PlayerId>; MAX_PLAYERS],
 }
 
 impl World {
@@ -48,16 +50,19 @@ impl World {
             contact_cd: f(s.contact_cd, 0.2, 3.0, 0.6),
             element: s.element,
         };
-        self.powers.ops.empowers[i] = Some(Empowered { owner: id, left: spec.secs, spec, cds: [0.0; MAX_PLAYERS] });
+        self.powers.ops.empowers[i] = Some(Empowered { owner: id, left: spec.secs, spec, cds: [0.0; MAX_PLAYERS], ids: [None; MAX_PLAYERS] });
         self.op_event(OpEvent::Empowered { player: id, secs: spec.secs, on: true });
         Ok(())
     }
 
     pub(crate) fn step_empowers(&mut self, dt: f32) {
         let base = self.cfg.move_params.clone();
-        for i in 0..MAX_PLAYERS.min(self.players.len()) {
+        for i in 0..MAX_PLAYERS {
             let Some(mut e) = self.powers.ops.empowers[i] else { continue };
-            let p = &self.players[i];
+            let Some(p) = self.players.get(i) else {
+                self.powers.ops.empowers[i] = None;
+                continue;
+            };
             if p.id != e.owner || !p.alive {
                 self.powers.ops.empowers[i] = None;
                 continue;
@@ -76,6 +81,10 @@ impl World {
                 let me = my.center();
                 let mut struck: [Option<usize>; MAX_PLAYERS] = [None; MAX_PLAYERS];
                 for (k, q) in self.players.iter().enumerate().take(MAX_PLAYERS) {
+                    if e.ids[k] != Some(q.id) {
+                        e.ids[k] = Some(q.id);
+                        e.cds[k] = 0.0;
+                    }
                     if k == i || !q.alive || e.cds[k] > 0.0 {
                         continue;
                     }

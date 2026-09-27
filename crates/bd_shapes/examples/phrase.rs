@@ -414,11 +414,20 @@ impl Tool {
         };
         let t = twist::ModTable::shipped();
         let table = bd_sim::powers::PowerTable::get();
-        let reader = read::Reader { t, powers: table, ix: MoveIndex::shipped(), held: None, judge: &judge };
+        // described moves are cores too (the console's rule: the verb grammar + the curated filter)
+        let roster: Vec<(bd_core::PlayerId, &str)> = ROSTER.iter().enumerate().map(|(k, n)| (bd_core::PlayerId(k as u8 + 2), *n)).collect();
+        let names = compose::Names { players: &roster, fuzzy: None };
+        let described = |s: &str| {
+            let r = compose::read(s, &names)?;
+            let res = lex.resolve(s);
+            (!compose::curated_by_lexicon(s, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)).then_some(r.spec)
+        };
+        let reader = read::Reader { t, powers: table, ix: MoveIndex::shipped(), held: None, judge: &judge, compose: Some(&described) };
         let r = reader.read(text)?;
         let side = |s: &read::SideReading| -> Option<(String, bd_sim::powers::MoveDef)> {
             match &s.core {
                 read::Core::Move(R::Kit(m) | R::Borrow(m)) => m.resolve(table).map(|(d, mv)| (format!("\"{}\" of {}", mv.name, d.name), mv.clone())),
+                read::Core::Composed(spec) => twist::split_composed(*spec).0.expand().map(|mv| (format!("the described move \"{}\"", spec.name()), mv)),
                 read::Core::Cast(c) => {
                     let res = lex.resolve(c);
                     let sig = res.signature.as_ref().map(|s| SignatureCast::new(sim_kind(s.kind), SHOUT_POWER));
@@ -427,14 +436,21 @@ impl Tool {
                 _ => None,
             }
         };
+        // a described move's own modifier bytes join the twist's (applied once)
+        let own = |s: &read::SideReading| -> Vec<u8> {
+            let own = if let read::Core::Composed(spec) = &s.core { twist::split_composed(*spec).1 } else { vec![] };
+            own.into_iter().chain(s.mods.iter().copied()).collect()
+        };
         let (na, da) = side(&r.a)?;
-        let mut tw = ops::twist(t, &da, &r.a.mods);
-        let mut what = format!("{na}{}", if r.a.mods.is_empty() { String::new() } else { format!(" [{}]", twist::describe(t, &r.a.mods)) });
+        let ma = own(&r.a);
+        let mut tw = ops::twist(t, &da, &ma);
+        let mut what = format!("{na}{}", if ma.is_empty() { String::new() } else { format!(" [{}]", twist::describe(t, &ma)) });
         if let Some(b) = &r.b {
             let (nb, db) = side(b)?;
-            let twb = ops::twist(t, &db, &b.mods);
+            let mb = own(b);
+            let twb = ops::twist(t, &db, &mb);
             tw = fuse::fuse(t, &tw, &twb);
-            what = format!("{what} FUSED WITH {nb}{}", if b.mods.is_empty() { String::new() } else { format!(" [{}]", twist::describe(t, &b.mods)) });
+            what = format!("{what} FUSED WITH {nb}{}", if mb.is_empty() { String::new() } else { format!(" [{}]", twist::describe(t, &mb)) });
         }
         if !r.mods.is_empty() {
             let how = tw.how;

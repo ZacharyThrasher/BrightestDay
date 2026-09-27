@@ -149,6 +149,9 @@ pub enum MarkKind {
 pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, size: f32, t: f32, left: f32, total: f32, strength: f32, seed: u32) {
     let s = size.max(0.3);
     let chest = feet + Vec3::Y * 1.05 * s;
+    // Lines thicken with distance (a 1-px mark at 30 m reads as nothing): ×1 … ×2.4.
+    let far = ((chest - v.cam).length() / 12.0).clamp(1.0, 2.4);
+    let ts = s * far;
     let head = feet + Vec3::Y * 2.35 * s;
     let p = pulse(t, left);
     let fade_in = (t / 0.12).min(1.0);
@@ -160,8 +163,8 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             let d = Vec3::new(yaw.cos(), -0.35, yaw.sin()).normalize();
             let tip = chest + Vec3::Y * 0.15 * s;
             let out = tip - d * 0.75 * s;
-            seg(pen, v, tip, out, 0.045 * s, look.dark, 0.6);
-            seg(pen, v, out, out - d * 0.08, 0.13 * s, mix3(look.core, look.main, 0.3), glow * p * 1.4);
+            seg(pen, v, tip, out, 0.045 * ts, look.dark, 0.6);
+            seg(pen, v, out, out - d * 0.08, 0.13 * ts, mix3(look.core, look.main, 0.3), glow * p * 1.4);
             // The diamond overhead, spinning; flickers in the last 1.5 s (it is about to be used / run out).
             let flick = if left < 1.5 && ((t * 12.0) as u32) % 2 == 0 { 0.35 } else { 1.0 };
             let r = 0.26 * s;
@@ -170,20 +173,20 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             let pts = [head + Vec3::Y * r * 1.4, head + h, head - Vec3::Y * r * 1.4, head - h];
             let c = mix3(look.main, look.core, 0.25);
             for k in 0..4 {
-                seg(pen, v, pts[k], pts[(k + 1) % 4], 0.035 * s, c, glow * p * flick * 1.3);
+                seg(pen, v, pts[k], pts[(k + 1) % 4], 0.035 * ts, c, glow * p * flick * 1.3);
             }
             seg(pen, v, head - Vec3::Y * r * 1.4, chest + Vec3::Y * 0.9 * s, 0.012, look.main, glow * 0.5 * flick);
         }
         MarkKind::Delayed => {
             let k = (left / total.max(0.1)).clamp(0.0, 1.0);
             let r = (0.55 + 0.35 * k) * s;
-            circle(pen.fx, chest, Vec3::Y, r, 18, 0.045 * s, look.main, glow * 1.3 * p, t * 3.0);
-            circle(pen.fx, chest + Vec3::Y * 0.35 * s, Vec3::Y, r * 0.7, 14, 0.03 * s, look.core, glow * p, -t * 4.0);
-            circle(pen.fx, chest, Vec3::new(0.0, 0.2, 1.0), r * 0.85, 16, 0.03 * s, look.main, glow * 0.8 * p, t * 2.0);
+            circle(pen.fx, chest, Vec3::Y, r, 18, 0.06 * ts, look.main, glow * 1.5 * p, t * 3.0);
+            circle(pen.fx, chest + Vec3::Y * 0.35 * s, Vec3::Y, r * 0.7, 14, 0.03 * ts, look.core, glow * p, -t * 4.0);
+            circle(pen.fx, chest, Vec3::new(0.0, 0.2, 1.0), r * 0.85, 16, 0.03 * ts, look.main, glow * 0.8 * p, t * 2.0);
             // The clock over the head: an arc that empties as the burst nears (readable from afar).
             let n = (head - v.cam).normalize_or(v.fwd);
-            arc(pen, v, head, n, 0.32 * s, PI * 0.5, k, 20, 0.05 * s, mix3(look.core, look.main, 0.4), glow * 1.4 * p);
-            face_ring(pen, v, head, 0.4 * s, 20, 0.018 * s, look.dark, 0.5, 0.0);
+            arc(pen, v, head, n, 0.36 * s, PI * 0.5, k, 20, 0.07 * ts, mix3(look.core, look.main, 0.4), glow * 1.4 * p);
+            face_ring(pen, v, head, 0.4 * s, 20, 0.018 * ts, look.dark, 0.5, 0.0);
         }
         MarkKind::Lock | MarkKind::Hunted => {
             // Four corner brackets round the body, closing in and squaring up as the lock grows.
@@ -196,7 +199,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             let full = lock >= 0.999;
             let col = if full { mix3(look.core, look.main, 0.2) } else { look.main };
             let g = glow * (if full { 1.8 * p } else { 0.8 + 0.8 * lock });
-            let th = (0.035 + 0.035 * lock) * s;
+            let th = (0.04 + 0.04 * lock) * ts;
             for (sx, sy) in [(1.0f32, 1.0f32), (-1.0, 1.0), (-1.0, -1.0), (1.0, -1.0)] {
                 let corner = c + r * sx * half + u * sy * half;
                 seg(pen, v, corner, corner - r * sx * arm, th, col, g);
@@ -205,15 +208,15 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             if lock > 0.5 || kind == MarkKind::Hunted {
                 // The pip: the dead centre of the chest.
                 let d = 0.07 * s * (0.6 + lock);
-                seg(pen, v, c - r * d, c + r * d, 0.05 * s, look.core, g * 1.2);
-                seg(pen, v, c - u * d, c + u * d, 0.05 * s, look.core, g * 1.2);
+                seg(pen, v, c - r * d, c + r * d, 0.05 * ts, look.core, g * 1.2);
+                seg(pen, v, c - u * d, c + u * d, 0.05 * ts, look.core, g * 1.2);
             }
             if full {
                 // A closed diamond: they are dead to rights.
                 let dd = half * 0.55;
                 let q = [c + u * dd, c + r * dd, c - u * dd, c - r * dd];
                 for k in 0..4 {
-                    seg(pen, v, q[k], q[(k + 1) % 4], 0.03 * s, look.main, g);
+                    seg(pen, v, q[k], q[(k + 1) % 4], 0.03 * ts, look.main, g);
                 }
             }
         }
@@ -221,7 +224,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             // A broken halo that glitches: dashed, jumping, blinking cubes.
             let jump = ((t * 14.0) as u32).wrapping_mul(2654435761);
             let ph = h01(jump) * 0.6;
-            dashed_ring(pen, v, head, Vec3::Y, 0.42 * s, 12, 0.05 * s, look.main, glow * p, ph);
+            dashed_ring(pen, v, head, Vec3::Y, 0.42 * s, 12, 0.05 * ts, look.main, glow * p, ph);
             for k in 0..4u32 {
                 let r = h01(jump ^ (k * 97));
                 if r < 0.5 {
@@ -232,7 +235,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
                 cbox(pen, v, q, Quat::IDENTITY, Vec3::splat(0.09 * s), if k % 2 == 0 { look.core } else { look.main }, glow * 1.4);
             }
             // A slash through it (no powers).
-            seg(pen, v, head - v.right * 0.35 * s - Vec3::Y * 0.2 * s, head + v.right * 0.35 * s + Vec3::Y * 0.2 * s, 0.05 * s, look.main, glow * p);
+            seg(pen, v, head - v.right * 0.35 * s - Vec3::Y * 0.2 * s, head + v.right * 0.35 * s + Vec3::Y * 0.2 * s, 0.05 * ts, look.main, glow * p);
         }
         MarkKind::Dazed => {
             // A spiral over the eyes, turning; three sparks orbiting the head.
@@ -244,7 +247,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
                 let f = i as f32 / 18.0;
                 let a = -t * 7.0 + f * 3.0 * TAU;
                 let q = eyes + (u * a.cos() + w * a.sin()) * f * 0.28 * s;
-                seg(pen, v, prev, q, 0.02 * s, mix3(look.main, look.core, f), glow * p);
+                seg(pen, v, prev, q, 0.02 * ts, mix3(look.main, look.core, f), glow * p);
                 prev = q;
             }
             for k in 0..3 {
@@ -269,8 +272,8 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
                 let ember = Look { body: Body::Flame, main: look.main, core: look.core, glow: look.glow * 0.8, size: 0.6, ..*look };
                 pen.mote(&ember, q, Vec3::Y * 1.5, 0.35, 0.0);
             }
-            circle(pen.fx, feet + Vec3::Y * 0.05, Vec3::Y, 0.55 * s, 16, 0.05 * s, [0.02, 0.0, 0.02], 0.2, t);
-            circle(pen.fx, feet + Vec3::Y * 0.06, Vec3::Y, 0.5 * s, 16, 0.02 * s, look.main, glow * 0.4 * p, -t);
+            circle(pen.fx, feet + Vec3::Y * 0.05, Vec3::Y, 0.55 * s, 16, 0.05 * ts, [0.02, 0.0, 0.02], 0.2, t);
+            circle(pen.fx, feet + Vec3::Y * 0.06, Vec3::Y, 0.5 * s, 16, 0.02 * ts, look.main, glow * 0.4 * p, -t);
         }
         MarkKind::Seal => {
             // An eight-point seal (two squares), turning, with a beacon line up so it can be found.
@@ -288,7 +291,7 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
                     seg(pen, v, q[i], q[(i + 1) % 4], 0.03, if k == 0 { look.main } else { look.core }, glow * p);
                 }
             }
-            circle(pen.fx, c, n, r * 0.35, 12, 0.025, look.core, glow * 1.3 * p, 0.0);
+            circle(pen.fx, c, n, r * 0.35, 12, 0.025 * ts, look.core, glow * 1.3 * p, 0.0);
             let top = c + Vec3::Y * 3.5;
             for i in (0..10).step_by(2) {
                 seg(pen, v, c.lerp(top, i as f32 / 10.0), c.lerp(top, (i + 1) as f32 / 10.0), 0.018, look.main, glow * 0.5 * p);
@@ -296,19 +299,19 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
         }
         MarkKind::Captured => {
             // A crown over the possessed thing (three points), and a soft glow ring round it.
-            let c = feet + Vec3::Y * (1.2 * s + 0.4);
+            let c = feet + Vec3::Y * (1.9 * s + 0.5);
             let r = 0.32 * s.max(1.0);
             for k in 0..6 {
                 let a0 = t * 1.5 + k as f32 * TAU / 6.0;
                 let a1 = t * 1.5 + (k + 1) as f32 * TAU / 6.0;
                 let b0 = c + Vec3::new(a0.cos(), 0.0, a0.sin()) * r;
                 let b1 = c + Vec3::new(a1.cos(), 0.0, a1.sin()) * r;
-                seg(pen, v, b0, b1, 0.035, look.main, glow * p);
+                seg(pen, v, b0, b1, 0.05 * ts, look.main, glow * 1.3 * p);
                 if k % 2 == 0 {
-                    seg(pen, v, b0, b0 + Vec3::Y * 0.28, 0.03, look.core, glow * 1.2 * p);
+                    seg(pen, v, b0, b0 + Vec3::Y * 0.3 * s.max(1.0), 0.045 * ts, look.core, glow * 1.6 * p);
                 }
             }
-            circle(pen.fx, feet + Vec3::Y * 0.1, Vec3::Y, 0.9 * s.max(1.0), 20, 0.03, look.main, glow * 0.5 * p, -t);
+            circle(pen.fx, feet + Vec3::Y * 0.1, Vec3::Y, 0.9 * s.max(1.0), 20, 0.03 * ts, look.main, glow * 0.5 * p, -t);
         }
         MarkKind::Held => {
             // A clamp: two brackets squeezing the torso.
@@ -316,9 +319,9 @@ pub fn marker(pen: &mut Pen, v: &View, look: &Look, kind: MarkKind, feet: Vec3, 
             let r = 0.5 * s;
             for sgn in [-1.0f32, 1.0] {
                 let side = v.right * sgn * r;
-                seg(pen, v, c + side + Vec3::Y * 0.35 * s, c + side - Vec3::Y * 0.35 * s, 0.05 * s, look.main, glow);
-                seg(pen, v, c + side + Vec3::Y * 0.35 * s, c + side * 0.6 + Vec3::Y * 0.35 * s, 0.05 * s, look.main, glow);
-                seg(pen, v, c + side - Vec3::Y * 0.35 * s, c + side * 0.6 - Vec3::Y * 0.35 * s, 0.05 * s, look.main, glow);
+                seg(pen, v, c + side + Vec3::Y * 0.35 * s, c + side - Vec3::Y * 0.35 * s, 0.05 * ts, look.main, glow);
+                seg(pen, v, c + side + Vec3::Y * 0.35 * s, c + side * 0.6 + Vec3::Y * 0.35 * s, 0.05 * ts, look.main, glow);
+                seg(pen, v, c + side - Vec3::Y * 0.35 * s, c + side * 0.6 - Vec3::Y * 0.35 * s, 0.05 * ts, look.main, glow);
             }
         }
     }
@@ -399,6 +402,7 @@ pub fn telegraph(pen: &mut Pen, v: &View, look: &Look, kind: StrikeKind, pos: Ve
     let r = radius.clamp(0.4, 12.0);
     let p = pulse(t, left);
     let g = ground.map(|g| g + Vec3::Y * 0.07);
+    let far = ((pos - v.cam).length() / 12.0).clamp(1.0, 2.4);
     let fade_in = (t / 0.1).min(1.0);
     let glow = look.glow * fade_in;
     let danger = mix3(look.main, [1.0, 0.25, 0.2], 0.15);
@@ -413,22 +417,22 @@ pub fn telegraph(pen: &mut Pen, v: &View, look: &Look, kind: StrikeKind, pos: Ve
                     break;
                 }
                 let o = Vec3::Y * jit;
-                seg(pen, v, pos - d * len + o, pos + d * len + o, 0.012 + 0.02 * u, look.core, glow * (0.8 + 1.4 * u) * p);
-                seg(pen, v, pos - d * len * 0.6, pos + d * len * 0.6, 0.05 + 0.04 * u, look.main, glow * 0.35 * p);
+                seg(pen, v, pos - d * len + o, pos + d * len + o, (0.018 + 0.03 * u) * far, look.core, glow * (0.8 + 1.4 * u) * p);
+                seg(pen, v, pos - d * len * 0.6, pos + d * len * 0.6, (0.06 + 0.05 * u) * far, look.main, glow * 0.35 * p);
             }
             if let Some(g) = g {
-                dashed_ring(pen, v, g, Vec3::Y, r, 24, 0.03, danger, glow * 0.45 * p, t * 0.6);
+                dashed_ring(pen, v, g, Vec3::Y, r, 24, 0.04 * far, danger, glow * 0.45 * p, t * 0.6);
             }
         }
         StrikeKind::Bolt => {
             let g = g.unwrap_or(pos);
             // The ground ring (the reach of the bolt) with an inner ring closing on the centre.
-            circle(pen.fx, g, Vec3::Y, r, 28, 0.045, danger, glow * 0.8 * p, t);
-            circle(pen.fx, g, Vec3::Y, r * (1.0 - 0.85 * u).max(0.1), 20, 0.03, look.core, glow * 1.2 * p, -t * 2.0);
+            circle(pen.fx, g, Vec3::Y, r, 28, 0.045 * far, danger, glow * 0.8 * p, t);
+            circle(pen.fx, g, Vec3::Y, r * (1.0 - 0.85 * u).max(0.1), 20, 0.03 * far, look.core, glow * 1.2 * p, -t * 2.0);
             // A faint column up into the sky: where it will come from, with sparks crawling up it.
             let top = g + Vec3::Y * 16.0;
             for i in (0..16).step_by(2) {
-                seg(pen, v, g.lerp(top, i as f32 / 16.0), g.lerp(top, (i + 1) as f32 / 16.0), 0.02 + 0.02 * u, look.main, glow * (0.3 + 0.6 * u) * p);
+                seg(pen, v, g.lerp(top, i as f32 / 16.0), g.lerp(top, (i + 1) as f32 / 16.0), (0.025 + 0.025 * u) * far, look.main, glow * (0.3 + 0.6 * u) * p);
             }
             if pen.fx.rng.f() < 0.4 + 0.5 * u {
                 let q = g.lerp(top, pen.fx.rng.f()) + pen.fx.rng.dir() * 0.2;
@@ -441,32 +445,32 @@ pub fn telegraph(pen: &mut Pen, v: &View, look: &Look, kind: StrikeKind, pos: Ve
             // A halo sinking out of the sky onto the spot.
             let g0 = g.unwrap_or(pos);
             let h = 9.0 * (1.0 - u) + 1.5;
-            circle(pen.fx, g0 + Vec3::Y * h, Vec3::Y, r * 0.8, 24, 0.06, look.main, glow * 1.2 * p, t * 0.8);
-            circle(pen.fx, g0 + Vec3::Y * h, Vec3::Y, r * 0.55, 20, 0.03, look.core, glow * 1.5 * p, -t);
-            circle(pen.fx, g0, Vec3::Y, r, 28, 0.04, danger, glow * 0.7 * p, t * 0.5);
-            circle(pen.fx, g0, Vec3::Y, r * u.max(0.05), 24, 0.025, look.core, glow * p, 0.0);
+            circle(pen.fx, g0 + Vec3::Y * h, Vec3::Y, r * 0.8, 24, 0.06 * far, look.main, glow * 1.2 * p, t * 0.8);
+            circle(pen.fx, g0 + Vec3::Y * h, Vec3::Y, r * 0.55, 20, 0.03 * far, look.core, glow * 1.5 * p, -t);
+            circle(pen.fx, g0, Vec3::Y, r, 28, 0.04 * far, danger, glow * 0.7 * p, t * 0.5);
+            circle(pen.fx, g0, Vec3::Y, r * u.max(0.05), 24, 0.025 * far, look.core, glow * p, 0.0);
         }
         StrikeKind::Void => {
             // Space puckers: a dark shell spinning in, tighter and faster toward the pop.
             let rr = r * (1.0 - 0.7 * u);
-            circle(pen.fx, pos, Vec3::Y, rr, 20, 0.05, look.dark, 0.3, t * (2.0 + 6.0 * u));
-            circle(pen.fx, pos, Vec3::new(0.3, 0.2, 1.0), rr * 0.8, 18, 0.03, look.main, glow * p, -t * (3.0 + 6.0 * u));
+            circle(pen.fx, pos, Vec3::Y, rr, 20, 0.05 * far, look.dark, 0.3, t * (2.0 + 6.0 * u));
+            circle(pen.fx, pos, Vec3::new(0.3, 0.2, 1.0), rr * 0.8, 18, 0.03 * far, look.main, glow * p, -t * (3.0 + 6.0 * u));
             if pen.fx.rng.f() < 0.5 {
                 pen.implode(look, pos, rr * 1.3, 0.35, 0.15);
             }
             if let Some(g) = g {
-                dashed_ring(pen, v, g, Vec3::Y, r, 20, 0.03, danger, glow * 0.5 * p, t);
+                dashed_ring(pen, v, g, Vec3::Y, r, 20, 0.04 * far, danger, glow * 0.5 * p, t);
             }
         }
         StrikeKind::Blast => {
             let g0 = g.unwrap_or(pos);
             // The classic: an outline at the blast radius, a fill ring growing to it, four ticks.
-            circle(pen.fx, g0, Vec3::Y, r, 32, 0.05, danger, glow * 0.9 * p, 0.0);
-            circle(pen.fx, g0, Vec3::Y, r * u.max(0.04), 28, 0.07, mix3(look.main, look.core, 0.4 * u), glow * (0.5 + u) * p, 0.0);
+            circle(pen.fx, g0, Vec3::Y, r, 32, 0.05 * far, danger, glow * 0.9 * p, 0.0);
+            circle(pen.fx, g0, Vec3::Y, r * u.max(0.04), 28, 0.07 * far, mix3(look.main, look.core, 0.4 * u), glow * (0.5 + u) * p, 0.0);
             for k in 0..4 {
                 let a = k as f32 * PI * 0.5 + t * 0.4;
                 let d = Vec3::new(a.cos(), 0.0, a.sin());
-                seg(pen, v, g0 + d * r * 1.08, g0 + d * r * 0.8, 0.05, danger, glow * p);
+                seg(pen, v, g0 + d * r * 1.08, g0 + d * r * 0.8, 0.06 * far, danger, glow * p);
             }
             if g.is_some() && pos.y - g0.y > 1.2 {
                 for i in (0..8).step_by(2) {
@@ -492,7 +496,6 @@ pub fn strike(pen: &mut Pen, look: &Look, kind: StrikeKind, pos: Vec3, ground: O
                 pen.beam(a, b, 0.2 * look.size, look.main, look.glow * 1.2, 0.18);
                 pen.beam(a + across * 0.05, b + across * 0.05, 0.04, look.core, look.glow * 3.0, 0.22 + 0.04 * k as f32);
                 pen.beam(a - across * 0.05, b - across * 0.05, 0.04, look.core, look.glow * 3.0, 0.22 + 0.04 * k as f32);
-                pen.beam(a.lerp(b, 0.1), b.lerp(a, 0.1), 0.07, [0.0, 0.0, 0.01], 0.0, 0.16);
                 let shards = Look { body: Body::Shard, ..*look };
                 pen.burst(&shards, pos, 0.5, 5.0, Some(across), 0.5, 0.35);
                 pen.burst(&shards, pos, 0.5, 5.0, Some(-across), 0.5, 0.35);
@@ -501,7 +504,7 @@ pub fn strike(pen: &mut Pen, look: &Look, kind: StrikeKind, pos: Vec3, ground: O
         }
         StrikeKind::Bolt => {
             let g = ground.unwrap_or(pos);
-            pen.flash(g + Vec3::Y * 0.5, r * 0.7, look.core, look.glow * 1.6, 0.14);
+            pen.flash(g + Vec3::Y * 0.6, 1.0, look.core, look.glow * 1.6, 0.1);
             pen.ring(look, g + Vec3::Y * 0.1, Vec3::Y, 0.3, r * 4.0, 1.2, 0.3);
             let sparks = Look { body: Body::Bolt, ..*look };
             pen.burst(&sparks, g + Vec3::Y * 0.3, 1.2, 9.0, Some(Vec3::Y), 1.1, 0.35);
@@ -512,14 +515,13 @@ pub fn strike(pen: &mut Pen, look: &Look, kind: StrikeKind, pos: Vec3, ground: O
             pen.beam(g, g + Vec3::Y * 18.0, r * 0.45, look.main, look.glow * 1.1, 0.45);
             pen.beam(g, g + Vec3::Y * 18.0, r * 0.15, look.core, look.glow * 2.2, 0.35);
             pen.ring(look, g + Vec3::Y * 0.1, Vec3::Y, 0.3, r * 3.5, 1.4, 0.4);
-            pen.flash(g + Vec3::Y * 1.0, r * 0.8, look.core, look.glow * 1.4, 0.2);
+            pen.flash(g + Vec3::Y * 1.0, 1.0, look.core, look.glow * 1.4, 0.14);
             let halo = Look { body: Body::Halo, ..*look };
             pen.burst(&halo, g + Vec3::Y * 0.5, 1.0, 3.0, Some(Vec3::Y), 0.4, 0.8);
         }
         StrikeKind::Void => {
             pen.implode(look, pos, r * 1.2, 0.1, 1.2);
-            pen.flash(pos, r * 0.6, look.main, look.glow, 0.22);
-            pen.flash(pos, r * 0.3, look.dark, 0.2, 0.3);
+            pen.flash(pos, 0.9, look.main, look.glow, 0.14);
             pen.ring(look, pos, Vec3::Y, 0.2, r * 3.5, 1.0, 0.3);
             pen.burst(look, pos, 1.0, r * 2.5, None, 0.0, 0.4);
         }
@@ -594,6 +596,12 @@ pub fn tether(pen: &mut Pen, v: &View, look: &Look, body: TetherBody, from: Vec3
     }
     let dir = d / len;
     let segs = ((len * 1.5) as usize).clamp(6, 40);
+    // From your own fist the near links are right at the lens: thinner there.
+    // …and thicker far away (a chain 20 m off must still read as a chain).
+    let near = |p: Vec3| {
+        let d = p.distance(v.cam);
+        ((d - 0.5) / 3.0).clamp(0.35, 1.0) * (d / 12.0).clamp(1.0, 2.2)
+    };
     let sag = slack.clamp(0.0, 1.0) * (len * 0.08).min(2.5);
     let (u, w) = basis(dir);
     let wob = if body == TetherBody::Bungee { 0.08 + 0.25 * slack } else { 0.0 };
@@ -615,17 +623,20 @@ pub fn tether(pen: &mut Pen, v: &View, look: &Look, body: TetherBody, from: Vec3
         match body {
             TetherBody::Chain => {
                 // Links: alternating boxes turned 90° to each other along the line, a dull rope core.
-                seg(pen, v, prev, p, 0.025, look.dark, 0.4);
                 let mid = (prev + p) * 0.5;
+                let k = near(mid);
+                seg(pen, v, prev, p, 0.025 * k, look.dark, 0.4);
                 let q = Quat::from_rotation_arc(Vec3::Z, (p - prev).normalize_or(dir)) * Quat::from_rotation_z(if i % 2 == 0 { 0.0 } else { PI * 0.5 });
-                cbox(pen, v, mid, q, Vec3::new(0.09, 0.035, (p - prev).length() * 0.8), mix3(look.dark, look.main, 0.35), look.glow * 0.35);
+                cbox(pen, v, mid, q, Vec3::new(0.09 * k, 0.035 * k, (p - prev).length() * 0.8), mix3(look.dark, look.main, 0.55), look.glow * 0.6);
             }
             TetherBody::Lead => {
-                seg(pen, v, prev, p, 0.07 * look.size, look.main, look.glow * 0.7);
-                seg(pen, v, prev, p, 0.025 * look.size, look.core, look.glow * 1.4);
+                let k = near((prev + p) * 0.5);
+                seg(pen, v, prev, p, 0.07 * look.size * k, look.main, look.glow * 0.7);
+                seg(pen, v, prev, p, 0.025 * look.size * k, look.core, look.glow * 1.4);
             }
             TetherBody::Bungee => {
-                seg(pen, v, prev, p, 0.06 * look.size, look.main, look.glow * 0.8);
+                let k = near((prev + p) * 0.5);
+                seg(pen, v, prev, p, 0.06 * look.size * k, look.main, look.glow * 0.8);
                 if i % 2 == 0 {
                     seg(pen, v, prev, p, 0.02, look.core, look.glow * 1.3);
                 }

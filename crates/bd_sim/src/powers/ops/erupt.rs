@@ -78,9 +78,9 @@ impl World {
         let feet = self.players[i].mv.pos;
         let fwd = Vec3::new(look.x, 0.0, look.z).normalize_or(Vec3::NEG_Z);
         let side = Vec3::Y.cross(fwd).normalize_or(Vec3::X);
-        let length = op.length.clamp(1.0, 36.0);
-        let width = op.width.clamp(VOXEL_SIZE, 6.0);
-        let height = op.height.clamp(VOXEL_SIZE, 12.0);
+        let length = super::fclamp(op.length, 1.0, 36.0);
+        let width = super::fclamp(op.width, VOXEL_SIZE, 6.0);
+        let height = super::fclamp(op.height, VOXEL_SIZE, 12.0);
         let half_w = width * 0.5;
         // The centre of a pillar / ring: the ground under the crosshair, or under you.
         let centre = match at {
@@ -88,7 +88,7 @@ impl World {
                 let p = self.op_at_point(i, At::Aim, 0.0);
                 bd_core::voxel::raycast(&self.voxels, p + Vec3::Y * 1.0, Vec3::NEG_Y, 8.0).map_or(p, |h| h.point)
             }
-            At::Front => feet + fwd * op.dist.clamp(1.0, 20.0),
+            At::Front => feet + fwd * super::fclamp(op.dist, 1.0, 20.0),
             At::Me => feet,
         };
         let mut cols = [None::<Column>; MAX_SAMPLES];
@@ -107,7 +107,7 @@ impl World {
                 Some((a, a + fwd * length))
             }
             EruptShape::Wall => {
-                let c = feet + fwd * op.dist.clamp(1.0, 20.0);
+                let c = feet + fwd * super::fclamp(op.dist, 1.0, 20.0);
                 Some((c - side * length * 0.5, c + side * length * 0.5))
             }
             _ => None,
@@ -258,7 +258,7 @@ impl World {
         if list.is_empty() && m == 0 {
             return Err(PowerError::NoTarget);
         }
-        let launch = op.launch.clamp(0.0, 40.0);
+        let launch = super::fclamp(op.launch, 0.0, 40.0);
         for k in victims.iter().flatten().copied() {
             if k == i {
                 // The elevator throws you up off the top.
@@ -269,7 +269,7 @@ impl World {
             }
             let tid = self.players[k].id;
             let c = self.players[k].hull(&base).center();
-            let h = HitInfo::new(tid, Some(id), HitKind::Crush, op.damage.clamp(0.0, 40.0), launch, Vec3::Y + fwd * 0.2, c)
+            let h = HitInfo::new(tid, Some(id), HitKind::Crush, super::fclamp(op.damage, 0.0, 40.0), launch, Vec3::Y + fwd * 0.2, c)
                 .with_element(op.element)
                 .with_impact(1.2);
             self.apply_hit(h);

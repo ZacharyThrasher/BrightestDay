@@ -74,7 +74,7 @@ impl World {
         } else {
             match self.compose_now(i) {
                 Some(Forced::Me) => Some(self_anchor),
-                Some(Forced::Player(pid)) => self.pidx(pid).map(|k| player_anchor(self, k)),
+                Some(Forced::Player(pid)) => self.pidx(pid).filter(|&k| self.players[k].alive).map(|k| player_anchor(self, k)),
                 Some(Forced::Construct(cid)) => self.constructs.get(cid).filter(|c| c.gone.is_none()).map(|c| construct_anchor(self, c)),
                 None => {
                     if let Some(k) = self.op_aimed_player(i, range, fin(s.cone, 0.0, 45.0)) {

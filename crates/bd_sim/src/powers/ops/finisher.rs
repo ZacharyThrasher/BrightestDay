@@ -36,14 +36,14 @@ impl World {
         let id = self.players[i].id;
         let (eye, look) = self.op_eye_look(i);
         let flat = Vec3::new(look.x, 0.0, look.z).normalize_or(Vec3::NEG_Z);
-        if op.lunge != 0.0 {
-            self.players[i].mv.apply_impulse(flat * op.lunge.clamp(-40.0, 40.0), 0.0);
+        if op.lunge.is_finite() && op.lunge != 0.0 {
+            self.players[i].mv.apply_impulse(flat * super::fclamp(op.lunge, -40.0, 40.0), 0.0);
         }
-        let range = op.range.clamp(0.5, 12.0);
-        let cos = op.angle.clamp(1.0, 179.0).to_radians().cos();
+        let range = super::fclamp(op.range, 0.5, 12.0);
+        let cos = super::fclamp(op.angle, 1.0, 179.0).to_radians().cos();
         let origin = eye + look * 0.4;
-        let window = (op.window.clamp(0.0, 3.0) * TICK_HZ as f32) as Tick;
-        let mult = op.mult.clamp(1.0, 4.0);
+        let window = (super::fclamp(op.window, 0.0, 3.0) * TICK_HZ as f32) as Tick;
+        let mult = super::fclamp(op.mult, 1.0, 4.0);
         let base = self.cfg.move_params.clone();
         let in_cone = |p: Vec3| {
             let d = p - origin;
@@ -64,10 +64,10 @@ impl World {
                 n += 1;
             }
         }
-        let damage = op.damage.clamp(0.0, 100.0);
-        let knockback = op.knockback.clamp(0.0, 80.0);
+        let damage = super::fclamp(op.damage, 0.0, 100.0);
+        let knockback = super::fclamp(op.knockback, 0.0, 80.0);
         for (tid, c, combo) in targets.iter().flatten().copied() {
-            let push = (look + (c - origin).normalize_or_zero()) * 0.5 + Vec3::Y * op.up.clamp(0.0, 2.0);
+            let push = (look + (c - origin).normalize_or_zero()) * 0.5 + Vec3::Y * super::fclamp(op.up, 0.0, 2.0);
             let (dm, km) = if combo { (mult, 1.0 + (mult - 1.0) * 0.5) } else { (1.0, 1.0) };
             let mut hit = HitInfo::new(tid, Some(id), HitKind::Melee, damage * dm, knockback * km, push, c).with_element(op.element).with_impact(if combo { 1.0 + mult * 0.5 } else { 1.2 });
             hit.crit = combo;

@@ -30,7 +30,7 @@ use crate::gpu::FxUpload;
 use crate::material::FxMaterials;
 use crate::palette::Palette;
 use crate::particles::{Emit, EmitSystems, FxParticles, PFlags, PKind};
-use crate::text_budget::{LightGate, TextBudget, View, pick_eviction, place_word, priority};
+use crate::text_budget::{LightGate, TextBudget, View, inside_event, pick_eviction, place_word_k, priority};
 use crate::util::{FxRng, fin, fin3};
 use crate::{FxSet, FxSettings};
 
@@ -217,6 +217,8 @@ struct OnoWordState {
     side: i8,
     /// This frame's placement scale (text_budget size clamp) — `ext` × this is on screen.
     place_scale: f32,
+    /// A big hit (heavy / accent): own words keep `own_big_scale`.
+    big: bool,
 }
 
 #[derive(Resource, Default)]
@@ -285,6 +287,12 @@ fn hue(h: f32) -> [f32; 3] {
     [f(5.0), f(3.0), f(1.0)]
 }
 
+/// `BD_TEXT_LOG=1`: log every comic-word budget decision (tuning `assets/fx/text_budget.ron`).
+fn text_log() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var_os("BD_TEXT_LOG").is_some())
+}
+
 fn spawn_words(
     mut commands: Commands,
     mut msgs: MessageReader<SpawnOnomatopoeia>,
@@ -310,15 +318,24 @@ fn spawn_words(
         }
         let impact = fin(m.impact, 0.5).clamp(0.0, 3.0);
         let perf = m.style == OnoStyle::Performance;
+        let skip = |why: &str| {
+            if text_log() {
+                info!("text budget: skip {:?} ({why}) impact {impact:.2} local {} accent {}", m.word, m.local_player, m.accent);
+            }
+        };
         if !perf && !m.accent && settings.mode == OnoMode::BigHitsOnly && impact < settings.big_hit_threshold {
+            skip("reduced: small hit");
             continue;
         }
         // Rapid light hits: every Nth word per source (crits / finishers always).
         if !perf && !rt.light.admit(b, m.source, now, impact, m.accent) {
+            skip("light hit thinned");
             continue;
         }
-        // The camera is inside the event (you are the blast / the victim up close): no word.
-        if !perf && cam_pos.is_some_and(|c| c.distance(fin3(m.pos)) < budget.placement.skip_cam_dist) {
+        // The camera is inside someone else's event (their blast around you): no word. Your own
+        // hits (a weapon contact can be right at your eye) are pushed out by placement instead.
+        if !perf && !m.local_player && cam_pos.is_some_and(|c| inside_event(c, fin3(m.pos), &budget.placement)) {
+            skip("camera inside the event");
             continue;
         }
         let pri = priority(b, impact, m.local_player, m.accent);
@@ -338,14 +355,21 @@ fn spawn_words(
                         let w = &mut near[i];
                         w.hold = w.hold.min((w.age - w.pop).max(0.0));
                     }
-                    Err(()) => continue,
+                    Err(()) => {
+                        skip("near-camera cap: everything live matters more");
+                        continue;
+                    }
                 }
             }
         }
         // Rate limit (performance words and local-player events may borrow).
         let floor = if m.local_player || m.style == OnoStyle::Performance { -2.0 } else { 1.0 };
         if rt.tokens < floor {
+            skip("rate limit");
             continue;
+        }
+        if text_log() {
+            info!("text budget: word {:?} at {:.2} m, impact {impact:.2} pri {pri:.2} local {}", m.word, cam_pos.map_or(-1.0, |c| c.distance(fin3(m.pos))), m.local_player);
         }
         rt.tokens -= 1.0;
         // Resolve text.
@@ -456,7 +480,7 @@ fn spawn_words(
             pop: 0.08,
             hold: settings.hold_scale.max(0.1)
                 * if perf { 0.32 } else { 0.35 + 0.1 * impact.min(1.5) }
-                * if m.local_player && !perf && !m.accent { budget.placement.own_hold.clamp(0.1, 1.0) } else { 1.0 },
+                * if m.local_player && !perf && !m.accent && impact < b.light_impact { budget.placement.own_hold.clamp(0.1, 1.0) } else { 1.0 },
             impact,
             style: m.style,
             dir: fin3(m.dir),
@@ -473,6 +497,7 @@ fn spawn_words(
             pri,
             side: 0,
             place_scale: 1.0,
+            big: m.accent || impact >= b.light_impact,
         });
     }
 }
@@ -568,7 +593,8 @@ fn animate_words(
                 // World-text policy: out of your lap, off the crosshair, screen-size clamped; own
                 // words small and to the side (text_budget::place_word).
                 let mut side = w.side;
-                let placed = place_word(&view, pos, w.ext, w.local, &mut side, pl);
+                let own_k = if w.big { pl.own_big_scale } else { pl.own_scale };
+                let placed = place_word_k(&view, pos, w.ext, w.local, own_k, &mut side, pl);
                 w.side = side;
                 let (pos, k) = match placed {
                     Some(p) => (p.pos, p.scale),

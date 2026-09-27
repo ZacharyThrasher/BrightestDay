@@ -159,15 +159,16 @@ pub enum OpEvent {
     /// Phase / Banish / Rush / Contagion / Wave: `fx` names the beat, `from` / `to` / `secs` / `size` draw it.
     Toolbox { player: PlayerId, fx: live::ToolboxFx, from: Vec3, to: Vec3, secs: f32, size: f32 },
     /// MODIFIERS & FUSION (powers/twist): a TWISTED / FUSED move fired (sent right BEFORE its
-    /// `Fired`, after its ops' own events). `a` / `b` = the base moves (`b` = fused with; `None` for a famous cast),
+    /// `Fired`, after its ops' own events). `a` / `b` = the bases (`b` = fused with; a table move, a
+    /// described move's spec, or `None` for a famous cast),
     /// `mods` = modifier wire bytes in three groups of `twist::MAX_MODS` (A's, B's, the whole's; 0 =
     /// empty) — `twist::exec::interned(a, b, &mods)` rebuilds the twisted `MoveDef` for presentation.
     /// `title` ("GIANT HOMING RASENGAN", "RASENGAN + AMATERASU"), `element` after swaps, `size` ×,
     /// `copies` fanned at once × `shots` in a row, `merge` = a two-element windup (fusion).
     Twisted {
         player: PlayerId,
-        a: Option<super::toolbox::MoveRef>,
-        b: Option<super::toolbox::MoveRef>,
+        a: super::twist::BaseRef,
+        b: super::twist::BaseRef,
         mods: [u8; 3 * super::twist::MAX_MODS],
         title: String,
         element: Element,

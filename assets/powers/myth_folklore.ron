@@ -26,7 +26,7 @@
         names: ["zeus", "the king of the gods", "king of the gods", "zeus the thunderer", "zeus king of the gods", "dias",
                 "jupiter", "jove", "zues", "zeuss", "zoos", "zeus god of thunder", "father zeus", "olympian zeus"],
         shouts: [("thunderbolt of zeus", 0), ("bolt of zeus", 0), ("keraunos", 0), ("zeus's thunderbolt", 0), ("zeus thunder bolt", 0),
-                 ("wrath of zeus", 1), ("wrath of the gods", 1), ("storm of olympus", 1), ("fury of olympus", 1),
+                 ("wrath of zeus", 1), ("zeus wrath of the gods", 1), ("storm of olympus", 1), ("fury of olympus", 1),
                  ("eagle of zeus", 2), ("aetos dios", 2),
                  ("gather the clouds", 3), ("cloud gatherer", 3), ("storm clouds of zeus", 3),
                  ("aegis of zeus", 4),
@@ -74,10 +74,10 @@
         fx: "water",
         names: ["poseidon", "neptune", "the earthshaker", "god of the sea", "poseidon god of the sea",
                 "posiedon", "poseiden", "posidon", "poseidan", "posseidon", "king of the sea"],
-        shouts: [("tsunami", 1), ("poseidon tidal wave", 1), ("poseidon's wrath", 1), ("wrath of the sea", 1), ("wrath of poseidon", 1),
-                 ("earthquake of poseidon", 2), ("shake the earth", 2), ("earth shaking", 2),
-                 ("hippocampus", 3), ("sea horses", 3), ("ride the waves", 3),
-                 ("whirlpool", 4), ("charybdis", 4), ("maelstrom", 4),
+        shouts: [("poseidon tsunami", 1), ("poseidon tidal wave", 1), ("poseidon's wrath", 1), ("poseidon wrath of the sea", 1), ("wrath of poseidon", 1),
+                 ("earthquake of poseidon", 2), ("poseidon shake the earth", 2), ("earth shaking", 2),
+                 ("poseidon hippocampus", 3), ("sea horses", 3), ("ride the waves", 3),
+                 ("poseidon whirlpool", 4), ("poseidon charybdis", 4), ("poseidon maelstrom", 4),
                  ("unleash the kraken", 5), ("summon the kraken", 5),
                  ("throw the trident", 6), ("trident throw", 6)],
         moves: [
@@ -132,7 +132,7 @@
                 "hadies", "hayden's"],
         shouts: [("hands of the dead", 0), ("grasp of the underworld", 0), ("underworld hands", 0), ("grasp of the dead", 0),
                  ("summon cerberus", 1), ("unleash cerberus", 1),
-                 ("helm of darkness", 2), ("cap of invisibility", 2), ("helm of hades", 2),
+                 ("hades helm of darkness", 2), ("cap of invisibility", 2), ("helm of hades", 2),
                  ("drag them to the underworld", 3), ("to the underworld", 3),
                  ("river styx", 4), ("the styx", 4), ("waters of the styx", 4),
                  ("shades of the dead", 5),
@@ -189,7 +189,7 @@
         names: ["hermes", "mercury", "the messenger god", "messenger of the gods", "hermes the messenger", "hermies", "hermees",
                 "herms", "hermes trickster"],
         shouts: [("sandals of hermes", 0),
-                 ("caduceus", 1), ("staff of hermes", 1),
+                 ("hermes caduceus", 1), ("staff of hermes", 1),
                  ("speed of hermes", 2),
                  ("thief of the gods", 3), ("hermes steals", 3), ("light fingers", 3),
                  ("wings of hermes", 4), ("messenger's flight", 4)],
@@ -230,11 +230,11 @@
         names: ["athena", "athene", "pallas athena", "pallas athene", "minerva", "goddess of wisdom", "athina", "athenna",
                 "athena goddess of war"],
         shouts: [("spear of athena", 0), ("athena's spear", 0),
-                 ("aegis of athena", 1), ("athena's aegis", 1), ("the aegis", 1),
+                 ("aegis of athena", 1), ("athena's aegis", 1), ("athena the aegis", 1),
                  ("owl of athena", 2), ("athena's owl", 2),
-                 ("battle wisdom", 3), ("athena's strategy", 3),
+                 ("athena battle wisdom", 3), ("athena's strategy", 3),
                  ("athena parthenos", 4), ("guardian of athens", 4),
-                 ("phalanx", 5), ("shield wall of athens", 5)],
+                 ("athena phalanx", 5), ("athena shield wall of athens", 5)],
         moves: [
             // A disciplined spear lunge with long reach. -> ends a step in, balanced.
             (name: "spear of athena", tags: [Primary], cooldown: 0.9, cost: 3.0, ops: [
@@ -324,7 +324,7 @@
         names: ["artemis", "goddess of the hunt", "artemis the huntress", "the huntress", "artimis", "artemus",
                 "artemis goddess of the moon", "diana the huntress"],
         shouts: [("silver arrows", 0), ("arrows of artemis", 0), ("artemis arrows", 0),
-                 ("moonlight volley", 1), ("moon bow", 1), ("bow of artemis", 1), ("volley of the moon", 1),
+                 ("moonlight volley", 1), ("artemis moon bow", 1), ("bow of artemis", 1), ("artemis volley of the moon", 1),
                  ("hounds of artemis", 2), ("hunting hounds", 2),
                  ("hind's leap", 3), ("golden hind", 3), ("ceryneian hind", 3),
                  ("the hunt", 4), ("mark the prey", 4)],
@@ -363,7 +363,7 @@
         names: ["ares", "mars", "ares god of war", "mars god of war", "arez", "aries god of war", "enyalios"],
         shouts: [("spear of ares", 0), ("ares spear", 0),
                  ("bloodlust of ares", 1), ("fury of ares", 1), ("wrath of ares", 1),
-                 ("war cry of ares", 2), ("phobos and deimos", 2), ("terror and fear", 2),
+                 ("war cry of ares", 2), ("phobos and deimos", 2), ("ares terror and fear", 2),
                  ("chariot of ares", 3), ("chariot of war", 3),
                  ("shield of ares", 4)],
         moves: [
@@ -402,9 +402,9 @@
                 "the forge god", "hephaestus the smith"],
         shouts: [("hammer of hephaestus", 0), ("forge hammer", 0),
                  ("forge a weapon", 1), ("forge me a weapon", 1), ("from the forge", 1),
-                 ("talos", 2), ("summon talos", 2), ("bronze giant", 2), ("talos the bronze giant", 2),
-                 ("molten slag", 3), ("molten metal", 3), ("forge fire", 3),
-                 ("golden net", 4), ("net of hephaestus", 4),
+                 ("hephaestus talos", 2), ("summon talos", 2), ("hephaestus bronze giant", 2), ("talos the bronze giant", 2),
+                 ("molten slag", 3), ("molten metal", 3), ("hephaestus forge fire", 3),
+                 ("hephaestus golden net", 4), ("net of hephaestus", 4),
                  ("golden automatons", 5), ("automatons of hephaestus", 5)],
         moves: [
             // The smith's hammer on your enemy's face. -> ends in place, sparks everywhere.
@@ -449,7 +449,7 @@
         shouts: [("club of heracles", 0), ("club of hercules", 0),
                  ("twelve labours", 1), ("twelve labors", 1), ("labours of heracles", 1), ("labors of hercules", 1),
                  ("hold up the sky", 2), ("hold up the heavens", 2), ("shoulder the sky", 2),
-                 ("wrestle the lion", 3), ("nemean lion", 3), ("strangle the lion", 3),
+                 ("wrestle the lion", 3), ("nemean lion", 3), ("heracles strangle the lion", 3),
                  ("divert the rivers", 4), ("augean stables", 4), ("clean the stables", 4),
                  ("pillars of hercules", 5), ("pillars of heracles", 5),
                  ("leap of heracles", 6), ("hercules leap", 6),
@@ -504,7 +504,7 @@
         names: ["achilles", "achilleus", "akhilleus", "achillies", "achilles son of peleus", "swift footed achilles", "achillis"],
         shouts: [("spear of achilles", 0), ("pelian spear", 0),
                  ("swift footed", 1), ("swift-footed", 1), ("podarkes", 1),
-                 ("wrath of achilles", 2), ("rage of achilles", 2), ("sing the wrath", 2),
+                 ("wrath of achilles", 2), ("rage of achilles", 2), ("achilles sing the wrath", 2),
                  ("shield of achilles", 3),
                  ("drag hector", 4), ("drag them around the walls", 4)],
         moves: [
@@ -540,9 +540,9 @@
         kind: Kit,
         fx: "holy",
         names: ["perseus", "persius", "perseas", "perseus the gorgon slayer", "perseus son of zeus"],
-        shouts: [("harpe", 0), ("sword of perseus", 0),
+        shouts: [("perseus harpe", 0), ("sword of perseus", 0),
                  ("head of medusa", 1), ("gorgon's head", 1), ("the gorgon's head", 1),
-                 ("mirror shield", 2), ("polished shield", 2),
+                 ("perseus mirror shield", 2), ("polished shield", 2),
                  ("ride pegasus", 3), ("summon pegasus", 3),
                  ("perseus sandals", 4)],
         moves: [
@@ -624,7 +624,7 @@
         shouts: [("scythe of kronos", 0), ("sickle of kronos", 0), ("adamant sickle", 0),
                  ("age of kronos", 1), ("the golden age", 1), ("time of the titans", 1),
                  ("devour your children", 2), ("kronos devours", 2),
-                 ("turn back time", 3), ("reverse time", 3), ("rewind time", 3),
+                 ("kronos turn back time", 3), ("kronos reverse time", 3), ("rewind time", 3),
                  ("rise of the titans", 4), ("titan's stature", 4), ("titanomachy", 4)],
         moves: [
             // The adamant sickle: a long reaping cut along your aim. -> ends in place.
@@ -658,7 +658,7 @@
         kind: Kit,
         fx: "earth",
         names: ["atlas", "the titan atlas", "atlas the titan", "atlas holding the sky"],
-        shouts: [("weight of the heavens", 0), ("the weight of the sky", 0), ("burden of the heavens", 0), ("carry the sky", 0),
+        shouts: [("weight of the heavens", 0), ("atlas the weight of the sky", 0), ("burden of the heavens", 0), ("carry the sky", 0),
                  ("atlas holds the sky", 1), ("bear the sky", 1),
                  ("titan's shove", 2)],
         moves: [
@@ -686,7 +686,7 @@
         fx: "wind",
         names: ["icarus", "ikaros", "icarus and daedalus", "icarous", "ikarus"],
         shouts: [("too close to the sun", 0), ("fly too close to the sun", 0), ("flying too close to the sun", 0),
-                 ("wings of wax", 1), ("wax wings", 1), ("feathers of daedalus", 2), ("labyrinth of daedalus", 3), ("the labyrinth", 3)],
+                 ("icarus wings of wax", 1), ("wax wings", 1), ("feathers of daedalus", 2), ("labyrinth of daedalus", 3), ("the labyrinth", 3)],
         moves: [
             // Up at the sun until the wax gives; the fall is a crater wherever it ends.
             // -> ends grounded far away, everyone near the landing thrown.
@@ -771,8 +771,8 @@
         kind: Kit,
         fx: "shadow",
         names: ["pandora", "pandora's box", "pandoras box", "pandora box", "the box of pandora", "pandora's jar"],
-        shouts: [("open pandora's box", 0), ("open pandoras box", 0), ("open the box", 0), ("open pandora box", 0),
-                 ("the last hope", 1), ("hope remains", 1)],
+        shouts: [("open pandora's box", 0), ("open pandoras box", 0), ("pandora open the box", 0), ("open pandora box", 0),
+                 ("pandora the last hope", 1), ("hope remains", 1)],
         moves: [
             // The box opens: plague, war, famine, sorrow, fire, a swarm — one of them, now, at the crosshair.
             (name: "open the box", tags: [Ultimate, Primary], cooldown: 9.0, cost: 7.0, ops: [
@@ -802,9 +802,9 @@
         fx: "fire",
         names: ["prometheus", "promethius", "prometheas", "the titan prometheus", "prometheus the fire bringer", "fire bringer",
                 "the fire bringer"],
-        shouts: [("stolen fire", 0), ("fire of the gods", 0), ("steal fire from the gods", 0),
+        shouts: [("stolen fire", 0), ("prometheus fire of the gods", 0), ("steal fire from the gods", 0),
                  ("gift of fire", 1), ("prometheus' gift", 1),
-                 ("eagle of the caucasus", 2),
+                 ("prometheus eagle of the caucasus", 2),
                  ("chains of prometheus", 3), ("chained to the rock", 3)],
         moves: [
             // Fire stolen from Olympus in a fennel stalk, thrown. -> ends in place.
@@ -856,7 +856,7 @@
         kind: Kit,
         fx: "poison",
         names: ["dionysus", "bacchus", "dionysos", "dionisus", "dionysus god of wine"],
-        shouts: [("bacchanal", 0), ("drunken revel", 0), ("wine of dionysus", 0), ("the revel", 0),
+        shouts: [("dionysus bacchanal", 0), ("drunken revel", 0), ("wine of dionysus", 0), ("the revel", 0),
                  ("thyrsus", 1), ("vines of dionysus", 1), ("grapevines", 1),
                  ("maenads", 2), ("frenzy of the maenads", 2),
                  ("dionysus panthers", 3), ("panthers of dionysus", 3)],
@@ -942,13 +942,13 @@
         fx: "spirit",
         names: ["odin", "the allfather", "allfather", "all father", "odin allfather", "wodan", "woden", "wotan", "othin", "odinn",
                 "grimnir", "odin the allfather", "odin's", "oden", "odinn allfather", "the wanderer", "one eyed god"],
-        shouts: [("gungnir", 0), ("throw gungnir", 0), ("gungnir never misses", 0), ("spear of odin", 0), ("gungner", 0), ("gun near", 0), ("gungir", 0), ("gungnir the spear", 0),
+        shouts: [("odin gungnir", 0), ("throw gungnir", 0), ("gungnir never misses", 0), ("spear of odin", 0), ("gungner", 0), ("gun near", 0), ("gungir", 0), ("gungnir the spear", 0),
                  ("huginn and muninn", 1), ("hugin and munin", 1), ("thought and memory", 1), ("odin's ravens", 1), ("ravens of odin", 1),
                  ("hugin and mugin", 1),
                  ("sleipnir charge", 2), ("ride of sleipnir", 2), ("slepnir", 2),
                  ("the wild hunt", 3), ("wild hunt", 3), ("oskoreia", 3),
                  ("hlidskjalf", 4), ("eye of odin", 4), ("odin's eye", 4), ("the allfather sees", 4), ("all seeing eye of odin", 4),
-                 ("einherjar", 5), ("warriors of valhalla", 5), ("valhalla awaits", 5), ("for valhalla", 5),
+                 ("odin einherjar", 5), ("warriors of valhalla", 5), ("valhalla awaits", 5), ("for valhalla", 5),
                  ("ride sleipnir", 6), ("mount sleipnir", 6),
                  ("rings of draupnir", 7), ("draupnir ring", 7)],
         moves: [
@@ -1003,7 +1003,7 @@
         names: ["the trickster god", "trickster god", "loki the trickster", "loptr", "lopt", "loki laufeyjarson", "lokee",
                 "loki trickster", "the norse loki"],
         shouts: [("illusion doubles", 0), ("loki's illusions", 0), ("illusions of loki", 0), ("trickster doubles", 0),
-                 ("shapeshift into a fly", 1), ("become a fly", 1), ("loki shapeshift", 1),
+                 ("loki the trickster shapeshift into a fly", 1), ("loki the trickster become a fly", 1), ("loki shapeshift", 1),
                  ("mistletoe", 2), ("mistletoe dart", 2), ("the death of baldur", 2), ("baldur's bane", 2),
                  ("loki's tricks", 3), ("a trick of loki", 3), ("trickster's gamble", 3),
                  ("loki's fire", 4), ("wildfire of loki", 4),
@@ -1053,12 +1053,12 @@
         kind: Kit,
         fx: "shadow",
         names: ["fenrir", "fenris", "fenris wolf", "fenrir wolf", "fenrisulfr", "the great wolf", "fenrir the wolf", "fenrer", "fenrear"],
-        shouts: [("fenrir's bite", 0), ("jaws of fenrir", 0), ("wolf bite", 0),
-                 ("fenrir unbound", 1), ("fenrir breaks free", 1), ("unleash fenrir", 1), ("swallow the sun", 1),
+        shouts: [("fenrir's bite", 0), ("jaws of fenrir", 0), ("fenrir wolf bite", 0),
+                 ("fenrir unbound", 1), ("fenrir breaks free", 1), ("unleash fenrir", 1), ("fenrir swallow the sun", 1),
                  ("bind with gleipnir", 2), ("the binding of fenrir", 2),
                  ("howl of fenrir", 3), ("ragnarok howl", 3),
                  ("wolf pounce", 4), ("fenrir pounce", 4),
-                 ("skoll and hati", 5), ("sköll and hati", 5), ("wolves of the sun and moon", 5)],
+                 ("skoll and hati", 5), ("sköll and hati", 5), ("fenrir wolves of the sun and moon", 5)],
         moves: [
             // A lunging bite. -> ends a stride forward, over them.
             (name: "bite", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
@@ -1098,8 +1098,8 @@
         fx: "poison",
         names: ["jormungandr", "jormungand", "jormungander", "the world serpent", "world serpent", "midgard serpent",
                 "the midgard serpent", "midgardsorm", "yormungandr", "your mungander", "jor mungandr", "jormungandur"],
-        shouts: [("venom of the world serpent", 0), ("serpent venom", 0),
-                 ("rise of the world serpent", 1), ("jormungandr rises", 1), ("the serpent rises", 1),
+        shouts: [("venom of the world serpent", 0), ("jormungandr serpent venom", 0),
+                 ("rise of the world serpent", 1), ("jormungandr rises", 1), ("jormungandr the serpent rises", 1),
                  ("coils of midgard", 2), ("the serpent encircles the world", 2),
                  ("tail crash", 3), ("serpent's tail", 3)],
         moves: [
@@ -1133,11 +1133,11 @@
         fx: "fire",
         names: ["surtr", "surt", "the fire giant", "fire giant surtr", "surtr the fire giant", "lord of muspelheim", "surter", "sirtur",
                 "the black one"],
-        shouts: [("flaming sword", 0), ("sword of surtr", 0), ("surtr's sword", 0), ("sword brighter than the sun", 0),
+        shouts: [("surtr flaming sword", 0), ("sword of surtr", 0), ("surtr's sword", 0), ("sword brighter than the sun", 0),
                  ("ragnarok", 1), ("ragnarök", 1), ("twilight of the gods", 1), ("the world burns", 1), ("ragna rock", 1),
                  ("muspelheim", 2), ("fires of muspelheim", 2), ("muspell", 2),
-                 ("fire giant", 3), ("giant of fire", 3),
-                 ("draw the flaming sword", 4)],
+                 ("surtr fire giant", 3), ("surtr giant of fire", 3),
+                 ("surtr draw the flaming sword", 4)],
         moves: [
             // A sweeping cut of fire along your aim. -> ends in place; the line keeps burning.
             (name: "flaming sword", tags: [Primary], cooldown: 1.4, cost: 4.0, ops: [
@@ -1177,7 +1177,7 @@
                  ("valkyrie dive", 1), ("valkyrie strike", 1),
                  ("winged steed", 2), ("valkyrie steed", 2), ("valkyrie's horse", 2),
                  ("valkyrie spear", 3),
-                 ("shield wall", 4), ("skjaldborg", 4)],
+                 ("valkyrie of valhalla shield wall", 4), ("skjaldborg", 4)],
         moves: [
             // Choose the slain: the one you touch is taken up into the sky with you and dropped.
             // -> ends with you hanging high, them falling.
@@ -1212,8 +1212,8 @@
         fx: "holy",
         names: ["heimdall", "heimdallr", "heimdal", "the watchman of the gods", "guardian of bifrost", "heimdall the watchman",
                 "the white god", "hymdall"],
-        shouts: [("sound the gjallarhorn", 0), ("blow the horn", 0), ("yeller horn", 0), ("gjallar horn", 0),
-                 ("bifröst", 1), ("the rainbow bridge", 1), ("open the bifrost", 1),
+        shouts: [("sound the gjallarhorn", 0), ("heimdall blow the horn", 0), ("yeller horn", 0), ("gjallar horn", 0),
+                 ("heimdall bifröst", 1), ("heimdall the rainbow bridge", 1), ("open the bifrost", 1),
                  ("heimdall sees all", 2), ("watchman's sight", 2),
                  ("sword of heimdall", 3)],
         moves: [
@@ -1243,10 +1243,10 @@
         kind: Kit,
         fx: "holy",
         names: ["freyja", "freya", "freia", "freyia", "vanadis", "freyja of the vanir", "fraya"],
-        shouts: [("falcon cloak", 0), ("feather cloak", 0), ("freyja's cloak", 0),
+        shouts: [("freyja falcon cloak", 0), ("freyja feather cloak", 0), ("freyja's cloak", 0),
                  ("cats of freyja", 1), ("freyja's cats", 1), ("freya's cats", 1),
                  ("seidr", 2), ("seiðr", 2), ("seithr", 2), ("seidr magic", 2),
-                 ("brisingamen", 3), ("necklace of the brisings", 3),
+                 ("freyja brisingamen", 3), ("necklace of the brisings", 3),
                  ("tears of gold", 4), ("freyja's tears", 4)],
         moves: [
             // The falcon cloak: up and gliding. -> ends airborne, floating.
@@ -1308,7 +1308,7 @@
                  ("raidho", 1), ("raido", 1), ("raidho rune", 1), ("rune of journey", 1),
                  ("kenaz", 2), ("kenaz rune", 2), ("kaunan", 2), ("torch rune", 2),
                  ("hagalaz", 3), ("hagalaz rune", 3), ("hail rune", 3), ("rune of hail", 3),
-                 ("isa", 4), ("isa rune", 4), ("ice rune", 4), ("rune of ice", 4),
+                 ("runes isa", 4), ("isa rune", 4), ("ice rune", 4), ("rune of ice", 4),
                  ("algiz", 5), ("algiz rune", 5), ("elhaz", 5), ("rune of protection", 5), ("protection rune", 5),
                  ("sowilo", 6), ("sowilo rune", 6), ("sowelo", 6), ("sun rune", 6), ("rune of the sun", 6),
                  ("laguz", 7), ("laguz rune", 7), ("water rune", 7), ("rune of water", 7)],
@@ -1358,8 +1358,8 @@
         names: ["futhark runes", "rune stones", "the elder runes", "runes of odin"],
         shouts: [("uruz", 0), ("uruz rune", 0), ("rune uruz", 0), ("aurochs rune", 0),
                  ("tiwaz", 1), ("tiwaz rune", 1), ("rune tiwaz", 1), ("teiwaz", 1), ("tyr rune", 1),
-                 ("ehwaz", 2), ("ehwaz rune", 2), ("rune ehwaz", 2), ("horse rune", 2),
-                 ("perthro", 3), ("perthro rune", 3), ("rune perthro", 3), ("rune of fate", 3), ("perth", 3),
+                 ("ehwaz", 2), ("ehwaz rune", 2), ("rune ehwaz", 2), ("futhark runes horse rune", 2),
+                 ("perthro", 3), ("perthro rune", 3), ("rune perthro", 3), ("futhark runes rune of fate", 3), ("futhark runes perth", 3),
                  ("ansuz", 4), ("ansuz rune", 4), ("rune ansuz", 4), ("odin's rune", 4),
                  ("fehu", 5), ("fehu rune", 5), ("rune fehu", 5), ("rune of wealth", 5),
                  ("naudhiz", 6), ("nauthiz", 6), ("naudiz", 6), ("rune naudhiz", 6), ("need rune", 6),
@@ -1457,11 +1457,11 @@
         fx: "holy",
         names: ["ra", "amun ra", "amun-ra", "amon ra", "amon-ra", "ra the sun god", "sun god ra", "rah", "atum ra", "ra horakhty",
                 "re horakhty", "ra-horakhty", "raa"],
-        shouts: [("rays of ra", 0), ("ra's rays", 0), ("light of ra", 0),
-                 ("eye of ra", 1), ("the eye of ra", 1), ("burning eye of ra", 1),
-                 ("solar barque", 2), ("sun barque", 2), ("barque of ra", 2), ("boat of the sun", 2), ("mandjet", 2),
+        shouts: [("ra rays of ra", 0), ("ra's rays", 0), ("ra light of ra", 0),
+                 ("ra eye of ra", 1), ("ra the eye of ra", 1), ("ra burning eye of ra", 1),
+                 ("solar barque", 2), ("sun barque", 2), ("barque of ra", 2), ("ra boat of the sun", 2), ("mandjet", 2),
                  ("solar disc", 3), ("sun disc of ra", 3), ("disc of the sun", 3), ("the sun disc", 3),
-                 ("dawn of ra", 4), ("the sun rises", 4), ("sunrise of ra", 4)],
+                 ("dawn of ra", 4), ("ra the sun rises", 4), ("sunrise of ra", 4)],
         moves: [
             // A beam of sunlight from the palms. -> ends in place.
             (name: "rays of ra", tags: [Primary], cooldown: 1.6, cost: 4.0, ops: [
@@ -1500,7 +1500,7 @@
                  ("feather of maat", 0), ("feather of ma'at", 0), ("judgement of anubis", 0),
                  ("jackal strike", 1), ("jackal's bite", 1),
                  ("mummy wrap", 2), ("embalm", 2), ("wrap them up", 2), ("bandage wrap", 2),
-                 ("ammit", 3), ("ammit the devourer", 3), ("devourer of the dead", 3), ("ammut", 3),
+                 ("anubis ammit", 3), ("ammit the devourer", 3), ("devourer of the dead", 3), ("ammut", 3),
                  ("guide of souls", 4), ("walk through the duat", 4),
                  ("sands of the duat", 5), ("the duat", 5)],
         moves: [
@@ -1541,7 +1541,7 @@
         fx: "sand",
         names: ["seth", "sutekh", "set god of chaos", "set the god of chaos", "the god set", "set god of the desert", "setesh",
                 "god of chaos set", "lord of the red land"],
-        shouts: [("sandstorm of set", 0), ("sandstorm of seth", 0), ("desert sandstorm", 0), ("storm of the red land", 0), ("haboob", 0),
+        shouts: [("sandstorm of set", 0), ("sandstorm of seth", 0), ("desert sandstorm", 0), ("seth storm of the red land", 0), ("haboob", 0),
                  ("was scepter", 1), ("staff of set", 1),
                  ("chaos of set", 2), ("isfet", 2),
                  ("set animal", 3), ("sha beast", 3),
@@ -1682,7 +1682,7 @@
         fx: "water",
         names: ["sobek", "sebek", "sobek the crocodile", "the crocodile god", "crocodile god", "sobeck"],
         shouts: [("crocodile death roll", 0), ("jaws of sobek", 0),
-                 ("flood of the nile", 1), ("the nile floods", 1), ("inundation", 1),
+                 ("sobek flood of the nile", 1), ("the nile floods", 1), ("inundation", 1),
                  ("crocodiles of the nile", 2), ("nile crocodiles", 2),
                  ("river ambush", 3)],
         moves: [
@@ -1714,10 +1714,10 @@
         kind: Kit,
         fx: "void",
         names: ["apep", "apophis", "apepi", "aapep", "the serpent of chaos", "serpent of chaos", "apep the devourer", "apophis the serpent"],
-        shouts: [("devour the sun", 0), ("eclipse of apep", 0), ("apep devours the sun", 0), ("the sun is eaten", 0),
+        shouts: [("devour the sun", 0), ("eclipse of apep", 0), ("apep devours the sun", 0), ("apep the sun is eaten", 0),
                  ("coils of apep", 1), ("coils of chaos", 1),
                  ("venom of isfet", 2),
-                 ("endless night", 3), ("eternal night", 3)],
+                 ("apep endless night", 3), ("eternal night", 3)],
         moves: [
             // The eclipse: a black core rises and drags the world (and anyone caught) into it.
             (name: "devour the sun", tags: [Ultimate], cooldown: 24.0, cost: 14.0, ops: [
@@ -1746,8 +1746,8 @@
         kind: Kit,
         fx: "sand",
         names: ["khepri", "khepera", "kheper", "scarab god", "the scarab god", "khepri the scarab"],
-        shouts: [("scarab swarm", 0), ("swarm of scarabs", 0), ("scarabs", 0), ("beetle swarm", 0),
-                 ("roll the sun", 1), ("rolling sun", 1), ("the rolling sun", 1),
+        shouts: [("scarab swarm", 0), ("swarm of scarabs", 0), ("khepri scarabs", 0), ("khepri beetle swarm", 0),
+                 ("khepri roll the sun", 1), ("khepri rolling sun", 1), ("khepri the rolling sun", 1),
                  ("scarab shield", 2), ("scarab amulet", 2)],
         moves: [
             // A carpet of scarabs pours out at your enemies.
@@ -1774,7 +1774,7 @@
         names: ["mummy", "the mummy", "pharaoh's mummy", "cursed mummy", "ancient mummy", "mummified pharaoh"],
         shouts: [("mummy's curse", 0), ("curse of the pharaoh", 0), ("pharaoh's curse", 0), ("curse of the mummy", 0),
                  ("bandage lash", 1), ("mummy bandages", 1),
-                 ("sarcophagus", 2), ("seal the sarcophagus", 2),
+                 ("mummy sarcophagus", 2), ("seal the sarcophagus", 2),
                  ("canopic jars", 3)],
         moves: [
             // The curse: a mark that follows them, bursting later.
@@ -1811,7 +1811,7 @@
                  ("sudarshan chakr", 0), ("sudershan chakra", 0), ("vishnu's chakra", 0), ("spinning chakra", 0),
                  ("panchajanya", 1), ("conch of vishnu", 1), ("vishnu's conch", 1), ("blow the conch", 1), ("shankha", 1),
                  ("kaumodaki", 2), ("mace of vishnu", 2), ("vishnu's mace", 2),
-                 ("garuda", 3), ("ride garuda", 3), ("garud", 3),
+                 ("vishnu garuda", 3), ("ride garuda", 3), ("garud", 3),
                  ("shesha", 4), ("sheshnaag", 4), ("ananta shesha", 4), ("coils of shesha", 4), ("sheshanaga", 4),
                  ("cosmic form", 5), ("vishvarupa", 5), ("vishwaroop", 5), ("universal form", 5)],
         moves: [
@@ -1857,13 +1857,13 @@
                 "shiva the destroyer", "neelkanth", "shiva ji", "mahakal"],
         shouts: [("third eye of shiva", 0), ("shiva's third eye", 0), ("open the third eye", 0), ("trinetra", 0),
                  ("tandava", 1), ("the tandava", 1), ("cosmic dance", 1), ("dance of destruction", 1), ("tandav", 1),
-                 ("trishula", 2), ("trishul", 2), ("shiva's trident", 2), ("trident of shiva", 2),
+                 ("shiva trishula", 2), ("shiva trishul", 2), ("shiva's trident", 2), ("trident of shiva", 2),
                  ("ganga descends", 3), ("descent of the ganga", 3), ("ganges", 3), ("gangavataran", 3),
                  ("damaru", 4), ("shiva's drum", 4),
                  ("nandi", 5), ("summon nandi", 5), ("nandi the bull", 5)],
         moves: [
             // The third eye: a burning line torn through everything in front of you.
-            (name: "third eye", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
+            (name: "third eye", fx: "gaze", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
                 Carve(length: 32.0, radius: 1.5, damage: 20.0),
                 Explode(radius: 4.0, damage: 8.0, knockback: 16.0, element: Fire, at: Aim),
             ], juice: Some((title: Some("TRINETRA"), boom: true, punch: 6.0, shake: 0.3, ripple: 5.0, at: Front, dist: 6.0,
@@ -1904,14 +1904,14 @@
         names: ["hanuman", "hanumanji", "hanuman ji", "bajrangbali", "bajrang bali", "maruti", "anjaneya", "pavanputra", "hanumaan",
                 "hanumant", "anjaneyar", "mahavira", "hanuman the monkey god", "pawan putra"],
         shouts: [("leap to lanka", 0), ("the great leap", 0), ("hanuman leap", 0), ("leap across the ocean", 0), ("jump to lanka", 0),
-                 ("grow giant", 1), ("mahima", 1), ("hanuman grows", 1), ("giant hanuman", 1), ("virat roop", 1),
-                 ("lift the mountain", 2), ("carry the mountain", 2), ("bring the mountain", 2), ("dronagiri", 2), ("sanjeevani mountain", 2),
+                 ("hanuman grow giant", 1), ("mahima", 1), ("hanuman grows", 1), ("giant hanuman", 1), ("virat roop", 1),
+                 ("hanuman lift the mountain", 2), ("hanuman carry the mountain", 2), ("hanuman bring the mountain", 2), ("dronagiri", 2), ("sanjeevani mountain", 2),
                  ("sanjeevani", 2),
-                 ("gada", 3), ("hanuman's gada", 3), ("mace of hanuman", 3), ("gada slam", 3),
+                 ("hanuman gada", 3), ("hanuman's gada", 3), ("mace of hanuman", 3), ("gada slam", 3),
                  ("burning tail", 4), ("lanka dahan", 4), ("burn lanka", 4), ("tail of fire", 4),
                  ("son of the wind", 5), ("pavan", 5), ("wind leap", 5),
                  ("laghima", 6), ("shrink small", 6), ("become tiny", 6),
-                 ("drop the mountain", 7), ("mountain drop", 7)],
+                 ("hanuman drop the mountain", 7), ("mountain drop", 7)],
         moves: [
             // THE leap: the whole map in one bound, landing exactly where you look — with a crater.
             // -> ends grounded far away, everyone near the landing thrown.
@@ -1963,10 +1963,10 @@
         fx: "holy",
         names: ["arjuna", "arjun", "partha", "dhananjaya", "gudakesha", "savyasachi", "arjuna the archer", "arjunaa"],
         shouts: [("gandiva", 0), ("gandiv", 0), ("arrows of gandiva", 0), ("gandiva volley", 0),
-                 ("brahmastra", 1), ("the brahmastra", 1), ("bramastra", 1), ("brahmashtra", 1), ("brahma astra", 1),
-                 ("the bird's eye", 2), ("only the bird's eye", 2), ("bird's eye", 2), ("the eye of the bird", 2),
+                 ("Brahmastra", 1), ("the brahmastra", 1), ("bramastra", 1), ("brahmashtra", 1), ("brahma astra", 1),
+                 ("the bird's eye", 2), ("only the bird's eye", 2), ("bird's eye", 2), ("arjuna the eye of the bird", 2),
                  ("chariot of arjuna", 3), ("krishna drive", 3), ("partha's chariot", 3),
-                 ("arrow bed", 4), ("sharasetu", 4)],
+                 ("arjuna arrow bed", 4), ("sharasetu", 4)],
         moves: [
             // Five arrows from the Gandiva at once. -> ends drawn again.
             (name: "gandiva", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
@@ -2031,8 +2031,8 @@
         kind: Kit,
         fx: "lightning",
         names: ["indra", "lord indra", "devendra", "shakra", "king of the devas", "indra dev", "indradev", "vajrapani"],
-        shouts: [("vajra", 0), ("the vajra", 0), ("indra's vajra", 0), ("vajra thunderbolt", 0), ("bajra", 0),
-                 ("airavata", 1), ("airavat", 1), ("white elephant", 1), ("indra's elephant", 1),
+        shouts: [("indra vajra", 0), ("the vajra", 0), ("indra's vajra", 0), ("vajra thunderbolt", 0), ("bajra", 0),
+                 ("indra airavata", 1), ("airavat", 1), ("indra white elephant", 1), ("indra's elephant", 1),
                  ("storm of indra", 2), ("indra's rain", 2),
                  ("indrajala", 3), ("indra's net", 3), ("net of indra", 3)],
         moves: [
@@ -2104,7 +2104,7 @@
         shouts: [("thunder drums", 0), ("raijin's drums", 0), ("taiko of thunder", 0), ("drums of raijin", 0), ("beat the thunder drums", 0),
                  ("raijin's storm", 1), ("storm of raijin", 1), ("thunder rain", 1),
                  ("drum roll", 2), ("raijin drum roll", 2),
-                 ("raiju", 3), ("thunder beast", 3), ("summon raiju", 3),
+                 ("raijin raiju", 3), ("thunder beast", 3), ("summon raiju", 3),
                  ("thunderclap step", 4), ("raijin step", 4)],
         moves: [
             // One beat: a thunderclap ring around you. -> ends in place; they're stunned for a blink.
@@ -2140,9 +2140,9 @@
         fx: "wind",
         names: ["fujin", "fuujin", "fu jin", "fujin the wind god", "wind god fujin", "fujin sama", "fujin no kaze", "futen"],
         shouts: [("wind bag", 0), ("fujin's wind bag", 0), ("open the wind bag", 0), ("bag of winds", 0), ("kaze bukuro", 0),
-                 ("divine wind", 1), ("kami kaze", 1), ("the divine wind", 1),
+                 ("fujin divine wind", 1), ("kami kaze", 1), ("fujin the divine wind", 1),
                  ("gale step", 2), ("fujin whirlwind", 3), ("whirlwind of fujin", 3),
-                 ("kamaitachi", 4), ("sickle weasel", 4), ("wind sickles", 4)],
+                 ("fujin kamaitachi", 4), ("sickle weasel", 4), ("wind sickles", 4)],
         moves: [
             // The bag opens: a gale that throws everyone in front of you far away.
             (name: "wind bag", tags: [Primary], cooldown: 5.0, cost: 5.0, ops: [
@@ -2178,7 +2178,7 @@
         names: ["the storm god susanoo", "storm god susanoo", "susanoo no mikoto", "susano o no mikoto", "susanoo-no-mikoto",
                 "take haya susanoo", "takehaya susanoo", "the storm god", "susanowo", "god susanoo", "susanoo the storm god",
                 "susanoo god of storms"],
-        shouts: [("kusanagi", 0), ("kusanagi no tsurugi", 0), ("grass cutting sword", 0), ("the grass cutter", 0), ("ame no murakumo", 0),
+        shouts: [("susanoo kusanagi", 0), ("kusanagi no tsurugi", 0), ("grass cutting sword", 0), ("the grass cutter", 0), ("ame no murakumo", 0),
                  ("eight vats of sake", 1), ("yashiori sake", 1), ("sake for orochi", 1),
                  ("storm of the sea", 2), ("susanoo's storm", 2),
                  ("banished from heaven", 3), ("fall from takamagahara", 3)],
@@ -2215,8 +2215,8 @@
         names: ["the sun goddess amaterasu", "sun goddess amaterasu", "amaterasu omikami", "amaterasu-omikami", "ama terasu omikami",
                 "ohirume", "the sun goddess", "amaterasu the sun goddess", "goddess amaterasu", "amaterasu okami", "omikami"],
         shouts: [("heavenly rock cave", 0), ("ama no iwato", 0), ("the rock cave", 0), ("hide in the cave", 0),
-                 ("the sun returns", 1), ("return of the sun", 1), ("sunrise of amaterasu", 1),
-                 ("sacred mirror", 2), ("mirror of amaterasu", 2), ("yata mirror", 2), ("the sacred mirror", 2),
+                 ("the sun goddess amaterasu the sun returns", 1), ("return of the sun", 1), ("sunrise of amaterasu", 1),
+                 ("the sun goddess amaterasu sacred mirror", 2), ("mirror of amaterasu", 2), ("yata mirror", 2), ("the sun goddess amaterasu the sacred mirror", 2),
                  ("rays of amaterasu", 3), ("light of amaterasu", 3)],
         moves: [
             // The cave: you seal yourself in stone while the world outside goes dark.
@@ -2248,7 +2248,7 @@
         names: ["the moon god tsukuyomi", "moon god tsukuyomi", "tsukuyomi no mikoto", "tsukiyomi no mikoto", "tsukuyomi-no-mikoto",
                 "the moon god", "god of the moon tsukuyomi"],
         shouts: [("moonlight blade", 0), ("tsukuyomi's blade", 0),
-                 ("night of the moon", 1), ("the long night", 1),
+                 ("the moon god tsukuyomi night of the moon", 1), ("the moon god tsukuyomi the long night", 1),
                  ("moonlit step", 2), ("moon step", 2)],
         moves: [
             // A thin silver cut. -> ends in place.
@@ -2275,7 +2275,7 @@
         fx: "fire",
         names: ["kitsune", "fox spirit", "the fox spirit", "inari fox", "kitsune spirit", "kitsune fox", "kitsoone", "kitsunee",
                 "japanese fox spirit", "tenko"],
-        shouts: [("foxfire", 0), ("kitsunebi", 0), ("fox fire", 0), ("fox flames", 0), ("kitsune bi", 0),
+        shouts: [("foxfire", 0), ("kitsunebi", 0), ("kitsune fox fire", 0), ("kitsune fox flames", 0), ("kitsune bi", 0),
                  ("nine tails illusion", 1), ("nine fox illusion", 1), ("kitsune illusion", 1), ("fox illusions", 1),
                  ("bewitch", 2), ("fox bewitchment", 2), ("kitsune tsuki", 2),
                  ("fox leap", 3), ("kitsune leap", 3),
@@ -2313,10 +2313,10 @@
         kind: Kit,
         fx: "wind",
         names: ["tengu", "karasu tengu", "daitengu", "tengoo", "the tengu", "crow tengu", "yamabushi tengu", "sojobo"],
-        shouts: [("hauchiwa", 0), ("tengu fan", 0), ("feather fan", 0), ("tengu gust", 0),
+        shouts: [("hauchiwa", 0), ("tengu fan", 0), ("tengu feather fan", 0), ("tengu gust", 0),
                  ("tengu flight", 1), ("tengu wings", 1),
                  ("tengu blade", 2), ("tengu swordsmanship", 2),
-                 ("mountain storm", 3), ("tengu storm", 3)],
+                 ("tengu mountain storm", 3), ("tengu storm", 3)],
         moves: [
             // The feather fan: a gust that sends them tumbling.
             (name: "hauchiwa", tags: [Primary], cooldown: 2.0, cost: 3.0, ops: [
@@ -2346,7 +2346,7 @@
         fx: "blood",
         names: ["oni", "red oni", "blue oni", "aka oni", "ao oni", "the oni", "japanese ogre", "oni demon", "shuten doji", "shuten dōji",
                 "ibaraki doji"],
-        shouts: [("kanabo", 0), ("kanabō", 0), ("oni club", 0), ("oni's club", 0),
+        shouts: [("oni kanabo", 0), ("oni kanabō", 0), ("oni club", 0), ("oni's club", 0),
                  ("oni rampage", 1), ("rampaging oni", 1),
                  ("kanabo slam", 2), ("oni slam", 2),
                  ("oni roar", 3), ("roar of the oni", 3),
@@ -2414,10 +2414,10 @@
         names: ["yokai", "yōkai", "youkai", "the yokai", "hyakki yako", "hyakki yagyo", "night parade", "night parade of a hundred demons",
                 "hundred demons", "japanese demons", "yokai parade", "mononoke"],
         shouts: [("hyakki yakō", 0), ("night parade of demons", 0), ("parade of a hundred demons", 0), ("the night parade", 0),
-                 ("nurikabe", 1), ("the wall yokai", 1), ("rokurokubi", 2), ("rokuro kubi", 2),
+                 ("yokai nurikabe", 1), ("the wall yokai", 1), ("yokai rokurokubi", 2), ("rokuro kubi", 2),
                  ("yuki onna", 4), ("summon the gashadokuro", 3), ("rise gashadokuro", 3), ("umbrella hop", 7), ("kasa obake hop", 7), ("yuki-onna", 4), ("snow woman", 4), ("breath of the snow woman", 4),
-                 ("tsuchigumo", 5), ("earth spider", 5), ("tsuchi gumo", 5),
-                 ("chochin obake", 6), ("lantern ghosts", 6), ("paper lantern ghost", 6)],
+                 ("yokai tsuchigumo", 5), ("yokai earth spider", 5), ("tsuchi gumo", 5),
+                 ("chochin obake", 6), ("yokai lantern ghosts", 6), ("yokai paper lantern ghost", 6)],
         moves: [
             // The parade: a crowd of yokai pours out at your enemies.
             (name: "night parade", tags: [Ultimate], cooldown: 26.0, cost: 10.0, ops: [
@@ -2500,14 +2500,14 @@
         fx: "rigid",
         names: ["sun wukong", "wukong", "the monkey king", "monkey king", "sun wu kong", "sun wu-kong", "wu kong", "sun go kong",
                 "son wukong", "sun wookong", "sun woo kong", "stone monkey", "the stone monkey", "handsome monkey king", "sun houzi"],
-        shouts: [("ruyi jingu bang extend", 0), ("staff extend", 0), ("extend the staff", 0), ("ruyi extend", 0), ("grow staff", 0),
-                 ("extend ruyi", 0), ("ruyi thrust", 0), ("staff grow", 0),
+        shouts: [("ruyi jingu bang extend", 0), ("wukong staff extend", 0), ("wukong extend the staff", 0), ("ruyi extend", 0), ("wukong grow staff", 0),
+                 ("extend ruyi", 0), ("ruyi thrust", 0), ("wukong staff grow", 0),
                  ("108000 li", 1), ("somersault leap", 1), ("monkey king leap", 1), ("wukong leap", 1),
-                 ("ding", 2), ("ding shen fa", 2), ("dingshen", 2), ("immobilizing spell", 2), ("qishier bian", 3),
+                 ("wukong ding", 2), ("ding shen fa", 2), ("dingshen", 2), ("immobilizing spell", 2), ("qishier bian", 3),
                  ("dharma idol", 3), ("golden gaze of wukong", 6), ("wukong golden eyes", 6), ("heaven and earth form", 3),
                  ("havoc in heaven", 4), ("havoc in the heavenly palace", 4), ("da nao tian gong", 4),
                  ("draw the ruyi staff", 5), ("summon the ruyi", 5), ("ruyi staff in hand", 5),
-                 ("ride the cloud", 7), ("summon the cloud", 7)],
+                 ("wukong ride the cloud", 7), ("wukong summon the cloud", 7)],
         moves: [
             // The staff shoots out tens of metres as a line strike, golden and rigid, and snaps back.
             (name: "ruyi extend", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
@@ -2556,7 +2556,7 @@
         fx: "fire",
         names: ["nezha", "ne zha", "na zha", "nazha", "nata", "prince nezha", "nezha the lotus prince", "ne cha", "lotus prince",
                 "nata taishi", "third lotus prince"],
-        shouts: [("fenghuolun", 0), ("universal ring", 1), ("sky muddling sash", 2),
+        shouts: [("fenghuolun", 0), ("nezha universal ring", 1), ("sky muddling sash", 2),
                  ("three heads six arms", 4), ("san tou liu bi", 4), ("three heads and six arms", 4),
                  ("lotus rebirth", 5), ("nezha spear thrust", 3), ("spear of nezha", 3), ("reborn from the lotus", 5), ("lotus body", 5)],
         moves: [
@@ -2596,9 +2596,9 @@
         fx: "holy",
         names: ["erlang shen", "erlang", "er lang shen", "erlangshen", "er lang", "yang jian", "erlang god", "the god erlang",
                 "er-lang shen"],
-        shouts: [("eye of truth", 0), ("the eye of truth", 0),
+        shouts: [("erlang eye of truth", 0), ("erlang the eye of truth", 0),
                  ("seventy three transformations", 3), ("73 transformations", 3), ("erlang blade sweep", 2), ("blade of erlang", 2),
-                 ("split the mountain", 4), ("erlang splits the mountain", 4)],
+                 ("erlang split the mountain", 4), ("erlang splits the mountain", 4)],
         moves: [
             // The third eye opens: a beam of truth.
             (name: "third eye", tags: [Ultimate], cooldown: 16.0, cost: 9.0, ops: [
@@ -2635,10 +2635,10 @@
         fx: "wind",
         names: ["princess iron fan", "iron fan princess", "tieshan gongzhu", "tie shan gong zhu", "rakshasi", "luocha nu",
                 "princess iron-fan"],
-        shouts: [("wave of the iron fan", 0), ("iron fan gale", 0), ("fan them away", 0),
+        shouts: [("princess iron fan wave of the iron fan", 0), ("iron fan gale", 0), ("fan them away", 0),
                  ("eighty four thousand li", 0),
-                 ("flaming mountain", 1), ("huoyan shan", 1), ("fan the flames", 1),
-                 ("iron fan parry", 2), ("fan deflect", 2),
+                 ("princess iron fan flaming mountain", 1), ("huoyan shan", 1), ("princess iron fan fan the flames", 1),
+                 ("princess iron fan iron fan parry", 2), ("princess iron fan fan deflect", 2),
                  ("rakshasi swords", 3)],
         moves: [
             // One wave: a gale that carries them across the map.
@@ -2669,7 +2669,7 @@
         fx: "blood",
         names: ["bull demon king", "the bull demon king", "niu mowang", "niu mo wang", "bull king", "demon bull king", "gyu mao"],
         shouts: [("bull demon charge", 0), ("demon bull charge", 0),
-                 ("great white bull", 1), ("bull demon giant form", 1), ("the white bull", 1),
+                 ("bull demon king great white bull", 1), ("bull demon giant form", 1), ("the white bull", 1),
                  ("mixed iron rod", 2), ("bull demon's rod", 2),
                  ("bull demon roar", 3)],
         moves: [
@@ -2700,7 +2700,7 @@
         fx: "blood",
         names: ["guan yu", "guan gong", "lord guan", "guan yunchang", "kwan yu", "kuan yu", "guandi", "guan di", "kwan kung",
                 "guan yu the god of war", "general guan"],
-        shouts: [("crescent blade", 0), ("red hare charge", 1), ("ride red hare", 1),
+        shouts: [("crescent blade", 0), ("red hare charge", 1), ("guan yu ride red hare", 1),
                  ("five passes six generals", 2), ("crossing five passes", 2), ("five passes", 2),
                  ("the wine is still warm", 3), ("while the wine is warm", 3), ("guan's glare", 4)],
         moves: [
@@ -2824,7 +2824,7 @@
         fx: "holy",
         names: ["chang'e", "chang e", "chang-e", "moon goddess chang'e", "the moon goddess", "moon goddess", "heng'e", "heng e", "chang o",
                 "chang ee", "chang'e the moon goddess", "goddess chang'e"],
-        shouts: [("elixir of immortality", 0), ("drink the elixir", 0), ("fly to the moon", 0), ("to the moon", 0),
+        shouts: [("elixir of immortality", 0), ("drink the elixir", 0), ("chang'e fly to the moon", 0), ("to the moon", 0),
                  ("summon the jade rabbit", 1),
                  ("moonlight of chang'e", 2), ("chang'e moonlight", 2), ("palace of the moon", 3), ("guanghan palace", 3), ("palace of vast cold", 3)],
         moves: [
@@ -2857,9 +2857,9 @@
         kind: Kit,
         fx: "fire",
         names: ["hou yi", "houyi", "yi the archer", "hou yee", "the archer yi", "shen yi", "hou-yi"],
-        shouts: [("shoot down the suns", 0), ("shoot the suns", 0), ("nine suns", 0), ("the nine suns", 0), ("ten suns", 0),
+        shouts: [("shoot down the suns", 0), ("shoot the suns", 0), ("hou yi nine suns", 0), ("hou yi the nine suns", 0), ("hou yi ten suns", 0),
                  ("hou yi's arrow", 1), ("arrow of hou yi", 1),
-                 ("red bow", 2)],
+                 ("hou yi red bow", 2)],
         moves: [
             // Nine suns fall burning from the sky across the crosshair.
             (name: "shoot down the suns", tags: [Ultimate], cooldown: 20.0, cost: 12.0, ops: [
@@ -2931,7 +2931,7 @@
         kind: Kit,
         fx: "fire",
         names: ["fenghuang", "feng huang", "fung wong", "the fenghuang", "chinese phoenix", "hoo-oo phoenix", "houou"],
-        shouts: [("fenghuang rebirth", 0), ("rise from the ashes", 0), ("wings of flame", 1), ("fenghuang wings", 1),
+        shouts: [("fenghuang rebirth", 0), ("rise from the ashes", 0), ("fenghuang wings of flame", 1), ("fenghuang wings", 1),
                  ("fenghuang dive", 2)],
         moves: [
             // Rebirth: you are back where you were, as whole as you were, in a burst of flame.
@@ -2988,12 +2988,12 @@
         fx: "blood",
         names: ["cu chulainn", "cú chulainn", "cuchulainn", "cuchulain", "cu chulain", "cú chulain", "setanta", "the hound of ulster",
                 "hound of ulster", "hound of culann", "coo hullin", "koo cullen", "cu hulen", "coo cullen", "cuhoolin", "cu chullain"],
-        shouts: [("gae bolg", 0), ("gáe bolg", 0), ("gae bulg", 0), ("gay bolg", 0), ("gae bolga", 0), ("the barbed spear", 0),
+        shouts: [("gae bolg", 0), ("gáe bolg", 0), ("gae bulg", 0), ("gay bolg", 0), ("gae bolga", 0), ("cu chulainn the barbed spear", 0),
                  ("guy bulg", 0), ("gae bolg throw", 0),
                  ("salmon leap", 1), ("ech tar éis", 1), ("the salmon leap", 1),
                  ("warp spasm", 2), ("riastrad spasm", 2), ("battle frenzy of cu chulainn", 2),
-                 ("hound's fury", 3), ("fury of the hound", 3),
-                 ("sling stone", 4), ("cu chulainn's sling", 4),
+                 ("cu chulainn hound's fury", 3), ("cu chulainn fury of the hound", 3),
+                 ("cu chulainn sling stone", 4), ("cu chulainn's sling", 4),
                  ("hold the ford", 5), ("combat at the ford", 5)],
         moves: [
             // Gáe Bolg: thrown, it finds its man; a heartbeat later the barbs open inside the wound.
@@ -3055,7 +3055,7 @@
         kind: Kit,
         fx: "holy",
         names: ["lugh", "lugh lamfada", "lugh lámhfhada", "lugh of the long arm", "lamfada", "lugh lamhfhada", "lugus", "lleu"],
-        shouts: [("spear of lugh", 0), ("areadbhair", 0), ("lugh's spear", 0), ("the flaming spear", 0), ("spear of assal", 0),
+        shouts: [("spear of lugh", 0), ("areadbhair", 0), ("lugh's spear", 0), ("lugh the flaming spear", 0), ("spear of assal", 0),
                  ("sling of lugh", 1), ("tathlum", 1), ("lugh's sling", 1),
                  ("the long arm", 2), ("lughs long arm", 2),
                  ("samildanach", 3), ("master of all arts", 3), ("samhildanach", 3)],
@@ -3093,12 +3093,12 @@
         kind: Kit,
         fx: "shadow",
         names: ["balor", "balor of the evil eye", "balar", "bolar", "balor the fomorian", "balor of the baleful eye"],
-        shouts: [("evil eye", 0), ("the evil eye", 0), ("balor's eye", 0), ("eye of balor", 0), ("baleful eye", 0), ("open the eye", 0),
+        shouts: [("balor evil eye", 0), ("balor the evil eye", 0), ("balor's eye", 0), ("eye of balor", 0), ("baleful eye", 0), ("balor open the eye", 0),
                  ("fomorian might", 1), ("fomorian strike", 1),
                  ("king of the fomorians", 2), ("fomorian giant", 2)],
         moves: [
             // The eye opens: a wide cone of ruin in front of you.
-            (name: "evil eye", tags: [Ultimate], cooldown: 16.0, cost: 10.0, ops: [
+            (name: "evil eye", fx: "gaze", tags: [Ultimate], cooldown: 16.0, cost: 10.0, ops: [
                 Shove(range: 24.0, angle: 30.0, damage: 18.0, knockback: 16.0, element: Shadow),
                 Afflict(range: 24.0, cone: 15.0, status: Some(Shadow), secs: 2.0),
             ], juice: Some((title: Some("THE EVIL EYE"), boom: true, punch: 5.0, shake: 0.25, color: Some((0.5, 0.05, 0.1))))),
@@ -3122,8 +3122,8 @@
         fx: "earth",
         names: ["the dagda", "dagda", "daghda", "an dagda", "eochaid ollathair", "the good god", "ruad rofhessa", "dagda mor"],
         shouts: [("club of the dagda", 0), ("lorg mor", 0), ("lorg mór", 0), ("the dagda's club", 0),
-                 ("club of life", 1), ("the other end", 1), ("the dagda revives", 1),
-                 ("drag the club", 2), ("boundary ditch", 2), ("the club's furrow", 2),
+                 ("dagda club of life", 1), ("the other end", 1), ("the dagda revives", 1),
+                 ("dagda drag the club", 2), ("boundary ditch", 2), ("the club's furrow", 2),
                  ("harp of the dagda", 3), ("uaithne", 3), ("the three strains", 3), ("the dagda's harp", 3),
                  ("cauldron of plenty", 4), ("undry", 4), ("the dagda's cauldron", 4)],
         moves: [
@@ -3163,8 +3163,8 @@
         names: ["the morrigan", "morrigan", "the morrígan", "morrígan", "morrigu", "the phantom queen", "phantom queen", "mor rigan",
                 "moryrigan", "badb", "the morrigan queen"],
         shouts: [("crows of the morrigan", 0), ("the morrigan's crows", 0),
-                 ("terror of the phantom queen", 1), ("battle terror", 1),
-                 ("crow shape", 2), ("become a crow", 2), ("the morrigan's crow", 2),
+                 ("terror of the phantom queen", 1), ("morrigan battle terror", 1),
+                 ("crow shape", 2), ("morrigan become a crow", 2), ("the morrigan's crow", 2),
                  ("prophecy of doom", 3), ("the washer at the ford", 3), ("doom foretold", 3)],
         moves: [
             // A murder of crows descends on them.
@@ -3227,9 +3227,9 @@
         names: ["king arthur", "arthur pendragon", "the once and future king", "once and future king", "arthur king of the britons",
                 "king arthur pendragon", "arthur of camelot"],
         shouts: [("pull the sword from the stone", 0), ("draw the sword from the stone", 0),
-                 ("the round table", 1), ("to me my knights", 1),
+                 ("king arthur the round table", 1), ("to me my knights", 1),
                  ("camelot", 2), ("walls of camelot", 2), ("for camelot", 2),
-                 ("red dragon of pendragon", 3), ("y ddraig goch", 3), ("the red dragon", 3),
+                 ("red dragon of pendragon", 3), ("y ddraig goch", 3), ("king arthur the red dragon", 3),
                  ("arthur's charge", 4), ("charge of the knights", 4)],
         moves: [
             // The sword comes out of the stone in a burst of light, and it is in your hand.
@@ -3265,7 +3265,7 @@
         fx: "psychic",
         names: ["merlin", "myrddin", "merlyn", "the wizard merlin", "merlin the enchanter", "merlin ambrosius", "myrddin wyllt", "merlin the wizard"],
         shouts: [("merlin's staff", 0), ("staff of merlin", 0),
-                 ("stonehenge", 1), ("the giant's dance", 1), ("raise stonehenge", 1), ("giant's ring", 1),
+                 ("stonehenge", 1), ("the giant's dance", 1), ("raise stonehenge", 1), ("merlin giant's ring", 1),
                  ("merlin's enchantment", 2), ("enchantment of merlin", 2),
                  ("merlin's shapeshift", 3), ("merlin transforms", 3),
                  ("dragon's breath of merlin", 4),
@@ -3338,7 +3338,7 @@
                 "quetzacoatl", "quetzalcoatle"],
         shouts: [("ride the feathered serpent", 0), ("summon quetzalcoatl", 0), ("the feathered serpent flies", 0),
                  ("breath of ehecatl", 1), ("wind of ehecatl", 1), ("ehecatl wind", 1),
-                 ("descent of kukulkan", 2), ("serpent of the equinox", 2), ("the serpent descends", 2), ("shadow serpent descends", 2),
+                 ("descent of kukulkan", 2), ("serpent of the equinox", 2), ("quetzalcoatl the serpent descends", 2), ("quetzalcoatl shadow serpent descends", 2),
                  ("morning star", 3), ("venus rising", 3),
                  ("plumed wind", 4), ("feathered gale", 4)],
         moves: [
@@ -3375,8 +3375,8 @@
         fx: "water",
         names: ["tlaloc", "tláloc", "chaac", "chac", "chaahk", "cocijo", "tlaloc the rain god", "the rain god", "rain god tlaloc", "tla lock"],
         shouts: [("rain of tlaloc", 0), ("tlaloc's rain", 0), ("the rain comes", 0),
-                 ("flood of the fourth sun", 1), ("nahui atl", 1), ("the great flood of tlaloc", 1),
-                 ("lightning axe", 2), ("chaac's axe", 2), ("axe of chaac", 2),
+                 ("tlaloc flood of the fourth sun", 1), ("nahui atl", 1), ("the great flood of tlaloc", 1),
+                 ("tlaloc lightning axe", 2), ("chaac's axe", 2), ("axe of chaac", 2),
                  ("tlalocan", 3), ("paradise of tlaloc", 3)],
         moves: [
             // Rain on the crosshair: soaked, and stinging drops.
@@ -3407,9 +3407,9 @@
         fx: "fire",
         names: ["huitzilopochtli", "witzilopochtli", "huitzilo", "hummingbird of the south", "huitzilopochtli the sun god", "weetzilopochtli",
                 "huitzil"],
-        shouts: [("xiuhcoatl", 0), ("fire serpent", 0), ("the fire serpent", 0), ("turquoise serpent", 0), ("shoo coatl", 0),
+        shouts: [("xiuhcoatl", 0), ("huitzilopochtli fire serpent", 0), ("huitzilopochtli the fire serpent", 0), ("huitzilopochtli turquoise serpent", 0), ("shoo coatl", 0),
                  ("hummingbird dash", 1), ("hummingbird strike", 1),
-                 ("sun at war", 2), ("war of the sun", 2),
+                 ("huitzilopochtli sun at war", 2), ("huitzilopochtli war of the sun", 2),
                  ("four hundred stars", 3), ("centzon huitznahua", 3)],
         moves: [
             // Xiuhcoatl: a burning serpent thrown at them; it hunts three foes and comes back.
@@ -3440,9 +3440,9 @@
         kind: Kit,
         fx: "smoke",
         names: ["tezcatlipoca", "the smoking mirror", "smoking mirror", "tezcatlipoca the smoking mirror", "tezcat", "yaotl"],
-        shouts: [("smoking mirror", 0), ("the smoke mirror", 0), ("obsidian mirror", 0),
+        shouts: [("tezcatlipoca smoking mirror", 0), ("tezcatlipoca the smoke mirror", 0), ("tezcatlipoca obsidian mirror", 0),
                  ("jaguar of the night", 1), ("tezcatlipoca's jaguar", 1),
-                 ("night wind", 2), ("yoalli ehecatl", 2)],
+                 ("tezcatlipoca night wind", 2), ("yoalli ehecatl", 2)],
         moves: [
             // The obsidian mirror smokes: everyone near goes blind, and you are gone.
             (name: "smoking mirror", tags: [Primary, Movement], cooldown: 8.0, cost: 5.0, ops: [
@@ -3475,13 +3475,13 @@
                 "maui the trickster", "maui pōtiki", "maui potiki"],
         shouts: [("fish up the islands", 0), ("fish up an island", 0), ("haul up the island", 0), ("manaiakalani", 0),
                  ("the magic fishhook", 0), ("hook the island", 0), ("pull up the land", 0),
-                 ("lasso the sun", 1), ("slow the sun", 1), ("snare the sun", 1), ("catch the sun", 1),
-                 ("become a hawk", 2), ("maui's hawk", 2),
+                 ("lasso the sun", 1), ("maui slow the sun", 1), ("maui snare the sun", 1), ("maui catch the sun", 1),
+                 ("maui become a hawk", 2), ("maui's hawk", 2),
                  ("hook swing", 3), ("maui hook swing", 3),
-                 ("steal fire", 4), ("fire of mahuika", 4), ("mahuika's fire", 4),
+                 ("maui steal fire", 4), ("fire of mahuika", 4), ("mahuika's fire", 4),
                  ("jawbone of muri", 5), ("muri's jawbone", 5), ("beat the sun", 5),
                  ("push up the sky", 6), ("raise the sky", 6), ("lift the sky", 6),
-                 ("hook grapple", 7), ("maui grapple", 7)],
+                 ("maui hook grapple", 7), ("maui grapple", 7)],
         moves: [
             // The hook bites the land and hauls a chunk of it to your feet — anyone in its way is
             // swept along. Hook a person and they're hauled in instead. -> ends with cover at your feet.
@@ -3533,7 +3533,7 @@
         names: ["pele", "madame pele", "tutu pele", "pelehonuamea", "pele honua mea", "pele goddess of fire", "goddess pele",
                 "pele the volcano goddess", "pay lay", "pelé the goddess"],
         shouts: [("lava flow", 0), ("pele's lava", 0), ("river of lava", 0), ("the lava comes", 0),
-                 ("eruption", 1), ("pele erupts", 1), ("volcanic eruption", 1), ("kilauea", 1),
+                 ("pele eruption", 1), ("pele erupts", 1), ("volcanic eruption", 1), ("kilauea", 1),
                  ("pele's hair", 2), ("hair of pele", 2),
                  ("pele's tears", 3), ("tears of pele", 3),
                  ("fire fountain", 4), ("lava fountain", 4)],
@@ -3572,8 +3572,8 @@
         fx: "shadow",
         names: ["anansi", "kwaku anansi", "ananse", "anancy", "aunt nancy", "anansi the spider", "compé anansi", "nancy spider",
                 "brer anansi"],
-        shouts: [("anansi's web", 0), ("web of anansi", 0), ("spider web trap", 0),
-                 ("gum doll", 1), ("the gum doll", 1), ("sticky doll", 1), ("anansi's children", 2), ("spider swarm", 2),
+        shouts: [("anansi's web", 0), ("web of anansi", 0), ("anansi spider web trap", 0),
+                 ("gum doll", 1), ("the gum doll", 1), ("sticky doll", 1), ("anansi's children", 2), ("anansi spider swarm", 2),
                  ("anansi's stories", 3), ("all the stories", 3), ("a story of anansi", 3), ("the box of stories", 3),
                  ("silk line", 4), ("anansi's thread", 4), ("swing on the thread", 4),
                  ("trickster's escape", 5)],
@@ -3622,7 +3622,7 @@
         shouts: [("oshe", 0), ("oshe shango", 0), ("double axe of shango", 0), ("shango's axe", 0),
                  ("thunderstones", 1), ("edun ara", 1), ("thunder stones", 1),
                  ("fire from the mouth", 2), ("shango's fire", 2),
-                 ("thrown thunder axe", 3), ("shango axe throw", 3),
+                 ("shango thrown thunder axe", 3), ("shango axe throw", 3),
                  ("kabiyesi", 4)],
         moves: [
             // The double axe, crackling. -> ends in place.
@@ -3659,7 +3659,7 @@
         shouts: [("clear the path", 0), ("ogun clears the way", 0), ("cut the road", 0), ("the path of ogun", 0), ("ogun's machete", 0),
                  ("iron skin", 1), ("skin of iron", 1),
                  ("anvil of ogun", 2), ("ogun's anvil", 2),
-                 ("rain of iron", 3), ("war of iron", 3)],
+                 ("rain of iron", 3), ("ogun war of iron", 3)],
         moves: [
             // His machete cleared the first road through the primeval forest: a tunnel cut along your aim.
             (name: "clear the path", tags: [Primary, Movement], cooldown: 6.0, cost: 5.0, ops: [
@@ -3722,10 +3722,10 @@
         fx: "earth",
         names: ["baba yaga", "babayaga", "baba jaga", "baba yagga", "baba iaga", "grandmother bony leg", "baba yaga the witch",
                 "bony leg", "baba yaga kostyanaya noga"],
-        shouts: [("house on chicken legs", 0), ("the hut walks", 0), ("chicken leg hut", 0),
-                 ("mortar and pestle", 1), ("fly the mortar", 1), ("ride the mortar", 1), ("baba yaga's mortar", 1),
+        shouts: [("baba yaga house on chicken legs", 0), ("the hut walks", 0), ("chicken leg hut", 0),
+                 ("mortar and pestle", 1), ("baba yaga fly the mortar", 1), ("baba yaga ride the mortar", 1), ("baba yaga's mortar", 1),
                  ("iron teeth", 2), ("baba yaga's teeth", 2),
-                 ("pestle smash", 3), ("crash the mortar", 3),
+                 ("pestle smash", 3), ("baba yaga crash the mortar", 3),
                  ("skull lanterns", 4), ("fence of skulls", 4), ("skulls with burning eyes", 4),
                  ("sweep the tracks", 5), ("baba yaga's broom", 5)],
         moves: [
@@ -3799,7 +3799,7 @@
         fx: "shadow",
         names: ["koschei", "koschei the deathless", "kashchey", "koshchei", "kaschei", "koschey", "kashchei the deathless",
                 "koshchey bessmertny", "koshei"],
-        shouts: [("deathless", 0), ("koschei is deathless", 0), ("my death is hidden", 0), ("the needle in the egg", 0),
+        shouts: [("deathless", 0), ("koschei is deathless", 0), ("koschei my death is hidden", 0), ("the needle in the egg", 0),
                  ("sorcerer's grasp", 1), ("koschei's grasp", 1),
                  ("koschei's steed", 2), ("black steed", 2),
                  ("koschei's army", 3), ("undead army of koschei", 3)],
@@ -3897,9 +3897,9 @@
         fx: "wind",
         names: ["marduk", "bel marduk", "amar utu", "marduk of babylon", "lord marduk", "mardook"],
         shouts: [("net of marduk", 0), ("marduk's net", 0),
-                 ("imhullu", 1), ("the evil wind", 1), ("seven winds", 1), ("the seven winds", 1),
+                 ("imhullu", 1), ("marduk the evil wind", 1), ("seven winds", 1), ("the seven winds", 1),
                  ("arrow of marduk", 2), ("marduk's arrow", 2),
-                 ("split tiamat", 3), ("cleave the dragon", 3), ("split the chaos", 3)],
+                 ("split tiamat", 3), ("cleave the dragon", 3), ("marduk split the chaos", 3)],
         moves: [
             // The net flung over the crosshair.
             (name: "net of marduk", tags: [Primary], cooldown: 6.0, cost: 5.0, ops: [
@@ -3961,9 +3961,9 @@
         shouts: [("sing into the swamp", 0), ("sung into the swamp", 0), ("sing them into the swamp", 0), ("sing into the bog", 0),
                  ("sink into the swamp", 0), ("the singing contest", 0),
                  ("kantele", 1), ("play the kantele", 1), ("the kantele", 1),
-                 ("song of making", 2), ("sing a wall", 2),
+                 ("song of making", 2), ("vainamoinen sing a wall", 2),
                  ("sampo", 3), ("the sampo", 3), ("grind the sampo", 3),
-                 ("sung boat", 4), ("sing a boat", 4)],
+                 ("sung boat", 4), ("vainamoinen sing a boat", 4)],
         moves: [
             // He sings them into the bog: they sink, and the ground around them clings.
             (name: "sing into the swamp", tags: [Ultimate], cooldown: 10.0, cost: 7.0, ops: [
@@ -4034,7 +4034,7 @@
         kind: Kit,
         fx: "ice",
         names: ["yeti", "the yeti", "abominable snowman", "the abominable snowman", "migoi", "meh teh", "yetti"],
-        shouts: [("avalanche", 0), ("yeti avalanche", 0), ("bring down the avalanche", 0),
+        shouts: [("yeti avalanche", 0), ("bring down the avalanche", 0),
                  ("yeti snowball", 1), ("giant snowball", 1),
                  ("yeti roar", 2), ("abominable roar", 2),
                  ("yeti pounce", 3)],
@@ -4067,7 +4067,7 @@
         names: ["mothman", "moth man", "the mothman", "point pleasant mothman", "moth-man", "mothmen"],
         shouts: [("red eyes of the mothman", 0), ("mothman's eyes", 0), ("glowing red eyes", 0), ("mothman stare", 0),
                  ("mothman wings", 1), ("wings of omen", 1),
-                 ("moth swarm", 2), ("mothman swarm", 2),
+                 ("mothman moth swarm", 2), ("mothman swarm", 2),
                  ("the mothman omen", 3)],
         moves: [
             // The red eyes: whoever meets them freezes up, then sees only dark.
@@ -4167,7 +4167,7 @@
         names: ["pied piper", "the pied piper", "pied piper of hamelin", "the pied piper of hamelin", "the piper", "the piper of hamelin",
                 "pie piper", "pied pyper"],
         shouts: [("the piper's tune", 0), ("piper's tune", 0), ("play the pipe", 0), ("follow the piper", 0), ("the magic pipe", 0),
-                 ("rats of hamelin", 1), ("the rats of hamelin", 1), ("summon the rats", 1),
+                 ("rats of hamelin", 1), ("the rats of hamelin", 1), ("pied piper summon the rats", 1),
                  ("pay the piper", 2), ("you must pay the piper", 2),
                  ("lead them away", 3)],
         moves: [
@@ -4202,7 +4202,7 @@
         shouts: [("magic beans", 0), ("plant the magic beans", 0), ("grow the beanstalk", 0), ("the beanstalk grows", 0), ("magic bean", 0),
                  ("climb the beanstalk", 1), ("up the beanstalk", 1),
                  ("fee fi fo fum", 2), ("fee fie foe fum", 2), ("fe fi fo fum", 2), ("the giant wakes", 2),
-                 ("golden goose", 3), ("the goose that lays golden eggs", 3),
+                 ("golden goose", 3), ("jack and the beanstalk the goose that lays golden eggs", 3),
                  ("chop the beanstalk", 4), ("cut down the beanstalk", 4)],
         moves: [
             // The beans: the ground under the crosshair shoots up into a towering stalk, and whoever
@@ -4241,9 +4241,9 @@
         fx: "smoke",
         names: ["djinn", "jinn", "jinni", "djinni", "the djinn", "genie of the lamp", "the genie of the lamp", "ifrit", "efreet",
                 "marid", "the lamp's genie"],
-        shouts: [("three wishes", 0), ("make a wish", 0), ("your wish is my command", 0), ("grant me a wish", 0),
+        shouts: [("three wishes", 0), ("djinn make a wish", 0), ("your wish is my command", 0), ("djinn grant me a wish", 0),
                  ("rub the lamp", 0), ("i wish for", 0),
-                 ("ride the magic carpet", 1),
+                 ("djinn ride the magic carpet", 1),
                  ("smoke form", 2), ("into smoke", 2), ("djinn smoke", 2),
                  ("smokeless fire", 3), ("djinn fire", 3), ("fire of the djinn", 3),
                  ("back in the lamp", 4), ("return to the lamp", 4)],
@@ -4316,9 +4316,9 @@
         kind: Kit,
         fx: "earth",
         names: ["paul bunyan", "paul bunion", "the lumberjack paul bunyan", "giant lumberjack", "paul bunyon"],
-        shouts: [("drag the axe", 0), ("grand canyon", 0), ("dig the grand canyon", 0), ("paul bunyan's axe", 0),
+        shouts: [("paul bunyan drag the axe", 0), ("grand canyon", 0), ("dig the grand canyon", 0), ("paul bunyan's axe", 0),
                  ("babe the blue ox", 1), ("babe the ox", 1), ("blue ox", 1),
-                 ("timber", 2), ("fell the forest", 2),
+                 ("paul bunyan timber", 2), ("fell the forest", 2),
                  ("paul bunyan stomp", 3)],
         moves: [
             // He dragged his axe and made the Grand Canyon: a vast trench along your aim.
@@ -4392,13 +4392,13 @@
         fx: "paper",
         names: ["grimm's fairy tales", "grimm fairy tales", "brothers grimm", "the brothers grimm", "fairy tale", "fairy tales",
                 "once upon a time"],
-        shouts: [("spin straw into gold", 0), ("rumpelstiltskin", 0), ("straw into gold", 0), ("guess my name", 0),
+        shouts: [("spin straw into gold", 0), ("rumpelstiltskin straw", 0), ("straw into gold", 0), ("guess my name", 0),
                  ("breadcrumb trail", 1), ("follow the breadcrumbs", 1), ("hansel and gretel", 1),
                  ("poisoned apple", 2), ("poison apple", 2), ("snow white's apple", 2), ("the poisoned apple", 2),
                  ("prick of the spindle", 3), ("sleeping beauty", 3), ("hundred year sleep", 3), ("the spindle", 3),
                  ("glass slipper", 4), ("cinderella's slipper", 4), ("midnight strikes", 4),
                  ("gingerbread house", 5), ("the witch's oven", 5),
-                 ("mirror mirror on the wall", 6), ("magic mirror", 6),
+                 ("grimm's fairy tales mirror mirror on the wall", 6), ("grimm's fairy tales magic mirror", 6),
                  ("seven league boots", 7), ("seven-league boots", 7)],
         moves: [
             // Rumpelstiltskin spins straw into gold: the aimed foe is gilded, heavy and sinking.
@@ -4474,8 +4474,8 @@
         kind: Kit,
         fx: "poison",
         names: ["lernaean hydra", "the lernaean hydra", "hydra of lerna", "the hydra", "many headed hydra", "nine headed hydra"],
-        shouts: [("hydra heads", 0), ("cut one head two grow back", 0), ("two more heads", 0),
-                 ("hydra venom", 1), ("hydra's blood", 1), ("breath of the hydra", 1),
+        shouts: [("lernaean hydra hydra heads", 0), ("cut one head two grow back", 0), ("two more heads", 0),
+                 ("lernaean hydra hydra venom", 1), ("hydra's blood", 1), ("breath of the hydra", 1),
                  ("hydra regrowth", 2), ("the heads grow back", 2)],
         moves: [
             // Heads burst out of the ground; and whenever it's hurt, it grows more (a second wave later).
@@ -4503,7 +4503,7 @@
         names: ["minotaur", "the minotaur", "asterion", "minotaur of crete", "bull of minos", "minataur", "minotaurus"],
         shouts: [("minotaur charge", 0), ("horns of the minotaur", 0), ("bull rush", 0),
                  ("minotaur's labyrinth", 1), ("trapped in the labyrinth", 1),
-                 ("labrys", 2), ("minotaur axe", 2),
+                 ("minotaur labrys", 2), ("minotaur axe", 2),
                  ("minotaur bellow", 3)],
         moves: [
             // Horns down: they're carried into the nearest wall.
@@ -4531,7 +4531,7 @@
         kind: Kit,
         fx: "earth",
         names: ["polyphemus", "the cyclops polyphemus", "polyphemus the cyclops", "polyfemus", "the greek cyclops"],
-        shouts: [("polyphemus boulder", 0), ("hurl the boulder", 0), ("the cyclops throws", 0),
+        shouts: [("polyphemus boulder", 0), ("polyphemus hurl the boulder", 0), ("the cyclops throws", 0),
                  ("nobody is killing me", 1), ("outis", 1),
                  ("cave of the cyclops", 2), ("seal the cave", 2)],
         moves: [
@@ -4592,7 +4592,7 @@
         shouts: [("sleep of hypnos", 0), ("hypnos sleep", 0), ("eternal slumber", 0),
                  ("poppy field", 1), ("field of poppies", 1),
                  ("morpheus", 2), ("dreams of morpheus", 2),
-                 ("thanatos", 3), ("the gentle death", 3)],
+                 ("hypnos thanatos", 3), ("hypnos the gentle death", 3)],
         moves: [
             // Sleep takes the aimed foe: they nod off (heavily slowed, then a stagger).
             (name: "sleep of hypnos", tags: [Primary, Ultimate], cooldown: 10.0, cost: 6.0, ops: [
@@ -4648,9 +4648,9 @@
         kind: Kit,
         fx: "earth",
         names: ["persephone", "proserpina", "kore", "persephone queen of the underworld", "persefone", "demeter's daughter"],
-        shouts: [("spring returns", 0), ("persephone's spring", 0), ("the flowers bloom", 0),
+        shouts: [("persephone spring returns", 0), ("persephone's spring", 0), ("the flowers bloom", 0),
                  ("pomegranate seeds", 1), ("six pomegranate seeds", 1), ("the pomegranate", 1),
-                 ("winter falls", 2), ("demeter's grief", 2), ("vines of persephone", 3), ("thorns of persephone", 3)],
+                 ("persephone winter falls", 2), ("demeter's grief", 2), ("vines of persephone", 3), ("thorns of persephone", 3)],
         moves: [
             // Spring returns: the ground is mended and so are you.
             (name: "spring returns", tags: [Defense], cooldown: 16.0, cost: 7.0, ops: [
@@ -4678,7 +4678,7 @@
         kind: Kit,
         fx: "holy",
         names: ["nike", "nike goddess of victory", "the winged victory", "winged victory", "nikee"],
-        shouts: [("wings of victory", 0), ("winged victory", 0), ("nike's wings", 0),
+        shouts: [("nike wings of victory", 0), ("winged victory", 0), ("nike's wings", 0),
                  ("nike's victory", 1), ("the victor's wreath", 1)],
         moves: [
             // Up on the wings of victory. -> ends high, hanging.
@@ -4701,9 +4701,9 @@
         kind: Kit,
         fx: "holy",
         names: ["bastet", "bast", "bastet the cat goddess", "the cat goddess", "ubastet", "bastette"],
-        shouts: [("cats of bastet", 0), ("bastet's cats", 0), ("sacred cats", 0),
+        shouts: [("cats of bastet", 0), ("bastet's cats", 0), ("bastet sacred cats", 0),
                  ("bastet pounce", 1), ("pounce of bast", 1),
-                 ("nine lives", 2), ("cat's nine lives", 2),
+                 ("bastet nine lives", 2), ("bastet cat's nine lives", 2),
                  ("sistrum", 3), ("bastet's sistrum", 3)],
         moves: [
             // A pride of sacred cats.
@@ -4736,7 +4736,7 @@
         shouts: [("osiris rises", 0), ("return of osiris", 0), ("the resurrection of osiris", 0),
                  ("crook and flail", 1), ("the flail", 1), ("osiris flail", 1),
                  ("field of reeds", 2), ("aaru", 2),
-                 ("wings of isis", 3), ("isis wings", 3), ("isis shields", 3)],
+                 ("osiris wings of isis", 3), ("isis wings", 3), ("isis shields", 3)],
         moves: [
             // He was torn apart and put back together: back to how you were, with a burst of green light.
             (name: "osiris rises", tags: [Defense, Ultimate], cooldown: 20.0, cost: 8.0, ops: [
@@ -4767,7 +4767,7 @@
         kind: Kit,
         fx: "holy",
         names: ["durga", "maa durga", "durga maa", "goddess durga", "mahishasuramardini", "durga devi"],
-        shouts: [("durga's lion", 0), ("ride the lion", 0), ("the lion of durga", 0),
+        shouts: [("durga's lion", 0), ("durga ride the lion", 0), ("the lion of durga", 0),
                  ("ten arms of durga", 1), ("weapons of the gods", 1), ("durga's weapons", 1),
                  ("slay mahishasura", 2), ("mahishasura mardini", 2),
                  ("durga's shield", 3)],
@@ -4976,7 +4976,7 @@
         kind: Kit,
         fx: "ice",
         names: ["ymir", "aurgelmir", "the first giant", "ymir the frost giant", "imir", "frost giant ymir"],
-        shouts: [("jotunn", 0), ("jötunn", 0), ("rise of the frost giant", 0),
+        shouts: [("ymir jotunn", 0), ("ymir jötunn", 0), ("rise of the frost giant", 0),
                  ("rime", 1), ("the rime", 1), ("ginnungagap frost", 1),
                  ("blood of ymir", 2), ("the flood of ymir's blood", 2)],
         moves: [
@@ -5110,7 +5110,7 @@
         kind: Kit,
         fx: "holy",
         names: ["nuada", "nuadu", "nuada airgetlám", "nuada of the silver hand", "nuada silver hand", "noo ada"],
-        shouts: [("sword of light", 0), ("claíomh solais", 0), ("claiomh solais", 0), ("the sword of nuada", 0),
+        shouts: [("nuada sword of light", 0), ("claíomh solais", 0), ("claiomh solais", 0), ("the sword of nuada", 0),
                  ("silver hand", 1), ("airgetlam", 1), ("the silver hand", 1)],
         moves: [
             // The sword that none escape: a travelling blade of light.
@@ -5130,7 +5130,7 @@
         kind: Kit,
         fx: "water",
         names: ["manannan", "manannán", "manannan mac lir", "manannán mac lir", "manawydan", "son of the sea"],
-        shouts: [("cloak of mist", 0), ("manannan's cloak", 0), ("mist cloak", 0),
+        shouts: [("manannan cloak of mist", 0), ("manannan's cloak", 0), ("manannan mist cloak", 0),
                  ("enbarr", 1), ("the horse that rides the waves", 1),
                  ("fragarach", 2), ("the answerer", 2), ("the retaliator", 2)],
         moves: [
@@ -5158,8 +5158,8 @@
         kind: Kit,
         fx: "holy",
         names: ["sir gawain", "gawain", "gawaine", "sir gawaine", "gwalchmai"],
-        shouts: [("strength of the sun", 0), ("gawain's noon", 0), ("the sun at noon", 0),
-                 ("galatine", 1), ("gawain's sword", 1)],
+        shouts: [("strength of the sun", 0), ("gawain's noon", 0), ("gawain the sun at noon", 0),
+                 ("gawain galatine", 1), ("gawain's sword", 1)],
         moves: [
             // His strength grew with the sun: for a while you hit like noon.
             (name: "strength of the sun", tags: [Ultimate], cooldown: 22.0, cost: 8.0, ops: [
@@ -5178,8 +5178,8 @@
         kind: Kit,
         fx: "rigid",
         names: ["sir lancelot", "lancelot", "lancelot du lac", "lancelot of the lake", "sir launcelot", "launcelot"],
-        shouts: [("lancelot's lance", 0), ("joust", 0), ("the joust", 0), ("couch the lance", 0),
-                 ("arondight", 1), ("lancelot's sword", 1)],
+        shouts: [("lancelot's lance", 0), ("joust", 0), ("the joust", 0), ("lancelot couch the lance", 0),
+                 ("lancelot arondight", 1), ("lancelot's sword", 1)],
         moves: [
             // The joust: lance couched, horse at full gallop — they're lifted off their feet.
             (name: "joust", tags: [Movement, Primary], cooldown: 4.0, cost: 5.0, ops: [
@@ -5248,7 +5248,7 @@
         kind: Kit,
         fx: "fire",
         names: ["zmey gorynych", "zmei gorynich", "zmey", "zmei", "zmey gorynich", "the three headed dragon", "gorynych"],
-        shouts: [("three heads of fire", 0), ("zmey fire", 0), ("triple fire breath", 0),
+        shouts: [("zmey three heads of fire", 0), ("zmey fire", 0), ("zmey triple fire breath", 0),
                  ("zmey takes flight", 1), ("dragon of the mountains", 1),
                  ("zmey's tail", 2)],
         moves: [
@@ -5304,7 +5304,7 @@
         names: ["svarog", "svarozhich", "svarog the smith", "svaroh"],
         shouts: [("svarog's hammer", 0), ("heavenly forge", 0),
                  ("tongs of svarog", 1), ("svarog's tongs", 1),
-                 ("sparks of the forge", 2)],
+                 ("svarog sparks of the forge", 2)],
         moves: [
             // The hammer that forged the sun. -> ends in place.
             (name: "svarog's hammer", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
@@ -5330,7 +5330,7 @@
         fx: "shadow",
         names: ["mictlantecuhtli", "mictlan tecuhtli", "lord of mictlan", "lord of the land of the dead", "mictlantecutli"],
         shouts: [("mictlan", 0), ("the road to mictlan", 0), ("nine levels of mictlan", 0),
-                 ("xolotl", 1), ("the dog xolotl", 1), ("xoloitzcuintli", 1),
+                 ("mictlantecuhtli xolotl", 1), ("the dog xolotl", 1), ("xoloitzcuintli", 1),
                  ("bone crown", 2)],
         moves: [
             // The road to Mictlan: the ground opens and the dead pull at everyone near the crosshair.
@@ -5358,7 +5358,7 @@
         fx: "earth",
         names: ["hero twins", "the hero twins", "hunahpu and xbalanque", "hunahpu", "xbalanque", "the maya hero twins"],
         shouts: [("the ballgame", 0), ("pitz", 0), ("rubber ball of the ballgame", 0), ("ballcourt", 0),
-                 ("blowgun", 1), ("hunahpu's blowgun", 1),
+                 ("hero twins blowgun", 1), ("hunahpu's blowgun", 1),
                  ("xibalba", 2), ("trick the lords of xibalba", 2)],
         moves: [
             // The ballgame: a heavy rubber ball, hip-struck, bouncing wall to wall.
@@ -5661,7 +5661,7 @@
         kind: Kit,
         fx: "ice",
         names: ["louhi", "louhi mistress of pohjola", "mistress of the north", "the witch of pohjola", "pohjolan emanta"],
-        shouts: [("steal the sun and moon", 0), ("louhi hides the sun", 0), ("the sun is hidden", 0),
+        shouts: [("louhi steal the sun and moon", 0), ("louhi hides the sun", 0), ("louhi the sun is hidden", 0),
                  ("frost of pohjola", 1), ("pohjola frost", 1),
                  ("louhi's eagle", 2), ("louhi becomes an eagle", 2)],
         moves: [
@@ -5688,7 +5688,7 @@
         names: ["ilmarinen", "seppo ilmarinen", "the eternal hammerer", "ilmarinen the smith"],
         shouts: [("forge the sampo", 0), ("ilmarinen forges", 0),
                  ("ilmarinen's hammer", 1),
-                 ("forged the sky", 2), ("the dome of the sky", 2)],
+                 ("forged the sky", 2), ("ilmarinen the dome of the sky", 2)],
         moves: [
             // Forge the Sampo: out comes one of its gifts.
             (name: "forge the sampo", tags: [Ultimate], cooldown: 8.0, cost: 5.0, ops: [
@@ -5750,7 +5750,7 @@
         kind: Kit,
         fx: "holy",
         names: ["simurgh", "simorgh", "simurg", "senmurv", "the simurgh"],
-        shouts: [("feather of the simurgh", 0), ("burn the feather", 0), ("simurgh's feather", 0),
+        shouts: [("feather of the simurgh", 0), ("simurgh burn the feather", 0), ("simurgh's feather", 0),
                  ("simurgh's wings", 1), ("wings of the simurgh", 1),
                  ("summon the simurgh", 2)],
         moves: [
@@ -5810,7 +5810,7 @@
         kind: Kit,
         fx: "blood",
         names: ["sigurd", "siegfried", "sigurðr", "sigurd the dragon slayer", "siegfried the dragon slayer", "sigurth"],
-        shouts: [("gram", 0), ("balmung", 0), ("sword of sigurd", 0), ("the sword gram", 0),
+        shouts: [("sigurd gram", 0), ("balmung", 0), ("sword of sigurd", 0), ("sigurd the sword gram", 0),
                  ("slay fafnir", 1), ("fafnir's bane", 1), ("the pit strike", 1),
                  ("dragon's blood", 2), ("bathe in dragon's blood", 2),
                  ("tarnkappe", 3)],
@@ -5841,8 +5841,8 @@
         kind: Kit,
         fx: "holy",
         names: ["roland", "roland of roncevaux", "count roland", "paladin roland"],
-        shouts: [("durendal", 0), ("durandal", 0), ("roland's sword", 0),
-                 ("olifant", 1), ("sound the olifant", 1), ("roland's horn", 1), ("blow the olifant", 1),
+        shouts: [("roland durendal", 0), ("roland durandal", 0), ("roland's sword", 0),
+                 ("roland olifant", 1), ("sound the olifant", 1), ("roland's horn", 1), ("blow the olifant", 1),
                  ("roncevaux", 2), ("the last stand", 2)],
         moves: [
             // Durendal: it cleaves stone (he tried to break it on a rock and split the mountain).
@@ -6128,8 +6128,8 @@
         kind: Kit,
         fx: "earth",
         names: ["three little pigs", "the three little pigs", "3 little pigs"],
-        shouts: [("house of bricks", 0), ("brick house", 0), ("the brick house", 0),
-                 ("house of sticks", 1), ("house of straw", 2),
+        shouts: [("house of bricks", 0), ("three little pigs brick house", 0), ("three little pigs the brick house", 0),
+                 ("three little pigs house of sticks", 1), ("three little pigs house of straw", 2),
                  ("not by the hair of my chinny chin chin", 3), ("chinny chin chin", 3)],
         moves: [
             // The brick house: walls no wolf can blow down, around you.

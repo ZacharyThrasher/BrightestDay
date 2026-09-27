@@ -12,7 +12,9 @@
 //!   mapped from the move's op (PROJECTILE, BEAM, BLAST, STRIKE, PULL, DASH, SHIELD, DODGE,
 //!   SUMMON, FORM, AURA, GRAB, TRAP); then a FORM shout for a tiered power and its passives
 //!   ("ALWAYS").
-//! * a carried map pickup gets a small card of its own (GIANT / AWAKENING / ULTIMATE).
+//! * a carried map pickup gets a small card of its own (GIANT / AWAKENING / ULTIMATE);
+//! * the borrowed moves on the strip's chips get one card listing them (chip glyph + name, in chip
+//!   order) — in the row with the others, so names never pile onto a power card.
 //!
 //! Only what you HOLD (never what could be obtained). The row lives inside the strip's root (so
 //! it rides the strip's position and pop) and still shows when the strip is switched off. Rebuilt
@@ -98,8 +100,11 @@ fn hash(sig: &mut u64, v: u64) {
 
 /// What the cards show: per display slot (power, tier, form, active), drained, the pickup, the
 /// power key.
-fn signature(gems: &[Gem], drained: bool, pickup: Option<GateKind>, key: &str) -> u64 {
+fn signature(gems: &[Gem], drained: bool, pickup: Option<GateKind>, key: &str, moves: &[Option<super::borrowed::Chip>]) -> u64 {
     let mut sig = 0xcbf2_9ce4_8422_2325u64;
+    for c in moves {
+        hash(&mut sig, c.map_or(0, |c| (c.mv as *const _ as u64) ^ (c.glyph as u64) << 56));
+    }
     for g in gems {
         hash(&mut sig, g.power.map_or(0, |p| p as u64 + 1) << 16 | (g.tier as u64) << 8 | (g.transformed as u64) << 1 | g.active as u64);
     }
@@ -119,6 +124,7 @@ fn update(
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
     st: Res<PowerHudState>,
+    borrowed: Option<Res<super::borrowed::BorrowedHud>>,
     mut labels: ResMut<Labels>,
     mut mats: ResMut<Assets<IconMaterial>>,
     mut nodes: Query<&mut Node, With<LabelRow>>,
@@ -128,7 +134,9 @@ fn update(
     let hud = &st.0;
     let tab = (!focus.typing && binds.pressed(Action::Scoreboard, &keys, &mouse)) || tab_test();
     let pickup = hud.pickup.map(|p| p.0);
-    let want = tab && *state.get() == AppState::InGame && !menu.0 && (hud.count > 0 || pickup.is_some());
+    let moves: &[Option<super::borrowed::Chip>] = borrowed.as_ref().map_or(&[], |b| &b.chips[..]);
+    let has_moves = moves.iter().any(|c| c.is_some());
+    let want = tab && *state.get() == AppState::InGame && !menu.0 && (hud.count > 0 || pickup.is_some() || has_moves);
     let dt = time.delta_secs().clamp(0.0, 0.1);
     labels.fade = if want { (labels.fade + dt / FADE_IN).min(1.0) } else { (labels.fade - dt / FADE_OUT).max(0.0) };
     let visible = labels.fade > 0.0;
@@ -143,7 +151,7 @@ fn update(
     }
     // Rebuild on change (only while it shows; fading out keeps the last cards).
     let key = binds.get(Action::Power).label();
-    let sig = signature(&hud.gems, hud.drained, pickup, &key);
+    let sig = signature(&hud.gems, hud.drained, pickup, &key, moves);
     if want && (!labels.built || sig != labels.sig) {
         labels.sig = sig;
         labels.built = true;
@@ -162,6 +170,9 @@ fn update(
             }
             if let Some(kind) = pickup {
                 pickup_card(r, &mut cx, kind);
+            }
+            if has_moves {
+                moves_card(r, &mut cx, moves);
             }
         });
         labels.applied = fade;
@@ -315,6 +326,27 @@ fn pickup_card(r: &mut ChildSpawnerCommands, cx: &mut Cx, kind: GateKind) {
             n.spawn((Node { width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, ..default() }, MaterialNode(h), Pickable::IGNORE));
             cx.text(n, name, 13.0, Color::WHITE.with_alpha(0.92));
         });
+    });
+}
+
+/// The borrowed moves on the strip's chips: one row each (the chip's glyph in its colour + the
+/// move's name), in chip order.
+fn moves_card(r: &mut ChildSpawnerCommands, cx: &mut Cx, chips: &[Option<super::borrowed::Chip>]) {
+    card(r, cx, Color::srgba(0.85, 0.9, 1.0, 0.8), None).with_children(|c| {
+        for (k, ch) in chips.iter().enumerate() {
+            let Some(ch) = ch else { continue };
+            c.spawn((Node { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: px(5), ..default() }, Pickable::IGNORE)).with_children(|n| {
+                let col = ch.color;
+                let h = cx.icon(IconParams {
+                    color: Vec4::new(col[0], col[1], col[2], 1.0),
+                    a: Vec4::new(ch.glyph as f32, 1.0, -1.0, 0.0),
+                    b: Vec4::new(1.0, 0.0, 0.0, 0.0),
+                    c: Vec4::new(1.0, 1.0, 1.0, 3.1 + k as f32),
+                });
+                n.spawn((Node { width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, ..default() }, MaterialNode(h), Pickable::IGNORE));
+                cx.text(n, &clip(&ch.mv.name.to_uppercase(), TAG_CHARS), 12.0, Color::WHITE.with_alpha(0.92));
+            });
+        }
     });
 }
 
@@ -707,16 +739,22 @@ mod tests {
     #[test]
     fn signature_tracks_what_is_shown() {
         let mut g = [Gem::default(); derive::SLOTS];
-        let a = signature(&g, false, None, "G");
+        let a = signature(&g, false, None, "G", &[]);
         g[0].power = Some(3);
-        let b = signature(&g, false, None, "G");
+        let b = signature(&g, false, None, "G", &[]);
         g[0].tier = 2;
-        let c = signature(&g, false, None, "G");
+        let c = signature(&g, false, None, "G", &[]);
         assert!(a != b && b != c);
-        assert_ne!(c, signature(&g, false, None, "F"), "a rebind shows");
-        assert_ne!(c, signature(&g, true, None, "G"));
-        assert_ne!(c, signature(&g, false, Some(GateKind::Giant), "G"));
+        assert_ne!(c, signature(&g, false, None, "F", &[]), "a rebind shows");
+        assert_ne!(c, signature(&g, true, None, "G", &[]));
+        assert_ne!(c, signature(&g, false, Some(GateKind::Giant), "G", &[]));
         g[0].ready = 0.3;
-        assert_eq!(c, signature(&g, false, None, "G"), "cooldowns don't rebuild");
+        assert_eq!(c, signature(&g, false, None, "G", &[]), "cooldowns don't rebuild");
+        // A borrowed move on a chip adds / changes the moves card.
+        let mv: &'static bd_sim::powers::MoveDef = Box::leak(Box::new(bd_sim::powers::MoveDef { name: "pistol".into(), ..Default::default() }));
+        let chip = super::super::borrowed::Chip { mv, key: 0, color: [1.0; 3], glyph: 2, cd: 1.0, left: 0.0, flash: 0.0, stale: 0, idle: 0.0 };
+        assert_ne!(c, signature(&g, false, None, "G", &[Some(chip)]), "a borrowed move shows");
+        let worn = super::super::borrowed::Chip { stale: 2, left: 0.5, ..chip };
+        assert_eq!(signature(&g, false, None, "G", &[Some(chip)]), signature(&g, false, None, "G", &[Some(worn)]), "wear / cooldown don't rebuild");
     }
 }

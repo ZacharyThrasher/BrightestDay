@@ -10,7 +10,7 @@
         companion: Some((recipe: (name: "Star Platinum", form: Biped, mech: [Flies, Blunt, Fast], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
         fx: "psychic",
         shouts: [("star finger", 0), ("star platinum the world", 1), ("star platinum za warudo", 1), ("star platinum time stop", 1),
-                 ("ora ora", 2), ("ora ora ora", 2), ("oraoraora", 2), ("ora rush", 2), ("ora ora rush", 2), ("oraora", 2), ("ora ora ora ora", 2),
+                 ("ora ora", 2), ("ora ora ora", 2), ("oraoraora", 2), ("ora rush", 2), ("Ora Ora Rush", 2), ("oraora", 2), ("ora ora ora ora", 2),
                  ("star platinum ora", 2), ("star platinum rush", 2)],
         moves: [
             // The stand's finger shoots out and pierces.
@@ -33,7 +33,7 @@
         names: ["the world stand", "za warudo", "dio's stand"],
         companion: Some((recipe: (name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
         fx: "holy",
-        shouts: [("road roller", 0), ("road roller da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1), ("za warudo toki yo tomare", 1),
+        shouts: [("road roller", 0), ("Road Roller Da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1), ("za warudo toki yo tomare", 1),
                  ("zah warudo", 1), ("za wardo", 1),
                  ("muda muda", 2), ("muda muda muda", 2), ("mudamuda", 2), ("mudamudamuda", 2), ("muda rush", 2), ("muda muda rush", 2),
                  ("the world muda", 2), ("the world rush", 2)],
@@ -85,7 +85,7 @@
                  ("killer queen has already touched", 0), ("daiichi no bakudan", 0),
                  ("sheer heart attack", 1), ("second bomb", 1), ("daini no bakudan", 1),
                  ("killer queen detonate", 2), ("kira detonate", 2), ("killer queen click", 2), ("switch killer queen", 2),
-                 ("bites the dust", 3), ("bite the dust", 3), ("killer queen bites the dust", 3),
+                 ("Bites The Dust", 3), ("bite the dust", 3), ("killer queen bites the dust", 3),
                  ("baitsa za dasuto", 3), ("bites za dusto", 3), ("third bomb", 3), ("daisan no bakudan", 3),
                  ("stray cat", 4), ("stray cat bubbles", 4), ("air bomb stray cat", 4),
                  ("bomb that", 5), ("turn it into a bomb", 5)],
@@ -204,7 +204,7 @@
         kind: Stand,
         names: ["hierophant green", "kakyoin's stand"],
         companion: Some((recipe: (name: "Hierophant Green", form: Biped, mech: [Flies, Constrict], scale: 1.9, mass: 60.0), rush_damage: 2.0, rush_knockback: 3.0)),
-        shouts: [("emerald splash", 0), ("twenty meter emerald splash", 0), ("tentacle", 1)],
+        shouts: [("Emerald Splash", 0), ("twenty meter emerald splash", 0), ("tentacle", 1)],
         moves: [
             (name: "emerald splash", cooldown: 2.5, ops: [
                 Cast(recipe: (name: "emerald splash", form: Ball, mech: [Swarm, Fast, Homing], scale: 0.25, count: 10)),

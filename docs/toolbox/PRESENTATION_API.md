@@ -77,3 +77,14 @@ A cast-only move returns `None` / 0: its Cast ops pay the cast pipeline's own pr
 
 `toolbox::MoveIndex::shipped().read(PowerTable::get(), Some(&player.power), text) -> Reading`
 (`Held(PowerPhrase) | Kit(MoveRef) | Borrow(MoveRef) | Plain`) and `toolbox::split_chain(text, is_move)`.
+
+## 6. Twisted / fused moves (MODIFIERS & FUSION, `bd_sim::powers::twist`)
+
+`PowerEvent::Op(OpEvent::Twisted { player, a, b, mods, title, element, size, copies, shots, merge })`
+comes right BEFORE the move's `Fired`. `twist::exec::interned(a, b, &mods) -> Option<&'static MoveDef>`
+rebuilds the twisted move (bigger radii, swapped element / `fx` style / colour, "GIANT HOMING RASENGAN"
+title in its juice, a fusion's merged ops); the movefx intake already plays THAT instead of the base
+move (`present/powers/movefx/mod.rs::intake`). `merge: Some([a, b])` = a two-element windup (fusion /
+twin elements) — the Hollow Purple grammar is the natural look. `copies` fanned at once × `shots` in a
+row (follow-up shots fire their ops' own events; only shot 0 sends `Twisted` / `Fired`). Palm beams
+with `recipe.count` > 1 ("triple kamehameha") fire a fan of up to 3 `PalmBeam`s at once.

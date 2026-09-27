@@ -38,6 +38,9 @@ pub struct Placement {
     pub own_scale: f32,
     pub own_hold: f32,
     pub own_min_deg: f32,
+    /// Own BIG hits (heavy / crit / finisher): this size multiplier instead of `own_scale`, and the
+    /// full hold — still peripheral.
+    pub own_big_scale: f32,
 }
 
 impl Default for Placement {
@@ -53,6 +56,7 @@ impl Default for Placement {
             own_scale: 0.6,
             own_hold: 0.6,
             own_min_deg: 11.0,
+            own_big_scale: 0.85,
         }
     }
 }
@@ -204,7 +208,7 @@ pub struct Placed {
 
 /// Push a rect (centre `x, y`, half extents `hx, hy`, tan space) out of the disc of radius `r` at the
 /// origin. `side`: 0 = up (sideways when that leaves the screen, `top` = tan-space screen top),
-/// ±1 = to that side. Returns the new centre.
+/// ±1 = diagonally up and out to that side. Returns the new centre.
 pub fn clear_disc(x: f32, y: f32, hx: f32, hy: f32, r: f32, side: i8, top: f32) -> (f32, f32) {
     let cx = (x.abs() - hx).max(0.0);
     let cy = (y.abs() - hy).max(0.0);
@@ -216,7 +220,22 @@ pub fn clear_disc(x: f32, y: f32, hx: f32, hy: f32, r: f32, side: i8, top: f32) 
         (s * (hx + (r * r - cy * cy).max(0.0).sqrt()), y)
     };
     if side != 0 {
-        return sideways(side as f32);
+        // Own words: diagonally up and out (the lower corners hold the first-person viewmodel):
+        // the smallest push along (side, 1) that clears the disc (horizontal if it leaves the top).
+        let dir = Vec2::new(side as f32, 1.0).normalize();
+        let clear = |t: f32| {
+            let (x2, y2) = (x + dir.x * t, y + dir.y * t);
+            let cx = (x2.abs() - hx).max(0.0);
+            let cy = (y2.abs() - hy).max(0.0);
+            cx * cx + cy * cy >= r * r
+        };
+        let (mut lo, mut hi) = (0.0f32, 2.0 * (r + hx + hy) + x.abs() + y.abs());
+        for _ in 0..24 {
+            let mid = 0.5 * (lo + hi);
+            if clear(mid) { hi = mid } else { lo = mid }
+        }
+        let (x2, y2) = (x + dir.x * hi, y + dir.y * hi);
+        return if y2 + hy <= top { (x2, y2) } else { sideways(side as f32) };
     }
     // Up: the rect's bottom edge clears the disc at the rect's closest x.
     let up_y = hy + (r * r - cx * cx).max(0.0).sqrt();
@@ -228,19 +247,28 @@ pub fn clear_disc(x: f32, y: f32, hx: f32, hy: f32, r: f32, side: i8, top: f32) 
     }
 }
 
+/// The camera is inside the event (you are the blast / the victim up close): its word is dropped at
+/// spawn. (Placement itself never drops a word — a first-person hit's word drifts toward the camera
+/// and is pushed back out instead.)
+pub fn inside_event(cam: Vec3, anchor: Vec3, p: &Placement) -> bool {
+    cam.distance(anchor) < p.skip_cam_dist
+}
+
 /// Place a word whose root is at `centre` with world half extents `half` (at scale 1).
 /// `own`: the viewer is involved (smaller, peripheral). `side`: sticky push side for own words
-/// (0 = not chosen yet: picked from where the word is, then kept). `None` = drop the word (the camera
-/// is inside it).
+/// (0 = not chosen yet: picked from where the word is, then kept). Always `Some` today (kept an
+/// `Option` so a future rule may drop a word).
 pub fn place_word(v: &View, centre: Vec3, half: Vec2, own: bool, side: &mut i8, p: &Placement) -> Option<Placed> {
-    let rel = centre - v.pos;
-    if rel.length() < p.skip_cam_dist {
-        return None;
-    }
+    place_word_k(v, centre, half, own, if own { p.own_scale } else { 1.0 }, side, p)
+}
+
+/// [`place_word`] with an explicit size multiplier for own words (`own_scale` / `own_big_scale`).
+pub fn place_word_k(v: &View, centre: Vec3, half: Vec2, own: bool, own_k: f32, side: &mut i8, p: &Placement) -> Option<Placed> {
     let (mut d, mut x, mut y) = v.project(centre);
-    if d <= 0.05 {
-        // Behind the camera: not visible, leave it.
-        return Some(Placed { pos: centre, scale: 1.0 });
+    if d <= 0.3 {
+        // At / behind the eye (a first-person contact point, a word drifting into the camera): no
+        // meaningful screen spot — start from the crosshair and let the cone push place it.
+        (x, y) = (0.0, 0.0);
     }
     // Min distance: out along the view ray (same screen spot, farther away).
     if d < p.min_cam_dist {
@@ -248,11 +276,13 @@ pub fn place_word(v: &View, centre: Vec3, half: Vec2, own: bool, side: &mut i8, 
     }
     // Size clamp (screen fractions).
     let h_frac = half.y.max(1e-4) / (d * v.tan_half);
-    let max_h = p.max_letter_h * if own { p.own_scale } else { 1.0 };
+    let own_k = if own { own_k.clamp(0.1, 1.0) } else { 1.0 };
+    let max_h = p.max_letter_h * own_k;
     let mut s = h_frac.clamp(p.min_letter_h.min(max_h), max_h) / h_frac;
     let w_frac = 2.0 * half.x.max(1e-4) * s / (d * v.tan_half * v.aspect) * 0.5;
-    if w_frac > p.max_word_w * if own { p.own_scale.max(0.5) } else { 1.0 } {
-        s *= p.max_word_w * if own { p.own_scale.max(0.5) } else { 1.0 } / w_frac;
+    let max_w = p.max_word_w * own_k.max(0.5);
+    if w_frac > max_w {
+        s *= max_w / w_frac;
     }
     // Crosshair cone.
     let (hx, hy) = (half.x * s / d, half.y * s / d);
@@ -261,7 +291,8 @@ pub fn place_word(v: &View, centre: Vec3, half: Vec2, own: bool, side: &mut i8, 
     let top = v.tan_half * 0.95;
     let push_side = if own {
         if *side == 0 {
-            *side = if x < -0.02 { -1 } else { 1 };
+            // Away from where it is; dead centre → left (the first-person weapon swings on the right).
+            *side = if x > 0.02 { 1 } else { -1 };
         }
         *side
     } else {
@@ -329,17 +360,22 @@ impl LightGate {
 /// Stacked title offsets: `items` = (serial, height) of one caster's live titles (any order). Writes
 /// the upward offset of each (same order): the newest (highest serial) sits on the base line, each
 /// older one above the newer ones (+ `gap` × the height below it). Heights are in whatever unit the
-/// caller uses (screen fraction for local titles, metres for world ones).
-pub fn stack_offsets(items: &[(u64, f32)], gap: f32, out: &mut Vec<f32>) {
+/// caller uses. `centred`: the caller places a title by its centre (local titles: the newest stays
+/// centred on its spot, the rest sit on top of it); else by its bottom edge (world titles).
+pub fn stack_offsets(items: &[(u64, f32)], gap: f32, centred: bool, out: &mut Vec<f32>) {
     out.clear();
     out.resize(items.len(), 0.0);
-    for (i, (serial, _)) in items.iter().enumerate() {
+    let newest = items.iter().max_by_key(|x| x.0).map_or(0.0, |x| x.1);
+    for (i, (serial, h)) in items.iter().enumerate() {
         // Everything newer than me stacks below me.
         let mut off = 0.0;
         for (s2, h2) in items.iter() {
             if s2 > serial {
                 off += h2 * (1.0 + gap);
             }
+        }
+        if centred && off > 0.0 {
+            off += (h - newest) * 0.5;
         }
         out[i] = off;
     }
@@ -416,17 +452,33 @@ mod tests {
         let half = Vec2::new(0.8, 0.25);
         let mut side = 0;
         let other = place_word(&v, Vec3::new(0.0, 0.0, -6.0), half, false, &mut 0, &p).unwrap();
-        let own = place_word(&v, Vec3::new(0.05, 0.0, -6.0), half, true, &mut side, &p).unwrap();
+        let own = place_word(&v, Vec3::new(0.2, 0.0, -6.0), half, true, &mut side, &p).unwrap();
         let (x, y, hx, hy) = word_rect(&v, &own, half);
         let (_, _, _, hy_other) = word_rect(&v, &other, half);
         assert!(hy < hy_other, "own word smaller");
         assert_eq!(side, 1);
-        assert!(x > 0.0);
+        assert!(x > 0.0 && y > 0.0, "up and out");
+        // Dead centre → the left (away from the first-person weapon).
+        let mut s2 = 0;
+        let _ = place_word(&v, Vec3::new(0.0, 0.0, -6.0), half, true, &mut s2, &p).unwrap();
+        assert_eq!(s2, -1);
         let r = (p.own_min_deg + p.margin_deg).to_radians().tan();
         assert!(disc_clear(x, y, hx, hy, r), "own word peripheral");
         // Sticky: the same word a frame later, now a hair left of centre, stays on the right.
         let own2 = place_word(&v, Vec3::new(-0.05, 0.0, -6.0), half, true, &mut side, &p).unwrap();
         assert!(v.project(own2.pos).1 > 0.0);
+    }
+
+    #[test]
+    fn own_big_hits_keep_more_drama_than_own_light_hits() {
+        let v = view();
+        let p = Placement::default();
+        let half = Vec2::new(0.8, 0.3);
+        let at = Vec3::new(0.0, 0.2, -3.5);
+        let light = place_word_k(&v, at, half, true, p.own_scale, &mut 0, &p).unwrap();
+        let big = place_word_k(&v, at, half, true, p.own_big_scale, &mut 0, &p).unwrap();
+        let other = place_word(&v, at, half, false, &mut 0, &p).unwrap();
+        assert!(light.scale < big.scale && big.scale <= other.scale);
     }
 
     #[test]
@@ -446,7 +498,15 @@ mod tests {
     fn inside_the_event_drops_the_word_and_words_at_the_top_edge_go_sideways() {
         let v = view();
         let p = Placement::default();
-        assert!(place_word(&v, Vec3::new(0.0, 0.0, -0.3), Vec2::splat(0.3), false, &mut 0, &p).is_none());
+        assert!(inside_event(v.pos, Vec3::new(0.0, 0.0, -0.3), &p));
+        assert!(!inside_event(v.pos, Vec3::new(0.0, 0.0, -1.2), &p));
+        // A first-person hit's word that drifted to 0.3 m is pushed back out, not dropped.
+        let near = place_word(&v, Vec3::new(0.0, 0.0, -0.3), Vec2::splat(0.3), true, &mut 0, &p).unwrap();
+        assert!(v.project(near.pos).0 >= p.min_cam_dist - 1e-3);
+        // Even at / behind the eye an own word lands on screen, off the crosshair.
+        let at_eye = place_word(&v, Vec3::new(0.0, 0.1, 0.1), Vec2::new(0.6, 0.3), true, &mut 0, &p).unwrap();
+        let (d, x, y) = v.project(at_eye.pos);
+        assert!(d >= p.min_cam_dist - 1e-3 && x.abs() < v.tan_half * v.aspect && y.abs() < v.tan_half && (x != 0.0 || y != 0.0));
         // A tall rect over the crosshair that would leave the top of the screen goes sideways.
         let (x, y) = clear_disc(0.0, 0.0, 0.1, 0.6, 0.15, 0, 0.7);
         assert!(x.abs() > 0.1 && y == 0.0);
@@ -491,7 +551,7 @@ mod tests {
     fn chain_titles_stack_newest_on_the_base_line() {
         let items = [(5u64, 0.1), (7, 0.08), (6, 0.12)];
         let mut out = Vec::new();
-        stack_offsets(&items, 0.25, &mut out);
+        stack_offsets(&items, 0.25, false, &mut out);
         // 7 (newest) on the base line; 6 above it; 5 above both.
         assert_eq!(out[1], 0.0);
         assert!((out[2] - 0.08 * 1.25).abs() < 1e-6);
@@ -504,6 +564,12 @@ mod tests {
         for w in sorted.windows(2) {
             assert!(w[1].0 >= w[0].0 + w[0].1);
         }
+        // Centre-placed (local titles): the rects [off - h/2, off + h/2] never overlap either — a
+        // two-line older title above a one-line newer one clears it.
+        let items = [(1u64, 0.2), (2, 0.08)];
+        stack_offsets(&items, 0.15, true, &mut out);
+        assert_eq!(out[1], 0.0);
+        assert!(out[0] - 0.2 * 0.5 >= 0.08 * 0.5, "older bottom {} clears newer top {}", out[0] - 0.1, 0.04);
     }
 
     #[test]

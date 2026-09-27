@@ -27,10 +27,10 @@
                 "narutos", "narooto", "naru to", "seventh hokage", "the seventh hokage", "nanadaime hokage", "hokage naruto",
                 "knucklehead ninja", "number one knucklehead ninja"],
         fx: "chakra",
-        shouts: [("rasengan", 0), ("rasen gan", 0), ("rasengun", 0), ("rasengon", 0), ("rasegan", 0), ("rassengan", 0),
-                 ("razengan", 0), ("rasen gun", 0), ("spiraling sphere", 0), ("spiralling sphere", 0), ("rasengan jutsu", 0),
-                 ("rasenshuriken", 2), ("rasen shuriken", 2), ("rasenshiriken", 2), ("wind style rasenshuriken", 2), ("futon rasenshuriken", 2),
-                 ("wind release rasenshuriken", 2), ("rasen shuriken jutsu", 2), ("rasenshurikan", 2),
+        shouts: [("Rasengan", 0), ("rasen gan", 0), ("Rasengun", 0), ("rasengon", 0), ("rasegan", 0), ("rassengan", 0),
+                 ("razengan", 0), ("rasen gun", 0), ("Spiraling Sphere", 0), ("Spiralling Sphere", 0), ("rasengan jutsu", 0),
+                 ("Rasenshuriken", 2), ("Rasen Shuriken", 2), ("rasenshiriken", 2), ("Wind Style Rasenshuriken", 2), ("futon rasenshuriken", 2),
+                 ("Wind Release Rasenshuriken", 2), ("rasen shuriken jutsu", 2), ("rasenshurikan", 2),
                  ("uzumaki barrage", 3), ("naruto uzumaki barrage", 3), ("uzumaki naruto rendan", 3), ("naruto rendan", 3), ("u zu ma ki", 3),
                  ("sexy jutsu", 4), ("oiroke no jutsu", 4), ("harem jutsu", 4), ("sexy no jutsu", 4), ("sexy technique", 4),
                  ("talk no jutsu", 5), ("talk-no-jutsu", 5), ("talk jutsu", 5), ("talkanojutsu", 5), ("talk no justu", 5),
@@ -84,9 +84,9 @@
         kind: Kit,
         names: ["sasuke", "sasuke uchiha", "uchiha sasuke", "sasuke uchia", "sasuke kun", "sauske", "sasuki", "sas ke", "saske"],
         fx: "lightning",
-        shouts: [("great fireball jutsu", 1), ("katon gokakyu no jutsu", 1), ("fire style great fireball", 1), ("gokakyu", 1), ("goukakyuu", 1),
-                 ("fire release great fireball", 1), ("fireball technique", 1),
-                 ("kirin", 3), ("kirin jutsu", 3), ("kirin lightning", 3), ("lightning kirin", 3),
+        shouts: [("great fireball jutsu", 1), ("katon gokakyu no jutsu", 1), ("sasuke fire style great fireball", 1), ("gokakyu", 1), ("goukakyuu", 1),
+                 ("sasuke fire release great fireball", 1), ("fireball technique", 1),
+                 ("Kirin", 3), ("kirin jutsu", 3), ("kirin lightning", 3), ("lightning kirin", 3),
                  ("chidori nagashi", 5), ("chidori current", 5), ("lightning current", 5), ("chidori stream", 5),
                  ("indra's arrow", 6), ("indras arrow", 6), ("indra arrow", 6), ("susanoo arrow", 6),
                  ("chidori senbon", 7), ("chidori needles", 7), ("chidori sharp spear", 7), ("chidori spear", 7)],
@@ -130,12 +130,12 @@
         names: ["kakashi", "kakashi hatake", "hatake kakashi", "kakashi sensei", "copy ninja kakashi", "the copy ninja", "copy ninja",
                 "sixth hokage", "rokudaime hokage", "kakashi hatake sensei", "kakashee", "kakashy"],
         fx: "lightning",
-        shouts: [("raikiri", 0), ("lightning blade", 0), ("lightning cutter", 0), ("rai kiri", 0), ("raikiri jutsu", 0), ("lightning edge", 0),
-                 ("summon ninken", 3), ("ninken", 3), ("tracking fang", 3), ("earth style tracking fang", 3), ("doton tsuiga no jutsu", 3),
-                 ("summon the dogs", 3), ("summoning ninken", 3), ("pakkun", 3), ("ninja hounds", 3),
+        shouts: [("Raikiri", 0), ("Lightning Blade", 0), ("lightning cutter", 0), ("rai kiri", 0), ("raikiri jutsu", 0), ("lightning edge", 0),
+                 ("summon ninken", 3), ("kakashi ninken", 3), ("tracking fang", 3), ("earth style tracking fang", 3), ("doton tsuiga no jutsu", 3),
+                 ("kakashi summon the dogs", 3), ("summoning ninken", 3), ("kakashi pakkun", 3), ("kakashi ninja hounds", 3),
                  ("thousand years of death", 5), ("1000 years of death", 5), ("one thousand years of death", 5), ("a thousand years of death", 5),
                  ("sennen goroshi", 5), ("thousand year of death", 5),
-                 ("purple lightning", 7), ("shiden", 7), ("violet lightning", 7)],
+                 ("purple lightning", 7), ("shiden", 7), ("kakashi violet lightning", 7)],
         moves: [
             // One Thousand Birds' big brother: faster, longer, a clean pierce. ends: past them, grounded.
             (name: "raikiri", tags: [Primary], cooldown: 3.2, cost: 6.0, ops: [
@@ -175,8 +175,8 @@
         kind: Kit,
         names: ["itachi", "itachi uchiha", "uchiha itachi", "itachi uchia", "itachi san", "itachee", "i tachi"],
         fx: "shadow",
-        shouts: [("crow clone", 2), ("crow clone jutsu", 2), ("karasu bunshin", 2), ("crow clones", 2),
-                 ("phoenix flower jutsu", 3), ("phoenix sage fire", 3), ("housenka", 3), ("phoenix flower", 3), ("fire style phoenix flower", 3),
+        shouts: [("crow clone", 2), ("crow clone jutsu", 2), ("karasu bunshin", 2), ("itachi crow clones", 2),
+                 ("phoenix flower jutsu", 3), ("phoenix sage fire", 3), ("housenka", 3), ("itachi phoenix flower", 3), ("itachi fire style phoenix flower", 3),
                  ("katon hosenka no jutsu", 3), ("phoenix sage fire technique", 3), ("yata no kagami mirror", 4),
                  ("totsuka blade", 5), ("totsuka sword", 5), ("sword of totsuka", 5), ("totsuka no tsurugi", 5), ("totsuka", 5),
                  ("izanami", 7)],
@@ -221,7 +221,7 @@
         kind: Kit,
         names: ["obito", "obito uchiha", "uchiha obito", "tobi", "masked man", "obito uchia"],
         fx: "void",
-        shouts: [("kamui", 0), ("obito kamui", 0), ("kamui obito", 0), ("kamoi", 0), ("ka mui", 0), ("kamuy", 0), ("kamui jutsu", 0), ("kamui phase", 0),
+        shouts: [("Kamui", 0), ("obito kamui", 0), ("kamui obito", 0), ("kamoi", 0), ("ka mui", 0), ("kamuy", 0), ("kamui jutsu", 0), ("kamui phase", 0),
                  ("wood style spikes", 1), ("wood release cutting technique", 1), ("mokuton spikes", 1),
                  ("tobi good boy", 3)],
         moves: [
@@ -249,11 +249,11 @@
         names: ["minato", "minato namikaze", "namikaze minato", "fourth hokage", "the fourth hokage", "yondaime hokage", "yondaime",
                 "minato sensei", "minato namekaze", "minado"],
         fx: "speedforce",
-        shouts: [("flying thunder god", 0), ("flying raijin", 0), ("hiraishin", 0), ("hiraishin no jutsu", 0), ("flying thunder god technique", 0),
-                 ("flying thunder god jutsu", 0), ("flying thunder", 0), ("hiraishin jutsu", 0), ("hirashin", 0), ("thunder god kunai", 0),
+        shouts: [("Flying Thunder God", 0), ("Flying Raijin", 0), ("Hiraishin", 0), ("hiraishin no jutsu", 0), ("flying thunder god technique", 0),
+                 ("flying thunder god jutsu", 0), ("minato flying thunder", 0), ("hiraishin jutsu", 0), ("hirashin", 0), ("thunder god kunai", 0),
                  ("flying thunder god slash", 3), ("hiraishin giri", 3), ("flying raijin slash", 3), ("hiraishin slash", 3),
                  ("reaper death seal", 4), ("dead demon consuming seal", 4), ("shiki fujin", 4), ("shikifujin", 4), ("death reaper seal", 4),
-                 ("space time barrier", 5), ("flying thunder god barrier", 5), ("hiraishin barrier", 5), ("space-time barrier", 5),
+                 ("minato space time barrier", 5), ("flying thunder god barrier", 5), ("hiraishin barrier", 5), 
                  ("yellow flash", 6), ("konoha's yellow flash", 6), ("the yellow flash", 6)],
         moves: [
             // Throw the marked kunai; say it again and you are THERE (on a marked enemy: right behind
@@ -293,11 +293,11 @@
         fx: "fire",
         shouts: [("great fire annihilation", 0), ("majestic destroyer flame", 0), ("gouka mekkyaku", 0), ("goka mekkyaku", 0),
                  ("fire style great fire annihilation", 0), ("katon gouka mekkyaku", 0), ("fire annihilation", 0),
-                 ("tengai shinsei", 1), ("heavenly meteor", 1), ("world shaking meteor", 1), ("shattered heaven", 1), ("madara meteor", 1),
+                 ("tengai shinsei", 1), ("madara heavenly meteor", 1), ("madara world shaking meteor", 1), ("shattered heaven", 1), ("madara meteor", 1),
                  ("wood dragon", 2), ("wood style wood dragon", 2), ("mokuryu", 2), ("wood dragon jutsu", 2), ("mokuton wood dragon", 2),
                  ("deep forest emergence", 3), ("jukai kotan", 3), ("wood style deep forest emergence", 3), ("forest emergence", 3),
-                 ("limbo", 4), ("limbo border jail", 4), ("rinbo hengoku", 4), ("limbo hengoku", 4),
-                 ("infinite tsukuyomi", 5), ("mugen tsukuyomi", 5), ("infinite tsukiyomi", 5), ("eye of the moon plan", 5),
+                 ("madara limbo", 4), ("madara limbo border jail", 4), ("rinbo hengoku", 4), ("limbo hengoku", 4),
+                 ("infinite tsukuyomi", 5), ("mugen tsukuyomi", 5), ("infinite tsukiyomi", 5), ("madara eye of the moon plan", 5),
                  ("uchiha return", 7), ("uchiha reflection", 7), ("uchiha kaeshi", 7), ("gunbai", 7)],
         moves: [
             // A sea of fire in front of you, and the ground keeps burning.
@@ -384,14 +384,14 @@
         names: ["gaara", "gaara of the sand", "sabaku no gaara", "gaara of the desert", "kazekage", "the kazekage", "fifth kazekage",
                 "garra", "gara", "ga ara", "gaara kazekage"],
         fx: "sand",
-        shouts: [("sand coffin", 0), ("desert coffin", 0), ("sabaku kyu", 0), ("sand binding coffin", 0), ("sabaku kyuu", 0), ("sand coffin jutsu", 0),
-                 ("sand burial", 1), ("desert funeral", 1), ("sabaku soso", 1), ("sabaku sousou", 1), ("sand waterfall funeral", 1), ("sand funeral", 1),
+        shouts: [("Sand Coffin", 0), ("Desert Coffin", 0), ("Sabaku Kyu", 0), ("gaara sand binding coffin", 0), ("sabaku kyuu", 0), ("sand coffin jutsu", 0),
+                 ("Sand Burial", 1), ("desert funeral", 1), ("sabaku soso", 1), ("sabaku sousou", 1), ("sand waterfall funeral", 1), ("sand funeral", 1),
                  ("desert graveyard", 1), ("sand burial jutsu", 1),
-                 ("sand shield", 2), ("shield of sand", 2), ("absolute defense", 2), ("suna no tate", 2),
-                 ("sand tsunami", 3), ("quicksand waterfall flow", 3), ("ryusa bakuryu", 3), ("sand avalanche", 3),
+                 ("gaara sand shield", 2), ("gaara shield of sand", 2), ("absolute defense", 2), ("suna no tate", 2),
+                 ("gaara sand tsunami", 3), ("quicksand waterfall flow", 3), ("ryusa bakuryu", 3), ("gaara sand avalanche", 3),
                  ("sand shuriken", 4), ("sand shurikens", 4),
-                 ("sand cloud", 5), ("sand float", 5),
-                 ("shukaku", 6), ("one tail", 6), ("ichibi", 6), ("one tailed beast", 6), ("the one tail", 6), ("shukaku the one tail", 6)],
+                 ("gaara sand cloud", 5), ("sand float", 5),
+                 ("gaara shukaku", 6), ("one tail", 6), ("gaara ichibi", 6), ("one tailed beast", 6), ("the one tail", 6), ("shukaku the one tail", 6)],
         moves: [
             // Sand wraps whoever stands at the crosshair and holds them. ends: they're caged — Burial.
             (name: "sand coffin", tags: [Primary], cooldown: 5.0, cost: 6.0, ops: [
@@ -425,7 +425,7 @@
         kind: Kit,
         names: ["rock lee", "lee rock", "rock lee sensei", "bushy brow", "bushy brows", "rocklee", "rock li", "rock-lee"],
         fx: "chi",
-        shouts: [("leaf hurricane", 0), ("konoha senpu", 0), ("leaf whirlwind", 0), ("konoha senpuu", 0), ("dynamic leaf hurricane", 0),
+        shouts: [("Leaf Hurricane", 0), ("konoha senpu", 0), ("rock lee leaf whirlwind", 0), ("konoha senpuu", 0), ("dynamic leaf hurricane", 0),
                  ("primary lotus", 1), ("front lotus", 1), ("omote renge", 1), ("the primary lotus", 1),
                  ("hidden lotus", 2), ("reverse lotus", 2), ("ura renge", 2), ("the hidden lotus", 2),
                  ("drunken fist", 3), ("suiken", 3), ("drunken style", 3),
@@ -475,8 +475,8 @@
         fx: "chi",
         shouts: [("dynamic entry", 0), ("dynamic entryyy", 0), ("dynamic entree", 0), ("dynamic entry kick", 0),
                  ("morning peacock", 1), ("asa kujaku", 1), ("morning peacocks", 1),
-                 ("daytime tiger", 2), ("hirudora", 2), ("hiru dora", 2), ("day tiger", 2),
-                 ("evening elephant", 3), ("sekizo", 3), ("sekizou", 3),
+                 ("Daytime Tiger", 2), ("hirudora", 2), ("hiru dora", 2), ("might guy day tiger", 2),
+                 ("Evening Elephant", 3), ("sekizo", 3), ("sekizou", 3),
                  ("night guy", 4), ("night gai", 4), ("yagai", 4), ("night moth", 4), ("sekizo night guy", 4),
                  ("nice guy pose", 5), ("nice guy", 5), ("good guy pose", 5),
                  ("springtime of youth", 6), ("power of youth", 6), ("the power of youth", 6)],
@@ -523,13 +523,13 @@
         names: ["jiraiya", "jiraiya sensei", "pervy sage", "pervy sage jiraiya", "ero sennin", "ero-sennin", "jiraya", "jaraiya", "jiriya",
                 "the toad sage", "toad sage jiraiya", "legendary sannin jiraiya", "gama sennin"],
         fx: "fire",
-        shouts: [("toad flame bomb", 1), ("toad oil flame bullet", 1), ("gamayu endan", 1), ("fire style flame bomb", 1), ("toad oil bullet", 1),
+        shouts: [("jiraiya toad flame bomb", 1), ("toad oil flame bullet", 1), ("gamayu endan", 1), ("jiraiya fire style flame bomb", 1), ("toad oil bullet", 1),
                  ("needle jizo", 2), ("hari jizo", 2), ("hair needle defense", 2), ("needle guardian", 2), ("wild lion's mane", 2),
                  ("swamp of the underworld", 3), ("yomi numa", 3), ("underworld swamp", 3), ("mud swamp", 3),
-                 ("summon gamabunta", 4), ("gamabunta", 4), ("summoning jutsu gamabunta", 4), ("kuchiyose gamabunta", 4), ("chief toad", 4),
-                 ("summon toad", 4), ("summoning toad", 4), ("toad summoning", 4),
+                 ("summon gamabunta", 4), ("jiraiya gamabunta", 4), ("summoning jutsu gamabunta", 4), ("kuchiyose gamabunta", 4), ("jiraiya chief toad", 4),
+                 ("jiraiya summon toad", 4), ("jiraiya summoning toad", 4), ("jiraiya toad summoning", 4),
                  ("frog song", 5), ("gamarinsho", 5), ("demonic illusion toad gong", 5), ("toad gong", 5),
-                 ("giant rasengan", 6), ("oodama rasengan", 6), ("big ball rasengan", 6), ("odama rasengan", 6)],
+                 ("giant rasengan", 6), ("oodama rasengan", 6), ("big ball rasengan", 6), ("Odama Rasengan", 6)],
         moves: [
             (name: "rasengan", tags: [Primary], cooldown: 3.5, cost: 6.0, ops: [
                 Drill(speed: 16.0, secs: 0.45, grind: 0.5, damage: 16.0, knockback: 30.0, element: Wind, up: 0.35),
@@ -566,10 +566,10 @@
         kind: Kit,
         names: ["hinata", "hinata hyuga", "hyuga hinata", "hinata hyuuga", "hyuuga hinata", "hinata uzumaki", "hinata chan", "hinatta"],
         fx: "chi",
-        shouts: [("gentle fist", 0), ("juken", 0), ("gentle step", 0), ("jyuken", 0), ("the gentle fist", 0),
+        shouts: [("Gentle Fist", 0), ("juken", 0), ("gentle step", 0), ("jyuken", 0), ("hinata the gentle fist", 0),
                  ("eight trigrams sixty four palms", 1), ("eight trigrams 64 palms", 1), ("64 palms", 1), ("sixty four palms", 1),
                  ("hakke rokujuyon sho", 1), ("hakke rokujuuyon shou", 1), ("eight trigrams palms", 1),
-                 ("twin lion fists", 2), ("gentle step twin lion fists", 2), ("twin lions", 2), ("twin lion fist", 2), ("juho soshiken", 2),
+                 ("Twin Lion Fists", 2), ("hinata gentle step twin lion fists", 2), ("twin lions", 2), ("hinata twin lion fist", 2), ("juho soshiken", 2),
                  ("protective eight trigrams sixty four palms", 3), ("protective 64 palms", 3), ("protective palms", 3), ("hakke sanjuni sho", 3)],
         moves: [
             // Palm strikes that close the chakra points: a small hit — and their powers are shut for a beat.
@@ -595,7 +595,7 @@
         kind: Kit,
         names: ["neji", "neji hyuga", "hyuga neji", "neji hyuuga", "hyuuga neji", "nejee"],
         fx: "chi",
-        shouts: [("rotation", 0), ("eight trigrams palm rotation", 0), ("kaiten", 0), ("hakkesho kaiten", 0), ("palm rotation", 0),
+        shouts: [("Rotation", 0), ("eight trigrams palm rotation", 0), ("kaiten", 0), ("hakkesho kaiten", 0), ("palm rotation", 0),
                  ("heavenly spin", 0), ("eight trigrams rotation", 0),
                  ("vacuum palm", 1), ("air palm", 1), ("eight trigrams vacuum palm", 1), ("hakke kusho", 1), ("vacuum palm strike", 1),
                  ("128 palms", 2), ("one hundred twenty eight palms", 2), ("eight trigrams 128 palms", 2), ("hakke hyakunijuhachi sho", 2)],
@@ -624,7 +624,7 @@
         kind: Kit,
         names: ["sakura haruno", "haruno sakura", "sakura chan", "sakura uchiha", "sakura haruno ninja"],
         fx: "earth",
-        shouts: [("cherry blossom impact", 0), ("cherry blossom clash", 0), ("shannaro", 0), ("shannaro punch", 0), ("sakura punch", 0),
+        shouts: [("Cherry Blossom Impact", 0), ("cherry blossom clash", 0), ("shannaro", 0), ("shannaro punch", 0), ("sakura haruno sakura punch", 0),
                  ("chakra punch", 0), ("oka shoten", 0),
                  ("strength of a hundred seal", 1), ("hundred healings", 1), ("byakugou", 1), ("byakugo", 1), ("strength of a hundred", 1),
                  ("mystical palm", 2), ("mystical palm technique", 2), ("healing jutsu", 2), ("shosen jutsu", 2)],
@@ -678,7 +678,7 @@
         fx: "shadow",
         shouts: [("shadow possession jutsu", 0), ("shadow possession", 0), ("kagemane no jutsu", 0), ("kage mane", 0), ("shadow imitation", 0),
                  ("shadow bind", 0), ("shadow possession technique", 0),
-                 ("shadow neck bind", 1), ("shadow strangle", 1), ("kage kubi shibari", 1),
+                 ("shadow neck bind", 1), ("shikamaru shadow strangle", 1), ("kage kubi shibari", 1),
                  ("what a drag", 2)],
         moves: [
             // Your shadow races to theirs: they're held where they stand for a moment.
@@ -706,11 +706,11 @@
         names: ["goku", "son goku", "son gokou", "gokou", "kakarot", "kakarotto", "kakarrot", "goku san", "gokuu", "go ku", "songoku",
                 "goku super saiyan", "goku ultra instinct"],
         fx: "chi",
-        shouts: [("kamehameha", 0), ("kamehameeha", 0), ("kamehame ha", 0), ("kame hame ha", 0), ("kamehamaha", 0), ("kamahamaha", 0),
-                 ("kamehameha wave", 0), ("kamehamehaa", 0), ("kamehamiha", 0), ("kamay hamay ha", 0), ("kamehame haa", 0), ("kamehameah", 0),
-                 ("spirit bomb", 2), ("genki dama", 2), ("genkidama", 2), ("spirit ball bomb", 2), ("spirit bom", 2), ("the spirit bomb", 2),
+        shouts: [("Kamehameha", 0), ("kamehameeha", 0), ("Kamehame Ha", 0), ("Kame Hame Ha", 0), ("kamehamaha", 0), ("kamahamaha", 0),
+                 ("Kamehameha Wave", 0), ("kamehamehaa", 0), ("kamehamiha", 0), ("kamay hamay ha", 0), ("kamehame haa", 0), ("kamehameah", 0),
+                 ("Spirit Bomb", 2), ("Genki Dama", 2), ("Genkidama", 2), ("spirit ball bomb", 2), ("spirit bom", 2), ("The Spirit Bomb", 2),
                  ("universal spirit bomb", 2), ("super spirit bomb", 2),
-                 ("dragon fist", 3), ("ryuken", 3), ("dragon fist explosion", 3), ("ryu ken", 3),
+                 ("dragon fist", 3), ("Ryuken", 3), ("dragon fist explosion", 3), ("ryu ken", 3),
                  ("ten times kamehameha", 4), ("10x kamehameha", 4), ("x10 kamehameha", 4), ("times ten kamehameha", 4), ("10 times kamehameha", 4), ("kamehameha times ten", 4),
                  ("afterimage technique", 5), ("zanzoken", 5), ("after image technique", 5),
                  ("meteor combination", 6), ("meteor smash", 6), ("meteor combo", 6),
@@ -758,13 +758,13 @@
         names: ["vegeta", "prince vegeta", "prince of all saiyans", "the prince of all saiyans", "vegeta sama", "bejita", "vegita", "vageta",
                 "vejita", "vegetta", "majin vegeta"],
         fx: "psychic",
-        shouts: [("galick gun", 0), ("garlic gun", 0), ("gallick gun", 0), ("galic gun", 0), ("gallic gun", 0), ("galick ho", 0), ("garlic ho", 0),
+        shouts: [("Galick Gun", 0), ("Garlic Gun", 0), ("gallick gun", 0), ("Galic Gun", 0), ("gallic gun", 0), ("galick ho", 0), ("garlic ho", 0),
                  ("galick gun fire", 0), ("garlick gun", 0),
-                 ("final flash", 1), ("final flesh", 1), ("final flush", 1), ("finale flash", 1),
-                 ("big bang attack", 2), ("bigbang attack", 2), ("big bang atack", 2),
+                 ("Final Flash", 1), ("final flesh", 1), ("final flush", 1), ("finale flash", 1),
+                 ("Big Bang Attack", 2), ("bigbang attack", 2), ("big bang atack", 2),
                  ("final explosion", 3), ("final explosions", 3),
                  ("consecutive energy blast", 4), ("renzoku energy dan", 4), ("consecutive energy blasts", 4),
-                 ("vegeta barrage", 4), ("rapid fire energy blast", 4),
+                 ("vegeta barrage", 4), ("vegeta rapid fire energy blast", 4),
                  ("final shine attack", 5), ("final shine", 5),
                  ("gamma burst flash", 6), ("gamma burst", 6),
                  ("galaxy breaker", 7), ("final impact", 7)],
@@ -813,7 +813,7 @@
         fx: "chi",
         shouts: [("masenko", 0), ("masenko ha", 0), ("masenkoha", 0), ("masenko-ha", 0), ("masenco", 0),
                  ("father son kamehameha", 1), ("father-son kamehameha", 1), ("oyako kamehameha", 1), ("father and son kamehameha", 1),
-                 ("gohan rage", 2), ("unleash the rage", 2),
+                 ("gohan rage", 2), ("gohan unleash the rage", 2),
                  ("great saiyaman pose", 3), ("saiyaman pose", 3),
                  ("special beam cannon gohan", 4), ("gohan special beam cannon", 4)],
         moves: [
@@ -842,15 +842,15 @@
         kind: Kit,
         names: ["piccolo", "picolo", "piccolo jr", "king piccolo", "mr piccolo", "pikkoro", "piccolo san", "piccolo sensei", "picollo"],
         fx: "chi",
-        shouts: [("special beam cannon", 0), ("makankosappo", 0), ("makankosapo", 0), ("special beam canon", 0), ("makankōsappō", 0),
+        shouts: [("Special Beam Cannon", 0), ("Makankosappo", 0), ("Makankosapo", 0), ("special beam canon", 0), ("Makankōsappō", 0),
                  ("special beam", 0), ("demon piercing light cannon", 0), ("piercing light demon killing cannon", 0), ("special bean cannon", 0),
-                 ("hellzone grenade", 1), ("hell zone grenade", 1), ("makuu houdan", 1), ("hellzone grenades", 1), ("hell zone grenades", 1),
+                 ("hellzone grenade", 1), ("piccolo hell zone grenade", 1), ("makuu houdan", 1), ("hellzone grenades", 1), ("hell zone grenades", 1),
                  ("namekian arm", 2), ("stretch arm grab", 2), ("long arm grab", 2), ("namekian stretch", 2),
                  ("namekian regeneration", 3),
-                 ("light grenade", 4), ("light grenades", 4),
+                 ("piccolo light grenade", 4), ("light grenades", 4),
                  ("explosive demon wave", 5), ("bakuriki maha", 5), ("bakurikimaha", 5),
                  ("multi form", 6), ("multiform", 6), ("tajuu furimu", 6),
-                 ("weighted clothes off", 7), ("take off the weights piccolo", 7), ("weighted cape", 7)],
+                 ("weighted clothes off", 7), ("take off the weights piccolo", 7), ("piccolo weighted cape", 7)],
         moves: [
             // Two fingers to the forehead, then a spiral-wrapped line that drills straight through
             // anything — terrain, constructs, everyone on it. No palm beam: an instant piercing line.
@@ -889,11 +889,11 @@
         kind: Kit,
         names: ["frieza", "freeza", "lord frieza", "furiza", "frieza sama", "golden frieza", "frieza force leader", "freiza", "friza", "frieza final form"],
         fx: "psychic",
-        shouts: [("death beam", 0), ("frieza beam", 0), ("death beams", 0),
-                 ("death ball", 1), ("death bomb", 1),
+        shouts: [("frieza death beam", 0), ("frieza beam", 0), ("frieza death beams", 0),
+                 ("Death Ball", 1), ("frieza death bomb", 1),
                  ("death saucer", 2), ("death saucers", 2), ("homing destructo disc", 2), ("frieza disc", 2),
                  ("nova strike", 4), ("nova rush", 4),
-                 ("golden death ball", 5), ("golden frieza death ball", 5),
+                 ("Golden Death Ball", 5), ("golden frieza death ball", 5),
                  ("frieza tail whip", 6)],
         moves: [
             // One finger: a thin, silent laser — instant, no windup, no crater, straight through.
@@ -966,10 +966,10 @@
         names: ["broly", "broli", "brolly", "legendary broly", "broly the legendary super saiyan", "brolli", "bro lee"],
         fx: "atomic",
         shouts: [("eraser cannon", 0), ("blaster shell", 0), ("eraser blow", 0), ("eraser canon", 0),
-                 ("gigantic meteor", 1), ("omega blaster", 1), ("gigantic omega", 1), ("gigantic meteor smash", 1),
+                 ("broly gigantic meteor", 1), ("omega blaster", 1), ("gigantic omega", 1), ("gigantic meteor smash", 1),
                  ("broly lariat", 2), ("gigantic lariat", 2),
                  ("gigantic claw", 3), ("gigantic press", 3), ("broly grab", 3),
-                 ("legendary rage", 4), ("berserk broly", 4), ("broly rage", 4)],
+                 ("broly legendary rage", 4), ("berserk broly", 4), ("broly rage", 4)],
         moves: [
             // A green ball from one palm that erases what it hits.
             (name: "eraser cannon", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [
@@ -999,7 +999,7 @@
         kind: Kit,
         names: ["krillin", "kuririn", "krilin", "krillin san", "krillen", "kirilin", "krill in"],
         fx: "chi",
-        shouts: [("destructo disc", 0), ("destructo disk", 0), ("kienzan", 0), ("kien zan", 0), ("destructo disc attack", 0), ("destructor disc", 0),
+        shouts: [("Destructo Disc", 0), ("Destructo Disk", 0), ("Kienzan", 0), ("kien zan", 0), ("destructo disc attack", 0), ("destructor disc", 0),
                  ("destructa disc", 0), ("destruct o disc", 0), ("destructo disc double", 0),
                  ("solar flare", 1), ("taiyoken", 1), ("taiyo ken", 1), ("solar flair", 1), ("solar flare technique", 1), ("taiyouken", 1),
                  ("scattering bullet", 2), ("scatter shot", 2), ("scattering bullets", 2), ("scatter bullet", 2),
@@ -1032,8 +1032,8 @@
         names: ["trunks", "future trunks", "mirai trunks", "trunks briefs", "trunk", "trunks sword"],
         fx: "chi",
         shouts: [("burning attack", 0), ("burning attak", 0), ("burning atack", 0),
-                 ("shining sword attack", 1), ("shining sword", 1), ("sword of hope", 1),
-                 ("heat dome attack", 2), ("heat dome", 2),
+                 ("shining sword attack", 1), ("trunks shining sword", 1), ("trunks sword of hope", 1),
+                 ("heat dome attack", 2), ("trunks heat dome", 2),
                  ("finish buster", 3), ("buster cannon", 3), ("trunks time machine", 4)],
         moves: [
             // The hand-sign flourish, then a fireball.
@@ -1063,7 +1063,7 @@
         names: ["jiren", "jiren the gray", "jiren the grey", "pride trooper jiren", "giren", "gyren"],
         fx: "fire",
         shouts: [("power impact", 0), ("jiren power impact", 0),
-                 ("invisible punch", 1), ("glare punch", 1), ("jiren glare", 1),
+                 ("jiren invisible punch", 1), ("jiren glare punch", 1), ("jiren glare", 1),
                  ("jiren counter", 2), ("infinity counter", 2),
                  ("jiren full power", 3)],
         moves: [
@@ -1088,8 +1088,8 @@
         kind: Kit,
         names: ["beerus", "lord beerus", "bills", "beerus sama", "god of destruction beerus", "birus", "berus"],
         fx: "void",
-        shouts: [("hakai", 0), ("hakaishin", 0), ("ha kai", 0),
-                 ("sphere of destruction", 1), ("hakai ball", 1)],
+        shouts: [("Hakai", 0), ("hakaishin", 0), ("ha kai", 0),
+                 ("Sphere Of Destruction", 1), ("hakai ball", 1)],
         moves: [
             // A glowing hand, a mark on the aimed enemy — a moment later they come apart.
             (name: "hakai", tags: [Ultimate], cooldown: 30.0, cost: 16.0, ops: [
@@ -1106,7 +1106,7 @@
         kind: Kit,
         names: ["vegito", "vegetto", "vegito blue", "super vegito", "vegeto", "vegitto"],
         fx: "chi",
-        shouts: [("final kamehameha", 0), ("final kamehame ha", 0), ("vegito spirit sword", 1), ("ki sword", 1)],
+        shouts: [("final kamehameha", 0), ("final kamehame ha", 0), ("vegito spirit sword", 1), ("vegito ki sword", 1)],
         moves: [
             // Galick Gun's stance and the Kamehameha's hands: a psychic-blue beam.
             (name: "final kamehameha", tags: [Ultimate], cooldown: 18.0, cost: 14.0, ops: [
@@ -1167,8 +1167,8 @@
         kind: Kit,
         names: ["tien", "tien shinhan", "tenshinhan", "ten shin han", "tien shin han", "tenshin han"],
         fx: "chi",
-        shouts: [("tri beam", 0), ("tri-beam", 0), ("kikoho", 0), ("neo tri beam", 0), ("tri beam ha", 0), ("kikohou", 0),
-                 ("tien multi form", 1), ("four witches", 1), ("shishin no ken", 1)],
+        shouts: [("tri beam", 0), ("tri-beam", 0), ("Kikoho", 0), ("neo tri beam", 0), ("tri beam ha", 0), ("kikohou", 0),
+                 ("tien multi form", 1), ("tien four witches", 1), ("shishin no ken", 1)],
         moves: [
             // Hands in a triangle: a square column of force slams down onto the crosshair. It costs you.
             (name: "tri beam", tags: [Ultimate], cooldown: 9.0, cost: 8.0, ops: [
@@ -1190,8 +1190,8 @@
         kind: Kit,
         names: ["yamcha", "yamucha", "yam cha", "yamcha pose"],
         fx: "chi",
-        shouts: [("wolf fang fist", 0), ("rogafufuken", 0), ("wolf fang fist attack", 0), ("wolf fang", 0),
-                 ("spirit ball", 1), ("sokidan", 1), ("sokedan", 1)],
+        shouts: [("Wolf Fang Fist", 0), ("rogafufuken", 0), ("wolf fang fist attack", 0), ("wolf fang", 0),
+                 ("Spirit Ball", 1), ("sokidan", 1), ("sokedan", 1)],
         moves: [
             // A howling flurry of claw strikes as you surge forward.
             (name: "wolf fang fist", tags: [Combo], cooldown: 5.0, cost: 5.0, ops: [
@@ -1239,7 +1239,7 @@
         names: ["luffy", "monkey d luffy", "monkey d. luffy", "straw hat luffy", "strawhat luffy", "luffy senpai", "rufi", "mugiwara",
                 "mugiwara no luffy", "captain luffy", "luffee", "loofy", "lufy", "luffy gear 5", "straw hat"],
         fx: "rubber",
-        shouts: [("gum gum storm", 7), ("gomu gomu no storm", 7), ("gum-gum storm", 7), ("gomu gomu no sutomu", 7)],
+        shouts: [("Gum Gum Storm", 7), ("gomu gomu no storm", 7), ("Gum-Gum Storm", 7), ("gomu gomu no sutomu", 7)],
         moves: [
             (name: "pistol", tags: [Primary], cooldown: 0.6, cost: 2.0, ops: [
                 Shove(range: 8.0, angle: 10.0, damage: 11.0, knockback: 20.0),
@@ -1276,16 +1276,16 @@
         names: ["zoro", "roronoa zoro", "zolo", "roronoa zolo", "pirate hunter zoro", "zoro sensei", "roronoa", "zorro", "zoro juro",
                 "three sword zoro", "santoryu zoro"],
         fx: "wind",
-        shouts: [("oni giri", 0), ("onigiri", 0), ("demon slash", 0), ("three sword style oni giri", 0), ("santoryu oni giri", 0), ("oni-giri", 0),
-                 ("three sword style", 0), ("santoryu", 0), ("santouryu", 0),
-                 ("360 pound phoenix", 1), ("three sixty pound phoenix", 1), ("three hundred sixty pound phoenix", 1), ("sanbyaku rokuju pound ho", 1),
-                 ("pound phoenix", 1), ("360 caliber phoenix", 1), ("three sixty caliber phoenix", 1),
+        shouts: [("Oni Giri", 0), ("onigiri", 0), ("demon slash", 0), ("three sword style oni giri", 0), ("santoryu oni giri", 0), ("Oni-Giri", 0),
+                 ("zoro three sword style", 0), ("zoro santoryu", 0), ("santouryu", 0),
+                 ("360 Pound Phoenix", 1), ("three sixty pound phoenix", 1), ("three hundred sixty pound phoenix", 1), ("sanbyaku rokuju pound ho", 1),
+                 ("zoro pound phoenix", 1), ("zoro 360 caliber phoenix", 1), ("three sixty caliber phoenix", 1),
                  ("asura", 2), ("nine sword style asura", 2), ("kyutoryu asura", 2), ("ashura", 2), ("asura ichibugin", 2), ("kyutoryu", 2),
                  ("nine sword style", 2), ("asura blades drawn", 2),
                  ("lion song", 3), ("lion's song", 3), ("shishi sonson", 3), ("one sword style lion song", 3), ("death lion song", 3),
-                 ("dragon twister", 4), ("tatsumaki", 4), ("three sword style tatsumaki", 4), ("dragon twister zoro", 4),
+                 ("dragon twister", 4), ("zoro tatsumaki", 4), ("three sword style tatsumaki", 4), ("dragon twister zoro", 4),
                  ("purgatory onigiri", 5), ("rengoku onigiri", 5), ("purgatory oni giri", 5),
-                 ("36 pound phoenix", 6), ("thirty six pound phoenix", 6), ("sanjuroku pound ho", 6), ("36 caliber phoenix", 6),
+                 ("36 Pound Phoenix", 6), ("thirty six pound phoenix", 6), ("sanjuroku pound ho", 6), ("zoro 36 caliber phoenix", 6),
                  ("king of hell", 7), ("king of hell three sword style", 7), ("sanzen sekai", 7), ("three thousand worlds", 7)],
         moves: [
             // Three blades crossed, one dash THROUGH them: you come out the other side.
@@ -1447,7 +1447,7 @@
         kind: Kit,
         names: ["whitebeard", "edward newgate", "shirohige", "white beard", "old man whitebeard", "whitebeard pirates captain", "newgate"],
         fx: "earth",
-        shouts: [("bisento sweep", 3), ("bisento", 3), ("whitebeard bisento", 3)],
+        shouts: [("bisento sweep", 3), ("whitebeard bisento", 3)],
         moves: [
             // Punch the AIR: it cracks like glass, and the crack races out ahead of you.
             (name: "quake punch", tags: [Primary], cooldown: 3.0, cost: 7.0, ops: [
@@ -1664,7 +1664,7 @@
         kind: Kit,
         names: ["boa hancock", "hancock", "pirate empress", "the pirate empress", "snake princess"],
         fx: "psychic",
-        shouts: [("love love beam", 0), ("mero mero mellow", 0), ("mero mero beam", 0), ("mellow beam", 0),
+        shouts: [("Love Love Beam", 0), ("mero mero mellow", 0), ("mero mero beam", 0), ("hancock mellow beam", 0),
                  ("slave arrow", 1), ("pistol kiss", 2), ("perfume femur", 3)],
         moves: [
             // A heart from the hands: anyone LOOKING at her (smitten) turns to stone for a moment.
@@ -1692,7 +1692,7 @@
         kind: Kit,
         names: ["doflamingo", "donquixote doflamingo", "doffy", "joker doflamingo", "heavenly yaksha", "dofla mingo"],
         fx: "hardlight",
-        shouts: [("birdcage", 0), ("bird cage", 0), ("torikago", 0), ("string parasite", 2), ("ito parasite", 2),
+        shouts: [("doflamingo birdcage", 0), ("doflamingo bird cage", 0), ("torikago", 0), ("string parasite", 2), ("ito parasite", 2),
                  ("five color string", 3), ("goshikito", 3), ("five colored string", 3),
                  ("string swing", 4), ("sky string", 4)],
         moves: [
@@ -1723,7 +1723,7 @@
         shouts: [("thunderbolt tempo", 0), ("thunder bolt tempo", 0), ("thunder lance tempo", 0), ("zeus breeze tempo", 0),
                  ("mirage tempo", 1),
                  ("cyclone tempo", 2), ("gust sword", 2),
-                 ("clima tact", 3), ("sorcery clima tact", 3)],
+                 ("nami clima tact", 3), ("nami sorcery clima tact", 3)],
         moves: [
             // Build a thundercloud over the crosshair, then let it strike — twice.
             (name: "thunderbolt tempo", tags: [Ultimate], cooldown: 10.0, cost: 8.0, ops: [
@@ -1748,9 +1748,9 @@
         names: ["usopp", "god usopp", "sogeking", "captain usopp", "usop"],
         fx: "fire",
         shouts: [("usopp hammer", 0), ("usopp pound", 0), ("usopp hammer attack", 0),
-                 ("firebird star", 1), ("hi no tori boshi", 1), ("fire bird star", 1),
-                 ("lead star", 2), ("usopp lead star", 2),
-                 ("exploding star", 3), ("kaen boshi", 3), ("flame star", 3),
+                 ("firebird star", 1), ("hi no tori boshi", 1), ("usopp fire bird star", 1),
+                 ("usopp lead star", 2),
+                 ("usopp exploding star", 3), ("kaen boshi", 3), ("usopp flame star", 3),
                  ("usopp's lie", 4)],
         moves: [
             (name: "usopp hammer", tags: [Primary], cooldown: 1.5, cost: 2.0, ops: [Shove(range: 2.8, angle: 40.0, damage: 10.0, knockback: 14.0)]),
@@ -1936,7 +1936,7 @@
         fx: "shadow",
         shouts: [("hollow mask", 2), ("hollowfication", 2), ("hollowfy", 2), ("put on the mask", 2), ("vizard mask", 2), ("visored mask", 2),
                  ("hollow ichigo", 2),
-                 ("cero", 3), ("sero", 3), ("hollow cero", 3),
+                 ("Cero", 3), ("Sero", 3), ("Hollow Cero", 3),
                  ("mugetsu", 4), ("final getsuga tensho", 4), ("saigo no getsuga tensho", 4), ("moon fang heaven piercer final", 4), ("mugetsuu", 4),
                  ("getsuga jujisho", 5), ("getsuga juujishou", 5), ("cross getsuga", 5), ("getsuga cross", 5), ("getsuga jujisho cross", 5)],
         moves: [
@@ -1975,7 +1975,7 @@
         fx: "psychic",
         shouts: [("kyoka suigetsu", 0), ("kyouka suigetsu", 0), ("complete hypnosis", 0), ("shatter kyoka suigetsu", 0), ("kyoka suigetsu shatter", 0),
                  ("kyoka", 0),
-                 ("black coffin", 1), ("kurohitsugi", 1), ("hado 90", 1), ("hado number 90", 1), ("hado ninety", 1), ("hado 90 kurohitsugi", 1),
+                 ("Black Coffin", 1), ("Kurohitsugi", 1), ("Hado 90", 1), ("hado number 90", 1), ("hado ninety", 1), ("Hado 90 Kurohitsugi", 1),
                  ("way of destruction 90", 1),
                  ("hogyoku", 4), ("hougyoku", 4), ("fusion with the hogyoku", 4), ("the hogyoku", 4),
                  ("one finger block", 5), ("aizen finger", 5)],
@@ -2011,12 +2011,12 @@
         kind: Kit,
         names: ["byakuya", "byakuya kuchiki", "kuchiki byakuya", "captain kuchiki", "bya kuya", "byakuia"],
         fx: "paper",
-        shouts: [("senbonzakura", 0), ("scatter senbonzakura", 0), ("sen bon zakura", 0), ("thousand cherry blossoms", 0), ("chire senbonzakura", 0),
+        shouts: [("Senbonzakura", 0), ("scatter senbonzakura", 0), ("sen bon zakura", 0), ("Thousand Cherry Blossoms", 0), ("chire senbonzakura", 0),
                  ("senbon zakura", 0), ("sembonzakura", 0),
-                 ("senbonzakura kageyoshi", 1), ("kageyoshi", 1), ("bankai senbonzakura kageyoshi", 1), ("senbonzakura kageyoshi bankai", 1),
+                 ("Senbonzakura Kageyoshi", 1), ("kageyoshi", 1), ("bankai senbonzakura kageyoshi", 1), ("senbonzakura kageyoshi bankai", 1),
                  ("senka", 2), ("flash blossom", 2),
                  ("gokei", 4), ("senbonzakura gokei", 4), ("scene of slaughter", 4),
-                 ("danku", 5), ("bakudo 81", 5), ("bakudo number 81", 5), ("splitting void", 5)],
+                 ("danku", 5), ("bakudo 81", 5), ("bakudo number 81", 5), ("byakuya splitting void", 5)],
         moves: [
             // The blade scatters into a thousand tiny pink blades: they hunt the crosshair and a storm
             // of petals shreds whoever stands in it.
@@ -2055,7 +2055,7 @@
         fx: "cursed",
         shouts: [("kendo", 0), ("two handed kendo", 0), ("kenpachi kendo", 0), ("two handed slash", 0),
                  ("eyepatch off", 1), ("remove the eyepatch", 1), ("take off the eyepatch", 1), ("kenpachi eyepatch", 1), ("eye patch off", 1),
-                 ("nozarashi", 2), ("drink nozarashi", 2), ("kenpachi bankai", 2),
+                 ("kenpachi nozarashi", 2), ("drink nozarashi", 2), ("kenpachi bankai", 2),
                  ("reiatsu burst", 3), ("kenpachi reiatsu", 3)],
         moves: [
             // Both hands on the hilt — the one time he tries.
@@ -2082,8 +2082,8 @@
         kind: Kit,
         names: ["toshiro", "toshiro hitsugaya", "hitsugaya", "hitsugaya toshiro", "captain hitsugaya", "shiro chan", "toushirou", "toshiro hitsagaya"],
         fx: "ice",
-        shouts: [("hyorinmaru", 0), ("hyourinmaru", 0), ("hyorinmaru dragon", 0),
-                 ("daiguren hyorinmaru", 1), ("daiguren", 1), ("bankai daiguren hyorinmaru", 1),
+        shouts: [("toshiro hyorinmaru", 0), ("toshiro hyourinmaru", 0), ("hyorinmaru dragon", 0),
+                 ("Daiguren Hyorinmaru", 1), ("daiguren", 1), ("bankai daiguren hyorinmaru", 1),
                  ("hyoten hyakkaso", 2), ("hundred flowers prison", 2), ("hyoten hyakkasou", 2),
                  ("ryusenka", 3), ("ryuusenka", 3),
                  ("sennen hyoro", 4), ("thousand year ice prison", 4), ("sennen hyourou", 4)],
@@ -2116,7 +2116,7 @@
         kind: Kit,
         names: ["yoruichi", "yoruichi shihoin", "shihoin yoruichi", "flash goddess", "goddess of flash", "yoruichi san", "yoru ichi"],
         fx: "lightning",
-        shouts: [("shunko", 0), ("shunkou", 0), ("flash war cry", 0), ("shun ko", 0),
+        shouts: [("Shunko", 0), ("shunkou", 0), ("flash war cry", 0), ("shun ko", 0),
                  ("utsusemi", 1), ("utsusemi afterimage", 1),
                  ("raiju senpu", 2), ("raiju senpu kaku", 2), ("shunko raiju", 2), ("black cat form", 3), ("yoruichi cat", 3),
                  ("hakuda", 4), ("hakuda barrage", 4)],
@@ -2146,7 +2146,7 @@
         fx: "ice",
         shouts: [("sode no shirayuki", 0), ("dance sode no shirayuki", 0), ("some no mai tsukishiro", 0), ("tsukishiro", 0),
                  ("tsugi no mai hakuren", 1), ("hakuren", 1),
-                 ("rikujokoro", 2), ("six rod light restraint", 2), ("bakudo 61", 2), ("bakudo number 61", 2), ("six rods prison of light", 2),
+                 ("Rikujokoro", 2), ("six rod light restraint", 2), ("bakudo 61", 2), ("bakudo number 61", 2), ("six rods prison of light", 2),
                  ("hakka no togame", 3), ("bankai hakka no togame", 3)],
         moves: [
             // First dance: a white circle on the ground at the crosshair — everything inside freezes
@@ -2176,7 +2176,7 @@
         names: ["ulquiorra", "ulquiorra cifer", "ulquiorra schiffer", "ulqui", "ulquiorra cifa"],
         fx: "void",
         shouts: [("lanza del relampago", 0), ("lanza del relámpago", 0),
-                 ("cero oscuras", 1), ("black cero", 1),
+                 ("Cero Oscuras", 1), ("black cero", 1),
                  ("sonido", 2), ("sonido step", 2),
                  ("segunda etapa", 3), ("resurreccion segunda etapa", 3)],
         moves: [
@@ -2201,8 +2201,8 @@
         kind: Kit,
         names: ["grimmjow", "grimmjow jaegerjaquez", "grimmjow jeagerjaques", "grimm jow", "grimjow"],
         fx: "wind",
-        shouts: [("desgarron", 0), ("des garron", 0), ("grimmjow claws", 0),
-                 ("gran rey cero", 1), ("gran ray cero", 1), ("grand rey cero", 1),
+        shouts: [("Desgarron", 0), ("des garron", 0), ("grimmjow claws", 0),
+                 ("Gran Rey Cero", 1), ("gran ray cero", 1), ("grand rey cero", 1),
                  ("pantera", 2), ("grind pantera", 2),
                  ("garra de la pantera", 3)],
         moves: [
@@ -2230,8 +2230,8 @@
         kind: Kit,
         names: ["urahara", "kisuke urahara", "urahara kisuke", "mr hat and clogs", "hat and clogs", "ura hara"],
         fx: "blood",
-        shouts: [("nake benihime", 0), ("benihime", 0), ("cry benihime", 0), ("scream benihime", 0),
-                 ("chikasumi no tate", 1), ("blood mist shield", 1),
+        shouts: [("nake benihime", 0), ("urahara benihime", 0), ("cry benihime", 0), ("scream benihime", 0),
+                 ("chikasumi no tate", 1), ("urahara blood mist shield", 1),
                  ("kannonbiraki benihime aratame", 2), ("benihime aratame", 2),
                  ("shibari benihime", 3)],
         moves: [
@@ -2314,7 +2314,7 @@
         kind: Kit,
         names: ["dio", "dio brando", "dio sama", "lord dio", "dio over heaven", "deeo", "d i o"],
         fx: "holy",
-        shouts: [("dio knives", 2), ("knife throw dio", 2), ("time stop knives", 2), ("vaporization freezing", 3), ("vaporization freezing technique", 3), ("freeze touch", 3), ("space ripper stingy eyes", 4), ("space ripper stingy eye", 4), ("space ripper", 4), ("wryyy", 5), ("wryyyy", 5)],
+        shouts: [("dio knives", 2), ("knife throw dio", 2), ("dio time stop knives", 2), ("vaporization freezing", 3), ("vaporization freezing technique", 3), ("freeze touch", 3), ("space ripper stingy eyes", 4), ("space ripper stingy eye", 4), ("space ripper", 4), ("wryyy", 5), ("wryyyy", 5)],
         moves: [
             (name: "muda rush", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
@@ -2377,7 +2377,7 @@
         kind: Kit,
         names: ["josuke", "josuke higashikata", "higashikata josuke", "jojo josuke", "jousuke", "josuke hijashikata"],
         fx: "crystal",
-        shouts: [("hair rage", 3)],
+        shouts: [("josuke hair rage", 3)],
         moves: [
             (name: "dora rush", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
@@ -2459,7 +2459,7 @@
         fx: "holy",
         shouts: [("sunlight yellow overdrive", 0), ("sunlight yellow", 0), ("yamabuki overdrive", 0), ("sunlight yellow overdrive ho", 0),
                  ("scarlet overdrive", 1), ("scarlet overdrive fire", 1),
-                 ("zoom punch", 2), ("zoom punch hamon", 2)],
+                 ("Zoom Punch", 2), ("zoom punch hamon", 2)],
         moves: [
             // A ripple of sunlight-yellow hamon hammered in with a rapid flurry, the last blow blinding.
             (name: "sunlight yellow overdrive", tags: [Ultimate], cooldown: 10.0, cost: 8.0, ops: [
@@ -2503,7 +2503,7 @@
         kind: Kit,
         names: ["diavolo", "the boss", "passione boss", "diavolo king crimson", "vinegar doppio", "doppio"],
         fx: "blood",
-        shouts: [("blood blind", 3), ("blood eye", 3)],
+        shouts: [("blood blind", 3), ("diavolo blood eye", 3)],
         moves: [
             // Time is erased: for a moment nothing can touch you and you step somewhere else, leaving
             // a flicker behind. ends: repositioned, still intangible for a beat — strike first.
@@ -2553,7 +2553,7 @@
         names: ["orochimaru", "orochimaru sama", "lord orochimaru", "oro chimaru", "orochimaru sannin"],
         fx: "poison",
         shouts: [("striking shadow snakes", 0), ("hidden shadow snake hands", 0), ("sen'eijashu", 0), ("senei jashu", 0), ("shadow snake hands", 0),
-                 ("summon manda", 1), ("manda", 1), ("kuchiyose manda", 1),
+                 ("summon manda", 1), ("orochimaru manda", 1), ("kuchiyose manda", 1),
                  ("sword of kusanagi", 2), ("kusanagi sword", 2),
                  ("five pronged seal", 3), ("five elements seal", 3), ("gogyo fuin", 3)],
         moves: [
@@ -2584,7 +2584,7 @@
         shouts: [("heavenly foot of pain", 0), ("tsutenkyaku", 0), ("heaven kick of pain", 0),
                  ("tsunade punch", 1), ("chakra enhanced strength", 1), ("okasho", 1),
                  ("creation rebirth", 2), ("sozo saisei", 2), ("byakugo creation rebirth", 2),
-                 ("summon katsuyu", 3), ("katsuyu", 3)],
+                 ("summon katsuyu", 3), ("tsunade katsuyu", 3)],
         moves: [
             // A leap and a heel drop that splits the ground wide.
             (name: "heavenly foot of pain", tags: [Ultimate], cooldown: 9.0, cost: 8.0, ops: [
@@ -2608,7 +2608,7 @@
         kind: Kit,
         names: ["deidara", "deidara akatsuki", "dei dara", "deidara senpai"],
         fx: "fire",
-        shouts: [("clay birds", 0), ("clay spiders", 0), ("deidara c1", 0), ("c3 bomb", 2), ("deidara katsu", 5), ("c zero self destruct", 4),
+        shouts: [("deidara clay birds", 0), ("deidara clay spiders", 0), ("deidara c1", 0), ("c3 bomb", 2), ("deidara katsu", 5), ("c zero self destruct", 4),
                  ("c2 dragon", 1), ("clay dragon", 1), ("c4 karura", 3)],
         moves: [
             // Little clay birds that home in and pop.
@@ -2643,8 +2643,8 @@
         kind: Kit,
         names: ["kisame", "kisame hoshigaki", "hoshigaki kisame"],
         fx: "water",
-        shouts: [("samehada", 0), ("samehada swing", 0),
-                 ("water shark bomb", 1), ("suikodan", 1), ("water shark", 1), ("thousand feeding sharks", 1),
+        shouts: [("kisame samehada", 0), ("samehada swing", 0),
+                 ("kisame water shark bomb", 1), ("suikodan", 1), ("kisame water shark", 1), ("thousand feeding sharks", 1),
                  ("water prison shark dance", 2), ("suiro same odori", 2)],
         moves: [
             // The sword that eats chakra: a heavy swing that drinks their powers for a beat.
@@ -2668,7 +2668,7 @@
         kind: Kit,
         names: ["hashirama", "hashirama senju", "senju hashirama", "first hokage", "the first hokage", "shodai hokage", "god of shinobi"],
         fx: "earth",
-        shouts: [("wood release", 0), ("wood style", 0), ("mokuton", 0), ("wood style wood human", 1), ("wood golem", 1), ("mokujin", 1),
+        shouts: [("wood release", 0), ("wood style", 0), ("Mokuton", 0), ("wood style wood human", 1), ("wood golem", 1), ("mokujin", 1),
                  ("gate of the great god", 2), ("sage art gate of the great god", 2), ("dai kamon", 2),
                  ("true several thousand hands", 3), ("shinsu senju", 3), ("thousand armed buddha", 3)],
         moves: [
@@ -2696,7 +2696,7 @@
         kind: Kit,
         names: ["hit", "hit the assassin", "hit dbs", "legendary assassin hit", "universe 6 hit"],
         fx: "psychic",
-        shouts: [("time skip hit", 0), ("hit time skip", 0), ("time cage", 1), ("hit time cage", 1), ("flash fist crush", 2), ("hit flash fist", 2)],
+        shouts: [("time skip hit", 0), ("hit time skip", 0), ("hit time cage", 1), ("flash fist crush", 2), ("hit flash fist", 2)],
         moves: [
             // Skip 0.5 s ahead: the world doesn't see you move.
             (name: "time skip", tags: [Movement, Defense], cooldown: 4.0, cost: 5.0, ops: [
@@ -2719,8 +2719,8 @@
         kind: Kit,
         names: ["goku black", "black goku", "zamasu", "goku black rose", "super saiyan rose", "fused zamasu"],
         fx: "psychic",
-        shouts: [("divine lasso", 0), ("lasso of divine punishment", 0), ("black kamehameha", 1), ("black power ball", 2),
-                 ("holy wrath", 3), ("blades of judgment", 3), ("sword of light black", 4)],
+        shouts: [("divine lasso", 0), ("lasso of divine punishment", 0), ("black kamehameha", 1), ("Black Power Ball", 2),
+                 ("goku black holy wrath", 3), ("blades of judgment", 3), ("sword of light black", 4)],
         moves: [
             // A pink scythe of energy flung in a crescent.
             (name: "divine lasso", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
@@ -2748,7 +2748,7 @@
         kind: Kit,
         names: ["chopper", "tony tony chopper", "tony chopper", "cotton candy lover chopper"],
         fx: "chi",
-        shouts: [("rumble ball", 0), ("ramburu boru", 0), ("heavy point", 1), ("kokutei cross", 2), ("hoof print", 2), ("kokutei roseo", 2),
+        shouts: [("Rumble Ball", 0), ("ramburu boru", 0), ("heavy point", 1), ("kokutei cross", 2), ("hoof print", 2), ("kokutei roseo", 2),
                  ("monster point", 3), ("chopper medicine", 4), ("doctor chopper", 4)],
         moves: [
             // One rumble ball: the transformations get faster and stronger for a while.
@@ -2806,7 +2806,7 @@
         kind: Kit,
         names: ["big mom", "charlotte linlin", "linlin", "big mama"],
         fx: "spirit",
-        shouts: [("soul pocus", 0), ("zeus thunder", 2), ("prometheus big mom", 1), ("big mom napoleon", 3), ("big mom maser", 4)],
+        shouts: [("soul pocus", 0), ("big mom zeus thunder", 2), ("prometheus big mom", 1), ("big mom napoleon", 3), ("big mom maser", 4)],
         moves: [
             // She asks "life or death?" — whoever's looking at her and afraid loses a chunk of life.
             (name: "soul pocus", tags: [Ultimate], cooldown: 20.0, cost: 10.0, ops: [
@@ -2835,7 +2835,7 @@
         kind: Kit,
         names: ["gin", "gin ichimaru", "ichimaru gin", "captain ichimaru"],
         fx: "rigid",
-        shouts: [("shoot to kill shinso", 0), ("ikorose shinso", 0), ("shinso", 0), ("butou renjin", 1), ("buto renjin", 1),
+        shouts: [("shoot to kill shinso", 0), ("ikorose shinso", 0), ("gin shinso", 0), ("butou renjin", 1), ("buto renjin", 1),
                  ("kamishini no yari", 2), ("god slaying spear", 2), ("kill him kamishini no yari", 2)],
         moves: [
             // The blade extends in a blink, straight through them, and snaps back.
@@ -2883,7 +2883,7 @@
         kind: Kit,
         names: ["kakyoin", "noriaki kakyoin", "kakyoin noriaki", "kakyoin tenmei"],
         fx: "hardlight",
-        shouts: [("twenty meter radius emerald splash", 0), ("20 meter emerald splash", 0), ("emerald splash kakyoin", 0),
+        shouts: [("twenty meter radius emerald splash", 0), ("kakyoin 20 meter emerald splash", 0), ("emerald splash kakyoin", 0),
                  ("hierophant barrier", 1), ("hierophant net", 1), ("rero rero", 2), ("cherry lick", 2)],
         moves: [
             (name: "emerald splash", tags: [Primary], cooldown: 2.5, cost: 4.0, ops: [
@@ -2953,7 +2953,7 @@
         names: ["johnny", "johnny joestar", "jojo johnny", "johnny joestar tusk"],
         fx: "psychic",
         shouts: [("tusk act 1", 0), ("tusk act 2", 1), ("golden rectangle nail", 1),
-                 ("tusk act 3", 2), ("tusk act 4", 3), ("infinite rotation", 3)],
+                 ("tusk act 3", 2), ("Tusk Act 4", 3), ("Infinite Rotation", 3)],
         moves: [
             // Spinning fingernails fired like bullets.
             (name: "tusk act 1", tags: [Primary], cooldown: 1.5, cost: 2.0, ops: [
@@ -3103,7 +3103,7 @@
         names: ["kido", "kidou", "demon arts", "kido spells", "soul reaper kido", "shinigami kido", "kido magic", "kidoh", "kee doe"],
         fx: "holy",
         ascend: Some((color: Some((0.95, 0.85, 0.55)), intensity: 0.6, title: Some("KIDO"), style: Calm, linger: false)),
-        shouts: [("hado 31", 0), ("hado number 31", 0), ("shakkaho", 0), ("red flame cannon", 0), ("way of destruction 31", 0), ("hado 31 shakkaho", 0),
+        shouts: [("hado 31", 0), ("hado number 31", 0), ("Shakkaho", 0), ("red flame cannon", 0), ("way of destruction 31", 0), ("hado 31 shakkaho", 0),
                  ("shakkahou", 0),
                  ("hado 33", 1), ("hado number 33", 1), ("sokatsui", 1), ("soukatsui", 1), ("blue fire crash down", 1), ("way of destruction 33", 1),
                  ("byakurai", 2), ("hado 4", 2), ("hado number 4", 2), ("way of destruction 4", 2),
@@ -3151,7 +3151,7 @@
                  ("substitution technique", 1), ("log jutsu", 1), ("body replacement technique", 1),
                  ("water dragon jutsu", 2), ("water style water dragon", 2), ("suiton suiryudan", 2), ("water dragon bullet", 2),
                  ("water release water dragon", 2), ("suiryudan no jutsu", 2), ("water style water dragon bullet", 2),
-                 ("earth style mud wall", 3), ("doryuheki", 3), ("earth wall jutsu", 3), ("earth release earth wall", 3), ("earth style wall", 3),
+                 ("earth style mud wall", 3), ("Doryuheki", 3), ("earth wall jutsu", 3), ("earth release earth wall", 3), ("earth style wall", 3),
                  ("great breakthrough", 4), ("wind style great breakthrough", 4), ("futon daitoppa", 4), ("daitoppa", 4), ("wind release great breakthrough", 4),
                  ("hidden mist jutsu", 5), ("kirigakure no jutsu", 5), ("hiding in mist jutsu", 5), ("hidden mist technique", 5),
                  ("shadow shuriken jutsu", 6), ("kage shuriken no jutsu", 6), ("shuriken shadow clone jutsu", 6), ("shuriken kage bunshin", 6),

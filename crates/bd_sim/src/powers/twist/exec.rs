@@ -1,25 +1,27 @@
 //! Firing a twisted / fused move (host-authoritative, deterministic).
 //!
-//! `ToolStep::Twist` → [`World::fire_twist`]: the host rebuilds the move from the step (move refs
-//! + modifier ids — nothing numeric comes from the client), validates it like a borrowed move
-//! (alive, powers on, not stunned / locked, the base moves' cooldowns), prices it ([`price`]), runs
-//! shot 0 (every simultaneous copy along its fan yaw), pays, cools the BASE move(s) and emits
-//! `PowerEvent::Fired` (the base move ref) + `OpEvent::Twisted` (what it became, for
-//! presentation). Further shots / the fused "after" stage are queued at the FRONT of the player's
-//! toolbox queue as host-only follow-ups (`shot > 0`, free), each firing when the previous one's
-//! window ends — a new command cuts them short like any chain.
+//! `ToolStep::Twist` → [`World::fire_twist`]: the host rebuilds the move from the step (move refs /
+//! a composed spec / a famous cast + modifier bytes — nothing numeric comes from the client),
+//! validates it like a borrowed move (alive, powers on, not stunned / locked, the base moves'
+//! cooldowns), prices it ([`price`]), resolves a described move's TARGET (VERB GRAMMAR's rules:
+//! "homing punch at ethan" swings at Ethan), runs shot 0 (every simultaneous copy along its fan
+//! yaw), pays, cools the BASE move(s) and emits `OpEvent::Twisted` (what it became, for
+//! presentation) then `PowerEvent::Fired` (the base ref). Further shots / the fused "after" stage are
+//! queued at the FRONT of the player's toolbox queue as host-only follow-ups (`shot > 0`, free), each
+//! firing when the previous one's window ends — a new command cuts them short like any chain.
 
 use std::sync::OnceLock;
 
 use bd_core::mechanics::{Element, Recipe};
 use bd_core::shape::ShapeSpec;
-use bd_core::{Quat, Vec3};
+use bd_core::{Quat, Vec3, MAX_PLAYERS};
 
 use super::fuse::fuse;
 use super::ops::{gather, twist_gathered, twist_recipe, Twisted};
-use super::{ModTable, TwistBase, TwistSide, TwistStep};
+use super::{split_composed, BaseRef, ModTable, TwistBase, TwistSide, TwistStep};
 use crate::events::{CastError, GameEvent};
-use crate::powers::chain::{self, BorrowCd, FireHow, OpKind, ToolStep, Toolbox, LAND_WAIT_MAX};
+use crate::powers::chain::{self, FireHow, OpKind, ToolStep, LAND_WAIT_MAX};
+use crate::powers::compose::{self, ComposedMove, Forced, Target};
 use crate::powers::ops::OpEvent;
 use crate::powers::toolbox::MoveRef;
 use crate::powers::{effects, move_sel, MoveDef, MoveOp, PlayerPower, PowerDef, PowerError, PowerEvent, PowerTable, RecipeDef};
@@ -36,16 +38,30 @@ pub struct CastPlan {
     pub signature: Option<SignatureCast>,
 }
 
+/// A cooldown / staleness slot a twisted move uses and how its `Fired` names it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Key {
+    /// `Toolbox::cds` key: a base move's `MoveRef::pack() + 1`, or a described move's `cd_key()`.
+    pub raw: u32,
+    /// The ref `Fired` carries (power 0xFFFF — VERB GRAMMAR's `COMPOSED_REF` — for a described move).
+    pub mv: MoveRef,
+    pub how: FireHow,
+}
+
 /// Everything the host needs to fire a twisted move.
 #[derive(Clone, Debug)]
 pub struct Plan {
     pub tw: Twisted,
-    /// The power whose move it is (ops that need one; a synthetic one for casts).
+    /// The power whose move it is (ops that need one; a stand-in for casts / described moves).
     pub def: &'static PowerDef,
     /// Base moves whose cooldown / staleness slot it uses (A, then B for a fusion).
-    pub keys: [Option<(MoveRef, bool)>; 2],
+    pub keys: [Option<Key>; 2],
     /// A lone famous cast (fired through the cast pipeline with its full recipe).
     pub cast: Option<CastPlan>,
+    /// A described move's explicit target ("at ethan", "him", "it"), resolved as it fires.
+    pub target: Option<Target>,
+    /// What the event names as the bases.
+    pub refs: [BaseRef; 2],
 }
 
 impl Plan {
@@ -53,12 +69,6 @@ impl Plan {
     pub fn stages(&self) -> usize {
         self.tw.shots.len() + self.tw.after.is_some() as usize
     }
-}
-
-/// A stand-in power for moves that aren't a table power's (a famous cast): no transform, nothing.
-fn synthetic_power() -> &'static PowerDef {
-    static P: OnceLock<PowerDef> = OnceLock::new();
-    P.get_or_init(|| ron::from_str::<PowerDef>(r#"(id: "twisted_cast", name: "Twisted Cast", kind: Technique)"#).expect("static stand-in power parses"))
 }
 
 /// `Recipe` → the data form ops carry (drops the icon model: fused casts are procedural).
@@ -79,7 +89,7 @@ pub fn recipe_def(r: &Recipe) -> RecipeDef {
             d.payload = None;
             Box::new(d)
         }),
-        costume: false,
+        ..Default::default()
     }
 }
 
@@ -133,28 +143,37 @@ fn yawed(dir: Vec3, deg: f32) -> Vec3 {
     (Quat::from_rotation_y(deg.to_radians()) * dir).normalize_or(dir)
 }
 
-fn cd_slot(tb: &mut Toolbox, mv: MoveRef) -> &mut BorrowCd {
-    let k = mv.pack() + 1;
-    if let Some(i) = tb.cds.iter().position(|c| c.mv == k) {
-        return &mut tb.cds[i];
+/// A side's move: (power, move, key, a cast plan, a described target, the event ref, modifier bytes
+/// the base carried itself).
+type SideMove = (Option<&'static PowerDef>, MoveDef, Option<Key>, Option<CastPlan>, Option<Target>, BaseRef, Vec<u8>);
+
+/// A twisted move built from nothing but data (presentation, tools): the twist of `a` (fused with
+/// `b`), each with its own modifier bytes, then the whole's. Deterministic.
+pub fn build(t: &ModTable, a: (&MoveDef, &[u8]), b: Option<(&MoveDef, &[u8])>, whole: &[u8]) -> Twisted {
+    let mut tw = twist_gathered(t, a.0, &gather(t, a.1));
+    if let Some((db, mb)) = b {
+        let twb = twist_gathered(t, db, &gather(t, mb));
+        tw = fuse(t, &tw, &twb);
     }
-    let i = tb.cds.iter().position(|c| c.mv == 0).unwrap_or_else(|| {
-        let mut best = 0;
-        for (j, c) in tb.cds.iter().enumerate() {
-            let b = &tb.cds[best];
-            if c.left < b.left || (c.left == b.left && c.since > b.since) {
-                best = j;
-            }
-        }
-        best
-    });
-    tb.cds[i] = BorrowCd { mv: k, ..Default::default() };
-    &mut tb.cds[i]
+    if !whole.is_empty() {
+        let w = twist_gathered(t, &tw.def, &gather(t, whole));
+        let keep = tw;
+        tw = Twisted {
+            after: keep.after,
+            how: keep.how,
+            merge: keep.merge.or(w.merge),
+            tier: keep.tier.saturating_add(w.tier),
+            sparks: keep.sparks.saturating_add(w.sparks),
+            size: keep.size * w.size,
+            element: w.element.or(keep.element),
+            ..w
+        };
+    }
+    tw
 }
 
 impl World {
-    /// One side's move: (power, move, key).
-    fn twist_side(&self, i: usize, s: &TwistSide) -> Result<(Option<&'static PowerDef>, MoveDef, Option<(MoveRef, bool)>, Option<CastPlan>), PowerError> {
+    fn twist_side(&self, i: usize, s: &TwistSide) -> Result<SideMove, PowerError> {
         match &s.base {
             TwistBase::Move { mv, kit } => {
                 let table = PowerTable::get();
@@ -165,18 +184,29 @@ impl World {
                 if !crate::powers::toolbox::borrowable(m) {
                     return Err(PowerError::NoSuchMove);
                 }
-                Ok((Some(def), m.clone(), Some((*mv, *kit)), None))
+                let key = Key { raw: mv.pack() + 1, mv: *mv, how: if *kit { FireHow::Kit } else { FireHow::Borrowed } };
+                Ok((Some(def), m.clone(), Some(key), None, None, BaseRef::Move(*mv), vec![]))
             }
             TwistBase::Held(sel) => {
                 let Some((r, def, m)) = held_move(&self.players[i].power, *sel) else { return Err(PowerError::NoSuchMove) };
                 if !crate::powers::toolbox::borrowable(m) {
                     return Err(PowerError::NoSuchMove);
                 }
-                Ok((Some(def), m.clone(), Some((r, false)), None))
+                Ok((Some(def), m.clone(), Some(Key { raw: r.pack() + 1, mv: r, how: FireHow::Borrowed }), None, None, BaseRef::Move(r), vec![]))
             }
             TwistBase::Cast { recipe, shape, signature } => {
                 let sig = signature.map(|s| s.sanitized());
-                Ok((None, cast_move(recipe, sig), None, Some(CastPlan { recipe: (**recipe).clone(), shape: shape.clone(), signature: sig })))
+                Ok((None, cast_move(recipe, sig), None, Some(CastPlan { recipe: (**recipe).clone(), shape: shape.clone(), signature: sig }), None, BaseRef::None, vec![]))
+            }
+            TwistBase::Composed(spec) => {
+                // its own modifier bytes belong to the twist: applied once
+                let (spec, extra) = split_composed(*spec);
+                let Some(spec) = spec.sanitized() else { return Err(PowerError::NoSuchMove) };
+                let Some(m) = spec.expand() else { return Err(PowerError::NoSuchMove) };
+                // compose::exec::COMPOSED_REF (power 0xFFFF never resolves: presentation reads the twist)
+                let key = Key { raw: spec.cd_key(), mv: MoveRef::new(u16::MAX, 0, 0), how: FireHow::Composed };
+                let target = (spec.target != Target::Aim).then_some(spec.target);
+                Ok((Some(compose::composed_power()), m, Some(key), None, target, BaseRef::Composed(spec), extra))
             }
         }
     }
@@ -184,45 +214,37 @@ impl World {
     /// Rebuild the plan of a twist step (deterministic: every shot rebuilds the same plan).
     pub fn twist_plan(&self, i: usize, step: &TwistStep) -> Result<Plan, PowerError> {
         let t = ModTable::shipped();
-        let (da, ma, ka, ca) = self.twist_side(i, &step.a)?;
-        let ga = gather(t, &step.a.mods);
-        let mut tw = twist_gathered(t, &ma, &ga);
+        let (da, ma, ka, ca, ta, ra, xa) = self.twist_side(i, &step.a)?;
+        let mods_a: Vec<u8> = xa.into_iter().chain(step.a.mods.iter().copied()).take(super::MAX_MODS).collect();
+        let ga = gather(t, &mods_a);
         let mut cast = ca.map(|mut c| {
             twist_recipe(&mut c.recipe, &ga);
             c
         });
         let mut keys = [ka, None];
+        let mut refs = [ra, BaseRef::None];
         let mut def = da;
-        if let Some(b) = &step.b {
-            let (db, mb, kb, _) = self.twist_side(i, b)?;
-            let gb = gather(t, &b.mods);
-            let twb = twist_gathered(t, &mb, &gb);
-            tw = fuse(t, &tw, &twb);
-            keys[1] = kb.filter(|k| Some(k.0) != keys[0].map(|x| x.0));
-            def = def.or(db);
-            // a fused cast is a fused move (its orb is procedural)
-            cast = None;
-        }
-        if !step.mods.is_empty() {
-            let g = gather(t, &step.mods);
-            let whole = twist_gathered(t, &tw.def, &g);
-            // keep the fusion's structure, take the whole-twist's ops / look / copies
-            let keep = tw.clone();
-            tw = Twisted {
-                after: keep.after,
-                how: keep.how,
-                merge: keep.merge.or(whole.merge),
-                tier: keep.tier.saturating_add(whole.tier),
-                sparks: keep.sparks.saturating_add(whole.sparks),
-                size: keep.size * whole.size,
-                element: whole.element.or(keep.element),
-                ..whole
-            };
-            if let Some(c) = cast.as_mut() {
-                twist_recipe(&mut c.recipe, &g);
+        let mut target = ta;
+        let tw = match &step.b {
+            None => build(t, (&ma, &mods_a), None, &step.mods),
+            Some(b) => {
+                let (db, mb, kb, _, tb, rb, xb) = self.twist_side(i, b)?;
+                let mods_b: Vec<u8> = xb.into_iter().chain(b.mods.iter().copied()).take(super::MAX_MODS).collect();
+                keys[1] = kb.filter(|k| Some(k.raw) != keys[0].map(|x| x.raw));
+                refs[1] = rb;
+                def = def.or(db);
+                target = target.or(tb);
+                // a fused cast is a fused move (its orb is procedural)
+                cast = None;
+                build(t, (&ma, &mods_a), Some((&mb, &mods_b)), &step.mods)
             }
+        };
+        if !step.mods.is_empty()
+            && let Some(c) = cast.as_mut()
+        {
+            twist_recipe(&mut c.recipe, &gather(t, &step.mods));
         }
-        Ok(Plan { tw, def: def.unwrap_or_else(synthetic_power), keys, cast })
+        Ok(Plan { tw, def: def.unwrap_or_else(compose::composed_power), keys, cast, target, refs })
     }
 
     /// Fire a twisted move (see the module docs).
@@ -252,8 +274,8 @@ impl World {
             let tb = &self.players[i].power.toolbox;
             let mut uses = 0u32;
             for (k, key) in plan.keys.iter().enumerate() {
-                if let Some((m, _)) = key
-                    && let Some(c) = tb.cd_of(*m)
+                if let Some(key) = key
+                    && let Some(c) = tb.cd_of_key(key.raw)
                 {
                     if c.left > 0.0 {
                         return Err(PowerError::Cooldown);
@@ -274,24 +296,49 @@ impl World {
             }
         }
         let from = self.players[i].mv.pos;
-        let (eye, look) = match aim {
+        let (eye, mut look) = match aim {
             Some(a) => self.resolve_aim(i, &a),
             None => self.eye_look(i),
         };
+        // ---- a described move's target: every copy swings at it (VERB GRAMMAR's rules)
+        let forced = plan.target.and_then(|tg| self.compose_resolve(i, tg));
+        if let Some(pt) = forced.and_then(|f| self.forced_point(f)) {
+            let d = pt - eye;
+            if d.length_squared() > 0.01 {
+                look = d.normalize();
+            }
+        }
+        if i < MAX_PLAYERS && plan.target.is_some() {
+            let m = &mut self.powers.ops.compose[i];
+            if m.owner != Some(player) {
+                *m = compose::ComposeMemo { owner: Some(player), ..Default::default() };
+            }
+            m.now = forced;
+        }
         // ---- run this stage
         let r = if stage < plan.tw.shots.len() {
             self.twist_shot(i, &plan, stage, eye, look)
         } else {
             self.twist_after(i, &plan, eye, look)
         };
+        if i < MAX_PLAYERS && plan.target.is_some() {
+            self.powers.ops.compose[i].now = None;
+        }
         r?;
+        // remember who / what it went for ("him" next time, `Same` in a chain)
+        if i < MAX_PLAYERS && matches!(forced, Some(Forced::Player(_) | Forced::Construct(_))) {
+            let tick = self.tick;
+            let m = &mut self.powers.ops.compose[i];
+            m.last = forced;
+            m.last_tick = tick;
+        }
         if first {
             let cd = plan.tw.def.cooldown * effects::cooldown_mult(&self.players[i].power);
             let p = &mut self.players[i];
             p.willpower = (p.willpower - cost).max(0.0);
             p.willpower = (p.willpower - surcharge).max(0.0);
-            for (m, _) in plan.keys.iter().flatten() {
-                let slot = cd_slot(&mut p.power.toolbox, *m);
+            for key in plan.keys.iter().flatten() {
+                let slot = p.power.toolbox.slot_for_key(key.raw);
                 let repeat = slot.since <= window && slot.left <= 0.0 && slot.full > 0.0;
                 slot.uses = if repeat { slot.uses.saturating_add(1) } else { 1 };
                 slot.left = cd;
@@ -302,23 +349,19 @@ impl World {
             let fired_step = self.players[i].power.toolbox.fired;
             let element = plan.tw.element.unwrap_or_else(|| super::ops::element_of(&plan.tw.def));
             let mut mods = [0u8; 3 * super::MAX_MODS];
+            let (xa, xb) = (composed_mods(&step.a), step.b.as_ref().map(composed_mods).unwrap_or_default());
             let empty: Vec<u8> = Vec::new();
-            let groups = [&step.a.mods, step.b.as_ref().map_or(&empty, |b| &b.mods), &step.mods];
-            for (g, list) in groups.iter().enumerate() {
+            let ga: Vec<u8> = xa.iter().chain(step.a.mods.iter()).copied().collect();
+            let gb: Vec<u8> = xb.iter().chain(step.b.as_ref().map_or(&empty, |b| &b.mods).iter()).copied().collect();
+            for (g, list) in [&ga, &gb, &step.mods].iter().enumerate() {
                 for (k, n) in list.iter().take(super::MAX_MODS).enumerate() {
                     mods[g * super::MAX_MODS + k] = *n;
                 }
             }
-            let side_ref = |s: &TwistSide| match &s.base {
-                TwistBase::Move { mv, .. } => Some(*mv),
-                TwistBase::Held(sel) => held_move(&self.players[i].power, *sel).map(|h| h.0),
-                TwistBase::Cast { .. } => None,
-            };
-            let (ra, rb) = (side_ref(&step.a), step.b.as_ref().and_then(side_ref));
             self.op_event(OpEvent::Twisted {
                 player,
-                a: ra,
-                b: rb,
+                a: plan.refs[0],
+                b: plan.refs[1],
                 mods,
                 title: plan.tw.title.clone(),
                 element,
@@ -328,11 +371,10 @@ impl World {
                 merge: plan.tw.merge.map(|(a, b)| [a, b]),
             });
             // `Fired` right AFTER `Twisted`: presentation reads the twist, then plays the beat
-            if let Some((mr, kit)) = plan.keys[0] {
-                let how = if kit { FireHow::Kit } else { FireHow::Borrowed };
+            if let Some(key) = plan.keys[0] {
                 let op = plan.tw.def.ops.iter().find(|o| !matches!(o, MoveOp::Transform | MoveOp::Tier(_))).map_or(OpKind::Other, chain::op_kind);
                 let sparks = ((cost + surcharge) / self.cfg.rules.segment_size()).round() as u8;
-                self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: mr, how, op, element, from, to, dir: look, step: fired_step, sparks }));
+                self.inject_event(GameEvent::Power(PowerEvent::Fired { player, mv: key.mv, how: key.how, op, element, from, to, dir: look, step: fired_step, sparks }));
             }
         }
         // ---- the next stage (host-only follow-up at the front of the queue)
@@ -436,15 +478,32 @@ impl World {
     }
 }
 
+/// The modifier bytes a side's composed base carried itself (moved to the twist).
+fn composed_mods(s: &TwistSide) -> Vec<u8> {
+    match &s.base {
+        TwistBase::Composed(spec) => split_composed(*spec).1,
+        _ => vec![],
+    }
+}
+
+/// A base ref's untwisted move (presentation / tools).
+pub fn base_move(r: BaseRef) -> Option<MoveDef> {
+    match r {
+        BaseRef::None => None,
+        BaseRef::Move(m) => m.resolve(PowerTable::get()).map(|(_, d)| d.clone()),
+        BaseRef::Composed(spec) => split_composed(spec).0.sanitized().and_then(|s| s.expand()),
+    }
+}
+
 /// Presentation: the twisted move a `Twisted` event names, as a `&'static MoveDef` (built once per
 /// distinct twist and kept; at most `MAX_INTERNED`, then `None` = present the base move).
-pub fn interned(a: MoveRef, b: Option<MoveRef>, mods: &[u8; 3 * super::MAX_MODS]) -> Option<&'static MoveDef> {
+pub fn interned(a: BaseRef, b: BaseRef, mods: &[u8; 3 * super::MAX_MODS]) -> Option<&'static MoveDef> {
     use std::collections::HashMap;
     use std::sync::Mutex;
     const MAX_INTERNED: usize = 1024;
-    type Key = (u32, u32, [u8; 3 * super::MAX_MODS]);
-    static CACHE: OnceLock<Mutex<HashMap<Key, &'static MoveDef>>> = OnceLock::new();
-    let key: Key = (a.pack() + 1, b.map_or(0, |b| b.pack() + 1), *mods);
+    type K = (BaseRef, BaseRef, [u8; 3 * super::MAX_MODS]);
+    static CACHE: OnceLock<Mutex<HashMap<K, &'static MoveDef>>> = OnceLock::new();
+    let key: K = (a, b, *mods);
     let cache = CACHE.get_or_init(Default::default);
     let mut m = cache.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(d) = m.get(&key) {
@@ -454,19 +513,14 @@ pub fn interned(a: MoveRef, b: Option<MoveRef>, mods: &[u8; 3 * super::MAX_MODS]
         return None;
     }
     let t = ModTable::shipped();
-    let table = PowerTable::get();
     let group = |g: usize| -> Vec<u8> { mods[g * super::MAX_MODS..(g + 1) * super::MAX_MODS].iter().copied().filter(|x| *x > 0).collect() };
-    let (_, ma) = a.resolve(table)?;
-    let mut tw = twist_gathered(t, ma, &gather(t, &group(0)));
-    if let Some(b) = b {
-        let (_, mb) = b.resolve(table)?;
-        let twb = twist_gathered(t, mb, &gather(t, &group(1)));
-        tw = fuse(t, &tw, &twb);
-    }
-    let whole = group(2);
-    if !whole.is_empty() {
-        tw = twist_gathered(t, &tw.def, &gather(t, &whole));
-    }
+    let da = base_move(a)?;
+    let db = match b {
+        BaseRef::None => None,
+        r => Some(base_move(r)?),
+    };
+    let (ga, gb) = (group(0), group(1));
+    let tw = build(t, (&da, &ga), db.as_ref().map(|d| (d, gb.as_slice())), &group(2));
     let d: &'static MoveDef = Box::leak(Box::new(tw.def));
     m.insert(key, d);
     Some(d)
@@ -475,4 +529,12 @@ pub fn interned(a: MoveRef, b: Option<MoveRef>, mods: &[u8; 3 * super::MAX_MODS]
 /// The element a twisted move shows (presentation helper).
 pub fn shown_element(tw: &Twisted) -> Element {
     tw.element.unwrap_or_else(|| super::ops::element_of(&tw.def))
+}
+
+/// The composed spec a side carries (tests / tools).
+pub fn side_spec(s: &TwistSide) -> Option<ComposedMove> {
+    match &s.base {
+        TwistBase::Composed(spec) => Some(split_composed(*spec).0),
+        _ => None,
+    }
 }

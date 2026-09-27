@@ -296,6 +296,9 @@ pub struct FusionDef {
     /// A strike imbued with a projectile: damage × this.
     pub imbue_damage: f32,
     pub title_join: String,
+    /// A fusion that makes ONE big orb (merged projectiles, a pull + push annihilation) cools at
+    /// least this long (s): the Hollow Purple grammar is an ultimate, not a spammable combo.
+    pub orb_cooldown: f32,
 }
 
 impl Default for FusionDef {
@@ -314,6 +317,7 @@ impl Default for FusionDef {
             merge_damage: 0.85,
             imbue_damage: 1.3,
             title_join: " + ".into(),
+            orb_cooldown: 12.0,
         }
     }
 }
@@ -355,6 +359,10 @@ pub struct ModTable {
     /// Op variants that may be copied several times in ONE tick (instant, no per-player state):
     /// a "triple" of these fans out at once; anything else fires as quick sequential shots.
     pub fan: Vec<String>,
+    /// Modifier bytes the VERB GRAMMAR also reads itself (big, quick, long, double, triple): they may
+    /// stay inside a described core ("giant punch" is the grammar's); any other modifier word is
+    /// stripped out and applied by the twist.
+    pub composed_words: Vec<u8>,
     /// The word index ([`ModTable::words`], built on first use).
     #[serde(skip)]
     pub(crate) index: OnceLock<read::WordIndex>,
@@ -364,6 +372,7 @@ impl Default for ModTable {
     fn default() -> Self {
         Self {
             index: OnceLock::new(),
+            composed_words: vec![],
             fan: vec![],
             caps: Caps::default(),
             roles: vec![],

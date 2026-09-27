@@ -25,11 +25,13 @@ enum Body {
 
 /// Constructs bigger than this (half-extent, m) are never swapped (giants, kaiju).
 const MAX_HALF: f32 = 3.0;
+/// A player swapped anywhere but by their own move needs ground this close under their feet (m).
+pub const SAFE_DEPTH: f32 = 10.0;
 
 impl World {
     pub(crate) fn op_transpose(&mut self, i: usize, range: f32, cone: f32, others: bool) -> Result<(), PowerError> {
-        let range = range.clamp(1.0, 60.0);
-        let cone = cone.clamp(0.0, 20.0);
+        let range = super::fclamp(range, 1.0, 60.0);
+        let cone = super::fclamp(cone, 0.0, 20.0);
         let aimed = self.transpose_aimed(i, range, cone);
         let me = Body::Player(i);
         let (a, b) = if others {
@@ -45,6 +47,11 @@ impl World {
         };
         let pa = self.transpose_pos(a).ok_or(PowerError::NoTarget)?;
         let pb = self.transpose_pos(b).ok_or(PowerError::NoTarget)?;
+        // Never a ring-out (OPS_REVIEW blocker 3): anyone but you only goes where there is ground
+        // under them and room for their body; otherwise the clap fails (nothing spent).
+        if !self.transpose_safe(i, a, pb, b) || !self.transpose_safe(i, b, pa, a) {
+            return Err(PowerError::NoTarget);
+        }
         self.transpose_place(a, pb, b);
         self.transpose_place(b, pa, a);
         let id = self.players[i].id;
@@ -116,15 +123,35 @@ impl World {
         }
     }
 
+    /// Where a player put in `other`'s place stands (on top of a construct).
+    fn transpose_lift(&self, other: Body) -> f32 {
+        match other {
+            Body::Construct(c) => self.constructs.get(c).map_or(0.0, |c| (c.half.y * 2.0 + 0.1).min(MAX_HALF * 2.0)),
+            Body::Player(_) => 0.0,
+        }
+    }
+
+    /// May `b` go to `to` (where `other` is)? The caster may put themself anywhere; any other
+    /// player needs to land in play, with room for their body and ground within [`SAFE_DEPTH`] m
+    /// under their feet (no swapping someone onto a construct flying over the void).
+    fn transpose_safe(&self, i: usize, b: Body, to: Vec3, other: Body) -> bool {
+        let Body::Player(k) = b else { return true };
+        if k == i {
+            return true;
+        }
+        let lift = self.transpose_lift(other);
+        let feet = to + Vec3::Y * lift;
+        let h = self.players[k].hull(&self.cfg.move_params).half().y;
+        let room = [0.3, h, h * 2.0 - 0.2].iter().all(|y| self.voxels.get_at(feet + Vec3::Y * *y) == 0);
+        self.in_play(feet, 0.0) && room && self.ground_below(feet + Vec3::Y * 0.3, SAFE_DEPTH + lift).is_some()
+    }
+
     /// Put `b` where `other` stood (feet to feet; a construct lands on its origin, a player put
     /// where a construct was stands on top of it).
     fn transpose_place(&mut self, b: Body, to: Vec3, other: Body) {
         match b {
             Body::Player(k) => {
-                let lift = match other {
-                    Body::Construct(c) => self.constructs.get(c).map_or(0.0, |c| (c.half.y * 2.0 + 0.1).min(MAX_HALF * 2.0)),
-                    Body::Player(_) => 0.0,
-                };
+                let lift = self.transpose_lift(other);
                 let p = &mut self.players[k];
                 p.mv.pos = to + Vec3::Y * lift;
                 p.mv.grounded = false;

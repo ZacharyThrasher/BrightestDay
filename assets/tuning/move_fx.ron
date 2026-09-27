@@ -115,6 +115,11 @@
             sound: (release: ("mv_paper", 1.0, 1.0), impact: ("mv_paper", 1.2, 0.7))),
         "spirit": (word: "none", body: Smoke, color: Some((0.6, 0.95, 1.0)), core: (1.0, 1.0, 1.0), dark: (0.4, 0.7, 0.8), glow: 2.2, rise: 0.8, glyph: 6,
             sound: (release: ("mv_shadow", 1.4, 0.8), impact: ("reveal_pulse", 1.3, 0.5))),
+        // OP VISUALS: a move that comes OUT OF THE EYES (Balor's evil eye, Shiva's third eye, optic
+        // gazes): twin beams from the eyes along the aim + a glare at the face (op_visuals::gaze).
+        // No colour of its own: the move's juice colour / element paints it.
+        "gaze": (word: "none", body: Energy, core: (1.0, 0.95, 0.9), glow: 3.5, glyph: 12,
+            sound: (release: ("reveal_pulse", 0.7, 0.9), impact: ("mv_hardlight", 0.8, 0.6))),
     },
     aliases: {
         "tech": "hardlight", "hard light": "hardlight", "construct": "hardlight", "digital": "glitch", "pixel": "glitch",
@@ -136,6 +141,7 @@
         "psionic": "psychic", "mind": "psychic", "telekinesis": "psychic",
         "radiation": "atomic", "nuclear": "atomic",
         "ghost": "spirit", "soul": "spirit",
+        "eye": "gaze", "eyes": "gaze", "evil eye": "gaze", "third eye": "gaze", "eye beam": "gaze",
         "cards": "paper", "petal": "paper", "petals": "paper", "gem": "crystal",
         "liquid": "water", "ocean": "water", "vapor": "steam", "mist": "steam",
     },

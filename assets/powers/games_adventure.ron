@@ -32,7 +32,7 @@
                  ("daruks protection", 3), ("daruk's protection", 3), ("daruk protection", 3), ("darooks protection", 3),
                  ("urbosas fury", 4), ("urbosa's fury", 4), ("urbosa fury", 4), ("ur bosas fury", 4), ("orbosa's fury", 4),
                  ("miphas grace", 5), ("mipha's grace", 5), ("mipha grace", 5), ("mifas grace", 5), ("meefa's grace", 5),
-                 ("sword beam", 6), ("master sword beam", 6), ("skyward strike", 6),
+                 ("link sword beam", 6), ("master sword beam", 6), ("skyward strike", 6),
                  ("triforce slash", 7), ("tri force slash", 7)],
         moves: [
             // The classic: a full circle of steel around you. Grounded, everyone knocked OUT of the
@@ -83,14 +83,14 @@
         kind: Kit,
         fx: "hardlight",
         names: ["sheikah slate", "purah pad", "sheikah", "zonai", "zelda runes", "sheikah runes", "slate"],
-        shouts: [("magnesis", 0), ("magnesys", 0), ("magnisis", 0),
+        shouts: [("Magnesis", 0), ("magnesys", 0), ("magnisis", 0),
                  ("stasis", 1), ("stasys", 1),
-                 ("cryonis", 2), ("cryo nis", 2), ("krionis", 2),
-                 ("remote bomb", 3), ("remote bombs", 3), ("sheikah bomb", 3),
+                 ("Cryonis", 2), ("cryo nis", 2), ("krionis", 2),
+                 ("sheikah remote bomb", 3), ("remote bombs", 3), ("sheikah bomb", 3),
                  ("recall rune", 4), ("zelda recall", 4),
-                 ("ultrahand", 5), ("ultra hand", 5), ("ultra-hand", 5),
+                 ("sheikah ultrahand", 5), ("sheikah ultra hand", 5), 
                  ("ascend rune", 6), ("zelda ascend", 6),
-                 ("zelda fuse", 7), ("fuse a rock", 7), ("rock hammer", 7), ("fuse rock", 7)],
+                 ("zelda fuse", 7), ("sheikah fuse a rock", 7), ("sheikah rock hammer", 7), ("sheikah fuse rock", 7)],
         moves: [
             // Magnetic grab: the aimed metal-ish thing (or enemy) is dragged to your hand.
             (name: "magnesis", tags: [Primary], cooldown: 1.5, cost: 4.0, ops: [Yank(range: 32.0, speed: 20.0, cone: 8.0)],
@@ -181,10 +181,10 @@
         shouts: [("groundpound", 0), ("butt stomp", 0), ("mario ground pound", 0),
                  ("long jump", 1), ("mario long jump", 1),
                  ("cappy throw", 2), ("hat throw", 2), ("throw cappy", 2), ("cap throw", 2), ("cappy capture", 2), ("mario capture", 2),
-                 ("fire flower", 3), ("super star", 4), ("star power", 4), ("starman", 4), ("star man", 4), ("invincibility star", 4), ("super star power", 4),
-                 ("fludd", 5), ("f l u d d", 5), ("fludd hover", 5), ("flood hover", 5), ("hover nozzle", 5), ("flud", 5),
+                 ("mario fire flower", 3), ("mario super star", 4), ("mario star power", 4), ("mario starman", 4), ("star man", 4), ("mario invincibility star", 4), ("mario super star power", 4),
+                 ("fludd", 5), ("f l u d d", 5), ("fludd hover", 5), ("mario flood hover", 5), ("hover nozzle", 5), ("flud", 5),
                  ("fluid hover", 5),
-                 ("mega mushroom", 6), ("mega mario", 6), ("giant mario", 6),
+                 ("mario mega mushroom", 6), ("mega mario", 6), ("giant mario", 6),
                  ("tanooki", 7), ("tanooki tail", 7), ("tanuki tail", 7), ("tanooki spin", 7)],
         moves: [
             // Stop in the air, spin, plummet: a crater and everyone near popped UP. Works from the
@@ -236,7 +236,7 @@
         names: ["bowser", "king koopa", "koopa king", "bowser koopa", "king bowser"],
         shouts: [("bowser fire breath", 0), ("bowser flame", 0), ("koopa fire", 0),
                  ("bowser bomb", 1), ("bowser slam", 1),
-                 ("whirling fortress", 2), ("shell spin", 2), ("spinning shell", 2), ("koopa shell spin", 2),
+                 ("Whirling Fortress", 2), ("shell spin", 2), ("bowser spinning shell", 2), ("koopa shell spin", 2),
                  ("koopa klaw", 3), ("bowser claw", 3), ("flying slam", 3),
                  ("giga bowser punch", 4)],
         moves: [
@@ -269,8 +269,8 @@
         kind: Kit,
         names: ["luigi", "weegee", "mr l", "luigi's mansion"],
         shouts: [("green missile", 0), ("luigi missile", 0),
-                 ("poltergust", 1), ("poltergust 3000", 1), ("poltergust g-00", 1), ("poltergeist 3000", 1), ("ghost vacuum", 1),
-                 ("thunderhand", 2), ("thunder hand", 2)],
+                 ("poltergust", 1), ("poltergust 3000", 1), ("poltergust g-00", 1), ("poltergeist 3000", 1), ("luigi ghost vacuum", 1),
+                 ("thunderhand", 2), ("luigi thunder hand", 2)],
         moves: [
             // Headfirst like a green rocket (and a little out of control). ends: at them / beyond.
             (name: "green missile", tags: [Movement], cooldown: 2.0, cost: 4.0, ops: [
@@ -292,7 +292,7 @@
         name: "Yoshi",
         kind: Kit,
         names: ["yoshi", "yoshis", "green dinosaur"],
-        shouts: [("egg throw", 0), ("yoshi egg", 0), ("throw an egg", 0),
+        shouts: [("egg throw", 0), ("yoshi egg", 0), ("yoshi throw an egg", 0),
                  ("flutter jump", 1), ("yoshi flutter", 1),
                  ("yoshi tongue", 2), ("tongue grab", 2)],
         moves: [
@@ -315,9 +315,9 @@
         kind: Kit,
         fx: "earth",
         names: ["donkey kong", "dk", "donkey kong country", "d k"],
-        shouts: [("giant punch", 0), ("dk punch", 0), ("donkey punch", 0),
+        shouts: [("donkey kong giant punch", 0), ("Dk Punch", 0), ("donkey punch", 0),
                  ("hand slap", 1), ("ground slap", 1), ("dk slap", 1),
-                 ("barrel throw", 2), ("throw a barrel", 2), ("barrel blast", 3)],
+                 ("barrel throw", 2), ("donkey kong throw a barrel", 2), ("donkey kong barrel blast", 3)],
         moves: [
             // The wound-up haymaker: step in and SWING. ends: grounded, they fly.
             (name: "giant punch", tags: [Primary], cooldown: 2.4, cost: 5.0, ops: [
@@ -345,12 +345,12 @@
         kind: Kit,
         names: ["kirby", "kirbo", "pink puffball", "the pink puffball", "kirby's"],
         shouts: [("inhale", 0), ("kirby inhale", 0), ("kirby suck", 0), ("inhale ability", 0),
-                 ("star spit", 1), ("star bullet", 1), ("spit star", 1),
-                 ("hammer flip", 2), ("kirby hammer", 2), ("flaming hammer", 2),
+                 ("star spit", 1), ("star bullet", 1), ("kirby spit star", 1),
+                 ("hammer flip", 2), ("kirby hammer", 2), ("kirby flaming hammer", 2),
                  ("kirby stone", 3), ("stone kirby", 3), ("stone form", 3),
                  ("final cutter", 4), ("kirby cutter", 4),
                  ("kirby float", 5), ("puff up", 5), ("kirby puff", 5),
-                 ("ultra sword", 6), ("kirby ultra sword", 6),
+                 ("kirby ultra sword", 6),
                  ("copy ability", 7), ("kirby copy", 7), ("kirby copy ability", 7)],
         moves: [
             // A vacuum in front of you, then the nearest thing is swallowed toward your mouth.
@@ -402,9 +402,9 @@
         kind: Kit,
         fx: "shadow",
         names: ["meta knight", "metaknight", "meta night", "metta knight"],
-        shouts: [("mach tornado", 0), ("meta tornado", 0),
+        shouts: [("mach tornado", 0), ("meta knight meta tornado", 0),
                  ("shuttle loop", 1),
-                 ("galaxia darkness", 2), ("dimensional cape", 3), ("meta knight cape", 3)],
+                 ("galaxia darkness", 2), ("meta knight dimensional cape", 3), ("meta knight cape", 3)],
         moves: [
             // A spinning tornado of cuts that you steer. ends: wherever you stop, grounded.
             (name: "mach tornado", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
@@ -435,7 +435,7 @@
         fx: "speedforce",
         names: ["sonic", "sonic the hedgehog", "blue blur", "the blue blur", "sanic", "sonik", "sonic's"],
         shouts: [("homing attack", 0), ("sonic homing attack", 0),
-                 ("spin dash", 1), ("spindash", 1), ("spin-dash", 1),
+                 ("Spin Dash", 1), ("spindash", 1), ("Spin-Dash", 1),
                  ("sonic boost", 2), ("boost dash", 2),
                  ("cyloop", 3), ("psych loop", 3), ("cycloop", 3), ("sigh loop", 3),
                  ("light speed dash", 4), ("lightspeed dash", 4), ("light-speed dash", 4)],
@@ -470,8 +470,8 @@
         kind: Kit,
         names: ["shadow the hedgehog", "shadow hedgehog", "ultimate lifeform", "the ultimate lifeform", "shadow sonic"],
         shouts: [("chaos control", 0), ("kaos control", 0), ("chaos controll", 0),
-                 ("chaos spear", 1), ("chaos spears", 1),
-                 ("chaos blast", 2), ("chaos blast shadow", 2)],
+                 ("Chaos Spear", 1), ("chaos spears", 1),
+                 ("chaos blast", 2), ("shadow the hedgehog chaos blast shadow", 2)],
         moves: [
             // Time bends for you (a slow you move through), and you're somewhere else.
             // ends: repositioned, mid-air, time still slow — anything.
@@ -498,7 +498,7 @@
         shouts: [("knuckles glide", 0), ("echidna glide", 0),
                  ("maximum heat", 1), ("maximum heat knuckles attack", 1),
                  ("knuckles dig", 2),
-                 ("knuckles punch", 3), ("spiked punch", 3)],
+                 ("knuckles punch", 3), ("knuckles spiked punch", 3)],
         moves: [
             (name: "glide", tags: [Movement], cooldown: 1.5, cost: 2.0, ops: [
                 Impulse(fwd: 10.0, up: 4.0),
@@ -574,11 +574,11 @@
         fx: "hardlight",
         names: ["mega man", "megaman", "rockman", "rock man", "mega man x", "megaman x", "blue bomber", "the blue bomber", "mega-man"],
         shouts: [("charge shot", 0), ("charged shot", 0), ("buster shot", 0), ("full charge", 0),
-                 ("mega man slide", 1), ("mega slide", 1),
+                 ("mega man slide", 1), ("mega man mega slide", 1),
                  ("metal blade", 2), ("metal blades", 2),
-                 ("leaf shield", 3), ("leaf shields", 3),
+                 ("mega man leaf shield", 3), ("leaf shields", 3),
                  ("time stopper", 4), ("flash stopper", 4),
-                                  ("atomic fire", 6), ("atomic fire charge", 6),
+                                  ("mega man atomic fire", 6), ("atomic fire charge", 6),
                  ("copy weapon", 7), ("weapon copy", 7), ("mega man copy", 7), ("weapon get", 7)],
         moves: [
             // The full-charge buster: a fat plasma bolt that punches through. ends: in place.
@@ -653,11 +653,11 @@
         shouts: [("full charge beam", 0), ("samus charge shot", 0),
                  ("samus missile", 1), ("samus missiles", 1),
                  ("screw attack", 2), ("space jump", 2),
-                 ("morph ball bomb", 3), ("bomb jump", 3), ("morph ball", 3), ("morphball bomb", 3),
-                 ("power bomb", 4), ("power bombs", 4),
-                 ("grapple beam", 5), ("grappling beam", 5),
-                 ("shinespark", 6), ("shine spark", 6), ("speed booster", 6),
-                 ("freeze beam", 7)],
+                 ("samus morph ball bomb", 3), ("bomb jump", 3), ("samus morph ball", 3), ("morphball bomb", 3),
+                 ("samus power bomb", 4), ("power bombs", 4),
+                 ("Grapple Beam", 5), ("samus grappling beam", 5),
+                 ("Shinespark", 6), ("samus shine spark", 6), ("speed booster", 6),
+                 ("samus freeze beam", 7)],
         moves: [
             // The arm cannon at full charge: a blazing orb.
             (name: "charge beam", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
@@ -709,7 +709,7 @@
                  ("sword lunge", 1), ("energy sword lunge", 1), ("halo sword lunge", 1),
                  ("sticky nade", 2),
                  ("halo frag", 3), ("spartan ground pound", 4), ("halo ground pound", 4), ("spartan slam", 4),
-                 ("halo bubble shield", 5), ("deploy bubble shield", 5),
+                 ("chief halo bubble shield", 5), ("deploy bubble shield", 5),
                  ("halo thruster", 6), ("spartan thruster", 6), ("thrust dodge", 6),
                  ("call a warthog", 7)],
         moves: [
@@ -756,12 +756,12 @@
         fx: "fire",
         names: ["doom slayer", "doomslayer", "doom guy", "the slayer", "doom marine", "slayer", "the doom slayer"],
         shouts: [("glory kill", 0), ("glorykill", 0), ("glory kills", 0),
-                 ("meathook", 1), ("meat hook", 1), ("super shotgun meathook", 1),
+                 ("meathook", 1), ("slayer meat hook", 1), ("super shotgun meathook", 1),
                  ("slayer chainsaw", 2),
                  ("fire the bfg", 3), ("bfg shot", 3), ("bfg blast", 3),
                  ("doom dash", 4), ("slayer dash", 4),
-                 ("blood punch", 5),
-                 ("berserk pack", 6), ("doom berserk", 6), ("berserk mode", 6),
+                 ("slayer blood punch", 5),
+                 ("berserk pack", 6), ("slayer doom berserk", 6), ("berserk mode", 6),
                  ("flame belch", 7), ("flame belcher", 7)],
         moves: [
             // Seize, rip, and the health spills out. ends: at them, healed.
@@ -807,12 +807,12 @@
         name: "Kratos",
         kind: Kit,
         names: ["kratos", "god of war", "ghost of sparta", "the ghost of sparta", "kratos'"],
-        shouts: [("axe throw", 0), ("throw the axe", 0), ("leviathan throw", 0), ("leviathan axe throw", 0),
-                                  ("spartan rage", 2), ("rage of sparta", 2),
+        shouts: [("axe throw", 0), ("kratos throw the axe", 0), ("leviathan throw", 0), ("leviathan axe throw", 0),
+                                  ("Spartan Rage", 2), ("rage of sparta", 2),
                  ("kratos parry", 3),
-                 ("cyclone of chaos", 4),
+                 ("Cyclone Of Chaos", 4),
                  ("leviathan's frost", 5), ("frost awakening", 5),
-                 ("summon the axe", 6), ("call the leviathan", 6)],
+                 ("kratos summon the axe", 6), ("call the leviathan", 6)],
         moves: [
             // The Leviathan throw: it flies, bites, and comes back to your hand. ends: in place, axe home.
             (name: "axe throw", fx: "ice", tags: [Primary], cooldown: 1.5, cost: 4.0, ops: [
@@ -858,11 +858,11 @@
         shouts: [("dodge roll", 0), ("souls roll", 0), ("dark souls roll", 0), ("i frame roll", 0), ("iframe roll", 0),
                  ("parry riposte", 1), ("dark souls parry", 1), ("parry and riposte", 1),
                  ("estus", 2), ("estus flask", 2), ("drink estus", 2), ("chug estus", 2), ("sip estus", 2), ("estus flasks", 2),
-                 ("praise the sun", 3), ("praise the sun spear", 3),
+                 ("Praise The Sun", 3), ("undead praise the sun spear", 3),
                  ("homing soulmass", 4), ("homing soul mass", 4), ("soulmass", 4),
                  ("plunging attack", 5), ("plunge attack", 5),
                  ("force miracle", 6),
-                 ("moonlight wave", 7), ("moonlight greatsword wave", 7), ("moonlight greatsword beam", 7), ("moonlight sword wave", 7)],
+                 ("moonlight wave", 7), ("moonlight greatsword wave", 7), ("moonlight greatsword beam", 7), ("undead moonlight sword wave", 7)],
         moves: [
             // The roll: invincible for the first beat of it. ends: grounded, a body-length away.
             (name: "roll", tags: [Movement], cooldown: 0.7, cost: 2.0, ops: [
@@ -906,13 +906,13 @@
         name: "Tarnished",
         kind: Kit,
         names: ["tarnished", "the tarnished", "elden ring", "elden lord", "elden"],
-        shouts: [("comet azur", 0), ("comet azure", 0), ("commit azur", 0), ("comet as your", 0), ("comet azur combo", 0),
-                 ("corpse piler", 1), ("corpse pile", 1), ("rivers of blood corpse piler", 1), ("corpse piler rivers", 1),
+        shouts: [("Comet Azur", 0), ("comet azure", 0), ("commit azur", 0), ("comet as your", 0), ("comet azur combo", 0),
+                 ("Corpse Piler", 1), ("corpse pile", 1), ("rivers of blood corpse piler", 1), ("corpse piler rivers", 1),
                  ("bloodhounds step", 2), ("bloodhound's step", 2), ("blood hound step", 2), ("bloodhound step", 2),
                                   ("lion's claw ash of war", 3), ("lions claw ash of war", 3), ("hoarfrost stomp", 4), ("hoar frost stomp", 4), ("horfrost stomp", 4), ("whore frost stomp", 4),
                  ("flame of the redmanes", 5), ("redmane flame", 5), ("flame of the red manes", 5),
                  ("rennalas full moon", 6), ("rennala's full moon", 6), ("rennala full moon", 6),
-                 ("black flame", 7), ("godslayers black flame", 7), ("godslayer's black flame", 7), ("black flame ritual", 7)],
+                 ("tarnished black flame", 7), ("godslayers black flame", 7), ("godslayer's black flame", 7), ("black flame ritual", 7)],
         moves: [
             // The glintstone beam of legend: a colossal blue torrent you hold on target.
             (name: "comet azur", fx: "void", tags: [Ultimate], cooldown: 20.0, ops: [
@@ -957,7 +957,7 @@
         kind: Kit,
         fx: "blood",
         names: ["malenia", "malenia blade of miquella", "blade of miquella", "goddess of rot"],
-        shouts: [("waterfowl dance", 0), ("water fowl dance", 0), ("waterfall dance", 0), ("water foul dance", 0), ("waterfowl", 0),
+        shouts: [("Waterfowl Dance", 0), ("water fowl dance", 0), ("waterfall dance", 0), ("water foul dance", 0), ("malenia waterfowl", 0),
                  ("scarlet aeonia", 1), ("scarlet aonia", 1), ("scarlet eonia", 1), ("scarlet bloom", 1)],
         moves: [
             // The leap, then a storm of blade around you in the air: stay out of it. ends: airborne, above.
@@ -1002,7 +1002,7 @@
         fx: "blood",
         names: ["good hunter", "the good hunter", "bloodborne", "yharnam hunter", "hunter of yharnam"],
         shouts: [("quickstep", 0), ("quick step", 0),
-                 ("visceral attack", 1), ("gun parry", 1), ("visceral", 1),
+                 ("visceral attack", 1), ("good hunter gun parry", 1), ("visceral", 1),
                  ("trick weapon", 2), ("transform trick weapon", 2),
                  ("blood vial", 3), ("blood vials", 3),
                  ("a call beyond", 4), ("call beyond", 4),
@@ -1081,7 +1081,7 @@
         fx: "wind",
         names: ["dragonborn", "dovahkiin", "dovakin", "dovahkin", "dova kin", "the dragonborn", "skyrim", "thuum", "thu'um",
                 "the thuum", "dragon shout"],
-        shouts: [("fus", 0), ("foos", 0), ("fuss", 0),
+        shouts: [("fus", 0), ("foos", 0), ("dragonborn fuss", 0),
                  ("fus ro", 1), ("foos ro", 1), ("fuss row", 1), ("fus row", 1), ("fus roh", 1),
                  ("fus ro dah", 2), ("fus ro da", 2), ("fus roh dah", 2), ("foos row da", 2), ("fus rho dah", 2), ("fusrodah", 2),
                  ("fus ro duh", 2), ("fuss ro dah", 2), ("fus roda", 2), ("fus rodah", 2), ("foos ro dah", 2), ("fos ro dah", 2),
@@ -1393,14 +1393,14 @@
         kind: Kit,
         fx: "holy",
         names: ["sora", "kingdom hearts", "keyblade master", "keyblade wielder", "sora's"],
-        shouts: [("strike raid", 0), ("strikeraid", 0),
+        shouts: [("Strike Raid", 0), ("strikeraid", 0),
                  ("ars arcanum", 1), ("ars arcanam", 1), ("arse arcanum", 1),
                  ("sonic blade", 2), ("sonic blades", 2),
                  ("sora ragnarok", 3), ("keyblade ragnarok", 3),
                  ("thundaga", 4), ("thundara", 4), ("thunder spell", 4),
                  ("firaga", 5), ("fira", 5),
                  ("aerial sweep", 6), ("aerial dodge", 6),
-                 ("trinity limit", 7), ("trinity", 7)],
+                 ("trinity limit", 7), ("sora trinity", 7)],
         moves: [
             // Throw the keyblade: it flies at them, chains to the next, and comes home.
             (name: "strike raid", tags: [Primary], cooldown: 1.4, cost: 4.0, ops: [
@@ -1531,7 +1531,7 @@
                  ("heartless angel", 2),
                  ("shadow flare", 3), ("shadowflare", 3),
                  ("sephiroth flash", 4), ("blade flash", 4),
-                 ("hells gate", 5), ("hell's gate", 5),
+                 ("hells gate", 5), ("sephiroth hell's gate", 5),
                  ("one winged angel form", 6), ("sephiroth wing", 6),
                  ("scintilla", 7)],
         moves: [
@@ -1582,7 +1582,7 @@
         kind: Kit,
         fx: "chi",
         names: ["tifa", "tifa lockhart", "tifa ff7"],
-        shouts: [("final heaven", 0), ("somersault", 1), ("dolphin blow", 2), ("meteor strike", 3), ("beat rush", 4),
+        shouts: [("final heaven", 0), ("somersault", 1), ("dolphin blow", 2), ("tifa meteor strike", 3), ("beat rush", 4),
                  ("unbridled strength", 5), ("rise and fall", 6), ("divekick", 7), ("dive kick", 7)],
         moves: [
             // The charged haymaker: an explosion off a fist. ends: grounded, they're gone.
@@ -1628,12 +1628,12 @@
         name: "Final Fantasy Summons",
         kind: Kit,
         names: ["final fantasy", "ff", "materia", "summon materia", "eidolon", "eidolons"],
-        shouts: [("megaflare", 0), ("mega flare", 0), ("bahamut megaflare", 0), ("summon bahamut", 0),
+        shouts: [("Megaflare", 0), ("mega flare", 0), ("bahamut megaflare", 0), ("summon bahamut", 0),
                  ("knights of the round table", 1), ("summon knights of the round", 1),
                  ("summon ifrit", 2),
                  ("summon shiva", 3),
-                 ("judgment bolt", 4), ("judgement bolt", 4), ("summon ramuh", 4),
-                 ("zantetsuken", 5), ("summon odin", 5), ("zanetsuken", 5),
+                 ("final fantasy summons judgment bolt", 4), ("judgement bolt", 4), ("summon ramuh", 4),
+                 ("Zantetsuken", 5), ("summon odin", 5), ("zanetsuken", 5),
                  ("summon leviathan", 6), ("leviathan tidal wave", 6),
                  ("aerial blast", 7), ("summon bahamut zero", 7), ("teraflare", 7), ("tera flare", 7)],
         moves: [
@@ -1739,8 +1739,8 @@
         names: ["destiny hunter", "hunter destiny", "gunslinger", "nightstalker", "arcstrider", "cayde", "cayde 6", "cayde-6"],
         shouts: [("golden gun super", 0), ("gunslinger golden gun", 0),
                  ("blade barrage", 1), ("blade barage", 1),
-                 ("shadowshot", 2), ("shadow shot", 2), ("void tether", 2),
-                 ("arc staff", 3), ("arcstaff", 3),
+                 ("shadowshot", 2), ("destiny hunter shadow shot", 2), ("destiny hunter void tether", 2),
+                 ("destiny hunter arc staff", 3), ("arcstaff", 3),
                  ("hunter dodge", 4), ("marksmans dodge", 4), ("gamblers dodge", 4),
                  ("knife trick", 5)],
         moves: [
@@ -1779,13 +1779,13 @@
         kind: Kit,
         fx: "lightning",
         names: ["destiny titan", "titan destiny", "striker", "sunbreaker", "sentinel titan", "zavala", "commander zavala"],
-        shouts: [("fist of havoc", 0), ("fists of havoc", 0),
-                 ("thundercrash", 1), ("thunder crash", 1),
+        shouts: [("Fist Of Havoc", 0), ("destiny titan fists of havoc", 0),
+                 ("Thundercrash", 1), ("thunder crash", 1),
                  ("hammers of sol", 2),
                  ("ward of dawn", 3), ("ward of don", 3),
-                 ("sentinel shield", 4), ("titan shield", 4),
+                 ("destiny titan sentinel shield", 4), ("titan shield", 4),
                  ("shoulder charge titan", 5), ("titan charge", 5), ("titan shoulder charge", 5),
-                 ("titan barricade", 6), ("towering barricade", 6), ("rally barricade", 6)],
+                 ("titan barricade", 6), ("destiny titan towering barricade", 6), ("destiny titan rally barricade", 6)],
         moves: [
             // Into the sky, then down onto the crosshair fists first: lightning shatters the ground.
             // ends: grounded in a ring of arc — stay and slam again.
@@ -1825,7 +1825,7 @@
         kind: Kit,
         fx: "void",
         names: ["destiny warlock", "warlock destiny", "voidwalker", "stormcaller", "dawnblade", "ikora", "ikora rey"],
-        shouts: [("nova bomb", 0), ("nova bomb cataclysm", 0), ("novabomb", 0),
+        shouts: [("Nova Bomb", 0), ("nova bomb cataclysm", 0), ("novabomb", 0),
                  ("stormtrance", 1), ("storm trance", 1), ("chaos reach", 1),
                  ("well of radiance", 2), ("well of radiance super", 2),
                  ("daybreak", 3), ("day break", 3),
@@ -1919,7 +1919,7 @@
         kind: Kit,
         fx: "hardlight",
         names: ["gordon freeman", "gordon", "freeman", "half life", "half-life", "dr freeman", "doctor freeman"],
-        shouts: [("zero point energy field manipulator", 0), ("zero point field", 0), ("grav gun", 0),
+        shouts: [("gordon zero point energy field manipulator", 0), ("zero point field", 0), ("gordon grav gun", 0),
                  ("gravity punt", 1), ("grav punt", 1),
                                   ("long jump module", 3), ("hev long jump", 3)],
         moves: [
@@ -1946,7 +1946,7 @@
         fx: "hardlight",
         names: ["chell", "aperture", "aperture science", "portal", "portals", "glados"],
         shouts: [("blue portal", 0), ("orange portal", 0), ("shoot a portal", 0), ("place portal", 0), ("portal shot", 0),
-                 ("fire portal", 0), ("companion cube", 1), ("weighted companion cube", 1)],
+                 ("fire portal", 0), ("portal companion cube", 1), ("portal weighted companion cube", 1)],
         moves: [
             // Blue, then orange: two holes in the world, linked. Your momentum comes through.
             // ends: wherever the portals take you — speedy thing goes in, speedy thing comes out.
@@ -1979,8 +1979,8 @@
                  ("incinerate", 1), ("incinerate plasmid", 1),
                  ("telekinesis plasmid", 2), ("bioshock telekinesis", 2),
                  ("winter blast", 3),
-                 ("insect swarm", 4), ("murder of crows", 4),
-                 ("cyclone trap", 5),
+                 ("insect swarm", 4), ("plasmids murder of crows", 4),
+                 ("plasmids cyclone trap", 5),
                  ("shock jockey", 6), ("devils kiss", 7), ("devil's kiss", 7)],
         moves: [
             // A bolt from the hand: they seize up (and water makes it worse).
@@ -2021,13 +2021,13 @@
         fx: "shadow",
         names: ["corvo", "corvo attano", "dishonored", "emily kaldwin", "the outsider's mark"],
         shouts: [("dishonored blink", 0), ("corvo blink", 0), ("the outsider's blink", 0),
-                 ("bend time", 1), ("bend time 2", 1),
-                 ("devouring swarm", 2), ("summon rats", 2),
+                 ("corvo bend time", 1), ("corvo bend time 2", 1),
+                 ("devouring swarm", 2), ("corvo summon rats", 2),
                  ("windblast", 3), ("wind blast", 3),
                  ("far reach", 4), ("farreach", 4),
                  ("shadow walk", 5), ("shadowwalk", 5),
                  ("drop assassination", 6), ("drop kill", 6),
-                 ("possession", 7), ("corvo possession", 7), ("dishonored possession", 7)],
+                 ("corvo possession", 7), ("dishonored possession", 7)],
         moves: [
             // Blink: instant, short, silent — no trail, you're simply THERE (onto ledges too).
             // ends: at the spot you looked at.
@@ -2071,8 +2071,8 @@
         kind: Kit,
         fx: "lightning",
         names: ["infamous", "cole macgrath", "cole", "delsin", "delsin rowe", "conduit", "infamous second son"],
-        shouts: [("thunder drop", 0), ("lightning storm", 1), ("ionic vortex", 2), ("static thrusters", 3),
-                 ("smoke dash", 4), ("orbital drop", 5), ("karmic bomb", 5), ("neon beam", 6), ("gigawatt blades", 7)],
+        shouts: [("thunder drop", 0), ("infamous lightning storm", 1), ("ionic vortex", 2), ("static thrusters", 3),
+                 ("smoke dash", 4), ("orbital drop", 5), ("karmic bomb", 5), ("infamous neon beam", 6), ("gigawatt blades", 7)],
         moves: [
             // Drop from any height and land in a burst of lightning. ends: grounded, ring stunned.
             (name: "thunder drop", tags: [Combo], cooldown: 2.0, cost: 4.0, ops: [
@@ -2121,9 +2121,9 @@
         fx: "blood",
         names: ["alex mercer", "mercer", "prototype", "blacklight"],
         shouts: [("tendril barrage", 0), ("mercer devastator", 0),
-                 ("groundspike", 1), ("ground spike", 1),
-                 ("whipfist", 2), ("whip fist", 2),
-                 ("hammerfist", 3), ("hammer fist", 3),
+                 ("groundspike", 1), ("mercer ground spike", 1),
+                 ("whipfist", 2), ("mercer whip fist", 2),
+                 ("hammerfist", 3), ("mercer hammer fist", 3),
                  ("musclemass", 4), ("muscle mass", 4),
                                   ("air dash mercer", 6), ("mercer glide", 7)],
         moves: [
@@ -2170,11 +2170,11 @@
         fx: "glitch",
         names: ["steve", "minecraft", "alex minecraft", "minecraft steve", "herobrine"],
         shouts: [("throw an ender pearl", 0), ("ender pearl throw", 0), ("pearl throw", 0),
-                 ("place tnt", 1), ("light the tnt", 1), ("water bucket clutch", 2), ("mlg water bucket", 2), ("water bucket mlg", 2), ("bucket clutch", 2),
+                 ("steve place tnt", 1), ("steve light the tnt", 1), ("water bucket clutch", 2), ("mlg water bucket", 2), ("water bucket mlg", 2), ("bucket clutch", 2),
                  ("creeper explosion", 3), ("ssss boom", 3),
                  ("anvil drop", 4), ("drop an anvil", 4),
                  ("pillar up", 5), ("nerd pole", 5), ("tower up", 5),
-                 ("bow shot", 6), ("minecraft arrow", 6),
+                 ("steve bow shot", 6), ("minecraft arrow", 6),
                  ("golden apple", 7), ("notch apple", 7), ("enchanted golden apple", 7)],
         moves: [
             // Throw the pearl — you arrive where it would land. ends: there, grounded.
@@ -2219,11 +2219,11 @@
         kind: Kit,
         fx: "spirit",
         names: ["the knight", "hollow knight", "knight hollow knight", "the vessel", "ghost hollow knight"],
-        shouts: [("vengeful spirit", 0), ("shade soul", 0),
+        shouts: [("Vengeful Spirit", 0), ("Shade Soul", 0),
                  ("desolate dive", 1), ("descending dark", 1),
                  ("howling wraiths", 2), ("abyss shriek", 2),
                  ("crystal heart", 3), ("crystal dash", 3),
-                 ("mothwing cloak", 4), ("shade cloak", 4), ("hollow knight dash", 4),
+                 ("mothwing cloak", 4), ("the knight shade cloak", 4), ("hollow knight dash", 4),
                  ("great slash", 5), ("nail art", 5),
                  ("cyclone slash", 6),
                  ("focus soul", 7), ("hollow knight heal", 7)],
@@ -2345,7 +2345,7 @@
         kind: Kit,
         names: ["cuphead", "cup head", "mugman"],
         shouts: [("pink parry", 0), ("cuphead parry", 0), ("parry slap", 0),
-                 ("finger gun", 1), ("peashooter", 1), ("pea shooter", 1),
+                 ("cuphead finger gun", 1), ("peashooter", 1), ("pea shooter", 1),
                  ("super art", 2), ("energy beam cuphead", 2),
                  ("cuphead dash", 3)],
         moves: [
@@ -2400,13 +2400,13 @@
         kind: Kit,
         names: ["assassin", "assassins creed", "assassin's creed", "ezio", "ezio auditore", "altair", "kassandra", "eivor",
                 "bayek", "naoe", "arno", "connor kenway", "edward kenway"],
-        shouts: [("hidden blade", 0), ("hidden blades", 0), ("air assassination", 0),
+        shouts: [("assassin hidden blade", 0), ("hidden blades", 0), ("air assassination", 0),
                  ("leap of faith", 1), ("leap of faith dive", 1),
                  ("eagle vision", 2), ("eagle sense", 2),
                  ("assassin smoke bomb", 3),
                  ("rope dart", 4),
                  ("phantom blade", 5),
-                 ("spartan kick", 6),
+                 ("Spartan Kick", 6),
                  ("chain assassination", 7), ("chain assassinate", 7), ("mark and execute", 7)],
         moves: [
             // From above or behind: the hidden blade, and it's over. ends: on them.
@@ -2450,7 +2450,7 @@
         name: "Solid Snake",
         kind: Kit,
         names: ["solid snake", "snake", "metal gear", "metal gear solid", "naked snake", "venom snake", "mgs"],
-        shouts: [("cardboard box", 0), ("hide in a box", 0), ("cqc", 1), ("c q c", 1), ("close quarters combat", 1),
+        shouts: [("snake cardboard box", 0), ("hide in a box", 0), ("cqc", 1), ("c q c", 1), ("close quarters combat", 1),
                  ("flashbang snake", 2),
                  ("chaff grenade", 3), ("tranquilizer", 4), ("tranq dart", 4), ("snake alert", 5),
                  ("zandatsu", 6), ("blade mode", 6), ("raiden blade mode", 6)],
@@ -2574,12 +2574,12 @@
         names: ["resident evil", "leon", "leon kennedy", "chris redfield", "jill valentine", "wesker", "albert wesker"],
         shouts: [("roundhouse kick", 0), ("leon kick", 0), ("leon roundhouse", 0),
                  ("suplex", 1), ("leon suplex", 1),
-                 ("knife parry", 2),
-                 ("boulder punch", 3), ("punch the boulder", 3),
-                 ("green herb", 4), ("mix herbs", 4), ("first aid spray", 4),
-                 ("wesker dash", 5), ("ghost butterfly", 5),
-                 ("infinite rocket launcher", 6),
-                 ("t virus", 7), ("t-virus", 7), ("the t virus", 7), ("outbreak", 7)],
+                 ("resident evil knife parry", 2),
+                 ("resident evil boulder punch", 3), ("resident evil punch the boulder", 3),
+                 ("resident evil green herb", 4), ("mix herbs", 4), ("first aid spray", 4),
+                 ("wesker dash", 5), ("resident evil ghost butterfly", 5),
+                 ("resident evil infinite rocket launcher", 6),
+                 ("t virus", 7), ("t-virus", 7), ("the t virus", 7), ("resident evil outbreak", 7)],
         moves: [
             // The roundhouse off a stagger. ends: they fly, you're grounded.
             (name: "roundhouse kick", tags: [Primary], cooldown: 1.5, cost: 3.0, ops: [
@@ -2621,7 +2621,7 @@
         name: "Max Payne",
         kind: Kit,
         names: ["max payne", "max pain"],
-        shouts: [("bullet time", 0), ("bullet-time", 0), ("bullettime", 0),
+        shouts: [("Bullet Time", 0), ("Bullet-Time", 0), ("bullettime", 0),
                  ("shootdodge", 1), ("shoot dodge", 1), ("max payne dive", 1)],
         moves: [
             // The world slows, you don't.
@@ -2664,8 +2664,8 @@
         kind: Kit,
         fx: "psychic",
         names: ["ness", "earthbound", "lucas", "psi", "ness earthbound"],
-        shouts: [("pk fire", 0), ("p k fire", 0), ("pk thunder", 1), ("p k thunder", 1), ("pk starstorm", 2), ("pk star storm", 2),
-                 ("pk flash", 3), ("psi magnet", 4), ("pk love", 5), ("pk rockin", 5)],
+        shouts: [("Pk Fire", 0), ("p k fire", 0), ("Pk Thunder", 1), ("p k thunder", 1), ("pk starstorm", 2), ("ness pk star storm", 2),
+                 ("pk flash", 3), ("psi magnet", 4), ("Pk Love", 5), ("pk rockin", 5)],
         moves: [
             // A lightning-bolt of fire that erupts where it lands.
             (name: "pk fire", tags: [Primary], cooldown: 1.2, cost: 3.0, ops: [
@@ -2700,9 +2700,9 @@
         fx: "ink",
         names: ["okami", "okami amaterasu", "celestial brush", "the sun goddess wolf"],
         shouts: [("power slash", 0), ("brush slash", 0),
-                 ("cherry bomb", 1), ("brush bomb", 1),
-                 ("sunrise", 2), ("brush sunrise", 2),
-                 ("galestorm", 3), ("gale storm", 3),
+                 ("amaterasu cherry bomb", 1), ("amaterasu brush bomb", 1),
+                 ("amaterasu sunrise", 2), ("brush sunrise", 2),
+                 ("galestorm", 3), ("amaterasu gale storm", 3),
                  ("thunderstorm brush", 4), ("veil of mist", 5)],
         moves: [
             // Paint a line across the world and it's cut.
@@ -2769,8 +2769,8 @@
         fx: "psychic",
         names: ["jesse faden", "jesse", "control", "the director", "faden"],
         shouts: [("telekinetic launch", 0), ("jesse launch", 0),
-                 ("control shield", 1), ("rubble shield", 1),
-                 ("evade dash", 3), ("levitate", 4), ("jesse levitate", 4)],
+                 ("control shield", 1), ("jesse rubble shield", 1),
+                 ("evade dash", 3), ("jesse levitate", 4)],
         moves: [
             // Rip a chunk of the room out and throw it.
             (name: "launch", fx: "earth", tags: [Primary], cooldown: 1.5, cost: 4.0, ops: [
@@ -2798,7 +2798,7 @@
         name: "Gears of War",
         kind: Kit,
         names: ["gears of war", "marcus fenix", "marcus", "cog", "delta squad"],
-        shouts: [("hammer of dawn strike", 0), ("call the hammer of dawn", 0),
+        shouts: [("gears of war hammer of dawn strike", 0), ("gears of war call the hammer of dawn", 0),
                  ("curb stomp", 1), ("curbstomp", 1),
                  ("roadie run", 2), ("roadie", 2)],
         moves: [
@@ -2826,7 +2826,7 @@
         kind: Kit,
         fx: "wind",
         names: ["jin sakai", "ghost of tsushima", "the ghost", "jin"],
-        shouts: [("heavenly strike", 0), ("ghost stance", 1), ("standoff", 2), ("stand off", 2), ("ghost smoke bomb", 3)],
+        shouts: [("heavenly strike", 0), ("ghost stance", 1), ("standoff", 2), ("stand off", 2), ("jin ghost smoke bomb", 3)],
         moves: [
             // The unblockable heavenly strike: a triple cut.
             (name: "heavenly strike", tags: [Primary], cooldown: 6.0, cost: 6.0, ops: [
@@ -2854,9 +2854,9 @@
         kind: Kit,
         fx: "holy",
         names: ["belmont", "simon belmont", "richter belmont", "trevor belmont", "castlevania", "vampire killer"],
-        shouts: [("holy water", 0), ("throw holy water", 0),
+        shouts: [("belmont holy water", 0), ("belmont throw holy water", 0),
                  ("grand cross", 1),
-                 ("hydro storm", 2),
+                 ("belmont hydro storm", 2),
                  ("mist form", 3), ("alucard mist", 3),
                  ("soul steal", 4)],
         moves: [
@@ -2929,7 +2929,7 @@
         kind: Kit,
         fx: "hardlight",
         names: ["ratchet", "ratchet and clank", "ratchet & clank", "lombax"],
-        shouts: [("groovitron", 0), ("groovy tron", 0), ("disco ball", 0),
+        shouts: [("groovitron", 0), ("groovy tron", 0), ("ratchet disco ball", 0),
                  ("ryno", 1), ("r y n o", 1), ("rip you a new one", 1),
                  ("mister zurkon", 3), ("wrench throw", 4)],
         moves: [
@@ -2973,7 +2973,7 @@
         fx: "sand",
         names: ["prince of persia", "the prince of persia", "dagger of time", "sands of time"],
         shouts: [("dagger rewind", 0), ("sands rewind", 0),
-                 ("slow sands", 1), ("sands slow", 1),
+                 ("slow sands", 1), ("prince of persia sands slow", 1),
                  ("persia wall run", 2)],
         moves: [
             // Press the dagger: the last three seconds unwind for you.

@@ -25,7 +25,7 @@ impl World {
         // 0 = defaults: the stand-rush rate, a stand's reach.
         let rate = if rate > 0.0 { rate } else { 16.0 };
         let range = if range > 0.0 { range } else { 2.8 };
-        let every = 1.0 / rate.clamp(2.0, 30.0);
+        let every = 1.0 / super::fclamp(rate, 2.0, 30.0);
         let id = self.players[i].id;
         // A temporary stand when there is no companion out.
         let mut temp = None;
@@ -41,9 +41,9 @@ impl World {
             left: hits,
             every,
             next: 0.0,
-            damage: damage.clamp(0.0, 20.0),
-            knockback: knockback.clamp(0.0, 30.0),
-            range: range.clamp(1.0, 6.0),
+            damage: super::fclamp(damage, 0.0, 20.0),
+            knockback: super::fclamp(knockback, 0.0, 30.0),
+            range: super::fclamp(range, 1.0, 6.0),
             stand: temp,
             n: 0,
         });

@@ -229,6 +229,7 @@ impl ToolboxSnap {
                     super::twist::TwistBase::Move { mv, .. } => mv.pack() + 1,
                     super::twist::TwistBase::Held(sel) => QUEUE_HELD | *sel as u32,
                     super::twist::TwistBase::Cast { .. } => QUEUE_CAST,
+                    super::twist::TwistBase::Composed(_) => QUEUE_COMPOSED,
                 },
             };
         }

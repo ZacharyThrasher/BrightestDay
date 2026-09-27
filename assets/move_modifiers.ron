@@ -73,6 +73,9 @@
     ],
     counts: [(2, "double"), (3, "triple"), (4, "quad"), (5, "x5"), (6, "x6"), (8, "x8"), (10, "x10"), (100, "x100")],
     bang_mod: "yelled",
+    // bytes the VERB GRAMMAR reads itself (assets/verbs.ron: big / quick / long, count double / triple):
+    // they may stay inside a described core; every other modifier word is the twist's
+    composed_words: [1, 2, 3, 6, 7],
 
     // element / style looks: the move_fx.ron key, a tint, the non-CC status it may leave
     elements: [
@@ -288,5 +291,7 @@
         merge_damage: 0.85,
         imbue_damage: 1.3,
         title_join: " + ",
+        // one big orb (merged projectiles / a pull + push annihilation) cools at least this long
+        orb_cooldown: 12.0,
     ),
 )

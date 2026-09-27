@@ -25,9 +25,9 @@ impl World {
         let id = self.players[i].id;
         let base = self.cfg.move_params.clone();
         let my_eye = self.players[i].eye(&base);
-        let range = range.clamp(1.0, 60.0);
-        let cos = cone.clamp(5.0, 90.0).to_radians().cos();
-        let secs = if status == StatusKind::Stun { secs.clamp(0.1, STUN_CAP) } else { secs.clamp(0.1, OTHER_CAP) };
+        let range = super::fclamp(range, 1.0, 60.0);
+        let cos = super::fclamp(cone, 5.0, 90.0).to_radians().cos();
+        let secs = if status == StatusKind::Stun { super::fclamp(secs, 0.1, STUN_CAP) } else { super::fclamp(secs, 0.1, OTHER_CAP) };
         let mut victims = [None; MAX_PLAYERS];
         let mut n = 0;
         let only = if aimed {

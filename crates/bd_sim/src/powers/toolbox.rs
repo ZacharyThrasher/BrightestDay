@@ -110,6 +110,26 @@ pub struct MoveIndex {
     /// First word of a kit name → indices into `kits` (ascending = longest first). Thousands of kits
     /// (AUTO-KITS' generated ones) must not make every phrase scan every name.
     kit_first: HashMap<String, Vec<u32>>,
+    /// Shouts the data marks PROPER (written with a capital letter: `("Spirit Bomb", 2)`).
+    proper: HashSet<String>,
+}
+
+/// SHOUT HYGIENE — the lexicon's opinion of a phrase ([`MoveIndex::read_judged`]). Shouts are
+/// GLOBAL (anyone saying one fires it), so a borrowed shout must be DISTINCTIVE: a phrase the
+/// lexicon reads as a clean ordinary thing ("flaming hammer", "ice sword") summons that thing —
+/// the core promise, "say anything and it's built" — unless the shout is a famous PROPER move name
+/// ([`MoveIndex::is_proper_shout`]: marked in the data, or not made purely of dictionary words:
+/// "kamehameha", "rasengan", "fus ro dah", "kirby hammer").
+pub struct LexJudge<'a> {
+    /// The lexicon reads the phrase as one clean ORDINARY thing (`Lexicon::is_clean_thing`: a
+    /// construct it composed and fully understood — not a named entity / icon, not a grant, not a
+    /// signature, not an improvisation). bd_game `toolbox::plain_thing`.
+    pub thing: &'a dyn Fn(&str) -> bool,
+    /// Exactly a curated icon's name ("zelda shield" = the Hylian Shield): beats a LOOSE kit
+    /// reading ("zelda" + the slot word "shield"), never an exact one.
+    pub icon: &'a dyn Fn(&str) -> bool,
+    /// An everyday dictionary word (`Lexicon::is_everyday_word`).
+    pub everyday: &'a dyn Fn(&str) -> bool,
 }
 
 /// Filler words skipped between a kit name and its move word ("reinhardt use his charge").
@@ -243,6 +263,20 @@ impl MoveIndex {
             }
         }
         ix.names.remove("");
+        ix.proper = t.proper_shouts.iter().cloned().collect();
+        // A shout that carries its own character's / power's name ("kirby hammer", "mustang
+        // inferno", "haze smoke bomb") is distinctive by construction: proper.
+        for (s, r) in &ix.shouts {
+            let Some(def) = t.def(r.power) else { continue };
+            let sw: Vec<&str> = s.split(' ').map(strip_possessive).collect();
+            let named = owner_names(def).iter().any(|n| {
+                let nw: Vec<&str> = n.split(' ').collect();
+                n.len() >= 2 && nw.len() < sw.len() && sw.windows(nw.len()).any(|w| w == nw.as_slice())
+            });
+            if named {
+                ix.proper.insert(s.clone());
+            }
+        }
         ix.kits.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then(a.0.cmp(&b.0)).then(a.1.cmp(&b.1)));
         for (i, (k, _)) in ix.kits.iter().enumerate() {
             let first = k.split(' ').next().unwrap_or("");
@@ -292,6 +326,11 @@ impl MoveIndex {
 
     /// "<kit name> <move word>" (normalised phrase) → that kit's move. The bare kit name → `None`.
     pub fn kit_move(&self, t: &PowerTable, n: &str) -> Option<(MoveRef, KitMatch)> {
+        self.kit_move_named(t, n).map(|(m, why, _)| (m, why))
+    }
+
+    /// [`Self::kit_move`] + the kit name the phrase started with.
+    pub fn kit_move_named(&self, t: &PowerTable, n: &str) -> Option<(MoveRef, KitMatch, &str)> {
         if self.kits.is_empty() {
             return None;
         }
@@ -328,7 +367,7 @@ impl MoveIndex {
         // tag > prefix / typo > shape guess), ties to the earlier table entry (hand files before
         // the generated `zz_` kits).
         let mut matched: Option<&str> = None;
-        let mut best: Option<(u8, MoveRef, KitMatch)> = None;
+        let mut best: Option<(u8, MoveRef, KitMatch, &str)> = None;
         for (kit, pid) in cands.iter().map(|&c| &self.kits[c as usize]) {
             if let Some(m) = matched {
                 if m != kit.as_str() {
@@ -356,14 +395,14 @@ impl MoveIndex {
             let Some(def) = t.def(*pid) else { continue };
             if let Some((slot, why, rank)) = pick_kit_move(def, kit, rest) {
                 let mr = MoveRef::new(*pid, 0, slot);
-                if best.is_none_or(|(r, b, _)| rank > r || (rank == r && mr.power < b.power)) {
-                    best = Some((rank, mr, why));
+                if best.is_none_or(|(r, b, _, _)| rank > r || (rank == r && mr.power < b.power)) {
+                    best = Some((rank, mr, why, kit.as_str()));
                 }
             }
         }
         // (a kit name matched but no move did: shorter kit names inside it are not tried)
         let _ = &mut words;
-        best.map(|(_, m, why)| (m, why))
+        best.map(|(_, m, why, kit)| (m, why, kit))
     }
 
     /// How `text` reads for a player holding `held` (see [`Reading`]; `held` = `None` for a
@@ -397,6 +436,72 @@ impl MoveIndex {
         }
         Reading::Plain
     }
+
+    /// Is normalised shout `n` a PROPER move name — safe to be global? Marked in the data (written
+    /// with a capital letter: `("Spirit Bomb", 2)`), or not made purely of everyday dictionary words
+    /// ("kamehameha", "rasengan", "fus ro dah", "kirby hammer", "earthshatter").
+    pub fn is_proper_shout(&self, n: &str, everyday: &dyn Fn(&str) -> bool) -> bool {
+        self.proper.contains(n) || n.split(' ').any(|w| !w.is_empty() && !everyday(strip_possessive(w)))
+    }
+
+    /// Is normalised shout `n` MARKED proper — Title Case in the data, or carrying its own
+    /// character's / power's name? (Only a marked shout beats a curated icon of the same name: a
+    /// coined word alone doesn't — "mjolnir" / "lightsaber" / "batarang" are things.)
+    pub fn is_marked_shout(&self, n: &str) -> bool {
+        self.proper.contains(n)
+    }
+
+    /// SHOUT HYGIENE: does the shout `text` yield to the lexicon's reading? A shout MARKED proper
+    /// (Title Case in the data, or carrying its owner's name) never does. Otherwise it yields when
+    /// it is exactly a curated icon's name ("mjolnir" summons Mjolnir), and — unless it has a
+    /// coined / proper word ("kamehameha", "expelliarmus", "fus ro dah": [`Self::is_proper_shout`])
+    /// — when the lexicon composes a clean ordinary thing from it ("flaming hammer") or when it is
+    /// ONE everyday word ("dash", "smoke", "float": never distinctive enough to be global; the
+    /// lexicon / the described-move grammar reads it). A holder always fires their own shouts.
+    pub fn shout_yields(&self, text: &str, j: &LexJudge) -> bool {
+        let n = norm_words(text);
+        if self.is_marked_shout(&n) {
+            return false;
+        }
+        (j.icon)(text) || (!self.is_proper_shout(&n, j.everyday) && (!n.contains(' ') || (j.thing)(text)))
+    }
+
+    /// [`Self::read`] with SHOUT HYGIENE ([`LexJudge`]):
+    /// * a borrowed shout yields to the thing the lexicon reads ([`Self::shout_yields`]);
+    /// * a LOOSE kit reading (slot word / word overlap, not the move's exact name) yields to a
+    ///   curated icon's exact name ("zelda shield" is the Hylian Shield; "zelda parry" is still
+    ///   Zelda's move), and — when the kit name matched is itself only everyday words ("frozen",
+    ///   "storm") — to a clean ordinary thing ("frozen shield" is an ice shield).
+    ///
+    /// Held moves and exact kit moves are never touched. The console, voice, the preview tool and
+    /// the validator all read through this.
+    pub fn read_judged(&self, t: &PowerTable, held: Option<&PlayerPower>, text: &str, j: &LexJudge) -> Reading {
+        match self.read(t, held, text) {
+            Reading::Borrow(_) if self.shout_yields(text, j) => Reading::Plain,
+            Reading::Kit(m) => match self.kit_move_named(t, &norm_words(text)) {
+                Some((_, why, kit)) if why != KitMatch::Exact => {
+                    let plain_name = kit.split(' ').all(|w| (j.everyday)(w));
+                    if (j.icon)(text) || (plain_name && (j.thing)(text)) { Reading::Plain } else { Reading::Kit(m) }
+                }
+                _ => Reading::Kit(m),
+            },
+            r => r,
+        }
+    }
+}
+
+/// The names a power / kit is called by (normalised, possessive-stripped): `names`, `name`, the id,
+/// tier names.
+fn owner_names(p: &PowerDef) -> Vec<String> {
+    let mut out: Vec<String> = Vec::with_capacity(p.names.len() + 2);
+    let raw = p.names.iter().cloned().chain([norm_words(&p.name), p.id.replace('_', " ")]).chain(p.tiers.iter().flat_map(|t| t.names.iter().cloned()));
+    for n in raw {
+        let n = n.split(' ').filter(|w| !w.is_empty()).map(strip_possessive).collect::<Vec<_>>().join(" ");
+        if !n.is_empty() && !out.contains(&n) {
+            out.push(n);
+        }
+    }
+    out
 }
 
 /// Every number in a move's ops is finite (tools / tests: serialises the ops, so it allocates).
@@ -575,7 +680,7 @@ pub fn split_chain_with(text: &str, is_move: &dyn Fn(&str) -> bool, understood: 
     for part in strong {
         // one part = the line as typed (keeps its own spacing / punctuation for the lexicon)
         let part = if single { clean_step(text) } else { clean_step(&part) };
-        let weak: Vec<String> = split_on(&part, WEAK_SEPS).iter().map(|w| clean_step(w)).filter(|w| !norm_words(w).is_empty()).collect();
+        let weak = weak_pieces(&part, is_move);
         let lexicon_ok = match understood {
             None => true,
             Some(u) => weak.iter().all(|w| is_move(w) || u(w)),
@@ -591,6 +696,50 @@ pub fn split_chain_with(text: &str, is_move: &dyn Fn(&str) -> bool, understood: 
     out
 }
 
+/// Longest weak-separated span (pieces) kept together when it reads as one move.
+const MAX_PROTECTED_SPAN: usize = 4;
+
+/// A part cut on weak separators, but a known move phrase that CONTAINS one stays whole ("huff and
+/// puff", "hit and run", "rock, paper, scissors"): the longest span of pieces that reads as a move
+/// (joined back with its own separators) wins before any split.
+fn weak_pieces(part: &str, is_move: &dyn Fn(&str) -> bool) -> Vec<String> {
+    let (pieces, seps) = split_on_seps(part, WEAK_SEPS);
+    let mut out = Vec::with_capacity(pieces.len());
+    let mut i = 0;
+    while i < pieces.len() {
+        let mut took = false;
+        let far = (i + MAX_PROTECTED_SPAN - 1).min(pieces.len() - 1);
+        for j in (i + 1..=far).rev() {
+            let mut joined = pieces[i].clone();
+            for k in i..j {
+                let sep = seps.get(k).map(String::as_str).unwrap_or(" ");
+                if matches!(sep, "," | ";") {
+                    joined.push_str(sep);
+                    joined.push(' ');
+                } else {
+                    joined.push(' ');
+                    joined.push_str(sep);
+                    joined.push(' ');
+                }
+                joined.push_str(&pieces[k + 1]);
+            }
+            let joined = clean_step(&joined);
+            if is_move(&joined) {
+                out.push(joined);
+                i = j + 1;
+                took = true;
+                break;
+            }
+        }
+        if !took {
+            out.push(clean_step(&pieces[i]));
+            i += 1;
+        }
+    }
+    out.retain(|w| !norm_words(w).is_empty());
+    out
+}
+
 /// A step without the spoken punctuation around it ("Then, doomfist punch." → "doomfist punch").
 fn clean_step(s: &str) -> String {
     s.trim().trim_matches(|c: char| c.is_whitespace() || matches!(c, '.' | ',' | ';' | ':' | '!' | '?' | '-')).trim().to_string()
@@ -598,6 +747,12 @@ fn clean_step(s: &str) -> String {
 
 /// Split on whole-word separators (symbols anywhere; words at word boundaries).
 fn split_on(text: &str, seps: &[&str]) -> Vec<String> {
+    split_on_seps(text, seps).0
+}
+
+/// [`split_on`] + the separator found after each piece (`seps[k]` sits between piece k and k+1;
+/// leading / doubled separators are dropped, so `seps.len() + 1 >= pieces.len()`).
+fn split_on_seps(text: &str, seps: &[&str]) -> (Vec<String>, Vec<String>) {
     // Tokenise keeping symbol separators as their own tokens.
     let mut toks: Vec<String> = Vec::new();
     let mut cur = String::new();
@@ -640,15 +795,24 @@ fn split_on(text: &str, seps: &[&str]) -> Vec<String> {
     let mut seps: Vec<Vec<&str>> = seps.iter().map(|s| s.split(' ').collect()).collect();
     seps.sort_by(|a, b| b.len().cmp(&a.len()));
     let mut out: Vec<String> = Vec::new();
+    let mut between: Vec<String> = Vec::new();
+    let mut pending = String::new();
     let mut part: Vec<&str> = Vec::new();
+    let flush = |part: &mut Vec<&str>, pending: &str, out: &mut Vec<String>, between: &mut Vec<String>| {
+        if !part.is_empty() {
+            if !out.is_empty() {
+                between.push(pending.to_string());
+            }
+            out.push(part.join(" "));
+            part.clear();
+        }
+    };
     let mut k = 0;
     'tok: while k < toks.len() {
         for s in &seps {
             if k + s.len() <= lower.len() && s.iter().enumerate().all(|(j, w)| lower[k + j] == *w) {
-                if !part.is_empty() {
-                    out.push(part.join(" "));
-                    part.clear();
-                }
+                flush(&mut part, &pending, &mut out, &mut between);
+                pending = toks[k..k + s.len()].join(" ");
                 k += s.len();
                 continue 'tok;
             }
@@ -656,8 +820,6 @@ fn split_on(text: &str, seps: &[&str]) -> Vec<String> {
         part.push(&toks[k]);
         k += 1;
     }
-    if !part.is_empty() {
-        out.push(part.join(" "));
-    }
-    out
+    flush(&mut part, &pending, &mut out, &mut between);
+    (out, between)
 }

@@ -17,16 +17,16 @@
         //   0 pistol · 1 rocket · 2 gatling · 3 bazooka · 4 whip · 5 balloon · 6 red hawk · 7 axe / stamp / the big one.
         // A rubber punch is a LIMB that stretches out along the aim and snaps back (Shove at range,
         // fx "rubber") — never the rigid telescoping pole of the Ruyi staff (Extends).
-        shouts: [("gomu gomu no pistol", 0), ("gum gum pistol", 0), ("gum-gum pistol", 0), ("gomu gomu pistol", 0), ("gomu gomu no pisutoru", 0),
+        shouts: [("gomu gomu no pistol", 0), ("Gum Gum Pistol", 0), ("Gum-Gum Pistol", 0), ("gomu gomu pistol", 0), ("gomu gomu no pisutoru", 0),
                  ("gum gum no pistol", 0), ("gumgum pistol", 0), ("gomu gomu no pistoru", 0),
-                 ("gomu gomu no rocket", 1), ("gum gum rocket", 1), ("gum-gum rocket", 1), ("gomu gomu no roketto", 1), ("gumgum rocket", 1),
-                 ("gomu gomu no gatling", 2), ("gum gum gatling", 2), ("gum-gum gatling", 2), ("gomu gomu no gatling gun", 2), ("gum gum gatling gun", 2),
+                 ("gomu gomu no rocket", 1), ("Gum Gum Rocket", 1), ("Gum-Gum Rocket", 1), ("gomu gomu no roketto", 1), ("gumgum rocket", 1),
+                 ("gomu gomu no gatling", 2), ("Gum Gum Gatling", 2), ("Gum-Gum Gatling", 2), ("gomu gomu no gatling gun", 2), ("gum gum gatling gun", 2),
                  ("gomu gomu no gatoringu", 2), ("gumgum gatling", 2),
                  ("gomu gomu no bazooka", 3), ("gum gum bazooka", 3), ("gum-gum bazooka", 3), ("gomu gomu no bazuka", 3), ("gumgum bazooka", 3),
-                 ("gomu gomu no whip", 4), ("gum gum whip", 4), ("gomu gomu no muchi", 4), ("gum-gum whip", 4),
-                 ("gomu gomu no balloon", 5), ("gum gum balloon", 5), ("gomu gomu no fusen", 5), ("gum-gum balloon", 5), ("gomu gomu no fuusen", 5),
+                 ("gomu gomu no whip", 4), ("Gum Gum Whip", 4), ("gomu gomu no muchi", 4), ("Gum-Gum Whip", 4),
+                 ("gomu gomu no balloon", 5), ("Gum Gum Balloon", 5), ("gomu gomu no fusen", 5), ("Gum-Gum Balloon", 5), ("gomu gomu no fuusen", 5),
                  ("gomu gomu no red hawk", 6), ("gum gum red hawk", 6), ("red hawk", 6), ("gomu gomu no redo hoku", 6), ("gum-gum red hawk", 6),
-                 ("gomu gomu no axe", 7), ("gum gum axe", 7), ("gomu gomu no ono", 7), ("gum-gum axe", 7)],
+                 ("gomu gomu no axe", 7), ("Gum Gum Axe", 7), ("gomu gomu no ono", 7), ("Gum-Gum Axe", 7)],
         moves: [
             // The arm flies out from the shoulder along your aim and snaps back like a band.
             (name: "pistol", tags: [Primary], cooldown: 0.5, cost: 2.0, ops: [Shove(range: 8.0, angle: 10.0, damage: 11.0, knockback: 20.0)],
@@ -68,10 +68,10 @@
              delivery: Some((add: [Returning, Bounce, Fast, Pierce], remove: [DropFromSky], from_fist: true, arm: true)),
              ascend: Some((color: Some((1.0, 0.82, 0.86)), intensity: 1.2, title: Some("GEAR SECOND"), style: Steam,
                            skin_tint: Some((1.0, 0.55, 0.6)))),
-             shouts: [("jet pistol", 0), ("gomu gomu no jet pistol", 0), ("gum gum jet pistol", 0),
+             shouts: [("Jet Pistol", 0), ("gomu gomu no jet pistol", 0), ("Gum Gum Jet Pistol", 0),
                       ("jet gatling", 2), ("gomu gomu no jet gatling", 2), ("gum gum jet gatling", 2),
                       ("jet bazooka", 3), ("gomu gomu no jet bazooka", 3), ("gum gum jet bazooka", 3),
-                      ("jet whip", 4), ("gomu gomu no jet whip", 4), ("jet axe", 7), ("gomu gomu no jet ono", 7)],
+                      ("Jet Whip", 4), ("gomu gomu no jet whip", 4), ("Jet Axe", 7), ("gomu gomu no jet ono", 7)],
              moves: [
                  (name: "jet pistol", tags: [Primary], cooldown: 0.35, cost: 2.0, ops: [
                      Shove(range: 9.0, angle: 9.0, damage: 13.0, knockback: 24.0),
@@ -137,11 +137,11 @@
              graft: Some((mechanics: [Bounce, Heavy])),
              ascend: Some((color: Some((0.95, 0.3, 0.25)), intensity: 1.7, title: Some("GEAR FOURTH"), style: Steam, stable: false,
                            skin_tint: Some((0.3, 0.08, 0.08)))),
-             shouts: [("kong gun", 0), ("gomu gomu no kong gun", 0), ("gum gum kong gun", 0),
+             shouts: [("Kong Gun", 0), ("gomu gomu no kong gun", 0), ("gum gum kong gun", 0),
                       ("kong organ", 2), ("gomu gomu no kong organ", 2), ("gum gum kong organ", 2),
                       ("leo bazooka", 3), ("gomu gomu no leo bazooka", 3),
-                      ("culverin", 6), ("gomu gomu no culverin", 6), ("jet culverin", 6),
-                      ("king kong gun", 7), ("gomu gomu no king kong gun", 7), ("gum gum king kong gun", 7)],
+                      ("Culverin", 6), ("gomu gomu no culverin", 6), ("jet culverin", 6),
+                      ("King Kong Gun", 7), ("gomu gomu no king kong gun", 7), ("Gum Gum King Kong Gun", 7)],
              moves: [
                  (name: "kong gun", tags: [Primary], cooldown: 2.5, cost: 6.0, ops: [
                      Cast(recipe: (name: "kong gun", form: Ball, mech: [Returning, Blunt, Heavy, Fast], scale: 2.0, mass: 500.0)),
@@ -236,8 +236,8 @@
         incantations: ["mera mera no"],
         delivery: (element: Some(Fire), add: [Fast]),
         fx: "fire",
-        shouts: [("hiken", 0), ("fire fist", 0), ("hi ken", 0), ("fire fist ace", 0), ("entei", 1), ("flame emperor", 1), ("dai enkai entei", 1),
-                 ("fire gun", 2), ("hidan", 2), ("fire guns", 2),
+        shouts: [("Hiken", 0), ("Fire Fist", 0), ("hi ken", 0), ("Fire Fist Ace", 0), ("entei", 1), ("flame emperor", 1), ("dai enkai entei", 1),
+                 ("fire gun", 2), ("Hidan", 2), ("fire guns", 2),
                  ("hotarubi hidaruma", 3), ("fire fly phosphorescence", 3), ("firefly phosphorescence", 3), ("hotarubi", 3),
                  ("flame commandment", 4), ("enjomo", 4), ("enjo mo", 4)],
         moves: [
@@ -375,7 +375,7 @@
         incantations: ["yami yami no"],
         delivery: (element: Some(Shadow), add: [Attract]),
         fx: "shadow",
-        shouts: [("black hole", 0), ("liberation", 1), ("black vortex", 2), ("kurouzu", 2), ("dark vortex", 2), ("black whirlpool", 2)],
+        shouts: [("black hole", 0), ("liberation", 1), ("Black Vortex", 2), ("Kurouzu", 2), ("dark vortex", 2), ("black whirlpool", 2)],
         moves: [
             (name: "black hole", cooldown: 5.0, cost: 14.0, ops: [Field(strength: 28.0, radius: 10.0, secs: 3.0, at: Aim)]),
             (name: "liberation", cooldown: 5.0, cost: 14.0, ops: [
@@ -425,7 +425,7 @@
         incantations: ["magu magu no"],
         delivery: (element: Some(Fire), add: [Heavy, Blunt]),
         fx: "fire",
-        shouts: [("great eruption", 0), ("dai funka", 0), ("meteor volcano", 1), ("ryusei kazan", 1),
+        shouts: [("great eruption", 0), ("dai funka", 0), ("Meteor Volcano", 1), ("ryusei kazan", 1),
                  ("hound blaze", 2), ("inugami guren", 2), ("magma hound", 2), ("magma dog", 2),
                  ("magma pool", 3), ("magma fist", 4), ("absolute justice", 4)],
         moves: [
@@ -491,10 +491,10 @@
         incantations: ["ope ope no"],
         delivery: (add: [Blade]),
         fx: "hardlight",
-        shouts: [("room", 0), ("ope ope room", 0), ("room shambles", 1), ("shambles", 1), ("shamburu", 1),
+        shouts: [("room", 0), ("ope ope room", 0), ("Room Shambles", 1), ("shambles", 1), ("shamburu", 1),
                  ("gamma knife", 2), ("gamma knife injection", 2), ("gama knife", 2),
                  ("counter shock", 3), ("counter-shock", 3), ("injection shot", 4),
-                 ("amputate", 5), ("amputation", 5), ("takt", 6), ("takuto", 6), ("radio knife", 7), ("radio knives", 7)],
+                 ("amputate", 5), ("amputation", 5), ("takt", 6), ("takuto", 6), ("Radio Knife", 7), ("radio knives", 7)],
         moves: [
             (name: "room", tags: [Defense], cooldown: 3.0, cost: 10.0, ops: [Room(radius: 14.0, secs: 12.0)],
              juice: Some((title: Some("ROOM"), ripple: 14.0, color: Some((0.45, 0.7, 1.0))))),

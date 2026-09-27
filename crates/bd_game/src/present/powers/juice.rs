@@ -192,6 +192,7 @@ fn juice_events(
                     // A move title (TEXT CLUTTER): hidden when comic text is Off; a chain's titles
                     // stack per caster instead of piling up (bd_fx text_budget `titles`).
                     sh.title = true;
+                    sh.caster = player.0 as u64 + 1;
                     commands.spawn((Name::new("MoveTitle"), sh));
                 }
                 let _ = name;

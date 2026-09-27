@@ -26,7 +26,12 @@ pub fn read_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, tex
     let ix = MoveIndex::shipped();
     let held = held.filter(|p| p.id.is_some());
     let r = if powers_on {
-        ix.read(t, held, text)
+        // SHOUT HYGIENE: a non-proper shout yields to the ordinary thing the lexicon reads
+        // ("flaming hammer" builds one); a loose kit reading yields to an icon's exact name
+        let thing = |s: &str| plain_thing(lex, s, spoken);
+        let icon = |s: &str| lex.is_icon_name(s);
+        let everyday = |w: &str| lex.is_everyday_word(w);
+        ix.read_judged(t, held, text, &bd_sim::powers::toolbox::LexJudge { thing: &thing, icon: &icon, everyday: &everyday })
     } else {
         Reading::Plain
     };
@@ -69,6 +74,19 @@ fn spoken_shout(text: &str) -> Option<bd_sim::powers::toolbox::MoveRef> {
     map.get(&k).copied()
 }
 
+/// SHOUT HYGIENE: the lexicon reads `s` as one clean ORDINARY thing — a construct it composed and
+/// fully understood (lower-case name: not a named entity or icon, not a grant, not a signature —
+/// the lexicon's own famous moves). A shout that isn't proper yields to such a thing (bd_sim
+/// `toolbox::LexJudge`; the same rule in the `powers_check` validator).
+pub fn plain_thing(lex: &Lexicon, s: &str, spoken: bool) -> bool {
+    let r = if spoken { lex.resolve_spoken(s) } else { lex.resolve(s) };
+    // a NAMED reading ("Force Lightning", "King Leonidas", an icon made for the move itself like
+    // "Final Flash": a capitalised display name) is not an ordinary thing — the move keeps its
+    // shout. (An icon's exact name beats only a LOOSE kit reading: `LexJudge::icon`.)
+    let named = r.recipe.name.chars().any(|c| c.is_uppercase());
+    !named && r.signature.is_none() && r.recipe.grants.is_none() && r.stand_rush.is_none() && Lexicon::is_clean_thing(&r)
+}
+
 /// The lexicon reads `s` as one clean THING (a construct / grant it fully understood — not a bare
 /// modifier like "a big", not an improvisation).
 pub fn understood(lex: &Lexicon, s: &str, spoken: bool) -> bool {
@@ -92,7 +110,7 @@ pub fn command_for(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, t
     let fuzzy = |ws: &[&str]| sound_alike(lex, roster, ws, spoken);
     let names = compose::Names { players: roster, fuzzy: Some(&fuzzy) };
     let is_move = |s: &str| {
-        read_step(lex, held, powers_on, s, spoken).is_move() || twist_step(lex, held, powers_on, s, spoken).is_some() || composed(lex, powers_on, s, spoken, &names).is_some()
+        read_step(lex, held, powers_on, s, spoken).is_move() || twist_step(lex, held, powers_on, s, spoken, Some(&names)).is_some() || composed(lex, powers_on, s, spoken, &names).is_some()
     };
     let understood = |s: &str| understood(lex, s, spoken);
     let parts = split_chain_with(text, &is_move, Some(&understood));
@@ -102,7 +120,7 @@ pub fn command_for(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, t
     // MODIFIERS & FUSION: a twisted / fused move ("giant rasengan", "rasengan + amaterasu") comes
     // first — it is only ever read when a named move sits under the modifiers.
     if parts.len() == 1
-        && let Some(s) = twist_step(lex, held, powers_on, &parts[0], spoken)
+        && let Some(s) = twist_step(lex, held, powers_on, &parts[0], spoken, Some(&names))
     {
         return Some(vec![s]);
     }
@@ -120,7 +138,7 @@ pub fn command_for(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, t
     let mut steps = Vec::with_capacity(parts.len());
     let mut specs: Vec<Option<ComposedMove>> = Vec::with_capacity(parts.len());
     for p in &parts {
-        if let Some(s) = twist_step(lex, held, powers_on, p, spoken) {
+        if let Some(s) = twist_step(lex, held, powers_on, p, spoken, Some(&names)) {
             specs.push(None);
             steps.push(s);
             continue;
@@ -172,19 +190,31 @@ pub fn twist_judge(lex: &Lexicon, s: &str, spoken: bool) -> twist::read::Lex {
 /// MODIFIERS & FUSION (bd_sim `powers::twist`): the reading of a twisted / fused move, if the line
 /// is one — modifiers around a named move ("giant homing rasengan", "black flash but fire",
 /// "rapid fire hadouken") or two moves fused ("rasengan + amaterasu", "fuse red and blue").
-pub fn twist_reading(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool) -> Option<twist::read::TwistReading> {
+///
+/// With `names` (the console's roster) described moves are cores too ("homing fire punch", "rapid
+/// fire uppercut", "fire and ice punch", "teleport behind ethan + rasengan").
+pub fn twist_reading(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool, names: Option<&compose::Names>) -> Option<twist::read::TwistReading> {
     if !powers_on {
         return None;
     }
     let judge = |s: &str| twist_judge(lex, s, spoken);
-    let reader = twist::read::Reader { t: twist::ModTable::shipped(), powers: PowerTable::get(), ix: MoveIndex::shipped(), held: held.filter(|p| p.id.is_some()), judge: &judge };
+    let described = |s: &str| names.and_then(|n| composed(lex, powers_on, s, spoken, n));
+    let reader = twist::read::Reader {
+        t: twist::ModTable::shipped(),
+        powers: PowerTable::get(),
+        ix: MoveIndex::shipped(),
+        held: held.filter(|p| p.id.is_some()),
+        judge: &judge,
+        compose: names.map(|_| &described as &dyn Fn(&str) -> Option<ComposedMove>),
+    };
     reader.read(text)
 }
 
 /// The toolbox step of a twisted / fused move ([`twist_reading`]), or `None`.
-pub fn twist_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool) -> Option<ToolStep> {
-    let r = twist_reading(lex, held, powers_on, text, spoken)?;
+pub fn twist_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, text: &str, spoken: bool, names: Option<&compose::Names>) -> Option<ToolStep> {
+    let r = twist_reading(lex, held, powers_on, text, spoken, names)?;
     let side = |s: &twist::read::SideReading| -> Option<twist::TwistSide> {
+        let mut mods = s.mods.clone();
         let base = match &s.core {
             twist::read::Core::Move(Reading::Kit(mv)) => twist::TwistBase::Move { mv: *mv, kit: true },
             twist::read::Core::Move(Reading::Borrow(mv)) => twist::TwistBase::Move { mv: *mv, kit: false },
@@ -193,9 +223,15 @@ pub fn twist_step(lex: &Lexicon, held: Option<&PlayerPower>, powers_on: bool, te
                 ToolStep::Cast { recipe, shape, signature, .. } => twist::TwistBase::Cast { recipe, shape, signature },
                 _ => return None,
             },
+            // a described move's own modifier bytes ride the side: applied once, by the twist
+            twist::read::Core::Composed(spec) => {
+                let (spec, own) = twist::split_composed(*spec);
+                mods = own.into_iter().chain(mods).collect();
+                twist::TwistBase::Composed(spec)
+            }
             _ => return None,
         };
-        Some(twist::TwistSide { base, mods: s.mods.clone() })
+        Some(twist::TwistSide { base, mods })
     };
     let a = side(&r.a)?;
     let b = match &r.b {
@@ -418,7 +454,7 @@ mod tests {
         assert_eq!(ch.len(), 3);
         assert!(matches!(ch[1], ToolStep::Twist(_)) && matches!(ch[2], ToolStep::Twist(_)));
         assert_eq!(cmd("homing chidori, giant almighty push", false).map(|c| c.len()), Some(2), "weak separators split twists");
-        assert!(matches!(cmd("rasengan and chidori", false).as_deref(), Some([ToolStep::Move { .. }, ToolStep::Move { .. }])), "plain \"and\" is a chain");
+        assert!(matches!(cmd("rasengan and chidori", false).as_deref(), Some([ToolStep::Move { .. }, ToolStep::Move { .. }])), "plain \"and\" is a chain: {:?}", cmd("rasengan and chidori", false));
         assert!(matches!(cmd("almighty push", false).as_deref(), Some([ToolStep::Move { .. }])));
         for s in ["a giant flaming hammer", "three flaming swords", "goku x luffy", "gojo but bald", "giant hammer"] {
             assert!(!matches!(cmd(s, false).as_deref(), Some([ToolStep::Twist(_)])), "{s:?} must not twist: {:?}", cmd(s, false));

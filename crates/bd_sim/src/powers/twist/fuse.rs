@@ -1,6 +1,9 @@
 //! FUSION: two moves → one, by what they ARE (op classes, `fusion.classes` in the data), never by
 //! name. Rules, first that fits:
 //!
+//! T. **The same move in two elements** ("fire and ice punch", the reader's twin split): one move
+//!    carrying both — the first element's hits + the second's status (or a burst of it) on whoever
+//!    they're aimed at, with a Merge windup of both.
 //! 0. **A pull + a push** (an attracting field / gravity core / yank + a repelling field / real
 //!    blast / surge, no casts): the opposites collide into an ERASING ORB with a Merge windup —
 //!    "lapse blue + reversal red" is Hollow Purple, and so is any attract + repel pair.
@@ -135,6 +138,35 @@ fn hit_of(def: &MoveDef) -> (f32, f32, Element, f32, f32) {
     best
 }
 
+/// The same move, differing only in its elements (every `element` / elemental `status` / windup
+/// read as one): the twin split's two halves.
+fn same_but_element(t: &ModTable, a: &MoveDef, b: &MoveDef) -> bool {
+    if a.ops.len() != b.ops.len() {
+        return false;
+    }
+    let s = super::ops::Scales {
+        size: 1.0,
+        reach: 1.0,
+        damage: 1.0,
+        knock: 1.0,
+        speed: 1.0,
+        secs: 1.0,
+        cone: 1.0,
+        arc: 1.0,
+        count: 1,
+        element: Some(Element::Light),
+        status: Some(crate::status::StatusKind::Burn),
+    };
+    let norm = |o: &MoveOp| {
+        let mut o = o.clone();
+        if let MoveOp::Cast { merge, .. } = &mut o {
+            *merge = None;
+        }
+        super::ops::rescale(t, &ron::to_string(&o).unwrap_or_default(), &s)
+    };
+    a.ops.iter().zip(&b.ops).all(|(x, y)| norm(x) == norm(y))
+}
+
 /// Draws things in (an attracting field, a gravity core, a yank, a haul).
 fn pulls(d: &MoveDef) -> bool {
     d.ops.iter().any(|o| matches!(o, MoveOp::Field { strength, .. } if *strength > 0.0) || matches!(o, MoveOp::Singularity { .. } | MoveOp::Yank { .. } | MoveOp::Haul { .. }))
@@ -177,7 +209,19 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
     let how: &'static str;
     let others = |d: &MoveDef, skip: Option<usize>| -> Vec<MoveOp> { d.ops.iter().enumerate().filter(|(k, _)| Some(*k) != skip).map(|(_, o)| o.clone()).collect() };
     let mover = |p: &Profile| p.movement && !p.projectile && !p.melee;
-    if first_cast(&a.def).is_none() && first_cast(&b.def).is_none() && ((pulls(&a.def) && !pushes(&a.def) && pushes(&b.def) && !pulls(&b.def)) || (pulls(&b.def) && !pushes(&b.def) && pushes(&a.def) && !pulls(&a.def))) {
+    if ea != eb && same_but_element(t, &a.def, &b.def) {
+        // T. the SAME move in two elements ("fire and ice punch", "ice fire rasengan"): one move
+        //    carrying both — the first element's hits, and the second one rides along on whoever
+        //    they're aimed at (its lingering status, or a burst of it)
+        ops.extend(a.def.ops.iter().cloned());
+        let (dmg, _, _, _, radius) = hit_of(&a.def);
+        let reach = a.def.ops.iter().map(|o| super::ops::fields(o, &["range"])[0]).fold(0.0f32, f32::max).max(6.0);
+        match t.look(eb).and_then(|l| l.status) {
+            Some(status) => ops.push(MoveOp::Afflict { range: reach.min(40.0), cone: 20.0, status: Some(status), secs: 2.0, damage: 0.0, knockback: 0.0, up: 0.0, element: eb }),
+            None => ops.push(MoveOp::Explode { radius: radius.clamp(2.0, 4.0), damage: (dmg * 0.3).max(3.0), knockback: 6.0, carve: 0.0, element: eb, at: At::Front, dist: reach.min(6.0) }),
+        }
+        how = "one move, both elements";
+    } else if first_cast(&a.def).is_none() && first_cast(&b.def).is_none() && ((pulls(&a.def) && !pushes(&a.def) && pushes(&b.def) && !pulls(&b.def)) || (pulls(&b.def) && !pushes(&b.def) && pushes(&a.def) && !pulls(&a.def))) {
         // 0. a PULL fused with a PUSH: the opposites collide into an erasing orb (the Hollow Purple
         //    grammar for any attract + repel pair — "blue + red", "universal pull + almighty push")
         let el = if ea != Element::Light { ea } else { eb };
@@ -333,6 +377,9 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
     def.name = format!("{} {}", a.def.name, b.def.name);
     def.ops = ops;
     def.cooldown = (a.def.cooldown.max(b.def.cooldown) * f.cooldown).clamp(0.05, 120.0);
+    if merged_orb {
+        def.cooldown = def.cooldown.max(f.orb_cooldown);
+    }
     def.cost = a.def.cost.max(b.def.cost);
     def.tags.clear();
     if def.fx.is_empty() {

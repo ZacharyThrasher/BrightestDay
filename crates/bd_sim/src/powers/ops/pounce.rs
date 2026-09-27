@@ -61,8 +61,8 @@ pub(crate) struct Pounce {
 /// How long a pounce with this spec is in its active phase at most (chains wait on it).
 pub fn active_secs(range: f32, speed: f32, secs: f32) -> f32 {
     let speed = speed.clamp(MIN_SPEED, MAX_SPEED);
-    let cap = if secs > 0.0 { secs } else { range.clamp(1.0, 40.0) / speed + 0.2 };
-    cap.clamp(0.1, MAX_SECS)
+    let cap = if secs > 0.0 { secs } else { super::fclamp(range, 1.0, 40.0) / speed + 0.2 };
+    super::fclamp(cap, 0.1, MAX_SECS)
 }
 
 /// Distance between two boxes (0 when they touch or overlap).
@@ -78,7 +78,7 @@ impl World {
         let base = self.cfg.move_params.clone();
         let me = self.players[i].hull(&base).center();
         let speed = if s.speed.is_finite() { s.speed.clamp(MIN_SPEED, MAX_SPEED) } else { 30.0 };
-        let range = if s.range.is_finite() { s.range.clamp(1.0, 40.0) } else { 14.0 };
+        let range = if s.range.is_finite() { super::fclamp(s.range, 1.0, 40.0) } else { 14.0 };
         let target = self.op_aimed_player(i, range, s.cone);
         let (dir, flight, tid) = match target {
             Some(k) => {
@@ -88,11 +88,11 @@ impl World {
                 (d / len, len / speed, Some(self.players[k].id))
             }
             None => {
-                let d = Vec3::new(look.x, look.y.clamp(-0.6, 0.6), look.z).normalize_or(flat(look, Vec3::NEG_Z));
+                let d = Vec3::new(look.x, super::fclamp(look.y, -0.6, 0.6), look.z).normalize_or(flat(look, Vec3::NEG_Z));
                 (d, range / speed, None)
             }
         };
-        let cap = if s.secs > 0.0 { s.secs.clamp(0.1, MAX_SECS) } else { MAX_SECS };
+        let cap = if s.secs > 0.0 { super::fclamp(s.secs, 0.1, MAX_SECS) } else { MAX_SECS };
         let secs = (flight + 0.2).min(cap).max(0.1);
         // Aim straight at them; lift for the flight time so gravity doesn't drop the lunge short.
         let lift = (base.gravity.abs() * flight.min(0.8) * 0.5).min(12.0);
@@ -140,9 +140,9 @@ impl World {
                 let s = pc.spec;
                 let tid = self.players[k].id;
                 let c = self.players[k].hull(&base).center();
-                let push = (c - me).normalize_or(pc.dir) + Vec3::Y * s.up.clamp(0.0, 2.0);
-                let dmg = if s.damage.is_finite() { s.damage.clamp(0.0, 60.0) } else { 0.0 };
-                let kb = if s.knockback.is_finite() { s.knockback.clamp(0.0, 60.0) } else { 0.0 };
+                let push = (c - me).normalize_or(pc.dir) + Vec3::Y * super::fclamp(s.up, 0.0, 2.0);
+                let dmg = if s.damage.is_finite() { super::fclamp(s.damage, 0.0, 60.0) } else { 0.0 };
+                let kb = if s.knockback.is_finite() { super::fclamp(s.knockback, 0.0, 60.0) } else { 0.0 };
                 let h = HitInfo::new(tid, Some(pc.owner), HitKind::Melee, dmg, kb, push, c).with_element(s.element).with_impact(1.4);
                 self.apply_hit(h);
                 let mv = &mut self.players[i].mv;

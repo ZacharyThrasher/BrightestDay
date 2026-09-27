@@ -1402,6 +1402,11 @@ pub struct PowerTable {
     #[serde(default)]
     pub rules: PowerRules,
     pub powers: Vec<PowerDef>,
+    /// SHOUT HYGIENE (toolbox.rs): normalised shouts the data writes with a capital letter
+    /// (`("Spirit Bomb", 2)`) — a famous move's PROPER name, borrowable even when every word is a
+    /// dictionary word and the lexicon could read it as a thing. Filled by `sanitize`.
+    #[serde(skip)]
+    pub proper_shouts: std::collections::BTreeSet<String>,
 }
 
 // The shipped table (compiled in; deterministic on every peer): `SHIPPED_FILES` = every
@@ -1422,7 +1427,7 @@ impl PowerTable {
     /// One plain list of entries (the lexicon's scanner reads the same list).
     pub fn parse(src: &str) -> Result<PowerTable, String> {
         let powers: Vec<PowerDef> = ron::from_str(src).map_err(|e| e.to_string())?;
-        let mut t = PowerTable { rules: PowerRules::default(), powers };
+        let mut t = PowerTable { rules: PowerRules::default(), powers, proper_shouts: Default::default() };
         t.sanitize();
         Ok(t)
     }
@@ -1438,7 +1443,7 @@ impl PowerTable {
         if powers.len() > MAX_POWERS {
             return Err(overflow_msg(powers.len()));
         }
-        let mut t = PowerTable { rules: PowerRules::default(), powers };
+        let mut t = PowerTable { rules: PowerRules::default(), powers, proper_shouts: Default::default() };
         t.sanitize();
         Ok(t)
     }
@@ -1458,7 +1463,7 @@ impl PowerTable {
             // LOUD: the entries past the cap are dropped (the validator and tests fail on this).
             warn.push(overflow_msg(powers.len()));
         }
-        let mut t = PowerTable { rules: PowerRules::default(), powers };
+        let mut t = PowerTable { rules: PowerRules::default(), powers, proper_shouts: Default::default() };
         t.sanitize();
         (t, warn)
     }
@@ -1491,7 +1496,11 @@ impl PowerTable {
                 k.sanitize();
             }
             for (s, _) in &mut p.shouts {
+                let proper = s.chars().any(|c| c.is_uppercase());
                 *s = norm_words(s);
+                if proper && !s.is_empty() {
+                    self.proper_shouts.insert(s.clone());
+                }
             }
             p.tiers.truncate(15);
             for t in &mut p.tiers {
@@ -1505,7 +1514,11 @@ impl PowerTable {
                 }
                 t.incantations.retain(|p| !p.is_empty());
                 for (s, _) in &mut t.shouts {
+                    let proper = s.chars().any(|c| c.is_uppercase());
                     *s = norm_words(s);
+                    if proper && !s.is_empty() {
+                        self.proper_shouts.insert(s.clone());
+                    }
                 }
             }
             let fix_move = |m: &mut MoveDef| {

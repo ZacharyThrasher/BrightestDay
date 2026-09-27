@@ -17,6 +17,12 @@
 //!    steps, GRANT (a power / tier name), or FALLTHROUGH to a generic construct. The fallthrough
 //!    list is how content workers find gaps.
 //!
+//! 6. SHOUT HYGIENE (needs assets/lexicon.bin): a shout that isn't PROPER (Title Case in the data,
+//!    or containing a non-dictionary word) and that the lexicon reads as a clean ordinary thing is
+//!    DEAD — saying it builds the thing ("flaming hammer"), never the move. `--hygiene` prints the
+//!    whole sweep (dead shouts + shouts made only of everyday words, for review); `--raw` makes
+//!    `--coverage` read without the hygiene (the old reading, for before / after counts).
+//!
 //! Exit code 1 if any given file fails to parse or has errors (warnings don't fail).
 
 use std::path::{Path, PathBuf};
@@ -31,10 +37,14 @@ struct Args {
     hold: Vec<String>,
     dir: PathBuf,
     all: bool,
+    /// --raw: coverage WITHOUT shout hygiene (the old reading; before / after comparisons)
+    raw: bool,
+    /// --hygiene: print the full shout-hygiene sweep (dead shouts, common-word shouts)
+    hygiene: bool,
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { files: vec![], coverage: None, hold: vec![], dir: PathBuf::new(), all: false };
+    let mut a = Args { files: vec![], coverage: None, hold: vec![], dir: PathBuf::new(), all: false, raw: false, hygiene: false };
     let mut it = std::env::args().skip(1);
     while let Some(s) = it.next() {
         match s.as_str() {
@@ -42,6 +52,8 @@ fn parse_args() -> Args {
             "--hold" => a.hold = it.next().map(|h| h.split(',').map(|x| x.trim().to_string()).collect()).unwrap_or_default(),
             "--dir" => a.dir = it.next().map(PathBuf::from).unwrap_or_default(),
             "--all" => a.all = true,
+            "--raw" => a.raw = true,
+            "--hygiene" => a.hygiene = true,
             "-h" | "--help" => {
                 println!("{}", include_str!("powers_check.rs").lines().take_while(|l| l.starts_with("//!")).map(|l| l.trim_start_matches("//!")).collect::<Vec<_>>().join("\n"));
                 std::process::exit(0);
@@ -232,8 +244,82 @@ fn main() {
         if p.kind.is_kit() && (p.transform.is_some() || p.companion.is_some() || !p.incantations.is_empty()) {
             warn("a Kit is never held: transform / companion / incantations do nothing".into());
         }
-        if p.kind.is_kit() && p.shouts.is_empty() {
+        // (AUTO-KITS' generated `dk_*` kits add nothing borrowable by design)
+        if p.kind.is_kit() && p.shouts.is_empty() && !p.id.starts_with("dk_") {
             warn("no shouts: only \"<kit name> <move>\" reaches its moves (add each move's famous name as a shout to make it borrowable)".into());
+        }
+    }
+
+    // ---- 6. shout hygiene (the lexicon's view: a dead shout builds a thing, never the move)
+    let lex = load_lex(&files);
+    if let Some(l) = &lex {
+        let mut dead: Vec<(String, MoveRef, String)> = Vec::new();
+        let mut plainish: Vec<(String, MoveRef, String)> = Vec::new();
+        let mut coined: Vec<(String, MoveRef, String)> = Vec::new();
+        let mut shouts: Vec<(&str, MoveRef)> = ix.shouts().collect();
+        shouts.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(b.0)));
+        let everyday = |w: &str| l.is_everyday_word(w);
+        let thing = |s: &str| plain_thing(l, s);
+        let icon = |s: &str| l.is_icon_name(s);
+        let judge = bd_sim::powers::toolbox::LexJudge { thing: &thing, icon: &icon, everyday: &everyday };
+        for (s, m) in shouts {
+            if !is_mine(&file_of(m.power)) || ix.is_grant_name(s) {
+                continue;
+            }
+            let res = l.resolve(s);
+            if ix.shout_yields(s, &judge) {
+                let why = if l.is_icon_name(s) { format!("icon {}", res.recipe.name) } else { res.recipe.name.clone() };
+                dead.push((s.to_string(), m, why));
+            } else if !s.contains(' ') && !ix.is_marked_shout(s) && plain_thing(l, s) {
+                // one rare / coined word the lexicon reads as a THING ("surfboard", "minigun"):
+                // it still borrows (coined words count as proper) — review it
+                coined.push((s.to_string(), m, res.recipe.name.clone()));
+            } else if !ix.is_proper_shout(s, &everyday) {
+                plainish.push((s.to_string(), m, if bd_lexicon::Lexicon::is_fallback(&res) { "improvised".into() } else { format!("{:?} {:.2}", res.kind, res.confidence) }));
+            }
+        }
+        // A KIT's dead shout is only a lint (the kit form "<kit> <shout>" still reads it): prefix it.
+        // A held power's shout still works for its HOLDER (held priority): a note, not a warning.
+        let kit_of = |m: &MoveRef| table.def(m.power).is_some_and(|d| d.kind.is_kit());
+        let (dead_kit, dead_held): (Vec<_>, Vec<_>) = dead.iter().partition(|(_, m, _)| kit_of(m));
+        for (s, m, thing) in &dead_kit {
+            if args.hygiene || dead_kit.len() <= 60 {
+                println!(
+                    "WARN hygiene: shout \"{s}\" of {} ({}) reads as a plain thing (\"{thing}\"): saying it BUILDS that, never the move — prefix the character, or write it Title Case if it is the move's famous proper name",
+                    describe(&table, *m),
+                    file_of(m.power)
+                );
+            }
+            warnings += 1;
+        }
+        if !args.hygiene && dead_kit.len() > 60 {
+            println!("WARN hygiene: {} dead kit shouts (the first 60 above were not printed: run with --hygiene)", dead_kit.len());
+        }
+        for (s, m, thing) in &coined {
+            println!(
+                "WARN hygiene: one-word shout \"{s}\" of {} ({}) is also a THING the lexicon builds (\"{thing}\"): the move takes the word from everyone — if it names an object / creature, prefix the character; if it is the move's famous name, write it Title Case",
+                describe(&table, *m),
+                file_of(m.power)
+            );
+            warnings += 1;
+        }
+        if args.hygiene {
+            for (s, m, thing) in &coined {
+                let (id, mv) = m.resolve(&table).map(|(d, mv)| (d.id.clone(), mv.name.clone())).unwrap_or_default();
+                println!("COINED\t{s}\t{id}\t{}\t{mv}\t{}\t{thing}\t1", kit_of(m) as u8, file_of(m.power));
+            }
+            for (s, m, thing) in &dead_held {
+                println!("note hygiene: shout \"{s}\" of {} ({}) reads as a plain thing (\"{thing}\"): only its HOLDER fires it by saying it", describe(&table, *m), file_of(m.power));
+            }
+            for (s, m, thing) in &dead {
+                let (id, mv) = m.resolve(&table).map(|(d, mv)| (d.id.clone(), mv.name.clone())).unwrap_or_default();
+                println!("DEAD\t{s}\t{id}\t{}\t{mv}\t{}\t{thing}\t{}", kit_of(m) as u8, file_of(m.power), ix.is_proper_shout(s, &everyday) as u8);
+            }
+            println!("\n== shouts made only of everyday words (borrowable because the lexicon doesn't read them as one thing; review: generic phrases are global):");
+            for (s, m, why) in &plainish {
+                println!("  PLAINWORDS \"{s}\" → {} ({}) [{why}]", describe(&table, *m), file_of(m.power));
+            }
+            println!("hygiene: {} dead shout(s), {} everyday-word shout(s)", dead.len(), plainish.len());
         }
     }
     // the raw file may list more than 8 moves (sanitize truncated them): check the raw parse
@@ -264,24 +350,37 @@ fn main() {
 
     // ---- 5. coverage
     if let Some(cov) = &args.coverage {
-        coverage(&table, &ix, &files, cov, &args.hold);
+        coverage(&table, &ix, lex.as_ref(), cov, &args.hold, args.raw);
     }
     std::process::exit(if errors > 0 { 1 } else { 0 });
+}
+
+/// The lexicon over THESE power files (assets/lexicon.bin + icons), if there is one.
+fn load_lex(files: &[(String, String)]) -> Option<bd_lexicon::Lexicon> {
+    let assets = root().join("assets");
+    std::fs::read(assets.join("lexicon.bin")).ok().and_then(|bytes| {
+        let pf: Vec<(String, String)> = files.iter().map(|(n, s)| (format!("powers/{n}"), s.clone())).collect();
+        bd_lexicon::Lexicon::from_parts(bytes, &bd_lexicon::Lexicon::icon_files(&assets), &pf).ok()
+    })
+}
+
+/// SHOUT HYGIENE — the same predicate as bd_game `toolbox::plain_thing`: a construct the lexicon
+/// composed and fully understood (lower-case name: not a named entity / icon), not a grant, not a
+/// signature.
+fn plain_thing(l: &bd_lexicon::Lexicon, s: &str) -> bool {
+    let r = l.resolve(s);
+    let named = r.recipe.name.chars().any(|c| c.is_uppercase());
+    !named && r.signature.is_none() && r.recipe.grants.is_none() && r.stand_rush.is_none() && bd_lexicon::Lexicon::is_clean_thing(&r)
 }
 
 /// The pretend match roster for --coverage (described moves may name a player).
 const ROSTER: [(bd_core::PlayerId, &str); 4] = [(bd_core::PlayerId(1), "Ethan"), (bd_core::PlayerId(2), "Mia"), (bd_core::PlayerId(3), "Sam"), (bd_core::PlayerId(4), "Nova")];
 
-fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path: &Path, hold: &[String]) {
+fn coverage(table: &PowerTable, ix: &MoveIndex, lex: Option<&bd_lexicon::Lexicon>, path: &Path, hold: &[String], raw: bool) {
     let Ok(text) = std::fs::read_to_string(path) else {
         eprintln!("error: cannot read {}", path.display());
         return;
     };
-    let assets = root().join("assets");
-    let lex = std::fs::read(assets.join("lexicon.bin")).ok().and_then(|bytes| {
-        let pf: Vec<(String, String)> = files.iter().map(|(n, s)| (format!("powers/{n}"), s.clone())).collect();
-        bd_lexicon::Lexicon::from_parts(bytes, &bd_lexicon::Lexicon::icon_files(&assets), &pf).ok()
-    });
     if lex.is_none() {
         println!("(no assets/lexicon.bin: non-move phrases show as PLAIN)");
     }
@@ -299,6 +398,12 @@ fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path
     let held = holds.then_some(&pw);
     let mut fall = Vec::new();
     let mut n = 0;
+    let (mut moves, mut things) = (0usize, 0usize);
+    // SHOUT HYGIENE, the console's judge (bd_game toolbox::read_step)
+    let thing = |s: &str| lex.is_some_and(|l| plain_thing(l, s));
+    let icon = |s: &str| lex.is_some_and(|l| l.is_icon_name(s));
+    let everyday = |w: &str| lex.is_none_or(|l| l.is_everyday_word(w));
+    let judge = bd_sim::powers::toolbox::LexJudge { thing: &thing, icon: &icon, everyday: &everyday };
     println!("\n== coverage: {}", path.display());
     for line in text.lines() {
         let line = line.trim();
@@ -308,11 +413,11 @@ fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path
         n += 1;
         // the console's reading: a phrase the lexicon resolves to a GRANT never borrows; weak
         // separators split only what the lexicon doesn't read as one thing
-        let read = |s: &str| match ix.read(table, held, s) {
-            Reading::Borrow(_) if lex.as_ref().is_some_and(|l| l.resolve(s).recipe.grants.is_some()) => Reading::Plain,
+        let read = |s: &str| match if raw { ix.read(table, held, s) } else { ix.read_judged(table, held, s, &judge) } {
+            Reading::Borrow(_) if lex.is_some_and(|l| l.resolve(s).recipe.grants.is_some()) => Reading::Plain,
             r => r,
         };
-        let understood = |s: &str| lex.as_ref().is_some_and(|l| bd_lexicon::Lexicon::is_clean_thing(&l.resolve(s)));
+        let understood = |s: &str| lex.is_some_and(|l| bd_lexicon::Lexicon::is_clean_thing(&l.resolve(s)));
         // VERB GRAMMAR (docs/toolbox/COMPOSED_MOVE.md): a described move, unless the lexicon knows
         // the exact phrase as something curated (the console's rule, bd_game toolbox::composed)
         let composed = |s: &str| {
@@ -370,12 +475,22 @@ fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path
                 fall.push(if steps.len() > 1 { format!("{s}    (step of: {line})") } else { s.clone() });
             }
         }
+        if steps.len() == 1 && read(&steps[0]).is_move() {
+            moves += 1;
+        } else if steps.len() == 1 && composed(&steps[0]).is_none() {
+            things += 1;
+        }
         if steps.len() > 1 {
             println!("{line:<48} → CHAIN {}", steps.iter().zip(&out).map(|(s, o)| format!("[{s}: {o}]")).collect::<Vec<_>>().join(" → "));
         } else {
             println!("{line:<48} → {}", out.first().cloned().unwrap_or_default());
         }
     }
+    println!(
+        "\nSUMMARY{}: {n} phrase(s): {moves} read as ONE power move, {things} as a thing (construct / grant / summon), {} other (chains, described moves)",
+        if raw { " (raw, no shout hygiene)" } else { "" },
+        n - moves - things
+    );
     println!("\n{} phrase(s); {} step(s) fall through to a generic construct (no power move):", n, fall.len());
     for f in &fall {
         println!("  {f}");

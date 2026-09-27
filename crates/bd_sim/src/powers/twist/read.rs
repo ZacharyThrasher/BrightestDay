@@ -97,7 +97,7 @@ impl WordIndex {
         ix.numbers = t.numbers.iter().cloned().collect();
         let longest_first = |v: &[String]| {
             let mut out: Vec<Vec<String>> = v.iter().map(|s| split_words(s)).filter(|w| !w.is_empty()).collect();
-            out.sort_by(|a, b| b.len().cmp(&a.len()));
+            out.sort_by_key(|w| std::cmp::Reverse(w.len()));
             out
         };
         ix.infix = longest_first(&t.fusion.infix);
@@ -181,6 +181,9 @@ pub fn judge_of(signature: bool, construct: bool, curated: bool, confidence: f32
     }
 }
 
+/// The caller's described-move reader (phrase → a composed spec).
+pub type DescribedReader<'a> = dyn Fn(&str) -> Option<crate::powers::compose::ComposedMove> + 'a;
+
 /// The reader: tables + who is reading + the lexicon judge.
 pub struct Reader<'a> {
     pub t: &'a ModTable,
@@ -193,7 +196,7 @@ pub struct Reader<'a> {
     /// The DESCRIBED-move reader (bd_game `toolbox::composed`: the verb grammar + the lexicon's
     /// curated filter), for cores like "punch" / "fire uppercut" / "teleport behind him". `None` =
     /// named moves only.
-    pub compose: Option<&'a dyn Fn(&str) -> Option<crate::powers::compose::ComposedMove>>,
+    pub compose: Option<&'a DescribedReader<'a>>,
 }
 
 impl<'a> Reader<'a> {
@@ -227,6 +230,11 @@ impl<'a> Reader<'a> {
             return Some(TwistReading { a: SideReading { core: Core::Move(r), core_text: plain, mods: vec![] }, b: None, mods: whole });
         }
         if let Some((a, b)) = self.fusion(&toks) {
+            return Some(TwistReading { a, b: Some(b), mods: whole });
+        }
+        // two element / style words on one move ("fire and ice punch", "ice fire rasengan"): the
+        // move once in each, fused — one move, both elements
+        if let Some((a, b)) = self.twin(&toks) {
             return Some(TwistReading { a, b: Some(b), mods: whole });
         }
         let a = self.side(&toks)?;
@@ -272,9 +280,10 @@ impl<'a> Reader<'a> {
             Reading::Borrow(_) if (self.judge)(text) == Lex::Everyday => None,
             // a fuzzy kit match with modifier words inside ("doomfist giant punch") is not the
             // core: the modifiers come out first
+            // (the first word is the kit's name: "flash step" is The Flash's)
             Reading::Kit(_)
                 if self.ix.kit_move(self.powers, &norm_words(text)).is_some_and(|(_, why)| why != KitMatch::Exact)
-                    && text.split(' ').any(|w| self.w().phrases.contains_key(w)) =>
+                    && text.split(' ').skip(1).any(|w| self.w().phrases.contains_key(w)) =>
             {
                 None
             }
@@ -282,9 +291,9 @@ impl<'a> Reader<'a> {
         }
     }
 
-    /// `move_core_judged` / a famous cast, trying the singular of a plural last word too
-    /// ("rasengans", "fireballs").
-    fn core_plural(&self, toks: &[String], cheap: bool) -> Option<(Core, Vec<String>)> {
+    /// A core of this `pass` (0 = a named move, 1 = a described move, 2 = a famous cast), trying the
+    /// singular of a plural last word too ("rasengans", "fireballs").
+    fn core_plural(&self, toks: &[String], pass: u8) -> Option<(Core, Vec<String>)> {
         let mut variants: Vec<Vec<String>> = vec![toks.to_vec()];
         if let Some(last) = toks.last() {
             for s in singulars(last) {
@@ -295,21 +304,23 @@ impl<'a> Reader<'a> {
                 variants.push(v);
             }
         }
-        for v in &variants {
-            if let Some(r) = self.move_core_judged(&v.join(" ")) {
-                return Some((Core::Move(r), v.clone()));
+        match pass {
+            0 => variants.iter().find_map(|v| self.move_core_judged(&v.join(" ")).map(|r| (Core::Move(r), v.clone()))),
+            1 => {
+                // a described move ("punch", "fire uppercut") after every named reading
+                // (COMPOSED_MOVE.md §1); its reader already refuses curated phrases. Only
+                // vocabulary the verb grammar shares (styles / elements and `composed_words`: big,
+                // quick, long, double, triple) may stay inside it; any other modifier word
+                // ("rapid fire", "homing", "reverse") is the twist's, so it comes out first.
+                let foreign = (0..toks.len()).any(|i| self.mod_at(toks, i).is_some_and(|(id, _)| !self.shared_word(id)));
+                let compose = self.compose.filter(|_| !foreign)?;
+                compose(&toks.join(" ")).map(|spec| (Core::Composed(spec), toks.to_vec()))
             }
+            _ => variants.iter().find_map(|v| {
+                let text = v.join(" ");
+                ((self.judge)(&text) == Lex::Famous).then(|| (Core::Cast(text), v.clone()))
+            }),
         }
-        if cheap {
-            return None;
-        }
-        for v in &variants {
-            let text = v.join(" ");
-            if (self.judge)(&text) == Lex::Famous {
-                return Some((Core::Cast(text), v.clone()));
-            }
-        }
-        None
     }
 
     // ------------------------------------------------------------------ modifiers
@@ -449,8 +460,9 @@ impl<'a> Reader<'a> {
             }
         }
         combos.sort_by_key(|(k, j)| (k + j, *j, *k));
-        // the cheap (toolbox) cores before the lexicon predicate
-        for cheap in [true, false] {
+        // named moves anywhere in the phrase first, then described moves, then famous casts (the
+        // lexicon, the priciest check) — fewest stripped words first within each
+        for pass in 0..3u8 {
             for &(k, j) in &combos {
                 let start = if k == 0 { 0 } else { spans[k - 1].1 + spans[k - 1].2 };
                 let stop = if j == 0 { end } else { sfx[j - 1].1 };
@@ -458,7 +470,7 @@ impl<'a> Reader<'a> {
                     continue;
                 }
                 let core = &toks[start..stop];
-                if let Some((c, words)) = self.core_plural(core, cheap) {
+                if let Some((c, words)) = self.core_plural(core, pass) {
                     let mut mods: Vec<u8> = spans[..k].iter().map(|s| s.0).collect();
                     mods.extend(sfx[..j].iter().rev().map(|s| s.0));
                     mods.extend(tail.iter().copied());
@@ -488,7 +500,7 @@ impl<'a> Reader<'a> {
                     }
                 }
                 if !inner.is_empty()
-                    && let Some((c, words)) = self.core_plural(&kept, cheap)
+                    && let Some((c, words)) = self.core_plural(&kept, pass)
                 {
                     let mut mods: Vec<u8> = spans.iter().map(|s| s.0).collect();
                     mods.extend(inner);
@@ -525,6 +537,71 @@ impl<'a> Reader<'a> {
             return None;
         }
         (from..=toks.len() - pat.len()).find(|&i| toks[i..i + pat.len()] == *pat)
+    }
+
+    /// A modifier the verb grammar reads itself (a style / element, or one of `composed_words`).
+    fn shared_word(&self, id: u8) -> bool {
+        self.t.composed_words.contains(&id) || self.t.get(id).is_some_and(|m| m.element.is_some() || matches!(m.kind, super::ModKind::Element | super::ModKind::Style))
+    }
+
+    /// Is the modifier at `i` an element / style swap? (id, tokens used)
+    fn element_at(&self, toks: &[String], i: usize) -> Option<(u8, usize)> {
+        let (id, len) = self.mod_at(toks, i)?;
+        let m = self.t.get(id)?;
+        (m.element.is_some() || matches!(m.kind, super::ModKind::Element | super::ModKind::Style)).then_some((id, len))
+    }
+
+    /// "fire and ice punch": the first two DIFFERENT element / style words before the move (joined by
+    /// "and" / "&" / "+" / "plus" / "," or side by side) → (the line without the second, the line
+    /// without the first), both of which must read as sides.
+    fn twin(&self, toks: &[String]) -> Option<(SideReading, SideReading)> {
+        let w = self.w();
+        let joiner = |s: &str| matches!(s, "and" | "&" | "+" | "plus" | "n" | "or");
+        let mut found: Vec<(u8, usize, usize)> = Vec::new(); // (id, start, len)
+        let mut i = 0;
+        while i < toks.len() && found.len() < 2 {
+            if let Some((id, len)) = self.element_at(toks, i) {
+                if found.first().is_none_or(|f| f.0 != id) {
+                    found.push((id, i, len));
+                }
+                i += len;
+            } else if found.is_empty() || joiner(&toks[i]) || w.fillers.contains(&toks[i]) || w.articles.contains(&toks[i]) || self.mod_at(toks, i).is_some() {
+                // before the first style anything goes (other modifiers, articles); between the
+                // two only joiners / fillers / other modifiers
+                i += self.mod_at(toks, i).map_or(1, |m| m.1);
+            } else {
+                break;
+            }
+        }
+        let [(_, s1, l1), (_, s2, l2)] = found[..] else { return None };
+        // the joiner(s) right before the second style go with it
+        let mut j = s2;
+        while j > s1 + l1 && joiner(&toks[j - 1]) {
+            j -= 1;
+        }
+        let a: Vec<String> = toks[..j].iter().chain(toks[s2 + l2..].iter()).cloned().collect();
+        let b: Vec<String> = toks[..s1].iter().chain(toks[s1 + l1..].iter()).filter(|_| true).cloned().collect();
+        // drop a dangling joiner in b ("and ice punch" → "ice punch")
+        let b: Vec<String> = {
+            let mut v = b;
+            if v.get(s1).is_some_and(|x| joiner(x)) {
+                v.remove(s1);
+            }
+            v
+        };
+        let sa = self.side(&a)?;
+        let sb = self.side(&b)?;
+        // the same move twice, once per element (a described move: the same spec but its style)
+        let same = match (&sa.core, &sb.core) {
+            (Core::Composed(x), Core::Composed(y)) => {
+                let (mut x, mut y) = (*x, *y);
+                x.style = 0;
+                y.style = 0;
+                x == y
+            }
+            (x, y) => x == y,
+        };
+        same.then_some((sa, sb))
     }
 
     /// "A + B", "fuse A and B", "A and B combined", "A x B" …

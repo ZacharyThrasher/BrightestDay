@@ -88,6 +88,9 @@ pub struct Shout {
     /// A move / form title (not a player's own words): hidden when comic text is Off
     /// ([`crate::OnoMode::Off`]).
     pub title: bool,
+    /// Who shouted (e.g. player id + 1; 0 = unknown: casters are matched by head distance). A
+    /// caster's shouts stack in one column (text_budget `titles`) even when they moved in between.
+    pub caster: u64,
 }
 
 impl Shout {
@@ -107,6 +110,7 @@ impl Shout {
             seed: 0,
             compact: false,
             title: false,
+            caster: 0,
         }
     }
 }
@@ -492,6 +496,17 @@ fn local_frame(s: &Shout, st: &ShoutState, intensity: f32, fov: f32, aspect: f32
     (unit, cx, cy, hs, ws)
 }
 
+/// One caster's shouts (chain stacking): all local ones; others by caster id, else by head distance.
+fn same_caster(a_local: bool, a_caster: u64, a_head: Vec3, b_local: bool, b_caster: u64, b_head: Vec3, same_m: f32) -> bool {
+    if a_local || b_local {
+        return a_local == b_local;
+    }
+    if a_caster != 0 && b_caster != 0 {
+        return a_caster == b_caster;
+    }
+    a_head.distance(b_head) < same_m
+}
+
 /// World shout size: (unit, visible block height in shout units, far LOD).
 fn world_unit(st: &ShoutState, head: Vec3, intensity: f32, cam_pos: Vec3) -> (f32, f32, bool) {
     let dist = head.distance(cam_pos).max(0.5);
@@ -526,7 +541,7 @@ fn init_shouts(
         // Chains: this caster's live shouts make room — each keeps at most `stack_hold` more, and
         // beyond `stack_max` the oldest collapses now.
         {
-            let same = |o: &Shout| if s.local { o.local } else { !o.local && fin3(o.head).distance(fin3(s.head)) < tb.same_caster_m };
+            let same = |o: &Shout| same_caster(o.local, o.caster, fin3(o.head), s.local, s.caster, fin3(s.head), tb.same_caster_m);
             let mut mine: Vec<Mut<ShoutState>> =
                 live.iter_mut().filter(|(o, st)| same(o) && !st.released && st.throw_at.is_none() && st.age <= st.land + st.hold).map(|(_, st)| st).collect();
             mine.sort_by(|a, b| b.serial.cmp(&a.serial));
@@ -667,7 +682,7 @@ fn animate_shouts(
     mut letters: Query<&mut Transform, Without<ShoutState>>,
     budget: Res<TextBudget>,
     mut stack: Local<Vec<(Entity, f32, f32)>>,
-    mut scratch: Local<(Vec<(Entity, u64, bool, Vec3, f32)>, Vec<(u64, f32)>, Vec<f32>)>,
+    mut scratch: Local<(Vec<(Entity, u64, bool, Vec3, f32, u64)>, Vec<(u64, f32)>, Vec<f32>)>,
 ) {
     let dt = time.delta_secs().min(0.1);
     let Some((cam, fov, aspect)) = camera(&cams) else { return };
@@ -696,13 +711,13 @@ fn animate_shouts(
                 let (unit, lines_h, _) = world_unit(st, fin3(s.head), intensity, cam_pos);
                 unit * lines_h
             };
-            items.push((e, st.serial, s.local, fin3(s.head), h));
+            items.push((e, st.serial, s.local, fin3(s.head), h, s.caster));
         }
         for i in 0..items.len() {
-            let (e, serial, local, head, _) = items[i];
+            let (e, serial, local, head, _, caster) = items[i];
             group.clear();
-            for &(_, s2, l2, h2, height) in items.iter() {
-                if l2 == local && (local || h2.distance(head) < tb.same_caster_m) {
+            for &(_, s2, l2, h2, height, c2) in items.iter() {
+                if same_caster(l2, c2, h2, local, caster, head, tb.same_caster_m) {
                     group.push((s2, height));
                 }
             }
@@ -712,7 +727,7 @@ fn animate_shouts(
                     group[j].1 *= shrink;
                 }
             }
-            stack_offsets(group, tb.stack_gap, offs);
+            stack_offsets(group, tb.stack_gap, local, offs);
             let off = group.iter().position(|g| g.0 == serial).map_or(0.0, |j| offs[j]);
             let k = if stack_rank(group, serial) > 0 { shrink } else { 1.0 };
             stack.push((e, off, k));

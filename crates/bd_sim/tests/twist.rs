@@ -45,7 +45,19 @@ fn judge(s: &str) -> Lex {
 }
 
 fn reader<'a>(held: Option<&'a PlayerPower>, judge: &'a dyn Fn(&str) -> Lex) -> Reader<'a> {
-    Reader { t: t(), powers: PowerTable::get(), ix: MoveIndex::shipped(), held, judge }
+    Reader { t: t(), powers: PowerTable::get(), ix: MoveIndex::shipped(), held, judge, compose: Some(&described) }
+}
+
+/// The described-move reader the console uses (VERB GRAMMAR + the lexicon's curated filter), with
+/// the preview's sample roster.
+fn described(s: &str) -> Option<bd_sim::powers::compose::ComposedMove> {
+    use bd_sim::powers::compose;
+    let roster = [(PlayerId(2), "Ethan"), (PlayerId(3), "Mia")];
+    let names = compose::Names { players: &roster, fuzzy: None };
+    let r = compose::read(s, &names)?;
+    let Some(l) = lex().as_ref() else { return Some(r.spec) };
+    let res = l.resolve(s);
+    (!compose::curated_by_lexicon(s, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)).then_some(r.spec)
 }
 
 fn mod_name(n: u8) -> String {
@@ -65,6 +77,7 @@ fn core_name(c: &Core, held: Option<&PlayerPower>) -> String {
     let table = PowerTable::get();
     match c {
         Core::Cast(s) => format!("cast:{s}"),
+        Core::Composed(spec) => format!("described:{}", bd_sim::powers::twist::split_composed(*spec).0.name()),
         Core::Move(Reading::Kit(m) | Reading::Borrow(m)) => m.resolve(table).map_or("?".into(), |(_, d)| d.name.clone()),
         Core::Move(Reading::Held(PowerPhrase::Move(sel))) => held
             .and_then(|h| exec::held_move(h, *sel))
@@ -74,7 +87,13 @@ fn core_name(c: &Core, held: Option<&PlayerPower>) -> String {
 }
 
 fn side_str(s: &SideReading, held: Option<&PlayerPower>) -> String {
-    format!("{}{}", core_name(&s.core, held), mods_str(&s.mods))
+    // a described core's own bytes are applied by the twist too (moved out of the spec)
+    let mut mods = match &s.core {
+        Core::Composed(spec) => bd_sim::powers::twist::split_composed(*spec).1,
+        _ => vec![],
+    };
+    mods.extend(s.mods.iter().copied());
+    format!("{}{}", core_name(&s.core, held), mods_str(&mods))
 }
 
 fn reading_str(r: &Option<TwistReading>, held: Option<&PlayerPower>) -> String {
@@ -502,6 +521,7 @@ fn fusion_rules_by_what_the_moves_are() {
         f.def.ops
     );
     assert_eq!(f.how, "opposites collide: an erasing orb");
+    assert!(f.def.cooldown >= t().fusion.orb_cooldown, "an erasing orb is an ultimate, not a spam combo ({})", f.def.cooldown);
     // a leap with its own slam + a blast: one bigger landing slam
     let (_, slam) = shipped_move("seismic slam");
     let (_, push) = shipped_move("almighty push");
@@ -690,7 +710,7 @@ fn a_fusion_fires_both_and_cools_both() {
     let evs = run(&mut w, 2);
     assert!(w.player(A).unwrap().mv.pos.distance(from) > 3.0, "blinked");
     assert!(!explosions(&evs).is_empty(), "and the push arrived with you");
-    assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Op(OpEvent::Twisted { b: Some(_), merge: Some(_), .. })))));
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Op(OpEvent::Twisted { b: bd_sim::powers::twist::BaseRef::Move(_), merge: Some(_), .. })))));
     run(&mut w, ticks(1.0));
     assert_eq!(w.borrow_move(A, push, false, None), Err(PowerError::Cooldown), "both base moves cool");
 }
@@ -780,4 +800,59 @@ fn the_twisted_borrowed_kamehameha_keeps_its_three_hands() {
         _ => None,
     });
     assert_eq!(spawned, Some(3), "{evs:?}");
+}
+
+// ------------------------------------------------------------------------------ described moves
+
+fn described_step(phrase: &str) -> TwistStep {
+    let cast = |_: &str| Lex::Other;
+    let r = reader(None, &cast).read(phrase).unwrap_or_else(|| panic!("{phrase:?} is a twist"));
+    let side = |s: &SideReading| TwistSide {
+        base: match &s.core {
+            Core::Composed(spec) => TwistBase::Composed(*spec),
+            Core::Move(Reading::Borrow(m)) => TwistBase::Move { mv: *m, kit: false },
+            Core::Move(Reading::Kit(m)) => TwistBase::Move { mv: *m, kit: true },
+            c => panic!("{c:?}"),
+        },
+        mods: s.mods.clone(),
+    };
+    TwistStep { a: side(&r.a), b: r.b.as_ref().map(side), mods: r.mods.clone(), shot: 0 }.sanitized(t())
+}
+
+#[test]
+fn a_twisted_described_move_goes_for_its_target_and_applies_modifiers_once() {
+    // "giant punch" is the grammar's own (big) — twisted with "homing", the big byte moves to the
+    // twist side and the spec keeps no modifiers (applied once)
+    let s = described_step("homing giant punch at ethan");
+    let spec = exec::side_spec(&s.a).expect("a described core");
+    assert!(spec.mods.iter().all(|m| *m == 0), "the spec carries no modifiers: {spec:?}");
+    assert!(s.a.mods.contains(&byte("giant")) && s.a.mods.contains(&byte("homing")), "{:?}", s.a.mods);
+    // fired at B (Ethan = PlayerId(2) in the reader's roster), who stands well off the crosshair
+    let mut w = duel();
+    stand(&mut w, B, 11.0, -4.0);
+    run(&mut w, 20);
+    w.player_mut(A).unwrap().willpower = 100.0;
+    let pct0 = w.player(B).unwrap().damage_pct;
+    w.toolbox(A, vec![ToolStep::Twist(Box::new(s))], None).expect("fires");
+    let evs = run(&mut w, ticks(1.5));
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Op(OpEvent::Twisted { a: bd_sim::powers::twist::BaseRef::Composed(_), .. })))));
+    assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Fired { how: chain::FireHow::Composed, .. }))));
+    assert!(w.player(B).unwrap().damage_pct > pct0, "the homing punch went for Ethan (not the crosshair)");
+}
+
+#[test]
+fn fire_and_ice_is_one_move_with_both_elements() {
+    let s = described_step("fire and ice punch");
+    assert!(s.b.is_some(), "a twin fusion");
+    let mut w = duel();
+    w.player_mut(A).unwrap().willpower = 100.0;
+    let plan = w.twist_plan(0, &s).expect("plan");
+    assert_eq!(plan.tw.how, "one move, both elements");
+    assert_eq!(plan.tw.merge.map(|(a, b)| (a, b)), Some((Element::Fire, Element::Ice)));
+    assert!(plan.tw.def.ops.iter().any(|o| matches!(o, MoveOp::Afflict { status: Some(bd_sim::status::StatusKind::Chill), .. })), "{:?}", plan.tw.def.ops);
+    // the named version too
+    let (_, ras) = shipped_move("rasengan");
+    let f = fuse(t(), &twist(t(), ras, &[byte("fire")]), &twist(t(), ras, &[byte("ice")]));
+    assert_eq!(f.how, "one move, both elements");
+    assert!(f.def.ops.iter().any(|o| matches!(o, MoveOp::Drill { element: Element::Fire, .. })));
 }

@@ -7,7 +7,9 @@
 //!   staleness step: repeating costs more sparks — cycle!). Unused chips fade after a while.
 //! * **Chain pips**: a line with separators ("bamf -> hulk smash -> pistol") shows one pip per link;
 //!   each pops as its move fires, the next one to fire breathes.
-//! * **Tab** (the scoreboard key, like the power cards): the move's name floats over its chip.
+//! * **Tab** (the scoreboard key, like the power cards): the moves' names are listed on their own
+//!   card in the Tab label row (`labels.rs` `moves_card`: each chip's glyph + name, in chip order), so
+//!   they never pile onto the power cards (TEXT CLUTTER).
 //!
 //! Inputs: [`MoveFxFired`] with `borrowed` (the local player's, from the sim's `PowerEvent::Fired`),
 //! the own `ToolboxSnap` (host cooldowns, repeats, the pending chain — docs/toolbox/PRESENTATION_API.md),
@@ -15,7 +17,7 @@
 //! its quantised value changed.
 
 use super::strip::{IconMaterial, IconParams, StripRow};
-use crate::lobby::prefs::{Action, KeyBinds, UiPrefs};
+use crate::lobby::prefs::UiPrefs;
 use crate::present::powers::movefx::{self, MoveChainFx, MoveFxFired};
 use crate::sim_bridge::{ActiveWorld, GameEvents, ViewKeys};
 use bd_sim::GameEvent;
@@ -158,13 +160,9 @@ impl BorrowedHud {
 
 #[derive(Resource)]
 struct Nodes {
-    chips: [(Entity, Entity, Entity, Handle<IconMaterial>); CHIPS],
+    chips: [(Entity, Entity, Handle<IconMaterial>); CHIPS],
     pips: [(Entity, Handle<IconMaterial>); PIPS],
-    names: [Option<&'static str>; CHIPS],
 }
-
-#[derive(Component)]
-struct ChipName;
 
 pub fn build(app: &mut App) {
     app.init_resource::<BorrowedHud>()
@@ -180,22 +178,9 @@ fn attach(mut commands: Commands, rows: Query<Entity, Added<StripRow>>, mut mats
         let chips = std::array::from_fn(|k| {
             let m = mk(1.0, 3.1 + k as f32);
             let icon = commands.spawn((Node { width: px(CHIP), height: px(CHIP), ..default() }, MaterialNode(m.clone()), Pickable::IGNORE)).id();
-            let name = commands
-                .spawn((
-                    ChipName,
-                    // Staggered up a step per chip: four names never sit on each other.
-                    Node { display: Display::None, position_type: PositionType::Absolute, bottom: px(CHIP + 4.0 + 15.0 * k as f32), left: px(CHIP * 0.5 - 2.0), padding: UiRect::horizontal(px(3)), ..default() },
-                    Text::new(""),
-                    BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.55)),
-                    TextFont::from_font_size(11.0),
-                    TextColor(Color::srgba(1.0, 1.0, 1.0, 0.92)),
-                    TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
-                    Pickable::IGNORE,
-                ))
-                .id();
             let holder = commands.spawn((Node { display: Display::None, width: px(CHIP), height: px(CHIP), flex_shrink: 0.0, align_items: AlignItems::Center, justify_content: JustifyContent::Center, ..default() }, Pickable::IGNORE)).id();
-            commands.entity(holder).add_children(&[icon, name]);
-            (holder, icon, name, m)
+            commands.entity(holder).add_children(&[icon]);
+            (holder, icon, m)
         });
         let pips = std::array::from_fn(|k| {
             let m = mk(1.0, 0.7 * k as f32);
@@ -211,7 +196,7 @@ fn attach(mut commands: Commands, rows: Query<Entity, Added<StripRow>>, mut mats
             commands.entity(pip_row).add_child(p.0);
         }
         commands.entity(row).add_children(&[chip_row, pip_row]);
-        commands.insert_resource(Nodes { chips, pips, names: [None; CHIPS] });
+        commands.insert_resource(Nodes { chips, pips });
     }
 }
 
@@ -272,19 +257,13 @@ fn draw(
     prefs: Res<UiPrefs>,
     state: Res<State<AppState>>,
     menu: Res<InGameMenu>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    binds: Res<KeyBinds>,
-    focus: Res<crate::input::UiFocus>,
     active: Option<Res<ActiveWorld>>,
     mut mats: ResMut<Assets<IconMaterial>>,
     mut q_node: Query<&mut Node>,
-    mut texts: Query<&mut Text, With<ChipName>>,
 ) {
-    let Some(mut n) = nodes else { return };
+    let Some(n) = nodes else { return };
     let alive = active.as_ref().and_then(|a| a.local_player()).is_some_and(|p| p.alive);
     let show = prefs.power_hud && *state.get() == AppState::InGame && !menu.0 && alive;
-    let tab = show && ((!focus.typing && binds.pressed(Action::Scoreboard, &keys, &mouse)) || std::env::var_os("BD_TAB_TEST").is_some());
     let mut set_disp = |e: Entity, on: bool, size: Option<f32>| {
         let Ok(mut nd) = q_node.get_mut(e) else { return };
         let d = if on { Display::Flex } else { Display::None };
@@ -299,10 +278,9 @@ fn draw(
         }
     };
     for k in 0..CHIPS {
-        let (holder, icon, name, ref h) = n.chips[k];
+        let (holder, icon, ref h) = n.chips[k];
         let chip = hud.chips[k].filter(|_| show);
         set_disp(holder, chip.is_some(), None);
-        set_disp(name, chip.is_some() && tab, None);
         let Some(c) = chip else { continue };
         let size = CHIP * (1.0 - 0.1 * c.stale as f32);
         set_disp(icon, true, Some(size));
@@ -318,12 +296,6 @@ fn draw(
             && let Some(mut m) = mats.get_mut(h)
         {
             m.params = p;
-        }
-        if tab && n.names[k].is_none_or(|s| !std::ptr::eq(s, c.mv.name.as_str()))
-            && let Ok(mut t) = texts.get_mut(name)
-        {
-            n.names[k] = Some(c.mv.name.as_str());
-            t.0 = c.mv.name.to_uppercase();
         }
     }
     let len = hud.chain_len as usize;

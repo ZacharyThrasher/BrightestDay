@@ -124,7 +124,18 @@ wobble, hold ~0.4 s, then **shatter into cubes** with the impact debris. Word ch
 mechanic / element / weight (KRAK, SPLOOSH, ZZAK, VWOOP, KRANG, DOOM…; data table
 `assets/fx/onomatopoeia.ron`), size by impact. Performance words where timing is skill: PERFECT (perfect
 bhop, perfect oath), GOOD / SLOW (oath grades), PARRY!. Manga mode (ドドド, ゴゴゴ). Settings: Off /
-Big hits only (default) / Full comic; rate-limited; world-space, never HUD clutter.
+Big hits only (default) / Full comic — now Settings → HUD → WORDS → **COMIC TEXT: Full / Reduced (default) /
+Off** (Off also hides move titles); rate-limited; world-space, never HUD clutter.
+**World-text budget** (`bd_fx::text_budget`, tunables `assets/fx/text_budget.ron`): nobody loses sight of the
+action or their crosshair. Words never sit within 3.2 m of the camera (pushed out along their view ray) and are
+dropped when the camera is inside the event; letters are clamped to 2–7.5 % of the screen height (a word ≤ 30 %
+of its width); nothing overlaps the crosshair cone (others' words go up, yours diagonally up-and-out); your own
+hits are smaller (60 %, big hits 85 %), peripheral (≥ 11° off the crosshair) and brief (60 % hold on light hits);
+≤ 3 words near you (2 in Reduced) by priority (impact + involvement + crit/finisher) — a new word replaces the
+least important one or is skipped; rapid light hits say every 3rd word per attacker. Hit words follow the
+weapon: SHING (blades), THOOM/KRUNCH (heavies), SHUNK (spears), SNAP (whips), POW (fists), KRAK (lightning);
+a move's blast says its style's word (smoke blink = BAMF). A caster's move titles stack in one short column
+(newest on the base line, older shrunk above, ≤ 2) instead of piling up.
 **Shout callouts** (the payoff for yelling): the phrase a player casts bursts out of their ring as big
 voxel letters (per-letter slam + squash, shockwave), holds, then its voxels stream into the construct as
 it forms. Size / punch / shake / hold scale with how hard they shouted (mic peak for voice; CAPS, "!!!",

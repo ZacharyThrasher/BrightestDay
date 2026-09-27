@@ -288,6 +288,35 @@ impl Lexicon {
         nothing || unknown_words || res.confidence < 0.35
     }
 
+    /// TOOLBOX shout hygiene: `text` (articles aside) is exactly the name / alias of a curated icon
+    /// ("zelda shield" → the Hylian Shield) — not a power's grant name.
+    pub fn is_icon_name(&self, text: &str) -> bool {
+        let k = normalize_key(text);
+        let k = k.split(' ').filter(|w| !matches!(*w, "a" | "an" | "the")).collect::<Vec<_>>().join(" ");
+        self.icons.alias.get(&k).and_then(|&i| self.icons.defs.get(i)).is_some_and(|d| d.file != "powers.ron")
+    }
+
+    /// TOOLBOX shout hygiene: an everyday dictionary word (wordfreq-common and not a person's name,
+    /// a grammar word, or a modifier / verb / element word the ring knows) — as opposed to a coined
+    /// or proper word ("rasengan", "kamehameha", "fus", "zelda", "kirby").
+    pub fn is_everyday_word(&self, w: &str) -> bool {
+        let w = normalize_key(w);
+        if w.is_empty() || w.contains(' ') {
+            return false;
+        }
+        if w.bytes().all(|b| b.is_ascii_digit()) || parse::gram_of(&w).is_some() {
+            return true;
+        }
+        if self.t.adj.contains_key(&w) || self.t.verb.contains_key(&w) || self.t.intens.contains_key(&w) || self.t.pure.contains_key(&w) || self.t.coll.contains_key(&w) {
+            return true;
+        }
+        // wordfreq-common (zipf >= 3.3) and not a person's name. (Rarer dictionary words —
+        // "surfboard", "flamethrower" — count as coined here; the validator's hygiene lint flags
+        // such a shout when the lexicon reads it as a thing.)
+        let common = |k: &str| self.entry(k).is_some_and(|(_, r)| r.flags & data::F_PERSON == 0 && r.flags & data::F_COMMON != 0);
+        common(&w) || self.t.infl.get(&w).is_some_and(|b| common(b))
+    }
+
     /// Read `<dir>/icons.ron` and `<dir>/icons/*.ron` (sorted) as (file name, contents).
     pub fn icon_files(dir: &Path) -> Vec<(String, String)> {
         let mut out = Vec::new();

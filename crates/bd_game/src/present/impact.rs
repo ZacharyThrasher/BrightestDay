@@ -196,13 +196,14 @@ fn present_hits(
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     arena: Option<Res<crate::arena::ArenaWorld>>,
-    (ads, juice_t, presence, move_fx, mut words, text_budget): (
+    (ads, juice_t, presence, move_fx, mut words, text_budget, delayed): (
         Option<Res<super::ads::AdsState>>,
         Res<connect::JuiceTuningRes>,
         Option<Res<super::presence::PresenceIndex>>,
         Option<Res<super::powers::movefx::table::MoveFx>>,
         Local<ExplosionWords>,
         Option<Res<bd_fx::TextBudget>>,
+        Option<Res<super::powers::op_visuals::RecentMoves>>,
     ),
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
@@ -499,8 +500,12 @@ fn present_hits(
         let fired = source
             .and_then(|s| fired_now.iter().find(|f| f.0 == s).map(|f| (f.1, f.2)))
             .or_else(|| source.and_then(|s| words.recent.iter().find(|r| r.0 == s && now - r.3 < STYLE_WORD_SECS).map(|r| (r.1, r.2))));
-        let key = match (fired, move_fx.as_deref()) {
-            (Some((m, def)), Some(t)) => super::powers::movefx::style_word(t, m, Some(def)),
+        // OP VISUALS: a delayed strike (Salvo, DelayedHit, Seeker…) lands seconds after its move:
+        // it still says that move's style word (a cut never KA-BOOMs).
+        let late = if fired.is_none() { source.and_then(|s| delayed.as_ref().and_then(|r| r.delayed_word(s, now))) } else { None };
+        let key = match (fired, move_fx.as_deref(), late) {
+            (Some((m, def)), Some(t), _) => super::powers::movefx::style_word(t, m, Some(def)),
+            (None, _, Some(w)) => w,
             _ => Some("explosion"),
         };
         if let Some(key) = key {

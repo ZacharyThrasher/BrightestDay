@@ -14,9 +14,9 @@
         incantations: ["turtle power", "cowabunga"],
         // "cowabunga <anything>": it comes out shell-guarded and bouncy.
         delivery: (add: [Guard, Bounce]),
-        shouts: [("cowabunga", 0), ("shell slide", 0), ("heroes in a half shell", 1), ("turtle form", 1),
+        shouts: [("Cowabunga", 0), ("shell slide", 0), ("heroes in a half shell", 1), ("turtle form", 1),
                  ("turtle shell spin", 2), ("shell spin turtle", 2), ("ninja vanish", 3), ("turtle vanish", 3),
-                 ("turtle power", 4), ("turtles assemble", 4)],
+                 ("Turtle Power", 4), ("turtles assemble", 4)],
         moves: [
             // Belly-down on the shell: slide into their shins and bowl them over (steer it).
             (name: "shell slide", cooldown: 1.6, cost: 5.0, ops: [

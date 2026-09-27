@@ -501,22 +501,21 @@ fn intake(mut events: MessageReader<GameEvents>, mut side: ResMut<Side>, mut fir
     for ev in events.read() {
         match &ev.event {
             GameEvent::Power(pe) => match pe {
-                PowerEvent::Op(bd_sim::powers::ops::OpEvent::Twisted { player, a: Some(a), b, mods, .. }) => {
+                PowerEvent::Op(bd_sim::powers::ops::OpEvent::Twisted { player, a, b, mods, .. }) => {
                     twisted = bd_sim::powers::twist::exec::interned(*a, *b, mods).map(|m| (*player, m));
                 }
                 // ANY move (held, borrowed, kit): the TOOLBOX event carries the move id, where the
                 // mover was / is and the aim. (Held moves also send the old `Move`: not read here.)
+                // A twisted move (even a described one, whose ref never resolves) plays its twist.
                 PowerEvent::Fired { player, mv, how, from, to, dir, step, .. } => {
                     let table = PowerTable::get();
-                    if let Some((def, m)) = mv.resolve(table) {
-                        let m = match twisted.take() {
-                            Some((p, t)) if p == *player => t,
-                            _ => m,
-                        };
+                    let resolved = mv.resolve(table);
+                    let tw = twisted.take().filter(|(p, _)| p == player).map(|x| x.1);
+                    if let Some(m) = tw.or(resolved.map(|r| r.1)) {
                         fired.write(MoveFxFired {
                             player: *player,
                             mv: m,
-                            power: Some(def),
+                            power: resolved.map(|r| r.0),
                             borrowed: *how != FireHow::Held,
                             key: Some(*mv),
                             from: Some(bv(*from)),

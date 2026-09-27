@@ -129,6 +129,9 @@ pub struct Brand {
     pub spread: f32,
     pub source: PlayerId,
     pub tick_t: f32,
+    /// Control-status time this brand may still apply to its carrier (a Stun / Float brand never
+    /// holds anyone longer than `contagion::CONTROL_CAP` in total — never take control away).
+    pub ctl: f32,
 }
 
 /// A travelling slash (see `ops/wave.rs`).
@@ -148,8 +151,8 @@ pub struct WaveLive {
     pub up: f32,
     pub element: Element,
     pub thin: bool,
-    /// Player indices already struck (bit k = players[k]).
-    pub hit: u32,
+    /// Players already struck (by id: indices shift when someone leaves).
+    pub hit: [Option<PlayerId>; bd_core::MAX_PLAYERS],
     /// The construct it cut last (each construct is cut once).
     pub last_c: Option<bd_core::ConstructId>,
 }
@@ -167,13 +170,23 @@ pub struct LiveOps {
     pub phase: f32,
     pub rush: Option<RushState>,
     pub brand: Option<Brand>,
+    /// Seconds this player can't catch a brand again (it just burned out on them: a brand never
+    /// passes back along its own chain).
+    pub brand_immune: f32,
     pub waves: [Option<WaveLive>; MAX_WAVES],
 }
 
 impl LiveOps {
     /// Nothing to step.
     pub fn idle(&self) -> bool {
-        self.drill.is_none() && self.mark.is_none() && self.seen.is_none() && self.phase <= 0.0 && self.rush.is_none() && self.brand.is_none() && self.waves.iter().all(|w| w.is_none())
+        self.drill.is_none()
+            && self.mark.is_none()
+            && self.seen.is_none()
+            && self.phase <= 0.0
+            && self.rush.is_none()
+            && self.brand.is_none()
+            && self.brand_immune <= 0.0
+            && self.waves.iter().all(|w| w.is_none())
     }
 }
 

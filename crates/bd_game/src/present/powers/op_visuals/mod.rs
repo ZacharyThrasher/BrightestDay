@@ -27,6 +27,7 @@
 //! (the event buffer keeps its capacity). Drawn for every player; nothing is drawn in your lens and
 //! nothing sits over the crosshair (your own markers go low in the view).
 
+mod dev;
 pub mod prims;
 
 use self::prims::{AuraKind, MarkKind, StrikeKind, TetherBody, View};
@@ -160,6 +161,9 @@ enum Kind {
     Sight,
     /// A homing thrown thing's trail (follows `construct`; binds to the owner's newest one near `a`).
     Trail,
+    /// A gaze: twin beams out of the owner's eyes along their live look (`r` = reach, `acc` = cone
+    /// half-angle, radians: fanned edge beams for a cone move).
+    Gaze,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -394,6 +398,7 @@ pub struct OpVisualsPlugin;
 
 impl Plugin for OpVisualsPlugin {
     fn build(&self, app: &mut App) {
+        dev::build(app);
         app.init_resource::<Pool>()
             .init_resource::<Locks>()
             .init_resource::<Looks>()
@@ -471,24 +476,37 @@ fn intake(
     settings: Option<Res<bd_fx::FxSettings>>,
     cams: Query<&GlobalTransform, With<PlayerCamera>>,
     hands: Res<ViewmodelHands>,
-    mut buf: Local<Vec<OpEvent>>,
+    (mut buf, mut opened): (Local<Vec<OpEvent>>, Local<Vec<PlayerId>>),
     out: (MessageWriter<Sfx3d>, MessageWriter<CameraShakeEvent>, MessageWriter<HitStop>, MessageWriter<SpawnOnomatopoeia>),
 ) {
     let (mut sfx, mut shake, mut hitstop, mut ono) = out;
-    let Some(active) = active else {
+    let Some(active) = active.filter(|_| !dev::off()) else {
         events.clear();
         return;
     };
     let now = time.elapsed_secs();
     let now64 = time.elapsed_secs_f64();
     let table_ref = &*table;
+    opened.clear();
     for ev in events.read() {
         match &ev.event {
             GameEvent::Power(PowerEvent::Fired { player, mv, .. }) => {
                 if let Some((def, m)) = mv.resolve(PowerTable::get()) {
                     let corps = views.player(*player).map_or([1.0; 3], |v| corps_rgb(v.corps));
-                    looks.set(*player, resolve_look(table_ref, m, Some(def), corps), now, Some(m));
+                    let look = resolve_look(table_ref, m, Some(def), corps);
+                    looks.set(*player, look, now, Some(m));
                     recent.note(*player, now64, style_word(table_ref, m, Some(def)), has_delayed_blast(m));
+                    // A move that comes out of the eyes (style `gaze`): twin beams from the face.
+                    if table_ref.keys.get(look.style as usize).is_some_and(|k| k == "gaze") {
+                        let (reach, half) = gaze_reach(m);
+                        let pl = *player;
+                        pool.kill(|f| f.kind == Kind::Gaze && f.owner == pl);
+                        pool.add(Fx { kind: Kind::Gaze, look, owner: *player, r: reach, acc: half, dur: 0.55, ..default() });
+                        if let Some(pv) = views.player(*player) {
+                            sfx.write(Sfx3d::at("reveal_pulse", chest(pv)).pitch(0.6).gain(0.9));
+                            sfx.write(Sfx3d::at("bfg_zap", chest(pv)).pitch(0.7).gain(0.5));
+                        }
+                    }
                 }
             }
             GameEvent::Power(PowerEvent::Composed { player, spec, .. }) => {
@@ -502,8 +520,14 @@ fn intake(
                 // The pair is open: the real portals take over from the lone ends.
                 let o = *owner;
                 pool.kill(|f| f.kind == Kind::Portal && f.owner == o);
+                opened.push(o);
             }
-            GameEvent::Power(PowerEvent::Op(o)) if !matches!(o, OpEvent::Twisted { .. }) => buf.push(o.clone()),
+            GameEvent::Power(PowerEvent::Op(o)) if !matches!(o, OpEvent::Twisted { .. }) => {
+                if dev::log_events() {
+                    info!("op_visuals event: {}", format!("{o:?}").chars().take(160).collect::<String>());
+                }
+                buf.push(o.clone());
+            }
             _ => {}
         }
     }
@@ -518,6 +542,7 @@ fn intake(
         active: &active,
         table: table_ref,
         looks: &looks,
+        opened: &opened,
         pool: &mut pool,
         locks: &mut locks,
         gate: &mut gate,
@@ -538,6 +563,8 @@ struct Ctx<'a> {
     active: &'a ActiveWorld,
     table: &'a MoveFx,
     looks: &'a Looks,
+    /// Owners whose portal pair (re)opened this frame (their shot is no lone end).
+    opened: &'a [PlayerId],
     pool: &'a mut Pool,
     locks: &'a mut Locks,
     gate: &'a mut WordGate,
@@ -848,7 +875,7 @@ impl Ctx<'_> {
                         self.pool.kill(|f| f.kind == Kind::Aura(AuraKind::Glare) && f.owner == pl);
                         self.pool.add(Fx { kind: Kind::Aura(AuraKind::Glare), look, owner: *player, dur: secs.clamp(0.3, 10.0) + 0.3, ..default() });
                         if let Some(c) = chest_p {
-                            pen.flash(c + Vec3::Y, 1.2, look.core, look.glow, 0.15);
+                            pen.flash(c + Vec3::Y, 0.7, look.core, look.glow, 0.12);
                             snd(w, "ult_charge", c, 0.5, 1.0);
                             snd(w, "heartbeat", c, 0.8, 0.7);
                         }
@@ -892,7 +919,7 @@ impl Ctx<'_> {
                         }
                         self.pool.kill(|f| f.kind == Kind::Aura(AuraKind::Glare) && f.owner == pl);
                         if let Some(c) = chest_p {
-                            pen.flash(c + Vec3::Y * 0.3, 1.4, look.core, look.glow * 1.3, 0.12);
+                            pen.flash(c + Vec3::Y * 0.3, 0.8, look.core, look.glow * 1.3, 0.1);
                             snd(w, "golden_gun", c, 0.9, 1.0);
                             snd(w, "gun_handcannon", c, 0.8, 0.8);
                             if self.involved(*player, None) {
@@ -1101,9 +1128,12 @@ impl Ctx<'_> {
                 let look = self.look(*player, Some(*element));
                 let cut = op_of(self.mv(*player), |o| if let MoveOp::Salvo { cut, .. } = o { Some(*cut) } else { None }).unwrap_or(false);
                 let kind = prims::strike_kind(&look, cut, *element);
-                let p = bv(*pos);
-                let g = ground_below(self.active, p + Vec3::Y * 0.2, radius.max(1.0) + 6.0);
-                self.pool.add(Fx { kind: Kind::Telegraph(kind), look, owner: *player, a: p, b: g.unwrap_or(p), flag: g.is_some(), r: *radius, dur: secs.max(0.05) + 0.25, acc: secs.max(0.05), ..default() });
+                let raw = bv(*pos);
+                let g = ground_below(self.active, raw + Vec3::Y * 0.2, radius.max(1.0) + 6.0);
+                // A cut on a floor spot hangs in the space at body height (the lines read in the air).
+                let p = if kind == StrikeKind::Slash && g.is_some_and(|g| raw.y - g.y < 0.6) { raw + Vec3::Y * 1.1 } else { raw };
+                // `dir` keeps the host's spot (the Strike finds its telegraph by it).
+                self.pool.add(Fx { kind: Kind::Telegraph(kind), look, owner: *player, a: p, b: g.unwrap_or(raw), dir: raw, flag: g.is_some(), r: *radius, dur: secs.max(0.05) + 0.25, acc: secs.max(0.05), ..default() });
                 // A soft tell everyone hears (quiet; many strikes stack).
                 if self.gate.allow(*player, 1, self.now, 0.12) {
                     snd(w, match kind {
@@ -1117,10 +1147,11 @@ impl Ctx<'_> {
                 let p = bv(*pos);
                 // The telegraph that marked it hands over its look / cut seed / ground.
                 let pl = *player;
-                let tel = self.pool.find(|f| matches!(f.kind, Kind::Telegraph(_)) && f.owner == pl && f.a.distance_squared(p) < 0.04).map(|f| {
+                let tel = self.pool.find(|f| matches!(f.kind, Kind::Telegraph(_)) && f.owner == pl && f.dir.distance_squared(p) < 0.04).map(|f| {
                     f.live = false;
-                    (f.look, f.seed, f.flag.then_some(f.b), f.kind)
+                    (f.look, f.seed, f.flag.then_some(f.b), f.kind, f.a)
                 });
+                let p = tel.map_or(p, |x| x.4);
                 let look = tel.map(|x| x.0).unwrap_or_else(|| self.look(*player, Some(*element)));
                 let kind = match tel.map(|x| x.3) {
                     Some(Kind::Telegraph(k)) => k,
@@ -1194,7 +1225,7 @@ impl Ctx<'_> {
                 let yaw = self.views.player(*player).map_or(0.0, |x| x.yaw);
                 let feet = p - Vec3::Y * 1.0;
                 pen.ghost(feet, yaw, 1.0, silver.main, silver.glow * 0.7, 0.6);
-                pen.flash(p, 1.3, silver.core, silver.glow * 1.4, 0.12);
+                pen.flash(p, 0.8, silver.core, silver.glow * 1.4, 0.1);
                 // Time bends: a slow wide ring off the dodge, a second one in the move's colour.
                 pen.ring(&silver, p, Vec3::Y, 0.5, 5.0, 1.6, 0.9);
                 pen.ring(&look, p, (p - v.cam).normalize_or(Vec3::Z), 0.4, 3.5, 1.2, 0.8);
@@ -1211,12 +1242,14 @@ impl Ctx<'_> {
                 let look = Look { main: color, core: [1.0, 0.95, 0.85], ..self.look(*player, None) };
                 let (pl, or) = (*player, *orange);
                 self.pool.kill(|f| f.kind == Kind::Portal && f.owner == pl && f.flag == or);
-                self.pool.add(Fx { kind: Kind::Portal, look, owner: *player, a: p, dir: n, flag: *orange, dur: 20.0, ..default() });
+                if !self.opened.contains(&pl) {
+                    self.pool.add(Fx { kind: Kind::Portal, look, owner: *player, a: p, dir: n, flag: *orange, dur: 20.0, ..default() });
+                }
                 if let Some(pv) = self.views.player(*player) {
                     let h = hand_of(pv, self.hands, self.local);
                     pen.beam(h, p, 0.06, color, 3.0, 0.14);
                 }
-                pen.flash(p + n * 0.1, 1.2, color, 3.0, 0.12);
+                pen.flash(p + n * 0.1, 0.6, color, 3.0, 0.1);
                 pen.ring(&look, p + n * 0.05, n, 0.2, 4.0, 0.8, 0.25);
                 snd(w, "mv_hardlight", p, if *orange { 0.85 } else { 1.15 }, 0.8);
             }
@@ -1230,7 +1263,7 @@ impl Ctx<'_> {
                     self.pool.add(Fx { kind: Kind::Aura(AuraKind::Empower), look, owner: *player, dur: secs.clamp(0.2, 10.0), flag: rainbow, ..default() });
                     pen.ring(&look, pv.pos + Vec3::Y * 0.1, Vec3::Y, 0.4, 9.0, 1.6, 0.4);
                     pen.burst(&look, chest(pv), 1.4, 6.0, Some(Vec3::Y), 1.0, 0.6);
-                    pen.flash(chest(pv), 1.6, look.core, look.glow, 0.15);
+                    pen.flash(chest(pv), 0.9, look.core, look.glow, 0.12);
                     snd(w, "presence_manifest_big", chest(pv), 1.0, 0.9);
                     snd(w, "power_ready", chest(pv), 0.9, 0.4);
                 } else {
@@ -1248,7 +1281,7 @@ impl Ctx<'_> {
                     self.pool.add(Fx { kind: Kind::Marker(MarkKind::Captured), look, owner: *player, construct: Some(cid), a: p, dur: secs.clamp(0.2, 10.0), ..default() });
                     self.pool.add(Fx { kind: Kind::Tether(TetherBody::Spirit), look, owner: *player, construct: Some(cid), b: p, phase: 1, dur: 0.6, ..default() });
                     pen.implode(&look, p, 2.0, 0.25, 1.0);
-                    pen.flash(p, 1.4, look.core, look.glow, 0.14);
+                    pen.flash(p, 0.8, look.core, look.glow, 0.1);
                     snd(w, "summon_ping", p, 0.8, 0.9);
                     snd(w, "transform_combine", p, 1.3, 0.5);
                 } else {
@@ -1335,7 +1368,7 @@ impl Ctx<'_> {
                     let l = 0.9 + 0.5 * (k % 3) as f32;
                     pen.beam(c + d * 0.1, c + d * l, 0.06, if k % 2 == 0 { look.core } else { look.main }, look.glow * 1.8, 0.2);
                 }
-                pen.flash(c, 1.2, look.core, look.glow * 1.3, 0.1);
+                pen.flash(c, 0.8, look.core, look.glow * 1.3, 0.08);
                 let ink = Look { body: Body::Liquid, main: look.main, ..look };
                 pen.burst(&ink, c, 1.0, 5.0, None, 0.0, 0.5);
                 pen.ring(&look, c, (c - v.cam).normalize_or(Vec3::Z), 0.2, 6.0, 1.0, 0.3);
@@ -1382,7 +1415,7 @@ impl Ctx<'_> {
                     f.t = 0.0;
                     f.dur = secs.clamp(0.05, 3.0) + 0.05;
                 }
-                pen.flash(to, 1.0, look.core, look.glow * 1.3, 0.1);
+                pen.flash(to, 0.8, look.core, look.glow * 1.3, 0.08);
                 snd(w, "gun_minigun_spinup", to, 1.6, 0.7);
                 snd(w, "hit_heavy", to, 0.9, 0.8);
                 if self.involved(player, nearest_player(self.views, to, 2.5)) {
@@ -1396,7 +1429,7 @@ impl Ctx<'_> {
                 for k in 0..4 {
                     pen.ring(&look, to + d * k as f32 * 0.9, d, 0.3 + 0.2 * k as f32, 6.0, 1.0, 0.25 + 0.05 * k as f32);
                 }
-                pen.flash(to, 1.8, look.core, look.glow * 1.5, 0.14);
+                pen.flash(to, 1.1, look.core, look.glow * 1.5, 0.1);
                 pen.burst(&look, to, 1.6, 10.0, Some(d), 0.6, 0.45);
                 snd(w, "charge_release", to, 1.0, 1.0);
                 snd(w, "explosion_small", to, 1.1, 0.8);
@@ -1428,7 +1461,7 @@ impl Ctx<'_> {
                 pen.beam(from + up, to + up, 0.12, yellow.main, yellow.glow * 2.0, 0.2);
                 pen.beam(from + up, to + up, 0.04, yellow.core, yellow.glow * 3.0, 0.14);
                 pen.flash(from + up, 1.0, yellow.core, yellow.glow, 0.08);
-                pen.flash(to + up, 1.6, yellow.core, yellow.glow * 1.5, 0.12);
+                pen.flash(to + up, 0.9, yellow.core, yellow.glow * 1.5, 0.1);
                 pen.ring(&yellow, to + Vec3::Y * 0.1, Vec3::Y, 0.3, 6.0, 1.0, 0.3);
                 self.pool.kill(|f| f.kind == Kind::Marker(MarkKind::Seal) && f.owner == player);
                 snd(w, "recall_blink", to, 1.2, 1.0);
@@ -1466,7 +1499,7 @@ impl Ctx<'_> {
                 // A white nova off the face: only the people who looked get it (the sim decides).
                 let white = Look { main: [1.0, 1.0, 0.95], core: [1.0, 1.0, 1.0], ..look };
                 if !self.near(from, 2.0) {
-                    pen.flash(from, 2.5, white.core, white.glow * 2.0, 0.18);
+                    pen.flash(from, 1.6, white.core, white.glow * 2.0, 0.14);
                 }
                 pen.ring(&white, from, Vec3::Y, 0.4, size.clamp(2.0, 30.0) * 2.2, 1.6, 0.4);
                 snd(w, "storm_nova", from, 1.3, 0.9);
@@ -1490,7 +1523,6 @@ impl Ctx<'_> {
                     let n = Vec3::new((k as f32 * 1.3).cos(), 0.4, (k as f32 * 1.3).sin()).normalize();
                     pen.ring(&swirl, from, n, 1.8, -5.0, 0.8, 0.35);
                 }
-                pen.flash(from, 1.0, look.dark, 0.3, 0.3);
                 if from.distance_squared(to) > 1.0 {
                     pen.burst(&swirl, to, 1.0, 4.0, None, 0.0, 0.4);
                 }
@@ -1522,13 +1554,31 @@ impl Ctx<'_> {
                 pen.burst(&smoke, to, 0.6, 1.5, Some(Vec3::Y), 0.5, 0.8);
             }
             ToolboxFx::Wave => {
-                let flat = op_of(self.mv(player), |o| if let MoveOp::Wave { width, .. } = o { Some(*width) } else { None }).is_some_and(|wd| wd <= 1.3) && look.body != Body::Void;
+                let flat = op_of(self.mv(player), |o| if let MoveOp::Wave { width, .. } = o { Some(*width) } else { None }).is_some_and(|wd| wd <= 2.0) && matches!(look.body, Body::Halo | Body::Energy);
                 self.pool.add(Fx { kind: Kind::Crescent, look, owner: player, a: from + Vec3::Y * 1.0, b: to + Vec3::Y * 1.0, r: size.clamp(0.5, 12.0), dur: secs.clamp(0.05, 5.0), flag: flat, ..default() });
-                pen.flash(from + Vec3::Y, 1.2, look.core, look.glow * 1.2, 0.1);
+                pen.flash(from + Vec3::Y, 0.7, look.core, look.glow * 1.2, 0.08);
                 snd(w, "blade_wave", from, 1.0, 1.0);
             }
         }
     }
+}
+
+/// How far a gaze move reaches and its cone half-angle (radians; 0 = a line).
+fn gaze_reach(mv: &MoveDef) -> (f32, f32) {
+    let mut reach: f32 = 0.0;
+    let mut half: f32 = 0.0;
+    for op in &mv.ops {
+        match op {
+            MoveOp::Carve { length, .. } => reach = reach.max(*length),
+            MoveOp::Shove { range, angle, .. } => {
+                reach = reach.max(*range);
+                half = half.max((angle * 0.5).to_radians());
+            }
+            MoveOp::Afflict { range, .. } | MoveOp::GazeStun { range, .. } => reach = reach.max(*range),
+            _ => {}
+        }
+    }
+    (if reach > 0.5 { reach.min(80.0) } else { 25.0 }, half.clamp(0.0, 1.2))
 }
 
 /// A grab's claw: four talons closing on the point.
@@ -1602,22 +1652,26 @@ fn step(
                         f.live = false;
                         continue;
                     };
-                    if Some(t) == local && fp {
-                        prims::self_marker(&mut pen, &v, &look, kind, f.t, left, f.dur, 1.0);
-                        continue;
-                    }
                     (tv.pos, tv.size)
                 } else if let Some(cid) = f.construct {
                     let Some(cv) = views.construct(cid) else {
                         f.live = false;
                         continue;
                     };
-                    (cv.pos - Vec3::Y * 0.8, 1.0)
+                    let s = cv.size.clamp(0.6, 4.0);
+                    (cv.pos - Vec3::Y * 0.8 * s, s)
                 } else {
                     (f.a, 0.3)
                 };
-                prims::marker(&mut pen, &v, &look, kind, feet, size, f.t, left, f.dur, 1.0, f.seed);
-                if kind == MarkKind::Delayed && (f.t * if left < 1.0 { 4.0 } else { 2.0 }) as u32 != ((f.t - dt) * if left < 1.0 { 4.0 } else { 2.0 }) as u32 {
+                if f.target.is_some() && f.target == local && fp {
+                    // On YOU in first person: a small glyph low in your view (never over the aim).
+                    prims::self_marker(&mut pen, &v, &look, kind, f.t, left, f.dur, 1.0);
+                } else {
+                    prims::marker(&mut pen, &v, &look, kind, feet, size, f.t, left, f.dur, 1.0, f.seed);
+                }
+                if kind == MarkKind::Delayed
+                    && feet.distance(v.cam) < 30.0
+                    && (f.t * if left < 1.0 { 4.0 } else { 2.0 }) as u32 != ((f.t - dt) * if left < 1.0 { 4.0 } else { 2.0 }) as u32 {
                     sfx.write(Sfx3d::at("needle_tick", feet + Vec3::Y).pitch(if left < 1.0 { 1.3 } else { 1.0 }).gain(0.5));
                 }
             }
@@ -1657,7 +1711,21 @@ fn step(
                         f.b
                     }
                     2 => f.b,
-                    5 => f.a.lerp(f.b, (f.t / f.acc.max(0.05)).clamp(0.0, 1.0)),
+                    5 => {
+                        // A torn-out chunk on the line: follow the real chunk once it's found
+                        // (the owner's newest loose construct near where it should be), shedding grit.
+                        let guess = f.a.lerp(f.b, (f.t / f.acc.max(0.05)).clamp(0.0, 1.0));
+                        if f.construct.is_none() && f.t < 0.4 {
+                            f.construct = views.constructs.iter().filter(|c| c.owner == f.owner && !c.attached() && c.pos.distance(guess) < 4.0).max_by_key(|c| c.id.0).map(|c| c.id);
+                        }
+                        let tip = f.construct.and_then(|c| views.construct(c)).map_or(guess, |c| c.pos);
+                        if pen.fx.rng.f() < 0.5 {
+                            let grit = Look { body: Body::Grain, ..look };
+                            let rd = pen.fx.rng.dir();
+                            pen.mote(&grit, tip + rd * 0.6, Vec3::new(rd.x, -1.0, rd.z), 0.6, 0.0);
+                        }
+                        tip
+                    }
                     _ => {
                         // Retracting: the tip snaps home.
                         let k = (f.t / f.dur.max(0.05)).clamp(0.0, 1.0);
@@ -1832,6 +1900,40 @@ fn step(
                 // The whistle: a rising sweep every third of a second while it flies.
                 if (f.t * 3.0) as u32 != ((f.t - dt) * 3.0) as u32 {
                     sfx.write(Sfx3d::at("leap_whoosh", p).pitch(1.6 + 0.1 * ((f.t * 3.0) as u32 % 3) as f32).gain(0.45));
+                }
+            }
+            Kind::Gaze => {
+                let Some(ov) = owner else {
+                    f.live = false;
+                    continue;
+                };
+                // Out of the eyes along the LIVE look (it sweeps with the head), to the first wall.
+                let (eye, look_q, _) = super::super::constructs::body_frames(ov);
+                let fwd = look_q * Vec3::NEG_Z;
+                let right = look_q * Vec3::X;
+                let reach = bd_core::voxel::raycast(&active.world.voxels, gv(eye), gv(fwd), f.r).map_or(f.r, |h| h.t.max(0.5));
+                let end = eye + fwd * reach;
+                let k = fade * (1.0 - 0.4 * u);
+                let own = Some(ov.id) == local && fp;
+                for sgn in [-1.0f32, 1.0] {
+                    let e = eye + right * sgn * 0.065 * ov.size + fwd * 0.12;
+                    prims::seg(&mut pen, &v, e, end, 0.09 * look.size * (1.0 - 0.5 * u), look.main, look.glow * 1.3 * k);
+                    prims::seg(&mut pen, &v, e, end, 0.03 * look.size, look.core, look.glow * 2.4 * k);
+                    if !own {
+                        prims::seg(&mut pen, &v, e - right * sgn * 0.05, e + right * sgn * 0.05, 0.06, look.core, look.glow * 3.0 * k);
+                    }
+                }
+                if f.acc > 0.05 {
+                    // A cone move: the edges of the gaze fan out.
+                    let upv = look_q * Vec3::Y;
+                    for (a, b) in [(right, 1.0f32), (right, -1.0), (upv, 0.6), (upv, -0.6)] {
+                        let d = (fwd + a * b * f.acc.tan()).normalize_or(fwd);
+                        prims::seg(&mut pen, &v, eye + fwd * 0.5, eye + d * reach * 0.9, 0.025, look.main, look.glow * 0.8 * k);
+                    }
+                }
+                if pen.fx.rng.f() < 0.7 {
+                    let rd = pen.fx.rng.dir();
+                    pen.mote(&look, end, rd * 2.0 - fwd * 2.0, 0.3, 0.0);
                 }
             }
             Kind::Sight => {

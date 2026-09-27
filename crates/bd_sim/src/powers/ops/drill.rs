@@ -31,19 +31,19 @@ impl World {
     pub(crate) fn op_drill(&mut self, i: usize, speed: f32, secs: f32, grind: f32, damage: f32, knockback: f32, element: Element, up: f32) -> Result<(), PowerError> {
         let (eye, look) = self.toolbox_eye_look(i);
         // Mostly along the look; a steep dive / climb is allowed but softened.
-        let dir = Vec3::new(look.x, look.y.clamp(-0.8, 0.6), look.z).normalize_or(Vec3::Z);
-        let speed = speed.clamp(4.0, 50.0);
+        let dir = Vec3::new(look.x, super::fclamp(look.y, -0.8, 0.6), look.z).normalize_or(Vec3::Z);
+        let speed = super::fclamp(speed, 4.0, 50.0);
         let st = DrillState {
-            t: secs.clamp(0.05, 1.2),
+            t: super::fclamp(secs, 0.05, 1.2),
             dir,
             speed,
-            grind: grind.clamp(0.0, MAX_GRIND),
+            grind: super::fclamp(grind, 0.0, MAX_GRIND),
             grind_t: 0.0,
             target: None,
             tick_t: 0.0,
-            damage: damage.clamp(0.0, 60.0),
-            knockback: knockback.clamp(0.0, 70.0),
-            up: up.clamp(0.0, 2.0),
+            damage: super::fclamp(damage, 0.0, 60.0),
+            knockback: super::fclamp(knockback, 0.0, 70.0),
+            up: super::fclamp(up, 0.0, 2.0),
             element,
         };
         let id = self.players[i].id;

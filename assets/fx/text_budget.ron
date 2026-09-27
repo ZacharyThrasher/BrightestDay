@@ -9,7 +9,8 @@
         // Words are never closer to the camera than this (pushed out along their view ray: same
         // spot on screen, farther away) — a melee hit's word no longer sits in your lap.
         min_cam_dist: 3.2,
-        // An anchor this close to the camera (you are inside the event) is dropped outright.
+        // Someone else's event anchored this close to the camera (you are inside their blast) is
+        // dropped outright; your own hits are pushed out to `min_cam_dist` instead.
         skip_cam_dist: 0.9,
         // The protected cone around the crosshair (half-angle, deg) + a margin. Other people's
         // words are pushed up out of it (sideways when that would leave the screen); yours to the side.
@@ -26,6 +27,9 @@
         own_hold: 0.6,
         // Own words never sit closer to the crosshair than this (deg): peripheral.
         own_min_deg: 11.0,
+        // Your own BIG hits (heavy / crit / finisher) keep more of the drama: this size instead of
+        // `own_scale` and the full hold — still off to the side.
+        own_big_scale: 0.85,
     ),
     budget: (
         // Words anchored within `near_cam_m` of the camera compete for `max_near` slots (per comic

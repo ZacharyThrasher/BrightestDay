@@ -35,17 +35,17 @@ impl World {
         let w = WaveLive {
             pos: start,
             dir,
-            left: length.clamp(2.0, 60.0),
-            speed: speed.clamp(5.0, 80.0),
-            width: width.clamp(0.4, 12.0),
-            carve: carve.clamp(0.0, 3.0),
+            left: super::fclamp(length, 2.0, 60.0),
+            speed: super::fclamp(speed, 5.0, 80.0),
+            width: super::fclamp(width, 0.4, 12.0),
+            carve: super::fclamp(carve, 0.0, 3.0),
             since_carve: CARVE_EVERY,
-            damage: damage.clamp(0.0, 60.0),
-            knockback: knockback.clamp(0.0, 70.0),
-            up: up.clamp(0.0, 2.0),
+            damage: super::fclamp(damage, 0.0, 60.0),
+            knockback: super::fclamp(knockback, 0.0, 70.0),
+            up: super::fclamp(up, 0.0, 2.0),
             element,
             thin,
-            hit: 0,
+            hit: [None; bd_core::MAX_PLAYERS],
             last_c: None,
         };
         let slot = {
@@ -98,14 +98,16 @@ impl World {
             // Players along the edge line.
             let (a, b) = (next - side * half, next + side * half);
             for k in 0..self.players.len() {
-                if k == i || k >= 32 || w.hit & (1 << k) != 0 || !self.players[k].alive {
+                if k == i || !self.players[k].alive || w.hit.contains(&Some(self.players[k].id)) {
                     continue;
                 }
                 let hull = crate::geom::inflate(&self.players[k].hull(&base), TOUCH);
                 if crate::geom::segment_aabb(a, b, &hull).is_none() {
                     continue;
                 }
-                w.hit |= 1 << k;
+                if let Some(s) = w.hit.iter_mut().find(|s| s.is_none()) {
+                    *s = Some(self.players[k].id);
+                }
                 let tid = self.players[k].id;
                 let c = self.players[k].hull(&base).center();
                 let hit = HitInfo::new(tid, Some(id), HitKind::Shot, w.damage, w.knockback, w.dir + Vec3::Y * w.up, c).with_element(w.element).with_impact(if w.damage > 12.0 { 1.4 } else { 0.9 });

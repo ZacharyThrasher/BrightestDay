@@ -49,7 +49,7 @@
         effects: [PowerMult(damage: 1.15, speed: 1.08, knockback: 1.1), SelfDrain(willpower_per_s: 0.6)],
         ascend: Some((color: Some((1.0, 0.84, 0.22)), intensity: 1.0, title: Some("SUPER SAIYAN"),
                       hair_tint: Some((1.0, 0.86, 0.3)), eye_glow: Some((0.3, 0.9, 0.8)))),
-        shouts: [("instant transmission", 0), ("instant transmision", 0), ("shunkan ido", 0), ("instant teleport", 0), ("i t", 0),
+        shouts: [("Instant Transmission", 0), ("instant transmision", 0), ("Shunkan Ido", 0), ("instant teleport", 0), ("i t", 0),
                  ("instant transmission technique", 0), ("super kamehameha", 1), ("super saiyan kamehameha", 1)],
         moves: [
             // Two fingers to the forehead: lock onto the ki of the enemy you look at (any distance, no
@@ -171,7 +171,7 @@
         graft: Some((mechanics: [Fast])),
         ascend: Some((color: Some((1.0, 0.72, 0.12)), intensity: 1.5, title: Some("KURAMA MODE"),
                       eye_glow: Some((1.0, 0.5, 0.1)), skin_tint: Some((1.0, 0.8, 0.3)))),
-        shouts: [("chakra arm", 0), ("tailed beast bomb", 1), ("bijuudama", 1), ("tailed beast ball", 1)],
+        shouts: [("chakra arm", 0), ("Tailed Beast Bomb", 1), ("bijuudama", 1), ("Tailed Beast Ball", 1)],
         moves: [
             (name: "chakra arm", cooldown: 1.0, cost: 3.0, ops: [Reel(range: 32.0, speed: 36.0)]),
             (name: "tailed beast bomb", cooldown: 8.0, ops: [
@@ -195,8 +195,8 @@
         fx: "blood",
         shouts: [("copy jutsu", 0), ("sharingan copy", 0), ("copy that jutsu", 0), ("copycat jutsu", 0), ("copy your jutsu", 0),
                  ("genjutsu", 1), ("sharingan genjutsu", 1), ("genjutsu sharingan", 1), ("gen jutsu", 1), ("genjitsu", 1), ("illusion jutsu", 1),
-                 ("fireball jutsu", 2), ("great fireball technique", 2), ("katon goukakyuu no jutsu", 2), ("fire style fireball jutsu", 2),
-                 ("chidori", 3), ("chidory", 3), ("chidorie", 3), ("chidori jutsu", 3), ("one thousand birds", 3), ("thousand birds", 3), ("chi dori", 3)],
+                 ("Fireball Jutsu", 2), ("Great Fireball Technique", 2), ("katon goukakyuu no jutsu", 2), ("Fire Style Fireball Jutsu", 2),
+                 ("Chidori", 3), ("chidory", 3), ("chidorie", 3), ("chidori jutsu", 3), ("One Thousand Birds", 3), ("thousand birds", 3), ("chi dori", 3)],
         moves: [
             // READ IT, THEN THROW IT BACK: the last move an enemy used near you, as yours.
             (name: "copy", tags: [Counter], cooldown: 5.0, cost: 4.0, ops: [CopyLast(range: 40.0, secs: 8.0)],
@@ -220,8 +220,8 @@
              ascend: Some((color: Some((0.8, 0.05, 0.12)), intensity: 1.2, title: Some("MANGEKYO SHARINGAN"), style: Calm,
                            eye_glow: Some((1.0, 0.05, 0.1)), quiet: true)),
              shouts: [("tsukuyomi", 1), ("tsukiyomi", 1), ("tsuki yomi", 1), ("tsukoyomi", 1), ("mangekyo tsukuyomi", 1),
-                      ("amaterasu", 4), ("amatarasu", 4), ("ama terasu", 4), ("amaterasu flames", 4),
-                      ("susanoo", 5), ("susano o", 5), ("susano'o", 5), ("susanno", 5)],
+                      ("Amaterasu", 4), ("amatarasu", 4), ("ama terasu", 4), ("amaterasu flames", 4),
+                      ("Susanoo", 5), ("susano o", 5), ("Susano'o", 5), ("susanno", 5)],
              moves: [
                  (name: "copy", tags: [Counter], cooldown: 4.0, cost: 4.0, ops: [CopyLast(range: 45.0, secs: 10.0)],
                   juice: Some((title: Some("COPIED"), color: Some((0.8, 0.05, 0.12))))),
@@ -260,10 +260,10 @@
         effects: [ReadSlow(radius: 12.0)],
         ascend: Some((color: Some((0.62, 0.55, 0.8)), intensity: 1.4, title: Some("RINNEGAN"), style: Calm,
                       eye_glow: Some((0.75, 0.62, 1.0)), quiet: true)),
-        shouts: [("almighty push", 0), ("shinra tensei", 0), ("shinra tense", 0), ("shinra tensai", 0),
-                 ("planetary devastation", 1), ("chibaku tensei", 1), ("chibaku tense", 1), ("chibaku tensai", 1),
+        shouts: [("Almighty Push", 0), ("Shinra Tensei", 0), ("shinra tense", 0), ("Shinra Tensai", 0),
+                 ("Planetary Devastation", 1), ("Chibaku Tensei", 1), ("chibaku tense", 1), ("Chibaku Tensai", 1),
                  ("universal pull", 2), ("bansho tenin", 2), ("bansho ten in", 2), ("banshou tenin", 2), ("bansho ten'in", 2),
-                 ("truth seeking orbs", 3), ("truth seeking balls", 3), ("gudodama", 3),
+                 ("truth seeking orbs", 3), ("Truth Seeking Balls", 3), ("Gudodama", 3),
                  ("amenotejikara", 4), ("ameno tejikara", 4), ("amenotejicara", 4), ("amen no tejikara", 4), ("amenotejikara swap", 4),
                  ("preta path", 5), ("preta path absorb", 5), ("gakido", 5),
                  ("naraka path", 6), ("jigokudo", 6),
@@ -344,9 +344,9 @@
         // ground into itself and crushes them together. Red REPELS: a burst at arm's length that hurls
         // everything away. Purple ERASES. "gojo <move>" (anime_modern.ron) is the kit version.
         fx: "cursed",
-        shouts: [("lapse blue", 0), ("cursed technique lapse blue", 0), ("blue lapse", 0), ("laps blue", 0), ("hollow purple", 1), ("hollow purpel", 1), ("holo purple", 1), ("hollow purples", 1),
-                 ("imaginary technique purple", 1), ("reversal red", 2), ("cursed technique reversal red", 2), ("red reversal", 2), ("reversal read", 2),
-                 ("infinity barrier", 3), ("unlimited void", 4), ("infinite void", 4)],
+        shouts: [("Lapse Blue", 0), ("Cursed Technique Lapse Blue", 0), ("Blue Lapse", 0), ("laps blue", 0), ("Hollow Purple", 1), ("hollow purpel", 1), ("holo purple", 1), ("hollow purples", 1),
+                 ("imaginary technique purple", 1), ("Reversal Red", 2), ("Cursed Technique Reversal Red", 2), ("Red Reversal", 2), ("reversal read", 2),
+                 ("infinity barrier", 3), ("Unlimited Void", 4), ("infinite void", 4)],
         moves: [
             // Blue: a gravity point at the crosshair - it tears up the ground and drags everything in. -> they end clumped there.
             (name: "lapse blue", cooldown: 3.0, cost: 12.0, tags: [Primary], ops: [
@@ -404,7 +404,7 @@
         graft: Some((mechanics: [Blade])),
         ascend: Some((color: Some((0.8, 0.1, 0.15)), intensity: 0.9, title: Some("KING OF CURSES"), eye_glow: Some((1.0, 0.1, 0.1)),
                       skin_tint: Some((0.55, 0.2, 0.25)), linger: false)),
-        shouts: [("dismantle", 0), ("cleave", 1), ("fuga", 2), ("furnace", 2), ("malevolent shrine", 3)],
+        shouts: [("Dismantle", 0), ("Cleave", 1), ("Fuga", 2), ("furnace", 2), ("malevolent shrine", 3)],
         moves: [
             // Dismantle: an invisible hairline slash along your aim - it cuts the ground and whoever stood in it.
             (name: "dismantle", cooldown: 0.8, cost: 6.0, tags: [Primary], ops: [Carve(length: 26.0, radius: 0.35, damage: 11.0)],
@@ -476,8 +476,8 @@
         graft: Some((mechanics: [Blade, Fast])),
         ascend: Some((color: Some((0.75, 0.05, 0.12)), intensity: 1.6, title: Some("BANKAI"), eye_glow: Some((1.0, 0.2, 0.2)))),
         fx: "shadow",
-        shouts: [("getsuga tensho", 0), ("getsuga", 0), ("getsuga tenshou", 0), ("getsuga tensyo", 0), ("get suga tensho", 0),
-                 ("moon fang heaven piercer", 0), ("getsuga tensho bankai", 0), ("flash step", 1), ("shunpo", 1), ("shun po", 1), ("flash steps", 1)],
+        shouts: [("Getsuga Tensho", 0), ("Getsuga", 0), ("Getsuga Tenshou", 0), ("getsuga tensyo", 0), ("get suga tensho", 0),
+                 ("Moon Fang Heaven Piercer", 0), ("getsuga tensho bankai", 0), ("flash step", 1), ("shunpo", 1), ("shun po", 1), ("flash steps", 1)],
         moves: [
             // The crescent: a black-red wave flung off the blade. It flies, passes through everyone on
             // its line and splits the ground behind them. Dodge it sideways.

@@ -46,10 +46,10 @@ impl World {
     }
 
     pub(crate) fn op_tag(&mut self, i: usize, range: f32, cone: f32, secs: f32) -> Result<(), PowerError> {
-        let Some(k) = self.op_aimed_player(i, range.clamp(1.0, 60.0), cone.clamp(0.0, 20.0)) else { return Err(PowerError::NoTarget) };
+        let Some(k) = self.op_aimed_player(i, super::fclamp(range, 1.0, 60.0), super::fclamp(cone, 0.0, 20.0)) else { return Err(PowerError::NoTarget) };
         let owner = self.players[i].id;
         let target = self.players[k].id;
-        let secs = secs.clamp(0.5, 12.0);
+        let secs = super::fclamp(secs, 0.5, 12.0);
         let tick = self.tick;
         let until = tick + (secs * TICK_HZ as f32) as Tick;
         // Same owner + target: refresh; else a free / expired slot; else the one ending soonest.
@@ -87,14 +87,14 @@ impl World {
         }
         let base = self.cfg.move_params.clone();
         let me = self.players[i].hull(&base).center();
-        let damage = op.damage.clamp(0.0, 60.0);
-        let knockback = op.knockback.clamp(0.0, 60.0);
-        let pull = op.pull.clamp(0.0, 50.0);
+        let damage = super::fclamp(op.damage, 0.0, 60.0);
+        let knockback = super::fclamp(op.knockback, 0.0, 60.0);
+        let pull = super::fclamp(op.pull, 0.0, 50.0);
         for k in hit.iter().flatten().copied() {
             let target = self.players[k].id;
             let c = self.players[k].hull(&base).center();
             let away = (c - me).normalize_or(Vec3::Y);
-            let dir = if pull > 0.0 { -away } else { away } + Vec3::Y * op.up.clamp(0.0, 2.0);
+            let dir = if pull > 0.0 { -away } else { away } + Vec3::Y * super::fclamp(op.up, 0.0, 2.0);
             if damage > 0.0 || knockback > 0.0 {
                 let h = HitInfo::new(target, Some(owner), HitKind::Chain, damage, knockback, dir, c).with_element(op.element).with_impact(1.2);
                 self.apply_hit(h);

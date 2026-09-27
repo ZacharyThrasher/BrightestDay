@@ -195,3 +195,49 @@ pub struct ComposedMove {
   did — chains solve it (`Same`), a lone follow-up "punch" aims at the crosshair (say "punch him").
 * Named targets need the roster: the console passes it; the preview / validator use a sample roster.
 * A second style word is dropped (fusion is MODIFIERS & FUSION's).
+
+## 9. MODIFIERS & FUSION — twisted and fused moves (MODIFIERS & FUSION worker, integrated)
+
+Code: `crates/bd_sim/src/powers/twist/` (`mod.rs` table + wire, `read.rs` phrase reading, `ops.rs` the
+generic transform, `fuse.rs` fusion rules, `exec.rs` host firing). Data: `assets/move_modifiers.ron`
+(compiled into bd_sim: every peer twists identically). Tests: `cargo test -p bd_sim --test twist`
+(golden: `crates/bd_sim/tests/data/twist_golden.txt`, 380+ phrases typed + spoken; every modifier word ×
+3 cores; transforms, caps, pricing, fusion, host, wire, determinism) and
+`cargo test -p bd_game --bin brightest_day toolbox::` (the console path with the real lexicon).
+
+**Wire** (`chain::ToolStep::Twist(Box<TwistStep>)`, protocol v42):
+```rust
+pub struct TwistStep { pub a: TwistSide, pub b: Option<TwistSide> /* fused with */, pub mods: Vec<u8> /* on the whole */, pub shot: u8 /* host-only follow-ups; reset to 0 on anything a client sends */ }
+pub struct TwistSide { pub base: TwistBase, pub mods: Vec<u8> /* modifier wire bytes, ≤ 8 */ }
+pub enum TwistBase { Move { mv: MoveRef, kit: bool }, Held(u8), Cast { recipe, shape, signature } /* a famous cast the lexicon knows */, Composed(ComposedMove) }
+```
+Modifier **wire bytes** are `move_modifiers.ron` `n` (stable, never reused; 1 giant = "big", 2 quick, 3
+long are the composed starter ids, so `ComposedMove::mods` bytes mean the same thing). The host
+rebuilds everything from refs + bytes; nothing numeric travels.
+
+**Rule: a modifier is applied ONCE.** A twisted described move carries its spec with `mods` EMPTY:
+the spec's own bytes are moved into the twist side (`twist::split_composed`, done by the client AND
+again by the host). Plain (untwisted) described moves still apply their starter bytes in
+`compose/build.rs::knobs_in`, exactly as before — nothing changes for them.
+
+**Reading precedence** (`twist::read::Reader`, called first per chain step by bd_game
+`toolbox::twist_step`): a line is a twist only when a MOVE sits under the modifiers. Cores are tried
+over every prefix / suffix split, fewest stripped words first, in three passes: (1) a named move (held
+/ kit / borrowed shout; a borrowed shout that names an everyday thing — "hammer", "fireball" — is
+refused, the lexicon's construct wins), (2) a DESCRIBED move (your `composed()`; only vocabulary the
+grammar shares — styles / elements and `composed_words` 1 2 3 6 7 — may stay inside it, any other
+modifier word is stripped out: "rapid fire punch at ethan" = the twist `rapid` on "punch at ethan"),
+(3) a famous cast (a lexicon signature: "spirit bomb"). A phrase that is already a move as said is
+never twisted ("giant rasengan" is the authored one; "giant punch", "fire punch", "triple shadow
+teleport" stay yours).
+
+**Second style word** ("fire and ice punch", "punch with fire and ice", "fire and ice rasengan"): the
+reader splits it into the same move once per element and FUSES them (`fuse` rule T, "one move, both
+elements": the first element's hits + the second element's status / burst on whoever they're aimed
+at, a Merge windup of both). The grammar can keep dropping the second style — the twist reads it first.
+
+**Host**: a twisted described move resolves its target with your `compose_resolve` / `forced_point`,
+swings every copy at it, sets `OpState::compose[i].now` for `Relocate`, remembers `last` for "him" /
+`Same`, cools `spec.cd_key()` in the toolbox table and fires `OpEvent::Twisted { a: BaseRef::Composed(spec), .. }`
+then `PowerEvent::Fired { mv: COMPOSED_REF, how: FireHow::Composed }` (no `PowerEvent::Composed`: the
+movefx intake plays the twisted def from `twist::exec::interned`).

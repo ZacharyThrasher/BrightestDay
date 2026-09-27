@@ -426,7 +426,7 @@
         kind: Kit,
         names: ["aang", "avatar aang", "ang", "aung", "aang the avatar", "the last airbender", "twinkle toes", "aang's"],
         fx: "air",
-        shouts: [("yip yip", 7)],
+        shouts: [("aang yip yip", 7)],
         moves: [
             // The staff sweeps wide and the air behind it blows them off their feet.
             (name: "staff", tags: [Primary], cooldown: 0.8, cost: 3.0, ops: [
@@ -519,7 +519,7 @@
         kind: Kit,
         names: ["toph", "toph beifong", "the blind bandit", "blind bandit", "tof", "toff", "toph bei fong", "melon lord", "toph's"],
         fx: "earth",
-        shouts: [("seismic sense slam", 1), ("i can see you", 1), ("rock avalanche", 3), ("blind bandit stomp", 0), ("toph earth prison", 7), ("earthbending prison", 7)],
+        shouts: [("seismic sense slam", 1), ("i can see you", 1), ("toph rock avalanche", 3), ("blind bandit stomp", 0), ("toph earth prison", 7), ("earthbending prison", 7)],
         moves: [
             // A stomp and a punch: the ground jumps where she hits it.
             (name: "stomp", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
@@ -600,7 +600,7 @@
         kind: Kit,
         names: ["azula", "princess azula", "azulla", "azula's", "azuela"],
         fx: "fire",
-        shouts: [("azula lightning", 1), ("blue fire daggers", 3), ("blue fire jet", 2)],
+        shouts: [("azula lightning", 1), ("blue fire daggers", 3), ("azula blue fire jet", 2)],
         moves: [
             // Blue fire: fast, narrow, piercing.
             (name: "blue fire", tags: [Primary], cooldown: 0.6, cost: 2.0, ops: [
@@ -636,7 +636,7 @@
         kind: Kit,
         names: ["iroh", "uncle iroh", "general iroh", "irow", "eero", "iroh's"],
         fx: "fire",
-        shouts: [("dragon of the west", 1), ("the dragon of the west", 1), ("dragon of the west breath", 1), ("breach the wall", 3)],
+        shouts: [("dragon of the west", 1), ("the dragon of the west", 1), ("dragon of the west breath", 1), ("iroh breach the wall", 3)],
         moves: [
             (name: "fire fist", tags: [Primary], cooldown: 0.8, cost: 2.0, ops: [
                 Shove(range: 5.5, angle: 35.0, damage: 9.0, knockback: 16.0, element: Fire, up: 0.15),
@@ -710,7 +710,7 @@
         name: "Sokka",
         kind: Kit,
         names: ["sokka", "sokka of the water tribe", "soka", "socka", "sokka's"],
-        shouts: [("space sword", 1), ("boomerang aang", 0)],
+        shouts: [("sokka space sword", 1), ("boomerang aang", 0)],
         moves: [
             // Boomerang: thrown wide, it banks off the walls and comes home.
             (name: "boomerang", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
@@ -758,7 +758,7 @@
         kind: Kit,
         names: ["ozai", "fire lord ozai", "phoenix king", "phoenix king ozai", "ozai's"],
         fx: "fire",
-        shouts: [("comet fire", 0), ("phoenix king fire", 0)],
+        shouts: [("ozai comet fire", 0), ("phoenix king fire", 0)],
         moves: [
             // Under the comet: a torrent of fire from both palms.
             (name: "comet fire", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
@@ -812,7 +812,7 @@
         names: ["optimus prime", "optimus", "optimus primes", "optimus prime's", "orion pax", "optimus prim", "optimist prime",
                 "optimus prine", "opimus prime", "optimus pryme"],
         fx: "energy",
-        shouts: [("energon axe", 0), ("ion blaster", 2), ("shoot the ion blaster", 2), ("ion blaster gun", 2), ("matrix of leadership", 7), ("optimus axe slam", 4)],
+        shouts: [("optimus energon axe", 0), ("ion blaster", 2), ("shoot the ion blaster", 2), ("ion blaster gun", 2), ("optimus matrix of leadership", 7), ("optimus axe slam", 4)],
         moves: [
             // THE COMBO: the piloted truck's string on foot — three heavy slashes 0.3 s apart, each
             // driving a step in, and the energon-axe finisher that sends them across the map (the
@@ -861,7 +861,7 @@
         kind: Kit,
         names: ["megatron", "lord megatron", "megatronus", "galvatron", "megatron's", "mega tron", "megatrom"],
         fx: "void",
-        shouts: [("fusion cannon", 0), ("fusion blast", 1), ("decepticons attack", 4), ("decepticons", 4)],
+        shouts: [("megatron fusion cannon", 0), ("fusion blast", 1), ("decepticons attack", 4), ("megatron decepticons", 4)],
         moves: [
             // The fusion cannon: the arm glows purple, then a beam from the barrel.
             (name: "fusion cannon", tags: [Ultimate], cooldown: 12.0, cost: 10.0, ops: [
@@ -1089,7 +1089,7 @@
         kind: Kit,
         names: ["shockwave", "shock wave", "shockwave's", "shockwave transformer"],
         fx: "void",
-        shouts: [("illogical", 1), ("shockwave particle cannon", 0), ("space bridge", 2)],
+        shouts: [("illogical", 1), ("shockwave particle cannon", 0), ("shockwave space bridge", 2)],
         moves: [
             // The particle cannon: a purple beam that banks off walls (he calculated the angle).
             (name: "particle cannon", tags: [Primary], cooldown: 3.0, cost: 5.0, ops: [
@@ -1130,7 +1130,7 @@
         name: "Unicron",
         kind: Kit,
         names: ["unicron", "unicron the chaos bringer", "the chaos bringer", "unicron's", "uni cron"],
-        shouts: [("planet eater", 0), ("chaos bringer", 1)],
+        shouts: [("unicron planet eater", 0), ("chaos bringer", 1)],
         moves: [
             // The planet eater opens its jaws where you aim: everything is dragged in.
             (name: "planet eater", tags: [Ultimate], cooldown: 28.0, cost: 40.0, ops: [
@@ -1273,7 +1273,7 @@
         kind: Kit,
         names: ["michelangelo", "mikey", "mikey turtle", "michelangelo turtle", "michelangelo ninja turtle", "michelangelo's",
                 "michaelangelo", "mickey turtle"],
-        shouts: [("nunchucks", 0), ("nunchuck", 0), ("pizza time", 3)],
+        shouts: [("nunchucks", 0), ("nunchuck", 0), ("michelangelo pizza time", 3)],
         moves: [
             // Nunchucks: a blur of light hits that juggle.
             (name: "nunchucks", tags: [Combo, Primary], cooldown: 1.6, cost: 3.0, ops: [
@@ -1326,7 +1326,7 @@
         name: "The Shredder",
         kind: Kit,
         names: ["shredder", "the shredder", "oroku saki", "shredder's", "shreder"],
-        shouts: [("foot clan", 1), ("tiger claw", 2)],
+        shouts: [("shredder foot clan", 1), ("shredder tiger claw", 2)],
         moves: [
             // Gauntlet blades: a shredding flurry.
             (name: "blades", tags: [Combo, Primary], cooldown: 2.0, cost: 4.0, ops: [
@@ -1504,7 +1504,7 @@
         name: "Cannonbolt",
         kind: Kit,
         names: ["cannonbolt", "cannon bolt", "cannonbolt's"],
-        shouts: [("cannonbolt roll", 0), ("cannonball", 1)],
+        shouts: [("cannonbolt roll", 0), ("cannonbolt cannonball", 1)],
         moves: [
             // Curl up and roll: fast, steerable, bowling everyone over.
             (name: "roll", tags: [Movement, Primary], cooldown: 2.2, cost: 3.0, ops: [
@@ -1601,7 +1601,7 @@
         name: "Swampfire",
         kind: Kit,
         names: ["swampfire", "swamp fire", "swampfire's"],
-        shouts: [("methane fire", 0), ("seed bombs", 2)],
+        shouts: [("swampfire methane fire", 0), ("seed bombs", 2)],
         moves: [
             (name: "methane fire", tags: [Primary], cooldown: 0.8, cost: 2.0, ops: [
                 Cast(recipe: (name: "methane fire", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 0.7, mass: 4.0)),
@@ -1665,7 +1665,7 @@
         name: "Way Big",
         kind: Kit,
         names: ["way big", "waybig", "way big's"],
-        shouts: [("cosmic ray", 0)],
+        shouts: [("way big cosmic ray", 0)],
         moves: [
             // Arms crossed: the cosmic ray.
             (name: "cosmic ray", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
@@ -1711,7 +1711,7 @@
         name: "Green Ranger",
         kind: Kit,
         names: ["green ranger", "green power ranger", "the green ranger", "tommy oliver", "dragonzord ranger"],
-        shouts: [("dragon dagger", 0), ("dragonzord", 1)],
+        shouts: [("green ranger dragon dagger", 0), ("green ranger dragonzord", 1)],
         moves: [
             // The Dragon Dagger: quick stabbing string.
             (name: "dragon dagger", tags: [Combo, Primary], cooldown: 1.6, cost: 3.0, ops: [
@@ -1777,7 +1777,7 @@
         name: "Omni-Man",
         kind: Kit,
         names: ["omni man", "omniman", "omni-man", "nolan grayson", "omni man's"],
-        shouts: [("think mark", 0)],
+        shouts: [("Think Mark", 0)],
         moves: [
             // Think: grab the nearest and fly them through a wall. Then another.
             (name: "think mark", tags: [Ultimate], cooldown: 12.0, cost: 8.0, ops: [
@@ -1889,7 +1889,7 @@
         kind: Kit,
         names: ["demogorgon", "the demogorgon", "demo gorgon", "demogorgons"],
         fx: "shadow",
-        shouts: [("demodogs", 2)],
+        shouts: [("demogorgon demodogs", 2)],
         moves: [
             // It opens a hole in the wall and steps through.
             (name: "wall portal", tags: [Movement], cooldown: 3.0, cost: 3.0, ops: [Portal(depth: 10.0)]),
@@ -1909,7 +1909,7 @@
         name: "Steve Harrington",
         kind: Kit,
         names: ["steve harrington", "steve stranger things", "steve harington", "king steve"],
-        shouts: [("nail bat", 0)],
+        shouts: [("steve harrington nail bat", 0)],
         moves: [
             // The nail bat.
             (name: "nail bat", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
@@ -2053,7 +2053,7 @@
         kind: Kit,
         names: ["raven", "raven teen titans", "rachel roth", "raven's"],
         fx: "dark",
-        shouts: [("azarath metrion zinthos", 0)],
+        shouts: [("Azarath Metrion Zinthos", 0)],
         moves: [
             // Azarath Metrion Zinthos: black energy seizes whatever she looks at and throws it.
             (name: "zinthos", tags: [Primary], cooldown: 2.4, cost: 4.0, ops: [
@@ -2086,7 +2086,7 @@
         kind: Kit,
         names: ["starfire", "star fire", "koriand'r", "koriandr", "starfire's"],
         fx: "atomic",
-        shouts: [("starbolts", 0), ("starbolt", 0)],
+        shouts: [("Starbolts", 0), ("Starbolt", 0)],
         moves: [
             // Starbolts: green bolts hurled two-handed.
             (name: "starbolts", tags: [Primary], cooldown: 0.8, cost: 2.0, ops: [
@@ -2249,7 +2249,7 @@
         kind: Kit,
         names: ["the doctor", "doctor who", "dr who", "the doctor who", "time lord", "the time lord", "doctor who's", "timelord"],
         fx: "tech",
-        shouts: [("sonic screwdriver", 0), ("tardis", 1), ("doctor who regeneration", 2), ("time lord regeneration", 2), ("reverse the polarity", 4)],
+        shouts: [("the doctor sonic screwdriver", 0), ("the doctor tardis", 1), ("doctor who regeneration", 2), ("time lord regeneration", 2), ("reverse the polarity", 4)],
         moves: [
             // Sonic screwdriver: point, buzz — their gadgets (power moves) stop working.
             (name: "sonic screwdriver", tags: [Primary], cooldown: 6.0, cost: 3.0, ops: [
@@ -2316,7 +2316,7 @@
         kind: Kit,
         names: ["jake", "jake the dog", "jake dog", "jake's", "jake the dogs"],
         fx: "putty",
-        shouts: [("stretchy punch", 0), ("jake giant", 1)],
+        shouts: [("Stretchy Punch", 0), ("jake giant", 1)],
         moves: [
             // The stretchy punch: a long doughy arm that balloons into a giant fist at the end.
             (name: "stretchy punch", tags: [Primary], cooldown: 1.4, cost: 3.0, ops: [
@@ -2374,7 +2374,7 @@
         kind: Kit,
         names: ["ice king", "the ice king", "simon petrikov", "ice king's"],
         fx: "ice",
-        shouts: [("gunter", 1)],
+        shouts: [("ice king gunter", 1)],
         moves: [
             (name: "ice bolt", tags: [Primary], cooldown: 0.8, cost: 2.0, ops: [
                 Afflict(range: 22.0, cone: 5.0, status: Some(Chill), secs: 1.5, damage: 6.0, knockback: 8.0, up: 0.0, element: Ice),
@@ -2455,7 +2455,7 @@
         name: "Mabel Pines",
         kind: Kit,
         names: ["mabel", "mabel pines", "mable", "mabel's"],
-        shouts: [("sweater town", 2), ("glitter bomb", 1)],
+        shouts: [("sweater town", 2), ("mabel glitter bomb", 1)],
         moves: [
             (name: "grappling hook", tags: [Movement], cooldown: 1.2, cost: 2.0, ops: [Reel(range: 36.0, speed: 30.0)]),
             // A glitter bomb.
@@ -2474,7 +2474,7 @@
         name: "Grunkle Stan",
         kind: Kit,
         names: ["grunkle stan", "stan pines", "stanley pines", "mr mystery", "grunkle stan's"],
-        shouts: [("brass knuckles", 0)],
+        shouts: [("grunkle stan brass knuckles", 0)],
         moves: [
             (name: "brass knuckles", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
                 Shove(range: 3.0, angle: 40.0, damage: 13.0, knockback: 20.0, up: 0.2),
@@ -2494,7 +2494,7 @@
         kind: Kit,
         names: ["steven", "steven universe", "steven's", "stephen universe"],
         fx: "crystal",
-        shouts: [("bubble shield", 0), ("stevonnie", 3)],
+        shouts: [("steven bubble shield", 0), ("stevonnie", 3)],
         moves: [
             // The bubble: a pink sphere around him — nothing gets in, whoever's too close is pushed off.
             (name: "bubble", tags: [Defense], cooldown: 6.0, cost: 4.0, ops: [
@@ -2585,7 +2585,7 @@
         kind: Kit,
         names: ["danny phantom", "danny fenton", "danny phantom's", "dany phantom"],
         fx: "ghost",
-        shouts: [("ghostly wail", 0), ("ghost ray", 1), ("ecto shield", 3), ("going ghost", 1)],
+        shouts: [("ghostly wail", 0), ("Ghost Ray", 1), ("ecto shield", 3), ("danny phantom going ghost", 1)],
         moves: [
             // The ghostly wail: a scream that flattens everything in front of him (and drains him).
             (name: "ghostly wail", tags: [Ultimate], cooldown: 14.0, cost: 9.0, ops: [
@@ -2638,7 +2638,7 @@
         name: "Ron Stoppable",
         kind: Kit,
         names: ["ron stoppable", "ron and rufus", "ron stoppable's", "ron stopable"],
-        shouts: [("mystical monkey power", 0), ("monkey power", 0)],
+        shouts: [("ron stoppable mystical monkey power", 0), ("ron stoppable monkey power", 0)],
         moves: [
             // Mystical Monkey Power: suddenly he's a kung fu master.
             (name: "monkey power", tags: [Ultimate], cooldown: 18.0, cost: 6.0, ops: [
@@ -2781,7 +2781,7 @@
         kind: Kit,
         names: ["dexter", "dexter's lab", "dexters lab", "dexter's laboratory", "dexter boy genius", "dexter's"],
         fx: "tech",
-        shouts: [("omelette du fromage", 2), ("shrink ray", 1)],
+        shouts: [("omelette du fromage", 2), ("dexter shrink ray", 1)],
         moves: [
             // The giant robot suit: climb in.
             (name: "robot", tags: [Ultimate], cooldown: 25.0, cost: 10.0, ops: [
@@ -2811,7 +2811,7 @@
         kind: Kit,
         names: ["spongebob", "sponge bob", "spongebob squarepants", "sponge bob square pants", "spongebob's", "spongbob"],
         fx: "water",
-        shouts: [("spongebob karate", 0), ("bubble blowing", 1), ("jellyfishing", 2), ("imagination", 3), ("i'm ready", 4), ("im ready", 4)],
+        shouts: [("spongebob karate", 0), ("spongebob bubble blowing", 1), ("jellyfishing", 2), ("spongebob imagination", 3), ("i'm ready", 4), ("im ready", 4)],
         moves: [
             // Karate chop: HI-YA!
             (name: "karate chop", tags: [Primary], cooldown: 0.8, cost: 2.0, ops: [
@@ -2866,7 +2866,7 @@
         kind: Kit,
         names: ["acme", "wile e coyote", "wile e. coyote", "wile coyote", "the coyote", "acme corporation", "acme products",
                 "wiley coyote", "wile e coyote's"],
-        shouts: [("portable hole", 1), ("acme anvil", 0), ("anvil from the sky", 0), ("acme dynamite", 2), ("rocket skates", 3), ("acme catalogue", 5), ("acme catalog", 5)],
+        shouts: [("acme portable hole", 1), ("acme anvil", 0), ("anvil from the sky", 0), ("acme dynamite", 2), ("rocket skates", 3), ("acme catalogue", 5), ("acme catalog", 5)],
         moves: [
             // An anvil whistles down onto the aim. It's always an anvil.
             (name: "anvil", tags: [Primary], cooldown: 2.0, cost: 3.0, ops: [
@@ -2973,7 +2973,7 @@
         kind: Kit,
         names: ["marvin the martian", "marvin martian", "marvin", "marvin the martian's"],
         fx: "energy",
-        shouts: [("earth shattering kaboom", 0), ("illudium q 36 explosive space modulator", 0)],
+        shouts: [("earth shattering kaboom", 0), ("marvin illudium q 36 explosive space modulator", 0)],
         moves: [
             // The Illudium Q-36 Explosive Space Modulator: where's the kaboom? THERE's the kaboom.
             (name: "space modulator", tags: [Ultimate], cooldown: 20.0, cost: 12.0, ops: [
@@ -3055,7 +3055,7 @@
         kind: Kit,
         names: ["jinx", "jinx arcane", "arcane jinx", "jinx's", "jynx"],
         fx: "glitch",
-        shouts: [("fishbones", 0), ("zapper", 1), ("flame chompers", 2), ("super mega death rocket", 4), ("pow pow", 3)],
+        shouts: [("jinx fishbones", 0), ("jinx zapper", 1), ("jinx flame chompers", 2), ("jinx super mega death rocket", 4), ("pow pow", 3)],
         moves: [
             // Fishbones: the shark-mouthed rocket launcher.
             (name: "fishbones", tags: [Primary], cooldown: 1.4, cost: 3.0, ops: [
@@ -3114,7 +3114,7 @@
         kind: Kit,
         names: ["jayce", "jayce talis", "jayce arcane", "jayce's"],
         fx: "tech",
-        shouts: [("to the skies", 0), ("mercury hammer", 1)],
+        shouts: [("to the skies", 0), ("jayce mercury hammer", 1)],
         moves: [
             // The Mercury Hammer: leap and smash.
             (name: "to the skies", tags: [Movement], cooldown: 3.0, cost: 4.0, ops: [
@@ -3204,7 +3204,7 @@
         kind: Kit,
         names: ["dracula", "vlad dracula tepes", "count dracula", "dracula's", "drakula"],
         fx: "shadow",
-        shouts: [("hellfire", 0)],
+        shouts: [("dracula hellfire", 0)],
         moves: [
             // Hellfire: three fireballs from the cape.
             (name: "hellfire", tags: [Primary], cooldown: 1.6, cost: 3.0, ops: [
@@ -3226,7 +3226,7 @@
         kind: Kit,
         names: ["geralt", "geralt of rivia", "the witcher", "witcher", "white wolf", "the white wolf", "geralt's", "gerald of rivia"],
         fx: "chi",
-        shouts: [("aard", 0), ("igni", 1), ("quen", 2), ("yrden", 3), ("axii", 4)],
+        shouts: [("Aard", 0), ("Igni", 1), ("Quen", 2), ("Yrden", 3), ("axii", 4)],
         moves: [
             // AARD: a telekinetic blast from the hand — they're knocked off their feet.
             (name: "aard", tags: [Primary], cooldown: 2.0, cost: 3.0, ops: [
@@ -3381,7 +3381,7 @@
         kind: Kit,
         names: ["voltron", "voltron defender of the universe", "voltron legendary defender", "voltron's"],
         fx: "energy",
-        shouts: [("form voltron", 0), ("blazing sword", 1)],
+        shouts: [("form voltron", 0), ("Blazing Sword", 1)],
         moves: [
             // Form Voltron: five lions lock together and you're in the head.
             (name: "form", tags: [Ultimate], cooldown: 30.0, cost: 14.0, ops: [
@@ -3523,7 +3523,7 @@
         kind: Kit,
         names: ["doofenshmirtz", "dr doofenshmirtz", "doctor doofenshmirtz", "heinz doofenshmirtz", "doof", "doofenshmirtz's"],
         fx: "tech",
-        shouts: [("inator", 0), ("doofenshmirtz self destruct", 1)],
+        shouts: [("doofenshmirtz inator", 0), ("doofenshmirtz self destruct", 1)],
         moves: [
             // The -inator: whichever one he grabbed today.
             (name: "inator", tags: [Primary, Ultimate], cooldown: 6.0, cost: 4.0, ops: [
@@ -3648,7 +3648,7 @@
         name: "Casey Jones",
         kind: Kit,
         names: ["casey jones", "casey", "casey jones's"],
-        shouts: [("goongala", 0), ("goongala goongala", 0)],
+        shouts: [("casey goongala", 0), ("goongala goongala", 0)],
         moves: [
             // The hockey stick: a slapshot swing.
             (name: "hockey stick", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
@@ -3765,7 +3765,7 @@
         name: "Billy Butcher",
         kind: Kit,
         names: ["butcher", "billy butcher", "the butcher", "butcher's"],
-        shouts: [("diabolical", 2)],
+        shouts: [("butcher diabolical", 2)],
         moves: [
             // The crowbar.
             (name: "crowbar", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
@@ -3885,7 +3885,7 @@
         kind: Kit,
         names: ["skeletor", "skeletor's", "skeleton lord", "skeletore"],
         fx: "dark",
-        shouts: [("havoc staff", 0), ("nyeh", 1)],
+        shouts: [("skeletor havoc staff", 0), ("nyeh", 1)],
         moves: [
             // The Havoc Staff: a bolt from the ram's-skull head.
             (name: "havoc staff", tags: [Primary], cooldown: 1.4, cost: 3.0, ops: [

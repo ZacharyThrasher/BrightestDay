@@ -4,7 +4,8 @@
 //! in front first) goes with you. You both reappear `dist` m along the aim (walls stop it, like
 //! `Blink`) and `up` m higher (ceilings stop that); they are set down beside you with no footing — a
 //! fall and a short tumble — while you hang a beat (a Float) to blink away, strike or drop on them.
-//! Taken over the void, that's a KO; taken up a cliff, a spike. Nobody in reach = a plain blink
+//! Taken up a cliff, that's a spike; never a ring-out: a passenger is only dropped over ground, and the
+//! (dodge-able) touch comes first — a dodge means you blink alone (OPS_REVIEW blocker 2). Nobody in reach = a plain blink
 //! (with the same lift and hang). Both ends of both jumps emit `PowerEvent::Blinked` (the smoke
 //! puffs). A zero-damage credit hit keeps combos and KO credit honest. Deterministic,
 //! allocation-free; does nothing unless a move uses it.
@@ -12,7 +13,7 @@
 use bd_core::Vec3;
 
 use super::super::{PowerError, PowerEvent};
-use crate::combat::{HitInfo, HitKind};
+use crate::combat::HitKind;
 use crate::events::GameEvent;
 use crate::geom;
 use crate::movement::{ColliderId, CollisionWorld, raycast_world};
@@ -93,11 +94,18 @@ impl World {
             for off in [fl * side, -fl * side, right * side, -right * side] {
                 let feet = to + off;
                 let free = [0.3, qhalf.y, qhalf.y * 2.0 - 0.2].iter().all(|y| self.voxels.get_at(feet + Vec3::Y * *y) == 0);
-                if free && self.in_play(feet, 0.0) {
+                // never over the void: ground must be under the drop (a fall / spike, not a ring-out)
+                if free && self.in_play(feet, 0.0) && self.ground_below(feet + Vec3::Y * 0.3, lift + CARRY_GROUND_DEPTH).is_some() {
                     drop = Some((k, feet));
                     break;
                 }
             }
+        }
+        // The (dodge-able) touch comes FIRST: a dodge, a shield or invulnerability = no carry.
+        if let Some((k, _)) = drop
+            && !self.toolbox_touch(i, k, HitKind::RingShove)
+        {
+            drop = None;
         }
         // Go.
         {
@@ -113,20 +121,20 @@ impl World {
             self.apply_status(i, StatusKind::Float, CARRY_HANG_SECS, Some(id));
         }
         if let Some((k, feet)) = drop {
+            // (the credit hit already landed above: combos, KO credit, interrupts)
             let q = &mut self.players[k];
             let qfrom = q.mv.pos;
             q.mv.release_tethers();
-            q.mv.extra.cancel_dodge(&mut q.mv.vel);
             q.mv.pos = feet;
             q.mv.vel = Vec3::new(0.0, -1.0, 0.0);
             q.mv.grounded = false;
             q.mv.tumble = q.mv.tumble.max(CARRY_DROP_TUMBLE);
             let tid = q.id;
-            let c = q.hull(&base).center();
             self.inject_event(GameEvent::Power(PowerEvent::Blinked { player: tid, from: qfrom, to: feet, afterimage: true }));
-            // A zero-damage hit: credit (the drop can KO) + interrupts, no knockback.
-            self.apply_hit(HitInfo::new(tid, Some(id), HitKind::RingShove, 0.0, 0.0, Vec3::NEG_Y, c));
         }
         Ok(())
     }
 }
+
+/// How far under a carry drop (beyond the lift) ground must be (m).
+pub const CARRY_GROUND_DEPTH: f32 = 8.0;
