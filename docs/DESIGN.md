@@ -201,7 +201,9 @@ ring console or oath is open every letter is text: no bound key fires (movement 
 tethers/reel/charge/dodge parked, view/shoulder/alt-fire/power/quick-cast ignored).
 
 ## Motion comfort (a playtester gets motion sick)
-Defaults for everyone: the camera **never rolls** (tumble spins the body, not the view), no motion blur,
+Defaults for everyone: the camera never rolls on its own (tumble spins the body, not the view) except a
+subtle strafe/tether lean (≤1° strafing, 2.5° swinging; owner kept it ON by default 2026-09-26; off in
+ADS, under the comfort preset, and via Settings → Comfort → Strafe lean), no motion blur,
 no head-bob, stable high fps, an always-visible small centre dot. Settings → Comfort → **Comfort
 preset** (one click; each item individually adjustable): camera shake off/slider, speed-FOV and FOV
 punches off, landing dip/camera kick off, **comfort vignette** (edge darkening scaled by speed/swing

@@ -15,11 +15,17 @@ need `--features voice` in their own dir (target\voice).
 target\build_status.txt every 90 s) and `pwsh -File target\promote.ps1` (every 30 min: GREEN → fastrel
 +voice build in target\voice → startup smoke → target\playable\<stamp>\). Lead checks: CARGO_TARGET_DIR
 target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Protocol: docs/COORDINATION.md.
+**Distribution:** owner is HOLDING the next zip until the current wave lands. Then: update the clean
+worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../bd_dist checkout --detach
+<sha>`), copy ignored assets (assets/lexicon.bin, assets/models/ggml-base.en-q5_1.bin), build
+`cargo build --profile fastrel -p bd_game --features voice` with CARGO_TARGET_DIR=target/dist, smoke, then
+repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
+Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
 - Match rules a68a4dbccc61a4edc DONE (committed) — per-type construct caps, THEN (scope add) an optional power-up pickup
   mode: kaiju scale / awakening forms / signature ultimates gated behind telegraphed map pickups (heart/egg,
   aura orb; no text), weaker "sputter" version without one, drops on KO, carrier glows + is visible.
-- Match swap + stats board ae79eb8b5f11e2ad8 — end-screen map vote (pips, host override/rules, ~15 s
+- Match swap + stats board ae79eb8b5f11e2ad8 DONE — end-screen map vote (pips, host override/rules, ~15 s
   countdown, protocol bump) + scoreboard: text awards removed (WILDEST/BIGGEST/MOST CREATIVE), competitive
   stats table (KOs, falls, SDs, dmg dealt/taken, streak, combo, acc, constructs, stocks, ping).
 - Vocab military + D&D aa338f67f0c63e7fc — content-as-data only (weapons/vehicles/fortifications/support
@@ -32,7 +38,7 @@ target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Pro
 - Power HUD a27df484b4d496738 — what you HAVE + readiness, no words: ring gems (1P) / orbiting motes
   (3P + others) with drain/refill/ready chime; minimal icon strip (radial cooldowns, form duration,
   willpower arc, held pickup, status pips); prefs toggle. Single source for the affordance pass's ring gauge.
-- Feel polish ab67c9f46bddf8b57 — momentum while typing (latched WASD; sim no longer zeroes move on
+- Feel polish ab67c9f46bddf8b57 DONE (strafe lean default = owner decision vs DESIGN "never rolls") — momentum while typing (latched WASD; sim no longer zeroes move on
   TYPING; may shift FFA hash), speed lines + wind on all maps, strafe/tether camera roll, instant cast "catch".
 - Costumes abe83e88bc70188b0 DONE (205 looks, summon hook, grammar; open: 1P hands palette colours in viewmodel.rs, Doom Slayer≈Chief) — got 2 scope adds: exact character name in a SUMMON → costume construct
   ("goku" → Goku-looking construct, "GIANT GOKU" stacks); slot mix-and-match ("gojo but bald",

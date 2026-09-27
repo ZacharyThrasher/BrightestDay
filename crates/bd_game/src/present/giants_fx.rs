@@ -776,11 +776,22 @@ pub mod scenario {
         let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
         let (Some(&owner), Some(&far)) = (others.first(), others.get(1)) else { return };
         if !sc.placed {
-            let Some((spot, dir)) = [22.0, 18.0, 26.0, 14.0].iter().find_map(|d| find_spot(&active.world, my_pos, *d)) else {
-                if sc.t > 8.0 {
-                    warn!("giants scenario: no open ground near the spawn");
-                    sc.placed = true;
-                }
+            let found = [22.0, 18.0, 26.0, 14.0].iter().find_map(|d| find_spot(&active.world, my_pos, *d));
+            let Some((spot, dir)) = found.map(|(s, d)| {
+                // Closer for the up-close shots (the kaiju is pinned there).
+                let dist = match sc.shot.as_str() { "stomp" => 8.5, "sever" | "topple" => 15.0, _ => (s - my_pos).length() };
+                let c = my_pos + d * dist;
+                let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(s.y, |h| h.point.y);
+                (Vec3::new(c.x, y, c.z), d)
+            }).or_else(|| {
+                // Hilly spawn: straight ahead of the view, on whatever ground is there.
+                (sc.t > 2.5).then(|| {
+                    let d = bd_core::input::look_dir(look.yaw, 0.0);
+                    let c = my_pos + d * 20.0;
+                    let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(my_pos.y, |h| h.point.y);
+                    (Vec3::new(c.x, y, c.z), d)
+                })
+            }) else {
                 return;
             };
             active.bots.clear();
@@ -839,6 +850,14 @@ pub mod scenario {
         ov.move_x = 0;
         ov.move_z = 0;
         let t = sc.t;
+        if sc.shot != "ride" {
+            if let Some(c) = active.world.constructs.get_mut(id) {
+                c.pos.x = sc.spot.x;
+                c.pos.z = sc.spot.z;
+                c.vel.x = 0.0;
+                c.vel.z = 0.0;
+            }
+        }
         match sc.shot.as_str() {
             // Hook the tail, reel in, land on it, run up the back.
             "ride" => {

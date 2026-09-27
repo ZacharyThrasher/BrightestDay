@@ -1778,6 +1778,16 @@
             sequence: false,
             stereo: false,
         ), // loop; atomic: a throbbing radiant E drone (6 Hz) + geiger ticks
+        "power_ready": (
+            files: ["sfx/power_ready_1.ogg"],
+            category: "ui",
+            volume: 1.00,
+            looping: false,
+            pitch: (1.000, 1.000),
+            lufs: -27.0,
+            sequence: false,
+            stereo: false,
+        ), // a held power is ready again: soft E5 hard-light bell + faint octave shimmer (pitched per power in game)
     },
     ko_streak: (
         key: "E minor pentatonic",

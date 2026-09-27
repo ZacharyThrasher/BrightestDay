@@ -367,7 +367,7 @@ fn sync_bodies(
     costumes: Res<PlayerCostumes>,
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
-    (aim, ads, fx): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>),
+    (aim, ads, fx, ascend): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>, Option<Res<super::powers::ascend::AscendPose>>),
     lex: Option<Res<crate::console::RingLexicon>>,
     mut map: ResMut<BodyEntities>,
     mut hands_out: ResMut<BodyHands>,
@@ -543,6 +543,13 @@ fn sync_bodies(
             } else if *rt >= 0.4 {
                 b.react = None;
             }
+        }
+        // POWERS HOOK: the Ascend windup pose (any transformation / power-up).
+        if let Some(pt) = ascend.as_ref().and_then(|a| a.by_player.get(&v.id).copied())
+            && n < 4
+        {
+            layers[n] = (AnimState::PowerUp, pt);
+            n += 1;
         }
         if n < 4 {
             layers[n] = (AnimState::Aim { yaw: 0.0, pitch: v.pitch * 0.6 }, t);

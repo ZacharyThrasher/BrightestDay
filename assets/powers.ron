@@ -2465,8 +2465,8 @@
         ],
         // The awakening: the Great Sage Equal to Heaven. Every held weapon you make telescopes.
         transform: Some((
-            ascend: Some((color: Some([1.0, 0.78, 0.2]), intensity: 1.5, title: Some("GREAT SAGE EQUAL TO HEAVEN"),
-                          eye_glow: Some([1.0, 0.72, 0.15]))),
+            ascend: Some((color: Some((1.0, 0.78, 0.2)), intensity: 1.5, title: Some("GREAT SAGE EQUAL TO HEAVEN"),
+                          eye_glow: Some((1.0, 0.72, 0.15)))),
             body: (moves: (jump: 1.45, speed: 1.1, air_control: 1.4, accel: 1.15)),
             graft: Some((mechanics: [Extends])),
             effects: [PowerMult(damage: 1.15, knockback: 1.2)],

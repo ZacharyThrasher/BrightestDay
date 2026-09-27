@@ -156,7 +156,7 @@ fn icon(in: UiVertexOutput) -> vec4<f32> {
     let fill = clamp(p.a.y, 0.0, 1.0);
     let form = p.a.z;
     let flash = clamp(p.a.w, 0.0, 1.0);
-    let active = p.b.y;
+    let is_active = p.b.y;
     let dim = p.b.z;
     var col = p.color.rgb;
     if (dim > 0.5) {
@@ -171,7 +171,7 @@ fn icon(in: UiVertexOutput) -> vec4<f32> {
     out = over(out, vec3<f32>(0.02, 0.02, 0.035), cover(sd_circle(q, 0.8), px) * 0.62);
 
     // Sweep rim: the refilled part lit in colour, the rest a dim track.
-    let rim_w = select(0.055, 0.075, active > 0.5);
+    let rim_w = select(0.055, 0.075, is_active > 0.5);
     let rim = abs(r - 0.76) - rim_w;
     let rim_c = select(vec3<f32>(0.28), col, lit);
     out = over(out, rim_c, cover(rim, px) * select(0.55, 1.0, lit));
