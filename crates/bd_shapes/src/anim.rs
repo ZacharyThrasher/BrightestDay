@@ -56,6 +56,9 @@ pub enum AnimState {
     /// Launched by a big hit travelling along `dir` (model space): the body spins end over end about
     /// the axis ⟂ `dir` at `spin` rad/s with arms and legs trailing, then (the caller) lands/recovers.
     Launched { dir: Vec3, spin: f32 },
+    /// Humanoid layer: the power-up pose (Ascend windup — any transformation / power-up): fists
+    /// clenched out at the sides, head back, body tense and trembling. `t` = seconds into it.
+    PowerUp,
 }
 
 /// Ring-arm cast: pull back (anticipation), thrust (active: spawn the construct at its end), hold +
@@ -617,7 +620,7 @@ impl Frame {
             AnimState::Forming { duration } => forming_local(m, i, t, duration, false),
             AnimState::Dismiss { duration } => forming_local(m, i, t, duration, true),
             AnimState::Aim { yaw, pitch } => aim_layer(m, i, yaw, pitch),
-            a @ (AnimState::Slide { .. } | AnimState::TetherFire { .. } | AnimState::Swing { .. } | AnimState::Cast | AnimState::Tumble { .. } | AnimState::Launched { .. }) => humanoid_local(m, i, a, t),
+            a @ (AnimState::Slide { .. } | AnimState::TetherFire { .. } | AnimState::Swing { .. } | AnimState::Cast | AnimState::Tumble { .. } | AnimState::Launched { .. } | AnimState::PowerUp) => humanoid_local(m, i, a, t),
         }
     }
 }
@@ -1491,6 +1494,24 @@ fn humanoid_local(m: &VoxelModel, i: usize, a: AnimState, t: f32) -> Local {
                 }
                 PartKind::Head => Local::rot(Quat::from_axis_angle(axis, -0.35)),
                 PartKind::Tail { k, .. } => Local::rot(Quat::from_axis_angle(axis, -0.4 / (1.0 + k as f32))),
+                _ => Local::IDENTITY,
+            }
+        }
+        AnimState::PowerUp => {
+            let e = smoothstep(0.0, 0.15, t);
+            let shake = 0.03 * e * (t * 47.0).sin();
+            match kind {
+                PartKind::Root => Local::rot(rx(-0.07 * e + shake * 0.3)),
+                PartKind::Head => Local::rot(rx(0.38 * e + shake)),
+                PartKind::Arm(sd) => {
+                    let sd = sd as f32;
+                    Local::rot(rx(-0.4 * e + shake) * rz(sd * 0.55 * e))
+                }
+                PartKind::Leg(k) => {
+                    let side = leg_side(k);
+                    Local::rot(rz(side * 0.14 * e))
+                }
+                PartKind::Tail { k, .. } => Local::rot(rx(0.3 * e / (1.0 + k as f32)) * ry(shake * 3.0)),
                 _ => Local::IDENTITY,
             }
         }

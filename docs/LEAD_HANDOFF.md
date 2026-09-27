@@ -16,7 +16,7 @@ target\build_status.txt every 90 s) and `pwsh -File target\promote.ps1` (every 3
 +voice build in target\voice → startup smoke → target\playable\<stamp>\). Lead checks: CARGO_TARGET_DIR
 target\lead. Workers: target\play + `--profile fastrel`, BD_HIDDEN_WINDOW=1. Protocol: docs/COORDINATION.md.
 **In flight (subagent ids; reports return to this session):**
-- Match rules a68a4dbccc61a4edc — per-type construct caps, THEN (scope add) an optional power-up pickup
+- Match rules a68a4dbccc61a4edc DONE (committed) — per-type construct caps, THEN (scope add) an optional power-up pickup
   mode: kaiju scale / awakening forms / signature ultimates gated behind telegraphed map pickups (heart/egg,
   aura orb; no text), weaker "sputter" version without one, drops on KO, carrier glows + is visible.
 - Match swap + stats board ae79eb8b5f11e2ad8 — end-screen map vote (pips, host override/rules, ~15 s

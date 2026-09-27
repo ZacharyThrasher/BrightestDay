@@ -775,6 +775,16 @@ fn dev_test(
             dev.next += 1;
             continue;
         }
+        // `me@<yaw>,<pitch>|!look`: just turn (e.g. to see a beam from the side after firing it).
+        if who == "me" && phrase == "!look" {
+            if let Some(v) = aim.map(|a| a.split(',').filter_map(|x| x.trim().parse::<f32>().ok()).collect::<Vec<_>>())
+                && let [yaw, pitch] = v[..]
+            {
+                dev.look = Some((yaw, pitch, dev.t + 4.0));
+            }
+            dev.next += 1;
+            continue;
+        }
         if who == "me" && dev.boosted != Some(dev.next) {
             if let Some(a) = aim {
                 let v: Vec<f32> = a.split(',').filter_map(|x| x.trim().parse().ok()).collect();

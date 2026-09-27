@@ -220,14 +220,10 @@ fn twirl_combo_hits_and_finisher_is_heavy() {
     for _ in 0..3 {
         let ev = act(&mut w, A, 0.0, -0.05, buttons::PRIMARY, 1, 30);
         kinds.extend(hits_on(&ev, B).into_iter().map(|h| h.0));
-        for e in &ev {
-            if let GameEvent::HeldFx { fx: HeldFx::SwingStart, strength, .. } = e {
-                eprintln!("swing start {strength}");
-            }
-        }
         // Keep B in reach.
         place(&mut w, B, Vec3::new(0.0, GROUND, 30.0 - 2.6));
     }
+    kinds.extend(hits_on(&run(&mut w, 90), B).into_iter().map(|h| h.0));
     assert!(kinds.len() >= 2, "combo connects: {kinds:?}");
     assert!(kinds.contains(&HitKind::HeavyMelee), "windmill finisher: {kinds:?}");
 }

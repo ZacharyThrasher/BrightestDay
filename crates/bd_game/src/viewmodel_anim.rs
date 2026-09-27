@@ -1366,6 +1366,7 @@ pub(super) fn drive_hand_anim(
     mut cues: MessageReader<RingCue>,
     mut st: ResMut<AnimState>,
     mut pose_out: ResMut<HandPose>,
+    ascend: Option<Res<crate::present::powers::ascend::AscendPose>>,
 ) {
     let t0 = std::time::Instant::now();
     let tu = &tuning.0;
@@ -1528,7 +1529,9 @@ pub(super) fn drive_hand_anim(
             straining: hook.phase == HookPhase::Attached && reeling,
         };
     }
-    let charging = me.charge.active || (a.role == SimRole::Client && input.current.held(buttons::CHARGE) && !focus.typing && me.alive);
+    // POWERS HOOK: an Ascend windup (transformation / power-up) is the same fist clench.
+    let ascending = ascend.as_ref().map_or(0.0, |p| p.local_windup);
+    let charging = me.charge.active || ascending > 0.0 || (a.role == SimRole::Client && input.current.held(buttons::CHARGE) && !focus.typing && me.alive);
     let inp = AnimInput {
         dt,
         look_rate,
@@ -1546,7 +1549,7 @@ pub(super) fn drive_hand_anim(
         oath: oath.open,
         voice_level: voice.level,
         charging,
-        charge_held: me.charge.held,
+        charge_held: me.charge.held.max(ascending * 4.0),
         charge_full: me.charge.full,
         palms: palms.is_some(),
         palm_charge,

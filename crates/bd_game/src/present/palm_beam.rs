@@ -98,6 +98,7 @@ struct Beam {
     parts: [Entity; 4],
     mats: [Handle<StandardMaterial>; 3],
     spark: f32,
+    ring: f32,
     mine: bool,
 }
 
@@ -445,7 +446,7 @@ fn place_palms(
             spawn(&mut commands, &assets.sphere, &m[2]),
         ];
         debug!("palm beam: {owner:?} {:.1} m, radius {radius:.2}, {secs:.2} s", from.distance(end));
-        f.beams.push(Beam { owner, construct, end, color, radius, dur: secs, t: 0.0, parts: parts_e, mats: m, spark: 0.0, mine });
+        f.beams.push(Beam { owner, construct, end, color, radius, dur: secs, t: 0.0, parts: parts_e, mats: m, spark: 0.0, ring: 1.0, mine });
         // Juice: the caster's kick (the viewmodel thrusts), everyone near feels it.
         let k = (radius / 1.1).clamp(0.2, 1.0);
         if mine {
@@ -527,6 +528,30 @@ fn place_palms(
                 drag: 1.5,
                 ..default()
             });
+        }
+        // Energy pouring OUT of the palms: a ring of streaks leaves the hands every ~50 ms and races
+        // down the beam (reads with depth even looking straight along it).
+        b.ring += dt;
+        if b.ring >= 0.05 && env > 0.3 {
+            b.ring = 0.0;
+            let rr = r * 1.25;
+            for k in 0..10 {
+                let a = k as f32 / 10.0 * std::f32::consts::TAU + b.t * 7.0;
+                let out = s1 * a.cos() + s2 * a.sin();
+                fx.emit(Emit {
+                    kind: PKind::Ballistic,
+                    flags: PFlags::STRETCH | PFlags::PLAIN,
+                    pos: from + dir * flare.min(1.5) + out * rr * 0.5,
+                    vel: dir * 45.0 + out * rr * 0.6,
+                    size: 0.04 + 0.06 * b.radius,
+                    color: b.color,
+                    emissive: 6.0 * bright,
+                    life: (len / 45.0).clamp(0.1, 0.6),
+                    gravity: 0.0,
+                    drag: 0.0,
+                    ..default()
+                });
+            }
         }
         // A rumble while it pours out (the caster; anyone standing near the struck point).
         let near = if b.mine { 0.0 } else { eye.distance(to) };

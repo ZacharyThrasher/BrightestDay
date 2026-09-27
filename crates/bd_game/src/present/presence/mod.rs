@@ -304,7 +304,8 @@ fn presence_events(
                 l.ended = Some(0.0);
                 // EXIT: it dissolves into its element (on top of bd_fx's voxel dissolve / shatter).
                 let n = (t.feel(l.tier).exit_motes as f32 * t.element(l.element).motes) as u32;
-                if l.last_pos.is_some() {
+                // (Not in the caster's face: first-person held items dissolve in the viewmodel.)
+                if l.last_pos.is_some() && l.dist > 1.5 {
                     exit_motes(&mut fx, l, n.min(160));
                 }
             }
@@ -597,6 +598,7 @@ fn presence_beats(
     let off = disabled() || !t.enabled;
     let dt = time.delta_secs().clamp(1e-4, 0.1);
     let eye = cam.single().map_or(Vec3::ZERO, |c| c.translation());
+    let (cam_fwd, cam_right) = cam.single().map_or((Vec3::NEG_Z, Vec3::X), |c| (c.forward().as_vec3(), c.right().as_vec3()));
     let flashes_ok = comfort.flashes > 0.0;
     let b = &t.budget;
     let mut motes_left = if off { 0 } else { b.max_motes_per_frame };
@@ -669,8 +671,14 @@ fn presence_beats(
         l.lod = 1.0 - smoothstep(b.lod_full * k, b.lod_zero * k, l.dist);
         let held = matches!(l.category, FormCategory::Held | FormCategory::Worn);
         // The gather point: the hands for what you hold, the body for what stands on its own.
-        let gather_at = if held { views.player(l.owner).map_or(centre, |p| hand_transform(p).translation) } else { centre };
-        let msize = (0.05 + 0.025 * l.size.sqrt()).min(0.22);
+        let mut gather_at = if held { views.player(l.owner).map_or(centre, |p| hand_transform(p).translation) } else { centre };
+        let mut msize = (0.05 + 0.025 * l.size.sqrt()).min(0.22);
+        // First person: the hand sits on the camera — gather in front of the view instead, with
+        // small motes (nothing may cover the screen).
+        if held && eye.distance(gather_at) < 1.5 {
+            gather_at = eye + cam_fwd * 1.4 + cam_right * 0.35 - Vec3::Y * 0.3;
+            msize *= 0.45;
+        }
         l.surge = (l.surge - dt / feel.surge_secs.max(0.02)).max(0.0);
 
         // ---- GATHER (through the forming windup; never delays the cast) ----
@@ -713,10 +721,12 @@ fn presence_beats(
                 if feel.ring > 0 && motes_left > 0 {
                     let axis = if held || l.flies { views.player(l.owner).map_or(Vec3::Y, |p| Quat::from_rotation_y(p.yaw) * Vec3::NEG_Z) } else { Vec3::Y };
                     let n = feel.ring.min(motes_left);
-                    shock_ring(&mut fx, ring_at, axis, feel.ring_speed * l.size.max(0.5).sqrt(), n, l.color, msize * 1.4);
+                    let near = eye.distance(ring_at) < 2.0;
+                    let speed = feel.ring_speed * l.size.max(0.5).sqrt() * if near { 0.35 } else { 1.0 };
+                    shock_ring(&mut fx, ring_at, axis, speed, n, l.color, msize * 1.4);
                     motes_left -= n;
                 }
-                if feel.burst > 0.0 {
+                if feel.burst > 0.0 && eye.distance(ring_at) > 3.0 {
                     burst.write(BurstFx { kind: BurstKind::Element(l.element), pos: ring_at, dir: Vec3::Y, scale: feel.burst * k, color: None });
                 }
                 if !feel.manifest_sfx.is_empty() {
