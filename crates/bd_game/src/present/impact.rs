@@ -156,6 +156,24 @@ fn element_word(e: Element) -> Option<&'static str> {
 struct ExplosionWords {
     pending: Vec<(Option<PlayerId>, Vec3, f32, [f32; 3], u64)>,
     fired: Vec<(PlayerId, &'static bd_sim::powers::MoveDef, &'static bd_sim::powers::PowerDef)>,
+    /// Each player's last fired move (+ real time): a blast a tick or two after its move's `Fired`
+    /// (chains, delayed ops) still says the move's STYLE word (a smoke blink BAMFs, never BOOMs).
+    recent: Vec<(PlayerId, &'static bd_sim::powers::MoveDef, &'static bd_sim::powers::PowerDef, f64)>,
+}
+
+/// How long after a move fires its blasts still use its style word (s).
+const STYLE_WORD_SECS: f64 = 1.5;
+
+/// A hit's comic word by what hit (form / weapon class), its element and weight
+/// (`assets/fx/text_budget.ron` `hit_words`: SHING for blades, THOOM for heavies, KRAK for lightning…).
+fn hit_word(tb: Option<&bd_fx::TextBudget>, active: &ActiveWorld, construct: Option<ConstructId>, element: Element, heavy: bool) -> String {
+    let fallback = if heavy { "hit_heavy" } else { "hit_light" };
+    let Some(tb) = tb else { return fallback.to_string() };
+    let c = construct.and_then(|id| active.world.constructs.get(id));
+    let form = c.map_or_else(|| "none".to_string(), |c| format!("{:?}", c.recipe.form).to_ascii_lowercase());
+    let class = c.and_then(|c| bd_sim::constructs::weapon_class::class_of(&c.recipe)).map_or("", |k| k.key());
+    let element = format!("{element:?}").to_ascii_lowercase();
+    tb.hit_word(&form, class, &element, heavy).unwrap_or(fallback).to_string()
 }
 
 fn event_hash(tick: u64, salt: u64) -> u64 {
@@ -178,12 +196,13 @@ fn present_hits(
     mut commands: Commands,
     cam: Query<&GlobalTransform, With<PlayerCamera>>,
     arena: Option<Res<crate::arena::ArenaWorld>>,
-    (ads, juice_t, presence, move_fx, mut words): (
+    (ads, juice_t, presence, move_fx, mut words, text_budget): (
         Option<Res<super::ads::AdsState>>,
         Res<connect::JuiceTuningRes>,
         Option<Res<super::presence::PresenceIndex>>,
         Option<Res<super::powers::movefx::table::MoveFx>>,
         Local<ExplosionWords>,
+        Option<Res<bd_fx::TextBudget>>,
     ),
 ) {
     let (mut impact, mut hitstop, mut shake, mut fov) = juice;
@@ -236,20 +255,23 @@ fn present_hits(
                     sfx.write(Sfx3d::at(name, p).gain(0.6 + 0.4 * strength.min(1.0)));
                 }
                 burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir, scale: 0.4 + strength * 0.8, color: Some(col) });
-                if let Some(w) = element_word(*element) {
+                let elemental = element_word(*element).is_some();
+                if elemental {
                     burst.write(BurstFx { kind: BurstKind::Element(*element), pos: p, dir, scale: 0.5 + strength * 0.5, color: None });
+                }
+                // The word: by weapon style / element / weight (text_budget `hit_words`); the
+                // world-text budget in bd_fx places, sizes and thins it (every Nth light hit per
+                // attacker; crits and finishers always).
+                if elemental || fx.heavy || strength > 0.6 || *damage > 18.0 || *crit || *lethal {
+                    let key = hit_word(text_budget.as_deref(), &active, *construct, *element, strength > 0.9);
                     let (wp, ws) = super::ads::off_sight_line(p, strength, eye, fwd, ads_blend);
-                    let mut o = SpawnOnomatopoeia::key(w, wp, ws * word_k, col);
+                    let mut o = SpawnOnomatopoeia::key("hit_light", wp, ws * word_k, col);
+                    o.word = bd_fx::OnoWord::Key(key.into());
                     o.dir = dir;
                     o.event_id = event_hash(ev.tick, target.0 as u64);
                     o.local_player = local_victim || local_attacker;
-                    ono.write(o);
-                } else if fx.heavy || strength > 0.6 || *damage > 18.0 {
-                    let (wp, ws) = super::ads::off_sight_line(p, strength, eye, fwd, ads_blend);
-                    let mut o = SpawnOnomatopoeia::key(if strength > 0.9 { "hit_heavy" } else { "hit_light" }, wp, ws * word_k, col);
-                    o.dir = dir;
-                    o.event_id = event_hash(ev.tick, target.0 as u64);
-                    o.local_player = local_victim || local_attacker;
+                    o.source = source.map_or(0, |s| s.0 as u64 + 1);
+                    o.accent = *crit || *lethal;
                     ono.write(o);
                 }
                 let _ = tumble;
@@ -310,6 +332,7 @@ fn present_hits(
                         let mut o = SpawnOnomatopoeia::key("ko", p + Vec3::Y * 1.2, 1.4, corps_rgb(kc));
                         o.event_id = event_hash(ev.tick, 991);
                         o.local_player = true;
+                        o.accent = true;
                         ono.write(o);
                     } else {
                         // You can hear who is streaking.
@@ -461,6 +484,9 @@ fn present_hits(
             GameEvent::Power(bd_sim::powers::PowerEvent::Fired { player, mv, .. }) => {
                 if let Some((def, m)) = mv.resolve(bd_sim::powers::PowerTable::get()) {
                     words.fired.push((*player, m, def));
+                    let now = freeze.now;
+                    words.recent.retain(|r| r.0 != *player && now - r.3 < STYLE_WORD_SECS);
+                    words.recent.push((*player, m, def, now));
                 }
             }
             _ => {}
@@ -468,15 +494,20 @@ fn present_hits(
     }
     let words = &mut *words;
     let fired_now = &words.fired;
+    let now = freeze.now;
     for (source, pos, size, col, id) in words.pending.drain(..) {
-        let fired = source.and_then(|s| fired_now.iter().find(|f| f.0 == s));
+        let fired = source
+            .and_then(|s| fired_now.iter().find(|f| f.0 == s).map(|f| (f.1, f.2)))
+            .or_else(|| source.and_then(|s| words.recent.iter().find(|r| r.0 == s && now - r.3 < STYLE_WORD_SECS).map(|r| (r.1, r.2))));
         let key = match (fired, move_fx.as_deref()) {
-            (Some((_, m, def)), Some(t)) => super::powers::movefx::style_word(t, m, Some(def)),
+            (Some((m, def)), Some(t)) => super::powers::movefx::style_word(t, m, Some(def)),
             _ => Some("explosion"),
         };
         if let Some(key) = key {
             let mut o = SpawnOnomatopoeia::key(key, pos, size, col);
             o.event_id = id;
+            o.local_player = source.is_some() && source == local;
+            o.source = source.map_or(0, |s| s.0 as u64 + 1);
             ono.write(o);
         }
     }

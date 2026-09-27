@@ -616,6 +616,9 @@ fn impact(ops: &[MoveOp]) -> (At, f32, f32) {
 /// The typed pass (see the module docs). `el` = the move's element after the swap.
 pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
     let mut ops = ops;
+    // ---- delayed exploding casts: the thrown thing becomes a sticky marker and the burst lands on
+    //      whoever it was aimed at a beat later (a mark that detonates) — "delayed pulse bomb"
+    let mut delayed_bursts: Vec<MoveOp> = Vec::new();
     // ---- casts & seekers carry the mechanics
     for op in ops.iter_mut() {
         match op {
@@ -627,8 +630,23 @@ pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
                     add_mech(recipe, Mechanic::Ricochet);
                 }
                 if g.delay > 0.0 {
+                    if recipe.mech.contains(&Mechanic::Explodes) {
+                        recipe.mech.retain(|m| *m != Mechanic::Explodes);
+                        delayed_bursts.push(MoveOp::DelayedHit {
+                            range: 30.0,
+                            cone: 12.0,
+                            radius: 0.0,
+                            secs: g.delay,
+                            damage: 14.0 + 6.0 * recipe.scale.clamp(0.2, 3.0),
+                            knockback: 20.0,
+                            up: 0.2,
+                            element: recipe.element,
+                        });
+                    }
                     add_mech(recipe, Mechanic::Sticky);
-                    add_mech(recipe, Mechanic::Explodes);
+                    if delayed_bursts.is_empty() {
+                        add_mech(recipe, Mechanic::Explodes);
+                    }
                 }
                 if g.invisible {
                     recipe.temperament = Temperament::Sneaky;
@@ -739,6 +757,7 @@ pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
                 other => other,
             };
         }
+        ops.extend(delayed_bursts);
     }
     // ---- reverse: pushes pull, blasts implode, dashes go back
     if g.reverse {

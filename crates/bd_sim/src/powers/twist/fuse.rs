@@ -1,6 +1,9 @@
 //! FUSION: two moves → one, by what they ARE (op classes, `fusion.classes` in the data), never by
 //! name. Rules, first that fits:
 //!
+//! 0. **A pull + a push** (an attracting field / gravity core / yank + a repelling field / real
+//!    blast / surge, no casts): the opposites collide into an ERASING ORB with a Merge windup —
+//!    "lapse blue + reversal red" is Hollow Purple, and so is any attract + repel pair.
 //! 1. **Two projectiles** (each has a Cast): ONE orb carrying both — the first's body, both
 //!    behaviours, the bigger size × `merge_size`, a Merge windup of both elements (an orb of each at
 //!    either hand, pulled together: the Hollow Purple grammar), cast as a signature. Their other ops
@@ -132,6 +135,21 @@ fn hit_of(def: &MoveDef) -> (f32, f32, Element, f32, f32) {
     best
 }
 
+/// Draws things in (an attracting field, a gravity core, a yank, a haul).
+fn pulls(d: &MoveDef) -> bool {
+    d.ops.iter().any(|o| matches!(o, MoveOp::Field { strength, .. } if *strength > 0.0) || matches!(o, MoveOp::Singularity { .. } | MoveOp::Yank { .. } | MoveOp::Haul { .. }))
+}
+
+/// Throws things out (a repelling field, a real blast, a surge).
+fn pushes(d: &MoveDef) -> bool {
+    d.ops.iter().any(|o| matches!(o, MoveOp::Field { strength, .. } if *strength < 0.0) || matches!(o, MoveOp::Explode { knockback, .. } if *knockback >= 15.0) || matches!(o, MoveOp::Surge { .. }))
+}
+
+/// Owns the body for a while (a lunge, a charge, a flurry, a leap): two of these can't share a tick.
+fn stateful(t: &ModTable, d: &MoveDef) -> bool {
+    d.ops.iter().any(|o| !t.fan_safe(&op_name(o)) && !matches!(o, MoveOp::Cast { .. }) && class(t, o) != OpClass::Buff)
+}
+
 fn mix(a: Option<[f32; 3]>, b: Option<[f32; 3]>) -> Option<[f32; 3]> {
     match (a, b) {
         (Some(a), Some(b)) => Some([(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5]),
@@ -158,7 +176,24 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
     let mut merged_orb = false;
     let how: &'static str;
     let others = |d: &MoveDef, skip: Option<usize>| -> Vec<MoveOp> { d.ops.iter().enumerate().filter(|(k, _)| Some(*k) != skip).map(|(_, o)| o.clone()).collect() };
-    if let (Some((ca, ra, sa)), Some((cb, rb, sb))) = (first_cast(&a.def), first_cast(&b.def)) {
+    let mover = |p: &Profile| p.movement && !p.projectile && !p.melee;
+    if first_cast(&a.def).is_none() && first_cast(&b.def).is_none() && ((pulls(&a.def) && !pushes(&a.def) && pushes(&b.def) && !pulls(&b.def)) || (pulls(&b.def) && !pushes(&b.def) && pushes(&a.def) && !pulls(&a.def))) {
+        // 0. a PULL fused with a PUSH: the opposites collide into an erasing orb (the Hollow Purple
+        //    grammar for any attract + repel pair — "blue + red", "universal pull + almighty push")
+        let el = if ea != Element::Light { ea } else { eb };
+        let r = crate::powers::RecipeDef {
+            name: format!("{} {}", a.def.name, b.def.name),
+            form: bd_core::mechanics::Form::Ball,
+            mech: vec![Mechanic::Pierce, Mechanic::Heavy, Mechanic::Attract],
+            element: el,
+            scale: 2.0,
+            mass: 500.0,
+            ..Default::default()
+        };
+        ops.push(MoveOp::Cast { recipe: r, modifier: false, signature: Some(SignatureKind::Beam), merge: Some((ea, eb)) });
+        merged_orb = true;
+        how = "opposites collide: an erasing orb";
+    } else if let (Some((ca, ra, sa)), Some((cb, rb, sb))) = (first_cast(&a.def), first_cast(&b.def)) {
         // 1. two projectiles → one orb, both behaviours, a Merge windup
         let mut r = ra.clone();
         for m in &rb.mech {
@@ -179,9 +214,9 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
         ops.extend(others(&b.def, Some(cb)));
         merged_orb = true;
         how = "one orb, both behaviours, a merge windup";
-    } else if pa.only_moves() != pb.only_moves() && (pa.attacks() || pb.attacks()) {
+    } else if mover(&pa) != mover(&pb) && (if mover(&pa) { pb.attacks() } else { pa.attacks() }) {
         // 2. a movement + an attack: the attack arrives at the end of the movement
-        let (m, x) = if pa.only_moves() { (&a.def, &b.def) } else { (&b.def, &a.def) };
+        let (m, x) = if mover(&pa) { (&a.def, &b.def) } else { (&b.def, &a.def) };
         let xp = Profile::of(t, x);
         let (dmg, kb, el, up, radius) = hit_of(x);
         if m.ops.iter().any(instant_move) {
@@ -189,10 +224,20 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
             ops.extend(x.ops.iter().cloned());
             how = "the attack arrives with you";
         } else if m.ops.iter().any(airborne_move) && (xp.blast || xp.melee) && !xp.projectile {
+            // the mover's own landing slam (seismic slam) swallows the blast: the bigger of both
+            let own = m.ops.iter().find_map(|o| match *o {
+                MoveOp::SlamOnLand { radius, damage, knockback, carve } => Some((radius, damage, knockback, carve)),
+                _ => None,
+            });
+            let (r0, d0, k0, c0) = own.unwrap_or((0.0, 0.0, 0.0, 1.2));
             ops.extend(m.ops.iter().filter(|o| !matches!(o, MoveOp::SlamOnLand { .. })).cloned());
-            ops.push(MoveOp::SlamOnLand { radius: (radius * 1.1).clamp(2.5, 9.0), damage: dmg, knockback: kb, carve: 1.2 });
-            // the rest of the attack (a status, a buff) rides along
-            ops.extend(x.ops.iter().filter(|o| !matches!(o, MoveOp::Shove { .. } | MoveOp::Explode { .. } | MoveOp::Salvo { .. } | MoveOp::SlamOnLand { .. })).cloned());
+            ops.push(MoveOp::SlamOnLand { radius: (radius * 1.1).max(r0).clamp(2.5, 9.0), damage: dmg.max(d0), knockback: kb.max(k0), carve: c0.max(1.2) });
+            // the rest of the attack (a field, a status) goes off when you come down
+            let rest: Vec<MoveOp> = x.ops.iter().filter(|o| !matches!(o, MoveOp::Shove { .. } | MoveOp::Explode { .. } | MoveOp::Salvo { .. } | MoveOp::SlamOnLand { .. })).cloned().collect();
+            if !rest.is_empty() {
+                let (secs, _) = chain::active_phase(m);
+                after = Some((secs.clamp(0.1, 2.5), rest));
+            }
             how = "the attack lands as a slam where you come down";
         } else if let (Some(speed), true) = (m.ops.iter().find_map(dash_speed), xp.melee && !xp.projectile) {
             ops.push(MoveOp::Pounce { range: 28.0, speed: speed.clamp(12.0, 40.0), cone: 20.0, damage: dmg, knockback: kb, element: el, up, bounce: 3.0, secs: 0.8 });
@@ -268,11 +313,19 @@ pub fn fuse(t: &ModTable, a: &Twisted, b: &Twisted) -> Twisted {
         ops.extend(p.ops.iter().filter(|o| !matches!(o, MoveOp::Cast { .. })).cloned());
         how = "an imbued strike";
     } else {
-        // 5. both, a buff first
+        // 5. both, a buff first; two moves that each own the body (two lunges, a charge and a
+        //    drill) go one after the other
         let (first, second) = if pb.buff && !pb.attacks() && !pa.buff { (&b.def, &a.def) } else { (&a.def, &b.def) };
-        ops.extend(first.ops.iter().cloned());
-        ops.extend(second.ops.iter().cloned());
-        how = "both, in order";
+        if stateful(t, first) && stateful(t, second) {
+            ops.extend(first.ops.iter().cloned());
+            let (secs, _) = chain::active_phase(first);
+            after = Some((secs.clamp(0.1, 2.5), second.ops.clone()));
+            how = "one straight into the other";
+        } else {
+            ops.extend(first.ops.iter().cloned());
+            ops.extend(second.ops.iter().cloned());
+            how = "both at once";
+        }
     }
     ops.truncate(12);
 
