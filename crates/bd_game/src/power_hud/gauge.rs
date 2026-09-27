@@ -108,12 +108,13 @@ fn draw(
     let scale = windows.iter().next().map_or(1.0, |w| (w.height() / 1080.0).max(t.min_scale));
     let (r, th) = ((t.radius_px * scale).round(), (t.thickness_px * scale).max(2.0));
     let side = 2.0 * (r + th + MARGIN * scale).round();
+    let margin = UiRect { left: px(-side * 0.5), top: px(-side * 0.5), ..default() };
     if let Ok(mut n) = nodes.get_mut(g.node)
-        && n.width != px(side)
+        && (n.width != px(side) || n.margin != margin)
     {
         n.width = px(side);
         n.height = px(side);
-        n.margin = UiRect { left: px(-side * 0.5), top: px(-side * 0.5), ..default() };
+        n.margin = margin;
     }
     let corps = active.as_ref().and_then(|a| a.local_player()).map_or([0.3, 1.0, 0.45], |p| p.corps.color());
     let col = super::derive::vivid(corps);
