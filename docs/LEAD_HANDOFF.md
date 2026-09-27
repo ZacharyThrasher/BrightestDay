@@ -1,6 +1,13 @@
 # Lead orchestrator handoff (keep updated)
 
-## >>> TRANSFORMERS V3 — MOBILITY PARITY + SAUCE (owner 15:00; "just do it now" → LAUNCHED 15:05: mobility af2fef3de5620506e, sauce ac3b2111c196425e2; stage 3 buffer a9056082deff4a726). If the weekly cap stops them, SendMessage each id "continue" after Oct 2. <<<
+## >>> RESUME HERE (2026-09-27 16:10) — TRANSFORMERS V3 DONE, ZIP from 4e2ef51 <<<
+Stage 3 buffer c61cd2e; v3 sauce + v3 mobility (+ alt-mode weapons) both in 4e2ef51 (mobility swept into that checkpoint).
+Full suite green (1,549 core + 294 bd_game). Zip 160.4 MB from 4e2ef51. No workers running. Weekly ~98%.
+Next after Oct 2: STAGE 5 PvP-safe Focus dodge; Hollow-Purple system-by-system audit; tune robot chase if too strong
+(dodge_cd / dash_speed); cockpit-seat prediction for remote clients; write combat.ron v3 block
+(`cargo test -p bd_sim --test tuning write_default_combat_ron -- --ignored`, check the diff first); 4-robot perf run.
+
+## >>> (older) TRANSFORMERS V3 — MOBILITY PARITY + SAUCE (owner 15:00; "just do it now" → LAUNCHED 15:05: mobility af2fef3de5620506e, sauce ac3b2111c196425e2; stage 3 buffer a9056082deff4a726). If the weekly cap stops them, SendMessage each id "continue" after Oct 2. <<<
 Owner: piloted transformers feel slow/clunky vs on-foot freedom; hard to catch/follow people; robot hit/shoot anims lack sauce;
 "make EVERYTHING feel to the level of hollow purple".
 MOBILITY: (1) pilot's movement kit carries into robot mode (bhop, air strafe, double jump, dodge chains, wall refresh; weight-
