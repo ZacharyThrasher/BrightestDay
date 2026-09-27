@@ -31,6 +31,9 @@ The robot also stands at 4.6 m instead of 6 m generic / 8.7 m for the real Optim
   the ender connects, is a plain transform right now. `transform_req` is used up on the tick it's
   pressed (`pilot.rs`: xattack start, or else `toggle`). Hold it for ~0.1 s while a string ender's
   swing is live (`brawl.cd > 0 && step == string_hits - 1`), then let `wants_xattack` take it.
+- **Presses during the recovery are DROPPED** (`brawl::fight`: `press1` with `cd > 0` does nothing).
+  LMB taps at exactly the string interval (0.3 s) lose every other hit to float timing. The piloting
+  strip's script had to move to 0.33 s spacing. A ~0.12 s LMB buffer is the cheapest feel win left.
 - The window opens on the *connect*. A whiffed ender never opens it (`open_flash` needs `n > 0`).
 - Branch input is read during the burst by `brawl::pick_branch`: an LMB tap = rush, and an LMB held
   for `branch_hold` = the launch. A tap resolves on release, so the rush is 1–3 ticks late. Before V2,
