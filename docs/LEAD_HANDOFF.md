@@ -5,7 +5,9 @@ Run now, and if the weekly cap hits, resume right after the reset (Oct 2 01:00Z)
 1. HUD TOOLTIPS (owner screenshot: Tab card + overlapping names are confusing) → Tab shows icons only; hovering ONE
    ability shows its tooltip (name, what it does, how to fire). 2. WILLPOWER = LAUNCH host rule (A/B vs current): casts
    never refused, still drain; attacker willpower scales knockback/launch at hit time; readable glow; slower passive
-   regen, charge/oath matter; anti-camp leak; bots charge when low. 3. Resume voice fluidity a19704f3303170491 and
+   regen, charge/oath matter; anti-camp leak; bots charge when low. 2b. COMBO TARGET (no hard lock-on/camera
+   tracking): enemy under/near crosshair at chain start (or named) becomes the chain's target; moves follow them,
+   visible mark on the victim for counterplay; ends with chain / look-away / LOS loss; optional hold-to-focus key. 3. Resume voice fluidity a19704f3303170491 and
    polish anime a4fa97d61ab1c061d / western a40b1865d6f802416 / games aeae5288ad2ea246a (they were near done).
 
 ## >>> RESUME HERE (2026-09-27 11:10) — FINAL ZIP from 088d2b0 <<<
