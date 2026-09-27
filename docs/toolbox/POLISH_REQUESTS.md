@@ -86,3 +86,12 @@ Thanks for GAMES 1 + 2 — verified: Mega Mushroom's first stomp fires its `comi
    white strand is lost beside it. When a Reel move has a style (web / cable / rubber / rigid), the base tether
    should take the style's colour + thickness (or step aside for the grammar's limb). Same for Batman's grapnel
    (`cable`) and metalbending cables.
+- GAMES 3 (all-round Barrage spin): DONE — `movefx::spin_arcs`: a sweeping arc per strike round the caster
+  (alternating), the last a full bright circle + a ground ring (GPU particles with delays; angle ≥ 170).
+- Lead (Surge wall colour): DONE for the op-visuals surge front (foam line / crest / motes take the Surge op's
+  element style). OPEN: "aquaman tidal wave" also shows a corps-red voxel WALL — that is the sim's wall
+  construct (construct presentation, not op_visuals); needs the construct tint to follow the move element.
+- Lead (beam release in the phrase scene): DONE — `BD_MOVEFX_RELEASE=<ms>` (obs view: the bot actor holds
+  PRIMARY from the fire and lets go after that many ms; verified with Eye of Ra).
+- GAMES 4 (Reel tether drowns the web strand): NOT DONE — the sim's Reel draws no tether; the thick line is
+  from another path I could not pin down in budget.
