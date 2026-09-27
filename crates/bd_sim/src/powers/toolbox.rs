@@ -316,6 +316,13 @@ impl MoveIndex {
                 j += 1;
             }
         }
+        // A phrase that IS some kit's whole name is that character, bare (the costume summon) — never
+        // a shorter alias + a move ("optimus prime" is not "optimus" + a move word "prime", "aang the
+        // avatar" is not "aang" + "avatar state"). (TV & CARTOONS)
+        let whole = words.join(" ");
+        if cands.iter().any(|&c| self.kits[c as usize].0 == whole) {
+            return None;
+        }
         // The longest kit name that fits wins; SEVERAL kits may share it ("juggernaut": Dota's and
         // Marvel's) — then the one whose move the words name best wins (exact > whole word > slot
         // tag > prefix / typo > shape guess), ties to the earlier table entry (hand files before

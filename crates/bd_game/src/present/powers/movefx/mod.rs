@@ -367,6 +367,7 @@ impl Plugin for MoveFxPlugin {
             .add_message::<CameraShakeEvent>()
             .add_message::<FovPunch>()
             .add_message::<DebrisImpulse>()
+            .add_message::<bd_fx::SpawnOnomatopoeia>()
             .add_systems(OnExit(AppState::InGame), clear)
             .add_systems(Update, (table::hot_reload, intake, start).chain().in_set(PresentSet::Sync))
             .add_systems(PostUpdate, step.after(CameraUpdateSet).after(HandsPublishSet).before(TransformSystems::Propagate));
@@ -474,6 +475,11 @@ pub fn intern(s: &str) -> &'static str {
     x
 }
 
+fn hud_only() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("BD_MOVEFX_TEST").is_ok_and(|v| v == "hud"))
+}
+
 fn chest(v: &crate::sim_bridge::PlayerView) -> Vec3 {
     v.pos + Vec3::Y * 1.0 * v.size
 }
@@ -501,7 +507,7 @@ fn aim_point(active: &ActiveWorld, eye: Vec3, look: Vec3, range: f32) -> (Vec3, 
 }
 
 /// Read the sim's events: side info for this frame's beats, and every held power's move.
-fn intake(mut events: MessageReader<GameEvents>, views: Res<WorldViews>, mut side: ResMut<Side>, mut fired: MessageWriter<MoveFxFired>) {
+fn intake(mut events: MessageReader<GameEvents>, mut side: ResMut<Side>, mut fired: MessageWriter<MoveFxFired>) {
     for ev in events.read() {
         match &ev.event {
             GameEvent::Power(pe) => match pe {
@@ -599,9 +605,9 @@ fn start(
     settings: Option<Res<bd_fx::FxSettings>>,
     cams: Query<&GlobalTransform, With<PlayerCamera>>,
     hands: Res<ViewmodelHands>,
-    out: (MessageWriter<Sfx3d>, MessageWriter<CameraShakeEvent>, MessageWriter<DebrisImpulse>, MessageWriter<FovPunch>),
+    out: (MessageWriter<Sfx3d>, MessageWriter<CameraShakeEvent>, MessageWriter<DebrisImpulse>, MessageWriter<FovPunch>, MessageWriter<bd_fx::SpawnOnomatopoeia>),
 ) {
-    let (mut sfx, mut shake, mut debris, mut fov) = out;
+    let (mut sfx, mut shake, mut debris, mut fov, mut ono) = out;
     let dt = time.delta_secs().min(0.1);
     for (_, (_, t)) in poses.by_player.iter_mut() {
         *t += dt;
@@ -617,6 +623,10 @@ fn start(
     let budget = settings.as_ref().map_or(1.0, |s| s.particle_budget).clamp(0.15, 1.0);
     let local = active.local;
     for f in fired.read() {
+        // Synthetic fires carry no sim result (dev HUD scene): chips only, no beats.
+        if f.from.is_none() && hud_only() {
+            continue;
+        }
         let Some(v) = views.player(f.player) else { continue };
         let corps = corps_rgb(v.corps);
         let look = resolve_look(&table, f.mv, f.power, corps);
@@ -678,6 +688,15 @@ fn start(
                         pen.ghost(from, v.yaw, v.size, look.main, look.glow * 0.6, tb.beats.ghost_life * 1.8 * look.linger);
                     }
                     me = b.b;
+                    // The body's word where you land (BAMF), for everyone else.
+                    if !own_fp
+                        && !f.mv.ops.iter().any(|o| matches!(o, MoveOp::Explode { .. }))
+                        && let Some(w) = style_word(&table, f.mv, f.power).filter(|w| *w != "explosion")
+                    {
+                        let mut o = bd_fx::SpawnOnomatopoeia::key(w, b.b + Vec3::Y * 0.6, 0.8, look.main);
+                        o.event_id = b.seed as u64 ^ f.player.0 as u64;
+                        ono.write(o);
+                    }
                     if mine && hands.active {
                         pen.rush(&look, cam, cam_fwd, 1.0, 18.0);
                         fov.write(FovPunch { degrees: 4.0 });

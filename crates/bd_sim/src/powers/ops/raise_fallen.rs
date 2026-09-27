@@ -49,8 +49,22 @@ impl World {
         for p in spots.iter().flatten().copied() {
             let mut r = recipe.clone();
             r.count = 1;
-            // Straight down onto the body: it stands up where they fell.
-            if self.cast(id, r.to_recipe(), None, Aim::new(p + Vec3::Y * 4.0, Vec3::NEG_Y)).is_ok() {
+            // It stands up where they fell (summons normally form beside the caster: move it onto the
+            // body, and say so in its spawn event so every client forms it there).
+            if let Ok(cid) = self.cast(id, r.to_recipe(), None, Aim::new(p + Vec3::Y * 4.0, Vec3::NEG_Y)) {
+                let at = p + Vec3::Y * 0.1;
+                if let Some(c) = self.constructs.get_mut(cid) {
+                    c.pos = at;
+                    c.prev_pos = at;
+                }
+                for e in self.events.iter_mut().rev() {
+                    if let crate::events::GameEvent::ConstructSpawned { id: eid, pos, .. } = e
+                        && *eid == cid
+                    {
+                        *pos = at;
+                        break;
+                    }
+                }
                 raised += 1;
             }
         }

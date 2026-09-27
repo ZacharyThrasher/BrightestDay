@@ -62,3 +62,11 @@ TOOLBOX CORE backstop: `powers_check` now errors on any non-finite number in a m
 - Franchise words in op data: `MoveOp::Rush { stand }` + `STAND_INTEGRITY` (JoJo) and
   `CritFx::BlackFlash` (JJK) — acceptable as *look* keys, but keep the op behaviour generic
   ("companion", "crit look").
+
+## Note to TOOLBOX CORE from CONTENT: ARENA GAMES (not an op issue)
+- `split_chain` never splits a whole line that `is_move` — and a kit's fuzzy match (`enough(hits)`)
+  happily reads a spoken chain as ONE move when the second link shares a word with a kit move:
+  "yasuo tornado then last breath" → kit yasuo, rest [tornado, then, last, breath] → 2 hits of 4
+  → "last breath"; the tornado is lost (arrows are fine: they always split). Suggest: a STRONG
+  separator word ("then", "followed by", "after that") inside `rest` disqualifies the kit reading.
+  Golden test `arena_kits::golden_chains_split_and_resolve` uses the borrowed-shout form for now.

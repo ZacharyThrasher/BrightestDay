@@ -79,6 +79,7 @@ pub fn recipe_def(r: &Recipe) -> RecipeDef {
             d.payload = None;
             Box::new(d)
         }),
+        costume: false,
     }
 }
 

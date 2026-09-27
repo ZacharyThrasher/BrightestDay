@@ -37,6 +37,11 @@ Add a missing key to `move_fx.ron` (`styles` or `aliases`) rather than renaming 
 
 Keep using `juice` (title, punch, shake, boom, ripple, color, debris) — it layers on top.
 
+**Words**: a style's `word` (an `assets/fx/onomatopoeia.ron` key) is what its blasts SAY: a
+smoke BAMF says "BAMF" (not "KA-BOOM"), rubber "BOING", rigid "KRANG", speedforce "ZWIP", void /
+shadow / cursed "VWUMP", holy "SHING", elements their material word; `"none"` = silent. A smoke /
+styled blink with no blast of its own says its word where it lands (never in your own face).
+
 **Adding a style** (no code): add an entry to `styles` in `move_fx.ron`: pick a `body` (the closed
 set of SHAPES below), colours, numbers, sounds. TV & CARTOONS' `"putty"` (Jake the Dog) is a good
 example: a Rubber body, fatter, floppier, slower, lower-pitched.
@@ -98,6 +103,9 @@ traces between two points, its limbs / lines, its bursts and rings.
 | **TimeStop** | implosion | two shockwave rings, flash, clock tick | a ripple off you twice a second, two clock hands sweeping round you | fades | palms |
 | **Carve** | — | trace along the line | ground crack along it, end burst | — | punch |
 | **Link / Weigh / Yank** (+ Grab, LockOn, Seeker, Afflict, Lockout) | — | a trace from the hand to the aim | burst at the end | — | grab |
+| **Op rays** (`OpEvent::Zap`: BounceBeam legs, Afflict, Disarm) | — | a THICK beam in the move's colour along every leg + a hot core | a flare + ring + spray at every bounce / hit | fades | — |
+| **DelayedHit** (`OpEvent::Marked`) | — | — | a sigil on the target for the whole countdown: counter-rotating rings tightening round their chest, pulsing + ticking faster in the last second | the burst ends it | — |
+| borrowed move of a power with a companion (a Stand) | the companion's ghost steps out behind you | — | — | fades ~0.6 s | — |
 | everything else | — | body pulse: ring rising off the feet, chest burst | — | — | clench |
 
 Incanted deliveries with `arm: true` (gomu gomu no <anything>) draw the power's `fx` limb (default
@@ -107,6 +115,14 @@ Incanted deliveries with `arm: true` (gomu gomu no <anything>) draw the power's 
 Nothing blooms in your face: motes shrink away inside ~2 m of the camera, flashes and puffs at the
 lens are dropped, beams through the lens are pulled back. Your own blink / dash in first person
 shows speed lines rushing past the lens in the body's shape.
+
+Poses: first person via `MovePoses.local` (viewmodel: punch / palms / grab / lunge); third person
+via `MovePoses::body` in `present/players.rs` (Cast thrust, TetherFire reach, PowerUp palms, and the
+ANIMATION PASS `Dodge` dive for blinks / dashes; its `Land` squash plays on touchdown by itself).
+
+Other presentation guards landed with this pass: a ripple shell around a bystander (a 22 m snap)
+stays a faint shimmer instead of washing their screen (`juice.rs`), and your own blast is judged at
+your sim position (no explosion word / flash in your lens after a blink, `impact.rs`).
 
 ## HUD (wordless)
 

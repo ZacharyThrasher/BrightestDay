@@ -745,8 +745,7 @@
         kind: Kit,
         fx: "psychic",
         names: ["circe", "kirke", "circe the enchantress", "the enchantress circe", "sersee"],
-        shouts: [("turn into swine", 0), ("into swine", 0), ("circe's wand", 0), ("turn them into pigs", 0), ("swine", 0),
-                 ("circe's potion", 1), ("enchanted potion", 1),
+        shouts: [("turn into swine", 0), ("into swine", 0), ("circe's wand", 0), ("turn them into pigs", 0), ("circe's potion", 1), ("enchanted potion", 1),
                  ("circe's island", 2)],
         moves: [
             // The wand: a bolt that shrinks whoever it hits (small, light, fragile — swine).
@@ -773,7 +772,7 @@
         fx: "shadow",
         names: ["pandora", "pandora's box", "pandoras box", "pandora box", "the box of pandora", "pandora's jar"],
         shouts: [("open pandora's box", 0), ("open pandoras box", 0), ("open the box", 0), ("open pandora box", 0),
-                 ("hope", 1), ("the last hope", 1), ("hope remains", 1)],
+                 ("the last hope", 1), ("hope remains", 1)],
         moves: [
             // The box opens: plague, war, famine, sorrow, fire, a swarm — one of them, now, at the crosshair.
             (name: "open the box", tags: [Ultimate, Primary], cooldown: 9.0, cost: 7.0, ops: [
@@ -2065,8 +2064,7 @@
         kind: Kit,
         fx: "shadow",
         names: ["kali", "maa kali", "mahakali", "kali ma", "kali maa", "bhadrakali", "kalika", "goddess kali", "shyama"],
-        shouts: [("fury of kali", 0), ("kali's fury", 0), ("mahakali's fury", 0), ("jai maa kali", 0), ("jai kali", 0),
-                 ("khadga", 1), ("kali's sword", 1),
+        shouts: [("fury of kali", 0), ("kali's fury", 0), ("mahakali's fury", 0), ("khadga", 1), ("kali's sword", 1),
                  ("dance of kali", 2), ("kali's dance", 2),
                  ("fierce mother", 3), ("kali's roar", 3)],
         moves: [
@@ -4070,7 +4068,7 @@
         shouts: [("red eyes of the mothman", 0), ("mothman's eyes", 0), ("glowing red eyes", 0), ("mothman stare", 0),
                  ("mothman wings", 1), ("wings of omen", 1),
                  ("moth swarm", 2), ("mothman swarm", 2),
-                 ("omen", 3), ("the mothman omen", 3)],
+                 ("the mothman omen", 3)],
         moves: [
             // The red eyes: whoever meets them freezes up, then sees only dark.
             (name: "red eyes", tags: [Ultimate], cooldown: 9.0, cost: 6.0, ops: [
@@ -4464,6 +4462,780 @@
             (name: "drag to the depths", tags: [Combo], cooldown: 7.0, cost: 5.0, ops: [
                 Hook(range: 24.0, speed: 36.0, pull: 18.0, damage: 6.0, status: Some(Wet), secs: 3.0),
                 Weigh(range: 24.0, secs: 1.4, down: 14.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE GREEK
+    // ---------------------------------------------------------------- THE HYDRA — cut one head, two grow
+    (
+        id: "myth_hydra",
+        name: "Lernaean Hydra",
+        kind: Kit,
+        fx: "poison",
+        names: ["lernaean hydra", "the lernaean hydra", "hydra of lerna", "the hydra", "many headed hydra", "nine headed hydra"],
+        shouts: [("hydra heads", 0), ("cut one head two grow back", 0), ("two more heads", 0),
+                 ("hydra venom", 1), ("hydra's blood", 1), ("breath of the hydra", 1),
+                 ("hydra regrowth", 2), ("the heads grow back", 2)],
+        moves: [
+            // Heads burst out of the ground; and whenever it's hurt, it grows more (a second wave later).
+            (name: "hydra heads", tags: [Ultimate], cooldown: 22.0, cost: 9.0, ops: [
+                Cast(recipe: (name: "heads of the hydra", form: Serpent, mech: [Walks, Blade, Breath], element: Poison, scale: 1.4, count: 5,
+                              temperament: Aggressive, intensity: 1.0)),
+            ], juice: Some((title: Some("HYDRA"), boom: true, color: Some((0.35, 0.6, 0.3))))),
+            // Poison breath in a cone, and it clings. -> ends in place.
+            (name: "hydra venom", tags: [Primary], cooldown: 1.4, cost: 4.0, ops: [
+                Shove(range: 8.0, angle: 35.0, damage: 8.0, knockback: 6.0, element: Poison),
+                Contagion(range: 8.0, cone: 20.0, status: Poison, secs: 4.0, spread: 3.0),
+            ]),
+            // Cut one head and two grow back: you mend.
+            (name: "hydra regrowth", tags: [Defense], cooldown: 16.0, cost: 6.0, ops: [
+                Mend(pct: 6.0, per_s: 2.0, secs: 3.0),
+            ], juice: Some((title: Some("REGROWTH")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- THE MINOTAUR — the labyrinth's bull
+    (
+        id: "myth_minotaur",
+        name: "Minotaur",
+        kind: Kit,
+        fx: "blood",
+        names: ["minotaur", "the minotaur", "asterion", "minotaur of crete", "bull of minos", "minataur", "minotaurus"],
+        shouts: [("minotaur charge", 0), ("horns of the minotaur", 0), ("bull rush", 0),
+                 ("minotaur's labyrinth", 1), ("trapped in the labyrinth", 1),
+                 ("labrys", 2), ("minotaur axe", 2),
+                 ("minotaur bellow", 3)],
+        moves: [
+            // Horns down: they're carried into the nearest wall.
+            (name: "minotaur charge", tags: [Movement, Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Ram(speed: 24.0, secs: 1.4, damage: 12.0, knockback: 22.0, pin: true, wall: 16.0),
+            ], juice: Some((title: Some("MINOTAUR"), shake: 0.15))),
+            // The labyrinth: a ring of walls rises around whoever is at the crosshair.
+            (name: "labyrinth", tags: [Ultimate], cooldown: 16.0, cost: 8.0, ops: [
+                Erupt(length: 10.0, height: 4.5, element: Earth, launch: 4.0, shape: Ring, at: Aim),
+            ], juice: Some((title: Some("THE LABYRINTH"), at: Aim, shake: 0.2))),
+            // The double axe. -> ends in place.
+            (name: "labrys", tags: [Combo], cooldown: 1.1, cost: 3.0, ops: [
+                Shove(range: 3.8, angle: 80.0, damage: 15.0, knockback: 16.0),
+            ]),
+            // The bellow in the dark.
+            (name: "bellow", tags: [Defense], cooldown: 8.0, cost: 4.0, ops: [
+                Explode(radius: 6.0, damage: 3.0, knockback: 18.0, element: Psychic),
+            ], juice: Some((boom: true))),
+        ],
+    ),
+    // ---------------------------------------------------------------- POLYPHEMUS — the cyclops
+    (
+        id: "myth_polyphemus",
+        name: "Polyphemus",
+        kind: Kit,
+        fx: "earth",
+        names: ["polyphemus", "the cyclops polyphemus", "polyphemus the cyclops", "polyfemus", "the greek cyclops"],
+        shouts: [("polyphemus boulder", 0), ("hurl the boulder", 0), ("the cyclops throws", 0),
+                 ("nobody is killing me", 1), ("outis", 1),
+                 ("cave of the cyclops", 2), ("seal the cave", 2)],
+        moves: [
+            // The boulder he hurled after Odysseus's ship. -> ends in place.
+            (name: "hurl the boulder", tags: [Primary, Ultimate], cooldown: 5.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "cyclops boulder", form: Boulder, mech: [Heavy, Blunt], element: Earth, scale: 2.4, mass: 800.0)),
+            ], juice: Some((punch: 3.0, shake: 0.15))),
+            // "Nobody is hurting me": blinded, he flails at everyone around him.
+            (name: "nobody", tags: [Combo], cooldown: 7.0, cost: 5.0, ops: [
+                Shove(range: 5.0, angle: 179.0, damage: 12.0, knockback: 18.0),
+                Zone(radius: 7.0, secs: 2.0, status: Some(Shadow), at: Me),
+            ], juice: Some((title: Some("NOBODY!")))),
+            // The great stone rolled across the cave mouth: a wall in front of you.
+            (name: "seal the cave", tags: [Defense], cooldown: 10.0, cost: 5.0, ops: [
+                Erupt(length: 7.0, height: 4.0, element: Earth, launch: 6.0, shape: Wall, dist: 3.5),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- HECATE — crossroads and torches
+    (
+        id: "myth_hecate",
+        name: "Hecate",
+        kind: Kit,
+        fx: "void",
+        names: ["hecate", "hekate", "hecate goddess of witchcraft", "hecate of the crossroads", "hekate trioditis", "heckatee"],
+        shouts: [("crossroads of hecate", 0), ("the crossroads", 0), ("hecate's crossroads", 0),
+                 ("torches of hecate", 1), ("hecate's torches", 1),
+                 ("hounds of hecate", 2), ("black hounds", 2),
+                 ("hecate's key", 3), ("key of hecate", 3)],
+        moves: [
+            // The crossroads: a door in the wall ahead and another out the far side.
+            (name: "crossroads", tags: [Movement], cooldown: 8.0, cost: 5.0, ops: [
+                PlacePortal(range: 30.0, secs: 8.0),
+            ], juice: Some((title: Some("THE CROSSROADS")))),
+            // Twin torches flare: fire at the crosshair and the ground burns.
+            (name: "torches of hecate", tags: [Primary], cooldown: 5.0, cost: 4.0, ops: [
+                Explode(radius: 3.5, damage: 10.0, knockback: 12.0, element: Fire, at: Aim),
+                Zone(radius: 4.0, secs: 3.0, status: Some(Burn), at: Aim),
+            ], juice: Some((at: Aim))),
+            // Her black hounds.
+            (name: "hounds of hecate", tags: [Ultimate], cooldown: 18.0, cost: 7.0, ops: [
+                Cast(recipe: (name: "hounds of hecate", form: Quadruped, mech: [Walks, Fast, Blade, Charge], element: Shadow, scale: 1.1,
+                              count: 3, temperament: Aggressive, intensity: 1.0)),
+            ]),
+            // Her key: through the wall in front of you.
+            (name: "hecate's key", tags: [Defense], cooldown: 6.0, cost: 4.0, ops: [
+                PassThrough(depth: 8.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- HYPNOS — sleep
+    (
+        id: "myth_hypnos",
+        name: "Hypnos",
+        kind: Kit,
+        fx: "psychic",
+        names: ["hypnos", "somnus", "hypnos god of sleep", "the god of sleep", "hipnos"],
+        shouts: [("sleep of hypnos", 0), ("hypnos sleep", 0), ("eternal slumber", 0),
+                 ("poppy field", 1), ("field of poppies", 1),
+                 ("morpheus", 2), ("dreams of morpheus", 2),
+                 ("thanatos", 3), ("the gentle death", 3)],
+        moves: [
+            // Sleep takes the aimed foe: they nod off (heavily slowed, then a stagger).
+            (name: "sleep of hypnos", tags: [Primary, Ultimate], cooldown: 10.0, cost: 6.0, ops: [
+                Afflict(range: 28.0, cone: 10.0, status: Some(Chill), secs: 3.0, element: Psychic),
+                Afflict(range: 28.0, cone: 10.0, status: Some(Stun), secs: 0.6),
+            ], juice: Some((title: Some("SLEEP"), color: Some((0.6, 0.55, 0.9))))),
+            // A field of poppies at the crosshair: everyone in it drowses.
+            (name: "poppy field", tags: [Defense], cooldown: 10.0, cost: 5.0, ops: [
+                Zone(radius: 7.0, secs: 4.0, slow: 0.55, at: Aim),
+            ], juice: Some((at: Aim, color: Some((0.9, 0.2, 0.2))))),
+            // Morpheus sends dreams: they see only shapes.
+            (name: "morpheus", tags: [Combo], cooldown: 8.0, cost: 5.0, ops: [
+                Afflict(range: 28.0, cone: 12.0, status: Some(Shadow), secs: 2.5, damage: 4.0),
+            ]),
+            // His brother, gentle death: a mark that comes due.
+            (name: "thanatos", cooldown: 12.0, cost: 6.0, ops: [
+                DelayedHit(range: 40.0, cone: 12.0, secs: 2.5, damage: 16.0, knockback: 14.0, element: Shadow),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- APHRODITE — the girdle
+    (
+        id: "myth_aphrodite",
+        name: "Aphrodite",
+        kind: Kit,
+        fx: "holy",
+        names: ["aphrodite", "venus", "aphrodite goddess of love", "cytherea", "afrodite", "aphrodity"],
+        shouts: [("girdle of aphrodite", 0), ("aphrodite's girdle", 0), ("irresistible charm", 0), ("charm of aphrodite", 0),
+                 ("born from the sea foam", 1), ("sea foam", 1),
+                 ("doves of aphrodite", 2), ("aphrodite's doves", 2)],
+        moves: [
+            // The girdle: everyone around is drawn to you, charmed and slow.
+            (name: "girdle of aphrodite", tags: [Primary, Ultimate], cooldown: 10.0, cost: 6.0, ops: [
+                Field(strength: 30.0, radius: 14.0, secs: 1.6, at: Me),
+                GazeStun(range: 14.0, cone: 50.0, secs: 2.0, status: Chill),
+            ], juice: Some((title: Some("CHARMED"), ripple: 14.0, color: Some((1.0, 0.6, 0.75))))),
+            // Born from the foam: a burst of sea around you, and you're somewhere else.
+            (name: "sea foam", tags: [Movement], cooldown: 6.0, cost: 4.0, ops: [
+                Explode(radius: 4.5, damage: 3.0, knockback: 14.0, element: Water),
+                Blink(dist: 14.0, afterimage: true),
+            ]),
+            // Her doves.
+            (name: "doves", tags: [Combo], cooldown: 8.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "doves of aphrodite", form: Bird, mech: [Flies, Swarm, Homing], element: Light, scale: 0.4, count: 6,
+                              temperament: Playful, intensity: 0.8)),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- PERSEPHONE — the seasons
+    (
+        id: "myth_persephone",
+        name: "Persephone",
+        kind: Kit,
+        fx: "earth",
+        names: ["persephone", "proserpina", "kore", "persephone queen of the underworld", "persefone", "demeter's daughter"],
+        shouts: [("spring returns", 0), ("persephone's spring", 0), ("the flowers bloom", 0),
+                 ("pomegranate seeds", 1), ("six pomegranate seeds", 1), ("the pomegranate", 1),
+                 ("winter falls", 2), ("demeter's grief", 2), ("vines of persephone", 3), ("thorns of persephone", 3)],
+        moves: [
+            // Spring returns: the ground is mended and so are you.
+            (name: "spring returns", tags: [Defense], cooldown: 16.0, cost: 7.0, ops: [
+                Restore(radius: 10.0),
+                Mend(pct: 6.0, per_s: 1.5, secs: 3.0),
+            ], juice: Some((title: Some("SPRING"), ripple: 10.0, color: Some((0.5, 0.95, 0.5))))),
+            // The pomegranate: a seed that binds them to the underworld — a mark that comes due.
+            (name: "pomegranate seeds", tags: [Primary], cooldown: 8.0, cost: 5.0, ops: [
+                DelayedHit(range: 36.0, cone: 12.0, secs: 1.8, damage: 13.0, knockback: 12.0, element: Shadow),
+            ]),
+            // Demeter's grief: winter falls on everyone near.
+            (name: "winter falls", tags: [Ultimate], cooldown: 16.0, cost: 8.0, ops: [
+                Zone(radius: 12.0, secs: 4.0, status: Some(Chill), slow: 0.3, at: Me),
+            ], juice: Some((title: Some("WINTER"), ripple: 12.0, color: Some((0.8, 0.9, 1.0))))),
+            // Thorned vines drag the aimed foe in.
+            (name: "vines", tags: [Combo], cooldown: 5.0, cost: 4.0, ops: [
+                Hook(range: 22.0, speed: 34.0, pull: 16.0, damage: 6.0, status: Some(Poison), secs: 2.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- NIKE — victory
+    (
+        id: "myth_nike",
+        name: "Nike",
+        kind: Kit,
+        fx: "holy",
+        names: ["nike", "nike goddess of victory", "the winged victory", "winged victory", "nikee"],
+        shouts: [("wings of victory", 0), ("winged victory", 0), ("nike's wings", 0),
+                 ("nike's victory", 1), ("the victor's wreath", 1)],
+        moves: [
+            // Up on the wings of victory. -> ends high, hanging.
+            (name: "wings of victory", tags: [Movement], cooldown: 4.0, cost: 3.0, ops: [
+                Impulse(fwd: 10.0, up: 18.0),
+                SelfStatus(status: Float, secs: 1.4),
+            ]),
+            // Victory: for a few seconds everything you hit lands harder and you don't get pushed around.
+            (name: "victory", tags: [Ultimate], cooldown: 22.0, cost: 8.0, ops: [
+                Empower(secs: 6.0, damage: 1.3, armor: 0.6),
+            ], juice: Some((title: Some("VICTORY"), boom: true, color: Some((1.0, 0.9, 0.6))))),
+        ],
+    ),
+
+    // ================================================================ MORE EGYPTIAN
+    // ---------------------------------------------------------------- BASTET — the cat
+    (
+        id: "myth_bastet",
+        name: "Bastet",
+        kind: Kit,
+        fx: "holy",
+        names: ["bastet", "bast", "bastet the cat goddess", "the cat goddess", "ubastet", "bastette"],
+        shouts: [("cats of bastet", 0), ("bastet's cats", 0), ("sacred cats", 0),
+                 ("bastet pounce", 1), ("pounce of bast", 1),
+                 ("nine lives", 2), ("cat's nine lives", 2),
+                 ("sistrum", 3), ("bastet's sistrum", 3)],
+        moves: [
+            // A pride of sacred cats.
+            (name: "cats of bastet", tags: [Primary], cooldown: 10.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "sacred cats", form: Quadruped, mech: [Walks, Fast, Blade], element: Light, scale: 0.6, count: 5,
+                              temperament: Playful, intensity: 0.9)),
+            ]),
+            // The pounce. -> ends on them, bouncing off.
+            (name: "pounce", tags: [Movement], cooldown: 3.0, cost: 3.0, ops: [
+                Pounce(range: 20.0, speed: 30.0, cone: 20.0, damage: 11.0, knockback: 10.0, bounce: 8.0),
+            ]),
+            // Nine lives: back to where (and how hurt) you were.
+            (name: "nine lives", tags: [Defense, Ultimate], cooldown: 18.0, cost: 7.0, ops: [
+                Rewind(secs: 2.5),
+            ], juice: Some((title: Some("NINE LIVES")))),
+            // The sistrum's rattle: everyone near is dazed for a blink.
+            (name: "sistrum", tags: [Counter], cooldown: 8.0, cost: 4.0, ops: [
+                Explode(radius: 5.0, damage: 3.0, knockback: 12.0, element: Psychic),
+                Afflict(range: 8.0, cone: 40.0, status: Some(Stun), secs: 0.4),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- OSIRIS & ISIS — death and return
+    (
+        id: "myth_osiris",
+        name: "Osiris",
+        kind: Kit,
+        fx: "spirit",
+        names: ["osiris", "usir", "osiris lord of the dead", "osiris god of the afterlife", "osirus", "oh siris"],
+        shouts: [("osiris rises", 0), ("return of osiris", 0), ("the resurrection of osiris", 0),
+                 ("crook and flail", 1), ("the flail", 1), ("osiris flail", 1),
+                 ("field of reeds", 2), ("aaru", 2),
+                 ("wings of isis", 3), ("isis wings", 3), ("isis shields", 3)],
+        moves: [
+            // He was torn apart and put back together: back to how you were, with a burst of green light.
+            (name: "osiris rises", tags: [Defense, Ultimate], cooldown: 20.0, cost: 8.0, ops: [
+                Rewind(secs: 3.0),
+                Explode(radius: 5.0, damage: 4.0, knockback: 14.0, element: Light),
+            ], juice: Some((title: Some("OSIRIS RISES"), boom: true, color: Some((0.4, 0.9, 0.5))))),
+            // The flail. -> ends in place.
+            (name: "crook and flail", tags: [Primary], cooldown: 0.9, cost: 3.0, ops: [
+                Shove(range: 4.0, angle: 70.0, damage: 12.0, knockback: 14.0),
+            ]),
+            // The field of reeds: everyone around you is slowed in the reeds, you mend a little.
+            (name: "field of reeds", tags: [Combo], cooldown: 14.0, cost: 6.0, ops: [
+                Zone(radius: 8.0, secs: 3.5, slow: 0.4, at: Me),
+                Mend(pct: 4.0),
+            ]),
+            // Isis spreads her wings over you: shots turned away.
+            (name: "wings of isis", tags: [Counter], cooldown: 7.0, cost: 4.0, ops: [
+                Deflect(secs: 1.1, angle: 90.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE HINDU (with respect)
+    // ---------------------------------------------------------------- DURGA — the invincible
+    (
+        id: "myth_durga",
+        name: "Durga",
+        kind: Kit,
+        fx: "holy",
+        names: ["durga", "maa durga", "durga maa", "goddess durga", "mahishasuramardini", "durga devi"],
+        shouts: [("durga's lion", 0), ("ride the lion", 0), ("the lion of durga", 0),
+                 ("ten arms of durga", 1), ("weapons of the gods", 1), ("durga's weapons", 1),
+                 ("slay mahishasura", 2), ("mahishasura mardini", 2),
+                 ("durga's shield", 3)],
+        moves: [
+            // Her lion: a mount to ride into battle.
+            (name: "durga's lion", tags: [Movement], cooldown: 30.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "lion of durga", form: Quadruped, mech: [Piloted, Fast, Blade, Charge], element: Light, scale: 2.0)),
+            ], juice: Some((title: Some("SIMHA")))),
+            // Ten arms, each with a god's weapon: a storm of strikes.
+            (name: "ten arms", tags: [Combo, Ultimate], cooldown: 14.0, cost: 9.0, ops: [
+                Barrage(hits: 10, interval: 0.08, range: 4.0, angle: 150.0, damage: 4.0, knockback: 3.0, finish: 24.0, advance: 4.0,
+                        element: Light),
+            ], juice: Some((title: Some("TEN ARMS"), boom: true, punch: 3.0, color: Some((1.0, 0.6, 0.2))))),
+            // The trident blow that ended Mahishasura. -> ends a step in.
+            (name: "slay mahishasura", tags: [Primary], cooldown: 1.2, cost: 4.0, ops: [
+                Drill(speed: 28.0, secs: 0.35, damage: 15.0, knockback: 20.0, element: Light),
+            ]),
+            // The shield: the next blow comes back.
+            (name: "durga's shield", tags: [Defense, Counter], cooldown: 7.0, cost: 4.0, ops: [
+                Counter(secs: 1.0, damage: 13.0, knockback: 20.0, element: Light),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- RAMA — the bow
+    (
+        id: "myth_rama",
+        name: "Rama",
+        kind: Kit,
+        fx: "holy",
+        names: ["rama", "lord rama", "shri ram", "shree ram", "ramachandra", "raghava", "prabhu ram"],
+        shouts: [("kodanda", 0), ("rama's bow", 0), ("the kodanda bow", 0),
+                 ("rama setu", 1), ("ram setu", 1), ("the bridge to lanka", 1), ("setu bandhan", 1),
+                 ("arrow of rama", 2), ("rama's arrow", 2),
+                 ("break shiva's bow", 3), ("pinaka breaks", 3)],
+        moves: [
+            // The Kodanda: three arrows. -> ends drawn again.
+            (name: "kodanda", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
+                Cast(recipe: (name: "arrows of kodanda", form: Ball, mech: [Fast, Pierce], element: Light, scale: 0.32, count: 3)),
+            ]),
+            // The bridge to Lanka: a causeway of stones rises along your aim (walk on it; it launches
+            // whoever stands where it rises).
+            (name: "rama setu", tags: [Movement, Defense], cooldown: 12.0, cost: 6.0, ops: [
+                Erupt(length: 24.0, width: 3.0, height: 2.0, element: Earth, launch: 10.0),
+            ], juice: Some((title: Some("RAMA SETU")))),
+            // Rama's arrow: it finds the one you mean.
+            (name: "arrow of rama", tags: [Ultimate], cooldown: 12.0, cost: 8.0, ops: [
+                Seeker(recipe: (name: "arrow of rama", form: Spear, mech: [Pierce, Fast], element: Light, scale: 1.3),
+                       range: 65.0, cone: 25.0, speed: 50.0, damage: 20.0, knockback: 20.0, element: Light, hits: 1),
+            ], juice: Some((title: Some("ARROW OF RAMA"), boom: true, color: Some((0.5, 0.7, 1.0)), impact_frame: Some("holy")))),
+            // He broke Shiva's great bow stringing it: a crack that throws everyone near.
+            (name: "break the bow", tags: [Combo], cooldown: 9.0, cost: 5.0, ops: [
+                Explode(radius: 7.0, damage: 5.0, knockback: 20.0, element: Light),
+            ], juice: Some((boom: true, shake: 0.2))),
+        ],
+    ),
+    // ---------------------------------------------------------------- GANESHA — remover of obstacles
+    (
+        id: "myth_ganesha",
+        name: "Ganesha",
+        kind: Kit,
+        fx: "holy",
+        names: ["ganesha", "ganesh", "lord ganesha", "ganapati", "ganpati", "vinayaka", "vighnaharta", "ganesh ji", "ganapathi"],
+        shouts: [("remover of obstacles", 0), ("vighnaharta", 0), ("remove the obstacle", 0), ("clear the obstacles", 0),
+                 ("modak", 1), ("ganesha modak", 1),
+                 ("mushika", 2), ("ganesha's mouse", 2),
+                 ("the broken tusk", 3), ("ekadanta", 3)],
+        moves: [
+            // The remover of obstacles: the way ahead is simply open — you pass through the wall in front.
+            (name: "remover of obstacles", tags: [Movement], cooldown: 5.0, cost: 4.0, ops: [
+                PassThrough(depth: 10.0),
+            ], juice: Some((title: Some("VIGHNAHARTA"), color: Some((1.0, 0.7, 0.2))))),
+            // Blessings: you mend.
+            (name: "modak", tags: [Defense], cooldown: 16.0, cost: 5.0, ops: [
+                Mend(pct: 8.0),
+            ]),
+            // His mouse, small and quick, darts at them.
+            (name: "mushika", tags: [Combo], cooldown: 8.0, cost: 3.0, ops: [
+                Cast(recipe: (name: "mushika", form: Quadruped, mech: [Walks, Fast], element: Light, scale: 0.5, temperament: Playful, intensity: 1.0)),
+            ]),
+            // The broken tusk, thrown: it finds its mark (he broke it to write the Mahabharata).
+            (name: "ekadanta", tags: [Primary, Ultimate], cooldown: 8.0, cost: 5.0, ops: [
+                Seeker(recipe: (name: "the broken tusk", form: Spear, mech: [Pierce], element: Light, scale: 1.0),
+                       range: 45.0, cone: 20.0, speed: 40.0, damage: 13.0, knockback: 14.0, element: Light, hits: 1),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- GARUDA — the king of birds
+    (
+        id: "myth_garuda",
+        name: "Garuda",
+        kind: Kit,
+        fx: "wind",
+        names: ["garuda", "garud", "garuda the eagle", "garuda king of birds", "garudan", "the garuda"],
+        shouts: [("garuda dive", 0), ("dive of garuda", 0),
+                 ("garuda's wings", 1), ("wing gale of garuda", 1),
+                 ("serpent eater", 2), ("garuda seizes", 2)],
+        moves: [
+            // The stoop from the sky. -> ends grounded on them.
+            (name: "garuda dive", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [
+                Impulse(fwd: 12.0, up: 10.0),
+                SlamOnLand(radius: 5.0, damage: 14.0, knockback: 18.0, carve: 1.2),
+            ]),
+            // The wind of his wings flattens forests.
+            (name: "garuda's wings", tags: [Ultimate, Primary], cooldown: 7.0, cost: 5.0, ops: [
+                Shove(range: 22.0, angle: 55.0, damage: 6.0, knockback: 34.0, element: Wind, up: 0.3),
+            ], juice: Some((title: Some("GARUDA"), debris: 24.0))),
+            // He seizes serpents: grabbed, carried up, dropped.
+            (name: "serpent eater", tags: [Movement], cooldown: 9.0, cost: 6.0, ops: [
+                BlinkCarry(dist: 6.0, up: 14.0, grab: 3.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE JAPANESE
+    // ---------------------------------------------------------------- RYUJIN — the dragon of the sea and the tide jewels
+    (
+        id: "myth_ryujin",
+        name: "Ryujin",
+        kind: Kit,
+        fx: "water",
+        names: ["ryujin", "ryūjin", "ryujin the dragon king", "owatatsumi", "watatsumi", "ryuujin", "the sea dragon king"],
+        shouts: [("tide jewels", 0), ("the tide jewels", 0), ("kanju", 0), ("ebb jewel", 0), ("the ebb jewel", 0),
+                 ("manju", 1), ("flood jewel", 1), ("the flood jewel", 1), ("raise the tide", 1),
+                 ("ryugu jo", 2), ("palace of the dragon king", 2), ("ryugu", 2),
+                 ("ryujin's pearl", 3)],
+        moves: [
+            // Kanju, the ebb jewel: the sea draws back and pulls everything with it toward the crosshair.
+            (name: "kanju", tags: [Combo], cooldown: 9.0, cost: 6.0, ops: [
+                Field(strength: 40.0, radius: 12.0, secs: 1.6, at: Aim),
+            ], juice: Some((title: Some("KANJU"), at: Aim, debris: -16.0, color: Some((0.3, 0.6, 0.9))))),
+            // Manju, the flood jewel: the tide comes in along your aim.
+            (name: "manju", tags: [Ultimate], cooldown: 18.0, cost: 10.0, ops: [
+                Surge(width: 12.0, dist: 44.0, speed: 15.0, push: 18.0, damage: 9.0, element: Water),
+            ], juice: Some((title: Some("MANJU"), boom: true))),
+            // The undersea palace: a dome of water around you.
+            (name: "ryugu jo", tags: [Defense], cooldown: 14.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "ryugu palace", form: Dome, mech: [Barrier], element: Water, scale: 3.0)),
+            ]),
+            // The dragon's pearl. -> ends in place.
+            (name: "ryujin's pearl", tags: [Primary], cooldown: 1.4, cost: 3.0, ops: [
+                Cast(recipe: (name: "ryujin's pearl", form: Ball, mech: [Fast, Explodes], element: Water, scale: 0.6)),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- MOMOTARO — the peach boy and his companions
+    (
+        id: "myth_momotaro",
+        name: "Momotaro",
+        kind: Kit,
+        fx: "chi",
+        names: ["momotaro", "momotarō", "peach boy", "the peach boy", "momotaro the peach boy", "momo taro"],
+        shouts: [("kibi dango", 0), ("millet dumplings", 0), ("share the dumplings", 0),
+                 ("momotaro's companions", 1), ("dog monkey and pheasant", 1), ("the dog the monkey and the pheasant", 1),
+                 ("onigashima", 2), ("to demon island", 2), ("raid onigashima", 2)],
+        moves: [
+            // Kibi dango: a little mending.
+            (name: "kibi dango", tags: [Defense], cooldown: 14.0, cost: 4.0, ops: [
+                Mend(pct: 6.0),
+            ]),
+            // The dog, the monkey and the pheasant fight for you.
+            (name: "companions", tags: [Combo], cooldown: 18.0, cost: 7.0, ops: [
+                Cast(recipe: (name: "momotaro's dog", form: Quadruped, mech: [Walks, Fast, Blade], element: Light, scale: 0.9,
+                              temperament: Aggressive, intensity: 0.9)),
+                Cast(recipe: (name: "momotaro's monkey", form: Biped, mech: [Walks, Fast, Blunt], element: Light, scale: 0.7,
+                              temperament: Playful, intensity: 0.9)),
+                Cast(recipe: (name: "momotaro's pheasant", form: Bird, mech: [Flies, Blade, Homing], element: Light, scale: 0.6,
+                              temperament: Aggressive, intensity: 0.9)),
+            ], juice: Some((title: Some("MOMOTARO")))),
+            // The raid on Demon Island: through them. -> ends past them.
+            (name: "onigashima", tags: [Ultimate, Movement], cooldown: 12.0, cost: 7.0, ops: [
+                Ram(speed: 26.0, secs: 1.0, damage: 13.0, knockback: 18.0, through: true, keep: 0.4),
+            ], juice: Some((title: Some("ONIGASHIMA")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- KINTARO — the golden boy
+    (
+        id: "myth_kintaro",
+        name: "Kintaro",
+        kind: Kit,
+        fx: "earth",
+        names: ["kintaro", "kintarō", "golden boy kintaro", "sakata no kintoki", "kintoki", "kin taro"],
+        shouts: [("kintaro sumo", 0), ("wrestle the bear", 0), ("sumo with the bear", 0),
+                 ("kintaro's axe", 1), ("masakari", 1),
+                 ("uproot the tree", 2)],
+        moves: [
+            // He wrestled bears for fun: seize and throw.
+            (name: "wrestle the bear", tags: [Primary, Counter], cooldown: 5.0, cost: 5.0, ops: [
+                Grab(range: 3.2, hold: 0.4, damage: 12.0, knockback: 24.0, up: 0.5),
+            ]),
+            // The axe. -> ends in place.
+            (name: "masakari", tags: [Combo], cooldown: 1.1, cost: 3.0, ops: [
+                Shove(range: 3.6, angle: 60.0, damage: 14.0, knockback: 16.0),
+            ]),
+            // He pulled up a tree to bridge a gorge: a chunk of ground torn up and brought to hand.
+            (name: "uproot the tree", tags: [Ultimate], cooldown: 9.0, cost: 6.0, ops: [
+                Haul(range: 35.0, radius: 2.0, speed: 24.0, damage: 11.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE NORSE
+    // ---------------------------------------------------------------- YMIR — the first frost giant
+    (
+        id: "myth_ymir",
+        name: "Ymir",
+        kind: Kit,
+        fx: "ice",
+        names: ["ymir", "aurgelmir", "the first giant", "ymir the frost giant", "imir", "frost giant ymir"],
+        shouts: [("jotunn", 0), ("jötunn", 0), ("rise of the frost giant", 0),
+                 ("rime", 1), ("the rime", 1), ("ginnungagap frost", 1),
+                 ("blood of ymir", 2), ("the flood of ymir's blood", 2)],
+        moves: [
+            // A frost giant: huge, and the ground freezes around you. -> ends giant.
+            (name: "frost giant", tags: [Ultimate], cooldown: 22.0, cost: 9.0, ops: [
+                SelfResize(scale: 1.6, secs: 10.0),
+                Zone(radius: 8.0, secs: 4.0, status: Some(Chill), at: Me, follow: true),
+            ], juice: Some((title: Some("JOTUNN"), boom: true, shake: 0.25, color: Some((0.7, 0.85, 1.0))))),
+            // The rime spreads over the crosshair.
+            (name: "rime", tags: [Primary], cooldown: 7.0, cost: 4.0, ops: [
+                Zone(radius: 7.0, secs: 3.5, status: Some(Chill), slow: 0.35, at: Aim),
+            ], juice: Some((at: Aim))),
+            // His blood drowned the frost giants: a flood rolls out.
+            (name: "blood of ymir", tags: [Combo], cooldown: 18.0, cost: 9.0, ops: [
+                Surge(width: 11.0, dist: 38.0, speed: 14.0, push: 16.0, damage: 8.0, element: Water),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- SKADI — the winter huntress
+    (
+        id: "myth_skadi",
+        name: "Skadi",
+        kind: Kit,
+        fx: "ice",
+        names: ["skadi", "skaði", "skathi", "skadi the huntress", "skadi goddess of winter", "skade"],
+        shouts: [("skadi's skis", 0), ("ski down the mountain", 0),
+                 ("skadi's arrows", 1), ("winter arrows", 1),
+                 ("skadi's wolf", 2), ("kaldr", 2)],
+        moves: [
+            // On skis down the mountain. -> ends sliding fast.
+            (name: "skis", tags: [Movement], cooldown: 2.0, cost: 3.0, ops: [
+                Impulse(fwd: 26.0, up: 1.0),
+            ]),
+            // Arrows of winter: they freeze where they hit.
+            (name: "winter arrows", tags: [Primary], cooldown: 1.2, cost: 3.0, ops: [
+                Cast(recipe: (name: "winter arrows", form: Ball, mech: [Fast, Pierce], element: Ice, scale: 0.32, count: 3)),
+            ]),
+            // Her wolf.
+            (name: "skadi's wolf", tags: [Combo, Ultimate], cooldown: 14.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "skadi's wolf", form: Quadruped, mech: [Walks, Fast, Blade, Charge], element: Ice, scale: 1.3,
+                              temperament: Aggressive, intensity: 1.0)),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- BALDUR — the shining, whom nothing could harm
+    (
+        id: "myth_baldur",
+        name: "Baldur",
+        kind: Kit,
+        fx: "holy",
+        names: ["baldur", "balder", "baldr", "baldur the bright", "baldur the beautiful", "the shining god"],
+        shouts: [("nothing can harm me", 0), ("the oath of all things", 0), ("baldur's oath", 0),
+                 ("baldur's light", 1), ("radiance of baldur", 1),
+                 ("hringhorni", 2), ("baldur's ship", 2)],
+        moves: [
+            // Every thing in the world swore not to harm him: for a while, nothing moves you.
+            (name: "nothing can harm me", tags: [Defense, Ultimate], cooldown: 22.0, cost: 8.0, ops: [
+                Empower(secs: 5.0, armor: 0.2),
+                Counter(secs: 1.2),
+            ], juice: Some((title: Some("NOTHING CAN HARM ME"), ripple: 3.0, color: Some((1.0, 0.95, 0.75))))),
+            // His light: a flare that dazzles.
+            (name: "baldur's light", tags: [Primary], cooldown: 8.0, cost: 4.0, ops: [
+                Explode(radius: 5.5, damage: 5.0, knockback: 14.0, element: Light),
+                Zone(radius: 8.0, secs: 1.5, status: Some(Shadow), at: Me),
+            ]),
+            // His funeral ship, pushed out burning.
+            (name: "hringhorni", tags: [Combo], cooldown: 16.0, cost: 8.0, ops: [
+                Surge(width: 8.0, dist: 30.0, speed: 12.0, push: 14.0, damage: 10.0, element: Fire),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- MIMIR — the head of wisdom
+    (
+        id: "myth_mimir",
+        name: "Mimir",
+        kind: Kit,
+        fx: "psychic",
+        names: ["mimir", "mímir", "mimir's head", "mimir the wise"],
+        shouts: [("mimir's well", 0), ("well of wisdom", 0), ("drink from mimir's well", 0),
+                 ("mimir's counsel", 1), ("words of mimir", 1)],
+        moves: [
+            // A drink from the well: you see every foe in view and strike them all.
+            (name: "mimir's well", tags: [Ultimate], cooldown: 14.0, cost: 7.0, ops: [
+                LockOn(secs: 1.0, range: 55.0, damage: 11.0, knockback: 10.0, angle: 45.0),
+            ], juice: Some((title: Some("MIMIR'S WELL")))),
+            // Counsel: the aimed foe's next move is foreseen — their powers falter.
+            (name: "mimir's counsel", tags: [Counter], cooldown: 12.0, cost: 6.0, ops: [
+                Lockout(range: 30.0, secs: 2.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ MORE CELTIC
+    // ---------------------------------------------------------------- FIONN MAC CUMHAILL — the Giant's Causeway
+    (
+        id: "myth_fionn",
+        name: "Fionn mac Cumhaill",
+        kind: Kit,
+        fx: "earth",
+        names: ["fionn mac cumhaill", "finn mccool", "finn mac cool", "fionn", "finn mac cumhail", "fionn mac cumhail", "finn maccool",
+                "fin mccool", "finn mc cool"],
+        shouts: [("giant's causeway", 0), ("the giant's causeway", 0), ("build the causeway", 0), ("causeway", 0),
+                 ("thumb of knowledge", 1), ("salmon of knowledge", 1), ("the thumb of knowledge", 1),
+                 ("fianna", 2), ("the fianna", 2), ("call the fianna", 2),
+                 ("finn throws a mountain", 3), ("isle of man", 3), ("clod of earth", 3)],
+        moves: [
+            // He built the causeway across the sea: columns of stone rise along your aim, and anyone
+            // standing where they come up is thrown into the air.
+            (name: "giant's causeway", tags: [Ultimate], cooldown: 12.0, cost: 7.0, ops: [
+                Erupt(length: 26.0, width: 3.5, height: 3.0, count: 9, element: Earth, damage: 9.0, launch: 18.0),
+            ], juice: Some((title: Some("THE GIANT'S CAUSEWAY"), boom: true, shake: 0.25))),
+            // The thumb of knowledge: every foe in view, seen and struck.
+            (name: "thumb of knowledge", tags: [Counter], cooldown: 12.0, cost: 6.0, ops: [
+                LockOn(secs: 0.9, range: 50.0, damage: 10.0, knockback: 10.0, angle: 40.0),
+            ]),
+            // The Fianna answer the call.
+            (name: "fianna", tags: [Combo], cooldown: 20.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "the fianna", form: Biped, mech: [Walks, Blade, Fast], element: Light, scale: 1.0, count: 3,
+                              temperament: Aggressive, intensity: 0.9)),
+            ]),
+            // He scooped up a clod of land and threw it (the hole became a lough): torn up, hauled in.
+            (name: "clod of earth", tags: [Primary], cooldown: 8.0, cost: 6.0, ops: [
+                Haul(range: 45.0, radius: 3.0, speed: 26.0, damage: 13.0),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- NUADA — the silver hand and the sword of light
+    (
+        id: "myth_nuada",
+        name: "Nuada",
+        kind: Kit,
+        fx: "holy",
+        names: ["nuada", "nuadu", "nuada airgetlám", "nuada of the silver hand", "nuada silver hand", "noo ada"],
+        shouts: [("sword of light", 0), ("claíomh solais", 0), ("claiomh solais", 0), ("the sword of nuada", 0),
+                 ("silver hand", 1), ("airgetlam", 1), ("the silver hand", 1)],
+        moves: [
+            // The sword that none escape: a travelling blade of light.
+            (name: "sword of light", tags: [Primary, Ultimate], cooldown: 1.4, cost: 4.0, ops: [
+                Wave(length: 22.0, speed: 36.0, width: 4.0, damage: 13.0, knockback: 12.0, element: Light),
+            ], juice: Some((title: Some("CLAIOMH SOLAIS"), color: Some((0.9, 0.95, 1.0))))),
+            // The silver hand: a blow nothing turns, and the next blow on you is caught.
+            (name: "silver hand", tags: [Counter, Defense], cooldown: 6.0, cost: 4.0, ops: [
+                Counter(secs: 0.9, damage: 13.0, knockback: 20.0, element: Light),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- MANANNÁN — the mist cloak and the sea
+    (
+        id: "myth_manannan",
+        name: "Manannan mac Lir",
+        kind: Kit,
+        fx: "water",
+        names: ["manannan", "manannán", "manannan mac lir", "manannán mac lir", "manawydan", "son of the sea"],
+        shouts: [("cloak of mist", 0), ("manannan's cloak", 0), ("mist cloak", 0),
+                 ("enbarr", 1), ("the horse that rides the waves", 1),
+                 ("fragarach", 2), ("the answerer", 2), ("the retaliator", 2)],
+        moves: [
+            // The mist cloak: a fog comes down and you are gone.
+            (name: "cloak of mist", tags: [Defense, Movement], cooldown: 8.0, cost: 5.0, ops: [
+                Zone(radius: 8.0, secs: 3.0, status: Some(Shadow), at: Me),
+                Blink(dist: 12.0),
+            ], juice: Some((title: Some("CLOAK OF MIST")))),
+            // Enbarr, the horse that runs on waves. -> ends past them.
+            (name: "enbarr", cooldown: 4.0, cost: 4.0, ops: [
+                Ram(speed: 30.0, secs: 0.9, damage: 10.0, knockback: 14.0, through: true, element: Water),
+            ]),
+            // Fragarach, the Answerer: it answers every blow.
+            (name: "fragarach", tags: [Counter, Ultimate], cooldown: 7.0, cost: 5.0, ops: [
+                Counter(secs: 1.2, damage: 16.0, knockback: 22.0, element: Wind),
+            ], juice: Some((title: Some("THE ANSWERER")))),
+        ],
+    ),
+
+    // ================================================================ MORE ARTHURIAN
+    // ---------------------------------------------------------------- SIR GAWAIN — strength that waxes with the sun
+    (
+        id: "myth_gawain",
+        name: "Sir Gawain",
+        kind: Kit,
+        fx: "holy",
+        names: ["sir gawain", "gawain", "gawaine", "sir gawaine", "gwalchmai"],
+        shouts: [("strength of the sun", 0), ("gawain's noon", 0), ("the sun at noon", 0),
+                 ("galatine", 1), ("gawain's sword", 1)],
+        moves: [
+            // His strength grew with the sun: for a while you hit like noon.
+            (name: "strength of the sun", tags: [Ultimate], cooldown: 22.0, cost: 8.0, ops: [
+                Empower(secs: 7.0, damage: 1.35, armor: 0.7),
+            ], juice: Some((title: Some("THE SUN AT NOON"), boom: true, color: Some((1.0, 0.85, 0.4))))),
+            // Galatine. -> ends in place.
+            (name: "galatine", tags: [Primary], cooldown: 1.0, cost: 3.0, ops: [
+                Shove(range: 3.6, angle: 70.0, damage: 14.0, knockback: 14.0, element: Light),
+            ]),
+        ],
+    ),
+    // ---------------------------------------------------------------- SIR LANCELOT — the lance
+    (
+        id: "myth_lancelot",
+        name: "Sir Lancelot",
+        kind: Kit,
+        fx: "rigid",
+        names: ["sir lancelot", "lancelot", "lancelot du lac", "lancelot of the lake", "sir launcelot", "launcelot"],
+        shouts: [("lancelot's lance", 0), ("joust", 0), ("the joust", 0), ("couch the lance", 0),
+                 ("arondight", 1), ("lancelot's sword", 1)],
+        moves: [
+            // The joust: lance couched, horse at full gallop — they're lifted off their feet.
+            (name: "joust", tags: [Movement, Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Ram(speed: 30.0, secs: 0.9, damage: 15.0, knockback: 24.0, up: 0.5),
+            ], juice: Some((title: Some("JOUST"), punch: 3.0))),
+            // Arondight: a flurry of cuts.
+            (name: "arondight", tags: [Combo, Ultimate], cooldown: 10.0, cost: 6.0, ops: [
+                Barrage(hits: 5, interval: 0.12, range: 3.6, angle: 90.0, damage: 6.0, knockback: 4.0, finish: 20.0, advance: 6.0),
+            ], juice: Some((title: Some("ARONDIGHT")))),
+        ],
+    ),
+    // ---------------------------------------------------------------- MORGAN LE FAY — the enchantress
+    (
+        id: "myth_morgan",
+        name: "Morgan le Fay",
+        kind: Kit,
+        fx: "void",
+        names: ["morgan le fay", "morgana", "morgan la fay", "morgaine", "morgan the enchantress", "morgan le fey"],
+        shouts: [("fata morgana", 0), ("mirage of morgan", 0),
+                 ("morgan's curse", 1), ("curse of morgan le fay", 1),
+                 ("avalon", 2), ("isle of avalon", 2), ("the mists of avalon", 2)],
+        moves: [
+            // Fata Morgana: mirages of you appear while you slip away.
+            (name: "fata morgana", tags: [Movement], cooldown: 9.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "mirages", form: Biped, mech: [Walks], element: Psychic, scale: 1.0, count: 3, temperament: Sneaky, intensity: 0.8)),
+                Blink(dist: 12.0, afterimage: true),
+            ], juice: Some((title: Some("FATA MORGANA")))),
+            // A curse that lingers and spreads.
+            (name: "morgan's curse", tags: [Primary], cooldown: 9.0, cost: 5.0, ops: [
+                Contagion(range: 36.0, cone: 12.0, status: Shadow, secs: 4.0, spread: 5.0),
+            ]),
+            // Avalon: the mists heal.
+            (name: "avalon", tags: [Defense, Ultimate], cooldown: 20.0, cost: 7.0, ops: [
+                Mend(pct: 8.0, per_s: 2.0, secs: 3.0),
+                Zone(radius: 8.0, secs: 3.0, status: Some(Shadow), at: Me),
+            ], juice: Some((title: Some("AVALON"), color: Some((0.7, 0.85, 1.0))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- THE LADY OF THE LAKE
+    (
+        id: "myth_lady_of_the_lake",
+        name: "Lady of the Lake",
+        kind: Kit,
+        fx: "water",
+        names: ["lady of the lake", "the lady of the lake", "nimue", "viviane", "vivien", "nyneve"],
+        shouts: [("from the lake", 0), ("rise from the lake", 0), ("the lake rises", 0),
+                 ("scabbard of excalibur", 1), ("the enchanted scabbard", 1)],
+        moves: [
+            // The lake rises and rolls out.
+            (name: "from the lake", tags: [Ultimate], cooldown: 16.0, cost: 9.0, ops: [
+                Surge(width: 10.0, dist: 34.0, speed: 14.0, push: 16.0, damage: 7.0, element: Water),
+            ]),
+            // The scabbard: whoever wore it could not bleed — you mend and hold.
+            (name: "scabbard", tags: [Defense], cooldown: 18.0, cost: 6.0, ops: [
+                Mend(pct: 6.0, per_s: 2.0, secs: 3.0),
+                Counter(secs: 0.8),
             ]),
         ],
     ),

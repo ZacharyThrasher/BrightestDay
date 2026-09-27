@@ -126,7 +126,14 @@ fn main() {
             }
         }
     }
-    let (table, _) = PowerTable::parse_files_lenient(&files);
+    let t0 = std::time::Instant::now();
+    let (table, table_warn) = PowerTable::parse_files_lenient(&files);
+    let t_parse = t0.elapsed();
+    for w in table_warn.iter().filter(|w| w.contains("MAX_POWERS")) {
+        // never silent: entries past the cap would be dropped
+        println!("ERROR {w}");
+        errors += 1;
+    }
     let ix = MoveIndex::build(&table);
     let file_of = |id: u16| owner.get(id as usize).cloned().unwrap_or_default();
 
@@ -243,6 +250,7 @@ fn main() {
             }
         }
     }
+    println!("(table: {} powers parsed in {:.0} ms)", table.powers.len(), t_parse.as_secs_f64() * 1e3);
     println!(
         "{} file(s) checked: {} powers ({} kits), {} moves, {} shouts; table {} powers, {} shouts indexed — {errors} error(s), {warnings} warning(s)",
         if check_all { files.len() } else { mine.len() },

@@ -183,9 +183,10 @@ fn attach(mut commands: Commands, rows: Query<Entity, Added<StripRow>>, mut mats
             let name = commands
                 .spawn((
                     ChipName,
-                    Node { display: Display::None, position_type: PositionType::Absolute, bottom: px(CHIP + 4.0), left: px(-47.0), width: px(120), justify_content: JustifyContent::Center, ..default() },
+                    // Staggered up a step per chip: four names never sit on each other.
+                    Node { display: Display::None, position_type: PositionType::Absolute, bottom: px(CHIP + 4.0 + 15.0 * k as f32), left: px(-47.0), width: px(120), justify_content: JustifyContent::Center, ..default() },
                     Text::new(""),
-                    TextFont::from_font_size(12.0),
+                    TextFont::from_font_size(11.0),
                     TextColor(Color::srgba(1.0, 1.0, 1.0, 0.92)),
                     TextLayout::justify(Justify::Center),
                     Pickable::IGNORE,

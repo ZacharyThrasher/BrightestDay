@@ -93,7 +93,7 @@ TEMPER_ADJ = {
     "Calm": ["precise", "measured", "disciplined", "focused", "clean"],
     "Protective": ["valiant", "steadfast", "stalwart", "gallant", "loyal"],
     "Sneaky": ["silent", "cunning", "sly", "treacherous", "hidden"],
-    "Playful": ["cheeky", "bouncy", "zany", "sneaky fun", "prankster"],
+    "Playful": ["cheeky", "bouncy", "zany", "goofy", "prankster"],
     "Chaotic": ["wild", "unhinged", "manic", "mad", "reckless"],
     "Fearful": ["desperate", "panicked", "frantic", "nervous", "flailing"],
     "Lazy": ["lumbering", "sleepy", "slow burn", "drowsy", "heavy"],

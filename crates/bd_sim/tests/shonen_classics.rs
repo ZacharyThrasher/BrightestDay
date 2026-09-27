@@ -650,3 +650,28 @@ fn every_headline_uses_its_own_mechanic() {
     has("star platinum time stop", &|o| matches!(o, MoveOp::TimeStop { .. }));
     has("conqueror's haki", &|o| matches!(o, MoveOp::Zone { status: Some(StatusKind::Stun), .. }));
 }
+
+// ------------------------------------------------------------------------------ chains that land
+
+#[test]
+fn instant_transmission_chains_into_a_point_blank_rasengan() {
+    use bd_sim::powers::chain::ToolStep;
+    let mut w = arena(2);
+    stand_at(&mut w, A, 0.0, 17.0);
+    stand_at(&mut w, B, 1.5, 0.0);
+    face_back(&mut w, B); // B watches A come
+    let ix = MoveIndex::shipped();
+    let step = |s: &str| {
+        let r = ix.read(PowerTable::get(), None, s);
+        ToolStep::Move { mv: r.move_ref().unwrap_or_else(|| panic!("{s:?}")), kit: matches!(r, Reading::Kit(_)) }
+    };
+    w.toolbox(A, vec![step("instant transmission"), step("rasengan")], None).expect("chain");
+    let mut fx = fx_now(&w);
+    for _ in 0..ticks(2.5) {
+        let evs = run(&mut w, 1);
+        fx.extend(toolbox_fx(&evs));
+    }
+    assert!(fx.contains(&ToolboxFx::Warp), "warped: {fx:?}");
+    assert!(fx.contains(&ToolboxFx::DrillLatch), "the rasengan landed on them: {fx:?}");
+    assert!(pct(&w, B) >= 14.0, "{}", pct(&w, B));
+}

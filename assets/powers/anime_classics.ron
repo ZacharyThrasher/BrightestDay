@@ -46,7 +46,7 @@
             // Poof: three of you in orange that run at your enemies and brawl.
             (name: "shadow clone", tags: [Combo], cooldown: 6.0, cost: 6.0, ops: [
                 Cast(recipe: (name: "naruto", form: Biped, mech: [Walks, Blunt, Charge], scale: 1.0, mass: 60.0, count: 3,
-                              temperament: Aggressive, intensity: 0.8)),
+                              temperament: Aggressive, intensity: 0.8, costume: true)),
             ], fx: "smoke", juice: Some((title: Some("KAGE BUNSHIN NO JUTSU"), ripple: 2.0))),
             // The thrown wind shuriken: it screams through the air and bursts into a dome of cutting
             // wind where it hits (an energy ball: tap to throw it, hold to grow it).
@@ -656,7 +656,7 @@
             ], fx: "wind", juice: Some((title: Some("VANISHING RASENGAN"), color: Some((0.5, 0.8, 1.0))))),
             (name: "shadow clone", tags: [Combo], cooldown: 6.0, cost: 6.0, ops: [
                 Cast(recipe: (name: "boruto", form: Biped, mech: [Walks, Blunt, Charge], scale: 1.0, mass: 55.0, count: 2,
-                              temperament: Aggressive, intensity: 0.8)),
+                              temperament: Aggressive, intensity: 0.8, costume: true)),
             ], fx: "smoke"),
             // Karma: the palm drinks whatever is thrown at it and throws it back.
             (name: "karma", tags: [Defense], cooldown: 8.0, cost: 5.0, ops: [Deflect(secs: 1.2, angle: 90.0)], fx: "shadow",
@@ -874,7 +874,7 @@
                 Cast(recipe: (name: "explosive demon wave", form: Hands, mech: [Beam, Explodes], element: Light, scale: 2.0), signature: Some(Beam)),
             ], fx: "chi", juice: Some((title: Some("BAKURIKI MAHA"), punch: 5.0, boom: true))),
             (name: "multi form", tags: [Combo], cooldown: 10.0, cost: 7.0, ops: [
-                Cast(recipe: (name: "piccolo", form: Biped, mech: [Walks, Blunt, Fast], scale: 1.1, mass: 70.0, count: 3, temperament: Aggressive, intensity: 0.8)),
+                Cast(recipe: (name: "piccolo", form: Biped, mech: [Walks, Blunt, Fast], scale: 1.1, mass: 70.0, count: 3, temperament: Aggressive, intensity: 0.8, costume: true)),
             ], fx: "chi", juice: Some((title: Some("MULTI FORM")))),
             // Drop the weighted turban and cape: they crater where they fall, and you're faster.
             (name: "weights off", tags: [Movement], cooldown: 20.0, cost: 3.0, ops: [
@@ -1732,7 +1732,7 @@
             // A heat-shimmer double of you walks out; you fade.
             (name: "mirage tempo", tags: [Defense], cooldown: 9.0, cost: 5.0, ops: [
                 Phase(secs: 1.0),
-                Cast(recipe: (name: "nami", form: Biped, mech: [Walks, Guard], scale: 1.0, mass: 40.0, temperament: Protective, intensity: 0.6)),
+                Cast(recipe: (name: "nami", form: Biped, mech: [Walks, Guard], scale: 1.0, mass: 40.0, temperament: Protective, intensity: 0.6, costume: true)),
             ], fx: "steam", juice: Some((title: Some("MIRAGE TEMPO")))),
             (name: "cyclone tempo", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
                 Cast(recipe: (name: "cyclone tempo", form: Ball, mech: [Fast, Blunt, Spin], element: Wind, scale: 0.9)),
@@ -2541,6 +2541,434 @@
             // Pull the disc out of their head: no powers for a while.
             (name: "stand disc", tags: [Counter], cooldown: 14.0, cost: 8.0, ops: [Lockout(range: 4.0, secs: 2.5)], fx: "hardlight",
              juice: Some((title: Some("WHITESNAKE")))),
+        ],
+    ),
+
+    // ============================================================================ MORE OF THE CAST
+    // ---------------------------------------------------------------- Naruto
+    (
+        id: "kit_orochimaru",
+        name: "Orochimaru",
+        kind: Kit,
+        names: ["orochimaru", "orochimaru sama", "lord orochimaru", "oro chimaru", "orochimaru sannin"],
+        fx: "poison",
+        shouts: [("striking shadow snakes", 0), ("hidden shadow snake hands", 0), ("sen'eijashu", 0), ("senei jashu", 0), ("shadow snake hands", 0),
+                 ("summon manda", 1), ("manda", 1), ("kuchiyose manda", 1),
+                 ("sword of kusanagi", 2), ("kusanagi sword", 2),
+                 ("five pronged seal", 3), ("five elements seal", 3), ("gogyo fuin", 3)],
+        moves: [
+            // Snakes shoot out of your sleeve, bite and reel them in.
+            (name: "striking shadow snakes", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Hook(range: 20.0, speed: 36.0, pull: 20.0, damage: 6.0, status: Some(Poison), secs: 2.0),
+            ], fx: "poison", juice: Some((title: Some("SEN'EIJASHU")))),
+            (name: "manda", tags: [Ultimate], cooldown: 40.0, cost: 18.0, ops: [
+                Cast(recipe: (name: "manda", form: Serpent, mech: [Walks, Grab, Constrict, Charge], element: Poison, scale: 9.0,
+                              temperament: Aggressive, intensity: 0.9), signature: Some(Summon)),
+            ], fx: "smoke", juice: Some((title: Some("KUCHIYOSE: MANDA"), boom: true, shake: 0.35))),
+            // The sword slides out of your throat and extends across the field.
+            (name: "kusanagi", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [Shove(range: 9.0, angle: 8.0, damage: 14.0, knockback: 12.0)],
+             fx: "rigid", juice: Some((title: Some("KUSANAGI")))),
+            // A seal on the stomach: their powers are locked.
+            (name: "five pronged seal", tags: [Counter], cooldown: 14.0, cost: 8.0, ops: [
+                Lockout(range: 4.0, secs: 2.5),
+                Shove(range: 3.0, angle: 30.0, damage: 6.0, knockback: 12.0, element: Psychic),
+            ], fx: "psychic", juice: Some((title: Some("GOGYO FUIN")))),
+        ],
+    ),
+    (
+        id: "kit_tsunade",
+        name: "Tsunade",
+        kind: Kit,
+        names: ["tsunade", "lady tsunade", "tsunade sama", "fifth hokage", "the fifth hokage", "godaime hokage", "granny tsunade"],
+        fx: "earth",
+        shouts: [("heavenly foot of pain", 0), ("tsutenkyaku", 0), ("heaven kick of pain", 0),
+                 ("tsunade punch", 1), ("chakra enhanced strength", 1), ("okasho", 1),
+                 ("creation rebirth", 2), ("sozo saisei", 2), ("byakugo creation rebirth", 2),
+                 ("summon katsuyu", 3), ("katsuyu", 3)],
+        moves: [
+            // A leap and a heel drop that splits the ground wide.
+            (name: "heavenly foot of pain", tags: [Ultimate], cooldown: 9.0, cost: 8.0, ops: [
+                Leap(range: 18.0, apex: 5.0),
+                SlamOnLand(radius: 6.0, damage: 20.0, knockback: 30.0, carve: 3.0),
+            ], fx: "earth", juice: Some((title: Some("TSUTENKYAKU"), boom: true, shake: 0.35))),
+            (name: "punch", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Explode(radius: 3.2, damage: 15.0, knockback: 30.0, carve: 2.0, element: Earth, at: Front, dist: 2.0),
+            ], fx: "earth", juice: Some((title: Some("OKASHO"), punch: 4.0, boom: true))),
+            (name: "creation rebirth", tags: [Defense], cooldown: 35.0, cost: 10.0, ops: [Mend(pct: 30.0)], fx: "chi",
+             juice: Some((title: Some("SOZO SAISEI")))),
+            (name: "katsuyu", tags: [Combo], cooldown: 20.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "katsuyu", form: Blob, mech: [Walks, Sticky, Heavy], element: Poison, scale: 4.0, temperament: Protective, intensity: 0.8)),
+                Mend(pct: 6.0, per_s: 2.0, secs: 4.0),
+            ], fx: "smoke", juice: Some((title: Some("KUCHIYOSE: KATSUYU")))),
+        ],
+    ),
+    (
+        id: "kit_deidara",
+        name: "Deidara",
+        kind: Kit,
+        names: ["deidara", "deidara akatsuki", "dei dara", "deidara senpai"],
+        fx: "fire",
+        shouts: [("clay birds", 0), ("clay spiders", 0), ("deidara c1", 0), ("c3 bomb", 2), ("deidara katsu", 5), ("c zero self destruct", 4),
+                 ("c2 dragon", 1), ("clay dragon", 1), ("c4 karura", 3)],
+        moves: [
+            // Little clay birds that home in and pop.
+            (name: "c1", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "clay birds", form: Bird, mech: [Flies, Homing, Explodes, Swarm], scale: 0.4, count: 5, temperament: Aggressive, intensity: 1.0)),
+            ], fx: "earth", juice: Some((title: Some("C1")))),
+            (name: "c2 dragon", tags: [Combo], cooldown: 12.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "clay dragon", form: Serpent, mech: [Flies, Shoots, Explodes], scale: 4.0, temperament: Aggressive, intensity: 0.9)),
+            ], fx: "earth", juice: Some((title: Some("C2 DRAGON")))),
+            // One huge clay doll dropped on the crosshair.
+            (name: "c3", tags: [Ultimate], cooldown: 20.0, cost: 12.0, ops: [
+                Cast(recipe: (name: "c3", form: Bomb, mech: [DropFromSky, Explodes, Heavy], scale: 4.0), signature: Some(Summon)),
+            ], fx: "fire", juice: Some((title: Some("C3"), boom: true, at: Aim, shake: 0.4))),
+            // Microscopic bombs breathed in by everyone nearby: they burn from the inside and it spreads.
+            (name: "c4", tags: [Ultimate], cooldown: 26.0, cost: 12.0, ops: [
+                Contagion(range: 30.0, cone: 12.0, status: Poison, secs: 5.0, spread: 4.0),
+            ], fx: "poison", juice: Some((title: Some("C4 KARURA")))),
+            // Become the bomb.
+            (name: "c0", tags: [Ultimate], cooldown: 90.0, cost: 20.0, ops: [
+                Explode(radius: 14.0, damage: 36.0, knockback: 55.0, carve: 4.0, element: Fire),
+                Strain(pct: 80.0),
+            ], fx: "fire", juice: Some((title: Some("C0"), boom: true, punch: 9.0, shake: 0.5, ripple: 16.0, debris: 40.0))),
+            // Every clay bomb you've placed goes off: KATSU!
+            (name: "katsu", tags: [Combo], cooldown: 3.0, cost: 3.0, ops: [
+                Explode(radius: 4.0, damage: 10.0, knockback: 18.0, carve: 1.5, element: Fire, at: Aim),
+            ], fx: "fire", juice: Some((title: Some("KATSU!"), boom: true, at: Aim))),
+        ],
+    ),
+    (
+        id: "kit_kisame",
+        name: "Kisame Hoshigaki",
+        kind: Kit,
+        names: ["kisame", "kisame hoshigaki", "hoshigaki kisame"],
+        fx: "water",
+        shouts: [("samehada", 0), ("samehada swing", 0),
+                 ("water shark bomb", 1), ("suikodan", 1), ("water shark", 1), ("thousand feeding sharks", 1),
+                 ("water prison shark dance", 2), ("suiro same odori", 2)],
+        moves: [
+            // The sword that eats chakra: a heavy swing that drinks their powers for a beat.
+            (name: "samehada", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Shove(range: 4.0, angle: 50.0, damage: 14.0, knockback: 18.0),
+                Lockout(range: 4.2, secs: 1.2),
+                Mend(pct: 3.0),
+            ], fx: "water", juice: Some((title: Some("SAMEHADA")))),
+            (name: "water shark bomb", tags: [Combo], cooldown: 8.0, cost: 7.0, ops: [
+                Cast(recipe: (name: "water shark", form: Fish, mech: [Charge, Fast, Homing, Blade], element: Water, scale: 1.2, count: 5, temperament: Aggressive, intensity: 1.0)),
+            ], fx: "water", juice: Some((title: Some("SUIKODAN NO JUTSU")))),
+            // A dome of water around the area — slow, drowning.
+            (name: "water prison shark dance", tags: [Ultimate], cooldown: 30.0, cost: 14.0, ops: [
+                Zone(radius: 12.0, secs: 5.0, status: Some(Wet), slow: 0.5, dps: 2.0),
+            ], fx: "water", juice: Some((title: Some("SUIRO SAME ODORI"), boom: true, ripple: 12.0))),
+        ],
+    ),
+    (
+        id: "kit_hashirama",
+        name: "Hashirama Senju",
+        kind: Kit,
+        names: ["hashirama", "hashirama senju", "senju hashirama", "first hokage", "the first hokage", "shodai hokage", "god of shinobi"],
+        fx: "earth",
+        shouts: [("wood release", 0), ("wood style", 0), ("mokuton", 0), ("wood style wood human", 1), ("wood golem", 1), ("mokujin", 1),
+                 ("gate of the great god", 2), ("sage art gate of the great god", 2), ("dai kamon", 2),
+                 ("true several thousand hands", 3), ("shinsu senju", 3), ("thousand armed buddha", 3)],
+        moves: [
+            (name: "wood release", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Erupt(count: 6, length: 14.0, width: 3.0, height: 4.0, launch: 12.0, damage: 10.0, element: Earth),
+            ], fx: "earth", juice: Some((title: Some("MOKUTON")))),
+            (name: "wood golem", tags: [Combo], cooldown: 30.0, cost: 14.0, ops: [
+                Cast(recipe: (name: "wood golem", form: Biped, mech: [Walks, Heavy, Grab, Stomp], element: Earth, scale: 6.0, temperament: Aggressive, intensity: 0.9), signature: Some(Summon)),
+            ], fx: "earth", juice: Some((title: Some("MOKUJIN NO JUTSU"), boom: true))),
+            // Torii gates slam down onto everyone at the crosshair and pin them.
+            (name: "gate of the great god", tags: [Ultimate], cooldown: 22.0, cost: 12.0, ops: [
+                Salvo(count: 5, delay: 0.6, interval: 0.1, radius: 2.4, damage: 10.0, knockback: 4.0, element: Earth, at: Aim, spread: 5.0, seek: true),
+                Zone(radius: 6.0, secs: 2.0, status: Some(Chill), slow: 0.7, at: Aim),
+            ], fx: "earth", juice: Some((title: Some("SENPO: DAI KAMON"), at: Aim, boom: true))),
+            // A wooden god of a thousand arms: its fists rain on the area.
+            (name: "true several thousand hands", tags: [Ultimate], cooldown: 60.0, cost: 20.0, ops: [
+                Salvo(count: 16, delay: 0.8, interval: 0.06, radius: 3.0, damage: 10.0, knockback: 20.0, element: Earth, carve: 1.5, at: Aim, spread: 10.0),
+            ], fx: "earth", juice: Some((title: Some("SHINSU SENJU"), boom: true, shake: 0.45, at: Aim))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Dragon Ball
+    (
+        id: "kit_hit",
+        name: "Hit",
+        kind: Kit,
+        names: ["hit", "hit the assassin", "hit dbs", "legendary assassin hit", "universe 6 hit"],
+        fx: "psychic",
+        shouts: [("time skip hit", 0), ("hit time skip", 0), ("time cage", 1), ("hit time cage", 1), ("flash fist crush", 2), ("hit flash fist", 2)],
+        moves: [
+            // Skip 0.5 s ahead: the world doesn't see you move.
+            (name: "time skip", tags: [Movement, Defense], cooldown: 4.0, cost: 5.0, ops: [
+                Phase(secs: 0.5),
+                WarpTo(range: 25.0, cone: 12.0, behind: 1.4, line: true),
+            ], fx: "psychic", juice: Some((title: Some("TIME SKIP")))),
+            // Time pockets around the aimed enemy: stuck in place for a moment.
+            (name: "time cage", tags: [Ultimate], cooldown: 16.0, cost: 10.0, ops: [
+                Afflict(range: 24.0, cone: 8.0, status: Some(Stun), secs: 1.2),
+            ], fx: "psychic", juice: Some((title: Some("TIME CAGE")))),
+            // An invisible punch at a pressure point.
+            (name: "flash fist crush", tags: [Primary], cooldown: 2.5, cost: 4.0, ops: [
+                Explode(radius: 1.8, damage: 14.0, knockback: 12.0, element: Psychic, at: Front, dist: 7.0),
+            ], fx: "psychic", juice: Some((at: Front, dist: 7.0, ripple: 2.0))),
+        ],
+    ),
+    (
+        id: "kit_goku_black",
+        name: "Goku Black",
+        kind: Kit,
+        names: ["goku black", "black goku", "zamasu", "goku black rose", "super saiyan rose", "fused zamasu"],
+        fx: "psychic",
+        shouts: [("divine lasso", 0), ("lasso of divine punishment", 0), ("black kamehameha", 1), ("black power ball", 2),
+                 ("holy wrath", 3), ("blades of judgment", 3), ("sword of light black", 4)],
+        moves: [
+            // A pink scythe of energy flung in a crescent.
+            (name: "divine lasso", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Wave(length: 30.0, speed: 34.0, width: 3.0, carve: 0.6, damage: 14.0, knockback: 18.0, element: Psychic, thin: true),
+            ], fx: "psychic", juice: Some((title: Some("DIVINE LASSO"), color: Some((1.0, 0.4, 0.75))))),
+            (name: "black kamehameha", tags: [Ultimate], cooldown: 16.0, cost: 12.0, ops: [
+                Cast(recipe: (name: "black kamehameha", form: Hands, mech: [Beam], element: Shadow, scale: 2.2), signature: Some(Beam)),
+            ], fx: "psychic", juice: Some((title: Some("BLACK KAMEHAMEHA"), boom: true, color: Some((1.0, 0.35, 0.7))))),
+            (name: "black power ball", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "black power ball", form: Ball, mech: [Explodes, Fast], element: Shadow, scale: 1.2)),
+            ], fx: "psychic"),
+            // A rain of pink blades.
+            (name: "holy wrath", tags: [Ultimate], cooldown: 22.0, cost: 12.0, ops: [
+                Salvo(count: 12, delay: 0.5, interval: 0.04, radius: 1.6, damage: 5.0, knockback: 8.0, element: Psychic, at: Aim, spread: 6.0, seek: true),
+            ], fx: "psychic", juice: Some((title: Some("HOLY WRATH"), at: Aim))),
+            (name: "divine blade", tags: [Combo], cooldown: 4.0, cost: 4.0, ops: [
+                Cast(recipe: (name: "divine blade", form: Sword, mech: [Blade, Extends], element: Psychic, scale: 1.4)),
+            ], fx: "psychic"),
+        ],
+    ),
+    // ---------------------------------------------------------------- One Piece
+    (
+        id: "kit_chopper",
+        name: "Tony Tony Chopper",
+        kind: Kit,
+        names: ["chopper", "tony tony chopper", "tony chopper", "cotton candy lover chopper"],
+        fx: "chi",
+        shouts: [("rumble ball", 0), ("ramburu boru", 0), ("heavy point", 1), ("kokutei cross", 2), ("hoof print", 2), ("kokutei roseo", 2),
+                 ("monster point", 3), ("chopper medicine", 4), ("doctor chopper", 4)],
+        moves: [
+            // One rumble ball: the transformations get faster and stronger for a while.
+            (name: "rumble ball", tags: [Ultimate], cooldown: 30.0, cost: 6.0, ops: [
+                Empower(secs: 8.0, damage: 1.3, armor: 0.85, contact: 3.0, contact_kb: 8.0, contact_cd: 0.5),
+            ], fx: "chi", juice: Some((title: Some("RUMBLE!")))),
+            (name: "heavy point", tags: [Defense], cooldown: 12.0, cost: 4.0, ops: [
+                SelfResize(scale: 1.4, secs: 6.0),
+                Counter(secs: 0.6, damage: 10.0, knockback: 20.0),
+            ], juice: Some((title: Some("HEAVY POINT")))),
+            // Hooves to the weak point: a cross-shaped strike.
+            (name: "kokutei cross", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [
+                Shove(range: 3.0, angle: 35.0, damage: 16.0, knockback: 20.0),
+            ], juice: Some((title: Some("KOKUTEI CROSS")))),
+            // Three rumble balls: a monster — huge, strong, uncontrolled.
+            (name: "monster point", tags: [Ultimate], cooldown: 60.0, cost: 12.0, ops: [
+                SelfResize(scale: 1.6, secs: 8.0),
+                Empower(secs: 8.0, damage: 1.7, armor: 0.5, contact: 8.0, contact_kb: 20.0, contact_cd: 0.4),
+                Strain(pct: 10.0),
+            ], fx: "blood", juice: Some((title: Some("MONSTER POINT"), boom: true, shake: 0.4))),
+            (name: "medicine", tags: [Defense], cooldown: 25.0, cost: 4.0, ops: [Mend(pct: 12.0, per_s: 2.0, secs: 4.0)], fx: "chi"),
+        ],
+    ),
+    (
+        id: "kit_kid",
+        name: "Eustass Kid",
+        kind: Kit,
+        names: ["kid", "eustass kid", "eustass captain kid", "captain kid", "eustass kidd"],
+        fx: "rigid",
+        shouts: [("punk gibson", 0), ("punk gibbon", 0), ("kid repel", 1), ("kid attract", 2), ("magnetic assign", 5),
+                 ("damned punk", 3), ("punk rotten", 4)],
+        moves: [
+            // Scrap metal flies to your arm and forms a giant fist — then it swings.
+            (name: "punk gibson", tags: [Primary], cooldown: 5.0, cost: 6.0, ops: [
+                Shove(range: 7.0, angle: 30.0, damage: 20.0, knockback: 34.0),
+            ], fx: "rigid", juice: Some((title: Some("PUNK GIBSON"), boom: true, punch: 4.0))),
+            (name: "repel", tags: [Defense], cooldown: 6.0, cost: 5.0, ops: [Field(strength: -70.0, radius: 9.0, secs: 0.6)], fx: "rigid",
+             juice: Some((title: Some("REPEL"), ripple: 9.0))),
+            (name: "attract", tags: [Combo], cooldown: 6.0, cost: 5.0, ops: [Yank(range: 26.0, speed: 26.0, cone: 10.0)], fx: "rigid",
+             juice: Some((title: Some("ATTRACT")))),
+            // A railgun of scrap: a huge magnetic arm fires a beam.
+            (name: "damned punk", tags: [Ultimate], cooldown: 22.0, cost: 14.0, ops: [
+                Cast(recipe: (name: "damned punk", form: Hands, mech: [Beam], element: Electric, scale: 2.6), signature: Some(Beam)),
+            ], fx: "lightning", juice: Some((title: Some("DAMNED PUNK"), boom: true, punch: 7.0))),
+            (name: "punk rotten", tags: [Combo], cooldown: 10.0, cost: 7.0, ops: [
+                Barrage(hits: 6, interval: 0.1, range: 5.0, angle: 50.0, damage: 5.0, knockback: 10.0, advance: 4.0),
+            ], fx: "rigid"),
+            // Magnetise the aimed enemy: they're pulled to whatever you throw next.
+            (name: "assign", tags: [Counter], cooldown: 12.0, cost: 5.0, ops: [Tag(range: 24.0, cone: 8.0, secs: 8.0)], fx: "rigid"),
+        ],
+    ),
+    (
+        id: "kit_big_mom",
+        name: "Big Mom",
+        kind: Kit,
+        names: ["big mom", "charlotte linlin", "linlin", "big mama"],
+        fx: "spirit",
+        shouts: [("soul pocus", 0), ("zeus thunder", 2), ("prometheus big mom", 1), ("big mom napoleon", 3), ("big mom maser", 4)],
+        moves: [
+            // She asks "life or death?" — whoever's looking at her and afraid loses a chunk of life.
+            (name: "soul pocus", tags: [Ultimate], cooldown: 20.0, cost: 10.0, ops: [
+                GazeStun(range: 16.0, cone: 50.0, secs: 1.0, status: Stun),
+                Afflict(range: 16.0, cone: 20.0, damage: 14.0),
+            ], fx: "spirit", juice: Some((title: Some("SOUL POCUS")))),
+            // The sun homie: fire that orbits and burns.
+            (name: "prometheus", tags: [Combo], cooldown: 12.0, cost: 8.0, ops: [
+                Cast(recipe: (name: "prometheus", form: Ball, mech: [Flies, Homing, Explodes], element: Fire, scale: 2.5, temperament: Aggressive, intensity: 1.0)),
+            ], fx: "fire", juice: Some((title: Some("PROMETHEUS")))),
+            (name: "zeus", tags: [Primary], cooldown: 8.0, cost: 7.0, ops: [
+                Salvo(count: 4, delay: 0.5, interval: 0.2, radius: 2.4, damage: 10.0, knockback: 14.0, element: Electric, at: Aim, spread: 3.0, seek: true),
+            ], fx: "lightning", juice: Some((title: Some("ZEUS")))),
+            // The hat becomes a sword.
+            (name: "napoleon", tags: [Primary], cooldown: 3.0, cost: 4.0, ops: [Shove(range: 6.0, angle: 70.0, damage: 16.0, knockback: 24.0)], fx: "spirit",
+             juice: Some((title: Some("NAPOLEON")))),
+            (name: "heavenly fire", tags: [Ultimate], cooldown: 26.0, cost: 12.0, ops: [
+                Cast(recipe: (name: "maser", form: Hands, mech: [Beam], element: Fire, scale: 2.4), signature: Some(Beam)),
+            ], fx: "fire", juice: Some((title: Some("HEAVENLY FIRE"), boom: true))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Bleach
+    (
+        id: "kit_gin",
+        name: "Gin Ichimaru",
+        kind: Kit,
+        names: ["gin", "gin ichimaru", "ichimaru gin", "captain ichimaru"],
+        fx: "rigid",
+        shouts: [("shoot to kill shinso", 0), ("ikorose shinso", 0), ("shinso", 0), ("butou renjin", 1), ("buto renjin", 1),
+                 ("kamishini no yari", 2), ("god slaying spear", 2), ("kill him kamishini no yari", 2)],
+        moves: [
+            // The blade extends in a blink, straight through them, and snaps back.
+            (name: "shinso", tags: [Primary], cooldown: 2.0, cost: 4.0, ops: [
+                Shove(range: 12.0, angle: 6.0, damage: 14.0, knockback: 16.0),
+            ], fx: "rigid", juice: Some((title: Some("IKORO SE, SHINSO")))),
+            // A flurry of extensions.
+            (name: "butou renjin", tags: [Combo], cooldown: 6.0, cost: 6.0, ops: [
+                Barrage(hits: 8, interval: 0.06, range: 12.0, angle: 10.0, damage: 3.0, knockback: 4.0, advance: 0.0),
+            ], fx: "rigid", juice: Some((title: Some("BUTOU RENJIN")))),
+            // Thirteen kilometres at five hundred times the speed of sound: a thin line through everything.
+            (name: "kamishini no yari", tags: [Ultimate], cooldown: 22.0, cost: 12.0, ops: [
+                Carve(length: 40.0, radius: 0.3, damage: 24.0),
+                Contagion(range: 40.0, cone: 3.0, status: Poison, secs: 4.0),
+            ], fx: "rigid", juice: Some((title: Some("KAMISHINI NO YARI"), boom: true, punch: 5.0))),
+        ],
+    ),
+    (
+        id: "kit_yhwach",
+        name: "Yhwach",
+        kind: Kit,
+        names: ["yhwach", "juha bach", "yuhabach", "yha bach", "the father of quincies"],
+        fx: "shadow",
+        shouts: [("the almighty", 0), ("yhwach the almighty", 0), ("auswählen", 1), ("auswahlen", 1), ("heilig pfeil", 2)],
+        moves: [
+            // He sees every future: the next hit is already avoided, and he copies what he saw.
+            (name: "the almighty", tags: [Counter, Ultimate], cooldown: 10.0, cost: 8.0, ops: [
+                Evade(secs: 0.6, slow: 0.7, speed: 1.6, blink: 2.5),
+                CopyLast(range: 45.0, secs: 10.0),
+            ], fx: "shadow", juice: Some((title: Some("THE ALMIGHTY")))),
+            // Take the power back: everyone around loses their powers for a moment and he heals.
+            (name: "auswahlen", tags: [Ultimate], cooldown: 40.0, cost: 14.0, ops: [
+                Zone(radius: 14.0, secs: 2.0, lockout: true),
+                Mend(pct: 16.0),
+            ], fx: "shadow", juice: Some((title: Some("AUSWÄHLEN"), boom: true, ripple: 14.0))),
+            (name: "heilig pfeil", tags: [Primary], cooldown: 2.0, cost: 3.0, ops: [
+                Cast(recipe: (name: "heilig pfeil", form: Ball, mech: [Fast, Pierce, Swarm], element: Light, scale: 0.3, count: 5)),
+            ], fx: "holy"),
+        ],
+    ),
+    // ---------------------------------------------------------------- JoJo users
+    (
+        id: "kit_kakyoin",
+        name: "Noriaki Kakyoin",
+        kind: Kit,
+        names: ["kakyoin", "noriaki kakyoin", "kakyoin noriaki", "kakyoin tenmei"],
+        fx: "hardlight",
+        shouts: [("twenty meter radius emerald splash", 0), ("20 meter emerald splash", 0), ("emerald splash kakyoin", 0),
+                 ("hierophant barrier", 1), ("hierophant net", 1), ("rero rero", 2), ("cherry lick", 2)],
+        moves: [
+            (name: "emerald splash", tags: [Primary], cooldown: 2.5, cost: 4.0, ops: [
+                Cast(recipe: (name: "emerald splash", form: Ball, mech: [Swarm, Fast, Homing], element: Light, scale: 0.25, count: 12)),
+            ], fx: "hardlight", juice: Some((title: Some("EMERALD SPLASH"), color: Some((0.3, 1.0, 0.5))))),
+            // The tentacle net: anyone who touches the strings eats emerald splash.
+            (name: "hierophant barrier", tags: [Defense], cooldown: 14.0, cost: 8.0, ops: [
+                Zone(radius: 10.0, secs: 5.0, dps: 3.0, slow: 0.25, follow: true),
+            ], fx: "hardlight", juice: Some((title: Some("HIEROPHANT GREEN"), ripple: 10.0))),
+            (name: "rero rero", tags: [Counter], cooldown: 8.0, cost: 2.0, ops: [GazeStun(range: 10.0, cone: 45.0, secs: 2.0, status: Shadow)], fx: "hardlight"),
+        ],
+    ),
+    (
+        id: "kit_bucciarati",
+        name: "Bruno Bucciarati",
+        kind: Kit,
+        names: ["bucciarati", "bruno bucciarati", "bucciarati bruno", "buccellati", "bruno buccellati"],
+        fx: "rigid",
+        shouts: [("ari ari ari", 0), ("ariariari", 0), ("ari rush", 0), ("zip away", 1), ("zipper dodge", 1)],
+        moves: [
+            // ARI ARI ARI: the stand rushes, and the send-off zips them apart.
+            (name: "arrivederci", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
+                Rush(hits: 12, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
+                     stand: Some((name: "Sticky Fingers", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0))),
+            ], fx: "rigid", juice: Some((title: Some("ARI ARI ARI ARRIVEDERCI")))),
+            // Unzip yourself: the hit goes through the gap.
+            (name: "zip away", tags: [Defense], cooldown: 6.0, cost: 3.0, ops: [Phase(secs: 0.7), Impulse(fwd: -8.0, up: 3.0)], fx: "rigid"),
+            (name: "zipper", tags: [Movement], cooldown: 3.0, cost: 6.0, ops: [Portal(depth: 8.0)], fx: "rigid"),
+        ],
+    ),
+    (
+        id: "kit_jolyne",
+        name: "Jolyne Cujoh",
+        kind: Kit,
+        names: ["jolyne", "jolyne cujoh", "jolyne kujo", "jojo jolyne", "jolyne kujoh"],
+        fx: "hardlight",
+        shouts: [("ora ora jolyne", 0), ("stone free rush", 0), ("stone free web", 1)],
+        moves: [
+            (name: "ora rush", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
+                Rush(hits: 12, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.6,
+                     stand: Some((name: "Stone Free", form: Biped, mech: [Flies, Blunt], scale: 1.9, mass: 70.0))),
+            ], fx: "hardlight", juice: Some((title: Some("ORA ORA ORA")))),
+            // A web of string: whoever walks into it is caught.
+            (name: "string net", tags: [Defense], cooldown: 10.0, cost: 6.0, ops: [Zone(radius: 6.0, secs: 4.0, status: Some(Chill), slow: 0.6, at: Aim)],
+             fx: "hardlight", juice: Some((at: Aim, ripple: 6.0))),
+            (name: "string", tags: [Movement], cooldown: 1.2, cost: 3.0, ops: [Reel(range: 28.0, speed: 26.0)], fx: "hardlight"),
+        ],
+    ),
+    (
+        id: "kit_mista",
+        name: "Guido Mista",
+        kind: Kit,
+        names: ["mista", "guido mista", "mista guido"],
+        fx: "hardlight",
+        shouts: [("sex pistols", 0), ("sex pistols bullets", 0), ("redirect the bullets", 0)],
+        moves: [
+            // Six little stands ride the bullets and kick them around cover into the target.
+            (name: "sex pistols", tags: [Primary], cooldown: 4.0, cost: 5.0, ops: [
+                Seeker(recipe: (name: "sex pistols bullet", form: Ball, mech: [Fast, Pierce], scale: 0.2), damage: 8.0, knockback: 6.0, hits: 3, chain: 10.0),
+            ], fx: "hardlight", juice: Some((title: Some("SEX PISTOLS")))),
+        ],
+    ),
+    (
+        id: "kit_johnny",
+        name: "Johnny Joestar",
+        kind: Kit,
+        names: ["johnny", "johnny joestar", "jojo johnny", "johnny joestar tusk"],
+        fx: "psychic",
+        shouts: [("tusk act 1", 0), ("tusk act 2", 1), ("golden rectangle nail", 1),
+                 ("tusk act 3", 2), ("tusk act 4", 3), ("infinite rotation", 3)],
+        moves: [
+            // Spinning fingernails fired like bullets.
+            (name: "tusk act 1", tags: [Primary], cooldown: 1.5, cost: 2.0, ops: [
+                Cast(recipe: (name: "spinning nails", form: Ball, mech: [Fast, Spin, Pierce, Swarm], scale: 0.2, count: 5)),
+            ], fx: "psychic"),
+            // The golden spin: the hole the nail leaves chases them.
+            (name: "tusk act 2", tags: [Primary], cooldown: 4.0, cost: 4.0, ops: [
+                Seeker(recipe: (name: "golden nail", form: Ball, mech: [Fast, Spin, Pierce], scale: 0.25), damage: 11.0, knockback: 8.0, hits: 1),
+            ], fx: "psychic"),
+            // Shoot yourself into your own hole and pop out elsewhere.
+            (name: "tusk act 3", tags: [Movement], cooldown: 4.0, cost: 4.0, ops: [Phase(secs: 0.5), Blink(dist: 14.0, afterimage: true)], fx: "psychic"),
+            // Infinite rotation: the spin never stops — it grinds them apart.
+            (name: "tusk act 4", tags: [Ultimate], cooldown: 30.0, cost: 14.0, ops: [
+                Drill(speed: 20.0, secs: 0.5, grind: 0.9, damage: 30.0, knockback: 44.0, element: Psychic, up: 0.3),
+            ], fx: "psychic", juice: Some((title: Some("TUSK ACT 4"), boom: true, punch: 6.0, shake: 0.35))),
         ],
     ),
 

@@ -408,6 +408,7 @@ class Move:
     family: str = ""
     crit: str | None = None
     name: str = ""
+    tpl: str = ""
 
 
 class Ctx:
@@ -805,14 +806,18 @@ EVASIVE = {
 }
 
 
-def m_roll(ctx: Ctx) -> Move:
+def evasive_style(ctx: Ctx) -> str:
     t = ctx.c.temperament
     pool = {"Fearful": ["flee"], "Playful": ["cartwheel", "backflip", "vault"], "Lazy": ["flop"], "Sneaky": ["sidestep", "roll", "slide"],
             "Aggressive": ["sprint", "slide", "vault"], "Chaotic": ["cartwheel", "slide", "backflip"],
             "Protective": ["roll", "sprint", "sidestep"]}.get(t, ["roll", "vault", "backflip", "sidestep", "slide"])
     if ctx.p.flav == "chi":
         pool = ["backflip", "vault", "sidestep"]
-    names, fwd, up, ev, blink = EVASIVE[ctx.pick("evasive", pool)]
+    return ctx.pick("evasive", pool)
+
+
+def m_roll(ctx: Ctx) -> Move:
+    names, fwd, up, ev, blink = EVASIVE[evasive_style(ctx)]
     ops = []
     if blink:
         ops.append(f"Blink(dist: {fmt(blink)}, afterimage: true)")
@@ -1037,9 +1042,13 @@ def c_sweep(ctx: Ctx) -> Move:
     return Move(names, ops, cd=7.0, cost=8.0, juice=juice(ctx, punch=2.0), family="sweep")
 
 
+def maul_style(ctx: Ctx) -> str:
+    return ctx.pick("maul", ["maul", "frenzy", "rend", "pack hunt"] if ctx.c.form in ("Quadruped", "Kaiju") else ["maul", "frenzy", "rend"])
+
+
 def c_maul(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    style = ctx.pick("maul", ["maul", "frenzy", "rend", "pack hunt"] if ctx.c.form in ("Quadruped", "Kaiju") else ["maul", "frenzy", "rend"])
+    style = maul_style(ctx)
     if style == "frenzy":
         names = ["frenzy", f"{a[0]} frenzy", "feeding frenzy"]
         ops = [f"Barrage(hits: 7, interval: 0.07, range: 3.0, angle: 80.0, damage: {ctx.d(3)}, knockback: 2.0, finish: {ctx.kb(16)}, advance: 3.0{ctx.el()})"]
@@ -1329,7 +1338,7 @@ def u_rage(ctx: Ctx) -> Move:
 
 
 def u_nap(ctx: Ctx) -> Move:
-    names = ["power nap", "hibernate", "snooze"]
+    names = ["nap time", "snooze", "hibernate"]
     ops = ["Mend(pct: 30.0, per_s: 4.0, secs: 4.0)", "Zone(radius: 7.0, secs: 3.0, slow: 0.55)", "Counter(secs: 1.0)"]
     return Move(names, ops, cd=24.0, cost=40.0, juice=ult_juice(ctx, names[0], punch=2.0, shake=0.1), family="nap")
 
@@ -1615,6 +1624,7 @@ def build_kit(c: S.Char, en: S.Enums, rules: Rules) -> dict | None:
                 continue
             mv.tags = tags
             mv.cd = round(mv.cd * ctx.cdm, 2)
+            mv.tpl = tpl_for(slot, fam, ctx)
             families.add(mv.family or fam)
             moves.append(mv)
             trace.append(f"{slot}={fam}")
@@ -1631,6 +1641,7 @@ def build_kit(c: S.Char, en: S.Enums, rules: Rules) -> dict | None:
             continue
         if settle(mv, []):
             mv.tags = []
+            mv.tpl = tpl_for("bonus", fam, ctx)
             moves.append(mv)
             trace.append(f"bonus={fam}")
         break
@@ -1644,7 +1655,96 @@ def build_kit(c: S.Char, en: S.Enums, rules: Rules) -> dict | None:
     for mv in moves:
         if mv.fx == kit_fx or (rules.fx and mv.fx not in rules.fx):
             mv.fx = ""
-    return {"char": c, "prof": p, "moves": moves, "fx": kit_fx, "trace": trace}
+    return {"char": c, "prof": p, "moves": moves, "fx": kit_fx, "trace": trace, "ctx": ctx}
+
+
+# ============================================================================ template ids (bd_sim powers/derive.rs)
+
+FAMILY_TPL = {
+    ("primary", "stretch"): "Stretch", ("primary", "thrust"): "Thrust", ("primary", "smash"): "Smash", ("primary", "stomp"): "Stomp",
+    ("primary", "breath"): "Breath", ("primary", "bite"): "Bite", ("primary", "whip"): "Lash", ("primary", "spin"): "Spin",
+    ("primary", "hex"): "Hex",
+    ("movement", "blur"): "Blur", ("movement", "streak"): "Streak", ("movement", "warp"): "Ambush", ("movement", "boost"): "Boost",
+    ("movement", "leap"): "Leap", ("movement", "charge"): "Charge", ("movement", "pounce"): "Pounce", ("movement", "reel"): "Reel",
+    ("movement", "burrow"): "Burrow", ("movement", "surf"): "Surf", ("movement", "rollout"): "RollOut", ("movement", "bounce"): "Bounce",
+    ("movement", "phase"): "PhaseDash", ("movement", "elemstep"): "ElemStep",
+    ("defense", "counter"): "Parry", ("defense", "guard"): "Guard", ("defense", "deflect"): "Deflect", ("defense", "ward"): "Ward",
+    ("defense", "brace"): "Brace", ("defense", "evade"): "Evade", ("defense", "smoke"): "Smoke", ("defense", "heal"): "Heal",
+    ("defense", "shell"): "Shell", ("defense", "phase"): "Intangible",
+    ("combo", "barrage"): "Flurry", ("combo", "fists"): "FistBarrage", ("combo", "rush"): "Rush", ("combo", "blitz"): "Blitz",
+    ("combo", "launcher"): "Launcher", ("combo", "volley"): "Volley", ("combo", "sweep"): "Sweep", ("combo", "lash"): "TailLash",
+    ("combo", "curse"): "Curse", ("combo", "wave"): "Crescent", ("combo", "drill"): "Drill", ("combo", "finisher"): "FollowThrough",
+    ("combo", "swarm"): "Dogpile",
+    ("ultimate", "storm"): "Storm", ("ultimate", "awaken"): "Awaken", ("ultimate", "meteor"): "Meteor", ("ultimate", "blades"): "Blades",
+    ("ultimate", "cannon"): "Cannon", ("ultimate", "lockon"): "DeadAim", ("ultimate", "bombard"): "Bombard",
+    ("ultimate", "stampede"): "Stampede", ("ultimate", "overdrive"): "Overdrive", ("ultimate", "gamble"): "Gamble",
+    ("ultimate", "guardian"): "Guardian", ("ultimate", "piledriver"): "Piledriver", ("ultimate", "assassinate"): "Assassinate",
+    ("ultimate", "strafe"): "Strafe", ("ultimate", "orbital"): "Orbital", ("ultimate", "courage"): "Courage",
+    ("ultimate", "knockout"): "Knockout", ("ultimate", "beatdown"): "Beatdown", ("ultimate", "toprope"): "TopRope",
+    ("ultimate", "rage"): "Rage", ("ultimate", "nap"): "Nap", ("ultimate", "freakout"): "FreakOut",
+    ("ultimate", "showstopper"): "Showstopper", ("ultimate", "throttle"): "Throttle", ("ultimate", "timestop"): "TimeStop",
+    ("bonus", "grow"): "Grow", ("bonus", "shrink"): "Shrink", ("bonus", "yank"): "Yank", ("bonus", "web"): "WebSnare",
+    ("bonus", "seek"): "Seek", ("bonus", "bomb"): "Bomb", ("bonus", "attract"): "Gravity", ("bonus", "repel"): "Repulse",
+    ("bonus", "trap"): "Trap", ("bonus", "rewind"): "Rewind", ("bonus", "portal"): "Portal", ("bonus", "drop"): "Drop",
+    ("bonus", "breath"): "Breath", ("bonus", "roar"): "Roar", ("bonus", "stomp"): "Stomp",
+}
+BRAWL_TPL = {"jab": "Jab", "haymaker": "Haymaker", "kick": "Kick", "flying kick": "FlyingKick", "palm": "Palm", "headbutt": "Headbutt",
+             "slap": "Slap", "elbow": "Elbow", "punch": "Punch"}
+EVASIVE_TPL = {"roll": "Roll", "slide": "Slide", "vault": "Vault", "backflip": "Springback", "sprint": "Sprint", "sidestep": "Sidestep",
+               "flee": "Flee", "cartwheel": "Cartwheel", "flop": "Flop"}
+MAUL_TPL = {"maul": "Maul", "frenzy": "Frenzy", "rend": "Rend", "pack hunt": "PackHunt"}
+
+
+def bolt_kind(ctx: Ctx) -> str:
+    E, w = ctx.E, ctx.p.weapon
+    if E == "Electric":
+        return "Thunder"
+    if E == "Psychic":
+        return "Lift"
+    if E in ("Atomic", "Water") and ctx.has("BounceBeam"):
+        return "Ray"
+    k = {"Fire": "Fireball", "Ice": "Shard", "Wind": "Cutter", "Earth": "Rock", "Poison": "Spit", "Shadow": "Orb"}.get(E)
+    if k:
+        return k
+    if w == "bow":
+        return "HomingArrow" if "Homing" in ctx.m else "Arrow"
+    if w == "knives":
+        return "Knives"
+    if ctx.p.flav == "tech" or w == "gun":
+        return "Pellets"
+    return "Energy"
+
+
+def tpl_for(slot: str, fam: str, ctx: Ctx) -> str:
+    """The Rust `Tpl` of the template `fam` picked for `slot` (same picks as the name builders)."""
+    m = ctx.m
+    if fam == "slash":
+        return "Cleave" if ctx.p.weapon == "axe" or ctx.p.heavy else "Slash"
+    if fam == "bolt":
+        return f"Bolt({bolt_kind(ctx)})"
+    if fam == "beam":
+        return "BeamBounce" if "Ricochet" in m else "Beam"
+    if fam == "punch":
+        return f"Brawl({BRAWL_TPL[brawl_style(ctx)]})"
+    if fam == "teleport":
+        return "Vanish" if ctx.p.r["sneak"] >= 2 and ctx.E in ("Light", "Shadow") else "Teleport"
+    if fam == "fly":
+        return "Swoop" if ctx.c.form == "Bird" or "Glide" in m else "Fly"
+    if fam == "roll":
+        return f"Evasive({EVASIVE_TPL[evasive_style(ctx)]})"
+    if fam == "grab":
+        return "Grab(Constrict)" if "Constrict" in m else "Grab(Toss)" if ctx.p.beast or ctx.c.form == "Kaiju" else "Grab(Suplex)"
+    if fam == "maul":
+        return f"Maul({MAUL_TPL[maul_style(ctx)]})"
+    if fam == "summon":
+        form = ctx.c.form if ctx.c.form in ("Insect", "Arachnid", "Bird", "Fish", "Serpent", "Quadruped") else "Biped"
+        flies = "Flies" in m or form in ("Insect", "Bird")
+        mech = next((x for x in ("Blade", "Blunt", "Shoots", "Grab", "Breath") if x in m), None)
+        return f"Summon({form}, {'true' if flies else 'false'}, {f'Some({mech})' if mech else 'None'})"
+    t = FAMILY_TPL.get((slot, fam))
+    if t is None:
+        raise KeyError(f"no template id for {slot}/{fam}")
+    return t
 
 
 # ============================================================================ names, collisions, output
@@ -1706,7 +1806,46 @@ def word_spread(chars: list[S.Char]) -> dict[str, int]:
     return {w: len(o) for w, o in owners.items()}
 
 
-def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
+DERIVED_BUDGET = 2500   # most derived kits (agreed cap; the table's MAX_POWERS budget may shrink it further)
+HEADROOM = 300          # table slots always left free for hand content that lands before a re-run
+VARIANT_WORDS = {"super", "saiyan", "baby", "young", "old", "kid", "teen", "adult", "future", "past", "evil", "dark", "ultimate", "prime",
+                 "classic", "modern", "zombie", "robot", "mecha", "robo", "cyborg", "clone", "golden", "shadow", "armored", "armoured",
+                 "giant", "mini", "chibi", "beast", "true", "final", "perfect", "god", "mode", "form", "suit", "version", "noir", "2099"}
+
+
+def priorities(chars: list[S.Char], claims: S.Claims) -> tuple[dict[str, float], dict[str, str]]:
+    """How likely players are to NAME each character (Wikidata sitelinks of its best character match +
+    curation bonuses), and the ones that are not characters at all (reason per key)."""
+    names = {n for c in chars for n in c.names}
+    pop = S.popularity(names)
+    hand = {kitform(n) for n in claims.names if len(n) >= 5}
+    score: dict[str, float] = {}
+    drop: dict[str, str] = {}
+    for c in chars:
+        charpop = max((pop[n]["char"] for n in c.names if n in pop), default=0)
+        generic = pop.get(c.key, {}).get("generic", 0)  # the canonical name itself names a TYPE ("werewolf")
+        ws = c.key.split(" ")
+        if c.pack == "military":
+            drop[c.key] = "not a character (military unit)"
+            continue
+        if c.pack == "tabletop" and charpop < 10:
+            drop[c.key] = "generic creature (tabletop monster type)"
+            continue
+        if generic >= 20 and charpop == 0 and c.origin == "names" and c.pack not in ("pokemon", "transformers"):
+            drop[c.key] = f"generic creature type ({generic} sitelinks as a type)"
+            continue
+        # a variant of a hand-built character ("zombie captain america", "super saiyan blue vegeta")
+        base = next((h for h in hand if h in c.key and h != c.key and (" " in h or len(h) >= 6)
+                     and re.search(r"(^| )" + re.escape(h) + r"( |$)", c.key)), None)
+        if base and charpop < 25 and (set(ws) - set(base.split(" "))) <= VARIANT_WORDS | {"the", "of", "marvel", "dc"}:
+            drop[c.key] = f"variant of the hand-built {base!r}"
+            continue
+        bonus = 30 if (c.origin == "costume" or c.colors) else 15 if c.origin == "icon" else 0
+        score[c.key] = charpop + bonus + 0.01 * len(c.names)
+    return score, drop
+
+
+def assign(chars: list[S.Char], claims: S.Claims, rules: Rules, rank: dict[str, float] | None = None):
     """Pick each character's kit names: skip characters hand content names; unique aliases.
 
     A one-word alias that many other things also use ("fire", "robot", "bishop", "war") is not a kit
@@ -1726,7 +1865,8 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
     kept = []
     skipped_hand = []
     taken: dict[str, str] = {}
-    for c in sorted(chars, key=lambda c: (PACK_ORDER.index(c.pack) if c.pack in PACK_ORDER else 99, c.order)):
+    order = lambda c: (-(rank or {}).get(c.key, 0.0), PACK_ORDER.index(c.pack) if c.pack in PACK_ORDER else 99, c.order)  # noqa: E731
+    for c in sorted(chars, key=order):
         if any(n in hand for n in c.names):
             skipped_hand.append(c)
             continue
@@ -1754,6 +1894,8 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
         for n in names:
             taken[n] = c.key
         c.kit_names = names  # type: ignore[attr-defined]
+        if c.display == c.display.lower():
+            c.display = c.display.title()
         canon = {c.key, kitform(c.display)}
         ks = c.key.split(" ")
         if len(ks) > 1 and ks[-1] in V.STRIP_SUFFIXES:
@@ -1766,33 +1908,42 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
     return kept, skipped_hand
 
 
+def impact_frame(ctx: Ctx) -> str | None:
+    imp = V.PACK_IMPACT.get(ctx.c.pack)
+    if ctx.p.flav == "holy":
+        imp = "holy"
+    elif ctx.E == "Shadow" or ctx.p.flav == "spirit":
+        imp = "void" if imp is None else imp
+    elif ctx.p.flav == "glitch":
+        imp = "glitch"
+    return imp
+
+
 def ron_kit(k: dict, pid: str) -> str:
+    """One compact entry: `derived: Some((el, tm, sz, wp, col, fr, mv: [(Tpl, "name")..]))`."""
     c: S.Char = k["char"]
-    p: Prof = k["prof"]
-    bits = [p.elem if p.elem != "Light" else (p.flav or "plain"), c.temperament.lower()]
-    if p.weapon:
-        bits.append(p.weapon)
-    head = f"    // {c.display} [{c.pack} {' '.join(bits)}]: {' '.join(t.split('=')[1] for t in k['trace'])}\n"
+    ctx: Ctx = k["ctx"]
     names = ", ".join(f'"{n}"' for n in c.kit_names)  # type: ignore[attr-defined]
     fx = f', fx: "{k["fx"]}"' if k["fx"] else ""
     disp = c.display.replace('"', "'")
-    out = [head, f'    (id: "{pid}", name: "{disp}", kind: Kit{fx},\n', f"     names: [{names}],\n", "     moves: [\n"]
-    for mv in k["moves"]:
-        parts = [f'name: "{mv.name}"']
-        if mv.tags:
-            parts.append(f"tags: [{', '.join(mv.tags)}]")
-        parts.append(f"cooldown: {fmt(mv.cd)}")
-        parts.append(f"cost: {fmt(mv.cost)}")
-        if mv.fx:
-            parts.append(f'fx: "{mv.fx}"')
-        parts.append(f"ops: [{', '.join(mv.ops)}]")
-        if mv.juice:
-            parts.append(f"juice: {mv.juice}")
-        if mv.crit:
-            parts.append(f"crit: {mv.crit}")
-        out.append(f"      ({', '.join(parts)}),\n")
-    out.append("    ]),\n")
-    return "".join(out)
+    d = []
+    if ctx.E != "Light":
+        d.append(f"el: {ctx.E}")
+    if c.temperament != "Calm":
+        d.append(f"tm: {c.temperament}")
+    if abs(ctx.p.size - 1.0) > 1e-6:
+        d.append(f"sz: {fmt(ctx.p.size)}")
+    if ctx.p.weapon == "bow":
+        d.append("wp: Some(Bow)")
+    col = ctx.color()
+    if col:
+        d.append(f"col: {col}")
+    fr = impact_frame(ctx)
+    if fr:
+        d.append(f'fr: Some("{fr}")')
+    mv = ", ".join(f'({m.tpl}, "{m.name}")' for m in k["moves"])
+    d.append(f"mv: [{mv}]")
+    return f'    (id: "{pid}", name: "{disp}", kind: Kit{fx}, names: [{names}],\n     derived: Some(({", ".join(d)}))),\n'
 
 
 def generate(verbose: bool = True):
@@ -1800,7 +1951,15 @@ def generate(verbose: bool = True):
     claims = S.parse_claims(OUT_NAME)
     rules = Rules(claims)
     chars = load_characters(en)
-    kept, skipped_hand = assign(chars, claims, rules)
+    rank, not_chars = priorities(chars, claims)
+    budget = max(0, min(DERIVED_BUDGET, S.max_powers() - claims.entries - HEADROOM))
+    generate.budget = budget  # type: ignore[attr-defined]
+    generate.not_chars = not_chars  # type: ignore[attr-defined]
+    cands = [c for c in chars if c.key not in not_chars]
+    kept, skipped_hand = assign(cands, claims, rules, rank)
+    generate.no_name = len(cands) - len(skipped_hand) - len(kept)  # type: ignore[attr-defined]
+    generate.cut = kept[budget + 200:]  # type: ignore[attr-defined]
+    kept = kept[: budget + 200]  # a margin: the collision pass may drop a few
     kits = []
     failed = []
     for c in kept:
@@ -1829,6 +1988,8 @@ def generate(verbose: bool = True):
     dropped, accepted = collision_pass(kits, claims, en, rules)
     generate.accepted = accepted  # type: ignore[attr-defined]
     kits = [k for k in kits if k["char"].kit_names]  # type: ignore[attr-defined]
+    generate.cut = [k["char"] for k in kits[budget:]] + generate.cut  # type: ignore[attr-defined]
+    kits = kits[:budget]
     return en, claims, chars, kept, skipped_hand, failed, kits, dropped
 
 
@@ -1910,13 +2071,14 @@ def collision_pass(kits: list[dict], claims: S.Claims, en: S.Enums, rules: Rules
 def render(kits: list[dict], claims: S.Claims) -> str:
     head = [
         "// GENERATED by tools/derive_kits/derive_kits.py — DO NOT EDIT BY HAND (re-run the generator).\n",
-        "// DERIVED KITS (AUTO-KITS, docs/toolbox/BRIEF.md): a `kind: Kit` for every character-like icon / costume\n",
-        "// that no hand-made power or kit names. \"<character> attack / dash / block / counter / combo / ultimate\"\n",
-        "// fires an in-character move derived from its element, weapon, mechanics, size, temperament and pack.\n",
-        "// The bare name still summons the costume construct (a kit never grants). Hand content always wins: the\n",
-        "// generator skips anything a hand file names, and this file sorts LAST (ties go to the earlier file).\n",
-        f"// {len(kits)} kits, {sum(len(k['moves']) for k in kits)} moves. Hand files seen: {', '.join(claims.files)}\n",
-        "// Each comment: display [pack element/flavour temperament weapon]: templates (primary movement defense combo ultimate bonus).\n",
+        "// DERIVED KITS (AUTO-KITS, docs/toolbox/AUTO_KITS.md): a `kind: Kit` for the most-named characters no hand-made\n",
+        "// power or kit names. \"<character> attack / dash / block / counter / combo / ultimate\" fires an in-character\n",
+        "// move derived from its element, weapon, mechanics, size, temperament and pack. The bare name still summons\n",
+        "// the costume construct (a kit never grants). Hand content always wins: the generator skips anything a hand\n",
+        "// file names, and this file sorts LAST (ties go to the earlier file).\n",
+        f"// {len(kits)} kits, {sum(len(k['moves']) for k in kits)} moves; budget {getattr(generate, 'budget', 0)} (MAX_POWERS - hand entries - headroom).\n",
+        "// COMPACT: `derived` = element / temperament / size / colour / impact frame + (template, move name) per slot\n",
+        "// (Primary, Movement, Defense+Counter, Combo, Ultimate, bonus); bd_sim powers/derive.rs expands them into moves.\n",
         "[\n",
     ]
     body = [ron_kit(k, k["pid"]) for k in kits]
@@ -1973,10 +2135,11 @@ def main() -> int:
 
     print(f"characters found: {len(chars)} (icons + names lists + costumes, merged)")
     print(f"  skipped (a hand-made power / kit names them): {len(skipped_hand)}")
-    print(f"  no usable name left: {len(chars) - len(skipped_hand) - len(kept)}   no kit (template failure): {len(failed)}")
+    print(f"  no usable name left: {generate.no_name}   no kit (template failure): {len(failed)}")
     print(f"derived kits: {len(kits)}  moves: {sum(len(k['moves']) for k in kits)}  names: {sum(len(k['char'].kit_names) for k in kits)}")
     print(f"hand kits / powers: {len(claims.kits)} kits in {len(claims.files)} files; total table ≈ {len(kits)} derived + hand")
     print(f"collision drops (alias removed because a known phrase would read as its move): {len(dropped)}")
+    print(f"not characters (dropped): {len(generate.not_chars)}   over budget {generate.budget} (least named, cut): {len(generate.cut)}")
     if errs:
         print(f"SELF-CHECK FAILURES: {len(errs)}")
         for e in errs[:30]:

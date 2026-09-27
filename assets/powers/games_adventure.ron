@@ -180,7 +180,7 @@
         names: ["mario", "super mario", "mario mario", "mario bros", "super mario bros", "jumpman", "its a me", "it's a me"],
         shouts: [("groundpound", 0), ("butt stomp", 0), ("mario ground pound", 0),
                  ("long jump", 1), ("mario long jump", 1),
-                 ("cappy throw", 2), ("hat throw", 2), ("throw cappy", 2), ("cap throw", 2),
+                 ("cappy throw", 2), ("hat throw", 2), ("throw cappy", 2), ("cap throw", 2), ("cappy capture", 2), ("mario capture", 2),
                  ("fire flower", 3), ("super star", 4), ("star power", 4), ("starman", 4), ("star man", 4), ("invincibility star", 4), ("super star power", 4),
                  ("fludd", 5), ("f l u d d", 5), ("fludd hover", 5), ("flood hover", 5), ("hover nozzle", 5), ("flud", 5),
                  ("fluid hover", 5),
@@ -199,6 +199,7 @@
             // The hat flies out spinning, bonks, and comes home (the returning boomerang).
             (name: "cappy throw", tags: [Primary], cooldown: 0.7, cost: 2.0, ops: [
                 Cast(recipe: (name: "cappy", form: Ball, mech: [Returning, Spin, Blunt], scale: 0.55, mass: 6.0)),
+                Capture(range: 24.0, secs: 6.0, ride: true),
             ], juice: Some((color: Some((1.0, 0.95, 0.95))))),
             // Two fireballs that BOUNCE along the ground. ends: in place.
             (name: "fire flower", fx: "fire", tags: [Primary], cooldown: 0.6, cost: 2.0, ops: [
@@ -1143,7 +1144,8 @@
                  ("od ah viing", 3), ("odahviing", 3), ("call dragon", 3), ("od a ving", 3),
                  ("faas ru maar", 4), ("dismay", 4), ("fas ru mar", 4),
                  ("krii lun aus", 5), ("marked for death", 5), ("kree loon ows", 5),
-                 ("zun haal viik", 6), ("disarm shout", 6), ("zoon hal veek", 6)],
+                 ("zun haal viik", 6), ("disarm shout", 6), ("zoon hal veek", 6),
+                 ("gol hah dov", 7), ("bend will", 7), ("gol ha dov", 7), ("goal hah dove", 7)],
         moves: [
             // Ethereal: blows pass through you for a moment.
             (name: "feim zii gron", fx: "spirit", tags: [Defense], cooldown: 14.0, cost: 8.0, ops: [
@@ -1174,6 +1176,10 @@
             (name: "zun haal viik", tags: [Counter], cooldown: 10.0, cost: 6.0, ops: [
                 Disarm(range: 20.0, cone: 10.0, knockback: 8.0),
             ], juice: Some((title: Some("ZUN HAAL VIIK")))),
+            // Gol hah dov — Bend Will: the beast (a dragon, a mech, anything alive) is yours; climb on.
+            (name: "gol hah dov", fx: "psychic", tags: [Ultimate], cooldown: 24.0, cost: 14.0, ops: [
+                Capture(range: 30.0, secs: 7.0, ride: true),
+            ], juice: Some((title: Some("GOL HAH DOV"), color: Some((0.6, 0.5, 0.9))))),
         ],
     ),
 
@@ -2020,7 +2026,8 @@
                  ("windblast", 3), ("wind blast", 3),
                  ("far reach", 4), ("farreach", 4),
                  ("shadow walk", 5), ("shadowwalk", 5),
-                 ("drop assassination", 6), ("drop kill", 6)],
+                 ("drop assassination", 6), ("drop kill", 6),
+                 ("possession", 7), ("corvo possession", 7), ("dishonored possession", 7)],
         moves: [
             // Blink: instant, short, silent — no trail, you're simply THERE (onto ledges too).
             // ends: at the spot you looked at.
@@ -2050,6 +2057,10 @@
             (name: "drop assassination", tags: [Combo], cooldown: 3.0, cost: 5.0, ops: [
                 Pounce(range: 14.0, speed: 36.0, cone: 22.0, damage: 22.0, knockback: 10.0),
             ]),
+            // Possession: slip into the aimed creature / machine and drive it for a few seconds.
+            (name: "possession", fx: "shadow", tags: [Ultimate], cooldown: 16.0, cost: 10.0, ops: [
+                Capture(range: 20.0, secs: 5.0, ride: true),
+            ], juice: Some((title: Some("POSSESSION"), color: Some((0.3, 0.25, 0.35))))),
         ],
     ),
 

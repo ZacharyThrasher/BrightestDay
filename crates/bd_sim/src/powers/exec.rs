@@ -949,7 +949,12 @@ impl World {
         let (eye, look) = self.eye_look(i);
         match op {
             MoveOp::Cast { recipe, modifier, signature, merge } => {
-                let r = recipe.to_recipe();
+                let mut r = recipe.to_recipe();
+                // SHONEN CLASSICS: a costumed summon (a kit's clones wear the character's look).
+                let mut shape = None;
+                if recipe.costume {
+                    bd_shapes::costume::summon::apply(&recipe.name, &mut r, &mut shape);
+                }
                 let aim = Aim { origin: eye, dir: look, target_hint: None, modifier: *modifier };
                 let res = match signature {
                     Some(kind) => {
@@ -959,7 +964,7 @@ impl World {
                         }
                         self.cast_signature(id, r, None, aim, sig)
                     }
-                    None => self.cast(id, r, None, aim),
+                    None => self.cast(id, r, shape, aim),
                 };
                 match res {
                     Ok(_) => Ok(()),

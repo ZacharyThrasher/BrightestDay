@@ -474,3 +474,99 @@ fn deterministic() {
     };
     assert_eq!(go(), go());
 }
+
+/// Every headline described move DOES something in a real world (no silent no-ops): the caster
+/// moves, the target is hit / moved, a construct appears, or a state starts.
+#[test]
+fn every_headline_move_does_something() {
+    let phrases = [
+        "shadow teleport behind bob",
+        "lightning dash through him",
+        "gravity punch",
+        "fire uppercut",
+        "pull everyone to me",
+        "push everyone away",
+        "swap with him",
+        "blink above him",
+        "teleport back",
+        "dash",
+        "charge him",
+        "leap",
+        "fly",
+        "punch him",
+        "kick him twice",
+        "slam",
+        "stomp",
+        "smash",
+        "fire slash",
+        "flurry",
+        "spin attack",
+        "throw him",
+        "grab him",
+        "yank him",
+        "force push him",
+        "lift him",
+        "crush him down",
+        "freeze him",
+        "burn him",
+        "shock him",
+        "poison him",
+        "blind him",
+        "stun him",
+        "explode",
+        "clone",
+        "turn invisible",
+        "grow",
+        "shrink",
+        "heal",
+        "harden",
+        "stop time",
+        "rewind 2 seconds",
+        "dodge",
+        "go intangible",
+        "block",
+        "parry",
+        "reflect",
+    ];
+    let mut dead = Vec::new();
+    for s in phrases {
+        let mut w = duel();
+        stand_at(&mut w, B, 0.0, -3.5);
+        // a little history for rewind / heal
+        w.player_mut(A).unwrap().damage_pct = 30.0;
+        run(&mut w, 40);
+        let a0 = w.player(A).unwrap().mv.pos;
+        let b0 = w.player(B).unwrap().mv.pos;
+        let bd0 = w.player(B).unwrap().damage_pct;
+        let c0 = w.constructs.iter().count();
+        let r = fire(&mut w, s);
+        let evs = run(&mut w, 30);
+        let a1 = w.player(A).unwrap().mv.pos;
+        let b1 = w.player(B).unwrap().mv.pos;
+        let moved_a = (a1 - a0).length() > 0.5;
+        let moved_b = (b1 - b0).length() > 0.5;
+        let hit_b = w.player(B).unwrap().damage_pct > bd0 + 0.1;
+        let spawned = w.constructs.iter().count() > c0;
+        let op_beat = evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Op(_) | PowerEvent::TimeStop { .. } | PowerEvent::Blinked { .. }) | GameEvent::Resized { .. }));
+        let healed = w.player(A).unwrap().damage_pct < 30.0 - 0.1;
+        if r.is_err() || !(moved_a || moved_b || hit_b || spawned || op_beat || healed) {
+            dead.push(format!("{s:?}: {r:?} moved_a={moved_a} moved_b={moved_b} hit_b={hit_b} spawned={spawned} beat={op_beat}"));
+        }
+    }
+    assert!(dead.is_empty(), "silent / failing described moves:\n{}", dead.join("\n"));
+}
+
+/// "teleport behind bob, fire uppercut": the uppercut goes for the same target (a chain `Same`).
+#[test]
+fn chain_teleport_then_strike_hits_the_target() {
+    let mut w = duel();
+    let names = [(B, "Bob")];
+    let n = Names::new(&names);
+    let mut specs = vec![compose::read("teleport behind bob", &n).map(|r| r.spec), compose::read("fire uppercut", &n).map(|r| r.spec)];
+    compose::grammar::link_targets(&mut specs);
+    let steps: Vec<ToolStep> = specs.into_iter().map(|s| ToolStep::Composed(s.unwrap())).collect();
+    let d0 = w.player(B).unwrap().damage_pct;
+    w.toolbox(A, steps, None).unwrap();
+    run(&mut w, 90);
+    assert!(w.player(B).unwrap().damage_pct > d0 + 1.0, "the uppercut after the teleport landed on Bob");
+}

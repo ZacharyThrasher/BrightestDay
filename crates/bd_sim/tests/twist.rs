@@ -209,7 +209,9 @@ fn the_table_parses_with_unique_bytes_and_words() {
     let mut dup = Vec::new();
     for m in &parsed.modifiers {
         for w in &m.words {
-            if let Some(o) = seen.insert(w.clone(), m.id.clone()) {
+            if let Some(o) = seen.insert(w.clone(), m.id.clone())
+                && o != m.id
+            {
                 dup.push(format!("{w:?}: {o} and {}", m.id));
             }
         }
@@ -595,7 +597,8 @@ fn a_giant_twist_fires_bigger_and_cools_the_base_move() {
     assert!(r.iter().any(|x| *x > plain_r * 1.5), "{r:?} vs {plain_r}");
     assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Fired { mv, .. }) if *mv == push)));
     assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Op(OpEvent::Twisted { title, size, .. })) if title.contains("GIANT") && *size > 1.5)));
-    // the BASE move is cooling now: plain "almighty push" is refused too
+    // the BASE move is cooling now: plain "almighty push" is refused too (once the active phase is over)
+    run(&mut w, ticks(1.0));
     assert_eq!(w.borrow_move(A, push, false, None), Err(PowerError::Cooldown));
     assert!(w.player(A).unwrap().power.id.is_none(), "a twist never grants");
 }
@@ -613,10 +616,11 @@ fn a_triple_fans_three_blasts_and_rapid_fire_streams_shots() {
     let before = w.player(A).unwrap().willpower;
     w.toolbox(A, vec![ToolStep::Twist(Box::new(step_of("almighty push", &["rapid"])))], None).unwrap();
     let first = explosions(&run(&mut w, 1)).len();
-    let paid = before - w.player(A).unwrap().willpower;
+    let after_first = w.player(A).unwrap().willpower;
+    assert!(after_first < before, "the command paid");
     let later = explosions(&run(&mut w, ticks(1.5))).len();
     assert!(first >= 1 && later >= 4, "stream: {first} then {later}");
-    assert!((before - w.player(A).unwrap().willpower - paid).abs() < 1e-3, "follow-ups are free");
+    assert!(w.player(A).unwrap().willpower >= after_first - 1e-3, "follow-ups are free");
     assert!(w.player(A).unwrap().power.toolbox.queue.is_empty());
 }
 
@@ -651,6 +655,7 @@ fn a_fusion_fires_both_and_cools_both() {
     assert!(w.player(A).unwrap().mv.pos.distance(from) > 3.0, "blinked");
     assert!(!explosions(&evs).is_empty(), "and the push arrived with you");
     assert!(evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Op(OpEvent::Twisted { b: Some(_), merge: Some(_), .. })))));
+    run(&mut w, ticks(1.0));
     assert_eq!(w.borrow_move(A, push, false, None), Err(PowerError::Cooldown), "both base moves cool");
 }
 

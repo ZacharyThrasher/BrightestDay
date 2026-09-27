@@ -220,6 +220,10 @@ pub struct RecipeDef {
     pub temperament: Temperament,
     pub intensity: f32,
     pub payload: Option<Box<RecipeDef>>,
+    /// Wear the costume of the character `name` names (bd_shapes costume summon: a kit's shadow
+    /// clones look like the character, not a generic hard-light body). Ignored when `name` isn't a
+    /// costume character.
+    pub costume: bool,
 }
 
 impl Default for RecipeDef {
@@ -236,6 +240,7 @@ impl Default for RecipeDef {
             temperament: Temperament::Calm,
             intensity: 0.0,
             payload: None,
+            costume: false,
         }
     }
 }
@@ -1408,6 +1413,11 @@ include!(concat!(env!("OUT_DIR"), "/powers_files.rs"));
 /// character kits (`zz_derived_kits.ron`, AUTO-KITS) budget themselves to fit under it with headroom.
 pub const MAX_POWERS: usize = 4000;
 
+/// The error for a table over [`MAX_POWERS`] (never silently truncated).
+fn overflow_msg(n: usize) -> String {
+    format!("assets/powers: {n} powers > MAX_POWERS {MAX_POWERS}: the last {} would be DROPPED — raise MAX_POWERS (ids are u16) or trim a file", n - MAX_POWERS)
+}
+
 impl PowerTable {
     /// One plain list of entries (the lexicon's scanner reads the same list).
     pub fn parse(src: &str) -> Result<PowerTable, String> {
@@ -1425,6 +1435,9 @@ impl PowerTable {
             let list: Vec<PowerDef> = ron::from_str(src.as_ref()).map_err(|e| format!("{}: {e}", name.as_ref()))?;
             powers.extend(list);
         }
+        if powers.len() > MAX_POWERS {
+            return Err(overflow_msg(powers.len()));
+        }
         let mut t = PowerTable { rules: PowerRules::default(), powers };
         t.sanitize();
         Ok(t)
@@ -1433,13 +1446,17 @@ impl PowerTable {
     /// Like [`Self::parse_files`], but a file that fails to parse is skipped (reported in the
     /// returned warnings) — a bad data edit disables that file's powers instead of all of them.
     pub fn parse_files_lenient<N: AsRef<str>, S: AsRef<str>>(files: &[(N, S)]) -> (PowerTable, Vec<String>) {
-        let mut powers = Vec::new();
+        let mut powers: Vec<PowerDef> = Vec::new();
         let mut warn = Vec::new();
         for (name, src) in files {
             match ron::from_str::<Vec<PowerDef>>(src.as_ref()) {
                 Ok(list) => powers.extend(list),
                 Err(e) => warn.push(format!("assets/powers/{}: {e} (file skipped)", name.as_ref())),
             }
+        }
+        if powers.len() > MAX_POWERS {
+            // LOUD: the entries past the cap are dropped (the validator and tests fail on this).
+            warn.push(overflow_msg(powers.len()));
         }
         let mut t = PowerTable { rules: PowerRules::default(), powers };
         t.sanitize();

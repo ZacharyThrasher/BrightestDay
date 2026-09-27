@@ -544,3 +544,41 @@ fn a_cut_salvo_strikes_cleanly_without_a_blast() {
     assert!(!evs.iter().any(|e| matches!(e, GameEvent::Explosion { .. })), "no blast, no boom");
     assert!(ops(&evs).iter().any(|e| matches!(e, OpEvent::Strike { cut: true, .. })));
 }
+
+// ------------------------------------------------------------------------------------ Capture
+
+#[test]
+fn capture_possesses_an_enemy_construct_rides_it_then_gives_it_back() {
+    use bd_core::mechanics::{Form, Mechanic};
+    use bd_sim::powers::RecipeDef;
+    use bd_sim::world::Aim;
+    let mut w = duel();
+    stand(&mut w, B, 0.0, -14.0);
+    w.player_mut(B).unwrap().willpower = 100.0;
+    // B summons a big beast between them.
+    let beast = RecipeDef { name: "war beast".into(), form: Form::Quadruped, mech: vec![Mechanic::Walks], scale: 1.6, ..Default::default() }.to_recipe();
+    let b_eye = w.player(B).unwrap().eye(&w.cfg.move_params);
+    let cid = w.cast(B, beast, None, Aim::new(b_eye, Vec3::new(0.0, -0.35, 1.0).normalize())).expect("B's beast");
+    run(&mut w, ticks(0.8));
+    let c = w.constructs.get(cid).unwrap().center();
+    let eye = w.player(A).unwrap().eye(&w.cfg.move_params);
+    let d = (c - eye).normalize();
+    {
+        let a = w.player_mut(A).unwrap();
+        a.input.yaw = (-d.x).atan2(-d.z);
+        a.input.pitch = d.y.asin();
+    }
+    w.fire_op(A, &MoveOp::Capture { range: 30.0, secs: 2.0, ride: true }).expect("captured");
+    assert_eq!(w.constructs.get(cid).unwrap().owner, A, "it's A's now");
+    assert_eq!(w.player(A).unwrap().seat.map(|s| s.construct), Some(cid), "and A is riding it");
+    let evs = run(&mut w, ticks(2.3));
+    assert_eq!(w.constructs.get(cid).map(|c| c.owner), Some(B), "time's up: back to its maker");
+    assert!(w.player(A).unwrap().seat.is_none(), "popped out");
+    assert!(ops(&evs).iter().any(|e| matches!(e, OpEvent::Captured { on: false, .. })));
+    // Players are never captured.
+    stand(&mut w, B, 0.0, -6.0);
+    let a = w.player_mut(A).unwrap();
+    a.input.yaw = 0.0;
+    a.input.pitch = 0.0;
+    assert_eq!(w.fire_op(A, &MoveOp::Capture { range: 30.0, secs: 2.0, ride: true }), Err(PowerError::NoTarget));
+}
