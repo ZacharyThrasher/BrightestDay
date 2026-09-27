@@ -148,7 +148,7 @@ ROLE_WORDS = {
     "summoner": ["summoner", "queen", "king", "emperor", "empress", "lord", "master", "trainer", "warlord", "general", "commander",
                  "hive", "broodmother", "necromancer", "overlord", "chief", "leader"],
     "healing_factor": ["regenerat*", "healing factor", "wolverine", "deadpool", "immortal", "undying", "troll", "hydra"],
-    "stretch": ["stretch", "elastic", "rubber", "plastic", "elongated", "mister fantastic", "mr fantastic", "gum"],
+    "stretch": ["stretch", "elastic", "rubber", "plastic man", "elongated", "mister fantastic", "mr fantastic", "gum"],
     "size": ["ant", "wasp", "giant man", "shrink", "size", "atom", "tiny", "micro", "yellowjacket"],
 }
 
@@ -161,7 +161,7 @@ WEAPON_WORDS = {
     "gun": ["gun", "pistol", "rifle", "blaster", "revolver", "shotgun", "sniper", "cannon", "guns", "gunslinger", "laser", "minigun", "bazooka", "launcher", "raygun"],
     "whip": ["whip", "chain", "lasso", "rope", "flail", "tentacle", "kusarigama", "chainsaw"],
     "claws": ["claw", "claws", "talon", "talons", "wolverine", "cat", "tiger", "lion", "panther", "wolf", "werewolf", "bear", "raptor"],
-    "staff": ["staff", "wand", "rod", "cane", "scepter", "sceptre", "bo", "stick", "broom"],
+    "staff": ["staff", "wand", "cane", "scepter", "sceptre", "bo staff", "broom"],
     "shield": ["shield", "buckler", "aegis"],
     "knives": ["knife", "knives", "dagger", "daggers", "kunai", "shuriken", "throwing", "stiletto", "sai"],
     "fists": ["fist", "fists", "gauntlet", "gauntlets", "knuckle", "boxer", "brawler", "punch", "puncher", "martial"],

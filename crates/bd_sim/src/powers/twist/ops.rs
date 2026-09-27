@@ -264,7 +264,7 @@ pub fn op_name(op: &MoveOp) -> String {
 }
 
 /// Numbers of the named fields in an op (first occurrence each), from its serialised form.
-fn fields(op: &MoveOp, want: &[&str]) -> Vec<f32> {
+pub(crate) fn fields(op: &MoveOp, want: &[&str]) -> Vec<f32> {
     let s = ron::to_string(op).unwrap_or_default();
     want.iter()
         .map(|w| {
@@ -683,7 +683,7 @@ pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
         let lunge = ops.iter().position(|o| is_lunge(o).is_some());
         let strike = ops.iter().position(|o| matches!(o, MoveOp::Shove { .. } | MoveOp::Finisher { .. }));
         if let Some(li) = lunge {
-            let speed = is_lunge(&ops[li]).unwrap_or(24.0).clamp(12.0, 40.0);
+            let speed = is_lunge(&ops[li]).unwrap_or(24.0).clamp(22.0, 40.0);
             let (d, k, e, up) = strike.and_then(|s| strike_of(&ops[s])).or_else(|| strike_of(&ops[li])).unwrap_or((dmg, kb, el, 0.0));
             let impulse = matches!(ops[li], MoveOp::Impulse { .. });
             ops[li] = MoveOp::Pounce { range: 30.0, speed, cone: 22.0, damage: d, knockback: k, element: e, up, bounce: 3.0, secs: 0.9 };
@@ -756,6 +756,15 @@ pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
                 }
                 MoveOp::Impulse { fwd, up } => out.push(MoveOp::Impulse { fwd: -fwd, up }),
                 MoveOp::Yank { range, speed, .. } => out.push(MoveOp::Shove { range: range.min(12.0), angle: 30.0, damage: 0.0, knockback: speed.min(40.0), element: el, up: 0.2 }),
+                // travelling pushers roll in and drag them back to you
+                MoveOp::Wave { length, speed, width, carve, damage, knockback, up, element, thin } => {
+                    out.push(MoveOp::Wave { length, speed, width, carve, damage, knockback: knockback * 0.2, up, element, thin });
+                    out.push(MoveOp::Yank { range: length.min(30.0), speed: 22.0, cone: (width * 2.0).clamp(8.0, 20.0) });
+                }
+                MoveOp::Surge { width, dist, speed, push, damage, element } => {
+                    out.push(MoveOp::Surge { width, dist, speed, push: push * 0.2, damage, element });
+                    out.push(MoveOp::Yank { range: dist.min(30.0), speed: 22.0, cone: 18.0 });
+                }
                 other => out.push(other),
             }
         }

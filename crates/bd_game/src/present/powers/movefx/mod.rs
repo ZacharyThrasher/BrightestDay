@@ -1391,7 +1391,9 @@ fn limb(pen: &mut Pen, look: &Look, from: Vec3, tip: Vec3, t: f32, phase: u8, si
                 0 => (t * 9.0).min(1.0),
                 _ => 1.0,
             };
-            rigid_pole(pen.fx, from, tip, thick * 1.05, ext, look.dark, look.main, look.glow);
+            // (Slimmer at the lens: your own staff never blacks out the view.)
+            let near = ((from.distance(pen.cam) - 0.3) / 1.2).clamp(0.55, 1.0);
+            rigid_pole(pen.fx, from, tip, thick * 1.05 * near, ext, look.dark, look.main, look.glow);
         }
         Body::Bolt | Body::Streak => {
             zig(pen.fx, from, tip, 10, 0.12 + look.jitter * 0.5, seed.wrapping_add((t * 40.0) as u32), 0.05, look.core, look.glow * 2.0);

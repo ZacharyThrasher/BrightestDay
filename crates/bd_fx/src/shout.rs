@@ -23,6 +23,10 @@
 //! * [`ShoutSettings::gentle`] (comfort): gentler pop, no birth flashes, no word shake.
 //! * Budget: at most [`ShoutSettings::max_live`] shouts (the oldest collapses early); letters reuse
 //!   the onomatopoeia glyph meshes and the construct slot allocator; no per-frame allocation.
+//! * Chains (world-text policy, `assets/fx/text_budget.ron` `titles`): one caster's shouts / titles
+//!   stack in a short column instead of piling up — the newest on the base line, older ones shrunk
+//!   above it with a short remaining hold, at most `stack_max`; other people's are pushed up out of
+//!   the crosshair cone. [`Shout::title`]s are hidden when comic text is Off.
 
 use std::collections::HashMap;
 
@@ -40,6 +44,7 @@ use crate::material::FxMaterials;
 use crate::onomatopoeia::GlyphCache;
 use crate::palette::Palette;
 use crate::particles::{Emit, EmitSystems, FxParticles, PFlags, PKind};
+use crate::text_budget::{TextBudget, View, clear_disc, stack_offsets, stack_rank};
 use crate::util::{FxRng, fin, fin3, v3};
 use crate::{FxSet, FxSettings};
 
@@ -80,6 +85,9 @@ pub struct Shout {
     pub seed: u64,
     /// Local only: a title for its caster (power moves, forms) — smaller, off the aim, short hold.
     pub compact: bool,
+    /// A move / form title (not a player's own words): hidden when comic text is Off
+    /// ([`crate::OnoMode::Off`]).
+    pub title: bool,
 }
 
 impl Shout {
@@ -98,6 +106,7 @@ impl Shout {
             fizzle: false,
             seed: 0,
             compact: false,
+            title: false,
         }
     }
 }
@@ -438,6 +447,9 @@ struct ShoutState {
     /// Hide the smaller line (far LOD).
     far: bool,
     serial: u64,
+    /// Chain stacking (text_budget `titles`): smoothed upward offset (world m) and size factor.
+    stack_off: f32,
+    stack_k: f32,
 }
 
 #[derive(Resource, Default)]
@@ -479,8 +491,27 @@ fn init_shouts(
     mut alloc: ResMut<SlotAlloc>,
     mut rt: ResMut<ShoutRuntime>,
     mut sfx: MessageWriter<ShoutSfx>,
+    budget: Res<TextBudget>,
+    ono: Option<Res<crate::OnomatopoeiaSettings>>,
 ) {
+    let tb = &budget.titles;
     for (added, (e, s)) in new.iter().enumerate() {
+        if s.title && ono.as_ref().is_some_and(|o| o.mode == crate::OnoMode::Off) {
+            commands.entity(e).despawn();
+            continue;
+        }
+        // Chains: this caster's live shouts make room — each keeps at most `stack_hold` more, and
+        // beyond `stack_max` the oldest collapses now.
+        {
+            let same = |o: &Shout| if s.local { o.local } else { !o.local && fin3(o.head).distance(fin3(s.head)) < tb.same_caster_m };
+            let mut mine: Vec<Mut<ShoutState>> =
+                live.iter_mut().filter(|(o, st)| same(o) && !st.released && st.throw_at.is_none() && st.age <= st.land + st.hold).map(|(_, st)| st).collect();
+            mine.sort_by(|a, b| b.serial.cmp(&a.serial));
+            for (k, st) in mine.iter_mut().enumerate() {
+                let now = (st.age - st.land).max(0.0);
+                st.hold = st.hold.min(if k + 1 >= tb.stack_max.max(1) { now } else { now + tb.stack_hold });
+            }
+        }
         // Cap: the oldest live shout (non-local first) collapses now.
         let n_live = live.iter().filter(|(_, st)| !st.released && st.throw_at.is_none() && st.age <= st.land + st.hold).count() + added;
         if n_live >= settings.max_live.max(1) {
@@ -580,6 +611,8 @@ fn init_shouts(
             flourish: lay.flourish,
             far: false,
             serial: rt.serial,
+            stack_off: 0.0,
+            stack_k: 1.0,
         });
         sfx.write(ShoutSfx { phase: ShoutPhase::Erupt, pos: fin3(s.anchor), intensity, local: s.local, entity: e });
     }

@@ -13,7 +13,7 @@
 //! Counterplay (owner rule: nothing is inescapable): a DODGE through the tip makes it miss you (it
 //! moves on); an enemy construct in its path (a wall, a barrier) takes the blow and turns it home.
 //!
-//! The body is a `driven` construct (constructs/mod.rs): no controller / physics touches it; this
+//! The body is a `driven`, thrown-flagged construct (constructs/mod.rs): no controller / physics touches it; this
 //! file writes its pose every tick and clients see the pose through ordinary construct snapshots.
 //! Deterministic, allocation-free per tick (one slot per player index); nothing runs unless a
 //! move uses it.
@@ -158,13 +158,10 @@ impl World {
         let speed = fin(spec.speed, 34.0, 8.0, 70.0);
         let (eye, look) = self.op_eye_look(i);
         let target = self.seeker_pick(i, eye, look, range, cone).map(|k| self.players[k].id);
-        // The body: the authored recipe as a free flier the op drives (never homing / returning on
-        // its own, never exploding on contact — the op decides everything).
+        // The body: the authored recipe, exactly as it looks (no wings bolted on), driven by the op
+        // (never homing / returning / exploding on its own — the op decides everything).
         let mut r = spec.recipe.to_recipe();
         r.mechanics.retain(|m| !matches!(m, Mechanic::Returning | Mechanic::Homing | Mechanic::DropFromSky | Mechanic::Explodes | Mechanic::Swarm | Mechanic::Walks | Mechanic::Piloted));
-        if !r.mechanics.contains(&Mechanic::Flies) {
-            r.mechanics.push(Mechanic::Flies);
-        }
         r.count = 1;
         if r.name.is_empty() {
             r.name = "seeker".into();
@@ -193,6 +190,8 @@ impl World {
         if let Some(c) = self.constructs.get_mut(cid) {
             c.parent = Some(cid);
             c.driven = true;
+            // A held form (spear, disc, axe) out of the hand: replicated with its own pose.
+            c.held.thrown = true;
             c.comp.launched = true;
             c.comp.dud = true;
             c.set_anim(AnimState::Move, tick);

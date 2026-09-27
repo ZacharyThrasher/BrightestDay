@@ -215,6 +215,8 @@ struct OnoWordState {
     pri: f32,
     /// Sticky crosshair push side for own words (0 = not chosen yet).
     side: i8,
+    /// This frame's placement scale (text_budget size clamp) — `ext` × this is on screen.
+    place_scale: f32,
 }
 
 #[derive(Resource, Default)]
@@ -470,6 +472,7 @@ fn spawn_words(
             shattered: false,
             pri,
             side: 0,
+            place_scale: 1.0,
         });
     }
 }
@@ -479,13 +482,19 @@ fn ease_back(x: f32, s: f32) -> f32 {
     1.0 + (s + 1.0) * x * x * x + s * x * x
 }
 
-/// Screen-space de-overlap: performance word first (fixed slot), then impact words oldest → newest;
-/// a word that overlaps an already placed one is pushed up (camera up) until it is clear.
-fn resolve_overlaps(cam: &GlobalTransform, items: &mut [(Entity, Vec3, Vec2, u64, bool, Vec3)], placed: &mut Vec<Vec4>) {
+/// Screen-space de-overlap: performance word first (fixed slot), then the crosshair's protected box,
+/// then impact words oldest → newest; a word that overlaps an already placed one (or the crosshair)
+/// is pushed up (camera up) until it is clear.
+fn resolve_overlaps(cam: &GlobalTransform, crosshair: f32, items: &mut [(Entity, Vec3, Vec2, u64, bool, Vec3)], placed: &mut Vec<Vec4>) {
     let (cp, right, upv, fwd) = (cam.translation(), cam.right().as_vec3(), cam.up().as_vec3(), cam.forward().as_vec3());
     items.sort_by_key(|it| (!it.4, it.3));
     placed.clear();
+    let mut guarded = false;
     for it in items.iter_mut() {
+        if !it.4 && !guarded {
+            guarded = true;
+            placed.push(Vec4::new(0.0, 0.0, crosshair, crosshair));
+        }
         let rel = it.1 - cp;
         let d = rel.dot(fwd).max(0.3);
         let u = rel.dot(right) / d;
@@ -511,7 +520,8 @@ fn resolve_overlaps(cam: &GlobalTransform, items: &mut [(Entity, Vec3, Vec2, u64
 
 fn animate_words(
     time: Res<Time>,
-    cams: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    cams: Cams,
+    budget: Res<TextBudget>,
     mut up: ResMut<FxUpload>,
     mut words: Query<(Entity, &mut OnoWordState, &mut Transform)>,
     mut letters: Query<&mut Transform, Without<OnoWordState>>,
@@ -524,11 +534,13 @@ fn animate_words(
     items.clear();
     for (e, w, tf) in &words {
         if !w.shattered {
-            items.push((e, tf.translation - w.stack, w.ext, w.serial, w.style == OnoStyle::Performance, Vec3::ZERO));
+            items.push((e, tf.translation - w.stack, w.ext * w.place_scale, w.serial, w.style == OnoStyle::Performance, Vec3::ZERO));
         }
     }
-    if let Some(cam) = cam {
-        resolve_overlaps(&cam, &mut items, &mut placed);
+    let pl = &budget.placement;
+    let crosshair = (pl.crosshair_deg + pl.margin_deg).to_radians().tan();
+    if let Some((cam, _)) = cam {
+        resolve_overlaps(&cam, crosshair, &mut items, &mut placed);
     }
     let k = 1.0 - (-dt * 18.0).exp();
     for (e, mut w, mut tf) in &mut words {
@@ -537,9 +549,9 @@ fn animate_words(
         w.stack = st + (target - st) * k;
         w.age += dt;
         let age = w.age;
-        let s = w.scale;
+        let mut s = w.scale;
         // Root placement.
-        if let Some(cam) = cam {
+        if let Some((cam, view)) = cam {
             let (_, cam_rot, cam_pos) = cam.to_scale_rotation_translation();
             if w.style == OnoStyle::Performance {
                 let fwd = cam.forward().as_vec3();
@@ -553,12 +565,28 @@ fn animate_words(
                 let pos = w.base + drift * s.max(0.3) * 2.0;
                 let to_cam = (cam_pos - pos).normalize_or_zero();
                 let pos = pos + to_cam * 0.4;
+                // World-text policy: out of your lap, off the crosshair, screen-size clamped; own
+                // words small and to the side (text_budget::place_word).
+                let mut side = w.side;
+                let placed = place_word(&view, pos, w.ext, w.local, &mut side, pl);
+                w.side = side;
+                let (pos, k) = match placed {
+                    Some(p) => (p.pos, p.scale),
+                    None => {
+                        // The camera is inside it now: gone.
+                        w.hold = w.hold.min((age - w.pop).max(0.0));
+                        (pos, 0.0)
+                    }
+                };
+                w.place_scale = k;
+                s *= k;
                 tf.translation = pos + w.stack;
+                let to_cam = (cam_pos - pos).normalize_or(Vec3::Z);
                 let facing = Transform::from_translation(pos).looking_to(-to_cam, Vec3::Y).rotation;
                 tf.rotation = facing * Quat::from_rotation_z(w.roll);
             }
         }
-        tf.scale = Vec3::splat(s);
+        tf.scale = Vec3::splat(s.max(1e-4));
         let end = w.pop + w.hold;
         let crack = ((age - (end - 0.12)) / 0.12).clamp(0.0, 1.0);
         let n = w.letters.len().max(1) as f32;

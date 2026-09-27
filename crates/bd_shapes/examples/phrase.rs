@@ -23,6 +23,9 @@
 //! move's presence tier + sparks (`powers::chain::move_sparks`) and its active phase; construct
 //! steps of a chain are previewed like single phrases. Costs are SPARKS by presence tier
 //! (`presence_tier::cast_tier` + `willpower::cast_sparks`, the sim's own price).
+//! TWISTED / FUSED moves ("giant homing rasengan", "black flash but fire", "rasengan + amaterasu",
+//! `bd_sim::powers::twist`) print what the move becomes: title, base move(s) + modifiers, the fusion
+//! rule, copies / shots, style, price and the twisted ops.
 //!
 //! The picture: the construct built like the client builds it (curated icon shape, costume summon or
 //! procedural model), 3/4 view, painted costume colours for character summons and corps green
@@ -330,7 +333,11 @@ impl Tool {
             let res = self.lex.resolve(s);
             (!compose::curated_by_lexicon(s, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)).then_some(r)
         };
-        let parts = split_chain_with(text, &|s| read(s).is_move() || composed(s).is_some(), Some(&understood));
+        // MODIFIERS & FUSION: a twisted / fused move comes first (the console's order)
+        let parts = split_chain_with(text, &|s| read(s).is_move() || self.twist(s).is_some() || composed(s).is_some(), Some(&understood));
+        if parts.len() == 1 && let Some(d) = self.twist(&parts[0]) {
+            return Some(vec![(parts[0].clone(), Some(d))]);
+        }
         if parts.len() == 1 && !read(&parts[0]).is_move() && composed(&parts[0]).is_none() {
             return None;
         }
@@ -340,6 +347,9 @@ impl Tool {
             parts
                 .into_iter()
                 .map(|p| {
+                    if let Some(d) = self.twist(&p) {
+                        return (p, Some(d));
+                    }
                     let d = match read(&p) {
                         R::Kit(m) | R::Borrow(m) => m.resolve(t).map(|(def, mv)| {
                             let how = if def.kind.is_kit() { format!("KIT move of {}", def.name) } else { format!("BORROWED from {} (you don't hold it: a one-shot, never the power)", def.name) };
@@ -388,6 +398,71 @@ impl Tool {
                 })
                 .collect(),
         )
+    }
+
+    /// MODIFIERS & FUSION (bd_sim `powers::twist`, the console's own reader + transforms): a twisted
+    /// / fused move → what it becomes (title, the base move(s) and modifiers, the fusion rule, its
+    /// ops, copies / shots, style, price, cooldown). `None` = not a twist.
+    fn twist(&self, text: &str) -> Option<String> {
+        use bd_sim::powers::toolbox::{MoveIndex, Reading as R};
+        use bd_sim::powers::twist::{self, exec, fuse, ops, read};
+        let lex = &self.lex;
+        let spoken = self.spoken;
+        let judge = |s: &str| {
+            let r = if spoken { lex.resolve_spoken(s) } else { lex.resolve(s) };
+            read::judge_of(r.signature.is_some(), r.kind == ResolutionKind::Construct, r.shape.is_some(), r.confidence, &r.recipe.name, s)
+        };
+        let t = twist::ModTable::shipped();
+        let table = bd_sim::powers::PowerTable::get();
+        let reader = read::Reader { t, powers: table, ix: MoveIndex::shipped(), held: None, judge: &judge };
+        let r = reader.read(text)?;
+        let side = |s: &read::SideReading| -> Option<(String, bd_sim::powers::MoveDef)> {
+            match &s.core {
+                read::Core::Move(R::Kit(m) | R::Borrow(m)) => m.resolve(table).map(|(d, mv)| (format!("\"{}\" of {}", mv.name, d.name), mv.clone())),
+                read::Core::Cast(c) => {
+                    let res = lex.resolve(c);
+                    let sig = res.signature.as_ref().map(|s| SignatureCast::new(sim_kind(s.kind), SHOUT_POWER));
+                    Some((format!("the famous cast \"{c}\""), exec::cast_move(&res.recipe, sig)))
+                }
+                _ => None,
+            }
+        };
+        let (na, da) = side(&r.a)?;
+        let mut tw = ops::twist(t, &da, &r.a.mods);
+        let mut what = format!("{na}{}", if r.a.mods.is_empty() { String::new() } else { format!(" [{}]", twist::describe(t, &r.a.mods)) });
+        if let Some(b) = &r.b {
+            let (nb, db) = side(b)?;
+            let twb = ops::twist(t, &db, &b.mods);
+            tw = fuse::fuse(t, &tw, &twb);
+            what = format!("{what} FUSED WITH {nb}{}", if b.mods.is_empty() { String::new() } else { format!(" [{}]", twist::describe(t, &b.mods)) });
+        }
+        if !r.mods.is_empty() {
+            let how = tw.how;
+            tw = ops::twist(t, &tw.def, &r.mods);
+            tw.how = how;
+            what = format!("{what}, all [{}]", twist::describe(t, &r.mods));
+        }
+        let (n, extra) = exec::price(&self.tuning.willpower.sparks, &tw, 0, self.rules.pool_segments());
+        let price = match bd_sim::powers::chain::move_tier(&tw.def) {
+            Some(tr) => format!("{tr:?} tier{}, {n} spark(s)", if tw.tier != 0 { format!(" {:+}", tw.tier) } else { String::new() }),
+            None => format!("its cast(s) + {extra} spark(s)"),
+        };
+        let copies = match (tw.fan.len(), tw.shots.len(), tw.hands) {
+            (_, _, h) if h > 1 => format!("{h} palm beams fanned at once"),
+            (1, 1, _) => "one".to_string(),
+            (f, 1, _) => format!("{f} at once, fanned {:?}°", tw.fan),
+            (1, s, _) => format!("{s} shots, one every {:.2} s", tw.interval),
+            (f, s, _) => format!("{f} at once × {s} shots"),
+        };
+        let fusion = if tw.how.is_empty() { String::new() } else { format!(" - FUSION: {}", tw.how) };
+        let after = tw.after.as_ref().map_or(String::new(), |(w, o)| format!(" - then after {w:.2} s: {}", o.iter().map(|o| format!("{o:?}")).collect::<Vec<_>>().join(" + ")));
+        Some(format!(
+            "TWISTED \"{}\": {what}{fusion} - copies: {copies} - style \"{}\" - {price} - cooldown {:.1} s (on the base move) - ops {}{after}",
+            tw.title,
+            tw.def.fx,
+            tw.def.cooldown,
+            tw.def.ops.iter().map(|o| format!("{o:?}")).collect::<Vec<_>>().join(" + ")
+        ))
     }
 
     /// POWER-UPS mode (`MatchRules::powerups`): which pickup this needs, and what happens without it.

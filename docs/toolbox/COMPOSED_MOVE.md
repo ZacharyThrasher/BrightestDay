@@ -153,13 +153,16 @@ pub struct ComposedMove {
 
 ## 5. For MODIFIERS & FUSION and AUTO-KITS
 
-* **Modifiers**: `ComposedMove::mods` is yours — up to 4 bytes, ids from YOUR table. Today a starter list lives
-  in `assets/verbs.ron` `modifiers:` (1 big, 2 quick, 3 long) and is applied in `compose/build.rs::knobs_in`
-  (× power / reach / cooldown). When your table lands: (a) move / replace the `modifiers:` list (keep ids 1–3
-  or remap), (b) swap the `match` in `knobs_in` for your `apply` (or post-process the built `MoveDef` in
-  `build_in`), (c) `ComposedMove::sanitized_in` keeps only ids `VerbTable::modifier` knows — point it at your
-  table. The same bytes can ride named moves (`ToolStep::Move` + mods) — your call on the wire shape.
-  Counts ("twice", "triple") are parsed here into `count`; if you'd rather own "triple", tell me.
+* **Modifiers** (MODIFIERS & FUSION's `powers/twist/`, `assets/move_modifiers.ron`, ids `n` 1 big / 2 quick /
+  3 long match the composed starter list in `assets/verbs.ron` `modifiers:`): the composed grammar consumes
+  ONLY those three starter words itself ("giant punch", "quick dash", "long blink") and applies them in
+  `compose/build.rs::knobs_in` (× power / reach / cooldown). Everything else ("homing", "rapid fire",
+  "reverse", "delayed", counts beyond `count`) is the twist reader's: the planned `TwistBase::Composed(spec)`
+  wraps a composed core, and its TwistSide carries the modifier bytes. **Rule to avoid double application:**
+  a twisted composed base keeps `spec.mods` EMPTY (the twist side owns them) — or, if you prefer the spec to
+  carry them, replace the `knobs_in` match with a call into `twist::ops::twist` on the built `MoveDef` and
+  drop the starter list (one-line change in `build_in`; tell me and I'll do it). `sanitized_in` keeps only
+  ids `VerbTable::modifier` knows (the starter three) until then.
 * **Fusions** ("fire and ice punch"): the grammar keeps the FIRST style today (a second style word is read but
   dropped). A fusion byte in `mods` is the natural home.
 * **AUTO-KITS** may emit derived moves as specs: `ComposedMove { verb: compose::id16("teleport"), style:

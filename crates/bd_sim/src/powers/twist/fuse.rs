@@ -48,7 +48,15 @@ impl Profile {
     pub fn of(t: &ModTable, def: &MoveDef) -> Self {
         let mut p = Profile::default();
         for op in &def.ops {
-            match class(t, op) {
+            let c = class(t, op);
+            // a cosmetic puff (Nightcrawler's 0-damage smoke burst) is not an attack
+            if matches!(c, OpClass::Blast | OpClass::Melee) {
+                let f = super::ops::fields(op, &["damage", "knockback"]);
+                if f[0] <= 0.0 && f[1] < 5.0 {
+                    continue;
+                }
+            }
+            match c {
                 OpClass::Projectile => p.projectile = true,
                 OpClass::Melee => p.melee = true,
                 OpClass::Movement => p.movement = true,

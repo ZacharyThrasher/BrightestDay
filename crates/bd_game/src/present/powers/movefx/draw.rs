@@ -660,7 +660,8 @@ pub fn rigid_pole(fx: &mut FxParticles, root: Vec3, tip: Vec3, thick: f32, ext: 
         let l = seg * (0.25 + 0.75 * e);
         let r = thick * 0.92f32.powi(k as i32);
         let end = at + dir * l;
-        fx.immediate_segment(at, end, r, color, glow * 0.35, PFlags::PLAIN);
+        // Iron, not a hole in the screen: a touch of the band's light in the shaft.
+        fx.immediate_segment(at, end, r, mix3(color, band, 0.12), glow * 0.45, PFlags::PLAIN);
         fx.immediate_box(end, rot, Vec3::new(r * 1.6, r * 1.6, r * 1.1), band, glow * 1.2, PFlags::PLAIN);
         at = end;
     }

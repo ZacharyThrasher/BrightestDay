@@ -184,11 +184,12 @@ fn attach(mut commands: Commands, rows: Query<Entity, Added<StripRow>>, mut mats
                 .spawn((
                     ChipName,
                     // Staggered up a step per chip: four names never sit on each other.
-                    Node { display: Display::None, position_type: PositionType::Absolute, bottom: px(CHIP + 4.0 + 15.0 * k as f32), left: px(-47.0), width: px(120), justify_content: JustifyContent::Center, ..default() },
+                    Node { display: Display::None, position_type: PositionType::Absolute, bottom: px(CHIP + 4.0 + 15.0 * k as f32), left: px(CHIP * 0.5 - 2.0), padding: UiRect::horizontal(px(3)), ..default() },
                     Text::new(""),
+                    BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.55)),
                     TextFont::from_font_size(11.0),
                     TextColor(Color::srgba(1.0, 1.0, 1.0, 0.92)),
-                    TextLayout::justify(Justify::Center),
+                    TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
                     Pickable::IGNORE,
                 ))
                 .id();

@@ -360,7 +360,7 @@ def profile(c: S.Char) -> Prof:
     humanoid = c.form == "Biped"
     size = 1.25 if c.form == "Kaiju" else 1.12 if heavy else 0.85 if small else 1.0
     vehicle = None
-    if "Transforms" in m or c.form == "Vehicle":
+    if c.form == "Vehicle" or ("Transforms" in m and c.pack == "transformers"):  # a shapeshifter is not a car
         t = note_text + " " + name_text
         if re.search(r"jet|plane|eagle|falcon|concorde|helicopter|chopper|bomber|fighter|shuttle|f-\d|mig|harrier|seeker|aerial", t) or "Flies" in m:
             vehicle = "jet"
@@ -868,7 +868,7 @@ MOVEMENT = [
     ("streak", lambda x: 2 * ("Fast" in x.m) + 2 * ("Charge" in x.m and "Fast" in x.m) - 3 * x.p.heavy, m_streak),
     ("teleport", lambda x: 5 * ("Portal" in x.m) + 1.5 * x.r("mage") + 1.2 * (x.r("sneak") >= 2) + 2 * (x.E == "Psychic") + 1 * (x.E == "Shadow"), m_teleport),
     ("warp", lambda x: (1.2 * x.r("sneak") + 0.5 * (x.E == "Shadow")) * x.has("WarpTo") - 1, m_ambush),
-    ("fly", lambda x: 3 * ("Flies" in x.m) + (x.c.form == "Bird") + ("Glide" in x.m), m_fly),
+    ("fly", lambda x: 4 * ("Flies" in x.m) + (x.c.form == "Bird") + ("Glide" in x.m), m_fly),
     ("boost", lambda x: 2.5 * (("Thrust" in x.m) or bool(x.c.features & {"Jet", "Turbine"}) or ("jetpack" in x.c.weapons)) + 1 * (x.p.flav == "tech"), m_boost),
     ("leap", lambda x: 2 * x.p.heavy + 2 * ("Stomp" in x.m) + 1 * (x.r("brute") >= 3) - 1 * x.p.small, m_leap),
     ("charge", lambda x: 3 * ("Charge" in x.m) + 0.5 * x.p.beast - 1 * ("Fast" in x.m), m_charge),
