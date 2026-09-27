@@ -32,7 +32,7 @@ pub mod draw;
 pub mod table;
 mod dev;
 
-use self::draw::{Look, Pen, basis, circle, light_limb, rigid_pole, rubber_limb, zig};
+use self::draw::{Look, Pen, basis, circle, light_limb, mix3, rigid_pole, rubber_limb, zig};
 use self::table::{Body, Cue, MoveFx};
 use super::super::sound::Sfx3d;
 use super::super::{PresentSet, bv, corps_rgb, gv};
@@ -668,6 +668,13 @@ fn start(
                 first_pose.get_or_insert(pose);
                 continue;
             }
+            // An all-round flurry (Spin Attack, Cyclone Slash, Waterfowl Dance): a sweeping arc
+            // round the caster per strike, the finisher a full bright circle + a ground ring.
+            if let MoveOp::Barrage { hits, interval, range, angle, .. } = *op
+                && angle >= 170.0
+            {
+                spin_arcs(&mut pen, &look, me, v.pos, range.clamp(1.0, 8.0), hits.clamp(1, 24), interval.clamp(0.03, 1.0));
+            }
             // TOOLBOX content ops present through the classic beat they read as (no allocation:
             // plain value variants).
             let alias = alias_op(op);
@@ -914,6 +921,36 @@ fn start(
         }
     }
     side.clear();
+}
+
+/// Sweeping arcs round `c` (one per strike, `interval` apart, alternating direction), then a full
+/// circle + a ground ring on the last: GPU particles with a start delay (no beat state).
+fn spin_arcs(pen: &mut Pen, look: &Look, c: Vec3, feet: Vec3, r: f32, hits: u8, interval: f32) {
+    use bd_fx::{Emit, PFlags};
+    let n = 22;
+    for k in 0..hits as u32 {
+        let last = k + 1 == hits as u32;
+        let sgn = if k % 2 == 0 { 1.0 } else { -1.0 };
+        let span = if last { std::f32::consts::TAU } else { 4.4 };
+        let a0 = k as f32 * 2.1;
+        let h = c + Vec3::Y * (0.15 * sgn - 0.2);
+        for i in 0..n {
+            let f = i as f32 / (n - 1) as f32;
+            let a = a0 + sgn * span * f;
+            let d = Vec3::new(a.cos(), 0.0, a.sin());
+            let tan = Vec3::new(-a.sin(), 0.0, a.cos()) * sgn;
+            let delay = k as f32 * interval + f * 0.09;
+            let col = mix3(look.core, look.main, 0.25 + 0.5 * (1.0 - f));
+            pen.put(Emit { flags: PFlags::STRETCH | PFlags::PLAIN, pos: h + d * r, vel: tan * r * 9.0, size: (0.07 + 0.08 * f) * look.size * if last { 1.4 } else { 1.0 }, color: col, emissive: look.glow * if last { 2.2 } else { 1.5 }, life: 0.16, gravity: 0.0, drag: 7.0, spin: 5.0, delay, ..default() });
+        }
+        if last {
+            for i in 0..28 {
+                let a = i as f32 / 28.0 * std::f32::consts::TAU;
+                let d = Vec3::new(a.cos(), 0.0, a.sin());
+                pen.put(Emit { flags: PFlags::STRETCH | PFlags::PLAIN, pos: feet + Vec3::Y * 0.1 + d * 0.4, vel: d * r * 3.5, size: 0.07 * look.size, color: mix3(look.core, look.main, 0.5), emissive: look.glow * 1.5, life: 0.35, gravity: 0.0, drag: 2.2, spin: 3.0, delay: k as f32 * interval, ..default() });
+            }
+        }
+    }
 }
 
 fn bt_shove(t: &table::MoveFxTable) -> f32 {
