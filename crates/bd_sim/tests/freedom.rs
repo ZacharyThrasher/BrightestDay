@@ -152,13 +152,10 @@ fn sputter_never_produces_nothing_and_never_overspends() {
             assert!(w.construct_flair(id) & cflags::SPUTTER != 0);
             let left = w.player(A).unwrap().willpower;
             assert!(left.abs() < 1e-4, "drains what's left: {left}");
-            let paid = w.events()[n0..]
-                .iter()
-                .find_map(|e| match e {
-                    GameEvent::ConstructSpawned { id: s, cost, .. } if *s == id => Some(*cost),
-                    _ => None,
-                })
-                .unwrap();
+            // SPARKS: the spawn event carries the cast's weight (presence input); what was paid is
+            // the willpower that left the bar.
+            assert!(w.events()[n0..].iter().any(|e| matches!(e, GameEvent::ConstructSpawned { id: s, .. } if *s == id)));
+            let paid = have - left;
             assert!(paid <= have + 1e-4, "never exceeds what's left: {paid} > {have}");
             assert!(
                 c.recipe.scale <= v.scale + 1e-4 && c.recipe.count <= v.count,

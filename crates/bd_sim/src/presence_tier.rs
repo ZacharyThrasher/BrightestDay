@@ -120,7 +120,7 @@ impl Default for TierKnobs {
             heavy: 0.6,
             explodes: 0.6,
             drop_from_sky: 1.0,
-            heavy_drop: 1.2,
+            heavy_drop: 1.5,
             stomp: 0.4,
             ranged_held: -0.3,
             structure: -0.4,
@@ -204,18 +204,18 @@ pub fn tier(i: &TierInput, k: &TierKnobs) -> Tier {
 
 /// The tier a CAST reads as — ONE function for the client's presence (what players see and hear)
 /// and the sim's SPARKS price (`willpower::cast_sparks`), so the price is learnable by feel.
-/// `cost` = the cast's weight (`GameEvent::ConstructSpawned::cost`: its plain willpower cost ×
-/// signature / orbital multipliers, no staleness). `legendary` = the hidden golden roll (client only:
-/// it is never priced); a famous held icon counts as legendary here. A signature (a domain, an orbital
-/// strike, a spectacle over `signature_cost`) is the Signature tier.
-pub fn cast_tier(recipe: &Recipe, cost: f32, legendary: bool, sig: &crate::signature::SignatureTuning, k: &TierKnobs) -> Tier {
-    let spec = crate::signature::spectacle(recipe, cost, 0.0, sig);
-    let signature = spec.is_some_and(|s| s.kind == crate::signature::SignatureKind::Domain || crate::signature::is_orbital(recipe) || cost >= k.signature_cost);
-    if signature {
+/// `weight` = the cast's presence weight (`GameEvent::ConstructSpawned::cost`: its plain willpower
+/// cost without balance knobs / autonomy / staleness, times the signature / orbital multipliers).
+/// `legendary` = the hidden golden roll (client only: never priced); a famous held icon counts as
+/// legendary. `signature` = cast as a signature (`cflags::SIGNATURE`); orbital strikes always are.
+/// The DANGER alert (`signature::spectacle`) is a separate announcement and does not lift the tier:
+/// a fire dragon is Big, a meteor Titan, a gun Tiny (the proof set below).
+pub fn cast_tier(recipe: &Recipe, weight: f32, legendary: bool, signature: bool, k: &TierKnobs) -> Tier {
+    if signature || crate::signature::is_orbital(recipe) {
         return Tier::Signature;
     }
     let famous = crate::constructs::legend::famous(recipe);
-    tier(&TierInput::of(recipe, cost, legendary || famous, spec.is_some(), false), k)
+    tier(&TierInput::of(recipe, weight, legendary || famous, false, false), k)
 }
 
 #[cfg(test)]

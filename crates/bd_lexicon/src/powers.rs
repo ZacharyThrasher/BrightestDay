@@ -8,8 +8,9 @@
 //!   `names: ["gomu gomu no mi", "gum-gum fruit", "rubber fruit"]`
 //!   `incantation: Some("gomu gomu no")` | `incantation: "gomu gomu no"` | `incantations: [..]`
 //!   `kind: DevilFruit | Stand | Technique | ...` (also `family:` / `category:` / `type:`),
-//!   `companion: Some(..)`, and for a TECHNIQUE the `names` of each of its `tiers: [(..), ..]`
-//!   ("super saiyan blue" → grants `"super_saiyan@5"`: learn it at that tier).
+//!   `companion: Some(..)`, and the `names` of each of its `tiers: [(..), ..]` for ANY kind
+//!   ("super saiyan blue" → grants `"super_saiyan@5"`, "gear 5" → `"gomu_gomu@4"`: saying a FORM name
+//!   makes you that form on the spot — the fruit comes with it; bd_sim `cast_grant`).
 //! Everything else is ignored. Kind is inferred when absent (a companion or "stand" → Stand; names
 //! with "fruit"/"no mi" or an incantation → Fruit).
 
@@ -36,8 +37,8 @@ pub struct PowerDef {
     pub kind: PowerKind,
     /// `pickup: Some((name, form, element, scale))` — how the power's pickup looks (optional).
     pub pickup: Option<Pickup>,
-    /// Technique tiers: (1-based tier, names). Empty for other kinds (their tiers are phrases the
-    /// game parses for a held power, never lexicon entries).
+    /// Tiers / forms of any kind: (1-based tier, names). Saying one grants the power at that tier
+    /// (a held power just switches tier: the game parses that before the lexicon).
     pub tiers: Vec<(u8, Vec<String>)>,
     /// `claim: ["infinity"]`: names kept even when they are very common words (power names
     /// otherwise yield single common words to the everyday lexicon).
@@ -316,9 +317,7 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
             names.push(n);
         }
         let mut tiers = Vec::new();
-        if kind == PowerKind::Technique
-            && let Some(v) = get("tiers")
-        {
+        if let Some(v) = get("tiers") {
             for (k, item) in list_items(v).into_iter().enumerate().take(15) {
                 let tf = fields(item);
                 let tn: Vec<String> = tf.iter().find(|(n, _)| n == "names").map(|(_, v)| strings(v)).unwrap_or_default();
@@ -339,7 +338,8 @@ pub fn parse_powers(src: &str) -> (Vec<PowerDef>, Vec<String>) {
     (out, warnings)
 }
 
-/// A technique's tier names: learning it straight at that tier (grants `"<id>@<tier>"`).
+/// A power's tier / form names: taking it straight in that form (grants `"<id>@<tier>"`) — a
+/// technique is learned, a fruit's form comes with the fruit (never a pickup to go and eat).
 pub fn tier_entries(p: &PowerDef) -> Vec<IconEntry> {
     p.tiers
         .iter()

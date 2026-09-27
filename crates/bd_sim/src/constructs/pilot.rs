@@ -12,6 +12,14 @@
 //!   turret, LMB = punch / payload volley / breath, RMB = stomp (or Charge dash), Space = jump /
 //!   climb, **E** = eject (the world's big upward launch). `HeldState::third_person` tells the client
 //!   to pull the camera back.
+//! * **Flight** ([`locomotion`], COMBAT.md §5d-ter): whatever flies never rolls (a Vehicle-form jet /
+//!   helicopter / Starscream's jet mode flies). Jets ([`jet_like`]) fly where the mouse aims with a
+//!   minimum airspeed and bank; hoverers (rotors, UFOs, flying beasts) hover; terrain is resolved axis
+//!   by axis (slide + small bounce, never tunnel). Robot modes of flying transformers walk and
+//!   hover-boost on held Jump. Ground vehicles stand on their body's sole (`integrate`).
+//! * **Boarding** ([`boardable`], [`on_board`], [`on_leave`]): the owner boards their own construct
+//!   (the world's `board` / `board_nearby` / `board_command`: the Transform key on foot, "get in");
+//!   hopping out hands it to its own AI as a follower.
 //! * **Weak points** ([`weak_mult`]): joints, cockpit and nape of piloted giants / kaiju take ×3 from
 //!   Blade / Pierce. Shattered → pilot ejected tumbling (store `reap`).
 //! * **Transformers** (`Mechanic::Transforms`): [`toggle`] (the world's `toggle_transform` command —
@@ -506,6 +514,10 @@ fn suit_attacks(c: &mut Construct, s: &mut HeldState, pilot: &PlayerView, env: &
     c.set_anim(if anim == AnimState::Idle && moving { AnimState::Move } else { anim }, env.tick());
 }
 
+fn can_fly_suit(c: &Construct) -> bool {
+    c.has(Mechanic::Flies) || c.has(Mechanic::Thrust) || has_feature(c, Feature::Jet)
+}
+
 /// Suit movement (called from `worn::movement_mods`): transformer vehicle / robot speed, flight.
 pub fn suit_movement_mods(c: &Construct, input: &PlayerInput, st: &PlayerState, mods: &mut MoveModifiers) {
     let s = &c.held;
@@ -515,7 +527,9 @@ pub fn suit_movement_mods(c: &Construct, input: &PlayerInput, st: &PlayerState, 
             // Drive: run speed 10 → 24 m/s, grippy acceleration, cars don't really jump.
             mods.speed_mult *= VEHICLE_SPEED / 10.0 / WORLD_SUIT_FACTOR;
             mods.accel_mult *= 1.5;
-            mods.jump_mult *= 0.5;
+            if !can_fly_suit(c) {
+                mods.jump_mult *= 0.5; // a flying alt mode takes off instead
+            }
             mods.air_control *= 0.3;
         } else {
             mods.speed_mult *= ROBOT_SPEED / WORLD_SUIT_FACTOR;
@@ -525,9 +539,10 @@ pub fn suit_movement_mods(c: &Construct, input: &PlayerInput, st: &PlayerState, 
         }
     }
     let can_fly = c.has(Mechanic::Flies) || c.has(Mechanic::Thrust) || has_feature(c, Feature::Jet);
-    if can_fly && jump && !st.grounded && !s.vehicle {
-        mods.thrust = mods.thrust.max(30.0);
-        mods.thrust_max_speed = 18.0;
+    // Flying suits fly on held Jump — the jet (vehicle) mode of a flying transformer suit too, faster.
+    if can_fly && jump && !st.grounded {
+        mods.thrust = mods.thrust.max(if s.vehicle { 40.0 } else { 30.0 });
+        mods.thrust_max_speed = if s.vehicle { VEHICLE_SPEED } else { 18.0 };
         mods.gravity_scale = mods.gravity_scale.min(0.2);
     }
 }

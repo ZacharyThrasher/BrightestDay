@@ -39,6 +39,8 @@ const FLOORS: &[(&str, f64)] = &[
     ("name_move", 0.97),
     // PILOTING (pilot verbs, board commands, follower words, the default-piloted rule): 2026-09-26.
     ("piloting", 0.97),
+    // FORMS: a power's form / tier name makes you that form (typed and voiced), 2026-09-27.
+    ("forms", 1.0),
 ];
 /// Floor for the whole corpus.
 const TOTAL_FLOOR: f64 = 0.94;
@@ -143,6 +145,11 @@ fn check(it: &Intent, want: &str) -> Option<String> {
             (Some(_), "any") => true,
             (Some(m), f) => bd_lexicon::tables::form_from_name(f) == Some(m.form),
             (None, _) => false,
+        }
+    } else if let Some(v) = want.strip_prefix("grants=") {
+        match v {
+            "none" => r.recipe.grants.is_none(),
+            k => r.recipe.grants.as_deref() == Some(k),
         }
     } else if let Some(v) = want.strip_prefix("incant=") {
         r.incantation.as_deref() == Some(v) || r.incantation_powers.iter().any(|p| p == v)

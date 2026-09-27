@@ -227,17 +227,20 @@ pub(crate) fn embed_step<V: VoxelQuery + ?Sized>(
     dt: f32,
 ) -> Pop {
     let hull = st.hull(params);
-    let intentional = exempt
-        // Launched: punch-through plows through rock on purpose (world/punch.rs).
-        || st.tumble > 0.0
-        // Tunnelling through a portal in a wall.
-        || portals.iter().any(|pp| pp.ends.iter().any(|e| e.pos.distance(hull.center()) < e.radius + PORTAL_CLEARANCE))
-        // Riding / wearing / inside a construct (giants, mechs, suits): its colliders carry you.
-        || {
-            let near = Aabb { min: hull.min - Vec3::splat(0.25), max: hull.max + Vec3::splat(0.25) };
-            colliders.iter().any(|c| matches!(c.id, ColliderId::Construct { .. }) && c.solid && aabb_obb_overlap(&near, c))
-        };
-    if intentional || !hull_embedded(voxels, colliders, &hull) {
+    // Cheap test first (a handful of voxel lookups); the exemptions only when actually embedded.
+    let intentional = || {
+        exempt
+            // Launched: punch-through plows through rock on purpose (world/punch.rs).
+            || st.tumble > 0.0
+            // Tunnelling through a portal in a wall.
+            || portals.iter().any(|pp| pp.ends.iter().any(|e| e.pos.distance(hull.center()) < e.radius + PORTAL_CLEARANCE))
+            // Riding / wearing / inside a construct (giants, mechs, suits): its colliders carry you.
+            || {
+                let near = Aabb { min: hull.min - Vec3::splat(0.25), max: hull.max + Vec3::splat(0.25) };
+                colliders.iter().any(|c| matches!(c.id, ColliderId::Construct { .. }) && c.solid && aabb_obb_overlap(&near, c))
+            }
+    };
+    if !hull_embedded(voxels, colliders, &hull) || intentional() {
         st.extra.stuck = 0.0;
         return Pop::None;
     }
@@ -376,7 +379,8 @@ impl World {
             let p = &mut self.players[i];
             let u = &mut p.unstick;
             u.cd = (u.cd - dt).max(0.0);
-            if p.damage_pct > u.last_pct {
+            // Damage taken (a respawn resetting the % is not; spawn shields block hits anyway).
+            if p.alive && p.spawn_shield <= 0.0 && p.damage_pct > u.last_pct {
                 u.hurt_tick = Some(tick);
             }
             u.last_pct = p.damage_pct;

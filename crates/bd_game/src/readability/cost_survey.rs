@@ -35,7 +35,10 @@ fn phrases() -> Vec<(String, bool)> {
 }
 
 fn world() -> World {
-    let cfg = SimConfig { arena: ArenaSource::Flat { size_m: 160.0 }, ..SimConfig::default() };
+    let mut cfg = SimConfig { arena: ArenaSource::Flat { size_m: 160.0 }, ..SimConfig::default() };
+    // No hidden legendary rolls (never priced; they would blur the table).
+    cfg.tuning.freedom.legendary.base = 0.0;
+    cfg.tuning.freedom.legendary.cap = 0.0;
     let mut w = World::new(cfg);
     w.add_player(A, "a".into(), Corps::Willpower).unwrap();
     w.add_player(PlayerId(2), "b".into(), Corps::Rage).unwrap();
@@ -60,6 +63,8 @@ fn cast(w: &mut World, lex: &Lexicon, phrase: &str, spoken: bool) -> Option<(f32
         p.willpower = pool;
         p.casts.clear();
         p.alive = true;
+        // A power phrase earlier in the corpus (a fruit, a stand) would graft onto every later cast.
+        p.power = Default::default();
     }
     let p = w.player(A)?;
     let aim = Aim::new(p.eye(w.params()), Vec3::new(0.0, -0.3, -1.0).normalize());
@@ -84,12 +89,14 @@ fn cast(w: &mut World, lex: &Lexicon, phrase: &str, spoken: bool) -> Option<(f32
     };
     res.ok()?;
     let paid = pool - w.player(A)?.willpower;
-    let (rec, weight) = w.events()[n0..].iter().find_map(|e| match e {
-        GameEvent::ConstructSpawned { owner, recipe, cost, .. } if *owner == A => Some(((**recipe).clone(), *cost)),
+    let (id, rec, weight) = w.events()[n0..].iter().find_map(|e| match e {
+        GameEvent::ConstructSpawned { id, owner, recipe, cost, .. } if *owner == A => Some((*id, (**recipe).clone(), *cost)),
         _ => None,
     })?;
-    let tier = cast_tier(&rec, weight, false, &w.tuning().signature, &TierKnobs::default());
-    Some((paid / spark, tier, format!("{:?}/{:?} {:.1}m x{} weight {weight:.1}", rec.form, rec.form.category(), rec.scale, rec.count)))
+    // Exactly what a client derives (the spawn event + the replicated signature flag).
+    let signature = w.constructs.get(id).is_some_and(|c| c.flair & bd_sim::replicate::cflags::SIGNATURE != 0);
+    let tier = cast_tier(&rec, weight, false, signature, &TierKnobs::default());
+    Some((paid / spark, tier, format!("{:?}/{:?} {:.1}m x{} weight {weight:.1} {:?}", rec.form, rec.form.category(), rec.scale, rec.count, rec.mechanics)))
 }
 
 #[test]

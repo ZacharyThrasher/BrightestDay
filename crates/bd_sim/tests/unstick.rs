@@ -54,6 +54,13 @@ fn tick(w: &mut World, n: usize, input: Option<PlayerInput>) -> Vec<(bool, Vec3)
 /// separate boxes around that big a hull for the controller's per-tick depenetration cache, so it
 /// stays embedded: the case the safety net exists for. (Plain burial the controller resolves on
 /// its own within a tick or two — `nobody_is_popped_in_normal_play` / the FFA golden hash.)
+/// A's % goes up like a hit landed (its spawn shield over).
+fn hurt(w: &mut World, pct: f32) {
+    let p = w.player_mut(A).unwrap();
+    p.spawn_shield = 0.0;
+    p.damage_pct += pct;
+}
+
 fn bury(w: &mut World, id: PlayerId) {
     let feet = Vec3::new(3.25, GROUND + 0.01, 3.25);
     let c = bd_core::voxel::world_to_voxel(feet);
@@ -135,7 +142,7 @@ fn unstick_cooldown_queues_the_request_until_ready() {
 #[test]
 fn no_unstick_out_of_a_combo_unless_stuck() {
     let mut w = world();
-    w.player_mut(A).unwrap().damage_pct += 20.0;
+    hurt(&mut w, 20.0);
     tick(&mut w, 1, None);
     assert!(w.request_unstick(A));
     assert!(tick(&mut w, secs(UNSTICK_DAMAGE_LOCKOUT - 0.5), None).is_empty(), "no free escape while being hit");
@@ -144,7 +151,7 @@ fn no_unstick_out_of_a_combo_unless_stuck() {
 
     // Stuck inside geometry: allowed right away, even straight after a hit.
     let mut w = world_with(false);
-    w.player_mut(A).unwrap().damage_pct += 20.0;
+    hurt(&mut w, 20.0);
     tick(&mut w, 1, None);
     bury(&mut w, A);
     tick(&mut w, 2, None); // embedded (the pop-out would free them at 0.25 s)
@@ -173,7 +180,7 @@ fn pushing_without_progress_counts_as_stuck() {
     let walk = PlayerInput { move_z: -1, ..PlayerInput::default() };
     // Keep getting hit (the lockout stays on) while pushing into the walls.
     for _ in 0..4 {
-        w.player_mut(A).unwrap().damage_pct += 5.0;
+        hurt(&mut w, 5.0);
         tick(&mut w, secs(1.0), Some(walk));
     }
     let p = w.player(A).unwrap();

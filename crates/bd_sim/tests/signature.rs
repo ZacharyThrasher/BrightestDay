@@ -74,10 +74,14 @@ fn domain_erupts_around_the_caster_and_can_be_broken() {
     assert!(rec.has(Mechanic::Barrier) && !rec.has(Mechanic::Trap), "{:?}", rec.mechanics);
     assert!((rec.scale - (t.domain_radius + 0.5 * t.domain_radius_shout)).abs() < 1e-3, "radius {}", rec.scale);
     assert!(forming >= t.domain.expand_secs - 1e-4, "expansion {forming}");
-    // Most of the bar: the existing cost × cost_mult (never more than the bar).
-    assert!((50.0 - 1e-3..=100.0).contains(&cost), "cost {cost}");
+    // SPARKS: the Signature tier's price (6 sparks by default: most of the bar, never more). The
+    // spawn event carries the cast's weight (its presence input), not the price.
+    let spark = w.rules().segment_size();
     let wp = w.player(A).unwrap().willpower;
-    assert!((wp - (100.0 - cost)).abs() < 0.5, "paid {wp}");
+    let paid = 100.0 - wp;
+    assert!((paid - 6.0 * spark).abs() < 1e-3, "paid {paid}");
+    assert!(cost > 0.0, "weight {cost}");
+    assert!(w.construct_flair(id) & bd_sim::replicate::cflags::SIGNATURE != 0, "flagged a signature");
     // Windup: not live yet, then live.
     for _ in 0..((forming * 0.5 / DT) as usize) {
         w.tick(&[]);
@@ -151,8 +155,13 @@ fn plain_casts_are_untouched() {
     assert!((rec.scale - 5.0).abs() < 1e-4, "form clamp still applies: {}", rec.scale);
     assert!((forming - 0.25).abs() < 1e-4);
     let wt = &w.tuning().willpower;
-    // SPARKS: the plain price rounded to whole sparks.
-    assert!((cost - w.rules().quantize_cost(wt.base_cost_as(&rec, false))).abs() < 1e-3);
+    // SPARKS: the event carries the plain weight; the price is the tier's sparks (not a signature).
+    assert!((cost - wt.base_cost_unadjusted(&rec)).abs() < 1e-3, "weight {cost}");
+    let tier = bd_sim::presence_tier::cast_tier(&rec, cost, false, false, &bd_sim::presence_tier::TierKnobs::default());
+    assert!(tier < bd_sim::presence_tier::Tier::Signature);
+    let paid = 100.0 - w.player(A).unwrap().willpower;
+    let n = bd_sim::willpower::cast_sparks(&wt.sparks, tier.index(), &rec, false, false, 0, 8, 1.0);
+    assert!((paid - n as f32 * w.rules().segment_size()).abs() < 1e-3, "paid {paid} vs {n} sparks");
 }
 
 #[test]
@@ -490,8 +499,13 @@ fn orbital_cost_is_existing_pricing_times_one_knob() {
     let _ = cast_orbital(&mut w, r.clone(), 20.0);
     let (_, rec, _, cost) = spawned(&w.events()[n0..]).unwrap();
     let wt = &w.tuning().willpower;
-    let plain = wt.base_cost_as(&rec, wt.is_autonomous(&rec));
-    assert!((cost - w.rules().quantize_cost((plain * t.cost_mult).min(100.0))).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
+    // The weight (presence input) is the existing unadjusted pricing × the one knob, never more
+    // than a bar; the price is the Signature tier's sparks (orbital strikes always are).
+    let plain = wt.base_cost_unadjusted(&rec);
+    assert!((cost - (plain * t.cost_mult).min(100.0)).abs() < 1e-3, "{cost} vs {plain} x {}", t.cost_mult);
+    let paid = 100.0 - w.player(A).unwrap().willpower;
+    let n = bd_sim::willpower::cast_sparks(&wt.sparks, 4, &rec, false, wt.is_autonomous(&rec), 0, 8, 1.0);
+    assert!((paid - n as f32 * w.rules().segment_size()).abs() < 1e-3, "paid {paid} vs {n} sparks");
 }
 
 #[test]

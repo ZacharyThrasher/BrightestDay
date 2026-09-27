@@ -6,8 +6,9 @@
 //!   (lateral m to the side), facing the camera, until the plan ends (`bot<N>` alone: already pinned).
 //! * `cmd`: `!grant <key>` (e.g. `super_saiyan@4`), `!move <slot>` (a power move / selector byte;
 //!   bots aim at the local player), `!tier <n>`, `!swap` (G double-tap), `!costume <phrase>` (a bot
-//!   wears that costume, e.g. `goku`: costume-tint shots), or — for `me` — any phrase through the
-//!   real ring path (lexicon, power shouts, tiers).
+//!   wears that costume, e.g. `goku`: costume-tint shots), `!say <phrase>` (a bot says a phrase: the
+//!   ring's resolver — power phrase, then the lexicon — and its cast), or — for `me` — any phrase
+//!   through the real ring path (lexicon, power shouts, tiers).
 //!
 //! Bots stand down (AI off) once the plan starts. Everyone's willpower is topped up per command.
 
@@ -125,6 +126,7 @@ fn dev_plan(
     mut dev: ResMut<PowersDev>,
     mut caster: crate::console::Caster,
     mut costumes: ResMut<crate::present::players::PlayerCostumes>,
+    lex: Option<Res<crate::console::RingLexicon>>,
 ) {
     let Some(active) = active else { return };
     let plan = plan();
@@ -173,6 +175,19 @@ fn dev_plan(
             dev.queue.push(send(Cmd::PowerMove(s, aim)));
         } else if let Some(t) = cmd.strip_prefix("!tier ").and_then(|s| s.trim().parse::<u8>().ok()) {
             dev.queue.push(send(Cmd::PowerMove(move_sel::select(0, t), aim)));
+        } else if let Some(phrase) = cmd.strip_prefix("!say ").filter(|_| !is_me) {
+            let Some(lex) = lex.as_ref() else { continue };
+            let power = active.world.parse_power_phrase(id, phrase.trim());
+            match crate::console::resolve_phrase(&lex.0, power, phrase.trim(), false) {
+                crate::console::Resolved::PowerMove(slot) => dev.queue.push(send(Cmd::PowerMove(slot, aim))),
+                crate::console::Resolved::Cast { res, incantation } => {
+                    if let Some(aim) = aim {
+                        let res = *res;
+                        dev.queue.push(send(Cmd::Cast { recipe: Box::new(res.recipe), shape: res.shape, alt_shape: res.alt_shape, aim, incantation }));
+                    }
+                }
+                crate::console::Resolved::Rush(_) => {}
+            }
         } else if let Some(phrase) = cmd.strip_prefix("!costume ").filter(|_| !is_me) {
             costumes.0.insert(id, crate::present::players::CostumeChoice::phrase(phrase.trim(), 0));
         } else if cmd == "!swap" {

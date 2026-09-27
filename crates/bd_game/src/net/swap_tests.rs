@@ -235,8 +235,10 @@ fn swapping_through_every_map_never_embeds_anyone() {
             }
             let cw = peer.world.as_ref().expect("world");
             if let (Some(cp), true) = (cw.player(me), host_p.alive) {
+                // The client runs ahead of the host by its lead (RTT + jitter buffer): allow that
+                // much travel at the current speed. A stale / stuck start is metres off and stays.
                 let d = (cp.mv.pos - host_p.mv.pos).length();
-                if d > 2.0 {
+                if d > 1.0 + host_p.mv.vel.length().max(cp.mv.vel.length()) * 0.25 {
                     failures.push(format!("{kind:?}: client {k}: prediction {:?} is {d:.1} m from the host's {:?}", cp.mv.pos, host_p.mv.pos));
                 }
             }

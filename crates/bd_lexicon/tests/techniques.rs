@@ -92,9 +92,38 @@ fn everyday_words_stay_everyday() {
     if common::lex().is_none() {
         return;
     }
-    // Non-technique tier names never become lexicon entries (a held gomu fruit parses them itself).
-    for p in ["gear second", "hammer", "red", "blue", "rock", "paper", "scissors", "shrine"] {
+    // Everyday words never become power grants (form names do: see below).
+    for p in ["hammer", "red", "blue", "rock", "paper", "scissors", "shrine", "gear", "second", "fifth"] {
         let g = grants(p).unwrap_or_default();
         assert!(!g.starts_with("gomu_gomu") && !g.starts_with("limitless") && !g.starts_with("nen"), "{p:?} -> {g}");
+    }
+}
+
+/// A FORM name of any power (not only techniques) makes you that form: "gear 5" is Luffy's Gear
+/// Fifth (the fruit comes with it), never the gauntlet icon or a signature ultimate — typed or voiced.
+#[test]
+fn form_names_of_any_power_grant_that_form() {
+    let Some(l) = common::lex() else { return };
+    for (p, want) in [
+        ("gear 5", "gomu_gomu@4"),
+        ("gear five", "gomu_gomu@4"),
+        ("gear fifth", "gomu_gomu@4"),
+        ("GEAR 5!!!", "gomu_gomu@4"),
+        ("gear second", "gomu_gomu@1"),
+        ("gear 3", "gomu_gomu@2"),
+        ("gear fourth", "gomu_gomu@3"),
+    ] {
+        let r = l.resolve(p);
+        assert_eq!(r.recipe.grants.as_deref(), Some(want), "{p:?}: {:?}", r.explanation);
+        assert!(r.signature.is_none(), "{p:?} is the form, not a signature ultimate");
+    }
+    for p in ["gear five", "gear 5", "gear fifth", "gear 5!"] {
+        assert_eq!(l.resolve_spoken(p).recipe.grants.as_deref(), Some("gomu_gomu@4"), "spoken {p:?}");
+    }
+    // The gauntlet only by object phrasing.
+    for p in ["gear 5 gauntlet", "gear 5 fist"] {
+        let r = l.resolve(p);
+        assert!(r.recipe.grants.is_none(), "{p:?}");
+        assert_eq!(r.recipe.form, bd_core::mechanics::Form::Gauntlet, "{p:?}");
     }
 }

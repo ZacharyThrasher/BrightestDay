@@ -384,24 +384,25 @@ fn willpower_costs_regen_pause_staleness_and_refund() {
     let aim = Aim::new(eye_of(&w, A), Vec3::NEG_Z);
     w.cast(A, hammer.clone(), None, aim).unwrap();
     let wp = w.player(A).unwrap().willpower;
-    // SPARKS: 12 rounds to one whole spark (12.5 at the default 8).
-    assert!((wp - 87.5).abs() < 1e-3, "cost 12 → one spark → {wp}");
+    // SPARKS: a whole number of sparks by the presence tier (a plain hammer: 1–2).
+    let spark = w.rules().segment_size();
+    let first = 100.0 - wp;
+    let n = (first / spark).round();
+    assert!((first - n * spark).abs() < 1e-3 && (1.0..=2.0).contains(&n), "whole sparks: {first}");
     // Regen paused 1.5 s after casting (upkeep 0.6/s still drains).
     run(&mut w, 120);
     assert!(w.player(A).unwrap().willpower < wp);
     run(&mut w, 120);
     assert!(w.player(A).unwrap().willpower > wp - 1.0);
-    // Staleness: same phrase again → ×1.3 (the old hammer is replaced, no refund), then rounded
-    // to whole sparks: 15.6 → still one spark; a third and fourth use cost two.
+    // Staleness: same phrase again → +1 spark (the old hammer is replaced, no refund).
     let before = w.player(A).unwrap().willpower;
     w.cast(A, hammer.clone(), None, aim).unwrap();
     let paid = before - w.player(A).unwrap().willpower;
-    assert!((paid - 12.5).abs() < 1e-2, "stale cost {paid}");
-    assert!((w.rules().quantize_cost(12.0 * (1.0 + 0.3 * 3.0)) - 25.0).abs() < 1e-3);
+    assert!((paid - (first + spark)).abs() < 1e-2, "stale cost {paid} (first {first})");
     // Dismiss refunds 25 %.
     let before = w.player(A).unwrap().willpower;
     assert_eq!(w.dismiss(A), 1);
-    assert!((w.player(A).unwrap().willpower - before - 12.5 * 0.25).abs() < 1e-2);
+    assert!((w.player(A).unwrap().willpower - before - paid * 0.25).abs() < 1e-2);
     // Can't afford → never refused (FREEDOM bundle): a scaled-down sputtering version that drains
     // what's left (bd_sim::freedom::afford; tests/freedom.rs has the full rule).
     w.player_mut(A).unwrap().willpower = 5.0;

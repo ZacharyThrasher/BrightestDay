@@ -1141,6 +1141,14 @@ pub fn body_box(recipe: &Recipe, shape: Option<&ShapeSpec>) -> (Vec3, Vec3) {
     (half, center)
 }
 
+/// A shape's collision box (half extents, local centre) at `k` metres per shape unit.
+fn body_box_scaled(s: &ShapeSpec, k: f32) -> Option<(Vec3, Vec3)> {
+    let (lo, hi) = shape_extent(s)?;
+    let half = ((hi - lo) * 0.5 * k).max(Vec3::splat(0.05)).min(Vec3::splat(40.0));
+    let center = ((hi + lo) * 0.5 * k).clamp(Vec3::splat(-40.0), Vec3::splat(40.0));
+    Some((half, center))
+}
+
 /// Build a construct from spawn parameters (collider from model / shape / form table).
 pub fn build_construct(id: ConstructId, p: SpawnParams) -> Construct {
     let (half, local_center) = match &p.model {
@@ -1552,7 +1560,13 @@ impl ConstructStore {
     pub fn set_alt_shape(&mut self, id: ConstructId, robot: ShapeSpec) -> bool {
         let Some(c) = self.get_mut(id) else { return false };
         let alt_box = (c.half, c.local_center);
-        let robot_box = body_box(&c.recipe, Some(&robot));
+        // The robot is built at the VEHICLE's scale factor (as `bd_shapes::transform_rig_icon` renders
+        // it): scaling the robot's own characteristic axis to `recipe.scale` made a 6 m truck's robot a
+        // 13 m box (the seat, the pilot camera and every hit far above the robot you see).
+        let robot_box = match c.shape.as_deref().filter(|s| !s.prims.is_empty()) {
+            Some(alt) => body_box_scaled(&robot, bd_core::CONSTRUCT_VOXEL_SIZE * shape_scale(&c.recipe, alt)).unwrap_or_else(|| body_box(&c.recipe, Some(&robot))),
+            None => body_box(&c.recipe, Some(&robot)),
+        };
         c.authored_boxes = Some([alt_box, robot_box]);
         c.alt_shape = Some(Box::new(robot));
         true

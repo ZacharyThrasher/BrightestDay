@@ -2262,6 +2262,18 @@ mod tests {
     }
 
     #[test]
+    fn pause_menu_offers_unstick_and_controls_list_its_key() {
+        let mut s = Settings::default();
+        let mut p = UiPrefs::default();
+        let c = Ctx { settings: &mut s, prefs: &mut p, net: None, voice: false, in_game: true };
+        let pause = page_rows(MenuPage::Pause, SettingsTab::Gameplay, &c);
+        assert_eq!(pause.get(1), Some(&Row::Button(Act::Unstick, "UNSTICK")), "right under RESUME");
+        let controls = page_rows(MenuPage::Settings, SettingsTab::Controls, &c);
+        assert!(controls.contains(&Row::Key(Action::Unstick)));
+        assert_eq!(KeyBinds::default().get(Action::Unstick), Bind::Unbound, "unbound by default");
+    }
+
+    #[test]
     fn settings_knobs_are_local_and_step_both_ways() {
         let mut s = Settings::default();
         let mut p = UiPrefs::default();

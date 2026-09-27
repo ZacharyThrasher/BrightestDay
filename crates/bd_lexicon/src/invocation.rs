@@ -462,6 +462,10 @@ impl Lexicon {
         } else {
             self.resolve_mode_inner(rest, bangs, spoken)
         };
+        // A bare invocation that is itself a power / form name ("bankai") makes YOU that form.
+        if bare && res.recipe.grants.is_some() {
+            return Some(res);
+        }
         // A bare element / modifier ("ultimate fire") is an elemental blast.
         let modifier_only = res.kind == ResolutionKind::Graft || res.recipe.form == Form::Blob0;
         Self::as_construct(&mut res);
@@ -492,6 +496,11 @@ impl Lexicon {
     /// Tag a finished resolution: a famous ultimate by name, or a Beam yelled with enough "!".
     pub(crate) fn tag_signature(&self, res: &mut Resolution, whole: &str, bangs: usize) {
         if res.signature.is_some() || res.stand_rush.is_some() || res.graft.action.is_some() || res.incantation.is_some() {
+            return;
+        }
+        // A power / form name ("super saiyan", "gear 5", "bankai") makes YOU that form: the power route
+        // wins over a tagged ultimate of the same name (an invocation — "bankai <rest>" — still amplifies).
+        if res.recipe.grants.is_some() {
             return;
         }
         let name_key = normalize_key(&res.recipe.name);

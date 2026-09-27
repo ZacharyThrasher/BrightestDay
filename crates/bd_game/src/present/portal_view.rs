@@ -48,8 +48,13 @@ pub const PORTAL_MAIN_LAYER: usize = super::outline::OUTLINE_LAYER;
 pub const PORTAL_VIEW_LAYER: usize = 26;
 /// Layer nothing is on: an idle portal camera keeps its targets alive rendering it.
 const PORTAL_IDLE_LAYER: usize = 27;
-/// Keep idle cameras' targets alive while a portal exists (see `update_views`).
-const KEEP_ALIVE: bool = true;
+/// `BD_PORTAL_KEEPALIVE=1` (experiment, off by default): idle cameras keep their targets alive
+/// while a portal exists. Measured: halves a new view's first-frame cost but costs ~0.7 ms every
+/// frame a portal merely exists (Cybertron's bridge always does), so the default is truly idle.
+fn keep_alive() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("BD_PORTAL_KEEPALIVE").is_ok_and(|v| v != "0"))
+}
 /// Live portal views at most.
 pub const MAX_VIEWS: usize = 2;
 /// Frame-time budget: live views may add this much (ms) to the frame time measured without them
@@ -62,6 +67,11 @@ const MIN_COVERAGE: f32 = 0.002;
 /// Below this coverage (or beyond `FAR_M`) a live view redraws every other frame.
 const SMALL_COVERAGE: f32 = 0.04;
 const FAR_M: f32 = 45.0;
+/// A view whose portal left the screen stays set up this long (half rate, lowest resolution): a
+/// quick look away and back costs nothing new.
+const GRACE: f32 = 1.5;
+/// Portals within this distance just past a screen edge get their view set up ahead of time.
+const ANTICIPATE_M: f32 = 60.0;
 /// Swirl → window blend time (s).
 const FADE_IN: f32 = 0.12;
 /// A new view's first frames widen its field of view step by step (the window shows the swirl
@@ -97,6 +107,8 @@ pub struct PortalViews {
     age: [f32; MAX_VIEWS],
     /// Frames rendered since the slot got its portal (the view "grows in", see [`RAMP`]).
     ramp: [u32; MAX_VIEWS],
+    /// Seconds the slot's portal has not been wanted (off screen): released after [`GRACE`].
+    idle: [f32; MAX_VIEWS],
     /// Budget factor 0.5..1 (resolution) and the live-view cap it allows.
     budget: f32,
     cap: usize,
@@ -314,6 +326,7 @@ fn setup(
         slots: [None; MAX_VIEWS],
         age: [0.0; MAX_VIEWS],
         ramp: [0; MAX_VIEWS],
+        idle: [0.0; MAX_VIEWS],
         budget: 1.0,
         cap: MAX_VIEWS,
         ema_ms: 6.0,
@@ -388,7 +401,7 @@ fn sleep_views(mut cams: Query<&mut Camera, With<PortalViewCam>>, mut views: Opt
 // ------------------------------------------------------------------------------------ per frame
 
 /// Screen coverage (0..1) of a disc of radius `r` at `c`, seen by a camera (`vp` = clip ← world).
-fn coverage(cam: Vec3, fwd: Vec3, vp: &Mat4, c: Vec3, r: f32, focal_y: f32, aspect: f32) -> f32 {
+fn coverage(cam: Vec3, fwd: Vec3, vp: &Mat4, c: Vec3, r: f32, focal_y: f32, aspect: f32, margin: f32) -> f32 {
     let d = c - cam;
     let dist = d.length();
     if dist < r * 1.05 {
@@ -403,7 +416,8 @@ fn coverage(cam: Vec3, fwd: Vec3, vp: &Mat4, c: Vec3, r: f32, focal_y: f32, aspe
         let ndc = clip.truncate() / clip.w;
         let rr = r / clip.w * focal_y;
         // Entirely off screen?
-        if ndc.x - rr * 1.0 / aspect > 1.0 || ndc.x + rr / aspect < -1.0 || ndc.y - rr > 1.0 || ndc.y + rr < -1.0 {
+        let m = 1.0 + margin;
+        if ndc.x - rr / aspect > m || ndc.x + rr / aspect < -m || ndc.y - rr > m || ndc.y + rr < -m {
             return 0.0;
         }
         let area = std::f32::consts::PI * rr * rr / aspect / 4.0;
@@ -452,11 +466,18 @@ fn update_views(
                     continue; // the back face: swirl
                 }
                 let r = e.half.max_element();
-                let cov = coverage(cam, fwd, &vp, e.pos, r, focal_y, aspect);
-                if cov < MIN_COVERAGE {
-                    continue;
-                }
                 let dist = (e.pos - cam).length();
+                let mut cov = coverage(cam, fwd, &vp, e.pos, r, focal_y, aspect, 0.0);
+                if cov < MIN_COVERAGE {
+                    // About to come on screen (just past an edge, not far): set its view up ahead
+                    // of time at the lowest cost (half rate, lowest resolution) so the first frame
+                    // it shows never pays for a new view.
+                    if dist < ANTICIPATE_M && coverage(cam, fwd, &vp, e.pos, r, focal_y, aspect, 0.7) > 0.0 {
+                        cov = 0.0;
+                    } else {
+                        continue;
+                    }
+                }
                 // About to step through (close, inside the opening): always live, top priority.
                 let lat = cam - e.pos - e.n * s;
                 let imminent = s < 3.0 && e.inside(lat, 0.6);
@@ -521,13 +542,23 @@ fn update_views(
         return;
     }
     v.warm = 0;
-    // Keep existing assignments that are still wanted; fill free slots with the rest.
+    // Keep existing assignments that are still wanted (or went off screen less than `GRACE` ago,
+    // while no wanted portal needs the slot); fill free slots with the rest.
     let wanted = |id: u16, end: u8, cand: &[(f32, u16, u8, f32, f32)]| cand[..want].iter().any(|c| c.1 == id && c.2 == end);
+    let unserved = cand[..want].iter().filter(|c| !v.slots.contains(&Some((c.1, c.2)))).count();
+    let mut need = unserved;
     for s in 0..MAX_VIEWS {
-        if let Some((id, end)) = v.slots[s]
-            && !wanted(id, end, &cand)
-        {
-            v.slots[s] = None;
+        if let Some((id, end)) = v.slots[s] {
+            if wanted(id, end, &cand) {
+                v.idle[s] = 0.0;
+            } else {
+                v.idle[s] += dt;
+                let exists = pairs.iter().any(|p| p.id == id);
+                if !exists || v.idle[s] > GRACE || need > 0 || !enabled {
+                    v.slots[s] = None;
+                    need = need.saturating_sub(1);
+                }
+            }
         }
     }
     for c in cand[..want].iter() {
@@ -538,6 +569,7 @@ fn update_views(
             v.slots[s] = Some((c.1, c.2));
             v.age[s] = 0.0;
             v.ramp[s] = 0;
+            v.idle[s] = 0.0;
         }
     }
     // ---- drive the cameras
@@ -552,7 +584,7 @@ fn update_views(
             // textures unused for 3 frames; re-creating them is what made a portal's first live frame
             // cost a few ms). Every other frame it "renders" nothing: its layer holds no entity, the
             // sun ignores it (no shadow cascades), 16×16 viewport. No portal at all: fully inactive.
-            let keep = enabled && KEEP_ALIVE;
+            let keep = enabled && keep_alive();
             let draw = keep && (v.frame + s as u32) % 2 == 0;
             if keep && *layers != RenderLayers::layer(PORTAL_IDLE_LAYER) {
                 *layers = RenderLayers::layer(PORTAL_IDLE_LAYER);
@@ -572,7 +604,7 @@ fn update_views(
             c.is_active = false;
             continue;
         };
-        let (cov, dist) = cand.iter().find(|x| x.1 == id && x.2 == end).map_or((0.1, 10.0), |x| (x.3, x.4));
+        let (cov, dist) = cand.iter().find(|x| x.1 == id && x.2 == end).map_or((0.0, 1000.0), |x| (x.3, x.4));
         let (e, f) = (&pp.ends[end as usize], &pp.ends[1 - end as usize]);
         // Pose: the gameplay camera carried from the entry to the exit.
         let rot = rotation(e, f);
@@ -698,9 +730,13 @@ mod tests {
         let proj = PerspectiveProjection { fov: 1.2, aspect_ratio: 16.0 / 9.0, ..default() };
         let vp = proj.get_clip_from_view();
         let f = 1.0 / (0.6f32).tan();
-        let near = coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, Vec3::new(0.0, 0.0, -3.0), 2.4, f, 16.0 / 9.0);
-        let far = coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, Vec3::new(0.0, 0.0, -80.0), 2.4, f, 16.0 / 9.0);
-        let behind = coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, Vec3::new(0.0, 0.0, 30.0), 2.4, f, 16.0 / 9.0);
+        let near = coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, Vec3::new(0.0, 0.0, -3.0), 2.4, f, 16.0 / 9.0, 0.0);
+        let far = coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, Vec3::new(0.0, 0.0, -80.0), 2.4, f, 16.0 / 9.0, 0.0);
+        let behind = coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, Vec3::new(0.0, 0.0, 30.0), 2.4, f, 16.0 / 9.0, 0.0);
+        // Just past the right edge: off screen, but anticipated with a margin.
+        let edge = Vec3::new(9.0, 0.0, -6.0);
+        assert_eq!(coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, edge, 1.0, f, 16.0 / 9.0, 0.0), 0.0);
+        assert!(coverage(Vec3::ZERO, Vec3::NEG_Z, &vp, edge, 1.0, f, 16.0 / 9.0, 0.7) > 0.0);
         assert!(near > 0.3 && far < 0.01 && far > 0.0 && behind == 0.0, "{near} {far} {behind}");
     }
 }

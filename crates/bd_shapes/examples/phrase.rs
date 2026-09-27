@@ -310,7 +310,7 @@ impl Tool {
             let table = bd_sim::powers::PowerTable::get();
             let def = table.index_of(id).and_then(|i| table.def(i));
             if tier.is_some_and(|t| t >= p.awakening_min_tier) {
-                out.push(format!("AWAKENING pickup (ascend orb) for tier {} - without it you get the highest free tier", tier.unwrap_or(0)));
+                out.push(format!("AWAKENING pickup (ascend orb) for tier {} - without it the plain \"power up\" flare (a holder: the highest free tier)", tier.unwrap_or(0)));
             } else if def.is_some_and(|d| d.transform.is_some()) {
                 out.push("AWAKENING pickup (ascend orb) to transform - without it just the \"power up\" flare".into());
             }
@@ -326,7 +326,9 @@ impl Tool {
             let (id, tier) = bd_sim::powers::split_tier(key);
             match table.index_of(id).and_then(|i| table.def(i)) {
                 Some(d) => {
-                    let how = if d.kind.is_technique() {
+                    let how = if tier.is_some() {
+                        "a FORM: saying it makes YOU this form on the spot (the power comes with it), with the Ascend moment - the awakening the first time per round"
+                    } else if d.kind.is_technique() {
                         "a TECHNIQUE: saying it makes the power yours on the spot"
                     } else if d.kind.is_stand() {
                         "a STAND: called to your side"
@@ -775,6 +777,19 @@ fn report(rd: &Reading, spoken: bool) {
     );
     if !it.stages.is_empty() {
         println!("  {:<11} {}", "STAGES", it.stages.join(" > "));
+    }
+    // PILOTING (COMBAT.md §5d-ter): who drives what this builds.
+    if let Some(p) = it.pilot {
+        let what = match p {
+            bd_lexicon::Piloting::Explicit => "you pilot it (the words said so) - E hops out, it becomes your follower",
+            bd_lexicon::Piloting::Default => "you pilot it (a thing you drive, by default) - E hops out, it becomes your follower",
+            bd_lexicon::Piloting::Follower => "a follower (fights on its own; \"get in\" or the Transform key boards it)",
+            bd_lexicon::Piloting::Board => "board command: you take the wheel of your aimed (else nearest) construct",
+        };
+        println!("  {:<11} {what}", "PILOT");
+    }
+    if let Some(m) = res.recipe.opening {
+        println!("  {:<11} performs {m:?} once right after it forms", "OPENING");
     }
     for (i, e) in res.explanation.iter().enumerate() {
         println!("  {:<11} - {e}", if i == 0 { "WHY" } else { "" });

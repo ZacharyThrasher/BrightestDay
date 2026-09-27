@@ -266,7 +266,7 @@ fn animate_constructs(
         // Pilot approach: the local owner could board it right now (hatches open, the seat glows).
         let pilot_near = board_target == Some(sc.id) && local.is_some_and(|lp| lp.id == sc.owner && lp.alive());
         if pilot_near {
-            let seat = model.seat.map(|s| tf.transform_point(Vec3::from_array(s.pos.to_array()))).unwrap_or(tf.translation + Vec3::Y * height * 0.75);
+            let seat = model.seat.map(|s| tf.transform_point(Vec3::from_array(s.pos.to_array()))).unwrap_or(chest);
             glow.at = Some((seat, (height * 0.12).clamp(0.35, 1.6)));
         }
         let charge = owner.map_or(0.0, |o| if o.has(pflags::CHARGING) { 1.0 } else { 0.0 });
@@ -583,6 +583,7 @@ pub mod scenario {
         mut active: ResMut<ActiveWorld>,
         mut look: ResMut<LookAngles>,
         mut ov: ResMut<InputOverride>,
+        cam: bevy::prelude::Query<&bevy::prelude::GlobalTransform, bevy::prelude::With<crate::camera::PlayerCamera>>,
     ) {
         let dt = time.delta_secs();
         sc.t += dt;
@@ -630,7 +631,8 @@ pub mod scenario {
         if (t * 1.0).floor() != ((t - dt) * 1.0).floor() {
             if let Some(c) = active.world.constructs.get(id) {
                 let seat = active.world.player(me).and_then(|p| p.seat).map(|s| s.construct);
-                info!("piloting scenario t={t:.1}: pos {:?} vel {:?} vehicle {} seat {:?} grounded {}", c.pos, c.vel, c.held.vehicle, seat, c.grounded);
+                let cam_d = cam.single().map(|g| (crate::util::core_v3(g.translation()) - c.center()).length()).unwrap_or(-1.0);
+                info!("piloting scenario t={t:.1}: pos {:?} vel {:?} vehicle {} xform {:?} seat {:?} grounded {} half {:?} cam {cam_d:.1} m", c.pos, c.vel, c.held.vehicle, c.comp.xform.mode, seat, c.grounded, c.half);
             }
         }
         ov.active = true;
@@ -641,12 +643,12 @@ pub mod scenario {
         match sc.shot.as_str() {
             // Cruise down the lane in the truck (third person).
             "truck" => {
-                face(&mut look, dir, -0.3);
+                face(&mut look, dir, -0.5);
                 ov.move_z = if t > 1.6 { 1 } else { 0 };
             }
             // Drive, get kicked into the air, press Transform mid-jump: the robot lands in a slam.
             "transform" => {
-                face(&mut look, dir, -0.25);
+                face(&mut look, dir, -0.5);
                 ov.move_z = 1;
                 if t > 2.4 && sc.step == 0 {
                     sc.step = 1;
@@ -662,7 +664,7 @@ pub mod scenario {
             }
             // Transformed on the ground, then walking the robot.
             "robot" => {
-                face(&mut look, dir, -0.2);
+                face(&mut look, dir, -0.45);
                 if t > 1.4 && sc.step == 0 {
                     sc.step = 1;
                     active.world.toggle_transform(me);
@@ -674,24 +676,33 @@ pub mod scenario {
                 face(&mut look, dir, if t < 2.0 { 0.0 } else { 0.28 });
                 ov.move_z = 1;
             }
-            // Walk up to your follower Optimus (the seat glows), then board it with the Transform key.
+            // Stand beside your follower Optimus looking at it (the seat glows), then board it with the
+            // Transform key.
             "board" => {
                 let Some(c) = active.world.constructs.get(id) else { return };
-                let (center, half) = (c.center(), c.half);
+                let (center, half, cpos, grounded) = (c.center(), c.half, c.pos, c.grounded || c.body.supported);
                 if let Some(c) = active.world.constructs.get_mut(id) {
-                    c.vel = Vec3::ZERO;
+                    c.vel.x = 0.0;
+                    c.vel.z = 0.0;
+                }
+                if sc.step == 0 && t > 2.2 && grounded {
+                    sc.step = 1;
+                    let side = Vec3::new(dir.z, 0.0, -dir.x);
+                    let at = cpos + side * (half.x + 1.6);
+                    let gy = bd_core::voxel::raycast(&active.world.voxels, Vec3::new(at.x, cpos.y + 6.0, at.z), Vec3::NEG_Y, 20.0).map_or(cpos.y, |h| h.point.y);
+                    if let Some(p) = active.world.player_mut(me) {
+                        p.mv.pos = Vec3::new(at.x, gy + 0.05, at.z);
+                        p.mv.vel = Vec3::ZERO;
+                    }
                 }
                 let eye = active.world.player(me).map(|p| p.eye(active.world.params())).unwrap_or(my_pos);
                 let to = center - eye;
                 look.yaw = (-to.x).atan2(-to.z);
                 look.pitch = (to.y / to.length().max(0.1)).asin();
-                let side = Vec3::new(to.x, 0.0, to.z).length();
-                if side > half.x.max(half.z) + 2.0 {
-                    ov.move_z = 1;
-                }
-                if t > 4.6 && sc.step == 0 {
-                    sc.step = 1;
-                    active.world.toggle_transform(me);
+                if t > 4.8 && sc.step == 1 {
+                    sc.step = 2;
+                    let ok = active.world.toggle_transform(me);
+                    info!("piloting scenario: board key -> {ok}");
                 }
             }
             _ => {}

@@ -362,10 +362,8 @@ impl World {
         }
         let wt = &self.cfg.tuning.willpower;
         let uses = self.player(player).map_or(0, |p| p.casts.uses_in(&r.name, self.tick, wt.stale_window));
-        let plain = wt.base_cost_as(&r, wt.is_autonomous(&r)) * wt.staleness(uses);
-        let pool = self.cfg.rules.willpower_max();
-        let plain = if is_orbital(&r) { (plain * self.cfg.tuning.signature.orbital.cost_mult).min(pool) } else { plain };
-        let cost = signature_cost(plain, &self.cfg.tuning.signature, self.cfg.rules.willpower_max());
+        // SPARKS: a signature is the Signature tier's sparks (`World::signature_price`).
+        let cost = self.signature_price(player, &r, uses);
         (r, cost)
     }
 }

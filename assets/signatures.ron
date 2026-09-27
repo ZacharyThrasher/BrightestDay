@@ -117,11 +117,8 @@
         (name: "senbonzakura kageyoshi", kind: Transformation),
         (name: "daiguren hyorinmaru", kind: Transformation),
         (name: "zanka no tachi", kind: Transformation),
-        (name: "super saiyan", kind: Transformation),
-        (name: "ultra instinct", kind: Transformation),
-        (name: "gear fifth", kind: Transformation),
-        (name: "gear fourth", kind: Transformation),
-        (name: "kaioken", kind: Transformation),
+        // (power FORM names — super saiyan, ultra instinct, gear fourth / fifth, kaioken, bankai — are not
+        // tagged here: saying one makes YOU that form, powers.ron)
         (name: "omnislash", kind: Transformation),
         (name: "dragonblade", kind: Transformation),
     ],

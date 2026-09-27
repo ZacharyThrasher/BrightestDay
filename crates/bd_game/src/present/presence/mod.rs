@@ -249,7 +249,6 @@ fn presence_events(
         predicted.clear();
         return;
     }
-    let sig = &active.world.tuning().signature;
     let st = &mut *st;
     // Client prediction: the caster's gather starts on the key press, not a round trip later.
     for m in predicted.read() {
@@ -261,7 +260,7 @@ fn presence_events(
                 let cost = bd_sim::willpower::base_cost(recipe);
                 if st.live.len() < 256 && !bd_sim::signature::orb::is_erasing_orb(recipe) {
                     let corps = corps_rgb(active.corps_of(me));
-                    let tier = bd_sim::presence_tier::cast_tier(recipe, cost, false, sig, &t.tier);
+                    let tier = bd_sim::presence_tier::cast_tier(recipe, cost, false, false, &t.tier);
                     st.live.push(track(t, pid, me, recipe, tier, bd_sim::constructs::forming_secs(recipe.form), false, corps));
                     st.predicted.push((*seq, pid));
                 }
@@ -306,7 +305,8 @@ fn presence_events(
                 let c = active.world.constructs.get(*id);
                 let legendary = c.is_some_and(|c| c.flair & cflags::LEGENDARY != 0);
                 // THE cast tier (shared with the sim's SPARKS price: what you see is what it cost).
-                let cast = bd_sim::presence_tier::cast_tier(recipe, *cost, legendary, sig, &t.tier);
+                let signature = c.is_some_and(|c| c.flair & cflags::SIGNATURE != 0);
+                let cast = bd_sim::presence_tier::cast_tier(recipe, *cost, legendary, signature, &t.tier);
                 let corps = corps_rgb(active.corps_of(*owner));
                 let tr = track(t, *id, *owner, recipe, cast, *forming, legendary, corps);
                 idx.0.insert(*id, (tr.tier, t.feel(tr.tier).impact_mult));
@@ -609,6 +609,10 @@ fn presence_beats(
             && let Some(v) = view
         {
             l.legend_checked = true;
+            // SPARKS: a signature cast replicated late still gets its tier (it was priced as one).
+            if v.flags & cflags::SIGNATURE != 0 {
+                l.tier = Tier::Signature;
+            }
             if v.flags & cflags::LEGENDARY != 0 && l.tier < Tier::Titan {
                 l.tier = Tier::Titan;
                 if l.element == Element::Light {

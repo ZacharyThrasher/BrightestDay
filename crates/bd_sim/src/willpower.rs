@@ -278,7 +278,7 @@ pub fn cast_sparks(t: &SparkTuning, tier: usize, recipe: &Recipe, famous: bool, 
     if recipe.has(Mechanic::Portal) {
         n += t.utility as u32;
     }
-    let cap = if ultimate || famous { bar } else { (t.cap as u32).max(1).min(bar) };
+    let cap = if ultimate { bar } else { (t.cap as u32).max(t.legendary as u32 * famous as u32).max(1).min(bar) };
     n = n.clamp(1, cap);
     if mult.is_finite() && (mult - 1.0).abs() > 1e-4 {
         n = ((n as f32 * mult.max(0.0)).round() as u32).max(1);

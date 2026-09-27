@@ -30,7 +30,7 @@
 # A name only targets after a verb/preposition aimed at someone ("dragon on sam" -> Sam, not DragonSlayer).
 #
 # Categories: owner, target, voice_target, popculture, everyday, verbs, combos, signature, pokemon,
-#             refer, voice, collisions, name_move, piloting.
+#             refer, voice, collisions, name_move, piloting, forms.
 
 # =====================================================================================================
 # owner - the owner's own phrases and close variants
@@ -1028,16 +1028,10 @@ signature | colossal titan | sig=Summon scale>=15
 signature | mahoraga | sig=Summon
 signature | gate of babylon | sig=Summon
 signature | summoning jutsu toad | sig=Summon
-signature | bankai | sig=Transformation
-signature | BANKAI!!! | sig=Transformation
 signature | bankai senbonzakura kageyoshi | sig=Transformation
 signature | tensa zangetsu | sig=Transformation
 signature | daiguren hyorinmaru | sig=Transformation
 signature | getsuga tensho | sig=Transformation
-signature | super saiyan | sig=Transformation
-signature | ultra instinct | sig=Transformation
-signature | gear fifth | sig=Transformation
-signature | kaioken | sig=Transformation
 signature | omnislash | sig=Transformation
 signature | final form godzilla | sig=Transformation
 signature | malevolent shrine | sig=Domain el=Shadow
@@ -1507,3 +1501,42 @@ popculture | reinhardt | name~reinhardt cat=Creature +Guard
 popculture | kazuya | name~kazuya cat=Creature
 popculture | liu kang | name~liu cat=Creature
 popculture | m. bison | name~bison cat=Creature
+
+# =====================================================================================================
+# forms - saying a power's FORM / tier name makes YOU that form (a power grant, never a construct or a
+# signature ultimate): the fruit comes with it; the Gear 5 gauntlet only by object phrasing.
+# =====================================================================================================
+forms | gear 5 | grants=gomu_gomu@4 sig=none
+forms | gear fifth | grants=gomu_gomu@4 sig=none
+forms | gear five | grants=gomu_gomu@4 sig=none
+forms | GEAR 5!!! | grants=gomu_gomu@4 sig=none
+forms | ~gear five. | grants=gomu_gomu@4 sig=none
+forms | ~gear 5! | grants=gomu_gomu@4 sig=none
+forms | ~gear fifth | grants=gomu_gomu@4 sig=none
+forms | nika | grants=gomu_gomu@4
+forms | gear second | grants=gomu_gomu@1 sig=none
+forms | gear 2 | grants=gomu_gomu@1
+forms | ~gear two | grants=gomu_gomu@1
+forms | gear third | grants=gomu_gomu@2
+forms | gear 4 | grants=gomu_gomu@3 sig=none
+forms | gear fourth | grants=gomu_gomu@3 sig=none
+forms | boundman | grants=gomu_gomu@3
+forms | super saiyan | grants=super_saiyan sig=none
+forms | SUPER SAIYAN!!! | grants=super_saiyan sig=none
+forms | super saiyan 2 | grants=super_saiyan@1
+forms | super saiyan 3 | grants=super_saiyan@2
+forms | super saiyan god | grants=super_saiyan@3
+forms | super saiyan blue | grants=super_saiyan@4
+forms | ~super saiyan blue | grants=super_saiyan@4
+forms | kaioken | grants=kaioken sig=none
+forms | kaioken times ten | grants=kaioken@4
+forms | ~kaioken times 10 | grants=kaioken@4
+forms | ultra instinct | grants=ultra_instinct sig=none
+forms | mastered ultra instinct | grants=ultra_instinct@1
+forms | mangekyo sharingan | grants=sharingan@1
+forms | sharingan | grants=sharingan
+forms | bankai | grants=bankai sig=none
+forms | sage mode | grants=sage_mode
+forms | kurama mode | grants=kurama_mode
+forms | gear 5 gauntlet | grants=none form=Gauntlet
+forms | gear 5 fist | grants=none form=Gauntlet

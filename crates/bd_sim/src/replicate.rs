@@ -326,6 +326,9 @@ pub mod cflags {
     pub const LEGENDARY: u8 = 1 << 5;
     /// FREEDOM HOOK: cast without enough willpower — a scaled-down, flickering version.
     pub const SPUTTER: u8 = 1 << 6;
+    /// SPARKS / PRESENCE: cast as a signature (domain expansion, a named ultimate): the Signature
+    /// tier on every client (`presence_tier::cast_tier`).
+    pub const SIGNATURE: u8 = 1 << 7;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

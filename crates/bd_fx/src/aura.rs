@@ -447,11 +447,12 @@ fn aura_bursts(mut fx: ResMut<FxParticles>, mut msgs: MessageReader<AuraBurstFx>
             }
         }
         if m.flash {
+            // Capped: a flash particle is a flat cube — past ~2 m it reads as a white panel, not light.
             fx.emit(Emit {
                 kind: PKind::Flash,
                 flags: PFlags::PLAIN,
                 pos: chest,
-                size: 2.6 * s * (h / 1.8),
+                size: (2.6 * s * (h / 1.8)).min(1.8 * (h / 1.8).max(0.5)),
                 color: mix3(col, WHITE, 0.5),
                 emissive: 5.0,
                 life: 0.18,

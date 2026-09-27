@@ -9,6 +9,9 @@
 //! * `ab` — `fill`, with the live views switched off / on every second in the same run (so load
 //!   from anything else hits both halves alike); prints `PORTAL AB` (frame p50 / p99 with and
 //!   without, and the frames right after each switch-on: first appearance, textures re-created);
+//! * `turn` — like `ab`, but by looking away (half a turn) and back every second: the view comes
+//!   back within its grace period (no new view set-up);
+//! * `bridge` — (with `--map cybertron`) stand 12 m in front of the space bridge, facing it;
 //! * `step3p` — (with `--third-person`) walk through the gate; `BD_PORTAL_SHOT=<png>` saves a
 //!   screenshot just after the pass (camera still behind you, looking through the entry).
 //!
@@ -34,6 +37,8 @@ enum Mode {
     Tracer,
     Step3p,
     Ab,
+    Turn,
+    Bridge,
 }
 
 #[derive(Resource)]
@@ -56,6 +61,8 @@ struct Scenario {
     ab_since: u32,
     /// The entry disc's centre (tracer target).
     aim: Vec3,
+    /// Turn mode: currently facing the gate.
+    facing: bool,
 }
 
 pub fn build(app: &mut App) {
@@ -70,6 +77,8 @@ pub fn build(app: &mut App) {
         "tracer" => Mode::Tracer,
         "step3p" => Mode::Step3p,
         "ab" => Mode::Ab,
+        "turn" => Mode::Turn,
+        "bridge" => Mode::Bridge,
         _ => Mode::Fill,
     };
     info!("portal scenario: {mode:?}");
@@ -97,6 +106,7 @@ pub fn build(app: &mut App) {
         ab: Vec::with_capacity(20_000),
         ab_since: 0,
         aim: Vec3::ZERO,
+        facing: true,
     })
     .add_systems(Update, drive.run_if(in_state(AppState::InGame)).run_if(resource_exists::<ActiveWorld>));
 }
@@ -127,6 +137,22 @@ fn drive(
         }
         let Some(p) = active.world.player(me).filter(|p| p.alive) else { return };
         let feet = super::bv(p.mv.pos);
+        if sc.mode == Mode::Bridge {
+            let Some(e) = active.world.portals.first().map(|pp| pp.ends[0]) else { return };
+            let n = super::bv(e.normal);
+            let at = super::bv(e.pos) + n * 12.0 - Vec3::Y * (e.radius - 0.5);
+            if let Some(pm) = active.world.player_mut(me) {
+                pm.mv.pos = super::gv(at);
+                pm.mv.vel = bd_core::Vec3::ZERO;
+            }
+            look.yaw = n.x.atan2(n.z);
+            look.pitch = 0.05;
+            active.bots.clear();
+            sc.placed = true;
+            sc.opened = true;
+            sc.t = 0.0;
+            return;
+        }
         let fwd = Vec3::new(-look.yaw.sin(), 0.0, -look.yaw.cos());
         sc.eye = feet + Vec3::Y * 1.6;
         sc.entry = feet + fwd * if sc.mode == Mode::Step3p { 6.0 } else { 3.2 };
@@ -214,12 +240,19 @@ fn drive(
     }
     // ---- mode actions
     match sc.mode {
-        Mode::Ab if sc.opened => {
+        Mode::Ab | Mode::Turn if sc.opened => {
             // `BD_PORTAL_AB_OFF=<secs>`: how long the views stay off between 1 s on (default 1).
             let off_secs: f32 = std::env::var("BD_PORTAL_AB_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0);
             let on = sc.t % (off_secs + 1.0) >= off_secs;
-            if off.0 == on {
-                off.0 = !on;
+            let was_on = if sc.mode == Mode::Turn { sc.facing } else { !off.0 };
+            if was_on != on {
+                if sc.mode == Mode::Turn {
+                    // Look away (half a turn) / back at the gate.
+                    look.yaw += std::f32::consts::PI;
+                    sc.facing = on;
+                } else {
+                    off.0 = !on;
+                }
                 sc.ab_since = 0;
             } else {
                 sc.ab_since += 1;

@@ -943,6 +943,53 @@ mod tests {
         assert_eq!((plan.target, plan.delivery), (Some(jake), Some(bd_sim::freedom::Delivery::At)));
     }
 
+    /// The owner's bug: "if I say gear 5 … I don't get an animation or anything". A FRESH player (no
+    /// fruit) saying a form name — typed or heard — becomes that form through the real ring path
+    /// (power phrase → intent stages → the host's cast): the Gear 5 form with its Ascend awakening,
+    /// never the gauntlet icon or a signature; the gauntlet only by object phrasing.
+    #[test]
+    fn a_fresh_player_saying_gear_5_becomes_gear_5() {
+        use bd_core::{PlayerId, Vec3};
+        use bd_sim::GameEvent;
+        use bd_sim::powers::{PowerEvent, PowerTable};
+        let Ok(lex) = Lexicon::load(&crate::assets_dir().join("lexicon.bin")) else { return };
+        let gomu = PowerTable::get().index_of("gomu_gomu").expect("gomu_gomu");
+        for (text, spoken) in [("gear 5", false), ("GEAR 5!!!", false), ("gear fifth", false), ("gear five", true), ("gear 5.", true), ("gear fifth!", true)] {
+            let cfg = bd_sim::SimConfig { arena: bd_sim::ArenaSource::Flat { size_m: 96.0 }, ..Default::default() };
+            let mut w = bd_sim::World::new(cfg);
+            let me = PlayerId(1);
+            w.add_player(me, "Luffy".into(), Corps::from_index(1)).unwrap();
+            w.start_live();
+            w.tick(&[]);
+            w.player_mut(me).unwrap().willpower = 100.0;
+            w.player_mut(me).unwrap().spawn_shield = 0.0;
+            // Exactly what `cast_heard` does.
+            let power = w.parse_power_phrase(me, text);
+            let plan = crate::lobby::feed::plan_cast(&lex, &w, me, text, spoken, None);
+            let resolved = match (&power, plan.intent.as_ref()) {
+                (PowerPhrase::Plain, Some(it)) => resolved_from(it.resolution.clone()),
+                _ => resolve_phrase(&lex, power, &plan.text, spoken),
+            };
+            let Resolved::Cast { res, .. } = resolved else { panic!("{text:?}: not a cast") };
+            assert!(res.signature.is_none(), "{text:?}: the form, not a signature ultimate");
+            assert_eq!(res.recipe.grants.as_deref(), Some("gomu_gomu@4"), "{text:?}: {:?}", res.explanation);
+            let eye = w.player(me).unwrap().eye(w.params());
+            let _ = w.cast(me, res.recipe, None, Aim { origin: eye, dir: Vec3::NEG_Z, target_hint: None, modifier: false });
+            let evs = w.tick(&[]).to_vec();
+            let p = &w.player(me).unwrap().power;
+            assert_eq!((p.id, p.tier), (Some(gomu), 4), "{text:?}: in the Gear 5 form");
+            assert!(
+                evs.iter().any(|e| matches!(e, GameEvent::Power(PowerEvent::Ascend { player, power: Some(g), tier: 4, awakening: true, .. }) if *player == me && *g == gomu)),
+                "{text:?}: the awakening Ascend"
+            );
+        }
+        // The curated gauntlet stays reachable by object phrasing.
+        for text in ["gear 5 gauntlet", "gear 5 fist"] {
+            let r = lex.resolve(text);
+            assert!(r.recipe.grants.is_none() && r.recipe.form == bd_core::mechanics::Form::Gauntlet, "{text:?}");
+        }
+    }
+
     #[test]
     fn timestamp_shape() {
         let t = timestamp();

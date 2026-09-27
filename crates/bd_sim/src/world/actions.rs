@@ -30,11 +30,14 @@ pub(crate) struct TypedPricing {
     pub autonomous: bool,
     /// The typed phrase makes things hunt on their own (`Flies` / `Walks`) — for grafts.
     pub drives: bool,
+    /// SPARKS / PARTY: (weight, sparks before staleness) of the recipe as typed, when party grafts
+    /// changed it afterwards — party grafts are free: the cast costs what was typed.
+    pub party_price: Option<(f32, u32)>,
 }
 
 impl TypedPricing {
     fn of(t: &crate::tuning::CombatTuning, r: &Recipe) -> Self {
-        Self { autonomous: t.willpower.is_autonomous(r), drives: r.has(Mechanic::Flies) || r.has(Mechanic::Walks) }
+        Self { autonomous: t.willpower.is_autonomous(r), drives: r.has(Mechanic::Flies) || r.has(Mechanic::Walks), party_price: None }
     }
 }
 
@@ -241,14 +244,38 @@ impl World {
     /// multipliers — the presence tier's input and the spawn event's `cost`) and its price in whole
     /// sparks (`willpower::cast_sparks` at `presence_tier::cast_tier`; cheaper inside your own domain).
     pub(crate) fn cast_price(&self, player: PlayerId, recipe: &Recipe, autonomous: bool, uses: u32) -> (f32, f32) {
+        let (weight, n) = self.cast_sparks_of(player, recipe, autonomous);
+        (weight, self.stale_price(n, uses))
+    }
+
+    /// SPARKS: (presence weight, sparks before staleness) of a cast of `recipe`.
+    fn cast_sparks_of(&self, player: PlayerId, recipe: &Recipe, autonomous: bool) -> (f32, u32) {
         let wt = &self.cfg.tuning.willpower;
-        let weight = crate::signature::cost(self, recipe, wt.base_cost_as(recipe, autonomous) * self.party_cost_ratio.unwrap_or(1.0));
-        let tier = crate::presence_tier::cast_tier(recipe, weight, false, &self.cfg.tuning.signature, &crate::presence_tier::TierKnobs::default());
-        let rules = &self.cfg.rules;
+        // The weight is the price-free presence input: no balance knobs (the gun multiplier is a
+        // balance price, not gravitas), no autonomy pricing, no staleness.
+        let weight = crate::signature::cost(self, recipe, wt.base_cost_unadjusted(recipe));
+        let signature = self.signature.cast.is_some();
+        let tier = crate::presence_tier::cast_tier(recipe, weight, false, signature, &crate::presence_tier::TierKnobs::default());
         let mult = crate::signature::domain::cast_cost(self, player, 1.0); // SIGNATURE HOOK: your own domain
         let famous = crate::constructs::legend::famous(recipe);
-        let n = cast_sparks(&wt.sparks, tier.index(), recipe, famous, autonomous, uses, rules.pool_segments(), mult);
-        (weight, n as f32 * rules.segment_size())
+        (weight, cast_sparks(&wt.sparks, tier.index(), recipe, famous, autonomous, 0, self.cfg.rules.pool_segments(), mult))
+    }
+
+    /// SPARKS: a signature cast's price (the Signature tier, + adjustments, + repeats).
+    pub(crate) fn signature_price(&self, player: PlayerId, recipe: &Recipe, uses: u32) -> f32 {
+        let wt = &self.cfg.tuning.willpower;
+        let mult = crate::signature::domain::cast_cost(self, player, 1.0);
+        let famous = crate::constructs::legend::famous(recipe);
+        let tier = crate::presence_tier::Tier::Signature.index();
+        let n = cast_sparks(&wt.sparks, tier, recipe, famous, wt.is_autonomous(recipe), 0, self.cfg.rules.pool_segments(), mult);
+        self.stale_price(n, uses)
+    }
+
+    /// Willpower for `n` sparks plus the repeat surcharge (+`sparks.stale` per use), capped by the bar.
+    fn stale_price(&self, n: u32, uses: u32) -> f32 {
+        let rules = &self.cfg.rules;
+        let n = (n + uses.min(64) * self.cfg.tuning.willpower.sparks.stale as u32).clamp(1, rules.pool_segments());
+        n as f32 * rules.segment_size()
     }
 
     /// Would this recipe cost `player` right now? (validated recipe, cost). For UI previews.
@@ -318,7 +345,7 @@ impl World {
         let recipe = validate_recipe(recipe, &self.cfg.rules);
         // TUNING HOOK: autonomy pricing is decided on the recipe as typed, before power / party
         // grafts (standing grafts never raise a cast's price).
-        let typed = TypedPricing::of(&self.cfg.tuning, &recipe);
+        let mut typed = TypedPricing::of(&self.cfg.tuning, &recipe);
         // POWERS HOOK — cast modifier pipeline step 1 (powers, then party): fruit / stand casts
         // are handled by the powers module; incantations + standing power grafts rewrite the recipe.
         let recipe = match self.powers_on_cast(i, recipe, origin, dir) {
@@ -327,7 +354,12 @@ impl World {
         };
         // PARTY HOOK: Wild Magic + standing grafts + Kaiju Heart (re-validates; no-op in FFA).
         let mut recipe = recipe;
+        let before_party = recipe.clone();
         crate::party::modify_cast(self, i, &mut recipe, typed.autonomous);
+        if self.party_cost_ratio.is_some() {
+            // SPARKS / PARTY: party grafts are free: price the recipe as it was before them.
+            typed.party_price = Some(self.cast_sparks_of(self.players[i].id, &before_party, typed.autonomous));
+        }
         super::interactables::modify_cast(self, i, &mut recipe, typed.autonomous); // INTERACT HOOK: slot-won party effect (casino)
         crate::signature::lift_scale(self, &mut recipe); // SIGNATURE HOOK: ultimate scale past the form clamp
         let shape = shape.map(sanitize_shape);
@@ -415,6 +447,13 @@ impl World {
         // PARTY HOOK: `party_cost_ratio` makes party-grafted mechanics free (None in FFA).
         let cost = wt.base_cost_as(&add, typed.autonomous) * wt.graft_cost_fraction * self.party_cost_ratio.unwrap_or(1.0);
         let integrity_cost = cost * wt.staleness(uses) * wt.adjustment_ratio_as(&add, typed.autonomous);
+        // SPARKS: a graft costs a fraction (`graft_cost_fraction`) of what the grafted phrase would
+        // cost as a fresh cast, in whole sparks (never more than casting it fresh).
+        let graft_sparks = {
+            let (_, n) = self.cast_sparks_of(id, &add, typed.autonomous);
+            let k = wt.graft_cost_fraction * self.party_cost_ratio.unwrap_or(1.0);
+            if k > 0.0 { ((n as f32 * k).round() as u32).max(1) } else { 0 }
+        };
         let integrity_gain = self.cfg.tuning.construct.integrity_for_cost(integrity_cost) * 0.25;
         // A typed graft that makes a non-creature hunt on its own ("wings" on your hammer) pays the
         // difference to a creature's base, so casting it plain and grafting isn't a discount.
@@ -425,13 +464,19 @@ impl World {
             _ => 0.0,
         };
         let cost = cost + surcharge;
+        // SPARKS: the hunting surcharge is the autonomous +spark.
+        let graft_sparks = graft_sparks + if surcharge > 0.0 { wt.sparks.autonomous as u32 } else { 0 };
         // FREEDOM HOOK: an "it" resize is paid like buying the bigger construct; an unaffordable graft
         // still applies — it drains what's left and gains integrity only for what was paid.
         let (resize, resize_cost) = crate::freedom::graft_resize(self, i, cid);
-        // SPARKS: a graft is still priced by its willpower weight (it adds to what's already there),
-        // rounded to whole sparks; repeats add a spark each (anti-spam).
-        let stale_sparks = uses.min(64) as f32 * self.cfg.tuning.willpower.sparks.stale as f32 * self.cfg.rules.segment_size();
-        let cost = if self.cfg.rules.infinite_willpower() { cost + resize_cost } else { (self.cfg.rules.quantize_cost(cost + resize_cost) + stale_sparks).min(self.cfg.rules.willpower_max()) };
+        // SPARKS: whole sparks (the "it" resize rounded like any cost); repeats add a spark each.
+        let cost = if self.cfg.rules.infinite_willpower() {
+            cost + resize_cost
+        } else {
+            let spark = self.cfg.rules.segment_size();
+            let n = graft_sparks + crate::willpower::cost_segments(resize_cost, spark) + uses.min(64) * self.cfg.tuning.willpower.sparks.stale as u32;
+            (n.min(self.cfg.rules.pool_segments()) as f32 * spark).max(0.0)
+        };
         let (cost, paid) = crate::freedom::drain_afford(self, i, cost);
         let integrity_gain = integrity_gain * paid;
         self.pay(i, cost)?;
@@ -536,16 +581,20 @@ impl World {
         // (`cast_price`); the plain willpower cost is the cast's weight (the tier's input, the spawn
         // event, integrity). Repeats add sparks (anti-spam) instead of multiplying the weight.
         let stale = wt.staleness(uses);
-        let (weight, full) = if model.is_some() { (0.0, 0.0) } else { self.cast_price(id, &recipe, typed.autonomous, uses) };
+        let (weight, full) = match (model.is_some(), typed.party_price) {
+            (true, _) => (0.0, 0.0),
+            (false, Some((w, n))) => (w, self.stale_price(n, uses)), // PARTY HOOK: what was typed
+            (false, None) => self.cast_price(id, &recipe, typed.autonomous, uses),
+        };
         // FREEDOM HOOK: never refuse for willpower — an unaffordable cast sputters (scaled down to fit,
         // drains everything left; a tiny fizzle at ~0).
         let price = |w: &World, r: &Recipe| w.cast_price(id, r, typed.autonomous, uses).1;
         let (cost, sputter) = if model.is_some() { (0.0, false) } else { crate::freedom::afford(self, i, &mut recipe, full, &price) };
         let weight = if sputter { self.cast_price(id, &recipe, typed.autonomous, uses).0 } else { weight };
-        // Integrity is bought at the weight (× staleness, as before sparks), scaled by what a sputter paid.
+        // Integrity is bought at the weight (unadjusted × staleness: exactly as before sparks), scaled
+        // by what a sputter paid.
         let paid = if full > 1e-6 { (cost / full).clamp(0.0, 1.0) } else { 1.0 };
-        let wt = &self.cfg.tuning.willpower;
-        let integrity_cost = weight * stale * paid * wt.adjustment_ratio_as(&recipe, typed.autonomous);
+        let integrity_cost = weight * stale * paid;
         if model.is_none() && !self.free_cast {
             self.pay(i, cost)?;
             self.players[i].casts.record(&recipe.name, self.tick);
@@ -667,6 +716,11 @@ impl World {
         // presence tier from it (`presence_tier::cast_tier`), so what they see is what it cost.
         self.events.push(GameEvent::ConstructSpawned { id: cid, owner: id, recipe: Box::new(recipe.clone()), pos, rot, forming, cost: weight });
         crate::freedom::after_spawn(self, i, cid, &recipe, flavor, sputter); // FREEDOM HOOK: golden / sputter flags, feed tag
+        if self.signature.cast.is_some()
+            && let Some(c) = self.constructs.get_mut(cid)
+        {
+            c.flair |= crate::replicate::cflags::SIGNATURE; // SPARKS / PRESENCE: the Signature tier everywhere
+        }
         if let Some(k) = spend {
             crate::pickups::spend(self, id, k); // POWER-UPS HOOK: the FULL-size payoff used the pickup
         }

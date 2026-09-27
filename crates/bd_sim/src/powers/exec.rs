@@ -458,10 +458,13 @@ impl World {
         if def.is_some_and(|d| !self.power_allowed(d)) {
             return None;
         }
+        // A FORM name ("gear 5", "super saiyan blue": a grants key with a tier) makes YOU that form —
+        // for any kind: a fruit's form comes with the fruit (no pickup to go and eat).
+        let form = tier.is_some() && def.is_some();
         // Saying a power you already hold makes it the active one (a tier phrase picks the tier):
         // free and instant, the toolkit is yours to mix.
         if let Some(d) = def
-            && !d.kind.is_pickup()
+            && (!d.kind.is_pickup() || form)
             && let Some(id) = t.index_of(key)
             && let Some(slot) = self.players[i].power.slot_of(id)
         {
@@ -469,20 +472,41 @@ impl World {
             let _ = self.select_power(i, slot, tier);
             return Some(Ok(self.players[i].power.companion.filter(|_| d.companion.is_some()).unwrap_or(NO_CONSTRUCT)));
         }
-        let direct = def.map_or(is_random_stand, |d| !d.kind.is_pickup());
+        let direct = form || def.map_or(is_random_stand, |d| !d.kind.is_pickup());
         let technique = def.is_some_and(|d| d.kind.is_technique());
+        let pickup_kind = def.is_some_and(|d| d.kind.is_pickup());
         let cost = if technique {
             t.rules.technique_cost
+        } else if pickup_kind {
+            t.rules.fruit_cost
         } else if direct {
             t.rules.stand_cost
         } else {
             t.rules.fruit_cost
         };
+        // POWER-UPS HOOK: a form at an awakening tier needs the Awakening pickup; without it the
+        // phrase is the plain "power up" flare (never a no, nothing paid).
+        let mut spend_awakening = false;
+        if form && tier.unwrap_or(0) >= self.cfg.tuning.pickups.awakening_min_tier {
+            match crate::pickups::gate(self, self.players[i].id, crate::pickups::GateKind::Awakening) {
+                crate::pickups::Gate::Free => {}
+                crate::pickups::Gate::Loaded => spend_awakening = true,
+                crate::pickups::Gate::Locked => {
+                    self.power_up_flare(i);
+                    return Some(Ok(NO_CONSTRUCT));
+                }
+            }
+        }
         // FREEDOM (never refuse): a power pickup you can not afford is not refused: the phrase
         // casts as the ordinary construct it describes (which itself sputters to fit what is left).
         // A power is permanent until KO, so a "weaker" power would be a new system; the construct
-        // is the charming fallback and the power stays a real purchase.
+        // is the charming fallback and the power stays a real purchase. A FORM you can't afford is
+        // the plain "power up" flare (the moment, not the form).
         if self.power_pay(i, cost).is_err() {
+            if form {
+                self.power_up_flare(i);
+                return Some(Ok(NO_CONSTRUCT));
+            }
             return None;
         }
         let name = recipe.name.clone();
@@ -491,8 +515,21 @@ impl World {
         let Some(id) = self.resolve_power_key(key) else { return Some(Err(CastError::Busy)) };
         let owner = self.players[i].id;
         if direct {
-            let how = if technique { GainHow::Learned } else { GainHow::Stand };
+            let how = if technique || form { GainHow::Learned } else { GainHow::Stand };
+            // One devil fruit per body: a spoken fruit form sets any other held fruit down at your
+            // feet (a pickup again) — no overdose for words.
+            if form && t.def(id).is_some_and(|d| d.kind.is_fruit()) {
+                let feet = self.players[i].mv.pos + Vec3::Y * 0.5;
+                loop {
+                    let slot = self.players[i].power.held().find(|h| h.id != id && h.def.kind.is_fruit()).map(|h| h.slot);
+                    let Some(slot) = slot else { break };
+                    self.drop_held(i, slot, Some(feet));
+                }
+            }
             self.gain_power_at(i, id, how, tier.unwrap_or(0));
+            if spend_awakening {
+                crate::pickups::spend(self, owner, crate::pickups::GateKind::Awakening);
+            }
             let has_companion = t.def(id).is_some_and(|d| d.companion.is_some());
             return Some(Ok(self.players[i].power.companion.filter(|_| has_companion).unwrap_or(NO_CONSTRUCT)));
         }
@@ -503,6 +540,15 @@ impl World {
             None => origin + dir * 3.0,
         };
         Some(self.spawn_fruit(owner, id, at, Vec3::Y * 3.0, false).ok_or(CastError::Busy))
+    }
+
+    /// The plain "power up" flare (your corps colour, no form), rate-limited like the phrase.
+    fn power_up_flare(&mut self, i: usize) {
+        let pw = &mut self.players[i].power;
+        if pw.ascend_cd <= 0.0 {
+            pw.ascend_cd = 2.5;
+            self.ascend(i, None, 0, false);
+        }
     }
 
     /// A hard-light fruit (or origin pickup: a radioactive spider, a gamma canister...) anyone can

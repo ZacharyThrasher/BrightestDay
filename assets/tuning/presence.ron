@@ -19,7 +19,7 @@
         heavy: 0.6,
         explodes: 0.6,
         drop_from_sky: 1.0,
-        heavy_drop: 1.2,
+        heavy_drop: 1.5,
         stomp: 0.4,
         ranged_held: -0.3, // held guns / beams: the shots carry the weight
         structure: -0.4,

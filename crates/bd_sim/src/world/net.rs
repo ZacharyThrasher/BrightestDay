@@ -134,7 +134,7 @@ impl World {
             if c.suit {
                 flags |= cflags::SUIT;
             }
-            flags |= c.flair & (cflags::LEGENDARY | cflags::SPUTTER); // FREEDOM HOOK
+            flags |= c.flair & (cflags::LEGENDARY | cflags::SPUTTER | cflags::SIGNATURE); // FREEDOM HOOK (+ SPARKS: signature)
             out.constructs.push(ConstructSnap {
                 id: c.id.0,
                 owner: c.owner.0,
@@ -322,7 +322,7 @@ impl World {
                     c.held.thrown = cs.flags & cflags::ATTACHED == 0;
                 }
                 c.colossal = cs.flags & cflags::COLOSSAL != 0;
-                c.flair = cs.flags & (cflags::LEGENDARY | cflags::SPUTTER); // FREEDOM HOOK
+                c.flair = cs.flags & (cflags::LEGENDARY | cflags::SPUTTER | cflags::SIGNATURE); // FREEDOM HOOK (+ SPARKS: signature)
                 c.size_scale = (cs.size as f32 / 50.0).clamp(0.1, 5.0);
                 {
                     use crate::constructs::components::XMode;

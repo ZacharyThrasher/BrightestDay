@@ -477,6 +477,61 @@ piloted (Kaiju-tier upkeep for colossal things). Balance = the Attack-on-Titan l
 are devastating but slow; **weak points** (joints, cockpit, "nape") take ×3 from Blade/Pierce, and
 swingers can tether onto the giant and ride its limbs. Shattered → pilot ejected tumbling.
 
+## 5d-ter. Who drives it — default-piloted, followers, boarding (owner: "if there's a pilot version, default to that and then the user can just hop out to turn it into a cpu/follower")
+- **Default = you drive it.** A single summon whose fantasy is being driven or ridden spawns with the
+  caster seated, no "ride / drive" needed: vehicles big enough to sit in (cars, trucks, tanks, jets,
+  helicopters, boats, motorcycles), anything that Transforms (Optimus spawns as the truck with you
+  driving), cockpits (mechs, titans, Gundam, jets), classic mounts by name (horse, pony, unicorn,
+  pegasus, camel, surfboard, hoverboard, magic carpet… — `data/intent.ron` `ride_default`). Decided in
+  the lexicon's intent stage (`bd_lexicon` `intent.rs::naturally_piloted` → `Recipe` gets `Piloted`,
+  `Intent::pilot = Default`), generically from form / features / mechanics.
+- **Followers stay followers:** monsters and animals whose fantasy is "sic it" (wolves, Godzilla and
+  other kaiju creatures, bees, T-rex, a plain "dragon"), swarms and counts > 1, riders on a mount
+  ("knight on a horse"), anything delivered or aimed at a player ("drop a car on mia", "throw a tank at
+  ethan", "sic wolves on sam", chase / hunt), and explicit follower words ("… that follows me",
+  "follower", "on autopilot", "on its own", "driverless", "unmanned") — those words come off the phrase.
+  A summon while you are already seated (a suit) also spawns as a follower (the host can't seat you
+  twice; a cockpit pilot can't cast at all).
+- **Explicit words:** leading pilot / ride / drive / steer / board / mount / get in / hop in / climb in /
+  "let me drive" / "i drive" / "i'll drive" (+ "a", "the", "my", "on", "in"), and trailing "i can ride /
+  drive / pilot / sit in / fly", "to ride", "with me in it" mean Piloted for any vehicle, mech, creature,
+  kaiju or transformer ("ride godzilla", "pilot a t rex"). The verb comes off before the resolver reads
+  the rest, so its dictionary sense never grafts ("pilot" is no aircraft pilot that Flies; "ride" /
+  "drive" add no Blunt). A verb inside a name stays a name ("pilot whale", "board game").
+- **Hop out = follower.** E ejects with the launch; the construct is handed to its own AI as your
+  follower: vehicles hunt and ram the nearest enemy (or drive back and idle near you), transformers run
+  their mode machine (robot to fight, vehicle to roam — the mode you left it in holds a moment first),
+  mounts / mechs follow and fight as creatures. A vehicle you drive never expires at rest.
+- **Board again (or board a follower you summoned):**
+  - *Words* — "get in", "hop in", "climb in", "get back in", "let me drive", "i'll drive", "pilot it",
+    "ride it", "drive it", "mount up", "take the wheel" (`GraftAction::Board`, recipe named "board"):
+    the aimed own construct if boardable, else the nearest within 40 m. Never builds, never costs.
+  - *The Transform key* (default Mouse3) **on foot**: boards the own boardable construct you look at
+    within 4 m (`World::board_candidate`: the look ray through its body, else the nearest in a 45°
+    cone). Seated, the same key transforms as before — so one key gets you into Optimus and switches
+    it: board the truck, drive, press Transform mid-jump to become the robot, keep piloting.
+    (Chosen because it is the transformer key already, it is free on foot, and it sits under a finger
+    during a fight; a Use-hold would have needed a new bind.)
+  - Host rules: owner only, alive, on foot (not seated / stunned / reciting / charging), a live
+    boardable construct nobody pilots (vehicles, transformers, cockpits, Piloted things, creatures
+    ≥ 1.2 m; never held / worn / structures), in range. Enemies never board your constructs — the giant
+    hijack (§5d, `giant::step_hijack`) stays the only takeover. Boarding grafts `Piloted` (replicated as
+    a free `Grafted`) and seats you (a suit for small humanoids / small transformers, else a cockpit);
+    a transformer keeps the mode it is in.
+  - *Teach by feel:* whatever the key would board right now wears a soft pulsing glow on its seat /
+    cockpit (no text; `bd_game` `construct_anim::BoardGlow`, the same `board_candidate` as the host).
+- **Flight (piloted):** anything that flies (Flies / Thrust, a Jet / Rotor / Propeller) flies — a
+  Vehicle form never rolls when it flies. Jets (Jet / Thrust, no rotor: fighter jet, Starscream's jet
+  mode) fly where the mouse aims with a minimum airspeed (35 % of top; W throttle, S brakes, and near
+  the ground S hover-taxis / lands), bank into turns; helicopters, UFOs and flying beasts hover (WASD
+  along the aim, Space up, Ctrl down, altitude holds when you let go). Top speed scales gently with
+  size, Fast / Heavy. Terrain stops the flier axis by axis with a small bounce (it slides along walls,
+  never tunnels; a body inside terrain is lifted out). Transformer robot modes walk, with a hover /
+  boost on held Jump when they fly or thrust; jet → robot mid-air falls into the landing slam, robot →
+  jet mid-air takes off.
+- **Ground (piloted):** vehicles stand on their body's sole (the pivot of an object is its centre),
+  step up ledges ≤ 20 % of their size, stop at walls.
+
 ## 5d-bis. Transformers (Mechanic::Transforms) — a birthday-present feature, make it great
 - **Two modes, one body.** A Transforms construct has an alt mode (usually a vehicle/animal) and a robot
   mode built from the *same panels*: bd_shapes splits the alt model into ~10–24 rigid panels and maps them

@@ -202,20 +202,29 @@ fn autonomous_non_creatures_are_priced_like_creatures() {
     let walls = bots::recipe("wall with legs", Form::Wall, &[Mechanic::Walks], Element::Light, 6.0);
     let mut w = flat_live();
     let (id, spent) = cast_spend(&mut w, flying.clone());
-    // SPARKS: every cast costs whole sparks (`MatchRules::quantize_cost`).
-    let q = |c: f32| w.rules().quantize_cost(c);
-    assert!((spent - q(AUTONOMOUS_BASE * 1.15)).abs() < 1e-3, "{spent}");
+    // SPARKS: a flying hammer costs the plain hammer's sparks + 1 (it hunts on its own).
+    let spark = w.rules().segment_size();
+    let (_, hammer_spent) = cast_spend(&mut flat_live(), hammer.clone());
+    assert!((spent - (hammer_spent + spark)).abs() < 1e-3, "{spent} vs {hammer_spent} + a spark");
+    let _ = AUTONOMOUS_BASE;
     let c = w.constructs.get(id).unwrap();
     assert!(c.priced_autonomous);
     // Integrity is priced from the unadjusted cost (no tougher for being pricier).
     assert!((c.max_integrity - integrity_for_cost(base_cost_as(&flying, false))).abs() < 1e-3, "{}", c.max_integrity);
     let (_, spent) = cast_spend(&mut w, walls.clone());
-    assert!((spent - w.rules().quantize_cost(base_cost(&walls))).abs() < 1e-3 && base_cost(&walls) > base_cost_as(&walls, false));
+    let wall = bots::recipe("wall", Form::Wall, &[], Element::Light, 6.0);
+    let (_, wall_spent) = cast_spend(&mut flat_live(), wall);
+    assert!((spent - (wall_spent + spark)).abs() < 1e-3 && base_cost(&walls) > base_cost_as(&walls, false), "{spent} vs {wall_spent}");
     // Legacy tuning: the old prices.
     let mut l = flat_live();
     l.set_tuning(CombatTuning::legacy());
     let (id, spent) = cast_spend(&mut l, flying);
-    assert!((spent - l.rules().quantize_cost(12.0 * 1.15)).abs() < 1e-3, "{spent}");
+    let (_, legacy_hammer) = {
+        let mut h = flat_live();
+        h.set_tuning(CombatTuning::legacy());
+        cast_spend(&mut h, hammer.clone())
+    };
+    assert!((spent - legacy_hammer).abs() < 1e-3, "legacy: no autonomy surcharge: {spent} vs {legacy_hammer}");
     assert!(!l.constructs.get(id).unwrap().priced_autonomous);
     // Graft "wings" (Flies) onto a plain hammer: the hammer now hunts, so the graft pays up to a
     // creature's base and the hammer pays creature upkeep from then on.
@@ -232,8 +241,9 @@ fn autonomous_non_creatures_are_priced_like_creatures() {
     aim.target_hint = Some(bd_sim::world::TargetHint::Construct(hid));
     assert_eq!(g.cast(a, wings.clone(), None, aim).unwrap(), hid);
     let spent = 100.0 - g.player(a).unwrap().willpower;
+    // SPARKS: half the grafted phrase's sparks (min 1) + the autonomous spark.
     let plain = base_cost(&wings) * 0.5;
-    assert!((spent - g.rules().quantize_cost(plain + (AUTONOMOUS_BASE - 12.0))).abs() < 1e-2, "{spent} vs {plain}");
+    assert!((spent - 2.0 * spark).abs() < 1e-2, "{spent} vs {plain}");
     assert!(g.constructs.get(hid).unwrap().priced_autonomous);
 }
 

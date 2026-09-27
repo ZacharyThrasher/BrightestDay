@@ -22,7 +22,7 @@ fn owner_phrases_are_signatures_with_sensible_elements() {
         ("kamehameha", Beam, None),
         ("KAMEHAMEHA!!!", Beam, None),
         ("final flash", Beam, Some(Element::Electric)),
-        ("bankai", Transformation, None),
+        // (bare "bankai" is the power itself: tests/techniques.rs)
         ("bankai senbonzakura kageyoshi", Transformation, None),
         ("domain expansion", Domain, None),
         ("fire domain", Domain, Some(Element::Fire)),

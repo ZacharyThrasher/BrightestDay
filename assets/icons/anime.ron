@@ -905,7 +905,10 @@
         source: "One Piece",
     ),
     IconEntry(
-        names: ["gear 5", "gear fifth", "gear five", "gear5", "nika", "sun god nika", "luffy gear 5", "gear 5 luffy", "joy boy"],
+        // The OBJECT only by object phrasing: "gear 5" / "gear fifth" / "nika" make YOU the form
+        // (powers.ron gomu_gomu tier 4, "Gear Fifth").
+        names: ["gear 5 gauntlet", "gear 5 fist", "gear fifth fist", "gear fifth gauntlet", "gear five fist", "gear five gauntlet",
+                "gear 5 glove", "nika fist", "nika gauntlet", "sun god fist", "gear 5 punch fist"],
         recipe: (
             name: "Gear 5",
             form: Gauntlet,
