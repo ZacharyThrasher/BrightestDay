@@ -622,6 +622,45 @@ numbers in `combat.ron` → `transformer`).
 - Deterministic; a piloted transformer is host-driven like every cockpit (prediction never moves the
   seated pilot). Frame strips: `docs/piloting/strip_*.png` (`--scenario piloting --pilot-shot
   combo|flyby|tankcombo|helicombo|bikecombo`).
+- **FEEL pass (owner: "If I'm playing ANY transformer, it should FEEL awesome"; tests
+  `bd_sim/tests/transformer_feel.rs`):**
+  - *More archetypes (data):* **dino** (a Kaiju / Quadruped / Serpent alt with a tail or breath:
+    Grimlock, a T-rex, a dragon), **beast** (animal alts: Optimus Primal, Ravage, a wolf),
+    **boat** (Sails, or a Propeller + Water), **train** (Plow + Wheels / Cab / Smokestack, no
+    construction tools), **colossus** (Kaiju construction robots such as Devastator, Kaiju ≥ 14 m
+    such as Unicron, and every combined giant). Rules can also test `elements`.
+  - *Beast modes fight:* a row's `alt` names the row the ALT mode brawls with when it walks.
+    Dino beast: LMB bites that lunge, hold = a 360° tail sweep, hold RMB = a breath cone.
+    Beast: fast claws, hold = a pounce that lands on the aimed prey, RMB = a roar (0.25 s stagger).
+    They play the creature clips (`CreatureAttack`). Transform during a beast string makes the
+    robot **burst out of the beast** straight into its finisher.
+  - *New transform attacks:* dino **Stampede** (the beast charges jaws-first; the first victim
+    rides the jaws ≤ 0.45 s, then the fling and the robot's chop); beast **Pounce** (an arc onto
+    the target); train = the longest ram, carrying its victim on the plough; boat = a wake ram +
+    an anchor chop; colossus **Quake** (a ring shockwave; a combiner never splits mid-fight) with a
+    size-scaled **Stomp** on hold. Landing slams of big robots push a wider ring.
+  - *Strings connect:* non-ender hits only flinch (×0.35 knockback) and the robot slides ≤ 4 m to
+    the aimed target (magnetism). Reach grows with size. Enders, heavies, counters, finishers and
+    quakes are `HeavyMelee` (clients: the heavy-weapon impact frame).
+  - *Small suit transformers (≤ 2.6 m): you are the robot.* Strings, heavies, the blaster and
+    transform attacks run on your own body (the moveset's velocity is handed to you as impulses).
+    Your own dodge is the perfect dodge (it opens the counter).
+  - *Voice mid-fight from the cockpit:* "transform" / "roll out" switch modes. A kit or borrowed
+    move becomes a robot **order**, by data (tags first, then ops): Combo = the whole string →
+    transform attack → finisher; Ultimate = the transform attack now (straight out of vehicle
+    mode); Movement = a boost-step; Defense / Counter = a guard stance; a shot / thrown thing = the
+    blaster. A weapon said ("energon axe") is the robot's heavy, a gun its blaster. Orders are free
+    (the robot's own moveset), keep the move's cooldown, play its title / juice, and hold a chain's
+    next step until the robot is done. Suit wearers route only Combo / Ultimate moves.
+  - A combiner said by name ("devastator") stays a real, pilotable construct unless you own ≥ 3
+    other transformers to merge.
+  - Followers: beast alts fight 6 s bouts as the beast, then as the robot. Creature-bodied and
+    combined transformers use the archetype AI in robot mode.
+  - *3P framing:* when your robot would hide the nearest enemy in front, the piloting boom slides
+    further over the shoulder (then rises) until they are visible (`camera3p::frame_fight`).
+  - Strips `docs/piloting/feel_*.png` (`--pilot-shot combo|grimlock|devastator|smallcar|voice`; also
+    megatron, bumblebee, soundwave, motorcycle, boat, train, grimrobot, primal, primalrobot,
+    unicron). Protocol v50.
 
 ## 5d-bis. Transformers (Mechanic::Transforms) — a birthday-present feature, make it great
 - **Two modes, one body.** A Transforms construct has an alt mode (usually a vehicle/animal) and a robot
