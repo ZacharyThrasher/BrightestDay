@@ -69,6 +69,12 @@ fn start_lexicon_load() -> LexiconLoad {
         };
         info!("lexicon: {} entries + {} icons in {:.0} ms", lex.len(), lex.icon_count(), t.elapsed().as_secs_f64() * 1e3);
         let _ = tx.send(lex);
+        // TOOLBOX: parse the power table (thousands of entries, ~0.3–0.5 s) and build the phrase
+        // index here, off the main thread, so the first power phrase / HUD read never hitches.
+        let t = std::time::Instant::now();
+        let n = bd_sim::powers::PowerTable::get().powers.len();
+        let _ = bd_sim::powers::toolbox::MoveIndex::shipped();
+        info!("powers: {n} powers + phrase index in {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
     });
     if let Err(e) = spawned {
         warn!("lexicon: could not spawn loader thread: {e}");
@@ -276,7 +282,9 @@ impl Caster<'_> {
         // TOOLBOX: a kit / borrowed move, a held move said by name, or a CHAIN ("a -> b", "x then y",
         // "summon a dragon, rasengan") → one `Cmd::Toolbox`; the host fires the steps in order.
         let held = active.world.player(local).map(|p| &p.power);
-        if let Some(steps) = crate::toolbox::command(&lex, held, active.world.cfg.rules.powers_enabled, text, spoken) {
+        // VERB GRAMMAR: described moves may name another player ("shadow teleport behind ethan").
+        let roster: Vec<(bd_core::PlayerId, &str)> = active.world.players.iter().filter(|p| p.id != local).map(|p| (p.id, p.name.as_str())).collect();
+        if let Some(steps) = crate::toolbox::command_for(&lex, held, active.world.cfg.rules.powers_enabled, text, spoken, &roster) {
             self.commit_feedback(spoken);
             self.shouts.write(crate::present::shout::ShoutCast { text: text.to_string(), spoken });
             let (eye, dir) = self.crosshair();

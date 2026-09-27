@@ -107,6 +107,9 @@ pub struct MoveIndex {
     names: HashSet<String>,
     /// (normalised kit name, power), longest first.
     kits: Vec<(String, u16)>,
+    /// First word of a kit name → indices into `kits` (ascending = longest first). Thousands of kits
+    /// (AUTO-KITS' generated ones) must not make every phrase scan every name.
+    kit_first: HashMap<String, Vec<u32>>,
 }
 
 /// Filler words skipped between a kit name and its move word ("reinhardt use his charge").
@@ -205,11 +208,16 @@ impl MoveIndex {
                 let mut names: Vec<String> = p.names.clone();
                 names.push(norm_words(&p.name));
                 names.push(p.id.replace('_', " "));
+                // phrases are matched possessive-stripped ("doomfist's" → "doomfist"), so kit names are too
+                // ("pharaoh's mummy" must be reachable as "pharaoh's mummy ultimate")
+                let mut own: Vec<String> = Vec::with_capacity(names.len());
                 for n in names {
-                    if !n.is_empty() && !ix.kits.iter().any(|(k, q)| *k == n && *q == pid) {
-                        ix.kits.push((n, pid));
+                    let n = n.split(' ').filter(|w| !w.is_empty()).map(strip_possessive).collect::<Vec<_>>().join(" ");
+                    if !n.is_empty() && !own.contains(&n) {
+                        own.push(n);
                     }
                 }
+                ix.kits.extend(own.into_iter().map(|n| (n, pid)));
             } else {
                 ix.names.insert(norm_words(&p.name));
                 ix.names.insert(p.id.replace('_', " "));
@@ -236,6 +244,10 @@ impl MoveIndex {
         }
         ix.names.remove("");
         ix.kits.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then(a.0.cmp(&b.0)).then(a.1.cmp(&b.1)));
+        for (i, (k, _)) in ix.kits.iter().enumerate() {
+            let first = k.split(' ').next().unwrap_or("");
+            ix.kit_first.entry(first.to_string()).or_default().push(i as u32);
+        }
         ix
     }
 
@@ -288,7 +300,23 @@ impl MoveIndex {
         if words.len() < 2 {
             return None;
         }
-        for (kit, pid) in &self.kits {
+        // Only kits whose first word can fit: words[0] itself, or "reinhardts" → "reinhardt" — merged
+        // back into the global longest-first order.
+        let empty: Vec<u32> = Vec::new();
+        let a = self.kit_first.get(words[0]).unwrap_or(&empty);
+        let b = words[0].strip_suffix('s').and_then(|s| self.kit_first.get(s)).unwrap_or(&empty);
+        let mut cands: Vec<u32> = Vec::with_capacity(a.len() + b.len());
+        let (mut i, mut j) = (0, 0);
+        while i < a.len() || j < b.len() {
+            if j >= b.len() || (i < a.len() && a[i] < b[j]) {
+                cands.push(a[i]);
+                i += 1;
+            } else {
+                cands.push(b[j]);
+                j += 1;
+            }
+        }
+        for (kit, pid) in cands.iter().map(|&c| &self.kits[c as usize]) {
             let kw: Vec<&str> = kit.split(' ').collect();
             if kw.len() >= words.len() {
                 continue;
@@ -343,6 +371,15 @@ impl MoveIndex {
         }
         Reading::Plain
     }
+}
+
+/// Every number in a move's ops is finite (tools / tests: serialises the ops, so it allocates).
+/// Data NaN / inf would slip through a bare `f32::clamp` in an op.
+pub fn move_is_finite(mv: &MoveDef) -> bool {
+    mv.ops.iter().all(|op| {
+        let s = ron::to_string(op).unwrap_or_default();
+        !s.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).any(|w| w == "NaN" || w == "inf")
+    })
 }
 
 /// Can a move be fired by someone who doesn't hold its power? Not one that only transforms or

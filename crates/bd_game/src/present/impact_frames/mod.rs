@@ -428,11 +428,24 @@ fn drive(
         };
         let involved = f.view == View::Full && local.is_some();
         // Hold the pair and burn them in (flash → hot emissive keyed by the shader).
+        // `BD_IF_BENCH=1`: pin the first frame at its hold forever (GPU cost measurement).
+        if bench() {
+            f.t = f.t.min(f.hold * 0.5);
+        }
         if f.t < f.hold {
             let left = f.hold - f.t + 0.02;
+            // The attacker's own first-person camera keeps flying (a lunge): holding the victim's
+            // body there too would park the camera inside it, so from the attacker's eye the
+            // victim keeps the ordinary connect hit-stop only.
+            let attacker_eye = local.is_some() && local == f.attacker;
             for id in [f.attacker, f.victim].into_iter().flatten() {
-                freeze.hold_player(id, left + s.hitstop * 0.5);
-                freeze.set_flash(id, 1.0, left);
+                if !(attacker_eye && Some(id) == f.victim) {
+                    freeze.hold_player(id, left + s.hitstop * 0.5);
+                }
+                // Reduced: no white body flash (the silhouettes aren't burned in).
+                if !f.reduced {
+                    freeze.set_flash(id, 1.0, left);
+                }
             }
         } else if !f.released {
             f.released = true;
@@ -452,7 +465,7 @@ fn drive(
     if finished {
         st.active = None;
     }
-    if post_value.active() && std::env::var_os("BD_IF_DEBUG").is_some() {
+    if post_value.active() && debug_log() {
         info!("IF drive {cam_e:?}: strength {:.3} zoom {:.3} center {:?} r {:.3}", post_value.b.x, post_value.b.z, post_value.a.truncate(), post_value.a.z);
     }
     match post {
@@ -465,6 +478,16 @@ fn drive(
             commands.entity(cam_e).insert(post_value);
         }
     }
+}
+
+fn bench() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("BD_IF_BENCH").is_some())
+}
+
+fn debug_log() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("BD_IF_DEBUG").is_some())
 }
 
 fn play_sfx(sfx: &mut MessageWriter<Sfx3d>, list: &[(String, f32, f32)], at: Option<Vec3>) {

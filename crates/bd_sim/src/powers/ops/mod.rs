@@ -130,6 +130,9 @@ pub enum OpEvent {
     Pounce { player: PlayerId, phase: PouncePhase, target: Option<PlayerId>, pos: Vec3, dir: Vec3 },
     /// A strike is marked at `pos` and lands in `secs` (Salvo): draw the warning ring / the cut line.
     Telegraph { player: PlayerId, pos: Vec3, radius: f32, secs: f32, element: Element },
+    /// A marked strike landed at `pos` (`cut` = a clean cut / bolt, else a blast that also sends
+    /// the world's `Explosion`): draw it in the move's style.
+    Strike { player: PlayerId, pos: Vec3, radius: f32, element: Element, cut: bool },
     /// A heal: `pct` at once, healing on for `secs` more (0 = none).
     Mended { player: PlayerId, pct: f32, secs: f32 },
     /// Evade: the window opened (`dodged: false`, `secs` = window) or a hit was slipped (`dodged:
@@ -324,12 +327,12 @@ pub fn active_secs(op: &MoveOp) -> f32 {
         // MODERN ANIME: the lunge-strike and the rising terrain read as a beat.
         MoveOp::Finisher { .. } => 0.15,
         MoveOp::Erupt { .. } => 0.25,
-        MoveOp::Ram { secs, .. } => secs.clamp(0.05, ram::MAX_SECS),
-        MoveOp::Hook { range, speed, pull, .. } => range.clamp(1.0, hook::MAX_RANGE) / speed.clamp(hook::MIN_SPEED, hook::MAX_SPEED) + if pull > 0.0 { hook::TOW_SECS } else { 0.0 },
+        MoveOp::Ram { secs, .. } => fclamp(secs, 0.05, ram::MAX_SECS),
+        MoveOp::Hook { range, speed, pull, .. } => fclamp(range, 1.0, hook::MAX_RANGE) / fclamp(speed, hook::MIN_SPEED, hook::MAX_SPEED) + if pull > 0.0 { hook::TOW_SECS } else { 0.0 },
         MoveOp::Grab { hold, .. } => grab::hold_secs(hold),
-        MoveOp::Deflect { secs, .. } => secs.clamp(0.1, deflect::MAX_SECS),
-        MoveOp::Counter { secs, .. } => secs.clamp(0.05, counter::MAX_SECS),
-        MoveOp::LockOn { secs, .. } => secs.clamp(0.3, lock_on::MAX_SECS),
+        MoveOp::Deflect { secs, .. } => fclamp(secs, 0.1, deflect::MAX_SECS),
+        MoveOp::Counter { secs, .. } => fclamp(secs, 0.05, counter::MAX_SECS),
+        MoveOp::LockOn { secs, .. } => fclamp(secs, 0.3, lock_on::MAX_SECS),
         // MYTHOLOGY & FOLKLORE: the throw / the cast line / the wall rising; a leap is its flight.
         MoveOp::Seeker { .. } => 0.3,
         MoveOp::Haul { .. } => 0.35,
@@ -380,8 +383,8 @@ impl World {
             MoveOp::Pounce { range, speed, cone, damage, knockback, element, up, bounce, secs } => {
                 self.op_pounce(i, pounce::PounceSpec { range, speed, cone, damage, knockback, element, up, bounce, secs })
             }
-            MoveOp::Salvo { count, delay, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track } => {
-                self.op_salvo(i, salvo::SalvoSpec { count, delay, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track })
+            MoveOp::Salvo { count, delay, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track, cut } => {
+                self.op_salvo(i, salvo::SalvoSpec { count, delay, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track, cut })
             }
             MoveOp::Mend { pct, per_s, secs } => self.op_mend(i, pct, per_s, secs),
             MoveOp::Evade { secs, slow, speed, blink } => self.op_evade(i, secs, slow, speed, blink),
@@ -419,7 +422,7 @@ impl World {
             // SHONEN CLASSICS
             MoveOp::Drill { speed, secs, grind, damage, knockback, element, up } => self.op_drill(i, speed, secs, grind, damage, knockback, element, up),
             MoveOp::MarkRecall { range, secs, strike } => self.op_mark_recall(i, range, secs, strike),
-            MoveOp::WarpTo { range, cone, behind } => self.op_warp_to(i, range, cone, behind),
+            MoveOp::WarpTo { range, cone, behind, line } => self.op_warp_to(i, range, cone, behind, line),
             MoveOp::CopyLast { range, secs } => self.op_copy_last(i, range, secs),
             MoveOp::GazeStun { range, cone, secs, status, aimed } => self.op_gaze_stun(i, range, cone, secs, status, aimed),
             MoveOp::Phase { secs } => self.op_phase(i, secs),
@@ -629,6 +632,11 @@ impl World {
         let c = self.players[k].hull(&self.cfg.move_params).center();
         self.apply_hit(HitInfo::new(tid, Some(src), crate::combat::HitKind::RingShove, 0.0, 0.0, dir, c)).applied
     }
+}
+
+/// `v.clamp(lo, hi)` for DATA numbers (not sanitised upstream): a non-finite `v` becomes `lo`.
+pub(crate) fn fclamp(v: f32, lo: f32, hi: f32) -> f32 {
+    if v.is_finite() { v.clamp(lo, hi) } else { lo }
 }
 
 /// Horizontal part of `v`, normalised (`fallback` if flat).

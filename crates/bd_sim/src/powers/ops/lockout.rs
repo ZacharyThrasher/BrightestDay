@@ -11,8 +11,8 @@ pub const MAX_SECS: f32 = 2.5;
 
 impl World {
     pub(crate) fn op_lockout(&mut self, i: usize, range: f32, secs: f32) -> Result<(), PowerError> {
-        let Some(k) = self.op_aimed_player(i, range.clamp(1.0, 40.0), 8.0) else { return Err(PowerError::NoTarget) };
-        let secs = secs.clamp(0.2, MAX_SECS);
+        let Some(k) = self.op_aimed_player(i, super::fclamp(range, 1.0, 40.0), 8.0) else { return Err(PowerError::NoTarget) };
+        let secs = super::fclamp(secs, 0.2, MAX_SECS);
         let (_, look) = self.op_eye_look(i);
         if !self.op_touch(i, k, look) {
             return Err(PowerError::NoTarget);

@@ -114,7 +114,8 @@
         kind: Kit,
         names: ["tracer", "tracey", "trace her", "tracer's", "lena oxton", "lena", "tracer overwatch"],
         fx: "speed",
-        shouts: [("pulse pistols", 0), ("pulse bomb", 3)],
+        shouts: [("pulse pistols", 0), ("pulse bomb", 3),
+                 ("tracer rewind", 2)],
         moves: [
             (name: "pulse pistols", cooldown: 0.4, cost: 1.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "pulse pistols", form: Ball, mech: [Fast, Swarm], element: Electric, scale: 0.16, count: 6, mass: 2.0)),
@@ -145,7 +146,8 @@
         names: ["genji", "genji shimada", "gen g", "genjii", "genjy", "gengi", "genji's"],
         fx: "hardlight",
         shouts: [("swift strike", 1), ("deflect", 2),
-                 ("dragonblade", 3), ("dragon blade", 3), ("ryujin no ken", 3), ("ryuujin no ken", 3)],
+                 ("dragonblade", 3), ("dragon blade", 3), ("ryujin no ken", 3), ("ryuujin no ken", 3),
+                 ("nano blade", 4), ("nanoblade", 4)],
         moves: [
             // Three steel stars in a tight fan. -> ends in place.
             (name: "shuriken", cooldown: 0.5, cost: 1.0, tags: [Primary], fx: "rigid", ops: [
@@ -168,6 +170,11 @@
                 Cast(recipe: (name: "dragonblade", form: Sword, mech: [Blade, Fast], element: Light, scale: 1.3)),
                 Empower(secs: 6.0, damage: 1.45, armor: 0.85),
             ], juice: Some((title: Some("DRAGONBLADE"), boom: true, punch: 4.0, ripple: 4.0, color: Some((0.45, 1.0, 0.5))))),
+            // THE NANOBLADE: the combo in one breath — nano'd AND the dragon's blade in hand.
+            (name: "nanoblade", cooldown: 30.0, cost: 40.0, tags: [], ops: [
+                Cast(recipe: (name: "dragonblade", form: Sword, mech: [Blade, Fast], element: Light, scale: 1.3)),
+                Empower(secs: 6.0, damage: 1.9, armor: 0.45),
+            ], juice: Some((title: Some("NANOBLADE"), boom: true, punch: 5.0, ripple: 5.0, color: Some((0.35, 0.9, 1.0))))),
         ],
     ),
     // ---------------------------------------------------------------- Hanzo: the archer
@@ -235,7 +242,8 @@
         kind: Kit,
         names: ["winston", "winston overwatch", "the gorilla scientist", "winstons"],
         fx: "electric",
-        shouts: [("tesla cannon", 0), ("jump pack", 1), ("barrier projector", 2), ("primal rage", 3)],
+        shouts: [("tesla cannon", 0), ("jump pack", 1), ("barrier projector", 2), ("primal rage", 3),
+                 ("winston bubble", 2), ("angry monkey", 3)],
         moves: [
             // A crackling arc that jumps to everyone in a short cone — no aim needed, short reach.
             (name: "tesla cannon", cooldown: 0.5, cost: 2.0, tags: [Primary], fx: "lightning", ops: [
@@ -294,7 +302,8 @@
         kind: Kit,
         names: ["lucio", "lúcio", "loosio", "lucio's", "lucious", "lucio overwatch", "lucio correia dos santos"],
         fx: "air",
-        shouts: [("sonic amplifier", 0), ("soundwave", 1), ("boop", 1), ("wall ride", 2), ("wallride", 2), ("sound barrier", 3), ("amp it up", 4)],
+        shouts: [("sonic amplifier", 0), ("soundwave", 1), ("boop", 1), ("wall ride", 2), ("wallride", 2), ("sound barrier", 3), ("amp it up", 4),
+                 ("lucio speed", 5), ("lucio heal", 5), ("crossfade", 5), ("lucio beat", 3)],
         moves: [
             (name: "sonic amplifier", cooldown: 0.6, cost: 1.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "sonic amplifier", form: Ball, mech: [Fast, Swarm], element: Wind, scale: 0.3, count: 4, mass: 3.0)),
@@ -321,6 +330,11 @@
             (name: "amp it up", cooldown: 10.0, cost: 6.0, tags: [], ops: [
                 Mend(pct: 6.0, per_s: 4.0, secs: 3.0),
             ], juice: Some((ripple: 3.0, color: Some((1.0, 0.85, 0.2))))),
+            // CROSSFADE: flip the track — a burst of speed and a little healing.
+            (name: "crossfade", cooldown: 1.0, cost: 2.0, tags: [], ops: [
+                Impulse(fwd: 10.0, up: 0.0),
+                Mend(pct: 3.0),
+            ], juice: Some((color: Some((0.5, 1.0, 0.4))))),
         ],
     ),
     // ---------------------------------------------------------------- Junkrat: the demolitions maniac
@@ -400,7 +414,8 @@
         names: ["cassidy", "mccree", "mc cree", "mcree", "cole cassidy", "cassidy's", "mccree's", "jesse mccree", "mcreee"],
         fx: "rigid",
         shouts: [("peacekeeper", 0), ("fan the hammer", 1), ("combat roll", 2), ("magnetic grenade", 3),
-                 ("deadeye", 4), ("dead eye", 4), ("high noon", 4)],
+                 ("deadeye", 4), ("dead eye", 4), ("high noon", 4),
+                 ("mccree flashbang", 5), ("cassidy flashbang", 5)],
         moves: [
             (name: "peacekeeper", cooldown: 0.5, cost: 1.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "peacekeeper", form: Ball, mech: [Fast, Pierce], scale: 0.15, mass: 4.0)),
@@ -424,6 +439,10 @@
             (name: "deadeye", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [
                 LockOn(secs: 4.5, range: 45.0, damage: 48.0, knockback: 14.0, angle: 38.0),
             ], juice: Some((title: Some("DEADEYE"), color: Some((1.0, 0.25, 0.15))))),
+            // FLASHBANG (the classic): everyone close who's facing you is dazzled for a heartbeat.
+            (name: "flashbang", cooldown: 8.0, cost: 4.0, tags: [], fx: "light", ops: [
+                GazeStun(range: 8.0, cone: 70.0, secs: 0.5, status: Stun),
+            ], juice: Some((ripple: 2.0, at: Front, dist: 3.0))),
         ],
     ),
     // ---------------------------------------------------------------- Pharah: the rocket soldier
@@ -465,7 +484,8 @@
         names: ["dva", "d va", "deeva", "hana song", "dee va", "dva's"],
         fx: "tech",
         shouts: [("fusion cannons", 0), ("dva boosters", 1), ("defense matrix", 2), ("micro missiles", 3), ("self destruct", 4),
-                 ("mech eject", 4)],
+                 ("mech eject", 4),
+                 ("dva bomb", 4)],
         moves: [
             (name: "fusion cannons", cooldown: 0.6, cost: 1.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "fusion cannons", form: Ball, mech: [Fast, Swarm], scale: 0.2, count: 6, mass: 2.0)),
@@ -521,7 +541,8 @@
         kind: Kit,
         names: ["sigma", "siebren de kuiper", "sigma overwatch", "sigmas", "sigma's"],
         fx: "gravity",
-        shouts: [("hyperspheres", 0), ("accretion", 1), ("kinetic grasp", 2), ("gravitic flux", 3), ("gravity flux", 3)],
+        shouts: [("hyperspheres", 0), ("accretion", 1), ("kinetic grasp", 2), ("gravitic flux", 3), ("gravity flux", 3),
+                 ("sigma rock", 1)],
         moves: [
             // Two dark orbs that bank off walls and burst.
             (name: "hyperspheres", cooldown: 1.0, cost: 2.0, tags: [Primary], ops: [
@@ -552,7 +573,8 @@
         kind: Kit,
         names: ["ana", "ana amari", "anna overwatch", "ana overwatch", "ana's"],
         fx: "holy",
-        shouts: [("biotic rifle", 0), ("sleep dart", 1), ("biotic grenade", 2), ("nano boost", 3), ("nanoboost", 3), ("nano", 3)],
+        shouts: [("biotic rifle", 0), ("sleep dart", 1), ("biotic grenade", 2), ("nano boost", 3), ("nanoboost", 3), ("nano", 3),
+                 ("ana nade", 2)],
         moves: [
             (name: "biotic rifle", cooldown: 0.8, cost: 1.0, tags: [Primary], fx: "rigid", ops: [
                 Cast(recipe: (name: "biotic rifle", form: Spear, mech: [Fast, Pierce], scale: 0.15, mass: 3.0)),
@@ -581,7 +603,8 @@
         kind: Kit,
         names: ["moira", "moira o'deorain", "moira odeorain", "moira overwatch", "moira's"],
         fx: "poison",
-        shouts: [("biotic grasp", 0), ("fade", 1), ("moira fade", 1), ("biotic orb", 2), ("coalescence", 3), ("coalesence", 3)],
+        shouts: [("biotic grasp", 0), ("fade", 1), ("moira fade", 1), ("biotic orb", 2), ("coalescence", 3), ("coalesence", 3),
+                 ("moira beam", 3)],
         moves: [
             // A draining grasp: it eats at them and feeds you.
             (name: "biotic grasp", cooldown: 0.8, cost: 2.0, tags: [Primary], ops: [
@@ -644,7 +667,8 @@
         kind: Kit,
         names: ["kiriko", "kiriko kamori", "kiri ko", "kirico", "kiriko's"],
         fx: "spirit",
-        shouts: [("kunai", 0), ("kiriko kunai", 0), ("swift step", 1), ("protection suzu", 2), ("suzu", 2), ("kitsune rush", 3)],
+        shouts: [("kunai", 0), ("kiriko kunai", 0), ("swift step", 1), ("protection suzu", 2), ("suzu", 2), ("kitsune rush", 3),
+                 ("kiriko fox", 3)],
         moves: [
             // A kunai thrown true: headshots are the game.
             (name: "kunai", cooldown: 0.6, cost: 1.0, tags: [Primary], fx: "rigid", ops: [
@@ -674,7 +698,8 @@
         kind: Kit,
         names: ["soldier 76", "soldier seventy six", "jack morrison", "soldier76", "s76", "soldier seven six"],
         fx: "tech",
-        shouts: [("heavy pulse rifle", 0), ("helix rockets", 1), ("biotic field", 2), ("tactical visor", 3), ("soldier sprint", 4)],
+        shouts: [("heavy pulse rifle", 0), ("helix rockets", 1), ("biotic field", 2), ("tactical visor", 3), ("soldier sprint", 4),
+                 ("biotic field heal", 2)],
         moves: [
             (name: "heavy pulse rifle", cooldown: 0.4, cost: 1.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "heavy pulse rifle", form: Ball, mech: [Fast, Swarm], element: Light, scale: 0.15, count: 5, mass: 2.0)),
@@ -757,7 +782,8 @@
         names: ["mercy", "angela ziegler", "mercy overwatch", "mercy's", "mersey"],
         fx: "holy",
         shouts: [("caduceus staff", 0), ("guardian angel", 1), ("angelic descent", 2), ("valkyrie", 3), ("mercy valkyrie", 3),
-                 ("resurrect", 4), ("resurrection", 4)],
+                 ("resurrect", 4), ("resurrection", 4),
+                 ("mercy rez", 4), ("mercy fly", 1), ("mercy heal", 0)],
         moves: [
             // The staff's golden stream: healing on you.
             (name: "caduceus staff", cooldown: 3.0, cost: 3.0, tags: [Primary], ops: [
@@ -901,7 +927,8 @@
         kind: Kit,
         names: ["echo", "echo overwatch", "echo's"],
         fx: "hardlight",
-        shouts: [("tri shot", 0), ("tri-shot", 0), ("echo flight", 1), ("focusing beam", 2)],
+        shouts: [("tri shot", 0), ("tri-shot", 0), ("echo flight", 1), ("focusing beam", 2),
+                 ("echo duplicate", 3), ("echo copy", 3)],
         moves: [
             (name: "tri shot", cooldown: 0.6, cost: 1.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "tri-shot", form: Ball, mech: [Fast, Swarm], element: Light, scale: 0.2, count: 3, mass: 2.0)),
@@ -914,6 +941,10 @@
             (name: "focusing beam", cooldown: 6.0, cost: 5.0, tags: [], ops: [
                 Cast(recipe: (name: "focusing beam", form: Hands, mech: [Beam], element: Light, scale: 0.7)),
             ]),
+            // DUPLICATE: you become the last big move someone near you used — as your own.
+            (name: "duplicate", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [
+                CopyLast(range: 30.0, secs: 8.0),
+            ], juice: Some((title: Some("DUPLICATE"), ripple: 3.0, color: Some((0.6, 0.9, 1.0))))),
         ],
     ),
     // ================================================================ VALORANT
@@ -925,7 +956,8 @@
         names: ["jett", "jet valorant", "jett valorant", "jetts", "jett's"],
         fx: "wind",
         shouts: [("updraft", 0), ("tailwind", 1), ("tail wind", 1), ("jett dash", 1), ("cloudburst", 2), ("cloud burst", 2),
-                 ("blade storm", 3), ("bladestorm", 3)],
+                 ("blade storm", 3), ("bladestorm", 3),
+                 ("jett knives", 3)],
         moves: [
             // UPDRAFT: straight up on a gust. -> ends high in the air (the angle nobody checks).
             (name: "updraft", cooldown: 1.5, cost: 2.0, tags: [], ops: [
@@ -953,7 +985,8 @@
         kind: Kit,
         names: ["phoenix valorant", "valorant phoenix", "phoenix agent", "phoenix val", "jamie adeyemi"],
         fx: "fire",
-        shouts: [("curveball", 0), ("curve ball", 0), ("hot hands", 1), ("blaze", 2), ("phoenix blaze", 2), ("run it back", 3)],
+        shouts: [("curveball", 0), ("curve ball", 0), ("hot hands", 1), ("blaze", 2), ("phoenix blaze", 2), ("run it back", 3),
+                 ("phoenix flash", 0)],
         moves: [
             // CURVEBALL: a flare that bends around a corner and pops — everyone looking at it is blinded.
             (name: "curveball", cooldown: 4.0, cost: 3.0, tags: [], ops: [
@@ -984,7 +1017,8 @@
         names: ["raze", "raze valorant", "tayane alves", "razes", "raze's"],
         fx: "fire",
         shouts: [("blast pack", 0), ("satchel", 0), ("satchel jump", 0), ("boom bot", 1), ("boombot", 1), ("paint shells", 2),
-                 ("showstopper", 3), ("show stopper", 3)],
+                 ("showstopper", 3), ("show stopper", 3),
+                 ("raze rocket", 3)],
         moves: [
             // BLAST PACK: the satchel under your feet — it launches YOU, far, and bowls anyone near.
             // -> ends high and flying forward (two in a row = double satchel).
@@ -1015,7 +1049,8 @@
         kind: Kit,
         names: ["omen", "omen valorant", "omens", "omen's"],
         fx: "shadow",
-        shouts: [("omen shadow walk", 0), ("paranoia", 1), ("dark cover", 2), ("from the shadows", 3)],
+        shouts: [("omen shadow walk", 0), ("paranoia", 1), ("dark cover", 2), ("from the shadows", 3),
+                 ("omen smoke", 2)],
         moves: [
             // SHADOW STEP (walk): you sink into shadow and rise where you looked. -> ends grounded at the spot.
             (name: "shadow walk", cooldown: 4.0, cost: 3.0, tags: [Movement], fx: "smoke", ops: [
@@ -1043,7 +1078,8 @@
         kind: Kit,
         names: ["reyna", "reyna valorant", "reina valorant", "reynas", "reyna's"],
         fx: "void",
-        shouts: [("leer", 0), ("devour", 1), ("dismiss", 2), ("empress", 3)],
+        shouts: [("leer", 0), ("devour", 1), ("dismiss", 2), ("empress", 3),
+                 ("reyna heal", 1)],
         moves: [
             // Leer: an eye that blinds everyone who looks at it.
             (name: "leer", cooldown: 5.0, cost: 3.0, tags: [], ops: [
@@ -1121,7 +1157,8 @@
         kind: Kit,
         names: ["neon", "neon valorant", "tala nicole dimaapi", "neons", "neon's"],
         fx: "lightning",
-        shouts: [("high gear", 0), ("neon sprint", 0), ("neon slide", 1), ("relay bolt", 2), ("fast lane", 3), ("overdrive", 4)],
+        shouts: [("high gear", 0), ("neon sprint", 0), ("neon slide", 1), ("relay bolt", 2), ("fast lane", 3), ("overdrive", 4),
+                 ("neon run", 0)],
         moves: [
             // HIGH GEAR: electric sprint — a big burst along your aim, and faster hands. -> ends running.
             (name: "high gear", cooldown: 2.0, cost: 2.0, tags: [Movement], ops: [
@@ -1152,7 +1189,8 @@
         kind: Kit,
         names: ["sage valorant", "valorant sage", "sage agent", "sage val"],
         fx: "ice",
-        shouts: [("barrier orb", 0), ("slow orb", 1), ("healing orb", 2), ("resurrection orb", 3)],
+        shouts: [("barrier orb", 0), ("slow orb", 1), ("healing orb", 2), ("resurrection orb", 3),
+                 ("sage wall", 0)],
         moves: [
             // A wall of ice crystal rising across your aim.
             (name: "barrier orb", cooldown: 10.0, cost: 6.0, tags: [Defense], ops: [
@@ -1172,7 +1210,8 @@
         kind: Kit,
         names: ["breach valorant", "valorant breach", "breach agent", "erik torsten"],
         fx: "earth",
-        shouts: [("fault line", 0), ("aftershock", 1), ("breach flashpoint", 2), ("rolling thunder", 3)],
+        shouts: [("fault line", 0), ("aftershock", 1), ("breach flashpoint", 2), ("rolling thunder", 3),
+                 ("breach stun", 0)],
         moves: [
             // FAULT LINE: a seismic line along your aim — everyone on it is dazed.
             (name: "fault line", cooldown: 6.0, cost: 5.0, tags: [], ops: [
@@ -1533,7 +1572,8 @@
         names: ["yasuo", "yas", "yasuo's", "yasou", "ya so", "yassuo", "yasuo league"],
         fx: "wind",
         shouts: [("steel tempest", 0), ("gathering storm", 1), ("yasuo tornado", 1), ("wind wall", 2), ("windwall", 2), ("sweeping blade", 3),
-                 ("last breath", 4)],
+                 ("last breath", 4),
+                 ("yasuo q", 0), ("yasuo w", 2), ("yasuo e", 3), ("yasuo r", 4)],
         moves: [
             // STEEL TEMPEST: a quick thrust down a narrow line.
             (name: "steel tempest", cooldown: 0.8, cost: 2.0, tags: [Primary], fx: "rigid", ops: [
@@ -1569,7 +1609,8 @@
         names: ["lee sin", "leesin", "lee sins", "lee sin's", "lee", "blind monk", "the blind monk", "lee sin league"],
         fx: "chi",
         shouts: [("sonic wave", 0), ("resonating strike", 1), ("lee sin safeguard", 2), ("dragon's rage", 4), ("dragons rage", 4),
-                 ("insec", 4), ("insec kick", 4)],
+                 ("insec", 4), ("insec kick", 4),
+                 ("lee sin q", 0), ("lee sin w", 2), ("lee sin e", 3), ("lee sin r", 4)],
         moves: [
             // Q1 SONIC WAVE: a chi wave that marks whoever it lands on. -> ends in place, the mark on them.
             (name: "sonic wave", cooldown: 1.2, cost: 2.0, tags: [Primary], ops: [
@@ -1602,7 +1643,9 @@
         kind: Kit,
         names: ["blitzcrank", "blitz", "blitz crank", "blitzcrank's", "blitzcrank league"],
         fx: "tech",
-        shouts: [("rocket grab", 0), ("power fist", 1), ("blitz overdrive", 2), ("static field", 3)],
+        shouts: [("rocket grab", 0), ("power fist", 1), ("blitz overdrive", 2), ("static field", 3),
+                 ("blitzcrank q", 0), ("blitzcrank w", 2), ("blitzcrank e", 1), ("blitzcrank r", 3),
+                 ("blitzcrank hook", 0), ("blitz hook", 0)],
         moves: [
             // ROCKET GRAB: the famous hand on a chain — a skillshot that drags them all the way to you.
             // -> ends with them in your face (power fist).
@@ -1628,7 +1671,8 @@
         kind: Kit,
         names: ["thresh", "thresh league", "tresh", "thresh's"],
         fx: "spirit",
-        shouts: [("death sentence", 0), ("thresh hook", 0), ("thresh lantern", 1), ("dark passage", 1), ("thresh flay", 2), ("thresh box", 3)],
+        shouts: [("death sentence", 0), ("thresh hook", 0), ("thresh lantern", 1), ("dark passage", 1), ("thresh flay", 2), ("thresh box", 3),
+                 ("thresh q", 0), ("thresh w", 1), ("thresh e", 2), ("thresh r", 3)],
         moves: [
             // DEATH SENTENCE: a scythe-hook on a chain — it drags them in.
             (name: "death sentence", cooldown: 6.0, cost: 6.0, tags: [Primary], ops: [Hook(range: 22.0, speed: 38.0, pull: 30.0, damage: 7.0)],
@@ -1650,7 +1694,8 @@
         kind: Kit,
         names: ["ezreal", "ezreal's", "ezrael", "ezreal league"],
         fx: "light",
-        shouts: [("mystic shot", 0), ("arcane shift", 1), ("trueshot barrage", 2), ("true shot barrage", 2), ("essence flux", 3)],
+        shouts: [("mystic shot", 0), ("arcane shift", 1), ("trueshot barrage", 2), ("true shot barrage", 2), ("essence flux", 3),
+                 ("ezreal q", 0), ("ezreal w", 3), ("ezreal e", 1), ("ezreal r", 2)],
         moves: [
             (name: "mystic shot", cooldown: 0.8, cost: 2.0, tags: [Primary], ops: [
                 Cast(recipe: (name: "mystic shot", form: Spear, mech: [Fast, Pierce], element: Light, scale: 0.3, mass: 3.0)),
@@ -1674,7 +1719,8 @@
         kind: Kit,
         names: ["zed", "zed league", "zed's", "zedd"],
         fx: "shadow",
-        shouts: [("razor shuriken", 0), ("living shadow", 1), ("shadow slash", 2), ("death mark", 3)],
+        shouts: [("razor shuriken", 0), ("living shadow", 1), ("shadow slash", 2), ("death mark", 3),
+                 ("zed q", 0), ("zed w", 1), ("zed e", 2), ("zed r", 3)],
         moves: [
             (name: "razor shuriken", cooldown: 1.0, cost: 2.0, tags: [Primary], fx: "rigid", ops: [
                 Cast(recipe: (name: "razor shuriken", form: Disc, mech: [Fast, Blade, Pierce], element: Shadow, scale: 0.4, mass: 3.0)),
@@ -1698,7 +1744,8 @@
         kind: Kit,
         names: ["malphite", "malph", "malphite's", "malfite", "malphite league"],
         fx: "stone",
-        shouts: [("seismic shard", 0), ("ground slam", 2), ("unstoppable force", 3)],
+        shouts: [("seismic shard", 0), ("ground slam", 2), ("unstoppable force", 3),
+                 ("malphite q", 0), ("malphite w", 1), ("malphite e", 2), ("malphite r", 3)],
         moves: [
             (name: "seismic shard", cooldown: 3.0, cost: 3.0, tags: [Primary], ops: [Hook(range: 20.0, speed: 40.0, damage: 8.0, status: Some(Chill), secs: 1.5)]),
             (name: "thunderclap", cooldown: 4.0, cost: 3.0, tags: [], ops: [Empower(secs: 4.0, damage: 1.25, armor: 0.8)]),
@@ -1824,7 +1871,8 @@
         kind: Kit,
         names: ["faceless void", "void dota", "faceless", "darkterror", "faceless void's", "facelessvoid"],
         fx: "void",
-        shouts: [("time walk", 0), ("timewalk", 0), ("time dilation", 1), ("chronosphere", 2), ("chrono sphere", 2), ("chrono", 2)],
+        shouts: [("time walk", 0), ("timewalk", 0), ("time dilation", 1), ("chronosphere", 2), ("chrono sphere", 2), ("chrono", 2),
+                 ("void chrono", 2)],
         moves: [
             // TIME WALK: rush along your aim through time — and the damage you took just now is undone.
             (name: "time walk", cooldown: 5.0, cost: 4.0, tags: [Movement], ops: [
@@ -1876,7 +1924,8 @@
         kind: Kit,
         names: ["magnus", "magnus dota", "magnoceros", "magnus's", "mag nus"],
         fx: "electric",
-        shouts: [("magnus shockwave", 0), ("skewer", 2), ("reverse polarity", 3)],
+        shouts: [("magnus shockwave", 0), ("skewer", 2), ("reverse polarity", 3),
+                 ("magnus rp", 3)],
         moves: [
             (name: "shockwave", cooldown: 3.0, cost: 3.0, tags: [Primary], ops: [
                 Wave(length: 20.0, speed: 30.0, width: 2.2, damage: 9.0, knockback: 6.0, element: Electric),
@@ -1962,7 +2011,8 @@
         kind: Kit,
         names: ["juggernaut", "jugg", "yurnero", "juggernaut dota"],
         fx: "spirit",
-        shouts: [("blade fury", 0), ("bladefury", 0), ("healing ward", 1), ("juggernaut omnislash", 2)],
+        shouts: [("blade fury", 0), ("bladefury", 0), ("healing ward", 1), ("juggernaut omnislash", 2),
+                 ("juggernaut spin", 0)],
         moves: [
             // BLADE FURY: a whirling blade storm — nothing magical touches you while you spin.
             (name: "blade fury", cooldown: 8.0, cost: 5.0, tags: [], ops: [
@@ -2013,7 +2063,8 @@
                  ("shoryuken", 1), ("shoryukan", 1), ("sho ryu ken", 1), ("show you can", 1), ("shoryu ken", 1), ("dragon punch", 1),
                  ("tatsumaki senpukyaku", 2), ("hurricane kick", 2), ("tatsu", 2), ("tatsumaki senpuukyaku", 2),
                  ("shinku hadouken", 3), ("shinku hadoken", 3), ("shin shoryuken", 4), ("joudan sokutou geri", 5), ("joudan", 5),
-                 ("denjin hadouken", 6)],
+                 ("denjin hadouken", 6),
+                 ("ryu fireball", 0), ("ryu uppercut", 1)],
         moves: [
             // HADOUKEN: both palms thrust forward, a ball of blue chi rolls out at a steady clip — the
             // zoning tool. -> ends in place, hands forward (a jump-in over it eats a shoryuken).
@@ -2192,7 +2243,8 @@
         names: ["zangief", "gief", "zangief's", "zangeef", "zan gief", "the red cyclone"],
         fx: "rigid",
         shouts: [("spinning piledriver", 0), ("spd", 0), ("s p d", 0), ("screw piledriver", 0), ("double lariat", 1), ("lariat", 1),
-                 ("banishing flat", 2), ("final atomic buster", 3), ("bolshoi storm buster", 3), ("atomic buster", 3)],
+                 ("banishing flat", 2), ("final atomic buster", 3), ("bolshoi storm buster", 3), ("atomic buster", 3),
+                 ("zangief grab", 0), ("zangief piledriver", 0)],
         moves: [
             // SPINNING PILEDRIVER: the command grab. It goes THROUGH a block or a counter — but a jump or a
             // dodge beats it clean. Up you both go, and down they come head-first. -> ends grounded on top of them.
@@ -2264,7 +2316,7 @@
         id: "sf_e_honda",
         name: "E. Honda",
         kind: Kit,
-        names: ["e honda", "edmond honda", "honda street fighter", "ehonda", "e. honda"],
+        names: ["e honda", "edmond honda", "honda street fighter", "ehonda", "e. honda", "honda"],
         fx: "rigid",
         shouts: [("hundred hand slap", 0), ("hundred hands slap", 0), ("sumo headbutt", 1), ("sumo torpedo", 1), ("sumo smash", 2)],
         moves: [
@@ -2438,7 +2490,8 @@
         kind: Kit,
         names: ["raiden", "rayden", "raiden mk", "raiden mortal kombat", "raidens", "raiden's", "lord raiden"],
         fx: "lightning",
-        shouts: [("raiden torpedo", 0), ("raiden teleport", 1), ("electric fly", 2), ("raiden fatality", 3)],
+        shouts: [("raiden torpedo", 0), ("raiden teleport", 1), ("electric fly", 2), ("raiden fatality", 3),
+                 ("raiden superman", 0), ("raiden flying", 0)],
         moves: [
             // TORPEDO: flying horizontally, arms forward, screaming — the first one hit is carried and
             // driven into the wall. -> ends at the wall, pinned (dodge breaks it).
@@ -3240,6 +3293,624 @@
                 Leap(range: 20.0, apex: 8.0),
                 SlamOnLand(radius: 4.0, damage: 16.0, knockback: 20.0, carve: 1.2),
             ], juice: Some((title: Some("EL PRIMO!"), boom: true))),
+        ],
+    ),
+
+    // ================================================================ MORE HEROES (breadth: the ones people still yell)
+    // ---------------------------------------------------------------- Overwatch
+    (
+        id: "ow_symmetra",
+        name: "Symmetra",
+        kind: Kit,
+        names: ["symmetra", "sym", "satya vaswani", "symmetra's"],
+        fx: "hardlight",
+        shouts: [("photon projector", 0), ("sentry turret", 1), ("symmetra teleporter", 2), ("photon barrier", 3)],
+        moves: [
+            (name: "photon projector", cooldown: 0.6, cost: 2.0, tags: [Primary], ops: [Shove(range: 7.0, angle: 10.0, damage: 5.0, knockback: 2.0)]),
+            (name: "sentry turret", cooldown: 6.0, cost: 3.0, tags: [], ops: [
+                Cast(recipe: (name: "sentry turret", form: Pillar, mech: [Shoots], element: Light, scale: 0.3, count: 2, mass: 10.0,
+                              features: [Turret], temperament: Aggressive, intensity: 0.6)),
+            ]),
+            (name: "teleporter", cooldown: 3.0, cost: 4.0, tags: [Movement], ops: [PlacePortal(range: 25.0, secs: 30.0)]),
+            // PHOTON BARRIER: a wall of hard light across the whole map, down your aim.
+            (name: "photon barrier", cooldown: 20.0, cost: 20.0, tags: [Ultimate, Defense], ops: [
+                Erupt(length: 30.0, width: 0.6, height: 8.0, element: Light, across: true, dist: 4.0),
+            ], juice: Some((title: Some("PHOTON BARRIER"), ripple: 4.0, color: Some((0.3, 0.8, 1.0))))),
+        ],
+    ),
+    (
+        id: "ow_torbjorn",
+        name: "Torbjorn",
+        kind: Kit,
+        names: ["torbjorn", "torbjörn", "torb", "torbjorn lindholm", "torbjorns"],
+        fx: "fire",
+        shouts: [("deploy turret", 0), ("torb turret", 0), ("torb overload", 1), ("molten core", 2)],
+        moves: [
+            (name: "deploy turret", cooldown: 10.0, cost: 6.0, tags: [Primary], fx: "tech", ops: [
+                Cast(recipe: (name: "torbjorn turret", form: Pillar, mech: [Shoots, Homing], element: Light, scale: 0.7, mass: 120.0,
+                              features: [Turret], temperament: Aggressive, intensity: 0.7)),
+            ]),
+            (name: "overload", cooldown: 10.0, cost: 5.0, tags: [], ops: [Empower(secs: 5.0, damage: 1.3, armor: 0.75), Mend(pct: 6.0)],
+             juice: Some((title: Some("OVERLOAD"), ripple: 2.5))),
+            // MOLTEN CORE: pools of lava spat out where you aim.
+            (name: "molten core", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Zone(radius: 5.0, secs: 5.0, status: Some(Burn), dps: 9.0, slow: 0.2, at: Aim),
+                Salvo(count: 4, delay: 0.3, interval: 0.2, radius: 2.0, damage: 6.0, knockback: 6.0, element: Fire, at: Aim, spread: 4.0),
+            ], juice: Some((title: Some("MOLTEN CORE"), boom: true, at: Aim, color: Some((1.0, 0.4, 0.1))))),
+        ],
+    ),
+    (
+        id: "ow_bastion",
+        name: "Bastion",
+        kind: Kit,
+        names: ["bastion", "bastion overwatch", "bastions"],
+        fx: "tech",
+        shouts: [("configuration assault", 0), ("assault mode", 0), ("tactical grenade", 1), ("configuration artillery", 2), ("artillery", 2)],
+        moves: [
+            // ASSAULT: planted, a minigun that doesn't stop.
+            (name: "configuration assault", cooldown: 10.0, cost: 6.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "assault cannon", form: Gun, mech: [Shoots, Fast, Swarm, Heavy], scale: 1.2)),
+                Empower(secs: 5.0, armor: 0.8),
+            ]),
+            // A bouncing grenade that throws YOU when you blast your own feet with it.
+            (name: "tactical grenade", cooldown: 4.0, cost: 3.0, tags: [Movement], ops: [
+                Impulse(fwd: 8.0, up: 15.0),
+                Explode(radius: 3.0, damage: 7.0, knockback: 16.0, element: Fire, at: Me),
+            ]),
+            // ARTILLERY: three shells called onto the crosshair.
+            (name: "configuration artillery", cooldown: 20.0, cost: 40.0, tags: [Ultimate], fx: "fire", ops: [
+                Salvo(count: 3, delay: 1.2, interval: 0.6, radius: 5.0, damage: 18.0, knockback: 16.0, element: Fire, carve: 1.5, at: Aim, track: true),
+            ], juice: Some((title: Some("CONFIGURATION: ARTILLERY"), boom: true, at: Aim))),
+        ],
+    ),
+    (
+        id: "ow_sojourn",
+        name: "Sojourn",
+        kind: Kit,
+        names: ["sojourn", "vivian chase", "sojourns", "so journ"],
+        fx: "electric",
+        shouts: [("sojourn railgun", 0), ("power slide", 1), ("disruptor shot", 2), ("sojourn overclock", 3)],
+        moves: [
+            // RAILGUN: a charged hitscan — a lock that fills fast on one target.
+            (name: "railgun", cooldown: 1.0, cost: 3.0, tags: [Primary], ops: [LockOn(secs: 0.9, range: 60.0, damage: 22.0, knockback: 8.0, angle: 6.0)]),
+            // POWER SLIDE: a knee slide that turns into a huge jump. -> ends in the air.
+            (name: "power slide", cooldown: 4.0, cost: 3.0, tags: [Movement], ops: [Impulse(fwd: 18.0, up: -2.0), Impulse(fwd: 2.0, up: 12.0)]),
+            (name: "disruptor shot", cooldown: 8.0, cost: 4.0, tags: [], ops: [Zone(radius: 4.0, secs: 3.0, slow: 0.4, dps: 8.0, at: Aim)]),
+            (name: "overclock", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                LockOn(secs: 0.6, range: 70.0, damage: 34.0, knockback: 14.0, angle: 8.0),
+                Empower(secs: 6.0, damage: 1.2),
+            ], juice: Some((title: Some("OVERCLOCK"), boom: true, color: Some((0.4, 0.8, 1.0))))),
+        ],
+    ),
+    (
+        id: "ow_junker_queen",
+        name: "Junker Queen",
+        kind: Kit,
+        names: ["junker queen", "junkerqueen", "odessa stone", "junker queen's"],
+        fx: "rigid",
+        shouts: [("jagged blade", 0), ("junker queen carnage", 1), ("commanding shout", 2), ("junker queen rampage", 3)],
+        moves: [
+            // JAGGED BLADE: a thrown magnetic knife — call it back and whoever it's stuck in comes WITH it.
+            (name: "jagged blade", cooldown: 5.0, cost: 4.0, tags: [Primary], ops: [Hook(range: 20.0, speed: 45.0, pull: 24.0, damage: 6.0, status: Some(Burn), secs: 1.5)]),
+            (name: "carnage", cooldown: 5.0, cost: 4.0, tags: [], ops: [Shove(range: 4.5, angle: 70.0, damage: 12.0, knockback: 12.0), Mend(pct: 4.0)]),
+            (name: "commanding shout", cooldown: 10.0, cost: 3.0, tags: [Defense], ops: [Mend(pct: 10.0), Impulse(fwd: 8.0, up: 0.0)]),
+            // RAMPAGE: a charge that cuts everyone it passes — and their healing stops.
+            (name: "rampage", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Ram(speed: 22.0, secs: 0.8, damage: 14.0, knockback: 12.0, through: true, steer: 60.0, keep: 0.3),
+            ], juice: Some((title: Some("RAMPAGE"), boom: true, punch: 4.0))),
+        ],
+    ),
+    (
+        id: "ow_baptiste",
+        name: "Baptiste",
+        kind: Kit,
+        names: ["baptiste", "bap", "jean baptiste augustin", "baptistes"],
+        fx: "tech",
+        shouts: [("immortality field", 0), ("exo boots", 1), ("regenerative burst", 2), ("amplification matrix", 3)],
+        moves: [
+            // IMMORTALITY FIELD: for a moment nothing gets you down.
+            (name: "immortality field", cooldown: 16.0, cost: 8.0, tags: [Defense], ops: [Counter(secs: 1.5), Mend(pct: 4.0)],
+             juice: Some((title: Some("IMMORTALITY FIELD"), ripple: 4.0, color: Some((0.4, 1.0, 0.7))))),
+            (name: "exo boots", cooldown: 1.0, cost: 1.0, tags: [Movement], ops: [Impulse(fwd: 2.0, up: 16.0)]),
+            (name: "regenerative burst", cooldown: 10.0, cost: 3.0, tags: [], ops: [Mend(pct: 6.0, per_s: 4.0, secs: 3.0)]),
+            (name: "amplification matrix", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [Empower(secs: 6.0, damage: 1.6)],
+             juice: Some((title: Some("AMPLIFICATION MATRIX"), ripple: 3.0))),
+        ],
+    ),
+    (
+        id: "ow_mauga",
+        name: "Mauga",
+        kind: Kit,
+        names: ["mauga", "mauga overwatch", "maugas"],
+        fx: "fire",
+        shouts: [("overrun", 0), ("cardiac overdrive", 1), ("cage fight", 2)],
+        moves: [
+            // OVERRUN: an unstoppable charge that stomps whoever it meets. -> ends mid-stride, stomping.
+            (name: "overrun", cooldown: 6.0, cost: 6.0, tags: [Movement], ops: [
+                Empower(secs: 1.2, armor: 0.3),
+                Ram(speed: 18.0, secs: 1.2, damage: 8.0, knockback: 18.0, up: 0.6, through: true, steer: 40.0),
+                SlamOnLand(radius: 3.5, damage: 8.0, knockback: 12.0, carve: 0.6),
+            ], juice: Some((title: Some("OVERRUN"), punch: 3.0))),
+            (name: "cardiac overdrive", cooldown: 12.0, cost: 4.0, tags: [Defense], ops: [Empower(secs: 4.0, armor: 0.7), Mend(pct: 8.0)]),
+            // CAGE FIGHT: a ring of hard-light fence drops around you and whoever is near — nobody leaves.
+            (name: "cage fight", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [
+                Erupt(length: 12.0, width: 0.6, height: 5.0, element: Light, across: true, dist: 6.0),
+                Field(strength: 20.0, radius: 7.0, secs: 5.0),
+                Empower(secs: 5.0, damage: 1.2),
+            ], juice: Some((title: Some("CAGE FIGHT"), boom: true, ripple: 7.0))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Valorant
+    (
+        id: "val_kayo",
+        name: "KAY/O",
+        kind: Kit,
+        names: ["kayo", "kay o", "k a y o", "kay/o", "kayo valorant", "k.a.y.o"],
+        fx: "tech",
+        shouts: [("zero point", 0), ("zeropoint", 0), ("frag ment", 1), ("flash drive", 2), ("null cmd", 3), ("null command", 3)],
+        moves: [
+            // ZERO/POINT: a suppression knife — everyone near where it lands loses their powers for a moment.
+            (name: "zero point", cooldown: 8.0, cost: 5.0, tags: [], ops: [
+                Salvo(count: 1, delay: 0.5, radius: 6.0, damage: 2.0, knockback: 0.0, element: Electric, at: Aim),
+                Zone(radius: 6.0, secs: 1.0, lockout: true, at: Aim),
+            ]),
+            (name: "fragment", cooldown: 6.0, cost: 4.0, tags: [Primary], ops: [Salvo(count: 3, delay: 0.4, interval: 0.4, radius: 3.0, damage: 6.0, knockback: 6.0, element: Fire, at: Aim)]),
+            (name: "flash drive", cooldown: 5.0, cost: 3.0, tags: [], ops: [GazeStun(range: 20.0, cone: 55.0, secs: 1.0, status: Shadow)]),
+            // NULL/CMD: a suppression pulse off your body — every power around you goes dark.
+            (name: "null cmd", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Zone(radius: 12.0, secs: 4.0, lockout: true, follow: true),
+                Empower(secs: 4.0, armor: 0.8),
+            ], juice: Some((title: Some("NULL/CMD"), boom: true, ripple: 12.0, color: Some((0.4, 0.8, 1.0))))),
+        ],
+    ),
+    (
+        id: "val_killjoy",
+        name: "Killjoy",
+        kind: Kit,
+        names: ["killjoy", "kill joy", "killjoy valorant", "killjoys"],
+        fx: "tech",
+        shouts: [("nanoswarm", 0), ("nano swarm", 0), ("alarmbot", 1), ("killjoy turret", 2), ("killjoy lockdown", 3)],
+        moves: [
+            (name: "nanoswarm", cooldown: 6.0, cost: 4.0, tags: [Primary], ops: [Zone(radius: 3.5, secs: 3.0, dps: 12.0, at: Aim)]),
+            (name: "alarmbot", cooldown: 8.0, cost: 3.0, tags: [], ops: [
+                Cast(recipe: (name: "alarmbot", form: Quadruped, mech: [Walks, Explodes], element: Electric, scale: 0.4, mass: 8.0, temperament: Aggressive, intensity: 0.6)),
+            ]),
+            (name: "turret", cooldown: 10.0, cost: 4.0, tags: [], ops: [
+                Cast(recipe: (name: "killjoy turret", form: Pillar, mech: [Shoots], element: Light, scale: 0.5, mass: 40.0, features: [Turret])),
+            ]),
+            // LOCKDOWN: a device winds up — everyone still in the huge dome when it finishes is locked down.
+            (name: "lockdown", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [
+                Salvo(count: 1, delay: 3.0, radius: 14.0, damage: 4.0, knockback: 0.0, element: Electric, at: Me),
+                Zone(radius: 14.0, secs: 5.5, slow: 0.3),
+                DelayedHit(range: 0.0, radius: 14.0, secs: 3.0, damage: 2.0, knockback: 0.0, element: Electric),
+            ], juice: Some((title: Some("LOCKDOWN"), boom: true, ripple: 14.0, color: Some((1.0, 0.85, 0.2))))),
+        ],
+    ),
+    (
+        id: "val_viper",
+        name: "Viper",
+        kind: Kit,
+        names: ["viper valorant", "valorant viper", "sabine callas"],
+        fx: "poison",
+        shouts: [("viper poison cloud", 0), ("toxic screen", 1), ("snake bite", 2), ("vipers pit", 3), ("viper's pit", 3)],
+        moves: [
+            (name: "poison cloud", cooldown: 6.0, cost: 3.0, tags: [], ops: [Zone(radius: 4.5, secs: 6.0, status: Some(Poison), at: Aim)]),
+            (name: "toxic screen", cooldown: 10.0, cost: 4.0, tags: [Defense], ops: [Erupt(length: 20.0, width: 0.4, height: 4.0, element: Poison, damage: 2.0)]),
+            (name: "snake bite", cooldown: 5.0, cost: 3.0, tags: [Primary], ops: [Zone(radius: 3.0, secs: 4.0, status: Some(Poison), dps: 8.0, at: Aim)]),
+            (name: "viper's pit", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [Zone(radius: 12.0, secs: 8.0, status: Some(Poison), dps: 3.0, follow: true)],
+             juice: Some((title: Some("VIPER'S PIT"), boom: true, ripple: 12.0, color: Some((0.4, 0.9, 0.2))))),
+        ],
+    ),
+    (
+        id: "val_chamber",
+        name: "Chamber",
+        kind: Kit,
+        names: ["chamber", "chamber valorant", "vincent fabron"],
+        fx: "rigid",
+        shouts: [("chamber headhunter", 0), ("chamber rendezvous", 1), ("chamber trademark", 2), ("tour de force", 3)],
+        moves: [
+            (name: "headhunter", cooldown: 0.6, cost: 2.0, tags: [Primary], ops: [Cast(recipe: (name: "headhunter", form: Ball, mech: [Fast, Pierce], scale: 0.12, mass: 3.0))]),
+            // RENDEZVOUS: plant an anchor; say it again and you're back at it.
+            (name: "rendezvous", cooldown: 1.0, cost: 3.0, tags: [Movement], ops: [MarkRecall(range: 0.0, secs: 12.0)]),
+            (name: "trademark", cooldown: 8.0, cost: 3.0, tags: [], ops: [Cast(recipe: (name: "trademark", form: Bomb, mech: [Trap], element: Ice, scale: 0.3, mass: 3.0))]),
+            (name: "tour de force", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [LockOn(secs: 0.8, range: 80.0, damage: 32.0, knockback: 10.0, angle: 5.0)],
+             juice: Some((title: Some("TOUR DE FORCE"), color: Some((1.0, 0.85, 0.3))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Apex
+    (
+        id: "apex_lifeline",
+        name: "Lifeline",
+        kind: Kit,
+        names: ["lifeline", "life line", "ajay che", "lifeline apex"],
+        fx: "holy",
+        shouts: [("doc heal drone", 0), ("d o c", 0), ("heal drone", 0), ("care package", 1), ("combat revive", 2)],
+        moves: [
+            (name: "doc heal drone", cooldown: 12.0, cost: 3.0, tags: [Primary], ops: [Mend(pct: 0.0, per_s: 5.0, secs: 6.0)]),
+            (name: "care package", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "care package", form: Boulder, mech: [DropFromSky, Heavy], element: Light, scale: 1.2, mass: 300.0)),
+                Mend(pct: 15.0),
+            ], juice: Some((title: Some("CARE PACKAGE")))),
+            (name: "combat revive", cooldown: 20.0, cost: 10.0, tags: [Defense], ops: [Counter(secs: 1.0), Mend(pct: 25.0)]),
+        ],
+    ),
+    (
+        id: "apex_caustic",
+        name: "Caustic",
+        kind: Kit,
+        names: ["caustic", "alexander nox", "caustic apex"],
+        fx: "poison",
+        shouts: [("nox gas trap", 0), ("gas trap", 0), ("nox gas grenade", 1), ("gas grenade", 1)],
+        moves: [
+            (name: "nox gas trap", cooldown: 6.0, cost: 3.0, tags: [], ops: [Cast(recipe: (name: "nox gas trap", form: Bomb, mech: [Trap, Explodes], element: Poison, scale: 0.6, mass: 20.0))]),
+            (name: "nox gas grenade", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [Zone(radius: 10.0, secs: 8.0, status: Some(Poison), slow: 0.3, dps: 4.0, at: Aim)],
+             juice: Some((title: Some("NOX GAS"), boom: true, ripple: 10.0, at: Aim, color: Some((0.5, 0.8, 0.2))))),
+        ],
+    ),
+    (
+        id: "apex_valkyrie",
+        name: "Valkyrie",
+        kind: Kit,
+        names: ["valkyrie apex", "apex valkyrie", "kairi imahara", "valk"],
+        fx: "fire",
+        shouts: [("missile swarm", 0), ("skyward dive", 1), ("valk jetpack", 2)],
+        moves: [
+            (name: "missile swarm", cooldown: 8.0, cost: 5.0, tags: [Primary], ops: [
+                Salvo(count: 12, delay: 0.5, interval: 0.03, radius: 2.0, damage: 4.0, knockback: 6.0, element: Fire, at: Aim, spread: 5.0),
+            ]),
+            // SKYWARD DIVE: straight up, way up — then glide wherever.
+            (name: "skyward dive", cooldown: 20.0, cost: 20.0, tags: [Ultimate, Movement], ops: [
+                Impulse(fwd: 0.0, up: 34.0),
+                Cast(recipe: (name: "valkyrie jetpack", form: Jetpack, mech: [Thrust, Glide], scale: 1.0)),
+            ], juice: Some((title: Some("SKYWARD DIVE"), boom: true))),
+            (name: "jetpack", cooldown: 6.0, cost: 3.0, tags: [], ops: [Cast(recipe: (name: "valkyrie jetpack", form: Jetpack, mech: [Thrust, Glide], scale: 1.0))]),
+        ],
+    ),
+    (
+        id: "apex_seer",
+        name: "Seer",
+        kind: Kit,
+        names: ["seer", "seer apex", "obi edolasim"],
+        fx: "spirit",
+        shouts: [("focus of attention", 0), ("seer exhibit", 1)],
+        moves: [
+            // FOCUS OF ATTENTION: micro-drones burst out ahead — everyone they touch is revealed and their powers stall.
+            (name: "focus of attention", cooldown: 8.0, cost: 5.0, tags: [Primary], ops: [
+                Wave(length: 25.0, speed: 30.0, width: 6.0, damage: 4.0, knockback: 2.0, element: Psychic),
+                Tag(range: 25.0, cone: 25.0, secs: 5.0),
+            ]),
+            (name: "exhibit", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [Tag(range: 30.0, cone: 60.0, secs: 8.0), Zone(radius: 14.0, secs: 8.0, follow: true)],
+             juice: Some((title: Some("EXHIBIT"), ripple: 14.0))),
+        ],
+    ),
+    (
+        id: "apex_revenant",
+        name: "Revenant",
+        kind: Kit,
+        names: ["revenant", "revenant apex", "kaleb castle"],
+        fx: "shadow",
+        shouts: [("revenant silence", 0), ("shadow pounce", 1), ("death totem", 2)],
+        moves: [
+            // SILENCE: a thrown device — everyone in the burst loses their powers.
+            (name: "silence", cooldown: 8.0, cost: 5.0, tags: [], ops: [Salvo(count: 1, delay: 0.4, radius: 5.0, damage: 4.0, knockback: 0.0, element: Shadow, at: Aim), Zone(radius: 5.0, secs: 2.0, lockout: true, at: Aim)]),
+            (name: "shadow pounce", cooldown: 6.0, cost: 4.0, tags: [Movement], ops: [Pounce(range: 22.0, speed: 30.0, cone: 20.0, damage: 8.0, knockback: 10.0, secs: 0.8)]),
+            // DEATH TOTEM: fight as a shadow — if you'd go down, you're pulled back to the totem instead.
+            (name: "death totem", cooldown: 22.0, cost: 20.0, tags: [Ultimate], ops: [MarkRecall(range: 0.0, secs: 12.0), Empower(secs: 8.0, armor: 0.6)],
+             juice: Some((title: Some("DEATH TOTEM"), ripple: 4.0))),
+        ],
+    ),
+    // ---------------------------------------------------------------- League
+    (
+        id: "lol_lux",
+        name: "Lux",
+        kind: Kit,
+        names: ["lux", "lux league", "luxanna", "luxanna crownguard", "lux's"],
+        fx: "light",
+        shouts: [("light binding", 0), ("prismatic barrier", 1), ("lucent singularity", 2), ("final spark", 3), ("lux q", 0), ("lux w", 1), ("lux e", 2), ("lux r", 3)],
+        moves: [
+            // LIGHT BINDING: a bolt that roots whoever it hits (a heartbeat).
+            (name: "light binding", cooldown: 4.0, cost: 4.0, tags: [Primary], ops: [Hook(range: 26.0, speed: 45.0, damage: 6.0, status: Some(Stun), secs: 0.5)]),
+            (name: "prismatic barrier", cooldown: 6.0, cost: 3.0, tags: [Defense], ops: [Counter(secs: 0.8)]),
+            (name: "lucent singularity", cooldown: 4.0, cost: 3.0, tags: [], ops: [Zone(radius: 4.0, secs: 1.5, slow: 0.5, at: Aim), Salvo(count: 1, delay: 1.5, radius: 4.0, damage: 10.0, knockback: 8.0, element: Light, at: Aim)]),
+            // FINAL SPARK: an enormous laser down your aim — through everything.
+            (name: "final spark", cooldown: 16.0, cost: 40.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "final spark", form: Hands, mech: [Beam, Pierce], element: Light, scale: 1.6), signature: Some(Beam)),
+            ], juice: Some((title: Some("FINAL SPARK"), boom: true, punch: 5.0, color: Some((1.0, 0.95, 0.6))))),
+        ],
+    ),
+    (
+        id: "lol_darius",
+        name: "Darius",
+        kind: Kit,
+        names: ["darius", "darius league", "the hand of noxus", "darius's"],
+        fx: "blood",
+        shouts: [("darius decimate", 0), ("crippling strike", 1), ("darius pull", 2), ("noxian guillotine", 3), ("darius dunk", 3)],
+        moves: [
+            (name: "decimate", cooldown: 3.0, cost: 4.0, tags: [Primary], ops: [Shove(range: 4.5, angle: 179.0, damage: 10.0, knockback: 10.0), Mend(pct: 3.0)]),
+            (name: "crippling strike", cooldown: 2.0, cost: 2.0, tags: [], ops: [Shove(range: 3.0, angle: 45.0, damage: 8.0, knockback: 6.0, element: Ice)]),
+            // APPREHEND: the axe hooks them in.
+            (name: "apprehend", cooldown: 5.0, cost: 4.0, tags: [], ops: [Carve(length: 6.0, radius: 1.2, damage: 3.0, pull: true)]),
+            // NOXIAN GUILLOTINE: a leap and a dunk — it executes someone you've been bleeding.
+            (name: "noxian guillotine", cooldown: 14.0, cost: 40.0, tags: [Ultimate], ops: [
+                Leap(range: 10.0, apex: 4.0),
+                Finisher(lunge: 0.0, range: 3.4, angle: 50.0, damage: 14.0, knockback: 26.0, up: -0.4, window: 3.0, mult: 2.4, fx: BlackFlash),
+            ], juice: Some((title: Some("NOXIAN GUILLOTINE"), boom: true, punch: 5.0, color: Some((0.8, 0.1, 0.1))))),
+        ],
+    ),
+    (
+        id: "lol_garen",
+        name: "Garen",
+        kind: Kit,
+        names: ["garen", "garen league", "garen crownguard", "garen's"],
+        fx: "holy",
+        shouts: [("decisive strike", 0), ("garen courage", 1), ("garen spin", 2), ("demacian justice", 3), ("demacia", 3)],
+        moves: [
+            (name: "decisive strike", cooldown: 3.0, cost: 3.0, tags: [Primary], ops: [Impulse(fwd: 10.0, up: 0.0), Shove(range: 3.0, angle: 45.0, damage: 9.0, knockback: 8.0), Lockout(range: 3.5, secs: 0.8)]),
+            (name: "courage", cooldown: 8.0, cost: 3.0, tags: [Defense], ops: [Empower(secs: 2.0, armor: 0.5)]),
+            // JUDGMENT: the spin.
+            (name: "judgment", cooldown: 5.0, cost: 4.0, tags: [], fx: "rigid", ops: [Zone(radius: 3.5, secs: 3.0, dps: 10.0, follow: true)]),
+            // DEMACIAN JUSTICE: a giant sword falls from the sky on them.
+            (name: "demacian justice", cooldown: 14.0, cost: 40.0, tags: [Ultimate], ops: [
+                Salvo(count: 1, delay: 0.3, radius: 2.5, damage: 24.0, knockback: 14.0, element: Light, at: Aim, seek: true, spread: 6.0),
+            ], juice: Some((title: Some("DEMACIAN JUSTICE"), boom: true, punch: 4.0, color: Some((1.0, 0.9, 0.5))))),
+        ],
+    ),
+    (
+        id: "lol_pyke",
+        name: "Pyke",
+        kind: Kit,
+        names: ["pyke", "pyke league", "the bloodharbor ripper", "pykes"],
+        fx: "water",
+        shouts: [("bone skewer", 0), ("ghostwater dive", 1), ("phantom undertow", 2), ("death from below", 3)],
+        moves: [
+            (name: "bone skewer", cooldown: 4.0, cost: 4.0, tags: [Primary], ops: [Hook(range: 18.0, speed: 40.0, pull: 26.0, damage: 6.0)]),
+            (name: "ghostwater dive", cooldown: 8.0, cost: 3.0, tags: [Movement], ops: [Phase(secs: 1.2), Impulse(fwd: 12.0, up: 0.0)]),
+            (name: "phantom undertow", cooldown: 6.0, cost: 3.0, tags: [], ops: [Ram(speed: 26.0, secs: 0.4, damage: 4.0, knockback: 4.0, through: true), DelayedHit(range: 0.0, radius: 6.0, secs: 0.8, damage: 6.0, knockback: 2.0, element: Water)]),
+            // DEATH FROM BELOW: an X of drowning water — it executes the hurt, and you blink to them.
+            (name: "death from below", cooldown: 14.0, cost: 40.0, tags: [Ultimate], ops: [
+                Salvo(count: 1, delay: 0.5, radius: 4.0, damage: 10.0, knockback: 6.0, element: Water, at: Aim),
+                WarpTo(range: 20.0, cone: 16.0, behind: 0.8),
+                Finisher(lunge: 0.0, range: 3.0, angle: 90.0, damage: 8.0, knockback: 16.0, window: 3.0, mult: 3.0, fx: BlackFlash),
+            ], juice: Some((title: Some("DEATH FROM BELOW"), boom: true, color: Some((0.2, 0.9, 0.7))))),
+        ],
+    ),
+    (
+        id: "lol_sett",
+        name: "Sett",
+        kind: Kit,
+        names: ["sett", "sett league", "setts"],
+        fx: "rigid",
+        shouts: [("knuckle down", 0), ("sett haymaker", 1), ("facebreaker", 2), ("the show stopper", 3), ("sett ult", 3)],
+        moves: [
+            (name: "knuckle down", cooldown: 2.0, cost: 3.0, tags: [Primary], ops: [Barrage(hits: 2, interval: 0.2, range: 3.0, angle: 50.0, damage: 6.0, knockback: 6.0, finish: 10.0, advance: 6.0)]),
+            // HAYMAKER: a giant cone punch — the damage you've taken, returned with interest.
+            (name: "haymaker", cooldown: 8.0, cost: 6.0, tags: [], ops: [Shove(range: 9.0, angle: 30.0, damage: 16.0, knockback: 20.0), Counter(secs: 0.3)],
+             juice: Some((title: Some("HAYMAKER"), punch: 4.0))),
+            (name: "facebreaker", cooldown: 5.0, cost: 4.0, tags: [], ops: [Field(strength: 50.0, radius: 5.0, secs: 0.4), Shove(range: 3.0, angle: 179.0, damage: 8.0, knockback: 6.0)]),
+            // THE SHOW STOPPER: grab them, leap, and slam them into everyone at the landing.
+            (name: "the show stopper", cooldown: 14.0, cost: 40.0, tags: [Ultimate], ops: [
+                Grab(range: 3.0, hold: 0.4, damage: 16.0, knockback: 14.0, up: -0.8, lift: 10.0),
+                SlamOnLand(radius: 5.0, damage: 12.0, knockback: 16.0, carve: 2.0),
+            ], juice: Some((title: Some("THE SHOW STOPPER"), boom: true, punch: 5.0, shake: 0.3))),
+        ],
+    ),
+    (
+        id: "lol_master_yi",
+        name: "Master Yi",
+        kind: Kit,
+        names: ["master yi", "yi", "master yi league", "wuju", "master yis"],
+        fx: "speed",
+        shouts: [("alpha strike", 0), ("yi meditate", 1), ("wuju style", 2), ("highlander", 3)],
+        moves: [
+            // ALPHA STRIKE: untargetable, blinking between enemies, cutting each.
+            (name: "alpha strike", cooldown: 5.0, cost: 5.0, tags: [Primary, Movement], ops: [
+                Phase(secs: 0.6),
+                WarpTo(range: 14.0, cone: 20.0, behind: 1.0),
+                Barrage(hits: 4, interval: 0.1, range: 3.2, angle: 90.0, damage: 4.0, knockback: 3.0, finish: 8.0, blink: true),
+            ], juice: Some((title: Some("ALPHA STRIKE"), color: Some((0.6, 1.0, 0.4))))),
+            (name: "meditate", cooldown: 10.0, cost: 3.0, tags: [Defense], ops: [Mend(pct: 4.0, per_s: 6.0, secs: 3.0), Empower(secs: 3.0, armor: 0.5)]),
+            (name: "wuju style", cooldown: 8.0, cost: 3.0, tags: [], ops: [Empower(secs: 5.0, damage: 1.3)]),
+            (name: "highlander", cooldown: 16.0, cost: 20.0, tags: [Ultimate], ops: [Impulse(fwd: 12.0, up: 0.0), Empower(secs: 8.0, damage: 1.2, armor: 0.8)],
+             juice: Some((title: Some("HIGHLANDER"), boom: true, ripple: 3.0))),
+        ],
+    ),
+    (
+        id: "lol_jhin",
+        name: "Jhin",
+        kind: Kit,
+        names: ["jhin", "jhin league", "the virtuoso", "jhins"],
+        fx: "rigid",
+        shouts: [("dancing grenade", 0), ("deadly flourish", 1), ("captive audience", 2), ("curtain call", 3)],
+        moves: [
+            (name: "dancing grenade", cooldown: 4.0, cost: 3.0, tags: [Primary], ops: [Seeker(recipe: (name: "dancing grenade", form: Bomb, mech: [Explodes], element: Fire, scale: 0.4, mass: 3.0), range: 20.0, cone: 20.0, speed: 22.0, damage: 7.0, knockback: 4.0, hits: 4, chain: 8.0)]),
+            (name: "deadly flourish", cooldown: 8.0, cost: 4.0, tags: [], ops: [Wave(length: 40.0, speed: 80.0, width: 1.2, damage: 10.0, knockback: 4.0, element: Shadow, thin: true), Afflict(range: 40.0, cone: 4.0, status: Some(Stun), secs: 0.4)]),
+            (name: "captive audience", cooldown: 5.0, cost: 3.0, tags: [], ops: [Cast(recipe: (name: "lotus trap", form: Bomb, mech: [Trap, Explodes], element: Light, scale: 0.3, mass: 3.0))]),
+            // CURTAIN CALL: four shots — the fourth one always crits. Mark them, then fire.
+            (name: "curtain call", cooldown: 16.0, cost: 40.0, tags: [Ultimate], ops: [LockOn(secs: 2.4, range: 80.0, damage: 40.0, knockback: 16.0, angle: 30.0)],
+             juice: Some((title: Some("CURTAIN CALL"), color: Some((0.9, 0.2, 0.2))))),
+        ],
+    ),
+    (
+        id: "lol_ahri",
+        name: "Ahri",
+        kind: Kit,
+        names: ["ahri", "ahri league", "the nine tailed fox", "ahris"],
+        fx: "psychic",
+        shouts: [("orb of deception", 0), ("ahri fox fire", 1), ("ahri charm", 2), ("spirit rush", 3)],
+        moves: [
+            (name: "orb of deception", cooldown: 2.0, cost: 3.0, tags: [Primary], ops: [Cast(recipe: (name: "orb of deception", form: Ball, mech: [Returning, Pierce, Fast], element: Psychic, scale: 0.5, mass: 3.0))]),
+            (name: "fox fire", cooldown: 5.0, cost: 3.0, tags: [], ops: [Seeker(recipe: (name: "fox fire", form: Ball, mech: [Homing], element: Fire, scale: 0.25, count: 3, mass: 1.0), range: 10.0, cone: 60.0, speed: 20.0, damage: 4.0, hits: 3, chain: 6.0)]),
+            // CHARM: a kiss — whoever it hits walks helplessly toward you for a heartbeat.
+            (name: "charm", cooldown: 6.0, cost: 4.0, tags: [], ops: [Hook(range: 20.0, speed: 36.0, pull: 8.0, damage: 4.0, status: Some(Stun), secs: 0.4)]),
+            (name: "spirit rush", cooldown: 3.0, cost: 3.0, tags: [Ultimate, Movement], ops: [Impulse(fwd: 16.0, up: 1.0), Seeker(recipe: (name: "essence bolt", form: Ball, mech: [Homing], element: Psychic, scale: 0.2, mass: 1.0), range: 10.0, cone: 90.0, speed: 30.0, damage: 4.0, hits: 3, chain: 6.0)]),
+        ],
+    ),
+    // ---------------------------------------------------------------- Dota
+    (
+        id: "dota_mirana",
+        name: "Mirana",
+        kind: Kit,
+        names: ["mirana", "mirana dota", "potm", "priestess of the moon"],
+        fx: "light",
+        shouts: [("mirana arrow", 0), ("mirana sacred arrow", 0), ("mirana starstorm", 1), ("leap mirana", 2), ("moonlight shadow", 3)],
+        moves: [
+            // SACRED ARROW: a long, slow arrow — the further it flew, the longer they're stunned (still short).
+            (name: "sacred arrow", cooldown: 5.0, cost: 4.0, tags: [Primary], ops: [Hook(range: 50.0, speed: 30.0, damage: 10.0, status: Some(Stun), secs: 0.8)]),
+            (name: "starstorm", cooldown: 5.0, cost: 3.0, tags: [], ops: [Salvo(count: 4, delay: 0.3, interval: 0.15, radius: 2.5, damage: 6.0, knockback: 6.0, element: Light, at: Me, spread: 6.0, seek: true)]),
+            (name: "leap", cooldown: 4.0, cost: 2.0, tags: [Movement], ops: [Impulse(fwd: 18.0, up: 7.0)]),
+            (name: "moonlight shadow", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [Phase(secs: 2.0), Impulse(fwd: 10.0, up: 0.0)]),
+        ],
+    ),
+    (
+        id: "dota_tiny",
+        name: "Tiny",
+        kind: Kit,
+        names: ["tiny dota", "dota tiny", "the stone giant"],
+        fx: "stone",
+        shouts: [("tiny avalanche", 0), ("tiny toss", 1), ("tree grab", 2), ("tiny grow", 3)],
+        moves: [
+            (name: "avalanche", cooldown: 5.0, cost: 4.0, tags: [Primary], ops: [Salvo(count: 3, delay: 0.3, interval: 0.2, radius: 3.5, damage: 8.0, knockback: 8.0, element: Earth, at: Aim)]),
+            // TOSS: grab the nearest one and hurl them where you're looking.
+            (name: "toss", cooldown: 4.0, cost: 4.0, tags: [], ops: [Grab(range: 3.5, hold: 0.15, damage: 10.0, knockback: 34.0, up: 0.9)],
+             juice: Some((title: Some("TOSS")))),
+            (name: "tree grab", cooldown: 6.0, cost: 3.0, tags: [], ops: [Cast(recipe: (name: "tree club", form: Hammer, mech: [Blunt, Heavy, Extends], element: Earth, scale: 1.6))]),
+            (name: "grow", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [SelfResize(scale: 1.5, secs: 10.0), Empower(secs: 10.0, damage: 1.3, armor: 0.6)],
+             juice: Some((title: Some("GROW"), boom: true, shake: 0.2))),
+        ],
+    ),
+    (
+        id: "dota_storm_spirit",
+        name: "Storm Spirit",
+        kind: Kit,
+        names: ["storm spirit", "raijin thunderkeg", "storm spirit dota"],
+        fx: "lightning",
+        shouts: [("static remnant", 0), ("electric vortex", 1), ("ball lightning", 2)],
+        moves: [
+            (name: "static remnant", cooldown: 3.0, cost: 2.0, tags: [Primary], ops: [DelayedHit(range: 0.0, radius: 3.0, secs: 0.8, damage: 8.0, knockback: 6.0, element: Electric)]),
+            // ELECTRIC VORTEX: a crackling tether that drags them to you.
+            (name: "electric vortex", cooldown: 6.0, cost: 4.0, tags: [], ops: [Yank(range: 12.0, speed: 14.0, cone: 12.0)]),
+            // BALL LIGHTNING: become lightning and fly wherever you look, zapping what you pass.
+            (name: "ball lightning", cooldown: 3.0, cost: 5.0, tags: [Movement, Ultimate], ops: [
+                Phase(secs: 0.6),
+                Ram(speed: 40.0, secs: 0.6, damage: 6.0, knockback: 4.0, through: true, pitch: 1.0, steer: 120.0, element: Electric),
+            ], juice: Some((title: Some("BALL LIGHTNING"), color: Some((0.5, 0.7, 1.0))))),
+        ],
+    ),
+    (
+        id: "dota_enigma",
+        name: "Enigma",
+        kind: Kit,
+        names: ["enigma", "enigma dota"],
+        fx: "void",
+        shouts: [("malefice", 0), ("midnight pulse", 1), ("enigma black hole", 2)],
+        moves: [
+            (name: "malefice", cooldown: 5.0, cost: 3.0, tags: [], ops: [Afflict(range: 16.0, cone: 8.0, status: Some(Stun), secs: 0.3, damage: 6.0, element: Shadow)]),
+            (name: "midnight pulse", cooldown: 8.0, cost: 4.0, tags: [], ops: [Zone(radius: 6.0, secs: 5.0, dps: 5.0, at: Aim)]),
+            // BLACK HOLE: everyone around the crosshair is sucked into the spinning middle.
+            (name: "black hole", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [
+                Singularity(dist: 12.0, rise: 0.5, secs: 3.5, radius: 9.0, strength: 34.0, capture: 3.0, chunks: 4, damage: 16.0, knockback: 14.0),
+            ], juice: Some((title: Some("BLACK HOLE"), boom: true, at: Aim, color: Some((0.3, 0.1, 0.5))))),
+        ],
+    ),
+    (
+        id: "dota_sven",
+        name: "Sven",
+        kind: Kit,
+        names: ["sven", "sven dota", "the rogue knight"],
+        fx: "rigid",
+        shouts: [("storm hammer", 0), ("warcry", 1), ("gods strength", 2), ("god's strength", 2)],
+        moves: [
+            (name: "storm hammer", cooldown: 5.0, cost: 4.0, tags: [Primary], ops: [Hook(range: 20.0, speed: 30.0, damage: 10.0, status: Some(Stun), secs: 0.5), DelayedHit(range: 20.0, cone: 8.0, secs: 0.6, damage: 6.0, knockback: 8.0, element: Electric)]),
+            (name: "warcry", cooldown: 8.0, cost: 3.0, tags: [Defense], ops: [Empower(secs: 4.0, armor: 0.7), Impulse(fwd: 10.0, up: 0.0)]),
+            (name: "god's strength", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [Empower(secs: 8.0, damage: 1.8)],
+             juice: Some((title: Some("GOD'S STRENGTH"), boom: true, ripple: 3.0, color: Some((1.0, 0.3, 0.2))))),
+        ],
+    ),
+    (
+        id: "dota_lina",
+        name: "Lina",
+        kind: Kit,
+        names: ["lina", "lina dota"],
+        fx: "fire",
+        shouts: [("dragon slave", 0), ("light strike array", 1), ("laguna blade", 2)],
+        moves: [
+            (name: "dragon slave", cooldown: 3.0, cost: 3.0, tags: [Primary], ops: [Wave(length: 18.0, speed: 30.0, width: 3.0, damage: 10.0, knockback: 6.0, element: Fire)]),
+            (name: "light strike array", cooldown: 4.0, cost: 3.0, tags: [], ops: [Salvo(count: 1, delay: 0.5, radius: 3.0, damage: 10.0, knockback: 6.0, element: Fire, up: 1.2, at: Aim)]),
+            // LAGUNA BLADE: a crackling bolt of lightning straight into one target.
+            (name: "laguna blade", cooldown: 14.0, cost: 40.0, tags: [Ultimate], fx: "lightning", ops: [
+                Afflict(range: 18.0, cone: 8.0, secs: 0.0, damage: 28.0, knockback: 18.0, element: Electric),
+            ], juice: Some((title: Some("LAGUNA BLADE"), boom: true, punch: 4.0))),
+        ],
+    ),
+    (
+        id: "dota_zeus",
+        // (MYTHOLOGY worker: named "Zeus (Dota)" so the kit prefix is "zeus dota" as the names intend —
+        // a kit's `name` is also a prefix, and bare "zeus <move>" belongs to the myth kit.)
+        name: "Zeus (Dota)",
+        kind: Kit,
+        names: ["zeus dota", "dota zeus", "the lord of heaven"],
+        fx: "lightning",
+        shouts: [("arc lightning", 0), ("lightning bolt zeus", 1), ("thundergods wrath", 2), ("thundergod's wrath", 2)],
+        moves: [
+            (name: "arc lightning", cooldown: 1.5, cost: 2.0, tags: [Primary], ops: [Seeker(recipe: (name: "arc lightning", form: Ball, mech: [Fast], element: Electric, scale: 0.2, mass: 1.0), range: 16.0, cone: 30.0, speed: 60.0, damage: 5.0, hits: 4, chain: 6.0)]),
+            (name: "lightning bolt", cooldown: 4.0, cost: 3.0, tags: [], ops: [Salvo(count: 1, delay: 0.15, radius: 2.0, damage: 12.0, knockback: 6.0, element: Electric, at: Aim, seek: true, spread: 3.0)]),
+            // THUNDERGOD'S WRATH: lightning strikes every enemy, wherever they are.
+            (name: "thundergod's wrath", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [
+                Salvo(count: 8, delay: 0.4, interval: 0.05, radius: 2.0, damage: 12.0, knockback: 6.0, element: Electric, at: Me, spread: 60.0, seek: true),
+            ], juice: Some((title: Some("THUNDERGOD'S WRATH"), boom: true, shake: 0.2))),
+        ],
+    ),
+    (
+        id: "dota_kunkka",
+        name: "Kunkka",
+        kind: Kit,
+        names: ["kunkka", "kunkka dota"],
+        fx: "water",
+        shouts: [("kunkka torrent", 0), ("tidebringer", 1), ("x marks the spot", 2), ("ghostship", 3), ("ghost ship", 3)],
+        moves: [
+            (name: "torrent", cooldown: 5.0, cost: 3.0, tags: [], ops: [Salvo(count: 1, delay: 1.2, radius: 3.0, damage: 10.0, knockback: 8.0, element: Water, up: 1.6, at: Aim)]),
+            (name: "tidebringer", cooldown: 3.0, cost: 3.0, tags: [Primary], ops: [Shove(range: 4.5, angle: 120.0, damage: 12.0, knockback: 12.0, element: Water)]),
+            // X MARKS THE SPOT: mark yourself — a few seconds later you're snapped right back to it.
+            (name: "x marks the spot", cooldown: 6.0, cost: 3.0, tags: [Movement], ops: [MarkRecall(range: 0.0, secs: 4.0)]),
+            // GHOSTSHIP: a spectral ship crashes down along your aim.
+            (name: "ghostship", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Surge(width: 8.0, dist: 20.0, speed: 12.0, push: 8.0, damage: 14.0, element: Water),
+                Salvo(count: 1, delay: 1.6, radius: 6.0, damage: 14.0, knockback: 16.0, element: Water, at: Front, dist: 18.0),
+            ], juice: Some((title: Some("GHOSTSHIP"), boom: true, color: Some((0.4, 0.8, 0.8))))),
+        ],
+    ),
+    // ---------------------------------------------------------------- Deadlock
+    (
+        id: "dl_dynamo",
+        name: "Dynamo",
+        kind: Kit,
+        names: ["dynamo", "dynamo deadlock", "deadlock dynamo"],
+        fx: "void",
+        shouts: [("kinetic pulse", 0), ("quantum entanglement", 1), ("dynamo singularity", 2)],
+        moves: [
+            (name: "kinetic pulse", cooldown: 5.0, cost: 3.0, tags: [Primary], ops: [Explode(radius: 5.0, damage: 6.0, knockback: 14.0, element: Psychic, at: Me)]),
+            (name: "quantum entanglement", cooldown: 5.0, cost: 3.0, tags: [Movement], ops: [Phase(secs: 0.5), Blink(dist: 12.0, afterimage: true)]),
+            // SINGULARITY: rise up and pull everyone near into you.
+            (name: "singularity", cooldown: 22.0, cost: 40.0, tags: [Ultimate], ops: [
+                SelfStatus(status: Float, secs: 2.5),
+                Singularity(dist: 0.5, rise: 2.0, secs: 2.5, radius: 10.0, strength: 28.0, capture: 3.0, chunks: 0, damage: 10.0, knockback: 10.0),
+            ], juice: Some((title: Some("SINGULARITY"), boom: true, color: Some((0.3, 0.2, 0.6))))),
+        ],
+    ),
+    (
+        id: "dl_infernus",
+        name: "Infernus",
+        kind: Kit,
+        names: ["infernus", "infernus deadlock", "deadlock infernus"],
+        fx: "fire",
+        shouts: [("infernus catalyst", 0), ("flame dash", 1), ("concussive combustion", 2)],
+        moves: [
+            (name: "catalyst", cooldown: 5.0, cost: 3.0, tags: [], ops: [Afflict(range: 14.0, cone: 10.0, status: Some(Burn), secs: 3.0, damage: 4.0, element: Fire)]),
+            (name: "flame dash", cooldown: 4.0, cost: 3.0, tags: [Movement], ops: [Impulse(fwd: 16.0, up: 0.0), Erupt(length: 10.0, width: 0.8, height: 1.0, element: Fire, damage: 4.0, dist: 0.0)]),
+            // CONCUSSIVE COMBUSTION: you wind up… and explode, stunning everyone around.
+            (name: "concussive combustion", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Salvo(count: 1, delay: 1.0, radius: 7.0, damage: 14.0, knockback: 14.0, element: Electric, at: Me),
+            ], juice: Some((title: Some("CONCUSSIVE COMBUSTION"), boom: true, ripple: 7.0))),
         ],
     ),
 ]

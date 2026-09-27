@@ -294,8 +294,12 @@ BEAST_FORMS = {"Quadruped", "Bird", "Serpent", "Fish", "Insect", "Arachnid"}
 
 def profile(c: S.Char) -> Prof:
     m = c.mech
-    name_text = " ".join(c.names + [c.display.lower()])
-    note_text = (c.notes or "").lower()
+    titles = getattr(c, "titles", set())
+    name_text = " ".join([n for n in c.names if n not in titles] + [c.display.lower()])
+    # names-list notes are descriptions ("[radiates kryptonite]"); an icon / costume "note" is its franchise
+    note_text = (c.notes or "").lower() if c.origin == "names" else ""
+    if note_text and is_title(S.norm_words(note_text), FRANCHISE_TITLES):
+        note_text = ""
     ntok, otok = set(tokens(name_text)), set(tokens(note_text))
 
     def kw(words: list[str]) -> float:
@@ -484,7 +488,7 @@ class Ctx:
 
 
 def juice(ctx: Ctx, title: str | None = None, boom=False, punch=0.0, shake=0.0, at: str | None = None, dist=0.0, ripple=0.0,
-          debris=0.0, impact: str | None = None, color=True) -> str:
+          debris=0.0, impact: str | None = None, color=False) -> str:
     parts = []
     if title:
         parts.append(f'title: Some("{title.upper()}")')
@@ -833,7 +837,7 @@ def m_surf(ctx: Ctx) -> Move:
 
 
 def m_rollout(ctx: Ctx) -> Move:
-    names = ["roll out", "full throttle", "hit the gas"]
+    names = ["roll out", "hit the gas", "floor it"]
     ops = [f"Ram(speed: 30.0, secs: 0.9, damage: {ctx.d(10)}, knockback: {ctx.kb(18)}, through: true, steer: 40.0, keep: 0.6)"]
     return Move(names, ops, cd=3.5, cost=4.0, fx="hardlight", family="rollout")
 
@@ -1035,11 +1039,22 @@ def c_sweep(ctx: Ctx) -> Move:
 
 def c_maul(ctx: Ctx) -> Move:
     a = ctx.adj(True)
-    names = ["maul", f"{a[0]} mauling", "rend"]
+    style = ctx.pick("maul", ["maul", "frenzy", "rend", "pack hunt"] if ctx.c.form in ("Quadruped", "Kaiju") else ["maul", "frenzy", "rend"])
+    if style == "frenzy":
+        names = ["frenzy", f"{a[0]} frenzy", "feeding frenzy"]
+        ops = [f"Barrage(hits: 7, interval: 0.07, range: 3.0, angle: 80.0, damage: {ctx.d(3)}, knockback: 2.0, finish: {ctx.kb(16)}, advance: 3.0{ctx.el()})"]
+    elif style == "rend":
+        names = ["rend", "tear apart", f"{a[0]} rending"]
+        ops = [f"Barrage(hits: 3, interval: 0.16, range: 3.4, angle: 70.0, damage: {ctx.d(7)}, knockback: 4.0, finish: {ctx.kb(18)}, advance: 5.0{ctx.el()})"]
+    elif style == "pack hunt":
+        names = ["pack hunt", "run them down", "circle and strike"]
+        ops = [f"Barrage(hits: 4, interval: 0.14, range: 3.2, angle: 60.0, damage: {ctx.d(5)}, knockback: 3.0, finish: {ctx.kb(16)}, blink: true{ctx.el()})"]
+    else:
+        names = ["maul", f"{a[0]} mauling", "pounce and maul"]
+        ops = [f"Pounce(range: 12.0, speed: 36.0, cone: 12.0, damage: {ctx.d(5)}, knockback: 2.0)",
+               f"Barrage(hits: 4, interval: 0.1, range: 3.0, angle: 70.0, damage: {ctx.d(4)}, knockback: 2.0, finish: {ctx.kb(14)}{ctx.el()})"]
     if ctx.c.pack == "pokemon":
         names = [V.POKEMON.get(ctx.E, V.POKEMON["Light"])["combo"]] + names
-    ops = [f"Pounce(range: 12.0, speed: 36.0, cone: 12.0, damage: {ctx.d(5)}, knockback: 2.0)",
-           f"Barrage(hits: 4, interval: 0.1, range: 3.0, angle: 70.0, damage: {ctx.d(4)}, knockback: 2.0, finish: {ctx.kb(14)}{ctx.el()})"]
     return Move(names, ops, cd=6.0, cost=8.0, juice=juice(ctx, punch=2.5), family="maul")
 
 
@@ -1112,7 +1127,7 @@ def ult_juice(ctx: Ctx, title: str, **kw) -> str:
         imp = "void" if imp is None else imp
     elif ctx.p.flav == "glitch":
         imp = "glitch"
-    return juice(ctx, title=title, boom=True, punch=kw.pop("punch", 5.0), shake=kw.pop("shake", 0.3), impact=imp, **kw)
+    return juice(ctx, title=title, boom=True, punch=kw.pop("punch", 5.0), shake=kw.pop("shake", 0.3), impact=imp, color=True, **kw)
 
 
 def u_storm(ctx: Ctx) -> Move:
@@ -1251,6 +1266,8 @@ def u_guardian(ctx: Ctx) -> Move:
 
 def u_piledriver(ctx: Ctx) -> Move:
     names = ["piledriver", "death grip", "crushing embrace"] if "Constrict" not in ctx.m else ["death coil", "crushing embrace", "piledriver"]
+    if "Flies" in ctx.m or ctx.c.form == "Bird":
+        names = ["snatch and drop", "sky drop", "carried off"]
     ops = [f"Grab(range: 3.4, hold: 0.45, damage: {ctx.d(14)}, knockback: 8.0, up: 1.4)", "Impulse(fwd: 2.0, up: 14.0)",
            f"SlamOnLand(radius: {ctx.rad(5)}, damage: {ctx.d(18)}, knockback: {ctx.kb(22)}, carve: 1.5)"]
     return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0]), family="piledriver")
@@ -1332,6 +1349,13 @@ def u_showstopper(ctx: Ctx) -> Move:
     return Move(names, ops, cd=20.0, cost=40.0, juice=ult_juice(ctx, names[0], ripple=6.0), family="showstopper")
 
 
+def u_throttle(ctx: Ctx) -> Move:
+    names = ["full throttle", "ramming speed", "road rage"]
+    ops = [f"Empower(secs: 4.0, damage: 1.2, armor: 0.6, contact: {ctx.d(6)}, contact_kb: {ctx.kb(16)}, contact_cd: 0.4)",
+           f"Ram(speed: 40.0, secs: 1.2, damage: {ctx.d(16)}, knockback: {ctx.kb(26)}, up: 0.2, through: true, steer: 40.0, keep: 0.6)"]
+    return Move(names, ops, cd=20.0, cost=40.0, fx="hardlight" if ctx.E == "Light" else "", juice=ult_juice(ctx, names[0], debris=12.0), family="throttle")
+
+
 def u_timestop(ctx: Ctx) -> Move:
     names = ["time stop", "stopwatch", "borrowed time"]
     ops = ["TimeStop(secs: 2.0, speed: 2.0)"] + (["Rewind(secs: 0.0)"] if False else [])
@@ -1349,7 +1373,8 @@ ULTIMATE = [
     ("bombard", lambda x: 1.8 * ("Shoots" in x.m) + 1.5 * ("Explodes" in x.m) + 1.5 * (x.p.vehicle == "tank") + 1 * (x.p.weapon == "bow"), u_bombard),
     ("summon", lambda x: 3.5 * ("Swarm" in x.m) + 2 * (x.kwr("summoner") > 0 and ("Swarm" in x.m or x.c.temperament == "Aggressive")), u_summon),
     ("stampede", lambda x: 2.5 * ("Charge" in x.m) * (x.p.beast or x.p.heavy) + 1 * x.p.beast, u_stampede),
-    ("overdrive", lambda x: (4 * ("Fast" in x.m) + 2 * (x.p.flav == "speed") - 4 * x.p.heavy) * x.has("TimeStop"), u_overdrive),
+    ("overdrive", lambda x: (4 * ("Fast" in x.m) + 2 * (x.p.flav == "speed") - 4 * x.p.heavy) * x.has("TimeStop") * (x.p.vehicle is None), u_overdrive),
+    ("throttle", lambda x: 5 * (x.p.vehicle == "car"), u_throttle),
     ("gamble", lambda x: (3 * (x.c.temperament == "Chaotic") + 2 * (x.kwr("trick") > 0)) * x.has("Roulette"), u_gamble),
     ("guardian", lambda x: 2 * (x.c.temperament == "Protective") + 1.5 * ("Guard" in x.m) + 2 * (x.p.weapon == "shield"), u_guardian),
     ("piledriver", lambda x: 2.5 * ("Grab" in x.m) + 3 * ("Constrict" in x.m), u_piledriver),
@@ -1614,8 +1639,10 @@ def build_kit(c: S.Char, en: S.Enums, rules: Rules) -> dict | None:
         kit_fx = ctx.ev["fx"]
     elif ctx.fv:
         kit_fx = ctx.fv["fx"]
+    if kit_fx and rules.fx and kit_fx not in rules.fx:
+        kit_fx = ""
     for mv in moves:
-        if mv.fx == kit_fx:
+        if mv.fx == kit_fx or (rules.fx and mv.fx not in rules.fx):
             mv.fx = ""
     return {"char": c, "prof": p, "moves": moves, "fx": kit_fx, "trace": trace}
 
@@ -1626,16 +1653,44 @@ def slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
 
 
+FRANCHISE_TITLES: set[str] = set()
+
+
 def franchise_titles(chars: list[S.Char]) -> set[str]:
     """Franchise / source titles seen in the data ("game of thrones", "cat returns"): never kit names."""
     out: set[str] = set()
+    seen: dict[str, int] = {}
     for c in chars:
-        for text in (c.source, c.notes):
-            for part in re.split(r"[/;,()\[\]]| - ", text or ""):
-                n = S.norm_words(part)
-                if n and len(n.split(" ")) >= 2:
-                    out.add(n)
+        parts = [S.norm_words(p) for p in re.split(r"[/;,()\[\]]| - ", c.source or "")]
+        out.update(p for p in parts if p and len(p.split(" ")) >= 2)
+        for p in re.split(r"[/;,()\[\]]| - ", c.notes or ""):
+            n = S.norm_words(p)
+            if n:
+                seen[n] = seen.get(n, 0) + 1
+    # a names-list note shared by several characters is their franchise ("turtles in time"), not a description
+    out.update(n for n, k in seen.items() if k >= 2 and len(n.split(" ")) >= 2)
     return out
+
+
+def is_title(n: str, titles: set[str]) -> bool:
+    """A franchise title, or the start of one ("red dead" of "red dead redemption 2")."""
+    if n in titles:
+        return True
+    ws = n.split(" ")
+    return len(ws) >= 2 and any(t.startswith(n + " ") for t in titles_by_first(titles).get(ws[0], ()))
+
+
+_TBF: dict[int, dict[str, list[str]]] = {}
+
+
+def titles_by_first(titles: set[str]) -> dict[str, list[str]]:
+    key = id(titles)
+    if key not in _TBF:
+        d: dict[str, list[str]] = {}
+        for t in titles:
+            d.setdefault(t.split(" ")[0], []).append(t)
+        _TBF[key] = d
+    return _TBF[key]
 
 
 def word_spread(chars: list[S.Char]) -> dict[str, int]:
@@ -1657,7 +1712,16 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
     A one-word alias that many other things also use ("fire", "robot", "bishop", "war") is not a kit
     name unless it is the character's own canonical name: "<common word> attack" must stay free."""
     hand = claims.names | claims.shouts | set(claims.kit_names)
+    hand |= {kitform(n) for n in claims.names}
+    # A hand kit name with an apostrophe ("pharaoh's mummy") is matched possessive-stripped
+    # ("pharaoh mummy ..."): no derived alias may be a word-prefix of it ("pharaoh") or it steals it.
+    for n in claims.kit_names:
+        ws = kitform(n).split(" ")
+        if "'" in n:
+            hand |= {" ".join(ws[:k]) for k in range(1, len(ws))}
     titles = franchise_titles(chars)
+    FRANCHISE_TITLES.clear()
+    FRANCHISE_TITLES.update(titles)
     spread = word_spread(chars)
     kept = []
     skipped_hand = []
@@ -1666,6 +1730,7 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
         if any(n in hand for n in c.names):
             skipped_hand.append(c)
             continue
+        c.titles = {n for n in c.names if n != c.key and is_title(n, titles)}  # type: ignore[attr-defined]
         names = []
         extra = []
         for n in c.names:
@@ -1677,7 +1742,7 @@ def assign(chars: list[S.Char], claims: S.Claims, rules: Rules):
             n = " ".join(strip_possessive(w) for w in n.split(" "))
             if len(n) < 3 or n in hand or n in taken or n in SLOT_WORDS or n in FILLER or n in names:
                 continue
-            if n in titles and n != c.key:
+            if is_title(n, titles) and n != c.key:
                 continue
             if " " not in n and n != c.key and spread.get(n, 0) >= (2 if stripped else 4):
                 continue
@@ -1707,7 +1772,7 @@ def ron_kit(k: dict, pid: str) -> str:
     bits = [p.elem if p.elem != "Light" else (p.flav or "plain"), c.temperament.lower()]
     if p.weapon:
         bits.append(p.weapon)
-    head = f"    // {c.display} [{c.pack}] {' '.join(bits)}: {', '.join(k['trace'])}\n"
+    head = f"    // {c.display} [{c.pack} {' '.join(bits)}]: {' '.join(t.split('=')[1] for t in k['trace'])}\n"
     names = ", ".join(f'"{n}"' for n in c.kit_names)  # type: ignore[attr-defined]
     fx = f', fx: "{k["fx"]}"' if k["fx"] else ""
     disp = c.display.replace('"', "'")
@@ -1725,7 +1790,7 @@ def ron_kit(k: dict, pid: str) -> str:
             parts.append(f"juice: {mv.juice}")
         if mv.crit:
             parts.append(f"crit: {mv.crit}")
-        out.append(f"        ({', '.join(parts)}),\n")
+        out.append(f"      ({', '.join(parts)}),\n")
     out.append("    ]),\n")
     return "".join(out)
 
@@ -1760,6 +1825,7 @@ def generate(verbose: bool = True):
         seen.add(pid)
         k["pid"] = pid
     # collision pass: no known phrase (icon names, costume phrases, shouts, power names) may read as a derived kit move
+    generate.all_chars = chars  # type: ignore[attr-defined]
     dropped, accepted = collision_pass(kits, claims, en, rules)
     generate.accepted = accepted  # type: ignore[attr-defined]
     kits = [k for k in kits if k["char"].kit_names]  # type: ignore[attr-defined]
@@ -1770,6 +1836,7 @@ def known_phrases(claims: S.Claims, chars: list[S.Char]) -> set[str]:
     out = set(S.icon_names_all()) | claims.names | claims.shouts
     for c in chars:
         for n in c.names:
+            out.add(n)  # every character's name (costume looks included) stays its bare summon
             for w in getattr(c, "variant_words", []):
                 out.add(f"{n} {w}")
     return {p for p in out if " " in p}
@@ -1796,8 +1863,10 @@ def collision_pass(kits: list[dict], claims: S.Claims, en: S.Enums, rules: Rules
       icon): that move is renamed (the word is banned for the kit, which is rebuilt);
     * the character's own name + a slot word ("zelda shield", "zerg rush"): kept and logged — the
       kit move is the in-character reading (see the report's accepted list)."""
-    phrases = sorted(known_phrases(claims, [k["char"] for k in kits]))
+    phrases = sorted(known_phrases(claims, getattr(generate, "all_chars", [k["char"] for k in kits])))
     hand_phr = claims.names | claims.shouts
+    # every character's own name must stay its bare name (the costume / icon summon)
+    char_names = {kitform(n) for c in getattr(generate, "all_chars", [k["char"] for k in kits]) for n in c.names}
     dropped = []
     accepted = []
     by_pid = {k["pid"]: k for k in kits}
@@ -1813,7 +1882,7 @@ def collision_pass(kits: list[dict], claims: S.Claims, en: S.Enums, rules: Rules
             k = by_pid[pid]
             c = k["char"]
             canon = kitname in getattr(c, "canonical", set()) or kitname == kitform(c.display)
-            if not canon or (ph in hand_phr and why != "fuzzy"):
+            if not canon or (why != "fuzzy" and (ph in hand_phr or kitform(ph) in char_names)):
                 if kitname in c.kit_names:  # type: ignore[attr-defined]
                     c.kit_names.remove(kitname)  # type: ignore[attr-defined]
                     dropped.append((ph, c.display, kitname, k["moves"][slot].name, why))
@@ -1847,7 +1916,7 @@ def render(kits: list[dict], claims: S.Claims) -> str:
         "// The bare name still summons the costume construct (a kit never grants). Hand content always wins: the\n",
         "// generator skips anything a hand file names, and this file sorts LAST (ties go to the earlier file).\n",
         f"// {len(kits)} kits, {sum(len(k['moves']) for k in kits)} moves. Hand files seen: {', '.join(claims.files)}\n",
-        "// Each comment line: display [pack] element/flavour temperament weapon: the template picked per slot.\n",
+        "// Each comment: display [pack element/flavour temperament weapon]: templates (primary movement defense combo ultimate bonus).\n",
         "[\n",
     ]
     body = [ron_kit(k, k["pid"]) for k in kits]

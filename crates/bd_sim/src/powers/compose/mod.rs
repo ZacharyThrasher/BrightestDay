@@ -475,6 +475,24 @@ impl ComposedMove {
     }
 }
 
+/// PRECEDENCE helper (the console + the validator): does the lexicon know this exact phrase as
+/// something CURATED — a signature ("kamehameha"), a grant (a power / tier name, a stand rush), or
+/// an icon whose name IS the whole phrase ("iron man")? Then it stays the lexicon's, even if it
+/// also reads as a described move. (An icon matched on one word of it — "teleport behind the
+/// dragon" finds the dragon icon — does not count.)
+pub fn curated_by_lexicon(phrase: &str, signature: bool, grant: bool, model: &bd_core::mechanics::ModelSource) -> bool {
+    if signature || grant {
+        return true;
+    }
+    let bd_core::mechanics::ModelSource::Icon(id) = model else { return false };
+    let strip = |s: &str| {
+        let n = super::norm_words(&s.replace('_', " "));
+        let w: Vec<&str> = n.split(' ').filter(|w| !matches!(*w, "a" | "an" | "the")).collect();
+        w.join(" ")
+    };
+    strip(id) == strip(phrase)
+}
+
 /// The stand-in power every composed move runs under (no kind rules, no moves, nothing to hold).
 pub fn composed_power() -> &'static PowerDef {
     static D: OnceLock<PowerDef> = OnceLock::new();

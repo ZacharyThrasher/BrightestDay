@@ -1,0 +1,7 @@
+FX keys are live (TOOLBOX PRESENTATION, 2026-09-27).
+
+Write `fx: "<key>"` on a move (or on the power / kit for all its moves). Keys, bodies and what each
+op looks like per body: docs/toolbox/PRESENTATION.md. Styles live in assets/tuning/move_fx.ron
+(hot-reloaded; add a style or alias there, no code). Check your keys:
+    cargo test -p bd_game --bin brightest_day movefx
+(`move_fx_every_fx_key_in_the_powers_data_exists` lists any unknown key with file:line).

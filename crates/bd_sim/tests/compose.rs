@@ -390,9 +390,8 @@ fn composed_moves_price_cool_down_and_go_stale() {
         evs.iter().chain(w.events().iter()).any(|e| matches!(e, GameEvent::Power(PowerEvent::Fired { player: A, how: FireHow::Composed, .. }))),
     );
     let _ = (spec_ev, fired_ev);
-    // cooldown: again at once = Cooldown (the input buffer holds the second command while the
-    // active phase runs, so wait it out first)
-    run(&mut w, 40);
+    // wait out the cooldown (not the staleness window): the repeat costs more
+    run(&mut w, 90);
     let wp1 = w.player(A).unwrap().willpower;
     fire(&mut w, "punch").unwrap();
     run(&mut w, 1);
@@ -429,6 +428,8 @@ fn bogus_specs_are_rejected_by_the_host() {
 #[test]
 fn pull_everyone_and_push_everyone() {
     let mut w = duel();
+    stand_at(&mut w, B, 0.0, -4.0);
+    run(&mut w, 2);
     let d0 = (w.player(B).unwrap().mv.pos - w.player(A).unwrap().mv.pos).length();
     fire(&mut w, "push everyone away").unwrap();
     run(&mut w, 20);

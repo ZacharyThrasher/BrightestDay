@@ -345,6 +345,8 @@ pub struct ModTable {
     pub counts: Vec<(u32, String)>,
     /// Words that introduce a modifier tail ("but", "with", "except").
     pub tails: Vec<String>,
+    /// Words dropped from the END of a line before reading ("please", "now", "bro").
+    pub trailing: Vec<String>,
     pub elements: Vec<ElementLook>,
     pub modifiers: Vec<ModDef>,
     pub fusion: FusionDef,
@@ -370,6 +372,7 @@ impl Default for ModTable {
             numbers: vec![],
             counts: vec![],
             tails: vec![],
+            trailing: vec![],
             elements: vec![],
             modifiers: vec![],
             fusion: FusionDef::default(),
@@ -430,6 +433,7 @@ impl ModTable {
         self.fillers.iter_mut().for_each(norm);
         self.articles.iter_mut().for_each(norm);
         self.tails.iter_mut().for_each(norm);
+        self.trailing.iter_mut().for_each(norm);
         for (w, _) in &mut self.numbers {
             norm(w);
         }

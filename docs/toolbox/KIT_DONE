@@ -1,0 +1,76 @@
+KIT DONE (TOOLBOX CORE, 2026-09-27)
+
+`kind: Kit` = a character move-set. Runtime: bd_sim `powers::toolbox::MoveIndex::kit_move` (reading)
++ `powers::chain` (firing, as a one-shot, like a borrowed move). Live in the console AND voice
+(bd_game `toolbox.rs` → `Cmd::Toolbox`; protocol v40).
+
+RULES
+- A kit's names NEVER grant, never transform, are never held, and never take the bare name from the
+  costume summon: bare "doomfist" still summons a Doomfist-costumed construct (the lexicon skips kit
+  names entirely; the costume summon hook is untouched).
+- "<kit name> <move word(s)>" fires that kit move. Beats the relations.ron `moves` construct grammar
+  ("reinhardt charge" used to be a piloted Reinhardt construct opening with Charge) and the costume
+  summon whenever a kit matches. If the kit name matches but no move does ("doomfist hello"), the
+  line falls through to the lexicon as before.
+- Possessives work: "reinhardt's charge", "reinhardts charge". Filler is skipped: "reinhardt use
+  his hammer". Longest kit name wins ("black widow" before "widow").
+- Match order for the words after the name:
+    1. exact: a move `name`, or a kit shout (with or without the kit name in front);
+    2. a WHOLE word of a move's name / shouts ("doomfist punch" → "rocket punch", even if some other
+       move is tagged Primary: the character's own word beats the slot word);
+    3. a SLOT WORD → the first move carrying that tag:
+         ultimate / ult / ulti / super / special / final / finisher / fatality → Ultimate
+         combo / string / flurry / rush / barrage                              → Combo
+         attack / punch / hit / strike / basic / primary / light               → Primary
+         dash / teleport / tp / port / jump / leap / blink / dodge / mobility  → Movement
+         block / shield / guard / parry / defense / barrier                    → Defense
+         counter / reversal / counterattack / riposte                          → Counter
+    4. prefix / one-typo word overlap ("reinhardt chrge", "nightcrawler tele");
+    5. a slot word with NO tagged move: a shape guess (Ultimate = the priciest move, ties → the
+       later one; Movement = the first Blink/Impulse/Reel; Defense = a repel Field / SelfStatus;
+       Primary = slot 0). TAG YOUR MOVES — the guess is a fallback.
+  Loose readings (2–5) need at least half the words after the name to hit, so "reinhardt charge
+  doomfist punch" (a chain said without a separator) is not one move.
+- Kit shouts are also BORROWABLE on their own: "earthshatter" alone fires Reinhardt's ultimate.
+  Add each move's famous name (and its mishearings) as a shout. Shouts must be unique across the
+  whole directory (the validator reports clashes; first claim in filename order wins).
+- Up to 8 moves per kit (and per power / tier): move_sel::MAX_MOVES = 8.
+- Price: sparks by the move's presence tier (see BORROW_DONE), per-player per-move cooldown = the
+  move's `cooldown`. `cost` (willpower) is only a WEIGHT that lifts the tier (≥ 8 Normal, ≥ 20 Big,
+  ≥ 40 Titan) — don't hand-tune spark prices.
+- Never allowed in a kit (never runs): Transform / Tier ops, transform / companion / incantations
+  (the validator warns). A move needing a companion's body: generic ops carry it (e.g. `Rush`'s
+  `stand:` recipe); otherwise the PRESENTATION worker draws a ghost of the power's `companion` for a
+  borrowed move (docs/toolbox/PRESENTATION_API.md).
+
+SCHEMA (assets/powers/<your file>.ron; every field but id / name / kind / moves optional)
+
+    (
+        id: "kit_reinhardt",                 // unique across the directory
+        name: "Reinhardt",
+        kind: Kit,
+        names: ["reinhardt", "rein", "rein hart", "reinhart", "reinhard"],   // prefixes + mishearings
+        fx: "rigid",                         // presentation default style (PRESENTATION.md)
+        shouts: [("earthshatter", 3), ("earth shatter", 3), ("hammer down", 3),
+                 ("charge", 1)],             // borrowable anywhere; slot = index into moves
+        moves: [
+            (name: "rocket hammer", tags: [Primary], cooldown: 0.9, ops: [
+                Shove(range: 3.5, angle: 70.0, damage: 9.0, knockback: 14.0)]),
+            (name: "charge", tags: [Movement], cooldown: 6.0, cost: 6.0, ops: [
+                Ram(speed: 22.0, secs: 1.2, damage: 12.0, knockback: 20.0, pin: true, wall: 2.0)]),
+            (name: "barrier field", tags: [Defense], cooldown: 5.0, ops: [
+                Deflect(secs: 1.5, angle: 60.0)]),
+            (name: "earthshatter", tags: [Ultimate], cooldown: 18.0, cost: 30.0, ops: [
+                Explode(radius: 8.0, damage: 14.0, knockback: 18.0, at: Front, dist: 4.0),
+                Carve(length: 12.0, radius: 1.2)],
+             juice: Some((title: Some("EARTHSHATTER"), shake: 0.3, boom: true))),
+        ],
+    ),
+
+Resolves: "reinhardt charge" / "rein's charge" → charge; "reinhardt ult" / "reinhardt ultimate" /
+"earthshatter" → earthshatter; "reinhardt block" → barrier field; "reinhardt" → the costume summon.
+
+CHECK IT (no game rebuild):
+  cargo run --profile fastrel -p bd_sim --example powers_check -- assets/powers/<file>.ron --coverage my_phrases.txt
+  (prints KIT <kit> / "<move>" (exact | words | tag Ultimate | Ultimate by shape) per phrase)
+Golden tests: crates/bd_sim/tests/toolbox.rs (kit_phrases_find_the_characters_move).

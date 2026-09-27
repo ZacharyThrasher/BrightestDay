@@ -132,3 +132,83 @@ Hades (Supergiant Games); Celeste (Maddy Makes Games / Extremely OK Games); Cuph
 (Bandai Namco); Crash Bandicoot, Spyro (Activision); Max Payne (Remedy / Rockstar); Titanfall (Respawn / EA);
 Control (Remedy). Every in-game effect is Brightest Day's own mapping onto its generic move operations; no
 game assets, text, dialogue, lyrics or sounds are used.
+
+## Arena / competitive game power vocabulary (`assets/powers/games_arena.ron`)
+
+Hero, champion, agent, legend and fighter NAMES and their ability / move NAMES from these multiplayer and
+fighting-game franchises are used only as trigger words a player may type or say, for private use; replace
+them before any public release: Overwatch (Blizzard Entertainment); Valorant, League of Legends (Riot
+Games); Apex Legends (Respawn / EA); Deadlock, Dota 2, Team Fortress 2 (Valve); Marvel Rivals (NetEase /
+Marvel); Street Fighter (Capcom); Mortal Kombat (NetherRealm / Warner Bros. Games); Tekken (Bandai Namco);
+Super Smash Bros., Fire Emblem (Nintendo / HAL Laboratory / Intelligent Systems); Pokémon (Nintendo /
+Game Freak / Creatures / The Pokémon Company); The Legend of Zelda's Ganondorf as fought in Smash (Nintendo);
+Guilty Gear, BlazBlue (Arc System Works); Fortnite (Epic Games); Brawl Stars (Supercell). Every in-game
+effect is Brightest Day's own mapping onto its generic move operations; no game assets, text, voice lines,
+dialogue or sounds are used.
+
+## Film & comics power vocabulary (`assets/powers/movies_comics.ron`, `base_marvel.ron`, `base_dc.ron`)
+
+Character, move, spell, gadget and catchphrase NAMES from these film and comics franchises are used only
+as trigger words a player may type or say, for private use; replace them before any public release:
+Marvel Comics / Marvel Studios / 20th Century Studios' X-Men films and Sony's Spider-Man and Spider-Verse
+films (Marvel / Disney / Sony); DC Comics and DC films (DC / Warner Bros.); Star Wars (Lucasfilm / Disney);
+Harry Potter / Wizarding World (J.K. Rowling / Warner Bros.); The Lord of the Rings and The Hobbit
+(Tolkien Estate / Middle-earth Enterprises / New Line / Warner Bros.); The Matrix (Warner Bros.);
+Ghostbusters (Columbia / Sony); Men in Black (Columbia / Sony / Amblin); Pirates of the Caribbean, Frozen,
+Moana, Encanto, Tangled (Disney); The Incredibles, Toy Story (Disney / Pixar); Kung Fu Panda, Shrek, Puss in
+Boots (DreamWorks / Universal); The Karate Kid and Cobra Kai (Columbia / Sony); Kill Bill (Miramax / A Band
+Apart); John Wick (Lionsgate); The Terminator (StudioCanal / Skydance); Predator and Alien (20th Century
+Studios / Disney); Jurassic Park / Jurassic World (Universal / Amblin); Godzilla and Kong (Toho / Legendary
+/ Warner Bros.); Back to the Future (Universal / Amblin); Indiana Jones (Lucasfilm / Disney). Every in-game
+effect is Brightest Day's own mapping onto its generic move operations; no film or comics assets, logos,
+dialogue beyond short move names, lyrics or sounds are used.
+
+## Modern anime power vocabulary (`assets/powers/anime_modern.ron`; JJK / Hunter x Hunter entries in `base_techniques.ron`)
+
+Character, technique, move and catchphrase NAMES from these anime / manga franchises are used only as
+trigger words a player may type or say, for private use; replace them before any public release:
+Jujutsu Kaisen (Gege Akutami / Shueisha / MAPPA); My Hero Academia (Kohei Horikoshi / Shueisha / Bones);
+Hunter x Hunter (Yoshihiro Togashi / Shueisha / Madhouse); Demon Slayer: Kimetsu no Yaiba (Koyoharu Gotouge /
+Shueisha / ufotable); Chainsaw Man (Tatsuki Fujimoto / Shueisha / MAPPA); Mob Psycho 100 and One-Punch Man
+(ONE / Yusuke Murata / Shogakukan / Shueisha / Bones / Madhouse / J.C.Staff); Fullmetal Alchemist (Hiromu
+Arakawa / Square Enix / Bones); Attack on Titan (Hajime Isayama / Kodansha / Wit Studio / MAPPA); Solo
+Leveling (Chugong / D&C Media / A-1 Pictures); Yu Yu Hakusho (Yoshihiro Togashi / Shueisha / Studio
+Pierrot); Inuyasha (Rumiko Takahashi / Shogakukan / Sunrise); Fairy Tail (Hiro Mashima / Kodansha / A-1
+Pictures); Black Clover (Yūki Tabata / Shueisha / Studio Pierrot); Gurren Lagann and Kill la Kill (Gainax /
+Trigger / Aniplex); Sailor Moon (Naoko Takeuchi / Kodansha / Toei Animation); Neon Genesis Evangelion
+(khara / Gainax); Frieren: Beyond Journey's End (Kanehito Yamada / Tsukasa Abe / Shogakukan / Madhouse);
+Dandadan (Yukinobu Tatsu / Shueisha / Science SARU); Blue Lock (Muneyuki Kaneshiro / Yusuke Nomura /
+Kodansha / 8bit); Haikyu!! (Haruichi Furudate / Shueisha / Production I.G); Cowboy Bebop (Sunrise); Death
+Note (Tsugumi Ohba / Takeshi Obata / Shueisha / Madhouse). Every in-game effect is Brightest Day's own
+mapping onto its generic move operations; no anime assets, logos, dialogue beyond short move names,
+incantations, lyrics or sounds are used.
+
+## Shonen classics power vocabulary (`assets/powers/anime_classics.ron`; the Naruto / Dragon Ball / Bleach entries in `base_techniques.ron`, `base_one_piece.ron`, `base_jojo.ron`)
+
+Character, technique, move and catchphrase NAMES from these anime / manga franchises are used only as
+trigger words a player may type or say, for private use; replace them before any public release:
+Naruto, Naruto Shippuden and Boruto (Masashi Kishimoto / Mikio Ikemoto / Shueisha / Studio Pierrot);
+Dragon Ball, Dragon Ball Z, Dragon Ball GT and Dragon Ball Super (Akira Toriyama / Toyotarou / Shueisha /
+Toei Animation); One Piece (Eiichiro Oda / Shueisha / Toei Animation); Bleach (Tite Kubo / Shueisha / Studio
+Pierrot); JoJo's Bizarre Adventure (Hirohiko Araki / Shueisha / David Production). Every in-game effect is
+Brightest Day's own mapping onto its generic move operations; no anime assets, logos, dialogue beyond short
+move names and shouts, incantations, lyrics or sounds are used.
+
+## TV & cartoon power vocabulary (`assets/powers/tv_cartoons.ron`, `base_cartoons.ron`)
+
+Character, technique, move, gadget and catchphrase NAMES from these television / animation franchises are
+used only as trigger words a player may type or say, for private use; replace them before any public
+release: Avatar: The Last Airbender and The Legend of Korra (Nickelodeon / Paramount); Transformers
+(Hasbro / Takara Tomy); Teenage Mutant Ninja Turtles (Paramount / Nickelodeon); Ben 10 (Cartoon Network /
+Warner Bros. Discovery); Power Rangers and Voltron (Hasbro / Toei / DreamWorks / World Events Productions);
+Invincible (Robert Kirkman / Skybound / Amazon); The Boys (Garth Ennis / Darick Robertson / Sony / Amazon);
+Stranger Things (Netflix); Teen Titans (DC / Warner Bros.); Rick and Morty, Samurai Jack, Dexter's
+Laboratory, The Powerpuff Girls, Adventure Time (Cartoon Network / Adult Swim / Warner Bros. Discovery);
+Doctor Who (BBC); Gravity Falls, Kim Possible, Phineas and Ferb, The Owl House (Disney); Steven Universe
+(Rebecca Sugar / Cartoon Network); Danny Phantom and SpongeBob SquarePants (Nickelodeon / Paramount);
+Miraculous: Tales of Ladybug & Cat Noir (ZAG / Method Animation); Looney Tunes and Scooby-Doo (Warner
+Bros.); Arcane (Riot Games / Fortiche); Castlevania (Konami / Netflix); The Witcher (Andrzej Sapkowski / CD
+Projekt / Netflix); Buffy the Vampire Slayer (20th Century Studios / Disney); Supernatural (Warner Bros.);
+He-Man and the Masters of the Universe, She-Ra (Mattel); ThunderCats (Warner Bros.); Ninjago (LEGO). Every
+in-game effect is Brightest Day's own mapping onto its generic move operations; no show assets, logos,
+dialogue beyond short move names and catchphrases, incantations, lyrics or sounds are used.

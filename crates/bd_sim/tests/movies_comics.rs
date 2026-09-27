@@ -274,7 +274,8 @@ fn famous_moves_do_the_famous_thing() {
     fires("trick shot", "kit_cyclops", "trick shot");
     fires("cyclops optic blast", "kit_cyclops", "optic blast");
     fires("fastball special", "kit_colossus", "fastball special");
-    fires("juggernaut charge", "kit_juggernaut", "unstoppable charge");
+    fires("the juggernaut charge", "kit_juggernaut", "unstoppable charge");
+    fires("unstoppable charge", "kit_juggernaut", "unstoppable charge");
     fires("quicksilver ultimate", "kit_quicksilver", "slow motion");
     fires("maximum effort", "kit_deadpool", "maximum effort");
     // Avengers

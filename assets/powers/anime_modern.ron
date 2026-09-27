@@ -27,7 +27,8 @@
         effects: [PowerMult(speed: 1.06, damage: 1.05)],
         body: (moves: (accel: 1.15, jump: 1.05)),
         ascend: Some((color: Some((0.85, 0.92, 1.0)), intensity: 0.7, title: Some("TOTAL CONCENTRATION"), style: Calm, linger: false)),
-        shouts: [("nichirin slash", 0), ("total concentration slash", 0), ("iai draw", 1), ("quick draw slash", 1), ("nichirin draw", 1)],
+        shouts: [("nichirin slash", 0), ("total concentration slash", 0), ("iai draw", 1), ("quick draw slash", 1), ("nichirin draw", 1),
+                 ("demon slayer mark", 2), ("slayer mark", 2), ("the mark", 2), ("awaken the mark", 2)],
         moves: [
             (name: "nichirin slash", cooldown: 0.6, cost: 2.0, ops: [
                 Impulse(fwd: 8.0, up: 0.0),
@@ -38,6 +39,12 @@
                 Blink(dist: 8.0, afterimage: true),
                 Shove(range: 3.0, angle: 179.0, damage: 10.0, knockback: 8.0),
             ], juice: Some((punch: 2.0, ripple: 2.0))),
+            // The Demon Slayer Mark: the body runs hotter than it should — for a while every form hits
+            // harder and you're harder to move (it costs you, and it ends).
+            (name: "demon slayer mark", cooldown: 30.0, cost: 20.0, tags: [Ultimate], ops: [
+                Empower(secs: 8.0, damage: 1.3, armor: 0.8),
+                Explode(radius: 3.0, damage: 0.0, knockback: 10.0, element: Fire),
+            ], juice: Some((title: Some("DEMON SLAYER MARK"), boom: true, ripple: 4.0, color: Some((1.0, 0.35, 0.15))))),
         ],
         tiers: [
             (name: "Water Breathing",
@@ -64,14 +71,14 @@
                      Shove(range: 3.6, angle: 75.0, damage: 10.0, knockback: 12.0, element: Water, up: 1.2),
                  ], juice: Some((title: Some("SECOND FORM: WATER WHEEL"), punch: 2.0, color: Some((0.3, 0.62, 1.0))))),
                  // Weaving footwork: you slip past them in a curve and the water cuts as you pass. -> ends behind them.
-                 (name: "flowing dance", cooldown: 1.4, cost: 4.0, ops: [
-                     Blink(dist: 7.0, afterimage: true),
-                     Shove(range: 3.2, angle: 160.0, damage: 9.0, knockback: 7.0, element: Water),
+                 (name: "flowing dance", cooldown: 2.0, cost: 8.0, ops: [
+                     Barrage(hits: 4, interval: 0.12, range: 3.4, angle: 120.0, damage: 4.0, knockback: 4.0, finish: 12.0, blink: true, element: Water),
                  ], juice: Some((title: Some("THIRD FORM: FLOWING DANCE"), ripple: 2.5, color: Some((0.35, 0.7, 1.0))))),
                  // Dead calm: a still circle nothing enters — attackers and thrown things are pushed back out.
                  // -> ends rooted, untouched.
-                 (name: "dead calm", cooldown: 8.0, cost: 6.0, ops: [
-                     Field(strength: -55.0, radius: 4.2, secs: 1.4),
+                 (name: "dead calm", cooldown: 8.0, cost: 8.0, ops: [
+                     Counter(secs: 1.2, damage: 14.0, knockback: 16.0, element: Water),
+                     Deflect(secs: 1.2, angle: 180.0),
                  ], juice: Some((title: Some("ELEVENTH FORM: DEAD CALM"), ripple: 4.5, color: Some((0.55, 0.8, 1.0))))),
              ]),
             (name: "Thunder Breathing",
@@ -81,7 +88,7 @@
              body: Some((moves: (accel: 1.4, jump: 1.1))),
              ascend: Some((color: Some((1.0, 0.86, 0.2)), intensity: 1.1, title: Some("THUNDER BREATHING"), stable: false)),
              shouts: [("thunderclap and flash", 0), ("first form thunderclap and flash", 0), ("hekireki issen", 0), ("thunder breathing first form", 0),
-                      ("thunder clap and flash", 0),
+                      ("thunder clap and flash", 0), ("thunderclap in flash", 0), ("thunder clap in flash", 0),
                       ("sixfold", 1), ("thunderclap and flash sixfold", 1), ("rokuren", 1), ("six fold", 1),
                       ("godspeed thunderclap", 2), ("thunderclap and flash godspeed", 2), ("shinsoku", 2),
                       ("seventh form", 3), ("flaming thunder god", 3), ("honoikazuchi no kami", 3), ("seventh form flaming thunder god", 3)],
@@ -92,13 +99,9 @@
                      Shove(range: 3.0, angle: 180.0, damage: 13.0, knockback: 11.0, element: Electric),
                  ], juice: Some((title: Some("THUNDERCLAP AND FLASH"), boom: true, punch: 3.0, shake: 0.15, color: Some((1.0, 0.86, 0.2))))),
                  // Six flashes in a row: short hops that each crack the air. -> ends wherever the sixth lands.
-                 (name: "sixfold", cooldown: 2.6, cost: 6.0, ops: [
-                     Blink(dist: 6.0, afterimage: true),
-                     Shove(range: 3.0, angle: 180.0, damage: 5.0, knockback: 4.0, element: Electric),
-                     Blink(dist: 6.0, afterimage: true),
-                     Shove(range: 3.0, angle: 180.0, damage: 5.0, knockback: 4.0, element: Electric),
-                     Blink(dist: 6.0, afterimage: true),
-                     Shove(range: 3.0, angle: 180.0, damage: 7.0, knockback: 12.0, element: Electric),
+                 (name: "sixfold", cooldown: 3.0, cost: 8.0, ops: [
+                     Blink(dist: 8.0, afterimage: true),
+                     Barrage(hits: 6, interval: 0.08, range: 3.0, angle: 180.0, damage: 4.0, knockback: 3.0, finish: 14.0, blink: true, element: Electric),
                  ], juice: Some((title: Some("SIXFOLD"), boom: true, punch: 2.0, color: Some((1.0, 0.86, 0.2))))),
                  // Godspeed: the longest flash, launches off the far end. -> ends airborne, far away.
                  (name: "godspeed thunderclap", cooldown: 3.5, cost: 6.0, ops: [
@@ -107,7 +110,7 @@
                      Impulse(fwd: 4.0, up: 6.0),
                  ], juice: Some((title: Some("GODSPEED"), boom: true, punch: 4.0, shake: 0.2, color: Some((1.0, 0.9, 0.3))))),
                  // A thunder-dragon of fire: a flash that leaves a burning trench behind you.
-                 (name: "flaming thunder god", cooldown: 9.0, cost: 10.0, ops: [
+                 (name: "flaming thunder god", cooldown: 12.0, cost: 40.0, ops: [
                      Carve(length: 22.0, radius: 1.0, damage: 14.0),
                      Blink(dist: 20.0, afterimage: true),
                      Explode(radius: 3.5, damage: 8.0, knockback: 16.0, element: Fire),
@@ -116,7 +119,7 @@
              ]),
             (name: "Flame Breathing",
              names: ["flame breathing", "breath of flame", "honoo no kokyu", "flame breathing style", "fire breathing style", "flame breath",
-                     "set your heart ablaze", "flame breething"],
+                     "flame breething", "honoo no kokyuu"],
              effects: [PowerMult(damage: 1.2, knockback: 1.15)],
              graft: Some((element: Some(Fire))),
              ascend: Some((color: Some((1.0, 0.45, 0.1)), intensity: 1.2, title: Some("FLAME BREATHING"), hair_tint: Some((1.0, 0.72, 0.2)))),
@@ -136,12 +139,12 @@
                      Impulse(fwd: 1.0, up: 7.0),
                  ], juice: Some((title: Some("SECOND FORM: RISING SCORCHING SUN"), punch: 2.0, color: Some((1.0, 0.5, 0.12))))),
                  // A tiger of fire leaps from the swing and pounces on them.
-                 (name: "flame tiger", cooldown: 5.0, cost: 8.0, ops: [
+                 (name: "flame tiger", cooldown: 6.0, cost: 20.0, ops: [
                      Cast(recipe: (name: "flame tiger", form: Quadruped, mech: [Charge, Fast, Blade], element: Fire, scale: 2.2,
                                    temperament: Aggressive, intensity: 0.9)),
                  ], juice: Some((title: Some("FIFTH FORM: FLAME TIGER"), boom: true, punch: 3.0, color: Some((1.0, 0.45, 0.1))))),
                  // The whole body a meteor of flame: a huge burning run that gouges the ground. -> ends far forward.
-                 (name: "rengoku", cooldown: 12.0, cost: 12.0, ops: [
+                 (name: "rengoku", cooldown: 14.0, cost: 40.0, ops: [
                      Carve(length: 18.0, radius: 1.6, damage: 18.0),
                      Impulse(fwd: 34.0, up: 1.0),
                      Explode(radius: 4.5, damage: 10.0, knockback: 22.0, element: Fire, at: Front, dist: 8.0),
@@ -177,7 +180,7 @@
                      SlamOnLand(radius: 3.5, damage: 13.0, knockback: 14.0, carve: 1.2),
                  ], juice: Some((title: Some("FIRE WHEEL"), punch: 2.5, color: Some((1.0, 0.4, 0.1))))),
                  // Thirteenth form: all twelve dances as one unbroken ring: a long burning serpent of a run.
-                 (name: "thirteenth form", cooldown: 18.0, cost: 16.0, ops: [
+                 (name: "thirteenth form", cooldown: 20.0, cost: 40.0, ops: [
                      Carve(length: 26.0, radius: 1.2, damage: 12.0),
                      Blink(dist: 14.0, afterimage: true),
                      Shove(range: 4.5, angle: 179.0, damage: 12.0, knockback: 10.0, element: Fire),
@@ -201,9 +204,8 @@
                      Shove(range: 3.0, angle: 35.0, damage: 13.0, knockback: 14.0),
                  ], juice: Some((title: Some("FIRST FANG: PIERCE"), punch: 2.5, color: Some((0.6, 0.72, 0.9))))),
                  // Feral slashing in every direction.
-                 (name: "crazy cutting", cooldown: 1.6, cost: 4.0, ops: [
-                     Shove(range: 3.8, angle: 179.0, damage: 7.0, knockback: 6.0),
-                     Shove(range: 3.8, angle: 179.0, damage: 7.0, knockback: 12.0),
+                 (name: "crazy cutting", cooldown: 2.4, cost: 8.0, ops: [
+                     Barrage(hits: 8, interval: 0.07, range: 3.8, angle: 150.0, damage: 3.0, knockback: 2.0, finish: 14.0),
                  ], juice: Some((title: Some("FIFTH FANG: CRAZY CUTTING"), shake: 0.12))),
                  // Skin-feel: you sense where they are and are simply there, blades first. -> ends in their face.
                  (name: "spatial awareness", cooldown: 3.0, cost: 5.0, ops: [
@@ -233,15 +235,14 @@
                      Shove(range: 3.2, angle: 30.0, damage: 6.0, knockback: 4.0, element: Poison),
                  ], juice: Some((title: Some("BUTTERFLY DANCE: CAPRICE"), color: Some((0.75, 0.45, 1.0))))),
                  // One impossibly fast sting from range: a needle-thin lunge full of poison.
-                 (name: "bee sting", cooldown: 1.2, cost: 4.0, ops: [
+                 (name: "bee sting", cooldown: 1.6, cost: 8.0, ops: [
                      Blink(dist: 9.0, afterimage: true),
-                     Shove(range: 3.0, angle: 18.0, damage: 9.0, knockback: 3.0, element: Poison),
+                     Shove(range: 3.0, angle: 18.0, damage: 5.0, knockback: 2.0, element: Poison),
+                     DelayedHit(range: 4.0, cone: 20.0, secs: 1.5, damage: 10.0, knockback: 4.0, element: Poison),
                  ], juice: Some((title: Some("DANCE OF THE BEE STING: TRUE FLUTTER"), punch: 1.5, color: Some((0.7, 0.4, 1.0))))),
                  // Six stings in a blink.
-                 (name: "dragonfly", cooldown: 2.4, cost: 5.0, ops: [
-                     Shove(range: 3.4, angle: 30.0, damage: 4.0, knockback: 1.0, element: Poison),
-                     Shove(range: 3.4, angle: 30.0, damage: 4.0, knockback: 1.0, element: Poison),
-                     Shove(range: 3.4, angle: 30.0, damage: 4.0, knockback: 9.0, element: Poison),
+                 (name: "dragonfly", cooldown: 2.4, cost: 8.0, ops: [
+                     Barrage(hits: 6, interval: 0.06, range: 3.4, angle: 30.0, damage: 2.5, knockback: 1.0, finish: 9.0, element: Poison),
                  ], juice: Some((title: Some("COMPOUND EYE HEXAGON"), color: Some((0.7, 0.4, 1.0))))),
                  // A zigzag of hops too fast to follow. -> ends beside them.
                  (name: "centipede", cooldown: 1.8, cost: 4.0, ops: [
@@ -260,7 +261,8 @@
                       ("lunar dispersing mist", 3), ("sixth form lunar dispersing mist", 3)],
              moves: [
                  // Vanish into your own mist and reappear striking from it. -> ends behind them.
-                 (name: "obscuring clouds", cooldown: 1.6, cost: 5.0, ops: [
+                 (name: "obscuring clouds", cooldown: 3.0, cost: 8.0, ops: [
+                     Zone(radius: 5.0, secs: 2.5, status: Some(Shadow)),
                      Blink(dist: 10.0, afterimage: true),
                      Shove(range: 3.4, angle: 179.0, damage: 12.0, knockback: 10.0, element: Shadow),
                  ], juice: Some((title: Some("SEVENTH FORM: OBSCURING CLOUDS"), ripple: 3.0, color: Some((0.8, 0.92, 0.92))))),
@@ -292,15 +294,15 @@
                      Explode(radius: 3.2, damage: 8.0, knockback: 16.0, at: Front, dist: 3.5),
                  ], juice: Some((title: Some("FIRST FORM: ROAR"), boom: true, punch: 3.0, color: Some((1.0, 0.3, 0.7))))),
                  // The twin cleavers spin: a wall of explosions all around you.
-                 (name: "constant resounding slashes", cooldown: 3.0, cost: 7.0, ops: [
+                 (name: "constant resounding slashes", cooldown: 4.0, cost: 20.0, ops: [
+                     Barrage(hits: 6, interval: 0.1, range: 4.0, angle: 150.0, damage: 4.0, knockback: 6.0, finish: 18.0),
                      Explode(radius: 4.5, damage: 7.0, knockback: 12.0),
-                     Explode(radius: 3.0, damage: 7.0, knockback: 16.0, at: Front, dist: 3.0),
                  ], juice: Some((title: Some("CONSTANT RESOUNDING SLASHES"), boom: true, shake: 0.25, color: Some((1.0, 0.3, 0.7))))),
                  (name: "string performance", cooldown: 3.0, cost: 6.0, ops: [
                      Explode(radius: 3.0, damage: 10.0, knockback: 18.0, at: Aim),
                  ], juice: Some((title: Some("STRING PERFORMANCE"), boom: true, at: Aim, ripple: 3.0))),
                  // You've read their rhythm: they're slower to you for a moment.
-                 (name: "musical score", cooldown: 14.0, cost: 8.0, ops: [TimeStop(secs: 0.9, speed: 1.4)],
+                 (name: "musical score", cooldown: 12.0, cost: 8.0, ops: [Counter(secs: 1.0, damage: 14.0, knockback: 20.0)],
                   juice: Some((title: Some("MUSICAL SCORE"), color: Some((1.0, 0.3, 0.7))))),
              ]),
             (name: "Moon Breathing",
@@ -318,16 +320,16 @@
                      Shove(range: 4.0, angle: 90.0, damage: 6.0, knockback: 8.0),
                  ], juice: Some((title: Some("FIRST FORM: DARK MOON, EVENING PALACE"), color: Some((0.75, 0.3, 0.9))))),
                  // A long, heavy crescent wave that runs across the arena.
-                 (name: "moon dragon ringtail", cooldown: 4.0, cost: 8.0, ops: [
-                     Carve(length: 30.0, radius: 1.1, damage: 15.0),
+                 (name: "moon dragon ringtail", cooldown: 4.0, cost: 20.0, ops: [
+                     Wave(length: 32.0, speed: 30.0, width: 7.0, carve: 0.8, damage: 15.0, knockback: 12.0, element: Psychic),
                  ], juice: Some((title: Some("MOON-DRAGON RINGTAIL"), boom: true, punch: 4.0, shake: 0.2, color: Some((0.75, 0.3, 0.9))))),
                  // Crescents fill the air in front of you.
                  (name: "loathsome moon chains", cooldown: 2.4, cost: 6.0, ops: [
                      Cast(recipe: (name: "moon crescents", form: Disc, mech: [Blade, Fast, Swarm], element: Psychic, scale: 0.5, count: 7)),
                  ], juice: Some((title: Some("LOATHSOME MOON, CHAINS"), color: Some((0.75, 0.3, 0.9))))),
-                 (name: "moonbow half moon", cooldown: 6.0, cost: 10.0, ops: [
-                     Carve(length: 20.0, radius: 1.4, damage: 14.0),
-                     Explode(radius: 5.0, damage: 6.0, knockback: 18.0, at: Front, dist: 10.0),
+                 (name: "moonbow half moon", cooldown: 10.0, cost: 40.0, ops: [
+                     Carve(length: 30.0, radius: 1.4, damage: 16.0),
+                     Salvo(count: 6, delay: 0.3, interval: 0.06, radius: 2.0, damage: 6.0, knockback: 8.0, at: Front, dist: 12.0, spread: 6.0),
                  ], juice: Some((title: Some("MOONBOW: HALF MOON"), boom: true, punch: 5.0, color: Some((0.8, 0.35, 0.95))))),
              ]),
             (name: "Wind Breathing",
@@ -365,8 +367,8 @@
                       ("arcs of justice", 3), ("fifth form arcs of justice", 3)],
              moves: [
                  // The flail flies out and back: a heavy ball on a chain.
-                 (name: "serpentinite bipolar", cooldown: 1.6, cost: 5.0, ops: [
-                     Cast(recipe: (name: "spiked flail", form: Ball, mech: [Returning, Heavy, Blunt, Link], element: Earth, scale: 1.0, mass: 200.0)),
+                 (name: "serpentinite bipolar", cooldown: 2.0, cost: 8.0, ops: [
+                     Hook(range: 18.0, speed: 45.0, pull: 12.0, damage: 12.0),
                  ], juice: Some((title: Some("SERPENTINITE BIPOLAR"), punch: 2.0))),
                  (name: "upper smash", cooldown: 2.0, cost: 5.0, ops: [
                      Shove(range: 4.2, angle: 60.0, damage: 14.0, knockback: 18.0, element: Earth, up: 1.6),
@@ -374,7 +376,7 @@
                  (name: "stone skin", cooldown: 10.0, cost: 6.0, ops: [
                      Field(strength: -30.0, radius: 3.5, secs: 2.0),
                  ], juice: Some((title: Some("STONE SKIN"), ripple: 3.5))),
-                 (name: "arcs of justice", cooldown: 8.0, cost: 10.0, ops: [
+                 (name: "arcs of justice", cooldown: 10.0, cost: 40.0, ops: [
                      Explode(radius: 5.5, damage: 16.0, knockback: 26.0, carve: 2.2, element: Earth, at: Aim),
                  ], juice: Some((title: Some("ARCS OF JUSTICE"), boom: true, at: Aim, ripple: 6.0, shake: 0.3, debris: 20.0))),
              ]),
@@ -445,7 +447,7 @@
         names: ["one for all", "ofa", "one for all quirk", "wan fo oru", "one for al", "won for all", "one-for-all", "the one for all"],
         effects: [PowerMult(damage: 1.05, knockback: 1.1)],
         ascend: Some((color: Some((0.35, 1.0, 0.45)), intensity: 0.8, title: Some("ONE FOR ALL"), stable: false)),
-        shouts: [("detroit smash", 0), ("one for all detroit smash", 0), ("detroyt smash", 0), ("detroit smaash", 0),
+        shouts: [("detroit smash", 0), ("one for all detroit smash", 0), ("detroyt smash", 0), ("detroit smaash", 0), ("detroit smashed", 0), ("the troit smash", 0),
                  ("delaware smash", 1), ("delaware flick", 1), ("delaware smash air force", 1), ("delawear smash", 1),
                  ("st louis smash", 2), ("saint louis smash", 2), ("shoot style", 2), ("st louie smash", 2),
                  ("manchester smash", 3), ("manchester axe kick", 3)],
@@ -530,7 +532,7 @@
                 Cast(recipe: (name: "psychic barrier", form: Dome, mech: [Barrier, Guard], element: Psychic, scale: 1.2)),
             ], juice: Some((title: Some("BARRIER"), ripple: 3.0, color: Some((0.85, 0.6, 1.0))))),
             // A spinning column of debris you raise around yourself.
-            (name: "psychic tornado", cooldown: 8.0, cost: 10.0, ops: [
+            (name: "psychic tornado", cooldown: 8.0, cost: 20.0, ops: [
                 Cast(recipe: (name: "psychic tornado", form: Pillar, mech: [Spin, Attract, Flies], element: Psychic, scale: 3.5)),
             ], juice: Some((title: Some("PSYCHIC STORM"), boom: true, debris: -14.0, color: Some((0.85, 0.6, 1.0))))),
         ],
@@ -585,7 +587,7 @@
                  ("tear out of the nape", 1), ("leave the titan", 1)],
         moves: [
             // The transformation strike: lightning out of a clear sky blasts everyone near away, then the body forms.
-            (name: "bite hand", cooldown: 3.0, cost: 12.0, ops: [
+            (name: "bite hand", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 7.0, damage: 8.0, knockback: 28.0, carve: 1.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("ATTACK TITAN"), boom: true, punch: 6.0, shake: 0.4, ripple: 9.0, debris: 20.0,
@@ -606,7 +608,7 @@
         ascend: Some((color: Some((0.95, 0.85, 0.6)), intensity: 1.8, title: Some("ARMORED TITAN"))),
         shouts: [("armored shift", 0), ("armoured shift", 0), ("leave the armor", 1)],
         moves: [
-            (name: "armored shift", cooldown: 3.0, cost: 12.0, ops: [
+            (name: "armored shift", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 7.0, damage: 8.0, knockback: 28.0, carve: 1.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("ARMORED TITAN"), boom: true, punch: 6.0, shake: 0.4, ripple: 9.0))),
@@ -629,7 +631,7 @@
         shouts: [("colossal shift", 0), ("colossal transformation", 0), ("leave the colossus", 1)],
         moves: [
             // The transformation IS the attack: a nuclear-sized blast of lightning and steam.
-            (name: "colossal shift", cooldown: 6.0, cost: 20.0, ops: [
+            (name: "colossal shift", cooldown: 6.0, cost: 40.0, ops: [
                 Explode(radius: 12.0, damage: 18.0, knockback: 40.0, carve: 3.5, element: Fire),
                 Transform,
             ], juice: Some((title: Some("COLOSSAL TITAN"), boom: true, punch: 8.0, shake: 0.4, ripple: 16.0, debris: 30.0,
@@ -650,7 +652,7 @@
         ascend: Some((color: Some((0.9, 0.95, 1.0)), intensity: 1.7, title: Some("FEMALE TITAN"))),
         shouts: [("female shift", 0), ("leave the female titan", 1)],
         moves: [
-            (name: "female shift", cooldown: 3.0, cost: 12.0, ops: [
+            (name: "female shift", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 6.0, damage: 7.0, knockback: 26.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("FEMALE TITAN"), boom: true, punch: 5.0, shake: 0.35, ripple: 8.0))),
@@ -670,7 +672,7 @@
         ascend: Some((color: Some((0.8, 0.7, 0.5)), intensity: 1.8, title: Some("BEAST TITAN"))),
         shouts: [("beast shift", 0), ("leave the beast", 1)],
         moves: [
-            (name: "beast shift", cooldown: 3.0, cost: 12.0, ops: [
+            (name: "beast shift", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 6.0, damage: 7.0, knockback: 26.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("BEAST TITAN"), boom: true, punch: 5.0, shake: 0.35, ripple: 8.0))),
@@ -691,7 +693,7 @@
         ascend: Some((color: Some((0.9, 0.85, 1.0)), intensity: 1.8, title: Some("WAR HAMMER TITAN"))),
         shouts: [("war hammer shift", 0), ("warhammer shift", 0), ("leave the war hammer", 1)],
         moves: [
-            (name: "war hammer shift", cooldown: 3.0, cost: 12.0, ops: [
+            (name: "war hammer shift", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 6.0, damage: 7.0, knockback: 26.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("WAR HAMMER TITAN"), boom: true, punch: 5.0, shake: 0.35, ripple: 8.0))),
@@ -712,7 +714,7 @@
         ascend: Some((color: Some((1.0, 0.85, 0.7)), intensity: 1.5, title: Some("JAW TITAN"))),
         shouts: [("jaw shift", 0), ("leave the jaw", 1)],
         moves: [
-            (name: "jaw shift", cooldown: 3.0, cost: 10.0, ops: [
+            (name: "jaw shift", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 5.0, damage: 6.0, knockback: 22.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("JAW TITAN"), boom: true, punch: 4.0, shake: 0.3, ripple: 6.0))),
@@ -732,7 +734,7 @@
         ascend: Some((color: Some((0.85, 0.8, 0.7)), intensity: 1.4, title: Some("CART TITAN"))),
         shouts: [("cart shift", 0), ("leave the cart", 1)],
         moves: [
-            (name: "cart shift", cooldown: 3.0, cost: 10.0, ops: [
+            (name: "cart shift", cooldown: 3.0, cost: 40.0, ops: [
                 Explode(radius: 5.0, damage: 6.0, knockback: 22.0, element: Electric),
                 Transform,
             ], juice: Some((title: Some("CART TITAN"), boom: true, punch: 4.0, shake: 0.3, ripple: 6.0))),
@@ -766,7 +768,7 @@
                  ("dagger rush", 3), ("mutilation", 3), ("shadow daggers", 3)],
         moves: [
             // Arise: shadow soldiers stand up out of the ground and hunt your enemies. -> you stay put, they go.
-            (name: "arise", cooldown: 10.0, cost: 12.0, ops: [
+            (name: "arise", cooldown: 10.0, cost: 20.0, ops: [
                 Cast(recipe: (name: "shadow soldiers", form: Biped, mech: [Walks, Blade, Charge], element: Shadow, scale: 1.1, count: 4,
                               temperament: Aggressive, intensity: 0.9)),
             ], juice: Some((title: Some("ARISE"), boom: true, punch: 3.0, ripple: 6.0, debris: -8.0, color: Some((0.45, 0.25, 0.95))))),
@@ -832,7 +834,7 @@
                      Shove(range: 6.0, angle: 150.0, damage: 10.0, knockback: 15.0, element: Fire),
                  ], juice: Some((title: Some("FIRE DRAGON'S WING ATTACK"), ripple: 5.0, at: Front, dist: 3.0, color: Some((1.0, 0.45, 0.1))))),
                  // Spin into them wreathed in a vortex of flame: a huge burning corkscrew.
-                 (name: "crimson lotus exploding flame blade", cooldown: 10.0, cost: 12.0, ops: [
+                 (name: "crimson lotus exploding flame blade", cooldown: 10.0, cost: 20.0, ops: [
                      Reel(range: 30.0, speed: 34.0),
                      Explode(radius: 6.0, damage: 16.0, knockback: 26.0, carve: 2.0, element: Fire),
                  ], juice: Some((title: Some("CRIMSON LOTUS: EXPLODING FLAME BLADE"), boom: true, punch: 6.0, shake: 0.3, debris: 18.0,
@@ -938,13 +940,13 @@
         graft: Some((mechanics: [Spin], features: [Drill])),
         effects: [PowerMult(damage: 1.1, knockback: 1.1)],
         ascend: Some((color: Some((0.3, 1.0, 0.4)), intensity: 1.4, title: Some("SPIRAL POWER"), eye_glow: Some((0.3, 1.0, 0.4)), music: Some("drums"))),
-        shouts: [("giga drill break", 0), ("giga drill breaker", 0), ("giga drill brake", 0), ("gigadrill break", 0), ("drill break", 0),
+        shouts: [("giga drill break", 0), ("giga drill breaker", 0), ("giga drill brake", 0), ("gigadrill break", 0), ("drill break", 0), ("giga drill brakes", 0),
                  ("core drill", 1), ("drill arm", 1),
                  ("lagann impact", 2), ("drill dive", 2),
                  ("super galaxy giga drill break", 3), ("tengen toppa giga drill break", 3), ("giga drill maximum", 3)],
         moves: [
             // The drill grows out of your arm and you ride it forward through them. -> ends past them, grounded.
-            (name: "giga drill break", cooldown: 6.0, cost: 10.0, ops: [
+            (name: "giga drill break", cooldown: 6.0, cost: 20.0, ops: [
                 Cast(recipe: (name: "giga drill", form: Spear, mech: [Extends, Spin, Pierce, Grow, Heavy], element: Light, scale: 2.2, mass: 300.0,
                               features: [Drill])),
                 Impulse(fwd: 26.0, up: 1.0),
@@ -960,7 +962,7 @@
                 SlamOnLand(radius: 3.5, damage: 16.0, knockback: 18.0, carve: 2.6),
             ], juice: Some((title: Some("LAGANN IMPACT"), punch: 3.0))),
             // The galaxy-sized version: a drill the size of a building falls on them.
-            (name: "super galaxy giga drill break", cooldown: 30.0, cost: 30.0, ops: [
+            (name: "super galaxy giga drill break", cooldown: 30.0, cost: 40.0, ops: [
                 Cast(recipe: (name: "galaxy drill", form: Spear, mech: [DropFromSky, Spin, Pierce, Heavy, Explodes], element: Light, scale: 6.0,
                               mass: 3000.0, features: [Drill]), signature: Some(Summon)),
             ], juice: Some((title: Some("SUPER GALAXY GIGA DRILL BREAK"), boom: true, punch: 8.0, shake: 0.4, color: Some((0.3, 1.0, 0.4))))),
@@ -1013,7 +1015,7 @@
         name: "Moon Prism Power",
         kind: Technique,
         names: ["moon prism power", "moon prism power make up", "moon prism power makeup", "moon crystal power", "moon crystal power make up",
-                "in the name of the moon", "sailor power", "moon prism", "moon prism power make-up", "moon pris power"],
+                "sailor power", "moon prism", "moon prism power make-up", "moon pris power"],
         effects: [PowerMult(damage: 1.05)],
         body: (moves: (jump: 1.15)),
         ascend: Some((color: Some((1.0, 0.75, 0.9)), intensity: 1.3, title: Some("MOON PRISM POWER, MAKE UP!"), hair_tint: Some((1.0, 0.9, 0.4)),
@@ -1035,7 +1037,7 @@
             (name: "moon spiral heart attack", cooldown: 5.0, cost: 8.0, ops: [
                 Cast(recipe: (name: "spiral hearts", form: Ball, mech: [Swarm, Homing, Fast, Explodes], element: Light, scale: 0.4, count: 6)),
             ], juice: Some((title: Some("MOON SPIRAL HEART ATTACK"), color: Some((1.0, 0.55, 0.8))))),
-            (name: "moon princess halation", cooldown: 16.0, cost: 14.0, ops: [
+            (name: "moon princess halation", cooldown: 16.0, cost: 40.0, ops: [
                 Cast(recipe: (name: "moon princess halation", form: Hands, mech: [Beam], element: Light, scale: 1.4), signature: Some(Beam)),
             ], juice: Some((title: Some("MOON PRINCESS HALATION"), boom: true, punch: 5.0, color: Some((1.0, 0.85, 0.95))))),
         ],
@@ -1150,7 +1152,9 @@
                 Cast(recipe: (name: "demon slayer sword", form: Sword, mech: [Blade, Heavy, Guard], element: Shadow, scale: 1.8, mass: 120.0)),
             ], juice: Some((title: Some("DEMON-SLAYER SWORD"), punch: 2.0, color: Some((0.15, 0.1, 0.12))))),
             // A black anti-magic crescent that splits the ground.
-            (name: "black divider", cooldown: 2.5, cost: 6.0, ops: [Carve(length: 20.0, radius: 0.8, damage: 13.0)],
+            (name: "black divider", cooldown: 2.5, cost: 8.0, ops: [
+                Wave(length: 22.0, speed: 34.0, width: 3.5, carve: 0.6, damage: 13.0, knockback: 12.0, element: Shadow, thin: true),
+            ],
              juice: Some((title: Some("BLACK DIVIDER"), punch: 3.0, ripple: 2.5, at: Front, dist: 4.0, color: Some((0.15, 0.1, 0.12))))),
             // Leap and bring the sword down like a meteor. -> ends grounded in a crater.
             (name: "black meteorite", cooldown: 3.0, cost: 6.0, ops: [
@@ -1232,7 +1236,7 @@
                 Cast(recipe: (name: "spirit sword", form: Sword, mech: [Blade, Extends], element: Light, scale: 1.1)),
             ], juice: Some((title: Some("SPIRIT SWORD"), color: Some((1.0, 0.85, 0.3))))),
             // A black-flame dragon that plows forward, dragging and burning what it swallows.
-            (name: "dragon of the darkness flame", cooldown: 20.0, cost: 18.0, ops: [
+            (name: "dragon of the darkness flame", cooldown: 20.0, cost: 40.0, ops: [
                 Cast(recipe: (name: "dragon of the darkness flame", form: Serpent, mech: [Charge, Flies, Breath, Attract, Fast], element: Shadow,
                               scale: 4.0, temperament: Aggressive, intensity: 1.0), signature: Some(Summon)),
             ], juice: Some((title: Some("DRAGON OF THE DARKNESS FLAME"), boom: true, punch: 6.0, shake: 0.35, color: Some((0.25, 0.05, 0.3))))),
@@ -1318,7 +1322,7 @@
                  (name: "flame lance", cooldown: 2.4, cost: 6.0, ops: [Carve(length: 22.0, radius: 0.8, damage: 13.0)],
                   juice: Some((title: Some("FLAME ALCHEMY"), punch: 3.0, color: Some((1.0, 0.45, 0.12))))),
                  // Three snaps in a row, walking the explosion forward.
-                 (name: "inferno snap", cooldown: 10.0, cost: 12.0, ops: [
+                 (name: "inferno snap", cooldown: 10.0, cost: 20.0, ops: [
                      Explode(radius: 3.5, damage: 10.0, knockback: 12.0, element: Fire, at: Front, dist: 6.0),
                      Explode(radius: 4.0, damage: 10.0, knockback: 14.0, element: Fire, at: Front, dist: 12.0),
                      Explode(radius: 5.0, damage: 12.0, knockback: 20.0, carve: 1.5, element: Fire, at: Aim),
@@ -1380,7 +1384,7 @@
                  ("maximum output red", 1), ("max red", 1),
                  ("imaginary purple", 2), ("hollow technique purple", 2),
                  ("gojo infinity", 3), ("mugen barrier", 3),
-                 ("domain expansion unlimited void", 4), ("ryoiki tenkai muryokusho", 4), ("muryokusho", 4), ("infinite void domain", 4)],
+                 ("domain expansion unlimited void", 4), ("ryoiki tenkai muryokusho", 4), ("muryokusho", 4), ("infinite void domain", 4), ("domain extension unlimited void", 4), ("domain expansion infinite void", 4)],
         moves: [
             // A point of blue attraction at the crosshair: bodies, loose things and torn-up ground are
             // dragged into it and crushed together, then it pops. -> ends with them clumped where you looked.
@@ -1427,15 +1431,16 @@
                  ("sukuna cleave", 1),
                  ("fuga open", 2), ("flame arrow", 2), ("fuuga", 2), ("furnace open", 2),
                  ("world cutting slash", 3), ("world slash", 3), ("dismantle that cuts the world", 3),
-                 ("domain expansion malevolent shrine", 4), ("fukuma mizushi", 4),
+                 ("domain expansion malevolent shrine", 4), ("fukuma mizushi", 4), ("domain extension malevolent shrine", 4),
                  ("dismantle barrage", 5), ("dismantle flurry", 5)],
         moves: [
             // An invisible slash along your aim: a hairline trench, and whoever stood in it. -> you don't move.
             (name: "dismantle", cooldown: 0.8, cost: 6.0, tags: [Primary], ops: [Carve(length: 26.0, radius: 0.35, damage: 11.0)],
              juice: Some((punch: 1.5, color: Some((1.0, 0.2, 0.25))))),
-            // Cleave: a heavy close cut adjusted to what's in front of you. -> you stay in their face.
-            (name: "cleave", cooldown: 2.0, cost: 8.0, tags: [Combo], ops: [
-                Shove(range: 3.8, angle: 55.0, damage: 17.0, knockback: 9.0),
+            // Cleave: it adjusts itself to its target — cold it's a heavy cut, but on someone you've just
+            // Dismantled it bites far deeper (the combo crit). -> you stay in their face.
+            (name: "cleave", cooldown: 1.6, cost: 8.0, tags: [Combo], ops: [
+                Finisher(lunge: 6.0, range: 3.8, angle: 60.0, damage: 12.0, knockback: 10.0, window: 1.5, mult: 1.9),
                 Carve(length: 5.0, radius: 0.9, damage: 0.0),
             ], juice: Some((title: Some("CLEAVE"), punch: 3.0, shake: 0.15, color: Some((1.0, 0.2, 0.25))))),
             // Fuga: "Open" — a bow of flame drawn and loosed; where it lands keeps burning.
@@ -1444,9 +1449,10 @@
                 Zone(radius: 6.0, secs: 4.0, status: Some(Burn), dps: 4.0, at: Aim),
             ], juice: Some((title: Some("FUGA"), boom: true, punch: 4.0, color: Some((1.0, 0.45, 0.1))))),
             // The slash that cuts space itself: one enormous line across the arena. -> ends planted.
-            (name: "world cutting slash", cooldown: 24.0, cost: 40.0, tags: [Ultimate], ops: [
-                Carve(length: 40.0, radius: 0.9, damage: 26.0),
-            ], juice: Some((title: Some("WORLD CUTTING SLASH"), boom: true, punch: 6.0, shake: 0.35, debris: 18.0, color: Some((1.0, 0.1, 0.15))))),
+            (name: "world cutting slash", cooldown: 24.0, cost: 40.0, tags: [Ultimate], fx: "void", ops: [
+                Wave(length: 45.0, speed: 60.0, width: 9.0, carve: 0.9, damage: 26.0, knockback: 14.0, thin: true),
+            ], juice: Some((title: Some("WORLD CUTTING SLASH"), boom: true, punch: 6.0, shake: 0.35, debris: 18.0, color: Some((1.0, 0.1, 0.15)),
+                            impact_frame: Some("void")))),
             // Malevolent Shrine: the shrine rises around you and slashes rain on everyone near it.
             (name: "malevolent shrine", cooldown: 30.0, cost: 40.0, tags: [], ops: [
                 Cast(recipe: (name: "malevolent shrine", form: Dome, mech: [Barrier, Trap, Blade], element: Shadow, scale: 2.0), signature: Some(Domain)),
@@ -1535,8 +1541,10 @@
                 Impulse(fwd: -14.0, up: 5.0),
             ], juice: Some((title: Some("RABBIT ESCAPE")))),
             // Sink into your own shadow and rise from it further along.
-            (name: "shadow dive", cooldown: 2.0, cost: 4.0, tags: [Movement], ops: [Blink(dist: 14.0, afterimage: false)],
-             juice: Some((ripple: 2.0, color: Some((0.1, 0.1, 0.15))))),
+            (name: "shadow dive", cooldown: 3.0, cost: 6.0, tags: [Movement], ops: [
+                Phase(secs: 0.8),
+                Blink(dist: 14.0, afterimage: false),
+            ], juice: Some((ripple: 2.0, color: Some((0.1, 0.1, 0.15))))),
             // Domain Expansion: the ground becomes a lake of shadow full of shikigami.
             (name: "chimera shadow garden", cooldown: 30.0, cost: 40.0, tags: [], ops: [
                 Cast(recipe: (name: "chimera shadow garden", form: Dome, mech: [Barrier, Trap], element: Shadow, scale: 2.0), signature: Some(Domain)),
@@ -1557,7 +1565,7 @@
         names: ["yuta", "yuta okkotsu", "okkotsu", "okkotsu yuta", "yuuta", "yuta's"],
         fx: "cursed",
         shouts: [("rika", 0), ("come out rika", 0), ("queen of curses", 0), ("pure love", 1), ("pure love beam", 1),
-                 ("cursed speech", 3), ("don't move", 3), ("cursed speech don't move", 3)],
+                 ("cursed speech", 3), ("don't move", 3), ("cursed speech don't move", 3), ("yuta copy", 4), ("rika copy", 4), ("mimicry", 4)],
         moves: [
             // Rika manifests behind you: a huge clawed curse that tears into your enemies.
             (name: "rika", cooldown: 30.0, cost: 40.0, tags: [Ultimate], ops: [
@@ -1577,6 +1585,9 @@
             (name: "cursed speech", cooldown: 8.0, cost: 10.0, tags: [], fx: "psychic", ops: [
                 Afflict(range: 30.0, cone: 12.0, status: Some(Stun), secs: 0.7),
             ], juice: Some((title: Some("DON'T MOVE"), ripple: 3.0, at: Aim))),
+            // Copy: Rika takes the last technique an enemy used near you, and you use it.
+            (name: "copy", cooldown: 10.0, cost: 20.0, tags: [Counter], ops: [CopyLast(range: 30.0, secs: 6.0)],
+             juice: Some((title: Some("COPY"), color: Some((0.9, 0.9, 1.0))))),
         ],
     ),
     // ---------------------------------------------------------------- Toji Fushiguro: the Sorcerer Killer
@@ -1748,12 +1759,14 @@
                 Cast(recipe: (name: "air force", form: Ball, mech: [Fast, Repel, Pierce], element: Wind, scale: 0.5, count: 2, mass: 5.0)),
             ], juice: Some((title: Some("AIR FORCE"), punch: 1.5))),
             // 100%: One For All's full output in one arm — it hits like a truck and breaks your arm.
+            // 100%: it hits like a truck — and it breaks your arm (you take damage % yourself).
             (name: "one hundred percent detroit smash", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
                 Impulse(fwd: 12.0, up: 0.0),
                 Shove(range: 4.2, angle: 50.0, damage: 28.0, knockback: 40.0),
                 Explode(radius: 5.0, damage: 6.0, knockback: 30.0, carve: 2.0, at: Front, dist: 7.0),
+                Strain(pct: 18.0),
             ], juice: Some((title: Some("100% DETROIT SMASH"), boom: true, punch: 8.0, shake: 0.4, ripple: 10.0, at: Front, dist: 7.0,
-                            debris: 30.0, color: Some((0.4, 1.0, 0.5))))),
+                            debris: 30.0, color: Some((0.4, 1.0, 0.5)), impact_frame: Some("comic")))),
             // Full Cowl: a green-lightning bound straight at whoever you're looking at. -> ends on them, kick landed.
             (name: "full cowl", cooldown: 1.0, cost: 4.0, tags: [Movement], ops: [
                 Pounce(range: 24.0, speed: 44.0, cone: 14.0, damage: 8.0, knockback: 12.0, bounce: 8.0),
@@ -1787,7 +1800,7 @@
                 "baku go", "bakugo's", "backugo", "bakugoe"],
         fx: "fire",
         shouts: [("bakugo explosion", 0), ("palm explosion", 0), ("ap shot", 1), ("a p shot", 1), ("armor piercing shot", 1),
-                 ("ap shot auto cannon", 1), ("howitzer impact", 2), ("howitzer", 2), ("howitzer impact cluster", 2),
+                 ("ap shot auto cannon", 1), ("apshot", 1), ("howitzer impact", 2), ("howitzer", 2), ("howitzer impact cluster", 2), ("howitzer impacts", 2), ("how itzer impact", 2),
                  ("stun grenade", 3), ("flashbang", 3), ("explosion propulsion", 4), ("blast rush", 5), ("explosion cluster", 6),
                  ("big bang impact", 7)],
         moves: [
@@ -1884,15 +1897,16 @@
         kind: Kit,
         names: ["all might", "allmight", "toshinori yagi", "yagi toshinori", "all might's", "symbol of peace", "all mite", "all-might"],
         fx: "wind",
-        shouts: [("united states of smash", 0), ("united states of america smash", 0), ("united states smash", 0), ("us smash", 0),
+        shouts: [("united states of smash", 0), ("united states of america smash", 0), ("united states smash", 0), ("united state of smash", 0), ("us smash", 0),
                  ("texas smash", 1), ("detroit smash all might", 2), ("carolina smash", 3), ("oklahoma smash", 4),
-                 ("new hampshire smash", 5), ("missouri smash", 6), ("i am here", 7)],
+                 ("new hampshire smash", 5), ("missouri smash", 6), ("symbol of peace", 7), ("all might entrance", 7)],
         moves: [
             // One leap up, one fist down with everything left — the crater is the arena.
             (name: "united states of smash", cooldown: 30.0, cost: 40.0, tags: [Ultimate], ops: [
                 Leap(range: 30.0, apex: 12.0),
                 SlamOnLand(radius: 9.0, damage: 26.0, knockback: 40.0, carve: 3.2),
-            ], juice: Some((title: Some("UNITED STATES OF SMASH"), boom: true, punch: 8.0, shake: 0.4, debris: 32.0, color: Some((1.0, 0.85, 0.3))))),
+            ], juice: Some((title: Some("UNITED STATES OF SMASH"), boom: true, punch: 8.0, shake: 0.4, debris: 32.0, color: Some((1.0, 0.85, 0.3)),
+                            impact_frame: Some("comic")))),
             // The wind of the punch hits far away: a pressure blast down the lane.
             (name: "texas smash", cooldown: 2.0, cost: 8.0, tags: [Primary], ops: [
                 Shove(range: 16.0, angle: 18.0, damage: 10.0, knockback: 26.0, element: Wind),
@@ -1920,9 +1934,9 @@
                 Grab(range: 3.2, hold: 0.25, damage: 10.0, knockback: 24.0, up: 0.3, back: true),
             ], juice: Some((title: Some("MISSOURI SMASH")))),
             // The entrance: a shockwave arrival.
-            (name: "i am here", cooldown: 12.0, cost: 8.0, tags: [], ops: [
+            (name: "symbol of peace", cooldown: 12.0, cost: 8.0, tags: [], ops: [
                 Explode(radius: 5.0, damage: 4.0, knockback: 18.0),
-            ], juice: Some((title: Some("I AM HERE"), boom: true, ripple: 6.0, color: Some((1.0, 0.85, 0.3))))),
+            ], juice: Some((title: Some("SYMBOL OF PEACE"), boom: true, ripple: 6.0, color: Some((1.0, 0.85, 0.3))))),
         ],
     ),
     // ---------------------------------------------------------------- Uraraka: Zero Gravity
@@ -2216,7 +2230,7 @@
         kind: Kit,
         names: ["todo", "aoi todo", "todo aoi", "toudou", "todo's", "toe dough", "todou"],
         fx: "cursed",
-        shouts: [("clap", 0), ("boogie woogie", 0), ("boogie-woogie", 0), ("bugi ugi", 0), ("boogie woogy", 0), ("boogy woogy", 0),
+        shouts: [("clap", 0), ("boogie woogie", 0), ("boogie-woogie", 0), ("bugi ugi", 0), ("boogie woogy", 0), ("boogy woogy", 0), ("boogie oogie", 0), ("bugie wugie", 0), ("boogey woogey", 0),
                  ("clap swap", 0),
                  ("boogie woogie shuffle", 1), ("double clap", 1), ("shuffle clap", 1),
                  ("todo black flash", 3), ("my brother", 4), ("todo brother", 4)],
@@ -2252,7 +2266,7 @@
         names: ["nobara", "nobara kugisaki", "kugisaki", "kugisaki nobara", "nobara's", "no bara"],
         fx: "cursed",
         shouts: [("nail shot", 0), ("hammer nail", 0), ("straw doll nail", 0),
-                 ("resonance", 1), ("straw doll resonance", 1), ("straw doll technique resonance", 1),
+                 ("resonance", 1), ("straw doll resonance", 1), ("straw doll technique resonance", 1), ("resonance nobara", 1),
                  ("straw doll hairpin", 2), ("nobara hairpin", 2),
                  ("nobara hammer", 3)],
         moves: [
@@ -2264,7 +2278,7 @@
             // Hammer the doll: every tagged enemy is hit through the nail, wherever they are.
             (name: "resonance", cooldown: 3.0, cost: 12.0, tags: [Ultimate], ops: [
                 TagStrike(damage: 16.0, knockback: 10.0, up: 0.3, element: Shadow),
-            ], juice: Some((title: Some("RESONANCE"), boom: true, punch: 3.0, shake: 0.15, color: Some((0.7, 0.15, 0.2))))),
+            ], juice: Some((title: Some("RESONANCE"), boom: true, punch: 3.0, shake: 0.15, color: Some((0.7, 0.15, 0.2)), impact_frame: Some("ink")))),
             // Nails flung near them, then detonated.
             (name: "hairpin", cooldown: 4.0, cost: 10.0, tags: [], ops: [
                 Salvo(count: 4, delay: 0.35, interval: 0.08, radius: 2.0, damage: 8.0, knockback: 10.0, element: Shadow, at: Aim, spread: 3.0, seek: true),
@@ -2472,7 +2486,7 @@
         kind: Kit,
         names: ["chrollo", "chrollo lucilfer", "kuroro", "chrollo's"],
         fx: "shadow",
-        shouts: [("chrollo sun and moon", 0), ("bandit's secret", 1), ("skill hunter book", 1)],
+        shouts: [("chrollo sun and moon", 0), ("bandit's secret", 1), ("skill hunter book", 2), ("chrollo skill hunter", 2)],
         moves: [
             // Sun and Moon: brands that detonate when they meet — a mark that bursts later.
             (name: "sun and moon", cooldown: 8.0, cost: 12.0, tags: [Primary], ops: [
@@ -2481,6 +2495,9 @@
             (name: "bandit's secret", cooldown: 3.0, cost: 6.0, tags: [], ops: [
                 Cast(recipe: (name: "bandit's secret", form: Blob0, mech: [Homing, Explodes, Fast], element: Shadow, scale: 0.6)),
             ]),
+            // Skill Hunter: the book opens on the last ability an enemy used near you — it's yours now.
+            (name: "skill hunter", cooldown: 8.0, cost: 20.0, tags: [Ultimate], ops: [CopyLast(range: 30.0, secs: 6.0)],
+             juice: Some((title: Some("SKILL HUNTER")))),
         ],
     ),
     (
@@ -2590,7 +2607,7 @@
         kind: Kit,
         names: ["rengoku", "kyojuro rengoku", "rengoku kyojuro", "flame hashira", "rengoku's", "kyojuro", "ren goku"],
         fx: "fire",
-        shouts: [("rengoku unknowing fire", 0), ("ninth form rengoku purgatory", 3), ("set your heart ablaze rengoku", 3), ("flame hashira rengoku", 3)],
+        shouts: [("rengoku unknowing fire", 0), ("ninth form rengoku purgatory", 3), ("flame hashira rengoku", 3)],
         moves: [
             (name: "unknowing fire", cooldown: 0.9, cost: 5.0, tags: [Primary], ops: [
                 Impulse(fwd: 24.0, up: 0.5),
@@ -2927,8 +2944,8 @@
         names: ["saitama", "caped baldy", "one punch man", "one-punch man", "saitama sensei", "saitama's", "sai tama", "saitamas"],
         fx: "chi",
         shouts: [("normal punch", 0), ("one punch", 0), ("saitama punch", 0),
-                 ("consecutive normal punches", 1), ("consecutive normal punch", 1),
-                 ("serious punch", 2), ("serious series serious punch", 2), ("killer move serious series", 2),
+                 ("consecutive normal punches", 1), ("consecutive normal punch", 1), ("consecutive normal punchs", 1), ("consecutive punches", 1),
+                 ("serious punch", 2), ("serious series serious punch", 2), ("serious punsh", 2), ("serious series punch", 2), ("killer move serious series", 2),
                  ("serious sneeze", 3), ("serious table flip", 4), ("table flip", 4), ("serious side hops", 5), ("serious sidesteps", 5),
                  ("serious headbutt", 6), ("zero punch", 7)],
         moves: [
@@ -2946,7 +2963,7 @@
                 Carve(length: 40.0, radius: 2.8, damage: 14.0),
                 Field(strength: -80.0, radius: 14.0, secs: 0.5, at: Front, dist: 12.0),
             ], juice: Some((title: Some("SERIOUS SERIES: SERIOUS PUNCH"), boom: true, punch: 10.0, shake: 0.4, ripple: 16.0, at: Front, dist: 10.0,
-                            debris: 36.0))),
+                            debris: 36.0, impact_frame: Some("comic")))),
             // Serious Sneeze: a sneeze that blows everything around you away.
             (name: "serious sneeze", cooldown: 20.0, cost: 20.0, tags: [], fx: "wind", ops: [
                 Explode(radius: 10.0, damage: 4.0, knockback: 30.0, element: Wind),
@@ -3241,7 +3258,7 @@
         kind: Kit,
         names: ["yusuke", "yusuke urameshi", "urameshi", "urameshi yusuke", "yusuke's"],
         fx: "spirit",
-        shouts: [("yusuke spirit gun", 0), ("spirit gun mega", 0), ("spirit gun double", 1), ("rei gun double", 1), ("spirit shotgun yusuke", 2),
+        shouts: [("yusuke spirit gun", 0), ("spirit gun double", 1), ("rei gun double", 1), ("spirit shotgun yusuke", 2),
                  ("spirit wave orb", 3), ("yusuke punch", 4)],
         moves: [
             (name: "spirit gun", cooldown: 3.0, cost: 12.0, tags: [Ultimate], ops: [
@@ -3314,8 +3331,9 @@
             // The third eye: he sees everything coming.
             (name: "jagan eye", cooldown: 10.0, cost: 6.0, tags: [Counter], ops: [Evade(secs: 0.6, slow: 0.8, speed: 1.5, blink: 3.0)]),
             // Too fast to see: a slash from behind.
-            (name: "hiei slash", cooldown: 1.2, cost: 5.0, tags: [Movement], ops: [
-                Barrage(hits: 3, interval: 0.1, range: 3.0, angle: 80.0, damage: 5.0, knockback: 6.0, finish: 12.0, blink: true),
+            (name: "hiei slash", cooldown: 1.6, cost: 6.0, tags: [Movement], ops: [
+                WarpTo(range: 25.0, cone: 15.0, behind: 1.8),
+                Shove(range: 3.0, angle: 80.0, damage: 11.0, knockback: 12.0),
             ]),
         ],
     ),
@@ -3370,16 +3388,15 @@
         kind: Kit,
         names: ["inuyasha", "inu yasha", "inuyasha's", "inuyasha taisho"],
         fx: "wind",
-        shouts: [("wind scar", 0), ("kaze no kizu", 0), ("windscar", 0),
+        shouts: [("wind scar", 0), ("kaze no kizu", 0), ("windscar", 0), ("wind scarf", 0), ("the wind scar", 0),
                  ("backlash wave", 1), ("bakuryuha", 1),
                  ("iron reaver soul stealer", 2), ("sankon tessou", 2), ("iron reaver", 2),
                  ("adamant barrage", 3), ("kongosoha", 3), ("red tessaiga", 4), ("blades of blood", 5), ("hijin kessou", 5),
                  ("meido zangetsuha", 6), ("dragon scale tessaiga", 7)],
         moves: [
             // The Wind Scar: three claws of light tear along the ground from the swing.
-            (name: "wind scar", cooldown: 2.4, cost: 12.0, tags: [Primary], ops: [
-                Surge(width: 6.0, dist: 26.0, speed: 34.0, push: 12.0, damage: 14.0, element: Wind),
-                Carve(length: 22.0, radius: 0.5, damage: 0.0),
+            (name: "wind scar", cooldown: 2.4, cost: 20.0, tags: [Primary], ops: [
+                Wave(length: 28.0, speed: 36.0, width: 6.0, carve: 0.7, damage: 16.0, knockback: 16.0, element: Wind),
             ], juice: Some((title: Some("WIND SCAR"), boom: true, punch: 4.0, shake: 0.2, color: Some((1.0, 0.9, 0.6))))),
             // The Backlash Wave: their attack caught on the blade and sent back as a spiral.
             (name: "backlash wave", cooldown: 8.0, cost: 20.0, tags: [Counter], ops: [
@@ -3652,7 +3669,7 @@
             ], juice: Some((title: Some("DEMON-SLAYER SWORD")))),
             // Black Divider: a black anti-magic crescent that cuts magic out of the air and them.
             (name: "black divider", cooldown: 2.5, cost: 10.0, tags: [], ops: [
-                Carve(length: 20.0, radius: 0.8, damage: 13.0),
+                Wave(length: 22.0, speed: 34.0, width: 3.5, carve: 0.6, damage: 13.0, knockback: 12.0, element: Shadow, thin: true),
                 Lockout(range: 20.0, secs: 1.2),
             ], juice: Some((title: Some("BLACK DIVIDER"), punch: 3.0))),
             (name: "black meteorite", cooldown: 3.0, cost: 10.0, tags: [], ops: [
@@ -3692,6 +3709,635 @@
             (name: "star magic", cooldown: 6.0, cost: 12.0, tags: [], ops: [
                 Salvo(count: 5, delay: 0.3, interval: 0.1, radius: 2.4, damage: 9.0, knockback: 12.0, element: Light, at: Aim, spread: 4.0),
             ]),
+        ],
+    ),
+
+    // ================================================================ GURREN LAGANN — kits
+    // Simon's drill telescopes (the Ruyi mechanic as a drill) — Giga Drill Break grows until the
+    // drill is bigger than you and you ride it through them.
+    (
+        id: "simon_kit",
+        name: "Simon",
+        kind: Kit,
+        names: ["simon the digger", "simon gurren lagann", "simon ttgl", "lagann pilot", "simon's drill"],
+        fx: "energy",
+        shouts: [("simon giga drill break", 0), ("simon drill", 1), ("simon lagann impact", 2), ("spiral burst", 3)],
+        moves: [
+            (name: "giga drill break", cooldown: 6.0, cost: 20.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "giga drill", form: Spear, mech: [Extends, Spin, Pierce, Grow, Heavy], element: Light, scale: 2.2, mass: 300.0,
+                              features: [Drill])),
+                Ram(speed: 30.0, secs: 0.6, damage: 18.0, knockback: 26.0, through: true),
+            ], juice: Some((title: Some("GIGA DRILL BREAK"), boom: true, punch: 6.0, shake: 0.3, color: Some((0.3, 1.0, 0.4))))),
+            (name: "core drill", cooldown: 1.2, cost: 5.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "core drill", form: Spear, mech: [Extends, Spin, Pierce], element: Light, scale: 1.0, features: [Drill])),
+            ], juice: Some((title: Some("DRILL!")))),
+            (name: "lagann impact", cooldown: 3.0, cost: 8.0, tags: [Movement], ops: [
+                Leap(range: 22.0, apex: 8.0),
+                SlamOnLand(radius: 3.5, damage: 16.0, knockback: 18.0, carve: 2.6),
+            ], juice: Some((title: Some("LAGANN IMPACT")))),
+            // Spiral energy flares: green light bursts from you and everything drills harder.
+            (name: "spiral burst", cooldown: 20.0, cost: 20.0, tags: [], ops: [
+                Explode(radius: 5.0, damage: 6.0, knockback: 20.0),
+                Empower(secs: 6.0, damage: 1.35, armor: 0.8),
+            ], juice: Some((title: Some("SPIRAL POWER"), boom: true, color: Some((0.3, 1.0, 0.4))))),
+        ],
+    ),
+    (
+        id: "kamina_kit",
+        name: "Kamina",
+        kind: Kit,
+        names: ["kamina", "big bro kamina", "kamina's", "aniki kamina"],
+        fx: "fire",
+        shouts: [("kamina sword", 0), ("hell's kick", 1), ("inazuma kick", 1), ("kamina kick", 1), ("kamina pose", 2)],
+        moves: [
+            (name: "kamina sword", cooldown: 1.0, cost: 4.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "kamina's katana", form: Sword, mech: [Blade, Heavy], element: Light, scale: 1.2)),
+            ]),
+            // A flying lightning kick from way too high.
+            (name: "inazuma kick", cooldown: 3.0, cost: 10.0, tags: [], ops: [
+                Pounce(range: 26.0, speed: 44.0, cone: 15.0, damage: 14.0, knockback: 22.0, element: Electric, bounce: 6.0),
+            ], juice: Some((title: Some("INAZUMA KICK"), punch: 4.0))),
+            // Strike a pose and dare them: a shout that blows everyone back.
+            (name: "kamina pose", cooldown: 16.0, cost: 6.0, tags: [], ops: [Explode(radius: 5.0, damage: 0.0, knockback: 18.0)],
+             juice: Some((title: Some("TEAM DAI-GURREN"), ripple: 6.0))),
+        ],
+    ),
+
+    // ================================================================ KILL LA KILL — kits
+    (
+        id: "ryuko_kit",
+        name: "Ryuko Matoi",
+        kind: Kit,
+        names: ["ryuko", "ryuko matoi", "matoi ryuko", "ryuko's"],
+        fx: "blood",
+        shouts: [("ryuko scissor blade", 0), ("scissor blade decapitation", 1), ("senketsu jets", 2), ("life fiber synchronize ryuko", 3),
+                 ("fiber lost ryuko", 4), ("scissor blade rush", 5)],
+        moves: [
+            (name: "scissor blade", cooldown: 1.0, cost: 5.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "scissor blade", form: Sword, mech: [Blade, Fast], element: Light, scale: 1.2)),
+            ], juice: Some((title: Some("SCISSOR BLADE"), color: Some((0.9, 0.1, 0.15))))),
+            // Decapitation mode: the blade grows into a guillotine that telescopes out.
+            (name: "decapitation mode", cooldown: 4.0, cost: 12.0, tags: [], ops: [
+                Cast(recipe: (name: "decapitation scissor", form: Sword, mech: [Blade, Extends, Heavy], element: Light, scale: 2.4, mass: 150.0)),
+            ], juice: Some((title: Some("DECAPITATION MODE"), boom: true, punch: 3.0))),
+            // Senketsu's jets: rocket through the air. -> ends airborne, flying.
+            (name: "senketsu jets", cooldown: 1.6, cost: 4.0, tags: [Movement], ops: [
+                Impulse(fwd: 22.0, up: 12.0),
+                SelfStatus(status: Float, secs: 1.2),
+            ], juice: Some((title: Some("SENKETSU SHIPPU")))),
+            (name: "life fiber synchronize", cooldown: 30.0, cost: 20.0, tags: [], ops: [
+                Empower(secs: 7.0, damage: 1.35, armor: 0.7, contact: 5.0, contact_kb: 10.0, contact_cd: 0.3),
+            ], juice: Some((title: Some("LIFE FIBER SYNCHRONIZE"), boom: true, color: Some((0.9, 0.1, 0.15))))),
+            (name: "fiber lost", cooldown: 16.0, cost: 40.0, tags: [Ultimate], ops: [
+                Explode(radius: 6.0, damage: 14.0, knockback: 26.0, carve: 1.4),
+                Barrage(hits: 5, interval: 0.1, range: 4.0, angle: 179.0, damage: 4.0, knockback: 4.0, finish: 18.0, blink: true),
+            ], juice: Some((title: Some("FIBER LOST"), boom: true, shake: 0.3))),
+            (name: "scissor blade rush", cooldown: 3.0, cost: 10.0, tags: [Combo], ops: [
+                Barrage(hits: 7, interval: 0.07, range: 3.6, angle: 70.0, damage: 4.0, knockback: 2.0, finish: 16.0, advance: 5.0),
+            ]),
+        ],
+    ),
+    (
+        id: "satsuki_kit",
+        name: "Satsuki Kiryuin",
+        kind: Kit,
+        names: ["satsuki", "satsuki kiryuin", "kiryuin satsuki", "lady satsuki", "satsuki's"],
+        fx: "holy",
+        shouts: [("bakuzan", 0), ("junketsu", 1), ("satsuki bakuzan", 0), ("kiryuin slash", 2)],
+        moves: [
+            (name: "bakuzan", cooldown: 1.0, cost: 5.0, tags: [Primary], ops: [
+                Impulse(fwd: 14.0, up: 0.0),
+                Shove(range: 4.0, angle: 70.0, damage: 13.0, knockback: 12.0),
+            ], juice: Some((title: Some("BAKUZAN")))),
+            (name: "junketsu", cooldown: 30.0, cost: 20.0, tags: [Ultimate], ops: [Empower(secs: 7.0, damage: 1.4, armor: 0.6)],
+             juice: Some((title: Some("JUNKETSU"), boom: true, color: Some((1.0, 1.0, 1.0))))),
+            (name: "kiryuin slash", cooldown: 2.0, cost: 8.0, tags: [], ops: [Carve(length: 16.0, radius: 0.7, damage: 13.0)]),
+        ],
+    ),
+
+    // ================================================================ SAILOR MOON — the senshi
+    (
+        id: "sailor_moon_kit",
+        name: "Sailor Moon",
+        kind: Kit,
+        names: ["sailor moon", "usagi", "usagi tsukino", "serena", "sailor moon's", "usagi's"],
+        fx: "holy",
+        shouts: [("sailor moon tiara", 0), ("sailor moon healing", 1), ("sailor moon kick", 3), ("moon twilight flash", 4)],
+        moves: [
+            (name: "moon tiara action", cooldown: 1.4, cost: 5.0, tags: [Primary], ops: [
+                Seeker(recipe: (name: "moon tiara", form: Disc, mech: [Returning, Blade, Fast], element: Light, scale: 0.7), range: 40.0, damage: 10.0,
+                       knockback: 10.0, hits: 3, chain: 10.0),
+            ], juice: Some((title: Some("MOON TIARA ACTION"), color: Some((1.0, 0.9, 0.4))))),
+            // Moon Healing Escalation: you heal, craters fill, and evil near you burns.
+            (name: "moon healing escalation", cooldown: 16.0, cost: 20.0, tags: [Defense], ops: [
+                Mend(pct: 20.0, per_s: 3.0, secs: 3.0),
+                Restore(radius: 12.0),
+                Explode(radius: 6.0, damage: 8.0, knockback: 12.0, element: Light),
+            ], juice: Some((title: Some("MOON HEALING ESCALATION"), ripple: 12.0, color: Some((1.0, 0.8, 0.95))))),
+            (name: "moon princess halation", cooldown: 16.0, cost: 40.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "moon princess halation", form: Hands, mech: [Beam], element: Light, scale: 1.4), signature: Some(Beam)),
+            ], juice: Some((title: Some("MOON PRINCESS HALATION"), boom: true, punch: 5.0))),
+            (name: "sailor moon kick", cooldown: 1.0, cost: 4.0, tags: [], ops: [Shove(range: 3.0, angle: 45.0, damage: 9.0, knockback: 12.0, up: 0.4)]),
+            (name: "moon twilight flash", cooldown: 6.0, cost: 10.0, tags: [], ops: [
+                BounceBeam(length: 30.0, bounces: 2, radius: 0.8, damage: 10.0, knockback: 12.0),
+            ], juice: Some((title: Some("MOON TWILIGHT FLASH")))),
+        ],
+    ),
+    (
+        id: "sailor_mars_kit",
+        name: "Sailor Mars",
+        kind: Kit,
+        names: ["sailor mars", "rei hino", "hino rei", "sailor mars's"],
+        fx: "fire",
+        shouts: [("fire soul", 0), ("mars fire soul", 0), ("mars flame sniper", 1), ("flame sniper", 1), ("burning mandala", 2), ("mars burning mandala", 2),
+                 ("evil spirit be gone", 3), ("akuryo taisan", 3)],
+        moves: [
+            (name: "fire soul", cooldown: 2.0, cost: 8.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "fire soul", form: Ball, mech: [Fast, Explodes], element: Fire, scale: 0.9)),
+            ], juice: Some((title: Some("FIRE SOUL")))),
+            // Flame Sniper: a bow of fire; the arrow flies true.
+            (name: "mars flame sniper", cooldown: 3.0, cost: 10.0, tags: [], ops: [
+                Seeker(recipe: (name: "flame arrow", form: Spear, mech: [Fast, Pierce, Explodes], element: Fire, scale: 0.6), range: 50.0, damage: 14.0,
+                       knockback: 12.0, element: Fire),
+            ], juice: Some((title: Some("MARS FLAME SNIPER")))),
+            // Burning Mandala: rings of fire flung in every direction.
+            (name: "burning mandala", cooldown: 10.0, cost: 20.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "mandala rings", form: Disc, mech: [Swarm, Fast, Explodes], element: Fire, scale: 0.8, count: 8)),
+                Explode(radius: 5.0, damage: 8.0, knockback: 16.0, element: Fire),
+            ], juice: Some((title: Some("BURNING MANDALA"), boom: true))),
+            // A paper ward that silences evil spirits (their powers).
+            (name: "evil spirit be gone", cooldown: 10.0, cost: 10.0, tags: [], ops: [Lockout(range: 25.0, secs: 2.0)],
+             juice: Some((title: Some("AKURYO TAISAN!")))),
+        ],
+    ),
+    (
+        id: "sailor_mercury_kit",
+        name: "Sailor Mercury",
+        kind: Kit,
+        names: ["sailor mercury", "ami mizuno", "mizuno ami", "sailor mercury's"],
+        fx: "water",
+        shouts: [("shine aqua illusion", 0), ("mercury aqua rhapsody", 1), ("aqua rhapsody", 1), ("bubble spray", 2), ("mercury bubbles blast", 2)],
+        moves: [
+            (name: "shine aqua illusion", cooldown: 3.0, cost: 10.0, tags: [Primary], ops: [
+                Surge(width: 4.0, dist: 18.0, speed: 20.0, push: 14.0, damage: 8.0, element: Ice),
+            ], juice: Some((title: Some("SHINE AQUA ILLUSION")))),
+            (name: "mercury aqua rhapsody", cooldown: 10.0, cost: 20.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "aqua rhapsody", form: Hands, mech: [Beam], element: Water, scale: 1.2), signature: Some(Beam)),
+            ], juice: Some((title: Some("MERCURY AQUA RHAPSODY"), boom: true))),
+            // Bubble Spray: a freezing fog to hide in.
+            (name: "bubble spray", cooldown: 10.0, cost: 8.0, tags: [Defense], ops: [Zone(radius: 7.0, secs: 4.0, status: Some(Chill), slow: 0.3)],
+             juice: Some((title: Some("BUBBLE SPRAY")))),
+        ],
+    ),
+    (
+        id: "sailor_jupiter_kit",
+        name: "Sailor Jupiter",
+        kind: Kit,
+        names: ["sailor jupiter", "makoto kino", "kino makoto", "sailor jupiter's"],
+        fx: "lightning",
+        shouts: [("supreme thunder", 0), ("jupiter thunder", 0), ("sparkling wide pressure", 1), ("oak evolution", 2), ("jupiter oak evolution", 2)],
+        moves: [
+            // Supreme Thunder: the antenna in her tiara calls the lightning down.
+            (name: "supreme thunder", cooldown: 3.0, cost: 10.0, tags: [Primary], ops: [
+                Afflict(range: 40.0, cone: 12.0, status: Some(Stun), secs: 0.3, damage: 11.0, up: 2.0, element: Electric),
+                Explode(radius: 3.0, damage: 4.0, knockback: 10.0, element: Electric, at: Aim),
+            ], juice: Some((title: Some("SUPREME THUNDER"), boom: true, at: Aim))),
+            (name: "sparkling wide pressure", cooldown: 3.0, cost: 10.0, tags: [], ops: [
+                Cast(recipe: (name: "wide pressure", form: Ball, mech: [Fast, Explodes], element: Electric, scale: 1.3)),
+            ], juice: Some((title: Some("SPARKLING WIDE PRESSURE")))),
+            (name: "oak evolution", cooldown: 10.0, cost: 20.0, tags: [Ultimate], ops: [
+                Cast(recipe: (name: "oak leaves", form: Disc, mech: [Swarm, Flies, Homing, Explodes], element: Electric, scale: 0.4, count: 10)),
+            ], juice: Some((title: Some("OAK EVOLUTION"), boom: true))),
+        ],
+    ),
+    (
+        id: "sailor_venus_kit",
+        name: "Sailor Venus",
+        kind: Kit,
+        names: ["sailor venus", "minako aino", "aino minako", "sailor v", "sailor venus's"],
+        fx: "holy",
+        shouts: [("love me chain", 0), ("venus love me chain", 0), ("crescent beam", 1), ("venus crescent beam", 1), ("love and beauty shock", 2)],
+        moves: [
+            // Love-Me Chain: a chain of hearts that wraps and reels them in.
+            (name: "venus love me chain", cooldown: 3.0, cost: 10.0, tags: [Primary], ops: [
+                Hook(range: 26.0, speed: 55.0, pull: 20.0, damage: 6.0),
+            ], juice: Some((title: Some("VENUS LOVE-ME CHAIN")))),
+            // Crescent Beam: a thin beam from a fingertip.
+            (name: "venus crescent beam", cooldown: 2.0, cost: 8.0, tags: [], ops: [
+                BounceBeam(length: 40.0, bounces: 0, radius: 0.4, damage: 11.0, knockback: 10.0),
+            ], juice: Some((title: Some("CRESCENT BEAM")))),
+            (name: "love and beauty shock", cooldown: 8.0, cost: 12.0, tags: [], ops: [
+                Afflict(range: 25.0, cone: 15.0, status: Some(Stun), secs: 0.5, damage: 8.0),
+            ]),
+        ],
+    ),
+
+    // ================================================================ EVANGELION — kits
+    (
+        id: "shinji_kit",
+        name: "Shinji Ikari",
+        kind: Kit,
+        names: ["shinji", "shinji ikari", "ikari shinji", "shinji's", "unit 01 pilot"],
+        fx: "energy",
+        shouts: [("progressive knife", 0), ("prog knife", 0), ("pallet rifle", 1), ("shinji at field", 2), ("get in the robot", 3), ("eva berserk shinji", 3)],
+        moves: [
+            // A humming vibro-blade.
+            (name: "progressive knife", cooldown: 1.0, cost: 5.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "progressive knife", form: Sword, mech: [Blade, Fast, Spin], element: Electric, scale: 0.9)),
+            ], juice: Some((title: Some("PROGRESSIVE KNIFE")))),
+            (name: "pallet rifle", cooldown: 1.5, cost: 6.0, tags: [], ops: [
+                Cast(recipe: (name: "pallet rifle", form: Gun, mech: [Shoots, Fast], element: Light, scale: 1.2)),
+            ]),
+            // A.T. Field: the orange hexagon. Nothing crosses it for a moment; what it touches is shoved away.
+            (name: "at field", cooldown: 6.0, cost: 10.0, tags: [Defense], ops: [
+                Counter(secs: 1.2),
+                Field(strength: -50.0, radius: 4.0, secs: 1.2),
+            ], juice: Some((title: Some("A.T. FIELD"), ripple: 4.0, color: Some((1.0, 0.55, 0.15))))),
+            // Berserk: Unit-01 wakes up on its own.
+            (name: "berserk", cooldown: 40.0, cost: 40.0, tags: [Ultimate], ops: [
+                Empower(secs: 7.0, damage: 1.6, armor: 0.4, contact: 8.0, contact_kb: 16.0, contact_cd: 0.3),
+                SelfResize(scale: 1.4, secs: 7.0),
+            ], juice: Some((title: Some("BERSERK"), boom: true, shake: 0.35, color: Some((0.5, 1.0, 0.3))))),
+        ],
+    ),
+
+    // ================================================================ FRIEREN
+    // Zoltraak: once the most feared killing magic, now "ordinary offensive magic" — a straight
+    // white beam that is simply fast. Defensive Magic answers it. Frieren is a battle mage: she fights
+    // at range with patience.
+    (
+        id: "frieren_kit",
+        name: "Frieren",
+        kind: Kit,
+        names: ["frieren", "frieren the slayer", "frieren's", "freeren", "frierin"],
+        fx: "holy",
+        shouts: [("zoltraak", 0), ("zoltrak", 0), ("zol trak", 0), ("zol track", 0), ("zoltrack", 0), ("killing magic", 0), ("ordinary offensive magic", 0),
+                 ("defensive magic", 1), ("frieren barrier", 1),
+                 ("judradjim", 2),
+                 ("catastravia", 3), ("sky of light arrows", 3),
+                 ("magic to find", 4), ("flower field magic", 5), ("vollzanbel", 6)],
+        moves: [
+            // Zoltraak: an instant white beam, fired again and again.
+            (name: "zoltraak", cooldown: 0.8, cost: 5.0, tags: [Primary], ops: [
+                BounceBeam(length: 45.0, bounces: 0, radius: 0.35, damage: 9.0, knockback: 8.0),
+            ], juice: Some((title: Some("ZOLTRAAK"), punch: 1.5, color: Some((0.9, 0.95, 1.0))))),
+            // Defensive Magic: a shell of hexagons that stops what hits it.
+            (name: "defensive magic", cooldown: 6.0, cost: 8.0, tags: [Defense], ops: [
+                Counter(secs: 1.2),
+                Deflect(secs: 1.2, angle: 70.0),
+            ], juice: Some((title: Some("DEFENSIVE MAGIC"), ripple: 3.0, color: Some((0.6, 0.85, 1.0))))),
+            // Judradjim: summoned lightning that arcs down on them.
+            (name: "judradjim", cooldown: 4.0, cost: 10.0, tags: [], fx: "lightning", ops: [
+                Afflict(range: 45.0, cone: 12.0, status: Some(Stun), secs: 0.3, damage: 12.0, up: 2.0, element: Electric),
+            ], juice: Some((title: Some("JUDRADJIM"), boom: true, at: Aim))),
+            // Catastravia: a sky of arrows of light, falling on everything ahead.
+            (name: "catastravia", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Salvo(count: 16, delay: 0.6, interval: 0.06, radius: 2.2, damage: 7.0, knockback: 8.0, element: Light, at: Front, dist: 14.0, spread: 10.0),
+            ], juice: Some((title: Some("CATASTRAVIA"), boom: true, shake: 0.2))),
+            // Magic to find what you're looking for: she sees them wherever they hide.
+            (name: "magic to find", cooldown: 10.0, cost: 4.0, tags: [], ops: [
+                Afflict(range: 60.0, cone: 30.0, status: Some(Shadow), secs: 0.5),
+            ]),
+            // Flower field magic: the ground blooms around you (and you catch your breath).
+            (name: "flower field magic", cooldown: 20.0, cost: 6.0, tags: [], ops: [Mend(pct: 12.0, per_s: 2.0, secs: 3.0)],
+             juice: Some((ripple: 6.0, color: Some((1.0, 0.8, 0.9))))),
+            // Vollzanbel: the hellfire spell, a wall of flame.
+            (name: "vollzanbel", cooldown: 8.0, cost: 12.0, tags: [], fx: "fire", ops: [
+                Surge(width: 8.0, dist: 20.0, speed: 20.0, push: 14.0, damage: 12.0, element: Fire),
+            ], juice: Some((title: Some("VOLLZANBEL")))),
+        ],
+    ),
+    (
+        id: "fern_kit",
+        name: "Fern",
+        kind: Kit,
+        names: ["fern", "fern frieren", "fern's"],
+        fx: "holy",
+        shouts: [("fern zoltraak", 0), ("rapid zoltraak", 0), ("zoltraak barrage", 0), ("fern barrier", 1)],
+        moves: [
+            // Zoltraak, rapid-fire: a volley faster than anyone else can cast it.
+            (name: "rapid zoltraak", cooldown: 3.0, cost: 12.0, tags: [Primary, Combo], ops: [
+                BounceBeam(length: 45.0, bounces: 0, radius: 0.35, damage: 5.0, knockback: 3.0),
+                BounceBeam(length: 45.0, bounces: 0, radius: 0.35, damage: 5.0, knockback: 3.0),
+                BounceBeam(length: 45.0, bounces: 0, radius: 0.35, damage: 5.0, knockback: 10.0),
+            ], juice: Some((title: Some("ZOLTRAAK"), color: Some((0.9, 0.95, 1.0))))),
+            (name: "defensive magic", cooldown: 6.0, cost: 8.0, tags: [Defense], ops: [Counter(secs: 1.0)]),
+        ],
+    ),
+    (
+        id: "stark_frieren_kit",
+        name: "Stark",
+        kind: Kit,
+        names: ["stark frieren", "stark the warrior", "stark's axe"],
+        fx: "earth",
+        shouts: [("stark lightning strike", 0), ("stark axe", 1)],
+        moves: [
+            // Lightning Strike: a leap and an axe blow that splits the earth.
+            (name: "lightning strike", cooldown: 3.0, cost: 12.0, tags: [Ultimate], ops: [
+                Leap(range: 16.0, apex: 6.0),
+                SlamOnLand(radius: 5.0, damage: 18.0, knockback: 22.0, carve: 2.2),
+            ], juice: Some((title: Some("LIGHTNING STRIKE"), boom: true))),
+            (name: "stark axe", cooldown: 1.2, cost: 5.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "stark's axe", form: Axe, mech: [Blade, Heavy], element: Light, scale: 1.3)),
+            ]),
+        ],
+    ),
+
+    // ================================================================ DANDADAN — kits
+    (
+        id: "okarun_kit",
+        name: "Okarun",
+        kind: Kit,
+        names: ["okarun", "ken takakura", "takakura", "okarun's"],
+        fx: "speedforce",
+        shouts: [("okarun turbo", 0), ("turbo granny mode", 0), ("okarun dash", 1), ("okarun rush", 2)],
+        moves: [
+            // Turbo Granny's speed: for a while you're a blur (and everything you touch gets kicked).
+            (name: "turbo granny mode", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [
+                Empower(secs: 6.0, damage: 1.2, armor: 0.9, contact: 5.0, contact_kb: 14.0, contact_cd: 0.3),
+            ], juice: Some((title: Some("TURBO GRANNY"), color: Some((0.95, 0.95, 1.0))))),
+            (name: "turbo dash", cooldown: 0.8, cost: 4.0, tags: [Movement], ops: [
+                Pounce(range: 26.0, speed: 55.0, cone: 15.0, damage: 9.0, knockback: 14.0, bounce: 5.0),
+            ]),
+            (name: "turbo rush", cooldown: 2.0, cost: 8.0, tags: [Combo, Primary], ops: [
+                Barrage(hits: 8, interval: 0.06, range: 3.0, angle: 90.0, damage: 3.0, knockback: 2.0, finish: 16.0, blink: true),
+            ], juice: Some((title: Some("TURBO!")))),
+        ],
+    ),
+    (
+        id: "momo_ayase_kit",
+        name: "Momo Ayase",
+        kind: Kit,
+        names: ["momo ayase", "ayase momo", "ayase", "momo dandadan"],
+        fx: "psychic",
+        shouts: [("momo aura hands", 0), ("momo throw", 1), ("momo barrier", 2)],
+        moves: [
+            // Glowing aura hands: grab them from across the room.
+            (name: "aura hands", cooldown: 2.0, cost: 6.0, tags: [Primary], ops: [Yank(range: 30.0, speed: 26.0, cone: 12.0)],
+             juice: Some((color: Some((0.5, 0.8, 1.0))))),
+            // Pick them up and throw them.
+            (name: "momo throw", cooldown: 4.0, cost: 10.0, tags: [], ops: [
+                Afflict(range: 30.0, cone: 12.0, status: Some(Float), secs: 0.5, knockback: 22.0, up: 10.0),
+            ]),
+            (name: "momo barrier", cooldown: 8.0, cost: 8.0, tags: [Defense], ops: [Counter(secs: 1.0)]),
+        ],
+    ),
+
+    // ================================================================ BLUE LOCK
+    // Football as a fighting style: every shot is a ball kicked at someone's head.
+    (
+        id: "isagi_kit",
+        name: "Yoichi Isagi",
+        kind: Kit,
+        names: ["isagi", "yoichi isagi", "isagi yoichi", "isagi's"],
+        fx: "energy",
+        shouts: [("direct shot", 0), ("isagi direct shot", 0), ("metavision", 1), ("meta vision", 1), ("isagi volley", 2), ("isagi ego", 3), ("ego awakening", 3)],
+        moves: [
+            // A first-touch direct shot: the ball's already gone.
+            (name: "direct shot", cooldown: 1.4, cost: 6.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "football", form: Ball, mech: [Fast, Blunt, Ricochet], element: Light, scale: 0.4, mass: 5.0)),
+            ], juice: Some((title: Some("DIRECT SHOT")))),
+            // Metavision: he sees the whole pitch — the next attack is read and slipped.
+            (name: "metavision", cooldown: 8.0, cost: 6.0, tags: [Counter], ops: [Evade(secs: 0.6, slow: 1.0, speed: 1.5, blink: 3.0)],
+             juice: Some((title: Some("METAVISION")))),
+            (name: "isagi volley", cooldown: 3.0, cost: 10.0, tags: [], ops: [
+                Impulse(fwd: 4.0, up: 8.0),
+                Cast(recipe: (name: "volleyed football", form: Ball, mech: [Fast, Blunt, Heavy], element: Light, scale: 0.4, mass: 10.0)),
+            ]),
+            // EGO: the striker's selfish awakening.
+            (name: "ego", cooldown: 30.0, cost: 20.0, tags: [Ultimate], ops: [Empower(secs: 6.0, damage: 1.35, armor: 0.8)],
+             juice: Some((title: Some("EGO"), color: Some((0.2, 0.5, 1.0))))),
+        ],
+    ),
+    (
+        id: "rin_itoshi_kit",
+        name: "Rin Itoshi",
+        kind: Kit,
+        names: ["rin itoshi", "itoshi rin", "rin blue lock"],
+        fx: "energy",
+        shouts: [("curve shot", 0), ("rin curve shot", 0), ("destroyer rin", 1)],
+        moves: [
+            // A shot that curves around the defender: it banks off the wall to them.
+            (name: "curve shot", cooldown: 2.0, cost: 8.0, tags: [Primary], ops: [
+                BounceBeam(length: 30.0, bounces: 2, radius: 0.6, damage: 11.0, knockback: 14.0),
+            ], juice: Some((title: Some("CURVE SHOT")))),
+            (name: "destroyer", cooldown: 30.0, cost: 20.0, tags: [Ultimate], ops: [Empower(secs: 6.0, damage: 1.4, armor: 0.7)]),
+        ],
+    ),
+    (
+        id: "bachira_kit",
+        name: "Meguru Bachira",
+        kind: Kit,
+        names: ["bachira", "meguru bachira", "bachira meguru"],
+        fx: "energy",
+        shouts: [("bachira dribble", 0), ("monster dribble", 0), ("roulette dribble", 0)],
+        moves: [
+            // A spinning dribble past them: gone behind them before they turn.
+            (name: "monster dribble", cooldown: 2.0, cost: 6.0, tags: [Movement], ops: [
+                BlinkCarry(dist: 8.0, up: 0.0, grab: 0.0),
+                Shove(range: 3.0, angle: 179.0, damage: 6.0, knockback: 8.0),
+            ], juice: Some((title: Some("MONSTER DRIBBLE")))),
+        ],
+    ),
+    (
+        id: "barou_kit",
+        name: "Shoei Barou",
+        kind: Kit,
+        names: ["barou", "shoei barou", "the king barou", "barou's"],
+        fx: "energy",
+        shouts: [("king's shot", 0), ("kings shot", 0), ("barou shot", 0), ("predator eye", 1)],
+        moves: [
+            (name: "king's shot", cooldown: 2.4, cost: 10.0, tags: [Primary], ops: [
+                Cast(recipe: (name: "king's shot", form: Ball, mech: [Fast, Heavy, Blunt, Pierce], element: Light, scale: 0.45, mass: 30.0)),
+            ], juice: Some((title: Some("KING'S SHOT"), punch: 3.0))),
+            (name: "predator eye", cooldown: 8.0, cost: 8.0, tags: [], ops: [Pounce(range: 30.0, speed: 40.0, cone: 20.0, damage: 10.0, knockback: 14.0)]),
+        ],
+    ),
+
+    // ================================================================ HAIKYUU!!
+    (
+        id: "hinata_haikyuu_kit",
+        name: "Shoyo Hinata",
+        kind: Kit,
+        names: ["shoyo hinata", "hinata shoyo", "hinata haikyuu", "little giant", "shouyou hinata"],
+        fx: "energy",
+        shouts: [("freak quick", 0), ("hinata spike", 0), ("broad attack", 1), ("minus tempo", 0), ("hinata receive", 2)],
+        moves: [
+            // The freak quick: a leap straight up and the spike comes down before the block can form.
+            (name: "freak quick", cooldown: 2.0, cost: 8.0, tags: [Primary], ops: [
+                Impulse(fwd: 4.0, up: 16.0),
+                Cast(recipe: (name: "spiked volleyball", form: Ball, mech: [Fast, Blunt, DropFromSky], element: Light, scale: 0.4, mass: 8.0)),
+            ], juice: Some((title: Some("FREAK QUICK"), punch: 3.0))),
+            // The broad attack: a running one-foot takeoff sideways across the net.
+            (name: "broad attack", cooldown: 1.6, cost: 5.0, tags: [Movement], ops: [Leap(range: 16.0, apex: 5.0)]),
+            // A receive: dig out the incoming hit.
+            (name: "receive", cooldown: 5.0, cost: 4.0, tags: [Defense], ops: [Deflect(secs: 0.6, angle: 60.0)]),
+        ],
+    ),
+    (
+        id: "kageyama_kit",
+        name: "Tobio Kageyama",
+        kind: Kit,
+        names: ["kageyama tobio", "tobio kageyama", "king of the court", "kageyama haikyuu"],
+        fx: "energy",
+        shouts: [("jump serve", 0), ("kageyama serve", 0), ("perfect set", 1)],
+        moves: [
+            (name: "jump serve", cooldown: 2.0, cost: 8.0, tags: [Primary], ops: [
+                Impulse(fwd: 6.0, up: 8.0),
+                Cast(recipe: (name: "served volleyball", form: Ball, mech: [Fast, Blunt, Heavy], element: Light, scale: 0.4, mass: 12.0)),
+            ], juice: Some((title: Some("JUMP SERVE")))),
+            // The perfect set: the ball (or the player) floats up exactly where it should be.
+            (name: "perfect set", cooldown: 4.0, cost: 6.0, tags: [], ops: [Afflict(range: 20.0, cone: 15.0, status: Some(Float), secs: 1.2, up: 9.0)]),
+        ],
+    ),
+
+    // ================================================================ COWBOY BEBOP
+    (
+        id: "spike_spiegel_kit",
+        name: "Spike Spiegel",
+        kind: Kit,
+        names: ["spike spiegel", "spike bebop", "spiegel", "space cowboy spike"],
+        fx: "chi",
+        shouts: [("jeet kune do", 0), ("spike kick", 0), ("bang spike", 1), ("jericho shot", 1), ("spike swordfish", 2), ("swordfish two", 2), ("spike slip", 3)],
+        moves: [
+            // Jeet Kune Do: a relaxed, flowing string of kicks.
+            (name: "jeet kune do", cooldown: 2.0, cost: 8.0, tags: [Primary, Combo], ops: [
+                Barrage(hits: 4, interval: 0.12, range: 3.2, angle: 80.0, damage: 5.0, knockback: 4.0, finish: 16.0, advance: 2.0),
+            ], juice: Some((title: Some("JEET KUNE DO")))),
+            // The Jericho 941: one shot, bang.
+            (name: "jericho shot", cooldown: 1.2, cost: 5.0, tags: [], ops: [
+                BounceBeam(length: 45.0, bounces: 0, radius: 0.3, damage: 10.0, knockback: 6.0),
+            ], juice: Some((title: Some("BANG")))),
+            // The Swordfish II makes a strafing pass.
+            (name: "swordfish", cooldown: 16.0, cost: 20.0, tags: [Ultimate], ops: [
+                Salvo(count: 8, delay: 0.5, interval: 0.06, radius: 2.0, damage: 8.0, knockback: 10.0, at: Aim, spread: 6.0),
+            ], juice: Some((title: Some("SWORDFISH II")))),
+            // Flow like water: slip the hit.
+            (name: "space cowboy", cooldown: 8.0, cost: 6.0, tags: [Counter], ops: [Evade(secs: 0.5, slow: 0.8, speed: 1.4, blink: 2.5)]),
+        ],
+    ),
+
+    // ================================================================ DEATH NOTE
+    // Careful: the Note never KOs by itself — writing a name plants a mark that bursts as a hard hit
+    // a few seconds later (visible, dodgeable like any hit). Ryuk only watches (and eats apples).
+    (
+        id: "light_yagami_kit",
+        name: "Light Yagami",
+        kind: Kit,
+        names: ["light yagami", "yagami light", "kira", "light yagami's"],
+        fx: "ink",
+        shouts: [("death note", 0), ("write their name", 0), ("write your name", 0), ("kira foresight", 1),
+                 ("kira judgment", 2)],
+        moves: [
+            // Write a name: 40 seconds is too long here — the mark bursts in five, a hit like any other.
+            (name: "death note", cooldown: 20.0, cost: 20.0, tags: [Ultimate], ops: [
+                DelayedHit(range: 40.0, cone: 12.0, secs: 5.0, damage: 18.0, knockback: 8.0, element: Shadow),
+            ], juice: Some((title: Some("DEATH NOTE"), color: Some((0.1, 0.1, 0.1)), impact_frame: Some("ink")))),
+            // Foresight: you saw it coming.
+            (name: "kira foresight", cooldown: 10.0, cost: 6.0, tags: [Counter], ops: [Evade(secs: 0.6, slow: 1.2, speed: 1.5)],
+             juice: Some((title: Some("KIRA")))),
+            // Judgment on everyone around you (still a delay, still just a hit).
+            (name: "kira judgment", cooldown: 40.0, cost: 40.0, tags: [], ops: [
+                DelayedHit(radius: 12.0, secs: 5.0, damage: 12.0, knockback: 6.0, element: Shadow),
+            ], juice: Some((title: Some("KIRA")))),
+        ],
+    ),
+    (
+        id: "ryuk_kit",
+        name: "Ryuk",
+        kind: Kit,
+        names: ["ryuk", "ryuk shinigami", "ryuk's"],
+        fx: "shadow",
+        shouts: [("shinigami eyes", 0), ("ryuk apple", 1)],
+        moves: [
+            // The eyes: you see their name (and where they are) — a reveal on whoever you look at.
+            (name: "shinigami eyes", cooldown: 10.0, cost: 6.0, tags: [], ops: [Afflict(range: 60.0, cone: 20.0, status: Some(Shadow), secs: 1.0)],
+             juice: Some((color: Some((1.0, 0.1, 0.1))))),
+            // An apple: a little health back.
+            (name: "ryuk apple", cooldown: 20.0, cost: 4.0, tags: [Defense], ops: [Mend(pct: 10.0)]),
+        ],
+    ),
+
+    // ---------------------------------------------------------------- MHA: Mirio / Overhaul / All For One
+    // Mirio: Permeation — everything passes through you; sink into the floor and get flung out behind them.
+    (
+        id: "mirio_kit",
+        name: "Mirio Togata",
+        kind: Kit,
+        names: ["mirio", "mirio togata", "lemillion", "togata mirio", "mirio's"],
+        fx: "energy",
+        shouts: [("permeation", 0), ("mirio permeation", 0), ("phantom menace", 1), ("mirio phantom menace", 1), ("mirio punch", 2)],
+        moves: [
+            // Permeation: attacks pass straight through you for a moment.
+            (name: "permeation", cooldown: 6.0, cost: 8.0, tags: [Defense], ops: [Phase(secs: 1.5)],
+             juice: Some((title: Some("PERMEATION")))),
+            // Phantom Menace: sink through the floor and get flung out right behind them, fist first.
+            (name: "phantom menace", cooldown: 3.0, cost: 12.0, tags: [Combo, Movement], ops: [
+                Phase(secs: 0.4),
+                WarpTo(range: 26.0, cone: 15.0, behind: 1.6),
+                Shove(range: 3.0, angle: 60.0, damage: 13.0, knockback: 18.0),
+            ], juice: Some((title: Some("PHANTOM MENACE"), punch: 3.0))),
+            (name: "mirio punch", cooldown: 0.8, cost: 4.0, tags: [Primary], ops: [Shove(range: 3.0, angle: 40.0, damage: 11.0, knockback: 14.0)]),
+        ],
+    ),
+    // Overhaul: touch the ground — it comes apart and reassembles as spikes and walls.
+    (
+        id: "overhaul_kit",
+        name: "Overhaul",
+        kind: Kit,
+        names: ["overhaul", "kai chisaki", "chisaki", "overhaul's"],
+        fx: "earth",
+        shouts: [("overhaul spikes", 0), ("overhaul reassemble", 0), ("overhaul wall", 1), ("overhaul cage", 2), ("overhaul fusion", 3), ("overhaul disassemble", 4)],
+        moves: [
+            // A forest of spikes erupts along the ground toward them.
+            (name: "overhaul spikes", cooldown: 2.0, cost: 10.0, tags: [Primary], ops: [
+                Erupt(length: 20.0, width: 1.4, height: 3.5, count: 9, damage: 11.0, launch: 16.0),
+            ], juice: Some((title: Some("OVERHAUL"), color: Some((0.2, 0.7, 0.6))))),
+            (name: "overhaul wall", cooldown: 4.0, cost: 8.0, tags: [Defense], ops: [
+                Erupt(length: 10.0, width: 1.2, height: 4.0, shape: Wall, dist: 3.0),
+            ]),
+            (name: "overhaul cage", cooldown: 8.0, cost: 12.0, tags: [], ops: [
+                Erupt(length: 7.0, width: 1.0, height: 4.5, count: 0, shape: Ring, at: Aim),
+            ]),
+            // Fusion: the ground reassembled into a giant spiked body around him.
+            (name: "overhaul fusion", cooldown: 30.0, cost: 40.0, tags: [Ultimate], ops: [
+                Erupt(length: 1.0, width: 3.0, height: 3.0, shape: Pillar, at: Me, launch: 8.0),
+                Empower(secs: 7.0, damage: 1.4, armor: 0.5, contact: 8.0, contact_kb: 16.0, contact_cd: 0.3),
+                SelfResize(scale: 1.5, secs: 7.0),
+            ], juice: Some((title: Some("OVERHAUL"), boom: true, shake: 0.3))),
+            // Disassemble: touch — they come apart a beat later.
+            (name: "disassemble", cooldown: 6.0, cost: 12.0, tags: [], ops: [
+                Grab(range: 3.0, hold: 0.25, damage: 4.0, knockback: 4.0),
+                DelayedHit(range: 4.0, cone: 20.0, secs: 0.6, damage: 16.0, knockback: 14.0),
+            ]),
+        ],
+    ),
+    // All For One: stolen quirks stacked on one arm.
+    (
+        id: "all_for_one_kit",
+        name: "All For One",
+        kind: Kit,
+        names: ["all for one", "afo", "all-for-one", "all for one's"],
+        fx: "shadow",
+        shouts: [("air cannon", 0), ("all for one air cannon", 0), ("steal quirk", 1), ("quirk steal", 1), ("rivet stab", 2), ("afo kinetic boost", 3),
+                 ("afo warp gate", 4)],
+        moves: [
+            // Air Cannon: a blast of compressed air from the palm.
+            (name: "air cannon", cooldown: 2.0, cost: 10.0, tags: [Primary], ops: [
+                Shove(range: 16.0, angle: 16.0, damage: 12.0, knockback: 26.0, element: Wind),
+            ], juice: Some((title: Some("AIR CANNON"), boom: true))),
+            // All For One: take their quirk — theirs is locked, and you use their last move.
+            (name: "steal quirk", cooldown: 20.0, cost: 40.0, tags: [Ultimate], ops: [
+                Lockout(range: 6.0, secs: 2.5),
+                CopyLast(range: 30.0, secs: 8.0),
+            ], juice: Some((title: Some("ALL FOR ONE"), color: Some((0.2, 0.1, 0.25))))),
+            // Rivet Stab: the arm becomes a lance of black spikes.
+            (name: "rivet stab", cooldown: 3.0, cost: 10.0, tags: [], ops: [
+                Shove(range: 7.0, angle: 20.0, damage: 14.0, knockback: 10.0, element: Shadow),
+            ]),
+            (name: "kinetic boost", cooldown: 20.0, cost: 20.0, tags: [], ops: [Empower(secs: 6.0, damage: 1.35, armor: 0.7)]),
+            // Warp Gate: a black portal swallows him and spits him out beside them.
+            (name: "warp gate", cooldown: 4.0, cost: 8.0, tags: [Movement], ops: [WarpTo(range: 40.0, cone: 20.0, behind: -2.0)]),
         ],
     ),
 ]

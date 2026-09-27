@@ -1,0 +1,54 @@
+BORROW DONE (TOOLBOX CORE, 2026-09-27)
+
+Saying / typing the SHOUT of ANY power, tier or kit you don't hold fires that move right now as a
+one-shot. Live in the console and voice (bd_game `toolbox.rs` → `Cmd::Toolbox`, protocol v40).
+Sim: bd_sim `powers::chain` (`World::borrow_move` / `World::toolbox`); reading:
+`powers::toolbox::MoveIndex::read`.
+
+PRIORITY (per phrase)
+  1. HELD: a shout / tier name / incantation of a power you hold (tier versions included) — as ever.
+  2. KIT: "<kit name> <move word>" (KIT_DONE).
+  3. A power / tier NAME (or anything the lexicon resolves to a GRANT: "power up", "devil fruit")
+     → grants, as ever. A name is never a borrow, even if some move also shouts it.
+  4. BORROW: the exact shout (normalised: case / punctuation / hyphens ignored) of any move of any
+     power, tier or kit → that move. A tier's shout borrows that tier's move at its base effect.
+  5. Otherwise the lexicon (constructs, costume summons…).
+
+WHAT A BORROW DOES
+- Runs the move's ops for you exactly like its holder would (same aim: the crosshair; host-validated).
+- NEVER grants the power, never transforms, never switches tiers: Transform / Tier ops are skipped,
+  and a move made ONLY of them is not borrowable at all (not in the index; saying the power's name
+  is how you become it). No ascend moment on a borrow — only the move's own `juice`.
+- Held context: ops are world ops, so they just work. A move that needs a body (a stand's rush) should
+  use a generic op that carries it (`Rush(stand: Some(recipe))`, …); otherwise the presentation draws a
+  ghost of the power's `companion` for the beat (PRESENTATION_API.md). A borrowed TimeStop / landing
+  slam works for powerless players too (ticked by the toolbox step).
+- A Lockout (hack / silence) on you blocks borrowed moves too.
+
+PRICE (the presence-tier SPARKS model; don't hand-tune)
+- `powers::chain::move_tier(&MoveDef)` → Tiny / Normal / Big / Titan by what the move does on screen
+  (a blink / dash / status is Tiny; a shove / small blast / field / yank Normal; a big blast, long
+  trench, restore Big; a time stop / gravity core / radius ≥ 9 or 35+ damage blast Titan; generic
+  ops count Normal), lifted by the move's `cost` weight (≥ 8 Normal, ≥ 20 Big, ≥ 40 Titan).
+- sparks = SparkTuning.tier[tier] (default Tiny 1 / Normal 2 / Big 3 / Titan 5) + `stale` (1) per
+  REPEAT of the same move inside the staleness window (`willpower.stale_window`), capped at the bar.
+  Cycling through different moves is always cheaper than spamming one.
+- Cast ops inside a move pay the cast pipeline's own presence-tier price (and a cast-only move adds
+  nothing on top). Infinite willpower: free.
+
+COOLDOWNS
+- Per player, per move: the move's `cooldown` (× cooldown effects of powers you hold), in a fixed
+  8-slot table (`Toolbox::cds`, alloc-free, rollback-safe; the slot closest to ready is reused when
+  full). Borrowing a held power's move is not possible (held priority), so held cooldowns stay theirs.
+
+GLOBAL MOVE ID
+- `MoveRef { power: u16, tier: u8, slot: u8 }`, packed `power << 8 | tier << 4 | slot`
+  (`MoveRef::pack / unpack / resolve`). On the wire inside `ToolStep::Move { mv, kit }`.
+
+CHECK YOUR SHOUTS
+  cargo run --profile fastrel -p bd_sim --example powers_check -- assets/powers/<file>.ron --coverage phrases.txt
+  - "WARN shout X: A keeps it; B loses it" = two moves claim one shout: the earlier file wins. Rename.
+  - "WARN shout X ... is another power's NAME" = it will grant that power, never fire your move.
+  - Single common words ("smash", "claws", "teleport") are GLOBAL now: anyone saying them fires your
+    move. Keep that for moves that truly own the word; otherwise make the shout specific.
+Tests: crates/bd_sim/tests/toolbox.rs (borrow / cooldown / staleness / price / never transforms).

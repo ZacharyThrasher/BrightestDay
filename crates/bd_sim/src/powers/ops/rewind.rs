@@ -93,7 +93,7 @@ impl World {
         if tr.ids[i] != Some(id) || tr.count[i] < 2 {
             return Err(PowerError::NoTarget);
         }
-        let want = ((secs.clamp(0.2, MAX_SECS) * 120.0 / SAMPLE_TICKS as f32).round() as usize).max(1);
+        let want = ((super::fclamp(secs, 0.2, MAX_SECS) * 120.0 / SAMPLE_TICKS as f32).round() as usize).max(1);
         let back = want.min(tr.count[i] as usize - 1);
         let to_s = tr.back(i, back);
         // The streak: 8 points from the rewind target (oldest) to now.

@@ -164,7 +164,7 @@
         fx: "earth",
         shouts: [("rock throw", 0), ("earth boulder", 0), ("boulder toss", 0), ("rock wall", 1), ("earthbending wall", 1), ("earth bending wall", 1),
                  ("rock spikes", 2), ("earthbending spikes", 2), ("earth bending spikes", 2), ("earth spears", 2), ("earth column", 3), ("rock pillar", 3),
-                 ("rock pillar", 3), ("earth launch", 3), ("earth armor", 4), ("rock armor", 4), ("earthquake", 5),
+                 ("earth launch", 3), ("earth armor", 4), ("rock armor", 4), ("earthquake", 5),
                  ("earth quake", 5), ("earth wave", 6), ("earth surf", 6), ("rock wave", 6), ("sinkhole", 7), ("sink hole", 7),
                  ("earth trap", 7)],
         moves: [
@@ -475,7 +475,7 @@
         kind: Kit,
         names: ["katara", "master katara", "katara of the water tribe", "catara", "kitara", "katarra", "katara's"],
         fx: "water",
-        shouts: [("octopus form katara", 1), ("katara bloodbending", 5)],
+        shouts: [("octopus form katara", 1), ("katara bloodbending", 5), ("bloodbending", 5), ("blood bending", 5), ("bloodbend", 5), ("blood bend", 5)],
         moves: [
             (name: "water whip", tags: [Primary], cooldown: 0.8, cost: 3.0, ops: [
                 Hook(range: 15.0, speed: 75.0, pull: 12.0, damage: 7.0, status: Some(Wet), secs: 2.0, anchor: false),
@@ -634,9 +634,9 @@
         id: "kit_iroh",
         name: "Iroh",
         kind: Kit,
-        names: ["iroh", "uncle iroh", "general iroh", "dragon of the west", "the dragon of the west", "irow", "eero", "iroh's"],
+        names: ["iroh", "uncle iroh", "general iroh", "irow", "eero", "iroh's"],
         fx: "fire",
-        shouts: [("dragon of the west breath", 1), ("breach the wall", 3)],
+        shouts: [("dragon of the west", 1), ("the dragon of the west", 1), ("dragon of the west breath", 1), ("breach the wall", 3)],
         moves: [
             (name: "fire fist", tags: [Primary], cooldown: 0.8, cost: 2.0, ops: [
                 Shove(range: 5.5, angle: 35.0, damage: 9.0, knockback: 16.0, element: Fire, up: 0.15),
@@ -712,7 +712,7 @@
         names: ["sokka", "sokka of the water tribe", "soka", "socka", "sokka's"],
         shouts: [("space sword", 1), ("boomerang aang", 0)],
         moves: [
-            // Boomerang: you DO always come back.
+            // Boomerang: thrown wide, it banks off the walls and comes home.
             (name: "boomerang", tags: [Primary], cooldown: 1.0, cost: 2.0, ops: [
                 Cast(recipe: (name: "sokka's boomerang", form: Disc, mech: [Returning, Ricochet, Blunt], scale: 0.5, mass: 3.0)),
             ]),
@@ -812,7 +812,7 @@
         names: ["optimus prime", "optimus", "optimus primes", "optimus prime's", "orion pax", "optimus prim", "optimist prime",
                 "optimus prine", "opimus prime", "optimus pryme"],
         fx: "energy",
-        shouts: [("energon axe", 0), ("ion blaster", 2), ("matrix of leadership", 7), ("optimus axe slam", 4)],
+        shouts: [("energon axe", 0), ("ion blaster", 2), ("optimus prime shoot", 2), ("optimus shoot", 2), ("optimus prime blaster", 2), ("optimus prime gun", 2), ("matrix of leadership", 7), ("optimus axe slam", 4)],
         moves: [
             // THE COMBO: the piloted truck's string on foot — three heavy slashes 0.3 s apart, each
             // driving a step in, and the energon-axe finisher that sends them across the map (the
@@ -1645,7 +1645,7 @@
         kind: Kit,
         names: ["rath", "rath's", "wrath alien"],
         moves: [
-            // Let me tell you something: CLAWS.
+            // Rath: all claws, all shouting.
             (name: "claws", tags: [Combo, Primary], cooldown: 1.8, cost: 3.0, ops: [
                 Barrage(hits: 6, interval: 0.1, range: 2.8, angle: 55.0, damage: 4.5, knockback: 5.0, finish: 24.0, advance: 4.0,
                         up: 0.3, blink: false, element: Light),
@@ -1943,7 +1943,7 @@
             // The sweep: hold the lasers and drag them across the whole arena.
             (name: "laser sweep", tags: [Ultimate], cooldown: 14.0, cost: 10.0, ops: [
                 Cast(recipe: (name: "homelander's lasers", form: Hands, mech: [Beam, Heavy], element: Fire, scale: 1.1), signature: Some(Beam)),
-            ], juice: Some((title: Some("I CAN DO WHATEVER I WANT"), boom: true, punch: 4.0, color: Some((1.0, 0.1, 0.1))))),
+            ], juice: Some((title: Some("HOMELANDER"), boom: true, punch: 4.0, color: Some((1.0, 0.1, 0.1))))),
             // A sonic clap: the air in front of him bursts.
             (name: "sonic clap", cooldown: 5.0, cost: 4.0, ops: [
                 Shove(range: 9.0, angle: 40.0, damage: 6.0, knockback: 30.0, element: Wind, up: 0.25),
@@ -1961,7 +1961,7 @@
         kind: Kit,
         names: ["a train", "a-train", "atrain", "a train's", "the a train"],
         fx: "speed",
-        shouts: [("compound v", 1), ("run through", 0)],
+        shouts: [("run through", 0)],
         moves: [
             // Run straight through them: everyone on the line is hit; you don't stop.
             (name: "run through", tags: [Primary, Movement], cooldown: 1.8, cost: 3.0, ops: [
@@ -2193,7 +2193,7 @@
             (name: "meeseeks box", tags: [Ultimate], cooldown: 18.0, cost: 7.0, ops: [
                 Cast(recipe: (name: "mr meeseeks", form: Biped, mech: [Walks, Blunt, Fast], element: Light, scale: 1.1, count: 4,
                               temperament: Aggressive, intensity: 1.0)),
-            ], juice: Some((title: Some("I'M MR. MEESEEKS! LOOK AT ME!")))),
+            ], juice: Some((title: Some("MR. MEESEEKS")))),
             // Laser pistol.
             (name: "laser", cooldown: 0.7, cost: 2.0, ops: [
                 Cast(recipe: (name: "rick's laser", form: Ball, mech: [Fast, Pierce], element: Electric, scale: 0.25, mass: 1.0)),
@@ -2342,7 +2342,7 @@
                     [Impulse(fwd: 6.0, up: 20.0), SelfStatus(status: Float, secs: 1.4)],
                     [Grab(range: 5.0, hold: 0.3, damage: 6.0, knockback: 24.0, up: 0.3, lift: 1.5, back: true)],
                 ]),
-            ], juice: Some((title: Some("BACON PANCAKES"))))
+            ], juice: Some((title: Some("SHAPE SHIFT"))))
         ],
     ),
     (
@@ -2964,7 +2964,7 @@
             // Chew a carrot, lean on nothing, and walk out of whatever they do.
             (name: "what's up doc", tags: [Counter], cooldown: 6.0, cost: 3.0, ops: [
                 Evade(secs: 1.2, slow: 0.8, speed: 1.4, blink: 3.0),
-            ], juice: Some((title: Some("EH, WHAT'S UP, DOC?")))),
+            ], juice: Some((title: Some("WHAT'S UP, DOC?")))),
         ],
     ),
     (
@@ -3006,7 +3006,7 @@
             // Unmask them: whatever they're holding or wearing comes off.
             (name: "unmask", tags: [Primary], cooldown: 6.0, cost: 3.0, ops: [
                 Disarm(range: 5.0, cone: 20.0, pull: true),
-            ], juice: Some((title: Some("AND I WOULD'VE GOTTEN AWAY WITH IT")))),
+            ], juice: Some((title: Some("UNMASKED!")))),
             // Jinkies: Velma spots the clue — they're exposed.
             (name: "jinkies", cooldown: 8.0, cost: 3.0, ops: [
                 Tag(range: 30.0, cone: 10.0, secs: 8.0),
@@ -3523,7 +3523,7 @@
         kind: Kit,
         names: ["doofenshmirtz", "dr doofenshmirtz", "doctor doofenshmirtz", "heinz doofenshmirtz", "doof", "doofenshmirtz's"],
         fx: "tech",
-        shouts: [("inator", 0), ("curse you perry the platypus", 1)],
+        shouts: [("inator", 0), ("doofenshmirtz self destruct", 1)],
         moves: [
             // The -inator: whichever one he grabbed today.
             (name: "inator", tags: [Primary, Ultimate], cooldown: 6.0, cost: 4.0, ops: [
@@ -3538,7 +3538,7 @@
             // Self-destruct button (every machine has one).
             (name: "self destruct", cooldown: 16.0, cost: 6.0, ops: [
                 Explode(radius: 7.0, damage: 14.0, knockback: 30.0, carve: 1.6, element: Fire, at: Front, dist: 4.0),
-            ], juice: Some((title: Some("CURSE YOU, PERRY THE PLATYPUS!"), boom: true))),
+            ], juice: Some((title: Some("SELF-DESTRUCT"), boom: true))),
         ],
     ),
     (
@@ -3875,7 +3875,7 @@
             // Dungeon: a year of it (well, a cage).
             (name: "dungeon", cooldown: 8.0, cost: 4.0, ops: [
                 Cast(recipe: (name: "lemon dungeon", form: Cage, mech: [Trap], element: Poison, scale: 1.3)),
-            ], juice: Some((title: Some("ONE MILLION YEARS DUNGEON")))),
+            ], juice: Some((title: Some("DUNGEON!")))),
         ],
     ),
 
@@ -3907,7 +3907,7 @@
         fx: "dark",
         shouts: [("ever living", 0), ("mumm ra the ever living", 0)],
         moves: [
-            // Ancient spirits of evil, transform this decayed form: he rises huge and armoured.
+            // The decayed mummy rises into his ever-living form: huge and armoured.
             (name: "ever living", tags: [Ultimate], cooldown: 20.0, cost: 6.0, ops: [
                 SelfResize(scale: 1.5, secs: 10.0),
                 Empower(secs: 10.0, damage: 1.35, armor: 0.7, contact: 0.0, contact_kb: 0.0, contact_cd: 0.0, element: Shadow),

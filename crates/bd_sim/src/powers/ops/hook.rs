@@ -57,11 +57,11 @@ impl World {
             return Err(PowerError::Busy);
         }
         let spec = HookSpec {
-            range: spec.range.clamp(1.0, MAX_RANGE),
-            speed: spec.speed.clamp(MIN_SPEED, MAX_SPEED),
-            pull: spec.pull.clamp(0.0, 45.0),
-            damage: spec.damage.clamp(0.0, 40.0),
-            secs: spec.secs.clamp(0.0, 1.2),
+            range: super::fclamp(spec.range, 1.0, MAX_RANGE),
+            speed: super::fclamp(spec.speed, MIN_SPEED, MAX_SPEED),
+            pull: super::fclamp(spec.pull, 0.0, 45.0),
+            damage: super::fclamp(spec.damage, 0.0, 40.0),
+            secs: super::fclamp(spec.secs, 0.0, 1.2),
             ..spec
         };
         let (eye, look) = self.op_eye_look(i);

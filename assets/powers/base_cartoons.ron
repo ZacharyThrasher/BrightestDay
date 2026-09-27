@@ -14,8 +14,9 @@
         incantations: ["turtle power", "cowabunga"],
         // "cowabunga <anything>": it comes out shell-guarded and bouncy.
         delivery: (add: [Guard, Bounce]),
-        shouts: [("cowabunga", 0), ("shell slide", 0), ("turtle power", 1), ("heroes in a half shell", 1),
-                 ("turtle shell spin", 2), ("shell spin turtle", 2), ("ninja vanish", 3), ("turtle vanish", 3)],
+        shouts: [("cowabunga", 0), ("shell slide", 0), ("heroes in a half shell", 1), ("turtle form", 1),
+                 ("turtle shell spin", 2), ("shell spin turtle", 2), ("ninja vanish", 3), ("turtle vanish", 3),
+                 ("turtle power", 4), ("turtles assemble", 4)],
         moves: [
             // Belly-down on the shell: slide into their shins and bowl them over (steer it).
             (name: "shell slide", cooldown: 1.6, cost: 5.0, ops: [
@@ -33,6 +34,11 @@
                 Explode(radius: 2.5, damage: 0.0, knockback: 3.0, element: Shadow),
                 Blink(dist: 10.0, afterimage: true),
             ], fx: "smoke"),
+            // TURTLE POWER: your three brothers drop in beside you and pile on.
+            (name: "turtle power", tags: [Ultimate], cooldown: 16.0, cost: 6.0, ops: [
+                Cast(recipe: (name: "ninja turtle brothers", form: Biped, mech: [Walks, Blade, Fast, Guard], element: Poison, scale: 1.0,
+                              count: 3, temperament: Aggressive, intensity: 0.8)),
+            ], juice: Some((title: Some("TURTLE POWER!"), color: Some((0.45, 1.0, 0.3))))),
         ],
         // Ninja turtle hybrid: nimble, and every cast carries the shell (Guard).
         transform: Some((ascend: Some((color: Some((0.45, 1.00, 0.30)), intensity: 0.9)), 
@@ -199,8 +205,8 @@
         incantations: ["omnitrix", "hero time", "it's hero time", "its hero time"],
         delivery: (add: [Piloted]),
         shouts: [("it's hero time", 0), ("its hero time", 0), ("hero time", 0), ("four arms", 0), ("heatblast", 1),
-                 ("going hero", 1), ("slap the omnitrix", 2), ("omnitrix malfunction", 2), ("random alien", 2),
-                 ("wrong alien", 2), ("omnitrix roulette", 2)],
+                 ("going hero", 1), ("random alien", 2), ("wrong alien", 2), ("alien roulette", 2),
+                 ("slap the watch", 2)],
         moves: [
             (name: "four arms", cooldown: 3.0, ops: [
                 Cast(recipe: (name: "four arms", form: Biped, mech: [Piloted, Grab, Blunt, Heavy], scale: 2.5, mass: 400.0)),

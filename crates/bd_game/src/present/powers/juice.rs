@@ -119,8 +119,17 @@ fn juice_events(
     for ev in events.read() {
         let GameEvent::Power(pe) = &ev.event else { continue };
         match pe {
-            PowerEvent::Move { player, power, slot } => {
-                let Some((j, name)) = move_juice(&views, *player, *power, *slot) else { continue };
+            PowerEvent::Move { .. } | PowerEvent::Fired { .. } => {
+                // TOOLBOX: a borrowed / kit move sends only `Fired` (a held move sends both: its juice
+                // plays once, from `Move`).
+                let (player, seed_power, juice) = match pe {
+                    PowerEvent::Move { player, power, slot } => (player, *power as u64, move_juice(&views, *player, *power, *slot)),
+                    PowerEvent::Fired { player, mv, how, .. } if *how != bd_sim::powers::chain::FireHow::Held => {
+                        (player, mv.power as u64, mv.resolve(PowerTable::get()).and_then(|(_, m)| m.juice.as_ref().map(|j| (j, m.name.as_str()))))
+                    }
+                    _ => continue,
+                };
+                let Some((j, name)) = juice else { continue };
                 let Some(v) = views.player(*player) else { continue };
                 let color = j.color.map(lin).unwrap_or(corps_rgb(v.corps));
                 let eye = v.pos + Vec3::Y * 1.6 * v.size;
@@ -177,7 +186,7 @@ fn juice_events(
                     sh.head = v.pos + Vec3::Y * 1.95 * v.size;
                     sh.toward = at;
                     sh.boost = if j.boom { 2.0 } else { 1.3 };
-                    sh.seed = ev.tick ^ (*power as u64) << 20;
+                    sh.seed = ev.tick ^ seed_power << 20;
                     // The caster reads it small, low-right and brief (never over the aim).
                     sh.compact = mine;
                     commands.spawn((Name::new("MoveTitle"), sh));
@@ -261,8 +270,8 @@ fn juice_events(
             PowerEvent::Op(bd_sim::powers::ops::OpEvent::Zap { player, from, to, element, .. }) => {
                 let corps = views.player(*player).map_or([1.0, 1.0, 1.0], |v| corps_rgb(v.corps));
                 let col = crate::present::signature::element_rgb(*element, corps);
-                zap.write(ZapFx { from: bv(*from), to: bv(*to), color: col, duration: 0.22 });
-                if !calm {
+                zap.write(ZapFx { from: bv(*from), to: bv(*to), color: col, duration: 0.35 });
+                if !calm && bv(*to).distance(cam) > 3.0 {
                     burst.write(BurstFx { kind: BurstKind::Flash, pos: bv(*to), dir: Vec3::ZERO, scale: 0.7, color: Some(col) });
                 }
             }
@@ -270,19 +279,27 @@ fn juice_events(
             PowerEvent::Op(bd_sim::powers::ops::OpEvent::Marked { player, target, burst: bursting, point, .. }) => {
                 let p = bv(*point);
                 let near = local.is_some_and(|l| l == *player || l == *target) || p.distance(cam) < 20.0;
+                // Never a flash in your own lens: the victim feels it (hitstop, shake), everyone else sees it.
+                let in_lens = p.distance(cam) < 3.0;
                 if *bursting {
-                    burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 1.8, color: Some([1.0, 0.9, 0.6]) });
-                    burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::ZERO, scale: 1.3, color: Some([0.9, 0.2, 0.25]) });
+                    if !in_lens {
+                        burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 1.8, color: Some([1.0, 0.9, 0.6]) });
+                    }
+                    burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::ZERO, scale: if in_lens { 0.5 } else { 1.3 }, color: Some([0.9, 0.2, 0.25]) });
                     sfx.write(Sfx3d::at("final_blow_suck", p).pitch(0.9));
                     if near && !calm {
                         hitstop.write(HitStop { secs: 0.1 });
                         shake.write(CameraShakeEvent { trauma: 0.2, dir: Vec3::ZERO });
                     }
                 } else {
-                    burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 0.6, color: Some([0.6, 0.05, 0.1]) });
+                    if !in_lens {
+                        burst.write(BurstFx { kind: BurstKind::Flash, pos: p, dir: Vec3::ZERO, scale: 0.6, color: Some([0.6, 0.05, 0.1]) });
+                    }
                     sfx.write(Sfx3d::at("hit_crit", p).pitch(1.5).gain(0.5));
                 }
             }
+            // ARENA GAMES ops (rewind streak, ram slam, hook catch, grab, stances, lock-on telegraph).
+            PowerEvent::Op(o) => arena_op_beat(o, &views, local, cam, calm, (&mut burst, &mut zap, &mut sfx, &mut shake, &mut hitstop)),
             _ => {}
         }
     }
@@ -450,5 +467,150 @@ mod tests {
         assert_eq!(super::ripple_near_fade(0.0), 0.0, "through the lens: hidden");
         assert!(super::ripple_near_fade(0.9) > 0.2 && super::ripple_near_fade(0.9) < 0.8);
         assert_eq!(super::ripple_near_fade(3.0), 1.0, "far: untouched");
+    }
+}
+
+type ArenaOut<'a, 'w> = (
+    &'a mut MessageWriter<'w, BurstFx>,
+    &'a mut MessageWriter<'w, ZapFx>,
+    &'a mut MessageWriter<'w, Sfx3d>,
+    &'a mut MessageWriter<'w, CameraShakeEvent>,
+    &'a mut MessageWriter<'w, HitStop>,
+);
+
+/// The moments of the arena-games generic ops (`bd_sim::powers::ops`, CONTENT: ARENA GAMES). Their
+/// body beats (dash, reel, reach, field) come from movefx's op aliases; these are the payoffs.
+fn arena_op_beat(o: &bd_sim::powers::ops::OpEvent, views: &WorldViews, local: Option<PlayerId>, cam: Vec3, calm: bool, out: ArenaOut) {
+    use bd_sim::powers::ops::{GrabPhase, HookPhase, LockPhase, OpEvent, RamPhase, StanceKind};
+    let (burst, zap, sfx, shake, hitstop) = out;
+    let chest = |id: PlayerId| views.player(id).map(|v| v.pos + Vec3::Y * 1.1 * v.size);
+    let flash = |burst: &mut MessageWriter<BurstFx>, pos: Vec3, scale: f32, color: [f32; 3]| {
+        burst.write(BurstFx { kind: BurstKind::Flash, pos, dir: Vec3::ZERO, scale, color: Some(color) });
+    };
+    let involved = |a: PlayerId, b: Option<PlayerId>| local.is_some_and(|l| l == a || Some(l) == b);
+    match o {
+        // Rewind: a blue streak back along the route you took, a flash at both ends.
+        OpEvent::Rewound { from, to, path, .. } => {
+            let blue = [0.3, 0.75, 1.0];
+            for w in path.windows(2) {
+                zap.write(ZapFx { from: bv(w[0]) + Vec3::Y, to: bv(w[1]) + Vec3::Y, color: blue, duration: 0.35 });
+            }
+            zap.write(ZapFx { from: bv(path[7]) + Vec3::Y, to: bv(*from) + Vec3::Y, color: blue, duration: 0.35 });
+            flash(burst, bv(*from) + Vec3::Y, 1.0, blue);
+            flash(burst, bv(*to) + Vec3::Y, 1.4, blue);
+            sfx.write(Sfx3d::at("dodge", bv(*to)).pitch(0.6).gain(0.9));
+        }
+        OpEvent::Ram { player, phase, target, pos, .. } => {
+            let p = bv(*pos);
+            match phase {
+                RamPhase::Pinned => {
+                    flash(burst, p, 1.0, [1.0, 0.85, 0.5]);
+                    sfx.write(Sfx3d::at("hit_crit", p).pitch(0.7));
+                }
+                RamPhase::Slam => {
+                    flash(burst, p, 2.4, [1.0, 0.85, 0.5]);
+                    burst.write(BurstFx { kind: BurstKind::Dust, pos: p, dir: Vec3::ZERO, scale: 2.2, color: None });
+                    burst.write(BurstFx { kind: BurstKind::Shards, pos: p, dir: Vec3::ZERO, scale: 1.3, color: None });
+                    sfx.write(Sfx3d::at("explosion_big", p).pitch(0.8).gain(0.9));
+                    if !calm && (involved(*player, *target) || p.distance(cam) < 18.0) {
+                        shake.write(CameraShakeEvent { trauma: 0.3, dir: Vec3::ZERO });
+                        hitstop.write(HitStop { secs: 0.09 });
+                    }
+                }
+                RamPhase::Hit => flash(burst, p, 1.2, [1.0, 0.9, 0.7]),
+                RamPhase::Bonk => {
+                    burst.write(BurstFx { kind: BurstKind::Dust, pos: p, dir: Vec3::ZERO, scale: 1.0, color: None });
+                    sfx.write(Sfx3d::at("collapse_rumble", p).gain(0.5));
+                }
+                RamPhase::Escaped => {
+                    burst.write(BurstFx { kind: BurstKind::Smoke, pos: p, dir: Vec3::ZERO, scale: 0.8, color: None });
+                }
+                _ => {}
+            }
+        }
+        // Hook: the chain from the thrower to whatever it bit.
+        OpEvent::Hook { player, phase: phase @ (HookPhase::Caught | HookPhase::Anchored), pos, .. } => {
+            let p = bv(*pos);
+            if let Some(h) = chest(*player) {
+                zap.write(ZapFx { from: h, to: p, color: [0.9, 0.8, 0.5], duration: if *phase == HookPhase::Caught { 0.5 } else { 0.3 } });
+            }
+            flash(burst, p, 0.9, [1.0, 0.85, 0.5]);
+            sfx.write(Sfx3d::at("hook_fire", p).pitch(0.75));
+        }
+        OpEvent::Grab { player, phase, target, pos, .. } => {
+            let p = bv(*pos);
+            match phase {
+                GrabPhase::Seize => {
+                    flash(burst, p, 1.0, [1.0, 0.95, 0.8]);
+                    sfx.write(Sfx3d::at("hit_crit", p).pitch(0.55));
+                }
+                GrabPhase::Throw => {
+                    flash(burst, p, 1.8, [1.0, 0.9, 0.7]);
+                    burst.write(BurstFx { kind: BurstKind::Dust, pos: p, dir: Vec3::ZERO, scale: 1.4, color: None });
+                    sfx.write(Sfx3d::at("explosion_big", p).pitch(1.1).gain(0.6));
+                    if !calm && involved(*player, *target) {
+                        shake.write(CameraShakeEvent { trauma: 0.22, dir: Vec3::ZERO });
+                    }
+                }
+                GrabPhase::Whiff => {
+                    burst.write(BurstFx { kind: BurstKind::Smoke, pos: p, dir: Vec3::ZERO, scale: 0.5, color: None });
+                }
+            }
+        }
+        OpEvent::Stance { player, kind, .. } => {
+            let col = match kind {
+                StanceKind::Deflect => [0.5, 1.0, 0.55],
+                StanceKind::Counter => [0.9, 0.95, 1.0],
+                StanceKind::Guard => [1.0, 0.85, 0.35],
+            };
+            if let Some(c) = chest(*player) {
+                flash(burst, c, 0.9, col);
+                sfx.write(Sfx3d::at("dodge", c).pitch(1.45).gain(0.6));
+            }
+        }
+        OpEvent::Parried { kind, pos, .. } => {
+            let p = bv(*pos);
+            let col = if *kind == StanceKind::Deflect { [0.5, 1.0, 0.55] } else { [1.0, 0.95, 0.8] };
+            flash(burst, p, 1.0, col);
+            sfx.write(Sfx3d::at("hit_crit", p).pitch(1.7).gain(0.6));
+        }
+        // Lock-on: EVERYONE hears it start; a full mark flashes red over the marked head; the shot.
+        OpEvent::LockOn { player, phase, target, frac, .. } => match phase {
+            LockPhase::Start => {
+                if let Some(c) = chest(*player) {
+                    flash(burst, c, 1.2, [1.0, 0.25, 0.15]);
+                    sfx.write(Sfx3d::at("ult_charge", c).pitch(0.5).gain(1.0));
+                }
+            }
+            LockPhase::Mark => {
+                if let Some(v) = target.and_then(|t| views.player(t)) {
+                    let head = v.pos + Vec3::Y * 2.1 * v.size;
+                    flash(burst, head, if *frac >= 1.0 { 0.9 } else { 0.5 }, [1.0, 0.1, 0.08]);
+                    if *frac >= 1.0 {
+                        sfx.write(Sfx3d::at("hit_crit", head).pitch(2.0).gain(0.4));
+                    }
+                }
+            }
+            LockPhase::Fire => {
+                if let Some(c) = chest(*player) {
+                    flash(burst, c, 1.6, [1.0, 0.8, 0.4]);
+                    sfx.write(Sfx3d::at("explosion_big", c).pitch(1.5).gain(0.8));
+                }
+            }
+            LockPhase::Broken => {
+                if let Some(c) = chest(*player) {
+                    burst.write(BurstFx { kind: BurstKind::Smoke, pos: c, dir: Vec3::ZERO, scale: 0.7, color: None });
+                }
+            }
+        },
+        OpEvent::LockedOut { player, target, .. } => {
+            let purple = [0.7, 0.3, 1.0];
+            if let (Some(a), Some(b)) = (chest(*player), chest(*target)) {
+                zap.write(ZapFx { from: a, to: b, color: purple, duration: 0.3 });
+                flash(burst, b, 1.0, purple);
+                sfx.write(Sfx3d::at("dodge", b).pitch(0.5).gain(0.7));
+            }
+        }
+        _ => {}
     }
 }

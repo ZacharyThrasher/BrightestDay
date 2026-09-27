@@ -60,7 +60,7 @@
             // Urbosa snaps: a beat of charge, then lightning finds EVERY enemy near you. Dodgeable
             // (the marks show). ends: grounded, everyone near micro-stunned — close in.
             (name: "urbosa's fury", fx: "lightning", tags: [Ultimate], cooldown: 16.0, cost: 18.0, ops: [
-                Salvo(count: 5, delay: 0.55, interval: 0.07, radius: 3.0, damage: 13.0, knockback: 14.0, element: Electric,
+                Salvo(cut: true, count: 5, delay: 0.55, interval: 0.07, radius: 3.0, damage: 13.0, knockback: 14.0, element: Electric,
                       at: Me, spread: 14.0, seek: true),
             ], juice: Some((title: Some("URBOSA'S FURY"), boom: true, punch: 3.0, shake: 0.2, color: Some((1.0, 0.85, 0.3))))),
             // Mipha's healing water: a big heal, then a trickle while nobody touches you.
@@ -1126,7 +1126,7 @@
              juice: Some((title: Some("TIID KLO UL"), ripple: 10.0, color: Some((0.7, 0.75, 0.9))))),
             // Strun bah qo: the sky answers — lightning onto everyone near you, one by one.
             (name: "strun bah qo", fx: "lightning", tags: [Ultimate], cooldown: 24.0, cost: 18.0, ops: [
-                Salvo(count: 8, delay: 0.8, interval: 0.35, radius: 3.0, damage: 12.0, knockback: 12.0, element: Electric, at: Me,
+                Salvo(cut: true, count: 8, delay: 0.8, interval: 0.35, radius: 3.0, damage: 12.0, knockback: 12.0, element: Electric, at: Me,
                       spread: 18.0, seek: true),
             ], juice: Some((title: Some("STRUN BAH QO"), boom: true, color: Some((0.7, 0.8, 1.0))))),
         ],
@@ -1246,14 +1246,14 @@
             // A draw so fast you only see the sheath close: three spatial cuts open where you're
             // LOOKING, a beat later. ends: in place — the cuts land at range while you move.
             (name: "judgment cut", tags: [Primary], cooldown: 1.6, cost: 5.0, ops: [
-                Salvo(count: 3, delay: 0.3, interval: 0.07, radius: 2.4, damage: 9.0, knockback: 8.0, element: Psychic, at: Aim, spread: 1.6),
+                Salvo(cut: true, count: 3, delay: 0.3, interval: 0.07, radius: 2.4, damage: 9.0, knockback: 8.0, element: Psychic, at: Aim, spread: 1.6),
             ], juice: Some((title: Some("JUDGMENT CUT"), punch: 2.0, color: Some((0.45, 0.6, 1.0))))),
             // Time stops for everyone else (a slow you move through), and when the sheath clicks, the
             // whole space around you shatters into cuts. ends: grounded, sheathed, everything cut.
             (name: "judgment cut end", tags: [Ultimate], cooldown: 30.0, cost: 26.0, ops: [
                 TimeStop(secs: 1.4, speed: 2.4),
                 DelayedHit(range: 30.0, radius: 14.0, secs: 1.4, damage: 18.0, knockback: 16.0, element: Psychic),
-                Salvo(count: 10, delay: 1.4, interval: 0.03, radius: 2.6, damage: 4.0, knockback: 8.0, element: Psychic, at: Me, spread: 14.0),
+                Salvo(cut: true, count: 10, delay: 1.4, interval: 0.03, radius: 2.6, damage: 4.0, knockback: 8.0, element: Psychic, at: Me, spread: 14.0),
             ], juice: Some((title: Some("JUDGMENT CUT END"), boom: true, punch: 6.0, shake: 0.35, ripple: 16.0,
                             color: Some((0.45, 0.6, 1.0))))),
             // Blur through them, the cut arriving after you. ends: past them.
@@ -1418,7 +1418,7 @@
             ], juice: Some((title: Some("RAGNAROK"), boom: true, color: Some((0.9, 0.95, 1.0))))),
             // Thundaga: bolts onto everyone near.
             (name: "thundaga", fx: "lightning", tags: [Primary], cooldown: 4.0, cost: 6.0, ops: [
-                Salvo(count: 4, delay: 0.35, interval: 0.1, radius: 2.4, damage: 8.0, knockback: 8.0, element: Electric, at: Me,
+                Salvo(cut: true, count: 4, delay: 0.35, interval: 0.1, radius: 2.4, damage: 8.0, knockback: 8.0, element: Electric, at: Me,
                       spread: 12.0, seek: true),
             ], juice: Some((color: Some((1.0, 0.95, 0.4))))),
             // Firaga: a fireball that bursts.
@@ -1432,7 +1432,7 @@
             ]),
             // Pillars of light rise round you.
             (name: "trinity limit", tags: [Ultimate], cooldown: 24.0, cost: 18.0, ops: [
-                Salvo(count: 6, delay: 0.5, interval: 0.12, radius: 3.0, damage: 12.0, knockback: 20.0, element: Light, at: Me,
+                Salvo(cut: true, count: 6, delay: 0.5, interval: 0.12, radius: 3.0, damage: 12.0, knockback: 20.0, element: Light, at: Me,
                       spread: 9.0, up: 12.0),
             ], juice: Some((title: Some("TRINITY LIMIT"), boom: true, punch: 4.0, color: Some((1.0, 0.95, 0.7))))),
         ],
@@ -1638,7 +1638,7 @@
                             color: Some((0.5, 0.7, 1.0))))),
             // Knights of the Round: thirteen strikes you paint with the crosshair.
             (name: "knights of the round", fx: "holy", tags: [Ultimate], cooldown: 45.0, cost: 30.0, ops: [
-                Salvo(count: 13, delay: 0.5, interval: 0.28, radius: 2.8, damage: 9.0, knockback: 12.0, element: Light, at: Aim,
+                Salvo(cut: true, count: 13, delay: 0.5, interval: 0.28, radius: 2.8, damage: 9.0, knockback: 12.0, element: Light, at: Aim,
                       spread: 2.0, track: true),
             ], juice: Some((title: Some("KNIGHTS OF THE ROUND"), boom: true, punch: 4.0, color: Some((1.0, 0.9, 0.6))))),
             // Ifrit's Hellfire: the ground ahead goes up.
@@ -1653,7 +1653,7 @@
             ], juice: Some((title: Some("DIAMOND DUST"), ripple: 7.0, color: Some((0.7, 0.9, 1.0))))),
             // Ramuh's Judgment Bolt: lightning onto everyone near.
             (name: "judgment bolt", fx: "lightning", tags: [Primary], cooldown: 12.0, cost: 12.0, ops: [
-                Salvo(count: 6, delay: 0.7, interval: 0.05, radius: 2.8, damage: 12.0, knockback: 10.0, element: Electric, at: Me,
+                Salvo(cut: true, count: 6, delay: 0.7, interval: 0.05, radius: 2.8, damage: 12.0, knockback: 10.0, element: Electric, at: Me,
                       spread: 20.0, seek: true),
             ], juice: Some((title: Some("JUDGMENT BOLT"), boom: true, color: Some((1.0, 0.95, 0.5))))),
             // Odin's Zantetsuken: one horseman's cut across everything in front.
@@ -1834,7 +1834,7 @@
             // Lightning from your hands to everyone near, chaining.
             (name: "stormtrance", fx: "lightning", tags: [Ultimate], cooldown: 26.0, cost: 18.0, ops: [
                 SelfStatus(status: Float, secs: 2.5),
-                Salvo(count: 10, delay: 0.2, interval: 0.2, radius: 2.4, damage: 7.0, knockback: 6.0, element: Electric, at: Me,
+                Salvo(cut: true, count: 10, delay: 0.2, interval: 0.2, radius: 2.4, damage: 7.0, knockback: 6.0, element: Electric, at: Me,
                       spread: 14.0, seek: true),
             ], juice: Some((title: Some("STORMTRANCE"), color: Some((0.5, 0.8, 1.0))))),
             // Plant the sword: a well of light heals you while you stand in it.
@@ -2071,7 +2071,7 @@
             ], juice: Some((title: Some("THUNDER DROP"), color: Some((0.5, 0.75, 1.0))))),
             // Paint lightning from the sky with the crosshair.
             (name: "lightning storm", tags: [Ultimate], cooldown: 26.0, cost: 18.0, ops: [
-                Salvo(count: 10, delay: 0.3, interval: 0.2, radius: 2.4, damage: 9.0, knockback: 10.0, element: Electric, at: Aim, track: true),
+                Salvo(cut: true, count: 10, delay: 0.3, interval: 0.2, radius: 2.4, damage: 9.0, knockback: 10.0, element: Electric, at: Aim, track: true),
             ], juice: Some((title: Some("LIGHTNING STORM"), boom: true, color: Some((0.5, 0.75, 1.0))))),
             // A tornado of charged air at the crosshair.
             (name: "ionic vortex", tags: [Ultimate], cooldown: 20.0, cost: 14.0, ops: [
@@ -2119,7 +2119,7 @@
             // The devastator: tendrils burst out of you in every direction.
             (name: "tendril barrage", tags: [Ultimate], cooldown: 22.0, cost: 18.0, ops: [
                 Explode(radius: 10.0, damage: 20.0, knockback: 30.0, element: Shadow, carve: 1.4),
-                Salvo(count: 6, delay: 0.3, interval: 0.05, radius: 2.4, damage: 8.0, knockback: 10.0, element: Shadow, at: Me,
+                Salvo(cut: true, count: 6, delay: 0.3, interval: 0.05, radius: 2.4, damage: 8.0, knockback: 10.0, element: Shadow, at: Me,
                       spread: 12.0, seek: true),
             ], juice: Some((title: Some("TENDRIL BARRAGE"), boom: true, punch: 5.0, shake: 0.35, color: Some((0.6, 0.1, 0.1))))),
             // Spikes erupt from the ground under them.
@@ -2274,7 +2274,7 @@
             ], juice: Some((color: Some((0.9, 0.2, 0.2))))),
             // Zeus's Aid: lightning keeps striking everyone near you.
             (name: "zeus' aid", fx: "lightning", tags: [Ultimate], cooldown: 22.0, cost: 16.0, ops: [
-                Salvo(count: 10, delay: 0.25, interval: 0.25, radius: 2.4, damage: 9.0, knockback: 8.0, element: Electric, at: Me,
+                Salvo(cut: true, count: 10, delay: 0.25, interval: 0.25, radius: 2.4, damage: 9.0, knockback: 8.0, element: Electric, at: Me,
                       spread: 14.0, seek: true),
             ], juice: Some((title: Some("ZEUS' AID"), color: Some((1.0, 0.95, 0.4))))),
             // Poseidon's Aid: a wave out of you, over and over.
@@ -2366,7 +2366,7 @@
         moves: [
             // Skull cannons open around you and fire.
             (name: "gaster blaster", fx: "hardlight", tags: [Ultimate], cooldown: 14.0, cost: 12.0, ops: [
-                Salvo(count: 4, delay: 0.6, interval: 0.15, radius: 2.4, damage: 10.0, knockback: 14.0, element: Light, at: Aim, spread: 5.0),
+                Salvo(cut: true, count: 4, delay: 0.6, interval: 0.15, radius: 2.4, damage: 10.0, knockback: 14.0, element: Light, at: Aim, spread: 5.0),
             ], juice: Some((title: Some("GASTER BLASTER"), boom: true, color: Some((0.9, 0.95, 1.0))))),
             // Bones burst up from the floor in a line.
             (name: "bone attack", tags: [Primary], cooldown: 2.0, cost: 4.0, ops: [
@@ -2712,7 +2712,7 @@
                 Shove(range: 10.0, angle: 45.0, damage: 3.0, knockback: 20.0, element: Wind),
             ]),
             (name: "thunderstorm", fx: "lightning", tags: [Ultimate], cooldown: 18.0, cost: 12.0, ops: [
-                Salvo(count: 5, delay: 0.5, interval: 0.1, radius: 2.4, damage: 11.0, knockback: 10.0, element: Electric, at: Aim, spread: 6.0),
+                Salvo(cut: true, count: 5, delay: 0.5, interval: 0.1, radius: 2.4, damage: 11.0, knockback: 10.0, element: Electric, at: Aim, spread: 6.0),
             ]),
             // Veil of Mist: the world slows.
             (name: "veil of mist", fx: "steam", tags: [Counter], cooldown: 18.0, cost: 10.0, ops: [TimeStop(secs: 2.0, speed: 2.0)],
@@ -2856,7 +2856,7 @@
             // Grand Cross: crosses of light pour off you.
             (name: "grand cross", tags: [Ultimate], cooldown: 22.0, cost: 16.0, ops: [
                 Explode(radius: 9.0, damage: 16.0, knockback: 24.0, element: Light),
-                Salvo(count: 6, delay: 0.4, interval: 0.1, radius: 2.4, damage: 8.0, knockback: 12.0, element: Light, at: Me,
+                Salvo(cut: true, count: 6, delay: 0.4, interval: 0.1, radius: 2.4, damage: 8.0, knockback: 12.0, element: Light, at: Me,
                       spread: 12.0, seek: true),
             ], juice: Some((title: Some("GRAND CROSS"), boom: true, color: Some((1.0, 0.95, 0.7))))),
             // Hydro storm: the sky pours holy rain.

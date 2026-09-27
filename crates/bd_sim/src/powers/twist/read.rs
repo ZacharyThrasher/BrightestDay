@@ -19,7 +19,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::ModTable;
-use crate::powers::toolbox::{MoveIndex, Reading};
+use crate::powers::toolbox::{KitMatch, MoveIndex, Reading};
 use crate::powers::{norm_words, PlayerPower, PowerPhrase, PowerTable};
 
 /// What a side's core is.
@@ -65,6 +65,7 @@ pub struct WordIndex {
     fillers: HashSet<String>,
     articles: HashSet<String>,
     tails: HashSet<String>,
+    trailing: HashSet<String>,
     numbers: HashMap<String, u32>,
     infix: Vec<Vec<String>>,
     prefix: Vec<Vec<String>>,
@@ -90,6 +91,7 @@ impl WordIndex {
         ix.fillers = t.fillers.iter().cloned().collect();
         ix.articles = t.articles.iter().cloned().collect();
         ix.tails = t.tails.iter().cloned().collect();
+        ix.trailing = t.trailing.iter().cloned().collect();
         ix.numbers = t.numbers.iter().cloned().collect();
         let longest_first = |v: &[String]| {
             let mut out: Vec<Vec<String>> = v.iter().map(|s| split_words(s)).filter(|w| !w.is_empty()).collect();
@@ -151,14 +153,41 @@ pub fn tokenize(text: &str) -> (Vec<String>, usize) {
 pub const MAX_CHARS: usize = 160;
 pub const MAX_TOKENS: usize = 24;
 
-/// The reader: tables + who is reading + the famous-cast predicate.
+/// What the lexicon makes of a core phrase (the caller's judge; bd_game asks the lexicon).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Lex {
+    /// A famous move the lexicon casts as a signature ("spirit bomb", "hadouken").
+    Famous,
+    /// An everyday thing it builds as a plain construct ("hammer", "flaming sword", "fireball"):
+    /// never a twist core, even if some power shouts that word — "a giant flaming hammer" stays
+    /// the hammer.
+    Everyday,
+    /// Anything else.
+    Other,
+}
+
+/// THE judge rule, from what the lexicon resolved a core phrase to (one rule for the game, the
+/// preview tool and the tests): a signature → Famous; a plain construct built from the phrase's own
+/// words (not a curated icon, not a graft, sure of itself, named exactly what was said) → Everyday.
+pub fn judge_of(signature: bool, construct: bool, curated: bool, confidence: f32, resolved_name: &str, phrase: &str) -> Lex {
+    if signature {
+        Lex::Famous
+    } else if construct && !curated && confidence >= 0.95 && resolved_name == norm_words(phrase) {
+        Lex::Everyday
+    } else {
+        Lex::Other
+    }
+}
+
+/// The reader: tables + who is reading + the lexicon judge.
 pub struct Reader<'a> {
     pub t: &'a ModTable,
     pub powers: &'a PowerTable,
     pub ix: &'a MoveIndex,
     pub held: Option<&'a PlayerPower>,
-    /// Is this phrase a famous cast the lexicon knows (a signature name)? Called last, rarely.
-    pub cast: &'a dyn Fn(&str) -> bool,
+    /// The lexicon's view of a core phrase. Called only for borrowed-shout cores and as the last
+    /// resort (famous casts), so the cheap toolbox reading does most of the work.
+    pub judge: &'a dyn Fn(&str) -> Lex,
 }
 
 impl<'a> Reader<'a> {
@@ -169,7 +198,10 @@ impl<'a> Reader<'a> {
     /// The whole reading of a line, or `None` (not a twisted / fused move: the toolbox or the
     /// lexicon reads it as ever).
     pub fn read(&self, text: &str) -> Option<TwistReading> {
-        let (toks, bangs) = tokenize(text);
+        let (mut toks, bangs) = tokenize(text);
+        while toks.len() > 1 && toks.last().is_some_and(|w| self.w().trailing.contains(w)) {
+            toks.pop();
+        }
         if toks.is_empty() {
             return None;
         }
@@ -177,14 +209,16 @@ impl<'a> Reader<'a> {
         if bangs >= self.t.caps.bang as usize && self.t.caps.bang > 0 {
             whole.extend(self.t.bang());
         }
-        // Already a move as said: the toolbox's (the authored version wins).
+        // Already a move as said: the toolbox's (the authored version wins). A kit reading only
+        // counts when it is exact — a fuzzy one ("doomfist giant punch") may hide modifiers.
         let plain = toks.join(" ");
-        if self.move_core(&plain).is_some() {
+        let fuzzy_kit = self.ix.kit_move(self.powers, &norm_words(&plain)).is_some_and(|(_, why)| why != KitMatch::Exact);
+        let symbol = toks.iter().any(|t| t == "+" || t == "&");
+        if !fuzzy_kit && !symbol && let Some(r) = self.move_core(&plain) {
             if whole.is_empty() {
                 return None;
             }
-            let core = self.core_of(&toks)?;
-            return Some(TwistReading { a: SideReading { core, core_text: plain, mods: vec![] }, b: None, mods: whole });
+            return Some(TwistReading { a: SideReading { core: Core::Move(r), core_text: plain, mods: vec![] }, b: None, mods: whole });
         }
         if let Some((a, b)) = self.fusion(&toks) {
             return Some(TwistReading { a, b: Some(b), mods: whole });
@@ -224,21 +258,26 @@ impl<'a> Reader<'a> {
         }
     }
 
-    fn core_of(&self, toks: &[String]) -> Option<Core> {
-        if toks.is_empty() {
-            return None;
+    /// A move core that is not an everyday thing: a borrowed shout naming a plain construct
+    /// ("hammer") is refused; held and kit moves are explicit and always kept.
+    fn move_core_judged(&self, text: &str) -> Option<Reading> {
+        let r = self.move_core(text)?;
+        match r {
+            Reading::Borrow(_) if (self.judge)(text) == Lex::Everyday => None,
+            // a fuzzy kit match with modifier words inside ("doomfist giant punch") is not the
+            // core: the modifiers come out first
+            Reading::Kit(_)
+                if self.ix.kit_move(self.powers, &norm_words(text)).is_some_and(|(_, why)| why != KitMatch::Exact)
+                    && text.split(' ').any(|w| self.w().phrases.contains_key(w)) =>
+            {
+                None
+            }
+            r => Some(r),
         }
-        let text = toks.join(" ");
-        if let Some(r) = self.move_core(&text) {
-            return Some(Core::Move(r));
-        }
-        if (self.cast)(&text) {
-            return Some(Core::Cast(text));
-        }
-        None
     }
 
-    /// `core_of`, trying the singular of a plural last word too ("rasengans", "fireballs").
+    /// `move_core_judged` / a famous cast, trying the singular of a plural last word too
+    /// ("rasengans", "fireballs").
     fn core_plural(&self, toks: &[String], cheap: bool) -> Option<(Core, Vec<String>)> {
         let mut variants: Vec<Vec<String>> = vec![toks.to_vec()];
         if let Some(last) = toks.last() {
@@ -251,7 +290,7 @@ impl<'a> Reader<'a> {
             }
         }
         for v in &variants {
-            if let Some(r) = self.move_core(&v.join(" ")) {
+            if let Some(r) = self.move_core_judged(&v.join(" ")) {
                 return Some((Core::Move(r), v.clone()));
             }
         }
@@ -260,7 +299,7 @@ impl<'a> Reader<'a> {
         }
         for v in &variants {
             let text = v.join(" ");
-            if (self.cast)(&text) {
+            if (self.judge)(&text) == Lex::Famous {
                 return Some((Core::Cast(text), v.clone()));
             }
         }
@@ -347,7 +386,12 @@ impl<'a> Reader<'a> {
                 && let Some(ids) = self.all_mods(&toks[p + 1..])
             {
                 tail = ids;
-                end = p;
+                // "but with lightning", "and also with fire"
+                let mut s = p;
+                while s > 1 && w.tails.contains(&toks[s - 1]) {
+                    s -= 1;
+                }
+                end = s;
                 break;
             }
         }
@@ -410,7 +454,7 @@ impl<'a> Reader<'a> {
                     let mut mods: Vec<u8> = spans[..k].iter().map(|s| s.0).collect();
                     mods.extend(sfx[..j].iter().rev().map(|s| s.0));
                     mods.extend(tail.iter().copied());
-                    return Some(SideReading { core: c, core_text: words.join(" "), mods });
+                    return Some(SideReading { core: c, core_text: words.join(" "), mods: dedup(mods) });
                 }
             }
             let post: Vec<u8> = sfx.iter().rev().map(|s| s.0).chain(tail.iter().copied()).collect();
@@ -441,7 +485,7 @@ impl<'a> Reader<'a> {
                     let mut mods: Vec<u8> = spans.iter().map(|s| s.0).collect();
                     mods.extend(inner);
                     mods.extend(post.iter().copied());
-                    return Some(SideReading { core: c, core_text: words.join(" "), mods });
+                    return Some(SideReading { core: c, core_text: words.join(" "), mods: dedup(mods) });
                 }
             }
         }
@@ -462,17 +506,10 @@ impl<'a> Reader<'a> {
         Some((sa, sb))
     }
 
-    /// A side with or without modifiers.
+    /// A side with or without modifiers (the toolbox cores first, then modifiers, then a famous
+    /// cast — `side` orders it).
     fn side_any(&self, toks: &[String]) -> Option<SideReading> {
-        let w = self.w();
-        let mut t: &[String] = toks;
-        while t.len() > 1 && w.articles.contains(&t[0]) {
-            t = &t[1..];
-        }
-        if let Some((c, words)) = self.core_plural(t, false) {
-            return Some(SideReading { core: c, core_text: words.join(" "), mods: vec![] });
-        }
-        self.side(t)
+        self.side(toks)
     }
 
     fn find(toks: &[String], pat: &[String], from: usize) -> Option<usize> {
@@ -535,6 +572,17 @@ impl<'a> Reader<'a> {
         }
         None
     }
+}
+
+/// The same modifier said twice counts once ("fire yoga fire", "very very big").
+fn dedup(mods: Vec<u8>) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::with_capacity(mods.len());
+    for m in mods {
+        if !out.contains(&m) {
+            out.push(m);
+        }
+    }
+    out
 }
 
 /// Singular candidates of a plural word ("rasengans" → "rasengan", "punches" → "punch").

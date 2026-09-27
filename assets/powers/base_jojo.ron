@@ -8,10 +8,22 @@
         kind: Stand,
         names: ["star platinum", "jotaro's stand"],
         companion: Some((recipe: (name: "Star Platinum", form: Biped, mech: [Flies, Blunt, Fast], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
-        shouts: [("star finger", 0), ("star platinum the world", 1), ("star platinum za warudo", 1)],
+        fx: "psychic",
+        shouts: [("star finger", 0), ("star platinum the world", 1), ("star platinum za warudo", 1), ("star platinum time stop", 1),
+                 ("ora ora", 2), ("ora ora ora", 2), ("oraoraora", 2), ("ora rush", 2), ("ora ora rush", 2), ("oraora", 2), ("ora ora ora ora", 2),
+                 ("star platinum ora", 2), ("star platinum rush", 2)],
         moves: [
-            (name: "star finger", cooldown: 1.5, cost: 5.0, ops: [Shove(range: 5.0, angle: 12.0, damage: 12.0, knockback: 14.0)]),
-            (name: "star platinum: the world", cooldown: 20.0, cost: 20.0, ops: [TimeStop(secs: 1.0, speed: 2.0)]),
+            // The stand's finger shoots out and pierces.
+            (name: "star finger", tags: [Primary], cooldown: 1.5, cost: 5.0, ops: [Shove(range: 6.0, angle: 10.0, damage: 12.0, knockback: 14.0)],
+             juice: Some((title: Some("STAR FINGER")))),
+            // Never a freeze: the world greys and you alone move fast for a beat.
+            (name: "star platinum: the world", tags: [Ultimate], cooldown: 20.0, cost: 20.0, ops: [TimeStop(secs: 1.2, speed: 2.2)],
+             juice: Some((title: Some("STAR PLATINUM: THE WORLD"), boom: true))),
+            // ORA ORA ORA: the stand steps out and punches wherever you look; the last one sends them flying.
+            (name: "ora rush", tags: [Combo], cooldown: 5.0, cost: 6.0, ops: [
+                Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
+                     stand: Some((name: "Star Platinum", form: Biped, mech: [Flies, Blunt, Fast], scale: 2.0, mass: 80.0))),
+            ], juice: Some((title: Some("ORA ORA ORA ORA"), shake: 0.2, color: Some((0.55, 0.4, 0.9))))),
         ],
     ),
     (
@@ -20,13 +32,22 @@
         kind: Stand,
         names: ["the world stand", "za warudo", "dio's stand"],
         companion: Some((recipe: (name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
-        shouts: [("road roller", 0), ("road roller da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1)],
+        fx: "holy",
+        shouts: [("road roller", 0), ("road roller da", 0), ("za warudo", 1), ("the world", 1), ("toki yo tomare", 1), ("za warudo toki yo tomare", 1),
+                 ("zah warudo", 1), ("za wardo", 1),
+                 ("muda muda", 2), ("muda muda muda", 2), ("mudamuda", 2), ("mudamudamuda", 2), ("muda rush", 2), ("muda muda rush", 2),
+                 ("the world muda", 2), ("the world rush", 2)],
         moves: [
             (name: "road roller", cooldown: 8.0, ops: [
                 Cast(recipe: (name: "road roller", form: Vehicle, mech: [DropFromSky, Heavy, Blunt], scale: 4.0, mass: 3000.0)),
             ]),
             // Never freezes anyone: the world greys and DIO alone moves at ×2.
-            (name: "za warudo", cooldown: 20.0, cost: 25.0, ops: [TimeStop(secs: 1.5, speed: 2.0)]),
+            (name: "za warudo", tags: [Ultimate], cooldown: 20.0, cost: 25.0, ops: [TimeStop(secs: 1.5, speed: 2.0)],
+             juice: Some((title: Some("ZA WARUDO"), boom: true))),
+            (name: "muda rush", tags: [Combo], cooldown: 5.0, cost: 6.0, ops: [
+                Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
+                     stand: Some((name: "The World", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0))),
+            ], juice: Some((title: Some("MUDA MUDA MUDA"), shake: 0.2, color: Some((1.0, 0.85, 0.2))))),
         ],
     ),
     (
@@ -35,11 +56,22 @@
         kind: Stand,
         names: ["crazy diamond", "josuke's stand"],
         companion: Some((recipe: (name: "Crazy Diamond", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
-        shouts: [("restore", 0), ("fix", 0), ("dora", 1)],
+        fx: "crystal",
+        shouts: [("crazy diamond restore", 0), ("restore it", 0), ("fix it", 0), ("dora", 1), ("dora punch", 1),
+                 ("dora dora", 2), ("dora dora dora", 2), ("dorarara", 2), ("doraraaa", 2), ("dora rush", 2), ("doradora", 2),
+                 ("blood bullet", 3), ("homing blood", 3), ("blood homing bullet", 3)],
         moves: [
             // Rebuilds broken terrain and your own shattered constructs nearby (never heals players).
-            (name: "restore", cooldown: 3.0, cost: 10.0, ops: [Restore(radius: 9.0)]),
-            (name: "dora punch", cooldown: 0.8, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 12.0)]),
+            (name: "restore", tags: [Defense], cooldown: 3.0, cost: 10.0, ops: [Restore(radius: 9.0)]),
+            (name: "dora punch", tags: [Primary], cooldown: 0.8, ops: [Shove(range: 3.0, angle: 40.0, damage: 10.0, knockback: 12.0)]),
+            (name: "dora rush", tags: [Combo], cooldown: 5.0, cost: 6.0, ops: [
+                Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
+                     stand: Some((name: "Crazy Diamond", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0))),
+            ], juice: Some((title: Some("DORARARARA"), shake: 0.2, color: Some((0.95, 0.55, 0.85))))),
+            // A drop of their blood "fixed" back to where it came from: it hunts them down around cover.
+            (name: "blood bullet", tags: [Primary], cooldown: 5.0, cost: 5.0, ops: [
+                Seeker(recipe: (name: "blood bullet", form: Ball, mech: [Fast, Pierce], element: Water, scale: 0.3), damage: 12.0, knockback: 10.0),
+            ], fx: "blood", juice: Some((title: Some("BLOOD BULLET")))),
         ],
     ),
     (
@@ -48,14 +80,35 @@
         kind: Stand,
         names: ["killer queen", "kira's stand"],
         companion: Some((recipe: (name: "Killer Queen", form: Biped, mech: [Flies, Explodes], scale: 2.0, mass: 80.0), rush_damage: 2.5, rush_knockback: 3.0)),
-        shouts: [("first bomb", 0), ("sheer heart attack", 1)],
+        fx: "fire",
+        shouts: [("first bomb", 0), ("killer queen touch", 0), ("bomb touch", 0), ("touch bomb", 0), ("first bomb touch", 0),
+                 ("killer queen has already touched", 0), ("daiichi no bakudan", 0),
+                 ("sheer heart attack", 1), ("second bomb", 1), ("daini no bakudan", 1),
+                 ("killer queen detonate", 2), ("kira detonate", 2), ("killer queen click", 2), ("switch killer queen", 2),
+                 ("bites the dust", 3), ("bite the dust", 3), ("killer queen bites the dust", 3),
+                 ("baitsa za dasuto", 3), ("bites za dusto", 3), ("third bomb", 3), ("daisan no bakudan", 3),
+                 ("stray cat", 4), ("stray cat bubbles", 4), ("air bomb stray cat", 4),
+                 ("bomb that", 5), ("turn it into a bomb", 5)],
         moves: [
-            // Touch → it becomes a bomb: aimed at terrain it lifts the piece as a bomb (§3c), at
-            // your own construct it grafts Explodes onto it, at nothing it makes a small bomb.
-            (name: "first bomb", cooldown: 2.0, ops: [Cast(recipe: (name: "first bomb", form: Bomb, mech: [Explodes, Sticky], scale: 0.5), modifier: true)]),
-            (name: "sheer heart attack", cooldown: 6.0, ops: [
+            // Touch them: they're a bomb now (the tag lasts 20 s, wherever they run).
+            (name: "first bomb", tags: [Primary], cooldown: 1.5, cost: 3.0, ops: [Tag(range: 3.4, cone: 20.0, secs: 20.0)],
+             juice: Some((title: Some("KILLER QUEEN")))),
+            (name: "sheer heart attack", tags: [Combo], cooldown: 6.0, ops: [
                 Cast(recipe: (name: "sheer heart attack", form: Vehicle, mech: [Homing, Explodes, Fast], scale: 0.7, mass: 30.0, temperament: Aggressive, intensity: 1.0)),
-            ]),
+            ], juice: Some((title: Some("SHEER HEART ATTACK")))),
+            // Click. Everyone you touched explodes, wherever they are.
+            (name: "detonate", tags: [Ultimate, Combo], cooldown: 4.0, cost: 4.0, ops: [TagStrike(damage: 18.0, knockback: 22.0, up: 0.6, element: Fire)],
+             juice: Some((title: Some("*CLICK*"), boom: true, punch: 3.0))),
+            // The third bomb: time blows up and you are back where you were, as unhurt as you were.
+            (name: "bites the dust", tags: [Ultimate, Defense], cooldown: 25.0, cost: 10.0, ops: [Rewind(secs: 3.0)],
+             juice: Some((title: Some("BITES THE DUST"), boom: true, color: Some((0.95, 0.5, 0.75))))),
+            // Air bubbles that drift out and home on body heat.
+            (name: "stray cat", tags: [Combo], cooldown: 6.0, cost: 5.0, ops: [
+                Cast(recipe: (name: "air bomb", form: Ball, mech: [Homing, Explodes], element: Wind, scale: 0.4, count: 3)),
+            ], fx: "wind"),
+            // Touch a THING: aimed at terrain it lifts the piece as a bomb (§3c), at your own construct
+            // it grafts Explodes onto it, at nothing it makes a small bomb.
+            (name: "bomb that", tags: [Primary], cooldown: 2.0, ops: [Cast(recipe: (name: "first bomb", form: Bomb, mech: [Explodes, Sticky], scale: 0.5), modifier: true)]),
         ],
     ),
     (
@@ -64,11 +117,49 @@
         kind: Stand,
         names: ["gold experience", "giorno's stand"],
         companion: Some((recipe: (name: "Gold Experience", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0), rush_damage: 3.0, rush_knockback: 4.0)),
-        shouts: [("give life", 0), ("life", 0), ("frog", 1)],
+        fx: "holy",
+        shouts: [("give life", 0), ("life", 0), ("frog", 1), ("gold experience rush", 2), ("gold experience muda", 2), ("giorno muda", 2),
+                 ("life punch", 3), ("life shot", 3), ("sensory overload punch", 3), ("giorno heal", 4), ("life parts", 4)],
         moves: [
             // Bring terrain / your constructs to life: the §3c terrain graft with Walks.
-            (name: "give life", cooldown: 4.0, ops: [Cast(recipe: (name: "life", form: Blob, mech: [Walks], temperament: Aggressive, intensity: 0.8), modifier: true)]),
-            (name: "frog", cooldown: 3.0, ops: [Cast(recipe: (name: "frog", form: Quadruped, mech: [Bounce], scale: 0.8, temperament: Protective, intensity: 0.8))]),
+            (name: "give life", tags: [Combo], cooldown: 4.0, ops: [Cast(recipe: (name: "life", form: Blob, mech: [Walks], temperament: Aggressive, intensity: 0.8), modifier: true)]),
+            (name: "frog", tags: [Defense], cooldown: 3.0, ops: [Cast(recipe: (name: "frog", form: Quadruped, mech: [Bounce], scale: 0.8, temperament: Protective, intensity: 0.8))]),
+            (name: "muda rush", tags: [Combo], cooldown: 5.0, cost: 6.0, ops: [
+                Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
+                     stand: Some((name: "Gold Experience", form: Biped, mech: [Flies, Blunt], scale: 2.0, mass: 80.0))),
+            ], juice: Some((title: Some("MUDA MUDA MUDA"), shake: 0.2, color: Some((1.0, 0.85, 0.3))))),
+            // Too much life at once: their senses race ahead of a body that can't keep up.
+            (name: "life punch", tags: [Primary], cooldown: 7.0, cost: 5.0, ops: [
+                Afflict(range: 3.5, cone: 25.0, status: Some(Chill), secs: 2.5, damage: 8.0, knockback: 10.0),
+            ], juice: Some((title: Some("LIFE SENSATION OVERLOAD")))),
+            (name: "heal", tags: [Defense], cooldown: 20.0, cost: 5.0, ops: [Mend(pct: 14.0)]),
+        ],
+        tiers: [
+            (name: "Gold Experience Requiem",
+             names: ["gold experience requiem", "ger", "g e r", "golden experience requiem", "gold experience requiem activate", "requiem",
+                     "gold requiem", "gold experience rekuiem"],
+             effects: [PowerMult(damage: 1.25, knockback: 1.2), ReadSlow(radius: 14.0)],
+             ascend: Some((color: Some((1.0, 0.9, 0.35)), intensity: 2.0, title: Some("GOLD EXPERIENCE REQUIEM"), style: Calm, quiet: true,
+                           eye_glow: Some((1.0, 0.9, 0.4)))),
+             shouts: [("return to zero", 5), ("ger return to zero", 5), ("gold experience requiem return to zero", 5), ("back to zero", 5)],
+             moves: [
+                 (name: "give life", tags: [Combo], cooldown: 3.0, ops: [Cast(recipe: (name: "life", form: Blob, mech: [Walks], temperament: Aggressive, intensity: 1.0), modifier: true)]),
+                 (name: "frog", tags: [Defense], cooldown: 3.0, ops: [Cast(recipe: (name: "frog", form: Quadruped, mech: [Bounce], scale: 0.8, temperament: Protective, intensity: 0.8))]),
+                 (name: "muda rush", tags: [Combo], cooldown: 4.0, cost: 6.0, ops: [
+                     Rush(hits: 16, rate: 20.0, damage: 2.6, knockback: 3.0, range: 3.4,
+                          stand: Some((name: "Gold Experience Requiem", form: Biped, mech: [Flies, Blunt], scale: 2.2, mass: 90.0))),
+                 ], juice: Some((title: Some("MUDA MUDA MUDA"), shake: 0.25))),
+                 (name: "life punch", tags: [Primary], cooldown: 5.0, cost: 5.0, ops: [
+                     Afflict(range: 3.5, cone: 25.0, status: Some(Chill), secs: 3.0, damage: 10.0, knockback: 12.0),
+                 ]),
+                 (name: "heal", tags: [Defense], cooldown: 15.0, cost: 5.0, ops: [Mend(pct: 18.0)]),
+                 // Every attack at you returns to zero: the first hit is undone and answered, and
+                 // anything thrown turns back on its thrower.
+                 (name: "return to zero", tags: [Ultimate, Counter], cooldown: 20.0, cost: 12.0, ops: [
+                     Counter(secs: 1.5, damage: 24.0, knockback: 34.0, up: 0.4),
+                     Deflect(secs: 1.5, angle: 180.0),
+                 ], juice: Some((title: Some("RETURN TO ZERO"), boom: true, ripple: 6.0, color: Some((1.0, 0.9, 0.35))))),
+             ]),
         ],
     ),
     (
@@ -77,11 +168,21 @@
         kind: Stand,
         names: ["king crimson", "diavolo's stand"],
         companion: Some((recipe: (name: "King Crimson", form: Biped, mech: [Flies, Blunt], scale: 2.1, mass: 90.0), rush_damage: 3.0, rush_knockback: 4.0)),
-        shouts: [("time erase", 0), ("erase time", 0), ("king crimson chop", 1)],
+        fx: "blood",
+        shouts: [("time erase", 0), ("erase time", 0), ("time skip", 0), ("skip time", 0), ("king crimson time skip", 0), ("toki wo futtobasu", 0),
+                 ("king crimson no noryoku", 0), ("erase the time", 0), ("king crimson chop", 1), ("chest punch", 1), ("king crimson punch", 1),
+                 ("epitaph", 2), ("epitaph future", 2), ("predict the future epitaph", 2)],
         moves: [
-            // A short skip with an afterimage left behind.
-            (name: "erase time", cooldown: 3.0, cost: 8.0, ops: [Blink(dist: 8.0, afterimage: true)]),
-            (name: "chop", cooldown: 1.0, ops: [Shove(range: 3.0, angle: 40.0, damage: 14.0, knockback: 12.0)]),
+            // Time is erased: for a moment nothing can touch you and you step somewhere else, leaving a
+            // flicker behind. Still intangible when you arrive: strike first (striking ends it).
+            (name: "erase time", tags: [Movement, Defense], cooldown: 5.0, cost: 8.0, ops: [
+                Phase(secs: 1.2),
+                Blink(dist: 10.0, afterimage: true),
+            ], juice: Some((title: Some("KING CRIMSON"), color: Some((0.85, 0.1, 0.25))))),
+            (name: "chop", tags: [Primary], cooldown: 1.0, ops: [Shove(range: 3.2, angle: 35.0, damage: 16.0, knockback: 12.0)]),
+            // The forehead sees ten seconds ahead: the next hit doesn't land and time slows for you.
+            (name: "epitaph", tags: [Counter], cooldown: 7.0, cost: 4.0, ops: [Evade(secs: 0.6, slow: 0.6, speed: 1.5, blink: 2.0)],
+             juice: Some((title: Some("EPITAPH")))),
         ],
     ),
     (

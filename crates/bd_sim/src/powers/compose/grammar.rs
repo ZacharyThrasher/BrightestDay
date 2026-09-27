@@ -234,8 +234,11 @@ fn index_of(t: &VerbTable) -> Index {
     let mut long_words = Vec::new();
     for (k, e) in entries.iter().enumerate() {
         by_first.entry(e.words[0].clone()).or_default().push(k);
-        for w in &e.words {
-            known.insert(w.clone());
+        // verb words may still name a thing after an article ("swap with my clone")
+        if !matches!(e.what, What::Verb(..)) {
+            for w in &e.words {
+                known.insert(w.clone());
+            }
         }
         if e.words.len() == 1 && e.words[0].len() >= 5 && matches!(e.what, What::Verb(..) | What::Style(_)) {
             long_words.push((e.words[0].clone(), k));
@@ -558,7 +561,8 @@ impl Search<'_> {
         if verbs != 1 {
             return;
         }
-        let fillers: u32 = self.cur.iter().filter(|(s, _, _)| *s == Seg::Filler).map(|(_, _, n)| *n as u32).sum();
+        // filler SEGMENTS (a long filler phrase like "in the face" is one)
+        let fillers: u32 = self.cur.iter().filter(|(s, _, _)| *s == Seg::Filler).count() as u32;
         // Things are guesses: they cost like a filler word, so a known reading always wins.
         let things = self.cur.iter().filter(|(s, _, _)| matches!(s, Seg::Target(Target::Thing(_)))).count() as u32;
         let score = (fillers + things, self.cur.len() as u32);
@@ -686,7 +690,7 @@ pub fn link_targets(steps: &mut [Option<ComposedMove>]) {
     for s in steps.iter_mut() {
         match s {
             Some(spec) => {
-                if spec.target == Target::Aim && last_explicit && spec.kind().is_some_and(aims_at_target) {
+                if spec.target == Target::Aim && spec.place == Place::None && last_explicit && spec.kind().is_some_and(aims_at_target) {
                     spec.target = Target::Same;
                 }
                 last_explicit = spec.target.is_explicit();

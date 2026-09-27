@@ -528,7 +528,18 @@ fn construct_events(
                         let pole = super::extend::is_pole(&active, *id);
                         let k = if pole { 10 + (((*strength - 1.0) / 0.25).round().clamp(0.0, 4.0) as u8) + k * 5 } else { k };
                         let (fx0, st0) = (*fx, *strength);
-                        let curve = swings.0.entry((form, k, bin)).or_insert_with(|| Arc::new(super::extend::swing_curve_for(pole, form, kind, fx0, st0, w))).clone();
+                        // WEAPON FEEL: exactly the class curve the sim sweeps (the combo step, light
+                        // flicks, heavy overheads, reach thrusts); poles keep their twirls.
+                        let class_curve = active
+                            .world
+                            .constructs
+                            .get(*id)
+                            .filter(|_| !pole)
+                            .and_then(|c| bd_sim::constructs::held::event_curve(c, fx0, st0, &active.world.cfg.tuning).map(|(cv, s, _)| (cv, s, bd_sim::constructs::weapon_class::move_set(&c.recipe))));
+                        let curve = match class_curve {
+                            Some((cv, s, set)) => swings.0.entry((form, 100 + set as u8 * 10 + s as u8, bin)).or_insert_with(|| Arc::new(cv.clone())).clone(),
+                            None => swings.0.entry((form, k, bin)).or_insert_with(|| Arc::new(super::extend::swing_curve_for(pole, form, kind, fx0, st0, w))).clone(),
+                        };
                         // A heavy starts on the charge's release, already coiled: from `hold_at`
                         // like the sim (so the strike isn't a wind-up late).
                         let t0 = if kind == SwingKind::Heavy { curve.hold_at } else { 0.0 };
@@ -740,7 +751,8 @@ fn sync_constructs(
                     let repay = sc.bite.min(dt * snap);
                     sc.bite -= repay;
                     if let Some((curve, st)) = sc.swing.as_mut() {
-                        *st += dt + repay;
+                        // WEAPON FEEL: at the sim's swing rate (class speed, Fast / Heavy pace).
+                        *st += (dt + repay) * bd_sim::constructs::held::swing_rate(c, &active.world.cfg.tuning);
                         let total = curve.anticipation + curve.active + curve.recovery;
                         if *st > total {
                             sc.swing = None;

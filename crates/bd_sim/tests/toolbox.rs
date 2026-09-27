@@ -204,6 +204,12 @@ fn move_refs_pack_and_every_shipped_shout_resolves() {
         n += 1;
     }
     assert!(n > 300, "{n} borrowable shouts");
+    // every number in every shipped move is finite (ops clamp, but NaN slips through a clamp)
+    for p in &t.powers {
+        for m in p.moves.iter().chain(p.tiers.iter().flat_map(|t| t.moves.iter())) {
+            assert!(bd_sim::powers::toolbox::move_is_finite(m), "{}: move {} has a NaN / inf", p.id, m.name);
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------ borrowing
@@ -399,3 +405,26 @@ fn toolbox_state_round_trips_on_the_wire() {
     }
 }
 
+
+/// The whole table (thousands of powers / kits) parses and indexes quickly at first use, and a
+/// phrase reading stays in the microseconds. Printed for the report; bounded generously.
+#[test]
+fn table_parse_index_and_reading_are_fast() {
+    let t0 = std::time::Instant::now();
+    let t = PowerTable::shipped().expect("parses");
+    let parse = t0.elapsed();
+    let t1 = std::time::Instant::now();
+    let ix = MoveIndex::build(&t);
+    let index = t1.elapsed();
+    let lines = ["almighty push", "reinhardt charge", "nightcrawler teleport", "a big flaming hammer", "doomfist ult", "gum gum pistol"];
+    let t2 = std::time::Instant::now();
+    let reps = 200;
+    for _ in 0..reps {
+        for l in lines {
+            std::hint::black_box(ix.read(&t, None, l));
+        }
+    }
+    let per = t2.elapsed().as_secs_f64() * 1e6 / (reps * lines.len()) as f64;
+    eprintln!("{} powers: parse {:.1} ms, index {:.1} ms, reading {per:.1} µs / phrase", t.powers.len(), parse.as_secs_f64() * 1e3, index.as_secs_f64() * 1e3);
+    assert!(per < 500.0, "{per} µs per reading");
+}

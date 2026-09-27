@@ -41,14 +41,14 @@ impl World {
         if self.powers.ops.lock_ons[i].is_some_and(|c| c.owner == id) {
             return Err(PowerError::Busy);
         }
-        let secs = secs.clamp(0.3, MAX_SECS);
-        let angle = if angle <= 0.0 { 35.0 } else { angle.clamp(5.0, 80.0) };
+        let secs = super::fclamp(secs, 0.3, MAX_SECS);
+        let angle = if angle <= 0.0 { 35.0 } else { super::fclamp(angle, 5.0, 80.0) };
         let c = Channel {
             owner: id,
             secs,
-            range: range.clamp(5.0, 80.0),
-            damage: damage.clamp(0.0, 120.0),
-            knockback: knockback.clamp(0.0, 80.0),
+            range: super::fclamp(range, 5.0, 80.0),
+            damage: super::fclamp(damage, 0.0, 120.0),
+            knockback: super::fclamp(knockback, 0.0, 80.0),
             cos: angle.to_radians().cos(),
             t: 0.0,
             ids: [None; MAX_PLAYERS],
@@ -62,7 +62,8 @@ impl World {
 
     /// Player `i` was hit hard / stunned: their channel breaks (nothing fires).
     pub(crate) fn break_lock_on(&mut self, i: usize) {
-        if let Some(c) = self.powers.ops.lock_ons.get_mut(i).and_then(|c| c.take()) {
+        let owner = self.players.get(i).map(|p| p.id);
+        if let Some(c) = self.powers.ops.lock_ons.get_mut(i).filter(|c| c.is_some_and(|c| Some(c.owner) == owner)).and_then(|c| c.take()) {
             self.op_event(OpEvent::LockOn { player: c.owner, phase: LockPhase::Broken, target: None, frac: 0.0, secs: 0.0, hits: 0 });
         }
     }

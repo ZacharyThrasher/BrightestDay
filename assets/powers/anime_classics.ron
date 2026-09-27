@@ -270,7 +270,7 @@
             ]),
             // Appear behind whoever you look at, blade first.
             (name: "flying thunder god slash", tags: [Combo], cooldown: 4.0, cost: 5.0, ops: [
-                WarpTo(range: 30.0, cone: 10.0, behind: 1.3),
+                WarpTo(range: 30.0, cone: 10.0, behind: 1.3, line: true),
                 Shove(range: 3.2, angle: 70.0, damage: 12.0, knockback: 16.0),
             ], fx: "speedforce", juice: Some((title: Some("HIRAISHIN GIRI"), punch: 2.5, color: Some((1.0, 0.85, 0.2))))),
             // The death god's seal: the aimed enemy's powers are sealed — at a price in blood.
@@ -513,7 +513,7 @@
                 GazeStun(range: 12.0, cone: 50.0, secs: 2.5, status: Shadow),
             ], fx: "holy", juice: Some((title: Some("NICE GUY!")))),
             (name: "springtime of youth", tags: [Defense], cooldown: 20.0, cost: 6.0, ops: [Mend(pct: 10.0, per_s: 2.0, secs: 4.0)], fx: "chi",
-             juice: Some((title: Some("THE SPRINGTIME OF YOUTH!")))),
+             juice: Some((title: Some("SPRINGTIME OF YOUTH")))),
         ],
     ),
     (
@@ -720,9 +720,9 @@
             (name: "kamehameha", tags: [Primary], cooldown: 6.0, cost: 6.0, ops: [
                 Cast(recipe: (name: "kamehameha", form: Hands, mech: [Beam], element: Light, scale: 1.3), signature: Some(Beam)),
             ], fx: "chi", juice: Some((title: Some("KAMEHAMEHA"), punch: 4.0, boom: true, color: Some((0.45, 0.75, 1.0))))),
-            // Two fingers to the forehead, lock onto the ki of whoever you look at, and appear behind
-            // them — any distance, through walls. ends: right behind them, facing their back.
-            (name: "instant transmission", tags: [Movement], cooldown: 3.0, cost: 5.0, ops: [WarpTo(range: 60.0, cone: 15.0, behind: 1.6)],
+            // Two fingers to the forehead, lock onto the ki of whoever you look at, and appear right in
+            // front of them, any distance, through walls. ends: point-blank, facing them: Kamehameha.
+            (name: "instant transmission", tags: [Movement], cooldown: 3.0, cost: 5.0, ops: [WarpTo(range: 60.0, cone: 15.0, behind: 1.6, line: true)],
              fx: "chi", juice: Some((color: Some((0.9, 0.9, 1.0))))),
             // Arms up: the orb gathers overhead and grows while you hold (willpower pours in); release
             // to throw it. Slow and huge — hide while it grows.
@@ -746,7 +746,7 @@
             ], fx: "chi", juice: Some((title: Some("METEOR COMBINATION"), punch: 3.0))),
             // Instant Transmission Kamehameha: vanish, reappear behind them already firing.
             (name: "instant kamehameha", tags: [Combo, Ultimate], cooldown: 12.0, cost: 10.0, ops: [
-                WarpTo(range: 50.0, cone: 15.0, behind: 3.5),
+                WarpTo(range: 50.0, cone: 15.0, behind: 3.5, line: true),
                 Cast(recipe: (name: "kamehameha", form: Hands, mech: [Beam], element: Light, scale: 1.5), signature: Some(Beam)),
             ], fx: "chi", juice: Some((title: Some("INSTANT KAMEHAMEHA"), punch: 5.0, boom: true, color: Some((0.45, 0.75, 1.0))))),
         ],
@@ -956,7 +956,7 @@
             (name: "perfect barrier", tags: [Defense], cooldown: 9.0, cost: 6.0, ops: [Deflect(secs: 1.5, angle: 180.0)], fx: "chi",
              juice: Some((title: Some("PERFECT BARRIER"), color: Some((0.5, 0.9, 0.5))))),
             (name: "regeneration", tags: [Defense], cooldown: 25.0, cost: 6.0, ops: [Mend(pct: 18.0)], fx: "chi"),
-            (name: "instant transmission", tags: [Movement], cooldown: 3.5, cost: 5.0, ops: [WarpTo(range: 55.0, cone: 15.0, behind: 1.6)], fx: "chi"),
+            (name: "instant transmission", tags: [Movement], cooldown: 3.5, cost: 5.0, ops: [WarpTo(range: 55.0, cone: 15.0, behind: 1.6, line: true)], fx: "chi"),
         ],
     ),
     (
@@ -2033,7 +2033,7 @@
             ], fx: "petals", juice: Some((title: Some("BANKAI: SENBONZAKURA KAGEYOSHI"), boom: true, ripple: 9.0, color: Some((1.0, 0.62, 0.78))))),
             // Behind them before they blink; the cut lands on the chain.
             (name: "senka", tags: [Combo, Movement], cooldown: 5.0, cost: 5.0, ops: [
-                WarpTo(range: 28.0, cone: 10.0, behind: 1.2),
+                WarpTo(range: 28.0, cone: 10.0, behind: 1.2, line: true),
                 Shove(range: 3.0, angle: 45.0, damage: 13.0, knockback: 10.0),
             ], fx: "speedforce", juice: Some((title: Some("SENKA")))),
             (name: "byakurai", tags: [Primary], cooldown: 2.0, cost: 3.0, ops: [BounceBeam(length: 38.0, damage: 12.0, knockback: 10.0, element: Electric)],
@@ -2188,7 +2188,7 @@
                 Cast(recipe: (name: "cero oscuras", form: Hands, mech: [Beam], element: Shadow, scale: 1.8), signature: Some(Beam)),
             ], fx: "void", juice: Some((title: Some("CERO OSCURAS"), boom: true, punch: 5.0, color: Some((0.2, 0.9, 0.5))))),
             // Hollow speed: straight to the one you look at, arriving in front of them.
-            (name: "sonido", tags: [Movement], cooldown: 2.5, cost: 4.0, ops: [WarpTo(range: 30.0, cone: 12.0, behind: -1.8)], fx: "void"),
+            (name: "sonido", tags: [Movement], cooldown: 2.5, cost: 4.0, ops: [WarpTo(range: 30.0, cone: 12.0, behind: 1.8, line: true)], fx: "void"),
             (name: "segunda etapa", tags: [Ultimate], cooldown: 40.0, cost: 12.0, ops: [
                 Empower(secs: 10.0, damage: 1.4, armor: 0.6, contact: 5.0, contact_kb: 12.0, contact_cd: 0.5, element: Shadow),
                 Mend(pct: 12.0),
@@ -2288,10 +2288,7 @@
         kind: Kit,
         names: ["jotaro", "jotaro kujo", "kujo jotaro", "jotaro kujoh", "jojo jotaro", "jotaro kujou", "jotaro joestar", "jo taro"],
         fx: "psychic",
-        shouts: [("ora ora", 0), ("ora ora ora", 0), ("oraoraora", 0), ("ora rush", 0), ("ora ora rush", 0), ("oraora", 0), ("ora ora ora ora", 0),
-                 ("star platinum ora", 0),
-                 ("ora uppercut", 3), ("star platinum uppercut", 3),
-                 ("yare yare", 4), ("yare yare daze", 4)],
+        shouts: [("ora uppercut", 3), ("star platinum uppercut", 3), ("yare yare", 4), ("yare yare daze", 4)],
         moves: [
             // Star Platinum steps out in front of you and throws a storm of punches wherever you
             // look (the last one sends them flying). ends: they're launched, the stand fades.
@@ -2315,14 +2312,9 @@
         id: "kit_dio",
         name: "Dio Brando",
         kind: Kit,
-        names: ["dio", "dio brando", "dio sama", "lord dio", "kono dio da", "dio over heaven", "deeo", "d i o"],
+        names: ["dio", "dio brando", "dio sama", "lord dio", "dio over heaven", "deeo", "d i o"],
         fx: "holy",
-        shouts: [("muda muda", 0), ("muda muda muda", 0), ("mudamuda", 0), ("mudamudamuda", 0), ("muda rush", 0), ("muda muda rush", 0),
-                 ("the world muda", 0),
-                 ("dio knives", 2), ("knife throw dio", 2), ("time stop knives", 2),
-                 ("vaporization freezing", 3), ("vaporization freezing technique", 3), ("freeze touch", 3),
-                 ("space ripper stingy eyes", 4), ("space ripper stingy eye", 4), ("space ripper", 4),
-                 ("wryyy", 5), ("wryyyy", 5)],
+        shouts: [("dio knives", 2), ("knife throw dio", 2), ("time stop knives", 2), ("vaporization freezing", 3), ("vaporization freezing technique", 3), ("freeze touch", 3), ("space ripper stingy eyes", 4), ("space ripper stingy eye", 4), ("space ripper", 4), ("wryyy", 5), ("wryyyy", 5)],
         moves: [
             (name: "muda rush", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
@@ -2357,10 +2349,7 @@
         kind: Kit,
         names: ["giorno", "giorno giovanna", "jojo giorno", "gio gio", "giogio", "haruno shiobana", "gior no"],
         fx: "holy",
-        shouts: [("gold experience requiem", 2), ("ger", 2), ("return to zero", 2), ("gold experience requiem return to zero", 2),
-                 ("golden experience requiem", 2), ("g e r", 2), ("ger return to zero", 2),
-                 ("life punch", 3), ("life shot", 3), ("sensory overload punch", 3),
-                 ("giorno heal", 4), ("life parts", 4)],
+        shouts: [],
         moves: [
             (name: "muda rush", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
@@ -2388,9 +2377,7 @@
         kind: Kit,
         names: ["josuke", "josuke higashikata", "higashikata josuke", "jojo josuke", "jousuke", "josuke hijashikata"],
         fx: "crystal",
-        shouts: [("dora dora", 0), ("dora dora dora", 0), ("dorarara", 0), ("doraraaa", 0), ("dora rush", 0), ("doradora", 0),
-                 ("blood bullet", 2), ("homing blood", 2), ("blood homing bullet", 2),
-                 ("hair rage", 3), ("what did you say about my hair", 3)],
+        shouts: [("hair rage", 3)],
         moves: [
             (name: "dora rush", tags: [Combo, Primary], cooldown: 5.0, cost: 6.0, ops: [
                 Rush(hits: 14, rate: 18.0, damage: 2.4, knockback: 3.0, range: 3.2,
@@ -2404,7 +2391,7 @@
             // Somebody insulted the hair.
             (name: "hair rage", tags: [Ultimate], cooldown: 30.0, cost: 8.0, ops: [
                 Empower(secs: 6.0, damage: 1.8, armor: 0.7, contact: 5.0, contact_kb: 14.0, contact_cd: 0.4),
-            ], fx: "crystal", juice: Some((title: Some("WHAT DID YOU SAY ABOUT MY HAIR?!"), boom: true))),
+            ], fx: "crystal", juice: Some((title: Some("HAIR RAGE"), boom: true))),
         ],
     ),
     (
@@ -2413,10 +2400,7 @@
         kind: Kit,
         names: ["kira", "yoshikage kira", "kira yoshikage", "kosaku kawajiri", "kira killer queen", "yoshi kage kira"],
         fx: "fire",
-        shouts: [("killer queen touch", 0), ("bomb touch", 0), ("touch bomb", 0), ("first bomb touch", 0), ("killer queen has already touched", 0), ("daiichi no bakudan", 0), ("killer queen detonate", 1), ("kira detonate", 1),
-                 ("bites the dust", 3), ("bite the dust", 3), ("killer queen bites the dust", 3), ("another one bites the dust", 3),
-                 ("baitsa za dasuto", 3), ("bites za dusto", 3), ("bites the dust has been activated", 3), ("third bomb", 3), ("daisan no bakudan", 3),
-                 ("stray cat", 4), ("stray cat bubbles", 4)],
+        shouts: [],
         moves: [
             // Touch them: they're a bomb now (the tag lasts 20 s).
             (name: "touch", tags: [Primary], cooldown: 1.5, cost: 3.0, ops: [Tag(range: 3.4, cone: 20.0, secs: 20.0)], fx: "fire",
@@ -2444,9 +2428,8 @@
         names: ["joseph", "joseph joestar", "old joseph", "jojo joseph", "young joseph", "joseph jostar", "joe seph"],
         fx: "lightning",
         shouts: [("hermit purple", 0), ("hermit purple vines", 0), ("hermit purple overdrive", 0),
-                 ("hamon overdrive", 1), ("ripple overdrive", 1), ("sendo overdrive", 1), ("hamon", 1), ("sendo", 1),
-                 ("your next line is", 2), ("predict next line", 2),
-                 ("nigerundayo", 3), ("run away smokey", 3), ("joestar secret technique", 3), ("the joestar family secret technique", 3),
+                 ("hamon overdrive", 1), ("ripple overdrive", 1), ("sendo overdrive", 1), ("hamon", 1), ("sendo", 1), ("predict next line", 2),
+                 ("nigerundayo", 3), ("joestar secret technique", 3),
                  ("nigerun dayo", 3), ("secret technique run away", 3),
                  ("clacker volley", 4), ("clackers", 4), ("clacker boomerang", 4)],
         moves: [
@@ -2459,7 +2442,7 @@
             ], fx: "lightning", juice: Some((title: Some("HAMON OVERDRIVE"), color: Some((1.0, 0.85, 0.3))))),
             // You already know what they'll do: the next hit is answered.
             (name: "predict", tags: [Counter], cooldown: 6.0, cost: 3.0, ops: [Counter(secs: 1.0, damage: 12.0, knockback: 20.0)],
-             juice: Some((title: Some("YOUR NEXT LINE IS...")))),
+             juice: Some((title: Some("PREDICTED")))),
             // The Joestar secret technique: RUN. A hop backwards and a dash away.
             (name: "run away", tags: [Movement], cooldown: 4.0, cost: 2.0, ops: [Impulse(fwd: -20.0, up: 5.0)], fx: "smoke",
              juice: Some((title: Some("NIGERUNDAYO!")))),
@@ -2497,9 +2480,7 @@
         kind: Kit,
         names: ["polnareff", "jean pierre polnareff", "jean-pierre polnareff", "pol", "polnareff silver chariot", "polnaref"],
         fx: "rigid",
-        shouts: [("hora hora", 0), ("hora hora hora", 0), ("rapier barrage", 0), ("chariot barrage", 0),
-                 ("shooting star blade", 2), ("chariot blade shot", 2), ("blade launch", 2),
-                 ("armor off afterimages", 1), ("silver chariot afterimages", 1), ("seven afterimages", 1)],
+        shouts: [("hora hora", 0), ("hora hora hora", 0), ("rapier barrage", 0), ("chariot barrage", 0), ("shooting star blade", 2), ("chariot blade shot", 2), ("blade launch", 2), ("armor off afterimages", 1), ("silver chariot afterimages", 1), ("seven afterimages", 1)],
         moves: [
             // Silver Chariot's rapier: a hundred thrusts.
             (name: "rapier barrage", tags: [Combo, Primary], cooldown: 4.0, cost: 5.0, ops: [
@@ -2522,11 +2503,7 @@
         kind: Kit,
         names: ["diavolo", "the boss", "passione boss", "diavolo king crimson", "vinegar doppio", "doppio"],
         fx: "blood",
-        shouts: [("time skip", 0), ("skip time", 0), ("king crimson time skip", 0), ("time erase skip", 0), ("toki wo futtobasu", 0),
-                 ("king crimson no noryoku", 0), ("erase the time", 0),
-                 ("epitaph", 1), ("epitaph future", 1), ("predict the future epitaph", 1),
-                 ("chest punch", 2), ("king crimson punch", 2),
-                 ("blood blind", 3), ("blood eye", 3)],
+        shouts: [("blood blind", 3), ("blood eye", 3)],
         moves: [
             // Time is erased: for a moment nothing can touch you and you step somewhere else, leaving
             // a flicker behind. ends: repositioned, still intangible for a beat — strike first.

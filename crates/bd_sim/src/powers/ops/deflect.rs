@@ -18,7 +18,7 @@ const CATCH: f32 = 2.6;
 impl World {
     pub(crate) fn op_deflect(&mut self, i: usize, secs: f32, angle: f32) -> Result<(), PowerError> {
         let id = self.players[i].id;
-        let secs = secs.clamp(0.1, MAX_SECS);
+        let secs = super::fclamp(secs, 0.1, MAX_SECS);
         let angle = if angle <= 0.0 { 90.0 } else { angle.min(180.0) };
         let s = self.stance_mut(i);
         s.deflect = secs;

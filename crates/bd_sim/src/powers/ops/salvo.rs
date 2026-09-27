@@ -1,6 +1,6 @@
 //! `Salvo` — telegraphed strikes placed in space (docs/toolbox/OPS.md). Each strike is MARKED where
 //! it will land (everyone sees the mark for `delay` s: fair, readable), then lands as a blast. The
-//! marks go at the crosshair (`at: Aim`), around you (`at: Me`) or in front (`at: Front`), scattered
+//! marks go at the crosshair (`at: Aim`: the enemy under it, else the surface), around you (`at: Me`) or in front (`at: Front`), scattered
 //! by `spread`; `seek` snaps each onto the nearest enemies inside `spread` of the centre; `track`
 //! places each mark at the LIVE crosshair when its turn comes (you paint the strikes).
 //!
@@ -43,6 +43,7 @@ pub(crate) struct SalvoSpec {
     pub spread: f32,
     pub seek: bool,
     pub track: bool,
+    pub cut: bool,
 }
 
 /// One pending strike (`OpState::strikes`).
@@ -87,7 +88,7 @@ impl World {
             spread: fin(s.spread, 0.0, 30.0, 0.0),
             ..s
         };
-        let centre = self.op_at_point(i, s.at, s.dist);
+        let centre = self.salvo_centre(i, s.at, s.dist);
         let free = self.powers.ops.strikes.iter().filter(|x| x.is_none()).count();
         if free == 0 {
             return Err(PowerError::Busy);
@@ -110,6 +111,17 @@ impl World {
         Ok(())
     }
 
+    /// The salvo's centre: `At::Aim` is the first thing under the crosshair — an enemy on the ray
+    /// (their centre) before the terrain behind them.
+    fn salvo_centre(&self, i: usize, at: At, dist: f32) -> Vec3 {
+        if at == At::Aim
+            && let Some(k) = self.op_aimed_player(i, 60.0, 0.0)
+        {
+            return self.players[k].hull(&self.cfg.move_params).center();
+        }
+        self.op_at_point(i, at, dist)
+    }
+
     /// Where strike `k` goes (called when its mark is placed).
     fn strike_pos(&self, st: &Strike) -> Vec3 {
         let s = &st.spec;
@@ -117,7 +129,7 @@ impl World {
         let owner = self.pidx(st.owner);
         // Tracked: the owner's live crosshair (their look — no move aim outside the move).
         let centre = match owner {
-            Some(i) if s.track && self.players[i].alive => self.op_at_point(i, s.at, s.dist),
+            Some(i) if s.track && self.players[i].alive => self.salvo_centre(i, s.at, s.dist),
             _ => st.centre,
         };
         if s.seek {
@@ -162,6 +174,32 @@ impl World {
         }
     }
 
+    /// A clean strike: every enemy inside the radius is hit (outward + `up`), terrain carved if
+    /// asked; nothing else is pushed.
+    fn strike_cut(&mut self, st: &Strike) {
+        let s = st.spec;
+        let base = self.cfg.move_params.clone();
+        let source = self.pidx(st.owner).map(|_| st.owner);
+        let mut hits: [Option<(PlayerId, Vec3)>; MAX_PLAYERS] = [None; MAX_PLAYERS];
+        for (q, p) in self.players.iter().enumerate().take(MAX_PLAYERS) {
+            if !p.alive || Some(p.id) == source {
+                continue;
+            }
+            let c = p.hull(&base).center();
+            if crate::geom::dist_sq_point_aabb(&p.hull(&base), st.pos) <= s.radius * s.radius {
+                hits[q] = Some((p.id, c));
+            }
+        }
+        for (tid, c) in hits.iter().flatten().copied() {
+            let dir = Vec3::new(c.x - st.pos.x, 0.0, c.z - st.pos.z).normalize_or(Vec3::Y) + Vec3::Y * (0.4 + s.up / 20.0);
+            let h = crate::combat::HitInfo::new(tid, source, crate::combat::HitKind::Melee, s.damage, s.knockback, dir, c).with_element(s.element).with_impact(1.3);
+            self.apply_hit(h);
+        }
+        if s.carve > 0.0 {
+            self.request_carve(crate::combat::CarveRequest { center: st.pos, radius: s.carve, power: 1.5 });
+        }
+    }
+
     pub(crate) fn step_strikes(&mut self, dt: f32) {
         for k in 0..MAX_STRIKES {
             let Some(mut st) = self.powers.ops.strikes[k] else { continue };
@@ -186,6 +224,11 @@ impl World {
             }
             self.powers.ops.strikes[k] = None;
             let s = st.spec;
+            self.op_event(OpEvent::Strike { player: st.owner, pos: st.pos, radius: s.radius, element: s.element, cut: s.cut });
+            if s.cut {
+                self.strike_cut(&st);
+                continue;
+            }
             let source = self.pidx(st.owner).map(|_| st.owner);
             // Your own strikes never rocket-jump you (the ordinary own-blast push is undone).
             let keep = self.pidx(st.owner).map(|q| (q, self.players[q].mv.vel, self.players[q].mv.grounded));

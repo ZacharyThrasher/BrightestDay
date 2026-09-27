@@ -71,11 +71,9 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let uv = in.uv;
     let scene = textureSampleLevel(screen_texture, texture_sampler, uv, 0.0);
     let strength = f.b.x;
-    if (uv.x < 0.5) { return vec4<f32>(1.0, 0.0, 0.0, 1.0); } // DEBUG
     if (strength <= 0.0005) {
         return scene;
     }
-    return vec4<f32>(0.0, 0.0, 1.0, 1.0); // DEBUG
     let center = f.a.xy;
     let aspect = f.b.w;
     let seed = f.fx2.w;
@@ -254,8 +252,10 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         let rad = 0.16 * (0.75 + 0.45 * abs(sa - 0.5) * 2.0) * (0.9 + 0.2 * hash11(floor((ang / TAU + 0.5) * spikes) + seed));
         let inside = 1.0 - smoothstep(rad - 0.003, rad, r);
         let outline = smoothstep(rad - 0.014, rad - 0.009, r) * (1.0 - smoothstep(rad, rad + 0.004, r));
-        col = mix(col, f.accent.rgb * 1.3, inside * panel * (1.0 - hot));
-        col = mix(col, f.ink.rgb, clamp(outline, 0.0, 1.0) * panel);
+        // Behind the figures: only where the frame is dark (never over a burned-in body).
+        let behind = (1.0 - hot) * (1.0 - smoothstep(0.35, 0.65, tone));
+        col = mix(col, f.accent.rgb * 1.3, inside * panel * behind);
+        col = mix(col, f.ink.rgb, clamp(outline, 0.0, 1.0) * panel * (1.0 - hot));
     }
 
     // Vignette toward ink.

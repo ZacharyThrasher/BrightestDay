@@ -1,5 +1,5 @@
 //! `--practice --bots 2 --scenario impactframes [--if-style black_flash,holy,..|all] [--if-view 1p|bystander]
-//! [--if-real] [--third-person]`: stages a hit in front of the camera every 1.5 s and fires an impact
+//! [--if-real] [--if-reduce off|reduced|none] [--third-person]`: stages a hit in front of the camera every 1.5 s and fires an impact
 //! frame for the sheet (`docs/impact/impact_frames_sheet.png`) — use with `--record <dir>` (a fixed
 //! 30 fps step, so the 2–5 held frames land in the capture).
 //!
@@ -43,7 +43,18 @@ pub fn build(app: &mut App) {
     };
     let bystander = arg("--if-view").as_deref() == Some("bystander");
     let real = args.iter().any(|a| a == "--if-real");
-    info!("impact frame scenario: {styles:?} bystander={bystander} real={real}");
+    let reduce = match arg("--if-reduce").as_deref() {
+        Some("reduced") => crate::settings::FlashReduction::Reduced,
+        Some("none") => crate::settings::FlashReduction::NoFlashes,
+        _ => crate::settings::FlashReduction::Off,
+    };
+    info!("impact frame scenario: {styles:?} bystander={bystander} real={real} reduce={reduce:?}");
+    // The pref for this run only (the settings file is untouched).
+    app.add_systems(Update, move |mut c: ResMut<crate::settings::ComfortSettings>| {
+        if c.reduce_flashes != reduce {
+            c.reduce_flashes = reduce;
+        }
+    });
     app.insert_resource(ImpactScenario { styles, bystander, real, t: 0.0, fired: 0, granted: false })
         .add_systems(Update, script.before(super::triggers).run_if(resource_exists::<ActiveWorld>));
 }

@@ -8,8 +8,8 @@ the sim.
 
 Code: `crates/bd_game/src/present/impact_frames/` (plugin `ImpactFramesPlugin`). Styles and rules:
 `assets/tuning/impact_frames.ron` (hot-reloaded; a new style is data only). Shader:
-`impact_frames/impact_frame.wgsl` (one `FullscreenMaterial` pass on the player camera, after bloom and
-before tonemapping). The render-world component only exists while a frame is playing, so the pass
+`impact_frames/impact_frame.wgsl` (one `FullscreenMaterial` pass on the player camera, in
+`PostProcess` before tonemapping). The render-world component only exists while a frame is playing, so the pass
 costs nothing when idle.
 
 ## Triggering one (other workers)

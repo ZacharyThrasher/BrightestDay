@@ -18,6 +18,10 @@
 //! * `BD_MOVEFX_SHOTS=<dir>`: screenshots after the move fires → `<dir>/<scene>_<view>_<NN>_<tag>.png`.
 //! * `hud` scene: synthetic borrowed moves + a 4-link chain for the strip's chips / pips
 //!   (pair with `BD_TAB_TEST=1` for the names).
+//! * `phrase` scene (CONTENT: ADVENTURE GAMES): `BD_MOVEFX_PHRASE="<any move phrase or chain>"` is
+//!   fired through the toolbox exactly as a player's line would be (kit / borrowed moves, chains:
+//!   "judgment cut end", "sonic homing attack -> chaos control"); `BD_MOVEFX_AT=0.1,0.4,0.9` sets the
+//!   shot offsets (s after it fires), `BD_MOVEFX_PITCH=<deg>` the look pitch.
 //! * `BD_MOVEFX_SPAM=<n>`: perf — every bot (and you) fires the scene's move every 0.4 s from t = 3 s,
 //!   `n` rounds; `MoveFxStats` (live beats, peak, step µs) is logged each second.
 
@@ -61,14 +65,45 @@ fn spam() -> u32 {
 /// (power key, slot, look pitch°, shot offsets after the move fires).
 fn spec(s: &str) -> (&'static str, u8, f32, &'static [f32]) {
     match s {
-        "blink_smoke" => ("teleport_bamf", 0, -4.0, &[0.02, 0.07, 0.15, 0.3, 0.6]),
+        "blink_smoke" => ("teleport_bamf", 0, 3.0, &[0.02, 0.07, 0.15, 0.3, 0.6]),
         "dash_speed" => ("viltrumite", 1, -3.0, &[0.05, 0.12, 0.22, 0.35, 0.55]),
         "shove" => ("kryptonian", 1, -6.0, &[0.03, 0.08, 0.15, 0.28, 0.5]),
         "slam" => ("gamma", 0, -8.0, &[0.2, 0.45, 0.8, 1.05, 1.3, 1.6]),
         "rubber_pistol" | "rigid_pistol" => ("gomu_gomu", 0, -2.0, &[0.04, 0.1, 0.18, 0.3, 0.5, 0.75]),
         "rubber_rocket" => ("gomu_gomu", 1, -5.0, &[0.04, 0.1, 0.2, 0.35, 0.55]),
+        "phrase" => ("", 0, phrase_pitch(), phrase_offsets()),
         _ => ("teleport_bamf", 0, 0.0, &[0.05, 0.15, 0.3]),
     }
+}
+
+/// `phrase` scene: shot offsets (`BD_MOVEFX_AT`, seconds after the move fires).
+fn phrase_offsets() -> &'static [f32] {
+    static V: std::sync::OnceLock<Vec<f32>> = std::sync::OnceLock::new();
+    V.get_or_init(|| {
+        let v: Vec<f32> = env("BD_MOVEFX_AT").map(|s| s.split(',').filter_map(|x| x.trim().parse().ok()).collect()).unwrap_or_default();
+        if v.is_empty() { vec![0.05, 0.25, 0.5, 0.9, 1.4, 2.0] } else { v }
+    })
+}
+
+fn phrase_pitch() -> f32 {
+    env("BD_MOVEFX_PITCH").and_then(|v| v.parse().ok()).unwrap_or(-4.0)
+}
+
+/// `phrase` scene: the toolbox steps `BD_MOVEFX_PHRASE` reads as (kit / borrowed moves; a chain).
+fn phrase_steps() -> Vec<bd_sim::powers::chain::ToolStep> {
+    use bd_sim::powers::toolbox::{split_chain, MoveIndex};
+    let text = env("BD_MOVEFX_PHRASE").unwrap_or_default();
+    let ix = MoveIndex::shipped();
+    let t = bd_sim::powers::PowerTable::get();
+    let is_move = |s: &str| ix.read(t, None, s).is_move();
+    split_chain(&text, &is_move)
+        .into_iter()
+        .filter_map(|step| {
+            let r = ix.read(t, None, &step);
+            let kit = matches!(r, bd_sim::powers::toolbox::Reading::Kit(_));
+            r.move_ref().map(|mv| bd_sim::powers::chain::ToolStep::Move { mv, kit })
+        })
+        .collect()
 }
 
 #[derive(Resource, Default)]
@@ -138,25 +173,36 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
     if spam() == 0 {
         active.bots.clear();
     }
-    // Hold the look (you are the camera).
-    look.yaw = base_yaw;
-    look.pitch = if observer() { -6f32.to_radians() } else { pitch.to_radians() };
     let fwd = bd_core::input::look_dir(base_yaw, 0.0);
     let fwd = bd_core::Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(bd_core::Vec3::NEG_Z);
     let side = bd_core::Vec3::new(-fwd.z, 0.0, fwd.x);
-    // The observed actor (bot 1) stands 9 m ahead, 5 m to the left, facing across your view;
-    // the target dummy (the other bot / bot 1 in first person) stands 8 m ahead.
+    // The stage: a clear run 9 m ahead / 5 m left of the spawn, heading along `side`. The actor
+    // (you in `fp`, bot 1 in `obs`) stands there; the other bots are targets further along it.
+    let stage = origin + fwd * 9.0 - side * 5.0;
+    let yaw_of = |d: bd_core::Vec3| (-d.x).atan2(-d.z);
+    look.yaw = if observer() { base_yaw } else { yaw_of(side) };
+    look.pitch = if observer() { -6f32.to_radians() } else { pitch.to_radians() };
     let others: Vec<PlayerId> = active.world.players.iter().filter(|p| p.id != me.0 && p.alive).map(|p| p.id).collect();
-    let pin_until = if spam() > 0 { 0.0 } else { dev.fired_at.map_or(f32::MAX, |f| f + 0.02) };
+    // Pinned until the move is sent (never across the tick that runs it).
+    let pin_until = if spam() > 0 || dev.phase >= 2 { 0.0 } else { f32::MAX };
+    let mut spots: Vec<(PlayerId, bd_core::Vec3, bd_core::Vec3)> = Vec::new();
+    if !observer() {
+        spots.push((me.0, stage, side));
+    }
     for (k, id) in others.iter().enumerate() {
-        let (want, face) = if observer() && k == 0 { (origin + fwd * 9.0 - side * 5.0, side) } else { (origin + fwd * (17.0 + 3.0 * k as f32) + side * (3.0 + 2.0 * k as f32), -fwd) };
+        let (want, face) = if observer() && k == 0 { (stage, side) } else { (stage + side * (14.0 + 3.0 * k as f32) + fwd * (1.5 * k as f32), -side) };
+        spots.push((*id, want, face));
+    }
+    for (id, want, face) in spots {
         let ground = bd_core::voxel::raycast(&active.world.voxels, want + bd_core::Vec3::Y * 12.0, bd_core::Vec3::NEG_Y, 40.0).map(|h| h.point.y);
-        if let Some(p) = active.world.player_mut(*id) {
+        if let Some(p) = active.world.player_mut(id) {
             if dev.t < pin_until {
                 p.mv.pos = bd_core::Vec3::new(want.x, ground.map_or(p.mv.pos.y, |g| g + 0.05), want.z);
                 p.mv.vel = bd_core::Vec3::ZERO;
-                p.input.yaw = (-face.x).atan2(-face.z);
-                p.input.pitch = 0.0;
+                if id != me.0 {
+                    p.input.yaw = yaw_of(face);
+                    p.input.pitch = 0.0;
+                }
             }
             p.spawn_shield = 0.0;
             p.willpower = p.willpower.max(100.0);
@@ -192,6 +238,9 @@ fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<Dev>, stats: Res<M
             bd_sim::Aim::new(eye, dir)
         })
     };
+    if dev.phase == 0 && dev.t > 1.0 && s == "phrase" {
+        dev.phase = 1;
+    }
     if dev.phase == 0 && dev.t > 1.0 {
         dev.phase = 1;
         info!("movefx test {s}: granting {key}");
@@ -206,7 +255,13 @@ fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<Dev>, stats: Res<M
         dev.phase = 2;
         info!("movefx test {s}: firing slot {slot}");
         let aim = aim_of(actor);
-        dev.queue.push(send(actor, Cmd::PowerMove(slot, aim)));
+        if s == "phrase" {
+            let steps = phrase_steps();
+            info!("movefx test phrase: {} step(s)", steps.len());
+            dev.queue.push(send(actor, Cmd::Toolbox { steps, aim }));
+        } else {
+            dev.queue.push(send(actor, Cmd::PowerMove(slot, aim)));
+        }
         dev.next_spam = dev.t + 0.4;
     }
     if spam() > 0 && dev.phase == 2 && dev.t >= dev.next_spam && dev.rounds < spam() {

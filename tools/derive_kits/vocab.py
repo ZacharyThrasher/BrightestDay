@@ -189,7 +189,7 @@ STRIP_SUFFIXES = {"marvel", "dc", "transformer", "transformers", "tmnt", "autobo
 
 # Pokémon moves by element (names only), used for the pokemon pack.
 POKEMON = {
-    "Fire": dict(bolt="flamethrower", storm="fire blast", combo="fire spin", step="flame charge", ward="protect"),
+    "Fire": dict(bolt="flamethrower", storm="overheat", combo="fire spin", step="flame charge", ward="protect"),
     "Electric": dict(bolt="thunderbolt", storm="thunder", combo="volt tackle", step="volt switch", ward="protect"),
     "Water": dict(bolt="bubble beam", storm="hydro pump", combo="waterfall", step="aqua jet", ward="withdraw"),
     "Ice": dict(bolt="ice beam", storm="blizzard", combo="icicle crash", step="ice shard", ward="protect"),

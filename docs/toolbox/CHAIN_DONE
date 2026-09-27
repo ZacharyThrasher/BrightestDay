@@ -1,0 +1,51 @@
+CHAIN DONE (TOOLBOX CORE, 2026-09-27)
+
+One line / one utterance with separators runs a SEQUENCE:
+  "nightcrawler teleport -> reinhardt ultimate -> doomfist punch -> optimus prime combo"
+  "amaterasu then chidori"        "summon a dragon, rasengan"        "bamf, bamf drop then force push"
+Live in the console and voice (same function: bd_game `toolbox::command`; Whisper commas / "then"
+work). Pure split: bd_sim `powers::toolbox::split_chain` / `split_chain_with`.
+
+SEPARATORS
+- Strong (always split): "->", "=>", ">", "→", "then", "and then", "followed by", "after that".
+- Weak: ",", ";", "into", "and" — split only when some piece is a move and EVERY piece is a move or a
+  clean thing on its own (`Lexicon::is_clean_thing`: a fully understood construct / grant). So
+  "a big, flaming hammer" stays one hammer, "rock and roll" / "turn it into a dragon" stay whole.
+- A whole line that is itself one move is never split (unless it has an arrow). At most 8 steps.
+- Steps can be anything: held moves, borrowed moves, kit moves, constructs, grants ("super saiyan,
+  kamehameha"), signatures, incantations of a held power.
+
+TIMING — each step fires when the previous one's ACTIVE PHASE ends (`powers::chain::op_active`):
+  Blink 0.12 s (arrival) · Impulse 0.30 s (0.45 s with a big `up`) · Reel range/speed (0.25–0.9 s) ·
+  Shove 0.2 · Cast 0.25 (a signature cast 0.7) · Field / Room 0.25 · Swap 0.15 · Portal 0.3 · Link 0.2 ·
+  Explode 0.25 (0.45 if radius > 6) · Carve 0.3 · TimeStop 0.3 · Restore 0.4 · SelfStatus 0.1 ·
+  Weigh 0.25 · Yank 0.4 · Singularity 0.6 · SlamOnLand: UNTIL YOU LAND (≤ 2.5 s) ·
+  generic ops (powers/ops/): `ops::active_secs(op)`, and the chain also waits while
+  `World::op_busy` (a ram in flight, a hook out, a grab held, a lock-on channel, a stance window).
+  A move's phase = its longest op. Design your ENDINGS: a dash that ends airborne sets up an aerial,
+  a slam that ends grounded sets up a launcher.
+- Each step is RE-AIMED at fire time (the player's look then; the first step uses the crosshair sent
+  with the command) and PAID as it fires (sparks by tier + staleness, see BORROW_DONE).
+- Stops cleanly (`PowerEvent::ChainStopped { why }`): out of sparks (NotEnoughWillpower), KO (Dead),
+  stunned or a NEW command (Busy: any cast / power move / new toolbox line replaces the chain).
+  A step that fizzles (cooldown, nothing to hit) is skipped; the next fires on the next tick.
+
+INPUT BUFFER (one slot): a move line issued during another move's active phase QUEUES and fires at
+the phase end instead of being dropped (a new line replaces a queued one). G-key moves stay instant.
+
+INPUT → FEEDBACK LATENCY (measured)
+- Client reading of a line (split + per-step reading + lexicon checks): ~2–5 ms per line in the
+  test build (bd_game `toolbox::tests::toolbox_lines_resolve_fast_and_right`, 6 mixed lines; the
+  plain lexicon resolve of a phrase alone is 0.03–1.6 ms). The commit frame shows the ring flare /
+  cast pose / confirm sound immediately (`Caster::commit_feedback`, same frame as Enter / the end of
+  the utterance).
+- Sim: offline / host apply the command before the next tick of the same frame → the first step's
+  ops run and `PowerEvent::Fired` is out on that tick (≤ 1 tick = 8.3 ms at 120 Hz). Clients: + one
+  trip to the host (as for every command).
+
+PREVIEW / VALIDATE
+  phrase_preview.cmd --no-open "bamf -> almighty push -> universal pull"     (prints CHAIN steps,
+      each move's tier / sparks / active phase; construct steps previewed below)
+  cargo run --profile fastrel -p bd_sim --example powers_check -- <file> --coverage phrases.txt
+      (prints CHAIN [step: reading] → … per line)
+Tests: crates/bd_sim/tests/toolbox.rs (chains, buffer, stop reasons, determinism, wire round-trip).

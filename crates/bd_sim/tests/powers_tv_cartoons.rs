@@ -133,6 +133,9 @@ fn avatar_bending_reads() {
     kit("amon take your bending", "kit_amon", "take your bending");
     kit("sokka boomerang", "kit_sokka", "boomerang");
     borrow("yip yip", "kit_aang", "yip yip");
+    borrow("bloodbending", "kit_katara", "bloodbending");
+    borrow("dragon of the west", "kit_iroh", "dragon's breath");
+    kit("optimus prime shoot", "kit_optimus_prime", "ion blaster");
 }
 
 #[test]
@@ -192,6 +195,11 @@ fn cartoon_kits_and_shouts() {
     borrow("ghostly wail", "kit_danny_phantom", "ghostly wail");
     borrow("chronobreak", "kit_ekko", "rewind");
     borrow("portable hole", "kit_acme", "portable hole");
+    // base cartoons (deepened): turtle power calls the brothers, the Omnitrix roulette
+    borrow("turtle power", "mutagen_turtle", "turtle power");
+    borrow("ninja vanish", "mutagen_turtle", "ninja vanish");
+    borrow("random alien", "omnitrix", "omnitrix roulette");
+    borrow("viltrumite barrage", "viltrumite", "viltrumite barrage");
     // bare names stay the costume summon (never a move, never a grant of a kit)
     for n in ["optimus prime", "toph", "aang", "leonardo", "homelander", "eleven", "raven", "geralt", "spongebob", "megatron"] {
         plain(n);

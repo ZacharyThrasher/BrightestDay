@@ -1,0 +1,430 @@
+shadow teleport behind ethan => teleport[Teleport] style=shadow place=Behind target=Player(PlayerId(1))
+lightning dash through him => dash[Dash] style=lightning place=Through target=Pronoun
+gravity punch => punch[Punch] style=gravity
+ice clone => clone[Clone] style=ice
+swap with the dragon => swap[Swap] target=Thing(52881)
+rewind 3 seconds => rewind[Rewind] 3.0s
+fire uppercut => uppercut[Uppercut] style=fire
+phase through the wall => phase[Phase] place=Through target=Ground
+pull everyone to me => pull[Pull] place=Toward target=Everyone
+leap onto the tower => leap[Leap] place=Onto target=Ground
+blink above him => blink[Teleport] place=Above target=Pronoun
+turn invisible => vanish[Vanish]
+absorb his attack => absorb[Absorb]
+~Shadow teleport behind Ethan. => teleport[Teleport] style=shadow place=Behind target=Player(PlayerId(1))
+~Lightning dash through him! => dash[Dash] style=lightning place=Through target=Pronoun
+~Gravity punch! => punch[Punch] style=gravity
+~Ice clone. => clone[Clone] style=ice
+~Swap with the dragon. => swap[Swap] target=Thing(52881)
+~Rewind three seconds. => rewind[Rewind] 3.0s
+~Fire uppercut! => uppercut[Uppercut] style=fire
+~Phase through the wall. => phase[Phase] place=Through target=Ground
+~Pull everyone to me! => pull[Pull] place=Toward target=Everyone
+~Leap onto the tower. => leap[Leap] place=Onto target=Ground
+~Blink above him. => blink[Teleport] place=Above target=Pronoun
+~Turn invisible. => vanish[Vanish]
+~Absorb his attack. => absorb[Absorb]
+teleport => teleport[Teleport]
+teleport behind him => teleport[Teleport] place=Behind target=Pronoun
+teleport behind mia => teleport[Teleport] place=Behind target=Player(PlayerId(2))
+teleport in front of sam => teleport[Teleport] place=Front target=Player(PlayerId(3))
+teleport above nova => teleport[Teleport] place=Above target=Player(PlayerId(4))
+teleport beside ethan => teleport[Teleport] place=Beside target=Player(PlayerId(1))
+teleport next to mia => teleport[Teleport] place=Beside target=Player(PlayerId(2))
+teleport to ethan => teleport[Teleport] place=Toward target=Player(PlayerId(1))
+teleport onto the roof => teleport[Teleport] place=Onto target=Ground
+teleport through the wall => teleport[Teleport] place=Through target=Ground
+teleport up => teleport[Teleport] place=Up
+teleport back => teleport[Teleport] place=Away
+teleport away => teleport[Teleport] place=Away
+teleport forward => teleport[Teleport] place=Forward
+teleport behind the dragon => teleport[Teleport] place=Behind target=Thing(52881)
+teleport behind it => teleport[Teleport] place=Behind target=It
+teleport behind the nearest enemy => teleport[Teleport] place=Behind target=Nearest
+teleport behind big tony => teleport[Teleport] place=Behind target=Player(PlayerId(5))
+teleport behind tony => teleport[Teleport] place=Behind target=Player(PlayerId(5))
+teleport behind alex99 => teleport[Teleport] place=Behind target=Player(PlayerId(6))
+teleport behind ethan's back => teleport[Teleport] place=Behind target=Player(PlayerId(1))
+teleport twice => teleport[Teleport] x2
+smoke teleport behind him => teleport[Teleport] style=smoke place=Behind target=Pronoun
+fire teleport to mia => teleport[Teleport] style=fire place=Toward target=Player(PlayerId(2))
+void teleport above sam => teleport[Teleport] style=void place=Above target=Player(PlayerId(3))
+holy teleport behind nova => teleport[Teleport] style=holy place=Behind target=Player(PlayerId(4))
+bamf => bamf[Teleport]
+bamf behind him => bamf[Teleport] place=Behind target=Pronoun
+bamf behind ethan => bamf[Teleport] place=Behind target=Player(PlayerId(1))
+blink => blink[Teleport]
+blink behind her => blink[Teleport] place=Behind target=Pronoun
+blink forward => blink[Teleport] place=Forward
+warp behind them => teleport[Teleport] place=Behind target=Pronoun
+warp to the tower => teleport[Teleport] place=Toward target=Ground
+flash step behind him => flash_step[Teleport] place=Behind target=Pronoun
+shunpo behind ethan => flash_step[Teleport] place=Behind target=Player(PlayerId(1))
+sonido => flash_step[Teleport]
+step behind him => flash_step[Teleport] place=Behind target=Pronoun
+instant transmission behind mia => teleport[Teleport] place=Behind target=Player(PlayerId(2))
+teleporting behind him => teleport[Teleport] place=Behind target=Pronoun
+teleported behind ethan => teleport[Teleport] place=Behind target=Player(PlayerId(1))
+i'll teleport behind you => teleport[Teleport] place=Behind target=Pronoun
+let me teleport behind him => teleport[Teleport] place=Behind target=Pronoun
+go teleport behind ethan => teleport[Teleport] place=Behind target=Player(PlayerId(1))
+~Tele port behind him. => teleport[Teleport] place=Behind target=Pronoun
+~Teleport behind Mia! => teleport[Teleport] place=Behind target=Player(PlayerId(2))
+~I'm teleporting behind you. => teleport[Teleport] place=Behind target=Pronoun
+~Bamf behind Ethan! => bamf[Teleport] place=Behind target=Player(PlayerId(1))
+~Flash step behind him. => flash_step[Teleport] place=Behind target=Pronoun
+~Shun po behind Ethan. => flash_step[Teleport] place=Behind target=Player(PlayerId(1))
+~Teleport to the tower. => teleport[Teleport] place=Toward target=Ground
+~Teleport back! => teleport[Teleport] place=Away
+dash => dash[Dash]
+dash forward => dash[Dash] place=Forward
+dash back => dash[Dash] place=Away
+dash through him => dash[Dash] place=Through target=Pronoun
+dash at ethan => dash[Dash] place=Toward target=Player(PlayerId(1))
+dash toward the dragon => dash[Dash] place=Toward target=Thing(52881)
+dash up => dash[Dash] place=Up
+lightning dash => dash[Dash] style=lightning
+fire dash => dash[Dash] style=fire
+speed dash through them => dash[Dash] style=speed place=Through target=Pronoun
+dash twice => dash[Dash] x2
+dash 3 times => dash[Dash] x3
+lunge at him => lunge[Dash] place=Toward target=Pronoun
+charge => charge[Charge]
+charge him => charge[Charge] target=Pronoun
+charge into the wall => charge[Charge] place=Into target=Ground
+charge through them => charge[Charge] place=Through target=Pronoun
+charge ethan => charge[Charge] target=Player(PlayerId(1))
+ram him => charge[Charge] target=Pronoun
+tackle mia => charge[Charge] target=Player(PlayerId(2))
+shoulder charge => charge[Charge]
+bull rush => charge[Charge]
+leap => leap[Leap]
+leap up => leap[Leap] place=Up
+leap onto the building => leap[Leap] place=Onto target=Ground
+leap at him => leap[Leap] place=Toward target=Pronoun
+jump onto the ledge => leap[Leap] place=Onto target=Ground
+jump up => leap[Leap] place=Up
+super jump => leap[Leap]
+earth leap => leap[Leap] style=earth
+gravity leap onto him => leap[Leap] style=gravity place=Onto target=Pronoun
+hop back => leap[Leap] place=Away
+fly => fly[Fly]
+fly up => fly[Fly] place=Up
+hover => fly[Fly]
+hover for 3 seconds => fly[Fly] 3.0s
+levitate => fly[Fly]
+take off => fly[Fly]
+fly for 2 seconds => fly[Fly] 2.0s
+~Dash through him. => dash[Dash] place=Through target=Pronoun
+~Charge into the wall! => charge[Charge] place=Into target=Ground
+~Jump onto the ledge. => leap[Leap] place=Onto target=Ground
+~Fly for three seconds. => fly[Fly] 3.0s
+~Lightning dash! => dash[Dash] style=lightning
+dodge => dodge[Dodge]
+dodge back => dodge[Dodge] place=Away
+sidestep => dodge[Dodge]
+roll forward => dodge[Dodge] place=Forward
+evade => dodge[Dodge]
+phase => phase[Phase]
+go intangible => phase[Phase]
+become intangible => phase[Phase]
+phase for 2 seconds => phase[Phase] 2.0s
+walk through the wall => phase[Phase] target=Ground
+walk through walls => phase[Phase] target=Ground
+pass through the wall => phase[Phase] target=Ground
+phase through him => phase[Phase] place=Through target=Pronoun
+ghost through the wall => phase[Phase] place=Through target=Ground
+noclip through the floor => phase[Phase] place=Through target=Ground
+swap => swap[Swap]
+swap with him => swap[Swap] target=Pronoun
+swap with ethan => swap[Swap] target=Player(PlayerId(1))
+swap places with mia => swap[Swap] target=Player(PlayerId(2))
+switch places with the nearest enemy => swap[Swap] target=Nearest
+trade places with it => swap[Swap] target=It
+swap with my clone => swap[Swap] target=Thing(16739)
+rewind => rewind[Rewind]
+rewind 2 seconds => rewind[Rewind] 2.0s
+rewind for 1 second => rewind[Rewind] 1.0s
+recall => rewind[Rewind]
+go back in time => rewind[Rewind]
+rewind time => rewind[Rewind]
+turn back time => rewind[Rewind]
+vanish => vanish[Vanish]
+disappear => vanish[Vanish]
+go invisible => vanish[Vanish]
+become invisible => vanish[Vanish]
+cloak => NONE
+smoke bomb => vanish[Vanish]
+turn invisible for 3 seconds => vanish[Vanish] 3.0s
+~Go intangible. => phase[Phase]
+~Faze through the wall. => phase[Phase] place=Through target=Ground
+~Swap places with Mia. => swap[Swap] target=Player(PlayerId(2))
+~Rewind two seconds! => rewind[Rewind] 2.0s
+~Turn in visible. => vanish[Vanish]
+~Vanish! => vanish[Vanish]
+~Recall. => rewind[Rewind]
+punch => punch[Punch]
+punch him => punch[Punch] target=Pronoun
+punch ethan => punch[Punch] target=Player(PlayerId(1))
+punch mia in the face => punch[Punch] target=Player(PlayerId(2))
+punch the dragon => punch[Punch] target=Thing(52881)
+punch everyone => punch[Punch] target=Everyone
+punch him twice => punch[Punch] target=Pronoun x2
+punch him 3 times => punch[Punch] target=Pronoun x3
+double punch => punch[Punch] x2
+triple punch => punch[Punch] x3
+fire punch => punch[Punch] style=fire
+ice punch => punch[Punch] style=ice
+lightning punch => punch[Punch] style=lightning
+shadow punch => punch[Punch] style=shadow
+earth punch => punch[Punch] style=earth
+iron punch => punch[Punch] style=earth
+atomic punch => punch[Punch] style=atomic
+psychic punch => punch[Punch] style=psychic
+gravity punch him => punch[Punch] style=gravity target=Pronoun
+fire punch ethan => punch[Punch] style=fire target=Player(PlayerId(1))
+giant punch => punch[Punch] +big
+mega punch => haymaker[Punch]
+super punch => haymaker[Punch]
+quick punch => punch[Punch] style=speed
+jab => jab[Punch]
+jab him => jab[Punch] target=Pronoun
+haymaker => haymaker[Punch]
+falcon punch => haymaker[Punch]
+one punch => haymaker[Punch]
+kick => kick[Kick]
+kick him => kick[Kick] target=Pronoun
+roundhouse kick => kick[Kick]
+fire kick => kick[Kick] style=fire
+drop kick him => kick[Kick] target=Pronoun
+flying kick => kick[Kick]
+uppercut => uppercut[Uppercut]
+uppercut him => uppercut[Uppercut] target=Pronoun
+uppercut ethan into the sky => uppercut[Uppercut] place=Up target=Player(PlayerId(1))
+fire uppercut him => uppercut[Uppercut] style=fire target=Pronoun
+lightning uppercut => uppercut[Uppercut] style=lightning
+slam => slam[Slam]
+slam him => slam[Slam] target=Pronoun
+slam down => slam[Slam] place=Down
+slam onto him => slam[Slam] place=Onto target=Pronoun
+body slam => slam[Slam]
+ground pound => slam[Slam]
+dive bomb => slam[Slam]
+earth slam => slam[Slam] style=earth
+gravity slam => slam[Slam] style=gravity
+stomp => stomp[Stomp]
+war stomp => stomp[Stomp]
+earthquake => stomp[Stomp]
+fire stomp => stomp[Stomp] style=fire
+smash => smash[Smash]
+smash the ground => smash[Smash] target=Ground
+hulk smash => NONE
+slash => slash[Slash]
+slash him => slash[Slash] target=Pronoun
+fire slash => slash[Slash] style=fire
+wind slash => slash[Slash] style=wind
+triple slash => slash[Slash] x3
+slash everyone => slash[Slash] target=Everyone
+flurry => flurry[Flurry]
+barrage => flurry[Flurry]
+rapid punches => flurry[Flurry]
+flurry of punches => NONE
+combo him => flurry[Flurry] target=Pronoun
+beat him up => flurry[Flurry] place=Up target=Pronoun
+spin attack => spin[Spin]
+spin => spin[Spin]
+fire spin => spin[Spin] style=fire
+grab => grab[Grab]
+grab him => grab[Grab] target=Pronoun
+grab ethan => grab[Grab] target=Player(PlayerId(1))
+throw him => throw[Grab] target=Pronoun
+throw him up => throw[Grab] place=Up target=Pronoun
+throw ethan => throw[Grab] target=Player(PlayerId(1))
+suplex him => throw[Grab] target=Pronoun
+choke him => grab[Grab] target=Pronoun
+headbutt him => punch[Punch] target=Pronoun
+elbow him => punch[Punch] target=Pronoun
+knee him => kick[Kick] target=Pronoun
+palm strike => punch[Punch]
+karate chop => punch[Punch]
+~Punch him! => punch[Punch] target=Pronoun
+~Fire punch! => punch[Punch] style=fire
+~Uppercut Ethan. => uppercut[Uppercut] target=Player(PlayerId(1))
+~Up her cut! => uppercut[Uppercut]
+~Slam him! => slam[Slam] target=Pronoun
+~Ground pound! => slam[Slam]
+~Kick him in the face! => kick[Kick] target=Pronoun
+~Grab Ethan. => grab[Grab] target=Player(PlayerId(1))
+~Throw him. => throw[Grab] target=Pronoun
+~Punch him twice! => punch[Punch] target=Pronoun x2
+~Lightning punch. => punch[Punch] style=lightning
+pull => pull[Pull]
+pull him => pull[Pull] target=Pronoun
+pull ethan => pull[Pull] target=Player(PlayerId(1))
+pull everyone => pull[Pull] target=Everyone
+pull them all to me => pull[Pull] place=Toward target=Everyone
+pull everyone toward me => pull[Pull] place=Toward target=Everyone
+yank him => pull[Pull] target=Pronoun
+yank ethan => pull[Pull] target=Player(PlayerId(1))
+drag him to me => pull[Pull] place=Toward target=Pronoun
+reel him in => pull[Pull] place=Into target=Pronoun
+get over here => pull[Pull]
+pull myself to the wall => pull[Pull] place=Toward target=Me
+pull the wall => pull[Pull] target=Ground
+push => push[Push]
+push him => push[Push] target=Pronoun
+push ethan => push[Push] target=Player(PlayerId(1))
+push everyone => push[Push] target=Everyone
+push everyone away => push[Push] place=Away target=Everyone
+force push => push[Push]
+force push him => push[Push] target=Pronoun
+blow everyone away => push[Push] place=Away target=Everyone
+knock him back => punch[Punch] place=Away target=Pronoun
+repel => push[Push]
+lift him => lift[Lift] target=Pronoun
+levitate him => lift[Lift]
+lift ethan => lift[Lift] target=Player(PlayerId(1))
+raise everyone => lift[Lift] target=Everyone
+crush him => smash[Smash] target=Pronoun
+pin him down => crush[Crush] place=Down target=Pronoun
+gravity crush => crush[Crush]
+explode => explode[Explode]
+self destruct => explode[Explode]
+detonate => explode[Explode]
+blow up => explode[Explode]
+go nova => explode[Explode]
+~Pull everyone to me. => pull[Pull] place=Toward target=Everyone
+~Get over here! => pull[Pull]
+~Force push! => push[Push]
+~Push everyone away! => push[Push] place=Away target=Everyone
+~Self-destruct! => explode[Explode]
+freeze him => freeze[Freeze] target=Pronoun
+freeze ethan => freeze[Freeze] target=Player(PlayerId(1))
+freeze everyone => freeze[Freeze] target=Everyone
+freeze time => timestop[TimeStop]
+stop time => timestop[TimeStop]
+time stop => timestop[TimeStop]
+slow down time => timestop[TimeStop]
+burn him => burn[Burn] target=Pronoun
+burn everyone => burn[Burn] target=Everyone
+set him on fire => burn[Burn] style=fire target=Pronoun
+ignite ethan => burn[Burn] target=Player(PlayerId(1))
+shock him => shock[Shock] target=Pronoun
+electrocute ethan => shock[Shock] target=Player(PlayerId(1))
+zap him => shock[Shock] target=Pronoun
+shock everyone => shock[Shock] target=Everyone
+poison him => poison[Poison] target=Pronoun
+poison everyone => poison[Poison] target=Everyone
+blind him => blind[Blind] target=Pronoun
+blind everyone => blind[Blind] target=Everyone
+stun him => stun[Stun] target=Pronoun
+paralyze mia => stun[Stun] target=Player(PlayerId(2))
+freeze him for 2 seconds => freeze[Freeze] target=Pronoun 2.0s
+~Freeze him! => freeze[Freeze] target=Pronoun
+~Stop time! => timestop[TimeStop]
+~Electrocute Ethan. => shock[Shock] target=Player(PlayerId(1))
+~Set him on fire! => burn[Burn] style=fire target=Pronoun
+~Blind everyone. => blind[Blind] target=Everyone
+block => guard[Guard]
+guard => guard[Guard]
+brace => guard[Guard]
+parry => parry[Counter]
+counter => parry[Counter]
+counter attack => parry[Counter]
+reflect => reflect[Reflect]
+deflect => reflect[Reflect]
+bounce it back => reflect[Reflect] place=Away target=It
+absorb => absorb[Absorb]
+absorb it => absorb[Absorb] target=It
+copy his move => copy[Copy]
+copy him => copy[Copy] target=Pronoun
+mimic him => copy[Copy] target=Pronoun
+clone => clone[Clone]
+clone myself => clone[Clone] target=Me
+make a clone => clone[Clone]
+make clones => clone[Clone]
+shadow clone => clone[Clone] style=shadow
+fire clone => clone[Clone] style=fire
+three clones => clone[Clone] x3
+decoy => clone[Clone]
+heal => heal[Heal]
+heal me => heal[Heal] target=Me
+heal myself => heal[Heal] target=Me
+regenerate => heal[Heal]
+harden => harden[Harden]
+armor up => harden[Harden]
+go berserk => harden[Harden]
+grow => grow[Grow]
+grow huge => grow[Grow]
+get big => grow[Grow]
+shrink => shrink[Shrink]
+get tiny => shrink[Shrink]
+go small => shrink[Shrink]
+~Parry! => parry[Counter]
+~Heal myself. => heal[Heal] target=Me
+~Make a clone! => clone[Clone]
+~Shadow clone! => clone[Clone] style=shadow
+~Grow! => grow[Grow]
+~Shrink. => shrink[Shrink]
+behind ethan shadow teleport => teleport[Teleport] style=shadow place=Behind target=Player(PlayerId(1))
+please teleport behind him => teleport[Teleport] place=Behind target=Pronoun
+just dash => dash[Dash]
+quickly dash forward => dash[Dash] place=Forward
+ok teleport behind him now => teleport[Teleport] place=Behind target=Pronoun
+teleport behind him please => teleport[Teleport] place=Behind target=Pronoun
+yo punch him => punch[Punch] target=Pronoun
+teleport behind that guy => teleport[Teleport] place=Behind target=Pronoun
+punch that guy => punch[Punch] target=Pronoun
+punch the nearest enemy => punch[Punch] target=Nearest
+punch whoever's closest => punch[Punch] target=Nearest
+teleport behind the closest one => teleport[Teleport] place=Behind target=Nearest
+dash at everyone => dash[Dash] place=Toward target=Everyone
+teleport behind jake => teleport[Teleport] place=Behind target=Thing(33176)
+teleport behind ethen => teleport[Teleport] place=Behind target=Player(PlayerId(1))
+punch ehtan => punch[Punch] target=Player(PlayerId(1))
+swop with him => swap[Swap] target=Pronoun
+rewined 3 seconds => rewind[Rewind] 3.0s
+teleprot behind him => teleport[Teleport] place=Behind target=Pronoun
+invisable => vanish[Vanish]
+uppercutt => uppercut[Uppercut]
+electricute him => shock[Shock] target=Pronoun
+a dragon => NONE
+giant sword => NONE
+hammer => NONE
+a flaming hammer => NONE
+summon a dragon => NONE
+drop a meteor on ethan => NONE
+throw a fireball => NONE
+missile at jake => NONE
+cage ethan => NONE
+hit mia with a meteor => NONE
+meteor => NONE
+hook => NONE
+a hook => NONE
+slide => NONE
+rocket => NONE
+spear => NONE
+ice => NONE
+flame => NONE
+shield => NONE
+barrier => NONE
+king kong on a skateboard => NONE
+gomu gomu no pistol => NONE
+kamehameha => NONE
+star platinum => NONE
+fire => NONE
+shadow => NONE
+lightning bolt => NONE
+fire ball => NONE
+a big flaming hammer that returns => NONE
+teleport gun => NONE
+punching bag => NONE
+dash board => NONE
+eeyore shooting laser beams => NONE
+clone trooper => NONE
+ghost => NONE
+duck => NONE
+turtle => NONE
+tank => NONE
+trap => NONE
+belt => NONE

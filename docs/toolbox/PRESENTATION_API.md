@@ -1,5 +1,10 @@
 # TOOLBOX → PRESENTATION API (TOOLBOX CORE; for the PRESENTATION worker)
 
+STATUS: everything below is LIVE (protocol v40): `PowerEvent::Fired` for every held / borrowed /
+kit move, `PowerEvent::ChainStopped`, `OwnState::toolbox` in the owner's snapshots,
+`World::toolbox_view` in practice / host. (Composed moves from the VERB GRAMMAR worker add
+`ToolStep::Composed` / `FireHow::Composed` / `PowerEvent::Composed` — see their doc.)
+
 What the sim exposes so HUD / move visuals / audio can present every move — held, borrowed, kit —
 and chains. Everything lives in `bd_sim::powers::{toolbox, chain}`; all of it is host-authoritative
 and replicated (events to everyone, the own-toolbox view to its owner only).
@@ -26,6 +31,10 @@ GameEvent::Power(PowerEvent::Fired {
   `companion`, `ascend`…). For `OpKind::Other`, match on `MoveDef::ops` yourself (generic ops from
   `powers/ops/` also send their own `PowerEvent::Op(OpEvent::…)` beats).
 * Held moves still ALSO send the old `PowerEvent::Move { player, power, slot }` (the HUD uses it).
+* Timing: `Fired` is emitted when the move's ops RAN (host tick). For a chain, step k's `Fired`
+  arrives when step k-1's active phase ended (`chain::active_phase(&MoveDef)` gives the phase the
+  sim waits for: present the gather → release inside it so the next step's gather reads as a
+  follow-through). A queued step shows in `ToolboxSnap::queue` until it fires.
 * A held move of the ACTIVE power: `mv.tier` is its tier if that tier has its own move list, else 0.
 * **Held context for borrowed moves** (decided): a borrowed / kit move of a power that normally
   needs its holder's context is run WITHOUT that context in the sim — ops are world ops. When the

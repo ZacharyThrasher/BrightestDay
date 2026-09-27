@@ -77,6 +77,8 @@ impl Spring {
 struct ActiveSwing {
     curve: SwingCurve,
     t: f32,
+    /// WEAPON FEEL: curve seconds per second — the sim's swing rate (class speed, Fast / Heavy pace).
+    rate: f32,
     /// Holding a charge / guard: freeze at `hold_at`.
     holding: bool,
     /// The input bit that holds it (PRIMARY charge, SECONDARY guard): released locally → play on.
@@ -113,6 +115,10 @@ struct VmState {
     /// `time` when a charge was released locally (its heavy already plays; the host's heavy
     /// `SwingStart`, ~RTT later on a client, must not restart it).
     released_at: Option<f32>,
+    /// WEAPON FEEL: the held item is ranged (aims like a gun; a quarterstaff doesn't), and a
+    /// two-handed melee weapon by class (the left hand joins it on the handle).
+    held_ranged: bool,
+    two_hand_melee: bool,
 }
 
 #[derive(Component)]
@@ -476,6 +482,7 @@ fn vm_events(
     mut st: ResMut<VmState>,
     mut sfx: MessageWriter<crate::audio::PlaySfx>,
     input: Res<crate::input::LocalInputState>,
+    feel: Option<Res<crate::present::weapon_feel::WeaponFeel>>,
 ) {
     for c in cues.read() {
         match c {
@@ -506,6 +513,15 @@ fn vm_events(
     let held_c = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held && c.recipe.form != Form::Hands);
     let held = held_c.map(|c| (c.id, c.recipe.form));
     let held_pole = held_c.is_some_and(|c| c.has(bd_core::mechanics::Mechanic::Extends) && !bd_sim::constructs::gun::is_gun(c)); // WUKONG
+    // WEAPON FEEL: ranged vs melee (a blunt staff is a quarterstaff), class two-handers, swing rate.
+    let ranged = held_c.is_some_and(bd_sim::constructs::gun::is_gun);
+    st.held_ranged = ranged;
+    st.two_hand_melee = held_c.is_some_and(|c| !ranged && feel.as_deref().is_some_and(|f| crate::present::weapon_feel::two_handed(f, c)));
+    let rate = held_c.map_or(1.0, |c| bd_sim::constructs::held::swing_rate(c, &a.world.cfg.tuning));
+    let gun_kick = match (held_c, feel.as_deref()) {
+        (Some(c), Some(f)) => crate::present::weapon_feel::gun_kick(f, c),
+        _ => 1.0,
+    };
     // The sim's quantised weight: the first-person swing matches its hit windows.
     let swing_w = held_c.map_or(1.0, |c| bd_sim::constructs::held::swing_weight(&c.recipe));
     st.held_w = held_c.map_or(1.0, |c| bd_shapes::weight_of(&c.recipe));
@@ -546,8 +562,13 @@ fn vm_events(
                         }
                     }
                     let button = if *fx == HeldFx::ChargeStart { buttons::PRIMARY } else { buttons::SECONDARY };
-                    let curve = crate::present::extend::swing_curve_for(held_pole, form, kind, *fx, *strength, swing_w); // WUKONG: poles twirl
-                    st.swing = Some(ActiveSwing { curve, t: 0.0, holding: hold, button });
+                    // WEAPON FEEL: exactly the class curve the sim sweeps (poles keep their twirl curves).
+                    let class_curve = held_c.filter(|_| !held_pole).and_then(|c| bd_sim::constructs::held::event_curve(c, *fx, *strength, &a.world.cfg.tuning));
+                    let curve = match class_curve {
+                        Some((cv, _, _)) => cv.clone(),
+                        None => crate::present::extend::swing_curve_for(held_pole, form, kind, *fx, *strength, swing_w), // WUKONG: poles twirl
+                    };
+                    st.swing = Some(ActiveSwing { curve, t: 0.0, rate, holding: hold, button });
                 }
             }
             GameEvent::ShotFired { owner, recoil, construct, .. } if *owner == local => {
@@ -556,7 +577,7 @@ fn vm_events(
                     st.punch.v -= 3.5;
                     st.flare = st.flare.max(0.7);
                 } else {
-                    let k = (recoil / 6.0).clamp(0.25, 1.6);
+                    let k = (recoil / 6.0).clamp(0.25, 1.6) * gun_kick; // WEAPON FEEL: light guns snap, heavy guns shove
                     st.kick_pitch.v += 9.0 * k;
                     st.kick_back.v += 2.4 * k;
                 }
@@ -660,11 +681,11 @@ fn animate_viewmodel(
     // --- swing curve (right hand frame)
     // Rest: the item is held up at the side (tilted up and out), clear of the crosshair.
     // Guns / launchers / bows / shields point where you aim (DOOM-style), just right of centre.
-    let aims = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff | Form::Shield | Form::Gauntlet));
+    let aims = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Shield | Form::Gauntlet) || (f == Form::Staff && st.held_ranged));
     let mut swing_tf: Option<Transform> = None;
     if let Some(s) = st.swing.as_mut() {
         if !s.holding || s.t < s.curve.hold_at {
-            s.t += dt * swing_rate;
+            s.t += dt * swing_rate * s.rate;
         }
         if s.holding {
             s.t = s.t.min(s.curve.hold_at);
@@ -699,14 +720,18 @@ fn animate_viewmodel(
         match *held_q.4 {
             Some((k, g)) if k == key => Some(g),
             _ => {
-                let g = anim::held_geom_model(tu, &vis.model, form);
+                let mut g = anim::held_geom_model(tu, &vis.model, form);
+                if st.two_hand_melee && g.support.is_none() {
+                    // WEAPON FEEL: a two-handed melee weapon: the left hand just below the right on the handle.
+                    g.support = Some(g.grip + Vec3::Z * (0.2 * g.reach).clamp(0.12, 0.45));
+                }
                 *held_q.4 = Some((key, g));
                 Some(g)
             }
         }
     });
     let ext = st.punch.x.clamp(-0.25, 0.1);
-    let sights = st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff));
+    let sights = st.held_ranged && st.held.is_some_and(|(_, f)| matches!(f, Form::Gun | Form::Cannon | Form::Bow | Form::Staff));
     let ads_blend = if sights { held_q.2.as_deref().map_or(0.0, |a| a.blend.clamp(0.0, 1.0)) } else { 0.0 };
     let (r_rot, r_elbow, item_root) = {
         let tip = tip_of(0);

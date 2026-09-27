@@ -421,7 +421,8 @@ pub fn ops_of(k: &Knobs) -> Vec<MoveOp> {
             }
         }
         Phase => match k.place {
-            Place::Through | Place::Into if k.target == Target::Ground || k.target == Target::Aim => ops.push(MoveOp::PassThrough { depth: k.r(10.0).min(16.0) }),
+            _ if k.target == Target::Ground => ops.push(MoveOp::PassThrough { depth: k.r(10.0).min(16.0) }),
+            Place::Through | Place::Into if k.target == Target::Aim => ops.push(MoveOp::PassThrough { depth: k.r(10.0).min(16.0) }),
             Place::Through if k.targeted() => {
                 ops.push(MoveOp::Ram { speed: 30.0, secs: 0.3, damage: 0.0, knockback: 0.0, up: 0.0, pin: false, through: true, wall: 0.0, pitch: 0.0, steer: 0.0, keep: 0.6, element: el });
                 ops.push(MoveOp::Evade { secs: 0.4, slow: 0.0, speed: 1.0, blink: 0.0 });

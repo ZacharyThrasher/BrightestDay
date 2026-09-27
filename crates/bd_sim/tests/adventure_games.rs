@@ -134,6 +134,7 @@ fn seeking_bolt(delay: f32) -> MoveOp {
         spread: 12.0,
         seek: true,
         track: false,
+        cut: false,
     }
 }
 
@@ -185,6 +186,7 @@ fn salvo_staggers_a_count_one_every_interval() {
         spread: 5.0,
         seek: false,
         track: false,
+        cut: false,
     };
     w.fire_op(A, &op).unwrap();
     let mut blasts = Vec::new();
@@ -446,4 +448,99 @@ fn a_homing_attack_chain_bounces_from_one_to_the_next() {
     let fired: Vec<MoveRef> = evs.iter().filter_map(|e| if let GameEvent::Power(PowerEvent::Fired { mv, .. }) = e { Some(*mv) } else { None }).collect();
     assert!(fired.contains(&shout("chaos control")), "the chain went on after the lunge: {fired:?}");
     assert!(pct(&w, B) > 0.0);
+}
+
+// ------------------------------------------------------------------ headliners, borrowed for real
+
+fn borrow(w: &mut World, s: &str) {
+    w.player_mut(A).unwrap().willpower = 100.0;
+    w.borrow_move(A, shout(s), false, None).unwrap_or_else(|e| panic!("{s:?}: {e:?}"));
+}
+
+#[test]
+fn fus_ro_dah_throws_harder_than_fus() {
+    let fly = |s: &str| {
+        let mut w = duel();
+        stand(&mut w, B, 0.0, -4.0);
+        borrow(&mut w, s);
+        run(&mut w, 2);
+        w.player(B).unwrap().mv.vel.length()
+    };
+    let (fus, dah) = (fly("fus"), fly("fus ro dah"));
+    assert!(dah > fus * 2.0, "fus {fus} vs fus ro dah {dah}");
+}
+
+#[test]
+fn judgment_cut_opens_where_you_look_a_beat_later() {
+    let mut w = duel();
+    stand(&mut w, B, 0.0, -12.0);
+    w.player_mut(A).unwrap().input.pitch = -0.08; // the crosshair on the ground at B's feet
+    borrow(&mut w, "judgment cut");
+    let marks: Vec<Vec3> = ops(w.events()).iter().filter_map(|e| if let OpEvent::Telegraph { pos, .. } = e { Some(*pos) } else { None }).collect();
+    assert!(!marks.is_empty(), "cuts are marked at the aim first");
+    let b = centre(&w, B);
+    assert!(marks.iter().any(|m| (*m - b).length() < 3.0), "marked around B: {marks:?} vs {b:?}");
+    assert_eq!(pct(&w, B), 0.0);
+    run(&mut w, ticks(0.6));
+    assert!(pct(&w, B) > 0.0, "the spatial cuts landed on B");
+}
+
+#[test]
+fn omnislash_is_many_blows_then_the_launch() {
+    let mut w = duel();
+    stand(&mut w, B, 0.0, -5.0);
+    borrow(&mut w, "omnislash");
+    let mut hits_over_time = 0;
+    let mut last = pct(&w, B);
+    for _ in 0..ticks(1.8) {
+        w.tick(&[]);
+        let now = pct(&w, B);
+        if now > last + 0.1 {
+            hits_over_time += 1;
+        }
+        last = now;
+    }
+    assert!(hits_over_time >= 6, "a flurry, not one hit ({hits_over_time})");
+}
+
+#[test]
+fn farores_wind_sets_a_point_then_takes_you_back() {
+    let mut w = duel();
+    let home = w.player(A).unwrap().mv.pos;
+    borrow(&mut w, "farore's wind");
+    run(&mut w, ticks(8.2)); // its cooldown
+    w.player_mut(A).unwrap().mv.pos = Vec3::new(20.0, GROUND, 10.0);
+    run(&mut w, ticks(0.2));
+    borrow(&mut w, "farore's wind");
+    run(&mut w, 2);
+    let back = w.player(A).unwrap().mv.pos;
+    assert!((back - home).length() < 4.0, "warped back to the point ({back:?} vs {home:?})");
+}
+
+#[test]
+fn a_cut_salvo_strikes_cleanly_without_a_blast() {
+    let mut w = duel();
+    stand(&mut w, B, 0.0, -8.0);
+    let op = MoveOp::Salvo {
+        count: 1,
+        delay: 0.2,
+        interval: 0.0,
+        radius: 2.5,
+        damage: 10.0,
+        knockback: 10.0,
+        element: Element::Psychic,
+        carve: 0.0,
+        up: 0.0,
+        at: At::Me,
+        dist: 0.0,
+        spread: 12.0,
+        seek: true,
+        track: false,
+        cut: true,
+    };
+    w.fire_op(A, &op).unwrap();
+    let evs = run(&mut w, ticks(0.4));
+    assert!(pct(&w, B) > 0.0, "the cut landed on B");
+    assert!(!evs.iter().any(|e| matches!(e, GameEvent::Explosion { .. })), "no blast, no boom");
+    assert!(ops(&evs).iter().any(|e| matches!(e, OpEvent::Strike { cut: true, .. })));
 }

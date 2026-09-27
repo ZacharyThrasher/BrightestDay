@@ -711,6 +711,7 @@ pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
                     spread: 10.0,
                     seek: true,
                     track: false,
+                    cut: false,
                 };
             }
         }
@@ -721,13 +722,13 @@ pub fn convert(ops: Vec<MoveOp>, g: &Gathered, el: Element) -> Vec<MoveOp> {
         for op in ops.iter_mut() {
             *op = match op.clone() {
                 MoveOp::Explode { radius, damage, knockback, carve, element, at, dist } => {
-                    MoveOp::Salvo { count: 1, delay: d, interval: 0.0, radius, damage, knockback, element, carve, up: 0.0, at, dist, spread: 0.0, seek: false, track: false }
+                    MoveOp::Salvo { count: 1, delay: d, interval: 0.0, radius, damage, knockback, element, carve, up: 0.0, at, dist, spread: 0.0, seek: false, track: false, cut: false }
                 }
                 MoveOp::Shove { range, damage, knockback, element, up, .. } | MoveOp::Finisher { range, damage, knockback, element, up, .. } => {
                     MoveOp::DelayedHit { range: range.max(6.0), cone: 18.0, radius: 0.0, secs: d, damage, knockback, up, element }
                 }
-                MoveOp::Salvo { count, delay, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track } => {
-                    MoveOp::Salvo { count, delay: delay + d, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track }
+                MoveOp::Salvo { count, delay, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track, cut } => {
+                    MoveOp::Salvo { count, delay: delay + d, interval, radius, damage, knockback, element, carve, up, at, dist, spread, seek, track, cut }
                 }
                 MoveOp::DelayedHit { range, cone, radius, secs, damage, knockback, up, element } => {
                     MoveOp::DelayedHit { range, cone, radius, secs: secs + d, damage, knockback, up, element }

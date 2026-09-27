@@ -30,6 +30,7 @@ drain secs, rush tokens…) is `PowerRules` in `crates/bd_sim/src/powers/data.rs
 
 | file | contents |
 |---|---|
+| `anime_classics.ron` | Naruto / Boruto, Dragon Ball, One Piece, Bleach, JoJo: character kits (`kit_*`) + Eight Gates, Byakugan, Observation Haki, Kido, Ninjutsu (SHONEN CLASSICS) |
 | `base_cartoons.ron` | TMNT mutagen, Invincible, Ben 10, Power Rangers, Powerpuff Girls, The Incredibles, Beast Boy |
 | `base_dc.ron` | Superman, the Flash, Wonder Woman, Aquaman, Martian Manhunter, Shazam, Batman, the emotional spectrum |
 | `base_folklore.ron` | Journey to the West (the Great Sage's peach) |
@@ -38,6 +39,8 @@ drain secs, rush tokens…) is `PowerRules` in `crates/bd_sim/src/powers/data.rs
 | `base_one_piece.ron` | devil fruits |
 | `base_techniques.ron` | every `kind: Technique` (Dragon Ball, Naruto, JJK, Bleach, HxH, haki) |
 | `games_adventure.ron` | single-player action / adventure / RPG / platformer / shooter games: Zelda, Mario, Kirby, Sonic, Mega Man, Metroid, Halo, DOOM, God of War, Souls / Elden Ring / Bloodborne / Sekiro, Skyrim shouts, DMC, Bayonetta, Kingdom Hearts, Final Fantasy, Genshin, Destiny, Mass Effect, Half-Life, Portal, BioShock, Dishonored, inFAMOUS, Prototype, Minecraft, Hollow Knight, Hades, … (CONTENT: ADVENTURE GAMES) |
+| `movies_comics.ron` | 95 film & comics kits: X-Men, Avengers / Marvel, DC, Star Wars, Harry Potter (the spells are the shouts), LOTR / Hobbit, Matrix, Ghostbusters, MIB, Pirates, Kung Fu Panda, Karate Kid, Kill Bill, John Wick, Terminator, Predator, Alien, Jurassic Park, Godzilla / Kong, Back to the Future, Indiana Jones, Shrek, Frozen, Incredibles, Moana, Encanto, Tangled, Toy Story, Spider-Verse (CONTENT: MOVIES & COMICS; also owns `base_marvel.ron` / `base_dc.ron`) |
+| `zz_derived_kits.ron` | GENERATED — do not edit: a `kind: Kit` (`dk_*`) for every character-like icon / costume no hand file names. Re-run `python tools/derive_kits/derive_kits.py` after content lands (docs/toolbox/AUTO_KITS.md). Sorts last so hand content wins every tie. |
 
 New content goes in a new file named for its domain (e.g. `overwatch.ron`, `naruto_kits.ron`). Ids,
 names, tier names and shouts must be unique across the WHOLE directory — the validator reports

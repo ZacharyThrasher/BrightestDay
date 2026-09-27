@@ -149,6 +149,13 @@ pub fn alias_op(op: &MoveOp) -> Option<MoveOp> {
         MoveOp::Grab { range, .. } | MoveOp::LockOn { range, .. } | MoveOp::Seeker { range, .. } | MoveOp::Afflict { range, .. } | MoveOp::Lockout { range, .. } => MoveOp::Link { range },
         MoveOp::Surge { dist, width, element, .. } => MoveOp::Shove { range: dist.clamp(2.0, 20.0), angle: (width * 8.0).clamp(30.0, 120.0), damage: 0.0, knockback: 0.0, element, up: 0.0 },
         MoveOp::Zone { radius, secs, at, dist, .. } => MoveOp::Field { strength: 0.0, radius, secs, at, dist },
+        // SHONEN CLASSICS (ops/live.rs; their own beats: `OpEvent::Toolbox`): the palm lunge dashes, the
+        // travelling crescent reads as a slash line, the stand rush as a front flurry, a thrown mark /
+        // a gaze / a brand / a swallow reach their target. (WarpTo / a recall send `Blinked` already.)
+        MoveOp::Drill { speed, .. } => MoveOp::Impulse { fwd: speed.clamp(4.0, 60.0), up: 0.3 },
+        MoveOp::Wave { length, width, .. } => MoveOp::Carve { length: length.clamp(1.0, 40.0), radius: (width * 0.25).clamp(0.3, 4.0), damage: 0.0, pull: false },
+        MoveOp::Rush { range, .. } => MoveOp::Shove { range: range.max(2.8), angle: 55.0, damage: 0.0, knockback: 0.0, element: bd_core::mechanics::Element::Light, up: 0.0 },
+        MoveOp::MarkRecall { range, .. } | MoveOp::GazeStun { range, .. } | MoveOp::Contagion { range, .. } | MoveOp::Banish { range, .. } => MoveOp::Link { range },
         _ => return None,
     })
 }
@@ -488,6 +495,24 @@ fn intake(mut events: MessageReader<GameEvents>, views: Res<WorldViews>, mut sid
                         });
                     }
                 }
+                // VERB GRAMMAR: a described move ("shadow teleport behind ethan") presents like any
+                // other: its spec expands to an ordinary move (ops + style `fx`), interned for the
+                // `&'static` beats (docs/toolbox/COMPOSED_MOVE.md). Its `Fired` never resolves.
+                PowerEvent::Composed { player, spec, from, to, dir, step, .. } => {
+                    if let Some(m) = bd_sim::powers::compose::interned(spec) {
+                        fired.write(MoveFxFired {
+                            player: *player,
+                            mv: m,
+                            power: None,
+                            borrowed: true,
+                            key: None,
+                            from: Some(bv(*from)),
+                            to: Some(bv(*to)),
+                            dir: Some(bv(*dir)),
+                            step: *step,
+                        });
+                    }
+                }
                 PowerEvent::Blinked { player, from, to, afterimage } if side.n_blinks < side.blinks.len() => {
                     let n = side.n_blinks;
                     side.blinks[n] = (*player, bv(*from), bv(*to), *afterimage);
@@ -568,6 +593,14 @@ fn start(
         let mut me = f.from.map_or(chest(v), |p| p + up);
         let avoid = own_fp.then(|| f.to.map_or(chest(v), |p| p + up));
         let mut pen = Pen { fx: &mut fx, motes: tb.beats.motes * budget, scale, cam, avoid };
+        // A borrowed move of a power with a companion (a Stand): its ghost steps out behind you
+        // and throws the move, then fades (presentation only: nothing spawns in the sim).
+        if f.borrowed && f.power.is_some_and(|p| p.companion.is_some()) {
+            let (_, _, body) = super::super::constructs::body_frames(v);
+            let at = v.pos + body * (Vec3::new(0.45, 0.25, 0.35) * v.size);
+            pen.ghost(at, v.yaw, v.size * 1.15, look.main, look.glow * 0.7, 0.6 * look.linger);
+            pen.burst(&look, at + Vec3::Y * v.size, 0.5, 2.0, None, 0.0, 0.4);
+        }
         let mut first_pose = None;
         for op in &f.mv.ops {
             // TOOLBOX content ops present through the classic beat they read as (no allocation:
@@ -951,6 +984,9 @@ fn step(
         let avoid = (b.local && hands.active).then(|| v.map_or(cam, chest));
         let mut pen = Pen { fx: &mut fx, motes: bt.motes * budget, scale, cam, avoid };
         let u = if b.dur > 0.0 { (b.t / b.dur).clamp(0.0, 1.0) } else { 1.0 };
+        // Limbs read from across the map for everyone else (and in third person); your own
+        // first-person arm stays slim.
+        let lsize = |v: &crate::sim_bridge::PlayerView| v.size * if b.local && hands.active { 1.0 } else { 1.6 };
         // Root of a limb: your first-person fist, else the body's shoulder.
         let root = |v: &crate::sim_bridge::PlayerView| if b.local && hands.active { hands.world[1] } else { shoulder(v) };
         match b.op {
@@ -1049,7 +1085,7 @@ fn step(
                         b.b.lerp(from, ease_in_back(k))
                     }
                 };
-                limb(&mut pen, &look, from, tip, b.t, b.phase, v.size, b.seed);
+                limb(&mut pen, &look, from, tip, b.t, b.phase, lsize(v), b.seed);
                 continue;
             }
             OpKind::Shove => {
@@ -1097,7 +1133,7 @@ fn step(
                     far.lerp(from, ease_in_back(k))
                 };
                 let wob_phase = if b.t < o + h { 0 } else { 2 };
-                limb(&mut pen, &look, from, tip, b.t, wob_phase, v.size, b.seed);
+                limb(&mut pen, &look, from, tip, b.t, wob_phase, lsize(v), b.seed);
             }
             OpKind::Arm => {
                 let (Some(v), Some(c)) = (v, b.construct.and_then(|c| views.construct(c))) else {
@@ -1113,7 +1149,7 @@ fn step(
                         let k = ((b.t - b.acc) / (bt.limb_back * look.speed)).clamp(0.0, 1.0);
                         if k < 1.0 {
                             let from = root(v);
-                            limb(&mut pen, &look, from, b.b.lerp(from, ease_in_back(k)), b.t, 2, v.size, b.seed);
+                            limb(&mut pen, &look, from, b.b.lerp(from, ease_in_back(k)), b.t, 2, lsize(v), b.seed);
                             continue;
                         }
                     }
@@ -1138,9 +1174,9 @@ fn step(
                         b.live = false;
                         continue;
                     }
-                    limb(&mut pen, &look, from, tip.lerp(from, ease_in_back(k)), b.t, 2, v.size, b.seed);
+                    limb(&mut pen, &look, from, tip.lerp(from, ease_in_back(k)), b.t, 2, lsize(v), b.seed);
                 } else {
-                    limb(&mut pen, &look, from, tip, b.t, 1, v.size, b.seed);
+                    limb(&mut pen, &look, from, tip, b.t, 1, lsize(v), b.seed);
                 }
                 continue;
             }

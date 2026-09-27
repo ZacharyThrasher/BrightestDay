@@ -1,13 +1,12 @@
 //! The impact-frame post pass: one `FullscreenMaterial` (`impact_frame.wgsl`) on the player camera,
-//! after bloom, before tonemapping (HDR in, so the burned-in silhouettes key off the bodies' hot
-//! emissive). The main-world component always sits on the camera; it is only EXTRACTED while a frame
+//! in `PostProcess` before tonemapping (HDR in, so the burned-in silhouettes key off the bodies' hot
+//! emissive). NB: an extra `.after(bloom)` ordering silently stopped the pass from running in
+//! 0.19.1 — keep the default schedule config. The main-world component always sits on the camera; it is only EXTRACTED while a frame
 //! plays (`strength > 0`), so the render pass (and its bind group) doesn't exist when idle.
 
 use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::core_pipeline::fullscreen_material::{FullscreenMaterial, FullscreenMaterialPlugin};
 use bevy::ecs::query::QueryItem;
-use bevy::ecs::schedule::ScheduleConfigs;
-use bevy::ecs::system::BoxedSystem;
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::ShaderType;
@@ -67,12 +66,6 @@ impl FullscreenMaterial for ImpactFramePost {
         IMPACT_FRAME_SHADER.into()
     }
 
-    fn schedule_configs(system: ScheduleConfigs<BoxedSystem>) -> ScheduleConfigs<BoxedSystem> {
-        system
-            .in_set(bevy::core_pipeline::Core3dSystems::PostProcess)
-            .after(bevy::post_process::bloom::bloom)
-            .before(bevy::core_pipeline::tonemapping::tonemapping)
-    }
 }
 
 pub fn build(app: &mut App) {
@@ -86,19 +79,19 @@ pub fn debug_build(app: &mut App) {
     if std::env::var_os("BD_IF_DEBUG").is_none() {
         return;
     }
-    use bevy::core_pipeline::fullscreen_material::FullscreenMaterialPipelineId;
+    use bevy::core_pipeline::fullscreen_material::{FullscreenMaterialBindGroup, FullscreenMaterialPipelineId};
     use bevy::render::extract_component::DynamicUniformIndex;
     use bevy::render::{Render, RenderApp, RenderSystems};
     fn probe(
-        q: Query<(Entity, Option<&ImpactFramePost>, Option<&DynamicUniformIndex<ImpactFramePost>>, Option<&FullscreenMaterialPipelineId>, Option<&bevy::render::view::ViewTarget>)>,
+        q: Query<(Entity, Option<&ImpactFramePost>, Option<&DynamicUniformIndex<ImpactFramePost>>, Option<&FullscreenMaterialPipelineId>, Option<&bevy::render::view::ViewTarget>, Option<&FullscreenMaterialBindGroup<ImpactFramePost>>)>,
         cache: Res<bevy::render::render_resource::PipelineCache>,
         mut n: Local<u32>,
     ) {
         *n += 1;
-        for (e, p, idx, pid, vt) in &q {
+        for (e, p, idx, pid, vt, bg) in &q {
             if p.is_some() && *n % 5 == 0 {
                 let state = pid.map(|id| format!("{:?}", cache.get_render_pipeline_state(id.0)));
-                info!("IF probe {e:?}: post={} idx={} pipeline={:?} target={}", p.is_some(), idx.is_some(), state, vt.is_some());
+                info!("IF probe {e:?}: post={} idx={} pipeline={} target={} bg={}", p.is_some(), idx.is_some(), state.is_some_and(|s| s.starts_with("Ok")), vt.is_some(), bg.is_some());
             }
         }
     }

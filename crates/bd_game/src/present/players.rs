@@ -367,7 +367,14 @@ fn sync_bodies(
     costumes: Res<PlayerCostumes>,
     freeze: Res<HitFreeze>,
     mode: Res<ViewMode>,
-    (aim, ads, fx, ascend, legend): (Res<super::camera3p::AimRay>, Res<super::ads::AdsState>, Option<Res<bd_fx::FxSettings>>, Option<Res<super::powers::ascend::AscendPose>>, Option<Res<super::legend::LegendPose>>),
+    (aim, ads, fx, ascend, legend, weapon_body): (
+        Res<super::camera3p::AimRay>,
+        Res<super::ads::AdsState>,
+        Option<Res<bd_fx::FxSettings>>,
+        Option<Res<super::powers::ascend::AscendPose>>,
+        Option<Res<super::legend::LegendPose>>,
+        Option<Res<super::weapon_feel::WeaponFeelState>>,
+    ),
     (lex, readable, move_poses, reactions, body_layers): (
         Option<Res<crate::console::RingLexicon>>,
         Option<Res<crate::readability::Readability>>,
@@ -594,7 +601,7 @@ fn sync_bodies(
         }
         // MOVE GRAMMAR HOOK (`powers::movefx::MovePoses`): a power move's body language — a fist
         // thrust for shoves / fist casts / stretch punches, a reach for reels, palms-out power-up
-        // for fields / blasts / time, arms up for a slam. (Lunges read from the body's motion.)
+        // for fields / blasts / time, arms up for a slam, a forward dive for blinks / dashes.
         if let Some((pose, pt)) = move_poses.as_ref().and_then(|m| m.body(v.id))
             && n < MAXL
         {
@@ -603,6 +610,11 @@ fn sync_bodies(
                 MovePose::Punch => Some(AnimState::Cast),
                 MovePose::Grab => Some(AnimState::TetherFire { side: 1 }),
                 MovePose::Palms | MovePose::Slam | MovePose::Clench => Some(AnimState::PowerUp),
+                // Blink / dash: the ANIMATION PASS dodge dive, forward (its landing squash plays on
+                // touchdown by itself — the slam's too).
+                MovePose::Lunge if pt < bd_shapes::anim_body::BodyAction::Dodge.duration(1.0) => {
+                    Some(AnimState::Action { kind: bd_shapes::anim_body::BodyAction::Dodge, dir: bd_core::Vec3::NEG_Z, strength: 1.0 })
+                }
                 MovePose::Lunge => None,
             };
             if let Some(st) = st {
@@ -655,6 +667,15 @@ fn sync_bodies(
                 palm_pose(&b.hands, raise, v.pitch, &mut ov.locals);
             } else {
                 gun_pose(&b.hands, raise, legend_arm.and_then(|a| a.1).unwrap_or(v.pitch), &mut ov.locals);
+            }
+            // WEAPON FEEL: a class swing moves the body — the arms follow the weapon, both hands on a
+            // heavy one, the torso throws itself into the strike (present::weapon_feel).
+            if !palms
+                && !gun
+                && legend_arm.is_none()
+                && let Some(bs) = weapon_body.as_ref().and_then(|w| w.body(v.id))
+            {
+                super::weapon_feel::body_overlay(bs, b.hands.root, &mut ov.locals);
             }
             if show
                 && held.is_some()

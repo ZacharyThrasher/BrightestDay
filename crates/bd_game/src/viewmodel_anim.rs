@@ -1423,6 +1423,7 @@ pub(super) fn drive_hand_anim(
     mut pose_out: ResMut<HandPose>,
     ascend: Option<Res<crate::present::powers::ascend::AscendPose>>,
     move_poses: Option<ResMut<crate::present::powers::movefx::MovePoses>>,
+    feel: Option<Res<crate::present::weapon_feel::WeaponFeel>>,
 ) {
     let t0 = std::time::Instant::now();
     let tu = &tuning.0;
@@ -1489,7 +1490,7 @@ pub(super) fn drive_hand_anim(
     }
     let held = a.world.constructs.held_by(local).filter(|c| c.category == FormCategory::Held && c.recipe.form != Form::Hands);
     let held_weight = held.map_or(1.0, |c| bd_shapes::weight_of(&c.recipe));
-    let held_gun = held.is_some_and(|c| matches!(c.recipe.form, Form::Gun | Form::Cannon | Form::Bow | Form::Staff));
+    let held_gun = held.is_some_and(|c| matches!(c.recipe.form, Form::Gun | Form::Cannon | Form::Bow | Form::Staff) && bd_sim::constructs::gun::is_gun(c));
 
     // Movement events (predicted, this frame's ticks).
     for ev in &move_events.0 {
@@ -1653,7 +1654,8 @@ pub(super) fn drive_hand_anim(
         overhead,
         held: held.is_some(),
         held_weight,
-        two_handed: held.is_some_and(|c| two_handed(c.recipe.form)),
+        // WEAPON FEEL: heavy / reach classes are two-handed too (assets/tuning/weapons.ron `feel`).
+        two_handed: held.is_some_and(|c| two_handed(c.recipe.form) || feel.as_deref().is_some_and(|f| crate::present::weapon_feel::two_handed(f, c))),
         ads: ads.map_or(0.0, |a| a.blend),
         motion_scale: motion,
         roll_scale,

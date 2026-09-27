@@ -17,7 +17,7 @@ use crate::world::World;
 pub const MAX_HOLD: f32 = 0.45;
 
 pub fn hold_secs(hold: f32) -> f32 {
-    if hold.is_finite() { hold.clamp(0.05, MAX_HOLD) } else { 0.2 }
+    if hold.is_finite() { super::fclamp(hold, 0.05, MAX_HOLD) } else { 0.2 }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -46,12 +46,12 @@ impl World {
             return Err(PowerError::Busy);
         }
         let spec = GrabSpec {
-            range: spec.range.clamp(0.8, 5.0),
+            range: super::fclamp(spec.range, 0.8, 5.0),
             hold: hold_secs(spec.hold),
-            damage: spec.damage.clamp(0.0, 60.0),
-            knockback: spec.knockback.clamp(0.0, 80.0),
-            up: spec.up.clamp(-1.0, 2.0),
-            lift: spec.lift.clamp(0.0, 20.0),
+            damage: super::fclamp(spec.damage, 0.0, 60.0),
+            knockback: super::fclamp(spec.knockback, 0.0, 80.0),
+            up: super::fclamp(spec.up, -1.0, 2.0),
+            lift: super::fclamp(spec.lift, 0.0, 20.0),
             ..spec
         };
         let base = self.cfg.move_params.clone();
@@ -145,7 +145,8 @@ impl World {
 
     /// Player `i` was hit hard: whatever they are holding drops.
     pub(crate) fn break_grab(&mut self, i: usize) {
-        if let Some(g) = self.powers.ops.grabs.get_mut(i).and_then(|g| g.take()) {
+        let owner = self.players.get(i).map(|p| p.id);
+        if let Some(g) = self.powers.ops.grabs.get_mut(i).filter(|g| g.is_some_and(|g| Some(g.owner) == owner)).and_then(|g| g.take()) {
             let pos = self.players.get(i).map_or(Vec3::ZERO, |p| p.mv.pos);
             self.op_event(OpEvent::Grab { player: g.owner, phase: GrabPhase::Whiff, target: Some(g.target), pos, dir: Vec3::ZERO });
         }

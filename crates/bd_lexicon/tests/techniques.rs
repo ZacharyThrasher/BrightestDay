@@ -39,7 +39,7 @@ fn technique_names_grant_the_power() {
         ("limitless", "limitless"),
         ("infinity", "limitless"),
         ("black flash", "black_flash"),
-        ("sukuna", "shrine"),
+        ("sukuna's shrine", "shrine"), // the bare "sukuna" stays the costume summon ("sukuna <move>" = the kit)
         ("ten shadows", "ten_shadows"),
         ("bankai", "bankai"),
         ("nen", "nen"),

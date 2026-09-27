@@ -580,6 +580,7 @@ impl World {
         let from = p.mv.pos;
         let (_, dir) = self.eye_look(i);
         // Run the ops (Transform / Tier skipped); the move only counts if the first op did something.
+        self.phase_break(i); // SHONEN CLASSICS (ops/phase.rs): striking makes you solid
         let mut first: Option<Result<(), PowerError>> = None;
         for op in mv.ops.iter().filter(|o| !matches!(o, MoveOp::Transform | MoveOp::Tier(_))) {
             let r = self.run_op(i, def, mv, op);
@@ -596,6 +597,7 @@ impl World {
         if let Some(Err(e)) = first {
             return Err(e);
         }
+        self.note_seen_move(i, mr.power, mr.tier, mr.slot); // SHONEN CLASSICS (ops/copy_last.rs): enemies nearby saw it
         let cd = mv.cooldown * effects::cooldown_mult(&self.players[i].power);
         let p = &mut self.players[i];
         p.willpower = (p.willpower - cost).max(0.0);

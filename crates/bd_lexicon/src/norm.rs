@@ -78,6 +78,13 @@ pub fn normalize_key(s: &str) -> String {
                 i += 2;
                 continue;
             }
+            // Pinyin syllable mark before a lone final "e" ("Chang'e", "Heng'e"): a word break, not a
+            // contraction — dropping it would make "change". (English never ends a word in "'e".)
+            let letters_before = chars[..i].iter().rev().take_while(|c| c.is_ascii_alphabetic()).count();
+            let lone_e = chars.get(i + 1) == Some(&'e') && !chars.get(i + 2).is_some_and(|c| c.is_ascii_alphanumeric());
+            if letters_before >= 3 && lone_e {
+                pending_space = true;
+            }
             i += 1;
             continue;
         }
@@ -216,6 +223,10 @@ mod tests {
         assert_eq!(normalize_key("Mjölnir"), "mjolnir");
         assert_eq!(normalize_key("Pokémon"), "pokemon");
         assert_eq!(normalize_key("shootin'"), "shootin");
+        assert_eq!(normalize_key("Chang'e"), "chang e");
+        assert_eq!(normalize_key("moon goddess chang’e!"), "moon goddess chang e");
+        assert_eq!(normalize_key("don't"), "dont");
+        assert_eq!(normalize_key("o'er"), "oer");
         assert_eq!(normalize_key("🔥🔥"), "");
     }
 

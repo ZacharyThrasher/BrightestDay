@@ -18,7 +18,7 @@
 //! own dodge ends it. Enemy constructs in the way take `damage` and are shoved aside.
 
 use bd_core::mechanics::Element;
-use bd_core::{ConstructId, PlayerId, Vec3};
+use bd_core::{ConstructId, MAX_PLAYERS, PlayerId, Vec3};
 
 use super::{OpEvent, RamPhase, flat};
 use crate::combat::{CarveRequest, ConstructHit, HitInfo, HitKind};
@@ -54,8 +54,8 @@ pub(crate) struct Ram {
     last: Vec3,
     /// Pinned player.
     victim: Option<PlayerId>,
-    /// Player indices already struck (through rams).
-    struck: u8,
+    /// Players already struck (through rams): by index, validated by id (indices shift on a leave).
+    struck: [Option<PlayerId>; MAX_PLAYERS],
     /// Ticks in a row the charge made (almost) no progress.
     stalled: u8,
     /// The last construct battered (each is hit once per ram).
@@ -64,7 +64,7 @@ pub(crate) struct Ram {
 
 fn ram_dir(look: Vec3, pitch: f32) -> Vec3 {
     let f = flat(look, Vec3::NEG_Z);
-    let p = pitch.clamp(0.0, 1.0);
+    let p = super::fclamp(pitch, 0.0, 1.0);
     (f * (1.0 - p) + look.normalize_or(f) * p).normalize_or(f)
 }
 
@@ -75,14 +75,14 @@ impl World {
             return Err(PowerError::Busy);
         }
         let spec = RamSpec {
-            speed: spec.speed.clamp(4.0, MAX_SPEED),
-            secs: spec.secs.clamp(0.05, MAX_SECS),
-            damage: spec.damage.clamp(0.0, 60.0),
-            knockback: spec.knockback.clamp(0.0, 80.0),
-            up: spec.up.clamp(0.0, 2.0),
-            wall: spec.wall.clamp(0.0, 60.0),
-            steer: spec.steer.clamp(0.0, 720.0),
-            keep: spec.keep.clamp(0.0, 1.0),
+            speed: super::fclamp(spec.speed, 4.0, MAX_SPEED),
+            secs: super::fclamp(spec.secs, 0.05, MAX_SECS),
+            damage: super::fclamp(spec.damage, 0.0, 60.0),
+            knockback: super::fclamp(spec.knockback, 0.0, 80.0),
+            up: super::fclamp(spec.up, 0.0, 2.0),
+            wall: super::fclamp(spec.wall, 0.0, 60.0),
+            steer: super::fclamp(spec.steer, 0.0, 720.0),
+            keep: super::fclamp(spec.keep, 0.0, 1.0),
             ..spec
         };
         let (_, look) = self.op_eye_look(i);
@@ -95,7 +95,7 @@ impl World {
             p.mv.grounded = false;
         }
         let pos = p.mv.pos;
-        self.powers.ops.rams[i] = Some(Ram { owner: id, spec, dir, t: 0.0, last: pos, victim: None, struck: 0, stalled: 0, bashed: None });
+        self.powers.ops.rams[i] = Some(Ram { owner: id, spec, dir, t: 0.0, last: pos, victim: None, struck: [None; MAX_PLAYERS], stalled: 0, bashed: None });
         self.op_event(OpEvent::Ram { player: id, phase: RamPhase::Start, target: None, pos, dir });
         Ok(())
     }
@@ -207,7 +207,7 @@ impl World {
             let reach = center + r.dir * (me.half().x + 0.5);
             let mut met: Option<(usize, f32)> = None;
             for (k, q) in self.players.iter().enumerate() {
-                if k == i || !q.alive || k >= 8 || r.struck & (1 << k) != 0 {
+                if k == i || !q.alive || k >= MAX_PLAYERS || r.struck[k] == Some(q.id) {
                     continue;
                 }
                 let h = crate::geom::inflate(&q.hull(&base), 0.35);
@@ -220,7 +220,7 @@ impl World {
             if let Some((k, _)) = met {
                 let tid = self.players[k].id;
                 let vc = self.players[k].hull(&base).center();
-                r.struck |= 1 << k;
+                r.struck[k] = Some(tid);
                 if r.spec.pin {
                     let touch = HitInfo::new(tid, Some(r.owner), HitKind::Melee, r.spec.damage * 0.25, 0.0, r.dir, vc).with_element(r.spec.element);
                     if self.apply_hit(touch).applied {

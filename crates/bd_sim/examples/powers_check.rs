@@ -21,6 +21,7 @@
 
 use std::path::{Path, PathBuf};
 
+use bd_sim::powers::compose;
 use bd_sim::powers::toolbox::{split_chain_with, KitMatch, MoveIndex, MoveRef, Reading};
 use bd_sim::powers::{move_sel, norm_words, PlayerPower, PowerDef, PowerPhrase, PowerTable};
 
@@ -213,6 +214,9 @@ fn main() {
             if m.ops.is_empty() {
                 err(format!("move \"{}\" has no ops", m.name));
             }
+            if !bd_sim::powers::toolbox::move_is_finite(m) {
+                err(format!("move \"{}\" has a NaN / inf number in its ops", m.name));
+            }
         }
         let mut warn = |m: String| {
             println!("WARN {f} [{}]: {m}", p.id);
@@ -257,6 +261,9 @@ fn main() {
     std::process::exit(if errors > 0 { 1 } else { 0 });
 }
 
+/// The pretend match roster for --coverage (described moves may name a player).
+const ROSTER: [(bd_core::PlayerId, &str); 4] = [(bd_core::PlayerId(1), "Ethan"), (bd_core::PlayerId(2), "Mia"), (bd_core::PlayerId(3), "Sam"), (bd_core::PlayerId(4), "Nova")];
+
 fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path: &Path, hold: &[String]) {
     let Ok(text) = std::fs::read_to_string(path) else {
         eprintln!("error: cannot read {}", path.display());
@@ -297,8 +304,18 @@ fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path
             Reading::Borrow(_) if lex.as_ref().is_some_and(|l| l.resolve(s).recipe.grants.is_some()) => Reading::Plain,
             r => r,
         };
-        let understood = |s: &str| lex.as_ref().is_some_and(|l| !bd_lexicon::Lexicon::is_fallback(&l.resolve(s)));
-        let steps = split_chain_with(line, &|s| read(s).is_move(), lex.as_ref().map(|_| &understood as &dyn Fn(&str) -> bool));
+        let understood = |s: &str| lex.as_ref().is_some_and(|l| bd_lexicon::Lexicon::is_clean_thing(&l.resolve(s)));
+        // VERB GRAMMAR (docs/toolbox/COMPOSED_MOVE.md): a described move, unless the lexicon knows
+        // the exact phrase as something curated (the console's rule, bd_game toolbox::composed)
+        let composed = |s: &str| {
+            let r = compose::read(s, &compose::Names::new(&ROSTER))?;
+            let curated = lex.as_ref().is_some_and(|l| {
+                let res = l.resolve(s);
+                compose::curated_by_lexicon(s, res.signature.is_some(), res.recipe.grants.is_some() || res.stand_rush.is_some(), &res.recipe.model)
+            });
+            (!curated).then_some(r)
+        };
+        let steps = split_chain_with(line, &|s| read(s).is_move() || composed(s).is_some(), lex.as_ref().map(|_| &understood as &dyn Fn(&str) -> bool));
         let mut out = Vec::new();
         for s in &steps {
             let mut fell = false;
@@ -306,6 +323,11 @@ fn coverage(table: &PowerTable, ix: &MoveIndex, files: &[(String, String)], path
             out.push(match r {
                 Reading::Held(PowerPhrase::Move(sel)) => format!("HELD move sel {sel:#x}"),
                 Reading::Held(PowerPhrase::Incantation { rest }) => format!("HELD incantation + \"{rest}\""),
+                Reading::Held(PowerPhrase::Plain) | Reading::Plain if composed(s).is_some() => {
+                    let r = composed(s).expect("checked");
+                    let ops: Vec<String> = r.spec.expand().map(|m| m.ops.iter().map(|o| format!("{o:?}").split([' ', '{', '(']).next().unwrap_or("").to_string()).collect()).unwrap_or_default();
+                    format!("COMPOSED {} → [{}]", r.describe(), ops.join(", "))
+                }
                 Reading::Held(PowerPhrase::Plain) | Reading::Plain => match &lex {
                     Some(l) => {
                         let res = l.resolve(s);

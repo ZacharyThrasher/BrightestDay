@@ -43,6 +43,10 @@ use crate::juice::{CameraShakeEvent, FovPunch};
 use crate::sim_bridge::{ActiveWorld, GameEvents};
 use crate::state::AppState;
 
+/// Dev: `BD_WEAPON_TEST=<phrase>` — the class comparison sheet scenes (docs/weapons).
+#[path = "weapon_feel_dev.rs"]
+mod dev;
+
 // ------------------------------------------------------------------------------------ tuning
 
 /// One class's presentation (`assets/tuning/weapons.ron` → `feel.<class>`).
@@ -259,6 +263,7 @@ impl Plugin for WeaponFeelPlugin {
                 st.bodies.clear();
                 st.rings.clear();
             });
+        dev::build(app);
     }
 }
 

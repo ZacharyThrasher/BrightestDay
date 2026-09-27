@@ -247,3 +247,108 @@ fn the_anime_pack_parses_and_every_move_is_well_formed() {
         }
     }
 }
+
+// ------------------------------------------------------------------------------------ golden phrases
+
+/// (power id, move name) a phrase fires for a powerless player, or `None` for a plain phrase.
+fn reads(phrase: &str) -> Option<(String, String)> {
+    use bd_sim::powers::toolbox::MoveIndex;
+    let t = PowerTable::get();
+    let r = MoveIndex::shipped().read(t, None, phrase);
+    r.move_ref().map(|m| {
+        let (p, mv) = m.resolve(t).expect("resolves");
+        (p.id.clone(), mv.name.clone())
+    })
+}
+
+fn fires(phrase: &str, power: &str, mv: &str) {
+    assert_eq!(reads(phrase), Some((power.to_string(), mv.to_string())), "{phrase:?}");
+}
+
+#[test]
+fn golden_kit_phrases_fire_the_characters_own_move() {
+    // "<character> <move word>" — exact names, word overlap, slot words, possessives, mishearings.
+    fires("gojo blue", "gojo_kit", "blue");
+    fires("gojo red", "gojo_kit", "red");
+    fires("gojo's hollow purple", "gojo_kit", "hollow purple");
+    fires("satoru gojo ultimate", "gojo_kit", "hollow purple");
+    fires("gojo block", "gojo_kit", "infinity");
+    fires("gojo teleport", "gojo_kit", "gojo teleport");
+    fires("sukuna dismantle", "sukuna_kit", "dismantle");
+    fires("sukuna cleave", "sukuna_kit", "cleave");
+    fires("ryomen sukuna ult", "sukuna_kit", "world cutting slash");
+    fires("todo clap", "todo_kit", "boogie woogie");
+    fires("todo black flash", "todo_kit", "black flash");
+    fires("itadori divergent fist", "itadori_kit", "divergent fist");
+    fires("yuji counter", "itadori_kit", "manji kick");
+    fires("nobara resonance", "nobara_kit", "resonance");
+    fires("megumi mahoraga", "megumi_kit", "mahoraga");
+    fires("deku detroit smash", "deku_kit", "detroit smash");
+    fires("deku blackwhip", "deku_kit", "blackwhip");
+    fires("deku ultimate", "deku_kit", "one hundred percent detroit smash");
+    fires("bakugo howitzer impact", "bakugo_kit", "howitzer impact");
+    fires("bakugou ap shot", "bakugo_kit", "ap shot");
+    fires("kacchan ult", "bakugo_kit", "howitzer impact");
+    fires("all might united states of smash", "all_might_kit", "united states of smash");
+    fires("all might ultimate", "all_might_kit", "united states of smash");
+    fires("todoroki ice wave", "todoroki_kit", "ice wave");
+    fires("aizawa erasure", "aizawa_kit", "erasure");
+    fires("uraraka zero gravity", "uraraka_kit", "zero gravity");
+    fires("gon jajanken rock", "gon_kit", "jajanken rock");
+    fires("killua godspeed", "killua_kit", "godspeed");
+    fires("hisoka bungee gum", "hisoka_kit", "bungee gum");
+    fires("kurapika chain jail", "kurapika_kit", "chain jail");
+    fires("netero ultimate", "netero_kit", "hundred type guanyin bodhisattva");
+    fires("zenitsu thunderclap and flash", "zenitsu_kit", "thunderclap and flash");
+    fires("rengoku ultimate", "rengoku_kit", "rengoku");
+    fires("saitama serious punch", "saitama_kit", "serious punch");
+    fires("saitama combo", "saitama_kit", "consecutive normal punches");
+    fires("edward elric wall", "edward_kit", "alchemy wall");
+    fires("levi odm gear", "levi_kit", "odm gear");
+    fires("inuyasha wind scar", "inuyasha_kit", "wind scar");
+    fires("inuyasha counter", "inuyasha_kit", "backlash wave");
+    fires("frieren zoltraak", "frieren_kit", "zoltraak");
+    fires("jinwoo arise", "jinwoo_kit", "arise");
+    fires("natsu ultimate", "natsu_kit", "dragon force");
+}
+
+#[test]
+fn golden_borrowed_shouts_and_names() {
+    // Famous shouts anyone can borrow (no power held).
+    fires("boogie woogie", "todo_kit", "boogie woogie");
+    fires("clap", "todo_kit", "boogie woogie");
+    fires("resonance", "nobara_kit", "resonance");
+    fires("bungee gum", "hisoka_kit", "bungee gum");
+    fires("detroit smash", "one_for_all", "detroit smash");
+    fires("howitzer impact", "bakugo_kit", "howitzer impact");
+    fires("united states of smash", "all_might_kit", "united states of smash");
+    fires("consecutive normal punches", "saitama_kit", "consecutive normal punches");
+    fires("zoltraak", "frieren_kit", "zoltraak");
+    fires("wind scar", "inuyasha_kit", "wind scar");
+    fires("giga drill break", "spiral_power", "giga drill break");
+    fires("thunderclap and flash", "breathing", "thunderclap and flash");
+    fires("hekireki issen", "breathing", "thunderclap and flash");
+    fires("arise", "shadow_monarch", "arise");
+    fires("domain expansion unlimited void", "gojo_kit", "unlimited void");
+    fires("idle death gamble", "hakari_kit", "idle death gamble");
+    // Names grant (a technique / tier) — never a borrow; bare character names stay the costume.
+    for plain in ["water breathing", "one for all", "full cowl", "black flash", "gojo", "sukuna", "deku", "bakugo", "saitama", "tanjiro"] {
+        assert_eq!(reads(plain), None, "{plain:?} is not a move reading");
+    }
+}
+
+#[test]
+fn golden_chains_split_into_the_right_moves() {
+    use bd_sim::powers::toolbox::{split_chain, MoveIndex};
+    let t = PowerTable::get();
+    let ix = MoveIndex::shipped();
+    let is_move = |s: &str| ix.read(t, None, s).is_move();
+    let steps = |s: &str| -> Vec<Option<(String, String)>> { split_chain(s, &is_move).iter().map(|p| reads(p)).collect() };
+    let m = |p: &str, n: &str| Some((p.to_string(), n.to_string()));
+    assert_eq!(steps("clap -> clap -> todo black flash"), vec![m("todo_kit", "boogie woogie"), m("todo_kit", "boogie woogie"), m("todo_kit", "black flash")]);
+    assert_eq!(steps("gojo blue then gojo red then hollow purple").len(), 3);
+    assert_eq!(steps("hisoka bungee gum -> hisoka bungee snap"), vec![m("hisoka_kit", "bungee gum"), m("hisoka_kit", "bungee snap")]);
+    assert_eq!(steps("nobara nail into resonance"), vec![m("nobara_kit", "nail"), m("nobara_kit", "resonance")]);
+    assert_eq!(steps("deku full cowl > deku detroit smash > deku ultimate").len(), 3);
+    assert_eq!(steps("edward elric pillar -> bakugo howitzer impact"), vec![m("edward_kit", "alchemy pillar"), m("bakugo_kit", "howitzer impact")]);
+}

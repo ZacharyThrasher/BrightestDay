@@ -15,12 +15,17 @@ use super::live::ToolboxFx;
 use crate::world::World;
 
 impl World {
-    pub(crate) fn op_warp_to(&mut self, i: usize, range: f32, cone: f32, behind: f32) -> Result<(), PowerError> {
+    pub(crate) fn op_warp_to(&mut self, i: usize, range: f32, cone: f32, behind: f32, line: bool) -> Result<(), PowerError> {
         let Some(k) = self.toolbox_target(i, range, cone, false) else { return Err(PowerError::NoTarget) };
         let id = self.players[i].id;
         let q = &self.players[k];
-        let face = Vec3::new(q.look().x, 0.0, q.look().z).normalize_or(Vec3::Z);
-        let want = q.mv.pos - face * behind.clamp(-4.0, 6.0);
+        // `line`: measured along your own line to them (you arrive facing them); else from their facing.
+        let want = if line {
+            let d = q.mv.pos - self.players[i].mv.pos;
+            q.mv.pos - Vec3::new(d.x, 0.0, d.z).normalize_or(Vec3::Z) * behind.clamp(-4.0, 6.0)
+        } else {
+            q.mv.pos - Vec3::new(q.look().x, 0.0, q.look().z).normalize_or(Vec3::Z) * behind.clamp(-4.0, 6.0)
+        };
         let Some(to) = self.toolbox_spot(i, want) else { return Err(PowerError::NoTarget) };
         let from = self.players[i].mv.pos;
         self.toolbox_teleport(i, to);

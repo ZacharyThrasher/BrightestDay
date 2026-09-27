@@ -44,10 +44,10 @@ impl World {
     pub(crate) fn op_zone(&mut self, i: usize, spec: ZoneSpec) -> Result<(), PowerError> {
         let id = self.players[i].id;
         let spec = ZoneSpec {
-            radius: spec.radius.clamp(1.0, 24.0),
-            secs: spec.secs.clamp(0.2, MAX_SECS),
-            slow: spec.slow.clamp(0.0, 0.9),
-            dps: spec.dps.clamp(0.0, 20.0),
+            radius: super::fclamp(spec.radius, 1.0, 24.0),
+            secs: super::fclamp(spec.secs, 0.2, MAX_SECS),
+            slow: super::fclamp(spec.slow, 0.0, 0.9),
+            dps: super::fclamp(spec.dps, 0.0, 20.0),
             ..spec
         };
         let at = if spec.follow { At::Me } else { spec.at };

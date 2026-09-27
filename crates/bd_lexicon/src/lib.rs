@@ -268,6 +268,14 @@ impl Lexicon {
         self.powers.iter().map(|p| p.id.as_str()).collect()
     }
 
+    /// TOOLBOX chains: the phrase reads as one clean THING on its own — a construct (or a grant) the
+    /// ring fully understood, not a bare modifier ("a big" as a size graft), not a guess ("a big" as
+    /// a Wikidata alias at 0.74), not an improvisation. A comma / "and" / "into" only splits a line
+    /// into chain steps when every piece is a move or such a thing.
+    pub fn is_clean_thing(res: &Resolution) -> bool {
+        res.recipe.grants.is_some() || (res.kind == ResolutionKind::Construct && !Self::is_fallback(res) && res.confidence >= 0.9)
+    }
+
     /// True when the ring had to improvise: nothing (or only part) of the phrase was understood. The
     /// game logs these to `logs/unresolved.txt` so playtests grow the vocabulary. Never means "no".
     pub fn is_fallback(res: &Resolution) -> bool {

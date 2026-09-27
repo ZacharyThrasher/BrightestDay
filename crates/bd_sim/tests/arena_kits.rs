@@ -296,8 +296,8 @@ fn reinhardt_charge_pins_and_carries_into_the_wall() {
 fn doomfist_punch_launches_them_into_a_wall_splat() {
     let mut w = duel();
     stand(&mut w, B, 0.0, -4.0);
-    wall(&mut w, Vec3::new(-4.0, GROUND, -11.5), Vec3::new(4.0, GROUND + 6.0, -12.5));
-    w.player_mut(B).unwrap().damage_pct = 60.0;
+    // A thick wall (a hurt body at speed plows through thin stone: the smash punch-through).
+    wall(&mut w, Vec3::new(-4.0, GROUND, -9.5), Vec3::new(4.0, GROUND + 6.0, -16.0));
     let mut evs = say(&mut w, A, "doomfist punch");
     evs.extend(run(&mut w, 120));
     assert!(evs.iter().any(|e| matches!(e, GameEvent::WallSplat { player, .. } if *player == B)), "punched into the wall");
@@ -334,23 +334,3 @@ fn get_over_here_drags_them_in_for_the_uppercut() {
     assert!(pct(&w, B) >= 15.0, "spear + uppercut: {}", pct(&w, B));
 }
 
-#[test]
-#[ignore = "debug print"]
-fn debug_doomfist_punch() {
-    let mut w = duel();
-    stand(&mut w, B, 0.0, -4.0);
-    wall(&mut w, Vec3::new(-4.0, GROUND, -11.5), Vec3::new(4.0, GROUND + 6.0, -12.5));
-    w.player_mut(B).unwrap().damage_pct = 60.0;
-    say(&mut w, A, "doomfist punch");
-    for t in 0..60 {
-        let evs = w.tick(&[]).to_vec();
-        let b = w.player(B).unwrap();
-        let a = w.player(A).unwrap();
-        eprintln!("{t} A {:?} B {:?} vel {:?} pct {}", a.mv.pos, b.mv.pos, b.mv.vel, b.damage_pct);
-        for e in &evs {
-            if matches!(e, GameEvent::Hit { .. } | GameEvent::WallSplat { .. } | GameEvent::Power(_)) {
-                eprintln!("   {e:?}");
-            }
-        }
-    }
-}

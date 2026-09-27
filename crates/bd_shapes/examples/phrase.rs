@@ -315,7 +315,7 @@ impl Tool {
             R::Borrow(_) if self.lex.resolve(s).recipe.grants.is_some() => R::Plain,
             r => r,
         };
-        let understood = |s: &str| !Lexicon::is_fallback(&self.lex.resolve(s));
+        let understood = |s: &str| Lexicon::is_clean_thing(&self.lex.resolve(s));
         let parts = split_chain_with(text, &|s| read(s).is_move(), Some(&understood));
         if parts.len() == 1 && !read(&parts[0]).is_move() {
             return None;

@@ -32,16 +32,16 @@ impl World {
 
     pub(crate) fn op_counter(&mut self, i: usize, secs: f32, damage: f32, knockback: f32, up: f32, element: Element) -> Result<(), PowerError> {
         let id = self.players[i].id;
-        let secs = secs.clamp(0.05, MAX_SECS);
+        let secs = super::fclamp(secs, 0.05, MAX_SECS);
         let guard = damage <= 0.0 && knockback <= 0.0;
         let s = self.stance_mut(i);
         if guard {
             s.guard = s.guard.max(secs);
         } else {
             s.counter = secs;
-            s.c_damage = damage.clamp(0.0, 60.0);
-            s.c_knockback = knockback.clamp(0.0, 80.0);
-            s.c_up = up.clamp(0.0, 2.0);
+            s.c_damage = super::fclamp(damage, 0.0, 60.0);
+            s.c_knockback = super::fclamp(knockback, 0.0, 80.0);
+            s.c_up = super::fclamp(up, 0.0, 2.0);
             s.c_element = element;
         }
         let kind = if guard { StanceKind::Guard } else { StanceKind::Counter };

@@ -72,7 +72,7 @@
         name: "Poseidon",
         kind: Kit,
         fx: "water",
-        names: ["poseidon", "neptune", "the earthshaker", "earthshaker", "earth shaker", "god of the sea", "poseidon god of the sea",
+        names: ["poseidon", "neptune", "the earthshaker", "god of the sea", "poseidon god of the sea",
                 "posiedon", "poseiden", "posidon", "poseidan", "posseidon", "king of the sea"],
         shouts: [("tsunami", 1), ("poseidon tidal wave", 1), ("poseidon's wrath", 1), ("wrath of the sea", 1), ("wrath of poseidon", 1),
                  ("earthquake of poseidon", 2), ("shake the earth", 2), ("earth shaking", 2),
@@ -1171,10 +1171,10 @@
     // She chooses you: grabbed, carried up into the sky and dropped.
     (
         id: "myth_valkyrie",
-        name: "Valkyrie",
+        name: "Valkyrie of Valhalla",
         kind: Kit,
         fx: "holy",
-        names: ["valkyrie", "valkyries", "valkyr", "valkyrja", "shield maiden", "shieldmaiden", "shield-maiden", "brynhild", "brunhilde",
+        names: ["valkyries", "valkyr", "valkyrja", "shield maiden", "shieldmaiden", "shield-maiden", "brynhild", "brunhilde",
                 "valkerie", "valkyrie maiden"],
         shouts: [("choose the slain", 0), ("chooser of the slain", 0), ("take them to valhalla", 0), ("carried to valhalla", 0),
                  ("valkyrie dive", 1), ("valkyrie strike", 1),
@@ -1587,7 +1587,7 @@
         names: ["horus", "heru", "horus the falcon", "the falcon god", "falcon god", "horus god of the sky", "horace the falcon",
                 "harpocrates", "hor"],
         shouts: [("harpoon of horus", 0), ("horus harpoon", 0),
-                 ("falcon dive", 1), ("dive of the falcon", 1),
+                 ("dive of the falcon", 1),
                  ("wings of horus", 2), ("eye of horus", 3), ("wedjat", 3), ("the wedjat eye", 3), ("udjat", 3)],
         moves: [
             // The harpoon: it flies, bites, and reels them in. -> ends with them at your feet.
