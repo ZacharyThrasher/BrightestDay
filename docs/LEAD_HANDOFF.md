@@ -50,7 +50,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
   (currently 0xd1a37fca9b34c73d failing — cause is juggle or casino edits).
 - Signature a67f94557763852e1 — ENERGY ATTACKS = HAND BEAMS (final flash/kamehameha/galick… no gun
   model; 2-hand charge orb + palm beam 1P/3P; canonical title when recognised).
-- Intent aafbfbcb5ee31d5c1 — name targeting bug ("drop a meteor on ethan"), whisper bias w/ player
+- Intent aafbfbcb5ee31d5c1 DONE (committed) — name targeting bug ("drop a meteor on ethan"), whisper bias w/ player
   names, delivery verbs, ~1,000-phrase golden corpus, stage order, local logs/intent.log + intent_report.
 - Giants a01a81cbdbb91cd1e — weak points, tether+ride giants (moving platforms), limb sever/topple,
   dodgeable attacks, summoner command; optional hijack.

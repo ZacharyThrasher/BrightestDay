@@ -25,6 +25,8 @@ struct PowersDev {
     look: Option<(f32, f32, f32)>,
     base: Option<(f32, bd_core::Vec3)>,
     refill: bool,
+    /// Commands from the plan, sent by `dev_world` (the Caster owns the SimCommand writer).
+    queue: Vec<SimCommand>,
 }
 
 pub fn build(app: &mut App) {
@@ -52,7 +54,16 @@ fn plan() -> &'static [(f32, String, String)] {
 }
 
 /// World side: start (bots stand down), the held look, pinned bots, willpower top-ups.
-fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut look: ResMut<crate::input::LookAngles>, mut dev: ResMut<PowersDev>) {
+fn dev_world(
+    time: Res<Time<Real>>,
+    active: Option<ResMut<ActiveWorld>>,
+    mut look: ResMut<crate::input::LookAngles>,
+    mut dev: ResMut<PowersDev>,
+    mut cmds: MessageWriter<SimCommand>,
+) {
+    for c in dev.queue.drain(..) {
+        cmds.write(c);
+    }
     let Some(mut active) = active else { return };
     dev.t += time.delta_secs();
     let Some(me) = active.local_player().map(|p| (p.id, p.mv.pos, p.alive)) else { return };
@@ -105,7 +116,7 @@ fn dev_world(time: Res<Time<Real>>, active: Option<ResMut<ActiveWorld>>, mut loo
 }
 
 /// Plan side: the commands (the local player's phrases go through the real ring path).
-fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut caster: crate::console::Caster, mut cmds: MessageWriter<SimCommand>) {
+fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut caster: crate::console::Caster) {
     let Some(active) = active else { return };
     let plan = plan();
     if !dev.started {
@@ -147,13 +158,13 @@ fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut ca
         let send = |c: Cmd| if is_me { SimCommand::local(c) } else { SimCommand::remote(id, c) };
         info!("powers test {:.2}: {who} {cmd}", dev.t);
         if let Some(key) = cmd.strip_prefix("!grant ") {
-            cmds.write(send(Cmd::GrantPower(key.trim().to_string())));
+            dev.queue.push(send(Cmd::GrantPower(key.trim().to_string())));
         } else if let Some(s) = cmd.strip_prefix("!move ").and_then(|s| s.trim().parse::<u8>().ok()) {
-            cmds.write(send(Cmd::PowerMove(s, aim)));
+            dev.queue.push(send(Cmd::PowerMove(s, aim)));
         } else if let Some(t) = cmd.strip_prefix("!tier ").and_then(|s| s.trim().parse::<u8>().ok()) {
-            cmds.write(send(Cmd::PowerMove(move_sel::select(0, t), aim)));
+            dev.queue.push(send(Cmd::PowerMove(move_sel::select(0, t), aim)));
         } else if cmd == "!swap" {
-            cmds.write(send(Cmd::PowerMove(move_sel::CYCLE, aim)));
+            dev.queue.push(send(Cmd::PowerMove(move_sel::CYCLE, aim)));
         } else if is_me {
             caster.cast(cmd, false, 0);
         }

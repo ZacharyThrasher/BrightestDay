@@ -448,7 +448,20 @@ fn place_palms(
             spawn(&mut commands, &assets.sphere, &m[2]),
         ];
         debug!("palm beam: {owner:?} {:.1} m, radius {radius:.2}, {secs:.2} s", from.distance(end));
-        f.beams.push(Beam { owner, construct, end, color, radius, dur: secs, t: 0.0, parts: parts_e, mats: m, spark: 0.0, ring: 1.0, mine });
+        f.beams.push(Beam {
+            owner,
+            construct,
+            end,
+            color,
+            radius,
+            dur: secs,
+            t: 0.0,
+            parts: parts_e,
+            mats: m,
+            spark: 0.0,
+            ring: 1.0,
+            mine,
+        });
         // Juice: the caster's kick (the viewmodel thrusts), everyone near feels it.
         let k = (radius / 1.1).clamp(0.2, 1.0);
         if mine {
